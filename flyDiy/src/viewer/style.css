@@ -46,62 +46,26 @@
     #bootBar i { animation:none; width:100%; }
   }
 
-  /* ---- overlay: two thin bars, telemetry floats above the bottom one ---- */
-  #ui { position:fixed; inset:0; padding:14px; pointer-events:none;
-    display:flex; flex-direction:column; justify-content:space-between; }
-  .panel { background:var(--glass); border:1px solid var(--edge); border-radius:12px;
-    backdrop-filter:blur(18px) saturate(1.2); -webkit-backdrop-filter:blur(18px) saturate(1.2);
-    box-shadow:0 10px 34px rgba(28,16,4,.20); }
-
-  /* ---- top bar: aircraft card | phase rail | PFD ---- */
-  #top { display:grid; grid-template-columns:minmax(0,auto) 1fr minmax(0,auto);
-    grid-template-areas:"card rail pfd"; align-items:start; gap:10px; }
-  #card { grid-area:card; padding:9px 13px 10px; max-width:250px; }
-  #brand { display:block; font:600 8.5px/1 'IBM Plex Mono', monospace;
-    letter-spacing:.24em; text-transform:uppercase; color:var(--faint); margin-bottom:5px; }
-  #acName { display:block; font:600 12.5px/1.25 'IBM Plex Mono', monospace;
-    letter-spacing:.10em; text-transform:uppercase; }
-  #acSpec { display:block; font:400 10px/1.5 'IBM Plex Mono', monospace;
-    color:var(--dim); margin-top:3px; font-variant-numeric:tabular-nums; }
-  #rail { grid-area:rail; justify-self:center; display:flex; align-items:center;
-    gap:12px; padding:10px 15px; max-width:100%; }
-  #phName { font:600 10.5px/1 'IBM Plex Mono', monospace; letter-spacing:.18em;
-    color:var(--amber); white-space:nowrap; }
-  #track { display:flex; gap:4px; align-items:flex-end; }
-  #track i { width:4px; height:9px; border-radius:1px; background:rgba(255,234,206,.20);
-    transition:background .3s, height .3s; }
-  #track i.done { background:rgba(255,234,206,.55); }
-  #track i.now { background:var(--amber); height:15px; }
-  #pfd { grid-area:pfd; justify-self:end; display:flex; gap:20px; padding:9px 15px 10px; }
-  .rd { text-align:right; }
-  .rd b { display:block; font:600 26px/1.05 'IBM Plex Mono', monospace;
-    font-variant-numeric:tabular-nums; letter-spacing:-.01em; }
-  .rd i { font-style:normal; font-size:9px; letter-spacing:.15em; text-transform:uppercase;
-    color:var(--dim); }
-
-  /* ---- middle band: minimap floats right, under the PFD (W13) ----
-     click toggles small/large; the map's top-right chip toggles N-up/nose-up */
-  #mid { flex:1; display:flex; justify-content:flex-end; align-items:flex-start;
-    padding-top:10px; min-height:0; }
-  /* UV projection: the mesh's texture space, drawn flat. Off by default —
-     this is a diagnostic, and it is the only way to SEE what a parameterisation
-     is doing to a decal or a livery before it is on the aeroplane. */
-  #uvp { display:none; padding:5px; margin-right:8px; flex-direction:column; gap:4px; }
-  #uvp.show { display:flex; }
-  #uvc { display:block; width:236px; height:236px; border-radius:9px;
-    background:rgba(20,14,10,.55); }
-  #uvleg { font:500 8px/1.4 'IBM Plex Mono', monospace; letter-spacing:.04em;
-    color:var(--dim); max-width:236px; }
-  #mmp { padding:5px; }
-  #mm { display:block; width:172px; height:172px; border-radius:9px;
-    pointer-events:auto; cursor:pointer; }
-  #mmp.big #mm { width:min(74vmin, 520px); height:min(74vmin, 520px); }
+  /* ---- THE FLIGHT HUD LEFT THIS FILE (the flight-interface rebaseline).
+     It lives in src/viewer/flight.css, scoped entirely under #ui, for the
+     same reason the editor's left at G77: it is a different design, the
+     screen shows one or the other, and one sheet is where two sessions on
+     two surfaces are guaranteed to collide.
+     What went with it: #ui's own box, .panel, #top, #card, #brand, #acName,
+     #acSpec, #rail, #phName, #track, #pfd, .rd, #mid, #mmp, #mm, #south,
+     #bottom, .hudSec, .hudLbl, #grp, #hint, #credit, #telp, #grid, .cell,
+     #legend, #arrCard and the phone media query that laid them out — the
+     amber-on-glass palette in IBM Plex Mono, which is the typeface the
+     editor dropped on purpose.
+     WHAT STAYS HERE is what is about the GAME and not about the flight
+     screen: the fonts, the boot splash, the canvas, and the GARAGE PANEL's
+     own controls below (garage.js still builds .ggrp/.gsec/.grow rows, and
+     the `button, select` base under them). --amber and --cyan stay declared
+     because the load-test viz still plots in them. ---- */
 
   /* The GARAGE panel that lived here (chantier G1) is gone: its rows went at
      G35 with the old editor, and its BUILDS bar went into the editor panel at
      G63 as THE SHELF. See #edShelf, down with the rest of #edWrap. */
-  /* the two single-glyph verbs are square so they read as a pair */
-  #gSaveAs, #gDel { padding:4px 6px; font-size:11px; }
   /* ROLL OUT: the commit. Full width above the sections, because it is the one
      action that applies to the whole aeroplane rather than to a part. */
   #gRoll { width:100%; margin-bottom:9px; padding:9px 12px; font-size:10px; }
@@ -201,9 +165,9 @@
   .gnote { margin-top:6px; font:400 8.5px/1.4 'IBM Plex Sans'; letter-spacing:.03em;
     color:var(--faint); }
 
-  /* ---- south: telemetry (on demand) stacked above the control bar ---- */
-  #south { display:flex; flex-direction:column; align-items:flex-start; gap:8px; }
-  #bottom { display:flex; align-items:center; gap:8px; flex-wrap:wrap; align-self:stretch; }
+  /* the bar's three labelled groups (#south, #bottom, .hudSec, .hudLbl)
+     went with the bar: the brief's four slots are those decisions now. */
+
   button, select { pointer-events:auto; font:500 11px/1 'IBM Plex Sans';
     letter-spacing:.10em; text-transform:uppercase; color:var(--ink); cursor:pointer;
     border:1px solid var(--edge); background:var(--ctl); padding:11px 15px; border-radius:9px;
@@ -219,60 +183,11 @@
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='6'%3E%3Cpath d='M1 1l3.5 3.5L8 1' fill='none' stroke='%23d3c3ae' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E");
     background-repeat:no-repeat; background-position:right 12px center; }
   select option { background:#2a2018; color:var(--ink); text-transform:none; }
-  /* segmented fly/reset/pause group: one glass container, hairline dividers */
-  #grp { pointer-events:auto; display:flex; border:1px solid var(--edge); border-radius:9px;
-    background:var(--ctl); backdrop-filter:blur(18px) saturate(1.2);
-    -webkit-backdrop-filter:blur(18px); overflow:hidden; }
-  #grp button { border:0; border-radius:0; background:transparent; backdrop-filter:none;
-    -webkit-backdrop-filter:none; }
-  #grp button + button { border-left:1px solid var(--edge); }
-  #grp button.pri { background:var(--amber); }
-  #grp button.pri:hover { background:#ffc47b; }
-  #grp button:not(.pri):hover { background:var(--ctl-hi); }
-  #hint { margin-left:auto; align-self:center; font:400 10px/1.6 'IBM Plex Mono', monospace;
-    letter-spacing:.10em; color:rgba(251,244,234,.62); text-align:right;
-    text-shadow:0 1px 8px rgba(30,16,4,.6); }
-  #credit { margin-left:auto; align-self:center; font:400 9px/1.6 'IBM Plex Mono', monospace;
-    letter-spacing:.06em; color:rgba(251,244,234,.38); text-align:right;
-    text-shadow:0 1px 8px rgba(30,16,4,.6); }
-  #credit + #hint { margin-left:14px; }
+  /* #grp was the segmented fly/reset/pause group — the verbs are at the far
+     right of the top row now. #hint is shown once on the first flight
+     (#flHint) and #credit is in the workshop's information panel, because a
+     credit is not a HUD element. */
 
-  /* ---- telemetry: strictly on demand, in flow above the control bar ---- */
-  #telp { display:none; padding:13px 15px 14px; width:min(556px, calc(100vw - 28px)); }
-  #telp.show { display:block; }
-  #telp header { display:flex; justify-content:space-between; align-items:baseline;
-    margin-bottom:9px; gap:16px; }
-  #telp h2 { font:600 10px/1 'IBM Plex Sans'; letter-spacing:.18em; text-transform:uppercase;
-    color:var(--dim); }
-  #tsum { font:500 11px/1.3 'IBM Plex Mono', monospace; color:var(--amber); text-align:right; }
-  #tel { display:block; width:100%; height:auto; aspect-ratio:1052/264; }
-  #grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:7px 14px; margin-top:11px; }
-  .cell { display:flex; justify-content:space-between; align-items:baseline;
-    font:400 11px/1 'IBM Plex Mono', monospace; border-bottom:1px solid rgba(255,234,206,.10);
-    padding-bottom:5px; font-variant-numeric:tabular-nums; }
-  .cell span { font-size:9.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--faint); }
-  .cell b { font-weight:500; }
-  #legend { display:flex; gap:16px; margin-top:11px; font-size:9.5px; letter-spacing:.12em;
-    text-transform:uppercase; color:var(--faint); }
-  #legend em { font-style:normal; display:inline-flex; align-items:center; gap:6px; }
-  #legend i { width:16px; height:2px; border-radius:2px; }
-
-  /* ---- phone: rail gets its own row; everything tightens; no overlap ---- */
-  @media (max-width:760px) {
-    #ui { padding:10px; }
-    #top { grid-template-columns:minmax(0,1fr) auto; gap:8px;
-      grid-template-areas:"card pfd" "rail rail"; }
-    #card { justify-self:start; }
-    #rail { justify-self:stretch; justify-content:center; padding:8px 12px; }
-    .rd b { font-size:19px; }
-    #pfd { gap:14px; padding:8px 12px 9px; }
-    #hint, #credit { display:none; }
-    #grid { grid-template-columns:repeat(2, 1fr); }
-    #telp { width:calc(100vw - 20px); }
-    #mm { width:118px; height:118px; }
-    #mmp.big #mm { width:min(82vmin, calc(100vw - 40px));
-      height:min(82vmin, calc(100vw - 40px)); }
-  }
   @media (prefers-reduced-motion: reduce) {
     * { transition:none !important; }
   }
@@ -282,31 +197,11 @@
    src/viewer/editor.css — the whole panel was redrawn (design option 9b)
    and the bench palette it used to bring in (blue on slate, monospace) sat
    next to the game's amber on one screen, which is half of what made the
-   editor unreadable. What stays here is what is about the GAME: the flight
-   HUD, the boot splash, the aircraft card, and the one rule below, which is
-   about a button on the game's own bottom bar. */
-/* ROLL OUT UNTESTED (G65). Amber, never disabled: it is your aeroplane,
-   and building it wrong and learning why is content, not error. The button
-   says what it knows and then gets out of the way. */
-#bGo.warn { color:#ffc46b; border-color:#ffc46b66; background:#ffc46b14; }
-
-  /* ---- THE ARRIVAL CARD (G107.2): the flight's ending, over the strip ---- */
-  #arrCard { position:fixed; left:50%; bottom:120px; transform:translateX(-50%);
-    min-width:300px; max-width:420px; padding:14px 18px 13px;
-    pointer-events:auto; z-index:30; }
-  #arrCard[hidden] { display:none; }
-  #arrCard #arrTitle { display:block; font:600 15px/1.2 'IBM Plex Sans';
-    letter-spacing:.06em; color:var(--ink); margin-bottom:8px; }
-  #arrCard.bad #arrTitle { color:var(--amber); }
-  #arrCard #arrRows div { display:flex; justify-content:space-between; gap:18px;
-    font:400 11.5px/1.7 'IBM Plex Sans'; }
-  #arrCard #arrRows span { color:var(--faint); }
-  #arrCard #arrRows b { color:var(--ink); font-weight:500;
-    font-variant-numeric:tabular-nums; }
-  #arrCard #arrNotes { margin-top:7px; }
-  #arrCard #arrNotes:empty { display:none; }
-  #arrCard #arrNotes i { display:block; font:400 10.5px/1.5 'IBM Plex Sans';
-    font-style:normal; color:var(--dim); border-top:1px solid var(--line);
-    padding-top:5px; margin-top:4px; }
-  #arrCard #arrBtns { display:flex; gap:8px; margin-top:11px; }
-  #arrCard #arrBtns button { flex:1; padding:7px 0; }
+   editor unreadable. THE FLIGHT HUD FOLLOWED IT at the flight rebaseline
+   and lives in src/viewer/flight.css. What is left in this file is the
+   fonts, the boot splash, the canvas and the garage panel's own rows. */
+/* #bGo.warn (G65) went with the bottom bar. The bench's verdict is a
+   NOTICE PLATE under the brief now — a sentence with one job, rather than
+   a meaning encoded in the colour of the button you were about to press.
+   ROLL OUT is still never disabled and still changes its WORDS; that half
+   is syncGoLabel's, and the editor's own verb wears it. */

@@ -265,7 +265,9 @@ function genLattice(S, gearX, track, kScale) {
 
   // ---- 2. engine ------------------------------------------------------
   sec('engines');
-  const PP = POWERPLANTS[S.engine];
+  // G134: the resolved spec's own powerplant row — custom dials outrank the
+  // registry preset; same shape either way (see resolveSpec's S.pplant).
+  const PP = S.pplant || POWERPLANTS[S.engine];
   const [EL, ER] = NM(S.engX, S.engY, 0.55 * cab.halfW, 'ENG');
   B(EL, ER, 'fus');
   B(EL, F[0].TL, 'fus'); B(EL, F[0].BL, 'fus'); B(EL, F[0].BR, 'fus');
@@ -302,23 +304,26 @@ function genLattice(S, gearX, track, kScale) {
       if (zs[i] - zs[i - 1] < 0.12) zs.splice(zs[i] === zCrank ? i - 1 : i, 1);
   }
   // the planform, tip bow included. One function, so the ribs, the covering,
-  // the strips and the outline cannot disagree about where the wing is.
-  const linC = z => w.chord * (1 - (1 - w.taper) * (z - zRoot) / Math.max(1e-6, G.semi - zRoot));
+  // the strips and the outline cannot disagree about where the wing is —
+  // G140: and that one function is genPlanLaw's, shared with resolveSpec's
+  // area/MAC/bow derivation, so the sheet and the structure agree too.
+  const LAW = genPlanLaw(w, zRoot, G.semi);
+  const linC = LAW.cAt;             // structural chord (box depth reads this)
   const chordAt = z => {
-    if (!(w.tipR > 1e-6) || z <= w.tipZ) return linC(Math.min(z, G.semi));
+    if (!(w.tipR > 1e-6) || z <= w.tipZ) return LAW.cAt(Math.min(z, G.semi));
     const u = Math.min(1, (z - w.tipZ) / w.tipR);
     return w.tipC * Math.sqrt(Math.max(0, 1 - u * u));
   };
   const sparFront = R.sparFront, sparRear = R.sparRear;
   const sparSpacing = (sparRear - sparFront) * w.chord;
   const xF = w.xLE + sparFront * w.chord, xR = w.xLE + sparRear * w.chord;
-  // SWEEP: both spars walk aft with span. Measured from the root, so the root
-  // rib, the strut anchor and the carry-through all stay exactly where they
-  // were and only the outboard structure moves — which is what lets sweep be a
-  // balance knob rather than a redesign.
-  const swpT = Math.tan((w.sweep || 0) * D);
-  const xFat = z => xF + (z - zRoot) * swpT;
-  const xRat = z => xR + (z - zRoot) * swpT;
+  // THE SECTION WALK: both spars move together with the station's own
+  // fore/aft offset — the legacy tan(sweep) line verbatim when the station
+  // fields are null, the piecewise root->crank->tip walk when set. Measured
+  // from the root either way, so the root rib, the strut anchor and the
+  // carry-through stay exactly where they were.
+  const xFat = z => xF + LAW.xoff(z);
+  const xRat = z => xR + LAW.xoff(z);
   const dih = Math.tan(w.dihedral * D);
   const incAt = z => (w.incidence - w.washout * (z - zRoot) / Math.max(1e-6, G.semi - zRoot)) * D;
   // WHERE THE WING MEETS THE FUSELAGE. High sits on the top longerons, low
@@ -333,21 +338,21 @@ function genLattice(S, gearX, track, kScale) {
   // a strut is only a brace if its anchor is far enough from the wing — see
   // GEN_RULES.strutMinOffset. Otherwise build the box instead.
   const strutOffset = Math.abs(wingY0 - (attachHi ? 0 : cab.h));
-  // A CRANKED WING CANNOT BE STRUT-BRACED either, for the same reason and with
-  // the same cure (2026-08-11, GATE FLEX matrix). A crank INSERTS a spar
-  // station, so the fan leaves the outer panel unbraced exactly as panels 4-5
-  // did — measured, the jodel-crank preset read 22.95 deg @200 N.m at a
-  // doubling ratio of 1.34x, the WORST corner in the whole configuration space
-  // and worse than panels 5 ever was. And it cannot be cured by extending the
-  // fan: a stiff member from the pod bottom to a station 14 deg up the outer
-  // panel re-rigs the aeroelastics of nodes that carry strip force (rule 10),
-  // and the aeroplane stopped completing a circuit.
-  // The outer panel of a cranked wing wants a box, which is what the real
-  // aeroplane this planform comes from actually has — the Jodel fiche is a
-  // cantilever. Substituted, it measures 2.76 / 5.39 at 1.95x and flies.
-  // Same shape of rule as strutMinOffset, and visible the same way: the panel
-  // reports `bracing: cantilever box` so the substitution is never silent.
-  const useStrut = w.strut && strutOffset >= R.strutMinOffset && !(w.crankAt > 0);
+  // G140: A CRANKED WING CAN BE STRUT-BRACED — WHEN THE STRUT LANDS ON THE
+  // CRANK. The 2026-08-11 exclusion stays true for what it measured: a fan
+  // reaching PAST the crank read 22.95 deg @200 N.m at 1.34x (the worst
+  // corner in the configuration space), and extending it re-rigged the
+  // aeroelastics of strip-force nodes (rule 10) until the aeroplane stopped
+  // completing a circuit. Nothing reaches past the crank now: the crank
+  // station IS the strut station (the user's ruling — "constrain the crank
+  // point to the strut if there's one, free if not"), the fan braces the
+  // inner panel only, and the OUTER panel gets the cantilever box from the
+  // crank outward — which is the C172's own construction, crank at the
+  // strut. An uncranked strutted wing is byte-identical to before; a
+  // cranked cantilever keeps its full box; the hybrid is measured by GATE
+  // FLEX's new row, and the panel reports `strut + boxed outer` so the
+  // construction is never silent.
+  const useStrut = w.strut && strutOffset >= R.strutMinOffset;
   // dihedral is piecewise across the crank: flat (or shallow) inboard, steeper
   // outboard. Without a crank both halves use the same angle and this is the
   // straight line it always was.
@@ -447,18 +452,33 @@ function genLattice(S, gearX, track, kScale) {
     }
     let cFB = null, cRB = null;
     sec('bracing');
+    // G140: where the visible strut lands. Uncranked: the first interior
+    // station, exactly as always. Cranked: THE CRANK — the crank station is
+    // the strut station now (zCrank was inserted into zs, so it is findable
+    // by value), which is what keeps every brace member inboard of the break.
+    const iStrut = zCrank > 0
+      ? Math.max(0, zs.findIndex(z2 => Math.abs(z2 - zCrank) < 1e-9))
+      : (WF.length > 1 ? 1 : 0);
     if (useStrut) {
       // rule 1: SPAR BOX ALWAYS. This wing has no full-depth box, so the
       // barrier against snap-through fold is the strut anchor a full cabin
       // height below the wing — the Cub geometry, and the only reason a
       // planar two-spar wing survives at all.
-      // The two members to the mid station are the REAL lift struts and are
+      // The two members to the strut station are the REAL lift struts and are
       // the only ones drawn; the rest of the fan is the lumped stand-in for a
       // spar box this planar wing does not have, so it lives under the fabric.
-      const mid = WF.length > 1 ? 1 : 0;
-      B(strutRoot, WF[mid], 'wing', true);
-      B(strutRoot, WR[mid], 'wing', true);
-      for (const t of [WF[0], WR[0], WF[WF.length-1], WR[WR.length-1]])
+      B(strutRoot, WF[iStrut], 'wing', true);
+      B(strutRoot, WR[iStrut], 'wing', true);
+      // fan ends: station 0 always; the TIP pair only where the fan may
+      // reach it — an uncranked wing (byte-identical emissions). On a
+      // cranked wing nothing reaches past the crank; the outer panel's
+      // stiffness is the box below.
+      const ends = zCrank > 0
+        // ...and when the crank IS station 0, the real struts already hold
+        // it — a second pair would be the double-stiffness shape again
+        ? (iStrut === 0 ? [] : [WF[0], WR[0]])
+        : [WF[0], WR[0], WF[WF.length - 1], WR[WR.length - 1]];
+      for (const t of ends)
         B(strutRoot, t, 'wing');
       // ...AND EVERY STATION IN BETWEEN (2026-08-11, GATE FLEX matrix).
       // The four lines above reach exactly three stations: 0, mid=1 and the
@@ -493,7 +513,51 @@ function genLattice(S, gearX, track, kScale) {
       // gets every interior station, which is the case this block exists for.
       for (let i = 2; i < WF.length - 1; i++) {
         if (zCrank && zs[i] > zCrank + 1e-9) continue;
+        // G140: the crank station already carries the REAL struts — a fan
+        // pair on top would be the panels-2 double-stiffness case, chosen
+        if (zCrank && i === iStrut) continue;
         B(strutRoot, WF[i], 'wing'); B(strutRoot, WR[i], 'wing');
+      }
+      // G140: THE OUTER PANEL OF A CRANKED STRUTTED WING IS A BOX — the
+      // C172's construction: strut to the crank joint, cantilever box from
+      // the crank out. Same members as the full cantilever box below, built
+      // over the outer stations only; its root moment lands on the crank
+      // station, where the strut and the inner spars react it. No fuselage
+      // carry-through — that is the root box's own line, and this box's
+      // root is the crank.
+      if (zCrank > 0 && iStrut + 1 < cF.length - 0) {
+        const depth = z => R.sparBoxDepth * linC(z);
+        const zAll = [zRoot, ...zs];
+        const bs = iStrut + 1;              // cF/zAll index of the crank
+        const mkLower = (up, z, dx) =>
+          N(dx, nodes[up].p[1] - depth(z), s * z, 'WB');
+        cFB = []; cRB = [];
+        for (let i = bs; i < zAll.length; i++) {
+          const z = zAll[i];
+          cFB[i] = mkLower(cF[i], z, xFat(z));
+          cRB[i] = mkLower(cR[i], z, xRat(z));
+          B(cF[i], cFB[i], 'wing'); B(cR[i], cRB[i], 'wing');
+          B(cFB[i], cRB[i], 'wing');
+          B(cF[i], cRB[i], 'wing'); B(cR[i], cFB[i], 'wing');
+        }
+        for (let i = bs; i < zAll.length - 1; i++) {
+          B(cFB[i], cFB[i+1], 'wing'); B(cRB[i], cRB[i+1], 'wing');
+          B(cFB[i], cRB[i+1], 'wing'); B(cRB[i], cFB[i+1], 'wing');
+          B(cF[i], cFB[i+1], 'wing'); B(cFB[i], cF[i+1], 'wing');
+          B(cR[i], cRB[i+1], 'wing'); B(cRB[i], cR[i+1], 'wing');
+        }
+        // THE STRUT IS THE LOWER CHORD (G140, measured before this pair
+        // existed): the box's lower caps END at the crank, so the outer
+        // panel's bending moment had no couple arm inboard — the joint was
+        // a HINGE, the tip folded 2.4 m up in flight, and the aeroplane
+        // hovered at 1 m at full throttle while the static TORSION probe
+        // read a healthy 1.81x (bending, not twist — the instrument that
+        // catches this is the tip-lift, and GATE FLEX grew it). The real
+        // C172 closes the path exactly here: outer lower-cap tension runs
+        // into the STRUT at the crank and down to the fuselage. Two lumped
+        // members under the fabric, like the fan they extend.
+        B(strutRoot, cFB[bs], 'wing');
+        B(strutRoot, cRB[bs], 'wing');
       }
     } else {
       // CANTILEVER: no strut, so rule 1 has to be paid for properly — a real
@@ -533,7 +597,12 @@ function genLattice(S, gearX, track, kScale) {
       }
     }
     sec('wings');
-    wf[s > 0 ? 'R' : 'L'] = { F: cF, R: cR, FB: cFB, RB: cRB, strutRoot };
+    // G140: the strut's LANDING rides out with the frame — the viewer's
+    // two-end strut binding needs the exact nodes the beam runs between,
+    // and guessing "station 1" over there is how the kink bug was born
+    wf[s > 0 ? 'R' : 'L'] = { F: cF, R: cR, FB: cFB, RB: cRB, strutRoot,
+                              strutF: useStrut ? WF[iStrut] : null,
+                              strutR: useStrut ? WR[iStrut] : null };
   };
   mkWing(+1); mkWing(-1);
   // carry-through: the two spars run across the top of the cabin as one piece,
@@ -541,7 +610,10 @@ function genLattice(S, gearX, track, kScale) {
   // half-wings bolted to a fuselage.
   B(wf.L.F[0], wf.R.F[0], 'wing'); B(wf.L.R[0], wf.R.R[0], 'wing');
   B(wf.L.F[0], wf.R.R[0], 'wing'); B(wf.R.F[0], wf.L.R[0], 'wing');
-  if (wf.L.FB) {
+  // G140 guard: only a box that REACHES THE ROOT carries through — the
+  // hybrid's outer box (strut + boxed outer) starts at the crank, so its
+  // FB array is sparse below the crank index and has nothing at [0]
+  if (wf.L.FB && wf.L.FB[0] != null) {
     // a cantilever box that stops at the fuselage side is two half-boxes: the
     // lower caps have to run across as well, with their own shear diagonals
     B(wf.L.FB[0], wf.R.FB[0], 'wing'); B(wf.L.RB[0], wf.R.RB[0], 'wing');
@@ -591,6 +663,33 @@ function genLattice(S, gearX, track, kScale) {
   // ---- 5. gear --------------------------------------------------------
   sec('gear');
   spend(2 * GEN_PRICES.wheel + GEN_PRICES.thirdWheel + (ARCH.price || 0));
+  // G133: THE FAIRINGS WEIGH AND COST. Glassfibre datum: a shell's mass
+  // scales with the wheel's area (55·R² ≈ 2.2 kg at R 0.20; a trouser's
+  // deeper shell 88·R², its leg shroud included), stretched a little by the
+  // droplet; a shroud bought on its own goes by the leg's length.
+  // GEN_FAIR_MATS scales mass and price both ways. Every term is zero at
+  // the defaults, so no pre-G133 build gains a gram or a credit.
+  const FMAT = GEN_FAIR_MATS[S.gear.fairMat] || GEN_FAIR_MATS.glass;
+  const fairShellM = (f, r2, t2) => f === 'none' ? 0
+    : (f === 'full' ? 88 : 55) * r2 * r2 * (0.8 + 0.2 * (t2 || 1)) * FMAT.m;
+  const fairShroudM = l2 => 3.2 * l2 * FMAT.m;
+  const mFairMain = fairShellM(S.gear.fairing, S.gear.wheelR || 0.20,
+                               S.gear.fairTail)
+    + (S.gear.legFair === 'fair' && S.gear.fairing !== 'full'
+       ? fairShroudM(S.gear.legDrop || 0.42) : 0);
+  const mFairTw = fairShellM(S.gear.twFairing, S.gear.twR || 0.10,
+                             S.gear.twFairTail)
+    + (S.gear.twLegFair === 'fair' && S.gear.twFairing !== 'full'
+       ? fairShroudM(S.gear.twLeg || 0.20) : 0);
+  spend(FMAT.price * (
+    (S.gear.fairing === 'full' ? 2 * GEN_PRICES.trouser
+      : S.gear.fairing === 'spat' ? 2 * GEN_PRICES.spat : 0)
+    + (S.gear.legFair === 'fair' && S.gear.fairing !== 'full'
+       ? 2 * GEN_PRICES.legFair : 0)
+    + (S.gear.twFairing === 'full' ? GEN_PRICES.trouser
+      : S.gear.twFairing === 'spat' ? GEN_PRICES.spat : 0)
+    + (S.gear.twLegFair === 'fair' && S.gear.twFairing !== 'full'
+       ? GEN_PRICES.legFair : 0)));
   const gy = S.gear.y;
   const gx = gearX !== null && gearX !== undefined ? gearX : cab.noseGap * 0.9;
   const tr = track !== null && track !== undefined ? track : 5 * cab.halfW;
@@ -645,7 +744,7 @@ function genLattice(S, gearX, track, kScale) {
   // INTERNAL: under the covering it should not be visible.
   B(GAL, F[iFwd].TL, 'gear', false, 'inner');
   B(GAR, F[iFwd].TR, 'gear', false, 'inner');
-  pt(GAL, 3.5); pt(GAR, 3.5);                          // wheels, tyres, brakes
+  pt(GAL, 3.5 + mFairMain); pt(GAR, 3.5 + mFairMain);  // wheels + fairings
 
   // The third wheel. `refs.tw` is whichever it is — the solver steers that node
   // and the sign of twSteer says which end it lives at.
@@ -679,7 +778,7 @@ function genLattice(S, gearX, track, kScale) {
     B(TW, EL, 'gear', false, 'wire'); B(TW, ER, 'gear', false, 'wire');
     B(TW, F[Math.min(1, F.length-1)].BL, 'gear', false, 'wire');
     B(TW, F[Math.min(1, F.length-1)].BR, 'gear', false, 'wire');
-    pt(TW, 3.0);
+    pt(TW, 3.0 + mFairTw);
   } else {
     twX = S.gear.twX !== null && S.gear.twX !== undefined
       ? S.gear.twX : fu.postX - 0.10;
@@ -706,7 +805,7 @@ function genLattice(S, gearX, track, kScale) {
     // a snap-blocking near-vertical member, AND a wide lateral pyramid.
     B(TW, TPT, 'gear', false, 'inner');
     B(TW, HTL, 'gear', false, 'wire'); B(TW, HTR, 'gear', false, 'wire');
-    pt(TW, 2.0);
+    pt(TW, 2.0 + mFairTw);
   }
 
   // ---- 6. payload, fuel, systems --------------------------------------
@@ -796,7 +895,8 @@ function genLattice(S, gearX, track, kScale) {
     chordAt, yF, incAt, cabRear, gx, tr, twX, twY,
     ribZ,                       // G66: where the ribs the mass model billed are
 
-    bracing: useStrut ? 'strut' : 'cantilever box', strutOffset, trike,
+    bracing: useStrut ? (w.crankAt > 0 ? 'strut + boxed outer' : 'strut')
+                      : 'cantilever box', strutOffset, trike,
     ledger,
     gearAnchors: [iFwd, iAft], kScale: KS, kGear: KG,
   };

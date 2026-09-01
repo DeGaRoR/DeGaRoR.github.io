@@ -32,6 +32,20 @@
 //              differ. That second half is the whole point: if both frames sat
 //              on their wheels, a hardcoded zero would pass every test and
 //              break on the first model that did not.
+//   SYMMETRY   every payload is symmetric about z = 0, because an aeroplane
+//              is. A payload that is not has a TRANSLATED FRAME, and the split
+//              view, the span readout and the lateral slider all quietly mean
+//              something else. Caught the Super Guepard, which arrived drawn
+//              in a corner-origin frame.
+//   REF-ONLY   a payload baked by tools/ref_prep.py (`ref:1`) carries no
+//              control surfaces, records the licence and the credit of the
+//              file it came from, and — if it is in build.js MANIFEST.models,
+//              which is to say if it is INLINED INTO THE COMMITTED, SERVED
+//              index.html — that licence is one this project may publish
+//              under. Four of the nine reference aeroplanes are licensed in a
+//              way that forbids redistribution; they bake and stand in the
+//              shed, and this is what keeps them out of the artifact when
+//              somebody adds a line to build.js without reading CREDITS.md.
 //   ONE ROOT   refplane.js's own source names no writer of the spec. The
 //              2026-08-08 scope decision says "the spec is the source of truth
 //              and the mesh is never an input", and a reference overlay is the
@@ -75,28 +89,51 @@ function loadCore() {
 }
 const decodeModel = loadCore();
 
-function loadPayload(file, name) {
-  const txt = fs.readFileSync(path.join(SRC, 'models', file), 'utf8');
+function loadPayload(key) {
+  const txt = fs.readFileSync(fileOf(key), 'utf8');
   const box = {};
-  new Function('exports', txt + '\n;exports.M = ' + name + ';')(box);
+  new Function('exports', txt + '\n;exports.M = ' + globOf(key) + ';')(box);
   return box.M;
 }
 
 // ---------------------------------------------------------------------------
 // DECODE + TRUE SCALE + THE TABLE
 // ---------------------------------------------------------------------------
-const FILES = { pa18: ['pa18_model.js', 'MODEL_PA18'],
-                c172: ['c172_model.js', 'MODEL_C172'] };
+// DERIVED, not a third list. A payload's file and global name follow from its
+// model key by convention (`<key>_model.js` / `MODEL_<KEY>`), and both bakers
+// obey it. A hand-written map here would be a third place the same fact lives,
+// and the first thing to drift when a payload is added — which is exactly what
+// happened when the reference grew from two aeroplanes to nine.
+const fileOf = key => path.join(SRC, 'models', `${key}_model.js`);
+const globOf = key => 'MODEL_' + key.toUpperCase();
 const TOL = 0.015;                 // 1.5% — a model, not a drawing
+// 10 mm on a whole wingspan. Loose enough for a modeller's own hand-placed
+// wingtip (the PA-28 is 2.8 mm out and is fine), tight enough that a
+// translated frame — which is metres, not millimetres — cannot hide in it.
+const SYM_TOL = 0.010;
+
+// Licences the ARTIFACT may carry. A reference payload declares its own `lic`
+// (tools/ref_table.py copies it verbatim out of the GLB's asset.extras), and
+// anything in build.js MANIFEST.models is PUBLISHED — it is inlined into
+// index.html, which is committed and served. helijah lists three of his seven
+// under CC-BY-4.0 and four under "SKETCHFAB Standard", which does not permit
+// redistribution; baking one is fine, shipping it is not, and the difference
+// is one line in build.js. This is the check that notices.
+const PUBLISHABLE = ['CC-BY-4.0'];
 
 const measured = {};
+const payloads = {};
 for (const pre of R.REF_PRESETS) {
   if (!pre.model) continue;                       // the empty row is a row
-  const f = FILES[pre.model];
-  if (!check(!!f, `preset ${pre.key} names model '${pre.model}', which has no payload`))
+  if (!check(fs.existsSync(fileOf(pre.model)),
+             `preset ${pre.key} names model '${pre.model}', which has no ` +
+             `payload at ${path.relative(ROOT, fileOf(pre.model))}`))
     continue;
   let dec = null;
-  try { dec = decodeModel(loadPayload(f[0], f[1])); }
+  try {
+    payloads[pre.model] = loadPayload(pre.model);
+    dec = decodeModel(payloads[pre.model]);
+  }
   catch (e) { check(false, `preset ${pre.key}: decode threw — ${e.message}`); continue; }
 
   const groups = Object.keys(dec);
@@ -109,18 +146,48 @@ for (const pre of R.REF_PRESETS) {
   if (!check(!!box, `preset ${pre.key}: no bounding box`)) continue;
   measured[pre.key] = { box, nv, nt, groups: groups.length };
 
+  // SYMMETRY ABOUT z = 0 (G142). An aeroplane is symmetric, so a payload whose
+  // z extents are not equal and opposite has a TRANSLATED FRAME, not a strange
+  // aeroplane. It matters for three separate things and is invisible in all of
+  // them until you look for it: the split view cuts both machines with the one
+  // world plane z = 0, "span" is read straight off this box, and the lateral
+  // slider measures from the centreline. The Super Guepard arrived exactly
+  // like this — drawn in a corner-origin frame with its centreline at
+  // z = -4.895 — and would have stood half a wingspan to one side with its own
+  // half-cut running through a wing. The fix belongs in the bake (`off` in
+  // tools/ref_table.py), and this is what says so.
+  const asym = Math.abs(box.min[2] + box.max[2]);
+  check(asym <= SYM_TOL,
+    `${pre.key}: the payload is not symmetric about z = 0 — extents ` +
+    `${box.min[2].toFixed(4)} .. ${box.max[2].toFixed(4)} are ` +
+    `${asym.toFixed(4)} m out of balance, i.e. its centreline sits at ` +
+    `z = ${((box.min[2] + box.max[2]) / 2).toFixed(4)}. That is a translated ` +
+    'frame; declare an `off` on its tools/ref_table.py row rather than ' +
+    'letting the split view cut through a wing.');
+
   check(!!pre.pub, `preset ${pre.key} declares no published dimensions — ` +
         'nothing holds its scale');
   if (!pre.pub) continue;
 
+  // A ROW MAY BUY SLACK, BUT ONLY OUT LOUD. `pub.tol` widens this one check
+  // for one aeroplane whose published figures genuinely disagree with each
+  // other; a tol with no `note` saying which sources and by how much is a
+  // check quietly turned down, so it fails here.
+  const tol = pre.pub.tol != null ? pre.pub.tol : TOL;
+  check(pre.pub.tol == null || (typeof pre.pub.note === 'string' && pre.pub.note.length > 20),
+        `${pre.key} widens its scale tolerance to ${(tol * 100).toFixed(1)}% ` +
+        'but declares no `pub.note` saying why — a loosened check with no ' +
+        'reason on it is the one that rots');
+  check(tol <= 0.05, `${pre.key} buys ${(tol * 100).toFixed(1)}% of slack — ` +
+        'past 5% the check stops being a check');
   const dSpan = Math.abs(box.span - pre.pub.span) / pre.pub.span;
   const dLen = Math.abs(box.len - pre.pub.len) / pre.pub.len;
-  check(dSpan <= TOL, `${pre.key} span: model ${box.span.toFixed(3)} m vs ` +
+  check(dSpan <= tol, `${pre.key} span: model ${box.span.toFixed(3)} m vs ` +
         `published ${pre.pub.span.toFixed(2)} m — ${(dSpan * 100).toFixed(2)}% out ` +
-        `(limit ${(TOL * 100).toFixed(1)}%)`);
-  check(dLen <= TOL, `${pre.key} length: model ${box.len.toFixed(3)} m vs ` +
+        `(limit ${(tol * 100).toFixed(1)}%)`);
+  check(dLen <= tol, `${pre.key} length: model ${box.len.toFixed(3)} m vs ` +
         `published ${pre.pub.len.toFixed(2)} m — ${(dLen * 100).toFixed(2)}% out ` +
-        `(limit ${(TOL * 100).toFixed(1)}%)`);
+        `(limit ${(tol * 100).toFixed(1)}%)`);
 }
 
 // the table's own shape: unique keys, exactly one empty row, and it is first
@@ -184,9 +251,8 @@ const BASE_MIN = 1.2;           // m between the contacts: it is not a pogo stic
 function checkAttitude() {
   for (const pre of R.REF_PRESETS) {
     if (!pre.model) continue;
-    const f = FILES[pre.model];
-    if (!f) continue;
-    const dec = decodeModel(loadPayload(f[0], f[1]));
+    if (!payloads[pre.model]) continue;
+    const dec = decodeModel(payloads[pre.model]);
     const hull = R.refLowerHull(dec);
     if (!check(!!hull && hull.length >= 2,
                `${pre.key}: no lower hull — the sit has nothing to stand on`))
@@ -233,7 +299,7 @@ function checkAttitude() {
   }
   // AND THE PITCH ACTUALLY CHANGES THE DROP. If it did not, every check above
   // would pass on a formula that ignores its own argument.
-  const hullP = R.refLowerHull(decodeModel(loadPayload(FILES.pa18[0], FILES.pa18[1])));
+  const hullP = R.refLowerHull(decodeModel(payloads.pa18));
   check(Math.abs(R.refLowestY(hullP, 0) - R.refLowestY(hullP, 12.09)) > 0.05,
     'the ground attitude does not move the lowest point — refLowestY is ' +
     'ignoring its pitch, and the sit is back to dropping an authored box');
@@ -251,6 +317,71 @@ for (const k of Object.keys(measured)) {
 check(R.refMatchScale(0, 10) === null && R.refMatchScale(10, 0) === null,
   'match-a-dimension does not refuse a zero — a scale of 0 is an aeroplane ' +
   'you cannot see');
+
+// ---------------------------------------------------------------------------
+// REFERENCE-ONLY PAYLOADS, AND WHAT MAY BE PUBLISHED (G138)
+//
+// tools/ref_prep.py bakes an aeroplane that is only ever LOOKED at: no control
+// surfaces, no propeller hub, no sid tags. Two things follow, and neither is
+// safe to leave to a comment.
+//
+//   IT MUST NOT LOOK FLYABLE. A payload marked `ref:1` that grew a `surfaces`
+//   table would be half-rigged — the viewer would try to hinge something that
+//   has no sid to hinge, and the failure would be a control surface that never
+//   moves rather than an error.
+//
+//   IT MUST NOT SHIP WITHOUT A LICENCE THAT ALLOWS IT. build.js MANIFEST.models
+//   is the publish list: everything on it is inlined into index.html, which is
+//   committed and served. The payload carries the licence its source file
+//   declared, so this is a fact about the artifact rather than a promise in a
+//   table. Baking a model the licence does not let us redistribute is fine and
+//   useful — it stands in the shed locally. Shipping it is the mistake, and it
+//   is one line in build.js away at all times.
+// ---------------------------------------------------------------------------
+function checkRefPayloads(publishList) {
+  for (const key of Object.keys(payloads)) {
+    const p = payloads[key];
+    if (!p.ref) continue;                       // pa18/c172 are also flyable
+    check(!p.surfaces || !p.surfaces.length,
+      `${key} is baked reference-only (ref:1) but declares control surfaces — ` +
+      'a payload is one or the other; half-rigged is worse than either');
+    check(typeof p.lic === 'string' && p.lic.length > 0,
+      `${key} carries no \`lic\` — a reference payload records the licence of ` +
+      'the file it was baked from, or nothing downstream can tell whether it ' +
+      'may be published');
+    check(typeof p.credit === 'string' && /http/.test(p.credit),
+      `${key} carries no \`credit\` naming its source — these models are ` +
+      "someone's work and CREDITS.md is generated from nothing");
+    if (!publishList.includes(`${key}_model.js`)) continue;
+    check(PUBLISHABLE.indexOf(p.lic) >= 0,
+      `${key} is in build.js MANIFEST.models — so it is inlined into the ` +
+      `committed, served index.html — but its licence is "${p.lic}", which is ` +
+      `not one of ${PUBLISHABLE.join(', ')}. Bake it, stand it in the shed, ` +
+      'do not publish it.');
+  }
+}
+{
+  const b = fs.readFileSync(path.join(__dirname, 'build.js'), 'utf8');
+  const m = b.match(/models:\s*\[([^\]]*)\]/);
+  const list = m ? (m[1].match(/'([^']+)'/g) || []).map(s => s.slice(1, -1)) : [];
+  check(list.length > 0, 'build.js MANIFEST.models did not parse — the ' +
+        'publish list is what the licence check is about, so failing to read ' +
+        'it is a failure, not a skip');
+  checkRefPayloads(list);
+  // REPORTED, NOT ASSERTED: which presets the build actually carries. The
+  // table is the CATALOGUE of everything baked; MANIFEST.models is the subset
+  // the artifact can afford and is allowed to publish, and the panel filters
+  // its dropdown against what loaded. Requiring the two to match would turn
+  // "ship one fewer aeroplane" into a two-file edit, which is the opposite of
+  // what a single lever is for. So this line just says which is which, out
+  // loud, every run.
+  const held = R.REF_PRESETS.filter(p => p.model &&
+                                    !list.includes(`${p.model}_model.js`));
+  if (held.length)
+    console.log(`  baked but NOT in the artifact: ` +
+                held.map(p => `${p.key} (${(payloads[p.model] || {}).lic || '?'})`)
+                    .join(', '));
+}
 
 // ---------------------------------------------------------------------------
 // ONE ROOT, MECHANISED
@@ -332,12 +463,60 @@ if (process.argv.includes('--selftest')) {
       return !missed; }],
     ['match-a-dimension accepting a zero', () =>
       R.refMatchScale(0, 10) === null],
+    // ---- the reference-only payloads (G138) ----------------------------
+    ['a reference payload published under a licence that forbids it', () => {
+      const before = fail.length;
+      payloads.__t = { ref: 1, lic: 'SKETCHFAB Standard', credit: 'x http://y',
+                       surfaces: [] };
+      checkRefPayloads(['__t_model.js']);
+      const caught = fail.length > before;
+      fail.length = before; delete payloads.__t;
+      return caught; }],
+    ['the same payload BAKED but not published', () => {
+      const before = fail.length;
+      payloads.__t = { ref: 1, lic: 'SKETCHFAB Standard', credit: 'x http://y',
+                       surfaces: [] };
+      checkRefPayloads([]);                    // not on the publish list
+      const fired = fail.length > before;
+      fail.length = before; delete payloads.__t;
+      // INVERTS: baking it must be fine, or the tool cannot be used at all
+      return !fired; }],
+    ['a reference payload that grew control surfaces', () => {
+      const before = fail.length;
+      payloads.__t = { ref: 1, lic: 'CC-BY-4.0', credit: 'x http://y',
+                       surfaces: [{ name: 'aileronG' }] };
+      checkRefPayloads(['__t_model.js']);
+      const caught = fail.length > before;
+      fail.length = before; delete payloads.__t;
+      return caught; }],
+    ['a reference payload with no provenance at all', () => {
+      const before = fail.length;
+      payloads.__t = { ref: 1 };
+      checkRefPayloads([]);
+      const caught = fail.length > before;
+      fail.length = before; delete payloads.__t;
+      return caught; }],
+    ['a payload whose centreline is not at z = 0', () => {
+      // the Super Guepard as delivered: z -9.790 .. 0, centreline at -4.895
+      const asym = Math.abs(-9.790 + 0.0);
+      const fixed = Math.abs(-4.8954 + 4.8950);
+      return asym > SYM_TOL && fixed <= SYM_TOL; }],
+    ['a real modeller-scale asymmetry counting as a translated frame', () => {
+      // INVERTS: the PA-28's own 2.8 mm must NOT trip it, or the check is a
+      // demand that hand-modelled wingtips be machined
+      return Math.abs(-5.2744 + 5.2716) <= SYM_TOL; }],
+    ['a widened scale tolerance with no reason on it', () => {
+      // the shape of the check in the decode loop, run on a synthetic row
+      const bare = { pub: { span: 1, len: 1, tol: 0.03 } };
+      const noted = { pub: { span: 1, len: 1, tol: 0.03, note: 'x'.repeat(30) } };
+      const ok = p => p.pub.tol == null ||
+        (typeof p.pub.note === 'string' && p.pub.note.length > 20);
+      return !ok(bare) && ok(noted); }],
     // ---- the ground attitude ------------------------------------------
     // The three ways this can rot, each broken here so the checks above are
     // known to be able to go red rather than assumed to be.
     ['a taildragger declared level', () => {
-      const hull = R.refLowerHull(
-        decodeModel(loadPayload(FILES.pa18[0], FILES.pa18[1])));
+      const hull = R.refLowerHull(decodeModel(payloads.pa18));
       const stance = pitch => {
         const t = pitch * Math.PI / 180, c = Math.cos(t), sn = Math.sin(t);
         const lo = R.refLowestY(hull, pitch);
@@ -351,8 +530,7 @@ if (process.argv.includes('--selftest')) {
       R.refSitPitch({ key: 'x' }) === 0 &&
       R.refSitPitch({ key: 'x', sit: {} }) === 0],
     ['a sit that ignores the pitch it is given', () => {
-      const hull = R.refLowerHull(
-        decodeModel(loadPayload(FILES.pa18[0], FILES.pa18[1])));
+      const hull = R.refLowerHull(decodeModel(payloads.pa18));
       return Math.abs(R.refLowestY(hull, 0) - R.refLowestY(hull, 12.09)) > 0.05; }],
     ['a hull that is not the lowest boundary', () => {
       // a straight-line hull would make every attitude equally good

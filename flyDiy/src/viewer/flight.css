@@ -1,0 +1,697 @@
+/* =========================================================================
+   THE FLIGHT INTERFACE (the flight-rebaseline handoff, Claude Design).
+
+   The workshop was rebaselined at G77-G108 around one rule and it worked.
+   This is the same pass over the OTHER screen, and it makes the two one
+   product: the plate grammar is the editor's, unchanged, and the PLACEMENT
+   is literally the editor's too — the object's own controls at the left of
+   the top bar, the primary verb at the far right of that same row, the look
+   rail alone at the bottom left.
+
+   THE EDITOR'S RULE IS SPATIAL: every surface has exactly one job. Flight
+   has a BEFORE, DURING and AFTER the editor does not, so its rule is
+   temporal: the screen answers WHAT AM I FLYING - WHAT IS IT DOING - WHAT
+   HAPPENED, in the order the flight asks them, and nothing that answers one
+   stays on screen while another is being asked.
+
+   WHY A THIRD STYLESHEET. style.css is the GAME's (the boot splash, the
+   canvas, the amber-on-glass set the load-test viz still earns); editor.css
+   is the workshop's. This file is the flight layer's, and it is separate for
+   the same reason those two are: a single sheet is the one place two sessions
+   working on two different surfaces are guaranteed to collide, and six of us
+   share this tree. tools/build.js lists it third, after both.
+
+   THE PALETTE IS THE EDITOR'S, no additions. editor.css declares it on
+   `:is(#wsUI, #edView)` and its own comment says the flight layer "is a third
+   sibling, owned by style.css, and is untouched by construction rather than
+   by care". That is now wrong by intent. Declared here on #ui rather than
+   added to that selector because that selector is named for the workshop and
+   renaming it belongs to whoever owns editor.css — see the handoff's open
+   question 1. The hexes are the same hexes; editor.css already carries the
+   note about the blocks that restate them.
+
+   TYPE: IBM Plex SANS only. Mono is dropped from the HUD — #brand, #acName,
+   #acSpec, #phName, .rd b/.rd i and the twelve telemetry cells were all Mono,
+   and it is the face the editor removed on purpose.
+   ========================================================================= */
+
+#ui {
+  --ed-panel:#201d1a;
+  /* THE PLATE IS GLASS ON THIS LAYER (the user: "I had missed in the new
+     design that everything was black solid again. Can we keep this very
+     layout, but get back on the semi transparent interface? This was lighter,
+     which is good for a flight game").
+     It is the EDITOR'S OWN PLATE COLOUR, at a lighter weight — not a second
+     palette. The handoff specifies .94, and .94 is right for the workshop:
+     that layer sits over a still object in a room, and an opaque plate there
+     is a surface you work on. This layer sits over a MOVING WORLD, and a
+     flight HUD you cannot see the horizon through is a flight HUD that has
+     taken the game's own subject off the screen. The old amber HUD had this
+     right at rgba(32,24,18,.50) and it is the one thing about it worth
+     keeping.
+     TWO WEIGHTS, and the difference is what you DO with the surface:
+       --ed-plate .52  the plates that carry a DECISION — the brief and its
+                       slots, the notice, the look ribbon, the flyout, the map.
+       --fl-glass .36  the two you read THROUGH — the PFD and the trace.
+     TWICE LIGHTENED (the user, again: "even lighter please"), and the second
+     pass is what made the text-shadow below necessary: at .36 the ink alone
+     no longer separates from a bright sky, and the fix is the one every real
+     HUD uses — a tight dark shadow under light type, not a heavier plate.
+     The arrival card is deliberately NOT either of them: it stays opaque on
+     --ed-panel, because it is a document and not chrome, and because it is
+     the one thing on this screen that wants your whole attention. */
+  --ed-plate:rgba(30,27,24,.52);
+  --ed-ink:#f4efe6; --ed-dim:#c0b8ac; --ed-faint:#97907f;
+  --ed-acc:#e6dbc9; --ed-acc-ink:#221f1b;
+  --ed-acc-soft:rgba(230,219,201,.14);
+  --ed-hair:rgba(255,248,236,.09); --ed-border:rgba(255,248,236,.14);
+  --ed-btn-bg:rgba(255,255,255,.06); --ed-btn-bd:rgba(255,255,255,.18);
+  --ed-track:rgba(0,0,0,.3);
+  --ed-off:rgba(255,255,255,.12); --ed-off-bd:rgba(255,255,255,.22);
+  --ed-warn:#d8a07a; --ed-bad:#e08a5a;
+  /* the lighter of the two weights — see the note above the plate token */
+  --fl-glass:rgba(30,27,24,.36);
+
+  position:fixed; inset:0; padding:0; pointer-events:none;
+  display:block;
+  font-family:'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  font-variant-numeric:tabular-nums;
+  color:var(--ed-ink);
+  /* THE SHADOW IS WHAT BUYS THE TRANSPARENCY. Light type on a .36 plate over
+     a lit sky is 2:1 at worst; a 2 px dark shadow under it costs nothing,
+     changes no colour, and is what the old HUD already did to #hint and
+     #credit for exactly this reason. It is on the LAYER, so every surface
+     gets it and no component has to remember. */
+  text-shadow:0 1px 2px rgba(0,0,0,.5);
+}
+
+#ui > * { pointer-events:auto; }
+
+/* THE STACK, DECLARED IN ONE PLACE (the user: "the trace renders on top of
+   everything, rendering the menu options inaccessible"). Every surface here
+   is absolutely positioned, so before this the order was DOCUMENT ORDER —
+   which put the trace, the last panel in the markup, over the rail flyout
+   that opens upward into the same corner. The order is now the order of the
+   question being asked: furniture at the bottom, chrome above it, the answer
+   to a question you just asked above that, and the flight's ending on top.
+     1  the trace      — furniture. You put it where you want it and read it.
+     4  the map        — summoned, but it answers nothing you clicked just now.
+     6  the rail, PFD  — permanent chrome.
+     8  the top bar    — the brief and the verbs; the flyouts anchor off it.
+    20  the flyout     — the answer to the question you are asking RIGHT NOW,
+                         and it must never be under the thing it answers.
+    30  the arrival    — the one panel that appears rather than being summoned.
+*/
+#telp   { z-index:1; }
+#flHint { z-index:2; }
+#mmp    { z-index:4; }
+#flRail { z-index:6; }
+#pfd    { z-index:6; }
+#flTop  { z-index:8; }
+#flFly  { z-index:20; }
+#arrCard{ z-index:30; }
+
+/* THE LEGACY CONTROL STYLING STOPS AT THIS LAYER. style.css still carries a
+   bare `button, select` rule — amber on glass, uppercase, 11 px, an 18 px
+   backdrop blur and a 1 px press — and it still earns it: the GARAGE PANEL's
+   own rows (.grow, .gsw, #gRoll, #gTest) are built by garage.js and styled by
+   it. Nothing on this screen is, and inheriting it silently gave every plate
+   button a second blur, a press animation the design says nothing does, and
+   the amber focus ring. Reset once, here, rather than fighting it property by
+   property in nine component rules. */
+#ui button, #ui select, #ui input {
+  font:inherit; letter-spacing:normal; text-transform:none; color:inherit;
+  border:0; background:none; padding:0; border-radius:0; box-shadow:none;
+  backdrop-filter:none; -webkit-backdrop-filter:none;
+  transition:none; cursor:pointer; }
+
+#ui button:active { transform:none; }
+
+#ui button:hover, #ui select:hover { background:none; }
+
+/* THE PLATE. One grammar, four surfaces. `backdrop-filter` is here and not
+   in the editor because the render behind this one MOVES. */
+/* SATURATE, not just blur. Blurring a bright sky behind a translucent plate
+   averages it toward grey; the old HUD's `saturate(1.2)` is what kept the
+   world reading as sky and grass through the glass rather than as haze, and
+   it costs nothing to keep. */
+#ui .flPlate { background:var(--ed-plate); border:1px solid var(--ed-border);
+  border-radius:9px; backdrop-filter:blur(16px) saturate(1.15);
+  -webkit-backdrop-filter:blur(16px) saturate(1.15); }
+
+/* the hidden writers. Every select the bar used to carry is still here, still
+   wired to app.js's own handlers; the plate and the flyouts are a VIEW over
+   them, which is why this redesign added no second source of truth. */
+#flStore { position:absolute; width:0; height:0; overflow:hidden;
+  pointer-events:none; }
+
+/* =========================================================================
+   1. THE TOP BAR — WHAT YOU FLY, and the verbs.
+   Mirrors #edTopBar exactly, down to the inset and the wrap.
+   ========================================================================= */
+/* THREE COLUMNS, `1fr auto 1fr`, and the third is EMPTY. The verbs went to
+   the bottom right, so the PFD has to be centred on the SCREEN rather than in
+   what is left over — and a grid centres it without the overlap an absolutely
+   centred plate would have: when the open brief outgrows its 1fr the column
+   grows and the PFD is pushed, never covered. */
+#flTop { position:absolute; left:22px; right:22px; top:18px;
+  display:grid; grid-template-columns:1fr auto 1fr;
+  align-items:start; gap:8px 14px;
+  pointer-events:none; }
+
+#flTop > * { pointer-events:auto; min-width:0; }
+
+/* THE BRIEF IS BOUNDED SO IT CANNOT EAT THE ROW, and it wraps rather than
+   being a fixed four — a fifth slot (`load`, when cargo and contracts land)
+   goes in without a new surface. 700 and not the mock's 620 because the
+   mock's four values are shorter than this game's: `Home Strip → Circuit`
+   alone is 201 px, and at 620 the default brief opened on two rows, which is
+   not what the design draws. It is still less than half the top row. */
+#flBrief { display:flex; flex-direction:column; gap:9px;
+  align-items:flex-start; min-width:0; max-width:700px; }
+
+/* ---- the flight plate: the brief, four slots, one decision each ---- */
+#flPlate { padding:10px 12px; }
+#flPlate[hidden], #flLine[hidden], #flNotice[hidden] { display:none; }
+
+#flPlateHead { display:flex; align-items:center; gap:9px;
+  padding:0 2px 9px; border-bottom:1px solid var(--ed-hair); }
+
+#flPlateHead b { font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.2em;
+  text-transform:uppercase; color:var(--ed-faint); }
+
+#flMeta { margin-left:auto; font:400 10px/1 'IBM Plex Sans';
+  color:var(--ed-faint); white-space:nowrap; overflow:hidden;
+  text-overflow:ellipsis; }
+
+#flSlots { display:flex; flex-wrap:wrap; gap:6px; padding-top:9px; }
+
+/* A SLOT IS A DECISION, and every one opens a flyout. Five of them one day —
+   `load`, when cargo and contracts land — which is why this wraps rather than
+   being a fixed four. */
+#ui .flSlot { display:flex; flex-direction:column; gap:4px; min-width:0;
+  padding:7px 11px; border-radius:7px; background:var(--ed-btn-bg);
+  border:1px solid var(--ed-btn-bd); color:var(--ed-ink);
+  cursor:pointer; text-align:left;
+  transition:border-color .12s ease; }
+
+#ui .flSlot:hover { border-color:rgba(255,255,255,.3); }
+
+#ui .flSlot.on { border-color:var(--ed-acc); }
+
+#ui .flSlot > i { font:500 8.5px/1 'IBM Plex Sans'; font-style:normal;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--ed-faint); }
+
+#ui .flSlot > span { display:flex; align-items:baseline; gap:7px;
+  font:500 12px/1.2 'IBM Plex Sans'; color:var(--ed-ink);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+#ui .flSlot > span > em { font-style:normal; font-size:9px; flex:none;
+  color:var(--ed-faint); }
+
+/* ---- the folded brief: nobody changes their aeroplane at 400 ft ---- */
+#ui #flLine { display:flex; align-items:center; gap:10px; padding:11px 14px;
+  cursor:pointer; color:var(--ed-ink);
+  transition:border-color .12s ease; }
+
+#ui #flLine:hover { border-color:rgba(255,255,255,.3); }
+
+#ui #flLine b { font:600 12px/1 'IBM Plex Sans'; letter-spacing:.08em;
+  color:var(--ed-ink); white-space:nowrap; overflow:hidden;
+  text-overflow:ellipsis; max-width:200px; }
+
+#ui #flLine s { flex:none; width:1px; height:13px; background:var(--ed-hair); }
+
+#ui #flLine span { font:400 11px/1 'IBM Plex Sans'; color:var(--ed-dim);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+#ui #flLine span.faint { color:var(--ed-faint); }
+
+#ui #flLine em { font-style:normal; font-size:10px; color:var(--ed-acc);
+  flex:none; }
+
+/* ---- the notice: warn border, warn label, one line. This is where
+   #bGo.warn's meaning went — the bench's verdict said out loud instead of
+   hidden in the colour of a button. ---- */
+#flNotice { display:flex; align-items:center; gap:9px; padding:8px 12px;
+  background:var(--ed-plate); border:1px solid rgba(216,160,122,.5);
+  border-radius:8px; backdrop-filter:blur(16px) saturate(1.15);
+  -webkit-backdrop-filter:blur(16px) saturate(1.15); max-width:100%; }
+
+#flNotice b { font:500 9.5px/1 'IBM Plex Sans'; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--ed-warn); white-space:nowrap; }
+
+#flNotice span { font:400 11px/1.4 'IBM Plex Sans'; color:var(--ed-dim); }
+
+/* ---- the verbs: far right of the same row, on the pixel #edActs owns ---- */
+/* THE VERBS, BOTTOM RIGHT — their own surface, opposite the look ribbon, on
+   the row where what-you-do lives. They are not plated: four verbs in a row
+   ARE the object, and a plate around them would be a box around a box. */
+#flActs { position:absolute; right:22px; bottom:18px;
+  display:flex; align-items:center; gap:9px; flex-wrap:wrap;
+  justify-content:flex-end; max-width:calc(100% - 44px); }
+
+#ui .verb { font:500 12px/1 'IBM Plex Sans'; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--ed-ink);
+  background:var(--ed-btn-bg); border:1px solid var(--ed-btn-bd);
+  padding:11px 16px; border-radius:8px; cursor:pointer;
+  transition:background .12s ease, border-color .12s ease; }
+
+#ui .verb:hover { border-color:rgba(255,255,255,.3); }
+
+#ui .verb[hidden] { display:none; }
+
+/* THE PRIMARY IS NEVER DISABLED, exactly as ROLL OUT is not: flying something
+   uncertified and finding out why is content, not error. It changes its
+   WORDS, not its state. */
+#ui .verb.pri { font-weight:600; padding:11px 18px; color:var(--ed-acc-ink);
+  background:var(--ed-acc); border-color:var(--ed-acc); }
+
+#ui .verb.pri:hover { background:#f0e7d8; }
+
+/* `on` is the paused state of Pause, which says Resume when it is on */
+#ui .verb.on { border-color:var(--ed-acc); color:var(--ed-acc); }
+
+/* =========================================================================
+   2. THE BOTTOM-LEFT RAIL — HOW YOU LOOK.
+   Literally #edRail, in a plate, with .edRailBtn's own metrics.
+   ========================================================================= */
+/* VERTICAL, ON THE LEFT EDGE, and centred on the height: it clears the brief
+   above it and the trace below it without either of them having to know it is
+   there, and the bottom row goes back to being the trace and the verbs. */
+#flRail { position:absolute; left:22px; top:50%; transform:translateY(-50%);
+  display:flex; flex-direction:column; gap:6px; padding:6px; }
+
+#ui .flRailBtn { display:flex; flex-direction:column; align-items:center;
+  gap:3px; width:50px; padding:8px 0; border:0; border-radius:6px;
+  background:transparent; color:var(--ed-dim); cursor:pointer;
+  transition:background .12s ease, color .12s ease; }
+
+#ui .flRailBtn:hover { background:rgba(255,255,255,.06); }
+
+#ui .flRailBtn.on { background:var(--ed-acc); color:var(--ed-acc-ink); }
+
+#ui .flRailBtn svg { width:15px; height:15px; fill:none; stroke:currentColor;
+  stroke-width:1.35; stroke-linecap:round; stroke-linejoin:round; }
+
+#ui .flRailBtn span { font:500 8px/1.2 'IBM Plex Sans'; letter-spacing:.06em;
+  text-transform:uppercase; }
+
+/* ---- THE FLYOUT. One at a time, and it opens FROM ITS OWN BUTTON —
+   openFly's one stated rule, kept: an answer that always appears in the same
+   place does not say which question it answers. With the ribbon standing up
+   the left edge a rail flyout opens BESIDE its button; a brief slot's still
+   opens below its own. Both are written by flyOpenSet() from the measured box
+   and clamped to the window. ---- */
+#flFly { position:absolute; left:22px; bottom:82px; width:296px;
+  max-height:calc(100% - 130px); overflow-y:auto;
+  padding:12px 14px 14px; background:var(--ed-plate);
+  border:1px solid var(--ed-border); border-radius:9px;
+  backdrop-filter:blur(16px) saturate(1.15);
+  -webkit-backdrop-filter:blur(16px) saturate(1.15); }
+
+#flFly[hidden] { display:none; }
+
+#flFlyHead { font:600 10px/1 'IBM Plex Sans'; letter-spacing:.2em;
+  text-transform:uppercase; color:var(--ed-faint);
+  padding-bottom:9px; margin-bottom:6px;
+  border-bottom:1px solid var(--ed-hair); }
+
+#flFlyBody .fr { display:flex; gap:10px; align-items:center; margin:7px 0;
+  min-width:0; font:400 11.5px/1.3 'IBM Plex Sans'; color:var(--ed-dim); }
+
+#flFlyBody .fr > span.k { width:104px; flex:none; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap; }
+
+#flFlyBody .fr > span.v { flex:1; min-width:0; text-align:right;
+  font:500 11px/1 'IBM Plex Sans'; color:var(--ed-ink); }
+
+#flFlyBody .fr > b.v { flex:none; width:48px; text-align:right;
+  font:500 11px/1 'IBM Plex Sans'; color:var(--ed-ink); }
+
+#flFlyBody .fr.off { color:var(--ed-faint); }
+
+#flFlyBody .fr.off > span.v, #flFlyBody .fr.off > b.v { color:var(--ed-faint); }
+
+#flFlyBody .fpills { display:flex; flex-wrap:wrap; gap:6px; margin:4px 0 2px; }
+
+#flFlyBody .fnote { margin-top:10px; padding-top:9px;
+  border-top:1px solid var(--ed-hair);
+  font:400 10.5px/1.6 'IBM Plex Sans'; color:var(--ed-faint); }
+
+#ui .pill { font:500 10px/1 'IBM Plex Sans'; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--ed-dim); background:transparent;
+  border:1px solid var(--ed-btn-bd); border-radius:7px; padding:7px 11px;
+  cursor:pointer; transition:border-color .12s ease; }
+
+#ui .pill:hover { border-color:rgba(255,255,255,.3); }
+
+#ui .pill.on { color:var(--ed-acc-ink); background:var(--ed-acc);
+  border-color:var(--ed-acc); }
+
+/* a preset the aeroplane cannot offer says so and stays put — it carries its
+   reason in its `title`, exactly as the editor's `interior` does */
+#ui .pill:disabled { opacity:.4; cursor:not-allowed; }
+#ui .pill:disabled:hover { border-color:var(--ed-btn-bd); }
+
+/* the flyout's own controls: the editor's switch and slider, verbatim
+   metrics, because a toggle that looks different on the other screen is a
+   different toggle */
+#ui .fsw { -webkit-appearance:none; appearance:none; flex:none;
+  width:30px; height:16px; border-radius:9px; background:var(--ed-off);
+  border:1px solid var(--ed-off-bd); position:relative; cursor:pointer;
+  transition:background .12s ease, border-color .12s ease; }
+
+#ui .fsw::after { content:''; position:absolute; top:2px; left:2px;
+  width:10px; height:10px; border-radius:50%; background:var(--ed-panel);
+  transition:left .12s ease; }
+
+#ui .fsw:checked { background:var(--ed-acc); border-color:var(--ed-acc); }
+
+#ui .fsw:checked::after { left:16px; }
+
+#ui .frng { flex:1; min-width:30px; height:18px; -webkit-appearance:none;
+  appearance:none; background:transparent; cursor:pointer; }
+
+#ui .frng::-webkit-slider-runnable-track { height:3px; border-radius:2px;
+  background:var(--ed-track); }
+
+#ui .frng::-webkit-slider-thumb { -webkit-appearance:none; appearance:none;
+  width:11px; height:11px; margin-top:-4px; border-radius:50%;
+  background:var(--ed-acc); border:none; }
+
+#ui .frng::-moz-range-track { height:3px; border-radius:2px;
+  background:var(--ed-track); }
+
+#ui .frng::-moz-range-thumb { width:11px; height:11px; border:none;
+  border-radius:50%; background:var(--ed-acc); }
+
+/* the borrowed selects — #selFrom, #selDest, #selCond, #selTime — wear the
+   editor's row select, because in the flyout that is what they are */
+#ui .fsel { flex:1; min-width:0; padding:5px 8px;
+  font:400 11px/1.2 'IBM Plex Sans'; letter-spacing:0; text-transform:none;
+  color:var(--ed-ink); background:var(--ed-btn-bg);
+  border:1px solid var(--ed-btn-bd); border-radius:5px; cursor:pointer;
+  appearance:none; -webkit-appearance:none; padding-right:22px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='6'%3E%3Cpath d='M1 1l3.5 3.5L8 1' fill='none' stroke='%23c0b8ac' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right 7px center; }
+
+#ui .fsel option { background:var(--ed-panel); color:var(--ed-ink); }
+
+#ui .fsel:disabled { opacity:.45; cursor:default; }
+
+/* =========================================================================
+   3. THE BOTTOM-RIGHT PFD — WHAT IT IS DOING.
+   The one always-on instrument. Eyes down for numbers, ahead for the
+   aeroplane. The PHASE RAIL lives inside this plate now: #rail's own panel
+   is gone, because the progress belongs where you were already looking.
+   ========================================================================= */
+/* IN THE MIDDLE OF THE TOP ROW. `margin:0 auto` is what centres it: the free
+   space of #flTop is split between its two auto margins, so it sits midway
+   between the brief and the verbs and the verbs stay flush right — and
+   because it is IN THE FLOW it can never land on the brief the way an
+   absolutely centred plate would when the brief is open.
+   SEMI-TRANSPARENT, unlike the plates that carry a decision: this one is read
+   THROUGH, at the aeroplane behind it, which is what the old glass HUD had
+   right and what `--ed-plate` at .94 took away. */
+#ui #pfd { grid-column:2; justify-self:center; padding:11px 14px 10px;
+  background:var(--fl-glass); }
+
+#pfdRow { display:flex; gap:22px; align-items:flex-start; }
+
+#ui .rd { text-align:right; min-width:62px; }
+
+#ui .rd[hidden] { display:none; }
+
+#ui .rd b { display:block; font:600 30px/1.02 'IBM Plex Sans';
+  letter-spacing:-.01em; color:var(--ed-ink); }
+
+/* NO GREEN: ok is simply the ink. A readout goes warn when it is outside a
+   number the plaque actually declares — see hud() in app.js, which warns on
+   the stall alone and says why the other two are owed. */
+#ui .rd.warn b { color:var(--ed-warn); }
+
+#ui .rd i { font-style:normal; font:500 8.5px/1 'IBM Plex Sans';
+  letter-spacing:.15em; text-transform:uppercase; color:var(--ed-faint); }
+
+/* THE SMALL PFD (the user: "allow a minimized version of the top bar with
+   smaller characters and only IAS, alt, Vs and power, plus the steps"). Two
+   thirds of the type, four numbers, the steps unchanged. */
+#ui #pfd.small { padding:8px 11px 7px; }
+#ui #pfd.small #pfdRow { gap:14px; }
+#ui #pfd.small .rd { min-width:46px; }
+#ui #pfd.small .rd b { font-size:19px; line-height:1.05; }
+#ui #pfd.small .rd i { font-size:7px; letter-spacing:.12em; }
+#ui #pfd.small #rail { margin-top:8px; padding-top:7px; }
+
+#rail { display:flex; align-items:center; gap:10px; margin-top:11px;
+  padding-top:10px; border-top:1px solid var(--ed-hair); }
+
+/* the fold sits at the end of the steps, where it is out of the numbers'
+   way and still on the plate it folds */
+#ui #pfdFold { flex:none; margin-left:8px; width:14px; height:14px;
+  font:400 9px/1 'IBM Plex Sans'; color:var(--ed-faint);
+  border-radius:4px; transition:color .12s ease; }
+
+#ui #pfdFold:hover { color:var(--ed-ink); }
+
+#phName { font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.18em;
+  text-transform:uppercase; color:var(--ed-acc); white-space:nowrap; }
+
+#rail.held #phName { color:var(--ed-faint); }
+
+#track { display:flex; gap:3px; align-items:center; margin-left:auto;
+  margin-block:-7px; }
+
+#ui #pfd.small #track i { border-top-width:5px; border-bottom-width:5px; }
+
+/* A 7x3 px TARGET IS NOT A TARGET (the user: "the different steps should show
+   their names when hovering them"). Each tick has carried its phase's full
+   name in a `title` since the rail was built, and nobody could ever land on
+   one. Transparent borders grow the hit box to 7x17 while `background-clip`
+   keeps the ink at 3 px, so the rail looks identical and is five times as
+   tall to the pointer.
+   `box-sizing:content-box` IS THE WHOLE TRICK AND IT IS EASY TO LOSE:
+   style.css sets border-box globally, under which `height:3px` is the box
+   INCLUDING the 14 px of border — the content box collapses to zero and
+   `background-clip:content-box` then paints nothing at all. The ticks
+   disappear and the gate cannot see it. */
+#track i { box-sizing:content-box;
+  width:7px; height:3px; border-radius:2px; background:var(--ed-off);
+  border-top:7px solid transparent; border-bottom:7px solid transparent;
+  background-clip:content-box;
+  transition:width .3s, background .3s; }
+
+#track i.done { background:rgba(230,219,201,.45); }
+
+#track i.now { width:14px; background:var(--ed-acc); }
+
+/* =========================================================================
+   4. THE SUMMONED PANELS, and the arrival.
+   ========================================================================= */
+
+/* ---- the map: under the verbs. 196 px, and bigger than the old 172 px
+   because it is not permanent any more. ---- */
+#mmp { position:absolute; right:22px; top:92px; padding:5px; }
+
+#mmp[hidden] { display:none; }
+
+#mm { display:block; width:196px; height:196px; border-radius:6px;
+  pointer-events:auto; cursor:pointer; }
+
+#mmp.big #mm { width:min(74vmin, 520px); height:min(74vmin, 520px); }
+
+/* ---- THE TRACE. Furniture, not chrome: it is at the bottom of the stack
+   (see above), it is LIGHTER than the plates that carry a decision — half
+   weight, a hairline border, no shadow — and it is the one panel the player
+   PLACES. Drag it by its header, size it by the grip, double-click the header
+   to put it back where it started. PEAK STRAIN IS A LINE ON THE GRAPH, not a
+   cell in a grid.
+   The resting geometry is a default only: once it has been moved or sized it
+   carries `.placed` and its own left/top/width/height, written by flTraceDrag
+   and kept in the same pref as the rest of the view state. ---- */
+#ui #telp { position:absolute; left:22px; right:auto; bottom:18px;
+  width:calc((100% - 44px) * 2 / 3); height:240px;
+  display:flex; flex-direction:column; padding:10px 12px 11px;
+  min-width:280px; min-height:132px;
+  background:var(--fl-glass); border-color:var(--ed-hair); }
+
+/* A PLACED PANEL IS A PLAIN BOX AT left/top. Whatever anchored it at rest —
+   a grid cell, a right edge, a centred transform — has to be undone in one
+   rule, or the panel fights the thing that used to position it. flPlace also
+   re-parents it to #ui, so no ancestor's grid or transform is left in play. */
+#ui .placed { position:absolute; right:auto; bottom:auto;
+  margin:0; transform:none; justify-self:auto; grid-column:auto; }
+
+#ui #telp.placed { bottom:auto; }
+
+/* what can be picked up says so — but only where picking it up is the whole
+   gesture; the trace's header and grip carry their own cursors */
+#ui #mmp, #ui #flRail, #ui #pfd { cursor:grab; }
+#ui #mmp:active, #ui #flRail:active, #ui #pfd:active { cursor:grabbing; }
+#ui #mmp #mm { cursor:pointer; }
+#ui .flRailBtn, #ui #pfdFold { cursor:pointer; }
+
+#telp[hidden] { display:none; }
+
+/* the header is the handle, so it says so */
+#telHead { display:flex; align-items:baseline; gap:9px; flex:none;
+  padding-bottom:8px; cursor:move; -webkit-user-select:none; user-select:none; }
+
+#telp h2 { font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.2em;
+  text-transform:uppercase; color:var(--ed-faint); }
+
+#tsum { margin-left:auto; font:400 10px/1 'IBM Plex Sans';
+  color:var(--ed-faint); text-align:right; }
+
+/* the graph takes whatever the panel has left, which is what makes the panel
+   worth resizing; drawTel() sizes the buffer from this box at 2x */
+#tel { display:block; flex:1; width:100%; min-height:0; border-radius:4px;
+  background:rgba(0,0,0,.20); }
+
+/* the resize grip: two hairlines in the corner, the editor's own ink */
+#telGrip { position:absolute; right:3px; bottom:3px; width:14px; height:14px;
+  cursor:nwse-resize; opacity:.5;
+  background:
+    linear-gradient(-45deg, transparent 45%, var(--ed-dim) 45%,
+      var(--ed-dim) 55%, transparent 55%) no-repeat right bottom / 8px 8px,
+    linear-gradient(-45deg, transparent 45%, var(--ed-dim) 45%,
+      var(--ed-dim) 55%, transparent 55%) no-repeat right bottom / 13px 13px; }
+
+#telGrip:hover { opacity:1; }
+
+/* THE LEGEND IS THE SWITCHBOARD, so its keys are BUTTONS: a chip per channel,
+   lit when its lane is drawn and dimmed when it is not. It wraps — fifteen
+   channels do not fit on one line and are not meant to be on at once. */
+#legend { display:flex; flex-wrap:wrap; gap:4px 5px; margin-top:9px;
+  flex:none; max-height:52px; overflow-y:auto; }
+
+#ui #legend button { display:inline-flex; align-items:center; gap:5px;
+  padding:3px 7px; border-radius:5px;
+  font:500 8.5px/1.4 'IBM Plex Sans'; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--ed-faint);
+  border:1px solid transparent; cursor:pointer;
+  transition:color .12s ease, border-color .12s ease; }
+
+#ui #legend button:hover { border-color:var(--ed-btn-bd); }
+
+#ui #legend button.on { color:var(--ed-ink); }
+
+#legend i { width:13px; height:2px; border-radius:2px; flex:none;
+  opacity:.32; transition:opacity .12s ease; }
+
+#legend button.on i { opacity:1; }
+
+/* ---- THE ARRIVAL CARD: the only panel that APPEARS. On --ed-panel and not
+   a plate, because it is a document and not chrome, and in the plaque's own
+   two-column grammar so the flight's numbers and the bench's numbers read as
+   the same kind of thing. ---- */
+#arrCard { position:absolute; left:50%; top:50%;
+  transform:translate(-50%,-50%); width:520px; max-width:calc(100% - 44px);
+  padding:20px 22px 18px; background:var(--ed-panel);
+  border:1px solid var(--ed-border); border-radius:11px;
+  box-shadow:0 24px 60px rgba(0,0,0,.55); z-index:30; }
+
+#arrCard[hidden] { display:none; }
+
+#arrHead { display:flex; align-items:baseline; gap:12px; padding-bottom:13px;
+  border-bottom:1px solid var(--ed-hair); }
+
+#arrTitle { font:600 17px/1 'IBM Plex Sans'; letter-spacing:.06em;
+  color:var(--ed-ink); }
+
+#arrTag { margin-left:auto; font:500 10px/1 'IBM Plex Sans';
+  letter-spacing:.1em; text-transform:uppercase; color:var(--ed-acc-ink);
+  background:var(--ed-acc); border-radius:6px; padding:6px 9px;
+  white-space:nowrap; }
+
+#arrCard.bad #arrTag { color:var(--ed-acc-ink); background:var(--ed-warn); }
+
+#arrRows { display:grid; grid-template-columns:1fr 1fr; gap:0 26px;
+  margin-top:6px; }
+
+#arrRows div { display:flex; justify-content:space-between;
+  align-items:baseline; gap:10px; padding:6px 0;
+  border-bottom:1px solid var(--ed-hair); }
+
+#arrRows span { font:400 11.5px/1.2 'IBM Plex Sans'; color:var(--ed-dim); }
+
+#arrRows b { font:500 12.5px/1 'IBM Plex Sans'; color:var(--ed-ink); }
+
+#arrRows b.warn { color:var(--ed-warn); }
+
+#arrNotes { margin-top:12px; font:400 11px/1.65 'IBM Plex Sans';
+  color:var(--ed-faint); }
+
+#arrNotes:empty { display:none; }
+
+#arrNotes i { display:block; font-style:normal; }
+
+#arrBtns { display:flex; gap:9px; margin-top:15px; }
+
+#ui #arrBtns button { flex:1; text-align:center; font:500 12px/1 'IBM Plex Sans';
+  letter-spacing:.1em; text-transform:uppercase; color:var(--ed-ink);
+  background:var(--ed-btn-bg); border:1px solid var(--ed-btn-bd);
+  padding:12px 0; border-radius:8px; cursor:pointer;
+  transition:background .12s ease, border-color .12s ease; }
+
+#ui #arrBtns button:hover { border-color:rgba(255,255,255,.3); }
+
+#ui #arrBtns button.pri { font-weight:600; color:var(--ed-acc-ink);
+  background:var(--ed-acc); border-color:var(--ed-acc); }
+
+#ui #arrBtns button.pri:hover { background:#f0e7d8; }
+
+/* THE FIRST-FLIGHT HINT. "drag to orbit" was permanent chrome; it is shown
+   once, on the first flight this browser has ever seen, and then never
+   again. */
+#flHint { position:absolute; left:50%; bottom:96px; transform:translateX(-50%);
+  padding:8px 14px; font:400 10.5px/1 'IBM Plex Sans'; letter-spacing:.1em;
+  color:var(--ed-faint); pointer-events:none; }
+
+#flHint[hidden] { display:none; }
+
+/* ---- focus, hover, motion: the same three rules both stylesheets keep ---- */
+#ui button:focus-visible, #ui select:focus-visible,
+#ui input:focus-visible { outline:2px solid var(--ed-acc);
+  outline-offset:2px; }
+
+@media (prefers-reduced-motion:reduce) {
+  #ui *, #ui *::after { transition:none !important; }
+}
+
+/* ---- narrow. The three geometry facts that actually move — where the
+   trace ends, whether the PFD can share the bottom row with the rail, and how
+   far up the trace has to sit — are MEASURED by flLayout() rather than
+   guessed at a breakpoint, because they depend on how many readouts the
+   player has asked for. What is left here is the type and the insets. ---- */
+/* THE `#ui` PREFIXES ARE LOAD-BEARING HERE. A media query does not raise
+   specificity: `#pfd` and `#telp` are written as `#ui #pfd` / `#ui #telp`
+   above (they have to outrank `.flPlate`), so a bare `#pfd` in here loses to
+   the desktop rule and the phone layout silently does not happen. Measured:
+   the trace kept its 720 px desktop width at 375. */
+@media (max-width:760px) {
+  /* the three columns collapse: the PFD goes under the brief rather than
+     being squeezed between it and nothing */
+  #flTop { left:12px; right:12px; top:12px; grid-template-columns:1fr; }
+  #ui #pfd { grid-column:1; justify-self:stretch; }
+  #flRail { left:12px; padding:5px; gap:4px; }
+  #ui .flRailBtn { width:44px; }
+  #ui #pfd { padding:9px 12px 9px; max-width:100%; }
+  /* nine readouts do not fit across a phone: they wrap, and the plate grows
+     upward instead of off the side of the screen */
+  #pfdRow { gap:8px 14px; flex-wrap:wrap; }
+  #ui .rd { min-width:52px; }
+  #ui .rd b { font-size:21px; }
+  /* the width is `right`-anchored here so flLayout can inset the LEFT past
+     the ribbon without the panel changing size */
+  #ui #telp { left:12px; right:12px; width:auto; bottom:78px; }
+  #flActs { right:12px; bottom:12px; }
+  #ui #legend { max-height:44px; }
+  #mm { width:150px; height:150px; }
+  #mmp { right:12px; }
+  #mmp.big #mm { width:min(82vmin, calc(100vw - 40px));
+    height:min(82vmin, calc(100vw - 40px)); }
+  #arrCard { width:calc(100% - 24px); padding:16px 16px 14px; }
+  #arrRows { grid-template-columns:1fr; }
+}

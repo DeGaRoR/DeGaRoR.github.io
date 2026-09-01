@@ -23525,3 +23525,2912 @@ owner has landed.
 Drafted as G128; the hangar session landed ITS G128 ("a hangar per
 airfield") while the glass bisection ran, so this is G129 against the last
 `## G` heading, per the protocol. Same race as G123's evening, same cure.
+
+## G130 — THE PLAYABILITY ROUND (2026-08-31, the user: "flydiy; playability
+## update... Objective is play tonight, do a couple of planes, save them,
+## have them fly")
+
+One evening, one brief: the flight screen lagged, the flight UI was a debug
+panel, two visible bugs broke immersion, the bench read as a wall of small
+boxes, and the felt regression — "the default plane struggles to climb in
+less than 90 seconds" — had a green battery. All of it landed; the battery
+came back with ONE red that is a ruling, not a bug, and it waits below.
+
+### THE REGRESSION THE GREEN BATTERY MISSED — measured, cured, pinned
+
+G121.3 priced FOREST_FLOOR at CRR 0.10 — twice the grass datum — and the
+HOME strip's own first 158 m CLASSIFY as forest floor: 22_world_biomes'
+`surface()` only ever consulted stage-4 generated strips (AERO.surfaceAt),
+and the registry's declared `surface: SURFACE.GRASS` on HOME was read by
+NOTHING. 64% of the default's 248 m roll paid double rolling resistance:
+unstick 17.8 s -> 21.6 s, circuit height 88.0 -> 91.8 s. The user felt the
+exact number: test_gen's shape check budgets NINETY SECONDS to CRUISE, so
+GEN went red on "every fuselage shape tapers, differs and flies" — and
+DRONE's `chatter<8` went red the same evening (18.2 deg/s working the pitch
+servo against the phantom forest). No gate asserted the roll itself; GATE
+HONEST's own baseline rolled THROUGH the forest band, green.
+
+The cure is at the declaration (20_world.js, the makeBiomes call): a
+`regSurf` wrapper answers the registry's declared surface inside each
+record's own footprint — strips by the hdg-rotated len/2+20 x wid/2+6 box,
+meadows by radius — and falls through to AERO.surfaceAt everywhere else.
+Side effects all desirable: grass tint on the strip, no forest litter on
+the runway. THE PIN (test_honest.js): `grassStub: rollOn(0)` and the check
+"HOME rolls like its declared grass, not like the forest" (|grass −
+grassStub| < 4 m; the 2x band cost tens), plus the doctored negative probe
+in --selftest per the file's own discipline. HONEST, DRONE, PILOT, and the
+shapes check (88.0/88.8/87.8 s) all green again.
+
+### THE TWO VISIBILITY BUGS WERE ONE FUNCTION
+
+applyStand() forced grp/proxy/lines/pts VISIBLE whenever showCage was
+false — i.e. for every second of every flight. That was (1) the truss
+always drawn over the covered aeroplane, z-fighting at renderOrder 998
+against its own coincident skin; (2) a SECOND shadow caster (proxy AND
+skin) every frame; (3) half of the Frame-mode freeze: applySkinVis hid the
+mesh, applyStand re-showed it, and poseModel's `skinMode===2 && !model.gen`
+guard (the cage payload carries no `gen` — correctly: gen routes into
+poseSkinGen/nodeBody which the cage model lacks) then never posed it again,
+so the mesh hung frozen mid-air while the physics flew on. The ownership
+is now stated in the function: THE CAGE ONLY EVER HIDES, IT NEVER SHOWS —
+applyStand touches the four objects only when showCage is true, and
+applySkinVis owns them otherwise. Call-site sweep: setAircraft decides
+showCage BEFORE its one applySkinVis; rollOut/enterGarage call applySkinVis;
+benchInit's showPhysical re-shows lines over the skin for the live load
+test only. Frame mode on a cage build is now the fleet's honest view:
+hidden mesh, live strain lattice, stateless re-pose on cycling back —
+verified in the probe (lattice moves, matrix resumes, one shadow).
+
+### WIRE AND UV ARE GONE; THE STRUT RIDES RIGID
+
+The wireframe never told a player anything Frame mode doesn't, and the UV
+pane had been an EMPTY BOX for every cage build since the join (no `dec`
+on the payload) — both deleted (body.html, app.js, style.css), UISMOKE's
+flight list trimmed by one id. The kinked lift struts (the user's circled
+screenshot) were the wing-box binding at work on a 16-ring tube crossing
+it diagonally: each ring took a different spar station's deflection and
+the rings under yMin took none — the same disease G58.1 cured for the
+strut ROOT, caught here for the strut's whole body. The `sstrut` group now
+binds with zRoot:Infinity — no vertex bound, the strut rides the craft
+group rigidly, which is also what the physics beams do (the visible strut
+IS a beam from fuselage longeron to spar node). Cost: a Flex-x4-only gap
+at the wing end, centimetres at x1; a true two-end binding along the strut
+axis is named and owed only if that gap ever offends. Bonus: rigs with no
+bound vertices and no hinges skip their per-frame geometry re-upload
+entirely — every cage group outside the wing box was paying that for
+nothing.
+
+### A FLIGHT CAN END WITHOUT A LANDING
+
+Every ending was gated on phase === 'STOPPED', which only a rollout or a
+test-pilot ABORT reaches. The 600 s watchdog wrote outcome='gave-up' and
+KEPT FLYING — "external runners bound the sim", said 41_test_pilot.js, and
+the live game was the external runner that never did. A build that could
+not complete the circuit flew forever, with the only door home locked
+inside an arrival card that needs a landing. Now: endFlight() freezes the
+sim where it is (running=false, render continues), completes the report,
+logs the flight, and raises the card — triggered by the test pilot's
+gave-up, by a 900 s wall-clock for the fleet pilot (which has no watchdog;
+a new leg makes a new pilot, so the bound is per leg), and by the
+divergence watchdog (broke-up — an ENDING now, not a caption). One
+integration bug found live in the probe and fixed: the card went up and
+the phase-moved branch took it straight back down in the same script()
+pass — endFlight's path returns early. Resume deliberately un-freezes for
+watching a hopeless build keep trying; Restart and the Hangar button are
+the real exits. And the door home is ON THE BAR now (#bHangar2): mid-air,
+after gave-up, from a fleet fiche — enterGarage + openEditor, switching a
+fleet craft to the garage build on the way in (the garage is only ever
+YOUR aeroplane's room, same rule as the card).
+
+### THE BAR HAS SECTIONS, AND THE PILOT IS A CHOICE
+
+aircraft & pilot | trip | day — three labelled glass groups (.hudSec,
+existing tokens) and the verbs. #selPilot: auto (today's rule — gen flies
+the test pilot, the fleet the classic autopilot), or either pilot under
+any aircraft; mid-flight changes take effect through fullReset. The day
+section holds conditions AND the reserved TIME slot: a disabled select
+saying "Midday · fixed sun" — the world's sun is a constant
+(render_world.js SUN; F4 owns the day cycle), and now it has a home to
+land in. #bReset is labelled Restart. Alt/speed/climb and the minimap the
+user asked for were already #pfd and #mmp — they stay, better neighboured.
+
+### THE LAG WAS RENDER-SIDE, AND MOST OF IT WAS THE BUG
+
+Measured first: the default build's physics — 45 substeps, 54 nodes —
+costs ~1.4 ms/frame headless, parked or cruising. Physics exonerated; no
+substep cap, no fixed-timestep accumulator (catch-up stepping would turn
+"heavy build = slow motion" into hitching death spirals — assessed and
+declined). The wins: the applyStand fix itself (truss draw + strain-colour
+buffer churn + double shadow, gone); sync() gated on something actually
+drawing it (three dirty BufferAttributes/frame saved in covered flight);
+drawTel's `Math.max(20, ...tel.alt)` — an UNBOUNDED spread ten times a
+second, stack-overflow bound on long flights — replaced by running maxima
+in record(); drawMap's north-up underlay (sea + the whole 24 km bake,
+recomposited every 6th frame, 1024² when big) now a cached offscreen blit,
+nose-up stays live. logDepth/shadow sizes/fillUpdate bursts: profile
+first, another evening.
+
+### THE BENCH READS, AND THE LOGBOOK EXISTS
+
+The left panel was the crush: 280 px minus padding gave the plaque's
+two-column grid ~107 px a cell. Now 320 px (#edInfo + --ws-left, the only
+two numbers), the plaque is a PLATE (own ground, border, radius) with air
+in the grid, labels dim/12px with ellipsis, values ink/13px; bench test
+rows break onto two lines (name + run, verdict full-width under — pure
+CSS reorder, bench.js untouched); .bHead is the standard section header;
+--ed-faint lifted #8a8377 -> #97907f at all six sites (the faintest ink
+was carrying most of the panel's words); test-card inputs 56 px. And the
+envelope's `log` — written since G65, displayed by NOTHING — renders at
+last: #edLog between bench and stand, "built <date> · N flights" and the
+last six rows (from → to · sink · V, or the outcome), drawn by garage.js
+(it owns the closure) from loadSpec, from GARAGE_SPEC.note (which
+logFlight already calls, flight row pushed first), and at boot. The load
+select's option TEXT now says what a save is — "name · role · tested · N
+flights" — while the VALUE stays the bare name the handler keys on; a
+corrupt slot falls back to its name. Verified in the probe: save/load
+round-trip, "Probe Test · 3 flights".
+
+### THE PROBE'S ONE HANDLE
+
+window.FLIGHT_PROBE = { ap: () => ap, endFlight } — the capture rig
+verifies endings and reads the pilot from OUTSIDE; nothing in-page
+consumes it. This is how gave-up -> card -> hangar was proven without
+waiting 600 s of pumped frames.
+
+### THE ONE RED, AND WHOSE RULING IT IS
+
+GATE GEN, 69/70: "swept wings still fly a circuit", the 30 deg case. The
+measured story: the 30 deg default (SM 75%, a3d 3.80 vs 4.23 straight,
+96 s takeoff roll) turns back 7 km out and comes home BEHIND THE POWER
+CURVE — full throttle, 50-60 km/h, sinking from 40 m over five minutes
+until it mushes in 2.9 km short, V=0, deterministic. Under the OLD
+misclassified forest roll it scraped home at 573 s of a 600 s budget —
+the honest ground moved liftoff 4 s earlier and the knife-edge fell the
+other way. This is not a controller flake and not the surface fix's bug:
+the configuration genuinely cannot hold the inbound leg. The TEST PILOT
+answers it correctly in-game — gave-up at its budget, which endFlight now
+turns into the card. What is owed is a RULING on the check's premise:
+must a 30 deg swept DEFAULT complete a circuit to be a configuration, or
+is it a mistake the player is allowed to make and be told about (the
+undercarriage-too-soft precedent)? Options if the premise softens: fly
+the extreme at 24 deg, or assert the test pilot's bounded verdict instead
+of a landing. NOT tuned quietly — the user rules.
+
+### DELIVERY
+
+Baseline battery (pre-commit tree): 60/62 — GEN (shapes, the regression)
+and DRONE (chatter, same cause) red; WIND green, which was itself a tell:
+the forest band was accidentally masking the DC-3 drift defect. Post-fix
+targeted: HONEST(+selftest), DRONE, PILOT, UISMOKE x3, BUILD all green;
+shapes check healed (88.0/88.8/87.8 s). FINAL FULL BATTERY: **60/62,
+2294 s** — the two reds both accounted for: GEN is the sweep-30 ruling
+above, and WIND's W-DC3 `|tdDrift|<1.8` is the HISTORIC deliberate red
+(the ATMOSPHERE chantier's declared, user-approved DC-3 defect — the only
+red in the morning's 53/54 run too), returned to its documented state by
+the honest ground. Nothing else moved. Screenshots (probe rig, far 5000,
+game camera): straight struts at liftoff, the Garage Special in the club
+hangar at golden hour. The commit stays the user's.
+
+## G132 — ONE FACT, ONE KEEPER (2026-09-01, the user: "I have a slight
+## issue with the new design menu, and it's the multiplicity of access...
+## go with 1 to 4, the wing chantier we'll do together later")
+## (drafted as G131; the selection-outline session landed ITS G131 while
+## this arc ran — renumbered against the last `## G` heading, per the
+## protocol. Same race as G123's and G129's evenings, same cure. Every
+## in-code G-mark of this arc says G132.)
+
+The audit first (futureDesigns/DESIGN-TAB-AUDIT-2026-08-31.md — every row
+of _cage_design.js walked against its slider twins and classified), then
+the four approved cures. The fifth finding — the three-station wing that
+retires planform's discreteness properly — is RESERVED for a joint
+session, and the wing chantier owes it a ruling on the crank-forfeits-
+struts exclusion too (61_gen_frame:350; the C172's real wing is cranked
+AT the strut).
+
+### 1. THE TWO SPLIT-BRAINS, CLOSED AT THE JOIN
+
+Suspension and propeller each wrote ONE FACT into TWO homes — the spec
+(physics) and the cage (the drawing) — with only the design tile keeping
+them in step, and the slider path free to shear them: the mains'
+shock-kind row flew a bungee wearing an oleo, and the cowl's blade rows
+re-opened at the slider exactly what G125 closed at the tile ("a 3-blade
+carbon tile drew two birch blades"). Worse than the audit knew: cw_propD
+vs spec.prop.D — the DIAMETER, which the thrust model derives everything
+from ("a bigger disc really does pull harder") — was sheared too.
+
+The cure is G121.1's fairing rule, applied verbatim: these are PARAMS,
+not measurements — the drawn thing is generated FROM them, so the switch
+IS the geometry's own declaration. cageJoinSpec now writes
+`gear.suspension` from s1_shockKind (the MAINS row wins; _gear_gen's own
+mode order spring/bungee/oleo, verbatim) and `prop.{D, blades, material}`
+from cw_propD/cw_bladeN/cw_material. The material map
+(CAGE_JOIN_PROP_MATS) is TOTAL over the eight cowl finishes because
+clampSpec silently converts unknown keys to 'wood': both wood laminates
+-> wood, the two epoxy composites -> carbon (over-priced, the safe
+direction) with their own GEN_PROP_MATS rows named as owed, maple and
+walnut to their G125 rows. `pitch` stays the tile's alone — no drawn
+twist stands for it. _join_check grew the rows: export AND resolved
+(post-resolveSpec, the G48 lesson), every suspension state swept, the
+map walked against GEN_PROP_MATS, the resolved prop.name carrying the
+drawn family. GEN_SUSPENSION joined the node exports for the gate.
+
+### 2 + 3. THE HONESTY FIELDS, AND ROLE/CLASS SPLIT INTO LABEL + SEED
+
+Four declaration fields now enforce the file's own founding law ("a tile
+is a second rendering of state, never a second home for it"):
+
+  `once`  — a row whose read is LOSSY (planform: three buckets over
+  chord x tip x sweep x crank; section; engModel) lights NO current tile
+  and its header says "applies once". Initialization that never claims
+  to be state cannot go stale — the user's framing, mechanised.
+
+  `arm`   — the warn/undo contract follows the WRITE, not the kind: the
+  canopy's hood pair (a discriminator writing bubH/bubW/canLoops over a
+  hand-tuned hood) arms like a starter now.
+
+  `seed`  — an option's one-shot half, beside its live `writes`. ROLE
+  and CLASS are the point: both used to write real geometry once and
+  read back only meta, so the tile stayed lit over an aeroplane the
+  sliders had walked away from — "purpose changes things 2 ways, and a
+  shape change renders it moot", the user's exact words. Now the pick
+  writes the LABEL alone (kind: discriminator — it can never lie), the
+  geometry lives in the seed, birth and archetypes compose both
+  (designApply's `seeds` option, default TRUE — designBake and GATE
+  ARCHETYPES bake byte-identical specs, proven by the 235 s gate run),
+  and the panel offers the seed as an explicit pill: "apply the bush
+  starting values (once)". The pill SHOWS when the seed would change
+  anything, ARMS only over tuned values (the trap found while building
+  it: designOverwriteCount counts tuned-only, so visibility keyed on it
+  would hide the pill on a fresh build — the capability would have
+  silently vanished), applies through the one-slot undo, and HIDES
+  ITSELF when the seed is moot. Verified live in the probe: label-only
+  pick (meta set, P untouched, tile lit), first-click apply on a fresh
+  build, "will overwrite 2 tuned values" + click-again + undo restoring
+  the hand values on a tuned one. wgTip re-kinded discriminator (one
+  key, faithful read, nothing destroyed — that CONTRACT is what a kind
+  is). designSeed is the one resolver both the pill and the gate use.
+
+  `pair`  — a row writing one fact into both homes DECLARES {cage,
+  spec, via}: suspension, prop (via 'join' — _join_check proves the
+  keeper behaviorally), gearLayout (the already-measured gear.type,
+  now declared).
+
+### 4. GATE DESIGN GREW THE TWO FAMILIES THE AUDIT NAMED
+
+READ FIDELITY: every live option of every non-`once` row is applied onto
+the page base (the option's OWN writes, resolved locally — routing
+through designApply would resolve against the real table and blind the
+selftest to a doctored clone, which is exactly how the first draft's
+negative case came back MISSED) and the row's read must return that
+option. This is the check that would have caught the lit role tile.
+CHANNEL COHERENCE: any row with a live dual-channel option must declare
+its pairs; every pair's cage key real, spec path in GEN_DEFAULT, via one
+somebody defends ('join'/'tile'). Seeds are exempt — one-shot intent,
+never claimed as state. The seed channel joined checkWrites' walks
+(keys, paths, function-writes), checkEnvelope reads the class wing from
+its seed, and the selftest grew four negative cases (wrong-state tile,
+undeclared pair, via 'hope', seed on a ghost key) — plus the clone
+helper deep-copies seeds and pairs so a case can break one without
+touching the real table, and the envelope case moved to the seed with
+the wing. 16/16 selftest cases caught.
+
+### DELIVERY
+
+DESIGN (+selftest 16/16), ARCHETYPES (234.7 s — the split bakes what it
+baked before, and it flies), JOIN, UISMOKE, BUILD: all green. GEN stays
+red on G130's sweep-30 ruling, untouched and still the user's. The
+commit stays the user's.
+
+## G131 — THE SELECTION HAS THREE VOICES, AND THE CAPTURE HEARD ONE OF THEM (2026-08-31, the user: "There should also be an option for display on the selection of parts, because I can't make up my mind. The current outline is very sexy, but a little disturbing. I had in mind a global silhouette outline of the full part, not the detail within them... we should have your original proposal, it was a slight white highlight on everything, as a third option. Accessible from the display menu")
+
+### THE ROW
+
+`selection` heads the display flyout now: **detail outline** (G95's
+EdgesGeometry drawing, every crease), **silhouette** (new — one closed
+contour around the whole part), **soft glow** (the original translucent
+wash). It is a REAL PARKED ROW, not a flyout-built widget: editor.js
+builds it once into the nursery (`#edSelStyle`), lists it by label in the
+RAIL's `display` rows, and openFly borrows and returns it like any row
+_cage_ui built. That shape was chosen FOR GATE VIEW: a display control the
+rail lists must be decided in _cage_join.js's tables, so `selection` is
+exempt in VIEW_KEEP with its reason written down — and the reason turned
+out to need earning (below). A fourth value, `both`, stays reachable from
+the console (`window.EDITOR_HILITE({mode:'both'})`) and reads back on the
+select through a HIDDEN option rather than a blank control. The default is
+still `outline` — the user has explicitly not decided ("I can't make up my
+mind"), and now has the row to decide with. The style persists in
+`flydiy.edHilite` as before.
+
+### THE SILHOUETTE
+
+A silhouette is VIEW-DEPENDENT — no EdgesGeometry threshold can give the
+one line between a part and everything else, because that line moves with
+the camera. It is made in the stencil buffer instead, two passes per
+highlight (editor.js hiSilMask/hiSilShell/hiSilPair):
+
+  - the MASK re-draws every highlighted mesh invisibly (colorWrite off,
+    depth ignored) and stamps the part's screen footprint into a stencil
+    bit — selection owns bit 1, hover bit 2, so the pair coexist;
+  - the SHELL re-draws the same meshes inflated along the view-space
+    normal by `silW` (0.015 m, world units whatever the mesh's own unit
+    is, because the offset happens after modelViewMatrix), allowed to
+    land only where its own bit is NOT set. What survives is the rim —
+    the UNION contour of all the part's meshes, since every mesh masks
+    every other mesh's shell.
+
+Facts that shaped it: the renderer runs ONE render call with autoClear
+(app.js:3882), so the stamp is never stale; the inflation is
+MeshBasicMaterial + onBeforeCompile rather than a raw ShaderMaterial
+because the renderer runs a LOGARITHMIC DEPTH BUFFER and the built-in
+material carries the logdepthbuf chunks a hand-rolled shader would have to
+re-import for `through: false`; the cage's index-subset highlight now
+copies the `normal` attribute too (shared, like the positions — and like
+them NEVER disposed: r128 dispose of a shared attribute pulls the cage's
+own buffer out from under it). Known and accepted: a cube probe target has
+no stencil buffer, so with `craftInProbe` on (off by default) a live
+highlight bakes unmasked — as the fill and the outline always have; the
+cure for all three is deselect, rebake.
+
+### THE CATCH — THE WASH HAS BEEN IN THE CAPTURE SINCE G95
+
+VIEW_KEEP's exemption wanted the sentence "the capture skips edHi objects
+outright". MEASURED before writing it: it was FALSE. snapshot()'s bake
+walked every visible mesh, and with the fuselage selected the capture
+carried 105,102 extra vertices in `fill` and exactly twice that in
+`silhouette` (mask + shell). The wash has leaked into every capture taken
+with a part selected since G95 — latent only because the DEFAULT style is
+LineSegments, which the bake's `isMesh` already refused, so nobody ever
+flew it. The fix is the declared boundary, written into both of
+_cage_join.js's vertex walks (the bake and the tail measure): the
+highlight is never the part. Measured after: 564,648 vertices in every
+style and with nothing selected — identical. The VIEW_KEEP entry records
+the leak and the numbers rather than pretending the skip was always there.
+
+### DELIVERY
+
+GATE VIEW + UISMOKE green twice (before and after the bake fix; VIEW now
+reads 15 controls, 5 exempt). Browser-verified on dev.html through the
+hand-pumped renderer (the pane would not composite): overlay accounting
+per style (outline 4 lines / silhouette 8 meshes / fill 4 meshes, cleared
+on switch), screenshots of all three styles — the silhouette is one clean
+contour where the outline is a drawing of every ring — hover + selection
+rims coexisting on their two stencil bits, console clean, and the
+snapshot vertex-count sweep above. Bundles rebuilt. The commit stays the
+user's.
+
+## G131.1 — THE DEFAULT IS RULED (2026-09-01, the user: "silhouette should be the default")
+
+The chair G131 left open is filled: `HI_DEF.mode` is `'silhouette'`. One
+line plus its comment — the ruling came from the user with all three
+styles on the menu in front of them, which is exactly what the row was
+built for. A saved `flydiy.edHilite` pref still wins over the default
+(any explicit menu choice should); a profile that never chose gets the
+silhouette from first boot. Bundles rebuilt, VIEW + UISMOKE green.
+
+## G135 — THE GATE SUBJECTS LEAVE THE ROOM (2026-09-01, the user: "audit all UI references to the non-garage planes... they should only be there for automated gates at this point, the user should never see them")
+
+THE FLEET IS THE GARAGE'S OWN. Seven hand-written fiches — PA-18, J-3,
+Foam Trainer, DC-3, Jodel, C172, Chinook — have been on the game's
+aircraft menu since M1, from before there was a generator to build an
+aeroplane with. They are GATE SUBJECTS now: M3, DRONE, DC3, JODEL,
+C172, CHINOOK, PA18, WIND, XCTY* fly them in node, the calibration is
+anchored on them, and none of that wants a menu. The user's ruling
+finishes the sentence 2026-08-31 started ("subjects to measure, not
+fleet members") — the fleet is the list of GENERATED aeroplanes, and
+the fiches are unreachable.
+
+THE AUDIT, and it is short because the exposure was one control seen
+twice. Grepping every fiche key as a string literal across `src/`
+returns THREE files: `app.js` (the AIRCRAFT map and two boot calls),
+`body.html` (the seven `<option>` rows), and `refplane.js` — and the
+last one is not a fleet reference at all. So:
+
+  - `#selAc`, the flight bar's aircraft select — the seven options are
+    gone, the control is not. It keeps its id, its handler and one
+    hidden `gen` option, because UISMOKE drives THIS handler with the
+    fiche keys (`handlers['selAc']({target:{value:'drone'}})`, then
+    pa18, then c172, then gen) and narrowing it to one value would stop
+    proving that switching aeroplane works at all. Hidden, not deleted:
+    the seam assertion still requires `selAc` inside the FLIGHT layer.
+  - the bar's first section was labelled `aircraft` over two selects.
+    With the menu gone it holds the pilot alone, so it says `pilot`.
+    Measured after: three groups at x=14/203/623, and `#selPilot`'s
+    `border-left` is 0 px — the `.hudSec select + select` divider had
+    been drawing a rule with nothing to its left the moment the
+    aircraft select stopped taking space.
+  - `#edStand` / `#shAc`, the workshop's "on the stand" — the BENCH
+    SELECTION the user named. It never had a control of its own: it
+    borrowed `#selAc` from the bottom bar while the workshop was up
+    (`borrowAircraftSelect`) and gave it back on roll-out. A panel that
+    lends a one-option hidden select is dressing an empty box, so the
+    section, the loan, and the three `#edStand #shAc` CSS rules all go.
+    `releaseView` keeps its name and its `EDITOR_RELEASE` export — it
+    still closes what floats over a view about to become the world.
+  - the BOOT FALLBACK. `app.js`'s cage-boot `catch` opened the game on
+    the PA-18 on the apron. That is the one path that could still put a
+    fiche on screen, and it is exactly the path nobody watches. It
+    falls back to the garage build now.
+
+WHAT IS NOT A FLEET REFERENCE, checked rather than assumed:
+`refplane.js` names 'Piper PA-18 Super Cub' and 'Cessna 172' and keeps
+their baked payloads. That is the REFERENCE PLANE (G89-G93) — an
+aeroplane you park BESIDE your build to judge its size, display-only,
+seven spec doors held shut by GATE REF. It is not something you fly and
+it stays. `#credit` stays with it: those two meshes are still on screen
+and their licences are still owed. `setAircraft('pa18')` at the head of
+boot also stays — it is the init that gives `def`/`sim` a shape before
+the wiring runs, it happens under the boot splash, and `setAircraft`
+overwrites it with the garage build before the first frame.
+
+THE GATE MOVED WITH THE DOOR. `edStand` was in UISMOKE's WORKSHOP id
+list; it is in the RETIRED list now, with `shAc`, under the rule that
+list already states: an id that comes back is a door that came back.
+
+DELIVERY: bundles rebuilt; UISMOKE, VIEW, DESIGN, JOIN, REF green, then
+the full CORE battery — 49 of 51 green, with GEN and BUILD RED AND NOT
+THIS ARC'S. The tree carries a half-landed three-station wing (another
+session's; the spec calls it G136 in its own comments): `GEN_SPEC_V` is
+bumped to 6 and `GEN_MIGRATORS[5]` now exists, so BUILD's "the migrator
+table exists and is empty" is red by construction, and `wgTipX`/
+`wgCrankX` are in `60_gen_spec.js` but not yet in `_cage_wing.js`, so
+the vintage fixtures' re-save cannot shrink (48 keys -> 48). GEN is one
+check of seventy, and it names itself: "swept wings still fly a
+circuit" — the sweep-30 red G130 already left owed to the user's own
+ruling, now standing on the very axis the wing rework is rebuilding.
+Neither
+gate can see this arc: `test_gen.js` requires `flight_core.js` alone,
+which `build.js` bakes from `src/core/` ONLY, and every file G135
+touched is `src/viewer/` plus `test_ui_smoke.js` — the one exception,
+`garage.js` (BUILD does read it), took a comment and nothing else.
+Verified on dev.html (the pane would not
+composite, so the measurement is the computed box, which is the right
+instrument for DOM/CSS): boots to GARAGE on "Garage Special", `#selAc`
+`display:none` with one option `gen`, `#edStand`/`#shAc` absent, the
+bar reading pilot | trip | day, the information panel opening onto
+bench + logbook with no gap where the stand was, console clean. The
+commit stays the user's.
+
+## G136 — THE SHED IS ONE MENU, AND THE BUTTON TELLS THE TIME (2026-09-01,
+the user: "ui cosmetic pass... when I click on 'the shed', the styling is
+ugly, same for the world. I think we can get rid of the world entry, we have
+it in the main UI. The main UI always says night as a button, while it should
+pick the current setting. Also, I have incoherent options, I can setup some
+drivetrain options from there... a second bar at the bottom, I had hoped none
+like these still existed... auto hide the part selection bar when in design
+mode")
+
+FOUR COMPLAINTS, ONE ROOT CAUSE FOR TWO OF THEM. The "incoherent
+options" and the "small second menu at the bottom" were the same
+defect photographed twice: G108's `fillRoots` pulled rows out of the
+hangar group INTO the shed/world hosts BY LABEL, and `labelIndex`
+answers a label with whatever row sits first in document order. The
+aeroplane's own lights master (`lightOn`) wears the same `lights`
+label as the shed's switchboard — so with the shed selected (its own
+rows in the column, the aeroplane's parked first in the nursery), the
+index handed fillRoots the WRONG OBJECT'S row, and the shed panel
+grew a bar of aeroplane controls at its foot. `canopy loops` was the
+same double (`canLoops`, the cabin's) waiting to strike the display
+flyout.
+
+- THE RULE, not the instance: a part-table parameter row is already
+  claimed BY KEY, so `labelIndex` now skips any row whose `data-k`
+  the table owns (`PT.paramOwner`). `explodeD` and the other view
+  rows stay findable — they carry keys the table does not own. Label
+  claims are for hand-built rows only, which is what the label
+  mechanism was written for.
+- THE WORLD ROOT IS RETIRED (the user's own call). Its whole panel
+  was three rows the `night` flyout already shows — a second door to
+  the same three controls. The rows stay where the looking question
+  is asked, in the rail's flyout; the shed keeps the room. Nothing is
+  moved out of the hangar group any more — the rail's own parking
+  (step 4) already takes the four light rows to the nursery, and the
+  flyout borrows and returns them exactly as before. A stored
+  `world` selection falls back to `craft` through the existing guard.
+- THE SHED PANEL IS FLATTENED, not redressed: the one bordered
+  accordion labelled `hangar` that wrapped the ENTIRE panel — under a
+  title bar that already says `The shed` — lost its border, padding
+  and summary (CSS only; the element stays, fillRoots and the
+  derived-selector injection find it by `data-g`). Its plain rows sit
+  one indent step in like any part's; only the material sub-groups
+  keep the box, because they are the panel's real nesting. The indent
+  rule needs the `#edRows` prefix — `#edRows .r { margin:0 }` carries
+  an id and beats any class-only selector (the line-475 lesson,
+  relearned).
+- THE BUTTON SAYS WHAT TIME IT IS: the rail's `night` label was one
+  arbitrary value of the setting it opens. `syncNightLabel` writes
+  the current mood's own name over it (`afternoon`, `dusk`,
+  `overcast`), triggered by the mood select's change event
+  (addEventListener — its onchange is _cage_ui's) and by every
+  fillRoots, because a mood can arrive without the event (a hangar
+  swap, a payload default). `night` remains only as the pre-garage
+  resting fallback.
+- DESIGN NEEDS NO SELECTION: the design tab's tiles are the whole
+  aeroplane's, so the parts column folds to its spine on entering the
+  tab — TRANSIENTLY. `partsAuto` rides beside `collapsed` and is
+  never persisted: the user's own fold preference is neither read nor
+  written, the spine click re-opens the column mid-design (clearing
+  the transient fold, or the click would do nothing), and re-entering
+  the tab folds it again.
+
+AUDIT, since the user asked for one: every tree node (43) times every
+tab, plus all five rail flyouts, checked for foreign rows and for
+anything bar-shaped floating over the render — the only survivor
+below the columns is `#edBotBar` itself, and the one unclassified
+child in any panel is the reference plane's own panel div, which
+refplane.js owns whole by design. The world panel and the shed's
+dangling rows were the only "second menus", and both are gone.
+
+THE G-NUMBER RACE STRUCK A FOURTH TIME: this arc was written as G133
+until app.js turned out to already carry another session's G133 (ref
+payloads) AND G134 (powerplant sheet), with G135 (gate subjects) in
+HANDOVER. Renumbered before delivery; the next session should grep
+src/ for its number, not just this file's headings.
+
+DELIVERY: verified live on dev.html (tree shows My Plane / Reference
+plane / The shed; shed panel one flat menu, sub-boxes intact, selects
+wearing the column's own skin; night button reads `afternoon` and
+tracks a mood change through the flyout live; design tab folds the
+parts column at 436 px and the spine restores 640 px without touching
+the stored preference; aeroplane's `lights [lightOn]` row back under
+its own part; console clean). GATE UISMOKE green standalone; core
+battery run alongside. The commit stays the user's.
+
+## G137 — THREE THINGS LEAVE THE ROOM (2026-09-01, the user: "the field
+garage is cool, but there are too many props. Let's drop the 'echaffaudage
+mobile', the 'desserte avec boite a outils'. In all of them, let's drop the
+dark background of the hanging wing in construction. The works one should
+rather have the brick texture, double size from the original, full roughness
+and +50% normal")
+
+A SUBTRACTION ARC, and the interesting part is what each deletion took
+with it.
+
+- THE ROLLING PLATFORM (the echaffaudage mobile) was two `workPlatform`
+  recipe rows in the handling kit and one drawing in hangar.js — the
+  only two things in the room that stood in the OPEN FLOOR against no
+  wall (`out` 3.1 and 3.2 m), which is exactly why they read as
+  clutter in a 14 x 18 m shed. Rows, `DRAW` entry and the drawing all
+  gone; the kit keeps `recipes: []` rather than losing the field.
+- THE TOOL CART (the desserte) was a wall site AND a ring row — and
+  the ring row was a CARRIER: the bench kit's `toolbox_open` stood at
+  the same station and the same `dx` at y 0.90, i.e. ON the cart. A
+  rider outlives its carrier as a box hanging in the air, so both
+  went. `cart_tool` stays CLAIMED by the handling kit and unplaced,
+  the way `stove_barrel` has always been — rule 4 partitions the
+  furniture table, and a claim is not a placement.
+- GATE HANGAR's ring count moved 6 -> 4 with the rows it counts. It is
+  a frozen literal on purpose; updating it IS the delivery, not a
+  workaround.
+- THE HUNG WING'S SHADOW is deleted whole (G63's precalculated alpha
+  sheet, G64's blur). With it went `BD_FACE`, whose only reader it
+  was — the const existed to point the sheet at the timber shed's
+  boards instead of a door leaf. A constant kept alive by a comment is
+  a constant nobody can safely change later.
+- THE WORKS WEARS BRICK: `sandstone` on both wall parts, tile 4,
+  rough 2, nrm 1.5. The three numbers are the shed sheet's own three
+  sliders. `tile` is METRES PER TILE (setPart writes `repeat = 1/tile`),
+  so "double size from the original" is 4 against the wall sets' own
+  HANGAR_WALL_TILE_M of 2 — doubling the number doubles the brick, it
+  does not double the repeat. `rough` and `nrm` are MULTIPLIERS with a
+  ceiling of 2, and app.js already defaults both to 1 for any skin row
+  that omits them, so the two untouched rows (roof, stem) are
+  unchanged by adding the fields to their neighbours.
+
+GATE HANGAR green (732 checks). The field shed now places 49 props and
+13 recipes with 15 honest refusals; the club and the works place
+everything. The commit stays the user's.
+
+
+## G133 — THE FAIRING BECOMES AN INSTRUMENT, AND THE LEG FINDS THE WING
+(2026-09-01, the user: "high quality wheel fairings, assignable and tunable
+material, possible extension aft 'droplet', angle possible for taildraggers,
+controls possible for the size of the skirt, influence on aerodynamics in
+game, possible faring for the small wheel, working in tricycle and
+taildragger configurations... an aerodynamic structure for the wheel
+pillars, especially in oleo mode... if the wing is lower than the fuselage
+at a certain point, the wheel should attach to it... when the wheel slider
+moves them outwards, they automatically stick to the nearest available
+surface on top of them, be it wing or chassis")
+
+Landed while G131/G132 and G135-G137 were flying from three other sessions —
+the numbers around this entry are theirs; read the title, not the order.
+Six chantiers, one arc, every one on G121.2's three-sided rule (the spec
+carries the choice, the physics prices what's drawn, the row hides where
+it's inert):
+
+1. THE SPAT HAS INSTRUMENTS. `spat()` takes an option object now (a bare
+   boolean still reads as `full`, so the bench and the gate stand):
+   `skirt` (± depth around the mode's own base, total clamp 0.30..0.92·R),
+   `tail` (droplet × 0.70..1.60 on the 2.45·R run-out), `rake` (±25°,
+   tipped in the fwd/up plane — about `ax` the two spats of a pair would
+   nose OPPOSITE ways), `width` (× 0.80..1.50). Defaults reproduce the
+   pre-G133 shell to the vertex. Rows s{1,2}FairSkirt/Tail/Rake/W live in
+   a new per-station 'fairing' group (_cage_parts) and exist only where a
+   shell does.
+
+2. THE TROUSER FINALLY DRAWS ITS LEG. `fairing: 'full'` has priced the
+   legs at Cd 0.30 since G115 while drawing only a deeper shell — the
+   exact geometry/physics mismatch the honesty arc exists to remove, live
+   in the tree and named by tonight's exploration. `legShroud`/`secTear`
+   (the spat's own streamline family laid on its side: elliptic nose,
+   1.85-power run-out) now wrap every structural run — the beam's blade
+   along its bezier, BOTH of the link's V-tubes and its shock strut, the
+   oleo's cylinder with a chord sized to swallow the torque scissor's knee
+   at full offset. And s{i}LegFair draws the shroud ALONE (the Jodel's
+   streamlined tubes, the Cherokee strut fairing), priced legCd 1.0 ->
+   0.30, hidden on trousers (implied) and on the castor (the spring shroud
+   belongs to the trouser state there).
+
+3. THE SMALL WHEEL GETS ITS SPAT — drawn INTO THE CASTOR'S OWN BAGS, so a
+   steered tailwheel steers its fairing with the fork; `full` shrouds the
+   leaf spring too. This is the shell whose absence made G121.2 refuse to
+   price a taildragger's third-wheel fairing. With it drawn, genGearCdA
+   retires the tricycle-only gate, and GATE HONEST's exact-equality
+   assertion (twSpatTD === stock, "to the bit") INVERTS to
+   twSpatTD < stock - 0.004 — the old assertion would now be the original
+   lie, which is worth a sentence: an honesty gate's checks are claims
+   about the GEOMETRY of the moment, and they flip when the geometry does.
+
+4. FAIRINGS WEIGH AND COST. genLattice bills shell mass 55·R² kg
+   glassfibre (trouser 88·R², a lone shroud 3.2·drop) onto the axle
+   points, stretched by the droplet; GEN_PRICES.spat/trouser/legFair ×
+   GEN_FAIR_MATS (glassfibre datum; carbon m 0.62 / price 2.4; alloy
+   1.30 / 0.85) — ONE layup row (`fairCons`) for the whole set, on the
+   wheels part beside the spat section it paints. Zero at the defaults, so
+   no stock number, energy baseline or fleet sweep moved. Assignable
+   APPEARANCE was already the per-part livery's (AERO_SEC.spat, trim) —
+   untouched; the spat/shroud meshes moved off the static shared bags into
+   the LEG and CASTOR units, so legM routes a unit's 'fair' bag through
+   spatM(), tris-guarded so an unfaired build registers no section.
+
+5. THE DROPLET IS PRICED, the rest deliberately not. genFairDroplet:
+   fairing Cd × (1 - 0.18·(tail-1)), exactly 1.0 at the default length —
+   Hoerner's fineness trend, well inside his scatter. Skirt, rake and
+   width are stance-class choices (clearance, attitude, tyre), priced no
+   more than legDrop is. NEW third-leg term: (twLegFair or twFairing full
+   ? 0.30 : 1.0)·twLeg·0.05 — bare in build AND reference, which now
+   shares twLeg the way it has always shared legDrop, so it cancels on
+   every pre-G133 build. The ref literal RESTATES every fairing field the
+   model reads; a field it forgot would silently recalibrate the fleet,
+   and GATE HONEST's stockDelta≈0 is the tripwire (comment says so, at
+   the literal).
+
+6. THE NEAREST SURFACE ABOVE THE WHEEL (the user's rule, with one guard).
+   When the wing's BUILT underside at the axle's own span sits lower than
+   the fuselage section's middle (AF.cyAt), the leg roots on the WING:
+   `st.mount` is a frame provider the leg builders take instead of their
+   fitFrame call — pads go through padOn (fitPad drapes the skin, padFlat
+   plates the mount plane), the link's two feet and its shock top re-probe
+   at their own z, and a foot that would land ahead of the leading edge
+   walks back to it. The guard is the Cub counterexample: straight above
+   ITS wheels the nearest surface IS the high wing, and its legs still
+   belong to the belly — so "nearest above" is implemented as "the wing,
+   where the wing is genuinely the lower surface". THE AXLE IS
+   MOUNT-INVARIANT (keel-datum'd, G53's own rule): where the leg roots
+   never moves the wheel, the stance, or the join's measured rows —
+   asserted to 1e-6 in GATE GEAR (the link's axle-z legitimately follows
+   its pivot height; beam and oleo are held exact). The wing publishes
+   `CAGE_WING.underAt` off its BUILT skin classes through fresh
+   DoubleSide probe meshes (the Raycaster culls by material.side —
+   measured, one class answered and another didn't, purely by winding;
+   and fresh meshes so an EXPLODED view still measures the wing at its
+   own place, the dims-pane rule), nulled when the wing is off. THE GEAR
+   LAYER MOVED AFTER THE WING in build.js's editor list — the access
+   layer's stale-by-one-drag reason, now cited twice; the gear MODULES
+   stay early because _cage_fin/_cage_stab read GEAR_GEN.CAGE_MATS at
+   load. The stat line says 'mains on wing' when the rule fires. And the
+   axle station may sit a little AHEAD of the leading edge (a real
+   low-wing's does), so the mount seeks the wing chordwise within 0.6 m
+   rather than demanding wing-directly-above — a null probe at the mains
+   station was TRUTH, not a bug.
+
+ALSO: the plaque footer names the fairing state (one word beside the gear
+type — the rows it prices were already on the sheet as L/D, cruise, climb
+and the run); the G132 suspension wire now lets the LEG KIND outrank the
+link-only shock row (beam -> spring, oleo -> oleo; the slider-physics
+audit flagged it, and it is gear territory, so it landed here — asserted
+in _join_check); spec fields legFair/twLegFair/fairTail/twFairTail/fairMat
+join GEN_DEFAULT.gear with clamps and NO version bump (genNormaliseSpec is
+the migration path, the G85 rule; 5->6 stays the energy arc's); and the
+"if a drag model arrives" comment on gear.fairing, stale since G115, was
+finally updated.
+
+GATES. GEAR grew: each instrument moves the shell (droplet lengthens,
+skirt deepens, width widens, rake changes the digest), the trouser shroud
+reaches up the leg on ALL THREE families, the leg-fairing switch draws
+alone, the root follows a fabricated mount while THE WHEEL STAYS PUT, the
+castor-bag tailwheel spat — plus four selftest probes. HONEST grew
+legFairOnly / droplet-long-vs-short / spat-mass-and-carbon checks over a
+shared GEARBASE fixture (the old trio each doctored one number against a
+base that would now fail three new checks), and the tailwheel probe
+INVERTED. JOIN grew the five new mappings export- and resolved-side, an
+out-of-range clamp probe (droplet 9 -> 1.60, layup 7 -> glass), and the
+leg-kind suspension rows.
+
+MEASURED, through the whole pipeline: stockDelta 0.0000 m² to four places
+(the calibration untouched); axial CdA 0.5508 stock -> 0.5107 spats ->
+0.4708 trousers; a leg fairing alone 0.5046 (the legs are the bigger half
+of the trouser's win, as they should be); droplet 1.6 vs 0.7 on spats
+0.5078 vs 0.5121; a TAILDRAGGER's tailwheel spat 0.5458 — the 1.52·R²·dCd
+closed form to the fourth place, where G121.2 had to assert exactly
+0.5508 = 0.5508. Masses: stock 405.5 kg -> spats 409.8 -> trousers 412.4;
+carbon spats 408.2. In the browser (dev.html, the capture rig — and a new
+trap for it: CAGE_GEAR.units speak CAGE space while the garage scene is
+world space, so a camera aimed with cage coords photographs the wrong end
+of the aeroplane): the droplet+skirt state is the classic teardrop wheel
+pant; trousers visibly shroud the oleo from wing to shell; legFair gives
+bare wheels on streamlined pillars; the tailwheel spat hangs on its castor
+aft of the leaf spring; a LOW wing at wgPos 2 roots the oleo legs on the
+built underside at y -0.45 (probe and drawn root agree to 7 mm), stat
+line 'mains on wing', and the same build's axles, track and stance
+unmoved. GATES: the full core battery green except GEN's pre-existing
+sweep-30 red ("swept wings still fly a circuit" — G130's owed ruling,
+untouched by this arc); HONEST/MASS/PILOT/UISMOKE re-run green after the
+last edits.
+
+OWED / KNOWN LIMITS: the spat rides the LEG unit, so it follows the
+suspension's stretch-binding (right for the shroud, approximately right
+for the shell); a translate-only axle binding would be its own join
+chantier. The third station's LEG drag now exists, but 0.05 m stays the
+implied leg chord for both stations. Interference drag (the wheel/leg
+junction — gear.track and camber are still unread by the drag model)
+remains the obvious next physical lever, named by the exploration.
+
+## G138 — SEVEN MORE AEROPLANES TO STAND BESIDE YOUR BUILD (2026-09-01,
+## the user: "flydiy: integrate new reference planes. They're all from the
+## same modeller on sketchfab CC-BY, and he deserves credits. They're only to
+## be imported as references. Check the dimensions against published specs
+## just to be sure. Ensure you properly have them rest on their wheels, the
+## tail draggers are often not represented like that. They should behave
+## exactly similar as the current 2 reference planes.")
+
+THE G-NUMBER RACE STRUCK A FIFTH TIME: this arc was written as G133 and
+renumbered to G138 wholesale before delivery, G133 being another session's
+gear arc and G134-G137 already taken. Grep before you claim a number.
+
+Nine aeroplanes now stand in the REFERENCE PLANE dropdown where two did.
+The seven new ones are helijah's (Emmanuel BARANGER) — the same modeller as
+the PA-18 — and they are DISPLAY ONLY in the strongest sense the project has:
+they carry no control surfaces, no propeller hub, no sid tags, and GATE REF
+asserts each of those as a property of the payload rather than a promise.
+
+### A SECOND BAKER, BECAUSE A REFERENCE NEEDS SO MUCH LESS THAN AN AEROPLANE
+
+`tools/ref_prep.py` + the declared table `tools/ref_table.py`. The existing
+pipeline (`glb_render` contact sheet -> hand-built node table -> `glb_extract`
+-> OBJ -> `models/<key>.py` -> `model_prep`) exists to make an aeroplane
+FLYABLE: every control surface as its own named object, a hinge line fitted to
+it, a per-vertex sid, a hub to spin about, a wing band bound to the spar. That
+is an afternoon per airframe with a contact sheet, and a reference needs NONE
+of it.
+
+**GROUPS ARE THE SOURCE'S OWN MATERIALS.** A reference is drawn, not driven,
+so the only division that has to survive is the one that decides what colour a
+triangle is — which is exactly what a glTF material is. That single decision
+is what turns "an afternoon" into a five-line table row, and it is why seven
+aeroplanes landed in one session.
+
+- Same container, byte for byte: `decodeModel()` is untouched and reads these
+  the way it reads the C172.
+- **Geometry through untouched.** No decimation, no welding, nothing dropped
+  ([[import-models-as-is]]). The chunker splits a material over the container's
+  own 65 535-vertex uint16 ceiling into `mat`, `mat__2`, ... — every chunk
+  names the same `mat`, so the viewer still builds ONE material and the split
+  is invisible. It asserts its own triangle count in and out; the c195 needed
+  it (169 k verts in one material).
+- **The axes are DECLARED per row, not assumed.** All seven arrive in
+  `'xaft'` — the FlightGear frame, which IS the model frame, so the map is the
+  identity — but that was VERIFIED per model (propeller at x minimum, the
+  taildraggers' tailwheels at x maximum) rather than inferred from the C172,
+  which arrives in `'znose'`. A silently mirrored basis shows up as a backwards
+  registration three sessions later.
+
+### THE SIT: A NEW INSTRUMENT, AND WHY IT REFUSES TO CHOOSE
+
+`node tools/_ref_sit.js [key]` derives the ground attitude off each payload's
+own lower convex hull, and **lists every local maximum of the stance rather
+than picking one**. It has to, and the C172 is the proof: its WIDEST stance of
+all is 12.22 deg nose-up, where it balances on its mains and the bottom of its
+tailcone over 5.10 m — half a metre wider than the 1.83 m nose-to-mains stance
+it actually parks on. A global maximum is not the attitude an aeroplane parks
+in; it is the attitude with the most floor under it. Reading the list against
+what the aeroplane IS is a judgement, so a person makes it, writes it into
+REF_PRESETS, and GATE REF re-derives it and holds the declaration.
+
+**THE FIRST VERSION OF THAT TOOL WAS WRONG AND SAID SO ITSELF.** Peak-finding
+by "higher than its two neighbours" found nothing: the stance is a STAIRCASE
+(contacts snap in and out of the 12 mm band) with a slow drift along each
+tread, so no sample is a strict local max. The tell was that it missed the
+PA-18's own already-declared 12.09 deg — an instrument that cannot reproduce a
+number you already trust is broken, whatever it says about the new ones. It
+now takes a peak as "no lower than anything within 0.6 deg", and reproduces
+12.09 exactly.
+
+Derived and declared: d112 7.72, pio200 0.33, c195 14.15, a22 0.03, p68 0.06,
+rv8 8.62, sr22 -0.03 deg nose-up. Three taildraggers, four on nosewheels —
+which is the point: had all seven been drawn on their wheels, a hardcoded zero
+would have passed everything.
+
+VERIFIED IN THE ROOM, not just in node: with every preset selected in turn
+through the real panel, the lowest world-space vertex of the placed group sits
+at `groundY` to within 0 m, on two contact stations 1.30-5.90 m apart — and in
+the screenshots each one rests on both tyres, taildraggers tail-down. **The
+capture rig hit the REF_MOUNT occlusion trap again**: an outside camera has the
+shed wall between it and the aeroplane, and the box helper draws THROUGH the
+wall (`depthTest` off), so the first sheet was a wireframe box on a plank
+texture. The fix is to borrow the placed group into an empty stage scene with
+your own floor and lights, and put it back afterwards.
+
+### THE DIMENSIONS, CHECKED — AND ONE ROW THAT BUYS SLACK OUT LOUD
+
+Every payload is within 1% of its type's published span AND length, except the
+Pioneer 200. GATE REF's tolerance is 1.5%.
+
+| | model span | published | model length | published |
+|---|---|---|---|---|
+| d112   |  8.211 | 8.22  | 6.495 | 6.50 |
+| pio200 |  7.509 | 7.55* | 6.037 | 6.15* |
+| c195   | 10.980 | 11.02 | 8.249 | 8.33 |
+| a22    | 10.086 | 10.1  | 6.284 | 6.30 |
+| p68    | 12.009 | 12.00 | 9.535 | 9.55 |
+| rv8    |  7.318 | 7.32  | 6.394 | 6.40 |
+| sr22   | 11.582 | 11.68 | 7.915 | 7.92 |
+
+\* THE PIONEER 200 HAS NO SINGLE PUBLISHED FIGURE. Sources give span 7.30 /
+7.55 / 7.65 m and length 6.09 / 6.15 / 6.20 m. Widening the global tolerance
+to swallow that would weaken the check for the other eight, and quietly
+picking whichever published pair the model happens to match would be measuring
+the ruler with the object. So `pub.tol` is a PER-ROW tolerance (2.5% here) and
+`pub.note` states the disagreement — **and GATE REF fails any row that buys
+slack without a note on it.** A loosened check with no reason attached is the
+one that rots.
+
+### THE LICENCE IS NOT THE SAME ON ALL SEVEN, AND THE GATE KNOWS
+
+The user's brief said CC-BY. Three of the seven are: the GLBs' own
+`asset.extras` says **CC-BY-4.0** for the Jodel D.112, the Pioneer 200 and the
+Cessna 195. The other four — A22 Foxbat, P.68, RV-8, SR22 — say **"SKETCHFAB
+Standard"**, which does not permit redistribution. (helijah's FlightGear
+originals are GPL-2.0 via FGMEMBERS; what a Sketchfab LISTING carries is a
+separate per-upload choice.) User's ruling: keep all seven locally, publish
+only the three.
+
+Mechanised in three places rather than trusted to memory:
+- each baked payload carries its own `lic` and `credit`, copied verbatim from
+  the source file;
+- **`build.js` MANIFEST.models IS THE PUBLISH LIST** — everything on it is
+  inlined into the committed, served `index.html` — and GATE REF fails if a
+  payload on it declares a licence outside `PUBLISHABLE`. Negative-verified
+  both ways: publishing one FAILS, merely baking it does NOT;
+- the four GLBs and their four payloads are gitignored, so `git add -A`
+  cannot publish them either.
+
+The presets stay in the table for all nine. The panel FILTERS its dropdown
+against what actually loaded, so dropping an aeroplane is one line in build.js
+and the artifact and the table are allowed to differ — GATE REF prints which
+is which every run.
+
+### THE ARTIFACT FOUND ITS CEILING, AND THE LIVERIES PAID FOR IT
+
+With the three published references carrying their liveries byte-for-byte,
+`index.html` reached **104.4 MiB. GitHub hard-rejects any push containing a
+file over 100 MiB.** It was already at 90 MiB before this arc; the reference
+did not create that problem, it walked into it.
+
+User's ruling: **"you could have them full white"**. So `tex='none'` is the
+DEFAULT for a reference row, and `ref_prep.py` prints what the livery WOULD
+have cost every single run so turning one back on is informed rather than
+hopeful. `index.html` is now **96.5 MiB**, with 3.5 MiB of headroom.
+
+This is NOT re-encoding someone's atlas. Nothing is resampled or recompressed:
+a base-colour map is either carried byte-for-byte (`tex='copy'`) or not
+carried. Without it a material still has its authored flat colour, roughness,
+metalness and opacity, so the glazing is still glazing and the tyres are still
+black — and refplane's DEFAULT mode is white clay anyway, for the reason its
+own comment gives: "the point of a reference is its SHAPE, and a livery is the
+thing most likely to stop you seeing it".
+
+### WHAT THE 96.5 MiB ACTUALLY IS — OWED, AND BIGGER THAN THIS ARC
+
+The user asked the right question ("why do they have to bloat the HTML like
+this? ... we'll bump into the issue soon again"). Measured:
+
+| | | |
+|---|---|---|
+| hangar prop packs (`src/props/`) | 39.9 MB | 41% — `props_machine.js` alone is 15.8 MB |
+| viewer JS (`src/viewer/`)        | 40.2 MB | 42% — of which **39 MB is base64 data URIs**: hangar_walls 23.9, hangar_sky 8.0, site_tex 4.2, hangar_floor 2.9 |
+| 3D model payloads                | 18.3 MB | 19% — the nine aeroplanes; the seven new ones are 6.4 MB of it |
+| actual CODE (core + editor + viewer + three.js) | ~2.8 MB | ~3% |
+
+**97% of the artifact is base64-encoded binary, and base64 costs 33% over the
+bytes it encodes.** The single-file decision is recorded at HANDOVER's
+"THE BACKUP IS THE ARTIFACT" — index.html is fully self-contained so one copy
+IS the complete game (`earlierVersions/` depends on that) — and the import
+rule's "the artifact is ~7.9 MB and that is fine" was written when it was 7.9
+MB. That premise has expired at 96.5.
+
+`dev.html` already proves the alternative works: same game, `<script src>`
+refs, over http and from `file://`. Serving the heavy assets as REAL BINARY
+FILES (not base64 JS) off GitHub Pages would take roughly 25% off the wire
+immediately, remove the 100 MiB wall entirely, and let the browser cache them
+between visits. What it costs is the one-file portability property, which is
+a real thing the project uses. NOT DONE HERE — it is its own chantier, and it
+should be taken before the next feature needs 4 MB.
+
+### THE BATTERY
+
+`node tools/run_gates.js --all`: **41 of 43 green, and the two reds are both
+older than this arc and untouched by it.**
+
+- **GATE REF PASS**, with all 15 selftest cases catching (5 of them new).
+- Every gate that can see this change is green: UISMOKE, MODEL, SKIN, CTRL,
+  PA18, C172M, TREE, BUILD, PARTS, VIEW, PROPS.
+- **WIND FAIL** — `|tdDrift|<1.8` on the DC-3's crosswind touchdown. The
+  atmosphere arc (G72) left this red on purpose; it is a solver number and
+  this arc contains no solver edit.
+- **GEN FAIL** — 69 of 70 checks, the one being "swept wings still fly a
+  circuit". That is G130's owed USER'S RULING, not a regression.
+
+Do not read "BATTERY: FAIL" as this arc's verdict, and do not read it as
+permission to deliver red either — those two reds are owed to the user and
+still are. (Also: this tree is shared with five other sessions and several of
+them have uncommitted edits in `src/core/` right now, `30_solver.js` among
+them.)
+
+The commit stays the user's.
+
+
+## G133.1 — THE STRUT HANGS STRAIGHT (2026-09-01, the user: "your legs are
+## not straight, they bend inwards because you center the wheel and the
+## fairing on the attachment, while it should be slightly offset, so
+## everything remains straight" — with a drawn green plumb line)
+
+The diagnosis, exactly as drawn: every leg's strut stops at `axleIn` — the
+wheel's centre minus `hubIn` (0.4·R + 0.02), the stub axle carrying on to
+the hub — but the wing mount rooted the leg above the WHEEL. On the old
+belly attachment the discrepancy vanished into the leg's own diagonal; on
+a short vertical wing leg it read as a lean, inboard by hubIn, on every
+strut of the pair.
+
+The cure is the user's offset, made the builders' own: `fitOn`/`padOn`
+take a `dx`, the mount provider applies it (and probes the wing's
+underside at the OFFSET x, so the root's y is the skin it actually bolts
+to), and each builder asks for its root one hubIn inboard — above the
+strut's own foot. The strut then hangs dead vertical and the wheel and
+its spat ride the stub axle a little outboard, the way a real one wears
+them. The fuselage path ignores dx entirely: a flank root is diagonal by
+design, and no un-mounted build changes by a vertex.
+
+GATE GEAR's mount check now asserts the request itself: the fabricated
+provider honours dx, and the root must land at mount-x − hubIn (to 1e-6)
+with THE AXLE STILL MOUNT-INVARIANT — so a builder that forgets the
+offset, or a provider that misapplies it, is a red gate, not a leaning
+undercarriage. Measured on the low-wing oleo build: roots ±0.700 where
+the wheels sit at ±0.800 with hubIn 0.100 exactly; axles, track and
+stance unmoved; the front view's shrouds plumb.
+
+## G139 — THE FUSELAGE DIVIDES WHERE THE PILLARS ARE, AND YOU CAN CLICK
+## THROUGH IT (2026-09-01, the user: "the part selection on the plane is a
+## little strange. In my mind, the fuselage divides into nose (from the
+## firewall to the windshield pillar, or equivalent at the fore end of the
+## cabin), the pilot cabin, anything between the window pillar and the pilot
+## pillar, the passenger bays, anything behind the window pillar and before the
+## passenger pillar, the boom until the flat part at the tail, which would be
+## the tail. These parts would need to highlight accordingly. It is still OK to
+## get straight to the windows. Maybe we should have a view where the interior
+## is visible, and not the fuselage, to be able to get to the engine and the
+## cockpit through clicking")
+
+Clicking the aeroplane answered `Fuselage` for every square metre of skin on
+it, and the reason was structural rather than a bug: G79 resolves a hit
+through the MATERIAL it struck, and the covering is ONE material — `body`,
+firewall to tail. So the parts the user names were all there in the tree, and
+none of them could be reached by pointing at the thing they are.
+
+THE COVERING STAYS ONE MATERIAL. Splitting `body` into six would have put six
+rows in the livery for one paint job, six draw groups where one belongs, and
+six AERO_SEC chains to keep in step — to answer a question about SELECTION.
+The division is a table of STATIONS instead: `cageBodyZones(S)` in
+tools/_cage_gen.js, six zones named for the ring each one starts at, read
+straight off `cageResolve` so nothing is invented —
+
+    nose      wsFront      the firewall forward of the windscreen base
+    cabin     pilCabA      the pilot bay, aft to its own pillar
+    pax       pilPaxA      the passenger bays
+    taper     pilTaperA    the tightening section
+    boom      tailPost     aft of the taper
+    tail      —            the flat part at the tail
+
+A ring this aeroplane does not have drops its zone and the zone forward of it
+reaches further aft, so a boomless pod, a taperless fuselage and a rod boom
+all partition correctly with no special case. The MIRRORED POD is the one
+place with real arithmetic: its table stops at the arceau, so the aft zones
+are the forward ones reflected — through buildCage2's OWN reflection constant
+(`CZ`, rebuilt from the same three numbers), not through twice the pillar
+mid-plane, because with per-half controls those differ and every aft boundary
+would land in the wrong place. That also gives `Aft deck` and `Aft cabin`
+something to highlight for the first time: they own no material at all.
+
+THE TABLE RIDES ON THE MESH. _cage_ui.js publishes what the build was made
+with as `userData.bodyZones`, in the mesh's own coordinates — so app.js's pick
+converts the struck point with `worldToLocal` and no scale enters (measured on
+the page: the world round trip through the mount's rotation and scale is exact
+to 1.8e-15), and editor.js's highlight cuts the covering's draw group to the
+selected stations by TRIANGLE CENTROID. A centroid because a face that
+straddles a pillar belongs to the bay it is mostly in; testing a corner leaves
+a sliver of the neighbour lit along every station.
+
+`zone` in tools/_cage_parts.js is the other half of `sections`, and
+`CAGE_ZONED` (today: `body`) says which sections ask the station question
+first. THE LONGERONS ARE NOT ZONED, and that is the ruling: `waistband`,
+`ceilingLoop` and `floorLoop` are one rail each running the whole length —
+they are what `Rings & longerons` IS, and cutting them at every pillar would
+answer a question nobody asked with six pieces of one stringer. The glazing is
+not zoned either ("it is still OK to get straight to the windows").
+
+A FOLDED BRANCH IS NOT A MISSING PART. The first working build still answered
+`Fuselage` to every click, and the cause was a five-line guard in `paintTree`
+written for something else entirely: a part with no ROW walks the selection up
+to its nearest visible ancestor, which is right when the mirrored pod is
+switched off under a selected aft deck and wrong when the row is merely
+folded away. The bays live under `Fuselage`, so with that branch closed every
+zone bounced straight back to the assembly. A row that is only OUT OF SIGHT
+now opens its folds; the walk keeps the case it was written for.
+
+SEE INSIDE (the second half of the ask) is one switch in the display flyout,
+and it is not a sixth alpha. The five dials each answer "how much of THIS
+family do I want to see through"; this answers "get the covering out of my way
+so I can work on what is under it" — it MULTIPLIES them (a builder already
+below 0.12 keeps their own value), it takes the cowl with it, and it does the
+one thing no alpha ever did: WHAT YOU CAN SEE THROUGH, YOU CAN CLICK THROUGH.
+That was the actual complaint behind the request — `fuselage α` at 0.05 has
+been available since G106 and the seats behind it were still unreachable,
+because the pick does not care about opacity. `alphaOf` and the pick now ask
+ONE predicate (`CAGE_VIEW.thru`), so a see-through section and a clickable
+section cannot disagree; the cowl layer marks its own group instead, since it
+owns its materials. It leaves the STRUCTURE standing — frames, posts, tubes,
+firewall, bulkhead, dash, the rod boom — because an aeroplane with its skin
+off is a frame with an engine in it, not an empty outline.
+
+It is in VIEW_STATE, not VIEW_KEEP: it is the most dangerous X-ray knob there
+is (one click takes the whole covering to 0.12) and the capture records
+`material.opacity` verbatim, so an aeroplane snapshotted with it on would fly
+see-through.
+
+GATE PARTS grew a ZONES section and four selftests. It is not a table
+inspection: it builds every shape in the sweep, sorts the real covering's real
+faces by the real table, and requires each zone to catch some of it — the same
+discipline GATE ACCESS learned, that a gate which classifies one aeroplane has
+not met its own table. It also holds the partition itself (zones touch, are
+ordered, and reach both extremities), one part per zone both ways, and that a
+zoned section is owned by an ASSEMBLY — the material answer has to stay the
+whole fuselage, because that is what the zone answer refines. Measured over
+the twelve shapes: tail 432, boom 392, pax 336, cabin 544, nose 384, aftCabin
+32, aftDeck 24.
+
+Verified in the page, not in principle: each zone selects its own part
+(nose → `Nose · deck`, tail → `Tail cone`), a hit with no zone still answers
+`Fuselage`, and each highlight is confined to its own z band (pax 1.06..2.07
+against a zone of 1.06..2.07; boom −2.93..1.06; tail −3.10..−2.93). See
+inside takes body, waistband and glazing to 0.12 while dash and firewall stay
+at 1, marks the cowl group, and puts every value back when switched off. The
+extra highlight pass costs 0.86 ms on a 70,000-triangle covering.
+
+(G-number: G138 was the highest when this landed; the tree is shared with five
+other sessions and the number has been raced three times, so this claims G139
+with a title nobody else's arc could collide with.)
+
+## G140 — THE WING IS THREE STATIONS (2026-09-01, the user: "go for the
+## wing chantier... specify the section at the root, crank point and tip,
+## and move them aft/forward, so we get everything we want"; the rulings:
+## sweep retired, struts to the crank joint, bump+migrator+fixture, the
+## planform tile retired entirely)
+## (drafted as G136; the shed-menu session landed ITS G136 while this arc
+## ran — the number raced a FOURTH time, renumbered per protocol. Every
+## in-code mark of this arc says G140.)
+
+### THE MODEL
+
+wings[0] grew three null-derive fields: `crankChord` (the crank section's
+own chord), `crankX` and `tipX` (the crank and tip sections' fore/aft
+seats, metres, + aft). Null means "derive from sweep/taper exactly as v5
+did" — genPlanLaw (60_gen_spec) is the ONE builder both resolveSpec's
+area/MAC/xAC/bow derivation and the frame's spars/covering/skin read, and
+its legacy branch carries the pre-G140 expressions BYTE FOR BYTE, so every
+existing spec resolves to the identical wing (default: climb 1.911, Vs
+59.3, TORun 351 — the G130 numbers exactly). Explicit stations make the
+chord law and the section walk piecewise root->crank->tip; per-panel LE
+sweep falls out of the seats, and the polar takes `sweepEff` (area-
+weighted |LE sweep|; legacy = the sweep field verbatim). The explicit
+xAC/cBar are the honest per-panel composition — quarter of each panel's
+MAC, walk measured from zRoot where it starts — and the one documented
+divergence from the legacy line (which walked yMac from the CENTRELINE) is
+why a migrated swept save's xAC sits up to tan(sweep)*zRoot forward of its
+frozen number: the fixture (below) proves the window.
+
+wgSweep IS RETIRED from the cage: the panel's planform group reads
+span · root chord · crank at/chord/seat · tip chord/seat · tips, the join
+writes the stations explicitly (tipX 0 is a real value: straight), and
+GEN_SPEC_V bumped 5 -> 6 with GEN_MIGRATORS' first real entry: the lift
+converts a save's stored angle into the offsets at the save's own geometry
+and deletes the key. tools/fixtures/build_v5_swept_2026-09-01.json was
+FROZEN BEFORE THE FIRST CORE EDIT (a swept, cranked v5 with its resolved
+numbers in a `frozen` block); the vintage shelf now asserts Sw + cBar
+exact, mass within 1.5%, xAC inside the honesty window — and two of
+test_build's own checks moved WITH their premises (the migrator table is
+no longer asserted empty but asserted to carry EXACTLY v5->v6; the shrink
+theorem applies to fat vintages only, a slim fixture must merely not
+grow). test_gen's SWEEP block still sets the sweep FIELD and is untouched:
+the legacy input keeps meaning what it meant.
+
+### THE CRANK CARRIES A STRUT NOW — AND THE STRUT IS THE LOWER CHORD
+
+The 2026-08-11 exclusion (a fan reaching past the crank: 22.95 deg at
+1.34x, rule 10, circuits lost) stays true for what it measured; what
+landed is the user's ruling — "constrain the crank point to the strut if
+there's one, free if not". On a strutted wing the crank station IS the
+strut station: the visible struts land on the crank joint, the fan braces
+the inner panel only, and the outer panel gets the cantilever box from the
+crank outward — the C172's own construction. THE MEASURED LESSON INSIDE
+IT: the first build of that box left its lower caps ending at a web on the
+crank, the joint was a HINGE in bending, and the aeroplane lifted off at
+66 s and hovered at 1 m at full throttle with the tip folded 2.4 m up —
+while the static TORSION probe read a healthy 1.81x, because torsion loads
+twist and flight loads bend. The fix is the aeroplane's own truss: the
+outer box's lower-cap tension runs INTO THE STRUT at the crank (two lumped
+members, strutRoot -> FB/RB at the box root) and down to the fuselage.
+With that pair the hybrid completes circuits (305/297 s beside the
+default's 294) and measures 1.3% bend at 1.97-2.00x. GATE FLEX grew the
+net that was missing: the bend column (which existed, unasserted) now
+carries BEND_MAX = 8% (healthy rows read 0.3-2.9), two hybrid rows joined
+the matrix, and the negative half CUTS the four strut chords and requires
+the fold back (measured: 87.5%). `bracing` reports `strut + boxed outer`
+so the construction is never silent. An uncranked strutted wing emits
+byte-identical members; a crank at station 0 skips the fan's end pair
+(the double-stiffness shape, documented at panels 2).
+
+### THE STRUT MESH FOLLOWS ITS OWN TWO ENDS
+
+The user's ruling, verbatim: "the strut should probably not deform itself,
+just move its begin and end points. Or better, scale gracefully between
+these." G130's rigid parking (zRoot:Infinity) cured the kink and left the
+Flex-x4 gap at the wing end — the "mesh discontinuity (old bug)". Now the
+frame EXPORTS the strut's landing (wf.*.strutF/strutR beside strutRoot —
+guessing "station 1" in the viewer is how the kink was born), and app.js
+builds a two-end binding at model build: every sstrut vertex is assigned
+to its member (side x front/rear, by nearest axis in snapshot space) with
+t its fraction along foot->tip; per frame the six landing nodes get body-
+frame deltas (sparDeltas' own projection) and each vertex lerps foot->tip.
+The tube translates, tilts and stretches between the exact nodes its beam
+runs between — no kink, no gap, at x1 and x4 alike.
+
+### FALLOUT LANDED WITH IT
+
+The planform TILE is retired entirely (the user's ruling) — row, icons and
+all; the nine archetypes carry their planform as `over.cage` patches
+(designBake grew the channel, function values resolving against the
+class's own chord; GATE DESIGN walks over.cage/over.spec with the same
+yardsticks as everything else), and the C172-alike finally wears its REAL
+wing — crank at the strut — which GATE ARCHETYPES now FLIES through a
+complete circuit every run. The aerobatic role's seed writes wgTipX: 0
+where it wrote wgSweep: 0. cageCfg's wing-box margins read the seats (with
+the legacy sweep reach kept for hand-written specs).
+
+### DELIVERY
+
+Mid-arc: BUILD, JOIN, DESIGN(+selftest), UISMOKE, ARCHETYPES (340.8 s —
+the cranked C172-alike flying), FLEX (with the new net + negative) all
+green. FULL BATTERY: **60/62, 2349 s** — the only reds the two standing
+documented ones (WIND's W-DC3 drift; GEN's sweep-30 ruling, still the
+user's), i.e. G140 introduced ZERO new reds across the whole surface,
+GEN's legacy path and ENERGY's frozen fourteen included. The parallel
+chrome session's transition (#card, `instOn`) landed mid-battery and
+UISMOKE went green with it.
+
+ONE FINDING FOR THE PLAYER-FACING LOOP, measured in the live bench: on a
+MEASURED build (the join freezes xLE, tail and gear where the cage drew
+them), sweeping the tip aft walks xAC aft while the mount stays — the
+probe WIP went to SM 25.8%, TORun 1083 m, flyable FALSE, and came back
+only when the wing was moved forward (wgDx; note the cage's fore axis
+runs opposite the spec's — wgDx +0.21 took xLE 0.468 -> 0.258 at
+~0.52%SM/cm). That is the model being HONEST — a designer who sweeps the
+tip rebalances the aeroplane — and the plaque's balance rows say it all;
+whether the bench should OFFER the rebalance (a "move the wing" hint on
+the SM row) is a small future chantier, named here so it is not
+rediscovered.
+
+## G134 — THE ENGINE SPEAKS FOR ITSELF (2026-09-01, the user: "the power,
+## weight, torque, etc are calculated from the engine editor (simple laws),
+## and this simplified model makes it to the physics side... let's also
+## compute the thermal cooling duty while we're at it"; identity ruled the
+## same day: "no drift, and never call an engine wrongly")
+
+THE G45 TABLE, EDITED FIRST: the engine row moves from "JOINED — preset
+only" to "JOINED — the drawn engine". ~50 engine rows (bore, stroke, rpm,
+cylinders, layout, two-stroke, liquid, geared, the electric can/volts/style)
+stop being the audit's largest looks-physical-isn't surface: engResolve —
+the bench's own simple laws, G24/G25, one dict for the readout AND now the
+flight — resolves the dials to FACTS {name, mass, powerW, rpm, torque,
+aspiration, family, cooling}, and the join ships them as
+`engines[0].custom`. Dress rows (fins, rocker covers, exhaust style) stay
+declared cosmetic: they cannot move the resolved facts, which is the point.
+
+**IDENTITY FOLLOWS THE FACTS (the user's ruling).** CAGE_ENG_FACTS
+(_cage_eng.js, sharing engSpecOfP with the mesh build so the drawn and the
+flown engine cannot drift) compares the current dials' resolve against the
+applied preset's own resolve:
+  - equal -> NO custom row; the registry row flies under its certified name
+    and certified numbers ("Rotax 912 UL", 58 kg, 59.6 kW);
+  - a physics dial away -> the model's numbers fly as "modified Rotax 912
+    UL"; an architecture/family away -> "custom Radial 9-cyl 6.3 L";
+  - the two fantasy presets (flat twin/six) always fly their OWN resolve —
+    retiring G45's declared "they fall back to the A-65" lie;
+  - pack volts alone is not a different motor (it moves KV, not the facts).
+
+**THE THERMO LAWS (00_registry).** Every registry row now declares `family`
+(four/two/electric) + `cooling` (air/liquid) — 582 and 912 liquid, 277 a
+two-stroke — and GEN_ENG_THERMO + genEngineThermo() derive, at rated power:
+sfcKgKWh (four 0.30 / two 0.50), full-throttle burnKgH, electric drawKW
+(eta 0.90), and **coolKW — the heat the cowl must reject** (four: 0.45 air /
+0.42 liquid; two: 0.55/0.50; electric 0.11). ONE KEEPER: the coming burn
+model (arc 3) and the ventilation model (arc 4) both consume this function.
+genEnginePrice() is the market curve fitted per family; an unpriced custom
+row takes it (checked inside 0.3-3x of every registry price, two declared
+waivers: the R-1830's provenance, the E-811's type certificate — a garage
+engine is uncertified, so the cheap side is honest).
+
+**THE WIRE.** clampSpec: the custom door (mass 0.05-900 kg, power 0.1-1000
+kW, enums fall back the legacy way, price from the curve) — a save cannot
+smuggle a free engine. resolveSpec: S.pplant = custom-as-registry-shaped
+row | registry; 61/62 read it (engine mass on the mounts, watts into the
+prop synthesis); genParams publishes `params.engine` so the SOLVER
+(aspiration), the PILOTS and the PLAQUE read the def's own facts instead of
+re-looking-up the registry (params.powerplant survives as the legacy key).
+The plaque grew a POWERPLANT sheet: full-throttle burn (kg/h + L/h at the
+ledger's own 0.72 kg/L) or draw (kW), and the cooling duty with its path
+("by fins"/"by radiator") — live for EVERY aeroplane, registry engines
+included, before any custom row exists.
+
+**ONE HONESTY COMPLETION IN PASSING** (declared, same line block): the
+propwash radius now follows the RESOLVED disc (S.prop.D) — G132 made the
+drawn prop the thrust model's author, but the wash still blew at the
+registry diameter. Every fiche resolves S.prop.D === the registry D, so
+nothing pre-G132 moves.
+
+MEASURED: GATE ENGINE (thermo over all 17 rows, the clamp door, the row
+reaching the frame: mass delta -17.9 kg on a -18 kg engine swap, Tstatic on
+the P^(2/3) curve, electric aspiration into the def) PASS; GATE ENGID (the
+identity rule, 13 checks, bench files loaded in node under a faked window)
+PASS; GATE JOIN (custom facts land, the preset key survives as fallback,
+no-facts = the registry flies) PASS; the no-custom default resolve is
+BYTE-EQUAL to the pre-wire baseline (Tstatic 907.098, 405.5 kg, cg
+identical). FULL BATTERY (31.5 min): every gate PASS — GEN's sweep-30 red
+is gone (resolved upstream tonight) — EXCEPT UISMOKE, whose red is the
+parallel chrome session's mid-transition (#card renamed out of body.html
+against the smoke's own id list — G139's delivery documents the same
+diagnosis independently); nothing in this arc touches body.html or the
+flight-chrome list. Coordination: ran interleaved with G133 (fairings) in
+the shared tree — file handovers by message, both sessions' blocks in
+64_gen_build/app.js verified coexisting.
+
+DECLARED GAPS: prop pitch stays the design tile's alone (no drawn twist
+stands for it); supercharge still 'na'; the electric draw is not yet a
+battery/endurance model (arc 3, with burn through the G121 setNodeMass
+door); coolKW is PUBLISHED but nothing swallows it yet — the cowl aperture
+model (programme arc 4d) is its consumer. NEXT (the make-it-count
+programme, futureDesigns/SLIDER-PHYSICS-AUDIT-2026-09-01.md): burn +
+consumption (arc 3), fuselage aero honesty incl. body lift + the cowl
+joining the measurement (arc 4), fittings CdA (5), spec-sheet dims (6).
+
+## G141 — THE FLIGHT SCREEN GETS THE PASS THE WORKSHOP GOT (2026-09-01, the
+## user: "little redesign of the flight interface, already specced by claude
+## design, attached. Please implement.")
+
+Implemented from the handoff `design_handoff_flight_interface/` (Claude
+Design): a README, four final screens in `Flight Interface.dc.html`, and the
+full exploration including today's screen recreated verbatim as the before.
+Fidelity was declared HIGH — colours, type, spacing and geometry final, copy
+final — so this is a build of a drawing, not an interpretation of a brief.
+Where the drawing and this game disagreed on a FACT the game won and the
+disagreement is written down below; where they disagreed on a NUMBER the
+drawing won unless the number was measurable, in which case it is measured.
+
+G-NUMBER: G140 was the last claimed heading when this landed. Grep before you
+take one — this file has had five collisions.
+
+### THE RULE
+
+The workshop was rebaselined at G77-G108 around ONE RULE and it worked: every
+surface has exactly one job. The flight layer never got that pass. It was
+four always-on panels — aircraft card, phase rail, PFD, minimap, telemetry
+footer — plus a bottom bar carrying **eight selects and buttons, two spans and
+a disabled placeholder in one wrapping row**, still in the amber-on-glass
+palette and still in IBM Plex **Mono**, which is the typeface the editor
+dropped on purpose.
+
+The editor's rule is SPATIAL. Flight has a before, a during and an after that
+the editor does not, so its rule is TEMPORAL:
+
+> the screen answers WHAT AM I FLYING / WHAT IS IT DOING / WHAT HAPPENED, in
+> the order the flight asks them, and nothing that answers one stays on
+> screen while another is being asked.
+
+Four surfaces, and nothing appears in two of them:
+
+| surface | job | id |
+|---|---|---|
+| the top bar | what you fly, and the verbs | `#flTop` |
+| the bottom-left rail | how you look | `#flRail` + `#flFly` |
+| the bottom-right PFD | what it is doing (phase rail INSIDE it) | `#pfd` |
+| the summoned panels | what happened | `#mmp`, `#telp`, `#arrCard` |
+
+The placement is now LITERALLY the editor's: `#flTop` mirrors `#edTopBar`
+(`left:22 right:22 top:18`, wrapping, the object's plate at the left and the
+verbs at `margin-left:auto`), `#flRail` is `#edRail` in a plate at the bottom
+left with `.edRailBtn`'s own metrics, and `Fly the circuit` lands on the pixel
+`Roll out & fly` occupies on the other screen.
+
+### NO SECOND SOURCE OF TRUTH — WHICH IS WHY THIS WAS A SMALL DIFF
+
+Every decision the old bar carried is STILL one of app.js's own selects,
+still in the DOM (`#flStore`), still carrying its own handler. `#selAc` had
+been hidden since G135; `#selPilot`, `#selFrom`, `#selDest`, `#selCond`,
+`#selTime` and `#bSkin` joined it. The plate RENDERS them and the flyouts
+DRIVE them — pills for the short lists, and for the long ones the flyout
+BORROWS the real `<select>` into a row and puts it back on close, which is
+`editor.js`'s own rule ("a flyout borrows, it does not take") and is
+load-bearing here for a different reason: the select IS the state, so a
+flyout that cloned it would be exactly the second source of truth this design
+refuses. `#selDest`'s "change while stopped chains the next leg" behaviour is
+kept by not touching it. GATE UISMOKE still drives `selAc` and `bSkin` by
+hand and still finds them wired.
+
+### WHAT WAS CUT, AND WHERE IT WENT
+
+| today | went |
+|---|---|
+| `#brand` ("Garage Flight Sim" over its own render) | nowhere — you know what game you are in |
+| `#card` name + spec | the plate's first slot; `#acSpec` is the header's meta and lost the node count |
+| `#rail` as a panel | INSIDE the PFD plate, under a hairline |
+| `#mmp` always-on | the `map` flyout |
+| `#telp` (graph + 12 cells + legend) | `trace`, `instruments`, `air` |
+| `Peak strain` cell | A LINE ON THE TRACE, plus one row on the arrival card |
+| elevator / aileron / rudder cells | cut: a control POSITION is what the autopilot is holding, not something the screen is being asked |
+| OAT / density alt cells | live rows in `air` — they are what the AIR is doing, not the aeroplane |
+| `#bSkin` | a pill row in the `camera` flyout (the button keeps its id, handler and label logic; the pills press it) |
+| `#credit` | THE WORKSHOP'S INFORMATION PANEL — see below |
+| `#hint` | `#flHint`, shown once on the first flight this browser has seen, then never |
+| `#selTime` disabled | a greyed row in `air`; absent from the main screen |
+| `#bGo.warn` | THE NOTICE PLATE — a sentence with one job, instead of a meaning encoded in the colour of the button you were about to press |
+| `#bAgain` / `#bHangar` (on the card) | the top row's `Fly on` and `The shed` — one name for one place |
+
+**The credit is a licence term, not a design decision.** CC-BY requires
+VISIBLE attribution, so `#credit` did not go in the bin with the rest of the
+bar: it is a `<p>` at the foot of `#edInfoBody`, on screen for as long as you
+are building. GATE UISMOKE asserts it on the WORKSHOP side now and still
+asserts that it exists at all, because that is the term.
+
+### THE VERBS, AND THE ONE BUTTON TWO SCREENS SHARE
+
+before: `Fly the circuit` (pri) + `The shed` — during: `Pause` + `Restart` +
+`The shed` — after: `Fly on` (pri) + `The shed`. Pause and Restart never move
+between states; the primary is NEVER disabled and changes its WORDS.
+
+`#bGo` is the one control both screens own. In the garage it is ROLL OUT and
+`syncGoLabel` owns every word of it (it is the certificate speaking); out here
+it is the flight's primary and `flRender` owns it. **Each writes it only in
+its own mode** — the first cut wrote both from both places and GATE UISMOKE
+caught it inside a minute ("untested build did not say so"), which is exactly
+the assertion that gate exists for.
+
+`Fly on` is also the whole of the old bGo-is-dead-after-a-landing dead end:
+after a stop the primary means reset-and-go.
+
+### THE ARRIVAL CARD'S TWO BUTTONS, AND ONE THING THEY DO NOT CLAIM
+
+The card is the one panel that APPEARS rather than being summoned, on
+`--ed-panel` (a document, not chrome), in the plaque's own two-column grammar.
+Its title names the PLACE (`Arrived at Morford` / `Short of Morford`) and the
+outcome is the tag beside it.
+
+`Log the flight` **does not do the logging.** `logFlight()` has written the
+row the moment the aeroplane stopped, since G65, and a button claiming to
+write it would be claiming something untrue. It is the door TO the book: it
+takes you to the shed, with the row already in it.
+
+`What went wrong` opens the rest of the pilot's verdicts. The teaching report
+the ROADMAP wants lands behind this button; until it does, it shows the
+material that report will be BUILT from rather than pretending to be it. It
+hides itself when there is only one verdict to show.
+
+### THE CAMERA — GENUINELY NEW, AND THE COCKPIT IS NOT A SECOND IMPLEMENTATION
+
+Flight had no camera UI at all. Five framings, and each writes the SAME
+`azT`/`elT`/`distT` the mouse writes, so a chase eases exactly the way a drag
+eases and `orbit` is the mode that writes nothing. A drag on the render drops
+you back into `orbit`, because a locked camera that fights the mouse is the
+worst of both.
+
+`tower` is the one that is not an orbit of the aeroplane — a fixed point at
+the field you left, twelve metres up — and it is still written as az/el/dist,
+solved backwards, because that is the only camera this file has.
+
+`cockpit` IS the editor's interior view, pointed at the aeroplane that is
+flying instead of the one on the stand. What differs is only the FRAME:
+`_cage_crew.js` publishes the eye in the SHED's world space (`CAGE_CREW_EYE`),
+and the thing that flies is the snapshot. `_cage_join.js` bakes every vertex
+through one mapping — mount-local to `(-z, y, x)`, then the G54.2 pitch
+calibration about the model z — and the snapshot carries that angle as
+`pitch`. `flyEyeAt()` walks the eye through **exactly that mapping** and then
+through `model.grp.matrixWorld`. MEASURED on the default build in flight:
+camera 0.01 m from the CG horizontally and 0.52 m above it, near plane
+0.035 — a pilot's head, not a guess at one. `EYE_NEAR`/`EYE_PIVOT`/`setNear`
+are G107's, unchanged; `edEyeOn()` now answers for both eyes so the three
+clamps that come off for the editor's interior come off for this one too.
+
+`level horizon`, off, writes the aeroplane's own up axis onto `camera.up`, so
+a turn reads as a turn instead of the world sliding sideways.
+
+### FOUR THINGS THE DESIGN FIXED THAT HAD TO BE MEASURED INSTEAD
+
+The mock is one aeroplane at one size. Four of its numbers do not survive
+contact with a game whose phase names and readout count both vary:
+
+1. **The trace's right edge.** The design reserves a fixed 366 px for the PFD.
+   This game's PFD is as narrow as 262 px (three readouts, `CLIMB`) and as
+   wide as 764 (nine readouts, `TAKEOFF ROLL`). `flLayout()` measures it. A
+   fixed reserve is a panel that either overlaps the numbers or leaves a
+   hand's width of empty plate beside them — and on a phone it was a trace
+   30 px wide, which is what the first cut shipped for ten minutes.
+2. **Whether the rail and the PFD can share the bottom row.** When they no
+   longer fit, the PFD LIFTS ABOVE the rail rather than landing on it.
+   Measured, so there is no breakpoint to be wrong about.
+3. **The map's top.** 92 px is the design's number and it is kept as the
+   FLOOR; when the brief is open (or the bar has wrapped) the map drops to
+   clear whatever is actually there.
+4. **The brief's max width.** 700, not the mock's 620: this game's four
+   values are longer than the mock's (`Home Strip -> Circuit` alone is 201 px)
+   and at 620 the default brief opened on two rows, which is not what the
+   design draws. It still wraps by design — a fifth slot (`load`) is coming.
+
+### THE PALETTE, AND A THIRD STYLESHEET
+
+`src/viewer/flight.css`, scoped entirely under `#ui`, listed third in
+`tools/build.js`. Separate for the same reason the editor's is separate: one
+sheet is where two sessions on two surfaces are guaranteed to collide, and six
+of us share this tree. It declares the editor's Bone tokens on `#ui` — the
+same hexes, no additions — rather than adding `#ui` to `editor.css`'s
+`:is(#wsUI, #edView)`, because that selector is named for the workshop and
+renaming it belongs to whoever owns that file (the handoff's open question 1,
+still open).
+
+**The whole flight HUD left `style.css`** — `#ui`'s box, `.panel`, `#top`,
+`#card`, `#brand`, `#acName`, `#acSpec`, `#rail`, `#phName`, `#track`, `#pfd`,
+`.rd`, `#mid`, `#mmp`, `#mm`, `#south`, `#bottom`, `.hudSec`, `.hudLbl`,
+`#grp`, `#hint`, `#credit`, `#telp`, `#grid`, `.cell`, `#legend`, `#arrCard`,
+`#bGo.warn` and the phone media query. What stays there is the fonts, the boot
+splash, the canvas and the GARAGE PANEL's own rows.
+
+**The trap that came with that.** `style.css` still carries a bare
+`button, select` rule — amber on glass, uppercase, 11 px, an 18 px backdrop
+blur and a 1 px press — and it still earns it, because `garage.js` builds
+`.grow`/`.gsw`/`#gRoll`/`#gTest` and nothing else styles them. Every plate
+button on this screen was inheriting it: a second blur, a press animation the
+design says nothing has, and the amber focus ring. Reset ONCE at the top of
+`flight.css` (`#ui button, #ui select, #ui input`) rather than fought property
+by property in nine component rules — and the component rules that had to
+outrank the reset carry a `#ui` prefix for exactly that reason.
+
+Type: IBM Plex SANS only, `tabular-nums` on the layer. Mono is gone from the
+HUD.
+
+### THE TRACE
+
+Same canvas, same 10 Hz record, three lines instead of two. `tel.str` is new
+and rides the same tick; peak strain is drawn against its own maximum in
+`--ed-warn`, and it is the same number the card quotes. **The design's legend
+names the three swatches** (`--ed-acc` altitude, `--ed-dim` speed, `--ed-warn`
+strain) and that beat the README's sentence about `--cyan`/`--amber` keeping
+the plotted lines — the mock is the picture and its colours were declared
+final. `--cyan`/`--amber` stay declared in `style.css` for the load-test viz,
+which is now the one place they earn their keep.
+
+Two bugs the trace found on the way:
+
+- **The buffer must follow the box.** The canvas was fixed at 1052x264 against
+  a panel that is now 1053x104, so the graph was drawn into an aspect it is
+  not displayed at and came out squashed to two-fifths of its height. Sized
+  from the client box at 2x, which is what the `S = 2` transform always meant.
+- **An integrator poisons itself for good on one bad sample.** The new
+  ground-track distance read `NaN km flown` for the rest of the run after a
+  single non-finite frame. Guarded — and the guard is the general lesson, not
+  the fix for one field.
+
+`#tsum` says what the trace is OF (distance flown, time). The touchdown
+summary it used to carry was the ONE thing a flight produced, written onto the
+one surface `fullReset()` closed; it is the arrival card's whole job now, and
+`fullReset` empties the trace rather than closing it, because a summoned panel
+is the player's.
+
+### THE PFD, AND THE ONE WARN THAT IS OWED
+
+Three readouts always (IAS/ALT/VS at `600 30px` Plex Sans, right-aligned); six
+more the `instruments` flyout can add. The others stopped existing rather than
+being hidden.
+
+The design says a readout goes `--ed-warn` "when it is outside the plaque's
+envelope (stall, Vne, sink rate)". **Only the stall is implemented, and that
+is deliberate.** `genShakedown` has measured `Vs` since G4 and the bench check
+quotes it, so IAS below it — IN THE AIR, above 3 m AGL; below the stall on the
+runway is a take-off roll, not a stall — is a real number said against a real
+declaration. **Vne and a sink-rate limit are declared NOWHERE in this
+project.** Colouring a readout against an invented threshold is precisely the
+kind of thing GATE HONEST exists to stop, so those two warns are OWED, not
+faked. They want a `Vne` on the plaque first.
+
+For the same reason the arrival card has NO `fuel used` row: the design lists
+one, and nothing in this sim burns fuel yet (`mFuel` is a mass, not a rate).
+
+### GATE UISMOKE MOVED ITS GROUND, IN THE SAME COMMIT
+
+The handoff said it would and it did. Twelve flight ids became twenty-one;
+`card`, `brand`, `bottom`, `bTel`, `hint`, `grid`, `bAgain` and `bHangar`
+joined the RETIRED list, which is the list that says a door which comes back
+is a door that came back. `credit` moved to the workshop side.
+
+The DOM stub grew again, and each fold is the same argument the `body`,
+`style` and `classList` folds above it each made in turn: a document that
+answers neither a tree query nor a control's value does not test a narrower
+app, it tests a different one. `querySelector`/`querySelectorAll`/`closest`,
+`children`, `dataset`, `options`, `checked`, `hidden`, `getBoundingClientRect`
+and friends. The THREE stub's camera grew an `up` and its vector a `copy`,
+because the flight camera writes both.
+
+### VERIFICATION — AND WHAT IT COULD NOT DO
+
+GATE UISMOKE green. HONEST, BUILD, DESIGN, REF, JOIN, PARTS, HANGAR green.
+GATE GEN is RED and was red before this: `swept wings still fly a circuit`,
+69/70, which is the ruling still owed to the user from the playability round.
+
+**The Browser pane would not composite in this session**, so there is no
+screenshot: `requestAnimationFrame` never fires in a hidden tab and the game
+cannot be driven at all. A throwaway copy of `dev.html` with a rAF QUEUE
+prepended (deleted afterwards — it is not in the tree) made the whole thing
+driveable by hand, and every claim above about a box, a state or a camera is a
+MEASURED number read out of the live page: the four screens' boxes at 1440x810
+and at 375x812, every flyout's contents and anchor, the borrow and return of
+all four selects, the fold on leaving HOLDING, the verb sets in all three
+states, the arrival card, and the five camera modes' resulting eye positions.
+Pairwise overlap of all five surfaces is asserted zero at both sizes, and
+`document.scrollWidth === innerWidth` at both. NOBODY HAS LOOKED AT IT YET —
+the pixels are the user's to judge.
+
+**A SINGLE-SLOT rAF PUMP IS NOT A PUMP.** The first one captured only the last
+callback registered, and this page has several (the frame loop, the prop
+`tick`, the boot) — so it pumped the propeller animator 600 times and reported
+a game that would not start. Queue them.
+
+### WHAT THIS HAS TO ABSORB NEXT, AND WHERE IT LANDS
+
+The rail is a table (`FL_RAIL`) and the plate is a list of slots (`FL_SLOTS`);
+everything the ROADMAP has queued lands in one of them without a new surface.
+F4 the day cycle -> `time of day` in `air` stops being greyed, its row already
+exists. F5 the atmosphere -> more rows in `air`, and the numbers it produces
+are `instruments` toggles, not new cells. F6 / the aerodrome -> the `route`
+slot's flyout grows a field list. Cargo and contracts -> a FIFTH SLOT
+(`load`), which is why the plate wraps. Failures and wear -> the notice plate,
+which already exists and already has one job.
+
+Open, from the handoff and not answered here: whether `editor.css`'s
+`:is(#wsUI, #edView)` should be renamed to hold all three roots (question 1);
+KEYBOARD FLYING, which does not exist and whose control-position strip belongs
+in the PFD plate and should be designed before it is built (question 3); and
+whether the `instruments` default set should change with the pilot mode —
+`test pilot` -> more readouts (question 4).
+
+## G142 — THE SPLIT VIEW, AND EIGHT MORE AEROPLANES THAT DO NOT ALL FIT
+## (2026-09-01, the user: "IDK if we can afford, but I got some more CCBY
+## assets, can we integrate too? We would also need a view where half of our
+## lane is cutout, but the other half compared to the reference plane")
+
+THE G-NUMBER RACE STRUCK A SIXTH TIME, and twice in one session: this was
+written as G139, and by the time it was ready G139, G140 and G141 had all been
+taken by other sessions. Renumbered wholesale to G142. Grep immediately before
+you write the heading, not when you start the work.
+
+### THE SPLIT: ONE AEROPLANE, HALF EACH
+
+The reference's `left half only` checkbox (G91) became a three-way `cut`:
+
+    off      two whole aeroplanes, one standing inside the other
+    ref      the REFERENCE loses its right half        (what the checkbox did)
+    split    the reference keeps its LEFT half and the build loses its LEFT
+             half, so the two meet on the centreline and you are looking at a
+             single composite machine
+
+WHY IT IS WORTH A MODE AND NOT TWO CHECKBOXES, beyond the fact that the two
+states are mutually exclusive: comparing two overlaid aeroplanes is comparing
+two silhouettes and hoping. Comparing two HALVES of one aeroplane puts every
+difference on a seam a few centimetres wide, where the eye is extremely good.
+Verified on screen against the C172: from the nose the build's chord, dihedral
+and gear stance sit directly against the Cessna's; from above the build's wing
+is visibly a third deeper. Neither reads at all in the `off` overlay.
+
+**THE BUILD'S HALF IS THE MOUNT'S TO CUT, NOT THE REFERENCE'S.** A clipping
+plane is a material setting, and refplane.js is forbidden from reaching the
+editor's materials (GATE REF's ONE ROOT list — `CAGE_UI_SCENE` is on it). So
+the reference only ASKS: `REF_MOUNT.setBuildClip([plane])`, and app.js is the
+only thing that touches them. Three things that were not obvious:
+
+- **THE PLANES ARE REMEMBERED, NOT JUST APPLIED.** Every slider drag throws the
+  build's meshes and materials away and makes new ones, and a new material
+  carries no clipping plane — so without re-applying, the composite silently
+  becomes two whole aeroplanes overlapping, at the exact moment you are
+  dragging a slider to compare them. `CAGE_ON_BUILD` re-applies the stored
+  value; that is what the store is for.
+- **MATERIALS, NOT MESHES.** The aeroskin is one material across most of the
+  aeroplane (G109-G113), so the walk collects DISTINCT materials — 87 writes
+  for 305 meshes.
+- **THE TWO PLANES ARE EXACT COMPLEMENTS**, `(0,0,1)@0` and `(0,0,-1)@0`.
+  Together they tile the world once: no gap down the spine, no double-drawn
+  sliver. Verified by reading the planes back off both material sets.
+- Selecting `split` ZEROES the lateral offset, because one world plane cuts
+  both machines and a reference dragged sideways would have the cut running
+  through a wing instead of down its spine. And `preset: none` gives the build
+  its other half back — a build left cut open by a panel that is no longer
+  showing anything is just a broken aeroplane.
+- The old `half: true` in a saved state migrates to `cut: 'ref'`.
+
+### AND THE SYMMETRY CHECK THE SPLIT MADE NECESSARY
+
+The split cuts both aeroplanes with the ONE world plane z = 0, which only means
+anything because both are symmetric about it. Every payload of the first batch
+was symmetric to 0.0000 m — and then the **Super Guépard arrived drawn in a
+corner-origin frame**: x 0..5.998, z -9.790..0, its centreline at z = -4.895.
+It would have stood half a wingspan to one side of the build with its own
+half-cut running through a wing.
+
+That is a TRANSLATED FRAME, not a strange aeroplane, and the fix belongs in the
+bake: `off=(-2.999, 0, 4.895)` on its `tools/ref_table.py` row, measured off
+the box. **GATE REF now re-derives the symmetry from the baked payload**
+(`SYM_TOL` 10 mm — loose enough for the PA-28's own 2.8 mm hand-modelled
+wingtip, tight enough that a translated frame cannot hide in it). x is centred
+for a milder reason and y is left as delivered, because nothing reads it: the
+sit is computed from the hull at the declared pitch, so the origin's height
+only moves the pitch PIVOT.
+
+### THE EIGHT, AND THE ONE THAT CANNOT BE A REFERENCE
+
+All eight are helijah's and **all eight are CC-BY-4.0** — the licence split
+that bit G138 does not repeat here. Seven became presets:
+
+| | model span | published | model length | published |
+|---|---|---|---|---|
+| da40   | 11.899 | 11.90 | 8.087 | 8.10  |
+| g115   | 10.010 | 10.00 | 7.807 | 7.79  |
+| stemme | 17.927 | 18.00 | 8.465 | 8.52  |
+| guepard|  9.790 |  9.70*| 5.998 | 6.00* |
+| yak18t | 11.135 | 11.16 | 8.389 | 8.354 |
+| eiii   |  9.445 |  9.52 | 7.172 | 7.20  |
+| pa28   | 10.546 | 10.67 | 7.154 | 7.25  |
+
+Sits: da40 2.76, g115 -0.04, stemme 0.01, guepard -0.41, yak18t 0.58,
+eiii 10.01, pa28 0.00 deg nose-up. Two taildraggers (the Eindecker on a
+tailskid), five on nosewheels.
+
+\* THE SUPER GUÉPARD'S SOURCES CONFLICT BY 15%. English Wikipedia says 8.5 m
+span; the manufacturer and the French ULM press say 9.70 m and "six metres to
+the tail", which is what the model measures to within 1%. Recorded in
+`pub.note` — the outlier is the encyclopedia, not the model.
+
+\*\* THE G115 IS THE LONG-NOSED E/TUTOR, which is why its length reads past the
+early upright-fin G115. Also in `pub.note`.
+
+**DRACO IS BAKED AND HAS NO PRESET.** Mike Patey's PT6 Wilga is a one-off: the
+nose is a metre longer than a stock Wilga 2000 and the wing was re-spanned, and
+NOBODY HAS PUBLISHED ITS DIMENSIONS. Against the stock Wilga the model is 12%
+long, which is not an error — it is a different aeroplane. A reference whose
+scale nothing can hold is worse than no reference at all, because every
+measurement anyone takes against it is confidently wrong. So it bakes, it is
+credited, and it is not offered as something to measure against. If a
+dimensioned source ever turns up, the row is three lines.
+
+### WHAT WE CAN AFFORD, MEASURED
+
+Sixteen payloads baked, 6 in the artifact. The budget, at the moment of
+writing:
+
+    index.html before          96.53 MiB   (headroom to 100 MiB: 3.47 MiB)
+    the seven new CC-BY ones    9.57 MB    — nearly three times the headroom
+    stemme + guepard            1.28 MB    -> 97.82 MiB, 2.18 MiB left
+
+`da40` also fits on paper and is NOT in, and that judgement is worth recording:
+adding it lands the artifact at **99.58 MiB, 0.42 MiB under a hard limit that
+five other sessions are committing towards.** A margin that thin is not
+headroom, it is a trap for whoever pushes next.
+
+So: `stemme` (the 18 m motorglider — the aspect-ratio extreme, and the cheapest
+payload of the sixteen at 584 KB) and `guepard` (fabric high-wing on a Rotax,
+the closest thing in the set to what the garage actually builds). `da40`,
+`g115`, `yak18t`, `eiii` and `pa28` are correct, licensed, gated and one line
+from shipping — **all sixteen load in dev.html, which references rather than
+inlines**, so nothing is lost while the ceiling is dealt with.
+
+THE LEVER THAT WOULD CHANGE THE ANSWER, measured but NOT taken because it is
+the user's call: a reference is only ever looked at from OUTSIDE, and the
+cockpit interiors are half the vertices. Exterior-only the whole set is
+11.67 MB instead of 21.74, and **all ten CC-BY reference aeroplanes would fit
+with ~1 MiB to spare.** It costs a hollow shell seen through the glazing, and
+it is a per-row field, not a rewrite. Not done unasked: G138 already spent the
+liveries on this same ceiling, and spending the interiors too is a second
+quality cut that should be a decision rather than a habit.
+
+The real answer remains G138's last section: 97% of the artifact is base64
+binary in one file. This is the second feature in one session to hit that wall.
+
+### THE BATTERY
+
+`node tools/run_gates.js --all` was STOPPED BY THE USER partway ("stop the
+battery execution, it's not the time to do it"), at 61 PASS / 3 FAIL. What it
+had reached:
+
+- **GATE REF PASS**, 16 payloads, 17 selftest cases all catching (2 new: a
+  payload whose centreline is not at z = 0, and — inverted — a real
+  modeller-scale asymmetry that must NOT count as one).
+- Every gate that can see this change is green: UISMOKE, MODEL, SKIN, CTRL,
+  PA18, C172M, TREE, BUILD, PARTS, VIEW, PROPS, DESIGN, ARCHETYPES.
+- The 3 reds are the same two owed ones as G138 and are untouched here:
+  **WIND** (`|tdDrift|<1.8` on the DC-3's crosswind touchdown, its W-DC3
+  sub-gate being the third line) and **GEN** (69/70, "swept wings still fly a
+  circuit" — G130's owed USER'S RULING).
+- NOT REACHED, and therefore not claimed: BIOME, SETTLE, AERO, XCTY/2/3/4/5,
+  HOTHIGH, FLEX, LOAD. All flight-physics gates with no seam onto this arc, but
+  unrun is unrun — **a full `--all` is still owed before this is delivered.**
+
+The commit stays the user's.
+
+## G139.1 — THE SEALS FOLLOW THEIR BAY, AND THE BEAD IS RUBBER (2026-09-01,
+## the user: "zone the seals too. And make the joints black by default,
+## they're currently white, it's odd")
+
+Two things, and the first one deleted an exception G139 had put in a day
+earlier.
+
+THE SEALS. `joint` joins `body` in CAGE_ZONED, so selecting the Cabin lights
+the cabin's seals and not the tail's. That could not be done under G139's
+rule, which said an assembly owning a zoned section outright asks for all of
+it: `window joints` is a CHILD of Cabin and owns every bead on the aeroplane,
+so the exception handed the cabin the lot — the exact complaint. The rule is
+now simply THE BAYS THE SELECTION NAMES, and the case the exception existed
+for falls out of it: selecting the Fuselage names every bay under it and the
+zones partition the covering, so it asks for all of it by saying so. (There
+is a short-circuit for that case, and it is an optimisation, not a rule: a
+selection naming every zone in the mesh's table skips the walk.)
+
+THE PICK DOES NOT FOLLOW. `CAGE_ZONE_PICK` is the subset a CLICK divides by
+station, and it is `body` alone. The station only has to answer where the
+material cannot: `body` belongs to the Fuselage ASSEMBLY, so "which material
+did I strike" answers "the whole aeroplane". A seal's material already names
+a part with its own rows, so clicking a bead still selects `window joints` —
+the same principle as "it is still OK to get straight to the windows".
+
+THE BEAD. `AERO_BY_CONS`'s `bead` role was `trim` in all four constructions,
+and painted trim's base is 0xd8dde4 — so every window and door on every
+aeroplane was outlined in near-white whatever it was built of. It is `rubber`
+now (0x20222b), and it is the one role that does NOT vary with the
+construction: a window seal is an extruded rubber section, black on a fabric
+taildragger and black on a carbon canard. AERO_HARD had already said so for
+the lamp bays ("the JOINT that fairs it to the skin is a rubber seal"); the
+cage's own rims are the same part. The builder can still paint them — `joint`
+is a section like any other and takes a tint. The SEC diagnostic palette keeps
+its pale entry on purpose: that view is the harlequin, and its job is telling
+sections apart.
+
+GATE PARTS' ZONES section grew with it. The census now builds AS FAR AS THE
+RIMS — a census stopping at the cut would have reported the seals as a zoned
+section no aeroplane emits — and counts per SECTION per zone, because the new
+rule is that a zoned section must actually DIVIDE: every face of it landing in
+one zone means cutting it to a bay can only ever light all or nothing. Two
+more rules, both negative-verified: a zoned section may not be owned by one of
+the bays it divides into (or a click on one bay's covering would fall back to
+another bay's part), and the pick may not divide a section whose material
+already names a part. Measured over the twelve shapes: `joint` by zone —
+cabin 14,488, pax 6,920, nose 1,384, aftCabin 320, aftDeck 240, and nothing in
+the boom or the tail, which have no windows.
+
+Verified in the page: Cabin lights 10,854 seal-and-skin triangles in the cabin
+band and 20 in the nose (the windscreen bead straddling the wsFront ring, 0.2%
+— centroid classification, as designed) and NONE in pax, boom or tail; the
+Passenger bay lights 4,080, all its own; the Fuselage still lights every zone;
+`window joints` selected on its own lights every bead (cabin 7,546, pax 2,544,
+nose 502); clicking a bead selects `window joints`; and the joint material
+reads #030406 where it read near-white.
+
+## G141.1 — THE FIRST LOOK AT IT, AND THREE THINGS IT GOT WRONG (2026-09-01,
+## the user: "the trace renders on top of everything, rendering the menu
+## options inaccessible. I'd rather have the info widget with speed etc on
+## top, in the middle, and on semi transparent background, like before. The
+## trace should render below everything, should also be more light in design,
+## and should be resizable and draggable" — then: "I had missed in the new
+## design that everything was black solid again. Can we keep this very layout,
+## but get back on the semi transparent interface? This was lighter, which is
+## good for a flight game")
+
+The layout survived first contact; three things about it did not. Each is a
+RULING, not a bug report, and each overrides the handoff on a point the
+handoff was explicit about — worth saying out loud, because the next person
+reading `design_handoff_flight_interface/` will find it disagreeing with the
+code in exactly these three places.
+
+### 1. THE STACK WAS DOCUMENT ORDER, WHICH IS NOT AN ORDER
+
+Every surface on this layer is absolutely positioned and none of them carried
+a `z-index`, so the painting order was the order of the markup — and the
+trace, the last panel written, sat over the rail flyout that opens UPWARD into
+the same corner. The design draws the two in the same picture and does not say
+which wins; it has to be said.
+
+It is now declared once, at the top of `flight.css`, and the order is the
+order of the question being asked:
+
+    1  the trace       furniture — you put it somewhere and read it
+    2  the first hint
+    4  the map         summoned, but it answers nothing you clicked just now
+    6  the rail, PFD   permanent chrome
+    8  the top bar     the brief and the verbs; the flyouts anchor off it
+   20  the flyout      THE ANSWER TO THE QUESTION YOU ARE ASKING RIGHT NOW,
+                       and it must never be under the thing it answers
+   30  the arrival     the one panel that appears rather than being summoned
+
+Verified by hitting the flyout's own centre with `elementFromPoint` while the
+trace covers the same pixels: it returns a slider inside `#flFly`.
+
+### 2. THE PFD RIDES THE TOP ROW, IN THE MIDDLE
+
+The handoff puts it bottom-right (`right:22px; bottom:18px`); the user wants
+it "on top, in the middle... like before", which is where the old HUD's
+readouts and phase rail lived. The phase rail stays INSIDE the plate — that
+part of the redesign was not disputed and it is the better half of it.
+
+It is **in the flow of `#flTop`**, between `#flBrief` and `#flActs`, with
+`margin:0 auto`. That is what centres it: the row's free space is split
+between its two auto margins, so it sits midway between the brief and the
+verbs and the verbs stay flush right. `#flActs` LOST its `margin-left:auto`
+for the same reason — a third auto margin takes a third of the free space and
+the PFD stops being centred.
+
+**In the flow, and not absolutely centred, on purpose.** An absolutely centred
+plate is 500 px wide at the screen's middle, and the open brief reaches 722 px
+— they overlap on the apron, every time. In the flow they cannot, and when the
+estate runs out the row wraps (which is how it already behaved) instead of one
+plate landing on another. Measured, brief open: brief ends 376, PFD 591-1103,
+verbs 1130. Measured, brief folded: brief ends 376, PFD 497-1009.
+
+The bottom-right is now empty, so the trace's default no longer has to dodge
+it and `flLayout` no longer measures the PFD's width.
+
+### 3. THE PLATE IS GLASS ON THIS LAYER
+
+The handoff specifies `--ed-plate: rgba(32,29,26,.94)` and says the palette is
+the editor's with no additions. **.94 is right for the workshop and wrong
+here**, and the reason is not taste: that layer sits over a still object in a
+room, where an opaque plate is a surface you work on; this one sits over a
+MOVING WORLD, and a flight HUD you cannot see the horizon through has taken
+the game's own subject off the screen. The old amber HUD had this right at
+`rgba(32,24,18,.50)` and it is the one thing about it worth keeping.
+
+It is the EDITOR'S OWN COLOUR at a lighter weight, not a second palette, and
+there are TWO weights because there are two kinds of surface:
+
+| token | value | surfaces |
+|---|---|---|
+| `--ed-plate` | `rgba(32,29,26,.68)` | the ones that carry a DECISION — the brief and its slots, the notice, the look rail, the flyout, the map |
+| `--fl-glass` | `rgba(32,29,26,.54)` | the two you read THROUGH — the PFD and the trace |
+
+`backdrop-filter` went from `blur(14px)` to `blur(16px) saturate(1.15)`.
+**The saturate is not decoration.** Blurring a bright sky behind a translucent
+plate averages it toward grey; the old HUD's `saturate(1.2)` is what kept the
+world reading as sky and grass through the glass rather than as haze.
+
+**The arrival card is deliberately NOT either of them.** It stays opaque on
+`--ed-panel`, because it is a document and not chrome and it is the one thing
+on this screen that wants your whole attention. That much of the handoff's
+palette argument still holds.
+
+### THE TRACE IS THE ONE PANEL THE PLAYER PLACES
+
+"more light in design, and should be resizable and draggable". It is furniture
+now, in the strict sense: it holds no decision, nothing else depends on where
+it is, and a graph you cannot make bigger is a graph you read once.
+
+- Lighter: `--fl-glass`, a `--ed-hair` border instead of `--ed-border`, no
+  shadow, tighter padding.
+- A flex column, so the canvas takes whatever the panel has left — which is
+  what makes resizing it worth anything. `drawTel` already sizes the buffer
+  from the client box at 2x, so the graph is crisp at any size.
+- Drag by `#telHead`, size by `#telGrip`, **double-click the header to put it
+  back**. A panel you can move somewhere useless needs one gesture that undoes
+  every move at once, or the only cure is the browser's storage inspector.
+- THE FIRST DRAG RE-ANCHORS IT. At rest it is pinned by `left`/`bottom` and
+  sized in `min()`, which is what lets it follow the window; the moment it is
+  placed it gains `.placed` and its own `left/top/width/height`, taken from
+  the box it is ALREADY occupying so it does not jump on the first pixel.
+- `panels.tpos` rides the same view-state pref as the rest of this layer.
+  `flLayout` clamps it back into view when the window changes size, keeping a
+  HANDLE on screen rather than the whole panel: dragging it half off the left
+  edge is a legitimate thing to want, losing its header is not.
+
+### TWO CSS TRAPS THIS ROUND PAID FOR, BOTH SPECIFICITY
+
+- `#ui .flPlate` OUTRANKS a bare `#pfd`. The glass tokens landed in the file
+  and did nothing until the rules became `#ui #pfd` / `#ui #telp`.
+- **A media query does not raise specificity.** With the desktop rules written
+  as `#ui #telp`, the `@media (max-width:760px)` block's bare `#telp` lost to
+  them and the phone layout silently did not happen — measured: the trace kept
+  its 720 px desktop width at a 375 px viewport, and the map sat on the top
+  bar. Every rule in that block that overrides a two-id rule now carries `#ui`
+  itself.
+
+### AND THE LAYOUT ASKS ITSELF, RATHER THAN WAITING TO BE TOLD
+
+`flLayout` used to run on `resize` and on the events that were known to change
+things. The top bar's height changes for half a dozen reasons that are not
+`resize` — the brief folding, the notice appearing, a readout being added, the
+bar wrapping, a viewport emulation — and a listener per cause is a listener
+that will be forgotten. It is now asked on the same sixth-frame tick as `hud`,
+and its one write is memoised so an unchanged answer touches no style.
+
+GATE UISMOKE and GATE HONEST green. Measured clean at 1440x810 and 375x812:
+zero pairwise overlap across all five surfaces, in both the held and the
+flying state, and `document.scrollWidth === innerWidth` at both. Drag, resize,
+persist and the double-click reset are each driven and read back.
+
+## G139.2 — THE LONGERONS BELONG TO THEIR BAY, AND `RINGS & LONGERONS` IS
+## DISSOLVED (2026-09-01, the user: "the whole rings and longerons cause an
+## issue. I don't think they should be directly selectable. The longerons (the
+## 'pillars') should be part of either the cabin, or the passenger bay, or the
+## nose, or the boom towards the tail. SO I think that's where they should get
+## parametrized. The rings are accessed through the part selection menu, under
+## fuselage. You may suggest an intuitive way to select the whole fuselage...
+## Keep this as an option in the menus for now, and we'll see if that's better
+## or worse by using it, but that feels cleaner to me")
+
+G139.1 left `waistband`, `ceilingLoop` and `floorLoop` OUT of the station
+tables with a stated reason — a rail cut at every pillar is six pieces of one
+stringer — and the user overruled it with the better argument: a rail is a
+THROUGH-RUNNING member, so pointing at one never means the rail, it means the
+bay you are pointing at. (That is exactly the difference from a SEAL, which is
+a bead round one window and can be meant on its own. The two are in different
+tables for that reason and not by accident.) All three rails join both zone
+tables, so a click on the waistband in the cabin selects the Cabin and the
+fuselage now slices cleanly whichever line you point at.
+
+`RINGS & LONGERONS` IS GONE, and what killed it is that nothing was left in
+it. Its three rails are the Fuselage's own, alongside `body` — one material
+each, firewall to tail, which is precisely the condition CAGE_ZONE_PICK
+exists for. Its per-STATION ring offsets went to the bays whose rings they
+move: `ringNoseTop`/`ringNoseBot`/`ringCowl1W`/`ringCowl2W` to the Nose,
+`ringWinTop|Bot|W` and `ringCabTop|Bot|W` to the Cabin, `ringScrBot`/
+`ringScrW` to the windscreen — a table of twelve offsets under the whole
+shell, each named after a station, was a list nobody could read; four rows
+under the part that IS that station are obvious. What remained was the
+whole-shell rows (the waist line, the section rounding, the creases,
+compensation) and those are the assembly's, which is what "the rings are
+accessed through the part selection menu, under fuselage" asks for: select
+Fuselage and they are the first thing in the column.
+
+WHAT DID NOT MOVE, stated rather than papered over: `waistY`, `bandH`,
+`ceilInset` and `ringPullIn` are ONE VALUE EACH for the whole aeroplane —
+there is one waist line, not four. Filing them under a bay would mean
+inventing per-station longeron parameters, which is a change to the cage and
+not to the part table. So the longerons SELECT as their bay today and are
+still SHAPED from the Fuselage; per-bay longerons are a chantier, and the
+table says so where a reader will find it.
+
+THE WAY BACK UP IS THE SAME CLICK AGAIN. With the covering and the rails
+sliced, nothing on the aeroplane selects the whole fuselage any more, and the
+Fuselage still has rows of its own — so it has to be reachable. Click the
+nose, click it again for the Fuselage, again for My Plane. The user suggested
+a double-click (on the aeroplane or outside it); this won because it needs
+nothing to discover, because it is reversible — one click on anything else
+puts you back on a bay — and because double-click outside already recentres
+the view, and "outside the aeroplane" is a strange place to say "fuselage"
+from.
+
+IT IS THE SAME SPOT CLICKED AGAIN, NOT AN ANCESTOR SELECTED, and the first
+cut got that wrong in a way that reads identical: it asked "is what is
+selected this part or one of its parents?", and with the Fuselage selected
+EVERY bay is a descendant — so clicking the passenger bay stepped out to My
+Plane instead of selecting the bay. What is remembered is the part the last
+click RESOLVED TO. Measured after the fix: cabin -> Fuselage -> My Plane ->
+My Plane (it stops at the top rather than wrapping), and Fuselage selected +
+a click on the pax bay -> Passenger bay.
+
+THE OPTION IS `clicking`, in the display flyout under `selection`: `the bay
+you clicked` (the default, because that is the ruling) or `the whole
+fuselage` (the behaviour before the station table existed), so the two can be
+compared by using them. It changes what a CLICK means and nothing else — a
+selection of a bay is still cut to that bay in either position, because that
+is what makes the tree row mean anything. Parked in the nursery like
+`selection`, reachable as `window.EDITOR_PICKMODE`, and exempt in VIEW_KEEP
+with its reason: it moves no vertex and touches no material, and the capture
+takes geometry and materials.
+
+GATE PARTS is green with 34 parts (was 35) and 642 rows — the same rows,
+re-filed, which is the whole point of a gate that requires every rendered row
+to be claimed exactly once. Its ZONES census now reports five zoned sections:
+`waistband` divides eight ways (tail 144, boom 72, pax 120, cabin 192, nose
+96, taper 8, aftCabin 16, aftDeck 8), `floorLoop` eight, `ceilingLoop` four
+(it has no run through the cabin or the nose, where glass and pillars take
+its place — which is why the rule is "more than one zone" and not "every
+zone"). Verified in the page: waistband@cabin -> Cabin, floorLoop@nose ->
+Nose · deck, ceilingLoop@tail -> Tail cone, waistband@pax -> Passenger bay;
+selecting the Cabin lights 11,374 triangles in the cabin band (10,854 before
+the rails joined) and 20 in the nose; the Fuselage still lights every zone;
+the nose's column carries `nose deck lift / nose bottom / cowl 1 width / cowl
+2 width` and the cabin's carries its two rings.
+
+## G141.2 — THE SCREEN GETS ITS SHAPE, AND THE TRACE BECOMES AN INSTRUMENT
+## (2026-09-01, the user: "even lighter please. And let's actually have the
+## options ribbon vertically on the left, the trace initialized at the bottom,
+## 2 third of the available real estate horizontally by default, and the
+## action buttons back on the bottom right. I'd like to have more info on the
+## trace and be able to select/deselect the one I want to see from the legend.
+## I'd like throttle, trim levels, stick inputs (3 values, + and - for yaw,
+## roll and pitch. Vs also and AOA. Basically everything we have on the top
+## ribbon. The numbers on top should show the latest value, not the maximum of
+## the scale, that's confusing. The different steps should show their names
+## when hovering them")
+
+### THE SHAPE
+
+Four edges, one job each, and the middle is the aeroplane:
+
+    top, centre     the PFD          what it is doing
+    top, left       the brief        what you fly
+    top, right      the map          where it is
+    left, vertical  the look ribbon  how you look        <- turned a quarter
+    bottom, left    the trace        what it has done    <- 2/3 of the row
+    bottom, right   the verbs        what you do         <- back from the top
+
+THE LOOK RIBBON STANDS UP. Same five buttons, same table, same metrics —
+`flex-direction:column` and centred on the height, where it clears the brief
+above and the trace below without either of them knowing it is there. Its
+flyouts open BESIDE their own button now (to the right of the ribbon,
+top-aligned to the button, clamped to the window) for the reason they opened
+upward before: an answer that always appears in the same place does not say
+which question it answers.
+
+THE VERBS ARE THEIR OWN SURFACE at the bottom right — not a passenger on the
+top row. They are not plated: four verbs in a row ARE the object, and a plate
+around them is a box around a box.
+
+THE TOP ROW IS A GRID, `1fr auto 1fr`, and the third column is EMPTY. With the
+verbs gone the PFD has to be centred on the SCREEN rather than in what is left
+over, and a grid does that without the overlap an absolutely centred plate
+would have: when the open brief outgrows its `1fr` the column grows and the
+PFD is pushed, never covered. Measured centre 720 of 1440.
+
+THE TRACE IS TWO THIRDS OF THE ROW, at the bottom, `(100% - 44px) * 2 / 3` —
+measured 0.667 — and 240 px tall, still draggable, still resizable, still
+double-click-to-reset.
+
+### EVEN LIGHTER, AND WHAT PAID FOR IT
+
+`--ed-plate` .68 -> **.52**, `--fl-glass` .54 -> **.36**. At .36 the ink alone
+no longer separates from a lit sky, and the fix is the one every real HUD
+uses: a tight dark shadow under light type, not a heavier plate.
+`text-shadow:0 1px 2px rgba(0,0,0,.5)` is declared once ON THE LAYER, so every
+surface gets it and no component has to remember. The old amber HUD already
+did exactly this to `#hint` and `#credit`, and for exactly this reason.
+
+### THE TRACE IS FIFTEEN CHANNELS, IN LANES
+
+"Basically everything we have on the top ribbon", plus the three stick
+positions and throttle. Fifteen channels: altitude, height AGL, vertical
+speed, indicated, true airspeed, angle of attack, bank, throttle, pitch stick,
+roll stick, yaw stick, flap, brake, peak strain, power.
+
+**ONE LANE PER CHANNEL, NOT FIFTEEN LINES IN ONE FRAME.** Altitude is metres,
+throttle is a percentage, bank is degrees. Drawing them against a shared
+vertical axis is the dual-axis mistake — the single most common chart error —
+and normalising them onto one so they CAN share it is the same mistake with
+the evidence removed: it invites you to read a crossing as an event. Stacked
+lanes over ONE time axis is what a flight-data recorder draws and it is what
+this draws. Each lane has its own range, its own baseline, its name and its
+value at the left, and the phase marks run the FULL height — so the question
+you actually have (what was the throttle doing WHEN the vertical speed went?)
+is read down a column.
+
+A SIGNED CHANNEL IS DRAWN ABOUT ZERO and symmetrically, so +3 deg of aileron
+and -3 are the same distance from the middle and a centred trace means centred
+controls. `vs`, `aoa`, `bank` and the three sticks carry `sgn`.
+
+EVERY CHANNEL IS RECORDED, ALWAYS, whether or not its lane is drawn. Recording
+only what is selected would mean that turning a lane on mid-flight showed a
+graph that starts NOW, which is the one thing a trace must not do. Fifteen
+numbers at 10 Hz is nothing.
+
+**THE NUMBERS ARE THE LATEST VALUE.** They were `aMax`/`vMax`/`sMax` — the top
+of each scale, printed where a current reading belongs, which is what the user
+called confusing and it was. Each lane's direct label now carries the last
+sample; under the crosshair it carries the value AT THE TIME you are pointing
+at. Nothing new appears on screen — it is the same readout answering a better
+question.
+
+### COLOUR: SIX FAMILIES, AND THEY ARE VALIDATED
+
+Fifteen channels do not each get a hue. They could not pass — no fifteen-hue
+categorical palette clears a CVD floor — and they do not need to: a lane is
+ONE series with its name written on it, so colour groups rather than
+identifies. Six families, and they are the first six slots of the dataviz
+reference theme's dark column IN ITS OWN DOCUMENTED ORDER:
+
+| | hue | hex | family | channels |
+|---|---|---|---|---|
+| 1 | blue | `#3987e5` | path | altitude, height agl, vertical speed |
+| 2 | orange | `#d95926` | speed | indicated, true airspeed |
+| 3 | aqua | `#199e70` | attitude | angle of attack, bank |
+| 4 | yellow | `#c98500` | controls | throttle, pitch/roll/yaw stick, flap, brake |
+| 5 | magenta | `#d55181` | load | peak strain |
+| 6 | green | `#008300` | engine | power |
+
+Validated against this surface with the skill's own script: worst adjacent CVD
+delta-E 8.4 (protan), worst adjacent normal-vision 19.3, all six at or above
+3:1 contrast, all inside the dark lightness band and over the chroma floor.
+**Re-ordering these or adding a seventh breaks that** — the order is the
+validation. Peak strain is deliberately NOT the red/critical step: status
+colours are reserved and a series must never impersonate one.
+
+### THERE IS NO TRIM, AND ONE WAS ASKED FOR
+
+`sim.ctl` is `{ thr, de, da, dr, brake, flap }`. The autopilot holds attitude
+on the elevator directly; no trim state exists anywhere in the solver, so
+there is nothing to plot. FLAP and BRAKE are in the table instead, because
+they are real controls this aeroplane actually has. A trim channel would have
+to be invented, and an invented instrument is the one thing this project does
+not ship — the same ruling as the Vne warn in G141 and as GATE HONEST.
+
+### THE LEGEND IS THE SWITCHBOARD
+
+Fifteen chips built from `TEL_CH`, wrapping under the graph, lit when their
+lane is drawn and dimmed when it is not. A sixteenth channel is a row in that
+table and nothing else. The `trace` flyout keeps only `show` plus all / none /
+the five — which lanes is the legend's job, and having it in two places would
+be two places to disagree.
+
+Default: altitude, indicated, vertical speed, throttle, peak strain — the five
+a builder watches on a first circuit.
+
+### THE PHASE STEPS ANSWER TO THE POINTER
+
+Every tick has carried its phase's full name in a `title` since the rail was
+built, and nobody could ever land on one: the target was 7x3 px. Transparent
+borders grow the hit box to 7x17 while `background-clip:content-box` keeps the
+ink at 3 px — the rail looks identical and is five times as tall to the
+pointer. All fourteen verified hittable, each returning its own name.
+
+`box-sizing:content-box` IS THE WHOLE TRICK AND IT IS EASY TO LOSE. style.css
+sets border-box globally; under it `height:3px` is the box INCLUDING the 14 px
+of border, the content box collapses to zero, and `background-clip:content-box`
+then paints NOTHING. The first cut of this made the entire phase track
+invisible and every id-based assertion still passed. Caught by measuring
+`clientHeight` (3) against `getBoundingClientRect().height` (17).
+
+### AND THE TRAP THAT COST THE MOST: A LOST CLOSE TAG
+
+Moving the verbs out of the top row cut one `</div>` too many, and `#flFly`
+stopped closing. **Nothing threw.** The browser nested every element after it
+inside a hidden flyout — the map and the trace among them — and GATE UISMOKE
+still passed, because every id it asserts was still present, still in order,
+still on the right side of the seam. It was found by asking the DOM who
+`#telp`'s parent was, twenty minutes after it should have been.
+
+GATE UISMOKE NOW BALANCES THE LAYER'S TAGS. A crude parser over the built
+artifact's `#ui` slice: what opens, closes, in order. Negative-controlled —
+remove that one `</div>` again and it reports `1 unclosed, outermost <div>`.
+This is the third class of thing that gate now catches which no id list can
+(the mode, the seam, the markup).
+
+### VERIFIED
+
+GATE UISMOKE green (with the new check). Measured at 1440x810 and 375x812:
+**zero pairwise overlap** across all six surfaces at both, no horizontal
+scroll at either, the trace exactly 0.667 of the available width on desktop.
+Lane rendering confirmed by sampling the canvas — four families painting
+simultaneously, the count changing with the legend. Legend toggles, crosshair
+redraw, drag, resize, persistence and the double-click reset all driven and
+read back. The phase ticks: 3 px of ink, a 17 px target, all fourteen
+hittable.
+
+ONE NEW MEASURED RULE, because a breakpoint could not express it: the ribbon
+and the trace share the left edge, and on a tall narrow window they stop
+fitting past each other — the ribbon is centred on the HEIGHT and the trace,
+anchored to the bottom, grows up into it. `flLayout` insets the trace's left
+past the ribbon when their boxes actually cross. Insetting the LEFT is the
+stable choice: it does not move the trace's top, so the correction cannot
+oscillate. At 375x812 the trace starts at x=78 instead of 12; at 1440x810 it
+is back at 22.
+
+STILL NO SCREENSHOT — the Browser pane does not composite in this session, so
+every number above is read out of the live DOM and the live canvas through the
+hand-pumped harness. The pixels remain the user's to judge.
+
+## G141.3 — THE PANELS BECOME FURNITURE, AND THE TRACE LOSES A THIRD OF ITSELF
+## (2026-09-01, the user: "quick adjustments. Put the minimap on the top
+## right, and allow for the minimap to be draggable too. Allow a minimized
+## version of the top bar with smaller characters and only IAS, alt, Vs and
+## power, plus the steps. The trace should have only speed, altitude and
+## throttle enabled by default. `Indicated` is ambiguous, just keep true air
+## speed, remove brake, power, indicated airspeed and bank. Omit the `stick`
+## to pitch yaw and roll. If easy, make all panels draggable, not the buttons
+## nor the top left menu, but all the others could be dragged")
+
+### EVERY PANEL IS PLACEABLE, AND TWO DELIBERATELY ARE NOT
+
+`flPlace(el, {handle, grip})` — the trace's drag code, generalised and applied
+to the PFD, the map, the look ribbon and the trace. `#flBrief` and `#flActs`
+are the two that stay put, and that is the ruling, not an omission: the brief
+is where you look first and the verbs are where your hand goes. A screen where
+even those move has no shape left to remember.
+
+THREE THINGS MAKE IT WORK, and each was learned the hard way:
+
+1. **The first drag RE-PARENTS.** At rest each panel is anchored by something
+   that cannot express "wherever the player dropped it" — the PFD is a grid
+   cell in the top bar, the map is pinned to the right edge, the ribbon is
+   centred on the height with a transform. So the first drag takes the box the
+   panel is ALREADY occupying (no jump on the first pixel), moves the element
+   to `#ui`, and switches it to plain left/top. `.placed` undoes the rest in
+   one rule: `right/bottom:auto`, `margin:0`, `transform:none`,
+   `justify-self:auto`, `grid-column:auto`. `flHome` records the parent and
+   the next sibling BEFORE anything moves, so double-click can put it back in
+   its own place and the PFD re-enters the grid and re-centres.
+2. **A 4 px threshold is what lets a panel be both.** The map's canvas still
+   toggles north-up and its size; the ribbon's buttons still open flyouts.
+   A pointer that has not travelled 4 px was a click and is left alone.
+3. **One click is eaten, and only one.** A drag that ends ON a control would
+   otherwise also press it. The first cut used a flag set by the drag and
+   cleared by the click that follows — correct only while a click always
+   follows. End a drag with the pointer still, and the flag survives to eat
+   the next genuine press, minutes later; measured, it ate the first press of
+   the PFD's fold button. The second cut used a 250 ms window, which has to
+   guess. The right boundary is a TASK: the click belonging to a gesture is
+   dispatched in the same input task as its own pointerup, so the flag is
+   cleared by a zero-delay timer. Exact, and self-clearing.
+
+Geometry is persisted per id in `panels.pos`, and `flLayout` clamps every
+placed panel back into reach when the window changes size — a HANDLE on
+screen, not the whole panel.
+
+### THE MAP IS IN THE CORNER, AND THE BAR'S BOX WAS LYING
+
+The map was already `right:22px; top:92px`, and it was not landing there:
+`flLayout` dropped it below `#flTop`'s bottom, and `#flTop` spans the whole
+screen because it is the grid that centres the PFD. Its BOX said the bar
+reached 128 px down; its CONTENT in the map's own column was nothing at all,
+because the verbs left the top row at G141.2 and the third column is empty.
+
+It now measures over the bar's CHILDREN and only those that horizontally
+intersect the map's column. On a wide screen nothing does and the map sits at
+the design's 92 px, in the corner. When the grid collapses to one column on a
+phone the PFD IS in that column, and the map drops below it. Measured: 92 at
+1440, 166 at 375.
+
+### THE SMALL PFD
+
+`#pfdFold` on the plate (and a `small` row in the `instruments` flyout). Four
+readouts — IAS, altitude, vertical speed, power — at 19 px instead of 30, the
+steps unchanged, the plate 87 px tall instead of 110.
+
+IT OVERRIDES THE `instruments` SELECTION RATHER THAN EDITING IT. Turning small
+off gives you back exactly the set you had chosen, which is the difference
+between a view and a setting.
+
+### THE TRACE LOSES FOUR CHANNELS AND A WORD
+
+Fifteen down to eleven, and every cut is the same cut — a channel that says
+what another already says, or that says nothing a builder acts on:
+
+- **indicated** — `indicated` and `true` side by side is a question about
+  INSTRUMENTS, not about the aeroplane, and the trace is about the aeroplane.
+  The PFD still carries IAS, which is where the distinction belongs: it is the
+  number you do not stall by. The surviving lane is simply `speed`.
+- **bank** — read off the aeroplane in the window; a graph of it is a graph of
+  something you are already looking at.
+- **brake** — on for the first and last twenty seconds, flat between.
+- **power** — tracks throttle everywhere except thin air, and thin air is
+  measured on the density-altitude sheet. It stays a PFD readout, and it is
+  one of the small PFD's four.
+- `stick` came off the three control labels: on a lane already named `pitch`,
+  in degrees, the word was noise.
+
+Default lanes: **altitude, speed, throttle**.
+
+### VERIFIED
+
+GATE UISMOKE and GATE HONEST green. Measured at 1440x810 and 375x812: zero
+pairwise overlap across all six surfaces, no horizontal scroll, the trace
+still exactly 0.667 of the available width on desktop, the map at the design's
+92 px in the corner. Drag / re-parent / persist / double-click-home driven and
+read back for the PFD, the map and the ribbon; a click on a ribbon button
+still opens its flyout and a click on the minimap still toggles it, both after
+a drag on the same element; the small PFD toggles both ways with the type and
+the readout set changing with it.
+
+Still no screenshot — the pane does not composite in this session, so all of
+the above is read out of the live DOM and the live canvas.
+
+## G144 — THE RESOLVE PASS, BUILT, MEASURED, AND PARKED (2026-09-01, the
+user: "anti-aliasing? I think there's a lot of it"; then, an hour later:
+"stay out of really dangerous territories that impact all transparency...
+too destabilizing")
+
+(G143 left unclaimed on purpose — several sessions were live in the tree and
+the number race has struck three times; the code was already stamped G144.)
+
+The user circled seven aliased places on one hangar frame. Measurement said
+six were one defect and the seventh another, and the arc ended with the cure
+built, verified on its own terms, and then DEFAULTED OFF by the user's ruling
+after it broke two things it had no licence to touch. All three verdicts are
+real; the file is src/viewer/aa_resolve.js, the gate is GATE AA, and the
+opt-in is the `smoothing` row of the display flyout.
+
+WHAT WAS MEASURED FIRST (all off the live page, sink + own-renderer loop):
+
+- `antialias: true` here means FOUR MSAA samples: five coverage levels.
+  A 1:30 edge showed 7 px stair treads with a 64/255 jump between them —
+  which is exactly six of the seven circles (canopy sill, wing TE, white
+  gear braces on their own shadow). devicePixelRatio is 1, so the old
+  `min(dpr, 1.75)` cap was inert: there was no supersampling anywhere.
+- The seventh circle was the brown flank and it is BANDING, not aliasing:
+  97/81/67 px flat plateaus, 83% of the ramp in runs >= 4 px. #945924 puts
+  its dominant channel on a shallow stretch of the sRGB curve under the
+  ACES shoulder. Supersampling averages already-identical codes and cannot
+  touch it; +/-1 LSB triangular dither collapses the plateaus to ~13 px.
+- 8x MSAA at scale 1 halves the staircase FOR NO EXTRA SHADING (MSAA shades
+  once per fragment; MAX_SAMPLES is 8, the default framebuffer only ever
+  gives 4). The first read of the problem dismissed this; it is the best
+  value on the table.
+- 1.25x supersample + 8x + a tent filter: tread 7 -> 1 px, jump 64 -> 3.
+- 2.0x measured WORSE than 1.25x through every filter tried (an exact 2:1
+  resample is degenerate — each output pixel averages a 2x2 block off five
+  possible values) for 44% more fill. There is no 2.0x tier, and the gate
+  holds that line.
+
+THE PASS: scene -> multisampled half-float target -> one fullscreen pass
+(tent + dither) -> canvas. One substitution in app.js, because the whole
+viewer has exactly one render to the default framebuffer; hangar.js and
+render_world.js bind their own targets and are untouched.
+
+THE TWO r128 FACTS THAT COST THE AFTERNOON, so nobody pays twice:
+
+- Binding a render target takes OUTPUT ENCODING from the target's texture
+  but leaves TONE MAPPING on the renderer — the frame arrives tone-mapped
+  and un-encoded, which is neither of the states you'd assume. Dark one
+  way, bright the other; both happened.
+- ALPHA BLENDING HAPPENS IN WHATEVER SPACE THE TARGET IS IN. The first
+  draft used a linear target and carried its own (measured-exact) ACES —
+  and every transparent material in the game silently re-composited in
+  linear light: +68 codes for a 50%-alpha white layer over a dark ground,
+  0 codes on every opaque pixel. The user caught it inside a minute: the
+  selection highlight became an opaque slab. The fix is ONE PROPERTY —
+  `rt.texture.encoding = sRGBEncoding` — after which the pass owns no
+  colour at all: no ACES copy, no transfer curve, no exposure read, and
+  blending stays byte-identical to the old path (re-measured: 0,0,0,0,0).
+  GATE AA now asserts the absence of each of those as its own check.
+
+WHAT STOPPED IT: with blending fixed, the real scene STILL broke — the
+silhouette highlight filled solid. Root cause found and verified: the
+silhouette is drawn WITH THE STENCIL BUFFER (G131's mask/shell pair), and
+r128 render targets default `stencilBuffer: false`. The mask never stamps,
+NotEqual passes everywhere, the shell floods. The glazing also stopped
+reading as glass (unconfirmed which of the same class of causes). At that
+point the user ruled: revert, opt-in only. Right call — the pass replaces
+the compositing substrate under EVERY overlay and transparency trick the
+game has, and each one has to be re-verified against it deliberately, not
+discovered in production one slab at a time.
+
+WHERE IT STANDS: default `off`, pref key bumped to flydiy.aa2 so the first
+build's persisted `full` cannot re-break the session that reported it; the
+gate holds the default as the user's ruling, not a tunable. GATE AA: PASS
+24/24; UISMOKE: PASS; baseline verified restored on the live page (thin
+rim, transparent canopy, usedPass:false).
+
+THE ROAD BACK IN, when it is wanted — in order:
+1. `stencilBuffer: true` (+ depthStencil packing) on the target; verify the
+   silhouette mask/shell against ALL FOUR edHi modes, selected and hovered.
+2. Find why the glazing changed under an sRGB-encoded target when the
+   synthetic blend probe was byte-exact — do not wave it off.
+3. The overlay census: every stencil/clipping/polygonOffset user against
+   each tier, by screenshot, then and only then discuss the default.
+4. Frame timing on the real machine (this pane cannot: rAF throttled).
+Also parked with it: the AEROSKIN fwidth roughness clamp (specular shimmer,
+aeroskin.js only, independent of all of this) and logarithmicDepthBuffer
+early-Z (every material writes gl_FragDepth on WebGL2 — measured claim in
+the old G104-era comment is stale).
+
+## G145 — THE WING SHEARED AFT AT REST: THE REST REFERENCE WAS IN THE WRONG
+FRAME (2026-09-01, the user: "The wing is deformed on the plane, even when
+resting ... I see no physical reason for such a deformation. Many sessions
+have failed nailing the issue")
+
+The complaint, with two annotated screenshots: in plan view the whole wing
+sheared AFT, growing outboard, symmetric; a crease in the first wing bay
+right at the centre-section boundary; the lift struts kinked. Present at
+rest, obvious at Flex x4. G130 and G140 had each "fixed" this before — both
+re-bound the STRUT MESH, which is the downstream symptom, and both left the
+disease standing.
+
+THE MECHANISM, measured before touching anything. `makeSkinBinding` stored
+its rest reference as raw design coordinates (`p - defCG`), while
+`sparDeltas` projects the live stations into the BODY frame (`sim.axes()`
+from noseFrame->tailMid / upLo->upHi). The design pose's nose->tail line is
+pitched by beta relative to the design x-axis, so at exactly zero load the
+reported delta is (R_beta - I)(p - cg): a spurious rigid rotation. The wing
+sits ABOVE the CG, so its error is aft and grows with height — dihedral
+raises the wing outboard, hence "growing outboard, symmetric". Measured on
+the bare gen def (beta = 0.46 deg): -4.9 mm root -> -6.9 mm tip before the
+solver takes a single step; the default cage build carries beta = 3.69 deg
+(G54.2's measured-high boom), ~8x that, x4 again in Flex mode — the user's
+screenshot. The struts got the same error with OPPOSITE signs at their two
+ends (foot below the CG, tips above it), which is the parked bent strut;
+G140's two-end binding slaves the strut to the wing nodes by design, so the
+bad reference propagated into it faithfully. And the crease: the cage's
+binding gate sits at `parts.zRoot + 0.06`, OUTBOARD of spar station 0 at
+`zRoot`, so the k===0 zero-ramp band is empty for every generated aircraft
+and the whole fake offset discharged across one mesh quad at the
+centre-section boundary. The fleet planes have the band on the correct side
+of station 0 — which is why only gen builds showed it.
+
+WHY THREE SESSIONS MISSED IT: every flight gate is architecturally blind to
+a wrong rest state. GATE FLEX settles under gravity FIRST and subtracts the
+baseline in three separate places — deliberately, per its own comments — so
+it measures only deltas-from-rest and passes any rest. GATE SKIN's rest
+check ran on the hand-built PA-18 only, with a 12 cm allowance. No gate
+touched the cage binding at all. test_flex.js:244 even documents this exact
+trap ("taking them in the design frame leaves a constant bias") — the
+viewer did the thing the gate warns against. And cageCfg's own comment
+says "margins absorb the G54.2 pitch rotation": the rotation was KNOWN and
+compensated in the vertex gating, never in the rest reference.
+
+THE SUBTLETY THAT BROKE THE FIRST FIX: rebuilding rest through
+`genRestFrame(def)` left 1.3-4.5 mm standing. Probed: the sim's body frame
+is NOT orthogonal — the refs give a vertical yUp but a pitched xAft
+(dot = -0.008 on the gen def) and `bodyAxes` never re-orthogonalizes, while
+`genRestFrame` does. `sparDeltas` therefore measures in an OBLIQUE frame,
+and the rest must be built with that exact oblique projection, zL = xA x yU
+unnormalized and all. The keeper is the new `defBodyProject(def)` in
+50_model_codec.js — the sparDeltas projection taken at the design pose,
+byte-for-byte, with a header saying why nothing cleaner is allowed to build
+the rest. `makeSkinBinding` (wing + the G59.3 control surfaces, cage and
+fleet alike) and app.js's strut two-end rest both go through it now.
+Measured after: 0.0002 mm at reset(0) — float32 noise, exact zero.
+
+THE NET, so it cannot come back (test_skin.js, GATE SKIN, core tier):
+- gen build at reset(0), solver never stepped: max station delta < 1e-6 m;
+- the strut anchor nodes (strutRoot/strutF/strutR) the same;
+- NEGATIVE CONTROL: a rest reference pitched 1 deg out of the body frame
+  must read > 3 mm — the instrument is proven able to see the disease;
+- parked 10 s settled: in-plane (x, z) < 15 mm while droop (y) stays free.
+  The bound is not zero and the reason is named in the gate: bodyAxes reads
+  a FLEXIBLE fuselage, the tail sinks on its wheel, the frame pitches with
+  it, and the wing above the CG picks up ~9.6 mm of apparent fore-aft.
+  Real, bounded, not denied;
+- a cantilever build satisfies the same zero (no strut to blame).
+
+VERIFIED ON THE PAGE (the pane stopped compositing mid-session — the rig
+was rebuilt: `_probe_flex.html` = current dev.html + the rAF hand-pump,
+plus a POST sink for canvas pixels): at rest Flex x4, top-down planform
+straight, no crease, struts straight in the user's exact side view; on the
+takeoff roll at 23 km/h full power, still straight. GATE SKIN PASS with
+the five new checks; full run_gates sweep green except the ONE
+pre-existing red (GATE GEN 69/70, "swept wings still fly a circuit" -
+the G130-era red that awaits the user's ruling; physics untouched here).
+
+OWED, named and left deliberately:
+- the empty ramp band (`zRoot + 0.06` vs zs[0] = zRoot) still exists; it is
+  invisible now that the rest field is zero and the root station moves
+  millimetres under real load, but moving the gate inboard would need the
+  G58.1 sidewall trap re-verified (the cabin sidewall sits exactly at
+  |z| = zRoot and must stay outside the box);
+- the strut FITTINGS ride colour-keyed groups under the wing-box law while
+  the tube takes the two-end lerp — consistent at rest now, can diverge
+  slightly under load;
+- 61_gen_frame.js:459: `iStrut` findIndex returning -1 silently becomes
+  station 0 — latent, not hit today;
+- GATE FLEX still has no in-plane (drag-wise) load case.
+
+## G146 — SAVE WAS INVISIBLE, AND LOAD BECAME A DOOR (2026-09-01, the user:
+## "big issue, there's usually no save option... it just says 'unsaved' and
+## new... game breaking", then: "rework the styling of that ribbon thing...
+## Let's have save/save as/new/load. Load gives a pop-up where the fleet can
+## be selected")
+
+TWO THINGS, one ribbon. First the bug, then the re-cut it earned.
+
+THE BUG: the file ribbon showed "unsaved" and "✚ new" and NOTHING ELSE — no
+save, no load, for the whole session. The shelf (#edShelf) hides itself when
+the garage build is not the aircraft on the stand (`sync` in garage.js,
+keyed on `api.isGen()`), and the listener that re-showed it hung on #selAc's
+'change' event. But boot seeds `setAircraft('pa18')` BEFORE garageInit runs
+(app.js wires the bridges against a real aircraft), so the init-time sync
+hid the shelf — and every later switch to the garage build is PROGRAMMATIC
+(the boot's own `setAircraft('gen')`, the birth flow's `apply`), which fires
+no 'change' event. Since G135 no player can touch #selAc at all, so nothing
+ever unhid it. The lesson is G135's own audit finding one door it missed:
+retire the select from the player's reach and everything that listened to it
+for its cue is deaf for the player too.
+
+THE FIX is a handle, not an event: garage.js publishes its visibility sync
+as `window.GARAGE_SPEC.syncShelf`, and `setAircraft` calls it (guarded) as
+its last act — the switch itself tells the shelf, whoever asked for the
+switch. The selAc listener stays for the gates, which still switch aircraft
+by hand.
+
+THE RE-CUT (the user: "now it's a pack of controls thrown in a container"):
+the ribbon held a select and five buttons — nouns and verbs shoulder to
+shoulder. Now it is the name plus FOUR VERBS in one segmented group —
+save · save as · ✚ new · load — and LOAD opens the FLEET POPUP:
+
+- #gFleet, built by garage.js LAZILY on first open (the gates boot this
+  file on DOM shims; a popup nobody clicked for costs them nothing), styled
+  as the birth overlay's sibling (same scrim, same box, same dfPill) so the
+  two doors out of "the build on the stand" read as one family;
+- YOUR AEROPLANES: one row per slot — name, G130's meta line (role ·
+  tested · flights) moved from the dead select's option text, the current
+  slot marked "on the stand", a per-row ✕ delete (confirm kept) that
+  re-renders the open rack live; an empty-state line when there are none;
+- STOCK DESIGNS: their own section, no delete (stock is not yours to
+  delete), the ⚙ prefix retired — the section heading says it now;
+- the json doors ride the popup's footer: "import a build file" /
+  "export current build" (handlers verbatim, ids kept); #gFile stays in the
+  ribbon markup because a hidden input needs a home that exists before the
+  popup does; drag-drop works on the ribbon AND the open rack;
+- the sub-line carries the birth flow's honesty the other way round:
+  "loading replaces the unsaved build on the stand" (amber) when unnamed,
+  "…keeps its slot" when saved.
+
+`fillSlots` became `syncRibbon` — it fills no slots any more; it names the
+build, arms the two save doors, and refreshes the rack if it exists. #gSlot,
+#gDel-on-the-ribbon and the ribbon's export/import are GONE from body.html;
+test_ui_smoke's workshop list (#edShelf, #fbName, #gNew) never named them,
+so the seam assert holds unchanged.
+
+VERIFIED ON THE PAGE (dev.html, port 8125; the pane stopped compositing so
+the checks are DOM-measured, not squinted): the four verbs flush in one
+bordered group (0 px gaps, one 7 px-radius border), save → name lands on
+the ribbon and the row appears marked "on the stand", stock jodel loads
+UNNAMED and closes the rack, ✕ deletes the slot and the empty state
+returns, scrim and close both dismiss. Console clean. Full run_gates sweep
+after the rebuild.
+
+OWED: nothing new. UI-MODEL 2.4's fleet RACK sheet (forty aeroplanes,
+width, browsing) is still its own chantier — this popup is the load door
+grown to human size, not that sheet.
+
+## G147 — A PLAN ON THE SHED WALL (2026-09-01, the user: "add this as a prop,
+## it's a hand-drawn large plan to stick on a shed wall")
+
+`plan_wall` — a 1.40 x 1.05 m general-arrangement drawing ("Avion de
+Plaisance, monomoteur 2 places", plan 78-05-14), pinned to the shop wall in
+the bay the plan table faces. It went in through the ordinary prop pipeline
+(PROP-IMPORT-PROC.md), with ONE first for this library.
+
+THE ROW WHOSE GEOMETRY IS AUTHORED HERE. Every other row in
+`props_table.py` is a delivered model. This one arrived as a PICTURE, and
+the only geometry a sheet of paper needs is the quad that holds it — so
+`assets/props/plan_avion/plan_avion.gltf` is two triangles written by hand
+and `plan_avion.webp` is the image byte-for-byte. Rule 1 ("geometry is
+imported as-is") is not bent: there is no author's mesh to keep. Both the
+table row and CREDITS.md say so out loud, because the next person to read
+"geometry: none" over a hand-written glTF deserves the explanation.
+
+FOUR DECISIONS, each of which had a wrong answer available:
+
+- **`tex` is 1024, not the 512 default.** The point of a plan is that you
+  can walk up and read it; 512 on a 1.4 m sheet is a smudge. 172 KB of
+  jpeg, and index.html has ~1.8 MiB left under its 100 MiB ceiling.
+- **The origin is the TOP EDGE, not the centre.** `place='wall'` keeps the
+  delivered origin because there the origin IS the mount point — so the
+  origin is where the sheet is pinned and it hangs BELOW y=0, the same
+  contract `lamp_pendant` and `hosereel_wall` keep. The site's `y: 2.35`
+  is therefore pin height and the sheet reads 1.30..2.35 m.
+- **It faces +z with its back at z = 0.004**, exactly as `toolrack_wall`
+  hangs, and the site's `out: 0.12` is the tool rack's proven clearance
+  off the wall skin.
+- **`along` is the MIDDLE BAY, and it was MEASURED** (the user: "place it
+  in the middle section of the wall, so it has a chance to get lit by the
+  hanging lamps"). It first went up beside the plan table at x -8.85, where
+  two separate things were wrong. THE POST: the portal columns stand at
+  x = ±3.97k, 0.34 m wide and PROUD of the skin the sheet lies on, and the
+  1.4 m sheet came within 70 mm of the one at -7.93. THE LIGHT: only one of
+  the five pendants is anywhere near this wall — LAMP_XZ's `[0, 9.5]`, which
+  lands at x 0, z 7.9, seven metres off it — so the door end of the wall gets
+  nothing at all. Rendered with the ROOM'S OWN LIGHTS and nothing else, then
+  sampled off the framebuffer, mean luminance on the sheet reads
+
+      x  -9.91   -6.0   -3.97   -1.985     0    +1.985
+      L    0.0    0.3    52.9    187.1   237.7    97.9
+
+  Zero. Not dim — zero, the whole plan was carried by the environment term.
+  Dead centre is brightest and is a post, so it hangs in the bay beside it at
+  -1.985 for 79% of the best light and a clean 1.8 m of wall either side. The
+  +1.985 mirror is half as bright because the stores' three loaded racks
+  stand between that bay and the lamp — the asymmetry is the measurement
+  telling you what is in the way.
+
+  TWO GENERAL RULES FALL OUT. Nothing in `hangarFit` looks at the FRAME
+  (rule 4's packing is floor-standing sites only, and a `y` site skips it
+  entirely), and nothing in it looks at the LIGHT at all. A wall prop wider
+  than a hand has to be placed against both by hand, and "is it lit" is a
+  question only pixels answer: the sheet at -9.91 looked perfectly fine in
+  every screenshot taken with a fill light in the scene.
+
+Claimed by the OFFICE kit (GATE HANGAR rule 4 partitions every prop key),
+group `curio` in the editor.
+
+VERIFIED: bench render of the prop alone against a stand-in wall (right way
+up, texture landed, front face outward — a wall prop is single-sided and a
+flipped quad is invisible, not merely wrong); `hangarFit` reports it placed
+in all three shells; the luminance sweep above; and an offscreen render of
+the built room lit BY ITS OWN LAMPS ONLY, in which the plan is the brightest
+thing on that wall. GATE PROPS PASS (47 props), GATE HANGAR PASS (738
+checks), build clean.
+
+## G144.1 — THE ROAD BACK IN, WALKED (2026-09-01, the user: "the best is
+smooth. Smoothest tends to add too much blur... only setup the option by
+default if the outline works perfectly")
+
+The G144 park lasted one session. The user tested the tiers themselves,
+picked `smooth`, named the blur in `smoothest`, and set the bar for a
+default. Every item on G144's road-back-in list is now walked:
+
+1. THE STENCIL. `stencilBuffer: true` on the target — r128 allocates a
+   multisampled DEPTH24_STENCIL8, and the G131 silhouette lives again.
+   Verified on the live page, not assumed: all FOUR highlight modes
+   (outline / silhouette / fill / both) AND hover, rendered through the
+   pass and pixel-diffed against `off`. Flat-pixel mean < 0.07 codes; the
+   silhouette rim 9400 vs 9422 px — equivalent, and the msaa rim is the
+   smoother-edged of the two.
+
+2. THE GLAZING, EXPLAINED. Nothing was wrong with the glazing under the
+   sRGB target: the canopy region measures 0.48 codes mean against `off`.
+   What the user saw as opaque windows was the FLOODED SILHOUETTE SHELL
+   sitting over the canopy (plus, in the very first build, linear-target
+   blending). Both causes are dead. The only whole-frame differences left
+   are 24 px of isolated specular glints in 1.8M — 8 samples resolving
+   what 4 miss, i.e. the anti-aliasing working.
+
+3. THE BLUR, MEASURED AND HALF-CURED. The user's verdict on `smoothest`
+   was correct and is now a number: the tent kernel cost ~30% fine-detail
+   contrast. Replaced with CATMULL-ROM (negative lobes restore edge
+   contrast; kernel scaled by uR so support tracks the ratio). Still ~27%
+   down on |Laplacian| (4.12 vs 5.48) and 1-px line amplitude (138 vs
+   193.5) — that residue is the 1.25x RESAMPLE ITSELF, no kernel undoes
+   it. `smoothest` is therefore an honest taste option, never the default.
+   `smooth` resolves 1:1 and resamples nothing: sharpness IDENTICAL to
+   `off` (5.43 vs 5.48, lines 193.5 vs 193.5) with 8x edges.
+
+4. THE DEFAULT IS `msaa`, the user's condition met and cited in the code.
+   GATE AA holds the default (26/26) and now also asserts the stencil
+   line, so the one-property regression cannot come back quietly.
+
+CLOSED WITHOUT CODE — S4, the specular roughness clamp: r128 ALREADY DOES
+IT. `geometryRoughness = max(max(dxy.x,dxy.y),dxy.z)` from normal
+derivatives is added to material.roughness in lights_physical_fragment.
+The study's recommendation was pre-implemented by the renderer; stacking a
+stronger clamp is a LOOK change on every paint and waits for the user's
+eye, per their own "stay out of dangerous territories" rule.
+
+STILL PARKED: logarithmicDepthBuffer early-Z (a perf item, needs the
+z-fighting sweep) and real frame timing (this pane cannot rAF; the fill
+arithmetic says msaa is coverage-only on top of what the canvas already
+paid, and nobody has timed it).
+
+## G141.4 — THE LAMP LENS WAS NEVER GLASS IN FLIGHT, AND THE RUNWAY PAINTED
+## OVER IT (2026-09-01, the user, with a screenshot of both wings from above:
+## "issue with the wing `cut lamps` material. It does not show when rendered
+## on top of the strip. It shows when rendered on top of the other surfaces
+## though ... Can we just use the same glass shader as the rest?")
+
+Two faults, and they compound. The screenshot is the whole diagnosis: the same
+pane, on the same aeroplane, in the same frame — legible over open country,
+gone over the aerodrome.
+
+### 1. WHY THE STRIP AND NOT THE FIELD
+
+three.js draws every transparent object after every opaque one and orders them
+by `renderOrder` first. **Open country is TERRAIN**: opaque, drawn and finished
+before the aeroplane's glass is reached. **The aerodrome is not.** Its grass
+patch (`renderOrder 2`) and its runway sheet (`renderOrder 3`) are
+`transparent, depthWrite:false` DECALS laid over that terrain — render_world.js
+says why in as many words: the patch has to fade at its edges, so it cannot be
+opaque, "and three draws every transparent object after every opaque one,
+whatever its renderOrder".
+
+The flown aeroplane's groups took `RENDER_ORDER[name] || 0`, and that table
+knows two names (`covers`, `glass`). The lens's group is neither, so it was
+**0** — under the grass patch and under the runway. The runway drew last and
+won.
+
+**AND NOTHING STOPPED IT, because the depth test had nothing to reject it
+with.** The wing is REALLY CUT at the lamp bay (G96) — there is no skin there.
+The lens is `depthWrite:false`, as all glass is. And looking down through the
+bay from above, the ray misses the interior cage's aft wall, which is the only
+opaque thing in the box. No opaque fragment, no depth written, no rejection:
+the runway sheet painted straight over the pane.
+
+**THE FIX IS A BAND, NOT A BIGGER NUMBER.** The world's decals live in single
+digits (`Math.round(y * 100)` over a few centimetres of height). The SUBJECT
+now gets its own thousand: any group the payload declares transparent
+(`opacity < 1` — the same fact `castShadow` already reads two lines below)
+takes `AERO_CLEAR + its own order`. A decal at any plausible height still
+cannot reach it, and the aeroplane's internal order survives inside the band
+instead of being flattened to one value.
+
+### 2. IT WAS NOT THE SAME GLASS. IT WAS NOT GLASS AT ALL, IN FLIGHT
+
+`lensMatW()` hand-rolled a `MeshStandardMaterial` — 0.34 alpha, no clearcoat,
+none of the glazing dials — on a stated argument: "a landing-light lens is a
+thick clear moulding, not a window". That argument is SUPERSEDED, and it was
+costing more than a taste:
+
+**The snapshot records a group's finish from `userData.aeroFinish`, and a
+hand-rolled material has none.** So `_cage_join` wrote no `fin` for the lens,
+and `buildModel` rebuilt it through `aeroMaterial` instead of `aeroGlass`. The
+editor and the game were drawing two different materials for one part — the
+exact failure G108 closed everywhere else, whose own comment reads "there is
+one factory, and both worlds call it".
+
+It was also `DoubleSide`, so the far pane of the band showed through the near
+one — the same phantom limb the cabin glazing went `FrontSide` to cure
+(_cage_ui.js:231, the user's own earlier report). The bay's interior cage backs
+it, so there is nothing behind to want to see.
+
+`lensMatW()` now returns `window.AEROSKIN.aeroGlass(THREE, {})` — the pooled
+cabin-pane material, clearcoat and all. The standalone bench (no aeroskin
+layer) keeps a stand-in, and that stand-in now carries
+`userData.aeroFinish = 'glass'` so it crosses the join as glass even there.
+
+NOT GIVEN ITS OWN LIVERY ROW, deliberately. It takes the glazing family's
+default look rather than a per-part section of its own (`AERO_SEC`), because
+inventing a section is the G109-G112 procedure and this was asked as a quick
+fix. If the lens should follow the windshield's tint dial, that is a row in
+that table and a line in the resolver — say so and it is ten minutes.
+
+### MEASURED
+
+In the editor, both wing lenses now report: `MeshPhysicalMaterial`,
+clearcoat 1, opacity 0.5, roughness 0.045, `side: FrontSide`,
+`depthWrite:false`, `renderOrder 1003` — the same material the windshield and
+the cabin windows carry.
+
+Across the join, the payload now carries a fourth glass group beside
+`swindshield` / `spilotWindow` / `spasengerWindow`:
+`{ fin: 'glass', opacity: 0.5, rough: 0.045, metal: 0 }`. Those are the two
+inputs the flown material and its render order are computed from — `fin`
+routes it to `aeroGlass`, and `opacity < 1` puts it in the 1000 band, over a
+runway that sorts at 3.
+
+THE FLOWN PIXEL ITSELF IS NOT WATCHED, and it is worth being exact about that:
+the flight scene is not published on `window` (only the garage's is, through
+`REF_MOUNT`), and the Browser pane does not composite in this session, so there
+is no screenshot and no scene walk on the flying side. What is verified is the
+payload at the boundary and the two-line, branchless computation on the other
+side of it. The pixel is the user's to confirm.
+
+GATE BAY, BEACON, LIGHT, SKINMAT, SURF, FIT, REF, DESIGN, BUILD, HONEST and
+UISMOKE all green.
+
+## G144.2 — SMOOTHEST BY DEFAULT, AND THE FLIGHT SCREEN GETS THE ROW
+(2026-09-01, the user: "update defaults to smoothest. Does it also apply to
+the flight screen? If so, we should have the option there too")
+
+Two small moves, one clarification worth keeping:
+
+THE PASS ALWAYS APPLIED TO FLIGHT. It wraps the game's single
+default-framebuffer render — `aa.render(inGarage ? garageScene() : scene,
+camera)` — so the flight world has gone through it since G144 landed. What
+the flight screen lacked was the CONTROL, not the effect.
+
+THE ROW, in the `camera` flyout ("how the flight is framed" is where
+looking lives, per the covering's own precedent): off / smooth / smoothest
+as flPills. One fact, two readers: the PASS is the keeper, the editor's
+display select and these pills both press it. The pills stay honest by
+flPills' own reopen-on-pick; the editor's once-built select re-reads on
+pointerenter, because a tier changed from the flight side would otherwise
+leave it showing the old answer. flPills FACT for the next hand: `why` on
+a pill option DISABLES it (it is the reason a thing is unavailable, per
+`cockpit`'s eyeWhy) — do not use it for tooltips.
+
+THE DEFAULT IS `full` — the user's third ruling. Their "too much blur"
+verdict was passed on the TENT kernel; the shipped kernel is Catmull-Rom
+(G144.1), and with it they picked smoothest. The measured residual
+(~27% |Laplacian| on fine texture, 1-px lines 138 vs 193.5) stays written
+in aa_resolve.js so the trade is known, not forgotten. GATE AA holds the
+default as the ruling (26/26); UISMOKE green; verified on the shipped
+build: fresh boot at `full`, flight flyout rows [fov, level horizon, lead
+the turn, smoothing], pills off/smooth/smoothest* driving the live pass
+both ways with the pref following.
+
+## G148 — THE UNDERCARRIAGE MOVES AS ONE MACHINE (2026-09-01, the user: "A
+part of the suspension pokes through the wheel, move somehow independently
+from the wheel, that's a pretty messy job ... the session implementing that
+did not understand well what was attached to what and how it should move")
+
+Follow-on from G145's question "are we clean elsewhere?" — the answer was
+no. On the mains, THREE DIFFERENT MOTION LAWS collided at the same axle,
+and pixels on the live page showed all three at once (chrome fittings
+standing at fixed clock positions while the wheel travelled past them, a
+riveted plate the size of the tyre presenting at its own angle, the leg
+burying its end in the tyre sidewall):
+
+1. THE TYRE/HUB/DISC teleported ABSOLUTELY to the sim's axle node each
+   frame (poseModel's wheelParts) — pinned to the SIM.
+2. THE LEG (and since G133 the spat) moved by a delta from `rest0` — a
+   rest CAPTURED LAZILY ON THE FIRST POSED FRAME and never recomputed,
+   not even by fullReset. G145's disease in a worse form: not a wrong
+   frame, NO analytic rest at all. Pinned to the DRAWING plus whatever
+   the sim was doing on frame 1.
+3. THE WHEEL'S HARDWARE — bolt heads, hub caps, valve stems, the brake
+   caliper (drawn 0.52 R above the axle, INSIDE the tyre silhouette) and
+   its pipe — was WELDED TO THE FUSELAGE: _cage_gear's wheelProxy based
+   itself on the SHARED bags and overrode only tyre/hub/brake, so
+   wheel()'s other five writes fell through, meshed unnamed, and were
+   swept into the static merge by the join's name walk. G58.3's own
+   comment says "the CALIPER ... bolts to the leg"; "static" had been
+   implemented as "part of the fuselage". The tailwheel path never had
+   the bug (its proxy is based on the leg unit) — which is why the tail
+   always looked right while the mains looked wrong.
+
+GATE GEAR could not see any of it: it runs _gear_gen.js headless and
+never loads the cage routing or the poser, and its §3 ALLOWED set
+explicitly permitted the exact bags that ended up fuselage-welded.
+
+THE FIX, three parts, one law:
+
+- ROUTING (_cage_gear.js): wheelProxy(lb) now gives the mains' wheel its
+  own {tyre,hub,brake,alloy,dark} — bolts, caps and valves SPIN with the
+  wheel — and routes `brakefix` into that wheel's LEG unit, so the
+  caliper travels with the axle without turning. The brake PIPE moved
+  from `dark` to `brakefix||dark` in _gear_gen.js (it feeds the caliper;
+  in `dark` it either froze on the fuselage or would have spun with the
+  wheel). The tailwheel keeps its 3-bag proxy on purpose.
+- THE REST IS COMPUTED, NEVER CAPTURED (app.js): a new `nodeRest(idx)` =
+  the node's DESIGN position through defBodyProject minus the pose
+  offset — the exact projection nodeLocal applies per frame — replaces
+  every lazy `rest0` (stretchRigs, castorRig, and now wheelParts). Zero
+  load reads zero delta on frame 1 and after every reset, by
+  construction. The lazy capture survives only as a fallback.
+- ONE LAW FOR THE WHEEL (app.js): wheelParts now poses DRAWN PLACE +
+  PHYSICS DELTA (pivot + L − rest0), the same law the legs and the
+  castor use — absolute placement had made every calibration residual
+  (the snapshot `off` has no z, track measured as max while x/y are
+  means) a PERMANENT GAP between parts that are bolted together.
+
+THE NET (GATE GEAR §3, rewritten): wheel()'s write-set is pinned to
+exactly the six routed bags (bronze dropped from ALLOWED — nothing writes
+it, and an allowed-but-unrouted name IS the disease); the spinning `dark`
+bag must stay radially inside the valve (< 0.62 R — brake plumbing there
+would orbit the axle); brakefix must receive the caliper and pipe; and a
+NEGATIVE CONTROL deletes the brakefix bag and requires the radial
+instrument to see the pipe fall back into `dark` at 0.9 R. All 15
+existing selftests still catch.
+
+VERIFIED: GATE GEAR + selftest, JOIN, UISMOKE, PARTS, DESIGN, SKIN all
+green; on the live page (probe rig), at rest and rolling: hub cap
+centred, bolt circle concentric and spinning with the tyre, drum face
+inside the tyre, caliper riding the leg, nothing floating mid-air —
+before/after crops in the session log.
+
+OWED, named (the linear-ramp approximations G133 already recorded, still
+standing after this): the leg's single root→axle projection cannot pin a
+SECOND airframe anchor (the shock's top fitting, the link's rear V foot,
+the oleo's drag-brace top drift by a fraction of axle travel), and the
+spat follows the ramp at ~half the wheel's travel — the honest fix is
+per-MEMBER two-end weights baked at draw time (G140's strut rule applied
+to the whole leg), its own chantier. The sim still has no unsprung node
+besides the axle (the torque scissor's knee follows nothing). Gear rigs
+deliberately take no Flex ×4 gain (suspension travel is not elastic
+flex); the skin around them does.

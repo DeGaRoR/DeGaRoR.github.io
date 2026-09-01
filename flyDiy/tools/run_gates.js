@@ -25,6 +25,11 @@ const GATES = [
   // THE ATMOSPHERE (G72). Pure model, under a second: the ISA tables, the
   // exact sea-level identity every other gate's anchors depend on, and the
   // powerplant scalings re-derived against 60_gen_spec's own prop synthesis.
+  // THE RESOLVE PASS (G144). Pure source-and-stub, instant: it cannot see a
+  // pixel, so it holds the things that broke instead — the headless degrade,
+  // and the ACES coefficients against the ones in vendor/three.min.js, which
+  // are now duplicated and would otherwise re-grade the game on a three bump.
+  { id: 'AA', file: 'test_aa.js', tier: 'core' },
   { id: 'ATMOS', file: 'test_atmos.js', tier: 'core' },
   { id: 'GE', file: 'test_ground_effect.js', tier: 'core' },
   { id: 'FLAPS', file: 'test_flaps.js', tier: 'core' },
@@ -105,6 +110,11 @@ const GATES = [
   { id: 'COWL', file: '_cowl_check.js', tier: 'core' },       // the cowl, and the engine inside it
   { id: 'ENGMESH', file: '_eng_mesh_check.js', tier: 'core' },// the engine's own health + ledger
   { id: 'JOIN', file: '_join_check.js', tier: 'core' },       // editor -> spec -> a buildable aeroplane
+  // G134: the custom engine — thermo laws over the registry, the clamp
+  // door, and the row reaching the frame; ENGID is the identity ruling
+  // (untouched preset = the certified row; deviated = modified/custom)
+  { id: 'ENGINE', file: '_engcustom_check.js', tier: 'core' },
+  { id: 'ENGID', file: '_engid_check.js', tier: 'core' },
   // THE UNDERCARRIAGE (G67.3), and it closes the one gap G67.2 declared: the
   // three leg families as three different drawings — the check GATE GEN lost
   // when the old skin's leg drawer went — plus the wheel turning on its own,

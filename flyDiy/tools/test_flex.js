@@ -466,6 +466,18 @@ const TORS_FLOOR = 0.05;   // deg at 200 N.m
                                  s.wings[0].dihedralOut = 14; }],
     ['crank + cantilever', s => { s.wings[0].crankAt = 0.45; s.wings[0].dihedral = 0;
                                   s.wings[0].dihedralOut = 14; s.bracing.type = 'cantilever'; }],
+    // G140: the crank+strut HYBRID is a real configuration now (strut to the
+    // crank joint, boxed outer, the strut as the outer box's lower chord) —
+    // legacy fields above ('jodel crank' on the default strut bracing IS the
+    // hybrid), and the explicit three-station form here. The C172ish row is
+    // the ruling's own aeroplane: constant chord to the strut, tapered and
+    // seated-aft outboard.
+    ['crank + strut stations', s => Object.assign(s.wings[0],
+      { crankAt: 0.45, crankChord: 1.60, taper: 0.72, tipX: 0.35,
+        crankX: 0.05, dihedralOut: 5 })],
+    ['c172ish hybrid',    s => Object.assign(s.wings[0],
+      { crankAt: 0.42, crankChord: 1.60, taper: 0.72, tipX: 0.30,
+        dihedralOut: 3 })],
   ]) CFG.push([l, f]);
   // the risk surface: span and station density, against both bracings
   for (const br of ['strut', 'cantilever']) {
@@ -515,6 +527,43 @@ const TORS_FLOOR = 0.05;   // deg at 200 N.m
   results['no garage configuration is near a mechanism'] = soft.length === 0;
   results['every garage configuration built and measured'] = rows.every(r => !r.err && Number.isFinite(r.lin));
   if (soft.length) say(`  soft corners: ${soft.map(r => r.lbl).join(', ')}`);
+  // G140: THE BENDING NET. The crank+strut hinge measured a healthy 1.81x
+  // TORSION doubling while the tip FOLDED 2.4 m up in flight — torsion
+  // loads twist, flight loads bend, and the bend column existed unasserted.
+  // Healthy rows read 0.3-2.9 % under the 2 kN spread; the hinge reads
+  // fifty-plus. 8 % is three times the stiffest legitimate cantilever.
+  const BEND_MAX = 8;
+  const folded = rows.filter(r => !r.err &&
+    (!Number.isFinite(r.bd) || r.bd > BEND_MAX));
+  results['no garage configuration folds in bending'] = folded.length === 0;
+  if (folded.length)
+    say(`  *** FOLDING: ${folded.map(r => r.lbl + ' (' +
+        (r.bd == null ? '?' : r.bd.toFixed(1)) + '%)').join(', ')}`);
+  // ...and the net must be able to CATCH (negative half, the battery's own
+  // discipline): rebuild the hybrid, strip the two strut->lower-cap chords
+  // that close the outer box's bending path, and the fold must come back
+  // past the bound. If it does not, the check above is inert.
+  {
+    const sp = JSON.parse(JSON.stringify(GEN_DEFAULT));
+    Object.assign(sp.wings[0], { crankAt: 0.42, dihedralOut: 5 });
+    const d = buildGen(sp);
+    const cut = new Set();
+    for (const side of ['L', 'R']) {
+      const fw = d.parts.wf[side];
+      if (!fw || fw.strutRoot == null) continue;
+      d.beams.forEach((b, i) => {
+        const o = b.a === fw.strutRoot ? b.b : b.b === fw.strutRoot ? b.a : -1;
+        if (o >= 0 && d.nodes[o] && d.nodes[o].tag === 'WB') cut.add(i);
+      });
+    }
+    const d2 = Object.assign({}, d,
+      { beams: d.beams.filter((b, i) => !cut.has(i)) });
+    const bdCut = cut.size >= 4 ? statBend(d2, 2000) : null;
+    results['the bending net can catch the hinge (strut chords cut -> fold)'] =
+      cut.size >= 4 && Number.isFinite(bdCut) && bdCut > BEND_MAX;
+    say(`  negative: ${cut.size} strut lower chords cut -> bend ` +
+        `${bdCut == null ? '?' : bdCut.toFixed(1)}% (must exceed ${BEND_MAX}%)`);
+  }
 }
 
 // --- verdict: finite, no divergence, and the instrument repeats itself.

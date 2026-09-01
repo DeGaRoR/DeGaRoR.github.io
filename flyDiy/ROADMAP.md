@@ -333,6 +333,51 @@ numbering below.
   is real now) and the seam holds (ten flight ids inside `#ui`, eight workshop
   ids inside `#wsUI`, checked on the built artifact). The `#edStat` blob and
   the parts column's help text went with it.
+- **THE FLIGHT SCREEN'S OWN REBASELINE. LANDED as G141.** The pass G77-G108
+  gave the workshop, given to the other screen from a Claude Design handoff
+  (`design_handoff_flight_interface/`, high fidelity). The editor's rule is
+  spatial; flight's is TEMPORAL — what am I flying / what is it doing / what
+  happened, in the order the flight asks them, and nothing that answers one
+  stays up while another is being asked. Four surfaces: the brief plate and
+  the verbs on the editor's own top-bar pixels, the look rail bottom-left
+  (five flyouts: camera, instruments, map, trace, air), the PFD bottom-right
+  with the phase rail inside it, and three summoned panels. The bottom bar's
+  eight controls are still the writers, hidden in `#flStore` and driven by
+  the plate — no second source of truth. A third stylesheet, `flight.css`,
+  carrying the editor's Bone palette on `#ui`; Mono is gone from the HUD.
+  The camera flyout is genuinely new and `cockpit` is G107's pilot eye walked
+  into the flying frame, not a second implementation. TWO WARNS ARE OWED, not
+  faked: Vne and a sink-rate limit are declared nowhere, so only the stall
+  colours a readout — and the arrival card has no `fuel used` row for the
+  same reason. HANDOVER G141 is canonical.
+  **G141.1 is the user's first look at it**, and three rulings that override
+  the handoff: the stack is DECLARED (the flyout must never be under the trace
+  it opens over), the PFD rides the TOP ROW in the middle (in the flow, so it
+  cannot land on an open brief), and the plate is GLASS on this layer —
+  `--ed-plate` .68 for the surfaces that carry a decision, `--fl-glass` .54
+  for the two you read through, the arrival card still opaque. The trace is
+  furniture now: lighter, at the bottom of the stack, draggable by its header,
+  resizable by its grip, double-click to put it back, geometry persisted.
+  **G141.2 gave the screen its shape**: the look ribbon stands VERTICALLY up
+  the left edge, the verbs are their own surface at the bottom right, the PFD
+  is centred by a `1fr auto 1fr` grid, the trace starts at the bottom across
+  two thirds of the row — and the trace became an INSTRUMENT: fifteen
+  channels (everything the PFD can carry, plus the three stick positions,
+  flap and brake), one LANE each over one clock rather than fifteen lines on
+  one axis, selectable from the legend, labelled with the LATEST value and
+  with the value under the crosshair. Six colour families, validated. THERE
+  IS NO TRIM to plot — `sim.ctl` has none — so flap and brake stand in its
+  place, and the trim channel is owed to a solver that grows one. GATE
+  UISMOKE now BALANCES the flight layer's tags: a lost `</div>` nested the
+  map and the trace inside a hidden flyout and every id assertion still
+  passed. **G141.3 made the panels furniture**: the PFD, the map, the ribbon
+  and the trace all drag (the brief and the verbs deliberately do not — they
+  are the anchors), each re-parenting to `#ui` on its first drag and going
+  home on a double-click; the map sits in the top-right corner again (the top
+  bar's BOX spans the screen, its content in that column does not); the PFD
+  has a SMALL mode — IAS/alt/VS/power at 19 px plus the steps — that overrides
+  the instrument selection rather than editing it; and the trace is eleven
+  channels, three on by default.
 - **the INFORMATION panel. LANDED as G91.** Plaque, bench and fleet on the
   left, 280 px, folding, pushing the render and its centring. The
   aeroplane's SHEET and the NAME CHIP retire with it (a door to a room
@@ -1098,6 +1143,33 @@ GLBs, deliberately small. Pull it forward the moment matching a real
 aeroplane would help — wings (P2) is the likely moment. Blueprints only if a
 wanted aeroplane has no model. Imports also join the P6 rack as found
 aircraft.
+
+**"MORE FROM THE SAME MODELLER AS THEY COME" ARRIVED — G138, 2026-09-01.**
+Seven of helijah's aeroplanes: Jodel D.112, Alpi Pioneer 200, Cessna 195
+Businessliner, Aeroprakt A22 Foxbat, Partenavia P.68, Van's RV-8, Cirrus
+SR22. Nine presets where there were two, and the set now spans taildragger to
+tricycle, rag-and-tube to composite, single to twin. `tools/ref_prep.py` +
+`tools/ref_table.py` make a new one a five-line row rather than an afternoon
+with a contact sheet. THREE THINGS THIS ENTRY DID NOT ANTICIPATE:
+- the licences differ per LISTING (three CC-BY-4.0, four "SKETCHFAB
+  Standard"), so only three are published and GATE REF enforces it;
+- `sit` is not optional — three of the seven are taildraggers drawn level;
+- **the artifact hit its ceiling.** "The reference costs zero new bytes" was
+  true of the Cub and the C172 and is not true of these. See G138's last
+  section: 97% of `index.html` is base64 binary and it is at 96.5 of a hard
+  100 MiB. THE ARTIFACT'S SIZE IS NOW ITS OWN OWED CHANTIER and it blocks the
+  next feature that needs a few MB, not just this one.
+
+**AND EIGHT MORE, ALL CC-BY — G142, 2026-09-01.** Diamond DA40, Grob G115,
+Stemme S6, Super Guepard 912, Yak-18T, PZL Wilga "Draco", Fokker E.III, Piper
+PA-28 Cadet. Sixteen payloads baked, SEVENTEEN presets, and the split view
+(`cut: split`) that makes the reference worth having: your right half and
+theirs left, meeting on the centreline as one aeroplane. Two of the eight are
+in the artifact and five more are correct, licensed, gated and one line from
+shipping — **the ceiling, not the aeroplanes, is what stops them.** This is the
+second feature in one session to be cut short by it, which is the argument for
+taking the size chantier before the next one. Draco has no preset: nobody has
+published the dimensions of a one-off, so nothing can hold its scale.
 
 TWO THINGS THE ENTRY ABOVE GOT WRONG, both found by measuring rather than
 reading, and they make this cheaper than it looks. THERE IS NO GLB TO LOAD

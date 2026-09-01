@@ -132,6 +132,11 @@ function stations() {
                leg: Math.round(P['s' + i + 'Leg']), R: P['s' + i + 'R'],
                drop: P['s' + i + 'Drop'], brake: P['s' + i + 'Brake'],
                fair: Math.round(P['s' + i + 'Fair'] || 0),
+               fairSkirt: +P['s' + i + 'FairSkirt'] || 0,
+               fairTail: +P['s' + i + 'FairTail'] || 1,
+               fairRake: +P['s' + i + 'FairRake'] || 0,
+               fairW: +P['s' + i + 'FairW'] || 1,
+               legFair: Math.round(P['s' + i + 'LegFair'] || 0),
                steer: Math.round(P['s' + i + 'Steer']), P: legP(i) });
   }
   return out;
@@ -171,15 +176,17 @@ function build() {
         else if (st.leg === 1) r = G.legLink(bags, AF, st.P, st, sgn);
         else r = G.legOleo(bags, AF, st.P, st, sgn);
         // a steerable/castoring wheel hangs UNDER the leg on a swivel
+        const fOpt = { full: st.fair === 2, skirt: st.fairSkirt,
+                       tail: st.fairTail, rake: st.fairRake, width: st.fairW };
         if (st.steer > 0 && st.x < 0.01) {
           const u = G.castorUnit(bags, st.P, r.axle, sgn, st.R, st.P.twSteer, false);
           G.wheel(bags, u.hub, u.axis, st.R, { brake: !!st.brake, P });
-          if (st.fair) G.spat(bags, u.hub, u.axis, st.R, st.fair === 2);
+          if (st.fair) G.spat(bags, u.hub, u.axis, st.R, fOpt);
           r = { axle: u.hub, axis: u.axis, travel: r.travel };
         } else {
           G.wheel(bags, r.axle, r.axis, st.R,
                   { brake: !!st.brake, inboard: sgn, P });
-          if (st.fair) G.spat(bags, r.axle, r.axis, st.R, st.fair === 2);
+          if (st.fair) G.spat(bags, r.axle, r.axis, st.R, fOpt);
         }
       }
       contacts.push({ st, sgn, p: r.axle, R: st.R });
@@ -367,6 +374,12 @@ const STATION_ROWS = i => [
   ['s' + i + 'Drop', 'leg drop', 0.10, 1.20, 0.005],
   ['s' + i + 'Brake', 'brake', 0, 1, 1],
   ['s' + i + 'Fair', 'fairing', 0, 2, 1, ['none', 'spat', 'trousers']],
+  // G133: the fairing's own instruments — defaults reproduce the old shell
+  ['s' + i + 'FairSkirt', 'skirt depth +', -0.12, 0.30, 0.01],
+  ['s' + i + 'FairTail', 'tail droplet x', 0.70, 1.60, 0.01],
+  ['s' + i + 'FairRake', 'fairing rake deg', -25, 25, 1],
+  ['s' + i + 'FairW', 'fairing width x', 0.80, 1.50, 0.01],
+  ['s' + i + 'LegFair', 'leg fairing', 0, 1, 1, ['bare', 'streamlined']],
 ];
 // THE PANEL IS REBUILT WHENEVER A SUSPENSION CHANGES, so a station only
 // ever shows the options belonging to the leg it has fitted.

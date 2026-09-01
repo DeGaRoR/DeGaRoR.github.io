@@ -71,6 +71,120 @@ const archOf = P => Math.round(P.engPower)
   ? 'electric'
   : (VALS.arch[Math.round(P.eng_arch)] || 'flat');
 
+// ---- the dial dict, ONE KEEPER (G134) -------------------------------------
+// Every panel row, values through the drop tables — the same dict the mesh
+// build has always fed engMeshBuild, factored out so the JOIN can resolve
+// the SAME engine the screen shows. Two callers, one mapping: a drift here
+// was a drawn engine flying different numbers, which is the whole bug this
+// arc exists to close.
+const engSpecOfP = (P) => {
+  const spec = EP.engDefaults();
+  for (const [, rows] of EP.GROUPS)
+    for (const r of rows) {
+      const k = r[0];
+      if (SKIP.has(k)) continue;
+      const v = P['eng_' + k];
+      if (v === undefined) continue;
+      spec[k] = r[2] === 'drop'
+        ? VALS[k][Math.max(0, Math.min(VALS[k].length - 1, Math.round(v)))]
+        : (r[2] === 'check' ? (v ? 1 : 0) : v);
+    }
+  spec.arch = archOf(P);
+  return spec;
+};
+
+// THE PRESET'S OWN DIAL DICT — applyEngPreset's write, replayed onto a fresh
+// default without touching P. Row-backed keys only, drops through the same
+// VALS gate: a preset key with no panel row never reaches P, so it must not
+// count as a deviation either, or an untouched preset would read "modified".
+const presetSpecOf = (name) => {
+  const pre = EP.PRESETS[name];
+  if (!pre) return null;
+  const base = Object.assign(EP.engDefaults(), pre);
+  const spec = EP.engDefaults();
+  for (const [, rows] of EP.GROUPS)
+    for (const r of rows) {
+      const k = r[0];
+      if (SKIP.has(k) || base[k] === undefined) continue;
+      if (r[2] === 'drop') {
+        if (VALS[k].indexOf(base[k]) >= 0) spec[k] = base[k];
+      } else if (r[2] === 'check') spec[k] = base[k] ? 1 : 0;
+      else spec[k] = base[k];
+    }
+  spec.arch = base.arch === 'electric' ? 'electric'
+    : (VALS.arch.indexOf(base.arch) >= 0 ? base.arch : spec.arch);
+  return spec;
+};
+// the two presets with no registry row behind them — the join's own list
+// (they used to fly the A-65's numbers as a DECLARED fallback; with facts
+// they fly their own resolve instead, which retires that lie)
+const ENG_FANTASY = new Set(['flat twin', 'flat six']);
+
+// THE FLOWN FACTS (G134): engResolve over the current dials, mapped to the
+// spec's custom-engine row — the bench readout and the flight model finally
+// read the same dict. IDENTITY FOLLOWS THE FACTS (user ruling 2026-09-01,
+// "no drift, and never call an engine wrongly"):
+//   - dials whose RESOLVED facts equal the applied preset's own resolve ARE
+//     that engine -> return null, the join keeps the registry row, and the
+//     certified name flies its certified numbers. Dress dials (fins, rocker
+//     covers, exhaust style) cannot move the facts, so redecorating a 912
+//     does not rename it.
+//   - any physics dial deviates -> the model's numbers fly, and the name
+//     says so: "modified <registry name>" while the architecture and family
+//     still match the preset, "custom <arch> ..." once they do not.
+//   - the two fantasy presets always fly their own resolve, named custom.
+// Returns null too when there is nothing honest to ship (layer off, bench
+// absent, degenerate resolve) — the registry preset then flies as before.
+// PRICE is deliberately absent: resolveSpec prices an unpriced custom row
+// through genEnginePrice, so the market curve has one keeper (00_registry).
+window.CAGE_ENG_FACTS = (P) => {
+  if (!+P.engOn) return null;
+  const EG = window.ENG_GEN;
+  if (!EG || !EG.engResolve) return null;
+  const spec = engSpecOfP(P);
+  let R;
+  try { R = EG.engResolve(spec); } catch (e) { return null; }
+  if (!R || !(R.powerW > 0) || !(R.mass > 0)) return null;
+  const elec = R.arch === 'electric';
+  const facts = {
+    mass: R.mass, powerW: R.powerW, rpm: R.rpm,
+    torque: R.torque != null ? R.torque
+      : R.powerW / (2 * Math.PI * Math.max(1, R.rpm) / 60),
+    aspiration: elec ? 'electric' : 'na',
+    family: elec ? 'electric' : (spec.twoStroke ? 'two' : 'four'),
+    cooling: (!elec && spec.arch === 'radial') ? 'air'   // a radial coerces
+      : (spec.liquid ? 'liquid' : 'air'),                // air-cooled (G28)
+  };
+  const psName = PRESET_NAMES[Math.max(0, Math.min(PRESET_NAMES.length - 1,
+    Math.round(P.engPreset)))];
+  const ps = presetSpecOf(psName);
+  let R0 = null;
+  if (ps) { try { R0 = EG.engResolve(ps); } catch (e) { R0 = null; } }
+  const eq = (a, b) => Math.abs(a - b) <= 1e-6 * Math.max(1, Math.abs(b));
+  const isPreset = R0 && eq(R.mass, R0.mass) && eq(R.powerW, R0.powerW)
+    && eq(R.rpm, R0.rpm) && R.arch === R0.arch
+    && facts.family === (R0.arch === 'electric' ? 'electric'
+                          : (ps.twoStroke ? 'two' : 'four'))
+    && facts.cooling === ((R0.arch !== 'electric' && ps.arch === 'radial')
+                          ? 'air' : (ps.liquid ? 'liquid' : 'air'));
+  if (isPreset && !ENG_FANTASY.has(psName)) return null;
+  // deviated (or fantasy): name the thing by what it now is
+  const kW = R.powerW / 1000;
+  const sameKind = R0 && R.arch === R0.arch && !ENG_FANTASY.has(psName)
+    && facts.family === (R0.arch === 'electric' ? 'electric'
+                          : (ps.twoStroke ? 'two' : 'four'));
+  let regName = null;
+  if (sameKind && typeof CAGE_JOIN_ENGINES !== 'undefined'
+      && typeof POWERPLANTS !== 'undefined') {
+    const row = POWERPLANTS[CAGE_JOIN_ENGINES[psName]];
+    if (row) regName = row.engine.name;
+  }
+  facts.name = regName ? `modified ${regName}`
+    : elec ? `custom ${R.archName} ${kW.toFixed(kW < 10 ? 1 : 0)} kW`
+    : `custom ${R.archName} ${R.cyl}-cyl ${R.litres.toFixed(1)} L`;
+  return facts;
+};
+
 // ---- panel ----------------------------------------------------------------
 const PRESET_NAMES = Object.keys(EP.PRESETS).filter(n => n !== 'bare engine');
 const rowNames = r => r.k === 'material' && CW.MATERIALS
@@ -328,21 +442,11 @@ PAGE.post = ctx => {
     return;
   }
 
-  // spec: every panel row, values through the drop tables; the plate the
-  // builder computes against IS the cage's face (G31 — the mount spread,
-  // backing pads and service entries land on the real firewall)
-  const spec = EP.engDefaults();
-  for (const [, rows] of EP.GROUPS)
-    for (const r of rows) {
-      const k = r[0];
-      if (SKIP.has(k)) continue;
-      const v = P['eng_' + k];
-      if (v === undefined) continue;
-      spec[k] = r[2] === 'drop'
-        ? VALS[k][Math.max(0, Math.min(VALS[k].length - 1, Math.round(v)))]
-        : (r[2] === 'check' ? (v ? 1 : 0) : v);
-    }
-  spec.arch = archOf(P);
+  // spec: the shared dial dict (engSpecOfP — the join resolves the same
+  // one, G134); the plate the builder computes against IS the cage's face
+  // (G31 — the mount spread, backing pads and service entries land on the
+  // real firewall)
+  const spec = engSpecOfP(P);
   spec.quality = Math.max(0.3, P.engDetail || 0.8);
   spec.screws = P.eng_screws ? 1 : 0;
   spec.fwOn = 0;                     // the genuine firewall is the cage's

@@ -778,7 +778,7 @@ function garageInit(api) {
       else { const J = join();
              if (J) { try { spec = merge(spec, J.export()); rebuild(); } catch (e) {} } }
     }
-    fillSlots();
+    syncRibbon();
     // THE CERTIFICATE COMES BACK WITH THE BUILD (G107.3). Everything above —
     // applySpec, the join, the sync — fires the bench's dirty hook, which is
     // right for an EDIT and wrong for a LOAD; so the restore happens LAST,
@@ -786,24 +786,195 @@ function garageInit(api) {
     // caused is over. The bench decides what the stored certificate means;
     // this line only delivers it in the right order.
     if (typeof window.BENCH_RESTORE === 'function') window.BENCH_RESTORE(pq || null);
+    renderLog();
   }
-  const slotSel = $('gSlot');
-  const STOCK_TAG = '⚙ ';       // the shelf marks what it did not build
-  function fillSlots() {
-    if (!slotSel) return;
+  // ---- THE LOGBOOK, READ AT LAST (G130) ---------------------------------
+  // `log.tests` and `log.flights` have been written since G65 and displayed
+  // by NOTHING. This renders the envelope's own rows — built date, flight
+  // count, the last six flights newest-first — into #edLog, and hides the
+  // section while the log is empty. Guarded like everything in this file:
+  // the gates boot it on DOM shims.
+  function renderLog() {
+    try {
+      const sec = $('edLog'), meta = $('lgMeta'), rows = $('lgRows');
+      if (!sec || !meta || !rows) return;
+      const fl = (log && log.flights) || [];
+      const built = log && log.built;
+      if (!fl.length && !built) { sec.hidden = true; return; }
+      sec.hidden = false;
+      meta.textContent = (built ? 'built ' + built + ' · ' : '') +
+        fl.length + ' flight' + (fl.length === 1 ? '' : 's');
+      const row = f => {
+        const leg = (f.from || '?') + ' → ' +
+                    (f.to === 'CIRCUIT' ? 'circuit' : (f.to || '?'));
+        const what = f.outcome
+          ? String(f.outcome).replace(/-/g, ' ')
+          : 'sink ' + f.sink + ' m/s · ' + f.V + ' km/h';
+        return '<div class="lgR' + (f.outcome ? ' bad' : '') + '"><span>' +
+               leg + '</span><b>' + what + '</b></div>';
+      };
+      rows.innerHTML = fl.slice(-6).reverse().map(row).join('');
+    } catch (e) {}
+  }
+  // ---- THE FLEET POPUP (2026-09-01) -------------------------------------
+  // The ribbon keeps the VERBS — save, save as, new, load — and this popup
+  // holds the NOUNS (the user: "load gives a pop-up where the fleet can be
+  // selected, so no need to select planes straight from here"). It replaces
+  // the #gSlot select, which had grown into every noun and half the verbs
+  // packed into one dropdown; it is the load-door corner of the FLEET RACK
+  // that UI-MODEL 2.4 reserves a sheet for. delete, export and import live
+  // INSIDE it — a row action and the two json doors — so the ribbon reads
+  // as one verb family and nothing else.
+  // Built LAZILY on the first open: the gates boot this file on DOM shims,
+  // and a popup nobody clicked for should cost them nothing.
+  const slotMeta = n => {
+    // what a save IS, on its row — role, tested, flights (G130's option
+    // text, moved here when the select went). A slot that cannot be parsed
+    // falls back to a bare row, never breaks the rack.
+    try {
+      const e2 = JSON.parse(lsGet(SLOT + n) || 'null');
+      if (!e2) return '';
+      const bits = [];
+      const role = e2.spec && e2.spec.meta && e2.spec.meta.role;
+      if (role) bits.push(role);
+      if (e2.plaque) bits.push('tested');
+      const nf = (e2.log && e2.log.flights && e2.log.flights.length) || 0;
+      if (nf) bits.push(nf + (nf === 1 ? ' flight' : ' flights'));
+      return bits.join(' · ');
+    } catch (e) { return ''; }
+  };
+  const loadSlot = n => {
+    const txt = lsGet(SLOT + n);
+    if (!txt) return void syncRibbon();
+    try { const g = unwrap(txt); loadSpec(g.spec, n, g.plaque, g.log); }
+    catch (e) { alert('That saved build could not be read: ' + e.message); }
+  };
+  const loadStock = nm => {
+    const st = stockByName(nm);
+    // a stock design opens UNNAMED: it is a starting point, and the first
+    // Save asks what you have made of it
+    if (st) loadSpec(JSON.parse(JSON.stringify(st.spec)), '');
+  };
+  let fleetEl = null;
+  function buildFleet() {
+    if (fleetEl) return;
+    fleetEl = document.createElement('div');
+    fleetEl.id = 'gFleet';
+    fleetEl.hidden = true;
+    fleetEl.innerHTML =
+      '<div class="gfBox">' +
+        '<div class="gfH"><span>THE FLEET</span>' +
+          '<button type="button" class="dfPill gfClose">close</button></div>' +
+        '<div class="gfSub"></div>' +
+        '<div class="gfGroupH">your aeroplanes</div>' +
+        '<div class="gfMine"></div>' +
+        '<div class="gfGroupH">stock designs</div>' +
+        '<div class="gfStock"></div>' +
+        '<div class="gfFoot">' +
+          '<button type="button" id="gImport" class="dfPill" ' +
+            'title="Load a build from a .json file">import a build file</button>' +
+          '<button type="button" id="gExport" class="dfPill" ' +
+            'title="Download the build on the stand as a .json file">' +
+            'export current build</button>' +
+          '<span class="gfHint">…or drop a .json on the window</span>' +
+        '</div>' +
+      '</div>';
+    fleetEl.querySelector('.gfClose').addEventListener('click', closeFleet);
+    // the scrim closes it too — backing out of a load door costs one click
+    fleetEl.addEventListener('click', e => {
+      if (e.target === fleetEl) closeFleet(); });
+    // EXPORT is a file, because a build you cannot hand to somebody else is
+    // not really saved. The name is the build's, so a folder of them reads
+    // as a fleet.
+    fleetEl.querySelector('#gExport').addEventListener('click', () => {
+      const name = slotName || 'flydiy-build';
+      const blob = new Blob([envelope(name, spec, plaque, log)],
+                            { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = name.replace(/[^\w.-]+/g, '_') + '.json';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+    });
+    if (fileIn) fleetEl.querySelector('#gImport').addEventListener('click',
+      () => { fileIn.value = ''; fileIn.click(); });
+    // a build dropped on the open rack lands the same as one dropped on the
+    // ribbon — same two handlers, second surface
+    fleetEl.addEventListener('dragover', e => { e.preventDefault(); });
+    fleetEl.addEventListener('drop', e => {
+      e.preventDefault(); closeFleet();
+      readFile(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]);
+    });
+    document.body.appendChild(fleetEl);
+  }
+  function openFleet() { buildFleet(); renderFleet(); fleetEl.hidden = false; }
+  function closeFleet() { if (fleetEl) fleetEl.hidden = true; }
+  function renderFleet() {
+    if (!fleetEl) return;
+    const mine = fleetEl.querySelector('.gfMine');
+    const stockBox = fleetEl.querySelector('.gfStock');
+    if (!mine || !stockBox) return;
     const names = slotNames();
-    slotSel.innerHTML = '';
-    const opt = (v, t) => { const o = document.createElement('option');
-                            o.value = v; o.textContent = t; slotSel.appendChild(o); };
-    opt('', names.length ? '— load —' : '— stock designs —');
-    for (const s of STOCK) opt(STOCK_TAG + s.name, STOCK_TAG + s.name);
-    for (const n of names) opt(n, n);
-    slotSel.value = names.indexOf(slotName) >= 0 ? slotName : '';
-    // storage unavailable is not an error worth a dialog, but the controls
-    // should not pretend to work. The SELECT stays live either way — the stock
-    // designs are in the bundle, not in storage.
+    mine.innerHTML = ''; stockBox.innerHTML = '';
+    if (!names.length) {
+      const d = document.createElement('div');
+      d.className = 'gfEmpty';
+      d.textContent = LS
+        ? 'no saved aeroplanes yet — Save the build on the stand and it appears here'
+        : 'browser storage is unavailable, so nothing can be saved — the stock designs below still load';
+      mine.appendChild(d);
+    }
+    const rowBtn = (name, meta) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'gfLoad';
+      const bb = document.createElement('b'); bb.textContent = name;
+      const sp = document.createElement('span'); sp.textContent = meta;
+      b.appendChild(bb); b.appendChild(sp);
+      return b;
+    };
+    for (const n of names) {
+      const row = document.createElement('div');
+      row.className = 'gfRow' + (n === slotName ? ' cur' : '');
+      const b = rowBtn(n, n === slotName ? 'on the stand' : slotMeta(n));
+      b.addEventListener('click', () => { closeFleet(); loadSlot(n); });
+      const del = document.createElement('button');
+      del.type = 'button'; del.className = 'gfDel'; del.textContent = '✕';
+      del.title = 'Delete this saved build';
+      del.addEventListener('click', () => {
+        if (!confirm('Delete the saved build "' + n + '"?')) return;
+        lsDel(SLOT + n);
+        if (slotName === n) slotName = '';
+        syncRibbon();
+      });
+      row.appendChild(b); row.appendChild(del);
+      mine.appendChild(row);
+    }
+    for (const s of STOCK) {          // stock is not yours to delete: no ✕
+      const row = document.createElement('div');
+      row.className = 'gfRow';
+      const role = s.spec && s.spec.meta && s.spec.meta.role;
+      const b = rowBtn(s.name, role || 'stock design');
+      b.addEventListener('click', () => { closeFleet(); loadStock(s.name); });
+      row.appendChild(b);
+      stockBox.appendChild(row);
+    }
+    // the same honesty as the birth flow: loading over an UNSAVED build is
+    // the destructive path, and it says so before it is walked through
+    const sub = fleetEl.querySelector('.gfSub');
+    if (sub) {
+      const un = !slotName;
+      sub.textContent = un
+        ? 'loading replaces the unsaved build on the stand'
+        : 'pick an aeroplane for the stand — “' + slotName + '” keeps its slot';
+      if (sub.classList) sub.classList.toggle('warn', un);
+    }
+  }
+  function syncRibbon() {
+    // storage unavailable is not an error worth a dialog, but the two save
+    // doors should not pretend to work. LOAD stays live either way — the
+    // stock designs are in the bundle, not in storage.
     const dis = !LS;
-    for (const id of ['gSave', 'gSaveAs', 'gDel'])
+    for (const id of ['gSave', 'gSaveAs'])
       if ($(id)) $(id).disabled = dis;
     // the ribbon's document title (2026-08-31): the slot the build belongs
     // to, or the honest word for not having one — which is also where the
@@ -815,6 +986,7 @@ function garageInit(api) {
       nm.textContent = slotName || 'unsaved';
       if (nm.classList) nm.classList.toggle('unsaved', !slotName);
     }
+    renderFleet();                    // a no-op until the rack is first built
   }
   const saveAs = name => {
     if (!name) return;
@@ -832,52 +1004,18 @@ function garageInit(api) {
     // association is what makes a reload come back as unsaved changes TO THIS
     // AEROPLANE rather than as an orphan.
     writeWip();
-    fillSlots();
+    syncRibbon();
   };
-  // THE FRONT DOOR (NEW-AIRCRAFT §8.1) is a BUTTON on the ribbon now — it
-  // was a row in this select for a day, and a verb hiding in a load list is
-  // exactly the misfiling the ribbon exists to end.
+  // THE FRONT DOOR (NEW-AIRCRAFT §8.1) is a BUTTON on the ribbon — a verb
+  // hiding in a load list is exactly the misfiling the ribbon exists to end.
   if ($('gNew')) $('gNew').addEventListener('click', () => {
     if (window.DESIGN_FLOW) window.DESIGN_FLOW.openBirth();
   });
-  if (slotSel) slotSel.addEventListener('change', () => {
-    const n = slotSel.value; if (!n) return;
-    if (n.lastIndexOf(STOCK_TAG, 0) === 0) {
-      const st = stockByName(n.slice(STOCK_TAG.length));
-      // a stock design opens UNNAMED: it is a starting point, and the first
-      // Save asks what you have made of it
-      if (st) loadSpec(JSON.parse(JSON.stringify(st.spec)), '');
-      return void fillSlots();
-    }
-    const txt = lsGet(SLOT + n);
-    if (!txt) return void fillSlots();
-    try { const g = unwrap(txt); loadSpec(g.spec, n, g.plaque, g.log); }
-    catch (e) { alert('That saved build could not be read: ' + e.message); }
-  });
+  if ($('gLoad')) $('gLoad').addEventListener('click', openFleet);
   if ($('gSave')) $('gSave').addEventListener('click', () =>
     saveAs(slotName || (prompt('Name this aeroplane:', 'My aeroplane') || '').trim()));
   if ($('gSaveAs')) $('gSaveAs').addEventListener('click', () =>
     saveAs((prompt('Save as:', slotName || 'My aeroplane') || '').trim()));
-  if ($('gDel')) $('gDel').addEventListener('click', () => {
-    const n = slotSel && slotSel.value; if (!n) return;
-    if (n.lastIndexOf(STOCK_TAG, 0) === 0) return;   // stock is not yours to delete
-    if (!confirm('Delete the saved build "' + n + '"?')) return;
-    lsDel(SLOT + n);
-    if (slotName === n) slotName = '';
-    fillSlots();
-  });
-  // EXPORT is a file, because a build you cannot hand to somebody else is not
-  // really saved. The name is the build's, so a folder of them reads as a fleet.
-  if ($('gExport')) $('gExport').addEventListener('click', () => {
-    const name = slotName || 'flydiy-build';
-    const blob = new Blob([envelope(name, spec, plaque, log)],
-                          { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = name.replace(/[^\w.-]+/g, '_') + '.json';
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 0);
-  });
   const fileIn = $('gFile');
   const readFile = f => {
     if (!f) return;
@@ -891,17 +1029,16 @@ function garageInit(api) {
     };
     r.readAsText(f);
   };
-  if ($('gImport') && fileIn) {
-    $('gImport').addEventListener('click', () => { fileIn.value = ''; fileIn.click(); });
+  if (fileIn)
     fileIn.addEventListener('change', () => readFile(fileIn.files && fileIn.files[0]));
-  }
-  // drop a build anywhere on the shelf
+  // drop a build anywhere on the ribbon
   host.addEventListener('dragover', e => { e.preventDefault(); });
   host.addEventListener('drop', e => {
     e.preventDefault();
     readFile(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]);
   });
-  fillSlots();
+  syncRibbon();
+  renderLog();
 
   // THE HANDLE THE COMMENT IN app.js ALWAYS CLAIMED EXISTED. It never did, and
   // that is precisely how a build ends up trapped in this closure with no way
@@ -925,7 +1062,9 @@ function garageInit(api) {
       // routing it through `rebuild` would tear down and re-derive the whole
       // aeroplane every time a test wrote down what it found.
       plaque: v => (v === undefined ? plaque : (plaque = v, writeWip(), plaque)),
-      note: row => { log.tests.push(row); writeWip(); },
+      // note fires for every bench test AND from logFlight (which pushes its
+      // flight row first), so the logbook redraws itself on both
+      note: row => { log.tests.push(row); writeWip(); renderLog(); },
       save: saveAs,
       load: n => { const t = lsGet(SLOT + n); if (!t) return;
                    const g = unwrap(t); loadSpec(g.spec, n, g.plaque, g.log); },
@@ -935,9 +1074,20 @@ function garageInit(api) {
   // the shelf only makes sense while the garage build is selected — but it
   // lives INSIDE the editor panel now, which is garage-only already, so this
   // only has to follow the aircraft select for the case where the panel is
-  // left open over a fleet aeroplane.
+  // left open over a fleet aeroplane. Since G135 no PLAYER can reach that
+  // case (the menu holds the garage build alone); the listener stays because
+  // the gates still switch aeroplane through that same select, and a shelf
+  // offering file operations over a gate subject would be the old bug back.
   const acSel = $('selAc');
   const sync = () => { host.style.display = api.isGen() ? '' : 'none'; };
   if (acSel) acSel.addEventListener('change', () => setTimeout(sync, 0));
   sync();
+  // ...BUT THE LISTENER ABOVE NEVER FIRES FOR A PLAYER. Boot calls this init
+  // while the PA-18 seed is still the aircraft, so the sync() above hides the
+  // shelf — and every later switch TO the garage build (the boot's own, the
+  // birth flow's apply) sets the select programmatically, which fires no
+  // 'change' event. The whole file ribbon read "unsaved · new" with no save
+  // door. So setAircraft itself re-syncs through this handle; the gates'
+  // hand-driven select keeps the listener.
+  try { if (window.GARAGE_SPEC) window.GARAGE_SPEC.syncShelf = sync; } catch (e) {}
 }

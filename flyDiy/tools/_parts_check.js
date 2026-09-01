@@ -278,6 +278,133 @@ function checkSections(P) {
 checkSections(PARTS);
 
 // ---------------------------------------------------------------------------
+// 3b ZONES — the covering divides by STATION, and the division is claimed
+// ---------------------------------------------------------------------------
+// The user, on clicking the aeroplane: "the fuselage divides into nose (from
+// the firewall to the windshield pillar), the pilot cabin, ... the passenger
+// bays, ... the boom until the flat part at the tail, which would be the tail.
+// These parts would need to highlight accordingly."
+//
+// `body` is ONE material from the firewall to the tail, so it is claimed once
+// by the Fuselage assembly and the sections under it claim STATIONS instead
+// (`zone`, resolved against cageBodyZones). That leaves exactly the failure
+// this section exists to catch, and it is the same one GATE ACCESS learned:
+// A GATE THAT CLASSIFIES ONE AEROPLANE HAS NOT MET ITS OWN TABLE. So the
+// zones are measured on every shape in the sweep — the real covering's real
+// faces, sorted by the real table — and a zone that never receives a face
+// while claiming to be a section of the aeroplane is a part that would
+// highlight nothing.
+function zoneCensus() {
+  const per = new Map();          // zone key -> faces, over every shape
+  const perSec = new Map();       // 'section/zone' -> faces
+  const seen = new Set();         // zone keys the generator ever produces
+  const bad = [];
+  for (const [name, over] of SHAPES) {
+    const P = Object.assign({}, PAGE_BASE, over);
+    const spec = G.cageSpec(P);
+    const Z = G.cageBodyZones(spec);
+    for (const q of Z) seen.add(q.key);
+    // ordered fwd -> aft, touching, and reaching both extremities: a gap
+    // between two zones is skin that belongs to nothing, and an overlap is
+    // skin that belongs to two things
+    for (let i = 0; i < Z.length; i++) {
+      if (Z[i].z1 !== (i ? Z[i - 1].z0 : Infinity))
+        bad.push(`${name}: ${Z[i].key} does not meet the zone forward of it`);
+      if (i && !(Z[i].z0 < Z[i - 1].z0))
+        bad.push(`${name}: ${Z[i].key} is not aft of ${Z[i - 1].key}`);
+    }
+    if (Z.length && Z[Z.length - 1].z0 !== -Infinity)
+      bad.push(`${name}: the aft-most zone stops short of the tail`);
+    // AS FAR AS THE RIMS, because `joint` is zoned and the rim pass is what
+    // makes a seal: a census that stopped at the cut would report the seals
+    // as a zoned section no aeroplane emits.
+    let s = G.cageSubdivide(G.buildCage2(spec, 'crease'));
+    if (G.cageGlassSill) s = G.cageGlassSill(s, spec);
+    if (G.cageCut) s = G.cageCut(s, spec);
+    if (G.cageCanopy) s = G.cageCanopy(s, spec);
+    s = G.cageRims(s, spec);
+    for (const f of s.F) {
+      if (!PARTS.CAGE_ZONED.has(f.m)) continue;
+      let z = 0;
+      for (const vi of f.v) z += s.V[vi][2] / f.v.length;
+      const k = G.cageZoneAt(Z, z);
+      per.set(k, (per.get(k) || 0) + 1);
+      perSec.set(f.m + '/' + k, (perSec.get(f.m + '/' + k) || 0) + 1);
+    }
+  }
+  return { per, perSec, seen, bad };
+}
+
+function checkZones(P) {
+  let ok = true;
+  const { per, perSec, seen, bad } = ZC;
+  for (const b of bad) ok = check(false, 'the zone table is not a partition', b) && ok;
+  // one part per zone, and one zone per part
+  const claimedBy = new Map();
+  for (const p of P.CAGE_PARTS) {
+    if (!p.zone) continue;
+    if (claimedBy.has(p.zone))
+      ok = check(false, 'body zone claimed by two parts',
+        `${p.zone}: ${claimedBy.get(p.zone)} and ${p.key}`) && ok;
+    else claimedBy.set(p.zone, p.key);
+  }
+  // EVERY ZONE THE GENERATOR PRODUCES IS SOMEBODY'S. An unclaimed zone is skin
+  // that falls back to the assembly — which is not a crash and is exactly why
+  // it needs a gate: clicking the tail would quietly select the whole fuselage.
+  const unowned = [...seen].filter(k => !claimedBy.has(k));
+  ok = check(unowned.length === 0,
+    'body zones the generator produces that no part claims (clicking that ' +
+    'part of the covering would select the whole fuselage)',
+    unowned.join(' ')) && ok;
+  // ...and no part claims a zone no aeroplane has
+  const ghosts = [...claimedBy.keys()].filter(k => !seen.has(k));
+  ok = check(ghosts.length === 0, 'parts claiming body zones no build produces',
+    ghosts.join(' ')) && ok;
+  // THE ZONE HAS TO CATCH SOMETHING. A zone with no covering in it is only
+  // honest where the part owns a section of its OWN (the taper's skin reads
+  // `taper`, not `body`) — otherwise selecting that part lights nothing at
+  // all, which is the bug G79's wheels already paid for once.
+  for (const [k, key] of claimedBy) {
+    const p = P.partByKey[key];
+    if (per.get(k) || (p && (p.sections || []).length)) continue;
+    ok = check(false, 'a body zone that never owns any covering, on any shape',
+      `${k} (${key}) — the part would highlight nothing`) && ok;
+  }
+  // ---- the zoned sections themselves --------------------------------------
+  // Each is real, each lands somewhere, and NONE of them is owned by a bay:
+  // the material answer has to be the answer for the WHOLE section, or a
+  // click on one bay's covering would fall back to another bay's part.
+  for (const s of PARTS.CAGE_ZONED) {
+    ok = check(EMITTED.has(s), 'a zoned section no build emits', s) && ok;
+    const owner = P.CAGE_PARTS.find(p2 => (p2.sections || []).indexOf(s) >= 0);
+    ok = check(!!owner && !owner.zone,
+      'a zoned section owned by one of the bays it divides into',
+      s + ' -> ' + (owner ? owner.key : 'nobody')) && ok;
+    const landed = [...perSec.keys()].filter(k => k.slice(0, s.length + 1) === s + '/');
+    ok = check(landed.length > 1,
+      'a zoned section that never divides — every face of it lands in one ' +
+      'zone, so cutting it to a bay can only ever light all or nothing',
+      s + ' -> ' + (landed.join(' ') || 'nowhere')) && ok;
+  }
+  // ...and the PICK table is the subset whose material cannot answer alone:
+  // `body` is the Fuselage assembly's, so a click has nothing but the station
+  // to go on. A section whose owner is a real part is NOT in here — that part
+  // is the answer (the user: "it is still OK to get straight to the windows").
+  for (const s of PARTS.CAGE_ZONE_PICK) {
+    ok = check(PARTS.CAGE_ZONED.has(s),
+      'a section the pick divides by station but no selection cuts', s) && ok;
+    const owner = P.CAGE_PARTS.find(p2 => (p2.sections || []).indexOf(s) >= 0);
+    ok = check(!!owner && owner.parent === null,
+      'the pick divides a section whose material already names a part — ' +
+      'clicking it should get you to that part',
+      s + ' -> ' + (owner ? owner.key : 'nobody')) && ok;
+  }
+  return ok;
+}
+const ZC = zoneCensus();
+checkZones(PARTS);
+
+// ---------------------------------------------------------------------------
 // 4 PLACEMENT — the strip re-presents, it never introduces
 // ---------------------------------------------------------------------------
 function checkPlacement(P) {
@@ -407,6 +534,29 @@ if (process.argv.includes('--selftest')) {
     ['an assembly heading nothing, with no rows either', fn => { const P = clone();
       P.partByKey.design.groups = [];
       return fn(P, checkShape); }],
+    // THE ZONES (the covering divides by station). Each rule broken in turn,
+    // for the reason the header gives: a zone check that cannot go red is a
+    // fuselage that quietly selects itself whatever you click on it.
+    ['a body zone no part claims', fn => { const P = clone();
+      delete P.partByKey.tailcone.zone;
+      return fn(P, checkZones); }],
+    ['a body zone claimed by two parts', fn => { const P = clone();
+      P.partByKey.boom.zone = 'tail';
+      return fn(P, checkZones); }],
+    ['a part claiming a zone no build produces', fn => { const P = clone();
+      P.partByKey.nose.zone = 'nowhere';
+      return fn(P, checkZones); }],
+    ['a zoned section owned by one of the bays it divides into',
+     fn => { const P = clone();
+      P.partByKey.fuselage.sections = [];
+      P.partByKey.nose.sections = ['pillarFront', 'body'];
+      return fn(P, checkZones); }],
+    ['the pick dividing a section whose material already names a part',
+     fn => { const P = clone();
+      P.partByKey.fuselage.sections =
+        P.partByKey.fuselage.sections.filter(x => x !== 'body');
+      P.partByKey.joints.sections = P.partByKey.joints.sections.concat('body');
+      return fn(P, checkZones); }],
   ];
   let bad = 0;
   for (const [name, run] of cases) {
@@ -426,6 +576,10 @@ const nParts = PARTS.CAGE_PARTS.filter(p => !p.root && p.parent !== null).length
 const nAsm = PARTS.CAGE_PARTS.filter(p => p.parent === null && !p.root).length;
 console.log(`  ${nAsm} assemblies, ${nParts} parts, ${RENDERED_SET.size} rows, ` +
             `${EMITTED.size} sections over ${SHAPES.length} shapes`);
+for (const sec of PARTS.CAGE_ZONED)
+  console.log('  ' + sec + ' by zone: ' +
+    [...ZC.perSec].filter(([k]) => k.slice(0, sec.length + 1) === sec + '/')
+      .map(([k, n]) => k.slice(sec.length + 1) + ' ' + n).join(', '));
 if (fail.length) {
   for (const f of fail) console.log('  FAIL ' + f);
   console.log('GATE PARTS: FAIL');

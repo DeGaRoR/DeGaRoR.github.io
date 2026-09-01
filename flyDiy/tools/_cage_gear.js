@@ -90,6 +90,12 @@ const legRows = i => {
   return out;
 };
 const sOn = i => ({ when: P => +P['s' + i + 'On'] });
+const fairOn = i => ({ when: P => +P['s' + i + 'On']
+                             && Math.round(P['s' + i + 'Fair'] || 0) > 0 });
+// any fairing anywhere — the build-material row prices the whole set
+const fairAny = P =>
+  Math.round(P.s1Fair || 0) > 0 || Math.round(P.s2Fair || 0) > 0 ||
+  Math.round(P.s1LegFair || 0) > 0 || Math.round(P.s2LegFair || 0) > 0;
 const station = (i, name) => [name, [
   ['s' + i + 'On',    'fitted',       0, 1, 1],
   ['s' + i + 'Z',     i === 2 ? 'z / tail offset' : 'station z',
@@ -100,10 +106,23 @@ const station = (i, name) => [name, [
   ['s' + i + 'Drop',  'leg drop',     0.05, 1.00, 0.01, sOn(i)],
   ['s' + i + 'Brake', 'brake',        0, 1, 1, sOn(i)],
   ['s' + i + 'Steer', 'steering',     0, 2, 1, GP.STEERS, sOn(i)],
-  // G121.2: hidden on the tailwheel castor — that leg draws no shell, and a
-  // visible switch that draws nothing and prices nothing is two lies at once
+  // G133: the castor exclusion is GONE — legTailwheel draws its own shell
+  // now, so the switch that was two lies (G121.2) is two truths everywhere
   ['s' + i + 'Fair',  'fairing',      0, 2, 1, ['none', 'spat', 'trousers'],
+   sOn(i)],
+  // ...and the shape is an instrument (G133): skirt around the mode's own
+  // base, tail run-out to a droplet, rake for a taildragger's flying
+  // attitude, width for a fat tyre. Rows exist only where a shell does.
+  ['s' + i + 'FairSkirt', 'skirt depth +', -0.12, 0.30, 0.01, fairOn(i)],
+  ['s' + i + 'FairTail', 'tail droplet ×', 0.70, 1.60, 0.01, fairOn(i)],
+  ['s' + i + 'FairRake', 'fairing rake °', -25, 25, 1, fairOn(i)],
+  ['s' + i + 'FairW',   'fairing width ×', 0.80, 1.50, 0.01, fairOn(i)],
+  // the leg's own streamline shroud, without buying the wheel a spat.
+  // Hidden on trousers (they already shroud the leg) and on the castor
+  // (its spring shroud is the trouser state's own).
+  ['s' + i + 'LegFair', 'leg fairing', 0, 1, 1, ['bare', 'streamlined'],
    { when: P => +P['s' + i + 'On']
+             && Math.round(P['s' + i + 'Fair'] || 0) < 2
              && !(i === 2 && Math.round(P.s2Leg) === 3) }],
   ...legRows(i),
 ]];
@@ -114,6 +133,10 @@ const GROUP = ['9 · undercarriage', [
    { when: P => +P.gearOn }],
   station(1, 'station 1 — mains').concat([{ when: P => +P.gearOn }]),
   station(2, 'station 2 — third wheel').concat([{ when: P => +P.gearOn }]),
+  // G133: one build material for the whole set of fairings — a set of
+  // spats is laid up as one job, and the row exists only when one is worn
+  ['fairCons', 'fairing build', 0, 2, 1, ['glassfibre', 'carbon', 'alloy'],
+   { when: P => +P.gearOn && fairAny(P) }],
   // the wheel dressing — shared rows (G33: this group never made the
   // cage port; tundra + smooth tread = the bush slick)
   ['wheel', GP.WHEEL_ROWS.map(r => r.slice()), { when: P => +P.gearOn }],
@@ -162,17 +185,33 @@ PAGE.post = ctx => {
   // G58.2: EACH WHEEL GETS ITS OWN BAGS, so the join can ride it on its
   // axle node and SPIN it (G47.2's "per-wheel bags in the gear kit",
   // user: "identify the individual meshes corresponding to the wheel and
-  // move those"). A PROXY hands the wheel() call its own tyre/hub/brake
-  // while the leg, castor fork and spat keep writing into the shared
-  // bags — so exactly the parts that turn, turn, and the fork does NOT
-  // rotate with the wheel. Zero changes inside the gear kit itself.
+  // move those"). A PROXY hands the wheel() call its own bags while the
+  // leg, castor fork and spat keep writing into the shared bags — so
+  // exactly the parts that turn, turn, and the fork does NOT rotate with
+  // the wheel. Zero changes inside the gear kit itself.
+  //
+  // G148: EVERY bag wheel() writes must be ROUTED, or it is a fuselage-
+  // welded part (the shared bags mesh unnamed into the static merge).
+  // The old 3-bag proxy left the bolt heads, hub caps, valve stems, the
+  // brake caliper and its pipe frozen on the craft — hardware standing
+  // mid-air inside a travelling, spinning wheel (the user's circles).
+  // Spinning set {tyre,hub,brake,alloy,dark} -> the wheel unit; leg-
+  // riding set {brakefix: caliper + pipe} -> that wheel's LEG unit, which
+  // travels with the axle without turning. _gear_check §3 pins wheel()'s
+  // write-set to exactly this routing. The tailwheel keeps the 3-bag
+  // proxy: its call site routes alloy/dark to the leg unit itself.
   const wheelUnits = [];
   const allBags = () => { const b = {};
     for (const k in bags) b[k] = GG.Bag(); return b; };
-  const wheelProxy = () => {
-    const wb = { tyre: GG.Bag(), hub: GG.Bag(), brake: GG.Bag() };
+  const wheelProxy = (lb) => {
+    const wb = lb
+      ? { tyre: GG.Bag(), hub: GG.Bag(), brake: GG.Bag(),
+          alloy: GG.Bag(), dark: GG.Bag() }
+      : { tyre: GG.Bag(), hub: GG.Bag(), brake: GG.Bag() };
     wheelUnits.push(wb);
-    return { proxy: Object.assign({}, bags, wb), wb };
+    return { proxy: Object.assign({}, bags,
+                                  lb ? { brakefix: lb.brakefix } : null, wb),
+             wb };
   };
   // G58.3: the LEGS are separable units too — the join stretch-binds them
   // between their airframe attachment and the moving axle, so the
@@ -189,18 +228,82 @@ PAGE.post = ctx => {
   const stations = GP.gearStations(P);
   for (const st of stations)
     if (st.leg === 3) st.z = AF.z0 + Math.max(0.02, st.z);
+
+  // G133: THE NEAREST SURFACE ABOVE THE WHEEL (user's rule). When the
+  // WING'S UNDERSIDE at the axle's own span sits lower than the fuselage
+  // section's MIDDLE, the leg roots on the wing instead of the flank — a
+  // low-wing's gear is the wing's, automatically, as the track slider
+  // walks the wheels outboard. The centreline guard is what keeps a high
+  // wing from capturing its gear (a Cub's wing IS the nearest surface
+  // straight above its wheels; its legs still belong to the belly).
+  // `underAt` is published by the wing layer off its BUILT skin — the
+  // load order moved (build.js/dev.html) so the wing builds first and the
+  // probe is never one edit stale. The leg builders stay wing-ignorant:
+  // they take a mount FRAME, and the axle is keel-datum'd either way, so
+  // where the leg roots never moves the wheel, the stance or the join's
+  // measured rows.
+  const WUA = (typeof window !== 'undefined' && window.CAGE_WING &&
+               window.CAGE_WING.underAt) || null;
+  let onWing = 0;
+  const wingMount = (st, sgn) => {
+    if (!WUA || st.x <= 0.01 || st.leg === 3) return null;
+    // the WHEEL may sit a little ahead of the leading edge (a low-wing's
+    // axle rides forward of the spar) — seek the nearest wing chordwise
+    // within 0.6 m of the station, the way a real leg roots at the spar
+    // and rakes to its wheel. Beyond that reach the wing is not "above
+    // the wheel" in any honest sense and the fuselage keeps the leg.
+    let q = null, zBase = st.z;
+    for (const dz of [0, -0.1, 0.1, -0.2, 0.2, -0.3, 0.3, -0.45, 0.45,
+                      -0.6, 0.6]) {
+      q = WUA(sgn * st.x, st.z + dz);
+      if (q) { zBase = st.z + dz; break; }
+    }
+    if (!q || !(q.y < AF.cyAt(st.z))) return null;
+    // G133.1 (user): the builders ask for their root a little INBOARD of
+    // the wheel (`dx`), above the strut's own foot — so a mounted leg
+    // hangs dead straight and the wheel rides its stub axle outboard.
+    return (zOff, dx) => {
+      const xq = sgn * st.x + (dx || 0);
+      let z = zBase + (zOff || 0);
+      let w = WUA(xq, z);
+      // a foot cannot land ahead of the leading edge it bolts to: walk the
+      // request back toward the base until the wing answers
+      for (let t = 0.25; t <= 1.001 && !w; t += 0.25) {
+        const zt = z + (zBase - z) * t;
+        w = WUA(xq, zt);
+        if (w) z = zt;
+      }
+      if (!w) { w = WUA(xq, zBase) || q; z = zBase; }
+      let n = (w.n && w.n[1] < -0.2) ? w.n : [0, -1, 0];
+      const nl = Math.hypot(n[0], n[1], n[2]) || 1;
+      n = [n[0] / nl, n[1] / nl, n[2] / nl];
+      let f = [-n[2] * n[0], -n[2] * n[1], 1 - n[2] * n[2]];
+      const fl = Math.hypot(f[0], f[1], f[2]) || 1;
+      f = [f[0] / fl, f[1] / fl, f[2] / fl];
+      return { p: [xq, w.y, z], n, fore: f,
+               side: [n[1] * f[2] - n[2] * f[1], n[2] * f[0] - n[0] * f[2],
+                      n[0] * f[1] - n[1] * f[0]] };
+    };
+  };
+
   const contacts = [];
   for (const st of stations) {
     const sides = st.x > 0.01 ? [-1, 1] : [0];
     for (const s of sides) {
       const sgn = s === 0 ? 1 : s;
       let r;
-      const wu = wheelProxy();
       const lb = allBags();               // this unit's LEG bags
+      const wu = wheelProxy(st.leg === 3 ? null : lb);
+      // the fairing's instruments ride the station (G133)
+      const fOpt = { full: st.fair === 2, skirt: st.fairSkirt,
+                     tail: st.fairTail, rake: st.fairRake, width: st.fairW };
+      const m = wingMount(st, sgn);
+      if (m) { st.mount = m; onWing++; } else delete st.mount;
       if (st.leg === 3) {
         // legTailwheel builds spring AND wheel into one bag-set; the
         // proxies route the spinning parts to the wheel unit, the fork
-        // to the castor unit, and the spring stays in the leg unit
+        // (and now its spat, G133) to the castor unit, and the spring —
+        // with its trouser shroud — stays in the leg unit
         const cb = allBags();
         const proxy = Object.assign({}, lb, wu.wb, { castorBags: cb });
         r = GG.legTailwheel(proxy, AF, st.P, st);
@@ -211,17 +314,21 @@ PAGE.post = ctx => {
         if (st.leg === 0) r = GG.legBeam(lb, AF, st.P, st, sgn);
         else if (st.leg === 1) r = GG.legLink(lb, AF, st.P, st, sgn);
         else r = GG.legOleo(lb, AF, st.P, st, sgn);
+        // G133: spats ride their UNITS now, not the static shared bags —
+        // a nose spat sits on its fork, a main spat on its own leg, so
+        // the flown aeroplane carries them with the moving parts
         if (st.steer > 0 && st.x < 0.01) {
           const u = GG.castorUnit(lb, st.P, r.axle, sgn, st.R, st.P.twSteer, false);
           GG.wheel(wu.proxy, u.hub, u.axis, st.R, { brake: !!st.brake, P: st.P });
-          if (st.fair) GG.spat(bags, u.hub, u.axis, st.R, st.fair === 2);
+          if (st.fair) GG.spat(lb, u.hub, u.axis, st.R, fOpt);
           r = { axle: u.hub, axis: u.axis, travel: r.travel };
         } else {
           GG.wheel(wu.proxy, r.axle, r.axis, st.R,
                    { brake: !!st.brake, inboard: sgn, P: st.P });
-          if (st.fair) GG.spat(bags, r.axle, r.axis, st.R, st.fair === 2);
+          if (st.fair) GG.spat(lb, r.axle, r.axis, st.R, fOpt);
         }
       }
+      delete st.mount;
       wu.wb.axle = r.axle; wu.wb.R = st.R;
       wu.wb.kind = (st.leg === 3 || st.x <= 0.01) ? 'T'
                  : (r.axle[0] > 0 ? 'L' : 'R');
@@ -251,27 +358,31 @@ PAGE.post = ctx => {
   for (const wb of wheelUnits) {
     const wg = new THREE.Group();
     wg.name = 'edWheel' + (wb.kind || 'T');
-    for (const k of ['tyre', 'hub', 'brake'])
-      wb[k].mesh(wg, GG.gearMat(k));
+    for (const k of ['tyre', 'hub', 'brake', 'alloy', 'dark'])
+      if (wb[k] && wb[k].mesh) wb[k].mesh(wg, GG.gearMat(k));
     group.add(wg);
   }
   // the LEGS take a livery section too (phase C): steel tube by default,
   // following nobody — but a builder can paint a leg without repainting the
   // chrome piston or the tyres, which stay hardware. Only the 'steel' bag
-  // moves: it is the painted member (legs, blades, leaf springs).
-  const legM = k => (k === 'steel' && SM &&
-    SM('gearLeg', { surf: 0, fieldM: 1, tint0: 0x98a2ad })) || GG.gearMat(k);
+  // moves: it is the painted member (legs, blades, leaf springs) — and
+  // since G133 a unit's 'fair' bag (its spat or shroud) takes the spat
+  // section, guarded on tris so an unfaired build registers no section.
+  const legM = (k, bag) => (k === 'steel' && SM &&
+    SM('gearLeg', { surf: 0, fieldM: 1, tint0: 0x98a2ad }))
+    || (k === 'fair' && bag && bag.tris ? spatM() : 0)
+    || GG.gearMat(k);
   for (const lu of legUnits) {
     const lg = new THREE.Group();
     lg.name = 'edLeg' + lu.kind;
-    for (const k in lu.bags) lu.bags[k].mesh(lg, legM(k));
+    for (const k in lu.bags) lu.bags[k].mesh(lg, legM(k, lu.bags[k]));
     group.add(lg);
   }
   if (castorUnitOut) {
     const cgp = new THREE.Group();
     cgp.name = 'edCastorT';
     for (const k in castorUnitOut.bags)
-      castorUnitOut.bags[k].mesh(cgp, legM(k));
+      castorUnitOut.bags[k].mesh(cgp, legM(k, castorUnitOut.bags[k]));
     group.add(cgp);
   }
 
@@ -334,6 +445,9 @@ PAGE.post = ctx => {
     const req = nose ? 0.178 : 0.229;
     notes.push('prop clr ' + gap.toFixed(3) + (gap >= req ? '' : '!'));
   }
+  // G133: say so when the low-wing rule took the legs — the one visible
+  // trace of an automatic decision the builder never clicked
+  if (onWing) notes.push('mains on wing');
   window.CAGE_GEAR = { AF, contacts, pitch, gy,
     // G58.3: the separable units' anchors, for the join's moving parts
     units: { legs: legUnits.map(u => ({ kind: u.kind, axle: u.axle,

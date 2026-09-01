@@ -52,6 +52,32 @@ function defCG(def) {
   return [x/M, y/M, z/M];
 }
 
+// The EXACT projection sparDeltas measures with, taken at the design pose:
+// bodyAxes' raw xAft/yUp from the refs (normalized, NOT re-orthogonalized —
+// the pair is oblique whenever the design pose is pitched) and zL = xA x yU
+// exactly as sparDeltas derives it, origin at defCG. The rest reference MUST
+// go through this and nothing cleaner: an orthogonalized or design-axes rest
+// leaves a constant millimetre-scale field at zero load — the at-rest
+// aft-sheared wing, the crease at the first bound row, the kinked struts.
+function defBodyProject(def) {
+  const N = def.nodes, R = def.refs;
+  const avg = ids => { const o = [0, 0, 0];
+    for (const i of ids) { o[0] += N[i].p[0]; o[1] += N[i].p[1]; o[2] += N[i].p[2]; }
+    return [o[0] / ids.length, o[1] / ids.length, o[2] / ids.length]; };
+  const nrm = a => { const L = Math.hypot(a[0], a[1], a[2]) || 1e-9;
+    return [a[0] / L, a[1] / L, a[2] / L]; };
+  const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+  const xA = nrm(sub(avg(R.tailMid), avg(R.noseFrame)));
+  const yU = nrm(sub(avg(R.upHi), avg(R.upLo)));
+  const zL = [xA[1]*yU[2] - xA[2]*yU[1], xA[2]*yU[0] - xA[0]*yU[2],
+              xA[0]*yU[1] - xA[1]*yU[0]];
+  const cg = defCG(def);
+  return p => { const d = sub(p, cg);
+    return [d[0]*xA[0] + d[1]*xA[1] + d[2]*xA[2],
+            d[0]*yU[0] + d[1]*yU[1] + d[2]*yU[2],
+            d[0]*zL[0] + d[1]*zL[1] + d[2]*zL[2]]; };
+}
+
 // cfg: { tags:['WF','WR'], zRoot, xMax, off:[ox,oy,oz] }  (model-frame thresholds)
 // Optional gates (G58.1): xMin and yMin close the wing box from the other two
 // sides. The original selector was "outboard of zRoot and forward of xMax" —
@@ -60,7 +86,9 @@ function defCG(def) {
 // aft with the lifting wing (user's circles, at ×4 flex). Absent fields keep
 // the imported fleet's bindings exactly as they were.
 function makeSkinBinding(pos, nv, def, cfg) {
-  const cg0 = defCG(def);
+  // rest goes through defBodyProject — see its header for why nothing else
+  // (design axes, an orthogonalized frame) is allowed to build it.
+  const toB = defBodyProject(def);
   const sides = { P: {}, N: {} };            // keyed by |z| station
   def.nodes.forEach((n, i) => {
     if (!cfg.tags.includes(n.tag)) return;
@@ -73,9 +101,10 @@ function makeSkinBinding(pos, nv, def, cfg) {
     const rest = new Float32Array(zs.length * 3);
     st.forEach((ids, k) => {
       for (const i of ids) {
-        rest[k*3]   += (def.nodes[i].p[0] - cg0[0]) / ids.length;
-        rest[k*3+1] += (def.nodes[i].p[1] - cg0[1]) / ids.length;
-        rest[k*3+2] += (def.nodes[i].p[2] - cg0[2]) / ids.length;
+        const q = toB(def.nodes[i].p);
+        rest[k*3]   += q[0] / ids.length;
+        rest[k*3+1] += q[1] / ids.length;
+        rest[k*3+2] += q[2] / ids.length;
       }
     });
     return { st, rest };

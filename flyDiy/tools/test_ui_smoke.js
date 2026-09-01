@@ -36,6 +36,7 @@ function mkObj() {
 function vec(x = 0, y = 0, z = 0) {
   return { x, y, z,
     set(a, b, c) { this.x = a; this.y = b; this.z = c; return this; },
+    copy(v) { this.x = v.x; this.y = v.y; this.z = v.z; return this; },
     crossVectors(a, b) {
       this.x = a.y*b.z - a.z*b.y; this.y = a.z*b.x - a.x*b.z; this.z = a.x*b.y - a.y*b.x;
       return this; } };
@@ -65,7 +66,11 @@ const THREE = {
   // claims nothing about what a ray would find.
   Raycaster: class { setFromCamera() {} intersectObject() { return []; } },
   Fog: class {},
-  PerspectiveCamera: class { constructor(){ this.position = vec(); } lookAt(){} updateProjectionMatrix(){} },
+  // A CAMERA HAS AN `up`. It never did here, and nothing asked until the
+  // flight rebaseline gave the flight a camera: `level horizon`, off, rolls
+  // the eye with the aeroplane, and that is written onto camera.up.
+  PerspectiveCamera: class { constructor(){ this.position = vec(); this.up = vec(0, 1, 0);
+    this.fov = 46; } lookAt(){} updateProjectionMatrix(){} },
   Vector3: function(...a) { return vec(...a); },
   Matrix4: class { makeBasis(){ return this; } setPosition(){ return this; }
                    makeScale(){ return this; } copy(){ return this; } },
@@ -159,6 +164,26 @@ function el(id) {
       };
     })(),
     addEventListener() {}, setPointerCapture() {}, appendChild() {},
+    // A DOCUMENT HAS A TREE, AND A CONTROL HAS A VALUE (the flight
+    // rebaseline). The flight layer builds its rail and its flyouts by
+    // walking one and reading the other — a stub that answers neither does
+    // not test a narrower app, it tests a different one. Same argument the
+    // `body`, `style` and `classList` folds above each make in turn; each of
+    // them was added the first time the real UI needed the real thing.
+    // querySelector answers with an ELEMENT, not with null: the rail writes
+    // its label into the span it just put into its own innerHTML, and a stub
+    // that says "no such child" of markup it was handed a moment ago is
+    // modelling a document that forgets.
+    querySelector: () => el(id + ' >'), querySelectorAll: () => [],
+    closest: () => null,
+    children: [], childNodes: [], firstChild: null,
+    parentElement: null, nextSibling: null,
+    removeChild() {}, insertBefore() {}, remove() {},
+    dataset: {}, options: [], selectedIndex: -1, checked: false,
+    hidden: false, disabled: false, type: '', value: '',
+    offsetWidth: 0, offsetHeight: 0,
+    getBoundingClientRect: () => ({ left: 0, right: 0, top: 0, bottom: 0,
+                                    width: 0, height: 0 }),
     getContext: () => new Proxy({}, { get: () => () => {} }),
     width: 460, height: 180,
     set onclick(f) { handlers[id] = f; }, get onclick() { return handlers[id]; },
@@ -178,6 +203,7 @@ const sandbox = {
   // different one.
   document: { getElementById: id => (els[id] = els[id] || el(id)),
               createElement: () => el('_ce' + (++ceN)),
+              querySelector: () => null, querySelectorAll: () => [],
               get body() { return (els.__body = els.__body || el('body')); } },
   requestAnimationFrame: cb => { rafCb = cb; rafCount++; },
   // timers fire immediately: the point of this gate is to EXECUTE the deferred
@@ -223,7 +249,10 @@ try {
   // bEdit is the editor door the shelf's move left behind (G63): CAGE_UI_BOOT
   // does not exist in this sandbox, so what it proves is the WIRING — that the
   // handler is on the button and returns cleanly with no editor to open.
-  for (const id of ['bSkin', 'bSkin', 'bSkin', 'bTel', 'bPause', 'bPause',
+  // #bTel went with the bottom bar (the trace is a rail flyout now); #bSkin
+  // is still wired and still owns the covering cycle — it simply lives in
+  // #flStore and is pressed by the `camera` flyout's pills.
+  for (const id of ['bSkin', 'bSkin', 'bSkin', 'bPause', 'bPause',
                     'bEdit', 'bReset'])
     handlers[id] && handlers[id]({ target: els[id] });
   // aircraft switch through the dropdown: model-less path, then cache reuse
@@ -435,11 +464,21 @@ try {
     const iWS = body.indexOf('<section id="wsUI"');
     if (iUI < 0 || iWS < 0) throw new Error('the two interface layers are not both there');
     if (iWS < iUI) throw new Error('#wsUI is not after #ui — the seam is inside out');
-    const flight = ['card', 'rail', 'pfd', 'telp', 'mmp', 'uvp', 'bottom',
-                    'selAc', 'bGo', 'credit',
-                    // G107.2: the ARRIVAL CARD — the flight's ending is
-                    // flight chrome by definition
-                    'arrCard', 'bAgain', 'bHangar'];
+    // THE FLIGHT LAYER, REBASELINED (the flight-interface handoff). Four
+    // surfaces and nothing in two of them: the top bar (#flTop — the brief
+    // #flPlate, its folded line #flLine, the notice #flNotice and the verbs
+    // #flActs), the look rail (#flRail + #flFly), the PFD (#pfd, with the
+    // phase rail #rail inside it) and the summoned panels (#mmp, #telp,
+    // #arrCard). #flStore holds the selects the plate is a view over, which
+    // is the whole reason this redesign added no second source of truth.
+    const flight = ['flStore', 'selAc', 'flTop', 'flPlate', 'flSlots',
+                    'flLine', 'flNotice', 'flActs', 'bGo', 'bHangar2',
+                    'flRail', 'flFly', 'pfd', 'rail', 'phName', 'track',
+                    'telp', 'mmp',
+                    // the ARRIVAL CARD — the flight's ending is flight chrome
+                    // by definition, and its two buttons belong to the FLIGHT
+                    // (the ways out of the SCREEN are the top row's verbs)
+                    'arrCard', 'bLog', 'bWhy'];
     const workshop = ['edWrap', 'edView', 'edInfo',
                       'edTree', 'edRows', 'edRail', 'plaque', 'edBench',
                       'edShelf', 'edViewTabs', 'edTabShape', 'edTabFinish',
@@ -448,10 +487,17 @@ try {
                       // rides #edTopBar now, the look rail sits in #edBotBar,
                       // ROLL OUT is its own floating action, and the ribbon
                       // carries the build's name (#fbName) and the birth
-                      // flow's door (#gNew). #edStand keeps the on-loan
-                      // aircraft select beside the bench.
+                      // flow's door (#gNew).
                       'edTabDesign', 'edTopBar', 'edBotBar', 'edActs',
-                      'edRoll', 'fbName', 'gNew', 'edStand'];
+                      'edRoll', 'fbName', 'gNew',
+                      // THE ABOUT LINE. `#credit` rode the flight bar until
+                      // the flight rebaseline; it is a credit, not a HUD
+                      // element, and CC-BY's requirement is VISIBLE
+                      // attribution — so it lives in the information panel,
+                      // which is on screen for as long as you are building.
+                      // It is asserted on BOTH sides on purpose: that it is
+                      // still in the artifact at all is the licence term.
+                      'credit'];
     // ...AND WHAT WAS RETIRED STAYS RETIRED. Each of these was a SECOND door
     // to a room that already had one, which is the failure this screen keeps
     // having: `edVerbs` put the two actions in the opposite corner from the
@@ -468,7 +514,25 @@ try {
                      // 2026-08-31: SAVE lives on the file ribbon (#gSave, the
                      // shelf's one handler); a second save verb was a second
                      // thing that could disagree about what save means.
-                     'edSave'];
+                     'edSave',
+                     // G135: #edStand borrowed the game's aircraft select to
+                     // ask WHICH AEROPLANE. The seven hand fiches are gate
+                     // subjects and the select holds one hidden option now,
+                     // so the section was dressing an empty box. The FLEET
+                     // RACK answers that question next, over YOUR builds.
+                     'edStand', 'shAc',
+                     // THE FLIGHT REBASELINE'S OWN RETIREMENTS. `card` was the
+                     // aircraft card and `brand` the game's name printed over
+                     // its own render; `bottom` was one wrapping row of eight
+                     // controls; `bTel` opened a panel the rail now summons;
+                     // `hint` was permanent chrome for a sentence you read
+                     // once (it is #flHint, shown on the first flight only);
+                     // `grid` and `legend`'s twelve cells became three PFD
+                     // readouts, six instrument toggles and two rows in `air`;
+                     // `bAgain`/`bHangar` were the old card's ways out of the
+                     // SCREEN, and the top row's verbs are that now.
+                     'card', 'brand', 'bottom', 'bTel', 'hint', 'grid',
+                     'bAgain', 'bHangar'];
     for (const id of flight) {
       const at = body.indexOf(`id="${id}"`);
       if (at < 0) throw new Error(`flight chrome missing: ${id}`);
@@ -479,6 +543,36 @@ try {
       if (at < 0) throw new Error(`workshop chrome missing: ${id}`);
       if (at < iWS) throw new Error(`${id} is WORKSHOP chrome sitting outside its layer`);
     }
+    // ---- AND THE LAYER'S TAGS BALANCE ---------------------------------
+    // A missing `</div>` does not throw, does not warn, and does not show up
+    // in any gate that reads ids: the browser simply nests everything after it
+    // inside the element that never closed. Measured, the hard way — one lost
+    // close tag on #flFly put the map and the trace inside a hidden flyout,
+    // and every id assertion above still passed. The parser is deliberately
+    // crude (this is generated markup, not the web) and its only job is to say
+    // that what opens, closes, in order.
+    {
+      const VOID = new Set(['br', 'hr', 'img', 'input', 'meta', 'link',
+                            'path', 'option', 'source', 'use']);
+      const layer = body.slice(iUI, iWS).replace(/<!--[\s\S]*?-->/g, '');
+      const stack = [];
+      const re = /<(\/?)([a-zA-Z][a-zA-Z0-9]*)[^>]*?(\/?)>/g;
+      let m;
+      while ((m = re.exec(layer))) {
+        const tag = m[2].toLowerCase();
+        if (VOID.has(tag) || m[3]) continue;
+        if (m[1]) {
+          if (!stack.length || stack[stack.length - 1] !== tag)
+            throw new Error(`#ui markup: </${tag}> closes ` +
+              `${stack.length ? '<' + stack[stack.length - 1] + '>' : 'nothing'}`);
+          stack.pop();
+        } else stack.push(tag);
+      }
+      if (stack.length)
+        throw new Error(`#ui markup: ${stack.length} unclosed tag(s), ` +
+          `outermost <${stack[0]}> — everything after it is nested inside it`);
+    }
+
     for (const id of retired)
       if (body.indexOf(`id="${id}"`) >= 0)
         throw new Error(`retired chrome is back: ${id} (G107 removed it — ` +

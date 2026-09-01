@@ -42,6 +42,82 @@
   one. The mesh and the textures are otherwise unaltered — no decimation and
   no re-encoding.
 
+## Reference aeroplanes (`assetsSketchfab/`, baked into the artifact)
+
+The garage's REFERENCE PLANE (`src/viewer/refplane.js`) stands a real
+aeroplane beside your build. These fifteen are all by the same modeller as the
+PA-18 above, delivered as Sketchfab GLBs and baked to reference-only payloads
+by `python tools/ref_prep.py --all` from the declared table in
+`tools/ref_table.py`. They are **display only** — never flown, never an input
+to the spec, and GATE REF asserts both.
+
+- **Model**: Emmanuel BARANGER (**helijah**, https://sketchfab.com/helijah),
+  created for FlightGear.
+- **Licence is NOT the same on all fifteen.** It is recorded here exactly as
+  each GLB's own `asset.extras` block declares it, and each baked payload
+  carries its own `lic` field so `tools/_ref_check.js` can hold the artifact
+  to it:
+
+  **CC-BY 4.0** — attribution required, carried in the sim's footer:
+
+  | key | title | listing |
+  |---|---|---|
+  | `d112` | Jodel D.112 (D11 variant) | https://sketchfab.com/3d-models/jodel-d112-d11-variant-747c7684ec8645398ff8e00e280a5f97 |
+  | `pio200` | Alpi Pioneer 200 | https://sketchfab.com/3d-models/alpi-pioneer-200-b655fc12d7784997987fdb2a6c8961b0 |
+  | `c195` | Cessna 195 Businessliner (wheels version) | https://sketchfab.com/3d-models/cessna-195-businessliner-wheels-version-3cbe7fa4514e48c9a204b5565dfe4dbb |
+  | `da40` | Diamond DA40 | https://sketchfab.com/3d-models/diamond-da40-dfda5fad07c24c12be13a23562fe83e3 |
+  | `g115` | Grob G 115 | https://sketchfab.com/3d-models/grob-g-115-64bc0e98d56a4f88a2833dbefa2ca975 |
+  | `stemme` | Stemme Sky Sportster S6 | https://sketchfab.com/3d-models/stemme-sky-sportster-s6-3444184089ea443bb2ad006e9129a750 |
+  | `guepard` | Super Guepard 912 | https://sketchfab.com/3d-models/super-guepard-912-207f2678545f4b66ac1b1e1dbc3904e7 |
+  | `yak18t` | Yak 18 T | https://sketchfab.com/3d-models/yak-18-t-zM1VKOfkihgOEdx09hsGd6qnp5q |
+  | `draco` | PZL 104 Wilga 2000 "Draco" | https://sketchfab.com/3d-models/pzl-104-wilga-2000-draco-70402e1b9c9147b199d1497ccd0b3e84 |
+  | `eiii` | Fokker Eindecker E.III | https://sketchfab.com/3d-models/fokker-eindecker-eiii-bf1ab0a7b7a64f5d9a825ac2fddf35dd |
+  | `pa28` | Piper PA-28 "Cadet" | https://sketchfab.com/3d-models/piper-pa-28-cadet-ba310f1e1ba349c7a54ab9db92e48970 |
+
+  Not all eleven ride in the artifact — see `build.js` MANIFEST.models, which
+  is the publish list. They are all committed, all correct, and all one line
+  from shipping; what holds most of them back is the artifact's own size
+  ceiling, not their licence.
+
+  **"SKETCHFAB Standard"** — which does **not** permit redistribution. These
+  four bake and stand in the shed locally, but they are not published: they
+  are absent from `build.js` MANIFEST.models, their payloads and GLBs are
+  gitignored, and GATE REF fails the build if one is ever added to the
+  publish list.
+
+  | key | title | listing |
+  |---|---|---|
+  | `a22` | Aeroprakt A22 Foxbat | https://sketchfab.com/3d-models/aeroprakt-a22-foxbat-23496a87a16d417caeeae4e3fccda43d |
+  | `p68` | Partenavia P.68 | https://sketchfab.com/3d-models/partenavia-p-68-93029ea2884e489a8fda5e709373d580 |
+  | `rv8` | Van's Aircraft RV-8 (tail gear) | https://sketchfab.com/3d-models/vans-aircraft-rv-8-tail-gear-5352bfd36d5f4525aa2173be53a21402 |
+  | `sr22` | Cirrus SR 22 | https://sketchfab.com/3d-models/cirrus-sr-22-f0f1089f374f4d398f0483403fe6af7a |
+
+  helijah's FlightGear aircraft are GPL-2.0 at source (the FGMEMBERS
+  repositories on GitHub); what a given **Sketchfab listing** carries is a
+  separate per-upload choice, and the table above records what these files
+  actually say rather than what the set as a whole is assumed to say.
+
+- **Modifications made**, as CC-BY asks to be indicated: none to the geometry
+  — no decimation, no welding, no parts dropped, and the base-colour textures
+  are embedded byte-for-byte as delivered. The payload is a re-container:
+  positions quantised to 0.2 mm over the model's own bounding box, triangles
+  grouped by the source's own materials (and split where a material exceeds
+  the container's 65 535-vertex index limit), and constant metalRough maps
+  folded into the scalars they already were. The frame is unchanged — these
+  exports already arrive in the sim's model frame (x aft, y up, z left).
+- **Dimensions checked against published specifications**, which is what makes
+  the reference worth measuring against. GATE REF holds each decoded payload
+  to the type's published span and length within 1.5%; all but two are inside
+  1%. The exceptions are noted on their own rows in `refplane.js`: the Pioneer
+  200, whose published figures disagree with *each other* by more than the
+  model differs from any of them, and the Super Guépard, where English
+  Wikipedia's 8.5 m span is 15% under both the model and every French source.
+- **One of the fifteen has NO PRESET**: `draco`. Mike Patey's turbine Wilga is
+  a one-off with a lengthened nose and a re-spanned wing, and nobody has
+  published its dimensions — so nothing can hold its scale, and a reference
+  whose scale nothing holds is worse than no reference at all. It is baked and
+  credited here; it is not offered as something to measure against.
+
 ## Hangar skies and surfaces (`assets/hangar_sky/`, `assets/hangar_walls/`, `assets/concrete_floor_damaged_01/`, baked into the artifact)
 
 **Poly Haven, CC0** — no attribution required, recorded here anyway because a
@@ -205,6 +281,13 @@ real workshop, by the same author:
 - "Raboteuse - Lycee professionnel de Fourchambault" by **Yannoid** (https://sketchfab.com/y.decouessin) —
   https://sketchfab.com/3d-models/raboteuse-lycee-professionnel-de-fourchambault-b0d579ac5d744497b74177d0ee141cbe
 
+**The player's own, no licence needed** — `plan_avion` (added 2026-09-01): the
+hand-drawn general-arrangement plan pinned to the shop wall, "Avion de
+Plaisance — monomoteur 2 places", plan 78-05-14. Supplied by the player as an
+IMAGE, not a model; the two triangles that hold it (`plan_avion.gltf`) are
+authored in this repository, which is the one row of the prop table whose
+geometry is not an author's mesh.
+
 > **OPEN, and not fixed here.** The line above says this list is "carried in
 > the sim's footer". It is not: `#credit` in `src/viewer/body.html` names the
 > aircraft authors only, and nothing appends the prop authors to it. That was
@@ -221,7 +304,9 @@ assets identically):
   transforms are rigid ones declared per row in `tools/props_table.py`: a
   uniform scale where an export arrived in millimetres (`wood_crate`), a
   quarter turn to stand a wheel on the game's axis (`old_tyre`), and a
-  translation putting each origin where the prop meets the world.
+  translation putting each origin where the prop meets the world. The one
+  row with no author's mesh to keep is `plan_avion`, which arrived as a
+  picture: its quad is written here, and the picture itself is untouched.
 - **Selection.** Where one delivered file holds several objects, whole
   primitives are selected by material name into separate props —
   `metal_trash_can` becomes two bins, `wood_crate` becomes three crates.

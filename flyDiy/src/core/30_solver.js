@@ -26,7 +26,11 @@ function makeSim(def, world) {
   // breathes the air and lapses with it, an electric motor's power comes out of
   // the pack and does not. Absent = 'na', because everything that flew before
   // this line existed was a piston.
-  const ASP = (PP.engine && PP.engine.aspiration) || 'na';
+  // G134: a GARAGE build may fly its OWN engine facts (def.params.engine, the
+  // editor's dials resolved) — the registry row is then only the preset the
+  // dials started from, exactly as params.prop already outranks PP.prop above.
+  const EN = P_.engine || PP.engine;
+  const ASP = (EN && EN.aspiration) || 'na';
   const n = def.nodes.length;
   const p = new Float64Array(n * 3), v = new Float64Array(n * 3),
         f = new Float64Array(n * 3), m = new Float64Array(n),

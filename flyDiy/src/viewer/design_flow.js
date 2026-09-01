@@ -112,9 +112,17 @@ function undo() {
 
 function pick(row, opt) {
   if (opt.inactive) return;
-  const { cage, spec } = D().designApply(CU().P, { [row.key]: opt.value });
+  // G132: THE PANEL APPLIES THE LIVE WRITES ALONE (seeds:false) — a role or
+  // class pick is its label, instantly and non-destructively; the one-shot
+  // starting values ride the seed pill below, and the birth flow, which
+  // compose with seeds:true.
+  const { cage, spec } = D().designApply(CU().P, { [row.key]: opt.value },
+                                         { seeds: false });
   const writes = { cage, spec };
-  if (row.kind === 'starter') {
+  // the warn/undo contract follows the WRITE, not only the kind: a
+  // discriminator whose options overwrite hand-tunable values (the
+  // canopy's hood pair) declares `arm` and gets the same two-click gate
+  if (row.kind === 'starter' || row.arm) {
     const n = D().designOverwriteCount(CU().P, cage, pageBase());
     if (n > 0 && !(armed && armed.rowKey === row.key &&
                    armed.value === opt.value)) {
@@ -124,6 +132,23 @@ function pick(row, opt) {
     }
   }
   doApply(row.label + ': ' + opt.label, writes);
+  refresh();
+}
+
+// G132: the seed pill — the explicit "apply the starting values" action a
+// label row offers once its label is chosen. Same armed/undo flow as a
+// starter, keyed apart so arming a seed never collides with arming a tile.
+function pickSeed(row, opt) {
+  const writes = D().designSeed(CU().P, row.key, opt.value);
+  const n = D().designOverwriteCount(CU().P, writes.cage, pageBase());
+  const armKey = row.key + '#seed';
+  if (n > 0 && !(armed && armed.rowKey === armKey &&
+                 armed.value === opt.value)) {
+    armed = { rowKey: armKey, value: opt.value, count: n };
+    refresh();
+    return;
+  }
+  doApply(row.label + ' starting values: ' + opt.label, writes);
   refresh();
 }
 
@@ -187,11 +212,16 @@ function rowBlock(row) {
   const cu = CU(), S = curSpec();
   let cur = null;
   try { if (row.read) cur = row.read(cu.P, S); } catch (e) {}
+  // G132: an `once` row's read is LOSSY (its own declaration says so) —
+  // lighting a tile off it would claim a current state the sliders can
+  // contradict, so nothing lights and the header says what the tiles are
+  if (row.once) cur = null;
   const h = document.createElement('div');
   h.className = 'dfRowH';
   h.innerHTML = '<span></span><em></em>';
   h.firstChild.textContent = row.label;
-  h.lastChild.textContent = row.help || '';
+  h.lastChild.textContent = (row.help || '') +
+    (row.once && !row.plain ? (row.help ? ' — ' : '') + 'applies once' : '');
   wrap.appendChild(h);
 
   if (row.kind === 'field') {
@@ -246,6 +276,35 @@ function rowBlock(row) {
   }
 
   wrap.appendChild(tileGrid(row, cur));
+  // G132: the seed pill — shown when the CURRENT label carries starting
+  // values. The count is live, so "would change nothing" renders as
+  // nothing to do and the pill stays away.
+  const curOpt = cur != null
+    ? D().rowOptions(row).find(o => o.value === cur) : null;
+  if (curOpt && curOpt.seed) {
+    // the pill SHOWS when the seed would change anything at all;
+    // pickSeed then ARMS only over tuned values (the starter contract)
+    let n = 0;
+    try {
+      const sw = D().designSeed(cu.P, row.key, curOpt.value);
+      for (const k in sw.cage)
+        if (Math.abs((+cu.P[k]) - (+sw.cage[k])) >
+            Math.max(1e-9, Math.abs(+sw.cage[k]) * 1e-6)) n++;
+      if (sw.spec && Object.keys(sw.spec).length) n++;
+    } catch (e) {}
+    if (n > 0) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'dfPill dfSeed';
+      const armKey = row.key + '#seed';
+      b.textContent = (armed && armed.rowKey === armKey)
+        ? 'click again to apply'
+        : 'apply the ' + curOpt.label.toLowerCase() +
+          ' starting values (once)';
+      b.addEventListener('click', () => pickSeed(row, curOpt));
+      wrap.appendChild(b);
+    }
+  }
   return wrap;
 }
 

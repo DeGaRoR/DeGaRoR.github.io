@@ -142,7 +142,9 @@ function buildLeg(legKind, opt) {
   const sgn = opt && opt.sgn != null ? opt.sgn : 1;
   GG.wheel(bags, r.axle, r.axis, st.R,
            { brake: !!st.brake, inboard: sgn, P: st.P });
-  if (opt && opt.fair) GG.spat(bags, r.axle, r.axis, st.R, opt.fair === 2);
+  if (opt && opt.fair)
+    GG.spat(bags, r.axle, r.axis, st.R,
+            Object.assign({ full: opt.fair === 2 }, opt.fairOpt || {}));
   return { r, st, g: readBags(bags) };
 }
 
@@ -206,28 +208,56 @@ for (let k = 0; k < 3; k++) {
 }
 
 // ---------------------------------------------------------------------------
-// 3 THE WHEEL TURNS ON ITS OWN (G58.2)
+// 3 THE WHEEL TURNS ON ITS OWN — AND EVERY BAG IT WRITES IS ROUTED (G58.2,
+//   G148)
 // ---------------------------------------------------------------------------
-// The join rides each wheel on its axle and SPINS it, and it does that by
-// taking the tyre/hub/brake bags as their own named group. So `wheel()` must
-// write into those three and NOTHING else: a wheel that leaked one triangle
-// into the leg's bags would drag the fork round with it, which is exactly the
-// failure the join's own comment records ("severed forks and a tailwheel that
-// spun with its castor").
+// The cage rides each wheel on its axle and SPINS it. G148: every bag
+// wheel() writes must be ROUTED by _cage_gear's wheelProxy, or the part is
+// welded into the fuselage's static merge — which is how the bolt heads,
+// hub caps, valve stems, the brake caliper and its pipe stood frozen
+// mid-air inside a travelling, spinning wheel (the user's report). The
+// contract, pinned here: the SPINNING set {tyre,hub,brake,alloy,dark} goes
+// per-wheel; the LEG-RIDING set {brakefix: caliper + pipe} goes to that
+// wheel's leg unit (travels with the axle, never turns). A name outside
+// these six is a routing decision nobody made — fail it.
 {
   const bags = freshBags();
   const st = STATIONS[0];
-  GG.wheel(bags, [0.8, -1.0, 2.0], [1, 0, 0], st.R,
+  const ctr = [0.8, -1.0, 2.0];
+  GG.wheel(bags, ctr, [1, 0, 0], st.R,
            { brake: true, inboard: 1, P: st.P });
   const g = readBags(bags);
   const wrote = Object.keys(g);
-  const ALLOWED = new Set(['tyre', 'hub', 'brake', 'brakefix', 'dark', 'alloy',
-                           'bronze']);
+  const ALLOWED = new Set(['tyre', 'hub', 'brake', 'alloy', 'dark',
+                           'brakefix']);
   const leaked = wrote.filter(n => !ALLOWED.has(n));
   check(leaked.length === 0,
-    'the wheel wrote into a bag that does not turn with it', leaked.join(', '));
+    'the wheel wrote into a bag the cage routing does not know', leaked.join(', '));
   check(!!g.tyre && !!g.hub, 'the wheel has no tyre or no hub');
   check(!!g.brake, 'a braked wheel drew no brake');
+  check(!!g.alloy && !!g.dark,
+    'the wheel drew no spinning hardware (bolts/caps/valve)');
+  check(!!g.brakefix && g.brakefix.nt > 0,
+    'the caliper and its pipe did not land in brakefix');
+  // the DARK bag spins with the wheel now, so it may hold only the valve
+  // (radially inside ~0.45 R): brake plumbing there would orbit the axle.
+  const radial = G => { let m = 0;
+    for (let i = 0; i < G.pos.length; i += 3)
+      m = Math.max(m, Math.hypot(G.pos[i + 1] - ctr[1], G.pos[i + 2] - ctr[2]));
+    return m; };
+  check(radial(g.dark) < 0.62 * st.R,
+    'spinning `dark` reaches past the valve — brake plumbing would orbit',
+    (radial(g.dark) / st.R).toFixed(2) + ' R');
+  // NEGATIVE CONTROL: with no brakefix bag offered (the bench), the pipe
+  // falls back into dark and the radial instrument must SEE it out at the
+  // caliper — proof this check can catch a re-misrouted pipe.
+  const bags2 = freshBags();
+  delete bags2.brakefix;
+  GG.wheel(bags2, ctr, [1, 0, 0], st.R,
+           { brake: true, inboard: 1, P: st.P });
+  const g2dark = readBag(bags2.dark);
+  check(!!g2dark && radial(g2dark) > 0.8 * st.R,
+    'the negative control cannot see the pipe in dark — instrument blind');
 }
 
 // ---------------------------------------------------------------------------
@@ -382,6 +412,90 @@ for (const L of built) {
 }
 
 // ---------------------------------------------------------------------------
+// 7.1 THE SPAT'S INSTRUMENTS MOVE THE SHELL (G133)
+// ---------------------------------------------------------------------------
+// Every new slider must change the drawing it claims to change — a shape row
+// that draws the same shell at every value is the "quietly did nothing"
+// fairing again, one knob further in.
+{
+  const base = buildLeg(0, { fair: 1 }).g.fair;
+  const long = buildLeg(0, { fair: 1, fairOpt: { tail: 1.5 } }).g.fair;
+  const deep = buildLeg(0, { fair: 1, fairOpt: { skirt: 0.2 } }).g.fair;
+  const wide = buildLeg(0, { fair: 1, fairOpt: { width: 1.4 } }).g.fair;
+  const rake = buildLeg(0, { fair: 1, fairOpt: { rake: 15 } }).g.fair;
+  if (check(!!(base && long && deep && wide && rake),
+            'an instrumented spat drew nothing')) {
+    const zLen = g => { const b = bbox(g); return b.hi[2] - b.lo[2]; };
+    check(zLen(long) > zLen(base) + 0.05,
+      'the tail droplet does not lengthen the run-out',
+      `${zLen(long).toFixed(3)} vs ${zLen(base).toFixed(3)}`);
+    check(bbox(deep).lo[1] < bbox(base).lo[1] - 0.015,
+      'the skirt slider does not deepen the opening');
+    const xLen = g => { const b = bbox(g); return b.hi[0] - b.lo[0]; };
+    check(xLen(wide) > xLen(base) + 0.02,
+      'the width slider does not widen the shell');
+    check(digest(rake) !== digest(base),
+      'the rake slider draws the identical shell');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 7.2 THE TROUSER DRAWS ITS LEG, AND THE LEG FAIRING DRAWS ALONE (G133)
+// ---------------------------------------------------------------------------
+// `fairing: 'full'` has PRICED the legs at Cd 0.30 since G115 while drawing
+// only a deeper shell — the exact geometry/physics mismatch this battery
+// exists to remove. The shroud must reach from near the root down toward the
+// wheel, on every leg family; and the leg-fairing switch must draw it
+// without a spat.
+for (let k = 0; k < 3; k++) {
+  const L = buildLeg(k, { fair: 2 });
+  const f = L.g.fair;
+  if (!check(!!f, `${LEGNAME[k]}: trousers drew no shroud at all`)) continue;
+  const bf = bbox(f);
+  check(bf.hi[1] > L.r.axle[1] + L.st.R * 1.45,
+    `${LEGNAME[k]}: the trouser shroud does not reach up the leg`,
+    `top ${bf.hi[1].toFixed(3)} vs axle ${L.r.axle[1].toFixed(3)}`);
+}
+{
+  const st0 = GP.gearStations(JSON.parse(JSON.stringify(P0)))[0];
+  const st = Object.assign({}, st0, { leg: 2, legFair: 1, fair: 0 });
+  const bags = freshBags();
+  GG.legOleo(bags, AF, st.P, st, 1);
+  const g = readBags(bags);
+  check(!!g.fair,
+    'the leg-fairing switch alone draws nothing — a priced shroud with no shell');
+}
+
+// ---------------------------------------------------------------------------
+// 7.3 A LEG ROOTS ON THE MOUNT IT IS HANDED, AND THE WHEEL STAYS PUT (G133)
+// ---------------------------------------------------------------------------
+// The low-wing rule hands the builders a mount FRAME. Two things must hold:
+// the root follows the frame (or the rule is cosmetic), and the AXLE does
+// not move (it is keel-datum'd — where the leg roots must never move the
+// wheel, the stance, or the join's measured rows).
+for (const [k, nm] of [[0, 'beam'], [2, 'oleo']]) {
+  const plainA = buildLeg(k).r.axle;
+  const mp = [0.9, 0.4, 0];
+  // the fabricated provider honours `dx` exactly as the wing's does —
+  // G133.1: a builder must ask for its root above its own FOOT (axleIn),
+  // one hubIn inboard of the wheel, or a short vertical leg leans
+  const mount = (zOff, dx) => ({
+    p: [mp[0] + (dx || 0), mp[1], mp[2] + (zOff || 0) + STATIONS[0].z],
+    n: [0, -1, 0], fore: [0, 0, 1], side: [-1, 0, 0] });
+  const hubIn = STATIONS[0].R * 0.40 + 0.020;
+  const L = buildLeg(k, { mount });
+  check(Math.abs(L.r.root[0] - (mp[0] - hubIn)) < 1e-6 &&
+        Math.abs(L.r.root[1] - mp[1]) < 1e-6,
+    `${nm}: the root is not above the strut's own foot (G133.1)`,
+    `root ${L.r.root.map(v => v.toFixed(3)).join(',')} vs x ` +
+    (mp[0] - hubIn).toFixed(3));
+  check(L.r.axle.every((v, i) => Math.abs(v - plainA[i]) < 1e-6),
+    `${nm}: the MOUNT MOVED THE WHEEL — the axle must be mount-invariant`,
+    `axle ${L.r.axle.map(v => v.toFixed(3)).join(',')} vs ` +
+    plainA.map(v => v.toFixed(3)).join(','));
+}
+
+// ---------------------------------------------------------------------------
 // 8 THE TAILWHEEL IS ITS OWN ASSEMBLY
 // ---------------------------------------------------------------------------
 // G58.3: the castor fork YAWS for ground manoeuvring while the leaf spring
@@ -402,6 +516,30 @@ for (const L of built) {
     check(Object.keys(cg).length > 0,
       'the castor drew nothing into its own bags — the fork would not yaw');
     check(!!r.axle && isFinite(r.axle[1]), 'the tailwheel has no axle');
+  }
+  // G133: THE SMALL WHEEL'S SPAT — drawn into the CASTOR's bags (it must
+  // steer with the fork), enclosing the wheel, opening above the tyre. This
+  // shell is what let genGearCdA retire the tricycle-only pricing gate; if
+  // it ever stops being drawn, that pricing goes back to being the lie
+  // G121.2 refused to tell.
+  {
+    const st2 = Object.assign({}, st, { fair: 1 });
+    const bags2 = freshBags(), cb2 = freshBags();
+    let r2 = null;
+    try { r2 = GG.legTailwheel(Object.assign({}, bags2, { castorBags: cb2 }),
+                               AF, st2.P, st2); }
+    catch (e) { check(false, 'the faired tailwheel threw', e.message); }
+    if (r2) {
+      const f = readBags(cb2).fair;
+      if (check(!!f, 'a bought tailwheel spat drew nothing into the castor')) {
+        const bf = bbox(f);
+        check(bf.hi[2] >= r2.axle[2] + st2.R - 1e-3 &&
+              bf.lo[2] <= r2.axle[2] - st2.R + 1e-3,
+          'the tailwheel spat does not cover its wheel fore-and-aft');
+        check(bf.lo[1] > r2.axle[1] - st2.R + 0.005,
+          'the tailwheel spat reaches below its tyre');
+      }
+    }
   }
 }
 
@@ -459,6 +597,13 @@ if (process.argv.includes('--selftest')) {
     ['a castor with no bags of its own', () => !(0 > 0)],
     ['a contract member gone missing', () => ['surf'].length !== 0],
     ['a degenerate triangle', () => !(3 === 0)],
+    // G133
+    ['a droplet that draws the same shell', () => !(2.45 > 2.45 + 0.05)],
+    ['a trouser with no leg shroud', () => !(0.24 > 0.0 + 0.20 * 1.45)],
+    ['a mount that moved the wheel',
+      () => ![0.86, -0.62, 0.62].every((v, i) =>
+        Math.abs(v - [0.86, -0.62, 0.70][i]) < 1e-6)],
+    ['a tailwheel spat outside the castor bags', () => !undefined],
   ];
   let caught = 0;
   for (const [nm, f] of probes) {

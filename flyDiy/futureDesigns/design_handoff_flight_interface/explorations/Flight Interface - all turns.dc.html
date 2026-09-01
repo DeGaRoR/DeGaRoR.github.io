@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#e8e5df;font-family:'IBM Plex Sans',system-ui,sans-serif}
+a{color:#8a7f6c}a:hover{color:#5f5647}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.09);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 16px}
+.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 13px/1.2 'IBM Plex Sans';color:#1a1a1a}
+.dv-note{margin:0 0 20px;max-width:1120px;font:12.5px/1.7 'IBM Plex Sans';color:rgba(0,0,0,.62)}
+.dv-note b{color:rgba(0,0,0,.85);font-weight:600}
+.dv-rule{margin:0 0 20px;max-width:1120px;padding:13px 16px;border-left:2px solid #b4531f;background:rgba(180,83,31,.06);font:13px/1.65 'IBM Plex Sans';color:rgba(0,0,0,.78)}
+.dv-opts{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;max-width:1440px;font:400 11.5px/1.45 'IBM Plex Sans';color:rgba(0,0,0,.55)}
+.dv-card{background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden}
+.dv-opt:target .dv-oid{background:#2a78d6;color:#fff}
+.dv-next{margin:22px 0 0;font:12px/1.7 'IBM Plex Sans';color:rgba(0,0,0,.5)}
+</style></helmet>
+
+<section class="dv-turn" id="t2">
+<div class="dv-thd"><a class="dv-tid" href="#t2">2</a><span class="dv-tname">The verbs where the editor puts them</span></div>
+<p class="dv-note">The editor's top bar is <b>the object's own controls at the left, the primary verb at the far right of that same row</b> (<code>#edTopBar</code> holding <code>#edFleet</code> and <code>#edActs</code> at <code>margin-left:auto</code>), and its bottom bar holds <b>only</b> the look rail. Applied literally: the flight brief takes <code>#edFleet</code>'s place, the verbs take <code>#edActs</code>'s, and the <b>PFD moves to the bottom row opposite the rail</b> — which is the better place for it anyway: eyes down for numbers, ahead for the aeroplane. Roll out and Fly the circuit are now the same pixel on both screens, and so are Pause and Restart.</p>
+<div class="dv-opts">
+<sc-for list="{{ views2 }}" as="v" hint-placeholder-count="4">
+<div class="dv-opt" id="{{ v.id }}">
+<div class="dv-olabel"><a class="dv-oid" href="#{{ v.id }}">{{ v.id }}</a>{{ v.name }} — {{ v.note }}</div>
+<div class="dv-card">
+<div style="position:relative;width:1440px;height:810px;background:#0d1014;font-family:'IBM Plex Sans',sans-serif;font-variant-numeric:tabular-nums;overflow:hidden">
+  <div style="position:absolute;inset:0;background:{{ v.sky }}"></div>
+  <div style="position:absolute;left:0;right:0;top:{{ v.horizon }};display:flex;align-items:center;justify-content:center;font:500 10.5px/1.8 'IBM Plex Sans';letter-spacing:.2em;text-transform:uppercase;color:{{ v.skyTx }};text-align:center">{{ v.scene }}</div>
+
+  <div style="position:absolute;left:22px;right:22px;top:18px;display:flex;flex-wrap:wrap;align-items:flex-start;gap:8px 14px">
+    <div style="display:flex;flex-direction:column;gap:9px;align-items:flex-start;min-width:0;max-width:620px">
+      <sc-if value="{{ v.briefOpen }}" hint-placeholder-val="{{ true }}">
+        <div style="padding:10px 12px;background:{{ p.plate }};border:1px solid {{ p.border }};border-radius:9px;backdrop-filter:blur(14px)">
+          <div style="display:flex;align-items:center;gap:9px;padding:0 2px 9px;border-bottom:1px solid {{ p.hair }}">
+            <span style="font:600 9.5px/1 'IBM Plex Sans';letter-spacing:.2em;text-transform:uppercase;color:{{ p.faint }}">The flight</span>
+            <span style="margin-left:auto;font:400 10px/1 'IBM Plex Sans';color:{{ p.faint }}">{{ v.briefMeta }}</span>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;padding-top:9px">
+            <sc-for list="{{ v.brief }}" as="s" hint-placeholder-count="4">
+              <div style="display:flex;flex-direction:column;gap:4px;min-width:0;padding:7px 11px;border-radius:7px;background:{{ s.bg }};border:1px solid {{ s.bd }}">
+                <span style="font:500 8.5px/1 'IBM Plex Sans';letter-spacing:.16em;text-transform:uppercase;color:{{ s.lab }}">{{ s.k }}</span>
+                <span style="display:flex;align-items:baseline;gap:7px;font:500 12px/1.2 'IBM Plex Sans';color:{{ s.col }};white-space:nowrap">{{ s.v }}<i style="font-style:normal;font-size:9px;color:{{ s.lab }}">▾</i></span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ v.briefLine }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;background:{{ p.plate }};border:1px solid {{ p.border }};border-radius:9px;backdrop-filter:blur(14px)">
+          <b style="font:600 12px/1 'IBM Plex Sans';letter-spacing:.08em;color:{{ p.ink }}">{{ v.lineName }}</b>
+          <span style="width:1px;height:13px;background:{{ p.hair }}"></span>
+          <span style="font:400 11px/1 'IBM Plex Sans';color:{{ p.dim }}">{{ v.lineTrip }}</span>
+          <span style="width:1px;height:13px;background:{{ p.hair }}"></span>
+          <span style="font:400 11px/1 'IBM Plex Sans';color:{{ p.faint }}">{{ v.lineDay }}</span>
+          <i style="font-style:normal;font-size:10px;color:{{ p.acc }}">▾</i>
+        </div>
+      </sc-if>
+      <sc-if value="{{ v.hasNotice }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:center;gap:9px;padding:8px 12px;background:{{ p.plate }};border:1px solid {{ v.noticeBd }};border-radius:8px;backdrop-filter:blur(14px)">
+          <span style="font:500 9.5px/1 'IBM Plex Sans';letter-spacing:.14em;text-transform:uppercase;color:{{ v.noticeCol }}">{{ v.noticeK }}</span>
+          <span style="font:400 11px/1.4 'IBM Plex Sans';color:{{ p.dim }}">{{ v.noticeV }}</span>
+        </div>
+      </sc-if>
+    </div>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:9px">
+      <sc-for list="{{ v.verbs }}" as="b" hint-placeholder-count="3">
+        <div style="font:{{ b.font }};letter-spacing:.1em;text-transform:uppercase;color:{{ b.col }};background:{{ b.bg }};border:1px solid {{ b.bd }};padding:{{ b.pad }};border-radius:8px">{{ b.k }}</div>
+      </sc-for>
+    </div>
+  </div>
+
+  <sc-if value="{{ v.hasMap }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;right:22px;top:{{ v.mapTop }};padding:5px;background:{{ p.plate }};border:1px solid {{ p.border }};border-radius:9px">
+      <div style="width:196px;height:196px;border-radius:6px;background:radial-gradient(120% 120% at 30% 20%,#2b3128,#1a1d18);display:flex;align-items:flex-end;justify-content:center;padding-bottom:9px;font:500 8.5px/1 'IBM Plex Sans';letter-spacing:.16em;text-transform:uppercase;color:{{ p.faint }}">the map · north up</div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ v.hasTrace }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:22px;right:366px;bottom:82px;padding:12px 14px 13px;background:{{ p.plate }};border:1px solid {{ p.border }};border-radius:9px;backdrop-filter:blur(14px)">
+      <div style="display:flex;align-items:baseline;gap:9px;padding-bottom:9px">
+        <span style="font:600 9.5px/1 'IBM Plex Sans';letter-spacing:.2em;text-transform:uppercase;color:{{ p.faint }}">The trace</span>
+        <span style="margin-left:auto;font:400 10px/1 'IBM Plex Sans';color:{{ p.faint }}">7.4 km flown · 4 min 02 s</span>
+      </div>
+      <div style="height:104px;border-radius:5px;background:repeating-linear-gradient(90deg,rgba(255,248,236,.045) 0 1px,transparent 1px 52px),rgba(0,0,0,.26)"></div>
+      <div style="display:flex;gap:16px;margin-top:10px;font:500 8.5px/1 'IBM Plex Sans';letter-spacing:.14em;text-transform:uppercase;color:{{ p.faint }}">
+        <em style="font-style:normal;display:inline-flex;align-items:center;gap:6px"><i style="width:15px;height:2px;background:{{ p.acc }}"></i>altitude</em>
+        <em style="font-style:normal;display:inline-flex;align-items:center;gap:6px"><i style="width:15px;height:2px;background:{{ p.dim }}"></i>speed</em>
+        <em style="font-style:normal;display:inline-flex;align-items:center;gap:6px"><i style="width:15px;height:2px;background:{{ p.warn }}"></i>strain</em>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ v.hasFly }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:{{ v.flyLeft }};bottom:82px;width:288px;padding:12px 14px 14px;background:{{ p.plate }};border:1px solid {{ p.border }};border-radius:9px;backdrop-filter:blur(14px)">
+      <div style="font:600 10px/1 'IBM Plex Sans';letter-spacing:.2em;text-transform:uppercase;color:{{ p.faint }};padding-bottom:9px;margin-bottom:6px;border-bottom:1px solid {{ p.hair }}">{{ v.flyHead }}</div>
+      <sc-if value="{{ v.flyPills }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 2px">
+          <sc-for list="{{ v.flyPills }}" as="o" hint-placeholder-count="5">
+            <div style="font:500 10px/1 'IBM Plex Sans';letter-spacing:.08em;text-transform:uppercase;color:{{ o.col }};background:{{ o.bg }};border:1px solid {{ o.bd }};border-radius:7px;padding:7px 11px">{{ o.k }}</div>
+          </sc-for>
+        </div>
+      </sc-if>
+      <sc-for list="{{ v.flyRows }}" as="r" hint-placeholder-count="3">
+        <div style="display:flex;gap:10px;align-items:center;margin:7px 0;font:400 11.5px/1.3 'IBM Plex Sans';color:{{ p.dim }}">
+          <span style="width:104px;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.k }}</span>
+          <sc-if value="{{ r.isTog }}" hint-placeholder-val="{{ true }}">
+            <span style="width:30px;height:16px;flex:none;border-radius:9px;background:{{ r.fill }};border:1px solid {{ r.bd }};position:relative;display:inline-block">
+              <span style="position:absolute;top:2px;left:{{ r.knob }};width:10px;height:10px;border-radius:50%;background:{{ p.panel }}"></span>
+            </span>
+            <span style="font:400 11px/1 'IBM Plex Sans';color:{{ p.faint }}">{{ r.v }}</span>
+          </sc-if>
+          <sc-if value="{{ r.isRange }}" hint-placeholder-val="{{ false }}">
+            <div style="position:relative;flex:1;height:16px">
+              <div style="position:absolute;top:7px;left:0;right:0;height:3px;border-radius:2px;background:{{ p.track }}"></div>
+              <div style="position:absolute;top:7px;left:0;height:3px;border-radius:2px;background:{{ p.acc }};opacity:.55;width:{{ r.pct }}"></div>
+              <div style="position:absolute;top:3px;width:11px;height:11px;border-radius:50%;background:{{ p.acc }};left:{{ r.pct }}"></div>
+            </div>
+            <span style="width:48px;flex:none;text-align:right;font:500 11px/1 'IBM Plex Sans';color:{{ p.ink }}">{{ r.v }}</span>
+          </sc-if>
+          <sc-if value="{{ r.isSel }}" hint-placeholder-val="{{ false }}">
+            <span style="flex:1;min-width:0;display:flex;justify-content:space-between;gap:8px;padding:5px 8px;border-radius:7px;background:{{ p.btnBg }};border:1px solid {{ p.btnBd }};font:400 11.5px/1.2 'IBM Plex Sans';color:{{ p.ink }}">{{ r.v }}<i style="font-style:normal;font-size:9px;color:{{ p.faint }}">▾</i></span>
+          </sc-if>
+          <sc-if value="{{ r.isDead }}" hint-placeholder-val="{{ false }}">
+            <span style="flex:1;min-width:0;display:flex;justify-content:space-between;gap:8px;padding:5px 8px;border-radius:7px;background:{{ p.btnBg }};border:1px solid {{ p.btnBd }};font:400 11.5px/1.2 'IBM Plex Sans';color:{{ p.faint }};opacity:.45">{{ r.v }}<i style="font-style:normal;font-size:9px">▾</i></span>
+          </sc-if>
+        </div>
+      </sc-for>
+      <sc-if value="{{ v.flyNote }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-top:10px;padding-top:9px;border-top:1px solid {{ p.hair }};font:400 10.5px/1.6 'IBM Plex Sans';color:{{ p.faint }}">{{ v.flyNote }}</div>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <div style="position:absolute;left:22px;bottom:18px;display:flex;gap:6px;padding:6px;background:{{ p.plate }};border:1px solid {{ p.border }};border-radius:9px;backdrop-filter:blur(14px)">
+    <sc-for list="{{ v.rail }}" as="t" hint-placeholder-count="5">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:3px;width:50px;padding:8px 0;border-radius:6px;background:{{ t.bg }};color:{{ t.col }}">
+        <svg viewBox="0 0 18 18" style="width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.35;stroke-linecap:round;stroke-linejoin:round">
+          <sc-for list="{{ t.paths }}" as="d" hint-placeholder-count="2">
+            <path d="{{ d }}"></path>
+          </sc-for>
+        </svg>
+        <span style="font:500 8px/1.2 'IBM Plex Sans';letter-spacing:.06em;text-transform:uppercase">{{ t.k }}</span>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="position:absolute;right:22px;bottom:18px;padding:11px 14px 10px;background:{{ p.plate }};border:1px solid {{ p.border }};border-radius:9px;backdrop-filter:blur(14px)">
+    <div style="display:flex;gap:22px;align-items:flex-start">
+      <sc-for list="{{ v.pfd }}" as="r" hint-placeholder-count="3">
+        <div style="text-align:right;min-width:62px">
+          <b style="display:block;font:600 30px/1.02 'IBM Plex Sans';letter-spacing:-.01em;color:{{ r.col }}">{{ r.v }}</b>
+          <i style="font-style:normal;font:500 8.5px/1 'IBM Plex Sans';letter-spacing:.15em;text-transform:uppercase;color:{{ p.faint }}">{{ r.u }}</i>
+        </div>
+      </sc-for>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:11px;padding-top:10px;border-top:1px solid {{ p.hair }}">
+      <b style="font:600 9.5px/1 'IBM Plex Sans';letter-spacing:.18em;text-transform:uppercase;color:{{ v.phaseCol }};white-space:nowrap">{{ v.phase }}</b>
+      <div style="display:flex;gap:3px;align-items:center;margin-left:auto">
+        <sc-for list="{{ v.ticks }}" as="t" hint-placeholder-count="14">
+          <i style="width:{{ t.w }};height:3px;border-radius:2px;background:{{ t.bg }}"></i>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <sc-if value="{{ v.hasArr }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:520px;padding:20px 22px 18px;background:{{ p.panel }};border:1px solid {{ p.border }};border-radius:11px;box-shadow:0 24px 60px rgba(0,0,0,.55)">
+      <div style="display:flex;align-items:baseline;gap:12px;padding-bottom:13px;border-bottom:1px solid {{ p.hair }}">
+        <b style="font:600 17px/1 'IBM Plex Sans';letter-spacing:.06em;color:{{ p.ink }}">Arrived at Morford</b>
+        <span style="margin-left:auto;font:500 10px/1 'IBM Plex Sans';letter-spacing:.1em;text-transform:uppercase;color:{{ p.accInk }};background:{{ p.acc }};border-radius:6px;padding:6px 9px">landed</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 26px;margin-top:6px">
+        <sc-for list="{{ arrRows }}" as="r" hint-placeholder-count="8">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:6px 0;border-bottom:1px solid {{ p.hair }}">
+            <span style="font:400 11.5px/1.2 'IBM Plex Sans';color:{{ p.dim }}">{{ r.k }}</span>
+            <b style="font:500 12.5px/1 'IBM Plex Sans';color:{{ r.col }}">{{ r.v }}</b>
+          </div>
+        </sc-for>
+      </div>
+      <div style="margin-top:12px;font:400 11px/1.65 'IBM Plex Sans';color:{{ p.faint }}">Touchdown 4 km/h above the bench's stall figure and 60 m of run to spare. The tailwheel skipped once — the pilot's note calls it a flat approach, not a bounce.</div>
+      <div style="display:flex;gap:9px;margin-top:15px">
+        <div style="flex:1;text-align:center;font:600 12px/1 'IBM Plex Sans';letter-spacing:.1em;text-transform:uppercase;color:{{ p.accInk }};background:{{ p.acc }};padding:12px 0;border-radius:8px">Log the flight</div>
+        <div style="flex:1;text-align:center;font:500 12px/1 'IBM Plex Sans';letter-spacing:.1em;text-transform:uppercase;color:{{ p.ink }};background:{{ p.btnBg }};border:1px solid {{ p.btnBd }};padding:12px 0;border-radius:8px">What went wrong</div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</div>
+</div>
+</sc-for>
+</div>
+<p class="dv-next">Turn 1 below keeps the earlier arrangement (verbs bottom-right, PFD top-right) for comparison.</p>
+</section>
+
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">The flight interface, rebaselined — one system with the editor</span></div>
+
+<p class="dv-note">Read from the built code, not from memory: <b>body.html</b> (the <code>#ui</code> layer, verbatim ids and copy), <b>style.css</b> (the amber-on-glass palette, still IBM Plex <b>Mono</b>), <b>editor.css</b> + <b>editor.js</b> (the Bone palette, <code>#edRail</code>/<code>#edFly</code>, the plate metrics, the real icon paths — reused here), <b>app.js</b> (the 14 phases, the PFD, the telemetry cells, the arrival card, the cockpit eye), <b>bench.js</b> and the ROADMAP's floating chantiers (F4 day cycle, F5 atmosphere, F6 aerodrome) for what has to fit later.</p>
+
+<p class="dv-rule"><b>The rule, and every decision below follows from it.</b> The editor's rule is spatial — <i>every surface has exactly one job</i>. Flight has a <b>before, during and after</b> that the editor does not, so its rule is temporal: <b>the screen answers three questions in the order the flight asks them — what am I flying · what is it doing · what happened — and nothing that answers one stays on screen while another is being asked.</b> The floating-plate grammar is the editor's, unchanged: plates over the render, <b>top = what you do with it</b>, <b>bottom = how you look at it</b>, one flyout per question.</p>
+
+<div class="dv-opts">
+
+<div class="dv-opt" id="1a">
+<div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Today, recreated — four panels, eight controls in one wrapping row, and the mono/amber palette the editor already dropped</div>
+<div class="dv-card">
+<div style="position:relative;width:1440px;height:810px;background:#cfe0ec;font-family:'IBM Plex Sans',sans-serif;overflow:hidden">
+  <div style="position:absolute;inset:0;background:linear-gradient(#a8c8e4 0%,#cfe0ec 46%,#d8e3e0 54%,#6f7d5e 56%,#55603f 100%)"></div>
+  <div style="position:absolute;left:0;right:0;top:44%;display:flex;align-items:center;justify-content:center;font:500 11px/1.7 'IBM Plex Mono',monospace;letter-spacing:.2em;text-transform:uppercase;color:rgba(20,26,18,.34);text-align:center">live flight view · alpine valley<br>your aeroplane, airborne</div>
+
+  <div style="position:absolute;inset:0;padding:14px;display:flex;flex-direction:column;justify-content:space-between">
+    <div style="display:grid;grid-template-columns:minmax(0,auto) 1fr minmax(0,auto);gap:10px;align-items:start">
+      <div style="padding:9px 13px 10px;max-width:250px;background:rgba(32,24,18,.5);border:1px solid rgba(255,234,206,.2);border-radius:12px;backdrop-filter:blur(18px)">
+        <span style="display:block;font:600 8.5px/1 'IBM Plex Mono',monospace;letter-spacing:.24em;text-transform:uppercase;color:#a5978a;margin-bottom:5px">Garage Flight Sim</span>
+        <b style="display:block;font:600 12.5px/1.25 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:#fbf4ea">PIPER PA-18 SUPER CUB</b>
+        <span style="display:block;font:400 10px/1.5 'IBM Plex Mono',monospace;color:#d3c3ae;margin-top:3px">794 kg · 10.7 m span · O-320 150 hp</span>
+      </div>
+      <div style="justify-self:center;display:flex;align-items:center;gap:12px;padding:10px 15px;background:rgba(32,24,18,.5);border:1px solid rgba(255,234,206,.2);border-radius:12px;backdrop-filter:blur(18px)">
+        <b style="font:600 10.5px/1 'IBM Plex Mono',monospace;letter-spacing:.18em;color:#ffb257;white-space:nowrap">CLIMB</b>
+        <div style="display:flex;gap:4px;align-items:flex-end">
+          <sc-for list="{{ oldTicks }}" as="t" hint-placeholder-count="14">
+            <i style="width:4px;height:{{ t.h }};border-radius:1px;background:{{ t.bg }}"></i>
+          </sc-for>
+        </div>
+      </div>
+      <div style="justify-self:end;display:flex;gap:20px;padding:9px 15px 10px;background:rgba(32,24,18,.5);border:1px solid rgba(255,234,206,.2);border-radius:12px;backdrop-filter:blur(18px)">
+        <div style="text-align:right"><b style="display:block;font:600 26px/1.05 'IBM Plex Mono',monospace;color:#fbf4ea">128</b><i style="font-style:normal;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:#d3c3ae">km/h ias</i></div>
+        <div style="text-align:right"><b style="display:block;font:600 26px/1.05 'IBM Plex Mono',monospace;color:#fbf4ea">412</b><i style="font-style:normal;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:#d3c3ae">m alt</i></div>
+        <div style="text-align:right"><b style="display:block;font:600 26px/1.05 'IBM Plex Mono',monospace;color:#fbf4ea">2.4</b><i style="font-style:normal;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:#d3c3ae">m/s vs</i></div>
+      </div>
+    </div>
+
+    <div style="flex:1;display:flex;justify-content:flex-end;align-items:flex-start;padding-top:10px;min-height:0">
+      <div style="padding:5px;background:rgba(32,24,18,.5);border:1px solid rgba(255,234,206,.2);border-radius:12px">
+        <div style="width:172px;height:172px;border-radius:9px;background:repeating-linear-gradient(45deg,rgba(20,14,10,.55) 0 10px,rgba(34,26,18,.55) 10px 20px);display:flex;align-items:center;justify-content:center;font:500 9px 'IBM Plex Mono',monospace;letter-spacing:.12em;color:rgba(255,234,206,.42)">MINIMAP</div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;align-items:flex-start;gap:8px">
+      <div style="padding:13px 15px 14px;width:556px;background:rgba(32,24,18,.5);border:1px solid rgba(255,234,206,.2);border-radius:12px;backdrop-filter:blur(18px)">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px;gap:16px">
+          <h2 style="font:600 10px/1 'IBM Plex Sans';letter-spacing:.18em;text-transform:uppercase;color:#d3c3ae;margin:0">Telemetry</h2>
+          <span style="font:500 11px/1.3 'IBM Plex Mono',monospace;color:#ffb257">climb · 1.8 km flown</span>
+        </div>
+        <div style="height:120px;border-radius:4px;background:repeating-linear-gradient(90deg,rgba(255,234,206,.05) 0 1px,transparent 1px 42px),rgba(20,14,10,.4)"></div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:7px 14px;margin-top:11px">
+          <sc-for list="{{ oldCells }}" as="c" hint-placeholder-count="12">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;font:400 11px/1 'IBM Plex Mono',monospace;border-bottom:1px solid rgba(255,234,206,.1);padding-bottom:5px">
+              <span style="font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#a5978a">{{ c.k }}</span>
+              <b style="font-weight:500;color:#fbf4ea">{{ c.v }}</b>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;gap:16px;margin-top:11px;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#a5978a">
+          <em style="font-style:normal;display:inline-flex;align-items:center;gap:6px"><i style="width:16px;height:2px;background:#63d3cc"></i>altitude</em>
+          <em style="font-style:normal;display:inline-flex;align-items:center;gap:6px"><i style="width:16px;height:2px;background:#ffb257"></i>speed</em>
+          <em style="font-style:normal;display:inline-flex;align-items:center;gap:6px;margin-left:auto"><i style="width:16px;height:2px;background:#63d3cc"></i>compression</em>
+          <em style="font-style:normal;display:inline-flex;align-items:center;gap:6px"><i style="width:16px;height:2px;background:#ffb257"></i>tension</em>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;align-self:stretch">
+        <sc-for list="{{ oldSecs }}" as="s" hint-placeholder-count="3">
+          <div style="display:flex;align-items:center;border:1px solid rgba(255,234,206,.2);border-radius:9px;background:rgba(38,28,20,.48);overflow:hidden">
+            <i style="font-style:normal;font:600 8px/1 'IBM Plex Mono',monospace;letter-spacing:.2em;text-transform:uppercase;color:#a5978a;padding:0 9px">{{ s.k }}</i>
+            <sc-for list="{{ s.opts }}" as="o" hint-placeholder-count="2">
+              <div style="font:400 11px/1 'IBM Plex Sans';color:#fbf4ea;padding:11px 13px;border-left:1px solid rgba(255,234,206,.2);display:flex;gap:8px;align-items:center">{{ o }}<span style="color:#a5978a">▾</span></div>
+            </sc-for>
+          </div>
+        </sc-for>
+        <div style="display:flex;border:1px solid rgba(255,234,206,.2);border-radius:9px;background:rgba(38,28,20,.48);overflow:hidden">
+          <div style="font:600 11px/1 'IBM Plex Sans';letter-spacing:.1em;text-transform:uppercase;color:#2c1a06;background:#ffb257;padding:11px 15px">Fly the circuit</div>
+          <div style="font:500 11px/1 'IBM Plex Sans';letter-spacing:.1em;text-transform:uppercase;color:#fbf4ea;padding:11px 15px;border-left:1px solid rgba(255,234,206,.2)">Restart</div>
+          <div style="font:500 11px/1 'IBM Plex Sans';letter-spacing:.1em;text-transform:uppercase;color:#fbf4ea;padding:11px 15px;border-left:1px solid rgba(255,234,206,.2)">Pause</div>
+          <div style="font:500 11px/1 'IBM Plex Sans';letter-spacing:.1em;text-transform:uppercase;color:#fbf4ea;padding:11px 15px;border-left:1px solid rgba(255,234,206,.2)">Hangar</div>
+        </div>
+        <div style="font:500 11px/1 'IBM Plex Sans';letter-spacing:.1em;text-transform:uppercase;color:#fbf4ea;border:1px solid rgba(255,234,206,.2);background:rgba(38,28,20,.48);padding:11px 15px;border-radius:9px">Telemetry</div>
+        <div style="font:500 11px/1 'IBM Plex Sans';letter-spacing:.1em;text-transform:uppercase;color:#fbf4ea;border:1px solid rgba(255,234,206,.2);background:rgba(38,28,20,.48);padding:11px 15px;border-radius:9px">Skin</div>
+        <span style="margin-left:auto;font:400 9px/1.6 'IBM Plex Mono',monospace;color:rgba(251,244,234,.38);text-align:right;max-width:290px">PA-18 model: Emmanuel Baranger (helijah) · livery: Brett Harrison · C172 model: NLM (CC-BY 4.0)</span>
+        <span style="font:400 10px/1.6 'IBM Plex Mono',monospace;letter-spacing:.1em;color:rgba(251,244,234,.62)">drag to orbit · scroll to zoom</span>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+
+<sc-for list="{{ views }}" as="v" hint-placeholder-count="4">
+<div class="dv-opt" id="{{ v.id }}">
+<div class="dv-olabel"><a class="dv-oid" href="#{{ v.id }}">{{ v.id }}</a>{{ v.name }} — {{ v.note }}</div>
+<div class="dv-card">
+<div style="position:relative;width:1440px;height:810px;background:#0d1014;font-family:'IBM Plex Sans',sans-serif;font-variant-numeric:tabular-nums;overflow:hidden">
+  <div style="position:absolute;inset:0;background:{{ v.sky }}"></div>
+  <div style="position:absolute;left:0;right:0;top:{{ v.horizon }};display:flex;align-items:center;justify-content:center;font:500 10.5px/1.8 'IBM Plex Sans';letter-spacing:.2em;text-transform:uppercase;color:{{ v.skyTx }};text-align:center">{{ v.scene }}</div>
+
+  <div style="position:absolute;left:22px;top:18px;display:flex;flex-direction:column;gap:9px;align-items:flex-start;max-width:560px">
+    <sc-if value="{{ v.briefOpen }}" hint-placeholder-val="{{ true }}">
+      <div style="padding:10px 12px;background:{{ p.plate }};border:1px solid {{ p.border }};border-radius:9px;backdrop-filter:blur(14px)">
+        <div style="display:flex;align-items:center;gap:9px;padding:0 2px 9px;border-bottom:1px solid {{ p.hair }}">
+          <span style="font:600 9.5px/1 'IBM Plex Sans';letter-spacing:.2em;text-transform:uppercase;color:{{ p.faint }}">The flight</span>
+          <span style="margin-left:auto;font:400 10px/1 'IBM Plex Sans';color:{{ p.faint }}">{{ v.briefMeta }}</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;padding-top:9px">
+          <sc-for list="{{ v.brief }}" as="s" hint-placeholder-count="4">
+            <div style="display:flex;flex-direction:column;gap:4px;min-width:0;padding:7px 11px;border-radius:7px;background:{{ s.bg }};border:1px solid {{ s.bd }}">
+              <span style="font:500 8.5px/1 'IBM Plex Sans';letter-spacing:.16em;text-transform:uppercase;color:{{ s.lab }}">{{ s.k }}</span>
+              <span style="display:flex;align-items:baseline;gap:7px;font:500 12px/1.2 'IBM Plex Sans';color:{{ s.col }};white-space:nowrap">{{ s.v }}<i style="font-style:normal;font-size:9px;color:{{ s.lab }}">▾</i></span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ v.briefLine }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;align-items:center;gap:10px;padding:9px 14px;background:{{ p.plate }};border:1px solid {{ p.border }};border-radius:9px;backdrop-filter:blur(14px)">
+        <b style="font:600 12px/1 'IBM Plex Sans';letter-spacing:.08em;color:{{ p.ink }}">{{ v.lineName }}</b>
+        <span style="width:1px;height:13px;background:{{ p.hair }}"></span>
+        <span style="font:400 11px/1 'IBM Plex Sans';color:{{ p.dim }}">{{ v.lineTrip }}</span>
+        <span style="width:1px;height:13px;background:{{ p.hair }}"></span>
+        <span style="font:400 11px/1 'IBM Plex Sans';color:{{ p.faint }}">{{ v.lineDay }}</span>
+        <i style="font-style:normal;font-size:10px;color:{{ p.acc }}">▾</i>
+      </div>
+    </sc-if>
+    <sc-if value="{{ v.hasNotice }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;align-items:center;gap:9px;padding:8px 12px;background:{{ p.plate }};border:1px solid {{ v.noticeBd }};border-radius:8px;backdrop-filter:blur(14px)">
+        <span style="font:500 9.5px/1 'IBM Plex Sans';letter-spacing:.14em;text-transform:uppercase;color:{{ v.noticeCol }}">{{ v.noticeK }}</span>
+        <span style="font:400 11px/1.4 'IBM Plex Sans';color:{{ p.dim }}">{{ v.noticeV }}</span>
+      </div>
+    </sc-if>
+  </div>
+
+  <div style="position:absolute;right:22px;top:18px;padding:11px 14px 10px;background:{{ p.plate }};border:1px solid {{ p.border }};border-radius:9px;backdrop-filter:blur(14px)">
+    <div style="display:flex;gap:22px;align-items:flex-start">
+      <sc-for list="{{ v.pfd }}" as="r" hint-placeholder-count="3">
+        <div style="text-align:right;min-width:62px">
+          <b style="display:block;font:600 30px/1.02 'IBM Plex Sans';letter-spacing:-.01em;color:{{ r.col }}">{{ r.v }}</b>
+          <i style="font-style:normal;font:500 8.5px/1 'IBM Plex Sans';letter-spacing:.15em;text-transform:uppercase;color:{{ p.faint }}">{{ r.u }}</i>
+        </div>
+      </sc-for>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:11px;padding-top:10px;border-top:1px solid {{ p.hair }}">
+      <b style="font:600 9.5px/1 'IBM Plex Sans';letter-spacing:.18em;text-transform:uppercase;color:{{ v.phaseCol }};white-space:nowrap">{{ v.phase }}</b>
+      <div style="display:flex;gap:3px;align-items:center;margin-left:auto">
+        <sc-for list="{{ v.ticks }}" as="t" hint-placeholder-count="14">
+          <i style="width:{{ t.w }};height:3px;border-radius:2px;background:{{ t.bg }}"></i>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <sc-if value="{{ v.hasMap }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;right:22px;top:{{ v.mapTop }};padding:5px;background:{{ p.plate }};border:1px solid {{ p.border }};border-radius:9px">
+      <div style="width:196px;height:196px;border-radius:6px;background:radial-gradient(120% 120% at 30% 20%,#2b3128,#1a1d18);display:flex;align-items:flex-end;justify-content:center;padding-bottom:9px;font:500 8.5px/1 'IBM Plex Sans';letter-spacing:.16em;text-transform:uppercase;color:{{ p.faint }}">the map · north up</div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ v.hasTrace }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:{{ v.traceLeft }};right:22px;bottom:82px;padding:12px 14px 13px;background:{{ p.plate }};border:1px solid {{ p.border }};border-radius:9px;backdrop-filter:blur(14px)">
+      <div style="display:flex;align-items:baseline;gap:9px;padding-bottom:9px">
+        <span style="font:600 9.5px/1 'IBM Plex Sans';letter-spacing:.2em;text-transform:uppercase;color:{{ p.faint }}">The trace</span>
+        <span style="margin-left:auto;font:400 10px/1 'IBM Plex Sans';color:{{ p.faint }}">1.8 km flown · 2 min 14 s</span>
+      </div>
+      <div style="height:104px;border-radius:5px;background:repeating-linear-gradient(90deg,rgba(255,248,236,.045) 0 1px,transparent 1px 52px),rgba(0,0,0,.26)"></div>
+      <div style="display:flex;gap:16px;margin-top:10px;font:500 8.5px/1 'IBM Plex Sans';letter-spacing:.14em;text-transform:uppercase;color:{{ p.faint }}">
+        <em style="font-style:normal;display:inline-flex;align-items:center;gap:6px"><i style="width:15px;height:2px;background:{{ p.acc }}"></i>altitude</em>
+        <em style="font-style:normal;display:inline-flex;align-items:center;gap:6px"><i style="width:15px;height:2px;background:{{ p.dim }}"></i>speed</em>
+        <em style="font-style:normal;display:inline-flex;align-items:center;gap:6px"><i style="width:15px;height:2px;background:{{ p.warn }}"></i>strain</em>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ v.hasFly }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:{{ v.flyLeft }};bottom:82px;width:288px;padding:12px 14px 14px;background:{{ p.plate }};border:1px solid {{ p.border }};border-radius:9px;backdrop-filter:blur(14px)">
+      <div style="font:600 10px/1 'IBM Plex Sans';letter-spacing:.2em;text-transform:uppercase;color:{{ p.faint }};padding-bottom:9px;margin-bottom:6px;border-bottom:1px solid {{ p.hair }}">{{ v.flyHead }}</div>
+      <sc-if value="{{ v.flyPills }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 2px">
+          <sc-for list="{{ v.flyPills }}" as="o" hint-placeholder-count="5">
+            <div style="font:500 10px/1 'IBM Plex Sans';letter-spacing:.08em;text-transform:uppercase;color:{{ o.col }};background:{{ o.bg }};border:1px solid {{ o.bd }};border-radius:7px;padding:7px 11px">{{ o.k }}</div>
+          </sc-for>
+        </div>
+      </sc-if>
+      <sc-for list="{{ v.flyRows }}" as="r" hint-placeholder-count="4">
+        <div style="display:flex;gap:10px;align-items:center;margin:7px 0;font:400 11.5px/1.3 'IBM Plex Sans';color:{{ p.dim }}">
+          <span style="width:104px;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.k }}</span>
+          <sc-if value="{{ r.isTog }}" hint-placeholder-val="{{ true }}">
+            <span style="width:30px;height:16px;flex:none;border-radius:9px;background:{{ r.fill }};border:1px solid {{ r.bd }};position:relative;display:inline-block">
+              <span style="position:absolute;top:2px;left:{{ r.knob }};width:10px;height:10px;border-radius:50%;background:{{ p.panel }}"></span>
+            </span>
+            <span style="font:400 11px/1 'IBM Plex Sans';color:{{ p.faint }}">{{ r.v }}</span>
+          </sc-if>
+          <sc-if value="{{ r.isRange }}" hint-placeholder-val="{{ false }}">
+            <div style="position:relative;flex:1;height:16px">
+              <div style="position:absolute;top:7px;left:0;right:0;height:3px;border-radius:2px;background:{{ p.track }}"></div>
+              <div style="position:absolute;top:7px;left:0;height:3px;border-radius:2px;background:{{ p.acc }};opacity:.55;width:{{ r.pct }}"></div>
+              <div style="position:absolute;top:3px;width:11px;height:11px;border-radius:50%;background:{{ p.acc }};left:{{ r.pct }}"></div>
+            </div>
+            <span style="width:48px;flex:none;text-align:right;font:500 11px/1 'IBM Plex Sans';color:{{ p.ink }}">{{ r.v }}</span>
+          </sc-if>
+          <sc-if value="{{ r.isSel }}" hint-placeholder-val="{{ false }}">
+            <span style="flex:1;min-width:0;display:flex;justify-content:space-between;gap:8px;padding:5px 8px;border-radius:7px;background:{{ p.btnBg }};border:1px solid {{ p.btnBd }};font:400 11.5px/1.2 'IBM Plex Sans';color:{{ p.ink }}">{{ r.v }}<i style="font-style:normal;font-size:9px;color:{{ p.faint }}">▾</i></span>
+          </sc-if>
+          <sc-if value="{{ r.isDead }}" hint-placeholder-val="{{ false }}">
+            <span style="flex:1;min-width:0;display:flex;justify-content:space-between;gap:8px;padding:5px 8px;border-radius:7px;background:{{ p.btnBg }};border:1px solid {{ p.btnBd }};font:400 11.5px/1.2 'IBM Plex Sans';color:{{ p.faint }};opacity:.45">{{ r.v }}<i style="font-style:normal;font-size:9px">▾</i></span>
+          </sc-if>
+        </div>
+      </sc-for>
+      <sc-if value="{{ v.flyNote }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-top:10px;padding-top:9px;border-top:1px solid {{ p.hair }};font:400 10.5px/1.6 'IBM Plex Sans';color:{{ p.faint }}">{{ v.flyNote }}</div>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <div style="position:absolute;left:22px;right:22px;bottom:18px;display:flex;align-items:center;gap:10px">
+    <div style="display:flex;gap:6px;padding:6px;background:{{ p.plate }};border:1px solid {{ p.border }};border-radius:9px;backdrop-filter:blur(14px)">
+      <sc-for list="{{ v.rail }}" as="t" hint-placeholder-count="5">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:3px;width:50px;padding:8px 0;border-radius:6px;background:{{ t.bg }};color:{{ t.col }}">
+          <svg viewBox="0 0 18 18" style="width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.35;stroke-linecap:round;stroke-linejoin:round">
+            <sc-for list="{{ t.paths }}" as="d" hint-placeholder-count="2">
+              <path d="{{ d }}"></path>
+            </sc-for>
+          </svg>
+          <span style="font:500 8px/1.2 'IBM Plex Sans';letter-spacing:.06em;text-transform:uppercase">{{ t.k }}</span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:9px">
+      <sc-for list="{{ v.verbs }}" as="b" hint-placeholder-count="4">
+        <div style="font:{{ b.font }};letter-spacing:.1em;text-transform:uppercase;color:{{ b.col }};background:{{ b.bg }};border:1px solid {{ b.bd }};padding:{{ b.pad }};border-radius:8px">{{ b.k }}</div>
+      </sc-for>
+    </div>
+  </div>
+
+  <sc-if value="{{ v.hasArr }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:520px;padding:20px 22px 18px;background:{{ p.panel }};border:1px solid {{ p.border }};border-radius:11px;box-shadow:0 24px 60px rgba(0,0,0,.55)">
+      <div style="display:flex;align-items:baseline;gap:12px;padding-bottom:13px;border-bottom:1px solid {{ p.hair }}">
+        <b style="font:600 17px/1 'IBM Plex Sans';letter-spacing:.06em;color:{{ p.ink }}">Arrived at Morford</b>
+        <span style="margin-left:auto;font:500 10px/1 'IBM Plex Sans';letter-spacing:.1em;text-transform:uppercase;color:{{ p.accInk }};background:{{ p.acc }};border-radius:6px;padding:6px 9px">landed</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 26px;margin-top:6px">
+        <sc-for list="{{ arrRows }}" as="r" hint-placeholder-count="8">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:6px 0;border-bottom:1px solid {{ p.hair }}">
+            <span style="font:400 11.5px/1.2 'IBM Plex Sans';color:{{ p.dim }}">{{ r.k }}</span>
+            <b style="font:500 12.5px/1 'IBM Plex Sans';color:{{ r.col }}">{{ r.v }}</b>
+          </div>
+        </sc-for>
+      </div>
+      <div style="margin-top:12px;font:400 11px/1.65 'IBM Plex Sans';color:{{ p.faint }}">Touchdown 4 km/h above the bench's stall figure and 60 m of run to spare. The tailwheel skipped once — the pilot's note calls it a flat approach, not a bounce.</div>
+      <div style="display:flex;gap:9px;margin-top:15px">
+        <div style="flex:1;text-align:center;font:600 12px/1 'IBM Plex Sans';letter-spacing:.1em;text-transform:uppercase;color:{{ p.accInk }};background:{{ p.acc }};padding:12px 0;border-radius:8px">Fly on</div>
+        <div style="flex:1;text-align:center;font:500 12px/1 'IBM Plex Sans';letter-spacing:.1em;text-transform:uppercase;color:{{ p.ink }};background:{{ p.btnBg }};border:1px solid {{ p.btnBd }};padding:12px 0;border-radius:8px">Log it &amp; go to the shed</div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</div>
+</div>
+</sc-for>
+
+</div>
+
+<p class="dv-next"><b>What this cuts, and where each thing went.</b> The aircraft card → the flight plate's first slot (the brand line goes: you know what game you are in). The phase rail's own panel → a 3 px track inside the PFD plate, which is where you were already looking. The always-on minimap → the <code>map</code> flyout's own panel. The whole telemetry footer → <code>trace</code>, called up, with peak strain as a third line rather than a cell. The 12-cell grid → <code>instruments</code> (which readouts the PFD carries) and <code>air</code> (OAT, QNH, density altitude, wind — F5's numbers, in one place). The eight-control bottom row → four slots in the plate, each a flyout. <code>Skin</code> → a <code>display</code> row. The credit string → the shed's about line. The <code>drag to orbit</code> hint → shown once on the first flight, then gone. The disabled <b>time of day</b> select → a live row in <code>air</code> the day F4 lands, and until then absent rather than greyed on the main screen.</p>
+<p class="dv-next">Try next: "the PFD as one strip across the top instead of a plate" · "show the taxi/line-up state" · "put the verbs bottom-left with the rail, like the editor's <code>#edBotBar</code>" · "add a cargo slot to the flight plate"</p>
+</section>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1540,&quot;height&quot;:900}}">
+class Component extends DCLogic {
+  renderVals() {
+    // ---- the Bone palette, byte-for-byte from editor.css -----------------
+    const p = {
+      panel: '#201d1a', board: '#1a1815', plate: 'rgba(32,29,26,.94)',
+      ink: '#f4efe6', dim: '#c0b8ac', faint: '#97907f',
+      acc: '#e6dbc9', accInk: '#221f1b', accSoft: 'rgba(230,219,201,.14)',
+      hair: 'rgba(255,248,236,.09)', border: 'rgba(255,248,236,.14)',
+      btnBg: 'rgba(255,255,255,.06)', btnBd: 'rgba(255,255,255,.18)',
+      track: 'rgba(0,0,0,.3)', off: 'rgba(255,255,255,.12)',
+      offBd: 'rgba(255,255,255,.22)', warn: '#d8a07a', bad: '#e08a5a',
+    };
+
+    // ---- 1a: today's screen ----------------------------------------------
+    // the 14 phases of app.js, CLIMB current
+    const PH = ['DEPART', 'TAXI', 'LINEUP', 'ROLL', 'LIFTOFF', 'CLIMB',
+      'CRUISE', 'ENROUTE', 'TURNBACK', 'INBOUND', 'APPROACH', 'FLARE',
+      'ROLLOUT', 'STOPPED'];
+    const at = PH.indexOf('CLIMB');
+    const oldTicks = PH.map((k, i) => ({
+      h: i === at ? '15px' : '9px',
+      bg: i === at ? '#ffb257' : i < at ? 'rgba(255,234,206,.55)'
+        : 'rgba(255,234,206,.2)',
+    }));
+    const oldCells = [
+      ['AoA', '3.4°'], ['Bank', '2.1°'], ['AGL', '318 m'], ['Throttle', '92%'],
+      ['Elevator', '-1.8°'], ['Aileron', '0.4°'], ['Rudder', '1.2°'],
+      ['Peak strain', '0.31'], ['TAS', '134 km/h'], ['OAT', '11 °C'],
+      ['Density alt', '640 m'], ['Power', '94%'],
+    ].map(c => ({ k: c[0], v: c[1] }));
+    const oldSecs = [
+      { k: 'aircraft', opts: ['Piper PA-18 Super Cub', 'Pilot · auto'] },
+      { k: 'trip', opts: ['Home Field', '⟳ Circuit'] },
+      { k: 'day', opts: ['Standard day · calm', 'Midday · fixed sun'] },
+    ];
+
+    // ---- the look rail: the editor's own component ------------------------
+    // camera / display / measure carry editor.js's verbatim icon paths, so the
+    // two screens are visibly one product; map / trace / air are new, drawn to
+    // the same 18-box, 1.35 stroke.
+    const ICON = {
+      camera: ['M4 5.5h2.2l1-1.5h3.6l1 1.5H14a1 1 0 0 1 1 1V13a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6.5a1 1 0 0 1 1-1Z', 'M9 11.6a2.1 2.1 0 1 0 0-4.2 2.1 2.1 0 0 0 0 4.2Z'],
+      display: ['M1.6 9S4.4 4.2 9 4.2 16.4 9 16.4 9 13.6 13.8 9 13.8 1.6 9 1.6 9Z', 'M9 11.1a2.1 2.1 0 1 0 0-4.2 2.1 2.1 0 0 0 0 4.2Z'],
+      instr: ['M9 15.4A6.4 6.4 0 1 0 9 2.6a6.4 6.4 0 0 0 0 12.8Z', 'M9 9l3.1-2.6', 'M9 4.6v1.1', 'M13.4 9h-1.1', 'M4.6 9h1.1'],
+      map: ['M6.6 3.2 2.8 4.8v10l3.8-1.6 4.8 1.6 3.8-1.6v-10l-3.8 1.6-4.8-1.6Z', 'M6.6 3.2v10.6', 'M11.4 4.8v10.6'],
+      trace: ['M2.6 12.4l3.4-4.2 2.8 2.2 3-4.4 3.6 3.2', 'M2.6 15.2h12.8'],
+      air: ['M2.4 6.6h8.2a2.1 2.1 0 1 0-2-2.6', 'M2.4 9.8h11.2a2.1 2.1 0 1 1-2 2.6', 'M2.4 13h6'],
+    };
+    const rail = (onKey) => [
+      { k: 'camera', i: 'camera' }, { k: 'instruments', i: 'instr' },
+      { k: 'map', i: 'map' }, { k: 'trace', i: 'trace' }, { k: 'air', i: 'air' },
+    ].map(t => ({
+      k: t.k, paths: ICON[t.i],
+      col: t.k === onKey ? p.accInk : p.dim,
+      bg: t.k === onKey ? p.acc : 'transparent',
+    }));
+
+    // ---- the verbs -------------------------------------------------------
+    const verb = (k, kind) => ({
+      k,
+      font: kind === 'pri' ? "600 12px/1 'IBM Plex Sans'" : "500 12px/1 'IBM Plex Sans'",
+      pad: kind === 'pri' ? '11px 18px' : '11px 16px',
+      col: kind === 'pri' ? p.accInk : p.ink,
+      bg: kind === 'pri' ? p.acc : p.btnBg,
+      bd: kind === 'pri' ? p.acc : p.btnBd,
+    });
+
+    // ---- the flight plate: four decisions, one slot each ------------------
+    const slot = (k, v, arm) => ({
+      k, v,
+      col: arm ? p.warn : p.ink,
+      lab: arm ? p.warn : p.faint,
+      bg: p.btnBg, bd: arm ? 'rgba(216,160,122,.5)' : p.btnBd,
+    });
+    const briefFull = [
+      slot('aeroplane', 'Whittaker II'),
+      slot('pilot', 'Pilot · auto'),
+      slot('route', 'Home Field → Morford'),
+      slot('day', 'Standard · calm'),
+    ];
+
+    // ---- flyout rows -----------------------------------------------------
+    const tog = (k, on, v) => ({
+      isTog: 1, k, v, fill: on ? p.acc : p.off, bd: on ? p.acc : p.offBd,
+      knob: on ? '16px' : '2px',
+    });
+    const rng = (k, v, pct) => ({ isRange: 1, k, v, pct: pct + '%' });
+    const sel = (k, v) => ({ isSel: 1, k, v });
+    const dead = (k, v) => ({ isDead: 1, k, v });
+    const pill = (k, on) => ({
+      k, col: on ? p.accInk : p.dim, bg: on ? p.acc : 'transparent',
+      bd: on ? p.acc : p.btnBd,
+    });
+
+    const FLY = {
+      camera: {
+        head: 'camera',
+        pills: [pill('chase', true), pill('orbit', false), pill('cockpit', false),
+          pill('wing', false), pill('tower', false)],
+        rows: [rng('field of view', '62°', 48), tog('level horizon', true, 'on'),
+          rng('lead the turn', '0.35', 35)],
+        note: 'Cockpit is the pilot eye the editor already flies — one control, both screens.',
+      },
+      air: {
+        head: 'air',
+        rows: [sel('conditions', 'Standard day · calm'),
+          rng('wind', '2.5 m/s', 25), rng('gusts', 'none', 0),
+          dead('time of day', 'Midday · fixed sun')],
+        note: 'Time of day is greyed until the day cycle lands, and it is greyed HERE rather than on the main screen.',
+      },
+      trace: {
+        head: 'trace',
+        rows: [tog('show the trace', true, 'on'), tog('altitude', true, 'on'),
+          tog('speed', true, 'on'), tog('peak strain', true, 'on')],
+        note: 'What the telemetry footer was. Strain is a line on the graph now, not a cell in a grid.',
+      },
+    };
+
+    // ---- the four states of one design -----------------------------------
+    const SKY_DAY = 'linear-gradient(#7ea6c9 0%,#a9c6dc 40%,#c3d2cf 52%,#5e6b4c 55%,#3c4632 100%)';
+    const SKY_LOW = 'linear-gradient(#6d93b4 0%,#9fbccf 34%,#b6c6c2 48%,#55613f 51%,#333c28 100%)';
+    const SKY_EVE = 'linear-gradient(#4c5f78 0%,#8a7d75 38%,#b08a63 50%,#3f4530 53%,#252b1c 100%)';
+
+    const phTicks = (nowKey) => {
+      const i = PH.indexOf(nowKey);
+      return PH.map((k, j) => ({
+        w: j === i ? '14px' : '7px',
+        bg: j === i ? p.acc : j < i ? 'rgba(230,219,201,.45)' : p.off,
+      }));
+    };
+    const pfd = (a, b, c, warnIdx) => [
+      { v: a, u: 'km/h ias' }, { v: b, u: 'm alt' }, { v: c, u: 'm/s vs' },
+    ].map((r, i) => Object.assign(r, { col: i === warnIdx ? p.warn : p.ink }));
+
+    const views = [
+      {
+        id: '1b', name: 'Before — on the apron',
+        note: 'the four decisions, one plate: what you fly, who flies it, where to, and what the day is. Everything else on the screen is one row of five look buttons and the verbs — and the aeroplane has the middle of the frame.',
+        sky: SKY_DAY, horizon: '46%', skyTx: 'rgba(18,24,16,.34)',
+        scene: 'live flight view · home field, strip 09 · held on the apron',
+        briefOpen: true, briefMeta: 'held · 794 kg all-up',
+        brief: briefFull,
+        hasNotice: true, noticeK: 'not certified',
+        noticeV: 'the bench has not passed since your last three changes',
+        noticeBd: 'rgba(216,160,122,.5)', noticeCol: p.warn,
+        pfd: pfd('0', '412', '0.0', -1), phase: 'HOLDING', phaseCol: p.faint,
+        ticks: phTicks(''),
+        rail: rail(null), flyRows: [],
+        verbs: [verb('Fly the circuit', 'pri'), verb('The shed', '')],
+      },
+      {
+        id: '1c', name: 'During — airborne, one flyout open',
+        note: 'the plate folds to a single line the moment the wheels leave, because nobody changes their aeroplane at 400 ft. The rail is the editor\'s own component, its flyout opens upward from its own button, and the phase lives inside the PFD plate as a 3 px track.',
+        sky: SKY_LOW, horizon: '40%', skyTx: 'rgba(18,24,16,.3)',
+        scene: 'live flight view · climbing out over the valley',
+        briefLine: true, lineName: 'Whittaker II',
+        lineTrip: 'Home Field → Morford · 12 km',
+        lineDay: 'standard · calm',
+        pfd: pfd('128', '412', '+2.4', -1), phase: 'CLIMB', phaseCol: p.acc,
+        ticks: phTicks('CLIMB'),
+        rail: rail('camera'), hasFly: 1, flyLeft: '22px',
+        flyHead: FLY.camera.head, flyPills: FLY.camera.pills,
+        flyRows: FLY.camera.rows, flyNote: FLY.camera.note,
+        verbs: [verb('Pause', ''), verb('Restart', ''), verb('The shed', '')],
+      },
+      {
+        id: '1d', name: 'During — the map and the trace called up',
+        note: 'the two panels that used to be permanent. Summoned they are bigger and better than they were nailed down, and the default screen is quiet because they are not on it. Note the air flyout: this is where F5\'s numbers and F4\'s time of day land, not on the bottom bar.',
+        sky: SKY_LOW, horizon: '40%', skyTx: 'rgba(18,24,16,.3)',
+        scene: 'live flight view · en route, 1 100 m',
+        briefLine: true, lineName: 'Whittaker II',
+        lineTrip: 'Home Field → Morford · 7 km to run',
+        lineDay: 'standard · calm',
+        pfd: pfd('147', '1 104', '+0.2', -1), phase: 'ENROUTE', phaseCol: p.acc,
+        ticks: phTicks('ENROUTE'),
+        // A FLYOUT SITS UNDER ITS OWN BUTTON — openFly()'s one stated rule
+        // (`bb.left - vb.left - 6`). `air` is the 5th button, so the flyout is
+        // at x 247, and the TRACE plate moves to the right half under the map
+        // rather than the flyout moving off its button.
+        rail: rail('air'), hasMap: 1, mapTop: '128px',
+        hasTrace: 1, traceLeft: '862px',
+        hasFly: 1, flyLeft: '247px',
+        flyHead: FLY.air.head, flyRows: FLY.air.rows, flyNote: FLY.air.note,
+        verbs: [verb('Pause', ''), verb('Restart', ''), verb('The shed', '')],
+      },
+      {
+        id: '1e', name: 'After — the arrival',
+        note: 'the one panel that appears rather than being summoned, in the editor\'s own plaque grammar so the flight\'s numbers and the bench\'s numbers are visibly the same kind of thing. The two ways onward are the two things you actually do next.',
+        sky: SKY_EVE, horizon: '44%', skyTx: 'rgba(255,240,220,.26)',
+        scene: 'live flight view · morford, stopped on the grass',
+        briefLine: true, lineName: 'Whittaker II',
+        lineTrip: 'Home Field → Morford · 12 km flown',
+        lineDay: 'standard · calm',
+        pfd: pfd('0', '712', '0.0', -1), phase: 'STOPPED', phaseCol: p.acc,
+        ticks: phTicks('STOPPED'),
+        rail: rail(null), flyRows: [], hasArr: 1,
+        verbs: [verb('Fly on', 'pri'), verb('The shed', '')],
+      },
+    ];
+
+    // ---- turn 2: the verbs where the editor puts them --------------------
+    // editor.css: #edTopBar holds #edFleet (the object's own controls) at the
+    // left and #edActs (Roll out & fly) at `margin-left:auto` — the SAME row.
+    // #edBotBar holds only #edRail. So in flight the brief takes #edFleet's
+    // place, the verbs take #edActs's, and the PFD moves to the bottom row
+    // opposite the rail: eyes down for numbers, ahead for the aeroplane.
+    const views2 = [
+      {
+        id: '2a', name: 'Before — on the apron',
+        note: 'the brief takes #edFleet\'s place and the verbs take #edActs\'s — same row, same far-right alignment, same plate. The PFD moves to the bottom row opposite the look rail.',
+        sky: SKY_DAY, horizon: '46%', skyTx: 'rgba(18,24,16,.34)',
+        scene: 'live flight view · home field, strip 09 · held on the apron',
+        briefOpen: true, briefMeta: 'held · 794 kg all-up', brief: briefFull,
+        hasNotice: true, noticeK: 'not certified',
+        noticeV: 'the bench has not passed since your last three changes',
+        noticeBd: 'rgba(216,160,122,.5)', noticeCol: p.warn,
+        pfd: pfd('0', '412', '0.0', -1), phase: 'HOLDING', phaseCol: p.faint,
+        ticks: phTicks(''), rail: rail(null), flyRows: [],
+        verbs: [verb('Fly the circuit', 'pri'), verb('The shed', '')],
+      },
+      {
+        id: '2b', name: 'During — airborne, camera flyout open',
+        note: 'the brief folds to one line; the verbs stay exactly where they were, so the thing you press to stop or restart never moves between the two screens. The flyout still opens upward from its own button.',
+        sky: SKY_LOW, horizon: '40%', skyTx: 'rgba(18,24,16,.3)',
+        scene: 'live flight view · climbing out over the valley',
+        briefLine: true, lineName: 'Whittaker II',
+        lineTrip: 'Home Field → Morford · 12 km', lineDay: 'standard · calm',
+        pfd: pfd('128', '412', '+2.4', -1), phase: 'CLIMB', phaseCol: p.acc,
+        ticks: phTicks('CLIMB'), rail: rail('camera'),
+        hasFly: 1, flyLeft: '22px', flyHead: FLY.camera.head,
+        flyPills: FLY.camera.pills, flyRows: FLY.camera.rows,
+        flyNote: FLY.camera.note,
+        verbs: [verb('Pause', ''), verb('Restart', ''), verb('The shed', '')],
+      },
+      {
+        id: '2c', name: 'During — the map and the trace called up',
+        note: 'the two panels that used to be permanent, summoned. The trace fills the left of the bottom row up to the PFD; the map hangs under the verbs on the right.',
+        sky: SKY_LOW, horizon: '40%', skyTx: 'rgba(18,24,16,.3)',
+        scene: 'live flight view · en route, 1 100 m',
+        briefLine: true, lineName: 'Whittaker II',
+        lineTrip: 'Home Field → Morford · 7 km to run',
+        lineDay: 'standard · calm',
+        pfd: pfd('147', '1 104', '+0.2', -1), phase: 'ENROUTE', phaseCol: p.acc,
+        ticks: phTicks('ENROUTE'), rail: rail('trace'),
+        hasMap: 1, mapTop: '92px', hasTrace: 1, flyRows: [],
+        verbs: [verb('Pause', ''), verb('Restart', ''), verb('The shed', '')],
+      },
+      {
+        id: '2d', name: 'After — the arrival',
+        note: 'the one panel that appears rather than being summoned, in the plaque\'s own grammar. Its two buttons are the flight\'s, so they sit ON the card — the top row\'s verbs are the screen\'s.',
+        sky: SKY_EVE, horizon: '44%', skyTx: 'rgba(255,240,220,.26)',
+        scene: 'live flight view · morford, stopped on the grass',
+        briefLine: true, lineName: 'Whittaker II',
+        lineTrip: 'Home Field → Morford · 12 km flown',
+        lineDay: 'standard · calm',
+        pfd: pfd('0', '712', '0.0', -1), phase: 'STOPPED', phaseCol: p.acc,
+        ticks: phTicks('STOPPED'), rail: rail(null), flyRows: [], hasArr: 1,
+        verbs: [verb('Fly on', 'pri'), verb('The shed', '')],
+      },
+    ];
+
+    const arrRows = [
+      { k: 'outcome', v: 'landed' }, { k: 'flight time', v: '9 min 12 s' },
+      { k: 'distance', v: '12.4 km' }, { k: 'touchdown', v: '72 km/h' },
+      { k: 'landing run', v: '186 m' }, { k: 'peak strain', v: '0.44' },
+      { k: 'fuel used', v: '11.2 L' }, { k: 'verdict', v: 'flies a circuit' },
+    ].map(r => Object.assign({}, r, {
+      col: r.k === 'peak strain' ? p.warn : p.ink,
+    }));
+
+    return { p, oldTicks, oldCells, oldSecs, views, views2, arrRows };
+  }
+}
+
+</script>
+</body>
+</html>

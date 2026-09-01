@@ -55,7 +55,11 @@ if (typeof resolveSpec !== 'function' || typeof genFrame !== 'function' ||
 const TIP_KEYS = Object.keys(GEN_TIPS);
 const FLAP_KEYS = Object.keys(GEN_FLAPS);
 PAGE.defaults = Object.assign({
-  wingOn: 1, wgSpan: 10.0, wgChord: 1.60, wgChordTip: 1.60, wgSweep: 0,
+  // G140: wgSweep is RETIRED — the planform is three stations now (root,
+  // crank, tip), each with a chord and a fore/aft offset in metres. The
+  // migrator (GEN_MIGRATORS[5]) lifts an old save's angle into the offsets.
+  wingOn: 1, wgSpan: 10.0, wgChord: 1.60, wgChordTip: 1.60,
+  wgTipX: 0, wgCrankChord: 1.60, wgCrankX: 0,
   wgDihedral: 3.0, wgIncidence: 1.5, wgWashout: 1.5,
   wgCamber: 2, wgThick: 12,
   wgTip: Math.max(0, TIP_KEYS.indexOf('rounded')), wgPos: 0,
@@ -83,9 +87,19 @@ const WING_ITEMS = [
   ['wgTip',    'tips',           0, TIP_KEYS.length - 1, 1,
    TIP_KEYS.map(k => GEN_TIPS[k].name), on],
   ['wgCrankAt', 'crank at',      0, 0.85, 0.05, on],
+  // G140: the crank SECTION — its own chord and fore/aft seat, the same
+  // two numbers the root and tip carry. On a strutted wing the crank is
+  // where the strut lands (the frame's ruling), so this trio IS the
+  // C172's wing: constant chord to the strut, taper and offset outboard.
+  ['wgCrankChord', 'crank chord', 0.55, 2.10, 0.05,
+   { when: P => +P.wingOn && +P.wgCrankAt > 0, dim: 'm' }],
+  ['wgCrankX', 'crank aft',      -0.8, 1.5, 0.05,
+   { when: P => +P.wingOn && +P.wgCrankAt > 0, dim: 'm' }],
   ['wgDihedralOut', 'dih. outer', 0, 20, 0.5,
    { when: P => +P.wingOn && +P.wgCrankAt > 0 }],
-  ['wgSweep',  'sweep',          -15, 30, 1, on],
+  // G140: sweep retired — the TIP's fore/aft seat is the honest knob (the
+  // old angle was tan(this / exposed semispan))
+  ['wgTipX',   'tip aft',        -1.5, 2.5, 0.05, { ...on, dim: 'm' }],
   ['wgDihedral', 'dihedral',     0, 6, 0.5, on],
   ['wgIncidence', 'incidence',   -1, 4, 0.1, on],
   ['wgWashout', 'washout',       0, 4, 0.1, on],
@@ -354,7 +368,9 @@ PAGE.post = ctx => {
   if (prevPost) prevPost(ctx);
   const { scene, spec, mesh, P, stat } = ctx;
   dispose(group); group = null;
-  if (!P.wingOn) return;
+  // G133: no wing, no contract — a stale CAGE_WING would hand the gear
+  // layer an underside probe for a wing that is no longer there
+  if (!P.wingOn) { window.CAGE_WING = null; return; }
   const FS = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
 
   // the game spec: defaults + the panel's wing — everything else rides
@@ -370,13 +386,19 @@ PAGE.post = ctx => {
       span: P.wgSpan, chord: P.wgChord,
       taper: Math.max(0.2, Math.min(1.0,
         P.wgChordTip / Math.max(0.2, P.wgChord))),
-      sweep: P.wgSweep, dihedral: P.wgDihedral, incidence: P.wgIncidence,
+      // G140: the stations, explicit — tipX 0 is a real value (straight),
+      // sweep is never written; the resolved wing derives sweepEff for
+      // the polar from what the stations actually do
+      tipX: +P.wgTipX || 0,
+      dihedral: P.wgDihedral, incidence: P.wgIncidence,
       washout: P.wgWashout,
       naca: cam * 1000 + (cam > 0 ? 400 : 0) + thk,
       panels: Math.round(P.wgPanels),
       position: ['high', 'mid', 'low'][Math.round(P.wgPos)] || 'high',
       tip: TIP_KEYS[Math.round(P.wgTip)] || 'rounded',
       crankAt: P.wgCrankAt > 0 ? P.wgCrankAt : 0,
+      crankChord: P.wgCrankAt > 0 ? +P.wgCrankChord : null,
+      crankX: P.wgCrankAt > 0 ? (+P.wgCrankX || 0) : null,
       dihedralOut: P.wgCrankAt > 0 ? P.wgDihedralOut : null,
       centre: ['solid', 'glass', 'open'][Math.round(P.wgCentre)] || 'solid',
     }],
@@ -899,24 +921,49 @@ PAGE.post = ctx => {
     }
     return out.length ? out : null;
   }
+  // THE LENS IS THE AEROPLANE'S OWN GLASS (the user: "issue with the wing
+  // `cut lamps` material ... Can we just use the same glass shader as the
+  // rest?"). It was a hand-rolled MeshStandardMaterial — 0.34 alpha, no
+  // clearcoat, no glazing dials — on the argument that "a landing-light lens
+  // is a thick clear moulding, not a window". That argument is SUPERSEDED,
+  // and it was costing two things, not one taste:
+  //
+  //   1. IT WAS NOT GLASS IN FLIGHT AT ALL. The snapshot records a group's
+  //      finish from `userData.aeroFinish`, and a hand-rolled material has
+  //      none — so the flown aeroplane rebuilt the lens through
+  //      `aeroMaterial` instead of `aeroGlass`. The editor and the game were
+  //      drawing two different materials for one part, which is the exact
+  //      failure G108 closed everywhere else ("there is one factory, and both
+  //      worlds call it").
+  //   2. It was DoubleSide, so the far pane of the band showed through the
+  //      near one — the same phantom limb the cabin glazing went FrontSide to
+  //      cure. The bay's interior cage backs it, so there is nothing to see.
+  //
+  // One factory, pooled, with the glazing's own clearcoat and dials.
   const lensMatW = () => {
+    const A = (typeof window !== 'undefined' && window.AEROSKIN) || null;
+    if (A && A.aeroGlass) return A.aeroGlass(THREE, {});
+    // the standalone bench has no aeroskin layer; it gets a stand-in that at
+    // least reads as glass rather than as pale covering
     const m = new THREE.MeshStandardMaterial({
       color: 0xdfeaf2, roughness: 0.07, metalness: 0.0,
       transparent: true, opacity: 0.34, side: THREE.DoubleSide,
       depthWrite: false });
     m.userData.aeroskin = 1;      // the understudy must not flatten the glass
+    m.userData.aeroFinish = 'glass';
     return m;
   };
   // KEPT for the strut block below: a fitting on the wing has to sit on the
   // wing that is DRAWN, exactly as the fuselage fitting sits on the drawn
   // cage. This is that surface, in cage space, before it is dressed.
   let wingGeo = null;
+  const skinProbe = [];        // G133: every skin class, for the underside
   if (gs.skin) {
     const parts = pickParts(gs.skin, wingVert(gs.skin), toCage, skinClass,
                             wingField(gs.skin));
     for (const cl of ['main', 'centre', 'tip']) {
       const pr = add(parts, cl, wingMat(cl));
-      if (pr) faces += pr.geo.index.count / 3;
+      if (pr) { faces += pr.geo.index.count / 3; skinProbe.push(pr.geo); }
     }
     // THE LENS, over the hole the classifier just made. Same faces, same
     // frame, glass instead of covering — and named so the light layer can
@@ -932,7 +979,11 @@ PAGE.post = ctx => {
         ? new THREE.LineSegments(pr.wire, wireMat('glassC'))
         : new THREE.Mesh(pr.geo, lensMatW());
       o.name = 'edLens_wing' + sd;
-      o.renderOrder = 3;
+      // ABOVE THE GROUND THE AEROPLANE FLIES OVER. See AERO_CLEAR in app.js:
+      // the world's aerodrome decals are transparent, depthWrite:false and
+      // carry render orders of their own, and the wing's cut leaves no opaque
+      // depth behind this pane to stop them.
+      o.renderOrder = 1003;
       group.add(o);
       // THE INTERIOR CAGE (G98, user: "it misses an interior cage ... it is
       // contained in a little cage, with an aft wall and side walls with the
@@ -1179,8 +1230,40 @@ PAGE.post = ctx => {
     }
   scene.add(group);
 
+  // G133: THE UNDERSIDE, PUBLISHED. The gear layer's low-wing rule needs
+  // "the wing's lower skin at plan position (x, z)", and it must be the
+  // wing that is DRAWN — the strut fittings' own rule, one block up. One
+  // vertical ray cast up from below the aeroplane against fresh probe
+  // meshes of the skin classes (fresh so an EXPLODED view still measures
+  // the wing at its own place — the dims-pane rule); the answer is the
+  // lowest skin point above that position with its normal turned downward,
+  // or null off the planform. Cage-space metres, the gear layer's units.
+  let underAt = null;
+  if (skinProbe.length && THREE.Raycaster) {
+    const pg = new THREE.Group();
+    // DoubleSide, explicitly: the Raycaster culls by material.side, and an
+    // upward ray meets the underside's faces from behind their winding —
+    // measured, the main section answered null while the centre answered,
+    // purely on which way each class's triangles happened to wind.
+    const pm = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+    for (const g of skinProbe) pg.add(new THREE.Mesh(g, pm));
+    pg.updateMatrixWorld(true);
+    const rc = new THREE.Raycaster();
+    rc.far = 1000;
+    const o = new THREE.Vector3(), d = new THREE.Vector3(0, 1, 0);
+    underAt = (x, z) => {
+      o.set(x, -60, z);
+      rc.set(o, d);
+      const h = rc.intersectObject(pg, true);
+      if (!h.length || !h[0].face) return null;
+      const n = h[0].face.normal;
+      const sg2 = n.y > 0 ? -1 : 1;
+      return { y: h[0].point.y, n: [n.x * sg2, n.y * sg2, n.z * sg2] };
+    };
+  }
   window.CAGE_WING = { def, semi: def.spec.geom && def.spec.geom.semi,
-                       skinFaces: faces, anchor: { zCab, yAnchor }, group };
+                       skinFaces: faces, anchor: { zCab, yAnchor }, group,
+                       underAt };
   if (stat) {
     const g2 = def.spec.geom || {};
     stat.textContent += '  ·  wing: ' + (g2.S ? g2.S.toFixed(1) + ' m2 · ' : '') +

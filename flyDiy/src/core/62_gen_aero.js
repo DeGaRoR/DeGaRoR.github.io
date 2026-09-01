@@ -87,8 +87,12 @@ function genTailPolar(AR, matCd0) {
 // ---------------------------------------------------------------------------
 function genStrips(S, fr) {
   const P = fr.parts, R = GEN_RULES, strips = [];
-  const PP = POWERPLANTS[S.engine];
-  const Reff = (PP.prop.D / 2) * R.washSpread;
+  // G134: the resolved row (custom dials outrank the preset), and the wash
+  // radius follows the RESOLVED disc — G131 made the drawn prop the thrust
+  // model's author, but the wash still blew at the registry diameter. For
+  // every fiche S.prop.D IS the registry D, so nothing pre-G131 moves.
+  const PP = S.pplant || POWERPLANTS[S.engine];
+  const Reff = ((S.prop && S.prop.D ? S.prop.D : PP.prop.D) / 2) * R.washSpread;
   // fraction of propwash a strip at |z| sees; fitted to the Cub's hand values
   // (centre strip 1.0, first outboard strip 0.5, everything beyond 0)
   const washAt = z => Math.max(0, 1 - (z / Reff) * (z / Reff));
@@ -199,24 +203,41 @@ function genFusCdA(S, fr) {
 // Coefficients are the classic flat-plate values (Hoerner): an exposed wheel
 // 0.55 on its frontal, a spatted one 0.22, a full trouser 0.15; a bare leg is
 // a cylinder at 1.0, faired 0.30; a lift strut is a streamline section at
-// 0.10. Tyre width is 0.76R (the light-aircraft aspect), the third wheel is
-// never faired by the wheel fairing, and the strut length runs from the
-// lower longeron to ~55% semispan.
+// 0.10. Tyre width is 0.76R (the light-aircraft aspect), and the strut
+// length runs from the lower longeron to ~55% semispan.
+//
+// G133 refinements, each with drawn geometry behind it (the G121.2 rule):
+//   - the third wheel's fairing prices on EVERY leg family now — the
+//     tailwheel castor draws its own shell since G133, so the tricycle-only
+//     gate (a shell-less fairing must move nothing) is retired;
+//   - the tail-droplet slider shapes the shell's run-out, so it shades the
+//     fairing Cd (a longer, finer tail is the cleaner body — Hoerner's
+//     fineness-ratio trend, scaled well inside his scatter). Exactly 1.0 at
+//     the default length, so no stock number moved;
+//   - the LEG fairing is its own field at last: `legFair` (mains) and
+//     `twLegFair` (third leg) draw a streamline shroud and take the leg
+//     from 1.0 to 0.30, and `fairing: 'full'` now actually draws the shroud
+//     it has been pricing since G115. The third LEG term is new — bare in
+//     both build and reference, so it cancels on every pre-G133 build.
+//   Skirt depth, rake and width stay geometry-only: clearance and attitude
+//   choices, priced no more than legDrop is (stance is not a drag knob).
+const genFairDroplet = t => 1 - 0.18 * (Math.max(0.70, Math.min(1.60, t || 1)) - 1);
 function genGearCdA(S, semi) {
   const G = S.gear;
-  const wCd = G.fairing === 'full' ? 0.15 : G.fairing === 'spat' ? 0.22 : 0.55;
+  const wCd = (G.fairing === 'full' ? 0.15 : G.fairing === 'spat' ? 0.22 : 0.55)
+            * (G.fairing && G.fairing !== 'none' ? genFairDroplet(G.fairTail) : 1);
   const R = G.wheelR || 0.20, Rt = G.twR || 0.10;
-  // G121.2: the third wheel prices its OWN fairing — but only on a
-  // tricycle, because that is the only leg family the layer draws a shell
-  // for (the tailwheel castor has no spat branch, and a priced fairing with
-  // no geometry would be the INVERSE of the lie G115 fixed).
-  const tCd = S.gear.type === 'tricycle'
-    ? (G.twFairing === 'full' ? 0.15 : G.twFairing === 'spat' ? 0.22 : 0.55)
-    : 0.55;
+  const tCd = (G.twFairing === 'full' ? 0.15 : G.twFairing === 'spat' ? 0.22 : 0.55)
+            * (G.twFairing && G.twFairing !== 'none'
+               ? genFairDroplet(G.twFairTail) : 1);
   let cda = 2 * wCd * (2 * R * 0.76 * R)          // two mains
           + tCd * (2 * Rt * 0.76 * Rt);           // the third wheel
   const drop = G.legDrop || 0.42;
-  cda += 2 * (G.fairing === 'full' ? 0.30 : 1.0) * drop * 0.05;   // the legs
+  const legCd = (G.fairing === 'full' || G.legFair === 'fair') ? 0.30 : 1.0;
+  cda += 2 * legCd * drop * 0.05;                 // the main legs
+  const twDrop = G.twLeg || 0.20;
+  cda += (G.twFairing === 'full' || G.twLegFair === 'fair' ? 0.30 : 1.0)
+       * twDrop * 0.05;                           // the third leg
   if (S.bracing.type === 'strut')
     cda += 2 * 0.10 * (0.55 * semi * 1.12) * 0.06;  // two lift struts
   return cda;
@@ -232,8 +253,16 @@ function genGearCdADelta(S, semi) {
   // the reference shares THIS build's resolved leg drop: leg length is a
   // stance choice the calibration already priced, not a drag knob — but the
   // leg FAIRING still counts, through the Cd factor the fairing field picks.
-  const ref = { gear: { fairing: 'none', wheelR: 0.20, twR: 0.10,
-                        legDrop: S.gear.legDrop || 0.42 },
+  // G133: the third LEG's length rides the same rule (shared, bare), and
+  // every fairing field the model reads must be RESTATED here — a field the
+  // ref literal forgets is a field whose default silently recalibrates the
+  // fleet (GATE HONEST's stockDelta check is the tripwire).
+  const ref = { gear: { fairing: 'none', twFairing: 'none',
+                        legFair: 'none', twLegFair: 'none',
+                        fairTail: 1, twFairTail: 1,
+                        wheelR: 0.20, twR: 0.10,
+                        legDrop: S.gear.legDrop || 0.42,
+                        twLeg: S.gear.twLeg },
                 bracing: { type: 'strut' } };
   return Math.max(-0.08, genGearCdA(S, semi) - genGearCdA(ref, semi));
 }
@@ -622,7 +651,10 @@ function genGains(pl, params) {
 function genParams(S, fr, strips) {
   const M = GEN_MATERIALS[S.material];
   const G = S.geom;
-  const polarWing = genPolar(S.wing.naca, G.AR, S.wing.strut, M.cd0, M.clmaxK, S.wing.sweep,
+  // G140: sweepEff — the legacy field verbatim, or the area-weighted |LE
+  // sweep| the three-station law derives (resolveSpec sets it either way)
+  const polarWing = genPolar(S.wing.naca, G.AR, S.wing.strut, M.cd0, M.clmaxK,
+                             S.wing.sweepEff != null ? S.wing.sweepEff : S.wing.sweep,
                              (GEN_TIPS[S.wing.tip] || GEN_TIPS.rounded).e);
   const hAR = S.tail.hSpan * S.tail.hSpan / S.tail.Sh;
   const polarTail = genTailPolar(hAR, M.cd0);
@@ -674,6 +706,11 @@ function genParams(S, fr, strips) {
   return {
     name: S.name, viewDist: Math.max(9, 1.4 * S.wing.span),
     powerplant: S.engine,
+    // G134: the def carries its OWN engine facts — the solver's aspiration
+    // read, the plaque's engine line and the coming burn/ventilation models
+    // consume these instead of re-looking-up the registry at runtime. For a
+    // fiche this IS the registry row's engine dict, so nothing moves.
+    engine: (S.pplant || POWERPLANTS[S.engine]).engine,
     // HOW MANY ENGINES, which is NOT how many mount nodes. `refs.engine` is the
     // two mount points of one engine here, and the solver used to multiply
     // thrust by its length — so a generated single fell on 2x its own prop.

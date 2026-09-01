@@ -22,11 +22,20 @@
 // property rather than a promise in a comment.
 // ---------------------------------------------------------------------------
 //
-// WHAT THE ROADMAP ENTRY GOT WRONG, and it is why this is cheap: there is no
-// GLB to load, and r128 loads none — no loader is vendored anywhere in the
+// WHAT THE ROADMAP ENTRY GOT WRONG, and it is why this started cheap: there is
+// no GLB to load, and r128 loads none — no loader is vendored anywhere in the
 // project. The Cub and the C172 are ALREADY BAKED payloads (MODEL_PA18 /
 // MODEL_C172, src/models/), already inlined in the artifact, already decoded
-// by decodeModel for the flight side. The reference costs ZERO NEW BYTES.
+// by decodeModel for the flight side. Those two cost ZERO NEW BYTES.
+//
+// AND THAT IS NO LONGER THE WHOLE STORY (G138). The seven aeroplanes added
+// beside them are here ONLY to be looked at — nothing else in the game flies
+// them, so every byte they carry is a byte the reference itself is spending.
+// They are baked by tools/ref_prep.py, which exists precisely because a
+// reference needs so much less than a flyable aeroplane: no control surfaces,
+// no hinge lines, no sid tags, no hub. Their cost, and which of them the
+// ARTIFACT can afford to carry, is a build decision — see build.js
+// MANIFEST.models and GATE REF's licence check.
 //
 // THE SIT IS COMPUTED, NEVER READ. Measured on decode: the C172's frame has
 // minY = +0.0098 (it sits on its wheels) and the PA-18's has minY = -1.3516
@@ -78,12 +87,83 @@
 // Declared here rather than derived at runtime, and GATE REF re-derives it
 // from the payload and holds the declaration to it — the same contract `pub`
 // has, for the same reason: a number nothing checks is a number that rots.
+//
+// `node tools/_ref_sit.js [key]` IS THE INSTRUMENT that produces these numbers
+// (G138), and it deliberately writes nothing: it lists EVERY local maximum of
+// the stance and leaves the choice to a person. It has to, because the widest
+// stance is not the parked one — the C172's widest is 12.22 deg nose-up, where
+// it balances on its mains and the bottom of its tailcone over 5.1 m, half a
+// metre wider than the 1.83 m nose-to-mains stance it actually parks on. The
+// reading is: a taildragger's pair is mains-forward + tailwheel-aft, several
+// degrees nose-up; a tricycle's is nosewheel-forward + mains-aft, near level.
+//
+// `pub.tol` is a PER-ROW tolerance on the scale check, and it exists for one
+// aeroplane. Most types have one published span; the Pioneer 200 has three
+// (7.30 / 7.55 / 7.65 m) and three lengths (6.09 / 6.15 / 6.20 m), because
+// nobody agrees. Widening the global tolerance to swallow that would weaken
+// the check for the other eight, and quietly picking whichever published pair
+// the model happens to match would be measuring the ruler with the object. So
+// the row declares the disagreement, in `pub.note`, and buys exactly as much
+// slack as the disagreement is worth. GATE REF requires a note wherever there
+// is a tol — a loosened check with no reason on it is the one that rots.
 var REF_PRESETS = [
   { key: 'none', name: '— none —', model: null },
   { key: 'pa18', name: 'Piper PA-18 Super Cub', model: 'pa18',
     pub: { span: 10.73, len: 6.88 }, sit: { pitch: 12.09 } },
   { key: 'c172', name: 'Cessna 172', model: 'c172',
     pub: { span: 11.00, len: 8.28 }, sit: { pitch: 0.20 } },
+  // ---- helijah's seven (G138). Sit pitches derived by tools/_ref_sit.js off
+  // each payload's own lower hull, then declared here; GATE REF re-derives
+  // them. Four of the seven park level on a nosewheel and three are
+  // taildraggers, which is the whole reason the sit is computed at all.
+  { key: 'd112', name: 'Jodel D.112', model: 'd112',
+    pub: { span: 8.22, len: 6.50 }, sit: { pitch: 7.72 } },
+  { key: 'pio200', name: 'Alpi Pioneer 200', model: 'pio200',
+    pub: { span: 7.55, len: 6.15, tol: 0.025,
+           note: 'published sources disagree: span 7.30 / 7.55 / 7.65 m, ' +
+                 'length 6.09 / 6.15 / 6.20 m. The model is inside that ' +
+                 'spread; the spread is wider than the model is wrong.' },
+    sit: { pitch: 0.33 } },
+  { key: 'c195', name: 'Cessna 195 Businessliner', model: 'c195',
+    pub: { span: 11.02, len: 8.33 }, sit: { pitch: 14.15 } },
+  { key: 'a22', name: 'Aeroprakt A-22 Foxbat', model: 'a22',
+    pub: { span: 10.10, len: 6.30 }, sit: { pitch: 0.03 } },
+  { key: 'p68', name: 'Partenavia P.68', model: 'p68',
+    pub: { span: 12.00, len: 9.55 }, sit: { pitch: 0.06 } },
+  { key: 'rv8', name: "Van's RV-8", model: 'rv8',
+    pub: { span: 7.32, len: 6.40 }, sit: { pitch: 8.62 } },
+  { key: 'sr22', name: 'Cirrus SR22', model: 'sr22',
+    pub: { span: 11.68, len: 7.92 }, sit: { pitch: -0.03 } },
+  // ---- the second batch (G142), seven of the user's eight. The eighth is
+  // DRACO, and it is baked but has NO PRESET: Mike Patey's turbine Wilga is a
+  // one-off with a lengthened nose and a re-spanned wing, and nobody has ever
+  // published its dimensions. Against the stock Wilga 2000 the model is 12%
+  // long, which is not an error — it is a different aeroplane. A reference
+  // whose scale nothing can hold is worse than no reference at all, because
+  // every measurement taken against it is confidently wrong. See
+  // tools/ref_table.py's `draco` row.
+  { key: 'da40', name: 'Diamond DA40', model: 'da40',
+    pub: { span: 11.90, len: 8.10 }, sit: { pitch: 2.76 } },
+  { key: 'g115', name: 'Grob G 115', model: 'g115',
+    pub: { span: 10.00, len: 7.79,
+           note: 'the G115E/Tutor figures — the model is the long-nosed E, ' +
+                 'and the early upright-fin G115/G115A is shorter.' },
+    sit: { pitch: -0.04 } },
+  { key: 'stemme', name: 'Stemme S6 Sky Sportster', model: 'stemme',
+    pub: { span: 18.00, len: 8.52 }, sit: { pitch: 0.01 } },
+  { key: 'guepard', name: 'Super Guépard 912', model: 'guepard',
+    pub: { span: 9.70, len: 6.00,
+           note: 'the manufacturer/ULM-press figures (span 9.70 m, "six ' +
+                 'metres to the tail"). English Wikipedia says 8.5 m span, ' +
+                 'which is 15% under this model and under every French ' +
+                 'source; it is the outlier, not the model.' },
+    sit: { pitch: -0.41 } },
+  { key: 'yak18t', name: 'Yakovlev Yak-18T', model: 'yak18t',
+    pub: { span: 11.16, len: 8.354 }, sit: { pitch: 0.58 } },
+  { key: 'eiii', name: 'Fokker E.III Eindecker', model: 'eiii',
+    pub: { span: 9.52, len: 7.20 }, sit: { pitch: 10.01 } },
+  { key: 'pa28', name: 'Piper PA-28-161 Cadet', model: 'pa28',
+    pub: { span: 10.67, len: 7.25 }, sit: { pitch: 0.00 } },
 ];
 
 // THE SIT. The reference's lowest point lands on the floor the build stands
@@ -202,17 +282,50 @@ var LS = 'flydiy.ref';          // display state, and ONLY display state
 var MODES = [['clay', 'white clay'], ['authored', 'as authored'],
              ['ghost', 'ghost'], ['wire', 'wireframe']];
 
+// THE CUT (G142, user: "a view where half of our lane is cutout, but the
+// other half compared to the reference plane").
+//
+//   'off'    two whole aeroplanes, one standing beside or inside the other.
+//   'ref'    the REFERENCE loses its right half. What the G91 checkbox did.
+//   'split'  ONE AEROPLANE, HALF EACH. The reference keeps its left half and
+//            the build loses its left half, so the two meet on the centreline
+//            and you are looking at a single composite machine: your cowl and
+//            their cowl in the same photograph, sharing a spine.
+//
+// WHY THAT IS WORTH A MODE OF ITS OWN, and not just two checkboxes. Comparing
+// two overlaid aeroplanes is comparing two silhouettes and hoping; comparing
+// two HALVES of one aeroplane puts every difference on a seam a few
+// centimetres wide, where the eye is extremely good. A canopy 40 mm too tall
+// is invisible as a ghost and unmissable as a step in a roofline.
+//
+// BOTH HALVES ARE CUT BY THE SAME WORLD PLANE, z = 0, and that only means
+// anything because both aeroplanes are symmetric about it: the build's mount
+// is turned to face -x so its own centreline lies on z = 0, and every
+// reference payload is z-symmetric to the millimetre (GATE REF asserts it —
+// the one delivered model that was not is the Guepard, whose frame was
+// translated, and it is corrected in the bake rather than here).
+var CUTS = [['off', 'off'],
+            ['ref', 'reference: left half only'],
+            ['split', 'split: your right, theirs left']];
+
 // the whole of this feature's state. None of it is the aeroplane's.
 var S = {
   preset: 'none', scale: 1,
   fore: 0, lat: 0, trim: 0, yaw: 0, pitch: 0,
-  mode: 'clay', alpha: 1, occlude: false, half: false, showBox: false,
+  mode: 'clay', alpha: 1, occlude: false, cut: 'off', half: false, showBox: false,
   off: {},                      // matKey -> true when hidden
   matA: {},                     // matKey -> its own alpha
 };
 try {
   var raw = localStorage.getItem(LS);
-  if (raw) { var j = JSON.parse(raw); for (var k in j) if (k in S) S[k] = j[k]; }
+  if (raw) {
+    var j = JSON.parse(raw);
+    for (var k in j) if (k in S) S[k] = j[k];
+    // the G91 checkbox became a three-way (G142). A save written before that
+    // carries `half` and no `cut`, and losing somebody's half-view because the
+    // control grew a third option would be a rude way to ship a feature.
+    if (j.half && !j.cut) S.cut = 'ref';
+  }
 } catch (e) { /* a private window is not a reason to have no reference */ }
 function save() {
   try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) {}
@@ -222,7 +335,7 @@ var body = null;                // THREE.Group holding the meshes, under refSit
 var built = null;               // { key, model, dec, payload, box, mats, meshes }
 var texCache = {};              // model key -> { texName: Texture }
 var panelEl = null, dimsEl = null, matsEl = null;
-var boxHelper = null, CLIP = null;
+var boxHelper = null, CLIP = null, CLIP_B = null;
 
 function M() { return window.REF_MOUNT || null; }
 
@@ -261,7 +374,19 @@ function disposeBuilt() {
 function build(key) {
   disposeBuilt();
   var pre = presetOf(key);
-  if (!pre || !pre.model) { var m0 = M(); if (m0) m0.group.visible = false; return; }
+  if (!pre || !pre.model) {
+    var m0 = M();
+    if (m0) {
+      m0.group.visible = false;
+      // AND GIVE THE BUILD ITS OTHER HALF BACK. With no reference standing
+      // there is nothing for the missing half to be compared against, so a
+      // build left cut open would just be a broken aeroplane — and the control
+      // that did it is on a panel that is no longer showing anything.
+      if (m0.setBuildClip) m0.setBuildClip(null);
+      if (m0.setClipping) m0.setClipping(false);
+    }
+    return;
+  }
   // THE ONE DECODE (G89, app.js). Never decodeModel() from here: the payload's
   // b64 is destroyed by whoever decodes first, so a second independent decode
   // works or does not depending on whether you have flown that aeroplane yet.
@@ -324,14 +449,24 @@ function loadTexs(modelKey, payload, done) {
 function applyFinish() {
   if (!built) return;
   var mt = built.payload.mats || {}, m = M();
-  var wantClip = !!S.half;
-  if (wantClip && !CLIP)
+  var wantClip = S.cut !== 'off';
+  if (wantClip && !CLIP) {
     // the model frame has z LEFT, so a plane with normal +z and constant 0
     // keeps the aeroplane's LEFT half and cuts the right away
     CLIP = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+    // ...and its opposite, which is the half the BUILD keeps. Same plane,
+    // other side: together they tile the world exactly once, so the composite
+    // has no gap down its spine and no double-drawn sliver.
+    CLIP_B = new THREE.Plane(new THREE.Vector3(0, 0, -1), 0);
+  }
   // clipping is a RENDERER setting; app.js owns the touch and it is on only
   // while this view is asked for
   if (m && m.setClipping) m.setClipping(wantClip);
+  // AND THE BUILD'S HALF, WHICH IS THE MOUNT'S TO CUT AND NOT OURS (G142).
+  // refplane.js may not reach the editor's materials — see ONE ROOT — so the
+  // split is a request, and app.js is the only thing that touches them.
+  if (m && m.setBuildClip)
+    m.setBuildClip(S.cut === 'split' ? [CLIP_B] : null);
 
   for (var mk in built.mats) {
     var mat = built.mats[mk], decl = mt[mk] || {};
@@ -602,11 +737,22 @@ function buildPanel() {
   head(host, 'reference', 'display only · never the spec');
   var pr = row(host, 'aeroplane');
   var sel = document.createElement('select');
+  // ONLY WHAT SHIPPED. build.js MANIFEST.models decides which payloads the
+  // artifact carries, and the table here lists every aeroplane that HAS one
+  // baked — the two are allowed to differ, so the list is filtered against
+  // what actually loaded rather than promising a row that would select
+  // nothing. A saved preset whose payload is gone falls back to none.
+  var have = function (key) {
+    return !key || (typeof window.MODEL_PAYLOAD === 'function' &&
+                    !!window.MODEL_PAYLOAD(key));
+  };
   REF_PRESETS.forEach(function (p) {
+    if (!have(p.model)) return;
     var o = document.createElement('option');
     o.value = p.key; o.textContent = p.name;
     sel.appendChild(o);
   });
+  if (!have((presetOf(S.preset) || {}).model)) S.preset = 'none';
   sel.value = S.preset;
   sel.onchange = function () {
     S.preset = sel.value; save();
@@ -672,8 +818,28 @@ function buildPanel() {
     function (v) { return v.toFixed(2); });
   check(host, 'occludes', function () { return S.occlude; },
     function (v) { S.occlude = v; });
-  check(host, 'left half only', function () { return S.half; },
-    function (v) { S.half = v; });
+  // THE CUT (G142). A select rather than two checkboxes, because 'reference
+  // half' and 'split' are mutually exclusive views of the same plane and a
+  // pair of tick-boxes would let you ask for a state that has no meaning.
+  var cr = row(host, 'cut');
+  var cs = document.createElement('select');
+  CUTS.forEach(function (c) {
+    var o = document.createElement('option');
+    o.value = c[0]; o.textContent = c[1];
+    cs.appendChild(o);
+  });
+  cs.value = S.cut;
+  cs.onchange = function () {
+    S.cut = cs.value; save();
+    // SPLIT ONLY MEANS ANYTHING ON ONE CENTRELINE. The two halves are cut by
+    // the same world plane, so a reference dragged sideways would have the cut
+    // running through a wing instead of down its spine. Zeroing `lat` is the
+    // one thing this control does beyond its own name, and it is the
+    // difference between a comparison and a puzzle.
+    if (S.cut === 'split') S.lat = 0;
+    applyFinish(); place(); rebuildPanel();
+  };
+  cr.appendChild(cs);
 
   head(host, 'materials', 'the model’s own, one row each');
   matsEl = el('div', 'refMats');

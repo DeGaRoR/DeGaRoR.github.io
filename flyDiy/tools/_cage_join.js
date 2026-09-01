@@ -38,6 +38,23 @@ const CAGE_JOIN_ENGINES = {
   'EMRAX 228': 'emrax228_3blade',
 };
 
+// G132: THE DRAWN BLADE IS THE PHYSICS' AUTHOR. cw_material indexes the cowl
+// page's MATERIALS (append-only, its own header's rule); spec.prop.material
+// must be a GEN_PROP_MATS key or clampSpec silently converts it to 'wood' —
+// so the map is TOTAL over the eight finishes, by family:
+//   0 birch, 1 beech      -> wood    (wood laminates — G125's own words,
+//                                     "same physics family as wood")
+//   2 aluminium           -> alu
+//   3 carbon/epoxy        -> carbon
+//   4 glass/epoxy         -> carbon  (composite family; glass earns its own
+//   5 wood core + CFRP    -> carbon   GEN_PROP_MATS row when it is priced —
+//                                     carbon over-prices it, which is the
+//                                     safe direction, never an exploit)
+//   6 maple, 7 walnut     -> their own G125 rows
+// APPEND ONLY, in step with MATERIALS; _join_check walks every entry.
+const CAGE_JOIN_PROP_MATS = ['wood', 'wood', 'alu', 'carbon', 'carbon',
+                             'carbon', 'maple', 'walnut'];
+
 function cageJoinSpec(P, M, T) {
   M = M || {}; T = T || {};
   const cam = Math.round(P.wgCamber), thk = Math.round(P.wgThick);
@@ -49,13 +66,19 @@ function cageJoinSpec(P, M, T) {
       span: P.wgSpan, chord: P.wgChord,
       taper: Math.max(0.2, Math.min(1.0,
         P.wgChordTip / Math.max(0.2, P.wgChord))),
-      sweep: P.wgSweep, dihedral: P.wgDihedral, incidence: P.wgIncidence,
+      // G140: the three stations, explicit — sweep is never written (the
+      // resolved wing derives sweepEff from what the stations do), and
+      // tipX 0 is a real value: straight
+      tipX: +P.wgTipX || 0,
+      dihedral: P.wgDihedral, incidence: P.wgIncidence,
       washout: P.wgWashout,
       naca: cam * 1000 + (cam > 0 ? 400 : 0) + thk,
       panels: Math.round(P.wgPanels),
       position: ['high', 'mid', 'low'][Math.round(P.wgPos)] || 'high',
       tip,
       crankAt: P.wgCrankAt > 0 ? P.wgCrankAt : 0,
+      crankChord: P.wgCrankAt > 0 ? +P.wgCrankChord : null,
+      crankX: P.wgCrankAt > 0 ? (+P.wgCrankX || 0) : null,
       dihedralOut: P.wgCrankAt > 0 ? P.wgDihedralOut : null,
       centre: ['solid', 'glass', 'open'][Math.round(P.wgCentre)] || 'solid',
       // THE WING'S OWN CONSTRUCTION (G116): 0 says nothing — absent means
@@ -77,7 +100,33 @@ function cageJoinSpec(P, M, T) {
       type: CAGE_JOIN_ENGINES[(T.PRESET_NAMES || [])[Math.round(P.engPreset)]]
         || 'a65_sensenich74',
       mount: 'nose', place: { dx: 0, dy: 0 },
+      // G134: THE DRAWN ENGINE IS THE PHYSICS' AUTHOR — the G132 prop rule,
+      // applied to the engine itself. M.engineFacts is engResolve over the
+      // same dial dict the mesh build renders (CAGE_ENG_FACTS, one keeper in
+      // _cage_eng.js), and it is null exactly when the dials still ARE the
+      // applied preset (identity ruling 2026-09-01: an untouched preset
+      // flies the registry row under its certified name; a deviated one is
+      // "modified <name>"/"custom ...", never a wrong name). The preset key
+      // above survives as the fallback row and the prop-diameter default.
+      ...(M.engineFacts ? { custom: M.engineFacts } : {}),
     }],
+    // ---- G132: THE PROPELLER FLIES AS DRAWN. spec.prop is the thrust
+    // model's whole input (Tstatic, kV2, disc, mass all derive from D,
+    // blades, material — "a bigger disc really does pull harder"), and the
+    // cowl page's blade rows have drawn D, count and finish since G21§4
+    // with nothing wiring them across: a 3-m drawn disc flew on the
+    // registry default's physics. The G121.1 fairing rule, applied: these
+    // are PARAMS, not measurements — the drawn blade is generated FROM
+    // them, so the switch is the geometry's own declaration. `pitch` stays
+    // the design tile's alone (no drawn twist stands for it yet). clampSpec
+    // bounds D and blades; the material map above keeps clampSpec's
+    // unknown->wood fallback unreachable.
+    prop: Object.assign({},
+      +P.cw_propD > 0 ? { D: +P.cw_propD } : {},
+      Math.round(P.cw_bladeN) >= 2
+        ? { blades: Math.round(P.cw_bladeN) } : {},
+      CAGE_JOIN_PROP_MATS[Math.round(P.cw_material)]
+        ? { material: CAGE_JOIN_PROP_MATS[Math.round(P.cw_material)] } : {}),
   };
   // ---- MEASURED: the built cage through its contracts. SECTIONED keys
   // only (G48): `cab`/`fuse`/`seating`/`pilots` are DERIVED aliases that
@@ -112,14 +161,40 @@ function cageJoinSpec(P, M, T) {
     // fair the legs too) — this line is the wire between them. A PARAM, not
     // a measurement, deliberately: the drawn spat is generated FROM s1Fair,
     // so the switch IS the geometry's own declaration, the same way accOn
-    // rides. The third wheel's s2Fair has no spec home yet — the drag model
-    // treats it as bare, honestly, until it earns a field.
+    // rides.
     spec.gear.fairing = ['none', 'spat', 'full'][Math.round(P.s1Fair || 0)]
                         || 'none';
-    // G121.2: the third wheel's switch rides too — carried ALWAYS (the save
-    // keeps the choice), priced only where drawn (genGearCdA gates on type).
+    // G121.2: the third wheel's switch rides too — and since G133 the
+    // castor draws its own shell, so genGearCdA prices it on EVERY leg
+    // family (the tricycle-only gate is retired).
     spec.gear.twFairing = ['none', 'spat', 'full'][Math.round(P.s2Fair || 0)]
                           || 'none';
+    // G133: the fairing's remaining physics-bearing fields, PARAMS all by
+    // s1Fair's own rule (each drawn shell is generated FROM these rows).
+    // Skirt, rake and width stay cage-side only — geometry the drag model
+    // deliberately does not resolve; spec.cage carries them home.
+    spec.gear.legFair = Math.round(P.s1LegFair || 0) ? 'fair' : 'none';
+    spec.gear.twLegFair = Math.round(P.s2LegFair || 0) ? 'fair' : 'none';
+    spec.gear.fairTail = +P.s1FairTail || 1;
+    spec.gear.twFairTail = +P.s2FairTail || 1;
+    spec.gear.fairMat = ['glass', 'carbon', 'alloy'][Math.round(P.fairCons || 0)]
+                        || 'glass';
+    // G132: THE DRAWN LEG IS THE SUSPENSION. GEN_SUSPENSION (spring rate,
+    // damping, price) read spec.gear.suspension while the mains' shock rows
+    // drew coil-over/bungee/oleo from s1_shockKind with nothing between
+    // them — a bungee flew wearing an oleo. Same G121.1 rule as the
+    // fairing: the drawn mechanism IS the declaration. The MAINS row wins
+    // (the physics has one suspension arch; the third wheel's own shock
+    // stays cosmetic until GEN_SUSPENSION grows a second seat) — the
+    // _gear_gen mode order, spring(0)/bungee(1)/oleo(2), verbatim.
+    // G133 (the slider-physics audit's flag): the LEG KIND is the outermost
+    // drawn mechanism — a beam leg IS a spring-steel blade and a telescopic
+    // leg IS an oleo, whatever the (link-only) shock row happens to hold.
+    // Only the swinging link actually has a shock choice to read.
+    const s1leg = Math.round(P.s1Leg);
+    spec.gear.suspension =
+      s1leg === 0 ? 'spring' : s1leg === 2 ? 'oleo' :
+      ['spring', 'bungee', 'oleo'][Math.round(P.s1_shockKind)] || 'bungee';
   }
   const cabin = {};
   if (M.halfW > 0) cabin.halfW = M.halfW;
@@ -262,6 +337,12 @@ const VIEW_STATE = [
   { row: 'int skin α',      ..._vView('skinA'),     to: 1 },
   { row: 'structure α',     ..._vView('structA'),   to: 1 },
   { row: 'cowl α',          ..._vView('cowlA'),     to: 1 },
+  // SEE INSIDE is the sixth X-ray knob and the most dangerous of them: one
+  // click takes the whole covering to 0.12, so an aeroplane captured with it
+  // on would FLY see-through. It is neutralised here and not exempted for
+  // exactly that reason — it changes `material.opacity`, which is what the
+  // capture records verbatim.
+  { row: 'see inside',      ..._vView('xray'),      to: 0 },
   // PINNED, AND NOT OFFERED (G106.1). The game shows no subsurf control at all
   // — editor.js's rail does not list it and _cage_ui.js does not adopt it —
   // so this is belt and braces rather than a neutralisation anybody can defeat
@@ -289,10 +370,32 @@ const VIEW_KEEP = {
   'cutaway':
     'a renderer clipping plane — it hides geometry from the CAMERA and ' +
     'nothing from the capture (measured: no change)',
+  'clicking':
+    'what a CLICK on the covering or a longeron SELECTS — the bay you '
+    + 'clicked, or the whole fuselage. It moves no vertex and touches no '
+    + 'material: the capture takes geometry and materials, and which part '
+    + 'the panel is heading is neither (measured: identical vertex counts '
+    + 'in both positions, selected or not)',
+  'smoothing':
+    'the RESOLVE PASS\'s tier (G144: 4x MSAA / 8x MSAA / 8x + 1.25x + '
+    + 'dither). It changes how the FRAME is resolved and nothing about the '
+    + 'aeroplane: the pass runs after the scene has been drawn, and the '
+    + 'capture bakes geometry and materials, neither of which it touches. '
+    + 'It owns no colour either: the target is sRGB-encoded, so tone mapping '
+    + 'and blending stay exactly where they were and the pass only filters '
+    + 'and dithers what the materials already wrote',
+  'selection':
+    'the highlight STYLE (G132: detail outline / silhouette / soft glow). ' +
+    'Every style is the editor\'s own `edHi` overlay and never the part; ' +
+    'snapshot()\'s bake skips edHi meshes — a skip G132 itself had to add, ' +
+    'because `fill` had leaked its wash meshes into the capture since G95 ' +
+    '(measured: 105,102 extra vertices; identical counts in every style ' +
+    'after the skip, selected or not)',
 };
 
 if (typeof module !== 'undefined' && module.exports)
-  module.exports = { cageJoinSpec, CAGE_JOIN_ENGINES, VIEW_STATE, VIEW_KEEP };
+  module.exports = { cageJoinSpec, CAGE_JOIN_ENGINES, CAGE_JOIN_PROP_MATS,
+                     VIEW_STATE, VIEW_KEEP };
 
 // ---- browser glue: measurements + the button (game bundle only) ----
 if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
@@ -329,6 +432,10 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     const xBand = Math.max(0.32, boomHalfW + 0.08);
     const each = fn => mnt.traverse(o => {
       if (!o.isMesh || !o.visible || !o.geometry) return;
+      // the highlight is never the part (G132) — an overlay re-draws the
+      // same vertices in the same frame, so it could not MOVE these bounds,
+      // but the boundary is declared in both walks, not one
+      if (o.userData && o.userData.edHi) return;
       const p = o.geometry.attributes.position;
       if (!p) return;
       tmp.multiplyMatrices(inv, o.matrixWorld);
@@ -628,6 +735,15 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       try { M.finish = window.CAGE_UI.finishToSpec(); }
       catch (e) { ERRS.push('the finish could not be written to the build: '
                             + e.message); }
+    // G134: the drawn engine, resolved — null when the dials still ARE the
+    // applied preset, so the registry row keeps flying under its own name.
+    // A throw here is a real report, same rule as the shape and the finish.
+    if (typeof window.CAGE_ENG_FACTS === 'function')
+      try {
+        const ef = window.CAGE_ENG_FACTS(P);
+        if (ef) M.engineFacts = ef;
+      } catch (e) { ERRS.push('the engine could not be resolved to facts: '
+                              + e.message); }
     return M;
   };
   const tables = () => ({
@@ -776,6 +892,13 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           v = new THREE.Vector3(), n = new THREE.Vector3();
     mount.traverse(o => {
       if (!o.isMesh || !o.visible || !o.geometry) return;
+      // THE HIGHLIGHT IS NEVER THE PART (G132). The editor's selection
+      // overlay re-draws part geometry as extra meshes marked `edHi`, and
+      // this bake took them: measured before the skip, a fuselage selected
+      // in `fill` flew 105,102 extra vertices and `silhouette` twice that
+      // (its mask + shell pair). Latent since G95 — the default `outline`
+      // style is LineSegments, which `isMesh` already refused.
+      if (o.userData && o.userData.edHi) return;
       const matList = Array.isArray(o.material) ? o.material : [o.material];
       if (!matList[0] || !matList[0].color) return;
       const geo = o.geometry, idx = geo.index;

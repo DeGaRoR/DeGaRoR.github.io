@@ -29,7 +29,7 @@
 :is(#wsUI, #edView) {
   --ed-panel:#201d1a; --ed-board:#1a1815;
   --ed-plate:rgba(32,29,26,.94);
-  --ed-ink:#f4efe6; --ed-dim:#c0b8ac; --ed-faint:#8a8377;
+  --ed-ink:#f4efe6; --ed-dim:#c0b8ac; --ed-faint:#97907f;
   --ed-acc:#e6dbc9; --ed-acc-ink:#221f1b;
   --ed-acc-soft:rgba(230,219,201,.14);
   --ed-hair:rgba(255,248,236,.09); --ed-border:rgba(255,248,236,.14);
@@ -46,7 +46,7 @@
   --ed-plate:rgba(32,29,26,.94);   /* floating chrome over the view */
   --ed-ink:#f4efe6;        /* primary text, values */
   --ed-dim:#c0b8ac;        /* labels, secondary text */
-  --ed-faint:#8a8377;      /* headings, meta, disabled */
+  --ed-faint:#97907f;      /* headings, meta, disabled */
   --ed-acc:#e6dbc9;        /* selection, fills, primary verb, links */
   --ed-acc-ink:#221f1b;    /* text on the accent */
   --ed-acc-soft:rgba(230,219,201,.14);   /* selected row background */
@@ -145,12 +145,15 @@
    ====================================================================== */
 #edInfo {
   --ed-panel:#201d1a; --ed-board:#1a1815;
-  --ed-ink:#f4efe6; --ed-dim:#c0b8ac; --ed-faint:#8a8377;
+  --ed-ink:#f4efe6; --ed-dim:#c0b8ac; --ed-faint:#97907f;
   --ed-acc:#e6dbc9; --ed-acc-ink:#221f1b;
   --ed-hair:rgba(255,248,236,.09); --ed-border:rgba(255,248,236,.14);
   --ed-btn-bg:rgba(255,255,255,.06); --ed-btn-bd:rgba(255,255,255,.18);
   --ed-warn:#d8a07a; --ed-bad:#e08a5a;
-  position:fixed; left:0; top:0; bottom:0; width:280px; z-index:40;
+  /* G130: 280 was the crush — the plaque's two-column grid got ~107 px a
+     cell and every long label fought its value. 320 is the readable floor;
+     the canvas keeps its own 240 px minimum, and the fold still spines. */
+  position:fixed; left:0; top:0; bottom:0; width:320px; z-index:40;
   display:flex; flex-direction:column;
   background:var(--ed-panel); color:var(--ed-ink);
   font-family:'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
@@ -188,20 +191,15 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 #edInfoTab { position:fixed; left:0; top:0; bottom:0; width:46px; z-index:40;
   flex-direction:column; align-items:center; justify-content:flex-start;
   gap:12px; padding:16px 0; background:var(--ed-board, #1a1815); border:0;
-  border-right:1px solid rgba(255,248,236,.09); color:#8a8377;
+  border-right:1px solid rgba(255,248,236,.09); color:#97907f;
   cursor:pointer; font-family:'IBM Plex Sans', sans-serif; }
 
 #edInfoTab b { writing-mode:vertical-rl; font:600 10px/1 'IBM Plex Sans';
   letter-spacing:.22em; text-transform:uppercase; }
 
-/* the stand: which aeroplane is the subject — the bench aircraft are
-   subjects to measure, not fleet members (2026-08-31; the file operations
-   moved to the ribbon over the view) */
-#edStand #shAc { margin:2px 0 8px; }
-
-#edStand #shAc select { width:100%; }
-
-#edFleet #edShelf { flex-wrap:wrap; }
+/* the stand's own rules went at G135 with #edStand itself: the aircraft
+   select it hosted holds one hidden option now, so the section was dressing
+   an empty box. The FLEET POPUP (#gFleet) answers "which aeroplane" now. */
 
 /* ---- the two columns ------------------------------------------------ */
 #edProps { flex:1; min-width:0; display:flex; flex-direction:column; }
@@ -766,38 +764,91 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
    saving (G80), and an OBJ dump is a bench tool. */
 #edWrap #edBar { display:none; }
 
-#edFleet #edShelf { display:flex; gap:6px; align-items:center;
-  flex-wrap:wrap; }
-
-#edFleet #edShelf select { flex:1 1 240px; min-width:0; padding:7px 10px;
-  font:400 12px/1.2 'IBM Plex Sans'; color:#f4efe6;
-  background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.18);
-  border-radius:7px; }
-
-#edFleet #edShelf select option { background:#201d1a; color:#f4efe6; }
+/* THE SHELF IS A SEGMENTED VERB GROUP NOW (2026-09-01, the user: "it's a
+   pack of controls thrown in a container"). Four verbs, one bordered pill,
+   hairlines between them — the #gSlot select and the noun buttons it kept
+   company went into the fleet popup below. */
+#edFleet #edShelf { display:flex; align-items:center; gap:0;
+  border:1px solid rgba(255,255,255,.18); border-radius:7px;
+  overflow:hidden; }
 
 #edFleet #edShelf button {
   flex:0 0 auto; font:500 10px/1 'IBM Plex Sans'; letter-spacing:.08em;
   text-transform:uppercase; color:#c0b8ac; background:transparent;
-  border:1px solid rgba(255,255,255,.18); border-radius:7px;
-  padding:7px 11px; cursor:pointer; }
+  border:0; border-left:1px solid var(--ed-hair);
+  padding:8px 13px; cursor:pointer;
+  transition:background .12s ease, color .12s ease; }
+#edFleet #edShelf button:first-child { border-left:0; }
 
 #edFleet #edShelf button:hover {
-  border-color:rgba(255,255,255,.3); }
+  background:rgba(255,255,255,.07); color:#f4efe6; }
 
-#edFleet #edShelf button:disabled, #edFleet #edShelf select:disabled {
-  opacity:.4; cursor:default; }
+#edFleet #edShelf button:disabled {
+  opacity:.4; cursor:default; background:transparent; }
+
+/* ---- THE FLEET POPUP (the load door, 2026-09-01) ---------------------
+   The birth overlay's own look — same scrim, same box, same pill — so the
+   two doors out of "the build on the stand" read as one family. */
+#gFleet { position:fixed; inset:0; z-index:60;
+  background:rgba(12,11,10,.78); display:flex; align-items:center;
+  justify-content:center; }
+#gFleet[hidden] { display:none; }
+
+.gfBox { width:min(560px, 94vw); max-height:82vh; overflow:auto;
+  background:var(--ed-panel); border:1px solid var(--ed-hair);
+  border-radius:10px; padding:18px 20px 16px; }
+
+.gfH { display:flex; align-items:center; justify-content:space-between;
+  gap:10px; }
+.gfH > span { font:500 13px/1 'IBM Plex Sans'; letter-spacing:.14em;
+  color:var(--ed-ink); }
+
+.gfSub { font:400 11px/1.4 'IBM Plex Sans'; color:var(--ed-dim);
+  margin:6px 0 2px; }
+.gfSub.warn { color:var(--ed-warn); }
+
+.gfGroupH { font:500 10px/1 'IBM Plex Sans'; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--ed-dim); margin:16px 0 7px;
+  padding-bottom:5px; border-bottom:1px solid var(--ed-hair); }
+
+.gfMine, .gfStock { display:flex; flex-direction:column; gap:4px; }
+
+.gfRow { display:flex; align-items:stretch; gap:4px; }
+
+.gfLoad { flex:1; min-width:0; display:flex; align-items:baseline; gap:10px;
+  text-align:left; padding:9px 12px; background:var(--ed-btn-bg);
+  border:1px solid var(--ed-btn-bd); border-radius:8px; cursor:pointer;
+  transition:border-color .12s ease; }
+.gfLoad b { font:600 12px/1.2 'IBM Plex Sans'; color:var(--ed-ink);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.gfLoad span { font:400 10.5px/1.3 'IBM Plex Sans'; color:var(--ed-dim);
+  margin-left:auto; white-space:nowrap; }
+.gfLoad:hover { border-color:rgba(255,255,255,.3); }
+.gfRow.cur .gfLoad { border-color:var(--ed-acc); cursor:default; }
+
+.gfDel { flex:0 0 auto; width:34px; background:transparent;
+  border:1px solid var(--ed-btn-bd); border-radius:8px; color:var(--ed-dim);
+  font:400 12px/1 'IBM Plex Sans'; cursor:pointer;
+  transition:border-color .12s ease, color .12s ease; }
+.gfDel:hover { border-color:var(--ed-warn); color:var(--ed-warn); }
+
+.gfEmpty { font:400 11px/1.4 'IBM Plex Sans'; color:var(--ed-dim);
+  padding:8px 2px; }
+
+.gfFoot { display:flex; align-items:center; gap:10px; margin-top:16px; }
+.gfHint { font:400 10px/1.3 'IBM Plex Sans'; color:var(--ed-dim);
+  margin-left:auto; }
 
 /* ---- THE BENCH pane (G64), until the sheet takes it (G80) ------------ */
 
 /* ---- THE BENCH (G64), a SECTION of the information now --------------
    Not a pane competing with the sliders for a column: it scrolls with
    the plaque above it, because the two are one answer to one question. */
-#edInfo #edBench { padding:0; margin-top:6px; }
+#edInfo #edBench { padding:0; margin-top:24px; }
 
 #edInfo .bHead { display:flex; gap:8px; align-items:center;
-  font:600 10px/1 'IBM Plex Sans'; letter-spacing:.16em; text-transform:uppercase;
-  color:var(--ed-faint); margin:4px 0 12px; }
+  font:600 10px/1 'IBM Plex Sans'; letter-spacing:.2em; text-transform:uppercase;
+  color:var(--ed-dim); margin:4px 0 12px; }
 
 #edInfo .bHead b { margin-left:auto; font-weight:500; letter-spacing:.06em; }
 
@@ -817,18 +868,22 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 
 #edInfo .bT.dim { opacity:.5; }
 
-#edInfo .bT1 { display:flex; gap:8px; align-items:baseline; }
+/* G130: the row breathes on two lines — name + run button first, the
+   verdict on its own full-width line under them. One baseline used to
+   carry all three, and a long verdict wrapped against the button. */
+#edInfo .bT1 { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
 
 #edInfo .bT1 .bN { color:var(--ed-ink); flex:none;
   font:500 12px/1 'IBM Plex Sans'; }
 
-#edInfo .bT1 button { flex:none; font:500 9.5px/1 'IBM Plex Sans';
+#edInfo .bT1 button { flex:none; margin-left:auto;
+  font:500 9.5px/1 'IBM Plex Sans';
   letter-spacing:.06em; text-transform:uppercase; color:var(--ed-dim);
   background:transparent; border:1px solid var(--ed-btn-bd);
   border-radius:6px; padding:4px 8px; cursor:pointer; }
 
-#edInfo .bT1 b { margin-left:auto; text-align:right; font-weight:500;
-  font:500 11px/1.3 'IBM Plex Sans'; color:var(--ed-faint); }
+#edInfo .bT1 b { flex-basis:100%; order:3; margin-top:4px; text-align:left;
+  font:500 11.5px/1.35 'IBM Plex Sans'; color:var(--ed-faint); }
 
 #edInfo .bT.ok .bT1 b { color:var(--ed-acc); }
 
@@ -840,7 +895,7 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
    certificate — amber, not red */
 #edInfo .bT.adv .bT1 b { color:var(--ed-warn); }
 
-#edInfo .bB { color:var(--ed-faint); font:400 10px/1.5 'IBM Plex Sans';
+#edInfo .bB { color:var(--ed-dim); font:400 10.5px/1.5 'IBM Plex Sans';
   margin-top:4px; }
 
 #edInfo .bW { color:var(--ed-dim); font:400 10.5px/1.5 'IBM Plex Sans';
@@ -851,42 +906,49 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 #edInfo .bCard { display:flex; gap:12px; margin-top:5px;
   color:var(--ed-faint); font:400 10px/1.5 'IBM Plex Sans'; }
 #edInfo .bCard label { display:flex; align-items:center; gap:4px; }
-#edInfo .bCard input { width:50px; background:var(--ed-track);
+#edInfo .bCard input { width:56px; background:var(--ed-track);
   border:1px solid var(--ed-border); border-radius:3px; color:var(--ed-ink);
-  font:inherit; padding:2px 5px; text-align:right; }
+  font:inherit; padding:3px 6px; text-align:right; }
 #edInfo .bCard input:focus { outline:none; border-color:var(--ed-acc); }
 
-/* ---- THE PLAQUE, in the 9b palette (G80 moves it into the sheet) ----- */
+/* ---- THE PLAQUE, in the 9b palette (G80 moves it into the sheet) -----
+   G130: styled as the display piece it is — a plate with its own ground,
+   not another run of list rows. */
 #edInfo #plaque { display:none; }
 
-#edInfo #plaque.on { display:block; }
+#edInfo #plaque.on { display:block; margin-top:20px;
+  background:rgba(0,0,0,.16); border:1px solid var(--ed-hair);
+  border-radius:9px; padding:12px 14px 13px; }
 
 #edInfo #plaque header { display:flex; gap:9px; align-items:baseline;
-  margin:18px 0 8px; }
+  margin:0 0 8px; }
 
 #edInfo #plaque h2 { font:600 10px/1 'IBM Plex Sans'; letter-spacing:.2em;
-  text-transform:uppercase; color:var(--ed-faint); margin:0; }
+  text-transform:uppercase; color:var(--ed-dim); margin:0; }
 
 #edInfo #plaque header span { font:400 10px/1 'IBM Plex Sans';
   color:var(--ed-faint); }
 
 #edInfo #pqVerdict { margin:8px 0 10px; padding:8px 10px; border-radius:7px;
-  font:500 11.5px/1.3 'IBM Plex Sans'; letter-spacing:.02em;
+  font:500 12.5px/1.3 'IBM Plex Sans'; letter-spacing:.02em;
   border:1px solid var(--ed-border); color:var(--ed-ink); }
 
 #edInfo #pqVerdict.ok { color:var(--ed-acc); border-color:var(--ed-acc); }
 
 #edInfo #pqVerdict.bad { color:var(--ed-bad); border-color:var(--ed-bad); }
 
-#edInfo #pqRows { display:grid; grid-template-columns:1fr 1fr; gap:0 26px; }
+#edInfo #pqRows { display:grid; grid-template-columns:1fr 1fr; gap:0 16px; }
 
 #edInfo #pqRows .r { display:flex; justify-content:space-between;
-  align-items:baseline; padding:5px 0; border-bottom:1px solid var(--ed-hair); }
+  align-items:baseline; gap:8px; padding:6px 0;
+  border-bottom:1px solid var(--ed-hair); }
 
-#edInfo #pqRows .r span { font:400 11.5px/1 'IBM Plex Sans';
-  color:var(--ed-dim); text-transform:none; letter-spacing:0; }
+#edInfo #pqRows .r span { font:400 12px/1.2 'IBM Plex Sans';
+  color:var(--ed-dim); text-transform:none; letter-spacing:0; min-width:0;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
-#edInfo #pqRows .r b { font:500 13px/1 'IBM Plex Sans'; color:var(--ed-ink); }
+#edInfo #pqRows .r b { font:500 13px/1 'IBM Plex Sans'; color:var(--ed-ink);
+  flex:none; }
 
 /* no green "ok" colour anywhere: ok is simply the ink */
 #edInfo #pqRows .r.warn b { color:var(--ed-warn); }
@@ -898,7 +960,25 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
   margin:16px 0 4px; }
 
 #edInfo #pqNote { margin-top:10px; font:400 10.5px/1.6 'IBM Plex Sans';
+  color:var(--ed-dim); }
+
+/* ---- THE LOGBOOK (G130): the envelope's flights, displayed ----------- */
+#edInfo #edLog { margin-top:24px; }
+
+#edInfo #edLog .edH em { margin-left:auto; font:400 10px/1 'IBM Plex Sans';
+  font-style:normal; letter-spacing:0; text-transform:none;
   color:var(--ed-faint); }
+
+#edInfo .lgR { display:flex; justify-content:space-between; gap:8px;
+  align-items:baseline; padding:6px 0; border-bottom:1px solid var(--ed-hair); }
+
+#edInfo .lgR span { font:400 12px/1.2 'IBM Plex Sans'; color:var(--ed-dim);
+  flex:none; }
+
+#edInfo .lgR b { font:500 11.5px/1.2 'IBM Plex Sans'; color:var(--ed-ink);
+  text-align:right; }
+
+#edInfo .lgR.bad b { color:var(--ed-warn); }
 
 /* ---- THE VIEW IS THE FREE ESTATE ------------------------------------
    The panel does not sit ON the 3D content, it sits BESIDE it. The canvas
@@ -924,7 +1004,7 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
    to agree about it to the pixel. Two custom properties on <body> are
    that agreement; before this the same arithmetic was written out four
    times and the third one was already wrong. */
-body.mode-ws { --ws-left:280px; --ws-right:640px; }
+body.mode-ws { --ws-left:320px; --ws-right:640px; }
 
 
 body.mode-ws.info-off  { --ws-left:46px; }
@@ -967,7 +1047,7 @@ body.mode-fly #wsUI { display:none; }
   font-variant-numeric:tabular-nums;
   transition:right .16s ease;
   --ed-plate:rgba(32,29,26,.94); --ed-ink:#f4efe6; --ed-dim:#c0b8ac;
-  --ed-faint:#8a8377; --ed-acc:#e6dbc9; --ed-acc-ink:#221f1b;
+  --ed-faint:#97907f; --ed-acc:#e6dbc9; --ed-acc-ink:#221f1b;
   --ed-hair:rgba(255,248,236,.09); --ed-border:rgba(255,248,236,.14);
   --ed-btn-bg:rgba(255,255,255,.06); --ed-btn-bd:rgba(255,255,255,.18);
   --ed-panel:#201d1a; --ed-board:#1a1815; --ed-warn:#d8a07a; }
@@ -978,10 +1058,10 @@ body.mode-fly #wsUI { display:none; }
 
 @media (prefers-reduced-motion:reduce) { #edView { transition:none; } }
 
-/* THE FILE RIBBON ACROSS THE TOP (2026-08-31): the build's name and the
-   whole of what you do with it AS A FILE — new, save, save as, load, the
-   json doors. The shelf's own container (#edFleet) lives inside, ids and
-   handlers untouched, so garage.js never learned the furniture moved. */
+/* THE FILE RIBBON ACROSS THE TOP (2026-08-31; re-cut 2026-09-01): the
+   build's name and the four VERBS — save, save as, new, load. The nouns
+   and the json doors are behind LOAD now (#gFleet, with the shelf rules
+   further up), so the plate is a name and one segmented control. */
 #edTopBar { position:absolute; left:22px; right:22px; top:18px;
   display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px; }
 
@@ -1114,16 +1194,10 @@ body.mode-fly #wsUI { display:none; }
    writes its own rather than inheriting a scrim that has spent a release
    covering nothing. */
 
-#edInfo .note { font:400 10.5px/1.6 'IBM Plex Sans'; color:#8a8377;
+#edInfo .note { font:400 10.5px/1.6 'IBM Plex Sans'; color:#97907f;
   margin:18px 0 8px; }
 
 #edInfo .note:first-child { margin-top:0; }
-
-#edStand #shAc select { padding:7px 10px; font:400 12px/1.2 'IBM Plex Sans';
-  color:#f4efe6; background:rgba(255,255,255,.06);
-  border:1px solid rgba(255,255,255,.18); border-radius:7px; }
-
-#edStand #shAc select option { background:#201d1a; color:#f4efe6; }
 
 /* A ROOT THAT BUILDS ITS OWN PANEL (G108). The shed's is an accordion of its
    own — ten material sub-groups under nine plain rows — so it is the one thing
@@ -1140,6 +1214,24 @@ body.mode-fly #wsUI { display:none; }
   text-transform:uppercase; padding:8px 0; list-style:none; }
 
 .edRoot summary::-webkit-details-marker { display:none; }
+
+/* THE OUTER BOX IS FLATTENED (G136, the user: "when I click on 'the shed',
+   the styling is ugly"). The whole panel sat inside ONE bordered accordion
+   whose summary said `hangar` — a box around everything, under a title bar
+   that already says `The shed`. The wrapper group stays in the DOM (fillRoots
+   and the derived-selector injection find it by data-g) but stops LOOKING
+   like a group: no border, no summary, its plain rows one indent step in like
+   any part's, and only the material sub-groups keep the box — they are the
+   panel's real nesting. */
+.edRoot > details[data-g="hangar"] { border:0; border-radius:0;
+  padding:0; margin:0; }
+
+.edRoot > details[data-g="hangar"] > summary { display:none; }
+
+/* the #edRows prefix is not decoration: `#edRows .r { margin:0 }` carries an
+   id and would beat a class-only selector, exactly as the line-475 note says */
+#edRows .edRoot > details[data-g="hangar"] > .r,
+.edRoot > details[data-g="hangar"] > details { margin-left:var(--ed-indent); }
 
 .edRoot .lt { display:flex; flex-wrap:wrap; gap:4px; flex:1; min-width:0; }
 
@@ -1284,6 +1376,10 @@ body.mode-fly #wsUI { display:none; }
   cursor:pointer; transition:border-color .12s ease; }
 .dfPill:hover { border-color:rgba(255,255,255,.3); }
 
+/* G132: the seed pill — a label row's explicit "apply the starting
+   values" action, under its grid, never inside a tile */
+.dfSeed { display:block; margin:6px 0 2px; align-self:flex-start; }
+
 /* ---- the birth overlay ------------------------------------------------- */
 #dfBirth { position:fixed; inset:0; z-index:60;
   background:rgba(12,11,10,.78); display:flex; align-items:center;
@@ -1319,3 +1415,15 @@ body.mode-fly #wsUI { display:none; }
 
 .dfBirthRow { display:flex; align-items:center; gap:12px; margin-top:14px; }
 .dfWarn { font:400 10.5px/1.3 'IBM Plex Sans'; color:var(--ed-warn); }
+
+/* THE ABOUT LINE (the flight rebaseline). `#credit` rode the flight bar until
+   the flight screen was rebaselined, and it is a CREDIT, not a HUD element —
+   but CC-BY's requirement is VISIBLE attribution, so it did not go in the bin
+   with the rest of that bar. It sits at the foot of the information panel,
+   which is on screen for as long as you are building. CREDITS.md carries
+   every title, listing and licence in full; GATE UISMOKE asserts this id is
+   still in the artifact, because that is the licence term. */
+#credit { display:block; margin-top:14px; padding-top:10px;
+  border-top:1px solid var(--ed-hair);
+  font:400 9.5px/1.6 'IBM Plex Sans'; letter-spacing:.02em;
+  color:var(--ed-faint); }

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<!--
+  LEAN — study bench (2026-09-01): the TILTED AFT CABIN PILLAR.
+
+  Real light aeroplanes rarely keep the cabin's aft bulkhead vertical: the
+  pillar leans, top aft / bottom fore, which slants the aft window edge and
+  moves shelf space aft at shoulder height. The question under study: can the
+  cage take a SHEAR on that pillar (and on the cabin pillar) without the
+  surface growing a bump where a loop was tilted?
+
+  Began as a disconnected post-pass study; THE LEAN LANDED IN THE GENERATOR
+  the same day (cageResolve, spec.lean via P rows leanPaxDeg / leanCabDeg /
+  leanPivot, clamped on roof-level shift). This page now drives that real
+  path — the sliders write the P rows — so what it shows is what the game
+  ships. Nothing here writes to storage.
+
+  Serve from repo root (launch: flydiy-lean) and open /flyDiy/tools/_lean.html.
+-->
+<meta charset="utf-8">
+<title>flyDiy — lean, the tilted pillar study</title>
+<style>
+  :root{--bg:#12151a;--fg:#dfe6ee;--dim:#7d8996;--acc:#5db3ff;--grid:#242a33}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--fg);
+    font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;overflow:hidden}
+  header{padding:8px 12px;border-bottom:1px solid var(--grid);display:flex;
+    gap:14px;align-items:center;flex-wrap:wrap}
+  h1{font-size:13px;margin:0}
+  label{color:var(--dim);display:inline-flex;gap:5px;align-items:center}
+  select,button{background:#1a1f27;color:var(--fg);border:1px solid var(--grid);
+    padding:3px 8px;border-radius:4px;font:inherit;cursor:pointer}
+  button.on{border-color:var(--acc);color:var(--acc)}
+  main{display:flex;height:calc(100vh - 40px)}
+  #view{position:relative;flex:1;min-width:0}
+  canvas{display:block;width:100%;height:100%}
+  aside{border-left:1px solid var(--grid);overflow-y:auto;
+    padding:10px;width:330px;flex:none}
+  .r{display:flex;gap:6px;align-items:center;margin:5px 0;min-width:0}
+  .r span.k{color:var(--dim);width:86px;flex:none}
+  input[type=range]{flex:1;min-width:30px;accent-color:var(--acc)}
+  .v{width:52px;flex:none;text-align:right;color:var(--acc)}
+  #stat{position:absolute;left:10px;top:8px;color:var(--dim);z-index:2;
+    pointer-events:none;white-space:pre}
+  h2{font-size:11px;color:var(--dim);margin:14px 0 4px;text-transform:uppercase}
+  #read{background:#171b22;border:1px solid var(--grid);border-radius:5px;
+    padding:8px;line-height:1.6}
+  #read b{color:var(--acc);font-weight:500}
+  #notes{color:var(--dim);line-height:1.5}
+  #notes li{margin:6px 0}
+  .btnrow{display:flex;gap:5px;flex-wrap:wrap;margin:5px 0}
+</style>
+
+<header>
+  <h1>lean — the tilted pillar</h1>
+  <label>subsurf <select id="lvl">
+    <option>0</option><option>1</option><option selected>2</option><option>3</option>
+  </select></label>
+  <label>view <select id="mode">
+    <option value="sections" selected>sections</option>
+    <option value="normals">normals</option>
+    <option value="facets">facets</option>
+  </select></label>
+  <label><input type="checkbox" id="wire"> wireframe</label>
+  <label><input type="checkbox" id="cage"> cage</label>
+  <label><input type="checkbox" id="ghost" checked> ghost 0&deg;</label>
+  <button id="objBtn">export OBJ</button>
+</header>
+
+<main>
+  <div id="view"><span id="stat"></span><canvas id="c"></canvas></div>
+  <aside>
+    <h2>preset</h2>
+    <div class="btnrow">
+      <button id="p_tpl" class="on">template</button>
+      <button id="p_pax2">2 pax bays</button>
+      <button id="p_taper">taper on</button>
+      <button id="p_round">round tube</button>
+    </div>
+
+    <h2>the lean</h2>
+    <div class="r"><span class="k">aft pillar</span>
+      <input type="range" id="degA" min="-25" max="30" step="0.5" value="12">
+      <span class="v" id="degAv">12&deg;</span></div>
+    <div class="r"><span class="k">cabin pillar</span>
+      <input type="range" id="degC" min="-25" max="30" step="0.5" value="0">
+      <span class="v" id="degCv">0&deg;</span></div>
+    <div class="r"><span class="k">pivot</span>
+      <select id="pivot">
+        <option value="floor" selected>floor</option>
+        <option value="waist">waist</option>
+        <option value="keel">keel</option>
+        <option value="mid">mid-height</option>
+      </select></div>
+
+    <h2>readout</h2>
+    <div id="read">&mdash;</div>
+
+    <h2>study notes</h2>
+    <ul id="notes">
+      <li><b>why a shear, not a rotation</b> — the pillar's ring pair keeps
+        its section (x, y untouched); only z slides as a function of height.
+        A rotation would shrink the section's projection and pinch the band.</li>
+      <li><b>why no bump is expected</b> — the surface is GENERATED from the
+        rings (bays are single Catmull-Clark spans), so tilting a ring
+        re-slopes the spans on either side; there is no pre-existing surface
+        to dent. The fold probe below the stat line measures the sharpest
+        smooth-edge crease near the pillar, leaned vs 0&deg;.</li>
+      <li><b>the clamp</b> — the failure mode is displacement, not angle:
+        roof-level travel is held to half the shorter neighbouring bay
+        (the readout shows the effective angle when it engages). The lean
+        lives in cageResolve, so interior, zones and window frames all read
+        the tilted rings. See the study file in futureDesigns/.</li>
+    </ul>
+  </aside>
+</main>
+
+<script src="../vendor/three.min.js"></script>
+<script src="_cage_gen.js"></script>
+<script src="_lean_page.js"></script>

@@ -220,7 +220,39 @@ function makeWorld(seed) {
 
   // ---- stage 2 biomes: analytic classifier + tree placement plan ----
   // (waterAt/terrainH are function declarations — hoisted, safe to bind)
-  const B = makeBiomes({ terrainH, waterOf: waterAt, distW: HYD.distW, SURFACE, salt: SALT, roadNear: SET.roadNear, aeroSurf: AERO.surfaceAt });
+  //
+  // THE REGISTRY'S DECLARED SURFACE IS READ HERE (G130). Every hand-written
+  // aerodrome record carries `surface:` — and until now nothing consumed it:
+  // only stage-4 generated strips answered through AERO.surfaceAt, so the
+  // forestness field was free to claim the first 158 m of HOME's own takeoff
+  // run as FOREST_FLOOR. The moment G121.3 priced that class (CRR 0.10 vs
+  // the grass datum's 0.05), every roll off HOME paid double rolling
+  // resistance over most of its length — the +4 s unstick the user felt as
+  // "struggles to climb inside 90 s". The declaration wins inside the
+  // strip's own footprint (strips: the hdg-rotated box with the same kind of
+  // margin the pad carve uses; meadows: their radius), and everything
+  // outside it still belongs to the classifier.
+  const regSurf = (x, z) => {
+    for (const a of aerodromes) {
+      if (a.surface == null) continue;
+      if (a.kind === 'meadow') {
+        const dx = x - a.x, dz = z - a.z;
+        if (dx * dx + dz * dz <= a.r * a.r) return a.surface;
+      } else {
+        const c = Math.cos(a.hdg), s = Math.sin(a.hdg);
+        const u = (x - a.x) * c + (z - a.z) * s,
+              v = -(x - a.x) * s + (z - a.z) * c;
+        if (Math.abs(u) <= a.len / 2 + 20 && Math.abs(v) <= a.wid / 2 + 6)
+          return a.surface;
+      }
+    }
+    return -1;
+  };
+  const aeroSurfAll = (x, z) => {
+    const r = regSurf(x, z);
+    return r >= 0 ? r : AERO.surfaceAt(x, z);
+  };
+  const B = makeBiomes({ terrainH, waterOf: waterAt, distW: HYD.distW, SURFACE, salt: SALT, roadNear: SET.roadNear, aeroSurf: aeroSurfAll });
 
   // trees: stage-2 biome placement — deterministic jittered 64 m grid,
   // order-independent per point (replaces the v0 sequential LCG loop);

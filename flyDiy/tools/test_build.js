@@ -466,6 +466,31 @@ function nullPaths(o, pre, out) {
     ok(!threw && spec && spec.v === GEN_SPEC_V,
        'vintage ' + f + ' loads and lands on v' + GEN_SPEC_V +
        (threw ? ' (' + threw.message + ')' : ''));
+    // G140: a fixture may FREEZE its resolved numbers at capture time — the
+    // migrated aeroplane must still BE that aeroplane. Area and MAC exact
+    // (the station lift preserves the planform); mass within 1.5% (the tail
+    // re-derives off xAC); xAC inside the DOCUMENTED honesty window — the
+    // legacy formula walked the MAC offset from the centreline while the
+    // stations walk from the root, so a migrated swept wing sits up to
+    // tan(sweep)*zRoot forward of its frozen number, never aft of it.
+    if (!threw && spec && raw && raw.frozen) {
+      try {
+        const RS2 = C.resolveSpec(JSON.parse(JSON.stringify(spec)));
+        const R2 = RS2.spec, fr2 = C.genFrame(R2), Z = raw.frozen;
+        const rel = (a, b) => Math.abs(a - b) / Math.max(1e-9, Math.abs(b));
+        ok(rel(R2.geom.Sw, Z.Sw) < 1e-6 && rel(R2.geom.cBar, Z.cBar) < 1e-6,
+           'vintage ' + f + ': area + MAC survive the migration exactly');
+        ok(rel(fr2.cg0[3], Z.cg0[3]) < 0.015,
+           'vintage ' + f + ': mass within 1.5% (' + fr2.cg0[3].toFixed(1) +
+           ' vs frozen ' + Z.cg0[3].toFixed(1) + ')');
+        ok(R2.geom.xAC <= Z.xAC + 1e-6 && R2.geom.xAC > Z.xAC - 0.20,
+           'vintage ' + f + ': xAC inside the honesty window (' +
+           R2.geom.xAC.toFixed(4) + ' vs frozen ' + Z.xAC.toFixed(4) + ')');
+      } catch (e) {
+        ok(false, 'vintage ' + f + ': frozen-number comparison threw (' +
+           e.message + ')');
+      }
+    }
     if (!spec || !spec.cage) continue;
     // the fat-vintage theorem: load, re-bake, re-load — same aeroplane,
     // smaller file. Negative half: the shrink must be REAL, or the boundary
@@ -480,8 +505,15 @@ function nullPaths(o, pre, out) {
        drift.slice(0, 5).join(', ') + ')' : ''));
     const fat = Object.keys(spec.cage).length,
           thin = Object.keys(slim).length;
-    ok(thin < fat / 3, 'and the re-save is deviations, not a snapshot (' +
-       fat + ' keys -> ' + thin + ')');
+    // G140: the shrink theorem is about FAT vintages (the 518-key snapshot
+    // era). A fixture frozen slim — the swept v5, saved after the boundary
+    // fix — has nothing to shrink; it must simply not grow.
+    if (fat > 120)
+      ok(thin < fat / 3, 'and the re-save is deviations, not a snapshot (' +
+         fat + ' keys -> ' + thin + ')');
+    else
+      ok(thin <= fat + 1, 'and the slim ' + f + ' re-saves lean (' +
+         fat + ' keys -> ' + thin + ')');
   }
 }
 
@@ -524,8 +556,12 @@ function nullPaths(o, pre, out) {
 // ---------------------------------------------------------------------------
 {
   const MIG = C.GEN_MIGRATORS;
-  ok(MIG && typeof MIG === 'object' && Object.keys(MIG).length === 0,
-     'the migrator table exists and is empty (nothing to migrate today)');
+  // G140: the table's first REAL entry — v5->v6, the wing-station lift.
+  // The assertion names the exact expected set so a stray entry (or a lost
+  // one) is loud, which is what "exists and is empty" used to guarantee.
+  ok(MIG && typeof MIG === 'object' && Object.keys(MIG).join(',') === '5' &&
+     typeof MIG[5] === 'function',
+     'the migrator table carries exactly v5->v6 (the wing stations lift)');
   const ran = [];
   MIG[3] = s => { ran.push(3); if (s.oldName) s.newName = s.oldName; return s; };
   MIG[4] = s => { ran.push(4); return s; };

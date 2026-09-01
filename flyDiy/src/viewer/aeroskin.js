@@ -229,15 +229,25 @@ const AERO_ROLE = {
 // tube / plywood / aluminium" — so they resolve by name, not by construction
 const AERO_LINER = { plywood: 'ply', cloth: 'fabric', composite: 'composite',
                      toele: 'alclad' };
+// THE BEAD IS A RUBBER SEAL (the user: "make the joints black by default,
+// they're currently white, it's odd"). It was `trim` in all four rows, and
+// painted trim's base is 0xd8dde4 — so every window and every door on every
+// aeroplane was outlined in near-white, whatever it was built of. A window
+// seal is an extruded rubber section; it is black on a fabric taildragger and
+// black on a carbon canard, which is why this is the one role that does NOT
+// vary with the construction. AERO_HARD said so already for the lamp bays
+// ("the JOINT that fairs it to the skin is a rubber seal") — the cage's own
+// rims are the same part and now wear the same finish. The builder can still
+// paint them: `joint` is a section like any other and takes a tint.
 const AERO_BY_CONS = {
   tubeFabric: { skin: 'fabric', rail: 'fabric', pillar: 'fabric',
-                struct: 'steelTube', panel: 'trim', bead: 'trim' },
+                struct: 'steelTube', panel: 'trim', bead: 'rubber' },
   wood:       { skin: 'ply', rail: 'ply', pillar: 'ply',
-                struct: 'spruce', panel: 'trim', bead: 'trim' },
+                struct: 'spruce', panel: 'trim', bead: 'rubber' },
   alloy:      { skin: 'alclad', rail: 'alclad', pillar: 'alclad',
-                struct: 'bareAlu', panel: 'trim', bead: 'trim' },
+                struct: 'bareAlu', panel: 'trim', bead: 'rubber' },
   carbon:     { skin: 'composite', rail: 'composite', pillar: 'composite',
-                struct: 'composite', panel: 'trim', bead: 'trim' },
+                struct: 'composite', panel: 'trim', bead: 'rubber' },
 };
 const AERO_GLASS = new Set(['windshield', 'pilotWindow', 'pasengerWindow',
                             'skyWindows']);

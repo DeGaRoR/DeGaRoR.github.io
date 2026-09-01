@@ -465,8 +465,16 @@ PAGE.post = ctx => {
   // owns the dial (viewer state, never spec) and the materials are built to
   // it — read HERE, before the shell is built, because the alpha is now part
   // of which material this is rather than a property set on it afterwards.
-  const cA = (window.CAGE_VIEW && window.CAGE_VIEW.cowlA != null)
+  let cA = (window.CAGE_VIEW && window.CAGE_VIEW.cowlA != null)
     ? window.CAGE_VIEW.cowlA : 1;
+  // SEE INSIDE takes the cowl too, and for the reason it exists: the engine
+  // is the first thing anybody wants to reach through the covering, and the
+  // shell is what stands in front of it. The switch MULTIPLIES the dial the
+  // same way it does the cage's own alphas — a builder who has already
+  // ghosted the cowl keeps their value — and `xray` on the group is what
+  // tells the pick this shell is not a thing you can click ON (app.js).
+  const XRAY = !!(window.CAGE_VIEW && window.CAGE_VIEW.xray);
+  if (XRAY) cA = Math.min(cA, window.CAGE_VIEW.xrayA || 0.12);
   const M = cowlMats(cA), aps = CW.apertureList();
 
   group = new THREE.Group();
@@ -474,6 +482,7 @@ PAGE.post = ctx => {
   // part lives in, and G79's raycast resolves a hit to a part through
   // that. One string, no behaviour.
   group.name = 'cageLayer:cowl';
+  group.userData.xray = XRAY ? 1 : 0;
   const cowl = new THREE.Group();
   CW.buildSurface(cowl, M, aps);
   CW.buildLips(cowl, M, aps);

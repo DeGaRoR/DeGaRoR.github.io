@@ -250,9 +250,25 @@ const matCache = {};
 // of LOOKING and still wins when it asks for less; a default that always
 // asks for less was a cap wearing a preference's clothes.
 const VIEW = { glassA: 1, bodyA: 1, skinA: 1, structA: 1, cowlA: 1,
-               loops: 1 };
+               loops: 1, xray: 0 };
 // layers read viewer state (the cowl layer's alpha) through this — G29
 window.CAGE_VIEW = VIEW;
+// SEE INSIDE (the user: "maybe we should have a view where the interior is
+// visible, and not the fuselage, to be able to get to the engine and the
+// cockpit through clicking"). One switch, and it is not a sixth alpha: the
+// five dials each answer "how much of THIS family do I want to see through",
+// and this answers a different question — "get the covering out of my way so
+// I can work on what is under it". It therefore TAKES WHICHEVER ASKS FOR
+// LESS — the rule the glazing already follows, so a builder who has dragged
+// the fuselage below it keeps their own value — and it does the one thing no
+// alpha does: what you can see through, you can also CLICK THROUGH. See `viewThru` below and the pick in
+// src/viewer/app.js — a covering you can see the seats through and cannot
+// click past is the same disappointment `cowl α` had before G113.4.
+const XRAY_A = 0.12;
+// ...and the layers take the same number from here rather than each picking
+// their own: a cowl at 0.15 over a fuselage at 0.12 is two x-rays, and the
+// eye reads the difference as the cowl still being there.
+VIEW.xrayA = XRAY_A;
 const GLASSM = new Set(['windshield', 'pilotWindow', 'pasengerWindow',
                         'skyWindows']);
 const INTSKIN = new Set(['plywood', 'cloth', 'composite', 'toele']);
@@ -260,11 +276,24 @@ const INTSKIN = new Set(['plywood', 'cloth', 'composite', 'toele']);
 // must leave the rod standing (the naked Ruckus test)
 const INTSTRUCT = new Set(['bulkhead', 'firewall', 'dash', 'tube',
                            'woodFrame', 'aluminium', 'boomTube']);
+// WHAT THE X-RAY TAKES AWAY, and what it must leave standing. It takes the
+// COVERING — the outer skin, its glazing, and the interior linings that are
+// the same covering seen from inside — because those are what stand between
+// you and the cockpit. It leaves the STRUCTURE (frames, posts, tubes, the
+// firewall, the bulkhead, the dash, the rod boom): an aeroplane with its skin
+// off is a frame with an engine in it, not an empty outline, and the frame is
+// half of what you came in to look at.
+const xrayThru = name => !!VIEW.xray && !INTSTRUCT.has(name);
+const xrayA = name => xrayThru(name) ? XRAY_A : 1;
 const alphaOf = name =>
-  GLASSM.has(name) ? Math.min(VIEW.glassA, VIEW.bodyA)
-    : INTSKIN.has(name) ? VIEW.skinA
-    : INTSTRUCT.has(name) ? VIEW.structA
-    : VIEW.bodyA;
+  Math.min(xrayA(name),
+    GLASSM.has(name) ? Math.min(VIEW.glassA, VIEW.bodyA)
+      : INTSKIN.has(name) ? VIEW.skinA
+      : INTSTRUCT.has(name) ? VIEW.structA
+      : VIEW.bodyA);
+// the pick asks the same question the material did (src/viewer/app.js): one
+// answer, so a section can never be see-through and still block a click
+VIEW.thru = xrayThru;
 const colOf = name => new THREE.Color(
   !$('color').checked ? '#b9c6d4' : (SEC[name] || '#5a6470'));
 
@@ -918,6 +947,13 @@ function build() {
   // x planeScale. The cage scales; crew scenery is already metric and
   // never does. Pages without the param build at the unit exactly.
   const FS = (G.CAGE_UNIT || 1) * (P.planeScale || 1);
+  // THE BODY ZONES RIDE WITH THE MESH (see cageBodyZones in _cage_gen.js).
+  // The covering is ONE material, so which SECTION of the aeroplane a piece
+  // of skin belongs to is a question about stations, not about draw groups —
+  // and the answer travels on the object that carries the skin, in the same
+  // coordinates its positions are in (cage units, before FS), so a reader
+  // needs the mesh and nothing else.
+  meshObj.userData.bodyZones = G.cageBodyZones ? G.cageBodyZones(spec) : null;
   meshObj.scale.setScalar(FS);
   scene.add(meshObj);
 
@@ -1485,6 +1521,21 @@ fillPresetSel();
   mkA('int skin α', 'skinA');
   mkA('structure α', 'structA');
   mkA('cowl α', 'cowlA');          // see the engine through the shell (G29)
+  // SEE INSIDE — the five dials in one gesture, plus the click-through the
+  // dials never had. It is a CHECKBOX and not a sixth slider on purpose: the
+  // dials are for looking, this is for working on what is underneath.
+  {
+    const dx = document.createElement('div'); dx.className = 'r';
+    dx.title = 'Fade the covering and click straight through it — ' +
+               'the engine, the seats and the panel become reachable';
+    dx.innerHTML = `<span class="k">see inside</span>
+      <label style="flex:none"><input type="checkbox" id="xray"></label>`;
+    det.appendChild(dx);
+    dx.querySelector('input').onchange = e => {
+      VIEW.xray = e.target.checked ? 1 : 0;
+      build();
+    };
+  }
   const d = document.createElement('div'); d.className = 'r';
   d.innerHTML = `<span class="k">cutaway</span>
     <label style="flex:none"><input type="checkbox" id="cutaway"></label>`;

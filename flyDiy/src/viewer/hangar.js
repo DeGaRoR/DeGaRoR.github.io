@@ -142,10 +142,6 @@ const DOOR_H = FRAME === 'timber' ? EAVE - 0.5 : Math.min(6.4, EAVE - 1.4);
 // straddling two at different depths.
 const BD_W = Math.min(11.0, 2 * HW - 8), BD_H = Math.min(4.4, EAVE - 2.2);
 const BD_X = HD - 0.34;                    // the leaf plane, hung inside
-// ...and the face you look at. The timber shed has no back doors at all —
-// its back wall is boards — so the "face" the hung wing throws its shadow on
-// is the wall's own inner skin.
-const BD_FACE = FRAME === 'timber' ? HD - 0.18 : BD_X - 0.05;
 
 // THE LAYOUT WAS COMPOSED against the authored shed — 26 m deep by 36 m wide,
 // HD 13 and HW 18 — and every ABSOLUTE coordinate in the placement below is
@@ -1052,8 +1048,7 @@ for (const s of [1, -1]) {
 // back wall (+x), with a personnel door and a high window
 // TIMBER (HANGARS S4): solid boards, the person door by the corner, the
 // gable above — and NO back doors. The hung wing wants a big flat plane
-// behind it (G64's whole argument), and a board wall IS one; its shadow
-// sheet lands on BD_FACE, which the timber branch points at the boards.
+// behind it (G64's whole argument), and a board wall IS one.
 if (FRAME === 'timber') {
   const MDZ = Math.min(13.5, HW - 1.5);
   const z0 = MDZ - 0.55, z1 = MDZ + 0.55;      // the person-door opening
@@ -2338,31 +2333,6 @@ function planTable(x, z, ry) {
   G.add(g); return g;
 }
 
-// a rolling work platform — the thing you actually stand on to reach a wing
-function workPlatform(x, z, ry) {
-  const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry || 0;
-  const H = 1.55, W2 = 0.95, D = 2.0;
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-    g.add(cyl(0.035, 0.035, H, M.paintBlue, sx * (W2 / 2 - 0.05), H / 2, sz * (D / 2 - 0.05), 8));
-    const w = cyl(0.08, 0.08, 0.05, M.rubber, sx * (W2 / 2 - 0.05), 0.08, sz * (D / 2 - 0.05), 10);
-    w.rotation.x = Math.PI / 2; g.add(w);
-  }
-  for (const sz of [-1, 1]) for (const y of [0.55, 1.05])
-    g.add(box(W2, 0.035, 0.035, M.paintBlue, 0, y, sz * (D / 2 - 0.05)));
-  for (const sx of [-1, 1])
-    g.add(box(0.035, 0.035, D, M.paintBlue, sx * (W2 / 2 - 0.05), 1.05, 0));
-  g.add(box(W2 - 0.06, 0.05, D - 0.06, M.woodPale, 0, H + 0.03, 0));
-  // handrail on three sides, and the ladder up the fourth
-  for (const [px, pz] of [[-W2 / 2 + 0.05, 0], [W2 / 2 - 0.05, 0]]) {
-    g.add(cyl(0.025, 0.025, 1.0, M.paintBlue, px, H + 0.5, pz - D / 2 + 0.05, 8));
-    g.add(cyl(0.025, 0.025, 1.0, M.paintBlue, px, H + 0.5, pz + D / 2 - 0.05, 8));
-    g.add(box(0.03, 0.03, D, M.paintBlue, px, H + 1.0, 0));
-  }
-  g.add(box(W2, 0.03, 0.03, M.paintBlue, 0, H + 1.0, -D / 2 + 0.05));
-  for (let k = 0; k < 4; k++)
-    g.add(box(W2 - 0.14, 0.03, 0.05, M.paintBlue, 0, 0.30 + k * 0.42, D / 2 - 0.04));
-  G.add(g); return g;
-}
 // stock rack: tube, spruce and sheet, which is what an aeroplane starts as
 function stockRack(x, z, ry) {
   const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry || 0;
@@ -2530,81 +2500,6 @@ function wipWingHang(wx, wz) {
     if (len > 0.05)
       put(cyl(0.010, 0.010, len, M.steelDark, wx, top + 0.02 + len / 2, cz, 6));
   }
-
-  // ITS SHADOW ON THE WALL BEHIND IT (G63, user: "The wing can be quite
-  // invisible depending on the texture chosen for the back wall").
-  //
-  // PRECALCULATED rather than rendered, because this wing never moves.
-  // A render target would recompute the same image every bake for the same
-  // answer, cost a texture unit, and need a camera pointed at a wall. The
-  // silhouette is a soft tapered slab, drawn straight into an alpha map:
-  // wide plateau across the span, narrower toward the tips as the wing
-  // tapers, soft everywhere because a shadow from a big diffuse source is.
-  const bb = new THREE.Box3().setFromObject(w);
-  const spanZ = bb.max.z - bb.min.z, chordY = bb.max.y - bb.min.y;
-  // 90% ACROSS, 80% DOWN, AND PROPERLY BLURRED (G64, user: "The shadow is
-  // too rough. Shrink it to 80% vertical and 90% horizontal, then blur it
-  // significantly"). The first version faded its edges with a pair of
-  // smoothsteps, which is a ramp, not a blur: it kept the silhouette's
-  // corners and read as a smudge with a shape. This one draws the crisp
-  // mask small in the middle of the sheet and then actually BLURS it —
-  // two passes of a separable box filter, which is a close enough
-  // Gaussian for something this soft and costs nothing at bake time.
-  //
-  // 14 px of blur on a 256 x 64 sheet across a 9 m quad is about 0.45 m of
-  // penumbra, which is what a 4 m ceiling of diffuse light gives a wing
-  // hanging a metre off the doors.
-  const shW = (spanZ + 1.1) * 0.90, shH = (chordY + 0.9) * 0.80;
-  const shTex = sheet(256, 64, (g2, W2, H2) => {
-    const N = W2 * H2, a = new Float32Array(N), b = new Float32Array(N);
-    for (let j = 0; j < H2; j++) for (let i = 0; i < W2; i++) {
-      // the mask itself occupies the middle 70%, leaving the blur room to
-      // run out inside the sheet instead of clipping at its edge
-      const u = ((i + 0.5) / W2 - 0.5) / 0.70 + 0.5,
-            v = ((j + 0.5) / H2 - 0.5) / 0.70 + 0.5;
-      if (u < 0 || u > 1 || v < 0 || v > 1) continue;
-      const e = Math.abs(2 * u - 1);            // 0 at root, 1 at a tip
-      const hv = 0.5 * (1 - 0.30 * e * e);      // the wing's taper
-      a[j * W2 + i] = (Math.abs(v - 0.5) <= hv) ? 1 : 0;
-    }
-    const blur = (src, dst, rx, ry) => {
-      for (let j = 0; j < H2; j++) for (let i = 0; i < W2; i++) {
-        let t = 0, n = 0;
-        for (let k = -rx; k <= rx; k++) {
-          const x = i + k; if (x < 0 || x >= W2) continue;
-          t += src[j * W2 + x]; n++;
-        }
-        dst[j * W2 + i] = t / n;
-      }
-      for (let i = 0; i < W2; i++) for (let j = 0; j < H2; j++) {
-        let t = 0, n = 0;
-        for (let k = -ry; k <= ry; k++) {
-          const y = j + k; if (y < 0 || y >= H2) continue;
-          t += dst[y * W2 + i]; n++;
-        }
-        src[j * W2 + i] = t / n;
-      }
-    };
-    blur(a, b, 14, 7); blur(a, b, 14, 7);
-    const img = g2.createImageData(W2, H2), d = img.data;
-    for (let p = 0; p < N; p++) {
-      d[p * 4] = d[p * 4 + 1] = d[p * 4 + 2] = 255;
-      d[p * 4 + 3] = Math.round(255 * Math.min(1, a[p]));
-    }
-    g2.putImageData(img, 0, 0);
-  }, true);
-  // the plane is drawn in x-y and turned to face the room, so its width
-  // runs along z (the span) and its height along y (the chord). It sits on
-  // the DOOR now, not the wall behind it, and a little low because every
-  // fitting in here is above it.
-  const q = new THREE.Mesh(
-    new THREE.PlaneGeometry(shW, shH),
-    new THREE.MeshBasicMaterial({ color: 0x000000, alphaMap: shTex,
-      transparent: true, opacity: 0.5, depthWrite: false, fog: false }));
-  q.rotation.y = -Math.PI / 2;
-  q.position.set(BD_FACE - 0.02, (bb.min.y + bb.max.y) / 2 - 0.14, wz);
-  q.renderOrder = 1;
-  put(q);
 }
 
 // ---- the placement itself -------------------------------------------------
@@ -2617,7 +2512,6 @@ const DRAW = {
   tyreStack: r => tyreStack(r.x, r.z, r.n),
   stoveCorner: r => FURN.push(stoveCorner(r.x, r.z, r.ry)),
   planTable: r => FURN.push(planTable(r.x, r.z, r.ry)),
-  workPlatform: r => FURN.push(workPlatform(r.x, r.z, r.ry)),
   stockRack: r => FURN.push(stockRack(r.x, r.z, r.ry)),
   wipBody: r => wipBody(r.x, r.z, r.ry),
   wipWingHang: r => wipWingHang(r.x, r.z),

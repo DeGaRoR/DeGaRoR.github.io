@@ -134,55 +134,40 @@ function editorInit(api) {
     badge: () => (window.REFPLANE && window.REFPLANE.badge()) || '',
     refresh: () => { if (window.REFPLANE && window.REFPLANE.refresh) window.REFPLANE.refresh(); },
   });
-  // THE SHED AND THE WORLD (G108, the user: "I had once asked for the hangar
-  // and the world to become 2 entries in the tree, at the root level, like my
-  // plane and reference plane. Did we just not do that?"). The MECHANISM
-  // landed at G102 and the roots did not — `CAGE_TREE_ROOTS` had exactly two
-  // callers, both in this file, which is a registry nobody had registered
-  // anything with.
+  // THE SHED (G108; THE WORLD ROOT RETIRED at G136, the user: "I think we can
+  // get rid of the world entry, we have it in the main UI"). The world's whole
+  // panel was three rows the `night` flyout already shows — a second door to
+  // the same three controls, and the styling of a panel nobody had dressed.
+  // The root is gone; the rows stay reachable where the LOOKING question is
+  // asked, in the rail's flyout.
   //
-  // THE SHED SHEET RETIRES WITH THEM, and that reverses G78's own ruling on
-  // purpose: UI-MODEL section 2.4's argument is that ONE SELECTOR SCALES AND
-  // TWO INTERFACES DO NOT, and the world arriving is the proof — a second
-  // bespoke pane per object was already two, and would have been three.
-  //
-  // Their rows are _cage_ui.js's and hangar.js's OWN elements, moved, exactly
-  // as every other row in this column is. They live in the nursery when not
-  // selected, so `labelIndex` finds them for the `night` flyout with no
-  // change: the rail BORROWS and the tree OWNS, which is why `time of day`
-  // can be the world's row and still answer a question about looking.
+  // NOTHING IS MOVED OUT OF THE HANGAR GROUP ANY MORE. G108 pulled `lights`
+  // out to the shed host and three rows to the world's, and finding them BY
+  // LABEL is how the aeroplane's own lights master got STOLEN into the shed
+  // panel: `lightOn`'s row wears the same `lights` label, and with the shed
+  // selected the shed's own rows are in the column while the aeroplane's sit
+  // first in the nursery — so the index handed fillRoots the wrong object's
+  // row, and the shed's panel grew a second `lights` bar at its foot. The
+  // rows keep their birth order inside the group instead; labelIndex still
+  // finds them there for the `night` flyout, which borrows and returns.
   const shedHost = document.createElement('div');
   shedHost.className = 'edRoot';
-  const worldHost = document.createElement('div');
-  worldHost.className = 'edRoot';
   nursery.appendChild(shedHost);
-  nursery.appendChild(worldHost);
 
-  // which loose row belongs to which object. The four the `night` flyout
-  // claims are split by SUBJECT and not by where they were parked: the shed's
-  // own lamps are the shed's, the sky standing outside the door and what it
-  // does to the ground are the world's.
-  const SHED_ROWS = ['lights'];
-  const WORLD_ROWS = ['time of day', 'world lights', 'ground bounce'];
   function fillRoots() {
     // A ROOT'S HOST NEEDS A HOME. The parking loop keeps `.r` rows and
     // anything with a `homeOf` entry and REMOVES the rest — which is right
-    // for the reference panel (refplane.js owns it whole) and wrong for
-    // these: detached, they are no longer under the nursery, so `labelIndex`
-    // cannot find the rows inside them and the `night` flyout comes up empty.
+    // for the reference panel (refplane.js owns it whole) and wrong for this
+    // host: detached, it is no longer under the nursery, so `labelIndex`
+    // cannot find the rows inside it and the `night` flyout comes up empty.
     // Set HERE and not at construction, because `homeOf` is declared further
     // down the file and a root is registered before it exists.
     homeOf.set(shedHost, nursery);
-    homeOf.set(worldHost, nursery);
     const hd = document.querySelector('#edWrap details[data-g="hangar"]') ||
                nursery.querySelector('details[data-g="hangar"]');
     if (hd && hd.parentElement !== shedHost) { hd.open = true; shedHost.appendChild(hd); }
-    const idx = labelIndex();
-    for (const [host, labels] of [[shedHost, SHED_ROWS], [worldHost, WORLD_ROWS]])
-      for (const label of labels) {
-        const r = idx.get(label);
-        if (r && r.parentElement !== host) host.appendChild(r);
-      }
+    hookMoodSelect();
+    syncNightLabel();
   }
   const rootNote = (host, txt) => {
     if (host.querySelector('.r, details')) return host;
@@ -193,13 +178,9 @@ function editorInit(api) {
     return host;
   };
   registerRoot({ key: 'shed', name: 'The shed', order: 20,
-    meta: 'the room you build in — not the aeroplane',
+    meta: 'the room you build in, and the sky outside its door',
     panel: () => { fillRoots();
       return rootNote(shedHost, 'The shed is not in this build.'); } });
-  registerRoot({ key: 'world', name: 'The world', order: 30,
-    meta: 'the sky outside the door, and the light it throws',
-    panel: () => { fillRoots();
-      return rootNote(worldHost, 'The world is not in this build.'); } });
 
   let sel = pref(LS_SEL) || 'craft';
   if (!PT.partByKey[sel] && !rootFor(sel)) sel = 'craft';
@@ -234,6 +215,13 @@ function editorInit(api) {
   // aeroplane it describes.
   const homeOf = new WeakMap();
   let collapsed = pref(LS_COL) === '1';
+  // DESIGN NEEDS NO SELECTION (G136, the user: "auto hide the part selection
+  // bar when in design mode"). The tiles are the whole aeroplane's, so the
+  // tree has nothing to choose while that tab is up — the column folds to its
+  // spine on entry, TRANSIENTLY: the user's own fold preference is neither
+  // read nor written, and the spine click still opens the column mid-design.
+  let partsAuto = view === 'design';
+  const partsAway = () => collapsed || partsAuto;
   let infoOff = false, propsOff = pref('flydiy.edProps') === '1';
   let CU = null;                           // window.CAGE_UI, once it exists
   // key -> the row elements that carry it. A key can have TWO rows: the engine
@@ -744,6 +732,10 @@ function editorInit(api) {
     if (a) a.classList.toggle('on', view === 'shape');
     if (b) b.classList.toggle('on', view === 'finish');
     if (c) c.classList.toggle('on', view === 'design');
+    // the transient design fold — see partsAuto's own note
+    partsAuto = view === 'design';
+    wrap.classList.toggle('pcol-off', partsAway());
+    layoutRight();
     render();
     syncCowlGhost();
   }
@@ -900,6 +892,27 @@ function editorInit(api) {
     // the inspector would go on heading a column of nothing. Fall back up the
     // parents until something that is still on the aeroplane.
     if (!rows.some(r => r.p.key === sel) && !rootFor(sel)) {
+      // A FOLDED BRANCH IS NOT A MISSING PART, and the difference started
+      // mattering the day clicking the covering began selecting the BAY you
+      // clicked: the bays live under `Fuselage`, and with that branch folded
+      // every click on the fuselage answered `Fuselage` — the walk below did
+      // exactly what it was written to do, to a part that was there all
+      // along. So a row that is only OUT OF SIGHT opens its folds, and the
+      // walk keeps the case it exists for: a part that has stopped EXISTING.
+      const chain = [];
+      for (let a = PT.partByKey[sel]; a && exists(a);
+           a = a.parent ? PT.partByKey[a.parent] : null) chain.push(a);
+      const whole = chain.length && chain[chain.length - 1].parent === null;
+      const branch = ROOTS.filter(r => r.parts).map(r => r.key);
+      if (whole && chain.concat(branch.map(k => ({ key: k })))
+                        .some(p2 => folded.has(p2.key))) {
+        for (const p2 of chain) folded.delete(p2.key);
+        for (const k of branch) folded.delete(k);
+        saveFolded();
+        treeSig = '';
+        paintTree();
+        return;
+      }
       let up = PT.partByKey[sel];
       while (up && up.parent && !rows.some(r => r.p.key === up.key))
         up = PT.partByKey[up.parent];
@@ -1138,14 +1151,17 @@ function editorInit(api) {
   // width and the render's inset are the same number and come from here.
   const PROPS_W = 390, PARTS_W = 250, SPINE = 46;
   function layoutRight() {
-    const w = (propsOff ? SPINE : PROPS_W) + (collapsed ? SPINE : PARTS_W);
+    const w = (propsOff ? SPINE : PROPS_W) + (partsAway() ? SPINE : PARTS_W);
     wrap.style.width = w + 'px';
     if (typeof api.panelWidth === 'function') api.panelWidth(w);
   }
   function setCollapsed(on) {
     collapsed = !!on;
     pref(LS_COL, collapsed ? '1' : '0');
-    wrap.classList.toggle('pcol-off', collapsed);
+    // opening the column mid-design lifts the transient fold too, or the
+    // spine click would be a click that does nothing
+    if (!collapsed) partsAuto = false;
+    wrap.classList.toggle('pcol-off', partsAway());
     layoutRight();
   }
   // THE SLIDERS FOLD TOO (the user: "the slider panel should also be
@@ -1182,20 +1198,27 @@ function editorInit(api) {
       // `subsurf` is deliberately absent (G106.1): it is a bench instrument
       // and the game pins it at 2. See VIEW_STATE in tools/_cage_join.js —
       // GATE VIEW holds this list and that table against each other.
-      rows: ['control cage', 'wireframe', 'section colours', 'curvature heat',
+      // `selection` (G131) is the editor's own parked row — the highlight
+      // style, three ways to say "this part". Exempt in VIEW_KEEP: an edHi
+      // overlay, and the capture skips those.
+      // `smoothing` (G144) is the third parked row: the resolve pass's tier.
+      // Exempt in VIEW_KEEP — it is a RENDERER setting and moves no vertex.
+      rows: ['selection', 'clicking', 'smoothing', 'see inside',
+             'control cage', 'wireframe', 'section colours', 'curvature heat',
              'surface field', 'template step', 'canopy loops',
              'glass α', 'fuselage α', 'int skin α', 'structure α', 'cowl α'] },
-    // 'the light in the shed' is now the light EVERYWHERE: the world got a
-    // switchboard of its own this chantier, and the two belong in one place
+    // 'the light in the shed' is now the light EVERYWHERE: the shed's lamps,
+    // the sky outside the door and what it does to the ground, one flyout —
     // because the question a player actually asks — why does it look like that
     // out there and not in here? — is about the pair, not either one.
+    // `label` is the resting fallback only: syncNightLabel writes the current
+    // mood's own name over it (G136).
     { k: 'night', label: 'night', title: 'The light, in here and out there',
       icon: 'M14.2 11.1A5.8 5.8 0 0 1 6.9 3.8a5.8 5.8 0 1 0 7.3 7.3Z',
-      // THE RAIL BORROWS, THE TREE OWNS. Two of these rows belong to `The
-      // shed` now and two to `The world`, and this flyout still shows all
-      // four — because "why does it look like that out there and not in
-      // here?" is one question about LOOKING, and looking is what the rail is
-      // for. borrow()/returnRows() put each one back where it came from.
+      // THE RAIL BORROWS, THE TREE OWNS. These four rows live in the shed's
+      // hangar group (the world root retired at G136), and this flyout shows
+      // them because looking is what the rail is for. borrow()/returnRows()
+      // put each one back where it came from.
       rows: ['time of day', 'lights', 'world lights', 'ground bounce'] },
     { k: 'explode', label: 'explode', title: 'The build, taken apart',
       icon: 'M9 2.4v4.2|M9 11.4v4.2|M2.4 9h4.2|M11.4 9h4.2|M7.4 7.4h3.2v3.2H7.4z',
@@ -1221,6 +1244,40 @@ function editorInit(api) {
       b.onclick = () => openFly(flyOpen === t.k ? null : t.k);
       rail.appendChild(b);
     }
+    syncNightLabel();
+  }
+
+  // THE BUTTON SAYS WHAT TIME IT IS (G136, the user: "the main UI always says
+  // night as a button, while it should pick the current setting"). The flyout
+  // stays the switchboard; the button under it wears the current mood's own
+  // name — `dusk`, `overcast` — so the rail states the setting instead of one
+  // arbitrary value of it. Two triggers: the mood select's change event
+  // (addEventListener — its onchange belongs to _cage_ui), and every
+  // fillRoots, because a mood can arrive without that event firing (a hangar
+  // swap, a payload's own default).
+  function syncNightLabel() {
+    const rail = $('edRail');
+    if (!rail) return;
+    let btn = null;
+    for (const b of rail.children) if (b.dataset.f === 'night') btn = b;
+    if (!btn) return;
+    const GE = window.GARAGE_ENV;
+    let name = 'night';                    // the resting fallback, pre-garage
+    if (GE && GE.moods) {
+      const n = (GE.moods() || [])[GE.mood() | 0];
+      if (n) name = String(n).toLowerCase();
+    }
+    const s = btn.querySelector('span');
+    if (s && s.textContent !== name) s.textContent = name;
+  }
+  // ...found through labelIndex, not through the hangar group: the rail has
+  // already parked `time of day` in the nursery as one of its own rows.
+  let moodHooked = false;
+  function hookMoodSelect() {
+    if (moodHooked) return;
+    const r = labelIndex().get('time of day');
+    const s = r && r.querySelector('select');
+    if (s) { s.addEventListener('change', syncNightLabel); moodHooked = true; }
   }
 
   // the label -> row index, over everywhere a row _cage_ui built can be
@@ -1238,6 +1295,14 @@ function editorInit(api) {
     for (const host of [$('cgUi'), nursery, rowsEl]) {
       if (!host) continue;
       for (const r of host.querySelectorAll('.r')) {
+        // THE AEROPLANE'S ROWS ARE NEVER CLAIMED BY LABEL (G136). A part-table
+        // parameter row is already claimed by KEY; letting it answer a label
+        // query is how the shed's `lights` switchboard and the aeroplane's
+        // `lights` master — one label, two objects — traded places, with
+        // whichever sat first in document order winning. (`canopy loops` was
+        // the same double.) `explodeD` and friends stay findable: they carry a
+        // key the part table does not own.
+        if (r.dataset.k && PT.paramOwner[r.dataset.k]) continue;
         const k = r.querySelector('span.k');
         if (k && !idx.has(k.textContent)) idx.set(k.textContent, r);
       }
@@ -1371,21 +1436,15 @@ function editorInit(api) {
   // FLEET RACK — browsing forty aeroplanes wants width — and that chantier
   // brings its own scrim back with it rather than inheriting a dead one.
   //
-  // WHICH AEROPLANE IS ON THE STAND is a question about the fleet, so the
-  // game's own select is MOVED into the fleet section rather than copied — a
-  // copy would be a second control writing the same state. It goes home when
-  // the workshop does, because the bottom bar is where the game expects it.
-  let acHome = null, acNext = null;
-  function borrowAircraftSelect() {
-    const host = $('shAc'), sel2 = document.getElementById('selAc');
-    if (!host || !sel2 || sel2.parentElement === host) return;
-    acHome = sel2.parentElement; acNext = sel2.nextSibling;
-    host.appendChild(sel2);
-  }
+  // THE LOAN ITSELF IS GONE (G135). WHICH AEROPLANE IS ON THE STAND used to be
+  // a question, so the game's own `#selAc` was MOVED here rather than copied.
+  // It is not a question any more: the seven hand fiches are gate subjects and
+  // the select holds one hidden option, so what the panel borrowed was an empty
+  // box. `#edStand`/`#shAc` went with it. What replaces it is the FLEET RACK —
+  // YOUR builds — and until then the ribbon's `#fbName` names the one on the
+  // stand. releaseView keeps its name and its export: it still closes whatever
+  // is floating over a view that is about to become the world.
   function releaseView() {
-    const sel2 = document.getElementById('selAc');
-    if (sel2 && acHome && sel2.parentElement !== acHome)
-      acHome.insertBefore(sel2, acNext);
     openFly(null);
   }
 
@@ -1441,8 +1500,37 @@ function editorInit(api) {
       if (p.layer === key && p.parent && !p.root) return p.key;
     return null;
   };
+  //
+  // A ZONED SECTION RESOLVES THROUGH THE STATION FIRST (the user: "the
+  // fuselage divides into nose ... the pilot cabin ... the passenger bays ...
+  // the boom until the flat part at the tail. These parts would need to
+  // highlight accordingly"). The covering is one material end to end, so
+  // `body` alone would always answer `Fuselage`; app.js hands down which body
+  // ZONE was struck and PT.zoneOwner turns that into the part whose bay it
+  // is. An unzoned build, or a zone no part claims, falls back to the
+  // material's owner exactly as before — the assembly, which is the right
+  // answer when the aeroplane has no station there.
+  //
+  // CAGE_ZONE_PICK and not CAGE_ZONED: the seals are cut to the bay when a
+  // BAY is selected, but clicking one still selects `window joints`, because
+  // that material DOES answer — it names a part with its own rows.
+  //
+  // AND IT IS AN OPTION (the user: "Keep this as an option in the menus for
+  // now, and we'll see if that's better or worse by using it, but that feels
+  // cleaner to me"). `bay` is the default because that is the ruling; `whole`
+  // is the behaviour before the station table existed, so the two can be
+  // compared by using them rather than argued about. It changes what a CLICK
+  // means and nothing else — a selection of a bay is still cut to that bay in
+  // either position, because that is what makes the tree row mean anything.
+  const LS_PICK = 'flydiy.edPickBay';
+  let pickBay = pref(LS_PICK) !== 'whole';
   function partOfHit(hit) {
     if (!hit) return null;
+    if (pickBay && hit.section &&
+        PT.CAGE_ZONE_PICK && PT.CAGE_ZONE_PICK.has(hit.section)) {
+      const z = hit.zone && PT.zoneOwner[hit.zone];
+      if (z && PT.partByKey[z] && exists(PT.partByKey[z])) return z;
+    }
     if (hit.section) return PT.sectionOwner[hit.section] || 'fuselage';
     for (const [re, key] of HIT_NAME)
       if (hit.name && re.test(hit.name) && PT.partByKey[key]) return key;
@@ -1471,17 +1559,30 @@ function editorInit(api) {
   // the thing you actually want to see when you are choosing between a fairing
   // and the panel behind it.
   //
-  // THE DEFAULT IS NOT DECIDED HERE. It is stated in one place, persisted, and
-  // reachable at runtime as `window.EDITOR_HILITE` so it can be flipped
-  // without a rebuild and wired to a control by whoever owns the view panel.
+  // AND THERE ARE TWO KINDS OF "THIS" (G131, the user: "The current outline is
+  // very sexy, but a little disturbing. I had in mind a global silhouette
+  // outline of the full part, not the detail within them"). `outline` is the
+  // part DRAWN — every crease EdgesGeometry keeps — and `silhouette` is the
+  // part's one closed contour against everything else, which no edge table can
+  // give because it depends on where the camera stands. See hiSilShell below
+  // for how it is actually made.
+  //
+  // THE DEFAULT IS DECIDED — by the user, and only after seeing all three
+  // side by side (G131 shipped with `outline` still holding the chair while
+  // they said "I can't make up my mind"; G131.1, next day: "silhouette
+  // should be the default"). It is stated in one place, persisted, offered
+  // as the `selection` row of the display flyout, and reachable at runtime
+  // as `window.EDITOR_HILITE` so it can be flipped without a rebuild. A
+  // saved pref still wins over this default, as any menu choice should.
   //
   // r128 FACT, so nobody spends an afternoon on it: `LineBasicMaterial.
   // linewidth` is IGNORED by every desktop WebGL driver — the core profile
   // only guarantees 1 px. A thicker outline needs fat-line geometry (two
   // triangles per segment), which is a different chantier; `width` below is
-  // recorded as intent and does nothing yet.
+  // recorded as intent and does nothing yet. The silhouette does NOT have this
+  // problem — its shell is triangles already — which is why `silW` works.
   const HI_DEF = {
-    mode: 'outline',        // 'outline' | 'fill' | 'both'
+    mode: 'silhouette',     // 'outline' | 'silhouette' | 'fill' | 'both'
     line: 0x00e5ff,         // the selection outline: nothing on the aeroplane
     lineHov: 0x66f0ff,      // or in the shed is this colour, which is the point
     fill: 0xe6dbc9,         // what the wash was, kept for 'fill' and 'both'
@@ -1489,6 +1590,8 @@ function editorInit(api) {
                             // covering can still be seen to be selected
     angle: 24,              // EdgesGeometry threshold, degrees
     width: 1,               // intent only — see the r128 note above
+    silW: 0.015,            // silhouette rim, metres of view space — constant
+                            // in the world, so it thins as you step back
   };
   const HI_PREF = 'flydiy.edHilite';
   const HI = Object.assign({}, HI_DEF);
@@ -1511,6 +1614,86 @@ function editorInit(api) {
     m.userData.cageUni = 1;
     return m;
   }
+  // ---- THE SILHOUETTE (G131) ----------------------------------------------
+  // A silhouette is VIEW-DEPENDENT, so it cannot come from an edge table; it
+  // is made in the stencil buffer instead, in two passes per highlight:
+  //
+  //   the MASK draws every highlighted mesh invisibly (colorWrite off, depth
+  //   ignored) and stamps the part's screen footprint into one stencil bit;
+  //   the SHELL draws the same meshes again, inflated along the view-space
+  //   normal by `silW`, and is only allowed to land where its own bit is NOT
+  //   set. What survives is the rim between the inflated shape and the real
+  //   one — the union contour of ALL the part's meshes, because every mesh
+  //   masks every other mesh's shell.
+  //
+  // Selection owns bit 1 and hover bit 2, so the two silhouettes coexist
+  // without erasing each other. The renderer clears stencil every frame
+  // (autoClear, one render call — app.js:3882), so the stamp is never stale.
+  //
+  // The inflation is MeshBasicMaterial + onBeforeCompile rather than a raw
+  // ShaderMaterial for one reason: the renderer runs a logarithmic depth
+  // buffer, and the built-in material carries the logdepthbuf chunks that a
+  // hand-rolled shader would have to re-import to depth-test correctly when
+  // `through` is off. Offsetting in VIEW space (normalMatrix included) makes
+  // `silW` world-metres whatever the mesh's own unit is — the cage draws in
+  // mesh units under a scale, the layers in metres, and one rim fits both.
+  //
+  // KNOWN AND ACCEPTED: a cube probe render target has no stencil buffer, so
+  // inside `craftInProbe` (off by default, app.js:413 hides the craft from
+  // the bake) a live highlight would bake unmasked. The fill and the edge
+  // outline bake into that probe too — the cure for all three is the same:
+  // deselect, rebake.
+  function hiSilMask(which) {
+    const bit = which === 'sel' ? 1 : 2;
+    const m = new THREE.MeshBasicMaterial({
+      colorWrite: false, depthWrite: false, depthTest: false,
+      side: THREE.DoubleSide });
+    m.stencilWrite = true;
+    m.stencilRef = bit;
+    m.stencilWriteMask = bit;
+    m.stencilZPass = THREE.ReplaceStencilOp;
+    m.userData.cageUni = 1;
+    return m;
+  }
+  function hiSilShell(which) {
+    const bit = which === 'sel' ? 1 : 2;
+    const m = new THREE.MeshBasicMaterial({
+      color: which === 'sel' ? HI.line : HI.lineHov,
+      transparent: true, opacity: which === 'sel' ? 1 : 0.75,
+      depthTest: !HI.through, depthWrite: false, fog: false,
+      side: THREE.DoubleSide });
+    m.stencilWrite = true;         // writeMask 0: the shell TESTS, never stamps
+    m.stencilWriteMask = 0;
+    m.stencilFunc = THREE.NotEqualStencilFunc;
+    m.stencilRef = bit;
+    m.stencilFuncMask = bit;
+    m.onBeforeCompile = sh => {
+      sh.uniforms.hiSilW = { value: HI.silW };
+      sh.vertexShader = ('uniform float hiSilW;\n' + sh.vertexShader).replace(
+        '#include <project_vertex>',
+        ['vec4 mvPosition = modelViewMatrix * vec4( transformed, 1.0 );',
+         'mvPosition.xyz += normalize( normalMatrix * normal ) * hiSilW;',
+         'gl_Position = projectionMatrix * mvPosition;'].join('\n'));
+    };
+    m.userData.cageUni = 1;
+    return m;
+  }
+  // one mask + one shell over the same geometry, in stamp-then-test order.
+  // The mask is opaque-list (colorWrite off keeps it invisible) and the shell
+  // transparent-list, so the renderer itself guarantees the order.
+  function hiSilPair(geo, which, addTo, scaleOf) {
+    const pair = [
+      new THREE.Mesh(geo, hiMats[which === 'sel' ? 'selM' : 'hovM']),
+      new THREE.Mesh(geo, hiMats[which === 'sel' ? 'selS' : 'hovS'])];
+    pair[0].renderOrder = 6; pair[1].renderOrder = 7;
+    for (const m of pair) {
+      if (scaleOf) m.scale.copy(scaleOf);
+      m.userData.edHi = 1;
+      addTo.add(m);
+    }
+    return pair;
+  }
+
   // ONE OUTLINE, from whatever geometry it is handed. EdgesGeometry keeps only
   // the edges where two faces meet at more than `angle`, which is what turns a
   // shaded solid into the drawing of it — a wireframe would give every triangle
@@ -1532,7 +1715,139 @@ function editorInit(api) {
     const sel = pinFor;
     hiClear('sel'); hiClear('hov');
     if (sel) hiBuild(sel, 'sel');
+    // the display flyout's `selection` row says what the console just set
+    { const ss = $('edSelStyle'); if (ss) ss.value = HI.mode; }
     return Object.assign({}, HI);
+  };
+
+  // ---- THE STYLE IS ON THE MENU (G131, the user: "There should also be an
+  // option for display on the selection of parts, because I can't make up my
+  // mind... Accessible from the display menu"). A real parked row, not a
+  // flyout-built widget: it lives in the nursery, is listed by label in the
+  // RAIL's `display` rows, and openFly borrows and returns it like any row
+  // _cage_ui built — which also puts it in front of GATE VIEW, where it is
+  // exempt WITH ITS REASON (VIEW_KEEP in tools/_cage_join.js: the highlight
+  // is an edHi overlay and the capture skips those outright).
+  {
+    const row = document.createElement('div');
+    row.className = 'r';
+    row.title = 'How the selected part is shown';
+    const k = document.createElement('span');
+    k.className = 'k';
+    k.textContent = 'selection';
+    const s = document.createElement('select');
+    s.id = 'edSelStyle';
+    for (const [v, label, why] of [
+      ['outline',    'detail outline', 'every crease of the part, drawn'],
+      ['silhouette', 'silhouette',     'one line around the whole part'],
+      ['fill',       'soft glow',      'a pale wash over the whole part'],
+      // reachable from the console, deliberately not offered on the menu —
+      // hidden rather than absent so a console-set mode still reads back
+      ['both',       'outline + glow', ''],
+    ]) {
+      const o = document.createElement('option');
+      o.value = v; o.textContent = label;
+      if (why) o.title = why; else o.hidden = true;
+      s.appendChild(o);
+    }
+    s.value = HI.mode;
+    s.onchange = () => window.EDITOR_HILITE({ mode: s.value });
+    row.appendChild(k);
+    row.appendChild(s);
+    nursery.appendChild(row);
+  }
+  // ...and its neighbour: what a click on the covering SELECTS. Parked the
+  // same way, listed in the RAIL's `display` rows the same way, and exempt in
+  // VIEW_KEEP with the same kind of reason — it moves no vertex and touches
+  // no material, so the flight capture cannot see it.
+  {
+    const row = document.createElement('div');
+    row.className = 'r';
+    row.title = 'What a click on the covering or a longeron selects';
+    const k = document.createElement('span');
+    k.className = 'k';
+    k.textContent = 'clicking';
+    const s2 = document.createElement('select');
+    s2.id = 'edPickMode';
+    for (const [v, label, why] of [
+      ['bay',   'the bay you clicked',
+       'the fuselage sliced into its sections: nose, cabin, bays, boom, tail'],
+      ['whole', 'the whole fuselage',
+       'the covering answers with the assembly, as it did before the ' +
+       'sections existed'],
+    ]) {
+      const o = document.createElement('option');
+      o.value = v; o.textContent = label; o.title = why;
+      s2.appendChild(o);
+    }
+    s2.value = pickBay ? 'bay' : 'whole';
+    s2.onchange = () => window.EDITOR_PICKMODE(s2.value);
+    row.appendChild(k);
+    row.appendChild(s2);
+    nursery.appendChild(row);
+  }
+  // ...and a third, G144: HOW SMOOTH THE PICTURE IS. Parked the same way and
+  // listed in the RAIL's `display` rows the same way, because it answers the
+  // same kind of question the other two do — what the build is DRAWN as — even
+  // though this one is about the frame rather than about the part.
+  //
+  // It reads the pass LAZILY, through window.FLYDIY_AA, because this block is
+  // built by editorInit and a viewer assembled in a different order (or a card
+  // that cannot carry the pass at all) must still get a row that tells the
+  // truth rather than a row that throws. When the card cannot carry it the
+  // select says so and is disabled: an option that silently does nothing is
+  // worse than an option that is visibly not available.
+  {
+    const row = document.createElement('div');
+    row.className = 'r';
+    row.title = 'How much work goes into smoothing edges and gradients';
+    const k = document.createElement('span');
+    k.className = 'k';
+    k.textContent = 'smoothing';
+    const s3 = document.createElement('select');
+    s3.id = 'edAATier';
+    const aa0 = (typeof window !== 'undefined' && window.FLYDIY_AA) || null;
+    const TIERS = (typeof window !== 'undefined' && window.AA_RESOLVE &&
+                   window.AA_RESOLVE.TIERS) || {};
+    for (const v of ['off', 'msaa', 'full']) {
+      const t = TIERS[v];
+      if (!t) continue;
+      const o = document.createElement('option');
+      o.value = v; o.textContent = t.label; o.title = t.why;
+      s3.appendChild(o);
+    }
+    if (aa0 && aa0.able()) {
+      s3.value = aa0.tier();
+    } else {
+      s3.value = 'off';
+      s3.disabled = true;
+      row.title = 'This card cannot carry the resolve pass — 4x MSAA only';
+    }
+    s3.onchange = () => {
+      const aa = (typeof window !== 'undefined' && window.FLYDIY_AA) || null;
+      if (aa) s3.value = aa.setTier(s3.value);   // the pass reports what it took
+    };
+    // THE PASS IS THE KEEPER AND THIS SELECT IS ONLY A READER (G144.2): the
+    // flight screen's camera flyout presses the same tier, and a select built
+    // once at editorInit would go on showing the old answer after a change
+    // made over there. The flight pills stay honest by being rebuilt on every
+    // open; this row stays honest by re-reading on approach.
+    row.addEventListener('pointerenter', () => {
+      const aa = (typeof window !== 'undefined' && window.FLYDIY_AA) || null;
+      if (aa && aa.able()) s3.value = aa.tier();
+    });
+    row.appendChild(k);
+    row.appendChild(s3);
+    nursery.appendChild(row);
+  }
+  // the switch, live and reachable from the console like the highlight's
+  window.EDITOR_PICKMODE = (v) => {
+    if (v == null) return pickBay ? 'bay' : 'whole';
+    pickBay = v !== 'whole';
+    pref(LS_PICK, pickBay ? 'bay' : 'whole');
+    const el = $('edPickMode');
+    if (el) el.value = pickBay ? 'bay' : 'whole';
+    return pickBay ? 'bay' : 'whole';
   };
   function hiClear(which) {
     const g = which === 'sel' ? hiSel : hiHov;
@@ -1579,18 +1894,41 @@ function editorInit(api) {
     if (!partKey || partKey === 'craft' || !root ||
         typeof THREE === 'undefined') return;
     if (!hiMats) hiMats = { sel: hiMat(0.34), hov: hiMat(0.16),
-                            selL: hiLine('sel'), hovL: hiLine('hov') };
+                            selL: hiLine('sel'), hovL: hiLine('hov'),
+                            selM: hiSilMask('sel'), hovM: hiSilMask('hov'),
+                            selS: hiSilShell('sel'), hovS: hiSilShell('hov') };
     const mat = hiMats[which];
-    const wantFill = HI.mode !== 'outline', wantLine = HI.mode !== 'fill';
+    const wantFill = HI.mode === 'fill' || HI.mode === 'both';
+    const wantLine = HI.mode === 'outline' || HI.mode === 'both';
+    const wantSil = HI.mode === 'silhouette';
     const out = [];
     // every part shown under this key — selecting an assembly lights all of it
     const parts = partsShown(partKey).filter(exists);
     const want = new Set(), layers = new Set(), keys = new Set();
+    // THE BAYS THIS SELECTION NAMES. A part that IS a body zone (the nose,
+    // the cabin, a passenger bay) owns no covering material of its own — the
+    // covering is one material and the assembly owns it — so it asks for its
+    // STATIONS instead, and the zoned sections below are cut to them. `null`
+    // means the selection named no bay at all, and then nothing is cut:
+    // `window joints` selected on its own lights every seal on the aeroplane,
+    // which is what that part is.
+    //
+    // THERE IS NO EXCEPTION FOR THE ASSEMBLY, and there was one here for a
+    // day. Selecting the Fuselage NAMES EVERY BAY (they are all under it) and
+    // the zones partition the covering, so "all of it" falls out of the same
+    // rule — while `Cabin`, which owns the seals through its `window joints`
+    // child, still gets the cabin's seals and not the tail's. An exception
+    // for a part that owns a zoned section outright would have handed the
+    // cabin every seal on the aeroplane, which is the bug this replaced.
+    let zones = new Set();
     for (const p of parts) {
       for (const s of (p.sections || [])) want.add(s);
+      if (p.zone) zones.add(p.zone);
       if (p.layer && p.layer !== 'cage') layers.add(p.layer);
       keys.add(p.key);
     }
+    if (!zones.size) zones = null;
+    if (zones && PT.CAGE_ZONED) for (const s of PT.CAGE_ZONED) want.add(s);
     // A LAYER IS PARTITIONED, NOT FILTERED. The first cut narrowed a layer to
     // the meshes whose name maps to the selected part, which is right for the
     // named minority and wrong for everything else: `wingPanel` owns the wing,
@@ -1617,19 +1955,62 @@ function editorInit(api) {
         // typed subarrays, not a getX loop: this runs at the end of every
         // build, and a build happens on every pixel of a slider drag over a
         // mesh with a hundred thousand triangles in it
+        //
+        // A ZONED GROUP IS CUT TO THE SELECTED STATIONS. The covering is one
+        // draw group from the firewall to the tail, so "the nose" is a RANGE
+        // OF Z inside it and not a group of its own. Each triangle goes to
+        // the zone its CENTROID stands in — a centroid, because a face that
+        // straddles a pillar belongs to the bay it is mostly in, and testing
+        // a corner instead leaves a sliver of the neighbouring bay lit along
+        // every station. The table is the mesh's own (_cage_ui.js publishes
+        // what the build was made with), so it is in the same coordinates the
+        // positions are, and no scale enters.
+        const zTable = zones && child.userData.bodyZones;
+        const pos = src.getAttribute('position');
+        // ASKING FOR EVERY BAY IS ASKING FOR THE WHOLE COVERING — the
+        // Fuselage, and any selection that happens to name the lot. The
+        // filter would keep every triangle at the cost of walking them all.
+        const zAll = !!zTable && zTable.every(q => zones.has(q.key));
+        const zoneOf = z => {
+          for (const q of zTable) if (z >= q.z0) return q.key;
+          return zTable[zTable.length - 1].key;
+        };
         const runs = [];
         let n = 0;
-        for (const g of src.groups)
-          if (want.has(nm[g.materialIndex])) {
-            runs.push(idx.array.subarray(g.start, g.start + g.count));
-            n += g.count;
+        for (const g of src.groups) {
+          const gm = nm[g.materialIndex];
+          if (!want.has(gm)) continue;
+          if (zones && !zAll && PT.CAGE_ZONED.has(gm)) {
+            // no station table on this mesh is not a reason to light the
+            // whole aeroplane: it is a reason to light none of the covering
+            if (!zTable || !zTable.length || !pos) continue;
+            const ia = idx.array, pa = pos.array;
+            const cut = new ia.constructor(g.count);
+            let k = 0;
+            for (let i = g.start, e = g.start + g.count; i + 2 < e; i += 3) {
+              const a = ia[i], b = ia[i + 1], c = ia[i + 2];
+              const zc = (pa[a * 3 + 2] + pa[b * 3 + 2] + pa[c * 3 + 2]) / 3;
+              if (!zones.has(zoneOf(zc))) continue;
+              cut[k++] = a; cut[k++] = b; cut[k++] = c;
+            }
+            if (k) { runs.push(cut.subarray(0, k)); n += k; }
+            continue;
           }
+          runs.push(idx.array.subarray(g.start, g.start + g.count));
+          n += g.count;
+        }
         if (!n) continue;
         const keep = new idx.array.constructor(n);
         let at = 0;
         for (const r of runs) { keep.set(r, at); at += r.length; }
         const geo = new THREE.BufferGeometry();
         geo.setAttribute('position', src.getAttribute('position'));
+        // the shell inflates along normals; SHARED like the positions are,
+        // which is also why this subset geometry is never disposed (disposing
+        // a shared attribute would pull the cage's own buffer out from under
+        // it — the same reason the fill does not own its geometry)
+        if (src.getAttribute('normal'))
+          geo.setAttribute('normal', src.getAttribute('normal'));
         geo.setIndex(new THREE.BufferAttribute(keep, 1));
         if (wantFill) {
           const m = new THREE.Mesh(geo, mat);
@@ -1645,6 +2026,8 @@ function editorInit(api) {
           child.parent.add(l);
           out.push(l);
         }
+        if (wantSil)
+          out.push(...hiSilPair(geo, which, child.parent, child.scale));
         continue;
       }
       const ln = (child.name || '');
@@ -1666,6 +2049,7 @@ function editorInit(api) {
         }
         if (wantLine) { const l = hiEdges(o.geometry, which); o.add(l);
                         out.push(l); }
+        if (wantSil) out.push(...hiSilPair(o.geometry, which, o));
       });
     }
     if (which === 'sel') { hiSel = out; pinFor = partKey; }
@@ -1681,6 +2065,37 @@ function editorInit(api) {
   //
   // Going with it: the world-point pin, the per-frame re-projection, and
   // app.js's projectPoint, which existed for nothing else.
+  // CLICKING WHAT IS ALREADY SELECTED STEPS OUT (the user: "You may suggest an
+  // intuitive way to select the whole fuselage"). Once the covering and the
+  // longerons are sliced into bays there is nothing left on the aeroplane
+  // that selects the whole fuselage, and it still has rows of its own — the
+  // waist line, the section rounding, the creases — so it has to be
+  // reachable. This is the way up, and it is the same gesture repeated:
+  // click the nose, click it again for the Fuselage, again for My Plane.
+  //
+  // A SECOND GESTURE WAS THE OTHER CANDIDATE (double-click, which the user
+  // suggested, on the aeroplane or outside it). This won because it needs
+  // nothing to discover — you find it by clicking twice, which people do —
+  // and because it is reversible: one click on anything else puts you back on
+  // a bay. Double-click outside also already means something (it recentres
+  // the view), and "outside the aeroplane" is a strange place to say
+  // "fuselage" from. A part with no parent stays where it is rather than
+  // wrapping round to the leaves.
+  //
+  // IT IS THE SAME SPOT CLICKED AGAIN, NOT AN ANCESTOR SELECTED. The first
+  // cut asked "is what is selected this part or one of its parents?", which
+  // reads the same and is not: with the Fuselage selected, EVERY bay is a
+  // descendant, so clicking the passenger bay stepped out to My Plane instead
+  // of selecting the bay. So what is remembered is the part the last click
+  // RESOLVED TO — click the same one again and you go up from wherever the
+  // selection now is, click a different one and you land on it.
+  const stepOut = k => {
+    const p = PT.partByKey[k];
+    if (!p || p.root) return k;
+    return p.parent || 'craft';
+  };
+  let lastPick = null;
+
   // app.js hands a HIT down on click, and on hover while nothing is dragging
   let hovKey = null, hovInst = '';
   window.EDITOR_PICK = (hit, hover) => {
@@ -1692,8 +2107,13 @@ function editorInit(api) {
       // than nowhere — the column always says what it is showing. `hit.miss`
       // is app.js's own answer to "the ray was cast and hit nothing"; a bare
       // null means the question was never asked and must change nothing.
-      if (key) select(key);
-      else if (hit && hit.miss) select('craft');
+      if (key) {
+        select(key === lastPick ? stepOut(sel) : key);
+        lastPick = key;
+      } else if (hit && hit.miss) {
+        select('craft');
+        lastPick = null;
+      }
       return;
     }
     if (key === hovKey && inst === hovInst) return;
@@ -1770,7 +2190,7 @@ function editorInit(api) {
       const off = wrap.classList.toggle('opts-off');
       pref(LS_OPTS, off ? '0' : '1');
     };
-    wrap.classList.toggle('pcol-off', collapsed);
+    wrap.classList.toggle('pcol-off', partsAway());
     wrap.classList.toggle('prop-off', propsOff);
     layoutRight();
     // ---- the view layer -------------------------------------------------
@@ -1787,7 +2207,6 @@ function editorInit(api) {
     const fi = $('edInfoFold'); if (fi) fi.onclick = () => foldInfo(true);
     const fit = $('edInfoTab'); if (fit) fit.onclick = () => foldInfo(false);
     foldInfo(pref(LS_INFO) === '1');
-    borrowAircraftSelect();
     // ESC closes whatever is over the view, innermost first
     document.addEventListener('keydown', e => {
       if (e.key !== 'Escape') return;
@@ -1835,8 +2254,7 @@ function editorInit(api) {
     select(sel);
   };
   window.CAGE_ON_VIS = applyVis;
-  // app.js calls this when the editor leaves the screen (rolling out): the
-  // game's aircraft select is on loan to the sheet and has to go home, and
+  // app.js calls this when the editor leaves the screen (rolling out):
   // nothing should be left floating over a view that is now the world.
   window.EDITOR_RELEASE = releaseView;
   // app.js calls this straight after CAGE_PAGE_SETUP, which is what injects

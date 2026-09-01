@@ -233,6 +233,13 @@ window.CAGE_PAGE = {
         ['roofY',     'roof height',    0.40, 1.60, 0.005, { dim: 'len' }],
         ['keelY',     'keel height',   -1.60, -0.30, 0.005, { dim: 'len' }],
         ['floorY',    'floor height',  -1.20, 0.00, 0.005, { dim: 'len' }],
+        // THE LEAN (study 2026-09-01, futureDesigns/LEAN-PILLAR-STUDY):
+        // the aft bulkhead (passenger pillar; pilot pillar on a 0-bay
+        // cabin) and the cabin pillar tilt top-aft as a SHEAR, in
+        // degrees — the generator clamps on roof travel, not angle, so
+        // a short neighbouring bay quietly limits the effective tilt.
+        ['leanPaxDeg', 'aft bulkhead lean', -25, 30, 0.5],
+        ['leanCabDeg', 'cabin pillar lean', -25, 30, 0.5],
       ], 'open'],
       ['windows', [
         ['wsRun',     'windscreen run', 0.20, 2.00, 0.01, { dim: 'len' }],

@@ -421,11 +421,19 @@ function genShakedown(def, opts) {
   const noseOver = Math.atan2(cgS[0] - axX, Math.max(0.05, cgS[1] - axY)) * 180 / Math.PI;
   const onWheels = iAx >= 0 && Math.abs(aglOf(iAx)) < 0.06 && Math.abs(aglOf(iTw)) < 0.06;
 
-  const PPr = POWERPLANTS[def.params.powerplant];
-  const hp = PPr.engine.powerW / 745.7;
+  // G134: the def's own engine facts outrank the registry row — a garage
+  // build flies (and is judged by) the engine its dials resolved to. The
+  // thermo sheet rides along: what full throttle burns or draws, and the
+  // heat the cowl will one day have to reject (the ventilation-sizing arc
+  // consumes coolKW; until then it is an honest number on the plaque).
+  const ENr = def.params.engine || POWERPLANTS[def.params.powerplant].engine;
+  const THr = genEngineThermo(ENr);
+  const hp = ENr.powerW / 745.7;
   const out = {
     mass: sim.totalM, W,
-    engineName: PPr.engine.name, hp, engineMass: PPr.engine.mass,
+    engineName: ENr.name, hp, engineMass: ENr.mass,
+    engineFamily: THr.family, engineCooling: THr.cooling,
+    coolKW: THr.coolKW, burnKgH: THr.burnKgH, drawKW: THr.drawKW,
     powerLoad: sim.totalM / Math.max(1e-6, hp),
     onWheels, restsOn: lowTag, gearStrain, restChassisStrain: chassisStrain,
     springStrain, susTravel, susShift, gearFolded: susShift > 0.5,
@@ -470,6 +478,11 @@ function genShakedown(def, opts) {
     out.deckAngle = Math.atan(((tw.p[1] - S.gear.twR) - ground) /
                               (P.twX - P.gx)) * 180 / Math.PI;
     out.gearType = S.gear.type;
+    // G133: the fairing state joins the footer's gear label — one word, so
+    // the plaque names what the L/D and cruise rows are already pricing
+    out.gearFairing = S.gear.fairing === 'full' ? 'trousers'
+      : S.gear.fairing === 'spat' ? 'spats'
+      : S.gear.legFair === 'fair' ? 'faired legs' : null;
     out.bracing = P.bracing;
     out.propClear = (S.engY - S.propR) - ground;
     // The two halves of the split suspension height, as BUILT rather than as

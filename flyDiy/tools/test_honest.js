@@ -43,9 +43,26 @@ function checkGear(o) {
   check(o.twSpatTrike < o.twBareTrike - 0.008,
     'gear: a nosewheel spat buys drag on a trike (' + o.twSpatTrike.toFixed(3) +
     ' < ' + o.twBareTrike.toFixed(3) + ' m²)');
-  check(o.twSpatTD === o.stock,
-    'gear: a tailwheel "spat" moves NOTHING — the castor draws no shell, so ' +
-    'pricing one would be the inverse lie (' + o.twSpatTD.toFixed(3) + ')');
+  // G133 INVERTED G121.2's exact-equality here, deliberately: the castor
+  // draws its own shell now, so the tailwheel spat that had to move NOTHING
+  // must now move something — the old assertion would be the original lie.
+  check(o.twSpatTD < o.stock - 0.004,
+    'gear: a tailwheel spat buys drag now the castor draws one (' +
+    o.twSpatTD.toFixed(3) + ' < ' + o.stock.toFixed(3) + ' m²)');
+  // G133: the leg fairing is its own purchase, and the trouser's leg number
+  // finally has geometry behind it (the shroud _gear_gen draws)
+  check(o.legFairOnly < o.stock - 0.004,
+    'gear: a leg fairing alone buys drag (' + o.legFairOnly.toFixed(3) +
+    ' < ' + o.stock.toFixed(3) + ' m²)');
+  // G133: the droplet is priced — a long fine run-out beats a stub tail
+  check(o.dropletLong < o.dropletShort - 0.003,
+    'gear: the tail droplet shades the spat\'s own Cd (' +
+    o.dropletLong.toFixed(3) + ' < ' + o.dropletShort.toFixed(3) + ' m²)');
+  // G133: the fairings WEIGH — and carbon buys some of that weight back
+  check(o.spatMass > o.stockMass + 3 && o.carbonMass < o.spatMass - 1,
+    'gear: spats weigh (' + o.spatMass.toFixed(1) + ' vs ' +
+    o.stockMass.toFixed(1) + ' kg) and carbon is lighter (' +
+    o.carbonMass.toFixed(1) + ')');
 }
 function checkSurface(o) {
   check(o.paved > o.grass + 2,
@@ -65,6 +82,16 @@ function checkSurface(o) {
   check(o.water < o.scree - 2,
     'surface: and a lakebed run barely moves at all (' +
     o.water.toFixed(0) + ' m) — ditching decelerates like it means it');
+  // G130: HOME IS THE CALIBRATION DATUM, AND IT ROLLS ON ITS DECLARED GRASS.
+  // The classifier used to answer FOREST_FLOOR over most of HOME's run (the
+  // registry's `surface:` was read by nothing), so the moment G121.3 priced
+  // that class, every gate that rolls off HOME baselined THROUGH the wrong
+  // ground and stayed green. The pin: the real HOME roll must match the
+  // flat grass stub, whose only surface answer IS the datum row. 4 m
+  // absorbs the strip's grading; the 2× CRR band cost tens of metres.
+  check(Math.abs(o.grass - o.grassStub) < 4,
+    'surface: HOME rolls like its declared grass, not like the forest (' +
+    o.grass.toFixed(0) + ' m vs stub ' + o.grassStub.toFixed(0) + ' m)');
 }
 function checkFin(o) {
   check(o.aFin < o.aTail,
@@ -95,25 +122,36 @@ function checkPlaque(o) {
 
 // ---------------------------------------------------------------------------
 if (process.argv.includes('--selftest')) {
+  // a fixture that satisfies every OTHER gear check, so each probe can
+  // break exactly one thing (G133 widened the surface; the old trio each
+  // doctored one number against a base that now fails three new checks)
+  const GEARBASE = { stockDelta: 0.001, stock: 0.05, spat: 0.03,
+    fatTyres: 0.09, cantilever: 0.04, twSpatTrike: 0.04, twBareTrike: 0.06,
+    twSpatTD: 0.044, legFairOnly: 0.042, dropletLong: 0.038,
+    dropletShort: 0.043, spatMass: 624.5, stockMass: 620, carbonMass: 622.7 };
+  const gearDoc = over => Object.assign({}, GEARBASE, over);
   const probes = [
     ['a fat gear that moved nothing', checkGear,
-     { stockDelta: 0.001, stock: 0.05, spat: 0.03, fatTyres: 0.051,
-       cantilever: 0.04, twSpatTrike: 0.04, twBareTrike: 0.06,
-       twSpatTD: 0.05 }],
+     gearDoc({ fatTyres: 0.051 })],
     ['a calibration quietly shifted', checkGear,
-     { stockDelta: 0.05, stock: 0.05, spat: 0.03, fatTyres: 0.09,
-       cantilever: 0.04, twSpatTrike: 0.04, twBareTrike: 0.06,
-       twSpatTD: 0.05 }],
-    ['a tailwheel fairing priced with no shell', checkGear,
-     { stockDelta: 0.001, stock: 0.05, spat: 0.03, fatTyres: 0.09,
-       cantilever: 0.04, twSpatTrike: 0.04, twBareTrike: 0.06,
-       twSpatTD: 0.043 }],
+     gearDoc({ stockDelta: 0.05 })],
+    ['a tailwheel spat that moves nothing (the G121.2 lie, inverted)',
+     checkGear, gearDoc({ twSpatTD: 0.05 })],
+    ['a leg fairing that moves nothing', checkGear,
+     gearDoc({ legFairOnly: 0.0499 })],
+    ['a droplet slider that moves nothing', checkGear,
+     gearDoc({ dropletLong: 0.0429 })],
+    ['a weightless spat', checkGear,
+     gearDoc({ spatMass: 620.5 })],
     ['a surface that does nothing', checkSurface,
      { paved: 100, grass: 99, rows: 8, grassCRR: 0.05, screeCRR: 0.14,
-       waterCRR: 0.35, waterBrake: 0, scree: 80, water: 30 }],
+       waterCRR: 0.35, waterBrake: 0, scree: 80, water: 30, grassStub: 99 }],
     ['a lake that reads as lawn', checkSurface,
      { paved: 110, grass: 99, rows: 8, grassCRR: 0.05, screeCRR: 0.14,
-       waterCRR: 0.35, waterBrake: 0, scree: 80, water: 98 }],
+       waterCRR: 0.35, waterBrake: 0, scree: 80, water: 98, grassStub: 99 }],
+    ['the home strip reading as forest', checkSurface,
+     { paved: 110, grass: 82, rows: 8, grassCRR: 0.05, screeCRR: 0.14,
+       waterCRR: 0.35, waterBrake: 0, scree: 70, water: 30, grassStub: 99 }],
     ['a fin still on the stab\'s AR', checkFin,
      { aFin: 3.3, aTail: 3.3, aTall: 3.4, cnStock: 0.08, cnSmall: 0.04 }],
     ['a fin slider that moves nothing', checkFin,
@@ -147,6 +185,7 @@ const axial = def => def.params.fusCdA[0];
 const stockDef = buildGen();
 
 console.log('-- S1: the undercarriage has drag --');
+const genMass = def => def.params.gen.mass;
 checkGear({
   stockDelta: stockDef.params.gen.gearDCdA,
   stock: axial(stockDef),
@@ -157,6 +196,14 @@ checkGear({
                                         twFairing: 'spat' } })),
   twBareTrike: axial(buildGen({ gear: { type: 'tricycle', twR: 0.16 } })),
   twSpatTD: axial(buildGen({ gear: { twFairing: 'spat' } })),
+  // G133: the new instruments, each measured through the whole pipeline
+  legFairOnly: axial(buildGen({ gear: { legFair: 'fair' } })),
+  dropletLong: axial(buildGen({ gear: { fairing: 'spat', fairTail: 1.6 } })),
+  dropletShort: axial(buildGen({ gear: { fairing: 'spat', fairTail: 0.7 } })),
+  spatMass: genMass(buildGen({ gear: { fairing: 'spat' } })),
+  stockMass: genMass(stockDef),
+  carbonMass: genMass(buildGen({ gear: { fairing: 'spat',
+                                         fairMat: 'carbon' } })),
 });
 
 console.log('-- S2: the ground has a surface --');
@@ -193,7 +240,7 @@ checkSurface({ grass: rollDist('HOME'), paved: rollDist(pavedRec.id),
   rows: Object.keys(GROUND_SURF).length,
   grassCRR: GROUND_SURF[0][0], screeCRR: GROUND_SURF[2][0],
   waterCRR: GROUND_SURF[4][0], waterBrake: GROUND_SURF[4][1],
-  scree: rollOn(2), water: rollOn(4) });
+  scree: rollOn(2), water: rollOn(4), grassStub: rollOn(0) });
 
 console.log('-- S4: the fin is real --');
 const tallDef = buildGen({ tail: { vHeight: 1.9 } });

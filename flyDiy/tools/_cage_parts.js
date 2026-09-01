@@ -53,6 +53,15 @@
 //   sections  the mesh material names this part owns. The ~24 names real builds
 //             emit are the key set the material system already uses (G67), so
 //             the tree and AEROSKIN are two views of one part model.
+//   zone      which BODY ZONE of the covering this part is (the user: "the
+//             fuselage divides into nose, the pilot cabin, the passenger bays,
+//             the boom ... these parts would need to highlight accordingly").
+//             The fuselage skin is ONE material end to end — one finish, one
+//             livery — so it is claimed once, by the Fuselage assembly, and
+//             the sections under it claim STATIONS instead. The station table
+//             is `cageBodyZones` in tools/_cage_gen.js and the keys here are
+//             its keys; a hit on a ZONED section (below) resolves through
+//             this, and the highlight draws that zone's faces only.
 //   layer     which THREE group holds this part's geometry: the cage's own
 //             mesh, or one of the disjoint layers. G79's raycast resolves a hit
 //             to a part through this plus `sections`.
@@ -132,41 +141,62 @@ const CAGE_PARTS = [
 
 
   // =========================================================================
-  // FUSELAGE — the cage itself. `body` is the whole covering, so it belongs to
-  // the assembly: clicking bare skin selects the fuselage, clicking a window
-  // selects that window.
+  // FUSELAGE — the cage itself, AND THE THINGS THAT RUN THE WHOLE LENGTH OF
+  // IT. The covering (`body`) and the three longerons (`waistband`,
+  // `ceilingLoop`, `floorLoop`) are one material each from the firewall to
+  // the tail, so the assembly owns them and a CLICK on any of them asks which
+  // BAY it struck (CAGE_ZONE_PICK below) — the material answer, "the whole
+  // aeroplane", is no answer at all.
+  //
+  // `Rings & longerons` USED TO SIT UNDER HERE and owned the three rails (the
+  // user: "the whole rings and longerons cause an issue. I don't think they
+  // should be directly selectable. The longerons should be part of either the
+  // cabin, or the passenger bay, or the nose, or the boom towards the tail...
+  // The rings are accessed through the part selection menu, under fuselage").
+  // It is dissolved: the rails and the WHOLE-SHELL rows are the Fuselage's own
+  // — which is what "under fuselage" means, and what selecting the assembly
+  // now shows — and the per-STATION ring offsets went to the bays whose rings
+  // they move. What was left over was an assembly's rows wearing a part's
+  // name.
+  //
+  // WHAT DID NOT MOVE, and it is a limit worth stating rather than papering
+  // over: `waistY`, `bandH`, `ceilInset` and `ringPullIn` are ONE VALUE EACH
+  // for the whole aeroplane — there is one waist line, not four — so they
+  // cannot be filed under a bay without inventing per-station longeron
+  // parameters, which is a change to the cage and not to this table.
   // =========================================================================
   { key: 'fuselage', name: 'Fuselage', parent: null, layer: 'cage',
-    sections: ['body'] },
-
-  { key: 'rings', name: 'Rings & longerons', parent: 'fuselage', layer: 'cage',
-    sections: ['ceilingLoop', 'floorLoop', 'waistband'],
+    sections: ['body', 'ceilingLoop', 'floorLoop', 'waistband'],
     place: { up: 'waistY', at: 'the whole shell' },
     groups: [
       ['longerons', ['waistY', 'bandH', 'crSill', 'crCeil', 'ceilInset',
                      'ringPullIn']],
       ['section', ['topRound', 'botRound', 'topAngCeil', 'topAngRoof']],
-      ['ring offsets', ['ringNoseTop', 'ringNoseBot', 'ringScrBot',
-                        'ringWinTop', 'ringWinBot', 'ringCabTop', 'ringCabBot',
-                        'ringCabW', 'ringWinW', 'ringScrW', 'ringCowl1W',
-                        'ringCowl2W']],
       ['creases', ['crPillar', 'crBand', 'crCap', 'crFrame'], EXPERT],
       ['compensation', ['topComp'], EXPERT],
     ] },
 
   { key: 'nose', name: 'Nose · deck', parent: 'fuselage', layer: 'cage',
     sections: ['pillarFront'],
+    zone: 'nose',
     place: { up: 'noseDroop', len: 'noseLen', wide: 'noseW',
              at: 'forward of the windscreen' },
     groups: [
       ['shape', ['noseLen', 'noseW', 'noseH', 'noseDroop', 'noseCrown',
                  'wsBaseLift', 'crSillNose']],
       ['tip', ['noseTip', 'crNoseCap', 'crFrontCap']],
+      // THE NOSE'S OWN RINGS. `ringNoseTop` lifts the deck at the nose/
+      // aperture pair, `ringNoseBot` drops its keel and floor, and the two
+      // cowl widths pull that pair in or out — every one of them moves a ring
+      // THIS PART IS, which is why they are here and not in a table of twelve
+      // offsets under the whole shell.
+      ['rings', ['ringNoseTop', 'ringNoseBot', 'ringCowl1W', 'ringCowl2W']],
       ['pillar', ['pfW'], EXPERT],
     ] },
 
   { key: 'cabin', name: 'Cabin', parent: 'fuselage', layer: 'cage',
     sections: ['pillarCabin'],
+    zone: 'cabin',
     place: { up: 'roofY', len: 'pilotLen', wide: 'halfW',
              at: 'aft of the windscreen' },
     groups: [
@@ -178,6 +208,15 @@ const CAGE_PARTS = [
       ['pod & canopy', ['bubble', 'arcFit', 'bubH', 'bubAt',
                         'bubW', 'canLoops', 'bubH2', 'bubAt2', 'bubW2', 'bubH3',
                         'bubAt3', 'bubW3']],
+      // THE CABIN'S TWO RINGS: the window ring at its forward end (Win) and
+      // the cabin pillar pair at its aft (Cab). Both are the bay's own
+      // cross-sections, moved bodily in metres — the ring editor G18 built,
+      // filed where the ring is.
+      ['rings', ['ringWinTop', 'ringWinBot', 'ringWinW',
+                 'ringCabTop', 'ringCabBot', 'ringCabW']],
+      // the cabin pillar (this part's pillarCabin section) leans too —
+      // set with the aft bulkhead's for the parallelogram rear window
+      ['aft pillar', ['leanCabDeg']],
       ['pillars', ['pillarW', 'cabPillarW'], EXPERT],
     ] },
 
@@ -188,6 +227,9 @@ const CAGE_PARTS = [
     place: { up: 'wsTopOff', len: 'wsRun', at: 'on the cabin front ring' },
     groups: [
       ['shape', ['wsRun', 'wsTopOff', 'wsBaseBow', 'wsCeilBow']],
+      // the screen BASE ring pair (wsFront + wsAft): where the screen stands
+      // on the shell, and how wide the shell is there
+      ['rings', ['ringScrBot', 'ringScrW']],
       ['A-pillars', ['apilW', 'apilPerp'], EXPERT],
     ] },
 
@@ -220,6 +262,7 @@ const CAGE_PARTS = [
   // the front's full control set duplicated, not a mirror that tracks.
   { key: 'aftDeck', name: 'Aft deck', parent: 'fuselage', layer: 'cage',
     when: P => +P.mirror,
+    zone: 'aftDeck',
     place: { up: 'aftDroop', len: 'aftNoseLen', wide: 'aftNoseW',
              at: 'aft of the aft cabin' },
     groups: [
@@ -232,6 +275,7 @@ const CAGE_PARTS = [
 
   { key: 'aftCabin', name: 'Aft cabin', parent: 'fuselage', layer: 'cage',
     when: P => +P.mirror,
+    zone: 'aftCabin',
     place: { len: 'aftPilotLen', at: 'aft of the cabin' },
     groups: [
       ['dimensions', ['aftPilotLen']],
@@ -241,10 +285,18 @@ const CAGE_PARTS = [
 
   { key: 'pax', name: 'Passenger bay', parent: 'fuselage', layer: 'cage',
     sections: ['pasengerWindow', 'pillarPassenger'],
+    zone: 'pax',
     count: P => +P.paxCount,
     place: { len: 'paxLen', at: 'aft of the cabin' },
     groups: [
       ['bays', ['paxCount', 'paxLen']],
+      // THE LEAN (study 2026-09-01): the aft bulkhead (this part's own
+      // pillarPassenger section) rakes top-aft as a shear, in degrees —
+      // the generator clamps on roof travel. Claimed HERE because this
+      // part owns that pillar; the part stays in the tree at 0 bays
+      // (count decorates the name, it does not hide the part), so a
+      // two-seater's pilot pillar keeps its row.
+      ['aft bulkhead', ['leanPaxDeg']],
       ['glazing', ['winSillPax']],
       ['doors', ['doorPax', 'doorSillPax']],
       ['pillars', ['paxPillarW'], EXPERT],
@@ -253,11 +305,13 @@ const CAGE_PARTS = [
   { key: 'taper', name: 'Taper section', parent: 'fuselage', layer: 'cage',
     when: P => +P.taperOn,
     sections: ['taper', 'pillarTaper', 'taperPanel'],
+    zone: 'taper',
     place: { len: 'taperLen', wide: 'taperW', at: 'aft of the last bay' },
     groups: [['tightening', ['taperOn', 'taperLen', 'taperW', 'taperPanels']]] },
 
   { key: 'boom', name: 'Boom', parent: 'fuselage', layer: 'cage',
     sections: ['boomTube'],
+    zone: 'boom',
     place: { up: 'rodY', len: 'boomLen', at: 'aft of the taper' },
     groups: [
       ['style', ['rodY', 'rodD']],   // boomStyle -> `design`
@@ -267,6 +321,7 @@ const CAGE_PARTS = [
 
   { key: 'tailcone', name: 'Tail cone', parent: 'fuselage', layer: 'cage',
     sections: ['pillarTail'],
+    zone: 'tail',
     place: { up: 'tailRoofY', len: 'tailLen', wide: 'tailHalfW',
              at: 'the aft extremity' },
     groups: [['cone', ['tailLen', 'tailHalfW', 'tailRoofY', 'tailKeelY']]] },
@@ -324,8 +379,11 @@ const CAGE_PARTS = [
     // own livery rows, following the fuselage until overridden
     sections: ['wingSkin', 'wingTip'],
     groups: [
-      ['planform', ['wgSpan', 'wgChord', 'wgChordTip', 'wgTip', 'wgCrankAt',
-                    'wgSweep']],
+      // G140: the planform is three stations — root chord, the crank's own
+      // chord and seat, the tip's chord and seat. Sweep retired (it falls
+      // out of the seats); the design tab's planform tile retired with it.
+      ['planform', ['wgSpan', 'wgChord', 'wgCrankAt', 'wgCrankChord',
+                    'wgCrankX', 'wgChordTip', 'wgTipX', 'wgTip']],
       ['rigging', ['wgDihedral', 'wgDihedralOut', 'wgIncidence',
                    'wgWashout']],   // wgPos -> `design`
       ['aerofoil', ['wgCamber', 'wgThick']],
@@ -511,7 +569,10 @@ const CAGE_PARTS = [
     sections: ['gearLeg'],
     groups: [
       ['station', ['s1On', 's1Z', 's1X', 's1Leg', 's1R', 's1Drop', 's1Brake',
-                   's1Steer', 's1Fair']],
+                   's1Steer']],
+      // G133: the fairing's own instruments, one group per station
+      ['fairing', ['s1Fair', 's1FairSkirt', 's1FairTail', 's1FairRake',
+                   's1FairW', 's1LegFair']],
       ['blade', ['s1_beamAng', 's1_beamW', 's1_beamT', 's1_beamTaper',
                  's1_beamBow', 's1_beamRake']],
       ['linkage', ['s1_linkAng', 's1_linkSwing', 's1_linkArmW', 's1_linkVee',
@@ -531,7 +592,9 @@ const CAGE_PARTS = [
     place: { fore: 's2Z', up: 's2Drop', wide: 's2X', at: 'station 2' },
     groups: [
       ['station', ['s2On', 's2Z', 's2X', 's2Leg', 's2R', 's2Drop', 's2Brake',
-                   's2Steer', 's2Fair']],
+                   's2Steer']],
+      ['fairing', ['s2Fair', 's2FairSkirt', 's2FairTail', 's2FairRake',
+                   's2FairW', 's2LegFair']],
       ['blade', ['s2_beamAng', 's2_beamW', 's2_beamT', 's2_beamTaper',
                  's2_beamBow', 's2_beamRake']],
       ['linkage', ['s2_linkAng', 's2_linkSwing', 's2_linkArmW', 's2_linkVee',
@@ -552,6 +615,9 @@ const CAGE_PARTS = [
     groups: [
       ['carcass', ['whProfile', 'whTread', 'whBulge', 'whRibs']],
       ['rim', ['whRim', 'whBolts', 'whCap', 'whValve', 'whBrake']],
+      // G133: one layup for the whole fairing set — it lives with the part
+      // that owns the spat section
+      ['fairing build', ['fairCons']],
     ] },
 
   // =========================================================================
@@ -679,6 +745,48 @@ const sectionOwner = {};
 for (const p of CAGE_PARTS)
   for (const s of (p.sections || [])) sectionOwner[s] = p.key;
 
+// THE SECTIONS THAT DIVIDE BY STATION — and the two questions that asks, put
+// in two tables because they have different answers.
+//
+// CAGE_ZONED     what a SELECTION of a bay is cut to. Select the Cabin and
+//                you get the cabin's covering and the cabin's seals, not the
+//                whole aeroplane's. Selecting the Fuselage names every bay
+//                under it and the zones partition the skin, so that selection
+//                asks for all of it by saying so rather than by an exception.
+// CAGE_ZONE_PICK what a CLICK asks the station before it asks the material.
+//                Only where the material answer is useless on its own: `body`
+//                is owned by the Fuselage ASSEMBLY, so "which material did I
+//                strike" answers "the whole aeroplane" and the station is the
+//                only thing that can narrow it. A seal is NOT in here — the
+//                material still answers, because `window joints` is a real
+//                part with its own rows, and clicking a bead should get you
+//                to them the same way clicking a pane gets you to the window
+//                ("it is still OK to get straight to the windows" — the user).
+//
+// THE LONGERONS DIVIDE TOO, and that reversed a ruling made one revision
+// earlier. `waistband`, `ceilingLoop` and `floorLoop` are one rail each
+// running the whole length of the aeroplane, and the first cut left them
+// whole for exactly that reason — a rail cut at every pillar is six pieces of
+// one stringer. The user's answer (and it is the better one): "the whole
+// rings and longerons cause an issue. I don't think they should be directly
+// selectable. The longerons should be part of either the cabin, or the
+// passenger bay, or the nose, or the boom towards the tail." A rail is a
+// THROUGH-RUNNING member, so pointing at one never means the rail — it means
+// the bay you are pointing at. That is the difference from a SEAL, which is a
+// bead round one window and can be meant on its own; the two are in different
+// tables for that reason and not by accident.
+//
+// The glazing does not divide: a window is its own section, in one bay,
+// already.
+const CAGE_ZONED = new Set(['body', 'joint',
+                            'waistband', 'ceilingLoop', 'floorLoop']);
+const CAGE_ZONE_PICK = new Set(['body',
+                                'waistband', 'ceilingLoop', 'floorLoop']);
+
+// which part is which body zone (the other half of sectionOwner)
+const zoneOwner = {};
+for (const p of CAGE_PARTS) if (p.zone) zoneOwner[p.zone] = p.key;
+
 // which part claims a param key (the badges, and the gate's coverage check)
 const paramOwner = {};
 for (const p of CAGE_PARTS)
@@ -691,7 +799,8 @@ for (const p of CAGE_PARTS)
     if (g[2] === EXPERT) expertGroup[p.key + '/' + g[0]] = 1;
 
 const API = { CAGE_PARTS, cagePartParams, cagePartsUnder,
-              partByKey, sectionOwner, paramOwner, expertGroup, EXPERT };
+              partByKey, sectionOwner, paramOwner, expertGroup, EXPERT,
+              CAGE_ZONED, CAGE_ZONE_PICK, zoneOwner };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 if (typeof window !== 'undefined') window.CAGE_PARTS = API;

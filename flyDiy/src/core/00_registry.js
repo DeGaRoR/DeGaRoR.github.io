@@ -31,6 +31,14 @@ const RHO = 1.225;
 // mountain strip in August, which is exactly why it is declared per row rather
 // than sniffed from the name. See 05_atmos.js for both scalings.
 //
+// `family` + `cooling` are PHYSICS-BEARING too (G134): the thermo laws below
+// read them — specific consumption for the coming burn model, and the heat a
+// cowl must reject for the coming ventilation model. Declared per row for the
+// same reason aspiration is: a 582 is liquid-cooled and a 912 carries
+// radiators, and sniffing that from a name is how a table starts lying.
+//   family   'four' | 'two' | 'electric'   (fires-per-rev + the SFC class)
+//   cooling  'air'  | 'liquid'             (fins vs a radiator carry the heat)
+//
 // AN HONEST CUT, named here because it is a real aeroplane getting a wrong
 // number: the R-1830 Twin Wasp was SUPERCHARGED, and a supercharged engine
 // holds its power to its critical altitude instead of lapsing from sea level.
@@ -41,22 +49,22 @@ const RHO = 1.225;
 const POWERPLANTS = {
   a65_sensenich74: {
     price: 9000,
-    engine: { name: 'Continental A-65', mass: 80, powerW: 48500, aspiration: 'na' },
+    engine: { name: 'Continental A-65', mass: 80, powerW: 48500, aspiration: 'na', family: 'four', cooling: 'air' },
     prop:   { name: 'Sensenich 74CK', D: 1.88, Tstatic: 900, kV2: 0.26 },
   },
   r1830_hs23e50: {
     price: 65000,
-    engine: { name: 'P&W R-1830 Twin Wasp', mass: 750, powerW: 895000, aspiration: 'na' },
+    engine: { name: 'P&W R-1830 Twin Wasp', mass: 750, powerW: 895000, aspiration: 'na', family: 'four', cooling: 'air' },
     prop:   { name: 'Hamilton Standard 23E50', D: 3.4, Tstatic: 11000, kV2: 0.543 },
   },
   io360_mccauley: {
     price: 38000,
-    engine: { name: 'Lycoming IO-360-L2A', mass: 138, powerW: 134000, aspiration: 'na' },
+    engine: { name: 'Lycoming IO-360-L2A', mass: 138, powerW: 134000, aspiration: 'na', family: 'four', cooling: 'air' },
     prop:   { name: 'McCauley 1C235 fixed-pitch', D: 1.93, Tstatic: 2290, kV2: 0.136 },
   },
   rotax277_pusher: {
     price: 3500,
-    engine: { name: 'Rotax 277 (pusher)', mass: 30, powerW: 21000, aspiration: 'na' },
+    engine: { name: 'Rotax 277 (pusher)', mass: 30, powerW: 21000, aspiration: 'na', family: 'two', cooling: 'air' },
     prop:   { name: '2-pale bois 1.42 m', D: 1.42, Tstatic: 800, kV2: 0.545 },
   },
   // THE MIDDLE OF THE MARKET. The six entries above skip from a 3 500 cr
@@ -81,32 +89,32 @@ const POWERPLANTS = {
   // engine + gearbox + radiator + coolant.
   vw2180_wood: {
     price: 6000,
-    engine: { name: 'VW 2180 conversion', mass: 66, powerW: 44000, aspiration: 'na' },
+    engine: { name: 'VW 2180 conversion', mass: 66, powerW: 44000, aspiration: 'na', family: 'four', cooling: 'air' },
     prop:   { name: '2-pale bois 1.60 m', D: 1.60, Tstatic: 757, kV2: 0.1855 },
   },
   rotax582_ivo: {
     price: 5500,
-    engine: { name: 'Rotax 582 + 2.62 red.', mass: 43, powerW: 48000, aspiration: 'na' },
+    engine: { name: 'Rotax 582 + 2.62 red.', mass: 43, powerW: 48000, aspiration: 'na', family: 'two', cooling: 'liquid' },
     prop:   { name: 'IVO 3-pale 1.68 m', D: 1.68, Tstatic: 829, kV2: 0.2045 },
   },
   jabiru2200_std: {
     price: 15000,
-    engine: { name: 'Jabiru 2200A', mass: 60, powerW: 63000, aspiration: 'na' },
+    engine: { name: 'Jabiru 2200A', mass: 60, powerW: 63000, aspiration: 'na', family: 'four', cooling: 'air' },
     prop:   { name: '2-pale bois 1.52 m', D: 1.52, Tstatic: 930, kV2: 0.1674 },
   },
   rotax912_warp: {
     price: 18000,
-    engine: { name: 'Rotax 912 UL', mass: 58, powerW: 59600, aspiration: 'na' },
+    engine: { name: 'Rotax 912 UL', mass: 58, powerW: 59600, aspiration: 'na', family: 'four', cooling: 'liquid' },
     prop:   { name: 'Warp Drive 3-pale 1.73 m', D: 1.73, Tstatic: 977, kV2: 0.2169 },
   },
   o200_eprops: {
     price: 24000,
-    engine: { name: 'Continental O-200-A', mass: 85, powerW: 74600, aspiration: 'na' },
+    engine: { name: 'Continental O-200-A', mass: 85, powerW: 74600, aspiration: 'na', family: 'four', cooling: 'air' },
     prop:   { name: 'E-Props Durandal carbone', D: 1.73, Tstatic: 1700, kV2: 0.177 },
   },
   outrunner2212_9x47: {
     price: 25,
-    engine: { name: '2212 outrunner 1000KV / 3S', mass: 0.10, powerW: 180, aspiration: 'electric' },
+    engine: { name: '2212 outrunner 1000KV / 3S', mass: 0.10, powerW: 180, aspiration: 'electric', family: 'electric', cooling: 'air' },
     prop:   { name: 'GWS 9x4.7 SlowFly', D: 0.229, Tstatic: 8.0, kV2: 0.0155 },
   },
   // THE ELECTRIC LADDER (G25). One 180 W park-flyer can was the whole
@@ -132,40 +140,104 @@ const POWERPLANTS = {
   // GEN_RULES.propV0K, like the middle-market rows above.
   outrunner3548_12x6: {
     price: 55,
-    engine: { name: '3548 outrunner 900KV / 4S', mass: 0.35, powerW: 800, aspiration: 'electric' },
+    engine: { name: '3548 outrunner 900KV / 4S', mass: 0.35, powerW: 800, aspiration: 'electric', family: 'electric', cooling: 'air' },
     prop:   { name: 'APC 12x6E', D: 0.305, Tstatic: 17.3, kV2: 0.0067 },
   },
   outrunner6374_18x10: {
     price: 130,
-    engine: { name: '6374 outrunner 170KV / 12S', mass: 0.75, powerW: 2200, aspiration: 'electric' },
+    engine: { name: '6374 outrunner 170KV / 12S', mass: 0.75, powerW: 2200, aspiration: 'electric', family: 'electric', cooling: 'air' },
     prop:   { name: 'carbone 18x10', D: 0.457, Tstatic: 44.6, kV2: 0.0151 },
   },
   eppg_direct_130: {
     price: 3800,
-    engine: { name: 'e-PPG 12 kW direct drive', mass: 7.0, powerW: 12000, aspiration: 'electric' },
+    engine: { name: 'e-PPG 12 kW direct drive', mass: 7.0, powerW: 12000, aspiration: 'electric', family: 'electric', cooling: 'air' },
     prop:   { name: '2-pale carbone 1.30 m', D: 1.30, Tstatic: 277, kV2: 0.122 },
   },
   fes_folding_100: {
     price: 9500,
-    engine: { name: 'FES sustainer 22 kW', mass: 9.0, powerW: 22000, aspiration: 'electric' },
+    engine: { name: 'FES sustainer 22 kW', mass: 9.0, powerW: 22000, aspiration: 'electric', family: 'electric', cooling: 'air' },
     prop:   { name: 'lames repliables 1.00 m', D: 1.00, Tstatic: 349, kV2: 0.072 },
   },
   emrax228_3blade: {
     price: 11000,
-    engine: { name: 'EMRAX 228 / 55 kW', mass: 19.5, powerW: 55000, aspiration: 'electric' },
+    engine: { name: 'EMRAX 228 / 55 kW', mass: 19.5, powerW: 55000, aspiration: 'electric', family: 'electric', cooling: 'air' },
     prop:   { name: '3-pale composite 1.65 m', D: 1.65, Tstatic: 897, kV2: 0.197 },
   },
   e811_velis: {
     price: 28000,
-    engine: { name: 'Pipistrel E-811 (certified)', mass: 30.0, powerW: 57600, aspiration: 'electric' },
+    engine: { name: 'Pipistrel E-811 (certified)', mass: 30.0, powerW: 57600, aspiration: 'electric', family: 'electric', cooling: 'air' },
     prop:   { name: 'composite fixe 1.64 m', D: 1.64, Tstatic: 921, kV2: 0.195 },
   },
   sp260d_class: {
     price: 90000,
-    engine: { name: 'SP260D-class 260 kW', mass: 68.0, powerW: 260000, aspiration: 'electric' },
+    engine: { name: 'SP260D-class 260 kW', mass: 68.0, powerW: 260000, aspiration: 'electric', family: 'electric', cooling: 'air' },
     prop:   { name: 'MT 3-pale 2.20 m', D: 2.20, Tstatic: 3060, kV2: 0.351 },
   },
 };
+// ============================================================
+// ENGINE THERMO LAWS (G134). Two numbers per family, both quoted at RATED
+// power because that is the sizing case (a climb at Vy, full throttle, on a
+// hot day is what a cowl and a fuel plan are designed for):
+//
+//   sfcKgKWh  brake specific fuel consumption, kg per kWh of SHAFT work.
+//             Four-strokes on avgas run 0.27-0.32 (the classic 0.45-0.52
+//             lb/hp-h); simple two-strokes are half as thermally honest at
+//             0.45-0.55. Electric burns nothing — its draw is powerW/eta
+//             out of the pack, and eta carries that instead.
+//   cool      fraction of SHAFT power rejected through the COOLING PATH the
+//             `cooling` field names (fins or radiator — oil cooling rides in
+//             it). SI aero engines shed roughly 0.4-0.5 x shaft power that
+//             way (the exhaust's larger share leaves by the pipe and is not
+//             a cowl's problem); two-strokes run hotter per kW, liquid
+//             jackets recover a little as radiator-duct pressure. Electric
+//             is (1/eta - 1): a 90%-efficient motor+controller rejects ~11%.
+//
+// One keeper: genEngineThermo() below is the ONLY reader — the burn model
+// (arc 3) and the ventilation model (arc 4) both consume its output, so the
+// constants live here once, next to the rows they annotate.
+const GEN_ENG_THERMO = {
+  four:     { sfcKgKWh: 0.30, eta: null, cool: { air: 0.45, liquid: 0.42 } },
+  two:      { sfcKgKWh: 0.50, eta: null, cool: { air: 0.55, liquid: 0.50 } },
+  electric: { sfcKgKWh: 0,    eta: 0.90, cool: { air: 0.11, liquid: 0.11 } },
+};
+
+// The thermo sheet for one engine dict ({powerW, family, cooling, ...}).
+// Legacy dicts predate the fields: an electric aspiration says 'electric',
+// and every pre-G134 piston row without a declaration was a four-stroke on
+// fins — the registry rows that are not (277, 582, 912) now say so.
+function genEngineThermo(engine) {
+  const e = engine || {};
+  const family = GEN_ENG_THERMO[e.family] ? e.family
+    : (e.aspiration === 'electric' ? 'electric' : 'four');
+  const T = GEN_ENG_THERMO[family];
+  const cooling = (e.cooling === 'liquid') ? 'liquid' : 'air';
+  const kW = (e.powerW || 0) / 1000;
+  return {
+    family, cooling,
+    sfcKgKWh: T.sfcKgKWh,
+    eta: T.eta,
+    // heat to reject through fins or radiator at rated power, kW
+    coolKW: T.cool[cooling] * kW,
+    // what full throttle actually consumes: kg/h of fuel, or kW of pack draw
+    burnKgH: T.sfcKgKWh * kW,
+    drawKW: T.eta ? kW / T.eta : 0,
+  };
+}
+
+// A CUSTOM ENGINE'S PRICE (G134) — the market curve the registry's own rows
+// sit on, fitted per family. Nobody certifies a garage engine, so the law
+// tracks the UNCERTIFIED side of each ladder (an E-811 costs 2.5x an EMRAX
+// for the paperwork; a custom build gets EMRAX pricing, which is the honest
+// direction). Fit checked in tools/_engcustom_check.js against every row.
+function genEnginePrice(family, powerW) {
+  const kW = Math.max(0.05, (powerW || 0) / 1000);
+  if (family === 'electric')
+    return Math.round(kW < 3 ? 60 * Math.pow(kW, 0.9)
+                             : 300 * kW);
+  if (family === 'two') return Math.round(90 * Math.pow(kW, 1.15));
+  return Math.round(60 * Math.pow(kW, 1.3));
+}
+
 const POLARS = {
   usa35b_AR7: { a3d: 4.34, Cl0: 0.35, aStall: 0.297, Cd0: 0.010, eAR: Math.PI * 0.75 * 6.95, Cm0: -0.080 },
   flat_tail_cub: { a3d: 3.4, Cl0: 0, aStall: 0.24, Cd0: 0.008, eAR: Math.PI * 0.7 * 3.7, Cm0: 0 },

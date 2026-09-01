@@ -20,9 +20,15 @@ const DEF = {
   // station 1 — the mains
   s1On: 1, s1Z: 0.62, s1X: 0.86, s1Leg: 1, s1R: 0.22, s1Drop: 0.62,
   s1Brake: 1, s1Steer: 0, s1Fair: 0,
+  // ...the fairing's own instruments (G133): every default reproduces the
+  // pre-G133 shell exactly, so an old save wears the same spat
+  s1FairSkirt: 0, s1FairTail: 1, s1FairRake: 0, s1FairW: 1, s1LegFair: 0,
   // station 2 — the tail (or nose) wheel
   s2On: 1, s2Z: -3.05, s2X: 0, s2Leg: 3, s2R: 0.10, s2Drop: 0.20,
   s2Brake: 0, s2Steer: 1, s2Fair: 0,
+  s2FairSkirt: 0, s2FairTail: 1, s2FairRake: 0, s2FairW: 1, s2LegFair: 0,
+  // one build material for all of them — a set of spats is laid up as one job
+  fairCons: 0,
   // the wheel
   whProfile: 0, whTread: 0, whRibs: 3, whRim: 0, whBolts: 6, whCap: 1,
   whValve: 1, whBrake: 0,
@@ -163,6 +169,11 @@ const gearStations = P => {
                leg: Math.round(P['s' + i + 'Leg']), R: P['s' + i + 'R'],
                drop: P['s' + i + 'Drop'], brake: P['s' + i + 'Brake'],
                fair: Math.round(P['s' + i + 'Fair'] || 0),
+               fairSkirt: +P['s' + i + 'FairSkirt'] || 0,
+               fairTail: +P['s' + i + 'FairTail'] || 1,
+               fairRake: +P['s' + i + 'FairRake'] || 0,
+               fairW: +P['s' + i + 'FairW'] || 1,
+               legFair: Math.round(P['s' + i + 'LegFair'] || 0),
                steer: Math.round(P['s' + i + 'Steer']), P: gearLegP(P, i) });
   }
   return out;

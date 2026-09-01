@@ -817,6 +817,17 @@ const GEN_SUSPENSION = {
   oleo:   { name: 'Oleo strut',   k: 3.50, c: 2.60, price: 2600 },
 };
 
+// FAIRING LAYUP (G133). Mass and price factors on the fairing set — the
+// glassfibre column is the datum (a GA wheel pant is ~2 kg at R 0.20, which
+// the 55·R² anchor in genLattice reproduces); carbon buys weight with money,
+// alloy the reverse. One material for the whole set: spats are laid up as
+// one job, the way a real shop does them.
+const GEN_FAIR_MATS = {
+  glass:  { name: 'Glassfibre', m: 1.00, price: 1.00 },
+  carbon: { name: 'Carbon',     m: 0.62, price: 2.40 },
+  alloy:  { name: 'Alloy',      m: 1.30, price: 0.85 },
+};
+
 // THE PROPELLER, which is not part of the engine. The registry welds one to each
 // powerplant (`POWERPLANTS[k].prop`) because the fleet's fiches are real
 // aeroplanes with the props they were built with; a GARAGE aeroplane chooses.
@@ -893,6 +904,10 @@ const GEN_PRICES = {
   instruments: 2400,   // basic VFR panel
   paintJob: 1800,
   seat: 380,
+  // G133 fairings — glassfibre datum, per piece; GEN_FAIR_MATS scales
+  spat: 380,           // one wheel pant (a main or the third wheel)
+  trouser: 560,        // one wheel in full trousers (shell + leg shroud)
+  legFair: 240,        // one leg's streamline shroud on its own
 };
 
 // FINISH. `paintJob` above used to be spent unconditionally, which made 1800
@@ -1121,7 +1136,11 @@ const GEN_RULES = {
 // gated machine: GATE BUILD injects a throwaway migrator, runs the walk, and
 // removes it (G106). Every real entry ships with a frozen save of the
 // OUTGOING vintage in tools/fixtures/, which GATE BUILD loads forever.
-const GEN_SPEC_V = 5;
+// v6 (G140): the wing became three stations — wings[0] grew crankChord /
+// crankX / tipX (null = derived from sweep/taper exactly as v5 did), the
+// cage retired wgSweep, and GEN_MIGRATORS[5] lifts a save's stored angle
+// into the offsets. The v5 fixture that proves it: build_v5_swept_*.json.
+const GEN_SPEC_V = 6;
 
 // { fromVersion: spec => spec } — each entry lifts a spec one version. May
 // mutate and return its argument. Runs BEFORE normalisation, on the raw shape
@@ -1139,6 +1158,90 @@ function genMigrateSpec(r) {
     if (GEN_MIGRATORS[i]) r = GEN_MIGRATORS[i](r) || r;
   r.v = GEN_SPEC_V;
   return r;
+}
+
+// G140: v5 -> v6 — THE WING BECAME THREE STATIONS (root, crank, tip; the
+// user's model: "specify the section at root, crank point and tip, and move
+// them aft/forward"). The SPEC keeps `sweep` as a legal legacy input that
+// derives the stations when they are null, so a hand-written spec means what
+// it always meant — but a SAVE carries the cage's own keys, and the cage
+// retired wgSweep for wgTipX/wgCrankX. This lift converts the stored angle
+// into the offsets it always denoted, at the save's own geometry, and drops
+// the retired key so it cannot become a second home again. The spec-level
+// sweep of a lifted SAVE is zeroed in the same motion (the offsets are its
+// value now); a spec WITHOUT a cage never lifts — its sweep stays the input.
+GEN_MIGRATORS[5] = r => {
+  const c = r && r.cage;
+  if (!c || typeof c !== 'object') return r;
+  const sw = +c.wgSweep;
+  if (isFinite(sw) && c.wgTipX == null) {
+    const semi = 0.5 * (+c.wgSpan > 0 ? +c.wgSpan : 10);
+    const zR = (r.cabin && +r.cabin.halfW > 0) ? +r.cabin.halfW
+             : (+c.halfW > 0 ? +c.halfW : 0.5);
+    const span = Math.max(1e-6, semi - zR);
+    if (Math.abs(sw) > 1e-9) {
+      const t = Math.tan(sw * Math.PI / 180);
+      c.wgTipX = +(t * span).toFixed(4);
+      if (+c.wgCrankAt > 0)
+        c.wgCrankX = +(t * span * +c.wgCrankAt).toFixed(4);
+      if (r.wings && r.wings[0]) {
+        if (r.wings[0].tipX == null) r.wings[0].tipX = c.wgTipX;
+        if (+c.wgCrankAt > 0 && r.wings[0].crankX == null)
+          r.wings[0].crankX = c.wgCrankX;
+        r.wings[0].sweep = 0;
+      }
+    }
+  }
+  delete c.wgSweep;
+  return r;
+};
+
+// ---------------------------------------------------------------------------
+// G140: THE PLANFORM LAW — one builder, so the area/MAC/xAC derivation, the
+// tip bow, the frame's spars and covering, and the skin's sections cannot
+// disagree about where the wing is (the same contract 61's own comment
+// declared for chordAt, now honoured across files).
+//
+//   legacy    tipX/crankX/crankChord all null: the chord is ONE line from
+//             root to tip and the offsets are the tan(sweep) walk — the
+//             EXPRESSIONS ARE THE PRE-G140 ONES VERBATIM, so every existing
+//             spec resolves to the identical wing.
+//   explicit  any station field set: chord runs root->crank->tip piecewise,
+//             the section offsets run 0 -> crankX -> tipX piecewise, and
+//             per-panel sweep is whatever falls out. `explicit` is the flag
+//             the derived block branches on.
+//
+// The crank still means what G61-era code said: ONE break, two sections.
+// ---------------------------------------------------------------------------
+function genPlanLaw(w, zR, semi) {
+  const span = Math.max(1e-6, semi - zR);
+  const zC = w.crankAt > 0 ? zR + span * w.crankAt : 0;
+  const swT = Math.tan((w.sweep || 0) * Math.PI / 180);
+  const explicit = w.tipX != null || w.crankX != null ||
+                   (zC > 0 && w.crankChord != null);
+  const xTip = w.tipX == null ? swT * span : +w.tipX;
+  const xCrk = zC > 0
+    ? (w.crankX == null ? xTip * (zC - zR) / span : +w.crankX) : 0;
+  const cCrk = zC > 0 && w.crankChord != null ? +w.crankChord : null;
+  const tipC = w.chord * w.taper;
+  const cAt = z => {
+    z = Math.min(z, semi);
+    if (cCrk == null)                    // the pre-G140 line, verbatim
+      return w.chord * (1 - (1 - w.taper) *
+        (Math.max(z, zR) - zR) / Math.max(1e-6, semi - zR));
+    if (z <= zC)
+      return w.chord + (cCrk - w.chord) *
+        (Math.max(z, zR) - zR) / Math.max(1e-6, zC - zR);
+    return cCrk + (tipC - cCrk) * (z - zC) / Math.max(1e-6, semi - zC);
+  };
+  const xoff = z => {
+    z = Math.max(zR, Math.min(z, semi));
+    if (!explicit) return (z - zR) * swT;   // the pre-G140 walk, verbatim
+    if (!(zC > 0)) return xTip * (z - zR) / span;
+    if (z <= zC) return xCrk * (z - zR) / Math.max(1e-6, zC - zR);
+    return xCrk + (xTip - xCrk) * (z - zC) / Math.max(1e-6, semi - zC);
+  };
+  return { zC, xTip, xCrk, cCrk, tipC, cAt, xoff, explicit };
 }
 
 // The one preset this chantier ships: a strut-braced high-wing taildragger in
@@ -1359,6 +1462,11 @@ const GEN_DEFAULT = {
             incidence: 1.5, washout: 1.5, naca: 2412, panels: 3,
             position: 'high', sweep: 0, tip: 'rounded',
             crankAt: 0, dihedralOut: null,
+            // G140: the three-station planform. Chord at the crank, and the
+            // fore/aft offsets of the crank and tip SECTIONS (metres, + aft).
+            // Null = derived from sweep/taper exactly as v5 did — `sweep`
+            // stays the legacy input; these are the honest model.
+            crankChord: null, crankX: null, tipX: null,
             // THE CENTRE SECTION: what happens where a high wing's carry-through
             // crosses the cabin roof. 'solid' covers it, 'glass' makes the wing
             // itself the roof and you look up into it (a Cub's centre section),
@@ -1427,7 +1535,15 @@ const GEN_DEFAULT = {
   // not cosmetic — a leaning wheel touches down R*cos(camber) below its axle,
   // so it is one of the two things that set prop clearance, the other being
   // legDrop. See GEN_RULES.legDrop / twLeg for the defaults these override.
+  // G133 fairing fields: `legFair`/`twLegFair` are the LEG's own streamline
+  // shroud (independent of the wheel's spat at last), `fairTail`/`twFairTail`
+  // the tail-droplet length the shell is drawn AND priced with (1 = the
+  // G20-era proportions), `fairMat` the layup for the whole set (mass and
+  // price; GEN_FAIR_MATS). All defaults reproduce a pre-G133 build exactly —
+  // genNormaliseSpec is the migration path, no version bump (the G85 rule).
   gear: { type: 'taildragger', fairing: 'none', twFairing: 'none',
+          legFair: 'none', twLegFair: 'none',
+          fairTail: 1.0, twFairTail: 1.0, fairMat: 'glass',
           suspension: 'bungee',
           track: null, x: null, y: null, wheelR: 0.20,
           twX: null, twY: null, twR: 0.10, stiffness: 1.0,
@@ -1750,6 +1866,29 @@ function clampSpec(spec) {
     if (!['nose', 'wing'].includes(e.mount)) e.mount = 'nose';
     e.place.dx = genClamp(e.place.dx, -0.60, 0.45);
     e.place.dy = genClamp(e.place.dy, -0.30, 0.40);
+    // G134: THE CUSTOM ROW — the editor's dials resolved to facts by the
+    // join (tools/_cage_eng.js CAGE_ENG_FACTS; identity ruled 2026-09-01:
+    // an untouched preset ships NO row and the registry flies). Clamped
+    // here so a save can never smuggle a free engine — mass and power move
+    // the whole aeroplane. The envelope is the registry's own span (a
+    // 0.1 kg park-flyer can to a warbird radial) with headroom, and every
+    // enum falls back the way genEngineThermo's legacy inference does.
+    const cu = e.custom;
+    if (cu && typeof cu === 'object' && isFinite(cu.powerW) && isFinite(cu.mass)) {
+      cu.name = typeof cu.name === 'string' && cu.name
+        ? cu.name.slice(0, 48) : 'custom engine';
+      cu.mass = genClamp(cu.mass, 0.05, 900);
+      cu.powerW = genClamp(cu.powerW, 100, 1000000);
+      cu.rpm = genClamp(cu.rpm == null ? 2300 : cu.rpm, 400, 14000);
+      cu.torque = genClampN(cu.torque, 0, 5000);
+      cu.aspiration = cu.aspiration === 'electric' ? 'electric' : 'na';
+      cu.family = (typeof GEN_ENG_THERMO !== 'undefined' && GEN_ENG_THERMO[cu.family])
+        ? cu.family : (cu.aspiration === 'electric' ? 'electric' : 'four');
+      cu.cooling = cu.cooling === 'liquid' ? 'liquid' : 'air';
+      // an unpriced custom row takes the market curve — one keeper (00_registry)
+      cu.price = genClamp(cu.price == null
+        ? genEnginePrice(cu.family, cu.powerW) : cu.price, 10, 200000);
+    } else if ('custom' in e) delete e.custom;
   }
   if (!['strut', 'cantilever'].includes(S.bracing.type)) S.bracing.type = 'strut';
   S.fuel.litres = genClamp(S.fuel.litres, 0, 140);
@@ -1797,6 +1936,21 @@ function clampSpec(spec) {
   w.crankAt = genClamp(w.crankAt || 0, 0, 0.85);
   if (w.crankAt > 0 && w.crankAt < 0.15) w.crankAt = 0;
   w.dihedralOut = genClampN(w.dihedralOut, 0, 20);
+  // G140: the three stations. Chord at the crank inside the chord clamp;
+  // the offsets inside the sweep clamp's own reach (tan 30 deg of the
+  // exposed semispan — the same envelope the angle always had). Null stays
+  // null: it is the derive-from-sweep contract, not a value.
+  {
+    const reach = Math.tan(30 * Math.PI / 180) *
+                  Math.max(0.5, 0.5 * w.span - 0.3);
+    if (w.crankChord != null)
+      w.crankChord = genClamp(w.crankChord, 0.55, 2.10);
+    if (w.tipX != null) w.tipX = genClamp(w.tipX, -reach, reach);
+    if (w.crankX != null) w.crankX = genClamp(w.crankX, -reach, reach);
+    // a crank field without a crank is a claim about a station that does
+    // not exist — nulled, same rule as dihedralOut's "left alone" line
+    if (!(w.crankAt > 0)) { w.crankChord = null; w.crankX = null; }
+  }
   w.incidence = genClamp(w.incidence, -1, 4);
   w.washout = genClamp(w.washout, 0, 4);
   w.panels = genClamp(w.panels | 0, 2, 5);
@@ -1815,17 +1969,24 @@ function clampSpec(spec) {
   w.place.dy = genClamp(w.place.dy, -0.25, 0.60);
   if (!['taildragger', 'tricycle'].includes(S.gear.type)) S.gear.type = 'taildragger';
   if (!GEN_SUSPENSION[S.gear.suspension]) S.gear.suspension = 'bungee';
-  // WHEEL FAIRINGS, off by default. `spat` is the trouser over the wheel alone;
-  // `full` carries it up the leg as well. Geometry ONLY — a real spat is worth
-  // real drag, but the generated aeroplane has no parasite-drag build-up to hang
-  // that on, and a fairing that quietly did nothing to the numbers while looking
-  // as though it should is worse than one that is honestly cosmetic. If a drag
-  // model arrives, this is the field it keys off.
+  // WHEEL FAIRINGS, off by default. `spat` is the shell over the wheel alone;
+  // `full` carries it up the leg as well. The drag model this comment once
+  // said "may arrive" arrived at G115 (genGearCdA prices these fields), the
+  // mass model at G133 (genLattice bills them, GEN_FAIR_MATS × GEN_PRICES).
   if (!['none', 'spat', 'full'].includes(S.gear.fairing)) S.gear.fairing = 'none';
-  // G121.2: the THIRD WHEEL's own fairing. Priced only where the layer
-  // actually draws one (a tricycle's nosewheel; the tailwheel castor has no
-  // spat branch) — see genGearCdA, which owns that condition.
+  // G121.2: the THIRD WHEEL's own fairing. Since G133 the tailwheel castor
+  // draws its own shell, so this prices on every leg family — the old
+  // tricycle-only condition in genGearCdA is retired.
   if (!['none', 'spat', 'full'].includes(S.gear.twFairing)) S.gear.twFairing = 'none';
+  // G133: the LEG fairings, the droplet lengths and the layup — every one
+  // drawn by the gear layer before it is priced anywhere (the G121.2 rule).
+  if (!['none', 'fair'].includes(S.gear.legFair)) S.gear.legFair = 'none';
+  if (!['none', 'fair'].includes(S.gear.twLegFair)) S.gear.twLegFair = 'none';
+  S.gear.fairTail = genClamp(S.gear.fairTail == null ? 1 : S.gear.fairTail,
+                             0.70, 1.60);
+  S.gear.twFairTail = genClamp(S.gear.twFairTail == null ? 1 : S.gear.twFairTail,
+                               0.70, 1.60);
+  if (!GEN_FAIR_MATS[S.gear.fairMat]) S.gear.fairMat = 'glass';
   // G121 (the review's B8): ONE ENGINE UNTIL THE MOUNTS ARE REAL. `engines`
   // is an array by design and `nEngines` multiplies thrust honestly — but
   // every mount today is the one nose pair, so a second entry would fly as
@@ -2026,27 +2187,60 @@ function resolveSpec(spec) {
   // left alone and the aeroplane stays a single straight panel
   put(w, 'dihedralOut', w.crankAt > 0 ? Math.min(20, w.dihedral + 11) : w.dihedral,
       'wing.dihedralOut');
-  const cBar = w.chord * (2 / 3) * (1 + w.taper + w.taper * w.taper) / (1 + w.taper);
   const semi = 0.5 * w.span;
-  // The aerodynamic centre sits at the quarter chord OF THE MAC, and sweep
-  // carries that aft with the spanwise station the MAC lives at:
-  //   yMac = (b/6) (1 + 2 lambda) / (1 + lambda)
-  // Everything downstream reads xAC — the tail arm above all — so getting this
-  // wrong would leave a swept aeroplane with a tail sized for a straight one.
-  const yMac = (w.span / 6) * (1 + 2 * w.taper) / (1 + w.taper);
-  const xAC = w.xLE + 0.25 * w.chord + yMac * Math.tan(w.sweep * Math.PI / 180);
+  const zR0 = S.cab.halfW;
+  // G140: the one planform law — legacy fields reproduce the pre-G140
+  // expressions verbatim inside it, stations make it piecewise.
+  const LAW = genPlanLaw(w, zR0, semi);
+  let cBar, yMac, xAC;
+  if (!LAW.explicit) {
+    // LEGACY (sweep/taper only): the pre-G140 lines, byte for byte. The
+    // aerodynamic centre sits at the quarter chord OF THE MAC, and sweep
+    // carries that aft with the spanwise station the MAC lives at:
+    //   yMac = (b/6) (1 + 2 lambda) / (1 + lambda)
+    // Everything downstream reads xAC — the tail arm above all.
+    cBar = w.chord * (2 / 3) * (1 + w.taper + w.taper * w.taper) / (1 + w.taper);
+    yMac = (w.span / 6) * (1 + 2 * w.taper) / (1 + w.taper);
+    xAC = w.xLE + 0.25 * w.chord + yMac * Math.tan(w.sweep * Math.PI / 180);
+    w.sweepEff = w.sweep;
+  } else {
+    // EXPLICIT stations: per-panel trapezoid composition — each panel its
+    // own area, MAC, MAC station and LE sweep; the wing's numbers are the
+    // area-weighted sums. Two honesty notes against the legacy line above:
+    // the quarter chord is of each panel's MAC (not the root chord), and
+    // the offset walk is measured from zR0 where the walk actually starts
+    // (the legacy formula walked yMac from the centreline — it over-walked
+    // by tan(sweep)*zR0, which is why a MIGRATED swept save's xAC may sit
+    // a couple of centimetres forward of its frozen v5 number).
+    const zsP = LAW.zC > 0 ? [zR0, LAW.zC, semi] : [zR0, semi];
+    let A = 0, cS = 0, xS = 0, swS = 0;
+    for (let i = 0; i + 1 < zsP.length; i++) {
+      const z0 = zsP[i], z1 = zsP[i + 1], b = z1 - z0;
+      const cA = LAW.cAt(z0), cB = LAW.cAt(z1);
+      const Si = 0.5 * (cA + cB) * b;
+      const lam = cB / Math.max(1e-6, cA);
+      const mac = cA * (2 / 3) * (1 + lam + lam * lam) / (1 + lam);
+      const yM = z0 + (b / 3) * (1 + 2 * lam) / (1 + lam);
+      const xACi = w.xLE + LAW.xoff(yM) + 0.25 * mac;
+      const swp = Math.atan2(LAW.xoff(z1) - LAW.xoff(z0), b) * 180 / Math.PI;
+      A += Si; cS += Si * mac; xS += Si * xACi; swS += Si * Math.abs(swp);
+    }
+    cBar = cS / Math.max(1e-9, A);
+    xAC = xS / Math.max(1e-9, A);
+    yMac = null;                       // no single station carries the MAC now
+    w.sweepEff = swS / Math.max(1e-9, A);   // area-weighted |LE sweep|, deg
+  }
   // TIP BOW. The radius is a fraction of the chord AT the joint, and the joint
   // is a radius inboard of the tip — implicit, so settle it by iteration (it
-  // converges in two on any sane taper).
-  const zR0 = S.cab.halfW;
-  const lin = z => w.chord * (1 - (1 - w.taper) * (z - zR0) / Math.max(1e-6, semi - zR0));
+  // converges in two on any sane taper). LAW.cAt IS the old `lin` when the
+  // stations are null, so the legacy bow is unchanged to the bit.
   const bowF = (GEN_TIPS[w.tip] || GEN_TIPS.rounded).bow || 0;
-  let Rb = bowF * lin(semi);
-  for (let i = 0; i < 3; i++) Rb = bowF * lin(Math.max(zR0, semi - Rb));
+  let Rb = bowF * LAW.cAt(semi);
+  for (let i = 0; i < 3; i++) Rb = bowF * LAW.cAt(Math.max(zR0, semi - Rb));
   Rb = Math.max(0, Math.min(Rb, 0.45 * (semi - zR0)));
   w.tipR = Rb;
   w.tipZ = semi - Rb;
-  w.tipC = Rb > 1e-6 ? lin(w.tipZ) : 0;
+  w.tipC = Rb > 1e-6 ? LAW.cAt(w.tipZ) : 0;
   // THE REFERENCE AREA IS THE SHAPE THAT WAS BUILT. This used to be the area of
   // a trapezoid tapering from the CENTRELINE — but the wing does not taper from
   // there. `linC` (61_gen_frame.js) runs the root chord out to zR0 and only
@@ -2063,9 +2257,18 @@ function resolveSpec(spec) {
   //
   // The bow still comes off: it removes a quarter of the rectangle it replaces
   // on each tip (half-ellipse of span Rb and chord tipC).
-  const Sw = 2 * zR0 * w.chord
-             + (semi - zR0) * w.chord * (1 + w.taper)
-             - 2 * w.tipC * Rb * (1 - Math.PI / 4);
+  const Sw = !LAW.explicit
+    ? 2 * zR0 * w.chord
+      + (semi - zR0) * w.chord * (1 + w.taper)
+      - 2 * w.tipC * Rb * (1 - Math.PI / 4)
+    // explicit stations: the same rectangle + trapezoids + bow, panel by
+    // panel — reduces to the line above when the crank chord is unset
+    : 2 * zR0 * w.chord
+      + (LAW.zC > 0
+          ? (LAW.zC - zR0) * (LAW.cAt(zR0) + LAW.cAt(LAW.zC))
+            + (semi - LAW.zC) * (LAW.cAt(LAW.zC) + LAW.cAt(semi))
+          : (semi - zR0) * (LAW.cAt(zR0) + LAW.cAt(semi)))
+      - 2 * w.tipC * Rb * (1 - Math.PI / 4);
   S.geom = { xAC, cBar, semi, Sw, AR: w.span * w.span / Sw };
 
   // 3. fuselage length from the tail arm rule. The cargo bay is full-section
@@ -2161,7 +2364,17 @@ function resolveSpec(spec) {
   //    track of about 1.5 m — an honest cut, and the only one camber makes.
   S.gear.camberRad = S.gear.camber * Math.PI / 180;
   S.gear.contactR = S.gear.wheelR * Math.cos(S.gear.camberRad);
-  const PP = (typeof POWERPLANTS !== 'undefined' && POWERPLANTS[S.engine]) || null;
+  const REG = (typeof POWERPLANTS !== 'undefined' && POWERPLANTS[S.engine]) || null;
+  // G134: a CUSTOM row (the editor's dials, resolved + clamped) outranks the
+  // registry row it started from. Shape-compatible with a registry entry so
+  // every PP reader below — and 61/62 through S.pplant — is one code path;
+  // the preset survives as the prop-diameter default and the legacy lookup
+  // key (params.powerplant), so nothing built before this line moves.
+  const CU = S.engines[0] && S.engines[0].custom;
+  const PP = CU
+    ? { price: CU.price, engine: CU, prop: REG ? REG.prop : { D: 1.80 } }
+    : REG;
+  S.pplant = PP;
   // 4a. THE PROPELLER, synthesised from the disc it actually is. The registry's
   // prop is the DEFAULT diameter and nothing more; every number below is derived,
   // so a bigger disc really does pull harder and blow harder over the tail.

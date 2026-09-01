@@ -242,7 +242,10 @@ function checkWrites(A) {
       continue;
     }
     for (const o of A.rowOptions(r)) {
-      const wr = o.writes || {};
+      // G132: the seed channel is walked with the same yardsticks as the
+      // live writes — a one-shot key that exists nowhere is exactly as
+      // dead as a live one
+      for (const wr of [o.writes || {}, o.seed || {}]) {
       for (const k in (wr.cage || {})) {
         let v = wr.cage[k];
         if (typeof v === 'function') {
@@ -269,6 +272,7 @@ function checkWrites(A) {
         for (const p of patchPaths(wr.spec))
           ok = check(specPathOk(p), 'spec write on a path GEN_DEFAULT does ' +
             'not carry', `${r.key}/${o.label}: ${p}`) && ok;
+      }
       // targets: genShakedown's own key names, nothing else (§5.1)
       if (o.targets)
         for (const k of Object.keys(o.targets))
@@ -289,7 +293,9 @@ function checkEnvelope(A) {
   if (!check(!!row, 'no class row')) return false;
   for (const o of A.rowOptions(row)) {
     if (o.inactive) continue;
-    const c = (o.writes && o.writes.cage) || {};
+    // G132: a class's wing lives in its SEED now (the live write is the
+    // label alone)
+    const c = (o.seed && o.seed.cage) || (o.writes && o.writes.cage) || {};
     const chord = +c.wgChord, span = +c.wgSpan;
     if (!Number.isFinite(chord) || !Number.isFinite(span)) continue;
     const okChord = chord >= 1.15 && chord <= 2.10;
@@ -322,6 +328,27 @@ function checkArchetypes(A) {
     const { missing } = A.designApply(PAGE_BASE, a.sel);
     ok = check(missing.length === 0, 'archetype selection does not resolve',
       `${a.key}: ${missing.join(', ')}`) && ok;
+    // G140: the over channel gets the same yardsticks as everything else —
+    // its cage keys real, its function values resolving, its spec paths in
+    // GEN_DEFAULT (the planform patches live here now)
+    if (a.over && a.over.cage)
+      for (const k in a.over.cage) {
+        let v = a.over.cage[k];
+        if (typeof v === 'function') {
+          try { v = v(PAGE_BASE); }
+          catch (e) { ok = check(false, 'archetype over.cage function threw',
+            `${a.key}.${k}: ${e.message}`); continue; }
+          ok = check(Number.isFinite(+v),
+            'archetype over.cage function returned a non-number',
+            `${a.key}.${k}: ${v}`) && ok;
+        }
+        ok = check(KNOWN_KEY(k), 'archetype over.cage key exists nowhere',
+          `${a.key}.${k}`) && ok;
+      }
+    if (a.over && a.over.spec)
+      for (const p of patchPaths(a.over.spec))
+        ok = check(specPathOk(p), 'archetype over.spec path GEN_DEFAULT ' +
+          'does not carry', `${a.key}: ${p}`) && ok;
   }
   // at least one archetype flies today — a list that is all backlog would
   // make GATE ARCHETYPES a no-op wearing green
@@ -331,11 +358,102 @@ function checkArchetypes(A) {
   return ok;
 }
 
+// ---------------------------------------------------------------------------
+// 6 READ FIDELITY (G132) — a lit tile must be recoverable from its own
+// write. For every row that is not `once` (whose declaration admits its
+// read is lossy) and not a field: apply each live option onto the page
+// base, hand the row's read the resulting P and the option's own spec
+// patch, and require the option back. This is the check that would have
+// caught a role tile lit over a geometry the sliders had walked away from
+// — after the label/seed split, every remaining lit tile passes it.
+// ---------------------------------------------------------------------------
+function checkFidelity(A) {
+  let ok = true;
+  // resolve THE ITERATED OPTION's live writes, locally — the panel's own
+  // seeds:false pick, and on the table under test (routing through
+  // designApply would resolve against the real table and blind the
+  // selftest to a doctored clone)
+  const deep = (a, b) => {
+    for (const k in b) {
+      if (b[k] && typeof b[k] === 'object' && !Array.isArray(b[k]))
+        deep(a[k] || (a[k] = {}), b[k]);
+      else a[k] = b[k];
+    }
+    return a;
+  };
+  for (const r of A.DESIGN_ROWS) {
+    if (r.kind === 'field' || r.once || typeof r.read !== 'function') continue;
+    for (const o of A.rowOptions(r)) {
+      if (o.inactive) continue;
+      let got;
+      try {
+        const wr = o.writes || {};
+        const P2 = Object.assign({}, PAGE_BASE);
+        for (const k in (wr.cage || {})) {
+          let v = wr.cage[k];
+          if (typeof v === 'function') v = v(P2);
+          if (k === 'engPreset' && typeof v === 'string')
+            v = A.designPresetIndex(v);
+          P2[k] = v;
+        }
+        got = r.read(P2, deep({}, wr.spec || {}));
+      } catch (e) {
+        ok = check(false, 'fidelity: apply-then-read threw',
+          `${r.key}/${o.label}: ${e.message}`);
+        continue;
+      }
+      ok = check(got === o.value,
+        'read does not recover the option its own write applied (a tile ' +
+        'that lights the wrong state, or none)',
+        `${r.key}: applied ${o.value}, read ${got}`) && ok;
+    }
+  }
+  return ok;
+}
+
+// ---------------------------------------------------------------------------
+// 7 CHANNEL COHERENCE (G132) — one fact, two parameter homes, one keeper.
+// Any row with a live option writing BOTH a cage key and a spec path must
+// declare `pair` rows naming what keeps the two homes one ('join': the
+// join measures the cage side back — _join_check proves it behaviorally;
+// 'tile': the tile is the only writer of both). Seeds are exempt: a seed
+// is one-shot intent, both channels land in the same click and neither is
+// claimed as state afterward.
+// ---------------------------------------------------------------------------
+function checkCoherence(A) {
+  let ok = true;
+  const VIAS = ['join', 'tile'];
+  for (const r of A.DESIGN_ROWS) {
+    if (r.kind === 'field') continue;
+    const dual = A.rowOptions(r).some(o => !o.inactive && o.writes &&
+      Object.keys(o.writes.cage || {}).length > 0 &&
+      o.writes.spec && patchPaths(o.writes.spec).length > 0);
+    if (dual)
+      ok = check(Array.isArray(r.pair) && r.pair.length > 0,
+        'dual-channel row with no declared pair (two homes for one fact, ' +
+        'no keeper named)', r.key) && ok;
+    for (const p of (r.pair || [])) {
+      ok = check(!!p && typeof p.cage === 'string' && KNOWN_KEY(p.cage),
+        'pair on a cage key that exists nowhere',
+        `${r.key}: ${p && p.cage}`) && ok;
+      ok = check(!!p && typeof p.spec === 'string' && specPathOk(p.spec),
+        'pair on a spec path GEN_DEFAULT does not carry',
+        `${r.key}: ${p && p.spec}`) && ok;
+      ok = check(!!p && VIAS.includes(p.via),
+        'pair kept by nothing anyone defends (via must be join or tile)',
+        `${r.key}: ${p && p.via}`) && ok;
+    }
+  }
+  return ok;
+}
+
 checkShape(D);
 checkOptions(D);
 checkWrites(D);
 checkEnvelope(D);
 checkArchetypes(D);
+checkFidelity(D);
+checkCoherence(D);
 
 // ---------------------------------------------------------------------------
 // NEGATIVE VERIFICATION
@@ -353,8 +471,16 @@ if (process.argv.includes('--selftest')) {
             cage: Object.assign({}, o.writes.cage || {}),
             spec: JSON.parse(JSON.stringify(o.writes.spec || {})),
           };
+          // G132: seeds and pairs deep-copied for the same reason writes
+          // are — a case that mutates one must never touch the real table
+          if (o.seed) oc.seed = {
+            cage: Object.assign({}, o.seed.cage || {}),
+            spec: JSON.parse(JSON.stringify(o.seed.spec || {})),
+          };
           return oc;
         });
+      if (Array.isArray(r.pair))
+        c.pair = r.pair.map(p => Object.assign({}, p));
       return c;
     });
     const byKey = {};
@@ -407,8 +533,9 @@ if (process.argv.includes('--selftest')) {
            def: true }];
       return checkWrites(A); }],
     ['a live class promising a wing the clamp would bite', A => {
-      const o = A.rowByKey['class'].options.find(x => !x.inactive);
-      o.writes.cage.wgSpan = 16.0; return checkEnvelope(A); }],
+      // G132: the class's wing lives in its SEED now
+      const o = A.rowByKey['class'].options.find(x => !x.inactive && x.seed);
+      o.seed.cage.wgSpan = 16.0; return checkEnvelope(A); }],
     ['an archetype selecting a row that does not exist', A => {
       A.ARCHETYPES[0].sel = Object.assign({}, A.ARCHETYPES[0].sel,
                                           { warpDrive: 1 });
@@ -417,6 +544,17 @@ if (process.argv.includes('--selftest')) {
       A.ARCHETYPES[0].sel = Object.assign({}, A.ARCHETYPES[0].sel,
                                           { canopy: 'dome' });
       return checkArchetypes(A); }],
+    // G132: the two new families must themselves be breakable
+    ['a tile lighting the wrong state', A => {
+      A.rowByKey.wgFlapType.options[1].writes.cage.wgFlapType = 2;
+      return checkFidelity(A); }],
+    ['a dual-channel row with no declared pair', A => {
+      delete A.rowByKey.suspension.pair; return checkCoherence(A); }],
+    ['a pair kept by nothing anyone defends', A => {
+      A.rowByKey.prop.pair[0].via = 'hope'; return checkCoherence(A); }],
+    ['a seed on a key that exists nowhere', A => {
+      const o = A.rowByKey.role.options.find(x => x.seed);
+      o.seed.cage.noSuchParam = 1; return checkWrites(A); }],
   ];
   let bad = 0;
   for (const [name, run] of cases) {

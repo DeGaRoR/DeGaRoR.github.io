@@ -6,8 +6,10 @@
 // game a spec it can build. Run: node tools/_join_check.js
 'use strict';
 const C = require('./flight_core.js');
-const { GEN_TIPS, GEN_FLAPS, POWERPLANTS, resolveSpec, genFrame } = C;
-const { cageJoinSpec, CAGE_JOIN_ENGINES } = require('./_cage_join.js');
+const { GEN_TIPS, GEN_FLAPS, POWERPLANTS, resolveSpec, genFrame,
+        GEN_PROP_MATS, GEN_SUSPENSION } = C;
+const { cageJoinSpec, CAGE_JOIN_ENGINES, CAGE_JOIN_PROP_MATS } =
+  require('./_cage_join.js');
 
 let fails = 0;
 const ok = (cond, label) => {
@@ -24,11 +26,14 @@ const T = {
     'RC 6374 outrunner', 'e-PPG 12 kW', 'FES sustainer', 'EMRAX 228'],
 };
 const P = {
-  wgSpan: 11.2, wgChord: 1.55, wgChordTip: 1.09, wgSweep: 3,
+  // G140: the stations, at NON-default values (tipX 0.24 is the old sweep
+  // 3's own walk; crank fields ride the crank switch below)
+  wgSpan: 11.2, wgChord: 1.55, wgChordTip: 1.09, wgTipX: 0.24,
   wgDihedral: 2.5, wgIncidence: 1.6, wgWashout: 1.2,
   wgCamber: 4, wgThick: 12,
   wgTip: T.TIP_KEYS.indexOf('rounded'), wgPos: 0, wgCentre: 1,
-  wgBrace: 0, wgCrankAt: 0, wgDihedralOut: 6, wgPanels: 3,
+  wgBrace: 0, wgCrankAt: 0, wgCrankChord: 1.30, wgCrankX: 0.1,
+  wgDihedralOut: 6, wgPanels: 3,
   wgFlapType: T.FLAP_KEYS.indexOf('slotted') >= 0
     ? T.FLAP_KEYS.indexOf('slotted') : 0,
   wgFlapSpan: 0.45, wgFlapChord: 0.22, wgAilSpan: 0.36, wgAilChord: 0.22,
@@ -37,6 +42,15 @@ const P = {
   // default is 'none', so "it landed" cannot be impersonated by the default)
   s1Fair: 1,
   s2Fair: 2,                       // G121.2: the third wheel's, likewise
+  // G133: the fairing's physics-bearing instruments, all at NON-default
+  // states (defaults: tail 1 / legFair 0 / glassfibre). s2LegFair stays 0:
+  // the trouser state (s2Fair 2) already fairs that leg.
+  s1FairTail: 1.30, s2FairTail: 0.85, s1LegFair: 1, fairCons: 1,
+  // G132: the drawn suspension and the drawn blade, every one at a
+  // NON-default state for the same reason (defaults: bungee / 2 / wood /
+  // the engine registry's own D)
+  s1_shockKind: 2,                 // oleo
+  cw_bladeN: 3, cw_propD: 2.10, cw_material: 3,   // 3-blade carbon, 2.10 m
 };
 // Every measured value here is chosen to DIFFER from what resolveSpec
 // would derive on its own (side2 vs the default tandem2, 0.52 vs the
@@ -68,10 +82,41 @@ ok(s.wings[0].naca === 4412, 'camber 4 / thick 12 -> NACA 4412');
 ok(s.wings[0].position === 'high' && s.wings[0].centre === 'glass',
    'position + centre map by name');
 ok(s.wings[0].tip === 'rounded', 'tip maps by name');
+// G140: the stations pass, sweep is never written, and crank fields stay
+// null while the crank is off (a claim about a station that does not exist)
+ok(s.wings[0].tipX === 0.24 && s.wings[0].sweep === undefined,
+   'tip seat passes; sweep never written (G140)');
+ok(s.wings[0].crankChord === null && s.wings[0].crankX === null,
+   'crank fields null while the crank is off');
+{
+  const Pc = Object.assign({}, P, { wgCrankAt: 0.45 });
+  const sc = cageJoinSpec(Pc, M, T);
+  ok(sc.wings[0].crankChord === 1.30 && sc.wings[0].crankX === 0.1,
+     'crank chord + seat pass when the crank is on');
+}
 ok(s.bracing.type === 'strut', 'bracing maps');
 ok(s.gear.fairing === 'spat', 'fairing switch -> gear.fairing (G121.1)');
 ok(s.gear.twFairing === 'full',
    'third-wheel switch -> gear.twFairing (G121.2)');
+ok(s.gear.legFair === 'fair' && s.gear.twLegFair === 'none',
+   'leg-fairing switches -> gear.legFair / twLegFair (G133)');
+ok(s.gear.fairTail === 1.30 && s.gear.twFairTail === 0.85,
+   'droplet sliders -> gear.fairTail / twFairTail (G133)');
+ok(s.gear.fairMat === 'carbon', 'fairing build row -> gear.fairMat (G133)');
+ok(s.gear.suspension === 'oleo',
+   'drawn shock -> gear.suspension (G132)');
+ok(s.prop && s.prop.D === 2.10 && s.prop.blades === 3 &&
+   s.prop.material === 'carbon',
+   'drawn blade -> prop D / blades / material (G132)');
+ok(s.prop.pitch === undefined,
+   'pitch stays the design tile\'s alone — the join claims no twist');
+// the map is TOTAL and lands only on real physics rows — a hole would fall
+// through clampSpec's unknown->wood fallback and fly a silent birch blade
+ok(Array.isArray(CAGE_JOIN_PROP_MATS) && CAGE_JOIN_PROP_MATS.length === 8 &&
+   CAGE_JOIN_PROP_MATS.every(k => GEN_PROP_MATS[k]),
+   'prop material map total over the 8 finishes, every entry a real row');
+ok(['spring', 'bungee', 'oleo'].every(k => GEN_SUSPENSION[k]),
+   'every drawn shock kind is a real GEN_SUSPENSION row');
 ok(s.controls.flap.type !== undefined && s.controls.aileron.span === 0.36,
    'control surfaces pass');
 ok(s.engines[0].type === 'rotax912_warp', 'preset -> registry key');
@@ -143,6 +188,47 @@ try {
     ok(Rv.gear.fairing === want,
        'RESOLVED fairing state ' + v + ' -> ' + want);
   }
+  // G133: the fairing instruments survive the clamp — and the clamp is a
+  // real clamp (an out-of-range droplet lands on the bound, not verbatim)
+  ok(R.gear.legFair === 'fair' && R.gear.twLegFair === 'none' &&
+     R.gear.fairTail === 1.30 && R.gear.twFairTail === 0.85 &&
+     R.gear.fairMat === 'carbon',
+     'RESOLVED fairing instruments = drawn, through the clamp');
+  {
+    const Pv = Object.assign({}, P, { s1FairTail: 9, fairCons: 7 });
+    const Rv = resolveSpec(JSON.parse(JSON.stringify(
+      cageJoinSpec(Pv, M, T)))).spec;
+    ok(Rv.gear.fairTail === 1.60 && Rv.gear.fairMat === 'glass',
+       'RESOLVED out-of-range droplet clamps to 1.60, unknown layup -> glass');
+  }
+  // G132: the drawn suspension survives the clamp, at every state
+  ok(R.gear.suspension === 'oleo',
+     'RESOLVED suspension = drawn oleo, through the clamp');
+  for (const [v, want] of [[0, 'spring'], [1, 'bungee']]) {
+    const Pv = Object.assign({}, P, { s1_shockKind: v });
+    const Rv = resolveSpec(JSON.parse(JSON.stringify(
+      cageJoinSpec(Pv, M, T)))).spec;
+    ok(Rv.gear.suspension === want,
+       'RESOLVED suspension state ' + v + ' -> ' + want);
+  }
+  // G133: the leg KIND outranks the (link-only) shock row — an oleo leg
+  // flies an oleo and a beam leg flies spring steel, whatever the hidden
+  // shock row holds
+  for (const [leg, want] of [[0, 'spring'], [2, 'oleo']]) {
+    const Pv = Object.assign({}, P, { s1Leg: leg, s1_shockKind: 1 });
+    const Rv = resolveSpec(JSON.parse(JSON.stringify(
+      cageJoinSpec(Pv, M, T)))).spec;
+    ok(Rv.gear.suspension === want,
+       'RESOLVED suspension from leg kind ' + leg + ' -> ' + want);
+  }
+  // G132: the drawn blade reaches the THRUST MODEL — D sticks through the
+  // null-means-derive door (put only fills null), and the derived name
+  // carries the family, which is the one string a plaque will print
+  ok(R.prop.D === 2.10 && R.prop.blades === 3 && R.prop.material === 'carbon',
+     'RESOLVED prop = drawn 3-blade carbon 2.10 m');
+  ok(typeof R.prop.name === 'string' && /carbon/i.test(R.prop.name) &&
+     /2.10/.test(R.prop.name),
+     'RESOLVED prop name derived from the drawn blade: ' + R.prop.name);
   ok(R.fuselage.postGap === 0.42, 'RESOLVED post gap = measured 0.42');
   ok(R.wings[0].xLE === 0.55 && !RS.auto['wing.xLE'],
      'RESOLVED wing LE station = measured 0.55, not auto');
@@ -194,6 +280,35 @@ try {
   ok(fr2.cg0.every(Number.isFinite), 'measurement-less export still builds');
 } catch (e) {
   ok(false, 'measurement-less export threw: ' + e.message);
+}
+
+// G134: the CUSTOM ENGINE row — facts in, clamped, priced, flown. And its
+// ABSENCE is load-bearing: no engineFacts = the registry preset flies, which
+// is the identity ruling's untouched-preset half.
+try {
+  const M3 = Object.assign({}, M, { engineFacts: {
+    name: 'modified Rotax 912 UL', mass: 62, powerW: 66000, rpm: 5600,
+    torque: 113, aspiration: 'na', family: 'four', cooling: 'liquid' } });
+  const s3 = cageJoinSpec(P, M3, T);
+  ok(s3.engines[0].custom && s3.engines[0].custom.powerW === 66000,
+     'engineFacts land as engines[0].custom');
+  ok(s3.engines[0].type === (CAGE_JOIN_ENGINES[T.PRESET_NAMES[
+       Math.round(P.engPreset)]] || 'a65_sensenich74'),
+     'the preset key survives as the fallback row');
+  const RS3 = resolveSpec(JSON.parse(JSON.stringify(s3)));
+  const R3 = RS3.spec;
+  ok(R3.pplant && R3.pplant.engine.mass === 62 &&
+     R3.pplant.engine.name === 'modified Rotax 912 UL',
+     'RESOLVED pplant flies the custom facts under the honest name');
+  ok(R3.pplant.price > 0, 'an unpriced custom row takes the market curve');
+  const fr3 = genFrame(R3);
+  ok(fr3.cg0.every(Number.isFinite) && fr3.cg0[3] > 50,
+     'a custom-engined spec builds to a finite CG');
+  const s4 = cageJoinSpec(P, M, T);         // same M, no engineFacts
+  ok(!s4.engines[0].custom,
+     'no facts -> no custom row (the registry preset flies)');
+} catch (e) {
+  ok(false, 'custom engine block threw: ' + e.message);
 }
 
 // THE VERDICT CONTRACT (G67.1): this checker joins the battery, and the

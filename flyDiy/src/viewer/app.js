@@ -22,6 +22,23 @@
   renderer.toneMappingExposure = 1.12;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  // THE RESOLVE PASS (G144) takes the main render off the default framebuffer
+  // so it can have eight MSAA samples instead of the four `antialias: true`
+  // hands out, a downsample filter that is ours rather than the compositor's,
+  // and somewhere to put the dither the fuselage flank needs. It degrades to
+  // `renderer.render` on anything that cannot carry it, and `antialias: true`
+  // above stays exactly for that case. src/viewer/aa_resolve.js has the whole
+  // argument and the measurements behind it.
+  //
+  // `setPixelRatio` STAYS WHERE IT IS. It is not the supersampling lever any
+  // more — the pass is — but it still decides how big the drawing buffer is on
+  // a high-dpr screen, and the pass sizes itself from THAT rather than from CSS
+  // pixels, so the two multiply instead of fighting.
+  const aa = (typeof AA_RESOLVE !== 'undefined' && AA_RESOLVE)
+    ? AA_RESOLVE.make(THREE, renderer)
+    : (typeof window !== 'undefined' && window.AA_RESOLVE)
+      ? window.AA_RESOLVE.make(THREE, renderer) : null;
+  if (typeof window !== 'undefined') window.FLYDIY_AA = aa;
   const scene = new THREE.Scene();
 
   const camera = new THREE.PerspectiveCamera(46, 1, 0.5, 7000);
@@ -63,8 +80,15 @@
   // THE NEAR PLANE MOVES TOO. It is 0.5 m for a hangar, which is further away
   // than the instrument panel.
   let edEye = null;
+  // ...AND THE SAME EYE IN FLIGHT (the flight rebaseline). The `camera`
+  // flyout's `cockpit` is not a second implementation: it is this one, pointed
+  // at the aeroplane that is flying instead of the one on the stand. What
+  // differs is only the FRAME the eye has to be expressed in — see flyEyeAt()
+  // down with the flight interface, which walks the crew layer's published
+  // world point through the same cage -> model mapping the snapshot uses.
+  let flyEye = null;
   const CAM_NEAR = 0.5, EYE_NEAR = 0.035, EYE_PIVOT = 0.35;
-  const edEyeOn = () => !!edEye;
+  const edEyeOn = () => !!(edEye || flyEye);
   function setNear(n) {
     if (camera.near === n) return;
     camera.near = n;
@@ -130,7 +154,7 @@
     let x = target.x + dist * Math.cos(el) * Math.cos(az),
         y = Math.max(0.4, target.y + dist * Math.sin(el)),
         z = target.z + dist * Math.cos(el) * Math.sin(az);
-    if (edEye) { camera.position.set(x, y, z); camera.lookAt(target); return; }
+    if (edEye || flyEye) { camera.position.set(x, y, z); camera.lookAt(target); return; }
     const room = inGarage && garageIsHangar() && hangar && hangar.dims;
     if (room) {
       // THE MARGIN IS THE NEAR PLANE, not a number (G62.5, user: "I often see
@@ -949,6 +973,30 @@
   const MODELS3D = {};
   if (typeof MODEL_PA18 !== 'undefined') MODELS3D.pa18 = MODEL_PA18;
   if (typeof MODEL_C172 !== 'undefined') MODELS3D.c172 = MODEL_C172;
+  // REFERENCE-ONLY payloads (G138, tools/ref_prep.py). They join the same map
+  // because MODEL_DECODE — the one decode that owns the b64 drop — reads this
+  // map and refplane.js goes through it. They carry `ref:1`, no surfaces and
+  // no hub, so nothing here can fly one: buildModel would find no `skin` group
+  // to mount and SKIN_CFG has no row for them. They never reach the aircraft
+  // select either, which is populated from body.html, not from this map.
+  // Each guard is its own line because MANIFEST.models decides which payloads
+  // the artifact actually carries, and a missing one must be a preset that
+  // shows nothing rather than a page that does not boot.
+  if (typeof MODEL_D112 !== 'undefined') MODELS3D.d112 = MODEL_D112;
+  if (typeof MODEL_PIO200 !== 'undefined') MODELS3D.pio200 = MODEL_PIO200;
+  if (typeof MODEL_C195 !== 'undefined') MODELS3D.c195 = MODEL_C195;
+  if (typeof MODEL_A22 !== 'undefined') MODELS3D.a22 = MODEL_A22;
+  if (typeof MODEL_P68 !== 'undefined') MODELS3D.p68 = MODEL_P68;
+  if (typeof MODEL_RV8 !== 'undefined') MODELS3D.rv8 = MODEL_RV8;
+  if (typeof MODEL_SR22 !== 'undefined') MODELS3D.sr22 = MODEL_SR22;
+  // the second batch (G142)
+  if (typeof MODEL_DA40 !== 'undefined') MODELS3D.da40 = MODEL_DA40;
+  if (typeof MODEL_G115 !== 'undefined') MODELS3D.g115 = MODEL_G115;
+  if (typeof MODEL_STEMME !== 'undefined') MODELS3D.stemme = MODEL_STEMME;
+  if (typeof MODEL_GUEPARD !== 'undefined') MODELS3D.guepard = MODEL_GUEPARD;
+  if (typeof MODEL_YAK18T !== 'undefined') MODELS3D.yak18t = MODEL_YAK18T;
+  if (typeof MODEL_EIII !== 'undefined') MODELS3D.eiii = MODEL_EIII;
+  if (typeof MODEL_PA28 !== 'undefined') MODELS3D.pa28 = MODEL_PA28;
   // per-aircraft skin config: body-frame mount offset + binding thresholds (SKIN-PROC.md)
   // pa18 geometry is a byte-copy of the cub's, so the calibration is shared.
   // `rig` = groups that carry hinges and/or flex (default ['skin']); the c172's
@@ -1050,6 +1098,35 @@
   let model = null, skinMode = 0;
   // transparent-pass determinism (r128): gauge covers paint before cabin glass
   const RENDER_ORDER = { covers: 1, glass: 2 };
+  // THE AEROPLANE'S GLASS SORTS ABOVE THE GROUND IT FLIES OVER (the user:
+  // "issue with the wing `cut lamps` material. It does not show when rendered
+  // on top of the strip. It shows when rendered on top of the other surfaces
+  // though").
+  //
+  // WHY THE STRIP AND NOT THE FIELD. three.js draws every transparent object
+  // after every opaque one and sorts them by renderOrder first. Open country
+  // is TERRAIN — opaque, drawn in the opaque pass, done before the aeroplane's
+  // glass is reached. The aerodrome is not: its grass patch (renderOrder 2)
+  // and its runway sheet (renderOrder 3) are `transparent, depthWrite:false`
+  // DECALS laid over that terrain, because the patch has to fade at its edges
+  // (render_world.js says so in as many words). The flown aeroplane's groups
+  // took `RENDER_ORDER[name] || 0` — which is 0 for anything not named
+  // `covers` or `glass` — so the runway was drawn AFTER the lens.
+  //
+  // AND NOTHING STOPPED IT, because the depth test had nothing to reject it
+  // with: the wing is REALLY CUT at the lamp bay, the lens itself is
+  // depthWrite:false like all glass, and looking down through the bay the ray
+  // misses the interior cage's aft wall. No opaque fragment, no depth, no
+  // rejection — the strip painted straight over the pane. Over open country
+  // there is no transparent decal to do it, which is exactly the difference
+  // the screenshot shows.
+  //
+  // A BAND, not a bigger number. The world's decals live in single digits
+  // (`Math.round(y * 100)` on a few centimetres of height); the SUBJECT gets
+  // its own thousand, so a new decal at any plausible height still cannot
+  // reach it, and the aeroplane's own internal order is preserved inside the
+  // band rather than flattened.
+  const AERO_CLEAR = 1000;
   let TYRE_TEX = null;            // the tyre sheet does not depend on the spec
   // curDef is only read on the GARAGE path: the generated payload is a function
   // of the very fiche the sim is running, so it must be that object and not a
@@ -1295,7 +1372,10 @@
       const isProp = name === 'prop' || name === 'proptip' || name === 'spinner';
       if (isProp) geo.translate(-data.hub[0], -data.hub[1], -data.hub[2]);
       const mesh = new THREE.Mesh(geo, matFor(name));
-      mesh.renderOrder = RENDER_ORDER[name] || 0;
+      // the payload's own declaration of what is see-through is `opacity < 1`
+      // — the same fact `castShadow` below already reads
+      const clear = !!(mats[name] && mats[name].opacity < 1);
+      mesh.renderOrder = (RENDER_ORDER[name] || 0) + (clear ? AERO_CLEAR : 0);
       if (isProp) { mesh.position.set(data.hub[0], data.hub[1], data.hub[2]); props.push(mesh); }
       if (name === 'skin' || isProp ||
           (data.cage && !(mats[name] && mats[name].opacity < 1)))
@@ -1324,6 +1404,18 @@
       let twWheel = null;
       const legNode = { legL: nodeOf.mainsL, legR: nodeOf.mainsR,
                         legT: nodeOf.tw };
+      // G148: THE REST IS COMPUTED, NEVER CAPTURED (G145's lesson, on the
+      // gear). A rig's rest = its node's DESIGN position through the exact
+      // projection nodeLocal applies per frame, so zero load reads zero
+      // delta on frame 1 and after every fullReset. The old lazy
+      // `rest0 = first posed frame's L` froze that frame's settling into
+      // the rig for the model's whole life — and fullReset never cleared
+      // it.
+      const toB = defBodyProject(curDef);
+      const offX = (data.off && data.off[0]) || 0,
+            offY = (data.off && data.off[1]) || 0;
+      const nodeRest = idx => { const q = toB(curDef.nodes[idx].p);
+        return [q[0] - offX, q[1] - offY, q[2]]; };
       for (const pt of data.parts) {
         const pg = new THREE.Group();
         for (const name in pt.groups) {
@@ -1404,7 +1496,8 @@
                 W[i] = Math.pow(Math.max(0, 1 - ds[i] / dmax), 1.2);
             }
             stretchRigs.push({ posAttr: pa, base, w: W,
-                               idx: legNode[pt.kind], rest0: null });
+                               idx: legNode[pt.kind],
+                               rest0: nodeRest(legNode[pt.kind]) });
           });
         }
         else if (pt.surf) {
@@ -1449,13 +1542,16 @@
             pg.position.set(pt.pivot[0], pt.pivot[1], pt.pivot[2]);
           grp.add(pg);
           castorRig = { obj: pg, idx: nodeOf.tw, pivot: pt.pivot,
-                        axle: pt.axle, axis: pt.axis, rest0: null };
+                        axle: pt.axle, axis: pt.axis,
+                        rest0: nodeRest(nodeOf.tw) };
         }
         else if (nodeOf[pt.kind] != null) {
           if (pg.position && pg.position.set)
             pg.position.set(pt.pivot[0], pt.pivot[1], pt.pivot[2]);
           grp.add(pg);
-          const w = { obj: pg, idx: nodeOf[pt.kind], R: pt.R, prev: null };
+          const w = { obj: pg, idx: nodeOf[pt.kind], R: pt.R,
+                      pivot: pt.pivot, rest0: nodeRest(nodeOf[pt.kind]),
+                      prev: null };
           wheelParts.push(w);
           if (pt.kind === 'tw') twWheel = w;
         }
@@ -1587,7 +1683,12 @@
       // G54.2 pitch rotation.
       const cg0b = defCG(curDef);
       const dx0 = cg0b[0] + offC[0], dy0 = cg0b[1] + offC[1];
-      const sw = Math.tan((W2.sweep || 0) * Math.PI / 180) * W2.span * 0.5;
+      // G140: the wing walks by station SEATS now (tipX/crankX, metres);
+      // legacy hand-written specs may still say sweep — cover both reaches
+      const sw = Math.max(
+        Math.abs(+W2.tipX || 0), Math.abs(+W2.crankX || 0),
+        Math.abs(Math.tan((W2.sweep || 0) * Math.PI / 180) * W2.span * 0.5))
+        * ((+W2.tipX || 0) < 0 || (W2.sweep || 0) < 0 ? -1 : 1);
       let yMin;
       try {
         const F = curDef.parts.wf.R.F;
@@ -1611,17 +1712,91 @@
     const rigNames = data.cage ? Object.keys(dec) : (SKIN_CFG[key].rig || ['skin']);
     const rigs = rigNames.filter(n => dec[n]).map(name => {
       const posAttr = meshes[name].geometry.attributes.position;
+      // THE LIFT STRUT IS NOT WING SKIN. The wing-box selector binds every
+      // vertex by its own |z| to the spar-station deltas, and the strut is a
+      // 16-ring tube running DIAGONALLY through that box — each ring got a
+      // different station's deflection and the rings under yMin got none,
+      // which is the mid-span kink on every flight (the same disease G58.1
+      // cured for the strut ROOT, caught here for the strut's whole body).
+      // zRoot:Infinity binds nothing here; the strut takes its OWN binding —
+      // the two-end follow built just below (G140).
+      const bindCfg = (data.cage && name === 'sstrut')
+        ? { ...cfg, zRoot: Infinity } : cfg;
       return {
-        posAttr, base: posAttr.array.slice(),
-        bind: makeSkinBinding(posAttr.array, dec[name].nv, def, cfg),
+        name, posAttr, base: posAttr.array.slice(),
+        bind: makeSkinBinding(posAttr.array, dec[name].nv, def, bindCfg),
         // control surface hinges (payload v2: per-vertex surface ids + hinge table)
         hb: (data.v >= 2 && dec[name].sid) ? makeHingeBinding(dec[name], data.surfaces) : null,
       };
     });
+    // G140: THE STRUT FOLLOWS ITS OWN TWO ENDS (the user's ruling: "the
+    // strut should probably not deform itself, just move its begin and end
+    // points. Or better, scale gracefully between these"). Each vertex is
+    // assigned to one of the four drawn members (side x front/rear) by
+    // nearest axis in snapshot space, with t its fraction along foot->tip;
+    // per frame it takes (1-t) of the foot node's body-frame delta and t of
+    // the tip's — the tube translates, tilts and stretches between the very
+    // nodes its beam runs between (61 exports them as wf.*.strutF/strutR),
+    // and can neither kink mid-span nor part company with a flexing wing.
+    let strutBind = null;
+    if (data.cage && dec.sstrut && def.parts && def.parts.wf) {
+      try {
+        const cg0b = defCG(curDef);
+        const dxs = cg0b[0] + ((data.off && data.off[0]) || 0);
+        const dys = cg0b[1] + ((data.off && data.off[1]) || 0);
+        const snap = i => { const p = def.nodes[i].p;
+                            return [p[0] - dxs, p[1] - dys, p[2]]; };
+        const sides = {};
+        for (const sd of ['R', 'L']) {
+          const fw = def.parts.wf[sd];
+          if (!fw || fw.strutRoot == null || fw.strutF == null) continue;
+          sides[sd] = { foot: fw.strutRoot, tipF: fw.strutF, tipR: fw.strutR,
+                        sFoot: snap(fw.strutRoot), sTipF: snap(fw.strutF),
+                        sTipR: snap(fw.strutR) };
+        }
+        const rig = rigs.find(r => r.name === 'sstrut');
+        if (sides.R && sides.L && rig) {
+          const nv = dec.sstrut.nv, base = rig.base;
+          const memb = new Uint8Array(nv), tArr = new Float32Array(nv);
+          const dSeg = (v, a, b) => {
+            const ab = [b[0]-a[0], b[1]-a[1], b[2]-a[2]];
+            const ap = [v[0]-a[0], v[1]-a[1], v[2]-a[2]];
+            const L2 = ab[0]*ab[0] + ab[1]*ab[1] + ab[2]*ab[2] || 1e-9;
+            const t = (ap[0]*ab[0] + ap[1]*ab[1] + ap[2]*ab[2]) / L2;
+            const tc = Math.max(0, Math.min(1, t));
+            const qx = ap[0]-ab[0]*tc, qy = ap[1]-ab[1]*tc, qz = ap[2]-ab[2]*tc;
+            return [qx*qx + qy*qy + qz*qz, t];
+          };
+          for (let i = 0; i < nv; i++) {
+            const v = [base[i*3], base[i*3+1], base[i*3+2]];
+            const S2 = v[2] >= 0 ? sides.R : sides.L;
+            const [dF, tF] = dSeg(v, S2.sFoot, S2.sTipF);
+            const [dR2, tR2] = dSeg(v, S2.sFoot, S2.sTipR);
+            const rear = dR2 < dF;
+            memb[i] = (v[2] >= 0 ? 0 : 2) + (rear ? 1 : 0);
+            tArr[i] = Math.max(0, Math.min(1.05, rear ? tR2 : tF));
+          }
+          const nodesIx = [sides.R.foot, sides.R.tipF, sides.R.tipR,
+                           sides.L.foot, sides.L.tipF, sides.L.tipR];
+          // rest through defBodyProject, like makeSkinBinding's: any other
+          // frame skews the two ends in OPPOSITE directions at zero load
+          // (the foot sits below the CG, the tips above it) — the parked
+          // bent strut.
+          const toB = defBodyProject(def);
+          const rest = new Float32Array(18);
+          nodesIx.forEach((ni, k) => {
+            const q = toB(def.nodes[ni].p);
+            rest[k*3] = q[0]; rest[k*3+1] = q[1]; rest[k*3+2] = q[2];
+          });
+          strutBind = { rig, memb, t: tArr, nodes: nodesIx, rest,
+                        d: new Float32Array(18) };
+        }
+      } catch (e) { strutBind = null; }
+    }
     // station structure is a property of the fiche, so one delta buffer serves all
     const nz = rigs[0].bind.zs.length;
     const deltas = { P: new Float32Array(nz * 3), N: new Float32Array(nz * 3) };
-    const m = Object.assign(entry, { grp, props, rigs, deltas,
+    const m = Object.assign(entry, { grp, props, rigs, deltas, strutBind,
                         off: cfg.off,
                         wheelParts: wheelParts.length ? wheelParts : null,
                         stretchRigs: stretchRigs.length ? stretchRigs : null,
@@ -1710,12 +1885,46 @@
     }
     sparDeltas(model.rigs[0].bind, sim, model.deltas);
     for (const r of model.rigs) {
+      // a rig with no bound vertices and no hinges (the lift strut) rides the
+      // group matrix — or its OWN two-end binding, applied just below
+      if (!r.hb && !r.bind.bound.length) continue;
       if (r.hb) applyHinges(r.hb, model.surfaces, r.base, r.posAttr.array, link);
       applySkinDeform(r.bind, r.base, r.posAttr.array,
                       model.deltas.P, model.deltas.N,
                       skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0],
                       r.hb && r.hb.hinged);
       r.posAttr.needsUpdate = true;   // normals kept from rest pose: flex < ~5 deg
+    }
+    // G140: the strut's two-end follow — six node deltas in body axes
+    // (sparDeltas' own projection, on the strut's exact beam ends), then
+    // every vertex lerps foot->tip along its own member. See the binding's
+    // construction in buildModel.
+    if (model.strutBind) {
+      const SB = model.strutBind;
+      const gain = skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0];
+      const cgS = sim.cgPos(), axS = sim.axes(), xA2 = axS[0], yU2 = axS[1];
+      const zL2 = [xA2[1]*yU2[2] - xA2[2]*yU2[1],
+                   xA2[2]*yU2[0] - xA2[0]*yU2[2],
+                   xA2[0]*yU2[1] - xA2[1]*yU2[0]];
+      const D6 = SB.d;
+      for (let k = 0; k < 6; k++) {
+        const i3 = SB.nodes[k] * 3;
+        const ddx = sim.p[i3] - cgS[0], ddy = sim.p[i3+1] - cgS[1],
+              ddz = sim.p[i3+2] - cgS[2];
+        D6[k*3]   = (ddx*xA2[0] + ddy*xA2[1] + ddz*xA2[2]) - SB.rest[k*3];
+        D6[k*3+1] = (ddx*yU2[0] + ddy*yU2[1] + ddz*yU2[2]) - SB.rest[k*3+1];
+        D6[k*3+2] = (ddx*zL2[0] + ddy*zL2[1] + ddz*zL2[2]) - SB.rest[k*3+2];
+      }
+      const pos2 = SB.rig.posAttr.array, base2 = SB.rig.base;
+      for (let i = 0; i < SB.memb.length; i++) {
+        const m2 = SB.memb[i];
+        const kF = m2 < 2 ? 0 : 3, kT = kF + 1 + (m2 & 1);
+        const t = SB.t[i], u = 1 - t;
+        pos2[i*3]   = base2[i*3]   + gain * (u*D6[kF*3]   + t*D6[kT*3]);
+        pos2[i*3+1] = base2[i*3+1] + gain * (u*D6[kF*3+1] + t*D6[kT*3+1]);
+        pos2[i*3+2] = base2[i*3+2] + gain * (u*D6[kF*3+2] + t*D6[kT*3+2]);
+      }
+      SB.rig.posAttr.needsUpdate = true;
     }
     // G55: each wheel rides its AXLE NODE — its position is the node's
     // live coordinates in the SAME basis the pose maps the group into
@@ -1736,7 +1945,16 @@
       const i3 = w.idx * 3;
       if (!w.child) {                       // the castor drives its child
         const L = nodeLocal(w.idx);
-        w.obj.position.set(L[0], L[1], L[2]);
+        // G148: DRAWN PLACE + PHYSICS DELTA — the same law the leg and
+        // the castor pose by. Absolute node placement pinned the wheel to
+        // the SIM while its leg held the DRAWING, so every calibration
+        // residual (the off vector has no z, per-side vs mean track)
+        // became a permanent gap between parts bolted together.
+        if (w.pivot && w.rest0)
+          w.obj.position.set(w.pivot[0] + L[0] - w.rest0[0],
+                             w.pivot[1] + L[1] - w.rest0[1],
+                             w.pivot[2] + L[2] - w.rest0[2]);
+        else w.obj.position.set(L[0], L[1], L[2]);
       }
       if (w.prev && w.obj.rotation) {
         const mx = (sim.p[i3] - w.prev[0]) * xA[0] +
@@ -1752,7 +1970,7 @@
     if (model.stretchRigs) for (const s of model.stretchRigs) {
       if (!s.posAttr || !s.posAttr.array) continue;
       const L = nodeLocal(s.idx);
-      if (!s.rest0) { s.rest0 = L; continue; }
+      if (!s.rest0) s.rest0 = L;            // fallback only — see nodeRest
       const ddx = L[0] - s.rest0[0], ddy = L[1] - s.rest0[1],
             ddz = L[2] - s.rest0[2];
       const p2 = s.posAttr.array, b = s.base, W = s.w;
@@ -1795,8 +2013,8 @@
       const c = model.castorRig;
       if (c.obj.position && c.obj.position.set && c.obj.quaternion) {
         const L = nodeLocal(c.idx);
-        if (!c.rest0) c.rest0 = L;
-        else c.obj.position.set(
+        if (!c.rest0) c.rest0 = L;          // fallback only — see nodeRest
+        c.obj.position.set(
           c.pivot[0] + L[0] - c.rest0[0],
           c.pivot[1] + L[1] - c.rest0[1],
           c.pivot[2] + L[2] - c.rest0[2]);
@@ -1866,74 +2084,20 @@
                         : ['Skin ×1', 'Flex ×4', 'Frame ×1', 'Overlay ×1'][skinMode];
     b.classList.toggle('on', showSkin);
   }
-  // ---- WIRE: the mesh as built. Materials are cached per material NAME, so
-  // one pass over the cache flips the whole aeroplane rather than chasing the
-  // group list, and it survives a rebuild because the cache is rebuilt with it.
-  let wireOn = false;
-  function applyWire() {
-    if (!model) return;
-    model.grp.traverse(o => { if (o.material) o.material.wireframe = wireOn; });
-    $('bWire').classList.toggle('on', wireOn);
-  }
-  $('bWire').onclick = () => { wireOn = !wireOn; applyWire(); };
+  // WIRE and UV are gone (playability round): the wireframe never told a
+  // player anything the Frame mode doesn't, and the UV pane was permanently
+  // empty for the cage build (no `dec` on the join payload) — a diagnostic
+  // for a pipeline the game no longer flies.
   if ($('bMood')) $('bMood').onclick = () =>
     setMood(hangar ? (hangarMood + 1) % hangar.moods.length : 0);
 
-  // ---- UV: the parameterisation, drawn flat. Every group's triangles in
-  // texture space over its own texture, so a decal that is about to come out
-  // stretched or mirrored can be seen BEFORE it is on the aeroplane. That is
-  // the whole reason it exists: the registration squeeze was invisible from
-  // outside the mesh and obvious the moment its UVs were laid out.
-  const UV_COLS = ['#ffb257', '#63d3cc', '#ff8b73', '#a6e05f', '#c9a0ff', '#f2e05f'];
-  let uvOn = false;
-  function drawUV() {
-    const cv = $('uvc'); if (!cv || !cv.getContext) return;
-    const g = cv.getContext('2d'), W = cv.width, H = cv.height;
-    g.clearRect(0, 0, W, H);
-    if (!model || !model.dec) { $('uvleg').textContent = 'no generated mesh'; return; }
-    // the paint sheet underneath, so UV islands are read against what they sample
-    const t = model.texImg;
-    if (t) { g.globalAlpha = 0.55; try { g.drawImage(t, 0, 0, W, H); } catch (e) {} g.globalAlpha = 1; }
-    // ONLY the groups that sample this sheet. Drawing all of them was right when
-    // every textured group shared the paint; since G4.6 the tyre carries its own
-    // sheet and the hub, the cord and the truss carry no texture at all, and
-    // laying their islands over the paint made the one diagnostic that is
-    // supposed to show where a group SAMPLES into a tangle of unrelated grids.
-    const mats = model.mats || {};
-    const names = Object.keys(model.dec)
-      .filter(n => mats[n] && mats[n].tex === 'paint');
-    names.forEach((nm, gi) => {
-      const d = model.dec[nm];
-      if (!d.uv || !d.idx) return;
-      g.strokeStyle = UV_COLS[gi % UV_COLS.length];
-      g.lineWidth = 0.5;
-      g.beginPath();
-      for (let i = 0; i < d.idx.length; i += 3) {
-        for (let k = 0; k < 3; k++) {
-          const a2 = d.idx[i + k], b2 = d.idx[i + (k + 1) % 3];
-          // v is flipped: texture space is bottom-up, canvas is top-down
-          g.moveTo(d.uv[a2*2] * W, (1 - d.uv[a2*2+1]) * H);
-          g.lineTo(d.uv[b2*2] * W, (1 - d.uv[b2*2+1]) * H);
-        }
-      }
-      g.stroke();
-    });
-    $('uvleg').textContent = 'paint sheet: ' + (names.length
-      ? names.map(n => String.fromCharCode(9632) + ' ' + n).join('  ')
-      : 'no group samples it');
-    const leg = $('uvleg');
-    if (leg && leg.style) leg.style.color = '';
+  $('bSkin').onclick = () => setSkinMode((skinMode + 1) % 4);
+  // THE COVERING, BY NAME. The button cycles; the `camera` flyout's pills
+  // pick, and both go through here so there is one place that changes it.
+  function setSkinMode(n) {
+    skinMode = ((n | 0) % 4 + 4) % 4;
+    applySkinVis();
   }
-  $('bUV').onclick = () => {
-    uvOn = !uvOn;
-    $('uvp').classList.toggle('show', uvOn);
-    $('bUV').classList.toggle('on', uvOn);
-    if (uvOn) drawUV();
-  };
-
-  $('bSkin').onclick = () => {
-    skinMode = (skinMode + 1) % 4; applySkinVis();
-  };
 
   // ---- W10 route: spawn at any aerodrome (default the home base), fly
   // a circuit there or cross-country to any other strip ----
@@ -1947,8 +2111,26 @@
   // G107: YOUR builds fly the TEST PILOT (41_test_pilot.js) — bounded
   // attempts, structured verdicts; the hand-built fleet keeps the classic
   // autopilot, which is what its eleven gates are calibrated on.
-  const mkPilot = k => (k === 'gen' && typeof makeTestPilot === 'function')
-    ? makeTestPilot(sim, def, world) : makeAutopilot(sim, def, world);
+  // G130: that rule became the DEFAULT of a choice. 'auto' is exactly the
+  // old behaviour; the selector can put the classic autopilot under your
+  // build, which flies it on unbounded the way the fleet does.
+  // G135: the other half of that sentence — the test pilot under a fleet
+  // fiche — is no longer reachable from the UI, because no fiche is. The
+  // BRANCH stays: mkPilot is keyed on the aircraft, not on the menu, and the
+  // gates that call setAircraft with a fiche key still get the right pilot.
+  let pilotChoice = 'auto';
+  const mkPilot = k => {
+    const test = pilotChoice === 'test' ||
+                 (pilotChoice === 'auto' && k === 'gen');
+    return (test && typeof makeTestPilot === 'function')
+      ? makeTestPilot(sim, def, world) : makeAutopilot(sim, def, world);
+  };
+  if ($('selPilot')) $('selPilot').onchange = e => {
+    pilotChoice = e.target.value;
+    // mid-flight the change takes effect through a fresh departure; in the
+    // garage it simply decides who flies the next roll-out
+    if (!inGarage) fullReset();
+  };
   function setAircraft(key) {
     def = AIRCRAFT[key]();
     sim = makeSim(def, world);
@@ -1982,9 +2164,10 @@
     }
     model = buildModel(key, def);
     if (model) craft.add(model.grp);
+    // a fleet aeroplane never stands behind a cage build (G65) — settled
+    // before the one visibility ruling below, not after it
+    if (curKey !== 'gen') showCage = false;
     applySkinVis();
-    applyWire();
-    if (uvOn) drawUV();
     dist = distT = def.params.viewDist;   // aircraft change SNAPS, no glide
     const PP = POWERPLANTS[def.params.powerplant];
     let half = 0;                          // wingspan from the wing strips, like the solver
@@ -1993,15 +2176,25 @@
         half = Math.max(half, Math.abs(def.nodes[i].p[2]));
     const mass = sim.totalM < 5 ? (sim.totalM*1000).toFixed(0) + ' g' : sim.totalM.toFixed(0) + ' kg';
     $('acName').textContent = def.params.name;
-    $('acSpec').textContent = `${mass} · ${PP.engine.name} · ${(half*2).toFixed(1)} m · ${sim.n} nodes`;
+    // THE PLATE HEADER IS NOT A SPEC SHEET (the flight rebaseline). This
+    // string used to be the whole fiche — mass, engine, span, node count — on
+    // the aircraft card. The engine and the span are the WORKSHOP's (#edSpec
+    // says both, beside the aeroplane you are changing); the node count was a
+    // debug number printed over a render. What the flight wants from it is the
+    // one number that decides how the aeroplane behaves today: what it weighs.
+    $('acSpec').textContent = `${mass} all-up`;
     // the plaque belongs to the GARAGE BUILD alone, so every aircraft
     // change re-asks: switching to a fleet aeroplane left the previous
     // build's numbers hanging on screen, which is the one thing a plaque
     // must never do — it would be reading someone else's certificate.
     if (typeof drawPlaque === 'function') drawPlaque();
-    // and a fleet aeroplane never stands behind a cage build (G65)
-    if (curKey !== 'gen') showCage = false;
-    applyStand();
+    // the file ribbon's shelf shows only while the garage build is on the
+    // stand, and a programmatic aircraft switch fires no 'change' event on
+    // the select — so the switch itself tells the shelf (see garage.js's
+    // syncShelf note; without this the ribbon booted as "unsaved · new"
+    // with the save/load doors hidden for the whole session).
+    if (window.GARAGE_SPEC && typeof window.GARAGE_SPEC.syncShelf === 'function')
+      window.GARAGE_SPEC.syncShelf();
   }
 
   const cN = [0.34, 0.49, 0.69], cT = [1, 0.6, 0.24], cC = [0.31, 0.85, 0.91];
@@ -2067,6 +2260,26 @@
   // business and src/viewer/editor.js's job, so app.js never learns the
   // assembly and editor.js never learns the scene graph.
   const pickRay = new THREE.Raycaster(), pickNDC = new THREE.Vector2();
+  // WHICH SECTION OF THE AEROPLANE THE SKIN UNDER THE POINTER IS ON. The
+  // fuselage covering is one material from the firewall to the tail (see
+  // cageBodyZones in tools/_cage_gen.js), so the section is a STATION
+  // question: the mesh carries the station table it was built with, in its
+  // own coordinates, and the struck point converted into them answers it.
+  // This stays app.js's job for the same reason the rest of the ray is: it
+  // is scene-graph arithmetic, and turning `nose` into a PART is the part
+  // table's business over in editor.js.
+  const pickLocal = new THREE.Vector3();
+  // the see-inside switch, asked of the one place that decides it
+  const viewThru = name => !!(window.CAGE_VIEW && window.CAGE_VIEW.thru
+                              && window.CAGE_VIEW.thru(name));
+  function cageZoneOf(o, worldPt) {
+    const zs = o.userData && o.userData.bodyZones;
+    if (!zs || !zs.length || !worldPt) return null;
+    o.worldToLocal(pickLocal.copy(worldPt));
+    const z = pickLocal.z;
+    for (const q of zs) if (z >= q.z0) return q.key;
+    return zs[zs.length - 1].key;
+  }
   function pickAt(cx, cy) {
     if (!edSit.visible) return null;
     const r = canvas.getBoundingClientRect();
@@ -2095,19 +2308,31 @@
           for (const g of o.geometry.groups)
             if (i0 >= g.start && i0 < g.start + g.count) { mi = g.materialIndex; break; }
         }
+        // WHAT YOU CAN SEE THROUGH, YOU CAN CLICK THROUGH (the user: "maybe
+        // we should have a view where the interior is visible, and not the
+        // fuselage, to be able to get to the engine and the cockpit through
+        // clicking"). The material factory decides what the x-ray takes
+        // away and publishes the same answer here, so a faded covering and
+        // a click-through covering can never disagree.
+        if (names[mi] && viewThru(names[mi])) continue;
         if (names[mi]) return { section: names[mi], name: '', layer: 'cage',
+                                zone: cageZoneOf(o, h.point),
                                 point: h.point.toArray() };
       }
       // A LAYER OBJECT: the nearest name on the way up is the part (the layers
       // name what they build — edWheelL, edProp, edSurf_ailR, edFit_pitot),
       // and the group at the top says which layer it belongs to.
-      let p = o, name = '', layer = '';
+      let p = o, name = '', layer = '', thru = false;
       while (p && p !== edSitP) {
         const n = p.name || '';
         if (n.lastIndexOf('cageLayer:', 0) === 0) layer = n.slice(10);
         else if (!name && n) name = n;
+        // a LAYER says for itself whether the x-ray took it (the cowl does):
+        // it owns its own materials, so it owns the answer
+        if (p.userData && p.userData.xray) thru = true;
         p = p.parent;
       }
+      if (thru) continue;
       if (layer) return { section: null, name, layer, point: h.point.toArray() };
     }
     // THE RAY WAS CAST AND HIT NOTHING — which is an ANSWER, and a different
@@ -2206,6 +2431,13 @@
     railPhase = active;
     $('phName').textContent = active === null ? 'HOLDING'
       : (PHASES.find(p => p[0] === active) || [0, active])[1];
+    // THE PHASE IS THE CLOCK OF THIS SCREEN (the flight rebaseline). It says
+    // the word in the plate's own header, it decides whether the brief is
+    // open or folded, and it decides which verbs are on the row — because the
+    // screen's rule is temporal: what am I flying / what is it doing / what
+    // happened, in the order the flight asks them.
+    $('rail').classList.toggle('held', active === null);
+    if (typeof flPhaseMoved === 'function') flPhaseMoved(active);
     // GARAGE is a state of the rail, not a caption written over it. Poking the
     // text directly left railPhase stale, so a later setRail(null) matched and
     // returned early — the rail kept saying GARAGE while the solver ran.
@@ -2235,62 +2467,234 @@
     elev: 0, tdz: [0, 0], spawn: [26, 40],
   };
   let inGarage = false;
-  const tel = { t: [], alt: [], V: [], marks: [] };
-  let telAcc = 0, lastPhase = 'ROLL', telBase = 0;   // telBase: multi-hop leg offset
-
+  // ---- THE TRACE'S CHANNELS (the user: "I'd like to have more info on the
+  // trace and be able to select/deselect the one I want to see from the
+  // legend. I'd like throttle, trim levels, stick inputs (3 values, + and -
+  // for yaw, roll and pitch. Vs also and AOA. Basically everything we have on
+  // the top ribbon") -----------------------------------------------------
+  //
+  // ONE LANE PER CHANNEL, NOT FIFTEEN LINES IN ONE FRAME. Altitude is in
+  // metres, throttle is a percentage and bank is degrees; drawing them against
+  // a shared vertical axis is the dual-axis mistake, and normalising them onto
+  // one so they can share it is the same mistake with the evidence removed —
+  // it invites you to read a crossing as an event. Stacked lanes over ONE time
+  // axis is what a flight-data recorder draws, and it is what this draws: each
+  // lane has its own range, its own baseline, and its name and CURRENT VALUE
+  // written at its left. The phase marks run the full height, so the thing you
+  // actually want — what the throttle did WHEN the vertical speed went — is
+  // read down a column.
+  //
+  // COLOUR IS BY FAMILY, and the six families are the first six slots of the
+  // dataviz reference theme's dark column, in its own documented order. That
+  // order is validated (worst adjacent CVD dE 8.4, normal-vision 19.3, all six
+  // >= 3:1 on this surface); re-ordering it or inventing a seventh hue breaks
+  // that. Fifteen channels do not each get a hue — they could not pass, and
+  // they do not need to: a lane is one series with its name on it, so colour
+  // groups rather than identifies.
+  //
+  // THERE IS NO TRIM, and one was asked for. `sim.ctl` is
+  // { thr, de, da, dr, brake, flap } — the autopilot holds attitude on the
+  // elevator directly and no trim state exists to plot. FLAP and BRAKE are
+  // here instead because they are real controls this aeroplane has. A trim
+  // channel would have to be invented, and an invented instrument is the one
+  // thing this project does not ship (see GATE HONEST).
+  const TEL_FAM = {
+    path:  '#3987e5',   // 1 blue    — where it is going
+    speed: '#d95926',   // 2 orange  — how fast
+    att:   '#199e70',   // 3 aqua    — how it sits in the air
+    ctl:   '#c98500',   // 4 yellow  — what the pilot is doing
+    load:  '#d55181',   // 5 magenta — what the airframe is taking
+    eng:   '#008300',   // 6 green   — what the engine is giving
+  };
+  // `get` takes (out, ctl, dbg, smax). `sgn` marks a channel that swings about
+  // zero, so its lane is drawn with a zero line and a symmetric range.
+  // NINE, not fifteen (the user: "just keep true air speed, remove brake,
+  // power, indicated airspeed and bank. Omit the `stick` to pitch yaw and
+  // roll"). Every cut is the same cut: a channel that says what another one
+  // already says, or that says nothing a builder acts on.
+  //   - INDICATED went because `indicated` and `true` side by side is a
+  //     question about instruments, not about the aeroplane, and the trace is
+  //     about the aeroplane. The PFD still carries IAS, which is where the
+  //     distinction belongs — it is the number you do not stall by.
+  //   - BANK is read off the aeroplane in the window; a graph of it is a graph
+  //     of something you are already looking at.
+  //   - BRAKE is on for the first and last twenty seconds and flat between.
+  //   - POWER tracks throttle everywhere except thin air, and the density-
+  //     altitude sheet is where thin air is actually measured. It stays a PFD
+  //     readout.
+  //   - `stick` went off the three control labels: on a lane already named
+  //     `pitch`, in degrees, the word was noise.
+  const TEL_CH = [
+    { k: 'alt',   l: 'altitude',        u: 'm',    f: 'path',  get: (o, c, d) => d.alt || 0 },
+    { k: 'agl',   l: 'height agl',      u: 'm',    f: 'path',  get: (o, c, d) => d.agl || 0 },
+    { k: 'vs',    l: 'vertical speed',  u: 'm/s',  f: 'path',  sgn: 1, get: o => o.vs || 0 },
+    { k: 'tas',   l: 'speed',           u: 'km/h', f: 'speed', get: o => (o.V || 0) * 3.6 },
+    { k: 'aoa',   l: 'angle of attack', u: '°', f: 'att', sgn: 1, get: o => (o.alpha || 0) * 57.3 },
+    { k: 'thr',   l: 'throttle',        u: '%',    f: 'ctl',   get: (o, c) => c.thr * 100 },
+    { k: 'pitch', l: 'pitch',           u: '°', f: 'ctl', sgn: 1, get: (o, c) => c.de * 57.3 },
+    { k: 'roll',  l: 'roll',            u: '°', f: 'ctl', sgn: 1, get: (o, c) => c.da * 57.3 },
+    { k: 'yaw',   l: 'yaw',             u: '°', f: 'ctl', sgn: 1, get: (o, c) => c.dr * 57.3 },
+    { k: 'flap',  l: 'flap',            u: '%',    f: 'ctl',   get: (o, c) => (c.flap || 0) * 100 },
+    { k: 'str',   l: 'peak strain',     u: '%',    f: 'load',  get: (o, c, d, sm) => sm * 100 },
+  ];
+  const TEL_DEF = ['alt', 'tas', 'thr'];
+  const tel = { t: [], marks: [], km: 0, ch: {}, lo: {}, hi: {} };
+  for (const c of TEL_CH) { tel.ch[c.k] = []; tel.lo[c.k] = 0; tel.hi[c.k] = 0; }
+  function telClear() {
+    tel.t.length = tel.marks.length = 0; tel.km = 0;
+    for (const c of TEL_CH) {
+      tel.ch[c.k].length = 0; tel.lo[c.k] = 0; tel.hi[c.k] = 0;
+    }
+  }
+  let telAcc = 0, lastPhase = 'ROLL', telBase = 0;  // telBase: multi-hop offset
+  let telLast = null;                               // last sampled ground point
   const telWrap = $('telp');
-
   function record(dt) {
     telAcc += dt;
     if (telAcc < 0.1) return;
     telAcc = 0;
-    tel.t.push(telBase + ap.t); tel.alt.push(ap.dbg.alt || 0); tel.V.push((ap.dbg.V || 0) * 3.6);
-    if (ap.phase !== lastPhase) { tel.marks.push([telBase + ap.t, ap.phase]); lastPhase = ap.phase; }
+    let sm = 0;
+    try { sm = sim.stats().smax || 0; } catch (e) {}
+    const o = sim.out, c = sim.ctl, d = ap.dbg;
+    tel.t.push(telBase + ap.t);
+    // EVERY CHANNEL, ALWAYS. Recording only what is currently drawn would mean
+    // turning a lane on mid-flight showed a graph that starts now — which is
+    // the one thing a trace must not do. Fifteen numbers at 10 Hz is nothing.
+    for (const ch of TEL_CH) {
+      let v = 0;
+      try { v = +ch.get(o, c, d, sm) || 0; } catch (e) {}
+      tel.ch[ch.k].push(v);
+      if (v < tel.lo[ch.k]) tel.lo[ch.k] = v;
+      if (v > tel.hi[ch.k]) tel.hi[ch.k] = v;
+    }
+    // ...GUARDED, because an integrator poisons itself for good on one bad
+    // sample: a single non-finite frame (a reset mid-place, a divergence the
+    // 30-frame watchdog has not caught yet) would make every later distance
+    // NaN, and the header would read `NaN km flown` for the rest of the run.
+    const cgD = sim.cgPos();
+    if (Number.isFinite(cgD[0]) && Number.isFinite(cgD[2])) {
+      if (telLast) {
+        const dk = Math.hypot(cgD[0] - telLast[0], cgD[2] - telLast[2]) / 1000;
+        if (Number.isFinite(dk)) tel.km += dk;
+      }
+      telLast = [cgD[0], cgD[2]];
+    }
+    if (ap.phase !== lastPhase) {
+      tel.marks.push([telBase + ap.t, ap.phase]); lastPhase = ap.phase;
+    }
   }
+  // ---- THE TRACE, DRAWN AS LANES ----------------------------------------
+  // One lane per selected channel over one shared time axis; the phase marks
+  // run the full height so a column can be read down. Each lane carries its
+  // own name and its CURRENT VALUE at the left (the user: "the numbers on top
+  // should show the latest value, not the maximum of the scale, that's
+  // confusing") — and under the crosshair, the value AT THE TIME you are
+  // pointing at instead, which is the same readout answering a better
+  // question.
+  let telHover = -1;                 // sample index under the pointer, or -1
+  function telOn() { return TEL_CH.filter(c => traceOn[c.k]); }
   function drawTel() {
-    const cv = $('tel'), g = cv.getContext('2d'), S = 2, W = cv.width / S, H = cv.height / S;
+    const cv = $('tel'), g = cv.getContext('2d'), S = 2;
+    // THE BUFFER FOLLOWS THE BOX — the panel is resizable, so this is not an
+    // optimisation, it is the only way the graph is ever the right shape.
+    const cw = Math.max(2, Math.round((cv.clientWidth || 526) * S)),
+          ch2 = Math.max(2, Math.round((cv.clientHeight || 160) * S));
+    if (cv.width !== cw || cv.height !== ch2) { cv.width = cw; cv.height = ch2; }
+    const W = cv.width / S, H = cv.height / S;
     g.setTransform(S, 0, 0, S, 0, 0);
     g.clearRect(0, 0, W, H);
-    if (tel.t.length < 2) return;
-    const t1 = Math.max(tel.t[tel.t.length - 1], 1e-3), PAD = 16;
-    const aMax = Math.max(20, ...tel.alt) * 1.15, vMax = Math.max(60, ...tel.V) * 1.15;
-    g.lineWidth = 1;
-    g.strokeStyle = 'rgba(255,234,206,.09)';
-    for (let k = 0; k <= 4; k++) {
-      const y = Math.round(H - k / 4 * (H - PAD)) - 0.5;
-      g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke();
+    const on = telOn();
+    if (!on.length) {
+      g.font = "500 9px 'IBM Plex Sans', sans-serif";
+      g.fillStyle = 'rgba(151,144,127,.9)';
+      g.fillText('no channels selected — pick one below', 8, 16);
+      return;
     }
-    g.font = '500 8px "IBM Plex Mono", monospace';
+    const n = tel.t.length;
+    const t1 = n ? Math.max(tel.t[n - 1], 1e-3) : 1;
+    const L = 106, R = 6, TOP = 4, BOT = 12;        // L: the direct-label gutter
+    const plotW = Math.max(10, W - L - R);
+    const laneH = Math.max(10, (H - TOP - BOT) / on.length);
+    const X = t => L + t / t1 * plotW;
+    const at = telHover >= 0 && telHover < n ? telHover : n - 1;
+
+    // the phase marks first, under everything, full height
+    g.lineWidth = 1;
+    g.font = "500 7.5px 'IBM Plex Sans', sans-serif";
     let lastLabelX = -99;
     for (const [tm, ph] of tel.marks) {
-      const x = Math.round(tm / t1 * W) + 0.5;
-      g.strokeStyle = 'rgba(255,234,206,.16)';
-      g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke();
-      if (x - lastLabelX < 11) continue;           // crowded transitions: tick only
+      const x = Math.round(X(tm)) + 0.5;
+      g.strokeStyle = 'rgba(255,248,236,.13)';
+      g.beginPath(); g.moveTo(x, TOP); g.lineTo(x, H - BOT); g.stroke();
+      if (x - lastLabelX < 10) continue;
       lastLabelX = x;
-      g.fillStyle = 'rgba(251,244,234,.42)';
-      g.save(); g.translate(x + 3.5, 3); g.rotate(Math.PI / 2); g.fillText(ph, 0, 0); g.restore();
+      g.fillStyle = 'rgba(151,144,127,.75)';
+      g.save(); g.translate(x + 3, TOP + 2); g.rotate(Math.PI / 2);
+      g.fillText(ph, 0, 0); g.restore();
     }
-    const path = (arr, max) => {
-      g.beginPath();
-      for (let i = 0; i < tel.t.length; i++) {
-        const x = tel.t[i] / t1 * W, y = H - arr[i] / max * (H - PAD);
-        i ? g.lineTo(x, y) : g.moveTo(x, y);
+
+    on.forEach((c, i) => {
+      const y0 = TOP + i * laneH, y1 = y0 + laneH;
+      const pad = Math.min(6, laneH * 0.16);
+      // THE LANE'S OWN RANGE. A signed channel is drawn about a zero line and
+      // symmetrically, so `+3 deg of aileron` and `-3` are the same distance
+      // from the middle and a centred trace means centred controls.
+      let lo = tel.lo[c.k], hi = tel.hi[c.k];
+      if (c.sgn) { const m = Math.max(Math.abs(lo), Math.abs(hi), 1e-3); lo = -m; hi = m; }
+      else { lo = Math.min(0, lo); hi = Math.max(hi, lo + 1e-3); }
+      const span = Math.max(hi - lo, 1e-3);
+      const Y = v => y1 - pad - (v - lo) / span * (laneH - 2 * pad);
+      // the lane's floor, and its zero if zero is inside it
+      g.strokeStyle = 'rgba(255,248,236,.07)';
+      g.beginPath(); g.moveTo(L, Math.round(y1) - 0.5);
+      g.lineTo(W - R, Math.round(y1) - 0.5); g.stroke();
+      if (c.sgn) {
+        g.strokeStyle = 'rgba(255,248,236,.10)';
+        const yz = Math.round(Y(0)) - 0.5;
+        g.beginPath(); g.moveTo(L, yz); g.lineTo(W - R, yz); g.stroke();
       }
-    };
-    path(tel.alt, aMax);
-    g.lineTo(W, H); g.lineTo(0, H); g.closePath();
-    g.fillStyle = 'rgba(99,211,204,.13)'; g.fill();
-    g.lineWidth = 1.6; g.lineJoin = 'round';
-    path(tel.alt, aMax); g.strokeStyle = '#63d3cc'; g.stroke();
-    path(tel.V, vMax); g.strokeStyle = '#ffb257'; g.stroke();
-    g.font = '500 8.5px "IBM Plex Mono", monospace';
-    g.fillStyle = 'rgba(99,211,204,.85)';
-    g.fillText(aMax.toFixed(0) + ' m', 4, 10);
-    g.fillStyle = 'rgba(255,178,87,.85)';
-    g.fillText(vMax.toFixed(0) + ' km/h', 52, 10);
-    g.fillStyle = 'rgba(251,244,234,.42)';
-    g.fillText(t1.toFixed(0) + ' s', W - 26, H - 4);
+      if (n > 1) {
+        const arr = tel.ch[c.k];
+        g.beginPath();
+        for (let k = 0; k < n; k++) {
+          const x = X(tel.t[k]), y = Y(arr[k]);
+          k ? g.lineTo(x, y) : g.moveTo(x, y);
+        }
+        g.strokeStyle = TEL_FAM[c.f]; g.lineWidth = 1.6; g.lineJoin = 'round';
+        g.stroke();
+      }
+      // THE DIRECT LABEL. A lane is one series, so its name belongs on it —
+      // the legend below is a switchboard, not the only place identity lives.
+      const v = n ? tel.ch[c.k][at] : 0;
+      g.font = "500 8px 'IBM Plex Sans', sans-serif";
+      g.fillStyle = 'rgba(151,144,127,.95)';
+      g.fillText(c.l, 2, y0 + laneH / 2 - 2);
+      g.font = "600 10.5px 'IBM Plex Sans', sans-serif";
+      g.fillStyle = TEL_FAM[c.f];
+      const txt = (Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(1)) + ' ' + c.u;
+      g.fillText(txt, 2, y0 + laneH / 2 + 9);
+    });
+
+    // the crosshair, and the phase it is standing in
+    if (telHover >= 0 && n) {
+      const x = Math.round(X(tel.t[at])) + 0.5;
+      g.strokeStyle = 'rgba(230,219,201,.55)'; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(x, TOP); g.lineTo(x, H - BOT); g.stroke();
+      let ph = '';
+      for (const [tm, p2] of tel.marks) if (tm <= tel.t[at]) ph = p2;
+      g.font = "500 8px 'IBM Plex Sans', sans-serif";
+      g.fillStyle = 'rgba(230,219,201,.95)';
+      const lab = tel.t[at].toFixed(1) + ' s' + (ph ? '  ·  ' + ph : '');
+      const tw = g.measureText(lab).width;
+      g.fillText(lab, Math.min(x + 5, W - R - tw), H - 3);
+    } else {
+      g.font = "500 8px 'IBM Plex Sans', sans-serif";
+      g.fillStyle = 'rgba(151,144,127,.8)';
+      g.fillText(t1.toFixed(0) + ' s', W - R - 26, H - 3);
+    }
+    const mm = Math.floor(t1 / 60), ss = Math.round(t1 - mm * 60);
+    $('tsum').textContent = tel.km.toFixed(1) + ' km flown · ' +
+      (mm ? mm + ' min ' + String(ss).padStart(2, '0') + ' s' : ss + ' s');
   }
 
   function script(dt) {
@@ -2300,22 +2704,28 @@
     ap.update(dt);
     record(dt);
     setRail(ap.phase);
-    // telemetry stays on demand — just keep the touchdown summary current
-    // so it's there when the panel is opened
-    if (ap.phase === 'STOPPED' && ap.tdInfo) {
-      $('tsum').textContent =
-        `touchdown ${ap.tdInfo.sink.toFixed(2)} m/s · ${(ap.tdInfo.V * 3.6).toFixed(0)} km/h · ` +
-        `${Math.abs(ap.tdInfo.z).toFixed(1)} m off centreline`;
-      logFlight();
-    } else if (ap.phase === 'STOPPED' && ap.report) {
-      // G107: a flight the TEST PILOT refused has no touchdown — the summary
-      // carries the pilot's own words instead of staying blank, and the
-      // refusal is logged as what it is.
-      const v = ap.report.verdicts;
-      $('tsum').textContent = (ap.report.outcome || 'stopped') +
-        (v.length ? ' — ' + v[v.length - 1].note : '');
-      logFlight();
+    // THE GAME IS THE "EXTERNAL RUNNER" (G130). The test pilot's watchdog
+    // writes outcome='gave-up' at its budget and keeps flying, deferring the
+    // actual stop to whoever runs the sim (41_test_pilot.js) — and the live
+    // game never did, so a build that could not complete the circuit flew
+    // for ever with the only door home locked inside an arrival card that
+    // needs a landing. The donor autopilot has no watchdog at all, so the
+    // fleet gets a generous wall-clock bound of its own (the longest gate
+    // legs fly ~600 s; a new leg makes a new pilot, so the clock is per leg).
+    if (ap.phase !== 'STOPPED') {
+      if (ap.report && ap.report.outcome === 'gave-up') endFlight('gave-up');
+      else if (!ap.report && ap.t > 900) endFlight('gave-up');
+      // the card just went up mid-air: the phase-moved branch below would
+      // read "not STOPPED" and take it straight back down
+      if (flightOver) return;
     }
+    // THE ENDING IS THE CARD'S (the flight rebaseline). The touchdown summary
+    // used to be written over the telemetry panel's header, which is the one
+    // place fullReset() closes — so the one thing a flight produced lived on a
+    // surface that answers a different question. The trace header says what
+    // the trace is OF (distance flown, time), and what HAPPENED is the arrival
+    // card's whole job. The logging is unchanged and still automatic.
+    if (ap.phase === 'STOPPED' && (ap.tdInfo || ap.report)) logFlight();
     // THE ARRIVAL CARD (G107.2): shown ONCE per stop, gone the moment the
     // phase moves on (a new leg, a reset, a fresh roll) — so `nextLeg` and
     // `departFrom` dismiss it by flying, with no extra wiring.
@@ -2325,6 +2735,28 @@
       arrivalShown = false; $('arrCard').hidden = true;
     }
   }
+  // A FLIGHT CAN END WITHOUT A LANDING (G130). The sim freezes where it is
+  // (running=false — the render keeps drawing the frozen aeroplane), the
+  // report gains its outcome so showArrival and logFlight have their facts,
+  // and the card goes up with Fly again / Back to the hangar live. Resume
+  // un-freezes and hides the card (the phase moved on), for watching a
+  // hopeless build keep trying; Restart and the hangar door stay the real
+  // exits. fullReset clears the latch.
+  let flightOver = false;
+  function endFlight(outcome) {
+    if (flightOver || inGarage) return;
+    flightOver = true;
+    if (!ap.report) ap.report = { verdicts: [], outcome, landing: null };
+    else if (!ap.report.outcome) ap.report.outcome = outcome;
+    running = false;
+    $('bPause').textContent = 'Resume'; $('bPause').classList.add('on');
+    logFlight();
+    arrivalShown = true; showArrival();
+  }
+  // the capture rig's one handle into the flight (G130): the probe page
+  // verifies endings and reads the pilot from OUTSIDE the game — nothing
+  // in-page consumes this, and nothing else is exposed
+  window.FLIGHT_PROBE = { ap: () => ap, endFlight };
   // THE ARRIVAL CARD (G107.2). The flight's ending, said to the player's
   // face: until now `tdInfo` rendered only inside a telemetry panel that
   // fullReset() closes, so the one thing a flight produced was behind a
@@ -2339,19 +2771,43 @@
     if (!el) return;
     const rep = ap.report || null, td = ap.tdInfo;
     const outcome = rep ? (rep.outcome || 'stopped') : (td ? 'completed' : 'stopped');
-    $('arrTitle').textContent = outcome === 'completed' ? 'ARRIVED'
-      : String(outcome).toUpperCase().replace(/-/g, ' ');
-    el.classList.toggle('bad', outcome !== 'completed');
+    const good = outcome === 'completed';
+    // WHERE, not WHAT (the flight rebaseline). The title said ARRIVED or the
+    // outcome shouted in caps; it now names the PLACE, which is the sentence
+    // a player reads at the end of a flight, and the outcome is the tag beside
+    // it. Both come from what the flight actually did.
+    const to = (ap.route && ap.route.to) || null;
+    $('arrTitle').textContent = good
+      ? (to && to.name ? 'Arrived at ' + to.name : 'Arrived')
+      : (to && to.name ? 'Short of ' + to.name : 'The flight ended');
+    $('arrTag').textContent = good ? (td ? 'landed' : 'stopped')
+      : String(outcome).replace(/-/g, ' ');
+    el.classList.toggle('bad', !good);
+    // THE PLAQUE'S OWN TWO-COLUMN GRAMMAR, so the flight's numbers and the
+    // bench's numbers read as the same kind of thing.
     const rows = [];
-    const row = (l, v) => rows.push('<div><span>' + l + '</span><b>' + v + '</b></div>');
+    const row = (l, v, cls) => rows.push('<div><span>' + l + '</span><b' +
+      (cls ? ' class="' + cls + '"' : '') + '>' + v + '</b></div>');
     const L = rep && rep.landing;
+    const t1 = telBase + (ap.t || 0);
+    const mm = Math.floor(t1 / 60), ss = Math.round(t1 - mm * 60);
+    row('outcome', outcome.replace(/-/g, ' '));
+    row('flight time', (mm ? mm + ' min ' + String(ss).padStart(2, '0') + ' s'
+                           : ss + ' s'));
+    row('distance', tel.km.toFixed(1) + ' km');
     if (td) {
-      row('touchdown', td.sink.toFixed(2) + ' m/s · ' + (td.V * 3.6).toFixed(0) + ' km/h');
+      row('touchdown', (td.V * 3.6).toFixed(0) + ' km/h · ' +
+                       td.sink.toFixed(2) + ' m/s');
       row('off centreline', Math.abs(td.z).toFixed(1) + ' m');
       row('landing run', Math.round(L ? L.run
         : Math.abs((ap.dbg.s ?? td.x) - td.x)) + ' m');
       row('past the aim', Math.round(L ? L.pastAim : td.x - ap.xAim) + ' m');
     }
+    // PEAK STRAIN IS ON THE CARD AND ON THE TRACE, and it is the same number:
+    // the trace draws it against time, the card quotes its maximum. Warn ink,
+    // because it is the one flight number with a declared envelope behind it
+    // (the load test's +3.8 g limit).
+    row('peak strain', (tel.hi.str || 0).toFixed(2) + ' %', 'warn');
     const cd = rep && rep.card;
     if (cd && (cd.alt != null || cd.V != null)) {
       const f = (a, v) => [a != null ? Math.round(a) + ' m' : null,
@@ -2362,12 +2818,28 @@
         ? f(cd.altFlown, cd.VFlown) : 'never settled on the leg');
     }
     $('arrRows').innerHTML = rows.join('');
-    $('arrNotes').innerHTML = rep && rep.verdicts.length
-      ? rep.verdicts.map(v => '<i>' + v.t + ' s · ' + v.note + '</i>').join('')
-      : '';
-    // the hangar is only a place for YOUR aeroplane; a fleet fiche flies again
-    $('bHangar').style.display = curKey === 'gen' ? '' : 'none';
+    // THE PILOT'S OWN WORDS. The last verdict is the prose line under the
+    // grid; `What went wrong` opens the rest of them. That button is the door
+    // the ROADMAP wants a teaching report behind — until that report exists,
+    // it shows the material the report will be BUILT from rather than
+    // pretending to be it.
+    arrWhy = false;
+    arrVerd = (rep && rep.verdicts) || [];
+    drawArrNotes();
+    const bw = $('bWhy');
+    if (bw) {
+      bw.hidden = arrVerd.length < 2;
+      bw.textContent = 'What went wrong';
+    }
     el.hidden = false;
+  }
+  let arrWhy = false, arrVerd = [];
+  function drawArrNotes() {
+    const n = $('arrNotes');
+    if (!n) return;
+    if (!arrVerd.length) { n.innerHTML = ''; return; }
+    const list = arrWhy ? arrVerd : arrVerd.slice(-1);
+    n.innerHTML = list.map(v => '<i>' + v.t + ' s · ' + v.note + '</i>').join('');
   }
 
   // THE LOGBOOK'S OTHER HALF (G65). The bench writes what a build was TESTED
@@ -2600,6 +3072,22 @@
         R('pilot notes', rep.verdicts.length + ' — ' +
           rep.verdicts[rep.verdicts.length - 1].code, 'warn');
     }
+    // G134: THE POWERPLANT SHEET — the thermo laws' first readout (the name
+    // and horsepower stay in the footer, as ever). The duty is the heat the
+    // cowl will one day have to swallow (the ventilation arc consumes it);
+    // the burn is full-throttle shaft work through the family SFC, quoted
+    // now so the consumption arc lands on a number the player has already
+    // lived with. 0.72 kg/L is the ledger's own avgas density (61_gen_frame).
+    if (s.coolKW != null) {
+      H('powerplant');
+      if (s.engineFamily === 'electric')
+        R('full-throttle draw', n1(s.drawKW, 1) + ' kW');
+      else if (s.burnKgH != null)
+        R('full-throttle burn', n1(s.burnKgH, 1) + ' kg/h (' +
+          n1(s.burnKgH / 0.72, 0) + ' L/h)');
+      R('cooling duty', n1(s.coolKW, 0) + ' kW · ' +
+        (s.engineCooling === 'liquid' ? 'by radiator' : 'by fins'));
+    }
     H('balance');
     R('CG', n1(s.cgX, 2) + ' m');
     R('neutral pt', n1(s.npX, 2) + ' m');
@@ -2640,7 +3128,8 @@
     if (s.gearFolded) R('gear', 'FOLDED', 'bad');
     $('pqRows').innerHTML = rows.join('');
     $('pqNote').textContent = s.engineName + ' · ' + n1(s.hp, 0) + ' hp · ' +
-      s.propName + ' · ' + s.gearType + ' · ' + s.bracing +
+      s.propName + ' · ' + s.gearType +
+      (s.gearFairing ? ' (' + s.gearFairing + ')' : '') + ' · ' + s.bracing +
       ' — measured on this build, not estimated.';
   }
 
@@ -3024,7 +3513,7 @@
     // the cage build comes back up if the editor has ever booted (G65), and
     // the roll-out button re-reads the certificate
     showCage = !!window.CAGE_UI && curKey === 'gen';
-    applyStand();
+    applySkinVis();     // restores the mesh for a fleet craft; hides it under the cage
     syncGoLabel();
     // THE PLAQUE goes up whenever the aeroplane comes home — including
     // after build & fly, which reaches here through GARAGE_SPEC.apply, so
@@ -3041,7 +3530,7 @@
     // they fly to the strip bolted to the wing.
     rigLift = 0; clearLoadViz();
     inGarage = false;
-    showCage = false; applyStand();    // the MESH flies, not the editor's cage
+    showCage = false; applySkinVis();  // the MESH flies, not the editor's cage
     scene.add(craft);                  // out of the room, onto the strip
     renderer.toneMappingExposure = WORLD_EXPOSURE;
     renderer.physicallyCorrectLights = WORLD_PHYSLIGHTS;
@@ -3065,6 +3554,16 @@
   }
 
   $('bGo').onclick = () => {
+    // FLY ON (the flight rebaseline). The old card carried `Fly again` and the
+    // bar's `Fly the circuit` went dead after a landing; there is one primary
+    // verb now, at the far right of the top row, and after a stop it means
+    // reset-and-go — which is the whole of that dead end fixed.
+    if (!inGarage && (flightOver || (started && ap.phase === 'STOPPED'))) {
+      $('arrCard').hidden = true;
+      fullReset();
+      started = true;
+      return;
+    }
     if (inGarage) {
       // ROLL OUT & FLY flies WHAT YOU DESIGNED (G47.1, user: "roll out
       // and fly still gives the old yellow plane"). Since G65 that is not a
@@ -3076,17 +3575,36 @@
     }
     started = true;
   };
-  // THE ARRIVAL CARD's two ways onward (G107.2). "Fly again" is the whole of
-  // the old bGo-is-dead-after-landing dead-end fixed: reset AND go. The
-  // hangar door only shows for the garage build (showArrival hides it for a
-  // fleet fiche — the hangar is a place for YOUR aeroplane).
-  if ($('bAgain')) $('bAgain').onclick = () => {
-    $('arrCard').hidden = true;
-    fullReset();
-    started = true;
+  // THE ARRIVAL CARD'S OWN TWO BUTTONS (the flight rebaseline). They belong
+  // to the FLIGHT, which is why they are on the card and not on the top row —
+  // and neither of them is a way OUT of the screen, because `Fly on` and
+  // `The shed` up there already are.
+  //
+  // `Log the flight` does not do the logging: logFlight() has written the row
+  // the moment the aeroplane stopped, since G65, and a button that claimed to
+  // write it would be claiming something untrue. It is the door TO the book —
+  // it takes you to the shed, where the logbook is, with the row already in it.
+  if ($('bLog')) $('bLog').onclick = () => {
+    $('arrCard').hidden = true; arrivalShown = false;
+    enterGarage();
+    openEditor();
   };
-  if ($('bHangar')) $('bHangar').onclick = () => {
-    $('arrCard').hidden = true;
+  // `What went wrong` opens the rest of the pilot's verdicts. The teaching
+  // report the ROADMAP wants lands behind this button; until it does, this
+  // shows the material it will be built from rather than pretending to be it.
+  if ($('bWhy')) $('bWhy').onclick = () => {
+    arrWhy = !arrWhy;
+    $('bWhy').textContent = arrWhy ? 'Fewer notes' : 'What went wrong';
+    drawArrNotes();
+  };
+  // G130: the door home is ON THE BAR now, not only on the arrival card — a
+  // circling flight, a hopeless climb, a fleet fiche mid-leg all walk back.
+  // A fleet aeroplane switches to the garage build on the way in, because
+  // the garage is only ever YOUR aeroplane's room (same rule as the card).
+  if ($('bHangar2')) $('bHangar2').onclick = () => {
+    $('arrCard').hidden = true; arrivalShown = false;
+    flyOpenSet(null);
+    if (curKey !== 'gen') { $('selAc').value = 'gen'; setAircraft('gen'); }
     enterGarage();
     openEditor();
   };
@@ -3094,9 +3612,12 @@
     if (inGarage) return enterGarage();   // Reset in the garage means back to the stand
     sim.reset(0); ap = mkPilot(curKey); applyRoute(); started = false; running = true;
     $('bPause').textContent = 'Pause'; $('bPause').classList.remove('on');
-    tel.t.length = tel.alt.length = tel.V.length = tel.marks.length = 0;
-    lastPhase = 'ROLL'; telBase = 0; flightLogged = false;
-    telWrap.classList.remove('show'); $('bTel').classList.remove('on');
+    telClear(); telLast = null; telHover = -1;
+    lastPhase = 'ROLL'; telBase = 0; flightLogged = false; flightOver = false;
+    $('arrCard').hidden = true; arrivalShown = false;
+    // THE TRACE IS A SUMMONED PANEL NOW, and a summoned panel is the player's:
+    // fullReset used to close it, which is why the one number a flight
+    // produced kept disappearing. It empties, it does not close.
     $('tsum').textContent = '';
     railPhase = ''; setRail(null);
   }
@@ -3105,6 +3626,11 @@
   // finished and goes straight to the strip. Since G35 the garage's editor
   // is the CAGE EDITOR overlay — it opens with the garage, and closing it
   // leaves you at the stand (builds bar, env buttons, Roll out & fly).
+  // G135: the MENU behind this now holds the garage build alone, so in the
+  // game only the first branch can fire. The handler keeps both because it is
+  // the surface UISMOKE drives with the fiche keys — the gates switch
+  // aeroplane through exactly this code path, and a handler that had been
+  // narrowed to one value would stop proving the switch works.
   $('selAc').onchange = e => {
     setAircraft(e.target.value);
     if (curKey === 'gen') { enterGarage(); openEditor(); } else rollOut();
@@ -3139,6 +3665,24 @@
     // for and off again after — nothing else in the scene carries a clipping
     // plane, so this can never reach another session's materials.
     setClipping: on => { renderer.localClippingEnabled = !!on; },
+    // THE OTHER HALF (G142, user: "a view where half of our plane is cutout,
+    // but the other half compared to the reference plane"). setClipping above
+    // only ever cut the REFERENCE, because a clipping plane is a material
+    // setting and refplane.js owns its own materials. Cutting the BUILD is a
+    // different thing entirely: those materials belong to the editor, they are
+    // rebuilt from scratch on every slider drag, and refplane.js is forbidden
+    // from reaching them (GATE REF's ONE ROOT list). So the mount does it, and
+    // the reference only ever ASKS.
+    //
+    // THE PLANES ARE REMEMBERED, not just applied, and that is the whole
+    // subtlety: a build that is rebuilt mid-comparison comes back with fresh
+    // materials carrying no clip, and the composite aeroplane silently becomes
+    // two whole ones overlapping. applyVis calls this again with the stored
+    // value for exactly that reason.
+    setBuildClip: planes => {
+      buildClip = (planes && planes.length) ? planes : null;
+      applyBuildClip();
+    },
     // NOT Box3().setFromObject(edSitP), AND THAT COST A REAL BUG. In r128 that
     // walks every DESCENDANT CARRYING GEOMETRY and never consults `visible` —
     // and this mount holds an invisible 12 x 12 GridHelper (the bench's own
@@ -3180,6 +3724,34 @@
   };
   const edSit = new THREE.Group(), edSitP = new THREE.Group();
   edSit.add(edSitP);
+  // THE BUILD'S OWN CLIPPING PLANES (G142), and nothing else in the project
+  // sets them. Kept here beside the mount it acts on rather than in
+  // refplane.js, which is not allowed to touch the editor's materials.
+  //
+  // MATERIALS, NOT MESHES. The aeroskin is one material shared across most of
+  // the aeroplane (G109-G113), so the walk collects the distinct materials and
+  // writes each one once — a few dozen writes rather than a few thousand. A
+  // material that is not ours to un-clip is never seen: this only ever walks
+  // edSitP, and only the reference asks it to.
+  let buildClip = null;
+  function applyBuildClip() {
+    const seen = new Set();
+    edSitP.traverse(o => {
+      if (!o.isMesh || !o.material) return;
+      const ms = Array.isArray(o.material) ? o.material : [o.material];
+      for (const m of ms) {
+        if (!m || seen.has(m)) continue;
+        seen.add(m);
+        // ONLY CLEAR WHAT WE SET. `clippingPlanes` is null on an untouched
+        // material, so writing null back is a no-op for anything we did not
+        // clip — but if a future feature ever gives the build its own plane,
+        // this is the line that would trample it, and it should learn to merge
+        // rather than assign.
+        m.clippingPlanes = buildClip;
+        m.needsUpdate = true;
+      }
+    });
+  }
   // the cage builds z-FORWARD; the room's long axis is x with the door
   // at -x, the way the game craft noses — turn the build to face it
   edSit.rotation.y = -Math.PI / 2;
@@ -3215,11 +3787,18 @@
   function applyStand() {
     edSit.visible = showCage;
     craft.visible = true;                       // the indicators live in here
-    const mesh = !showCage;
-    if (model && model.grp) model.grp.visible = mesh;
-    if (proxy && proxy.mesh) proxy.mesh.visible = mesh;
-    if (lines) lines.visible = mesh;
-    if (pts) pts.visible = mesh;
+    // THE CAGE ONLY EVER HIDES; IT NEVER SHOWS. With the cage standing, none
+    // of the model's meshes belong on screen. With it down, WHICH of them
+    // show is applySkinVis's ruling — this function forcing them all visible
+    // for every flight was the always-on truss over the covered aeroplane,
+    // the second shadow caster (proxy AND skin), and the re-show half of the
+    // Frame-mode freeze.
+    if (showCage) {
+      if (model && model.grp) model.grp.visible = false;
+      if (proxy && proxy.mesh) proxy.mesh.visible = false;
+      if (lines) lines.visible = false;
+      if (pts) pts.visible = false;
+    }
     // the instruments follow whichever aeroplane is standing
     if (typeof placeIndicators === 'function') placeIndicators();
   }
@@ -3278,6 +3857,12 @@
   window.CAGE_ON_BUILD = () => {
     placeEditor();
     refreshInterior();
+    // THE HALF-AND-HALF SURVIVES A REBUILD (G142). Every slider drag throws
+    // the build's meshes and materials away and makes new ones, and a new
+    // material carries no clipping plane — so without this the composite
+    // aeroplane quietly becomes two whole ones overlapping, at the exact
+    // moment you are dragging a slider to compare them.
+    applyBuildClip();
     if (typeof window.BENCH_DIRTY === 'function') window.BENCH_DIRTY();
   };
   // THE EDITOR OPENS ON THE BUILD YOU LOADED (G63). It never did: the boot
@@ -3480,37 +4065,49 @@
     e.target.textContent = running ? 'Pause' : 'Run';
     e.target.classList.toggle('on', !running);
   };
-  $('bTel').onclick = e => {
-    const on = telWrap.classList.toggle('show');
-    e.target.classList.toggle('on', on);
-    drawTel();
-  };
 
-  const R = ['ias','alt','vs','aoa','bank','agl','thr','de','da','dr','str',
-             'tas','oat','dalt','pwr']
+  // THE PFD CARRIES WHAT YOU ASKED IT TO (the flight rebaseline). Three
+  // readouts always — IAS, ALT, VS — and six the `instruments` flyout can add.
+  // The twelve-cell telemetry grid is gone: AoA, bank, AGL, throttle, TAS and
+  // power became these six; OAT and density altitude became live rows in the
+  // `air` flyout, because they are what the AIR is doing and not what the
+  // AEROPLANE is doing; peak strain became a line on the trace; and elevator,
+  // aileron and rudder went, because a control POSITION is what the autopilot
+  // is holding, not something the screen is being asked.
+  const R = ['ias','alt','vs','aoa','bank','agl','thr','tas','pwr']
     .reduce((o, k) => (o[k] = $('r-' + k), o), {});
+  const RD = {};
+  for (const d0 of document.querySelectorAll ? document.querySelectorAll('#pfdRow .rd') : [])
+    RD[d0.dataset.i] = d0;
   function hud() {
     const o = sim.out, cg = sim.cgPos(), c = sim.ctl, d = ap.dbg;
     // THE LABEL SAYS IAS, so the number is now an indicated one (G72). It read
     // o.V, which is TRUE airspeed — identical at sea level and a lie everywhere
     // else, on the one instrument a pilot would use to decide not to stall.
-    R.ias.textContent = ((o.Veas ?? o.V) * 3.6).toFixed(0);
+    const ias = (o.Veas ?? o.V) * 3.6;
+    R.ias.textContent = ias.toFixed(0);
     R.alt.textContent = cg[1].toFixed(0);
     R.vs.textContent = (o.vs >= 0 ? '+' : '') + o.vs.toFixed(1);
-    if (!telWrap.classList.contains('show')) return;
-    R.aoa.textContent = (o.alpha * 57.3).toFixed(1) + '°';
-    R.bank.textContent = ((d.ph || 0) * 57.3).toFixed(1) + '°';
-    R.agl.textContent = (d.agl || 0).toFixed(1) + ' m';
-    R.thr.textContent = (c.thr * 100).toFixed(0) + '%';
-    R.de.textContent = (c.de * 57.3).toFixed(1) + '°';
-    R.da.textContent = (c.da * 57.3).toFixed(1) + '°';
-    R.dr.textContent = (c.dr * 57.3).toFixed(1) + '°';
-    R.str.textContent = (sim.stats().smax * 100).toFixed(2) + '%';
-    // the air, and what it costs (G72)
-    R.tas.textContent = (o.V * 3.6).toFixed(0) + ' km/h';
-    R.oat.textContent = (o.oatC ?? 15).toFixed(0) + ' °C';
-    R.dalt.textContent = (o.densityAlt ?? 0).toFixed(0) + ' m';
-    R.pwr.textContent = ((o.powerK ?? 1) * 100).toFixed(0) + '%';
+    // NO GREEN: ok is simply the ink, and warn is only ever used against a
+    // number the PLAQUE actually declares. The stall is one — genShakedown
+    // has measured `Vs` since G4 and the bench check quotes it. Vne and a
+    // sink-rate limit are NOT declared anywhere in this project, so those two
+    // warns are OWED rather than invented; see the handover.
+    // ...AND ONLY IN THE AIR. Below the stall on the runway is not a stall,
+    // it is a take-off roll, and a readout that shouts through every one of
+    // them is a readout nobody reads.
+    if (RD.ias) RD.ias.classList.toggle('warn',
+      !!(started && flVs > 0 && (d.agl || 0) > 3 && ias < flVs * 3.6));
+    if (!instOn) return;
+    if (instOn.aoa) R.aoa.textContent = (o.alpha * 57.3).toFixed(1);
+    if (instOn.bank) R.bank.textContent = ((d.ph || 0) * 57.3).toFixed(1);
+    if (instOn.agl) R.agl.textContent = (d.agl || 0).toFixed(0);
+    if (instOn.thr) R.thr.textContent = (c.thr * 100).toFixed(0);
+    if (instOn.tas) R.tas.textContent = (o.V * 3.6).toFixed(0);
+    if (instOn.pwr) R.pwr.textContent = ((o.powerK ?? 1) * 100).toFixed(0);
+    // the air's own numbers, in the flyout that is about the air (G72's OAT
+    // and density altitude, which were two of the twelve cells)
+    if (flyOpen === 'air') flAirLive(o);
   }
 
   // ---- W13 minimap: baked terrain underlay (from render_world) + live
@@ -3518,6 +4115,7 @@
   // Click the map to toggle small/large; click the top-right chip to
   // switch north-up (whole domain) <-> nose-up (6 km, aircraft-centred).
   let mapBig = false, mapNoseUp = false;
+  let mapBaseCv = null, mapBaseFor = null;   // G130: cached north-up underlay
   const NOSE_RANGE = 6000;
   function drawMap() {
     const base = WF.minimap, cv = $('mm');
@@ -3533,12 +4131,36 @@
     const PX = (x, z) => W2 / 2 + k * ((x - cx) * co - (z - cz) * si);
     const PY = (x, z) => W2 / 2 + k * ((x - cx) * si + (z - cz) * co);
     g.setTransform(1, 0, 0, 1, 0, 0);
-    g.fillStyle = '#48899e';                           // beyond-domain reads as sea
-    g.fillRect(0, 0, W2, W2);
-    g.save();
-    g.translate(W2 / 2, W2 / 2); g.rotate(rot); g.scale(k, k); g.translate(-cx, -cz);
-    g.drawImage(base, -12000, -12000, 24000, 24000);
-    g.restore();
+    // G130: in north-up the underlay is one CONSTANT picture per canvas
+    // size (sea fill + the whole 24 km bake), and it was re-composited ten
+    // times a second — at 1024² with the map open large. Composite it once
+    // into an offscreen canvas and blit; nose-up stays live, its frame
+    // moves with the aircraft.
+    let blitted = false;
+    if (!mapNoseUp) {
+      try {
+        if (!mapBaseCv || mapBaseCv.width !== W2 || mapBaseFor !== base) {
+          const oc = document.createElement('canvas');
+          oc.width = oc.height = W2;
+          const bg = oc.getContext('2d');
+          bg.fillStyle = '#48899e';                    // beyond-domain reads as sea
+          bg.fillRect(0, 0, W2, W2);
+          bg.translate(W2 / 2, W2 / 2); bg.scale(k, k);
+          bg.drawImage(base, -12000, -12000, 24000, 24000);
+          mapBaseCv = oc; mapBaseFor = base;
+        }
+        g.drawImage(mapBaseCv, 0, 0);
+        blitted = true;
+      } catch (e) { mapBaseCv = null; }                // a shim canvas: live path
+    }
+    if (!blitted) {
+      g.fillStyle = '#48899e';                         // beyond-domain reads as sea
+      g.fillRect(0, 0, W2, W2);
+      g.save();
+      g.translate(W2 / 2, W2 / 2); g.rotate(rot); g.scale(k, k); g.translate(-cx, -cz);
+      g.drawImage(base, -12000, -12000, 24000, 24000);
+      g.restore();
+    }
     const from = aeroById(fromId), to = destId === 'CIRCUIT' ? from : aeroById(destId);
     if (to !== from) {
       g.strokeStyle = 'rgba(255,178,87,.85)'; g.lineWidth = 2 * mk; g.setLineDash([5 * mk, 4 * mk]);
@@ -3616,6 +4238,937 @@
     drawMap();
   };
 
+  // =========================================================================
+  // THE FLIGHT INTERFACE (the flight-rebaseline handoff, Claude Design)
+  // =========================================================================
+  // The workshop was rebaselined at G77-G108 around one rule; this is the same
+  // pass over the other screen. THE EDITOR'S RULE IS SPATIAL — every surface
+  // has exactly one job. Flight has a before, during and after the editor does
+  // not, so its rule is TEMPORAL: the screen answers what am I flying / what
+  // is it doing / what happened, in the order the flight asks them, and
+  // nothing that answers one stays on screen while another is being asked.
+  //
+  // Four surfaces, and nothing appears in two of them: the top bar (the brief
+  // and the verbs), the bottom-left rail (how you look), the bottom-right PFD
+  // (what it is doing, phase rail inside), and the summoned panels.
+  //
+  // NO NEW SOURCE OF TRUTH. Every decision is still one of app.js's own
+  // selects, still in the DOM (#flStore) and still carrying its own handler;
+  // the plate renders them and the flyouts drive them. That is why this
+  // rebaseline touched no state machine: `setAircraft`, `fromId`/`destId` and
+  // `selCond`'s weather handler are the writers they always were.
+  const FL = { ready: false };
+  const flS = k => $('sel' + k);
+
+  // ---- what the player has chosen about LOOKING, and it is remembered ------
+  // View state is not the aeroplane: it never flies and it never lands in a
+  // saved build (G106). It is a pref, beside `cageExpert`.
+  const flPref = (k, d) => {
+    try { const v = JSON.parse(prefGet('flydiy.fl' + k, 'null'));
+          return (v && typeof v === 'object') ? Object.assign({}, d, v) : Object.assign({}, d); }
+    catch (e) { return Object.assign({}, d); }
+  };
+  const flSave = (k, v) => prefSet('flydiy.fl' + k, JSON.stringify(v));
+  // THESE TWO REPLACE `#mmp.big` AND `#telp.show`. The map and the trace were
+  // permanent panels; they are summoned now, so whether they are up is the
+  // player's and is kept.
+  // `pos` is where the player has PUT each panel, keyed by id — geometry, not
+  // a decision (see flPlace / flLayout). `pfdSmall` is the compact PFD.
+  const panels = flPref('Panels', { map: false, trace: false, big: false,
+                                    noseUp: false, pfdSmall: false, pos: {} });
+  if (!panels.pos || typeof panels.pos !== 'object') panels.pos = {};
+  // WHICH READOUTS THE PFD CARRIES. The other cells do not hide — they stopped
+  // existing. Three is right for watching; a builder debugging a wing wants
+  // more, and that is what this is for.
+  const instOn = flPref('Inst', { aoa: false, bank: false, agl: false,
+                                  thr: false, tas: false, pwr: false });
+  // WHICH LANES ARE DRAWN. The default is the five a builder watches on a
+  // first circuit — where it got to, how fast, whether it was climbing, what
+  // the pilot was asking of the engine, and what the airframe was taking.
+  // The other ten are one click away in the legend.
+  // THREE ON, TO START (the user: "only speed, altitude and throttle enabled
+  // by default"). The other six are one click away in the legend.
+  const traceOn = flPref('Trace', { alt: true, tas: true, thr: true });
+  const cam = flPref('Cam', { mode: 'orbit', fov: 46, level: true, lead: 0.35 });
+  mapBig = !!panels.big; mapNoseUp = !!panels.noseUp;
+
+  // ---- the rail: five questions about looking -----------------------------
+  // `camera` is editor.js's own glyph, verbatim. The other four are new, drawn
+  // to the same 18-box and the same 1.35 stroke, because a rail that is half
+  // one hand and half another is not a rail.
+  const FL_RAIL = [
+    { k: 'camera', label: 'camera', title: 'How the flight is framed',
+      icon: 'M4 5.5h2.2l1-1.5h3.6l1 1.5H14a1 1 0 0 1 1 1V13a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6.5a1 1 0 0 1 1-1Z|M9 11.6a2.1 2.1 0 1 0 0-4.2 2.1 2.1 0 0 0 0 4.2Z' },
+    { k: 'instruments', label: 'instruments', title: 'What the PFD carries',
+      icon: 'M9 15.4A6.4 6.4 0 1 0 9 2.6a6.4 6.4 0 0 0 0 12.8Z|M9 9l3.1-2.6|M9 4.6v1.1|M13.4 9h-1.1|M4.6 9h1.1' },
+    { k: 'map', label: 'map', title: 'Where the aeroplane is',
+      icon: 'M6.6 3.2 2.8 4.8v10l3.8-1.6 4.8 1.6 3.8-1.6v-10l-3.8 1.6-4.8-1.6Z|M6.6 3.2v10.6|M11.4 4.8v10.6' },
+    { k: 'trace', label: 'trace', title: 'What the flight has done so far',
+      icon: 'M2.6 12.4l3.4-4.2 2.8 2.2 3-4.4 3.6 3.2|M2.6 15.2h12.8' },
+    { k: 'air', label: 'air', title: 'The air it is flying in',
+      icon: 'M2.4 6.6h8.2a2.1 2.1 0 1 0-2-2.6|M2.4 9.8h11.2a2.1 2.1 0 1 1-2 2.6|M2.4 13h6' },
+  ];
+  const FL_SLOTS = {
+    ac:    { title: 'Which aeroplane' },
+    pilot: { title: 'Who flies it' },
+    route: { title: 'Where it goes' },
+    day:   { title: 'What day it is' },
+  };
+
+  let flyOpen = null;
+  { const r = $('flRail');
+    for (const t of FL_RAIL) {
+      const b = document.createElement('button');
+      b.className = 'flRailBtn';
+      b.dataset.f = t.k;
+      b.title = t.title;
+      b.type = 'button';
+      b.innerHTML = '<svg viewBox="0 0 18 18" aria-hidden="true">' +
+        t.icon.split('|').map(d => '<path d="' + d + '"/>').join('') +
+        '</svg><span></span>';
+      b.querySelector('span').textContent = t.label;
+      b.onclick = () => flyOpenSet(flyOpen === t.k ? null : t.k);
+      r.appendChild(b);
+    }
+  }
+  for (const b of document.querySelectorAll('#flSlots .flSlot'))
+    b.onclick = () => flyOpenSet(flyOpen === b.dataset.s ? null : b.dataset.s);
+  $('flLine').onclick = () => { flFoldSet(false); };
+  $('flPlate').addEventListener('click', e => {
+    // the header is the way back to the one line, once the flight is under way
+    if (e.target === $('flPlate') ||
+        (e.target.closest && e.target.closest('#flPlateHead')))
+      if (railPhase !== null) flFoldSet(true);
+  });
+
+  // A FLYOUT BORROWS, IT DOES NOT TAKE — the editor's own rule, and here it is
+  // load-bearing for a different reason: the select IS the state, so a flyout
+  // that cloned it would be the second source of truth this design refuses.
+  const flBorrowed = [];
+  function flReturn() {
+    while (flBorrowed.length) {
+      const b = flBorrowed.pop();
+      b.el.className = b.cls;
+      if (b.parent) b.parent.insertBefore(b.el, b.next);
+    }
+  }
+  function flBorrow(el, host) {
+    flBorrowed.push({ el, parent: el.parentElement, next: el.nextSibling,
+                      cls: el.className });
+    el.className = 'fsel';
+    host.appendChild(el);
+  }
+
+  // ---- the flyout's own row vocabulary ------------------------------------
+  const flRow = (host, label, cls) => {
+    const r = document.createElement('div');
+    r.className = 'fr' + (cls ? ' ' + cls : '');
+    const k = document.createElement('span');
+    k.className = 'k'; k.textContent = label; k.title = label;
+    r.appendChild(k); host.appendChild(r);
+    return r;
+  };
+  const flToggle = (host, label, get, set, offTxt, onTxt) => {
+    const r = flRow(host, label);
+    const c = document.createElement('input');
+    c.type = 'checkbox'; c.className = 'fsw'; c.checked = !!get();
+    const v = document.createElement('span');
+    v.className = 'v'; v.style.flex = 'none'; v.style.textAlign = 'left';
+    v.style.color = 'var(--ed-faint)'; v.style.font = "400 11px/1 'IBM Plex Sans'";
+    const word = () => v.textContent = c.checked ? (onTxt || 'on') : (offTxt || 'off');
+    word();
+    c.onchange = () => { set(c.checked); word(); };
+    r.appendChild(c); r.appendChild(v);
+    return r;
+  };
+  const flRange = (host, label, lo, hi, step, get, set, fmt) => {
+    const r = flRow(host, label);
+    const i = document.createElement('input');
+    i.type = 'range'; i.className = 'frng';
+    i.min = lo; i.max = hi; i.step = step; i.value = get();
+    const b = document.createElement('b');
+    b.className = 'v'; b.textContent = fmt(+i.value);
+    i.oninput = () => { set(+i.value); b.textContent = fmt(+i.value); };
+    r.appendChild(i); r.appendChild(b);
+    return r;
+  };
+  const flLive = (host, label, id) => {
+    const r = flRow(host, label);
+    const b = document.createElement('span');
+    b.className = 'v'; b.id = id; b.textContent = '—';
+    r.appendChild(b);
+    return r;
+  };
+  const flPills = (host, list, isOn, pick) => {
+    const w = document.createElement('div');
+    w.className = 'fpills';
+    for (const o of list) {
+      const b = document.createElement('button');
+      b.className = 'pill' + (isOn(o) ? ' on' : '');
+      b.type = 'button';
+      b.textContent = o.label;
+      if (o.why) { b.disabled = true; b.title = o.why; }
+      else b.onclick = () => { pick(o); flyOpenSet(flyOpen); };
+      w.appendChild(b);
+    }
+    host.appendChild(w);
+    return w;
+  };
+  const flNote = (host, txt) => {
+    const n = document.createElement('div');
+    n.className = 'fnote'; n.textContent = txt;
+    host.appendChild(n);
+  };
+  // a select's options, as the pill list they describe
+  const flOpts = sel => Array.from(sel.options).map(o => ({
+    label: o.textContent, value: o.value }));
+  const flPick = (sel, value) => {
+    sel.value = value;
+    if (typeof sel.onchange === 'function') sel.onchange({ target: sel });
+    flRender();
+  };
+
+  // ---- ONE FLYOUT AT A TIME, opened FROM ITS OWN BUTTON --------------------
+  // openFly's one stated rule, kept verbatim: an answer that always appears in
+  // the same place does not say which question it answers. The slots open
+  // DOWNWARD from the top bar and the rail opens UPWARD from the bottom, which
+  // is the only difference between the two families.
+  function flyOpenSet(k) {
+    const fly = $('flFly'), body = $('flFlyBody'), head = $('flFlyHead');
+    if (!fly) return;
+    flReturn();
+    while (body.firstChild) body.removeChild(body.firstChild);
+    flyOpen = k;
+    for (const b of $('flRail').children)
+      b.classList.toggle('on', b.dataset.f === k);
+    for (const b of document.querySelectorAll('#flSlots .flSlot'))
+      b.classList.toggle('on', b.dataset.s === k);
+    if (!k) { fly.hidden = true; return; }
+    fly.hidden = false;
+    const rail = FL_RAIL.filter(x => x.k === k)[0];
+    head.textContent = (rail || FL_SLOTS[k] || {}).title || k;
+    (rail ? FL_BUILD[k] : FL_BUILD['slot_' + k])(body);
+    // ...and then it is measured and clamped to the free estate, exactly as
+    // the editor's is. The anchor is the button's own box; the layer is the
+    // whole window, because the flight view has no panels insetting it.
+    const btn = rail
+      ? [...$('flRail').children].filter(b => b.dataset.f === k)[0]
+      : document.querySelector('#flSlots .flSlot[data-s="' + k + '"]');
+    const W = window.innerWidth, H = window.innerHeight;
+    const w = fly.offsetWidth || 296;
+    const bb = btn ? btn.getBoundingClientRect() : { left: 22, bottom: 90, top: 90 };
+    // the brief's slots keep the horizontal anchor; the ribbon's branch below
+    // overwrites it, because a vertical ribbon anchors the other way round
+    fly.style.left = Math.round(Math.max(22, Math.min(bb.left - 6, W - w - 22))) + 'px';
+    if (rail) {
+      // BESIDE ITS OWN BUTTON. The ribbon stands up the left edge now, so a
+      // flyout that still opened upward would answer a question two hundred
+      // pixels below the one being asked. It opens to the RIGHT, top-aligned
+      // to the button and pulled up only as far as the window makes it.
+      const rb = $('flRail').getBoundingClientRect();
+      fly.style.left = Math.round(Math.min(rb.right + 10, W - w - 22)) + 'px';
+      fly.style.bottom = 'auto';
+      const maxH = H - 44;
+      fly.style.maxHeight = Math.round(maxH) + 'px';
+      const hFly = Math.min(fly.offsetHeight || 260, maxH);
+      fly.style.top = Math.round(Math.max(22,
+        Math.min(bb.top - 8, H - hFly - 22))) + 'px';
+    } else {
+      const dn = bb.bottom + 10;
+      fly.style.bottom = 'auto'; fly.style.top = Math.round(dn) + 'px';
+      fly.style.maxHeight = Math.round(H - dn - 96) + 'px';
+    }
+  }
+
+  const FL_BUILD = {
+    // -------- the four brief slots --------------------------------------
+    slot_ac(body) {
+      flPills(body, flOpts(flS('Ac')), o => o.value === flS('Ac').value,
+              o => flPick(flS('Ac'), o.value));
+      flNote(body, 'The garage build is the aeroplane this game is about. The ' +
+                   'bench subjects are measured in node, not flown here.');
+    },
+    slot_pilot(body) {
+      flPills(body, flOpts(flS('Pilot')), o => o.value === flS('Pilot').value,
+              o => flPick(flS('Pilot'), o.value));
+      flNote(body, 'Auto puts the test pilot under your own build and the ' +
+                   'classic autopilot under anything else. Changing it ' +
+                   'restarts the flight.');
+    },
+    slot_route(body) {
+      // BORROWED, not rebuilt: #selDest's "change while stopped chains the
+      // next leg" behaviour is its own handler's, and it is kept by not
+      // touching it.
+      flBorrow(flS('From'), flRow(body, 'from'));
+      flBorrow(flS('Dest'), flRow(body, 'to'));
+      flNote(body, railPhase === 'STOPPED'
+        ? 'Picking a new destination now chains the next leg — same flight, ' +
+          'no reset.'
+        : 'Changing the origin restarts the flight.');
+    },
+    slot_day(body) {
+      flBorrow(flS('Cond'), flRow(body, 'standard day'));
+      flNote(body, 'A day is air AND wind. The weather changes live — the ' +
+                   'pilot flies EAS and takes it mid-flight.');
+    },
+    // -------- the rail --------------------------------------------------
+    camera(body) {
+      const eyeWhy = flEyeWhy();
+      flPills(body, FL_CAM.map(c => ({ label: c.k, value: c.k,
+                                       why: c.k === 'cockpit' ? eyeWhy : null })),
+              o => o.value === cam.mode, o => flCamMode(o.value));
+      flRange(body, 'field of view', 28, 84, 1, () => cam.fov,
+              v => { cam.fov = v; flSave('Cam', cam); flApplyFov(); },
+              v => v.toFixed(0) + '°');
+      flToggle(body, 'level horizon', () => cam.level,
+               v => { cam.level = v; flSave('Cam', cam); });
+      flRange(body, 'lead the turn', 0, 1, 0.05, () => cam.lead,
+              v => { cam.lead = v; flSave('Cam', cam); },
+              v => v.toFixed(2));
+      // THE COVERING. #bSkin left the HUD and landed here: what the aeroplane
+      // is DRAWN AS is a looking question, and this is where looking lives.
+      // The button still owns the cycle and the label — these press it.
+      const sk = $('bSkin');
+      if (sk && sk.style.display !== 'none') {
+        flPills(body, SKIN_NAMES.map((n, i) => ({ label: n, value: i })),
+                o => o.value === skinMode, o => setSkinMode(o.value));
+      }
+      // THE SMOOTHING (G144.2, the user: "does it also apply to the flight
+      // screen? If so, we should have the option there too"). It does — the
+      // resolve pass wraps the game's single default-framebuffer render, so
+      // the flight world was already going through it. The tier is one fact
+      // with two readers: the editor's display row and this one, and the PASS
+      // is the keeper — both surfaces just press it, and flPills' own
+      // reopen-on-pick keeps this one honest after a press.
+      const aaP = (typeof window !== 'undefined' && window.FLYDIY_AA) || null;
+      if (aaP && aaP.able() && window.AA_RESOLVE && window.AA_RESOLVE.TIERS) {
+        flRow(body, 'smoothing');
+        flPills(body,
+          [['off', 'off'], ['msaa', 'smooth'], ['full', 'smoothest']]
+            .filter(p => window.AA_RESOLVE.TIERS[p[0]])
+            .map(p => ({ label: p[1], value: p[0] })),
+          o => o.value === aaP.tier(), o => aaP.setTier(o.value));
+      }
+      flNote(body, 'Cockpit is the pilot eye the editor already flies — one ' +
+                   'control, both screens.');
+    },
+    instruments(body) {
+      flToggle(body, 'small', () => panels.pfdSmall, v => flPfdSmall(v));
+      flRow(body, 'ias · alt · vs', 'off').appendChild(
+        Object.assign(document.createElement('span'),
+          { className: 'v', textContent: 'always' }));
+      for (const [k, label] of FL_INST)
+        flToggle(body, label, () => instOn[k],
+                 v => { instOn[k] = v; flSave('Inst', instOn); flInstApply(); });
+      flNote(body, panels.pfdSmall
+        ? 'Small carries IAS, altitude, vertical speed and power, and holds ' +
+          'the rest back until you turn it off — your choices are kept.'
+        : 'Three readouts is right for watching. A builder debugging a wing ' +
+          'wants six.');
+    },
+    map(body) {
+      flToggle(body, 'show', () => panels.map, v => flPanel('map', v));
+      flToggle(body, 'large', () => mapBig, v => flMapBig(v));
+      flToggle(body, 'north up', () => !mapNoseUp,
+               v => { mapNoseUp = !v; panels.noseUp = mapNoseUp;
+                      flSave('Panels', panels); drawMap(); },
+               'nose up', 'north up');
+    },
+    trace(body) {
+      flToggle(body, 'show', () => panels.trace, v => flPanel('trace', v));
+      // WHICH LANES is the legend's, not this flyout's: a switchboard beside
+      // the graph it switches beats one behind a button, and having it in two
+      // places would be two places to disagree.
+      flPills(body, [{ label: 'all', value: 1 }, { label: 'none', value: 0 },
+                     { label: 'the three', value: 2 }],
+              () => false, o => {
+        for (const c of TEL_CH)
+          traceOn[c.k] = o.value === 1 ? true : o.value === 0 ? false
+            : TEL_DEF.indexOf(c.k) >= 0;
+        flSave('Trace', traceOn); flTraceKeys();
+      });
+      flNote(body, 'Eleven channels, one lane each, over one clock. Pick ' +
+                   'them from the legend under the graph; drag the panel by ' +
+                   'its header and size it by the corner, or double-click the ' +
+                   'header to put it back.');
+    },
+    air(body) {
+      flLive(body, 'outside air', 'flAirOat');
+      flLive(body, 'density altitude', 'flAirDalt');
+      flLive(body, 'wind', 'flAirWind');
+      flLive(body, 'gusts', 'flAirGust');
+      // TIME OF DAY IS GREYED HERE and absent from the main screen: the world
+      // still flies one fixed midday sun (render_world.js SUN), the day cycle
+      // owns it, and when it lands this row is already its home.
+      flBorrow(flS('Time'), flRow(body, 'time of day', 'off'));
+      flAirLive(sim.out);
+      flNote(body, 'Which day it is, is the brief’s. This is what that ' +
+                   'day is doing to the aeroplane right now.');
+    },
+  };
+
+  const FL_INST = [['aoa', 'angle of attack'], ['bank', 'bank'],
+    ['agl', 'height above ground'], ['thr', 'throttle'],
+    ['tas', 'true airspeed'], ['pwr', 'power']];
+  const SKIN_NAMES = ['covered', 'flex ×4', 'frame', 'overlay'];
+
+  // WHICH READOUTS THE PFD CARRIES — and the SMALL PFD overrides that answer
+  // rather than editing it, so turning the small one off gives you back
+  // exactly the set you had chosen.
+  const PFD_SMALL = ['ias', 'alt', 'vs', 'pwr'];
+  function flInstApply() {
+    const small = !!panels.pfdSmall;
+    const p = $('pfd');
+    if (p) p.classList.toggle('small', small);
+    for (const d0 in RD) {
+      if (!RD[d0]) continue;
+      RD[d0].hidden = small ? PFD_SMALL.indexOf(d0) < 0
+                            : !(d0 === 'ias' || d0 === 'alt' || d0 === 'vs' ||
+                                instOn[d0]);
+    }
+    const f = $('pfdFold');
+    if (f) { f.textContent = small ? '▴' : '▾';
+             f.title = small ? 'Bigger' : 'Smaller'; }
+    flLayout();
+  }
+  function flPfdSmall(on) {
+    panels.pfdSmall = !!on; flSave('Panels', panels); flInstApply();
+  }
+  if ($('pfdFold')) $('pfdFold').onclick = e => {
+    e.stopPropagation();
+    flPfdSmall(!panels.pfdSmall);
+    if (flyOpen === 'instruments') flyOpenSet('instruments');
+  };
+  // WHAT STILL HAS TO BE MEASURED (the flight rebaseline, re-cut when the PFD
+  // moved to the top row). The design's fixed numbers are drawn against one
+  // aeroplane at one size; two of them do not survive a game whose top bar
+  // grows and shrinks with the brief.
+  //
+  //   - THE MAP hangs under the verbs, and where the verbs end depends on
+  //     whether the brief is open (four slot rows on a phone), whether the bar
+  //     has wrapped, and how tall the PFD is — it rides that row now. 92 px is
+  //     the design's number and it is the FLOOR, not the answer.
+  //   - THE TRACE, once the player has placed it, is clamped back on screen
+  //     when the window changes size, because a panel you dragged to the
+  //     bottom-right of a wide window is a panel you cannot reach in a narrow
+  //     one. Its resting geometry is CSS's; only a placed one is written here.
+  // ...AND IT IS ASKED EVERY SIXTH FRAME, not on an event. The top bar's
+  // height changes for half a dozen reasons that are not `resize` — the brief
+  // folding, the notice appearing, a readout being added, the bar wrapping —
+  // and a listener per cause is a listener that will be forgotten. Two
+  // getBoundingClientRects on a 10 Hz tick is nothing, and the write is
+  // memoised so an unchanged answer touches no style.
+  function flLayout() {
+    const W = window.innerWidth || 1440, H = window.innerHeight || 810;
+    const inset = W > 760 ? 22 : 12;
+    // THE MAP SITS IN THE TOP RIGHT, and what it has to clear is not the top
+    // bar's HEIGHT but only the part of the bar that is actually beside it.
+    // The bar spans the screen; its right third is empty (the verbs went to
+    // the bottom), so on a wide screen the map goes to the design's own 92 px
+    // and stays there. When the bar collapses to one column on a phone, the
+    // PFD IS in the map's column and the map drops below it. Measured over the
+    // bar's children rather than its box, because its box is a lie about where
+    // its content is.
+    const m = $('mmp'), top = $('flTop');
+    if (m && top && !m.classList.contains('placed')) {
+      const mb = m.getBoundingClientRect();
+      const x0 = mb.width ? mb.left : W - inset - 208, x1 = mb.width ? mb.right : W - inset;
+      let low = 0;
+      for (const kid of top.children) {
+        const b = kid.getBoundingClientRect();
+        if (b.width && b.right > x0 && b.left < x1) low = Math.max(low, b.bottom);
+      }
+      const v = Math.round(Math.max(W > 760 ? 92 : 84, low ? low + 12 : 0)) + 'px';
+      if (m.style.top !== v) m.style.top = v;
+    }
+    // THE RIBBON AND THE TRACE SHARE THE LEFT EDGE, and on a tall narrow
+    // window they stop fitting past each other: the ribbon is centred on the
+    // height and the trace, anchored to the bottom, grows up into it. Measured
+    // rather than guessed at a breakpoint — it is a function of the window's
+    // HEIGHT as much as its width. Insetting the LEFT is stable: it does not
+    // move the trace's top, so this cannot oscillate.
+    const t = $('telp'), r = $('flRail');
+    const P = panels.pos || {};
+    if (t && r && !P.telp && !t.classList.contains('placed')) {
+      const tb = t.getBoundingClientRect(), rb = r.getBoundingClientRect();
+      const v = (tb.height && !r.classList.contains('placed') && tb.top < rb.bottom)
+        ? Math.round(rb.right + 10) + 'px' : '';
+      if (t.style.left !== v) t.style.left = v;
+    }
+    // ...and every panel the player has placed is kept reachable. A HANDLE on
+    // screen, not the whole panel: dragging one half off the left edge is a
+    // legitimate thing to want, losing its header is not.
+    for (const key in P) {
+      const el = $(key), p = P[key];
+      if (!el || !p) continue;
+      const w = p.w ? Math.max(120, Math.min(p.w, W - 2 * inset)) : 0;
+      const h = p.h ? Math.max(90, Math.min(p.h, H - 2 * inset)) : 0;
+      const bw = w || el.offsetWidth || 120;
+      el.style.left = Math.round(Math.max(inset - bw + 90,
+                                          Math.min(p.x, W - 90))) + 'px';
+      el.style.top = Math.round(Math.max(inset, Math.min(p.y, H - 40))) + 'px';
+      // only the trace is resizable; the rest keep their own size
+      if (key === 'telp') {
+        el.style.width = Math.round(Math.max(240, w)) + 'px';
+        el.style.height = Math.round(Math.max(132, h)) + 'px';
+      }
+    }
+  }
+
+  // ---- EVERY PANEL IS PLACEABLE (the user: "make all panels draggable, not
+  // the buttons nor the top left menu, but all the others could be dragged")
+  // -----------------------------------------------------------------------
+  // The two that are NOT are the two that are anchors: the brief is where you
+  // look first and the verbs are where your hand goes, and a screen where
+  // even those move has no shape left to remember. Everything else is the
+  // player's: the PFD, the map, the look ribbon and the trace.
+  //
+  // THE FIRST DRAG RE-ANCHORS AND RE-PARENTS. At rest each panel sits where
+  // its CSS puts it — the PFD is a grid cell in the top bar, the map is
+  // pinned to the right, the ribbon is centred on the height — and none of
+  // those can express "wherever the player dropped it". So the first drag
+  // takes the box it is ALREADY occupying (no jump on the first pixel),
+  // moves the element to #ui, and switches it to plain left/top. Double-click
+  // puts it back in its own parent at its own index, which is why `home` is
+  // recorded before anything moves.
+  //
+  // THE 4 px THRESHOLD IS WHAT LETS A PANEL BE BOTH. The map's canvas and the
+  // ribbon's buttons still take clicks; a pointer that has not travelled 4 px
+  // was a click and is left alone, and one that has is a drag and swallows
+  // the click that would have followed.
+  const flHome = {};
+  function flPlace(el, opts) {
+    if (!el) return;
+    const key = el.id;
+    const handle = (opts && opts.handle) || el;
+    const grip = opts && opts.grip;
+    flHome[key] = { parent: el.parentElement, next: el.nextSibling };
+    const pos = () => (panels.pos || (panels.pos = {}))[key];
+    let mode = null, armed = null, ox = 0, oy = 0, box = null, eatClick = false;
+    const anchor = () => {
+      const b = el.getBoundingClientRect();
+      const P = panels.pos || (panels.pos = {});
+      P[key] = { x: b.left, y: b.top, w: b.width, h: b.height };
+      if (!el.classList.contains('placed')) {
+        el.classList.add('placed');
+        $('ui').appendChild(el);          // out of the grid, out of the anchor
+      }
+      return b;
+    };
+    const down = kind => e => {
+      if (e.button) return;
+      armed = kind;
+      box = el.getBoundingClientRect();
+      ox = e.clientX - box.left; oy = e.clientY - box.top;
+      const sx = e.clientX, sy = e.clientY;
+      el.__flStart = [sx, sy];
+      // the grip has nothing else to do, so it drags at once
+      if (kind === 'size') { mode = 'size'; anchor(); }
+      try { el.setPointerCapture(e.pointerId); } catch (err) {}
+      e.stopPropagation();
+    };
+    if (handle) handle.addEventListener('pointerdown', down('move'));
+    if (grip) grip.addEventListener('pointerdown', down('size'));
+    el.addEventListener('pointermove', e => {
+      if (!armed) return;
+      const st = el.__flStart;
+      if (!mode) {
+        if (Math.abs(e.clientX - st[0]) + Math.abs(e.clientY - st[1]) < 4) return;
+        mode = armed; anchor();
+      }
+      const P = pos();
+      if (mode === 'move') { P.x = e.clientX - ox; P.y = e.clientY - oy; }
+      else { P.w = e.clientX - box.left + 4; P.h = e.clientY - box.top + 4; }
+      flLayout();
+      e.preventDefault();
+    });
+    const up = e => {
+      if (!armed) return;
+      armed = null;
+      try { el.releasePointerCapture(e.pointerId); } catch (err) {}
+      if (!mode) return;                  // never travelled: it was a click
+      mode = null;
+      // ONE CLICK IS EATEN, AND ONLY ONE. The click that belongs to this
+      // gesture is dispatched in the same input task as the pointerup, so a
+      // zero-delay timer is exactly the boundary between "the tail of the
+      // drag" and "the next thing the player did" — a flag cleared by the
+      // click itself survives a drag that ends with the pointer still and
+      // eats a genuine press minutes later; a time window has to guess.
+      eatClick = true;
+      setTimeout(() => { eatClick = false; }, 0);
+      flSave('Panels', panels);
+      if (el.id === 'telp') drawTel(); else if (el.id === 'mmp') drawMap();
+    };
+    el.addEventListener('pointerup', up);
+    el.addEventListener('pointercancel', up);
+    // a drag that started on a control must not also press it
+    el.addEventListener('click', e => {
+      if (eatClick) { eatClick = false; e.stopPropagation(); e.preventDefault(); }
+    }, true);
+    // ...AND A WAY BACK. A panel you can move somewhere useless needs one
+    // gesture that undoes every move at once, or the only cure is the
+    // browser's storage inspector.
+    (handle || el).addEventListener('dblclick', () => {
+      const P = panels.pos || {};
+      delete P[key]; flSave('Panels', panels);
+      el.classList.remove('placed');
+      el.style.left = el.style.top = el.style.width = el.style.height = '';
+      const h = flHome[key];
+      if (h && h.parent) h.parent.insertBefore(el, h.next);
+      flLayout();
+      if (el.id === 'telp') drawTel(); else if (el.id === 'mmp') drawMap();
+    });
+    // the panel scrolls nothing and orbits nothing: a drag on it is a drag on
+    // the panel, never on the world behind it
+    el.addEventListener('pointerdown', e => e.stopPropagation());
+  }
+
+  // ---- THE CROSSHAIR. A line chart you cannot point at makes you estimate
+  // off a pixel; pointing at it turns every lane's direct label into the value
+  // AT THAT MOMENT, and names the phase you are standing in. It is the same
+  // readout answering a better question, so nothing new appears on screen.
+  {
+    const cv = $('tel');
+    if (cv) {
+      const pick = e => {
+        const n = tel.t.length;
+        if (!n) return;
+        const b = cv.getBoundingClientRect();
+        const L = 106, R = 6;                 // must match drawTel's gutters
+        const w = Math.max(10, b.width - L - R);
+        const t1 = Math.max(tel.t[n - 1], 1e-3);
+        const tx = (e.clientX - b.left - L) / w * t1;
+        // nearest sample, not the one to the left: the pointer is AT a time
+        let best = 0, bd = Infinity;
+        for (let i = 0; i < n; i++) {
+          const d = Math.abs(tel.t[i] - tx);
+          if (d < bd) { bd = d; best = i; }
+        }
+        telHover = best;
+        drawTel();
+      };
+      cv.addEventListener('pointermove', pick);
+      cv.addEventListener('pointerleave', () => {
+        if (telHover < 0) return;
+        telHover = -1; drawTel();
+      });
+    }
+  }
+
+  // WHICH LINES THE TRACE DRAWS is the flyout's, and the legend says the same
+  // three words the graph does — a key for a line that is not drawn is a key
+  // for something that is not there.
+  // THE LEGEND IS THE SWITCHBOARD (the user: "be able to select/deselect the
+   // one I want to see from the legend"). Built once from TEL_CH, so a
+  // fifteenth channel is a row in that table and nothing else.
+  function flTraceKeys() {
+    const L = $('legend');
+    if (!L) return;
+    if (!L.children.length) {
+      for (const c of TEL_CH) {
+        const b = document.createElement('button');
+        b.type = 'button'; b.dataset.c = c.k;
+        b.title = c.l + ' (' + c.u + ')';
+        // built, not written as markup: `innerHTML` gives you a string, and
+        // the swatch has to be an ELEMENT for its colour to be set on it
+        const sw = document.createElement('i');
+        sw.style.background = TEL_FAM[c.f];
+        b.appendChild(sw);
+        const nm = document.createElement('span');
+        nm.textContent = c.l;
+        b.appendChild(nm);
+        b.onclick = () => {
+          traceOn[c.k] = !traceOn[c.k];
+          flSave('Trace', traceOn);
+          flTraceKeys();
+        };
+        L.appendChild(b);
+      }
+    }
+    for (const b of L.children) b.classList.toggle('on', !!traceOn[b.dataset.c]);
+    if (panels.trace) drawTel();
+  }
+  function flPanel(k, on) {
+    panels[k] = !!on; flSave('Panels', panels);
+    const el = $(k === 'map' ? 'mmp' : 'telp');
+    if (el) el.hidden = !on;
+    flLayout();
+    if (on) (k === 'map' ? drawMap : drawTel)();
+  }
+  function flMapBig(on) {
+    mapBig = !!on; panels.big = mapBig; flSave('Panels', panels);
+    const cv = $('mm');
+    cv.width = cv.height = mapBig ? 1024 : 344;
+    $('mmp').classList.toggle('big', mapBig);
+    drawMap();
+  }
+  function flAirLive(o) {
+    const w = $('flAirWind');
+    if (!w) return;
+    const s = flS('Cond'), C = (typeof CONDITIONS === 'object' &&
+      CONDITIONS[s.value]) || null;
+    const g = C && C.wind ? (C.wind.gust || 0) : 0;
+    $('flAirOat').textContent = ((o && o.oatC != null) ? o.oatC : 15).toFixed(0) + ' °C';
+    $('flAirDalt').textContent = ((o && o.densityAlt) || 0).toFixed(0) + ' m';
+    w.textContent = windBase
+      ? Math.hypot(windBase[0], windBase[2]).toFixed(1) + ' m/s at 10 m'
+      : 'calm';
+    $('flAirGust').textContent = g ? '±' + (g * 100).toFixed(0) + ' %' : 'none';
+  }
+
+  // ---- THE CAMERA (new: the flight had no camera UI at all) ---------------
+  // Five framings, and each one writes the SAME azT/elT/distT the mouse
+  // writes, so they ease the way a drag eases. `orbit` is the mode that writes
+  // nothing — it is exactly today's free orbit, and it is what a drag drops
+  // you back into.
+  const FL_CAM = [{ k: 'chase' }, { k: 'orbit' }, { k: 'cockpit' },
+                  { k: 'wing' }, { k: 'tower' }];
+  let flHdg0 = 0, flYawRate = 0, flEyeLoc = null, flEyeSrc = null;
+  function flCamMode(m) {
+    cam.mode = m; flSave('Cam', cam);
+    if (m !== 'cockpit' && flyEye) { flyEye = null; setNear(CAM_NEAR); }
+    if (m === 'orbit') { distT = def.params.viewDist; elT = 0.25; }
+    flApplyFov();
+  }
+  function flApplyFov() {
+    if (camera.fov === cam.fov) return;
+    camera.fov = cam.fov; camera.updateProjectionMatrix();
+  }
+  // NO PILOT, NO COCKPIT — the same question the editor's `interior` preset
+  // asks, of the same published object. It also needs the SNAPSHOT, because
+  // the eye is published in the shed's frame and has to be walked into the
+  // flying model's; see flyEyeAt().
+  function flEyeWhy() {
+    if (curKey !== 'gen') return 'The cockpit view is your own build’s.';
+    if (!window.CAGE_CREW_EYE)
+      return 'No pilot in this build — turn the crew layer on (Cabin fit → fitted)';
+    if (!(window.CAGE_VISUAL && window.CAGE_VISUAL.cage))
+      return 'Roll out first — the eye is placed off the built aeroplane';
+    return null;
+  }
+  // THE EYE, WALKED INTO THE FLYING FRAME. _cage_crew publishes it in the
+  // shed's WORLD space, because that is the frame the editor's camera lives
+  // in. The aeroplane that flies is the snapshot, and _cage_join bakes every
+  // vertex through one mapping: mount-local -> (-z, y, x), then the G54.2
+  // pitch calibration about the model z axis. The eye takes exactly that
+  // mapping, with the snapshot's own `pitch` — so this is not a second
+  // implementation of the crew layer, it is the same point read in the frame
+  // the model is drawn in.
+  function flyEyeAt() {
+    const E = window.CAGE_CREW_EYE, V = window.CAGE_VISUAL;
+    if (!E || !E.p || !V || !model || !model.grp) return null;
+    if (flEyeSrc !== E) {
+      flEyeSrc = E;
+      edSitP.updateMatrixWorld(true);
+      const v = edSitP.worldToLocal(new THREE.Vector3().fromArray(E.p));
+      const f = new THREE.Vector3().fromArray(E.fwd || [0, 0, 1]);
+      const q = edSitP.getWorldQuaternion(new THREE.Quaternion()).invert();
+      f.applyQuaternion(q);
+      const b = V.pitch || 0, cB = Math.cos(b), sB = Math.sin(b);
+      const map = (x, y, z) => {
+        const px = -z, py = y;
+        return new THREE.Vector3(px * cB - py * sB, px * sB + py * cB, x);
+      };
+      flEyeLoc = { p: map(v.x, v.y, v.z), f: map(f.x, f.y, f.z).normalize() };
+    }
+    if (!flEyeLoc) return null;
+    model.grp.updateMatrixWorld(true);
+    const M = model.grp.matrixWorld;
+    const p = flEyeLoc.p.clone().applyMatrix4(M);
+    const nm = new THREE.Matrix3().setFromMatrix4(M);
+    const f = flEyeLoc.f.clone().applyMatrix3(nm).normalize();
+    return { p, f };
+  }
+  const flUp = new THREE.Vector3();
+  function flCamera() {
+    if (!FL.ready) return;
+    if (inGarage) {                       // the shed has the editor's camera
+      if (flyEye) { flyEye = null; setNear(CAM_NEAR); }
+      camera.up.set(0, 1, 0);
+      return;
+    }
+    flApplyFov();
+    const xA = sim.axes()[0], yU = sim.axes()[1];
+    const hdg = Math.atan2(xA[2], xA[0]);
+    let dh = hdg - flHdg0;
+    while (dh > Math.PI) dh -= 2 * Math.PI;
+    while (dh < -Math.PI) dh += 2 * Math.PI;
+    flYawRate += (dh * 60 - flYawRate) * 0.1;
+    flHdg0 = hdg;
+    // LEVEL HORIZON, off, rolls the camera with the aeroplane — which is what
+    // the wing view and the cockpit are for, and what makes a turn read as a
+    // turn instead of as the world sliding sideways.
+    if (cam.level || cam.mode === 'orbit' || cam.mode === 'tower')
+      camera.up.set(0, 1, 0);
+    else camera.up.copy(flUp.set(yU[0], yU[1], yU[2]));
+    const D = def.params.viewDist || 12;
+    if (cam.mode === 'cockpit') {
+      const e = flyEyeAt();
+      if (e) {
+        // THE PIVOT IS IN FRONT OF THE EYES, not at them — an orbit of radius
+        // zero has no direction to place a camera along (G107's own note).
+        flyEye = e.p.clone().addScaledVector(e.f, EYE_PIVOT);
+        target.copy(flyEye);
+        setNear(EYE_NEAR);
+        if (distT > 3) { distT = dist = EYE_PIVOT;
+          const back = e.f.clone().negate();
+          elT = el = Math.asin(Math.max(-1, Math.min(1, back.y)));
+          azT = az = Math.atan2(back.z, back.x);
+        }
+        return;
+      }
+      if (flyEye) { flyEye = null; setNear(CAM_NEAR); }
+    } else if (flyEye) { flyEye = null; setNear(CAM_NEAR); }
+    if (cam.mode === 'chase') {
+      azT = hdg + Math.PI + cam.lead * flYawRate * 0.55;
+      elT = 0.15; distT = D * 0.62;
+    } else if (cam.mode === 'wing') {
+      azT = hdg - Math.PI / 2 + cam.lead * flYawRate * 0.35;
+      elT = 0.04; distT = D * 0.5;
+    } else if (cam.mode === 'tower') {
+      // THE ONE FRAMING THAT IS NOT AN ORBIT OF THE AEROPLANE: a fixed point
+      // at the field you left, twelve metres up, that watches you go. It is
+      // still written as az/el/dist because that is the only camera this file
+      // has — solved backwards from the tower to the aeroplane.
+      const a = aeroById(fromId);
+      const dx = a.x - target.x, dz = a.z - target.z,
+            dy = (a.elev || 0) + 12 - target.y;
+      const r = Math.max(30, Math.hypot(dx, dy, dz));
+      azT = az = Math.atan2(dz, dx);
+      elT = el = Math.asin(Math.max(-1, Math.min(1, dy / r)));
+      distT = dist = Math.min(r, 6500);
+    }
+  }
+  // A DRAG DROPS YOU BACK INTO ORBIT. A locked camera that fights the mouse is
+  // the worst of both; the rail says which framing you are in, and taking hold
+  // of it says you want your own.
+  $('c').addEventListener('pointerdown', () => {
+    if (!inGarage && cam.mode !== 'orbit' && cam.mode !== 'cockpit') {
+      flCamMode('orbit');
+      if (flyOpen === 'camera') flyOpenSet('camera');
+    }
+  });
+
+  // ---- THE BRIEF, THE VERBS AND THE NOTICE --------------------------------
+  const flTrip = () => {
+    const f = flS('From'), d = flS('Dest');
+    const fo = f.options[f.selectedIndex], dov = d.options[d.selectedIndex];
+    return (fo ? fo.textContent : '—') + ' → ' +
+           (dov ? dov.textContent.replace(/^⟳\s*/, '') : '—');
+  };
+  const flSel = sel => {
+    const o = sel.options[sel.selectedIndex];
+    return o ? o.textContent : '—';
+  };
+  // A MENU ROW AND A SLOT VALUE ARE NOT THE SAME SENTENCE. The option text
+  // has to say what it is among five others ("Standard day · calm"); the slot
+  // already carries the word `day` as its own label, and the ⟳ belongs to the
+  // menu row that has to be told apart from a list of aerodromes.
+  const flDay = () => flSel(flS('Cond')).replace(/^Standard day(?= )/, 'Standard');
+  let flFolded = false, flFoldedByPlayer = false;
+  function flFoldSet(on) {
+    flFolded = !!on; flFoldedByPlayer = true;
+    if (flFolded) flyOpenSet(null);
+    flRender();
+  }
+  // THE BRIEF FOLDS WHEN THE WHEELS LEAVE, and that fold is most of how this
+  // screen gets quiet. Unfolding it airborne is allowed; it just is not the
+  // default. `flFoldedByPlayer` is the override, and it is cleared by every
+  // phase change so the rule takes back over on the next flight.
+  function flPhaseMoved(active) {
+    if (!FL.ready) return;
+    const held = active === null || active === 'GARAGE';
+    if (!flFoldedByPlayer) flFolded = !held;
+    if (held) { flFolded = false; flFoldedByPlayer = false; }
+    flRender();
+  }
+  let flVs = 0;
+  function flRender() {
+    if (!FL.ready) return;
+    const held = railPhase === null || railPhase === 'GARAGE';
+    const stopped = flightOver || (started && ap && ap.phase === 'STOPPED');
+    $('flPlate').hidden = flFolded;
+    $('flLine').hidden = !flFolded;
+    $('acName').textContent = flSel(flS('Ac')).replace(/^⚒\s*/, '');
+    $('flPilotV').textContent = flSel(flS('Pilot'));
+    $('flRouteV').textContent = flTrip();
+    $('flDayV').textContent = flDay();
+    $('flLineName').textContent = $('acName').textContent;
+    $('flLineTrip').textContent = flTrip();
+    $('flLineDay').textContent = flDay();
+    $('flHold').textContent = held ? 'held' : (stopped ? 'down' : 'flying');
+    // THE VERBS. Pause and Restart never move between states; the primary is
+    // never disabled, and changes its WORDS rather than its state.
+    //
+    // ...AND NOT IN THE SHED. #bGo is the one control the two screens share:
+    // in the garage it is ROLL OUT and syncGoLabel owns every word of it (it
+    // is the certificate speaking), and out here it is the flight's primary.
+    // Writing both from both places is how a screen ends up disagreeing with
+    // itself — so each owns it in its own mode, and this one steps back.
+    const flying = started && !stopped && !held;
+    if (!inGarage) {
+      $('bGo').hidden = flying;
+      $('bGo').textContent = stopped ? 'Fly on' : 'Fly the circuit';
+      $('bGo').classList.remove('warn');
+    }
+    $('bPause').hidden = !flying;
+    $('bReset').hidden = !flying;
+    // THE NOTICE, which is where #bGo.warn's meaning went: the bench's verdict
+    // said out loud, once, in a plate with one job — instead of encoded in the
+    // colour of a button you were about to press anyway.
+    const st = (typeof window.BENCH_STATE === 'function') ? window.BENCH_STATE() : null;
+    const bad = !!(st && !st.passed) && curKey === 'gen';
+    $('flNotice').hidden = !bad || flFolded;
+    if (bad) $('flNoticeV').textContent = st.any
+      ? 'the bench has not passed for this build'
+      : 'nothing on the bench has been run for this build';
+    try { const sh = shakeOf(); flVs = (sh && sh.Vs) || 0; } catch (e) { flVs = 0; }
+    flLayout();                 // the phase name is half of the PFD's width
+  }
+  // the bench and the aeroplane both change what the plate says
+  const flBenchWas = window.BENCH_CHANGED;
+  window.BENCH_CHANGED = () => { if (flBenchWas) flBenchWas(); flRender(); };
+
+  // ---- THE FIRST FLIGHT'S ONE HINT, and then never again ------------------
+  if (prefGet('flydiy.flHint', '') !== '1') {
+    const h = $('flHint');
+    if (h) {
+      h.hidden = false;
+      const drop = () => { h.hidden = true; prefSet('flydiy.flHint', '1'); };
+      $('c').addEventListener('pointerdown', drop, { once: true });
+      setTimeout(drop, 12000);
+    }
+  }
+
+  // ---- Esc closes; a click on the render closes ---------------------------
+  window.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && flyOpen) { flyOpenSet(null); e.preventDefault(); }
+  });
+  $('c').addEventListener('pointerdown', () => { if (flyOpen) flyOpenSet(null); });
+  window.addEventListener('resize', () => {
+    flLayout();
+    if (flyOpen) flyOpenSet(flyOpen);
+  });
+
+  // ---- the four panels the player can place --------------------------------
+  // The trace drags by its header and sizes by its grip; the other three drag
+  // from anywhere on themselves, past the 4 px threshold that keeps their own
+  // controls clickable. #flBrief and #flActs are deliberately absent.
+  flPlace($('telp'), { handle: $('telHead'), grip: $('telGrip') });
+  flPlace($('mmp'), {});
+  flPlace($('pfd'), {});
+  flPlace($('flRail'), {});
+
+  // ---- boot the layer -----------------------------------------------------
+  FL.ready = true;
+  flInstApply();
+  flTraceKeys();
+  $('mmp').hidden = !panels.map;
+  $('telp').hidden = !panels.trace;
+  if (mapBig) flMapBig(true);
+  flApplyFov();
+  flRender();
+
   setAircraft('pa18');
   syncEnvBtn();               // garage-only buttons start hidden
 
@@ -3653,7 +5206,13 @@
     // job, so there is one answer to "what is on the stand" and not two.
     showPhysical: on => {
       showCage = !on && !!window.CAGE_UI && inGarage;
-      applyStand();
+      applySkinVis();
+      // the LIVE test is watching the wing bend: the truss shows OVER the
+      // skin for its duration, whatever the skin mode says
+      if (on) {
+        if (lines) lines.visible = true;
+        if (pts) pts.visible = true;
+      }
     },
     // THE CERTIFICATE PERSISTS (G107.3): the two sheets only a test run can
     // produce, handed to the bench for its stored snapshot — and seeded back
@@ -3736,6 +5295,15 @@
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
+    // THE PASS SIZES OFF THE DRAWING BUFFER, not off `w`/`h`. On a screen with
+    // devicePixelRatio above 1 those two are different numbers, and a target
+    // built from the CSS pair would quietly render the whole game at less than
+    // the canvas it lands on.
+    if (aa) {
+      const db = renderer.getDrawingBufferSize
+        ? renderer.getDrawingBufferSize(new THREE.Vector2()) : { x: w, y: h };
+      aa.setSize(db.x, db.y);
+    }
   }
   window.addEventListener('resize', resize);
   if (typeof ResizeObserver !== 'undefined')
@@ -3780,7 +5348,9 @@
       script(1 / 60);
       sim.step(1 / 60);              // substep rate is a per-aircraft property
       if (++wdFrame % 30 === 0 && !Number.isFinite(sim.p[1])) {
-        running = false;
+        // G130: a divergence is an ENDING, not a caption — the card comes up
+        // with the door home on it, and the logbook gets its broke-up row
+        endFlight('broke-up');
         $('phName').textContent = 'SIM DIVERGED — RESET';
       }
     }
@@ -3797,6 +5367,13 @@
     if (edSit.visible) target.copy(edTarget).add(edPan);
     else target.set(cg[0], cg[1], cg[2]);
     if (edEye) { if (edSit.visible) target.copy(edEye); else exitInterior(); }
+    // THE FLIGHT CAMERA (the flight rebaseline). It writes the SAME azT/elT/
+    // distT the mouse writes, every frame, so a chase eases exactly the way a
+    // drag eases and `orbit` is simply the mode that writes nothing. Cockpit
+    // moves `target` instead, like the editor's interior. It runs after the
+    // target is set and before the easing, which is the only slot where both
+    // of those are true.
+    flCamera();
     // ease the orbit toward its targets (see the G39 note at the top);
     // snap the last hair so it settles instead of drizzling
     az += (azT - az) * 0.28; if (Math.abs(azT - az) < 1e-4) az = azT;
@@ -3807,10 +5384,24 @@
     // (The part callout used to be re-projected here every other frame. It is
     // gone — it sat on the one thing it was naming — and the frame loop got
     // its projection back.)
-    sync();
+    // G130: the truss buffers upload only when something draws them — in
+    // Covered/Flex flight (lines, points and the shadow proxy all hidden
+    // since applyStand stopped forcing them on) that is three fewer dirty
+    // BufferAttributes and two fewer draws every frame
+    if (lines && (lines.visible || pts.visible || (proxy && proxy.mesh.visible))) sync();
     poseModel();
-    if (++frame % 6 === 0) { hud(); drawMap(); if (telWrap.classList.contains('show')) drawTel(); }
-    renderer.render(inGarage ? garageScene() : scene, camera);
+    if (++frame % 6 === 0) {
+      hud();
+      flLayout();
+      if (panels.map) drawMap();
+      if (panels.trace) drawTel();
+    }
+    // THE ONLY RENDER TO THE DEFAULT FRAMEBUFFER in the whole viewer, which is
+    // what makes G144's pass a single substitution rather than a campaign:
+    // every other renderer.render() in hangar.js and render_world.js is bound
+    // to its own target and is untouched by this.
+    if (aa) aa.render(inGarage ? garageScene() : scene, camera);
+    else renderer.render(inGarage ? garageScene() : scene, camera);
     if (frame === 1) dismissBoot();     // first real frame is on screen
   }
   // Boot splash (body.html #boot): drop it once something is actually drawn.
@@ -3841,10 +5432,15 @@
   // pays the cost the LAZY boot was deferring — deliberately, because "later"
   // is now "at boot" and the loading screen is the honest place for it.
   //
-  // AND IT FALLS BACK. If any of that throws, the game still opens — on the
-  // PA-18, on the apron, exactly as it did — with the error in the console
-  // rather than a black screen. A boot path is the one place where a partial
-  // failure must not be fatal.
+  // AND IT FALLS BACK. If any of that throws, the game still opens — with the
+  // error in the console rather than a black screen. A boot path is the one
+  // place where a partial failure must not be fatal.
+  // G135 CHANGED WHAT IT FALLS BACK TO. It used to open on the PA-18, on the
+  // apron; the fiches are gate subjects now and the user never sees one, so a
+  // failure that put a Super Cub on screen would be showing an aeroplane that
+  // no longer exists as far as the game is concerned. It falls back to the
+  // GARAGE BUILD standing on the apron instead — the same aeroplane, minus the
+  // room and the editor that failed to open.
   try {
     const sel = $('selAc');
     if (sel) sel.value = 'gen';
@@ -3869,8 +5465,8 @@
       window.BENCH_RESTORE(window.GARAGE_SPEC.plaque());
   } catch (err) {
     console.error('cage boot:', err);
-    try { const sel = $('selAc'); if (sel) sel.value = 'pa18';
-          setAircraft('pa18'); } catch (e2) {}
+    try { const sel = $('selAc'); if (sel) sel.value = 'gen';
+          setAircraft('gen'); } catch (e2) {}
   }
   hud();
   loop();

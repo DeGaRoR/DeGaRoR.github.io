@@ -52,9 +52,16 @@ const SHELLS = {
     name: 'Works', frame: 'portal', doors: 'sixLeaf',
     dims: { HW: 20, HD: 20, EAVE: 9.5 },
     lims: { HW: [10, 24], HD: [10, 26], EAVE: [6.0, 12] },
+    // BRICK, AND BIG (user, 2026-09-01: "the works one should rather have the
+    // brick texture, double size from the original, full roughness and +50%
+    // normal"). `tile` is METRES PER TILE, so double the size is 4 m off the
+    // wall sets' own 2; `rough` and `nrm` are the same multipliers the shed
+    // sheet's sliders write, so full roughness is that slider's ceiling of 2
+    // (a roughness map is a MULTIPLICAND — 1 leaves it as baked) and +50%
+    // normal is 1.5. app.js defaults both to 1 for any row that omits them.
     skin: {
-      wallSides: { set: 'rustysheet', tile: 2 },
-      wallBack:  { set: 'rustysheet', tile: 2 },
+      wallSides: { set: 'sandstone', tile: 4, rough: 2, nrm: 1.5 },
+      wallBack:  { set: 'sandstone', tile: 4, rough: 2, nrm: 1.5 },
       roof:      { set: 'factory', tile: 2 },
       stem:      { set: 'concrete008', tile: 2 },
     },
@@ -163,8 +170,8 @@ const HANGAR_KITS = {
     ],
     recipes: [],
     ring: [
-      { prop: 'toolbox_open', station: 'abeamS', dx: -0.9, dz: 0.06,
-        dry: 0.5, y: 0.90 },
+      // the toolbox stood ON the handling kit's tool cart (same station, same
+      // dx); the cart was dropped 2026-09-01 and its rider goes with it
       { prop: 'toolchest_metal', station: 'abeamS', dx: 0.8, dz: 0.15,
         dry: Math.PI / 2 + 0.22 },
     ],
@@ -298,20 +305,19 @@ const HANGAR_KITS = {
         dry: Math.PI - 0.08 },
       { prop: 'handtruck', at: 'shop', along: HF_A(10.8), out: 0.55,
         dry: Math.PI + 0.15 },
-      { prop: 'cart_tool', at: 'build', along: HF_A(-8.2), out: 1.40, dry: -0.30 },
       { prop: 'stepladder', at: 'build', along: HF_A(-8.6), out: 3.9, dry: 0.5 },
       { prop: 'stepladder', at: 'floor', fx: HF_PF(-11.9, 13),
         fz: HF_PF(11.6, 18) - 1, dry: 1.4 },
     ],
-    recipes: [
-      { recipe: 'workPlatform', at: 'shop', along: HF_A(6.6), out: 3.1,
-        dry: 0.10, foot: [0.5, 1.05], props: [] },
-      { recipe: 'workPlatform', at: 'build', along: HF_A(-6.6), out: 3.2,
-        dry: -0.10, foot: [0.5, 1.05], loose: true, props: [] },
-    ],
+    // THE ROLLING PLATFORM AND THE TOOL CART ARE CLAIMED AND UNPLACED
+    // (user, 2026-09-01: "too many props ... drop the echaffaudage mobile,
+    // the desserte avec boite a outils"). The claim stays so the kit still
+    // partitions the furniture table; what went is the two workPlatform
+    // recipes and the cart's ring row — with the cart gone the toolbox that
+    // rode on it at y 0.90 went with it, over in the bench kit, because a
+    // rider without its carrier is a box hanging in the air.
+    recipes: [],
     ring: [
-      { prop: 'cart_tool', station: 'abeamS', dx: -0.9, dz: 0,
-        dry: Math.PI / 2 - 0.18 },
       { prop: 'stepladder', station: 'abeamP', dx: 0.4, dz: 0,
         dry: -Math.PI / 2 + 0.3 },
       { prop: 'handtruck', station: 'nose', dx: 0, dz: 0, dry: 1.9 },
@@ -320,7 +326,8 @@ const HANGAR_KITS = {
 
   office: {
     name: 'Office corner', grants: ['avionics', 'paperwork'],
-    props: ['desk_metal', 'radio_bench', 'instrument_panel', 'lamp_desk'],
+    props: ['desk_metal', 'radio_bench', 'instrument_panel', 'lamp_desk',
+            'plan_wall'],
     sites: [
       { prop: 'desk_metal', at: 'build', along: HF_A(2.6), out: 0.90, dry: 0 },
       { prop: 'lamp_desk', at: 'build', along: HF_A(3.35), out: 1.15,
@@ -331,6 +338,19 @@ const HANGAR_KITS = {
       // office without a bench keeps its radio boxed
       { prop: 'radio_bench', at: 'shop', along: HF_A(-3.95), out: 1.05,
         dry: Math.PI + 0.25, y: 0.96, on: 'workbench_wood' },
+      // THE PLAN GOES WHERE THE LIGHT IS. `y` is the PIN height — the sheet
+      // hangs BELOW the origin (1.30..2.35 m), which is why a wall prop keeps
+      // its delivered origin at all. `along` is the MIDDLE BAY, and it was
+      // measured, not chosen: only one of the five pendants is anywhere near
+      // this wall (LAMP_XZ's [0, 9.5], which lands at x 0, z 7.9), so lamp
+      // luminance on the sheet reads 0 out at the door end, 53 at x -3.97,
+      // 187 in this bay and 238 dead centre. Dead centre is a portal post —
+      // they stand at x = ±3.97k, 0.34 m wide, and proud of the skin the
+      // sheet lies on — so the bay beside it takes 79% of the best light
+      // with nothing in front of it. The posts and this fraction both scale
+      // with HD, so it stays bay-centred in any shed.
+      { prop: 'plan_wall', at: 'shop', along: HF_A(-2.06), out: 0.12,
+        dry: Math.PI, y: 2.35 },
     ],
     recipes: [
       { recipe: 'planTable', at: 'floor', fx: HF_PF(-9.2, 13), fz: HF_PF(8.4, 18),

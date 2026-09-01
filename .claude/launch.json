@@ -194,6 +194,60 @@
         "8151"
       ],
       "port": 8151
+    },
+    {
+      "name": "flydiy-fleet",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8160"
+      ],
+      "port": 8160
+    },
+    {
+      "name": "flydiy-parts",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8163"
+      ],
+      "port": 8163
+    },
+    {
+      "name": "flydiy-flight",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8166"
+      ],
+      "port": 8166
+    },
+    {
+      "name": "flydiy-gear",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8156"
+      ],
+      "port": 8156
+    },
+    {
+      "name": "flydiy-lean",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8169"
+      ],
+      "port": 8169
+    },
+    {
+      "name": "flydiy-flex",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8172"
+      ],
+      "port": 8172
     }
   ]
 }

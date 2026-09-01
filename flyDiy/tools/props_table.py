@@ -94,6 +94,14 @@ SOURCES = {
     'bandsaw':                     ('Scie a ruban - Lycee pro de Fourchambault', 'Yannoid', 'CC-BY-4.0', 'https://sketchfab.com/3d-models/scie-a-ruban-lycee-pro-de-fourchambault-d40ef066d71e4ab8add3c795044e1a40'),
     'jointer':                     ('Degauchisseuse - Lycee pro de Fourchambault', 'Yannoid', 'CC-BY-4.0', 'https://sketchfab.com/3d-models/degauchisseuse-lycee-pro-de-fourchambault-8671b197c39a40a7b654dd37d4600857'),
     'thicknesser':                 ('Raboteuse - Lycee professionnel de Fourchambault', 'Yannoid', 'CC-BY-4.0', 'https://sketchfab.com/3d-models/raboteuse-lycee-professionnel-de-fourchambault-b0d579ac5d744497b74177d0ee141cbe'),
+    # THE ONE ROW WHOSE GEOMETRY IS AUTHORED HERE. Everything else in this
+    # table is a delivered model; the plan is a delivered IMAGE, and the only
+    # geometry a sheet of paper needs is the quad that holds it. So
+    # `plan_avion.gltf` is two triangles written by hand (1.40 x 1.05 m, the
+    # image's own 4:3, origin at the top edge where it is pinned) and
+    # `plan_avion.webp` is the picture byte-for-byte. Rule 1 is unbroken: the
+    # asset is still imported as-is, there simply is no author's mesh to keep.
+    'plan_avion':                  ('Avion de Plaisance - monomoteur 2 places, plan 78-05-14', 'the player', 'own work', ''),
 }
 
 
@@ -235,6 +243,14 @@ PROPS = [
       'replaces the drawn box-and-disc shop radio', place='surface'),
     P('instrument_panel', 'curio', 'vintage instrument', 'vintage_spacecraft_instrument',
       'vintage_spacecraft_instrument_1k.gltf', 'shelf curio', place='surface'),
+    P('plan_wall', 'curio', 'hand-drawn aeroplane plan', 'plan_avion',
+      'plan_avion.gltf',
+      'a 1.4 x 1.05 m general-arrangement drawing to pin on a shed wall. Flat '
+      'in xy facing +z with its back at z = 0.004, exactly as toolrack_wall '
+      'hangs; the origin is the TOP EDGE, so the sheet hangs BELOW y=0 and a '
+      'site places it at PIN height, not at its lower edge. tex is 1024 (not '
+      'the 512 default) because the point of a plan is that you can lean in '
+      'and read it', place='wall', tex=1024),
 
     # ---- vehicles & wheels -------------------------------------------------
     P('car_covered', 'vehicle', 'car under a dust sheet', 'covered_car',

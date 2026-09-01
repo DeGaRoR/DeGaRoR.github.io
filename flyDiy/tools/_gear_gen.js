@@ -352,13 +352,17 @@ function wheel(bags, ctr, axis, R, opt) {
       const up = [0, 1, 0];
       const rad = nrm(sub(up, mul(ax, dot(up, ax))));
       const cc = add(off(ctr, ax, dz), mul(rad, R * 0.52));
-      // G58.3: the CALIPER does not turn with the wheel — it bolts to the
-      // leg. When the caller provides a `brakefix` bag (the cage join's
-      // per-wheel split), the caliper goes there and stays static; the
-      // bench and every other caller fall through to `brake` unchanged.
+      // G58.3/G148: the CALIPER does not turn with the wheel — it bolts to
+      // the leg. When the caller provides a `brakefix` bag (the cage join's
+      // per-wheel split routes it into the LEG unit), the caliper goes
+      // there and rides the axle without spinning; the bench and every
+      // other caller fall through to `brake` unchanged. The PIPE is brake
+      // plumbing too and must follow the caliper it feeds — in `dark` it
+      // either froze on the fuselage or spun with the wheel, depending on
+      // who owned that bag.
       boxIn(bags.brakefix || bags.brake, cc, [R * 0.15, R * 0.24, R * 0.115],
             nrm(crs(rad, ax)), rad, ax);
-      taper(bags.dark, add(cc, mul(rad, R * 0.16)),
+      taper(bags.brakefix || bags.dark, add(cc, mul(rad, R * 0.16)),
             add(cc, add(mul(rad, R * 0.40), mul(ax, -s * R * 0.10))),
             R * 0.022, R * 0.018, 7);
     }
@@ -376,15 +380,35 @@ function wheel(bags, ctr, axis, R, opt) {
 // tube. The bottom is OPEN on a chord line so the tyre reaches the
 // ground, and the opening carries a rolled edge bead, which is what a
 // real glassfibre spat has where the two halves are joined.
-function spat(bags, hub, axis, R, full) {
+// G133 made the shape an INSTRUMENT: the fifth argument is now an option
+// object { full, skirt, tail, rake, width } (a bare boolean still reads as
+// `full`, so the bench and every old caller stand). `tail` stretches the
+// run-out into a droplet, `skirt` deepens or lifts the opening around the
+// mode's own base, `rake` tips the whole shell nose-down (a taildragger's
+// spat is set to its flying attitude, not its parked one), `width` follows
+// a fat tyre. All defaults reproduce the pre-G133 shell exactly.
+function spat(bags, hub, axis, R, o) {
+  const O = (o && typeof o === 'object') ? o : { full: !!o };
+  const full = !!O.full;
+  const tail = clamp(O.tail || 1, 0.70, 1.60);
+  const wid = clamp(O.width || 1, 0.80, 1.50);
+  const rake = clamp(O.rake || 0, -25, 25) * D2R;
   const ax = nrm(axis);
   let up = sub([0, 1, 0], mul(ax, dot([0, 1, 0], ax)));
   up = nrm(up);
   let fwd = crs(up, ax);
   if (fwd[2] < 0) fwd = mul(fwd, -1);            // point it at the nose
-  const zN = R * 1.62, zT = R * 2.45;            // nose ahead, tail behind
-  const Hm = R * 1.20, Wm = R * 0.62;            // depth and half width
-  const yCut = full ? -R * 0.80 : -R * 0.48;     // how far down it wraps
+  // the rake tips fwd/up in their own plane, so it is side-agnostic (a
+  // rotation about `ax` would nose the two spats of a pair opposite ways)
+  if (rake) {
+    const cR = Math.cos(rake), sR = Math.sin(rake);
+    const f2 = nrm(add(mul(fwd, cR), mul(up, -sR)));
+    up = nrm(add(mul(up, cR), mul(fwd, sR)));
+    fwd = f2;
+  }
+  const zN = R * 1.62, zT = R * 2.45 * tail;     // nose ahead, tail behind
+  const Hm = R * 1.20, Wm = R * 0.62 * wid;      // depth and half width
+  const yCut = -R * clamp((full ? 0.80 : 0.48) + (O.skirt || 0), 0.30, 0.92);
   const NT = 30, NA = 22;
   // THE FAIRING IS THE GREATER OF TWO SHAPES. Streamline alone is
   // shallower than the tyre at the front and back of the wheel, and the
@@ -679,6 +703,117 @@ function fitPad(bags, AF, z, ang, L, W, opt) {
   }
 }
 
+// G133: WHERE A LEG MEETS THE AEROPLANE IS NOW A CHOICE. `st.mount`, when
+// present, is a FRAME PROVIDER `zOff -> {p, n, fore, side}` and wins over
+// the fuselage contract — the cage layer hands one in when the wing's
+// underside is the nearer surface above the wheel (the low-wing rule), and
+// the bench gate fabricates one to test the override headless. The leg
+// builders know nothing about wings either way; the axle stays keel-datum'd
+// (AF.keelAt - drop), so WHERE the leg roots never moves the wheel.
+// G133.1 (user: "your legs are not straight, they bend inwards because you
+// center the wheel and the fairing on the attachment, while it should be
+// slightly offset, so everything remains straight"): `dx` shifts a MOUNTED
+// frame sideways. A leg's strut stops at axleIn — the stub axle carries on
+// to the wheel — so a mount straight above the WHEEL leans the whole strut
+// inboard by hubIn over a short vertical leg. Each builder asks for its
+// root above its own FOOT instead; the wheel and its spat then hang a
+// little outboard on the stub axle, the way a real strut wears them. The
+// fuselage path ignores dx: a flank root is diagonal by design.
+function fitOn(AF, st, z, ang, dx) {
+  return st && st.mount ? st.mount(z - st.z, dx) : fitFrame(AF, z, ang);
+}
+// ...and the doubler pad follows: on the fuselage it drapes the skin
+// (fitPad); on a mount frame it is a flat plate on that surface.
+function padOn(bags, AF, st, z, ang, L, W, opt, dx) {
+  if (st && st.mount) padFlat(bags, st.mount(z - st.z, dx), L, W, opt);
+  else fitPad(bags, AF, z, ang, L, W, opt);
+}
+// the flat doubler: same rounded-corner plate and bolt pattern as fitPad,
+// but on a plane — a wing underside is locally flat at pad scale.
+function padFlat(bags, Fr, L, W, opt) {
+  opt = opt || {};
+  const NL = 7, NW = 5;
+  const bag = bags.alloy;
+  const rows = [], out = [];
+  for (let i = 0; i <= NL; i++) {
+    const ri = [], ro = [];
+    for (let k = 0; k <= NW; k++) {
+      const p = add(add(Fr.p, mul(Fr.fore, L * (i / NL - 0.5))),
+                    mul(Fr.side, W * (k / NW - 0.5)));
+      const fi = Math.min(1, 2.6 * Math.min(i / NL, 1 - i / NL) + 0.35);
+      const fk = Math.min(1, 2.6 * Math.min(k / NW, 1 - k / NW) + 0.35);
+      const t = (opt.thick || 0.006) * Math.min(fi, fk);
+      ri.push(bag.v(off(p, Fr.n, 0.0008)));
+      ro.push(bag.v(off(p, Fr.n, t)));
+    }
+    rows.push(ri); out.push(ro);
+  }
+  for (let i = 0; i < NL; i++) for (let k = 0; k < NW; k++) {
+    bag.quad(rows[i][k], rows[i][k + 1], rows[i + 1][k + 1], rows[i + 1][k]);
+    bag.quad(out[i][k], out[i + 1][k], out[i + 1][k + 1], out[i][k + 1]);
+  }
+  for (let i = 0; i < NL; i++) {
+    bag.quad(rows[i][0], rows[i + 1][0], out[i + 1][0], out[i][0]);
+    bag.quad(rows[i][NW], out[i][NW], out[i + 1][NW], rows[i + 1][NW]);
+  }
+  for (let k = 0; k < NW; k++) {
+    bag.quad(rows[0][k], out[0][k], out[0][k + 1], rows[0][k + 1]);
+    bag.quad(rows[NL][k], rows[NL][k + 1], out[NL][k + 1], out[NL][k]);
+  }
+  if (opt.bolts !== false)
+    for (const dz of [-L * 0.38, L * 0.38])
+      for (const dx of [-W * 0.34, W * 0.34]) {
+        const p = add(add(Fr.p, mul(Fr.fore, dz)), mul(Fr.side, dx));
+        bolt(bags.alloy, off(p, Fr.n, (opt.thick || 0.006)), Fr.n,
+             0.011, 0.010);
+      }
+}
+
+// ---- THE LEG SHROUD (G133) ------------------------------------------------
+// A streamline fairing over a structural run — the trouser's missing half.
+// `fairing: 'full'` has priced the legs at Cd 0.30 since G115 while drawing
+// only a deeper shell; this is the geometry that makes that number honest,
+// and the leg-fairing row draws it on its own (a Jodel's streamlined tubes,
+// a Cherokee's strut fairing) without buying the wheel a spat.
+//
+// The section is the spat's own streamline family laid on its side: an
+// elliptic nose over the leading 35% of chord, the spat's 1.85-power
+// run-out behind — so a shroud and a spat read as one design.
+function secTear(chord, thick) {
+  const zN2 = chord * 0.35, zT2 = chord * 0.65, W = thick * 0.5;
+  const out = [], S = 18;
+  for (let k = 0; k < S; k++) {
+    const a = 2 * Math.PI * k / S;
+    const u = -zT2 + (zN2 + zT2) * (Math.cos(a) + 1) / 2;
+    const w = u >= 0
+      ? W * Math.sqrt(Math.max(0, 1 - (u / zN2) * (u / zN2)))
+      : W * Math.pow(Math.max(0, 1 - Math.pow(-u / zT2, 1.85)), 0.62);
+    out.push([u, w * Math.sign(Math.sin(a))]);
+  }
+  return out;
+}
+// keep the part of a descending path above yStop — the shroud stops above
+// the tyre so the wheel (or its spat) stays the wheel's own
+function trimAbove(path, yStop) {
+  const out = [];
+  for (let i = 0; i < path.length; i++) {
+    const p = path[i];
+    if (p[1] >= yStop) { out.push(p); continue; }
+    if (out.length)
+      out.push(lerp3(out[out.length - 1], p,
+        (out[out.length - 1][1] - yStop) /
+        Math.max(1e-6, out[out.length - 1][1] - p[1])));
+    break;
+  }
+  return out;
+}
+function legShroud(bag, path, yStop, chord, thick) {
+  const sh = trimAbove(path, yStop);
+  if (sh.length >= 2)
+    sweep(bag, sh, t => secTear(chord * (1 - 0.16 * t), thick), true,
+          [0, 0, 1]);
+}
+
 // the STUB AXLE: from where the leg ends, out through the hub and a
 // little past it — the piece that was missing when legs ran to the
 // wheel centre. Machined step + a nut face at the end.
@@ -698,14 +833,15 @@ function axleStub(bags, from, axis, reach) {
 // belly saddle, bowing out and down to the axle. Cessna spring steel,
 // Wittman rod, composite blade.
 function legBeam(bags, AF, P, st, sgn) {
-  const F = fitFrame(AF, st.z, sgn * P.beamAng * D2R);
+  // A LEG STOPS AT THE WHEEL, and a stub axle carries on to the hub — the
+  // blade used to run to the axle CENTRE and so passed through the tyre.
+  const hubIn = st.R * 0.40 + 0.020;
+  // G133.1: a mounted blade roots above its own foot (see fitOn)
+  const F = fitOn(AF, st, st.z, sgn * P.beamAng * D2R, -sgn * hubIn);
   const drop = st.drop, half = st.x;
   // the blade sits ON its doubler, not above it
   const root = off(F.p, F.n, 0.009 + P.beamT * 0.5);
   const axle = [sgn * half, AF.keelAt(st.z) - drop, st.z + P.beamRake * drop];
-  // A LEG STOPS AT THE WHEEL, and a stub axle carries on to the hub — the
-  // blade used to run to the axle CENTRE and so passed through the tyre.
-  const hubIn = st.R * 0.40 + 0.020;
   const axleIn = [axle[0] - sgn * hubIn, axle[1], axle[2]];
   // the blade bows: the control point pulls it outboard, which is what
   // gives a spring leg its arc and its track gain under load
@@ -717,8 +853,13 @@ function legBeam(bags, AF, P, st, sgn) {
   sweep(bags.steel, path,
         t => secBlade(w0 + (w1 - w0) * t, t0 + (t1 - t0) * t),
         true, F.side);
-  fitPad(bags, AF, st.z, sgn * P.beamAng * D2R,
-         P.beamW * 1.5, P.beamW * 1.35, { thick: 0.009 });
+  // G133: the trouser (st.fair 2) or the leg-fairing row shrouds the blade
+  if (st.legFair || st.fair === 2)
+    legShroud(bags.fair, path, axle[1] + st.R * 1.04,
+              Math.max(st.R * 0.95, P.beamW * 2.1),
+              Math.max(P.beamW * 1.30, st.R * 0.34));
+  padOn(bags, AF, st, st.z, sgn * P.beamAng * D2R,
+        P.beamW * 1.5, P.beamW * 1.35, { thick: 0.009 }, -sgn * hubIn);
   // the CLAMP: the blade is trapped between the pad and a machined block
   boxIn(bags.alloy, off(root, F.n, t0 * 0.5 + 0.004),
         [P.beamW * 0.60, 0.012, P.beamW * 0.72],
@@ -739,6 +880,9 @@ function legBeam(bags, AF, P, st, sgn) {
 function legLink(bags, AF, P, st, sgn) {
   const drop = st.drop, half = st.x;
   const ang = sgn * P.linkAng * D2R;
+  // G133.1: on a wing mount, every fitting sits above the ARM'S OWN reach
+  // (axleIn), not above the wheel — see fitOn
+  const mdx = -sgn * (st.R * 0.40 + 0.020);
   // WHEEL ANGLE TO THE FUSELAGE, CONTINUOUS: the arm swings about its
   // pivot line, negative trailing through 0 (axle under the pivot) to
   // positive leading. The DROP stays authoritative — swinging the arm
@@ -748,7 +892,8 @@ function legLink(bags, AF, P, st, sgn) {
   // 2.82 -> 4.94 m and the deck 14.3 -> 8.2 deg).
   const axY = AF.keelAt(st.z) - drop;
   const swing = (P.linkSwing || 0) * D2R;
-  const pivY = AF.surf(st.z, sgn * P.linkAng * D2R)[1];
+  const pivY = st.mount ? st.mount(0, mdx).p[1]
+                        : AF.surf(st.z, sgn * P.linkAng * D2R)[1];
   const axle = [sgn * half, axY,
                 st.z + Math.max(0.02, pivY - axY) * Math.tan(swing)];
   const hubIn = st.R * 0.40 + 0.020;
@@ -759,7 +904,8 @@ function legLink(bags, AF, P, st, sgn) {
   // triangle a swinging link and not a strut.
   const vee = P.linkVee > 0.5;
   const sp = vee ? P.linkSpread * 0.5 : 0;
-  const FF = fitFrame(AF, st.z + sp, ang), FR = fitFrame(AF, st.z - sp, ang);
+  const FF = fitOn(AF, st, st.z + sp, ang, mdx),
+        FR = fitOn(AF, st, st.z - sp, ang, mdx);
   const seat = (Fr) => off(Fr.p, Fr.n, PADT + R * 0.7);
   const pF = seat(FF), pR = seat(FR);
   const feet = vee ? [[pF, FF, st.z + sp], [pR, FR, st.z - sp]]
@@ -771,7 +917,7 @@ function legLink(bags, AF, P, st, sgn) {
     sweep(bags.steel, path, t => secRound(R * (1 - 0.14 * t), 12), true);
   }
   for (const [p, Fr, z] of feet) {
-    fitPad(bags, AF, z, ang, 0.13, 0.11, { thick: PADT });
+    padOn(bags, AF, st, z, ang, 0.13, 0.11, { thick: PADT }, mdx);
     for (const s of [-1, 1])
       lug(bags.alloy, off(p, pax, s * (R + 0.013)), pax, sub(Fr.p, p),
           0.024, 0.009, 0.062);
@@ -813,11 +959,11 @@ function legLink(bags, AF, P, st, sgn) {
   // to the far side. NOTE: modelled from the head-on X the user
   // described; if the real J-3 fitting is same-side, flip this back.
   const xTop = P.linkX > 0.5 ? -sgn : sgn;
-  const sTop = fitFrame(AF, st.z + P.shockZ, xTop * P.shockAng * D2R);
+  const sTop = fitOn(AF, st, st.z + P.shockZ, xTop * P.shockAng * D2R, mdx);
   const top = off(sTop.p, sTop.n, 0.008 + 0.014);
   const foot = lerp3(vee ? pF : pivot, axleIn, clamp(P.shockAt, 0.15, 0.95));
-  fitPad(bags, AF, st.z + P.shockZ, sgn * P.shockAng * D2R, 0.11, 0.10,
-         { thick: 0.007 });
+  padOn(bags, AF, st, st.z + P.shockZ, sgn * P.shockAng * D2R, 0.11, 0.10,
+        { thick: 0.007 }, mdx);
   const dir = nrm(sub(foot, top));
   const L = len(sub(foot, top));
   const mode = Math.round(P.shockKind);
@@ -890,22 +1036,37 @@ function legLink(bags, AF, P, st, sgn) {
             12, true);
   const axis = [sgn, 0, 0];
   axleStub(bags, axleIn, axis, hubIn);
+  // G133: the trouser/leg-fairing shrouds every structural run — both V
+  // tubes and the shock, each in the streamline section (a link leg has no
+  // single pillar, so its fairing is the tubes' own, the Jodel way)
+  if (st.legFair || st.fair === 2) {
+    const cT = Math.max(st.R * 0.55, R * 5.2);
+    const tT = Math.max(R * 2.7, cT * 0.34);
+    for (const [p] of feet)
+      legShroud(bags.fair, resample([p, axleIn], 8),
+                axY + st.R * 1.04, cT, tT);
+    legShroud(bags.fair, resample([top, foot], 8), axY + st.R * 1.02,
+              Math.max(0.15, cT * 0.9), Math.max(0.055, tT * 0.9));
+  }
   return { axle, axis, root: FF.p, travel: nrm(crs(pax, sub(axle, pivot))) };
 }
 
 // (c) TELESCOPIC OLEO — a sliding piston in a cylinder, held in torsion
 // by a SCISSOR link (the signature element), braced by a drag strut.
 function legOleo(bags, AF, P, st, sgn) {
-  const F = fitFrame(AF, st.z, sgn * P.oleoAng * D2R);
+  const hubIn = st.R * 0.40 + 0.020;
+  // G133.1: a mounted oleo roots above its own foot, so the strut hangs
+  // dead vertical and the wheel rides its stub axle outboard (see fitOn)
+  const F = fitOn(AF, st, st.z, sgn * P.oleoAng * D2R, -sgn * hubIn);
   const drop = st.drop, half = st.x;
   const trunn = off(F.p, F.n, 0.009 + P.oleoDia * 0.42);
   const axle = [sgn * half, AF.keelAt(st.z) - drop, st.z];
-  const hubIn = st.R * 0.40 + 0.020;
   const axleIn = [axle[0] - sgn * hubIn, axle[1], axle[2]];
   const dir = nrm(sub(axleIn, trunn));
   const L = len(sub(axleIn, trunn));
   const Rc = P.oleoDia * 0.5;
-  fitPad(bags, AF, st.z, sgn * P.oleoAng * D2R, 0.19, 0.15, { thick: 0.009 });
+  padOn(bags, AF, st, st.z, sgn * P.oleoAng * D2R, 0.19, 0.15,
+        { thick: 0.009 }, -sgn * hubIn);
   // trunnion: two lugs and the pin the strut swings on
   const pax = nrm(crs(dir, F.fore));
   for (const s of [-1, 1])
@@ -939,12 +1100,21 @@ function legOleo(bags, AF, P, st, sgn) {
             [[0.008, 0], [0.008, 0.024]], 10, true);
   // drag brace back into the structure
   if (P.oleoBrace) {
-    const bTop = fitFrame(AF, st.z + P.oleoBraceZ, sgn * P.oleoAng * D2R * 0.6);
+    const bTop = fitOn(AF, st, st.z + P.oleoBraceZ,
+                       sgn * P.oleoAng * D2R * 0.6, -sgn * hubIn);
     const bp = off(bTop.p, bTop.n, 0.018);
-    fitPad(bags, AF, st.z + P.oleoBraceZ, sgn * P.oleoAng * D2R * 0.6,
-           0.10, 0.09, { thick: 0.006 });
+    padOn(bags, AF, st, st.z + P.oleoBraceZ, sgn * P.oleoAng * D2R * 0.6,
+          0.10, 0.09, { thick: 0.006 }, -sgn * hubIn);
     taper(bags.steel, bp, off(trunn, dir, cylL * 0.72), 0.013, 0.010, 12);
   }
+  // G133: the oleo's shroud — THE pillar fairing. Chord is sized so the
+  // elliptic nose still swallows the torque scissor's knee at full offset.
+  if (st.legFair || st.fair === 2)
+    legShroud(bags.fair, resample([trunn, axleIn], 10),
+              axle[1] + st.R * 1.04,
+              Math.max(st.R * 0.95,
+                       (Rc + Math.max(0, P.oleoScissor) + 0.03) / 0.35),
+              Math.max(P.oleoDia * 1.5, st.R * 0.30));
   const axis = [sgn, 0, 0];
   axleStub(bags, axleIn, axis, hubIn);
   return { axle, axis, root: F.p, travel: mul(dir, -1) };
@@ -1088,6 +1258,20 @@ function legTailwheel(bags, AF, P, st) {
   const u = castorUnit(bags.castorBags || bags, P, tip, 1, st.R,
                        P.twSteer, true);
   wheel(bags, u.hub, u.axis, st.R, { brake: false, P });
+  // G133: THE SMALL WHEEL GETS ITS SPAT — and it goes into the castor's own
+  // bags, so a steered tailwheel steers its fairing with the fork. `full`
+  // additionally shrouds the leaf spring: this is the geometry that lets
+  // the drag model price a taildragger's third-wheel fairing at all
+  // (G121.2 held that pricing back for want of exactly this shell).
+  if (st.fair) {
+    spat(bags.castorBags || bags, u.hub, u.axis, st.R,
+         { full: st.fair === 2, skirt: st.fairSkirt, tail: st.fairTail,
+           rake: st.fairRake, width: st.fairW });
+    if (st.fair === 2)
+      legShroud(bags.fair, path, tip[1] + 0.02,
+                Math.max(0.10, P.twSpringW * 2.2),
+                Math.max(P.twSpringT * 4, P.twSpringW * 0.9));
+  }
   // G58.7: the leaf spring's two ends — `root` bolts to the fuselage and
   // must not move; `tip` is the castor's swivel top. The join pins both.
   return { axle: u.hub, axis: u.axis, root, tip, travel: nrm([0, 1, 0.35]),

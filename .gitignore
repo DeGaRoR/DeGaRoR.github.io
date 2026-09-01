@@ -20,3 +20,18 @@ flyDiy/tools/_base_*.js
 flyDiy/tools/_loft*.html
 flyDiy/tools/_wins*.html
 flyDiy/tools/_cage.html
+
+# flyDiy: the four REFERENCE aeroplanes whose Sketchfab listing says
+# "SKETCHFAB Standard" rather than CC-BY-4.0 (see flyDiy/CREDITS.md). That
+# licence does not permit redistribution, and committing either the delivered
+# GLB or the baked payload to this public repo IS redistribution. They stay
+# local: `python flyDiy/tools/ref_prep.py a22 p68 rv8 sr22` remakes the
+# payloads from the GLBs on any machine that has them.
+flyDiy/assetsSketchfab/aeroprakt_a22_foxbat.glb
+flyDiy/assetsSketchfab/partenavia_p_68.glb
+flyDiy/assetsSketchfab/vans_aircraft_rv-8_tail_gear.glb
+flyDiy/assetsSketchfab/cirrus_sr_22.glb
+flyDiy/src/models/a22_model.js
+flyDiy/src/models/p68_model.js
+flyDiy/src/models/rv8_model.js
+flyDiy/src/models/sr22_model.js

@@ -25,12 +25,39 @@
 //                    (`engPreset`'s own label is the precedent: "preset
 //                    (applies once)").
 //
+// FOUR HONESTY FIELDS (G132, the multiplicity audit — futureDesigns/
+// DESIGN-TAB-AUDIT-2026-08-31.md; "a tile is a second rendering of state,
+// never a second home for it" was the law, these are its enforcement):
+//   once: true       the row's read CANNOT faithfully recover what its
+//                    options wrote (a lossy classifier, a multi-key seed) —
+//                    so the renderer never lights a "current" tile off it:
+//                    initialization that cannot claim to be state cannot
+//                    go stale. GATE DESIGN skips these in read-fidelity.
+//   arm: true        a discriminator whose options overwrite hand-tunable
+//                    values (the canopy's hood pair) arms like a starter —
+//                    the warn/undo contract follows the WRITE, not the kind.
+//   seed: {...}      an option's ONE-SHOT half, beside its live `writes`:
+//                    the birth flow and the archetypes apply both
+//                    (designApply seeds:true); the panel's pick applies
+//                    `writes` alone, and offers the seed as an explicit
+//                    "apply the starting values" action. This is how role
+//                    and class stopped being lit tiles claiming a geometry
+//                    that sliders had long since walked away from.
+//   pair: [...]      {cage, spec, via} — the row writes ONE FACT into both
+//                    parameter homes, and `via` names what keeps them one:
+//                    'join' (the join measures the cage side back into the
+//                    spec — _join_check proves it behaviorally) or 'tile'
+//                    (the tile is the only writer of both). GATE DESIGN
+//                    asserts every dual-channel row declares its pairs.
+//
 // TWO WRITE CHANNELS, because the project has two parameter homes:
 //   writes.cage      keys of the editor's P (CAGE_PARAMS + page defaults).
 //                    A value may be a FUNCTION (P) => v, resolved against P
 //                    with every earlier write already applied — that is how
-//                    `planform` can set the tip as a fraction of whatever
-//                    chord the class just wrote.
+//                    an archetype's wing patch can set the tip as a fraction
+//                    of whatever chord the class just wrote (G140: the
+//                    planform TILES retired; the fractions live on in the
+//                    archetypes' over.cage).
 //   writes.spec      a nested patch over the game spec (GARAGE_SPEC.update's
 //                    shape). Paths must exist in GEN_DEFAULT; GATE DESIGN
 //                    walks them.
@@ -86,19 +113,6 @@ function iconSection(topRound, botRound) {
     pts.push([32 + dz, 20 - dy]);
   }
   return { vb: '0 0 64 40', paths: [{ d: poly(pts) }] };
-}
-
-// WING PLANFORM — half-span trapezoid mirrored, from the same three numbers
-// the starter writes. Pure math; the tile and the wing cannot disagree.
-function iconPlanform(taper, sweepDeg) {
-  const semi = 28, cr = 11, ct = cr * taper;
-  const dz = Math.tan(sweepDeg * Math.PI / 180) * semi * 0.55;
-  const y0 = 14;
-  const right = [[32, y0], [32 + semi, y0 + dz], [32 + semi, y0 + dz + ct],
-                 [32, y0 + cr]];
-  const left = right.map(p => [64 - p[0], p[1]]);
-  return { vb: '0 0 64 40',
-           paths: [{ d: poly(right) }, { d: poly(left.reverse()) }] };
 }
 
 // TIP — the planform's outboard end with GEN_TIPS' own `bow` closing it on a
@@ -317,45 +331,53 @@ const CLASS_ROWS = [
   // frame is ~115, climbRate 0.09 m/s, take-off rejected by the test pilot.
   // The class fits the 582 until a lighter-structure chantier exists; the
   // 277 stays on the family list for builders who want to learn why.
+  // G132: the LABEL is the live write; everything the class used to pour
+  // over the sliders is its SEED — birth and archetypes take both, the
+  // panel takes the label and offers the seed as an explicit action
   { value: 'ul1', label: 'Ultralight (single seat)', note: '~180 kg · 1 seat',
     icon: iconSide({ canopy: 'none', deck: 'turtle', gear: 'tail', pod: true, prop: true }),
-    writes: { cage: { wgSpan: 9.4, wgChord: 1.45, wgChordTip: 1.45,
-                      seatLayout: 0, paxCount: 0, halfW: 0.33, roofHalfW: 0.26,
-                      pilotLen: 0.42, intCons: 1, engPreset: 'rotax 582' },
-              spec: { meta: { class: 'ul1' }, fuel: { litres: 20 },
-                      systems: { fit: 'minimal' }, cabin: { baggage: 0 } } } },
+    writes: { spec: { meta: { class: 'ul1' } } },
+    seed: { cage: { wgSpan: 9.4, wgChord: 1.45, wgChordTip: 1.45,
+                    seatLayout: 0, paxCount: 0, halfW: 0.33, roofHalfW: 0.26,
+                    pilotLen: 0.42, intCons: 1, engPreset: 'rotax 582' },
+            spec: { fuel: { litres: 20 },
+                    systems: { fit: 'minimal' }, cabin: { baggage: 0 } } } },
   { value: 'ulm', label: 'Microlight / ULM', note: '472–600 kg · 2 seats',
     icon: iconSide({ canopy: 'screen', gear: 'tail', prop: true }),
-    writes: { cage: { wgSpan: 9.2, wgChord: 1.45, wgChordTip: 1.45,
-                      seatLayout: 1, paxCount: 1, halfW: 0.525, roofHalfW: 0.41,
-                      pilotLen: 0.42, paxLen: 0.91, intCons: 1,
-                      engPreset: 'rotax 582' },
-              spec: { meta: { class: 'ulm' }, fuel: { litres: 50 },
-                      systems: { fit: 'basic' }, cabin: { baggage: 10 } } } },
+    writes: { spec: { meta: { class: 'ulm' } } },
+    seed: { cage: { wgSpan: 9.2, wgChord: 1.45, wgChordTip: 1.45,
+                    seatLayout: 1, paxCount: 1, halfW: 0.525, roofHalfW: 0.41,
+                    pilotLen: 0.42, paxLen: 0.91, intCons: 1,
+                    engPreset: 'rotax 582' },
+            spec: { fuel: { litres: 50 },
+                    systems: { fit: 'basic' }, cabin: { baggage: 10 } } } },
   { value: 'lsa', label: 'Light Sport', note: '600 kg · 2 seats · 45 kt stall',
     icon: iconSide({ canopy: 'half', gear: 'trike', prop: true }),
-    writes: { cage: { wgSpan: 9.0, wgChord: 1.40, wgChordTip: 1.15,
-                      seatLayout: 1, paxCount: 1, halfW: 0.525, roofHalfW: 0.41,
-                      pilotLen: 0.42, paxLen: 0.91, intCons: 3,
-                      engPreset: 'rotax 912 (flat)' },
-              spec: { meta: { class: 'lsa' }, fuel: { litres: 65 },
-                      systems: { fit: 'basic' }, cabin: { baggage: 15 } } } },
+    writes: { spec: { meta: { class: 'lsa' } } },
+    seed: { cage: { wgSpan: 9.0, wgChord: 1.40, wgChordTip: 1.15,
+                    seatLayout: 1, paxCount: 1, halfW: 0.525, roofHalfW: 0.41,
+                    pilotLen: 0.42, paxLen: 0.91, intCons: 3,
+                    engPreset: 'rotax 912 (flat)' },
+            spec: { fuel: { litres: 65 },
+                    systems: { fit: 'basic' }, cabin: { baggage: 15 } } } },
   { value: 'eab', label: 'Experimental (amateur-built)', note: 'Jodel · Cub · RV',
     icon: iconSide({ canopy: 'screen', deck: 'cabin', gear: 'tail', prop: true }),
-    writes: { cage: { wgSpan: 9.8, wgChord: 1.55, wgChordTip: 1.55,
-                      seatLayout: 2, paxCount: 1, halfW: 0.34, roofHalfW: 0.27,
-                      pilotLen: 0.42, paxLen: 0.85, intCons: 1,
-                      engPreset: 'continental O-200' },
-              spec: { meta: { class: 'eab' }, fuel: { litres: 70 },
-                      systems: { fit: 'basic' }, cabin: { baggage: 20 } } } },
+    writes: { spec: { meta: { class: 'eab' } } },
+    seed: { cage: { wgSpan: 9.8, wgChord: 1.55, wgChordTip: 1.55,
+                    seatLayout: 2, paxCount: 1, halfW: 0.34, roofHalfW: 0.27,
+                    pilotLen: 0.42, paxLen: 0.85, intCons: 1,
+                    engPreset: 'continental O-200' },
+            spec: { fuel: { litres: 70 },
+                    systems: { fit: 'basic' }, cabin: { baggage: 20 } } } },
   { value: 'n23', label: 'Normal category', note: 'C172 · DR400 · 4 seats',
     icon: iconSide({ canopy: 'screen', gear: 'trike', prop: true }),
-    writes: { cage: { wgSpan: 11.0, wgChord: 1.60, wgChordTip: 1.15,
-                      seatLayout: 1, paxCount: 3, halfW: 0.56, roofHalfW: 0.44,
-                      pilotLen: 0.45, paxLen: 0.95, intCons: 3,
-                      engPreset: 'lycoming IO-360' },
-              spec: { meta: { class: 'n23' }, fuel: { litres: 120 },
-                      systems: { fit: 'ifr' }, cabin: { baggage: 40 } } } },
+    writes: { spec: { meta: { class: 'n23' } } },
+    seed: { cage: { wgSpan: 11.0, wgChord: 1.60, wgChordTip: 1.15,
+                    seatLayout: 1, paxCount: 3, halfW: 0.56, roofHalfW: 0.44,
+                    pilotLen: 0.45, paxLen: 0.95, intCons: 3,
+                    engPreset: 'lycoming IO-360' },
+            spec: { fuel: { litres: 120 },
+                    systems: { fit: 'ifr' }, cabin: { baggage: 40 } } } },
   { value: 'util', label: 'Utility / cargo', note: 'Beaver · DC-3',
     inactive: ENV_REASON, icon: iconSide({ canopy: 'screen', gear: 'tail', radial: true, prop: true }) },
   { value: 'sail', label: 'Sailplane / motorglider', note: '15–18 m span',
@@ -377,43 +399,52 @@ const CLASS_ROWS = [
 // ---------------------------------------------------------------------------
 const FLAP_IDX = { none: 0, plain: 1, slotted: 2, fowler: 3 };
 
+// G132: a role's LABEL is its live write — the tile can stay lit for ever
+// because it claims only the intention. The geometry it used to pour over
+// the sliders is its SEED, applied at birth and on explicit request, so
+// "Aerobatic" lighting up over a strut-braced high-wing you built since is
+// the honest state of affairs (the gap is content), not a stale claim.
 const ROLE_ROWS = [
   { value: 'bush', label: 'Bush', note: 'short field, rough ground, load',
     icon: iconSide({ canopy: 'screen', gear: 'tail', bigTyres: true, prop: true }),
-    writes: { cage: { wgFlapType: FLAP_IDX.slotted, wgPos: 0, wgBrace: 0,
-                      s1R: 0.26 },
-              spec: { meta: { role: 'bush' } } },
+    writes: { spec: { meta: { role: 'bush' } } },
+    seed: { cage: { wgFlapType: FLAP_IDX.slotted, wgPos: 0, wgBrace: 0,
+                    s1R: 0.26 } },
     // climbGrad is a FRACTION on the shakedown's sheet (measured 0.10 on
     // the Cub-alike run), not a percent — §5.1's whole point of declaring
     // targets in the instrument's own units, caught by the first printout
     targets: { TORun: 180, Vs: 13, climbGrad: 0.12 } },
   { value: 'touring', label: 'Touring', note: 'distance, comfort, speed',
     icon: iconSide({ canopy: 'screen', gear: 'trike', prop: true }),
-    writes: { cage: { wgBrace: 1, wgFlapType: FLAP_IDX.plain, s1Fair: 1 },
-              spec: { meta: { role: 'touring' }, fuel: { litres: 90 } } },
+    writes: { spec: { meta: { role: 'touring' } } },
+    seed: { cage: { wgBrace: 1, wgFlapType: FLAP_IDX.plain, s1Fair: 1 },
+            spec: { fuel: { litres: 90 } } },
     targets: { VCruise: 50, LD: 12, TORun: 420 } },
   { value: 'aerobatic', label: 'Aerobatic', note: 'strength and roll rate',
     icon: iconSide({ canopy: 'full', deck: 'turtle', gear: 'tail', prop: true }),
-    writes: { cage: { wgPos: 2, wgBrace: 1, wgCamber: 0, wgSweep: 0,
-                      wgAilSpan: 0.5, wgAilChord: 0.30, wgFlapType: FLAP_IDX.none },
-              spec: { meta: { role: 'aerobatic' } } },
+    writes: { spec: { meta: { role: 'aerobatic' } } },
+    seed: { cage: { wgPos: 2, wgBrace: 1, wgCamber: 0, wgTipX: 0,
+                    wgAilSpan: 0.5, wgAilChord: 0.30,
+                    wgFlapType: FLAP_IDX.none } },
     targets: { climbRate: 8, wingLoad: 60, staticMargin: 0.08 } },
   { value: 'glider', label: 'Glider', note: 'L/D above all',
     icon: iconSide({ canopy: 'full', deck: 'turtle', gear: 'none', pod: true }),
-    writes: { cage: { wgBrace: 1, wgFlapType: FLAP_IDX.none, wgAilSpan: 0.45 },
-              spec: { meta: { role: 'glider' }, fuel: { litres: 5 } } },
+    writes: { spec: { meta: { role: 'glider' } } },
+    seed: { cage: { wgBrace: 1, wgFlapType: FLAP_IDX.none, wgAilSpan: 0.45 },
+            spec: { fuel: { litres: 5 } } },
     targets: { LD: 22, Vs: 16, wingLoad: 34 } },
   { value: 'cargo', label: 'Cargo', note: 'payload and volume',
     icon: iconSide({ canopy: 'screen', gear: 'tail', tail: 'conv', prop: true }),
-    writes: { cage: { wgPos: 0, wgBrace: 0 },
-              spec: { meta: { role: 'cargo' }, cargo: { len: 1.0 } } },
+    writes: { spec: { meta: { role: 'cargo' } } },
+    seed: { cage: { wgPos: 0, wgBrace: 0 },
+            spec: { cargo: { len: 1.0 } } },
     targets: { payload: 350, TORun: 500, VCruise: 42 } },
   { value: 'trainer', label: 'Trainer', note: 'forgiving, cheap — the middle of everything',
     icon: iconSide({ canopy: 'screen', gear: 'trike', prop: true }),
-    // the trainer deliberately writes almost nothing: the middle of
+    // the trainer deliberately seeds almost nothing: the middle of
     // everything IS the default aeroplane
-    writes: { cage: {}, spec: { meta: { role: 'trainer' },
-                                systems: { fit: 'basic' } } },
+    writes: { spec: { meta: { role: 'trainer' } } },
+    seed: { spec: { systems: { fit: 'basic' } } },
     targets: { Vs: 15, TORun: 300, staticMargin: 0.15 } },
 ];
 
@@ -501,15 +532,19 @@ const DESIGN_ROWS = [
     status: 'live', help: 'painted along the boom; paint.regX places it',
     specPath: ['meta', 'reg'], maxLen: 8 },
 
-  { key: 'role', label: 'Role', kind: 'starter', group: 'identity',
+  // G132: role and class are DISCRIMINATORS over their labels now — the
+  // pick writes meta and nothing else, so the lit tile is always true. The
+  // one-shot geometry lives in each option's `seed` (birth applies it; the
+  // panel offers it as an explicit action).
+  { key: 'role', label: 'Role', kind: 'discriminator', group: 'identity',
     status: 'live',
-    help: 'an intention, not a geometry — defaults you can ignore, and ' +
-          'the hook missions will judge against',
+    help: 'an intention, not a geometry — the label is live, the starting ' +
+          'values apply on request, and missions will judge the gap',
     read: (P, S) => S && S.meta && S.meta.role || null,
     options: ROLE_ROWS },
 
-  { key: 'class', label: 'Size class', kind: 'starter', group: 'identity',
-    status: 'live',
+  { key: 'class', label: 'Size class', kind: 'discriminator',
+    group: 'identity', status: 'live',
     help: 'a label, not a constraint — the gap between the declared ' +
           'class and the built aeroplane is content',
     read: (P, S) => S && S.meta && S.meta.class || null,
@@ -551,7 +586,9 @@ const DESIGN_ROWS = [
   // prose the spec quoted belongs to the DEAD spec.cabin.canopy.height) — so
   // a half-bubble is bubH near the floor with bubW flush, not a zero.
   { key: 'canopy', label: 'Canopy style', kind: 'discriminator',
-    group: 'cabin', status: 'live',
+    group: 'cabin', status: 'live', arm: true,
+    // arm (G132): the bubble pair writes bubH/bubW/canLoops — a hand-tuned
+    // hood deserves the same warning a starter gives, whatever the kind
     help: 'convertible and open stay on the slider (kept for later)',
     read: P => {
       const c = Math.round(P.canopy);
@@ -634,7 +671,7 @@ const DESIGN_ROWS = [
     ] },
 
   { key: 'section', label: 'Section profile', kind: 'starter',
-    group: 'structure', status: 'live',
+    group: 'structure', status: 'live', once: true,
     help: 'a starting point, not a cage — the roundness stays continuous',
     read: P => (+P.topRound >= 0.5 ? 1 : 0) + (+P.botRound >= 0.5 ? 2 : 0),
     options: [
@@ -675,29 +712,15 @@ const DESIGN_ROWS = [
         writes: { cage: { wgBrace: 1 } } },
     ] },
 
-  // taper and sweep as fractions of the chord IN FORCE — a starter after the
-  // class, so the functions see the class's chord (§5.5; forward sweep stays
-  // reachable on the slider and the generator prices |sweep| honestly)
-  { key: 'planform', label: 'Planform', kind: 'starter',
-    group: 'wing', status: 'live',
-    read: P => {
-      const t = +P.wgChord > 0 ? +P.wgChordTip / +P.wgChord : 1;
-      if (Math.abs(+P.wgSweep) >= 8) return 'swept';
-      return t > 0.85 ? 'rect' : 'tapered';
-    },
-    options: [
-      { value: 'rect', label: 'Rectangular', icon: iconPlanform(1, 0),
-        note: 'the Cub', writes: { cage: { wgChordTip: P => +P.wgChord,
-                                           wgSweep: 0 } } },
-      { value: 'tapered', label: 'Tapered', icon: iconPlanform(0.62, 0),
-        note: 'the Jodel', writes: { cage: { wgChordTip: P => +(+P.wgChord * 0.62).toFixed(2),
-                                             wgSweep: 0 } } },
-      { value: 'swept', label: 'Swept', icon: iconPlanform(0.7, 18),
-        writes: { cage: { wgChordTip: P => +(+P.wgChord * 0.7).toFixed(2),
-                          wgSweep: 18 } } },
-    ] },
+  // G140: THE PLANFORM ROW IS RETIRED (the user: "retire this option from
+  // the design entirely"). The wing is three stations on the SHAPE panel
+  // now — root chord, crank chord + seat, tip chord + seat — and three
+  // buckets could never mirror that. The archetypes carry their planform
+  // choices as over.cage writes instead (designBake grew the channel).
 
-  { key: 'wgTip', label: 'Wing tips', kind: 'starter',
+  // G132: one key, faithful read, nothing destroyed — that is a
+  // discriminator's contract, whatever a tip's flavour text says
+  { key: 'wgTip', label: 'Wing tips', kind: 'discriminator',
     group: 'wing', status: 'live',
     read: P => Math.round(P.wgTip),
     options: () => ['square', 'clipped', 'rounded', 'elliptic', 'hoerner',
@@ -724,7 +747,7 @@ const DESIGN_ROWS = [
   // near-identical silhouettes would be noise, and §6's level 2 is about
   // reading names ("choosing electric then picking among seven")
   { key: 'engModel', label: 'Engine model', kind: 'starter',
-    group: 'propulsion', status: 'live', plain: true,
+    group: 'propulsion', status: 'live', plain: true, once: true,
     help: 'a preset (applies once) — every engine row stays yours after',
     read: P => null,   // applied-once; the panel's own row shows the last pick
     options: designEngineModels },
@@ -760,6 +783,10 @@ const DESIGN_ROWS = [
 
   { key: 'prop', label: 'Propeller', kind: 'starter',
     group: 'propulsion', status: 'live',
+    // G132: blades and material joined (the drawn blade is the physics'
+    // author now); pitch has no drawn twist and stays the tile's alone
+    pair: [{ cage: 'cw_bladeN', spec: 'prop.blades', via: 'join' },
+           { cage: 'cw_material', spec: 'prop.material', via: 'join' }],
     help: 'disc, blades and pitch are the physics; the shape rides along',
     read: (P, S) => {
       const p = S && S.prop; if (!p) return null;
@@ -849,6 +876,7 @@ const DESIGN_ROWS = [
   // tricycle after the starter runs).
   { key: 'gearLayout', label: 'Undercarriage', kind: 'starter',
     group: 'undercarriage', status: 'live',
+    pair: [{ cage: 's2Leg', spec: 'gear.type', via: 'join' }],
     help: 'different aeroplanes on the ground — the placement rule ' +
           'inverts and the rest attitude follows',
     read: P => +P.s2Leg === 3 ? 'tail' : 'trike',
@@ -883,6 +911,10 @@ const DESIGN_ROWS = [
 
   { key: 'suspension', label: 'Suspension', kind: 'starter',
     group: 'undercarriage', status: 'live',
+    // G132: the join measures the drawn shock back into the spec, so the
+    // mains' own shock-kind slider can no longer fly a bungee wearing an
+    // oleo — the pair is what _join_check proves
+    pair: [{ cage: 's1_shockKind', spec: 'gear.suspension', via: 'join' }],
     read: (P, S) => S && S.gear && S.gear.suspension || null,
     options: [
       { value: 'bungee', label: 'Bungee cord', icon: ICON.suspBungee,
@@ -959,54 +991,73 @@ const DESIGN_ROWS = [
 // radial MONOPLANE tourer — nothing in the generator builds a second wing,
 // and an archetype must be a build the table can actually ask for.
 // ---------------------------------------------------------------------------
+// G140: the retired planform tiles' writes, kept as archetype wing patches
+// (over.cage — resolved by designBake against the class's own chord)
+const PLAN_RECT = { wgChordTip: P => +P.wgChord, wgTipX: 0 };
+const PLAN_TAPER = { wgChordTip: P => +(+P.wgChord * 0.62).toFixed(2),
+                     wgTipX: 0 };
+// ...and the C172-alike finally wears its REAL wing: constant chord to the
+// crank, taper and a small aft seat outboard — and the crank is where the
+// strut lands (the frame's G140 ruling), which is what a C172 is
+const PLAN_C172 = { wgCrankAt: 0.42, wgCrankChord: P => +P.wgChord,
+                    wgCrankX: 0, wgDihedralOut: 3,
+                    wgChordTip: P => +(+P.wgChord * 0.72).toFixed(2),
+                    wgTipX: 0.30 };
+
 const ARCHETYPES = [
   { key: 'cub', name: 'Cub-alike', note: 'taildragger, strut-braced high ' +
       'wing, windscreen, tube & fabric, tandem',
     sel: { class: 'eab', role: 'bush', seatLayout: 2, paxCount: 1,
            canopy: 'screen', mirror: 0, intCons: 1, boomStyle: 0, section: 1,
-           wgPos: 0, wgBrace: 0, planform: 'rect', wgTip: 2, wgFlapType: 0,
+           wgPos: 0, wgBrace: 0, wgTip: 2, wgFlapType: 0,
            engFamily: 'flat', engModel: 'continental A-65', engMount: 'nose',
            gearLayout: 'tail', suspension: 'bungee', s1Fair: 0,
-           empennage: 'conv', scheme: 'sweep', base: 0xf2c437, trim: 0x1b3a5c } },
+           empennage: 'conv', scheme: 'sweep', base: 0xf2c437, trim: 0x1b3a5c },
+    over: { cage: PLAN_RECT } },
   { key: 'jodel', name: 'Jodel-alike', note: 'cantilever wood wing, ' +
       'side-by-side, the page’s own aeroplane reborn',
     sel: { class: 'eab', role: 'touring', seatLayout: 1, paxCount: 1,
            canopy: 'screen', mirror: 0, intCons: 2, boomStyle: 0, section: 1,
-           wgPos: 2, wgBrace: 1, planform: 'tapered', wgTip: 2, wgFlapType: 1,
+           wgPos: 2, wgBrace: 1, wgTip: 2, wgFlapType: 1,
            engFamily: 'flat', engModel: 'continental O-200', engMount: 'nose',
            gearLayout: 'tail', suspension: 'spring', s1Fair: 1,
-           empennage: 'conv', scheme: 'trim', base: 0xefe6cf, trim: 0x7c3327 } },
+           empennage: 'conv', scheme: 'trim', base: 0xefe6cf, trim: 0x7c3327 },
+    over: { cage: PLAN_TAPER } },
   { key: 'c172', name: 'C172-alike', note: 'alloy, tricycle, 2+2 cabin, ' +
       'slotted flaps',
     sel: { class: 'n23', role: 'touring', seatLayout: 1, paxCount: 3,
            canopy: 'screen', mirror: 0, intCons: 3, boomStyle: 0, section: 1,
-           wgPos: 0, wgBrace: 0, planform: 'tapered', wgTip: 1, wgFlapType: 2,
+           wgPos: 0, wgBrace: 0, wgTip: 1, wgFlapType: 2,
            engFamily: 'flat', engModel: 'lycoming IO-360', engMount: 'nose',
            gearLayout: 'trike', suspension: 'spring', s1Fair: 1,
-           empennage: 'conv', scheme: 'sweep', base: 0xefe6cf, trim: 0x2c4a31 } },
+           empennage: 'conv', scheme: 'sweep', base: 0xefe6cf, trim: 0x2c4a31 },
+    over: { cage: PLAN_C172 } },
   { key: 'rv', name: 'RV-alike', note: 'low wing, bubble, cantilever alloy, fast',
     sel: { class: 'eab', role: 'touring', seatLayout: 1, paxCount: 1,
            canopy: 'full', mirror: 1, intCons: 3, boomStyle: 0, section: 3,
-           wgPos: 2, wgBrace: 1, planform: 'tapered', wgTip: 1, wgFlapType: 1,
+           wgPos: 2, wgBrace: 1, wgTip: 1, wgFlapType: 1,
            engFamily: 'flat', engModel: 'lycoming IO-360', engMount: 'nose',
            gearLayout: 'trike', suspension: 'spring', s1Fair: 1,
-           empennage: 'conv', scheme: 'sweep', base: 0xc7c9cc, trim: 0x7c3327 } },
+           empennage: 'conv', scheme: 'sweep', base: 0xc7c9cc, trim: 0x7c3327 },
+    over: { cage: PLAN_TAPER } },
   { key: 'savannah', name: 'Savannah-alike', note: 'STOL microlight, high ' +
       'wing, big flaps, bush role',
     sel: { class: 'ulm', role: 'bush', seatLayout: 1, paxCount: 1,
            canopy: 'screen', mirror: 0, intCons: 3, boomStyle: 0, section: 0,
-           wgPos: 0, wgBrace: 0, planform: 'rect', wgTip: 0, wgFlapType: 3,
+           wgPos: 0, wgBrace: 0, wgTip: 0, wgFlapType: 3,
            engFamily: 'flat', engModel: 'rotax 912 (flat)', engMount: 'nose',
            gearLayout: 'tail', suspension: 'bungee', s1Fair: 0,
-           empennage: 'conv', scheme: 'trim', base: 0x7fa8c9, trim: 0xf4f2ea } },
+           empennage: 'conv', scheme: 'trim', base: 0x7fa8c9, trim: 0xf4f2ea },
+    over: { cage: PLAN_RECT } },
   { key: 'ul1', name: 'Single-seat ultralight', note: 'the smallest ' +
       'buildable, minimum systems',
     sel: { class: 'ul1', role: 'trainer', seatLayout: 0, paxCount: 0,
            canopy: 'screen', mirror: 0, intCons: 1, boomStyle: 1, section: 0,
-           wgPos: 0, wgBrace: 0, planform: 'rect', wgTip: 0, wgFlapType: 0,
+           wgPos: 0, wgBrace: 0, wgTip: 0, wgFlapType: 0,
            engFamily: 'inline', engModel: 'rotax 582', engMount: 'nose',
            gearLayout: 'tail', suspension: 'bungee', s1Fair: 0,
-           empennage: 'conv', scheme: 'bare' } },
+           empennage: 'conv', scheme: 'bare' },
+    over: { cage: PLAN_RECT } },
   { key: 'pusherPod', name: 'Pod-and-boom pusher', note: 'mirror + rod + pusher',
     sel: { class: 'ulm', role: 'trainer', canopy: 'full', mirror: 1,
            boomStyle: 1, engFamily: 'inline', engModel: 'rotax 582',
@@ -1032,28 +1083,30 @@ const ARCHETYPES = [
       '(cant-hold-speed); wants the util class, i.e. the wing-clamp chantier',
     sel: { class: 'n23', role: 'touring', seatLayout: 1, paxCount: 1,
            canopy: 'screen', mirror: 0, intCons: 3, boomStyle: 0, section: 3,
-           wgPos: 2, wgBrace: 1, planform: 'tapered', wgTip: 2, wgFlapType: 1,
+           wgPos: 2, wgBrace: 1, wgTip: 2, wgFlapType: 1,
            engFamily: 'radial', engModel: 'P&W R-1830', engMount: 'nose',
            gearLayout: 'tail', suspension: 'oleo', s1Fair: 2,
-           empennage: 'conv', scheme: 'sweep', base: 0x3d5c40, trim: 0xf4f2ea } },
+           empennage: 'conv', scheme: 'sweep', base: 0x3d5c40, trim: 0xf4f2ea },
+    over: { cage: PLAN_TAPER } },
   { key: 'etrainer', name: 'Electric trainer', note: 'no fuel; the altitude ' +
       'model’s other branch',
     sel: { class: 'lsa', role: 'trainer', seatLayout: 1, paxCount: 1,
            canopy: 'half', mirror: 0, intCons: 0, boomStyle: 0, section: 3,
-           wgPos: 2, wgBrace: 1, planform: 'tapered', wgTip: 3, wgFlapType: 1,
+           wgPos: 2, wgBrace: 1, wgTip: 3, wgFlapType: 1,
            engFamily: 'electric', engModel: 'pipistrel E-811', engMount: 'nose',
            gearLayout: 'trike', suspension: 'spring', s1Fair: 1,
            empennage: 'conv', scheme: 'sweep', base: 0xefe6cf, trim: 0xc96f2a },
-    over: { spec: { fuel: { litres: 0 } } } },
+    over: { cage: PLAN_TAPER, spec: { fuel: { litres: 0 } } } },
   { key: 'ttail', name: 'T-tail tourer', note: 'stab on the fin tip; ' +
       'retractable when the model exists',
     sel: { class: 'n23', role: 'touring', seatLayout: 1, paxCount: 1,
            canopy: 'half', mirror: 0, intCons: 3, boomStyle: 0, section: 3,
-           wgPos: 2, wgBrace: 1, planform: 'tapered', wgTip: 1, wgFlapType: 1,
+           wgPos: 2, wgBrace: 1, wgTip: 1, wgFlapType: 1,
            engFamily: 'flat', engModel: 'lycoming IO-360', engMount: 'nose',
            gearLayout: 'trike', retract: 'retract', suspension: 'oleo',
            s1Fair: 1, empennage: 't', scheme: 'sweep',
-           base: 0xefe6cf, trim: 0x1b3a5c } },
+           base: 0xefe6cf, trim: 0x1b3a5c },
+    over: { cage: PLAN_TAPER } },
   { key: 'vtail', name: 'V-tail tourer', note: 'the configuration the ' +
       'physics supports and the builder cannot reach (§11.5)',
     sel: { class: 'n23', role: 'touring', canopy: 'half', mirror: 0,
@@ -1094,7 +1147,13 @@ function designMerge(a, b) {
 // first (the archetype contract). engPreset name-values resolve to the
 // panel's index here, and an unknown option lands in `missing` instead of
 // silently writing nothing.
-function designApply(P, sel) {
+//
+// G132: `opts.seeds` (default TRUE — birth, archetypes and the gate all
+// compose the whole recipe) folds each option's one-shot `seed` in after
+// its live `writes`; the PANEL passes seeds:false, which is the whole
+// label-vs-starting-values split.
+function designApply(P, sel, opts) {
+  const seeds = !opts || opts.seeds !== false;
   const cage = {}, spec = {}, missing = [];
   const work = Object.assign({}, P);
   const order = ['class', 'role'].concat(
@@ -1104,20 +1163,45 @@ function designApply(P, sel) {
     const opt = optionOf(rowKey, sel[rowKey]);
     if (!opt) { missing.push(rowKey + '=' + sel[rowKey]); continue; }
     if (opt.inactive) continue;          // greyed tiles never write
-    const wr = opt.writes || {};
-    for (const k in (wr.cage || {})) {
-      let v = wr.cage[k];
-      if (typeof v === 'function') v = v(work);
-      if (k === 'engPreset' && typeof v === 'string') {
-        const i = designPresetIndex(v);
-        if (i === null) { missing.push('engPreset ' + v); continue; }
-        v = i;
+    const chans = [opt.writes || {}];
+    if (seeds && opt.seed) chans.push(opt.seed);
+    for (const wr of chans) {
+      for (const k in (wr.cage || {})) {
+        let v = wr.cage[k];
+        if (typeof v === 'function') v = v(work);
+        if (k === 'engPreset' && typeof v === 'string') {
+          const i = designPresetIndex(v);
+          if (i === null) { missing.push('engPreset ' + v); continue; }
+          v = i;
+        }
+        cage[k] = v; work[k] = v;
       }
-      cage[k] = v; work[k] = v;
+      if (wr.spec) designMerge(spec, wr.spec);
     }
-    if (wr.spec) designMerge(spec, wr.spec);
   }
   return { cage, spec, missing };
+}
+
+// G132: ONE option's seed, resolved against the live P — the panel's
+// explicit "apply the starting values" action. Same resolution rules as
+// designApply (function values, engPreset names), one code path's worth
+// of them, so the pill and the birth cannot disagree about what a seed is.
+function designSeed(P, rowKey, value) {
+  const opt = optionOf(rowKey, value);
+  if (!opt || !opt.seed) return { cage: {}, spec: {} };
+  const cage = {}, work = Object.assign({}, P);
+  for (const k in (opt.seed.cage || {})) {
+    let v = opt.seed.cage[k];
+    if (typeof v === 'function') v = v(work);
+    if (k === 'engPreset' && typeof v === 'string') {
+      const i = designPresetIndex(v);
+      if (i === null) continue;
+      v = i;
+    }
+    cage[k] = v; work[k] = v;
+  }
+  return { cage,
+           spec: JSON.parse(JSON.stringify(opt.seed.spec || {})) };
 }
 
 // how many CURRENTLY NON-DEFAULT values a write set is about to change — the
@@ -1151,6 +1235,17 @@ function designBake(sel, over) {
   const base = Object.assign(C2.cageDefaults(), (PG && PG.defaults) || {});
   const { cage, spec, missing } = designApply(base, sel);
   if (missing.length) throw new Error('unresolved: ' + missing.join(', '));
+  // G140: the archetype's own cage patch — the retired planform tiles'
+  // writes live here now. Function values resolve against the selection's
+  // result, so "tip = 0.72 of the chord" reads the class's chord.
+  if (over && over.cage) {
+    const work = Object.assign({}, base, cage);
+    for (const k in over.cage) {
+      let v = over.cage[k];
+      if (typeof v === 'function') v = v(work);
+      cage[k] = v; work[k] = v;
+    }
+  }
   const full = Object.assign(base, cage);
   if ('engPreset' in cage && W.CAGE_ENG_APPLY_PRESET) {
     const names = designEngineModels().map(o => o.value);
@@ -1211,9 +1306,10 @@ function archInactive(a) {
 }
 
 const API = { DESIGN_ROWS, DESIGN_GROUPS, ARCHETYPES, rowByKey, rowOptions,
-              optionOf, designApply, designMerge, designOverwriteCount,
-              designBake, archInactive, designEngineModels,
-              designEngineFamilies, designPresetFamily, designPresetIndex };
+              optionOf, designApply, designSeed, designMerge,
+              designOverwriteCount, designBake, archInactive,
+              designEngineModels, designEngineFamilies, designPresetFamily,
+              designPresetIndex };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 if (typeof window !== 'undefined') window.CAGE_DESIGN = API;

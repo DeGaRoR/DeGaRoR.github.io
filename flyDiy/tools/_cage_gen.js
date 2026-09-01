@@ -643,6 +643,43 @@ function cageResolve(S) {
     }
   }
 
+  // THE LEAN (study 2026-09-01, futureDesigns/LEAN-PILLAR-STUDY): the aft
+  // cabin pillar (and optionally the cabin pillar) tilts top-aft as a
+  // SHEAR — z slides with height, x/y stay put, so the rails stay straight
+  // and the bays on either side simply re-slope: the surface is generated
+  // FROM the rings, and the guard rings are lerps of these, so everything
+  // downstream follows. CLAMPED ON SHIFT, NOT ANGLE (measured: 30° into a
+  // 0.8 m taper = 0.83 m of roof travel folds the taper roof): roof-level
+  // travel is held to half the shorter neighbouring bay. Skipped on the
+  // pod (mirrorZ lives mid-pillar) and, via the neighbour guards, in rod
+  // mode (the aft cap's own lean is an open question in the study doc).
+  const LN = S.lean;
+  if (LN && (LN.pax || LN.cab) && !MIR) {
+    const lean = (name, deg) => {
+      const i = rings.findIndex(r => r.name === name);
+      if (!deg || i < 1 || i + 2 >= rings.length) return;
+      const rA = rings[i], rB = rings[i + 1];
+      const pv = LN.pivot === 'mid'
+        ? (rA.lv.roof.y + rA.lv.keel.y) / 2
+        : (rA.lv[LN.pivot] || rA.lv.floor).y;
+      let k = Math.tan(deg * Math.PI / 180);
+      const span = Math.min(
+        Math.abs(rings[i - 1].lv.waist.z - rA.lv.waist.z),
+        Math.abs(rB.lv.waist.z - rings[i + 2].lv.waist.z));
+      const shift = Math.abs(k * (rA.lv.roof.y - pv));
+      if (shift > 0.5 * span) k *= 0.5 * span / shift;
+      for (const r of [rA, rB])
+        for (const nm in r.lv) {
+          const l = r.lv[nm];
+          l.z -= k * (l.y - pv);
+          if (l.zC != null)
+            l.zC -= k * ((l.yC != null ? l.yC : l.y) - pv);
+        }
+    };
+    lean('pilPaxA', LN.pax);
+    lean('pilCabA', LN.cab);
+  }
+
   // (the G16 bubble-canopy repositioning experiment lived here — DELETED
   // at user request 2026-08-18, pending a re-explained design once the
   // convertible/open modes and their dash are right. The cutout modes in
@@ -2616,6 +2653,130 @@ function cageCut(m, S) {
     if (keep.length !== F.length) m.F = keep;
   }
   return m;
+}
+
+
+// ---------------------------------------------------------------------------
+// THE BODY ZONES — WHICH SECTION OF THE AEROPLANE A PIECE OF SKIN IS ON
+// ---------------------------------------------------------------------------
+// The user, on selecting parts by clicking them: "in my mind, the fuselage
+// divides into nose (from the firewall to the windshield pillar), the pilot
+// cabin, anything between the window pillar and the pilot pillar, the
+// passenger bays, ... the boom until the flat part at the tail, which would
+// be the tail. These parts would need to highlight accordingly."
+//
+// THE COVERING IS ONE MATERIAL AND MUST STAY ONE MATERIAL. `body` is what a
+// fuselage skin IS — one finish, one livery, one paint job — and splitting it
+// into six materials to answer a selection question would put six rows in the
+// livery for one aeroplane skin and six draw groups where one belongs. So the
+// division is not a material: it is a TABLE OF STATIONS, and the pick and the
+// highlight read a face's z against it.
+//
+// THE STATIONS ARE THE PILLARS, which is exactly what the user described: a
+// section runs from its own aft pillar to the next section's. `cageResolve`
+// already names every one of them, so nothing here is invented — each zone
+// names the ring it starts at, and a ring that does not exist on this
+// aeroplane (no taper, no pax bay, a mirrored pod with no tail stack) drops
+// its zone and the neighbour forward of it simply reaches further aft.
+//
+// `key` is the SECTION's name, not a part key: tools/_cage_parts.js maps zone
+// -> part exactly as it maps section -> part, and this file stays ignorant of
+// the assembly the way it is ignorant of the panel.
+//
+// NOT THE SAME TABLE AS `cageInterior`'s `secOf`, and deliberately: that one
+// is a CONSTRUCTION map (four sections x above/below the waistband, one
+// technique each, its own mirrored-pod fallbacks), and it answers what a bay
+// is BUILT of, not which part of the aeroplane you just clicked. The stations
+// it reads are three of the six below, from the same rings — so the two agree
+// where they overlap, on purpose, and neither is derived from the other.
+const CAGE_ZONE_RINGS = [
+  // fwd -> aft. Each zone begins at its own AFT ring and runs forward to the
+  // previous zone's ring; the last one runs to the tail.
+  { key: 'nose',  ring: 'wsFront' },   // firewall -> the windscreen base
+  { key: 'cabin', ring: 'pilCabA' },   // the pilot bay, aft to its own pillar
+  { key: 'pax',   ring: 'pilPaxA' },   // the passenger bays
+  { key: 'taper', ring: 'pilTaperA' }, // the tightening section
+  { key: 'boom',  ring: 'tailPost' },  // aft of the taper, to the tail post
+  { key: 'tail',  ring: null },        // the flat part at the tail
+];
+
+function cageBodyZones(S) {
+  const R = cageResolve(S);
+  const zOf = name => {
+    const r = R.rings.find(x => x.name === name);
+    return r && r.lv && r.lv.waist ? r.lv.waist.z : null;
+  };
+  const zones = [];
+  const push = (key, z0) => {
+    // fwd end = the last zone pushed (they are pushed nose-first), so a
+    // missing ring costs nothing: the zone forward of it keeps its z0 and
+    // this one never exists.
+    zones.push({ key, z0, z1: zones.length ? zones[zones.length - 1].z0
+                                           : Infinity });
+  };
+  const MIR = !!(S.config && S.config.mirror);
+  const zWs = zOf('wsFront');
+  if (zWs != null) push('nose', zWs);
+  if (MIR) {
+    // THE MIRRORED POD (G18 S2). The ring table STOPS at the arceau: the aft
+    // half is the front half reflected about it, so the aft zones are the
+    // forward ones reflected too — which is why they are the `aftCabin` and
+    // `aftDeck` the part tree already carries, and not a second cabin.
+    //
+    // THE REFLECTION CONSTANT IS buildCage2'S OWN (`CZ` there, `rz(z) = CZ -
+    // z`), rebuilt here from the same three numbers rather than assumed to be
+    // twice the pillar mid-plane. It is only twice the mid-plane when the aft
+    // half reflects ITSELF; with per-half controls (S2.5) the reflected half
+    // is a second emission from `mirrorAftSpec`, aligned by ITS pilCabB, and
+    // an aeroplane whose aft deck is longer than its nose would put every aft
+    // zone boundary in the wrong place under the easy formula.
+    const SA = (S.config && S.config.mirrorAftSpec) || null;
+    const RA = SA ? cageResolve(SA) : R;
+    const zIn = (RR, name) => {
+      const r = RR.rings.find(x => x.name === name);
+      return r && r.lv && r.lv.waist ? r.lv.waist.z : null;
+    };
+    const w = S.cabinPillarW || 0;
+    const zM = R.mirrorZ != null ? R.mirrorZ : 0;
+    const zBs = zIn(RA, 'pilCabB');
+    const CZ = zBs != null ? (zM + w / 2) - w + zBs : 2 * zM;
+    // the aft extremity of the SOURCE half — which is the NOSE TIP, and the
+    // nose tip is not in the ring list: `cageResolve` hands the two cone
+    // rings back beside it, and they are `nose` rings with no waist level at
+    // all, so every level of every ring counts here.
+    const zMax = [...RA.rings, RA.noseTwin, RA.noseRing]
+      .reduce((a, r) => {
+        for (const k in ((r && r.lv) || {})) if (r.lv[k].z > a) a = r.lv[k].z;
+        return a;
+      }, -1e9);
+    const zWsA = SA ? zIn(RA, 'wsFront') : zWs;
+    // the arceau is ONE band with the mirror plane down its middle: half of
+    // it faces forward and belongs to the cabin, half faces aft
+    push('cabin', zM);
+    if (zWsA != null) push('aftCabin', CZ - zWsA);
+    if (zMax > -1e9) push('aftDeck', CZ - zMax);
+    push('boom', -Infinity);
+  } else {
+    for (let i = 1; i < CAGE_ZONE_RINGS.length; i++) {
+      const row = CAGE_ZONE_RINGS[i];
+      if (!row.ring) { push(row.key, -Infinity); break; }
+      const z = zOf(row.ring);
+      if (z != null) push(row.key, z);
+    }
+    // no tail stack at all (the rod boom, whose tube is its own section):
+    // whatever is aft-most runs to the tail
+    if (zones.length && zones[zones.length - 1].z0 !== -Infinity)
+      zones[zones.length - 1].z0 = -Infinity;
+  }
+  return zones;
+}
+
+// which zone a station is in. Forward of every zone (a cowl loop ahead of the
+// firewall) is the nose's; the table is ordered fwd -> aft.
+function cageZoneAt(zones, z) {
+  if (!zones || !zones.length) return null;
+  for (const q of zones) if (z >= q.z0) return q.key;
+  return zones[zones.length - 1].key;
 }
 
 // ---------------------------------------------------------------------------
@@ -5627,6 +5788,13 @@ const CAGE_PARAMS = {
   // (user: pillars start equal; the template's 0.100 vs 0.075 was a hand
   // edit). 0 = off, per-pillar values above apply (the fit identity path).
   pillarW: 0,
+  // THE LEAN (study 2026-09-01, futureDesigns/LEAN-PILLAR-STUDY): the aft
+  // cabin pillar (and optionally the cabin pillar) tilts top-aft as a
+  // SHEAR about leanPivot ('floor'|'waist'|'keel'|'mid') — x/y untouched,
+  // z slides with height, so the rails stay straight and every section
+  // keeps its drawn shape. 0/0 = identity (the fit path). Applied in
+  // cageResolve so interior/zones/frames all read the tilted rings.
+  leanPaxDeg: 0, leanCabDeg: 0, leanPivot: 'floor',
   halfW: 0.554104, roofHalfW: 0.431009, roofY: 1.0, keelY: -0.921275,
   floorY: -0.497590, ceilInset: 1.0, waistY: 0.091103, bandH: 0.062549,
   aftRoofY: 0.677945, aftKeelY: -0.656475,
@@ -6218,6 +6386,9 @@ function cageSpec(P) {
   S.cut = { on: P.cutParts ? 1 : 0, doors: 1, wins: 1,
             doorGone: P.doorGone ? 1 : 0,
             explode: Math.max(0, P.explodeD || 0) };
+  if (P.leanPaxDeg || P.leanCabDeg)
+    S.lean = { pax: P.leanPaxDeg || 0, cab: P.leanCabDeg || 0,
+               pivot: P.leanPivot || 'floor' };
   // MIRRORED POD (G18 S2): v1 constraints — no pax bays, canopy closed
   // (S3 brings the bubble to the pod), doors off (the canopy IS the
   // door on a pod), interior off (S5 adapts it), cowl nose only. Each
@@ -6737,7 +6908,7 @@ if (typeof module !== 'undefined')
                      CAGE_UNIT,
                      buildCage2, cageResolve, cageSpec, cageSubdivide,
                      cageRims, cageInterior, cageCut, cageGlassSill,
-                     cageCanopy,
+                     cageCanopy, cageBodyZones, cageZoneAt, CAGE_ZONE_RINGS,
                      cageDefaults, cageFromSpec, cageToSpec,
                      CAGE_VIEW_KEYS, CAGE_LVI_BASE, cageLvIndex };
 if (typeof window !== 'undefined')
@@ -6745,6 +6916,6 @@ if (typeof window !== 'undefined')
                    CAGE_UNIT,
                    buildCage2, cageResolve, cageSpec, cageSubdivide,
                    cageRims, cageInterior, cageCut, cageGlassSill,
-                   cageCanopy,
+                   cageCanopy, cageBodyZones, cageZoneAt, CAGE_ZONE_RINGS,
                    cageDefaults, cageFromSpec, cageToSpec,
                    CAGE_VIEW_KEYS, CAGE_LVI_BASE, cageLvIndex };
