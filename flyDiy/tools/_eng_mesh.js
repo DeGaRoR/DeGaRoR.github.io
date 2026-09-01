@@ -91,6 +91,17 @@ const EM = (() => {
     intake: 1,         // intake risers, sump plenum -> head bottom aft
     exStyle: 1,        // 0 none · 1 short stacks · 2 collector per side
     exDrop: 1.5,       // stack drop below the sump, / bore
+    // G155: WHERE THE EXHAUST LEAVES. The collector's tailpipe used to end at
+    // one hardcoded point — down and aft — which is where it goes on most
+    // aeroplanes and nowhere near where it goes on the rest. These four say it
+    // instead. THE DEFAULTS REPRODUCE THE OLD PIPE EXACTLY: exAim 0 is 'down'
+    // and the offsets are zero, so an engine that says nothing is drawn as it
+    // always was, which is what keeps GATE ENGMESH's frozen engines frozen.
+    exOut: 2,          // collectors: 2 (one per bank) or 1 (both banks into one)
+    exAim: 0,          // outlet points: 0 down · 1 up · 2 left · 3 right
+    exOutX: 0,         // outlet offset, left/right, / bore
+    exOutY: 0,         // outlet offset, up/down,    / bore
+    exOutZ: 0,         // outlet offset, fore/aft,   / bore
     leads: 1,          // ignition harness: 2 plugs + 2 leads per cylinder
     leadR: 0.034,      // lead radius / bore
     mags: 1,           // two magnetos on the accessory case
@@ -2222,8 +2233,16 @@ const EM = (() => {
 
     // ---- collector exhaust: per side, stacks merge into one pipe aft ------
     if (P.exStyle === 2 && !inline && !radial) {
-      for (const sx of [-1, 1]) {
-        const side = cyls.filter(c => c.sx === sx);
+      // G155: ONE COLLECTOR OR TWO. Two (the default) is a can under each
+      // bank, as before. One is a single can under the port bank that BOTH
+      // banks feed — a real arrangement, and the reason the knee below reads
+      // the CYLINDER's own side rather than the collector's: with one can the
+      // starboard stacks have to come down on their own side first and cross
+      // under the sump, which is exactly what they do on the aeroplane.
+      // With two cans `c.sx === sx` throughout, so the drawing is unchanged.
+      const oneCan = Math.round(P.exOut) === 1;
+      for (const sx of (oneCan ? [-1] : [-1, 1])) {
+        const side = oneCan ? cyls : cyls.filter(c => c.sx === sx);
         if (!side.length) continue;
         const colY = sumpY - 0.75 * P.exDrop * b;
         const colX = sx * 0.55 * cR;
@@ -2232,7 +2251,7 @@ const EM = (() => {
         for (const c of side) {
           part('exhaust' + c.i, 'tube');
           const jn = [colX, colY, c.z - 0.35 * b];    // plunges into the collector
-          const knee = [sx * (c.finTop - 0.30 * b), -cR - L.sump * 0.4, c.z - 0.42 * b];
+          const knee = [c.sx * (c.finTop - 0.30 * b), -cR - L.sump * 0.4, c.z - 0.42 * b];
           const path = fillet([c.exhaustP, knee, jn], 0.7 * b);
           artery('exhaust' + c.i, 'head' + c.i, 'collector',
             sweep(path, 0.17 * b, ENGM_MAT.exhaust,
@@ -2242,9 +2261,28 @@ const EM = (() => {
         // a tapered can: domed nose, straight run the stacks plunge into,
         // then a reduced tailpipe bending down and aft to an open lip
         const colR = 0.23 * b;
+        // G155: THE OUTLET IS PLACED, NOT ASSUMED. The tailpipe leaves the can
+        // in the aimed direction and then wherever the three offsets put it.
+        // `AIM` is in the ENGINE's frame, which is the aeroplane's: -x is the
+        // pilot's left, +y up, -z aft. exAim 0 with zero offsets reproduces the
+        // old point [colX, colY - 0.35b, zMin - 1.6b] exactly.
+        const AIM = [[0, -1], [0, 1], [-1, 0], [1, 0]];   // down up left right
+        const am = AIM[Math.max(0, Math.min(3, Math.round(P.exAim)))];
+        const outEnd = [colX + (am[0] * 0.35 + P.exOutX) * b,
+                        colY + (am[1] * 0.35 + P.exOutY) * b,
+                        zMin - 1.6 * b + P.exOutZ * b];
+        // PUBLISHED, beside the per-cylinder ports: this is where the gas
+        // actually leaves the aeroplane, and two things want it that cannot
+        // find it by looking at the mesh. The soot streak (G70) is sourced
+        // from "the MEASURED exhaust exit" and has had only the head ports to
+        // measure; and a cowl that ever cuts an opening for the pipe needs the
+        // point, not a picture of it. The mesh's own end ring cannot answer:
+        // the tailpipe ends in a flared lip, so its aft-most vertices sit
+        // outboard of the pipe's centre by the lip's own radius.
+        (ports.exhaustOut || (ports.exhaustOut = [])).push(outEnd.slice());
         const pC = fillet([[colX, colY, zMax + 0.3 * b],
                            [colX, colY, zMin - 0.5 * b],
-                           [colX, colY - 0.35 * b, zMin - 1.6 * b]], 1.0 * b);
+                           outEnd], 1.0 * b);
         const rrC = pC.map((_, k) => {
           if (k === 0) return 0.55 * colR;
           if (k === 1) return 0.85 * colR;

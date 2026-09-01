@@ -26895,3 +26895,159 @@ the largest of them. The two unreferenced files are the only clear candidates,
 and they are tracked, so removing them later costs nothing and recovers from
 git. This is a decision to take with the user, not one to take while they are
 away for the sake of two files.
+
+## G154 — THE COWL FOLLOWS THE ENGINE (2026-09-02, ROADMAP Phase 2 item 1)
+
+The user set the scope and it is deliberately small: *"don't overdo it. What we
+mainly want is a round open cowl for rotary engines, properly calibrated. In
+the cases of the nose mounted boxer engines, the default shape with 2 side
+opening is alright, the default from the initial bench tool."*
+
+### WHAT WAS ALREADY THERE, AND IT WAS MOST OF IT
+
+The bench's own preset table already holds the archetypes the user remembered
+— `"NACA cowl, radial"`, `"Townend ring"`, `"Rotary horseshoe (Camel type)"`,
+`"Wing nacelle (twin)"` — and the horseshoe carries `cutSpan: 130, cutAz: 270`.
+**THE CUT-OUT IS ALREADY A LIVE EDITOR CONTROL**: `cw_cutSpan` ("Cut-out span
+(horseshoe)") and `cw_cutAz` sit in the part table under `bulges & cut-out`, so
+the old-aeroplane look needed nothing built. Said plainly because the request
+implied it was missing.
+
+What was missing was the JOIN: nothing keyed a cowl to the engine in front of
+it. And the obvious key does not exist — `POWERPLANTS` rows carry `family`,
+which is THERMODYNAMIC (`four` / `two` / `electric`), so the R-1830 Twin Wasp,
+a fourteen-cylinder radial, is declared `family: 'four'` exactly like a
+Continental O-200 boxer. **The architecture was declared somewhere else all
+along**: the engine bench's own `arch` (`flat` / `inline` / `radial` /
+`electric`), which `_cage_eng.js` already reads (`spec.arch === 'radial'`
+coerces air cooling). So nothing new had to be declared.
+
+### THE TABLE, AND WHY THREE OF ITS FOUR ROWS ARE `null`
+
+`COWL_BY_ARCH` in `_cage_cowl.js`. `flat`, `inline` and `electric` are `null`,
+and that null is A DECISION RECORDED: it says the default this layer already
+ships is the right cowl for that engine, so a reader does not have to wonder
+whether the case was considered. Only `radial` does anything, which is the
+whole of what was asked for.
+
+**CALIBRATED, NOT COPIED.** The preset the user approved is one aeroplane's
+numbers. What makes a cowl fit a radial is that it clears the cylinder heads,
+so the size is derived: `_eng_gen.js` publishes `env.radius` with the comment
+*"what a cowl actually needs: the radius that encloses everything, about the
+THRUSTLINE"* — this reads exactly that and derives taper, length, lid radius
+and inlet from it, over a declared 6 % clearance. The static half is only the
+SHAPE (round section, blunt lid, rolled lip, no chin scoop), which is the same
+on every radial.
+
+**IT SETS `fitNose` TO SEALED, NOT FITTED**, and that is the non-obvious one. A
+FITTED cowl takes its section from the fuselage; on a boxy nose that would
+square the very thing being asked for. Sealed keeps the firewall's SIZE and
+lets the tool's round section stand.
+
+**IT DOES NOT SET THE CUT-OUT.** An engine implies a SIZE, not a STYLE — a
+Camel has a horseshoe and a DC-3 does not — so that stays the builder's row.
+
+Fires as a STARTER on a change of architecture, the same contract `engPreset`
+already advertises ("preset (applies once)"): it writes the rows once and every
+one stays editable. It deliberately does NOT fire on the first build of a
+session, because a loaded aeroplane carries its own cowl and re-deriving it
+would overwrite a shape somebody saved.
+
+**IT RUNS IN THE COWL'S POST, NOT THE ENGINE'S.** `MANIFEST.editor` loads
+`_cage_cowl.js` before `_cage_eng.js` and `PAGE.post` runs in load order, so
+applying it from the engine would leave the cowl a build behind its own engine
+— the staleness that manifest's own comments warn about twice. The cowl asks
+what engine it is wrapping instead, through `window.CAGE_ENG_SPEC` (published
+for this) and `ENG_GEN.engResolve`.
+
+### GATE COWL +18 CHECKS, AND IT CAUGHT A BUG IN THIS CHANTIER'S OWN ARITHMETIC
+
+`THE BARREL CLEARS THE ENGINE — 1.368 m across vs 1.372 needed.` Four
+millimetres of cylinder head outside the cowl, produced by ROUNDING ALONE: the
+taper row moves in steps of 0.01, and writing 1.1433 back as 1.14 makes the
+barrel smaller than the engine. It ceils to the step now, then clamps. A
+derivation that rounds to nearest on a CLEARANCE is wrong half the time, and
+this is the kind of wrong that never looks wrong in a screenshot.
+
+Also fixed in the gate itself: the first fixture sat ON the taper's 1.15 cap,
+so the "a bigger radial takes a wider barrel" check compared 1.15 against 1.15
+and proved nothing about whether the size is derived at all.
+
+The checks hold: one architecture changes anything; the barrel clears the
+engine with a real clearance over the heads; a bigger radial gives a wider AND
+longer cowl off the same firewall (the property a copied literal cannot have);
+the firewall size is left to `fitNose`; the cut-out is left alone; and **a
+firewall too small for the engine is REPORTED rather than drawn with the
+cylinders through the shell** — measured, a 0.64 m nose against an engine
+needing 1.75 m.
+
+### STILL OWED, AND IT IS AN HONEST LIMIT
+
+The taper's own range caps at 1.15, so a cowl can only ever be 15 % wider than
+the firewall it bolts to. A big radial on a slim fuselage genuinely cannot be
+enclosed, and the note says so instead of drawing it. Making that case work
+means letting a radial cowl carry its own aft diameter and fairing back to the
+fuselage — a real feature (it is what a nacelle does) and a different chantier.
+
+## G155 — THE EXHAUST OUTLET IS PLACED, NOT ASSUMED (2026-09-02, Phase 2 item 3)
+
+The user: *"it usually gets out at the back of the cowl. Ideally, the outlet
+could be oriented up/down/right/left, and moves along all axis's. Possibility
+for 1 or 2 outlets for most engines with 1 or 2 collectors."*
+
+### AGAIN, MOST OF IT EXISTED
+
+`_eng_mesh.js` already draws per-cylinder stacks, a radial collector ring, and
+side collectors that merge each bank into a can — with `exStyle`
+(off / stacks / collector / expansion) and `exDrop` as live rows, and an
+`emExhaust` material with its own steel finish and a wear multiplier of 2.2.
+What did not exist was any say over WHERE THE PIPE ENDS: the tailpipe ran to
+one hardcoded point, down and aft, and there were always exactly two cans.
+
+### FIVE ROWS, AND THE DEFAULTS DRAW THE OLD PIPE EXACTLY
+
+`exOut` (one can per bank, or one that both banks feed), `exAim` (down / up /
+left / right) and `exOutX/Y/Z` (offsets on all three axes, in bores). `exAim`
+0 with zero offsets reproduces the previous endpoint by construction — which is
+why every engine in GATE ENGMESH's table comes out at its previous vertex,
+quad and triangle counts, and that unchanged table IS the frozen-ness check.
+
+With ONE can the starboard stacks cross under the sump to reach it, which is
+what they do on the aeroplane. The knee reads the CYLINDER's own side rather
+than the collector's; with two cans those are the same value, so the two-can
+drawing is untouched.
+
+### THE OUTLET IS PUBLISHED, AND THAT IS WHAT MADE IT TESTABLE
+
+`ports.exhaustOut` joins the per-cylinder `ports.exhaust`. Two things wanted it
+and neither could find it: **G70's soot streak is sourced from "the MEASURED
+exhaust exit" and has only ever had the head ports to measure**, and any future
+cowl opening for the pipe needs the point rather than a picture of it.
+
+**IT ALSO SETTLED A FALSE ALARM.** Inferring the outlet from the mesh's
+aft-most vertices reported the left/right row as moving the outlet 0.052 left
+and 0.023 AFT — which reads as the rows being crossed, and was neither: the
+tailpipe ends in a FLARED LIP, so its aft-most vertices sit outboard of the
+pipe's centre, and when the pipe leaves at a new angle a different vertex wins.
+Against the published point each offset moves its own axis EXACTLY one bore and
+the others by zero. The drawing is then checked separately — the collector's
+geometry must reach within a third of a bore of its own published mouth — so
+the point cannot become a claim about nothing.
+
+A second measurement trap in the same block: selecting the port outlet by
+`x < 0` looked equivalent to selecting it by order and is not. A large enough
+left/right offset carries the port outlet across the centreline, and the filter
+then dropped the very case under test.
+
+### THE COWL CUT IS NOT ATTEMPTED, ON THE USER'S OWN CONDITION
+
+*"If it could cut the cowl, it would be cool, but only if we are sure we can
+manage to do that properly."* We are not sure, so it is not attempted. The
+cowl is a parametric lofted surface whose openings are its own declared
+apertures (`apMode`, the pair, `cutSpan`); punching an arbitrary pipe-shaped
+hole through it is a boolean against a swept tube, which this generator has no
+machinery for and which would land as a ragged rim on a surface the whole
+project draws analytically. What the outlet rows do instead is let the pipe
+leave BELOW or BEHIND the cowl lip, which is where it exits on most of the
+aeroplanes in the reference rack anyway. `ports.exhaustOut` is the hook if a
+real cut is ever designed.

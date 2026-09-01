@@ -92,6 +92,11 @@ const engSpecOfP = (P) => {
   spec.arch = archOf(P);
   return spec;
 };
+// G154: published so the COWL can ask what engine it is wrapping. The cowl
+// layer's post runs BEFORE this one, so it cannot wait to be told — it reads
+// the spec itself and resolves the envelope. One description of what the
+// engine is, not two.
+window.CAGE_ENG_SPEC = engSpecOfP;
 
 // THE PRESET'S OWN DIAL DICT — applyEngPreset's write, replayed onto a fresh
 // default without touching P. Row-backed keys only, drops through the same

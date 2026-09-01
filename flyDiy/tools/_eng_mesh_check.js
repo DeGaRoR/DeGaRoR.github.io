@@ -779,6 +779,105 @@ hard('dressed flat-4 budget at q1 (< 30000 quads)',
   })());
 }
 
+// ---- THE EXHAUST OUTLET IS PLACED (G155) ----------------------------------
+// The user: "the outlet could be oriented up/down/right/left, and moves along
+// all axis's. Possibility for 1 or 2 outlets ... with 1 or 2 collectors."
+//
+// The frozen half is already proven above: every engine in the table above is
+// built with the new defaults and its counts and medians are unchanged, which
+// is what "exAim 0 with zero offsets draws the old pipe" means in practice.
+// What is left to show is that the controls DO something, and in the right
+// direction — a row that moves nothing is the defect this whole gate exists
+// to catch.
+{
+  const base = { arch: 'flat', cyl: 4, bore: 0.103, stroke: 0.098,
+                 rpm: 2300, exStyle: 2 };
+  // THE PORT COLLECTOR'S OUTLET, measured as the CENTROID OF ITS END RING —
+  // not as its aft-most vertex. The first cut used the extreme vertex and it
+  // reported the left/right offset as moving the tip 0.053 left and 0.026 AFT,
+  // which looks like the rows being crossed and is not: the tailpipe is a
+  // swept tube, so when its end leaves at a different angle the ring tilts and
+  // a DIFFERENT vertex becomes aft-most. Averaging the ring measures the pipe
+  // rather than the winner of a race between its vertices.
+  // (Two cans are mirror images, so one side is the whole story, and picking a
+  // side is what keeps the x tests unambiguous.)
+  const tip = (over) => {
+    const M = engMeshBuild(Object.assign({}, base, over));
+    // BY ORDER, not by sign: the builder emits port first. Selecting on x < 0
+    // looked equivalent and is not — a big enough left/right offset carries
+    // the port outlet across the centreline, and the filter then dropped the
+    // very case under test.
+    const outs = M.ports.exhaustOut || [];
+    const cans = M.parts.filter(p => p.name === 'collector').length;
+    return { p: outs[0] || null, cans, M };
+  };
+  const d = tip({});
+  hard('the collector has a tailpipe to measure', !!d.p);
+  if (d.p) {
+    const up = tip({ exAim: 1 }), lf = tip({ exAim: 2 }), rt = tip({ exAim: 3 });
+    hard('outlet aimed UP leaves higher than aimed DOWN',
+         up.p[1] > d.p[1], f(d.p[1], 3) + ' -> ' + f(up.p[1], 3));
+    hard('outlet aimed LEFT leaves further to port',
+         lf.p[0] < d.p[0], f(d.p[0], 3) + ' -> ' + f(lf.p[0], 3));
+    hard('outlet aimed RIGHT leaves further to starboard',
+         rt.p[0] > lf.p[0], f(lf.p[0], 3) + ' -> ' + f(rt.p[0], 3));
+    // ...and it moves on all three axes, each one on its own
+    const mx = tip({ exOutX: 1 }), my = tip({ exOutY: 1 }), mz = tip({ exOutZ: -1 });
+    hard('the outlet moves left/right', mx.p[0] > d.p[0] + 1e-6,
+         f(d.p[0], 3) + ' -> ' + f(mx.p[0], 3));
+    hard('the outlet moves up/down', my.p[1] > d.p[1] + 1e-6,
+         f(d.p[1], 3) + ' -> ' + f(my.p[1], 3));
+    hard('the outlet moves fore/aft', mz.p[2] < d.p[2] - 1e-6,
+         f(d.p[2], 3) + ' -> ' + f(mz.p[2], 3));
+    // ...and each offset moves its OWN axis, EXACTLY and alone. Measuring the
+    // published outlet rather than the mesh is what makes "exactly" available:
+    // an earlier cut inferred the point from the aft-most vertices and read
+    // the left/right row as moving the outlet 0.052 left and 0.023 AFT, which
+    // looks like the rows being crossed and was the flared lip and the tilted
+    // end ring. The pipe is drawn to this point; the drawing is checked below.
+    const bore = base.bore;
+    const only = (m, ax) => {
+      const dd = [0, 1, 2].map(k => m.p[k] - d.p[k]);
+      const other = Math.max(...dd.map(Math.abs).filter((_, k) => k !== ax));
+      return { ok: Math.abs(Math.abs(dd[ax]) - bore) < 1e-9 && other < 1e-9,
+               txt: dd.map(x => f(x, 4)).join(' / ') + '  (bore ' + f(bore, 4) + ')' };
+    };
+    const dx = only(mx, 0), dy = only(my, 1), dz = only(mz, 2);
+    hard('the left/right offset moves the outlet left/right, and only that',
+         dx.ok, dx.txt);
+    hard('the up/down offset moves it up/down, and only that', dy.ok, dy.txt);
+    hard('the fore/aft offset moves it fore/aft, and only that', dz.ok, dz.txt);
+
+    // AND THE PIPE IS ACTUALLY DRAWN THERE. The published point would be a
+    // claim about nothing if the geometry ignored it, so the collector's own
+    // vertices have to reach it — within the tailpipe's radius, because the
+    // outlet is the centre of a lipped mouth and not a vertex.
+    const near = (m) => {
+      let best = Infinity;
+      for (const p of m.M.parts) {
+        if (p.name !== 'collector') continue;
+        for (let i = p.v0; i < p.v1; i++) {
+          const q = m.M.V[i];
+          best = Math.min(best, Math.hypot(q[0] - m.p[0], q[1] - m.p[1],
+                                           q[2] - m.p[2]));
+        }
+      }
+      return best;
+    };
+    hard('the collector is drawn to its published outlet', near(d) < 0.35 * bore,
+         f(near(d), 4) + ' m from the mouth');
+    hard('...and still is when the outlet is moved', near(mz) < 0.35 * bore,
+         f(near(mz), 4) + ' m');
+  }
+  // ONE COLLECTOR OR TWO, and every cylinder still has a pipe either way
+  const two = tip({}), one = tip({ exOut: 1 });
+  hard('two collectors by default', two.cans === 2, String(two.cans));
+  hard('one collector when asked', one.cans === 1, String(one.cans));
+  const nExh1 = one.M.parts.filter(p => /^exhaust\d+$/.test(p.name)).length;
+  hard('a single collector still takes every cylinder\'s stack',
+       nExh1 === one.M.resolved.cyl, nExh1 + ' of ' + one.M.resolved.cyl);
+}
+
 console.log();
 // THE VERDICT CONTRACT (G67.1): this checker joins the battery, and the
 // runner requires BOTH signals — the line and the exit code.

@@ -400,6 +400,121 @@ const dispose = o => {
   if (o.parent) o.parent.remove(o);
 };
 
+// ---------------------------------------------------------------------------
+// THE COWL FOLLOWS THE ENGINE (G154)
+// ---------------------------------------------------------------------------
+// The user's scope, and it is deliberately small: "What we mainly want is a
+// round open cowl for rotary engines, properly calibrated. In the cases of the
+// nose mounted boxer engines, the default shape with 2 side openings is
+// alright, the default from the initial bench tool."
+//
+// So ONE architecture changes anything. The other three are `null`, and that
+// null is A DECISION RECORDED, not a gap: it says the default this layer
+// already ships is the right cowl for that engine, so a reader does not have
+// to wonder whether the case was considered.
+//
+// CALIBRATED, NOT COPIED. The bench's "NACA cowl, radial" preset is the shape
+// the user approved, but its numbers are one aeroplane's. What makes a cowl
+// fit a RADIAL is that it clears the cylinder heads, so the size comes from
+// the engine: `_eng_gen.js` publishes `env.radius` with the comment "what a
+// cowl actually needs: the radius that encloses everything, about the
+// THRUSTLINE". This reads exactly that and derives the taper, the length and
+// the inlet from it. The static half below is only the SHAPE — round section,
+// blunt lid, rolled lip, no scoop — which is the same on every radial.
+//
+// WHAT IT DOES NOT TOUCH: `aftW`/`aftH`. The cowl's back end is the firewall
+// and stays the firewall (fitNose owns those two). It sets `fitNose` to
+// SEALED instead of FITTED, because a radial cowl is round and a fitted cowl
+// takes its section from the fuselage — on a boxy nose that would square the
+// very thing being asked for. Sealed keeps the firewall's SIZE and lets the
+// tool's own round section stand.
+//
+// The CUT-OUT is deliberately not set. `cw_cutSpan` / `cw_cutAz` already exist
+// as rows ("Cut-out span (horseshoe)"), which is the old-aeroplane look the
+// user remembered, and it is a STYLE choice rather than something an engine
+// implies — a Camel has one and a DC-3 does not.
+const COWL_CLEAR = 0.06;          // 6% over the engine's own enclosing radius
+const COWL_TAPER_LO = 0.3, COWL_TAPER_HI = 1.15;   // the row's own range
+const COWL_BY_ARCH = {
+  flat: null, inline: null, electric: null,
+  radial: {
+    fitNose: 2,                        // sealed: firewall size, round section
+    // ROUND, and level: no deck rise, no keel sweep, no waist
+    cw_sqAftTop: 0.5, cw_sqAftBot: 0.5, cw_sqFrontTop: 0.5, cw_sqFrontBot: 0.5,
+    cw_lidSqTop: 0.5, cw_lidSqBot: 0.5,
+    cw_deckH: 1, cw_keelH: 1, cw_waist: 0,
+    cw_lidRise: 0, cw_faceRise: 0,
+    cw_keelSweep: 0, cw_deckSweep: 0, cw_waistSweep: 0,
+    // a blunt lid rolled straight into a big annular inlet
+    cw_lidMode: 0, cw_lidRound: 0.85, cw_lidShoulder: 0.3,
+    cw_apMode: 1, cw_apSq: 0.5, cw_apOffX: 0, cw_apOffY: 0,
+    cw_lipMode: 1, cw_lipThick: 0.030, cw_lipProtrude: 0.7, cw_lipInset: 0.06,
+    cw_lipDepth: 0.17, cw_lipRound: 0.75, cw_ductLen: 0.26,
+    // nothing bulges, and nothing hangs underneath: a radial's cooling air
+    // goes through the ring, not through a chin scoop
+    cw_lobeN: 0, cw_scoopOn: 0,
+  },
+};
+
+// PURE, so the gate can exercise it without a browser. Returns the cage keys
+// to write and a NOTE when the firewall cannot be made to clear the engine —
+// which is a real outcome (a 1.2 m radial on a 0.6 m nose) and is reported
+// rather than silently drawn with the cylinders through the shell.
+window.CAGE_COWL_FOR_ENGINE = function (arch, env, face) {
+  const base = COWL_BY_ARCH[arch];
+  if (!base || !env || !face || !(env.radius > 0)) return null;
+  const vals = Object.assign({}, base);
+  const aftW = Math.max(1e-3, face.halfW), aftH = Math.max(1e-3, face.halfH);
+  const need = env.radius * (1 + COWL_CLEAR);
+  const cl = v => Math.max(COWL_TAPER_LO, Math.min(COWL_TAPER_HI, v));
+  // ROUND THE TAPER UP TO THE ROW'S OWN STEP, never to nearest. The row moves
+  // in 0.01, and a taper of 1.1433 written back as 1.14 makes the barrel
+  // 1.368 m across where the engine needs 1.372 — four millimetres of cylinder
+  // head outside the cowl, produced by the rounding alone. GATE COWL caught
+  // exactly that. Ceiling first, then clamp, so the cap still holds.
+  const ceil2 = v => Math.ceil(v * 100 - 1e-9) / 100;
+  vals.cw_taperW = cl(ceil2(need / aftW));
+  vals.cw_taperH = cl(ceil2(need / aftH));
+  // the barrel runs the engine's own length, plus a little for the lip roll
+  vals.cw_cowlLen = +Math.max(0.05, Math.min(2, env.length * 1.10)).toFixed(3);
+  // proportions taken from the preset the user approved, expressed against the
+  // size this engine actually needs rather than against that aeroplane's
+  const front = Math.min(aftW * vals.cw_taperW, aftH * vals.cw_taperH);
+  vals.cw_lidLen = +Math.max(0.02, Math.min(1, vals.cw_cowlLen * 0.30)).toFixed(3);
+  vals.cw_lidR = +Math.max(0.005, Math.min(0.55, front * 0.23)).toFixed(3);
+  vals.cw_apW = +Math.max(0.02, Math.min(0.7, front * 0.58)).toFixed(3);
+  vals.cw_apH = vals.cw_apW;
+  const note = front + 1e-9 < need
+    ? 'radial cowl: the firewall is too small — ' + (front * 2).toFixed(2) +
+      ' m across where this engine needs ' + (need * 2).toFixed(2) + ' m'
+    : null;
+  return { vals, note, need, front };
+};
+
+// The starter fires on a CHANGE of architecture, exactly as `engPreset` fires
+// on a change of preset: it writes the rows once and every one of them stays
+// the builder's afterwards. It deliberately does NOT fire on the first build
+// of a session — a loaded aeroplane carries its own cowl, and re-deriving it
+// would overwrite the shape somebody saved.
+let lastArch = null;
+function cowlForEngine(P, face, stat) {
+  const specOf = window.CAGE_ENG_SPEC, EG2 = window.ENG_GEN;
+  if (!specOf || !EG2 || !EG2.engResolve || !+P.engOn) return;
+  let spec, R;
+  try { spec = specOf(P); R = EG2.engResolve(spec); } catch (e) { return; }
+  const arch = spec && spec.arch;
+  if (!arch) return;
+  if (lastArch === null) { lastArch = arch; return; }
+  if (arch === lastArch) return;
+  lastArch = arch;
+  const got = window.CAGE_COWL_FOR_ENGINE(arch, R.env, face);
+  if (!got) return;
+  for (const k in got.vals) if (P[k] !== undefined) P[k] = got.vals[k];
+  const UI = window.CAGE_UI;
+  if (UI && UI.syncSliders) UI.syncSliders();
+  if (got.note && stat) stat.textContent += '  ·  ' + got.note;
+}
+
 const prevPost = PAGE.post;
 PAGE.post = ctx => {
   if (prevPost) prevPost(ctx);
@@ -417,6 +532,14 @@ PAGE.post = ctx => {
                   : null;
   const face = Object.assign({}, station,
     prof ? { uv: prof.uv, waist: prof.waist } : { uv: null, waist: 0 });
+
+  // G154: BEFORE the values are pushed, not after. The engine layer's post
+  // runs AFTER this one (build.js MANIFEST.editor order), so applying the
+  // starter there would leave the cowl a build behind its own engine — the
+  // staleness the manifest's own comments warn about twice. It runs here, with
+  // the firewall just measured and the panel's values not yet copied, so the
+  // cowl this frame draws is the cowl the new engine asked for.
+  cowlForEngine(P, face, stat);
 
   // push the panel's values into the cowl's own parameter set
   for (const k of SHOWN) {

@@ -342,6 +342,111 @@ ok('  ...and reports that it already fits', big.fits);
   delete global.THREE;
 }
 
+// ---- 3. THE COWL FOLLOWS THE ENGINE (G154) --------------------------------
+// The user's scope: a round open cowl for radials, properly calibrated; the
+// boxer keeps the bench default. So the properties to hold are (a) exactly one
+// architecture changes anything, (b) what it produces CLEARS the engine, and
+// (c) the size comes from the ENGINE rather than a copied literal — the last
+// being the whole difference between "calibrated" and "a preset".
+//
+// `_cage_cowl.js` is a browser layer, but its module scope touches no THREE
+// (the materials are lazy, behind `mats()`), so a `window` carrying the two
+// tables it reads is enough to load it and get the pure function out.
+{
+  const rowsSrc = fs.readFileSync(path.join(__dirname, '_cowl_rows.js'), 'utf8');
+  const COWL_ROWS = new Function(rowsSrc + '\nreturn COWL_ROWS;')();
+  const win = { COWL_GEN: C, COWL_ROWS, CAGE_PAGE: {} };
+  const layer = fs.readFileSync(path.join(__dirname, '_cage_cowl.js'), 'utf8');
+  new Function('window', 'document', layer)(win, { getElementById: () => null });
+  const FOR = win.CAGE_COWL_FOR_ENGINE;
+  ok('the cowl layer publishes its engine rule', typeof FOR === 'function');
+
+  if (typeof FOR === 'function') {
+    // A SMALL radial for the fitting case and a BIG one for the comparison,
+    // both clear of the taper's 1.15 cap on this firewall — a fixture sitting
+    // ON the cap would compare 1.15 against 1.15 and prove nothing about
+    // whether the size is derived at all.
+    const radial = engResolve({ arch: 'radial', cyl: 7, bore: 0.115,
+                                stroke: 0.130, rpm: 2200 });
+    const flat = engResolve({ arch: 'flat', cyl: 4, bore: 0.103,
+                              stroke: 0.098, rpm: 2300 });
+    const bigFace = { halfW: 0.62, halfH: 0.62 };
+    const smallFace = { halfW: 0.30, halfH: 0.28 };
+
+    ok("a boxer keeps the bench default (the user's own ruling)",
+       FOR('flat', flat.env, bigFace) === null);
+    ok('...and so do inline and electric',
+       FOR('inline', flat.env, bigFace) === null &&
+       FOR('electric', flat.env, bigFace) === null);
+
+    const r = FOR('radial', radial.env, bigFace);
+    ok('a radial gets a cowl', !!r);
+    if (r) {
+      ok('it is SEALED, not fitted — a fitted cowl takes the fuselage section ' +
+         'and would square the round cowl being asked for',
+         r.vals.fitNose === 2);
+      ok('its section is round at both ends',
+         r.vals.cw_sqAftTop === 0.5 && r.vals.cw_sqFrontTop === 0.5 &&
+         r.vals.cw_sqAftBot === 0.5 && r.vals.cw_sqFrontBot === 0.5);
+      ok("one annular inlet on the axis, not the boxer's pair",
+         r.vals.cw_apMode === 1 && r.vals.cw_apSq === 0.5);
+      ok('a rolled lip, and no chin scoop',
+         r.vals.cw_lipMode === 1 && r.vals.cw_scoopOn === 0);
+      ok("it does not touch the firewall size — that is fitNose's",
+         r.vals.cw_aftW === undefined && r.vals.cw_aftH === undefined);
+      ok('it leaves the CUT-OUT alone: an engine implies a size, not a style',
+         r.vals.cw_cutSpan === undefined && r.vals.cw_cutAz === undefined);
+      ok('THE BARREL CLEARS THE ENGINE', r.front >= r.need - 1e-9,
+         f(r.front * 2) + ' m across vs ' + f(r.need * 2) + ' needed');
+      ok('...with a real clearance over the heads, not a hug',
+         r.need > radial.env.radius, f(r.need) + ' vs ' + f(radial.env.radius));
+      ok('no note when it fits', r.note === null);
+    }
+
+    // CALIBRATED, NOT COPIED: a bigger engine must give a bigger cowl off the
+    // SAME firewall. A copied literal would produce identical numbers twice.
+    const big = engResolve({ arch: 'radial', cyl: 9, bore: 0.20,
+                             stroke: 0.22, rpm: 1800 });
+    const rb = FOR('radial', big.env, bigFace);
+    ok('a bigger radial takes a wider barrel off the same firewall',
+       !!rb && r && rb.vals.cw_taperW > r.vals.cw_taperW,
+       r ? 'taper ' + r.vals.cw_taperW + ' -> ' + rb.vals.cw_taperW : '');
+    ok('...and a longer one', !!rb && r && rb.vals.cw_cowlLen > r.vals.cw_cowlLen,
+       r ? f(r.vals.cw_cowlLen) + ' -> ' + f(rb.vals.cw_cowlLen) : '');
+
+    // IT STILL LOOKS LIKE THE PRESET THE USER APPROVED. The shape was taken
+    // from "NACA cowl, radial" and the SIZE was replaced by a derivation, so
+    // the thing that could quietly drift is the PROPORTIONS — and those are
+    // the whole of why that preset was the one that read right ("most were
+    // rubbish, but the radial one was OK"). Held against the preset's own
+    // numbers rather than against three constants written down here, so
+    // editing the constants without re-deriving from the preset goes red.
+    const NACA = C.PRESETS && C.PRESETS['NACA cowl, radial'];
+    ok('the approved radial preset is still in the table', !!NACA);
+    if (NACA && r) {
+      const q = NACA.p, pFront = q.aftW * q.taperW;
+      const band = (a, b, tol, what) =>
+        ok('proportion holds: ' + what, Math.abs(a - b) <= tol,
+           f(a, 3) + ' vs the preset\'s ' + f(b, 3));
+      band(r.vals.cw_apW / r.front, q.apW / pFront, 0.02, 'inlet / barrel');
+      band(r.vals.cw_lidR / r.front, q.lidR / pFront, 0.02, 'lid radius / barrel');
+      band(r.vals.cw_lidLen / r.vals.cw_cowlLen, q.lidLen / q.cowlLen, 0.02,
+           'lid length / cowl length');
+    }
+
+    // AND IT SAYS SO WHEN IT CANNOT. A small nose cannot wear a big radial;
+    // drawing the cylinders through the shell in silence is the failure this
+    // reports instead.
+    const tight = FOR('radial', big.env, smallFace);
+    ok('a firewall too small for the engine is REPORTED, not drawn silently',
+       !!tight && typeof tight.note === 'string' && tight.note.length > 0,
+       tight && tight.note ? tight.note : '(no note)');
+    ok("...and the taper still stops at the row's own limit",
+       !!tight && tight.vals.cw_taperW <= 1.15 + 1e-9,
+       tight ? String(tight.vals.cw_taperW) : '');
+  }
+}
+
 // THE VERDICT CONTRACT (G67.1): this checker joins the battery, and the
 // runner requires BOTH signals — the line and the exit code.
 if (fail) console.log('\n  ' + fail + ' check(s) failed');

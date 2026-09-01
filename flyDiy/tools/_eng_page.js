@@ -190,6 +190,15 @@ const ENG_GROUPS = [
     ['exStyle', 'exhaust',    'drop', [[0, 'off'], [1, 'stacks'],
                                        [2, 'collector'], [3, 'expansion']]],
     ['exDrop',  'stack drop', 0.6, 2.6, 0.02],
+    // G155: the collector's OUTLET. Where the pipe leaves is a real choice on
+    // a real aeroplane and was one hardcoded point here.
+    ['exOut',   'collectors', 'drop', [[2, 'one under each bank'],
+                                       [1, 'one, both banks into it']]],
+    ['exAim',   'outlet points', 'drop', [[0, 'down'], [1, 'up'],
+                                          [2, 'left'], [3, 'right']]],
+    ['exOutX',  'outlet left/right', -2, 2, 0.05],
+    ['exOutY',  'outlet up/down',    -2, 2, 0.05],
+    ['exOutZ',  'outlet fore/aft',   -2, 2, 0.05],
   ], isPiston],
   ['ignition + accessories', [
     ['leads',   'plug leads', 'check'],

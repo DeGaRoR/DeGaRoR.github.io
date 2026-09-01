@@ -16723,7 +16723,9 @@ const CAGE_PARTS = [
                           'eng_rockerBossW', 'eng_rodPos', 'eng_finShape',
                           'eng_rockerSpan', 'eng_baseFins']],
       ['induction + exhaust', ['eng_injected', 'eng_airStyle', 'eng_airbox',
-                               'eng_intake', 'eng_exStyle', 'eng_exDrop']],
+                               'eng_intake', 'eng_exStyle', 'eng_exDrop',
+                               'eng_exOut', 'eng_exAim', 'eng_exOutX',
+                               'eng_exOutY', 'eng_exOutZ']],
       ['ignition + accessories', ['eng_leads', 'eng_leadR', 'eng_mags',
                                   'eng_genOn', 'eng_oilFill']],
       ['radiator', ['eng_radX', 'eng_radY', 'eng_radZ', 'eng_radW', 'eng_radH',
@@ -31289,6 +31291,17 @@ const EM = (() => {
     intake: 1,         // intake risers, sump plenum -> head bottom aft
     exStyle: 1,        // 0 none · 1 short stacks · 2 collector per side
     exDrop: 1.5,       // stack drop below the sump, / bore
+    // G155: WHERE THE EXHAUST LEAVES. The collector's tailpipe used to end at
+    // one hardcoded point — down and aft — which is where it goes on most
+    // aeroplanes and nowhere near where it goes on the rest. These four say it
+    // instead. THE DEFAULTS REPRODUCE THE OLD PIPE EXACTLY: exAim 0 is 'down'
+    // and the offsets are zero, so an engine that says nothing is drawn as it
+    // always was, which is what keeps GATE ENGMESH's frozen engines frozen.
+    exOut: 2,          // collectors: 2 (one per bank) or 1 (both banks into one)
+    exAim: 0,          // outlet points: 0 down · 1 up · 2 left · 3 right
+    exOutX: 0,         // outlet offset, left/right, / bore
+    exOutY: 0,         // outlet offset, up/down,    / bore
+    exOutZ: 0,         // outlet offset, fore/aft,   / bore
     leads: 1,          // ignition harness: 2 plugs + 2 leads per cylinder
     leadR: 0.034,      // lead radius / bore
     mags: 1,           // two magnetos on the accessory case
@@ -33420,8 +33433,16 @@ const EM = (() => {
 
     // ---- collector exhaust: per side, stacks merge into one pipe aft ------
     if (P.exStyle === 2 && !inline && !radial) {
-      for (const sx of [-1, 1]) {
-        const side = cyls.filter(c => c.sx === sx);
+      // G155: ONE COLLECTOR OR TWO. Two (the default) is a can under each
+      // bank, as before. One is a single can under the port bank that BOTH
+      // banks feed — a real arrangement, and the reason the knee below reads
+      // the CYLINDER's own side rather than the collector's: with one can the
+      // starboard stacks have to come down on their own side first and cross
+      // under the sump, which is exactly what they do on the aeroplane.
+      // With two cans `c.sx === sx` throughout, so the drawing is unchanged.
+      const oneCan = Math.round(P.exOut) === 1;
+      for (const sx of (oneCan ? [-1] : [-1, 1])) {
+        const side = oneCan ? cyls : cyls.filter(c => c.sx === sx);
         if (!side.length) continue;
         const colY = sumpY - 0.75 * P.exDrop * b;
         const colX = sx * 0.55 * cR;
@@ -33430,7 +33451,7 @@ const EM = (() => {
         for (const c of side) {
           part('exhaust' + c.i, 'tube');
           const jn = [colX, colY, c.z - 0.35 * b];    // plunges into the collector
-          const knee = [sx * (c.finTop - 0.30 * b), -cR - L.sump * 0.4, c.z - 0.42 * b];
+          const knee = [c.sx * (c.finTop - 0.30 * b), -cR - L.sump * 0.4, c.z - 0.42 * b];
           const path = fillet([c.exhaustP, knee, jn], 0.7 * b);
           artery('exhaust' + c.i, 'head' + c.i, 'collector',
             sweep(path, 0.17 * b, ENGM_MAT.exhaust,
@@ -33440,9 +33461,28 @@ const EM = (() => {
         // a tapered can: domed nose, straight run the stacks plunge into,
         // then a reduced tailpipe bending down and aft to an open lip
         const colR = 0.23 * b;
+        // G155: THE OUTLET IS PLACED, NOT ASSUMED. The tailpipe leaves the can
+        // in the aimed direction and then wherever the three offsets put it.
+        // `AIM` is in the ENGINE's frame, which is the aeroplane's: -x is the
+        // pilot's left, +y up, -z aft. exAim 0 with zero offsets reproduces the
+        // old point [colX, colY - 0.35b, zMin - 1.6b] exactly.
+        const AIM = [[0, -1], [0, 1], [-1, 0], [1, 0]];   // down up left right
+        const am = AIM[Math.max(0, Math.min(3, Math.round(P.exAim)))];
+        const outEnd = [colX + (am[0] * 0.35 + P.exOutX) * b,
+                        colY + (am[1] * 0.35 + P.exOutY) * b,
+                        zMin - 1.6 * b + P.exOutZ * b];
+        // PUBLISHED, beside the per-cylinder ports: this is where the gas
+        // actually leaves the aeroplane, and two things want it that cannot
+        // find it by looking at the mesh. The soot streak (G70) is sourced
+        // from "the MEASURED exhaust exit" and has had only the head ports to
+        // measure; and a cowl that ever cuts an opening for the pipe needs the
+        // point, not a picture of it. The mesh's own end ring cannot answer:
+        // the tailpipe ends in a flared lip, so its aft-most vertices sit
+        // outboard of the pipe's centre by the lip's own radius.
+        (ports.exhaustOut || (ports.exhaustOut = [])).push(outEnd.slice());
         const pC = fillet([[colX, colY, zMax + 0.3 * b],
                            [colX, colY, zMin - 0.5 * b],
-                           [colX, colY - 0.35 * b, zMin - 1.6 * b]], 1.0 * b);
+                           outEnd], 1.0 * b);
         const rrC = pC.map((_, k) => {
           if (k === 0) return 0.55 * colR;
           if (k === 1) return 0.85 * colR;
@@ -34105,6 +34145,15 @@ const ENG_GROUPS = [
     ['exStyle', 'exhaust',    'drop', [[0, 'off'], [1, 'stacks'],
                                        [2, 'collector'], [3, 'expansion']]],
     ['exDrop',  'stack drop', 0.6, 2.6, 0.02],
+    // G155: the collector's OUTLET. Where the pipe leaves is a real choice on
+    // a real aeroplane and was one hardcoded point here.
+    ['exOut',   'collectors', 'drop', [[2, 'one under each bank'],
+                                       [1, 'one, both banks into it']]],
+    ['exAim',   'outlet points', 'drop', [[0, 'down'], [1, 'up'],
+                                          [2, 'left'], [3, 'right']]],
+    ['exOutX',  'outlet left/right', -2, 2, 0.05],
+    ['exOutY',  'outlet up/down',    -2, 2, 0.05],
+    ['exOutZ',  'outlet fore/aft',   -2, 2, 0.05],
   ], isPiston],
   ['ignition + accessories', [
     ['leads',   'plug leads', 'check'],
@@ -35874,6 +35923,121 @@ const dispose = o => {
   if (o.parent) o.parent.remove(o);
 };
 
+// ---------------------------------------------------------------------------
+// THE COWL FOLLOWS THE ENGINE (G154)
+// ---------------------------------------------------------------------------
+// The user's scope, and it is deliberately small: "What we mainly want is a
+// round open cowl for rotary engines, properly calibrated. In the cases of the
+// nose mounted boxer engines, the default shape with 2 side openings is
+// alright, the default from the initial bench tool."
+//
+// So ONE architecture changes anything. The other three are `null`, and that
+// null is A DECISION RECORDED, not a gap: it says the default this layer
+// already ships is the right cowl for that engine, so a reader does not have
+// to wonder whether the case was considered.
+//
+// CALIBRATED, NOT COPIED. The bench's "NACA cowl, radial" preset is the shape
+// the user approved, but its numbers are one aeroplane's. What makes a cowl
+// fit a RADIAL is that it clears the cylinder heads, so the size comes from
+// the engine: `_eng_gen.js` publishes `env.radius` with the comment "what a
+// cowl actually needs: the radius that encloses everything, about the
+// THRUSTLINE". This reads exactly that and derives the taper, the length and
+// the inlet from it. The static half below is only the SHAPE — round section,
+// blunt lid, rolled lip, no scoop — which is the same on every radial.
+//
+// WHAT IT DOES NOT TOUCH: `aftW`/`aftH`. The cowl's back end is the firewall
+// and stays the firewall (fitNose owns those two). It sets `fitNose` to
+// SEALED instead of FITTED, because a radial cowl is round and a fitted cowl
+// takes its section from the fuselage — on a boxy nose that would square the
+// very thing being asked for. Sealed keeps the firewall's SIZE and lets the
+// tool's own round section stand.
+//
+// The CUT-OUT is deliberately not set. `cw_cutSpan` / `cw_cutAz` already exist
+// as rows ("Cut-out span (horseshoe)"), which is the old-aeroplane look the
+// user remembered, and it is a STYLE choice rather than something an engine
+// implies — a Camel has one and a DC-3 does not.
+const COWL_CLEAR = 0.06;          // 6% over the engine's own enclosing radius
+const COWL_TAPER_LO = 0.3, COWL_TAPER_HI = 1.15;   // the row's own range
+const COWL_BY_ARCH = {
+  flat: null, inline: null, electric: null,
+  radial: {
+    fitNose: 2,                        // sealed: firewall size, round section
+    // ROUND, and level: no deck rise, no keel sweep, no waist
+    cw_sqAftTop: 0.5, cw_sqAftBot: 0.5, cw_sqFrontTop: 0.5, cw_sqFrontBot: 0.5,
+    cw_lidSqTop: 0.5, cw_lidSqBot: 0.5,
+    cw_deckH: 1, cw_keelH: 1, cw_waist: 0,
+    cw_lidRise: 0, cw_faceRise: 0,
+    cw_keelSweep: 0, cw_deckSweep: 0, cw_waistSweep: 0,
+    // a blunt lid rolled straight into a big annular inlet
+    cw_lidMode: 0, cw_lidRound: 0.85, cw_lidShoulder: 0.3,
+    cw_apMode: 1, cw_apSq: 0.5, cw_apOffX: 0, cw_apOffY: 0,
+    cw_lipMode: 1, cw_lipThick: 0.030, cw_lipProtrude: 0.7, cw_lipInset: 0.06,
+    cw_lipDepth: 0.17, cw_lipRound: 0.75, cw_ductLen: 0.26,
+    // nothing bulges, and nothing hangs underneath: a radial's cooling air
+    // goes through the ring, not through a chin scoop
+    cw_lobeN: 0, cw_scoopOn: 0,
+  },
+};
+
+// PURE, so the gate can exercise it without a browser. Returns the cage keys
+// to write and a NOTE when the firewall cannot be made to clear the engine —
+// which is a real outcome (a 1.2 m radial on a 0.6 m nose) and is reported
+// rather than silently drawn with the cylinders through the shell.
+window.CAGE_COWL_FOR_ENGINE = function (arch, env, face) {
+  const base = COWL_BY_ARCH[arch];
+  if (!base || !env || !face || !(env.radius > 0)) return null;
+  const vals = Object.assign({}, base);
+  const aftW = Math.max(1e-3, face.halfW), aftH = Math.max(1e-3, face.halfH);
+  const need = env.radius * (1 + COWL_CLEAR);
+  const cl = v => Math.max(COWL_TAPER_LO, Math.min(COWL_TAPER_HI, v));
+  // ROUND THE TAPER UP TO THE ROW'S OWN STEP, never to nearest. The row moves
+  // in 0.01, and a taper of 1.1433 written back as 1.14 makes the barrel
+  // 1.368 m across where the engine needs 1.372 — four millimetres of cylinder
+  // head outside the cowl, produced by the rounding alone. GATE COWL caught
+  // exactly that. Ceiling first, then clamp, so the cap still holds.
+  const ceil2 = v => Math.ceil(v * 100 - 1e-9) / 100;
+  vals.cw_taperW = cl(ceil2(need / aftW));
+  vals.cw_taperH = cl(ceil2(need / aftH));
+  // the barrel runs the engine's own length, plus a little for the lip roll
+  vals.cw_cowlLen = +Math.max(0.05, Math.min(2, env.length * 1.10)).toFixed(3);
+  // proportions taken from the preset the user approved, expressed against the
+  // size this engine actually needs rather than against that aeroplane's
+  const front = Math.min(aftW * vals.cw_taperW, aftH * vals.cw_taperH);
+  vals.cw_lidLen = +Math.max(0.02, Math.min(1, vals.cw_cowlLen * 0.30)).toFixed(3);
+  vals.cw_lidR = +Math.max(0.005, Math.min(0.55, front * 0.23)).toFixed(3);
+  vals.cw_apW = +Math.max(0.02, Math.min(0.7, front * 0.58)).toFixed(3);
+  vals.cw_apH = vals.cw_apW;
+  const note = front + 1e-9 < need
+    ? 'radial cowl: the firewall is too small — ' + (front * 2).toFixed(2) +
+      ' m across where this engine needs ' + (need * 2).toFixed(2) + ' m'
+    : null;
+  return { vals, note, need, front };
+};
+
+// The starter fires on a CHANGE of architecture, exactly as `engPreset` fires
+// on a change of preset: it writes the rows once and every one of them stays
+// the builder's afterwards. It deliberately does NOT fire on the first build
+// of a session — a loaded aeroplane carries its own cowl, and re-deriving it
+// would overwrite the shape somebody saved.
+let lastArch = null;
+function cowlForEngine(P, face, stat) {
+  const specOf = window.CAGE_ENG_SPEC, EG2 = window.ENG_GEN;
+  if (!specOf || !EG2 || !EG2.engResolve || !+P.engOn) return;
+  let spec, R;
+  try { spec = specOf(P); R = EG2.engResolve(spec); } catch (e) { return; }
+  const arch = spec && spec.arch;
+  if (!arch) return;
+  if (lastArch === null) { lastArch = arch; return; }
+  if (arch === lastArch) return;
+  lastArch = arch;
+  const got = window.CAGE_COWL_FOR_ENGINE(arch, R.env, face);
+  if (!got) return;
+  for (const k in got.vals) if (P[k] !== undefined) P[k] = got.vals[k];
+  const UI = window.CAGE_UI;
+  if (UI && UI.syncSliders) UI.syncSliders();
+  if (got.note && stat) stat.textContent += '  ·  ' + got.note;
+}
+
 const prevPost = PAGE.post;
 PAGE.post = ctx => {
   if (prevPost) prevPost(ctx);
@@ -35891,6 +36055,14 @@ PAGE.post = ctx => {
                   : null;
   const face = Object.assign({}, station,
     prof ? { uv: prof.uv, waist: prof.waist } : { uv: null, waist: 0 });
+
+  // G154: BEFORE the values are pushed, not after. The engine layer's post
+  // runs AFTER this one (build.js MANIFEST.editor order), so applying the
+  // starter there would leave the cowl a build behind its own engine — the
+  // staleness the manifest's own comments warn about twice. It runs here, with
+  // the firewall just measured and the panel's values not yet copied, so the
+  // cowl this frame draws is the cowl the new engine asked for.
+  cowlForEngine(P, face, stat);
 
   // push the panel's values into the cowl's own parameter set
   for (const k of SHOWN) {
@@ -36098,6 +36270,11 @@ const engSpecOfP = (P) => {
   spec.arch = archOf(P);
   return spec;
 };
+// G154: published so the COWL can ask what engine it is wrapping. The cowl
+// layer's post runs BEFORE this one, so it cannot wait to be told — it reads
+// the spec itself and resolves the envelope. One description of what the
+// engine is, not two.
+window.CAGE_ENG_SPEC = engSpecOfP;
 
 // THE PRESET'S OWN DIAL DICT — applyEngPreset's write, replayed onto a fresh
 // default without touching P. Row-backed keys only, drops through the same

@@ -134,17 +134,40 @@ first ten minutes of play, and almost all of it is small.*
 *"Build lots of small planes." The amateur range, filled. Every item is small
 or medium, and each one directly multiplies what you can build tonight.*
 
-1. **The cowl follows the engine** [M]. Presets keyed on the registry family
-   so a radial gets a radial cowl by default — the user's own "important for
-   radial geometry". The registry knows the family and the cowl layer already
-   consumes the dressed envelope (G29).
+1. ~~**The cowl follows the engine.**~~ **DONE — G154, 2026-09-02.** A radial
+   now gets a round open cowl CALIBRATED to it (from `env.radius`, which the
+   engine generator publishes as "what a cowl actually needs"); boxer, inline
+   and electric keep today's default, and that is written into the table as a
+   `null` so it reads as a decision. Fires as a starter on an architecture
+   change, overridable after. **The registry's `family` was the wrong key** —
+   it is thermodynamic, so the R-1830 radial is `family: 'four'` exactly like
+   an O-200 boxer; the engine bench's own `arch` was the right one and already
+   existed. **The CUT-OUT needed nothing** — `cw_cutSpan` / `cw_cutAz` have
+   been live editor rows all along. GATE COWL +18, and it caught a 4 mm
+   clearance bug caused by rounding the taper to nearest instead of up.
+   OWED, an honest limit: the taper caps at 1.15, so a big radial on a slim
+   fuselage cannot be enclosed and is REPORTED rather than drawn through. A
+   cowl carrying its own aft diameter and fairing back is its own chantier.
 2. **Amateur-range engine fill** [S each, M for the batch]. More radials and
    inlines as registry rows + dress; rows have been cheap since G25. **The
    in-line orientation** knob (upright / inverted / left / right) rides this
    chantier.
-3. **Exhaust, properly** [M]. Routed pipes, configurable exits, a silencer
-   option. Dress first — a declared drag or mass row only if it earns one
-   (ruling 3: honest set dressing is allowed, a fake number is not).
+3. **Exhaust, properly** — **THE OUTLET LANDED as G155, 2026-09-02.** The
+   routed pipes, the stacks, the radial ring and the per-bank collectors all
+   already existed; what did not was any say over where the pipe ENDS. Five
+   rows now: `exOut` (one can per bank or one that both feed), `exAim`
+   (down/up/left/right) and `exOutX/Y/Z` on all three axes. The defaults draw
+   the previous pipe exactly, which is why every engine in GATE ENGMESH comes
+   out at its old vertex counts. The outlet is PUBLISHED as
+   `ports.exhaustOut` — G70's soot streak has wanted that point since it was
+   written and only ever had the head ports.
+   **THE COWL CUT IS NOT ATTEMPTED**, on the user's own condition ("only if we
+   are sure we can manage to do that properly"): it is a boolean against a
+   swept tube on an analytic lofted surface, and this generator has no
+   machinery for it. The pipe leaves below or behind the cowl lip instead.
+   STILL OWED from this item: a SILENCER, and whether any of it earns a
+   declared drag row (ruling 3 — honest set dressing is allowed, a fake number
+   is not).
 4. **Registration on the wing** [S]. The plan-mode projector already exists
    (G113), so this is placement, not plumbing. Take the registration-ink row
    (G113.1) with it.
