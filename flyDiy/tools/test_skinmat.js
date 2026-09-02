@@ -1207,7 +1207,9 @@ if (process.argv.includes('--selftest')) {
   // (block and covers should be pickable)". Three groups, because an engine
   // is finished in three: the crankcase and its castings, the cylinders, and
   // the rocker covers as the accent.
-  const engRows = ['engBlock', 'engJug', 'engCover'];
+  // G156 added a FOURTH, the mount ("Color selection engine braces"), and it
+  // is deliberately not a fourth castings group — see below.
+  const engRows = ['engBlock', 'engJug', 'engCover', 'engMount'];
   for (const k of engRows)
     check(A.AERO_SEC[k] && A.AERO_SEC[k].layer === 'eng',
           'engine: ' + k + ' is not a declared section on the eng layer');
@@ -1215,6 +1217,17 @@ if (process.argv.includes('--selftest')) {
         A.AERO_SEC.engCover && A.AERO_SEC.engCover.parent === 'engJug',
         'engine: the three groups no longer inherit down the chain — a ' +
         'painted crankcase must reach the cylinders and the covers');
+  // THE MOUNT IS PAINT, NOT CASTINGS. AERO_HARD calls it "a painted steel
+  // engine mount, a dielectric", so it must bottom out on `trim` and follow
+  // the BODY — putting it under engBlock would make a painted crankcase drag
+  // the airframe's mount with it, which is not what either is.
+  check(A.AERO_SEC.engMount && A.AERO_SEC.engMount.fin === 'trim' &&
+        A.AERO_SEC.engMount.parent === 'body',
+        'engine: the mount must bottom out on trim and follow the body, not ' +
+        'the crankcase');
+  check(A.AERO_HARD && A.AERO_HARD.eng && A.AERO_HARD.eng.emMount === 'trim',
+        'engine: the hardware table no longer calls the mount painted trim — ' +
+        'the section above was written against that');
 
   // the map from the generator's own part names to those sections, parsed out
   // of the generator rather than trusted

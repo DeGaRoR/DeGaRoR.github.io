@@ -473,7 +473,7 @@ const CAGE_PARTS = [
     // are painted, and the user asked for the block and the covers by name.
     // Without this claim the three sections land in the root's 'unclaimed'
     // bucket, which is a home but not an ANSWER.
-    sections: ['engBlock', 'engJug', 'engCover'],
+    sections: ['engBlock', 'engJug', 'engCover', 'engMount'],
     groups: [
       ['fitted', ['engOn', 'engPower', 'engPreset', 'engY']],
       ['electric', ['eng_eStyle', 'eng_canD', 'eng_canL', 'eng_volts',

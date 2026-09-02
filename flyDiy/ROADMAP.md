@@ -171,10 +171,22 @@ or medium, and each one directly multiplies what you can build tonight.*
 4. **Registration on the wing** [S]. The plan-mode projector already exists
    (G113), so this is placement, not plumbing. Take the registration-ink row
    (G113.1) with it.
-5. **Recent colours remembered** in the livery editor [S]. A viewer pref, not
-   spec.
-6. **Engine braces pickable** [S]. Extends G113.4's engine-paint move to the
-   mount members.
+5. ~~**Recent colours remembered** in the livery editor.~~ **DONE — G156,
+   2026-09-02.** One strip for all forty wells, not one per row. **It opens on
+   HOVER, and that is forced rather than chosen**: a colour input opens the OS
+   picker on the CLICK, so a strip shown on focus is drawn under a modal
+   dialog exactly when it is wanted. Its own localStorage key — which colours
+   you reached for last is the person's, not the aeroplane's, and must never
+   ride a saved build. Verified live in the page, because no gate can
+   exercise a hover.
+6. ~~**Engine braces pickable.**~~ **DONE — G156.** `engMount` is a livery
+   section on the eng layer. **Not a fourth castings group**: the hardware
+   table already calls it "a painted steel engine mount", so it bottoms out on
+   `trim` and follows the BODY — a mount is painted to match the aeroplane it
+   is bolted to, and putting it under `engBlock` would let a painted crankcase
+   drag the airframe's mount with it. The rubber pucks stay rubber (G104's
+   rule). GATE SKINMAT holds the section, its finish, its parent, and the
+   hardware fact it was written against.
 7. **The decal kit** [M-L]. Ready-to-apply layered decals: stripes, two- and
    three-colour schemes, transparency, the bent fore/aft two-tone transition,
    several layers. Extends G69/G113; state extends `spec.finish.decals`. Take

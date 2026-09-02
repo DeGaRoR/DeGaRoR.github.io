@@ -16710,7 +16710,7 @@ const CAGE_PARTS = [
     // are painted, and the user asked for the block and the covers by name.
     // Without this claim the three sections land in the root's 'unclaimed'
     // bucket, which is a home but not an ANSWER.
-    sections: ['engBlock', 'engJug', 'engCover'],
+    sections: ['engBlock', 'engJug', 'engCover', 'engMount'],
     groups: [
       ['fitted', ['engOn', 'engPower', 'engPreset', 'engY']],
       ['electric', ['eng_eStyle', 'eng_canD', 'eng_canL', 'eng_volts',
@@ -36462,6 +36462,9 @@ const ENG_SEC = {
   emAcc: 'engBlock', emPad: 'engBlock',
   emBarrel: 'engJug', emFin: 'engJug', emHead: 'engJug',
   emRocker: 'engCover',
+  // G156: the braces. `emPuck` stays out — a rubber mount puck is rubber for
+  // what it does, and `emFirewall` is the airframe's, not the engine's.
+  emMount: 'engMount',
 };
 const matOf = name => {
   const A = AKM();
@@ -44449,6 +44452,120 @@ function aeroSavePrefs() {
   } catch (e) {}
 }
 aeroLoadPrefs();
+
+// ---------------------------------------------------------------------------
+// RECENT COLOURS (G156)
+// ---------------------------------------------------------------------------
+// The user: "Remember recent picked colors in the livery editor." A livery is
+// two or three colours used over and over — a fuselage, a trim, an accent —
+// and every well opened the OS picker with no memory of them, so the same
+// colour was hunted down again once per section.
+//
+// ONE STRIP, NOT ONE PER WELL. There are three kinds of colour well in this
+// file (a section's tint, a marking's ink, a pane's glass) and thirty-odd
+// instances of them; a swatch row under every one would be noise on every row
+// and three implementations of one idea. This is a single element that MOVES
+// to whichever well has the focus.
+//
+// IT IS THE PERSON'S, NOT THE AEROPLANE'S — its own key, the way `cageExpert`
+// is, and deliberately not in the spec: which colours you reached for last is
+// not a property of the aeroplane and must never ride a saved build.
+//
+// Positioned and sized INLINE rather than from editor.css, because the wells
+// are borrowed into `#edRows` in the game and stand in `#cgUi` on the benches,
+// and the strip itself hangs off <body> — outside both roots. Keying its
+// looks off a stylesheet only one of those loads is the G112 mistake exactly.
+const RECENT_PREF = 'flydiy.recentColours';
+const RECENT_N = 12;
+let RECENT = [];
+const isHex = h => typeof h === 'string' && /^#[0-9a-f]{6}$/i.test(h);
+try {
+  const j = JSON.parse(localStorage.getItem(RECENT_PREF) || '[]');
+  if (Array.isArray(j)) RECENT = j.filter(isHex).slice(0, RECENT_N);
+} catch (e) {}
+function recentPush(hex) {
+  if (!isHex(hex)) return;
+  hex = hex.toLowerCase();
+  RECENT = [hex].concat(RECENT.filter(h => h !== hex)).slice(0, RECENT_N);
+  try { localStorage.setItem(RECENT_PREF, JSON.stringify(RECENT)); } catch (e) {}
+}
+let recentEl = null, recentFor = null;
+function recentHide() { if (recentEl) recentEl.hidden = true; recentFor = null; }
+function recentShow(input) {
+  if (!RECENT.length) return;
+  if (!recentEl) {
+    recentEl = document.createElement('div');
+    recentEl.className = 'cgRecent';
+    recentEl.style.cssText = 'position:fixed;z-index:60;display:flex;gap:3px;' +
+      'padding:4px;border-radius:5px;background:#1b1d21;' +
+      'border:1px solid rgba(255,255,255,.16);box-shadow:0 4px 14px #0009';
+    recentEl.hidden = true;
+    document.body.appendChild(recentEl);
+    // a mousedown on the strip must not blur the well before the click lands
+    recentEl.addEventListener('mousedown', e => e.preventDefault());
+    // ...and the pointer has to be able to TRAVEL from the well to the strip
+    // without the leave-timer closing it on the way
+    recentEl.addEventListener('mouseenter', () => clearTimeout(recentT));
+    recentEl.addEventListener('mouseleave', () => recentLater(recentHide, HOVER_OUT));
+  }
+  recentFor = input;
+  recentEl.textContent = '';
+  for (const h of RECENT) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.title = h;
+    b.style.cssText = 'width:14px;height:14px;padding:0;border-radius:3px;' +
+      'cursor:pointer;border:1px solid rgba(255,255,255,.28);background:' + h;
+    b.onclick = () => {
+      const t = recentFor;
+      recentHide();
+      if (!t) return;
+      t.value = h;
+      // the wells listen on `oninput`; `change` is what records a pick, and
+      // both are dispatched so a swatch behaves exactly like the OS picker
+      t.dispatchEvent(new Event('input', { bubbles: true }));
+      t.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+    recentEl.appendChild(b);
+  }
+  const r = input.getBoundingClientRect();
+  recentEl.hidden = false;
+  // measured only once it is laid out, then CLAMPED to the window: these wells
+  // live in the right-hand column, so a strip hung from the left edge of one
+  // near the bottom or the right of the panel would otherwise hang off the
+  // screen. Flips above the well rather than below when there is no room.
+  const s = recentEl.getBoundingClientRect();
+  const vw = window.innerWidth || s.width, vh = window.innerHeight || s.height;
+  let x = r.left, y = r.bottom + 4;
+  if (x + s.width > vw - 6) x = Math.max(6, vw - 6 - s.width);
+  if (y + s.height > vh - 6) y = Math.max(6, r.top - 4 - s.height);
+  recentEl.style.left = Math.round(x) + 'px';
+  recentEl.style.top = Math.round(y) + 'px';
+}
+// EVERY well routes through this one call.
+//
+// IT OPENS ON HOVER, AND THAT IS THE WHOLE DESIGN — measured, not preferred.
+// A `<input type=color>` opens the OS picker on the CLICK, so a strip that
+// appeared on focus would be drawn underneath a modal dialog and be useless
+// exactly when it was wanted. Hovering happens BEFORE the click: point at the
+// well, the colours you used last appear under it, and you either take one or
+// carry on into the picker. Focus is kept as well, because it is what a
+// keyboard reaches the well with and what the OS picker returns to on close.
+//
+// `change` (not `input`) is what RECORDS: `input` fires continuously while the
+// picker is dragged and would fill the strip with the twenty shades passed on
+// the way to the one that was chosen.
+const HOVER_IN = 350, HOVER_OUT = 260;
+let recentT = 0;
+function recentLater(fn, ms) { clearTimeout(recentT); recentT = setTimeout(fn, ms); }
+function wellRecent(c) {
+  c.addEventListener('mouseenter', () => recentLater(() => recentShow(c), HOVER_IN));
+  c.addEventListener('mouseleave', () => recentLater(recentHide, HOVER_OUT));
+  c.addEventListener('focus', () => recentShow(c));
+  c.addEventListener('change', () => { recentPush(c.value); recentHide(); });
+}
+if (typeof window !== 'undefined')
+  window.CAGE_RECENT = { push: recentPush, list: () => RECENT.slice(),
+                         attach: wellRecent };
 // THE LAYERS ASK AEROSKIN, AND AEROSKIN ASKS HERE (G70). The gear, engine,
 // cowl and cabin layers must know whether the aeroplane is wearing its
 // finishes or the diagnostic palette, and none of them owns this select —
@@ -46652,6 +46769,7 @@ function applyWear(m, FS) {
 function glassWell(row, nm) {
   const c = document.createElement('input');
   c.type = 'color'; c.style.flex = 'none';
+  wellRecent(c);                                   // G156
   c.value = '#' + ((secTint[nm] != null ? secTint[nm] : GLASS.tint != null
                     ? GLASS.tint : 0xaec9d8) >>> 0).toString(16).padStart(6, '0');
   c.title = 'the tint of this pane';
@@ -46848,6 +46966,7 @@ function buildDecPanel() {
       const d = row(lab, title);
       const c = document.createElement('input');
       c.type = 'color'; c.style.flex = 'none';
+      wellRecent(c);                               // G156
       const cur = () => {
         if (DEC[key] != null) return DEC[key];
         try { const S = window.GARAGE_SPEC && window.GARAGE_SPEC.get();
@@ -47177,6 +47296,7 @@ function buildMatPanel() {
     row.appendChild(sfin);
     const col = document.createElement('input');
     col.type = 'color';
+    wellRecent(col);                               // G156
     col.style.flex = 'none'; col.style.width = '30px';
     col.title = 'tint the albedo. The colour you pick is the colour you get ' +
       '(it is converted sRGB -> linear on the way to the shader)';
@@ -51119,6 +51239,17 @@ const AERO_SEC = {
   engJug:   { parent: 'engBlock', fin: 'castAlu', label: 'the cylinders',
               layer: 'eng' },
   engCover: { parent: 'engJug',   fin: 'castAlu', label: 'the rocker covers',
+              layer: 'eng' },
+  // G156, the user: "Color selection engine braces". The MOUNT is the fourth
+  // engine group and it is not a fourth castings group: AERO_HARD already
+  // calls it `trim` — "a painted steel engine mount, a dielectric" — so it
+  // bottoms out on paint, not on cast alloy, and it follows the BODY rather
+  // than the crankcase. A mount is painted to match the aeroplane it is bolted
+  // to, which is also why `accPaint` (the fittings) is written exactly this
+  // way. The rubber pucks it holds are NOT included: a puck is rubber for what
+  // it does, which is G104's own rule and the same reason a tyre is not
+  // paintable.
+  engMount: { parent: 'body',     fin: 'trim',    label: 'the engine mount',
               layer: 'eng' },
   accPaint: { parent: 'body', fin: 'trim',      label: 'the fittings',
               layer: 'access' },

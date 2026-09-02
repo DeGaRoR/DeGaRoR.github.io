@@ -536,6 +536,17 @@ const AERO_SEC = {
               layer: 'eng' },
   engCover: { parent: 'engJug',   fin: 'castAlu', label: 'the rocker covers',
               layer: 'eng' },
+  // G156, the user: "Color selection engine braces". The MOUNT is the fourth
+  // engine group and it is not a fourth castings group: AERO_HARD already
+  // calls it `trim` — "a painted steel engine mount, a dielectric" — so it
+  // bottoms out on paint, not on cast alloy, and it follows the BODY rather
+  // than the crankcase. A mount is painted to match the aeroplane it is bolted
+  // to, which is also why `accPaint` (the fittings) is written exactly this
+  // way. The rubber pucks it holds are NOT included: a puck is rubber for what
+  // it does, which is G104's own rule and the same reason a tyre is not
+  // paintable.
+  engMount: { parent: 'body',     fin: 'trim',    label: 'the engine mount',
+              layer: 'eng' },
   accPaint: { parent: 'body', fin: 'trim',      label: 'the fittings',
               layer: 'access' },
   // ---- the cabin and its crew (phase D) -----------------------------------

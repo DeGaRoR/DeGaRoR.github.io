@@ -284,6 +284,9 @@ const ENG_SEC = {
   emAcc: 'engBlock', emPad: 'engBlock',
   emBarrel: 'engJug', emFin: 'engJug', emHead: 'engJug',
   emRocker: 'engCover',
+  // G156: the braces. `emPuck` stays out — a rubber mount puck is rubber for
+  // what it does, and `emFirewall` is the airframe's, not the engine's.
+  emMount: 'engMount',
 };
 const matOf = name => {
   const A = AKM();

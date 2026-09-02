@@ -27051,3 +27051,85 @@ project draws analytically. What the outlet rows do instead is let the pipe
 leave BELOW or BEHIND the cowl lip, which is where it exits on most of the
 aeroplanes in the reference rack anyway. `ports.exhaustOut` is the hook if a
 real cut is ever designed.
+
+## G156 — THE BRACES ARE PAINTABLE, AND THE COLOURS ARE REMEMBERED
+## (2026-09-02, ROADMAP Phase 2 items 5 and 6)
+
+### THE ENGINE MOUNT JOINS THE LIVERY
+
+The user's item was "Color selection engine braces", and G113.4 had already
+built the mechanism for the other three engine groups, so this is that move
+made once more: `engMount` in `AERO_SEC`, `emMount: 'engMount'` in
+`_cage_eng.js`'s `ENG_SEC`, and the section CLAIMED by the engine part in the
+part table — which is the step G113.4 itself nearly missed, because a section
+no part claims still resolves and paints and persists while showing up nowhere
+you can reach it.
+
+**IT IS NOT A FOURTH CASTINGS GROUP, and the table already said so.**
+`AERO_HARD` calls `emMount` "a painted steel engine mount, a dielectric", so it
+bottoms out on `trim` rather than `castAlu`, and it follows the BODY rather
+than the crankcase — a mount is painted to match the aeroplane it is bolted to.
+Putting it under `engBlock` would have made a painted crankcase drag the
+airframe's mount along with it. `accPaint` (the fittings) is written exactly
+this way for exactly this reason.
+
+The rubber pucks are deliberately NOT included: a puck is rubber for what it
+DOES, which is G104's rule and the same reason a tyre is not paintable.
+
+GATE SKINMAT holds all of it — the section exists on the eng layer, it bottoms
+out on `trim`, it follows `body`, and the hardware table still calls it painted
+trim, so the section cannot quietly outlive the fact it was written against.
+Those checks were red until the declaration landed, which is their negative
+verification.
+
+### RECENT COLOURS, AND THE MEASUREMENT THAT DECIDED THE INTERACTION
+
+"Remember recent picked colors in the livery editor." A livery is two or three
+colours used over and over, and every well opened the OS picker with no memory
+of them.
+
+**ONE STRIP, NOT ONE PER WELL.** There are three kinds of colour well in
+`_cage_ui.js` (a section's tint, a marking's ink, a pane's glass) and forty
+instances of them on a built aeroplane. A swatch row under each would be noise
+on every row and three implementations of one idea. This is a single element
+that MOVES to whichever well the pointer is on.
+
+**IT OPENS ON HOVER, AND THAT IS NOT A PREFERENCE — IT IS THE ONLY THING THAT
+WORKS.** The first cut opened it on FOCUS, which is the obvious trigger and is
+useless: `<input type=color>` opens the OS colour picker on the CLICK, so a
+strip shown on focus is drawn underneath a modal dialog at exactly the moment
+it is wanted. Hovering happens BEFORE the click. Point at the well, the colours
+you used last appear under it, and you either take one or carry on into the
+picker. Focus is kept as a second trigger because it is what a keyboard reaches
+the well with and what the picker returns to on close.
+
+`change` records, not `input`: `input` fires continuously while the picker is
+dragged and would fill the strip with the twenty shades passed on the way to
+the one actually chosen.
+
+**IT IS THE PERSON'S, NOT THE AEROPLANE'S** — its own localStorage key, the way
+`cageExpert` is, and deliberately not in the spec. Which colours you reached
+for last is not a property of the aeroplane and must never ride a saved build.
+
+Styled INLINE rather than from editor.css, because the wells are borrowed into
+`#edRows` in the game and stand in `#cgUi` on the benches while the strip hangs
+off `<body>` — outside both roots. Keying its looks off a stylesheet only one
+of those loads is the G112/G153 mistake for a third time.
+
+### VERIFIED IN THE PAGE, WHICH IS WHERE THIS ONE HAD TO BE
+
+No gate can exercise a hover. Driven live on `dev.html`: nothing appears on
+arrival, the strip opens after the dwell with the swatches newest-first,
+clicking one sets the well AND fires its `input` handler (so the livery
+actually repaints), the strip closes, and the picked colour moves to the front
+of the list. The pointer can travel from the well onto the strip without the
+leave-timer closing it on the way.
+
+**ONE TRAP THE PANE SET, and it is the known one.** The first measurement
+reported the strip as off-screen. `window.innerWidth` and `innerHeight` both
+read 0 — the Browser pane does not composite, so the panel is laid out against
+a zero-size viewport and every absolute coordinate out of it is meaningless.
+The reading was an artifact, not a defect. The strip is CLAMPED to the window
+anyway (flipping above the well when there is no room below), because these
+wells live in the right-hand column and one near the bottom or the right edge
+would genuinely hang off a real screen.
