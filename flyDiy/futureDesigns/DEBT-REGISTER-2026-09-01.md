@@ -124,6 +124,21 @@ Nothing here is forgotten; not everything here is scheduled.
   audit (~550 rows censused; asterisk marking of physics-bearing rows also
   owed). Canonical: SLIDER-PHYSICS-AUDIT-2026-09-01.md.
 
+- **AN INLINE ENGINE IS DRAWN SIDEWAYS** — NEW, found by G157 while trying to
+  add the user's in-line orientation row. `ENG_ARCH.inline.angles` returns 0
+  (cylinders up, the convention that makes a boxer ±90) while `_eng_mesh.js`
+  hardcodes `Math.PI / 2`, so the envelope an inline publishes is a quarter
+  turn from the engine drawn. Measured on an inline twin: drawn 0.279 × 0.109,
+  envelope 0.139 × 0.386; the flat control agrees perfectly, so only inline is
+  wrong. THE TABLE IS RIGHT (a Gipsy Major, a Walter Mikron and a Rotax 582 all
+  stand their cylinders vertically, and both `_eng_check` and GATE COWL assert
+  it) — only the drawing is wrong, and the cowl is built around that envelope.
+  Fixing the drawing breaks eleven arteries: the inline exhaust, plug leads and
+  oil filler are routed as `c.sx * <radius>` and assume the cylinder lies along
+  x. **Blocks the user's "in-line engine choice up/down/left/right", which is
+  one line once the routing follows the cylinder.** Wants the user's eye on the
+  drawn engine.
+
 ## 4 · UNDERCARRIAGE & STRUCTURE FOLLOW-UPS
 
 - **Per-member two-end leg weights** — the single root→axle projection cannot

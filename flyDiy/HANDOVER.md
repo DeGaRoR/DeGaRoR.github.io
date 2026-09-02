@@ -27133,3 +27133,82 @@ The reading was an artifact, not a defect. The strip is CLAMPED to the window
 anyway (flipping above the well when there is no room below), because these
 wells live in the right-hand column and one near the bottom or the right edge
 would genuinely hang off a real screen.
+
+## G157 — THE AMATEUR RADIALS, AND AN INLINE ENGINE DRAWN SIDEWAYS
+## (2026-09-02, ROADMAP Phase 2 item 2)
+
+The user: *"More radial engines and inline for small planes. Let's shoot for
+the amateur range to be fully filled"*, and *"In line engine choice
+up/down/r/l"*. **The first half landed. The second half is BLOCKED, by a defect
+found while attempting it, and the attempt is reverted rather than shipped
+half-done.**
+
+### THE RADIALS
+
+The registry jumped from a 100 hp flat four straight to a 1200 hp Twin Wasp, so
+the only round engine in the game was a DC-3's. Two now sit between them, and
+they are the engines G154's radial cowl was built for:
+
+- **Verner Scarlett 7U** — 7 cylinders, 78 kW, 78 kg, 22 000 cr
+- **Rotec R3600** — 9 cylinders, 112 kW, 102 kg, 30 000 cr
+
+Bore and stroke are the real displacements (2.25 L over seven and 3.61 L over
+nine, against the published 2260 cc and 3600 cc), and each takes the R-1830's
+own radial treatment — no under-slung carburettor, no airbox, because a radial
+breathes through its rear spider. Their firewalls are sized from the engine the
+resolve actually builds, 0.59 m and 0.63 m across the heads, measured.
+
+**A FINDING THAT LOOKS LIKE A BUG AND IS NOT.** The bench preset and the
+registry row are INDEPENDENT descriptions and are allowed to disagree — checked
+across all nine existing pistons, and **every one of them differs** (the A-65
+resolves to 52.5 kW against a registry 48.5; the R-1830 to 648 kW against 895).
+`CAGE_ENG_FACTS`'s `isPreset` compares a resolve against the PRESET'S OWN
+resolve, asking "have you deviated from the preset", never "does the dress
+agree with the physics". The registry carries the published numbers; the bench
+carries a shape. Worth writing down, because nine rows that all "differ" reads
+as a defect until you see what the comparison is actually for.
+
+The prop rows are the honest weak spot and say so in the file: a homebuilt
+radial swings whatever its owner chose, so `Tstatic` and `kV2` are scaled from
+the neighbours at ~18 N per kW — estimates wearing a real diameter, not
+measurements.
+
+### THE INLINE ENGINE IS DRAWN SIDEWAYS. MEASURED, NAMED, NOT FIXED.
+
+Going after "in-line engine choice up/down/left/right" turned up a defect
+underneath it. `ENG_ARCH.inline.angles` returns **0** — straight up, which is
+the convention the whole table uses, and why a boxer is ±90 — while
+`_eng_mesh.js` hardcoded **`Math.PI / 2`** beside it. So the envelope an inline
+publishes and the engine anybody can see are a quarter turn apart:
+
+| inline twin | width | height |
+|---|---|---|
+| envelope says | 0.139 | 0.386 |
+| drawn cylinders | 0.279 | 0.109 |
+
+The flat control agrees perfectly (envelope 0.790 against a drawn 0.804), so
+only inline is wrong. **The TABLE is the right one** — a Gipsy Major, a Walter
+Mikron and a Rotax 582 all stand their cylinders vertically; `_eng_check`
+asserts "an inline is taller than it is wide" and GATE COWL asserts "an inline
+gives a NARROW deep cowl", and both pass today because both read the envelope.
+Only the drawing is wrong. And since the cowl is built around the envelope, an
+inline's cowl has been sized for an engine that is not the one inside it.
+
+**I MADE THE MISTAKE THE GATES CAUGHT.** The first fix pointed the envelope at
+the drawing — making `angles` return 90 — which reconciles them and enshrines
+the wrong one. Two gates went red saying so in plain words. Correcting the
+DRAWING instead reconciles them the right way round, and then breaks eleven
+arteries: the inline exhaust, the plug leads and the oil filler are all routed
+in terms of `c.sx * <a radius>`, which assumes the cylinder lies along x
+(measured: `exhaust0 leaves the head, d = 3.9 cR`).
+
+So standing an inline bank upright is a re-routing chantier, and it wants the
+user's eye on the drawn engine. **Reverted whole**: the `bankRoll` parameter,
+its row, its predicate and its part claim are all gone rather than left as a
+control that moves an engine nobody would want to look at. What is left is
+twenty-four lines of comment at both halves of the disagreement, so the next
+person meets it at the code rather than by measuring it again.
+
+**IT ALSO BLOCKS THE USER'S ROW**, and that is the honest reason item 2's
+second half is not delivered: the orientation choice is one line once the
+routing follows the cylinder instead of the axis, and a lie until then.

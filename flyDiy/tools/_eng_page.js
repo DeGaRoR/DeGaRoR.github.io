@@ -80,6 +80,18 @@ const PRESETS = {
     exStyle: 3, bore: 0.072, stroke: 0.068, rpm: 6250, finR: 1.5 },
   'rotax 582': { arch: 'inline', cyl: 2, twoStroke: 1, geared: 1,
     liquid: 1, exStyle: 3, bore: 0.076, stroke: 0.064, rpm: 6500 },
+  // G157: the amateur radials. Bore and stroke are the real displacements
+  // (2.25 L over seven, 3.61 L over nine — the published 2260 cc and 3600 cc),
+  // and they take the R-1830's own radial treatment: no under-slung carb and
+  // no airbox, because a radial breathes through its rear spider. The firewall
+  // is sized from the engine the resolve actually builds — 0.59 m and 0.63 m
+  // across the heads, measured, not guessed.
+  'Verner Scarlett 7U': { arch: 'radial', cyl: 7, exStyle: 2,
+    bore: 0.080, stroke: 0.064, rpm: 2350, finR: 1.3,
+    fwW: 0.66, fwH: 0.66, carbOn: 0, airbox: 0, plumb: 0 },
+  'Rotec R3600': { arch: 'radial', cyl: 9, exStyle: 2,
+    bore: 0.088, stroke: 0.066, rpm: 2500, finR: 1.3,
+    fwW: 0.72, fwH: 0.72, carbOn: 0, airbox: 0, plumb: 0 },
   'P&W R-1830': { arch: 'radial', cyl: 14, radialRows: 2, geared: 1,
     exStyle: 2, bore: 5.5 * IN, stroke: 5.5 * IN, rpm: 2700,
     finR: 1.4, mountGap: 1.2, fwW: 1.35, fwH: 1.35,

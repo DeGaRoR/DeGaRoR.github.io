@@ -82,6 +82,9 @@ const ENG_ARCH = {
   },
   inline: {
     name: 'Inline', counts: [4, 6], kM: 1.06, bmep: 9.5,   // UNVALIDATED
+    // 0 = STRAIGHT UP, which is why a boxer is +/-90. See the note in
+    // `_eng_mesh.js` where `a` is chosen: the MESH does not honour this for an
+    // inline, and that disagreement is a known, measured, unfixed defect.
     angles: n => Array.from({ length: n }, () => 0),
     stations: n => Array.from({ length: n }, (_, i) => i),
     nStations: n => n,

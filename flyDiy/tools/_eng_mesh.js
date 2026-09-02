@@ -1289,6 +1289,27 @@ const EM = (() => {
         a = (idx + row * 0.5) * 2 * Math.PI / perRow;
         z = L.zOf(0) - row * 1.45 * b;
       } else {
+        // KNOWN DEFECT, MEASURED AND LEFT (2026-09-02). This hardcode is a
+        // SECOND answer beside `ENG_ARCH.inline.angles`, and a different one:
+        // the table says 0 (cylinders up, which is why a boxer is +/-90) and
+        // this says a quarter turn, so an inline engine is DRAWN with its
+        // cylinders pointing out to starboard while the envelope it publishes
+        // — the envelope the cowl is built around — describes a tall narrow
+        // engine. Measured on an inline twin: drawn 0.279 wide by 0.109 tall,
+        // envelope 0.139 by 0.386.
+        // THE TABLE IS THE RIGHT ONE. A Gipsy Major, a Walter Mikron and a
+        // Rotax 582 all stand their cylinders vertically, `_eng_check` asserts
+        // "an inline is taller than it is wide", and GATE COWL asserts "an
+        // inline gives a NARROW deep cowl". Both pass today because both read
+        // the envelope; only the drawing is wrong.
+        // IT IS NOT FIXED HERE because the inline exhaust, the plug leads and
+        // the oil filler are all routed in terms of `c.sx * <a radius>` — they
+        // assume the cylinder lies along x — so turning the bank upright
+        // leaves eleven arteries hanging in space (measured: `exhaust0 leaves
+        // the head, d = 3.9 cR`). Standing the bank up means re-routing them,
+        // which is a chantier and wants the user's eye on the drawn engine.
+        // It also blocks "in-line engine choice up/down/left/right", which is
+        // one line once the routing follows the cylinder instead of the axis.
         a = inline ? Math.PI / 2 : L.ang[i];
         // bank stagger: the two rods share one crankpin, so one bank
         // leads (an inline has one bank — no stagger)

@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 7714f08d0b111256
+// body-sha256: 964520d454651827
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -113,6 +113,26 @@ const POWERPLANTS = {
     price: 24000,
     engine: { name: 'Continental O-200-A', mass: 85, powerW: 74600, aspiration: 'na', family: 'four', cooling: 'air' },
     prop:   { name: 'E-Props Durandal carbone', D: 1.73, Tstatic: 1700, kV2: 0.177 },
+  },
+  // THE AMATEUR RADIALS (G157, the user: "More radial engines and inline for
+  // small planes. Let's shoot for the amateur range to be fully filled"). The
+  // registry jumped from a 100 hp flat four straight to a 1200 hp Twin Wasp,
+  // so the only round engine in the game was a DC-3's. These two are what a
+  // homebuilder actually bolts on, and they are the engines G154's radial cowl
+  // was built for.
+  // MASS AND POWER ARE THE PUBLISHED ONES. The PROP row is not published —
+  // a radial like these swings whatever its owner chose — so Tstatic and kV2
+  // are scaled from the neighbours above at ~18 N per kW, and are estimates
+  // wearing a real prop's diameter rather than measurements.
+  verner7u_wood: {
+    price: 22000,
+    engine: { name: 'Verner Scarlett 7U', mass: 78, powerW: 78000, aspiration: 'na', family: 'four', cooling: 'air' },
+    prop:   { name: '2-pale bois 1.80 m', D: 1.80, Tstatic: 1400, kV2: 0.250 },
+  },
+  rotec3600_std: {
+    price: 30000,
+    engine: { name: 'Rotec R3600', mass: 102, powerW: 112000, aspiration: 'na', family: 'four', cooling: 'air' },
+    prop:   { name: '2-pale 1.95 m', D: 1.95, Tstatic: 1950, kV2: 0.240 },
   },
   outrunner2212_9x47: {
     price: 25,

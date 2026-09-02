@@ -148,10 +148,23 @@ or medium, and each one directly multiplies what you can build tonight.*
    OWED, an honest limit: the taper caps at 1.15, so a big radial on a slim
    fuselage cannot be enclosed and is REPORTED rather than drawn through. A
    cowl carrying its own aft diameter and fairing back is its own chantier.
-2. **Amateur-range engine fill** [S each, M for the batch]. More radials and
-   inlines as registry rows + dress; rows have been cheap since G25. **The
-   in-line orientation** knob (upright / inverted / left / right) rides this
-   chantier.
+2. **Amateur-range engine fill** — **HALF LANDED as G157, 2026-09-02.**
+   THE RADIALS ARE IN: **Verner Scarlett 7U** (7-cyl, 78 kW) and **Rotec
+   R3600** (9-cyl, 112 kW), with the real displacements and the R-1830's own
+   radial treatment. The registry used to jump from a 100 hp flat four to a
+   1200 hp Twin Wasp, so the only round engine in the game was a DC-3's; these
+   are the ones G154's radial cowl was built for.
+   **THE IN-LINE ORIENTATION IS BLOCKED, and the blocker is a real defect:**
+   an inline engine is DRAWN with its cylinders pointing sideways while the
+   envelope it publishes — the one the cowl is built around — describes a tall
+   narrow engine (measured: drawn 0.279 × 0.109, envelope 0.139 × 0.386). The
+   table is the right one; only the drawing is wrong. Standing the bank upright
+   breaks eleven arteries, because the inline exhaust, plug leads and oil
+   filler are all routed as `c.sx * <radius>` and assume the cylinder lies
+   along x. **Its own chantier, and it wants your eye on the drawn engine** —
+   the orientation row is one line once the routing follows the cylinder.
+   STILL OWED besides that: more small INLINES (a Walter Mikron is the classic
+   amateur one) — deliberately not added while they would be drawn sideways.
 3. **Exhaust, properly** — **THE OUTLET LANDED as G155, 2026-09-02.** The
    routed pipes, the stacks, the radial ring and the per-bank collectors all
    already existed; what did not was any say over where the pipe ENDS. Five
