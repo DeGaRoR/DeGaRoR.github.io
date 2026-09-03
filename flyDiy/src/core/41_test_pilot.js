@@ -138,14 +138,25 @@ function makeTestPilot(sim, def, world) {
   let cardAcc = null;                    // { n, alt, V, saidV } while flying
   ap.setCard = (card) => {
     if (!card || (!isFinite(card.alt) && !isFinite(card.V))) return;
-    const c = { alt: null, V: null, altFlown: null, VFlown: null };
+    const c = { alt: null, V: null, altCmd: null, VCmd: null,
+                altFlown: null, VFlown: null };
+    // THE ASK GOES ON THE REPORT AS IT WAS ASKED (G159). It used to be the
+    // CLAMPED value that was recorded, which reads as the pilot having been
+    // asked for something it was always going to do — and the clamp then has
+    // nothing to have clamped. Latent for as long as no ask ever hit a limit;
+    // GATE PILOT found it the moment the stock build put on enough weight for
+    // its approach speed (25.1 m/s) to overtake a 25 m/s ask. The commanded
+    // value rides beside it as `altCmd` / `VCmd`, and `altFlown` / `VFlown`
+    // still say what it actually managed, so the report carries all three:
+    // what you wanted, what the pilot would accept, and what it got.
     if (isFinite(card.alt) && card.alt > 0) {
-      c.alt = clamp(card.alt, A.hSafe + 20, 2500);
-      if (c.alt !== card.alt)
+      c.alt = card.alt;
+      c.altCmd = clamp(card.alt, A.hSafe + 20, 2500);
+      if (c.altCmd !== card.alt)
         say('card-clamped', 'altitude ' + Math.round(card.alt) + ' m asked, ' +
-            Math.round(c.alt) + ' m flown — the pilot sets the floor and the ceiling');
-      ap.hCruise = c.alt;
-      ap.budget = Math.max(ap.budget, 300 + c.alt * 1.5);
+            Math.round(c.altCmd) + ' m flown — the pilot sets the floor and the ceiling');
+      ap.hCruise = c.altCmd;
+      ap.budget = Math.max(ap.budget, 300 + c.altCmd * 1.5);
     }
     if (isFinite(card.V) && card.V > 0) {
       // the floor is the APPROACH SPEED ITSELF — a speed the aeroplane
@@ -154,11 +165,16 @@ function makeTestPilot(sim, def, world) {
       // numbers refuted the margin: its VAppr (23.9) sits within 5% of its
       // cruise (25.2), so the arbitrary 5% clamped a legitimate near-cruise
       // ask UP. Narrow-envelope builds are the ones a test card exists for.
-      c.V = clamp(card.V, A.VAppr || 15, 120);
-      if (c.V !== card.V)
-        say('card-clamped', 'speed ' + Math.round(card.V * 3.6) + ' km/h asked, ' +
-            Math.round(c.V * 3.6) + ' km/h flown — not slower than the approach, not absurd');
-      ap.VCruise = c.V;
+      c.V = card.V;
+      c.VCmd = clamp(card.V, A.VAppr || 15, 120);
+      if (c.VCmd !== card.V)
+        // ONE DECIMAL, in m/s as well: rounded to whole km/h the first clamp
+        // this ever fired read "90 km/h asked, 90 km/h flown", which is a
+        // message that says nothing. The clamp was real (25.0 -> 25.1 m/s).
+        say('card-clamped', 'speed ' + card.V.toFixed(1) + ' m/s asked, ' +
+            c.VCmd.toFixed(1) + ' m/s flown (' + Math.round(c.VCmd * 3.6) +
+            ' km/h) — not slower than the approach, not absurd');
+      ap.VCruise = c.VCmd;
     }
     ap.report.card = c;
     cardAcc = { n: 0, alt: 0, V: 0, saidV: false };

@@ -938,6 +938,72 @@ if (process.argv.includes('--selftest')) {
   const JOIN = fs.readFileSync(path.join(ROOT, 'tools', '_cage_join.js'), 'utf8');
   check(/ud\.aeroWing \? \{ wing: ud\.aeroWing \} : \{\}/.test(JOIN),
         'projector: the snapshot does not record the surface class');
+
+  // 7 — THE MARKINGS REACH THE FLOWN AEROPLANE (G160). The user's report was
+  //     "the registration did not make it in-game intact, my settings affected
+  //     only the garage", and it was exactly true: aeroSetDecals had one
+  //     caller and that caller was the editor panel. These four checks are the
+  //     shape of the repair, and each of them is a way it could silently come
+  //     undone again.
+  const SKIN = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'aeroskin.js'), 'utf8');
+  check(/function aeroApplySpecDecals\(THREE, spec\)/.test(SKIN),
+        'markings: aeroskin has no door for a spec — the flight side would ' +
+        'have to build the decal list itself, which is how the garage and ' +
+        'the flown aeroplane end up disagreeing about where a marking sits');
+  check(/aeroApplySpecDecals\(THREE, genSpec\)/.test(APP),
+        'markings: the flight never applies this build’s own markings — the ' +
+        'registration is painted on in the garage and gone the moment you fly');
+  // AND OFF THE RIGHT OBJECT, EVERY FRAME (G160.2). The box projectors invert
+  // whatever carries the aeroplane's pose, and that is `model.grp` — rebuilt
+  // from the solver's basis on every frame. `craft` is never posed at all, so
+  // handing THAT over made uCraftInv the identity and vCraftPos world
+  // position, which is the original defect wearing a different hat. The regex
+  // pins the object AND its neighbourhood: this call belongs beside the matrix
+  // it inverts, not in the build.
+  check(/model\.grp\.updateWorldMatrix\(true, false\);[\s\S]{0,80}aeroSetCraft\(THREE, model\.grp\.matrixWorld/.test(APP),
+        'markings: the projector frame is not driven off the aeroplane’s ' +
+        'own posed group each frame, so a side- or plan-projected marking ' +
+        'slides across the aeroplane as it flies');
+  check(!/aeroSetCraft\(THREE, craft\.matrixWorld/.test(APP),
+        'markings: the projector frame is taken from `craft`, which is never ' +
+        'posed — that makes vCraftPos world position');
+  // AND THE MERGE ITSELF, run rather than pattern-matched. `finish.decals`
+  // holds DEVIATIONS, so the rule that matters is what an ABSENT field falls
+  // back to: a missing `regH` read as 0 gives a marking no height, which on
+  // screen is indistinguishable from the markings never arriving at all —
+  // this arc's own bug, reintroduced one layer down.
+  const placed = { regH: 0.6, regL: 3.15, regC: 0.14, regW: 1, regLock: 0 };
+  const merged = A.aeroDecalMerge({ finish: { decals: placed } });
+  for (const k in placed)
+    check(merged[k] === placed[k],
+      'markings: the merge drops a placed value — a build’s own marking ' +
+      'would be painted somewhere the builder never put it', k);
+  check(merged.regTarget === A.AERO_DEC_DEF.regTarget
+        && merged.regMode === A.AERO_DEC_DEF.regMode,
+        'markings: an untouched field does not fall back to the default');
+  check(A.aeroDecalMerge({}).regH === A.AERO_DEC_DEF.regH,
+        'markings: a spec with no finish at all does not get the factory ' +
+        'marking — null is the factory finish everywhere else in this file');
+
+  // THE REGISTRATION HAS ONE OWNER (G160). It had three — an editor cache, a
+  // per-browser pref, and the spec — and the spec, the only one that is saved
+  // and flown, was the one nothing wrote. Each check below is one of those
+  // three coming back.
+  check(/G\.update\(\{ meta: \{ reg: v \} \}\)/.test(UI),
+        'markings: the registration row does not write the spec — it would ' +
+        'repaint the garage and never reach the saved build');
+  check(!/const reg = DEC\.reg;/.test(UI),
+        'markings: a load carries the previous aeroplane’s registration ' +
+        'across instead of taking the loaded one’s');
+  check(/delete d\.reg;/.test(UI),
+        'markings: the registration rides in the per-browser preference ' +
+        'again, so one aeroplane’s letters reappear on every other');
+
+  // the editor must not have grown a second copy of the translation back
+  check(!/list\.push\(\{ page: 0, sL: DEC\.regL/.test(UI)
+        && /aeroDecalsFor\(THREE, DEC/.test(UI),
+        'markings: the editor builds its own decal list again — there must be ' +
+        'ONE keeper of what a placement means, or the two drift apart');
 }
 
 // ---------------------------------------------------------------------------
@@ -998,10 +1064,20 @@ if (process.argv.includes('--selftest')) {
   check(/regW: [0-9.]+, regLock: 1/.test(UI2),
         'marking: there is no independent width, or it does not default to ' +
         'the derived one');
-  check(/if \(DEC\.regLock\) DEC\.regW = DEC\.regH \* Math\.max\(1\.2, asp\);/.test(UI2),
+  // THESE TWO NOW LIVE IN THE KEEPER (G160). The width rules used to be read
+  // out of the editor panel, and that is exactly the arrangement that let the
+  // flown aeroplane wear no markings at all: if the only place that knows what
+  // `regLock` means is a panel, only the panel can paint it. aeroDecalsFor is
+  // the one keeper, so the rules are asserted where they are now enforced.
+  const SKIN2 = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'aeroskin.js'), 'utf8');
+  check(/const w = D\.regLock \? D\.regH \* Math\.max\(1\.2, aspect\)/.test(SKIN2),
         'marking: a locked width does not follow the height at the face aspect');
-  check(/w: Math\.max\(0\.02, DEC\.regW\)/.test(UI2),
+  check(/: Math\.max\(0\.02, D\.regW\);/.test(SKIN2),
         'marking: the decal is not taking its width from the row');
+  // and the panel still MIRRORS the derived width into its row, or the number
+  // beside the slider stops agreeing with the marking on the aeroplane
+  check(/if \(DEC\.regLock\) DEC\.regW = DEC\.regH \* Math\.max\(1\.2, R\.aspect\);/.test(UI2),
+        'marking: the panel no longer shows the width the keeper derived');
   check(/regFont: 0/.test(UI2), 'marking: the face is not part of the state');
 }
 
@@ -1297,9 +1373,13 @@ if (process.argv.includes('--selftest')) {
   // legacy sheet cannot disagree with the panel.
   check(/regCol: null, regOut: null,/.test(UI4),
         'marking: the ink and the outline are not declared inheriting (null)');
-  check(/DEC\.regCol != null \? DEC\.regCol : trim/.test(UI4),
+  // asserted in the keeper for the same reason as the width rules above: the
+  // flown aeroplane resolves its own ink, so "null means the trim" has to be
+  // true where BOTH callers pass through (G160).
+  const SKIN4 = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'aeroskin.js'), 'utf8');
+  check(/D\.regCol != null \? D\.regCol : trim/.test(SKIN4),
         'marking: the ink no longer falls back to the trim colour');
-  check(/DEC\.regOut != null \? DEC\.regOut : 0xffffff/.test(UI4),
+  check(/D\.regOut != null \? D\.regOut : 0xffffff/.test(SKIN4),
         'marking: the outline no longer falls back to white');
   check(/function aeroDecalText\(THREE, page, text, colHex, outHex, font\)/.test(SK),
         'marking: the text baker does not take an ink and an outline');

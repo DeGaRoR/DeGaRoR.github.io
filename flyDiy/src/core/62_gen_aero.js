@@ -395,17 +395,43 @@ function genTuneAP(def) {
   // climbThGain*VClimb scatters 0.30-0.92 (3x): NO CLUSTER. The 1/V form at
   // least gets the trend right, and the old flat 0.030 sits inside the clamp.
   A.climbThGain = r3(cl(0.7 / A.VClimb, 0.012, 0.032));
-  // liftoffTh/thMax = 0.790 +/- 0.048 (6%), additionally capped below the
-  // three-point deck: doctrine, "a taildragger cannot rotate past 3-point".
-  let liftoff = 0.79 * A.thMax;
+  // THE ROTATION IS DERIVED NOW, NOT FITTED (G159). It read
+  // `liftoffTh = 0.79 * thMax` with `thMax = 0.67 * aStall`, both ratios fitted
+  // over the six fiches -- that is, over the fleet's own hand-set values, which
+  // had never been checked against a published take-off run. Measured against
+  // the J-3's, the aeroplane was unsticking at 1.31 x Vs and the roll is
+  // proportional to the square of that: 166 m at gross against a published 113.
+  // Same circularity as GEN_RULES.propV0K, in a different file.
+  //
+  // WHAT THE WING ACTUALLY NEEDS is a lift coefficient, and it is exact:
+  // leaving the ground at 1.10 Vs means flying at CLmax / 1.10^2, whatever the
+  // weight, so the attitude follows from the polar alone --
+  //     CL = Cl0 + a3d (alpha + incidence)
+  // solved for alpha at CL = CLmax / 1.21. No fleet fit, no free constant.
+  //
+  // AND THE DOCTRINE WAS ALWAYS RIGHT -- "a taildragger cannot rotate past
+  // 3-point" -- it was the number that contradicted it. Three-point IS the
+  // attitude a taildragger takes off from: the tailwheel is on the ground and
+  // there is no more pitch to be had. The old cap of 0.85 x deck stopped the
+  // aeroplane 15 % short of the one attitude it is supposed to reach. The cap
+  // is the deck itself; an aeroplane whose wing wants more than that simply
+  // unsticks faster than 1.10 Vs, and says so honestly in its roll.
+  let liftoff;
+  {
+    const P = def.params.polarWing;
+    const inc = (S.wing.incidence || 0) * Math.PI / 180;
+    const CLlo = (g.ClMax3D || 1.4) / 1.21;
+    liftoff = (CLlo - P.Cl0) / Math.max(0.5, P.a3d) - inc;
+  }
   if (!trike) {
     const P = def.parts, G = S.gear;
     const twN = def.nodes[P.TW];
     const deck = Math.atan((((twN && twN.p[1]) || 0) - G.twR - (G.y - G.contactR))
                            / Math.max(0.1, P.twX - P.gx));
-    if (isFinite(deck) && deck > 0.05) liftoff = Math.min(liftoff, 0.85 * deck);
+    if (isFinite(deck) && deck > 0.05) liftoff = Math.min(liftoff, deck);
   }
-  A.liftoffTh = r3(liftoff);
+  // never AT the stall: the rotation has to leave the wing somewhere to go
+  A.liftoffTh = r3(cl(liftoff, 0.02, 0.85 * g.aStall));
   // flareThMax - alpha(1.10 VsFlap) = -0.056 +/- 0.031 on six of seven. The
   // SIGN is the doctrine ("flareThMax BELOW the L=W attitude kills float");
   // the chinook is the outlier because its body datum puts that alpha near 0.

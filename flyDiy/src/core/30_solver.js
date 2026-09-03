@@ -21,6 +21,18 @@ function makeSim(def, world) {
   // speed on the sheet. Default: ISA sea level, which is the datum.
   let atmOver = null, hProbe = 0;
   const setAtmos = (a, h) => { atmOver = a || null; hProbe = h || 0; };
+  // WHERE THE GROUND IS, FOR GROUND EFFECT ONLY, when there is no world (G159).
+  // A world-free sim has no place and therefore no terrain, which is the
+  // shakedown's own ruling and the right one for the STANCE and for the AIR:
+  // a number on the sheet must not depend on which patch of grass the
+  // aeroplane is parked on. Ground EFFECT is not that kind of question. During
+  // a take-off roll the wheels are on the ground, so h/b is set by the
+  // aeroplane's own geometry and by nothing else, and leaving it out makes the
+  // roll longer than the aeroplane's own wing says it is. So it is declared
+  // rather than inferred: null (the default) is exactly the old behaviour, and
+  // genTORunAt sets it to 0 for the length of the roll and clears it after.
+  let gRef = null;
+  const setGroundRef = h => { gRef = (h == null ? null : h); };
   const airOf = () => atmOver || (world && world.atmos) || ATMOS_ISA;
   // THE ENGINE'S OWN RELATION TO IT, declared on the registry row: 'na'
   // breathes the air and lapses with it, an electric motor's power comes out of
@@ -159,7 +171,7 @@ function makeSim(def, world) {
     // so spatial gust structure produces roll/twist forcing. All wind terms
     // are exact zeros when no wind is set — the zero-wind battery is
     // byte-identical to the pre-wind one.
-    let gH = null, wcx = 0, wcy = 0, wcz = 0;
+    let gH = gRef, wcx = 0, wcy = 0, wcz = 0;
     if (world) {
       let sx = 0, sy = 0, sz = 0, sN = 0;
       for (const st of def.strips) if (st.kind === 'wing') {
@@ -617,7 +629,7 @@ function makeSim(def, world) {
   return { p, v, m, r, beams, n, ctl, out, get totalM() { return totalM; },
            setNodeMass,
            reset, step, probe, stats, impulse, wheelsOnGround, cgPos, cgVel, axes,
-           setAtmos, atmos: airOf, thrustAt, probeAir };
+           setAtmos, setGroundRef, atmos: airOf, thrustAt, probeAir };
 }
 
 

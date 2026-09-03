@@ -27212,3 +27212,154 @@ person meets it at the code rather than by measuring it again.
 **IT ALSO BLOCKS THE USER'S ROW**, and that is the honest reason item 2's
 second half is not delivered: the orientation choice is one line once the
 routing follows the cylinder instead of the axis, and a lie until then.
+
+---
+
+## G158-G160 — THE J-3 ARC: A PROPELLER CEILING, A LIGHT AIRFRAME, AND A
+## REGISTRATION THAT NEVER LEFT THE GARAGE (2026-09-02/03)
+
+The user, on their own build: *"it barely flies. Climbs at 1M/s max. If I did
+it right, that's a good design and it should be better than that."* And the
+standing instruction for the whole arc: *"objective get this aircraft right,
+without applying shortcuts."* Canonical write-up:
+`futureDesigns/PROP-THRUST-2026-09-02.md`.
+
+### G158 — THE PROPELLER CEILING
+
+`propV0K` capped **every generated aeroplane** at 42.3% propulsive efficiency,
+and the J-3 fiche came out 23% light on climb. Fixed as a pair (the coefficient
+and the coarse setting) with the fleet's hand-anchored aeroplanes untouched.
+
+### G159 — THE AIRFRAME WAS 24% LIGHT
+
+The ledger summed structure, engine, covering and payload and **nothing in
+between**. Added, each tied to a CHOICE or a MEASUREMENT rather than a
+constant: paint, the outfit (seats by layout, panel, cowl by its own elliptical
+perimeter, exhaust by kW, plumbing, controls, glazing), and honest covering
+densities for the metals. Also derived rotation, ground-effect roll and the tip
+bow. **Three of the six "gaps" I first reported were my own instrument** —
+truss span read as wingspan, truss extent as length, and AR recomputed when
+`POLARS.usa35b_AR7` already declares it.
+
+### G159.1 — STIFFNESS FOLLOWS MASS, AND SO DOES DAMPING
+
+Correcting the covering densities raised `cover` 4.29x, so I raised all three
+of `GEN_MATERIALS.k` by 4.29x. **Both halves of that were wrong**, and GATE
+LOAD caught it.
+
+The factor is the **group's own mass**, not the covering ratio. Measured: the
+alloy wing gained x2.10, the fuselage x1.17, and the undercarriage **x1.00** —
+covering is only part of a wing and none of a gear leg. The blanket scale
+stiffened the gear 4.3x for a change it never saw, and the strut wing settled
+at 0.053% of semispan at 1 g against this gate's own stated band of 0.3-1%.
+The gate had passed it, because the gate asserts LINEARITY and the band is
+prose in its header.
+
+And **`c` scales with it or the rig stops converging**: zeta = c/(2*sqrt(k*m)),
+so raising k and m while holding c under-damps the structure. The signature is
+a reading that FALLS as load rises — carbon cantilever read 6.73% at 1 g then
+3.80 and 3.85 at 3.8 and 5.7 g. That is not a wing giving up; it is a
+measurement taken while the wing was still moving, and I first misdiagnosed it
+as a snap-through mechanism. The same artefact produces isolated "unstable
+pockets" in a k sweep, which are settle failures rather than physics.
+
+Applied to wood as well, which already passed: one rule for the materials that
+failed and another for the one that did not is the shortcut this arc was told
+not to take.
+
+### G160 — THE REGISTRATION REACHES THE FLOWN AEROPLANE
+
+*"The registration did not make it in-game intact, my settings affected only
+the garage."* **Two bugs, not the one that was diagnosed.**
+
+**Half one:** `aeroSetDecals` had exactly one caller, and it was the editor
+panel. Markings were painted while you built and gone the moment you flew.
+`aeroDecalsFor` + `aeroApplySpecDecals` in `aeroskin.js` are now the ONE keeper
+of what a placement means; the editor calls it with its live `DEC` so an
+unsaved drag still previews, and `app.js` calls it after `buildModel` with the
+spec merged over `AERO_DEC_DEF` (which moved into aeroskin, because
+`finish.decals` stores DEVIATIONS and the flight bundle could not reach the
+editor's copy).
+
+**Half two, which the diagnosis missed: nothing ever wrote `meta.reg`.** The
+row's own label says "the spec carries it as meta.reg and this edits it". It
+did not — `oninput` set an editor cache and a per-browser preference. The
+user's `My_finished_Cub.json` is the proof: `meta.reg` is the untouched default
+`F-PGAR` under a thoroughly customised aeroplane, while their PLACEMENT
+(`regH 0.6, regL 3.15, regC 0.14`) saved perfectly. One fact, three owners, and
+the only one that is saved and flown was the one nothing wrote. The row now
+commits on `change` (not `input` — `GARAGE_SPEC.update` rebuilds the cage, and
+per-keystroke would rebuild it per letter), a load takes the loaded aeroplane's
+letters instead of carrying the previous one's across, and `reg` is stripped
+from the browser preference.
+
+### G160.2 — AND THE PROJECTOR FRAME, WHICH I GOT WRONG FIRST
+
+I set `aeroSetCraft` once per build off `craft`, arguing that craft and the
+meshes move together so the product would be invariant, and recorded that as a
+correction to the earlier diagnosis. **`craft` is never posed at all**: it sits
+at identity, and the aeroplane's motion lives in the vertex buffers and in
+`model.grp.matrix`, rebuilt from the solver's basis and CG every frame. So
+`inv(craft)` was the identity, `vCraftPos` collapsed to WORLD position, and I
+had reproduced the original defect from a new direction while believing I had
+improved on it. The call now sits in the pose loop beside
+`model.grp.matrix.copy(mBasis)`.
+
+**It hid because `field` mode never reads `vCraftPos`** — it rides the surface
+field in `aStruct` — and the registration defaults to field. Only `side` and
+`plan` touch it, so the entire registration chain verified green with the frame
+wrong.
+
+### G160.1 — THE DC-3'S DECRAB WINDOW (GATE WIND, red for sessions)
+
+`decrabAgl` is a HEIGHT, and 3.5 m is a real window on an aeroplane that
+touches down near 1.2 m — the whole light half of the fleet. The DC-3 flares at
+10 m and arrives with its CG 2.7 m up, so it got 0.8 m of descent, under a
+second, to swing 3 m/s of crab out. It could not: it touched down doing 3.7 m/s
+sideways, 7 m downwind.
+
+**Starting late is worse than not starting**, which is the measurement that
+chose the value: 4.0 m reads -4.01 m/s and 8.5 m off the line, *worse* than the
+default, because a decrab that begins the yaw and cannot finish it lands the
+aeroplane crabbed AND drifting. 4.5 m reads 0.12. That is a cliff, and
+everything from 4.5 to 15 sits on the far side of it. **7.0** is chosen for its
+distance from that cliff rather than for the best single number (6.0 measures
+marginally better but sits 1.5 m from an edge whose far side is a fifty-times
+worse landing). Nothing in calm air moves: the branch is gated on
+`|windZ| > 0.5`.
+
+### THE TEST FEEDBACK ROWS
+
+*"Every failure of the test should come accompanied with explanations and
+recommendations. A simple hover over the values should suffice, with pointers
+to what parameters to adjust."* Every plaque row that carries a verdict now
+has a `title`: what the number means, always, plus what to turn when the row is
+actually warn or bad. Keyed on the row's own label so the pointers live in one
+table, and they name controls a builder has rather than internals.
+
+### GATES
+
+`BATTERY: PASS` — 66 gates, no reds, including GATE WIND for the first time in
+this arc. GATE SKINMAT gained **nine** checks: the keeper exists, the flight
+calls it, the projector frame is driven off the posed group (and `craft` is
+forbidden by name), the editor has not grown a second copy of the translation,
+the three ways the registration could reacquire a second owner, and the merge
+itself proven by RUNNING it — `aeroDecalMerge` is exported to node because an
+absent field must fall back to the default, and a missing `regH` read as 0
+gives a marking no height, which on screen is this very bug one layer down.
+
+### OWED
+
+- **`aeroSetWear` is still editor-only** — same single-caller shape, but not a
+  bolt-on: `applyWear` places soot and splash off `window.CAGE_ENG.exhaustAt`,
+  `window.CAGE_GEAR.contacts` and `wearFieldAt(mesh, FS, ...)`, all
+  editor-scene data. Doing it properly means publishing those anchors into the
+  snapshot the way G155 published `ports.exhaustOut`.
+- **The metal build is still ~15% light.** `lin` is a truss standing in for a
+  stringer field; that is the declared next lever.
+- **Auto pitch always answers "fine"** because there is no propeller rpm in the
+  model.
+- **The final composite was never seen.** The agent browser's canvas is 0x0 and
+  the offscreen-renderer workaround cannot read colour off `onBeforeCompile`
+  materials, which is exactly what a decal is. Every hop is measured; the last
+  inch is inferred.

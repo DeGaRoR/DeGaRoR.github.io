@@ -196,6 +196,33 @@ function buildDC3() {
       // clean-era cap sat ABOVE the L=W attitude and the float came back
       // (117 km/h touchdown, 300 m past the window).
       flareAgl: 10, flareRate: 0.045, aglGuard: 6, flareThMax: 0.085,
+      // DECRAB NEEDS TIME, AND decrabAgl IS A HEIGHT (G160.1). 40_autopilot's
+      // default is 3.5 m, which is a real window on an aeroplane that touches
+      // down near 1.2 m — the whole light half of the fleet. This one flares
+      // at 10 m and arrives with its CG 2.7 m up, so 3.5 m gave the rudder
+      // 0.8 m of descent, under a second, to swing 3 m/s of crab out. It could
+      // not, and GATE W-DC3 had been red on |tdDrift|<1.8 for sessions: it
+      // touched down doing 3.7 m/s sideways, 7 m downwind of the centreline.
+      //
+      // AND STARTING LATE IS WORSE THAN NOT STARTING, which is the measurement
+      // that settled the value. Swept: 4.0 m reads -4.01 m/s and 8.5 m off the
+      // line — WORSE than the 3.5 m default — because a decrab that begins the
+      // yaw and cannot finish it lands the aeroplane crabbed AND drifting.
+      // 4.5 m reads 0.12. That is a cliff, not a gradient, and everything from
+      // 4.5 to 15 sits on the far side of it (drift 0.04..0.96, all inside the
+      // 1.8 bound; above 12 it saturates because decrab then starts above the
+      // flare and the flare height caps it).
+      //
+      // 7.0 is chosen for its DISTANCE FROM THE CLIFF, not for the best single
+      // number: 6.0 measures marginally better (-0.04 against -0.20) but sits
+      // 1.5 m from an edge whose far side is a fifty-times worse landing.
+      // Physically it is about 5 s of decrab, which is what a 12-tonne
+      // taildragger needs to be pointing where it is going.
+      //
+      // NOTHING IN CALM AIR MOVES. The decrab branch is gated on
+      // |windZ| > 0.5, so the still-air identity every other DC-3 gate is
+      // anchored on is bit-for-bit what it was.
+      decrabAgl: 7.0,
       VTailUp: 20, VStop: 0.5, slew: 0.8, thrCruise: 0.55, thrAppr: 0.30,
       // GE retune (session 1): wing keeps lifting through the rollout in
       // ground effect -> less weight on wheels -> longer roll. Brake earlier

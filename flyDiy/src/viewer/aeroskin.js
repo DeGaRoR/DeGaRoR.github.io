@@ -1105,6 +1105,116 @@ function aeroSetCraft(THREE, rootMatrixWorld, axes) {
   if (rootMatrixWorld) inv.copy(rootMatrixWorld).invert();
   U.uCraftInv.value.copy(P).multiply(inv);
 }
+// ===========================================================================
+// THE MARKINGS OF A GIVEN AEROPLANE, from its spec (G160).
+// ===========================================================================
+// THE BUG THIS EXISTS TO FIX, in the user's own words: "the registration did
+// not make it in-game intact, my settings affected only the garage." It was
+// exactly that, and the save was never the broken half — a build file carries
+// `finish.decals` and the user's Cub carries a placed one (regH 0.6, regL 3.15,
+// regC 0.14). What carried it onto an aeroplane was `applyDecals` in
+// _cage_ui.js, and _cage_ui.js is the EDITOR: it is bundled into the editor's
+// scripts, it runs when a slider moves, and nothing on the flight side has ever
+// called it. So the markings existed, were saved, were reloaded — and were
+// painted on only while you were looking at the aeroplane in the garage.
+//
+// ONE KEEPER FOR THE TRANSLATION. The obvious repair is to build the same list
+// again on the flight side, and that is the repair this file refuses: two
+// implementations of "what does `finish.decals` mean" is precisely how the
+// registration ends up in one place in the garage and 30 cm further aft in
+// flight. `aeroDecalsFor` is the only thing that turns a placement into a decal
+// list. The editor calls it with its live working state so an un-saved slider
+// still previews; the flight calls it with the spec merged over the defaults.
+//
+// AND THE DEFAULTS LIVE HERE for the same reason. `finish.decals` stores
+// DEVIATIONS, so a deviation needs something to deviate from, and that
+// something has to be reachable from both bundles — the editor's copy was not.
+const AERO_DEC_DEF = {
+  reg: null,              // filled from the spec's own meta on first build
+  regH: 0.30,             // 300 mm is the legal marking height in most places
+  regL: 2.10, regC: 0.28, // metres aft of the firewall, metres above the waist
+  regTarget: 0,           // 0 fuselage, 1 flying surfaces, 2 both, 3 body+tail
+  regMode: 0,             // 0 field, 1 box side view, 2 box plan view
+  regRot: 0,
+  regCol: null, regOut: null,     // null follows spec.paint.trim (G113.4)
+  regW: 0.96, regLock: 1,         // locked: width follows height at the aspect
+  regFont: 0,                     // an index into AERO_DEC_FONTS
+  imgOn: 0, imgL: 1.2, imgC: 0.0, imgW: 1.2, imgH: 0.6, imgTarget: 0,
+  imgMode: 0, imgRot: 0, imgLock: 1,
+  wimOn: 0, wimL: 0.0, wimC: 0.0, wimW: 2.0, wimH: 1.0,
+  wimMode: 2, wimRot: 0, wimLock: 1,
+};
+const AERO_DEC_ON = [
+  { body: 1 },                        // 0 the fuselage
+  { wing: 1, tail: 1 },               // 1 the flying surfaces
+  { body: 1, wing: 1, tail: 1 },      // 2 both
+  { body: 1, tail: 1 },               // 3 the body and the tail
+];
+const AERO_DEC_MODES = ['field', 'side', 'plan'];
+
+// D is a placement in AERO_DEC_DEF's shape; `opts` carries what the placement
+// does NOT own — the registration string and the paint it defaults its colour
+// to. Returns { list, aspect }: the caller gets the aspect back because the
+// editor needs it to drive its own width lock, and a return value is how it
+// gets it without this function knowing the editor exists.
+function aeroDecalsFor(THREE, D, opts) {
+  opts = opts || {};
+  const trim = opts.trim != null ? opts.trim : 0x1b3a5c;
+  const onOf = t => AERO_DEC_ON[Math.max(0, Math.min(3, +t || 0))];
+  const modeOf = m => AERO_DEC_MODES[Math.max(0, Math.min(2, +m || 0))];
+  const aspect = aeroDecalText(THREE, 0, opts.reg || D.reg || 'F-PGAR',
+                   D.regCol != null ? D.regCol : trim,
+                   D.regOut != null ? D.regOut : 0xffffff, D.regFont) || 3.2;
+  // LOCKED means the width is DERIVED, and it has to be derived here rather
+  // than read off the spec: `regW` is only meaningful when the lock is off, and
+  // a saved build that was locked carries whatever width the last font happened
+  // to give it. Deriving it is what makes the flown marking the same shape as
+  // the drawn one even when the two ran different fonts.
+  const w = D.regLock ? D.regH * Math.max(1.2, aspect) : Math.max(0.02, D.regW);
+  const list = [{ page: 0, sL: D.regL, sC: D.regC, w, h: D.regH,
+                  rot: D.regRot, rough: -0.06,
+                  on: onOf(D.regTarget), mode: modeOf(D.regMode) }];
+  if (D.imgOn) list.push({ page: 1, sL: D.imgL, sC: D.imgC, w: D.imgW,
+    h: D.imgH, rot: D.imgRot, rough: -0.04,
+    on: onOf(D.imgTarget), mode: modeOf(D.imgMode) });
+  // the wing's own channel: its own page, its own placement, never the body's
+  // classes — that is what "fully independent" means (G113.2).
+  if (D.wimOn) list.push({ page: 2, sL: D.wimL, sC: D.wimC, w: D.wimW,
+    h: D.wimH, rot: D.wimRot, rough: -0.04,
+    on: { wing: 1 }, mode: modeOf(D.wimMode) });
+  return { list, aspect };
+}
+
+// THE FLIGHT SIDE'S ONE CALL. Takes a resolved spec and puts that aeroplane's
+// markings on it. A spec with no `finish` is not a mistake and is not skipped:
+// it is an aeroplane with a factory marking, which is what the defaults ARE.
+//
+// THE IMAGE PAGES ARE DELIBERATELY NOT DRAWN HERE. `finish.decals` records
+// where a livery image sits and never the pixels — 60_gen_spec.js calls that
+// out as a deliberate gap — so a flown aeroplane shows the registration and
+// any image the editor has already baked into the atlas this session. Painting
+// a placeholder into pages 1 and 2 would put a wrong marking on the aeroplane,
+// which is worse than the absence.
+// THE MERGE, on its own so it can be proven without a canvas. `finish.decals`
+// holds DEVIATIONS: a field the builder never touched is absent, and absent has
+// to mean the default rather than zero — a missing `regH` read as 0 would give
+// a marking no height at all and look exactly like the bug this arc just fixed.
+function aeroDecalMerge(spec) {
+  const D = {};
+  for (const k in AERO_DEC_DEF) D[k] = AERO_DEC_DEF[k];
+  const saved = (spec && spec.finish && spec.finish.decals) || {};
+  for (const k in saved) if (saved[k] != null) D[k] = saved[k];
+  return D;
+}
+function aeroApplySpecDecals(THREE, spec) {
+  if (!spec) return;
+  const D = aeroDecalMerge(spec);
+  const paint = spec.paint || {};
+  const reg = (spec.meta && spec.meta.reg) || spec.reg || null;
+  const r = aeroDecalsFor(THREE, D, { reg, trim: paint.trim, base: paint.base });
+  aeroSetDecals(THREE, r.list);
+}
+
 function aeroSetDecals(THREE, list) {
   const U = aeroDecUniforms(THREE);
   const n = Math.min(AERO_MAXD, (list || []).length);
@@ -2371,6 +2481,7 @@ if (typeof window !== 'undefined')
                       aeroMaterial, aeroGlass,
                       aeroSetEnv, aeroDispose, aeroLinear, AERO_TEX,
                       aeroSetDecals, aeroSetCraft,
+                      aeroDecalsFor, aeroApplySpecDecals, AERO_DEC_DEF,
                       aeroDecalText, aeroDecalImage,
                       aeroAtlas, aeroPageRect, AERO_MAXD, AERO_ATLAS_N,
                       AERO_DEC_FONTS,
@@ -2383,4 +2494,9 @@ if (typeof module !== 'undefined')
                      aeroLinear, AERO_TEX, AERO_MAXD, AERO_ATLAS_N,
                      aeroPageRect, AERO_DEC_FONTS,
                      AERO_HARD, AERO_PROP_FIN, AERO_WEAR_K, aeroHardFinish,
+                     // AERO_DEC_DEF is exported to node so a gate can prove the
+                     // MERGE without a canvas: `finish.decals` holds deviations,
+                     // and "what does an unset field fall back to" is the half
+                     // of G160 that a source regex cannot check.
+                     AERO_DEC_DEF, aeroDecalMerge,
                      AERO_SEC, aeroSecResolve };

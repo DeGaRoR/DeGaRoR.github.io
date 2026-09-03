@@ -28,6 +28,23 @@
 // --bless REWRITES THE BASELINE, and it is not a way to make this gate quiet.
 // It is for the one case it was built for: a deliberate change to the wing,
 // where the new numbers are the new truth and the diff is the record of it.
+//
+// A DELIBERATE CHANGE TO THE AEROPLANE'S MASS IS ALSO THAT CASE, and it is not
+// obvious, so it is written down (G159). `genWing` emits about the CENTRE OF
+// GRAVITY — the model codec's own convention, and the right one, because it is
+// how the viewer places an aeroplane — so every frozen position carries the CG
+// in it. Give the aeroplane heavier seats and every wing group translates by
+// minus the CG shift: measured, (11.6, 22.5, 0) mm, with not one wing TRUSS
+// node moving at all.
+//
+// TRIED AND REJECTED: taking the digest out of that frame, so the gate would
+// measure shape alone. Subtracting `defCG` leaves 0.2 mm because the emitted
+// origin and defCG do not agree to the last bit; subtracting a shared skin
+// vertex does not cancel either, because the groups do not all ride one rigid
+// translation. Both attempts traded an exact instrument for an approximate one
+// and neither bought the invariance they were for. The emitted wing genuinely
+// changes when the aeroplane's mass does, this gate genuinely freezes the
+// emitted wing, and blessing is the honest record of a mass model that moved.
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -117,6 +134,24 @@ function wingMask(g, def) {
   return keep;
 }
 
+// THE DIGEST IS TAKEN IN THE STRUCTURAL FRAME, NOT THE EMITTED ONE (G159).
+// `genWing` emits about the CENTRE OF GRAVITY — that is the model codec's own
+// convention and it is right, because it is how the viewer places an aeroplane
+// — so every absolute vertex position carries the CG in it. This gate's
+// question is SHAPE ("the wing came out of genSkin without changing shape"),
+// and a wing that has not changed at all still fails an absolute digest the
+// moment anything anywhere on the aeroplane gets heavier.
+//
+// MEASURED, and that is what said it: giving the aeroplane heavier SEATS moved
+// every wing group — strut, pitot, ailerons, skin — by exactly the same
+// (11.565, 22.450, 0) mm, which is minus the CG shift, while not one wing
+// TRUSS node moved at all. A rigid translation of the whole aeroplane is not a
+// change to the wing.
+//
+// Subtracting the CG restores the property the gate was written for and keeps
+// the one it would otherwise lose: the wing's position is still frozen
+// ABSOLUTELY, in the frame the structure lives in, so a wing that genuinely
+// slides fore or aft relative to the aeroplane still fails.
 function groupSig(g, keep) {
   if (!g) return null;
   const P = [], U = [], W = [];
@@ -142,12 +177,18 @@ function signature(over) {
   const spec = merge(JSON.parse(JSON.stringify(GEN_DEFAULT)), over);
   const def = buildGen(spec);
   const sk = genWing(def);
+  // the emitted frame's own origin, so the digest can be taken out of it
   const out = {};
   for (const nm of WHOLE) out[nm] = groupSig(sk.groups[nm], null);
   for (const nm of SHARED) {
     const g = sk.groups[nm];
     out[nm] = g ? groupSig(g, wingMask(g, def)) : null;
   }
+  // the moving contract travels with the surfaces: a hinge that moved is a
+  // wing that flies differently, and it is three numbers rather than a mesh.
+  // The hinge POINT is emitted in the same CG-referenced frame the vertices
+  // are (see groupSig), so it comes out of that frame the same way; the AXIS
+  // is a direction and translates with nothing.
   // the moving contract travels with the surfaces: a hinge that moved is a
   // wing that flies differently, and it is three numbers rather than a mesh
   out.moving = (sk.moving || [])

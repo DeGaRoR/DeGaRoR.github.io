@@ -316,9 +316,248 @@ if (SHOW) for (const s of seen)
               s.hi.toFixed(2) + '  ' + s.open + '/' + s.of + ' sections  ' +
               s.litres.toFixed(0) + ' litres  FS ' + s.FS);
 
+
+// ===========================================================================
+// G99 — THE BAYS ARE PLACES, AND A VESSEL SITS IN ONE
+// ===========================================================================
+{
+  const C = require(path.join(__dirname, 'flight_core.js'));
+  const cl = o => JSON.parse(JSON.stringify(o));
+  const build = ov => {
+    const s = cl(C.GEN_DEFAULT);
+    for (const k in ov) s[k] = (ov[k] && typeof ov[k] === 'object' && !Array.isArray(ov[k]))
+      ? Object.assign({}, s[k], ov[k]) : ov[k];
+    return C.genShakedown(C.buildGen(s), {});
+  };
+  const bays = () => { const d = C.buildGen(); return C.genBayList(d.spec, d.parts.ST); };
+
+  // --- the ranges are DERIVED, which is the whole of G99's first half ------
+  const B0 = bays();
+  const nose = B0.find(b => b.key === 'nose');
+  const cab = B0.find(b => b.key === 'cabin');
+  check(nose.x0 >= 0, 'bay: the nose bay is BEHIND the firewall, where a tank ' +
+    'goes — it was declared at -0.95 m, which is inside the engine (x0 ' +
+    nose.x0.toFixed(2) + ')');
+  check(Math.abs(cab.x0 - C.resolveSpec(C.GEN_DEFAULT).spec.cab.noseGap) < 1e-6,
+    'bay: the cabin bay starts where the cabin does, not half a metre ahead');
+  // and it MOVES with the aeroplane, which a literal range cannot
+  {
+    const s2 = cl(C.GEN_DEFAULT); s2.cabin = Object.assign({}, s2.cabin, { len: 1.6 });
+    const d2 = C.buildGen(s2);
+    const c2 = C.genBayList(d2.spec, d2.parts.ST).find(b => b.key === 'cabin');
+    check(c2.x1 > cab.x1 + 0.3,
+      'bay: a longer cabin is a longer cabin bay (' + cab.x1.toFixed(2) +
+      ' -> ' + c2.x1.toFixed(2) + ' m)');
+    check(c2.litres > cab.litres,
+      'bay: ...and it holds more (' + cab.litres.toFixed(0) + ' -> ' +
+      c2.litres.toFixed(0) + ' L)');
+  }
+  check(B0.every(b => b.litres > 0), 'bay: every bay has a measured volume');
+
+  // --- a written capacity still means what it says -------------------------
+  check(build({ fuel: { litres: 70, tank: 'nose' } }).ledger.fuel.mass > 45,
+    'spec: a capacity written as fuel.litres seeds a vessel — every archetype ' +
+    'and every gate case writes it that way');
+  {
+    const two = build({ energy: { vessels: [{ bay: 'nose', capacity: 25 },
+                                            { bay: 'aftCabin', capacity: 25 }] } });
+    check(two.vessels.length === 2, 'spec: an explicit vessel list wins');
+    check(Math.abs(two.ledger.fuel.mass - 50 * 0.72) < 0.5,
+      'spec: and the capacity is the SUM of the list, not a second opinion');
+  }
+
+  // --- WHERE IT SITS IS A DESIGN DECISION ---------------------------------
+  const fwd = build({ energy: { vessels: [{ bay: 'nose', capacity: 50, along: 0, lv: 1 }] } });
+  const aft = build({ energy: { vessels: [{ bay: 'aftCabin', capacity: 50 }] } });
+  check(aft.cgX > fwd.cgX + 0.15,
+    'place: moving the tank aft moves the centre of gravity aft (' +
+    fwd.cgX.toFixed(3) + ' -> ' + aft.cgX.toFixed(3) + ' m)');
+  check(fwd.staticMargin > aft.staticMargin + 0.08,
+    'place: ...and it costs static margin (' +
+    (fwd.staticMargin * 100).toFixed(1) + ' % -> ' +
+    (aft.staticMargin * 100).toFixed(1) + ' %)');
+
+  // --- AND THE FUEL BURNS OFF, WHICH IS THE POINT OF THE ARC ---------------
+  check(fwd.reserve.staticMargin < fwd.staticMargin - 0.02,
+    'burn: a NOSE tank burning down walks the CG aft (' +
+    (fwd.staticMargin * 100).toFixed(1) + ' -> ' +
+    (fwd.reserve.staticMargin * 100).toFixed(1) + ' %)');
+  check(aft.reserve.staticMargin > aft.staticMargin + 0.02,
+    'burn: an AFT tank burning down walks it forward (' +
+    (aft.staticMargin * 100).toFixed(1) + ' -> ' +
+    (aft.reserve.staticMargin * 100).toFixed(1) + ' %)');
+  {
+    const split = build({ energy: { vessels: [{ bay: 'nose', capacity: 25, along: 0, lv: 1 },
+                                              { bay: 'aftCabin', capacity: 25 }] } });
+    check(Math.abs(split.reserve.staticMargin - split.staticMargin) < 0.02,
+      'burn: fuel BRACKETING the CG barely moves it — which is why real ' +
+      'aeroplanes carry two tanks (' +
+      ((split.reserve.staticMargin - split.staticMargin) * 100).toFixed(1) + ' pts)');
+  }
+  // a pack does not burn
+  {
+    const b = build({ energy: { kind: 'battery',
+      vessels: [{ bay: 'nose', capacity: 8, along: 0, lv: 1 }] } });
+    check(!b.reserve || Math.abs(b.reserve.staticMargin - b.staticMargin) < 1e-9,
+      'burn: a pack does not drain, so its CG does not move');
+  }
+
+  // --- IT HAS TO FIT ------------------------------------------------------
+  check(build({ energy: { vessels: [{ bay: 'nose', capacity: 50 }] } }).vesselFit,
+    'fit: 50 litres fits the nose bay');
+  check(!build({ energy: { vessels: [{ bay: 'nose', capacity: 200 }] } }).vesselFit,
+    'fit: 200 litres does not, and the sheet says so rather than drawing it ' +
+    'through the firewall');
+  check(!build({ energy: { kind: 'battery',
+      vessels: [{ bay: 'underFloor', capacity: 40 }] } }).vesselFit,
+    'fit: nor does 40 kWh of LiFePO4 under the floor');
+
+  // --- THE MIGRATION MOVED NOTHING, which GATE ENERGYBASE proves in full;
+  //     this is the one property of it that belongs here.
+  {
+    const lifted = C.genNormaliseSpec({ v: 6, fuel: { litres: 50, tank: 'nose' } });
+    const v0 = lifted.energy.vessels[0];
+    check(lifted.v === C.GEN_SPEC_V && v0.bay === 'nose' && v0.capacity === 50,
+      'migrate: a v6 {litres, tank} lifts to a vessel in a bay');
+    check(v0.along === 0 && v0.lv === 1,
+      'migrate: ...at the station the OLD NODE was at — the firewall ring, ' +
+      'top pair — so twelve gallons do not drift half a metre aft');
+  }
+  if (SHOW) {
+    console.log('  bays: ' + B0.map(b => b.name + ' ' + b.litres.toFixed(0) + ' L').join(' · '));
+    console.log('  50 L nose -> aft: cg ' + fwd.cgX.toFixed(3) + ' -> ' +
+      aft.cgX.toFixed(3) + ' m, SM ' + (fwd.staticMargin * 100).toFixed(1) +
+      ' -> ' + (aft.staticMargin * 100).toFixed(1) + ' %');
+  }
+}
+
 console.log('  ' + seen.length + ' bodies swept, ' +
             seen.reduce((a, s) => a + s.open, 0) + ' sections measured, ' +
             seen.reduce((a, s) => a + s.litres, 0).toFixed(0) + ' litres of interior');
 for (const f of fail) console.log('  FAIL ' + f);
+
+// ===========================================================================
+// G98 — THE VESSEL CATALOGUE
+// ===========================================================================
+// What is protected here is the same class of silence G97 was written for: a
+// tank that weighs nothing, a pack that is free, or a capacity said in two
+// places. None of them throws and all of them read as a slightly better
+// aeroplane.
+{
+  const C = require(path.join(__dirname, 'flight_core.js'));
+  const V = C.genVesselResolve, cl = o => JSON.parse(JSON.stringify(o));
+
+  // --- the shell law -------------------------------------------------------
+  // A vessel is a SHELL, so its mass goes with surface and not with volume.
+  // If this ever came out linear, somebody has billed litres.
+  const t20 = V('fuel', 20, 'alu', 'avgas100LL');
+  const t180 = V('fuel', 180, 'alu', 'avgas100LL');
+  check(t180.vesselKg > t20.vesselKg,
+    'vessel: a bigger tank is a heavier tank (' + t20.vesselKg.toFixed(1) +
+    ' -> ' + t180.vesselKg.toFixed(1) + ' kg)');
+  check(t180.vesselKg / t180.capacity < 0.55 * t20.vesselKg / t20.capacity,
+    'vessel: and a much lighter one PER LITRE — the shell law (' +
+    (t20.vesselKg / t20.capacity * 1000).toFixed(0) + ' -> ' +
+    (t180.vesselKg / t180.capacity * 1000).toFixed(0) + ' g/L)');
+
+  // --- anchored on a real component ---------------------------------------
+  // A 45 L welded aluminium light-aircraft tank is about 5 kg. This is the
+  // one number in the table that can be checked against a thing you can pick
+  // up, so it is the one the table is anchored on.
+  const t45 = V('fuel', 45, 'alu', 'avgas100LL');
+  check(t45.vesselKg > 4.0 && t45.vesselKg < 6.5,
+    'vessel: a 45 L welded alu tank weighs about 5 kg (' +
+    t45.vesselKg.toFixed(1) + ')');
+
+  // --- the vessels are a real choice --------------------------------------
+  const kinds = ['alu', 'bladder', 'moulded', 'wet']
+    .map(k => ({ k, m: V('fuel', 60, k, 'avgas100LL').vesselKg }));
+  check(kinds.every(x => x.m > 0), 'vessel: every fuel vessel has mass');
+  const wet = kinds.find(x => x.k === 'wet').m;
+  const alu = kinds.find(x => x.k === 'alu').m;
+  check(wet < alu,
+    'vessel: a wet wing is lighter than a tank in it (' + wet.toFixed(1) +
+    ' < ' + alu.toFixed(1) + ')');
+
+  // --- fuel and cells are the same shape of thing, told apart by ONE fact --
+  const f = V('fuel', 50, 'alu', 'avgas100LL');
+  check(Math.abs(f.contentsKg - 50 * C.GEN_FUELS.avgas100LL.kgL) < 1e-6,
+    'fuel: the contents are litres x the declared density, not a literal');
+  const packs = ['lifepo4', 'nmc', 'nca'].map(c => V('battery', 20, 'packCase', c));
+  check(packs[0].contentsKg > packs[2].contentsKg,
+    'cells: LiFePO4 is the heavy chemistry (' + packs[0].contentsKg.toFixed(0) +
+    ' > ' + packs[2].contentsKg.toFixed(0) + ' kg for 20 kWh)');
+  check(packs[2].price > packs[0].price,
+    'cells: ...and NCA is the dear one (' + packs[2].price + ' > ' +
+    packs[0].price + ' cr)');
+  check(packs.every(x => x.installedL > x.litres),
+    'cells: a pack takes more room than its cells do');
+
+  // --- and now the aeroplane ----------------------------------------------
+  const base = cl(C.GEN_DEFAULT);
+  const liquid = C.genShakedown(C.buildGen(base), {});
+  const bs = cl(base);
+  bs.energy.kind = 'battery'; bs.energy.kWh = 12;
+  bs.engines[0].type = 'emrax228_3blade';
+  const batt = C.genShakedown(C.buildGen(bs), {});
+  check(liquid.ledger.vessel && liquid.ledger.vessel.mass > 1,
+    'ledger: the TANK weighs something — it weighed nothing before G98 (' +
+    liquid.ledger.vessel.mass.toFixed(1) + ' kg)');
+  check(!liquid.ledger.vessel.payload,
+    'ledger: and it is EMPTY weight, not payload — you bought it');
+  check(liquid.ledger.fuel.payload && liquid.ledger.fuel.mass > 1,
+    'ledger: the fuel in it is payload');
+  // THE CONTRAST THE ARC EXISTS FOR
+  // the ROW ITSELF is the statement: nothing was billed to `fuel`, so the
+  // section never opened. A pack has no payload at all.
+  check(!batt.ledger.fuel || batt.ledger.fuel.mass < 0.001,
+    'battery: a pack carries no payload — cells do not drain');
+  check(batt.ledger.vessel.mass > 10 * liquid.ledger.vessel.mass,
+    'battery: the cells are EMPTY weight, and there are a lot of them (' +
+    batt.ledger.vessel.mass.toFixed(0) + ' vs ' +
+    liquid.ledger.vessel.mass.toFixed(1) + ' kg)');
+  check(batt.empty > liquid.empty,
+    'battery: an electric aeroplane is heavier EMPTY (' +
+    batt.empty.toFixed(0) + ' > ' + liquid.empty.toFixed(0) + ' kg)');
+  // ...which is what the registry's own comment has been waiting for
+  check(batt.cost > liquid.cost,
+    'battery: and its energy is no longer free (' + batt.cost.toFixed(0) +
+    ' > ' + liquid.cost.toFixed(0) + ' cr)');
+
+  // --- the burn model's hook, and that a pack does not have one -----------
+  const dl = C.buildGen(base), db = C.buildGen(bs);
+  const mf = d => d.nodes.reduce((a, n) => a + (n.mFuel || 0), 0);
+  check(mf(dl) > 1, 'burn: liquid fuel is recorded on the nodes (mFuel ' +
+    mf(dl).toFixed(1) + ' kg)');
+  check(mf(db) < 0.001,
+    'burn: a pack records none — there is nothing for the burn to drain');
+
+  // --- capacity is said ONCE ----------------------------------------------
+  const both = cl(base);
+  both.energy.kind = 'battery'; both.energy.kWh = 9; both.fuel.litres = 60;
+  const R = C.resolveSpec(both).spec;
+  check(R.fuel.litres === 0,
+    'capacity: a pack carries no litres — one place for one fact');
+  const both2 = cl(base); both2.energy.kWh = 30;
+  check(C.resolveSpec(both2).spec.energy.kWh === 0,
+    'capacity: ...and a tank carries no kWh');
+  // a vessel that cannot hold this kind is refused
+  const bad = cl(base); bad.energy.vessel = 'packCase';
+  check(C.resolveSpec(bad).spec.energy.vessel === null,
+    'vessel: a pack case is not a fuel tank, and the clamp says so');
+  if (SHOW) {
+    console.log('  catalogue: ' + Object.keys(C.GEN_FUELS).length + ' fuels, ' +
+      Object.keys(C.GEN_CELLS).length + ' chemistries, ' +
+      Object.keys(C.GEN_VESSELS).length + ' vessels');
+    console.log('  45 L alu tank ' + t45.vesselKg.toFixed(1) + ' kg (real ~5)' +
+      ' · shell law ' + (t20.vesselKg / 20 * 1000).toFixed(0) + ' -> ' +
+      (t180.vesselKg / 180 * 1000).toFixed(0) + ' g/L');
+    console.log('  stock build: tank ' + liquid.ledger.vessel.mass.toFixed(1) +
+      ' kg empty + ' + liquid.ledger.fuel.mass.toFixed(1) + ' kg payload  |  ' +
+      '12 kWh pack ' + batt.ledger.vessel.mass.toFixed(0) +
+      ' kg empty + 0 payload');
+  }
+}
+
 console.log('GATE ENERGY: ' + (fail.length ? 'FAIL' : 'PASS'));
 process.exit(fail.length ? 1 : 0);

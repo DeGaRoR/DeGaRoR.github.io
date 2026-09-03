@@ -290,6 +290,14 @@ function genClimbAt(sim, def, W, aMax) {
 // wheels and the rolling drag: conservative, deliberately.
 function genTORunAt(sim, def, W) {
   const A_ = def.params.ap;
+  // THE ROLL HAPPENS IN GROUND EFFECT (G159), and leaving it out was worth
+  // 8 % of lift and therefore 15 % of the roll. The wheels are on the ground:
+  // h/b is the aeroplane's own geometry, not the terrain's, so this is not the
+  // "which patch of grass" question the world-free probe exists to avoid. The
+  // law is the solver's own McCormick sigma — one implementation, not a second
+  // copy here. Cleared at every exit below, so nothing else this sim measures
+  // (Vs, the cruise trim, the climb gradient) sees it.
+  if (sim.setGroundRef) sim.setGroundRef(0);
   // the unstick speed is SOLVED in the real air, so thin air lengthens the roll
   // twice over: less thrust to accelerate on, and further to accelerate to.
   let Vun = 1.05 * A_.VRot / sim.probeAir().easK;
@@ -324,8 +332,16 @@ function genTORunAt(sim, def, W) {
   const grad = Math.max(0.015,
     (sim.thrustAt(1.10 * Vun, 0) - rm.drag) / W2);
   const air = (2.5 + (Vscr * Vscr - Vun * Vun) / (2 * 9.81)) / grad;
-  return { TORun: Math.round(sRoll + air), Vun, sRoll: Math.round(sRoll),
-           air: Math.round(air) };
+  // G158: the TOTAL IS THE SUM OF THE PARTS AS PUBLISHED. This rounded the sum
+  // and the two parts independently, so `round(a+b)` could differ by 1 m from
+  // `round(a)+round(b)` and the plaque printed an addition that did not add up.
+  // GATE HONEST asserts exactly that identity and had never caught it, because
+  // no anchored build had happened to land either part near a half-metre;
+  // moving the propeller moved one onto it (151 + 72 = 224). Round once, then
+  // sum, so the row on the plaque is arithmetic the player can check.
+  if (sim.setGroundRef) sim.setGroundRef(null);
+  const rollM = Math.round(sRoll), airM = Math.round(air);
+  return { TORun: rollM + airM, Vun, sRoll: rollM, air: airM };
 }
 
 // The garage readout. Everything a builder would want to know before rolling
@@ -501,7 +517,44 @@ function genShakedown(def, opts) {
     out.cowlOut = ['above', 'below', 'sides'].filter(k => !S.cowl.covers[k]);
     // THE PROPELLER as a component of its own: the disc it sweeps, what it pulls
     // standing still, where its thrust runs out, and what the blades weigh.
+    // G99: EVERY VESSEL, ITS BAY, AND WHETHER IT FITS. The bay volumes come
+    // from the aeroplane's own station table, so a longer cabin really does
+    // hold more — and a vessel that does not fit says so here rather than
+    // being quietly accepted and drawn through the pilot.
+    out.vessels = ((S.energy && S.energy.vessels) || []).map(v => {
+      const bay = genBayResolve(S, v.bay, P.ST);
+      const r = genVesselResolve(
+        S.energy.kind === 'battery' ? 'battery' : 'fuel', v.capacity,
+        S.energy.vessel || (S.energy.kind === 'battery' ? 'packCase' : 'alu'),
+        S.energy.kind === 'battery' ? S.energy.cell : S.energy.fuel);
+      const room = bay ? bay.litres : 0;
+      return { bay: v.bay, bayName: bay ? bay.name : v.bay,
+               feed: bay ? bay.feed : null,
+               capacity: v.capacity, needL: r.installedL, roomL: room,
+               fill: room > 0 ? r.installedL / room : 9,
+               fits: room > 0 && r.installedL <= room,
+               kg: r.vesselKg + r.contentsKg };
+    });
+    out.vesselFit = out.vessels.every(v => v.fits);
+    // G98: WHAT IT CARRIES ITS ENERGY IN. Read from the same resolver the
+    // ledger bills from, so the sheet and the weight cannot disagree.
+    {
+      const E = genEnergyResolve(S);
+      out.energyKind = E.battery ? 'battery' : 'fuel';
+      out.energyMedium = (E.battery ? GEN_CELLS[E.medium] : GEN_FUELS[E.medium]).name;
+      out.vesselName = E.vessel.name;
+      out.vesselKg = E.vesselKg;
+      out.energyKg = E.contentsKg;
+      out.energyL = E.installedL;
+      out.energyPrice = E.price;
+    }
     out.propName = S.prop.name;
+    // WHICH PITCH, AND WHETHER THE AEROPLANE CHOSE IT (G159). The plaque said
+    // the propeller's diameter, blades and thrust and never the one dial with
+    // a right answer. `propPitchAuto` is null when the builder picked it and
+    // the class when 'auto' did, so the sheet can say which.
+    out.propPitch = S.prop.pitchUsed || S.prop.pitch;
+    out.propPitchAuto = S.prop.pitchAuto || null;
     out.propD = S.prop.D; out.propBlades = S.prop.blades;
     out.propDisc = S.prop.area;
     out.propTstatic = S.prop.Tstatic; out.propV0 = S.prop.V0;
@@ -569,7 +622,18 @@ function genShakedown(def, opts) {
   if (!(opts && opts.slim) && S && S.fuel && S.fuel.litres > 10) {
     try {
       const rs = JSON.parse(JSON.stringify(S));
-      rs.fuel.litres = Math.max(4, 0.15 * rs.fuel.litres);
+      // DRAIN THE VESSELS, not the reading (G99). `fuel.litres` became the SUM
+      // of the vessel list, so scaling it here scaled a derived field and the
+      // aeroplane was rebuilt brim-full: every "at reserves" row on the plaque
+      // was identical to the full-tanks row above it, including the static
+      // margin, which is the one number this sheet exists for. Each vessel is
+      // drained in proportion, so a two-tank aeroplane empties both and its CG
+      // walks the way the real one does.
+      const keepF = rs.fuel.litres;
+      const k = keepF > 0 ? Math.max(4, 0.15 * keepF) / keepF : 0;
+      if (rs.energy && Array.isArray(rs.energy.vessels))
+        for (const v of rs.energy.vessels) v.capacity = v.capacity * k;
+      rs.fuel.litres = Math.max(4, 0.15 * keepF);
       const rsh = genShakedown(buildGen(rs), { slim: true });
       out.reserve = { litres: rs.fuel.litres, mass: rsh.mass, Vs: rsh.Vs,
                       staticMargin: rsh.staticMargin,
@@ -618,6 +682,22 @@ function buildGen(specIn) {
   // move with VAppr.
   const gClean = genClMax(def, 0);
   params.gen.aStall = gClean.aStall;
+  // THE PROPELLER CHOOSES ITSELF (G159), here and not in resolveSpec, because
+  // the criterion is the aeroplane's own stall speed and that is not knowable
+  // until the wing has been built and swept. `gClean` is that sweep, three
+  // lines up, so this costs nothing extra. resolveSpec has already synthesised
+  // a STANDARD propeller as the placeholder; this replaces it and writes the
+  // class it chose onto the resolved spec, where the shakedown and the editor
+  // read it. The SAVED spec still says 'auto', so the answer follows the
+  // aeroplane the next time its wing, its weight or its engine moves.
+  if (S.prop && S.prop.autoPitch) {
+    const VsC = Math.sqrt(2 * gClean.W /
+                (RHO * gClean.Sw * Math.max(1e-6, gClean.CLmax)));
+    genPropAuto(S.prop, VsC);
+    S.prop.pitch = S.prop.pitchAuto;
+    S._auto['prop.pitch'] = true;
+    params.prop = { D: S.prop.D, Tstatic: S.prop.Tstatic, kV2: S.prop.kV2 };
+  }
   if (params.flaps) {
     const g = genClMax(def, params.flaps.ldg ?? 1);
     const VsFlap = Math.sqrt(2 * g.W / (RHO * g.Sw * Math.max(1e-6, g.CLmax)));

@@ -683,9 +683,25 @@ function garageInit(api) {
       const C = window.CAGE2, PG = window.CAGE_PAGE;
       if (!C || !C.cageToSpec || !PG || !PG.presets) return out;
       for (const nm in PG.presets) {
-        const full = Object.assign(C.cageDefaults(), PG.defaults || {},
-                                   PG.presets[nm] || {});
-        out.push({ name: nm, spec: { cage: C.cageToSpec(full) } });
+        const pre = PG.presets[nm] || {};
+        // WHERE THE ROW STARTS FROM (see the piper cub row in
+        // _cage_page5.js). A preset written against this page starts from
+        // the page's own aeroplane; a row imported from a saved build
+        // starts from the TEMPLATE, because `spec.cage` is deviations from
+        // the template and laying one over the page defaults leaks every
+        // key the export does not mention.
+        const full = pre._base === 'template'
+          ? Object.assign(C.cageDefaults(), pre)
+          : Object.assign(C.cageDefaults(), PG.defaults || {}, pre);
+        delete full._base;
+        // A STOCK DESIGN IS A WHOLE BUILD when the page declares one. The
+        // cage alone made an aeroplane — the generator fills the rest — but
+        // it made the GENERATOR's aeroplane: default wing, default engine,
+        // yellow paint. `builds` carries the sections the cage cannot.
+        const spec = { cage: C.cageToSpec(full) };
+        const B = (PG.builds || {})[nm];
+        if (B) Object.assign(spec, JSON.parse(JSON.stringify(B)));
+        out.push({ name: nm, spec });
       }
     } catch (e) {}
     return out;

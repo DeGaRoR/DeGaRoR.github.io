@@ -1865,6 +1865,32 @@
       cg[1] + O[0]*xA[1] + O[1]*yU[1],
       cg[2] + O[0]*xA[2] + O[1]*yU[2]);
     model.grp.matrix.copy(mBasis);
+    // THE PROJECTOR'S FRAME IS THIS ONE, AND IT MOVES (G160.2). The box decal
+    // modes read `vCraftPos = uCraftInv * modelMatrix * v`, so uCraftInv has to
+    // be the inverse of whatever carries the aeroplane's pose — and that is
+    // `model.grp`, right here, rebuilt from the solver's basis and CG on every
+    // frame. I first set this once per build off `craft`, reasoning that both
+    // move together so the product would be invariant. `craft` is never posed
+    // at all: it sits at identity and the aeroplane's motion lives in the
+    // vertex buffers and in this matrix. So inv(craft) was the identity,
+    // vCraftPos collapsed to WORLD position, and a side-projected marking slid
+    // across the aeroplane as it flew down the map — which is the exact defect
+    // that was already written up, arrived at a second way.
+    //
+    // ONCE PER FRAME IS NOT OPTIONAL for the same reason: this matrix is new
+    // every frame, so a value cached at build time is stale as soon as the
+    // aeroplane rolls.
+    //
+    // FIELD MODE DOES NOT CARE, and that is why this stayed invisible: the
+    // registration defaults to `field`, which rides the surface field baked
+    // into aStruct and never touches vCraftPos. Only `side` and `plan` read it.
+    if (window.AEROSKIN && window.AEROSKIN.aeroSetCraft) {
+      model.grp.updateWorldMatrix(true, false);
+      window.AEROSKIN.aeroSetCraft(THREE, model.grp.matrixWorld,
+        // model.grp's own basis, as built two lines above: local x is the
+        // solver's along-axis, local y is up, local z is the cross (left).
+        { lateral: 'z', along: 'x', up: 'y', aft: false });
+    }
     if (running)                                 // a paused world holds its prop
       for (const p of model.props) {
         const d = (8 + 110 * sim.ctl.thr) * (1/60);                // visual only
@@ -2225,6 +2251,35 @@
     }
     model = buildModel(key, def);
     if (model) craft.add(model.grp);
+    // THE MARKINGS REACH THE FLOWN AEROPLANE (G160). The user's report was
+    // "the registration did not make it in-game intact, my settings affected
+    // only the garage", and that was literally true: the only caller of
+    // aeroSetDecals was the editor panel, so a placed registration was painted
+    // on while you were building and gone the moment you flew.
+    //
+    // ONLY THE GARAGE BUILD. A fleet aeroplane wears an imported skin with its
+    // own markings baked into its own texture, and projecting a registration
+    // over the top of one would be this project's own aeroplane-with-two-
+    // registrations. `genSpec` is the garage's spec and nothing else has one.
+    if (key === 'gen' && genSpec && window.AEROSKIN
+        && window.AEROSKIN.aeroApplySpecDecals) {
+      try {
+        // THE FRAME IS SET IN THE POSE LOOP, not here — see G160.2 beside
+        // `model.grp.matrix.copy(mBasis)`. It has to be, because the matrix it
+        // inverts is rebuilt every frame; setting it once at build time named
+        // the right uniform at the wrong moment.
+        window.AEROSKIN.aeroApplySpecDecals(THREE, genSpec);
+      } catch (e) {
+        // IT STILL SWALLOWS, IT JUST SAYS SO FIRST — the same ruling
+        // _cage_ui.js reached about its own finish panels. One layer failing
+        // must not take the aircraft build with it, but a silent catch here
+        // is indistinguishable from the bug this block exists to fix: an
+        // aeroplane with no markings on it. It cost a debugging round during
+        // G160 itself, when a typo threw in here and the only symptom was a
+        // bare fuselage that looked exactly like the original defect.
+        console.error('markings: this build’s own decals did not go on —', e);
+      }
+    }
     // a fleet aeroplane never stands behind a cage build (G65) — settled
     // before the one visibility ruling below, not after it
     if (curKey !== 'gen') showCage = false;
@@ -3081,9 +3136,99 @@
     // rows: label, value, and a verdict class where the code has a rule
     const rows = [];
     const H = t => rows.push('<div class="h">' + t + '</div>');
-    const R = (label, val, cls) => rows.push('<div class="r' +
-      (cls ? ' ' + cls : '') + '"><span>' + label + '</span><b>' +
-      val + '</b></div>');
+    // WHY A ROW IS RED, AND WHAT TO TURN. The user asked for it in these
+    // words: "every failure of the test should come accompanied with
+    // explanations and recommendations. A simple hover over the values should
+    // suffice, with pointers to what parameters to adjust."
+    //
+    // KEYED ON THE ROW'S OWN LABEL, so the pointers live in ONE place rather
+    // than threaded through twenty call sites — and a row that grows a verdict
+    // later gets its explanation simply by naming itself.
+    //
+    // `what` is shown ALWAYS, because a number you do not understand is not
+    // much better for being green. `fix` is appended only when the row is
+    // actually warn or bad: a clean row does not need telling how to recover.
+    // Both name the CONTROLS a builder has rather than the internals — a
+    // pointer to a variable nobody can see is not a recommendation.
+    const WHY = {
+      'L/D': { what: 'glide ratio at best speed - metres forward per metre down.',
+        fix: 'raise the aspect ratio (more span, or a narrower chord), fair the '
+           + 'undercarriage, and look at the struts and fittings.' },
+      'climb': { what: 'best rate of climb at sea level, at full power.',
+        fix: 'this is power against weight: a bigger engine, a coarser propeller, '
+           + 'less structure, or more wing area. Check the empty weight first - '
+           + 'covering and fittings add up faster than they look.' },
+      'take-off run': { what: 'ground roll plus the climb to the 15 m screen.',
+        fix: 'more power or less weight shortens it; so does more wing area and a '
+           + 'flap that actually lifts (a plain flap does little). A fine-pitch '
+           + 'propeller helps here and costs you cruise speed.' },
+      'take-off there': { what: 'the same run at the hot-and-high field.',
+        fix: 'thin air takes power and lift together. A normally aspirated engine '
+           + 'loses roughly 3% per 300 m of density altitude, so the levers are '
+           + 'installed power and weight, in that order.' },
+      'climb there': { what: 'rate of climb at the hot-and-high field.',
+        fix: 'the same lever as climb but less forgiving - at density altitude '
+           + 'the margin is small, so weight comes off before power goes on.' },
+      'power there': { what: 'the fraction of sea-level power the engine still makes.',
+        fix: 'a normally aspirated engine cannot avoid this. A turbocharged or an '
+           + 'electric powerplant holds its output far better with height.' },
+      'service ceiling': { what: 'the height at which climb falls to 0.5 m/s.',
+        fix: 'power against weight again, and wing area. A low ceiling and a poor '
+           + 'climb are the same problem read twice.' },
+      'static margin': { what: 'how far the centre of gravity sits ahead of the '
+           + 'neutral point, as a fraction of the mean chord. Positive means the '
+           + 'aeroplane returns to trim by itself; the fleet sits near 0.20.',
+        fix: 'move mass FORWARD (the engine, the tanks, the seats) or move the '
+           + 'wing AFT. A longer tail arm carries the neutral point back and '
+           + 'helps both. Negative is unflyable, not merely twitchy.' },
+      'weathervane': { what: 'directional stiffness (Cn_beta) - how hard the '
+           + 'aeroplane points itself back into the airflow. The Cub reads 0.11.',
+        fix: 'fin AREA and fin HEIGHT both move it, and so does a longer tail '
+           + 'arm. Under 0.03 it wanders; negative and it swaps ends.' },
+      'stands on': { what: 'what the aeroplane is actually resting on, measured '
+           + 'rather than assumed.',
+        fix: 'if it is not on its wheels the undercarriage geometry is wrong - '
+           + 'leg length, rake, and where the mains sit relative to the CG.' },
+      'prop clear': { what: 'propeller tip to the ground in the resting attitude.',
+        fix: 'longer undercarriage legs, a smaller propeller disc, or raise the '
+           + 'thrust line. Under 0.05 m it strikes on any soft field.' },
+      'nose-over': { what: 'the angle from the mains to the CG - how hard you can '
+           + 'brake before it goes on its nose.',
+        fix: 'move the main wheels FORWARD, or the CG aft. Under 15 degrees is a '
+           + 'taildragger that will not forgive a firm brake.' },
+      'gear': { what: 'the undercarriage as built.',
+        fix: 'FOLDED means it collapsed under its own weight - the legs are too '
+           + 'soft, or the aeroplane is too heavy for them.' },
+      'outcome': { what: 'whether the test pilot completed the circuit.',
+        fix: 'read the pilot notes below - the circuit stopped somewhere, and the '
+           + 'phase it stopped in names the problem.' },
+      'landing run': { what: 'roll from touchdown to a stop.',
+        fix: 'a lower stall speed is almost the whole of it - more wing area, or '
+           + 'a flap that lifts. The approach speed follows the stall.' },
+      'touchdown': { what: 'sink rate and speed at the moment the wheels arrive.',
+        fix: 'a firm arrival is usually approach speed or the flare. More wing '
+           + 'area lowers both; softer gear absorbs what is left.' },
+      'past the aim': { what: 'how far beyond the aiming point it touched down.',
+        fix: 'floating means too much speed on the approach for the drag '
+           + 'available; a flap that adds drag as well as lift settles it.' },
+      'held': { what: 'what the pilot actually flew on the cruise leg, against '
+           + 'what the test card asked for.',
+        fix: 'the aeroplane could not hold the ask. Speed short is drag or power; '
+           + 'height short is climb.' },
+      'pilot notes': { what: 'bounded verdicts the test pilot recorded in flight.',
+        fix: 'each code names one thing it did not like - the newest is shown.' },
+    };
+    const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                              .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const R = (label, val, cls, why) => {
+      const w = why !== undefined ? why : WHY[label];
+      let t = '';
+      if (w) t = typeof w === 'string' ? w
+              : (w.what || '') + (cls && w.fix ? ' \u2014 ' + w.fix : '');
+      rows.push('<div class="r' + (cls ? ' ' + cls : '') + '"' +
+        (t ? ' title="' + esc(t) + '"' : '') +
+        '><span>' + label + '</span><b>' + val + '</b></div>');
+    };
     H('weights');
     R('empty', n1(s.empty, 0) + ' kg');
     R('payload', n1(s.payload, 0) + ' kg');
@@ -3206,6 +3351,38 @@
     R('stands on', s.onWheels ? 'its wheels' : (s.restsOn || '—'),
       s.onWheels ? '' : 'bad');
     R('deck angle', n1(s.deckAngle, 1) + '°');
+    // G98: THE ENERGY AND WHAT HOLDS IT. The tank used to be invisible on
+    // this sheet because it weighed nothing; now it is a thing you bought and
+    // it says so, beside the fuel or the cells it holds.
+    if (s.energyKind) {
+      H(s.energyKind === 'battery' ? 'the pack' : 'fuel and tank');
+      R(s.energyKind === 'battery' ? 'cells' : 'fuel', s.energyMedium);
+      R(s.vesselName, n1(s.vesselKg, 1) + ' kg');
+      R(s.energyKind === 'battery' ? 'cell mass' : 'fuel aboard',
+        n1(s.energyKg, 1) + ' kg' +
+        (s.energyKind === 'battery' ? ' · empty weight' : ' · payload, and it burns off'));
+      R('room needed', n1(s.energyL, 0) + ' L');
+      // G99: WHERE IT SITS, AND WHETHER IT FITS. A vessel is a real solid in a
+      // declared bay now, so the sheet says which bay, how full of it the
+      // vessel is, and whether the bay can take it at all.
+      for (const v of (s.vessels || []))
+        R(v.bayName + (v.feed === 'gravity' ? ' · gravity fed' : ''),
+          n1(v.capacity, 0) + (s.energyKind === 'battery' ? ' kWh' : ' L') +
+          ' · ' + n1(v.needL, 0) + ' of ' + n1(v.roomL, 0) + ' L' +
+          (v.fits ? '' : ' — DOES NOT FIT'),
+          v.fits ? (v.fill > 0.85 ? 'warn' : '') : 'bad',
+          // a bay row's label is the BAY's own name, so it cannot be keyed by
+          // label like the rest - it hands its explanation over directly.
+          { what: 'what this vessel holds, against the room the bay actually has.',
+            fix: 'move it to a larger bay, split it across two, or ask for less '
+               + 'capacity. A wing bay grows with span and chord; a body bay '
+               + 'grows with the cabin length and the fuselage section.' });
+    }
+    if (s.propPitch)
+      R('propeller pitch',
+        (s.propPitch === 'climb' ? 'fine (climb)'
+          : s.propPitch === 'cruise' ? 'coarse (cruise)' : 'standard') +
+        (s.propPitchAuto ? ' · chosen for you' : ''));
     R('prop clear', n1(s.propClear, 2) + ' m',
       (s.propClear || 0) < 0.05 ? 'bad'
         : (s.propClear || 0) < 0.12 ? 'warn' : '');

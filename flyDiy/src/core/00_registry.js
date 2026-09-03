@@ -50,7 +50,14 @@ const POWERPLANTS = {
   a65_sensenich74: {
     price: 9000,
     engine: { name: 'Continental A-65', mass: 80, powerW: 48500, aspiration: 'na', family: 'four', cooling: 'air' },
-    prop:   { name: 'Sensenich 74CK', D: 1.88, Tstatic: 900, kV2: 0.26 },
+    // G158: 1202 N / 0.1941, the generator's own synthesis at standard pitch
+    // (figure of merit 0.477 on a 1.88 m disc absorbing 48.5 kW) and inside
+    // the published 250-280 lbf band for this combination. The old 900 / 0.26
+    // was fitted to make a 23 %-light J-3 fiche reproduce a GROSS-weight climb
+    // figure, and it is what set GEN_RULES.propV0K to a 42 %-efficient
+    // propeller for the whole garage. See that constant, and
+    // futureDesigns/PROP-THRUST-2026-09-02.md.
+    prop:   { name: 'Sensenich 74CK', D: 1.88, Tstatic: 1202, kV2: 0.1941 },
   },
   r1830_hs23e50: {
     price: 65000,
@@ -76,12 +83,17 @@ const POWERPLANTS = {
   // 48 -> 48.5 -> 59.6 -> 63 -> 74.6 kW).
   //
   // Tstatic is on the A-65's OWN curve: static thrust of a fixed-pitch prop
-  // goes as P^(2/3) D^(2/3), and the A-65 entry is the one the Cub's flight
-  // numbers were validated against (433 fpm, 151 m take-off run), so scaling
-  // from it keeps the whole fleet on one anchor rather than adding four new
-  // hand-tuned opinions. kV2 then comes from GEN_RULES.propV0K exactly as the
-  // generator's own prop synthesis derives it (60_gen_spec.js) — which
-  // reproduces the A-65's 0.26 as 0.2561, so registry and generator agree.
+  // goes as P^(2/3) D^(2/3), so scaling from it keeps the whole fleet on one
+  // anchor rather than adding four new hand-tuned opinions. kV2 then comes
+  // from GEN_RULES.propV0K exactly as the generator's own prop synthesis
+  // derives it (60_gen_spec.js), so registry and generator agree.
+  //
+  // G158: RE-DERIVED, every one of them, when the anchor moved. These rows are
+  // not opinions to re-fit — they are `genResolveProp`'s output at each row's
+  // own diameter, blade count and standard pitch, and the four here plus the
+  // seven in the electric ladder below were all recomputed by running that
+  // synthesis with propV0K 1.95 and fm 0.477. The two 3-blade rows also gained
+  // the +5.5 %/blade solidity bonus, which the first pass had left out.
   //
   // `mass` is DRY ENGINE, the convention the entries above already use (A-65
   // 80 kg against a real 77). The 582 is the exception and says so: a two-
@@ -90,22 +102,22 @@ const POWERPLANTS = {
   vw2180_wood: {
     price: 6000,
     engine: { name: 'VW 2180 conversion', mass: 66, powerW: 44000, aspiration: 'na', family: 'four', cooling: 'air' },
-    prop:   { name: '2-pale bois 1.60 m', D: 1.60, Tstatic: 757, kV2: 0.1855 },
+    prop:   { name: '2-pale bois 1.60 m', D: 1.60, Tstatic: 1012, kV2: 0.1406 },
   },
   rotax582_ivo: {
     price: 5500,
     engine: { name: 'Rotax 582 + 2.62 red.', mass: 43, powerW: 48000, aspiration: 'na', family: 'two', cooling: 'liquid' },
-    prop:   { name: 'IVO 3-pale 1.68 m', D: 1.68, Tstatic: 829, kV2: 0.2045 },
+    prop:   { name: 'IVO 3-pale 1.68 m', D: 1.68, Tstatic: 1168, kV2: 0.182 },
   },
   jabiru2200_std: {
     price: 15000,
     engine: { name: 'Jabiru 2200A', mass: 60, powerW: 63000, aspiration: 'na', family: 'four', cooling: 'air' },
-    prop:   { name: '2-pale bois 1.52 m', D: 1.52, Tstatic: 930, kV2: 0.1674 },
+    prop:   { name: '2-pale bois 1.52 m', D: 1.52, Tstatic: 1242, kV2: 0.1269 },
   },
   rotax912_warp: {
     price: 18000,
     engine: { name: 'Rotax 912 UL', mass: 58, powerW: 59600, aspiration: 'na', family: 'four', cooling: 'liquid' },
-    prop:   { name: 'Warp Drive 3-pale 1.73 m', D: 1.73, Tstatic: 977, kV2: 0.2169 },
+    prop:   { name: 'Warp Drive 3-pale 1.73 m', D: 1.73, Tstatic: 1376, kV2: 0.193 },
   },
   o200_eprops: {
     price: 24000,
@@ -157,41 +169,42 @@ const POWERPLANTS = {
   //   - EMRAX 228 vs E-811: nearly the same numbers, 2.5x the price — the
   //     difference IS the type certificate, and that is the honest market.
   // Tstatic on the A-65's own curve (P^2/3 D^2/3) and kV2 through
-  // GEN_RULES.propV0K, like the middle-market rows above.
+  // GEN_RULES.propV0K, like the middle-market rows above — and re-derived with
+  // them at G158 when that constant moved.
   outrunner3548_12x6: {
     price: 55,
     engine: { name: '3548 outrunner 900KV / 4S', mass: 0.35, powerW: 800, aspiration: 'electric', family: 'electric', cooling: 'air' },
-    prop:   { name: 'APC 12x6E', D: 0.305, Tstatic: 17.3, kV2: 0.0067 },
+    prop:   { name: 'APC 12x6E', D: 0.305, Tstatic: 23.2, kV2: 0.0051 },
   },
   outrunner6374_18x10: {
     price: 130,
     engine: { name: '6374 outrunner 170KV / 12S', mass: 0.75, powerW: 2200, aspiration: 'electric', family: 'electric', cooling: 'air' },
-    prop:   { name: 'carbone 18x10', D: 0.457, Tstatic: 44.6, kV2: 0.0151 },
+    prop:   { name: 'carbone 18x10', D: 0.457, Tstatic: 59.5, kV2: 0.0115 },
   },
   eppg_direct_130: {
     price: 3800,
     engine: { name: 'e-PPG 12 kW direct drive', mass: 7.0, powerW: 12000, aspiration: 'electric', family: 'electric', cooling: 'air' },
-    prop:   { name: '2-pale carbone 1.30 m', D: 1.30, Tstatic: 277, kV2: 0.122 },
+    prop:   { name: '2-pale carbone 1.30 m', D: 1.30, Tstatic: 370, kV2: 0.0928 },
   },
   fes_folding_100: {
     price: 9500,
     engine: { name: 'FES sustainer 22 kW', mass: 9.0, powerW: 22000, aspiration: 'electric', family: 'electric', cooling: 'air' },
-    prop:   { name: 'lames repliables 1.00 m', D: 1.00, Tstatic: 349, kV2: 0.072 },
+    prop:   { name: 'lames repliables 1.00 m', D: 1.00, Tstatic: 466, kV2: 0.0549 },
   },
   emrax228_3blade: {
     price: 11000,
     engine: { name: 'EMRAX 228 / 55 kW', mass: 19.5, powerW: 55000, aspiration: 'electric', family: 'electric', cooling: 'air' },
-    prop:   { name: '3-pale composite 1.65 m', D: 1.65, Tstatic: 897, kV2: 0.197 },
+    prop:   { name: '3-pale composite 1.65 m', D: 1.65, Tstatic: 1264, kV2: 0.1756 },
   },
   e811_velis: {
     price: 28000,
     engine: { name: 'Pipistrel E-811 (certified)', mass: 30.0, powerW: 57600, aspiration: 'electric', family: 'electric', cooling: 'air' },
-    prop:   { name: 'composite fixe 1.64 m', D: 1.64, Tstatic: 921, kV2: 0.195 },
+    prop:   { name: 'composite fixe 1.64 m', D: 1.64, Tstatic: 1231, kV2: 0.1477 },
   },
   sp260d_class: {
     price: 90000,
     engine: { name: 'SP260D-class 260 kW', mass: 68.0, powerW: 260000, aspiration: 'electric', family: 'electric', cooling: 'air' },
-    prop:   { name: 'MT 3-pale 2.20 m', D: 2.20, Tstatic: 3060, kV2: 0.351 },
+    prop:   { name: 'MT 3-pale 2.20 m', D: 2.20, Tstatic: 4313, kV2: 0.3121 },
   },
 };
 // ============================================================

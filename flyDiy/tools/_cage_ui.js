@@ -2411,7 +2411,16 @@ ui.appendChild(lg);
 // DEVIATIONS from these values, so a build saved last week still describes
 // the same aeroplane. That is why the body channel is still spelt `img*`
 // rather than renamed to something tidier.
-const DEC = {
+// THE DEFAULTS MOVED (G160) to src/viewer/aeroskin.js as AERO_DEC_DEF, because
+// `finish.decals` stores DEVIATIONS and the flight side needs the same thing to
+// deviate from — and this file is not in the flight bundle. The keys and their
+// meanings are unchanged; the commentary that explains each one moved with it.
+// reached through `window` and not as a bare name: the editor is its own
+// bundle and a bare `AEROSKIN` is not in its scope even when the object exists.
+const DEC = (typeof window !== 'undefined' && window.AEROSKIN
+             && window.AEROSKIN.AERO_DEC_DEF)
+  ? JSON.parse(JSON.stringify(window.AEROSKIN.AERO_DEC_DEF))
+  : {
   reg: null,              // filled from the spec's own meta on first build
   regH: 0.30,             // 300 mm is the legal marking height in most places
   regL: 2.10, regC: 0.28, // metres aft of the firewall, metres above the waist
@@ -2462,16 +2471,27 @@ let decApplyRanges = () => {};
 // from — and because a reset has to have somewhere to reset TO.
 const DEC_DEF = JSON.parse(JSON.stringify(DEC));
 let decPanel = null, decImgAspect = 1;
+// THE REGISTRATION IS NOT A PREFERENCE (G160). Everything else in DEC is a
+// placement the builder likes and may reasonably carry from one session to the
+// next; the registration is the aeroplane's IDENTITY. Stored here it was a
+// third owner of one fact — a per-browser value that reapplied itself to every
+// aeroplane you opened — so it is stripped on the way out and ignored on the
+// way in. The spec is the owner; this key is where the SHAPE of a marking
+// lives, not whose aeroplane it is.
 function decLoadPrefs() {
   try {
     const j = JSON.parse(localStorage.getItem(AERO_PREF) || '{}');
-    Object.assign(DEC, j.dec || {});
+    const d = Object.assign({}, j.dec || {});
+    delete d.reg;
+    Object.assign(DEC, d);
   } catch (e) {}
 }
 function decSavePrefs() {
   try {
     const j = JSON.parse(localStorage.getItem(AERO_PREF) || '{}');
-    j.dec = DEC;
+    const d = Object.assign({}, DEC);
+    delete d.reg;
+    j.dec = d;
     localStorage.setItem(AERO_PREF, JSON.stringify(j));
   } catch (e) {}
 }
@@ -2541,9 +2561,14 @@ function finishToSpec() {
 function finishFromSpec(f) {
   for (const m of [secFin, secTint, secTile, secRough, secNrm, secWear])
     for (const k in m) delete m[k];
-  const reg = DEC.reg;                     // meta.reg's, not ours to clear
+  // AND THE REGISTRATION IS CLEARED WITH THE REST (G160). This used to carry
+  // DEC.reg across a load, on the reasoning that it belonged to meta.reg and
+  // was "not ours to clear" — but nothing wrote meta.reg, so this cache was
+  // the only copy, and preserving it meant the LAST aeroplane's registration
+  // followed you onto the next one. Now that the panel commits to the spec,
+  // clearing is both safe and required: decReg() re-reads, and a loaded
+  // aeroplane wears the letters its own file carries.
   Object.assign(DEC, JSON.parse(JSON.stringify(DEC_DEF)));
-  DEC.reg = reg;
   Object.assign(GLASS, JSON.parse(JSON.stringify(GLASS_DEFV)));
   WEAR.amount = 0;
   const o = (f && typeof f === 'object' && !Array.isArray(f)) ? f : null;
@@ -2598,31 +2623,20 @@ function applyDecals() {
     const S = window.GARAGE_SPEC && window.GARAGE_SPEC.get();
     if (S && S.paint) { trim = S.paint.trim; base = S.paint.base; }
   } catch (e) {}
-  const onOf = t => DEC_ON[Math.max(0, Math.min(3, +t || 0))];
-  const modeOf = m => DEC_MODE[Math.max(0, Math.min(2, +m || 0))];
-  const asp = A.aeroDecalText(THREE, 0, decReg(),
-                DEC.regCol != null ? DEC.regCol : trim,
-                DEC.regOut != null ? DEC.regOut : 0xffffff,
-                DEC.regFont) || 3.2;
-  ASPECT.regOn = asp;
-  // LOCKED: the width follows the height at the face's own aspect, which is
-  // what the derived width always did. UNLOCKED: the builder's own number, so
-  // a marking can be condensed into a short flank or stretched along a boom.
-  if (DEC.regLock) DEC.regW = DEC.regH * Math.max(1.2, asp);
+  // ONE KEEPER FOR THE TRANSLATION (G160). This used to build the decal list
+  // here, and that is why the registration never reached the flown aeroplane:
+  // this function is the EDITOR's, it runs on a slider, and the flight side
+  // has no editor. The list is built in aeroskin.js now and this panel calls
+  // it with its LIVE state, so an un-saved drag still previews while the flown
+  // aeroplane reads the same code off the saved spec.
+  const R = A.aeroDecalsFor(THREE, DEC,
+              { reg: decReg(), trim, base });
+  ASPECT.regOn = R.aspect;
+  // the lock is the panel's to display: aeroDecalsFor DERIVES the locked width
+  // rather than trusting the stored one, so this only mirrors it into the row.
+  if (DEC.regLock) DEC.regW = DEC.regH * Math.max(1.2, R.aspect);
   if (SYNC.regW) SYNC.regW();
-  list.push({ page: 0, sL: DEC.regL, sC: DEC.regC,
-    w: Math.max(0.02, DEC.regW), h: DEC.regH,
-    rot: DEC.regRot, rough: -0.06,
-    on: onOf(DEC.regTarget), mode: modeOf(DEC.regMode) });
-  if (DEC.imgOn) list.push({ page: 1, sL: DEC.imgL, sC: DEC.imgC,
-    w: DEC.imgW, h: DEC.imgH, rot: DEC.imgRot, rough: -0.04,
-    on: onOf(DEC.imgTarget), mode: modeOf(DEC.imgMode) });
-  // THE WING'S OWN CHANNEL: its own page in the atlas, its own placement, and
-  // never the body's classes — that is what "fully independent" means.
-  if (DEC.wimOn) list.push({ page: 2, sL: DEC.wimL, sC: DEC.wimC,
-    w: DEC.wimW, h: DEC.wimH, rot: DEC.wimRot, rough: -0.04,
-    on: { wing: 1 }, mode: modeOf(DEC.wimMode) });
-  A.aeroSetDecals(THREE, list);
+  A.aeroSetDecals(THREE, R.list);
 }
 
 // ---- THE WEAR (G70) -------------------------------------------------------
@@ -2885,8 +2899,33 @@ function buildDecPanel() {
     const i = document.createElement('input');
     i.type = 'text'; i.value = decReg(); i.style.flex = '1';
     i.spellcheck = false;
+    // THE SPEC OWNS IT, AND NOW SOMETHING ACTUALLY WRITES IT (G160). The row
+    // above has always said "the spec carries it as meta.reg and this edits
+    // it" and that was simply not true: `oninput` set DEC.reg — an editor
+    // cache and a browser pref — and nothing ever put the letters into the
+    // spec. So a registration typed here repainted the garage, was never
+    // saved with the build, and could not reach the flown aeroplane even
+    // after the flight side learned to read it. That is the whole of the
+    // user's "the registration did not make it in-game intact, my settings
+    // affected only the garage", and their build file proves it: meta.reg is
+    // still the default F-PGAR under a thoroughly customised aeroplane.
+    //
+    // TWO EVENTS, DELIBERATELY. `oninput` keeps the live repaint, because a
+    // marking you cannot see while typing is worse than one you cannot save.
+    // The commit goes on `change` (blur or Enter): GARAGE_SPEC.update REBUILDS
+    // the aeroplane, and doing that per keystroke would tear down and re-derive
+    // the whole cage for every letter of a registration.
     i.oninput = () => { DEC.reg = i.value.toUpperCase(); i.value = DEC.reg;
       decSavePrefs(); applyDecals(); draw(); };
+    i.onchange = () => {
+      const v = i.value.toUpperCase().trim();
+      DEC.reg = v; i.value = v; decSavePrefs();
+      try {
+        const G = (typeof window !== 'undefined') && window.GARAGE_SPEC;
+        if (G && G.update) G.update({ meta: { reg: v } });
+        else { applyDecals(); draw(); }      // the bench has no spec store
+      } catch (e) { applyDecals(); draw(); }
+    };
     d.appendChild(i);
   }
   num('height', 'regH', 0.08, 0.60, 0.01, 'metres — 300 mm is the usual legal size');
@@ -3352,8 +3391,15 @@ function applyPreset(name) {
     if (cfg) Object.assign(P, cfg.P);      // cfg.M (old macros) is ignored
   } else {
     const pre = (PAGE.presets || {})[name] || {};
-    for (const k in DEFAULTS) P[k] = DEFAULTS[k];
-    for (const k in pre) P[k] = pre[k];
+    // WHERE THE ROW STARTS FROM. Default is this page's own aeroplane, which
+    // is what a preset written AGAINST it means. A row imported from a saved
+    // build means something else: `spec.cage` is deviations from the
+    // TEMPLATE, so laying one over the page defaults leaks every key the
+    // export does not mention. `_base: 'template'` says so; see the piper
+    // cub row in _cage_page5.js.
+    const base = pre._base === 'template' ? G.CAGE_PARAMS : DEFAULTS;
+    for (const k in base) P[k] = base[k];
+    for (const k in pre) if (k !== '_base') P[k] = pre[k];
   }
   anchorSize();                            // this design is now ×1
   syncSliders(); build();

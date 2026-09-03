@@ -95,14 +95,29 @@ function takeoffRun(build, weather, stripName) {
   const ap = makeAutopilot(sim, def, W);
   ap.setRoute(strip, strip);
   const c0 = sim.cgPos();
+  // UNSTICK IS WHEN THE WHEELS LEAVE, and it is a different event from the
+  // 2.5 m screen (G158). The two speed checks below assert that the WING
+  // unsticks at the same equivalent airspeed on both days; they were reading
+  // the speed at the screen, which is the unstick speed PLUS whatever the
+  // aeroplane accelerated by while climbing the first 2.5 m — a density-
+  // dependent term, because excess thrust is. It stayed inside the band only
+  // while the propeller was a 42 %-efficient one with little excess to
+  // accelerate on; the moment G158 gave it a real one the PA-18 read 1.094 on
+  // a 1.06 bound, and the gate was failing a claim it was not measuring. The
+  // RUN is still to the screen, which is make_perf's own definition.
+  let vT = null, vE = null;
   for (let f = 0; f < 120 * 60; f++) {
     ap.update(1 / 60); sim.step(1 / 60);
     if (sim.stats().bad) return { run: null, why: 'NaN' };
+    if (vT === null && sim.wheelsOnGround() === 0) {
+      vT = sim.out.V; vE = sim.out.Veas;
+    }
     const c = sim.cgPos();
     if (c[1] - c0[1] >= 2.5)
       return { run: Math.hypot(c[0] - c0[0], c[2] - c0[2]),
-               vTAS: sim.out.V, vEAS: sim.out.Veas, sigma: sim.out.sigma,
-               da: sim.out.densityAlt };
+               vTAS: vT != null ? vT : sim.out.V,
+               vEAS: vE != null ? vE : sim.out.Veas,
+               sigma: sim.out.sigma, da: sim.out.densityAlt };
   }
   return { run: null, why: 'never reached 2.5 m in 120 s' };
 }

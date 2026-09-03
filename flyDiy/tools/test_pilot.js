@@ -5,11 +5,32 @@
 // load-bearing cases here are the two builds that must fail correctly —
 // measured builds, not synthetic reports:
 //
-//   HEAVY   rotax277 + 400 kg  — never accelerates. Must reject on the strip
-//           within seconds, never get airborne, stop with the brakes on.
-//   HOVER   rotax582 + 260 kg  — lifts off into ground effect and can climb
+//   HEAVY   a 12 kW e-PPG motor + 400 kg cargo + 60 kg baggage — never
+//           accelerates. Must reject on the strip within seconds, never get
+//           airborne, stop with the brakes on.
+//           IT WAS rotax277 + 400 kg UNTIL G158, and the point of this case is
+//           the word SECONDS: the pilot's reject detector waits for the
+//           acceleration to flatten, so a build that creeps takes a long time
+//           to condemn. When GEN_RULES.propV0K stopped capping every propeller
+//           at 42 % efficiency, 21 kW under 400 kg became a creeper — the
+//           reject came at 66 s against a 60 s bound, and adding the 60 kg of
+//           baggage (`cargo.kg` is clamped at 400, so it was the only door
+//           left) only bought 8 s. The bound was not the thing that had gone
+//           wrong; the FIXTURE had stopped being hopeless. A 12 kW paramotor
+//           engine under 460 kg of payload is hopeless in a way no propeller
+//           calibration will rescue, and it is condemned at 8 s.
+//   HOVER   rotax582 + 360 kg  — lifts off into ground effect and can climb
 //           no further (the donor autopilot hangs in LIFTOFF for ever on this
 //           build — measured, 400 s and counting). Must put it back down.
+//           260 kg UNTIL G158: the 582's propeller row is one of the ones the
+//           registry derives from GEN_RULES.propV0K, so when that constant
+//           stopped capping every propeller at 42 % efficiency this build
+//           gained 41 % of its static thrust and simply flew away — measured,
+//           it was at 125 m and still climbing at the 150 s bound. A negative
+//           fixture that has quietly become a positive one gates nothing, so
+//           the cargo was re-solved for the SAME BEHAVIOUR rather than the
+//           check being relaxed: at 360 kg it reaches 9.0 m, says wont-climb,
+//           and is back down and stopped at 72 s.
 //   GOOD    the stock garage build — must fly the whole circuit CLEAN and
 //           bring back the landing run, which is the plaque's new number.
 //
@@ -103,12 +124,12 @@ function checkCardHeld(r) {
   const cd = r.report.card;
   check(!r.nan && r.report.outcome === 'completed',
         'card: the carded circuit completes', String(r.report.outcome));
-  check(!!cd && cd.alt === 60 && cd.V === 25,
+  check(!!cd && cd.alt === 70 && cd.V === 25,
         'card: the ask is on the report, unclamped',
         cd ? cd.alt + ' m / ' + cd.V + ' m/s' : 'no card');
-  check(!!cd && cd.altFlown != null && Math.abs(cd.altFlown - 60) <= 12,
+  check(!!cd && cd.altFlown != null && Math.abs(cd.altFlown - 70) <= 12,
         'card: held the asked altitude (' + (cd ? cd.altFlown : '—') +
-        ' m of 60)');
+        ' m of 70)');
   check(!!cd && cd.VFlown != null && Math.abs(cd.VFlown - 25) <= 2,
         'card: held the asked speed (' + (cd ? cd.VFlown : '—') +
         ' m/s of 25)');
@@ -119,7 +140,12 @@ function checkCardFast(r) {
         'fast: the pilot still completes, flying what it CAN', String(r.report.outcome));
   check(has(r, 'cant-hold-speed'),
         'fast: an impossible speed ask is SAID, not silently missed');
-  check(!!cd && cd.VFlown != null && cd.VFlown < 40,
+  // SHORT OF THE ASK BY A REAL MARGIN, which is the claim — "it flies what it
+  // CAN". This read `VFlown < 40`, a literal that only meant anything while
+  // the aeroplane could not reach 40; with an honest propeller it reaches
+  // 40.2 and the check went red on the aeroplane getting better. The ask is
+  // on `cd.V`, so compare against that and the fixture cannot rot again.
+  check(!!cd && cd.VFlown != null && cd.V - cd.VFlown > 2,
         'fast: the flown speed is the aeroplane\'s truth (' +
         (cd ? cd.VFlown : '—') + ' m/s of 45 asked)');
 }
@@ -149,7 +175,7 @@ if (process.argv.includes('--selftest')) {
     ['hover has no wont-climb verdict', checkHover,
      (r => { r.report.outcome = 'rejected-takeoff'; r.t = 90; return r; })(goodish())],
     ['card shortfall goes unnoticed', checkCardHeld,
-     (r => { r.report.card = { alt: 60, V: 25, altFlown: 31, VFlown: 24.8 };
+     (r => { r.report.card = { alt: 70, V: 25, altFlown: 31, VFlown: 24.8 };
              return r; })(goodish())],
     ['impossible speed ask goes unsaid', checkCardFast,
      (r => { r.report.card = { alt: null, V: 45, altFlown: 110, VFlown: 29 };
@@ -178,20 +204,31 @@ const good = fly(null, 340);
 for (const v of good.report.verdicts) console.log('   ' + v.t + 's ' + v.code + ' — ' + v.note);
 checkGood(good);
 
-console.log('-- HEAVY: rotax277 + 400 kg cargo --');
-const heavy = fly({ engines: [{ type: 'rotax277_pusher' }],
+console.log('-- HEAVY: 12 kW e-PPG + 400 kg cargo + 60 kg baggage --');
+const heavy = fly({ engines: [{ type: 'eppg_direct_130' }],
+                    cabin: { baggage: 60 },
                     cargo: { len: 1.2, kg: 400 } }, 90);
 for (const v of heavy.report.verdicts) console.log('   ' + v.t + 's ' + v.code + ' — ' + v.note);
 checkHeavy(heavy);
 
-console.log('-- HOVER: rotax582 + 260 kg cargo --');
+console.log('-- HOVER: rotax582 + 360 kg cargo --');
 const hover = fly({ engines: [{ type: 'rotax582_ivo' }],
-                    cargo: { len: 1.2, kg: 260 } }, 150);
+                    cargo: { len: 1.2, kg: 360 } }, 150);
 for (const v of hover.report.verdicts) console.log('   ' + v.t + 's ' + v.code + ' — ' + v.note);
 checkHover(hover);
 
-console.log('-- CARD: the stock build, asked for 60 m and 25 m/s --');
-const card = fly(null, 340, { alt: 60, V: 25 });
+console.log('-- CARD: the stock build, asked for 70 m and 25 m/s --');
+// 70 m, not 60 (G158). This is the one place the recalibration changed what
+// the aeroplane can be ASKED for rather than what it does. The stock build's
+// circuit geometry is derived from its own VCruise and climb gradient, and an
+// honest propeller gave it both — so the pattern grew, and at 60 m it now
+// crosses rising ground on final. The pilot went around for terrain twice
+// (244 s, 502 s) and then said `gave-up — out of patience, not out of sky`,
+// which is the terrain guard working, not failing. It held the card perfectly
+// throughout: 58 m of the 60 asked, 25.0 m/s of the 25. At 70 m the same
+// circuit completes at 289 s with no go-around at all, so the ask moved to a
+// height this site supports and the time bound stayed where it was.
+const card = fly(null, 340, { alt: 70, V: 25 });
 for (const v of card.report.verdicts) console.log('   ' + v.t + 's ' + v.code + ' — ' + v.note);
 checkCardHeld(card);
 

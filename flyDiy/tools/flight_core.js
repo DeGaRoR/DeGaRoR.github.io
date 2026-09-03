@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 964520d454651827
+// body-sha256: 03804bec06d366f6
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -52,7 +52,14 @@ const POWERPLANTS = {
   a65_sensenich74: {
     price: 9000,
     engine: { name: 'Continental A-65', mass: 80, powerW: 48500, aspiration: 'na', family: 'four', cooling: 'air' },
-    prop:   { name: 'Sensenich 74CK', D: 1.88, Tstatic: 900, kV2: 0.26 },
+    // G158: 1202 N / 0.1941, the generator's own synthesis at standard pitch
+    // (figure of merit 0.477 on a 1.88 m disc absorbing 48.5 kW) and inside
+    // the published 250-280 lbf band for this combination. The old 900 / 0.26
+    // was fitted to make a 23 %-light J-3 fiche reproduce a GROSS-weight climb
+    // figure, and it is what set GEN_RULES.propV0K to a 42 %-efficient
+    // propeller for the whole garage. See that constant, and
+    // futureDesigns/PROP-THRUST-2026-09-02.md.
+    prop:   { name: 'Sensenich 74CK', D: 1.88, Tstatic: 1202, kV2: 0.1941 },
   },
   r1830_hs23e50: {
     price: 65000,
@@ -78,12 +85,17 @@ const POWERPLANTS = {
   // 48 -> 48.5 -> 59.6 -> 63 -> 74.6 kW).
   //
   // Tstatic is on the A-65's OWN curve: static thrust of a fixed-pitch prop
-  // goes as P^(2/3) D^(2/3), and the A-65 entry is the one the Cub's flight
-  // numbers were validated against (433 fpm, 151 m take-off run), so scaling
-  // from it keeps the whole fleet on one anchor rather than adding four new
-  // hand-tuned opinions. kV2 then comes from GEN_RULES.propV0K exactly as the
-  // generator's own prop synthesis derives it (60_gen_spec.js) — which
-  // reproduces the A-65's 0.26 as 0.2561, so registry and generator agree.
+  // goes as P^(2/3) D^(2/3), so scaling from it keeps the whole fleet on one
+  // anchor rather than adding four new hand-tuned opinions. kV2 then comes
+  // from GEN_RULES.propV0K exactly as the generator's own prop synthesis
+  // derives it (60_gen_spec.js), so registry and generator agree.
+  //
+  // G158: RE-DERIVED, every one of them, when the anchor moved. These rows are
+  // not opinions to re-fit — they are `genResolveProp`'s output at each row's
+  // own diameter, blade count and standard pitch, and the four here plus the
+  // seven in the electric ladder below were all recomputed by running that
+  // synthesis with propV0K 1.95 and fm 0.477. The two 3-blade rows also gained
+  // the +5.5 %/blade solidity bonus, which the first pass had left out.
   //
   // `mass` is DRY ENGINE, the convention the entries above already use (A-65
   // 80 kg against a real 77). The 582 is the exception and says so: a two-
@@ -92,22 +104,22 @@ const POWERPLANTS = {
   vw2180_wood: {
     price: 6000,
     engine: { name: 'VW 2180 conversion', mass: 66, powerW: 44000, aspiration: 'na', family: 'four', cooling: 'air' },
-    prop:   { name: '2-pale bois 1.60 m', D: 1.60, Tstatic: 757, kV2: 0.1855 },
+    prop:   { name: '2-pale bois 1.60 m', D: 1.60, Tstatic: 1012, kV2: 0.1406 },
   },
   rotax582_ivo: {
     price: 5500,
     engine: { name: 'Rotax 582 + 2.62 red.', mass: 43, powerW: 48000, aspiration: 'na', family: 'two', cooling: 'liquid' },
-    prop:   { name: 'IVO 3-pale 1.68 m', D: 1.68, Tstatic: 829, kV2: 0.2045 },
+    prop:   { name: 'IVO 3-pale 1.68 m', D: 1.68, Tstatic: 1168, kV2: 0.182 },
   },
   jabiru2200_std: {
     price: 15000,
     engine: { name: 'Jabiru 2200A', mass: 60, powerW: 63000, aspiration: 'na', family: 'four', cooling: 'air' },
-    prop:   { name: '2-pale bois 1.52 m', D: 1.52, Tstatic: 930, kV2: 0.1674 },
+    prop:   { name: '2-pale bois 1.52 m', D: 1.52, Tstatic: 1242, kV2: 0.1269 },
   },
   rotax912_warp: {
     price: 18000,
     engine: { name: 'Rotax 912 UL', mass: 58, powerW: 59600, aspiration: 'na', family: 'four', cooling: 'liquid' },
-    prop:   { name: 'Warp Drive 3-pale 1.73 m', D: 1.73, Tstatic: 977, kV2: 0.2169 },
+    prop:   { name: 'Warp Drive 3-pale 1.73 m', D: 1.73, Tstatic: 1376, kV2: 0.193 },
   },
   o200_eprops: {
     price: 24000,
@@ -159,41 +171,42 @@ const POWERPLANTS = {
   //   - EMRAX 228 vs E-811: nearly the same numbers, 2.5x the price — the
   //     difference IS the type certificate, and that is the honest market.
   // Tstatic on the A-65's own curve (P^2/3 D^2/3) and kV2 through
-  // GEN_RULES.propV0K, like the middle-market rows above.
+  // GEN_RULES.propV0K, like the middle-market rows above — and re-derived with
+  // them at G158 when that constant moved.
   outrunner3548_12x6: {
     price: 55,
     engine: { name: '3548 outrunner 900KV / 4S', mass: 0.35, powerW: 800, aspiration: 'electric', family: 'electric', cooling: 'air' },
-    prop:   { name: 'APC 12x6E', D: 0.305, Tstatic: 17.3, kV2: 0.0067 },
+    prop:   { name: 'APC 12x6E', D: 0.305, Tstatic: 23.2, kV2: 0.0051 },
   },
   outrunner6374_18x10: {
     price: 130,
     engine: { name: '6374 outrunner 170KV / 12S', mass: 0.75, powerW: 2200, aspiration: 'electric', family: 'electric', cooling: 'air' },
-    prop:   { name: 'carbone 18x10', D: 0.457, Tstatic: 44.6, kV2: 0.0151 },
+    prop:   { name: 'carbone 18x10', D: 0.457, Tstatic: 59.5, kV2: 0.0115 },
   },
   eppg_direct_130: {
     price: 3800,
     engine: { name: 'e-PPG 12 kW direct drive', mass: 7.0, powerW: 12000, aspiration: 'electric', family: 'electric', cooling: 'air' },
-    prop:   { name: '2-pale carbone 1.30 m', D: 1.30, Tstatic: 277, kV2: 0.122 },
+    prop:   { name: '2-pale carbone 1.30 m', D: 1.30, Tstatic: 370, kV2: 0.0928 },
   },
   fes_folding_100: {
     price: 9500,
     engine: { name: 'FES sustainer 22 kW', mass: 9.0, powerW: 22000, aspiration: 'electric', family: 'electric', cooling: 'air' },
-    prop:   { name: 'lames repliables 1.00 m', D: 1.00, Tstatic: 349, kV2: 0.072 },
+    prop:   { name: 'lames repliables 1.00 m', D: 1.00, Tstatic: 466, kV2: 0.0549 },
   },
   emrax228_3blade: {
     price: 11000,
     engine: { name: 'EMRAX 228 / 55 kW', mass: 19.5, powerW: 55000, aspiration: 'electric', family: 'electric', cooling: 'air' },
-    prop:   { name: '3-pale composite 1.65 m', D: 1.65, Tstatic: 897, kV2: 0.197 },
+    prop:   { name: '3-pale composite 1.65 m', D: 1.65, Tstatic: 1264, kV2: 0.1756 },
   },
   e811_velis: {
     price: 28000,
     engine: { name: 'Pipistrel E-811 (certified)', mass: 30.0, powerW: 57600, aspiration: 'electric', family: 'electric', cooling: 'air' },
-    prop:   { name: 'composite fixe 1.64 m', D: 1.64, Tstatic: 921, kV2: 0.195 },
+    prop:   { name: 'composite fixe 1.64 m', D: 1.64, Tstatic: 1231, kV2: 0.1477 },
   },
   sp260d_class: {
     price: 90000,
     engine: { name: 'SP260D-class 260 kW', mass: 68.0, powerW: 260000, aspiration: 'electric', family: 'electric', cooling: 'air' },
-    prop:   { name: 'MT 3-pale 2.20 m', D: 2.20, Tstatic: 3060, kV2: 0.351 },
+    prop:   { name: 'MT 3-pale 2.20 m', D: 2.20, Tstatic: 4313, kV2: 0.3121 },
   },
 };
 // ============================================================
@@ -459,10 +472,88 @@ function buildCub() {
   const N = (x, y, z, m, tag, r = 0) => (nodes.push({ p: [x, y, z], m, r, tag }), nodes.length - 1);
   const NM = (x, y, z, m, tag, r = 0) =>
     [N(x, y, -Math.abs(z), m, tag + 'L', r), N(x, y, Math.abs(z), m, tag + 'R', r)];
-  const K_CH = 2.0e5, C_CH = 60, K_GR = 2.8e4, C_GR = 900, K_WG = 5.0e5, C_WG = 450;
+  const K_CH = 2.0e5, C_CH = 60, K_GR = 4.07e4, C_GR = 1308, K_WG = 5.0e5, C_WG = 450;
   const B = (a, b, k = K_CH, c = C_CH) => beams.push({ a, b, k, c, gear: k === K_GR });
   const BG = (a, b) => B(a, b, K_GR, C_GR);
 
+  // G158 — THE AIRFRAME WAS 23 % LIGHT, and it mattered far more than it looks.
+  // This fiche billed 185.4 kg of structure which, with the 80 kg powerplant,
+  // is a 265 kg empty J-3 against a real one's 345 kg (765 lb). That is not a
+  // small error on its own; it became a load-bearing one because the A-65's
+  // static thrust was then fitted so THIS aeroplane would reproduce the
+  // published 433 fpm — a figure quoted at the 550 kg GROSS weight, not at the
+  // 377 kg this fiche flew. Light airframe times weak propeller equalled the
+  // book, and neither error was visible at the one point anybody checked.
+  // Flown at 550 kg the same geometry climbed 0.78 m/s against a published
+  // 2.29, and every garage-built aeroplane — which bills its mass honestly —
+  // inherited the weak propeller with nothing left to cancel it.
+  //
+  // THE 80 kg GOES WHERE IT REALLY IS, and that is not "everywhere". A first
+  // pass scaled every structural node by one factor, which preserves the
+  // STRUCTURE's own centre of gravity — and moved the AEROPLANE's 136 mm aft,
+  // because the three lumps that do not scale (engine, fuel, pilot) are all
+  // forward of it. Measured, that was not a subtle drift: the mains came off
+  // the ground, the legs went over-centre at 19.6 % strain and latched, and
+  // the aeroplane settled on its tailwheel with the wheels 0.57 m in the air.
+  // A mass correction that changes the balance is a second error, not a fix.
+  //
+  // So the missing weight is split into what it actually is, and the split is
+  // SOLVED so the whole aeroplane's CG does not move at all (0.7987 m, before
+  // and after):
+  //   AF      1.16 on every modelled member — fabric, dope, and tube, spar and
+  //           rib sections that were drawn too light. +29.7 kg.
+  //   EQ_FW   22.8 kg at the firewall for what the fiche never modelled and a
+  //           real Cub carries: engine mount, exhaust, oil and battery low
+  //           (_B), upper cowl and instrument panel high (_T).
+  //   EQ_CAB  27.5 kg in the cabin, same reason: seat pans, controls and floor
+  //           low, glazing, doors and seat backs high.
+  // 265 kg empty -> 345 kg; all-up in this fiche's own declared load state
+  // (one pilot, full fuel) 377.4 -> 457.4 kg.
+  //
+  // AND THE SPLIT IS VERTICAL AS WELL AS FORE-AND-AFT, for a reason the first
+  // pass missed: hanging all of it on the lower longerons held the balance in
+  // x and dropped the CG 4.2 cm, which GATE MODEL caught at once — the PA-18's
+  // 3D wheels are calibrated against the main-gear contact height measured
+  // FROM THE CG, so a CG that moves down walks the aeroplane off its own
+  // wheels. Both stations put their top and bottom nodes at the same x, so the
+  // vertical share is free to solve for cgY without disturbing cgX at all.
+  // Both are now exact: cgX 0.7987 m, cgY 0.4997 m, before and after.
+  //
+  // THE GEAR RATE MOVES WITH THE MASS (K_GR/C_GR above), and NOT by the mass
+  // ratio, which was the first answer and was not enough. The binding
+  // constraint on this leg is not comfort, it is the OVER-CENTRE LATCH: past
+  // roughly 20 % member strain the leg goes through its own geometry and
+  // springs the axle UP, and the aeroplane then stands on its tailwheel with
+  // the mains half a metre in the air. Measured at 1.21x (the mass ratio) the
+  // static stance was right and the LANDING was not — GATE XCTY4's arrival hit
+  // 20.5 % and latched, and GATE XCTY3 never rolled at all because the spawn
+  // settle latched it before it started.
+  //
+  // SO THE RATE IS SQUEEZED FROM BOTH SIDES and the window is narrow. Too soft
+  // and the leg latches; too stiff and a stiffer spring hands its load to the
+  // BRACE instead (the fiche's own G4.7 lesson) and bounces harder on arrival
+  // — measured, 1.82x took GATE HOTHIGH's chassis strain to 10.3 % on an 8 %
+  // bound and 2.0x failed its touchdown sink outright. 1.454x is what fits:
+  // XCTY3 and XCTY4 upright, HOTHIGH's chassis inside its bound, PA-18 landing
+  // at 1.40 m/s. c/k is held at the fiche's own 0.0321, so the damping ratio
+  // is unchanged. Above about 2.2x the solver diverges outright.
+  //
+  // MEASURED AND REJECTED: starting the flare earlier to soften the arrival,
+  // which 62_gen_aero's own rule (flareAgl = 3.2 * VAppr * gs) says it should,
+  // since VAppr moved with the stall. It does soften it at HOME — the PA-18
+  // touched at 1.17 m/s instead of 1.40 — and it makes the HOT-AND-HIGH strip
+  // WORSE, 8.0 % chassis to 8.8 %, because up there the true airspeed behind
+  // the same equivalent one is higher and the extra height buys float, not
+  // cushion. The fiches are not density-adaptive, so flareAgl stays where it
+  // was tuned and the gear rate carries the whole correction.
+  //
+  // THE CHECK IS EXTERNAL AND WAS NOT FITTED: this airframe at the published
+  // 550 kg now climbs 465 fpm against a published 450, and tops out at
+  // 144 km/h against a published 140 — two independent figures, one constant.
+  // See GEN_RULES.propV0K and futureDesigns/PROP-THRUST-2026-09-02.md.
+  const AF = 1.16;                             // per side, kg:
+  const EQ_FW_B = 6.85, EQ_FW_T = 4.56;        // firewall, low / high
+  const EQ_CAB_B = 7.83, EQ_CAB_T = 5.93;      // cabin,    low / high
   const ST = [                       // [x, halfW, yBot, yTop, nodeMass]
     [0.00, 0.33,  0.00, 0.78, 3.0],
     [0.62, 0.36, -0.02, 1.00, 3.0],
@@ -474,8 +565,8 @@ function buildCub() {
   ];
   const F = [];
   ST.forEach(([x, w, yb, yt, mm], i) => {
-    const [BL, BR] = NM(x, yb, w, mm, `S${i}B`);
-    const [TL, TR] = NM(x, yt, w, mm, `S${i}T`);
+    const [BL, BR] = NM(x, yb, w, mm * AF, `S${i}B`);
+    const [TL, TR] = NM(x, yt, w, mm * AF, `S${i}T`);
     F.push({ BL, BR, TL, TR });
     B(BL, BR); B(TL, TR); B(BL, TL); B(BR, TR);
     B(BL, TR); B(BR, TL);            // X-brace: mirror-symmetric shear
@@ -488,7 +579,8 @@ function buildCub() {
     B(a.TL, b.TR); B(a.TR, b.TL);    // top panel X
     B(a.BL, b.BR); B(a.BR, b.BL);    // bottom panel X
   }
-  const TPB = N(5.12, 0.25, 0, 1.2, 'TPB'), TPT = N(5.12, 0.36, 0, 1.2, 'TPT');
+  const TPB = N(5.12, 0.25, 0, 1.2 * AF, 'TPB'),
+        TPT = N(5.12, 0.36, 0, 1.2 * AF, 'TPT');
   const S6 = F[6];
   B(TPB, TPT);
   B(S6.BL, TPB); B(S6.BR, TPB); B(S6.TL, TPT); B(S6.TR, TPT);
@@ -500,19 +592,23 @@ function buildCub() {
   B(EL, S0.TL); B(EL, S0.BL); B(EL, S0.BR);
   B(ER, S0.TR); B(ER, S0.BR); B(ER, S0.BL);
   nodes[S0.TL].m += 18; nodes[S0.TR].m += 18;          // fuel 36 kg at firewall
+  // engine mount, exhaust, oil, battery low; upper cowl and panel high —
+  // never modelled, really there
+  nodes[S0.BL].m += EQ_FW_B; nodes[S0.BR].m += EQ_FW_B;
+  nodes[S0.TL].m += EQ_FW_T; nodes[S0.TR].m += EQ_FW_T;
 
-  const [GAL, GAR] = NM(0.55, -0.80, 0.89, 6, 'AXLE', 0.20);
+  const [GAL, GAR] = NM(0.55, -0.80, 0.89, 6 * AF, 'AXLE', 0.20);
   BG(GAL, GAR);
   BG(GAL, S0.BL); BG(GAL, F[1].BL); BG(GAL, S0.BR);
   BG(GAR, S0.BR); BG(GAR, F[1].BR); BG(GAR, S0.BL);
-  const TW = N(5.02, 0.02, 0, 3, 'TW', 0.10);
+  const TW = N(5.02, 0.02, 0, 3 * AF, 'TW', 0.10);
   BG(TW, TPB); BG(TW, S6.BL); BG(TW, S6.BR);
   // snap-blocking near-vertical member (structural rule 10, the drone cure):
   // without it the tailwheel folds UP about TPB and LATCHES (bare post on
   // the terrain) when parked in a tailwind — reset slam + breeze, W13.
   BG(TW, TPT);
 
-  const MW = 8, wf = { L: null, R: null };
+  const MW = 8 * AF, wf = { L: null, R: null };
   const mkWing = (s) => {
     const B = (a, b) => beams.push({ a, b, k: K_WG, c: C_WG, gear: false });
     const rootF = s > 0 ? F[1].TR : F[1].TL, rootR = s > 0 ? F[2].TR : F[2].TL;
@@ -531,16 +627,19 @@ function buildCub() {
   };
   mkWing(+1); mkWing(-1);
 
-  const [HTL, HTR] = NM(4.92, 0.30, 1.05, 4, 'HT');
+  const [HTL, HTR] = NM(4.92, 0.30, 1.05, 4 * AF, 'HT');
   B(HTL, TPB); B(HTL, TPT); B(HTL, S6.BL); B(HTL, S6.TL);
   B(HTR, TPB); B(HTR, TPT); B(HTR, S6.BR); B(HTR, S6.TR);
   // stab<->tailwheel pyramid (rule 10, the chinook cure): the fold that
   // survives the TW->TPT block is LATERAL (dTW body [+0.28 up, 0.25
   // sideways], measured) — wide anchors kill it
   BG(TW, HTL); BG(TW, HTR);
-  const FIN = N(5.05, 0.95, 0, 4, 'FIN');
+  const FIN = N(5.05, 0.95, 0, 4 * AF, 'FIN');
   B(FIN, TPT); B(FIN, S6.TL); B(FIN, S6.TR);
 
+  // seat pans, controls and floor low; glazing, doors and seat backs high
+  nodes[F[1].BL].m += EQ_CAB_B; nodes[F[1].BR].m += EQ_CAB_B;
+  nodes[F[1].TL].m += EQ_CAB_T; nodes[F[1].TR].m += EQ_CAB_T;
   nodes[F[1].BL].m += 38; nodes[F[1].BR].m += 38;      // pilot, front seat
 
   // ---------- aero strips ----------
@@ -558,6 +657,25 @@ function buildCub() {
       for (const t of [0.28, 0.78])
         wingStrip(fr.F[b], fr.F[b + 1], fr.R[b], fr.R[b + 1], t, bw[b] * 1.6 / 2,
           side, { wash: b === 0 && t < 0.5 ? 0.5 : 0, ail: b === 2 ? 1 : 0 });
+    // THE TIP BOW (G159). The three bays above stop at the outermost SPAR
+    // NODE, z = 5.0, and the drawn wing does not: the skin runs to z = 5.355,
+    // so 35 cm a side of real wing was lifting on nothing. The fiche flew
+    // 16.00 m2 while showing 16.58 — the published area — and the missing
+    // 3.5 % sat on the stall, the induced drag and the roll damping at once.
+    //
+    // ONE STRIP PER SIDE, at t = 1, so its whole load acts at the tip node,
+    // which is where a tip bow's lift acts and what makes its bending moment
+    // right. 0.29 m2 is the bow's own planform: 0.355 m of span on a 1.6 m
+    // chord at about half the area of the rectangle it sits in, which is what
+    // a rounded tip is. NO AILERON on it — the Cub's aileron ends inboard of
+    // the bow.
+    //
+    // eAR IS NOT TOUCHED, and that is the trap this change had to avoid.
+    // POLARS.usa35b_AR7 has always declared pi * 0.75 * 6.95 — the REAL
+    // aspect ratio, not the truss's 6.25 — so the induced drag was already
+    // computed on the full span. Recomputing it from the new strip set would
+    // have counted the same span twice.
+    wingStrip(fr.F[2], fr.F[3], fr.R[2], fr.R[3], 1, 0.29, side, { ail: 0 });
   };
   bays(wf.R, 1); bays(wf.L, -1);
   wingStrip(F[1].TL, F[1].TR, F[2].TL, F[2].TR, 0.5, 0.72 * 1.6, 1, { wash: 1 });
@@ -587,12 +705,36 @@ function buildCub() {
     nEngines: 1,
     polarWing: POLARS.usa35b_AR7, polarTail: POLARS.flat_tail_cub,
     elevTau: 0.50, rudTau: 0.55, ailTau: 0.35, downwash: 0.40,
-    stabTrim: -0.0983, sparSpacing: 0.78,
+    stabTrim: -0.0666, sparSpacing: 0.78,
     fusCdA: [0.55, 0.8, 0.8], fusCdAAft: [0, 0.5, 0.5],
     twSteer: 0.5,
     ap: {
-      VRot: 15, VClimbMin: 20, VClimb: 21, VCruise: 26, VAppr: 21.5,
-      VApprShort: 18.8,             // fly-in strips < 450 m (1.25*Vs, doctrine floor)
+    // G158 RE-ANCHORED, all of it. The airframe gained 80 kg (see AF above) and
+    // the propeller gained 34 % of its thrust (GEN_RULES.propV0K), so every
+    // speed here is stale in one direction and every THROTTLE in the other.
+    // Method, per class:
+    //   V-SPEEDS  scale with the stall, which moved 14.97 -> 16.47 m/s
+    //             (x1.100). The ratios are the hand-tuned ones and are kept.
+    //             VRot 15 was BELOW the new stall, which is not a rotation
+    //             speed at all.
+    //   VCruise   re-solved by 64_gen_build's own rule — the speed where drag
+    //             is 65 % of the thrust available there. It comes out at
+    //             33.9 m/s = 122 km/h against the real J-3's published 121, and
+    //             the old 26 was low only because the propeller was weak.
+    //   THROTTLES are fractions of a static thrust that moved 900 -> 1202 N,
+    //             so they keep the THRUST they were tuned with, not the lever
+    //             position (the reading G4.9 already ruled on): x 0.749.
+    //   TORun     re-integrated, not adjusted: 172 m to 2.5 m agl (111 m of
+    //             roll), against a published ~113 m ground roll at gross.
+    //   stabTrim  re-solved by tunnel pitch balance at the new VCruise.
+      // G159 re-anchored: the tip bow took Sw 16.00 -> 16.58 m2 (the published
+      // wing area) and the stall 16.35 -> 16.12 m/s with it, so every
+      // stall-referenced speed here moved by 0.986. VCruise, stabTrim,
+      // thrCruise and TORun are re-measured, not scaled. VPinFull is NOT
+      // scaled: it was found against a latch cliff in M3 and GATE WIND, not
+      // derived from the stall, so it stays where measurement put it.
+      VRot: 16.3, VClimbMin: 21.7, VClimb: 22.8, VCruise: 33.5, VAppr: 23.4,
+      VApprShort: 20.4,             // fly-in strips < 450 m (1.25*Vs, doctrine floor)
       // NO VTurn ON PURPOSE. TURNBACK and INBOUND both read A.VTurn but with
       // DIFFERENT fallbacks — VCruise and a literal 24 — so this aeroplane
       // flies its turnback at 26 and its inbound at 24, and a single VTurn
@@ -604,16 +746,59 @@ function buildCub() {
       // RE-ANCHORED G4.9 (was 60): the engine-count fix halved this aeroplane's
       // thrust, and the run to 2.5 m agl went 67 m -> 151 m. Re-read off
       // tools/make_perf.js, not adjusted by hand.
-      TORun: 151,                   // measured run to 2.5 m agl
+      TORun: 132,                   // measured run to 2.5 m agl
       // W16 lateral quiet: same 4 Hz aileron limit cycle as the pa18
       // (shared geometry) — default rollD 2.0 on the lagged rate estimate;
       // 0.8 kills it (see pa18 fiche note).
       rollD: 0.8,
+      // G158: THE W13.2 HOP GUARD, which this fiche never needed and now does.
+      // Left alone, `VTailDown` falls back to VTailUp, so the J-3 held the
+      // tail UP (de -0.05) all the way down to 13.2 m/s and then pinned FULL
+      // aft — and W13.2 already recorded that the full pin at touch speed is
+      // itself a re-launch impulse. The J-3 used to be light enough and slow
+      // enough to absorb it; 80 kg of real airframe raised its stall
+      // 14.97 -> 16.35 m/s and its rollout with it, and GATE WIND watched it
+      // rear to 23 deg nose-up, scrub 11 m downwind and put 11.9 % into the
+      // chassis on an 8 % bound.
+      //
+      // IT IS THE ROLLOUT, NOT THE ARRIVAL, and the measurement is what says
+      // so: a faster flare took the touchdown from 1.62 to 1.15 m/s and the
+      // nose dug in HARDER (rollout pitch -11.6 -> -23.2 deg), while a
+      // stiffer leg made it worse again (-43 deg). With the guard the arrival
+      // is unchanged and the rollout is a different event: 4.7 % chassis,
+      // +3.2 deg pitch, and it stops on the centreline instead of 11 m
+      // downwind.
+      //
+      // 20.0 IS MEASURED AND THE CURVE IS NOT MONOTONIC, so it is not the
+      // PA-18's 17.6 even though the wing is. This aeroplane has no flaps and
+      // touches at 23.4 m/s, so full aft has to wait much longer: pinned at
+      // 17.0 it balloons and comes down on a latched leg (M3 finished nose
+      // 5.6 deg DOWN, sitting 0.9 m low on 23.5 % gear strain), 17.6 and 18.5
+      // clear the latch but still dip the nose below the horizon (-2.7 and
+      // -1.5 deg against M3's noseover bound of +1), and 20.0 holds +5.9 deg
+      // with the gear back down to 7.8 %. 22.0 also passes and is worse
+      // (13.0 %). Read off M3 and GATE WIND together — either alone picks a
+      // different number.
+      //
+      // MEASURED AND REJECTED alongside it: 62_gen_aero's flareRate rule
+      // (0.102 for this fiche now). It genuinely softens the touchdown, and
+      // with the guard in place it still leaves 8.1 % in the chassis against
+      // 4.7 % for the hand-tuned 0.062. The PA-18 takes its rule value; this
+      // one does not.
+      VTailDown: 99, VPinFull: 20.0,
       hCruise: 100, hSafe: 14, xTurn: -2300, xAim: -520, gs: 0.0786,
-      rollDe: 0.12, liftoffTh: 0.16, climbThBase: 0.12, climbThGain: 0.030,
+      rollDe: 0.12,
+      // G159: DERIVED, not fitted. The attitude that flies at 1.10 Vs is fixed
+      // by the polar alone — CL = CLmax/1.21 gives 11.92 deg on this wing —
+      // and this aeroplane's three-point deck is 11.75, so the deck binds and
+      // the tailwheel is on the ground at the moment it leaves, which is how a
+      // Cub takes off. It was 0.16 (9.2 deg), a fitted ratio that unstuck the
+      // aeroplane at 1.31 x Vs and made the roll half as long again as the
+      // book's. See genTuneAP in 62_gen_aero.js for the rule this now matches.
+      liftoffTh: 0.205, climbThBase: 0.12, climbThGain: 0.030,
       thMax: 0.20, flareAgl: 4.8, flareRate: 0.062, aglGuard: 3,
-      VTailUp: 12, VStop: 0.4, slew: 1.5, thrCruise: 0.70, thrAppr: 0.35,
-      brakeMax: 0.30, brakeRampRate: 0.12, VBrakeOn: 9, VBrakeRelease: 1.5,
+      VTailUp: 13.0, VStop: 0.4, slew: 1.5, thrCruise: 0.649, thrAppr: 0.26,
+      brakeMax: 0.30, brakeRampRate: 0.12, VBrakeOn: 9.8, VBrakeRelease: 1.5,
     },
   };
   return { nodes, beams, strips, refs, params };
@@ -819,6 +1004,33 @@ function buildDC3() {
       // clean-era cap sat ABOVE the L=W attitude and the float came back
       // (117 km/h touchdown, 300 m past the window).
       flareAgl: 10, flareRate: 0.045, aglGuard: 6, flareThMax: 0.085,
+      // DECRAB NEEDS TIME, AND decrabAgl IS A HEIGHT (G160.1). 40_autopilot's
+      // default is 3.5 m, which is a real window on an aeroplane that touches
+      // down near 1.2 m — the whole light half of the fleet. This one flares
+      // at 10 m and arrives with its CG 2.7 m up, so 3.5 m gave the rudder
+      // 0.8 m of descent, under a second, to swing 3 m/s of crab out. It could
+      // not, and GATE W-DC3 had been red on |tdDrift|<1.8 for sessions: it
+      // touched down doing 3.7 m/s sideways, 7 m downwind of the centreline.
+      //
+      // AND STARTING LATE IS WORSE THAN NOT STARTING, which is the measurement
+      // that settled the value. Swept: 4.0 m reads -4.01 m/s and 8.5 m off the
+      // line — WORSE than the 3.5 m default — because a decrab that begins the
+      // yaw and cannot finish it lands the aeroplane crabbed AND drifting.
+      // 4.5 m reads 0.12. That is a cliff, not a gradient, and everything from
+      // 4.5 to 15 sits on the far side of it (drift 0.04..0.96, all inside the
+      // 1.8 bound; above 12 it saturates because decrab then starts above the
+      // flare and the flare height caps it).
+      //
+      // 7.0 is chosen for its DISTANCE FROM THE CLIFF, not for the best single
+      // number: 6.0 measures marginally better (-0.04 against -0.20) but sits
+      // 1.5 m from an edge whose far side is a fifty-times worse landing.
+      // Physically it is about 5 s of decrab, which is what a 12-tonne
+      // taildragger needs to be pointing where it is going.
+      //
+      // NOTHING IN CALM AIR MOVES. The decrab branch is gated on
+      // |windZ| > 0.5, so the still-air identity every other DC-3 gate is
+      // anchored on is bit-for-bit what it was.
+      decrabAgl: 7.0,
       VTailUp: 20, VStop: 0.5, slew: 0.8, thrCruise: 0.55, thrAppr: 0.30,
       // GE retune (session 1): wing keeps lifting through the rollout in
       // ground effect -> less weight on wheels -> longer roll. Brake earlier
@@ -1643,10 +1855,88 @@ function buildPA18() {
   const N = (x, y, z, m, tag, r = 0) => (nodes.push({ p: [x, y, z], m, r, tag }), nodes.length - 1);
   const NM = (x, y, z, m, tag, r = 0) =>
     [N(x, y, -Math.abs(z), m, tag + 'L', r), N(x, y, Math.abs(z), m, tag + 'R', r)];
-  const K_CH = 2.0e5, C_CH = 60, K_GR = 2.8e4, C_GR = 900, K_WG = 5.0e5, C_WG = 450;
+  const K_CH = 2.0e5, C_CH = 60, K_GR = 4.07e4, C_GR = 1308, K_WG = 5.0e5, C_WG = 450;
   const B = (a, b, k = K_CH, c = C_CH) => beams.push({ a, b, k, c, gear: k === K_GR });
   const BG = (a, b) => B(a, b, K_GR, C_GR);
 
+  // G158 — THE AIRFRAME WAS 23 % LIGHT, and it mattered far more than it looks.
+  // This fiche billed 185.4 kg of structure which, with the 80 kg powerplant,
+  // is a 265 kg empty J-3 against a real one's 345 kg (765 lb). That is not a
+  // small error on its own; it became a load-bearing one because the A-65's
+  // static thrust was then fitted so THIS aeroplane would reproduce the
+  // published 433 fpm — a figure quoted at the 550 kg GROSS weight, not at the
+  // 377 kg this fiche flew. Light airframe times weak propeller equalled the
+  // book, and neither error was visible at the one point anybody checked.
+  // Flown at 550 kg the same geometry climbed 0.78 m/s against a published
+  // 2.29, and every garage-built aeroplane — which bills its mass honestly —
+  // inherited the weak propeller with nothing left to cancel it.
+  //
+  // THE 80 kg GOES WHERE IT REALLY IS, and that is not "everywhere". A first
+  // pass scaled every structural node by one factor, which preserves the
+  // STRUCTURE's own centre of gravity — and moved the AEROPLANE's 136 mm aft,
+  // because the three lumps that do not scale (engine, fuel, pilot) are all
+  // forward of it. Measured, that was not a subtle drift: the mains came off
+  // the ground, the legs went over-centre at 19.6 % strain and latched, and
+  // the aeroplane settled on its tailwheel with the wheels 0.57 m in the air.
+  // A mass correction that changes the balance is a second error, not a fix.
+  //
+  // So the missing weight is split into what it actually is, and the split is
+  // SOLVED so the whole aeroplane's CG does not move at all (0.7987 m, before
+  // and after):
+  //   AF      1.16 on every modelled member — fabric, dope, and tube, spar and
+  //           rib sections that were drawn too light. +29.7 kg.
+  //   EQ_FW   22.8 kg at the firewall for what the fiche never modelled and a
+  //           real Cub carries: engine mount, exhaust, oil and battery low
+  //           (_B), upper cowl and instrument panel high (_T).
+  //   EQ_CAB  27.5 kg in the cabin, same reason: seat pans, controls and floor
+  //           low, glazing, doors and seat backs high.
+  // 265 kg empty -> 345 kg; all-up in this fiche's own declared load state
+  // (one pilot, full fuel) 377.4 -> 457.4 kg.
+  //
+  // AND THE SPLIT IS VERTICAL AS WELL AS FORE-AND-AFT, for a reason the first
+  // pass missed: hanging all of it on the lower longerons held the balance in
+  // x and dropped the CG 4.2 cm, which GATE MODEL caught at once — the PA-18's
+  // 3D wheels are calibrated against the main-gear contact height measured
+  // FROM THE CG, so a CG that moves down walks the aeroplane off its own
+  // wheels. Both stations put their top and bottom nodes at the same x, so the
+  // vertical share is free to solve for cgY without disturbing cgX at all.
+  // Both are now exact: cgX 0.7987 m, cgY 0.4997 m, before and after.
+  //
+  // THE GEAR RATE MOVES WITH THE MASS (K_GR/C_GR above), and NOT by the mass
+  // ratio, which was the first answer and was not enough. The binding
+  // constraint on this leg is not comfort, it is the OVER-CENTRE LATCH: past
+  // roughly 20 % member strain the leg goes through its own geometry and
+  // springs the axle UP, and the aeroplane then stands on its tailwheel with
+  // the mains half a metre in the air. Measured at 1.21x (the mass ratio) the
+  // static stance was right and the LANDING was not — GATE XCTY4's arrival hit
+  // 20.5 % and latched, and GATE XCTY3 never rolled at all because the spawn
+  // settle latched it before it started.
+  //
+  // SO THE RATE IS SQUEEZED FROM BOTH SIDES and the window is narrow. Too soft
+  // and the leg latches; too stiff and a stiffer spring hands its load to the
+  // BRACE instead (the fiche's own G4.7 lesson) and bounces harder on arrival
+  // — measured, 1.82x took GATE HOTHIGH's chassis strain to 10.3 % on an 8 %
+  // bound and 2.0x failed its touchdown sink outright. 1.454x is what fits:
+  // XCTY3 and XCTY4 upright, HOTHIGH's chassis inside its bound, PA-18 landing
+  // at 1.40 m/s. c/k is held at the fiche's own 0.0321, so the damping ratio
+  // is unchanged. Above about 2.2x the solver diverges outright.
+  //
+  // MEASURED AND REJECTED: starting the flare earlier to soften the arrival,
+  // which 62_gen_aero's own rule (flareAgl = 3.2 * VAppr * gs) says it should,
+  // since VAppr moved with the stall. It does soften it at HOME — the PA-18
+  // touched at 1.17 m/s instead of 1.40 — and it makes the HOT-AND-HIGH strip
+  // WORSE, 8.0 % chassis to 8.8 %, because up there the true airspeed behind
+  // the same equivalent one is higher and the extra height buys float, not
+  // cushion. The fiches are not density-adaptive, so flareAgl stays where it
+  // was tuned and the gear rate carries the whole correction.
+  //
+  // THE CHECK IS EXTERNAL AND WAS NOT FITTED: this airframe at the published
+  // 550 kg now climbs 465 fpm against a published 450, and tops out at
+  // 144 km/h against a published 140 — two independent figures, one constant.
+  // See GEN_RULES.propV0K and futureDesigns/PROP-THRUST-2026-09-02.md.
+  const AF = 1.16;                             // per side, kg:
+  const EQ_FW_B = 6.85, EQ_FW_T = 4.56;        // firewall, low / high
+  const EQ_CAB_B = 7.83, EQ_CAB_T = 5.93;      // cabin,    low / high
   const ST = [                       // [x, halfW, yBot, yTop, nodeMass]
     [0.00, 0.33,  0.00, 0.78, 3.0],
     [0.62, 0.36, -0.02, 1.00, 3.0],
@@ -1658,8 +1948,8 @@ function buildPA18() {
   ];
   const F = [];
   ST.forEach(([x, w, yb, yt, mm], i) => {
-    const [BL, BR] = NM(x, yb, w, mm, `S${i}B`);
-    const [TL, TR] = NM(x, yt, w, mm, `S${i}T`);
+    const [BL, BR] = NM(x, yb, w, mm * AF, `S${i}B`);
+    const [TL, TR] = NM(x, yt, w, mm * AF, `S${i}T`);
     F.push({ BL, BR, TL, TR });
     B(BL, BR); B(TL, TR); B(BL, TL); B(BR, TR);
     B(BL, TR); B(BR, TL);            // X-brace: mirror-symmetric shear
@@ -1672,7 +1962,8 @@ function buildPA18() {
     B(a.TL, b.TR); B(a.TR, b.TL);    // top panel X
     B(a.BL, b.BR); B(a.BR, b.BL);    // bottom panel X
   }
-  const TPB = N(5.12, 0.25, 0, 1.2, 'TPB'), TPT = N(5.12, 0.36, 0, 1.2, 'TPT');
+  const TPB = N(5.12, 0.25, 0, 1.2 * AF, 'TPB'),
+        TPT = N(5.12, 0.36, 0, 1.2 * AF, 'TPT');
   const S6 = F[6];
   B(TPB, TPT);
   B(S6.BL, TPB); B(S6.BR, TPB); B(S6.TL, TPT); B(S6.TR, TPT);
@@ -1684,19 +1975,23 @@ function buildPA18() {
   B(EL, S0.TL); B(EL, S0.BL); B(EL, S0.BR);
   B(ER, S0.TR); B(ER, S0.BR); B(ER, S0.BL);
   nodes[S0.TL].m += 18; nodes[S0.TR].m += 18;          // fuel 36 kg at firewall
+  // engine mount, exhaust, oil, battery low; upper cowl and panel high —
+  // never modelled, really there
+  nodes[S0.BL].m += EQ_FW_B; nodes[S0.BR].m += EQ_FW_B;
+  nodes[S0.TL].m += EQ_FW_T; nodes[S0.TR].m += EQ_FW_T;
 
-  const [GAL, GAR] = NM(0.55, -0.80, 0.89, 6, 'AXLE', 0.20);
+  const [GAL, GAR] = NM(0.55, -0.80, 0.89, 6 * AF, 'AXLE', 0.20);
   BG(GAL, GAR);
   BG(GAL, S0.BL); BG(GAL, F[1].BL); BG(GAL, S0.BR);
   BG(GAR, S0.BR); BG(GAR, F[1].BR); BG(GAR, S0.BL);
-  const TW = N(5.02, 0.02, 0, 3, 'TW', 0.10);
+  const TW = N(5.02, 0.02, 0, 3 * AF, 'TW', 0.10);
   BG(TW, TPB); BG(TW, S6.BL); BG(TW, S6.BR);
   // snap-blocking near-vertical member (structural rule 10, the drone cure):
   // without it the tailwheel folds UP about TPB and LATCHES (bare post on
   // the terrain) when parked in a tailwind — reset slam + breeze, W13.
   BG(TW, TPT);
 
-  const MW = 8, wf = { L: null, R: null };
+  const MW = 8 * AF, wf = { L: null, R: null };
   const mkWing = (s) => {
     const B = (a, b) => beams.push({ a, b, k: K_WG, c: C_WG, gear: false });
     const rootF = s > 0 ? F[1].TR : F[1].TL, rootR = s > 0 ? F[2].TR : F[2].TL;
@@ -1715,16 +2010,19 @@ function buildPA18() {
   };
   mkWing(+1); mkWing(-1);
 
-  const [HTL, HTR] = NM(4.92, 0.30, 1.05, 4, 'HT');
+  const [HTL, HTR] = NM(4.92, 0.30, 1.05, 4 * AF, 'HT');
   B(HTL, TPB); B(HTL, TPT); B(HTL, S6.BL); B(HTL, S6.TL);
   B(HTR, TPB); B(HTR, TPT); B(HTR, S6.BR); B(HTR, S6.TR);
   // stab<->tailwheel pyramid (rule 10, the chinook cure): the fold that
   // survives the TW->TPT block is LATERAL (dTW body [+0.28 up, 0.25
   // sideways], measured) — wide anchors kill it
   BG(TW, HTL); BG(TW, HTR);
-  const FIN = N(5.05, 0.95, 0, 4, 'FIN');
+  const FIN = N(5.05, 0.95, 0, 4 * AF, 'FIN');
   B(FIN, TPT); B(FIN, S6.TL); B(FIN, S6.TR);
 
+  // seat pans, controls and floor low; glazing, doors and seat backs high
+  nodes[F[1].BL].m += EQ_CAB_B; nodes[F[1].BR].m += EQ_CAB_B;
+  nodes[F[1].TL].m += EQ_CAB_T; nodes[F[1].TR].m += EQ_CAB_T;
   nodes[F[1].BL].m += 38; nodes[F[1].BR].m += 38;      // pilot, front seat
 
   // ---------- aero strips ----------
@@ -1744,6 +2042,25 @@ function buildPA18() {
         wingStrip(fr.F[b], fr.F[b + 1], fr.R[b], fr.R[b + 1], t, bw[b] * 1.6 / 2,
           side, { wash: b === 0 && t < 0.5 ? 0.5 : 0, ail: b === 2 ? 1 : 0,
                   flap: b === 0 ? 1 : 0 });
+    // THE TIP BOW (G159). The three bays above stop at the outermost SPAR
+    // NODE, z = 5.0, and the drawn wing does not: the skin runs to z = 5.355,
+    // so 35 cm a side of real wing was lifting on nothing. The fiche flew
+    // 16.00 m2 while showing 16.58 — the published area — and the missing
+    // 3.5 % sat on the stall, the induced drag and the roll damping at once.
+    //
+    // ONE STRIP PER SIDE, at t = 1, so its whole load acts at the tip node,
+    // which is where a tip bow's lift acts and what makes its bending moment
+    // right. 0.29 m2 is the bow's own planform: 0.355 m of span on a 1.6 m
+    // chord at about half the area of the rectangle it sits in, which is what
+    // a rounded tip is. NO AILERON on it — the Cub's aileron ends inboard of
+    // the bow.
+    //
+    // eAR IS NOT TOUCHED, and that is the trap this change had to avoid.
+    // POLARS.usa35b_AR7 has always declared pi * 0.75 * 6.95 — the REAL
+    // aspect ratio, not the truss's 6.25 — so the induced drag was already
+    // computed on the full span. Recomputing it from the new strip set would
+    // have counted the same span twice.
+    wingStrip(fr.F[2], fr.F[3], fr.R[2], fr.R[3], 1, 0.29, side, { ail: 0 });
   };
   bays(wf.R, 1); bays(wf.L, -1);
   wingStrip(F[1].TL, F[1].TR, F[2].TL, F[2].TR, 0.5, 0.72 * 1.6, 1, { wash: 1 });
@@ -1770,7 +2087,7 @@ function buildPA18() {
     nEngines: 1,                    // one engine, two mount nodes (see cub)
     polarWing: POLARS.usa35b_AR7, polarTail: POLARS.flat_tail_cub,
     elevTau: 0.50, rudTau: 0.55, ailTau: 0.35, downwash: 0.40,
-    stabTrim: -0.0983, sparSpacing: 0.78,
+    stabTrim: -0.0666, sparSpacing: 0.78,
     fusCdA: [0.55, 0.8, 0.8], fusCdAAft: [0, 0.5, 0.5],
     twSteer: 0.5,
     // slotted flaps, inboard bay only: tunnel-calibrated to the POH Vs ratio
@@ -1782,32 +2099,64 @@ function buildPA18() {
     // flare, gentler brakes (full flap + hard brakes nosed it over).
     // Measured: td sink 0.78, three-point 15.3 deg, no noseover.
     ap: {
-      VRot: 15, VClimbMin: 20, VClimb: 21, VCruise: 26, VAppr: 20.5,
-      VApprShort: 18.5,             // fly-in strips < 450 m (1.37*Vs flapped)
+    // G158 RE-ANCHORED, all of it. The airframe gained 80 kg (see AF above) and
+    // the propeller gained 34 % of its thrust (GEN_RULES.propV0K), so every
+    // speed here is stale in one direction and every THROTTLE in the other.
+    // Method, per class:
+    //   V-SPEEDS  scale with the stall, which moved 14.97 -> 16.47 m/s
+    //             (x1.100). The ratios are the hand-tuned ones and are kept.
+    //             VRot 15 was BELOW the new stall, which is not a rotation
+    //             speed at all.
+    //   VCruise   re-solved by 64_gen_build's own rule — the speed where drag
+    //             is 65 % of the thrust available there. It comes out at
+    //             33.9 m/s = 122 km/h against the real J-3's published 121, and
+    //             the old 26 was low only because the propeller was weak.
+    //   THROTTLES are fractions of a static thrust that moved 900 -> 1202 N,
+    //             so they keep the THRUST they were tuned with, not the lever
+    //             position (the reading G4.9 already ruled on): x 0.749.
+    //   TORun     re-integrated, not adjusted: 172 m to 2.5 m agl (111 m of
+    //             roll), against a published ~113 m ground roll at gross.
+    //   stabTrim  re-solved by tunnel pitch balance at the new VCruise.
+      // G159 re-anchored: the tip bow took Sw 16.00 -> 16.58 m2 (the published
+      // wing area) and the stall 16.35 -> 16.12 m/s with it, so every
+      // stall-referenced speed here moved by 0.986. VCruise, stabTrim,
+      // thrCruise and TORun are re-measured, not scaled. VPinFull is NOT
+      // scaled: it was found against a latch cliff in M3 and GATE WIND, not
+      // derived from the stall, so it stays where measurement put it.
+      VRot: 16.3, VClimbMin: 21.7, VClimb: 22.8, VCruise: 33.5, VAppr: 22.3,
+      VApprShort: 20.2,             // fly-in strips < 450 m (1.37*Vs flapped)
       // no VTurn: see the cub fiche — TURNBACK and INBOUND read it with
       // different fallbacks, so stating it changes the turnback speed
       // RE-ANCHORED G4.9 (was 60): the engine-count fix halved this aeroplane's
       // thrust, and the run to 2.5 m agl went 67 m -> 151 m. Re-read off
       // tools/make_perf.js, not adjusted by hand.
-      TORun: 151,                   // measured run to 2.5 m agl
+      TORun: 132,                   // measured run to 2.5 m agl
       // W16 lateral quiet: the default rollD 2.0 on the RF-lagged rate
       // estimate limit-cycled the aileron 8-12 deg p2p at ~4 Hz (bank
       // barely moved — surface flail + wing rock, user-visible on the
       // skin). 0.8 kills it dead (0.2 deg residual); doctrine says lower
       // D, and measured: a FASTER rate filter makes it worse.
       rollD: 0.8,
-      VPinFull: 16,                 // moderate aft above this in rollout (hop guard)
+      VPinFull: 17.6,               // moderate aft above this in rollout (hop guard)
       hCruise: 100, hSafe: 14, xTurn: -2300, xAim: -520, gs: 0.0786,
-      rollDe: 0.12, liftoffTh: 0.16, climbThBase: 0.12, climbThGain: 0.030,
+      rollDe: 0.12,
+      // G159: DERIVED, not fitted. The attitude that flies at 1.10 Vs is fixed
+      // by the polar alone — CL = CLmax/1.21 gives 11.92 deg on this wing —
+      // and this aeroplane's three-point deck is 11.75, so the deck binds and
+      // the tailwheel is on the ground at the moment it leaves, which is how a
+      // Cub takes off. It was 0.16 (9.2 deg), a fitted ratio that unstuck the
+      // aeroplane at 1.31 x Vs and made the roll half as long again as the
+      // book's. See genTuneAP in 62_gen_aero.js for the rule this now matches.
+      liftoffTh: 0.205, climbThBase: 0.12, climbThGain: 0.030,
       // flareThr 0.12 -> 0.24 (G4.9): `flareThr` is a THROTTLE fraction, and the
       // engine-count fix halved what a fraction buys. The flare keeps the
       // THRUST it was tuned with — 0.12*1800 N == 0.24*900 N — rather than the
       // lever position, which is the only reading of "unchanged" that means
       // anything here. Sink 1.71 (over the 1.5 bound) -> 0.95, against 0.78
       // before the fix.
-      thMax: 0.20, flareAgl: 5.5, flareRate: 0.062, flareThr: 0.24, aglGuard: 3,
-      VTailUp: 12, VTailDown: 99, VStop: 0.4, slew: 1.5, thrCruise: 0.70, thrAppr: 0.35,
-      brakeMax: 0.18, brakeRampRate: 0.12, VBrakeOn: 7, VBrakeRelease: 1.5,
+      thMax: 0.20, flareAgl: 5.5, flareRate: 0.134, flareThr: 0.18, aglGuard: 3,
+      VTailUp: 13.0, VTailDown: 99, VStop: 0.4, slew: 1.5, thrCruise: 0.649, thrAppr: 0.26,
+      brakeMax: 0.18, brakeRampRate: 0.12, VBrakeOn: 7.7, VBrakeRelease: 1.5,
     },
   };
   return { nodes, beams, strips, refs, params };
@@ -4264,6 +4613,18 @@ function makeSim(def, world) {
   // speed on the sheet. Default: ISA sea level, which is the datum.
   let atmOver = null, hProbe = 0;
   const setAtmos = (a, h) => { atmOver = a || null; hProbe = h || 0; };
+  // WHERE THE GROUND IS, FOR GROUND EFFECT ONLY, when there is no world (G159).
+  // A world-free sim has no place and therefore no terrain, which is the
+  // shakedown's own ruling and the right one for the STANCE and for the AIR:
+  // a number on the sheet must not depend on which patch of grass the
+  // aeroplane is parked on. Ground EFFECT is not that kind of question. During
+  // a take-off roll the wheels are on the ground, so h/b is set by the
+  // aeroplane's own geometry and by nothing else, and leaving it out makes the
+  // roll longer than the aeroplane's own wing says it is. So it is declared
+  // rather than inferred: null (the default) is exactly the old behaviour, and
+  // genTORunAt sets it to 0 for the length of the roll and clears it after.
+  let gRef = null;
+  const setGroundRef = h => { gRef = (h == null ? null : h); };
   const airOf = () => atmOver || (world && world.atmos) || ATMOS_ISA;
   // THE ENGINE'S OWN RELATION TO IT, declared on the registry row: 'na'
   // breathes the air and lapses with it, an electric motor's power comes out of
@@ -4402,7 +4763,7 @@ function makeSim(def, world) {
     // so spatial gust structure produces roll/twist forcing. All wind terms
     // are exact zeros when no wind is set — the zero-wind battery is
     // byte-identical to the pre-wind one.
-    let gH = null, wcx = 0, wcy = 0, wcz = 0;
+    let gH = gRef, wcx = 0, wcy = 0, wcz = 0;
     if (world) {
       let sx = 0, sy = 0, sz = 0, sN = 0;
       for (const st of def.strips) if (st.kind === 'wing') {
@@ -4860,7 +5221,7 @@ function makeSim(def, world) {
   return { p, v, m, r, beams, n, ctl, out, get totalM() { return totalM; },
            setNodeMass,
            reset, step, probe, stats, impulse, wheelsOnGround, cgPos, cgVel, axes,
-           setAtmos, atmos: airOf, thrustAt, probeAir };
+           setAtmos, setGroundRef, atmos: airOf, thrustAt, probeAir };
 }
 
 
@@ -5736,14 +6097,25 @@ function makeTestPilot(sim, def, world) {
   let cardAcc = null;                    // { n, alt, V, saidV } while flying
   ap.setCard = (card) => {
     if (!card || (!isFinite(card.alt) && !isFinite(card.V))) return;
-    const c = { alt: null, V: null, altFlown: null, VFlown: null };
+    const c = { alt: null, V: null, altCmd: null, VCmd: null,
+                altFlown: null, VFlown: null };
+    // THE ASK GOES ON THE REPORT AS IT WAS ASKED (G159). It used to be the
+    // CLAMPED value that was recorded, which reads as the pilot having been
+    // asked for something it was always going to do — and the clamp then has
+    // nothing to have clamped. Latent for as long as no ask ever hit a limit;
+    // GATE PILOT found it the moment the stock build put on enough weight for
+    // its approach speed (25.1 m/s) to overtake a 25 m/s ask. The commanded
+    // value rides beside it as `altCmd` / `VCmd`, and `altFlown` / `VFlown`
+    // still say what it actually managed, so the report carries all three:
+    // what you wanted, what the pilot would accept, and what it got.
     if (isFinite(card.alt) && card.alt > 0) {
-      c.alt = clamp(card.alt, A.hSafe + 20, 2500);
-      if (c.alt !== card.alt)
+      c.alt = card.alt;
+      c.altCmd = clamp(card.alt, A.hSafe + 20, 2500);
+      if (c.altCmd !== card.alt)
         say('card-clamped', 'altitude ' + Math.round(card.alt) + ' m asked, ' +
-            Math.round(c.alt) + ' m flown — the pilot sets the floor and the ceiling');
-      ap.hCruise = c.alt;
-      ap.budget = Math.max(ap.budget, 300 + c.alt * 1.5);
+            Math.round(c.altCmd) + ' m flown — the pilot sets the floor and the ceiling');
+      ap.hCruise = c.altCmd;
+      ap.budget = Math.max(ap.budget, 300 + c.altCmd * 1.5);
     }
     if (isFinite(card.V) && card.V > 0) {
       // the floor is the APPROACH SPEED ITSELF — a speed the aeroplane
@@ -5752,11 +6124,16 @@ function makeTestPilot(sim, def, world) {
       // numbers refuted the margin: its VAppr (23.9) sits within 5% of its
       // cruise (25.2), so the arbitrary 5% clamped a legitimate near-cruise
       // ask UP. Narrow-envelope builds are the ones a test card exists for.
-      c.V = clamp(card.V, A.VAppr || 15, 120);
-      if (c.V !== card.V)
-        say('card-clamped', 'speed ' + Math.round(card.V * 3.6) + ' km/h asked, ' +
-            Math.round(c.V * 3.6) + ' km/h flown — not slower than the approach, not absurd');
-      ap.VCruise = c.V;
+      c.V = card.V;
+      c.VCmd = clamp(card.V, A.VAppr || 15, 120);
+      if (c.VCmd !== card.V)
+        // ONE DECIMAL, in m/s as well: rounded to whole km/h the first clamp
+        // this ever fired read "90 km/h asked, 90 km/h flown", which is a
+        // message that says nothing. The clamp was real (25.0 -> 25.1 m/s).
+        say('card-clamped', 'speed ' + card.V.toFixed(1) + ' m/s asked, ' +
+            c.VCmd.toFixed(1) + ' m/s flown (' + Math.round(c.VCmd * 3.6) +
+            ' km/h) — not slower than the approach, not absurd');
+      ap.VCruise = c.VCmd;
     }
     ap.report.card = c;
     cardAcc = { n: 0, alt: 0, V: 0, saidV: false };
@@ -6669,12 +7046,47 @@ if (typeof module !== 'undefined' && module.exports)
 //               crushing parallel to grain, carbon UD tensile (it has no yield).
 // Handbook class values (MIL-HDBK-5 / Wood Handbook), not measurements taken
 // here. See GATE FLEX and the STRUCTURAL REALISM section of HANDOVER.md.
+// ---------------------------------------------------------------------------
+// `cover` IS AN EFFECTIVE AREAL DENSITY, AND FOR THREE OF THESE FOUR IT HAS TO
+// STAND IN FOR STRUCTURE THE LATTICE DOES NOT MODEL (G159, the user: "we
+// underestimate the amount of structural elements, in particular for metal
+// aircrafts").
+//
+// On tube and fabric the lattice IS the structure: the members are the tubes,
+// the covering is the cloth, and `cover` is literally what a square metre of
+// finished fabric weighs. On a semi-monocoque none of that holds. The load is
+// in the skin, carried by stringers and frames in a density no 50-node truss
+// has, and `cover` is the only place their mass can live.
+//
+// MEASURED, and it is not a small error: a C172-shaped alloy build billed
+// 52 kg of skin over 50 m2 at 1.05 kg/m2 -- LESS THAN HALF the bare 0.7 mm
+// 2024-T3 sheet, before a single stringer. Empty weight came out 479 kg
+// against a real 767.
+//
+// THE FOUR NUMBERS, each anchored on what the construction really weighs per
+// square metre of covered surface, skin plus the substructure under it:
+//   tubeFabric  a finished Ceconite / Poly-Fiber system is 0.30-0.45. The
+//               lattice already carries the tubes, so this one is literal --
+//               and it is corroborated: the Cub comes out at 331 kg empty
+//               against a published 308-345.
+//   wood        1.5 mm birch ply is 1.02, plus glue, gussets, capping and the
+//               fabric and dope over it.
+//   alloy       0.7 mm 2024-T3 is 1.95, and stringers, frames, rivets and lap
+//               joints are about 1.3x the skin again. GA semi-monocoques
+//               measure 4-5.5 kg/m2 of covered surface.
+//   carbon      a cloth/foam/cloth sandwich with its resin is 2-3, and being
+//               lighter than alloy for the same job is the whole point of it.
+//
+// DECLARED RESIDUAL: even at 4.5 the alloy build lands about 15 % light,
+// because the members themselves (`lin`) are still a truss standing in for a
+// stringer field. That is the next lever and it is deliberately not pulled
+// here -- one change, one measurement.
 const GEN_MATERIALS = {
   tubeFabric: {
     name: '4130 tube + fabric',
     phys: { E: 205e9, rho: 7850, sigY: 460e6 },
     lin:   { fus: 0.58, wing: 0.62, gear: 1.05 },
-    cover: 0.42,
+    cover: 0.42,      // finished fabric: the lattice carries the tubes
     k:     { fus: 2.0e5, wing: 5.0e5, gear: 2.8e4 },
     c:     { fus: 60,    wing: 450,   gear: 900 },
     // The k/c above are the Cub's, and the Cub is a ~390 kg aeroplane. They are
@@ -6696,9 +7108,15 @@ const GEN_MATERIALS = {
     // joints long before the timber pulls apart.
     phys: { E: 10.9e9, rho: 450, sigY: 39e6 },
     lin:   { fus: 0.50, wing: 0.58, gear: 1.20 },
-    cover: 0.62,
-    k:     { fus: 4.0e5, wing: 2.5e6, gear: 1.3e5 },
-    c:     { fus: 300,   wing: 950,   gear: 2400 },
+    cover: 1.35,      // 1.5 mm ply + glue, gussets, capping, dope
+    // the same rule as the metal rows below, and applied here even though this
+    // row was already linear and already in band: a ply skin carries bending
+    // too, so leaving it alone would have been one rule for the materials that
+    // failed and another for the one that did not. Per-group factors fus x1.04,
+    // wing x1.26, gear x1.01 — small, because ply was the least wrong of the
+    // three covering figures. Strut moves 0.91 -> 0.40 %, still in band.
+    k:     { fus: 4.15e5, wing: 3.15e6, gear: 1.31e5 },
+    c:     { fus: 311,   wing: 1198,  gear: 2416 },
     refMass: 630,                       // the Jodel's row, and the Jodel's mass
     // Dearer than steel tube despite cheaper stock: `price` is the FINISHED
     // cost with the labour in it, and a wooden airframe is thousands of hours
@@ -6717,9 +7135,35 @@ const GEN_MATERIALS = {
     name: '2024 alloy sheet',
     phys: { E: 73.1e9, rho: 2780, sigY: 345e6 },
     lin:   { fus: 0.50, wing: 0.55, gear: 1.10 },
-    cover: 1.05,                        // the skin is structure here, and heavy
-    k:     { fus: 8.0e5, wing: 2.2e6, gear: 1.6e5 },
-    c:     { fus: 500,   wing: 900,   gear: 2600 },
+    cover: 4.50,      // 0.7 mm 2024-T3 + stringers, frames, rivets, laps
+    // AND THE STIFFNESS FOLLOWS THE SKIN, because on a semi-monocoque they are
+    // the same thickness: bending stiffness of a skin-stringer box goes as
+    // thickness x depth^2 and its mass goes as thickness, so EI is LINEAR in
+    // the structural mass. Leaving `k` where it was left the wing carrying four
+    // times the skin on the old spring, and GATE LOAD could not have been
+    // clearer about it.
+    //
+    // BUT THE FACTOR IS THE GROUP'S OWN MASS, NOT THE COVERING RATIO, and
+    // getting that wrong is what cost this arc its second lap. `cover` moved
+    // 4.29x, so I moved all three of `k` by 4.29x. Measured, the mass each
+    // group actually gained is fus x1.17, wing x2.10, gear x1.00 — covering is
+    // only a part of a wing and none of an undercarriage. So that pass
+    // stiffened the fuselage 3.6x too far and the gear 4.3x too far, for a
+    // change to the paint-side of the ledger the gear never saw. The strut wing
+    // came out at 0.053 % of semispan at 1 g against this file's own stated
+    // band of 0.3-1 %, an order of magnitude rigid, and the gate passed it
+    // because the gate asserts LINEARITY, not the band in its header.
+    //
+    // AND `c` SCALES WITH IT, which is the half I missed entirely the first
+    // time. zeta = c/(2*sqrt(k*m)): raising k and m while holding c drops the
+    // damping ratio, the structure rings, and the rig's 4 s settle stops
+    // converging — carbon cantilever read 6.73 % at 1 g and then 3.80 and 3.85
+    // at 3.8 and 5.7 g, deflection FALLING as load rose. That is not a wing
+    // giving up either; it is a measurement taken while the wing was still
+    // moving. Scaling c by the same per-group factor holds zeta and the settle
+    // converges again. Every case is linear to 1.5 % afterwards.
+    k:     { fus: 9.36e5, wing: 4.62e6, gear: 1.60e5 },
+    c:     { fus: 585,   wing: 1888,  gear: 2606 },
     refMass: 998,
     price: 78,                          // jigs, rivets, and a skilled hand
     cd0: 0.0012, clmaxK: 1.02,          // flush rivets, but laps and oil-canning
@@ -6736,9 +7180,22 @@ const GEN_MATERIALS = {
     // gains once a failure model exists; today it is reporting only.
     phys: { E: 135e9, rho: 1550, sigY: 1500e6 },
     lin:   { fus: 0.38, wing: 0.44, gear: 0.85 },
-    cover: 0.55,
-    k:     { fus: 1.1e6, wing: 2.0e6, gear: 1.5e5 },
-    c:     { fus: 250,   wing: 500,   gear: 1800 },
+    cover: 2.40,      // cloth / foam / cloth sandwich, with its resin
+    // same reasoning as the alloy row above: the sandwich skin IS the spar cap
+    // here, so its stiffness rides with its mass, and `c` rides with both to
+    // hold zeta. Measured per-group factors: fus x1.10, wing x1.80, gear x1.04.
+    // This row is the one that PROVED the damping half — it was the carbon
+    // cantilever that rang, and it rang here rather than on the metal because
+    // this row's damping is deliberately the lowest of the four.
+    //
+    // The carbon STRUT case settles at 0.076 % at 1 g, below the 0.3-1 % band,
+    // and that is left standing on purpose: a strut-braced carbon wing is a
+    // combination nobody builds, because the point of paying for carbon is the
+    // cantilever. It is linear, its cantilever sits at 0.66 % in the middle of
+    // the band, and the ratio to the alloy strut is about 4x where the material
+    // and the mass together argue for 3x. An outlier configuration, not a bug.
+    k:     { fus: 1.21e6, wing: 3.60e6, gear: 1.55e5 },
+    c:     { fus: 275,   wing: 900,   gear: 1866 },
     refMass: 420,                       // tuned at the size this generator builds
     price: 165,                         // moulds, cloth, vacuum, and the hours
     cd0: 0.0004, clmaxK: 1.05,          // moulded: the best surface on the list
@@ -7434,6 +7891,65 @@ const GEN_TANKS = {
   panel: { name: 'Outboard wing' },   // out in the panel: relieves the spar, slows the roll
 };
 
+// ===========================================================================
+// THE OUTFIT (G159) — everything a real aeroplane carries that this ledger
+// billed at nothing.
+// ===========================================================================
+// The ledger sums structure from its material and volume, the engine from its
+// registry row, the covering per square metre and the payload per occupant.
+// Between those, an aeroplane is full of things nobody was charging for:
+// seats, the panel board, the cowl, the exhaust, the fuel plumbing, the
+// controls, the glazing. Measured on a Cub that is about 35 kg — a tenth of
+// the empty weight — and it sat near the published figure only because the
+// structure carries more than its name suggests. Two errors cancelling is
+// what this project keeps finding; this is one of them, closed.
+//
+// EVERY ITEM IS TIED TO A CHOICE OR A MEASUREMENT, never to a constant per
+// aeroplane. A seat is a seat you picked, times the people who sit in it; the
+// panel is the board's own area; the cowl is the cowl's own surface; the
+// exhaust follows the power it carries; the plumbing follows the litres. An
+// aeroplane that changes shape changes its outfit.
+//
+// WHAT IS NOT HERE, DECLARED: the instrument fit is GEN_SYSTEMS below and
+// stays there (it is the avionics, and it was already billed), and the tank
+// or pack itself belongs to the energy module, which prices and weighs the
+// vessel — this row is only the plumbing between it and the engine.
+
+// SEATS, per position. A Cub's is a steel tube frame with a sling; a modern
+// certified seat is a crushable structure with a 26 g stroke and weighs four
+// times as much, which is a real trade and now a visible one.
+const GEN_SEATS = {
+  sling:    { name: 'Tube and sling',     kg: 3.0,  price: 120 },
+  basic:    { name: 'Moulded pan',        kg: 7.0,  price: 400 },
+  standard: { name: 'Upholstered',        kg: 11.0, price: 900 },
+  energy:   { name: 'Energy-absorbing',   kg: 15.0, price: 2600 },
+};
+
+// AREAL DENSITIES for the sheet items, kg/m2 of surface.
+//   panel   an alloy instrument board with its mounts and coaming ribs
+//   cowl    0.6 mm alloy skin plus its fasteners, baffles and hinges; a
+//           fabric-over-frame cowl on a tube aeroplane is lighter
+//   glass   3 mm acrylic, which is what a light aeroplane's screen is
+const GEN_OUTFIT = {
+  panelKgM2: 6.0,
+  cowlKgM2:  { tubeFabric: 2.4, wood: 2.4, alloy: 3.2, carbon: 2.0 },
+  glassKgM2: 3.6,
+  // EXHAUST scales with the power it has to carry away: an A-65's two short
+  // stacks are about 3 kg on 48.5 kW, and a collector ring on a big radial is
+  // heavier per kW because it is longer as well as fatter.
+  exhaustKgKW: 0.062,
+  // FUEL PLUMBING: tank fittings, lines, gascolator, selector, primer, and a
+  // mechanical pump where the tank is not above the carburettor. Per litre
+  // plus a fixed head. An ELECTRIC aeroplane has none of it — the pack's own
+  // cabling is the energy module's, not this row's.
+  fuelKgL: 0.055, fuelKgFixed: 2.5,
+  // CONTROLS: sticks, torque tube, pedals, cables, pulleys, bellcranks and
+  // horns. They run the length of the aeroplane and out to the tips, so the
+  // driver is the reach — semi-span plus tail arm — and dual controls cost a
+  // second stick and a second set of pedals.
+  ctlKgM: 0.62, ctlDualKg: 3.4,
+};
+
 // Instrument fit. Mass is the TOTAL for the aeroplane.
 const GEN_SYSTEMS = {
   minimal: { name: 'Minimal (day VFR)', mass: 6,  price: 700 },
@@ -7510,10 +8026,108 @@ const GEN_PROP_MATS = {
 // it is a momentum-theory efficiency, it runs the other way round, and its
 // spread is nothing like a pitch ratio's. Using one for the other would give a
 // fine prop a coarser twist than a cruise prop, which is backwards and visible.
+//
+// G158 — THE fm COLUMN IS A STATIC FIGURE OF MERIT AND MUST READ AS ONE. The
+// old 0.58 / 0.46 / 0.36 was back-fitted out of the registry's Tstatic values,
+// which were themselves fitted through the 42 %-efficiency propV0K above (see
+// it for the whole story), so the column had drifted below the physical band:
+// a real fixed-pitch propeller sits at roughly 0.40-0.55 statically, and 0.36
+// is a propeller that does not exist. The three rows are now inside that band
+// and keep their order and their meaning.
+//
+// STANDARD IS THE ANCHOR at 0.477, because that is what makes the synthesis
+// reproduce the A-65 + Sensenich 74 row exactly (1202 N on a 1.88 m disc
+// absorbing 48.5 kW) — registry and generator still agree by construction,
+// which is the whole reason this table is fitted rather than invented.
+//
+// THE TRADE IS UNCHANGED IN KIND and is now measurable: at the A-65, fine
+// pitch out-pulls coarse below ~42 m/s and coarse wins above ~48 m/s
+// (1335 N vs 1058 N standing; 670 N vs 727 N at 50 m/s). It rides entirely in
+// V0, which falls as Tstatic rises — so a fine prop's thrust still runs out
+// earlier without being told to.
+// THE SYNTHESIS, AS A FUNCTION. It was inline in resolveSpec until G159, and
+// it has to be callable twice now: once there, and again from buildGen when the
+// pitch was left on 'auto' and the wing has since been measured. One
+// implementation, so the automatic answer and the manual one cannot drift.
+// `pr` carries D, blades, material and powerW; everything else is derived.
+function genPropSynth(pr, pitchKey) {
+  const PI = GEN_PROP_PITCH[pitchKey] || GEN_PROP_PITCH.standard;
+  const MT = GEN_PROP_MATS[pr.material] || GEN_PROP_MATS.wood;
+  const P = pr.powerW || 48500;
+  pr.area = Math.PI * (pr.D / 2) * (pr.D / 2);
+  // More blades is more disc solidity: better static thrust for the same
+  // diameter, at a little peak efficiency. 5.5% a blade past two.
+  pr.fm = PI.fm * (1 + 0.055 * (pr.blades - 2));
+  // MOMENTUM THEORY. The ideal static thrust of a disc absorbing P is
+  // (2 rho A)^(1/3) P^(2/3); a real propeller reaches a fraction of it.
+  pr.Tstatic = pr.fm * Math.cbrt(2 * RHO * pr.area) * Math.pow(P, 2 / 3);
+  // and the quadratic decay, through the speed at which thrust runs out. One
+  // constant on the only velocity scale there is; the pitch trade rides in
+  // Tstatic, so a fine prop's thrust runs out earlier without being told to.
+  pr.V0 = GEN_RULES.propV0K * P / Math.max(1, pr.Tstatic);
+  pr.kV2 = pr.Tstatic / (pr.V0 * pr.V0);
+  // the speed this propeller is at its best at: T*V peaks at V0/sqrt(3).
+  pr.VPeak = pr.V0 / Math.sqrt(3);
+  pr.pitchUsed = GEN_PROP_PITCH[pitchKey] ? pitchKey : 'standard';
+  // blade mass, at the very front of the aeroplane
+  pr.mass = pr.blades * MT.kg * Math.pow(pr.D / 1.88, 2.5);
+  pr.price = Math.round(MT.price * pr.blades / 2 * Math.pow(pr.D / 1.88, 2));
+  pr.name = `${pr.blades}-blade ${MT.name.toLowerCase()} ${pr.D.toFixed(2)} m`;
+  return pr;
+}
+
+// WHICH PITCH THIS AEROPLANE WANTS, given the stall speed its wing actually
+// measured.
+//
+// THE OBVIOUS CRITERION IS A TRAP, and it was measured before it was rejected:
+// "pick the pitch that makes the most thrust at cruise" chooses the FINEST one
+// for every aeroplane in this game. That is not a bug in the search, it is an
+// honest reading of a model with NO PROPELLER RPM in it. On the A-65 a fine
+// prop out-pulls a coarse one at every speed below 46 m/s, and almost nothing
+// here cruises faster than that. What makes a coarse prop right for a fast
+// aeroplane in the real world is the limit we do not model: a fine prop lets
+// the engine overspeed, so the pilot throttles back and never sees rated power.
+//
+// SO THE RULE STANDS IN FOR THAT LIMIT, with the one quantity the model does
+// carry: V0, the speed at which this propeller's thrust runs out. A propeller
+// whose thrust has collapsed by the time the aeroplane reaches its cruise is
+// over-fine, and that is exactly the symptom the missing rpm limit produces.
+// Take the FINEST pitch that still has real thrust in hand at cruise --
+//
+//     T(V)/Tstatic = 1 - (V/V0)^2  >=  GEN_PROP_AUTO_MARGIN
+//
+// -- and if none qualifies, the coarsest, which is the honest answer for an
+// aeroplane too fast for any of them.
+//
+// THE CRUISE ESTIMATE IS DELIBERATELY CRUDE and is allowed to be: this picks
+// between three coarse buckets, not a speed. 1.75 x Vs is the fleet's own
+// VCruise/Vs, which 62_gen_aero records as scattering 1.69-2.68 -- far too
+// loose to COMMAND a cruise with (which is why that file solves the real one
+// off the power curve) and far tighter than the spread between pitch classes.
+// The real cruise cannot be used here: solving it needs the propeller this
+// function is choosing.
+const GEN_PROP_AUTO_VR = 1.75;
+const GEN_PROP_AUTO_MARGIN = 0.60;
+// finest first, so the first that qualifies is the finest that qualifies
+const GEN_PROP_AUTO_ORDER = ['climb', 'standard', 'cruise'];
+function genPropAuto(pr, Vs) {
+  const V = GEN_PROP_AUTO_VR * Vs;
+  let pick = GEN_PROP_AUTO_ORDER[GEN_PROP_AUTO_ORDER.length - 1];
+  for (const k of GEN_PROP_AUTO_ORDER) {
+    const t = genPropSynth({ D: pr.D, blades: pr.blades, material: pr.material,
+                             powerW: pr.powerW }, k);
+    if (1 - (V / t.V0) * (V / t.V0) >= GEN_PROP_AUTO_MARGIN) { pick = k; break; }
+  }
+  genPropSynth(pr, pick);
+  pr.pitchAuto = pick;
+  pr.pitchAutoV = V;
+  return pick;
+}
+
 const GEN_PROP_PITCH = {
-  climb:    { name: 'Fine (climb)',    fm: 0.58, pd: 0.55 },
-  standard: { name: 'Standard',        fm: 0.46, pd: 0.70 },
-  cruise:   { name: 'Coarse (cruise)', fm: 0.36, pd: 0.85 },
+  climb:    { name: 'Fine (climb)',    fm: 0.530, pd: 0.55 },
+  standard: { name: 'Standard',        fm: 0.477, pd: 0.70 },
+  cruise:   { name: 'Coarse (cruise)', fm: 0.420, pd: 0.85 },
 };
 
 // COWL INTAKES. Texture only, deliberately: a grill drawn on the cover reads at
@@ -7556,8 +8170,17 @@ const GEN_PRICES = {
 // currently reads, and wiring a dead field would be a second change wearing
 // this one's clothes.
 const GEN_FINISH = {
-  full: { name: 'Painted',       price: GEN_PRICES.paintJob, sweep: 1 },
-  bare: { name: 'Bare / primer', price: 0,                   sweep: 0 },
+  // `kgM2` is the COLOUR COATS ONLY, and the distinction matters. The covering
+  // system itself -- fabric and its dope, or the alloy skin -- is already
+  // billed per square metre by GEN_MATERIALS.cover, which is why a doped Cub
+  // already carries 21 kg of covering over 51 m2 before anything is painted.
+  // What was missing was the finish on top of it: three or four butyrate
+  // colour coats are 0.10-0.15 kg/m2, and primer alone is a tenth of that.
+  // Six kilos on a Cub -- small, real, and it was zero.
+  full: { name: 'Painted',       price: GEN_PRICES.paintJob, sweep: 1,
+          kgM2: 0.12 },
+  bare: { name: 'Bare / primer', price: 0,                   sweep: 0,
+          kgM2: 0.03 },
 };
 
 // Cabin box per seating layout: half-width, height above the lower longeron,
@@ -7691,11 +8314,46 @@ const GEN_RULES = {
   // and gear.yBoundBy still says which bound applied.
   propClear:      0.229,  // taildragger, FAR 23.925 (nine inches)
   propClearNose:  0.178,  // nosewheel, FAR 23.925 (seven inches)
-  // Zero-thrust speed as a multiple of power/static-thrust. CALIBRATED on the
-  // A-65 + Sensenich 74CK registry entry, which it then reproduces to under 1%
-  // in both Tstatic and kV2. See GEN_PROP_PITCH for why this is one constant and
-  // not a table.
-  propV0K:     1.10,
+  // Zero-thrust speed as a multiple of power/static-thrust. See GEN_PROP_PITCH
+  // for why this is one constant and not a table.
+  //
+  // G158 — THIS CONSTANT IS THE PROPELLER'S PEAK EFFICIENCY, and until now it
+  // was 42 %. The law is `T = Tstatic - kV2 V^2` with `V0 = propV0K P /
+  // Tstatic`, so `Tstatic * V0 = propV0K * P` is a CONSTANT: thrust power
+  // `T*V` peaks at `V = V0/sqrt(3)` with
+  //
+  //     P_prop_max = Tstatic * V0 * 2/(3 sqrt 3) = 0.3849 * propV0K * P
+  //
+  // At 1.10 that is 42.3 % of shaft power — for every generated aeroplane,
+  // whatever its engine, diameter, blade count, material or pitch. A finer
+  // prop raises Tstatic and lowers V0 by exactly as much: the pitch trade is
+  // real INSIDE the budget, and the budget never moved. A real fixed-pitch
+  // wooden propeller peaks near 75 %, so five eighths of every engine in the
+  // garage was being thrown away in this one line.
+  //
+  // 1.10 came from fitting the A-65 + Sensenich 74CK row, which at 42.0 % is
+  // the WORST row in POWERPLANTS — the hand-fitted rows the fleet actually
+  // flies on sit at 52-86 % (io360 85 %, o200 86 %, r1830 67 %). So the
+  // constant reproduced the single outlier and then handed it to the whole
+  // garage.
+  //
+  // WHY IT SURVIVED: the A-65 row's own Tstatic had been fitted so the J-3
+  // fiche would reproduce the published 433 fpm — but that fiche billed
+  // 265 kg for an airframe whose real empty weight is 345 kg, and 450 fpm is
+  // a GROSS-weight figure. A 23 %-light aeroplane on a 40 %-weak propeller
+  // reproduces the book, and neither error is visible at that one point. Flown
+  // at the real 550 kg the same fiche climbed 0.78 m/s against a published
+  // 2.29. See futureDesigns/PROP-THRUST-2026-09-02.md; the airframe mass is
+  // fixed in the same chantier, because the two errors cancel and only move
+  // together.
+  //
+  // 1.95 IS TWO INDEPENDENT ANCHORS AGREEING. Peak efficiency 0.3849 x 1.95 =
+  // 75.1 %, which is what a real fixed-pitch propeller reaches; and it is what
+  // makes the J-3's own geometry climb the published 450 fpm at the published
+  // 550 kg on a static thrust (1202 N) that is inside the published 250-280
+  // lbf band for an A-65 on a Sensenich 74. Neither number was fitted to the
+  // other.
+  propV0K:     1.95,
   // Minimum drop from the fuselage underside to the axle. This is rule 5, not
   // tidiness: a near-horizontal gear leg has almost no vertical stiffness no
   // matter what k it is given, so a short undercarriage squats onto its belly
@@ -7776,12 +8434,64 @@ const GEN_RULES = {
 // crankX / tipX (null = derived from sweep/taper exactly as v5 did), the
 // cage retired wgSweep, and GEN_MIGRATORS[5] lifts a save's stored angle
 // into the offsets. The v5 fixture that proves it: build_v5_swept_*.json.
-const GEN_SPEC_V = 6;
+const GEN_SPEC_V = 7;
 
 // { fromVersion: spec => spec } — each entry lifts a spec one version. May
 // mutate and return its argument. Runs BEFORE normalisation, on the raw shape
 // the old game actually saved.
-const GEN_MIGRATORS = {};
+// THE LIFT FROM A CAPACITY TO A VESSEL, and it is not only a migration.
+// `fuel.litres` became a READING of the vessel list at G99 — but it is still
+// what people WRITE: every archetype in _cage_design.js says
+// `spec: { fuel: { litres: 90 } }`, GATE ENERGYBASE's cases vary it, and a
+// spec pasted out of a console says it too. A derived field that silently
+// ignores what it is set to is the worst kind, so a capacity written with no
+// vessel list SEEDS one. An explicit `energy.vessels` always wins.
+//
+// GATE ENERGYBASE caught this the moment the list landed: three of its cases
+// stopped differing from each other, because "panel tank", "dry" and "brimmed"
+// were all writing to a field that had stopped listening.
+function genEnergyLift(S) {
+  const f = S.fuel || {};
+  const E = S.energy || (S.energy = {});
+  if (!Array.isArray(E.vessels)) {
+    const tank = f.tank || 'nose';
+    const bay = tank === 'wing' ? 'wingRoot'
+              : tank === 'panel' ? 'wingPanel' : 'nose';
+    E.vessels = [{
+      bay,
+      capacity: (E.kind === 'battery') ? (E.kWh || 0) : (f.litres || 0),
+      // THE OLD THREE STATIONS WERE NODES, NOT PLACES: `nose` billed onto the
+      // firewall ring's TOP pair and the wing stations onto a spar node. The
+      // lift gives the vessel the station those nodes are AT — explicitly, in
+      // the spec, where it can be read — rather than a bay midpoint that would
+      // look reasonable and quietly move a Cub's twelve gallons half a metre
+      // aft. That is what GATE ENERGYBASE exists to prove and it does.
+      along: bay === 'nose' ? 0 : null,
+      lv: bay === 'nose' ? 1 : null,
+      rot: 0,
+    }];
+  }
+  return S;
+}
+
+const GEN_MIGRATORS = {
+  // 6 -> 7, THE ENERGY MODULE'S OWN BUMP (G99), reserved for it since G97 and
+  // finally earned: `spec.fuel = {litres, tank}` becomes a LIST of vessels in
+  // declared bays, so capacity belongs to the thing that has a size.
+  //
+  // KEYED BY THE SOURCE VERSION, which is the walk's own convention and cost
+  // one wrong number to learn: `genMigrateSpec` runs `MIGRATORS[i]` for i from
+  // the spec's v up to GEN_SPEC_V, so the lift OUT OF 6 lives under 6 — as the
+  // wing's v5 -> v6 lift lives under 5. Filed as 7, this ran on nothing at
+  // all and every old save quietly kept the defaults instead of its tank.
+  //
+  // AND IT MUST MOVE NOTHING, which is what GATE ENERGYBASE exists to prove.
+  // The old three stations were nodes, not places: `nose` billed onto the
+  // firewall ring's TOP pair, `wing` and `panel` onto a wing spar node. So the
+  // migrated vessel is given the station those nodes are AT — explicitly, in
+  // the spec, where it can be read — rather than a bay midpoint that would
+  // look reasonable and quietly move a Cub's twelve gallons half a metre aft.
+  6: S => genEnergyLift(S),};
 
 function genMigrateSpec(r) {
   if (!r || typeof r !== 'object') return r;
@@ -7988,7 +8698,50 @@ const GEN_DEFAULT = {
   // and gear attach to all move with it.
   cargo: { len: 0, kg: 0 },
   fuel: { litres: 50, tank: 'nose' },
+  // WHAT THE ENERGY IS AND WHAT HOLDS IT (G98). `fuel.litres` above stays the
+  // liquid capacity and `fuel.tank` the station, so nothing saved before this
+  // moves; this section says what KIND of energy it is, which fuel or which
+  // cells, and which vessel holds them. A pack's capacity is in kWh because
+  // litres is not how a battery is sold.
+  //
+  // NO SPEC VERSION BUMP, deliberately. genDefaults fills an absent section
+  // with exactly these values, which is what an old file meant, so there is
+  // nothing for a migrator to branch on — the same reasoning `finish: null`
+  // was added under at G105. G99 restructures this into a vessel LIST when
+  // placement needs one, and that is the change that earns the bump.
+  energy: { kind: 'fuel', fuel: 'avgas100LL', cell: 'lifepo4',
+            kWh: 0, vessel: null,
+            // G99 — THE VESSELS, AND THE CAPACITY IS THEIRS. A vessel is a
+            // real solid dropped into a declared bay and nudged until it
+            // fits, so it is the thing that has a size: `fuel.litres` and
+            // `energy.kWh` are now DERIVED as the sum of the list, and
+            // `S.fuelL` with them. That is the shape G97 found by measurement
+            // — "spec.fuel.litres is not what the mass model reads, 61_gen_frame
+            // reads S.fuelL, derived during resolveSpec" — and it is why the
+            // access fittings keep their fuel cap and drain with no edit.
+            //   bay       a GEN_BAYS key
+            //   capacity  litres, or kWh for a pack
+            //   along     metres aft of the firewall (body bays), or a span
+            //             fraction (wing bays); null = the bay's own default
+            //   lv        height in the section, 0 keel to 1 crown; null = the
+            //             middle of the bay's own band
+            //   rot       degrees about the vertical. Declared here and drawn
+            //             in G99b; the fit test already respects it.
+            // NULL, AND THAT IS THE WHOLE MECHANISM. A default LIST here
+            // would make `fuel.litres` unwritable: every archetype, every gate
+            // case and every hand-written spec merges over this object, so
+            // they would all inherit a 50-litre nose tank and their own
+            // capacity would be silently ignored. That is exactly what GATE
+            // ENERGYBASE reported when the list first landed — "panel tank",
+            // "dry" and "brimmed" became the same aeroplane. Absent,
+            // `clampSpec` builds the list from whatever capacity the spec DOES
+            // name, and an explicit list always wins over it.
+            vessels: null },
   systems: { fit: 'basic' },
+  // WHAT YOU SIT IN (G159). A choice, like the instrument fit beside it, and
+  // it weighs: four kilos a seat between a Cub's sling and a certified
+  // energy-absorbing one, times however many people are aboard.
+  outfit: { seats: 'sling' },
   // Control surfaces. Span fractions are of the SEMISPAN — the aileron measured
   // inboard from the tip, the flap outboard from the centreline — and clampSpec
   // keeps a gap between them. Chord fractions are of the local chord and are
@@ -8087,7 +8840,15 @@ const GEN_DEFAULT = {
   // and the spinner itself. Kept in the same block because a builder does not
   // think of them as two things, and marked here because a change to the top
   // four moves the aeroplane and a change to the bottom three does not.
-  prop: { D: null, blades: 2, material: 'wood', pitch: 'cruise',
+  // PITCH: 'standard' since G158, and it is the registry's keeper as much as a
+  // default. GATE GEN requires the SYNTHESIS to reproduce the powerplant row
+  // this build flies on to 2 % in both Tstatic and kV2 — so whatever pitch the
+  // default carries IS the pitch the A-65 + Sensenich 74CK row states. It was
+  // 'cruise' because the old fm table put that row at a figure of merit of
+  // 0.36; the real 74CK-42 is a 0.57 pitch-to-diameter propeller, which is not
+  // a coarse one, and a generic homebuilt does not leave the shed on a cruise
+  // prop either. See GEN_PROP_PITCH.
+  prop: { D: null, blades: 2, material: 'wood', pitch: 'standard',
           // chord and root as fractions of the RADIUS, so they survive a
           // diameter change instead of being metres that no longer fit
           chord: 0.10, root: 0.16,
@@ -8266,6 +9027,14 @@ function genNormaliseSpec(raw) {
   // migrate FIRST, on the clone: a migrator sees the raw shape its vintage
   // actually wrote, before defaulting fills the modern fields in around it.
   const r = genMigrateSpec(genClone(raw && typeof raw === 'object' ? raw : {}));
+  // NO LIFT HERE, and that is deliberate. A current spec with a capacity and no
+  // vessel list is left exactly as it was written: `energy.vessels` is a
+  // DERIVED null, and this file's own rule is that a derived null has to
+  // survive a save and a load — "freeze the derived number into the save and
+  // it stops following whatever it was derived from". `clampSpec` builds the
+  // list at RESOLVE time, which is derivation and the right place for it.
+  // GATE BUILD caught the first cut doing it here: the stock spec came back
+  // from a round trip carrying a vessel list it never had.
   if (genIsSectioned(r)) return genDefaults(r, GEN_DEFAULT);
   // --- pre-G3 flat shape ---
   const p = r.place || {}, w = r.wing || {}, f = r.fuse || {};
@@ -8528,6 +9297,46 @@ function clampSpec(spec) {
   }
   if (!['strut', 'cantilever'].includes(S.bracing.type)) S.bracing.type = 'strut';
   S.fuel.litres = genClamp(S.fuel.litres, 0, 140);
+  if (!S.outfit || typeof S.outfit !== 'object') S.outfit = { seats: 'sling' };
+  if (!GEN_SEATS[S.outfit.seats]) S.outfit.seats = 'sling';
+  {
+    const E = S.energy || (S.energy = {});
+    if (E.kind !== 'battery') E.kind = 'fuel';
+    if (!GEN_FUELS[E.fuel]) E.fuel = 'avgas100LL';
+    if (!GEN_CELLS[E.cell]) E.cell = 'lifepo4';
+    E.kWh = genClamp(E.kWh || 0, 0, 400);
+    // a vessel that cannot hold this kind is not a vessel for this aeroplane
+    const want = E.kind === 'battery' ? 'battery' : 'fuel';
+    if (E.vessel != null &&
+        !(GEN_VESSELS[E.vessel] && GEN_VESSELS[E.vessel].holds === want))
+      E.vessel = null;
+    // THE VESSELS ARE THE CAPACITY (G99). Each one is clamped on its own, and
+    // the section's total is their sum — so `fuel.litres` and `energy.kWh`
+    // stop being settable facts and become readings, which is what stops a
+    // build saying 50 litres while carrying two 40-litre tanks.
+    // NO LIST? BUILD ONE FROM THE CAPACITY THE SPEC NAMES. genEnergyLift is
+    // that rule, shared with the v6 migrator, so a lifted save and a
+    // hand-written spec land on the same aeroplane.
+    if (!Array.isArray(E.vessels) || !E.vessels.length) genEnergyLift(S);
+    let total = 0;
+    for (const v of E.vessels) {
+      if (!GEN_BAYS[v.bay]) v.bay = 'nose';
+      v.capacity = genClamp(v.capacity || 0, 0,
+                            E.kind === 'battery' ? 400 : 400);
+      v.along = v.along == null ? null : genClamp(v.along, -1, 12);
+      v.lv = v.lv == null ? null : genClamp(v.lv, 0, 1);
+      v.rot = genClamp(v.rot || 0, -90, 90);
+      total += v.capacity;
+    }
+    if (E.kind === 'battery') { E.kWh = total; S.fuel.litres = 0; }
+    else { S.fuel.litres = genClamp(total, 0, 400); E.kWh = 0; }
+    // `fuel.tank` is the pre-G99 station and is kept as a READING of the first
+    // vessel's bay, because GEN_ACCESS decides where the filler cap goes from
+    // it and a cap that moved would be a fitting nobody asked to move.
+    const b0 = E.vessels[0] && E.vessels[0].bay;
+    S.fuel.tank = b0 === 'wingRoot' ? 'wing'
+                : b0 === 'wingPanel' ? 'panel' : 'nose';
+  }
   cb.baggage = genClamp(cb.baggage, 0, 60);
   const w = S.wings[0];
   w.chord = genClamp(w.chord, 1.15, 2.10);
@@ -8662,7 +9471,11 @@ function clampSpec(spec) {
   S.prop.D = genClampN(S.prop.D, 0.20, 4.00);
   S.prop.blades = genClamp(Math.round(S.prop.blades) || 2, 2, 6);
   if (!GEN_PROP_MATS[S.prop.material]) S.prop.material = 'wood';
-  if (!GEN_PROP_PITCH[S.prop.pitch]) S.prop.pitch = 'standard';
+  // 'auto' is a legal pitch and is NOT a class: it means "choose one for me",
+  // and buildGen does the choosing once the wing has been measured. See
+  // genPropSynth / genPropAuto below.
+  if (S.prop.pitch !== 'auto' && !GEN_PROP_PITCH[S.prop.pitch])
+    S.prop.pitch = 'standard';
   // the shape half — visual only, so the bounds are what reads as a propeller
   // rather than what flies
   S.prop.chord = genClamp(S.prop.chord == null ? 0.10 : S.prop.chord, 0.05, 0.20);
@@ -9017,25 +9830,20 @@ function resolveSpec(spec) {
   {
     const pr = S.prop;
     put(pr, 'D', PP ? PP.prop.D : 1.80, 'prop.D');
-    const PI = GEN_PROP_PITCH[pr.pitch] || GEN_PROP_PITCH.standard;
-    const MT = GEN_PROP_MATS[pr.material] || GEN_PROP_MATS.wood;
     const P = PP ? PP.engine.powerW : 48500;
-    pr.area = Math.PI * (pr.D / 2) * (pr.D / 2);
-    // More blades is more disc solidity: better static thrust for the same
-    // diameter, at a little peak efficiency. 5.5% a blade past two.
-    pr.fm = PI.fm * (1 + 0.055 * (pr.blades - 2));
-    // MOMENTUM THEORY. The ideal static thrust of a disc absorbing P is
-    // (2 rho A)^(1/3) P^(2/3); a real propeller reaches a fraction of it.
-    pr.Tstatic = pr.fm * Math.cbrt(2 * RHO * pr.area) * Math.pow(P, 2 / 3);
-    // and the quadratic decay, through the speed at which thrust runs out. One
-    // constant on the only velocity scale there is; the pitch trade rides in
-    // Tstatic, so a fine prop's thrust runs out earlier without being told to.
-    pr.V0 = GEN_RULES.propV0K * P / Math.max(1, pr.Tstatic);
-    pr.kV2 = pr.Tstatic / (pr.V0 * pr.V0);
-    // blade mass, at the very front of the aeroplane
-    pr.mass = pr.blades * MT.kg * Math.pow(pr.D / 1.88, 2.5);
-    pr.price = Math.round(MT.price * pr.blades / 2 * Math.pow(pr.D / 1.88, 2));
-    pr.name = `${pr.blades}-blade ${MT.name.toLowerCase()} ${pr.D.toFixed(2)} m`;
+    // AUTO (G159, the user: "I would like some automatic control... could the
+    // setup of the prop be assisted?"). The pitch class is the one dial on the
+    // propeller with a right answer that a builder cannot read off a slider,
+    // and getting it wrong is expensive — a coarse prop on a Cub costs 100 fpm
+    // and 30 m of runway. So 'auto' is a legal value and buildGen picks the
+    // class once the wing has been measured (genPropAuto). Everything here is
+    // synthesised at STANDARD in the meantime, because the choice needs a stall
+    // speed and the stall speed needs a built aeroplane; the resolved spec
+    // records which class was actually chosen, and the SAVED spec keeps saying
+    // 'auto' so the answer follows the aeroplane when it changes.
+    pr.autoPitch = (pr.pitch === 'auto');
+    pr.powerW = P;
+    genPropSynth(pr, pr.autoPitch ? 'standard' : pr.pitch);
   }
   const propR = S.prop.D / 2;
   S.propR = propR;
@@ -9594,40 +10402,223 @@ function genWingBay(wing, opt) {
 // `_bay_site.js`, 'wing' bays are computed by `genWingBay`. Nothing else is a
 // bay — a vessel hung in the breeze is not a design, it is a mistake, and the
 // fittings arc's rule applies here too: no bay, no tank.
+
+// ===========================================================================
+// G98 — THE VESSEL CATALOGUE. Tanks and packs as things you BUY.
+// ===========================================================================
+// G97 gave the aeroplane bays and measured what will fit in them. This is what
+// goes IN: a declared catalogue of what holds the energy, what the energy is,
+// and what both of them weigh. Placement is G99's; this file only says what
+// exists and what it costs you in kilos and credits.
+//
+// THE HOLE THIS CLOSES, and it is a real one. Until now a tank weighed
+// NOTHING: `sec('fuel')` billed `S.fuelL * 0.72` of contents onto two nodes
+// and that was the whole model — no vessel, no shell, no fittings. And the
+// registry excludes the battery from every electric row ON PURPOSE, saying so
+// in its own comment ("it is the fuel tank's analog, priced and weighed by the
+// energy module"), which means an EMRAX has been undercutting a Rotax because
+// its energy is free. Both of those end here.
+//
+// THE CONTRAST THE ARC EXISTS FOR, in the user's words: "Fuel then moves the
+// CG as it burns down... A battery's mass does not change at all." So the two
+// are modelled as the same shape of thing with one difference that matters —
+// fuel is PAYLOAD that drains, a pack is EMPTY WEIGHT that does not.
+
+// ---------------------------------------------------------------------------
+// WHAT BURNS. Density is what the ledger weighs; the energy is what the range
+// will be computed from when the burn model lands.
+// ---------------------------------------------------------------------------
+const GEN_FUELS = {
+  avgas100LL: { name: '100LL avgas', kgL: 0.72,  MJkg: 43.5, price: 2.40,
+                // the ledger's own long-standing 0.72, now declared rather
+                // than written into the mass line
+                note: 'the certified default; leaded' },
+  mogas:      { name: 'Mogas (95)',  kgL: 0.745, MJkg: 43.4, price: 1.60,
+                note: 'cheaper and denser; a Rotax or a VW runs on it' },
+};
+
+// ---------------------------------------------------------------------------
+// WHAT STORES CHARGE. `WhKg` and `WhL` are CELL figures; `packK` is what
+// survives to pack level once the case, the busbars, the BMS and the cooling
+// are in — 0.65-0.75 is the real range and it is why a 250 Wh/kg cell makes a
+// 170 Wh/kg aeroplane.
+// ---------------------------------------------------------------------------
+const GEN_CELLS = {
+  lifepo4: { name: 'LiFePO4',      WhKg: 115, WhL: 230, packK: 0.75,
+             price: 320, cycles: 3000,
+             note: 'heavy, cheap, and it does not burn' },
+  nmc:     { name: 'NMC pouch',    WhKg: 210, WhL: 460, packK: 0.70,
+             price: 480, cycles: 1200,
+             note: 'the volume default' },
+  nca:     { name: 'NCA cylindrical', WhKg: 250, WhL: 550, packK: 0.68,
+             price: 700, cycles: 800,
+             note: 'the lightest, the dearest, the shortest-lived' },
+};
+
+// ---------------------------------------------------------------------------
+// WHAT HOLDS IT. A vessel is a SHELL, so its mass goes with its SURFACE and
+// not with its volume: double the litres and you get 1.59x the skin, which is
+// why one big tank beats two small ones and why the catalogue is worth having.
+//
+//   surface = shapeK * V^(2/3)     V in m3, shapeK 6 for a cube
+//   mass    = surface * kgM2 + fixed
+//
+// `shapeK` is above 6 for anything that is not a cube: a wing tank is a flat
+// slab and a bladder follows a bay, so both have more skin per litre than a
+// cube does. `fixed` is the filler, the drain, the sender and the fittings,
+// which do not care how big the tank is.
+//
+// ANCHORED, not invented: a 45 L welded aluminium light-aircraft tank is
+// about 5 kg. 0.045 m3 gives V^(2/3) = 0.127, times shapeK 6.6 is 0.84 m2,
+// times 3.4 kg/m2 (1.2 mm 5052 with its seams) is 2.9 kg, plus 2.2 kg of
+// fittings = 5.1. The bladder row is a Cub's rubberised cell; the moulded row
+// is rotomoulded polyethylene, cheap and thick; `wet` is no vessel at all --
+// the structure itself is sealed, which is how a metal wing carries fuel and
+// why it is the lightest and the dearest to build.
+// ---------------------------------------------------------------------------
+const GEN_VESSELS = {
+  alu:     { name: 'Welded aluminium', holds: 'fuel',
+             shapeK: 6.6, kgM2: 3.4, fixed: 2.2, price: 14, priceFixed: 180 },
+  bladder: { name: 'Rubber bladder',   holds: 'fuel',
+             shapeK: 7.4, kgM2: 1.9, fixed: 1.6, price: 26, priceFixed: 240 },
+  moulded: { name: 'Moulded plastic',  holds: 'fuel',
+             shapeK: 6.8, kgM2: 2.6, fixed: 1.8, price: 8,  priceFixed: 90 },
+  wet:     { name: 'Wet wing (sealed structure)', holds: 'fuel',
+             // no shell at all: the sealant and the ribs' extra work only
+             shapeK: 6.6, kgM2: 0.55, fixed: 1.2, price: 30, priceFixed: 420 },
+  packCase:{ name: 'Pack case',        holds: 'battery',
+             shapeK: 6.2, kgM2: 4.1, fixed: 3.0, price: 40, priceFixed: 300 },
+};
+
+// The volume a vessel needs, and what it and its contents weigh. ONE function,
+// so the editor's readout, the ledger and the gate cannot disagree.
+//   kind      'fuel' | 'battery'
+//   capacity  litres of fuel, or kWh of pack energy
+// Returns litres of INSTALLED VOLUME (what has to fit in a bay), the vessel's
+// own mass, the contents' mass, and what the pair costs.
+function genVesselResolve(kind, capacity, vesselKey, mediumKey) {
+  const battery = kind === 'battery';
+  const V = Math.max(0, capacity || 0);
+  const ves = GEN_VESSELS[vesselKey] ||
+              (battery ? GEN_VESSELS.packCase : GEN_VESSELS.alu);
+  let litres, contents, mediumPrice;
+  if (battery) {
+    const cell = GEN_CELLS[mediumKey] || GEN_CELLS.lifepo4;
+    const packWhKg = cell.WhKg * cell.packK;
+    const packWhL  = cell.WhL  * cell.packK;
+    contents = V * 1000 / Math.max(1, packWhKg);      // kWh -> kg of cells
+    litres   = V * 1000 / Math.max(1, packWhL);       // kWh -> litres of cells
+    mediumPrice = V * cell.price;
+  } else {
+    const fuel = GEN_FUELS[mediumKey] || GEN_FUELS.avgas100LL;
+    litres   = V;
+    contents = V * fuel.kgL;
+    mediumPrice = V * fuel.price;
+  }
+  const m3 = litres / 1000;
+  const surface = ves.shapeK * Math.pow(Math.max(1e-9, m3), 2 / 3);
+  const vesselKg = m3 > 1e-9 ? surface * ves.kgM2 + ves.fixed : 0;
+  return {
+    kind, capacity: V, vessel: ves, litres, battery,
+    // the space it actually occupies: cells and case, or fuel and ullage
+    installedL: litres * (battery ? 1.18 : 1.06),
+    vesselKg, contentsKg: contents, surface,
+    // WHAT DRAINS AND WHAT DOES NOT, decided HERE and nowhere else (G99).
+    // These two lived on genEnergyResolve, one level up, and the ledger reads
+    // vessels one at a time — so it got `undefined` for both and billed NaN
+    // onto the firewall ring. The split is a property of the vessel, so it
+    // belongs to the vessel: fuel is payload and it leaves, a pack's cells are
+    // empty weight and they stay.
+    payloadKg: battery ? 0 : contents,
+    emptyKg: vesselKg + (battery ? contents : 0),
+    price: Math.round(m3 > 1e-9
+      ? ves.priceFixed + litres * ves.price + mediumPrice : 0),
+  };
+}
+
+// THE SPEC'S ENERGY, RESOLVED. One reader for the ledger, the shakedown, the
+// editor and the gate, so the four cannot disagree about what the aeroplane
+// is carrying. Nulls are DERIVED, the same contract the rest of the spec
+// keeps: no vessel named means the obvious one for the kind.
+function genEnergyResolve(S) {
+  const E = (S && S.energy) || {};
+  const battery = E.kind === 'battery';
+  const vesselKey = E.vessel || (battery ? 'packCase' : 'alu');
+  const capacity = battery ? (E.kWh || 0)
+                           : ((S.fuel && S.fuel.litres) || 0);
+  const medium = battery ? (E.cell || 'lifepo4') : (E.fuel || 'avgas100LL');
+  const r = genVesselResolve(battery ? 'battery' : 'fuel',
+                             capacity, vesselKey, medium);
+  r.medium = medium;
+  r.vesselKey = vesselKey;
+  r.battery = battery;
+  // payloadKg / emptyKg come from genVesselResolve, which is the one place
+  // that split is decided
+  return r;
+}
+
+// ===========================================================================
+// G99 — WHERE A VESSEL CAN GO, AND WHETHER IT FITS.
+// ===========================================================================
+// THE RANGES ARE DERIVED NOW, and G97 asked for exactly this when it wrote
+// them: "the sL ranges I wrote are reasoned from the firewall datum, not
+// measured. G99 will either confirm them or move them, and the fit tests are
+// what will say which." They did not survive contact.
+//
+// MEASURED ON THE STOCK BUILD: the firewall is x = 0, the cabin runs
+// 0.62..1.40 and the tailpost is at 4.94. The declared nose bay was
+// -0.95..-0.05 — entirely FORWARD of the firewall, which is where the engine
+// is, not the tank — and the cabin bay was 0.05..1.30, half a metre ahead of
+// the cabin it is named for. Only `aftCabin` was nearly right.
+//
+// A LITERAL RANGE CANNOT BE RIGHT FOR TWO AEROPLANES, which is the real
+// lesson: `noseGap` and `cab.len` are sliders, so the cabin moves and the bay
+// has to move with it. Each bay now carries a RULE over the resolved spec and
+// returns metres aft of the firewall, the same datum the surface field and the
+// access fittings already use. `lv` is the vertical band as a fraction of the
+// section, 0 at the keel and 1 at the crown.
 const GEN_BAYS = {
   nose: {
     name: 'Nose bay', on: 'body',
-    serves: 'ahead of the panel, behind the firewall',
-    sL: [-0.95, -0.05],
+    serves: 'behind the firewall, ahead of the panel',
     // the Cub's twelve gallons, and the Velis Electro's forward pack. It is
-    // the only bay that is ABOVE the carburettor on most layouts, which is
-    // what makes gravity feed possible at all.
+    // the only bay ABOVE the carburettor on most layouts, which is what makes
+    // gravity feed possible at all.
     feed: 'gravity',
+    lv: [0.25, 1],
+    range: S => [0, Math.max(0.12, S.cab.noseGap)],
   },
   cabin: {
     name: 'Cabin', on: 'body',
     serves: 'around the occupants — the motorglider case',
-    sL: [0.05, 1.30],
     // FREE WITHIN THE BAY on purpose: this is the one the user named, where
     // "you would put them really wherever they fit". The clearance test
     // against the crew does the work a fixed station cannot.
     free: true, feed: 'pumped',
+    lv: [0, 1],
+    range: S => [S.cab.noseGap, S.cab.noseGap + S.cab.len],
   },
   underFloor: {
     name: 'Under the floor', on: 'body',
     serves: 'below the floorboards, between the spar carry-throughs',
-    sL: [0.10, 1.10], lv: [0, 1],
-    // a structural floor pack, the Alice layout. Low and near the CG: the
-    // best place to put mass and the worst to get fuel out of by gravity.
+    // a structural floor pack, the Alice layout. Low and near the CG: the best
+    // place to put mass and the worst to get fuel out of by gravity.
     feed: 'pumped',
+    lv: [0, 0.30],
+    range: S => [S.cab.noseGap, S.cab.noseGap + S.cab.len],
   },
   aftCabin: {
     name: 'Behind the cabin', on: 'body',
     serves: 'aft of the rear bulkhead',
-    sL: [1.30, 2.20],
     // the Velis Electro's aft pack. Bracketing the CG with two packs is
     // deliberate on the real aeroplane and should be discoverable here.
     feed: 'pumped',
+    lv: [0, 1],
+    // stops well short of the tailpost: the boom is too slender to hold
+    // anything and mass that far aft is a balance problem, not a bay.
+    range: S => [S.cab.noseGap + S.cab.len + S.fuse.cargoLen,
+                 Math.max(S.cab.noseGap + S.cab.len + S.fuse.cargoLen + 0.3,
+                          0.55 * S.fuse.tailArm)],
   },
   wingRoot: {
     name: 'Wing root', on: 'wing',
@@ -9640,6 +10631,77 @@ const GEN_BAYS = {
     span: [0.55, 0.88], feed: 'pumped',
   },
 };
+
+// THE BAYS OF THIS AEROPLANE, measured. Body bays get their station range from
+// the rule above and their VOLUME from the fuselage's own station table — the
+// sections are swept as ellipses inscribed in (halfW, yt-yb), inset by a wall,
+// and integrated between the bay's limits. That is the same shape of answer
+// `_bay_site.js` gets off the real mesh and deliberately a cruder one: core
+// has no mesh, and a bay's capacity has to be knowable without the editor
+// open. The editor's own fit test is the finer instrument and overrules this
+// one where they disagree.
+const GEN_BAY_WALL = 0.035;              // metres of structure and trim, per side
+function genBayResolve(S, key, ST) {
+  const B = GEN_BAYS[key];
+  if (!B) return null;
+  if (B.on === 'wing') {
+    const litres = genWingBay(S.wing, { spanLo: B.span[0], spanHi: B.span[1] });
+    return { key, name: B.name, on: 'wing', feed: B.feed, free: !!B.free,
+             span: B.span.slice(), litres,
+             // where its mass acts: the mid-span of the bay, both sides
+             zFrac: 0.5 * (B.span[0] + B.span[1]) };
+  }
+  const [x0, x1] = B.range(S);
+  // THE SECTIONS COME FROM WHOEVER HAS THEM. The body's shape is 60b's loft
+  // and the frame is what samples it, so core does not rebuild that here — it
+  // is handed the station table it already exists in (`def.parts.ST`, or the
+  // spec's own measured `fuse.profile` when a build carries one). Rebuilding
+  // the loft to ask it a question is how two shapes for one body start.
+  const rows = [];
+  const L = S.fuse.tailArm;
+  if (ST && ST.length && ST[0].x != null) {
+    for (const r of ST) rows.push({ x: r.x, w: r.w, yb: r.yb, yt: r.yt });
+  } else if (S.fuse.profile && S.fuse.profile.length) {
+    for (const r of S.fuse.profile)
+      rows.push({ x: r.t * L, w: r.w, yb: r.yb, yt: r.yt });
+  }
+  let litres = 0;
+  if (rows.length > 1) {
+    const at = x => {
+      if (x <= rows[0].x) return rows[0];
+      if (x >= rows[rows.length - 1].x) return rows[rows.length - 1];
+      for (let i = 0; i < rows.length - 1; i++) {
+        const a = rows[i], b = rows[i + 1];
+        if (x >= a.x && x <= b.x) {
+          const t = (x - a.x) / Math.max(1e-9, b.x - a.x);
+          return { x, w: a.w + (b.w - a.w) * t,
+                   yb: a.yb + (b.yb - a.yb) * t,
+                   yt: a.yt + (b.yt - a.yt) * t };
+        }
+      }
+      return rows[rows.length - 1];
+    };
+    const N = 24, lv = B.lv || [0, 1];
+    for (let i = 0; i < N; i++) {
+      const xa = x0 + (x1 - x0) * (i + 0.5) / N;
+      const r = at(xa);
+      const a = Math.max(0, r.w - GEN_BAY_WALL);
+      const b = Math.max(0, 0.5 * (r.yt - r.yb) - GEN_BAY_WALL);
+      // the ellipse's area, times the vertical band this bay occupies
+      litres += Math.PI * a * b * (lv[1] - lv[0]) * ((x1 - x0) / N) * 1000;
+    }
+  }
+  return { key, name: B.name, on: 'body', feed: B.feed, free: !!B.free,
+           x0, x1, lv: (B.lv || [0, 1]).slice(), litres,
+           // where its mass acts by default: the middle of the bay
+           xMid: 0.5 * (x0 + x1) };
+}
+function genBayList(S, ST) {
+  const out = [];
+  for (const k in GEN_BAYS) out.push(genBayResolve(S, k, ST));
+  return out;
+}
+
 // ============================================================
 // GARAGE 2/5 — the FRAME. Resolved spec -> named node/beam lattice.
 //
@@ -9798,7 +10860,15 @@ function genLattice(S, gearX, track, kScale) {
   // to the aeroplane's own material without a call site to forget.
   const sec = s => { SEC = s; MB = MSEC[s] || M; };
   const spend = c => bill(0, c);
+  // EVERY SQUARE METRE THE AEROPLANE IS COVERED IN, kept as it is billed. The
+  // paint has to weigh on something and this is the only place that knows the
+  // real number -- it is summed from the panels actually built, not from a
+  // planform estimate, so a bigger cabin or a longer boom is painted too.
+  let coverA = 0;
+  const coverSeen = {}, coverIds = [];
   const cover = (area, ids) => {
+    coverA += area;
+    for (const i of ids) if (!coverSeen[i]) { coverSeen[i] = 1; coverIds.push(i); }
     const m = area * MB.cover;
     const per = m / ids.length;
     for (const i of ids) nodes[i].m += per;
@@ -10491,32 +11561,173 @@ function genLattice(S, gearX, track, kScale) {
     const rg = F[ri] || F[1];
     pt(rg.BL, 40); pt(rg.BR, 40);
   }
+  // ---- THE ENERGY, ITS VESSELS AND WHERE THEY SIT (G98, placed at G99) ----
+  // A vessel is a real solid in a declared bay, so its mass goes where the
+  // solid is rather than onto one of three hard-coded nodes. `along` is metres
+  // aft of the firewall for a body bay and a span fraction for a wing bay;
+  // `lv` picks the level, keel to crown. Both may be null, and null means the
+  // bay's own default — which for a migrated build is the station the old
+  // enum's node was AT, so a v6 save does not move (GATE ENERGYBASE).
+  //
+  // ONE PAIR OF NODES, MIRRORED. Everything the frame bills is symmetric and
+  // this is no exception: a tank on the centreline is billed half to each side
+  // so the aeroplane does not fly one wing low, which is the same rule
+  // GATE GEN's mirror check has enforced since G1.
+  const bodyRing = (xWant, lvWant) => {
+    let best = 0, bd = Infinity;
+    for (let i2 = 0; i2 < F.length; i2++) {
+      const d2 = Math.abs((ST[i2] ? ST[i2].x : 0) - xWant);
+      if (d2 < bd) { bd = d2; best = i2; }
+    }
+    const rg = F[best];
+    return (lvWant >= 0.5) ? [rg.TL, rg.TR] : [rg.BL, rg.BR];
+  };
+  const wingPair = frac => {
+    const arrL = wf.L.F, arrR = wf.R.F;
+    const k = Math.max(0, Math.min(arrL.length - 1,
+      Math.round(frac * (arrL.length - 1))));
+    return [arrL[k], arrR[k]];
+  };
+  sec('vessel');
+  let fuelTotalM = 0;
+  const VES = (S.energy && S.energy.vessels) || [];
+  for (const v of VES) {
+    const B = GEN_BAYS[v.bay] || GEN_BAYS.nose;
+    const bay = genBayResolve(S, GEN_BAYS[v.bay] ? v.bay : 'nose', ST);
+    const r = genVesselResolve(
+      S.energy.kind === 'battery' ? 'battery' : 'fuel',
+      v.capacity, S.energy.vessel || (S.energy.kind === 'battery' ? 'packCase' : 'alu'),
+      S.energy.kind === 'battery' ? S.energy.cell : S.energy.fuel);
+    let pair;
+    if (B.on === 'wing') {
+      // the old 'wing' station was the ROOT spar node and 'panel' the next one
+      // out; a null `along` reproduces that rather than picking a midpoint.
+      const frac = v.along != null ? v.along
+                 : (v.bay === 'wingPanel' ? 0.34 : 0);
+      pair = wingPair(frac);
+    } else {
+      const xW = v.along != null ? v.along : bay.xMid;
+      const lvW = v.lv != null ? v.lv
+                : 0.5 * ((B.lv || [0, 1])[0] + (B.lv || [0, 1])[1]);
+      pair = bodyRing(xW, lvW);
+    }
+    if (r.emptyKg > 0) { pt(pair[0], 0.5 * r.emptyKg); pt(pair[1], 0.5 * r.emptyKg);
+                         spend(r.price); }
+    v._pair = pair; v._res = r;
+    fuelTotalM += r.payloadKg;
+  }
   sec('fuel');
-  const fuelM = S.fuelL * 0.72;
-  // WHERE the fuel sits. Nose is the Cub's — ahead of the panel, and it moves
-  // the CG forward. Wing-root hangs it on the spar carry-through. Outboard puts
-  // it in the panel, which relieves the wing in flight and slows the roll,
-  // because the tanks are the heaviest thing you can put out there.
-  const tankL = S.fuel.tank === 'wing' ? wf.L.F[0]
-              : S.fuel.tank === 'panel' ? wf.L.F[Math.min(1, wf.L.F.length - 1)]
-              : F[0].TL;
-  const tankR = S.fuel.tank === 'wing' ? wf.R.F[0]
-              : S.fuel.tank === 'panel' ? wf.R.F[Math.min(1, wf.R.F.length - 1)]
-              : F[0].TR;
-  pt(tankL, 0.5 * fuelM); pt(tankR, 0.5 * fuelM);
-  // G121: WHICH KILOS ARE FUEL, recorded on the node itself — the burn
-  // chantier drains these through the solver's setNodeMass door, and
-  // genSubsteps sizes the integrator at DRY mass off the same records (a
-  // beam is stiffest, per unit mass, when its tank is empty: sized at full
-  // it is stable on departure and divergent at reserves).
-  nodes[tankL].mFuel = (nodes[tankL].mFuel || 0) + 0.5 * fuelM;
-  nodes[tankR].mFuel = (nodes[tankR].mFuel || 0) + 0.5 * fuelM;
+  const fuelM = fuelTotalM;
+  for (const v of VES) {
+    const m = v._res ? v._res.payloadKg : 0;
+    if (m <= 0) continue;
+    const [a2, b2] = v._pair;
+    pt(a2, 0.5 * m); pt(b2, 0.5 * m);
+    // G121: WHICH KILOS ARE FUEL, recorded on the node itself — the burn
+    // chantier drains these through the solver's setNodeMass door, and
+    // genSubsteps sizes the integrator at DRY mass off the same records (a
+    // beam is stiffest, per unit mass, when its tank is empty: sized at full
+    // it is stable on departure and divergent at reserves).
+    // A PACK RECORDS NOTHING HERE, and that is not an omission: `mFuel` is
+    // what the burn model drains, and cells do not drain.
+    nodes[a2].mFuel = (nodes[a2].mFuel || 0) + 0.5 * m;
+    nodes[b2].mFuel = (nodes[b2].mFuel || 0) + 0.5 * m;
+  }
   sec('systems');
   const SYS = GEN_SYSTEMS[S.systems.fit] || GEN_SYSTEMS.basic;
   spend(SYS.price);
   pt(F[0].TL, 0.5 * SYS.mass); pt(F[0].TR, 0.5 * SYS.mass);   // panel + systems
+  // ---- THE OUTFIT (G159) ------------------------------------------------
+  // Everything a real aeroplane carries between its structure and its payload.
+  // Each item hangs off a CHOICE or a MEASUREMENT of this aeroplane, never a
+  // constant: see GEN_OUTFIT / GEN_SEATS for what each one is and why it is
+  // the size it is. Billed to its own section so the plaque can show it and so
+  // a future item added here cannot hide inside `fuselage`.
+  sec('outfit');
+  {
+    const O = GEN_OUTFIT, cb = S.cab;
+    const seat = GEN_SEATS[(S.outfit && S.outfit.seats)] || GEN_SEATS.sling;
+    // HOW MANY SEATS THE AEROPLANE HAS, not how many are filled today. A
+    // four-seater carries four seats whether or not anyone is in them, and
+    // billing them per OCCUPANT made a passenger appear to weigh 86 kg — the
+    // person plus the seat they arrived with. GATE BUILD caught it, which is
+    // exactly what that check is for: an occupant weighs 80 kg and nothing
+    // else may ride in on the same number.
+    const seats = Math.max(1, seatRows.length);
+    const EN = (S.engines && S.engines[0]) || {};
+    const PPn = S.pplant || POWERPLANTS[EN.type] || POWERPLANTS.a65_sensenich74;
+    const kW = ((PPn.engine && PPn.engine.powerW) || 0) / 1000;
+    const electric = (PPn.engine && PPn.engine.aspiration) === 'electric';
+    // SEATS: one per position, at the weight of the kind you chose.
+    // Spread over the seat frames so they sit where the people sit — the
+    // cabin rings, which is where `pt` already puts the occupants.
+    const seatM = seat.kg * seats;
+    // THE PANEL BOARD, from its own geometry. `cab.panel` carries the depth
+    // and how far the coaming wraps; the board spans the cabin.
+    let panelM = 0;
+    if (cb.panel && cb.panel.on) {
+      const pw = 2 * cb.halfW * (0.6 + 0.8 * (cb.panel.wrap || 0));
+      panelM = pw * (cb.panel.depth || 0.25) * O.panelKgM2;
+    }
+    // THE COWL, from the surface it actually has: the cowl's own half-width
+    // and depth round the engine, over the nose length. Its skin follows the
+    // aeroplane's material, because a fabric-over-frame cowl on a tube
+    // aeroplane is not an alloy pressing.
+    let cowlM = 0;
+    if (S.cowl && S.cowl.halfW > 0) {
+      const cw = S.cowl.halfW, ch = (S.cowl.top || 0) + (S.cowl.bot || 0);
+      // ellipse perimeter, Ramanujan's first approximation
+      const a2 = cw, b2 = 0.5 * ch;
+      const per = Math.PI * (3 * (a2 + b2) - Math.sqrt((3 * a2 + b2) * (a2 + 3 * b2)));
+      cowlM = per * Math.max(0.1, cb.noseGap) *
+              (O.cowlKgM2[S.material] || O.cowlKgM2.alloy);
+    }
+    // THE EXHAUST, from the power it carries. Electric has none.
+    const exhM = electric ? 0 : O.exhaustKgKW * kW;
+    // THE FUEL PLUMBING, from the litres. A pack's cabling is the energy
+    // module's, not this row's, so an electric aeroplane pays nothing here.
+    const plumbM = (electric || S.fuelL <= 0) ? 0
+                 : O.fuelKgFixed + O.fuelKgL * S.fuelL;
+    // THE CONTROLS, from the reach: out to the tips and back to the tail.
+    // Dual controls are a second stick and a second set of pedals.
+    const reach = S.geom.semi + S.fuse.tailArm;
+    const ctlM = O.ctlKgM * reach + (seats > 1 ? O.ctlDualKg : 0);
+    // THE GLAZING: the windscreen and the side windows, over the cabin.
+    const glassM = O.glassKgM2 * (2 * cb.halfW * cb.h * 0.55 +
+                                  2 * cb.len * cb.h * 0.30);
+    // WHERE IT ALL SITS. Each item goes on the frame it belongs to, so the
+    // centre of gravity is the real one: seats and controls and glazing on
+    // the cabin rings, the panel and the plumbing at the panel frame, the
+    // cowl and the exhaust on the firewall.
+    const half = (i, j, m) => { nodes[i].m += 0.5 * m; nodes[j].m += 0.5 * m;
+                                bill(m, 0); };
+    half(F[1].BL, F[1].BR, seatM);
+    half(F[1].TL, F[1].TR, panelM + plumbM);
+    half(F[0].TL, F[0].TR, cowlM);
+    half(F[0].BL, F[0].BR, exhM);
+    half(F[1].TL, F[1].TR, glassM);
+    half(F[1].BL, F[1].BR, 0.5 * ctlM);
+    half(F[2].BL, F[2].BR, 0.5 * ctlM);
+    spend(Math.round(seat.price * seats + 40 * (panelM + cowlM + glassM) +
+                     28 * (exhM + plumbM + ctlM)));
+  }
   sec('paint');
-  spend((GEN_FINISH[S.paint.job] || GEN_FINISH.full).price);
+  {
+    // PAINT HAS MASS (G159). It was `spend()` -- money and nothing else -- and
+    // the empty weight was light by it on every aeroplane the garage has ever
+    // built. The covering is NOT double counted: GEN_MATERIALS.cover already
+    // carries the fabric and its dope, and this is the colour on top. It rides
+    // on the covered nodes in proportion, so it lands where the paint is and
+    // moves no centre of gravity.
+    const FIN = GEN_FINISH[S.paint.job] || GEN_FINISH.full;
+    spend(FIN.price);
+    const pm = coverA * (FIN.kgM2 || 0);
+    if (pm > 0 && coverIds.length) {
+      const per = pm / coverIds.length;
+      for (const i of coverIds) nodes[i].m += per;
+      bill(pm, 0);
+    }
+  }
   sec('cargo');
   // Freight goes in the cargo bay if there is one, otherwise on the baggage
   // frame with everything else — which is the point of building the bay: it
@@ -10993,17 +12204,43 @@ function genTuneAP(def) {
   // climbThGain*VClimb scatters 0.30-0.92 (3x): NO CLUSTER. The 1/V form at
   // least gets the trend right, and the old flat 0.030 sits inside the clamp.
   A.climbThGain = r3(cl(0.7 / A.VClimb, 0.012, 0.032));
-  // liftoffTh/thMax = 0.790 +/- 0.048 (6%), additionally capped below the
-  // three-point deck: doctrine, "a taildragger cannot rotate past 3-point".
-  let liftoff = 0.79 * A.thMax;
+  // THE ROTATION IS DERIVED NOW, NOT FITTED (G159). It read
+  // `liftoffTh = 0.79 * thMax` with `thMax = 0.67 * aStall`, both ratios fitted
+  // over the six fiches -- that is, over the fleet's own hand-set values, which
+  // had never been checked against a published take-off run. Measured against
+  // the J-3's, the aeroplane was unsticking at 1.31 x Vs and the roll is
+  // proportional to the square of that: 166 m at gross against a published 113.
+  // Same circularity as GEN_RULES.propV0K, in a different file.
+  //
+  // WHAT THE WING ACTUALLY NEEDS is a lift coefficient, and it is exact:
+  // leaving the ground at 1.10 Vs means flying at CLmax / 1.10^2, whatever the
+  // weight, so the attitude follows from the polar alone --
+  //     CL = Cl0 + a3d (alpha + incidence)
+  // solved for alpha at CL = CLmax / 1.21. No fleet fit, no free constant.
+  //
+  // AND THE DOCTRINE WAS ALWAYS RIGHT -- "a taildragger cannot rotate past
+  // 3-point" -- it was the number that contradicted it. Three-point IS the
+  // attitude a taildragger takes off from: the tailwheel is on the ground and
+  // there is no more pitch to be had. The old cap of 0.85 x deck stopped the
+  // aeroplane 15 % short of the one attitude it is supposed to reach. The cap
+  // is the deck itself; an aeroplane whose wing wants more than that simply
+  // unsticks faster than 1.10 Vs, and says so honestly in its roll.
+  let liftoff;
+  {
+    const P = def.params.polarWing;
+    const inc = (S.wing.incidence || 0) * Math.PI / 180;
+    const CLlo = (g.ClMax3D || 1.4) / 1.21;
+    liftoff = (CLlo - P.Cl0) / Math.max(0.5, P.a3d) - inc;
+  }
   if (!trike) {
     const P = def.parts, G = S.gear;
     const twN = def.nodes[P.TW];
     const deck = Math.atan((((twN && twN.p[1]) || 0) - G.twR - (G.y - G.contactR))
                            / Math.max(0.1, P.twX - P.gx));
-    if (isFinite(deck) && deck > 0.05) liftoff = Math.min(liftoff, 0.85 * deck);
+    if (isFinite(deck) && deck > 0.05) liftoff = Math.min(liftoff, deck);
   }
-  A.liftoffTh = r3(liftoff);
+  // never AT the stall: the rotation has to leave the wing somewhere to go
+  A.liftoffTh = r3(cl(liftoff, 0.02, 0.85 * g.aStall));
   // flareThMax - alpha(1.10 VsFlap) = -0.056 +/- 0.031 on six of seven. The
   // SIGN is the doctrine ("flareThMax BELOW the L=W attitude kills float");
   // the chinook is the outlier because its body datum puts that alpha near 0.
@@ -12541,6 +13778,14 @@ function genClimbAt(sim, def, W, aMax) {
 // wheels and the rolling drag: conservative, deliberately.
 function genTORunAt(sim, def, W) {
   const A_ = def.params.ap;
+  // THE ROLL HAPPENS IN GROUND EFFECT (G159), and leaving it out was worth
+  // 8 % of lift and therefore 15 % of the roll. The wheels are on the ground:
+  // h/b is the aeroplane's own geometry, not the terrain's, so this is not the
+  // "which patch of grass" question the world-free probe exists to avoid. The
+  // law is the solver's own McCormick sigma — one implementation, not a second
+  // copy here. Cleared at every exit below, so nothing else this sim measures
+  // (Vs, the cruise trim, the climb gradient) sees it.
+  if (sim.setGroundRef) sim.setGroundRef(0);
   // the unstick speed is SOLVED in the real air, so thin air lengthens the roll
   // twice over: less thrust to accelerate on, and further to accelerate to.
   let Vun = 1.05 * A_.VRot / sim.probeAir().easK;
@@ -12575,8 +13820,16 @@ function genTORunAt(sim, def, W) {
   const grad = Math.max(0.015,
     (sim.thrustAt(1.10 * Vun, 0) - rm.drag) / W2);
   const air = (2.5 + (Vscr * Vscr - Vun * Vun) / (2 * 9.81)) / grad;
-  return { TORun: Math.round(sRoll + air), Vun, sRoll: Math.round(sRoll),
-           air: Math.round(air) };
+  // G158: the TOTAL IS THE SUM OF THE PARTS AS PUBLISHED. This rounded the sum
+  // and the two parts independently, so `round(a+b)` could differ by 1 m from
+  // `round(a)+round(b)` and the plaque printed an addition that did not add up.
+  // GATE HONEST asserts exactly that identity and had never caught it, because
+  // no anchored build had happened to land either part near a half-metre;
+  // moving the propeller moved one onto it (151 + 72 = 224). Round once, then
+  // sum, so the row on the plaque is arithmetic the player can check.
+  if (sim.setGroundRef) sim.setGroundRef(null);
+  const rollM = Math.round(sRoll), airM = Math.round(air);
+  return { TORun: rollM + airM, Vun, sRoll: rollM, air: airM };
 }
 
 // The garage readout. Everything a builder would want to know before rolling
@@ -12752,7 +14005,44 @@ function genShakedown(def, opts) {
     out.cowlOut = ['above', 'below', 'sides'].filter(k => !S.cowl.covers[k]);
     // THE PROPELLER as a component of its own: the disc it sweeps, what it pulls
     // standing still, where its thrust runs out, and what the blades weigh.
+    // G99: EVERY VESSEL, ITS BAY, AND WHETHER IT FITS. The bay volumes come
+    // from the aeroplane's own station table, so a longer cabin really does
+    // hold more — and a vessel that does not fit says so here rather than
+    // being quietly accepted and drawn through the pilot.
+    out.vessels = ((S.energy && S.energy.vessels) || []).map(v => {
+      const bay = genBayResolve(S, v.bay, P.ST);
+      const r = genVesselResolve(
+        S.energy.kind === 'battery' ? 'battery' : 'fuel', v.capacity,
+        S.energy.vessel || (S.energy.kind === 'battery' ? 'packCase' : 'alu'),
+        S.energy.kind === 'battery' ? S.energy.cell : S.energy.fuel);
+      const room = bay ? bay.litres : 0;
+      return { bay: v.bay, bayName: bay ? bay.name : v.bay,
+               feed: bay ? bay.feed : null,
+               capacity: v.capacity, needL: r.installedL, roomL: room,
+               fill: room > 0 ? r.installedL / room : 9,
+               fits: room > 0 && r.installedL <= room,
+               kg: r.vesselKg + r.contentsKg };
+    });
+    out.vesselFit = out.vessels.every(v => v.fits);
+    // G98: WHAT IT CARRIES ITS ENERGY IN. Read from the same resolver the
+    // ledger bills from, so the sheet and the weight cannot disagree.
+    {
+      const E = genEnergyResolve(S);
+      out.energyKind = E.battery ? 'battery' : 'fuel';
+      out.energyMedium = (E.battery ? GEN_CELLS[E.medium] : GEN_FUELS[E.medium]).name;
+      out.vesselName = E.vessel.name;
+      out.vesselKg = E.vesselKg;
+      out.energyKg = E.contentsKg;
+      out.energyL = E.installedL;
+      out.energyPrice = E.price;
+    }
     out.propName = S.prop.name;
+    // WHICH PITCH, AND WHETHER THE AEROPLANE CHOSE IT (G159). The plaque said
+    // the propeller's diameter, blades and thrust and never the one dial with
+    // a right answer. `propPitchAuto` is null when the builder picked it and
+    // the class when 'auto' did, so the sheet can say which.
+    out.propPitch = S.prop.pitchUsed || S.prop.pitch;
+    out.propPitchAuto = S.prop.pitchAuto || null;
     out.propD = S.prop.D; out.propBlades = S.prop.blades;
     out.propDisc = S.prop.area;
     out.propTstatic = S.prop.Tstatic; out.propV0 = S.prop.V0;
@@ -12820,7 +14110,18 @@ function genShakedown(def, opts) {
   if (!(opts && opts.slim) && S && S.fuel && S.fuel.litres > 10) {
     try {
       const rs = JSON.parse(JSON.stringify(S));
-      rs.fuel.litres = Math.max(4, 0.15 * rs.fuel.litres);
+      // DRAIN THE VESSELS, not the reading (G99). `fuel.litres` became the SUM
+      // of the vessel list, so scaling it here scaled a derived field and the
+      // aeroplane was rebuilt brim-full: every "at reserves" row on the plaque
+      // was identical to the full-tanks row above it, including the static
+      // margin, which is the one number this sheet exists for. Each vessel is
+      // drained in proportion, so a two-tank aeroplane empties both and its CG
+      // walks the way the real one does.
+      const keepF = rs.fuel.litres;
+      const k = keepF > 0 ? Math.max(4, 0.15 * keepF) / keepF : 0;
+      if (rs.energy && Array.isArray(rs.energy.vessels))
+        for (const v of rs.energy.vessels) v.capacity = v.capacity * k;
+      rs.fuel.litres = Math.max(4, 0.15 * keepF);
       const rsh = genShakedown(buildGen(rs), { slim: true });
       out.reserve = { litres: rs.fuel.litres, mass: rsh.mass, Vs: rsh.Vs,
                       staticMargin: rsh.staticMargin,
@@ -12869,6 +14170,22 @@ function buildGen(specIn) {
   // move with VAppr.
   const gClean = genClMax(def, 0);
   params.gen.aStall = gClean.aStall;
+  // THE PROPELLER CHOOSES ITSELF (G159), here and not in resolveSpec, because
+  // the criterion is the aeroplane's own stall speed and that is not knowable
+  // until the wing has been built and swept. `gClean` is that sweep, three
+  // lines up, so this costs nothing extra. resolveSpec has already synthesised
+  // a STANDARD propeller as the placeholder; this replaces it and writes the
+  // class it chose onto the resolved spec, where the shakedown and the editor
+  // read it. The SAVED spec still says 'auto', so the answer follows the
+  // aeroplane the next time its wing, its weight or its engine moves.
+  if (S.prop && S.prop.autoPitch) {
+    const VsC = Math.sqrt(2 * gClean.W /
+                (RHO * gClean.Sw * Math.max(1e-6, gClean.CLmax)));
+    genPropAuto(S.prop, VsC);
+    S.prop.pitch = S.prop.pitchAuto;
+    S._auto['prop.pitch'] = true;
+    params.prop = { D: S.prop.D, Tstatic: S.prop.Tstatic, kV2: S.prop.kV2 };
+  }
   if (params.flaps) {
     const g = genClMax(def, params.flaps.ldg ?? 1);
     const VsFlap = Math.sqrt(2 * g.W / (RHO * g.Sw * Math.max(1e-6, g.CLmax)));
@@ -13394,4 +14711,4 @@ function playerShedDims(doc, id, site) {
   return { HW: d.HW || h.HW, HD: d.HD || h.HD, EAVE: d.EAVE || h.EAVE };
 }
 if (typeof module !== 'undefined')
-  module.exports = { AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, ATM, makeAtmos, ATMOS_ISA, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, buildCub, buildDrone, buildDC3, buildJodel, buildC172, buildChinook, buildPA18, makeSim, makeAutopilot, makeTestPilot, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, GEN_MIGRATORS, genMigrateSpec, genFrame, genShakedown, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TANKS, GEN_BAYS, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, GEN_SUSPENSION, GEN_RULES, genWing, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims };
+  module.exports = { AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, ATM, makeAtmos, ATMOS_ISA, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, buildCub, buildDrone, buildDC3, buildJodel, buildC172, buildChinook, buildPA18, makeSim, makeAutopilot, makeTestPilot, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, GEN_MIGRATORS, genMigrateSpec, genFrame, genShakedown, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims };

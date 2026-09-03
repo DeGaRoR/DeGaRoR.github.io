@@ -9,10 +9,88 @@ function buildPA18() {
   const N = (x, y, z, m, tag, r = 0) => (nodes.push({ p: [x, y, z], m, r, tag }), nodes.length - 1);
   const NM = (x, y, z, m, tag, r = 0) =>
     [N(x, y, -Math.abs(z), m, tag + 'L', r), N(x, y, Math.abs(z), m, tag + 'R', r)];
-  const K_CH = 2.0e5, C_CH = 60, K_GR = 2.8e4, C_GR = 900, K_WG = 5.0e5, C_WG = 450;
+  const K_CH = 2.0e5, C_CH = 60, K_GR = 4.07e4, C_GR = 1308, K_WG = 5.0e5, C_WG = 450;
   const B = (a, b, k = K_CH, c = C_CH) => beams.push({ a, b, k, c, gear: k === K_GR });
   const BG = (a, b) => B(a, b, K_GR, C_GR);
 
+  // G158 — THE AIRFRAME WAS 23 % LIGHT, and it mattered far more than it looks.
+  // This fiche billed 185.4 kg of structure which, with the 80 kg powerplant,
+  // is a 265 kg empty J-3 against a real one's 345 kg (765 lb). That is not a
+  // small error on its own; it became a load-bearing one because the A-65's
+  // static thrust was then fitted so THIS aeroplane would reproduce the
+  // published 433 fpm — a figure quoted at the 550 kg GROSS weight, not at the
+  // 377 kg this fiche flew. Light airframe times weak propeller equalled the
+  // book, and neither error was visible at the one point anybody checked.
+  // Flown at 550 kg the same geometry climbed 0.78 m/s against a published
+  // 2.29, and every garage-built aeroplane — which bills its mass honestly —
+  // inherited the weak propeller with nothing left to cancel it.
+  //
+  // THE 80 kg GOES WHERE IT REALLY IS, and that is not "everywhere". A first
+  // pass scaled every structural node by one factor, which preserves the
+  // STRUCTURE's own centre of gravity — and moved the AEROPLANE's 136 mm aft,
+  // because the three lumps that do not scale (engine, fuel, pilot) are all
+  // forward of it. Measured, that was not a subtle drift: the mains came off
+  // the ground, the legs went over-centre at 19.6 % strain and latched, and
+  // the aeroplane settled on its tailwheel with the wheels 0.57 m in the air.
+  // A mass correction that changes the balance is a second error, not a fix.
+  //
+  // So the missing weight is split into what it actually is, and the split is
+  // SOLVED so the whole aeroplane's CG does not move at all (0.7987 m, before
+  // and after):
+  //   AF      1.16 on every modelled member — fabric, dope, and tube, spar and
+  //           rib sections that were drawn too light. +29.7 kg.
+  //   EQ_FW   22.8 kg at the firewall for what the fiche never modelled and a
+  //           real Cub carries: engine mount, exhaust, oil and battery low
+  //           (_B), upper cowl and instrument panel high (_T).
+  //   EQ_CAB  27.5 kg in the cabin, same reason: seat pans, controls and floor
+  //           low, glazing, doors and seat backs high.
+  // 265 kg empty -> 345 kg; all-up in this fiche's own declared load state
+  // (one pilot, full fuel) 377.4 -> 457.4 kg.
+  //
+  // AND THE SPLIT IS VERTICAL AS WELL AS FORE-AND-AFT, for a reason the first
+  // pass missed: hanging all of it on the lower longerons held the balance in
+  // x and dropped the CG 4.2 cm, which GATE MODEL caught at once — the PA-18's
+  // 3D wheels are calibrated against the main-gear contact height measured
+  // FROM THE CG, so a CG that moves down walks the aeroplane off its own
+  // wheels. Both stations put their top and bottom nodes at the same x, so the
+  // vertical share is free to solve for cgY without disturbing cgX at all.
+  // Both are now exact: cgX 0.7987 m, cgY 0.4997 m, before and after.
+  //
+  // THE GEAR RATE MOVES WITH THE MASS (K_GR/C_GR above), and NOT by the mass
+  // ratio, which was the first answer and was not enough. The binding
+  // constraint on this leg is not comfort, it is the OVER-CENTRE LATCH: past
+  // roughly 20 % member strain the leg goes through its own geometry and
+  // springs the axle UP, and the aeroplane then stands on its tailwheel with
+  // the mains half a metre in the air. Measured at 1.21x (the mass ratio) the
+  // static stance was right and the LANDING was not — GATE XCTY4's arrival hit
+  // 20.5 % and latched, and GATE XCTY3 never rolled at all because the spawn
+  // settle latched it before it started.
+  //
+  // SO THE RATE IS SQUEEZED FROM BOTH SIDES and the window is narrow. Too soft
+  // and the leg latches; too stiff and a stiffer spring hands its load to the
+  // BRACE instead (the fiche's own G4.7 lesson) and bounces harder on arrival
+  // — measured, 1.82x took GATE HOTHIGH's chassis strain to 10.3 % on an 8 %
+  // bound and 2.0x failed its touchdown sink outright. 1.454x is what fits:
+  // XCTY3 and XCTY4 upright, HOTHIGH's chassis inside its bound, PA-18 landing
+  // at 1.40 m/s. c/k is held at the fiche's own 0.0321, so the damping ratio
+  // is unchanged. Above about 2.2x the solver diverges outright.
+  //
+  // MEASURED AND REJECTED: starting the flare earlier to soften the arrival,
+  // which 62_gen_aero's own rule (flareAgl = 3.2 * VAppr * gs) says it should,
+  // since VAppr moved with the stall. It does soften it at HOME — the PA-18
+  // touched at 1.17 m/s instead of 1.40 — and it makes the HOT-AND-HIGH strip
+  // WORSE, 8.0 % chassis to 8.8 %, because up there the true airspeed behind
+  // the same equivalent one is higher and the extra height buys float, not
+  // cushion. The fiches are not density-adaptive, so flareAgl stays where it
+  // was tuned and the gear rate carries the whole correction.
+  //
+  // THE CHECK IS EXTERNAL AND WAS NOT FITTED: this airframe at the published
+  // 550 kg now climbs 465 fpm against a published 450, and tops out at
+  // 144 km/h against a published 140 — two independent figures, one constant.
+  // See GEN_RULES.propV0K and futureDesigns/PROP-THRUST-2026-09-02.md.
+  const AF = 1.16;                             // per side, kg:
+  const EQ_FW_B = 6.85, EQ_FW_T = 4.56;        // firewall, low / high
+  const EQ_CAB_B = 7.83, EQ_CAB_T = 5.93;      // cabin,    low / high
   const ST = [                       // [x, halfW, yBot, yTop, nodeMass]
     [0.00, 0.33,  0.00, 0.78, 3.0],
     [0.62, 0.36, -0.02, 1.00, 3.0],
@@ -24,8 +102,8 @@ function buildPA18() {
   ];
   const F = [];
   ST.forEach(([x, w, yb, yt, mm], i) => {
-    const [BL, BR] = NM(x, yb, w, mm, `S${i}B`);
-    const [TL, TR] = NM(x, yt, w, mm, `S${i}T`);
+    const [BL, BR] = NM(x, yb, w, mm * AF, `S${i}B`);
+    const [TL, TR] = NM(x, yt, w, mm * AF, `S${i}T`);
     F.push({ BL, BR, TL, TR });
     B(BL, BR); B(TL, TR); B(BL, TL); B(BR, TR);
     B(BL, TR); B(BR, TL);            // X-brace: mirror-symmetric shear
@@ -38,7 +116,8 @@ function buildPA18() {
     B(a.TL, b.TR); B(a.TR, b.TL);    // top panel X
     B(a.BL, b.BR); B(a.BR, b.BL);    // bottom panel X
   }
-  const TPB = N(5.12, 0.25, 0, 1.2, 'TPB'), TPT = N(5.12, 0.36, 0, 1.2, 'TPT');
+  const TPB = N(5.12, 0.25, 0, 1.2 * AF, 'TPB'),
+        TPT = N(5.12, 0.36, 0, 1.2 * AF, 'TPT');
   const S6 = F[6];
   B(TPB, TPT);
   B(S6.BL, TPB); B(S6.BR, TPB); B(S6.TL, TPT); B(S6.TR, TPT);
@@ -50,19 +129,23 @@ function buildPA18() {
   B(EL, S0.TL); B(EL, S0.BL); B(EL, S0.BR);
   B(ER, S0.TR); B(ER, S0.BR); B(ER, S0.BL);
   nodes[S0.TL].m += 18; nodes[S0.TR].m += 18;          // fuel 36 kg at firewall
+  // engine mount, exhaust, oil, battery low; upper cowl and panel high —
+  // never modelled, really there
+  nodes[S0.BL].m += EQ_FW_B; nodes[S0.BR].m += EQ_FW_B;
+  nodes[S0.TL].m += EQ_FW_T; nodes[S0.TR].m += EQ_FW_T;
 
-  const [GAL, GAR] = NM(0.55, -0.80, 0.89, 6, 'AXLE', 0.20);
+  const [GAL, GAR] = NM(0.55, -0.80, 0.89, 6 * AF, 'AXLE', 0.20);
   BG(GAL, GAR);
   BG(GAL, S0.BL); BG(GAL, F[1].BL); BG(GAL, S0.BR);
   BG(GAR, S0.BR); BG(GAR, F[1].BR); BG(GAR, S0.BL);
-  const TW = N(5.02, 0.02, 0, 3, 'TW', 0.10);
+  const TW = N(5.02, 0.02, 0, 3 * AF, 'TW', 0.10);
   BG(TW, TPB); BG(TW, S6.BL); BG(TW, S6.BR);
   // snap-blocking near-vertical member (structural rule 10, the drone cure):
   // without it the tailwheel folds UP about TPB and LATCHES (bare post on
   // the terrain) when parked in a tailwind — reset slam + breeze, W13.
   BG(TW, TPT);
 
-  const MW = 8, wf = { L: null, R: null };
+  const MW = 8 * AF, wf = { L: null, R: null };
   const mkWing = (s) => {
     const B = (a, b) => beams.push({ a, b, k: K_WG, c: C_WG, gear: false });
     const rootF = s > 0 ? F[1].TR : F[1].TL, rootR = s > 0 ? F[2].TR : F[2].TL;
@@ -81,16 +164,19 @@ function buildPA18() {
   };
   mkWing(+1); mkWing(-1);
 
-  const [HTL, HTR] = NM(4.92, 0.30, 1.05, 4, 'HT');
+  const [HTL, HTR] = NM(4.92, 0.30, 1.05, 4 * AF, 'HT');
   B(HTL, TPB); B(HTL, TPT); B(HTL, S6.BL); B(HTL, S6.TL);
   B(HTR, TPB); B(HTR, TPT); B(HTR, S6.BR); B(HTR, S6.TR);
   // stab<->tailwheel pyramid (rule 10, the chinook cure): the fold that
   // survives the TW->TPT block is LATERAL (dTW body [+0.28 up, 0.25
   // sideways], measured) — wide anchors kill it
   BG(TW, HTL); BG(TW, HTR);
-  const FIN = N(5.05, 0.95, 0, 4, 'FIN');
+  const FIN = N(5.05, 0.95, 0, 4 * AF, 'FIN');
   B(FIN, TPT); B(FIN, S6.TL); B(FIN, S6.TR);
 
+  // seat pans, controls and floor low; glazing, doors and seat backs high
+  nodes[F[1].BL].m += EQ_CAB_B; nodes[F[1].BR].m += EQ_CAB_B;
+  nodes[F[1].TL].m += EQ_CAB_T; nodes[F[1].TR].m += EQ_CAB_T;
   nodes[F[1].BL].m += 38; nodes[F[1].BR].m += 38;      // pilot, front seat
 
   // ---------- aero strips ----------
@@ -110,6 +196,25 @@ function buildPA18() {
         wingStrip(fr.F[b], fr.F[b + 1], fr.R[b], fr.R[b + 1], t, bw[b] * 1.6 / 2,
           side, { wash: b === 0 && t < 0.5 ? 0.5 : 0, ail: b === 2 ? 1 : 0,
                   flap: b === 0 ? 1 : 0 });
+    // THE TIP BOW (G159). The three bays above stop at the outermost SPAR
+    // NODE, z = 5.0, and the drawn wing does not: the skin runs to z = 5.355,
+    // so 35 cm a side of real wing was lifting on nothing. The fiche flew
+    // 16.00 m2 while showing 16.58 — the published area — and the missing
+    // 3.5 % sat on the stall, the induced drag and the roll damping at once.
+    //
+    // ONE STRIP PER SIDE, at t = 1, so its whole load acts at the tip node,
+    // which is where a tip bow's lift acts and what makes its bending moment
+    // right. 0.29 m2 is the bow's own planform: 0.355 m of span on a 1.6 m
+    // chord at about half the area of the rectangle it sits in, which is what
+    // a rounded tip is. NO AILERON on it — the Cub's aileron ends inboard of
+    // the bow.
+    //
+    // eAR IS NOT TOUCHED, and that is the trap this change had to avoid.
+    // POLARS.usa35b_AR7 has always declared pi * 0.75 * 6.95 — the REAL
+    // aspect ratio, not the truss's 6.25 — so the induced drag was already
+    // computed on the full span. Recomputing it from the new strip set would
+    // have counted the same span twice.
+    wingStrip(fr.F[2], fr.F[3], fr.R[2], fr.R[3], 1, 0.29, side, { ail: 0 });
   };
   bays(wf.R, 1); bays(wf.L, -1);
   wingStrip(F[1].TL, F[1].TR, F[2].TL, F[2].TR, 0.5, 0.72 * 1.6, 1, { wash: 1 });
@@ -136,7 +241,7 @@ function buildPA18() {
     nEngines: 1,                    // one engine, two mount nodes (see cub)
     polarWing: POLARS.usa35b_AR7, polarTail: POLARS.flat_tail_cub,
     elevTau: 0.50, rudTau: 0.55, ailTau: 0.35, downwash: 0.40,
-    stabTrim: -0.0983, sparSpacing: 0.78,
+    stabTrim: -0.0666, sparSpacing: 0.78,
     fusCdA: [0.55, 0.8, 0.8], fusCdAAft: [0, 0.5, 0.5],
     twSteer: 0.5,
     // slotted flaps, inboard bay only: tunnel-calibrated to the POH Vs ratio
@@ -148,32 +253,64 @@ function buildPA18() {
     // flare, gentler brakes (full flap + hard brakes nosed it over).
     // Measured: td sink 0.78, three-point 15.3 deg, no noseover.
     ap: {
-      VRot: 15, VClimbMin: 20, VClimb: 21, VCruise: 26, VAppr: 20.5,
-      VApprShort: 18.5,             // fly-in strips < 450 m (1.37*Vs flapped)
+    // G158 RE-ANCHORED, all of it. The airframe gained 80 kg (see AF above) and
+    // the propeller gained 34 % of its thrust (GEN_RULES.propV0K), so every
+    // speed here is stale in one direction and every THROTTLE in the other.
+    // Method, per class:
+    //   V-SPEEDS  scale with the stall, which moved 14.97 -> 16.47 m/s
+    //             (x1.100). The ratios are the hand-tuned ones and are kept.
+    //             VRot 15 was BELOW the new stall, which is not a rotation
+    //             speed at all.
+    //   VCruise   re-solved by 64_gen_build's own rule — the speed where drag
+    //             is 65 % of the thrust available there. It comes out at
+    //             33.9 m/s = 122 km/h against the real J-3's published 121, and
+    //             the old 26 was low only because the propeller was weak.
+    //   THROTTLES are fractions of a static thrust that moved 900 -> 1202 N,
+    //             so they keep the THRUST they were tuned with, not the lever
+    //             position (the reading G4.9 already ruled on): x 0.749.
+    //   TORun     re-integrated, not adjusted: 172 m to 2.5 m agl (111 m of
+    //             roll), against a published ~113 m ground roll at gross.
+    //   stabTrim  re-solved by tunnel pitch balance at the new VCruise.
+      // G159 re-anchored: the tip bow took Sw 16.00 -> 16.58 m2 (the published
+      // wing area) and the stall 16.35 -> 16.12 m/s with it, so every
+      // stall-referenced speed here moved by 0.986. VCruise, stabTrim,
+      // thrCruise and TORun are re-measured, not scaled. VPinFull is NOT
+      // scaled: it was found against a latch cliff in M3 and GATE WIND, not
+      // derived from the stall, so it stays where measurement put it.
+      VRot: 16.3, VClimbMin: 21.7, VClimb: 22.8, VCruise: 33.5, VAppr: 22.3,
+      VApprShort: 20.2,             // fly-in strips < 450 m (1.37*Vs flapped)
       // no VTurn: see the cub fiche — TURNBACK and INBOUND read it with
       // different fallbacks, so stating it changes the turnback speed
       // RE-ANCHORED G4.9 (was 60): the engine-count fix halved this aeroplane's
       // thrust, and the run to 2.5 m agl went 67 m -> 151 m. Re-read off
       // tools/make_perf.js, not adjusted by hand.
-      TORun: 151,                   // measured run to 2.5 m agl
+      TORun: 132,                   // measured run to 2.5 m agl
       // W16 lateral quiet: the default rollD 2.0 on the RF-lagged rate
       // estimate limit-cycled the aileron 8-12 deg p2p at ~4 Hz (bank
       // barely moved — surface flail + wing rock, user-visible on the
       // skin). 0.8 kills it dead (0.2 deg residual); doctrine says lower
       // D, and measured: a FASTER rate filter makes it worse.
       rollD: 0.8,
-      VPinFull: 16,                 // moderate aft above this in rollout (hop guard)
+      VPinFull: 17.6,               // moderate aft above this in rollout (hop guard)
       hCruise: 100, hSafe: 14, xTurn: -2300, xAim: -520, gs: 0.0786,
-      rollDe: 0.12, liftoffTh: 0.16, climbThBase: 0.12, climbThGain: 0.030,
+      rollDe: 0.12,
+      // G159: DERIVED, not fitted. The attitude that flies at 1.10 Vs is fixed
+      // by the polar alone — CL = CLmax/1.21 gives 11.92 deg on this wing —
+      // and this aeroplane's three-point deck is 11.75, so the deck binds and
+      // the tailwheel is on the ground at the moment it leaves, which is how a
+      // Cub takes off. It was 0.16 (9.2 deg), a fitted ratio that unstuck the
+      // aeroplane at 1.31 x Vs and made the roll half as long again as the
+      // book's. See genTuneAP in 62_gen_aero.js for the rule this now matches.
+      liftoffTh: 0.205, climbThBase: 0.12, climbThGain: 0.030,
       // flareThr 0.12 -> 0.24 (G4.9): `flareThr` is a THROTTLE fraction, and the
       // engine-count fix halved what a fraction buys. The flare keeps the
       // THRUST it was tuned with — 0.12*1800 N == 0.24*900 N — rather than the
       // lever position, which is the only reading of "unchanged" that means
       // anything here. Sink 1.71 (over the 1.5 bound) -> 0.95, against 0.78
       // before the fix.
-      thMax: 0.20, flareAgl: 5.5, flareRate: 0.062, flareThr: 0.24, aglGuard: 3,
-      VTailUp: 12, VTailDown: 99, VStop: 0.4, slew: 1.5, thrCruise: 0.70, thrAppr: 0.35,
-      brakeMax: 0.18, brakeRampRate: 0.12, VBrakeOn: 7, VBrakeRelease: 1.5,
+      thMax: 0.20, flareAgl: 5.5, flareRate: 0.134, flareThr: 0.18, aglGuard: 3,
+      VTailUp: 13.0, VTailDown: 99, VStop: 0.4, slew: 1.5, thrCruise: 0.649, thrAppr: 0.26,
+      brakeMax: 0.18, brakeRampRate: 0.12, VBrakeOn: 7.7, VBrakeRelease: 1.5,
     },
   };
   return { nodes, beams, strips, refs, params };

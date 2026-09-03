@@ -178,10 +178,23 @@ function nullPaths(o, pre, out) {
   let checked = 0, bad = [], naiveDiffers = false;
   for (const nm in (CAGE_PAGE.presets || {})) {
     const pre = CAGE_PAGE.presets[nm] || {};
-    const viaPreset = Object.assign(clone(DEFAULTS), pre);
+    // `_base: 'template'` says the row starts from CAGE_PARAMS instead of
+    // from this page's defaults — the flag an imported build's cage needs,
+    // because `spec.cage` is deviations from the template. Both consumers
+    // honour it (applyPreset in _cage_ui.js, the stock bake in garage.js)
+    // and so must the reference computed here, or this gate would assert
+    // the leak rather than catch it.
+    const tplBase = pre._base === 'template';
+    const viaPreset = Object.assign(
+      tplBase ? clone(CAGE2.CAGE_PARAMS) : clone(DEFAULTS), pre);
+    delete viaPreset._base;
     // the shelf's bake, then the shelf's load
-    const baked = { cage: CAGE2.cageToSpec(Object.assign(CAGE2.cageDefaults(),
-                     CAGE_PAGE.defaults || {}, pre)) };
+    const preFull = Object.assign(
+      tplBase ? CAGE2.cageDefaults()
+              : Object.assign(CAGE2.cageDefaults(), CAGE_PAGE.defaults || {}),
+      pre);
+    delete preFull._base;
+    const baked = { cage: CAGE2.cageToSpec(preFull) };
     const viaShelf = CAGE2.cageFromSpec(baked);
     const diff = Object.keys(viaPreset).filter(
       k => !(k in CAGE2.CAGE_VIEW_KEYS) && viaShelf[k] !== viaPreset[k]);
@@ -189,7 +202,8 @@ function nullPaths(o, pre, out) {
     // NEGATIVE VERIFY: the naive bake — the preset's own keys alone, which is
     // what a hand-pasted export file is — must NOT reproduce it, or this
     // assertion is testing nothing.
-    const naive = CAGE2.cageFromSpec({ cage: clone(pre) });
+    const bare = clone(pre); delete bare._base;
+    const naive = CAGE2.cageFromSpec({ cage: bare });
     if (Object.keys(viaPreset).some(k => !(k in CAGE2.CAGE_VIEW_KEYS) &&
                                          naive[k] !== viaPreset[k]))
       naiveDiffers = true;
@@ -202,6 +216,47 @@ function nullPaths(o, pre, out) {
      'negative: the un-baked preset keys alone do NOT reproduce it');
   const listed = SHELF.stock();
   ok(listed.length === checked, 'the shelf lists all ' + checked + ' of them');
+}
+
+// ---------------------------------------------------------------------------
+// C2. A STOCK DESIGN IS THE WHOLE AEROPLANE, not just its shape.
+// The cage alone built an aeroplane — the generator fills what is missing —
+// but it built the GENERATOR's aeroplane wearing somebody's fuselage: stock
+// wing, stock engine, yellow paint. `CAGE_PAGE.builds` carries the sections
+// a cage cannot, and this asserts they survive the shelf's bake AND the
+// normaliser, on the RESOLVED spec rather than on the object just written.
+// ---------------------------------------------------------------------------
+{
+  const names = Object.keys(CAGE_PAGE.builds || {});
+  ok(names.length > 0, 'the page declares at least one full build');
+  let bad = [];
+  for (const nm of names) {
+    const B = CAGE_PAGE.builds[nm];
+    ok(!('cage' in B), nm + ': the build declares sections, never a cage');
+    if (SHELF.stock().indexOf(nm) < 0) bad.push(nm + ': not listed');
+  }
+  ok(bad.length === 0, 'every declared build is a listed stock design' +
+     (bad.length ? ' (' + bad.join(' | ') + ')' : ''));
+  // and the sections actually reach the aeroplane
+  for (const nm of names) {
+    const B = CAGE_PAGE.builds[nm];
+    const baked = Object.assign(
+      { cage: CAGE2.cageToSpec(Object.assign(CAGE2.cageDefaults(),
+        (CAGE_PAGE.presets[nm] || {})._base === 'template'
+          ? {} : (CAGE_PAGE.defaults || {}),
+        (() => { const p = clone(CAGE_PAGE.presets[nm] || {});
+                 delete p._base; return p; })())) },
+      clone(B));
+    const R = resolveSpec(genNormaliseSpec(baked)).spec;
+    ok(R.engines[0].type === B.engines[0].type,
+       nm + ': its engine rides through (' + R.engines[0].type + ')');
+    ok(R.wings[0].naca === B.wings[0].naca && R.wings[0].span === B.wings[0].span,
+       nm + ': its wing rides through');
+    ok(R.paint.base === B.paint.base && R.meta.reg === B.meta.reg,
+       nm + ': its paint and registration ride through');
+    ok(!!R.finish && !!R.finish.sections,
+       nm + ': its finish rides through');
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -559,9 +614,15 @@ function nullPaths(o, pre, out) {
   // G140: the table's first REAL entry — v5->v6, the wing-station lift.
   // The assertion names the exact expected set so a stray entry (or a lost
   // one) is loud, which is what "exists and is empty" used to guarantee.
-  ok(MIG && typeof MIG === 'object' && Object.keys(MIG).join(',') === '5' &&
-     typeof MIG[5] === 'function',
-     'the migrator table carries exactly v5->v6 (the wing stations lift)');
+  // ...and G99's, keyed 6, which lifts {litres, tank} into a vessel in a bay.
+  // KEYED BY THE SOURCE VERSION: the walk runs MIGRATORS[i] for i from the
+  // spec's v upward, so the lift OUT OF 6 lives under 6. Filed under 7 it ran
+  // on nothing at all, which is precisely the stray-or-lost entry this
+  // assertion names the exact set to catch.
+  ok(MIG && typeof MIG === 'object' && Object.keys(MIG).join(',') === '5,6' &&
+     typeof MIG[5] === 'function' && typeof MIG[6] === 'function',
+     'the migrator table carries exactly v5->v6 (the wing stations) and ' +
+     'v6->v7 (the energy vessels)');
   const ran = [];
   MIG[3] = s => { ran.push(3); if (s.oldName) s.newName = s.oldName; return s; };
   MIG[4] = s => { ran.push(4); return s; };

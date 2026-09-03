@@ -156,7 +156,15 @@ function genLattice(S, gearX, track, kScale) {
   // to the aeroplane's own material without a call site to forget.
   const sec = s => { SEC = s; MB = MSEC[s] || M; };
   const spend = c => bill(0, c);
+  // EVERY SQUARE METRE THE AEROPLANE IS COVERED IN, kept as it is billed. The
+  // paint has to weigh on something and this is the only place that knows the
+  // real number -- it is summed from the panels actually built, not from a
+  // planform estimate, so a bigger cabin or a longer boom is painted too.
+  let coverA = 0;
+  const coverSeen = {}, coverIds = [];
   const cover = (area, ids) => {
+    coverA += area;
+    for (const i of ids) if (!coverSeen[i]) { coverSeen[i] = 1; coverIds.push(i); }
     const m = area * MB.cover;
     const per = m / ids.length;
     for (const i of ids) nodes[i].m += per;
@@ -849,32 +857,173 @@ function genLattice(S, gearX, track, kScale) {
     const rg = F[ri] || F[1];
     pt(rg.BL, 40); pt(rg.BR, 40);
   }
+  // ---- THE ENERGY, ITS VESSELS AND WHERE THEY SIT (G98, placed at G99) ----
+  // A vessel is a real solid in a declared bay, so its mass goes where the
+  // solid is rather than onto one of three hard-coded nodes. `along` is metres
+  // aft of the firewall for a body bay and a span fraction for a wing bay;
+  // `lv` picks the level, keel to crown. Both may be null, and null means the
+  // bay's own default — which for a migrated build is the station the old
+  // enum's node was AT, so a v6 save does not move (GATE ENERGYBASE).
+  //
+  // ONE PAIR OF NODES, MIRRORED. Everything the frame bills is symmetric and
+  // this is no exception: a tank on the centreline is billed half to each side
+  // so the aeroplane does not fly one wing low, which is the same rule
+  // GATE GEN's mirror check has enforced since G1.
+  const bodyRing = (xWant, lvWant) => {
+    let best = 0, bd = Infinity;
+    for (let i2 = 0; i2 < F.length; i2++) {
+      const d2 = Math.abs((ST[i2] ? ST[i2].x : 0) - xWant);
+      if (d2 < bd) { bd = d2; best = i2; }
+    }
+    const rg = F[best];
+    return (lvWant >= 0.5) ? [rg.TL, rg.TR] : [rg.BL, rg.BR];
+  };
+  const wingPair = frac => {
+    const arrL = wf.L.F, arrR = wf.R.F;
+    const k = Math.max(0, Math.min(arrL.length - 1,
+      Math.round(frac * (arrL.length - 1))));
+    return [arrL[k], arrR[k]];
+  };
+  sec('vessel');
+  let fuelTotalM = 0;
+  const VES = (S.energy && S.energy.vessels) || [];
+  for (const v of VES) {
+    const B = GEN_BAYS[v.bay] || GEN_BAYS.nose;
+    const bay = genBayResolve(S, GEN_BAYS[v.bay] ? v.bay : 'nose', ST);
+    const r = genVesselResolve(
+      S.energy.kind === 'battery' ? 'battery' : 'fuel',
+      v.capacity, S.energy.vessel || (S.energy.kind === 'battery' ? 'packCase' : 'alu'),
+      S.energy.kind === 'battery' ? S.energy.cell : S.energy.fuel);
+    let pair;
+    if (B.on === 'wing') {
+      // the old 'wing' station was the ROOT spar node and 'panel' the next one
+      // out; a null `along` reproduces that rather than picking a midpoint.
+      const frac = v.along != null ? v.along
+                 : (v.bay === 'wingPanel' ? 0.34 : 0);
+      pair = wingPair(frac);
+    } else {
+      const xW = v.along != null ? v.along : bay.xMid;
+      const lvW = v.lv != null ? v.lv
+                : 0.5 * ((B.lv || [0, 1])[0] + (B.lv || [0, 1])[1]);
+      pair = bodyRing(xW, lvW);
+    }
+    if (r.emptyKg > 0) { pt(pair[0], 0.5 * r.emptyKg); pt(pair[1], 0.5 * r.emptyKg);
+                         spend(r.price); }
+    v._pair = pair; v._res = r;
+    fuelTotalM += r.payloadKg;
+  }
   sec('fuel');
-  const fuelM = S.fuelL * 0.72;
-  // WHERE the fuel sits. Nose is the Cub's — ahead of the panel, and it moves
-  // the CG forward. Wing-root hangs it on the spar carry-through. Outboard puts
-  // it in the panel, which relieves the wing in flight and slows the roll,
-  // because the tanks are the heaviest thing you can put out there.
-  const tankL = S.fuel.tank === 'wing' ? wf.L.F[0]
-              : S.fuel.tank === 'panel' ? wf.L.F[Math.min(1, wf.L.F.length - 1)]
-              : F[0].TL;
-  const tankR = S.fuel.tank === 'wing' ? wf.R.F[0]
-              : S.fuel.tank === 'panel' ? wf.R.F[Math.min(1, wf.R.F.length - 1)]
-              : F[0].TR;
-  pt(tankL, 0.5 * fuelM); pt(tankR, 0.5 * fuelM);
-  // G121: WHICH KILOS ARE FUEL, recorded on the node itself — the burn
-  // chantier drains these through the solver's setNodeMass door, and
-  // genSubsteps sizes the integrator at DRY mass off the same records (a
-  // beam is stiffest, per unit mass, when its tank is empty: sized at full
-  // it is stable on departure and divergent at reserves).
-  nodes[tankL].mFuel = (nodes[tankL].mFuel || 0) + 0.5 * fuelM;
-  nodes[tankR].mFuel = (nodes[tankR].mFuel || 0) + 0.5 * fuelM;
+  const fuelM = fuelTotalM;
+  for (const v of VES) {
+    const m = v._res ? v._res.payloadKg : 0;
+    if (m <= 0) continue;
+    const [a2, b2] = v._pair;
+    pt(a2, 0.5 * m); pt(b2, 0.5 * m);
+    // G121: WHICH KILOS ARE FUEL, recorded on the node itself — the burn
+    // chantier drains these through the solver's setNodeMass door, and
+    // genSubsteps sizes the integrator at DRY mass off the same records (a
+    // beam is stiffest, per unit mass, when its tank is empty: sized at full
+    // it is stable on departure and divergent at reserves).
+    // A PACK RECORDS NOTHING HERE, and that is not an omission: `mFuel` is
+    // what the burn model drains, and cells do not drain.
+    nodes[a2].mFuel = (nodes[a2].mFuel || 0) + 0.5 * m;
+    nodes[b2].mFuel = (nodes[b2].mFuel || 0) + 0.5 * m;
+  }
   sec('systems');
   const SYS = GEN_SYSTEMS[S.systems.fit] || GEN_SYSTEMS.basic;
   spend(SYS.price);
   pt(F[0].TL, 0.5 * SYS.mass); pt(F[0].TR, 0.5 * SYS.mass);   // panel + systems
+  // ---- THE OUTFIT (G159) ------------------------------------------------
+  // Everything a real aeroplane carries between its structure and its payload.
+  // Each item hangs off a CHOICE or a MEASUREMENT of this aeroplane, never a
+  // constant: see GEN_OUTFIT / GEN_SEATS for what each one is and why it is
+  // the size it is. Billed to its own section so the plaque can show it and so
+  // a future item added here cannot hide inside `fuselage`.
+  sec('outfit');
+  {
+    const O = GEN_OUTFIT, cb = S.cab;
+    const seat = GEN_SEATS[(S.outfit && S.outfit.seats)] || GEN_SEATS.sling;
+    // HOW MANY SEATS THE AEROPLANE HAS, not how many are filled today. A
+    // four-seater carries four seats whether or not anyone is in them, and
+    // billing them per OCCUPANT made a passenger appear to weigh 86 kg — the
+    // person plus the seat they arrived with. GATE BUILD caught it, which is
+    // exactly what that check is for: an occupant weighs 80 kg and nothing
+    // else may ride in on the same number.
+    const seats = Math.max(1, seatRows.length);
+    const EN = (S.engines && S.engines[0]) || {};
+    const PPn = S.pplant || POWERPLANTS[EN.type] || POWERPLANTS.a65_sensenich74;
+    const kW = ((PPn.engine && PPn.engine.powerW) || 0) / 1000;
+    const electric = (PPn.engine && PPn.engine.aspiration) === 'electric';
+    // SEATS: one per position, at the weight of the kind you chose.
+    // Spread over the seat frames so they sit where the people sit — the
+    // cabin rings, which is where `pt` already puts the occupants.
+    const seatM = seat.kg * seats;
+    // THE PANEL BOARD, from its own geometry. `cab.panel` carries the depth
+    // and how far the coaming wraps; the board spans the cabin.
+    let panelM = 0;
+    if (cb.panel && cb.panel.on) {
+      const pw = 2 * cb.halfW * (0.6 + 0.8 * (cb.panel.wrap || 0));
+      panelM = pw * (cb.panel.depth || 0.25) * O.panelKgM2;
+    }
+    // THE COWL, from the surface it actually has: the cowl's own half-width
+    // and depth round the engine, over the nose length. Its skin follows the
+    // aeroplane's material, because a fabric-over-frame cowl on a tube
+    // aeroplane is not an alloy pressing.
+    let cowlM = 0;
+    if (S.cowl && S.cowl.halfW > 0) {
+      const cw = S.cowl.halfW, ch = (S.cowl.top || 0) + (S.cowl.bot || 0);
+      // ellipse perimeter, Ramanujan's first approximation
+      const a2 = cw, b2 = 0.5 * ch;
+      const per = Math.PI * (3 * (a2 + b2) - Math.sqrt((3 * a2 + b2) * (a2 + 3 * b2)));
+      cowlM = per * Math.max(0.1, cb.noseGap) *
+              (O.cowlKgM2[S.material] || O.cowlKgM2.alloy);
+    }
+    // THE EXHAUST, from the power it carries. Electric has none.
+    const exhM = electric ? 0 : O.exhaustKgKW * kW;
+    // THE FUEL PLUMBING, from the litres. A pack's cabling is the energy
+    // module's, not this row's, so an electric aeroplane pays nothing here.
+    const plumbM = (electric || S.fuelL <= 0) ? 0
+                 : O.fuelKgFixed + O.fuelKgL * S.fuelL;
+    // THE CONTROLS, from the reach: out to the tips and back to the tail.
+    // Dual controls are a second stick and a second set of pedals.
+    const reach = S.geom.semi + S.fuse.tailArm;
+    const ctlM = O.ctlKgM * reach + (seats > 1 ? O.ctlDualKg : 0);
+    // THE GLAZING: the windscreen and the side windows, over the cabin.
+    const glassM = O.glassKgM2 * (2 * cb.halfW * cb.h * 0.55 +
+                                  2 * cb.len * cb.h * 0.30);
+    // WHERE IT ALL SITS. Each item goes on the frame it belongs to, so the
+    // centre of gravity is the real one: seats and controls and glazing on
+    // the cabin rings, the panel and the plumbing at the panel frame, the
+    // cowl and the exhaust on the firewall.
+    const half = (i, j, m) => { nodes[i].m += 0.5 * m; nodes[j].m += 0.5 * m;
+                                bill(m, 0); };
+    half(F[1].BL, F[1].BR, seatM);
+    half(F[1].TL, F[1].TR, panelM + plumbM);
+    half(F[0].TL, F[0].TR, cowlM);
+    half(F[0].BL, F[0].BR, exhM);
+    half(F[1].TL, F[1].TR, glassM);
+    half(F[1].BL, F[1].BR, 0.5 * ctlM);
+    half(F[2].BL, F[2].BR, 0.5 * ctlM);
+    spend(Math.round(seat.price * seats + 40 * (panelM + cowlM + glassM) +
+                     28 * (exhM + plumbM + ctlM)));
+  }
   sec('paint');
-  spend((GEN_FINISH[S.paint.job] || GEN_FINISH.full).price);
+  {
+    // PAINT HAS MASS (G159). It was `spend()` -- money and nothing else -- and
+    // the empty weight was light by it on every aeroplane the garage has ever
+    // built. The covering is NOT double counted: GEN_MATERIALS.cover already
+    // carries the fabric and its dope, and this is the colour on top. It rides
+    // on the covered nodes in proportion, so it lands where the paint is and
+    // moves no centre of gravity.
+    const FIN = GEN_FINISH[S.paint.job] || GEN_FINISH.full;
+    spend(FIN.price);
+    const pm = coverA * (FIN.kgM2 || 0);
+    if (pm > 0 && coverIds.length) {
+      const per = pm / coverIds.length;
+      for (const i of coverIds) nodes[i].m += per;
+      bill(pm, 0);
+    }
+  }
   sec('cargo');
   // Freight goes in the cargo bay if there is one, otherwise on the baggage
   // frame with everything else — which is the point of building the bay: it
