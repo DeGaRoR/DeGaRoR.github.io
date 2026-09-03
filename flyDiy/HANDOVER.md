@@ -27363,3 +27363,264 @@ gives a marking no height, which on screen is this very bug one layer down.
   the offscreen-renderer workaround cannot read colour off `onBeforeCompile`
   materials, which is exactly what a decal is. Every hop is measured; the last
   inch is inferred.
+
+## G162 — THE MARKING KIT: A LIVERY THAT TRAVELS
+## (2026-09-03, ROADMAP Phase 2 item 7)
+
+The user's item, in their own words: *"ready to apply decals, 2 to 3 colours,
+possible transparency, stripes, dual color with bended transition (bend upwards
+aft/fore), etc. Possibly several layers, with transparency."*
+
+Five patterns — **cheat line**, **twin stripe**, **sweep**, **flash**,
+**chequer** — over **three independent layers**, each with its own colours, its
+own two shape knobs, its own opacity and its own placement.
+
+### A PATTERN IS A RECIPE, AND THAT IS THE WHOLE FEATURE
+
+The two image channels G108 built cannot reach the flown aeroplane, and
+`aeroskin.js` has said so in a comment since G160: `finish.decals` records
+WHERE a livery image sits and never what it looks like, so an imported picture
+lives exactly as long as the browser tab. **A kit pattern is five numbers and
+three colours.** It fits in the spec, it travels with the build, and
+`aeroDecalsFor` — the one keeper G160 established — redraws it from that recipe
+on whichever side is asking. The kit is therefore the only marking besides the
+registration that survives being saved, sent and flown, and that was verified
+end to end: a sweep placed in the garage, rolled out, and photographed on the
+apron at the aerodrome with the line running the right way.
+
+**AND IT COSTS NOTHING NEW UNDERNEATH.** A pattern is drawn into an atlas page
+and placed by the same eight numbers a registration is placed by. No shader
+branch was added for it, no second geometry, no unwrap. The whole of the new
+machinery is a declared table, a resolver, a canvas draw and a cache.
+
+### THE TWO DEFECTS ONLY A PICTURE COULD FIND
+
+Both of these passed every check I had written, and both were obvious within
+one second of looking at the aeroplane.
+
+**1 — A NEW LAYER OPENED IN A FRAME ITS OWN NUMBERS WERE NOT WRITTEN IN.** The
+layer defaults opened in `side` — the box projection — while the default
+station and height (2.20 m, 0.10 m) were written in the FIELD frame, metres aft
+of the firewall. `side` measures its station from the craft ROOT instead, and
+`decReframe` put the conversion on the record: **the same 2.2 lands 4.85 m aft
+in field terms**, which on a light aeroplane is off the back of it. Switch the
+layer on and nothing happens — which is indistinguishable from a feature that
+does not work. The default is the field frame now, the same one the
+registration opens in, and the gate pins the two together rather than pinning
+either constant: the kit's numbers are written in the registration's frame, so
+the two defaults have to agree about which frame that is.
+
+**2 — PAINT HOLDS ITS PHYSICAL DIRECTION AND LETTERING DOES NOT.** This is a
+distinction nothing in the file had ever needed to draw. The shader negates the
+along-body axis on the far flank so a REGISTRATION reads left-to-right from
+both sides — G4.5's trap, and the file records that it took three looks to get
+right. Run a livery through the same negation and **a sweep rises AFT on one
+side of the aeroplane and FORE on the other**, which is not how any aeroplane
+has ever been painted. The fix is one bit: `uDecC[di].w` was documented as
+`unused`, and it is now the mirror flag —
+
+```glsl
+float mir = mix(aeroSideF, 1.0, step(0.5, uDecC[di].w));
+```
+
+— with **zero meaning the old behaviour**, so the registration and both image
+channels are untouched and only the kit asks for the physical direction. Proven
+by photographing both flanks: the sweep rises aft on each.
+
+### 256 PIXELS A PAGE IS ENOUGH, AND THE REASON IS NOT OBVIOUS
+
+A cheat line stretched 5 m along the body samples its page at 20 mm per pixel
+ALONG — and a stripe has no detail along its length. ACROSS, that same page
+covers the 0.9 m the decal is tall, which is 3.5 mm per pixel, and across is
+where every edge in this kit runs. **The resolution is in the direction the
+detail is in.** A pattern whose interest ran the other way — a row of small
+badges down the flank — would need a page each, and that is what the image
+channel is for.
+
+### THE THINGS THAT COULD HAVE GONE SILENTLY WRONG
+
+**AERO_MAXD LIVES TWICE** — a JS const and a GLSL `#define` — and the JS side
+TRUNCATES the list to its own value. Raising one and not the other fails
+silently and selectively: the shader reads slots the uniforms never wrote, or
+the registration, which is LAST in the list, simply stops being painted once
+three kit layers are on. It is 6 now (three layers, the registration, two
+images) and a gate compares the two.
+
+**THE KIT GOES ON FIRST.** The shader mixes the list in order, so a
+registration pushed before the kit is a registration with a cheat line painted
+over it.
+
+**THE EDITOR'S DEFAULTS ARRIVE LATE, AND THEY HAVE TO.** `_cage_ui.js` is
+bundled AHEAD of `aeroskin.js` — measured, not assumed: in `index.html` the
+editor block sits at 3.17 MB and `window.AEROSKIN =` at 3.54 MB — so the
+FALLBACK literal in that file is the branch that actually runs in the game. The
+tempting move is to paste forty-eight kit defaults into it, and that is the
+G160 defect exactly: two tables, one flown. Instead `decKitDefaults()` folds
+them into `DEC` and `DEC_DEF` the first time AEROSKIN can be reached, called
+from the three doors that walk `DEC_DEF` — the save, the load and the panel.
+**`DEC_DEF` is the one that matters**: every one of those doors iterates it, so
+a key missing from it is a setting that silently does not persist.
+
+**A KNOB MEANS WHAT ITS OWN PATTERN SAYS.** `chequer` counts squares (2..16),
+`sweep` measures a fraction of a page (0..0.6). One shared slider range cannot
+serve both, so each pattern declares its knobs' names, ranges and defaults and
+its colour slots' names, and **the panel is generated from that table** — a
+pattern arrives complete with its controls or it cannot arrive. Changing
+pattern CLEARS both knobs to `null`, which means "this pattern's own default";
+carrying 8 across into a sweep would give a one-square bend.
+
+### THE VERDICT
+
+GATE SKINMAT gains **35 new check sites** (about seventy assertions once the
+per-pattern loops are counted), and **22 of 22 negative probes were caught** —
+every family was broken on purpose and every break went red with the right
+message.
+
+Three things the probes caught in the CHECKS rather than in the code, all worth
+remembering:
+
+- **Escaping a regex inside a JS template literal eats the backslashes.**
+  `uDecC\[di\]\.w` reached the gate file as `uDecC[di].w` — still a valid
+  regex, and one that matches nothing. Two checks were dead on arrival. Both
+  are plain `indexOf` now.
+- **One check I wrote could not fail at all** — it ended `… || true`. It is a
+  real check on the registration's own placement now.
+- **One probe came back `red, WRONG check`** — the gate went red, but on a
+  different check from the one under test. That is the probe being wrong rather
+  than the gate, and it is why a probe records the MESSAGE it expects instead
+  of merely that something failed.
+
+### WHAT IS OWED
+
+- **THE BOTH-SIDES-OR-NEITHER DEBT (G69) IS STILL OPEN** and the roadmap asked
+  for it here. The surface field is mirrored about the spine, so a decal is on
+  both flanks or on neither; an asymmetric marking still needs a one-sided
+  mask, which the field cannot supply. The kit did not need it — a livery IS
+  symmetric — so it was not the right chantier to spend it in.
+- **A SWEEP STOPS AT ITS OWN RECTANGLE**, and that bottom edge is a hard line.
+  Give the layer enough DEPTH to swallow the belly; the help text says so. A
+  fill that ran to the end of the surface instead of the end of the rect would
+  be a shader change affecting every decal.
+- The layer count is three. The array holds six decals; a fourth layer costs
+  one more slot and one more atlas page, both available.
+
+## G163 — THE IN-LINE ENGINE STANDS UP
+## (2026-09-03, ROADMAP Phase 2 item 2, and G157's own blocker)
+
+The user, who asked for the rotation in the first place: *"I had mistakenly
+asked for it to be rotated, and the table hasn't. Just putting the cylinders
+back on top should fix it."* They were right about the diagnosis and almost
+right about the cost — it was one line plus a frame.
+
+### WHAT WAS WRONG
+
+`ENG_ARCH.inline.angles` returns 0 — cylinders straight up, which is why a
+boxer is ±90 — and `_eng_mesh.js` answered `Math.PI / 2` beside it. So an
+in-line engine was DRAWN with its cylinders out to starboard while the
+envelope it publishes, the envelope **the cowl is built around**, described a
+tall narrow engine. Measured on an in-line twin: drawn 0.279 wide × 0.109 tall
+against an envelope of 0.139 × 0.386. Now: **0.110 × 0.230 against 0.139 ×
+0.386** — the same shape, and the flat control unchanged at 0.763 × 0.179.
+
+### THE HARDCODE LIVED TWICE, AND THE SECOND COPY IS THE STORY
+
+G157 measured the mesh's copy and left it. What it did not find is that
+**`_eng_mesh_check.js` carried its own**:
+
+```js
+} else if (R.arch === 'inline') { a2 = Math.PI / 2; ... }
+```
+
+So the gate's model of an in-line was a cylinder lying on its side, and the
+moment the drawing was corrected the clip check began testing every lead
+against a capsule in the wrong place — reporting clips that were not there
+while missing the ones that were. It cost an hour of chasing phantom
+geometry, and the probe that ended it printed the gate's own capsule
+directions beside my own: `d[1.00,0.00,0.00]` against `d[0.00,1.00,0.00]`.
+
+**Two copies of one fact is not fixed by correcting the copy.** Both are gone;
+both sides read `place.ang` now. The same file also had to learn that an
+in-line has ONE bank and therefore nothing for the bank stagger to stagger
+against — the mesh had always known that, and the checker had not.
+
+### THE FRAME IS THE FIX
+
+Every port and every route below the cylinder loop was written as
+`[c.sx * o, p, c.z + dz]`. **That IS the cylinder's own frame, silently, for a
+boxer**: out is ±x and across is +y. Writing it down —
+
+```js
+const route = (o, p, dz) => [uOut[0]*o + e2[0]*(p||0),
+                             uOut[1]*o + e2[1]*(p||0), z + (dz||0)];
+```
+
+— is what let an upright in-line (out is +y, across is +x) reuse the same
+routes instead of needing a second set. `uOut` is SNAPPED because `cos(PI/2)`
+is 6.123e-17 rather than 0 and a boxer's arteries had to come out of this
+bit-identical.
+
+**AND THEY DID.** The engine gate's table is the proof: across nineteen
+fixtures, only the two in-line rows changed a single vertex. Every flat,
+radial and electric engine is identical in verts, quads, tris, parts, lines
+and both density statistics.
+
+### THE THREE THINGS THAT WERE NOT THE CYLINDERS
+
+The frame fixed the arteries. What it did not fix was the CASE FURNITURE, and
+each of these was a fixture placed on the case's own +y face with a literal
+axis — free air on a boxer, and exactly where an upright in-line's barrels
+stand:
+
+- **The oil filler** stood straight up off the case top. The gate caught it as
+  coplanar overlap, `fins0 | oil`.
+- **The coolant pump boss** was buried in a barrel, which showed up one step
+  away as *"return hose lands on the pump"* — `routeSafe` had pushed the
+  hose's end out of the cylinder the boss was inside.
+- **The radiator, its headers, its core and its expansion tank.** `radY` is
+  declared as the gap above the CASE TOP, and on a boxer the case top is the
+  highest thing there is. An upright in-line's barrels stand three case radii
+  above it, so the same gap put the whole radiator inside cylinder 1.
+
+The first two moved onto `caseUp`/`caseSide` — the direction ACROSS the bank,
+which every cylinder already publishes as its own `e2`, and which on a boxer
+IS `[0, 1, 0]`, so nothing on a boxer moves by a float. The third is one line:
+the gap is measured from whatever is actually in the way (`inline ?
+max(cR, rTip) : cR`).
+
+### WHAT I ALMOST SHIPPED AND DID NOT
+
+Chasing the phantom clips, I wrote an `if (inline)` branch giving an in-line
+its own plug-lead route "up the side" — a second route with its own numbers,
+which is the same disease as the second angle. Once the gate was reading the
+table, **the minimal set passed exactly as well as the fuller one**, so the
+branch went in the bin. Three route sets were measured (22, 23 and 25 edits);
+the 23-edit set is what landed, and the two extra edits bought nothing.
+
+### THE VERDICT
+
+GATE ENGMESH PASS, and it gains the check whose absence cost the fortnight:
+**the drawn engine must stand the way its envelope says.** `_eng_check`
+asserts "an in-line is taller than it is wide" and GATE COWL asserts "an
+in-line gives a NARROW deep cowl", and BOTH pass by reading the envelope — so
+an engine drawn a quarter turn from its own envelope satisfied the entire
+battery. The new check measures the CYLINDER parts and compares their aspect
+to the envelope's, and only where the envelope has a decided opinion (15% out
+of square), because a radial fans its barrels round the crank and an assert on
+a coin toss is worse than none.
+
+**6 of 6 negative probes caught** — the mesh taking the turn back, the checker
+taking it back, the filler and the pump returning to the case top, the
+radiator ignoring the bank, and the coolant boss pointing at the world.
+
+### WHAT THIS UNBLOCKS
+
+**"In-line engine choice up/down/left/right"** (the user's own item, and the
+one G157 recorded as blocked) is now a table row and nothing else:
+`ENG_ARCH.inline.angles` is the only thing that decides which way the bank
+points, both the mesh and the gate read it, and every route follows the
+cylinder. It is not built here — the ask was the uprighting — but it costs a
+parameter, a row and a spec key.
+
+**And the small in-lines can be added.** G157 held back a Walter Mikron and
+its cousins "deliberately not added while they would be drawn sideways". They
+would not be, now.

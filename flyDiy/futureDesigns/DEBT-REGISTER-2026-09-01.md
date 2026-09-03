@@ -124,7 +124,23 @@ Nothing here is forgotten; not everything here is scheduled.
   audit (~550 rows censused; asterisk marking of physics-bearing rows also
   owed). Canonical: SLIDER-PHYSICS-AUDIT-2026-09-01.md.
 
-- **AN INLINE ENGINE IS DRAWN SIDEWAYS** — NEW, found by G157 while trying to
+- ~~**AN INLINE ENGINE IS DRAWN SIDEWAYS**~~ — **PAID, G163 (2026-09-03).**
+  The user's diagnosis was right: "I had mistakenly asked for it to be rotated,
+  and the table hasn't." Drawn 0.110 × 0.230 now against an envelope of
+  0.139 × 0.386, and across nineteen engine fixtures only the two in-line rows
+  changed a vertex. **THE ELEVEN ARTERIES DID NOT NEED RE-ROUTING** — they were
+  already written in the cylinder's own frame, silently, and writing that frame
+  down was the whole of it. What DID need moving was the case furniture: the
+  oil filler, the coolant pump boss and the radiator all sat on the case's +y
+  face, free air on a boxer and where an upright in-line's barrels stand.
+  **AND THE HARDCODE LIVED TWICE** — `_eng_mesh_check.js` carried its own copy,
+  so correcting the drawing made the gate test every lead against a capsule
+  lying on its side. GATE ENGMESH now asserts the drawn engine stands the way
+  its envelope says, which is the check whose absence let this run a fortnight.
+  The orientation row and the small in-lines are unblocked, not built.
+  THE ORIGINAL ENTRY, for the record:
+
+- ~~**AN INLINE ENGINE IS DRAWN SIDEWAYS**~~ — found by G157 while trying to
   add the user's in-line orientation row. `ENG_ARCH.inline.angles` returns 0
   (cylinders up, the convention that makes a boxer ±90) while `_eng_mesh.js`
   hardcodes `Math.PI / 2`, so the envelope an inline publishes is a quarter
@@ -168,7 +184,17 @@ Nothing here is forgotten; not everything here is scheduled.
 - **Nothing is fitted to the fin or stabiliser** (G85).
 - **A biplane's lower wing gets no fittings** — `wings` is an array and only
   the first plane carries them (G85; P7's problem, and the biplane arc's).
-- **A decal is on BOTH sides or neither** (G69).
+- **A decal is on BOTH sides or neither** (G69). STILL OPEN after G162: the
+  roadmap asked for it inside the marking kit and the kit did not need it,
+  because a livery IS symmetric. G162 did split the OTHER half of this — a
+  registration mirrors on the far flank so it reads from both sides, and paint
+  must not, or a sweep rises aft on one side of the aeroplane and fore on the
+  other (`uDecC.w`). An ASYMMETRIC marking still wants a one-sided mask, which
+  the surface field cannot supply.
+- **A kit sweep stops at its own rectangle** (G162), and that bottom edge is a
+  hard line — the help text says to give the layer depth enough to swallow the
+  belly. A fill that ran to the end of the SURFACE rather than the end of the
+  rect would be a shader change touching every decal.
 - **The dash's riveted-metal face** needs `dash` promoted to a skin role or
   given its own grammar — a real design decision inside the livery arc (G112
   item 2).

@@ -1289,28 +1289,19 @@ const EM = (() => {
         a = (idx + row * 0.5) * 2 * Math.PI / perRow;
         z = L.zOf(0) - row * 1.45 * b;
       } else {
-        // KNOWN DEFECT, MEASURED AND LEFT (2026-09-02). This hardcode is a
-        // SECOND answer beside `ENG_ARCH.inline.angles`, and a different one:
-        // the table says 0 (cylinders up, which is why a boxer is +/-90) and
-        // this says a quarter turn, so an inline engine is DRAWN with its
-        // cylinders pointing out to starboard while the envelope it publishes
-        // — the envelope the cowl is built around — describes a tall narrow
-        // engine. Measured on an inline twin: drawn 0.279 wide by 0.109 tall,
-        // envelope 0.139 by 0.386.
-        // THE TABLE IS THE RIGHT ONE. A Gipsy Major, a Walter Mikron and a
-        // Rotax 582 all stand their cylinders vertically, `_eng_check` asserts
-        // "an inline is taller than it is wide", and GATE COWL asserts "an
-        // inline gives a NARROW deep cowl". Both pass today because both read
-        // the envelope; only the drawing is wrong.
-        // IT IS NOT FIXED HERE because the inline exhaust, the plug leads and
-        // the oil filler are all routed in terms of `c.sx * <a radius>` — they
-        // assume the cylinder lies along x — so turning the bank upright
-        // leaves eleven arteries hanging in space (measured: `exhaust0 leaves
-        // the head, d = 3.9 cR`). Standing the bank up means re-routing them,
-        // which is a chantier and wants the user's eye on the drawn engine.
-        // It also blocks "in-line engine choice up/down/left/right", which is
-        // one line once the routing follows the cylinder instead of the axis.
-        a = inline ? Math.PI / 2 : L.ang[i];
+        // THE TABLE IS THE ONLY ANSWER NOW (G162). This line used to read
+        // `inline ? Math.PI / 2 : L.ang[i]` — a second, different answer
+        // beside `ENG_ARCH.inline.angles`, which says 0 (cylinders up, which
+        // is why a boxer is +/-90). So an inline engine was DRAWN with its
+        // cylinders out to starboard while the envelope it publishes — the
+        // envelope the COWL is built around — described a tall narrow engine:
+        // measured on an inline twin, drawn 0.279 wide by 0.109 tall against
+        // an envelope of 0.139 by 0.386. The user, who asked for the rotation
+        // in the first place: "I had mistakenly asked for it to be rotated,
+        // and the table hasn't. Just putting the cylinders back on top should
+        // fix it." A Gipsy Major, a Walter Mikron and a Rotax 582 all stand
+        // their cylinders vertically.
+        a = L.ang[i];
         // bank stagger: the two rods share one crankpin, so one bank
         // leads (an inline has one bank — no stagger)
         z = L.zOf(L.stn[i]) + (inline ? 0
@@ -1329,6 +1320,21 @@ const EM = (() => {
       const e2 = radial ? uw.u
         : (Math.abs(Math.sin(a)) > 0.5 ? [0, 1, 0] : [1, 0, 0]);
       const pt = r => [dir[0] * r, dir[1] * r, z];
+      // THE CYLINDER'S OWN FRAME (G162), and it is the whole of the
+      // uprighting. `o` runs OUT along the cylinder from the crank axis, `p`
+      // ACROSS it in the engine's plane, `dz` along the crank. Every port and
+      // every route below was written as `[c.sx * o, p, c.z + dz]` — which IS
+      // this frame, silently, for a boxer: out is +/-x and across is +y.
+      // Writing it down is what lets an UPRIGHT INLINE (out is +y, across is
+      // +x) reuse the same routes instead of needing a second set, and it is
+      // why standing the bank up stopped being a re-routing chantier.
+      // SNAPPED, because cos(PI/2) is 6.123e-17 rather than 0 and a boxer's
+      // arteries must come out of this bit-identical to the ones it replaces.
+      const snap0 = v => (Math.abs(v) < 1e-9 ? 0 : v);
+      const uOut = radial ? dir : [snap0(dir[0]), snap0(dir[1]), 0];
+      const route = (o, p, dz) => [uOut[0] * o + e2[0] * (p || 0),
+                                   uOut[1] * o + e2[1] * (p || 0),
+                                   z + (dz || 0)];
       // ports (all on the head, where the real bosses are). The plug PORT
       // is the TERMINAL (base + 0.41b of plug stack). A radial's plugs
       // sit FORE AND AFT of the head, axis along the crank; its intake
@@ -1349,27 +1355,40 @@ const EM = (() => {
       } else {
         ports = {
           plugBaseT: P.twoStroke
-            ? [sx * (rockerOut - 0.24 * b), 0.30 * b, z - 0.16 * b]
-            : [sx * (finTop + 0.42 * b), 0.50 * b, z - 0.14 * b],
+            ? route(rockerOut - 0.24 * b, 0.30 * b, -0.16 * b)
+            : route(finTop + 0.42 * b, 0.50 * b, -0.14 * b),
           plugBaseB: P.twoStroke
-            ? [sx * (rockerOut - 0.24 * b), -0.30 * b, z - 0.16 * b]
-            : [sx * (finTop + 0.42 * b), -0.50 * b, z - 0.14 * b],
+            ? route(rockerOut - 0.24 * b, -0.30 * b, -0.16 * b)
+            : route(finTop + 0.42 * b, -0.50 * b, -0.14 * b),
           plugT: P.twoStroke
-            ? [sx * (rockerOut + 0.17 * b), 0.30 * b, z - 0.16 * b]
-            : [sx * (finTop + 0.42 * b), 0.91 * b, z - 0.14 * b],
+            ? route(rockerOut + 0.17 * b, 0.30 * b, -0.16 * b)
+            : route(finTop + 0.42 * b, 0.91 * b, -0.14 * b),
           plugB: P.twoStroke
-            ? [sx * (rockerOut + 0.17 * b), -0.30 * b, z - 0.16 * b]
-            : [sx * (finTop + 0.42 * b), -0.91 * b, z - 0.14 * b],
-          intakeP: [sx * (finTop + 0.30 * b), -0.52 * b, z + 0.34 * b],
-          exhaustP: [sx * (finTop + 0.30 * b), -0.52 * b, z - 0.34 * b],
+            ? route(rockerOut + 0.17 * b, -0.30 * b, -0.16 * b)
+            : route(finTop + 0.42 * b, -0.91 * b, -0.14 * b),
+          intakeP: route(finTop + 0.30 * b, -0.52 * b, 0.34 * b),
+          exhaustP: route(finTop + 0.30 * b, -0.52 * b, -0.34 * b),
         };
       }
       cyls.push(Object.assign({
-        i, sx, z, dir, uw, e2,
+        i, sx, z, dir, uw, e2, uOut,
         rr0, finTop, headTop, rockerOut,
-        at: pt,
+        at: pt, route,
       }, ports));
     }
+    // WHERE CASE FURNITURE MAY LIVE (G162). The oil filler and the coolant
+    // pump used to sit on the case's own +y face with a literal [0, 1, 0]
+    // axis — free air on a boxer, and exactly where an UPRIGHT INLINE's
+    // barrels stand. The gate caught both: coplanar overlap between the
+    // filler neck and cylinder 0's fins, and a return hose whose end
+    // routeSafe pushed out of the barrel the pump boss was buried in.
+    // The free direction is the one ACROSS the bank, which every cylinder
+    // already publishes as its own `e2` — and on a boxer that IS [0, 1, 0],
+    // so nothing on a boxer moves by so much as a float.
+    const caseUp = (!radial && cyls.length) ? cyls[0].e2 : [0, 1, 0];
+    const caseSide = [caseUp[1], -caseUp[0], 0];
+    const onCase = (up, side, z2) => [caseSide[0] * side + caseUp[0] * up,
+                                      caseSide[1] * side + caseUp[1] * up, z2];
     // NEIGHBOUR GAPS (G24.5): same-bank cylinders sit one pitch apart and
     // their fins and heads are WIDER than the half-pitch — the real engine
     // clips them flat against each other, so the mesh does too. A RADIAL
@@ -1756,8 +1775,8 @@ const EM = (() => {
     if (P.oilFill) {
       part('oil');
       const or = 0.09 * cR;
-      lathe([0.30 * cR, cR * 0.9, zFront + 0.35 * (zBack - zFront)], [0, 1, 0],
-            { u: [1, 0, 0], w: [0, 0, 1] }, [
+      lathe(onCase(cR * 0.9, 0.30 * cR, zFront + 0.35 * (zBack - zFront)),
+            caseUp, { u: caseSide, w: [0, 0, 1] }, [
         { t: 0, r: or }, { t: 0.5 * cR, r: or },
         { t: 0.5 * cR, r: 1.8 * or }, { t: 0.62 * cR, r: 1.8 * or },
         { t: 0.62 * cR, r: 0 },
@@ -1990,8 +2009,8 @@ const EM = (() => {
         // radiator hangs below (G24.13: the circuit follows the radiator)
         part('coolBoss' + c.i, 'tube');
         const cS = below ? -1 : 1;
-        const cbDir = [0, cS, 0];
-        const cbB = [c.sx * (c.finTop + 0.55 * b), cS * hrEff * 0.75, c.z];
+        const cbDir = [cS * c.e2[0], cS * c.e2[1], 0];
+        const cbB = c.route(c.finTop + 0.55 * b, cS * hrEff * 0.75);
         const cbL = hrEff * 0.25 + 0.24 * b;
         lathe(cbB, cbDir, null, [
           { t: 0, r: 0.10 * b }, { t: cbL, r: 0.10 * b },
@@ -2011,12 +2030,12 @@ const EM = (() => {
           const A = radial
             ? [c.dir[0] * cR * 0.80 + c.uw.u[0] * dz,
                c.dir[1] * cR * 0.80 + c.uw.u[1] * dz, c.z + 0.52 * b]
-            : [c.sx * cR * 0.86, ry * 0.42 * b, c.z + dz];
+            : c.route(cR * 0.86, ry * 0.42 * b, dz);
           const B = radial
             ? [c.dir[0] * (c.finTop + 0.10 * b) + c.uw.u[0] * dz,
                c.dir[1] * (c.finTop + 0.10 * b) + c.uw.u[1] * dz,
                c.z + 0.46 * b]
-            : [c.sx * (c.finTop + 0.10 * b), ry * 0.46 * b, c.z + dz];
+            : c.route(c.finTop + 0.10 * b, ry * 0.46 * b, dz);
           const path = resample([A, B]);
           const rr = path.map((_, k) =>
             0.068 * b * (k === path.length - 1 ? 1.5 : 1));  // head bellmouth
@@ -2051,7 +2070,7 @@ const EM = (() => {
           : twin
           ? [tc.pos[0], tc.pos[1] - 0.62 * b,
              tc.pos[2] + (L.stn[c.i] - (L.nSt - 1) / 2) * 0.12 * b]
-          : [c.sx * 0.42 * cR, sumpY + 0.10 * b, c.z + 0.20 * b];
+          : c.route(0.42 * cR, sumpY + 0.10 * b, 0.20 * b);
         // TWIN RUNNERS RUN LIKE A REAL MANIFOLD (G25.2 — the first cut
         // dropped straight down the flank, through the cylinders): down
         // AFT of the whole bank, forward UNDER the fins, then up into the
@@ -2070,8 +2089,7 @@ const EM = (() => {
              [c.sx * (c.finTop + 0.05 * b + trk), -0.92 * b,
               zTail - 0.02 * cR],
              [c.sx * (c.finTop + 0.05 * b + trk), -0.92 * b, c.z + 0.50 * b]]
-          : [[c.sx * (c.finTop - 0.15 * b), sumpY + 0.16 * b,
-              c.z + 0.34 * b]];
+          : [c.route(c.finTop - 0.15 * b, sumpY + 0.16 * b, 0.34 * b)];
         let path = fillet([A, ...knees, c.intakeP], 0.55 * b);
         // the margin CARRIES THE PIPE'S OWN RADIUS (the lead precedent —
         // a 0.16b tube cleared by 0.06b is still 0.10b inside the metal)
@@ -2127,8 +2145,8 @@ const EM = (() => {
                   : { capA: true, lipB: true, sides: S.pipe }));
       } else if (exMode === 1) {
         part('exhaust' + c.i, 'tube');
-        const knee = [c.sx * (c.finTop - 0.30 * b), -cR - L.sump * 0.4, c.z - 0.40 * b];
-        const tip = [c.sx * 0.72 * cR, sumpY - P.exDrop * b, c.z + 0.30 * b];
+        const knee = c.route(c.finTop - 0.30 * b, -cR - L.sump * 0.4, -0.40 * b);
+        const tip = c.route(0.72 * cR, sumpY - P.exDrop * b, 0.30 * b);
         const path = fillet([c.exhaustP, knee, tip], 0.75 * b);
         const rr = path.map((_, k) =>
           0.18 * b * (k >= path.length - 2 ? 1.14 : 1));    // flared outlet
@@ -2141,9 +2159,9 @@ const EM = (() => {
         // the cylinder's own side
         part('exhaust' + c.i, 'tube');
         const path = fillet([c.exhaustP,
-              [c.sx * (c.finTop - 0.30 * b), -cR - L.sump * 0.4, c.z - 0.40 * b],
-              [c.sx * 0.60 * cR, sumpY - 0.9 * b, c.z - 0.7 * b],
-              [c.sx * 0.55 * cR, sumpY - 0.9 * b, c.z - 2.4 * b]], 0.9 * b);
+              c.route(c.finTop - 0.30 * b, -cR - L.sump * 0.4, -0.40 * b),
+              c.route(0.60 * cR, sumpY - 0.9 * b, -0.7 * b),
+              c.route(0.55 * cR, sumpY - 0.9 * b, -2.4 * b)], 0.9 * b);
         const prof = [[0, 0.13], [0.18, 0.14], [0.45, 0.30], [0.62, 0.28],
                       [0.85, 0.085], [1, 0.085]];
         const rr = path.map((_, k) => {
@@ -2232,7 +2250,7 @@ const EM = (() => {
         }
       } else {
         for (const c2 of cyls)
-          rockerCover([0, 0, c2.z], radial ? c2.dir : [c2.sx, 0, 0],
+          rockerCover([0, 0, c2.z], c2.uOut,
                       radial ? c2.uw.u : [0, 1, 0], P.rockerW * b, c2.i);
       }
     }
@@ -2272,7 +2290,7 @@ const EM = (() => {
         for (const c of side) {
           part('exhaust' + c.i, 'tube');
           const jn = [colX, colY, c.z - 0.35 * b];    // plunges into the collector
-          const knee = [c.sx * (c.finTop - 0.30 * b), -cR - L.sump * 0.4, c.z - 0.42 * b];
+          const knee = c.route(c.finTop - 0.30 * b, -cR - L.sump * 0.4, -0.42 * b);
           const path = fillet([c.exhaustP, knee, jn], 0.7 * b);
           artery('exhaust' + c.i, 'head' + c.i, 'collector',
             sweep(path, 0.17 * b, ENGM_MAT.exhaust,
@@ -2336,9 +2354,9 @@ const EM = (() => {
           c.plugT,
         ] : [
           magL.towers[c.i],
-          [c.sx * 0.30 * cR, cR * 1.12, (mg[2] + c.z) / 2],
-          [c.sx * 0.75 * cR, cR * 0.75, c.z - 0.05 * b],
-          [c.plugT[0], c.plugT[1] + 0.24 * b, c.plugT[2]],
+          c.route(0.30 * cR, cR * 1.12, (mg[2] - c.z) / 2),
+          c.route(0.75 * cR, cR * 0.75, -0.05 * b),
+          add(c.plugT, [c.e2[0] * 0.24 * b, c.e2[1] * 0.24 * b, 0]),
           c.plugT,
         ]), lr + 0.030 * cR, false, c.i);
         artery('leadT' + c.i, 'magL', 'plugT' + c.i,
@@ -2355,9 +2373,9 @@ const EM = (() => {
           c.plugB,
         ] : [
           magR.towers[c.i],
-          [c.sx * 0.95 * cR, 0.30 * cR, (mgB[2] + c.z) / 2],
-          [c.sx * 1.02 * cR, -0.45 * cR, c.z - 0.05 * b],
-          [c.plugB[0], c.plugB[1] - 0.24 * b, c.plugB[2]],
+          c.route(0.95 * cR, 0.30 * cR, (mgB[2] - c.z) / 2),
+          c.route(1.02 * cR, -0.45 * cR, -0.05 * b),
+          add(c.plugB, [-c.e2[0] * 0.24 * b, -c.e2[1] * 0.24 * b, 0]),
           c.plugB,
         ]), lr + 0.030 * cR, false, c.i);
         artery('leadB' + c.i, 'magR', 'plugB' + c.i,
@@ -2379,8 +2397,8 @@ const EM = (() => {
         part('injLine' + c.i, 'tube');
         const path = routeSafe(smooth([
           add(sp, [c.sx * 0.10 * cR, 0.05 * cR, 0]),
-          [c.sx * 0.60 * cR, cR * 0.95, c.z + 0.30 * b],
-          [c.sx * (c.finTop - 0.05 * b), 0.30 * b, c.z + 0.34 * b],
+          c.route(0.60 * cR, cR * 0.95, 0.30 * b),
+          c.route(c.finTop - 0.05 * b, 0.30 * b, 0.34 * b),
           add(c.intakeP, [0, 0.16 * b, 0]),
         ]), 0.020 * b + 0.025 * cR, false, c.i);
         artery('injLine' + c.i, 'spider', 'head' + c.i,
@@ -2537,9 +2555,17 @@ const EM = (() => {
       // tanks, headers, expansion tank. radY is SIGNED (G24.11): negative
       // hangs the radiator under the sump.
       const rW = P.radW * cR, rH = P.radH * cR, rD = P.radD * cR;
+      // radY IS A GAP ABOVE WHAT IS IN THE WAY (G162). It is declared as the
+      // gap above the CASE TOP, and on a boxer the case top is the highest
+      // thing there is — the barrels lie sideways. An upright inline's
+      // barrels stand three case radii above it, so the same gap put the
+      // radiator core, its headers and its expansion tank inside cylinder 1.
+      // Measured from the bank's own tip instead; on a boxer rTip is not
+      // above the case, so `inline` is the only architecture this moves.
+      const radTop = inline ? Math.max(cR, L.rTip) : cR;
       const rC = [P.radX * cR,
                   below ? -(cR + L.sump) + P.radY * cR - rH / 2
-                        : cR + P.radY * cR + rH / 2,
+                        : radTop + P.radY * cR + rH / 2,
                   zBack + P.radZ * cR];
       part('radiator');
       prism([rC[0], rC[1], 0], Z, X, Y, roundRect(rW, rH, 0.10 * cR),
@@ -2612,11 +2638,13 @@ const EM = (() => {
       part('pumpBoss', 'tube');
       const pumpAt = [-0.40 * cR, 0, zFront - 0.25 * (zFront - zBack)];
       const pumpY = below ? -(cR + L.sump) * 0.96 : cR * 0.90;
-      lathe([pumpAt[0], pumpY, pumpAt[2]], [0, below ? -1 : 1, 0], null, [
+      const pumpAx = [caseUp[0] * (below ? -1 : 1),
+                      caseUp[1] * (below ? -1 : 1), 0];
+      lathe(onCase(pumpY, pumpAt[0], pumpAt[2]), pumpAx, null, [
         { t: 0, r: 0.14 * cR }, { t: 0.22 * cR, r: 0.11 * cR },
       ], ENGM_MAT.case, false, true, S.detail);
-      const pumpTip = [pumpAt[0], pumpY + (below ? -0.24 : 0.24) * cR,
-                       pumpAt[2]];
+      const pumpTip = onCase(pumpY + (below ? -0.24 : 0.24) * cR,
+                             pumpAt[0], pumpAt[2]);
       // COOLANT RAILS (G24.11, the "terribly messy" hoses revised): each
       // bank's bosses feed ONE rail running along the head crowns — the
       // 912's own scheme — and a single hose per side drops to its tank.

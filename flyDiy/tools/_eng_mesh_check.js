@@ -521,12 +521,20 @@ for (const C of CASES) {
         const row = i % rows2, idx = Math.floor(i / rows2);
         a2 = (idx + row * 0.5) * 2 * Math.PI / perRow2;
         z2 = R.place.zOf(0) - row * 1.45 * b2;
-      } else if (R.arch === 'inline') {
-        a2 = Math.PI / 2; z2 = R.place.zOf(R.place.stn[i]);
       } else {
+        // THE TABLE IS THE ONLY ANSWER (G162). This branch used to open with
+        // its own `R.arch === 'inline' ? Math.PI / 2` — a SECOND copy of the
+        // very hardcode the mesh carried, so when the bank was stood upright
+        // this check went on testing every lead against a capsule lying on
+        // its side, and reported clips that were not there while missing the
+        // ones that were. Two copies of one fact is how the drawing and the
+        // envelope disagreed for a fortnight; the fix is not to correct the
+        // copy, it is to stop having one.
         a2 = R.place.ang[i];
-        z2 = R.place.zOf(R.place.stn[i]) +
-          (Math.sin(a2) >= 0 ? 1 : -1) * 0.5 * (M.P.stagger || 0) * b2;
+        // AND AN INLINE HAS ONE BANK, so there is nothing for the stagger to
+        // stagger against — the mesh zeroes it there and so does this.
+        z2 = R.place.zOf(R.place.stn[i]) + (R.arch === 'inline' ? 0
+          : (Math.sin(a2) >= 0 ? 1 : -1) * 0.5 * (M.P.stagger || 0) * b2);
       }
       caps.push({ i, d: [Math.sin(a2), Math.cos(a2), 0], z: z2 });
     }
@@ -557,6 +565,41 @@ for (const C of CASES) {
            worst > -1e-4 * cR, 'worst ' + f(worst / cR, 3) + 'cR');
     }
   }
+  // THE DRAWING AND THE ENVELOPE MUST AGREE ABOUT WHICH WAY THE ENGINE
+  // STANDS (G162). This is the check the battery did not have, and its
+  // absence cost a fortnight: `_eng_check` asserts "an inline is taller than
+  // it is wide" and GATE COWL asserts "an inline gives a NARROW deep cowl",
+  // and BOTH pass by reading the ENVELOPE. So an engine DRAWN a quarter turn
+  // away from its own envelope satisfied every check in this battery while
+  // the cowl was sized around a shape the engine did not have.
+  //
+  // MEASURED ON THE CYLINDERS, which are the parts the orientation is about —
+  // the case, the mount and the firewall are square and would dilute it. Only
+  // asserted where the envelope has a decided opinion (15% out of square): a
+  // radial fans its barrels round the crank and is square by construction, and
+  // an assert on a coin toss is worse than no assert.
+  {
+    let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+    for (const p of M.parts) {
+      if (!/^(cyl|fins|head|barrel|rocker|plug)/.test(p.name)) continue;
+      for (let i = p.v0; i < p.v1; i++) {
+        const v = M.V[i];
+        x0 = Math.min(x0, v[0]); x1 = Math.max(x1, v[0]);
+        y0 = Math.min(y0, v[1]); y1 = Math.max(y1, v[1]);
+      }
+    }
+    const env = M.resolved.env;
+    if (x1 > x0 && y1 > y0 && env && env.width > 0 && env.height > 0) {
+      const dR = (x1 - x0) / (y1 - y0), eR = env.width / env.height;
+      const decided = eR > 1.15 || eR < 1 / 1.15;
+      if (decided)
+        hard(C.name + ': the drawn engine stands the way its envelope says',
+             (dR > 1) === (eR > 1),
+             'drawn ' + f(x1 - x0, 3) + ' x ' + f(y1 - y0, 3) +
+             ', envelope ' + f(env.width, 3) + ' x ' + f(env.height, 3));
+    }
+  }
+
   // G24.4 — the STRAIGHT mount tubes clear the two-tier acc body too. The
   // first 0.40*cR aft of the case tail is the shock-stack joint and exempt.
   {

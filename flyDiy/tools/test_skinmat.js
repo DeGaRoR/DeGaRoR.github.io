@@ -1484,6 +1484,201 @@ if (process.argv.includes('--selftest')) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// THE MARKING KIT (G162)
+// ---------------------------------------------------------------------------
+// A kit pattern is a RECIPE, so unlike the two image channels it travels in
+// the spec and can be redrawn on the flight side. That makes the placement
+// half — which page a layer owns, what its knobs resolve to, where it lands —
+// pure arithmetic, and pure arithmetic is what a node gate can actually prove.
+// The drawing half needs a canvas and is checked by eye and by source.
+function kitGate() {
+  const UI = fs.readFileSync(path.join(ROOT, 'tools', '_cage_ui.js'), 'utf8');
+  // 1 — THE TWO AERO_MAXDs MUST AGREE, and this is the check that would have
+  //     cost the most to find by looking. The array size lives twice, once as
+  //     a JS const and once as a GLSL #define, and the JS side TRUNCATES the
+  //     list to its own value. Raise one and not the other and the failure is
+  //     silent and selective: the shader reads slots the uniforms never wrote,
+  //     or the registration — last in the list — simply stops being painted
+  //     once three kit layers are on.
+  const def = /#define AERO_MAXD (\d+)/.exec(SRC);
+  check(!!def, 'kit: the shader has no AERO_MAXD define');
+  check(def && +def[1] === A.AERO_MAXD,
+    'kit: the shader array and the JS cap disagree — decals past the smaller ' +
+    'of the two are silently dropped, and the registration is last in the list',
+    def && (def[1] + ' vs ' + A.AERO_MAXD));
+
+  // 2 — AND IT MUST HOLD WHAT THE PANEL CAN TURN ON. Three kit layers, the
+  //     registration and the two image channels is six; a cap below that is a
+  //     marking the builder placed and cannot see.
+  const need = A.AERO_KIT_LAYERS + 3;
+  check(A.AERO_MAXD >= need,
+    'kit: the decal array cannot hold every marking the panel offers',
+    A.AERO_MAXD + ' < ' + need);
+  check(A.AERO_KIT_PAGE0 + A.AERO_KIT_LAYERS <= A.AERO_ATLAS_N * A.AERO_ATLAS_N,
+    'kit: the layers run off the end of the atlas');
+
+  // 3 — EVERY PATTERN ARRIVES WITH ITS OWN CONTROLS. The panel is generated
+  //     from this table, so a pattern that declares no knob names, no ranges
+  //     or no colour slots gets a row with a blank label and a slider whose
+  //     range is whatever the previous pattern left behind.
+  check(A.AERO_KIT.length > 0, 'kit: there are no patterns');
+  for (const pat of A.AERO_KIT) {
+    check(typeof pat.draw === 'function', 'kit: a pattern cannot draw itself', pat.name);
+    check(Array.isArray(pat.cn) && pat.cn.length >= 2 && pat.cn.length <= 3
+          && pat.cn.every(n => typeof n === 'string' && n),
+      'kit: a pattern does not name its colour slots — the panel would show ' +
+      'unlabelled wells, or hide a colour the draw actually reads', pat.name);
+    check(Array.isArray(pat.k) && pat.k.length === 2,
+      'kit: a pattern does not declare exactly two knobs', pat.name);
+    for (const kd of (pat.k || [])) {
+      check(kd && kd.n && typeof kd.lo === 'number' && typeof kd.hi === 'number'
+            && typeof kd.st === 'number' && typeof kd.def === 'number',
+        'kit: a knob is missing its name, range, step or default', pat.name);
+      check(kd && kd.lo <= kd.def && kd.def <= kd.hi,
+        'kit: a knob default sits outside its own slider', pat.name + '/' + (kd && kd.n));
+      check(kd && kd.hi > kd.lo, 'kit: a knob has no range', pat.name);
+    }
+  }
+
+  // 3b — AND THE DEFAULT PLACEMENT IS IN THE FRAME ITS NUMBERS ARE WRITTEN IN.
+  //      This is the defect a picture found: `side` is a box projection through
+  //      the whole craft and measures its station from the craft ROOT, so the
+  //      same 2.2 that sits under the cabin in the field frame lands 4.85 m aft
+  //      — off the back of a light aeroplane. A layer switched on and invisible
+  //      is indistinguishable from a layer that does not work. The kit's
+  //      station and height are written in the registration's frame, so the
+  //      two defaults have to agree about which frame that is.
+  check(A.AERO_KIT_LDEF.Mode === A.AERO_DEC_DEF.regMode,
+    'kit: a new layer opens in a different projection from the ' +
+    'registration, but its default station and height are written in the ' +
+    'registration’s frame — switch one on and it lands off the aeroplane',
+    A.AERO_KIT_LDEF.Mode + ' vs ' + A.AERO_DEC_DEF.regMode);
+
+  // 4 — OFF IS THE FACTORY STATE. Every aeroplane already saved was saved
+  //     before this existed, and none of them may grow a stripe.
+  check(A.aeroKitLayers(A.aeroDecalMerge({})).length === 0,
+    'kit: an aeroplane nobody has decorated wears a kit layer anyway');
+
+  // 5 — ONE PAGE EACH, AND NONE OF THEM THE REGISTRATION'S. Two layers sharing
+  //     a page is two patterns overwriting one canvas cell, which shows as the
+  //     second layer's pattern appearing in both places.
+  const on = {};
+  for (let i = 1; i <= A.AERO_KIT_LAYERS; i++) { on['m' + i + 'On'] = 1;
+                                                 on['m' + i + 'Pat'] = i % A.AERO_KIT.length; }
+  const all = A.aeroKitLayers(A.aeroDecalMerge({ finish: { decals: on } }));
+  check(all.length === A.AERO_KIT_LAYERS,
+    'kit: switching every layer on does not give every layer', all.length);
+  const pages = all.map(l => l.page);
+  check(new Set(pages).size === pages.length,
+    'kit: two layers share an atlas page', pages.join(','));
+  check(pages.every(p => p >= 3),
+    'kit: a layer has taken the registration or an image channel page',
+    pages.join(','));
+
+  // 6 — A KNOB MEANS WHAT ITS OWN PATTERN SAYS. `chequer` counts squares 2..16
+  //     and `sweep` measures 0..0.6 of a page; a knob carried across a pattern
+  //     change, or clamped against the wrong table, is a control that lies
+  //     about the picture it is producing.
+  const chq = A.AERO_KIT.findIndex(k => k.name === 'chequer');
+  const swp = A.AERO_KIT.findIndex(k => k.name === 'sweep');
+  if (chq >= 0 && swp >= 0) {
+    const asSweep = A.aeroKitLayers(A.aeroDecalMerge({ finish: { decals:
+      { m1On: 1, m1Pat: swp, m1P: 8 } } }))[0];
+    check(asSweep.p <= A.AERO_KIT[swp].k[0].hi,
+      'kit: a chequer’s square count survived into a sweep’s knob', asSweep.p);
+    const unset = A.aeroKitLayers(A.aeroDecalMerge({ finish: { decals:
+      { m1On: 1, m1Pat: chq } } }))[0];
+    check(unset.p === A.AERO_KIT[chq].k[0].def && unset.q === A.AERO_KIT[chq].k[1].def,
+      'kit: an unset knob does not take its own pattern’s default — zero ' +
+      'squares is a pattern that draws nothing', unset.p + '/' + unset.q);
+  }
+
+  // 7 — THE PLACEMENT TRAVELS. Opacity is what the user asked for by name
+  //     ("possible transparency"), and it is the one field with no visible
+  //     proxy: a layer at 0.4 that arrives at 1.0 looks like a layer that
+  //     works.
+  const one = A.aeroKitLayers(A.aeroDecalMerge({ finish: { decals:
+    { m1On: 1, m1Alp: 0.4, m1L: 1.75, m1C: -0.2, m1W: 3.5, m1H: 0.8,
+      m1Tgt: 3, m1Mode: 2, m1Rot: 0.25 } } }))[0];
+  check(one.place.opacity === 0.4, 'kit: the layer opacity is not carried', one.place.opacity);
+  check(one.place.sL === 1.75 && one.place.sC === -0.2,
+    'kit: the layer is placed somewhere the builder did not put it');
+  check(one.place.w === 3.5 && one.place.h === 0.8, 'kit: the layer size is not carried');
+  check(one.place.rot === 0.25, 'kit: the layer turn is not carried');
+  check(one.place.mode === 'plan', 'kit: the layer projection is not carried', one.place.mode);
+  check(!!(one.place.on.body && one.place.on.tail) && !one.place.on.wing,
+    'kit: the layer surface classes are not carried');
+
+  // 8 — AND IT IS PAINTED UNDER EVERYTHING ELSE. The shader mixes the list in
+  //     order, so a registration pushed before the kit is a registration with
+  //     a cheat line painted over it.
+  const fn = SRC.slice(SRC.indexOf('function aeroDecalsFor'));
+  const kitAt = fn.indexOf('aeroKitLayers(D)');
+  const regAt = fn.indexOf('list.push({ page: 0');
+  check(kitAt > 0 && regAt > 0 && kitAt < regAt,
+    'kit: the registration is pushed before the kit, so a layer is painted ' +
+    'over the letters');
+  check(/aeroKitDraw\(THREE, L\)/.test(fn),
+    'kit: the pages are never drawn from the one keeper — a kit saved in a ' +
+    'build would reach the flown aeroplane as an empty page');
+
+  // 8b — PAINT HOLDS ITS PHYSICAL DIRECTION AND LETTERING DOES NOT, which is
+  //      a distinction no gate would have thought to draw and a screenshot
+  //      made obvious in one look: the far flank negates the along-body axis
+  //      so a registration reads left-to-right from both sides, and a sweep
+  //      carried through the same negation rose AFT on one side of the
+  //      aeroplane and FORE on the other.
+  check(A.aeroKitLayers(A.aeroDecalMerge({ finish: { decals: { m1On: 1 } } }))[0]
+          .place.noMirror === 1,
+    'kit: a kit layer mirrors on the far flank like a registration — a sweep ' +
+    'would rise aft on one side of the aeroplane and fore on the other');
+  check(SRC.indexOf('float mir = mix(aeroSideF, 1.0, step(0.5, uDecC[di].w))') >= 0,
+    'kit: the shader has no per-decal mirror — either every marking mirrors ' +
+    '(and paint is wrong) or none does (and the registration reads backwards)');
+  check(SRC.indexOf('U.uDecC.value[i].set(') >= 0 && SRC.indexOf('d.noMirror ? 1 : 0)') >= 0,
+    'kit: the mirror flag is never written into the uniform, so the shader ' +
+    'reads a zero that means “mirror” for everything');
+  // AND THE REGISTRATION MUST NOT TAKE IT. Letters that stop mirroring read
+  // backwards from the far side, which is G4.5's own trap and cost three looks
+  // to find the first time.
+  const regPush = fn.slice(fn.indexOf('list.push({ page: 0'),
+                           fn.indexOf('if (D.imgOn)'));
+  check(regPush.indexOf('noMirror') < 0,
+    'kit: the registration has been marked as paint — it will read backwards ' +
+    'from the far flank, which is the trap G4.5 needed three looks to see');
+
+  // 9 — THE CACHE COVERS THE WHOLE RECIPE. A page is redrawn only when its
+  //     signature changes; a field the draw reads and the signature omits is a
+  //     colour or a knob that moves the slider and not the picture.
+  const sig = /const sig = \[([^\]]*)\]/.exec(SRC.slice(SRC.indexOf('function aeroKitDraw')));
+  check(!!sig, 'kit: aeroKitDraw has no cache signature');
+  for (const f of ['L.pat', 'L.a', 'L.b', 'L.d', 'L.p', 'L.q', 'L.flip'])
+    check(sig && sig[1].indexOf(f) >= 0,
+      'kit: the redraw signature omits something the draw reads, so changing ' +
+      'it leaves the old page on the aeroplane', f);
+
+  // 10 — AND THE EDITOR KEEPS NO SECOND COPY OF THE DEFAULTS. This file is
+  //      bundled ahead of aeroskin.js, so its fallback literal is the branch
+  //      that runs — and the temptation is to paste forty-eight kit defaults
+  //      into it. That is the G160 defect exactly: two tables, one flown.
+  check(!/\bm1On:\s*\d/.test(UI),
+    'kit: the editor carries its own copy of the kit defaults — a table that ' +
+    'the flight side cannot see is a marking that does not survive the flight');
+  check(/function decKitDefaults\(\)/.test(UI),
+    'kit: the editor never folds the kit keys into DEC_DEF, so a kit layer ' +
+    'the builder places is dropped on save');
+  // the three doors that walk DEC_DEF, each named
+  for (const [door, what] of [
+      ['function finishToSpec\\(\\) \\{\\n  decKitDefaults\\(\\);', 'the save'],
+      ['function finishFromSpec\\(f\\) \\{\\n  decKitDefaults\\(\\);', 'the load'],
+      ['if \\(!A \\|\\| decPanel\\) return;\\n  decKitDefaults\\(\\);', 'the panel']])
+    check(new RegExp(door).test(UI),
+      'kit: ' + what + ' does not top up DEC_DEF first — every key it has not ' +
+      'seen is a setting that silently does not persist');
+}
+kitGate();
+
 const hardN = Object.keys(A.AERO_HARD)
   .reduce((n, l) => n + Object.keys(A.AERO_HARD[l]).length, 0);
 console.log(`  sections ${sections.size}, finishes ` +

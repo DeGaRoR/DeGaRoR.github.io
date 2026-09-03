@@ -148,23 +148,32 @@ or medium, and each one directly multiplies what you can build tonight.*
    OWED, an honest limit: the taper caps at 1.15, so a big radial on a slim
    fuselage cannot be enclosed and is REPORTED rather than drawn through. A
    cowl carrying its own aft diameter and fairing back is its own chantier.
-2. **Amateur-range engine fill** — **HALF LANDED as G157, 2026-09-02.**
+2. **Amateur-range engine fill** — **G157 + G163, 2026-09-02/03.**
    THE RADIALS ARE IN: **Verner Scarlett 7U** (7-cyl, 78 kW) and **Rotec
    R3600** (9-cyl, 112 kW), with the real displacements and the R-1830's own
    radial treatment. The registry used to jump from a 100 hp flat four to a
    1200 hp Twin Wasp, so the only round engine in the game was a DC-3's; these
    are the ones G154's radial cowl was built for.
-   **THE IN-LINE ORIENTATION IS BLOCKED, and the blocker is a real defect:**
-   an inline engine is DRAWN with its cylinders pointing sideways while the
-   envelope it publishes — the one the cowl is built around — describes a tall
-   narrow engine (measured: drawn 0.279 × 0.109, envelope 0.139 × 0.386). The
-   table is the right one; only the drawing is wrong. Standing the bank upright
-   breaks eleven arteries, because the inline exhaust, plug leads and oil
-   filler are all routed as `c.sx * <radius>` and assume the cylinder lies
-   along x. **Its own chantier, and it wants your eye on the drawn engine** —
-   the orientation row is one line once the routing follows the cylinder.
-   STILL OWED besides that: more small INLINES (a Walter Mikron is the classic
-   amateur one) — deliberately not added while they would be drawn sideways.
+   **THE IN-LINE ENGINE STANDS UP — G163, 2026-09-03.** It was drawn with its
+   cylinders out to starboard while the envelope the COWL is built around
+   described a tall narrow engine (drawn 0.279 × 0.109 against 0.139 × 0.386);
+   it is 0.110 × 0.230 now, and the flat control did not move. The hardcode
+   lived TWICE — `_eng_mesh_check.js` carried its own copy, so correcting the
+   drawing made the gate test every lead against a capsule lying on its side.
+   Both are gone; both sides read `place.ang`. The eleven arteries did not
+   need re-routing after all: they were already written in the cylinder's own
+   frame, silently, and writing that frame down (`route(out, across, along)`)
+   was the whole of it — across nineteen engine fixtures only the two in-line
+   rows changed a single vertex. What DID need moving was the CASE FURNITURE:
+   the oil filler, the coolant pump boss and the whole radiator sat on the
+   case's +y face, which is free air on a boxer and is where an upright
+   in-line's barrels stand. GATE ENGMESH gains **the drawn engine must stand
+   the way its envelope says** — the check whose absence let this run a
+   fortnight, because `_eng_check` and GATE COWL both read the envelope.
+   NOW UNBLOCKED, not built: **"in-line engine choice up/down/left/right"** is
+   a table row and nothing else, and the small in-lines (a Walter Mikron) can
+   be added — G157 held them back only because they would have been drawn
+   sideways.
 3. **Exhaust, properly** — **THE OUTLET LANDED as G155, 2026-09-02.** The
    routed pipes, the stacks, the radial ring and the per-bank collectors all
    already existed; what did not was any say over where the pipe ENDS. Five
@@ -200,10 +209,25 @@ or medium, and each one directly multiplies what you can build tonight.*
    drag the airframe's mount with it. The rubber pucks stay rubber (G104's
    rule). GATE SKINMAT holds the section, its finish, its parent, and the
    hardware fact it was written against.
-7. **The decal kit** [M-L]. Ready-to-apply layered decals: stripes, two- and
-   three-colour schemes, transparency, the bent fore/aft two-tone transition,
-   several layers. Extends G69/G113; state extends `spec.finish.decals`. Take
-   the both-sides-or-neither debt (G69) with it.
+7. ~~**The decal kit.**~~ **DONE — G162, 2026-09-03.** Five patterns —
+   cheat line, twin stripe, sweep, flash, chequer — over three independent
+   layers, each with its own colours, two shape knobs, opacity and placement.
+   **A PATTERN IS A RECIPE, NOT PIXELS**, which is why unlike the two image
+   channels it fits in `spec.finish.decals`, travels with the build and is
+   redrawn on the flight side — verified by rolling one out and photographing
+   it on the apron. Nothing new underneath: no shader branch, no second
+   geometry; `AERO_MAXD` went 4 to 6 and `uDecC.w` (documented "unused") is
+   now the per-decal mirror flag. **TWO DEFECTS ONLY A PICTURE FOUND** — a
+   layer opened in a frame its own default numbers were not written in (the
+   same 2.2 lands 4.85 m aft in the box projection, off the back of a light
+   aeroplane), and a livery run through the registration's far-flank mirror
+   rose AFT on one side of the aeroplane and FORE on the other. GATE SKINMAT
+   +35 check sites, 22/22 negative probes caught.
+   STILL OWED: **the both-sides-or-neither debt (G69)** — the roadmap asked
+   for it here and the kit did not need it, because a livery IS symmetric; an
+   asymmetric marking still wants a one-sided mask the surface field cannot
+   supply. And a sweep stops at its own rectangle, so that bottom edge is a
+   hard line — give the layer depth enough to swallow the belly.
 8. **The travel pod** [M]. A belly/baggage pod as a real solid with honest
    mass, GEN_ACCESS-style.
 9. **Wilga-type suspension** [M]. A leg family on G148's drawn-place + delta

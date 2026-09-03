@@ -2470,6 +2470,36 @@ let decApplyRanges = () => {};
 // `spec.finish` carries DEVIATIONS and a deviation needs something to deviate
 // from — and because a reset has to have somewhere to reset TO.
 const DEC_DEF = JSON.parse(JSON.stringify(DEC));
+// THE KIT'S KEYS ARRIVE LATE, AND THEY HAVE TO (G162). This file is bundled
+// AHEAD of aeroskin.js — measured rather than assumed: in index.html the
+// editor block sits at 3.17 MB and `window.AEROSKIN =` at 3.54 MB — so the
+// FALLBACK literal above is the branch that actually runs in the game, and
+// writing the kit's forty-eight defaults into it would be a second copy of
+// exactly the table G160 spent an arc reducing to one.
+//
+// So they are FOLDED IN the first time AEROSKIN can be reached, into DEC and
+// DEC_DEF both. DEC_DEF is the one that matters: every door that saves or
+// loads a marking walks `for (const k in DEC_DEF)`, so a key missing from it
+// is a setting that silently does not persist — which is the shape of the bug
+// G160 fixed one layer up, arriving one layer down.
+//
+// THREE DOORS CALL IT, and they are the three that touch DEC_DEF: the export,
+// the load, and the panel. Idempotent, so calling it a fourth time costs a
+// boolean.
+let decKitIn = false;
+function decKitDefaults() {
+  if (decKitIn) return true;
+  const A = AK();
+  if (!A || !A.AERO_KIT_LDEF || !A.AERO_KIT_FIELDS || !A.AERO_KIT_LAYERS)
+    return false;
+  for (let i = 1; i <= A.AERO_KIT_LAYERS; i++)
+    for (const k of A.AERO_KIT_FIELDS) {
+      const key = 'm' + i + k;
+      if (!(key in DEC_DEF)) DEC_DEF[key] = A.AERO_KIT_LDEF[k];
+      if (!(key in DEC)) DEC[key] = A.AERO_KIT_LDEF[k];
+    }
+  return (decKitIn = true);
+}
 let decPanel = null, decImgAspect = 1;
 // THE REGISTRATION IS NOT A PREFERENCE (G160). Everything else in DEC is a
 // placement the builder likes and may reasonably carry from one session to the
@@ -2520,6 +2550,7 @@ function decSavePrefs() {
 // section, these choices", and it makes "has this section been touched at all"
 // a question with an answer.
 function finishToSpec() {
+  decKitDefaults();
   const sections = {};
   let n = 0;
   const names = new Set([].concat(
@@ -2559,6 +2590,7 @@ function finishToSpec() {
 // paint underneath — which is the bug the whole block exists to fix. Null is
 // the factory finish and is a complete instruction, not a missing one.
 function finishFromSpec(f) {
+  decKitDefaults();
   for (const m of [secFin, secTint, secTile, secRough, secNrm, secWear])
     for (const k in m) delete m[k];
   // AND THE REGISTRATION IS CLEARED WITH THE REST (G160). This used to carry
@@ -2833,6 +2865,7 @@ function decRange() {
 function buildDecPanel() {
   const A = AK();
   if (!A || decPanel) return;
+  decKitDefaults();
   decLoadPrefs();
   decPanel = document.createElement('details');
   decPanel.dataset.g = 'decals';
@@ -2840,11 +2873,13 @@ function buildDecPanel() {
   const body = document.createElement('div');
   decPanel.appendChild(body);
   ui.insertBefore(decPanel, lg);
-  const row = (label, title) => {
+  // the optional PARENT is what lets the kit put its layers in nested
+  // <details> instead of adding forty-two rows to one flat panel
+  const row = (label, title, parent) => {
     const d = document.createElement('div'); d.className = 'r';
     const k = document.createElement('span');
     k.className = 'k'; k.textContent = label; k.title = title || label;
-    d.appendChild(k); body.appendChild(d); return d;
+    d.appendChild(k); (parent || body).appendChild(d); return d;
   };
   // WHAT A SLIDER MAY REACH IS THE AEROPLANE'S OWN SIZE (G108). The image
   // width was capped at a literal 4.0 m — the user: "the image max width is
@@ -2853,8 +2888,8 @@ function buildDecPanel() {
   // every rebuild and moves the bounds with it, so a 16 m biplane and a 6 m
   // single-seater both get a slider that reaches their own tips.
   const ranged = [];
-  const num = (lab, key, lo, hi, step, title, span) => {
-    const d = row(lab, title);
+  const num = (lab, key, lo, hi, step, title, span, parent) => {
+    const d = row(lab, title, parent);
     const i = document.createElement('input');
     i.type = 'range'; i.min = lo; i.max = hi; i.step = step;
     i.value = DEC[key]; i.style.flex = '1';
@@ -2869,8 +2904,8 @@ function buildDecPanel() {
     GREY[key] = on => { i.disabled = !on; d.style.opacity = on ? '' : '.45'; };
     return d;
   };
-  const flag = (lab, key, title, onChange) => {
-    const d = row(lab, title);
+  const flag = (lab, key, title, onChange, parent) => {
+    const d = row(lab, title, parent);
     const c = document.createElement('input');
     c.type = 'checkbox'; c.checked = !!DEC[key];
     c.onchange = () => { DEC[key] = c.checked ? 1 : 0;
@@ -2878,8 +2913,8 @@ function buildDecPanel() {
     d.appendChild(c);
     return d;
   };
-  const pick = (lab, key, names, title, onChange) => {
-    const d = row(lab, title);
+  const pick = (lab, key, names, title, onChange, parent) => {
+    const d = row(lab, title, parent);
     const sel2 = document.createElement('select'); sel2.style.flex = '1';
     names.forEach((n, i) => { const o = document.createElement('option');
       o.value = i; o.textContent = n; sel2.appendChild(o); });
@@ -2891,6 +2926,7 @@ function buildDecPanel() {
       decSavePrefs(); applyDecals(); draw();
     };
     d.appendChild(sel2);
+    return d;
   };
   // the registration
   {
@@ -2978,6 +3014,137 @@ function buildDecPanel() {
        'mirrored about the spine, which is what a registration wants');
   pick('projected as', 'regMode', MODE_NAMES, MODE_HELP,
        (a, b) => decReframe(a, b, { l: 'regL', c: 'regC' }));
+
+  // ---- THE MARKING KIT (G162) --------------------------------------------
+  // Three layers, each its own <details>, and every row GENERATED from
+  // AERO_KIT's own table rather than typed out here. That is not tidiness: a
+  // pattern declares its two knobs' names, ranges and defaults and its colour
+  // slots' names, so a pattern that arrives without them cannot get a panel,
+  // and a panel cannot go on offering a knob a pattern stopped having.
+  //
+  // THE KIT IS FIRST IN THE PAINT ORDER and LAST-BUT-ONE in the panel, which
+  // is deliberate: the registration is the row people open this panel for, and
+  // the image channels below are the ones almost nobody uses.
+  if (A.AERO_KIT && A.AERO_KIT_LAYERS) {
+    const KIT = A.AERO_KIT;
+    const patOf = key => KIT[Math.max(0, Math.min(KIT.length - 1,
+                           Math.round(+DEC[key] || 0)))];
+    const hexOf = v => '#' + ((v == null ? 0 : v) >>> 0).toString(16)
+                              .padStart(6, '0');
+    for (let li = 1; li <= A.AERO_KIT_LAYERS; li++) {
+      const q = 'm' + li;
+      const det = document.createElement('details');
+      det.dataset.g = 'livery/' + li;
+      const sum = document.createElement('summary');
+      det.appendChild(sum); body.appendChild(det);
+      // WHAT THE PATTERN CHANGES, collected rather than chased: a colour slot
+      // that has to relabel, a knob that has to re-range, a help string that
+      // has to follow. One list, one call, and no row can be forgotten in the
+      // handler of a pattern added later.
+      const refresh = [];
+      const say = () => {
+        const on = !!DEC[q + 'On'];
+        sum.textContent = 'livery ' + li + ' — ' +
+          (on ? patOf(q + 'Pat').name : 'off');
+        sum.style.opacity = on ? '' : '.55';
+      };
+      const redo = () => { for (const f of refresh) f(); say(); };
+
+      flag('on', q + 'On', 'paint this layer onto the aeroplane',
+           () => { if (DEC[q + 'On']) det.open = true; redo(); }, det);
+      const pd = pick('pattern', q + 'Pat', KIT.map(k => k.name), '',
+        () => {
+          // THE KNOBS ARE CLEARED, NOT CARRIED. 8 squares and a 0.08 bend are
+          // not the same number wearing two labels, and a knob carried across
+          // a pattern change is how a chequer becomes a one-square sweep.
+          // null is "this pattern's own default", which is the only thing a
+          // shared value can honestly mean here.
+          DEC[q + 'P'] = null; DEC[q + 'Q'] = null;
+          redo();
+        }, det);
+      refresh.push(() => {
+        const k = pd.querySelector('span.k'), pat = patOf(q + 'Pat');
+        if (k) k.title = pat.help || pat.name;
+      });
+
+      // the colour slots the CURRENT pattern actually has: a cheat line takes
+      // a band and a keyline, a twin stripe takes three, and a slot a pattern
+      // does not read is hidden rather than greyed — there is no colour there
+      // to be disabled.
+      const kwell = (slot, key) => {
+        const d = row('', '', det);
+        const kk = d.querySelector('span.k');
+        const c = document.createElement('input');
+        c.type = 'color'; c.style.flex = 'none';
+        wellRecent(c);                                   // G156
+        c.value = hexOf(DEC[key]);
+        c.oninput = () => { DEC[key] = parseInt(c.value.slice(1), 16);
+          decSavePrefs(); applyDecals(); draw(); };
+        d.appendChild(c);
+        refresh.push(() => {
+          const pat = patOf(q + 'Pat'), nm = pat.cn && pat.cn[slot];
+          d.style.display = nm ? '' : 'none';
+          if (nm && kk) { kk.textContent = nm; kk.title = nm + ' — ' + pat.name; }
+          c.value = hexOf(DEC[key]);
+        });
+      };
+      kwell(0, q + 'A'); kwell(1, q + 'B'); kwell(2, q + 'D');
+
+      // THE TWO KNOBS, re-ranged and relabelled from the table on every
+      // pattern change. A slider that keeps 0..0.6 while the pattern under it
+      // counts squares is a control that lies, and this panel has no room for
+      // one: aeroKitKnob is the same clamp the drawing uses, so what the row
+      // shows is what the page gets.
+      const knob = j => {
+        const key = q + (j ? 'Q' : 'P');
+        const d = row('', '', det);
+        const kk = d.querySelector('span.k');
+        const i = document.createElement('input');
+        i.type = 'range'; i.style.flex = '1';
+        const v = document.createElement('span'); v.className = 'v';
+        const show = () => {
+          const pat = patOf(q + 'Pat'), kd = pat.k && pat.k[j];
+          if (!kd) { d.style.display = 'none'; return; }
+          d.style.display = '';
+          if (kk) { kk.textContent = kd.n; kk.title = kd.n + ' — ' + pat.name; }
+          i.min = kd.lo; i.max = kd.hi; i.step = kd.st;
+          const cur = A.aeroKitKnob(pat, j, DEC[key]);
+          i.value = cur;
+          v.textContent = kd.st >= 1 ? String(Math.round(cur)) : cur.toFixed(2);
+        };
+        i.oninput = () => { DEC[key] = +i.value; show();
+          decSavePrefs(); applyDecals(); draw(); };
+        d.appendChild(i); d.appendChild(v);
+        refresh.push(show);
+      };
+      knob(0); knob(1);
+
+      num('opacity', q + 'Alp', 0, 1, 0.02,
+          'a transparent layer lets what is under it through — which is how ' +
+          'two kit layers read as one scheme instead of two stickers',
+          null, det);
+      flag('mirror', q + 'Flip',
+           'flip the pattern fore-and-aft. A sweep that rises AFT becomes one ' +
+           'that rises FORE, and it is the same pattern either way',
+           null, det);
+      num('station', q + 'L', -1.0, 6.0, 0.05,
+          'metres AFT of the firewall', 'len', det);
+      num('height on side', q + 'C', -1.2, 1.2, 0.02,
+          'metres around the section from the waist rail, + upward', 'up', det);
+      num('length', q + 'W', 0.10, 6.0, 0.05,
+          'metres the pattern is stretched over, nose to tail', 'len', det);
+      num('depth', q + 'H', 0.05, 3.0, 0.02,
+          'metres the pattern is stretched over, top to bottom', 'up', det);
+      num('turn', q + 'Rot', -0.6, 0.6, 0.01, 'radians', null, det);
+      pick('goes on', q + 'Tgt',
+           ['the fuselage', 'the flying surfaces', 'both', 'the body & the tail'],
+           'a kit layer lands on BOTH flanks by construction, like every ' +
+           'decal in this panel', null, det);
+      pick('projected as', q + 'Mode', MODE_NAMES, MODE_HELP,
+           (was, now) => decReframe(was, now, { l: q + 'L', c: q + 'C' }), det);
+      redo();
+    }
+  }
 
   // ---- ONE CHANNEL PER SUBJECT (G108) ------------------------------------
   // The user: "the fuselage projection and the fin projection should be one

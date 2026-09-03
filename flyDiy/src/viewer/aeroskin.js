@@ -853,7 +853,11 @@ function aeroDetailTex(THREE, key) {
 //
 // THE PRICE, declared: a decal is on BOTH sides or neither. An asymmetric
 // marking needs a one-sided mask, which the field cannot supply.
-const AERO_MAXD = 4;
+// SIX, and the number is not a guess: three kit layers, the registration and
+// the two image channels. Every one of these is an unrolled iteration of a
+// texture fetch in the fragment shader, so the array is sized to what the
+// panel can actually turn on and not to a round number.
+const AERO_MAXD = 6;
 const AERO_ATLAS_N = 4;              // 4x4 pages
 const AERO_ATLAS_PX = 1024;
 let AERO_ATLAS = null, AERO_ATLAS_CV = null;
@@ -1003,7 +1007,13 @@ function aeroSharedU(THREE) {
     uDecN:  { value: 0 },
     uDecA:  { value: z4() },     // xy centre (sL, sC) m, zw half-size m
     uDecB:  { value: z4() },     // atlas rect u0 v0 du dv
-    uDecC:  { value: z4() },     // x rot, y roughness delta, z opacity, w unused
+    // w: MIRRORS ON THE FAR FLANK (G162). 0 is what every decal did before —
+    // the along-body axis is negated over there so a REGISTRATION reads
+    // left-to-right from both sides. 1 keeps the physical direction, which is
+    // what PAINT wants: a two-tone that rises aft must rise aft from both
+    // sides, and mirroring it makes it rise aft on one flank and fore on the
+    // other. Zero is the old behaviour, so nothing that existed changes.
+    uDecC:  { value: z4() },     // x rot, y roughness delta, z opacity, w mirror
     // G108: x mode (0 field, 1 box SIDE view, 2 box PLAN view), then one
     // flag per surface CLASS — body, wing, tail. A mask of three floats and
     // not a packed bitfield: three comparisons are exact and legible where
@@ -1152,6 +1162,262 @@ const AERO_DEC_ON = [
 ];
 const AERO_DEC_MODES = ['field', 'side', 'plan'];
 
+// ===========================================================================
+// THE MARKING KIT (G162) — READY-TO-APPLY LIVERY, DRAWN FROM A RECIPE
+// ===========================================================================
+// The user's ask, in their own words: "ready to apply decals, 2 to 3 colours,
+// possible transparency, stripes, dual colour with bended transition (bend
+// upwards aft/fore), etc. Possibly several layers, with transparency."
+//
+// A KIT PATTERN IS A RECIPE, NOT PIXELS, AND THAT IS THE WHOLE POINT. The two
+// image channels above cannot reach the flown aeroplane and the file says so:
+// `finish.decals` records WHERE a livery image sits and never what it looks
+// like, so an imported picture lives exactly as long as the browser tab. A
+// pattern is five numbers and three colours; it fits in the spec, it travels
+// with the build, and `aeroDecalsFor` redraws it from that recipe on whichever
+// side is asking. The kit is therefore the ONLY marking besides the
+// registration that survives being saved, sent and flown.
+//
+// AND IT COSTS NOTHING NEW UNDERNEATH. A pattern is drawn into an atlas page
+// and placed by the same eight numbers a registration is placed by — position,
+// size, turn, opacity, surface class, projection. No shader branch, no second
+// geometry, no unwrap. The only thing that had to grow is AERO_MAXD, because
+// three layers plus a registration plus two images is six decals and the
+// array held four.
+//
+// 256 PIXELS A PAGE IS ENOUGH, and the reason is worth writing down because it
+// looks as though it should not be. A cheat line stretched 5 m along the body
+// samples the page at 20 mm per pixel ALONG — and a stripe has no detail along
+// its length. Across, the same page covers the 0.9 m the decal is tall, which
+// is 3.5 mm per pixel, and across is where every edge in this kit runs. The
+// resolution is in the direction the detail is in. A pattern whose interest
+// ran the other way — a row of small badges down the flank — would need a page
+// per badge, which is what the image channel is for.
+//
+// WHY EACH PATTERN CARRIES ITS OWN TWO KNOBS. `chequer` counts squares (2..16)
+// and `sweep` measures a fraction of a page (0..0.6); one shared slider range
+// cannot serve both, and a knob whose meaning changes silently under a fixed
+// label is how a builder ends up with 8 metres of bend. The table declares the
+// name, the range and the default, and the panel is generated from it — so a
+// new pattern arrives complete with its controls and cannot arrive without
+// them.
+const AERO_KIT_PAGE0 = 3;        // 0 is the registration, 1 and 2 the images
+const AERO_KIT_LAYERS = 3;
+
+// THE KIT'S THREE LAYERS (G162), generated rather than written out, because
+// forty-eight hand-typed defaults is forty-eight chances for layer 3 to differ
+// from layers 1 and 2 in one field nobody notices. Off by default: an
+// aeroplane nobody has decorated wears what it always wore.
+//
+// THE KNOBS DEFAULT TO null AND THAT IS DELIBERATE — null means "this
+// pattern's own default", which is the only thing a shared default CAN mean
+// when the ranges are 2..16 for one pattern and 0..0.6 for the next.
+const AERO_KIT_LDEF = {
+  On: 0, Pat: 0,
+  A: 0xb42d2d, B: 0xffffff, D: 0x1b3a5c,
+  Alp: 1, P: null, Q: null,
+  L: 2.20, C: 0.10, W: 5.00, H: 0.90,
+  // THE FIELD FRAME, and the default placement is written in it. `side` is a
+  // box projection through the whole craft, so its station is measured from
+  // the craft root and not from the firewall: the same 2.2 lands 4.85 m aft in
+  // field terms — off the back of a light aeroplane. A layer must be ON the
+  // aeroplane the moment it is switched on, which is what "ready to apply"
+  // means; decReframe converts the placement for a builder who wants a box.
+  Rot: 0, Tgt: 0, Mode: 0, Flip: 0,
+};
+const AERO_KIT_FIELDS = Object.keys(AERO_KIT_LDEF);
+for (let i = 1; i <= AERO_KIT_LAYERS; i++)
+  for (const k of AERO_KIT_FIELDS) AERO_DEC_DEF['m' + i + k] = AERO_KIT_LDEF[k];
+
+const AERO_KIT = [
+  // CANVAS ORIENTATION, once, because every draw below depends on it and it is
+  // not obvious: q.x comes from the along-body coordinate and q.y from the
+  // around/up one, and the page rect accounts for flipY — so on this canvas
+  // LEFT IS FORWARD, RIGHT IS AFT and UP IS UP. Patterns overhang the ends by
+  // a couple of pixels on purpose: the decal rect is a window, and a stripe
+  // that stops short of it grows a keyline across its end.
+  { name: 'cheat line', cn: ['band', 'keyline'],
+    help: 'one band with a keyline above and below — the stripe that runs the ' +
+          'length of nearly every light aeroplane',
+    k: [{ n: 'band width', lo: 0.04, hi: 0.90, st: 0.01, def: 0.26 },
+        { n: 'keyline width', lo: 0, hi: 0.40, st: 0.01, def: 0.14 }],
+    draw(g, P, o) {
+      const h = Math.max(2, o.p * P), y = (P - h) / 2, e = o.q * h * 0.5;
+      if (e >= 0.5) { g.fillStyle = o.b; g.fillRect(-2, y - e, P + 4, h + 2 * e); }
+      g.fillStyle = o.a; g.fillRect(-2, y, P + 4, h);
+    } },
+
+  { name: 'twin stripe', cn: ['upper band', 'lower band', 'keyline'],
+    help: 'two bands and a gap, in two colours over a shared keyline — the ' +
+          'second colour is what makes a livery read as a scheme',
+    k: [{ n: 'band width', lo: 0.02, hi: 0.40, st: 0.01, def: 0.13 },
+        { n: 'gap', lo: 0, hi: 0.50, st: 0.01, def: 0.09 }],
+    draw(g, P, o) {
+      const h = Math.max(2, o.p * P), gap = o.q * P;
+      const top = (P - (2 * h + gap)) / 2;
+      const e = Math.min(h * 0.35, Math.max(1, P * 0.014));
+      // THE GAP IS A HOLE, NOT A THIRD STRIPE. Drawing one keyline rectangle
+      // behind both bands is a line shorter and floods the gap with the
+      // keyline colour, which is a solid three-colour block and not a twin
+      // stripe at all.
+      const band = (y, col) => {
+        g.fillStyle = o.d; g.fillRect(-2, y - e, P + 4, h + 2 * e);
+        g.fillStyle = col; g.fillRect(-2, y, P + 4, h);
+      };
+      band(top, o.a);
+      band(top + h + gap, o.b);
+    } },
+
+  { name: 'sweep', cn: ['below the line', 'the line'],
+    help: 'the two-tone split with a bent transition: everything below the ' +
+          'line in one colour, the line rising aft — mirror it to rise fore. ' +
+          'Give it enough DEPTH to swallow the belly: the fill stops at the ' +
+          'bottom of the layer’s own rectangle, and that edge is a hard one',
+    k: [{ n: 'level', lo: 0.05, hi: 0.95, st: 0.01, def: 0.44 },
+        { n: 'bend', lo: 0, hi: 0.60, st: 0.01, def: 0.24 }],
+    draw(g, P, o) {
+      const y0 = (1 - o.p) * P, y1 = y0 - o.q * P;
+      // FLAT, THEN RISING — both control points are weighted forward so the
+      // line leaves the nose level and lifts over the back half. A straight
+      // interpolation between the two heights gives a wedge, which is a racing
+      // stripe and not the shape the user asked for.
+      const line = () => {
+        g.beginPath();
+        g.moveTo(-2, y0);
+        g.bezierCurveTo(P * 0.46, y0, P * 0.60, y1, P + 2, y1);
+      };
+      line();
+      g.lineTo(P + 2, P + 4); g.lineTo(-2, P + 4); g.closePath();
+      g.fillStyle = o.a; g.fill();
+      g.lineWidth = Math.max(1.5, P * 0.016);
+      g.strokeStyle = o.b;
+      line(); g.stroke();
+    } },
+
+  { name: 'flash', cn: ['band', 'keyline'],
+    help: 'the kinked stripe — the Cub lightning bolt, and every stripe that ' +
+          'steps up over the cabin',
+    k: [{ n: 'band width', lo: 0.04, hi: 0.50, st: 0.01, def: 0.16 },
+        { n: 'step', lo: 0, hi: 0.60, st: 0.01, def: 0.28 }],
+    draw(g, P, o) {
+      const w = Math.max(2, o.p * P), s = o.q * P;
+      const yA = P * 0.5 + s * 0.5, yB = P * 0.5 - s * 0.5;
+      const path = () => {
+        g.beginPath();
+        g.moveTo(-4, yA); g.lineTo(P * 0.34, yA);
+        g.lineTo(P * 0.56, yB); g.lineTo(P + 4, yB);
+      };
+      g.lineCap = 'butt'; g.lineJoin = 'miter'; g.miterLimit = 8;
+      g.strokeStyle = o.b; g.lineWidth = w + Math.max(2, P * 0.03);
+      path(); g.stroke();
+      g.strokeStyle = o.a; g.lineWidth = w;
+      path(); g.stroke();
+    } },
+
+  { name: 'chequer', cn: ['squares', 'the others'],
+    help: 'alternating squares — a rudder, a cowl band, a wing tip',
+    k: [{ n: 'along', lo: 2, hi: 16, st: 1, def: 8 },
+        { n: 'across', lo: 1, hi: 8, st: 1, def: 2 }],
+    draw(g, P, o) {
+      const nx = Math.max(1, Math.round(o.p)), ny = Math.max(1, Math.round(o.q));
+      const cw = P / nx, ch = P / ny;
+      for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+        g.fillStyle = ((i + j) & 1) ? o.b : o.a;
+        // the half-pixel overlap is not sloppiness: adjacent fills that meet
+        // exactly leave an antialiased seam, and a seam through a chequer is
+        // a grey grid the builder never asked for
+        g.fillRect(i * cw - 0.5, j * ch - 0.5, cw + 1, ch + 1);
+      }
+    } },
+];
+
+// A KNOB IS CLAMPED TO ITS OWN PATTERN'S RANGE, and an unset one takes that
+// pattern's default rather than zero. Unset is the normal state: switching
+// pattern CLEARS both knobs, because 8 squares and a 0.08 bend are not the
+// same number wearing different labels.
+function aeroKitKnob(pat, j, v) {
+  const k = pat && pat.k && pat.k[j];
+  if (!k) return 0;
+  const x = (v == null || v === '') ? k.def : +v;
+  return Math.max(k.lo, Math.min(k.hi, x !== x ? k.def : x));
+}
+
+// THE LAYERS OF A PLACEMENT, resolved and nothing drawn — so the arithmetic
+// that decides which page a layer owns, what its knobs mean and where it lands
+// can be proven in node, where there is no canvas. The draw is the half that
+// needs one, and it is separate for exactly that reason.
+function aeroKitLayers(D) {
+  const out = [];
+  if (!D) return out;
+  const onOf = t => AERO_DEC_ON[Math.max(0, Math.min(3, +t || 0))];
+  const modeOf = m => AERO_DEC_MODES[Math.max(0, Math.min(2, +m || 0))];
+  for (let i = 0; i < AERO_KIT_LAYERS; i++) {
+    const q = 'm' + (i + 1);
+    if (!D[q + 'On']) continue;
+    const pi = Math.max(0, Math.min(AERO_KIT.length - 1,
+                 Math.round(+D[q + 'Pat'] || 0)));
+    const pat = AERO_KIT[pi], page = AERO_KIT_PAGE0 + i;
+    out.push({
+      page, pat: pi, name: pat.name,
+      a: D[q + 'A'], b: D[q + 'B'], d: D[q + 'D'],
+      p: aeroKitKnob(pat, 0, D[q + 'P']),
+      q: aeroKitKnob(pat, 1, D[q + 'Q']),
+      flip: D[q + 'Flip'] ? 1 : 0,
+      place: {
+        page,
+        sL: +D[q + 'L'] || 0, sC: +D[q + 'C'] || 0,
+        w: Math.max(0.02, +D[q + 'W'] || 0.02),
+        h: Math.max(0.02, +D[q + 'H'] || 0.02),
+        rot: +D[q + 'Rot'] || 0,
+        // a painted stripe is paint on paint: smoother than the weave under
+        // it, and by less than a registration's ink is
+        rough: -0.05,
+        // PAINT, NOT LETTERING: hold the physical direction on both flanks.
+        // Without this a sweep rises aft on one side of the aeroplane and
+        // fore on the other, which is the picture that found the defect.
+        noMirror: 1,
+        opacity: Math.max(0, Math.min(1,
+          D[q + 'Alp'] == null ? 1 : (+D[q + 'Alp'] || 0))),
+        on: onOf(D[q + 'Tgt']), mode: modeOf(D[q + 'Mode']),
+      },
+    });
+  }
+  return out;
+}
+
+// REDRAWN ONLY WHEN THE RECIPE CHANGES. Every one of these pages costs a fill
+// plus three dilation rounds over 65k pixels, and applyDecals runs on every
+// frame of a slider drag — so three layers redrawn unconditionally would put
+// a visible lag between the mouse and the picture. The signature is the whole
+// recipe, which is the only version of this cache that cannot go stale:
+// anything the draw reads is in it.
+const AERO_KIT_SIG = {};
+function aeroKitDraw(THREE, L) {
+  const t = aeroAtlas(THREE), S = AERO_ATLAS_PX, N = AERO_ATLAS_N;
+  const sig = [L.pat, L.a, L.b, L.d, L.p, L.q, L.flip].join('|');
+  if (AERO_KIT_SIG[L.page] === sig) return false;
+  AERO_KIT_SIG[L.page] = sig;
+  const P = S / N, px = (L.page % N) * P, py = Math.floor(L.page / N) * P;
+  const g = AERO_ATLAS_CV.getContext('2d');
+  const hex = v => '#' + ((v == null ? 0 : v) >>> 0).toString(16).padStart(6, '0');
+  g.save();
+  // CLIPPED, because a pattern overhangs its page on purpose and an overhang
+  // that reached the neighbouring page would paint the registration's cell.
+  g.beginPath(); g.rect(px, py, P, P); g.clip();
+  g.clearRect(px, py, P, P);
+  g.translate(px, py);
+  // MIRRORED HERE AND NOWHERE ELSE: "bend upwards aft" and "bend upwards
+  // fore" are one pattern seen two ways, and a second table row for the
+  // mirror is a second thing to keep in step with the first.
+  if (L.flip) { g.translate(P, 0); g.scale(-1, 1); }
+  AERO_KIT[L.pat].draw(g, P,
+    { a: hex(L.a), b: hex(L.b), d: hex(L.d), p: L.p, q: L.q });
+  g.restore();
+  aeroDilate(g, px, py, P, P, 3);
+  t.needsUpdate = true;
+  return true;
+}
+
 // D is a placement in AERO_DEC_DEF's shape; `opts` carries what the placement
 // does NOT own — the registration string and the paint it defaults its colour
 // to. Returns { list, aspect }: the caller gets the aspect back because the
@@ -1171,9 +1437,14 @@ function aeroDecalsFor(THREE, D, opts) {
   // to give it. Deriving it is what makes the flown marking the same shape as
   // the drawn one even when the two ran different fonts.
   const w = D.regLock ? D.regH * Math.max(1.2, aspect) : Math.max(0.02, D.regW);
-  const list = [{ page: 0, sL: D.regL, sC: D.regC, w, h: D.regH,
+  // THE KIT GOES ON FIRST because the shader mixes the list IN ORDER: a kit
+  // layer is paint, and a registration painted under its own cheat line is a
+  // registration you cannot read.
+  const list = [];
+  for (const L of aeroKitLayers(D)) { aeroKitDraw(THREE, L); list.push(L.place); }
+  list.push({ page: 0, sL: D.regL, sC: D.regC, w, h: D.regH,
                   rot: D.regRot, rough: -0.06,
-                  on: onOf(D.regTarget), mode: modeOf(D.regMode) }];
+                  on: onOf(D.regTarget), mode: modeOf(D.regMode) });
   if (D.imgOn) list.push({ page: 1, sL: D.imgL, sC: D.imgC, w: D.imgW,
     h: D.imgH, rot: D.imgRot, rough: -0.04,
     on: onOf(D.imgTarget), mode: modeOf(D.imgMode) });
@@ -1225,7 +1496,7 @@ function aeroSetDecals(THREE, list) {
       Math.max(1e-4, (d.w || 0.5) * 0.5), Math.max(1e-4, (d.h || 0.3) * 0.5));
     U.uDecB.value[i].set(r[0], r[1], r[2], r[3]);
     U.uDecC.value[i].set(d.rot || 0, d.rough || 0,
-      d.opacity != null ? d.opacity : 1, 0);
+      d.opacity != null ? d.opacity : 1, d.noMirror ? 1 : 0);
     const on = d.on || { body: 1 };
     U.uDecD.value[i].set(AERO_DEC_MODE[d.mode] || 0,
       on.body ? 1 : 0, on.wing ? 1 : 0, on.tail ? 1 : 0);
@@ -1328,7 +1599,7 @@ function aeroFastTex(THREE, gk, G) {
 }
 
 const AERO_PARS_FS = `
-#define AERO_MAXD 4
+#define AERO_MAXD 6
 uniform sampler2D tDetail;
 uniform sampler2D tFast;
 uniform vec4 uG0;   // x framePitch  y stringerPitch  z panelAlong  w panelAround
@@ -1776,14 +2047,20 @@ const AERO_ALBEDO_FS = `
     //   PLAN   the same in (lateral, along): a stripe crosses both wings as
     //          one thing, because that is what looking down at it does.
     float mode = uDecD[di].x;
-    vec2 fieldC = vec2((aeroM.x - uDecA[di].x) * aeroSideF,
+    // A REGISTRATION MIRRORS AND PAINT DOES NOT (G162). aeroSideF negates the
+    // along-body axis on the far flank so a marking reads the right way round
+    // from both sides — correct for letters, wrong for a livery: a sweep that
+    // rises aft on this side would rise FORE on the other, which no aeroplane
+    // has ever been painted. uDecC.w picks, and 0 is the old behaviour.
+    float mir = mix(aeroSideF, 1.0, step(0.5, uDecC[di].w));
+    vec2 fieldC = vec2((aeroM.x - uDecA[di].x) * mir,
                         aeroM.y - uDecA[di].y);
     // SIDE mirrors the far flank exactly as the field does, and for the same
     // reason: the glyph is laid out along one physical direction, and seen
     // from the other side that direction crosses the eye the other way.
     // PLAN does not — a plan view has one handedness and a stripe drawn
     // across the span is the same stripe from either wing tip.
-    vec2 sideC2 = vec2((aeroA.y - uDecA[di].x) * aeroSideF,
+    vec2 sideC2 = vec2((aeroA.y - uDecA[di].x) * mir,
                         aeroA.z - uDecA[di].y);
     vec2 planC = vec2(aeroA.x - uDecA[di].x, aeroA.y - uDecA[di].y);
     vec2 boxC = mix(sideC2, planC, step(1.5, mode));
@@ -2485,6 +2762,9 @@ if (typeof window !== 'undefined')
                       aeroDecalText, aeroDecalImage,
                       aeroAtlas, aeroPageRect, AERO_MAXD, AERO_ATLAS_N,
                       AERO_DEC_FONTS,
+                      AERO_KIT, AERO_KIT_LAYERS, AERO_KIT_PAGE0,
+                      AERO_KIT_LDEF, AERO_KIT_FIELDS,
+                      aeroKitKnob, aeroKitLayers, aeroKitDraw,
                       AERO_HARD, AERO_PROP_FIN, AERO_WEAR_K,
                       AERO_SEC, aeroSecResolve,
                       aeroHardFinish, aeroHardMat, aeroHardOn, aeroSetWear };
@@ -2499,4 +2779,11 @@ if (typeof module !== 'undefined')
                      // and "what does an unset field fall back to" is the half
                      // of G160 that a source regex cannot check.
                      AERO_DEC_DEF, aeroDecalMerge,
+                     // and the kit's PLACEMENT half (G162) for the same
+                     // reason: which page a layer owns, what its knobs resolve
+                     // to and where it lands are all arithmetic, and node has
+                     // no canvas to draw the other half with.
+                     AERO_KIT, AERO_KIT_LAYERS, AERO_KIT_PAGE0,
+                     AERO_KIT_LDEF, AERO_KIT_FIELDS,
+                     aeroKitKnob, aeroKitLayers,
                      AERO_SEC, aeroSecResolve };
