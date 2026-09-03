@@ -27624,3 +27624,113 @@ parameter, a row and a spec key.
 **And the small in-lines can be added.** G157 held back a Walter Mikron and
 its cousins "deliberately not added while they would be drawn sideways". They
 would not be, now.
+
+## G164 — THE IN-LINE ORIENTATION ROW
+## (2026-09-03, ROADMAP Phase 2 item 2, the user's "in line engine choice
+## up/down/r/l")
+
+`cylinders point` — **down (inverted) · up · left · right** — on the engine
+page, in the bench and in the game editor, saved with the build.
+
+### G163 SAID IT WAS A TABLE ROW, AND IT WAS
+
+The whole of the feature, on the physics side, is this:
+
+```js
+angles: (n, P) => {
+  const d = engAimDeg(P && P.inlineAim != null ? P.inlineAim : 1);
+  return Array.from({ length: n }, () => d);
+},
+```
+
+Everything downstream already reads that table. `engResolve` measures the
+ENVELOPE off these angles — so an in-line aimed left publishes 0.348 wide ×
+0.177 deep where an upright one publishes 0.139 × 0.386, and the cowl, which is
+built on the envelope, follows without being told. The MESH reads `place.ang`
+(G163), and every route in it follows the cylinder's own frame. **One row, one
+default, and no builder.**
+
+**AND ONE ROW REACHED FOUR PLACES.** `_cage_eng.js` renders `EP.GROUPS` and
+`engSpecOfP` walks the same list, so a single entry in `_eng_page.js` gave the
+bench row, the game editor row, the spec key and the default. That is G134's
+"one keeper" paying off; nothing had to be wired.
+
+### ONE TABLE OF DIRECTIONS
+
+The engine already had a "which way does it point" control — G155's exhaust
+outlet — with its own literal `AIM = [[0,-1],[0,1],[-1,0],[1,0]]` in
+`_eng_mesh.js`, and the bank needed the same four under the same four names.
+**Two copies of "which way is left" on one engine is exactly the shape of the
+defect G163 spent a chantier undoing**, so there is now one `ENG_AIM` in
+`_eng_gen.js` and everything derives from it: the exhaust takes the unit
+vector, the bank takes `engAimDeg` (the angle about the crank), and the panel
+GENERATES both drop lists rather than typing them. An index that meant 'left'
+in one row and 'right' in the other is a defect no picture would explain.
+
+The default is `1` — up — and not `0`, because the order is the exhaust's and
+changing it to make my default zero would have been the tail wagging the dog.
+
+### THREE OF THE FOUR WERE FREE. THE FOURTH WAS AN AEROPLANE FACT
+
+Left, right and up passed the whole engine battery on the first run. **Down
+did not**, and what it found is a real thing about engines rather than a bug in
+the arithmetic: the sump, the carburettor, the airbox and their two service
+lines all hang from ONE face of the crankcase, and on every engine drawn so far
+that face is the underside — a boxer's banks go sideways and an upright
+in-line's go up, so under is free either way. **An inverted in-line's barrels
+are there**, which is precisely why a Gipsy Major carries its induction on top.
+
+So the induction turns over with the bank (`iS`), and **only** the induction:
+`sumpY` stays the underside, because the exhaust leaves the HEADS and on an
+inverted engine the heads are down — the collector belongs under it, which is
+where a Gipsy Major's is. Flipping one constant for both would have run the
+exhaust up through the crankcase.
+
+Then the flipped sump landed in the radiator, and the gate said so in as many
+words (`radiator | sump`). G162's `radTop` — the gap measured from whatever is
+in the way — learned about the induction as well as the bank.
+
+### WHAT I DID NOT SHIP
+
+The first cut of G163's neighbour gave an in-line its own plug-lead route; this
+one nearly gave the inverted engine its own everything. Both times the answer
+was the same: express the FRAME and let one set of routes serve. The
+`inlineAim` row adds no branch to any route — `iS` is one sign on one face.
+
+### THE VERDICT
+
+`ENG CHECK: OK` with the aim's own arithmetic — an in-line aimed up or down is
+deeper than it is wide, aimed left or right is wider than it is deep, the
+default is straight up, an in-line naming no aim draws the upright one, and
+**the table and its angle agree about each of the four** (walk `engAimDeg` back
+through sin/cos and it must land on the vector it came from, or left and right
+have quietly swapped and nothing else would notice).
+
+GATE ENGMESH gains **three fixtures, not three checks** — inverted, on its side
+left, on its side right — so the WHOLE battery runs on each: connections, clip,
+kissing faces, density, the drawn-vs-envelope check G163 added. Writing three
+assertions about the three things I happened to think of would have missed both
+defects above; the fixtures found them on the first run.
+
+**8 of 8 negative probes caught**, across three gates: the row ignored, the
+default drifted, the angle formula transposed, the mesh keeping its own copy,
+a drop typing its own options, the induction not turning over, the radiator
+ignoring it, and no part claiming the row.
+
+That last one is GATE PARTS doing its job: **a row is invisible in the part
+tree until one part claims it**, and `eng_inlineAim` went straight into the
+engine's `geometry` group beside `eng_radialRows`, which is its exact analogue.
+
+### OWED
+
+- **The trunk entry.** `eng_inlineAim` belongs beside `eng_radialRows` in the
+  engine's `place.type` — the inspector's common trunk. It is in the working
+  tree but NOT in this commit, because that structure is another session's
+  in-flight G161 and is theirs to land.
+- The case's bolt flange still runs along the top and bottom centreline
+  whatever the aim. It collides with nothing (measured: the barrel root clears
+  it), and a real in-line splits its case on the crank plane, so the spine
+  ought to follow the bank. Cosmetic, and deliberately left.
+- `vee` is still the only architecture that refuses to draw, so `ENG_AIM` has
+  one consumer that could use it and does not: an inverted V is a real engine.
+

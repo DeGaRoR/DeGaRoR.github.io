@@ -75,6 +75,23 @@ const CASES = [
   { name: 'rotax 582-ish', spec: { arch: 'inline', cyl: 2, twoStroke: 1,
       geared: 1, liquid: 1, exStyle: 3, bore: 0.076, stroke: 0.064,
       rpm: 6500 } },
+  // THE OTHER THREE AIMS (G164). A row that turns the bank turns everything
+  // hung off it, so the honest way to hold it is to run the WHOLE battery on
+  // each — connections, clip, kissing faces, density — rather than to write
+  // three checks about the three things I happened to think of. Two of them
+  // found real defects on the first run: an INVERTED bank puts its barrels
+  // where the carburettor hangs (a Gipsy Major carries its induction on top
+  // for exactly that reason), and then put the flipped sump into the
+  // radiator.
+  { name: 'inline inverted (aim down)', spec: { arch: 'inline', cyl: 2,
+      twoStroke: 1, geared: 1, liquid: 1, exStyle: 3, bore: 0.076,
+      stroke: 0.064, rpm: 6500, inlineAim: 0 } },
+  { name: 'inline on its side (aim left)', spec: { arch: 'inline', cyl: 2,
+      twoStroke: 1, geared: 1, exStyle: 3, bore: 0.072, stroke: 0.068,
+      rpm: 6250, inlineAim: 2 } },
+  { name: 'inline on its side (aim right)', spec: { arch: 'inline', cyl: 1,
+      twoStroke: 1, geared: 1, exStyle: 3, bore: 0.072, stroke: 0.068,
+      rpm: 6250, inlineAim: 3 } },
   // the last registry row: the two-row radial with the collector ring
   { name: 'R-1830-ish', spec: { arch: 'radial', cyl: 14, radialRows: 2,
       geared: 1, exStyle: 2, bore: 5.5 * IN, stroke: 5.5 * IN, rpm: 2700 } },

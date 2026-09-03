@@ -11,7 +11,8 @@
 // is the finding.
 'use strict';
 const path = require('path');
-const { engResolve, engBuild, ENG_ARCH } = require('./_eng_gen.js');
+const { engResolve, engBuild, ENG_ARCH,
+        ENG_AIM, engAimDeg, ENG_DEFAULT } = require('./_eng_gen.js');
 
 const IN = 0.0254;
 // bore/stroke/rpm are the manufacturers'; mass and power are the REGISTRY's,
@@ -145,6 +146,49 @@ hard('a flat four is wider than it is tall', flat.w > flat.h,
 hard('an inline is taller than it is wide', inl.h > inl.w,
      f(inl.h, 3) + ' vs ' + f(inl.w, 3));
 
+// ---- THE AIM TURNS THE ENVELOPE, AND THE ENVELOPE IS WHAT THE COWL FITS ---
+// (G164, the user's "in line engine choice up/down/r/l".) This is the whole
+// claim of the feature stated as arithmetic: a bank pointing up or down makes
+// a NARROW DEEP engine and a bank pointing left or right makes a WIDE SHALLOW
+// one, and `engResolve` measures both off the same placement rule the mesh
+// draws from. If this ever stopped holding, a cowl would be built around a
+// shape the engine does not have — which is exactly the defect G163 closed.
+{
+  const inlAt = i => engResolve({ arch: 'inline', cyl: 4, inlineAim: i });
+  const nm = i => ENG_AIM[i].name;
+  for (const i of [0, 1]) {                     // down, up
+    const e = inlAt(i).env;
+    hard('an inline aimed ' + nm(i) + ' is deeper than it is wide',
+         e.height > e.width, f(e.height, 3) + ' vs ' + f(e.width, 3));
+  }
+  for (const i of [2, 3]) {                     // left, right
+    const e = inlAt(i).env;
+    hard('an inline aimed ' + nm(i) + ' is wider than it is deep',
+         e.width > e.height, f(e.width, 3) + ' vs ' + f(e.height, 3));
+  }
+  // AND THE DEFAULT IS THE ENGINE THAT WAS ALREADY THERE. A default that
+  // drifted would repaint every saved in-line without anyone asking.
+  hard('the default aim is straight up',
+       engAimDeg(ENG_DEFAULT.inlineAim) === 0,
+       'deg ' + engAimDeg(ENG_DEFAULT.inlineAim));
+  const dflt = engResolve({ arch: 'inline', cyl: 4 }).env;
+  const up = inlAt(1).env;
+  hard('an inline with no aim named draws the upright one',
+       dflt.width === up.width && dflt.height === up.height);
+  // THE TABLE AND THE ANGLE ARE THE SAME FACT. `engAimDeg` turns a direction
+  // into an angle about the crank; walking it back through (sin, cos) has to
+  // land on the direction it came from, or 'left' and 'right' have quietly
+  // swapped and nothing else would notice.
+  for (let i = 0; i < ENG_AIM.length; i++) {
+    const r = engAimDeg(i) * Math.PI / 180;
+    hard('the aim table and its angle agree about ' + nm(i),
+         Math.abs(Math.sin(r) - ENG_AIM[i].v[0]) < 1e-9 &&
+         Math.abs(Math.cos(r) - ENG_AIM[i].v[1]) < 1e-9,
+         '[' + f(Math.sin(r), 3) + ', ' + f(Math.cos(r), 3) + '] vs [' +
+         ENG_AIM[i].v + ']');
+  }
+}
+
 // ---- the knobs move the right things ------------------------------------
 const base = engResolve({});
 const geared = engResolve({ geared: 1 });
@@ -254,6 +298,25 @@ console.log('A-65 identity (the fleet\'s anchor): ' +
     f(e.torque, 2) + ' Nm, ' + f(e.powerW, 0) + ' W cont / ' +
     f(e.powerPeakW, 0) + ' W burst, ' + f(e.motorMass * 1000, 0) +
     ' g motor  (registry: 180 W, 100 g w/ mount+ESC)');
+}
+
+// ---- ONE TABLE OF DIRECTIONS (G164) --------------------------------------
+// The exhaust OUTLET and the in-line BANK both answer "which way does it
+// point", and before this row they answered from two different literals. An
+// index that means 'left' in one row and 'right' in the other is a defect no
+// picture would explain and no other check would catch, so both derive from
+// ENG_AIM and the panel generates BOTH drops from it.
+{
+  const fs2 = require('fs');
+  const rd = f2 => fs2.readFileSync(path.join(__dirname, f2), 'utf8');
+  const MESH = rd('_eng_mesh.js'), PAGE = rd('_eng_page.js');
+  hard('aim: the mesh keeps its own copy of the four directions',
+       MESH.indexOf('const AIM = [[0, -1], [0, 1], [-1, 0], [1, 0]]') < 0);
+  hard('aim: the exhaust outlet does not read the shared table',
+       MESH.indexOf('EG.ENG_AIM[') >= 0);
+  const nGen = PAGE.split('EG.ENG_AIM.map(').length - 1;
+  hard('aim: a "points" row types its own option list instead of generating ' +
+       'it from the table', nGen === 2, nGen + ' of 2 generated');
 }
 console.log(fail ? '\nENG CHECK: FAIL (' + fail + ')' : '\nENG CHECK: OK');
 process.exit(fail ? 1 : 0);

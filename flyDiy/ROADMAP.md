@@ -170,10 +170,24 @@ or medium, and each one directly multiplies what you can build tonight.*
    in-line's barrels stand. GATE ENGMESH gains **the drawn engine must stand
    the way its envelope says** — the check whose absence let this run a
    fortnight, because `_eng_check` and GATE COWL both read the envelope.
-   NOW UNBLOCKED, not built: **"in-line engine choice up/down/left/right"** is
-   a table row and nothing else, and the small in-lines (a Walter Mikron) can
-   be added — G157 held them back only because they would have been drawn
-   sideways.
+   **THE ORIENTATION ROW LANDED — G164, 2026-09-03.** `cylinders point`:
+   down (inverted) / up / left / right, in the bench and the game editor and
+   saved with the build. G163 said it was a table row and it was — `engResolve`
+   measures the ENVELOPE off those angles, so an in-line aimed left publishes
+   0.348 × 0.177 where an upright one publishes 0.139 × 0.386 and the cowl
+   follows without being told; and ONE entry in `_eng_page.js` gave the bench
+   row, the editor row, the spec key and the default, because `_cage_eng.js`
+   renders the same list `engSpecOfP` walks. The exhaust outlet's four
+   directions and the bank's are ONE table now (`ENG_AIM`), and the panel
+   generates both drop lists from it. Three of the four aims were free; DOWN
+   was not, and what it found is an aeroplane fact — the sump, carburettor and
+   airbox hang from the one face of the crankcase an inverted bank occupies,
+   which is why a Gipsy Major carries its induction on top. GATE ENGMESH gains
+   three FIXTURES rather than three checks, so the whole battery runs on each;
+   8/8 negative probes caught.
+   STILL OWED: more small INLINES (a Walter Mikron is the classic amateur one)
+   — G157 held them back only because they would have been drawn sideways, and
+   they would not be now.
 3. **Exhaust, properly** — **THE OUTLET LANDED as G155, 2026-09-02.** The
    routed pipes, the stacks, the radial ring and the per-bank collectors all
    already existed; what did not was any say over where the pipe ENDS. Five

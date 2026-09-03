@@ -1445,18 +1445,34 @@ const EM = (() => {
       return { pos, r, capZ, towers };
     };
     const magL = mkMag(-1), magR = mkMag(1);
-    const sumpY = -cR - L.sump;                      // sump floor
+    const sumpY = -cR - L.sump;                      // the case's underside
+    // THE INDUCTION SITS ON THE FACE THE BANK LEAVES FREE (G164). The sump,
+    // the carburettor, the airbox and their two service lines all hang from
+    // ONE face of the crankcase, and on every engine drawn before the aim row
+    // that face was the underside — a boxer's banks go sideways and an upright
+    // in-line's go up, so under is free either way. An INVERTED in-line's
+    // barrels are there, which is why a Gipsy Major carries its induction on
+    // top and drops its exhaust below. `iS` is -1 for every engine drawn
+    // before this line existed and +1 only when the bank points down.
+    //
+    // AND ONLY THE INDUCTION TURNS OVER. `sumpY` stays the underside, because
+    // the EXHAUST leaves the heads and on an inverted engine the heads are
+    // down — the collector belongs under it, which is exactly where a Gipsy
+    // Major's is. Flipping one constant for both would have taken the exhaust
+    // up through the crankcase.
+    const iS = (cyls.length && cyls[0].uOut[1] < -0.5) ? 1 : -1;
+    const indY = iS * (cR + L.sump);           // the induction face
 
     const carb = {
-      pos: [0, sumpY - 0.42 * b, (zBack + L.zOf(L.nSt - 1)) / 2],
+      pos: [0, indY + iS * 0.42 * b, (zBack + L.zOf(L.nSt - 1)) / 2],
       r: 0.30 * b, h: 0.62 * b,
     };
     // the fuel line lands on an INLET BOSS on the float bowl's flank, and
     // the throttle on an arm that actually reaches the barrel — both were
     // floating in air before (G24.4 fitment scrutiny, caught by eye where
     // the AABB test could not)
-    carb.bowlIn = add(carb.pos, [0.44 * b, -0.48 * b, 0]);
-    carb.arm = add(carb.pos, [-0.44 * b, 0.10 * b, 0]);
+    carb.bowlIn = add(carb.pos, [0.44 * b, iS * 0.48 * b, 0]);
+    carb.arm = add(carb.pos, [-0.44 * b, -iS * 0.10 * b, 0]);
     // TWIN TOP CARBS + CONE FILTERS (G25.1, the 912 review): the under-slung
     // canister gives way to two carburettors riding the case top aft, each
     // breathing through a conical filter — flat four-stroke carb engines
@@ -1489,10 +1505,10 @@ const EM = (() => {
     // fractions) — the no-clip lever the review asked for.
     const fuelFw = [Math.sign(carb.bowlIn[0] || 1) * 0.36 * P.fwW * cR / 2 +
                     P.fuelX * P.fwW / 2,
-                    -0.30 * P.fwH * cR / 2 + P.fuelY * P.fwH / 2, zFw];
+                    iS * 0.30 * P.fwH * cR / 2 + P.fuelY * P.fwH / 2, zFw];
     const thrFw = [Math.sign(carb.arm[0] || -1) * 0.36 * P.fwW * cR / 2 +
                    P.thrX * P.fwW / 2,
-                   -0.30 * P.fwH * cR / 2 + P.thrY * P.fwH / 2, zFw];
+                   iS * 0.30 * P.fwH * cR / 2 + P.thrY * P.fwH / 2, zFw];
 
     const ports = { magL: magL.pos, magR: magR.pos, carbIn: carb.bowlIn,
                     carbArm: carb.arm, fuelFw, thrFw, lugs, fwPts,
@@ -1674,8 +1690,8 @@ const EM = (() => {
     if (L.sump > 1e-6 && !radial) {
       part('sump');
       const xw = cR * 0.80, zA = zNose - 0.02 * cR, zB = zTail + 0.02 * cR;
-      const sh = polyShape([[-xw, -cR * 0.48], [xw, -cR * 0.48],
-                            [xw * 0.68, sumpY], [-xw * 0.68, sumpY]], 0.12 * cR);
+      const sh = polyShape([[-xw, iS * cR * 0.48], [xw, iS * cR * 0.48],
+                            [xw * 0.68, indY], [-xw * 0.68, indY]], 0.12 * cR);
       prism([0, 0, 0], Z, X, Y, sh, zB, zA, ENGM_MAT.sump, true, true, 0.05 * cR);
     }
 
@@ -2305,8 +2321,11 @@ const EM = (() => {
         // `AIM` is in the ENGINE's frame, which is the aeroplane's: -x is the
         // pilot's left, +y up, -z aft. exAim 0 with zero offsets reproduces the
         // old point [colX, colY - 0.35b, zMin - 1.6b] exactly.
-        const AIM = [[0, -1], [0, 1], [-1, 0], [1, 0]];   // down up left right
-        const am = AIM[Math.max(0, Math.min(3, Math.round(P.exAim)))];
+        // THE TABLE IS _eng_gen's NOW (G164). This literal was the second
+        // copy of "which way is left" on one engine, and the in-line bank
+        // needed the same four; the shared `ENG_AIM` is where they meet.
+        const am = EG.ENG_AIM[Math.max(0, Math.min(EG.ENG_AIM.length - 1,
+                     Math.round(P.exAim)))].v;
         const outEnd = [colX + (am[0] * 0.35 + P.exOutX) * b,
                         colY + (am[1] * 0.35 + P.exOutY) * b,
                         zMin - 1.6 * b + P.exOutZ * b];
@@ -2459,7 +2478,7 @@ const EM = (() => {
       // on a radial there is no sump box: the riser reaches on up to the
       // round case bottom
       const rEx = radial ? L.sump : 0;
-      lathe(add(carb.pos, [0, carb.h / 2, 0]), [0, -1, 0],
+      lathe(add(carb.pos, [0, -iS * carb.h / 2, 0]), [0, iS, 0],
             { u: [1, 0, 0], w: [0, 0, 1] }, inj ? [
         // fuel injection: a SERVO body — no float bowl (exclusive, G24.13)
         { t: -0.17 * b - rEx, r: 0.26 * b }, { t: -0.02 * b, r: 0.26 * b },
@@ -2477,14 +2496,14 @@ const EM = (() => {
       part('carbInlet', 'tube');
       // the boss the fuel line lands on — bowl wall or servo body
       lathe([carb.pos[0] + (inj ? 0.24 : 0.30) * b,
-             carb.pos[1] - 0.48 * b, carb.pos[2]],
+             carb.pos[1] + iS * 0.48 * b, carb.pos[2]],
             [1, 0, 0], { u: [0, 1, 0], w: [0, 0, 1] }, [
         { t: 0, r: 0.055 * b }, { t: (inj ? 0.20 : 0.14) * b, r: 0.055 * b },
       ], ENGM_MAT.carb, false, true, S.detail);
       part('carbArm', 'tube');
       // rooted IN the barrel, reaching past the attach point — it floated
-      sweep(resample([add(carb.pos, [-0.26 * b, 0.10 * b, 0]),
-                      add(carb.pos, [-0.52 * b, 0.10 * b, 0])]),
+      sweep(resample([add(carb.pos, [-0.26 * b, -iS * 0.10 * b, 0]),
+                      add(carb.pos, [-0.52 * b, -iS * 0.10 * b, 0])]),
             0.03 * b, ENGM_MAT.carb,
             { capA: true, capB: true, sides: S.detail });
       if (P.airbox) {
@@ -2492,7 +2511,7 @@ const EM = (() => {
         // bare cylinder. Now: a ribbed filter canister BELOW the sump,
         // domed front with a centre bolt, rear plate, and the horn into
         // the carb throat — registered as an artery so fitment holds it.
-        const ax = [carb.pos[0], carb.pos[1] - 0.06 * b,
+        const ax = [carb.pos[0], carb.pos[1] + iS * 0.06 * b,
                     carb.pos[2] + 1.05 * b];
         // THE FILTER ELEMENT IS EXPOSED (G24.12, user: it is what shows
         // through the nose cowl IRL): chromed end caps, and between them
@@ -2530,9 +2549,9 @@ const EM = (() => {
           bolt(mad(ax, Z, 0.50 * b), Z, 0.028 * b, ENGM_MAT.flange);
         }
         part('airHorn', 'tube');
-        const hPort = add(carb.pos, [0, 0.03 * b, 0.24 * b]);
+        const hPort = add(carb.pos, [0, -iS * 0.03 * b, 0.24 * b]);
         const path = fillet([mad(ax, Z, -0.14 * b),
-                             [ax[0], ax[1] + 0.02 * b,
+                             [ax[0], ax[1] - iS * 0.02 * b,
                               (ax[2] + carb.pos[2]) / 2],
                              hPort], 0.30 * b);
         // buried at both mouths (G25.1 fit pass) — declared ends stay on
@@ -2562,7 +2581,15 @@ const EM = (() => {
       // radiator core, its headers and its expansion tank inside cylinder 1.
       // Measured from the bank's own tip instead; on a boxer rTip is not
       // above the case, so `inline` is the only architecture this moves.
-      const radTop = inline ? Math.max(cR, L.rTip) : cR;
+      // and it follows the AIM, not just the architecture (G164): a bank
+      // pointing left, right or down puts nothing above the case, so the same
+      // gap that clears an upright bank would hang the radiator a barrel's
+      // length out in the air. `env.y1` is the engine's own answer to "what
+      // is above the case", measured off the same placement rule.
+      const radTop = inline
+        ? Math.max(cR, R.env.y1,
+                   iS > 0 ? carb.pos[1] + carb.h + 0.34 * b : 0)
+        : cR;
       const rC = [P.radX * cR,
                   below ? -(cR + L.sump) + P.radY * cR - rH / 2
                         : radTop + P.radY * cR + rH / 2,
@@ -2735,10 +2762,10 @@ const EM = (() => {
       const pf = routeSafe(smooth([
         fuelFw,
         [fuelFw[0] * 0.55 + carb.bowlIn[0] * 0.30,
-         0.55 * fuelFw[1] + 0.45 * carb.bowlIn[1] - 0.10 * cR,
+         0.55 * fuelFw[1] + 0.45 * carb.bowlIn[1] + iS * 0.10 * cR,
          zFw + 0.35 * (carb.bowlIn[2] - zFw)],
         [carb.bowlIn[0] + Math.sign(carb.bowlIn[0] || 1) * 0.28 * b,
-         carb.bowlIn[1] - 0.20 * b, carb.bowlIn[2] - 0.3 * b],
+         carb.bowlIn[1] + iS * 0.20 * b, carb.bowlIn[2] - 0.3 * b],
         carb.bowlIn,
       ]), 0.05 * b + 0.015 * cR, true);
       artery('fuel', 'firewall', 'carb',
@@ -2748,9 +2775,9 @@ const EM = (() => {
       const pt = routeSafe(smooth([
         thrFw,
         [thrFw[0] * 0.9,
-         0.55 * thrFw[1] + 0.45 * carb.arm[1] - 0.10 * cR,
+         0.55 * thrFw[1] + 0.45 * carb.arm[1] + iS * 0.10 * cR,
          zFw + 0.4 * (carb.arm[2] - zFw)],
-        [carb.arm[0] - 0.16 * b, carb.arm[1] + 0.05 * b, carb.arm[2] - 0.25 * b],
+        [carb.arm[0] - 0.16 * b, carb.arm[1] - iS * 0.05 * b, carb.arm[2] - 0.25 * b],
         carb.arm,
       ]), 0.04 * b + 0.012 * cR, true);
       artery('throttle', 'firewall', 'carbArm',

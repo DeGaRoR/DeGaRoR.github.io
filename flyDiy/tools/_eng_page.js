@@ -52,6 +52,7 @@ const engDefaults = () => Object.assign(
     // the architecture axes are engResolve's OWN flags — mass and power
     // in the readout follow them because the physics reads the same dict
     twoStroke: EG.ENG_DEFAULT.twoStroke, liquid: EG.ENG_DEFAULT.liquid,
+    inlineAim: EG.ENG_DEFAULT.inlineAim,
     geared: EG.ENG_DEFAULT.geared, arch: 'flat', finN: 14,
     // the electric fiche (G25) rides the same dict
     eStyle: EG.ENG_DEFAULT.eStyle, canD: EG.ENG_DEFAULT.canD,
@@ -166,6 +167,15 @@ const ENG_GROUPS = [
                                       [14, 'fourteen (radial)']]],
     ['radialRows', 'two-row radial', 'drop', [[1, 'one row'],
                                               [2, 'two rows']]],
+    // WHICH WAY AN IN-LINE'S BANK POINTS (G164, the user's own item). The
+    // options are GENERATED from ENG_AIM rather than typed, for the same
+    // reason the exhaust's are below: three copies of "down, up, left, right"
+    // is three places for them to fall out of order, and an index that means
+    // 'left' in one row and 'right' in another is a defect nothing would
+    // catch. Only 'down' is annotated, because 'inverted' is what a builder
+    // is actually looking for — a Gipsy Major.
+    ['inlineAim', 'cylinders point', 'drop',
+      EG.ENG_AIM.map((a, i) => [i, a.name === 'down' ? 'down (inverted)' : a.name])],
     ['bore',    'bore mm',   0.05, 0.16, 0.001, mm],
     ['stroke',  'stroke mm', 0.04, 0.14, 0.001, mm],
     ['rpm',     'rpm',       1800, 6500, 50],
@@ -206,8 +216,8 @@ const ENG_GROUPS = [
     // a real aeroplane and was one hardcoded point here.
     ['exOut',   'collectors', 'drop', [[2, 'one under each bank'],
                                        [1, 'one, both banks into it']]],
-    ['exAim',   'outlet points', 'drop', [[0, 'down'], [1, 'up'],
-                                          [2, 'left'], [3, 'right']]],
+    ['exAim',   'outlet points', 'drop',
+      EG.ENG_AIM.map((a, i) => [i, a.name])],
     ['exOutX',  'outlet left/right', -2, 2, 0.05],
     ['exOutY',  'outlet up/down',    -2, 2, 0.05],
     ['exOutZ',  'outlet fore/aft',   -2, 2, 0.05],

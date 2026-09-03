@@ -72,6 +72,29 @@ const ENG_MASS_E = 0.8735;       // exponent on litres
 // should weigh more, so these are the model's only guesses. Treat a number
 // they produce as an estimate, not as a measurement.
 // ---------------------------------------------------------------------------
+// WHICH WAY A THING POINTS, once (G164). The engine already had one of
+// these — `_eng_mesh.js` carried `AIM = [[0,-1],[0,1],[-1,0],[1,0]]` for the
+// exhaust outlet (G155) — and the in-line bank needed the same four
+// directions under the same four names. Two copies of "which way is left" on
+// one engine is precisely the shape of the defect G163 spent a chantier
+// undoing, so there is one table and both consumers derive from it: the
+// exhaust wants the unit vector, the bank wants the angle about the crank.
+//
+// THE FRAME IS THE AEROPLANE'S: -x is the pilot's left, +y up, looking
+// forward down the crank. The ORDER is the exhaust's own, because a builder
+// setting two "points" rows on one engine must not meet two vocabularies.
+const ENG_AIM = [
+  { name: 'down',  v: [0, -1] },
+  { name: 'up',    v: [0,  1] },
+  { name: 'left',  v: [-1, 0] },
+  { name: 'right', v: [1,  0] },
+];
+// degrees about the crank, 0 = straight up — the convention `angles` uses
+const engAimDeg = i => {
+  const a = ENG_AIM[Math.max(0, Math.min(ENG_AIM.length - 1, Math.round(+i || 0)))];
+  return Math.atan2(a.v[0], a.v[1]) * 180 / Math.PI;
+};
+
 const ENG_ARCH = {
   flat: {
     name: 'Flat (boxer)', counts: [2, 4, 6], kM: 1.00, bmep: 9.8,
@@ -82,10 +105,17 @@ const ENG_ARCH = {
   },
   inline: {
     name: 'Inline', counts: [4, 6], kM: 1.06, bmep: 9.5,   // UNVALIDATED
-    // 0 = STRAIGHT UP, which is why a boxer is +/-90. See the note in
-    // `_eng_mesh.js` where `a` is chosen: the MESH does not honour this for an
-    // inline, and that disagreement is a known, measured, unfixed defect.
-    angles: n => Array.from({ length: n }, () => 0),
+    // WHICH WAY THE BANK POINTS IS THE BUILDER'S (G164, the user's own item
+    // "in line engine choice up/down/r/l"). 0 = straight up, which is why a
+    // boxer is +/-90 — and since G163 the MESH honours this table, so the
+    // whole feature is this one line: the envelope is measured off these
+    // angles, the cowl is built on the envelope, and every route in the mesh
+    // follows the cylinder. UP is the default because it is what an in-line
+    // has always drawn; DOWN is the inverted engine a Gipsy Major is.
+    angles: (n, P) => {
+      const d = engAimDeg(P && P.inlineAim != null ? P.inlineAim : 1);
+      return Array.from({ length: n }, () => d);
+    },
     stations: n => Array.from({ length: n }, (_, i) => i),
     nStations: n => n,
   },
@@ -183,6 +213,12 @@ const ENG_DEFAULT = {
   rpm: 2300,
   twoStroke: 0,
   vee: 60,                 // degrees, `vee` architecture only
+  // WHICH WAY AN IN-LINE'S BANK POINTS — an index into ENG_AIM, `inline`
+  // architecture only, exactly as `vee` is the V's own. 1 is UP, which is
+  // what an in-line has always drawn; the index is the exhaust outlet's own
+  // (0 down, 1 up, 2 left, 3 right) so the two "points" rows on one engine
+  // cannot mean different things by "left".
+  inlineAim: 1,
   // DECLARED ADDITIONS, never folded into kMass: a reduction gearbox and a
   // water jacket are things an engine HAS, and a single kg/litre that hid them
   // would make one number mean three.
@@ -601,8 +637,8 @@ function engBuild(spec) {
 }
 
 if (typeof module !== 'undefined')
-  module.exports = { ENG_ARCH, ELEC_STYLE, ENG_DEFAULT, ENG_MAT, ENG_UNIT,
-                     engResolve, engBuild };
+  module.exports = { ENG_ARCH, ENG_AIM, engAimDeg, ELEC_STYLE, ENG_DEFAULT,
+                     ENG_MAT, ENG_UNIT, engResolve, engBuild };
 if (typeof window !== 'undefined')
-  window.ENG_GEN = { ENG_ARCH, ELEC_STYLE, ENG_DEFAULT, ENG_MAT, ENG_UNIT,
-                     engResolve, engBuild };
+  window.ENG_GEN = { ENG_ARCH, ENG_AIM, engAimDeg, ELEC_STYLE, ENG_DEFAULT,
+                     ENG_MAT, ENG_UNIT, engResolve, engBuild };

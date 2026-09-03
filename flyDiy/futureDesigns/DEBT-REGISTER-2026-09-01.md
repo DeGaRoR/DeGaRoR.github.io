@@ -137,7 +137,15 @@ Nothing here is forgotten; not everything here is scheduled.
   so correcting the drawing made the gate test every lead against a capsule
   lying on its side. GATE ENGMESH now asserts the drawn engine stands the way
   its envelope says, which is the check whose absence let this run a fortnight.
-  The orientation row and the small in-lines are unblocked, not built.
+  **AND THE ORIENTATION ROW LANDED THE SAME DAY — G164.** `cylinders point`
+  (down/up/left/right) was one table row, exactly as G163 predicted: the
+  envelope is measured off those angles and the cowl is built on the envelope.
+  Three aims were free; DOWN found an aeroplane fact — the sump, carburettor
+  and airbox hang from the one crankcase face an inverted bank occupies, which
+  is why a Gipsy Major carries its induction on top. The exhaust outlet's four
+  directions and the bank's are ONE table now. STILL OWED: the small in-lines
+  (a Walter Mikron), which G157 held back only because they would have been
+  drawn sideways.
   THE ORIGINAL ENTRY, for the record:
 
 - ~~**AN INLINE ENGINE IS DRAWN SIDEWAYS**~~ — found by G157 while trying to
