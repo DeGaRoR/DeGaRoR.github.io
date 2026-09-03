@@ -1,0 +1,2343 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tissage — prototype v15</title>
+<style>
+  :root{
+    --chrome:#17181c;
+    --chrome-2:#1f2126;
+    --line:#2e3138;
+    --text:#c9ccd2;
+    --text-dim:#7e838d;
+    --accent:#8fb3c9;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{
+    background:var(--chrome);
+    color:var(--text);
+    font:13px/1.45 "Inter","Segoe UI",Roboto,system-ui,sans-serif;
+    font-variant-numeric:tabular-nums;
+    display:flex;overflow:hidden;
+  }
+  #stage{flex:1;position:relative;display:flex;align-items:center;justify-content:center;padding:14px}
+  #wrap{position:relative;line-height:0}
+  #tr{position:absolute;left:0;top:0;pointer-events:none}
+  #ov{position:absolute;left:0;top:0;pointer-events:auto;cursor:crosshair}
+  canvas{display:block;box-shadow:0 0 0 1px #000, 0 18px 50px rgba(0,0,0,.55);cursor:crosshair}
+  body.zen #panel{display:none}
+  body.zen #stage{padding:0}
+  body.zen canvas{box-shadow:none}
+  #zenbar{
+    display:none;position:fixed;top:12px;right:12px;z-index:20;gap:6px;
+    background:rgba(23,24,28,.82);border:1px solid var(--line);border-radius:5px;
+    padding:6px;opacity:.4;transition:opacity .15s;backdrop-filter:blur(4px);
+  }
+  body.zen #zenbar{display:flex;flex-wrap:wrap;max-width:60vw}
+  #zenbar:hover, #zenbar:focus-within{opacity:1}
+  #ov,#tr{box-shadow:none!important}
+
+  #panel{
+    width:318px;flex:none;background:var(--chrome-2);border-left:1px solid var(--line);
+    display:flex;flex-direction:column;height:100%;
+  }
+  #panel header{padding:14px 16px 10px;border-bottom:1px solid var(--line)}
+  #panel h1{margin:0;font-size:14px;font-weight:600;letter-spacing:.01em}
+  #panel header p{margin:4px 0 0;color:var(--text-dim);font-size:11.5px}
+  #scroll{overflow-y:auto;flex:1;padding:4px 16px 20px}
+  .grp{margin:14px 0 0}
+  .grp > h2{
+    margin:0 0 8px;font-size:11.5px;font-weight:600;color:var(--accent);
+    padding:4px 0 5px;border-bottom:1px solid var(--line);
+    cursor:pointer;user-select:none;display:flex;justify-content:space-between;align-items:center;
+  }
+  .grp > h2:hover{color:#b7d4e6}
+  .grp > h2 .chev{color:var(--text-dim);font-size:9px;transition:transform .12s}
+  .grp.closed > h2{margin-bottom:0}
+  .grp.closed > h2 .chev{transform:rotate(-90deg)}
+  .grp.closed .gbody{display:none}
+  .row{display:grid;grid-template-columns:1fr 46px;gap:6px;align-items:center;margin:0 0 7px}
+  .row label{color:var(--text);font-size:11.5px}
+  .row .val{color:var(--text-dim);font-size:11px;text-align:right}
+  .row input[type=range]{grid-column:1/3;width:100%;margin:0;height:16px;accent-color:var(--accent)}
+  .row input[type=color]{grid-column:1/3;width:100%;height:22px;padding:1px;background:#15161a;border:1px solid var(--line);border-radius:3px;cursor:pointer}
+  .row select{grid-column:1/3;width:100%;background:#15161a;color:var(--text);border:1px solid var(--line);border-radius:3px;padding:3px 5px;font:inherit;font-size:11.5px}
+  .hint{color:var(--text-dim);font-size:11px;margin:2px 0 10px}
+  #bar{padding:10px 16px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:6px}
+  button{
+    background:#262931;color:var(--text);border:1px solid var(--line);border-radius:3px;
+    padding:5px 9px;font:inherit;font-size:11.5px;cursor:pointer;
+  }
+  button:hover{background:#2f333c}
+  button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+  #stats{padding:6px 16px;border-top:1px solid var(--line);color:var(--text-dim);font-size:11px;display:flex;justify-content:space-between}
+  #inspector{display:none;border-top:1px solid var(--line);padding:10px 16px 12px;max-height:46vh;overflow-y:auto;background:#1a1c21}
+  #inspector h2{margin:0 0 2px;font-size:11.5px;font-weight:600;color:var(--accent)}
+  #inspector .meta{color:var(--text-dim);font-size:11px;margin:0 0 8px}
+  #inspector .acts, .acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  #preset{display:none;padding:0 16px 12px}
+  #preset textarea{width:100%;height:120px;background:#15161a;color:var(--text);border:1px solid var(--line);border-radius:3px;font:11px/1.4 ui-monospace,Menlo,Consolas,monospace;padding:6px;resize:vertical}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div id="zenbar">
+    <button id="zExit">Quitter le plein cadre</button>
+    <button id="zPause">Pause</button>
+    <button id="zBirth">Naissance</button>
+    <button id="zRandom">Tirer au sort</button>
+    <button id="zPng">Enregistrer l'image</button>
+  </div>
+  <main id="stage"><div id="wrap"><canvas id="c"></canvas><canvas id="tr"></canvas><canvas id="ov"></canvas></div></main>
+
+<aside id="panel">
+  <header>
+    <h1>Tissage — prototype v15</h1>
+    <p>Tempéraments individuels, états, perception mutuelle. Tous les raccourcis ont un bouton en bas. Clique un agent pour l'éditer. Espace : pause · Z : plein cadre · S : image · N : nouvelles taches · R : relancer</p>
+  </header>
+  <div id="scroll"></div>
+  <div id="inspector"></div>
+  <div id="preset"><textarea id="presetText" spellcheck="false"></textarea>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">
+      <button id="applyPreset">Appliquer</button>
+      <button id="copyPreset">Copier</button>
+      <button id="dlPreset">Télécharger .json</button>
+      <button id="linkPreset">Copier le lien</button>
+    </div>
+  </div>
+  <div id="bar">
+    <button id="btnFold">Tout replier</button>
+    <button id="btnPause">Pause</button>
+    <button id="btnReset">Relancer</button>
+    <button id="btnBirth">Naissance</button>
+    <button id="btnClick">Clic : sélectionner</button>
+    <button id="btnBlobs">Nouvelles taches</button>
+    <button id="btnClear">Effacer la toile</button>
+    <button id="btnRandom">Tirer au sort</button>
+    <button id="btnSaveDraw">Enregistrer ce tirage</button>
+    <button id="btnUndoRandom">Annuler le tirage</button>
+    <button id="btnZen">Plein cadre</button>
+    <button id="btnPng">Enregistrer l'image</button>
+    <button id="btnPreset">Réglages (JSON)</button>
+  </div>
+  <div id="stats"><span id="fps">—</span><span id="dim">—</span></div>
+</aside>
+
+<script>
+(() => {
+"use strict";
+
+/* ============================================================
+   1. PARAMÈTRES
+   Tout se règle ici. Le panneau est généré à partir de SCHEMA.
+   ============================================================ */
+
+const P = {
+  // Monde
+  palette: 'nuit',
+  paper: '#0b0d10',
+  ink: '#565c66',
+  colCount: 6,
+  c1: '#b8412b', c2: '#d9963a', c3: '#2f5f63',
+  c4: '#7a3b52', c5: '#e2c88f', c6: '#8a6f4e',
+  presetName: '',
+  agents: 30,
+  seed: 7,
+  // Mouvement
+  speed: 1.5,
+  lattice: 4,          // nombre de directions autorisées (4 = orthogonal strict)
+  latticeTilt: 0.0,    // rotation globale de la trame, en tours
+  module: 32,          // les longueurs de segment sont des multiples de ce pas
+  segMin: 34,
+  segMax: 110,
+  radMin: 14,
+  radMax: 46,
+  turnSteps: 1,        // 1 = un cran de trame par virage, 2 = deux crans
+  arcFit: 0.38,        // part du segment que le rayon de virage peut occuper
+  meander: 0.35,       // tendance à alterner le sens des virages
+  wander: 0.001,       // désordre : proba de virage hors décision
+  // Tissage
+  look: 16,            // distance de détection devant l'agent
+  lane: 5.5,           // écart latéral entre deux trajectoires suivies
+  capture: 26,         // angle max de capture (degrés)
+  affinity: 0.7,      // probabilité de se laisser capturer
+  followMin: 60,
+  followMax: 320,
+  diverge: 0.004,      // proba de divergence par pas
+  crossTurn: 0.10,     // proba de bifurquer sur une trajectoire croisée
+  memory: 900,         // durée de vie des traces pour l'alignement (frames)
+  refract: 40,         // distance de non-recapture après divergence
+  // Peinture
+  brush: 9,
+  bristles: 5,
+  scatter: 0.55,       // irrégularité des poils
+  dot: 1.7,
+  deposit: 0.18,       // densité déposée par pas et par poil
+  pickup: 0.45,
+  capacity: 38,        // réserve du pinceau, en densité cumulée
+  dry: 0.014,          // trace sèche quand le pinceau est vide
+  brushProfile: 'plat',
+  brushHold: 'suit le trait',
+  brushAngle: 90,
+  subtractive: 0.7,    // 0 = mélange additif, 1 = mélange soustractif
+  fidelity: 0.6,       // tendance de l'agent à revenir à sa propre couleur
+  grain: 0.35,         // grain du papier
+  maxDens: 1.05,       // épaisseur maximale de matière : au-delà, plus rien ne se lit
+  memoire: 'fenêtre glissante',
+  fenetre: 15,         // durée de pleine intensité d'une marque, en secondes
+  fondu: 25,           // durée de son effacement ensuite, en secondes
+  // Calque de trajectoires
+  traceAlpha: 0.85,
+  traceWidth: 1.3,
+  traceFade: 0.012,    // vitesse d'effacement du calque rapide
+  // Soif d'espace vide
+  thirst: 0.55,
+  thirstLevel: 0.25,
+  // Topographie
+  topoCount: 2,
+  topoSize: 95,
+  topoSpeed: 0.25,
+  topoSeek: 0.45,      // les corps dérivent vers les zones saturées
+  topoShow: 'non',
+  drying: 1500,        // temps de séchage en frames (0 = jamais sec)
+  evap: 0.002,         // évaporation lente de la matière
+  // Effacement et vie
+  erasers: 0.16,       // proportion d'agents laveurs
+  eraseForce: 0.16,
+  birthRate: 480,      // naissance automatique toutes les N frames (0 = manuel)
+  maxAgents: 55,       // au-delà, le plus ancien quitte le monde
+  // Tempéraments et états
+  disp: 2.2,           // dispersion des tempéraments dans la population
+  stressDist: 14,      // distance de proximité immédiate
+  stressOn: 10,        // frames de proximité avant bascule
+  stressMin: 90,       // séjour minimal dans l'état stressé
+  relax: 0.25,         // seuil de retour au calme
+  stressMode: 'nervosité',
+  sSpeed: 1.7, sSeg: 0.35, sRad: 0.35, sSocial: 0.8,
+  sDiv: 2.0, sFlow: 1.0, sBrush: 1.0, sTexture: 2.0,
+  sLattice: '4',       // trame propre à l'état stressé
+  sTiltStep: 0.5,        // décalage de la trame, en fraction de pas
+  // Affichage
+  archetype: 'Arpenteur',
+  randomScope: 'tout',
+  randomAmountDefault: 0,
+  randomRestart: 'oui',
+  randomSeed: 'oui',
+  randomPal: 'oui',
+  randomAmount: 0.85,
+  preset: '—',
+  showAgents: 'tous',
+  agentMark: 'anneau',
+  markColor: 'contraste',
+  markOutline: 'oui',
+  layerPaint: 1,
+  layerTrace: 1,
+  layerMarks: 1,
+  showState: true,
+  nameWhen: 'dernier-né',
+  agentScale: 1,
+  focusTime: 600,      // durée de mise en évidence du dernier-né
+  // Taches
+  blobSnap: 'libre',   // position des taches : libre ou calée sur la trame
+  blobSizeSnap: 'libre', // tailles libres ou par crans
+  blobStyle: 'encre',  // flou | huile | encre
+  blobShape: 'ronde',
+  blobEdge: 0.85,      // 0 = dégradé, 1 = contour net
+  blobRim: 0.25,       // bourrelet de bord, façon goutte d'huile
+  blobTexture: 0.3,    // grain de la matière déposée
+  blobEdgeNoise: 0.18, // irrégularité du contour
+  blobStrokes: 1.0,    // densité de hachures pour le style encre
+  blobCross: 0.55,     // seconde passe de hachures, perpendiculaire
+  birthColorMode: 'palette',
+  birthColor: '#d9963a',
+  blobs: 9,
+  blobSize: 120,
+  blobDensity: 1.35
+};
+
+const SCHEMA = [
+  ['Palette', [
+    ['palette','Palette', {opts:['nuit','terres','ardoise','fanée','vitrail']}],
+    ['paper','Couleur du fond',{color:true}],
+    ['ink','Couleur de la trace sèche',{color:true}],
+    ['colCount','Couleurs utilisées',{min:1,max:6,st:1}],
+    ['c1','Couleur 1',{color:true}],
+    ['c2','Couleur 2',{color:true}],
+    ['c3','Couleur 3',{color:true}],
+    ['c4','Couleur 4',{color:true}],
+    ['c5','Couleur 5',{color:true}],
+    ['c6','Couleur 6',{color:true}],
+  ]],
+  ['Réglages enregistrés', [
+    ['preset','Réglage',{opts:['—']}],
+  ]],
+  ['Monde', [
+    ['agents','Nombre d\'agents',{min:1,max:80,st:1}],
+    ['seed','Graine',{min:0,max:999,st:1}],
+  ]],
+  ['Mouvement', [
+    ['speed','Vitesse',{min:.3,max:4,st:.05}],
+    ['lattice','Directions de la trame',{opts:[4,6,8,12],num:true}],
+    ['latticeTilt','Inclinaison de la trame',{min:0,max:.25,st:.005}],
+    ['module','Module',{min:0,max:120,st:1}],
+    ['segMin','Segment — mini',{min:8,max:200,st:1}],
+    ['segMax','Segment — maxi',{min:20,max:400,st:1}],
+    ['radMin','Rayon de virage — mini',{min:3,max:100,st:1}],
+    ['radMax','Rayon de virage — maxi',{min:6,max:260,st:1}],
+    ['turnSteps','Amplitude des virages',{min:1,max:3,st:1}],
+    ['arcFit','Inscription des arcs',{min:.05,max:1,st:.01}],
+    ['meander','Méandre',{min:0,max:1,st:.02}],
+    ['wander','Désordre',{min:0,max:.02,st:.0005}],
+  ]],
+  ['Tissage', [
+    ['look','Portée de détection',{min:4,max:60,st:1}],
+    ['lane','Écart entre voies',{min:1,max:20,st:.25}],
+    ['capture','Angle de capture',{min:2,max:80,st:1}],
+    ['affinity','Grégarité',{min:0,max:1,st:.01}],
+    ['followMin','Suivi — mini',{min:0,max:400,st:5}],
+    ['followMax','Suivi — maxi',{min:20,max:1200,st:10}],
+    ['diverge','Divergence',{min:0,max:.03,st:.0005}],
+    ['crossTurn','Bifurcation sur croisement',{min:0,max:1,st:.01}],
+    ['memory','Mémoire des traces',{min:60,max:4000,st:20}],
+    ['refract','Distance de non-recapture',{min:0,max:200,st:5}],
+  ]],
+  ['Pinceau', [
+    ['brush','Largeur du pinceau',{min:1,max:40,st:.5}],
+    ['bristles','Poils',{min:1,max:14,st:1}],
+    ['brushProfile','Profil des poils',{opts:['plat','rond','éventail']}],
+    ['brushHold','Tenue du pinceau',{opts:['suit le trait','orientation fixe']}],
+    ['brushAngle','Angle du pinceau',{min:0,max:180,st:1}],
+    ['scatter','Irrégularité des poils',{min:0,max:1.5,st:.02}],
+    ['dot','Grain de dépôt',{min:.6,max:5,st:.1}],
+    ['deposit','Débit',{min:.01,max:.6,st:.005}],
+    ['pickup','Prélèvement',{min:0,max:1,st:.01}],
+    ['capacity','Réserve du pinceau',{min:1,max:90,st:1}],
+    ['dry','Trace sèche',{min:0,max:.5,st:.005}],
+  ]],
+  ['Matière et effacement', [
+    ['subtractive','Mélange soustractif',{min:0,max:1,st:.01}],
+    ['fidelity','Fidélité à sa couleur',{min:0,max:1,st:.01}],
+    ['grain','Grain du papier',{min:0,max:1,st:.02}],
+    ['maxDens','Densité maximale',{min:.2,max:2,st:.05}],
+    ['drying','Temps de séchage',{min:0,max:6000,st:50}],
+    ['memoire','Mémoire de la toile',{opts:['fenêtre glissante','accumulation sans fin']}],
+    ['fenetre','Pleine intensité (secondes)',{min:0,max:120,st:.5}],
+    ['fondu','Fondu (secondes)',{min:.2,max:120,st:.2}],
+    ['evap','Évaporation uniforme (par seconde)',{min:0,max:.5,st:.005}],
+  ]],
+  ['Soif d\'espace vide', [
+    ['thirst','Attirance pour le vide',{min:0,max:1,st:.02}],
+    ['thirstLevel','Seuil de saturation ressentie',{min:.02,max:1.2,st:.02}],
+  ]],
+  ['Topographie', [
+    ['topoCount','Nombre de corps',{min:0,max:8,st:1}],
+    ['topoSize','Taille des corps',{min:20,max:280,st:5}],
+    ['topoSpeed','Vitesse de dérive',{min:0,max:1.5,st:.05}],
+    ['topoSeek','Attirance vers les zones denses',{min:0,max:1,st:.05}],
+    ['topoShow','Montrer les corps',{opts:['non','oui']}],
+  ]],
+  ['Effacement et vie', [
+    ['erasers','Part d\'agents laveurs',{min:0,max:.8,st:.02}],
+    ['eraseForce','Force du lavage',{min:.02,max:.8,st:.01}],
+    ['birthRate','Naissance automatique',{min:0,max:1800,st:30}],
+    ['maxAgents','Population maximale',{min:4,max:120,st:1}],
+  ]],
+  ['Tempéraments', [
+    ['disp','Dispersion des tempéraments',{min:1,max:4,st:.05}],
+  ]],
+  ['État stressé — déclenchement', [
+    ['stressDist','Distance de proximité',{min:4,max:80,st:1}],
+    ['stressOn','Délai de bascule',{min:1,max:120,st:1}],
+    ['stressMin','Séjour minimal',{min:10,max:900,st:10}],
+    ['relax','Seuil de retour au calme',{min:.05,max:.9,st:.05}],
+  ]],
+  ['État stressé — signature', [
+    ['stressMode','Signature',{opts:['nervosité','rupture','décharge','rétraction','fuite','tremblement','personnalisée']}],
+    ['sSpeed','× vitesse',{min:.2,max:3,st:.05}],
+    ['sSeg','× longueur de segment',{min:.1,max:4,st:.05}],
+    ['sRad','× rayon de virage',{min:.1,max:3,st:.05}],
+    ['sSocial','× grégarité',{min:0,max:3,st:.05}],
+    ['sDiv','× divergence',{min:0,max:10,st:.1}],
+    ['sFlow','× débit',{min:.1,max:3,st:.05}],
+    ['sBrush','× largeur de pinceau',{min:.2,max:3,st:.05}],
+    ['sTexture','× irrégularité',{min:.2,max:4,st:.05}],
+    ['sLattice','Trame du stress',{opts:['inchangée','3','4','5','6','8','12','16']}],
+    ['sTiltStep','Décalage de trame (en pas)',{min:0,max:1,st:.05}],
+  ]],
+  ['Archétypes', [
+    ['archetype','Grammaire',{opts:['Arpenteur','Fileur','Nerveux','Monument','Rôdeur','Laveur','Calligraphe']}],
+    ['birthColorMode','Couleur à la naissance',{opts:['palette','choisie']}],
+    ['birthColor','Couleur choisie',{color:true}],
+  ]],
+  ['Calques', [
+    ['layerPaint','Visibilité du pigment',{min:0,max:1,st:.02}],
+    ['layerTrace','Visibilité des trajectoires',{min:0,max:1,st:.02}],
+    ['layerMarks','Visibilité des repères',{min:0,max:1,st:.02}],
+    ['traceAlpha','Opacité du trait',{min:0,max:1,st:.02}],
+    ['traceWidth','Épaisseur du trait',{min:.4,max:5,st:.1}],
+    ['traceFade','Effacement des trajectoires',{min:.002,max:.15,st:.002}],
+  ]],
+  ['Hasard', [
+    ['randomScope','Portée du tirage',{opts:['mouvement','peinture','taches','états','espace','palette','affichage','tout']}],
+    ['randomAmount','Ampleur',{min:.05,max:1,st:.05}],
+    ['randomRestart','Relancer après tirage',{opts:['oui','non']}],
+    ['randomSeed','Nouvelle graine à chaque tirage',{opts:['oui','non']}],
+    ['randomPal','Tirer aussi la palette',{opts:['oui','non']}],
+  ]],
+  ['Affichage', [
+    ['showAgents','Agents visibles',{opts:['aucun','dernier','tous']}],
+    ['agentMark','Repère',{opts:['point','anneau','croix','réticule','comète','halo','étiquette']}],
+    ['markColor','Couleur du repère',{opts:['contraste','agent','papier']}],
+    ['markOutline','Cerne de lisibilité',{opts:['oui','non']}],
+    ['nameWhen','Noms affichés',{opts:['aucun','dernier-né','sélection','stressés','en formation','tous']}],
+    ['agentScale','Taille des repères',{min:.4,max:3,st:.1}],
+    ['focusTime','Durée du privilège',{min:60,max:3000,st:30}],
+  ]],
+  ['Taches de couleur', [
+    ['blobStyle','Facture',{opts:['flou','huile','encre']}],
+    ['blobSnap','Position',{opts:['libre','demi-module','module','double module']}],
+    ['blobSizeSnap','Tailles',{opts:['libre','demi-module','module','double module']}],
+    ['blobShape','Forme',{opts:['ronde','lobée','éclaboussure','coulure','anneau']}],
+    ['blobEdge','Netteté du contour',{min:0,max:1,st:.02}],
+    ['blobRim','Bourrelet de bord',{min:0,max:.8,st:.02}],
+    ['blobTexture','Grain de la tache',{min:0,max:1,st:.02}],
+    ['blobEdgeNoise','Irrégularité du contour',{min:0,max:.8,st:.02}],
+    ['blobStrokes','Densité des hachures',{min:.3,max:2.5,st:.05}],
+    ['blobCross','Hachures croisées',{min:0,max:1,st:.05}],
+    ['blobs','Nombre de taches',{min:0,max:40,st:1}],
+    ['blobSize','Taille',{min:20,max:400,st:5}],
+    ['blobDensity','Densité',{min:.2,max:2,st:.05}],
+  ]]
+];
+
+// Signatures de stress : chacune est un jeu de multiplicateurs appliqué
+// par-dessus le tempérament de l'agent, jamais à sa place.
+// [vitesse, segment, rayon, grégarité, divergence, débit, pinceau, irrégularité]
+const STRESS_PRESETS = {
+  'nervosité':   [1.7, .35, .35, .80, 2.0, 1.0, 1.0, 2.0],
+  'rupture':     [1.2, .80, .90, .05, 8.0, 1.0, 1.0, 1.2],
+  'décharge':    [0.8, .70, .70, .70, 1.5, 2.4, 1.8, 1.6],
+  'rétraction':  [0.45,.30, .30, .40, 1.0, 0.4, 0.6, 0.8],
+  'fuite':       [2.4, 3.0, 2.5, .00, 0.5, 0.7, 0.8, 1.0],
+  'tremblement': [1.3, .25, .20, .60, 3.0, 1.1, 0.9, 2.6]
+};
+// Bibliothèque de grammaires de mouvement. Un archétype est une
+// surcharge partielle du tempérament : ce qu'il ne mentionne pas reste
+// tiré de la population, donc deux Arpenteurs ne sont pas identiques.
+const ARCHETYPES = {
+  'Arpenteur':  {speed:1.8, segMin:130, segMax:330, radMin:26, radMax:80, affinity:.15, diverge:.002, meander:.2, brush:11, deposit:.17},
+  'Fileur':     {speed:1.4, segMin:28, segMax:90, radMin:9, radMax:28, affinity:.98, followMin:220, followMax:900, diverge:.0008, lane:4, brush:6, look:22},
+  'Nerveux':    {speed:2.2, segMin:12, segMax:44, radMin:4, radMax:15, meander:.8, affinity:.3, scatter:1.0, brush:6, deposit:.14},
+  'Monument':   {speed:.7, segMin:190, segMax:420, radMin:55, radMax:150, affinity:.2, meander:.15, brush:22, deposit:.26, capacity:60, dot:2.4},
+  'Rôdeur':     {speed:1.6, segMin:40, segMax:120, radMin:12, radMax:42, crossTurn:.6, affinity:.4, diverge:.01, meander:.5},
+  'Laveur':     {speed:1.5, segMin:60, segMax:200, radMin:16, radMax:52, affinity:.35, eraseForce:.24},
+  'Calligraphe':{speed:1.1, segMin:60, segMax:150, radMin:6, radMax:18, arcFit:.18, meander:.75, brush:15, deposit:.24, scatter:.25, dot:2.2}
+};
+const ARCH_ERASER={'Laveur':true};
+
+const NOMS = ['Adèle','Armand','Aurore','Basile','Blanche','Camille','Céleste','Clément','Colette','Cyprien',
+'Delphine','Édouard','Éliane','Émile','Fantine','Félix','Firmin','Gabrielle','Gaspard','Geneviève',
+'Hector','Hortense','Hugo','Irène','Jacinthe','Joseph','Judith','Léon','Léonie','Lucien',
+'Madeleine','Marceau','Margot','Mathis','Maurice','Mireille','Noé','Océane','Odile','Olivier',
+'Pascaline','Perrine','Quentin','Raphaël','Régine','Rosalie','Sidonie','Simon','Solange','Sylvain',
+'Théodore','Thibaut','Ursule','Valentin','Véronique','Victor','Violette','Xavier','Yvonne','Zoé'];
+
+const SKEYS=['sSpeed','sSeg','sRad','sSocial','sDiv','sFlow','sBrush','sTexture'];
+
+const PALETTES = {
+  nuit:    {paper:'#0b0d10', ink:'#565c66', cols:['#b8412b','#d9963a','#2f5f63','#7a3b52','#e2c88f','#8a6f4e']},
+  terres:  {paper:'#ece5d8', ink:'#3a332c', cols:['#b8412b','#d9963a','#2f5f63','#7b3a52','#25302f','#e2c88f']},
+  ardoise: {paper:'#e8eaec', ink:'#20242a', cols:['#1d3f5e','#3f7d8c','#8c2f39','#c9a227','#2a2f36','#a8bcc4']},
+  fanée:   {paper:'#f2ece2', ink:'#4a4238', cols:['#c98a6b','#8f9c7a','#d8c07a','#9a6f88','#5f6f74']},
+  vitrail: {paper:'#f4f1e8', ink:'#241f2b', cols:['#1b4f9c','#c1121f','#f3a712','#0f7360','#5c2a72']}
+};
+
+/* ============================================================
+   2. OUTILS
+   ============================================================ */
+
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return ((t^t>>>14)>>>0)/4294967296}}
+let rnd = mulberry32(P.seed);
+const TAU = Math.PI*2;
+
+function s2l(c){return c<=0.04045 ? c/12.92 : Math.pow((c+0.055)/1.055,2.4)}
+const L2B = new Uint8Array(4096);
+for(let i=0;i<4096;i++){const v=i/4095;const b=v<=0.0031308?v*12.92:1.055*Math.pow(v,1/2.4)-0.055;L2B[i]=Math.max(0,Math.min(255,Math.round(b*255)))}
+function lin2b(v){return L2B[v<=0?0:v>=1?4095:(v*4095)|0]}
+function hexLin(h){const n=parseInt(h.slice(1),16);return [s2l(((n>>16)&255)/255),s2l(((n>>8)&255)/255),s2l((n&255)/255)]}
+
+// Mélange de pigments : interpolation linéaire teintée vers la moyenne
+// géométrique (approximation soustractive façon Beer-Lambert).
+function mixInto(c,q,t,sub){
+  if(t<=0)return; if(t>1)t=1;
+  for(let k=0;k<3;k++){
+    const a=c[k], b=q[k];
+    const lin = a+(b-a)*t;
+    if(sub>0){
+      const g = Math.pow(a<1e-4?1e-4:a,1-t)*Math.pow(b<1e-4?1e-4:b,t);
+      c[k] = lin + (g-lin)*sub;
+    } else c[k]=lin;
+  }
+}
+// même chose, écrite directement dans le buffer de pigment (pas d'allocation)
+function mixPixel(i,q,t,sub){
+  if(t<=0)return; if(t>1)t=1;
+  const j=i*3;
+  for(let k=0;k<3;k++){
+    const a=pig[j+k], b=q[k];
+    const lin = a+(b-a)*t;
+    if(sub>0){
+      const g = Math.pow(a<1e-4?1e-4:a,1-t)*Math.pow(b<1e-4?1e-4:b,t);
+      pig[j+k] = lin + (g-lin)*sub;
+    } else pig[j+k]=lin;
+  }
+}
+
+/* ============================================================
+   3. ÉTAT
+   ============================================================ */
+
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d',{alpha:false});
+const ov = document.getElementById('ov');
+const ovx = ov.getContext('2d');
+const tr = document.getElementById('tr');
+const trx = tr.getContext('2d');
+let W=0,H=0,img=null,px=null;
+let pig=null, dens=null, grain=null, touch=null;   // matière + date du dernier dépôt
+let TW=0,TH=0,CELL=4;                        // grille de traces
+let trX,trY,trAge,trCx,trCy,trK,trId;
+let TILE=64,tx=0,ty=0,dirtyTile=null,anyDirty=false;
+let pal=null, paperLin=[1,1,1], inkLin=[0,0,0], colsLin=[];
+let agents=[], frames=0, running=true, lastT=0, fpsAcc=0, fpsN=0;
+let nextId=0, lastBorn=null, bornAt=-1e9, evapStep=0, evapStride=1, rowSeen=null, sinceBirth=0, selected=null;
+
+// Humidité : la matière fraîche se laisse prélever et mélanger,
+// la matière sèche ne bouge plus et se laisse seulement recouvrir.
+const WETN=2048, WET=new Float32Array(WETN), WETFLOOR=0.35;
+function rebuildWet(){
+  const t=Math.max(1,P.drying);
+  for(let i=0;i<WETN;i++) WET[i]=WETFLOOR+(1-WETFLOOR)*Math.exp(-i/t);
+}
+function wetAt(i){
+  if(P.drying<=0) return 1;
+  let age=frames-touch[i];
+  if(age<0) age=0; if(age>=WETN) age=WETN-1;
+  return WET[age];
+}
+
+const MODE_LINE=0, MODE_ARC=1, MODE_FOLLOW=2, MODE_FARC=3;
+
+const CKEYS=['c1','c2','c3','c4','c5','c6'];
+function loadPalette(name){
+  const q=PALETTES[name]; if(!q) return;
+  P.paper=q.paper; P.ink=q.ink;
+  P.colCount=Math.min(6,q.cols.length);
+  CKEYS.forEach((k,i)=>{ if(i<q.cols.length) P[k]=q.cols[i] });
+}
+function setPalette(fromPalette){
+  pal = PALETTES[P.palette] || PALETTES.nuit;
+  if(fromPalette) loadPalette(P.palette);
+  paperLin = hexLin(P.paper); inkLin = hexLin(P.ink);
+  colsLin = CKEYS.slice(0, Math.max(1,P.colCount|0)).map(k=>hexLin(P[k]));
+}
+
+function allocate(){
+  const stage=document.getElementById('stage');
+  const r=stage.getBoundingClientRect();
+  const pad = document.body.classList.contains('zen')?0:28;
+  W = Math.max(320, Math.floor(r.width - pad));
+  H = Math.max(240, Math.floor(r.height - pad));
+  cv.width=W; cv.height=H; cv.style.width=W+'px'; cv.style.height=H+'px';
+  img = ctx.createImageData(W,H); px = img.data;
+  pig = new Float32Array(W*H*3);
+  dens = new Float32Array(W*H);
+  grain = new Float32Array(W*H);
+  touch = new Float32Array(W*H);
+  rowSeen = new Float32Array(H);
+  // pas de balayage premier avec la hauteur : toutes les lignes sont
+  // visitées une et une seule fois par cycle, dans un ordre dispersé
+  evapStride = Math.max(1, Math.round(H*0.618));
+  const gcd=(a,b)=>b?gcd(b,a%b):a;
+  while(evapStride<H && gcd(evapStride,H)!==1) evapStride++;
+  if(evapStride>=H) evapStride=1;
+  ov.width=W; ov.height=H; ov.style.width=W+'px'; ov.style.height=H+'px';
+  tr.width=W; tr.height=H; tr.style.width=W+'px'; tr.style.height=H+'px';
+  TW = Math.ceil(W/CELL); TH = Math.ceil(H/CELL);
+  const n=TW*TH;
+  trX=new Float32Array(n); trY=new Float32Array(n); trAge=new Float32Array(n);
+  trCx=new Float32Array(n); trCy=new Float32Array(n); trK=new Int8Array(n); trId=new Int16Array(n);
+  tx=Math.ceil(W/TILE); ty=Math.ceil(H/TILE); dirtyTile=new Uint8Array(tx*ty);
+  document.getElementById('dim').textContent = W+'×'+H;
+}
+
+function clearCanvas(){
+  pig.fill(0); dens.fill(0);
+  for(let i=0;i<W*H;i++){
+    const g = 1 - P.grain*0.55*rnd();
+    grain[i]=g;
+    pig[i*3]=paperLin[0]; pig[i*3+1]=paperLin[1]; pig[i*3+2]=paperLin[2];
+  }
+  trAge.fill(-1e9); trId.fill(-1); touch.fill(-1e6); rowSeen.fill(0);
+  for(let i=0;i<px.length;i+=4){px[i+3]=255}
+  paintAll();
+}
+
+function paintAll(){
+  for(let i=0;i<W*H;i++) writePixel(i);
+  ctx.putImageData(img,0,0);
+  dirtyTile.fill(0); anyDirty=false;
+}
+
+function writePixel(i){
+  let d = dens[i]; if(d>1) d=1;
+  const j=i*3, o=i*4, inv=1-d;
+  px[o]   = lin2b(paperLin[0]*inv + pig[j]*d);
+  px[o+1] = lin2b(paperLin[1]*inv + pig[j+1]*d);
+  px[o+2] = lin2b(paperLin[2]*inv + pig[j+2]*d);
+}
+
+function markDirty(x0,y0,x1,y1){
+  let a=(x0/TILE)|0, b=(x1/TILE)|0, c=(y0/TILE)|0, e=(y1/TILE)|0;
+  if(a<0)a=0; if(c<0)c=0; if(b>=tx)b=tx-1; if(e>=ty)e=ty-1;
+  for(let j=c;j<=e;j++) for(let i=a;i<=b;i++) dirtyTile[j*tx+i]=1;
+  anyDirty=true;
+}
+
+/* ============================================================
+   4. TACHES DE COULEUR
+   ============================================================ */
+
+function seedBlobs(){
+  for(let b=0;b<P.blobs;b++)
+    blobAt(rnd()*W, rnd()*H, P.blobSize*(0.45+0.9*rnd()), colsLin[(rnd()*colsLin.length)|0]);
+  paintAll();
+}
+
+// Pas de la trame pour le calage des taches. La grille suit l'inclinaison
+// globale, sinon les taches se caleraient de travers sur une trame tournée.
+function snapStep(mode){
+  const m=Math.max(4,P.module);
+  return mode==='demi-module'?m*0.5 : mode==='module'?m : mode==='double module'?m*2 : 0;
+}
+function snapPoint(x,y){
+  const st=snapStep(P.blobSnap);
+  if(st<=0) return {x,y};
+  const t=P.latticeTilt*TAU, c=Math.cos(-t), s2=Math.sin(-t);
+  const u=x*c-y*s2, v=x*s2+y*c;
+  const su=Math.round(u/st)*st, sv=Math.round(v/st)*st;
+  const c2=Math.cos(t), s3=Math.sin(t);
+  return {x:su*c2-sv*s3, y:su*s3+sv*c2};
+}
+function snapSize(r){
+  const st=snapStep(P.blobSizeSnap);
+  if(st<=0) return r;
+  return Math.max(st, Math.round(r/st)*st);
+}
+
+function blobAt(cx,cy,rad,col,shape){
+  const sh=shape||P.blobShape;
+  const pt=snapPoint(cx,cy); cx=pt.x; cy=pt.y;
+  rad=snapSize(rad);
+  if(sh==='éclaboussure'){
+    stampBlob(cx,cy,rad*0.7,col,'ronde');
+    const n=3+((rnd()*4)|0);
+    for(let k=0;k<n;k++){
+      const a=rnd()*TAU, d=rad*(0.7+1.1*rnd());
+      const q=snapPoint(cx+Math.cos(a)*d, cy+Math.sin(a)*d);
+      stampBlob(q.x, q.y, snapSize(rad*(0.12+0.3*rnd())), col, 'ronde');
+    }
+    return;
+  }
+  stampBlob(cx,cy,rad,col,sh);
+}
+
+// Géométrie de la tache, indépendante de sa facture. Renvoie pour chaque
+// point une profondeur : 1 au coeur, 0 sur le contour, -1 dehors.
+function shapeFn(rad, sh){
+  const lob=2+((rnd()*3)|0), ph=rnd()*TAU, amp=0.25+0.3*rnd();
+  const ang=rnd()*TAU, ca=Math.cos(-ang), sa=Math.sin(-ang);
+  const n1=rnd()*TAU, n2=rnd()*TAU, n3=rnd()*TAU, en=P.blobEdgeNoise;
+  const wob = en<=0 ? null : a =>
+    1 + en*0.4*(Math.sin(a*7+n1)+0.6*Math.sin(a*13+n2)+0.35*Math.sin(a*23+n3))/1.95;
+  return function(dx,dy){
+    if(sh==='coulure'){
+      const u=dx*ca-dy*sa, v=dx*sa+dy*ca;
+      const t=u/(rad*2.6);
+      if(t<-0.35||t>1) return -1;
+      let half=rad*0.55*(1-0.8*Math.max(0,t))*(1+0.6*Math.min(0,t*3));
+      if(wob) half*=wob(t*9);
+      if(half<=0) return -1;
+      const qq=Math.abs(v)/half;
+      return qq>1 ? -1 : 1-qq;
+    }
+    const dist=Math.sqrt(dx*dx+dy*dy), a=Math.atan2(dy,dx);
+    const k=wob?wob(a):1;
+    if(sh==='anneau'){
+      const r0=rad*0.72*k, band=rad*0.3;
+      const qq=Math.abs(dist-r0)/band;
+      return qq>1 ? -1 : 1-qq;
+    }
+    const rr=((sh==='lobée') ? rad*(1+amp*Math.sin(a*lob+ph)*0.5) : rad)*k;
+    return dist>rr ? -1 : 1-dist/rr;
+  };
+}
+
+// Profondeur -> opacité. La facture choisit le régime, le curseur de
+// netteté affine à l'intérieur de ce régime.
+function edgeProfile(t){
+  const st=P.blobStyle;
+  let band, core=1, rim=P.blobRim, rimW=0.02;
+  if(st==='flou'){ band=0.22+0.75*(1-P.blobEdge); rim=0; }
+  else if(st==='huile'){ band=0.015+0.16*(1-P.blobEdge); core=0.82; rimW=0.035; rim*=1.6; }
+  else { band=0.02+0.35*(1-P.blobEdge); rim*=0.5; }
+  let w=t/band; if(w>1)w=1; w=w*w*(3-2*w);
+  w*=core;
+  if(rim>0) w+=rim*Math.exp(-(t*t)/rimW);
+  return w>1.5?1.5:w;
+}
+
+function depositDot(bx,by,r,col,amount){
+  const x0=Math.max(0,Math.floor(bx-r)), x1=Math.min(W-1,Math.ceil(bx+r));
+  const y0=Math.max(0,Math.floor(by-r)), y1=Math.min(H-1,Math.ceil(by+r));
+  const r2=r*r;
+  for(let y=y0;y<=y1;y++){
+    const dy=y+0.5-by;
+    for(let x=x0;x<=x1;x++){
+      const dx=x+0.5-bx, d2=dx*dx+dy*dy;
+      if(d2>r2) continue;
+      const i=y*W+x;
+      const add=amount*(1-d2/r2)*grain[i];
+      if(add<=1e-5) continue;
+      const d0=dens[i], nd=d0+add;
+      mixPixel(i, col, add/nd, P.subtractive);
+      dens[i]=nd>P.maxDens?P.maxDens:nd;
+      touch[i]=frames;
+      writePixel(i);
+    }
+  }
+}
+
+function stampBlob(cx,cy,rad,col,sh){
+  const S=shapeFn(rad,sh);
+  const ext=(sh==='coulure')?2.8:1.45;
+  const x0=Math.max(0,(cx-rad*ext)|0), x1=Math.min(W-1,(cx+rad*ext)|0);
+  const y0=Math.max(0,(cy-rad*ext)|0), y1=Math.min(H-1,(cy+rad*ext)|0);
+  if(x1<x0||y1<y0) return;
+  if(P.blobStyle==='encre') inkFill(cx,cy,rad*ext,S,col);
+  else {
+    // aplat : la nuance entre flou et huile tient au profil de bord
+    for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++){
+      const t=S(x-cx,y-cy);
+      if(t<0) continue;
+      const w=edgeProfile(t);
+      const i=y*W+x;
+      const add=P.blobDensity*w*(1-P.blobTexture*rnd())*grain[i];
+      const d0=dens[i], nd=d0+add;
+      mixPixel(i, col, add/nd, P.subtractive);
+      dens[i]=nd>P.maxDens?P.maxDens:nd;
+      touch[i]=frames;
+      writePixel(i);
+    }
+  }
+  markDirty(x0,y0,x1,y1);
+}
+
+// Style encre : la tache est hachurée avec les mêmes marques que les
+// agents, sur les directions de la trame. Même vocabulaire que le trait.
+function inkFill(cx,cy,R,S,col){
+  const dirs=P.lattice|0, off=P.latticeTilt*TAU;
+  const base=off+((rnd()*dirs)|0)*(TAU/dirs);
+  hatch(cx,cy,R,S,col,base,1);
+  if(P.blobCross>0) hatch(cx,cy,R,S,col,base+Math.PI/2,P.blobCross);
+}
+
+function hatch(cx,cy,R,S,col,ang,gain){
+  const dxs=Math.cos(ang), dys=Math.sin(ang);
+  const nxs=-dys, nys=dxs;
+  const dotR=P.dot*1.15;
+  const space=Math.max(1.2, dotR*2.4/P.blobStrokes);
+  const step=Math.max(0.8, dotR*0.85);
+  const wamp=P.scatter*1.4;
+  for(let o=-R;o<=R;o+=space){
+    const ox=cx+nxs*o, oy=cy+nys*o;
+    const wobble=rnd()*TAU;
+    // pas d'arrêt à la première sortie : un anneau ou une forme concave
+    // se traverse plusieurs fois sur la même corde.
+    for(let u=-R;u<=R;u+=step){
+      const jx=Math.sin(u*0.09+wobble)*wamp;
+      const x=ox+dxs*u+nxs*jx, y=oy+dys*u+nys*jx;
+      const t=S(x-cx,y-cy);
+      if(t<0) continue;
+      const w=edgeProfile(t);
+      depositDot(x,y,dotR,col, P.blobDensity*w*0.5*gain*(1-P.blobTexture*rnd()));
+    }
+  }
+}
+
+/* ============================================================
+   5. AGENTS
+   Chaque agent porte une « personnalité » : une variation
+   individuelle autour des réglages globaux.
+   ============================================================ */
+
+// La trame n'est plus globale : un agent stressé peut basculer sur un
+// autre nombre de directions et sur un décalage d'une fraction de pas.
+// C'est ce décalage qui rend la crise lisible — ses segments coupent en
+// biais la trame calme au lieu de s'y fondre.
+function dirsOf(a){
+  return (a && a.state===1 && P.sLattice!=='inchangée') ? (P.sLattice|0) : (P.lattice|0);
+}
+function tiltOf(a){
+  const off=P.latticeTilt*TAU;
+  return (a && a.state===1) ? off + P.sTiltStep*(TAU/dirsOf(a)) : off;
+}
+function snapHeading(h,a){
+  const step=TAU/dirsOf(a), off=tiltOf(a);
+  return Math.round((h-off)/step)*step+off;
+}
+
+// Un tempérament est un jeu complet de paramètres propre à l'agent, pas
+// un facteur d'échelle. Les traits d'une même famille partagent leur
+// tirage pour rester cohérents entre eux (segMax > segMin, etc.).
+const TRAIT_FAMILIES = {
+  speed:['speed'], seg:['segMin','segMax'], rad:['radMin','radMax'],
+  look:['look'], social:['affinity'], follow:['followMin','followMax'],
+  div:['diverge','crossTurn'], brush:['brush','dot'],
+  flow:['deposit','pickup','capacity'], texture:['scatter','dry'],
+  meander:['meander'], fid:['fidelity']
+};
+const TRAIT_FLAT = ['arcFit','turnSteps','wander','lane','capture','refract','bristles','eraseForce'];
+
+// Les familles picturales encaissent une dispersion réduite : si les
+// pinceaux varient autant que les trajectoires, quelques agents écrasent
+// tout le dessin sous des rubans larges.
+const SOFT_FAMILIES=['brush','flow','texture','fid','look'];
+function sampleTraits(){
+  const T={};
+  for(const fam in TRAIT_FAMILIES){
+    const e=(SOFT_FAMILIES.indexOf(fam)>=0?0.45:1)*(rnd()*2-1);
+    const m=Math.pow(Math.max(1,P.disp), e);
+    for(const k of TRAIT_FAMILIES[fam]) T[k]=P[k]*m;
+  }
+  for(const k of TRAIT_FLAT) T[k]=P[k];
+  T.meander=Math.min(1,T.meander);
+  T.affinity=Math.min(1,T.affinity);
+  T.bristles=Math.max(1,Math.round(T.bristles));
+  return T;
+}
+
+// Valeur effective d'un trait : tempérament, modulé par l'état courant.
+let SMOD={};
+function rebuildStress(){
+  const v=SKEYS.map(k=>P[k]);
+  SMOD={ speed:v[0], segMin:v[1], segMax:v[1], radMin:v[2], radMax:v[2],
+    affinity:v[3], followMax:v[3], diverge:v[4], crossTurn:v[4],
+    deposit:v[5], pickup:v[5], brush:v[6], dot:1+(v[6]-1)*0.4,
+    scatter:v[7], meander:1+(v[7]-1)*0.35, wander:v[7] };
+}
+function q(a,k){
+  const v=a.T[k];
+  if(a.state===0) return v;
+  const m=SMOD[k];
+  return m===undefined ? v : v*m;
+}
+
+function makeAgent(id){
+  const a={
+    id, x:0,y:0,h:0, mode:MODE_LINE,
+    cx:0,cy:0,r:20,dir:1,lastDir:1,sweep:0,exitToLattice:false,
+    seg:0, lastSeg:0, pendingSeg:0, follow:0, refract:0, senseCd:0, holdArc:0, confineCd:0,
+    // tempérament et état
+    name: NOMS[(rnd()*NOMS.length)|0],
+    T: sampleTraits(),
+    state: 0,          // 0 = détendu, 1 = stressé
+    stateSince: 0, tension: 0, minD: 1e9, near: 0,
+    eraser: rnd()<P.erasers,
+    idCol: null,
+    bristles:[]
+  };
+  a.hist=new Float32Array(24); a.histN=0;
+  a.idCol=colsLin[(rnd()*colsLin.length)|0].slice();
+  a.x=Math.floor(rnd()*W); a.y=Math.floor(rnd()*H);
+  a.h=snapHeading(rnd()*TAU,a);
+  a.seg=a.lastSeg=segLen(a);
+  buildBristles(a);
+  // quelques agents partent chargés pour que le dessin démarre
+  if(!a.eraser && rnd()<0.5){
+    for(const b of a.bristles){ b.col=a.idCol.slice(); b.load=a.T.capacity*(0.3+0.5*rnd()) }
+  }
+  return a;
+}
+
+function buildBristles(a){
+  const n=Math.max(1,a.T.bristles|0);
+  a.bristles=[];
+  for(let i=0;i<n;i++){
+    let t = n===1?0:(i/(n-1))*2-1;
+    let w = 0.55+0.6*rnd();
+    if(P.brushProfile==='rond'){ t=Math.sin(t*Math.PI/2); w*=0.5+0.7*Math.cos(t*Math.PI/2) }
+    else if(P.brushProfile==='éventail'){ t=t*(1+0.5*Math.abs(t)); w*=0.4+0.9*Math.abs(t) }
+    a.bristles.push({
+      off: t*0.5,
+      jit: rnd()*TAU,
+      jitv: 0.05+0.25*rnd(),
+      w: w,
+      load: 0,
+      col: inkLin.slice()
+    });
+  }
+}
+
+function segLen(a){
+  const mn=q(a,'segMin'), mx=Math.max(q(a,'segMax'),mn);
+  let L=mn + rnd()*(mx-mn);
+  if(P.module>1) L=Math.max(P.module,Math.round(L/P.module)*P.module);
+  return L;
+}
+function radius(a){ const mn=q(a,'radMin'), mx=Math.max(q(a,'radMax'),mn); return mn+rnd()*(mx-mn) }
+
+function turnDir(a){ return rnd()<q(a,'meander') ? -a.lastDir : (rnd()<0.5?1:-1) }
+// Virage d'angle quelconque : nécessaire pour rejoindre une trame dont
+// les directions ne sont pas des multiples de l'ancienne.
+function beginTurnAngle(a,dir,ang){
+  beginTurn(a,dir,0,ang);
+}
+function beginTurn(a,dir,steps,rawAngle){
+  a.lastDir=dir;
+  // le rayon doit s'inscrire dans les segments qui l'encadrent :
+  // sans cette contrainte les arcs mangent les droites et tout s'enroule.
+  const nxt=segLen(a);
+  a.pendingSeg=nxt;
+  const lim=a.T.arcFit*Math.min(a.lastSeg||nxt,nxt);
+  let r=radius(a);
+  if(r>lim) r=lim;
+  if(r<3) r=3;
+  const nx=-Math.sin(a.h), ny=Math.cos(a.h);
+  a.cx=a.x+dir*nx*r; a.cy=a.y+dir*ny*r;
+  a.r=r; a.dir=dir;
+  a.sweep=rawAngle!==undefined ? rawAngle : (TAU/dirsOf(a))*(steps||a.T.turnSteps);
+  a.exitToLattice=false;
+  a.mode=MODE_ARC;
+}
+
+function reseed(){
+  rnd = mulberry32(P.seed|0);
+  agents=[]; nextId=0; lastBorn=null; bornAt=-1e9;
+  for(let i=0;i<P.agents;i++) agents.push(makeAgent(nextId++));
+}
+
+// Naissance : un nouvel agent, plus l'empreinte chromatique déposée
+// à l'endroit où il apparaît.
+function birth(arch, at){
+  const a=makeAgent(nextId++);
+  a.eraser=false;
+  if(arch) applyArchetype(a,arch);
+  if(at){ a.x=at.x; a.y=at.y; a.h=snapHeading(rnd()*TAU,a); a.hist.fill(0); a.histN=0 }
+  { const pt=snapPoint(a.x,a.y); a.x=pt.x; a.y=pt.y; }   // l'agent naît au centre de sa tache
+  if(P.birthColorMode==='choisie') a.idCol=hexLin(P.birthColor);
+  const col=a.idCol;
+  for(const b of a.bristles){ b.col=col.slice(); b.load=a.T.capacity*(0.5+0.5*rnd()) }
+  blobAt(a.x, a.y, P.blobSize*(0.3+0.35*rnd()), col);
+  agents.push(a);
+  // la population est bornée : le plus ancien se retire du monde
+  while(agents.length>P.maxAgents){
+    const i=agents[0]===lastBorn?1:0;
+    agents.splice(i,1);
+  }
+  P.agents=agents.length; syncUI();
+  lastBorn=a; bornAt=frames; sinceBirth=0;
+  return a;
+}
+
+// Entretien de la toile, par bandes, une par frame.
+// L'évaporation multiplicative assombrit sans jamais vider : elle
+// conserve le motif de couverture. Le fondu par âge, lui, soustrait une
+// quantité fixe aux marques anciennes et les ramène réellement à zéro.
+// C'est lui qui rend la fenêtre glissante possible.
+// Deux précautions pour que l'entretien reste invisible.
+//
+// 1. Les lignes ne sont pas traitées de proche en proche mais par pas
+//    premier avec la hauteur : deux lignes voisines sont donc entretenues
+//    à des instants très éloignés. L'écart d'un décrément, qui formait
+//    une arête franche balayant l'image, se disperse en un bruit d'une
+//    ligne sur l'autre, imperceptible.
+// 2. Le décrément est proportionnel au temps réellement écoulé depuis la
+//    dernière visite de cette ligne. Le fondu ne dépend donc plus ni de
+//    la hauteur du canevas ni de la cadence : c'est un taux, pas un pas.
+function evaporate(){
+  // cadence choisie pour que l'écart de fondu entre deux lignes voisines
+  // reste sous le seuil de perception, quelle que soit la hauteur du
+  // canevas et la durée du fondu demandée
+  const fonduF=Math.max(6, P.fondu*60);
+  const cycle=Math.max(4, Math.min(60, 0.012*fonduF/Math.max(0.2,P.maxDens)));
+  const rows=Math.max(8, Math.min(120, Math.ceil(H/cycle)));
+  const cut=P.memoire==='accumulation sans fin' ? Infinity : P.fenetre*60;
+  if(P.evap<=0 && cut===Infinity){ evapStep+=rows; return }
+  for(let n=0;n<rows;n++){
+    const y=((evapStep+n)*evapStride)%H;
+    const since=frames-rowSeen[y];
+    rowSeen[y]=frames;
+    if(since<=0) continue;
+    const drop=P.maxDens*since/fonduF;
+    const k=P.evap>0 ? Math.pow(1-P.evap, since/60) : 1;
+    const base=y*W;
+    for(let x=0;x<W;x++){
+      const i=base+x;
+      let d=dens[i];
+      if(d<=0) continue;
+      if(k<1) d*=k;
+      if(frames-touch[i]>cut) d-=drop;
+      dens[i]= d<0.002 ? 0 : d;
+      writePixel(i);
+    }
+    markDirty(0,y,W-1,y);
+  }
+  evapStep+=rows;
+}
+
+// Topographie : des corps lents que les agents ne peuvent pas traverser.
+// Ils ne règlent pas l'accumulation, ils la déplacent — et créent des
+// réserves, du négatif. Avec l'attirance vers les zones denses, ils vont
+// se poser là où la toile s'engorge et en chassent les agents.
+let bodies=[];
+function seedBodies(){
+  bodies=[];
+  for(let i=0;i<P.topoCount;i++){
+    const a=rnd()*TAU;
+    bodies.push({
+      x:W*(0.2+0.6*rnd()), y:H*(0.2+0.6*rnd()),
+      r:P.topoSize*(0.6+0.8*rnd()),
+      vx:Math.cos(a), vy:Math.sin(a)
+    });
+  }
+}
+function moveBodies(){
+  if(!bodies.length) return;
+  const sp=P.topoSpeed;
+  for(const b of bodies){
+    if(P.topoSeek>0 && frames%40===0){
+      // échantillonne quelques points et se dirige vers le plus chargé
+      let bx=0,by=0,best=-1;
+      for(let k=0;k<8;k++){
+        const x=rnd()*W, y=rnd()*H;
+        let sum=0;
+        for(let j=0;j<6;j++){
+          const px=(x+(rnd()-0.5)*60)|0, py=(y+(rnd()-0.5)*60)|0;
+          if(px<0||py<0||px>=W||py>=H) continue;
+          sum+=dens[py*W+px];
+        }
+        if(sum>best){ best=sum; bx=x; by=y }
+      }
+      const dx=bx-b.x, dy=by-b.y, d=Math.hypot(dx,dy)||1;
+      b.vx += (dx/d-b.vx)*P.topoSeek*0.5;
+      b.vy += (dy/d-b.vy)*P.topoSeek*0.5;
+      const n=Math.hypot(b.vx,b.vy)||1; b.vx/=n; b.vy/=n;
+    }
+    b.x+=b.vx*sp; b.y+=b.vy*sp;
+    const m=b.r*0.5;
+    if(b.x<m||b.x>W-m) b.vx*=-1;
+    if(b.y<m||b.y>H-m) b.vy*=-1;
+    b.r += (P.topoSize-b.r)*0.01;
+  }
+}
+function blockedAt(x,y){
+  for(let i=0;i<bodies.length;i++){
+    const b=bodies[i], dx=x-b.x, dy=y-b.y;
+    if(dx*dx+dy*dy < b.r*b.r) return b;
+  }
+  return null;
+}
+
+// Perception mutuelle : jusqu'ici un agent ne percevait que des traces
+// laissées dans le milieu, jamais un autre agent. Ici chacun mesure sa
+// distance au plus proche voisin — c'est ce qui alimente les états.
+function perceive(){
+  const n=agents.length;
+  for(let i=0;i<n;i++){ agents[i].minD=1e9; agents[i].near=0 }
+  const R=P.stressDist, R2=R*R;
+  for(let i=0;i<n;i++){
+    const a=agents[i];
+    for(let j=i+1;j<n;j++){
+      const b=agents[j];
+      const dx=a.x-b.x, dy=a.y-b.y, d2=dx*dx+dy*dy;
+      if(d2<a.minD) a.minD=d2;
+      if(d2<b.minD) b.minD=d2;
+      if(d2<R2){ a.near++; b.near++ }
+    }
+  }
+  for(let i=0;i<n;i++){ const a=agents[i]; a.minD=Math.sqrt(a.minD); updateState(a) }
+}
+
+// Au changement d'état, l'agent rejoint la trame de son nouvel état par
+// un arc. La rupture de direction est le stigmate visible de la crise.
+function realign(a){
+  const target=snapHeading(a.h,a);
+  const d=Math.atan2(Math.sin(target-a.h),Math.cos(target-a.h));
+  if(Math.abs(d)<0.02){ a.h=target; return }
+  beginTurnAngle(a, d>0?1:-1, Math.abs(d));
+}
+
+// Bascule avec hystérésis et séjour minimal : sans ça l'état clignote
+// à chaque frôlement et les deux grammaires deviennent illisibles.
+function updateState(a){
+  const close=a.minD<P.stressDist;
+  a.tension = close ? Math.min(a.tension+1, P.stressOn*2) : Math.max(a.tension-1, 0);
+  if(a.state===0){
+    if(a.tension>=P.stressOn){ a.state=1; a.stateSince=frames; realign(a) }
+  } else if(frames-a.stateSince>P.stressMin && a.tension<=P.stressOn*P.relax){
+    a.state=0; a.stateSince=frames; realign(a);
+  }
+}
+
+// Calque rapide : les trajectoires, nettes, avec une mémoire de quelques
+// secondes. C'est la temporalité immédiate du dossier, enfin séparée de
+// la temporalité lente du pigment.
+function drawTraces(){
+  if(P.traceFade>0){
+    trx.globalCompositeOperation='destination-out';
+    trx.fillStyle='rgba(0,0,0,'+P.traceFade+')';
+    trx.fillRect(0,0,W,H);
+    trx.globalCompositeOperation='source-over';
+  }
+  if(P.traceAlpha<=0) return;
+  trx.lineCap='round'; trx.lineJoin='round';
+  for(const a of agents){
+    if(a.px===undefined) continue;
+    const dx=a.x-a.px, dy=a.y-a.py;
+    if(dx*dx+dy*dy>4000) continue;          // saut de réinjection
+    if(a.eraser){
+      trx.globalCompositeOperation='destination-out';
+      trx.strokeStyle='rgba(0,0,0,0.5)';
+      trx.lineWidth=P.traceWidth*3;
+    } else {
+      trx.strokeStyle=agentHex(a);
+      trx.globalAlpha=P.traceAlpha*(a.state===1?1:0.85);
+      trx.lineWidth=P.traceWidth*(a.state===1?1.4:1);
+    }
+    trx.beginPath(); trx.moveTo(a.px,a.py); trx.lineTo(a.x,a.y); trx.stroke();
+    trx.globalAlpha=1; trx.globalCompositeOperation='source-over';
+  }
+}
+
+// Repères des agents, dessinés sur un calque séparé : la peinture
+// en dessous n'est jamais touchée.
+function drawOverlay(){
+  ovx.clearRect(0,0,W,H);
+  if(P.topoShow==='oui'){
+    const cc=contrastHex();
+    for(const b of bodies){
+      ovx.globalAlpha=0.10; ovx.fillStyle=cc;
+      ovx.beginPath(); ovx.arc(b.x,b.y,b.r,0,TAU); ovx.fill();
+      ovx.globalAlpha=0.75; ovx.strokeStyle=cc; ovx.lineWidth=1.6;
+      ovx.setLineDash([6,6]);
+      ovx.beginPath(); ovx.arc(b.x,b.y,b.r,0,TAU); ovx.stroke();
+      ovx.setLineDash([]);
+      ovx.globalAlpha=0.9;
+      ovx.beginPath(); ovx.arc(b.x,b.y,3,0,TAU); ovx.fill();
+    }
+    ovx.globalAlpha=1;
+  }
+  const mode=P.showAgents;
+  if(mode==='aucun' && !lastBorn && P.nameWhen==='aucun' && !selected) return;
+  const sc=P.agentScale;
+  const focusAge=frames-bornAt, focusing=lastBorn && focusAge<P.focusTime;
+  for(const a of agents){
+    const isLast=(a===lastBorn && focusing), isSel=(a===selected);
+    const named=nameShown(a,isSel);
+    if(mode==='aucun' && !isLast && !isSel && !named) continue;
+    if(mode==='dernier' && !isLast && !isSel && !named) continue;
+    const c=markHex(a);
+    // sillage
+    if(a.histN>1 && P.agentMark!=='comète'){
+      ovx.beginPath();
+      for(let k=0;k<a.histN;k++){
+        const x=a.hist[k*2], y=a.hist[k*2+1];
+        if(k===0) ovx.moveTo(x,y); else ovx.lineTo(x,y);
+      }
+      ovx.strokeStyle=c; ovx.globalAlpha=isLast?0.55:0.3; ovx.lineWidth=1.2*sc; ovx.stroke();
+    }
+    ovx.globalAlpha=1;
+    if(a.eraser){
+      const r=4*sc;
+      if(P.markOutline==='oui'){
+        ovx.strokeStyle=paperIsDark()?'rgba(0,0,0,0.85)':'rgba(255,255,255,0.85)';
+        ovx.lineWidth=3.4*sc; ovx.strokeRect(a.x-r,a.y-r,r*2,r*2);
+      }
+      ovx.strokeStyle=c; ovx.lineWidth=1.6*sc;
+      ovx.strokeRect(a.x-r,a.y-r,r*2,r*2);
+    } else {
+      drawMark(a,c,sc,isLast||isSel);
+    }
+    // état stressé : couronne dentelée
+    if(P.showState && a.state===1){
+      const r=6.5*sc;
+      ovx.strokeStyle=c; ovx.lineWidth=1*sc; ovx.globalAlpha=0.9;
+      ovx.beginPath();
+      for(let k=0;k<12;k++){
+        const ang=k/12*TAU, rr=k%2?r:r*0.55;
+        const x=a.x+Math.cos(ang)*rr, y=a.y+Math.sin(ang)*rr;
+        if(k===0) ovx.moveTo(x,y); else ovx.lineTo(x,y);
+      }
+      ovx.closePath(); ovx.stroke(); ovx.globalAlpha=1;
+    }
+    if(isSel){
+      ovx.setLineDash([4,4]);
+      ovx.beginPath(); ovx.arc(a.x,a.y,13*sc,0,TAU);
+      ovx.strokeStyle=c; ovx.lineWidth=1.4*sc; ovx.stroke();
+      ovx.setLineDash([]);
+    }
+    if(isLast) markLastBorn(a,c,focusAge/P.focusTime,sc);
+    else if(nameShown(a,isSel)) drawName(a,c,sc,0.9,false);
+  }
+}
+
+function nameShown(a,isSel){
+  switch(P.nameWhen){
+    case 'tous': return true;
+    case 'stressés': return a.state===1;
+    case 'en formation': return a.mode===MODE_FOLLOW||a.mode===MODE_FARC;
+    case 'sélection': return isSel;
+    default: return false;
+  }
+}
+
+// Étiquette lisible sur n'importe quel fond : pastille pleine de la
+// couleur de l'agent, texte dans la couleur du papier.
+function drawName(a,c,sc,alpha,big){
+  const fs=(big?14:11)*sc;
+  ovx.font=(big?'600 ':'')+fs+'px system-ui,sans-serif';
+  const txt=a.name, w=ovx.measureText(txt).width+10*sc, h=fs+7*sc;
+  const bx=a.x-w/2, by=a.y-(big?46:16)*sc-h;
+  ovx.globalAlpha=alpha;
+  ovx.fillStyle=c;
+  if(ovx.roundRect){ ovx.beginPath(); ovx.roundRect(bx,by,w,h,h/2); ovx.fill() }
+  else ovx.fillRect(bx,by,w,h);
+  ovx.strokeStyle=c; ovx.lineWidth=1*sc;
+  ovx.beginPath(); ovx.moveTo(a.x,by+h); ovx.lineTo(a.x,a.y-6*sc); ovx.stroke();
+  ovx.fillStyle=paperHex(); ovx.textAlign='center'; ovx.textBaseline='middle';
+  ovx.fillText(txt, a.x, by+h/2+0.5);
+  ovx.textBaseline='alphabetic';
+  ovx.globalAlpha=1;
+}
+
+// Le dernier-né doit être trouvable d'un coup d'oeil dans un monde chargé :
+// réticule pleine toile, double couronne, pulsation, étiquette nommée.
+function markLastBorn(a,c,t,sc){
+  const al=0.9*(1-t*t);
+  const pulse=1+0.12*Math.sin(frames*0.12);
+  const halo=(30-14*t)*sc*pulse;
+  ovx.save();
+  ovx.strokeStyle=c;
+  // réticule
+  ovx.globalAlpha=al*0.28; ovx.lineWidth=1*sc; ovx.setLineDash([6,7]);
+  ovx.beginPath();
+  ovx.moveTo(0,a.y); ovx.lineTo(a.x-halo*1.5,a.y);
+  ovx.moveTo(a.x+halo*1.5,a.y); ovx.lineTo(W,a.y);
+  ovx.moveTo(a.x,0); ovx.lineTo(a.x,a.y-halo*1.5);
+  ovx.moveTo(a.x,a.y+halo*1.5); ovx.lineTo(a.x,H);
+  ovx.stroke(); ovx.setLineDash([]);
+  // couronnes
+  ovx.globalAlpha=al; ovx.lineWidth=2.2*sc;
+  ovx.beginPath(); ovx.arc(a.x,a.y,halo,0,TAU); ovx.stroke();
+  ovx.globalAlpha=al*0.45; ovx.lineWidth=1.2*sc;
+  ovx.beginPath(); ovx.arc(a.x,a.y,halo*1.55,0,TAU); ovx.stroke();
+  // coeur plein
+  ovx.globalAlpha=al; ovx.fillStyle=c;
+  ovx.beginPath(); ovx.arc(a.x,a.y,4.2*sc,0,TAU); ovx.fill();
+  ovx.restore();
+  drawName(a,c,sc,al,true);
+  ovx.globalAlpha=al*0.85;
+  ovx.font=(9.5*sc)+'px system-ui,sans-serif';
+  ovx.fillStyle=c; ovx.textAlign='center';
+  ovx.fillText('dernier-né', a.x, a.y+halo+13*sc);
+  ovx.globalAlpha=1;
+}
+
+function paperHex(){ return 'rgb('+lin2b(paperLin[0])+','+lin2b(paperLin[1])+','+lin2b(paperLin[2])+')' }
+function paperIsDark(){ return 0.2126*paperLin[0]+0.7152*paperLin[1]+0.0722*paperLin[2] < 0.25 }
+function contrastHex(){ return paperIsDark()?'rgb(255,255,255)':'rgb(12,12,14)' }
+function markHex(a){
+  if(P.markColor==='agent') return agentHex(a);
+  if(P.markColor==='papier') return paperHex();
+  return contrastHex();
+}
+
+// Sept factures de repère. Sur une toile chargée, un point de la couleur
+// de l'agent se confond avec sa propre peinture : d'où le cerne de
+// lisibilité et le mode contraste, qui rendent le repère lisible sur
+// n'importe quel fond.
+function drawMark(a,c,sc,strong){
+  const st=P.agentMark;
+  const outline=P.markOutline==='oui';
+  const oc=paperIsDark()?'rgba(0,0,0,0.85)':'rgba(255,255,255,0.85)';
+  const pass=(draw)=>{
+    if(outline){ ovx.strokeStyle=oc; ovx.fillStyle=oc; ovx.lineWidth=(3.4)*sc; draw(true) }
+    ovx.strokeStyle=c; ovx.fillStyle=c; ovx.lineWidth=1.6*sc; draw(false);
+  };
+  const r=(strong?4.6:3.4)*sc;
+  if(st==='point'){
+    pass(o=>{ ovx.beginPath(); ovx.arc(a.x,a.y,r+(o?1.2*sc:0),0,TAU); ovx.fill() });
+  } else if(st==='anneau'){
+    pass(o=>{ ovx.beginPath(); ovx.arc(a.x,a.y,r*2.2,0,TAU); ovx.stroke();
+              if(!o){ ovx.beginPath(); ovx.arc(a.x,a.y,r*0.55,0,TAU); ovx.fill() } });
+  } else if(st==='croix'){
+    const L=r*3.4;
+    pass(()=>{ ovx.beginPath();
+      ovx.moveTo(a.x-L,a.y); ovx.lineTo(a.x+L,a.y);
+      ovx.moveTo(a.x,a.y-L); ovx.lineTo(a.x,a.y+L); ovx.stroke() });
+  } else if(st==='réticule'){
+    ovx.save(); ovx.globalAlpha=0.35; ovx.strokeStyle=c; ovx.lineWidth=1*sc;
+    ovx.setLineDash([5,7]); ovx.beginPath();
+    ovx.moveTo(0,a.y); ovx.lineTo(W,a.y); ovx.moveTo(a.x,0); ovx.lineTo(a.x,H);
+    ovx.stroke(); ovx.restore();
+    pass(o=>{ ovx.beginPath(); ovx.arc(a.x,a.y,r*2,0,TAU); ovx.stroke() });
+  } else if(st==='comète'){
+    if(a.histN>1){
+      for(let k=a.histN-1;k>0;k--){
+        ovx.globalAlpha=(1-k/a.histN)*0.9;
+        ovx.strokeStyle=c; ovx.lineWidth=(1+3*(1-k/a.histN))*sc;
+        ovx.beginPath(); ovx.moveTo(a.hist[k*2],a.hist[k*2+1]);
+        ovx.lineTo(a.hist[(k-1)*2],a.hist[(k-1)*2+1]); ovx.stroke();
+      }
+      ovx.globalAlpha=1;
+    }
+    pass(o=>{ ovx.beginPath(); ovx.arc(a.x,a.y,r*(o?1.3:1),0,TAU); ovx.fill() });
+  } else if(st==='halo'){
+    const g=ovx.createRadialGradient(a.x,a.y,0,a.x,a.y,r*5);
+    g.addColorStop(0,c); g.addColorStop(1,'rgba(0,0,0,0)');
+    ovx.globalAlpha=0.55; ovx.fillStyle=g;
+    ovx.beginPath(); ovx.arc(a.x,a.y,r*5,0,TAU); ovx.fill(); ovx.globalAlpha=1;
+    pass(o=>{ ovx.beginPath(); ovx.arc(a.x,a.y,r*0.9,0,TAU); ovx.fill() });
+  } else if(st==='étiquette'){
+    pass(o=>{ ovx.beginPath(); ovx.arc(a.x,a.y,r*0.8,0,TAU); ovx.fill() });
+    drawName(a,c,sc,0.95,false);
+  }
+}
+
+function agentHex(a){
+  let r=0,g=0,b=0,n=0;
+  for(const br of a.bristles){ r+=br.col[0]; g+=br.col[1]; b+=br.col[2]; n++ }
+  return 'rgb('+lin2b(r/n)+','+lin2b(g/n)+','+lin2b(b/n)+')';
+}
+
+/* ============================================================
+   6. TRACES ET DÉTECTION
+   ============================================================ */
+
+function writeTrail(a){
+  const gx=(a.x/CELL)|0, gy=(a.y/CELL)|0;
+  if(gx<0||gy<0||gx>=TW||gy>=TH) return;
+  const i=gy*TW+gx;
+  trX[i]=Math.cos(a.h); trY[i]=Math.sin(a.h);
+  trAge[i]=frames; trId[i]=a.id;
+  if(a.mode===MODE_ARC||a.mode===MODE_FARC){ trCx[i]=a.cx; trCy[i]=a.cy; trK[i]=a.dir }
+  else trK[i]=0;
+}
+
+function sampleTrail(a,ahead){
+  // balayage latéral : on cherche la trace fraîche la mieux alignée
+  const cx=Math.cos(a.h), cy=Math.sin(a.h);
+  const fx=a.x+cx*ahead, fy=a.y+cy*ahead;
+  const nx=-cy, ny=cx;
+  let best=-1, bestDot=Math.cos(a.T.capture*Math.PI/180);
+  const L=a.T.lane, lanes=[0,-L,L,-L*2,L*2];
+  for(let k=0;k<lanes.length;k++){
+    const sx=fx+nx*lanes[k], sy=fy+ny*lanes[k];
+    const gx=(sx/CELL)|0, gy=(sy/CELL)|0;
+    if(gx<0||gy<0||gx>=TW||gy>=TH) continue;
+    const i=gy*TW+gx;
+    if(trId[i]===a.id) continue;
+    if(frames-trAge[i]>P.memory) continue;
+    const d=cx*trX[i]+cy*trY[i];
+    if(d>bestDot){ bestDot=d; best=i }
+  }
+  return best;
+}
+
+function sampleCross(a){
+  const cx=Math.cos(a.h), cy=Math.sin(a.h);
+  const sx=a.x+cx*q(a,'look'), sy=a.y+cy*q(a,'look');
+  const gx=(sx/CELL)|0, gy=(sy/CELL)|0;
+  if(gx<0||gy<0||gx>=TW||gy>=TH) return -1;
+  const i=gy*TW+gx;
+  if(trId[i]===a.id || frames-trAge[i]>P.memory) return -1;
+  const d=cx*trX[i]+cy*trY[i];
+  return Math.abs(d)<0.45 ? i : -1;   // trajectoire franchement transverse
+}
+
+// Adopte le centre de courbure d'une trace : le rayon devient la
+// distance de l'agent à ce centre, donc les arcs restent concentriques
+// et les suiveurs s'inscrivent les uns dans les autres.
+function adoptArc(a,i){
+  const dx=a.x-trCx[i], dy=a.y-trCy[i];
+  const r=Math.sqrt(dx*dx+dy*dy);
+  if(r<3||r>800) return false;
+  a.cx=trCx[i]; a.cy=trCy[i]; a.r=r; a.dir=trK[i];
+  a.mode=MODE_FARC; a.holdArc=8;
+  // tangente au cercle, dans le sens de rotation de la trace
+  a.h=Math.atan2(dx*a.dir, -dy*a.dir);
+  return true;
+}
+
+/* ============================================================
+   7. PINCEAU
+   ============================================================ */
+
+function brushDot(bx,by,r,b,a){
+  const idc=a.idCol;
+  const x0=Math.max(0,Math.floor(bx-r)), x1=Math.min(W-1,Math.ceil(bx+r));
+  const y0=Math.max(0,Math.floor(by-r)), y1=Math.min(H-1,Math.ceil(by+r));
+  if(x1<x0||y1<y0) return;
+  const r2=r*r;
+  let sw=0,sd=0,cr=0,cg=0,cb=0,swet=0;
+  for(let y=y0;y<=y1;y++){
+    const dy=y+0.5-by;
+    for(let x=x0;x<=x1;x++){
+      const dx=x+0.5-bx, d2=dx*dx+dy*dy;
+      if(d2>r2) continue;
+      const w=1-d2/r2, i=y*W+x, dd=dens[i];
+      sw+=w; sd+=dd*w; swet+=wetAt(i)*w;
+      if(dd>0){ const j=i*3; cr+=pig[j]*dd*w; cg+=pig[j+1]*dd*w; cb+=pig[j+2]*dd*w }
+    }
+  }
+  if(sw<=0) return;
+  const cap=q(a,'capacity');
+  const avgD=sd/sw, avgWet=swet/sw;
+
+  // prélèvement : seule la matière encore fraîche se laisse emporter
+  let up=0;
+  if(avgD>0.002 && b.load<cap){
+    up=q(a,'pickup')*avgD*avgWet*(1-b.load/cap);
+    const t=up/(b.load+up+1e-6);
+    mixInto(b.col,[cr/sd,cg/sd,cb/sd],t,P.subtractive);
+    b.load+=up;
+  }
+  // dépôt : débit constant tant qu'il reste de la matière, puis fondu
+  let dep=q(a,'deposit')*b.w*Math.min(1,b.load/1.5);
+  if(dep>b.load) dep=b.load;
+  if(dep>0) b.load-=dep;
+  let dryAdd=0;
+  if(b.load<0.02){ b.col[0]=idc[0]; b.col[1]=idc[1]; b.col[2]=idc[2];
+    if(a.T.dry>0) dryAdd=a.T.dry*0.3*b.w; }
+  else if(a.T.fidelity>0) mixInto(b.col, idc, a.T.fidelity*0.03, 0);
+
+  if(up<=0 && dep<=0 && dryAdd<=0) return;
+
+  for(let y=y0;y<=y1;y++){
+    const dy=y+0.5-by;
+    for(let x=x0;x<=x1;x++){
+      const dx=x+0.5-bx, d2=dx*dx+dy*dy;
+      if(d2>r2) continue;
+      const w=1-d2/r2, i=y*W+x;
+      if(up>0){ const take=up*w*0.45; dens[i]=dens[i]>take?dens[i]-take:0 }
+      const dryHere = dens[i]<0.4 ? dryAdd*w : 0;
+      const add=(dep*w+dryHere)*grain[i];
+      if(add>1e-5){
+        const d0=dens[i], nd=d0+add;
+        // sur un fond sec, la nouvelle matière recouvre au lieu de se mélanger :
+        // c'est ce qui empêche tout de converger vers une seule teinte.
+        const t=add/(add+d0*(0.3+0.7*wetAt(i)));
+        mixPixel(i, (dep<=0)?inkLin:b.col, t, P.subtractive);
+        dens[i]=nd>P.maxDens?P.maxDens:nd;
+        touch[i]=frames;
+      }
+      writePixel(i);
+    }
+  }
+  markDirty(x0,y0,x1,y1);
+}
+
+// Agent laveur : même grammaire de mouvement, mais il retire la matière
+// au lieu d'en déposer. C'est lui qui rouvre du blanc dans la saturation.
+function washDot(bx,by,r,f){
+  const x0=Math.max(0,Math.floor(bx-r)), x1=Math.min(W-1,Math.ceil(bx+r));
+  const y0=Math.max(0,Math.floor(by-r)), y1=Math.min(H-1,Math.ceil(by+r));
+  if(x1<x0||y1<y0) return;
+  const r2=r*r;
+  for(let y=y0;y<=y1;y++){
+    const dy=y+0.5-by;
+    for(let x=x0;x<=x1;x++){
+      const dx=x+0.5-bx, d2=dx*dx+dy*dy;
+      if(d2>r2) continue;
+      const w=1-d2/r2, i=y*W+x;
+      if(dens[i]<=0) continue;
+      // le sec résiste au lavage
+      dens[i]*=1-f*w*(0.35+0.65*wetAt(i));
+      if(dens[i]<0.002) dens[i]=0;
+      writePixel(i);
+    }
+  }
+  markDirty(x0,y0,x1,y1);
+}
+
+function paintAgent(a,ds){
+  const cx=Math.cos(a.h), cy=Math.sin(a.h);
+  // Axe des poils. En orientation fixe, la plume garde son angle dans le
+  // monde quel que soit le sens du trait : les traits parallèles à l'axe
+  // deviennent fins, les perpendiculaires larges. C'est le plein et le
+  // délié de la plume large.
+  let nx, ny;
+  if(P.brushHold==='orientation fixe'){
+    const b=P.brushAngle*Math.PI/180;
+    nx=Math.cos(b); ny=Math.sin(b);
+  } else {
+    const b=(P.brushAngle-90)*Math.PI/180;
+    nx=-Math.sin(a.h-b); ny=Math.cos(a.h-b);
+  }
+  const bw=q(a,'brush');
+  if(a.eraser){
+    for(const b of a.bristles){
+      b.jit+=b.jitv;
+      const jitter=q(a,'scatter')*(Math.sin(b.jit)*0.6+Math.sin(b.jit*2.3)*0.4);
+      washDot(a.x+nx*(b.off*bw+jitter), a.y+ny*(b.off*bw+jitter), q(a,'dot')*1.3, a.T.eraseForce*b.w);
+    }
+    return;
+  }
+  for(const b of a.bristles){
+    b.jit+=b.jitv;
+    const jitter=q(a,'scatter')*(Math.sin(b.jit)*0.6+Math.sin(b.jit*2.3)*0.4);
+    const off=b.off*bw + jitter;
+    const along=q(a,'scatter')*Math.sin(b.jit*1.7)*1.5;
+    brushDot(a.x+nx*off+cx*along, a.y+ny*off+cy*along, q(a,'dot'), b, a);
+  }
+}
+
+/* ============================================================
+   8. PAS DE SIMULATION
+   ============================================================ */
+
+function step(a,ds){
+  // obstacle : on rebrousse vers l'extérieur du corps rencontré
+  if(bodies.length && a.mode!==MODE_ARC && a.confineCd<=0){
+    const look=q(a,'look')*1.2;
+    const b=blockedAt(a.x+Math.cos(a.h)*look, a.y+Math.sin(a.h)*look);
+    if(b){
+      const away=Math.atan2(a.y-b.y, a.x-b.x);
+      const d=Math.atan2(Math.sin(away-a.h),Math.cos(away-a.h));
+      const stepA=TAU/dirsOf(a);
+      beginTurn(a, d>0?1:-1, Math.max(1,Math.min(3,Math.round(Math.abs(d)/stepA))));
+      a.confineCd=look*2;
+    }
+  }
+
+  // confinement : virage franc vers l'intérieur, puis temps mort
+  if(a.confineCd>0) a.confineCd-=ds;
+  const m=Math.max(24,P.radMax*0.85);
+  if(a.mode!==MODE_ARC && a.confineCd<=0 && (a.x<m||a.x>W-m||a.y<m||a.y>H-m)){
+    const inward=Math.atan2(H/2-a.y, W/2-a.x);
+    const d=Math.atan2(Math.sin(inward-a.h),Math.cos(inward-a.h));
+    const stepA=TAU/dirsOf(a);
+    const steps=Math.max(1,Math.min(3,Math.round(Math.abs(d)/stepA)));
+    beginTurn(a, d>0?1:-1, steps);
+    a.confineCd=Math.max(80,m*2.5);
+  }
+
+  if(a.mode===MODE_ARC||a.mode===MODE_FARC){
+    const dt=a.dir*ds/a.r;
+    const vx=a.x-a.cx, vy=a.y-a.cy, ca=Math.cos(dt), sa=Math.sin(dt);
+    a.x=a.cx+vx*ca-vy*sa; a.y=a.cy+vx*sa+vy*ca; a.h+=dt;
+    if(a.mode===MODE_ARC){
+      a.sweep-=Math.abs(dt);
+      if(a.sweep<=0){ a.h=snapHeading(a.h,a); a.mode=MODE_LINE; a.seg=a.lastSeg=(a.pendingSeg||segLen(a)) }
+    } else {
+      a.follow-=ds;
+      if(a.holdArc>0) a.holdArc--;
+      if(a.exitToLattice){
+        const sn=snapHeading(a.h,a);
+        if(Math.abs(Math.atan2(Math.sin(sn-a.h),Math.cos(sn-a.h)))<Math.abs(dt)*1.5){
+          a.h=sn; a.mode=MODE_FOLLOW; a.exitToLattice=false;
+        }
+      }
+    }
+  } else {
+    a.x+=Math.cos(a.h)*ds; a.y+=Math.sin(a.h)*ds;
+    if(a.mode===MODE_LINE){
+      a.seg-=ds;
+      if(a.seg<=0) beginTurn(a, turnDir(a), a.T.turnSteps);
+      else if(rnd()<q(a,'wander')) beginTurn(a, turnDir(a), 1);
+    } else {
+      a.follow-=ds;
+    }
+  }
+
+  if(a.refract>0) a.refract-=ds;
+
+  // détection
+  a.senseCd-=ds;
+  if(a.senseCd<=0){
+    a.senseCd=2;
+    sense(a);
+  }
+
+  writeTrail(a);
+  wrap(a);
+}
+
+function sense(a){
+  if(a.mode===MODE_FOLLOW||a.mode===MODE_FARC){
+    const i=sampleTrail(a,q(a,'look')*0.7);
+    if(i>=0){
+      // la trace tourne : on adopte son centre de courbure
+      if(trK[i]!==0){
+        if(a.mode!==MODE_FARC||a.holdArc<=0) adoptArc(a,i);
+      } else if(a.mode===MODE_FARC && a.holdArc<=0){
+        a.exitToLattice=true;
+      } else if(a.mode===MODE_FOLLOW){
+        const th=Math.atan2(trY[i],trX[i]);
+        const d=Math.atan2(Math.sin(th-a.h),Math.cos(th-a.h));
+        a.h+=d*0.25;                    // recalage doux sur la voie
+      }
+    } else {
+      a.follow=Math.min(a.follow,20);   // plus rien à suivre
+    }
+    if(a.follow<=0 || rnd()<q(a,'diverge')){
+      a.mode=MODE_LINE; a.h=snapHeading(a.h,a);
+      a.seg=a.lastSeg=segLen(a); a.refract=a.T.refract;
+      if(rnd()<0.6) beginTurn(a, turnDir(a), a.T.turnSteps);
+    }
+    return;
+  }
+
+  // soif d'espace vide : la densité devant décide d'une bifurcation
+  if(P.thirst>0 && a.mode===MODE_LINE && a.confineCd<=0){
+    const L=q(a,'look')*2.2;
+    const cx=Math.cos(a.h), cy=Math.sin(a.h), nx=-cy, ny=cx;
+    const df=probeDens(a.x+cx*L, a.y+cy*L);
+    if(df>P.thirstLevel && rnd()<P.thirst*0.06){
+      const dl=probeDens(a.x+cx*L*0.6+nx*L, a.y+cy*L*0.6+ny*L);
+      const dr=probeDens(a.x+cx*L*0.6-nx*L, a.y+cy*L*0.6-ny*L);
+      // on ne bifurque que si un côté est franchement plus clair,
+      // sinon l'agent tourne sans arrêt et la grammaire se dissout
+      if(Math.abs(dl-dr)>0.06 && Math.min(dl,dr)<df-0.04){
+        beginTurn(a, dl<dr?1:-1, 1);
+        a.confineCd=L*2.5;
+        return;
+      }
+    }
+  }
+
+  if(a.mode!==MODE_LINE || a.refract>0) return;
+
+  const i=sampleTrail(a,q(a,'look'));
+  if(i>=0 && rnd()<q(a,'affinity')*0.35){
+    a.h=Math.atan2(trY[i],trX[i]);
+    a.mode=MODE_FOLLOW;
+    const fmn=q(a,'followMin'); a.follow=fmn+rnd()*Math.max(0,q(a,'followMax')-fmn);
+    if(trK[i]!==0) adoptArc(a,i);
+    return;
+  }
+  if(q(a,'crossTurn')>0 && rnd()<q(a,'crossTurn')*0.03){
+    const j=sampleCross(a);
+    if(j>=0){
+      const th=Math.atan2(trY[j],trX[j]);
+      const d=Math.atan2(Math.sin(th-a.h),Math.cos(th-a.h));
+      beginTurn(a, d>0?1:-1, Math.max(1,Math.round(Math.abs(d)/(TAU/dirsOf(a)))));
+    }
+  }
+}
+
+// densité moyenne autour d'un point, en quelques prélèvements
+function probeDens(x,y){
+  let s=0;
+  for(let k=0;k<4;k++){
+    const px=(x+(k&1?5:-5))|0, py=(y+(k&2?5:-5))|0;
+    if(px<0||py<0||px>=W||py>=H){ s+=1; continue }
+    s+=dens[py*W+px];
+  }
+  return s/4;
+}
+
+function wrap(a){
+  // filet de sécurité : réinjection si un agent sort malgré le confinement
+  if(a.x<-40||a.x>W+40||a.y<-40||a.y>H+40){
+    a.x=W*0.5+(rnd()-0.5)*W*0.3; a.y=H*0.5+(rnd()-0.5)*H*0.3;
+    a.h=snapHeading(rnd()*TAU,a); a.mode=MODE_LINE; a.seg=a.lastSeg=segLen(a);
+  }
+}
+
+/* ============================================================
+   9. BOUCLE
+   ============================================================ */
+
+function flush(){
+  if(!anyDirty) return;
+  let x0=1e9,y0=1e9,x1=-1,y1=-1;
+  for(let j=0;j<ty;j++) for(let i=0;i<tx;i++){
+    if(!dirtyTile[j*tx+i]) continue;
+    if(i*TILE<x0)x0=i*TILE; if(j*TILE<y0)y0=j*TILE;
+    if((i+1)*TILE>x1)x1=(i+1)*TILE; if((j+1)*TILE>y1)y1=(j+1)*TILE;
+  }
+  if(x1<0) return;
+  x1=Math.min(W,x1); y1=Math.min(H,y1);
+  ctx.putImageData(img,0,0,x0,y0,x1-x0,y1-y0);
+  dirtyTile.fill(0); anyDirty=false;
+}
+
+function tick(t){
+  requestAnimationFrame(tick);
+  if(!running) return;
+  frames++;
+  for(const a of agents){
+    a.px=a.x; a.py=a.y;
+    const total=q(a,'speed');
+    const n=Math.max(1,Math.ceil(total));
+    const ds=total/n;
+    for(let k=0;k<n;k++){ step(a,ds); paintAgent(a,ds) }
+    // sillage : 12 dernières positions
+    if(a.histN<12) a.histN++;
+    for(let k=a.histN-1;k>0;k--){ a.hist[k*2]=a.hist[(k-1)*2]; a.hist[k*2+1]=a.hist[(k-1)*2+1] }
+    a.hist[0]=a.x; a.hist[1]=a.y;
+  }
+  moveBodies();
+  perceive();
+  if(selected && agents.indexOf(selected)<0){ selected=null; buildInspector() }
+  if(frames%15===0) refreshInspectorMeta();
+  evaporate();
+  flush();
+  drawTraces();
+  drawOverlay();
+  if(P.birthRate>0 && ++sinceBirth>=P.birthRate) birth();
+  if(lastT){ fpsAcc+=1000/(t-lastT); fpsN++; if(fpsN>30){
+    let st=0; for(const a of agents) if(a.state===1) st++;
+    document.getElementById('fps').textContent=Math.round(fpsAcc/fpsN)+' i/s · '+agents.length+' agents · '+st+' stressés';
+    fpsAcc=0;fpsN=0} }
+  lastT=t;
+}
+
+/* ============================================================
+   10. INTERFACE
+   ============================================================ */
+
+const inputs={};
+const TRAIT_KEYS=[].concat(...Object.values(TRAIT_FAMILIES), TRAIT_FLAT);
+const TRAIT_PREV={};
+for(const k of TRAIT_KEYS) TRAIT_PREV[k]=P[k];
+// ---- tirage au sort ----
+// On interpole entre la valeur courante et une valeur tirée dans la plage
+// du curseur : à faible ampleur c'est une variation, à 1 c'est une refonte.
+const SCOPES={
+  mouvement:['Mouvement','Tissage','Tempéraments'],
+  peinture:['Pinceau','Matière et effacement','Effacement et vie','Calques'],
+  taches:['Taches de couleur'],
+  'états':['État stressé — déclenchement','État stressé — signature'],
+  espace:["Soif d'espace vide",'Topographie'],
+  palette:[],
+  affichage:['Affichage'],
+  tout:['Mouvement','Tissage','Tempéraments','Pinceau','Matière et effacement','Effacement et vie',
+        'Calques','Taches de couleur','État stressé — déclenchement',
+        'État stressé — signature',"Soif d'espace vide",'Topographie','Monde','Affichage']
+};
+// Plages de tirage, plus étroites que les plages des curseurs. Les
+// curseurs doivent laisser explorer les extrêmes ; le tirage, lui, doit
+// produire un monde regardable à tous les coups. Sans ça la plupart des
+// combinaisons donnent une toile vide, plate ou saturée.
+const RRANGE={
+  speed:[0.8,3], segMin:[15,90], segMax:[70,300], radMin:[5,40], radMax:[25,120],
+  module:[12,70], arcFit:[.15,.6], meander:[0,.8], turnSteps:[1,2], wander:[0,.004],
+  look:[8,34], lane:[3,12], capture:[10,45], affinity:[.2,1], followMin:[20,200],
+  followMax:[120,700], diverge:[.001,.012], crossTurn:[0,.5], refract:[10,90],
+  disp:[1.3,3],
+  brush:[4,26], bristles:[3,9], scatter:[.1,1], dot:[1,3], deposit:[.08,.4],
+  pickup:[.2,.9], capacity:[10,60], dry:[0,.06], subtractive:[.2,.9], fidelity:[.2,.9],
+  grain:[0,.6], maxDens:[.7,1.5], drying:[300,4000], fenetre:[3,60], fondu:[3,60],
+  evap:[0,.02],
+  traceAlpha:[.45,1], traceWidth:[.7,3], traceFade:[.004,.05],
+  erasers:[0,.3], eraseForce:[.08,.35], birthRate:[180,900], maxAgents:[25,70],
+  agents:[18,60], blobs:[4,20], blobSize:[40,220], blobDensity:[.8,2],
+  blobEdge:[.3,1], blobRim:[0,.5], blobTexture:[0,.6], blobEdgeNoise:[0,.4],
+  blobStrokes:[.6,1.8], blobCross:[0,1],
+  thirst:[0,.8], thirstLevel:[.1,.6],
+  topoCount:[0,4], topoSize:[50,180], topoSpeed:[0,.8], topoSeek:[0,1],
+  stressDist:[8,30], stressOn:[4,40], stressMin:[40,400], relax:[.1,.6],
+  sSpeed:[.5,2.4], sSeg:[.15,2], sRad:[.15,2], sSocial:[0,1.6],
+  sDiv:[.3,6], sFlow:[.4,2.2], sBrush:[.4,2], sTexture:[.4,3],
+  sTiltStep:[0,1], focusTime:[300,1500], agentScale:[.8,1.8]
+};
+
+const NO_RANDOM=['seed','preset','palette','archetype','stressMode','birthColor','birthColorMode',
+  'colCount','c1','c2','c3','c4','c5','c6','paper','ink','randomScope','randomAmount',
+  'showAgents','nameWhen','agentScale','focusTime','topoShow','maxAgents'];
+let lastRandom=null;
+
+function hsl2hex(h,sl,l){
+  h=((h%1)+1)%1;
+  const a=sl*Math.min(l,1-l);
+  const f=n=>{const k=(n+h*12)%12; const c=l-a*Math.max(-1,Math.min(k-3,Math.min(9-k,1)));
+    return Math.round(255*c).toString(16).padStart(2,'0')};
+  return '#'+f(0)+f(8)+f(4);
+}
+function randomPalette(amt){
+  const h0=rnd();
+  // le fond bascule entre nuit et papier, mais reste franchement l'un ou
+  // l'autre : un fond moyen écrase tous les pigments
+  if(rnd()<amt){
+    const dark=rnd()<0.6;
+    P.paper=hsl2hex(h0+(rnd()-0.5)*0.2, 0.06+0.18*rnd(), dark?0.03+0.06*rnd():0.86+0.09*rnd());
+    P.ink  =hsl2hex(h0+(rnd()-0.5)*0.3, 0.05+0.15*rnd(), dark?0.32+0.12*rnd():0.18+0.12*rnd());
+  }
+  paperLin=hexLin(P.paper);
+  const dark=(paperLin[0]+paperLin[1]+paperLin[2])/3 < 0.2;
+  if(rnd()<amt) P.colCount=2+((rnd()*5)|0);
+  const spread=[0,.42,-.25,.07,.3,-.09];
+  const wide=rnd()<0.35;                    // parfois une famille très étalée
+  for(let i=0;i<6;i++){
+    const h=h0+spread[i]*(wide?2.2:1)+(rnd()-0.5)*0.07;
+    const sat=0.25+0.62*rnd();
+    const lum=dark ? 0.36+0.30*rnd() : 0.26+0.26*rnd();
+    const nc=hsl2hex(h,sat,lum);
+    const k='c'+(i+1);
+    P[k]= amt>=1 ? nc : (rnd()<amt ? nc : P[k]);
+  }
+  ensureContrast();
+  setPalette(false);
+}
+
+// Un pigment trop proche du fond en clarté disparaît : on l'écarte.
+function ensureContrast(){
+  const lum=c=>{const l=hexLin(c);return 0.2126*l[0]+0.7152*l[1]+0.0722*l[2]};
+  const pl=lum(P.paper);
+  for(let i=0;i<6;i++){
+    const k='c'+(i+1);
+    let tries=0;
+    while(Math.abs(lum(P[k])-pl)<0.10 && tries++<12){
+      const n=parseInt(P[k].slice(1),16);
+      let r=(n>>16)&255, g=(n>>8)&255, b=n&255;
+      const dir=pl<0.25?1:-1;
+      r=Math.max(0,Math.min(255,r+dir*24));
+      g=Math.max(0,Math.min(255,g+dir*24));
+      b=Math.max(0,Math.min(255,b+dir*24));
+      P[k]='#'+[r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('');
+    }
+  }
+}
+
+function randomize(){
+  lastRandom=snapshot();
+  // Le tirage puise dans le même générateur que la simulation. Sans
+  // nouvelle graine, le premier tirage après chargement rend toujours le
+  // même monde. Avec, la graine détermine à la fois les paramètres tirés
+  // et la simulation qui suit : un monde reste reproductible par son seul
+  // numéro de graine.
+  if(P.randomSeed==='oui'){ P.seed=(Math.random()*10000)|0; rnd=mulberry32(P.seed|0) }
+  const amt=P.randomAmount;
+  if(P.randomScope==='palette' || (P.randomScope==='tout' && P.randomPal==='oui')) randomPalette(amt);
+  const groups=SCOPES[P.randomScope]||[];
+  const touched=[];
+  for(const [gname,items] of SCHEMA){
+    if(groups.indexOf(gname)<0) continue;
+    for(const [key,,cfg] of items){
+      if(NO_RANDOM.indexOf(key)>=0) continue;
+      if(cfg.color) continue;
+      if(cfg.opts){
+        if(rnd()<amt){ P[key]=cfg.opts[(rnd()*cfg.opts.length)|0]; touched.push(key) }
+      } else {
+        const rr=RRANGE[key];
+        const lo=rr?Math.max(cfg.min,rr[0]):cfg.min;
+        const hi=rr?Math.min(cfg.max,rr[1]):cfg.max;
+        const target=lo+rnd()*(hi-lo);
+        let v=P[key]+(target-P[key])*amt;
+        v=Math.round(v/cfg.st)*cfg.st;
+        v=Math.max(lo,Math.min(hi,v));
+        if(v!==P[key]){ P[key]=v; touched.push(key) }
+      }
+    }
+  }
+  // cohérences minimales
+  if(P.segMax<P.segMin) P.segMax=P.segMin;
+  if(P.radMax<P.radMin) P.radMax=P.radMin;
+  if(P.followMax<P.followMin) P.followMax=P.followMin;
+  for(const k of touched) onChange(k);
+  rebuildStress(); rebuildWet();
+  // Sans relance, un tirage est presque invisible : la toile garde tout
+  // son passé et les agents en place ne sont que réétalonnés.
+  if(P.randomRestart==='oui') restart();
+  syncUI();
+}
+
+// Enregistre le tirage courant dans la bibliothèque de réglages, sous un
+// nom libre. Un archétype, lui, ne concerne qu'un agent : c'est le bouton
+// de l'inspecteur.
+function saveDraw(){
+  let n=1; while(PRESETS['tirage '+n]) n++;
+  const key='tirage '+n;
+  PRESETS[key]=snapshot();
+  refreshPresetList(key);
+  document.getElementById('fps').textContent='enregistré : '+key;
+}
+
+function undoRandom(){
+  if(!lastRandom) return;
+  const prev=lastRandom; lastRandom=null;
+  Object.assign(P,prev);
+  buildUI(); syncUI(); setPalette(false); rebuildWet(); rebuildStress();
+  for(const a of agents) buildBristles(a);
+  onChange('agents');
+  if(P.randomRestart==='oui') restart();
+}
+
+const TXTCSS='flex:1;min-width:120px;background:#15161a;color:var(--text);border:1px solid var(--line);border-radius:3px;padding:4px 6px;font:inherit;font-size:11.5px';
+
+// Bibliothèque de réglages : chaque entrée est un instantané complet des
+// paramètres, exportable seul pour être échangé sans le reste.
+const PRESETS={};
+const NOT_IN_PRESET=['preset','presetName'];
+function snapshot(){
+  const o={};
+  for(const k in P) if(NOT_IN_PRESET.indexOf(k)<0) o[k]=P[k];
+  return o;
+}
+function loadPreset(name){
+  const o=PRESETS[name]; if(!o) return;
+  Object.assign(P,o);
+  buildUI(); syncUI(); setPalette(false); rebuildWet(); rebuildStress();
+  for(const a of agents) buildBristles(a);
+  onChange('agents'); paintAll();
+}
+function refreshPresetList(sel){
+  const opts=['—'].concat(Object.keys(PRESETS));
+  for(const [gname,items] of SCHEMA) for(const it of items) if(it[0]==='preset') it[2].opts=opts;
+  P.preset=sel||'—'; buildUI(); syncUI();
+}
+function presetJSON(name){
+  const o=PRESETS[name]; if(!o) return null;
+  return JSON.stringify({version:6, type:'réglage', nom:name, reglages:o,
+    palettes:{[o.palette]:PALETTES[o.palette]}}, null, 1);
+}
+function downloadPreset(name){
+  const j=presetJSON(name); if(!j) return;
+  const blob=new Blob([j],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='tissage-reglage-'+name.replace(/[^\w\-]+/g,'_')+'.json'; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+}
+
+const OPEN_BY_DEFAULT=['Affichage','Calques','Pinceau'];
+const closedGroups={};
+for(const [name] of SCHEMA) closedGroups[name]=OPEN_BY_DEFAULT.indexOf(name)<0;
+
+function toggleAll(){
+  const anyOpen=Object.values(closedGroups).some(v=>!v);
+  for(const k in closedGroups) closedGroups[k]=anyOpen;
+  buildUI(); syncUI();
+  document.getElementById('btnFold').textContent=anyOpen?'Tout déplier':'Tout replier';
+}
+
+function buildUI(){
+  const host=document.getElementById('scroll');
+  host.innerHTML='';
+  for(const [name,items] of SCHEMA){
+    const g=document.createElement('div'); g.className='grp';
+    if(closedGroups[name]) g.classList.add('closed');
+    const h=document.createElement('h2');
+    const ttl=document.createElement('span'); ttl.textContent=name;
+    const chev=document.createElement('span'); chev.className='chev'; chev.textContent='▼';
+    h.appendChild(ttl); h.appendChild(chev);
+    h.addEventListener('click',()=>{
+      g.classList.toggle('closed');
+      closedGroups[name]=g.classList.contains('closed');
+    });
+    g.appendChild(h);
+    const body=document.createElement('div'); body.className='gbody'; g.appendChild(body);
+    for(const [key,label,cfg] of items){
+      const row=document.createElement('div'); row.className='row';
+      const lab=document.createElement('label'); lab.textContent=label; lab.htmlFor='in_'+key;
+      const val=document.createElement('span'); val.className='val';
+      row.appendChild(lab); row.appendChild(val);
+      let el;
+      if(cfg.color){
+        el=document.createElement('input'); el.type='color'; el.value=P[key]; val.textContent='';
+        el.addEventListener('input',()=>{ P[key]=el.value; onChange(key) });
+      } else if(cfg.opts){
+        el=document.createElement('select');
+        for(const o of cfg.opts){const op=document.createElement('option');op.value=o;op.textContent=o;el.appendChild(op)}
+        el.value=P[key]; val.textContent='';
+        el.addEventListener('change',()=>{ P[key]=cfg.num?parseFloat(el.value):el.value; onChange(key) });
+      } else {
+        el=document.createElement('input'); el.type='range';
+        el.min=cfg.min; el.max=cfg.max; el.step=cfg.st; el.value=P[key];
+        val.textContent=fmt(P[key]);
+        el.addEventListener('input',()=>{ P[key]=parseFloat(el.value); val.textContent=fmt(P[key]); onChange(key) });
+      }
+      el.id='in_'+key;
+      inputs[key]={el,val,cfg};
+      row.appendChild(el); body.appendChild(row);
+    }
+    if(name==='Matière et effacement'){
+      const acts=document.createElement('div'); acts.className='acts';
+      const mk=(t,fn)=>{const b=document.createElement('button');b.textContent=t;b.addEventListener('click',fn);acts.appendChild(b)};
+      const set=(mem,fen,fon)=>{ P.memoire=mem; P.fenetre=fen; P.fondu=fon; syncUI() };
+      mk('Présent continu',()=>set('fenêtre glissante',0.5,1.5));
+      mk('Mémoire courte',()=>set('fenêtre glissante',4,8));
+      mk('Mémoire longue',()=>set('fenêtre glissante',15,25));
+      mk('Tout garder',()=>set('accumulation sans fin',15,25));
+      body.appendChild(acts);
+    }
+    if(name==='Hasard'){
+      const acts=document.createElement('div'); acts.className='acts';
+      const mk=(t,fn)=>{const b=document.createElement('button');b.textContent=t;b.addEventListener('click',fn);acts.appendChild(b)};
+      mk('Tirer au sort',()=>randomize());
+      mk('Annuler le tirage',()=>undoRandom());
+      mk('Enregistrer ce tirage',saveDraw);
+      body.appendChild(acts);
+    }
+    if(name==='Palette'){
+      const acts=document.createElement('div'); acts.className='acts';
+      const nm=document.createElement('input'); nm.type='text'; nm.placeholder='nom de la palette';
+      nm.style.cssText=TXTCSS; acts.appendChild(nm);
+      const mk=(t,fn)=>{const b=document.createElement('button');b.textContent=t;b.addEventListener('click',fn);acts.appendChild(b)};
+      mk('Enregistrer la palette',()=>{
+        const key=nm.value.trim(); if(!key) return;
+        PALETTES[key]={paper:P.paper, ink:P.ink, cols:CKEYS.slice(0,P.colCount).map(k=>P[k])};
+        inputs.palette.cfg.opts=Object.keys(PALETTES);
+        P.palette=key; nm.value=''; buildUI(); syncUI();
+      });
+      body.appendChild(acts);
+    }
+    if(name==='Réglages enregistrés'){
+      const acts=document.createElement('div'); acts.className='acts';
+      const nm=document.createElement('input'); nm.type='text'; nm.placeholder='nom du réglage';
+      nm.style.cssText=TXTCSS; acts.appendChild(nm);
+      const mk=(t,fn)=>{const b=document.createElement('button');b.textContent=t;b.addEventListener('click',fn);acts.appendChild(b)};
+      mk('Enregistrer',()=>{
+        const key=nm.value.trim(); if(!key) return;
+        PRESETS[key]=snapshot();
+        refreshPresetList(key); nm.value='';
+      });
+      mk('Charger',()=>loadPreset(P.preset));
+      mk('Supprimer',()=>{
+        if(PRESETS[P.preset]){ delete PRESETS[P.preset]; refreshPresetList('—') }
+      });
+      mk('Exporter ce réglage',()=>downloadPreset(P.preset));
+      mk('Copier ce réglage',()=>{
+        const j=presetJSON(P.preset); if(!j) return;
+        navigator.clipboard && navigator.clipboard.writeText(j);
+        document.getElementById('fps').textContent='réglage copié';
+      });
+      body.appendChild(acts);
+    }
+    if(name==='Archétypes'){
+      const acts=document.createElement('div'); acts.className='acts';
+      const mk=(t,fn)=>{const b=document.createElement('button');b.textContent=t;b.addEventListener('click',fn);acts.appendChild(b)};
+      mk('Faire naître',()=>{ birth(P.archetype) });
+      mk('Appliquer à la sélection',()=>{ if(selected){ applyArchetype(selected,P.archetype); buildInspector() } });
+      mk('Appliquer à toute la population',()=>{ for(const a of agents) applyArchetype(a,P.archetype) });
+      const nm=document.createElement('input'); nm.type='text'; nm.placeholder='nom du nouvel archétype';
+      nm.style.cssText=TXTCSS;
+      acts.appendChild(nm);
+      mk('Enregistrer la sélection',()=>{
+        if(!selected||!nm.value.trim()) return;
+        const key=nm.value.trim();
+        ARCHETYPES[key]=Object.assign({},selected.T);
+        ARCH_ERASER[key]=selected.eraser;
+        inputs.archetype.cfg.opts=Object.keys(ARCHETYPES);
+        P.archetype=key; nm.value=''; buildUI(); syncUI();
+      });
+      body.appendChild(acts);
+    }
+    host.appendChild(g);
+  }
+}
+
+function applyArchetype(a,key){
+  const A=ARCHETYPES[key]; if(!A) return;
+  Object.assign(a.T, A);
+  a.T.bristles=Math.max(1,Math.round(a.T.bristles));
+  if(ARCH_ERASER[key]!==undefined) a.eraser=!!ARCH_ERASER[key];
+  a.archetype=key;
+}
+// ---- inspecteur : édition d'un agent isolé ----
+const RANGE={};
+for(const [,items] of SCHEMA) for(const [k,,cfg] of items) if(cfg && cfg.min!==undefined) RANGE[k]=cfg;
+const INSPECT=[
+  ['speed','Vitesse'],['segMin','Segment — mini'],['segMax','Segment — maxi'],
+  ['radMin','Rayon — mini'],['radMax','Rayon — maxi'],['arcFit','Inscription des arcs'],
+  ['meander','Méandre'],['affinity','Grégarité'],['diverge','Divergence'],
+  ['look','Portée de détection'],['brush','Largeur du pinceau'],['deposit','Débit'],
+  ['capacity','Réserve du pinceau'],['fidelity','Fidélité à sa couleur'],['scatter','Irrégularité']
+];
+
+function buildInspector(){
+  const host=document.getElementById('inspector');
+  if(!selected){ host.style.display='none'; host.innerHTML=''; return }
+  const a=selected;
+  host.style.display='block'; host.innerHTML='';
+  const h=document.createElement('h2');
+  h.textContent=a.name+' · agent '+a.id+(a.archetype?' · '+a.archetype:'')+(a.eraser?' · laveur':'');
+  const meta=document.createElement('p'); meta.className='meta';
+  meta.id='inspMeta';
+  host.appendChild(h); host.appendChild(meta);
+  for(const [k,label] of INSPECT){
+    const cfg=RANGE[k]; if(!cfg) continue;
+    const row=document.createElement('div'); row.className='row';
+    const lab=document.createElement('label'); lab.textContent=label;
+    const val=document.createElement('span'); val.className='val'; val.textContent=fmt(a.T[k]);
+    const el=document.createElement('input'); el.type='range';
+    el.min=cfg.min; el.max=cfg.max; el.step=cfg.st; el.value=a.T[k];
+    el.addEventListener('input',()=>{ a.T[k]=parseFloat(el.value); val.textContent=fmt(a.T[k]) });
+    row.appendChild(lab); row.appendChild(val); row.appendChild(el);
+    host.appendChild(row);
+  }
+  const acts=document.createElement('div'); acts.className='acts';
+  const mk=(t,fn)=>{const b=document.createElement('button');b.textContent=t;b.addEventListener('click',fn);acts.appendChild(b)};
+  mk('Diffuser à toute la population',()=>{ for(const o of agents) o.T=Object.assign({},a.T) });
+  mk('Faire naître un semblable',()=>{ const b=birth(); b.T=Object.assign({},a.T); b.eraser=a.eraser; b.archetype=a.archetype });
+  mk(a.eraser?'En faire un peintre':'En faire un laveur',()=>{ a.eraser=!a.eraser; buildInspector() });
+  mk('Basculer son état',()=>{ a.state=a.state?0:1; a.stateSince=frames; a.tension=a.state?P.stressOn*2:0 });
+  mk('Désélectionner',()=>{ selected=null; buildInspector() });
+  host.appendChild(acts);
+}
+
+function refreshInspectorMeta(){
+  if(!selected) return;
+  const m=document.getElementById('inspMeta');
+  if(m) m.textContent=(selected.state?'stressé':'détendu')+' · plus proche voisin : '+Math.round(selected.minD)+' px';
+}
+
+let clickMode='sélection';
+document.getElementById('btnClick').addEventListener('click',e=>{
+  clickMode = clickMode==='sélection' ? 'naissance' : 'sélection';
+  e.target.textContent = 'Clic : '+(clickMode==='sélection'?'sélectionner':'faire naître');
+});
+
+ov.addEventListener('click',e=>{
+  const r=ov.getBoundingClientRect();
+  const x=(e.clientX-r.left)*W/r.width, y=(e.clientY-r.top)*H/r.height;
+  if(clickMode==='naissance'){
+    const a=birth(P.archetype,{x,y});
+    selected=a; buildInspector();
+    return;
+  }
+  let best=null, bd=26*26;
+  for(const a of agents){
+    const dx=a.x-x, dy=a.y-y, d=dx*dx+dy*dy;
+    if(d<bd){ bd=d; best=a }
+  }
+  selected=best; buildInspector();
+});
+
+function fmt(v){ return (Math.abs(v)>=10||Number.isInteger(v)) ? String(Math.round(v*100)/100) : v.toFixed(3).replace(/0+$/,'').replace(/\.$/,'') }
+function syncUI(){
+  for(const k in inputs){
+    const {el,val,cfg}=inputs[k];
+    el.value=P[k];
+    if(!cfg.opts && !cfg.color) val.textContent=fmt(P[k]);
+  }
+}
+
+function onChange(key){
+  if(key==='palette'){ setPalette(true); syncUI(); paintAll(); }
+  if(key==='paper'||key==='ink'){ setPalette(false); paintAll(); }
+  if(key==='colCount'||CKEYS.indexOf(key)>=0){ setPalette(false); }
+  if(key==='preset'){ loadPreset(P.preset) }
+  if(key==='drying'){ rebuildWet() }
+  if(key==='erasers'){ for(const a of agents) a.eraser=rnd()<P.erasers }
+  if(key==='topoCount') seedBodies();
+  if(key==='layerPaint'||key==='layerTrace'||key==='layerMarks') applyLayers();
+  if(key==='stressMode'){
+    const v=STRESS_PRESETS[P.stressMode];
+    if(v){ SKEYS.forEach((k,i)=>P[k]=v[i]); syncUI() }
+    rebuildStress();
+  }
+  if(key==='brushProfile'){ for(const a of agents) buildBristles(a) }
+  if(SKEYS.indexOf(key)>=0){ P.stressMode='personnalisée'; syncUI(); rebuildStress() }
+  // un réglage global modifie le trait correspondant chez tous les agents,
+  // en conservant l'écart de chacun à l'ancienne moyenne
+  if(TRAIT_KEYS.indexOf(key)>=0){
+    const prev=TRAIT_PREV[key]||P[key];
+    const ratio=prev>0?P[key]/prev:1;
+    for(const a of agents) a.T[key]=prev>0?a.T[key]*ratio:P[key];
+    TRAIT_PREV[key]=P[key];
+    if(key==='bristles'||key==='brushProfile'){ for(const a of agents){ a.T.bristles=Math.max(1,Math.round(a.T.bristles)); buildBristles(a) } }
+  }
+  if(key==='agents'){
+    while(agents.length<P.agents) agents.push(makeAgent(agents.length));
+    while(agents.length>P.agents) agents.pop();
+  }
+  if(key==='seed'){ rnd=mulberry32(P.seed|0) }
+}
+
+function applyLayers(){
+  cv.style.opacity=P.layerPaint;
+  tr.style.opacity=P.layerTrace;
+  ov.style.opacity=P.layerMarks;
+}
+
+function restart(){
+  rnd=mulberry32(P.seed|0);
+  setPalette(false); rebuildWet(); clearCanvas(); seedBlobs(); reseed(); seedBodies();
+  trx.clearRect(0,0,W,H);
+  frames=0; evapStep=0; if(rowSeen) rowSeen.fill(0); sinceBirth=0; selected=null; buildInspector();
+  rebuildStress(); applyLayers(); ovx.clearRect(0,0,W,H);
+}
+
+/* boutons */
+function toggleZen(){
+  document.body.classList.toggle('zen');
+  const on=document.body.classList.contains('zen');
+  document.getElementById('btnZen').textContent = on ? 'Quitter le plein cadre' : 'Plein cadre';
+  resize();
+}
+function togglePause(){
+  running=!running;
+  const t=running?'Pause':'Reprendre';
+  document.getElementById('btnPause').textContent=t;
+  document.getElementById('zPause').textContent=t;
+}
+document.getElementById('btnFold').addEventListener('click',toggleAll);
+document.getElementById('btnZen').addEventListener('click',toggleZen);
+document.getElementById('btnRandom').addEventListener('click',()=>randomize());
+document.getElementById('btnUndoRandom').addEventListener('click',()=>undoRandom());
+document.getElementById('btnSaveDraw').addEventListener('click',saveDraw);
+document.getElementById('zExit').addEventListener('click',toggleZen);
+document.getElementById('zPause').addEventListener('click',togglePause);
+document.getElementById('zBirth').addEventListener('click',()=>birth());
+document.getElementById('zRandom').addEventListener('click',()=>randomize());
+document.getElementById('zPng').addEventListener('click',savePng);
+document.getElementById('btnPause').addEventListener('click',togglePause);
+document.getElementById('btnReset').addEventListener('click',restart);
+document.getElementById('btnBlobs').addEventListener('click',seedBlobs);
+document.getElementById('btnBirth').addEventListener('click',()=>{birth()});
+document.getElementById('btnClear').addEventListener('click',()=>{clearCanvas()});
+document.getElementById('btnPng').addEventListener('click',savePng);
+document.getElementById('btnPreset').addEventListener('click',()=>{
+  const box=document.getElementById('preset');
+  const open=box.style.display==='block';
+  box.style.display=open?'none':'block';
+  if(!open) document.getElementById('presetText').value=exportJSON();
+});
+// Avant la v12 ces deux durées étaient comptées en frames, et 0 voulait
+// dire « ne jamais effacer ». On rattrape les anciens fichiers.
+function migrateDurations(){
+  if(P.fenetre>120){ P.fenetre=P.fenetre/60 }
+  if(P.fondu>120){ P.fondu=P.fondu/60 }
+  if(P.fenetre===0 && P.memoire===undefined) P.memoire='accumulation sans fin';
+  if(!P.memoire) P.memoire='fenêtre glissante';
+}
+
+function exportJSON(){
+  return JSON.stringify({version:6, reglages:snapshot(), archetypes:ARCHETYPES,
+    laveurs:ARCH_ERASER, palettes:PALETTES, presets:PRESETS}, null, 1);
+}
+document.getElementById('applyPreset').addEventListener('click',()=>{
+  try{
+    const o=JSON.parse(document.getElementById('presetText').value);
+    const R=o.reglages||o;                 // accepte aussi un export v2/v3
+    Object.assign(P,R);
+    if(o.archetypes){ Object.assign(ARCHETYPES,o.archetypes); Object.assign(ARCH_ERASER,o.laveurs||{}) }
+    if(o.palettes) Object.assign(PALETTES,o.palettes);
+    if(o.presets) Object.assign(PRESETS,o.presets);
+    if(!P.c1) loadPalette(P.palette);
+    migrateDurations();
+    for(const [,items] of SCHEMA) for(const it of items){
+      if(it[0]==='palette') it[2].opts=Object.keys(PALETTES);
+      if(it[0]==='archetype') it[2].opts=Object.keys(ARCHETYPES);
+      if(it[0]==='preset') it[2].opts=['—'].concat(Object.keys(PRESETS));
+    }
+    buildUI(); syncUI(); setPalette(false); rebuildWet(); rebuildStress();
+    for(const a of agents) buildBristles(a);
+    onChange('agents');
+  }catch(err){ document.getElementById('fps').textContent='JSON illisible' }
+});
+document.getElementById('copyPreset').addEventListener('click',()=>{
+  const t=document.getElementById('presetText'); t.value=exportJSON(); t.select();
+  navigator.clipboard && navigator.clipboard.writeText(t.value);
+  document.getElementById('fps').textContent='réglages copiés';
+});
+document.getElementById('dlPreset').addEventListener('click',()=>{
+  const blob=new Blob([exportJSON()],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='tissage-'+P.palette+'-'+P.seed+'.json'; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+});
+document.getElementById('linkPreset').addEventListener('click',()=>{
+  location.hash=encodeURIComponent(JSON.stringify(snapshot()));
+  navigator.clipboard && navigator.clipboard.writeText(location.href);
+  document.getElementById('fps').textContent='lien copié';
+});
+
+function savePng(){
+  const tmp=document.createElement('canvas');
+  tmp.width=W; tmp.height=H;
+  const g=tmp.getContext('2d');
+  g.drawImage(cv,0,0); g.drawImage(tr,0,0); g.drawImage(ov,0,0);
+  const a=document.createElement('a');
+  a.download='tissage-'+P.palette+'-'+P.seed+'-'+Date.now()+'.png';
+  a.href=tmp.toDataURL('image/png'); a.click();
+}
+
+addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT') return;
+  const k=e.key.toLowerCase();
+  if(k===' '){e.preventDefault();togglePause()}
+  if(k==='z') toggleZen();
+  if(k==='s') savePng();
+  if(k==='n') seedBlobs();
+  if(k==='b') birth();
+  if(k==='a') randomize();
+  if(k==='r') restart();
+});
+
+let rt=null;
+function resize(){ clearTimeout(rt); rt=setTimeout(reallocPreserving,120) }
+
+// Passer en plein cadre redimensionne le canevas, ce qui réalloue tous les
+// tampons. On recopie l'ancien contenu centré dans le nouveau plutôt que
+// de repartir de zéro : basculer d'affichage ne doit pas effacer l'oeuvre.
+function reallocPreserving(){
+  if(!pig){ allocate(); restart(); return }
+  const oW=W, oH=H, oPig=pig, oDens=dens, oTouch=touch, oGrain=grain;
+  const tmp=document.createElement('canvas');
+  tmp.width=oW; tmp.height=oH; tmp.getContext('2d').drawImage(tr,0,0);
+  allocate();
+  if(W===oW && H===oH){
+    pig=oPig; dens=oDens; touch=oTouch; grain=oGrain;
+    trx.drawImage(tmp,0,0); paintAll(); return;
+  }
+  for(let i=0;i<W*H;i++){
+    grain[i]=1-P.grain*0.55*rnd();
+    pig[i*3]=paperLin[0]; pig[i*3+1]=paperLin[1]; pig[i*3+2]=paperLin[2];
+  }
+  touch.fill(-1e6);
+  const ox=((W-oW)/2)|0, oy=((H-oH)/2)|0;
+  for(let y=0;y<oH;y++){
+    const ny=y+oy; if(ny<0||ny>=H) continue;
+    for(let x=0;x<oW;x++){
+      const nx=x+ox; if(nx<0||nx>=W) continue;
+      const si=y*oW+x, di=ny*W+nx;
+      dens[di]=oDens[si]; touch[di]=oTouch[si]; grain[di]=oGrain[si];
+      pig[di*3]=oPig[si*3]; pig[di*3+1]=oPig[si*3+1]; pig[di*3+2]=oPig[si*3+2];
+    }
+  }
+  for(const a of agents){
+    a.x+=ox; a.y+=oy; a.px=a.x; a.py=a.y;
+    if(a.x<0||a.y<0||a.x>=W||a.y>=H){ a.x=W*0.5; a.y=H*0.5 }
+  }
+  for(const b of bodies){ b.x+=ox; b.y+=oy }
+  trx.clearRect(0,0,W,H); trx.drawImage(tmp,ox,oy);
+  paintAll();
+}
+addEventListener('resize',resize);
+
+/* démarrage */
+if(location.hash.length>3){
+  try{
+    const o=JSON.parse(decodeURIComponent(location.hash.slice(1)));
+    Object.assign(P, o.reglages||o);
+    if(o.archetypes){ Object.assign(ARCHETYPES,o.archetypes); Object.assign(ARCH_ERASER,o.laveurs||{}) }
+    if(o.palettes) Object.assign(PALETTES,o.palettes);
+    if(o.presets) Object.assign(PRESETS,o.presets);
+    if(!P.c1) loadPalette(P.palette);
+    migrateDurations();
+  }catch(e){}
+}
+buildUI(); allocate(); rebuildWet(); rebuildStress(); restart();
+requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
