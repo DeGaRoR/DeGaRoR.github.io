@@ -621,19 +621,10 @@ function genShakedown(def, opts) {
   // Slim recursion: the reserve sheet does not itself carry one.
   if (!(opts && opts.slim) && S && S.fuel && S.fuel.litres > 10) {
     try {
-      const rs = JSON.parse(JSON.stringify(S));
-      // DRAIN THE VESSELS, not the reading (G99). `fuel.litres` became the SUM
-      // of the vessel list, so scaling it here scaled a derived field and the
-      // aeroplane was rebuilt brim-full: every "at reserves" row on the plaque
-      // was identical to the full-tanks row above it, including the static
-      // margin, which is the one number this sheet exists for. Each vessel is
-      // drained in proportion, so a two-tank aeroplane empties both and its CG
-      // walks the way the real one does.
-      const keepF = rs.fuel.litres;
-      const k = keepF > 0 ? Math.max(4, 0.15 * keepF) / keepF : 0;
-      if (rs.energy && Array.isArray(rs.energy.vessels))
-        for (const v of rs.energy.vessels) v.capacity = v.capacity * k;
-      rs.fuel.litres = Math.max(4, 0.15 * keepF);
+      // the reserve sheet is the same airframe at 15% fuel, through the ONE
+      // rule for a fuel state (genSpecAtFuel, G100) — the corners below and
+      // the editor's fuel slider go through the same door
+      const rs = genSpecAtFuel(S, Math.max(4, 0.15 * S.fuel.litres));
       const rsh = genShakedown(buildGen(rs), { slim: true });
       out.reserve = { litres: rs.fuel.litres, mass: rsh.mass, Vs: rsh.Vs,
                       staticMargin: rsh.staticMargin,
@@ -641,6 +632,32 @@ function genShakedown(def, opts) {
     } catch (e) {}
   }
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// genSpecAtFuel(S, litres) — THE SAME AIRFRAME AT A FUEL STATE (G100). Returns a
+// COPY of the resolved spec with `litres` aboard: every vessel drained in
+// proportion, so a two-tank aeroplane empties both and its CG walks the way
+// the real one does, and `fuel.litres` set to match. DRAIN THE VESSELS, NOT
+// THE READING (G99): `fuel.litres` is the SUM of the vessel list, and scaling
+// it alone once rebuilt the aeroplane brim-full — every "at reserves" row on
+// the plaque was identical to the full-tanks row above it.
+//
+// ONE DOOR, THREE CALLERS: the reserve sheet (15%), the CG envelope's four
+// corners, and the editor's fuel-aboard slider (the user: "we need to see how
+// the CG is changing with the amount of fuel (through a slider)"). A pack does
+// not drain, and this leaves it alone: only a liquid-fuel list is scaled.
+// ---------------------------------------------------------------------------
+function genSpecAtFuel(S, litres) {
+  const cs = JSON.parse(JSON.stringify(S));
+  if (!cs.fuel) return cs;
+  const keepF = cs.fuel.litres;
+  const L = Math.max(0, litres || 0);
+  const k = keepF > 0 ? L / keepF : 0;
+  if (cs.energy && cs.energy.kind !== 'battery' && Array.isArray(cs.energy.vessels))
+    for (const v of cs.energy.vessels) v.capacity = v.capacity * k;
+  cs.fuel.litres = L;
+  return cs;
 }
 
 // ---------------------------------------------------------------------------

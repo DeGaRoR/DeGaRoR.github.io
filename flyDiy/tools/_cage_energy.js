@@ -460,6 +460,17 @@ function matFor(key, bad) {
   m.userData.aeroskin = 1;
   return (mats[id] = m);
 }
+// the fuel's own look: avgas is dyed blue, mogas is straw
+let fuelMats = {};
+function fuelMat() {
+  const key = EN.fuel || 'avgas100LL';
+  if (fuelMats[key]) return fuelMats[key];
+  const col = /avgas/i.test(key) ? 0x3a7fd8 : 0xd9b14a;
+  const m = new THREE.MeshStandardMaterial({ color: col, roughness: 0.25,
+    metalness: 0.05, transparent: true, opacity: 0.55, depthWrite: false });
+  m.userData.aeroskin = 1;
+  return (fuelMats[key] = m);
+}
 let ghostMat = null;
 function ghost() {
   if (ghostMat) return ghostMat;
@@ -499,10 +510,49 @@ function drawResults(group, ctx, results) {
       }
     }
   }
+  // THE FUEL INSIDE THE TANK, at the slider's fill: a second box inset in
+  // each liquid vessel, its height the fill fraction of the vessel's — so the
+  // slider is something you can SEE, and a pack, which does not drain, is
+  // drawn full and unchanging. Wing tanks fill from their floor too.
+  if (EN.kind !== 'battery' && VIEW.fill > 0.02) {
+    const f = Math.min(1, VIEW.fill), inset = 0.008;
+    for (const r of results) {
+      if (r.on === 'body' && r.c) {
+        const bag = K.Bag();
+        const cs = Math.cos(r.rot), sn = Math.sin(r.rot);
+        const h = Math.max(0.004, (r.e[1] - inset) * 2 * f);
+        const c = [r.c[0], r.c[1] - r.e[1] + inset + h / 2, r.c[2]];
+        K.boxIn(bag, c, [r.e[0] - inset, h / 2, r.e[2] - inset],
+                [cs, 0, -sn], [0, 1, 0], [sn, 0, cs]);
+        const m = bag.mesh(group, fuelMat());
+        if (m) m.name = 'edFuel_' + EN.vessels.indexOf(r.v);
+      } else if (r.on === 'wing' && r.sides) {
+        for (const s of r.sides) {
+          const bag = K.Bag();
+          const y0 = s.y - s.d / 2 + inset, y1 = y0 + Math.max(0.004, (s.d - 2 * inset) * f);
+          const x0 = s.x0 + (s.x1 > s.x0 ? inset : -inset), x1 = s.x1 - (s.x1 > s.x0 ? inset : -inset);
+          const p = [
+            bag.v([x0, y0, s.zR0 + inset]), bag.v([x0, y0, s.zF0 - inset]),
+            bag.v([x0, y1, s.zF0 - inset]), bag.v([x0, y1, s.zR0 + inset]),
+            bag.v([x1, y0, s.zR1 + inset]), bag.v([x1, y0, s.zF1 - inset]),
+            bag.v([x1, y1, s.zF1 - inset]), bag.v([x1, y1, s.zR1 + inset]),
+          ];
+          const q = (a, b, c, d) => bag.quad(p[a], p[b], p[c], p[d]);
+          q(0, 1, 2, 3); q(4, 7, 6, 5); q(0, 4, 5, 1);
+          q(1, 5, 6, 2); q(2, 6, 7, 3); q(3, 7, 4, 0);
+          const m = bag.mesh(group, fuelMat());
+          if (m) m.name = 'edFuel_' + EN.vessels.indexOf(r.v) + (s.sign > 0 ? 'R' : 'L');
+        }
+      }
+    }
+  }
   // THE BAY, AS A GHOST, for the vessel the panel has selected: the region
-  // the rule allows, so a tank dragged to the edge can be seen reaching it
+  // the rule allows, so a tank dragged to the edge can be seen reaching it.
+  // OPT-IN (the user, seeing it on the nose tank: "a faint transparent box
+  // ... subtle, almost transparent but not quite"): a guide nobody asked for
+  // reads as a defect, so it is off until the panel switches it on.
   const sel = results[selected];
-  if (sel && sel.on === 'body' && sel.bay && ctx.mesh && BAY()) {
+  if (VIEW.showBay && sel && sel.on === 'body' && sel.bay && ctx.mesh && BAY()) {
     try {
       const FS = fsOf(ctx), b = sel.bay;
       const sA = BAY().baySection(ctx.mesh, b.x0 / FS),
@@ -619,13 +669,79 @@ function commit() {
 // the spec as just committed. This is the "CG with full or empty tank at
 // conception" the user asked for, read live off the same ledger the flight
 // weighs itself with, not a second estimate.
-let balEl = null;
+let balEl = null, fillEl = null, barEl = null, tableEl = null;
+let LAST_SHAKE = null;
+// the aeroplane at the slider's fill, weighed by the core; and the envelope's
+// four corners as a loading table with the bar between them
+let fillT = null;
+function fillReadout() {
+  if (!inGame() || !fillEl) return;
+  if (fillT) clearTimeout(fillT);
+  fillT = setTimeout(() => {
+    fillT = null;
+    try {
+      if (typeof buildGen !== 'function' || typeof genShakedown !== 'function' ||
+          typeof genSpecAtFuel !== 'function' || !window.GARAGE_SPEC) return;
+      const S0 = window.GARAGE_SPEC.resolved && window.GARAGE_SPEC.resolved();
+      if (!S0 || !S0.fuel) return;
+      const full = S0.fuel.litres;
+      const L = full * Math.min(1, Math.max(0, VIEW.fill));
+      const sh = genShakedown(buildGen(genSpecAtFuel(S0, L)), { slim: true });
+      const E = LAST_SHAKE && LAST_SHAKE.envelope;
+      const f = (v, d) => (v == null || !isFinite(v)) ? '\u2014' : v.toFixed(d);
+      let pct = null;
+      if (E && E.fwd && E.aft && E.fwd.cgPct != null && E.fwd.cgX != null) {
+        // the envelope's own % MAC scale: two points define it
+        const k = (E.aft.cgPct - E.fwd.cgPct) / Math.max(1e-9, E.aft.cgX - E.fwd.cgX);
+        pct = E.fwd.cgPct + (sh.cgX - E.fwd.cgX) * k;
+      }
+      fillEl.textContent = f(L, 0) + ' L aboard \u00b7 ' + f(sh.mass, 0) + ' kg \u00b7 CG ' +
+        f(sh.cgX, 2) + ' m' + (pct != null ? ' (' + f(pct * 100, 0) + '% MAC)' : '') +
+        ' \u00b7 static margin ' + f(sh.staticMargin, 2);
+      fillEl.style.color = (sh.staticMargin != null && sh.staticMargin < 0.05) ? '#ff7b6b' : '';
+      drawBar(E, sh.cgX);
+    } catch (e) { fillEl.textContent = ''; }
+  }, 150);
+}
+function drawBar(E, cgX) {
+  if (!barEl) return;
+  barEl.innerHTML = '';
+  if (!E || !E.fwd || !E.aft) { barEl.style.display = 'none'; return; }
+  barEl.style.display = 'block';
+  const lo = E.fwd.cgX, hi = E.aft.cgX, span = Math.max(1e-6, hi - lo);
+  // the bar runs a little past both corners so a CG outside the envelope
+  // still has somewhere to be drawn
+  const pad = 0.15 * span, x0 = lo - pad, x1 = hi + pad;
+  const at = x => Math.max(0, Math.min(100, (x - x0) / (x1 - x0) * 100));
+  const mark = (x, col, w, t) => {
+    const m = document.createElement('div');
+    m.style.cssText = 'position:absolute;top:0;bottom:0;width:' + w + 'px;background:' + col +
+      ';left:calc(' + at(x).toFixed(1) + '% - ' + (w / 2) + 'px)';
+    m.title = t; barEl.appendChild(m);
+  };
+  mark(lo, '#dfe7f0', 2, 'forward corner \u00b7 ' + E.fwd.label);
+  mark(hi, '#dfe7f0', 2, 'aft corner \u00b7 ' + E.aft.label);
+  if (cgX != null) mark(cgX, '#ffd35a', 4, 'the CG at the fuel aboard');
+}
+function loadingTable() {
+  if (!tableEl) return;
+  const E = LAST_SHAKE && LAST_SHAKE.envelope;
+  if (!E || !E.corners) { tableEl.textContent = ''; return; }
+  const f = (v, d) => (v == null || !isFinite(v)) ? '\u2014' : v.toFixed(d);
+  tableEl.innerHTML = '<div style="opacity:.7;margin-bottom:2px">loading table \u00b7 % MAC \u00b7 static margin</div>' +
+    E.corners.map(c => '<div>' + c.label + ': ' + f(c.litres, 0) + ' L \u00b7 ' +
+      f(c.mass, 0) + ' kg \u00b7 ' + (c.cgPct != null ? f(c.cgPct * 100, 0) + '%' : '\u2014') +
+      ' \u00b7 ' + f(c.staticMargin, 2) + (c === E.worst ? ' \u2190 worst' : '') + '</div>').join('');
+}
 function balanceReadout() {
   if (!balEl || !inGame()) return;
   if (typeof buildGen !== 'function' || typeof genShakedown !== 'function' ||
       !window.GARAGE_SPEC) { balEl.textContent = ''; return; }
   try {
     const s = genShakedown(buildGen(window.GARAGE_SPEC.get()), {});
+    LAST_SHAKE = s;
+    loadingTable();
+    fillReadout();
     const f = (v, d) => (v == null || !isFinite(v)) ? '—' : v.toFixed(d);
     let t = 'all-up ' + f(s.mass, 0) + ' kg · CG ' + f(s.cgX, 2) + ' m · static margin ' +
       f(s.staticMargin, 2);
@@ -642,6 +758,10 @@ function balanceReadout() {
 // THE PANEL
 // ---------------------------------------------------------------------------
 let panel = null, panelBody = null, selected = 0;
+// VIEW STATE, not spec: how full the tanks are drawn and judged right now,
+// and whether the selected bay's ghost is shown. Neither is a fact about the
+// aeroplane, so neither is written to the build.
+const VIEW = { fill: 1, showBay: 0 };
 const READ = [];              // per-vessel readout elements, rebuilt with the panel
 let totalEl = null;
 
@@ -853,9 +973,42 @@ function renderPanel() {
     };
     r.appendChild(b);
   }
+  {
+    const d = row(B, 'show the bay', 'a translucent box of the selected bay\u2019s ' +
+      'extents \u2014 a guide for dragging a tank to its edge');
+    const c = document.createElement('input');
+    c.type = 'checkbox'; c.checked = !!VIEW.showBay;
+    c.onchange = () => { VIEW.showBay = c.checked ? 1 : 0; relayout(); };
+    d.appendChild(c);
+  }
   totalEl = el('div', 'r');
   totalEl.style.cssText = 'font-size:11px;opacity:.85;white-space:normal;line-height:1.3';
   B.appendChild(totalEl);
+  // ---- G100: THE CG AS A FUNCTION OF FILL --------------------------------
+  // The user, at the start of the arc: "we need to see how the CG is
+  // changing with the amount of fuel (through a slider)". The slider drains
+  // every tank in proportion through the core's own genSpecAtFuel — the
+  // reserve sheet's and the envelope's door — and the numbers are the
+  // core's shakedown of that aeroplane, not a second estimate.
+  if (EN.kind !== 'battery') {
+    const fmtPct = x => (x * 100).toFixed(0) + ' %';
+    range(B, 'fuel aboard', 'how full every tank is, drawn and weighed; the ' +
+      'balance line below follows it', 0, 1, 0.01, VIEW.fill, fmtPct,
+      x => { VIEW.fill = x; relayout(); },
+      x => { VIEW.fill = x; relayout(); fillReadout(); });
+  }
+  fillEl = el('div', 'r');
+  fillEl.style.cssText = 'font-size:11px;white-space:normal;line-height:1.3';
+  B.appendChild(fillEl);
+  barEl = el('div', 'r');
+  barEl.style.cssText = 'display:block;height:14px;position:relative;margin:2px 0 4px 0;' +
+    'background:linear-gradient(90deg,#2c4a6e,#3b6f4a);border-radius:3px;opacity:.95';
+  barEl.title = 'the CG envelope: forward corner to aft corner, in % MAC; the ' +
+    'marker is the CG at the fuel aboard';
+  B.appendChild(barEl);
+  tableEl = el('div', 'r');
+  tableEl.style.cssText = 'display:block;font-size:11px;white-space:normal;line-height:1.35;opacity:.9';
+  B.appendChild(tableEl);
   if (inGame()) {
     balEl = el('div', 'r');
     balEl.style.cssText = 'font-size:11px;white-space:normal;line-height:1.3';

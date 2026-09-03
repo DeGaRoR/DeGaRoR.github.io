@@ -17180,19 +17180,10 @@ function genShakedown(def, opts) {
   // Slim recursion: the reserve sheet does not itself carry one.
   if (!(opts && opts.slim) && S && S.fuel && S.fuel.litres > 10) {
     try {
-      const rs = JSON.parse(JSON.stringify(S));
-      // DRAIN THE VESSELS, not the reading (G99). `fuel.litres` became the SUM
-      // of the vessel list, so scaling it here scaled a derived field and the
-      // aeroplane was rebuilt brim-full: every "at reserves" row on the plaque
-      // was identical to the full-tanks row above it, including the static
-      // margin, which is the one number this sheet exists for. Each vessel is
-      // drained in proportion, so a two-tank aeroplane empties both and its CG
-      // walks the way the real one does.
-      const keepF = rs.fuel.litres;
-      const k = keepF > 0 ? Math.max(4, 0.15 * keepF) / keepF : 0;
-      if (rs.energy && Array.isArray(rs.energy.vessels))
-        for (const v of rs.energy.vessels) v.capacity = v.capacity * k;
-      rs.fuel.litres = Math.max(4, 0.15 * keepF);
+      // the reserve sheet is the same airframe at 15% fuel, through the ONE
+      // rule for a fuel state (genSpecAtFuel, G100) — the corners below and
+      // the editor's fuel slider go through the same door
+      const rs = genSpecAtFuel(S, Math.max(4, 0.15 * S.fuel.litres));
       const rsh = genShakedown(buildGen(rs), { slim: true });
       out.reserve = { litres: rs.fuel.litres, mass: rsh.mass, Vs: rsh.Vs,
                       staticMargin: rsh.staticMargin,
@@ -17227,20 +17218,11 @@ function genShakedown(def, opts) {
       const seats = Math.max(1, S.seats | 0);
       const litresFull = (S.fuel && S.fuel.litres > 0) ? S.fuel.litres : 0;
       const litresRes = litresFull > 10 ? Math.max(4, 0.15 * litresFull) : litresFull;
-      // DRAIN THE VESSELS, not the reading — exactly the reserve sheet's rule
-      const atFuel = (cs, L) => {
-        if (!cs.fuel) return;
-        const keepF = cs.fuel.litres;
-        const k = keepF > 0 ? L / keepF : 0;
-        if (cs.energy && Array.isArray(cs.energy.vessels))
-          for (const v of cs.energy.vessels) v.capacity = v.capacity * k;
-        cs.fuel.litres = L;
-      };
       const corner = (label, occupants, L) => {
-        const cs = JSON.parse(JSON.stringify(S));
+        // the same door as the reserve sheet and the editor's slider
+        const cs = genSpecAtFuel(S, L);
         cs.cabin.pilots = 1;
         cs.cabin.pax = Math.max(0, occupants - 1);
-        atFuel(cs, L);
         const sh = genShakedown(buildGen(cs), { slim: true });
         return { label, occupants, litres: L, mass: sh.mass, cgX: sh.cgX,
                  npX: sh.npX, cgPct: pct(sh.cgX), npPct: pct(sh.npX),
@@ -17265,6 +17247,32 @@ function genShakedown(def, opts) {
     } catch (e) {}
   }
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// genSpecAtFuel(S, litres) — THE SAME AIRFRAME AT A FUEL STATE (G100). Returns a
+// COPY of the resolved spec with `litres` aboard: every vessel drained in
+// proportion, so a two-tank aeroplane empties both and its CG walks the way
+// the real one does, and `fuel.litres` set to match. DRAIN THE VESSELS, NOT
+// THE READING (G99): `fuel.litres` is the SUM of the vessel list, and scaling
+// it alone once rebuilt the aeroplane brim-full — every "at reserves" row on
+// the plaque was identical to the full-tanks row above it.
+//
+// ONE DOOR, THREE CALLERS: the reserve sheet (15%), the CG envelope's four
+// corners, and the editor's fuel-aboard slider (the user: "we need to see how
+// the CG is changing with the amount of fuel (through a slider)"). A pack does
+// not drain, and this leaves it alone: only a liquid-fuel list is scaled.
+// ---------------------------------------------------------------------------
+function genSpecAtFuel(S, litres) {
+  const cs = JSON.parse(JSON.stringify(S));
+  if (!cs.fuel) return cs;
+  const keepF = cs.fuel.litres;
+  const L = Math.max(0, litres || 0);
+  const k = keepF > 0 ? L / keepF : 0;
+  if (cs.energy && cs.energy.kind !== 'battery' && Array.isArray(cs.energy.vessels))
+    for (const v of cs.energy.vessels) v.capacity = v.capacity * k;
+  cs.fuel.litres = L;
+  return cs;
 }
 
 // ---------------------------------------------------------------------------
@@ -17847,7 +17855,7 @@ function playerShedDims(doc, id, site) {
   return { HW: d.HW || h.HW, HD: d.HD || h.HD, EAVE: d.EAVE || h.EAVE };
 }
 if (typeof module !== 'undefined')
-  module.exports = { AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, ATM, makeAtmos, ATMOS_ISA, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, buildCub, buildDrone, buildDC3, buildJodel, buildC172, buildChinook, buildPA18, makeSim, makeAutopilot, makeTestPilot, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, GEN_MIGRATORS, genMigrateSpec, genFrame, genShakedown, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims };
+  module.exports = { AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, ATM, makeAtmos, ATMOS_ISA, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, buildCub, buildDrone, buildDC3, buildJodel, buildC172, buildChinook, buildPA18, makeSim, makeAutopilot, makeTestPilot, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, GEN_MIGRATORS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims };
 </script>
 <script src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script src="src/models/c172_model.js?v=267306e7"></script>
@@ -18614,7 +18622,10 @@ const CAGE_PARTS = [
     ] },
 
   { key: 'cockpit', name: 'Cockpit & dash', parent: 'fit', layer: 'cage',
-    sections: ['dash'],
+    // TWO SECTIONS, ONE PART: the dashboard's facia and its padded shell are
+    // separately paintable (2026-09-04) but they are not two things to click
+    // on — the part is still the dash.
+    sections: ['dash', 'dashFace'],
     place: { on: 'intDash', fore: 'dashBack', len: 'dashDepth',
              high: 'dashLip', at: 'off the windscreen base' },
     groups: [
@@ -25243,6 +25254,14 @@ function cageInterior(m, S) {
       // track the big radius (it was TUBE_R-sized, which is exactly why
       // the waist longeron poked through the boom skin, user screenshot)
       const BOOM_IN = TUBE_RP + 0.005;
+      // WHAT THE WOODEN STRUCTURE HAS TO CLEAR is the plywood skin,
+      // and it is the SAME NUMBER the lining is extruded by (the
+      // liner calls above): a former or a longeron is glued to the
+      // INSIDE of the covering, so it stops on the ply's inner face —
+      // it neither floats off it nor grows through it. Reading the
+      // lining's own thickness rather than repeating a constant is
+      // what keeps that true when `skinT` moves.
+      const plyT = tSk || t0 * 0.4;
       const topCh = [[], []], botCh = [[], []];
       // ROD MODE (G26): no boom skin to slice and the rod IS the
       // structure — the station machinery idles (empty chains no-op
@@ -25383,16 +25402,44 @@ function cageInterior(m, S) {
         // Recorded before the web is drawn, so the node-only tailpost
         // station can bail out below.
         (() => {
-          const inW = cB / 2 + 0.006;
-          const ringW = pts.map(p => {
+          // A RADIAL INSET IS NOT ENOUGH, and the measurement says so:
+          // the beam is a SQUARE aligned to x/y while the section is
+          // neither, so what reaches the plywood first is a CORNER, and
+          // how far in that corner is depends on the local curvature,
+          // not on the radius. An inset of the beam's half width left
+          // 12 corners proud at the tailpost, a diagonal inset still
+          // left 18 on a deep waistband. So the node is pulled toward
+          // the section centroid until the SQUARE ITSELF fits — the
+          // distance from the node to the outline is measured, not
+          // assumed, and the loop stops when it clears the half
+          // diagonal. Two dozen 4 mm steps is a whole section: a hoop
+          // too small to hold a longeron ends up centred rather than
+          // sticking out of the aeroplane.
+          const need = cB * Math.SQRT1_2 + plyT + 0.002;
+          const nP = pts.length;
+          const dOut = q => {
+            let d = 1e9;
+            for (let i2 = 0; i2 < nP; i2++) {
+              const a = pts[i2], b = pts[(i2 + 1) % nP];
+              const dx = b[0] - a[0], dy = b[1] - a[1];
+              const t = Math.max(0, Math.min(1,
+                ((q[0]-a[0])*dx + (q[1]-a[1])*dy) / (dx*dx + dy*dy || 1)));
+              d = Math.min(d, Math.hypot(q[0]-(a[0]+dx*t), q[1]-(a[1]+dy*t)));
+            }
+            return d;
+          };
+          const fitIn = p => {
             const dx = cx - p[0], dy = cy2 - p[1];
             const l = Math.hypot(dx, dy) || 1;
-            return [p[0] + dx/l*inW, p[1] + dy/l*inW, zk];
-          });
+            let q = [p[0], p[1], zk];
+            for (let i2 = 0; i2 < 24 && dOut(q) < need; i2++)
+              q = [q[0] + dx/l*0.004, q[1] + dy/l*0.004, zk];
+            return q;
+          };
           const yWm4 = (S.waistY + S.bandY) / 2;
           const wPickW = sx => {
-            let best = ringW[0], bv = 1e9;
-            for (const p of ringW) {
+            let best = pts[0], bv = 1e9;
+            for (const p of pts) {
               if (sx * p[0] <= 0) continue;
               const s = Math.abs(p[1] - yWm4);
               if (s < bv) { bv = s; best = p; }
@@ -25400,20 +25447,37 @@ function cageInterior(m, S) {
             return best;
           };
           const cornPickW = sx => {
-            let best = ringW[0], bv = -1e9;
-            for (const p of ringW) {
+            let best = pts[0], bv = -1e9;
+            for (const p of pts) {
               const s = sx * p[0] - p[1];
               if (s > bv) { bv = s; best = p; }
             }
             return best;
           };
-          topCh[0].push(inCtr(wPickW(1), cy2));
-          topCh[1].push(inCtr(wPickW(-1), cy2));
-          botCh[0].push(inCtr(cornPickW(1), cy2));
-          botCh[1].push(inCtr(cornPickW(-1), cy2));
+          topCh[0].push(fitIn(wPickW(1)));
+          topCh[1].push(fitIn(wPickW(-1)));
+          botCh[0].push(fitIn(cornPickW(1)));
+          botCh[1].push(fitIn(cornPickW(-1)));
         })();
         if (k > NFr) continue;          // tailpost station: nodes only
-        // the web is a SOLID (user: half a centimetre of thickness) and
+        // THE COUPLE IS A PIECE OF TIMBER, not a card. Half a
+        // centimetre was the first ask and it read as paper against
+        // the 56 mm posts beside it: a plywood former is a ply web
+        // with its glue blocks and cap strips, so it stands ~12 mm
+        // proud of nothing at all. WHAT IT COSTS IS NOTHING — the two
+        // faces already exist, they only move apart — which is why the
+        // one number is here to be argued with rather than hidden.
+        //
+        // AND IT IS SET BACK BEHIND THE COVERING. The rim used to sit
+        // 12 mm inside the outer skin while the plywood lining is 14
+        // thick, so every couple grew 2 mm INTO the ply. `inO` reads
+        // the lining's own thickness instead: the web stops on the
+        // ply's inner face, glued to it, which is where a former is.
+        // The boom TAPERS, so the aft face lands where the section has
+        // already narrowed — a hair more clearance covers the run over
+        // the web's own half thickness.
+        const TH = 0.006;
+        const inO = plyT + 0.001 + TH * 0.15;
         // the lightening hole's FLOOR is raised to the section centroid
         // — the hole reads as a half circle and the web below the chord
         // stays full (user correction: the hole was too big, a raised
@@ -25437,16 +25501,22 @@ function cageInterior(m, S) {
           const p = pts[i2];
           const dx = cx - p[0], dy = cy2 - p[1];
           const l = Math.hypot(dx, dy) || 1;
-          o2.push([p[0] + dx/l*0.012, p[1] + dy/l*0.012]);
           const pm = pts[(i2 - 1 + n2p) % n2p], pp = pts[(i2 + 1) % n2p];
           const tx = pp[0] - pm[0], ty = pp[1] - pm[1];
           const tl = Math.hypot(tx, ty) || 1;
           let nx = -ty / tl, ny = tx / tl;
           if (nx * dx + ny * dy < 0) { nx = -nx; ny = -ny; }
+          // the outer rim follows the BOUNDARY NORMAL, exactly as the
+          // hole below does and for the same reason the hole's own
+          // comment gives: a radial step is only worth its length
+          // where the radius happens to meet the outline square on,
+          // and at the chines it is not — measured, a 16 mm radial
+          // inset was 9 mm of real clearance there and the couple bit
+          // into the ply it is supposed to sit against.
+          o2.push([p[0] + nx * inO, p[1] + ny * inO]);
           const mm = Math.min(MW, l * 0.75);
           h2.push([p[0] + nx * mm, Math.max(p[1] + ny * mm, yFloor)]);
         }
-        const TH = 0.0025;
         const oF = o2.map(p => V.push([p[0], p[1], zk + TH]) - 1);
         const oB = o2.map(p => V.push([p[0], p[1], zk - TH]) - 1);
         const hF = h2.map(p => V.push([p[0], p[1], zk + TH]) - 1);
@@ -25470,16 +25540,16 @@ function cageInterior(m, S) {
       // Shared by the tube and the wood realizations: the rule is about
       // the aft SHOULDER, not about what the member is made of, so the
       // inset is the only thing that varies.
-      const boomRun = (ch, inset) => {
+      const boomRun = (ch, inset, tgt) => {
         if (ch.length >= 2 && bandEnds.length > 1) {
           // same target + landing rules as the metal preLine: in
           // bubble mode a front bandEnds[1] means no intermediate
           // frame — land on bandEnds[0]'s own plane; and a head
           // that misses the hull sideways snaps onto the sliced
           // section (no-shoulder heads stay put).
-          const bT = S.config && S.config.canopy
+          const bT = tgt || (S.config && S.config.canopy
               && S.config.canopy.mode === 'bubble'
-              && bandEnds[1].isFront ? bandEnds[0] : bandEnds[1];
+              && bandEnds[1].isFront ? bandEnds[0] : bandEnds[1]);
           const A = ch[0], B = ch[1];
           const dz = A[2] - B[2];
           if (Math.abs(dz) > 1e-6) {
@@ -25513,8 +25583,16 @@ function cageInterior(m, S) {
         const runs = [
           topRun(topCh[0], md0w && md0w.wP),
           topRun(topCh[1], md0w && md0w.wM),
-          boomRun(botCh[0], cB / 2 + 0.006),
-          boomRun(botCh[1], cB / 2 + 0.006),
+          // the bottom pair terminates on the band the BOOM STARTS
+          // FROM, not a bay further forward like the tube run: the wood
+          // realization already has a chine beam in every cabin bay, so
+          // reaching past bandEnds[0] would lay a second beam over the
+          // aft bay. The aft-shoulder rule is still honoured — the run
+          // is the same straight continuation, it just stops one frame
+          // sooner, and the cabin's own beam lands on that frame from
+          // the other side.
+          boomRun(botCh[0], cB * Math.SQRT1_2 + plyT + 0.002, b0w),
+          boomRun(botCh[1], cB * Math.SQRT1_2 + plyT + 0.002, b0w),
         ];
         for (const ch of runs)
           for (let i = 0; i + 1 < ch.length; i++) {
@@ -26055,14 +26133,27 @@ function cageInterior(m, S) {
     const zPill = (bL[2] + bR[2]) / 2 + 0.15;
     const R5 = base.map((p, i) => pid([baseT[i][0], yB, zPill]));
     const dashStart = add.length;
+    // TWO MATERIALS ON ONE DASHBOARD (2026-09-04, the user: "the dashboard
+    // ... 1 for the flat face facing the pilot, and one for the rest,
+    // including the lip"). The split is GEOMETRY, not a texture mask, for the
+    // same reason the firewall's fireproof sheet below is: the recessed FACE
+    // PLATE (the ladder over the forward lip path) is the metal facia the
+    // instruments are cut into, and everything round it — the glareshield,
+    // the flat side panels, the border roll, the lip wall that steps down to
+    // the plate, and the box bottom — is the padded shell. `mat` names which
+    // is being emitted; it is the only state these three helpers carry, and
+    // the material rides `f.m` through orientCage, the crease compaction and
+    // both subdivisions (cageSubdivide copies `m`), so the boundary is the
+    // one the lip path is already creased on.
+    let mat = 'dash';
     const quad = (a, b, c, d) => {
       const u = new Set([a, b, c, d]);
       if (u.size < 3) return;
       if (u.size === 3) {                 // true triangle, cyclic order kept
         const vv = [];
         for (const x of [a, b, c, d]) if (!vv.includes(x)) vv.push(x);
-        add.push({ v: vv, m: 'dash' });
-      } else add.push({ v: [a, b, c, d], m: 'dash' });
+        add.push({ v: vv, m: mat });
+      } else add.push({ v: [a, b, c, d], m: mat });
     };
     const strip = (A, B) => {
       for (let i = 0; i + 1 < A.length; i++)
@@ -26088,7 +26179,7 @@ function cageInterior(m, S) {
     const cA = [], cB = [];
     for (let i = iC; i >= 0; i--) cA.push(o2id[i]);
     for (let i = iC; i < NX; i++) cB.push(o2id[i]);
-    ladder(cA, cB);
+    mat = 'dashFace'; ladder(cA, cB); mat = 'dash';
     // bottom: ladder between the aft chain (outer corner -> roll corner ->
     // lip corner -> chord -> mirrored) and the under-base line
     ladder([oid[0], o1id[0], o2id[0], o2id[NX - 1], o1id[NX - 1],
@@ -26157,7 +26248,7 @@ function cageInterior(m, S) {
     sm = cageSubdivide(cageSubdivide(sm));
     const off = V.length;
     for (const p of sm.V) V.push(p);
-    for (const f of sm.F) add.push({ v: f.v.map(i => i + off), m: 'dash' });
+    for (const f of sm.F) add.push({ v: f.v.map(i => i + off), m: f.m });
   })();
 
   // ---- firewall ------------------------------------------------------------
@@ -29375,7 +29466,11 @@ function anchors(spec, P, mesh) {
   if (mesh && mesh.F && mesh.V) {
     let lo = 1e9, hi = -1e9, za = 1e9;
     for (const f of mesh.F) {
-      if (f.m !== 'dash') continue;
+      // BOTH OF THE DASHBOARD'S MATERIALS (2026-09-04): the facia was split
+      // off as `dashFace`, and this band is the dash's OWN extent — measuring
+      // it off one of the two halves would make where the instruments sit
+      // depend on which half a builder happens to be looking at.
+      if (f.m !== 'dash' && f.m !== 'dashFace') continue;
       for (const vi of f.v) {
         const y = mesh.V[vi][1] * k, z = mesh.V[vi][2] * k;
         if (y < lo) lo = y;
@@ -31580,7 +31675,8 @@ const AX_RAIL = [0, 3];
 const NOT_SKIN = new Set([
   'windshield', 'pilotWindow', 'pasengerWindow', 'skyWindows',   // glazing
   'joint',                                                       // rim beads
-  'bulkhead', 'firewall', 'dash', 'tube', 'woodFrame', 'aluminium',
+  'bulkhead', 'firewall', 'dash', 'dashFace', 'tube', 'woodFrame',
+  'aluminium',
   'plywood', 'cloth', 'composite', 'toele',                      // interior
   // the firewall's engine face and the seal round it: inside the cowl, not
   // on the outside of the aeroplane, and a fitting bolted there would be
@@ -46283,6 +46379,17 @@ function matFor(key, bad) {
   m.userData.aeroskin = 1;
   return (mats[id] = m);
 }
+// the fuel's own look: avgas is dyed blue, mogas is straw
+let fuelMats = {};
+function fuelMat() {
+  const key = EN.fuel || 'avgas100LL';
+  if (fuelMats[key]) return fuelMats[key];
+  const col = /avgas/i.test(key) ? 0x3a7fd8 : 0xd9b14a;
+  const m = new THREE.MeshStandardMaterial({ color: col, roughness: 0.25,
+    metalness: 0.05, transparent: true, opacity: 0.55, depthWrite: false });
+  m.userData.aeroskin = 1;
+  return (fuelMats[key] = m);
+}
 let ghostMat = null;
 function ghost() {
   if (ghostMat) return ghostMat;
@@ -46322,10 +46429,49 @@ function drawResults(group, ctx, results) {
       }
     }
   }
+  // THE FUEL INSIDE THE TANK, at the slider's fill: a second box inset in
+  // each liquid vessel, its height the fill fraction of the vessel's — so the
+  // slider is something you can SEE, and a pack, which does not drain, is
+  // drawn full and unchanging. Wing tanks fill from their floor too.
+  if (EN.kind !== 'battery' && VIEW.fill > 0.02) {
+    const f = Math.min(1, VIEW.fill), inset = 0.008;
+    for (const r of results) {
+      if (r.on === 'body' && r.c) {
+        const bag = K.Bag();
+        const cs = Math.cos(r.rot), sn = Math.sin(r.rot);
+        const h = Math.max(0.004, (r.e[1] - inset) * 2 * f);
+        const c = [r.c[0], r.c[1] - r.e[1] + inset + h / 2, r.c[2]];
+        K.boxIn(bag, c, [r.e[0] - inset, h / 2, r.e[2] - inset],
+                [cs, 0, -sn], [0, 1, 0], [sn, 0, cs]);
+        const m = bag.mesh(group, fuelMat());
+        if (m) m.name = 'edFuel_' + EN.vessels.indexOf(r.v);
+      } else if (r.on === 'wing' && r.sides) {
+        for (const s of r.sides) {
+          const bag = K.Bag();
+          const y0 = s.y - s.d / 2 + inset, y1 = y0 + Math.max(0.004, (s.d - 2 * inset) * f);
+          const x0 = s.x0 + (s.x1 > s.x0 ? inset : -inset), x1 = s.x1 - (s.x1 > s.x0 ? inset : -inset);
+          const p = [
+            bag.v([x0, y0, s.zR0 + inset]), bag.v([x0, y0, s.zF0 - inset]),
+            bag.v([x0, y1, s.zF0 - inset]), bag.v([x0, y1, s.zR0 + inset]),
+            bag.v([x1, y0, s.zR1 + inset]), bag.v([x1, y0, s.zF1 - inset]),
+            bag.v([x1, y1, s.zF1 - inset]), bag.v([x1, y1, s.zR1 + inset]),
+          ];
+          const q = (a, b, c, d) => bag.quad(p[a], p[b], p[c], p[d]);
+          q(0, 1, 2, 3); q(4, 7, 6, 5); q(0, 4, 5, 1);
+          q(1, 5, 6, 2); q(2, 6, 7, 3); q(3, 7, 4, 0);
+          const m = bag.mesh(group, fuelMat());
+          if (m) m.name = 'edFuel_' + EN.vessels.indexOf(r.v) + (s.sign > 0 ? 'R' : 'L');
+        }
+      }
+    }
+  }
   // THE BAY, AS A GHOST, for the vessel the panel has selected: the region
-  // the rule allows, so a tank dragged to the edge can be seen reaching it
+  // the rule allows, so a tank dragged to the edge can be seen reaching it.
+  // OPT-IN (the user, seeing it on the nose tank: "a faint transparent box
+  // ... subtle, almost transparent but not quite"): a guide nobody asked for
+  // reads as a defect, so it is off until the panel switches it on.
   const sel = results[selected];
-  if (sel && sel.on === 'body' && sel.bay && ctx.mesh && BAY()) {
+  if (VIEW.showBay && sel && sel.on === 'body' && sel.bay && ctx.mesh && BAY()) {
     try {
       const FS = fsOf(ctx), b = sel.bay;
       const sA = BAY().baySection(ctx.mesh, b.x0 / FS),
@@ -46442,13 +46588,79 @@ function commit() {
 // the spec as just committed. This is the "CG with full or empty tank at
 // conception" the user asked for, read live off the same ledger the flight
 // weighs itself with, not a second estimate.
-let balEl = null;
+let balEl = null, fillEl = null, barEl = null, tableEl = null;
+let LAST_SHAKE = null;
+// the aeroplane at the slider's fill, weighed by the core; and the envelope's
+// four corners as a loading table with the bar between them
+let fillT = null;
+function fillReadout() {
+  if (!inGame() || !fillEl) return;
+  if (fillT) clearTimeout(fillT);
+  fillT = setTimeout(() => {
+    fillT = null;
+    try {
+      if (typeof buildGen !== 'function' || typeof genShakedown !== 'function' ||
+          typeof genSpecAtFuel !== 'function' || !window.GARAGE_SPEC) return;
+      const S0 = window.GARAGE_SPEC.resolved && window.GARAGE_SPEC.resolved();
+      if (!S0 || !S0.fuel) return;
+      const full = S0.fuel.litres;
+      const L = full * Math.min(1, Math.max(0, VIEW.fill));
+      const sh = genShakedown(buildGen(genSpecAtFuel(S0, L)), { slim: true });
+      const E = LAST_SHAKE && LAST_SHAKE.envelope;
+      const f = (v, d) => (v == null || !isFinite(v)) ? '\u2014' : v.toFixed(d);
+      let pct = null;
+      if (E && E.fwd && E.aft && E.fwd.cgPct != null && E.fwd.cgX != null) {
+        // the envelope's own % MAC scale: two points define it
+        const k = (E.aft.cgPct - E.fwd.cgPct) / Math.max(1e-9, E.aft.cgX - E.fwd.cgX);
+        pct = E.fwd.cgPct + (sh.cgX - E.fwd.cgX) * k;
+      }
+      fillEl.textContent = f(L, 0) + ' L aboard \u00b7 ' + f(sh.mass, 0) + ' kg \u00b7 CG ' +
+        f(sh.cgX, 2) + ' m' + (pct != null ? ' (' + f(pct * 100, 0) + '% MAC)' : '') +
+        ' \u00b7 static margin ' + f(sh.staticMargin, 2);
+      fillEl.style.color = (sh.staticMargin != null && sh.staticMargin < 0.05) ? '#ff7b6b' : '';
+      drawBar(E, sh.cgX);
+    } catch (e) { fillEl.textContent = ''; }
+  }, 150);
+}
+function drawBar(E, cgX) {
+  if (!barEl) return;
+  barEl.innerHTML = '';
+  if (!E || !E.fwd || !E.aft) { barEl.style.display = 'none'; return; }
+  barEl.style.display = 'block';
+  const lo = E.fwd.cgX, hi = E.aft.cgX, span = Math.max(1e-6, hi - lo);
+  // the bar runs a little past both corners so a CG outside the envelope
+  // still has somewhere to be drawn
+  const pad = 0.15 * span, x0 = lo - pad, x1 = hi + pad;
+  const at = x => Math.max(0, Math.min(100, (x - x0) / (x1 - x0) * 100));
+  const mark = (x, col, w, t) => {
+    const m = document.createElement('div');
+    m.style.cssText = 'position:absolute;top:0;bottom:0;width:' + w + 'px;background:' + col +
+      ';left:calc(' + at(x).toFixed(1) + '% - ' + (w / 2) + 'px)';
+    m.title = t; barEl.appendChild(m);
+  };
+  mark(lo, '#dfe7f0', 2, 'forward corner \u00b7 ' + E.fwd.label);
+  mark(hi, '#dfe7f0', 2, 'aft corner \u00b7 ' + E.aft.label);
+  if (cgX != null) mark(cgX, '#ffd35a', 4, 'the CG at the fuel aboard');
+}
+function loadingTable() {
+  if (!tableEl) return;
+  const E = LAST_SHAKE && LAST_SHAKE.envelope;
+  if (!E || !E.corners) { tableEl.textContent = ''; return; }
+  const f = (v, d) => (v == null || !isFinite(v)) ? '\u2014' : v.toFixed(d);
+  tableEl.innerHTML = '<div style="opacity:.7;margin-bottom:2px">loading table \u00b7 % MAC \u00b7 static margin</div>' +
+    E.corners.map(c => '<div>' + c.label + ': ' + f(c.litres, 0) + ' L \u00b7 ' +
+      f(c.mass, 0) + ' kg \u00b7 ' + (c.cgPct != null ? f(c.cgPct * 100, 0) + '%' : '\u2014') +
+      ' \u00b7 ' + f(c.staticMargin, 2) + (c === E.worst ? ' \u2190 worst' : '') + '</div>').join('');
+}
 function balanceReadout() {
   if (!balEl || !inGame()) return;
   if (typeof buildGen !== 'function' || typeof genShakedown !== 'function' ||
       !window.GARAGE_SPEC) { balEl.textContent = ''; return; }
   try {
     const s = genShakedown(buildGen(window.GARAGE_SPEC.get()), {});
+    LAST_SHAKE = s;
+    loadingTable();
+    fillReadout();
     const f = (v, d) => (v == null || !isFinite(v)) ? '—' : v.toFixed(d);
     let t = 'all-up ' + f(s.mass, 0) + ' kg · CG ' + f(s.cgX, 2) + ' m · static margin ' +
       f(s.staticMargin, 2);
@@ -46465,6 +46677,10 @@ function balanceReadout() {
 // THE PANEL
 // ---------------------------------------------------------------------------
 let panel = null, panelBody = null, selected = 0;
+// VIEW STATE, not spec: how full the tanks are drawn and judged right now,
+// and whether the selected bay's ghost is shown. Neither is a fact about the
+// aeroplane, so neither is written to the build.
+const VIEW = { fill: 1, showBay: 0 };
 const READ = [];              // per-vessel readout elements, rebuilt with the panel
 let totalEl = null;
 
@@ -46676,9 +46892,42 @@ function renderPanel() {
     };
     r.appendChild(b);
   }
+  {
+    const d = row(B, 'show the bay', 'a translucent box of the selected bay\u2019s ' +
+      'extents \u2014 a guide for dragging a tank to its edge');
+    const c = document.createElement('input');
+    c.type = 'checkbox'; c.checked = !!VIEW.showBay;
+    c.onchange = () => { VIEW.showBay = c.checked ? 1 : 0; relayout(); };
+    d.appendChild(c);
+  }
   totalEl = el('div', 'r');
   totalEl.style.cssText = 'font-size:11px;opacity:.85;white-space:normal;line-height:1.3';
   B.appendChild(totalEl);
+  // ---- G100: THE CG AS A FUNCTION OF FILL --------------------------------
+  // The user, at the start of the arc: "we need to see how the CG is
+  // changing with the amount of fuel (through a slider)". The slider drains
+  // every tank in proportion through the core's own genSpecAtFuel — the
+  // reserve sheet's and the envelope's door — and the numbers are the
+  // core's shakedown of that aeroplane, not a second estimate.
+  if (EN.kind !== 'battery') {
+    const fmtPct = x => (x * 100).toFixed(0) + ' %';
+    range(B, 'fuel aboard', 'how full every tank is, drawn and weighed; the ' +
+      'balance line below follows it', 0, 1, 0.01, VIEW.fill, fmtPct,
+      x => { VIEW.fill = x; relayout(); },
+      x => { VIEW.fill = x; relayout(); fillReadout(); });
+  }
+  fillEl = el('div', 'r');
+  fillEl.style.cssText = 'font-size:11px;white-space:normal;line-height:1.3';
+  B.appendChild(fillEl);
+  barEl = el('div', 'r');
+  barEl.style.cssText = 'display:block;height:14px;position:relative;margin:2px 0 4px 0;' +
+    'background:linear-gradient(90deg,#2c4a6e,#3b6f4a);border-radius:3px;opacity:.95';
+  barEl.title = 'the CG envelope: forward corner to aft corner, in % MAC; the ' +
+    'marker is the CG at the fuel aboard';
+  B.appendChild(barEl);
+  tableEl = el('div', 'r');
+  tableEl.style.cssText = 'display:block;font-size:11px;white-space:normal;line-height:1.35;opacity:.9';
+  B.appendChild(tableEl);
   if (inGame()) {
     balEl = el('div', 'r');
     balEl.style.cssText = 'font-size:11px;white-space:normal;line-height:1.3';
@@ -48237,6 +48486,7 @@ const SEC = {
   fireProof:       '#d9dee3',
   fireSeal:        '#4a4f55',
   dash:            '#333a45',
+  dashFace:        '#7d8896',
   tube:            '#93a0ad',
   plywood:         '#b5854e',
   woodFrame:       '#8a6134',
@@ -48464,7 +48714,7 @@ const INTSKIN = new Set(['plywood', 'cloth', 'composite', 'toele']);
 // boomTube = the G26 rod: it IS structure — fading the fuselage skin
 // must leave the rod standing (the naked Ruckus test)
 const INTSTRUCT = new Set(['bulkhead', 'firewall', 'fireProof', 'fireSeal',
-                           'dash', 'tube',
+                           'dash', 'dashFace', 'tube',
                            'woodFrame', 'aluminium', 'boomTube']);
 // WHAT THE X-RAY TAKES AWAY, and what it must leave standing. It takes the
 // COVERING — the outer skin, its glazing, and the interior linings that are
@@ -55073,6 +55323,8 @@ const SKIN_TEX_SHEETS = (typeof Image !== 'undefined') ? (() => {
   const mk = src => { const i = new Image(); i.src = B + src; return i; };
   return {
     foil: { px: 512, img: mk('media/tex/skin/foil_aero_512.b96de146.jpg') },
+    panel: { px: 1024, img: mk('media/tex/skin/panel_aero_1k.3609dbf2.jpg') },
+    leather: { px: 512, img: mk('media/tex/skin/leather_aero_512.73449514.jpg') },
   };
 })() : null;
 </script>
@@ -55263,6 +55515,41 @@ const AERO_FINISH = {
                rough: 0.40, metal: 0.92, nrm: 0.20, alb: 0.16,
                hs: 0.9, bs: 1.0, bake: 'sheet', sheet: 'foil' },
 
+  // ---- THE DASHBOARD'S TWO SURFACES (2026-09-04) --------------------------
+  // The user, giving the cage's `dash` a second material: "1 for the flat
+  // face facing the pilot, and one for the rest, including the lip. The first
+  // ... a metal panel, and the second ... dark leather". So the facia is bare
+  // alloy and the shell round it is hide, which is also what a real light
+  // aeroplane is: an unpainted instrument panel screwed into a padded
+  // glareshield. _cage_gen.js emits the two as `dashFace` and `dash`.
+  //
+  // BOTH ARE SCANNED (ambientCG, CC0, via tools/skin_tex_import.py), and each
+  // one's numbers were MEASURED off its own maps before being moved, the same
+  // way fireFoil's were above — the import prints them:
+  //   Metal050C   Color 245,246,245 (span 218..254 — no colour signal),
+  //               Roughness mean 0.240 (span 0.10..0.62), Metalness a flat
+  //               255. So B rides the ROUGHNESS, the metalness map is worth
+  //               nothing over the row's own scalar, and the base is a
+  //               metal's F0 rather than the scan's near-white.
+  //   Leather027  Color mean 15,15,15 — it IS a dark leather already, and
+  //               its Roughness is nearly flat (span 0.37..0.55 about a mean
+  //               of 0.45), so B rides the LUMINANCE here, wood's rule: the
+  //               crease pattern is where this hide's colour lives.
+  // THE MOVES: `rough` 0.24 -> 0.38 on the panel, for fireFoil's reason one
+  // shelf up — a mirror in a shaded cockpit shows the shaded cockpit — and
+  // `metal` 1.0 -> 0.92, so a little diffuse survives where nothing is there
+  // to reflect. On the hide, 0.45 -> 0.52: a glareshield is deliberately the
+  // most matte surface in an aeroplane, because the alternative is looking at
+  // it in the windscreen. The bases are the one honest lift: near-black at
+  // 0x0f0f0f the leather has no colour left to tint, so it is a very dark
+  // warm brown, and a builder who wants it blacker has the dial.
+  panelMetal: { name: 'metal panel',   base: 0xd0d4d8, tile: 0.60,
+                rough: 0.38, metal: 0.92, nrm: 0.35, alb: 0.20,
+                hs: 0.8, bs: 0.5, bake: 'sheet', sheet: 'panel' },
+  leatherDark: { name: 'dark leather', base: 0x2a2622, tile: 0.30,
+                 rough: 0.52, metal: 0.0, nrm: 0.55, alb: 0.60,
+                 hs: 0.8, bs: 0.9, bake: 'hide', sheet: 'leather' },
+
   // ---- THE HARDWARE VOCABULARY (G70) --------------------------------------
   // The eight rows above are what an airframe is COVERED in. These are what
   // the things bolted to it are MADE OF — the undercarriage, the engine, the
@@ -55346,7 +55633,17 @@ const AERO_ROLE = {
   // role's one ruling (black by default, whatever the aeroplane is built of).
   fireProof: 'fire', fireSeal: 'bead',
   boomTube: 'struct', tube: 'struct', woodFrame: 'struct',
-  aluminium: 'struct', bulkhead: 'struct', firewall: 'struct', dash: 'panel',
+  // THE DASHBOARD IS TWO SURFACES, like the firewall above and for the same
+  // kind of reason: `dashFace` is the instrument facia — the flat plate the
+  // pilot looks at — and `dash` is the padded shell round it, the
+  // glareshield, the sides, the border roll and the lip. Neither follows the
+  // construction: an unpainted alloy panel in a leather-topped coaming is
+  // what a light aeroplane has whether it is fabric, wood, alclad or carbon,
+  // so both roles resolve to the same finish in all four columns. `panel` was
+  // already the dash's own role and nothing else's, so it keeps the name and
+  // now means the facia; `pad` is the shell's.
+  aluminium: 'struct', bulkhead: 'struct', firewall: 'struct',
+  dash: 'pad', dashFace: 'panel',
   plywood: 'liner', cloth: 'liner', composite: 'liner', toele: 'liner',
 };
 // the interior LINERS say what they are made of in their own name — that is
@@ -55364,23 +55661,25 @@ const AERO_LINER = { plywood: 'ply', cloth: 'fabric', composite: 'composite',
 // ("the JOINT that fairs it to the skin is a rubber seal") — the cage's own
 // rims are the same part and now wear the same finish. The builder can still
 // paint them: `joint` is a section like any other and takes a tint.
-// `fire` is the second row after `bead` that is the same in all four columns,
-// and for the same kind of reason: it is not what the aeroplane is built of,
-// it is what the part IS. Kept as a role rather than pinned by name so a
-// builder's per-section override still lands on it the ordinary way.
+// `fire` was the second row after `bead` that is the same in all four
+// columns, and `panel` and `pad` — the dashboard's facia and its padded
+// shell — are the third and fourth, all for the same kind of reason: they
+// are not what the aeroplane is built of, they are what the part IS. Kept as
+// roles rather than pinned by name so a builder's per-section override still
+// lands on them the ordinary way.
 const AERO_BY_CONS = {
   tubeFabric: { skin: 'fabric', rail: 'fabric', pillar: 'fabric',
-                struct: 'steelTube', panel: 'trim', bead: 'rubber',
-                fire: 'fireFoil' },
+                struct: 'steelTube', panel: 'panelMetal', pad: 'leatherDark',
+                bead: 'rubber', fire: 'fireFoil' },
   wood:       { skin: 'ply', rail: 'ply', pillar: 'ply',
-                struct: 'spruce', panel: 'trim', bead: 'rubber',
-                fire: 'fireFoil' },
+                struct: 'spruce', panel: 'panelMetal', pad: 'leatherDark',
+                bead: 'rubber', fire: 'fireFoil' },
   alloy:      { skin: 'alclad', rail: 'alclad', pillar: 'alclad',
-                struct: 'bareAlu', panel: 'trim', bead: 'rubber',
-                fire: 'fireFoil' },
+                struct: 'bareAlu', panel: 'panelMetal', pad: 'leatherDark',
+                bead: 'rubber', fire: 'fireFoil' },
   carbon:     { skin: 'composite', rail: 'composite', pillar: 'composite',
-                struct: 'composite', panel: 'trim', bead: 'rubber',
-                fire: 'fireFoil' },
+                struct: 'composite', panel: 'panelMetal', pad: 'leatherDark',
+                bead: 'rubber', fire: 'fireFoil' },
 };
 const AERO_GLASS = new Set(['windshield', 'pilotWindow', 'pasengerWindow',
                             'skyWindows']);
@@ -66896,15 +67195,19 @@ function editorInit(api) {
         const R = window.REFPLANE;
         const standing = !!(R && R.state && R.state.preset !== 'none');
         const cut = (R && R.state && R.state.cut) || 'off';
-        const box = (x, w) => '<rect x="' + x + '" y="5.3" width="' + w +
-          '" height="7.4" rx="1.5"/>';
+        // TWO OBJECTS HAVE TO LOOK LIKE TWO. The first cut overlapped them
+        // side by side and the overlap drew a line down the middle — which is
+        // the SPLIT's own glyph, so `off` and `split` said the same thing. A
+        // diagonal offset is the duplicate-glyph everyone already reads.
+        const box = (x, y) => '<rect x="' + x + '" y="' + y +
+          '" width="8.6" height="7.4" rx="1.5"/>';
         const ICON = {
           // two whole aeroplanes, one standing inside the other
-          off: box(2.5, 7.6) + box(7.9, 7.6),
-          // yours whole, theirs halved — the half has no far edge
-          ref: box(2.5, 7.6) +
-               '<path d="M10.1 5.3h3.9a1.5 1.5 0 0 1 1.5 1.5v4.4a1.5 1.5 0 0 ' +
-               '1-1.5 1.5h-3.9"/>',
+          off: box(2.4, 6.2) + box(7.0, 4.4),
+          // yours whole; theirs has lost a half, and the cut edge is straight
+          // where every other edge is rounded
+          ref: '<path d="M6.7 6.2H3.9a1.5 1.5 0 0 0-1.5 1.5v4.4a1.5 1.5 0 0 ' +
+               '0 1.5 1.5h2.8Z"/>' + box(7.0, 4.4),
           // ONE machine, half each: theirs dashed to the left of the
           // centreline they are both cut by, yours solid to the right
           split: '<path d="M9 5.3H5.4A1.5 1.5 0 0 0 3.9 6.8v4.4a1.5 1.5 0 0 ' +

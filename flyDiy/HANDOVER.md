@@ -28334,3 +28334,47 @@ The game page's two syntax errors and three 404s pre-date this work.
 
 G100 the loading table and CG vs fill on a slider; G101 the balance panel.
 Spar solids go in front of the user FIRST, behind their own switch.
+
+---
+
+## G100 — THE CG AS A FUNCTION OF FILL (2026-09-04; the user, at the start
+## of the arc: "we need to see how the CG is changing with the amount of fuel
+## (through a slider)")
+
+A sibling session landed the CG ENVELOPE in the core the day before (the four
+loading corners, forward/aft on the plaque), so the loading TABLE had a keeper
+already. G100 adds the slider, and one door for all of it.
+
+- **`genSpecAtFuel(S, litres)`** in 64_gen_build.js: the same airframe at a
+  fuel state, every vessel drained in proportion (a pack left alone). The
+  reserve sheet (15%), the envelope's four corners and the editor's slider
+  all go through it — they had two private copies of the rule and the slider
+  would have been a third. GATE ENERGY: the slider at 15% IS the reserve
+  sheet, to the microgram; a nose tank draining walks the CG aft
+  monotonically; a pack does not drain through the same door.
+- **The `fuel aboard` slider** in the `fuel & energy` panel: 0..100%, drawn
+  and weighed. The readout is the core's slim shakedown of `genSpecAtFuel`
+  off the RESOLVED (built) spec — the gate found that starting from an
+  unresolved one drains a different aeroplane. Litres, mass, CG in metres and
+  in % MAC on the envelope's own scale, static margin, red under 0.05.
+- **The CG bar**: forward corner to aft corner, the marker at the fuel aboard.
+- **The loading table**: the four corners, litres, mass, % MAC, margin, the
+  worst one named.
+- **The fuel is drawn**: a second box inset in every liquid vessel, its height
+  the fill; wing tanks fill from their floor; avgas dyed blue, mogas straw. A
+  pack is drawn full and unchanging, because it is.
+- **The bay ghost is opt-in.** The user, on the nose tank: "a faint
+  transparent box ... subtle, almost transparent but not quite". A guide
+  nobody asked for reads as a defect; `show the bay` switches it on.
+
+Verified live: two tanks bracketing the CG (nose 45 L + aft cabin 30 L) —
+at 30% aboard 23 L, 525 kg, the CG 0.94 → 0.93 m, which is what bracketing
+means; the liquid boxes at 30% of their tanks' height; the table's four
+corners; three markers on the bar; no ghost until asked; no console errors.
+
+**BATTERY: PASS** — 68 gates, no reds, over exactly this build.
+
+### OWED
+
+G101 the balance panel proper (the envelope drawn as a chart, occupants and
+baggage on it). Spar solids first, behind their own switch.

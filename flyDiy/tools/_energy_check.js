@@ -402,6 +402,36 @@ if (SHOW) for (const s of seen)
       'aeroplanes carry two tanks (' +
       ((split.reserve.staticMargin - split.staticMargin) * 100).toFixed(1) + ' pts)');
   }
+  // G100: ONE DOOR FOR A FUEL STATE. The reserve sheet, the corners and the
+  // editor's slider all go through genSpecAtFuel; so the slider at 15% must
+  // BE the reserve sheet, and the CG must walk monotonically with the fill
+  {
+    const S = C.resolveSpec(Object.assign(cl(C.GEN_DEFAULT),
+      { energy: { vessels: [{ bay: 'nose', capacity: 50, along: 0, lv: 1 }] } })).spec;
+    // the reserve sheet reads the BUILT spec (def.spec, every derived field
+    // filled in); the slider must start from the same object or it is
+    // draining a different aeroplane
+    const def0 = C.buildGen(S);
+    const full = C.genShakedown(def0, {});
+    const at15 = C.genShakedown(C.buildGen(C.genSpecAtFuel(def0.spec, Math.max(4, 0.15 * def0.spec.fuel.litres))), { slim: true });
+    check(full.reserve && Math.abs(at15.mass - full.reserve.mass) < 1e-6 &&
+          Math.abs(at15.staticMargin - full.reserve.staticMargin) < 1e-9,
+      'fill: the slider at 15% IS the reserve sheet (' + at15.mass.toFixed(1) + ' vs ' +
+      (full.reserve ? full.reserve.mass.toFixed(1) : '?') + ' kg, SM ' + at15.staticMargin.toFixed(3) +
+      ' vs ' + (full.reserve ? full.reserve.staticMargin.toFixed(3) : '?') + ')');
+    const cgs = [1, 0.75, 0.5, 0.25, 0].map(k =>
+      C.genShakedown(C.buildGen(C.genSpecAtFuel(S, S.fuel.litres * k)), { slim: true }).cgX);
+    let mono = true;
+    for (let i = 1; i < cgs.length; i++) if (!(cgs[i] >= cgs[i - 1] - 1e-9)) mono = false;
+    check(mono && cgs[4] > cgs[0] + 0.01,
+      'fill: a nose tank draining walks the CG aft, monotonically (' +
+      cgs.map(x => x.toFixed(3)).join(' -> ') + ')');
+    const pack = C.resolveSpec(Object.assign(cl(C.GEN_DEFAULT),
+      { energy: { kind: 'battery', vessels: [{ bay: 'nose', capacity: 8, along: 0, lv: 1 }] } })).spec;
+    const p0 = C.genSpecAtFuel(pack, 0);
+    check(p0.energy.vessels[0].capacity === pack.energy.vessels[0].capacity,
+      'fill: a pack does not drain through the same door');
+  }
   // a pack does not burn
   {
     const b = build({ energy: { kind: 'battery',
