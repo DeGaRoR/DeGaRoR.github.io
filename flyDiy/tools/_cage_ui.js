@@ -47,6 +47,8 @@ const SEC = {
   boomTube:        '#8fa3b8',
   bulkhead:        '#8a7a5f',
   firewall:        '#8a4a2f',
+  fireProof:       '#d9dee3',
+  fireSeal:        '#4a4f55',
   dash:            '#333a45',
   tube:            '#93a0ad',
   plywood:         '#b5854e',
@@ -274,7 +276,8 @@ const GLASSM = new Set(['windshield', 'pilotWindow', 'pasengerWindow',
 const INTSKIN = new Set(['plywood', 'cloth', 'composite', 'toele']);
 // boomTube = the G26 rod: it IS structure — fading the fuselage skin
 // must leave the rod standing (the naked Ruckus test)
-const INTSTRUCT = new Set(['bulkhead', 'firewall', 'dash', 'tube',
+const INTSTRUCT = new Set(['bulkhead', 'firewall', 'fireProof', 'fireSeal',
+                           'dash', 'tube',
                            'woodFrame', 'aluminium', 'boomTube']);
 // WHAT THE X-RAY TAKES AWAY, and what it must leave standing. It takes the
 // COVERING — the outer skin, its glazing, and the interior linings that are
@@ -1497,13 +1500,31 @@ const anchorSize = () => {
 // It starts from `cageFromSpec`, which starts from CAGE_PARAMS rather than
 // from this page's defaults, so a build fully determines the aeroplane
 // instead of inheriting the sliders it did not mention.
+// A LOAD IS NOT A ROW CHANGE (2026-09-03). Two layers carry an "applies
+// once" starter that fires when a value differs from the previous build's —
+// the engine preset, and the cowl-for-architecture — and a load replaces P
+// wholesale, so a file that named a different preset than the aeroplane you
+// had open re-fired the starter and the preset overwrote the engine rows the
+// file had saved. Every door that REPLACES P says so through `PAGE.load`
+// before it builds; a layer's starter then records the loaded value instead
+// of reacting to it. The design tiles (design_flow.js) deliberately do NOT go
+// through here: a tile writing `engPreset` IS a row change and must fire.
+const loaded = () => { if (PAGE.load) try { PAGE.load(); } catch (e) {} };
+
 function applySpec(spec, what) {
   Object.assign(P, G.cageFromSpec(spec));
+  loaded();
   // THE PAINT COMES WITH THE AEROPLANE (G105). Unconditional, INCLUDING when
   // the file has no `finish` at all: that is a build with no overrides, and
   // the aeroplane it describes is the factory one. Applying it only when
   // present is exactly how a load inherits the last aeroplane's colours.
   finishFromSpec(spec && spec.finish);
+  // THE TANKS COME WITH THE AEROPLANE (G99). Same rule as the paint above,
+  // and unconditional for the same reason: a file with no `energy` describes
+  // the default tank, not "whatever the last aeroplane carried".
+  if (window.CAGE_ENERGY && window.CAGE_ENERGY.fromSpec)
+    try { window.CAGE_ENERGY.fromSpec(spec && spec.energy); }
+    catch (e) { console.error('energy from spec:', e); }
   anchorSize();                            // the loaded design is now x1.000
   syncSliders(); build();
   if (what && $('stat')) $('stat').textContent = what;
@@ -3568,11 +3589,13 @@ function applyPreset(name) {
     for (const k in base) P[k] = base[k];
     for (const k in pre) if (k !== '_base') P[k] = pre[k];
   }
+  loaded();
   anchorSize();                            // this design is now ×1
   syncSliders(); build();
 }
 $('resetBtn').onclick = () => {
   for (const k in DEFAULTS) P[k] = DEFAULTS[k];
+  loaded();
   anchorSize();
   syncSliders(); build();
 };

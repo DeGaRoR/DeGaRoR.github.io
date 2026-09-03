@@ -335,9 +335,17 @@ if (SHOW) for (const s of seen)
   const B0 = bays();
   const nose = B0.find(b => b.key === 'nose');
   const cab = B0.find(b => b.key === 'cabin');
-  check(nose.x0 >= 0, 'bay: the nose bay is BEHIND the firewall, where a tank ' +
-    'goes — it was declared at -0.95 m, which is inside the engine (x0 ' +
-    nose.x0.toFixed(2) + ')');
+  // G99 UI: the nose bay is the cowl deck — from the engine firewall (a
+  // measured `cowlDeck` aft of the windscreen base, less the firewall's own
+  // structure) to just past the windscreen base. Not inside the engine (the
+  // first declaration, -0.95 m) and not around the pilot (the second, 0..1.02)
+  {
+    const cd = C.resolveSpec(C.GEN_DEFAULT).spec.fuse.cowlDeck;
+    check(nose.x0 >= -cd - 1e-6 && nose.x0 < 0 && nose.x1 >= -1e-9 && nose.x1 <= 1e-9,
+      'bay: the nose bay is the cowl deck, firewall to windscreen base (' +
+      nose.x0.toFixed(2) + '..' + nose.x1.toFixed(2) + ' m over a ' + cd.toFixed(2) +
+      ' m deck)');
+  }
   check(Math.abs(cab.x0 - C.resolveSpec(C.GEN_DEFAULT).spec.cab.noseGap) < 1e-6,
     'bay: the cabin bay starts where the cabin does, not half a metre ahead');
   // and it MOVES with the aeroplane, which a literal range cannot
@@ -429,6 +437,169 @@ if (SHOW) for (const s of seen)
       aft.cgX.toFixed(3) + ' m, SM ' + (fwd.staticMargin * 100).toFixed(1) +
       ' -> ' + (aft.staticMargin * 100).toFixed(1) + ' %');
   }
+}
+
+// ===========================================================================
+// G99b — THE SOLID, PLACED (the editor's half, run without the editor)
+// ===========================================================================
+// `_vessel_gen.js` is the one keeper of where a vessel is and whether it fits;
+// the layer draws what it returns. So the gate runs the same function off a
+// cage built in node, and what it proves here is what the picture shows.
+{
+  const VG = require(path.join(__dirname, '_vessel_gen.js'));
+  const C = require(path.join(__dirname, 'flight_core.js'));
+  const fs = require('fs');
+  const b = build({});
+  const wing0 = C.resolveSpec(C.GEN_DEFAULT).spec.wing;
+  const S = VG.specFromCage(b.spec, G, wing0, { cargoLen: C.GEN_DEFAULT.cargo.len });
+  check(!!S && S.cab.noseGap > 0.2 && S.cab.len > 0.6 && S.fuse.tailArm > 3,
+    'bench: the bay datums can be read off the cage\u2019s own rings' +
+    (S ? ' (noseGap ' + S.cab.noseGap.toFixed(2) + ', len ' + S.cab.len.toFixed(2) +
+         ', tailArm ' + S.fuse.tailArm.toFixed(2) + ')' : ''));
+  if (S) {
+    const bay = C.genBayResolve(S, 'nose', null);
+    const dims = L => VG.vesselDims('alu', C.genVesselResolve('fuel', L, 'alu', 'avgas100LL').installedL);
+    const place = (L, v) => VG.bodyPlace(b.mesh, b.FS, bay, v, dims(L), WALL_M, S._zFw);
+    // at the RULE's spot — front face on the firewall, turned if the bay is
+    // shorter than the box, level settled under the deck — which is what the
+    // layer does; bodyPlace's own null default is the bay midpoint and is
+    // not what anybody sees
+    const cacheNose = VG.bayCache(b.mesh, b.FS, bay, WALL_M, S._zFw, 0.7);
+    const spot45 = VG.defaultSpot(bay, dims(45));
+    const st45 = VG.settleLv(b.mesh, b.FS, bay, spot45, dims(45), WALL_M, S._zFw, cacheNose, 'down');
+    check(st45.settled && st45.place.ok,
+      'place: a 45 L alu tank fits the nose bay at the rule’s spot (turned ' +
+      spot45.rot + ' deg, lv ' + st45.lv.toFixed(2) + ')',
+      st45.place ? st45.place.why.join('; ') : 'no level settled');
+    const p45 = st45.place || place(45, { along: spot45.along, lv: 0.6, rot: spot45.rot });
+    check(p45.pts.length >= 8 && p45.samples.length === p45.pts.length,
+      'place: the fit samples the corners and the long edges, not the centre');
+    // a tank LONGER than the bay, whatever size this cage is: the bench's
+    // default cage is a far bigger aeroplane than the stock spec (its nose
+    // bay is 1.46 m), so the capacity is derived from the bay, not typed
+    const kL = (bay.x1 - bay.x0) * 1.15 / VG.SHAPES.alu.aspect[0];
+    const tooBig = Math.round(kL * kL * kL * VG.SHAPES.alu.aspect[0] *
+      VG.SHAPES.alu.aspect[1] * VG.SHAPES.alu.aspect[2] * VG.SHAPES.alu.fill * 1000 / 1.06);
+    const pBig = place(tooBig, { along: null, lv: null, rot: 0 });
+    check(!pBig.ok && pBig.why.length > 0,
+      'place: ' + tooBig + ' L is longer than the bay, does not fit, and the ' +
+      'reason is named', pBig.why.join('; '));
+    // moving the station moves the solid, exactly
+    const pA = place(45, { along: bay.x0 + 0.10, lv: 0.6, rot: 0 });
+    const pB = place(45, { along: bay.x0 + 0.30, lv: 0.6, rot: 0 });
+    check(Math.abs((pA.c[2] - pB.c[2]) - 0.20) < 0.02,
+      'place: +0.20 m of station moves the solid 0.20 m aft (' +
+      (pA.c[2] - pB.c[2]).toFixed(3) + ' m)');
+    // rotating swaps the footprint
+    const ext = pl => { let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
+      for (const p of pl.pts) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]);
+        z0 = Math.min(z0, p[2]); z1 = Math.max(z1, p[2]); }
+      return [x1 - x0, z1 - z0]; };
+    const pStraight = place(45, { along: spot45.along, lv: 0.6, rot: 0 });
+    const e0 = ext(pStraight), e9 = ext(place(45, { along: spot45.along, lv: 0.6, rot: 90 }));
+    check(Math.abs(e0[0] - e9[1]) < 1e-6 && Math.abs(e0[1] - e9[0]) < 1e-6,
+      'place: turning it 90 degrees swaps the footprint');
+    // hanging out of the bay is reported as that, not as a skin clash
+    const pX = place(45, { along: bay.x1, lv: null, rot: 0 });
+    check(pX.outsideBay > 0 && !pX.ok,
+      'place: a tank centred on the bay\u2019s aft limit hangs out of it, and says so');
+    // THE USER'S PLACEMENT RULE, in the keeper: nose against the firewall and
+    // high; everything else on the floor against the aft bulkhead
+    {
+      const d45 = dims(45);
+      const n = VG.defaultSpot(bay, d45);
+      const nL = n.rot === 90 ? d45.W : d45.L;
+      check(Math.abs(n.along - (bay.x0 + Math.min(nL / 2 + 0.02, (bay.x1 - bay.x0) / 2))) < 1e-9 && n.lv === 1,
+        'rule: a nose tank sits with its front face on the firewall, high');
+      // a catalogue box that fits a short bay neither way gets a bay-shaped
+      // one: bay length, most of the width, litres capped by what fits
+      {
+        const tiny = Object.assign({}, bay, { x1: bay.x0 + 0.28 });
+        const ext = VG.bayExtAt(cacheNose, b.FS, S._zFw, tiny.x0 + 0.14);
+        check(!!ext, 'shape: the section extents can be read at an axis station');
+        if (ext) {
+          const bf = VG.bayFitDims(tiny, ext, 45 * 1.06, VG.SHAPES.alu.fill);
+          check(bf.L <= 0.28 - 0.04 + 1e-9 && bf.W > bf.L && bf.litres <= 45 * 1.06 + 1e-6,
+            'shape: a 0.28 m bay gets a wide flat box no longer than the bay, ' +
+            'holding at most what was asked (' + bf.L.toFixed(2) + ' x ' + bf.W.toFixed(2) +
+            ' x ' + bf.H.toFixed(2) + ', ' + bf.litres.toFixed(0) + ' L' + (bf.capped ? ', capped' : '') + ')');
+        }
+      }
+      // a box longer than a short bay turns across the body
+      const shortBay = Object.assign({}, bay, { x1: bay.x0 + 0.45 });
+      check(VG.defaultSpot(shortBay, d45).rot === 90,
+        'rule: a 0.55 m box in a 0.45 m bay goes across the body (the J-3 tank)');
+      check(VG.defaultSpot(shortBay, { L: 0.55, W: 0.50, H: 0.2 }).rot === 0,
+        'rule: ...unless it is too wide to fit that way either');
+      const cabBay = C.genBayResolve(S, 'cabin', null);
+      const c = VG.defaultSpot(cabBay, d45);
+      check(Math.abs(c.along - (cabBay.x1 - d45.L / 2 - 0.02)) < 1e-9 && c.lv === 0,
+        'rule: a cabin tank sits on the floor, its back face on the aft bulkhead');
+      const pN = VG.bodyPlace(b.mesh, b.FS, bay, n, d45, WALL_M, S._zFw);
+      check(pN.outsideBay === 0, 'rule: ...and the nose default is inside its bay',
+        pN.why.join('; '));
+      // the level settles to the roof: top-down for the nose, and the settled
+      // placement clears the skin along the whole box
+      const cache = VG.bayCache(b.mesh, b.FS, bay, WALL_M, S._zFw, 0.7);
+      const sN = VG.settleLv(b.mesh, b.FS, bay, n, d45, WALL_M, S._zFw, cache, 'down');
+      check(sN.settled && sN.place.fitsSkin,
+        'rule: the nose tank settles under the roof and clears the skin (lv ' +
+        sN.lv.toFixed(2) + ')');
+      const sC = VG.settleLv(b.mesh, b.FS, cabBay, c, d45, WALL_M, S._zFw,
+        VG.bayCache(b.mesh, b.FS, cabBay, WALL_M, S._zFw, 0.7), 'up');
+      check(sC.settled && sC.place.fitsSkin,
+        'rule: the cabin tank settles onto the keel and clears the skin (lv ' +
+        sC.lv.toFixed(2) + ')');
+      // the player's box: litres follow the geometry, and round-trip the shape
+      const inst = VG.installedFromDims('alu', d45);
+      check(Math.abs(inst - 45 * 1.06) < 0.05,
+        'dims: the catalogue box holds exactly the litres it was drawn for (' +
+        inst.toFixed(2) + ' vs ' + (45 * 1.06).toFixed(2) + ')');
+      const own = VG.vesselDims('alu', 0, { L: 0.6, W: 0.4, H: 0.2 });
+      check(own.own === true && own.L === 0.6,
+        'dims: a drawn box is used as drawn');
+      check(Math.abs(VG.installedFromDims('alu', own) - 0.6 * 0.4 * 0.2 * 0.9 * 1000) < 1e-9,
+        'dims: ...and its litres are its volume less the shell\u2019s rounding');
+    }
+    // the wing
+    const semi = wing0.span / 2, slice = VG.analyticSlice(wing0);
+    const wb = C.genBayResolve(S, 'wingRoot', null);
+    const w40 = VG.wingPlace(semi, wb, { along: null },
+      C.genVesselResolve('fuel', 40, 'alu', 'avgas100LL').installedL, slice, C.GEN_RULES, wb.litres);
+    check(w40.ok && w40.sides.length === 2,
+      'wing: 40 L sits in the root spar bay, one half each side', w40.why.join('; '));
+    check(w40.sides.length === 2 && Math.abs(w40.sides[0].x0 + w40.sides[1].x0) < 1e-9,
+      'wing: ...mirrored');
+    check(Math.abs(w40.metL - 40 * 1.06) < 0.5,
+      'wing: the box holds what was asked (' + w40.metL.toFixed(1) + ' L)');
+    // more than the bay holds, by the core's own number, runs past it
+    const over = wb.litres * 1.10;
+    const wBig = VG.wingPlace(semi, wb, { along: null }, over, slice, C.GEN_RULES, wb.litres);
+    check(!wBig.ok, 'wing: ' + over.toFixed(0) + ' L (the bay holds ' + wb.litres.toFixed(0) +
+      ') runs past the root bay, and says so', wBig.why.join('; '));
+    // ...and filling the bay exactly holds what the plaque says the bay holds
+    const wFull = VG.wingPlace(semi, wb, { along: null }, wb.litres * 0.999, slice, C.GEN_RULES, wb.litres);
+    check(wFull.ok && Math.abs(wFull.fOut - wb.span[1]) < 0.01,
+      'wing: a tank of the bay\u2019s own litres fills the bay to its outboard edge (' +
+      wFull.fOut.toFixed(3) + ' vs ' + wb.span[1] + ')');
+  }
+  // A LAYER THAT IS NOT BUNDLED IS INVISIBLE, in both places it has to exist
+  const bj = fs.readFileSync(path.join(__dirname, 'build.js'), 'utf8');
+  const h8 = fs.readFileSync(path.join(__dirname, '_cage8.html'), 'utf8');
+  const pc = fs.readFileSync(path.join(__dirname, '_parts_check.js'), 'utf8');
+  for (const f of ['_bay_site.js', '_vessel_gen.js', '_cage_energy.js']) {
+    check(bj.includes("'" + f + "'"), 'bundle: ' + f + ' is in the game editor bundle');
+    check(h8.includes('"' + f + '"'), 'bundle: ' + f + ' is on the bench page');
+    check(pc.includes("'" + f + "'"), 'bundle: ' + f + ' is in GATE PARTS\u2019 loader');
+  }
+  check(h8.includes('60c_gen_energy.js'), 'bundle: the bench loads the energy core');
+  const jn = fs.readFileSync(path.join(__dirname, '_cage_join.js'), 'utf8');
+  check(/M\.energy = window\.CAGE_ENERGY\.toSpec\(\)/.test(jn) &&
+        /spec\.energy = M\.energy/.test(jn),
+    'join: the vessels ride the join into the build beside the finish');
+  const ui = fs.readFileSync(path.join(__dirname, '_cage_ui.js'), 'utf8');
+  check(/CAGE_ENERGY\.fromSpec\(spec && spec\.energy\)/.test(ui),
+    'load: a loaded build seeds the energy panel, unconditionally');
 }
 
 console.log('  ' + seen.length + ' bodies swept, ' +

@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 03804bec06d366f6
+// body-sha256: 7f14354cd335990b
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -145,6 +145,34 @@ const POWERPLANTS = {
     price: 30000,
     engine: { name: 'Rotec R3600', mass: 102, powerW: 112000, aspiration: 'na', family: 'four', cooling: 'air' },
     prop:   { name: '2-pale 1.95 m', D: 1.95, Tstatic: 1950, kV2: 0.240 },
+  },
+  // THE AMATEUR IN-LINES (G165, the other half of the user's "more radial
+  // engines and inline for small planes"). G157 added the radials and held
+  // these back for a stated reason — an in-line was DRAWN on its side then,
+  // and could only be a two-stroke besides, so the classic small in-lines
+  // could not exist. Both are true no longer: G163 stood the bank up, G164
+  // gave it an aim, and the two-stroke is a default rather than a law.
+  //
+  // BOTH ARE INVERTED, which is what an aero in-line almost always is — the
+  // crankcase on top puts the crankshaft high and the propeller with it, and
+  // it is the whole reason G164's `down` aim exists. The 3 kg of prop-shaft
+  // extension a Gipsy carries is not modelled and not claimed.
+  //
+  // MASS AND POWER ARE PUBLISHED. The PROPS ARE DERIVED, not chosen: Tstatic
+  // and kV2 are `genPropSynth`'s own output at each row's diameter, blade
+  // count and standard pitch (propV0K 1.95, fm 0.477), which is the rule the
+  // G158 rows above state and the reason registry and generator agree about
+  // thrust. Reproducing the Jabiru row exactly from the same three numbers is
+  // how I know I ran the right formula.
+  mikron3_wood: {
+    price: 16000,
+    engine: { name: 'Walter Mikron III', mass: 74, powerW: 48000, aspiration: 'na', family: 'four', cooling: 'air' },
+    prop:   { name: '2-pale bois 1.65 m', D: 1.65, Tstatic: 1094, kV2: 0.1495 },
+  },
+  gipsymajor1_wood: {
+    price: 26000,
+    engine: { name: 'DH Gipsy Major 1', mass: 139, powerW: 97000, aspiration: 'na', family: 'four', cooling: 'air' },
+    prop:   { name: '2-pale bois 1.98 m', D: 1.98, Tstatic: 1975, kV2: 0.2153 },
   },
   outrunner2212_9x47: {
     price: 25,
@@ -8622,6 +8650,14 @@ const GEN_DEFAULT = {
     // tandem measure their "right" seat station from different places; a single
     // common base means one layout always carries a constant the other undoes.
     seatX: 0, seatY: 0.10, seatPitch: 0.86,
+    // WHERE THE OCCUPANTS ARE BILLED, metres aft of the firewall, one station
+    // per seat in seat order (pilot first). MEASURED by the join off the crew
+    // layer's own seats (2026-09-03); null = derived = the frame's cabin
+    // pillar rings, which is what a hand-written fiche and every save from
+    // before this field still mean. It is a list rather than a pitch because
+    // side-by-side and tandem place their rows differently and the layer
+    // already knows.
+    seatsX: null,
     // GLAZING. `glazing` is the ROUTE the cabin transparency is built by, and it
     // is a route rather than a style because each has different failure modes
     // (topology, sorting, distortion):
@@ -9223,6 +9259,11 @@ function clampSpec(spec) {
   cb.seatY     = genClamp(cb.seatY     == null ? 0.10 : cb.seatY,      0.06, 0.50);
   // a real distance between tandem seats, not a fraction of the cabin
   cb.seatPitch = genClamp(cb.seatPitch == null ? 0.86 : cb.seatPitch,  0.55, 1.35);
+  // the measured seat stations: a list of finite metres aft of the firewall,
+  // or null. Anything else is a malformed file and reads as "derived".
+  cb.seatsX = Array.isArray(cb.seatsX) && cb.seatsX.length &&
+              cb.seatsX.every(x => typeof x === 'number' && isFinite(x))
+    ? cb.seatsX.map(x => genClamp(x, 0.05, 12)) : null;
 
   const pl = cb.pilot || (cb.pilot = {});
   pl.show    = pl.show !== false;
@@ -10586,7 +10627,23 @@ const GEN_BAYS = {
     // gravity feed possible at all.
     feed: 'gravity',
     lv: [0.25, 1],
-    range: S => [0, Math.max(0.12, S.cab.noseGap)],
+    // UNDER THE COWL DECK, FORWARD OF THE WINDSCREEN BASE (G99 UI). This ran
+    // [0, noseGap] — from the windscreen base AFT to the cabin pillar — which
+    // on the built Cub is the pilot's knees and head: measured, a tank
+    // settled there sat through the crew at 2030 points. The user's rule for
+    // where a tank goes: "collated to the firewall, on the engine side". The
+    // engine side of the windscreen base is the cowl deck, and the field has
+    // sections all through it (measured: from the firewall at -0.65 m the
+    // bay is ~1.0 m wide and 0.85 m deep with the deck top at +0.1) — which
+    // is exactly where a J-3 keeps its twelve gallons. The bay is that deck
+    // and it ENDS AT THE WINDSCREEN BASE: measured on the built Cub the
+    // panel and the pilot's knees sit right there, so "ahead of the panel"
+    // is x = 0 and not a depth past it. The region aft, around the pilot, is
+    // not a tank place and so is no bay: the two places the rule names are
+    // this one and the cabin-side bays' aft bulkheads.
+    // `cowlDeck` is the join's measurement of the deck; 0.10 m of it is the
+    // firewall's own structure and the engine-mount face.
+    range: S => [-Math.max(0.3, (S.fuse.cowlDeck || 0.6)) + 0.10, 0.0],
   },
   cabin: {
     name: 'Cabin', on: 'body',
@@ -11556,7 +11613,30 @@ function genLattice(S, gearX, track, kScale) {
   // `S.occupants` is absent on a spec resolved by an older core, and there
   // the old meaning is the right fallback rather than a guess.
   const aboard = S.occupants != null ? S.occupants : S.crew;
+  // THE SEATS THE CAGE DRAWS, when the join has measured them (2026-09-03).
+  // `cabin.seatsX` is one station per seat, metres aft of the firewall, in
+  // this same seat order. A ring is a pillar, not a chair: on the user's Cub
+  // the pilot's seat back sat 0.27 m ahead of the front pillar and the
+  // passenger's 0.86 m ahead of the aft one, so billing the people on the
+  // pillars carried 13 % of MAC of CG aft and read a negative static margin
+  // on an aeroplane built to its reference. A station between two rings is
+  // split between them by lever arm, so the mass centre lands exactly there
+  // and the frame nodes still carry it. Absent (a fiche, an older save), the
+  // pillar rule below is unchanged — GATE BUILD's "old layouts resolve
+  // exactly as they did" holds to the millimetre.
+  const seatsX = Array.isArray(S.cab && S.cab.seatsX) ? S.cab.seatsX : null;
+  const billAt = (x, m) => {
+    const [f, a] = straddle(x);
+    if (f === a || !F[a]) { pt(F[f].BL, 0.5 * m); pt(F[f].BR, 0.5 * m); return; }
+    const x0 = ST[f].x, x1 = ST[a].x;
+    const wa = Math.max(0, Math.min(1, (x - x0) / Math.max(1e-6, x1 - x0)));
+    pt(F[f].BL, 0.5 * m * (1 - wa)); pt(F[f].BR, 0.5 * m * (1 - wa));
+    pt(F[a].BL, 0.5 * m * wa);       pt(F[a].BR, 0.5 * m * wa);
+  };
+  const seatAt = i => (seatsX && typeof seatsX[i] === 'number') ? seatsX[i] : null;
   for (let i = 0; i < aboard; i++) {
+    const sx = seatAt(i);
+    if (sx != null) { billAt(sx, 80); continue; }
     const ri = seatRows[i] != null ? Math.min(seatRows[i], F.length - 1) : 1;
     const rg = F[ri] || F[1];
     pt(rg.BL, 40); pt(rg.BR, 40);
@@ -11701,7 +11781,11 @@ function genLattice(S, gearX, track, kScale) {
     // cowl and the exhaust on the firewall.
     const half = (i, j, m) => { nodes[i].m += 0.5 * m; nodes[j].m += 0.5 * m;
                                 bill(m, 0); };
-    half(F[1].BL, F[1].BR, seatM);
+    // THE SEATS GO WHERE THE SEATS ARE. With measured stations each chair is
+    // billed at its own; without, the front ring as before.
+    if (seatsX && seatsX.length)
+      for (let i = 0; i < seats; i++) billAt(seatAt(i) != null ? seatAt(i) : ST[1].x, seat.kg);
+    else half(F[1].BL, F[1].BR, seatM);
     half(F[1].TL, F[1].TR, panelM + plumbM);
     half(F[0].TL, F[0].TR, cowlM);
     half(F[0].BL, F[0].BR, exhM);
@@ -14126,6 +14210,71 @@ function genShakedown(def, opts) {
       out.reserve = { litres: rs.fuel.litres, mass: rsh.mass, Vs: rsh.Vs,
                       staticMargin: rsh.staticMargin,
                       climbRate: rsh.climbRate, wingLoad: rsh.wingLoad };
+    } catch (e) {}
+  }
+  // THE CG ENVELOPE (2026-09-03). Every balance number above is quoted at
+  // WHATEVER LOADING IS DRAWN: `cabin.pilots` is the count of dummies the
+  // cage has switched on, `pax` the seats they fill, fuel as specified. A
+  // builder who leaves the second dummy on reads the two-up margin, and one
+  // who switches it off reads the solo margin — and neither is the number a
+  // real aeroplane is certified on, which is a RANGE. (The user, on finding
+  // both reference builds reading negative: "are we gathering the numbers
+  // with 2 passengers in? In what conditions are these tests and reference
+  // values done? Are we real clean there?" We were not.)
+  //
+  // So: the four corners a real weight-and-balance sheet has — solo and full
+  // cabin, at full fuel and at reserves — each the SAME airframe re-fed and
+  // re-loaded exactly as the reserve sheet above does it. The plaque reports
+  // the static margin at the WORST corner and calls the aft-most corner by
+  // name, so "stable" means stable however you load it, and a reference
+  // aeroplane's published CG range (the Cub's 17-36 % MAC) can finally be
+  // compared with something of the same kind. The as-drawn number stays on
+  // `staticMargin` for the fleet's gates and the design targets; the
+  // envelope rides beside it. Slim recursion again; `corners: false` skips it
+  // for readers that only want a mass (the design strip).
+  if (!(opts && opts.slim) && !(opts && opts.corners === false) && S && S.cabin) {
+    try {
+      const w0 = S.wings && S.wings[0];
+      const xLE = (w0 && typeof w0.xLE === 'number' && isFinite(w0.xLE)) ? w0.xLE : null;
+      const pct = x => (xLE == null || !(cBar > 0)) ? null : (x - xLE) / cBar;
+      const seats = Math.max(1, S.seats | 0);
+      const litresFull = (S.fuel && S.fuel.litres > 0) ? S.fuel.litres : 0;
+      const litresRes = litresFull > 10 ? Math.max(4, 0.15 * litresFull) : litresFull;
+      // DRAIN THE VESSELS, not the reading — exactly the reserve sheet's rule
+      const atFuel = (cs, L) => {
+        if (!cs.fuel) return;
+        const keepF = cs.fuel.litres;
+        const k = keepF > 0 ? L / keepF : 0;
+        if (cs.energy && Array.isArray(cs.energy.vessels))
+          for (const v of cs.energy.vessels) v.capacity = v.capacity * k;
+        cs.fuel.litres = L;
+      };
+      const corner = (label, occupants, L) => {
+        const cs = JSON.parse(JSON.stringify(S));
+        cs.cabin.pilots = 1;
+        cs.cabin.pax = Math.max(0, occupants - 1);
+        atFuel(cs, L);
+        const sh = genShakedown(buildGen(cs), { slim: true });
+        return { label, occupants, litres: L, mass: sh.mass, cgX: sh.cgX,
+                 npX: sh.npX, cgPct: pct(sh.cgX), npPct: pct(sh.npX),
+                 staticMargin: sh.staticMargin };
+      };
+      const corners = [
+        corner('solo \u00b7 full fuel',        1,     litresFull),
+        corner('solo \u00b7 reserves',         1,     litresRes),
+        corner('full cabin \u00b7 full fuel',  seats, litresFull),
+        corner('full cabin \u00b7 reserves',   seats, litresRes),
+      ];
+      let fwd = corners[0], aft = corners[0], worst = corners[0];
+      for (const c of corners) {
+        if (c.cgX < fwd.cgX) fwd = c;
+        if (c.cgX > aft.cgX) aft = c;
+        if (c.staticMargin < worst.staticMargin) worst = c;
+      }
+      out.envelope = { corners, fwd, aft, worst,
+                       staticMarginAft: worst.staticMargin,
+                       cgPct: pct(cg[0]), npPct: pct(cg[0] + npShift),
+                       occupantsDrawn: S.occupants, seats };
     } catch (e) {}
   }
   return out;

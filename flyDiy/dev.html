@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Garage Flight Sim</title>
 <link rel="stylesheet" href="src/viewer/style.css?v=771a9126">
-<link rel="stylesheet" href="src/viewer/editor.css?v=31310c71">
+<link rel="stylesheet" href="src/viewer/editor.css?v=d76486d8">
 <link rel="stylesheet" href="src/viewer/flight.css?v=48d19a02">
 </head>
 <body>
@@ -366,6 +366,11 @@
               title="Every row of this part back to the design you loaded">reset part</button>
       <button id="edExpert" class="pill"
               title="Show the frozen constants — what the &quot;don't touch&quot; folder was">expert rows</button>
+      <!-- ...and the third: every section of this column at once. Its label is
+           its own state (fold / open), the same one-button-two-jobs shape the
+           tree's own "fold all" already has. -->
+      <button id="edSecAll" class="pill"
+              title="Roll every section of this column up, or open them all">fold sections</button>
       <!-- the anchor this part is placed against — a fact about the
            SELECTION, so it belongs under the selection's name rather than in
            a footer at the far end of the column. -->
@@ -412,46 +417,95 @@
      the dims box keep their own behaviour and gain a home that says what they
      are for. -->
 <div id="edView" hidden>
-  <!-- ONE BAR ACROSS THE TOP (the user: "put the floating menu on top"). The
-       rail was a column down the left and the verbs a pair bottom-left, so the
-       things you do to the build were at opposite corners of the render with
-       the aeroplane between them. They are one row now, and the row reads
-       left to right as HOW YOU LOOK AT IT, then WHAT YOU DO WITH IT.
-       ROLL OUT is the primary and is NEVER disabled: it is your aeroplane, and
-       building it wrong and learning why is content, not error. -->
-  <!-- THE FILE RIBBON, RE-CUT (2026-09-01, the user: "now it's a pack of
-       controls thrown in a container. Let's have save/save as/new/load").
-       The name and FOUR VERBS, one control family — and only verbs: the
-       NOUNS (your saved aeroplanes, the stock designs, the json doors and
-       delete) moved into the FLEET POPUP garage.js builds behind LOAD.
-       `#edShelf` keeps its id and its meaning — the file operations on YOUR
-       build — so garage.js's isGen sync and the smoke test's seam assert
-       both hold; `#gFile` stays here because a hidden input needs a home
-       that exists before the popup does. -->
+  <!-- THE SAME LAYOUT AS THE FLIGHT SCREEN (2026-09-03, the user: "simply the
+       plane's name on the top left, clicking on it gives all the ribbon
+       options in a standard menu. The display options ribbon goes to the
+       left, and the action button(s) go to the bottom right. We are also
+       consistent with the in-flight layout then"). They are: name top left,
+       look ribbon up the left edge, verbs bottom right — #flRail and #flActs
+       already own those pixels in flight, and the workshop now owns the
+       matching ones here. Nothing here edits a parameter; that is the
+       properties column's one job.
+       The rail's flyouts are filled by editor.js with rows _cage_ui.js built
+       — the same elements, moved again — so `cage`, `wireframe`, `sections`,
+       `subsurf`, the alphas, `explode`, `cutaway` and the dims box keep their
+       own behaviour and gain a home that says what they are for. -->
+
+  <!-- 1. THE NAME, TOP LEFT — and the whole file ribbon behind it.
+       The six verbs were a segmented control on permanent display; what a
+       builder needs on screen is WHICH AEROPLANE THIS IS, and the file
+       operations one click behind its name. #edShelf keeps its id and its
+       meaning — the file operations on YOUR build — so garage.js's isGen sync
+       and the smoke test's seam assert both hold; it is a dropdown menu now
+       rather than a row. The NOUNS (your saved aeroplanes, the stock designs,
+       delete) are still behind LOAD, in the fleet popup garage.js builds.
+       #gFile is a sibling of the menu and not a child: a hidden file input
+       inside a `display:none` menu is not reliably clickable, and the drop
+       target has to be something that is always on screen. -->
   <div id="edTopBar">
     <div id="edFleet">
-      <span id="fbName" title="The build on the stand">unsaved</span>
-      <div id="edShelf">
+      <button id="fbName" type="button" aria-haspopup="true" aria-expanded="false"
+              title="This aeroplane — save, load, import, export">unsaved</button>
+      <div id="edShelf" role="menu" hidden>
         <button id="gSave"  title="Save over this aeroplane">save</button>
         <button id="gSaveAs" title="Save as a new aeroplane">save as</button>
         <button id="gNew"
                 title="Start a new aeroplane — pick an archetype">✚ new</button>
         <button id="gLoad"
                 title="Your saved aeroplanes and the stock designs">load</button>
-        <input id="gFile" type="file" accept="application/json,.json" hidden>
+        <button id="gImport"
+                title="Open an aeroplane from a .json file">import</button>
+        <button id="gExport"
+                title="Download the aeroplane on the stand as a .json file"
+                >export</button>
       </div>
+      <input id="gFile" type="file" accept="application/json,.json" hidden>
     </div>
-    <!-- ROLL OUT rides the same row, far right (user: "aligned with the
-         save/new UI, not a row below") — still its own element, not part of
-         the file plate, and the row's wrap keeps it reachable when the
-         estate narrows. -->
-    <div id="edActs">
-      <button id="edRoll" class="verb pri">Roll out &amp; fly</button>
-    </div>
+
+    <!-- 1b. THE QUICK ACTIONS, TOP RIGHT (2026-09-03, the user: "promote the
+         view interior option into a quick action bar, that's a new one
+         floating on top of the editor screen... a button for alternating the
+         reference plane views (disabled if no reference plane is selected)...
+         a single button alternating between interior and exterior views...
+         another single button cycling through the time of day").
+
+         THE BAR PRESSES ROWS, IT DOES NOT OWN STATE. Every button here is a
+         second FACE of a control that already exists — `see inside`'s
+         checkbox, `time of day`'s select, the reference panel's `cut` — and
+         it presses that control rather than keeping a value of its own. That
+         is the rail's rule ("a flyout borrows, it does not take") applied to
+         a bar with no flyout: one element per decision, one handler on it,
+         and nothing on this bar can ever disagree with the panel it shadows.
+
+         ICON ONLY, AND THE ICON IS THE STATE. Three questions you ask over
+         and over while building — am I inside or outside, how does this sit
+         against the reference, what light am I looking in — each one click
+         away and each wearing the answer, so the bar reads as a status line
+         you can press. editor.js's QUICK table builds them; GATE VIEW holds
+         it against the rail. -->
+    <div id="edQuick"></div>
   </div>
+
+  <!-- 2. THE LOOK RIBBON — HOW YOU LOOK. Standing up the left edge, which is
+       where the flight screen's has stood since its own rebaseline, and which
+       gives the bottom of the render back to the verbs. Same buttons, same
+       metrics, same table. #edBotBar keeps its id — it is the rail's
+       positioner wherever the rail stands — and its flyouts open TO THE RIGHT
+       of their own button, for the reason they opened upward before: an
+       answer that always appears in the same place does not say which
+       question it answers. -->
   <div id="edBotBar">
     <div id="edRail"></div>
   </div>
+
+  <!-- 3. THE VERBS, BOTTOM RIGHT — opposite the ribbon, on the pixel #flActs
+       owns in flight. ROLL OUT is the primary and is NEVER disabled: it is
+       your aeroplane, and building it wrong and learning why is content, not
+       error; it changes its WORDS, not its state. -->
+  <div id="edActs">
+    <button id="edRoll" class="verb pri">Roll out &amp; fly</button>
+  </div>
+
   <div id="edFly" hidden><div id="edFlyHead"></div><div id="edFlyBody"></div></div>
 </div>
 
@@ -466,7 +520,7 @@
 
 
 <script src="vendor/three.min.js"></script>
-<script src="src/core/00_registry.js?v=b22a820e"></script>
+<script src="src/core/00_registry.js?v=18edae6c"></script>
 <script src="src/core/05_atmos.js?v=1c6d1ec0"></script>
 <script src="src/core/10_aircraft_cub.js?v=1803c66b"></script>
 <script src="src/core/11_aircraft_dc3.js?v=25fe8318"></script>
@@ -487,13 +541,13 @@
 <script src="src/core/41_test_pilot.js?v=f4f57151"></script>
 <script src="src/core/50_model_codec.js?v=e36e7ce9"></script>
 <script src="src/core/51_prop_codec.js?v=2a556ad5"></script>
-<script src="src/core/60_gen_spec.js?v=67fab539"></script>
+<script src="src/core/60_gen_spec.js?v=7092da13"></script>
 <script src="src/core/60b_gen_loft.js?v=66bc7e3a"></script>
-<script src="src/core/60c_gen_energy.js?v=76fb2118"></script>
-<script src="src/core/61_gen_frame.js?v=b214c5dc"></script>
+<script src="src/core/60c_gen_energy.js?v=d237729c"></script>
+<script src="src/core/61_gen_frame.js?v=32d4e1f0"></script>
 <script src="src/core/62_gen_aero.js?v=824bf79f"></script>
 <script src="src/core/63_gen_wing.js?v=afc321a7"></script>
-<script src="src/core/64_gen_build.js?v=36d97996"></script>
+<script src="src/core/64_gen_build.js?v=6e74a4d1"></script>
 <script src="src/core/65_gen_loadtest.js?v=250a29e0"></script>
 <script src="src/core/70_player.js?v=492b9918"></script>
 <script src="src/core/90_node_exports.js?v=f8606c90"></script>
@@ -520,33 +574,36 @@
 <script src="src/props/props_fixture.js?v=93362da1"></script>
 <script src="src/props/props_airframe.js?v=88d864cd"></script>
 <script>window.CAGE_UI_LAZY = 1; window.CAGE_IN_GAME = 1;</script>
-<script src="tools/_cage_parts.js?v=5eae38e1"></script>
+<script src="tools/_cage_parts.js?v=348e8eec"></script>
 <script src="tools/_cage_design.js?v=2fa712b3"></script>
-<script src="tools/_cage_page5.js?v=e253b8dc"></script>
-<script src="tools/_cage_gen.js?v=6f91b089"></script>
+<script src="tools/_cage_page5.js?v=9670ea59"></script>
+<script src="tools/_cage_gen.js?v=70cafaa8"></script>
 <script src="tools/_cage_crew.js?v=91e89c17"></script>
 <script src="tools/_gear_kit.js?v=d726c883"></script>
 <script src="tools/_gear_gen.js?v=9802263c"></script>
 <script src="tools/_gear_page.js?v=6a87b27f"></script>
-<script src="tools/_fit_site.js?v=cef985c1"></script>
+<script src="tools/_fit_site.js?v=1e035606"></script>
 <script src="tools/_fit_gen.js?v=bec944ff"></script>
-<script src="tools/_eng_gen.js?v=f4af8aba"></script>
-<script src="tools/_eng_mesh.js?v=1fa60cf3"></script>
-<script src="tools/_eng_page.js?v=fc4ac132"></script>
+<script src="tools/_eng_gen.js?v=691d7605"></script>
+<script src="tools/_eng_mesh.js?v=23873d10"></script>
+<script src="tools/_eng_page.js?v=0f27d1cb"></script>
 <script src="tools/_cowl_gen.js?v=01dfdf26"></script>
 <script src="tools/_cowl_rows.js?v=88acf0df"></script>
-<script src="tools/_cage_cowl.js?v=04935688"></script>
-<script src="tools/_cage_eng.js?v=74e87512"></script>
+<script src="tools/_cage_cowl.js?v=8ec2367f"></script>
+<script src="tools/_cage_eng.js?v=6947a674"></script>
 <script src="tools/_strut_gen.js?v=81765408"></script>
-<script src="tools/_cage_wing.js?v=a36caba9"></script>
-<script src="tools/_cage_gear.js?v=e65f3cec"></script>
-<script src="tools/_fin_gen.js?v=4902045b"></script>
-<script src="tools/_cage_fin.js?v=57c6dfc0"></script>
-<script src="tools/_cage_stab.js?v=d25e53a6"></script>
+<script src="tools/_cage_wing.js?v=a4e1b3cc"></script>
+<script src="tools/_cage_gear.js?v=946e71ab"></script>
+<script src="tools/_fin_gen.js?v=c1dd8b81"></script>
+<script src="tools/_cage_fin.js?v=402b081f"></script>
+<script src="tools/_cage_stab.js?v=5b453752"></script>
 <script src="tools/_cage_access.js?v=19e2713f"></script>
 <script src="tools/_cage_light.js?v=a14831d1"></script>
-<script src="tools/_cage_join.js?v=1e1d0622"></script>
-<script src="tools/_cage_ui.js?v=9d48f2e5"></script>
+<script src="tools/_bay_site.js?v=7bbcf819"></script>
+<script src="tools/_vessel_gen.js?v=4ecf7942"></script>
+<script src="tools/_cage_energy.js?v=3323db3a"></script>
+<script src="tools/_cage_join.js?v=bd62b963"></script>
+<script src="tools/_cage_ui.js?v=44fcf0bc"></script>
 <script src="src/viewer/assets.js?v=5ae00b40"></script>
 <script src="src/viewer/aa_resolve.js?v=d43f4c1b"></script>
 <script src="src/viewer/light_rig.js?v=d7fd0cd1"></script>
@@ -558,14 +615,15 @@
 <script src="src/viewer/hangar_sky.js?v=b50cd6c6"></script>
 <script src="src/viewer/props.js?v=e928c520"></script>
 <script src="src/viewer/wood_tex.js?v=861205aa"></script>
-<script src="src/viewer/aeroskin.js?v=62c5985d"></script>
+<script src="src/viewer/skin_tex.js?v=2aec076b"></script>
+<script src="src/viewer/aeroskin.js?v=45aeee4e"></script>
 <script src="src/viewer/hangar.js?v=ebada4df"></script>
-<script src="src/viewer/garage.js?v=c945e5b6"></script>
+<script src="src/viewer/garage.js?v=867c6862"></script>
 <script src="src/viewer/workshop.js?v=7396d813"></script>
 <script src="src/viewer/bench.js?v=225ed458"></script>
-<script src="src/viewer/refplane.js?v=40b15768"></script>
-<script src="src/viewer/design_flow.js?v=47cf27b6"></script>
-<script src="src/viewer/editor.js?v=e3cd7d7c"></script>
-<script src="src/viewer/app.js?v=0db91eb3"></script>
+<script src="src/viewer/refplane.js?v=19535b38"></script>
+<script src="src/viewer/design_flow.js?v=ddfd90cc"></script>
+<script src="src/viewer/editor.js?v=cb899b49"></script>
+<script src="src/viewer/app.js?v=6f11a40e"></script>
 </body>
 </html>

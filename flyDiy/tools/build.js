@@ -174,6 +174,8 @@ const MANIFEST = {
     // wood_tex.js before aeroskin.js (G125): the scanned wood detail sheets —
     // like the other payloads, the images start decoding at script eval, and
     // aeroDetailTex reads the table at first material build.
+    // skin_tex.js the same, for the sheets that are not wood (the firewall's
+    // fireproof foil): one loader, two payload tables, either may be absent.
     // aa_resolve.js anywhere before app.js (G144): it only publishes a table
     // and a factory at eval, and app.js is the one caller — it makes the pass
     // in its renderer block and hands it the frame at the bottom of the loop.
@@ -183,7 +185,8 @@ const MANIFEST = {
     scripts: ['assets.js', 'aa_resolve.js',
               'light_rig.js', 'site_tex.js', 'site_ground.js', 'render_world.js',
               'hangar_floor.js', 'hangar_walls.js',
-              'hangar_sky.js', 'props.js', 'wood_tex.js', 'aeroskin.js', 'hangar.js',
+              'hangar_sky.js', 'props.js', 'wood_tex.js', 'skin_tex.js',
+              'aeroskin.js', 'hangar.js',
     // refplane.js before editor.js (G89): the editor's tree offers the
     // REFERENCE PLANE row and calls window.REFPLANE for its badge, its panel
     // and its boot, so the handle must exist before editorInit runs. It needs
@@ -233,6 +236,11 @@ const MANIFEST = {
     // by one slider drag, and undefined on the first.
     '_cage_access.js',
     '_cage_light.js',       // G96: the aeroplane's own lights + switches
+    // THE ENERGY LAYER (G99): the interior's measurement, the vessel's
+    // geometry, then the layer that draws and edits it. _bay_site reads
+    // window.FIT_SITE at load, so it sits after _fit_site; the layer reads the
+    // crew and the wing in its post hook, so it sits after both.
+    '_bay_site.js', '_vessel_gen.js', '_cage_energy.js',
     '_cage_join.js',        // the physics-bearing table (G45)
     '_cage_ui.js',
   ],

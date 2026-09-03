@@ -1,4 +1,5 @@
-#!/usr/bin/env node
+// BAY SITE (G97) - NO SHEBANG: this file is in the game bundle since G99,
+// and a shebang is a syntax error in a <script>.
 // BAY SITE (G97) — THE INSIDE OF THE AEROPLANE, WHICH HAS NEVER EXISTED.
 //
 // GEN_ACCESS put things ON the skin, and `_fit_site.js` answers "where is that

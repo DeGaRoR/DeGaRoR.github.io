@@ -327,7 +327,23 @@ const GEN_BAYS = {
     // gravity feed possible at all.
     feed: 'gravity',
     lv: [0.25, 1],
-    range: S => [0, Math.max(0.12, S.cab.noseGap)],
+    // UNDER THE COWL DECK, FORWARD OF THE WINDSCREEN BASE (G99 UI). This ran
+    // [0, noseGap] — from the windscreen base AFT to the cabin pillar — which
+    // on the built Cub is the pilot's knees and head: measured, a tank
+    // settled there sat through the crew at 2030 points. The user's rule for
+    // where a tank goes: "collated to the firewall, on the engine side". The
+    // engine side of the windscreen base is the cowl deck, and the field has
+    // sections all through it (measured: from the firewall at -0.65 m the
+    // bay is ~1.0 m wide and 0.85 m deep with the deck top at +0.1) — which
+    // is exactly where a J-3 keeps its twelve gallons. The bay is that deck
+    // and it ENDS AT THE WINDSCREEN BASE: measured on the built Cub the
+    // panel and the pilot's knees sit right there, so "ahead of the panel"
+    // is x = 0 and not a depth past it. The region aft, around the pilot, is
+    // not a tank place and so is no bay: the two places the rule names are
+    // this one and the cabin-side bays' aft bulkheads.
+    // `cowlDeck` is the join's measurement of the deck; 0.10 m of it is the
+    // firewall's own structure and the engine-mount face.
+    range: S => [-Math.max(0.3, (S.fuse.cowlDeck || 0.6)) + 0.10, 0.0],
   },
   cabin: {
     name: 'Cabin', on: 'body',

@@ -27364,6 +27364,125 @@ gives a marking no height, which on screen is this very bug one layer down.
   materials, which is exactly what a decal is. Every hop is measured; the last
   inch is inferred.
 
+---
+
+## G161 — THE COMMON TRUNK, THE STRANGE ROWS, AND A SILHOUETTE WITH TWO
+## DEFECTS (2026-09-03, the user: "identify the common trunk in all the
+## controls and group them appropriately. Right now, essential controls live
+## alongside dispensable controls. We don't hide anything, but we re-order...
+## Since the introduction of anti-aliasing, the silhouette option fails to
+## render properly, and it's sad, because it was great")
+
+Two tasks, one session. Canonical for the slider work is
+futureDesigns/SLIDER-TRUNK-2026-09-03.md (the census, every per-part
+decision, the still-owed list); this entry is the delivery and the lessons.
+
+### THE TRUNK
+
+`place` in tools/_cage_parts.js grew from P8 section 5's four slots (fore, up,
+len, wide) to nine: `on / type / count / fore / out / up / len / wide / high`,
+plus `at`. editor.js `render()` emits them as four quiet headings in a fixed
+order — `fitted`, `type` (choices, then how many), `position` (fore / aft,
+in / out, up / down; the anchor as meta), `size` (length, width, height) —
+and takes the keys out of the part's own groups, which follow in the table's
+order. Nothing is hidden and nothing renders twice. GATE PARTS holds every
+slot key to a row the part owns and now REJECTS a slot the editor does not
+render (a misspelt slot used to be a row that quietly stayed put).
+
+Twenty-two parts got a trunk. The rows keep one label each (the glossary
+rule), but the labels were combed in the layer files so a row in a slot says
+what the slot says: `fore / aft`, `in / out (half track)`, `up / down (leg
+drop)`, `height (tip up / down)`, `root length (forward point)`,
+`fore / aft (stand-off)`. The domain word stays in brackets.
+
+### THE STRANGE ONES (the user: "who are the strange ones?")
+
+- `s1R`/`s2R`, the wheel radii, sat under the gear STATIONS (the user's own
+  example). Now `Wheels & tyres -> size`, one row per station, labelled.
+- `cowlLoops` / `cowlEase` / `cowlBulge` sat under COWL as `nose curve`. They
+  are `S.config.cowl` — the CAGE's own nose-cap loft — exist with the cowl
+  layer switched off, and shape the nose. Now `Nose -> cowling loft`.
+- `tailRimN` (the tail rim's facet count, one row for fin AND stab) sat under
+  the fin's `thickness`. Now `Polycount -> layers` as `tail edge sections`.
+- `crNoseCap` was rendered TWICE under two names (`tip sharpness` in the nose,
+  `nose cap crease` in the expert folder). The duplicate is deleted.
+- `eng_mountGap`, the stand, was the ninth row of the engine's last group.
+  It is the engine's fore / aft seat and rides in the trunk; the mount group
+  moved to second (the user: "the stand is very important for engine
+  placement"). Layout and cylinder count are `type` rows, after the preset.
+
+Left where they are, with reasons, in the design doc: `propR/propZ` (the
+stance solver's circle), `wsBaseLift`, `bulkZ`, `planeScale` (expert since
+G19g), the two brake rows.
+
+### THE FIN AND THE STAB
+
+The user: "the elevator and fin geometry is really difficult to set". The
+outline is now ONE CORNER PER GROUP — `tip` (with the shoulder and the top
+pair's bulge that ride with it), `top-aft corner`, `base corner`, `leading
+edge` (LE root + the dorsal creases), `rows`, `trailing edge`, `corner
+sharpness` — and the trunk lifts out the two numbers a builder reaches for
+first: the height (`finTipY`) and the root length (`finRootFwd`). The stab is
+the same table laid flat, saying `in / out` where the fin says `up / down`.
+OWED and named: a whole-fin fore / aft. The outline has no such row — the
+forward point and the base corner move ENDS — and adding one is a
+_fin_gen.js change, not a table change.
+
+### THE SILHOUETTE — MEASURED, NOT GUESSED
+
+Reproduced in the probe page (tools/make_probe.js; rAF never fires in the
+agent's Browser pane, so `__pump` + `gl.readPixels` on `__renderer` is the
+instrument). Wing selected, cyan rim pixels on screen: pass off 1243, Smooth
+928, Smoothest 46. Then the target was read BEFORE the resolve: 1947 rim
+pixels at Smoothest. The rim was drawn and the resample erased it. And a
+second, older defect fell out of the orbit test: 2392 rim pixels still, 940
+after an orbit and back.
+
+1. **THE CLEAR WAS MASKED.** The shell material set `stencilWriteMask = 0` to
+   "test, never stamp". glClear honours glStencilMask; r128's end-of-render
+   reset opens depth and colour masks but NOT stencil; the shell is the last
+   stencil material of every frame. So from frame two on, autoClear's stencil
+   clear cleared nothing, every footprint the mask had ever stamped stayed
+   set, and the rim was eaten wherever a previous footprint lay — the trailing
+   side of any orbit. G131's own sentence "the renderer clears stencil every
+   frame... so the stamp is never stale" was FALSE, on the canvas as much as
+   in the target. Fix: mask 0xff with all-Keep ops (which is what "never
+   stamps" actually means).
+2. **THE RIM WAS ONE PIXEL.** `silW` is world metres (0.015), deliberately
+   constant on the aeroplane — and at garage distance that is ~1.2 px. The
+   G144 Catmull-Rom resolve over a 1.25x target smears a 1-px line into a
+   faint 2-px band (G144 wrote this down as "line amplitude 138 vs 193.5" and
+   measured its own rim at Smooth, not Smoothest). Fix: `silPx` (default 2) —
+   the offset is max(silW, silPx OUTPUT pixels), the pixel's world size read
+   off `projectionMatrix[1][1]` and the depth, the drawing-buffer height fed
+   per frame by `hiSilFeed` (onBeforeRender). Under a supersampled target
+   the rim is silPx*ss source pixels and lands as silPx on screen.
+
+After: still / after orbit / back — off 2106 / 1600 / 2106, Smooth 1797 /
+1281 / 1797, Smoothest 876 / 604 / 876 (lenient-threshold count 3031). The
+rim survives the resolve and survives the orbit. `EDITOR_HILITE({silPx: 3})`
+tunes the floor live; the saved highlight pref carries it.
+
+### DELIVERY
+
+GATE PARTS PASS (649 rows, 34 parts, 8 assemblies) and `--selftest` PASS;
+the full suite run after; inspector verified on the probe page for Fin,
+Engine, Main gear, Wheels & tyres and Nose (headings and labels dumped off the
+DOM, screenshots taken). The commit stays the user's.
+
+### LESSONS
+
+- **Read the target before the resolve** to split "not drawn" from "drawn,
+  then lost". One readPixels on `__webglFramebuffer` turned a day of shader
+  speculation into a one-line fix.
+- **A stencil overlay that dies on camera motion is a masked clear**, not a
+  missing attachment: `gl.getParameter(gl.STENCIL_WRITEMASK)` before anything
+  else.
+- **A thin line wants a pixel floor, not a bigger world width.**
+- **A row is filed under a part, but is it the part's?** Ask what the row
+  MOVES (the cage's nose cap, not the cowl layer) and whether it survives the
+  part being switched off.
+
 ## G162 — THE MARKING KIT: A LIVERY THAT TRAVELS
 ## (2026-09-03, ROADMAP Phase 2 item 7)
 
@@ -27734,3 +27853,484 @@ engine's `geometry` group beside `eng_radialRows`, which is its exact analogue.
 - `vee` is still the only architecture that refuses to draw, so `ENG_AIM` has
   one consumer that could use it and does not: an inverted V is a real engine.
 
+---
+
+## G162 — THE SECTIONS ROLL UP, THE ROW POINTS AT ITS CORNER, AND THE
+## AUTOSAVE WAS NEVER READ BACK (2026-09-03, the user: "would you be able to
+## do some highlighting of the corresponding corner/vertex when hovering for
+## the fin and stabs? And maybe for the cowl? Also, the sections should be
+## collapsible themselves... beyond 5 parameters, minimize by default, so we
+## keep an overview. Options for collapsing and extending all. Setup
+## remembered. Something different, but do we have a form of auto-save of the
+## current plane? Would be useful in case of browser crash/refresh")
+
+### THE SECTIONS ROLL UP
+
+Every heading in the properties column is now a control: click it and its
+rows fold away behind a chevron that carries the count. A PART heading (what
+an assembly or the root draws) folds the whole part, groups and all. One pill
+in the title bar, `fold sections` / `open sections`, does the lot — the same
+one-button-two-jobs shape the tree's `fold all` already had.
+
+THE DEFAULT IS A RULE, NOT A STORED STATE, and that is the design decision
+worth keeping: only what the USER has toggled is written to
+`flydiy.edSec`; everything else answers the rule on every pass. So a group
+that grows past the threshold (a leg kind switched, expert rows revealed)
+rolls itself up, and a group the user opened stays open however it grows.
+Storing a boolean per section would have frozen today's row counts into a
+preference file.
+
+  the rule    open at 5 visible rows or fewer, rolled up above
+  the trunk   `fitted` / `type` / `position` / `size` ALWAYS default open —
+              they ARE the overview the user asked to keep, and the engine's
+              `type` (6 rows) is exactly the group you must not have to
+              unroll to find the preset
+  counted     on VISIBLE rows: a group of nine whose `when` leaves two on
+              screen is a group of two to the person reading it
+
+The count needs the pass over the group's rows to have finished, and the fold
+needs the count — so `applyVis` reads existence in one pass and writes display
+in a second. Reads are cheap; it is the writes a drag cannot afford, and those
+are unchanged (still one per row, only when the value changed).
+
+MEASURED on the live page: the cowl opens at 12 headings / 15 rows with
+`body` (12), `section shape` (14), `apertures`, `lip`, `bulges`, `chin scoop`
+and `fasteners` rolled up; the root at 184 headings / 347 rows instead of 649;
+folding the Cowl's part heading there takes 88 rows and 11 headings away in
+one click.
+
+### THE PIN — WHICH CORNER DOES THIS ROW MOVE?
+
+Hover a fin, stab or cowl row and an amber dot lands on the point it moves.
+Eleven of the fin's rows are two-axis offsets on a named corner, and reading
+"top-aft up / down" tells you what the number does and not which corner it is.
+
+THE POINT COMES FROM THE BUILD, NEVER RE-DERIVED. `buildFin2` now publishes
+the `IX` name -> index map it was already building, and the pin reads the
+vertex out of the cage the editor has just built — so it sits on the drawn
+corner through every clamp, the live deck and the rebase, and it MOVES while
+you drag, because `applyVis` rebuilds it at the end of every build. The stab
+takes the same names through `FIN_GEN.finToStab` with the opts that build
+published (new, beside the cage) — both sides, because an elevator corner
+exists twice. The cowl asks `COWL_GEN` itself: a station ring for the ends and
+the seam, a surface point for the scoop, the oil door, the parting line, the
+bulges and the apertures.
+
+A name that is not in `IX` is SKIPPED, never defaulted: the guard pair, the
+keel tab and the dorsal each take vertices out of the mesh entirely.
+
+TWO MEASURED CORRECTIONS to the dot itself, both the same lesson as G161's
+rim. It is drawn at a size in OUTPUT PIXELS (the offset is built in view space
+from the unit sphere's own vertex, so the layer's scale never reaches it), and
+as an ordinary material it came out at (222, 205, 154) — a pale cream, very
+nearly the colour of the aeroplane it was meant to stand out against. With
+`toneMapped: false` (it is an instrument, it does not dim with the hangar) and
+`convertSRGBToLinear` (r128 has no colour management, so a material colour is
+taken as linear and encoded on the way out) it reaches the frame at
+(255, 176, 58) — the amber that was asked for, measured.
+
+VERIFIED by framebuffer diff, pin on against pin off: fin tip 41 px in a 7x7
+box, the mid row 3 dots, the stab tip 2 dots at +/-1.521 m, the cowl seam a
+16-dot ring (590 px), the scoop 2, the oil door 1, the parting line 6 — every
+one inside its own layer's bounding box, and 0 px changed with nothing hovered.
+
+### THE AUTOSAVE WAS WRITTEN AND NEVER READ
+
+The answer to the user's question was "yes, and it does not work". The working
+build has been written to `flydiy.wip` on every rebuild since G63 and after
+every slider pause since this morning's save-integrity pass — and NOTHING PUT
+IT BACK INTO THE EDITOR AT BOOT.
+
+`seedEditor` reads `genSpec`, which is set only by `api.apply`, which only
+garage.js's `rebuild` calls — and the boot restore assigns its spec at module
+scope without rebuilding. So `genSpec` was null when `openEditor()` ran, the
+seed returned early, the editor opened on the page's own default aeroplane,
+and `syncBuild()` four lines later exported THAT over the restored build and
+wrote it to the autosave.
+
+MEASURED TWICE on dev.html, and once more in the probe page: nose length to
+0.62 and span to 11.4, wait for the debounce, and the stored WIP carries both
+(4624 bytes). Reload: the editor reads 0.44 and 10.0, the shelf agrees with
+the editor, and the WIP has been rewritten to the editor's defaults (4515
+bytes). Six rows across five layers, all lost. The refresh the autosave exists
+for is the one that destroyed it — and this morning's `touch()` is what made
+it destructive rather than merely useless.
+
+THE FIX IS THE MISSING HALF OF THE SAME IDEA: hand the restored spec to the
+boot before anything is built from it. `setAircraft` then builds the aeroplane
+you were working on, `seedEditor` finds a cage to seed from, and `syncBuild`
+exports the SEEDED editor rather than the template. A spec with no cage still
+seeds nothing, so a FRESH session opens on the page's own aeroplane exactly as
+before — verified by clearing the key: 0.44 / 10.0 / 0.455 and a 4515-byte
+write, unchanged.
+
+AFTER: four rows across four layers (cage, wing, fin, cowl) set, reloaded, and
+all four come back — editor and WIP identical, 4657 bytes both sides.
+
+### AND ONE IT BROKE ON THE WAY
+
+The FINISH view's headings are built by `emitEls`, not `emit`, and the first
+cut wired them wrong in two ways at once — the click wrote one key and the
+pass read another, so a fold never came back; and the >5 rule folded them by
+default, which in a view that draws ONE block per part hid the entire view
+behind a row of headings. Found by opening the tab, which is the only way it
+could have been found. A finish section is now keyed on something stable
+(`secG`: 'finish' for a part's own block, the group name otherwise — a
+heading there carries the part's count, "Passenger bay x2", and would have
+filed itself under a new key every time a bay was added) and defaults OPEN.
+
+### DELIVERY
+
+GATE PARTS, SAVE, VIEW, UISMOKE, JOIN and FIN all PASS; the core battery run
+after. Bundles rebuilt. The commit stays the user's.
+
+### LESSONS
+
+- **A file that is written is not a file that is read.** The write path had a
+  gate (GATE SAVE, this morning) and the read path had none — and the read
+  path is where the data was going.
+- **An overlay's default is a rule, not a stored state**, wherever the thing
+  it depends on can change under it.
+- **A UI colour is not a paint colour.** Tone mapping and the missing colour
+  management between them turned an amber instrument into the colour of the
+  fuselage; both are one flag each, and both need measuring to see.
+
+## G165 — AN IN-LINE MAY BE A FOUR-STROKE, AND TWO REAL ONES ARRIVE
+## (2026-09-03, ROADMAP Phase 2 item 2 — the last of it)
+
+**Walter Mikron III** (2.44 L, 48 kW, 74 kg) and **DH Gipsy Major 1** (6.12 L,
+97 kW, 139 kg), both inverted, in the registry and on the bench.
+
+### WHY THEY COULD NOT EXIST BEFORE
+
+G157 held the small in-lines back with a stated reason — they would have been
+drawn sideways — and G163 fixed that. But a second wall was behind the first
+and nothing had ever had cause to notice it:
+
+```js
+if (archAsk === 'inline') spec.twoStroke = 1;
+```
+
+**Every in-line was a two-stroke by law.** It was a reasonable law while the
+registry's only in-lines were a Rotax 277 and a 582, and while an in-line lay
+on its side where no four-stroke furniture would have fitted anyway. But the
+engines this range is actually missing — a Walter Mikron, a Gipsy Major, a
+Renault 4Pei — are all **inverted four-stroke in-lines**, which is the
+aeroplane G164's `down` aim exists for. The law is a DEFAULT now: a spec that
+says nothing still gets a two-stroke, so **all thirty pre-existing engine
+fixtures come out identical to the vertex**, both Rotaxes included.
+
+### FOUR THINGS HAD NEVER BEEN ASKED TO FIT ROUND AN UPRIGHT BANK
+
+Because no four-stroke in-line could exist, none of the four-stroke furniture
+had ever met one. Each of these was found by putting a Mikron in the battery
+and reading what it said:
+
+- **THE PLUGS STOOD ACROSS THE WORLD, NOT ACROSS THE CYLINDER.** The four-
+  stroke PORTS moved into the cylinder's own frame at G163; the plug drawn on
+  them was still on a literal `[0, 1, 0]`, which is right for a boxer and puts
+  a plug a third of a case radius from its own lead on anything else. `c.e2`,
+  which IS `[0, 1, 0]` on a boxer — so no boxer's plug moves.
+- **A SINGLE BANK'S INDUCTION RUNNER COMES ROUND THE BARREL.** On a boxer the
+  plenum and the head port both lie in the induction plane, so the runner goes
+  out along the sump and turns up — which is exactly what the cylinder's own
+  frame says, and why the boxer's route reads so simply. **An in-line's bank
+  stands at right angles to its induction face**, so out-along-the-cylinder
+  and across-it stop being the two directions that route was written in.
+  Measured before the fix: the runner began 1.16 case radii off the sump it
+  declares itself to leave.
+- **AN EXPANSION CHAMBER IS A TWO-STROKE'S EXHAUST, NOT AN IN-LINE'S.**
+  `exMode` read `inline ?` while the two words meant the same thing. They do
+  not now, and a Gipsy Major has stacks and a manifold like any other four-
+  stroke. Its collector was refused on the same reasoning and is allowed.
+
+### THE ROW IS NO LONGER A GUESS
+
+`ENG_ARCH.inline` has carried `// UNVALIDATED — there is no registry example`
+since it was written, and the reason there was no example is the law above. So
+this chantier could finally fit it. Two well-documented engines, **fitted on
+`kM` alone** because two points cannot honestly move an exponent:
+
+| | model | published | |
+|---|---|---|---|
+| Mikron mass | 67.9 kg | 74 kg | **−8.2%** |
+| Gipsy mass | 151.5 kg | 139 kg | **+9.0%** |
+| Mikron power | 50.3 kW | 48 kW | +4.8% |
+| Gipsy power | 101.8 kW | 97 kW | +4.9% |
+
+`kM` 1.06 → **1.02**. The residuals are the shared exponent's own signature —
+over-predicting big engines and under-predicting small ones — and they are
+DECLARED rather than fudged, because a curve through two points is a curve
+through its own noise. `bmep` 9.5 needed no change and is the half that came
+out well: under 5% on both, better than the mass law manages anywhere.
+
+**And the fit is now a check.** `ENG CHECK` holds both engines to 10% on mass
+and 6% on power, and refuses to let the row mark itself UNVALIDATED again.
+
+### THE PROPS ARE DERIVED, NOT CHOSEN
+
+The registry states its own rule — Tstatic and kV2 are `genPropSynth`'s output
+at each row's diameter, blade count and standard pitch, so registry and
+generator agree about thrust. I ran that synthesis rather than scaling from a
+neighbour, and **checked it by reproducing the Jabiru row exactly** (T 1242,
+kV2 0.1269) from the same three constants before trusting it on the new two.
+G157's radials did NOT do this and say so; these do.
+
+### THE PROBE THAT WAS WRONG, AGAIN
+
+One negative probe came back `red, WRONG check`, and this time it was the
+probe: `exMode` and the collector guard are ONE change, and reverting half of
+it produces a *different* defect — an engine wearing expansion chambers AND a
+collector at once — which an older check catches first. Reverted as a pair,
+the coherent regression gives a Gipsy Major four two-stroke chambers, and only
+the new check sees it (`chamber,chamber,chamber,chamber`). **A probe has to
+undo the change as a whole or it is testing something else.**
+
+There was also a check that read the STORY instead of the fact: pinning the
+word UNVALIDATED anywhere in the row failed on this chantier's own comment
+explaining that it no longer applies. It looks at the trailing marker on the
+definition line now — the convention `vee` still follows.
+
+### THE VERDICT
+
+**8 of 8 negative probes caught.** GATE ENGMESH gains two four-stroke fixtures
+(inverted and upright — the upright one is what proves the induction turns over
+only when it must) and two checks that nothing else could make: *the cycle
+asked for is not the cycle resolved*, and *a four-stroke asked for a collector
+and got something else*. **Thirty pre-existing cases are byte-identical.**
+
+### OWED
+
+- `vee` is the last architecture that refuses to draw, and it is now the only
+  row still marked UNVALIDATED. An inverted V is a real engine and `ENG_AIM`
+  would serve it.
+- The case's bolt-flange spine still runs top-and-bottom whatever the aim
+  (G164's note). It collides with nothing; a real in-line splits its case on
+  the crank plane.
+- A Gipsy's prop-shaft extension and its dry sump are not modelled and not
+  claimed; `mass` is the published DRY ENGINE, the registry's own convention.
+
+
+## G166 — THE FIREPROOF SHEET, AND THE BEAD THAT SEALS IT
+## (2026-09-03, the user: "add the attached material to the engine side of the
+## firewall, and ensure to have a small border around this, on the contour of
+## the firewall section, acting like a small joint/sealant between the
+## fireproof surface and the rest of the firewall and fuselage")
+
+The firewall's engine face wears a scanned foil (ambientCG `Foil001`, CC0) and
+is inset from the plate's own outline by a sealant bead. **Three materials on
+one plate**, and the split is geometry, not a texture mask.
+
+### THE PLATE WAS ALREADY A CLOSED SOLID; IT IS NOW A LAYERED ONE
+
+`cageInterior`'s fire pass (`tools/_cage_gen.js`) built a front sheet, a back
+sheet 5 mm behind it and a rim wall on the cap-grid boundary, all in one
+material. The front sheet is the ENGINE SIDE — it always was, on both
+apertures (on a pusher the hot side is the aft one, and it is the same face of
+the plate either way, because the sheet keeps the cap's own winding). So:
+
+| face | material | what it is |
+|---|---|---|
+| front sheet, inset | `fireProof` | the foil, AEROSKIN's new `fire` role |
+| the band round it | `fireSeal` | the sealant, AEROSKIN's `bead` role |
+| rim wall + back sheet | `firewall` | the panel, unchanged, still the livery's |
+
+`fireSealW` (metres, default 0.018, editor row under Structure & skin ▸
+members) sets the band; **0 retires it** and the sheet goes back out to the
+outline, which is exactly the geometry this pass emitted before today.
+
+### THE INSET IS AN OFFSET OF THE OUTLINE, AND IT HAD TO BE MITRED
+
+The first cut moved each boundary vertex along `cross(n, t)` — the outline's
+own inward normal — which is right on a straight run and **wrong at a corner**:
+the cap grid turns 90 degrees where the side chain meets the top edge, and a
+bisector step of 18 mm leaves the band 12.8 mm wide there (measured, both
+axes). The mitre `SW*(n1+n2)/(1+n1.n2)` holds the width against BOTH edges,
+degenerates to `SW*n` on a straight run, and is clamped at `3*SW` so a cusp
+cannot throw a vertex across the plate. Measured after: **18.0 mm min, 18.0
+median**, 25.5 max (the corner quad's own diagonal).
+
+### A SECOND SHEET LIBRARY, BECAUSE A FOIL IS NOT A WOOD
+
+G125 landed the scanned-sheet path with `sheet:` on a finish row and
+`WOOD_TEX_SHEETS` behind it. Its whole apparatus — the two delivered shapes,
+the contract names, the pack, the 1k archive beside the 512 payload — was
+already material-agnostic; only the source directory and the B-channel rule
+were about wood. So there are now two manifests and ONE namespace:
+
+```
+assets/skin/  -> tools/skin_tex_import.py -> tools/skin_tex_prep.js
+              -> src/viewer/skin_tex.js (SKIN_TEX_SHEETS) + media/tex/skin/
+```
+
+`aeroDetailTex` reads both tables (either may be absent — node, a bench page
+that loads one script and not the other), a row names a SHEET and not a store,
+and GATE SKINMAT now checks the union in both directions **plus** that no name
+is baked twice.
+
+**WHAT B RIDES IS A PER-SET DECISION — that is the one thing wood's importer
+never had to ask.** Wood is almost all colour grain, so there B is the
+diffuse's luminance. Foil001's Color map is flat grey (mean 127.5, span
+121..134 — JPEG noise), while its Roughness spans 13..37 around a mean of 25
+and follows the crinkle exactly. Driving B off the diffuse would have
+amplified noise into the albedo and left the roughness variation — the only
+thing that makes crumpled metal read as crumpled — on the floor. `bsrc` names
+the map; the pack lands at B mean 0.800, span 0.604..0.980, i.e. the full
+range the convention allows without clipping either tail.
+
+### THREE MEASURED NUMBERS WERE MOVED, AND THE MOVES ARE THE ROW
+
+The importer prints what the scan IS; the finish row says what the aeroplane
+needs, and every departure is stated in the row itself. Briefly:
+
+- **base** 0x7f7f7f is 0.22 in linear, and a metalness-0.92 surface takes its
+  specular colour from `base` — a dark mirror, darker than every metal row in
+  the table. The scan's grey has no signal to lose.
+- **rough** 0.100 is a mirror, and a mirror shows only what it reflects, which
+  for a firewall is the inside of a cowling. **Rendered at 0.16 the plate came
+  back black with sparkle** — screenshots, the garage's own light. 0.40 reads
+  as metal and is also the honest number for a sheet dulled by heat and oil.
+- **nrm** the same failure from the other side: at 0.85 the crinkle scatters
+  every reflection into the dark bay.
+- **tile** the first cut ran 0.26 m and read as gravel — the failure every
+  sheet in this table has had once.
+
+**THEN THE USER SET THE LAST TWO WITH THE EDITOR'S OWN DIALS AND MADE THEM THE
+DATUM** — *"Tiling x4 by default (make it the new 1) and normal = 0.5 by
+default (make it the new one too)"*. `tile` 0.70 -> **2.80 m** (the crease at
+about 80 mm: a foil laid over a panel, not one crushed in the hand) and `nrm`
+0.40 -> **0.20**. Folded into the finish row rather than left as per-section
+overrides, because that is what "the new 1" means: the builder's dial starts
+from here and a saved build carries no deviation it did not ask for.
+
+GATE SKINMAT's metalness rule needed the foil on its BARE-METAL list, and the
+exemption draws the distinction exactly: a stainless or aluminised sheet on
+the hot side carries no paint film (nothing you would put on an aeroplane
+survives there), while the panel it is bolted to is still a painted dielectric
+and still takes the livery.
+
+### OWED
+
+- The bead is BLACK by default, because `fireSeal` takes the same `bead` role
+  as every window and door seal and that role's ruling is black whatever the
+  aeroplane is built of. A real firewall sealant is often grey or red; it is a
+  section like any other, so a builder can tint it — but nobody has been asked
+  whether the default should differ here.
+- The bench pages (`tools/_cage8.html`) load neither `wood_tex.js` nor
+  `skin_tex.js`, so the foil falls back to the procedural `sheet` bake there.
+  That predates this arc and is unchanged by it.
+
+---
+
+## G99 UI — THE TANKS, DRAWN, MOVED AND READ (2026-09-03, the energy arc's
+## visible half; the user: "go for the full thing until we have something
+## coherent, visible and that I can manipulate, and that impacts the physics
+## correctly")
+
+The core half of G99 (derived bays, vessels as the capacity, placed mass,
+burn) landed earlier the same day (commit d244cab). This is the half you can
+see and touch: every vessel drawn as a solid in its bay, a `fuel & energy`
+panel that moves, turns, re-bays and re-shapes it, the fit against the skin
+and the crew, and the numbers it does to the aeroplane — live, off the core's
+own shakedown.
+
+### THE FILES
+
+- `tools/_vessel_gen.js` — PURE, node-loadable: the ONE keeper of where a
+  solid is and whether it fits. `bodyPlace`, `wingPlace`, `bayCache`,
+  `defaultSpot`, `settleLv`, `bayFitDims`, `vesselDims`/`installedFromDims`.
+- `tools/_cage_energy.js` — the layer (`cageLayer:energy`): draws, offers the
+  panel, tests the crew, commits. Its state is a VIEW of `spec.energy`.
+- `tools/_bay_site.js` — finally in the game bundle (it had zero refs in
+  build.js since G97).
+- Seams: `_cage_join.js` carries `energy` beside `finish`; `_cage_ui.js`'s
+  `applySpec` seeds the panel; `build.js`, `_cage8.html`, `_parts_check.js`
+  carry the three files; `_save_check.js` round-trips a vessel.
+- GATE ENERGY runs `_vessel_gen` headless off a cage built in node, so the
+  picture and the gate cannot disagree (25 more checks).
+
+### THE USER'S PLACEMENT RULE (replaces a grid search they called "too picky")
+
+Verbatim: *"the fuel tank is either collated to the firewall, on the engine
+side, or it is at the bottom of the cabin, touching the aft bulkhead, on the
+cabin side. The important is the position against aft bulkhead, so it can sit
+in the cabin or the passenger bay, depending on the configuration. The player
+will edit themselves the exact placement and geometry and the capacity is
+calculated. If 2 reservoirs are placed, they should be independent, but the
+plane will draw the fuel from both equally."*
+
+- nose bay → front face on the firewall, high; every other body bay → on the
+  floor, back face on the bay's aft bulkhead. No search.
+- a box longer than its bay turns 90° if it then fits (the J-3 tank is that
+  box turned); the LEVEL then settles — roof down or keel up — until the skin
+  clears, and the crew too when such a level exists.
+- the spot is WRITTEN INTO THE VESSEL: a null would leave the ledger billing
+  the bay midpoint while the picture showed the bulkhead. One tank, one place.
+- the player's geometry: `dims {L, W, H}` on the vessel, capacity CALCULATED
+  from the box through the same 1.06 / 1.18 ullage factors genVesselResolve
+  applies the other way. When the catalogue shape fits a bay neither way
+  round, a bay-shaped box is generated, height capped by the bay or by the
+  crew's highest point under it, litres following — "geometry generated and
+  capacity constrained to volume", the user's own original sentence.
+- every tank drains by the same factor (61_gen_frame / 64_gen_build already
+  did this); a second tank is an independent entry.
+
+### THE NOSE BAY MOVED — a core change (GEN_BAYS.nose.range)
+
+It was `[0, noseGap]`: windscreen base AFT to the cabin pillar. On the built
+Cub that is the pilot's knees and head — a tank settled there sat through the
+crew at 2030 points. It is now the COWL DECK, `[-cowlDeck + 0.10, 0]`, forward
+of the windscreen base, where a J-3 keeps its twelve gallons; the field has
+sections all through it. GATE ENERGYBASE moved nothing (the migrated vessels
+carry explicit stations).
+
+**AND THE STOCK CUB'S NOSE CANNOT TAKE 45 L.** Measured: the deck the field
+describes is 0.30 m long, and under it the pedals reach within 2 cm of the
+deck top over the whole footprint. The catalogue box does not fit, the
+bay-shaped box does not clear the crew, and the readout says so. That is a
+finding about this cage (a J-3's deck is twice as long), not about the rule —
+the player has bay, station, level, turn and the three size rows to resolve
+it, and the cabin-side default fits with 5 mm to spare.
+
+### TRAPS, EACH MEASURED
+
+- A SHEBANG IS A SYNTAX ERROR IN A `<script>`: `_bay_site.js` and
+  `_vessel_gen.js` threw "Invalid or unexpected token" and every consumer saw
+  `undefined`. No stack points at the file.
+- THE FIELD'S sL IS NOT THE AXIS METRE NEAR THE NOSE: the windscreen rings
+  slope, so sL 0 sits ~0.2 aft of the firewall waist with the mapping
+  compressed until sL ~ 1; forward of the deck sL runs DOWN THE FIREWALL FACE
+  at constant z. Place by axis metres (the ledger's), invert z→sL through a
+  table measured off this mesh, trimmed to its monotonic part, never
+  extrapolated — and `Math.min(null, x)` is 0, silently, which swept every
+  profile over the wrong stations once.
+- `firewallZ` is in CAGE UNITS; the join reports it × FS (0.745 on the Cub).
+  "2.63 vs 3.19" was units, not a datum bug.
+- THE WING GROUP IS MOSTLY NOT THE WING AT THE ROOT: three unnamed lift-strut
+  meshes (516 vertices) against the aerofoil's 151, 1.3 m below it. Keep the
+  cluster nearest `yAnchor + x·tan(dihedral)`.
+- SWEEP THE BAY ONCE PER BUILD: 23 s (grid, per candidate) → 0.75 s (per
+  layout) → 20 ms per drag (per build).
+- `GARAGE_SPEC.update` does not normalise: `fuel.litres`, `fuel.tank`, `kWh`
+  are readings clampSpec derives, and only `resolveSpec` runs it. Commit
+  writes them through resolveSpec, or the file says 50 L over a 60 L tank.
+- The join's `pilCabB` is BEHIND where the crew layer seats the pilot's
+  head: a pre-existing crew/gen datum discrepancy, reported by the fit test,
+  not fixed here.
+
+### VERIFIED
+
+In the game: three tanks (nose, cabin, wing root) drawn and in the spec;
+moving a tank aft walks the balance line CG 0.86 → 0.93 m and the static
+margin 0.30 → 0.25; two tanks bracketing it 0.22; the wing tank both sides,
+64 of 416 L, the readings tracking (`fuel {60, wing}`); a battery pack at
+40 kWh turns the margin negative and the line red; 20 ms per drag. On the
+bench: the same layer, bays off that page's own rings, no console errors.
+The game page's two syntax errors and three 404s pre-date this work.
+
+**BATTERY: PASS** — 68 gates, no reds, over exactly this build (index.html rebuilt and committed with it).
+
+### OWED
+
+G100 the loading table and CG vs fill on a slider; G101 the balance panel.
+Spar solids go in front of the user FIRST, behind their own switch.

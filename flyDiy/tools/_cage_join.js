@@ -211,6 +211,9 @@ function cageJoinSpec(P, M, T) {
   // G52: the cabin's x-extent from the pillar rings
   if (M.noseGap > 0) cabin.noseGap = M.noseGap;
   if (M.cabLen > 0) cabin.len = M.cabLen;
+  // the measured seat stations (see M.seatsX above); absent = the frame's own
+  // pillar rule, which is what every fiche and every older save still gets
+  if (Array.isArray(M.seatsX) && M.seatsX.length) cabin.seatsX = M.seatsX;
   if (Object.keys(cabin).length) spec.cabin = cabin;
   // G52: the wing's fore-aft station, from the wing layer's own anchor
   if (typeof M.wingXLE === 'number' && isFinite(M.wingXLE))
@@ -267,6 +270,7 @@ function cageJoinSpec(P, M, T) {
   // "I stripped the paint off" indistinguishable from "I did not measure the
   // paint", so a build that had a tint could never go back to plain.
   if (M.finish !== undefined) spec.finish = M.finish;
+  if (M.energy !== undefined) spec.energy = M.energy;
   return spec;
 }
 
@@ -591,6 +595,29 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         if (zCabF != null && zCabA != null && zCabF > zCabA)
           M.cabLen = zCabF - zCabA;
         if (zPost != null && zPost > AF.z0) M.postGap = zPost - AF.z0;
+        // WHERE THE PEOPLE SIT (2026-09-03). The frame used to bill every
+        // occupant onto a cabin PILLAR RING — the front pillar for row one,
+        // the aft pillar for row two — and nothing read the seats the crew
+        // layer actually draws. On the user's Cub that put the pilot 0.27 m
+        // and the passenger 0.86 m behind their seat backs: 13 % of MAC of
+        // CG, an aeroplane built to the reference model and reading a
+        // NEGATIVE static margin. (The user: "I'm suspecting something in our
+        // balance and CG computation is wrong... it's odd that I get this
+        // factor wrong while matching the reference models exactly.")
+        //
+        // The crew layer publishes each seat's BACK, in cage metres, in the
+        // ring frame `zOf2` measures in; a seated adult's mass centre sits
+        // about SEAT_CG_FWD ahead of the backrest (pelvis + torso + thighs).
+        // One station per seat, pilot first — the same order genFrame fills
+        // the seats in — as metres aft of the firewall.
+        const CRW = window.CAGE_CREW;
+        if (CRW && Array.isArray(CRW.seatsAt) && CRW.seatsAt.length) {
+          const SEAT_CG_FWD = 0.20;
+          const xs = CRW.seatsAt
+            .map(s => zFw - s.zBack - SEAT_CG_FWD)
+            .filter(x => isFinite(x) && x > 0.05);
+          if (xs.length === CRW.seatsAt.length) M.seatsX = xs;
+        }
         // the MAINS STATION: with gear.x measured, the wheels-to-axles
         // calibration collapses to off[0] = zFw − cg0[0] — the visual's
         // x-mapping becomes firewall-EXACT for every part, not just the
@@ -736,6 +763,14 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     if (window.CAGE_UI && window.CAGE_UI.finishToSpec)
       try { M.finish = window.CAGE_UI.finishToSpec(); }
       catch (e) { ERRS.push('the finish could not be written to the build: '
+                            + e.message); }
+    // ...AND THE TANKS (G99), through the same door and for the same reason:
+    // the editor's complete answer about where this aeroplane's energy sits.
+    // The list is written WHOLE - garage.js's merge replaces an array - so a
+    // removed tank stays removed.
+    if (window.CAGE_ENERGY && window.CAGE_ENERGY.toSpec)
+      try { M.energy = window.CAGE_ENERGY.toSpec(); }
+      catch (e) { ERRS.push('the tanks could not be written to the build: '
                             + e.message); }
     // G134: the drawn engine, resolved — null when the dials still ARE the
     // applied preset, so the registry row keeps flying under its own name.
