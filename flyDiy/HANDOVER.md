@@ -28548,3 +28548,44 @@ corners; three markers on the bar; no ghost until asked; no console errors.
 
 G101 the balance panel proper (the envelope drawn as a chart, occupants and
 baggage on it). Spar solids first, behind their own switch.
+
+---
+
+## G101 — THE BALANCE CHART (2026-09-04; the energy arc's last chantier)
+
+The weight-and-balance chart a flight manual has: CG across in % of the mean
+chord, mass up. `src/viewer/balance.js` — `compute` pure and node-loadable
+(GATE ENERGY runs it headless), `draw` on a 2-D canvas in the `fuel & energy`
+panel. Every point is genShakedown over genSpecAtFuel: the same door as the
+reserve sheet, the envelope's corners and the fill slider (G100), so nothing
+on the chart is an estimate.
+
+- **The burn line**: the CG walking as the fuel burns at the chosen loading,
+  full → 75 → 50 → 25 → reserves (hollow) → dry.
+- **The four corners**, hollow, labelled S/F S/R C/F C/R.
+- **The yellow dot**: the fuel aboard (the G100 slider).
+- **The limits the model KNOWS**: NEUTRAL where the static margin reaches
+  zero, CAUTION 5% of the chord ahead of it (the fleet's "twitchy" band).
+  **No forward limit is drawn** — the model has no elevator-authority rule to
+  place one, and a line the aeroplane cannot justify would be a decoration.
+  The forward corner is marked instead.
+- **Occupants and baggage** as what-ifs (VIEW state, not the build): the
+  loading you want to SEE the aeroplane at; the build's own loading stays the
+  crew layer's dummies and the spec's baggage.
+- The mean chord is recovered EXACTLY from the shakedown:
+  cBar = (npX − cgX) / staticMargin.
+
+Verified live: the stock Cub with a nose tank and an aft-cabin tank — the
+burn line 569 → 499 kg with the CG 29.4 → 28.3 % MAC (two tanks bracketing
+it), the reserve point on it, four corners, neutral 55.2 % / caution 50.2 %,
+cBar 1.600 m; two occupants and 30 kg of baggage at 40 % fuel: 552 kg at
+32.7 % MAC, margin 0.22 — baggage aft moves it aft.
+
+**BATTERY: PASS** — 68 gates, no reds, over exactly this build.
+
+### THE ENERGY ARC, CLOSED
+
+G97 the interior volume · G98 the vessel catalogue · G99 placement, fit and
+the drawn, editable vessels · G100 the CG as a function of fill · G101 the
+chart. What remains owed from the arc is not a chantier: spar solids, in
+front of the user first, behind their own switch.
