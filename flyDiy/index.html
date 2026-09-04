@@ -2302,7 +2302,10 @@ body.mode-fly #wsUI { display:none; }
 #ui #mmp #mm { cursor:pointer; }
 #ui .flRailBtn, #ui #pfdFold { cursor:pointer; }
 
-#telp[hidden] { display:none; }
+/* TWO IDS, because `#ui #telp` above is two ids and sets display:flex: a
+   one-id `#telp[hidden]` loses to it and the trace shows with `hidden` SET —
+   which is how the trace "could not be hidden any more" (2026-09-04). */
+#ui #telp[hidden] { display:none; }
 
 /* the header is the handle, so it says so */
 #telHead { display:flex; align-items:baseline; gap:9px; flex:none;
@@ -7685,11 +7688,48 @@ function makeSim(def, world) {
       b.L0 = Math.hypot(p[b.b*3]-p[b.a*3], p[b.b*3+1]-p[b.a*3+1], p[b.b*3+2]-p[b.a*3+2]);
       b.strain = 0;
     }
+    // THE THREE-POINT STANCE (2026-09-04, the user: "quite a few of my builds
+    // break their tailwheel simply on spawning, it just flips"). def.nodes are
+    // the LEVEL attitude: on a taildragger the tail hangs ~1 m in the air and
+    // FALLS onto the tailwheel in the first half second of every spawn
+    // (measured on the default build: TW from y 1.08 to 0.09 in 0.67 s), the
+    // one slam a 6 cm leg cannot take — it drove the node through the plane of
+    // its anchors. So the airframe is pitched about the mains' axle until the
+    // third wheel's contact shares the mains' ground line, BEFORE the first
+    // step: the static stance the settle would have found, without the drop.
+    // A tricycle gets the same treatment onto its nosewheel. Nothing changes
+    // for a build without a third wheel, and a stance out of reach (the small
+    // root of A sin t + B cos t = C does not exist) leaves the pose alone.
+    // NOT CALLED HERE: it is a PLACEMENT step the GAME takes (app.js
+    // applyRoute, right after reset and before placeAtStand), like the stand
+    // itself. Measured: taken inside reset it moved every flying gate's
+    // spawn, and three marginal cases (PILOT hover/card, FLEX alloy, GEN
+    // sink) landed on the other side of their thresholds — the battery's
+    // datum is the level drop + 600-frame settle, and it stays so.
     let minC = Infinity;
     for (let i = 0; i < n; i++) minC = Math.min(minC, p[i*3+1] - r[i]);
     for (let i = 0; i < n; i++) p[i*3+1] += -minC + 0.01 + drop;
     ctl.thr = ctl.de = ctl.da = ctl.dr = ctl.brake = ctl.flap = 0;
     simT = 0;
+  }
+  function stance() {
+    const M = def.refs && def.refs.mains, tw = def.refs && def.refs.tw;
+    if (!M || !M.length || tw == null || tw < 0) return 0;
+    let ax = 0, ay = 0;
+    for (const i of M) { ax += p[i*3]; ay += p[i*3+1]; }
+    ax /= M.length; ay /= M.length;
+    const A = p[tw*3] - ax, B = p[tw*3+1] - ay, C = r[tw] - r[M[0]];
+    const R = Math.hypot(A, B);
+    if (R < 1e-6 || Math.abs(C) > R) return 0;
+    const th = Math.asin(C / R) - Math.atan2(B, A);
+    if (!(Math.abs(th) < 0.6)) return 0;          // 34 deg: past that it is not a stance
+    const cs = Math.cos(th), sn = Math.sin(th);
+    for (let i = 0; i < n; i++) {
+      const dx = p[i*3] - ax, dy = p[i*3+1] - ay;
+      p[i*3] = ax + dx * cs - dy * sn;
+      p[i*3+1] = ay + dx * sn + dy * cs;
+    }
+    return th;
   }
 
   // ---- small vec helpers on flat arrays ----
@@ -8235,7 +8275,7 @@ function makeSim(def, world) {
   // ever for anything that never changes mass; nothing writes it.
   return { p, v, m, r, beams, n, ctl, out, get totalM() { return totalM; },
            setNodeMass,
-           reset, step, probe, stats, impulse, wheelsOnGround, cgPos, cgVel, axes,
+           reset, stance, step, probe, stats, impulse, wheelsOnGround, cgPos, cgVel, axes,
            setAtmos, setGroundRef, atmos: airOf, thrustAt, probeAir };
 }
 
@@ -8408,6 +8448,8 @@ function makeAutopilot(sim, def, world) {
   let aDe = 0, aDa = 0, aDr = 0, phCA = 0;
   let Ith = 0, thcI = 0.06, It = 0, thrC = 0.6;
   let phaseT = 0, headingCapT = 0, thFlare0 = 0, thLift0 = 0, brakeRamp = 0, holdActive = false, holdWas = false;
+  // THE TAXI GOVERNOR'S INTEGRATOR (2026-09-04). See taxi() below.
+  let taxiI = 0, taxiLastT = -1e9;
   let eAP = 0, eAR = 0, eARslow = 0;   // course-over-ground error chain (air guidance)
   let eTrim = 0;                        // wind-only course trim (standing bank for slip)
   let pendReEng = false;                // W14: full state re-latch on next update
@@ -8553,14 +8595,36 @@ function makeAutopilot(sim, def, world) {
     };
 
     // W14 taxi governor: slow ground speed hold, slower through tight turns
+    // THE TAXI GOVERNOR FEEDS BACK ON GROUND SPEED (2026-09-04, the user:
+    // "still too slow on taxi, much too slow ... you might have a constant
+    // throttle, but it really needs to feedback on ground speed"). The G4.9
+    // law was taxiFF — break-even against rolling resistance, which assumes
+    // thrust LINEAR in throttle, and it is not — plus 0.06 per m/s of error
+    // under a cap 0.27 above the feedforward. Measured on the ultralight: it
+    // asked 0.34 and got 1.5 m/s for thirty seconds; on the default build
+    // 1.2 m/s for thirty-five. This is a PI on Vg: the proportional term
+    // answers at once, the integrator finds whatever throttle THIS aeroplane
+    // on THIS surface actually needs, and the command saturates at
+    // A.taxiThrMax (0.85 — a taxi is not a take-off). Anti-windup: the
+    // integrator only moves while the command is not pinned in the direction
+    // it would push. The feedforward stays as the starting guess, so the
+    // first frame asks what it always asked. Overspeed is the brake's, in
+    // proportion, not a 0.45 slam at +1.2. The integrator forgets itself
+    // after two seconds without a taxi call, so a landing's backtrack does
+    // not open the throttle with the departure's memory.
     const taxi = (Vt) => {
-      c.de = A.taxiDe ?? 0.30;             // stick aft: tailwheel planted, steering bites
-      // taxiFF cancels rolling resistance, the speed error does the rest, and
-      // the cap rises with the feedforward so a heavy-footed aeroplane still
-      // has the same 0.27 of authority ABOVE break-even that 0.35 used to mean.
+      const Vtgt = Vt;
+      c.de = A.taxiDe ?? 0.30;
       const ff = taxiFF();
-      c.thr = clamp(ff + 0.06 * (Vt - Vg), 0, ff + 0.27);
-      c.brake = Vg > Vt + 1.2 ? 0.45 : 0;
+      const cap = A.taxiThrMax ?? 0.85;
+      if (ap.t - taxiLastT > 2) taxiI = 0;
+      taxiLastT = ap.t;
+      const err = Vtgt - Vg;
+      const u0 = ff + 0.18 * err + taxiI;
+      if ((err > 0 && u0 < cap) || (err < 0 && u0 > 0))
+        taxiI = clamp(taxiI + 0.10 * err * dt, -ff, cap);
+      c.thr = clamp(ff + 0.18 * err + taxiI, 0, cap);
+      c.brake = Vg > Vtgt + 0.8 ? clamp(0.3 * (Vg - Vtgt - 0.8), 0, 0.6) : 0;
       c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
     };
 
@@ -9090,6 +9154,8 @@ function makeTestPilot(sim, def, world) {
   let aDe = 0, aDa = 0, aDr = 0, phCA = 0;
   let Ith = 0, thcI = 0.06, It = 0, thrC = 0.6;
   let phaseT = 0, headingCapT = 0, thFlare0 = 0, thLift0 = 0, brakeRamp = 0, holdActive = false, holdWas = false;
+  // THE TAXI GOVERNOR'S INTEGRATOR (2026-09-04). See taxi() below.
+  let taxiI = 0, taxiLastT = -1e9;
   let eAP = 0, eAR = 0, eARslow = 0;
   let eTrim = 0;
   let pendReEng = false;
@@ -9277,11 +9343,35 @@ function makeTestPilot(sim, def, world) {
       c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
     };
 
+    // THE TAXI GOVERNOR FEEDS BACK ON GROUND SPEED (2026-09-04, the user:
+    // "still too slow on taxi, much too slow ... you might have a constant
+    // throttle, but it really needs to feedback on ground speed"). The G4.9
+    // law was taxiFF — break-even against rolling resistance, which assumes
+    // thrust LINEAR in throttle, and it is not — plus 0.06 per m/s of error
+    // under a cap 0.27 above the feedforward. Measured on the ultralight: it
+    // asked 0.34 and got 1.5 m/s for thirty seconds; on the default build
+    // 1.2 m/s for thirty-five. This is a PI on Vg: the proportional term
+    // answers at once, the integrator finds whatever throttle THIS aeroplane
+    // on THIS surface actually needs, and the command saturates at
+    // A.taxiThrMax (0.85 — a taxi is not a take-off). Anti-windup: the
+    // integrator only moves while the command is not pinned in the direction
+    // it would push. The feedforward stays as the starting guess, so the
+    // first frame asks what it always asked. Overspeed is the brake's, in
+    // proportion, not a 0.45 slam at +1.2. The integrator forgets itself
+    // after two seconds without a taxi call, so a landing's backtrack does
+    // not open the throttle with the departure's memory.
     const taxi = (Vtgt) => {
       c.de = A.taxiDe ?? 0.30;
       const ff = taxiFF();
-      c.thr = clamp(ff + 0.06 * (Vtgt - Vg), 0, ff + 0.27);
-      c.brake = Vg > Vtgt + 1.2 ? 0.45 : 0;
+      const cap = A.taxiThrMax ?? 0.85;
+      if (ap.t - taxiLastT > 2) taxiI = 0;
+      taxiLastT = ap.t;
+      const err = Vtgt - Vg;
+      const u0 = ff + 0.18 * err + taxiI;
+      if ((err > 0 && u0 < cap) || (err < 0 && u0 > 0))
+        taxiI = clamp(taxiI + 0.10 * err * dt, -ff, cap);
+      c.thr = clamp(ff + 0.18 * err + taxiI, 0, cap);
+      c.brake = Vg > Vtgt + 0.8 ? clamp(0.3 * (Vg - Vtgt - 0.8), 0, 0.6) : 0;
       c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
     };
 
@@ -9340,7 +9430,7 @@ function makeTestPilot(sim, def, world) {
         const dist = Math.hypot(ddx, ddz) || 1e-9;
         ap.targetDir = [ddx / dist, 0, ddz / dist];
         c.dr = clamp(-3.2 * e - 1.2 * eR, -0.45, 0.45);
-        taxi(Math.abs(e) > 0.6 ? 2.2 : 4.5);
+        taxi(Math.abs(e) > 0.6 ? 2.5 : 5.0);
         // G151, carried: only the LAST point hands over to LINEUP, and the
         // intermediate ones hold a tighter radius so a corner-cut cannot clip
         // the gate the route exists to use.
@@ -13854,7 +13944,23 @@ function genLattice(S, gearX, track, kScale) {
     // what binds the timestep here.
     const kGain = cls === 'wing' ? (R.wingK ?? 1) : 1;
     // a gear member is either the SPRING (vis 'leg') or its bracing
-    const kG = vis === 'leg' ? KG : KGB, cG = vis === 'leg' ? CG : CGB;
+    let kG = vis === 'leg' ? KG : KGB, cG = vis === 'leg' ? CG : CGB;
+    // A SHORT SPRING IS A STIFF SPRING (2026-09-04, the user: "quite a few of
+    // my builds break their tailwheel simply on spawning, it just flips").
+    // k was a constant per build, so a 6 cm third-wheel leg deflected the
+    // same 4 cm under the tail's weight that the 23 cm default does — 60 % of
+    // its own length — and the node passed through the plane of its anchors
+    // and latched there (measured: leg strain 0.37, the leg's direction
+    // 70 deg off its rest). The join hands the frame that leg from the DRAWN
+    // spring's hub, so a player's short spring is exactly how it happens.
+    // A real spring of one section is stiffer in proportion to being shorter:
+    // k scales by twLeg/L, floored at 1 so nothing at or above the default
+    // length moves; c by its root, so the damping ratio is what it was. Only
+    // gear springs — the mains' legs are long members and stay at the floor.
+    if (isG && vis === 'leg' && L > 1e-6) {
+      const short = Math.min(4, Math.max(1, R.twLeg / L));
+      kG *= short; cG *= Math.sqrt(short);
+    }
     // MB THROUGHOUT (G117, the user: "WYSIWYG is the rule"): a member is
     // stiff, damped, heavy and priced as WHAT THE SECTION IS BUILT FROM —
     // G116 coupled the mass and the money and deliberately left k/c on the
@@ -30962,9 +31068,14 @@ function axleStub(bags, from, axis, reach) {
 function legBeam(bags, AF, P, st, sgn) {
   // A LEG STOPS AT THE WHEEL, and a stub axle carries on to the hub — the
   // blade used to run to the axle CENTRE and so passed through the tyre.
-  const hubIn = st.R * 0.40 + 0.020;
+  // A CENTRE STATION (a nosewheel, x = 0) ROOTS ON THE KEEL (2026-09-04, the
+  // user: "the attachment is on the side, it's weird"): no flank angle, no
+  // hub offset, no stub — the strut drops straight to the swivel and the
+  // castor's own fork carries the wheel. Every two-sided station is unchanged.
+  const cen = st.x <= 0.01, aS = cen ? 0 : sgn;
+  const hubIn = cen ? 0 : st.R * 0.40 + 0.020;
   // G133.1: a mounted blade roots above its own foot (see fitOn)
-  const F = fitOn(AF, st, st.z, sgn * P.beamAng * D2R, -sgn * hubIn);
+  const F = fitOn(AF, st, st.z, aS * P.beamAng * D2R, -aS * hubIn);
   const drop = st.drop, half = st.x;
   // the blade sits ON its doubler, not above it
   const root = off(F.p, F.n, 0.009 + P.beamT * 0.5);
@@ -30985,8 +31096,8 @@ function legBeam(bags, AF, P, st, sgn) {
     legShroud(bags.fair, path, axle[1] + st.R * 1.04,
               Math.max(st.R * 0.95, P.beamW * 2.1),
               Math.max(P.beamW * 1.30, st.R * 0.34));
-  padOn(bags, AF, st, st.z, sgn * P.beamAng * D2R,
-        P.beamW * 1.5, P.beamW * 1.35, { thick: 0.009 }, -sgn * hubIn);
+  padOn(bags, AF, st, st.z, aS * P.beamAng * D2R,
+        P.beamW * 1.5, P.beamW * 1.35, { thick: 0.009 }, -aS * hubIn);
   // the CLAMP: the blade is trapped between the pad and a machined block
   boxIn(bags.alloy, off(root, F.n, t0 * 0.5 + 0.004),
         [P.beamW * 0.60, 0.012, P.beamW * 0.72],
@@ -30996,9 +31107,9 @@ function legBeam(bags, AF, P, st, sgn) {
                          F.n, t0 * 0.5 + 0.016), mul(F.n, -1), 0.010, 0.026);
   // axle boss at the tip
   const axis = [sgn, 0, 0];
-  axleStub(bags, axleIn, axis, hubIn);
+  if (!cen) axleStub(bags, axleIn, axis, hubIn);
   // G58.7: `root` is the AIRFRAME anchor — the join pins the leg there
-  return { axle, axis, root: F.p, travel: nrm([sgn * 0.32, 1, 0]) };
+  return { axle, axis, root: F.p, travel: nrm([aS * 0.32, 1, 0]) };
 }
 
 // (b) SWINGING LINK — the axle rides an arm that rotates about a pivot on
@@ -31006,10 +31117,12 @@ function legBeam(bags, AF, P, st, sgn) {
 // Cub's V-strut-plus-bungee is this with an elastic tie.
 function legLink(bags, AF, P, st, sgn) {
   const drop = st.drop, half = st.x;
-  const ang = sgn * P.linkAng * D2R;
+  // a centre station roots on the keel — see legBeam (2026-09-04)
+  const cen = st.x <= 0.01;
+  const ang = cen ? 0 : sgn * P.linkAng * D2R;
   // G133.1: on a wing mount, every fitting sits above the ARM'S OWN reach
   // (axleIn), not above the wheel — see fitOn
-  const mdx = -sgn * (st.R * 0.40 + 0.020);
+  const mdx = cen ? 0 : -sgn * (st.R * 0.40 + 0.020);
   // WHEEL ANGLE TO THE FUSELAGE, CONTINUOUS: the arm swings about its
   // pivot line, negative trailing through 0 (axle under the pivot) to
   // positive leading. The DROP stays authoritative — swinging the arm
@@ -31023,7 +31136,7 @@ function legLink(bags, AF, P, st, sgn) {
                         : AF.surf(st.z, sgn * P.linkAng * D2R)[1];
   const axle = [sgn * half, axY,
                 st.z + Math.max(0.02, pivY - axY) * Math.tan(swing)];
-  const hubIn = st.R * 0.40 + 0.020;
+  const hubIn = cen ? 0 : st.R * 0.40 + 0.020;
   const axleIn = [axle[0] - sgn * hubIn, axle[1], axle[2]];
   const PADT = 0.008, R = P.linkArmW * 0.5;
   // THE V: two tubes, their fuselage ends split fore and aft. The line
@@ -31085,12 +31198,12 @@ function legLink(bags, AF, P, st, sgn) {
   // strut still carries the same bungee — only its upper fitting moves
   // to the far side. NOTE: modelled from the head-on X the user
   // described; if the real J-3 fitting is same-side, flip this back.
-  const xTop = P.linkX > 0.5 ? -sgn : sgn;
+  const xTop = cen ? 0 : (P.linkX > 0.5 ? -sgn : sgn);
   const sTop = fitOn(AF, st, st.z + P.shockZ, xTop * P.shockAng * D2R, mdx);
   const top = off(sTop.p, sTop.n, 0.008 + 0.014);
   const foot = lerp3(vee ? pF : pivot, axleIn, clamp(P.shockAt, 0.15, 0.95));
-  padOn(bags, AF, st, st.z + P.shockZ, sgn * P.shockAng * D2R, 0.11, 0.10,
-        { thick: 0.007 }, mdx);
+  padOn(bags, AF, st, st.z + P.shockZ, (cen ? 0 : sgn) * P.shockAng * D2R,
+        0.11, 0.10, { thick: 0.007 }, mdx);
   const dir = nrm(sub(foot, top));
   const L = len(sub(foot, top));
   const mode = Math.round(P.shockKind);
@@ -31181,10 +31294,12 @@ function legLink(bags, AF, P, st, sgn) {
 // (c) TELESCOPIC OLEO — a sliding piston in a cylinder, held in torsion
 // by a SCISSOR link (the signature element), braced by a drag strut.
 function legOleo(bags, AF, P, st, sgn) {
-  const hubIn = st.R * 0.40 + 0.020;
+  // a centre station roots on the keel — see legBeam (2026-09-04)
+  const cen = st.x <= 0.01, aS = cen ? 0 : sgn;
+  const hubIn = cen ? 0 : st.R * 0.40 + 0.020;
   // G133.1: a mounted oleo roots above its own foot, so the strut hangs
   // dead vertical and the wheel rides its stub axle outboard (see fitOn)
-  const F = fitOn(AF, st, st.z, sgn * P.oleoAng * D2R, -sgn * hubIn);
+  const F = fitOn(AF, st, st.z, aS * P.oleoAng * D2R, -aS * hubIn);
   const drop = st.drop, half = st.x;
   const trunn = off(F.p, F.n, 0.009 + P.oleoDia * 0.42);
   const axle = [sgn * half, AF.keelAt(st.z) - drop, st.z];
@@ -31192,8 +31307,8 @@ function legOleo(bags, AF, P, st, sgn) {
   const dir = nrm(sub(axleIn, trunn));
   const L = len(sub(axleIn, trunn));
   const Rc = P.oleoDia * 0.5;
-  padOn(bags, AF, st, st.z, sgn * P.oleoAng * D2R, 0.19, 0.15,
-        { thick: 0.009 }, -sgn * hubIn);
+  padOn(bags, AF, st, st.z, aS * P.oleoAng * D2R, 0.19, 0.15,
+        { thick: 0.009 }, -aS * hubIn);
   // trunnion: two lugs and the pin the strut swings on
   const pax = nrm(crs(dir, F.fore));
   for (const s of [-1, 1])
@@ -31228,10 +31343,10 @@ function legOleo(bags, AF, P, st, sgn) {
   // drag brace back into the structure
   if (P.oleoBrace) {
     const bTop = fitOn(AF, st, st.z + P.oleoBraceZ,
-                       sgn * P.oleoAng * D2R * 0.6, -sgn * hubIn);
+                       aS * P.oleoAng * D2R * 0.6, -aS * hubIn);
     const bp = off(bTop.p, bTop.n, 0.018);
-    padOn(bags, AF, st, st.z + P.oleoBraceZ, sgn * P.oleoAng * D2R * 0.6,
-          0.10, 0.09, { thick: 0.006 }, -sgn * hubIn);
+    padOn(bags, AF, st, st.z + P.oleoBraceZ, aS * P.oleoAng * D2R * 0.6,
+          0.10, 0.09, { thick: 0.006 }, -aS * hubIn);
     taper(bags.steel, bp, off(trunn, dir, cylL * 0.72), 0.013, 0.010, 12);
   }
   // G133: the oleo's shroud — THE pillar fairing. Chord is sized so the
@@ -31701,12 +31816,101 @@ function triNormal(a, b, c) {
 // `ax` is the component pair; `tx`/`ty` the target. Returns one entry per
 // triangle that contains the target, BEFORE dedup and BEFORE any filtering,
 // because the callers want to say different things about a rejected hit.
+// THE FIELD INDEX (2026-09-04). fieldHits walked EVERY face of the mesh for
+// every (sL, lv) it was asked about, and the energy layer asks about ten
+// thousand of them per fuselage build: 28 stations x 34 levels per sL table,
+// forty-odd x 34 per bay profile, three bays, two sweeps each. Measured on the
+// stock garage build: 2.0 s of a 2.6 s cabin-ring slider tick, ~60 million
+// triangle tests to find a few hundred hits. The user, after a day of it:
+// "changing any parameter causes lag while it was full smooth yesterday".
+//
+// So the faces are BINNED ONCE PER MESH by their bounding box in the field
+// plane being searched, and a query walks its cell's faces instead of all of
+// them. Nothing about the test changes: the same faces, in the same order,
+// through the same barycentric walk — the index only decides which faces
+// cannot contain the point, and a face whose padded box misses the point
+// cannot (the walk's own tolerance is 1e-9 in barycentric terms, the box is
+// padded by 1e-7 in field units). GATE FIT runs the walk both ways on every
+// fixture and asserts the hits are identical.
+//
+// Keyed on the mesh OBJECT (a WeakMap: a build makes a new mesh, and the
+// index goes with the old one), checked against the V/A/F arrays it was built
+// from, and per axis pair — a rail query and a metric query bin differently.
+const FIELD_IDX = (typeof WeakMap !== 'undefined') ? new WeakMap() : null;
+function fieldIndexFor(mesh, ax) {
+  const key = ax[0] + ',' + ax[1];
+  let per = FIELD_IDX ? FIELD_IDX.get(mesh) : null;
+  if (!per || per.V !== mesh.V || per.A !== mesh.A || per.F !== mesh.F || per.nF !== mesh.F.length) {
+    per = { V: mesh.V, A: mesh.A, F: mesh.F, nF: mesh.F.length, idx: {} };
+    if (FIELD_IDX) FIELD_IDX.set(mesh, per);
+  }
+  if (!per.idx[key]) per.idx[key] = buildFieldIndex(mesh, ax);
+  return per.idx[key];
+}
+function buildFieldIndex(mesh, ax) {
+  const A = mesh.A, F = mesh.F, ix = ax[0], iy = ax[1];
+  const PAD = 1e-7;
+  const live = [], box = [];
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (let fi = 0; fi < F.length; fi++) {
+    const f = F[fi], ids = f && f.v;
+    if (!ids || ids.length < 3) continue;
+    let bare = false, bx0 = Infinity, by0 = Infinity, bx1 = -Infinity, by1 = -Infinity;
+    for (const i of ids) {
+      const a = A[i];
+      if (!a) { bare = true; break; }
+      const x = a[ix], y = a[iy];
+      if (x < bx0) bx0 = x; if (x > bx1) bx1 = x;
+      if (y < by0) by0 = y; if (y > by1) by1 = y;
+    }
+    if (bare || !(bx0 <= bx1) || !(by0 <= by1)) continue;   // NaN-safe
+    live.push(fi);
+    box.push(bx0 - PAD, by0 - PAD, bx1 + PAD, by1 + PAD);
+    if (bx0 < x0) x0 = bx0; if (bx1 > x1) x1 = bx1;
+    if (by0 < y0) y0 = by0; if (by1 > y1) y1 = by1;
+  }
+  if (!live.length) return { empty: true };
+  x0 -= PAD; y0 -= PAD; x1 += PAD; y1 += PAD;
+  const n = Math.max(4, Math.min(96, Math.ceil(Math.sqrt(live.length))));
+  const nx = n, ny = n;
+  const sx = nx / Math.max(1e-12, x1 - x0), sy = ny / Math.max(1e-12, y1 - y0);
+  const cells = new Array(nx * ny).fill(null);
+  const cellOf = (v, o, sc, nn) => Math.max(0, Math.min(nn - 1, Math.floor((v - o) * sc)));
+  for (let k = 0; k < live.length; k++) {
+    const fi = live[k], b = k * 4;
+    const cx0 = cellOf(box[b], x0, sx, nx), cx1 = cellOf(box[b + 2], x0, sx, nx);
+    const cy0 = cellOf(box[b + 1], y0, sy, ny), cy1 = cellOf(box[b + 3], y0, sy, ny);
+    for (let cy = cy0; cy <= cy1; cy++)
+      for (let cx = cx0; cx <= cx1; cx++) {
+        const c = cy * nx + cx;
+        (cells[c] || (cells[c] = [])).push(fi);   // ascending: k walks the faces in order
+      }
+  }
+  return { x0, y0, x1, y1, nx, ny, sx, sy, cells };
+}
+// the faces that could hold (tx, ty), ascending by face index; [] when none can
+function fieldIndexQuery(mesh, ax, tx, ty) {
+  const I = fieldIndexFor(mesh, ax);
+  if (!I || I.empty) return [];
+  if (!(tx >= I.x0 && tx <= I.x1 && ty >= I.y0 && ty <= I.y1)) return [];
+  const cx = Math.max(0, Math.min(I.nx - 1, Math.floor((tx - I.x0) * I.sx)));
+  const cy = Math.max(0, Math.min(I.ny - 1, Math.floor((ty - I.y0) * I.sy)));
+  return I.cells[cy * I.nx + cx] || [];
+}
 function fieldHits(mesh, ax, tx, ty) {
+  if (!mesh || !mesh.A || !mesh.V || !mesh.F) return [];
+  return fieldScan(mesh, ax, tx, ty, fieldIndexQuery(mesh, ax, tx, ty));
+}
+// the walk itself, over `cand` (face indices, ascending) or over every face
+// when `cand` is null — the gate runs it both ways and asserts they agree
+function fieldScan(mesh, ax, tx, ty, cand) {
   const A = mesh && mesh.A, V = mesh && mesh.V;
   if (!A || !V || !mesh.F) return [];
   const out = [];
   const ix = ax[0], iy = ax[1];
-  for (const f of mesh.F) {
+  const F = mesh.F, nC = cand ? cand.length : F.length;
+  for (let ci = 0; ci < nC; ci++) {
+    const f = F[cand ? cand[ci] : ci];
     const ids = f && f.v;
     if (!ids || ids.length < 3) continue;
     // THE FIELD IS SHORTER THAN THE MESH. cageRims appends its bead vertices
@@ -32290,7 +32494,7 @@ function siteToAF(AF, site) {
 
 const API = { accessSites, fieldHits, siteToAF, snapTo, sectionCY, frameAt,
               sectionArc, AX_RAIL, crownSite, geoMesh,
-              NOT_SKIN, AX_METRIC, AX_STRUCT };
+              NOT_SKIN, AX_METRIC, AX_STRUCT, fieldScan, fieldIndexQuery };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 if (typeof window !== 'undefined') window.FIT_SITE = API;
@@ -41355,10 +41559,21 @@ PAGE.post = ctx => {
         // a nose spat sits on its fork, a main spat on its own leg, so
         // the flown aeroplane carries them with the moving parts
         if (st.steer > 0 && st.x < 0.01) {
-          const u = GG.castorUnit(lb, st.P, r.axle, sgn, st.R, st.P.twSteer, false);
+          // 2026-09-04 (the user: "the tricycle configuration tries strange
+          // things for the front wheel"): the nose castor used to be drawn
+          // INTO THE LEG'S bags, so the join stretched fork and spat with the
+          // spring, and it never yawed — only the tailwheel's castor was
+          // registered as the yawing part. It is its own bag-set now, handed
+          // out through castorUnitOut exactly as legTailwheel's is; the wheel
+          // rides inside it in the game (app.js: the tw wheel is the castor's
+          // child, and refs.tw IS the nosewheel on a tricycle).
+          const cb = allBags();
+          const u = GG.castorUnit(cb, st.P, r.axle, sgn, st.R, st.P.twSteer, false);
           GG.wheel(wu.proxy, u.hub, u.axis, st.R, { brake: !!st.brake, P: st.P });
-          if (st.fair) GG.spat(lb, u.hub, u.axis, st.R, fOpt);
-          r = { axle: u.hub, axis: u.axis, travel: r.travel };
+          if (st.fair) GG.spat(cb, u.hub, u.axis, st.R, fOpt);
+          castorUnitOut = { bags: cb, top: u.top, ax: u.ax, axle: u.hub };
+          r = { axle: u.hub, axis: u.axis, root: r.root, tip: u.top,
+                travel: r.travel };
         } else {
           GG.wheel(wu.proxy, r.axle, r.axis, st.R,
                    { brake: !!st.brake, inboard: sgn, P: st.P });
@@ -46631,11 +46846,12 @@ function commit() {
 // fourteen aero solves, ~1.1 s on the stock build — and renderPanel fired
 // them 50 ms after EVERY cage build, so a cowl or wing slider paid, tick
 // after tick, for a chart that was folded away or scrolled off the panel.
-// A build now marks them STALE; they run once, 300 ms after the last build,
-// and only while the panel is open and its readout block is on screen.
-// Opening or scrolling to a stale panel reads them then. The rows that live
-// in the panel (fill, occupants, baggage) still read on their own release,
-// because a hand on them is a reader in front of them.
+// A build now marks them STALE; they are requested once, 300 ms after the
+// last build, and only while the panel is open and its readout block is on
+// screen. Opening or scrolling to a stale panel requests them then. The rows
+// that live in the panel (fill, occupants, baggage) still request on their
+// own release, because a hand on them is a reader in front of them. And the
+// request itself runs off the main thread — see readoutWorker below.
 let readT = null, readStale = false, readSeen = true, readIO = null;
 function readoutsVisible() { return !!(panel && panel.open && readSeen); }
 function scheduleReadouts(ms) {
@@ -46662,62 +46878,149 @@ function watchReadouts(elm) {
 // conception" the user asked for, read live off the same ledger the flight
 // weighs itself with, not a second estimate.
 let balEl = null, fillEl = null, barEl = null, tableEl = null, chartEl = null;
-// the chart, recomputed on a release of the fill, occupants or baggage rows,
-// and after every commit (the aeroplane changed)
-let chartT = null;
-function chartReadout() {
-  if (!inGame() || !chartEl || !window.BALANCE) return;
-  if (chartT) clearTimeout(chartT);
-  chartT = setTimeout(() => {
-    chartT = null;
-    try {
-      if (typeof buildGen !== 'function' || typeof genShakedown !== 'function' ||
-          typeof genSpecAtFuel !== 'function') return;
-      const S0 = window.GARAGE_SPEC.resolved();
-      if (!S0 || !S0.fuel) return;
-      const D = window.BALANCE.compute(S0, { buildGen, genShakedown, genSpecAtFuel },
-        { occupants: VIEW.occupants, baggage: VIEW.baggage, fill: VIEW.fill,
-          envelope: LAST_SHAKE && LAST_SHAKE.envelope });
-      window.BALANCE.draw(chartEl, D);
-      LAST_CHART = D;
-    } catch (e) { console.error('balance chart:', e); }
-  }, 200);
-}
 let LAST_CHART = null;
 let LAST_SHAKE = null;
-// the aeroplane at the slider's fill, weighed by the core; and the envelope's
-// four corners as a loading table with the bar between them
-let fillT = null;
-function fillReadout() {
-  if (!inGame() || !fillEl) return;
-  if (fillT) clearTimeout(fillT);
-  fillT = setTimeout(() => {
-    fillT = null;
-    try {
-      if (typeof buildGen !== 'function' || typeof genShakedown !== 'function' ||
-          typeof genSpecAtFuel !== 'function' || !window.GARAGE_SPEC) return;
-      const S0 = window.GARAGE_SPEC.resolved && window.GARAGE_SPEC.resolved();
-      if (!S0 || !S0.fuel) return;
-      const full = S0.fuel.litres;
-      const L = full * Math.min(1, Math.max(0, VIEW.fill));
-      const sh = genShakedown(buildGen(genSpecAtFuel(S0, L)), { slim: true });
-      const E = LAST_SHAKE && LAST_SHAKE.envelope;
-      const f = (v, d) => (v == null || !isFinite(v)) ? '\u2014' : v.toFixed(d);
+
+// THE READOUTS RUN OFF THE MAIN THREAD (2026-09-04). Fourteen aero solves —
+// the full shakedown with its reserve sheet and four corners inside it, the
+// fill point, the chart's seven — are ~1.1 s on the stock build, and on the
+// main thread that is a freeze after every slider release while the panel is
+// on screen, which is exactly when a builder is placing tanks. So ONE job,
+// all three readouts, goes to a Worker that loads the very core the gates
+// require (tools/flight_core.js) and the chart's pure half (balance.js); the
+// numbers come back about a second later and the picture never stops moving.
+// Same functions, same spec, same door: the worker runs buildGen /
+// genShakedown / genSpecAtFuel / BALANCE.compute verbatim (readoutCompute is
+// the one body, serialised into the worker), and the reference chart taken
+// before this change came back identical. An answer about an aeroplane that
+// has changed since (the job's sequence number is not the latest) is
+// dropped. No Worker — file://, a load error — and the same job runs here,
+// synchronously, as it did before.
+let readWorker = null, readWorkerDead = false, readSeq = 0;
+function readoutJob() {
+  const G = window.GARAGE_SPEC;
+  if (!G || !G.get) return null;
+  return { spec: G.get(), occupants: VIEW.occupants, baggage: VIEW.baggage, fill: VIEW.fill };
+}
+// the job, computed with whatever core is in scope: the worker's or the
+// page's. Self-contained on purpose — it is stringified into the worker.
+function readoutCompute(job, core, BAL) {
+  const def = core.buildGen(job.spec);
+  const shake = core.genShakedown(def, {});
+  const S0 = def.spec;              // the RESOLVED spec: what GARAGE_SPEC.resolved() hands the page
+  const out = { shake, fillSh: null, litres: null, chart: null };
+  if (S0 && S0.fuel) {
+    const L = S0.fuel.litres * Math.min(1, Math.max(0, job.fill == null ? 1 : job.fill));
+    out.litres = L;
+    out.fillSh = core.genShakedown(core.buildGen(core.genSpecAtFuel(S0, L)), { slim: true });
+    if (BAL) out.chart = BAL.compute(S0, core,
+      { occupants: job.occupants, baggage: job.baggage, fill: job.fill, envelope: shake.envelope });
+  }
+  return out;
+}
+function readoutWorker() {
+  if (readWorker || readWorkerDead) return readWorker;
+  try {
+    if (typeof Worker === 'undefined' || typeof Blob === 'undefined' || typeof URL === 'undefined' ||
+        !/^https?:$/.test(location.protocol)) throw new Error('no worker here');
+    const base = new URL('.', location.href).href;   // dev.html and index.html both sit in flyDiy/
+    const src = 'self.module = { exports: {} };\n' +
+      'importScripts(' + JSON.stringify(base + 'src/viewer/balance.js') + ');\n' +
+      'const BAL = self.module.exports; self.module = { exports: {} };\n' +
+      'importScripts(' + JSON.stringify(base + 'tools/flight_core.js') + ');\n' +
+      'const CORE = { buildGen, genShakedown, genSpecAtFuel };\n' +
+      'const compute = ' + readoutCompute.toString() + ';\n' +
+      'self.onmessage = e => { const job = e.data; try { const r = compute(job, CORE, BAL); r.seq = job.seq; postMessage(r); }' +
+      ' catch (err) { postMessage({ seq: job.seq, error: String(err && err.stack || err) }); } };\n';
+    const url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
+    const w = new Worker(url);
+    w.onmessage = e => {
+      const r = e.data;
+      if (!r || r.seq !== readSeq) return;        // an older aeroplane's answer
+      if (r.error) {
+        console.warn('energy readouts: the worker could not compute, reading on the page instead —', r.error);
+        readWorkerDead = true; readWorker = null;
+        try { w.terminate(); } catch (e2) {}
+        readoutsNow();
+        return;
+      }
+      applyReadouts(r);
+    };
+    w.onerror = err => {
+      console.warn('energy readouts: the worker failed, reading on the page instead —', err && err.message);
+      readWorkerDead = true; readWorker = null;
+      try { w.terminate(); } catch (e2) {}
+      readoutsNow();
+    };
+    readWorker = w;
+  } catch (e) { readWorkerDead = true; readWorker = null; }
+  return readWorker;
+}
+// the job on the page, when there is no worker
+function readoutsNow() {
+  if (!balEl || !inGame()) return;
+  if (typeof buildGen !== 'function' || typeof genShakedown !== 'function' ||
+      typeof genSpecAtFuel !== 'function') { balEl.textContent = ''; return; }
+  const job = readoutJob();
+  if (!job) return;
+  try { applyReadouts(readoutCompute(job, { buildGen, genShakedown, genSpecAtFuel }, window.BALANCE || null)); }
+  catch (e) { balEl.textContent = ''; }
+}
+// every trigger — a build, a commit, the fill / occupants / baggage rows —
+// asks for the whole set once: off the main thread the price of "all three"
+// does not matter, and one job cannot race another
+function readoutsRequest() {
+  if (!balEl || !inGame()) return;
+  const job = readoutJob();
+  if (!job) return;
+  const w = readoutWorker();
+  if (!w) { readoutsNow(); return; }
+  job.seq = ++readSeq;
+  try { w.postMessage(job); }
+  catch (e) { readWorkerDead = true; readWorker = null; readoutsNow(); }
+}
+function applyReadouts(r) {
+  const s = r && r.shake;
+  if (!s) return;
+  LAST_SHAKE = s;
+  loadingTable();
+  const f = (v, d) => (v == null || !isFinite(v)) ? '\u2014' : v.toFixed(d);
+  if (balEl) {
+    let t = 'all-up ' + f(s.mass, 0) + ' kg \u00b7 CG ' + f(s.cgX, 2) + ' m \u00b7 static margin ' +
+      f(s.staticMargin, 2);
+    if (s.reserve) t += ' \u00b7 at reserves ' + f(s.reserve.staticMargin, 2) +
+      ' (' + f(s.reserve.mass, 0) + ' kg)';
+    const bad = (s.vessels || []).filter(v => !v.fits).length;
+    if (bad) t += ' \u00b7 ' + bad + ' vessel' + (bad > 1 ? 's' : '') + ' the ledger cannot fit';
+    balEl.textContent = t;
+    balEl.style.color = (s.staticMargin != null && s.staticMargin < 0.05) ? '#ff7b6b' : '';
+  }
+  const E = s.envelope;
+  const sh = r.fillSh;
+  if (fillEl) {
+    if (sh) {
       let pct = null;
       if (E && E.fwd && E.aft && E.fwd.cgPct != null && E.fwd.cgX != null) {
         // the envelope's own % MAC scale: two points define it
         const k = (E.aft.cgPct - E.fwd.cgPct) / Math.max(1e-9, E.aft.cgX - E.fwd.cgX);
         pct = E.fwd.cgPct + (sh.cgX - E.fwd.cgX) * k;
       }
-      fillEl.textContent = f(L, 0) + ' L aboard \u00b7 ' + f(sh.mass, 0) + ' kg \u00b7 CG ' +
+      fillEl.textContent = f(r.litres, 0) + ' L aboard \u00b7 ' + f(sh.mass, 0) + ' kg \u00b7 CG ' +
         f(sh.cgX, 2) + ' m' + (pct != null ? ' (' + f(pct * 100, 0) + '% MAC)' : '') +
         ' \u00b7 static margin ' + f(sh.staticMargin, 2);
       fillEl.style.color = (sh.staticMargin != null && sh.staticMargin < 0.05) ? '#ff7b6b' : '';
-      drawBar(E, sh.cgX);
-      chartReadout();
-    } catch (e) { fillEl.textContent = ''; }
-  }, 150);
+    } else fillEl.textContent = '';
+  }
+  drawBar(E, sh ? sh.cgX : null);
+  if (r.chart && chartEl && window.BALANCE) {
+    try { window.BALANCE.draw(chartEl, r.chart); LAST_CHART = r.chart; }
+    catch (e) { console.error('balance chart:', e); }
+  }
 }
+// the rows in the panel and the build both ask the same way
+function chartReadout() { readoutsRequest(); }
+function fillReadout() { readoutsRequest(); }
+function balanceReadout() { readoutsRequest(); }
 function drawBar(E, cgX) {
   if (!barEl) return;
   barEl.innerHTML = '';
@@ -46747,26 +47050,6 @@ function loadingTable() {
     E.corners.map(c => '<div>' + c.label + ': ' + f(c.litres, 0) + ' L \u00b7 ' +
       f(c.mass, 0) + ' kg \u00b7 ' + (c.cgPct != null ? f(c.cgPct * 100, 0) + '%' : '\u2014') +
       ' \u00b7 ' + f(c.staticMargin, 2) + (c === E.worst ? ' \u2190 worst' : '') + '</div>').join('');
-}
-function balanceReadout() {
-  if (!balEl || !inGame()) return;
-  if (typeof buildGen !== 'function' || typeof genShakedown !== 'function' ||
-      !window.GARAGE_SPEC) { balEl.textContent = ''; return; }
-  try {
-    const s = genShakedown(buildGen(window.GARAGE_SPEC.get()), {});
-    LAST_SHAKE = s;
-    loadingTable();
-    fillReadout();
-    const f = (v, d) => (v == null || !isFinite(v)) ? '—' : v.toFixed(d);
-    let t = 'all-up ' + f(s.mass, 0) + ' kg · CG ' + f(s.cgX, 2) + ' m · static margin ' +
-      f(s.staticMargin, 2);
-    if (s.reserve) t += ' · at reserves ' + f(s.reserve.staticMargin, 2) +
-      ' (' + f(s.reserve.mass, 0) + ' kg)';
-    const bad = (s.vessels || []).filter(v => !v.fits).length;
-    if (bad) t += ' · ' + bad + ' vessel' + (bad > 1 ? 's' : '') + ' the ledger cannot fit';
-    balEl.textContent = t;
-    balEl.style.color = (s.staticMargin != null && s.staticMargin < 0.05) ? '#ff7b6b' : '';
-  } catch (e) { balEl.textContent = ''; }
 }
 
 // ---------------------------------------------------------------------------
@@ -71093,7 +71376,20 @@ function editorInit(api) {
           c.pivot[2] + L[2] - c.rest0[2]);
         if (c.axis && c.obj.quaternion.setFromAxisAngle) {
           vY.set(c.axis[0], c.axis[1], c.axis[2]);
-          c.obj.quaternion.setFromAxisAngle(vY, -(link.dr || 0));
+          // THE DRAWN CASTOR STEERS THE WAY THE SOLVER'S WHEEL ROLLS
+          // (2026-09-04, the user: "check that the tail wheel turns in the
+          // right direction"). The solver turns the third wheel's rolling
+          // direction by -twSteer*dr about +y (30_solver, "measured: matches
+          // nose-left convention"); this rotated the castor by -dr about its
+          // SWIVEL axis, which points DOWN — the opposite sense, at twice the
+          // angle. The join maps cage to model by a pure rotation about y,
+          // so the sense survives it. Written as -twSteer*dr about +y and
+          // projected onto the swivel's own direction; a nosewheel's negative
+          // twSteer falls out of the same line.
+          const tws = (def && def.params && typeof def.params.twSteer === 'number')
+            ? def.params.twSteer : 0.5;
+          const up = c.axis[1] < 0 ? -1 : 1;
+          c.obj.quaternion.setFromAxisAngle(vY, -tws * (link.dr || 0) * up);
         }
       }
     }
@@ -71176,6 +71472,10 @@ function editorInit(api) {
   // a circuit there or cross-country to any other strip ----
   let fromId = 'HOME', destId = 'CIRCUIT';
   const aeroById = id => world.aerodromes.find(a => a.id === id) || world.aerodromes[0];
+  // 'taxi' (the stand, G151) or 'lineup' (the runway). A string on purpose:
+  // the flight layer's flPref objects are declared far below this and this
+  // must be readable by the very first applyRoute at boot.
+  const flStartTaxi = () => prefGet('flydiy.flStart', 'taxi') !== 'lineup';
   function applyRoute() {
     const from = aeroById(fromId);
     const to = destId === 'CIRCUIT' ? from : aeroById(destId);
@@ -71190,8 +71490,19 @@ function editorInit(api) {
     // pilot's own DEPART planner (built for W14's backtrack, taught in G151 to
     // notice it is off the centreline) taxis it onto the strip. The spawn
     // identity keeps its meaning because that is where the taxi ENDS.
+    // THE THREE-POINT STANCE FIRST (G170): the design pose is the level
+    // attitude and the tail would fall a metre onto the tail wheel on the
+    // first frame. The solver pitches the airframe onto its three points here,
+    // in the design frame, before the placement rotates it onto the site.
+    if (typeof sim.stance === 'function') sim.stance();
     const st = (typeof siteOf === 'function') ? siteOf(from.id) : null;
-    const stand = st && st.stand;
+    // ...AND WHETHER IT DOES IS THE PLAYER'S (2026-09-04, the user: "the
+    // planes are really a lot too slow when rolling out of the hangar ... an
+    // option to just remove that"). The rail's `start` flyout writes this
+    // pref; off, the aeroplane is placed on the spawn identity itself, lined
+    // up on the strip, exactly as every flight began before G151. Read here,
+    // on every applyRoute, so RESTART is what applies it.
+    const stand = (st && flStartTaxi()) ? st.stand : null;
     if (stand) {
       placeAtStand(sim, from, stand);
       ap.setRoute(from, to);      // frame + altRef, so the HUD has them at once
@@ -73621,6 +73932,10 @@ function editorInit(api) {
       icon: 'M2.6 12.4l3.4-4.2 2.8 2.2 3-4.4 3.6 3.2|M2.6 15.2h12.8' },
     { k: 'air', label: 'air', title: 'The air it is flying in',
       icon: 'M2.4 6.6h8.2a2.1 2.1 0 1 0-2-2.6|M2.4 9.8h11.2a2.1 2.1 0 1 1-2 2.6|M2.4 13h6' },
+    // 2026-09-04: WHERE THE FLIGHT STARTS — the stand and a taxi out (G151),
+    // or lined up on the strip. A runway in perspective, centreline dashed.
+    { k: 'start', label: 'start', title: 'Where the flight starts',
+      icon: 'M5.6 15.4 7.6 2.6|M12.4 15.4 10.4 2.6|M9 3.6v1.6|M9 7.4v1.8|M9 11.4v2.2' },
   ];
   const FL_SLOTS = {
     ac:    { title: 'Which aeroplane' },
@@ -73888,6 +74203,15 @@ function editorInit(api) {
                       flSave('Panels', panels); drawMap(); },
                'nose up', 'north up');
     },
+    start(body) {
+      flToggle(body, 'taxi out',
+               () => flStartTaxi(),
+               v => { prefSet('flydiy.flStart', v ? 'taxi' : 'lineup'); flRender(); },
+               'lined up', 'from the stand');
+      flNote(body, 'On, the aeroplane is wheeled out of the shed and taxis to ' +
+                   'the strip; off, it starts on the runway, lined up. Takes ' +
+                   'effect on Restart.');
+    },
     trace(body) {
       flToggle(body, 'show', () => panels.trace, v => flPanel('trace', v));
       // WHICH LANES is the legend's, not this flyout's: a switchboard beside
@@ -74069,6 +74393,7 @@ function editorInit(api) {
       }
       return b;
     };
+    const grab = e => { try { el.setPointerCapture(e.pointerId); } catch (err) {} };
     const down = kind => e => {
       if (e.button) return;
       armed = kind;
@@ -74077,8 +74402,13 @@ function editorInit(api) {
       const sx = e.clientX, sy = e.clientY;
       el.__flStart = [sx, sy];
       // the grip has nothing else to do, so it drags at once
-      if (kind === 'size') { mode = 'size'; anchor(); }
-      try { el.setPointerCapture(e.pointerId); } catch (err) {}
+      if (kind === 'size') { mode = 'size'; anchor(); grab(e); }
+      // NO CAPTURE HERE. Chrome 148 retargets pointerup AND the click that
+      // follows to the element holding pointer capture, so a capture taken on
+      // pointerdown turned every press on a ribbon button, the PFD's fold and
+      // the map's canvas into a click on the PANEL — and the flight's whole
+      // left bar went dead with no error (2026-09-04). The pointer is grabbed
+      // only once the gesture has proved itself a drag, in pointermove.
       e.stopPropagation();
     };
     if (handle) handle.addEventListener('pointerdown', down('move'));
@@ -74088,7 +74418,7 @@ function editorInit(api) {
       const st = el.__flStart;
       if (!mode) {
         if (Math.abs(e.clientX - st[0]) + Math.abs(e.clientY - st[1]) < 4) return;
-        mode = armed; anchor();
+        mode = armed; anchor(); grab(e);
       }
       const P = pos();
       if (mode === 'move') { P.x = e.clientX - ox; P.y = e.clientY - oy; }

@@ -2087,7 +2087,20 @@
           c.pivot[2] + L[2] - c.rest0[2]);
         if (c.axis && c.obj.quaternion.setFromAxisAngle) {
           vY.set(c.axis[0], c.axis[1], c.axis[2]);
-          c.obj.quaternion.setFromAxisAngle(vY, -(link.dr || 0));
+          // THE DRAWN CASTOR STEERS THE WAY THE SOLVER'S WHEEL ROLLS
+          // (2026-09-04, the user: "check that the tail wheel turns in the
+          // right direction"). The solver turns the third wheel's rolling
+          // direction by -twSteer*dr about +y (30_solver, "measured: matches
+          // nose-left convention"); this rotated the castor by -dr about its
+          // SWIVEL axis, which points DOWN — the opposite sense, at twice the
+          // angle. The join maps cage to model by a pure rotation about y,
+          // so the sense survives it. Written as -twSteer*dr about +y and
+          // projected onto the swivel's own direction; a nosewheel's negative
+          // twSteer falls out of the same line.
+          const tws = (def && def.params && typeof def.params.twSteer === 'number')
+            ? def.params.twSteer : 0.5;
+          const up = c.axis[1] < 0 ? -1 : 1;
+          c.obj.quaternion.setFromAxisAngle(vY, -tws * (link.dr || 0) * up);
         }
       }
     }
@@ -2170,6 +2183,10 @@
   // a circuit there or cross-country to any other strip ----
   let fromId = 'HOME', destId = 'CIRCUIT';
   const aeroById = id => world.aerodromes.find(a => a.id === id) || world.aerodromes[0];
+  // 'taxi' (the stand, G151) or 'lineup' (the runway). A string on purpose:
+  // the flight layer's flPref objects are declared far below this and this
+  // must be readable by the very first applyRoute at boot.
+  const flStartTaxi = () => prefGet('flydiy.flStart', 'taxi') !== 'lineup';
   function applyRoute() {
     const from = aeroById(fromId);
     const to = destId === 'CIRCUIT' ? from : aeroById(destId);
@@ -2184,8 +2201,19 @@
     // pilot's own DEPART planner (built for W14's backtrack, taught in G151 to
     // notice it is off the centreline) taxis it onto the strip. The spawn
     // identity keeps its meaning because that is where the taxi ENDS.
+    // THE THREE-POINT STANCE FIRST (G170): the design pose is the level
+    // attitude and the tail would fall a metre onto the tail wheel on the
+    // first frame. The solver pitches the airframe onto its three points here,
+    // in the design frame, before the placement rotates it onto the site.
+    if (typeof sim.stance === 'function') sim.stance();
     const st = (typeof siteOf === 'function') ? siteOf(from.id) : null;
-    const stand = st && st.stand;
+    // ...AND WHETHER IT DOES IS THE PLAYER'S (2026-09-04, the user: "the
+    // planes are really a lot too slow when rolling out of the hangar ... an
+    // option to just remove that"). The rail's `start` flyout writes this
+    // pref; off, the aeroplane is placed on the spawn identity itself, lined
+    // up on the strip, exactly as every flight began before G151. Read here,
+    // on every applyRoute, so RESTART is what applies it.
+    const stand = (st && flStartTaxi()) ? st.stand : null;
     if (stand) {
       placeAtStand(sim, from, stand);
       ap.setRoute(from, to);      // frame + altRef, so the HUD has them at once
@@ -4615,6 +4643,10 @@
       icon: 'M2.6 12.4l3.4-4.2 2.8 2.2 3-4.4 3.6 3.2|M2.6 15.2h12.8' },
     { k: 'air', label: 'air', title: 'The air it is flying in',
       icon: 'M2.4 6.6h8.2a2.1 2.1 0 1 0-2-2.6|M2.4 9.8h11.2a2.1 2.1 0 1 1-2 2.6|M2.4 13h6' },
+    // 2026-09-04: WHERE THE FLIGHT STARTS — the stand and a taxi out (G151),
+    // or lined up on the strip. A runway in perspective, centreline dashed.
+    { k: 'start', label: 'start', title: 'Where the flight starts',
+      icon: 'M5.6 15.4 7.6 2.6|M12.4 15.4 10.4 2.6|M9 3.6v1.6|M9 7.4v1.8|M9 11.4v2.2' },
   ];
   const FL_SLOTS = {
     ac:    { title: 'Which aeroplane' },
@@ -4882,6 +4914,15 @@
                       flSave('Panels', panels); drawMap(); },
                'nose up', 'north up');
     },
+    start(body) {
+      flToggle(body, 'taxi out',
+               () => flStartTaxi(),
+               v => { prefSet('flydiy.flStart', v ? 'taxi' : 'lineup'); flRender(); },
+               'lined up', 'from the stand');
+      flNote(body, 'On, the aeroplane is wheeled out of the shed and taxis to ' +
+                   'the strip; off, it starts on the runway, lined up. Takes ' +
+                   'effect on Restart.');
+    },
     trace(body) {
       flToggle(body, 'show', () => panels.trace, v => flPanel('trace', v));
       // WHICH LANES is the legend's, not this flyout's: a switchboard beside
@@ -5063,6 +5104,7 @@
       }
       return b;
     };
+    const grab = e => { try { el.setPointerCapture(e.pointerId); } catch (err) {} };
     const down = kind => e => {
       if (e.button) return;
       armed = kind;
@@ -5071,8 +5113,13 @@
       const sx = e.clientX, sy = e.clientY;
       el.__flStart = [sx, sy];
       // the grip has nothing else to do, so it drags at once
-      if (kind === 'size') { mode = 'size'; anchor(); }
-      try { el.setPointerCapture(e.pointerId); } catch (err) {}
+      if (kind === 'size') { mode = 'size'; anchor(); grab(e); }
+      // NO CAPTURE HERE. Chrome 148 retargets pointerup AND the click that
+      // follows to the element holding pointer capture, so a capture taken on
+      // pointerdown turned every press on a ribbon button, the PFD's fold and
+      // the map's canvas into a click on the PANEL — and the flight's whole
+      // left bar went dead with no error (2026-09-04). The pointer is grabbed
+      // only once the gesture has proved itself a drag, in pointermove.
       e.stopPropagation();
     };
     if (handle) handle.addEventListener('pointerdown', down('move'));
@@ -5082,7 +5129,7 @@
       const st = el.__flStart;
       if (!mode) {
         if (Math.abs(e.clientX - st[0]) + Math.abs(e.clientY - st[1]) < 4) return;
-        mode = armed; anchor();
+        mode = armed; anchor(); grab(e);
       }
       const P = pos();
       if (mode === 'move') { P.x = e.clientX - ox; P.y = e.clientY - oy; }

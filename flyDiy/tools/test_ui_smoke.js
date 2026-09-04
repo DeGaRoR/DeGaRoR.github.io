@@ -34,6 +34,32 @@ const modelsBlock = payloadFiles.map(([sub, f]) =>
   fs.readFileSync(path.join(__dirname, '..', sub, f), 'utf8')).join('\n');
 const appBlock = pick('function setAircraft', 'app');
 
+// ---- THE PANELS ARE PLACEABLE AND THEIR CONTROLS STILL PRESS (2026-09-04) --
+// Chrome 148 retargets pointerup and the click after it to whatever element
+// holds POINTER CAPTURE. flPlace used to capture on pointerdown, so every
+// press on a ribbon button, the PFD's fold or the map's canvas became a click
+// on the panel and the flight's left bar went dead with no error. The rule:
+// the pointerdown handler takes no capture; the drag does, once the 4 px
+// threshold has made it a drag. Pinned on the artifact's own text.
+{
+  const i0 = appBlock.indexOf('function flPlace(');
+  const i1 = appBlock.indexOf('THE CROSSHAIR', i0);
+  if (i0 < 0 || i1 < 0) throw new Error('flPlace is not where the rail expects it');
+  const fp = appBlock.slice(i0, i1);
+  const down = fp.slice(fp.indexOf('const down = kind =>'), fp.indexOf('if (handle) handle.addEventListener'));
+  const move = fp.slice(fp.indexOf("addEventListener('pointermove'"), fp.indexOf("const up = e =>"));
+  if (!down.length || !move.length) throw new Error('flPlace lost its down/move shape');
+  if (/setPointerCapture\(e\.pointerId\)/.test(down))
+    throw new Error('flPlace captures the pointer on pointerdown — the click after it lands on the panel, not the button');
+  if (!/setPointerCapture|grab\(e\)/.test(move))
+    throw new Error('flPlace never captures the pointer once dragging — a fast drag drops the panel');
+}
+// ...AND `hidden` HIDES THE TRACE. `#ui #telp` (two ids) sets display:flex,
+// so the hide rule must carry two ids too, or the trace shows with `hidden`
+// set — which is what "the trace cannot be hidden any more" was.
+if (!html.includes('#ui #telp[hidden]'))
+  throw new Error('flight.css: #telp[hidden] needs #ui in front of it, or #ui #telp{display:flex} wins');
+
 // ---- THREE stub: chainable no-ops with just enough shape ----
 function mkObj() {
   const o = {

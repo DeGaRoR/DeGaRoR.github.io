@@ -835,9 +835,14 @@ function axleStub(bags, from, axis, reach) {
 function legBeam(bags, AF, P, st, sgn) {
   // A LEG STOPS AT THE WHEEL, and a stub axle carries on to the hub — the
   // blade used to run to the axle CENTRE and so passed through the tyre.
-  const hubIn = st.R * 0.40 + 0.020;
+  // A CENTRE STATION (a nosewheel, x = 0) ROOTS ON THE KEEL (2026-09-04, the
+  // user: "the attachment is on the side, it's weird"): no flank angle, no
+  // hub offset, no stub — the strut drops straight to the swivel and the
+  // castor's own fork carries the wheel. Every two-sided station is unchanged.
+  const cen = st.x <= 0.01, aS = cen ? 0 : sgn;
+  const hubIn = cen ? 0 : st.R * 0.40 + 0.020;
   // G133.1: a mounted blade roots above its own foot (see fitOn)
-  const F = fitOn(AF, st, st.z, sgn * P.beamAng * D2R, -sgn * hubIn);
+  const F = fitOn(AF, st, st.z, aS * P.beamAng * D2R, -aS * hubIn);
   const drop = st.drop, half = st.x;
   // the blade sits ON its doubler, not above it
   const root = off(F.p, F.n, 0.009 + P.beamT * 0.5);
@@ -858,8 +863,8 @@ function legBeam(bags, AF, P, st, sgn) {
     legShroud(bags.fair, path, axle[1] + st.R * 1.04,
               Math.max(st.R * 0.95, P.beamW * 2.1),
               Math.max(P.beamW * 1.30, st.R * 0.34));
-  padOn(bags, AF, st, st.z, sgn * P.beamAng * D2R,
-        P.beamW * 1.5, P.beamW * 1.35, { thick: 0.009 }, -sgn * hubIn);
+  padOn(bags, AF, st, st.z, aS * P.beamAng * D2R,
+        P.beamW * 1.5, P.beamW * 1.35, { thick: 0.009 }, -aS * hubIn);
   // the CLAMP: the blade is trapped between the pad and a machined block
   boxIn(bags.alloy, off(root, F.n, t0 * 0.5 + 0.004),
         [P.beamW * 0.60, 0.012, P.beamW * 0.72],
@@ -869,9 +874,9 @@ function legBeam(bags, AF, P, st, sgn) {
                          F.n, t0 * 0.5 + 0.016), mul(F.n, -1), 0.010, 0.026);
   // axle boss at the tip
   const axis = [sgn, 0, 0];
-  axleStub(bags, axleIn, axis, hubIn);
+  if (!cen) axleStub(bags, axleIn, axis, hubIn);
   // G58.7: `root` is the AIRFRAME anchor — the join pins the leg there
-  return { axle, axis, root: F.p, travel: nrm([sgn * 0.32, 1, 0]) };
+  return { axle, axis, root: F.p, travel: nrm([aS * 0.32, 1, 0]) };
 }
 
 // (b) SWINGING LINK — the axle rides an arm that rotates about a pivot on
@@ -879,10 +884,12 @@ function legBeam(bags, AF, P, st, sgn) {
 // Cub's V-strut-plus-bungee is this with an elastic tie.
 function legLink(bags, AF, P, st, sgn) {
   const drop = st.drop, half = st.x;
-  const ang = sgn * P.linkAng * D2R;
+  // a centre station roots on the keel — see legBeam (2026-09-04)
+  const cen = st.x <= 0.01;
+  const ang = cen ? 0 : sgn * P.linkAng * D2R;
   // G133.1: on a wing mount, every fitting sits above the ARM'S OWN reach
   // (axleIn), not above the wheel — see fitOn
-  const mdx = -sgn * (st.R * 0.40 + 0.020);
+  const mdx = cen ? 0 : -sgn * (st.R * 0.40 + 0.020);
   // WHEEL ANGLE TO THE FUSELAGE, CONTINUOUS: the arm swings about its
   // pivot line, negative trailing through 0 (axle under the pivot) to
   // positive leading. The DROP stays authoritative — swinging the arm
@@ -896,7 +903,7 @@ function legLink(bags, AF, P, st, sgn) {
                         : AF.surf(st.z, sgn * P.linkAng * D2R)[1];
   const axle = [sgn * half, axY,
                 st.z + Math.max(0.02, pivY - axY) * Math.tan(swing)];
-  const hubIn = st.R * 0.40 + 0.020;
+  const hubIn = cen ? 0 : st.R * 0.40 + 0.020;
   const axleIn = [axle[0] - sgn * hubIn, axle[1], axle[2]];
   const PADT = 0.008, R = P.linkArmW * 0.5;
   // THE V: two tubes, their fuselage ends split fore and aft. The line
@@ -958,12 +965,12 @@ function legLink(bags, AF, P, st, sgn) {
   // strut still carries the same bungee — only its upper fitting moves
   // to the far side. NOTE: modelled from the head-on X the user
   // described; if the real J-3 fitting is same-side, flip this back.
-  const xTop = P.linkX > 0.5 ? -sgn : sgn;
+  const xTop = cen ? 0 : (P.linkX > 0.5 ? -sgn : sgn);
   const sTop = fitOn(AF, st, st.z + P.shockZ, xTop * P.shockAng * D2R, mdx);
   const top = off(sTop.p, sTop.n, 0.008 + 0.014);
   const foot = lerp3(vee ? pF : pivot, axleIn, clamp(P.shockAt, 0.15, 0.95));
-  padOn(bags, AF, st, st.z + P.shockZ, sgn * P.shockAng * D2R, 0.11, 0.10,
-        { thick: 0.007 }, mdx);
+  padOn(bags, AF, st, st.z + P.shockZ, (cen ? 0 : sgn) * P.shockAng * D2R,
+        0.11, 0.10, { thick: 0.007 }, mdx);
   const dir = nrm(sub(foot, top));
   const L = len(sub(foot, top));
   const mode = Math.round(P.shockKind);
@@ -1054,10 +1061,12 @@ function legLink(bags, AF, P, st, sgn) {
 // (c) TELESCOPIC OLEO — a sliding piston in a cylinder, held in torsion
 // by a SCISSOR link (the signature element), braced by a drag strut.
 function legOleo(bags, AF, P, st, sgn) {
-  const hubIn = st.R * 0.40 + 0.020;
+  // a centre station roots on the keel — see legBeam (2026-09-04)
+  const cen = st.x <= 0.01, aS = cen ? 0 : sgn;
+  const hubIn = cen ? 0 : st.R * 0.40 + 0.020;
   // G133.1: a mounted oleo roots above its own foot, so the strut hangs
   // dead vertical and the wheel rides its stub axle outboard (see fitOn)
-  const F = fitOn(AF, st, st.z, sgn * P.oleoAng * D2R, -sgn * hubIn);
+  const F = fitOn(AF, st, st.z, aS * P.oleoAng * D2R, -aS * hubIn);
   const drop = st.drop, half = st.x;
   const trunn = off(F.p, F.n, 0.009 + P.oleoDia * 0.42);
   const axle = [sgn * half, AF.keelAt(st.z) - drop, st.z];
@@ -1065,8 +1074,8 @@ function legOleo(bags, AF, P, st, sgn) {
   const dir = nrm(sub(axleIn, trunn));
   const L = len(sub(axleIn, trunn));
   const Rc = P.oleoDia * 0.5;
-  padOn(bags, AF, st, st.z, sgn * P.oleoAng * D2R, 0.19, 0.15,
-        { thick: 0.009 }, -sgn * hubIn);
+  padOn(bags, AF, st, st.z, aS * P.oleoAng * D2R, 0.19, 0.15,
+        { thick: 0.009 }, -aS * hubIn);
   // trunnion: two lugs and the pin the strut swings on
   const pax = nrm(crs(dir, F.fore));
   for (const s of [-1, 1])
@@ -1101,10 +1110,10 @@ function legOleo(bags, AF, P, st, sgn) {
   // drag brace back into the structure
   if (P.oleoBrace) {
     const bTop = fitOn(AF, st, st.z + P.oleoBraceZ,
-                       sgn * P.oleoAng * D2R * 0.6, -sgn * hubIn);
+                       aS * P.oleoAng * D2R * 0.6, -aS * hubIn);
     const bp = off(bTop.p, bTop.n, 0.018);
-    padOn(bags, AF, st, st.z + P.oleoBraceZ, sgn * P.oleoAng * D2R * 0.6,
-          0.10, 0.09, { thick: 0.006 }, -sgn * hubIn);
+    padOn(bags, AF, st, st.z + P.oleoBraceZ, aS * P.oleoAng * D2R * 0.6,
+          0.10, 0.09, { thick: 0.006 }, -aS * hubIn);
     taper(bags.steel, bp, off(trunn, dir, cylL * 0.72), 0.013, 0.010, 12);
   }
   // G133: the oleo's shroud — THE pillar fairing. Chord is sized so the

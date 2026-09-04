@@ -106,7 +106,23 @@ function genLattice(S, gearX, track, kScale) {
     // what binds the timestep here.
     const kGain = cls === 'wing' ? (R.wingK ?? 1) : 1;
     // a gear member is either the SPRING (vis 'leg') or its bracing
-    const kG = vis === 'leg' ? KG : KGB, cG = vis === 'leg' ? CG : CGB;
+    let kG = vis === 'leg' ? KG : KGB, cG = vis === 'leg' ? CG : CGB;
+    // A SHORT SPRING IS A STIFF SPRING (2026-09-04, the user: "quite a few of
+    // my builds break their tailwheel simply on spawning, it just flips").
+    // k was a constant per build, so a 6 cm third-wheel leg deflected the
+    // same 4 cm under the tail's weight that the 23 cm default does — 60 % of
+    // its own length — and the node passed through the plane of its anchors
+    // and latched there (measured: leg strain 0.37, the leg's direction
+    // 70 deg off its rest). The join hands the frame that leg from the DRAWN
+    // spring's hub, so a player's short spring is exactly how it happens.
+    // A real spring of one section is stiffer in proportion to being shorter:
+    // k scales by twLeg/L, floored at 1 so nothing at or above the default
+    // length moves; c by its root, so the damping ratio is what it was. Only
+    // gear springs — the mains' legs are long members and stay at the floor.
+    if (isG && vis === 'leg' && L > 1e-6) {
+      const short = Math.min(4, Math.max(1, R.twLeg / L));
+      kG *= short; cG *= Math.sqrt(short);
+    }
     // MB THROUGHOUT (G117, the user: "WYSIWYG is the rule"): a member is
     // stiff, damped, heavy and priced as WHAT THE SECTION IS BUILT FROM —
     // G116 coupled the mass and the money and deliberately left k/c on the

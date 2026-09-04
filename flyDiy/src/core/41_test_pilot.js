@@ -116,6 +116,8 @@ function makeTestPilot(sim, def, world) {
   let aDe = 0, aDa = 0, aDr = 0, phCA = 0;
   let Ith = 0, thcI = 0.06, It = 0, thrC = 0.6;
   let phaseT = 0, headingCapT = 0, thFlare0 = 0, thLift0 = 0, brakeRamp = 0, holdActive = false, holdWas = false;
+  // THE TAXI GOVERNOR'S INTEGRATOR (2026-09-04). See taxi() below.
+  let taxiI = 0, taxiLastT = -1e9;
   let eAP = 0, eAR = 0, eARslow = 0;
   let eTrim = 0;
   let pendReEng = false;
@@ -303,11 +305,35 @@ function makeTestPilot(sim, def, world) {
       c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
     };
 
+    // THE TAXI GOVERNOR FEEDS BACK ON GROUND SPEED (2026-09-04, the user:
+    // "still too slow on taxi, much too slow ... you might have a constant
+    // throttle, but it really needs to feedback on ground speed"). The G4.9
+    // law was taxiFF — break-even against rolling resistance, which assumes
+    // thrust LINEAR in throttle, and it is not — plus 0.06 per m/s of error
+    // under a cap 0.27 above the feedforward. Measured on the ultralight: it
+    // asked 0.34 and got 1.5 m/s for thirty seconds; on the default build
+    // 1.2 m/s for thirty-five. This is a PI on Vg: the proportional term
+    // answers at once, the integrator finds whatever throttle THIS aeroplane
+    // on THIS surface actually needs, and the command saturates at
+    // A.taxiThrMax (0.85 — a taxi is not a take-off). Anti-windup: the
+    // integrator only moves while the command is not pinned in the direction
+    // it would push. The feedforward stays as the starting guess, so the
+    // first frame asks what it always asked. Overspeed is the brake's, in
+    // proportion, not a 0.45 slam at +1.2. The integrator forgets itself
+    // after two seconds without a taxi call, so a landing's backtrack does
+    // not open the throttle with the departure's memory.
     const taxi = (Vtgt) => {
       c.de = A.taxiDe ?? 0.30;
       const ff = taxiFF();
-      c.thr = clamp(ff + 0.06 * (Vtgt - Vg), 0, ff + 0.27);
-      c.brake = Vg > Vtgt + 1.2 ? 0.45 : 0;
+      const cap = A.taxiThrMax ?? 0.85;
+      if (ap.t - taxiLastT > 2) taxiI = 0;
+      taxiLastT = ap.t;
+      const err = Vtgt - Vg;
+      const u0 = ff + 0.18 * err + taxiI;
+      if ((err > 0 && u0 < cap) || (err < 0 && u0 > 0))
+        taxiI = clamp(taxiI + 0.10 * err * dt, -ff, cap);
+      c.thr = clamp(ff + 0.18 * err + taxiI, 0, cap);
+      c.brake = Vg > Vtgt + 0.8 ? clamp(0.3 * (Vg - Vtgt - 0.8), 0, 0.6) : 0;
       c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
     };
 
@@ -366,7 +392,7 @@ function makeTestPilot(sim, def, world) {
         const dist = Math.hypot(ddx, ddz) || 1e-9;
         ap.targetDir = [ddx / dist, 0, ddz / dist];
         c.dr = clamp(-3.2 * e - 1.2 * eR, -0.45, 0.45);
-        taxi(Math.abs(e) > 0.6 ? 2.2 : 4.5);
+        taxi(Math.abs(e) > 0.6 ? 2.5 : 5.0);
         // G151, carried: only the LAST point hands over to LINEUP, and the
         // intermediate ones hold a tighter radius so a corner-cut cannot clip
         // the gate the route exists to use.

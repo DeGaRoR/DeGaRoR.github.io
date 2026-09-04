@@ -532,7 +532,10 @@
 #ui #mmp #mm { cursor:pointer; }
 #ui .flRailBtn, #ui #pfdFold { cursor:pointer; }
 
-#telp[hidden] { display:none; }
+/* TWO IDS, because `#ui #telp` above is two ids and sets display:flex: a
+   one-id `#telp[hidden]` loses to it and the trace shows with `hidden` SET —
+   which is how the trace "could not be hidden any more" (2026-09-04). */
+#ui #telp[hidden] { display:none; }
 
 /* the header is the handle, so it says so */
 #telHead { display:flex; align-items:baseline; gap:9px; flex:none;

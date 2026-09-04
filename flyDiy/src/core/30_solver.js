@@ -78,11 +78,48 @@ function makeSim(def, world) {
       b.L0 = Math.hypot(p[b.b*3]-p[b.a*3], p[b.b*3+1]-p[b.a*3+1], p[b.b*3+2]-p[b.a*3+2]);
       b.strain = 0;
     }
+    // THE THREE-POINT STANCE (2026-09-04, the user: "quite a few of my builds
+    // break their tailwheel simply on spawning, it just flips"). def.nodes are
+    // the LEVEL attitude: on a taildragger the tail hangs ~1 m in the air and
+    // FALLS onto the tailwheel in the first half second of every spawn
+    // (measured on the default build: TW from y 1.08 to 0.09 in 0.67 s), the
+    // one slam a 6 cm leg cannot take — it drove the node through the plane of
+    // its anchors. So the airframe is pitched about the mains' axle until the
+    // third wheel's contact shares the mains' ground line, BEFORE the first
+    // step: the static stance the settle would have found, without the drop.
+    // A tricycle gets the same treatment onto its nosewheel. Nothing changes
+    // for a build without a third wheel, and a stance out of reach (the small
+    // root of A sin t + B cos t = C does not exist) leaves the pose alone.
+    // NOT CALLED HERE: it is a PLACEMENT step the GAME takes (app.js
+    // applyRoute, right after reset and before placeAtStand), like the stand
+    // itself. Measured: taken inside reset it moved every flying gate's
+    // spawn, and three marginal cases (PILOT hover/card, FLEX alloy, GEN
+    // sink) landed on the other side of their thresholds — the battery's
+    // datum is the level drop + 600-frame settle, and it stays so.
     let minC = Infinity;
     for (let i = 0; i < n; i++) minC = Math.min(minC, p[i*3+1] - r[i]);
     for (let i = 0; i < n; i++) p[i*3+1] += -minC + 0.01 + drop;
     ctl.thr = ctl.de = ctl.da = ctl.dr = ctl.brake = ctl.flap = 0;
     simT = 0;
+  }
+  function stance() {
+    const M = def.refs && def.refs.mains, tw = def.refs && def.refs.tw;
+    if (!M || !M.length || tw == null || tw < 0) return 0;
+    let ax = 0, ay = 0;
+    for (const i of M) { ax += p[i*3]; ay += p[i*3+1]; }
+    ax /= M.length; ay /= M.length;
+    const A = p[tw*3] - ax, B = p[tw*3+1] - ay, C = r[tw] - r[M[0]];
+    const R = Math.hypot(A, B);
+    if (R < 1e-6 || Math.abs(C) > R) return 0;
+    const th = Math.asin(C / R) - Math.atan2(B, A);
+    if (!(Math.abs(th) < 0.6)) return 0;          // 34 deg: past that it is not a stance
+    const cs = Math.cos(th), sn = Math.sin(th);
+    for (let i = 0; i < n; i++) {
+      const dx = p[i*3] - ax, dy = p[i*3+1] - ay;
+      p[i*3] = ax + dx * cs - dy * sn;
+      p[i*3+1] = ay + dx * sn + dy * cs;
+    }
+    return th;
   }
 
   // ---- small vec helpers on flat arrays ----
@@ -628,7 +665,7 @@ function makeSim(def, world) {
   // ever for anything that never changes mass; nothing writes it.
   return { p, v, m, r, beams, n, ctl, out, get totalM() { return totalM; },
            setNodeMass,
-           reset, step, probe, stats, impulse, wheelsOnGround, cgPos, cgVel, axes,
+           reset, stance, step, probe, stats, impulse, wheelsOnGround, cgPos, cgVel, axes,
            setAtmos, setGroundRef, atmos: airOf, thrustAt, probeAir };
 }
 

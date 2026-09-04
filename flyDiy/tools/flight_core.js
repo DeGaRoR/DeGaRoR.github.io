@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: e33e018700259cb7
+// body-sha256: d473ddec8fa4fb5f
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -4698,11 +4698,48 @@ function makeSim(def, world) {
       b.L0 = Math.hypot(p[b.b*3]-p[b.a*3], p[b.b*3+1]-p[b.a*3+1], p[b.b*3+2]-p[b.a*3+2]);
       b.strain = 0;
     }
+    // THE THREE-POINT STANCE (2026-09-04, the user: "quite a few of my builds
+    // break their tailwheel simply on spawning, it just flips"). def.nodes are
+    // the LEVEL attitude: on a taildragger the tail hangs ~1 m in the air and
+    // FALLS onto the tailwheel in the first half second of every spawn
+    // (measured on the default build: TW from y 1.08 to 0.09 in 0.67 s), the
+    // one slam a 6 cm leg cannot take — it drove the node through the plane of
+    // its anchors. So the airframe is pitched about the mains' axle until the
+    // third wheel's contact shares the mains' ground line, BEFORE the first
+    // step: the static stance the settle would have found, without the drop.
+    // A tricycle gets the same treatment onto its nosewheel. Nothing changes
+    // for a build without a third wheel, and a stance out of reach (the small
+    // root of A sin t + B cos t = C does not exist) leaves the pose alone.
+    // NOT CALLED HERE: it is a PLACEMENT step the GAME takes (app.js
+    // applyRoute, right after reset and before placeAtStand), like the stand
+    // itself. Measured: taken inside reset it moved every flying gate's
+    // spawn, and three marginal cases (PILOT hover/card, FLEX alloy, GEN
+    // sink) landed on the other side of their thresholds — the battery's
+    // datum is the level drop + 600-frame settle, and it stays so.
     let minC = Infinity;
     for (let i = 0; i < n; i++) minC = Math.min(minC, p[i*3+1] - r[i]);
     for (let i = 0; i < n; i++) p[i*3+1] += -minC + 0.01 + drop;
     ctl.thr = ctl.de = ctl.da = ctl.dr = ctl.brake = ctl.flap = 0;
     simT = 0;
+  }
+  function stance() {
+    const M = def.refs && def.refs.mains, tw = def.refs && def.refs.tw;
+    if (!M || !M.length || tw == null || tw < 0) return 0;
+    let ax = 0, ay = 0;
+    for (const i of M) { ax += p[i*3]; ay += p[i*3+1]; }
+    ax /= M.length; ay /= M.length;
+    const A = p[tw*3] - ax, B = p[tw*3+1] - ay, C = r[tw] - r[M[0]];
+    const R = Math.hypot(A, B);
+    if (R < 1e-6 || Math.abs(C) > R) return 0;
+    const th = Math.asin(C / R) - Math.atan2(B, A);
+    if (!(Math.abs(th) < 0.6)) return 0;          // 34 deg: past that it is not a stance
+    const cs = Math.cos(th), sn = Math.sin(th);
+    for (let i = 0; i < n; i++) {
+      const dx = p[i*3] - ax, dy = p[i*3+1] - ay;
+      p[i*3] = ax + dx * cs - dy * sn;
+      p[i*3+1] = ay + dx * sn + dy * cs;
+    }
+    return th;
   }
 
   // ---- small vec helpers on flat arrays ----
@@ -5248,7 +5285,7 @@ function makeSim(def, world) {
   // ever for anything that never changes mass; nothing writes it.
   return { p, v, m, r, beams, n, ctl, out, get totalM() { return totalM; },
            setNodeMass,
-           reset, step, probe, stats, impulse, wheelsOnGround, cgPos, cgVel, axes,
+           reset, stance, step, probe, stats, impulse, wheelsOnGround, cgPos, cgVel, axes,
            setAtmos, setGroundRef, atmos: airOf, thrustAt, probeAir };
 }
 
@@ -5421,6 +5458,8 @@ function makeAutopilot(sim, def, world) {
   let aDe = 0, aDa = 0, aDr = 0, phCA = 0;
   let Ith = 0, thcI = 0.06, It = 0, thrC = 0.6;
   let phaseT = 0, headingCapT = 0, thFlare0 = 0, thLift0 = 0, brakeRamp = 0, holdActive = false, holdWas = false;
+  // THE TAXI GOVERNOR'S INTEGRATOR (2026-09-04). See taxi() below.
+  let taxiI = 0, taxiLastT = -1e9;
   let eAP = 0, eAR = 0, eARslow = 0;   // course-over-ground error chain (air guidance)
   let eTrim = 0;                        // wind-only course trim (standing bank for slip)
   let pendReEng = false;                // W14: full state re-latch on next update
@@ -5566,14 +5605,36 @@ function makeAutopilot(sim, def, world) {
     };
 
     // W14 taxi governor: slow ground speed hold, slower through tight turns
+    // THE TAXI GOVERNOR FEEDS BACK ON GROUND SPEED (2026-09-04, the user:
+    // "still too slow on taxi, much too slow ... you might have a constant
+    // throttle, but it really needs to feedback on ground speed"). The G4.9
+    // law was taxiFF — break-even against rolling resistance, which assumes
+    // thrust LINEAR in throttle, and it is not — plus 0.06 per m/s of error
+    // under a cap 0.27 above the feedforward. Measured on the ultralight: it
+    // asked 0.34 and got 1.5 m/s for thirty seconds; on the default build
+    // 1.2 m/s for thirty-five. This is a PI on Vg: the proportional term
+    // answers at once, the integrator finds whatever throttle THIS aeroplane
+    // on THIS surface actually needs, and the command saturates at
+    // A.taxiThrMax (0.85 — a taxi is not a take-off). Anti-windup: the
+    // integrator only moves while the command is not pinned in the direction
+    // it would push. The feedforward stays as the starting guess, so the
+    // first frame asks what it always asked. Overspeed is the brake's, in
+    // proportion, not a 0.45 slam at +1.2. The integrator forgets itself
+    // after two seconds without a taxi call, so a landing's backtrack does
+    // not open the throttle with the departure's memory.
     const taxi = (Vt) => {
-      c.de = A.taxiDe ?? 0.30;             // stick aft: tailwheel planted, steering bites
-      // taxiFF cancels rolling resistance, the speed error does the rest, and
-      // the cap rises with the feedforward so a heavy-footed aeroplane still
-      // has the same 0.27 of authority ABOVE break-even that 0.35 used to mean.
+      const Vtgt = Vt;
+      c.de = A.taxiDe ?? 0.30;
       const ff = taxiFF();
-      c.thr = clamp(ff + 0.06 * (Vt - Vg), 0, ff + 0.27);
-      c.brake = Vg > Vt + 1.2 ? 0.45 : 0;
+      const cap = A.taxiThrMax ?? 0.85;
+      if (ap.t - taxiLastT > 2) taxiI = 0;
+      taxiLastT = ap.t;
+      const err = Vtgt - Vg;
+      const u0 = ff + 0.18 * err + taxiI;
+      if ((err > 0 && u0 < cap) || (err < 0 && u0 > 0))
+        taxiI = clamp(taxiI + 0.10 * err * dt, -ff, cap);
+      c.thr = clamp(ff + 0.18 * err + taxiI, 0, cap);
+      c.brake = Vg > Vtgt + 0.8 ? clamp(0.3 * (Vg - Vtgt - 0.8), 0, 0.6) : 0;
       c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
     };
 
@@ -6103,6 +6164,8 @@ function makeTestPilot(sim, def, world) {
   let aDe = 0, aDa = 0, aDr = 0, phCA = 0;
   let Ith = 0, thcI = 0.06, It = 0, thrC = 0.6;
   let phaseT = 0, headingCapT = 0, thFlare0 = 0, thLift0 = 0, brakeRamp = 0, holdActive = false, holdWas = false;
+  // THE TAXI GOVERNOR'S INTEGRATOR (2026-09-04). See taxi() below.
+  let taxiI = 0, taxiLastT = -1e9;
   let eAP = 0, eAR = 0, eARslow = 0;
   let eTrim = 0;
   let pendReEng = false;
@@ -6290,11 +6353,35 @@ function makeTestPilot(sim, def, world) {
       c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
     };
 
+    // THE TAXI GOVERNOR FEEDS BACK ON GROUND SPEED (2026-09-04, the user:
+    // "still too slow on taxi, much too slow ... you might have a constant
+    // throttle, but it really needs to feedback on ground speed"). The G4.9
+    // law was taxiFF — break-even against rolling resistance, which assumes
+    // thrust LINEAR in throttle, and it is not — plus 0.06 per m/s of error
+    // under a cap 0.27 above the feedforward. Measured on the ultralight: it
+    // asked 0.34 and got 1.5 m/s for thirty seconds; on the default build
+    // 1.2 m/s for thirty-five. This is a PI on Vg: the proportional term
+    // answers at once, the integrator finds whatever throttle THIS aeroplane
+    // on THIS surface actually needs, and the command saturates at
+    // A.taxiThrMax (0.85 — a taxi is not a take-off). Anti-windup: the
+    // integrator only moves while the command is not pinned in the direction
+    // it would push. The feedforward stays as the starting guess, so the
+    // first frame asks what it always asked. Overspeed is the brake's, in
+    // proportion, not a 0.45 slam at +1.2. The integrator forgets itself
+    // after two seconds without a taxi call, so a landing's backtrack does
+    // not open the throttle with the departure's memory.
     const taxi = (Vtgt) => {
       c.de = A.taxiDe ?? 0.30;
       const ff = taxiFF();
-      c.thr = clamp(ff + 0.06 * (Vtgt - Vg), 0, ff + 0.27);
-      c.brake = Vg > Vtgt + 1.2 ? 0.45 : 0;
+      const cap = A.taxiThrMax ?? 0.85;
+      if (ap.t - taxiLastT > 2) taxiI = 0;
+      taxiLastT = ap.t;
+      const err = Vtgt - Vg;
+      const u0 = ff + 0.18 * err + taxiI;
+      if ((err > 0 && u0 < cap) || (err < 0 && u0 > 0))
+        taxiI = clamp(taxiI + 0.10 * err * dt, -ff, cap);
+      c.thr = clamp(ff + 0.18 * err + taxiI, 0, cap);
+      c.brake = Vg > Vtgt + 0.8 ? clamp(0.3 * (Vg - Vtgt - 0.8), 0, 0.6) : 0;
       c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
     };
 
@@ -6353,7 +6440,7 @@ function makeTestPilot(sim, def, world) {
         const dist = Math.hypot(ddx, ddz) || 1e-9;
         ap.targetDir = [ddx / dist, 0, ddz / dist];
         c.dr = clamp(-3.2 * e - 1.2 * eR, -0.45, 0.45);
-        taxi(Math.abs(e) > 0.6 ? 2.2 : 4.5);
+        taxi(Math.abs(e) > 0.6 ? 2.5 : 5.0);
         // G151, carried: only the LAST point hands over to LINEUP, and the
         // intermediate ones hold a tighter radius so a corner-cut cannot clip
         // the gate the route exists to use.
@@ -10867,7 +10954,23 @@ function genLattice(S, gearX, track, kScale) {
     // what binds the timestep here.
     const kGain = cls === 'wing' ? (R.wingK ?? 1) : 1;
     // a gear member is either the SPRING (vis 'leg') or its bracing
-    const kG = vis === 'leg' ? KG : KGB, cG = vis === 'leg' ? CG : CGB;
+    let kG = vis === 'leg' ? KG : KGB, cG = vis === 'leg' ? CG : CGB;
+    // A SHORT SPRING IS A STIFF SPRING (2026-09-04, the user: "quite a few of
+    // my builds break their tailwheel simply on spawning, it just flips").
+    // k was a constant per build, so a 6 cm third-wheel leg deflected the
+    // same 4 cm under the tail's weight that the 23 cm default does — 60 % of
+    // its own length — and the node passed through the plane of its anchors
+    // and latched there (measured: leg strain 0.37, the leg's direction
+    // 70 deg off its rest). The join hands the frame that leg from the DRAWN
+    // spring's hub, so a player's short spring is exactly how it happens.
+    // A real spring of one section is stiffer in proportion to being shorter:
+    // k scales by twLeg/L, floored at 1 so nothing at or above the default
+    // length moves; c by its root, so the damping ratio is what it was. Only
+    // gear springs — the mains' legs are long members and stay at the floor.
+    if (isG && vis === 'leg' && L > 1e-6) {
+      const short = Math.min(4, Math.max(1, R.twLeg / L));
+      kG *= short; cG *= Math.sqrt(short);
+    }
     // MB THROUGHOUT (G117, the user: "WYSIWYG is the rule"): a member is
     // stiff, damped, heavy and priced as WHAT THE SECTION IS BUILT FROM —
     // G116 coupled the mass and the money and deliberately left k/c on the

@@ -166,6 +166,8 @@ function makeAutopilot(sim, def, world) {
   let aDe = 0, aDa = 0, aDr = 0, phCA = 0;
   let Ith = 0, thcI = 0.06, It = 0, thrC = 0.6;
   let phaseT = 0, headingCapT = 0, thFlare0 = 0, thLift0 = 0, brakeRamp = 0, holdActive = false, holdWas = false;
+  // THE TAXI GOVERNOR'S INTEGRATOR (2026-09-04). See taxi() below.
+  let taxiI = 0, taxiLastT = -1e9;
   let eAP = 0, eAR = 0, eARslow = 0;   // course-over-ground error chain (air guidance)
   let eTrim = 0;                        // wind-only course trim (standing bank for slip)
   let pendReEng = false;                // W14: full state re-latch on next update
@@ -311,14 +313,36 @@ function makeAutopilot(sim, def, world) {
     };
 
     // W14 taxi governor: slow ground speed hold, slower through tight turns
+    // THE TAXI GOVERNOR FEEDS BACK ON GROUND SPEED (2026-09-04, the user:
+    // "still too slow on taxi, much too slow ... you might have a constant
+    // throttle, but it really needs to feedback on ground speed"). The G4.9
+    // law was taxiFF — break-even against rolling resistance, which assumes
+    // thrust LINEAR in throttle, and it is not — plus 0.06 per m/s of error
+    // under a cap 0.27 above the feedforward. Measured on the ultralight: it
+    // asked 0.34 and got 1.5 m/s for thirty seconds; on the default build
+    // 1.2 m/s for thirty-five. This is a PI on Vg: the proportional term
+    // answers at once, the integrator finds whatever throttle THIS aeroplane
+    // on THIS surface actually needs, and the command saturates at
+    // A.taxiThrMax (0.85 — a taxi is not a take-off). Anti-windup: the
+    // integrator only moves while the command is not pinned in the direction
+    // it would push. The feedforward stays as the starting guess, so the
+    // first frame asks what it always asked. Overspeed is the brake's, in
+    // proportion, not a 0.45 slam at +1.2. The integrator forgets itself
+    // after two seconds without a taxi call, so a landing's backtrack does
+    // not open the throttle with the departure's memory.
     const taxi = (Vt) => {
-      c.de = A.taxiDe ?? 0.30;             // stick aft: tailwheel planted, steering bites
-      // taxiFF cancels rolling resistance, the speed error does the rest, and
-      // the cap rises with the feedforward so a heavy-footed aeroplane still
-      // has the same 0.27 of authority ABOVE break-even that 0.35 used to mean.
+      const Vtgt = Vt;
+      c.de = A.taxiDe ?? 0.30;
       const ff = taxiFF();
-      c.thr = clamp(ff + 0.06 * (Vt - Vg), 0, ff + 0.27);
-      c.brake = Vg > Vt + 1.2 ? 0.45 : 0;
+      const cap = A.taxiThrMax ?? 0.85;
+      if (ap.t - taxiLastT > 2) taxiI = 0;
+      taxiLastT = ap.t;
+      const err = Vtgt - Vg;
+      const u0 = ff + 0.18 * err + taxiI;
+      if ((err > 0 && u0 < cap) || (err < 0 && u0 > 0))
+        taxiI = clamp(taxiI + 0.10 * err * dt, -ff, cap);
+      c.thr = clamp(ff + 0.18 * err + taxiI, 0, cap);
+      c.brake = Vg > Vtgt + 0.8 ? clamp(0.3 * (Vg - Vtgt - 0.8), 0, 0.6) : 0;
       c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
     };
 

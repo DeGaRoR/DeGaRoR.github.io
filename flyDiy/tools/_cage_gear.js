@@ -318,10 +318,21 @@ PAGE.post = ctx => {
         // a nose spat sits on its fork, a main spat on its own leg, so
         // the flown aeroplane carries them with the moving parts
         if (st.steer > 0 && st.x < 0.01) {
-          const u = GG.castorUnit(lb, st.P, r.axle, sgn, st.R, st.P.twSteer, false);
+          // 2026-09-04 (the user: "the tricycle configuration tries strange
+          // things for the front wheel"): the nose castor used to be drawn
+          // INTO THE LEG'S bags, so the join stretched fork and spat with the
+          // spring, and it never yawed — only the tailwheel's castor was
+          // registered as the yawing part. It is its own bag-set now, handed
+          // out through castorUnitOut exactly as legTailwheel's is; the wheel
+          // rides inside it in the game (app.js: the tw wheel is the castor's
+          // child, and refs.tw IS the nosewheel on a tricycle).
+          const cb = allBags();
+          const u = GG.castorUnit(cb, st.P, r.axle, sgn, st.R, st.P.twSteer, false);
           GG.wheel(wu.proxy, u.hub, u.axis, st.R, { brake: !!st.brake, P: st.P });
-          if (st.fair) GG.spat(lb, u.hub, u.axis, st.R, fOpt);
-          r = { axle: u.hub, axis: u.axis, travel: r.travel };
+          if (st.fair) GG.spat(cb, u.hub, u.axis, st.R, fOpt);
+          castorUnitOut = { bags: cb, top: u.top, ax: u.ax, axle: u.hub };
+          r = { axle: u.hub, axis: u.axis, root: r.root, tip: u.top,
+                travel: r.travel };
         } else {
           GG.wheel(wu.proxy, r.axle, r.axis, st.R,
                    { brake: !!st.brake, inboard: sgn, P: st.P });

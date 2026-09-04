@@ -621,5 +621,35 @@ const totalT = built.reduce((s, L) =>
 console.log(`  ${built.length} leg families, ${BAGS.length} declared bags,` +
   ` ${totalT} triangles measured`);
 for (const f of fail) console.log('  FAIL ' + f);
+// ---------------------------------------------------------------------------
+// 7 A CENTRE STATION ROOTS ON THE KEEL (2026-09-04)
+// ---------------------------------------------------------------------------
+// The user, on a tricycle: "the attachment is on the side, it's weird". Every
+// leg builder rooted at sgn * <family>Ang on the FLANK, which is right for a
+// two-sided station and wrong for the one wheel that sits at x = 0: the nose
+// strut leaned in from one side of the fuselage to a centreline wheel. A
+// centre station roots at the keel now — x within a centimetre of zero and
+// BELOW the flank root a two-sided station of the same family gets.
+{
+  for (let kind = 0; kind < 3; kind++) {
+    const P = JSON.parse(JSON.stringify(P0));
+    const st0 = GP.gearStations(P)[0];
+    const fn = [GG.legBeam, GG.legLink, GG.legOleo][kind];
+    const side = fn(freshBags(), AF, st0.P, Object.assign({}, st0, { leg: kind }), 1);
+    const cen = fn(freshBags(), AF, st0.P,
+                   Object.assign({}, st0, { leg: kind, x: 0, steer: 1 }), 1);
+    check(!!cen.root && Math.abs(cen.root[0]) < 0.01,
+      `${LEGNAME[kind]}: a centre station roots off the centreline`,
+      cen.root ? 'root x ' + cen.root[0].toFixed(3) : 'no root');
+    check(!!cen.root && !!side.root && cen.root[1] < side.root[1] - 0.02,
+      `${LEGNAME[kind]}: a centre station's root is not below the flank root`,
+      (cen.root && side.root) ? cen.root[1].toFixed(3) + ' vs ' + side.root[1].toFixed(3) : '');
+    check(Math.abs(cen.axle[0]) < 1e-9,
+      `${LEGNAME[kind]}: a centre station's axle left the centreline`);
+    check(!!side.root && Math.abs(side.root[0]) > 0.05,
+      `${LEGNAME[kind]}: a two-sided station stopped rooting on the flank`);
+  }
+}
+
 console.log('GATE GEAR: ' + (fail.length ? 'FAIL' : 'PASS'));
 process.exit(fail.length ? 1 : 0);

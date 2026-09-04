@@ -28692,3 +28692,175 @@ later").
   a "stuck in TAKEOFF ROLL at 0 % throttle" read was the instrument, not the
   aeroplane ([[seeing-the-browser-pane]] again). Anything about motion is
   measured in node; the pane verifies DOM and pixels only.
+
+## G169 — THE LEFT BAR WENT DEAD, AND THE START IS THE PLAYER'S (2026-09-04)
+
+The user's playtest, in flight: "None of the left bar controls seem to work
+anymore. The minimap is not displayed anymore. The trace cannot be hidden
+anymore." Three symptoms, two causes, neither of them a code change in the
+tree — and one option added.
+
+**1. Chrome 148 retargets the click to the element holding pointer capture.**
+`flPlace` (G141.3) took `setPointerCapture` on POINTERDOWN so that a panel
+drag could not lose its pointer; the click that ends a non-drag press was
+then still dispatched to the BUTTON under it, and everything in the ribbon,
+the PFD's fold and the map's canvas pressed. The browser's rule moved:
+pointerup and the click after it now go to the capturing element, so every
+press on the ribbon became a click on `#flRail` itself. Measured with a
+capturing document listener: `pointerdown -> svg (inside the button)`,
+`pointerup -> DIV#flRail`, `click -> DIV#flRail`. A scripted `.click()` still
+worked, which is why nothing in the smoke gate saw it. No console error.
+The pointer is captured only once the 4 px threshold has made the gesture a
+drag (in pointermove; the grip captures at once since it has nothing to
+press). GATE UISMOKE pins it: the `down` handler must contain no
+`setPointerCapture`, the `pointermove` handler must.
+
+**2. `#ui #telp { display:flex }` outranked `#telp[hidden]`.** Two ids beat
+one id plus an attribute, so the trace showed with `hidden` SET — and the
+toggle that would have hidden it was behind the dead ribbon. The hide rule
+is `#ui #telp[hidden]` now (the same specificity trap G141 already recorded
+for `#ui #pfd`); the smoke gate greps for it. The trace's DEFAULT was already
+off (`panels.trace:false`); a browser whose saved pref says on keeps its
+choice, and one click in the trace flyout turns it off.
+
+**3. The map was never broken** — it is summoned (G141), off by default, and
+its `show` toggle was behind the same dead ribbon.
+
+**The start.** "The planes are really a lot too slow when rolling out of the
+hangar ... an option to just remove that. In the left bar somewhere." A sixth
+ribbon question, `start` — "Where the flight starts" — with one toggle,
+`taxi out` (from the stand / lined up), pref `flydiy.flStart` = `taxi` |
+`lineup`, read by `applyRoute` on every call so RESTART applies it. Off, the
+aeroplane takes the pre-G151 path verbatim: `placeAtAerodrome` on the spawn
+identity, no `departFrom`, the pilot starts in ROLL. Default stays `taxi`.
+
+Measured headless (the default garage build, `makeTestPilot`, the gates'
+own runner), lined up vs from the stand:
+
+    lined up   ROLL at 0 s, throttle open at 0.5 s, LIFTOFF 13.6 s, CLIMB 24.4 s, 50 m agl at 34 s
+    stand      TAXI 0-58 s (1.2 m/s for the first 35 s, 4 m/s after the turn),
+               LINEUP 58 s, ROLL 59 s, LIFTOFF 70 s, 50 m agl at 91 s
+
+So the "too slow" is the G151-noted debt exactly: the taxi governor is
+thrust-limited at ~1.2 m/s where a real taxi is 4-5 (`taxiFF` assumes thrust
+linear in throttle). Raising it moves every taxi in the battery — the user's
+call, deferred by the user ("we'll see what we do with the roll out behaviour
+later").
+
+**Traps paid for on the way:**
+- `st && st.stand && flStartTaxi()` is `true`, not the stand. Placed at
+  `true`, the aeroplane went NaN the moment it moved, and the world went black
+  behind a NaN camera. Caught live, in the first minute of verification.
+- **The Browser pane throttles rAF to ~1 frame in 3 s** while the game is
+  up. The sim only stepped when a click or a screenshot pumped a frame, so
+  a "stuck in TAKEOFF ROLL at 0 % throttle" read was the instrument, not the
+  aeroplane ([[seeing-the-browser-pane]] again). Anything about motion is
+  measured in node; the pane verifies DOM and pixels only.
+
+## G170 — THE TAXI, THE TAIL WHEEL, AND THE STANCE (2026-09-04)
+
+The user's second batch, after G169: "still too slow on taxi, much too slow.
+Also check that the tail wheel turns in the right direction. And finally,
+quite a few of my builds break their tailwheel simply on spawning, it just
+flips ... And the tricycle configuration tries strange things for the front
+wheel, the attachment is on the side ... You can test the taxi speed with the
+ultralight archetype. It almost never reaches the runway. You might have a
+constant throttle, but it really needs to feedback on ground speed."
+
+**1. The taxi governor is a PI on ground speed** (`taxi()` in BOTH pilots,
+40_autopilot and 41_test_pilot). The G4.9 law was `taxiFF` — break-even
+against rolling resistance, which assumes thrust LINEAR in throttle, and it
+is not — plus 0.06 per m/s of error under a cap 0.27 above the feedforward.
+Measured headless on the ultralight archetype (`designBake('ul1')`, the
+gates' own runner, from the stand): it asked 0.34 and held 1.4-1.7 m/s for
+thirty seconds. Now: P 0.18 per m/s, I 0.10 per m/s per s with anti-windup
+(the integrator moves only while the command is not pinned), cap
+`A.taxiThrMax` (0.85), proportional brake above target +0.8 m/s, and the
+integrator forgets itself after two seconds without a taxi call so a
+landing's backtrack does not open the throttle with the departure's memory.
+The test pilot's targets are 5.0 m/s straight and 2.5 in a turn (were 4.5 /
+2.2); the donor keeps its numbers.
+
+    ultralight (ul1)   TAXI 1-50.6 s -> 1-23.6 s   LIFTOFF 59.9 s -> 32.6 s
+    default build      TAXI 0-58 s   -> 0-22.9 s   LIFTOFF 70.1 s -> 34.6 s
+    lined up (G169 option)             unchanged: LIFTOFF 13.6 s
+
+**2. The tail wheel steered the right way in the SOLVER and the wrong way
+on the SCREEN.** Measured first: with dr = +0.4 the ground yaw at taxi
+speed and the aerodynamic yaw at 25 m/s have the same sense on both a
+taildragger (twSteer 0.5) and a tricycle (-0.35) — the physics agrees with
+itself. The drawn castor (app.js castorRig) rotated by `-dr` about its
+SWIVEL axis, which points DOWN; the solver rotates the rolling direction by
+`-twSteer*dr` about +y (30_solver). Opposite sense, twice the angle. The
+join maps cage to model by a pure rotation (`px = -v.z, pz = v.x`, det +1),
+so the sense survives it. It now rotates by `-twSteer*dr` about +y projected
+onto the swivel's own direction, and a nosewheel's negative twSteer falls
+out of the same line.
+
+**3. The tricycle's nose leg.** Two things. The leg builders (`legBeam` /
+`legLink` / `legOleo`, tools/_gear_gen.js) rooted every station at
+`sgn * <family>Ang` on the FLANK with a hub offset and a stub axle — right
+for a two-sided station, and on the one wheel at x = 0 it leaned a strut in
+from one side of the fuselage to a centreline wheel. A centre station roots
+on the keel now (no flank angle, no hub offset, no stub); two-sided stations
+are byte-identical. GATE GEAR §7 pins it for all three families. And the
+nose CASTOR was drawn into the leg's own bags, so the join stretched fork
+and spat with the spring and it never yawed — only `legTailwheel`'s castor
+was registered as the yawing part. It is its own bag-set now, handed out
+through `castorUnitOut` exactly as the tailwheel's is; in the game the nose
+wheel rides inside it (`refs.tw` IS the nosewheel on a tricycle).
+
+**4. The tail wheel that "flips on spawning" — measured, and it was the
+SPAWN, not the wheel.** No archetype flipped, at rest or dropped from
+1.2 m. What flipped was a build whose tail-wheel node sits within ~12 cm
+below the tail-post foot — which is exactly what the join hands the frame
+from a player's SHORT drawn spring (it measures `twY` off the castor's hub).
+Traced: `def.nodes` are the LEVEL attitude, so the tail hangs a metre in the
+air and FALLS onto the tail wheel in the first 0.67 s of every spawn (TW y
+1.08 -> 0.09), and a 6 cm leg took that slam through the plane of its
+anchors (leg strain 0.37, direction 70 deg off rest). Two cures, both kept:
+- **`sim.stance()`, a PLACEMENT step the GAME takes** (app.js applyRoute,
+  right after reset and before placeAtStand, like the stand itself): the
+  airframe is pitched about the mains' axle until the third wheel's contact
+  shares the mains' ground line, BEFORE the first step — the small root of
+  A sin t + B cos t = C, refused past 34 deg. A tricycle settles onto its
+  nosewheel the same way. FIRST WRITTEN INSIDE `reset()`, and measured out
+  of it: with every gate spawning in the stance, three MARGINAL cases landed
+  on the other side of their thresholds — PILOT's hover (a balked attempt
+  at 55 s instead of wont-climb at 73 s) and card (57 of 70 m), FLEX's
+  "2024 alloy sheet never reached cruise", GEN's landing sink 1.47 > 1.2 —
+  while the same tree with the one call commented out reproduced HEAD's
+  PILOT and FLEX to the decimal. The battery's datum is the level drop plus
+  the 600-frame settle, and it stays so; the game gets the stance. GATE
+  PILOT carries a STANCE case (the 6 cm leg, spawned both ways: with the
+  stance dot 0.84 / strain 0.03, the level drop dot 0.39 / strain 0.26 — the
+  drop is the negative control).
+- **A short spring is a stiff spring** (`B()` in 61_gen_frame): a gear
+  `leg` member's k scales by `twLeg / L`, floored at 1 (nothing at or above
+  the default length moves), c by its root. A 6 cm leg was deflecting the
+  same 4 cm the 23 cm default does — 60 % of its own length.
+  After both: worst case in the sweep (twY = TPB - 2 cm) strain 0.45 -> 0.16,
+  no direction reversal anywhere.
+
+**What did not change:** the G151 ruling that the taxi's route belongs to the
+place; the taildragger's twSteer; the spawn identity (HOME.spawn); the fleet
+fiches; every gate's spawn. GATE GEAR, JOIN, SITE, UISMOKE, PILOT standalone
+PASS; the battery's line is in the commit.
+
+**A/B METHOD WORTH KEEPING:** `git archive HEAD flyDiy/src flyDiy/tools
+flyDiy/vendor | tar -x -C <scratch>` builds a pristine core in 30 s without
+touching the shared working copy (six sessions write here; a checkout or a
+stash would move their files). A second copy of the WORKING tree with one
+call commented out is what attributed the reds to the stance and cleared
+the governor and the spring.
+
+**Traps paid for:**
+- `a && b && c` yields `c` — see G169; the same shape nearly recurred in the
+  stance solver, so the root selection is written out.
+- A quantity that only exists after `ap.update` (`ap.dbg`) prints an empty
+  key list before the first frame; the probe printed V from it anyway.
+- The Browser pane will not orbit the game's camera from `CAGE_UI.setView`
+  (that is the cage editor's own), and its `centre` argument re-targets the
+  GAME's orbit onto the tail; the ribbon's camera presets are the only
+  honest way to a nose view. The nose gear was verified numerically (GATE
+  GEAR §7) and by the first screenshot after the layout switch.

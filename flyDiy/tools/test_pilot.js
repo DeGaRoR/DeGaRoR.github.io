@@ -42,7 +42,7 @@
 // node tools/test_pilot.js --selftest -> negative verification of the checks
 //    themselves, on doctored reports: a check that cannot fail gates nothing.
 'use strict';
-const { makeSim, makeTestPilot, makeWorld, buildGen } = require('./flight_core.js');
+const { makeSim, makeTestPilot, makeWorld, buildGen, GEN_DEFAULT } = require('./flight_core.js');
 
 const fails = [];
 const check = (ok, label, extra) => {
@@ -210,6 +210,55 @@ const heavy = fly({ engines: [{ type: 'eppg_direct_130' }],
                     cargo: { len: 1.2, kg: 400 } }, 90);
 for (const v of heavy.report.verdicts) console.log('   ' + v.t + 's ' + v.code + ' — ' + v.note);
 checkHeavy(heavy);
+
+// STANCE (G170, the user: "quite a few of my builds break their tailwheel
+// simply on spawning, it just flips"). The game spawns through sim.stance()
+// — pitched onto its three points before the first step — where a gate
+// spawns level and lets the tail fall. A build whose tail-wheel node sits
+// 6 cm below the tail-post foot (what the join hands the frame from a short
+// drawn spring) took that fall through the plane of its anchors: leg strain
+// 0.37, the leg's direction 70 deg off rest. Measured here the game's way:
+// the leg keeps its direction and its strain stays under a fifth.
+console.log('-- STANCE: a 6 cm tail-wheel leg, spawned the way the game spawns --');
+{
+  const world = makeWorld();
+  const base = buildGen();
+  const tpbY = base.nodes.find(n => n.tag === 'TPB').p[1];
+  const spec = JSON.parse(JSON.stringify(GEN_DEFAULT));
+  spec.gear.twY = tpbY - 0.06;
+  const def = buildGen(spec);
+  const sim = makeSim(def, world);
+  const run = (withStance) => {
+    sim.reset(0);
+    const th = withStance ? sim.stance() : 0;
+    const iTW = def.refs.tw, iTPB = def.nodes.findIndex(n => n.tag === 'TPB');
+    const P = i => [sim.p[i*3], sim.p[i*3+1], sim.p[i*3+2]];
+    const r0 = P(iTW).map((v, k) => v - P(iTPB)[k]);
+    let minDot = 1, strain = 0;
+    const leg = sim.beams.find(b => (b.a === iTW || b.b === iTW) && b.vis === 'leg');
+    for (let s = 0; s < 8 * 60; s++) {
+      sim.ctl.brake = 0.6; sim.step(1 / 60);
+      const r = P(iTW).map((v, k) => v - P(iTPB)[k]);
+      const d = (r[0]*r0[0] + r[1]*r0[1] + r[2]*r0[2]) /
+                ((Math.hypot(...r0) * Math.hypot(...r)) || 1);
+      minDot = Math.min(minDot, d);
+      if (leg) strain = Math.max(strain, Math.abs(leg.strain || 0));
+    }
+    return { th, minDot, strain, nan: sim.stats().bad };
+  };
+  const a = run(true), b = run(false);
+  console.log('   stance ' + (a.th * 57.3).toFixed(1) + ' deg | with: dot ' +
+              a.minDot.toFixed(2) + ' strain ' + a.strain.toFixed(3) +
+              ' | level drop: dot ' + b.minDot.toFixed(2) + ' strain ' + b.strain.toFixed(3));
+  check(!a.nan && Math.abs(a.th) > 0.05, 'stance: the airframe was pitched onto its third wheel',
+        (a.th * 57.3).toFixed(1) + ' deg');
+  check(a.minDot > 0.7, 'stance: the short leg keeps its direction', 'dot ' + a.minDot.toFixed(2));
+  check(a.strain < 0.2, 'stance: the short leg stays under a fifth of strain', a.strain.toFixed(3));
+  // NEGATIVE CONTROL: the level drop on the same build is the failure the
+  // stance exists for — if it ever stops being one, the check above is moot
+  check(b.strain > a.strain, 'stance: the level drop is worse than the stance on the same build',
+        b.strain.toFixed(3) + ' vs ' + a.strain.toFixed(3));
+}
 
 console.log('-- HOVER: rotax582 + 360 kg cargo --');
 const hover = fly({ engines: [{ type: 'rotax582_ivo' }],
