@@ -689,8 +689,17 @@ const CAGE_PARTS = [
   // names say WHICH vessel, so two tanks are two selections. A tank inside the
   // covering is reached the way the engine and the cockpit already are, with
   // `see inside`: what you can see through, you can click through.
+  //
+  // TWO DOORS INTO THE SAME GLOBAL (2026-09-05, the user: "we need this wired
+  // into the livery UI. Click on tank -> finish -> choose the tank material
+  // and tint"). `panel` is the structure column's — the tanks, their bays,
+  // their capacity — and `panelFinish` is the finish column's: what the shell
+  // is made of and what tints it. A tank takes no livery (it is an object with
+  // a material, not covering, so it claims no `sections`), and before this its
+  // look rows sat among the placement sliders, which is the same misfiling
+  // G108 called a big mistake in the other direction.
   { key: 'energy', name: 'Fuel & energy', parent: 'power', layer: 'energy',
-    panel: 'CAGE_ENERGY' },
+    panel: 'CAGE_ENERGY', panelFinish: 'CAGE_ENERGY' },
 
   // =========================================================================
   // RUNNING GEAR — the undercarriage bench (G20), two stations and one wheel

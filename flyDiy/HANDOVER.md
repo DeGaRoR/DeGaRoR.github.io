@@ -30194,3 +30194,113 @@ The check reads the layer sources for `window.<name> = {` and requires a
 `panel:` in it, and holds that such a part claims no parameter, no section and
 no body zone. Negative-probed by pointing the part at a global that does not
 exist: FAIL, with the reason.
+
+### G179.5 — THE NACELLES PAY, AND A TIP LIGHT IS A CATALOGUE PART
+### (2026-09-05, the user: "add the nacelle drag for wing-mounted engines.
+### As a side task, the lights positioned on wing and fin tips are wrong.
+### Wrongest is that they try to size with IDK what. Keep the positioning,
+### but give them a single size and shape")
+
+- **Nacelle drag** (`genParams`, 62_gen_aero): every engine whose mount is
+  not the nose adds its own frontal — the engine box's width to the
+  cylinder reach by its height — at a bare block's Cd 0.90, or a cowled
+  nacelle's 0.30 when the cage's cowl row is on. Axial only (the gear
+  rule). The twin: best L/D 7.47 → 6.96 at 75 km/h, cruise 3.90 → 3.41;
+  the stock nose-engined build byte-identical. ARCHETYPES/GEN re-flown.
+- **Tip lights** (`_cage_light.js`): `TIP_POD = { len 0.14, wide 0.055,
+  high 0.048, r 0.020 }` — the nav lights and the fin beacon are the same
+  fitting on every aeroplane, positioned exactly as before (the sites are
+  untouched), scaled only by `li_lampSize`; `li_podLen`/`li_podGirth`
+  still multiply from 1. They used to take girth from the surface's
+  thickness and length from the tip chord, so a thick tip grew a fat lamp
+  and a thin fin a sliver. Measured on the user's build: both tips 47 × 55
+  × 143 mm. Gates LIGHT, BEACON, BAY green.
+
+
+## G182.1 — AND THE LOOK MOVES TO THE FINISH TAB (2026-09-05, the user: "we
+## need this wired into the livery UI. Click on tank -> finish -> choose the
+## tank material and tint")
+
+G182 made the tank's material FLY. This puts it where a look is chosen. The
+three rows (`material`, `paint hue`, `tint`) were sitting among the placement
+sliders in the energy panel, which is G108's complaint in the other direction —
+a LOOK filed under structure.
+
+**The door is declared, not special-cased.** `_cage_parts.js`'s `Fuel & energy`
+part already named `panel: 'CAGE_ENERGY'` for the structure column (2026-09-05,
+the tree/click work); it now also names `panelFinish: 'CAGE_ENERGY'`, and
+`renderFinish` asks a part's declared global for its own finish panel exactly as
+the shape view asks for `panel`. editor.js learns nothing about vessels; a
+second layer with a look of its own needs one field, not a branch.
+
+**ONE BUILDER, TWO HOMES.** `renderLook()` builds the rows into their own
+element. The GAME takes it through the finish door; the BENCH — which has no
+part tree and no tabs — borrows the same element into its panel
+(`if (!inGame()) B.appendChild(lookElement())`). Never both: an element has one
+parent, and two colour wells for one fact is the drift G103 moved the whole
+livery to avoid. GATE ENERGY counts the builders (one `select(B, 'material'`,
+one `type = 'color'`) so a copy cannot be added quietly.
+
+The tint well now goes through `CAGE_RECENT.attach` like every other well
+(G156) — the recent-colours strip, on hover. That is the argument for the move
+in one line: one well, one recent list.
+
+WHAT IT IS NOT: per-tank. `finish`/`hue`/`tint` are section-wide beside
+`vessel`, which is the shape `spec.energy` has had since G105, and the heading
+says so — `Fuel & energy · every vessel aboard`. Per-tank colour is a field on
+every list entry plus a migration, and nobody has asked to paint two tanks
+differently.
+
+VERIFIED LIVE (dev.html, the whole path): the hit app.js delivers from a ray on
+the tank (`{name:'edVessel_0_shell', layer:'energy'}`) selects the part, the
+FINISH tab shows `material / paint hue / tint`, picking `painted metal` grows
+the hue row, and a tint of #c03018 reaches `material.color` on the drawn shell
+and `spec.energy.tint` in the same gesture. The STRUCTURE tab keeps the tanks,
+bays and capacities and no longer shows any of the three. The bench's panel
+still has them, with exactly one colour well.
+
+
+## G182.2 — PER TANK COLOUR (2026-09-05, the user: "per tank colour please")
+
+The look stops being the section's and becomes the TANK'S: `finish`, `hue` and
+`tint` on each `energy.vessels[i]`, **null meaning the section's answer above**.
+That is the whole compatibility story — every spec written before this has
+nulls at the vessel level and section-wide values above, so it resolves to
+exactly the aeroplane it already was. No migration, no version bump, for the
+reason the section-wide rows needed none at G105: absent already meant
+something, and it still means it.
+
+**The resolver is three one-liners** (`finishOf`/`hueOf`/`tintOf`) and a
+writer. `lookWrite` puts the RESOLVED look — all three fields — onto the tank
+the moment any one row is touched: a half-inherited tank ("its tint is its own,
+its hue is the section's") is a state nobody can read off the panel. The
+section-wide values stay exactly what they are: the seed a new tank starts
+from, and what an untouched tank keeps.
+
+**ONE MATERIAL PER TANK, KEYED ON THE INDEX.** `slotMat` writes the tint and
+the hue on every layout instead of baking them into the cache key — a hue drag
+must not compile a program per degree (G181's note) — and that is only sound
+while no two tanks share the material being written on. So the shell's key
+carries the vessel index; the hardware, the strap pads and the filler mark stay
+shared, because they are the same steel and the same rubber on every tank
+aboard. The solid's own grain follows too (`vesselSolid` keys on that tank's
+finish, since uv is metres over the finish's tile).
+
+**The flight needed nothing.** G182's merge key already carries the set, the
+hue and the colour, so two tanks painted differently are two buckets and two
+materials on their own. Measured on the flown model: `paint #c03018` and
+`alu #2f6fbf` side by side, plus the three shared hardware materials.
+
+**The finish column is one block per tank** — a fold headed `tank 2 · cabin`,
+the same shape the structure column's list has, so a click on the solid opens
+the right block in whichever column is on screen (`selectVessel` now walks
+both lists). The `paint hue` row appears only under a tank wearing the painted
+set, so two tanks can show different rows.
+
+VERIFIED LIVE end to end: two tanks, painted metal red and bare alloy blue,
+distinct materials in the editor (different uuids), both carried into the spec,
+both flown with their own sheet. GATE ENERGY grew a `per tank:` family — the
+spec keeps a painted tank's three fields and an untouched tank's nulls, junk is
+refused (`chrome`, `red`, hue 900 -> null/null/359), paint weighs nothing
+(450.110 kg either way), the material is keyed per tank, and the column builds
+a block per tank — each proven able to go red.

@@ -1802,6 +1802,9 @@ const GEN_DEFAULT = {
             //             middle of the bay's own band
             //   rot       degrees about the vertical. Declared here and drawn
             //             in G99b; the fit test already respects it.
+            //   finish    this tank's own surface, hue and tint (2026-09-05);
+            //   hue       null = the section's, above. A look, never a weight.
+            //   tint
             // NULL, AND THAT IS THE WHOLE MECHANISM. A default LIST here
             // would make `fuel.litres` unwritable: every archetype, every gate
             // case and every hand-written spec merges over this object, so
@@ -2460,6 +2463,19 @@ function clampSpec(spec) {
       // which _vessel_gen.js applies as the drawn box's fill. Absent means
       // 'box', so every spec written before this one is unchanged.
       v.form = v.form === 'cyl' ? 'cyl' : 'box';
+      // THE LOOK IS THE TANK'S OWN (2026-09-05, the user: "per tank colour
+      // please"). The same three fields as the section's above, one level
+      // down, and ABSENT MEANS THE SECTION'S ANSWER — which is what every
+      // spec written before this one says, so there is no migration and no
+      // version bump, exactly as the section-wide rows needed none at G105.
+      // Nothing here weighs: GEN_VESSELS is still what prices and weighs a
+      // tank, and it knows nothing about colour.
+      if (v.finish != null &&
+          !['paint', 'alu', 'plastic', 'rubber'].includes(v.finish))
+        v.finish = null;
+      v.hue = v.hue == null ? null : genClamp(v.hue, 0, 359);
+      if (v.tint != null && !/^#[0-9a-fA-F]{6}$/.test(String(v.tint)))
+        v.tint = null;
       total += v.capacity;
     }
     if (E.kind === 'battery') { E.kWh = total; S.fuel.litres = 0; }

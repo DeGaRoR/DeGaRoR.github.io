@@ -901,6 +901,19 @@ function editorInit(api) {
         for (const el of r) els.push(el);
       }
       emitEls(p, nameOf(p), els, '', true);
+      // A PART WHOSE FINISH IS NOT THE AEROPLANE'S LIVERY (2026-09-05). A tank
+      // is an object with a material, not covering: it wears no finish, no
+      // markings and no wear, so it claims no `sections` and there is nothing
+      // here for `bySec` to hand it. What it does have is a surface the
+      // builder picks — the scanned set, the paint hue and the tint — and the
+      // layer that owns them hands them over whole, exactly as `panel` does in
+      // the shape view one function up. The part names the global; nothing
+      // about vessels is known here.
+      if (p.panelFinish) {
+        const prov = window[p.panelFinish];
+        const fel = prov && prov.panelFinish && prov.panelFinish();
+        if (fel) emitEls(p, nameOf(p), [fel], 'one block per tank', true);
+      }
       if (!isRoot && !glazeDone && glaze.length &&
           (p.sections || []).some(s => GLASSSEC.has(s))) {
         glazeDone = true;

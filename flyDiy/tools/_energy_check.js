@@ -692,6 +692,51 @@ if (SHOW) for (const s of seen)
         /window\.CAGE_ENERGY\.material\(\{[\s\S]{0,120}set: m\.ves, tint: m\.color/.test(ap),
     'look: the flown aeroplane rebuilds a vessel from the editor’s own '
     + 'factory, not from a colour');
+  // ...AND THE PLAYER REACHES THEM WHERE A LOOK LIVES (2026-09-05, the user:
+  // "we need this wired into the livery UI. Click on tank -> finish -> choose
+  // the tank material and tint"). The rows were among the placement sliders,
+  // which is G108's complaint in the other direction. Three things hold it up:
+  // the part declares the finish door, the layer opens it, and the finish view
+  // honours it — and the rows must exist in exactly ONE place, borrowed by the
+  // bench's panel only because the bench has no part tree to put them in.
+  const pt = fs.readFileSync(path.join(__dirname, '_cage_parts.js'), 'utf8');
+  const ed = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer',
+                                       'editor.js'), 'utf8');
+  check(/panel: 'CAGE_ENERGY', panelFinish: 'CAGE_ENERGY'/.test(pt),
+    'livery: the Fuel & energy part declares both doors, structure and finish');
+  check(/panelFinish: lookElement,/.test(en2) &&
+        /function renderLook\(\)/.test(en2),
+    'livery: the energy layer opens the finish door onto the look rows');
+  check(/if \(p\.panelFinish\) \{[\s\S]{0,220}emitEls\(p, nameOf\(p\), \[fel\]/.test(ed),
+    'livery: the finish view emits a part’s own finish panel');
+  check(/if \(!inGame\(\)\) B\.appendChild\(lookElement\(\)\);/.test(en2) &&
+        (en2.match(/select\(B, 'material'/g) || []).length === 1 &&
+        (en2.match(/type = 'color'/g) || []).length === 1,
+    'livery: ONE builder for the look rows — the bench borrows the same '
+    + 'element, the game never has two colour wells for one fact');
+  check(/window\.CAGE_RECENT && window\.CAGE_RECENT\.attach/.test(en2),
+    'livery: the tint well carries the recent-colours strip every other well has');
+  // ONE BLOCK PER TANK, and one material per tank: the shell's cache key
+  // carries the vessel's INDEX, which is what makes writing the live tint and
+  // hue on every layout sound when two tanks disagree. Sharing one material
+  // and writing both looks onto it paints them both the colour of whichever
+  // was drawn last.
+  check(/function slotMat\(slot, bad, i, v\)/.test(en2) &&
+        /\(slot === 'shell' \? '\|' \+ \(i \|\| 0\) : ''\)/.test(en2),
+    'per tank: the shell material is keyed on the tank, not shared across them');
+  check(/const finishOf = v =>/.test(en2) && /const tintOf = v =>/.test(en2) &&
+        /const hueOf = v =>/.test(en2) &&
+        /const fin = finishOf\(r\.v\);/.test(en2),
+    'per tank: the drawn solid takes its grain and its surface from the tank ' +
+    'it belongs to');
+  check(/EN\.vessels\.forEach\(\(v, i\) => \{[\s\S]{0,400}det\.dataset\.veslook = i;/.test(en2) &&
+        /lookRows\(box, i, v\);/.test(en2),
+    'per tank: the finish column builds one block per tank');
+  check(/for \(const d of lookBody\.querySelectorAll\('details\[data-veslook\]'\)\)/.test(en2),
+    'per tank: ...and a click on the solid opens that tank’s block in it');
+  check(/function lookWrite\(v, k, val\)/.test(en2),
+    'per tank: a row writes the RESOLVED look onto the tank, so no tank is ' +
+    'left half-inherited');
   // THE SLIDER LAG (2026-09-04). Every cage build ran the layer's post hook,
   // and the hook emptied the bay caches and re-swept the body (2.0 s of a
   // 2.6 s tick, measured), then fired fourteen aero solves of readouts into
@@ -855,6 +900,41 @@ let printed = fail.length;
   const bad = cl(base); bad.energy.vessel = 'packCase';
   check(C.resolveSpec(bad).spec.energy.vessel === null,
     'vessel: a pack case is not a fuel tank, and the clamp says so');
+  // --- THE LOOK IS THE TANK'S OWN (2026-09-05, "per tank colour please") ---
+  // Two tanks, one painted and one left alone: the painted one keeps its three
+  // fields through a resolve, the other keeps NULLS — which is what makes it
+  // follow the section, and what every build written before this says about
+  // every tank it carries. A nonsense colour is refused rather than flown.
+  {
+    const two = cl(base);
+    two.energy.finish = 'alu'; two.energy.hue = 0; two.energy.tint = null;
+    two.energy.vessels = [
+      { bay: 'nose', capacity: 30, finish: 'paint', hue: 200, tint: '#c03018' },
+      { bay: 'cabin', capacity: 20 },
+    ];
+    const V = C.resolveSpec(two).spec.energy.vessels;
+    check(V.length === 2 && V[0].finish === 'paint' && V[0].hue === 200 &&
+          V[0].tint === '#c03018',
+      'per tank: a painted tank keeps its own surface, hue and tint');
+    check(V[1].finish == null && V[1].hue == null && V[1].tint == null,
+      'per tank: ...and the one nobody painted keeps its nulls, which is how ' +
+      'it follows the section');
+    const junk = cl(two);
+    junk.energy.vessels[0].finish = 'chrome';
+    junk.energy.vessels[0].tint = 'red';
+    junk.energy.vessels[0].hue = 900;
+    const J = C.resolveSpec(junk).spec.energy.vessels[0];
+    check(J.finish === null && J.tint === null && J.hue === 359,
+      'per tank: a surface that does not exist and a colour that is not a ' +
+      'colour are refused; the hue clamps');
+    // and NONE of it weighs: the ledger is the vessel row's, not the paint's
+    const plain = cl(two);
+    for (const v of plain.energy.vessels) { v.finish = null; v.hue = null; v.tint = null; }
+    const massOf = x => C.buildGen(x).nodes.reduce((a2, n) => a2 + (n.m || 0), 0);
+    check(Math.abs(massOf(cl(two)) - massOf(plain)) < 1e-9,
+      'per tank: ...and paint weighs nothing — the two builds are the same ' +
+      'aeroplane on the scales (' + massOf(cl(two)).toFixed(3) + ' kg)');
+  }
   if (SHOW) {
     console.log('  catalogue: ' + Object.keys(C.GEN_FUELS).length + ' fuels, ' +
       Object.keys(C.GEN_CELLS).length + ' chemistries, ' +

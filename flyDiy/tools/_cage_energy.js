@@ -75,11 +75,20 @@ function fromSpec(energy) {
         // a round tank or a squared one — geometry, and the capacity follows
         form: v.form === 'cyl' ? 'cyl' : 'box',
         // the player's own box, when they drew one
-        dims: (v.dims && v.dims.L > 0) ? { L: +v.dims.L, W: +v.dims.W, H: +v.dims.H } : null }))
+        dims: (v.dims && v.dims.L > 0) ? { L: +v.dims.L, W: +v.dims.W, H: +v.dims.H } : null,
+        // ...AND ITS OWN LOOK (2026-09-05). null at any of the three means
+        // the section's answer, which is what a build written before this
+        // says about every tank it carries.
+        finish: FINISH[v.finish] ? v.finish : null,
+        hue: v.hue == null ? null : +v.hue || 0,
+        tint: v.tint || null }))
     : defaultVessels();
   seeded = true;
   savePrefs();
   if (panelBody) renderPanel();
+  // ...and the look rows, which in the game live in the finish view and are
+  // not inside the panel this rebuilds
+  if (lookBody) renderLook();
 }
 // the spec's shape and nothing else: capacity and kWh are READINGS the core
 // derives from this list, so they are not written back
@@ -88,7 +97,10 @@ function toSpec() {
            finish: EN.finish, hue: EN.hue, tint: EN.tint,
            vessels: EN.vessels.map(v => ({ bay: v.bay, capacity: v.capacity,
              along: v.along, lv: v.lv, rot: v.rot, form: v.form || 'box',
-             dims: v.dims ? { L: v.dims.L, W: v.dims.W, H: v.dims.H } : null })) };
+             dims: v.dims ? { L: v.dims.L, W: v.dims.W, H: v.dims.H } : null,
+             finish: v.finish || null,
+             hue: v.hue == null ? null : v.hue,
+             tint: v.tint || null })) };
 }
 
 // the bench remembers; the game's memory is the spec
@@ -522,8 +534,32 @@ const FINISH = {
 // an electric build is where a player first meets it.
 const FINISH_OF = { alu: 'alu', moulded: 'plastic', bladder: 'rubber',
                     packCase: 'paint', wet: null };
+// THE SECTION'S ANSWER, and what a tank falls back to.
 const finishKey = () => (FINISH[EN.finish] ? EN.finish : null) ||
                         FINISH_OF[vesselKey()] || 'alu';
+// ...AND THE TANK'S OWN (2026-09-05, the user: "per tank colour please").
+// Three fields on the vessel, each null meaning "the section's", so a build
+// written before this — and a tank the player has never painted — is unchanged
+// and two tanks in one aeroplane can be told apart at a glance. The hardware,
+// the strap pads and the filler cap are NOT in here: they are steel, rubber
+// and the one spot of colour wherever they are, and they are not the
+// builder's.
+const finishOf = v => (v && FINISH[v.finish] ? v.finish : null) || finishKey();
+const hueOf = v => (v && v.hue != null ? +v.hue : (EN.hue || 0));
+const tintOf = v => (v && v.tint) || EN.tint || null;
+// what a row writes: the RESOLVED look, all three, onto the tank itself. A
+// half-inherited tank ("its tint is its own, its hue is the section's") is a
+// state nobody can read off the panel, and the section-wide values stay
+// exactly what they are — the seed a tank starts from and an untouched tank
+// keeps.
+function lookWrite(v, k, val) {
+  if (!v) return;
+  if (v.finish == null) v.finish = finishOf(v);
+  if (v.hue == null) v.hue = hueOf(v);
+  if (v.tint == null) v.tint = tintOf(v) ||
+    '#' + ('000000' + FINISH[finishOf(v)].col.toString(16)).slice(-6);
+  v[k] = val;
+}
 // the slots VESSEL_MESH fills, and what each is made of. Only the shell is the
 // player's: hardware is steel wherever it is, a strap pad is rubber, and the
 // filler cap and the positive terminal boot are the one spot of colour.
@@ -676,16 +712,21 @@ function vesselSetEnv(f) {
   for (const m of vesAll) m.envMapIntensity = (m.userData.env0 || 1) * f;
   if (wetMat) wetMat.envMapIntensity = f;
 }
-function slotMat(slot, bad) {
-  const fin = slot === 'shell' ? finishKey() : SLOT_FIN[slot];
-  const id = slot + '|' + fin + (bad ? '!' : '');
+// ONE SHELL MATERIAL PER TANK, keyed on the tank's INDEX and not on its
+// colour. The tint and the hue are still written on every layout rather than
+// baked into the key — a hue drag must not compile a new program for every
+// degree — and that is only sound while no two tanks share the material they
+// are being written on. The hardware, the seals and the markings are shared:
+// they are the same steel and the same rubber on every tank aboard.
+function slotMat(slot, bad, i, v) {
+  const fin = slot === 'shell' ? finishOf(v) : SLOT_FIN[slot];
+  const id = slot + '|' + fin + (bad ? '!' : '') +
+             (slot === 'shell' ? '|' + (i || 0) : '');
   let m = vmats.get(id);
   if (!m) vmats.set(id, m = buildMat(fin, bad));
-  // the two live rows are applied on every layout rather than baked into the
-  // cache key: a hue drag must not compile a new program for every degree
-  const col = slot === 'shell' ? (EN.tint || FINISH[fin].col) : SLOT_COL[slot];
+  const col = slot === 'shell' ? (tintOf(v) || FINISH[fin].col) : SLOT_COL[slot];
   m.color.set(col);
-  const h = (slot === 'shell' && FINISH[fin].hue) ? (EN.hue || 0) * Math.PI / 180 : 0;
+  const h = (slot === 'shell' && FINISH[fin].hue) ? hueOf(v) * Math.PI / 180 : 0;
   m.userData.hue = h;
   if (m.userData.hueU) m.userData.hueU.value = h;
   return m;
@@ -752,7 +793,7 @@ const solids = new Map();
 function vesselSolid(r) {
   const VM = window.VESSEL_MESH;
   if (!VM) return null;
-  const fin = finishKey();
+  const fin = finishOf(r.v);
   const form = formOf(r.v);
   const key = r.e.map(x => x.toFixed(4)).join(',') + '|' + form + '|' + EN.kind + '|' + fin;
   let s = solids.get(key);
@@ -786,7 +827,7 @@ function drawResults(group, ctx, results) {
       // whole thing into a red blob with no shape left to read, at exactly the
       // moment the builder needs to see WHICH corner is through the skin.
       for (const slot of ['shell', 'hard', 'seal', 'mark'])
-        slotMesh(group, sol[slot], slotMat(slot, slot === 'shell' && bad),
+        slotMesh(group, sol[slot], slotMat(slot, slot === 'shell' && bad, i, r.v),
                  'edVessel_' + i + '_' + slot, r.c, yaw);
       // THE FUEL INSIDE, at the slider's fill. It is the shell's own section
       // inset by the wall and cut flat at the level — so in a round tank the
@@ -807,9 +848,9 @@ function drawResults(group, ctx, results) {
           [s.x0, y0, s.zR0], [s.x0, y0, s.zF0], [s.x0, y1, s.zF0], [s.x0, y1, s.zR0],
           [s.x1, y0, s.zR1], [s.x1, y0, s.zF1], [s.x1, y1, s.zF1], [s.x1, y1, s.zR1],
         ];
-        const mat = wet ? matWet(bad) : slotMat('shell', bad);
+        const mat = wet ? matWet(bad) : slotMat('shell', bad, i, r.v);
         if (!wet)
-          slotMesh(group, VM.wingBox(p8, tileOf(finishKey())), mat,
+          slotMesh(group, VM.wingBox(p8, tileOf(finishOf(r.v))), mat,
                    'edVessel_' + i + (s.sign > 0 ? 'R' : 'L'), [0, 0, 0], 0);
         if (EN.kind !== 'battery' && VIEW.fill > 0.02) {
           const inset = wet ? 0.0 : 0.008, f = Math.min(1, VIEW.fill);
@@ -1223,6 +1264,16 @@ function selectVessel(i) {
       d.style.outline = on ? '1px solid rgba(255,211,90,.55)' : '';
       if (on) { d.open = true; if (d.scrollIntoView) d.scrollIntoView({ block: 'nearest' }); }
     }
+  // ...AND IN THE FINISH COLUMN, which is a different element in a different
+  // column and holds the same list (2026-09-05). Clicking the second tank on
+  // the aeroplane while the finish tab is open must open the second tank's
+  // colours, not leave you painting the first.
+  if (lookBody)
+    for (const d of lookBody.querySelectorAll('details[data-veslook]')) {
+      const on = +d.dataset.veslook === i;
+      d.style.outline = on ? '1px solid rgba(255,211,90,.55)' : '';
+      if (on) { d.open = true; if (d.scrollIntoView) d.scrollIntoView({ block: 'nearest' }); }
+    }
   }
   return true;
 }
@@ -1276,6 +1327,90 @@ function bayOptions() {
   return out;
 }
 
+// ---------------------------------------------------------------------------
+// THE LOOK, AND WHERE A LOOK BELONGS (2026-09-05, the user: "we need this
+// wired into the livery UI. Click on tank -> finish -> choose the tank
+// material and tint")
+// ---------------------------------------------------------------------------
+// Three rows that weigh nothing: the catalogue rows decide the mass and the
+// price, these decide the surface. `finish` starts on whatever the vessel is
+// actually made of, so a builder who never opens them still gets alloy on a
+// welded tank and rubber on a bladder.
+//
+// They are SECTION-WIDE, like `vessel` beside them: one answer for every
+// vessel the aeroplane carries, which is the shape `spec.energy` has had since
+// G105 and what the heading in the finish view says out loud. A per-tank
+// colour would be a new field on every list entry and a migration, and nobody
+// has asked to paint two tanks differently.
+//
+// The tint well goes through `CAGE_RECENT.attach` — the same strip every
+// livery well has (G156), opening on HOVER because a colour input opens the OS
+// picker on the click. That is the whole reason these rows belong in the
+// finish view rather than being copied into it: one well, one recent list.
+let lookBody = null;
+function lookRows(B, i, v) {
+  const fk = finishOf(v);
+  select(B, 'material', 'the surface this shell wears. It is a look and not a ' +
+    'material: the vessel row (under structure) is what decides the weight ' +
+    'and the price',
+    Object.keys(FINISH).filter(k => k !== 'steel').map(k => [k, FINISH[k].name]),
+    fk, x => { lookWrite(v, 'finish', x); renderLook(); relayout(); commit(); });
+  if (FINISH[fk] && FINISH[fk].hue)
+    range(B, 'paint hue', 'turns the painted sheet’s own colour right ' +
+      'round. The scan is a single hue at one saturation, so this rotates ' +
+      'the paint and nothing else', 0, 359, 1, hueOf(v),
+      x => x.toFixed(0) + '°',
+      x => { lookWrite(v, 'hue', x); relayout(); },
+      x => { lookWrite(v, 'hue', x); commit(); });
+  const d = row(B, 'tint', 'multiplies the sheet — white leaves it as ' +
+    'scanned, and a colour darkens it towards that colour');
+  const c = document.createElement('input');
+  c.type = 'color';
+  c.value = tintOf(v) ||
+    '#' + ('000000' + (FINISH[fk] || FINISH.alu).col.toString(16)).slice(-6);
+  c.style.flex = '1';
+  c.oninput = () => { lookWrite(v, 'tint', c.value); relayout(); };
+  c.onchange = () => { lookWrite(v, 'tint', c.value); commit(); };
+  if (window.CAGE_RECENT && window.CAGE_RECENT.attach)
+    window.CAGE_RECENT.attach(c);
+  d.appendChild(c);
+}
+// ONE BLOCK PER TANK (2026-09-05, the user: "per tank colour please"). The
+// same shape the structure column's list has — a fold per vessel, headed by
+// what it is and where it sits — so the two columns are read the same way and
+// a click on the solid opens the right one in whichever is on screen
+// (`selectVessel`). The wrapper is there even for a single tank: adding a
+// second one must not reshape the panel around the first.
+function renderLook() {
+  if (!lookBody) return;
+  lookBody.innerHTML = '';
+  EN.vessels.forEach((v, i) => {
+    const bay = BAYS.find(b => b.key === v.bay);
+    const det = document.createElement('details');
+    det.open = true;
+    det.dataset.veslook = i;
+    if (i === selected) det.style.outline = '1px solid rgba(255,211,90,.55)';
+    const sum = document.createElement('summary');
+    sum.textContent = (EN.kind === 'battery' ? 'pack ' : 'tank ') + (i + 1) +
+      (bay ? ' · ' + bay.name.toLowerCase() : '');
+    sum.onclick = () => { selectVessel(i); };
+    det.appendChild(sum);
+    const box = document.createElement('div');
+    det.appendChild(box);
+    lookBody.appendChild(det);
+    lookRows(box, i, v);
+  });
+}
+// the finish view's door, the twin of `panelElement` above: editor.js's
+// renderFinish asks the part's declared global for it and appends it under the
+// part's own heading.
+function lookElement() {
+  if (!HAS_DOM) return null;
+  if (!lookBody) { lookBody = document.createElement('div'); renderLook(); }
+  if (!lookBody.firstChild) renderLook();
+  return lookBody;
+}
+
 function renderPanel() {
   if (!panelBody) return;
   const C = core();
@@ -1313,32 +1448,13 @@ function renderPanel() {
     });
 
   // ---- what it LOOKS like -------------------------------------------------
-  // Three rows that weigh nothing: the catalogue above decides the mass and
-  // the price, this decides the surface. `finish` starts on whatever the
-  // vessel is actually made of, so a builder who never opens these rows still
-  // gets alloy on a welded tank and rubber on a bladder.
-  {
-    const fk = finishKey();
-    select(B, 'finish', 'the surface the shell wears. It is a look and not a ' +
-      'material: the vessel row above is what decides the weight and the price',
-      Object.keys(FINISH).filter(k => k !== 'steel').map(k => [k, FINISH[k].name]),
-      fk, v => { EN.finish = v; renderPanel(); relayout(); commit(); });
-    if (FINISH[fk] && FINISH[fk].hue)
-      range(B, 'paint hue', 'turns the painted sheet’s own colour right ' +
-        'round. The scan is a single hue at one saturation, so this rotates ' +
-        'the paint and nothing else', 0, 359, 1, EN.hue || 0,
-        x => x.toFixed(0) + '°',
-        x => { EN.hue = x; relayout(); }, x => { EN.hue = x; commit(); });
-    const d = row(B, 'tint', 'multiplies the sheet — white leaves it as ' +
-      'scanned, and a colour darkens it towards that colour');
-    const c = document.createElement('input');
-    c.type = 'color';
-    c.value = EN.tint || '#' + ('000000' + (FINISH[fk] || FINISH.alu).col.toString(16)).slice(-6);
-    c.style.flex = '1';
-    c.oninput = () => { EN.tint = c.value; relayout(); };
-    c.onchange = () => { EN.tint = c.value; commit(); };
-    d.appendChild(c);
-  }
+  // ONE BUILDER, TWO HOMES (2026-09-05). The look rows are built by
+  // `renderLook` into their own element and borrowed from here ONLY on the
+  // bench, which has no part tree and no finish tab: in the GAME they are the
+  // finish view's, under the tank you clicked. Never both — an element has one
+  // parent, and two colour wells for one fact is the drift G103 moved the
+  // whole livery to avoid.
+  if (!inGame()) B.appendChild(lookElement());
 
   // ---- each vessel --------------------------------------------------------
   EN.vessels.forEach((v, i) => {
@@ -1542,6 +1658,12 @@ function renderPanel() {
     scheduleReadouts();
   }
   syncReadouts();
+  // THE OTHER COLUMN HOLDS THE SAME LIST (2026-09-05). Every path that
+  // rebuilds this panel has moved, added or removed a vessel, or changed what
+  // the untouched ones inherit — and the look rows are one block per vessel,
+  // headed by the bay it sits in. Rebuilt from here rather than from each of
+  // the six handlers, which is six chances to forget the seventh.
+  if (lookBody) renderLook();
 }
 
 // the capacity row follows a drawn box without a panel rebuild
@@ -1595,6 +1717,9 @@ window.CAGE_ENERGY = {
   EN, fromSpec, toSpec, relayout, commit, setEnv: vesselSetEnv,
   // the flown aeroplane's door into the factory (app.js matFor, `m.ves`)
   material: vesselMatFor,
+  // the two columns' doors: structure gets the whole panel, finish gets the
+  // look rows (_cage_parts.js `panel` / `panelFinish`)
+  panelFinish: lookElement,
   results: () => LAST.results, bays: () => BAYS,
   chart: () => LAST_CHART, view: VIEW,
   // the part tree's two doors: the column asks for the panel, a viewport
