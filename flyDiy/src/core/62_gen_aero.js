@@ -796,6 +796,24 @@ function genParams(S, fr, strips) {
   // Axial only — the cross-flow blobs keep the body's own calibrated numbers.
   const gearDCdA = genGearCdADelta(S, S.geom.semi);
   cda.fusCdA[0] += gearDCdA;
+  // THE NACELLES (G179.5, the user: "add the nacelle drag for wing-mounted
+  // engines"). A nose engine is inside the frontal area the fuselage row
+  // already prices; every other mount hangs its engine in the airstream and
+  // paid nothing — two exposed 582s with radiators on the user's twin were
+  // ~0.15 m² of drag area the plaque was not charging. Per off-nose engine:
+  // the engine box's own frontal (its width to the cylinder reach, its
+  // height), at a bare block's Cd 0.9 — cylinders, radiator, exhaust, the
+  // lot — or a cowled nacelle's 0.30 when the cage's cowl row is on. Axial
+  // only, the gear-model rule: the cross-flow blobs keep their calibration.
+  {
+    const E = S.engBox, cowled = !!(S.cage && +S.cage.cowlOn);
+    if (E && Array.isArray(S.engAt))
+      for (const e of S.engAt) {
+        if (!e || e.mount === 'nose') continue;
+        const frontal = 2 * Math.max(E.halfW, E.cylReach || E.halfW) * 2 * E.halfH;
+        cda.fusCdA[0] += (cowled ? 0.30 : 0.90) * frontal;
+      }
+  }
   // Control effectiveness from surface chord. The reference pairs are the
   // fleet's own calibrated numbers at the default chord fractions, so a stock
   // aeroplane reproduces them exactly and theory only supplies the trend.

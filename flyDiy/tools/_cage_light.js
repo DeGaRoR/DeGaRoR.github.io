@@ -593,6 +593,10 @@ function armRotors() {
     tickRAF = requestAnimationFrame(tick);
 }
 
+// the catalogue tip light: a 14 cm teardrop, 55 mm wide, 48 mm high, a
+// 20 mm lens — the same fitting on a Cub's wingtip and a glider's fin (G179.5)
+const TIP_POD = { len: 0.14, wide: 0.055, high: 0.048, r: 0.020 };
+
 function lampFit(q, pf, setback) {
   if (!q) return null;
   const x = (q.min[0] + q.max[0]) / 2;
@@ -1024,7 +1028,14 @@ PAGE.post = (ctx) => {
   const lamp = (key, site, colOver) => {
     const L = LIGHTS[key], lv = level(P, key);
     const col = colOver != null ? colOver : L.col;
-    const r = (site.r || L.w / 2) * sizeK;
+    // ONE SIZE, ONE SHAPE FOR EVERY TIP LIGHT (G179.5, the user: "they try
+    // to size with IDK what. Keep the positioning, but give them a single
+    // size and shape"). A pod used to take its girth from the surface's
+    // thickness and its length from the tip chord, so a thick tip grew a
+    // fat lamp and a thin fin a sliver. A navigation light is a catalogue
+    // part: the same fitting on every aeroplane. `li_lampSize` still scales
+    // it as one knob; nothing about the surface does.
+    const r = (site.pod ? TIP_POD.r : (site.r || L.w / 2)) * sizeK;
     // WHERE THE FITTING ACTUALLY ENDED UP. A pod that is seated rather than
     // straddling moves its own origin, and the ROTOR has to move with it or
     // the mirror sweeps inside the fin while the dome stands on top of it.
@@ -1067,9 +1078,9 @@ PAGE.post = (ctx) => {
       // square plate stood out sideways as a black square through the fin.
       // That is what the user saw on every one of these. The fairing IS the
       // joint here; there is nothing left for a plate to do.
-      const wide = Math.max(site.thick || 0.05, r * 1.30) * girthK;
-      const high = Math.max(wide * 0.85, r * 1.25);
-      const chord = site.chord || [0, 0, -1], len = (site.len || r * 7) * lenK;
+      const wide = TIP_POD.wide * sizeK * girthK;
+      const high = TIP_POD.high * sizeK * girthK;
+      const chord = site.chord || [0, 0, -1], len = TIP_POD.len * sizeK * lenK;
       // THE FAIRING SITS ON THE SURFACE INSTEAD OF THROUGH IT. `site.sink` is
       // the fraction of the fairing's height that stays buried; 0.5 puts its
       // centre ON the fitted line, which is what this did unconditionally and
