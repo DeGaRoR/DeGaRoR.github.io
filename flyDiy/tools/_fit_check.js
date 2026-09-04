@@ -694,6 +694,49 @@ run(null);
 runPlacement(null);
 runReach(null);
 runSaved(null);
+// THE FIELD INDEX IS THE FULL WALK (2026-09-04). fieldHits bins the faces by
+// their box in the searched field plane and walks one cell instead of the
+// mesh (the energy layer's sweeps went from 2.0 s to 20 ms per fuselage
+// build). The index may only ever REMOVE faces that cannot hold the point,
+// so on every build here, on every axis pair, a grid of samples across the
+// field and a little past it — and a sample ON every seventh fielded vertex,
+// where a point sits on the shared edge of every face round it — the binned
+// query and the whole-mesh scan must return the same hits, in the same order.
+(function runIndex() {
+  if (typeof FS_.fieldScan !== 'function') { check(false, 'index: _fit_site exports fieldScan'); return; }
+  let samples = 0, bad = 0, hits = 0;
+  const axes = [FS_.AX_RAIL, FS_.AX_METRIC, FS_.AX_STRUCT].filter(Boolean);
+  for (const [name, over] of CASES) {
+    const m = displayMesh(over);
+    for (const ax of axes) {
+      let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+      for (let i = 0; i < m.V.length; i++) {
+        const q = m.A[i]; if (!q) continue;
+        const x = q[ax[0]], y = q[ax[1]];
+        if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+      }
+      const NX = 60, NY = 30;
+      const at = (tx, ty, where) => {
+        const full = FS_.fieldScan(m, ax, tx, ty, null), fast = FS_.fieldHits(m, ax, tx, ty);
+        samples++; hits += full.length;
+        if (JSON.stringify(full) !== JSON.stringify(fast)) {
+          bad++;
+          if (bad <= 3) check(false, 'index: ' + name + ' ax ' + ax.join(',') + ' at ' + where +
+            ': the index walk found ' + fast.length + ' hits, the full walk ' + full.length);
+        }
+      };
+      for (let i = 0; i <= NX; i++)
+        for (let j = 0; j <= NY; j++)
+          at(x0 - 0.05 + (x1 - x0 + 0.1) * i / NX, y0 - 0.05 + (y1 - y0 + 0.1) * j / NY, 'grid ' + i + ',' + j);
+      for (let i = 0; i < m.V.length; i += 7) { const q = m.A[i]; if (q) at(q[ax[0]], q[ax[1]], 'vertex ' + i); }
+    }
+  }
+  check(bad === 0, 'index: the binned field walk equals the full walk on every sample (' +
+    bad + ' of ' + samples + ' differ)');
+  check(hits > 0, 'index: the samples actually hit the field (' + hits + ' hits)');
+  console.log('  field index: ' + samples + ' samples, ' + hits + ' hits, walked both ways, ' +
+    bad + ' differ');
+})();
 // THE RUNNER'S CONTRACT (run_gates.js): exactly one final
 // `GATE <ID>: PASS|FAIL`, and an exit code that agrees with it.
 if (fail.length) {

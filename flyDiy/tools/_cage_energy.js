@@ -712,11 +712,12 @@ function commit() {
 // fourteen aero solves, ~1.1 s on the stock build — and renderPanel fired
 // them 50 ms after EVERY cage build, so a cowl or wing slider paid, tick
 // after tick, for a chart that was folded away or scrolled off the panel.
-// A build now marks them STALE; they run once, 300 ms after the last build,
-// and only while the panel is open and its readout block is on screen.
-// Opening or scrolling to a stale panel reads them then. The rows that live
-// in the panel (fill, occupants, baggage) still read on their own release,
-// because a hand on them is a reader in front of them.
+// A build now marks them STALE; they are requested once, 300 ms after the
+// last build, and only while the panel is open and its readout block is on
+// screen. Opening or scrolling to a stale panel requests them then. The rows
+// that live in the panel (fill, occupants, baggage) still request on their
+// own release, because a hand on them is a reader in front of them. And the
+// request itself runs off the main thread — see readoutWorker below.
 let readT = null, readStale = false, readSeen = true, readIO = null;
 function readoutsVisible() { return !!(panel && panel.open && readSeen); }
 function scheduleReadouts(ms) {
@@ -743,62 +744,149 @@ function watchReadouts(elm) {
 // conception" the user asked for, read live off the same ledger the flight
 // weighs itself with, not a second estimate.
 let balEl = null, fillEl = null, barEl = null, tableEl = null, chartEl = null;
-// the chart, recomputed on a release of the fill, occupants or baggage rows,
-// and after every commit (the aeroplane changed)
-let chartT = null;
-function chartReadout() {
-  if (!inGame() || !chartEl || !window.BALANCE) return;
-  if (chartT) clearTimeout(chartT);
-  chartT = setTimeout(() => {
-    chartT = null;
-    try {
-      if (typeof buildGen !== 'function' || typeof genShakedown !== 'function' ||
-          typeof genSpecAtFuel !== 'function') return;
-      const S0 = window.GARAGE_SPEC.resolved();
-      if (!S0 || !S0.fuel) return;
-      const D = window.BALANCE.compute(S0, { buildGen, genShakedown, genSpecAtFuel },
-        { occupants: VIEW.occupants, baggage: VIEW.baggage, fill: VIEW.fill,
-          envelope: LAST_SHAKE && LAST_SHAKE.envelope });
-      window.BALANCE.draw(chartEl, D);
-      LAST_CHART = D;
-    } catch (e) { console.error('balance chart:', e); }
-  }, 200);
-}
 let LAST_CHART = null;
 let LAST_SHAKE = null;
-// the aeroplane at the slider's fill, weighed by the core; and the envelope's
-// four corners as a loading table with the bar between them
-let fillT = null;
-function fillReadout() {
-  if (!inGame() || !fillEl) return;
-  if (fillT) clearTimeout(fillT);
-  fillT = setTimeout(() => {
-    fillT = null;
-    try {
-      if (typeof buildGen !== 'function' || typeof genShakedown !== 'function' ||
-          typeof genSpecAtFuel !== 'function' || !window.GARAGE_SPEC) return;
-      const S0 = window.GARAGE_SPEC.resolved && window.GARAGE_SPEC.resolved();
-      if (!S0 || !S0.fuel) return;
-      const full = S0.fuel.litres;
-      const L = full * Math.min(1, Math.max(0, VIEW.fill));
-      const sh = genShakedown(buildGen(genSpecAtFuel(S0, L)), { slim: true });
-      const E = LAST_SHAKE && LAST_SHAKE.envelope;
-      const f = (v, d) => (v == null || !isFinite(v)) ? '\u2014' : v.toFixed(d);
+
+// THE READOUTS RUN OFF THE MAIN THREAD (2026-09-04). Fourteen aero solves —
+// the full shakedown with its reserve sheet and four corners inside it, the
+// fill point, the chart's seven — are ~1.1 s on the stock build, and on the
+// main thread that is a freeze after every slider release while the panel is
+// on screen, which is exactly when a builder is placing tanks. So ONE job,
+// all three readouts, goes to a Worker that loads the very core the gates
+// require (tools/flight_core.js) and the chart's pure half (balance.js); the
+// numbers come back about a second later and the picture never stops moving.
+// Same functions, same spec, same door: the worker runs buildGen /
+// genShakedown / genSpecAtFuel / BALANCE.compute verbatim (readoutCompute is
+// the one body, serialised into the worker), and the reference chart taken
+// before this change came back identical. An answer about an aeroplane that
+// has changed since (the job's sequence number is not the latest) is
+// dropped. No Worker — file://, a load error — and the same job runs here,
+// synchronously, as it did before.
+let readWorker = null, readWorkerDead = false, readSeq = 0;
+function readoutJob() {
+  const G = window.GARAGE_SPEC;
+  if (!G || !G.get) return null;
+  return { spec: G.get(), occupants: VIEW.occupants, baggage: VIEW.baggage, fill: VIEW.fill };
+}
+// the job, computed with whatever core is in scope: the worker's or the
+// page's. Self-contained on purpose — it is stringified into the worker.
+function readoutCompute(job, core, BAL) {
+  const def = core.buildGen(job.spec);
+  const shake = core.genShakedown(def, {});
+  const S0 = def.spec;              // the RESOLVED spec: what GARAGE_SPEC.resolved() hands the page
+  const out = { shake, fillSh: null, litres: null, chart: null };
+  if (S0 && S0.fuel) {
+    const L = S0.fuel.litres * Math.min(1, Math.max(0, job.fill == null ? 1 : job.fill));
+    out.litres = L;
+    out.fillSh = core.genShakedown(core.buildGen(core.genSpecAtFuel(S0, L)), { slim: true });
+    if (BAL) out.chart = BAL.compute(S0, core,
+      { occupants: job.occupants, baggage: job.baggage, fill: job.fill, envelope: shake.envelope });
+  }
+  return out;
+}
+function readoutWorker() {
+  if (readWorker || readWorkerDead) return readWorker;
+  try {
+    if (typeof Worker === 'undefined' || typeof Blob === 'undefined' || typeof URL === 'undefined' ||
+        !/^https?:$/.test(location.protocol)) throw new Error('no worker here');
+    const base = new URL('.', location.href).href;   // dev.html and index.html both sit in flyDiy/
+    const src = 'self.module = { exports: {} };\n' +
+      'importScripts(' + JSON.stringify(base + 'src/viewer/balance.js') + ');\n' +
+      'const BAL = self.module.exports; self.module = { exports: {} };\n' +
+      'importScripts(' + JSON.stringify(base + 'tools/flight_core.js') + ');\n' +
+      'const CORE = { buildGen, genShakedown, genSpecAtFuel };\n' +
+      'const compute = ' + readoutCompute.toString() + ';\n' +
+      'self.onmessage = e => { const job = e.data; try { const r = compute(job, CORE, BAL); r.seq = job.seq; postMessage(r); }' +
+      ' catch (err) { postMessage({ seq: job.seq, error: String(err && err.stack || err) }); } };\n';
+    const url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
+    const w = new Worker(url);
+    w.onmessage = e => {
+      const r = e.data;
+      if (!r || r.seq !== readSeq) return;        // an older aeroplane's answer
+      if (r.error) {
+        console.warn('energy readouts: the worker could not compute, reading on the page instead —', r.error);
+        readWorkerDead = true; readWorker = null;
+        try { w.terminate(); } catch (e2) {}
+        readoutsNow();
+        return;
+      }
+      applyReadouts(r);
+    };
+    w.onerror = err => {
+      console.warn('energy readouts: the worker failed, reading on the page instead —', err && err.message);
+      readWorkerDead = true; readWorker = null;
+      try { w.terminate(); } catch (e2) {}
+      readoutsNow();
+    };
+    readWorker = w;
+  } catch (e) { readWorkerDead = true; readWorker = null; }
+  return readWorker;
+}
+// the job on the page, when there is no worker
+function readoutsNow() {
+  if (!balEl || !inGame()) return;
+  if (typeof buildGen !== 'function' || typeof genShakedown !== 'function' ||
+      typeof genSpecAtFuel !== 'function') { balEl.textContent = ''; return; }
+  const job = readoutJob();
+  if (!job) return;
+  try { applyReadouts(readoutCompute(job, { buildGen, genShakedown, genSpecAtFuel }, window.BALANCE || null)); }
+  catch (e) { balEl.textContent = ''; }
+}
+// every trigger — a build, a commit, the fill / occupants / baggage rows —
+// asks for the whole set once: off the main thread the price of "all three"
+// does not matter, and one job cannot race another
+function readoutsRequest() {
+  if (!balEl || !inGame()) return;
+  const job = readoutJob();
+  if (!job) return;
+  const w = readoutWorker();
+  if (!w) { readoutsNow(); return; }
+  job.seq = ++readSeq;
+  try { w.postMessage(job); }
+  catch (e) { readWorkerDead = true; readWorker = null; readoutsNow(); }
+}
+function applyReadouts(r) {
+  const s = r && r.shake;
+  if (!s) return;
+  LAST_SHAKE = s;
+  loadingTable();
+  const f = (v, d) => (v == null || !isFinite(v)) ? '\u2014' : v.toFixed(d);
+  if (balEl) {
+    let t = 'all-up ' + f(s.mass, 0) + ' kg \u00b7 CG ' + f(s.cgX, 2) + ' m \u00b7 static margin ' +
+      f(s.staticMargin, 2);
+    if (s.reserve) t += ' \u00b7 at reserves ' + f(s.reserve.staticMargin, 2) +
+      ' (' + f(s.reserve.mass, 0) + ' kg)';
+    const bad = (s.vessels || []).filter(v => !v.fits).length;
+    if (bad) t += ' \u00b7 ' + bad + ' vessel' + (bad > 1 ? 's' : '') + ' the ledger cannot fit';
+    balEl.textContent = t;
+    balEl.style.color = (s.staticMargin != null && s.staticMargin < 0.05) ? '#ff7b6b' : '';
+  }
+  const E = s.envelope;
+  const sh = r.fillSh;
+  if (fillEl) {
+    if (sh) {
       let pct = null;
       if (E && E.fwd && E.aft && E.fwd.cgPct != null && E.fwd.cgX != null) {
         // the envelope's own % MAC scale: two points define it
         const k = (E.aft.cgPct - E.fwd.cgPct) / Math.max(1e-9, E.aft.cgX - E.fwd.cgX);
         pct = E.fwd.cgPct + (sh.cgX - E.fwd.cgX) * k;
       }
-      fillEl.textContent = f(L, 0) + ' L aboard \u00b7 ' + f(sh.mass, 0) + ' kg \u00b7 CG ' +
+      fillEl.textContent = f(r.litres, 0) + ' L aboard \u00b7 ' + f(sh.mass, 0) + ' kg \u00b7 CG ' +
         f(sh.cgX, 2) + ' m' + (pct != null ? ' (' + f(pct * 100, 0) + '% MAC)' : '') +
         ' \u00b7 static margin ' + f(sh.staticMargin, 2);
       fillEl.style.color = (sh.staticMargin != null && sh.staticMargin < 0.05) ? '#ff7b6b' : '';
-      drawBar(E, sh.cgX);
-      chartReadout();
-    } catch (e) { fillEl.textContent = ''; }
-  }, 150);
+    } else fillEl.textContent = '';
+  }
+  drawBar(E, sh ? sh.cgX : null);
+  if (r.chart && chartEl && window.BALANCE) {
+    try { window.BALANCE.draw(chartEl, r.chart); LAST_CHART = r.chart; }
+    catch (e) { console.error('balance chart:', e); }
+  }
 }
+// the rows in the panel and the build both ask the same way
+function chartReadout() { readoutsRequest(); }
+function fillReadout() { readoutsRequest(); }
+function balanceReadout() { readoutsRequest(); }
 function drawBar(E, cgX) {
   if (!barEl) return;
   barEl.innerHTML = '';
@@ -828,26 +916,6 @@ function loadingTable() {
     E.corners.map(c => '<div>' + c.label + ': ' + f(c.litres, 0) + ' L \u00b7 ' +
       f(c.mass, 0) + ' kg \u00b7 ' + (c.cgPct != null ? f(c.cgPct * 100, 0) + '%' : '\u2014') +
       ' \u00b7 ' + f(c.staticMargin, 2) + (c === E.worst ? ' \u2190 worst' : '') + '</div>').join('');
-}
-function balanceReadout() {
-  if (!balEl || !inGame()) return;
-  if (typeof buildGen !== 'function' || typeof genShakedown !== 'function' ||
-      !window.GARAGE_SPEC) { balEl.textContent = ''; return; }
-  try {
-    const s = genShakedown(buildGen(window.GARAGE_SPEC.get()), {});
-    LAST_SHAKE = s;
-    loadingTable();
-    fillReadout();
-    const f = (v, d) => (v == null || !isFinite(v)) ? '—' : v.toFixed(d);
-    let t = 'all-up ' + f(s.mass, 0) + ' kg · CG ' + f(s.cgX, 2) + ' m · static margin ' +
-      f(s.staticMargin, 2);
-    if (s.reserve) t += ' · at reserves ' + f(s.reserve.staticMargin, 2) +
-      ' (' + f(s.reserve.mass, 0) + ' kg)';
-    const bad = (s.vessels || []).filter(v => !v.fits).length;
-    if (bad) t += ' · ' + bad + ' vessel' + (bad > 1 ? 's' : '') + ' the ledger cannot fit';
-    balEl.textContent = t;
-    balEl.style.color = (s.staticMargin != null && s.staticMargin < 0.05) ? '#ff7b6b' : '';
-  } catch (e) { balEl.textContent = ''; }
 }
 
 // ---------------------------------------------------------------------------

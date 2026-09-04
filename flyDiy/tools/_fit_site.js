@@ -100,12 +100,101 @@ function triNormal(a, b, c) {
 // `ax` is the component pair; `tx`/`ty` the target. Returns one entry per
 // triangle that contains the target, BEFORE dedup and BEFORE any filtering,
 // because the callers want to say different things about a rejected hit.
+// THE FIELD INDEX (2026-09-04). fieldHits walked EVERY face of the mesh for
+// every (sL, lv) it was asked about, and the energy layer asks about ten
+// thousand of them per fuselage build: 28 stations x 34 levels per sL table,
+// forty-odd x 34 per bay profile, three bays, two sweeps each. Measured on the
+// stock garage build: 2.0 s of a 2.6 s cabin-ring slider tick, ~60 million
+// triangle tests to find a few hundred hits. The user, after a day of it:
+// "changing any parameter causes lag while it was full smooth yesterday".
+//
+// So the faces are BINNED ONCE PER MESH by their bounding box in the field
+// plane being searched, and a query walks its cell's faces instead of all of
+// them. Nothing about the test changes: the same faces, in the same order,
+// through the same barycentric walk — the index only decides which faces
+// cannot contain the point, and a face whose padded box misses the point
+// cannot (the walk's own tolerance is 1e-9 in barycentric terms, the box is
+// padded by 1e-7 in field units). GATE FIT runs the walk both ways on every
+// fixture and asserts the hits are identical.
+//
+// Keyed on the mesh OBJECT (a WeakMap: a build makes a new mesh, and the
+// index goes with the old one), checked against the V/A/F arrays it was built
+// from, and per axis pair — a rail query and a metric query bin differently.
+const FIELD_IDX = (typeof WeakMap !== 'undefined') ? new WeakMap() : null;
+function fieldIndexFor(mesh, ax) {
+  const key = ax[0] + ',' + ax[1];
+  let per = FIELD_IDX ? FIELD_IDX.get(mesh) : null;
+  if (!per || per.V !== mesh.V || per.A !== mesh.A || per.F !== mesh.F || per.nF !== mesh.F.length) {
+    per = { V: mesh.V, A: mesh.A, F: mesh.F, nF: mesh.F.length, idx: {} };
+    if (FIELD_IDX) FIELD_IDX.set(mesh, per);
+  }
+  if (!per.idx[key]) per.idx[key] = buildFieldIndex(mesh, ax);
+  return per.idx[key];
+}
+function buildFieldIndex(mesh, ax) {
+  const A = mesh.A, F = mesh.F, ix = ax[0], iy = ax[1];
+  const PAD = 1e-7;
+  const live = [], box = [];
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (let fi = 0; fi < F.length; fi++) {
+    const f = F[fi], ids = f && f.v;
+    if (!ids || ids.length < 3) continue;
+    let bare = false, bx0 = Infinity, by0 = Infinity, bx1 = -Infinity, by1 = -Infinity;
+    for (const i of ids) {
+      const a = A[i];
+      if (!a) { bare = true; break; }
+      const x = a[ix], y = a[iy];
+      if (x < bx0) bx0 = x; if (x > bx1) bx1 = x;
+      if (y < by0) by0 = y; if (y > by1) by1 = y;
+    }
+    if (bare || !(bx0 <= bx1) || !(by0 <= by1)) continue;   // NaN-safe
+    live.push(fi);
+    box.push(bx0 - PAD, by0 - PAD, bx1 + PAD, by1 + PAD);
+    if (bx0 < x0) x0 = bx0; if (bx1 > x1) x1 = bx1;
+    if (by0 < y0) y0 = by0; if (by1 > y1) y1 = by1;
+  }
+  if (!live.length) return { empty: true };
+  x0 -= PAD; y0 -= PAD; x1 += PAD; y1 += PAD;
+  const n = Math.max(4, Math.min(96, Math.ceil(Math.sqrt(live.length))));
+  const nx = n, ny = n;
+  const sx = nx / Math.max(1e-12, x1 - x0), sy = ny / Math.max(1e-12, y1 - y0);
+  const cells = new Array(nx * ny).fill(null);
+  const cellOf = (v, o, sc, nn) => Math.max(0, Math.min(nn - 1, Math.floor((v - o) * sc)));
+  for (let k = 0; k < live.length; k++) {
+    const fi = live[k], b = k * 4;
+    const cx0 = cellOf(box[b], x0, sx, nx), cx1 = cellOf(box[b + 2], x0, sx, nx);
+    const cy0 = cellOf(box[b + 1], y0, sy, ny), cy1 = cellOf(box[b + 3], y0, sy, ny);
+    for (let cy = cy0; cy <= cy1; cy++)
+      for (let cx = cx0; cx <= cx1; cx++) {
+        const c = cy * nx + cx;
+        (cells[c] || (cells[c] = [])).push(fi);   // ascending: k walks the faces in order
+      }
+  }
+  return { x0, y0, x1, y1, nx, ny, sx, sy, cells };
+}
+// the faces that could hold (tx, ty), ascending by face index; [] when none can
+function fieldIndexQuery(mesh, ax, tx, ty) {
+  const I = fieldIndexFor(mesh, ax);
+  if (!I || I.empty) return [];
+  if (!(tx >= I.x0 && tx <= I.x1 && ty >= I.y0 && ty <= I.y1)) return [];
+  const cx = Math.max(0, Math.min(I.nx - 1, Math.floor((tx - I.x0) * I.sx)));
+  const cy = Math.max(0, Math.min(I.ny - 1, Math.floor((ty - I.y0) * I.sy)));
+  return I.cells[cy * I.nx + cx] || [];
+}
 function fieldHits(mesh, ax, tx, ty) {
+  if (!mesh || !mesh.A || !mesh.V || !mesh.F) return [];
+  return fieldScan(mesh, ax, tx, ty, fieldIndexQuery(mesh, ax, tx, ty));
+}
+// the walk itself, over `cand` (face indices, ascending) or over every face
+// when `cand` is null — the gate runs it both ways and asserts they agree
+function fieldScan(mesh, ax, tx, ty, cand) {
   const A = mesh && mesh.A, V = mesh && mesh.V;
   if (!A || !V || !mesh.F) return [];
   const out = [];
   const ix = ax[0], iy = ax[1];
-  for (const f of mesh.F) {
+  const F = mesh.F, nC = cand ? cand.length : F.length;
+  for (let ci = 0; ci < nC; ci++) {
+    const f = F[cand ? cand[ci] : ci];
     const ids = f && f.v;
     if (!ids || ids.length < 3) continue;
     // THE FIELD IS SHORTER THAN THE MESH. cageRims appends its bead vertices
@@ -689,7 +778,7 @@ function siteToAF(AF, site) {
 
 const API = { accessSites, fieldHits, siteToAF, snapTo, sectionCY, frameAt,
               sectionArc, AX_RAIL, crownSite, geoMesh,
-              NOT_SKIN, AX_METRIC, AX_STRUCT };
+              NOT_SKIN, AX_METRIC, AX_STRUCT, fieldScan, fieldIndexQuery };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 if (typeof window !== 'undefined') window.FIT_SITE = API;

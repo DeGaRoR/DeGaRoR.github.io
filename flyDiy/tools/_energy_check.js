@@ -676,6 +676,33 @@ if (SHOW) for (const s of seen)
     'lag: the panel schedules its readouts through the stale/visible door, not a 50 ms timer');
   check(/function readoutsVisible\(\) \{ return !!\(panel && panel\.open && readSeen\); \}/.test(en),
     'lag: readouts run only while the panel is open and on screen');
+  // ...AND OFF THE MAIN THREAD. The fourteen solves go to a Worker that loads
+  // the gates' own core bundle and the chart's pure half; the page keeps the
+  // synchronous path as the fallback. The worker's answer was checked against
+  // the page's own on the same spec (strict JSON equality of the chart) when
+  // it landed; these pins keep the wiring, and the fallback, from being tidied.
+  check(/importScripts\(' \+ JSON\.stringify\(base \+ 'tools\/flight_core\.js'\)/.test(en) &&
+        /importScripts\(' \+ JSON\.stringify\(base \+ 'src\/viewer\/balance\.js'\)/.test(en),
+    'lag: the readout worker loads the gates\u2019 core bundle and balance.js, nothing else');
+  check(/const compute = ' \+ readoutCompute\.toString\(\)/.test(en) &&
+        /applyReadouts\(readoutCompute\(job, \{ buildGen, genShakedown, genSpecAtFuel \}/.test(en),
+    'lag: one readout body (readoutCompute) serves the worker and the on-page fallback');
+  check(/if \(!r \|\| r\.seq !== readSeq\) return;/.test(en),
+    'lag: a readout about an aeroplane that has changed since is dropped by sequence');
+  check(/readWorkerDead = true; readWorker = null;[\s\S]{0,120}readoutsNow\(\);/.test(en),
+    'lag: a worker that fails hands the job back to the page');
+  // the worker's imports have to EXIST where the page is served from
+  check(fs.existsSync(path.join(__dirname, 'flight_core.js')) &&
+        fs.existsSync(path.join(__dirname, '..', 'src', 'viewer', 'balance.js')),
+    'lag: tools/flight_core.js and src/viewer/balance.js are on disk for the worker to import');
+  const fc = fs.readFileSync(path.join(__dirname, 'flight_core.js'), 'utf8');
+  check(!/\brequire\(/.test(fc) && !/^\s*(window|document)\./m.test(fc),
+    'lag: the core bundle has no require/window/document at load, so a worker can import it');
+  // THE FIELD INDEX is what makes a fuselage row cheap again (GATE FIT proves
+  // it exact); this is the line that turns it on for every caller of fieldHits
+  const fsrc = fs.readFileSync(path.join(__dirname, '_fit_site.js'), 'utf8');
+  check(/return fieldScan\(mesh, ax, tx, ty, fieldIndexQuery\(mesh, ax, tx, ty\)\);/.test(fsrc),
+    'lag: fieldHits walks the indexed cell, not the mesh');
 }
 
 console.log('  ' + seen.length + ' bodies swept, ' +

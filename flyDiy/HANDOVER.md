@@ -28551,41 +28551,144 @@ baggage on it). Spar solids first, behind their own switch.
 
 ---
 
-## G101 — THE BALANCE CHART (2026-09-04; the energy arc's last chantier)
+## THE SLIDER LAG (2026-09-04; the user: "one of the recent updates made the
+## editor really laggy ... any action on the model is super costly ... I wonder
+## if this wouldn't be the fuel tank auto placement rerunning every time?" —
+## and, after a first fix: "we really have to change something more
+## fundamental ... yesterday's edits were unnoticeable ... let's be drastic")
 
-The weight-and-balance chart a flight manual has: CG across in % of the mean
-chord, mass up. `src/viewer/balance.js` — `compute` pure and node-loadable
-(GATE ENERGY runs it headless), `draw` on a 2-D canvas in the `fuel & energy`
-panel. Every point is genShakedown over genSpecAtFuel: the same door as the
-reserve sheet, the envelope's corners and the fill slider (G100), so nothing
-on the chart is an estimate.
+It was the tank placement, and it was also the readouts, and the first fix
+(a cache keyed on the body) only moved the bill from every slider to every
+FUSELAGE slider — which is where a builder lives. Three changes, all
+measured against the pre-G99 tree (a08afd7, served beside the working copy
+from a `git archive`) on the same machine, the same page, the same rows:
 
-- **The burn line**: the CG walking as the fuel burns at the chosen loading,
-  full → 75 → 50 → 25 → reserves (hollow) → dry.
-- **The four corners**, hollow, labelled S/F S/R C/F C/R.
-- **The yellow dot**: the fuel aboard (the G100 slider).
-- **The limits the model KNOWS**: NEUTRAL where the static margin reaches
-  zero, CAUTION 5% of the chord ahead of it (the fleet's "twitchy" band).
-  **No forward limit is drawn** — the model has no elevator-authority rule to
-  place one, and a line the aeroplane cannot justify would be a decoration.
-  The forward corner is marked instead.
-- **Occupants and baggage** as what-ifs (VIEW state, not the build): the
-  loading you want to SEE the aeroplane at; the build's own loading stays the
-  crew layer's dummies and the spec's baggage.
-- The mean chord is recovered EXACTLY from the shakedown:
-  cBar = (npX − cgX) / staticMargin.
+| one slider tick (cabin ring / cowl gap) | pre-G99 (yesterday) | after G99-G101 | now |
+|---|---|---|---|
+| tab in front, synchronous | 440-506 ms | 2.6 s | 460-550 ms |
+| tab in background, synchronous | 120-169 ms | 2.6 s | 108-197 ms |
+| of which the energy layer's bay sweeps | 0 | 2.0 s | ~20 ms |
+| readouts after the tick, main thread | 0 | 1.1 s (14 aero solves, into a hidden panel) | 0 (a Worker) |
+| the bench, `_cage8.html`, in front | 84-171 ms | — | same code path as the editor |
 
-Verified live: the stock Cub with a nose tank and an aft-cabin tank — the
-burn line 569 → 499 kg with the CG 29.4 → 28.3 % MAC (two tanks bracketing
-it), the reserve point on it, four corners, neutral 55.2 % / caution 50.2 %,
-cBar 1.600 m; two occupants and 30 kg of baggage at 40 % fuel: 552 kg at
-32.7 % MAC, margin 0.22 — baggage aft moves it aft.
+The 340 ms between "in front" and "in background" is the first render of the
+new meshes and predates all of this (it is in yesterday's numbers); it is not
+part of the regression and was left alone.
 
-**BATTERY: PASS** — 68 gates, no reds, over exactly this build.
+- **The field index** (`_fit_site.js`): `fieldHits` walked EVERY face of the
+  mesh for every (sL, lv) it was asked, and the energy layer asks ~10 000 times
+  per fuselage build (28 x 34 per sL table, ~40 x 34 per bay profile, three
+  bays, two sweeps each: ~60 million triangle tests for a few hundred hits).
+  The faces are now binned once per mesh by their box in the searched field
+  plane (a WeakMap on the mesh object, per axis pair; sqrt(faces) cells a
+  side; boxes padded 1e-7 against the walk's 1e-9 barycentric tolerance), and
+  a query walks its cell. The walk itself is untouched — `fieldScan` is the
+  old loop over either the cell's faces or all of them — so the index can only
+  REMOVE faces that cannot hold the point. GATE FIT runs both ways on every
+  build, every axis pair, a 61 x 31 grid across the field and a sample on
+  every seventh fielded vertex: 41 046 samples, 128 160 hits, 0 differ; the
+  same harness in a scratch script over 49 416 samples: full walk 10.0 s,
+  indexed 97 ms. Every caller of `fieldHits` (fittings, crown sites, the
+  gates) gets the same speed-up for free.
+- **The sweep caches keyed on the body** (`_cage_energy.js`): `bodySig(ctx)`
+  hashes the FIELDED vertices (A[i] defined — exactly the faces `fieldHits`
+  walks); `BAY_CACHES` and `FIELD_L` (measureBays' litres) survive while the
+  signature holds; keys are the bay RULE limits + datum, taken once per bay
+  object (`bay._ck`) before the field clamps x0/x1, and the clamp runs on
+  every `cacheOf` because BAYS is measured afresh each build. With the index
+  this is belt-and-braces (a re-sweep is ~20 ms), but it keeps a wing row from
+  touching the body at all.
+- **The readouts off the main thread**: the full shakedown (reserve sheet +
+  four corners inside it), the fill point and the chart's seven points are
+  fourteen aero solves, ~1.1 s (`makeSim` is 0.1 ms; it is all `sim.probe`),
+  and they fired 50 ms after EVERY build into a panel that is `display:none`
+  until a part claims it. Now: a build marks them stale; `scheduleReadouts`
+  asks once, 300 ms after the last build, only while the panel is open and
+  its readout block intersects the viewport; and the ask is ONE job posted to
+  a Worker built from a Blob that `importScripts` the gates' own core bundle
+  (`tools/flight_core.js` — committed, no `require`/`window` at load) and
+  `src/viewer/balance.js`, with `readoutCompute` stringified in as the one
+  body both the worker and the on-page fallback run. A stale answer is dropped
+  by sequence number; a worker that fails hands the job back to the page.
+  Verified: the worker's chart against the page's own synchronous compute on
+  the same spec — strict JSON equality, the balance line matches, zero
+  `genShakedown` calls on the main thread, no long tasks.
 
-### THE ENERGY ARC, CLOSED
+Nothing about the physics changed: the numbers are the same door, the same
+functions, the same spec. GATE ENERGY carries thirteen source pins under
+`lag:` (the cache, the visibility door, the worker's imports and fallback,
+the index switch); GATE FIT the both-ways walk.
 
-G97 the interior volume · G98 the vessel catalogue · G99 placement, fit and
-the drawn, editable vessels · G100 the CG as a function of fill · G101 the
-chart. What remains owed from the arc is not a chantier: spar solids, in
-front of the user first, behind their own switch.
+### NOTED, NOT OWED
+
+- A weigh-only chart (mass and CG off `def.nodes`, which equal the
+  shakedown's to the last digit) would make the seven chart points ~1 ms
+  each, but `npX` moves 6 mm from full to dry (0.35 % MAC of static margin),
+  so it would be a second estimate. Off the main thread the question is moot.
+- The 340 ms a fronted tab pays per build over a background one (first render
+  of the new meshes, present in yesterday's tree) is the next thing to look
+  at if the editor is to feel faster than it did yesterday.
+
+## G169 — THE LEFT BAR WENT DEAD, AND THE START IS THE PLAYER'S (2026-09-04)
+
+The user's playtest, in flight: "None of the left bar controls seem to work
+anymore. The minimap is not displayed anymore. The trace cannot be hidden
+anymore." Three symptoms, two causes, neither of them a code change in the
+tree — and one option added.
+
+**1. Chrome 148 retargets the click to the element holding pointer capture.**
+`flPlace` (G141.3) took `setPointerCapture` on POINTERDOWN so that a panel
+drag could not lose its pointer; the click that ends a non-drag press was
+then still dispatched to the BUTTON under it, and everything in the ribbon,
+the PFD's fold and the map's canvas pressed. The browser's rule moved:
+pointerup and the click after it now go to the capturing element, so every
+press on the ribbon became a click on `#flRail` itself. Measured with a
+capturing document listener: `pointerdown -> svg (inside the button)`,
+`pointerup -> DIV#flRail`, `click -> DIV#flRail`. A scripted `.click()` still
+worked, which is why nothing in the smoke gate saw it. No console error.
+The pointer is captured only once the 4 px threshold has made the gesture a
+drag (in pointermove; the grip captures at once since it has nothing to
+press). GATE UISMOKE pins it: the `down` handler must contain no
+`setPointerCapture`, the `pointermove` handler must.
+
+**2. `#ui #telp { display:flex }` outranked `#telp[hidden]`.** Two ids beat
+one id plus an attribute, so the trace showed with `hidden` SET — and the
+toggle that would have hidden it was behind the dead ribbon. The hide rule
+is `#ui #telp[hidden]` now (the same specificity trap G141 already recorded
+for `#ui #pfd`); the smoke gate greps for it. The trace's DEFAULT was already
+off (`panels.trace:false`); a browser whose saved pref says on keeps its
+choice, and one click in the trace flyout turns it off.
+
+**3. The map was never broken** — it is summoned (G141), off by default, and
+its `show` toggle was behind the same dead ribbon.
+
+**The start.** "The planes are really a lot too slow when rolling out of the
+hangar ... an option to just remove that. In the left bar somewhere." A sixth
+ribbon question, `start` — "Where the flight starts" — with one toggle,
+`taxi out` (from the stand / lined up), pref `flydiy.flStart` = `taxi` |
+`lineup`, read by `applyRoute` on every call so RESTART applies it. Off, the
+aeroplane takes the pre-G151 path verbatim: `placeAtAerodrome` on the spawn
+identity, no `departFrom`, the pilot starts in ROLL. Default stays `taxi`.
+
+Measured headless (the default garage build, `makeTestPilot`, the gates'
+own runner), lined up vs from the stand:
+
+    lined up   ROLL at 0 s, throttle open at 0.5 s, LIFTOFF 13.6 s, CLIMB 24.4 s, 50 m agl at 34 s
+    stand      TAXI 0-58 s (1.2 m/s for the first 35 s, 4 m/s after the turn),
+               LINEUP 58 s, ROLL 59 s, LIFTOFF 70 s, 50 m agl at 91 s
+
+So the "too slow" is the G151-noted debt exactly: the taxi governor is
+thrust-limited at ~1.2 m/s where a real taxi is 4-5 (`taxiFF` assumes thrust
+linear in throttle). Raising it moves every taxi in the battery — the user's
+call, deferred by the user ("we'll see what we do with the roll out behaviour
+later").
+
+**Traps paid for on the way:**
+- `st && st.stand && flStartTaxi()` is `true`, not the stand. Placed at
+  `true`, the aeroplane went NaN the moment it moved, and the world went black
+  behind a NaN camera. Caught live, in the first minute of verification.
+- **The Browser pane throttles rAF to ~1 frame in 3 s** while the game is
+  up. The sim only stepped when a click or a screenshot pumped a frame, so
+  a "stuck in TAKEOFF ROLL at 0 % throttle" read was the instrument, not the
+  aeroplane ([[seeing-the-browser-pane]] again). Anything about motion is
+  measured in node; the pane verifies DOM and pixels only.
