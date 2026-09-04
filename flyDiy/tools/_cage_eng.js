@@ -194,7 +194,7 @@ window.CAGE_ENG_FACTS = (P) => {
 const PRESET_NAMES = Object.keys(EP.PRESETS).filter(n => n !== 'bare engine');
 const rowNames = r => r.k === 'material' && CW.MATERIALS
   ? CW.MATERIALS.map(mm => mm.name) : r.names;
-const LBL = { noseOff: 'base fwd of flange' };
+const LBL = { noseOff: 'fore / aft (base off the flange)' };
 const grpItems = id => ((window.COWL_ROWS || []).find(g => g.id === id) ||
   { rows: [] }).rows
   .filter(r => CW.P[r.k] !== undefined && !DEAD_SPIN.has(r.k))
@@ -247,7 +247,7 @@ const ENG_ITEMS = [
   ['engPreset', 'preset (applies once)', 0,
    Math.max(1, PRESET_NAMES.length - 1), 1, PRESET_NAMES,
    { when: P => +P.engOn }],
-  ['engY',      'engine up/down', -0.5, 0.5, 0.005,
+  ['engY',      'up / down', -0.5, 0.5, 0.005,
    { when: P => +P.engOn, dim: 'm' }],
   ...BENCH_SUBS,
   ['propOn',    'propeller',     0, 1, 1, { when: P => +P.engOn }],
@@ -394,7 +394,31 @@ function meshFrom(m) {
 
 // ---- the build ------------------------------------------------------------
 let group = null;
+// THE ONE-SHOT STARTER, as a pure step: "has the preset ROW changed since I
+// last looked?" — the first look records, a change fires, and nothing else
+// does. Published for GATE STARTER (tools/_starter_check.js), which drives it
+// without a scene.
+//
+// A LOAD IS NOT A ROW CHANGE (2026-09-03). This used to compare against the
+// previous BUILD's value, and a loaded build replaces P wholesale — so a file
+// naming a different preset than the aeroplane you had open re-fired the
+// starter, and the preset's ~40 engine rows overwrote the seven the file had
+// actually saved (the user's jodel: mount gap 1.52 -> 0.85, firewall spread
+// 2.07 -> 1.50, the exhaust style and its outlet, all gone on load — and
+// order-dependent, since loading the same file twice was fine). `PAGE.load`
+// is the editor saying "P was replaced, not edited": forget the memory, so
+// the next build records the loaded value instead of reacting to it.
 let lastPreset = null;           // the one-shot starter's memory
+function engPresetStarter(P) {
+  const psel = Math.round(P.engPreset);
+  if (lastPreset === null) { lastPreset = psel; return null; }
+  if (psel === lastPreset) return null;
+  lastPreset = psel;
+  return PRESET_NAMES[psel] || null;
+}
+const prevLoad = PAGE.load;
+PAGE.load = () => { if (prevLoad) prevLoad(); lastPreset = null; };
+if (typeof window !== 'undefined') window.CAGE_ENG_STARTER = engPresetStarter;
 const dispose = o => {
   if (!o) return;
   o.traverse(c => { if (c.geometry) c.geometry.dispose(); });
@@ -432,12 +456,10 @@ PAGE.post = ctx => {
   dispose(group); group = null;
   if (!P.engOn) return;
 
-  // the preset starter fires exactly when the row changes
-  const psel = Math.round(P.engPreset);
-  if (lastPreset === null) lastPreset = psel;
-  else if (psel !== lastPreset) {
-    lastPreset = psel;
-    applyEngPreset(P, PRESET_NAMES[psel]);
+  // the preset starter fires exactly when the ROW changes — never on a load
+  const fire = engPresetStarter(P);
+  if (fire) {
+    applyEngPreset(P, fire);
     const UI = window.CAGE_UI;
     if (UI && UI.syncSliders) UI.syncSliders();
   }
@@ -570,7 +592,8 @@ PAGE.post = ctx => {
     exhaustAt = [v.x, v.y, v.z];
   }
 
-  window.CAGE_ENG = { name: PRESET_NAMES[psel], resolved: R, zFw, exhaustAt,
+  window.CAGE_ENG = { name: PRESET_NAMES[Math.round(P.engPreset)],
+                      resolved: R, zFw, exhaustAt,
                       spec, quads: M.stats && M.stats.quads };
   if (stat) {
     const head = R.arch === 'electric'

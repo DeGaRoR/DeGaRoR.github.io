@@ -4323,12 +4323,24 @@ function cageInterior(m, S) {
       // no station forward of k=1 (user: the floating mini-ring by the
       // cabin is gone — the boom connects to the pax pillar HOOP)
       const kLo = 1;
-      const kHi = consBoom === 'wood' ? NFr : NFr + 1;
+      // the aft-most station (k = NFr+1, at the tailpost) carries NODES
+      // ONLY on a wooden boom: no ajoure web there — the plywood webs
+      // stop short of the post as built — but the LONGERONS run onto it,
+      // which is the whole point of a longeron
+      const kHi = NFr + 1;
       const mtW = [[], []], mtB = [[], []];   // metal stringer nodes
       // the boom nodes carry the THICK longerons now — the inset must
       // track the big radius (it was TUBE_R-sized, which is exactly why
       // the waist longeron poked through the boom skin, user screenshot)
       const BOOM_IN = TUBE_RP + 0.005;
+      // WHAT THE WOODEN STRUCTURE HAS TO CLEAR is the plywood skin,
+      // and it is the SAME NUMBER the lining is extruded by (the
+      // liner calls above): a former or a longeron is glued to the
+      // INSIDE of the covering, so it stops on the ply's inner face —
+      // it neither floats off it nor grows through it. Reading the
+      // lining's own thickness rather than repeating a constant is
+      // what keeps that true when `skinT` moves.
+      const plyT = tSk || t0 * 0.4;
       const topCh = [[], []], botCh = [[], []];
       // ROD MODE (G26): no boom skin to slice and the rod IS the
       // structure — the station machinery idles (empty chains no-op
@@ -4462,7 +4474,89 @@ function cageInterior(m, S) {
           botCh[1].push(inCtr(cornPick(-1), cy2));
           continue;
         }
-        // the web is a SOLID (user: half a centimetre of thickness) and
+        // WOODEN LONGERON NODES: the same two lines the tube boom
+        // carries (waist-band middle on each flank, bottom chine
+        // corner), read off a ring inset by the beam's own half width
+        // so the spruce sits INSIDE the plywood instead of grazing it.
+        // Recorded before the web is drawn, so the node-only tailpost
+        // station can bail out below.
+        (() => {
+          // A RADIAL INSET IS NOT ENOUGH, and the measurement says so:
+          // the beam is a SQUARE aligned to x/y while the section is
+          // neither, so what reaches the plywood first is a CORNER, and
+          // how far in that corner is depends on the local curvature,
+          // not on the radius. An inset of the beam's half width left
+          // 12 corners proud at the tailpost, a diagonal inset still
+          // left 18 on a deep waistband. So the node is pulled toward
+          // the section centroid until the SQUARE ITSELF fits — the
+          // distance from the node to the outline is measured, not
+          // assumed, and the loop stops when it clears the half
+          // diagonal. Two dozen 4 mm steps is a whole section: a hoop
+          // too small to hold a longeron ends up centred rather than
+          // sticking out of the aeroplane.
+          const need = cB * Math.SQRT1_2 + plyT + 0.002;
+          const nP = pts.length;
+          const dOut = q => {
+            let d = 1e9;
+            for (let i2 = 0; i2 < nP; i2++) {
+              const a = pts[i2], b = pts[(i2 + 1) % nP];
+              const dx = b[0] - a[0], dy = b[1] - a[1];
+              const t = Math.max(0, Math.min(1,
+                ((q[0]-a[0])*dx + (q[1]-a[1])*dy) / (dx*dx + dy*dy || 1)));
+              d = Math.min(d, Math.hypot(q[0]-(a[0]+dx*t), q[1]-(a[1]+dy*t)));
+            }
+            return d;
+          };
+          const fitIn = p => {
+            const dx = cx - p[0], dy = cy2 - p[1];
+            const l = Math.hypot(dx, dy) || 1;
+            let q = [p[0], p[1], zk];
+            for (let i2 = 0; i2 < 24 && dOut(q) < need; i2++)
+              q = [q[0] + dx/l*0.004, q[1] + dy/l*0.004, zk];
+            return q;
+          };
+          const yWm4 = (S.waistY + S.bandY) / 2;
+          const wPickW = sx => {
+            let best = pts[0], bv = 1e9;
+            for (const p of pts) {
+              if (sx * p[0] <= 0) continue;
+              const s = Math.abs(p[1] - yWm4);
+              if (s < bv) { bv = s; best = p; }
+            }
+            return best;
+          };
+          const cornPickW = sx => {
+            let best = pts[0], bv = -1e9;
+            for (const p of pts) {
+              const s = sx * p[0] - p[1];
+              if (s > bv) { bv = s; best = p; }
+            }
+            return best;
+          };
+          topCh[0].push(fitIn(wPickW(1)));
+          topCh[1].push(fitIn(wPickW(-1)));
+          botCh[0].push(fitIn(cornPickW(1)));
+          botCh[1].push(fitIn(cornPickW(-1)));
+        })();
+        if (k > NFr) continue;          // tailpost station: nodes only
+        // THE COUPLE IS A PIECE OF TIMBER, not a card. Half a
+        // centimetre was the first ask and it read as paper against
+        // the 56 mm posts beside it: a plywood former is a ply web
+        // with its glue blocks and cap strips, so it stands ~12 mm
+        // proud of nothing at all. WHAT IT COSTS IS NOTHING — the two
+        // faces already exist, they only move apart — which is why the
+        // one number is here to be argued with rather than hidden.
+        //
+        // AND IT IS SET BACK BEHIND THE COVERING. The rim used to sit
+        // 12 mm inside the outer skin while the plywood lining is 14
+        // thick, so every couple grew 2 mm INTO the ply. `inO` reads
+        // the lining's own thickness instead: the web stops on the
+        // ply's inner face, glued to it, which is where a former is.
+        // The boom TAPERS, so the aft face lands where the section has
+        // already narrowed — a hair more clearance covers the run over
+        // the web's own half thickness.
+        const TH = 0.006;
+        const inO = plyT + 0.001 + TH * 0.15;
         // the lightening hole's FLOOR is raised to the section centroid
         // — the hole reads as a half circle and the web below the chord
         // stays full (user correction: the hole was too big, a raised
@@ -4486,16 +4580,22 @@ function cageInterior(m, S) {
           const p = pts[i2];
           const dx = cx - p[0], dy = cy2 - p[1];
           const l = Math.hypot(dx, dy) || 1;
-          o2.push([p[0] + dx/l*0.012, p[1] + dy/l*0.012]);
           const pm = pts[(i2 - 1 + n2p) % n2p], pp = pts[(i2 + 1) % n2p];
           const tx = pp[0] - pm[0], ty = pp[1] - pm[1];
           const tl = Math.hypot(tx, ty) || 1;
           let nx = -ty / tl, ny = tx / tl;
           if (nx * dx + ny * dy < 0) { nx = -nx; ny = -ny; }
+          // the outer rim follows the BOUNDARY NORMAL, exactly as the
+          // hole below does and for the same reason the hole's own
+          // comment gives: a radial step is only worth its length
+          // where the radius happens to meet the outline square on,
+          // and at the chines it is not — measured, a 16 mm radial
+          // inset was 9 mm of real clearance there and the couple bit
+          // into the ply it is supposed to sit against.
+          o2.push([p[0] + nx * inO, p[1] + ny * inO]);
           const mm = Math.min(MW, l * 0.75);
           h2.push([p[0] + nx * mm, Math.max(p[1] + ny * mm, yFloor)]);
         }
-        const TH = 0.0025;
         const oF = o2.map(p => V.push([p[0], p[1], zk + TH]) - 1);
         const oB = o2.map(p => V.push([p[0], p[1], zk - TH]) - 1);
         const hF = h2.map(p => V.push([p[0], p[1], zk + TH]) - 1);
@@ -4508,6 +4608,78 @@ function cageInterior(m, S) {
           add.push({ v: [oB[i2], oB[j], oF[j], oF[i2]], m: 'woodFrame' });
           add.push({ v: [hF[i2], hF[j], hB[j], hB[i2]], m: 'woodFrame' });
         }
+      }
+      // the boom's bottom-corner stations run as their OWN chine run,
+      // opened by a straight extrapolation of the first two stations
+      // onto the pillarCabin section plane — the run lands ON the
+      // cabin hoop at whatever height the boom line dictates (user
+      // rule; with no shoulder the line passes the old corner anyway).
+      // The cabin-side chine run above ends at its own corner line —
+      // longerons landing on a frame from both sides, as built IRL.
+      // Shared by the tube and the wood realizations: the rule is about
+      // the aft SHOULDER, not about what the member is made of, so the
+      // inset is the only thing that varies.
+      const boomRun = (ch, inset, tgt) => {
+        if (ch.length >= 2 && bandEnds.length > 1) {
+          // same target + landing rules as the metal preLine: in
+          // bubble mode a front bandEnds[1] means no intermediate
+          // frame — land on bandEnds[0]'s own plane; and a head
+          // that misses the hull sideways snaps onto the sliced
+          // section (no-shoulder heads stay put).
+          const bT = tgt || (S.config && S.config.canopy
+              && S.config.canopy.mode === 'bubble'
+              && bandEnds[1].isFront ? bandEnds[0] : bandEnds[1]);
+          const A = ch[0], B = ch[1];
+          const dz = A[2] - B[2];
+          if (Math.abs(dz) > 1e-6) {
+            const t = (bT.zm - A[2]) / dz;
+            const ep = [A[0] + (A[0] - B[0]) * t,
+                        A[1] + (A[1] - B[1]) * t, bT.zm];
+            return [landSec(ep, inset == null ? BOOM_IN : inset) || ep,
+                    ...ch];
+          }
+        }
+        const b0c = bandEnds[0];
+        const md0 = b0c && b0c.mid;
+        const node = ch === botCh[0] ? md0 && md0.P : md0 && md0.M;
+        return node ? [inCtr(node, b0c.cy), ...ch] : ch;
+      };
+      if (consBoom === 'wood') {
+        // THE WOODEN BOOM'S FOUR LONGERONS. The webs were the whole of
+        // it until now — plywood couples floating on the plywood skin
+        // with nothing running between them, so what read as a longeron
+        // aft of the cabin was only the PAINTED rail on the covering,
+        // which has no thickness because it is a material and not a
+        // member. These are the members: spruce at the same square
+        // section as every other wooden beam (the user's one-section
+        // ruling), on the two lines the tube boom already carries, from
+        // the aft cabin band through every web station and onto the
+        // tailpost. Six quads a segment — they are only ever seen
+        // through `see inside`.
+        const b0w = bandEnds[0], md0w = b0w && b0w.mid;
+        const topRun = (ch, node) =>
+          node ? [inCtr(node, b0w.cy), ...ch] : ch;
+        const runs = [
+          topRun(topCh[0], md0w && md0w.wP),
+          topRun(topCh[1], md0w && md0w.wM),
+          // the bottom pair terminates on the band the BOOM STARTS
+          // FROM, not a bay further forward like the tube run: the wood
+          // realization already has a chine beam in every cabin bay, so
+          // reaching past bandEnds[0] would lay a second beam over the
+          // aft bay. The aft-shoulder rule is still honoured — the run
+          // is the same straight continuation, it just stops one frame
+          // sooner, and the cabin's own beam lands on that frame from
+          // the other side.
+          boomRun(botCh[0], cB * Math.SQRT1_2 + plyT + 0.002, b0w),
+          boomRun(botCh[1], cB * Math.SQRT1_2 + plyT + 0.002, b0w),
+        ];
+        for (const ch of runs)
+          for (let i = 0; i + 1 < ch.length; i++) {
+            const A = ch[i], B = ch[i + 1];
+            if (consAt((A[1] + B[1]) / 2, (A[2] + B[2]) / 2) !== 'wood')
+              continue;
+            beam(A, B, cB, cB, 'woodFrame');
+          }
       }
       if (consBoom === 'metal') {
         // METAL STRINGERS v2 (user reality check): L-ANGLES, solid —
@@ -4611,37 +4783,6 @@ function cageInterior(m, S) {
         }
         for (const p of topCh[0]) runsP[runsP.length - 1].push(p);
         for (const p of topCh[1]) runsM[runsM.length - 1].push(p);
-        // the boom's bottom-corner stations run as their OWN chine run,
-        // opened by a straight extrapolation of the first two stations
-        // onto the pillarCabin section plane — the run lands ON the
-        // cabin hoop at whatever height the boom line dictates (user
-        // rule; with no shoulder the line passes the old corner anyway).
-        // The cabin-side chine run above ends at its own corner line —
-        // longerons landing on a frame from both sides, as built IRL.
-        const boomRun = ch => {
-          if (ch.length >= 2 && bandEnds.length > 1) {
-            // same target + landing rules as the metal preLine: in
-            // bubble mode a front bandEnds[1] means no intermediate
-            // frame — land on bandEnds[0]'s own plane; and a head
-            // that misses the hull sideways snaps onto the sliced
-            // section (no-shoulder heads stay put).
-            const bT = S.config && S.config.canopy
-                && S.config.canopy.mode === 'bubble'
-                && bandEnds[1].isFront ? bandEnds[0] : bandEnds[1];
-            const A = ch[0], B = ch[1];
-            const dz = A[2] - B[2];
-            if (Math.abs(dz) > 1e-6) {
-              const t = (bT.zm - A[2]) / dz;
-              const ep = [A[0] + (A[0] - B[0]) * t,
-                          A[1] + (A[1] - B[1]) * t, bT.zm];
-              return [landSec(ep, BOOM_IN) || ep, ...ch];
-            }
-          }
-          const b0c = bandEnds[0];
-          const md0 = b0c && b0c.mid;
-          const node = ch === botCh[0] ? md0 && md0.P : md0 && md0.M;
-          return node ? [inCtr(node, b0c.cy), ...ch] : ch;
-        };
         const chnPb = boomRun(botCh[0]), chnMb = boomRun(botCh[1]);
         // bubble: the deleted window band leaves the nose->cabin chine
         // span unsupported — the chord dived off the curved belly
@@ -5071,14 +5212,27 @@ function cageInterior(m, S) {
     const zPill = (bL[2] + bR[2]) / 2 + 0.15;
     const R5 = base.map((p, i) => pid([baseT[i][0], yB, zPill]));
     const dashStart = add.length;
+    // TWO MATERIALS ON ONE DASHBOARD (2026-09-04, the user: "the dashboard
+    // ... 1 for the flat face facing the pilot, and one for the rest,
+    // including the lip"). The split is GEOMETRY, not a texture mask, for the
+    // same reason the firewall's fireproof sheet below is: the recessed FACE
+    // PLATE (the ladder over the forward lip path) is the metal facia the
+    // instruments are cut into, and everything round it — the glareshield,
+    // the flat side panels, the border roll, the lip wall that steps down to
+    // the plate, and the box bottom — is the padded shell. `mat` names which
+    // is being emitted; it is the only state these three helpers carry, and
+    // the material rides `f.m` through orientCage, the crease compaction and
+    // both subdivisions (cageSubdivide copies `m`), so the boundary is the
+    // one the lip path is already creased on.
+    let mat = 'dash';
     const quad = (a, b, c, d) => {
       const u = new Set([a, b, c, d]);
       if (u.size < 3) return;
       if (u.size === 3) {                 // true triangle, cyclic order kept
         const vv = [];
         for (const x of [a, b, c, d]) if (!vv.includes(x)) vv.push(x);
-        add.push({ v: vv, m: 'dash' });
-      } else add.push({ v: [a, b, c, d], m: 'dash' });
+        add.push({ v: vv, m: mat });
+      } else add.push({ v: [a, b, c, d], m: mat });
     };
     const strip = (A, B) => {
       for (let i = 0; i + 1 < A.length; i++)
@@ -5104,7 +5258,7 @@ function cageInterior(m, S) {
     const cA = [], cB = [];
     for (let i = iC; i >= 0; i--) cA.push(o2id[i]);
     for (let i = iC; i < NX; i++) cB.push(o2id[i]);
-    ladder(cA, cB);
+    mat = 'dashFace'; ladder(cA, cB); mat = 'dash';
     // bottom: ladder between the aft chain (outer corner -> roll corner ->
     // lip corner -> chord -> mirrored) and the under-base line
     ladder([oid[0], o1id[0], o2id[0], o2id[NX - 1], o1id[NX - 1],
@@ -5173,7 +5327,7 @@ function cageInterior(m, S) {
     sm = cageSubdivide(cageSubdivide(sm));
     const off = V.length;
     for (const p of sm.V) V.push(p);
-    for (const f of sm.F) add.push({ v: f.v.map(i => i + off), m: 'dash' });
+    for (const f of sm.F) add.push({ v: f.v.map(i => i + off), m: f.m });
   })();
 
   // ---- firewall ------------------------------------------------------------
@@ -5187,6 +5341,31 @@ function cageInterior(m, S) {
   // PROUD of the aperture plane (the old inboard setback overlapped
   // the liner rim walls once the cap skin was dropped); the pusher
   // tail disc keeps its skin, so its plate stays tucked behind it.
+  //
+  // THE ENGINE SIDE IS ITS OWN SURFACE (2026-09-03, the user: "add the
+  // fireproof material to the engine side of the firewall, and ensure to
+  // have a small border around this, on the contour of the firewall section,
+  // acting like a small joint/sealant between the fireproof surface and the
+  // rest of the firewall and fuselage"). A real firewall is a structural
+  // panel with a sheet of stainless or aluminised foil on the hot side of it,
+  // and the foil stops short of the flange so the seam can be sealed — so
+  // this is three materials on one plate and the split is GEOMETRY, not a
+  // texture mask: the front sheet is INSET from the plate's own outline by
+  // the seal width and is `fireProof` (AEROSKIN's `fire` role), the band that
+  // fills the gap is `fireSeal` (a rubber bead, like every rim joint on this
+  // aeroplane), and the outline, the rim wall and the back sheet stay
+  // `firewall` — the panel the foil is bolted to. Both apertures get it: on a
+  // pusher the hot side is the aft one, and it is the same face of the plate
+  // (the cap's own winding) either way.
+  //
+  // THE INSET IS AN IN-PLANE OFFSET OF THE BOUNDARY LOOP, not a scale about
+  // the centroid — a scaled outline gives a band that is wide where the plate
+  // is wide and narrow where it is narrow, which is not a seal. Each boundary
+  // EDGE has an inward normal cross(n, e) — n the plate normal there, e the
+  // edge — and the vertex between two of them takes their mitre, so the band
+  // holds one width all the way round including at the cap grid's corners
+  // (see the mitre note below, which records what it was before). The plate's
+  // centroid settles the SIGN of each edge normal and nothing else.
   if (I.fire) (() => {
     const nose = [], rear = [];
     F.forEach((f, i) => {
@@ -5196,6 +5375,8 @@ function cageInterior(m, S) {
       (cz >= zPax0 ? nose : rear).push(i);
     });
     const FTH = 0.005;
+    const SW = Math.max(0, +I.sealW || 0);
+    const SEAL = SW > 1e-4;
     const plate = (fis, d0) => {
       if (!fis.length) return;
       const vN = new Map();
@@ -5210,16 +5391,8 @@ function cageInterior(m, S) {
           vN.set(vi, [s[0]+n[0], s[1]+n[1], s[2]+n[2]]);
         }
       }
-      const pF = new Map(), pB = new Map();
-      const of2 = (vi, d, mp) => {
-        if (!mp.has(vi)) {
-          const n = vN.get(vi);
-          const l = Math.hypot(n[0], n[1], n[2]) || 1;
-          mp.set(vi, V.push([V[vi][0]+n[0]/l*d, V[vi][1]+n[1]/l*d,
-                             V[vi][2]+n[2]/l*d]) - 1);
-        }
-        return mp.get(vi);
-      };
+      // the boundary: an edge one face owns is on the outline, and the
+      // outline is what both the rim wall and the seal are built on
       const eCnt = new Map(), eDir = new Map();
       for (const fi of fis) {
         const f = F[fi];
@@ -5230,16 +5403,94 @@ function cageInterior(m, S) {
           if (!eDir.has(k)) eDir.set(k, [a, b]);
         }
       }
+      // ...and the step each boundary vertex takes inward, once.
+      // PER EDGE FIRST, THEN MITRED AT THE VERTEX. The step cannot be
+      // "SW along the bisector": at the cap grid's corners (the outline turns
+      // 90 degrees where the side chain meets the top edge) that leaves the
+      // band SW*cos45 = 0.71*SW wide there — measured 12.8 mm for an 18 mm
+      // seal before this was mitred. The offset that holds SW against BOTH
+      // edges is the standard mitre SW*(n1+n2)/(1+n1.n2), which degenerates
+      // to SW*n on a straight run and is clamped at 3*SW so a cusp cannot
+      // throw a vertex across the plate.
+      const inw = new Map();
+      if (SEAL) {
+        const C = [0, 0, 0];
+        let cn = 0;
+        for (const fi of fis) for (const vi of F[fi].v) {
+          C[0] += V[vi][0]; C[1] += V[vi][1]; C[2] += V[vi][2]; cn++;
+        }
+        C[0] /= cn || 1; C[1] /= cn || 1; C[2] /= cn || 1;
+        const eN = new Map();               // boundary vertex -> its edges' inward normals
+        for (const [k, c] of eCnt) {
+          if (c !== 1) continue;
+          const [a, b] = eDir.get(k);
+          const e = [V[b][0]-V[a][0], V[b][1]-V[a][1], V[b][2]-V[a][2]];
+          const nA = vN.get(a), nB = vN.get(b);
+          const n = [nA[0]+nB[0], nA[1]+nB[1], nA[2]+nB[2]];
+          let d = [n[1]*e[2]-n[2]*e[1], n[2]*e[0]-n[0]*e[2],
+                   n[0]*e[1]-n[1]*e[0]];
+          const l = Math.hypot(d[0], d[1], d[2]);
+          if (!(l > 1e-12)) continue;
+          d = [d[0]/l, d[1]/l, d[2]/l];
+          const mid = [(V[a][0]+V[b][0])/2, (V[a][1]+V[b][1])/2,
+                       (V[a][2]+V[b][2])/2];
+          if (d[0]*(C[0]-mid[0]) + d[1]*(C[1]-mid[1]) + d[2]*(C[2]-mid[2]) < 0)
+            d = [-d[0], -d[1], -d[2]];
+          for (const vi of [a, b]) {
+            if (!eN.has(vi)) eN.set(vi, []);
+            eN.get(vi).push(d);
+          }
+        }
+        for (const [vi, ds] of eN) {
+          let d = ds[0];
+          if (ds.length === 2) {                  // the mitre
+            const dot = ds[0][0]*ds[1][0] + ds[0][1]*ds[1][1] + ds[0][2]*ds[1][2];
+            const k2 = Math.max(0.3, 1 + dot);
+            d = [(ds[0][0]+ds[1][0])/k2, (ds[0][1]+ds[1][1])/k2,
+                 (ds[0][2]+ds[1][2])/k2];
+          } else if (ds.length > 2) {             // a non-manifold outline: average
+            const s = [0, 0, 0];
+            for (const q of ds) { s[0] += q[0]; s[1] += q[1]; s[2] += q[2]; }
+            const sl = Math.hypot(s[0], s[1], s[2]) || 1;
+            d = [s[0]/sl, s[1]/sl, s[2]/sl];
+          }
+          const l = Math.hypot(d[0], d[1], d[2]);
+          if (!(l > 1e-9)) continue;              // degenerate: stay on the outline
+          const g = SW * Math.min(1, 3 / l);      // the mitre clamp
+          inw.set(vi, [d[0]*g, d[1]*g, d[2]*g]);
+        }
+      }
+      // three rings on one plate: pF the inset front sheet, pR the outline at
+      // the same offset (rim wall top, seal band outer edge), pB the back
+      // sheet. With no seal pR IS pF — the outline and the sheet coincide,
+      // which is the geometry this pass emitted before the seal existed.
+      const pF = new Map(), pB = new Map();
+      const pR = SEAL ? new Map() : pF;
+      const of2 = (vi, d, mp, ins) => {
+        if (!mp.has(vi)) {
+          const n = vN.get(vi);
+          const l = Math.hypot(n[0], n[1], n[2]) || 1;
+          const w = (ins && inw.get(vi)) || [0, 0, 0];
+          mp.set(vi, V.push([V[vi][0]+n[0]/l*d+w[0], V[vi][1]+n[1]/l*d+w[1],
+                             V[vi][2]+n[2]/l*d+w[2]]) - 1);
+        }
+        return mp.get(vi);
+      };
       for (const fi of fis) {
-        add.push({ v: F[fi].v.map(vi => of2(vi, d0, pF)),
-                   m: 'firewall' });
+        add.push({ v: F[fi].v.map(vi => of2(vi, d0, pF, 1)),
+                   m: 'fireProof' });
         add.push({ v: F[fi].v.slice().reverse()
                      .map(vi => of2(vi, d0 - FTH, pB)), m: 'firewall' });
       }
       for (const [k, c] of eCnt) {
         if (c !== 1) continue;
         const [a, b] = eDir.get(k);
-        add.push({ v: [of2(b, d0, pF), of2(a, d0, pF),
+        // the seal band fills the gap the inset opened, in the plate's own
+        // plane and wound with the front sheet so it shares its normal
+        if (SEAL)
+          add.push({ v: [of2(a, d0, pF, 1), of2(a, d0, pR),
+                         of2(b, d0, pR), of2(b, d0, pF, 1)], m: 'fireSeal' });
+        add.push({ v: [of2(b, d0, pR), of2(a, d0, pR),
                        of2(a, d0 - FTH, pB), of2(b, d0 - FTH, pB)],
                    m: 'firewall' });
       }
@@ -5967,6 +6218,11 @@ const CAGE_PARAMS = {
   // interior (G13): master + per-element flags — every element disjoint
   // and individually revertible
   intOn: 0, intBulk: 1, intFire: 1, intPillars: 1, shellT: 0.035,
+  // FIRE SEAL (2026-09-03): the band round the fireproof sheet on the
+  // firewall's engine side, in METRES of the plate's own plane. It is a
+  // sealant joint, so the range that matters is 10..30 mm; 0 retires it and
+  // takes the fireproof sheet out to the plate's own outline.
+  fireSealW: 0.018,
   // SKIN THICKNESS (user, anti-clipping): the sheet linings' inward
   // depth — plywood/toele/cloth/composite shell — separated from
   // shellT (which keeps the pillars, posts and frames). 0 = the
@@ -6446,6 +6702,8 @@ function cageSpec(P) {
   const skinTv = Math.max(0, P.skinT || 0);
   S.interior = { on: P.intOn ? 1 : 0, bulk: P.intBulk ? 1 : 0,
                  fire: P.intFire ? 1 : 0, dash: P.intDash ? 1 : 0,
+                 // the fireproof sheet's seal band, metres in the plate plane
+                 sealW: Math.max(0, +P.fireSealW || 0),
                  pillars: P.intPillars ? 1 : 0,
                  // the aft bulkhead's own station, and the pillar that bounds
                  // it — the panel needs BOTH, and the width is resolved above

@@ -28335,6 +28335,176 @@ The game page's two syntax errors and three 404s pre-date this work.
 G100 the loading table and CG vs fill on a slider; G101 the balance panel.
 Spar solids go in front of the user FIRST, behind their own switch.
 
+
+## G167 — THE QUICK ACTIONS
+## (2026-09-03, the user: "promote the view interior option into a quick action
+## bar, that's a new one floating on top of the editor screen... a button for
+## alternating the reference plane views (disabled if no reference plane is
+## selected)... a single button alternating between interior and exterior
+## views... another single button cycling through the time of day")
+
+Three icon buttons on a plate at the top right of the editor's render, on the
+same row as the aeroplane's name and at `margin-left:auto` — which is exactly
+how `#flTop` carries the flight screen's verbs, so the two screens go on
+putting the same kind of thing in the same place. `#edTopBar` grew a
+`right:22px` to span the view; that is the whole layout change.
+
+| button | states | what it presses |
+|---|---|---|
+| inside / outside | 2 | the `see inside` checkbox `_cage_ui` built |
+| against the reference | 3 (+ disabled) | `REFPLANE.cycleCut` |
+| the light | 6 | the `time of day` select |
+
+### THE BAR PRESSES ROWS; IT OWNS NOTHING
+
+Every button reaches the control that already exists and fires its own event,
+and reads that same place back for its state. There is still exactly one
+element per decision and one handler on it — the rail's borrow rule ("a flyout
+borrows, it does not take") applied to a bar with no flyout. Two consequences
+that are the point rather than a side effect: the flyout's checkbox and the
+bar can never disagree, and cycling the light through the SELECT means the
+rail's own night label hears the change it was already listening for.
+
+`REFPLANE` gained the one door it lacked: `cycleCut`, and the panel's select
+now goes through the same `setCut`, so the extra thing that control does —
+zeroing `lat`, because a split only means anything on one centreline — happens
+whichever door you use. `window.REF_ON_CHANGE` had been declared and called by
+refplane.js since G142 with nobody listening; the bar is its first subscriber,
+and that is what re-enables the button the moment a reference is chosen.
+
+### THE ICON IS THE STATE, NOT THE EFFECT
+
+G136's ruling for the night button, in glyphs: the bar reads as a status line
+you can press. Eleven glyphs, all drawn here on the rail's own 18x18 grid,
+stroke-only — a cabin section that goes dashed with a seat behind it when the
+covering does, six skies (high sun / sun over a horizon / half a sun on it /
+the sun gone under it with the first star out / a crescent / a cloud), and
+three ways to stand beside a reference.
+
+**TWO OBJECTS HAVE TO LOOK LIKE TWO.** The reference glyphs' first cut
+overlapped the two aeroplanes side by side, and the overlap drew a line down
+the middle — which is the SPLIT's own glyph, so `off` and `split` said the
+same thing at 17 px. They are diagonally offset now, the duplicate-glyph
+everyone already reads, and the halved one carries a straight cut edge where
+every other edge is rounded. Found by rendering all eleven at 96 px on one
+sheet and looking at them, which is the only way this kind of mistake is ever
+found.
+
+### GATE VIEW LEARNED ABOUT THE BAR
+
+That gate's whole premise is that editor.js's `RAIL` is what the player can
+reach, and a second surface reaching display controls would have walked
+straight past it — a control with no capture decision, arriving by the exact
+route the gate exists to close. So `QUICK` is a declared table the gate reads
+too, and the rule is: **the bar is a shortcut, never a new control.** Every
+entry either names a row the rail also offers (and inherits that row's
+decision — `see inside` is neutralised in `VIEW_STATE`, because an aeroplane
+captured see-through would fly see-through) or declares the `state` it drives
+and why that is not a rail row. The reference's cut is the one of those: it is
+refplane.js's own state in its own localStorage, and its clipping plane is the
+category `VIEW_KEEP` already exempts for `cutaway`. Both new rules are
+negative-verified in `--selftest`.
+
+### OWED
+
+- The `see inside` checkbox is still in the `display` flyout. It is the row
+  the button presses, so it cannot simply be deleted, and moving it out would
+  put it in the overflow section — further away, not closer. If the flyout
+  should lose it, that is a row-ownership change and a `hidden:` line in
+  VIEW_STATE, not a deletion.
+
+## G168 — THE DASHBOARD IS TWO SURFACES
+## (2026-09-04, the user: "I'd want the dashboard to be given 2 materials; 1 for
+## the flat face facing the pilot, and one for the rest, including the lip. The
+## first material should be initialized as a metal panel, and the second as dark
+## leather")
+
+An unpainted alloy instrument facia screwed into a padded leather coaming,
+which is what a light aeroplane's cockpit actually is. `dash` was one material
+over the whole box; it is two now, and the split is GEOMETRY rather than a
+texture mask — the same call G166 made for the firewall's fireproof sheet, for
+the same reason: the boundary is a real edge on the part, so it should be a
+real edge in the mesh.
+
+| section | what it is | finish |
+|---|---|---|
+| `dashFace` | the recessed face plate, the ladder over the forward lip path | `panelMetal` |
+| `dash` | glareshield, side panels, border roll, the lip wall, box bottom | `leatherDark` |
+
+### THE SPLIT COSTS FOUR LINES
+
+`_cage_gen.js`'s dash builder emits everything through one `quad`, so a `mat`
+variable it reads is the whole change — set to `dashFace` around the face
+plate's `ladder(cA, cB)` and back after. The material then rides `f.m` through
+`orientCage`, the crease compaction and both subdivisions untouched, because
+`cageSubdivide` has always copied `m`; the ONE line that had to change was the
+merge-back push, which hardcoded `m: 'dash'` and would have thrown the split
+away at the last step. The boundary needed no new crease: `tagPath(o2id, dc)`
+already creases the lip path, which is exactly the material edge.
+
+### `panel` KEEPS ITS NAME AND CHANGES ITS MEANING
+
+`AERO_ROLE`'s `panel` was the dash's own role and nothing else's, so it now
+means the FACIA, and `pad` is the new role for the shell. Neither varies with
+the construction — an alloy panel in a leather coaming is what a fabric
+taildragger and a carbon canard both have — which makes them the third and
+fourth rows in `AERO_BY_CONS` that are the same in all four columns, after
+`bead` and `fire`, and for the same kind of reason: it is not what the
+aeroplane is built of, it is what the part IS.
+
+`_cage_crew.js`'s dash band (`dashLip` / `dashTop` / `dashAftZ`, the stations
+the instruments are placed from) now measures BOTH materials. It happens to
+land on the same numbers — the aft-most plane and the full y-extent are both
+on the shell — but reading one half of a part to place something on the whole
+part is the G94 mistake this file has already made once.
+
+### TWO SCANNED SHEETS, AND B RIDES A DIFFERENT MAP IN EACH
+
+ambientCG CC0, through `tools/skin_tex_import.py` -> `skin_tex_prep.js`, the
+G125/G166 path with nothing new in it. What is worth keeping is that the two
+sets land on OPPOSITE answers to the one question that tool asks:
+
+- **Metal050C** — Color 218..254 of 255 (no signal), Roughness p1..p99 at
+  0.62..1.70 of its own mean, Metalness a flat 255. A foil's case exactly: B
+  rides ROUGHNESS at gain 1.3, the metalness map is worth nothing over the
+  row's scalar, and the base is a metal's F0 rather than the scan's near-white.
+- **Leather027** — the mirror image. Roughness spans 0.90..1.12 of its mean
+  (flat; opening that would be amplifying JPEG noise eightfold) while Color
+  spans 0.65..1.76, which is the crease pattern. So B rides LUMINANCE at gain
+  1.2, wood's rule.
+
+Both pack to a p1..p99 of 0.71..0.97 with a 0.6% tail at the ceiling — the
+0.60..0.98 convention very nearly filled, measured rather than guessed.
+
+`panel` ships the **1k** payload and is the only sheet in the table that does:
+the user's call ("the front panel is something we are going to see a lot, so
+let's not reduce that too much"), and the facia is genuinely the surface the
+camera spends the most time nearest to. The leather stays on 512. 0.47 MB in
+`media/tex/skin/` for all three, against no budget — GATE MEDIA's ceiling is
+`index.html`, and that is code-only at 4.33 MiB of 6.
+
+### THE NUMBERS THAT MOVED, AND WHY
+
+`rough` 0.24 -> 0.38 on the panel is G166's lesson one shelf up: a mirror in a
+shaded cockpit shows the shaded cockpit. `metal` 1.0 -> 0.92 leaves a little
+diffuse where nothing is there to reflect. On the hide, 0.45 -> 0.52, because a
+glareshield is deliberately the most matte surface in an aeroplane — the
+alternative is looking at it in the windscreen. The bases are the one honest
+lift: Leather027 measures 0x0f0f0f and has no colour left to tint, so
+`leatherDark` is a very dark warm brown and a builder who wants it blacker has
+the dial.
+
+`panelMetal` joins GATE SKINMAT's bare-metal exemption list. The distinction is
+the one the foil drew: an unpainted facia has no paint film on it, and a
+PAINTED panel is still `trim`.
+
+### VERIFIED
+
+GATE SKINMAT / PARTS / MEDIA / FIT / CAGEFIT pass. In the browser, the two
+sections were tinted red and green and photographed: the red is the plate the
+instruments sit in, the green is the coaming above it and the border round it,
+which is the user's sentence drawn.
+
 ---
 
 ## G100 — THE CG AS A FUNCTION OF FILL (2026-09-04; the user, at the start

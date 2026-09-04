@@ -118,6 +118,13 @@ const GATES = [
   // (untouched preset = the certified row; deviated = modified/custom)
   { id: 'ENGINE', file: '_engcustom_check.js', tier: 'core' },
   { id: 'ENGID', file: '_engid_check.js', tier: 'core' },
+  // 2026-09-03: an "applies once" starter fires on a ROW change, never on a
+  // LOAD — the engine preset and the cowl-for-architecture, and the three
+  // doors that replace P
+  { id: 'STARTER', file: '_starter_check.js', tier: 'core' },
+  // 2026-09-03: what you SAVE is what is on the stand. The shelf's spec was
+  // a cache of the editor that only a roll-out refreshed.
+  { id: 'SAVE', file: '_save_check.js', tier: 'core' },
   // THE UNDERCARRIAGE (G67.3), and it closes the one gap G67.2 declared: the
   // three leg families as three different drawings — the check GATE GEN lost
   // when the old skin's leg drawer went — plus the wheel turning on its own,

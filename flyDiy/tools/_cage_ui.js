@@ -50,6 +50,7 @@ const SEC = {
   fireProof:       '#d9dee3',
   fireSeal:        '#4a4f55',
   dash:            '#333a45',
+  dashFace:        '#7d8896',
   tube:            '#93a0ad',
   plywood:         '#b5854e',
   woodFrame:       '#8a6134',
@@ -277,7 +278,7 @@ const INTSKIN = new Set(['plywood', 'cloth', 'composite', 'toele']);
 // boomTube = the G26 rod: it IS structure — fading the fuselage skin
 // must leave the rod standing (the naked Ruckus test)
 const INTSTRUCT = new Set(['bulkhead', 'firewall', 'fireProof', 'fireSeal',
-                           'dash', 'tube',
+                           'dash', 'dashFace', 'tube',
                            'woodFrame', 'aluminium', 'boomTube']);
 // WHAT THE X-RAY TAKES AWAY, and what it must leave standing. It takes the
 // COVERING — the outer skin, its glazing, and the interior linings that are

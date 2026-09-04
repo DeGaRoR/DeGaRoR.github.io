@@ -93,6 +93,17 @@ const PRESETS = {
   'Rotec R3600': { arch: 'radial', cyl: 9, exStyle: 2,
     bore: 0.088, stroke: 0.066, rpm: 2500, finR: 1.3,
     fwW: 0.72, fwH: 0.72, carbOn: 0, airbox: 0, plumb: 0 },
+  // THE AMATEUR IN-LINES (G165). Both INVERTED, which is what an aero
+  // in-line almost always is, and both FOUR-STROKE — the coercion that made
+  // every in-line a two-stroke is a default now. Bore and stroke are the real
+  // ones (2.44 L over four and 6.12 L over four, the published 2443 cc and
+  // 6124 cc). The firewall is left at the default 0.80 x 0.70: unlike the
+  // radials these engines are SMALLER than it (0.19 x 0.46 and 0.26 x 0.63
+  // measured), so overriding it would be an opinion rather than a fit.
+  'Walter Mikron III': { arch: 'inline', cyl: 4, twoStroke: 0, inlineAim: 0,
+    bore: 0.090, stroke: 0.096, rpm: 2600, exStyle: 2 },
+  'DH Gipsy Major': { arch: 'inline', cyl: 4, twoStroke: 0, inlineAim: 0,
+    bore: 0.118, stroke: 0.140, rpm: 2100, exStyle: 2 },
   'P&W R-1830': { arch: 'radial', cyl: 14, radialRows: 2, geared: 1,
     exStyle: 2, bore: 5.5 * IN, stroke: 5.5 * IN, rpm: 2700,
     finR: 1.4, mountGap: 1.2, fwW: 1.35, fwH: 1.35,
@@ -252,7 +263,7 @@ const ENG_GROUPS = [
   ['mount + firewall', [
     ['mount',    'mount',      'check'],
     ['mountX',   'diagonals',  'check'],
-    ['mountGap', 'stand-off',  0.4, 2.0, 0.01],
+    ['mountGap', 'fore / aft (stand-off)', 0.4, 2.0, 0.01],
     ['mountR',   'tube radius ×', 0.5, 2.2, 0.02],
     ['fwOn',     'firewall',   'check'],
     ['fwW',      'fw width m', 0.4, 1.4, 0.01, x => x.toFixed(2)],

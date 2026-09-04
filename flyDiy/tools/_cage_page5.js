@@ -187,6 +187,11 @@ window.CAGE_PAGE = {
         ['skinT',     'skin thickness',  0, 0.06, 0.001, { dim: 'len' }],
         ['intPillars','pillar bodies',   0, 1, 1],
         ['intFire',   'firewall',        0, 1, 1],
+        // the fireproof sheet's seal band on the engine side (2026-09-03) —
+        // a sealant joint, so the range is the one a sealant is applied in;
+        // 0 retires it and takes the sheet out to the plate's own outline
+        ['fireSealW', 'fire seal',       0, 0.04, 0.002,
+         { dim: 'len', when: P => +P.intOn && +P.intFire }],
         ['intDash',   'dashboard',       0, 1, 1],
         // moved from "7 · boom" (user, G28): a conception concern
         ['intBulk',   'aft bulkhead',    0, 1, 1],
@@ -210,7 +215,7 @@ window.CAGE_PAGE = {
     ['3 · nose', [
       ['noseLen',   'length',          0.20, 2.50, 0.01, { dim: 'len' }],
       ['noseW',     'width ×',         0.50, 1.50, 0.01],
-      ['noseH',     'depth ×',         0.05, 1.20, 0.01],
+      ['noseH',     'height ×',         0.05, 1.20, 0.01],
       ['noseDroop', 'droop',          -0.20, 0.60, 0.005],
       ['noseCrown', 'deck crown',      0.00, 1.00, 0.005],
       ['wsBaseLift','windscreen base lift', 0.00, 0.80, 0.005],
@@ -333,8 +338,8 @@ window.CAGE_PAGE = {
     // (the rows only exist with the pod on — rec §2's `when`)
     ['3b · aft deck', [
       ['aftNoseLen',  'length',        -1, 2.5, 0.01],
-      ['aftNoseW',    'width x',       -1, 1.5, 0.01],
-      ['aftNoseH',    'depth x',       -1, 1.2, 0.01],
+      ['aftNoseW',    'width ×',       -1, 1.5, 0.01],
+      ['aftNoseH',    'height ×',       -1, 1.2, 0.01],
       ['aftDroop',    'droop',         -1, 0.6, 0.005],
       ['aftNoseCrown','deck crown',    -1, 1.0, 0.005],
       ['aftWsBaseLift','w/s base lift',-1, 0.8, 0.005],
@@ -367,8 +372,8 @@ window.CAGE_PAGE = {
                                                   'airliner']],
         ['seatLayout','layout',         0, 2, 1, ['single', 'side-by-side',
                                                   'tandem']],
-        ['seatZ',     'seat fore-aft', -0.50, 0.50, 0.005],
-        ['seatH',     'squab height',   0.06, 0.50, 0.005],
+        ['seatZ',     'fore / aft', -0.50, 0.50, 0.005],
+        ['seatH',     'up / down (squab height)', 0.06, 0.50, 0.005],
         ['seatRake',  'back recline',   5, 45, 0.5],
         ['seatTilt',  'squab recline',  0, 30, 0.5],
         ['seatPitch', 'tandem pitch',   0.55, 1.35, 0.01,
@@ -528,7 +533,6 @@ window.CAGE_PAGE = {
       ['crBand',    'band crease',     0, 3, 0.05],
       ['crCap',     'cap crease',      0, 3, 0.05],
       ['crFrame',   'frame crease',    0, 3, 0.05],
-      ['crNoseCap', 'nose cap crease', 0, 3, 0.05],
       ['dashCrease','dash crease',     0, 3, 0.05],
     ], { level: 'expert' }],
   ],

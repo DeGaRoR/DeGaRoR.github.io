@@ -300,6 +300,41 @@ console.log('A-65 identity (the fleet\'s anchor): ' +
     ' g motor  (registry: 180 W, 100 g w/ mount+ESC)');
 }
 
+// ---- THE IN-LINE ROW IS FITTED NOW, AND THIS IS THE FIT (G165) -----------
+// `kM` and `bmep` carried "UNVALIDATED — there is no registry example" from
+// the day they were written. There are two now, both well documented, and the
+// numbers in the table were chosen against them — so the table's claim is
+// checkable and this is the check. The bands are the fit's OWN residuals
+// rounded out, not aspirations: mass is the weak half (the shared exponent
+// over-predicts big engines and under-predicts small ones, which two points
+// cannot honestly correct), and power is the strong one.
+{
+  const REAL = [
+    ['Walter Mikron III', { bore: 0.090, stroke: 0.096, cyl: 4, rpm: 2600 }, 48000, 74],
+    ['Gipsy Major 1',     { bore: 0.118, stroke: 0.140, cyl: 4, rpm: 2100 }, 97000, 139],
+  ];
+  for (const [nm, s, pw, kg] of REAL) {
+    const r = engResolve(Object.assign({ arch: 'inline', twoStroke: 0 }, s));
+    const em = 100 * (r.mass - kg) / kg, ep = 100 * (r.powerW - pw) / pw;
+    hard('the in-line mass law is within 10% on ' + nm,
+         Math.abs(em) <= 10, f(r.mass, 1) + ' kg vs ' + kg + ' (' + f(em, 1) + '%)');
+    hard('the in-line bmep is within 6% on ' + nm,
+         Math.abs(ep) <= 6,
+         f(r.powerW / 1000, 1) + ' kW vs ' + (pw / 1000) + ' (' + f(ep, 1) + '%)');
+  }
+  // and the row must not go back to calling itself a guess
+  const fs3 = require('fs');
+  const GEN = fs3.readFileSync(path.join(__dirname, '_eng_gen.js'), 'utf8');
+  // THE MARKER IS A TRAILING COMMENT ON THE DEFINITION LINE — the way `vee`
+  // still carries it — so this looks THERE and not in the prose, which is
+  // allowed to say what the row used to be. Pinning the word anywhere in the
+  // row failed on this chantier's own comment explaining that it no longer
+  // applies, which is a check reading the story instead of the fact.
+  const defLine = GEN.slice(GEN.indexOf("    name: 'Inline'")).split('\n')[0];
+  hard('the in-line row still marks itself unvalidated',
+       defLine.indexOf('UNVALIDATED') < 0, defLine.trim());
+}
+
 // ---- ONE TABLE OF DIRECTIONS (G164) --------------------------------------
 // The exhaust OUTLET and the in-line BANK both answer "which way does it
 // point", and before this row they answered from two different literals. An

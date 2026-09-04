@@ -147,6 +147,77 @@ const AERO_FINISH = {
   trim:      { name: 'painted trim', base: 0xd8dde4, tile: 0.40,
                rough: 0.30, metal: 0.10, nrm: 0.25, alb: 0.08,
                hs: 0.6, bs: 0.5, bake: 'sheet' },
+  // THE FIREPROOF SHEET. A firewall is a structural bulkhead with a sheet of
+  // stainless or aluminised foil on the ENGINE side of it, and the foil is
+  // the only surface on the aeroplane whose whole appearance is a CRINKLE: it
+  // is thin, it is bonded to a panel that flexes, and it is never flat again
+  // after it is fitted. So the sheet is the whole material here — no grammar,
+  // no geometry, no rivet line (there is none on a foil).
+  //
+  // THREE NUMBERS WERE MEASURED AND THEN MOVED, AND THE MOVES ARE THE ROW.
+  // tools/skin_tex_import.py prints what ambientCG's Foil001 actually is:
+  // basecolor flat grey 0x7f7f7f (span 121..134 of 255 — JPEG noise, no
+  // signal), roughness mean 0.100.
+  //   base   0x7f7f7f is 0.22 in LINEAR, and a metalness-1 surface takes its
+  //          specular colour from `base`: that is a dark mirror, darker than
+  //          any real metal's F0 and darker than every metal row in this
+  //          table (bareAlu 0xb6bcc3, chrome 0xdfe5ec). The scan's grey has
+  //          nothing to lose, so the base is a metal's.
+  //   rough  0.100 is a mirror, and a mirror shows only what it reflects —
+  //          which, for a firewall, is the inside of a cowling. RENDERED at
+  //          0.16 the plate came back BLACK with sparkle (screenshots, the
+  //          garage's own light). 0.40 is where it reads as metal, and it is
+  //          also the honest number: a firewall foil is dulled by heat, oil
+  //          and handling long before anyone looks at it.
+  //   nrm    same failure from the other side. At 0.85 the crinkle scatters
+  //          every reflection into the dark bay and the sheet goes black.
+  // THEN THE USER SET THE LAST TWO WITH THE EDITOR'S OWN DIALS and told them
+  // to become the datum: "Tiling x4 by default (make it the new 1) and normal
+  // = 0.5 by default (make it the new one too)". So `tile` 0.70 -> 2.80 m
+  // (the crinkle at about 80 mm, a foil laid over a panel rather than one
+  // crushed in the hand) and `nrm` 0.40 -> 0.20. Both are folded into the row
+  // rather than left as per-section overrides, which is what "the new 1"
+  // means: a builder's dial starts from this and a saved build carries no
+  // deviation it did not ask for. The first cut ran tile 0.26 and read as
+  // gravel — the same failure every sheet in this table has had once.
+  fireFoil:  { name: 'fireproof foil', base: 0xc6cace, tile: 2.80,
+               rough: 0.40, metal: 0.92, nrm: 0.20, alb: 0.16,
+               hs: 0.9, bs: 1.0, bake: 'sheet', sheet: 'foil' },
+
+  // ---- THE DASHBOARD'S TWO SURFACES (2026-09-04) --------------------------
+  // The user, giving the cage's `dash` a second material: "1 for the flat
+  // face facing the pilot, and one for the rest, including the lip. The first
+  // ... a metal panel, and the second ... dark leather". So the facia is bare
+  // alloy and the shell round it is hide, which is also what a real light
+  // aeroplane is: an unpainted instrument panel screwed into a padded
+  // glareshield. _cage_gen.js emits the two as `dashFace` and `dash`.
+  //
+  // BOTH ARE SCANNED (ambientCG, CC0, via tools/skin_tex_import.py), and each
+  // one's numbers were MEASURED off its own maps before being moved, the same
+  // way fireFoil's were above — the import prints them:
+  //   Metal050C   Color 245,246,245 (span 218..254 — no colour signal),
+  //               Roughness mean 0.240 (span 0.10..0.62), Metalness a flat
+  //               255. So B rides the ROUGHNESS, the metalness map is worth
+  //               nothing over the row's own scalar, and the base is a
+  //               metal's F0 rather than the scan's near-white.
+  //   Leather027  Color mean 15,15,15 — it IS a dark leather already, and
+  //               its Roughness is nearly flat (span 0.37..0.55 about a mean
+  //               of 0.45), so B rides the LUMINANCE here, wood's rule: the
+  //               crease pattern is where this hide's colour lives.
+  // THE MOVES: `rough` 0.24 -> 0.38 on the panel, for fireFoil's reason one
+  // shelf up — a mirror in a shaded cockpit shows the shaded cockpit — and
+  // `metal` 1.0 -> 0.92, so a little diffuse survives where nothing is there
+  // to reflect. On the hide, 0.45 -> 0.52: a glareshield is deliberately the
+  // most matte surface in an aeroplane, because the alternative is looking at
+  // it in the windscreen. The bases are the one honest lift: near-black at
+  // 0x0f0f0f the leather has no colour left to tint, so it is a very dark
+  // warm brown, and a builder who wants it blacker has the dial.
+  panelMetal: { name: 'metal panel',   base: 0xd0d4d8, tile: 0.60,
+                rough: 0.38, metal: 0.92, nrm: 0.35, alb: 0.20,
+                hs: 0.8, bs: 0.5, bake: 'sheet', sheet: 'panel' },
+  leatherDark: { name: 'dark leather', base: 0x2a2622, tile: 0.30,
+                 rough: 0.52, metal: 0.0, nrm: 0.55, alb: 0.60,
+                 hs: 0.8, bs: 0.9, bake: 'hide', sheet: 'leather' },
 
   // ---- THE HARDWARE VOCABULARY (G70) --------------------------------------
   // The eight rows above are what an airframe is COVERED in. These are what
@@ -220,8 +291,28 @@ const AERO_ROLE = {
   windshield: 'glass', pilotWindow: 'glass', pasengerWindow: 'glass',
   skyWindows: 'glass',
   joint: 'bead',
+  // THE FIREWALL IS TWO SURFACES AND A SEAL. `firewall` is the panel itself —
+  // structure, so it follows the construction like every other bulkhead — and
+  // `fireProof` is the sheet on its ENGINE side, which follows nothing: a
+  // fireproof foil is a fireproof foil on a fabric taildragger and on a
+  // carbon canard, so `fire` resolves to the same finish in all four
+  // constructions. `fireSeal` is the band round its contour and it is the
+  // same part as a window bead — an extruded rubber seal between two panels
+  // that move against each other — so it takes `bead` and inherits that
+  // role's one ruling (black by default, whatever the aeroplane is built of).
+  fireProof: 'fire', fireSeal: 'bead',
   boomTube: 'struct', tube: 'struct', woodFrame: 'struct',
-  aluminium: 'struct', bulkhead: 'struct', firewall: 'struct', dash: 'panel',
+  // THE DASHBOARD IS TWO SURFACES, like the firewall above and for the same
+  // kind of reason: `dashFace` is the instrument facia — the flat plate the
+  // pilot looks at — and `dash` is the padded shell round it, the
+  // glareshield, the sides, the border roll and the lip. Neither follows the
+  // construction: an unpainted alloy panel in a leather-topped coaming is
+  // what a light aeroplane has whether it is fabric, wood, alclad or carbon,
+  // so both roles resolve to the same finish in all four columns. `panel` was
+  // already the dash's own role and nothing else's, so it keeps the name and
+  // now means the facia; `pad` is the shell's.
+  aluminium: 'struct', bulkhead: 'struct', firewall: 'struct',
+  dash: 'pad', dashFace: 'panel',
   plywood: 'liner', cloth: 'liner', composite: 'liner', toele: 'liner',
 };
 // the interior LINERS say what they are made of in their own name — that is
@@ -239,15 +330,25 @@ const AERO_LINER = { plywood: 'ply', cloth: 'fabric', composite: 'composite',
 // ("the JOINT that fairs it to the skin is a rubber seal") — the cage's own
 // rims are the same part and now wear the same finish. The builder can still
 // paint them: `joint` is a section like any other and takes a tint.
+// `fire` was the second row after `bead` that is the same in all four
+// columns, and `panel` and `pad` — the dashboard's facia and its padded
+// shell — are the third and fourth, all for the same kind of reason: they
+// are not what the aeroplane is built of, they are what the part IS. Kept as
+// roles rather than pinned by name so a builder's per-section override still
+// lands on them the ordinary way.
 const AERO_BY_CONS = {
   tubeFabric: { skin: 'fabric', rail: 'fabric', pillar: 'fabric',
-                struct: 'steelTube', panel: 'trim', bead: 'rubber' },
+                struct: 'steelTube', panel: 'panelMetal', pad: 'leatherDark',
+                bead: 'rubber', fire: 'fireFoil' },
   wood:       { skin: 'ply', rail: 'ply', pillar: 'ply',
-                struct: 'spruce', panel: 'trim', bead: 'rubber' },
+                struct: 'spruce', panel: 'panelMetal', pad: 'leatherDark',
+                bead: 'rubber', fire: 'fireFoil' },
   alloy:      { skin: 'alclad', rail: 'alclad', pillar: 'alclad',
-                struct: 'bareAlu', panel: 'trim', bead: 'rubber' },
+                struct: 'bareAlu', panel: 'panelMetal', pad: 'leatherDark',
+                bead: 'rubber', fire: 'fireFoil' },
   carbon:     { skin: 'composite', rail: 'composite', pillar: 'composite',
-                struct: 'composite', panel: 'trim', bead: 'rubber' },
+                struct: 'composite', panel: 'panelMetal', pad: 'leatherDark',
+                bead: 'rubber', fire: 'fireFoil' },
 };
 const AERO_GLASS = new Set(['windshield', 'pilotWindow', 'pasengerWindow',
                             'skyWindows']);
@@ -758,8 +859,17 @@ function aeroDetailTex(THREE, key) {
   // is the flat material, not a black one; the draw lands with needsUpdate.
   // drawImage fills A with 255, the procedural bake's own constant — a sheet
   // with real metal variation cannot ride a JPEG payload, and none does.
-  const pay = row.sheet && typeof WOOD_TEX_SHEETS !== 'undefined'
-    && WOOD_TEX_SHEETS && WOOD_TEX_SHEETS[row.sheet];
+  // TWO PAYLOAD TABLES, ONE NAMESPACE: wood_tex.js is the wood library,
+  // skin_tex.js everything else the finish table asks for (the fireproof
+  // foil, first). A row names a sheet, not a store — so a sheet that moves
+  // library is not a change here — and either table may be absent (node, an
+  // older page, a bench that loads one script and not the other), which is
+  // why each is tested for existence rather than assumed.
+  const pay = row.sheet && (
+    (typeof SKIN_TEX_SHEETS !== 'undefined' && SKIN_TEX_SHEETS
+      && SKIN_TEX_SHEETS[row.sheet]) ||
+    (typeof WOOD_TEX_SHEETS !== 'undefined' && WOOD_TEX_SHEETS
+      && WOOD_TEX_SHEETS[row.sheet]));
   if (pay) {
     const S = pay.px;
     const cv = document.createElement('canvas');

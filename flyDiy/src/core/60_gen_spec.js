@@ -1609,6 +1609,14 @@ const GEN_DEFAULT = {
     // tandem measure their "right" seat station from different places; a single
     // common base means one layout always carries a constant the other undoes.
     seatX: 0, seatY: 0.10, seatPitch: 0.86,
+    // WHERE THE OCCUPANTS ARE BILLED, metres aft of the firewall, one station
+    // per seat in seat order (pilot first). MEASURED by the join off the crew
+    // layer's own seats (2026-09-03); null = derived = the frame's cabin
+    // pillar rings, which is what a hand-written fiche and every save from
+    // before this field still mean. It is a list rather than a pitch because
+    // side-by-side and tandem place their rows differently and the layer
+    // already knows.
+    seatsX: null,
     // GLAZING. `glazing` is the ROUTE the cabin transparency is built by, and it
     // is a route rather than a style because each has different failure modes
     // (topology, sorting, distortion):
@@ -2210,6 +2218,11 @@ function clampSpec(spec) {
   cb.seatY     = genClamp(cb.seatY     == null ? 0.10 : cb.seatY,      0.06, 0.50);
   // a real distance between tandem seats, not a fraction of the cabin
   cb.seatPitch = genClamp(cb.seatPitch == null ? 0.86 : cb.seatPitch,  0.55, 1.35);
+  // the measured seat stations: a list of finite metres aft of the firewall,
+  // or null. Anything else is a malformed file and reads as "derived".
+  cb.seatsX = Array.isArray(cb.seatsX) && cb.seatsX.length &&
+              cb.seatsX.every(x => typeof x === 'number' && isFinite(x))
+    ? cb.seatsX.map(x => genClamp(x, 0.05, 12)) : null;
 
   const pl = cb.pilot || (cb.pilot = {});
   pl.show    = pl.show !== false;

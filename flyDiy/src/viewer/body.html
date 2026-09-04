@@ -354,6 +354,11 @@
               title="Every row of this part back to the design you loaded">reset part</button>
       <button id="edExpert" class="pill"
               title="Show the frozen constants — what the &quot;don't touch&quot; folder was">expert rows</button>
+      <!-- ...and the third: every section of this column at once. Its label is
+           its own state (fold / open), the same one-button-two-jobs shape the
+           tree's own "fold all" already has. -->
+      <button id="edSecAll" class="pill"
+              title="Roll every section of this column up, or open them all">fold sections</button>
       <!-- the anchor this part is placed against — a fact about the
            SELECTION, so it belongs under the selection's name rather than in
            a footer at the far end of the column. -->
@@ -400,46 +405,95 @@
      the dims box keep their own behaviour and gain a home that says what they
      are for. -->
 <div id="edView" hidden>
-  <!-- ONE BAR ACROSS THE TOP (the user: "put the floating menu on top"). The
-       rail was a column down the left and the verbs a pair bottom-left, so the
-       things you do to the build were at opposite corners of the render with
-       the aeroplane between them. They are one row now, and the row reads
-       left to right as HOW YOU LOOK AT IT, then WHAT YOU DO WITH IT.
-       ROLL OUT is the primary and is NEVER disabled: it is your aeroplane, and
-       building it wrong and learning why is content, not error. -->
-  <!-- THE FILE RIBBON, RE-CUT (2026-09-01, the user: "now it's a pack of
-       controls thrown in a container. Let's have save/save as/new/load").
-       The name and FOUR VERBS, one control family — and only verbs: the
-       NOUNS (your saved aeroplanes, the stock designs, the json doors and
-       delete) moved into the FLEET POPUP garage.js builds behind LOAD.
-       `#edShelf` keeps its id and its meaning — the file operations on YOUR
-       build — so garage.js's isGen sync and the smoke test's seam assert
-       both hold; `#gFile` stays here because a hidden input needs a home
-       that exists before the popup does. -->
+  <!-- THE SAME LAYOUT AS THE FLIGHT SCREEN (2026-09-03, the user: "simply the
+       plane's name on the top left, clicking on it gives all the ribbon
+       options in a standard menu. The display options ribbon goes to the
+       left, and the action button(s) go to the bottom right. We are also
+       consistent with the in-flight layout then"). They are: name top left,
+       look ribbon up the left edge, verbs bottom right — #flRail and #flActs
+       already own those pixels in flight, and the workshop now owns the
+       matching ones here. Nothing here edits a parameter; that is the
+       properties column's one job.
+       The rail's flyouts are filled by editor.js with rows _cage_ui.js built
+       — the same elements, moved again — so `cage`, `wireframe`, `sections`,
+       `subsurf`, the alphas, `explode`, `cutaway` and the dims box keep their
+       own behaviour and gain a home that says what they are for. -->
+
+  <!-- 1. THE NAME, TOP LEFT — and the whole file ribbon behind it.
+       The six verbs were a segmented control on permanent display; what a
+       builder needs on screen is WHICH AEROPLANE THIS IS, and the file
+       operations one click behind its name. #edShelf keeps its id and its
+       meaning — the file operations on YOUR build — so garage.js's isGen sync
+       and the smoke test's seam assert both hold; it is a dropdown menu now
+       rather than a row. The NOUNS (your saved aeroplanes, the stock designs,
+       delete) are still behind LOAD, in the fleet popup garage.js builds.
+       #gFile is a sibling of the menu and not a child: a hidden file input
+       inside a `display:none` menu is not reliably clickable, and the drop
+       target has to be something that is always on screen. -->
   <div id="edTopBar">
     <div id="edFleet">
-      <span id="fbName" title="The build on the stand">unsaved</span>
-      <div id="edShelf">
+      <button id="fbName" type="button" aria-haspopup="true" aria-expanded="false"
+              title="This aeroplane — save, load, import, export">unsaved</button>
+      <div id="edShelf" role="menu" hidden>
         <button id="gSave"  title="Save over this aeroplane">save</button>
         <button id="gSaveAs" title="Save as a new aeroplane">save as</button>
         <button id="gNew"
                 title="Start a new aeroplane — pick an archetype">✚ new</button>
         <button id="gLoad"
                 title="Your saved aeroplanes and the stock designs">load</button>
-        <input id="gFile" type="file" accept="application/json,.json" hidden>
+        <button id="gImport"
+                title="Open an aeroplane from a .json file">import</button>
+        <button id="gExport"
+                title="Download the aeroplane on the stand as a .json file"
+                >export</button>
       </div>
+      <input id="gFile" type="file" accept="application/json,.json" hidden>
     </div>
-    <!-- ROLL OUT rides the same row, far right (user: "aligned with the
-         save/new UI, not a row below") — still its own element, not part of
-         the file plate, and the row's wrap keeps it reachable when the
-         estate narrows. -->
-    <div id="edActs">
-      <button id="edRoll" class="verb pri">Roll out &amp; fly</button>
-    </div>
+
+    <!-- 1b. THE QUICK ACTIONS, TOP RIGHT (2026-09-03, the user: "promote the
+         view interior option into a quick action bar, that's a new one
+         floating on top of the editor screen... a button for alternating the
+         reference plane views (disabled if no reference plane is selected)...
+         a single button alternating between interior and exterior views...
+         another single button cycling through the time of day").
+
+         THE BAR PRESSES ROWS, IT DOES NOT OWN STATE. Every button here is a
+         second FACE of a control that already exists — `see inside`'s
+         checkbox, `time of day`'s select, the reference panel's `cut` — and
+         it presses that control rather than keeping a value of its own. That
+         is the rail's rule ("a flyout borrows, it does not take") applied to
+         a bar with no flyout: one element per decision, one handler on it,
+         and nothing on this bar can ever disagree with the panel it shadows.
+
+         ICON ONLY, AND THE ICON IS THE STATE. Three questions you ask over
+         and over while building — am I inside or outside, how does this sit
+         against the reference, what light am I looking in — each one click
+         away and each wearing the answer, so the bar reads as a status line
+         you can press. editor.js's QUICK table builds them; GATE VIEW holds
+         it against the rail. -->
+    <div id="edQuick"></div>
   </div>
+
+  <!-- 2. THE LOOK RIBBON — HOW YOU LOOK. Standing up the left edge, which is
+       where the flight screen's has stood since its own rebaseline, and which
+       gives the bottom of the render back to the verbs. Same buttons, same
+       metrics, same table. #edBotBar keeps its id — it is the rail's
+       positioner wherever the rail stands — and its flyouts open TO THE RIGHT
+       of their own button, for the reason they opened upward before: an
+       answer that always appears in the same place does not say which
+       question it answers. -->
   <div id="edBotBar">
     <div id="edRail"></div>
   </div>
+
+  <!-- 3. THE VERBS, BOTTOM RIGHT — opposite the ribbon, on the pixel #flActs
+       owns in flight. ROLL OUT is the primary and is NEVER disabled: it is
+       your aeroplane, and building it wrong and learning why is content, not
+       error; it changes its WORDS, not its state. -->
+  <div id="edActs">
+    <button id="edRoll" class="verb pri">Roll out &amp; fly</button>
+  </div>
+
   <div id="edFly" hidden><div id="edFlyHead"></div><div id="edFlyBody"></div></div>
 </div>
 

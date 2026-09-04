@@ -3176,11 +3176,25 @@
         fix: 'power against weight again, and wing area. A low ceiling and a poor '
            + 'climb are the same problem read twice.' },
       'static margin': { what: 'how far the centre of gravity sits ahead of the '
-           + 'neutral point, as a fraction of the mean chord. Positive means the '
-           + 'aeroplane returns to trim by itself; the fleet sits near 0.20.',
+           + 'neutral point, as a fraction of the mean chord, AT THE WORST OF '
+           + 'THE FOUR LOADING CORNERS (solo and full cabin, full fuel and '
+           + 'reserves). Positive means the aeroplane returns to trim by itself '
+           + 'however you load it; the fleet sits near 0.20.',
         fix: 'move mass FORWARD (the engine, the tanks, the seats) or move the '
            + 'wing AFT. A longer tail arm carries the neutral point back and '
            + 'helps both. Negative is unflyable, not merely twitchy.' },
+      'as loaded': { what: 'the CG of the aeroplane exactly as it stands — the '
+           + 'dummies you have switched on, the fuel you specified — as a '
+           + 'fraction of the mean chord behind the leading edge, and its own '
+           + 'margin.' },
+      'forward corner': { what: 'the loading that puts the CG furthest forward, '
+           + 'and where. A published CG range for a real aeroplane is this '
+           + 'corner to the aft one.' },
+      'aft corner': { what: 'the loading that puts the CG furthest aft. This is '
+           + 'the corner the static margin is judged at.',
+        fix: 'the aft seat and the tail-end fuel are what move it. Bring the '
+           + 'seats forward, or the wing aft, or carry the fuel nearer the '
+           + 'wing.' },
       'weathervane': { what: 'directional stiffness (Cn_beta) - how hard the '
            + 'aeroplane points itself back into the airflow. The Cub reads 0.11.',
         fix: 'fin AREA and fin HEIGHT both move it, and so does a longer tail '
@@ -3225,8 +3239,17 @@
       let t = '';
       if (w) t = typeof w === 'string' ? w
               : (w.what || '') + (cls && w.fix ? ' \u2014 ' + w.fix : '');
-      rows.push('<div class="r' + (cls ? ' ' + cls : '') + '"' +
-        (t ? ' title="' + esc(t) + '"' : '') +
+      // A ROW THAT DOES NOT FIT HALF THE PLATE TAKES THE WHOLE PLATE
+      // (2026-09-03, the user: "the formatting of the plaque is
+      // unacceptable"). The sheet is a two-column grid and a value cell could
+      // not shrink, so '14.5 kg/h (20 L/h)' or 'coarse (cruise)' pushed its
+      // column past the panel edge and the clip took the number with it --
+      // '97 kr', '218', '5.2' -- and the burn-off line ran across its
+      // neighbour. The threshold is the widest value the half-width holds at
+      // this type size; anything past it spans, and its value may wrap.
+      const wide = String(val).length > 11 || String(label).length > 15;
+      rows.push('<div class="r' + (cls ? ' ' + cls : '') + (wide ? ' wide' : '') +
+        '"' + (t ? ' title="' + esc(t) + '"' : '') +
         '><span>' + label + '</span><b>' + val + '</b></div>');
     };
     H('weights');
@@ -3322,11 +3345,24 @@
     H('balance');
     R('CG', n1(s.cgX, 2) + ' m');
     R('neutral pt', n1(s.npX, 2) + ' m');
-    // the fleet's own band: the Cub measures 0.22, the stock build 0.20.
-    // Under 0.05 is twitchy; negative is unflyable.
-    R('static margin', n1(s.staticMargin, 2),
-      (s.staticMargin || 0) < 0 ? 'bad'
-        : (s.staticMargin || 0) < 0.05 ? 'warn' : '');
+    // THE CG ENVELOPE (2026-09-03): the four loading corners, the margin at
+    // the worst of them. The as-drawn number is still shown, named for what
+    // it is, so a builder can see which corner they happen to be sitting in.
+    const E = s.envelope;
+    const pc = v => v == null ? '\u2014' : n1(v * 100, 0) + '% MAC';
+    const smCls = v => (v || 0) < 0 ? 'bad' : (v || 0) < 0.05 ? 'warn' : '';
+    if (E && E.aft && E.fwd) {
+      R('as loaded', pc(E.cgPct) + ' \u00b7 margin ' + n1(s.staticMargin, 2),
+        smCls(s.staticMargin));
+      R('forward corner', E.fwd.label + ' \u00b7 ' + pc(E.fwd.cgPct));
+      R('aft corner', E.aft.label + ' \u00b7 ' + pc(E.aft.cgPct));
+      R('static margin', n1(E.staticMarginAft, 2) + ' \u00b7 ' + E.worst.label,
+        smCls(E.staticMarginAft));
+    } else {
+      // the fleet's own band: the Cub measures 0.22, the stock build 0.20.
+      // Under 0.05 is twitchy; negative is unflyable.
+      R('static margin', n1(s.staticMargin, 2), smCls(s.staticMargin));
+    }
     // G115: the directional half, at last — the fin was the one surface with
     // no readout. Measured Cn_beta (weathervane stiffness): the stock build
     // reads 0.08, the Cub family 0.11; under 0.03 is a wanderer, negative
@@ -3342,9 +3378,11 @@
       H('at reserves (' + n1(s.reserve.litres, 0) + ' L)');
       R('all-up', n1(s.reserve.mass, 0) + ' kg');
       R('stall', n1(s.reserve.Vs * 3.6, 0) + ' km/h');
-      R('static margin', n1(s.reserve.staticMargin, 2),
-        (s.reserve.staticMargin || 0) < 0 ? 'bad'
-          : (s.reserve.staticMargin || 0) < 0.05 ? 'warn' : '');
+      // the margin at reserves is one of the envelope's corners now and is
+      // judged there; this sheet keeps the numbers that are only about fuel
+      if (!(E && E.aft))
+        R('static margin', n1(s.reserve.staticMargin, 2),
+          smCls(s.reserve.staticMargin));
       R('climb', n1(s.reserve.climbRate, 2) + ' m/s');
     }
     H('on the ground');
@@ -4127,6 +4165,13 @@
     // moment you are dragging a slider to compare them.
     applyBuildClip();
     if (typeof window.BENCH_DIRTY === 'function') window.BENCH_DIRTY();
+    // THE AUTOSAVE FOLLOWS THE EDITOR (2026-09-03). The shelf's `spec` is a
+    // cache of these parameters and nothing refreshed it between roll-outs,
+    // so a reload lost every slider moved since. Debounced inside the shelf —
+    // a commit runs the whole join, so it rides the pause after a drag rather
+    // than every pixel of one.
+    if (window.GARAGE_SPEC && window.GARAGE_SPEC.touch)
+      window.GARAGE_SPEC.touch();
   };
   // THE EDITOR OPENS ON THE BUILD YOU LOADED (G63). It never did: the boot
   // ran off the page's own defaults and nothing afterwards ever put a spec
@@ -5707,6 +5752,38 @@
   try {
     const sel = $('selAc');
     if (sel) sel.value = 'gen';
+    // ---- THE AUTOSAVE IS READ BACK (2026-09-03) --------------------------
+    // The working build has been written to localStorage on every rebuild
+    // since G63, and debounced after every slider since the save-integrity
+    // pass earlier today — and NOTHING PUT IT INTO THE EDITOR AT BOOT. The
+    // seed below (seedEditor) reads `genSpec`, which is set only by
+    // `api.apply`, which only garage.js's `rebuild` calls — and the boot restore
+    // assigns its spec at module scope without rebuilding. So `genSpec` was
+    // null here, the seed returned early, the editor opened on the page's own
+    // default aeroplane, and `syncBuild()` four lines below exported THAT over
+    // the restored build and wrote it to the autosave.
+    //
+    // MEASURED, twice, on dev.html: move the nose length to 0.62 and the span
+    // to 11.4, wait for the debounce, and the stored WIP carries both (4624
+    // bytes). Reload: the editor reads 0.44 and 10.0, the shelf's spec agrees
+    // with the editor, and the WIP has been rewritten to the editor's
+    // defaults (4515 bytes). Every slider moved since the last explicit SAVE
+    // was lost by the refresh it was supposed to survive — the one case the
+    // autosave exists for (the user: "do we have a form of auto-save of the
+    // current plane? Would be useful in case of browser crash/refresh").
+    //
+    // The fix is one line and it is the missing half of the same idea:
+    // hand the restored spec to the boot before anything is built from it.
+    // `setAircraft` then builds the aeroplane you were working on, seedEditor
+    // finds a cage to seed from, and syncBuild exports the SEEDED editor
+    // rather than the template. A spec with no cage still seeds nothing — a
+    // fresh session opens on the page's own aeroplane, exactly as before.
+    if (window.GARAGE_SPEC && typeof window.GARAGE_SPEC.get === 'function') {
+      try {
+        const wip = window.GARAGE_SPEC.get();
+        if (wip && wip.cage && Object.keys(wip.cage).length) genSpec = wip;
+      } catch (e) { console.error('wip restore:', e); }
+    }
     setAircraft('gen');
     enterGarage();
     openEditor();

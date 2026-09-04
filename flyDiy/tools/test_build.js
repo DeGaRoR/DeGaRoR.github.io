@@ -854,6 +854,53 @@ function nullPaths(o, pre, out) {
        'being billed onto the front frame');
   }
 
+  // 4b. THE OCCUPANTS SIT WHERE THE SEATS ARE (2026-09-03). With the join's
+  //     measured stations on the spec, the CG moves by exactly the lever an
+  //     80 kg person carries — and without them nothing moves at all, which
+  //     is what keeps every fiche and every older save on its old balance.
+  {
+    const s0 = base(); s0.cabin.seating = 'tandem2'; s0.cabin.pilots = 2;
+    const S0 = cg(s0);
+    const s1 = clone(s0);
+    // STATED OFF THE BASE'S OWN PILLARS, not off the Cub's: the default cabin
+    // is short, so a station copied from the Cub barely differs from the
+    // pillar it replaces here and the first cut of this check read 36 mm and
+    // called the fix broken. Put each person 0.25 m ahead of the ring the
+    // pillar rule would have billed them on (row one on the front pillar, row
+    // two on the aft) and the CG must come forward by exactly that lever.
+    const cab0 = C.buildGen(clone(s0)).spec.cabin;
+    const AHEAD = 0.25;
+    s1.cabin.seatsX = [cab0.noseGap - AHEAD, cab0.noseGap + cab0.len - AHEAD];
+    const S1 = cg(s1);
+    ok(Math.abs(S1.mass - S0.mass) < 2,
+       'measured seat stations change where people sit, not how much they weigh' +
+       ' (' + (S1.mass - S0.mass).toFixed(1) + ' kg)');
+    const fwd = 160 * AHEAD / S1.mass;
+    ok(Math.abs((S0.cg - S1.cg) - fwd) < 0.015,
+       'billing the people at their seats instead of the cabin pillars moves ' +
+       'the CG FORWARD by their lever: expected ' + (fwd * 1000).toFixed(0) +
+       ' mm, got ' + ((S0.cg - S1.cg) * 1000).toFixed(0) + ' mm — a pillar is not a chair');
+    // the lever, checked as arithmetic: move both seats 0.30 m aft and the
+    // CG must follow by 160 kg × 0.30 m over the all-up mass
+    // THE CHAIRS GO WITH THE PEOPLE: the frame bills each seat at its own
+    // station too, so the lever is 160 kg of occupants plus two seats of the
+    // kind the outfit names (3 kg each in a sling). Written out so a reader
+    // can check the number on the plaque against this line.
+    const s2 = clone(s1); s2.cabin.seatsX = [s1.cabin.seatsX[0] + 0.30,
+                                             s1.cabin.seatsX[1] + 0.30];
+    const S2 = cg(s2);
+    const seatKg = (C.GEN_SEATS[(s2.outfit && s2.outfit.seats) || 'sling'] || {}).kg || 0;
+    const want = (160 + 2 * seatKg) * 0.30 / S2.mass;
+    ok(Math.abs((S2.cg - S1.cg) - want) < 0.015,
+       'the seat lever is arithmetic the builder can check: expected +' +
+       (want * 1000).toFixed(0) + ' mm, got +' + ((S2.cg - S1.cg) * 1000).toFixed(0) + ' mm');
+    // a malformed station list reads as "derived", never as a crash or a jump
+    const s3 = clone(s0); s3.cabin.seatsX = ['x', null];
+    const S3 = cg(s3);
+    ok(Math.abs(S3.cg - S0.cg) < 1e-6,
+       'a malformed seatsX is ignored — the pillar rule stands');
+  }
+
   // 5. THE OLD LAYOUTS RESOLVE EXACTLY AS THEY DID. `seatRows` replaced a
   //    two-element literal, and every existing seating must land on the same
   //    frames it landed on before or every saved aeroplane re-balances.

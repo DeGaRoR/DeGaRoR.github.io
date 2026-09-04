@@ -74,8 +74,13 @@ const AX_RAIL = [0, 3];
 const NOT_SKIN = new Set([
   'windshield', 'pilotWindow', 'pasengerWindow', 'skyWindows',   // glazing
   'joint',                                                       // rim beads
-  'bulkhead', 'firewall', 'dash', 'tube', 'woodFrame', 'aluminium',
+  'bulkhead', 'firewall', 'dash', 'dashFace', 'tube', 'woodFrame',
+  'aluminium',
   'plywood', 'cloth', 'composite', 'toele',                      // interior
+  // the firewall's engine face and the seal round it: inside the cowl, not
+  // on the outside of the aeroplane, and a fitting bolted there would be
+  // invisible under the cowling
+  'fireProof', 'fireSeal',
 ]);
 
 const TRI3 = [[0, 1, 2]];

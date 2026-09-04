@@ -82,8 +82,8 @@ const WING_ITEMS = [
   ['wgPos',    'position',       0, 2, 1,
    ['high wing', 'mid wing', 'low wing'], on],
   ['wgSpan',   'span',           6.5, 14, 0.1, { ...on, dim: 'm' }],
-  ['wgChord',  'chord root',     1.15, 2.10, 0.05, { ...on, dim: 'm' }],
-  ['wgChordTip', 'chord tip',    0.55, 2.10, 0.05, { ...on, dim: 'm' }],
+  ['wgChord',  'root chord',     1.15, 2.10, 0.05, { ...on, dim: 'm' }],
+  ['wgChordTip', 'tip chord',    0.55, 2.10, 0.05, { ...on, dim: 'm' }],
   ['wgTip',    'tips',           0, TIP_KEYS.length - 1, 1,
    TIP_KEYS.map(k => GEN_TIPS[k].name), on],
   ['wgCrankAt', 'crank at',      0, 0.85, 0.05, on],
@@ -118,8 +118,8 @@ const WING_ITEMS = [
   ['wgCons', 'construction', 0, 4, 1,
    ['as the aeroplane', 'composite', 'steel tube', 'plywood', 'aluminium'],
    on],
-  ['wgDx',     'fore/aft',       -1.5, 1.8, 0.05, on],
-  ['wgDy',     'height',         -1.0, 1.0, 0.02, on],
+  ['wgDx',     'fore / aft',       -1.5, 1.8, 0.05, on],
+  ['wgDy',     'up / down',         -1.0, 1.0, 0.02, on],
   ['struts & fixation', [
     ['wgBrace', 'fixation',      0, 1, 1, ['lift struts', 'cantilever']],
     // G86/G87, user: "sliders ... to control the exact placement fore/aft
@@ -135,9 +135,9 @@ const WING_ITEMS = [
     //             says so in the status line.
     //   lateral   moves only the foot, as ARC LENGTH around the section
     //             (never an angle: see _strut_gen.js).
-    ['wgStrutZ', 'strut fore/aft', -0.20, 0.20, 0.01,
+    ['wgStrutZ', 'fore / aft', -0.20, 0.20, 0.01,
      { when: P => +P.wingOn && !Math.round(P.wgBrace), dim: 'm' }],
-    ['wgStrutX', 'foot lateral',   -0.25, 0.35, 0.01,
+    ['wgStrutX', 'in / out (foot)',   -0.25, 0.35, 0.01,
      { when: P => +P.wingOn && !Math.round(P.wgBrace), dim: 'm' }],
   ], on],
   ['control surfaces', [

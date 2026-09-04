@@ -97,13 +97,13 @@ const fairAny = P =>
   Math.round(P.s1Fair || 0) > 0 || Math.round(P.s2Fair || 0) > 0 ||
   Math.round(P.s1LegFair || 0) > 0 || Math.round(P.s2LegFair || 0) > 0;
 const station = (i, name) => [name, [
-  ['s' + i + 'On',    'fitted',       0, 1, 1],
-  ['s' + i + 'Z',     i === 2 ? 'z / tail offset' : 'station z',
+  ['s' + i + 'On',    i === 2 ? 'third wheel' : 'main gear', 0, 1, 1],
+  ['s' + i + 'Z',     'fore / aft',
                                      -4, 4, 0.01, sOn(i)],
-  ['s' + i + 'X',     'half track',   0, 1.6, 0.01, sOn(i)],
+  ['s' + i + 'X',     'in / out (half track)',   0, 1.6, 0.01, sOn(i)],
   ['s' + i + 'Leg',   'leg',          0, 3, 1, GP.LEGS, sOn(i)],
-  ['s' + i + 'R',     'wheel radius', 0.05, 0.40, 0.005, sOn(i)],
-  ['s' + i + 'Drop',  'leg drop',     0.05, 1.00, 0.01, sOn(i)],
+  ['s' + i + 'R',     i === 2 ? 'third wheel radius' : 'main wheel radius', 0.05, 0.40, 0.005, sOn(i)],
+  ['s' + i + 'Drop',  'up / down (leg drop)',     0.05, 1.00, 0.01, sOn(i)],
   ['s' + i + 'Brake', 'brake',        0, 1, 1, sOn(i)],
   ['s' + i + 'Steer', 'steering',     0, 2, 1, GP.STEERS, sOn(i)],
   // G133: the castor exclusion is GONE — legTailwheel draws its own shell

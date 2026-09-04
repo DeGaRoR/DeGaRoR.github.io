@@ -143,9 +143,14 @@ Nothing here is forgotten; not everything here is scheduled.
   Three aims were free; DOWN found an aeroplane fact — the sump, carburettor
   and airbox hang from the one crankcase face an inverted bank occupies, which
   is why a Gipsy Major carries its induction on top. The exhaust outlet's four
-  directions and the bank's are ONE table now. STILL OWED: the small in-lines
-  (a Walter Mikron), which G157 held back only because they would have been
-  drawn sideways.
+  directions and the bank's are ONE table now.
+  **AND PAID IN FULL — G165.** A second wall stood behind the
+  first: every in-line was a TWO-STROKE BY LAW, so the classic small in-lines
+  (all inverted four-strokes) could not exist whichever way the bank pointed.
+  It is a default now; thirty pre-existing engine fixtures are identical to the
+  vertex. Walter Mikron III and DH Gipsy Major 1 are in the registry, and the
+  in-line mass row — UNVALIDATED since it was written, because the law meant
+  there was no example to fit it on — is fitted to them and held by a check.
   THE ORIGINAL ENTRY, for the record:
 
 - ~~**AN INLINE ENGINE IS DRAWN SIDEWAYS**~~ — found by G157 while trying to

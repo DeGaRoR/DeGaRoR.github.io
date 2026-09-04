@@ -93,6 +93,18 @@ const CASES = [
       twoStroke: 1, geared: 1, exStyle: 3, bore: 0.072, stroke: 0.068,
       rpm: 6250, inlineAim: 3 } },
   // the last registry row: the two-row radial with the collector ring
+  // THE FOUR-STROKE IN-LINES (G165). An in-line could only be a two-stroke
+  // until this chantier, so none of the four-stroke furniture — pushrods,
+  // rocker covers, intake runners, a collector — had ever been asked to fit
+  // round a bank that stands up. Both aims are here because the INVERTED one
+  // is the aeroplane (a Walter Mikron, a Gipsy Major) and the upright one is
+  // the case that proves the induction only turns over when it must.
+  { name: 'mikron (4-stroke inline, inverted)', spec: { arch: 'inline',
+      cyl: 4, twoStroke: 0, inlineAim: 0, bore: 0.090, stroke: 0.096,
+      rpm: 2600, exStyle: 2 } },
+  { name: 'gipsy (4-stroke inline, upright)', spec: { arch: 'inline',
+      cyl: 4, twoStroke: 0, inlineAim: 1, bore: 0.118, stroke: 0.140,
+      rpm: 2100, exStyle: 1 } },
   { name: 'R-1830-ish', spec: { arch: 'radial', cyl: 14, radialRows: 2,
       geared: 1, exStyle: 2, bore: 5.5 * IN, stroke: 5.5 * IN, rpm: 2700 } },
   { name: 'radial 7 single-row', spec: { arch: 'radial', cyl: 7,
@@ -582,6 +594,28 @@ for (const C of CASES) {
            worst > -1e-4 * cR, 'worst ' + f(worst / cR, 3) + 'cR');
     }
   }
+  // AN ENGINE ASKED FOR A FOUR-STROKE MUST GET ONE (G165). The coercion
+  // above this used to force EVERY in-line to a two-stroke, and putting that
+  // back would not fail any other check in this file: an inverted two-stroke
+  // in-line draws perfectly well, it is simply not the engine the case asked
+  // for. So the ask is held against the answer.
+  if (C.spec && C.spec.twoStroke !== undefined)
+    hard(C.name + ': the cycle asked for is not the cycle resolved',
+         (M.P.twoStroke ? 1 : 0) === (C.spec.twoStroke ? 1 : 0),
+         'asked ' + C.spec.twoStroke + ', got ' + M.P.twoStroke);
+
+  // AND A FOUR-STROKE ASKING FOR A COLLECTOR MUST GET A COLLECTOR. `exMode`
+  // read `inline ?` while an in-line could only be a two-stroke, so the two
+  // words meant the same thing; restoring that would quietly hand a Gipsy
+  // Major a pair of two-stroke expansion chambers, which no check here would
+  // otherwise notice.
+  if (C.spec && C.spec.exStyle === 2 && !C.spec.twoStroke &&
+      M.resolved.arch !== 'radial' && M.resolved.arch !== 'electric')
+    hard(C.name + ': a four-stroke asked for a collector and got something else',
+         M.arteries.some(a => /^exhaust\d+$/.test(a.name) && a.to === 'collector'),
+         M.arteries.filter(a => /^exhaust/.test(a.name))
+                   .map(a => a.to).join(',') || 'no exhaust at all');
+
   // THE DRAWING AND THE ENVELOPE MUST AGREE ABOUT WHICH WAY THE ENGINE
   // STANDS (G162). This is the check the battery did not have, and its
   // absence cost a fortnight: `_eng_check` asserts "an inline is taller than

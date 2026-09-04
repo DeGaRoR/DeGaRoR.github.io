@@ -67,10 +67,12 @@ const ENG_MASS_E = 0.8735;       // exponent on litres
 // builder.
 //
 // `kM` multiplies the shared mass law. Flat and radial are 1.00 because they
-// are what the fit was made from; inline and V are marked UNVALIDATED — there
-// is no registry example of either, and a longer crank with more mains really
-// should weigh more, so these are the model's only guesses. Treat a number
-// they produce as an estimate, not as a measurement.
+// are what the fit was made from. INLINE WAS FITTED AT G165, when the first
+// four-stroke in-lines could exist to fit it on — two of them, and the row
+// below says which and what the residuals are. Only V is still marked
+// UNVALIDATED: there is no registry example, a longer crank with more mains
+// really should weigh more, and that number remains the model's one guess.
+// Treat what it produces as an estimate, not as a measurement.
 // ---------------------------------------------------------------------------
 // WHICH WAY A THING POINTS, once (G164). The engine already had one of
 // these — `_eng_mesh.js` carried `AIM = [[0,-1],[0,1],[-1,0],[1,0]]` for the
@@ -104,7 +106,24 @@ const ENG_ARCH = {
     nStations: n => Math.ceil(n / 2),
   },
   inline: {
-    name: 'Inline', counts: [4, 6], kM: 1.06, bmep: 9.5,   // UNVALIDATED
+    // MEASURED AT LAST (G165). `kM` and `bmep` were marked UNVALIDATED
+    // because there was no registry example of an in-line — and there was
+    // none because an in-line could only be a two-stroke, which the mass law
+    // was never fitted on. Now that a four-stroke in-line can exist, two
+    // well-documented ones settle it:
+    //
+    //   Walter Mikron III  2.44 L, 2600 rpm — 48 kW, 74 kg published
+    //   Gipsy Major 1      6.12 L, 2100 rpm — 97 kW, 139 kg published
+    //
+    // FITTED ON kM ALONE, keeping the shared exponent. Two points cannot
+    // honestly move an exponent, and pretending otherwise would be a curve
+    // through its own noise: at kM 1.02 the residuals are -8% on the Mikron
+    // and +9% on the Gipsy, which is the model over-predicting big engines
+    // and under-predicting small ones — the exponent's own signature, left
+    // declared rather than fudged. bmep 9.5 needed no change and is the
+    // half that came out well: 50.3 kW and 101.8 kW against 48 and 97, so
+    // under 5% on both, which is better than the mass law manages anywhere.
+    name: 'Inline', counts: [4, 6], kM: 1.02, bmep: 9.5,
     // WHICH WAY THE BANK POINTS IS THE BUILDER'S (G164, the user's own item
     // "in line engine choice up/down/r/l"). 0 = straight up, which is why a
     // boxer is +/-90 — and since G163 the MESH honours this table, so the

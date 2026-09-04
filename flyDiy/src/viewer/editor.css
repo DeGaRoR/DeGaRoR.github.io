@@ -267,6 +267,14 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 
 .edN.on > span { color:var(--ed-ink); }
 
+/* NOT FITTED (2026-09-03). The part is switched off but still in the tree,
+   collapsed to the one row that switches it back on. It has to read as absent
+   without reading as unavailable — a strikethrough says "gone", so the name
+   only fades and the row keeps every hover, focus and click it ever had. */
+.edN.edOff > span { opacity:.45; }
+.edN.edOff:hover > span, .edN.edOff.on > span, .edN.edOff.hov > span
+  { opacity:.75; }
+
 /* the indent ladder: 0 for a root, one step per level under it */
 .edN.lv0:not(.root) { padding-left:calc(12px + var(--ed-indent)); }
 
@@ -442,7 +450,22 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 .edH.edHP > span { font:var(--ed-t-asm); letter-spacing:.04em;
   text-transform:none; color:var(--ed-ink); }
 
-.edH > i { display:none; }
+/* THE CHEVRON IS THE HEADING'S OWN (2026-09-03). It was declared with the
+   heading and drawn by nothing since G91; the collapsible sections give it
+   the job it was shaped for. Rolled up it also carries the row count, so a
+   folded section still says how much it is holding. Fixed width, so the
+   titles stay on one left edge whichever way their section is pointing. */
+.edH > i { display:inline-block; flex:none; width:22px; font-style:normal;
+  font:400 9px/1 'IBM Plex Sans'; color:var(--ed-faint); opacity:.55;
+  letter-spacing:0; }
+.edH.edHC { cursor:pointer; }
+.edH.edHC:hover > span, .edH.edHC:hover > i { color:var(--ed-ink); opacity:1; }
+/* A ROLLED-UP SECTION KEEPS ITS RULE. The hairline under a group is normally
+   the last row's (.endg); with no rows on screen it would vanish and the
+   headings would run together into a list with no grain. */
+.edH.shut { margin-bottom:10px; padding-bottom:8px;
+  border-bottom:1px solid var(--ed-hair); }
+.edH.shut > i { opacity:.9; }
 
 /* the first heading in the column needs no space above it */
 #edRows > .edH:first-child { margin-top:6px; }
@@ -779,21 +802,31 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
    saving (G80), and an OBJ dump is a bench tool. */
 #edWrap #edBar { display:none; }
 
-/* THE SHELF IS A SEGMENTED VERB GROUP NOW (2026-09-01, the user: "it's a
-   pack of controls thrown in a container"). Four verbs, one bordered pill,
-   hairlines between them — the #gSlot select and the noun buttons it kept
-   company went into the fleet popup below. */
-#edFleet #edShelf { display:flex; align-items:center; gap:0;
-  border:1px solid rgba(255,255,255,.18); border-radius:7px;
-  overflow:hidden; }
+/* THE SHELF IS A DROPDOWN MENU NOW (2026-09-03, the user: "simply the
+   plane's name on the top left, clicking on it gives all the ribbon options
+   in a standard menu"). It was a segmented control of six verbs on permanent
+   display beside the name; it is the same six verbs, one click behind the
+   name, in the shape a file menu has everywhere else. Standard menu rules: a
+   column, one row per verb, labels left-aligned, and a hairline before the
+   two json doors — they are operations on a FILE, not on your fleet, and a
+   rule says so without needing a second menu to say it. */
+#edFleet #edShelf { position:absolute; left:0; top:calc(100% + 6px);
+  z-index:2; min-width:172px; display:flex; flex-direction:column;
+  padding:5px; background:var(--ed-plate);
+  border:1px solid var(--ed-border); border-radius:9px;
+  box-shadow:0 14px 34px rgba(0,0,0,.44); }
+
+#edFleet #edShelf[hidden] { display:none; }
 
 #edFleet #edShelf button {
-  flex:0 0 auto; font:500 10px/1 'IBM Plex Sans'; letter-spacing:.08em;
-  text-transform:uppercase; color:#c0b8ac; background:transparent;
-  border:0; border-left:1px solid var(--ed-hair);
-  padding:8px 13px; cursor:pointer;
+  flex:0 0 auto; text-align:left; font:500 11px/1 'IBM Plex Sans';
+  letter-spacing:.06em; text-transform:uppercase; color:#c0b8ac;
+  background:transparent; border:0; border-radius:6px;
+  padding:9px 11px; cursor:pointer;
   transition:background .12s ease, color .12s ease; }
-#edFleet #edShelf button:first-child { border-left:0; }
+
+#edFleet #edShelf #gImport { margin-top:5px; padding-top:12px;
+  border-top:1px solid var(--ed-hair); border-radius:0; }
 
 #edFleet #edShelf button:hover {
   background:rgba(255,255,255,.07); color:#f4efe6; }
@@ -952,10 +985,15 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 
 #edInfo #pqVerdict.bad { color:var(--ed-bad); border-color:var(--ed-bad); }
 
-#edInfo #pqRows { display:grid; grid-template-columns:1fr 1fr; gap:0 16px; }
+/* THE GRID MAY NOT OVERFLOW THE PLATE (2026-09-03). `1fr` lets a column grow
+   to its content and the panel then clips it; `minmax(0,1fr)` pins the two
+   halves to the plate, and a row that cannot fit a half spans both (.wide,
+   decided where the row is written, app.js drawPlaque). */
+#edInfo #pqRows { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  gap:0 16px; }
 
 #edInfo #pqRows .r { display:flex; justify-content:space-between;
-  align-items:baseline; gap:8px; padding:6px 0;
+  align-items:baseline; gap:8px; padding:6px 0; min-width:0;
   border-bottom:1px solid var(--ed-hair); }
 
 #edInfo #pqRows .r span { font:400 12px/1.2 'IBM Plex Sans';
@@ -963,7 +1001,13 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
 #edInfo #pqRows .r b { font:500 13px/1 'IBM Plex Sans'; color:var(--ed-ink);
-  flex:none; }
+  flex:none; white-space:nowrap; }
+
+/* a long row: the whole width, the value allowed to wrap, never clipped */
+#edInfo #pqRows .r.wide { grid-column:1 / -1; }
+
+#edInfo #pqRows .r.wide b { flex:0 1 auto; min-width:0; text-align:right;
+  white-space:normal; line-height:1.25; }
 
 /* no green "ok" colour anywhere: ok is simply the ink */
 #edInfo #pqRows .r.warn b { color:var(--ed-warn); }
@@ -1084,41 +1128,94 @@ body.mode-fly #wsUI { display:none; }
   #edView, #edView *, #edView *::after { transition:none !important; }
 }
 
-/* THE FILE RIBBON ACROSS THE TOP (2026-08-31; re-cut 2026-09-01): the
-   build's name and the four VERBS — save, save as, new, load. The nouns
-   and the json doors are behind LOAD now (#gFleet, with the shelf rules
-   further up), so the plate is a name and one segmented control. */
+/* THE NAME, TOP LEFT (2026-09-03). The bar carries ONE thing now — which
+   aeroplane is on the stand — and the six file verbs hang off it as a menu
+   (the shelf rules further up). It is sized by its own content rather than
+   stretched across the view, because nothing else lives on this row. */
+/* THE TOP BAR SPANS THE VIEW (2026-09-03). It hugged the left because the
+   name was the only thing on it; the quick actions ride at its right end on
+   `margin-left:auto`, which is exactly how #flTop carries the flight screen's
+   verbs. Both ends are inset 22px, like every other floating surface here. */
 #edTopBar { position:absolute; left:22px; right:22px; top:18px;
   display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px; }
 
+/* THE QUICK ACTIONS. Same plate as the rail, laid across instead of down:
+   three questions you ask constantly, one click each, no flyout. Icon only —
+   the icon IS the state, so there is nothing to label. */
+#edQuick { margin-left:auto; display:flex; align-items:center; gap:4px;
+  padding:5px; background:var(--ed-plate);
+  border:1px solid var(--ed-border); border-radius:9px; }
+
+#edQuick:empty { display:none; }
+
+.edQuickBtn { display:flex; align-items:center; justify-content:center;
+  width:34px; height:32px; padding:0; border:0; border-radius:6px;
+  background:transparent; color:var(--ed-dim); cursor:pointer;
+  transition:background .12s ease, color .12s ease; }
+
+.edQuickBtn:hover:not(:disabled) { background:rgba(255,255,255,.06); }
+
+.edQuickBtn.on { background:var(--ed-acc); color:var(--ed-acc-ink); }
+
+/* DISABLED IS STILL THERE. A button that vanishes when there is no reference
+   makes the bar change width and hides the fact that the view exists at all;
+   greyed, it says "pick a reference and this is here for you". */
+.edQuickBtn:disabled { color:var(--ed-faint); opacity:.45; cursor:default; }
+
+.edQuickBtn svg { width:17px; height:17px; fill:none; stroke:currentColor;
+  stroke-width:1.35; stroke-linecap:round; stroke-linejoin:round; }
+
 #edTopBar > * { min-width:0; }
 
-#edTopBar #edFleet { display:flex; flex-wrap:wrap; align-items:center;
-  gap:8px 10px; padding:7px 12px; background:var(--ed-plate);
+#edTopBar #edFleet { position:relative; display:flex; align-items:center;
+  padding:2px; background:var(--ed-plate);
   border:1px solid var(--ed-border); border-radius:9px; max-width:100%; }
 
-#fbName { font:600 12px/1.2 'IBM Plex Sans'; color:var(--ed-ink);
-  max-width:180px; overflow:hidden; text-overflow:ellipsis;
-  white-space:nowrap; }
+/* THE NAME IS THE BUTTON. It is a document title and not a verb, so it keeps
+   the title's own weight and case and wears a caret rather than a border.
+   garage.js writes its textContent, so the caret is a pseudo-element — a
+   child node would be wiped by the next syncRibbon. */
+#edFleet #fbName { display:block; max-width:220px; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap;
+  font:600 12px/1.2 'IBM Plex Sans'; color:var(--ed-ink);
+  background:transparent; border:0; border-radius:7px;
+  padding:8px 11px 8px 12px; cursor:pointer; text-align:left;
+  transition:background .12s ease; }
+
+#edFleet #fbName::after { content:'\25BE'; margin-left:8px;
+  color:var(--ed-faint); font-size:10px; vertical-align:1px; }
+
+#edFleet #fbName:hover { background:rgba(255,255,255,.07); }
+
+#edFleet #fbName.open { background:rgba(255,255,255,.09); }
+
+#edFleet #fbName.open::after { color:var(--ed-ink); }
+
 #fbName.unsaved { color:var(--ed-warn); font-weight:500; }
 
 #gNew { color:var(--ed-acc); }
 
-/* THE LOOK BAR AT THE BOTTOM (the user: display options below, both
-   floating). Same plate as the ribbon; the rail's flyouts now open UPWARD
-   from their buttons — openFly measures this bar's top. */
-#edBotBar { position:absolute; left:22px; right:22px; bottom:18px;
-  display:flex; align-items:center; }
+/* THE LOOK RIBBON, UP THE LEFT EDGE (2026-09-03, the user: "the display
+   options ribbon goes to the left"). Centred on the height, exactly as
+   #flRail is: it clears the name above it and whatever the render is doing
+   below it without either having to know it is there, and the two screens now
+   put the same question in the same place. Its flyouts open BESIDE their own
+   button — openFly measures the rail's right edge. */
+#edBotBar { position:absolute; left:22px; top:50%;
+  transform:translateY(-50%); display:flex; align-items:center; }
 
 /* THE RAIL. Five questions about looking, one glyph and one word each. */
-#edRail { display:flex; flex-direction:row; gap:6px; padding:6px;
+#edRail { display:flex; flex-direction:column; gap:6px; padding:6px;
   background:var(--ed-plate); border:1px solid var(--ed-border);
   border-radius:9px; }
 
-/* ROLL OUT rides the ribbon's row, far right (2026-08-31: "aligned with the
-   save/new UI, not a row below") — its own element, never part of the file
-   plate, and the bar's wrap keeps it on screen when the estate narrows. */
-#edActs { margin-left:auto; display:flex; align-items:center; gap:9px; }
+/* THE VERBS, BOTTOM RIGHT (2026-09-03: "the action button(s) go to the
+   bottom right") — their own surface, opposite the ribbon, on the pixel
+   #flActs owns in flight. Not plated: a row of verbs IS the object, and a
+   plate around them would be a box around a box. */
+#edActs { position:absolute; right:22px; bottom:18px;
+  display:flex; align-items:center; gap:9px; flex-wrap:wrap;
+  justify-content:flex-end; max-width:calc(100% - 44px); }
 
 .edRailBtn { display:flex; flex-direction:column; align-items:center; gap:3px;
   width:50px; padding:8px 0; border:0; border-radius:6px;
@@ -1135,12 +1232,13 @@ body.mode-fly #wsUI { display:none; }
 .edRailBtn span { font:500 8px/1.2 'IBM Plex Sans'; letter-spacing:.06em;
   text-transform:uppercase; }
 
-/* THE FLYOUT OPENS UNDER ITS OWN BUTTON. `left` is written by openFly from
-   the button's measured position (and clamped to the free estate), because a
-   bar of five buttons with one answer always in the same place is a menu that
-   does not say which item it belongs to. `top` clears the bar. */
-#edFly { position:absolute; left:22px; top:86px; width:296px;
-  max-height:calc(100% - 130px); overflow-y:auto;
+/* THE FLYOUT OPENS BESIDE ITS OWN BUTTON. Both `left` and `top` are written
+   by openFly from the button's measured box and clamped to the free estate,
+   because a ribbon of five buttons with one answer always in the same place
+   is a menu that does not say which item it belongs to. The values here are
+   the resting ones, before the first measurement. */
+#edFly { position:absolute; left:100px; top:96px; width:296px;
+  max-height:calc(100% - 44px); overflow-y:auto;
   padding:12px 14px 14px; background:var(--ed-plate);
   border:1px solid var(--ed-border); border-radius:9px; }
 
@@ -1190,8 +1288,8 @@ body.mode-fly #wsUI { display:none; }
 /* THE VERBS. The primary is never disabled: it is your aeroplane, and
    building it wrong and learning why is content, not error — it changes its
    WORDS when the bench has not passed, and nothing else.
-   They are shorter than they were at the bottom of the screen, because they
-   now share a row with the rail and the row should read as one object. */
+   They are one row on their own surface, bottom right, opposite the look
+   ribbon — the flight screen's arrangement, and now this one's. */
 .verb { font:500 12px/1 'IBM Plex Sans'; letter-spacing:.1em;
   text-transform:uppercase; color:var(--ed-ink);
   background:var(--ed-btn-bg); border:1px solid var(--ed-btn-bd);

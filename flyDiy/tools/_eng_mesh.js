@@ -196,12 +196,20 @@ const EM = (() => {
   function engMeshBuild(spec) {
     // ARCH COMPATIBILITY IS COERCED BEFORE RESOLVE (G24.15), so the
     // physics and the mesh always agree and no UI combination throws:
-    // an inline here is a two-stroke, a radial is an air-cooled
-    // four-stroke. Only genuinely undressed families (vee, electric)
-    // refuse.
+    // a radial is an air-cooled four-stroke. Only genuinely undressed
+    // families (vee, electric) refuse.
+    //
+    // AN IN-LINE'S TWO-STROKE IS A DEFAULT NOW, NOT A LAW (G165). It was a
+    // law because the registry's only in-lines were a Rotax 277 and a 582,
+    // and because until G163 an in-line was drawn on its side where no
+    // four-stroke furniture would have fitted. The engines this range is
+    // missing — a Walter Mikron, a Gipsy Major, a Renault 4Pei — are all
+    // INVERTED FOUR-STROKE in-lines, which is the aeroplane G164's `down`
+    // aim was built for. A spec that says nothing still gets a two-stroke,
+    // so every engine drawn before this line is untouched.
     spec = Object.assign({}, spec);
     const archAsk = spec.arch || EG.ENG_DEFAULT.arch;
-    if (archAsk === 'inline') spec.twoStroke = 1;
+    if (archAsk === 'inline' && spec.twoStroke === undefined) spec.twoStroke = 1;
     if (archAsk === 'radial') { spec.twoStroke = 0; spec.liquid = 0; }
     const R = EG.engResolve(spec);
     if (R.arch !== 'flat' && R.arch !== 'inline' && R.arch !== 'radial' &&
@@ -2066,7 +2074,14 @@ const EM = (() => {
              ? [[c.plugBaseT, [0, 0, 1]], [c.plugBaseB, [0, 0, -1]]]
              : P.twoStroke
              ? [[c.plugBaseT, c.dir], [c.plugBaseB, c.dir]]
-             : [[c.plugBaseT, [0, 1, 0]], [c.plugBaseB, [0, -1, 0]]]) {
+             // ACROSS THE CYLINDER (G165), which on a boxer IS [0, 1, 0]
+             // — so no boxer's plug moves — and on an in-line is the flank.
+             // The four-stroke PORTS have been in the cylinder's own frame
+             // since G163; only the plug drawn on them was still in the
+             // world's, so a four-stroke in-line's leads ended a third of a
+             // case radius from any plug.
+             : [[c.plugBaseT, c.e2],
+                [c.plugBaseB, [-c.e2[0], -c.e2[1], -c.e2[2]]]]) {
           part('plug' + c.i, 'tube', 4);
           sparkPlug(bb, ax);
         }
@@ -2086,6 +2101,8 @@ const EM = (() => {
           : twin
           ? [tc.pos[0], tc.pos[1] - 0.62 * b,
              tc.pos[2] + (L.stn[c.i] - (L.nSt - 1) / 2) * 0.12 * b]
+          : inline
+          ? [0, indY - iS * 0.10 * b, c.z + 0.20 * b]
           : c.route(0.42 * cR, sumpY + 0.10 * b, 0.20 * b);
         // TWIN RUNNERS RUN LIKE A REAL MANIFOLD (G25.2 — the first cut
         // dropped straight down the flank, through the cylinders): down
@@ -2105,6 +2122,18 @@ const EM = (() => {
              [c.sx * (c.finTop + 0.05 * b + trk), -0.92 * b,
               zTail - 0.02 * cR],
              [c.sx * (c.finTop + 0.05 * b + trk), -0.92 * b, c.z + 0.50 * b]]
+          : inline
+          // A SINGLE BANK'S RUNNER COMES ROUND THE BARREL (G165). On a boxer
+          // the plenum and the head port both lie in the induction plane, so
+          // the runner goes out along the sump and turns up — which is what
+          // the cylinder's own frame says. An in-line's bank stands at RIGHT
+          // ANGLES to its induction face, so out-along-the-cylinder and
+          // across-it are no longer the same two directions the boxer's route
+          // was written in, and the pipe has to come round the flank instead.
+          // Measured before this existed: the runner started 1.16 case radii
+          // off the sump it declares itself to leave.
+          ? [[c.e2[0] * (cR + 0.45 * b), c.e2[1] * (cR + 0.45 * b) +
+              (indY + c.intakeP[1]) / 2, c.z + 0.30 * b]]
           : [c.route(c.finTop - 0.15 * b, sumpY + 0.16 * b, 0.34 * b)];
         let path = fillet([A, ...knees, c.intakeP], 0.55 * b);
         // the margin CARRIES THE PIPE'S OWN RADIUS (the lead precedent —
@@ -2140,7 +2169,12 @@ const EM = (() => {
       // ---- exhaust: head bottom-fwd port, down and out --------------------
       // (an inline two-stroke always runs chambers; a radial runs aft
       // stacks, into the COLLECTOR RING when the collector is chosen)
-      const exMode = inline ? (P.exStyle ? 3 : 0)
+      // AN EXPANSION CHAMBER IS A TWO-STROKE'S EXHAUST (G165), not an
+      // in-line's. This read `inline ?` while an in-line could only be a
+      // two-stroke, which made the two words mean the same thing; they do
+      // not any more, and a Gipsy Major has stacks and a manifold like any
+      // other four-stroke.
+      const exMode = (inline && P.twoStroke) ? (P.exStyle ? 3 : 0)
                    : radial ? (P.exStyle ? (P.exStyle === 2 ? 2 : 1) : 0)
                    : P.exStyle;
       if (radial && exMode >= 1) {
@@ -2287,7 +2321,7 @@ const EM = (() => {
     }
 
     // ---- collector exhaust: per side, stacks merge into one pipe aft ------
-    if (P.exStyle === 2 && !inline && !radial) {
+    if (P.exStyle === 2 && !(inline && P.twoStroke) && !radial) {
       // G155: ONE COLLECTOR OR TWO. Two (the default) is a can under each
       // bank, as before. One is a single can under the port bank that BOTH
       // banks feed — a real arrangement, and the reason the knee below reads

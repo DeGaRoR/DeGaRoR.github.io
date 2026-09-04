@@ -1364,7 +1364,11 @@ function anchors(spec, P, mesh) {
   if (mesh && mesh.F && mesh.V) {
     let lo = 1e9, hi = -1e9, za = 1e9;
     for (const f of mesh.F) {
-      if (f.m !== 'dash') continue;
+      // BOTH OF THE DASHBOARD'S MATERIALS (2026-09-04): the facia was split
+      // off as `dashFace`, and this band is the dash's OWN extent — measuring
+      // it off one of the two halves would make where the instruments sit
+      // depend on which half a builder happens to be looking at.
+      if (f.m !== 'dash' && f.m !== 'dashFace') continue;
       for (const vi of f.v) {
         const y = mesh.V[vi][1] * k, z = mesh.V[vi][2] * k;
         if (y < lo) lo = y;

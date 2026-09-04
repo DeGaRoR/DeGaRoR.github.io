@@ -257,6 +257,60 @@
         "8175"
       ],
       "port": 8175
+    },
+    {
+      "name": "flydiy-fitted",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8181"
+      ],
+      "port": 8181
+    },
+    {
+      "name": "flydiy-marks",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8184"
+      ],
+      "port": 8184
+    },
+    {
+      "name": "flydiy-chrome",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8187"
+      ],
+      "port": 8187
+    },
+    {
+      "name": "flydiy-fire",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8294"
+      ],
+      "port": 8294
+    },
+    {
+      "name": "flydiy-energy",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8291"
+      ],
+      "port": 8291
+    },
+    {
+      "name": "flydiy-dash",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8300"
+      ],
+      "port": 8300
     }
   ]
 }

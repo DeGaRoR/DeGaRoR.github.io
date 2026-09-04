@@ -3,7 +3,7 @@
 ### (2026-09-01)
 
 STATUS: **RESOLVED.** Every endpoint below was probed live on 2026-09-01 and
-every open question from the first draft is closed. `tools/island_fetch.sh`
+every open question from the first draft is closed. `tools/island_fetch.js`
 implements this document.
 
 COMPANION TO: `ISLAND-ADMIRALTY.md` (the island and the fantasy pass),
@@ -180,15 +180,24 @@ trained elsewhere.
 
 ---
 
-## 5. THE FETCH — `tools/island_fetch.sh`
+## 5. THE FETCH — `tools/island_fetch.js`
 
 Written and committed alongside this document. It is idempotent and resumable
 (`curl -C -`), pages the API, and writes into a scratch directory that is **not
 in the repository**.
 
-    BBOX=-135.2,57.0,-133.5,58.3  OUT=assets/island/raw  tools/island_fetch.sh
+    node tools/island_fetch.js --list       # what it would fetch. Free.
+    node tools/island_fetch.js --dtm-only   # ~1.5 GB — enough to SEE the island
+    node tools/island_fetch.js              # everything, ~10 GB
 
-Requires `curl` and `jq`. Expect **~10 GB** and a long afternoon.
+**Only `node` is required** — the same one that runs the gates and the server.
+An earlier draft shipped this as a `.sh` needing `curl` and `jq`, which is a
+Unix assumption on a Windows machine and was simply wrong. Resumable: stop with
+Ctrl-C, run it again tomorrow, finished files are skipped.
+
+**Start with `--dtm-only`.** 1.5 GB gets the ground — the whole island, and
+everything the baker needs. The other 8.5 GB is the canopy model and the radar
+mask, neither of which is needed until trees and surface variation.
 
 `assets/island/raw/` must be in `.gitignore` **before anybody runs it**. The
 repository receives only the processed tiers — ~15-25 MB resident, ~650 MB of
@@ -204,7 +213,7 @@ them is how a project ends up shipping raw radar to a browser.
 
 | | what lives there | size | moves how |
 |---|---|---|---|
-| **1 · your machine** | the raw USGS/ESA download | **~10 GB** | `tools/island_fetch.sh`, once. Gitignored. Never published. |
+| **1 · your machine** | the raw USGS/ESA download | **~10 GB** | `tools/island_fetch.js`, once. Gitignored. Never published. |
 | **2 · the site** | **one baked asset** | **~40 MB** | committed once per world rebuild |
 | **3 · the browser** | that asset | ~40 MB, cached | one HTTP fetch |
 
@@ -237,7 +246,7 @@ that, once committed, stays in the history forever.
 ### Why the SCRIPT matters more than the download
 
 The 10 GB is reproducible and disposable; a dead disk costs an afternoon, not a
-project. That is why `island_fetch.sh` is idempotent and lives in the
+project. That is why `island_fetch.js` is idempotent and lives in the
 repository while its output does not.
 
 ---

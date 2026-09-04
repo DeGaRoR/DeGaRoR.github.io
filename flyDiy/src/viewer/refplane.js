@@ -861,16 +861,7 @@ function buildPanel() {
     cs.appendChild(o);
   });
   cs.value = S.cut;
-  cs.onchange = function () {
-    S.cut = cs.value; save();
-    // SPLIT ONLY MEANS ANYTHING ON ONE CENTRELINE. The two halves are cut by
-    // the same world plane, so a reference dragged sideways would have the cut
-    // running through a wing instead of down its spine. Zeroing `lat` is the
-    // one thing this control does beyond its own name, and it is the
-    // difference between a comparison and a puzzle.
-    if (S.cut === 'split') S.lat = 0;
-    applyFinish(); place(); rebuildPanel();
-  };
+  cs.onchange = function () { setCut(cs.value); };
   cr.appendChild(cs);
 
   head(host, 'materials', 'the model’s own, one row each');
@@ -899,6 +890,22 @@ function buildPanel() {
   host.appendChild(dimsEl);
 
   return host;
+}
+
+// THE CUT, FROM EITHER DOOR (2026-09-03). The panel's select and the editor's
+// quick-action button both land here, so the extra thing this control does
+// happens whichever one you press and the panel always shows what is true.
+//
+// SPLIT ONLY MEANS ANYTHING ON ONE CENTRELINE. The two halves are cut by the
+// same world plane, so a reference dragged sideways would have the cut running
+// through a wing instead of down its spine. Zeroing `lat` is the one thing
+// this control does beyond its own name, and it is the difference between a
+// comparison and a puzzle.
+function setCut(v) {
+  S.cut = v; save();
+  if (S.cut === 'split') S.lat = 0;
+  applyFinish(); place(); rebuildPanel();
+  if (typeof window.REF_ON_CHANGE === 'function') window.REF_ON_CHANGE();
 }
 
 function rebuildPanel() {
@@ -935,6 +942,18 @@ window.REFPLANE = {
   // precisely when you are watching it.
   refresh: function () {
     if (panelEl && dimsEl) paintDims();
+  },
+  // THE CUT, CYCLED — the editor's quick-action button, and the reason the
+  // three ways of looking at a reference are reachable without opening the
+  // panel at all. It goes through the same setCut the select does (CUTS is
+  // the order, so the button walks the list the panel shows), which is why
+  // the panel is never left disagreeing with the bar.
+  cycleCut: function () {
+    if (S.preset === 'none') return S.cut;      // nothing standing to cut
+    var i = 0;
+    for (var j = 0; j < CUTS.length; j++) if (CUTS[j][0] === S.cut) i = j;
+    setCut(CUTS[(i + 1) % CUTS.length][0]);
+    return S.cut;
   },
   // the reference row was selected (or left)
   shown: function (on) {

@@ -23,7 +23,16 @@
 // measurements before anybody builds a renderer on top of them.
 //
 //   node tools/terrain_bake.js --report
-//   node tools/terrain_bake.js --eps 1.5 --max-depth 12 --out media/geo/terrain/test
+//   node tools/terrain_bake.js --eps 1.5 --max-depth 12 --out bench/terrain/e1p5
+//
+// WHERE THE OUTPUT GOES, and why the tool enforces it. `media/` is the SHIPPED
+// store: GATE MEDIA requires every file under it to be named by a baked
+// manifest, because "orphans are how a 400 MB directory happens one forgotten
+// file at a time". A bench bake is a developer artefact — reproducible in
+// seconds, interesting to nobody but the person tuning eps — so it belongs in
+// the gitignored `bench/`, and writing one into `media/` is refused below
+// rather than left to the gate to notice. It was left to the gate to notice
+// once, on 2026-09-01, and the gate did its job.
 //
 // DETERMINISM. Fixed iteration order, integer addresses, no Math.random, and
 // the source is itself deterministic. Same flags give the same bytes — which
@@ -53,26 +62,92 @@ const CFG = {
   // nothing to hide (WORLD-V2 §2.1). This is a physical argument, not
   // laziness — and it is a MULTIPLIER on eps, applied per node.
   forestBias: num('forest-bias', 2.5),
-  out:      flag('out', null),
+  out:      flag('out', null),          // default under bench/, see writeGuard
   report:   !!flag('report', false),
   seed:     num('seed', 0),
 };
 
-// ---- the source ----------------------------------------------------------
-// Today: the analytic world. `--source` is reserved for the Ursoy sampler.
+// ---- where output may go -------------------------------------------------
+// A bake reaches `media/` only when a manifest names it, and that day the
+// manifest is what should be writing it. Until then this is a hard refusal
+// with the reason attached, because a message that explains itself is the
+// difference between a fixed mistake and a repeated one.
+function writeGuard(out) {
+  const rel = path.relative(path.join(__dirname, '..'), path.resolve(out));
+  if (rel.split(path.sep)[0] === 'media') {
+    console.error(
+      `\n  REFUSED: --out '${out}' is under media/.\n\n` +
+      `  media/ is the SHIPPED asset store and GATE MEDIA requires every file\n` +
+      `  in it to be named by a baked manifest. A bench bake has no manifest,\n` +
+      `  so it would ship to players as an orphan and go red on the next gate\n` +
+      `  run. Write it to bench/ instead:\n\n` +
+      `      --out bench/terrain/${path.basename(out)}\n\n` +
+      `  When the terrain asset really does ship, the thing writing it into\n` +
+      `  media/ will be the manifest bake, not this bench tool.\n`);
+    process.exit(2);
+  }
+}
+
+// ---- the sources ---------------------------------------------------------
+// Both satisfy ONE interface — { bounds, terrainH, surface? } — which is the
+// shape makeWorld() already returns, so the baker never learns where its
+// heights came from.
+//
+//   analytic   the procedural world. Needs nothing, so the structure can be
+//              proved against a world whose right answer is already known.
+//   grid       a raw float32 raster from tools/island_prep.py. This is Ursoy.
+//
+// THERE IS NO GeoTIFF READER HERE ON PURPOSE. Mosaicking, reprojecting and
+// clipping are GDAL's job and island_prep.py does them; what arrives here is
+// numbers and a JSON sidecar. See that script's header.
 function loadSource() {
   const which = flag('source', 'analytic');
-  if (which !== 'analytic')
-    throw new Error(`unknown source '${which}' — only 'analytic' exists yet ` +
-                    `(the Ursoy GeoTIFF sampler is WORLD-V2 W4)`);
-  const core = require(path.join(__dirname, 'flight_core.js'));
-  const w = core.makeWorld(CFG.seed);
+  if (which === 'analytic') {
+    const core = require(path.join(__dirname, 'flight_core.js'));
+    const w = core.makeWorld(CFG.seed);
+    return { name: `analytic seed ${CFG.seed}`, bounds: w.bounds,
+             terrainH: w.terrainH, surface: w.surface, SURFACE: w.SURFACE };
+  }
+  if (which === 'grid') return loadGrid(flag('grid', null));
+  throw new Error(`unknown source '${which}' — 'analytic' or 'grid'`);
+}
+
+// A raster on disk, sampled bilinearly. Out-of-grid reads return sea rather
+// than throwing: the baker walks a SQUARE quadtree over a domain that may be
+// wider than the data, and the honest answer off the edge of an island is
+// water.
+function loadGrid(prefix) {
+  if (!prefix) throw new Error('--source grid needs --grid <prefix> ' +
+    '(the output of tools/island_prep.py)');
+  const meta = JSON.parse(fs.readFileSync(prefix + '.json', 'utf8'));
+  const buf = fs.readFileSync(prefix + '.f32');
+  const a = new Float32Array(buf.buffer, buf.byteOffset, buf.length / 4);
+  const { w, h, x0, z0, cell } = meta;
+  if (a.length !== w * h)
+    throw new Error(`grid ${prefix}: sidecar says ${w}x${h}=${w*h} cells, ` +
+                    `file holds ${a.length}`);
+  const x1 = x0 + w * cell, z1 = z0 + h * cell;
+  // the quadtree is square; take the larger side and let the rest be sea
+  const side = Math.max(x1 - x0, z1 - z0);
+  const terrainH = (x, z) => {
+    const u = (x - x0) / cell - 0.5, v = (z - z0) / cell - 0.5;
+    const i = Math.floor(u), j = Math.floor(v);
+    if (i < 0 || j < 0 || i >= w - 1 || j >= h - 1) {
+      // nearest-clamp inside, sea outside
+      if (i < -1 || j < -1 || i > w - 1 || j > h - 1) return 0;
+      const ci = Math.max(0, Math.min(w - 1, Math.round(u)));
+      const cj = Math.max(0, Math.min(h - 1, Math.round(v)));
+      return a[cj * w + ci];
+    }
+    const fu = u - i, fv = v - j;
+    const p = j * w + i;
+    return (a[p] * (1 - fu) + a[p + 1] * fu) * (1 - fv) +
+           (a[p + w] * (1 - fu) + a[p + w + 1] * fu) * fv;
+  };
   return {
-    name: `analytic seed ${CFG.seed}`,
-    bounds: w.bounds,
-    terrainH: w.terrainH,
-    surface: w.surface,
-    SURFACE: w.SURFACE,
+    name: `grid ${path.basename(prefix)} (${w}x${h} @ ${cell} m, ${meta.crs || '?'})`,
+    bounds: { x0, z0, x1: x0 + side, z1: z0 + side },
+    terrainH, surface: null, SURFACE: null,
   };
 }
 
@@ -337,7 +412,7 @@ function main() {
   console.log(`\n  baked in ${((Date.now() - t0) / 1000).toFixed(1)} s`);
 
   if (CFG.report || !CFG.out) {
-    console.log('\n  (report only — pass --out <prefix> to write the asset)');
+    console.log('\n  (report only — pass --out bench/terrain/<name> to write the asset)');
     return;
   }
 
@@ -359,6 +434,7 @@ function main() {
   if (!rt.ok) { console.error('  refusing to write a codec that does not round-trip'); process.exit(1); }
 
   const enc = rt.enc;
+  writeGuard(CFG.out);
   const dir = path.dirname(CFG.out);
   if (dir && dir !== '.') fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(CFG.out + '.json', JSON.stringify(enc.header, null, 1));

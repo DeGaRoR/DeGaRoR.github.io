@@ -74,6 +74,103 @@ function editorInit(api) {
   const saveFolded = () => pref(LS_FOLD, [...folded].join(','));
 
   // =========================================================================
+  // THE SECTIONS ROLL UP (2026-09-03, the user: "the sections should be
+  // collapsible themselves. That will be particularly useful for large
+  // panels. We could keep the small ones open by default, but beyond 5
+  // parameters, minimize by default, so we keep an overview. Options for
+  // collapsing and extending all. Setup remembered.")
+  // =========================================================================
+  // THE DEFAULT IS A RULE, NOT A STORED STATE, and that distinction is the
+  // whole design. Only what the USER has decided is written down; everything
+  // else answers the rule afresh — so a group that grows past the threshold
+  // (a leg kind switched, an expert row revealed) rolls itself up, and a
+  // group the user opened stays open whatever it grows into. Storing a
+  // boolean for all ~200 sections instead would freeze today's row counts
+  // into a preference file and quietly stop tracking the panel.
+  //
+  //   the rule    open at SEC_OPEN rows or fewer, rolled up above it
+  //   the trunk   ALWAYS open by default — 'fitted', 'type', 'position'
+  //               and 'size' ARE the overview the user asked to keep, and
+  //               the engine's 'type' (6 rows) is exactly the group you
+  //               must not have to unroll to find the preset
+  //   a part      a part heading (an assembly or the root is showing several)
+  //               rolls its whole part away, groups and all
+  //
+  // Counted on VISIBLE rows, not declared ones: a group of nine whose 'when'
+  // leaves two on screen is a group of two to the person reading it.
+  const LS_SEC = 'flydiy.edSec';
+  const SEC_OPEN = 5;
+  const TRUNK = new Set(['fitted', 'type', 'position', 'size']);
+  const secPref = new Map();
+  for (const t of String(pref(LS_SEC) || '').split(',')) {
+    const i = t.lastIndexOf('=');
+    if (i > 0) secPref.set(t.slice(0, i), t.slice(i + 1) === '1');
+  }
+  const saveSec = () => pref(LS_SEC,
+    [...secPref].map(([k, v]) => k + '=' + (v ? 1 : 0)).join(','));
+  // a part heading's own key is the part with no group: it is the section
+  // ABOVE the groups, and it folds them with it
+  const secKey = (pk, g) => pk + '/' + (g === null || g === undefined ? '*' : g);
+  const secShut = (pk, g, n) => {
+    const k = secKey(pk, g);
+    if (secPref.has(k)) return secPref.get(k);
+    return g != null && n > SEC_OPEN && !TRUNK.has(g);
+  };
+  // A FINISH SECTION DEFAULTS OPEN, whatever it holds, and it is keyed on
+  // something that does not move. Two reasons, both found by running it:
+  //
+  //   the count rule is wrong here. The finish view draws ONE block per part
+  //   (its finish, tint, tile, roughness and normal dials), so a block over
+  //   five elements is not a long tail of detail — it is the whole view, and
+  //   folding it by default left a column of headings with nothing under any
+  //   of them.
+  //
+  //   and the NAME is not stable. A finish block is headed by the part's own
+  //   name, which carries its count ("Passenger bay x2"), so keying the fold
+  //   on the heading text would file the same section under a new key every
+  //   time a bay was added. `secG` on the group is the stable one.
+  const secShutFinish = (pk, g) => {
+    const k = secKey(pk, g);
+    return secPref.has(k) ? secPref.get(k) : false;
+  };
+  // the heading IS the control: the chevron says which way it goes and the
+  // count says what is behind it, so a rolled-up section still tells you how
+  // much it is holding
+  const secPaint = (head, shut, n) => {
+    const i = head.children[1];
+    if (!i) return;
+    const t = shut ? '\u25b8' + (n ? '\u2009' + n : '') : '\u25be';
+    if (i.textContent !== t) i.textContent = t;
+    if (head.classList.contains('shut') !== shut)
+      head.classList.toggle('shut', shut);
+  };
+  // WIRED ON THE HEADING THE PANEL ALREADY BUILDS, and it reads the class the
+  // last paint left rather than recomputing the rule — what the user is
+  // toggling is what they can see.
+  // the pill's own two jobs, asked of what is ON SCREEN: while one group is
+  // open there is something to fold, and once none is, the only useful press
+  // is the one that opens them again.
+  const secAllWants = () => {
+    for (const g of groupsOf)
+      if (g.head && !g.head.classList.contains('hide') &&
+          !g.head.classList.contains('shut')) return 'fold';
+    return 'open';
+  };
+  const secAllLabel = () => {
+    const b = $('edSecAll');
+    if (b) b.textContent = secAllWants() === 'fold' ? 'fold sections'
+                                                    : 'open sections';
+  };
+  const secWire = (head, pk, g) => {
+    head.classList.add('edHC');
+    head.onclick = () => {
+      secPref.set(secKey(pk, g), !head.classList.contains('shut'));
+      saveSec();
+      applyVis();
+    };
+  };
+
+  // =========================================================================
   // THE TOP OF THE TREE IS A SCENE, NOT AN AEROPLANE
   // =========================================================================
   // The tree's top level is the list of things in the room you can select and
@@ -168,6 +265,9 @@ function editorInit(api) {
     if (hd && hd.parentElement !== shedHost) { hd.open = true; shedHost.appendChild(hd); }
     hookMoodSelect();
     syncNightLabel();
+    // the quick bar wears the mood too, and a mood can arrive without the
+    // select's change event — a hangar swap, a payload's own default
+    syncQuick();
   }
   const rootNote = (host, txt) => {
     if (host.querySelector('.r, details')) return host;
@@ -472,12 +572,65 @@ function editorInit(api) {
   };
 
   // =========================================================================
+  // A PART THAT IS SWITCHED OFF COLLAPSES TO ITS SWITCH (2026-09-03)
+  // =========================================================================
+  // The user, having turned the fin off: "all references to it disappear, and
+  // there's no way to get it back... the objects should never be fully hidden,
+  // they can simply collapse to the checkbox, but they should remain
+  // available."
+  //
+  // It was a one-way door, and a durable one — `finOn: 0` rode out through
+  // cageToSpec into the saved build and into the WIP autosave, so a reload
+  // brought the fin-less aeroplane back with no fin row anywhere on the panel.
+  // Eight parts carried it: the taper, the fittings, the fin, the stabiliser,
+  // the engine, the cowl, the propeller and the lights — every part gated on a
+  // switch IT ITSELF OWNS (`gate` in the part table; GATE PARTS derives which
+  // those are, so a ninth cannot be added without one).
+  //
+  // The rule is one line: a gated-off part keeps its tree row and its own
+  // switch, and shows nothing else. `exists` is left alone — the highlight,
+  // the finish view and the changed dots all still mean "on the aeroplane" —
+  // and this answers the different question of what you can still REACH.
+  //
+  // WHETHER THE SWITCH IS ITSELF REACHABLE is asked, not assumed: `propOn`'s
+  // row is hidden while the engine is off (a propeller without an engine is
+  // not a thing to draw), and a tree row leading to an empty column would be
+  // the same complaint one level along. So a part whose switch is out of sight
+  // stays out of the tree, and comes back the moment the row above it does.
+  const gateRow = p => {
+    if (!p || !p.gate || !CU) return null;
+    const ex = CU.EXPERT && CU.EXPERT.on;
+    // an EXPERT group is hidden wholesale by applyVis, so a switch filed in
+    // one is no way back while expert rows are off — ask the same question
+    // here rather than leaving a tree row over an empty column
+    if (!ex)
+      for (const g of (p.groups || []))
+        if (g[2] === PT.EXPERT && g[1].indexOf(p.gate) >= 0) return null;
+    for (const m of (rowsFor.get(p.gate) || [])) {
+      const o = m.opts || {};
+      if (o.level === 'expert' && !ex) continue;
+      let vis = true;
+      if (o.when) { try { vis = !!o.when(CU.P); } catch (e) {} }
+      if (vis) for (const w of (inherited.get(m.row) || [])) {
+        try { if (!w(CU.P)) { vis = false; break; } } catch (e) {}
+      }
+      if (vis) return m;
+    }
+    return null;
+  };
+  // switched off, but still holding the row that switches it back on
+  const switchedOff = p => !exists(p) && !!gateRow(p);
+  // in the tree: on the aeroplane, or reachable enough to be put back on it
+  const inTree = p => exists(p) || switchedOff(p);
+
+  // =========================================================================
   // THE INSPECTOR
   // =========================================================================
   // Rebuilt on selection, not on every parameter change: moving DOM nodes
   // under the user's cursor while they drag a slider is how a panel loses a
   // drag. Visibility and the changed dots are updated in place instead.
   const groupsOf = [];                     // [{head, part, group, rows}]
+  const headParts = new Set();             // parts whose OWN heading is drawn
 
   function render() {
     if (!CU) return;
@@ -486,6 +639,7 @@ function editorInit(api) {
     // returning it later would drop it into a column that has moved on.
     returnRows();
     groupsOf.length = 0;
+    headParts.clear();
     // rows are PARKED, never destroyed: they are _cage_ui's elements and its
     // syncSliders/applyRowVis keep addressing them whether or not the part
     // they belong to is the one on screen.
@@ -534,27 +688,57 @@ function editorInit(api) {
         h.className = 'edH edHP';
         h.innerHTML = '<span></span><i></i>';
         h.firstChild.textContent = nameOf(p);
+        // a part heading folds THE PART — every group under it — which is what
+        // makes an assembly (or the root, at 649 rows) readable at all
+        secWire(h, p.key, null);
+        headParts.add(p.key);
         rowsEl.appendChild(h);
         groupsOf.push({ head: h, part: p, group: null, rows: [] });
       }
-      // THE PLACEMENT STRIP (P8 §5): fore/aft, up/down, length, width — same
-      // order on every part, before anything else, under one heading that
-      // names the anchor the part is placed against. The rows keep their own
-      // labels: the design shows `base lift · top offset · run` here, not four
-      // renamed sliders, and renaming a row in one context and not another is
-      // how a glossary rots.
+      // THE COMMON TRUNK — P8 §5's placement strip, widened (2026-09-03, the
+      // user: "identify the common trunk in all the controls and group them
+      // appropriately. Right now, essential controls live alongside
+      // dispensable controls. We don't hide anything, but we re-order").
+      // Every part opens with the same four questions in the same order, each
+      // a heading only when the part has an answer to it:
+      //
+      //   fitted     the switch                                  (`on`)
+      //   type       the discrete choices that drive the rest, then how many
+      //                                                    (`type`, `count`)
+      //   position   fore / aft · in / out · up / down   (`fore`, `out`, `up`)
+      //              — the anchor it is placed against is the heading's meta
+      //   size       length · width · height             (`len`, `wide`, `high`)
+      //
+      // Then the part's own groups in the table's order, with the trunk rows
+      // taken out of them: RE-PRESENTED, never duplicated. The rows keep their
+      // own labels (the glossary rule stands) — the trunk gives them a
+      // consistent heading and order, and the layer files were combed so a row
+      // in a slot says what the slot says ("fore / aft", "up / down",
+      // "in / out", "length", "width", "height") where that is literally what
+      // it does, and keeps its domain word in brackets where it is not.
+      const trunkKeys = new Set();
       if (p.place) {
-        const keys = ['fore', 'up', 'len', 'wide']
-          .map(s => p.place[s]).filter(Boolean);
-        if (keys.length) emit(p, 'placement', keys, p.place.at, false);
+        const pl = p.place;
+        const L = v => v == null ? [] : (Array.isArray(v) ? v : [v]);
+        const trunk = [
+          ['fitted',   L(pl.on)],
+          ['type',     L(pl.type).concat(L(pl.count))],
+          ['position', L(pl.fore).concat(L(pl.out), L(pl.up))],
+          ['size',     L(pl.len).concat(L(pl.wide), L(pl.high))],
+        ];
+        // the anchor says where the part SITS: on the position heading, or on
+        // the size heading when the part has no position of its own
+        const atOn = trunk[2][1].length ? 'position' : 'size';
+        for (const [name, keys] of trunk) {
+          if (!keys.length) continue;
+          for (const k of keys) trunkKeys.add(k);
+          emit(p, name, keys, name === atOn ? pl.at : null, false);
+        }
       }
       for (const g of (p.groups || [])) {
         const isExp = g[2] === PT.EXPERT;
-        // the placement rows are re-presented above, not repeated here
-        const keys = p.place
-          ? g[1].filter(k => !['fore', 'up', 'len', 'wide']
-              .some(s => p.place[s] === k))
-          : g[1];
+        // the trunk rows are re-presented above, not repeated here
+        const keys = g[1].filter(k => !trunkKeys.has(k));
         if (keys.length) emit(p, g[0], keys, null, isExp);
       }
     }
@@ -568,6 +752,7 @@ function editorInit(api) {
     h.innerHTML = '<span></span><i></i><em></em>';
     h.children[0].textContent = name;
     h.children[2].textContent = meta || '';
+    secWire(h, part.key, name);
     rowsEl.appendChild(h);
     const rows = [];
     for (const r of (extraRows.get(part.key + '/' + name) || []))
@@ -603,6 +788,11 @@ function editorInit(api) {
     h.innerHTML = '<span></span><i></i><em></em>';
     h.children[0].textContent = name;
     h.children[2].textContent = meta || '';
+    // the SECTION key, stable across a rename of the heading (see
+    // secShutFinish): a part's own block is 'finish', a shared one keeps its
+    // group name, which is already a constant ('livery', 'glazing', ...)
+    const secG = isPart ? 'finish' : name;
+    secWire(h, part.key, secG);
     rowsEl.appendChild(h);
     for (const el of els) {
       // ...and a row borrowed while it was ALREADY on screen has no home to
@@ -614,7 +804,8 @@ function editorInit(api) {
           ? nursery : el.parentNode);
       rowsEl.appendChild(el);
     }
-    groupsOf.push({ head: h, part, group: name, rows: [], els, finish: true });
+    groupsOf.push({ head: h, part, group: name, secG, rows: [], els,
+                    finish: true });
   }
 
   function renderFinish() {
@@ -775,14 +966,28 @@ function editorInit(api) {
     for (const g of groupsOf) {
       let live = 0;
       const partOk = exists(g.part);
+      // THE FOLD, in two questions: is the PART this group belongs to rolled
+      // up (only askable when its heading is on screen), and is this group?
+      const isPartHead = g.group === null;
+      const underShut = !isPartHead && headParts.has(g.part.key) &&
+                        secShut(g.part.key, null, 0);
+      // THE ONE ROW A SWITCHED-OFF PART KEEPS (see `gateRow` above): its own
+      // switch, so the part can be put back. Null while the part is on — the
+      // switch is then just another of its rows and follows the normal rules.
+      const gateK = partOk ? null
+        : ((g.finish || !g.part.gate) ? null
+           : (gateRow(g.part) ? g.part.gate : null));
       // A FINISH GROUP HAS NO ROWMETA. Its elements are the materials panel's,
       // which carry no `when` and no key — the only rule that reaches them is
       // whether the part they describe is on this aeroplane at all.
       if (g.finish) {
-        const want = partOk ? '' : 'none';
+        const shut = underShut || secShutFinish(g.part.key, g.secG || g.group);
+        const want = (partOk && !shut) ? '' : 'none';
         for (const el of g.els) if (el.style.display !== want) el.style.display = want;
-        g.head.classList.toggle('hide', !partOk);
-        endsWith(g, partOk && g.els.length ? g.els[g.els.length - 1] : null);
+        g.head.classList.toggle('hide', !partOk || underShut);
+        secPaint(g.head, shut, g.els.length);
+        endsWith(g, (partOk && !shut && g.els.length)
+          ? g.els[g.els.length - 1] : null);
         continue;
       }
       // THE RULE GOES AT THE END OF THE SECTION, never after its head (the
@@ -790,9 +995,13 @@ function editorInit(api) {
       // very unclear"). Which row is last is not a static fact — expert rows,
       // `when` rules and part existence all move it — so it is decided here,
       // where visibility is already being decided, and nowhere else.
-      let lastVis = null;
+      // EXISTENCE FIRST, THEN THE FOLD, in two passes over the group's rows —
+      // because the fold's own default is a function of how many rows EXIST,
+      // and that is not known until the first pass has run. Reads are cheap;
+      // it is the writes below that a drag cannot afford.
+      const vises = [];
       for (const m of g.rows) {
-        let vis = partOk && !(g.expert && !ex);
+        let vis = (partOk || m.k === gateK) && !(g.expert && !ex);
         if (vis) {
           const o = m.opts || {};
           if (o.level === 'expert' && !ex) vis = false;
@@ -801,31 +1010,42 @@ function editorInit(api) {
         if (vis) for (const w of (inherited.get(m.row) || [])) {
           try { if (!w(P)) { vis = false; break; } } catch (e) {}
         }
+        vises.push(vis);
+        if (vis) live++;
+      }
+      const shut = isPartHead ? secShut(g.part.key, null, 0)
+        : (underShut || secShut(g.part.key, g.group, live));
+      let lastVis = null;
+      for (let i = 0; i < g.rows.length; i++) {
+        const m = g.rows[i], vis = vises[i];
         // WRITE ONLY WHEN IT CHANGED. This runs at the end of every build, and
         // a build happens on every pixel of a slider drag — with the root
-        // selected that is 537 rows. Style and class writes on unchanged
+        // selected that is 649 rows. Style and class writes on unchanged
         // values are what turn a drag into a stutter.
         //
         // Compared against the DOM, not against a remembered value: _cage_ui's
         // own applyRowVis has just written display on every row that carries
         // its own `when`, and a cache would happily agree with itself while
         // the element said something else.
-        const want = vis ? '' : 'none';
+        const want = (vis && !shut) ? '' : 'none';
         if (m.row.style.display !== want) m.row.style.display = want;
         if (!vis) continue;
-        live++;
-        // THE CHANGED DOT (P8 §6) — see `dirtyOf` and the note above it.
+        // THE CHANGED DOT (P8 §6) — see `dirtyOf` and the note above it. It
+        // is about the ROW, not about whether you can currently see it: a
+        // rolled-up section still counts toward the part's dot.
         const chg = dirty.has(m.k);
         if (m.row.classList.contains('chg') !== chg)
           m.row.classList.toggle('chg', chg);
         if (chg) changedHere++;
-        lastVis = m.row;
+        if (!shut) lastVis = m.row;
       }
       endsWith(g, lastVis);
+      secPaint(g.head, shut, live);
       // a heading with nothing under it is a heading about nothing. Part
-      // headings (group === null) follow their part instead.
+      // headings (group === null) follow their part instead — and a group
+      // whose part is rolled up goes with the part.
       g.head.classList.toggle('hide',
-        g.group === null ? !partOk : (live === 0));
+        isPartHead ? (!partOk && !gateK) : (live === 0 || underShut));
     }
     // THE REFERENCE'S GAP FOLLOWS THE BUILD. applyVis is the end of every
     // build and every syncSliders, which is exactly when the geometry the
@@ -833,6 +1053,7 @@ function editorInit(api) {
     { const r = rootFor(sel); if (r && r.refresh) r.refresh(); }
     const cEl = $('edChanged');
     if (cEl) cEl.textContent = changedHere ? changedHere + ' changed' : '';
+    secAllLabel();
     paintTree();
     paintInfo();
     // THE HIGHLIGHT IS REBUILT WITH THE AEROPLANE. The cage's geometry and
@@ -840,6 +1061,10 @@ function editorInit(api) {
     // overlay hangs off both — so it has to be remade with them, or the tint
     // silently belongs to a mesh that no longer exists.
     hiBuild(sel === 'craft' ? null : sel, 'sel');
+    // ...AND SO IS THE PIN, for the same reason and one better: the row it
+    // names is the row being DRAGGED, so the dot walks the corner it is
+    // moving instead of standing where the corner used to be.
+    pinBuild(pinKey);
     hovKey = null; hovInst = ''; hiClear('hov');
   }
 
@@ -877,14 +1102,15 @@ function editorInit(api) {
     const walk = (parent, lvl) => {
       for (const p of PT.CAGE_PARTS) {
         if (p.root || p.parent !== parent) continue;
-        if (!exists(p)) continue;
-        rows.push({ p, lvl, name: nameOf(p), kids: hasKids(p.key) });
+        if (!inTree(p)) continue;
+        rows.push({ p, lvl, name: nameOf(p), kids: hasKids(p.key),
+                    off: switchedOff(p) });
         // a FOLDED assembly keeps its own row and hides what is under it
         if (folded.has(p.key)) continue;
         walk(p.key, lvl + 1);
       }
     };
-    const hasKids = k => PT.CAGE_PARTS.some(c => c.parent === k && exists(c));
+    const hasKids = k => PT.CAGE_PARTS.some(c => c.parent === k && inTree(c));
     for (const r of ROOTS) {
       const p = (r.parts && partRoot)
         ? Object.assign({}, partRoot, { name: r.name })
@@ -906,7 +1132,7 @@ function editorInit(api) {
       // along. So a row that is only OUT OF SIGHT opens its folds, and the
       // walk keeps the case it exists for: a part that has stopped EXISTING.
       const chain = [];
-      for (let a = PT.partByKey[sel]; a && exists(a);
+      for (let a = PT.partByKey[sel]; a && inTree(a);
            a = a.parent ? PT.partByKey[a.parent] : null) chain.push(a);
       const whole = chain.length && chain[chain.length - 1].parent === null;
       const branch = ROOTS.filter(r => r.parts).map(r => r.key);
@@ -928,7 +1154,7 @@ function editorInit(api) {
     const badges = rows.map(r => (r.rootDef && r.rootDef.badge)
       ? (r.rootDef.badge() || '') : partBadge(r.p));
     const sig = rows.map((r, i) => r.p.key + r.lvl + r.name + badges[i] +
-      (folded.has(r.p.key) ? '>' : '') +
+      (folded.has(r.p.key) ? '>' : '') + (r.off ? '-' : '') +
       (!r.p.root && i + 1 < rows.length && rows[i + 1].p.root ? '_' : ''))
       .join('|') + '#' + sel;
     if (sig === treeSig) return;
@@ -944,6 +1170,7 @@ function editorInit(api) {
       const ends = !r.p.root && i + 1 < rows.length && rows[i + 1].p.root;
       d.className = 'edN lv' + Math.min(2, r.lvl) +
         (r.p.root ? ' root' : '') + (ends ? ' edEnd' : '') +
+        (r.off ? ' edOff' : '') +
         (r.p.key === sel ? ' on' : '');
       d.tabIndex = 0;
       d.dataset.p = r.p.key;
@@ -968,7 +1195,10 @@ function editorInit(api) {
       }
       const s = document.createElement('span');
       s.textContent = r.name;
-      s.title = r.name;
+      // A SWITCHED-OFF PART SAYS SO ON ITS OWN ROW. Dimming alone reads as
+      // "disabled, don't bother"; the point of keeping the row is that this
+      // is the one place you CAN bother.
+      s.title = r.off ? r.name + ' — not fitted' : r.name;
       d.appendChild(s);
       if (badges[i]) {
         const b = document.createElement('i');
@@ -1015,8 +1245,18 @@ function editorInit(api) {
       // one-shot copy the FOREVER-SPLIT ruling made of the front — twenty-two
       // rows that differ from the design you loaded and that you cannot see,
       // reach, or reset. A dot for them is a dot with nowhere to click.
-      if (!exists(q)) continue;
-      for (const k of PT.cagePartParams(q)) if (dirty.has(k)) out.push(k);
+      //
+      // ...WITH ONE ROW'S EXCEPTION: a part collapsed to its own switch shows
+      // that switch, so the switch can still earn a dot. Having turned the fin
+      // off, the dot beside `Fin & rudder` is the thing that says the change
+      // is yours and where to undo it — the rest of its rows stay silent
+      // exactly as the paragraph above requires.
+      const on = exists(q);
+      if (!on && !switchedOff(q)) continue;
+      for (const k of PT.cagePartParams(q)) {
+        if (!on && k !== q.gate) continue;
+        if (dirty.has(k)) out.push(k);
+      }
     }
     return out;
   };
@@ -1286,6 +1526,210 @@ function editorInit(api) {
     if (s) { s.addEventListener('change', syncNightLabel); moodHooked = true; }
   }
 
+  // =========================================================================
+  // THE QUICK ACTIONS (2026-09-03) — three questions, one click each
+  // =========================================================================
+  // The user: "promote the view interior option into a quick action bar,
+  // that's a new one floating on top of the editor screen. Over there, we
+  // will also have a button for alternating the reference plane views
+  // (disabled if no reference plane is selected). We'll also have a single
+  // button alternating between interior and exterior views... another single
+  // button cycling through the time of day".
+  //
+  // THE BAR PRESSES ROWS; IT OWNS NOTHING. `act` reaches the control that
+  // already exists and fires its own event — the `see inside` checkbox
+  // _cage_ui built, the `time of day` select, the reference panel's cut — so
+  // there is still exactly one element per decision and exactly one handler
+  // on it, and `view` READS the same place back. A button keeping its own
+  // copy would be a second source of truth for a fact the panel also states,
+  // which is the trap the rail's borrow rule exists to avoid.
+  //
+  // `row` NAMES THE CONTROL IT PRESSES, and GATE VIEW reads this table to
+  // require that the rail offers that row too: the bar is a SHORTCUT, never a
+  // new control, so every quick action inherits its row's capture decision
+  // (`see inside` is neutralised in VIEW_STATE — an aeroplane captured
+  // see-through would fly see-through). An entry with no row names the
+  // `state` it drives instead and says why that is not a rail row.
+  //
+  // THE ICON IS THE STATE, not the effect — G136's ruling for the night
+  // button, in glyphs — so the bar reads as a status line you can press. Each
+  // icon is raw inner-SVG on the rail's own 18x18 grid, richer than RAIL's
+  // path list because these need a dash pattern to say "see-through".
+  const QI = {
+    // a cabin section: the arch of the shell standing on its floor
+    shell: 'M3.1 12.7V9.2a5.9 5.9 0 0 1 11.8 0v3.5z',
+    seat: 'M7.3 11.9V8.4h1.2M7.3 11.9h3.4',
+  };
+  const QUICK = [
+    // ---- inside / outside -------------------------------------------------
+    { k: 'inside', row: 'see inside',
+      view: () => {
+        const on = !!(window.CAGE_VIEW && window.CAGE_VIEW.xray);
+        return { on,
+          title: on
+            ? 'Interior view — the covering is see-through, and you can ' +
+              'click straight through it to the engine, the seats and the panel'
+            : 'Exterior view — the aeroplane as it is covered',
+          // OUTSIDE the shell is closed; INSIDE the same shell is dashed and
+          // the seat behind it shows, which is what the switch does.
+          icon: on
+            ? '<path d="' + QI.shell + '" stroke-dasharray="2.3 1.9"/>' +
+              '<path d="' + QI.seat + '"/>'
+            : '<path d="' + QI.shell + '"/>' };
+      },
+      act: () => {
+        const c = $('xray');
+        if (!c) return;
+        c.checked = !c.checked;
+        c.dispatchEvent(new Event('change'));
+      } },
+    // ---- the reference plane's cut ----------------------------------------
+    // No `row`: this is refplane.js's own state, in its own localStorage, and
+    // it is not a display control of YOUR build — the cut is a clipping
+    // plane, the category VIEW_KEEP already exempts for `cutaway` ("it hides
+    // geometry from the CAMERA and nothing from the capture"). REFPLANE's
+    // cycleCut is the one door, and it does everything the panel's own select
+    // does, including zeroing `lat` for the split.
+    { k: 'ref', state: 'refplane.cut',
+      why: 'the reference aeroplane standing beside your build is not your ' +
+           'build: its cut is a clipping plane held in refplane.js own ' +
+           'state and saved in its own localStorage, and no capture sees it',
+      view: () => {
+        const R = window.REFPLANE;
+        const standing = !!(R && R.state && R.state.preset !== 'none');
+        const cut = (R && R.state && R.state.cut) || 'off';
+        // TWO OBJECTS HAVE TO LOOK LIKE TWO. The first cut overlapped them
+        // side by side and the overlap drew a line down the middle — which is
+        // the SPLIT's own glyph, so `off` and `split` said the same thing. A
+        // diagonal offset is the duplicate-glyph everyone already reads.
+        const box = (x, y) => '<rect x="' + x + '" y="' + y +
+          '" width="8.6" height="7.4" rx="1.5"/>';
+        const ICON = {
+          // two whole aeroplanes, one standing inside the other
+          off: box(2.4, 6.2) + box(7.0, 4.4),
+          // yours whole; theirs has lost a half, and the cut edge is straight
+          // where every other edge is rounded
+          ref: '<path d="M6.7 6.2H3.9a1.5 1.5 0 0 0-1.5 1.5v4.4a1.5 1.5 0 0 ' +
+               '0 1.5 1.5h2.8Z"/>' + box(7.0, 4.4),
+          // ONE machine, half each: theirs dashed to the left of the
+          // centreline they are both cut by, yours solid to the right
+          split: '<path d="M9 5.3H5.4A1.5 1.5 0 0 0 3.9 6.8v4.4a1.5 1.5 0 0 ' +
+                 '0 1.5 1.5H9" stroke-dasharray="2.2 1.8"/>' +
+                 '<path d="M9 5.3h3.6a1.5 1.5 0 0 1 1.5 1.5v4.4a1.5 1.5 0 0 ' +
+                 '1-1.5 1.5H9"/><path d="M9 3.9v10.2"/>',
+        };
+        const SAYS = { off: 'both aeroplanes whole, one inside the other',
+                       ref: 'the reference halved, your build whole',
+                       split: 'split — your right half, their left half' };
+        return { on: standing && cut !== 'off', off: !standing,
+          title: standing
+            ? 'Against the reference: ' + SAYS[cut] + ' — click for the next'
+            : 'No reference standing — pick one on the reference plane',
+          icon: ICON[cut] || ICON.off };
+      },
+      act: () => {
+        const R = window.REFPLANE;
+        if (R && R.cycleCut) R.cycleCut();
+      } },
+    // ---- the light --------------------------------------------------------
+    { k: 'time', row: 'time of day',
+      view: () => {
+        const GE = window.GARAGE_ENV;
+        const list = (GE && GE.moods && GE.moods()) || [];
+        const name = String(list[(GE && GE.mood && GE.mood()) | 0] || '')
+          .toUpperCase();
+        // ONE GLYPH PER DECLARED MOOD, by the mood's own name (hangar_sky.js
+        // SKY_ROWS). A name with no glyph falls back to the high sun rather
+        // than to nothing: a sky added later must not blank the button.
+        const sun = (cy, r) => '<circle cx="9" cy="' + cy + '" r="' + r + '"/>';
+        const rays = cy => '<path d="M9 ' + (cy - 4.6) + 'v-1.3M4.4 ' + cy +
+          'h-1.3M13.6 ' + cy + 'h1.3M5.6 ' + (cy - 3.3) +
+          'l-.9-.9M12.4 ' + (cy - 3.3) + 'l.9-.9"/>';
+        const horizon = y => '<path d="M2.4 ' + y + 'h13.2"/>';
+        const ICON = {
+          AFTERNOON: sun(8.2, 3.1) + rays(8.2),
+          GOLDEN: sun(8.6, 2.7) + rays(8.6) + horizon(13.4),
+          // half a sun, ON the line
+          SUNSET: '<path d="M6.1 12.6a2.9 2.9 0 0 1 5.8 0"/>' + horizon(12.6) +
+                  '<path d="M9 6.6V5.3M4.6 8.4l-.9-.9M13.4 8.4l.9-.9"/>',
+          // it has gone under the line, and the first star is out
+          DUSK: '<path d="M6.1 12.6a2.9 2.9 0 0 0 5.8 0" ' +
+                'stroke-dasharray="2 1.7"/>' + horizon(12.6) +
+                '<path d="M12.9 5.1v2.2M11.8 6.2h2.2"/>',
+          NIGHT: '<path d="M14.2 11.1A5.8 5.8 0 0 1 6.9 3.8a5.8 5.8 0 1 0 ' +
+                 '7.3 7.3Z"/>',
+          OVERCAST: '<path d="M5.9 12.9h6.4a2.6 2.6 0 0 0 .4-5.1 3.6 3.6 0 0 ' +
+                    '0-6.9-.7 2.9 2.9 0 0 0 .1 5.8Z"/>',
+        };
+        return { on: false, off: !list.length,
+          title: list.length
+            ? 'The light: ' + name.toLowerCase() + ' — click for the next sky'
+            : 'No room to light — the shed is not in this build',
+          icon: ICON[name] || ICON.AFTERNOON };
+      },
+      // THROUGH THE SELECT, so _cage_ui's own handler moves the mood and the
+      // rail's night label hears the change it is already listening for.
+      act: () => {
+        const r = labelIndex().get('time of day');
+        const sel = r && r.querySelector('select');
+        const GE = window.GARAGE_ENV;
+        if (sel && sel.options.length) {
+          sel.selectedIndex = (sel.selectedIndex + 1) % sel.options.length;
+          sel.dispatchEvent(new Event('change'));
+        } else if (GE && GE.setMood && GE.moods) {
+          const n = (GE.moods() || []).length;
+          if (n) GE.setMood(((GE.mood() | 0) + 1) % n);
+        }
+      } },
+  ];
+
+  function buildQuick() {
+    const bar = $('edQuick');
+    if (!bar || bar.children.length) return;
+    for (const q of QUICK) {
+      const b = document.createElement('button');
+      b.className = 'edQuickBtn';
+      b.type = 'button';
+      b.dataset.q = q.k;
+      b.onclick = () => { if (!b.disabled) { q.act(); syncQuick(); } };
+      bar.appendChild(b);
+    }
+    // the reference panel says when its aeroplane changes — without it the
+    // button would stay greyed until something else repainted the bar
+    window.REF_ON_CHANGE = syncQuick;
+    hookXray();
+    syncQuick();
+  }
+
+  // ...and the flyout's own checkbox is the other way this state moves. Same
+  // shape as hookMoodSelect: listen, never re-handle.
+  let xrayHooked = false;
+  function hookXray() {
+    if (xrayHooked) return;
+    const c = $('xray');
+    if (c) { c.addEventListener('change', syncQuick); xrayHooked = true; }
+  }
+
+  // THE BUTTONS ARE REPAINTED, NEVER RE-WIRED. There are three: rewriting the
+  // glyph costs less than reasoning about which part of it changed, and the
+  // handler is bound once, in buildQuick.
+  function syncQuick() {
+    const bar = $('edQuick');
+    if (!bar) return;
+    hookXray();
+    for (const b of bar.children) {
+      const q = QUICK.filter(x => x.k === b.dataset.q)[0];
+      if (!q) continue;
+      const st = q.view();
+      b.innerHTML = '<svg viewBox="0 0 18 18" aria-hidden="true">' +
+        st.icon + '</svg>';
+      b.title = st.title;
+      b.setAttribute('aria-label', st.title);
+      b.disabled = !!st.off;
+      b.classList.toggle('on', !!st.on && !st.off);
+    }
+  }
+
   // the label -> row index, over everywhere a row _cage_ui built can be
   // sitting: the overflow section, the parking nursery, and the shed sheet
   // (the room's panel moves there whole, and the `night` flyout borrows two of
@@ -1350,30 +1794,40 @@ function editorInit(api) {
     if (!k) { fly.hidden = true; return; }
     const t = RAIL.filter(x => x.k === k)[0];
     fly.hidden = false;
-    // UNDER ITS OWN BUTTON. With the rail across the top, an answer that
-    // always appears in the same place does not say which question it
-    // answers. Measured rather than computed from the button index, because
-    // the icons are not all the same width and a later one will not be.
-    // Clamped to the free estate — #edView is already inset by both panels,
-    // so its own box is the whole of what is available.
+    // BESIDE ITS OWN BUTTON (2026-09-03). An answer that always appears in
+    // the same place does not say which question it answers, so it is
+    // measured rather than computed from the button index — the icons are not
+    // all the same width and a later one will not be. With the ribbon
+    // standing up the left edge it opens to the RIGHT of the rail, top-
+    // aligned to its button and pulled up only as far as the estate makes it;
+    // that is #flFly's own rule, and the two screens are the same screen for
+    // this purpose. Clamped to the free estate — #edView is already inset by
+    // both panels, so its own box is the whole of what is available.
     {
       const btn = [...$('edRail').children].filter(b => b.dataset.f === k)[0];
-      const view = $('edView'), bar = $('edBotBar');
+      const view = $('edView'), rail = $('edRail');
       if (btn && view) {
         const vb = view.getBoundingClientRect(), bb = btn.getBoundingClientRect();
-        const w = fly.offsetWidth || 296;
-        const x = Math.max(22, Math.min(bb.left - vb.left - 6, vb.width - w - 22));
-        fly.style.left = Math.round(x) + 'px';
-        // ...and ABOVE THE BAR now (2026-08-31: the look controls moved to
-        // the bottom, the file ribbon took the top). Measured, because the
-        // bar wraps when the estate is narrow; anchored by `bottom` so the
-        // flyout grows UP from its button instead of over it.
-        if (bar) {
-          const up = vb.bottom - bar.getBoundingClientRect().top + 10;
-          fly.style.top = 'auto';
-          fly.style.bottom = Math.round(up) + 'px';
-          fly.style.maxHeight = Math.round(vb.height - up - 22) + 'px';
-        }
+        const rb = (rail || btn).getBoundingClientRect();
+        // IT NEVER COVERS THE RIBBON IT ANSWERS. The flight screen can leave
+        // the width at 296 because its estate is the whole window; this one
+        // is inset by BOTH panels and is routinely 320 px wide, and a flyout
+        // that swallows the buttons hides the question with the answer. So
+        // the width gives way first, down to a floor, and only then the gap.
+        const strip = rb.right - vb.left + 10;
+        const w = Math.min(296, Math.max(196, vb.width - strip - 22));
+        fly.style.width = Math.round(w) + 'px';
+        fly.style.left = Math.round(Math.max(22,
+          Math.min(strip, vb.width - w - 22))) + 'px';
+        // anchored by `top`, so it grows DOWN from the button it belongs to;
+        // maxHeight first, because the height it settles at is what the
+        // clamp below has to read
+        fly.style.bottom = 'auto';
+        const maxH = Math.max(120, vb.height - 44);
+        fly.style.maxHeight = Math.round(maxH) + 'px';
+        const hFly = Math.min(fly.offsetHeight || 260, maxH);
+        fly.style.top = Math.round(Math.max(22,
+          Math.min(bb.top - vb.top - 8, vb.height - hFly - 22))) + 'px';
       }
     }
     head.textContent = t.title;
@@ -1597,7 +2051,18 @@ function editorInit(api) {
     angle: 24,              // EdgesGeometry threshold, degrees
     width: 1,               // intent only — see the r128 note above
     silW: 0.015,            // silhouette rim, metres of view space — constant
-                            // in the world, so it thins as you step back
+                            // in the world, so it thins as you step back...
+    pin: 0xffb03a,          // THE HOVER PIN: the corner a row moves. Amber, not
+                            // the selection's cyan — it answers a different
+                            // question ("which point is this?") and the two are
+                            // on screen together while you hover a row of the
+                            // part you have selected.
+    pinPx: 6,               // its diameter, in output pixels (see hiPxFeed)
+    silPx: 2,               // ...but never under this many OUTPUT pixels. At a
+                            // normal garage distance 1.5 cm is ~1 px, and a
+                            // 1-px line does not survive the G144 resolve pass
+                            // (measured 2026-09-03: 1947 rim px in the target,
+                            // 46 after the 1.25x resample). See hiSilShell.
   };
   const HI_PREF = 'flydiy.edHilite';
   const HI = Object.assign({}, HI_DEF);
@@ -1633,8 +2098,10 @@ function editorInit(api) {
   //   masks every other mesh's shell.
   //
   // Selection owns bit 1 and hover bit 2, so the two silhouettes coexist
-  // without erasing each other. The renderer clears stencil every frame
-  // (autoClear, one render call — app.js:3882), so the stamp is never stale.
+  // without erasing each other. The renderer asks for a stencil clear every
+  // frame (autoClear) — and it only GETS one if the GL stencil write mask is
+  // open when the clear runs, which is the shell's job below; see THE CLEAR
+  // IS MASKED TOO in hiSilShell for the bug this sentence used to hide.
   //
   // The inflation is MeshBasicMaterial + onBeforeCompile rather than a raw
   // ShaderMaterial for one reason: the renderer runs a logarithmic depth
@@ -1668,21 +2135,68 @@ function editorInit(api) {
       transparent: true, opacity: which === 'sel' ? 1 : 0.75,
       depthTest: !HI.through, depthWrite: false, fog: false,
       side: THREE.DoubleSide });
-    m.stencilWrite = true;         // writeMask 0: the shell TESTS, never stamps
-    m.stencilWriteMask = 0;
+    // THE SHELL TESTS AND NEVER STAMPS — but not by closing the write mask.
+    // The first build set stencilWriteMask = 0 for that, and it worked on a
+    // still camera and failed on a moving one: glClear honours glStencilMask,
+    // r128 never resets the mask between frames (its end-of-render reset
+    // covers depth and colour only), and the shell is the last stencil
+    // material of every frame — so from the second frame on autoClear's
+    // stencil clear cleared NOTHING, every footprint the mask had ever stamped
+    // stayed set, and the rim was eaten on the trailing side of any orbit
+    // (measured 2026-09-03: 2392 rim px still, 940 after an orbit and back,
+    // 2392 again with the mask open). The ops are all Keep, which is what
+    // "never stamps" actually means; the mask stays fully open so the next
+    // frame's clear can do its work.
+    m.stencilWrite = true;
+    m.stencilWriteMask = 0xff;
+    m.stencilFail = THREE.KeepStencilOp;
+    m.stencilZFail = THREE.KeepStencilOp;
+    m.stencilZPass = THREE.KeepStencilOp;
     m.stencilFunc = THREE.NotEqualStencilFunc;
     m.stencilRef = bit;
     m.stencilFuncMask = bit;
+    // THE RIM HAS A FLOOR IN PIXELS. `silW` is world metres (constant on the
+    // aeroplane, thinning as you step back), and at garage distances it is a
+    // one-pixel line — which the G144 resolve pass then resamples into a faint
+    // two-pixel smear (Catmull-Rom over a 1.25x target: 1947 rim px in the
+    // target, 46 after the resample). So the offset is the LARGER of silW and
+    // `silPx` output pixels, the pixel's world size read off the projection
+    // itself (P[1][1] = 1/tan(fov/2); [3][3] tells perspective from ortho)
+    // and the drawing-buffer height fed in by hiSilFeed — the OUTPUT height,
+    // so under a supersampled target the rim is silPx*ss source pixels and
+    // lands as silPx pixels on screen.
     m.onBeforeCompile = sh => {
       sh.uniforms.hiSilW = { value: HI.silW };
-      sh.vertexShader = ('uniform float hiSilW;\n' + sh.vertexShader).replace(
+      sh.uniforms.hiSilPx = { value: HI.silPx };
+      sh.uniforms.hiSilVH = { value: 1000 };
+      sh.vertexShader = ('uniform float hiSilW;\nuniform float hiSilPx;\n' +
+        'uniform float hiSilVH;\n' + sh.vertexShader).replace(
         '#include <project_vertex>',
         ['vec4 mvPosition = modelViewMatrix * vec4( transformed, 1.0 );',
-         'mvPosition.xyz += normalize( normalMatrix * normal ) * hiSilW;',
+         'float hiDepth = projectionMatrix[3][3] > 0.5 ? 1.0 : -mvPosition.z;',
+         'float hiPxWorld = 2.0 * hiDepth / ( projectionMatrix[1][1] * hiSilVH );',
+         'float hiOff = max( hiSilW, hiSilPx * hiPxWorld );',
+         'mvPosition.xyz += normalize( normalMatrix * normal ) * hiOff;',
          'gl_Position = projectionMatrix * mvPosition;'].join('\n'));
+      m.userData.sh = sh;              // hiSilFeed writes hiSilVH through this
     };
     m.userData.cageUni = 1;
     return m;
+  }
+  // the one per-frame fact a pixel-sized overlay cannot read off its own
+  // matrices: how tall the OUTPUT is, in pixels. onBeforeRender hands over the
+  // renderer, and getDrawingBufferSize is the canvas whatever target is bound
+  // — which is the height both the silhouette rim and the pin are measured
+  // against. One feeder, two uniforms: whichever the material declares.
+  let hiSilV2 = null;
+  function hiPxFeed(renderer, scene, camera, geometry, material) {
+    const sh = material && material.userData && material.userData.sh;
+    if (!sh || !renderer.getDrawingBufferSize) return;
+    hiSilV2 = hiSilV2 || new THREE.Vector2();
+    renderer.getDrawingBufferSize(hiSilV2);
+    const h = hiSilV2.y || 1;
+    if (sh.uniforms.hiSilVH) sh.uniforms.hiSilVH.value = h;
+    if (sh.uniforms.hiPinVH) sh.uniforms.hiPinVH.value = h;
   }
   // one mask + one shell over the same geometry, in stamp-then-test order.
   // The mask is opaque-list (colorWrite off keeps it invisible) and the shell
@@ -1692,6 +2206,7 @@ function editorInit(api) {
       new THREE.Mesh(geo, hiMats[which === 'sel' ? 'selM' : 'hovM']),
       new THREE.Mesh(geo, hiMats[which === 'sel' ? 'selS' : 'hovS'])];
     pair[0].renderOrder = 6; pair[1].renderOrder = 7;
+    pair[1].onBeforeRender = hiPxFeed;
     for (const m of pair) {
       if (scaleOf) m.scale.copy(scaleOf);
       m.userData.edHi = 1;
@@ -1712,12 +2227,300 @@ function editorInit(api) {
     l.userData.edOwnGeo = 1;
     return l;
   }
+  // =========================================================================
+  // THE PIN — WHICH CORNER DOES THIS ROW MOVE? (2026-09-03, the user: "would
+  // you be able to do some highlighting of the corresponding corner/vertex
+  // when hovering for the fin and stabs? And maybe for the cowl?")
+  // =========================================================================
+  // The tail is drawn from NAMED POINTS — the tip, the shoulder, the top-aft
+  // and base corners, the mid and u rows, the guard strands — and eleven of
+  // the fin's rows are two-axis offsets on one of them. Reading "top-aft
+  // up / down" tells you what the number does and not which corner it is; a
+  // dot on the corner does, and it is the same answer the trunk's re-ordering
+  // was reaching for one level up.
+  //
+  // THE POINT COMES FROM THE BUILD, NEVER RE-DERIVED. `buildFin2` publishes its
+  // name -> index map (2026-09-03) and this reads the vertex out of the cage
+  // the editor has just built, so the dot sits on the drawn corner through
+  // every clamp, every rebase and the live deck — and it MOVES as you drag,
+  // because applyVis rebuilds it at the end of every build. A second
+  // implementation of "where is the tip" would be a second answer.
+  //
+  // Three layers, three ways in, all of them the layer's own published data:
+  //   fin    a named vertex of CAGE_FIN.cage, in the layer's own space
+  //   stab   the same names, laid flat by FIN_GEN.finToStab with the opts the
+  //          stab build published — and both sides, because an elevator
+  //          corner exists twice
+  //   cowl   COWL_GEN is a live singleton over the live parameters, so the
+  //          points are asked of the same functions that drew the surface:
+  //          a station ring for the ends and the seam, a surface point for
+  //          the scoop, the oil door, the parting line and the bulges
+  //
+  // A NAME THAT IS NOT THERE IS SKIPPED, not defaulted: the guard pair, the
+  // keel tab and the dorsal each take vertices out of the mesh entirely, and
+  // a pin on a vertex that does not exist is a pin in the wrong place.
+  const PIN_TAIL = {
+    tip: ['tip'], shoulder: ['shoulder'], aft: ['topTE'],
+    base: ['kTE', 'loTE', 'hiTE'],
+    mid: ['midH1', 'midH2', 'midTE'], u: ['uH1', 'uH2', 'uTE'],
+    top: ['topH1', 'topH2'], le: ['leC'],
+    root: ['loC', 'hiC', 'leC'],
+    rootLine: ['loC', 'loH1', 'loH2', 'loTE'],
+    guard: ['hiC', 'hiH1', 'hiH2', 'hiTE'],
+    hinge: ['topH1', 'topH2', 'loH1', 'loH2'],
+    keel: ['kH1', 'kH2', 'kTE'],
+    dorsal: ['leA', 'loA', 'leB', 'loB'],
+    crA: ['leB', 'hiB', 'loB'], crB: ['leC', 'hiC', 'loC'],
+    teRoot: ['loTE', 'hiTE'], teU: ['uTE'], teMid: ['midTE'],
+  };
+  // fin key -> tail point set. The stab's are the same table under st*, which
+  // is the point of the stab being the fin model laid flat.
+  const PIN_ROW = {};
+  {
+    const F = {
+      TipZ: 'tip', TipY: 'tip', SharpTip: 'tip',
+      ShoulderZ: 'shoulder', ShoulderY: 'shoulder', SharpShoulder: 'shoulder',
+      AftZ: 'aft', AftY: 'aft', SharpAft: 'aft',
+      BaseZ: 'base', BaseY: 'base', SharpBase: 'base',
+      MidY: 'mid', UY: 'u', TopY: 'top',
+      RootFwd: 'root', LEZ: 'le', LEY: 'le', SharpLE: 'le',
+      TERoot: 'teRoot', TEU: 'teU', TEMid: 'teMid',
+      Cut: 'hinge', CutGap: 'hinge', RootGuard: 'guard',
+    };
+    for (const [suf, at] of Object.entries(F)) {
+      PIN_ROW['fin' + suf] = { layer: 'fin', at };
+      PIN_ROW['st' + suf] = { layer: 'stab', at };
+    }
+    PIN_ROW.finProject = { layer: 'fin', at: 'rootLine' };
+    PIN_ROW.finKeel = { layer: 'fin', at: 'keel' };
+    PIN_ROW.finDorsal = { layer: 'fin', at: 'dorsal' };
+    PIN_ROW.finCrA = { layer: 'fin', at: 'crA' };
+    PIN_ROW.finCrB = { layer: 'fin', at: 'crB' };
+    PIN_ROW.stZ = { layer: 'stab', at: 'rootLine' };
+    PIN_ROW.stX = { layer: 'stab', at: 'rootLine' };
+    PIN_ROW.stY = { layer: 'stab', at: 'rootLine' };
+    // the cowl, by the feature each row shapes. `C` is COWL_GEN.
+    const ring = (zf, n) => C => {
+      const out = [], z = zf(C), N = n || 16;
+      for (let i = 0; i < N; i++) {
+        const p = C.surfPoint(i / N * Math.PI * 2, z);
+        out.push([p[0], p[1], z]);
+      }
+      return out;
+    };
+    const surf = (thf, zf) => C => {
+      const z = zf(C), th = thf(C), p = C.surfPoint(th, z);
+      return [[p[0], p[1], z]];
+    };
+    const ZE = C => C.zEnd(), Z0 = () => 0, ZB = C => C.P.cowlLen;
+    const COWL = {
+      end: ring(ZE), face: ring(Z0), barrel: ring(ZB),
+      seam: ring(C => Math.max(0, Math.min(1, C.P.seamPos)) * C.zEnd()),
+      lobes: C => {
+        const out = [], z = C.P.lobeT * C.zEnd(), D = Math.PI / 180;
+        const azs = [C.P.lobeAz * D];
+        if (C.P.lobeN >= 2) azs.push(Math.PI - C.P.lobeAz * D);
+        for (const th of azs) {
+          const p = C.surfPoint(th, z);
+          out.push([p[0], p[1], z]);
+        }
+        return out;
+      },
+      cut: C => {
+        const out = [], z = C.zEnd() * 0.98, D = Math.PI / 180;
+        for (const s of [-1, 1]) {
+          const th = (C.P.cutAz + s * C.P.cutSpan / 2) * D;
+          const p = C.surfPoint(th, z);
+          out.push([p[0], p[1], z]);
+        }
+        return out;
+      },
+      // the scoop's own mouth, from buildScoop's own two lines
+      scoop: C => {
+        const ze = C.zEnd();
+        const y = C.spineY(ze * 0.6) -
+          C.sectionAtZ(C.P.cowlLen * 0.5).bB * C.P.scoopDrop;
+        const z1 = C.P.cowlLen + C.P.lidLen * 0.35;
+        return [[0, y, z1], [0, y, z1 - C.P.scoopLen]];
+      },
+      oil: surf(() => Math.PI / 2, C => C.zEnd() *
+        Math.max(0.05, Math.min(0.95, C.P.oilZ))),
+      part: C => {
+        const out = [], th0 = C.P.partY * Math.PI * 0.5, ze = C.zEnd();
+        for (const z of [ze * 0.25, ze * 0.6, ze * 0.9])
+          for (const th of [th0, Math.PI - th0]) {
+            const p = C.surfPoint(th, z);
+            out.push([p[0], p[1], z]);
+          }
+        return out;
+      },
+      aps: C => C.apertureList().map(o => [o.cx, o.cy, C.zEnd()]),
+      pair: C => C.apertureList().slice(-2).map(o => [o.cx, o.cy, C.zEnd()]),
+    };
+    const cowlRows = {
+      cowlLen: 'end', lidLen: 'end', lidR: 'end', lidGap: 'end',
+      lidRound: 'end', lidMode: 'end', lidShoulder: 'end', faceRise: 'end',
+      lipMode: 'end', lipThick: 'end', lipDepth: 'end', ductLen: 'end',
+      lipProtrude: 'end', lipInset: 'end', lipRound: 'end', ductFlare: 'end',
+      aftW: 'face', aftH: 'face', taperW: 'face', taperH: 'face',
+      lidRise: 'face', deckH: 'face', waist: 'face', keelH: 'face',
+      sqAftTop: 'face', sqAftBot: 'face', inheritStub: 'face',
+      stubDeckH: 'face', stubWaist: 'face', stubKeelH: 'face',
+      stubSqTop: 'face', stubSqBot: 'face',
+      sqFrontTop: 'barrel', sqFrontBot: 'barrel',
+      keelSweep: 'barrel', deckSweep: 'barrel', waistSweep: 'barrel',
+      seamOn: 'seam', seamType: 'seam', seamPos: 'seam',
+      seamWidth: 'seam', seamDepth: 'seam',
+      lobeN: 'lobes', lobeAmp: 'lobes', lobeT: 'lobes', lobeAz: 'lobes',
+      lobeSig: 'lobes', lobeTSig: 'lobes',
+      cutSpan: 'cut', cutAz: 'cut',
+      scoopOn: 'scoop', scoopLen: 'scoop', scoopW: 'scoop', scoopH: 'scoop',
+      scoopSq: 'scoop', scoopLipH: 'scoop', scoopDrop: 'scoop',
+      scoopRake: 'scoop', scoopAp: 'scoop', scoopLipDepth: 'scoop',
+      scoopDuct: 'scoop',
+      oilOn: 'oil', oilZ: 'oil', oilW: 'oil', oilL: 'oil', oilSq: 'oil',
+      partOn: 'part', partY: 'part', partW: 'part',
+      apMode: 'aps', apW: 'aps', apH: 'aps', apSq: 'aps',
+      apOffX: 'aps', apOffY: 'aps',
+      pairX: 'pair', pairW: 'pair', pairH: 'pair', pairY: 'pair',
+      pairSq: 'pair',
+    };
+    for (const [k, at] of Object.entries(cowlRows))
+      PIN_ROW['cw_' + k] = { layer: 'cowl', fn: COWL[at] };
+  }
+
+  // A DOT THE SAME SIZE WHEREVER IT IS. The offset is built in VIEW space from
+  // the unit sphere's own vertex, so the layer's scale (the cage's mesh units
+  // under planeScale, the cowl's metres) never reaches it and the dot is
+  // `pinPx` output pixels across at any distance — the same pixel arithmetic
+  // the silhouette rim learned, for the same reason.
+  let pinMat = null, pinGeo = null, pinObjs = null, pinKey = null;
+  function pinMaterial() {
+    // THE PIN IS UI, NOT PAINT, and it is measured rather than assumed. Left
+    // as an ordinary material it went through the room's ACES curve and its
+    // 0.92 exposure and reached the frame at (222, 205, 154) — a pale cream,
+    // which is very nearly the colour of the aeroplane it was supposed to
+    // stand out against. Two corrections, both measured on the live page:
+    //
+    //   toneMapped: false   the dot is an instrument, so it does not dim with
+    //                       the hangar's light. (222,205,154) -> (250,212,130)
+    //   convertSRGBToLinear r128 has no colour management: a material colour
+    //                       is taken as LINEAR and encoded on the way out, so
+    //                       the amber named here arrived washed. Converting it
+    //                       first is what makes the hex mean what it says —
+    //                       (250,212,130) -> a real amber against the cream.
+    const m = new THREE.MeshBasicMaterial({
+      color: new THREE.Color(HI.pin).convertSRGBToLinear(),
+      transparent: true, opacity: 0.95, toneMapped: false,
+      depthTest: false, depthWrite: false, fog: false });
+    m.onBeforeCompile = sh => {
+      sh.uniforms.hiPinPx = { value: HI.pinPx };
+      sh.uniforms.hiPinVH = { value: 1000 };
+      sh.vertexShader = ('uniform float hiPinPx;\nuniform float hiPinVH;\n' +
+        sh.vertexShader).replace(
+        '#include <project_vertex>',
+        ['vec4 mvPosition = modelViewMatrix * vec4( 0.0, 0.0, 0.0, 1.0 );',
+         'float hiDepth = projectionMatrix[3][3] > 0.5 ? 1.0 : -mvPosition.z;',
+         'float hiPxWorld = 2.0 * hiDepth / ( projectionMatrix[1][1] * hiPinVH );',
+         'mvPosition.xyz += position * hiPinPx * hiPxWorld * 0.5;',
+         'gl_Position = projectionMatrix * mvPosition;'].join('\n'));
+      m.userData.sh = sh;
+    };
+    m.userData.cageUni = 1;
+    return m;
+  }
+  const pinLayer = name => {
+    const root = window.CAGE_UI_SCENE;
+    if (!root) return null;
+    for (const c of root.children)
+      if (c.name === 'cageLayer:' + name) return c;
+    return null;
+  };
+  // the named tail vertices, resolved against the cage THIS BUILD made
+  const pinTailPts = (cage, names) => {
+    const out = [];
+    if (!cage || !cage.IX || !cage.V) return out;
+    for (const n of names) {
+      const i = cage.IX[n];
+      if (i === undefined || !cage.V[i]) continue;
+      out.push(cage.V[i]);
+    }
+    return out;
+  };
+  function pinPoints(spec) {
+    try {
+      if (spec.layer === 'fin') {
+        const F = window.CAGE_FIN;
+        return F ? pinTailPts(F.cage, PIN_TAIL[spec.at] || []) : [];
+      }
+      if (spec.layer === 'stab') {
+        const S = window.CAGE_STAB, G = window.FIN_GEN;
+        if (!S || !S.lay || !G || !G.finToStab) return [];
+        const src = pinTailPts(S.cage, PIN_TAIL[spec.at] || []);
+        const out = [];
+        // both sides: the fin has one tip, a tailplane has two
+        for (const side of [1, -1])
+          for (const p of src)
+            out.push(G.finToStab({ V: [p], F: [] },
+              Object.assign({ side }, S.lay)).V[0]);
+        return out;
+      }
+      if (spec.layer === 'cowl') {
+        const C = window.COWL_GEN;
+        return (C && spec.fn) ? spec.fn(C) : [];
+      }
+    } catch (e) {}
+    return [];
+  }
+  function pinClear() {
+    if (!pinObjs) return;
+    for (const o of pinObjs) if (o.parent) o.parent.remove(o);
+    pinObjs = null;
+  }
+  function pinBuild(key) {
+    pinClear();
+    pinKey = key || null;
+    if (!pinKey || typeof THREE === 'undefined') return;
+    const spec = PIN_ROW[pinKey];
+    if (!spec) return;
+    const host = pinLayer(spec.layer);
+    if (!host) return;
+    const pts = pinPoints(spec);
+    if (!pts.length) return;
+    if (!pinGeo) pinGeo = new THREE.SphereGeometry(1, 12, 8);
+    if (!pinMat) pinMat = pinMaterial();
+    const out = [];
+    for (const p of pts) {
+      const m = new THREE.Mesh(pinGeo, pinMat);
+      m.position.set(p[0], p[1], p[2]);
+      m.renderOrder = 9;
+      m.frustumCulled = false;       // the dot is bigger than its own geometry
+      m.userData.edHi = 1;           // never the aeroplane: the capture skips it
+      m.onBeforeRender = hiPxFeed;
+      host.add(m);
+      out.push(m);
+    }
+    pinObjs = out;
+  }
+  // THE ROW SAYS WHICH POINT. Delegated, because the rows are _cage_ui's own
+  // elements moved in and out of this column on every selection — a listener
+  // per row would be a listener per row per lifetime.
+  if (rowsEl) {
+    rowsEl.addEventListener('pointerover', e => {
+      const r = e.target && e.target.closest ? e.target.closest('.r') : null;
+      const k = r && r.dataset ? r.dataset.k : null;
+      if (k !== pinKey) pinBuild(k);
+    });
+    rowsEl.addEventListener('pointerleave', () => pinBuild(null));
+  }
+
   // the switch, live: no rebuild of the editor, just of the highlight
   window.EDITOR_HILITE = (o) => {
     if (!o) return Object.assign({}, HI);
     Object.assign(HI, o);
     try { localStorage.setItem(HI_PREF, JSON.stringify(HI)); } catch (e) {}
     hiMats = null;                      // colours live on the materials
+    if (pinMat) { pinClear(); pinMat.dispose(); pinMat = null; }
     const sel = pinFor;
     hiClear('sel'); hiClear('hov');
     if (sel) hiBuild(sel, 'sel');
@@ -2162,6 +2965,20 @@ function editorInit(api) {
     };
     const ex = $('edExpert');
     if (ex) ex.onclick = () => setExpert(!(CU && CU.EXPERT && CU.EXPERT.on));
+    // FOLD / OPEN EVERY SECTION. One button with two jobs, exactly as the
+    // tree's own — and it writes an EXPLICIT choice for every heading on
+    // screen, because "collapse all" that the rule then re-opens on the next
+    // build is not a setup anybody could call remembered.
+    const sa = $('edSecAll');
+    if (sa) sa.onclick = () => {
+      const shutAll = secAllWants() === 'fold';
+      for (const g of groupsOf) {
+        if (!g.head || g.head.classList.contains('hide')) continue;
+        secPref.set(secKey(g.part.key, g.group), shutAll);
+      }
+      saveSec();
+      applyVis();
+    };
     const c1 = $('edCollapse'); if (c1) c1.onclick = () => setCollapsed(true);
     const p1 = $('edPropFold'); if (p1) p1.onclick = () => setPropsOff(true);
     const p2 = $('edPropsTab'); if (p2) p2.onclick = () => setPropsOff(false);
@@ -2201,6 +3018,7 @@ function editorInit(api) {
     layoutRight();
     // ---- the view layer -------------------------------------------------
     buildRail();
+    buildQuick();
     // THE INFORMATION PANEL FOLDS, like the parts column. Four columns is
     // 920 px of chrome and a 1440 frame has 520 px of render left; on a
     // narrow screen this is the one to give back first, because a verdict

@@ -166,7 +166,8 @@ function stripNumbers() {
     if (!spec) return null;
     if (window.CAGE_JOIN && window.CAGE_JOIN.export)
       spec = D().designMerge(spec, window.CAGE_JOIN.export());
-    const sh = genShakedown(buildGen(spec), { ledger: true });
+    // the strip wants a mass and two speeds — not the four loading corners
+    const sh = genShakedown(buildGen(spec), { ledger: true, corners: false });
     return { empty: sh.empty, Vs: sh.Vs, TORun: sh.TORun,
              role: spec.meta && spec.meta.role,
              cls: spec.meta && spec.meta.class };

@@ -144,6 +144,34 @@ const POWERPLANTS = {
     engine: { name: 'Rotec R3600', mass: 102, powerW: 112000, aspiration: 'na', family: 'four', cooling: 'air' },
     prop:   { name: '2-pale 1.95 m', D: 1.95, Tstatic: 1950, kV2: 0.240 },
   },
+  // THE AMATEUR IN-LINES (G165, the other half of the user's "more radial
+  // engines and inline for small planes"). G157 added the radials and held
+  // these back for a stated reason — an in-line was DRAWN on its side then,
+  // and could only be a two-stroke besides, so the classic small in-lines
+  // could not exist. Both are true no longer: G163 stood the bank up, G164
+  // gave it an aim, and the two-stroke is a default rather than a law.
+  //
+  // BOTH ARE INVERTED, which is what an aero in-line almost always is — the
+  // crankcase on top puts the crankshaft high and the propeller with it, and
+  // it is the whole reason G164's `down` aim exists. The 3 kg of prop-shaft
+  // extension a Gipsy carries is not modelled and not claimed.
+  //
+  // MASS AND POWER ARE PUBLISHED. The PROPS ARE DERIVED, not chosen: Tstatic
+  // and kV2 are `genPropSynth`'s own output at each row's diameter, blade
+  // count and standard pitch (propV0K 1.95, fm 0.477), which is the rule the
+  // G158 rows above state and the reason registry and generator agree about
+  // thrust. Reproducing the Jabiru row exactly from the same three numbers is
+  // how I know I ran the right formula.
+  mikron3_wood: {
+    price: 16000,
+    engine: { name: 'Walter Mikron III', mass: 74, powerW: 48000, aspiration: 'na', family: 'four', cooling: 'air' },
+    prop:   { name: '2-pale bois 1.65 m', D: 1.65, Tstatic: 1094, kV2: 0.1495 },
+  },
+  gipsymajor1_wood: {
+    price: 26000,
+    engine: { name: 'DH Gipsy Major 1', mass: 139, powerW: 97000, aspiration: 'na', family: 'four', cooling: 'air' },
+    prop:   { name: '2-pale bois 1.98 m', D: 1.98, Tstatic: 1975, kV2: 0.2153 },
+  },
   outrunner2212_9x47: {
     price: 25,
     engine: { name: '2212 outrunner 1000KV / 3S', mass: 0.10, powerW: 180, aspiration: 'electric', family: 'electric', cooling: 'air' },

@@ -407,7 +407,14 @@ function buildFin2(S) {
   vwSet('shoulder', S.sharpShoulder || 0);
   vwSet('leC', S.sharpLE || 0);
 
-  const out = { V, F, E, finRootLo, finMidRow, finLE,
+  // THE VERTEX NAMES GO OUT WITH THE MESH (2026-09-03). `IX` is the map this
+  // function builds anyway — the sketch's own names against the emitted
+  // order — and publishing it is what lets a caller ask WHERE a named corner
+  // ended up: the editor pins the tip, the shoulder, the rows and the guard
+  // strands from it while you hover their sliders. A caller must resolve
+  // through it defensively: with the guard pair off there is no `hi*`, with
+  // the keel tab off no `k*`, and without the dorsal no `leA`/`loA`/`leB`/`loB`.
+  const out = { V, F, E, IX, finRootLo, finMidRow, finLE,
                 finColH1a, finColH1b, finColH2a, finColH2b,
                 seamKeys: ['finRootLo', 'finMidRow', 'finLE',
                            'finColH1a', 'finColH1b',

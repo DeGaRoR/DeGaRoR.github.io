@@ -852,7 +852,30 @@ function genLattice(S, gearX, track, kScale) {
   // `S.occupants` is absent on a spec resolved by an older core, and there
   // the old meaning is the right fallback rather than a guess.
   const aboard = S.occupants != null ? S.occupants : S.crew;
+  // THE SEATS THE CAGE DRAWS, when the join has measured them (2026-09-03).
+  // `cabin.seatsX` is one station per seat, metres aft of the firewall, in
+  // this same seat order. A ring is a pillar, not a chair: on the user's Cub
+  // the pilot's seat back sat 0.27 m ahead of the front pillar and the
+  // passenger's 0.86 m ahead of the aft one, so billing the people on the
+  // pillars carried 13 % of MAC of CG aft and read a negative static margin
+  // on an aeroplane built to its reference. A station between two rings is
+  // split between them by lever arm, so the mass centre lands exactly there
+  // and the frame nodes still carry it. Absent (a fiche, an older save), the
+  // pillar rule below is unchanged — GATE BUILD's "old layouts resolve
+  // exactly as they did" holds to the millimetre.
+  const seatsX = Array.isArray(S.cab && S.cab.seatsX) ? S.cab.seatsX : null;
+  const billAt = (x, m) => {
+    const [f, a] = straddle(x);
+    if (f === a || !F[a]) { pt(F[f].BL, 0.5 * m); pt(F[f].BR, 0.5 * m); return; }
+    const x0 = ST[f].x, x1 = ST[a].x;
+    const wa = Math.max(0, Math.min(1, (x - x0) / Math.max(1e-6, x1 - x0)));
+    pt(F[f].BL, 0.5 * m * (1 - wa)); pt(F[f].BR, 0.5 * m * (1 - wa));
+    pt(F[a].BL, 0.5 * m * wa);       pt(F[a].BR, 0.5 * m * wa);
+  };
+  const seatAt = i => (seatsX && typeof seatsX[i] === 'number') ? seatsX[i] : null;
   for (let i = 0; i < aboard; i++) {
+    const sx = seatAt(i);
+    if (sx != null) { billAt(sx, 80); continue; }
     const ri = seatRows[i] != null ? Math.min(seatRows[i], F.length - 1) : 1;
     const rg = F[ri] || F[1];
     pt(rg.BL, 40); pt(rg.BR, 40);
@@ -997,7 +1020,11 @@ function genLattice(S, gearX, track, kScale) {
     // cowl and the exhaust on the firewall.
     const half = (i, j, m) => { nodes[i].m += 0.5 * m; nodes[j].m += 0.5 * m;
                                 bill(m, 0); };
-    half(F[1].BL, F[1].BR, seatM);
+    // THE SEATS GO WHERE THE SEATS ARE. With measured stations each chair is
+    // billed at its own; without, the front ring as before.
+    if (seatsX && seatsX.length)
+      for (let i = 0; i < seats; i++) billAt(seatAt(i) != null ? seatAt(i) : ST[1].x, seat.kg);
+    else half(F[1].BL, F[1].BR, seatM);
     half(F[1].TL, F[1].TR, panelM + plumbM);
     half(F[0].TL, F[0].TR, cowlM);
     half(F[0].BL, F[0].BR, exhM);

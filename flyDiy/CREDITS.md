@@ -210,6 +210,43 @@ Modifications made:
 - **Geometry discarded.** The Poly Haven sets deliver glTF preview spheres;
   only the maps are imported.
 
+## Skin sheets (`assets/skin/`, baked and served from media/)
+
+The CC0 PBR sets the AEROSKIN material library wears that are not wood: the
+fireproof sheet on the engine side of the firewall (2026-09-03), and the
+dashboard's two surfaces (2026-09-04) — the bare alloy instrument facia and
+the dark hide of the coaming round it.
+
+**ambientCG, CC0** (https://ambientcg.com) — `Foil001` (the `foil` sheet, worn
+by the `fireFoil` finish), `Metal050C` (the `panel` sheet, worn by
+`panelMetal`), `Leather027` (the `leather` sheet, worn by `leatherDark`).
+
+The licence does not require attribution; recorded for the usual reason.
+
+Modifications made:
+
+- **Normalised AND packed.** `tools/skin_tex_import.py` writes the same
+  `diff` / `nor_gl` / `rough` contract as the wood sets, then packs the set
+  into AEROSKIN's detail-sheet layout (`aero_*.jpg`): R,G are the normal's
+  tangent xy taken verbatim from `NormalGL`, B is the ROUGHNESS map recentred
+  on the sheet convention's 0.80 mean. B rides roughness rather than the
+  diffuse here because Foil001's Color map is flat grey (span 121..134 of
+  255) while its roughness follows the crinkle — a metal is the opposite of a
+  wood in exactly that respect.
+- **Metalness map dropped.** It is 255 everywhere (measured); the finish row's
+  own `metal` scalar carries it, and the packed sheet's A channel is the
+  drawImage constant.
+- **B rides a different map per set, and the choice is measured.** Leather027
+  is the mirror image of the foil: its roughness is nearly flat (p1..p99 spans
+  0.90..1.12 of its own mean) while its Color carries the crease pattern
+  (0.65..1.76), so B rides the diffuse's luminance there, the wood rule.
+  Metal050C is a foil's case again — Color 218..254 of 255, roughness
+  0.62..1.70 of its mean — so B rides roughness.
+- **Resampled, and reversibly.** 1k archive beside every working copy, the
+  same budget rule as every other import. `foil` and `leather` ship the 512;
+  `panel` ships the 1k, because the instrument facia is the surface the camera
+  spends the most time nearest to. 0.47 MB in all under `media/tex/skin/`.
+
 ## Jodel DR1050 structures (`assets/jodel_structure/`, baked and served from media/)
 
 - **Model**: the author of this repository, in Blender 4.0. A DR1050 fuselage

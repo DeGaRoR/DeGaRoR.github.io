@@ -78,7 +78,7 @@ const GROUP = ['2b · cowl', [
   ['fitNose', 'fit to the nose', 0, 2, 1,
    ['free (tool only)', 'fitted (size + section)', 'sealed (size only)'],
    { when: P => +P.cowlOn }],
-  ['cowlGap', 'stand-off from face', -0.05, 0.15, 0.002,
+  ['cowlGap', 'fore / aft (stand-off from the face)', -0.05, 0.15, 0.002,
    { when: P => +P.cowlOn }],
 ].concat(ROWS.filter(g => !SKIP_GROUPS.has(g.id))
              .map(g => [g.name.toLowerCase(), groupItems(g),
@@ -496,18 +496,34 @@ window.CAGE_COWL_FOR_ENGINE = function (arch, env, face) {
 // the builder's afterwards. It deliberately does NOT fire on the first build
 // of a session — a loaded aeroplane carries its own cowl, and re-deriving it
 // would overwrite the shape somebody saved.
+//
+// ...AND NOT ON A LOAD EITHER (2026-09-03). "The first build of a session" was
+// the only load this guarded against; a build LOADED LATER that changed the
+// architecture re-fired it and re-drew a cowl somebody had saved. The
+// decision is now a pure step — "has the architecture changed since I last
+// recorded it?" — with `PAGE.load` as the editor's way of saying P was
+// replaced rather than edited. Published for GATE STARTER, which drives it
+// without a scene; see the engine layer's own starter for the twin.
 let lastArch = null;
-function cowlForEngine(P, face, stat) {
+function cowlArchStarter(P) {
   const specOf = window.CAGE_ENG_SPEC, EG2 = window.ENG_GEN;
-  if (!specOf || !EG2 || !EG2.engResolve || !+P.engOn) return;
+  if (!specOf || !EG2 || !EG2.engResolve || !+P.engOn) return null;
   let spec, R;
-  try { spec = specOf(P); R = EG2.engResolve(spec); } catch (e) { return; }
+  try { spec = specOf(P); R = EG2.engResolve(spec); } catch (e) { return null; }
   const arch = spec && spec.arch;
-  if (!arch) return;
-  if (lastArch === null) { lastArch = arch; return; }
-  if (arch === lastArch) return;
+  if (!arch) return null;
+  if (lastArch === null) { lastArch = arch; return null; }
+  if (arch === lastArch) return null;
   lastArch = arch;
-  const got = window.CAGE_COWL_FOR_ENGINE(arch, R.env, face);
+  return { arch, R };
+}
+const prevLoad = PAGE.load;
+PAGE.load = () => { if (prevLoad) prevLoad(); lastArch = null; };
+window.CAGE_COWL_STARTER = cowlArchStarter;
+function cowlForEngine(P, face, stat) {
+  const hit = cowlArchStarter(P);
+  if (!hit) return;
+  const got = window.CAGE_COWL_FOR_ENGINE(hit.arch, hit.R.env, face);
   if (!got) return;
   for (const k in got.vals) if (P[k] !== undefined) P[k] = got.vals[k];
   const UI = window.CAGE_UI;
@@ -562,6 +578,11 @@ PAGE.post = ctx => {
   //   0 free       nothing inherited; the tool's own controls, entirely
   //   1 fitted     size AND section from the body (the default)
   //   2 sealed     size from the body, SECTION from the tool's controls
+  // RULING (the user, 2026-09-03): "fitted means the body wins." A saved
+  // build carries cw_aftW / cw_aftH / cw_waist / cw_sqAftTop / cw_sqAftBot
+  // as deviations, and in mode 1 they are re-derived from the firewall on
+  // every load — by design, not by accident. A builder who wants the saved
+  // section honoured chooses `sealed`.
   const mode = Math.round(P.fitNose);
   let fit = null;
   if (mode === 1 || mode === 2) {

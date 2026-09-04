@@ -1,3 +1,9 @@
 
-# URSOY raw source data (~10 GB, fetched by tools/island_fetch.sh)
+# URSOY raw source data (~10 GB, fetched by tools/island_fetch.js)
 assets/island/raw/
+
+# Terrain bench scratch bakes (tools/terrain_bake.js --out).
+# NOT media/: that directory is the SHIPPED store and GATE MEDIA requires
+# every file in it to be named by a baked manifest. A bench bake is a
+# developer artefact and is reproducible in seconds — see tools/_terrain.html.
+bench/

@@ -135,10 +135,19 @@ for (const k of Object.keys(A.AERO_FINISH)) {
   // THE EXEMPTION IS A LIST OF BARE METALS, not a raised ceiling (G70 added
   // the five hardware rows). Each one is a surface with no paint film on it
   // at all: a sand-cast crankcase, a plated piston, a bronze bush, a pipe
-  // that has been to 700 C, and enamelled winding wire. Everything PAINTED —
-  // a leg, a bracket, an engine mount, a spat, a firewall — stays on `trim`
-  // and stays a dielectric, which is the rule this check exists to hold.
-  const bare = /^(bareAlu|steelTube|castAlu|chrome|bronze|exhaust|copper)$/
+  // that has been to 700 C, enamelled winding wire, and the firewall's
+  // fireproof foil. Everything PAINTED — a leg, a bracket, an engine mount, a
+  // spat, the firewall PANEL — stays on `trim` and stays a dielectric, which
+  // is the rule this check exists to hold. The foil is the distinction drawn
+  // exactly: a stainless or aluminised sheet on the hot side has no paint
+  // film on it at all (nothing you would put on an aeroplane survives there),
+  // and the panel it is bolted to is still a painted dielectric.
+  // `panelMetal` joins the list for the distinction drawn exactly as the foil
+  // drew it: an instrument facia is a bare alloy plate — Metal050C's own
+  // metalness map measures a flat 255 — while the coaming it is screwed into
+  // stays a dielectric hide. A PAINTED panel would be `trim`, and still is.
+  const bare =
+    /^(bareAlu|steelTube|castAlu|chrome|bronze|exhaust|copper|fireFoil|panelMetal)$/
     .test(k);
   check(bare || r.metal <= 0.25,
     `finish ${k}: metalness ${r.metal} on a painted surface`);
@@ -150,19 +159,31 @@ for (const k of Object.keys(A.AERO_FINISH)) {
 // ---------------------------------------------------------------------------
 // 2b THE SCANNED SHEETS (G125) — both directions of the claim
 // ---------------------------------------------------------------------------
-// `sheet` on a finish row names a baked payload in wood_tex.js (generated:
-// tools/wood_tex_import.py -> tools/wood_tex_prep.js). Assert against the
-// generated TABLE, not the prose (G113.4's rule), and in BOTH directions: a
-// row claiming a sheet that is not baked falls back SILENTLY to the
-// procedural grain — correct at runtime, invisible forever — and a baked
-// sheet no row claims is payload bytes shipped for nothing.
+// `sheet` on a finish row names a baked payload in ONE OF THE TWO manifests:
+// wood_tex.js (tools/wood_tex_import.py -> tools/wood_tex_prep.js) for the
+// wood library, skin_tex.js (skin_tex_import.py -> skin_tex_prep.js) for the
+// sheets that are not wood. A row names a sheet, not a store, so the check is
+// against the UNION — and against the generated TABLES, not the prose
+// (G113.4's rule), in BOTH directions: a row claiming a sheet that is not
+// baked falls back SILENTLY to the procedural grain — correct at runtime,
+// invisible forever — and a baked sheet no row claims is payload bytes
+// shipped for nothing.
 {
-  const wtPath = path.join(ROOT, 'src', 'viewer', 'wood_tex.js');
-  check(fs.existsSync(wtPath),
-    'wood_tex.js missing — run tools/wood_tex_import.py then wood_tex_prep.js');
-  const WT = fs.existsSync(wtPath) ? fs.readFileSync(wtPath, 'utf8') : '';
-  const baked = new Map([...WT.matchAll(/^ {4}(\w+): \{ px: (\d+),/gm)]
-    .map(m => [m[1], +m[2]]));
+  const MANIF = [['wood_tex.js', 'tools/wood_tex_import.py'],
+                 ['skin_tex.js', 'tools/skin_tex_import.py']];
+  const baked = new Map();
+  for (const [f, imp] of MANIF) {
+    const fp = path.join(ROOT, 'src', 'viewer', f);
+    check(fs.existsSync(fp),
+      `${f} missing — run ${imp} then its _prep.js`);
+    const txt = fs.existsSync(fp) ? fs.readFileSync(fp, 'utf8') : '';
+    for (const m of txt.matchAll(/^ {4}(\w+): \{ px: (\d+),/gm)) {
+      check(!baked.has(m[1]),
+        `sheet '${m[1]}' is baked by two manifests — a row names a sheet, ` +
+        'not a store, so the name has to be unique across both');
+      baked.set(m[1], +m[2]);
+    }
+  }
   const claiming = Object.keys(A.AERO_FINISH)
     .filter(k => A.AERO_FINISH[k].sheet);
   check(claiming.length >= 5,
@@ -170,7 +191,8 @@ for (const k of Object.keys(A.AERO_FINISH)) {
   for (const k of claiming) {
     const r = A.AERO_FINISH[k];
     check(baked.has(r.sheet),
-      `finish ${k} claims sheet '${r.sheet}' that wood_tex.js does not bake`);
+      `finish ${k} claims sheet '${r.sheet}' that neither wood_tex.js nor ` +
+      'skin_tex.js bakes');
     // the fallback is load-bearing: node, the gates and the first undecoded
     // frame all render the procedural bake
     check(!!r.bake,

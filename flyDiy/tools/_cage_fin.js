@@ -80,28 +80,28 @@ const GROUP = ['8 · tail — fin (2D)', [
     // The outline's roundness comes from the subsurf, which the game pins at
     // 2; the EDGE's comes from here, and four facets across a 60 mm tranche
     // is what shows (user, 2026-08-31). Applies to the fin and the stab.
-    ['tailRimN',   'edge sections',  2, 12, 1,
+    ['tailRimN',   'tail edge sections',  2, 12, 1,
      { when: P => +P.finSolid }],
   ], 'open', { when: P => +P.finOn }],
   // the three corners, each free on two axes (+z fwd, +y up, cage units)
   ['corners', [
-    ['finTipZ',  'tip fore-aft',     -0.60, 0.60, 0.005],
-    ['finTipY',  'tip up-down',      -0.80, 0.80, 0.005],
-    ['finAftZ',  'top-aft fore-aft', -0.50, 0.30, 0.005],
-    ['finAftY',  'top-aft up-down',  -0.90, 0.60, 0.005],
-    ['finBaseZ', 'base fore-aft',    -0.50, 0.30, 0.005],
-    ['finBaseY', 'base up-down',     -0.15, 0.50, 0.005],
+    ['finTipZ',  'tip fore / aft (sweep)',     -0.60, 0.60, 0.005],
+    ['finTipY',  'height (tip up / down)',      -0.80, 0.80, 0.005],
+    ['finAftZ',  'top-aft fore / aft', -0.50, 0.30, 0.005],
+    ['finAftY',  'top-aft up / down',  -0.90, 0.60, 0.005],
+    ['finBaseZ', 'base fore / aft',    -0.50, 0.30, 0.005],
+    ['finBaseY', 'base up / down',     -0.15, 0.50, 0.005],
   ], 'open', { when: P => +P.finOn }],
   // the horizontal rows and the free points that ride them (the Cub tail is
   // drawn with these: rows down, LE root and shoulder ON their rows)
   ['rows & points', [
-    ['finRootFwd',   'root fwd point',   -1.20, 2.00, 0.005],
-    ['finMidY',      'mid row y',        -0.80, 0.40, 0.005],
-    ['finUY',        'u row y',          -0.40, 0.40, 0.005],
-    ['finLEZ',       'LE root fore-aft', -0.80, 0.30, 0.005],
-    ['finLEY',       'LE root up-down',  -0.20, 0.40, 0.005],
-    ['finShoulderZ', 'shoulder fwd of tip', -0.10, 0.50, 0.005],
-    ['finShoulderY', 'shoulder above mid',  -0.10, 0.30, 0.005],
+    ['finRootFwd',   'root length (forward point)',   -1.20, 2.00, 0.005],
+    ['finMidY',      'mid row up / down',        -0.80, 0.40, 0.005],
+    ['finUY',        'u row up / down',          -0.40, 0.40, 0.005],
+    ['finLEZ',       'LE root fore / aft', -0.80, 0.30, 0.005],
+    ['finLEY',       'LE root up / down',  -0.20, 0.40, 0.005],
+    ['finShoulderZ', 'shoulder fore / aft (of the tip)', -0.10, 0.50, 0.005],
+    ['finShoulderY', 'shoulder up / down (over the mid row)',  -0.10, 0.30, 0.005],
     ['finTopY',      'top pair bulge',   -0.30, 0.30, 0.005],
   ], { when: P => +P.finOn }],
   // the trailing edge's offsets off the top-aft -> base chord, per row:

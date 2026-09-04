@@ -545,7 +545,10 @@ function genTyreDataURI() {
 // ---------------------------------------------------------------------------
 function garageInit(api) {
   const $ = id => document.getElementById(id);
-  const host = $('edShelf');
+  // THE DROP TARGET IS THE PLATE, not the menu (2026-09-03): the shelf is a
+  // dropdown now, and a build dropped on a closed menu is a build dropped on
+  // nothing. #edFleet is on screen for as long as the workshop is.
+  const host = $('edFleet') || $('edShelf');
   if (!host) return;
 
   // =====================================================================
@@ -652,12 +655,24 @@ function garageInit(api) {
         out[k] = (k === 'wings' && Array.isArray(base && base[k]))
           ? over[k].map((w, i) => merge(base[k][i], w))
           : over[k];
-      } else if (k === 'finish') {
-        // THE FINISH REPLACES AS A WHOLE (G105), like the arrays above and for
-        // the same reason: it is one measurement of one thing. It is also
-        // written as DEVIATIONS, so "this section has no tint any more" is
-        // said by the section's absence — merged, an override could be put on
-        // and never taken off again.
+      } else if (k === 'finish' || k === 'cage') {
+        // THE FINISH AND THE CAGE REPLACE AS A WHOLE (G105; the cage joined it
+        // 2026-09-03), like the arrays above and for the same reason: each is
+        // one measurement of one thing, and each is written as DEVIATIONS — so
+        // "this row is back at its default" is said by the KEY'S ABSENCE.
+        // Deep-merged, a deviation could be put on and never taken off again.
+        //
+        // THE CAGE HAD EXACTLY THE FINISH'S BUG and nobody noticed, because it
+        // only bites on the way BACK. Move a row off its default and the
+        // fragment carries it; move it back and the fragment stops mentioning
+        // it — and the merge then kept the old value for ever. The user built
+        // a side-by-side jodel with a central cowl opening, and the file said
+        // tandem with a pair of intakes, because both rows had been off their
+        // defaults once (an archetype's seating, the cub's cowl) and coming
+        // home was unsayable. Their build carried the tell: `cage.seatLayout`
+        // 2 beside `cabin.seating` 'side2' — the same join run writing both,
+        // one of them merged and stale, the other a plain value and current.
+        // (The user: "the tandem configuration was never in my build.")
         out[k] = over[k];
       } else if (isPlain(over[k])) out[k] = merge(base && base[k], over[k]);
       else out[k] = over[k];
@@ -744,6 +759,59 @@ function garageInit(api) {
   function rebuild() {
     api.apply(spec);
     writeWip();
+  }
+
+  // ---- WHAT "THE BUILD" IS WHEN YOU SAVE IT (2026-09-03) ----------------
+  // THE SPEC IS A CACHE OF THE EDITOR, and nothing refreshed it when you
+  // edited. `spec` was written by exactly four things — a LOAD, a ROLL-OUT,
+  // the boot seed and a bench test — each of them a call to app.js's
+  // `syncBuild`, which runs the join over the editor's live parameters and
+  // merges the result in. Moving a slider was not one of them.
+  //
+  // So SAVE, EXPORT and the autosave all read the aeroplane AS IT WAS AT THE
+  // LAST ROLL-OUT. Measured on a stock jodel: twelve rows moved across the
+  // cowl, wing, tail and cabin, NONE of them in the spec at save time, and
+  // fifteen rows silently reverted by the save -> load round trip. The cowl
+  // is the worst hit of all, because polishing one is twenty slider-minutes
+  // during which nobody presses roll out. (The user: "despite having pressed
+  // save then load and export, it has changed a lot.")
+  //
+  // `commit` is the one answer: every door that PERSISTS the build asks the
+  // editor what the aeroplane is first. GATE SAVE holds both halves — the
+  // round trip, and the rule that each door calls this.
+  //
+  // IT DOES NOT REBUILD, AND IT DOES NOT RE-FREEZE THE VISUAL. `syncBuild`
+  // ends in `GARAGE_SPEC.update`, which calls `rebuild` -> `api.apply` -> a
+  // full aircraft switch; and it re-bakes G46's frozen visual on the way.
+  // Both are right for rolling out and wrong for something that runs after
+  // every slider pause: MEASURED on the built artifact, `J.export()` is 8-16
+  // ms and `J.snapshot()` is 950 — and the snapshot never reaches the file at
+  // all (it sets `window.CAGE_VISUAL`; the save carries no mesh bytes, which
+  // was G46's whole point). So this takes the join's answer and writes it
+  // down, nothing else. What FLIES, and what the visual is, still change only
+  // when you roll out — exactly as before.
+  let committing = false;
+  function commit() {
+    if (committing) return false;
+    const J = join();
+    if (!J || !ed()) return false;
+    committing = true;
+    try {
+      spec = merge(spec, JSON.parse(JSON.stringify(J.export())));
+      writeWip();
+      return true;
+    } catch (e) { return false; }
+    finally { committing = false; }
+  }
+  // THE AUTOSAVE FOLLOWS THE SLIDER, AT A DISTANCE. A commit runs the whole
+  // join, so it cannot ride every pixel of a drag — it rides the pause after
+  // one. Without it a page reload still lost the polish, which is the same
+  // bug wearing the WIP's clothes.
+  let touchT = null;
+  function touch() {
+    if (committing || !LS || typeof setTimeout !== 'function') return;
+    if (touchT && typeof clearTimeout === 'function') clearTimeout(touchT);
+    touchT = setTimeout(() => { touchT = null; commit(); }, 900);
   }
 
   // ---- the shelf --------------------------------------------------------
@@ -915,33 +983,18 @@ function garageInit(api) {
         '<div class="gfGroupH">stock designs</div>' +
         '<div class="gfStock"></div>' +
         '<div class="gfFoot">' +
-          '<button type="button" id="gImport" class="dfPill" ' +
-            'title="Load a build from a .json file">import a build file</button>' +
-          '<button type="button" id="gExport" class="dfPill" ' +
-            'title="Download the build on the stand as a .json file">' +
-            'export current build</button>' +
-          '<span class="gfHint">…or drop a .json on the window</span>' +
+          '<span class="gfHint">import and export are on the ribbon' +
+            ' \u2014 or drop a .json on the window</span>' +
         '</div>' +
       '</div>';
     fleetEl.querySelector('.gfClose').addEventListener('click', closeFleet);
     // the scrim closes it too — backing out of a load door costs one click
     fleetEl.addEventListener('click', e => {
       if (e.target === fleetEl) closeFleet(); });
-    // EXPORT is a file, because a build you cannot hand to somebody else is
-    // not really saved. The name is the build's, so a folder of them reads
-    // as a fleet.
-    fleetEl.querySelector('#gExport').addEventListener('click', () => {
-      const name = slotName || 'flydiy-build';
-      const blob = new Blob([envelope(name, spec, plaque, log)],
-                            { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = name.replace(/[^\w.-]+/g, '_') + '.json';
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 0);
-    });
-    if (fileIn) fleetEl.querySelector('#gImport').addEventListener('click',
-      () => { fileIn.value = ''; fileIn.click(); });
+    // THE TWO JSON DOORS MOVED TO THE RIBBON (2026-09-03). They are VERBS,
+    // and this popup was declared the home of the NOUNS the day it was cut;
+    // filing them here put a verb inside a verb, two clicks deep, which is
+    // exactly the misfiling the ribbon exists to end.
     // a build dropped on the open rack lands the same as one dropped on the
     // ribbon — same two handlers, second surface
     fleetEl.addEventListener('dragover', e => { e.preventDefault(); });
@@ -1034,6 +1087,7 @@ function garageInit(api) {
   }
   const saveAs = name => {
     if (!name) return;
+    commit();                       // save what is ON THE STAND, not what flew
     if (!log.built) log.built = new Date().toISOString().slice(0, 10);
     // NAMING IT IS NAMING IT (G65). The shelf's name and the aeroplane's own
     // `meta.name` were two different strings for one thing, so the plaque
@@ -1050,6 +1104,23 @@ function garageInit(api) {
     writeWip();
     syncRibbon();
   };
+  // EXPORT is a file, because a build you cannot hand to somebody else is not
+  // really saved. It commits first for the same reason saving does, and more
+  // so: the whole point of handing somebody the file is that it is the
+  // aeroplane you are looking at. (The user, on finding it in the popup: "the
+  // export is really buried (under load), and it's not real clear what it
+  // exports.") It is a ribbon verb now; the popup keeps the NOUNS.
+  function exportFile() {
+    commit();
+    const name = slotName || 'flydiy-build';
+    const blob = new Blob([envelope(name, spec, plaque, log)],
+                          { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = name.replace(/[^\w.-]+/g, '_') + '.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
   // THE FRONT DOOR (NEW-AIRCRAFT §8.1) is a BUTTON on the ribbon — a verb
   // hiding in a load list is exactly the misfiling the ribbon exists to end.
   if ($('gNew')) $('gNew').addEventListener('click', () => {
@@ -1075,7 +1146,56 @@ function garageInit(api) {
   };
   if (fileIn)
     fileIn.addEventListener('change', () => readFile(fileIn.files && fileIn.files[0]));
-  // drop a build anywhere on the ribbon
+  // THE JSON DOORS, ON THE RIBBON beside the other four verbs
+  if ($('gExport')) $('gExport').addEventListener('click', exportFile);
+  if ($('gImport')) $('gImport').addEventListener('click',
+    () => { if (fileIn) { fileIn.value = ''; fileIn.click(); } });
+  // THE NAME IS THE MENU (2026-09-03, the user: "simply the plane's name on
+  // the top left, clicking on it gives all the ribbon options in a standard
+  // menu"). The six verbs above are untouched — same ids, same handlers; what
+  // changes is that they hang off the build's own name instead of standing on
+  // the screen as a segmented control. Standard menu manners: the name
+  // toggles it, choosing anything closes it, so does a click anywhere else
+  // and so does Escape.
+  //
+  // Guarded to the last line, like everything in this file: the gates boot it
+  // on DOM shims whose elements have no classList, no contains and whose
+  // document has no addEventListener.
+  const shelfEl = $('edShelf'), nameEl = $('fbName');
+  const menuOpen = on => {
+    if (!shelfEl) return;
+    shelfEl.hidden = !on;
+    if (nameEl && nameEl.classList) nameEl.classList.toggle('open', !!on);
+    if (nameEl && nameEl.setAttribute)
+      nameEl.setAttribute('aria-expanded', on ? 'true' : 'false');
+  };
+  if (nameEl && nameEl.addEventListener)
+    nameEl.addEventListener('click', e => {
+      if (e.stopPropagation) e.stopPropagation();
+      menuOpen(!!(shelfEl && shelfEl.hidden));
+    });
+  // CAPTURE, so the menu is gone before the verb it was chosen from runs:
+  // `save` and `save as` open a blocking prompt, and a menu still standing
+  // behind that dialog is a menu the choice was never taken from.
+  if (shelfEl && shelfEl.addEventListener)
+    shelfEl.addEventListener('click', e => {
+      if (e.target && e.target.tagName === 'BUTTON') menuOpen(false);
+    }, true);
+  if (document.addEventListener) {
+    document.addEventListener('click', e => {
+      if (!shelfEl || shelfEl.hidden) return;
+      const t = e.target;
+      if (t && nameEl && t === nameEl) return;
+      if (t && shelfEl.contains && shelfEl.contains(t)) return;
+      menuOpen(false);
+    });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') menuOpen(false);
+    });
+  }
+  menuOpen(false);
+
+  // drop a build anywhere on the name plate
   host.addEventListener('dragover', e => { e.preventDefault(); });
   host.addEventListener('drop', e => {
     e.preventDefault();
@@ -1095,7 +1215,10 @@ function garageInit(api) {
       // THE JOIN'S DOOR. Merges rather than replaces — see `merge` above.
       update: j => { spec = merge(spec, JSON.parse(JSON.stringify(j))); rebuild(); },
       resolved: () => api.resolved(),
-      json: () => envelope(slotName || 'build', spec, plaque, log),
+      // a PERSIST door like the other two: the fleet rack and the gates read
+      // it, and a stale answer here is the same lie in a smaller room
+      json: () => { commit();
+                    return envelope(slotName || 'build', spec, plaque, log); },
       list: slotNames,
       stock: () => STOCK.map(s => s.name),
       name: () => slotName,
@@ -1110,6 +1233,10 @@ function garageInit(api) {
       // flight row first), so the logbook redraws itself on both
       note: row => { log.tests.push(row); writeWip(); renderLog(); },
       save: saveAs,
+      // the editor's own doors into the shelf (2026-09-03): `touch` is the
+      // debounced autosave a slider fires, `commit` the immediate one every
+      // persist takes. See the note on `commit` above.
+      touch, commit, exportFile,
       load: n => { const t = lsGet(SLOT + n); if (!t) return;
                    const g = unwrap(t); loadSpec(g.spec, n, g.plaque, g.log); },
     };

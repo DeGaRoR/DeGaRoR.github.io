@@ -23,14 +23,43 @@
 //              part. The list is read off builds across the shape set (the
 //              GATE SKINMAT discipline), not copied from SEC, because the
 //              sections that exist depend on what you built.
-//   PLACEMENT  P8 §5's strip re-presents rows the part already owns. A `place`
-//              key that is not in the part's own groups would render a row
-//              twice, or render one that belongs to a different part.
+//   PLACEMENT  P8 §5's strip — the COMMON TRUNK since 2026-09-03 (fitted /
+//              type + count / position / size) — re-presents rows the part
+//              already owns. A `place` key that is not in the part's own
+//              groups would render a row twice, or render one that belongs to
+//              a different part; a slot the editor does not know would render
+//              nothing at all.
 //   SHAPE      parents resolve, no cycles, one root, keys unique, every `when`
 //              is callable against the real parameter set.
 //   EXISTENCE  every `when` actually discriminates on some buildable
 //              aeroplane. A `when` that is true for every shape in the set is
 //              not an existence rule, it is a mistake that hides nothing.
+//   NO DEAD END the whole panel, asked as one question: can a builder always
+//              get back? Every discriminator is flipped through its range from
+//              the default aeroplane and its own reachability re-tested,
+//              through BOTH gates a row passes — the row's `when` (its own and
+//              every group above it, expert on and off) AND the part table.
+//              Two traps, and the second was the one nobody had noticed:
+//                A  a door closed behind you — reachable, flipped, gone
+//                B  a switch out of reach from the DEFAULT aeroplane that
+//                   nothing reachable brings back. `taperOn` was this: the
+//                   taper part held its own switch and did not exist, so the
+//                   taper could never be turned on AT ALL. Worse than a
+//                   one-way door, and invisible for as long as nobody tried.
+//              A row merely out of sight is NOT a trap: `s2LegFair` is hidden
+//              because the third leg is a castor, and flipping `s2Leg` — which
+//              is reachable — brings it straight back.
+//   REACHABLE  ...and every switch that can hide a part is still on the panel
+//              once it has. This is the 2026-09-03 complaint as a rule: the
+//              fin was gated on `finOn`, `finOn` was one of the fin's own
+//              rows, and turning it off took the switch off the panel with the
+//              part — a one-way door that rode into the saved build. The gate
+//              DERIVES which parts are self-gated (probe each `when`, drop one
+//              key at a time) and requires each to declare that key as `gate`,
+//              claim it, and render it in a row that is still visible with the
+//              switch off. A `when` on somebody else's row is fine and needs
+//              nothing: `wingOn` is Design & construction's, and Design &
+//              construction never leaves the tree.
 //
 // NEGATIVE-VERIFIED (G3.2): --selftest breaks each rule in turn and requires
 // the corresponding check to fail. A check on an observable that cannot change
@@ -413,13 +442,25 @@ function checkPlacement(P) {
   for (const p of P.CAGE_PARTS) {
     if (!p.place) continue;
     const own = new Set(P.cagePartParams(p));
-    for (const slot of ['fore', 'up', 'len', 'wide']) {
-      const k = p.place[slot];
-      if (!k) continue;
-      ok = check(own.has(k),
-        'placement names a row the part does not own',
-        `${p.key}.${slot} = ${k}`) && ok;
+    // THE TRUNK'S SLOTS (2026-09-03): fitted / type + count / position /
+    // size. `type` and `count` may list several keys; every one must be the
+    // part's own, exactly as before.
+    const SLOTS = ['on', 'type', 'count', 'fore', 'out', 'up', 'len', 'wide',
+                   'high'];
+    for (const slot of SLOTS) {
+      const v = p.place[slot];
+      if (v == null) continue;
+      for (const k of (Array.isArray(v) ? v : [v]))
+        ok = check(own.has(k),
+          'placement names a row the part does not own',
+          `${p.key}.${slot} = ${k}`) && ok;
     }
+    // ...and nothing else: a slot the editor does not render is a row that
+    // quietly stays where it was
+    for (const slot of Object.keys(p.place))
+      ok = check(SLOTS.includes(slot) || slot === 'at',
+        'placement uses a slot the trunk does not render',
+        `${p.key}.${slot}`) && ok;
     ok = check(typeof p.place.at === 'string' && p.place.at.length > 0,
       'placement with no anchor named', p.key) && ok;
   }
@@ -463,7 +504,223 @@ function checkExistence(P) {
 checkExistence(PARTS);
 
 // ---------------------------------------------------------------------------
-// 6 THE WALK — what the inspector shows for the root is what the table holds
+// 6 REACHABLE — the switch that hides a part must survive hiding it
+// ---------------------------------------------------------------------------
+// The user, 2026-09-03: "when unselecting fitted, in this case on the fin, all
+// references to it disappear, and there's no way to get it back... they can
+// simply collapse to the checkbox, but they should remain available."
+//
+// Eight parts were gated on a switch THEY THEMSELVES OWNED, so `when` going
+// false took the switch off the panel along with everything else — and the
+// value rode out through cageToSpec into the build and the WIP autosave, which
+// is what turned an annoyance into a permanent loss. The editor now keeps such
+// a part in the tree collapsed to that one row; `gate` in the table is what it
+// reads to know which row that is.
+//
+// This derives the list rather than trusting it: probe each `when` for the
+// keys it reads, drop them one at a time, and any key that both HIDES the part
+// and is CLAIMED BY IT is a self-gate that must be declared. The declaration
+// is then checked the whole way through to a row the panel will actually show.
+// ---------------------------------------------------------------------------
+
+// the panel's rows with the group rules they sit under, walked exactly as
+// `panelKeys` walks (a nested [name, [items]] is a subgroup) but keeping the
+// options object each level carries — a row is hidden by its OWN `when` and by
+// every `when` on a group containing it, which is what _cage_ui's applyRowVis
+// and the editor's `inherited` map between them do.
+function panelRows(groups) {
+  const out = new Map();
+  const optsOf = it => {
+    const last = it[it.length - 1];
+    return (last && typeof last === 'object' && !Array.isArray(last))
+      ? last : null;
+  };
+  const walk = (items, whens) => {
+    for (const it of items) {
+      if (Array.isArray(it[1])) {
+        const o = optsOf(it);
+        walk(it[1], (o && o.when) ? whens.concat(o.when) : whens);
+        continue;
+      }
+      if (!out.has(it[0])) out.set(it[0], []);
+      out.get(it[0]).push({ opts: optsOf(it) || {}, whens });
+    }
+  };
+  for (const g of groups) {
+    const o = optsOf(g);
+    walk(g[1], (o && o.when) ? [o.when] : []);
+  }
+  return out;
+}
+const PANELROWS = panelRows(W.CAGE_PAGE.groupsOverride);
+// THE DEFAULT AEROPLANE, which is what a row's `when` is really asked against:
+// the template plus every layer's own declared defaults (_cage_page5.js is
+// "one default aeroplane, each page showing the parts it has loaded").
+const PLANE = Object.assign({}, G.CAGE_PARAMS, W.CAGE_PAGE.defaults);
+
+function checkReachable(P) {
+  let ok = true;
+  const probe = when => {
+    const touched = new Set();
+    const spy = new Proxy(Object.assign({}, G.CAGE_PARAMS), {
+      get: (t, k) => { if (typeof k === 'string') touched.add(k); return t[k]; },
+    });
+    try { when(spy); } catch (e) {}
+    return [...touched];
+  };
+  const ownerOf = k => {
+    for (const q of P.CAGE_PARTS)
+      if (P.cagePartParams(q).indexOf(k) >= 0) return q;
+    return null;
+  };
+  const alive = (q, S) => { if (!q.when) return true;
+                            try { return !!q.when(S); } catch (e) { return true; } };
+  for (const p of P.CAGE_PARTS) {
+    const keys = p.when ? probe(p.when) : [];
+    const on = Object.assign({}, G.CAGE_PARAMS);
+    for (const k of keys) on[k] = (+G.CAGE_PARAMS[k] || 1) || 1;
+    let onOk = false;
+    try { onOk = !!(p.when && p.when(on)); } catch (e) {}
+    // the self-gates: every key that hides this part AND belongs to it
+    const selfGates = [];
+    if (onOk) for (const k of keys) {
+      const off = Object.assign({}, on); off[k] = 0;
+      let hides = false;
+      try { hides = !p.when(off); } catch (e) {}
+      if (!hides) continue;
+      const owner = ownerOf(k);
+      ok = check(!!owner, 'a switch that hides a part is claimed by no part ' +
+        'at all, so nothing in the tree can undo it', `${p.key} <- ${k}`) && ok;
+      if (!owner) continue;
+      if (owner.key === p.key) { selfGates.push(k); continue; }
+      // somebody else's switch: that part has to still be there holding it
+      ok = check(alive(owner, off),
+        'the switch that hides a part is on a part the same switch hides — ' +
+        'turn it off and neither row is reachable',
+        `${p.key} <- ${k} on ${owner.key}`) && ok;
+    }
+    ok = check(selfGates.length === 0 || !!p.gate,
+      'a part gated on a row it owns, with no `gate` declared — switching it ' +
+      'off would take the switch off the panel with it',
+      `${p.key} <- ${selfGates.join(' ')}`) && ok;
+    if (!p.gate) continue;
+    // ...and the declaration checked the whole way to a visible row
+    ok = check(P.cagePartParams(p).indexOf(p.gate) >= 0,
+      'a part declares a `gate` it does not claim', `${p.key} -> ${p.gate}`) && ok;
+    ok = check(selfGates.indexOf(p.gate) >= 0,
+      'a `gate` that does not switch its own part off', `${p.key} -> ${p.gate}`)
+      && ok;
+    const rows = PANELROWS.get(p.gate) || [];
+    ok = check(rows.length > 0, 'a `gate` the panel renders no row for',
+      `${p.key} -> ${p.gate}`) && ok;
+    // the row must still be shown with the switch itself off — the state the
+    // player is actually in when they want it back
+    const S = Object.assign({}, PLANE, { [p.gate]: 0 });
+    const shown = rows.some(r => {
+      const w = (r.opts.when ? [r.opts.when] : []).concat(r.whens);
+      return w.every(f => { try { return !!f(S); } catch (e) { return true; } });
+    });
+    ok = check(shown,
+      'a `gate` whose own row is hidden once the switch is off — the way back ' +
+      'is not on the panel', `${p.key} -> ${p.gate}`) && ok;
+  }
+  return ok;
+}
+checkReachable(PARTS);
+
+// ---------------------------------------------------------------------------
+// 6b NO DEAD END — the panel as a whole, from the builder's chair
+// ---------------------------------------------------------------------------
+// The rule above is about the PART table alone. This one asks the question the
+// user actually asked ("did we fix everything regarding the fitment that got
+// stuff to fully disappear?") of the two gates together, because a row reaches
+// the builder only if BOTH let it through: its own `when` and every group
+// `when` above it, and the part that claims it being in the tree. Either alone
+// can be innocent while the pair is a trap.
+// ---------------------------------------------------------------------------
+function checkNoDeadEnds(P) {
+  let ok = true;
+  const ownerOf = k => {
+    for (const q of P.CAGE_PARTS)
+      if (P.cagePartParams(q).indexOf(k) >= 0) return q;
+    return null;
+  };
+  const isExpertRow = k => {
+    const o = ownerOf(k);
+    if (!o) return false;
+    for (const g of (o.groups || []))
+      if (g[2] === PARTS.EXPERT && g[1].indexOf(k) >= 0) return true;
+    return false;
+  };
+  const rowShown = (r, S, expert) => {
+    if (r.opts && r.opts.level === 'expert' && !expert) return false;
+    return (r.opts.when ? [r.opts.when] : []).concat(r.whens)
+      .every(f => { try { return !!f(S); } catch (e) { return true; } });
+  };
+  // CAN A BUILDER TOUCH THIS KEY, in this state, with expert rows on or off?
+  const reach = (k, S, expert) => {
+    const rows = PANELROWS.get(k) || [];
+    if (!rows.length) return false;
+    if (isExpertRow(k) && !expert) return false;
+    const part = ownerOf(k);
+    let partOk = true;
+    if (part && part.when) { try { partOk = !!part.when(S); } catch (e) {} }
+    // a part that is gone shows exactly one row: the switch that brings it back
+    if (!partOk && !(part && part.gate === k)) return false;
+    return rows.some(r => rowShown(r, S, expert));
+  };
+  // every key any `when` reads — the rows' and the parts' alike
+  const DISC = new Set();
+  const touch = fn => {
+    const t = new Set();
+    const spy = new Proxy(Object.assign({}, PLANE), {
+      get: (o, kk) => { if (typeof kk === 'string') t.add(kk); return o[kk]; } });
+    try { fn(spy); } catch (e) {}
+    return [...t];
+  };
+  for (const [, rows] of PANELROWS)
+    for (const r of rows)
+      for (const f of (r.opts && r.opts.when ? [r.opts.when] : []).concat(r.whens))
+        for (const k of touch(f)) DISC.add(k);
+  for (const q of P.CAGE_PARTS) if (q.when) for (const k of touch(q.when)) DISC.add(k);
+  ok = check(DISC.size > 20, 'too few discriminators to be a real sweep',
+             String(DISC.size)) && ok;
+
+  const doors = [], dead = [];
+  for (const expert of [false, true]) {
+    for (const S of DISC) {
+      if (reach(S, PLANE, expert)) {
+        for (let v = 0; v <= 3; v++) {
+          const St = Object.assign({}, PLANE); St[S] = v;
+          if (!reach(S, St, expert)) { doors.push(S + '=' + v); break; }
+        }
+      } else {
+        // TRAP B: can anything a builder CAN reach bring it back?
+        let rescued = false;
+        for (const J of DISC) {
+          if (J === S || rescued || !reach(J, PLANE, expert)) continue;
+          for (let v = 0; v <= 3 && !rescued; v++) {
+            const St = Object.assign({}, PLANE); St[J] = v;
+            if (reach(S, St, expert)) rescued = true;
+          }
+        }
+        if (!rescued) dead.push(S);
+      }
+    }
+  }
+  ok = check(doors.length === 0,
+    'a switch you can flip and then cannot reach again — the fin trap, in ' +
+    'whatever row it has moved to', [...new Set(doors)].join(' ')) && ok;
+  ok = check(dead.length === 0,
+    'a switch out of reach from the default aeroplane that nothing reachable ' +
+    'brings back — the feature cannot be turned on at all',
+    [...new Set(dead)].join(' ')) && ok;
+  return ok;
+}
+checkNoDeadEnds(PARTS);
+
+// ---------------------------------------------------------------------------
+// 7 THE WALK — what the inspector shows for the root is what the table holds
 // ---------------------------------------------------------------------------
 {
   const all = PARTS.cagePartsUnder('craft');
@@ -527,6 +784,27 @@ if (process.argv.includes('--selftest')) {
     ['a `when` that never discriminates', fn => { const P = clone();
       P.partByKey.taper.when = Q => +Q.taperOn >= 0;
       return fn(P, checkExistence); }],
+    // REACHABLE, broken three ways. This is the 2026-09-03 bug's own rule and
+    // the one most likely to be quietly re-introduced — a new layer arrives
+    // with an `xxOn` row filed under the part it switches, and nothing but
+    // this notices that the row goes down with the ship.
+    ['a self-gated part with no way back', fn => { const P = clone();
+      delete P.partByKey.fin.gate;
+      return fn(P, checkReachable); }],
+    ['a `gate` that is not the switch', fn => { const P = clone();
+      P.partByKey.fin.gate = 'finCutGap';
+      return fn(P, checkReachable); }],
+    ['a switch parked on a part it hides', fn => { const P = clone();
+      P.partByKey.design.groups[3][1] =
+        P.partByKey.design.groups[3][1].filter(k => k !== 'wingOn');
+      P.partByKey.struts.groups[0][1].push('wingOn');
+      return fn(P, checkReachable); }],
+    // THE WHOLE PANEL, both traps. Taking the gates away is the editor exactly
+    // as it was on 2026-09-03: seven switches you could flip and never reach
+    // again, and one (`taperOn`) that could not be reached in the first place.
+    ['the panel with every part gate removed', fn => { const P = clone();
+      for (const p of P.CAGE_PARTS) delete p.gate;
+      return fn(P, checkNoDeadEnds); }],
     // G108 WIDENED THE ASSEMBLY RULE from "must have children" to "must have
     // children OR rows of its own", because `Design & construction` is a
     // top-level row that heads nothing. A widened rule needs its own probe or

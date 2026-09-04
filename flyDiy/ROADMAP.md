@@ -185,9 +185,24 @@ or medium, and each one directly multiplies what you can build tonight.*
    which is why a Gipsy Major carries its induction on top. GATE ENGMESH gains
    three FIXTURES rather than three checks, so the whole battery runs on each;
    8/8 negative probes caught.
-   STILL OWED: more small INLINES (a Walter Mikron is the classic amateur one)
-   — G157 held them back only because they would have been drawn sideways, and
-   they would not be now.
+   **AND THE SMALL IN-LINES LANDED — G165, the last of this item.** A second
+   wall was behind the first: EVERY in-line was a two-stroke BY LAW, which was
+   reasonable while the only ones were a Rotax 277 and a 582 but excludes the
+   engines the range actually wants — a Walter Mikron, a Gipsy Major, a Renault
+   4Pei are all INVERTED FOUR-STROKE in-lines, the aeroplane G164 down aim
+   exists for. It is a DEFAULT now, so all thirty pre-existing engine fixtures
+   come out identical to the vertex. Four things had never been asked to fit
+   round an upright bank and each was found by putting a Mikron in the battery:
+   the plugs stood across the WORLD rather than across the cylinder, a single
+   bank induction runner has to come round the barrel (its bank stands at right
+   angles to its induction face, where a boxer does not), and an expansion
+   chamber turned out to be a TWO-STROKE exhaust rather than an in-line one.
+   **THE ROW IS NO LONGER A GUESS**: kM was UNVALIDATED because there was no
+   registry example, and there was none because of the law — fitted now on two
+   published engines, 1.06 -> 1.02, residuals -8% / +9% on mass and under 5% on
+   power, DECLARED and held by a check. The two props are genPropSynth output,
+   verified by reproducing the Jabiru row exactly first. 8/8 probes caught.
+   **PHASE 2 ITEM 2 IS DONE.**
 3. **Exhaust, properly** — **THE OUTLET LANDED as G155, 2026-09-02.** The
    routed pipes, the stacks, the radial ring and the per-bank collectors all
    already existed; what did not was any say over where the pipe ENDS. Five

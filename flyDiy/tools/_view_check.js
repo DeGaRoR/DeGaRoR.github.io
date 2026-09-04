@@ -46,9 +46,13 @@ const ok = (cond, label) => {
 // empty context with nothing to reach for. Sliced by bracket matching rather
 // than by regex: the icon paths are full of commas and braces.
 // ---------------------------------------------------------------------------
-function readRail(src) {
-  const at = src.indexOf('const RAIL = [');
-  if (at < 0) throw new Error('editor.js has no RAIL table');
+// ...and the QUICK table beside it (2026-09-03) by the same reader: its
+// entries carry arrow functions, which PARSE in an empty context as long as
+// nothing calls them — and nothing here does. Only the literal fields (`k`,
+// `row`, `state`, `why`) are read.
+function readTable(src, decl) {
+  const at = src.indexOf(decl);
+  if (at < 0) throw new Error('editor.js has no ' + decl.split(' ')[1] + ' table');
   const start = src.indexOf('[', at);
   let depth = 0, end = -1;
   for (let i = start; i < src.length; i++) {
@@ -56,13 +60,13 @@ function readRail(src) {
     if (c === '[') depth++;
     else if (c === ']') { depth--; if (!depth) { end = i + 1; break; } }
   }
-  if (end < 0) throw new Error('the RAIL table does not close');
+  if (end < 0) throw new Error(decl + ' does not close');
   return vm.runInNewContext('(' + src.slice(start, end) + ')');
 }
 
 const edSrc = fs.readFileSync(
   path.join(__dirname, '..', 'src', 'viewer', 'editor.js'), 'utf8');
-const RAIL = readRail(edSrc);
+const RAIL = readTable(edSrc, 'const RAIL = [');
 
 // WHICH FLYOUTS ARE ABOUT THE MESH. `night` is the light in the room and
 // `measure` is a readout; neither changes a vertex or a material the capture
@@ -148,6 +152,40 @@ const keep = Object.keys(VIEW_KEEP);
 }
 
 // ---------------------------------------------------------------------------
+// 4b. THE QUICK BAR IS A SHORTCUT, NEVER A NEW CONTROL (2026-09-03).
+//     editor.js grew a second surface that reaches display controls — the
+//     quick actions over the render — and this gate's whole premise is that
+//     the RAIL is what the player can reach. A button there that pressed
+//     something the rail does not offer would be a control with no capture
+//     decision, arriving by the exact route rule 1 exists to close.
+//
+//     So every QUICK entry either NAMES a rail row (and inherits that row's
+//     decision, because it presses the row's own element) or declares the
+//     `state` it drives with a reason — the same shape, and the same minimum,
+//     as a `hidden` row's.
+// ---------------------------------------------------------------------------
+const QUICK = readTable(edSrc, 'const QUICK = [');
+const railRows = [];
+for (const t of RAIL) for (const r of (t.rows || [])) railRows.push(r);
+const quickOrphans = () =>
+  QUICK.filter(q => q.row && railRows.indexOf(q.row) < 0);
+const quickMute = () => QUICK.filter(q => !q.row &&
+  (typeof q.state !== 'string' || typeof q.why !== 'string' ||
+   q.why.length < 20));
+{
+  ok(QUICK.length >= 1, 'the editor declares its quick actions');
+  const orphan = quickOrphans();
+  ok(orphan.length === 0,
+     'every quick action presses a row the rail also offers' +
+     (orphan.length ? ' (only on the bar: ' +
+      orphan.map(q => q.row).join(', ') + ')' : ''));
+  const undeclared = quickMute();
+  ok(undeclared.length === 0,
+     'and one that presses no row says what state it drives, and why' +
+     (undeclared.length ? ' (' + undeclared.map(q => q.k).join(', ') + ')' : ''));
+}
+
+// ---------------------------------------------------------------------------
 // 5. AN EXEMPTION SAYS WHY. A bare `true` in an exemption list is how a table
 //    stops being a decision and becomes a place to put things.
 // ---------------------------------------------------------------------------
@@ -220,7 +258,8 @@ if (SELFTEST) {
         (typeof r.hidden !== 'string' || r.hidden.length < 20)).map(r => r.row));
     const listed = p2.filter(r => shown.indexOf(r) >= 0);
     const caught = undecided.length || ghosts.length || bad.length ||
-                   mute.length || listed.length;
+                   mute.length || listed.length ||
+                   quickOrphans().length || quickMute().length;
     undo();
     fails = before;
     console.log((caught ? '  caught  ' : '  MISSED  ') + label);
@@ -258,6 +297,15 @@ if (SELFTEST) {
     const r = VIEW_STATE.find(x => x.hidden);
     const was = r.hidden; r.hidden = true;
     return () => { r.hidden = was; };
+  });
+  // ...and the two the quick bar brought (2026-09-03)
+  trial('a quick action that presses something the rail does not offer', () => {
+    QUICK.push({ k: 'ghost', row: 'holographic mode' });
+    return () => QUICK.pop();
+  });
+  trial('a quick action driving a state it does not declare', () => {
+    QUICK.push({ k: 'mystery' });
+    return () => QUICK.pop();
   });
   console.log(missed ? '  SELFTEST FAILED (' + missed + ' missed)'
                      : '  selftest: every rule discriminates');

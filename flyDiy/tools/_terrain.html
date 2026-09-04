@@ -12,8 +12,12 @@
   "what did eps 4 actually throw away, and where" has a picture instead of an
   opinion. Everything else on the rail is navigation.
 
+  Bakes live in bench/ (gitignored), never in media/ — that directory is the
+  shipped store and GATE MEDIA requires a manifest entry for every file in it.
+  terrain_bake.js refuses to write there.
+
   Serve from repo root (launch: flydiy-node) and open
-  /flyDiy/tools/_terrain.html?asset=media/geo/terrain/analytic_e4
+  /flyDiy/tools/_terrain.html?asset=bench/terrain/analytic_e4
 -->
 <meta charset="utf-8">
 <title>flyDiy — terrain bench</title>
@@ -69,7 +73,7 @@
 'use strict';
 const $ = id => document.getElementById(id);
 const P = new URLSearchParams(location.search);
-$('asset').value = P.get('asset') || 'media/geo/terrain/analytic_e4';
+$('asset').value = P.get('asset') || 'bench/terrain/analytic_e4';
 
 // ---- scene ---------------------------------------------------------------
 const cv = $('c');

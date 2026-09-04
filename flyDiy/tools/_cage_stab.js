@@ -69,9 +69,9 @@ const GROUP = ['8b · tail — stab & elevator', [
    ['as the aeroplane', 'composite', 'steel tube', 'plywood', 'aluminium'],
    { when: P => +P.stOn }],
   ['position', [
-    ['stX', 'root half-track', 0, 0.30, 0.005],
-    ['stY', 'h over boom keel', -0.20, 0.80, 0.005],
-    ['stZ', 'fore-aft',       -0.60, 0.60, 0.005],
+    ['stX', 'in / out (root half-track)', 0, 0.30, 0.005],
+    ['stY', 'up / down (over the keel)', -0.20, 0.80, 0.005],
+    ['stZ', 'fore / aft',       -0.60, 0.60, 0.005],
   ], 'open', { when: P => +P.stOn }],
   ['cut', [
     ['stCut',    'stab / elevator', 0, 2, 1,
@@ -87,21 +87,21 @@ const GROUP = ['8b · tail — stab & elevator', [
      { when: P => +P.stSolid }],
   ], 'open', { when: P => +P.stOn }],
   ['corners', [
-    ['stTipZ',  'tip fore-aft',     -0.60, 0.60, 0.005],
-    ['stTipY',  'tip outboard',     -0.80, 0.80, 0.005],
-    ['stAftZ',  'tip-aft fore-aft', -0.50, 0.30, 0.005],
-    ['stAftY',  'tip-aft outboard', -0.90, 0.60, 0.005],
-    ['stBaseZ', 'root-aft fore-aft', -0.50, 0.30, 0.005],
-    ['stBaseY', 'root-aft outboard', -0.15, 0.50, 0.005],
+    ['stTipZ',  'tip fore / aft (sweep)',     -0.60, 0.60, 0.005],
+    ['stTipY',  'span (tip in / out)',     -0.80, 0.80, 0.005],
+    ['stAftZ',  'tip-aft fore / aft', -0.50, 0.30, 0.005],
+    ['stAftY',  'tip-aft in / out', -0.90, 0.60, 0.005],
+    ['stBaseZ', 'root-aft fore / aft', -0.50, 0.30, 0.005],
+    ['stBaseY', 'root-aft in / out', -0.15, 0.50, 0.005],
   ], 'open', { when: P => +P.stOn }],
   ['rows & points', [
-    ['stRootFwd',   'root fwd point',   -1.20, 2.00, 0.005],
-    ['stMidY',      'mid row',          -0.80, 0.40, 0.005],
-    ['stUY',        'u row',            -0.40, 0.40, 0.005],
-    ['stLEZ',       'LE root fore-aft', -0.80, 0.30, 0.005],
-    ['stLEY',       'LE root shift',    -0.20, 0.40, 0.005],
-    ['stShoulderZ', 'shoulder fwd of tip', -0.10, 0.50, 0.005],
-    ['stShoulderY', 'shoulder over mid',   -0.10, 0.30, 0.005],
+    ['stRootFwd',   'root length (forward point)',   -1.20, 2.00, 0.005],
+    ['stMidY',      'mid row in / out',          -0.80, 0.40, 0.005],
+    ['stUY',        'u row in / out',            -0.40, 0.40, 0.005],
+    ['stLEZ',       'LE root fore / aft', -0.80, 0.30, 0.005],
+    ['stLEY',       'LE root in / out',    -0.20, 0.40, 0.005],
+    ['stShoulderZ', 'shoulder fore / aft (of the tip)', -0.10, 0.50, 0.005],
+    ['stShoulderY', 'shoulder in / out (over the mid row)',   -0.10, 0.30, 0.005],
     ['stTopY',      'tip pair bulge',   -0.30, 0.30, 0.005],
   ], { when: P => +P.stOn }],
   // positive root offset = the classic rudder-clearance notch: the
@@ -231,7 +231,13 @@ PAGE.post = ctx => {
   group.scale.setScalar(FS);
   scene.add(group);
 
-  window.CAGE_STAB = { spec: S, cage: m0, mesh: s, disp };
+  // THE LAY, published with the cage (2026-09-03). `cage` is in FIN space —
+  // the stab is the fin model laid flat (G23) — so a caller holding a named
+  // fin vertex cannot place it without the same `finToStab` opts this build
+  // used. The editor's hover pin is the caller; `side` is its own (both).
+  window.CAGE_STAB = { spec: S, cage: m0, mesh: s, disp,
+    lay: { rootX: P.stX || 0, stabY: yRef + (P.stY || 0),
+           sRef: rootLine, zOff: P.stZ || 0 } };
   if (stat) {
     let t = `  ·  stab: L${L} ${s.V.length} v x2`;
     if (cutMode) {

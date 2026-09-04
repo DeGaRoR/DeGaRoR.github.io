@@ -631,6 +631,62 @@ function genShakedown(def, opts) {
                       climbRate: rsh.climbRate, wingLoad: rsh.wingLoad };
     } catch (e) {}
   }
+  // THE CG ENVELOPE (2026-09-03). Every balance number above is quoted at
+  // WHATEVER LOADING IS DRAWN: `cabin.pilots` is the count of dummies the
+  // cage has switched on, `pax` the seats they fill, fuel as specified. A
+  // builder who leaves the second dummy on reads the two-up margin, and one
+  // who switches it off reads the solo margin — and neither is the number a
+  // real aeroplane is certified on, which is a RANGE. (The user, on finding
+  // both reference builds reading negative: "are we gathering the numbers
+  // with 2 passengers in? In what conditions are these tests and reference
+  // values done? Are we real clean there?" We were not.)
+  //
+  // So: the four corners a real weight-and-balance sheet has — solo and full
+  // cabin, at full fuel and at reserves — each the SAME airframe re-fed and
+  // re-loaded exactly as the reserve sheet above does it. The plaque reports
+  // the static margin at the WORST corner and calls the aft-most corner by
+  // name, so "stable" means stable however you load it, and a reference
+  // aeroplane's published CG range (the Cub's 17-36 % MAC) can finally be
+  // compared with something of the same kind. The as-drawn number stays on
+  // `staticMargin` for the fleet's gates and the design targets; the
+  // envelope rides beside it. Slim recursion again; `corners: false` skips it
+  // for readers that only want a mass (the design strip).
+  if (!(opts && opts.slim) && !(opts && opts.corners === false) && S && S.cabin) {
+    try {
+      const w0 = S.wings && S.wings[0];
+      const xLE = (w0 && typeof w0.xLE === 'number' && isFinite(w0.xLE)) ? w0.xLE : null;
+      const pct = x => (xLE == null || !(cBar > 0)) ? null : (x - xLE) / cBar;
+      const seats = Math.max(1, S.seats | 0);
+      const litresFull = (S.fuel && S.fuel.litres > 0) ? S.fuel.litres : 0;
+      const litresRes = litresFull > 10 ? Math.max(4, 0.15 * litresFull) : litresFull;
+      const corner = (label, occupants, L) => {
+        // the same door as the reserve sheet and the editor's slider
+        const cs = genSpecAtFuel(S, L);
+        cs.cabin.pilots = 1;
+        cs.cabin.pax = Math.max(0, occupants - 1);
+        const sh = genShakedown(buildGen(cs), { slim: true });
+        return { label, occupants, litres: L, mass: sh.mass, cgX: sh.cgX,
+                 npX: sh.npX, cgPct: pct(sh.cgX), npPct: pct(sh.npX),
+                 staticMargin: sh.staticMargin };
+      };
+      const corners = [
+        corner('solo \u00b7 full fuel',        1,     litresFull),
+        corner('solo \u00b7 reserves',         1,     litresRes),
+        corner('full cabin \u00b7 full fuel',  seats, litresFull),
+        corner('full cabin \u00b7 reserves',   seats, litresRes),
+      ];
+      let fwd = corners[0], aft = corners[0], worst = corners[0];
+      for (const c of corners) {
+        if (c.cgX < fwd.cgX) fwd = c;
+        if (c.cgX > aft.cgX) aft = c;
+        if (c.staticMargin < worst.staticMargin) worst = c;
+      }
+      out.envelope = { corners, fwd, aft, worst,
+                       staticMarginAft: worst.staticMargin,
+                       cgPct: pct(cg[0]), npPct: pct(cg[0] + npShift),
+                       occupantsDrawn: S.occupants, seats };
+    } catch (e) {}
+  }
   return out;
 }
 

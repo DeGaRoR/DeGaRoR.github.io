@@ -77,6 +77,31 @@ function checkReserve(o) {
   check(o.dryReserve === undefined,
     'reserve: no sheet when there is no fuel to burn');
 }
+function checkEnvelope(o) {
+  const E = o.envelope;
+  check(!!E && Array.isArray(E.corners) && E.corners.length === 4,
+    'envelope: the four loading corners exist');
+  if (!E || !Array.isArray(E.corners)) return;
+  const byLabel = l => E.corners.find(c => c.label === l) || {};
+  const soloF = byLabel('solo \u00b7 full fuel'), soloR = byLabel('solo \u00b7 reserves');
+  const fullF = byLabel('full cabin \u00b7 full fuel');
+  check(E.aft && Math.abs(E.aft.cgX - Math.max(...E.corners.map(c => c.cgX))) < 1e-9,
+    'envelope: the aft corner IS the aft-most (' +
+    (E.aft ? E.aft.label : '—') + ')');
+  check(typeof E.staticMarginAft === 'number' &&
+        E.staticMarginAft <= Math.min(...E.corners.map(c => c.staticMargin)) + 1e-9,
+    'envelope: the reported margin is the WORST corner\'s (' +
+    (E.staticMarginAft != null ? E.staticMarginAft.toFixed(3) : '—') + ')');
+  check(fullF.cgX > soloF.cgX + 0.01,
+    'envelope: filling the cabin moves the CG aft (' +
+    ((fullF.cgX - soloF.cgX) * 1000 || 0).toFixed(0) + ' mm)');
+  if (o.noseTank)
+    check(soloR.cgX > soloF.cgX + 0.002,
+      'envelope: burning a nose tank moves the CG aft (' +
+      ((soloR.cgX - soloF.cgX) * 1000 || 0).toFixed(0) + ' mm)');
+  check(E.staticMarginAft <= o.staticMargin + 1e-9,
+    'envelope: the as-drawn loading is never worse than the worst corner');
+}
 function checkTwin(o) {
   check(o.nEngines === 1,
     'twin: a second engine is clamped out until the mounts are real (' +
@@ -99,6 +124,14 @@ if (process.argv.includes('--selftest')) {
     ['reserve margin does not move', checkReserve,
      { reserve: { mass: 500, staticMargin: 0.2 }, mass: 540, staticMargin: 0.2,
        dryReserve: undefined }],
+    ['envelope names the wrong aft corner', checkEnvelope,
+     { envelope: { corners: [
+         { label: 'solo \u00b7 full fuel', cgX: 1.0, staticMargin: 0.20 },
+         { label: 'solo \u00b7 reserves', cgX: 1.1, staticMargin: 0.15 },
+         { label: 'full cabin \u00b7 full fuel', cgX: 1.2, staticMargin: 0.10 },
+         { label: 'full cabin \u00b7 reserves', cgX: 1.3, staticMargin: 0.05 }],
+       aft: { label: 'solo \u00b7 full fuel', cgX: 1.0 }, staticMarginAft: 0.20 },
+       staticMargin: 0.12, noseTank: true }],
     ['the twin slipped through', checkTwin, { nEngines: 2 }],
   ];
   let caught = 0;
@@ -193,6 +226,18 @@ console.log('-- the sheet at reserves (B5) --');
   const dry = genShakedown(buildGen({ fuel: { litres: 0 } }));
   checkReserve({ reserve: sh.reserve, mass: sh.mass,
                  staticMargin: sh.staticMargin, dryReserve: dry.reserve });
+}
+
+console.log('-- the CG envelope (2026-09-03) --');
+{
+  const sh = genShakedown(def);
+  checkEnvelope({ envelope: sh.envelope, staticMargin: sh.staticMargin,
+                  noseTank: def.spec.fuel && def.spec.fuel.tank === 'nose' });
+  if (sh.envelope)
+    for (const c of sh.envelope.corners)
+      console.log('   ' + c.label.padEnd(26) + ' cg ' +
+        (c.cgPct != null ? (c.cgPct * 100).toFixed(0) + '% MAC' : '—').padStart(8) +
+        '  margin ' + c.staticMargin.toFixed(3));
 }
 
 console.log('-- the twin guard (B8) --');
