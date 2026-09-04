@@ -497,14 +497,23 @@ const COWL_CLEAR = 0.06;          // 6% over the engine's own enclosing radius
 // 2026-09-04: the cap rose 1.15 -> 1.30 — an IO-360's heads (radius 0.48)
 // on an n23 firewall (0.40 half-width) need 1.28, and a cowl that bulges
 // past its firewall is what a real one does round a big boxer
-const COWL_TAPER_LO = 0.3, COWL_TAPER_HI = 1.30;   // the row's own range
+const COWL_TAPER_LO = 0.3, COWL_TAPER_HI = 1.15;   // the row's own range
 // 2026-09-04 (the user: "there seems to be little attention in your builds to
 // match the engine size with the cowl. They are quite systematically too
 // short, and not wide enough, leading to massive clipping"): the boxer, the
 // in-line and the electric keep their STYLE (the bench default — the earlier
 // ruling) but take the engine's SIZE: an empty style row means "size only".
+// WITHDRAWN (2026-09-04, the user: "forget that, I'll do it myself, you've
+// made ugly things here" — an inverse-taper nose): the boxer, the in-line and
+// the electric keep the bench default again; only the radial is styled and
+// sized. The user's own method, for the record: match ~80 % of the width by
+// changing the CABIN width (the dummies need it), keep a continuous nose
+// profile in line with the fuselage, possibly rising a tad, add a couple of
+// lobes for a boxer and tune them until the engine fits, then tune the cowl
+// length so the nose cone falls right, adjusting the engine's distance from
+// the firewall on the way.
 const COWL_BY_ARCH = {
-  flat: {}, inline: {}, electric: {},
+  flat: null, inline: null, electric: null,
   radial: {
     fitNose: 2,                        // sealed: firewall size, round section
     // ROUND, and level: no deck rise, no keel sweep, no waist
@@ -593,7 +602,7 @@ function cowlArchStarter(P) {
   try { spec = specOf(P); R = EG2.engResolve(spec); } catch (e) { return null; }
   const arch = spec && spec.arch;
   if (!arch) return null;
-  const sig = envSig(arch, R);
+  const sig = arch;                 // arch only (the size rule is withdrawn)
   if (lastArch === null) { lastArch = sig; return null; }
   if (sig === lastArch) return null;
   lastArch = sig;
@@ -607,18 +616,10 @@ window.CAGE_COWL_STARTER = cowlArchStarter;
 // chose, and the load rule (rightly) keeps the starter quiet — so every
 // archetype was born in a cowl drawn for the default engine. The birth flow
 // asks for one fit on the next build; a saved build never does.
-let fitNext = false;
-window.CAGE_COWL_FIT_NEXT = () => { fitNext = true; };
+// (the birth fit is withdrawn with the size rule; the door stays, inert)
+window.CAGE_COWL_FIT_NEXT = () => {};
 function cowlForEngine(P, face, stat) {
-  let hit = cowlArchStarter(P);
-  if (!hit && fitNext) {
-    const specOf = window.CAGE_ENG_SPEC, EG2 = window.ENG_GEN;
-    try {
-      const spec = specOf(P), R = EG2.engResolve(spec);
-      if (spec && spec.arch) hit = { arch: spec.arch, R };
-    } catch (e) {}
-  }
-  fitNext = false;
+  const hit = cowlArchStarter(P);
   if (!hit) return;
   const got = window.CAGE_COWL_FOR_ENGINE(hit.arch, hit.R.env, face);
   if (!got) return;

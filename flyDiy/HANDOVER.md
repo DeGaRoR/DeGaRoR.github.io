@@ -29329,3 +29329,46 @@ Measured on the Skymaster-alike: booms at ±1.25, z 1.09 → −2.23, y 0.67;
 stab seat 3 at the boom centre; both fins drawn. Light gates green: DESIGN,
 PARTS, JOIN (a twinBoom fixture: type, Sv = two fins, builds), FIN, SAVE,
 BUILD, UISMOKE.
+
+## G180 — THE BOOM'S TWO AXES, THE OPEN-FRAME LEGS (SESSION 4), AND THE
+## COWL AUTO-FIT WITHDRAWN (2026-09-04, the user)
+
+**Withdrawn.** G176 item 5's automatic cowl sizing — the user: "forget that,
+I'll do it myself, you've made ugly things here" (an inverse-taper nose).
+Back to the arch-only radial rule, the row's 1.15 cap, no birth fit (the
+`CAGE_COWL_FIT_NEXT` door stays, inert). The user's own method is written
+in `_cage_cowl.js` above COWL_BY_ARCH: match ~80 % of the width by widening
+the CABIN, keep a continuous nose profile in line with the fuselage, lobes
+for a boxer, then the cowl length and the engine's distance from the
+firewall. The seat/cabin widening (item 6) stays — confirmed.
+
+**Two axes, not three.** "Lofted or rod, and dual or single boom": `boomStyle`
+is back to 0 lofted / 1 rod (the construction), `boomTwin` 0/1 is the count.
+Twin booms of either construction leave the wing's trailing edge (the pod
+ends at the bulkhead either way — the rod's table, `S.rod.twin`); a rod boom
+is a bare tube in `boomTube`, a lofted one a skinned oval (1.5× taller than
+wide) in `body`. The design tile **Booms** (Single / Twin) is the writer;
+Fuselage style keeps its two. `CAGE_BOOMS.lofted` says which. A click on a
+boom selects the Boom part (`edBoomL/R` in HIT_NAME).
+
+**Session 4 — the legs on an open frame (spec §1.7).** The interior pass
+PUBLISHES ITS MEMBERS (`m.members` / `window.CAGE_MEMBERS`, cage units):
+every tube, beam and metal angle its primitives draw, as `{a, b, r}`. With
+the skin off, `openMount(st, sgn)` in _cage_gear.js hands the builders a
+frame provider over those members — the target is the flank point the
+fuselage contract WOULD have given at the family's own angle, the root is
+the nearest member's surface point toward it, `fore` the member's direction
+— flagged `pivot`, and `padOn` draws a LUG PAIR with a bolt (`pivotOn`) in
+place of the doubler plate. The low-wing rule still wins where it applies.
+GATE GEAR §11: a pivot mount draws lugs and no plate, keeps the root on the
+member, and beam/oleo axles do not move (the link's wheel angle reads its
+pivot height by law, as §7.3 already knows). And the gate now PRINTS the
+reds of the sections after its summary — §7-centre, §10 and §11 failed
+silently before.
+Measured on the Whittaker-alike: 26 members published; the mains' fitting
+(z 0.95) sits aft of the pod, so the legs root on the tightening truss's
+diagonals near the rod (±0.10, 0.00, 1.19) and span out to the wheels — the
+Quicksilver look; a fitting under the pod would take a keel longeron.
+
+**GATE ARCHETYPES: 19 flown, 19 green** (the Skymaster-alike and the
+P-38-alike complete their circuits).

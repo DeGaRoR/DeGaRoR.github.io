@@ -620,6 +620,7 @@ const totalT = built.reduce((s, L) =>
   s + Object.keys(L.g).reduce((t, n) => t + L.g[n].nt, 0), 0);
 console.log(`  ${built.length} leg families, ${BAGS.length} declared bags,` +
   ` ${totalT} triangles measured`);
+const printed = new Set(fail);
 for (const f of fail) console.log('  FAIL ' + f);
 // ---------------------------------------------------------------------------
 // 7 A CENTRE STATION ROOTS ON THE KEEL (2026-09-04)
@@ -680,5 +681,32 @@ for (const f of fail) console.log('  FAIL ' + f);
     'gearStations does not carry s1AxZ');
 }
 
+// ---------------------------------------------------------------------------
+// 11 THE OPEN FRAME: A PIVOT ON A MEMBER, NO PLATE (2026-09-04)
+// ---------------------------------------------------------------------------
+{
+  for (const [k, nm] of [[0, 'beam'], [1, 'link'], [2, 'oleo']]) {
+    const plainA = buildLeg(k).r.axle;
+    const mp = [0.9, 0.4, 0];
+    const flat = (zOff, dx) => ({
+      p: [mp[0] + (dx || 0), mp[1], mp[2] + (zOff || 0) + STATIONS[0].z],
+      n: [0, -1, 0], fore: [0, 0, 1], side: [-1, 0, 0] });
+    const piv = (zOff, dx) => flat(zOff, dx);
+    piv.pivot = true;
+    const A = buildLeg(k, { mount: flat }), B = buildLeg(k, { mount: piv });
+    const nt = L => (L.g.alloy ? L.g.alloy.nt : 0);
+    check(nt(B) > 0 && nt(B) < nt(A),
+      `${nm}: a pivot mount still draws a plate (alloy ${nt(B)} vs ${nt(A)} tris)`);
+    // (the LINK's wheel angle is measured from its pivot height by law — §7.3
+    // skips it for the same reason; beam and oleo must not move)
+    if (k !== 1) check(B.r.axle.every((v, i) => Math.abs(v - plainA[i]) < 1e-6),
+      `${nm}: the pivot mount MOVED THE WHEEL`);
+    check(!!B.r.root && Math.abs(B.r.root[1] - mp[1]) < 1e-6,
+      `${nm}: the pivot root left the member`);
+  }
+}
+
+// the sections after the summary (7-centre, 10, 11) print their own reds
+for (const f of fail) if (!printed.has(f)) console.log('  FAIL ' + f);
 console.log('GATE GEAR: ' + (fail.length ? 'FAIL' : 'PASS'));
 process.exit(fail.length ? 1 : 0);

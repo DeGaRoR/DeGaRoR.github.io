@@ -468,14 +468,19 @@ window.CAGE_PAGE = {
       // TWIN BOOMS (2026-09-04, TWIN-BOOM spec §1.3): the pod ends at the
       // bulkhead as on a rod, two tapering tubes leave the wing's trailing
       // edge at ±boomX and carry a fin each, the stab between them
-      ['boomStyle', 'boom style',      0, 2, 1, ['lofted skin',
-                                                 'rod (tube)', 'twin booms']],
+      // TWO AXES (2026-09-04, the user: "lofted or rod, and dual or single
+      // boom"): the construction and the count. Twin booms of either
+      // construction leave the wing's trailing edge; the pod ends at the
+      // bulkhead either way (the rod's table).
+      ['boomStyle', 'boom style',      0, 1, 1, ['lofted skin',
+                                                 'rod (tube)']],
+      ['boomTwin',  'twin booms',      0, 1, 1],
       ['boomX',     'boom half-track', 0.6, 3.0, 0.01,
-       { when: P => +P.boomStyle === 2, dim: 'len' }],
+       { when: P => +P.boomTwin, dim: 'len' }],
       ['boomD',     'boom diameter',   0.08, 0.40, 0.005,
-       { when: P => +P.boomStyle === 2, dim: 'len' }],
+       { when: P => +P.boomTwin, dim: 'len' }],
       ['boomTaper', 'boom taper',      0.5, 1.0, 0.01,
-       { when: P => +P.boomStyle === 2 }],
+       { when: P => +P.boomTwin }],
       ['taperOn',   'taper section',   0, 1, 1],
       // the `when` rules below are MEASURED, not assumed (P1 probe,
       // 2026-08-26): each hidden row was varied through the full display
@@ -501,9 +506,9 @@ window.CAGE_PAGE = {
       ['aeroAftTip', 'aero aft tip (dome → teardrop)', 0, 1, 0.01,
        { when: P => +P.boomStyle === 1 && +P.aeroAftOn }],
       ['rodY',      'rod height',     -0.9, 0.9, 0.005,
-       { when: P => +P.boomStyle === 1, dim: 'len' }],
+       { when: P => +P.boomStyle === 1 && !+P.boomTwin, dim: 'len' }],
       ['rodD',      'rod diameter',    0.04, 0.32, 0.002,
-       { when: P => +P.boomStyle === 1, dim: 'len' }],
+       { when: P => +P.boomStyle === 1 && !+P.boomTwin, dim: 'len' }],
       ['boomLen',   'length',          1.0, 6.0, 0.01, { dim: 'len' }],
       ['aftRoofY',  'aft roof height', 0.20, 1.20, 0.005,
        { when: P => !(+P.boomStyle && +P.taperOn), dim: 'len' }],

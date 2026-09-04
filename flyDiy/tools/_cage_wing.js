@@ -1310,7 +1310,7 @@ PAGE.post = ctx => {
   if (boomGroup) { boomGroup.traverse(o => { if (o.geometry) o.geometry.dispose(); });
                    if (boomGroup.parent) boomGroup.parent.remove(boomGroup); boomGroup = null; }
   window.CAGE_BOOMS = null;
-  if (Math.round(P.boomStyle) === 2 && teAt) {
+  if (+P.boomTwin && teAt) {
     const x = Math.max(0.3, +P.boomX || 1.2);
     const te = teAt(x) || teAt(-x);
     if (te) {
@@ -1321,24 +1321,30 @@ PAGE.post = ctx => {
       const zRoot = te.z + 0.35 * (te.yTop - te.yBot) + r0, zTip = te.z - len;
       boomGroup = new THREE.Group();
       boomGroup.name = 'cageLayer:wing';
+      // the CONSTRUCTION axis: a rod boom is a bare tube (boomTube), a lofted
+      // one a skinned oval (body), 1.5 x taller than wide, tapering the same
+      const rodB = Math.round(P.boomStyle) === 1;
       let bm = null;
       try {
         if (window.CAGE_SECMAT)
-          bm = window.CAGE_SECMAT('boomTube', { surf: 0, fieldM: 1 });
+          bm = window.CAGE_SECMAT(rodB ? 'boomTube' : 'body', { surf: 0, fieldM: 1 });
       } catch (e) {}
-      if (!bm) bm = new THREE.MeshStandardMaterial({ color: 0x9aa0a6, metalness: 0.6, roughness: 0.45 });
+      if (!bm) bm = new THREE.MeshStandardMaterial({ color: rodB ? 0x9aa0a6 : 0xd9d4c6,
+                                                     metalness: rodB ? 0.6 : 0.1, roughness: 0.45 });
       for (const s of [1, -1]) {
         const g = new THREE.CylinderGeometry(r1, r0, zRoot - zTip, 28, 1, false);
         g.rotateX(-Math.PI / 2);                 // the cylinder's axis onto -z
+        if (!rodB) g.scale(1, 1.5, 1);           // the lofted oval
         const m = new THREE.Mesh(g, bm);
         m.position.set(s * x, y0, 0.5 * (zRoot + zTip));
         m.name = 'edBoom' + (s > 0 ? 'R' : 'L');
         boomGroup.add(m);
       }
       scene.add(boomGroup);
+      const kv = rodB ? 1 : 1.5;                 // the lofted oval's height
       const rAt = z => r0 + (r1 - r0) * Math.max(0, Math.min(1, (zRoot - z) / (zRoot - zTip)));
-      window.CAGE_BOOMS = { x, r0, r1, zRoot, zTip, y: y0, len,
-                            yTop: z => y0 + rAt(z), yBot: z => y0 - rAt(z), rAt };
+      window.CAGE_BOOMS = { x, r0, r1, zRoot, zTip, y: y0, len, lofted: !rodB,
+                            yTop: z => y0 + kv * rAt(z), yBot: z => y0 - kv * rAt(z), rAt };
     }
   }
   if (stat) {

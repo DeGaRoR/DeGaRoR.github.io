@@ -88,6 +88,7 @@ const DESIGN_PART = {
   seatType: ['seats', 'fit', 'cockpit'],
   intCons: ['structure', 'fuselage'],
   boomStyle: ['boom', 'tailcone', 'taper', 'fuselage'],
+  booms: ['boom', 'tailcone', 'taper', 'fuselage', 'tail'],
   covering: ['structure', 'fuselage'],
   section: ['fuselage', 'cabin', 'nose'],
   wgPos: ['wings', 'wingPanel'], wgBrace: ['wings', 'struts'],
@@ -472,8 +473,6 @@ function bakeBirth(sel, over) { return D().designBake(sel, over); }
 function birthApply(arch) {
   try {
     const spec = bakeBirth(arch.sel, arch.over);
-    // the cowl fits the chosen engine on the birth's first build
-    if (window.CAGE_COWL_FIT_NEXT) window.CAGE_COWL_FIT_NEXT();
     GS().set(spec);
     closeBirth();
   } catch (e) {
@@ -515,7 +514,6 @@ function renderBirth() {
     c.querySelector('span').textContent =
       'choose every macro yourself — the design tiles, beside the aeroplane';
     c.addEventListener('click', () => {
-      if (window.CAGE_COWL_FIT_NEXT) window.CAGE_COWL_FIT_NEXT();
       try { GS().set(bakeBirth({})); } catch (e) { console.error('custom:', e); }
       closeBirth();
       if (window.EDITOR_SET_VIEW) window.EDITOR_SET_VIEW('design');

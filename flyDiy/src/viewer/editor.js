@@ -1952,6 +1952,7 @@ function editorInit(api) {
     [/^edFit_pitot/, 'wingPanel'],
     [/^edSurf_ail/, 'wingCtl'],
     [/^edSurf_rud/, 'fin'],
+    [/^edBoom/, 'boom'],                 // the twin booms (2026-09-04)
     [/^edSurf_elev/, 'stab'],
     // the crew layer NAMES ITS FURNITURE now (G113 closed the gap this
     // comment used to declare): seats, control stations and the console

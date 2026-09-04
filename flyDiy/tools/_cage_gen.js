@@ -2815,6 +2815,11 @@ function cageInterior(m, S) {
   if (!I || !I.on) return m;
   const { V, F } = m;
   const add = [];
+  // THE MEMBERS, PUBLISHED (2026-09-04, TWIN-BOOM spec §1.7): every truss
+  // member this pass draws — longerons, diagonals, the rod truss — as a
+  // segment {a, b, r} in cage units, so the gear can root a leg ON THE
+  // STRUCTURE when there is no skin to root on
+  const MEMB = [];
   // CONSTRUCTION (G13 idioms, user brief): the material idiom IS the
   // internal structure. 'carbon' = the thickened-skin liner over the
   // pillar bands; 'tube' = a welded truss off the CONTROL cage; 'wood'
@@ -3203,6 +3208,7 @@ function cageInterior(m, S) {
       q2(cb[0], cb[1], cb[2], cb[3]);
     };
     const metalAngle = (A, B, w, axisPt) => {
+      MEMB.push({ a: A.slice(0, 3), b: B.slice(0, 3), r: w / 2 });
       if (typeof globalThis !== 'undefined' && globalThis.CAGE_DBG)
         globalThis.CAGE_DBG.push({ k: 'metalAngle', A: A.slice(),
           B: B.slice(), w, at: (new Error().stack.split('\n')[2] || '').trim() });
@@ -3278,6 +3284,7 @@ function cageInterior(m, S) {
     const nrm3 = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1;
       return [v[0]/l, v[1]/l, v[2]/l]; };
     const beam = (A, B, w, h, mat) => {
+      MEMB.push({ a: A.slice(0, 3), b: B.slice(0, 3), r: Math.max(w, h) / 2 });
       const dn = nrm3([B[0]-A[0], B[1]-A[1], B[2]-A[2]]);
       let sd = [dn[2], 0, -dn[0]];
       const sl = Math.hypot(sd[0], sd[1], sd[2]);
@@ -3398,6 +3405,7 @@ function cageInterior(m, S) {
     // sized down a tad (user: the tubing poked the skin here and there)
     const TUBE_R = 0.010, TUBE_RP = 0.018;
     const tubeSeg = (A, B, r) => {
+      MEMB.push({ a: A.slice(0, 3), b: B.slice(0, 3), r });
       if (typeof globalThis !== 'undefined' && globalThis.CAGE_DBG)
         globalThis.CAGE_DBG.push({ k: 'tubeSeg', A: A.slice(),
           B: B.slice(), r, at: (new Error().stack.split('\n')[2] || '').trim() });
@@ -5549,6 +5557,8 @@ function cageInterior(m, S) {
     return cz < zPax0;
   });
   m.F = FK.concat(add);
+  m.members = MEMB;
+  if (typeof window !== 'undefined') window.CAGE_MEMBERS = MEMB;
   return m;
 }
 
@@ -6136,7 +6146,7 @@ const CAGE_PARAMS = {
   taperOn: 0, taperLen: 0.6, taperW: 1, taperPanels: 0,
   boomStyle: 0, rodY: 0, rodD: 0.12,
   // twin booms (2026-09-04): drawn by the wing layer off the trailing edge
-  boomX: 1.2, boomD: 0.16, boomTaper: 0.7,
+  boomTwin: 0, boomX: 1.2, boomD: 0.16, boomTaper: 0.7,
   // the aero aft (2026-09-04, cut 1): the cowl layer lofts it on the aft face
   aeroAftOn: 0, aeroAftLen: 0.9, aeroAftDroop: 0, aeroAftTip: 0.5,
   // bubble crest (G15, superseded by canopy below — kept as a dev param):
@@ -6502,9 +6512,9 @@ function cageSpec(P) {
     : 0;
   // boomStyle 2 (twin booms) is the ROD's table — the pod ends at the
   // bulkhead — with no tube of its own: the wing layer draws the two booms
-  S.rod = P.boomStyle
+  S.rod = (P.boomStyle || +P.boomTwin)
     ? { r: Math.max(0.015, (P.rodD || 0.12) / 2), y: P.rodY || 0,
-        twin: Math.round(P.boomStyle) === 2 ? 1 : 0 }
+        twin: +P.boomTwin ? 1 : 0 }
     : 0;
 
   const aLean = { keel: T.aft.keelYA - T.aft.keelYB,

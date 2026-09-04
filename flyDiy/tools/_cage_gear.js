@@ -251,6 +251,59 @@ PAGE.post = ctx => {
   const WUA = (typeof window !== 'undefined' && window.CAGE_WING &&
                window.CAGE_WING.underAt) || null;
   let onWing = 0;
+  // THE OPEN-FRAME MOUNT: a frame provider (zOff, dx) -> {p, n, fore, side}
+  // like the wing's, over the interior pass's published members (cage units
+  // -> metres). The target is the point the fuselage contract WOULD have
+  // given (the flank at the family's own angle); the nearest member's
+  // surface point toward it is the root, the member's direction is `fore`,
+  // and `pivot` tells the builders to draw lugs, not a plate.
+  const openMount = (st, sgn) => {
+    if (P.skinOn == null || +P.skinOn) return null;
+    const MB = window.CAGE_MEMBERS;
+    if (!MB || !MB.length) return null;
+    const cen = st.x <= 0.01;
+    const angDeg = cen ? 0
+      : st.leg === 0 ? +st.P.beamAng : st.leg === 1 ? +st.P.linkAng
+      : st.leg === 2 ? +st.P.oleoAng : 0;
+    const ang = sgn * (angDeg || 0) * Math.PI / 180;
+    const V3 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t,
+                             a[2] + (b[2] - a[2]) * t];
+    const nearest = tgt => {
+      let best = null;
+      for (const mb of MB) {
+        const a = [mb.a[0] * FS, mb.a[1] * FS, mb.a[2] * FS];
+        const b = [mb.b[0] * FS, mb.b[1] * FS, mb.b[2] * FS];
+        const d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+        const L2 = d[0] * d[0] + d[1] * d[1] + d[2] * d[2];
+        if (L2 < 1e-8) continue;
+        const t = Math.max(0, Math.min(1,
+          ((tgt[0] - a[0]) * d[0] + (tgt[1] - a[1]) * d[1] + (tgt[2] - a[2]) * d[2]) / L2));
+        const q = V3(a, b, t);
+        const dist = Math.hypot(tgt[0] - q[0], tgt[1] - q[1], tgt[2] - q[2]);
+        if (!best || dist < best.dist) best = { dist, q, d, r: mb.r * FS };
+      }
+      return best;
+    };
+    const provider = (zOff, dx) => {
+      const z = st.z + (zOff || 0);
+      const tgt = AF.surf(z, ang);
+      if (dx) tgt[0] += dx;
+      const nb = nearest(tgt);
+      if (!nb) return { p: tgt, n: [0, -1, 0], fore: [0, 0, 1], side: [1, 0, 0] };
+      let n = [tgt[0] - nb.q[0], tgt[1] - nb.q[1], tgt[2] - nb.q[2]];
+      const nl = Math.hypot(n[0], n[1], n[2]);
+      n = nl > 1e-6 ? [n[0] / nl, n[1] / nl, n[2] / nl] : [0, -1, 0];
+      const dl = Math.hypot(nb.d[0], nb.d[1], nb.d[2]) || 1;
+      let fore = [nb.d[0] / dl, nb.d[1] / dl, nb.d[2] / dl];
+      if (fore[2] < 0) fore = [-fore[0], -fore[1], -fore[2]];
+      const p = [nb.q[0] + n[0] * nb.r, nb.q[1] + n[1] * nb.r, nb.q[2] + n[2] * nb.r];
+      const side = [n[1] * fore[2] - n[2] * fore[1], n[2] * fore[0] - n[0] * fore[2],
+                    n[0] * fore[1] - n[1] * fore[0]];
+      return { p, n, fore, side };
+    };
+    provider.pivot = true;
+    return provider;
+  };
   const wingMount = (st, sgn) => {
     if (!WUA || st.x <= 0.01 || st.leg === 3) return null;
     // the WHEEL may sit a little ahead of the leading edge (a low-wing's
@@ -304,7 +357,14 @@ PAGE.post = ctx => {
       const fOpt = { full: st.fair === 2, skirt: st.fairSkirt,
                      tail: st.fairTail, rake: st.fairRake, width: st.fairW };
       const m = wingMount(st, sgn);
-      if (m) { st.mount = m; onWing++; } else delete st.mount;
+      // THE OPEN FRAME (2026-09-04, spec §1.7): with no skin the fuselage
+      // contract is a surface that is not there — the leg roots on the
+      // nearest truss member instead, with a pivot (see openMount); the
+      // low-wing rule still wins where it applies
+      const om = m ? null : openMount(st, sgn);
+      if (m) { st.mount = m; onWing++; }
+      else if (om) st.mount = om;
+      else delete st.mount;
       if (st.leg === 3) {
         // legTailwheel builds spring AND wheel into one bag-set; the
         // proxies route the spinning parts to the wheel unit, the fork

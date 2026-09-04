@@ -725,8 +725,20 @@ function fitOn(AF, st, z, ang, dx) {
 // ...and the doubler pad follows: on the fuselage it drapes the skin
 // (fitPad); on a mount frame it is a flat plate on that surface.
 function padOn(bags, AF, st, z, ang, L, W, opt, dx) {
-  if (st && st.mount) padFlat(bags, st.mount(z - st.z, dx), L, W, opt);
+  if (st && st.mount && st.mount.pivot) pivotOn(bags, st.mount(z - st.z, dx));
+  else if (st && st.mount) padFlat(bags, st.mount(z - st.z, dx), L, W, opt);
   else fitPad(bags, AF, z, ang, L, W, opt);
+}
+// THE PIVOT (2026-09-04, TWIN-BOOM spec §1.7; the user: "when there's only
+// the structure, they should aim straight for the structural elements with
+// their pivot point, and drop the metal plate entirely"): a lug pair astride
+// the member with a bolt through — no doubler, nothing spreading a load into
+// a skin that is not there. The frame's `fore` is the MEMBER's direction.
+function pivotOn(bags, Fr) {
+  const ax = nrm(Fr.fore);
+  for (const s of [-1, 1])
+    lug(bags.alloy, off(Fr.p, ax, s * 0.016), ax, Fr.n, 0.013, 0.006, 0.040);
+  bolt(bags.alloy, off(Fr.p, ax, -0.030), ax, 0.006, 0.060);
 }
 // the flat doubler: same rounded-corner plate and bolt pattern as fitPad,
 // but on a plane — a wing underside is locally flat at pad scale.

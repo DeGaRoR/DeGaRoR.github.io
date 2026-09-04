@@ -21,8 +21,8 @@ const COWL_ROWS = [
     { k: 'aftH', label: 'Half-height at firewall', lo: 0.15, hi: 0.9, step: 0.005 },
     // hi 1.15 -> 1.30 (2026-09-04): a big boxer's heads need a cowl that
     // bulges past its firewall — see COWL_TAPER_HI in _cage_cowl.js
-    { k: 'taperW', label: 'Width taper', lo: 0.3, hi: 1.30, step: 0.01 },
-    { k: 'taperH', label: 'Height taper', lo: 0.3, hi: 1.30, step: 0.01 },
+    { k: 'taperW', label: 'Width taper', lo: 0.3, hi: 1.15, step: 0.01 },
+    { k: 'taperH', label: 'Height taper', lo: 0.3, hi: 1.15, step: 0.01 },
     // Lid
     { k: 'lidRise', label: 'Vertical offset', lo: -0.22, hi: 0.22, step: 0.002 },
     { k: 'faceRise', label: 'Face lift at end', lo: -0.12, hi: 0.12, step: 0.002 },

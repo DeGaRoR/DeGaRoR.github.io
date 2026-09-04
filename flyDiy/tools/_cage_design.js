@@ -744,11 +744,21 @@ const DESIGN_ROWS = [
       { value: 1, label: 'Rod & pod', icon: ICON.boomRod,
         note: 'an always-bare tube carries the tail; the taper section comes on with it',
         writes: { cage: { boomStyle: 1, taperOn: 1 } } },
-      // 2026-09-04 (TWIN-BOOM spec §1.1/1.3): the pod ends at the bulkhead,
-      // two booms off the wing carry a fin each, the stab between them
-      { value: 2, label: 'Twin booms', icon: ICON.boomTwin,
+    ] },
+
+  // THE COUNT (2026-09-04, the user: "lofted or rod, and dual or single
+  // boom"): single, or two booms of the chosen construction off the wing,
+  // a fin each, the stab between them
+  { key: 'booms', label: 'Booms', kind: 'discriminator',
+    group: 'structure', status: 'live',
+    help: 'two booms leave the wing; the pod ends at the bulkhead',
+    read: P => +P.boomTwin ? 'twin' : 'single',
+    options: [
+      { value: 'single', label: 'Single', icon: ICON.boomLoft,
+        writes: { cage: { boomTwin: 0, stMount: 0, stX: 0.05 } } },
+      { value: 'twin', label: 'Twin booms', icon: ICON.boomTwin,
         note: 'two booms off the wing, a fin each, the stab between them',
-        writes: { cage: { boomStyle: 2, taperOn: 1, stMount: 3, stX: 0,
+        writes: { cage: { boomTwin: 1, taperOn: 1, stMount: 3, stX: 0,
                           stCant: 0, finOn: 1 } } },
     ] },
 
@@ -984,8 +994,8 @@ const DESIGN_ROWS = [
       { value: 'conv', label: 'Conventional',
         icon: iconSide({ canopy: 'none', gear: 'none', tail: 'conv' }),
         writes: { cage: { stY: 0.408, stCant: 0, finOn: 1,
-                          stMount: P => Math.round(P.boomStyle) === 2 ? 3 : 0,
-                          stX: P => Math.round(P.boomStyle) === 2 ? 0 : 0.05 } } },
+                          stMount: P => +P.boomTwin ? 3 : 0,
+                          stX: P => +P.boomTwin ? 0 : 0.05 } } },
       { value: 't', label: 'T-tail',
         icon: iconSide({ canopy: 'none', gear: 'none', tail: 't' }),
         note: 'the stab rides the fin tip',
@@ -1363,7 +1373,8 @@ const ARCHETYPES = [
   { key: 'skymaster', kind: 'recreation', name: 'Skymaster-alike', note: 'twin ' +
       'booms off a high wing, four seats, nose engine (the rear pusher is owed)',
     sel: { class: 'n23', role: 'touring', seatLayout: 1, paxCount: 3,
-           canopy: 'screen', mirror: 0, intCons: 3, boomStyle: 2, section: 3,
+           canopy: 'screen', mirror: 0, intCons: 3, boomStyle: 0, booms: 'twin',
+           section: 3,
            wgPos: 0, wgBrace: 1, wgTip: 1, wgFlapType: 1,
            engFamily: 'flat', engModel: 'lycoming IO-360', engMount: 'nose',
            gearLayout: 'trike', suspension: 'oleo', s1Fair: 0,
@@ -1375,7 +1386,8 @@ const ARCHETYPES = [
   { key: 'p38', kind: 'recreation', name: 'P-38-alike', note: 'a puller a boom, ' +
       'mid wing, one seat under a bubble, twin booms and fins',
     sel: { class: 'eab', role: 'aerobatic', seatLayout: 0, paxCount: 0,
-           canopy: 'full', mirror: 0, intCons: 3, boomStyle: 2, section: 3,
+           canopy: 'full', mirror: 0, intCons: 3, boomStyle: 1, booms: 'twin',
+           section: 3,
            wgPos: 1, wgBrace: 1, wgTip: 2, wgFlapType: 1,
            engFamily: 'flat', engModel: 'rotax 912 (flat)', engMount: 'nose',
            engCount: 2, engAim: 'puller', gearLayout: 'trike',

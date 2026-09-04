@@ -373,17 +373,11 @@ ok('  ...and reports that it already fits', big.fits);
     const bigFace = { halfW: 0.62, halfH: 0.62 };
     const smallFace = { halfW: 0.30, halfH: 0.28 };
 
-    // 2026-09-04: a boxer keeps its STYLE and takes the engine's SIZE (the
-    // user: "systematically too short, and not wide enough")
-    const fb = FOR('flat', flat.env, bigFace);
-    ok('a boxer gets the engine\'s size and nothing of the radial\'s style',
-       !!fb && fb.vals.cw_cowlLen > 0 && fb.vals.cw_taperW > 0 &&
-       fb.vals.fitNose === undefined && fb.vals.cw_apMode === undefined &&
-       fb.vals.cw_lidLen === undefined);
-    ok('...its barrel runs the engine\'s own length (+10 %)',
-       !!fb && Math.abs(fb.vals.cw_cowlLen - Math.min(2, flat.env.length * 1.10)) < 2e-3);
+    ok("a boxer keeps the bench default (the user's own ruling, restated 2026-09-04)",
+       FOR('flat', flat.env, bigFace) === null);
     ok('...and so do inline and electric',
-       !!FOR('inline', flat.env, bigFace) && !!FOR('electric', flat.env, bigFace));
+       FOR('inline', flat.env, bigFace) === null &&
+       FOR('electric', flat.env, bigFace) === null);
 
     const r = FOR('radial', radial.env, bigFace);
     ok('a radial gets a cowl', !!r);
@@ -448,7 +442,7 @@ ok('  ...and reports that it already fits', big.fits);
        !!tight && typeof tight.note === 'string' && tight.note.length > 0,
        tight && tight.note ? tight.note : '(no note)');
     ok("...and the taper still stops at the row's own limit",
-       !!tight && tight.vals.cw_taperW <= 1.30 + 1e-9,   // the row's hi (1.30 since 2026-09-04)
+       !!tight && tight.vals.cw_taperW <= 1.15 + 1e-9,
        tight ? String(tight.vals.cw_taperW) : '');
   }
 }
