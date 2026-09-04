@@ -351,6 +351,20 @@ try {
   ok(false, 'mount join threw: ' + e.message);
 }
 
+// THE GLAZING IS JOINED (2026-09-04): glazeOn 0 -> cabin.glazing 'none' and
+// a lighter frame (no glass); absent = glass, a nonsense value clamps
+try {
+  ok(s.cabin.glazing === undefined, 'default glazing writes nothing');
+  const sG = cageJoinSpec(Object.assign({}, P, { glazeOn: 0 }), M, T);
+  ok(sG.cabin.glazing === 'none', 'glazeOn 0 -> cabin.glazing none');
+  const dG = C.buildGen(JSON.parse(JSON.stringify(sG)));
+  const dS0 = C.buildGen(JSON.parse(JSON.stringify(s)));
+  const mG = dG.nodes.reduce((t, n) => t + n.m, 0), mS0 = dS0.nodes.reduce((t, n) => t + n.m, 0);
+  ok(mG < mS0 - 1, 'an open cockpit is lighter (' + mS0.toFixed(1) + ' -> ' + mG.toFixed(1) + ' kg)');
+  const sB2 = JSON.parse(JSON.stringify(s)); sB2.cabin.glazing = 'bogus';
+  ok(resolveSpec(sB2).spec.cabin.glazing === 'glass', 'a nonsense glazing clamps to glass');
+} catch (e) { ok(false, 'glazing join threw: ' + e.message); }
+
 // THE V-TAIL IS JOINED (2026-09-04): the stab layer's cant >= 20 deg writes
 // tail.type 'v' + vAngle; the panels' measured projection survives resolve
 // (a built V keeps its span, the AR rule does not re-size it) and the frame

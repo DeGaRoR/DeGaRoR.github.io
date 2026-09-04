@@ -309,6 +309,15 @@ const ICON = {
     { d: 'M32 8 L32 32', w: 1 }, { d: 'M20 10 L20 30', w: 1 }, { d: 'M44 10 L44 30', w: 1 }] },
   mountPusher: { vb: '0 0 68 40', paths: [{ d: 'M8 16 Q20 10 32 16 L32 26 Q20 30 8 26 Z' },
     { d: 'M32 21 L58 19' }, { d: 'M34 10 L34 30', w: 1 }] },
+  // which way a wing engine faces: a nacelle on the wing line, the disc
+  // ahead (puller) or behind (pusher); 'as the mount' shows both, dimmed
+  aimPull: { vb: '0 0 64 40', paths: [{ d: 'M4 19 L60 19 L60 22 L4 22 Z' },
+    { d: 'M26 13 L40 13 L40 27 L26 27 Z', w: 1 }, { d: 'M24 6 L24 34', w: 1.6 }] },
+  aimPush: { vb: '0 0 64 40', paths: [{ d: 'M4 19 L60 19 L60 22 L4 22 Z' },
+    { d: 'M24 13 L38 13 L38 27 L24 27 Z', w: 1 }, { d: 'M40 6 L40 34', w: 1.6 }] },
+  aimMount: { vb: '0 0 64 40', paths: [{ d: 'M4 19 L60 19 L60 22 L4 22 Z' },
+    { d: 'M26 13 L38 13 L38 27 L26 27 Z', w: 1 }, { d: 'M24 8 L24 32', w: 0.8 },
+    { d: 'M40 8 L40 32', w: 0.8 }] },
   // the over-the-wing pusher: a pod, the wing line, a pylon and a disc above
   mountWingTop: { vb: '0 0 68 40', paths: [{ d: 'M8 24 Q20 18 34 24 L34 32 Q20 36 8 32 Z' },
     { d: 'M14 22 L62 22', w: 2 }, { d: 'M34 22 L36 12 L44 12', w: 1 },
@@ -875,6 +884,22 @@ const DESIGN_ROWS = [
         inactive: 'wing nacelles: ROADMAP P7' },
       { value: 4, label: 'Four (wings)', icon: iconTopEngines(false, 4),
         inactive: 'wing nacelles: ROADMAP P7' },
+    ] },
+
+  // 2026-09-04 (the user: "a wing-mounted engine can be configured as pusher
+  // or puller ... the same for the dual wing mounted engines")
+  { key: 'engAim', label: 'Wing engines face', kind: 'discriminator',
+    group: 'propulsion', status: 'live',
+    help: 'over the wing pushes and a pair pulls unless told otherwise',
+    read: P => Math.round(P.engAim) === 1 ? 'puller'
+             : Math.round(P.engAim) === 2 ? 'pusher' : 'mount',
+    options: [
+      { value: 'mount', label: 'As the mount', icon: ICON.aimMount,
+        writes: { cage: { engAim: 0 } } },
+      { value: 'puller', label: 'Puller', icon: ICON.aimPull,
+        writes: { cage: { engAim: 1 } } },
+      { value: 'pusher', label: 'Pusher', icon: ICON.aimPush,
+        writes: { cage: { engAim: 2 } } },
     ] },
 
   { key: 'prop', label: 'Propeller', kind: 'starter',

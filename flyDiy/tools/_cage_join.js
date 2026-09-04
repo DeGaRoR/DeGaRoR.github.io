@@ -111,8 +111,11 @@ function cageJoinSpec(P, M, T) {
       const type = CAGE_JOIN_ENGINES[(T.PRESET_NAMES || [])[Math.round(P.engPreset)]]
                 || 'a65_sensenich74';
       const EU = Array.isArray(M.engUnits) ? M.engUnits : [];
+      const aimK = Math.round(P.engAim || 0);
+      const aim = aimK === 1 ? 'puller' : aimK === 2 ? 'pusher' : null;
       const one = i => ({
         type, mount: mk, place: { dx: 0, dy: 0 },
+        ...(aim && mk !== 'nose' && mk !== 'pusher' ? { aim } : {}),
         ...(mk !== 'nose' && EU[i] ? { x: EU[i].x, y: EU[i].y, z: Math.abs(EU[i].z) } : {}),
         ...(mk === 'wingTop' ? { pylon: Math.max(0.05, +P.engPylonH || 0.30) } : {}),
         // G134: THE DRAWN ENGINE IS THE PHYSICS' AUTHOR — the G132 prop rule,
@@ -214,6 +217,8 @@ function cageJoinSpec(P, M, T) {
       ['spring', 'bungee', 'oleo'][Math.round(P.s1_shockKind)] || 'bungee';
   }
   const cabin = {};
+  // JOINED (2026-09-04): glazing off is an open cockpit — no glass billed
+  if (P.glazeOn != null && !+P.glazeOn) cabin.glazing = 'none';
   if (M.halfW > 0) cabin.halfW = M.halfW;
   if (M.cabH > 0) cabin.h = M.cabH;
   if (M.seating) cabin.seating = M.seating;

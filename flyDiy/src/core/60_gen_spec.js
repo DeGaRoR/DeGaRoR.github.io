@@ -1592,6 +1592,11 @@ const GEN_DEFAULT = {
   meta: { name: 'Garage Special', reg: 'F-PGAR', role: null, class: null },
   cabin: {
     seating: 'tandem2',
+    // THE GLAZING (2026-09-04, the user: "we need to be able to deactivate
+    // the glazing too"): 'glass' bills the windscreen and the side windows
+    // as always; 'none' is an open cockpit — no glass mass. The cage's
+    // `glazeOn` row is the one writer (tools/_cage_join.js).
+    glazing: 'glass',
     // LOADING, not capacity: `seating` sizes the cabin, `pilots` says how many
     // seats are filled for the flight the shakedown and the gates measure. A
     // J-3-class aeroplane is flown solo; loading both seats is a different
@@ -2293,6 +2298,9 @@ function clampSpec(spec) {
     e.y = genClampN(e.y, -1.0, 2.5);
     e.z = genClampN(e.z, 0, 6.0);
     e.pylon = genClampN(e.pylon, 0.05, 1.0);
+    // which way a WING engine faces (2026-09-04): null = the mount's own
+    // (over the wing pushes, a pair pulls)
+    if (!['puller', 'pusher'].includes(e.aim)) e.aim = null;
     // G134: THE CUSTOM ROW — the editor's dials resolved to facts by the
     // join (tools/_cage_eng.js CAGE_ENG_FACTS; identity ruled 2026-09-01:
     // an untouched preset ships NO row and the registry flies). Clamped
@@ -2360,6 +2368,7 @@ function clampSpec(spec) {
                 : b0 === 'wingPanel' ? 'panel' : 'nose';
   }
   cb.baggage = genClamp(cb.baggage, 0, 60);
+  if (!['glass', 'none'].includes(cb.glazing)) cb.glazing = 'glass';
   const w = S.wings[0];
   // 2026-09-04: the envelope opened for the SAILPLANE class (the user: "you
   // should be able to enable the motor glider") — 0.80 m chord and 18 m span,
@@ -2943,7 +2952,9 @@ function resolveSpec(spec) {
              x: e.x != null ? e.x : d.x,
              y: e.y != null ? e.y : d.y,
              z: m === 'wing' ? Math.abs(e.z != null ? e.z : d.z) : 0,
-             pylon };
+             pylon,
+             pushes: m === 'pusher' ? true : m === 'nose' ? false
+                   : e.aim ? e.aim === 'pusher' : m === 'wingTop' };
   });
 
   // 4b. THE ENGINE BLOCK's own size, derived here rather than in the skin that

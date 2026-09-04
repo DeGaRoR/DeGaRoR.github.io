@@ -5011,6 +5011,21 @@ function cageInterior(m, S) {
         if (N.b) mem(N.b, cp(2.356, sx), 0.042);
         if (N.t) mem(N.t, cp(2.356, sx), 0.024);   // side diagonal
       }
+      // THE TOP TUBES (2026-09-04, the user: "the tubular structure needs a
+      // couple of tubes on the top side of the boom, they currently float,
+      // and maybe one in the middle on top as well, so the dorsal elements
+      // have something to attach onto"): two from the ceiling corners to the
+      // rod's crown, and one from the roof's middle
+      {
+        const tL = NS['-1'].t, tR = NS[1].t;
+        if (tL && tR) {
+          const crown = cp(0, 1);
+          mem(tR, crown, 0.030); mem(tL, crown, 0.030);
+          const mid = [(tL[0] + tR[0]) / 2, (tL[1] + tR[1]) / 2 + 0.03,
+                       (tL[2] + tR[2]) / 2];
+          mem(mid, crown, 0.024);
+        }
+      }
       // ---- optional flat cover panels on the truss ----
       if (S.taper.panels) {
         const TR = 0.015;                  // sit on the tube surfaces
@@ -6237,6 +6252,10 @@ const CAGE_PARAMS = {
   // family (skin, pillars, taper, panels, doors) outright, beyond the
   // alpha slider; glass and all structure stay. Inert in this file.
   skinOn: 1,
+  // THE GLAZING SWITCH (2026-09-04): 0 drops every glass face from the drawn
+  // (and so the flown) mesh — an open cockpit; display-level like skinOn,
+  // JOINED as cabin.glazing so the glass is not billed either
+  glazeOn: 1,
   // interior (G13): master + per-element flags — every element disjoint
   // and individually revertible
   intOn: 0, intBulk: 1, intFire: 1, intPillars: 1, shellT: 0.035,

@@ -102,10 +102,15 @@ function genStrips(S, fr) {
   // ahead of them (the Chinook's own rule: "pusher -> no wash on the wing")
   // and on the tail as before; a wing pair washes the wing about EACH
   // nacelle and the tail, between the two wakes, not at all.
+  // ...and a wing engine that PUSHES (engAt.pushes, 2026-09-04) blows on
+  // nothing ahead of it: a pusher pair washes no wing, a pulling over-the-
+  // wing engine washes the centre section it sits over.
   const E0 = S.engAt && S.engAt[0], mount = E0 ? E0.mount : 'nose';
+  const pushes = !!(E0 && E0.pushes);
   const wingWash = mount === 'nose' ? washAt
-    : mount === 'wing' ? (z => { const u = (Math.abs(z) - E0.z) / Reff;
-                                 return Math.max(0, 1 - u * u); })
+    : (mount === 'wing' && !pushes)
+      ? (z => { const u = (Math.abs(z) - E0.z) / Reff;
+                return Math.max(0, 1 - u * u); })
     : () => 0;
   const tailWash = mount === 'wing' ? 0 : 1;
   // c/4 between the spars: weight the front spar by how far the quarter chord
@@ -156,7 +161,8 @@ function genStrips(S, fr) {
     fIn: cL.F[0], fOut: cR2.F[0], rIn: cL.R[0], rOut: cR2.R[0],
     w: [[cL.F[0], cf * 0.5], [cR2.F[0], cf * 0.5],
         [cL.R[0], cr * 0.5], [cR2.R[0], cr * 0.5]],
-    wash: mount === 'nose' ? 1 : 0, ail: 0, flap: 0,
+    wash: mount === 'nose' ? 1 : (mount === 'wingTop' && !pushes) ? 0.6 : 0,
+    ail: 0, flap: 0,
   });
 
   const hc = S.tail.hChord;

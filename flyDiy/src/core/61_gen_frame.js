@@ -1101,8 +1101,8 @@ function genLattice(S, gearX, track, kScale) {
     const reach = S.geom.semi + S.fuse.tailArm;
     const ctlM = O.ctlKgM * reach + (seats > 1 ? O.ctlDualKg : 0);
     // THE GLAZING: the windscreen and the side windows, over the cabin.
-    const glassM = O.glassKgM2 * (2 * cb.halfW * cb.h * 0.55 +
-                                  2 * cb.len * cb.h * 0.30);
+    const glassM = cb.glazing === 'none' ? 0        // an open cockpit (2026-09-04)
+      : O.glassKgM2 * (2 * cb.halfW * cb.h * 0.55 + 2 * cb.len * cb.h * 0.30);
     // WHERE IT ALL SITS. Each item goes on the frame it belongs to, so the
     // centre of gravity is the real one: seats and controls and glazing on
     // the cabin rings, the panel and the plumbing at the panel frame, the

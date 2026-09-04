@@ -1238,7 +1238,7 @@ PAGE.post = ctx => {
   // the wing at its own place — the dims-pane rule); the answer is the
   // lowest skin point above that position with its normal turned downward,
   // or null off the planform. Cage-space metres, the gear layer's units.
-  let underAt = null, overAt = null, leAt = null, wbox = null;
+  let underAt = null, overAt = null, leAt = null, teAt = null, wbox = null;
   if (skinProbe.length && THREE.Raycaster) {
     const pg = new THREE.Group();
     // DoubleSide, explicitly: the Raycaster culls by material.side, and an
@@ -1283,10 +1283,20 @@ PAGE.post = ctx => {
       }
       return null;
     };
+    // ...and the TRAILING edge, walked from the back (a pusher nacelle's face)
+    teAt = x => {
+      const N = 48;
+      for (let k = 0; k <= N; k++) {
+        const z = bb.min.z + (bb.max.z - bb.min.z) * k / N;
+        const t = overAt(x, z), u = underAt(x, z);
+        if (t && u) return { z, yTop: t.y, yBot: u.y };
+      }
+      return null;
+    };
   }
   window.CAGE_WING = { def, semi: def.spec.geom && def.spec.geom.semi,
                        skinFaces: faces, anchor: { zCab, yAnchor }, group,
-                       underAt, overAt, leAt, box: wbox };
+                       underAt, overAt, leAt, teAt, box: wbox };
   if (stat) {
     const g2 = def.spec.geom || {};
     stat.textContent += '  ·  wing: ' + (g2.S ? g2.S.toFixed(1) + ' m2 · ' : '') +

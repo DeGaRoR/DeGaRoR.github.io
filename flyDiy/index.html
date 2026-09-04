@@ -11740,6 +11740,11 @@ const GEN_DEFAULT = {
   meta: { name: 'Garage Special', reg: 'F-PGAR', role: null, class: null },
   cabin: {
     seating: 'tandem2',
+    // THE GLAZING (2026-09-04, the user: "we need to be able to deactivate
+    // the glazing too"): 'glass' bills the windscreen and the side windows
+    // as always; 'none' is an open cockpit — no glass mass. The cage's
+    // `glazeOn` row is the one writer (tools/_cage_join.js).
+    glazing: 'glass',
     // LOADING, not capacity: `seating` sizes the cabin, `pilots` says how many
     // seats are filled for the flight the shakedown and the gates measure. A
     // J-3-class aeroplane is flown solo; loading both seats is a different
@@ -12441,6 +12446,9 @@ function clampSpec(spec) {
     e.y = genClampN(e.y, -1.0, 2.5);
     e.z = genClampN(e.z, 0, 6.0);
     e.pylon = genClampN(e.pylon, 0.05, 1.0);
+    // which way a WING engine faces (2026-09-04): null = the mount's own
+    // (over the wing pushes, a pair pulls)
+    if (!['puller', 'pusher'].includes(e.aim)) e.aim = null;
     // G134: THE CUSTOM ROW — the editor's dials resolved to facts by the
     // join (tools/_cage_eng.js CAGE_ENG_FACTS; identity ruled 2026-09-01:
     // an untouched preset ships NO row and the registry flies). Clamped
@@ -12508,6 +12516,7 @@ function clampSpec(spec) {
                 : b0 === 'wingPanel' ? 'panel' : 'nose';
   }
   cb.baggage = genClamp(cb.baggage, 0, 60);
+  if (!['glass', 'none'].includes(cb.glazing)) cb.glazing = 'glass';
   const w = S.wings[0];
   // 2026-09-04: the envelope opened for the SAILPLANE class (the user: "you
   // should be able to enable the motor glider") — 0.80 m chord and 18 m span,
@@ -13091,7 +13100,9 @@ function resolveSpec(spec) {
              x: e.x != null ? e.x : d.x,
              y: e.y != null ? e.y : d.y,
              z: m === 'wing' ? Math.abs(e.z != null ? e.z : d.z) : 0,
-             pylon };
+             pylon,
+             pushes: m === 'pusher' ? true : m === 'nose' ? false
+                   : e.aim ? e.aim === 'pusher' : m === 'wingTop' };
   });
 
   // 4b. THE ENGINE BLOCK's own size, derived here rather than in the skin that
@@ -15068,8 +15079,8 @@ function genLattice(S, gearX, track, kScale) {
     const reach = S.geom.semi + S.fuse.tailArm;
     const ctlM = O.ctlKgM * reach + (seats > 1 ? O.ctlDualKg : 0);
     // THE GLAZING: the windscreen and the side windows, over the cabin.
-    const glassM = O.glassKgM2 * (2 * cb.halfW * cb.h * 0.55 +
-                                  2 * cb.len * cb.h * 0.30);
+    const glassM = cb.glazing === 'none' ? 0        // an open cockpit (2026-09-04)
+      : O.glassKgM2 * (2 * cb.halfW * cb.h * 0.55 + 2 * cb.len * cb.h * 0.30);
     // WHERE IT ALL SITS. Each item goes on the frame it belongs to, so the
     // centre of gravity is the real one: seats and controls and glazing on
     // the cabin rings, the panel and the plumbing at the panel frame, the
@@ -15292,10 +15303,15 @@ function genStrips(S, fr) {
   // ahead of them (the Chinook's own rule: "pusher -> no wash on the wing")
   // and on the tail as before; a wing pair washes the wing about EACH
   // nacelle and the tail, between the two wakes, not at all.
+  // ...and a wing engine that PUSHES (engAt.pushes, 2026-09-04) blows on
+  // nothing ahead of it: a pusher pair washes no wing, a pulling over-the-
+  // wing engine washes the centre section it sits over.
   const E0 = S.engAt && S.engAt[0], mount = E0 ? E0.mount : 'nose';
+  const pushes = !!(E0 && E0.pushes);
   const wingWash = mount === 'nose' ? washAt
-    : mount === 'wing' ? (z => { const u = (Math.abs(z) - E0.z) / Reff;
-                                 return Math.max(0, 1 - u * u); })
+    : (mount === 'wing' && !pushes)
+      ? (z => { const u = (Math.abs(z) - E0.z) / Reff;
+                return Math.max(0, 1 - u * u); })
     : () => 0;
   const tailWash = mount === 'wing' ? 0 : 1;
   // c/4 between the spars: weight the front spar by how far the quarter chord
@@ -15346,7 +15362,8 @@ function genStrips(S, fr) {
     fIn: cL.F[0], fOut: cR2.F[0], rIn: cL.R[0], rOut: cR2.R[0],
     w: [[cL.F[0], cf * 0.5], [cR2.F[0], cf * 0.5],
         [cL.R[0], cr * 0.5], [cR2.R[0], cr * 0.5]],
-    wash: mount === 'nose' ? 1 : 0, ail: 0, flap: 0,
+    wash: mount === 'nose' ? 1 : (mount === 'wingTop' && !pushes) ? 0.6 : 0,
+    ail: 0, flap: 0,
   });
 
   const hc = S.tail.hChord;
@@ -18483,7 +18500,13 @@ const CAGE_PARTS = [
 
   // the section leaves the design draws under Cabin. Each is a real material
   // group in the mesh, which is what makes them clickable in the view.
-  { key: 'windscreen', name: 'windscreen', parent: 'cabin', layer: 'cage',
+  // THE GLAZING (2026-09-04, the user: "cabin -> glazing -> almost all the
+  // options but pilot door"): one switch, the glass parts under it
+  { key: 'glazing', name: 'Glazing', parent: 'cabin', layer: 'cage',
+    when: P => P.glazeOn == null || +P.glazeOn, gate: 'glazeOn',
+    groups: [['glazing', ['glazeOn']]] },
+
+  { key: 'windscreen', name: 'windscreen', parent: 'glazing', layer: 'cage',
     sections: ['windshield'],
     place: { up: 'wsTopOff', len: 'wsRun', at: 'on the cabin front ring' },
     groups: [
@@ -18498,19 +18521,20 @@ const CAGE_PARTS = [
       ['A-pillars', ['apilW', 'apilPerp'], EXPERT],
     ] },
 
-  { key: 'pilotWindow', name: 'pilot window', parent: 'cabin', layer: 'cage',
+  { key: 'pilotWindow', name: 'pilot window', parent: 'glazing', layer: 'cage',
     sections: ['pilotWindow', 'pillarWindow'],
     place: { up: 'winSillPilot', at: 'in the cabin side' },
     groups: [['glazing', ['winSillPilot']]] },
 
-  { key: 'skylight', name: 'skylight', parent: 'cabin', layer: 'cage',
+  { key: 'skylight', name: 'skylight', parent: 'glazing', layer: 'cage',
     sections: ['skyWindows'],
     place: { type: 'skylight', count: 'skyExt', at: 'in the cabin roof' },
     groups: [
       ['glazing', ['skylight', 'skyExt']],
     ] },
 
-  { key: 'pilotDoor', name: 'pilot door', parent: 'cabin', layer: 'cage',
+  // the door is CABIN FIT's (2026-09-04, the user)
+  { key: 'pilotDoor', name: 'pilot door', parent: 'fit', layer: 'cage',
     place: { on: 'doorOn', type: ['doorGone', 'doorDeep'], up: 'doorSill',
              at: 'cut from the cabin side' },
     // THE GAP BELONGS TO THE DOOR, the seal's gauge to the joints. Both were
@@ -18522,7 +18546,7 @@ const CAGE_PARTS = [
       ['the gap', ['doorRim', 'rimDoor', 'doorDepth']],
     ] },
 
-  { key: 'joints', name: 'window joints', parent: 'cabin', layer: 'cage',
+  { key: 'joints', name: 'window joints', parent: 'glazing', layer: 'cage',
     sections: ['joint'],
     // the REVEAL is the windows' own: it is what `winFrameW` gates, and it
     // reaches every glazed zone rather than any one part
@@ -18760,9 +18784,9 @@ const CAGE_PARTS = [
   { key: 'engine', name: 'Engine', parent: 'power', layer: 'eng',
     when: P => +P.engOn, gate: 'engOn',
     place: { on: 'engOn',
-             type: ['engMount', 'engPower', 'engPreset', 'eng_arch', 'eng_cyl',
-                    'eng_radialRows', 'eng_inlineAim', 'eng_eStyle'],
-             fore: 'eng_mountGap', out: 'engNacAt', up: 'engY',
+             type: ['engMount', 'engAim', 'engPower', 'engPreset', 'eng_arch',
+                    'eng_cyl', 'eng_radialRows', 'eng_inlineAim', 'eng_eStyle'],
+             fore: 'engBlockZ', out: 'engNacAt', up: 'engBlockY',
              at: 'on its mount face' },
     // THE ENGINE IS FINISHED IN THREE (G113.4). AERO_HARD still says what
     // every part IS — a plug is chrome, a lead is rubber — but the castings
@@ -18771,8 +18795,8 @@ const CAGE_PARTS = [
     // bucket, which is a home but not an ANSWER.
     sections: ['engBlock', 'engJug', 'engCover', 'engMount'],
     groups: [
-      ['fitted', ['engOn', 'engMount', 'engNacAt', 'engPylonH', 'engPower',
-                  'engPreset', 'engY']],
+      ['fitted', ['engOn', 'engMount', 'engAim', 'engNacAt', 'engPylonH',
+                  'engBlockZ', 'engBlockY', 'engPower', 'engPreset', 'engY']],
       // THE STAND FIRST (2026-09-03, the user: "the stand is very important for
       // engine placement"): the mount's stand-off is the engine's fore / aft seat
       // and rides in the trunk; the rest of the mount follows it here, before any
@@ -19447,6 +19471,15 @@ const ICON = {
     { d: 'M32 8 L32 32', w: 1 }, { d: 'M20 10 L20 30', w: 1 }, { d: 'M44 10 L44 30', w: 1 }] },
   mountPusher: { vb: '0 0 68 40', paths: [{ d: 'M8 16 Q20 10 32 16 L32 26 Q20 30 8 26 Z' },
     { d: 'M32 21 L58 19' }, { d: 'M34 10 L34 30', w: 1 }] },
+  // which way a wing engine faces: a nacelle on the wing line, the disc
+  // ahead (puller) or behind (pusher); 'as the mount' shows both, dimmed
+  aimPull: { vb: '0 0 64 40', paths: [{ d: 'M4 19 L60 19 L60 22 L4 22 Z' },
+    { d: 'M26 13 L40 13 L40 27 L26 27 Z', w: 1 }, { d: 'M24 6 L24 34', w: 1.6 }] },
+  aimPush: { vb: '0 0 64 40', paths: [{ d: 'M4 19 L60 19 L60 22 L4 22 Z' },
+    { d: 'M24 13 L38 13 L38 27 L24 27 Z', w: 1 }, { d: 'M40 6 L40 34', w: 1.6 }] },
+  aimMount: { vb: '0 0 64 40', paths: [{ d: 'M4 19 L60 19 L60 22 L4 22 Z' },
+    { d: 'M26 13 L38 13 L38 27 L26 27 Z', w: 1 }, { d: 'M24 8 L24 32', w: 0.8 },
+    { d: 'M40 8 L40 32', w: 0.8 }] },
   // the over-the-wing pusher: a pod, the wing line, a pylon and a disc above
   mountWingTop: { vb: '0 0 68 40', paths: [{ d: 'M8 24 Q20 18 34 24 L34 32 Q20 36 8 32 Z' },
     { d: 'M14 22 L62 22', w: 2 }, { d: 'M34 22 L36 12 L44 12', w: 1 },
@@ -20015,6 +20048,22 @@ const DESIGN_ROWS = [
         inactive: 'wing nacelles: ROADMAP P7' },
     ] },
 
+  // 2026-09-04 (the user: "a wing-mounted engine can be configured as pusher
+  // or puller ... the same for the dual wing mounted engines")
+  { key: 'engAim', label: 'Wing engines face', kind: 'discriminator',
+    group: 'propulsion', status: 'live',
+    help: 'over the wing pushes and a pair pulls unless told otherwise',
+    read: P => Math.round(P.engAim) === 1 ? 'puller'
+             : Math.round(P.engAim) === 2 ? 'pusher' : 'mount',
+    options: [
+      { value: 'mount', label: 'As the mount', icon: ICON.aimMount,
+        writes: { cage: { engAim: 0 } } },
+      { value: 'puller', label: 'Puller', icon: ICON.aimPull,
+        writes: { cage: { engAim: 1 } } },
+      { value: 'pusher', label: 'Pusher', icon: ICON.aimPush,
+        writes: { cage: { engAim: 2 } } },
+    ] },
+
   { key: 'prop', label: 'Propeller', kind: 'starter',
     group: 'propulsion', status: 'live',
     // G132: blades and material joined (the drawn blade is the physics'
@@ -20335,7 +20384,13 @@ const ARCHETYPES = [
            engFamily: 'electric', engModel: 'pipistrel E-811', engMount: 'nose',
            gearLayout: 'tail', suspension: 'spring', s1Fair: 1,
            empennage: 't', scheme: 'trim', base: 0xefe6cf, trim: 0x1b3a5c },
-    over: { cage: PLAN_TAPER, spec: { fuel: { litres: 0 } } } },
+    // MEASURED (2026-09-04): at the class's 15 m the test pilot reports
+    // 'wont-climb' at 88 s and never completes the circuit; at 13 m x 1.15
+    // (AR 11) it completes in 330 s, sink 0.79. The 15 m wing's flight is a
+    // debt of the opened envelope (HANDOVER G176), not of the card.
+    over: { cage: Object.assign({}, PLAN_TAPER, { wgSpan: 13.0, wgChord: 1.15,
+                                                   wgChordTip: 0.65 }),
+            spec: { fuel: { litres: 0 } } } },
   // MEASURED OUT (2026-08-31): the R-1830 tourer FLIES (TORun 187 m,
   // VCruise 67 m/s) and cannot be LANDED — the test pilot gave up still
   // INBOUND at 900 s; carded circuits refuse (cant-hold-speed at 45 and a
@@ -20870,6 +20925,7 @@ window.CAGE_PAGE = {
         // ZERO SKIN (G26.4): the fuselage family omitted outright —
         // beyond the alpha slider; glass and all structure stay
         ['skinOn',    'fuselage skin',   0, 1, 1],
+        ['glazeOn',   'glazing',         0, 1, 1],
         ['shellT',    'shell thickness', 0.01, 0.10, 0.002, { dim: 'len' }],
         ['skinT',     'skin thickness',  0, 0.06, 0.001, { dim: 'len' }],
         ['intPillars','pillar bodies',   0, 1, 1],
@@ -26511,6 +26567,21 @@ function cageInterior(m, S) {
         if (N.b) mem(N.b, cp(2.356, sx), 0.042);
         if (N.t) mem(N.t, cp(2.356, sx), 0.024);   // side diagonal
       }
+      // THE TOP TUBES (2026-09-04, the user: "the tubular structure needs a
+      // couple of tubes on the top side of the boom, they currently float,
+      // and maybe one in the middle on top as well, so the dorsal elements
+      // have something to attach onto"): two from the ceiling corners to the
+      // rod's crown, and one from the roof's middle
+      {
+        const tL = NS['-1'].t, tR = NS[1].t;
+        if (tL && tR) {
+          const crown = cp(0, 1);
+          mem(tR, crown, 0.030); mem(tL, crown, 0.030);
+          const mid = [(tL[0] + tR[0]) / 2, (tL[1] + tR[1]) / 2 + 0.03,
+                       (tL[2] + tR[2]) / 2];
+          mem(mid, crown, 0.024);
+        }
+      }
       // ---- optional flat cover panels on the truss ----
       if (S.taper.panels) {
         const TR = 0.015;                  // sit on the tube surfaces
@@ -27737,6 +27808,10 @@ const CAGE_PARAMS = {
   // family (skin, pillars, taper, panels, doors) outright, beyond the
   // alpha slider; glass and all structure stay. Inert in this file.
   skinOn: 1,
+  // THE GLAZING SWITCH (2026-09-04): 0 drops every glass face from the drawn
+  // (and so the flown) mesh — an open cockpit; display-level like skinOn,
+  // JOINED as cabin.glazing so the glass is not billed either
+  glazeOn: 1,
   // interior (G13): master + per-element flags — every element disjoint
   // and individually revertible
   intOn: 0, intBulk: 1, intFire: 1, intPillars: 1, shellT: 0.035,
@@ -38918,9 +38993,15 @@ function noseFace(mesh, FS, end) {
 // there. The over-the-wing mount needs a HIGH wing (the user's rule) and
 // sits its plate a pylon above the upper skin at 30 % chord; a nacelle's
 // plate is just inside the leading edge at the station asked for.
+// The BLOCK rows (2026-09-04): `engBlockZ` / `engBlockY` move a synthetic
+// face bodily (pylon, nacelle, engine and prop together); `engAim` says which
+// way a wing engine faces — 0 the mount's own, 1 puller, 2 pusher. A pusher
+// nacelle roots at the TRAILING edge (`teAt`), a puller at the leading edge.
 function engineFaces(mesh, FS, P) {
   const mount = Math.round((P && P.engMount) || 0);
   const W = window.CAGE_WING;
+  const bz = +P.engBlockZ || 0, by = +P.engBlockY || 0;
+  const aim = Math.round(P.engAim || 0);
   if (mount === 1) {
     const f = noseFace(mesh, FS, 'tail');
     return f ? [{ face: f, aft: true, kind: 'pusher' }] : [];
@@ -38932,23 +39013,26 @@ function engineFaces(mesh, FS, P) {
     const ch = (W.def && W.def.parts && W.def.parts.chordAt)
       ? W.def.parts.chordAt(0) : 1.4;
     const hp = Math.max(0.05, +P.engPylonH || 0.30);
-    return [{ face: { z: le.z - 0.30 * ch, yc: le.yTop + hp, x: 0,
+    const aft = aim === 0 ? true : aim === 2;
+    return [{ face: { z: le.z - 0.30 * ch + bz, yc: le.yTop + hp + by, x: 0,
                       halfW: 0.16, halfH: 0.14, uv: null, waist: 0,
                       synthetic: 1, yBase: le.yTop, chord: ch },
-              aft: true, kind: 'wingTop' }];
+              aft, kind: 'wingTop' }];
   }
   if (mount === 3) {
     if (!W || !W.leAt) return [];
     const semi = W.semi || 5;
     const x = Math.max(0.3, (+P.engNacAt || 0.35) * semi);
+    const aft = aim === 2;
     const out = [];
     for (const s of [1, -1]) {
-      const le = W.leAt(s * x);
-      if (!le) continue;
-      out.push({ face: { z: le.z + 0.10, yc: 0.5 * (le.yTop + le.yBot), x: s * x,
-                         halfW: 0.20, halfH: 0.5 * (le.yTop - le.yBot) + 0.10,
+      const e = aft && W.teAt ? W.teAt(s * x) : W.leAt(s * x);
+      if (!e) continue;
+      out.push({ face: { z: (aft ? e.z - 0.10 : e.z + 0.10) + bz,
+                         yc: 0.5 * (e.yTop + e.yBot) + by, x: s * x,
+                         halfW: 0.20, halfH: 0.5 * (e.yTop - e.yBot) + 0.10,
                          uv: null, waist: 0, synthetic: 1 },
-                 aft: false, kind: 'nacelle' });
+                 aft, kind: 'nacelle' });
     }
     return out;
   }
@@ -39451,7 +39535,15 @@ const defaults = { engOn: 1, engPreset: 0, engPower: 0,
                    // THE MOUNT (2026-09-04): 0 nose, 1 pusher on the aft
                    // bulkhead, 2 over the wing (one engine, high wing, a pylon
                    // engPylonH tall), 3 a wing pair at engNacAt of the semispan
-                   engMount: 0, engNacAt: 0.35, engPylonH: 0.30 };
+                   engMount: 0, engNacAt: 0.35, engPylonH: 0.30,
+                   // THE BLOCK (2026-09-04, the user: "when mounted on the
+                   // wing, we should be able to move the whole block holding
+                   // the engine, not just the engine"): fore/aft and up/down
+                   // of the mount FACE itself (pylon, nacelle, engine, prop
+                   // move together); and which way a wing engine faces —
+                   // 0 the mount's own (over the wing pushes, a pair pulls),
+                   // 1 puller, 2 pusher
+                   engBlockZ: 0, engBlockY: 0, engAim: 0 };
 for (const [, rows] of EP.GROUPS)
   for (const r of rows) {
     const [k, , m3, opts] = r;
@@ -39649,8 +39741,14 @@ const ENG_ITEMS = [
   ['engMount',  'mount', 0, 3, 1,
    ['nose', 'pusher (aft bulkhead)', 'over the wing (high wing)',
     'wing nacelles (twin)'], { when: P => +P.engOn }],
+  ['engAim',    'faces', 0, 2, 1, ['as the mount', 'puller', 'pusher'],
+   { when: P => +P.engOn && Math.round(P.engMount) >= 2 }],
   ['engNacAt',  'nacelle station (semispan)', 0.15, 0.70, 0.01,
    { when: P => +P.engOn && Math.round(P.engMount) === 3 }],
+  ['engBlockZ', 'block fore / aft', -1.0, 1.0, 0.01,
+   { when: P => +P.engOn && Math.round(P.engMount) >= 2, dim: 'm' }],
+  ['engBlockY', 'block up / down', -0.6, 0.8, 0.01,
+   { when: P => +P.engOn && Math.round(P.engMount) >= 2, dim: 'm' }],
   ['engPylonH', 'pylon height', 0.05, 1.0, 0.01,
    { when: P => +P.engOn && Math.round(P.engMount) === 2, dim: 'm' }],
   ['engY',      'up / down', -0.5, 0.5, 0.005,
@@ -41880,7 +41978,7 @@ PAGE.post = ctx => {
   // the wing at its own place — the dims-pane rule); the answer is the
   // lowest skin point above that position with its normal turned downward,
   // or null off the planform. Cage-space metres, the gear layer's units.
-  let underAt = null, overAt = null, leAt = null, wbox = null;
+  let underAt = null, overAt = null, leAt = null, teAt = null, wbox = null;
   if (skinProbe.length && THREE.Raycaster) {
     const pg = new THREE.Group();
     // DoubleSide, explicitly: the Raycaster culls by material.side, and an
@@ -41925,10 +42023,20 @@ PAGE.post = ctx => {
       }
       return null;
     };
+    // ...and the TRAILING edge, walked from the back (a pusher nacelle's face)
+    teAt = x => {
+      const N = 48;
+      for (let k = 0; k <= N; k++) {
+        const z = bb.min.z + (bb.max.z - bb.min.z) * k / N;
+        const t = overAt(x, z), u = underAt(x, z);
+        if (t && u) return { z, yTop: t.y, yBot: u.y };
+      }
+      return null;
+    };
   }
   window.CAGE_WING = { def, semi: def.spec.geom && def.spec.geom.semi,
                        skinFaces: faces, anchor: { zCab, yAnchor }, group,
-                       underAt, overAt, leAt, box: wbox };
+                       underAt, overAt, leAt, teAt, box: wbox };
   if (stat) {
     const g2 = def.spec.geom || {};
     stat.textContent += '  ·  wing: ' + (g2.S ? g2.S.toFixed(1) + ' m2 · ' : '') +
@@ -48272,8 +48380,11 @@ function cageJoinSpec(P, M, T) {
       const type = CAGE_JOIN_ENGINES[(T.PRESET_NAMES || [])[Math.round(P.engPreset)]]
                 || 'a65_sensenich74';
       const EU = Array.isArray(M.engUnits) ? M.engUnits : [];
+      const aimK = Math.round(P.engAim || 0);
+      const aim = aimK === 1 ? 'puller' : aimK === 2 ? 'pusher' : null;
       const one = i => ({
         type, mount: mk, place: { dx: 0, dy: 0 },
+        ...(aim && mk !== 'nose' && mk !== 'pusher' ? { aim } : {}),
         ...(mk !== 'nose' && EU[i] ? { x: EU[i].x, y: EU[i].y, z: Math.abs(EU[i].z) } : {}),
         ...(mk === 'wingTop' ? { pylon: Math.max(0.05, +P.engPylonH || 0.30) } : {}),
         // G134: THE DRAWN ENGINE IS THE PHYSICS' AUTHOR — the G132 prop rule,
@@ -48375,6 +48486,8 @@ function cageJoinSpec(P, M, T) {
       ['spring', 'bungee', 'oleo'][Math.round(P.s1_shockKind)] || 'bungee';
   }
   const cabin = {};
+  // JOINED (2026-09-04): glazing off is an open cockpit — no glass billed
+  if (P.glazeOn != null && !+P.glazeOn) cabin.glazing = 'none';
   if (M.halfW > 0) cabin.halfW = M.halfW;
   if (M.cabH > 0) cabin.h = M.cabH;
   if (M.seating) cabin.seating = M.seating;
@@ -50766,8 +50879,11 @@ function build() {
   // crew) and the measurements still see the full mesh.
   const skinCull = name => !GLASSM.has(name)
     && !INTSTRUCT.has(name) && name !== 'joint';
-  const sd = (P.skinOn == null || P.skinOn) ? s
+  const sd0 = (P.skinOn == null || P.skinOn) ? s
     : { ...s, F: s.F.filter(f => !skinCull(f.m)) };
+  // GLAZING OFF (2026-09-04): the glass faces go the same way the skin does
+  const sd = (P.glazeOn == null || +P.glazeOn) ? sd0
+    : { ...sd0, F: sd0.F.filter(f => !GLASSM.has(f.m)) };
   const surfSel = $('surf') ? $('surf').value : 'off';
   meshObj = (surfSel !== 'off') ? surfMesh(sd, surfSel)
     : ($('curv') && $('curv').checked) ? curvatureMesh(sd)

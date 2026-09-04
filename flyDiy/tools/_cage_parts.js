@@ -259,7 +259,13 @@ const CAGE_PARTS = [
 
   // the section leaves the design draws under Cabin. Each is a real material
   // group in the mesh, which is what makes them clickable in the view.
-  { key: 'windscreen', name: 'windscreen', parent: 'cabin', layer: 'cage',
+  // THE GLAZING (2026-09-04, the user: "cabin -> glazing -> almost all the
+  // options but pilot door"): one switch, the glass parts under it
+  { key: 'glazing', name: 'Glazing', parent: 'cabin', layer: 'cage',
+    when: P => P.glazeOn == null || +P.glazeOn, gate: 'glazeOn',
+    groups: [['glazing', ['glazeOn']]] },
+
+  { key: 'windscreen', name: 'windscreen', parent: 'glazing', layer: 'cage',
     sections: ['windshield'],
     place: { up: 'wsTopOff', len: 'wsRun', at: 'on the cabin front ring' },
     groups: [
@@ -274,19 +280,20 @@ const CAGE_PARTS = [
       ['A-pillars', ['apilW', 'apilPerp'], EXPERT],
     ] },
 
-  { key: 'pilotWindow', name: 'pilot window', parent: 'cabin', layer: 'cage',
+  { key: 'pilotWindow', name: 'pilot window', parent: 'glazing', layer: 'cage',
     sections: ['pilotWindow', 'pillarWindow'],
     place: { up: 'winSillPilot', at: 'in the cabin side' },
     groups: [['glazing', ['winSillPilot']]] },
 
-  { key: 'skylight', name: 'skylight', parent: 'cabin', layer: 'cage',
+  { key: 'skylight', name: 'skylight', parent: 'glazing', layer: 'cage',
     sections: ['skyWindows'],
     place: { type: 'skylight', count: 'skyExt', at: 'in the cabin roof' },
     groups: [
       ['glazing', ['skylight', 'skyExt']],
     ] },
 
-  { key: 'pilotDoor', name: 'pilot door', parent: 'cabin', layer: 'cage',
+  // the door is CABIN FIT's (2026-09-04, the user)
+  { key: 'pilotDoor', name: 'pilot door', parent: 'fit', layer: 'cage',
     place: { on: 'doorOn', type: ['doorGone', 'doorDeep'], up: 'doorSill',
              at: 'cut from the cabin side' },
     // THE GAP BELONGS TO THE DOOR, the seal's gauge to the joints. Both were
@@ -298,7 +305,7 @@ const CAGE_PARTS = [
       ['the gap', ['doorRim', 'rimDoor', 'doorDepth']],
     ] },
 
-  { key: 'joints', name: 'window joints', parent: 'cabin', layer: 'cage',
+  { key: 'joints', name: 'window joints', parent: 'glazing', layer: 'cage',
     sections: ['joint'],
     // the REVEAL is the windows' own: it is what `winFrameW` gates, and it
     // reaches every glazed zone rather than any one part
@@ -536,9 +543,9 @@ const CAGE_PARTS = [
   { key: 'engine', name: 'Engine', parent: 'power', layer: 'eng',
     when: P => +P.engOn, gate: 'engOn',
     place: { on: 'engOn',
-             type: ['engMount', 'engPower', 'engPreset', 'eng_arch', 'eng_cyl',
-                    'eng_radialRows', 'eng_inlineAim', 'eng_eStyle'],
-             fore: 'eng_mountGap', out: 'engNacAt', up: 'engY',
+             type: ['engMount', 'engAim', 'engPower', 'engPreset', 'eng_arch',
+                    'eng_cyl', 'eng_radialRows', 'eng_inlineAim', 'eng_eStyle'],
+             fore: 'engBlockZ', out: 'engNacAt', up: 'engBlockY',
              at: 'on its mount face' },
     // THE ENGINE IS FINISHED IN THREE (G113.4). AERO_HARD still says what
     // every part IS — a plug is chrome, a lead is rubber — but the castings
@@ -547,8 +554,8 @@ const CAGE_PARTS = [
     // bucket, which is a home but not an ANSWER.
     sections: ['engBlock', 'engJug', 'engCover', 'engMount'],
     groups: [
-      ['fitted', ['engOn', 'engMount', 'engNacAt', 'engPylonH', 'engPower',
-                  'engPreset', 'engY']],
+      ['fitted', ['engOn', 'engMount', 'engAim', 'engNacAt', 'engPylonH',
+                  'engBlockZ', 'engBlockY', 'engPower', 'engPreset', 'engY']],
       // THE STAND FIRST (2026-09-03, the user: "the stand is very important for
       // engine placement"): the mount's stand-off is the engine's fore / aft seat
       // and rides in the trunk; the rest of the mount follows it here, before any

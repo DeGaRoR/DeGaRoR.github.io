@@ -29252,3 +29252,31 @@ engine (PT6A-34 for a Caravan, -114A for a Kodiak: 500-750 shp, ~150 kg)
 with genPropSynth props at 2.7-2.9 m, three blades; and the fuel kind
 (Jet-A in GEN_FUELS, its density and price). Two sessions; ROADMAP Phase 6
 item 7. Without it a Caravan/Kodiak-alike is an R-985 with a long nose.
+
+## G177 — TWIN-BOOM SPEC, SESSION 1: THE ENGINE BLOCK, THE GLAZING, THE
+## BOOM'S TOP TUBES (2026-09-04; the spec is futureDesigns/TWIN-BOOM-2026-09-04.md,
+## the user: "Go with your proposals")
+
+- **The engine BLOCK** (§1.4): `engBlockZ` / `engBlockY` move a synthetic mount
+  FACE bodily — pylon, nacelle, engine and prop travel together — and `engAim`
+  (0 the mount's own / 1 puller / 2 pusher) says which way a wing engine faces:
+  over the wing pushes and a pair pulls unless told otherwise. A pusher
+  nacelle roots at the TRAILING edge (`CAGE_WING.teAt`, the twin of `leAt`).
+  The join writes `engines[].aim`; `S.engAt[].pushes` is what the wash reads
+  (a pusher pair washes no wing; a pulling over-the-wing engine washes the
+  centre section it sits over at 0.6). A design tile **Wing engines face**.
+  Measured: a pusher pair with block +0.20 / +0.15 sits at z 0.22 behind the
+  trailing edge at 0.62, y 0.90.
+- **The glazing** (§1.6): `glazeOn` (Structure & skin's row, the **Glazing**
+  part's gate under Cabin — windscreen, pilot window, skylight, window joints
+  and the bubble rows under it; the pilot door is Cabin fit's) drops every
+  glass face from the drawn mesh and is JOINED as `cabin.glazing 'none'`: no
+  glass billed (GATE JOIN: lighter, a nonsense value clamps to glass).
+- **The rod truss's top tubes** (§1.5): two from the ceiling corners to the
+  rod's crown and one from the roof's middle — the dorsal has a tube to land
+  on. The truss members are `struct` sections claimed by Structure & skin, so
+  they were already paintable in FINISH.
+- **GATE ARCHETYPES: 17 flown, 17 green** (the motorglider at 13 m).
+- Light gates green: DESIGN, PARTS, JOIN, COWL, STARTER, SAVE, BUILD, UISMOKE,
+  CAGEFIT, FIT, GEAR. The core battery is the user's, run once for all
+  sessions (their ruling, 2026-09-04).

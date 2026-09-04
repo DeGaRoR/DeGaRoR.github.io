@@ -1055,8 +1055,11 @@ function build() {
   // crew) and the measurements still see the full mesh.
   const skinCull = name => !GLASSM.has(name)
     && !INTSTRUCT.has(name) && name !== 'joint';
-  const sd = (P.skinOn == null || P.skinOn) ? s
+  const sd0 = (P.skinOn == null || P.skinOn) ? s
     : { ...s, F: s.F.filter(f => !skinCull(f.m)) };
+  // GLAZING OFF (2026-09-04): the glass faces go the same way the skin does
+  const sd = (P.glazeOn == null || +P.glazeOn) ? sd0
+    : { ...sd0, F: sd0.F.filter(f => !GLASSM.has(f.m)) };
   const surfSel = $('surf') ? $('surf').value : 'off';
   meshObj = (surfSel !== 'off') ? surfMesh(sd, surfSel)
     : ($('curv') && $('curv').checked) ? curvatureMesh(sd)

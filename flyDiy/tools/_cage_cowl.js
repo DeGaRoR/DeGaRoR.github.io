@@ -304,9 +304,15 @@ function noseFace(mesh, FS, end) {
 // there. The over-the-wing mount needs a HIGH wing (the user's rule) and
 // sits its plate a pylon above the upper skin at 30 % chord; a nacelle's
 // plate is just inside the leading edge at the station asked for.
+// The BLOCK rows (2026-09-04): `engBlockZ` / `engBlockY` move a synthetic
+// face bodily (pylon, nacelle, engine and prop together); `engAim` says which
+// way a wing engine faces — 0 the mount's own, 1 puller, 2 pusher. A pusher
+// nacelle roots at the TRAILING edge (`teAt`), a puller at the leading edge.
 function engineFaces(mesh, FS, P) {
   const mount = Math.round((P && P.engMount) || 0);
   const W = window.CAGE_WING;
+  const bz = +P.engBlockZ || 0, by = +P.engBlockY || 0;
+  const aim = Math.round(P.engAim || 0);
   if (mount === 1) {
     const f = noseFace(mesh, FS, 'tail');
     return f ? [{ face: f, aft: true, kind: 'pusher' }] : [];
@@ -318,23 +324,26 @@ function engineFaces(mesh, FS, P) {
     const ch = (W.def && W.def.parts && W.def.parts.chordAt)
       ? W.def.parts.chordAt(0) : 1.4;
     const hp = Math.max(0.05, +P.engPylonH || 0.30);
-    return [{ face: { z: le.z - 0.30 * ch, yc: le.yTop + hp, x: 0,
+    const aft = aim === 0 ? true : aim === 2;
+    return [{ face: { z: le.z - 0.30 * ch + bz, yc: le.yTop + hp + by, x: 0,
                       halfW: 0.16, halfH: 0.14, uv: null, waist: 0,
                       synthetic: 1, yBase: le.yTop, chord: ch },
-              aft: true, kind: 'wingTop' }];
+              aft, kind: 'wingTop' }];
   }
   if (mount === 3) {
     if (!W || !W.leAt) return [];
     const semi = W.semi || 5;
     const x = Math.max(0.3, (+P.engNacAt || 0.35) * semi);
+    const aft = aim === 2;
     const out = [];
     for (const s of [1, -1]) {
-      const le = W.leAt(s * x);
-      if (!le) continue;
-      out.push({ face: { z: le.z + 0.10, yc: 0.5 * (le.yTop + le.yBot), x: s * x,
-                         halfW: 0.20, halfH: 0.5 * (le.yTop - le.yBot) + 0.10,
+      const e = aft && W.teAt ? W.teAt(s * x) : W.leAt(s * x);
+      if (!e) continue;
+      out.push({ face: { z: (aft ? e.z - 0.10 : e.z + 0.10) + bz,
+                         yc: 0.5 * (e.yTop + e.yBot) + by, x: s * x,
+                         halfW: 0.20, halfH: 0.5 * (e.yTop - e.yBot) + 0.10,
                          uv: null, waist: 0, synthetic: 1 },
-                 aft: false, kind: 'nacelle' });
+                 aft, kind: 'nacelle' });
     }
     return out;
   }

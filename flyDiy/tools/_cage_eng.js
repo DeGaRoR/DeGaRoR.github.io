@@ -56,7 +56,15 @@ const defaults = { engOn: 1, engPreset: 0, engPower: 0,
                    // THE MOUNT (2026-09-04): 0 nose, 1 pusher on the aft
                    // bulkhead, 2 over the wing (one engine, high wing, a pylon
                    // engPylonH tall), 3 a wing pair at engNacAt of the semispan
-                   engMount: 0, engNacAt: 0.35, engPylonH: 0.30 };
+                   engMount: 0, engNacAt: 0.35, engPylonH: 0.30,
+                   // THE BLOCK (2026-09-04, the user: "when mounted on the
+                   // wing, we should be able to move the whole block holding
+                   // the engine, not just the engine"): fore/aft and up/down
+                   // of the mount FACE itself (pylon, nacelle, engine, prop
+                   // move together); and which way a wing engine faces —
+                   // 0 the mount's own (over the wing pushes, a pair pulls),
+                   // 1 puller, 2 pusher
+                   engBlockZ: 0, engBlockY: 0, engAim: 0 };
 for (const [, rows] of EP.GROUPS)
   for (const r of rows) {
     const [k, , m3, opts] = r;
@@ -254,8 +262,14 @@ const ENG_ITEMS = [
   ['engMount',  'mount', 0, 3, 1,
    ['nose', 'pusher (aft bulkhead)', 'over the wing (high wing)',
     'wing nacelles (twin)'], { when: P => +P.engOn }],
+  ['engAim',    'faces', 0, 2, 1, ['as the mount', 'puller', 'pusher'],
+   { when: P => +P.engOn && Math.round(P.engMount) >= 2 }],
   ['engNacAt',  'nacelle station (semispan)', 0.15, 0.70, 0.01,
    { when: P => +P.engOn && Math.round(P.engMount) === 3 }],
+  ['engBlockZ', 'block fore / aft', -1.0, 1.0, 0.01,
+   { when: P => +P.engOn && Math.round(P.engMount) >= 2, dim: 'm' }],
+  ['engBlockY', 'block up / down', -0.6, 0.8, 0.01,
+   { when: P => +P.engOn && Math.round(P.engMount) >= 2, dim: 'm' }],
   ['engPylonH', 'pylon height', 0.05, 1.0, 0.01,
    { when: P => +P.engOn && Math.round(P.engMount) === 2, dim: 'm' }],
   ['engY',      'up / down', -0.5, 0.5, 0.005,

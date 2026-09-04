@@ -183,6 +183,7 @@ window.CAGE_PAGE = {
         // ZERO SKIN (G26.4): the fuselage family omitted outright —
         // beyond the alpha slider; glass and all structure stay
         ['skinOn',    'fuselage skin',   0, 1, 1],
+        ['glazeOn',   'glazing',         0, 1, 1],
         ['shellT',    'shell thickness', 0.01, 0.10, 0.002, { dim: 'len' }],
         ['skinT',     'skin thickness',  0, 0.06, 0.001, { dim: 'len' }],
         ['intPillars','pillar bodies',   0, 1, 1],
