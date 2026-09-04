@@ -6456,7 +6456,7 @@ function cageSpec(P) {
   S.config = {
     noseMode: P.aeroNose ? 'aero' : 'cowl',
     rearAperture: (P.rearAperture || (engMountK === 1 && P.boomStyle)
-                   || (P.aeroAftOn && P.boomStyle)) ? 1 : 0,
+                   || (P.aeroAftOn && (P.boomStyle || +P.boomTwin))) ? 1 : 0,
     noseCrown: P.noseCrown,
     noseFinish: (P.noseFinish || engMountK >= 1) ? 'aero' : 'engine',
     cowl: { loops: Math.max(0, Math.round(P.cowlLoops)),

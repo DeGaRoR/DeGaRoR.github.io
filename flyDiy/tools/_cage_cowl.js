@@ -803,7 +803,7 @@ PAGE.post = ctx => {
     if (aftGroup.parent) aftGroup.parent.remove(aftGroup);
     aftGroup = null;
   }
-  if (!+P.aeroAftOn || !+P.boomStyle || Math.round(P.engMount || 0) === 1) return;
+  if (!+P.aeroAftOn || !(+P.boomStyle || +P.boomTwin) || Math.round(P.engMount || 0) === 1) return;
   const FS = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
   const face = noseFace(mesh, FS, 'tail');
   if (!face) { if (stat) stat.textContent += '  ·  aero aft: no aft face'; return; }
