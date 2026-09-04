@@ -197,7 +197,11 @@ const MANIFEST = {
     // declaration; editor.js's render() dispatches to window.DESIGN_FLOW
     // (lazily, like REFPLANE) when `Design & construction` is selected.
               'garage.js', 'workshop.js', 'bench.js', 'refplane.js',
-              'design_flow.js', 'editor.js', 'app.js'],
+    // balance.js before editor.js (G101): the energy layer's panel draws the
+    // weight-and-balance chart through window.BALANCE, and reads it lazily
+    // like REFPLANE and DESIGN_FLOW; it needs the core (buildGen, genShakedown,
+    // genSpecAtFuel), which the core bundle already put in scope.
+              'design_flow.js', 'balance.js', 'editor.js', 'app.js'],
   },
   // THE EDITOR (G35): the cage bench, embedded — the game's editor since the
   // old garage panel retired. The list and its ORDER are tools/_cage8.html's

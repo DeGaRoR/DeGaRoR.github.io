@@ -154,11 +154,13 @@ function measureBays(S, ctx) {
     try { r = C.bayResolve(S, k, null); } catch (e) { r = null; }
     if (!r) continue;
     if (r.on === 'body' && ctx.mesh && BAY()) {
-      try {
+      const zFw = VG() && VG().firewallZ ? VG().firewallZ(ctx.spec, CG2()) : null;
+      const key = bayKey(r, zFw);
+      if (key in FIELD_L) { r.litresField = FIELD_L[key]; }
+      else try {
         // the bay's limits are axis metres; the profile is indexed by the
         // field's sL, so they go through the same table the placement uses
         let s0 = r.x0 / FS, s1 = r.x1 / FS;
-        const zFw = VG() && VG().firewallZ ? VG().firewallZ(ctx.spec, CG2()) : null;
         if (zFw != null && VG().sLTable) {
           const T = VG().sLTable(ctx.mesh, FS, s0 - 0.35 / FS, s1 + 0.1 / FS, 18);
           const a = VG().sLOfZ(T, zFw - s0), b2 = VG().sLOfZ(T, zFw - s1);
@@ -168,6 +170,7 @@ function measureBays(S, ctx) {
         const lv = r.lv || [0, 1];
         r.litresField = BAY().bayVolume(prof) * (lv[1] - lv[0]) * FS * FS * FS * 1000;
       } catch (e) { r.litresField = null; }
+      if (!(key in FIELD_L)) FIELD_L[key] = r.litresField;
     }
     r.roomL = r.litresField != null ? r.litresField : r.litres;
     out.push(r);
@@ -180,7 +183,39 @@ const fsOf = ctx => ((CG2() && CG2().CAGE_UNIT) || 1) * ((ctx && ctx.P && ctx.P.
 // PLACEMENT — every vessel, through the one keeper
 // ---------------------------------------------------------------------------
 let LAST = { ctx: null, results: [], inv: null, group: null };
-let BAY_CACHES = {};          // the swept bays of the CURRENT cage build
+let BAY_CACHES = {};          // the swept bays of the CURRENT BODY, by bay rule
+let FIELD_L = {};             // measureBays' swept litres, by bay rule
+let BODY_SIG = null;          // the body both caches were swept off
+// THE BODY IS SWEPT WHEN THE BODY CHANGES, NOT WHEN THE CAGE REBUILDS
+// (2026-09-04). PAGE.post emptied BAY_CACHES on every build, and every slider
+// tick is a build: measured on the stock garage build, 2.0 s of a 2.6 s cowl-
+// gap tick was two bay sweeps and four sL tables over a fuselage that had not
+// moved (the user: "changing any slider value is now very painful"). The
+// field-hit walk (_fit_site.js fieldHits) skips every face with a bare
+// vertex, so the fielded vertices — A[i] defined — ARE the skin the sweep
+// reads, and their coordinates are the signature: a wing, tail, engine or
+// gear row leaves it alone, a fuselage row changes it and sweeps afresh.
+function bodySig(ctx) {
+  const m = ctx && ctx.mesh;
+  if (!m || !m.V || !m.A) return null;
+  const V = m.V, A = m.A;
+  let h1 = 0x811c9dc5 | 0, h2 = 0, n = 0;
+  for (let i = 0; i < V.length; i++) {
+    if (!A[i]) continue;
+    const p = V[i]; n++;
+    for (let k = 0; k < 3; k++) {
+      const q = Math.round(p[k] * 1e4) | 0;
+      h1 = Math.imul(h1 ^ q, 16777619);
+      h2 = (h2 + Math.imul(q, i + 1)) | 0;
+    }
+  }
+  return n + ':' + (h1 >>> 0).toString(16) + ':' + (h2 >>> 0).toString(16) + ':' + fsOf(ctx);
+}
+// a bay's RULE limits and datum, before the field clamps them: the key both
+// caches are read under
+const bayKey = (bay, zFw) => bay.key + '|' + (+bay.x0).toFixed(4) + '|' + (+bay.x1).toFixed(4) +
+  '|' + ((bay.lv || [0, 1]).map(x => (+x).toFixed(3)).join(',')) +
+  '|' + (zFw == null ? 'x' : (+zFw).toFixed(5));
 
 // the wing asked about itself: thickness and chord at a span station, off
 // the loft the wing layer built, in this layer's own frame (the lights' rule)
@@ -263,24 +298,30 @@ function placeAll(ctx, inv) {
   const results = [];
   if (!C.vesselResolve || !G) return results;
   let wroteBack = false;
-  // ONE SWEEP PER BAY PER BUILD, not per layout: a drag moves the tank and
-  // nothing else, so the body it is fitted against is the one already
-  // swept. Measured: 744 ms per slider tick with the sweep inside the
-  // layout, a few ms with it hoisted. PAGE.post empties the map when the
-  // cage rebuilds, which is the only time the body changes.
+  // ONE SWEEP PER BAY PER BODY, not per layout and not per build: a drag
+  // moves the tank and nothing else, and a wing or engine row moves nothing
+  // the sweep reads. Measured: 744 ms per slider tick with the sweep inside
+  // the layout, a few ms with it hoisted — and then 1.3 s per tick again
+  // once every build emptied the map. PAGE.post empties it when the BODY
+  // SIGNATURE changes, which is the only time the body changes.
   const cacheOf = bay => {
     if (bay.on !== 'body') return null;
-    if (!(bay.key in BAY_CACHES)) {
-      const c = G.bayCache ? G.bayCache(ctx.mesh, FS, bay, 0.035, zFw, 0.7) : null;
-      // THE BAY IS CLAMPED TO THE BODY THE FIELD DESCRIBES. The rule's front
-      // limit is a measured deck length; where the field stops describing
-      // the deck (the firewall face) the bay stops too, so a default and a
-      // slider both start at a station a tank can actually be at.
-      if (c && c.axisMin != null && c.axisMin > bay.x0) bay.x0 = c.axisMin + 0.01;
-      if (c && c.axisMax != null && c.axisMax < bay.x1) bay.x1 = c.axisMax - 0.01;
-      BAY_CACHES[bay.key] = c;
-    }
-    return BAY_CACHES[bay.key];
+    // the key is the RULE's limits, taken once per bay object: the clamp
+    // below rewrites x0/x1, and a second vessel in the same bay must not
+    // read a different key off the clamped numbers and sweep again
+    if (!bay._ck) bay._ck = bayKey(bay, zFw);
+    if (!(bay._ck in BAY_CACHES))
+      BAY_CACHES[bay._ck] = G.bayCache ? G.bayCache(ctx.mesh, FS, bay, 0.035, zFw, 0.7) : null;
+    const c = BAY_CACHES[bay._ck];
+    // THE BAY IS CLAMPED TO THE BODY THE FIELD DESCRIBES. The rule's front
+    // limit is a measured deck length; where the field stops describing
+    // the deck (the firewall face) the bay stops too, so a default and a
+    // slider both start at a station a tank can actually be at. Every
+    // call, not only the sweeping one: BAYS is measured afresh each build
+    // and the clamp lives on the bay object, not in the cache.
+    if (c && c.axisMin != null && c.axisMin > bay.x0) bay.x0 = c.axisMin + 0.01;
+    if (c && c.axisMax != null && c.axisMax < bay.x1) bay.x1 = c.axisMax - 0.01;
+    return c;
   };
   const FS = fsOf(ctx);
   const W = window.CAGE_WING;
@@ -616,7 +657,9 @@ PAGE.post = ctx => {
     if (!seeded && !loadPrefs()) fromSpec(null);
   }
   LAST.ctx = ctx;
-  BAY_CACHES = {};              // a new body: every bay is swept afresh
+  // a new body: every bay is swept afresh. The same body: nothing is.
+  const sig = bodySig(ctx);
+  if (sig == null || sig !== BODY_SIG) { BAY_CACHES = {}; FIELD_L = {}; BODY_SIG = sig; }
   const S = resolvedSpec(ctx);
   BAYS = measureBays(S, ctx);
   // a vessel in a bay this aeroplane does not have (no wing) goes to the nose
@@ -635,7 +678,6 @@ PAGE.load = spec => {
 // ---------------------------------------------------------------------------
 // COMMIT — the spec is the owner
 // ---------------------------------------------------------------------------
-let commitT = null;
 function commit() {
   savePrefs();
   if (!inGame()) return;
@@ -661,15 +703,68 @@ function commit() {
     }
     G.update(patch);
   } catch (e) { console.error('energy:', e); }
-  if (commitT) clearTimeout(commitT);
-  commitT = setTimeout(balanceReadout, 250);
+  scheduleReadouts(250);
+}
+
+// THE NUMBERS ARE READ WHEN THEY CAN BE SEEN (2026-09-04). balanceReadout is
+// the core's FULL shakedown (the reserve sheet and the envelope's four
+// corners ride inside it), fillReadout one more slim one, the chart seven:
+// fourteen aero solves, ~1.1 s on the stock build — and renderPanel fired
+// them 50 ms after EVERY cage build, so a cowl or wing slider paid, tick
+// after tick, for a chart that was folded away or scrolled off the panel.
+// A build now marks them STALE; they run once, 300 ms after the last build,
+// and only while the panel is open and its readout block is on screen.
+// Opening or scrolling to a stale panel reads them then. The rows that live
+// in the panel (fill, occupants, baggage) still read on their own release,
+// because a hand on them is a reader in front of them.
+let readT = null, readStale = false, readSeen = true, readIO = null;
+function readoutsVisible() { return !!(panel && panel.open && readSeen); }
+function scheduleReadouts(ms) {
+  readStale = true;
+  if (!inGame() || !balEl) return;
+  if (readT) clearTimeout(readT);
+  readT = setTimeout(() => {
+    readT = null;
+    if (readStale && readoutsVisible()) { readStale = false; balanceReadout(); }
+  }, ms == null ? 300 : ms);
+}
+function watchReadouts(elm) {
+  if (typeof IntersectionObserver === 'undefined') { readSeen = true; return; }
+  if (!readIO) readIO = new IntersectionObserver(es => {
+    readSeen = es.some(e => e.isIntersecting);
+    if (readSeen && readStale) scheduleReadouts(0);
+  });
+  readIO.disconnect();
+  readIO.observe(elm);
 }
 
 // WHAT IT DOES TO THE AEROPLANE, in numbers — the core's own shakedown over
 // the spec as just committed. This is the "CG with full or empty tank at
 // conception" the user asked for, read live off the same ledger the flight
 // weighs itself with, not a second estimate.
-let balEl = null, fillEl = null, barEl = null, tableEl = null;
+let balEl = null, fillEl = null, barEl = null, tableEl = null, chartEl = null;
+// the chart, recomputed on a release of the fill, occupants or baggage rows,
+// and after every commit (the aeroplane changed)
+let chartT = null;
+function chartReadout() {
+  if (!inGame() || !chartEl || !window.BALANCE) return;
+  if (chartT) clearTimeout(chartT);
+  chartT = setTimeout(() => {
+    chartT = null;
+    try {
+      if (typeof buildGen !== 'function' || typeof genShakedown !== 'function' ||
+          typeof genSpecAtFuel !== 'function') return;
+      const S0 = window.GARAGE_SPEC.resolved();
+      if (!S0 || !S0.fuel) return;
+      const D = window.BALANCE.compute(S0, { buildGen, genShakedown, genSpecAtFuel },
+        { occupants: VIEW.occupants, baggage: VIEW.baggage, fill: VIEW.fill,
+          envelope: LAST_SHAKE && LAST_SHAKE.envelope });
+      window.BALANCE.draw(chartEl, D);
+      LAST_CHART = D;
+    } catch (e) { console.error('balance chart:', e); }
+  }, 200);
+}
+let LAST_CHART = null;
 let LAST_SHAKE = null;
 // the aeroplane at the slider's fill, weighed by the core; and the envelope's
 // four corners as a loading table with the bar between them
@@ -700,6 +795,7 @@ function fillReadout() {
         ' \u00b7 static margin ' + f(sh.staticMargin, 2);
       fillEl.style.color = (sh.staticMargin != null && sh.staticMargin < 0.05) ? '#ff7b6b' : '';
       drawBar(E, sh.cgX);
+      chartReadout();
     } catch (e) { fillEl.textContent = ''; }
   }, 150);
 }
@@ -761,7 +857,7 @@ let panel = null, panelBody = null, selected = 0;
 // VIEW STATE, not spec: how full the tanks are drawn and judged right now,
 // and whether the selected bay's ghost is shown. Neither is a fact about the
 // aeroplane, so neither is written to the build.
-const VIEW = { fill: 1, showBay: 0 };
+const VIEW = { fill: 1, showBay: 0, occupants: null, baggage: null };
 const READ = [];              // per-vessel readout elements, rebuilt with the panel
 let totalEl = null;
 
@@ -1006,6 +1102,35 @@ function renderPanel() {
   barEl.title = 'the CG envelope: forward corner to aft corner, in % MAC; the ' +
     'marker is the CG at the fuel aboard';
   B.appendChild(barEl);
+  // ---- G101: THE BALANCE CHART, with the loading as what-ifs ---------------
+  // Occupants and baggage here are VIEW state: the loading you want to SEE
+  // the aeroplane at, not the loading the build carries (that is the crew
+  // layer's dummies and the spec's own baggage). Every point on the chart is
+  // the core's shakedown over genSpecAtFuel — the same door as the reserve
+  // sheet, the corners and the slider above.
+  if (inGame() && window.BALANCE) {
+    const S0 = (() => { try { return window.GARAGE_SPEC.resolved(); } catch (e) { return null; } })();
+    const seats = Math.max(1, (S0 && S0.seats) | 0);
+    if (VIEW.occupants == null) VIEW.occupants = Math.max(1, Math.min(seats, (S0 && S0.occupants) || 1));
+    if (VIEW.baggage == null) VIEW.baggage = (S0 && S0.cabin && S0.cabin.baggage) || 0;
+    const fmtN = x => x.toFixed(0);
+    const fmtKg = x => x.toFixed(0) + ' kg';
+    range(B, 'occupants', 'how many people the chart is drawn for (the pilot ' +
+      'and the seats behind, front to back)', 1, seats, 1, VIEW.occupants, fmtN,
+      x => { VIEW.occupants = x; }, x => { VIEW.occupants = x; chartReadout(); });
+    range(B, 'baggage', 'kilograms in the baggage bay for the chart', 0, 60, 1,
+      VIEW.baggage, fmtKg, x => { VIEW.baggage = x; }, x => { VIEW.baggage = x; chartReadout(); });
+    chartEl = document.createElement('canvas');
+    chartEl.style.cssText = 'display:block;width:100%;height:170px;margin:2px 0 4px 0;' +
+      'background:rgba(0,0,0,.18);border-radius:3px';
+    chartEl.title = 'weight and balance: CG across (% of the mean chord), mass up. ' +
+      'The blue line is the CG walking as the fuel burns at this loading, full ' +
+      'to dry, the hollow point at reserves; the yellow dot is the fuel aboard; ' +
+      'the circles are the four loading corners; NEUTRAL is where the static ' +
+      'margin reaches zero and CAUTION 5% of the chord ahead of it. No forward ' +
+      'limit is drawn: the model has no elevator-authority rule to place one.';
+    B.appendChild(chartEl);
+  }
   tableEl = el('div', 'r');
   tableEl.style.cssText = 'display:block;font-size:11px;white-space:normal;line-height:1.35;opacity:.9';
   B.appendChild(tableEl);
@@ -1015,8 +1140,8 @@ function renderPanel() {
     balEl.title = 'the core’s own shakedown over the spec as committed — the ' +
       'same ledger the flight weighs itself with';
     B.appendChild(balEl);
-    if (commitT) clearTimeout(commitT);
-    commitT = setTimeout(balanceReadout, 50);
+    watchReadouts(balEl);
+    scheduleReadouts();
   }
   syncReadouts();
 }
@@ -1071,6 +1196,7 @@ function syncReadouts() {
 window.CAGE_ENERGY = {
   EN, fromSpec, toSpec, relayout, commit,
   results: () => LAST.results, bays: () => BAYS,
+  chart: () => LAST_CHART, view: VIEW,
   select: i => { selected = i; relayout(); },
 };
 })();

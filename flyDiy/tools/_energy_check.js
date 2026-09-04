@@ -432,6 +432,33 @@ if (SHOW) for (const s of seen)
     check(p0.energy.vessels[0].capacity === pack.energy.vessels[0].capacity,
       'fill: a pack does not drain through the same door');
   }
+  // G101: THE CHART'S DATA, headless — the burn line, the corners and the
+  // limits, off the same door. balance.js is a viewer file; its compute half
+  // is pure and loads in node.
+  {
+    const BAL = require(path.join(__dirname, '..', 'src', 'viewer', 'balance.js'));
+    const S = C.buildGen(Object.assign(cl(C.GEN_DEFAULT),
+      { energy: { vessels: [{ bay: 'nose', capacity: 50, along: 0, lv: 1 }] } })).spec;
+    const D = BAL.compute(S, { buildGen: C.buildGen, genShakedown: C.genShakedown,
+                               genSpecAtFuel: C.genSpecAtFuel }, { occupants: 1, baggage: 0, fill: 0.5 });
+    check(D.burn.length >= 5 && D.burn[0].fill === 1 && D.burn[D.burn.length - 1].fill === 0,
+      'chart: the burn line runs from full to dry (' + D.burn.length + ' points)');
+    let mono = true;
+    for (let i = 1; i < D.burn.length; i++) if (!(D.burn[i].cgX >= D.burn[i - 1].cgX - 1e-9)) mono = false;
+    check(mono, 'chart: a nose tank\u2019s burn line walks the CG aft, monotonically');
+    check(D.burn.some(p => p.reserve), 'chart: the reserve point is on the line');
+    check(D.corners.length === 4, 'chart: the four corners are on it');
+    check(Math.abs(D.now.fill - 0.5) < 1e-9 && D.now.mass < D.burn[0].mass && D.now.mass > D.burn[D.burn.length - 1].mass,
+      'chart: the slider\u2019s point sits between full and dry');
+    check(D.cBar > 0.5 && D.cBar < 3 && D.limits.cautionX < D.limits.npX,
+      'chart: the mean chord is recovered exactly from the static margin (' +
+      (D.cBar || 0).toFixed(3) + ' m) and the caution line sits ahead of the neutral point');
+    const two = BAL.compute(S, { buildGen: C.buildGen, genShakedown: C.genShakedown,
+                                 genSpecAtFuel: C.genSpecAtFuel }, { occupants: 2, baggage: 30, fill: 1 });
+    check(two.now.mass > D.burn[0].mass + 80,
+      'chart: a second occupant and 30 kg of baggage weigh what they weigh (' +
+      (two.now.mass - D.burn[0].mass).toFixed(0) + ' kg more)');
+  }
   // a pack does not burn
   {
     const b = build({ energy: { kind: 'battery',
@@ -630,6 +657,25 @@ if (SHOW) for (const s of seen)
   const ui = fs.readFileSync(path.join(__dirname, '_cage_ui.js'), 'utf8');
   check(/CAGE_ENERGY\.fromSpec\(spec && spec\.energy\)/.test(ui),
     'load: a loaded build seeds the energy panel, unconditionally');
+  // THE SLIDER LAG (2026-09-04). Every cage build ran the layer's post hook,
+  // and the hook emptied the bay caches and re-swept the body (2.0 s of a
+  // 2.6 s tick, measured), then fired fourteen aero solves of readouts into
+  // a panel that was not even displayed. The sweep is keyed on a signature
+  // of the fielded vertices now, and the readouts wait until they are on
+  // screen. The two lines below are the ones a tidy-up would put back.
+  const en = fs.readFileSync(path.join(__dirname, '_cage_energy.js'), 'utf8');
+  check(/function bodySig\(/.test(en) && /sig !== BODY_SIG\) \{ BAY_CACHES = \{\}; FIELD_L = \{\};/.test(en),
+    'lag: the bay sweep is keyed on the body signature, not on the build');
+  check(!/^\s*BAY_CACHES = \{\};\s*\/\/ a new body/m.test(en),
+    'lag: PAGE.post does not empty the sweep caches unconditionally');
+  check(/FIELD_L\[key\] = r\.litresField/.test(en) && /if \(key in FIELD_L\)/.test(en),
+    'lag: measureBays reads its swept litres from the cache under the same body');
+  check(/if \(!bay\._ck\) bay\._ck = bayKey\(bay, zFw\)/.test(en),
+    'lag: a bay keys its sweep on the rule limits once, before the field clamps them');
+  check(!/setTimeout\(balanceReadout, 50\)/.test(en) && /watchReadouts\(balEl\);\s*scheduleReadouts\(\);/.test(en),
+    'lag: the panel schedules its readouts through the stale/visible door, not a 50 ms timer');
+  check(/function readoutsVisible\(\) \{ return !!\(panel && panel\.open && readSeen\); \}/.test(en),
+    'lag: readouts run only while the panel is open and on screen');
 }
 
 console.log('  ' + seen.length + ' bodies swept, ' +
