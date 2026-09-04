@@ -29295,3 +29295,37 @@ name (a click lands on the cowl part) — the fuselage's own rings are cut 2,
 after the look is judged. Measured: face z 1.54 / y −0.04 on the default
 pod, 1.10 m, tip 0.80. (The rows are `aeroAft*` — `aftDroop` was already the
 mirrored pod's aft-deck droop; GATE PARTS caught the double claim.)
+
+## G179 — TWIN-BOOM SPEC, SESSION 3 (CUT 1): THE TWIN BOOMS (2026-09-04)
+
+`boomStyle 2`: the pod ends at the bulkhead as on a rod (the rod's table,
+`S.rod.twin`, no tube of its own — `emitRodFree` and the tightening truss
+step aside), and the WING LAYER draws two tapering tubes off its own
+trailing edge at ±`boomX` (`boomD`, `boomTaper`, `boomLen` long, level at
+the wing's chord plane; `CAGE_BOOMS` published in scene metres with
+`yTop(z)` / `yBot(z)`). The FIN layer builds once on a flat deck that is the
+boom's line and draws twice at ±boomX (the clone's rudder is `edSurf_rud2`,
+a second hinge on the rudder channel). The STAB layer's seat 3 "between the
+booms" takes the boom's centre and the boom tip as its tail cap; `stX 0` is
+one panel boom to boom (the tile writes it). The JOIN measures the fin layer
+whole (two fins) and the stab layer whole, writes `tail.type twinBoom`,
+`boomX`, `boomLen`; the spec counts a measured fin TWICE in Sv. Tiles:
+**Fuselage style > Twin booms**; Conventional keeps seat 3 while the booms
+are on. Two cards: **Skymaster-alike** (recreation — nose engine; the rear
+pusher is push-pull, the mixed-mount list the frame does not loop over yet)
+and **P-38-alike** (a 912 puller a boom at the booms' own stations).
+
+**CUT 1'S STATED APPROXIMATIONS** (the spec's §1.3 physics is cut 2):
+- the FRAME still builds the centreline tail post and ONE fin node carrying
+  both fins' area; the booms' own mass and drag are not priced (the
+  centreline truss bays stand in for them);
+- the booms are round, level, rooted on the wing whatever nacelle sits at
+  the station; their group wears the wing's layer name (a click selects
+  the wing);
+- the stab's semi-span is the fin model's own (~1.2 m) — `boomX` is the
+  builder's to match it (the tiles set 1.25 / 1.35); a P-38 at real
+  proportions wants a stab span row.
+Measured on the Skymaster-alike: booms at ±1.25, z 1.09 → −2.23, y 0.67;
+stab seat 3 at the boom centre; both fins drawn. Light gates green: DESIGN,
+PARTS, JOIN (a twinBoom fixture: type, Sv = two fins, builds), FIN, SAVE,
+BUILD, UISMOKE.

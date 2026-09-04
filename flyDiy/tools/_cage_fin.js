@@ -457,6 +457,7 @@ function finQuadWire(m, bySection) {
 
 // ---- build ----------------------------------------------------------------
 let group = null;
+let group2 = null;                  // the second boom's fin (2026-09-04)
 const dispose = o => {
   if (!o) return;
   o.traverse(c => { if (c.geometry) c.geometry.dispose(); });
@@ -469,6 +470,7 @@ PAGE.post = ctx => {
   if (prevPost) prevPost(ctx);
   const { scene, mesh, P, stat } = ctx;
   dispose(group); group = null;
+  dispose(group2); group2 = null;
   if (!P.finOn) return;
 
   const cutMode = Math.round(P.finCut || 0);
@@ -482,7 +484,15 @@ PAGE.post = ctx => {
   const S = FIN.finSpec(P.boomStyle
     ? { ...P, finKeel: 0, finDorsal: 0 } : P);
   S.cutPrep = cutMode;              // crease the rails the cut runs along
-  const deck = FIN.finCentreline(mesh, deckSkin);
+  // TWIN BOOMS (2026-09-04): the fin rides a BOOM, not the fuselage — its
+  // deck is the boom's own top line (a straight tube), its keel the tube's
+  // belly, its tail cap the boom's tip; built once, drawn at ±boomX
+  const TB = window.CAGE_BOOMS;
+  const FSd = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
+  const deck = TB
+    ? { top: z => TB.yTop(z * FSd) / FSd, bot: z => TB.yBot(z * FSd) / FSd,
+        z0: TB.zTip / FSd, z1: TB.zRoot / FSd }
+    : FIN.finCentreline(mesh, deckSkin);
   S.deck = deck;                     // null-safe: no deck = the sketch as-is
   const m0 = FIN.buildFin2(S);
 
@@ -538,6 +548,15 @@ PAGE.post = ctx => {
   if ($('cage') && $('cage').checked && L > 0)
     group.add(finWire(m0, 0x7fe0a8));
   group.scale.setScalar(FS);
+  if (TB) {
+    // one fin a boom: the second is the first's clone at −boomX, its rudder
+    // named for the join (a second hinge, the same rudder channel)
+    group.position.x = TB.x;
+    group2 = group.clone();
+    group2.position.x = -TB.x;
+    group2.traverse(o => { if (o.name === 'edSurf_rud') o.name = 'edSurf_rud2'; });
+    scene.add(group2);
+  }
   scene.add(group);
 
   window.CAGE_FIN = { spec: S, cage: m0, mesh: s, disp,

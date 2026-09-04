@@ -465,8 +465,17 @@ window.CAGE_PAGE = {
       // boom root) and the pax pillar reverts to the full cabin
       // section. Rod: the tube IS the boom and the tail — bare, fin
       // and stab clamp straight onto it; no skin over the tightening.
-      ['boomStyle', 'boom style',      0, 1, 1, ['lofted skin',
-                                                 'rod (tube)']],
+      // TWIN BOOMS (2026-09-04, TWIN-BOOM spec §1.3): the pod ends at the
+      // bulkhead as on a rod, two tapering tubes leave the wing's trailing
+      // edge at ±boomX and carry a fin each, the stab between them
+      ['boomStyle', 'boom style',      0, 2, 1, ['lofted skin',
+                                                 'rod (tube)', 'twin booms']],
+      ['boomX',     'boom half-track', 0.6, 3.0, 0.01,
+       { when: P => +P.boomStyle === 2, dim: 'len' }],
+      ['boomD',     'boom diameter',   0.08, 0.40, 0.005,
+       { when: P => +P.boomStyle === 2, dim: 'len' }],
+      ['boomTaper', 'boom taper',      0.5, 1.0, 0.01,
+       { when: P => +P.boomStyle === 2 }],
       ['taperOn',   'taper section',   0, 1, 1],
       // the `when` rules below are MEASURED, not assumed (P1 probe,
       // 2026-08-26): each hidden row was varied through the full display

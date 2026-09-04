@@ -301,6 +301,7 @@ const ICON = {
                   ' L' + P2(32 + Math.cos(a) * 17, 20 + Math.sin(a) * 17), w: 2 };
     })] },
   mountNose: iconSide({ canopy: 'screen', deck: 'cabin', gear: 'none', prop: true }),
+  boomTwin: iconSide({ canopy: 'none', gear: 'none', tail: 'twin', pod: true }),
   // the covering tiles: a closed pod, and the same pod as a bare truss
   coverSkin: { vb: '0 0 64 40', paths: [{ d: 'M6 20 Q14 8 32 8 Q52 8 58 20 Q52 32 32 32 Q14 32 6 20 Z' }] },
   coverOpen: { vb: '0 0 64 40', paths: [
@@ -743,6 +744,12 @@ const DESIGN_ROWS = [
       { value: 1, label: 'Rod & pod', icon: ICON.boomRod,
         note: 'an always-bare tube carries the tail; the taper section comes on with it',
         writes: { cage: { boomStyle: 1, taperOn: 1 } } },
+      // 2026-09-04 (TWIN-BOOM spec §1.1/1.3): the pod ends at the bulkhead,
+      // two booms off the wing carry a fin each, the stab between them
+      { value: 2, label: 'Twin booms', icon: ICON.boomTwin,
+        note: 'two booms off the wing, a fin each, the stab between them',
+        writes: { cage: { boomStyle: 2, taperOn: 1, stMount: 3, stX: 0,
+                          stCant: 0, finOn: 1 } } },
     ] },
 
   // THE COVERING (2026-09-04, the user: "ability to remove all fuselage and
@@ -976,8 +983,9 @@ const DESIGN_ROWS = [
     options: [
       { value: 'conv', label: 'Conventional',
         icon: iconSide({ canopy: 'none', gear: 'none', tail: 'conv' }),
-        writes: { cage: { stY: 0.408, stMount: 0, stCant: 0, stX: 0.05,
-                          finOn: 1 } } },
+        writes: { cage: { stY: 0.408, stCant: 0, finOn: 1,
+                          stMount: P => Math.round(P.boomStyle) === 2 ? 3 : 0,
+                          stX: P => Math.round(P.boomStyle) === 2 ? 0 : 0.05 } } },
       { value: 't', label: 'T-tail',
         icon: iconSide({ canopy: 'none', gear: 'none', tail: 't' }),
         note: 'the stab rides the fin tip',
@@ -1349,6 +1357,34 @@ const ARCHETYPES = [
                                                   wgChordTip: 1.95 }),
             spec: { finish: { decals: { m1On: 1, m1Pat: 0, m1A: 0xc96f2a,
                                         m1B: 0x1b3a5c, m1D: 0xc96f2a } } } } },
+  // TWIN BOOMS (2026-09-04, spec §3): the 337's shape with its nose engine —
+  // the rear pusher is push-pull, the mixed-mount list the frame does not loop
+  // over yet — and a small P-38: two pullers on the booms' own stations.
+  { key: 'skymaster', kind: 'recreation', name: 'Skymaster-alike', note: 'twin ' +
+      'booms off a high wing, four seats, nose engine (the rear pusher is owed)',
+    sel: { class: 'n23', role: 'touring', seatLayout: 1, paxCount: 3,
+           canopy: 'screen', mirror: 0, intCons: 3, boomStyle: 2, section: 3,
+           wgPos: 0, wgBrace: 1, wgTip: 1, wgFlapType: 1,
+           engFamily: 'flat', engModel: 'lycoming IO-360', engMount: 'nose',
+           gearLayout: 'trike', suspension: 'oleo', s1Fair: 0,
+           empennage: 'conv', scheme: 'trim', base: 0xefe6cf, trim: 0x1b3a5c },
+    over: { cage: Object.assign({}, PLAN_TAPER, { boomX: 1.25, boomLen: 3.2,
+                                                   boomD: 0.18 }),
+            spec: { finish: { decals: { m1On: 1, m1Pat: 0, m1A: 0x1b3a5c,
+                                        m1B: 0xefe6cf, m1D: 0x1b3a5c } } } } },
+  { key: 'p38', kind: 'recreation', name: 'P-38-alike', note: 'a puller a boom, ' +
+      'mid wing, one seat under a bubble, twin booms and fins',
+    sel: { class: 'eab', role: 'aerobatic', seatLayout: 0, paxCount: 0,
+           canopy: 'full', mirror: 0, intCons: 3, boomStyle: 2, section: 3,
+           wgPos: 1, wgBrace: 1, wgTip: 2, wgFlapType: 1,
+           engFamily: 'flat', engModel: 'rotax 912 (flat)', engMount: 'nose',
+           engCount: 2, engAim: 'puller', gearLayout: 'trike',
+           suspension: 'oleo', s1Fair: 0,
+           empennage: 'conv', scheme: 'bare' },
+    over: { cage: Object.assign({}, PLAN_TAPER, { wgSpan: 11.0, wgChord: 1.55,
+                                                   wgChordTip: 0.95,
+                                                   boomX: 1.35, boomLen: 3.0,
+                                                   boomD: 0.22, engNacAt: 0.245 }) } },
   // "a mono engine larger aircraft ... something like the Beaver now that we
   // have large radial engines": the R-985 Wasp Junior (this batch's registry
   // row) on a strut-braced high wing, four bays, a taildragger on oleos.

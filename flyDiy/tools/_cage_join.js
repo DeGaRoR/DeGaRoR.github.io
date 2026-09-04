@@ -279,6 +279,9 @@ function cageJoinSpec(P, M, T) {
   if (typeof M.tailCant === 'number' && M.tailCant >= 20) {
     tl.type = 'v'; tl.vAngle = M.tailCant;
   }
+  // twin booms (2026-09-04): the type, the half-track and the length — the
+  // two fins are one Sv (the spec doubles the measured fin)
+  if (M.boomX > 0) { tl.type = 'twinBoom'; tl.boomX = M.boomX; tl.boomLen = M.boomLen; }
   // THE TAIL'S OWN CONSTRUCTIONS (G116), same contract as the wing's:
   // 0 says nothing, absent means the aeroplane's own material
   {
@@ -781,8 +784,27 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           // its chord, its station and root height; the cant is the type.
           // No fin is read (a V has none; a fin left switched on would be
           // a three-surface tail the frame does not build).
-          const SBv = window.CAGE_STAB;
-          if (SBv && SBv.cant >= 20) {
+          const SBv = window.CAGE_STAB, TBj = window.CAGE_BOOMS;
+          if (TBj) {
+            // TWIN BOOMS (2026-09-04): the fin layer is TWO fins on the boom
+            // tails, the stab layer the panel between them — both measured
+            // whole; vHeight above the boom's line, hSpan the panel's own
+            const fb2 = layerBounds('cageLayer:fin'), sb2 = layerBounds('cageLayer:stab');
+            M.boomX = TBj.x; M.boomLen = TBj.len;
+            if (sb2 && (sb2.x1 - sb2.x0) > 0.5) {
+              M.hSpan = 2 * Math.max(Math.abs(sb2.x0), Math.abs(sb2.x1));
+              M.hChord = sb2.z1 - sb2.z0;
+              M.hX = zFw - (sb2.z0 + sb2.z1) / 2;
+              M.stabY = (sb2.y0 + sb2.y1) / 2 - yD;
+            }
+            if (fb2 && (fb2.y1 - fb2.y0) > 0.3) {
+              const boomTop = TBj.y + TBj.r1 - yD;
+              M.vHeight = Math.max(0.2, (fb2.y1 - yD - boomTop) / 0.82);
+              M.vChord = fb2.z1 - fb2.z0;
+              M.vX = zFw - (fb2.z0 + fb2.z1) / 2;
+              M.vSweep = 0;
+            }
+          } else if (SBv && SBv.cant >= 20) {
             const vb = layerBounds('cageLayer:stab');
             if (vb && (vb.x1 - vb.x0) > 0.5) {
               M.tailCant = SBv.cant;
@@ -1002,7 +1024,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // minimum x), and the axis is the direction that edge runs —
       // SPANWISE (z) for ailerons/flaps/elevators, VERTICAL (y) for the
       // rudder. Sign and drive per surface, ailerons antisymmetric.
-      for (const nm of ['ailR', 'ailL', 'flapR', 'flapL', 'rud',
+      for (const nm of ['ailR', 'ailL', 'flapR', 'flapL', 'rud', 'rud2',
                         'elevR', 'elevL'])
         PARTS.others.push({ src: 'edSurf_' + nm, kind: 'surf_' + nm,
           surf: nm, groups: {} });
@@ -1332,7 +1354,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         out2.surf = pt.surf;
         out2.axis = hingeAxis;
         const S2 = pt.surf;
-        out2.drive = (S2 === 'rud') ? 'dr'
+        out2.drive = (S2 === 'rud' || S2 === 'rud2') ? 'dr'
                    : (S2 === 'elevR' || S2 === 'elevL') ? 'de'
                    : (S2 === 'flapR' || S2 === 'flapL') ? 'fl' : 'da';
         // ailerons are ANTISYMMETRIC; the rest move together

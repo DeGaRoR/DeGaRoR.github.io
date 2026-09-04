@@ -364,6 +364,7 @@ const dispose = o => {
 };
 
 const prevPost = PAGE.post;
+let boomGroup = null;                        // the twin booms (2026-09-04)
 PAGE.post = ctx => {
   if (prevPost) prevPost(ctx);
   const { scene, spec, mesh, P, stat } = ctx;
@@ -1297,6 +1298,49 @@ PAGE.post = ctx => {
   window.CAGE_WING = { def, semi: def.spec.geom && def.spec.geom.semi,
                        skinFaces: faces, anchor: { zCab, yAnchor }, group,
                        underAt, overAt, leAt, teAt, box: wbox };
+  // THE TWIN BOOMS (2026-09-04, TWIN-BOOM spec §1.3): two tapering tubes off
+  // the wing's TRAILING EDGE at ±boomX, level, `boomLen` long, carrying the
+  // fins the fin layer builds twice and the stab the stab layer seats between
+  // them. Drawn here because only the wing knows its trailing edge; published
+  // as CAGE_BOOMS (scene metres) for the fin, the stab and the join. A pure
+  // function of P + the wing, so the fin layer (which runs before the stab)
+  // can read the deck it needs. Cut 1's admitted compromises: round tubes,
+  // level, rooted on the wing whatever nacelle sits there; the tube's group
+  // wears the wing's layer name (a click selects the wing).
+  if (boomGroup) { boomGroup.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+                   if (boomGroup.parent) boomGroup.parent.remove(boomGroup); boomGroup = null; }
+  window.CAGE_BOOMS = null;
+  if (Math.round(P.boomStyle) === 2 && teAt) {
+    const x = Math.max(0.3, +P.boomX || 1.2);
+    const te = teAt(x) || teAt(-x);
+    if (te) {
+      const r0 = Math.max(0.02, (+P.boomD || 0.16) / 2);
+      const r1 = r0 * Math.max(0.3, Math.min(1, +P.boomTaper || 0.7));
+      const len = Math.max(0.8, +P.boomLen || 3.0);
+      const y0 = 0.5 * (te.yTop + te.yBot);
+      const zRoot = te.z + 0.35 * (te.yTop - te.yBot) + r0, zTip = te.z - len;
+      boomGroup = new THREE.Group();
+      boomGroup.name = 'cageLayer:wing';
+      let bm = null;
+      try {
+        if (window.CAGE_SECMAT)
+          bm = window.CAGE_SECMAT('boomTube', { surf: 0, fieldM: 1 });
+      } catch (e) {}
+      if (!bm) bm = new THREE.MeshStandardMaterial({ color: 0x9aa0a6, metalness: 0.6, roughness: 0.45 });
+      for (const s of [1, -1]) {
+        const g = new THREE.CylinderGeometry(r1, r0, zRoot - zTip, 28, 1, false);
+        g.rotateX(-Math.PI / 2);                 // the cylinder's axis onto -z
+        const m = new THREE.Mesh(g, bm);
+        m.position.set(s * x, y0, 0.5 * (zRoot + zTip));
+        m.name = 'edBoom' + (s > 0 ? 'R' : 'L');
+        boomGroup.add(m);
+      }
+      scene.add(boomGroup);
+      const rAt = z => r0 + (r1 - r0) * Math.max(0, Math.min(1, (zRoot - z) / (zRoot - zTip)));
+      window.CAGE_BOOMS = { x, r0, r1, zRoot, zTip, y: y0, len,
+                            yTop: z => y0 + rAt(z), yBot: z => y0 - rAt(z), rAt };
+    }
+  }
   if (stat) {
     const g2 = def.spec.geom || {};
     stat.textContent += '  ·  wing: ' + (g2.S ? g2.S.toFixed(1) + ' m2 · ' : '') +

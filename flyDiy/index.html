@@ -12067,7 +12067,12 @@ const GEN_DEFAULT = {
           // one too many, and this is which one gives way.
           dorsal: { len: 0.34, height: 0.16, width: 0.55, angle: null },
           vHeight: null, vChord: null, vX: null,
-          place: { dx: 0 } },
+          place: { dx: 0 },
+          // twin booms (2026-09-04): the type says two fins on two booms at
+          // ±boomX; the FRAME still builds the centreline tail (its post, one
+          // FIN node) — cut 1's stated approximation, the two fins' area on
+          // the one node, the booms' drag not yet priced
+          boomX: null, boomLen: null },
   // `stiffness` is the suspension: 1.0 is the mass-scaled default, below that
   // is soft (long travel, bottoms out), above is hard (jars, but holds).
   // type 'taildragger' puts the third wheel at the tail and the mains AHEAD of
@@ -12553,7 +12558,9 @@ function clampSpec(spec) {
   if (S.tail.tipV != null && !GEN_TIPS[S.tail.tipV]) S.tail.tipV = null;
   if (S.tail.tipH != null && !GEN_TIPS[S.tail.tipH]) S.tail.tipH = null;
   S.tail.hTaper = genClamp(S.tail.hTaper == null ? 1 : S.tail.hTaper, 0.35, 1.0);
-  if (!['conventional', 'v'].includes(S.tail.type)) S.tail.type = 'conventional';
+  if (!['conventional', 'v', 'twinBoom'].includes(S.tail.type)) S.tail.type = 'conventional';
+  S.tail.boomX = genClampN(S.tail.boomX, 0.3, 4.0);
+  S.tail.boomLen = genClampN(S.tail.boomLen, 0.5, 8.0);
   // the V's dihedral. Too shallow and it cannot make yaw at any sane area; too
   // steep and it cannot make pitch. The Bonanza's is about 33.
   S.tail.vAngle = genClamp(S.tail.vAngle == null ? 33 : S.tail.vAngle, 20, 55);
@@ -12961,6 +12968,9 @@ function resolveSpec(spec) {
   // from. Areas resolve FIRST so the spans and chords below derive from the
   // EFFECTIVE area, whichever of the rule or the builder supplied it. The
   // arms stay computed — they are geometry readouts, not choices.
+  // twin booms: a MEASURED fin is one of two, so the vertical area is twice it
+  if (t.type === 'twinBoom' && t.Sv == null && t.vHeight != null && t.vChord != null)
+    t.Sv = 2 * t.vHeight * t.vChord;
   put(t, 'Sh', GEN_RULES.Vh * S.geom.Sw * cBar / lh, 'tail.Sh');
   put(t, 'Sv', GEN_RULES.Vv * S.geom.Sw * w.span / lv, 'tail.Sv');
   const Sh = t.Sh, Sv = t.Sv;
@@ -18610,6 +18620,9 @@ const CAGE_PARTS = [
     groups: [
       // boomStyle -> `design`; these shape the rod once it is chosen
       ['rod', ['rodY', 'rodD']],
+      ['twin booms', ['boomX', 'boomD', 'boomTaper']],
+      // the pod's aero tail on a rod boom (2026-09-04, cut 1)
+      ['aero aft', ['aeroAftOn', 'aeroAftLen', 'aeroAftDroop', 'aeroAftTip']],
       ['length & aft section', ['boomLen', 'aftRoofY', 'aftKeelY']],
       ['pod ring', ['boomMidOn', 'boomMidT', 'boomMidPinch']],
     ] },
@@ -19463,6 +19476,7 @@ const ICON = {
                   ' L' + P2(32 + Math.cos(a) * 17, 20 + Math.sin(a) * 17), w: 2 };
     })] },
   mountNose: iconSide({ canopy: 'screen', deck: 'cabin', gear: 'none', prop: true }),
+  boomTwin: iconSide({ canopy: 'none', gear: 'none', tail: 'twin', pod: true }),
   // the covering tiles: a closed pod, and the same pod as a bare truss
   coverSkin: { vb: '0 0 64 40', paths: [{ d: 'M6 20 Q14 8 32 8 Q52 8 58 20 Q52 32 32 32 Q14 32 6 20 Z' }] },
   coverOpen: { vb: '0 0 64 40', paths: [
@@ -19905,6 +19919,12 @@ const DESIGN_ROWS = [
       { value: 1, label: 'Rod & pod', icon: ICON.boomRod,
         note: 'an always-bare tube carries the tail; the taper section comes on with it',
         writes: { cage: { boomStyle: 1, taperOn: 1 } } },
+      // 2026-09-04 (TWIN-BOOM spec §1.1/1.3): the pod ends at the bulkhead,
+      // two booms off the wing carry a fin each, the stab between them
+      { value: 2, label: 'Twin booms', icon: ICON.boomTwin,
+        note: 'two booms off the wing, a fin each, the stab between them',
+        writes: { cage: { boomStyle: 2, taperOn: 1, stMount: 3, stX: 0,
+                          stCant: 0, finOn: 1 } } },
     ] },
 
   // THE COVERING (2026-09-04, the user: "ability to remove all fuselage and
@@ -20138,8 +20158,9 @@ const DESIGN_ROWS = [
     options: [
       { value: 'conv', label: 'Conventional',
         icon: iconSide({ canopy: 'none', gear: 'none', tail: 'conv' }),
-        writes: { cage: { stY: 0.408, stMount: 0, stCant: 0, stX: 0.05,
-                          finOn: 1 } } },
+        writes: { cage: { stY: 0.408, stCant: 0, finOn: 1,
+                          stMount: P => Math.round(P.boomStyle) === 2 ? 3 : 0,
+                          stX: P => Math.round(P.boomStyle) === 2 ? 0 : 0.05 } } },
       { value: 't', label: 'T-tail',
         icon: iconSide({ canopy: 'none', gear: 'none', tail: 't' }),
         note: 'the stab rides the fin tip',
@@ -20511,6 +20532,34 @@ const ARCHETYPES = [
                                                   wgChordTip: 1.95 }),
             spec: { finish: { decals: { m1On: 1, m1Pat: 0, m1A: 0xc96f2a,
                                         m1B: 0x1b3a5c, m1D: 0xc96f2a } } } } },
+  // TWIN BOOMS (2026-09-04, spec §3): the 337's shape with its nose engine —
+  // the rear pusher is push-pull, the mixed-mount list the frame does not loop
+  // over yet — and a small P-38: two pullers on the booms' own stations.
+  { key: 'skymaster', kind: 'recreation', name: 'Skymaster-alike', note: 'twin ' +
+      'booms off a high wing, four seats, nose engine (the rear pusher is owed)',
+    sel: { class: 'n23', role: 'touring', seatLayout: 1, paxCount: 3,
+           canopy: 'screen', mirror: 0, intCons: 3, boomStyle: 2, section: 3,
+           wgPos: 0, wgBrace: 1, wgTip: 1, wgFlapType: 1,
+           engFamily: 'flat', engModel: 'lycoming IO-360', engMount: 'nose',
+           gearLayout: 'trike', suspension: 'oleo', s1Fair: 0,
+           empennage: 'conv', scheme: 'trim', base: 0xefe6cf, trim: 0x1b3a5c },
+    over: { cage: Object.assign({}, PLAN_TAPER, { boomX: 1.25, boomLen: 3.2,
+                                                   boomD: 0.18 }),
+            spec: { finish: { decals: { m1On: 1, m1Pat: 0, m1A: 0x1b3a5c,
+                                        m1B: 0xefe6cf, m1D: 0x1b3a5c } } } } },
+  { key: 'p38', kind: 'recreation', name: 'P-38-alike', note: 'a puller a boom, ' +
+      'mid wing, one seat under a bubble, twin booms and fins',
+    sel: { class: 'eab', role: 'aerobatic', seatLayout: 0, paxCount: 0,
+           canopy: 'full', mirror: 0, intCons: 3, boomStyle: 2, section: 3,
+           wgPos: 1, wgBrace: 1, wgTip: 2, wgFlapType: 1,
+           engFamily: 'flat', engModel: 'rotax 912 (flat)', engMount: 'nose',
+           engCount: 2, engAim: 'puller', gearLayout: 'trike',
+           suspension: 'oleo', s1Fair: 0,
+           empennage: 'conv', scheme: 'bare' },
+    over: { cage: Object.assign({}, PLAN_TAPER, { wgSpan: 11.0, wgChord: 1.55,
+                                                   wgChordTip: 0.95,
+                                                   boomX: 1.35, boomLen: 3.0,
+                                                   boomD: 0.22, engNacAt: 0.245 }) } },
   // "a mono engine larger aircraft ... something like the Beaver now that we
   // have large radial engines": the R-985 Wasp Junior (this batch's registry
   // row) on a strut-braced high wing, four bays, a taildragger on oleos.
@@ -21207,8 +21256,17 @@ window.CAGE_PAGE = {
       // boom root) and the pax pillar reverts to the full cabin
       // section. Rod: the tube IS the boom and the tail — bare, fin
       // and stab clamp straight onto it; no skin over the tightening.
-      ['boomStyle', 'boom style',      0, 1, 1, ['lofted skin',
-                                                 'rod (tube)']],
+      // TWIN BOOMS (2026-09-04, TWIN-BOOM spec §1.3): the pod ends at the
+      // bulkhead as on a rod, two tapering tubes leave the wing's trailing
+      // edge at ±boomX and carry a fin each, the stab between them
+      ['boomStyle', 'boom style',      0, 2, 1, ['lofted skin',
+                                                 'rod (tube)', 'twin booms']],
+      ['boomX',     'boom half-track', 0.6, 3.0, 0.01,
+       { when: P => +P.boomStyle === 2, dim: 'len' }],
+      ['boomD',     'boom diameter',   0.08, 0.40, 0.005,
+       { when: P => +P.boomStyle === 2, dim: 'len' }],
+      ['boomTaper', 'boom taper',      0.5, 1.0, 0.01,
+       { when: P => +P.boomStyle === 2 }],
       ['taperOn',   'taper section',   0, 1, 1],
       // the `when` rules below are MEASURED, not assumed (P1 probe,
       // 2026-08-26): each hidden row was varied through the full display
@@ -21222,6 +21280,17 @@ window.CAGE_PAGE = {
        { when: P => +P.taperOn && !+P.boomStyle }],
       ['taperPanels','taper panels',   0, 1, 1,
        { when: P => +P.taperOn && +P.boomStyle === 1 }],
+      // THE AERO AFT (2026-09-04, TWIN-BOOM spec §1.2, cut 1): the pod's tail
+      // when nothing sits on the bulkhead — off by a pusher (its cowl does
+      // the job). Length, droop, and the tip from a rounded dome to a teardrop.
+      ['aeroAftOn', 'aero aft',        0, 1, 1,
+       { when: P => +P.boomStyle === 1 && Math.round(P.engMount || 0) !== 1 }],
+      ['aeroAftLen', 'aero aft length', 0.3, 2.0, 0.01,
+       { when: P => +P.boomStyle === 1 && +P.aeroAftOn, dim: 'len' }],
+      ['aeroAftDroop', 'aero aft droop', -0.3, 0.3, 0.005,
+       { when: P => +P.boomStyle === 1 && +P.aeroAftOn, dim: 'len' }],
+      ['aeroAftTip', 'aero aft tip (dome → teardrop)', 0, 1, 0.01,
+       { when: P => +P.boomStyle === 1 && +P.aeroAftOn }],
       ['rodY',      'rod height',     -0.9, 0.9, 0.005,
        { when: P => +P.boomStyle === 1, dim: 'len' }],
       ['rodD',      'rod diameter',    0.04, 0.32, 0.002,
@@ -22601,7 +22670,7 @@ function buildCage2(S, step) {
   // reaches a second component and the global volume flip follows the
   // fuselage — this component normalizes itself.
   const emitRodFree = () => {
-    if (MIR || !S.rod || !R.rodSpan) return;
+    if (MIR || !S.rod || S.rod.twin || !R.rodSpan) return;
     const F0 = F.length;
     const rT = R.rodSpan.ring('rodTip', R.rodSpan.zTip);
     const rR = R.rodSpan.ring('rodRoot', R.rodSpan.zRoot + 0.01);
@@ -26445,7 +26514,7 @@ function cageInterior(m, S) {
     // gear's V-panel idiom: inset from the member centrelines so the
     // tubes still read at the edges, lifted outward by the tube
     // radius, thin box.
-    if (S.rod) (() => {
+    if (S.rod && !S.rod.twin) (() => {
       const rr = S.rod.r, cyR = S.rod.y;
       const circ = (n, rad, z) => {
         const o = [];
@@ -27691,6 +27760,10 @@ const CAGE_PARAMS = {
   // truss's longerons — the landing gear's V-panel idiom. 0 = bare.
   taperOn: 0, taperLen: 0.6, taperW: 1, taperPanels: 0,
   boomStyle: 0, rodY: 0, rodD: 0.12,
+  // twin booms (2026-09-04): drawn by the wing layer off the trailing edge
+  boomX: 1.2, boomD: 0.16, boomTaper: 0.7,
+  // the aero aft (2026-09-04, cut 1): the cowl layer lofts it on the aft face
+  aeroAftOn: 0, aeroAftLen: 0.9, aeroAftDroop: 0, aeroAftTip: 0.5,
   // bubble crest (G15, superseded by canopy below — kept as a dev param):
   // a smooth longitudinal bump of the roof/ceil over the pilot+pax cabin.
   // h 0 = off (the fit identity path).
@@ -27997,7 +28070,8 @@ function cageSpec(P) {
   const engMountK = Math.round(P.engMount || 0);
   S.config = {
     noseMode: P.aeroNose ? 'aero' : 'cowl',
-    rearAperture: (P.rearAperture || (engMountK === 1 && P.boomStyle)) ? 1 : 0,
+    rearAperture: (P.rearAperture || (engMountK === 1 && P.boomStyle)
+                   || (P.aeroAftOn && P.boomStyle)) ? 1 : 0,
     noseCrown: P.noseCrown,
     noseFinish: (P.noseFinish || engMountK >= 1) ? 'aero' : 'engine',
     cowl: { loops: Math.max(0, Math.round(P.cowlLoops)),
@@ -28051,8 +28125,11 @@ function cageSpec(P) {
         w: Math.max(0.1, Math.min(1, P.taperW == null ? 1 : P.taperW)),
         panels: P.taperPanels ? 1 : 0 }
     : 0;
+  // boomStyle 2 (twin booms) is the ROD's table — the pod ends at the
+  // bulkhead — with no tube of its own: the wing layer draws the two booms
   S.rod = P.boomStyle
-    ? { r: Math.max(0.015, (P.rodD || 0.12) / 2), y: P.rodY || 0 }
+    ? { r: Math.max(0.015, (P.rodD || 0.12) / 2), y: P.rodY || 0,
+        twin: Math.round(P.boomStyle) === 2 ? 1 : 0 }
     : 0;
 
   const aLean = { keel: T.aft.keelYA - T.aft.keelYB,
@@ -39471,6 +39548,60 @@ PAGE.post = ctx => {
       `${(CW.zEnd() * 1000).toFixed(0)} mm long`;
   }
 };
+// THE AERO AFT, CUT 1 (2026-09-04, TWIN-BOOM spec §1.2; the user: "an 'aero
+// aft' to the cabin, encompassing the bulkhead — not so different from a cowl
+// fitted at the back really, maybe we can start there? — and finishing
+// rounded or as a teardrop (slider wanted)"). On a rod boom with nothing on
+// the bulkhead, the cowl bench's own tail-cone loft is lofted OFF THE AFT
+// FACE, turned round: the face's section shrinks over `aftLen` to a point
+// (`aftTip` 0 = the dome's sqrt law, 1 = a teardrop), the axis dropping by
+// `aftDroop`. It wears the cowl's skin section (cut 1's admitted compromise:
+// the fuselage's own rings are cut 2) and lives in its own hook so it exists
+// with the cowl switched off — a pusher's aft face is the engine's, not this.
+let aftGroup = null;
+const prevPostAft = PAGE.post;
+PAGE.post = ctx => {
+  if (prevPostAft) prevPostAft(ctx);
+  const { scene, mesh, P, stat } = ctx;
+  if (aftGroup) {
+    aftGroup.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+    if (aftGroup.parent) aftGroup.parent.remove(aftGroup);
+    aftGroup = null;
+  }
+  if (!+P.aeroAftOn || !+P.boomStyle || Math.round(P.engMount || 0) === 1) return;
+  const FS = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
+  const face = noseFace(mesh, FS, 'tail');
+  if (!face) { if (stat) stat.textContent += '  ·  aero aft: no aft face'; return; }
+  const L = Math.max(0.3, +P.aeroAftLen || 0.9), droop = +P.aeroAftDroop || 0;
+  const tip = Math.max(0, Math.min(1, +P.aeroAftTip == null ? 0.5 : +P.aeroAftTip));
+  const sect = { a: face.halfW, bT: face.halfH, bB: face.halfH,
+                 nT: CW.sqExp(0.65), nB: CW.sqExp(0.65), yw: 0 };
+  const NS = 22, NA = 48, rings = [];
+  for (let i = 0; i < NS; i++) {
+    const e = CW.smooth(i / (NS - 1));
+    // dome (tip 0): sqrt(1 - e^2.2); teardrop (tip 1): (1 - e^0.9)^1.4
+    const k = Math.pow(Math.max(0, 1 - Math.pow(e, 2.2 - 1.3 * tip)), 0.5 + 0.9 * tip);
+    const ring = [];
+    for (let j = 0; j < NA; j++) {
+      const th = j / NA * Math.PI * 2;
+      const [x, y] = CW.sectPt(th, { a: Math.max(sect.a * k, 0.012),
+        bT: Math.max(sect.bT * k, 0.012), bB: Math.max(sect.bB * k, 0.012),
+        nT: CW.lerp(sect.nT, 2, e), nB: CW.lerp(sect.nB, 2, e), yw: 0 });
+      ring.push(new THREE.Vector3(x, face.yc - droop * e + y, face.z - e * L));
+    }
+    rings.push(ring);
+  }
+  let cA = (window.CAGE_VIEW && window.CAGE_VIEW.cowlA != null) ? window.CAGE_VIEW.cowlA : 1;
+  if (window.CAGE_VIEW && window.CAGE_VIEW.xray) cA = Math.min(cA, window.CAGE_VIEW.xrayA || 0.12);
+  const M = cowlMats(cA);
+  aftGroup = new THREE.Group();
+  aftGroup.name = 'cageLayer:cowl';
+  aftGroup.add(new THREE.Mesh(CW.loftRings(rings, null), M.skin));
+  scene.add(aftGroup);
+  window.CAGE_AERO_AFT = { face, len: L, droop, tip };
+  if (stat) stat.textContent += '  ·  aero aft: ' + L.toFixed(2) + ' m, tip ' + tip.toFixed(2);
+};
+
 // the engine layer reads the same nose face (G29) — one description of
 // where the firewall is, not two
 window.CAGE_NOSE = { noseFace, engineFaces };
@@ -41104,6 +41235,7 @@ const dispose = o => {
 };
 
 const prevPost = PAGE.post;
+let boomGroup = null;                        // the twin booms (2026-09-04)
 PAGE.post = ctx => {
   if (prevPost) prevPost(ctx);
   const { scene, spec, mesh, P, stat } = ctx;
@@ -42037,6 +42169,49 @@ PAGE.post = ctx => {
   window.CAGE_WING = { def, semi: def.spec.geom && def.spec.geom.semi,
                        skinFaces: faces, anchor: { zCab, yAnchor }, group,
                        underAt, overAt, leAt, teAt, box: wbox };
+  // THE TWIN BOOMS (2026-09-04, TWIN-BOOM spec §1.3): two tapering tubes off
+  // the wing's TRAILING EDGE at ±boomX, level, `boomLen` long, carrying the
+  // fins the fin layer builds twice and the stab the stab layer seats between
+  // them. Drawn here because only the wing knows its trailing edge; published
+  // as CAGE_BOOMS (scene metres) for the fin, the stab and the join. A pure
+  // function of P + the wing, so the fin layer (which runs before the stab)
+  // can read the deck it needs. Cut 1's admitted compromises: round tubes,
+  // level, rooted on the wing whatever nacelle sits there; the tube's group
+  // wears the wing's layer name (a click selects the wing).
+  if (boomGroup) { boomGroup.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+                   if (boomGroup.parent) boomGroup.parent.remove(boomGroup); boomGroup = null; }
+  window.CAGE_BOOMS = null;
+  if (Math.round(P.boomStyle) === 2 && teAt) {
+    const x = Math.max(0.3, +P.boomX || 1.2);
+    const te = teAt(x) || teAt(-x);
+    if (te) {
+      const r0 = Math.max(0.02, (+P.boomD || 0.16) / 2);
+      const r1 = r0 * Math.max(0.3, Math.min(1, +P.boomTaper || 0.7));
+      const len = Math.max(0.8, +P.boomLen || 3.0);
+      const y0 = 0.5 * (te.yTop + te.yBot);
+      const zRoot = te.z + 0.35 * (te.yTop - te.yBot) + r0, zTip = te.z - len;
+      boomGroup = new THREE.Group();
+      boomGroup.name = 'cageLayer:wing';
+      let bm = null;
+      try {
+        if (window.CAGE_SECMAT)
+          bm = window.CAGE_SECMAT('boomTube', { surf: 0, fieldM: 1 });
+      } catch (e) {}
+      if (!bm) bm = new THREE.MeshStandardMaterial({ color: 0x9aa0a6, metalness: 0.6, roughness: 0.45 });
+      for (const s of [1, -1]) {
+        const g = new THREE.CylinderGeometry(r1, r0, zRoot - zTip, 28, 1, false);
+        g.rotateX(-Math.PI / 2);                 // the cylinder's axis onto -z
+        const m = new THREE.Mesh(g, bm);
+        m.position.set(s * x, y0, 0.5 * (zRoot + zTip));
+        m.name = 'edBoom' + (s > 0 ? 'R' : 'L');
+        boomGroup.add(m);
+      }
+      scene.add(boomGroup);
+      const rAt = z => r0 + (r1 - r0) * Math.max(0, Math.min(1, (zRoot - z) / (zRoot - zTip)));
+      window.CAGE_BOOMS = { x, r0, r1, zRoot, zTip, y: y0, len,
+                            yTop: z => y0 + rAt(z), yBot: z => y0 - rAt(z), rAt };
+    }
+  }
   if (stat) {
     const g2 = def.spec.geom || {};
     stat.textContent += '  ·  wing: ' + (g2.S ? g2.S.toFixed(1) + ' m2 · ' : '') +
@@ -43975,6 +44150,7 @@ function finQuadWire(m, bySection) {
 
 // ---- build ----------------------------------------------------------------
 let group = null;
+let group2 = null;                  // the second boom's fin (2026-09-04)
 const dispose = o => {
   if (!o) return;
   o.traverse(c => { if (c.geometry) c.geometry.dispose(); });
@@ -43987,6 +44163,7 @@ PAGE.post = ctx => {
   if (prevPost) prevPost(ctx);
   const { scene, mesh, P, stat } = ctx;
   dispose(group); group = null;
+  dispose(group2); group2 = null;
   if (!P.finOn) return;
 
   const cutMode = Math.round(P.finCut || 0);
@@ -44000,7 +44177,15 @@ PAGE.post = ctx => {
   const S = FIN.finSpec(P.boomStyle
     ? { ...P, finKeel: 0, finDorsal: 0 } : P);
   S.cutPrep = cutMode;              // crease the rails the cut runs along
-  const deck = FIN.finCentreline(mesh, deckSkin);
+  // TWIN BOOMS (2026-09-04): the fin rides a BOOM, not the fuselage — its
+  // deck is the boom's own top line (a straight tube), its keel the tube's
+  // belly, its tail cap the boom's tip; built once, drawn at ±boomX
+  const TB = window.CAGE_BOOMS;
+  const FSd = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
+  const deck = TB
+    ? { top: z => TB.yTop(z * FSd) / FSd, bot: z => TB.yBot(z * FSd) / FSd,
+        z0: TB.zTip / FSd, z1: TB.zRoot / FSd }
+    : FIN.finCentreline(mesh, deckSkin);
   S.deck = deck;                     // null-safe: no deck = the sketch as-is
   const m0 = FIN.buildFin2(S);
 
@@ -44056,6 +44241,15 @@ PAGE.post = ctx => {
   if ($('cage') && $('cage').checked && L > 0)
     group.add(finWire(m0, 0x7fe0a8));
   group.scale.setScalar(FS);
+  if (TB) {
+    // one fin a boom: the second is the first's clone at −boomX, its rudder
+    // named for the join (a second hinge, the same rudder channel)
+    group.position.x = TB.x;
+    group2 = group.clone();
+    group2.position.x = -TB.x;
+    group2.traverse(o => { if (o.name === 'edSurf_rud') o.name = 'edSurf_rud2'; });
+    scene.add(group2);
+  }
   scene.add(group);
 
   window.CAGE_FIN = { spec: S, cage: m0, mesh: s, disp,
@@ -44157,8 +44351,9 @@ const GROUP = ['8b · tail — stab & elevator', [
    ['as the aeroplane', 'composite', 'steel tube', 'plywood', 'aluminium'],
    { when: P => +P.stOn }],
   ['position', [
-    ['stMount', 'root sits', 0, 2, 1,
-     ['on the boom keel', 'on the boom deck', 'on the fin tip']],
+    ['stMount', 'root sits', 0, 3, 1,
+     ['on the boom keel', 'on the boom deck', 'on the fin tip',
+      'between the booms']],
     ['stX', 'in / out (root half-track)', 0, 0.30, 0.005],
     ['stY', 'up / down (from the seat)', -0.20, 0.80, 0.005],
     ['stZ', 'fore / aft',       -0.60, 0.60, 0.005],
@@ -44252,7 +44447,14 @@ PAGE.post = ctx => {
   // the flat root: a constant line at the fiche's own root level, with the
   // LIVE tail cap as the rebase anchor (from the same centreline sweep the
   // fin uses)
-  const deck = FIN.finCentreline(mesh, deckSkin);
+  // twin booms (2026-09-04): the stab's deck is the boom's line, its tail
+  // cap the boom tip — the stab spans from boom to boom (stX 0, one panel)
+  const TB = window.CAGE_BOOMS;
+  const FSd = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
+  const deck = TB
+    ? { top: z => TB.yTop(z * FSd) / FSd, bot: z => TB.yBot(z * FSd) / FSd,
+        z0: TB.zTip / FSd, z1: TB.zRoot / FSd }
+    : FIN.finCentreline(mesh, deckSkin);
   const rootLine = FIN.FIN_DEFAULT.lo.H;
   S.deck = {
     top: () => rootLine,
@@ -44281,6 +44483,8 @@ PAGE.post = ctx => {
   const cant = cantDeg * Math.PI / 180;
   let zSeat = 0;
   if (mount >= 1 && deck) yRef = deck.top(FIN.FIN_DEFAULT.zH1 + dzS);
+  if (mount === 3 && deck)                       // the boom's own centre
+    yRef = 0.5 * (deck.top(FIN.FIN_DEFAULT.zH1 + dzS) + deck.bot(FIN.FIN_DEFAULT.zH1 + dzS));
   if (mount === 2) {
     const FN = window.CAGE_FIN;
     if (FN && FN.disp && FN.disp.V.length && +P.finOn) {
@@ -48548,6 +48752,9 @@ function cageJoinSpec(P, M, T) {
   if (typeof M.tailCant === 'number' && M.tailCant >= 20) {
     tl.type = 'v'; tl.vAngle = M.tailCant;
   }
+  // twin booms (2026-09-04): the type, the half-track and the length — the
+  // two fins are one Sv (the spec doubles the measured fin)
+  if (M.boomX > 0) { tl.type = 'twinBoom'; tl.boomX = M.boomX; tl.boomLen = M.boomLen; }
   // THE TAIL'S OWN CONSTRUCTIONS (G116), same contract as the wing's:
   // 0 says nothing, absent means the aeroplane's own material
   {
@@ -49050,8 +49257,27 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           // its chord, its station and root height; the cant is the type.
           // No fin is read (a V has none; a fin left switched on would be
           // a three-surface tail the frame does not build).
-          const SBv = window.CAGE_STAB;
-          if (SBv && SBv.cant >= 20) {
+          const SBv = window.CAGE_STAB, TBj = window.CAGE_BOOMS;
+          if (TBj) {
+            // TWIN BOOMS (2026-09-04): the fin layer is TWO fins on the boom
+            // tails, the stab layer the panel between them — both measured
+            // whole; vHeight above the boom's line, hSpan the panel's own
+            const fb2 = layerBounds('cageLayer:fin'), sb2 = layerBounds('cageLayer:stab');
+            M.boomX = TBj.x; M.boomLen = TBj.len;
+            if (sb2 && (sb2.x1 - sb2.x0) > 0.5) {
+              M.hSpan = 2 * Math.max(Math.abs(sb2.x0), Math.abs(sb2.x1));
+              M.hChord = sb2.z1 - sb2.z0;
+              M.hX = zFw - (sb2.z0 + sb2.z1) / 2;
+              M.stabY = (sb2.y0 + sb2.y1) / 2 - yD;
+            }
+            if (fb2 && (fb2.y1 - fb2.y0) > 0.3) {
+              const boomTop = TBj.y + TBj.r1 - yD;
+              M.vHeight = Math.max(0.2, (fb2.y1 - yD - boomTop) / 0.82);
+              M.vChord = fb2.z1 - fb2.z0;
+              M.vX = zFw - (fb2.z0 + fb2.z1) / 2;
+              M.vSweep = 0;
+            }
+          } else if (SBv && SBv.cant >= 20) {
             const vb = layerBounds('cageLayer:stab');
             if (vb && (vb.x1 - vb.x0) > 0.5) {
               M.tailCant = SBv.cant;
@@ -49271,7 +49497,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // minimum x), and the axis is the direction that edge runs —
       // SPANWISE (z) for ailerons/flaps/elevators, VERTICAL (y) for the
       // rudder. Sign and drive per surface, ailerons antisymmetric.
-      for (const nm of ['ailR', 'ailL', 'flapR', 'flapL', 'rud',
+      for (const nm of ['ailR', 'ailL', 'flapR', 'flapL', 'rud', 'rud2',
                         'elevR', 'elevL'])
         PARTS.others.push({ src: 'edSurf_' + nm, kind: 'surf_' + nm,
           surf: nm, groups: {} });
@@ -49601,7 +49827,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         out2.surf = pt.surf;
         out2.axis = hingeAxis;
         const S2 = pt.surf;
-        out2.drive = (S2 === 'rud') ? 'dr'
+        out2.drive = (S2 === 'rud' || S2 === 'rud2') ? 'dr'
                    : (S2 === 'elevR' || S2 === 'elevL') ? 'de'
                    : (S2 === 'flapR' || S2 === 'flapL') ? 'fl' : 'da';
         // ailerons are ANTISYMMETRIC; the rest move together

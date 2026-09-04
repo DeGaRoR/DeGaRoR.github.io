@@ -76,8 +76,9 @@ const GROUP = ['8b · tail — stab & elevator', [
    ['as the aeroplane', 'composite', 'steel tube', 'plywood', 'aluminium'],
    { when: P => +P.stOn }],
   ['position', [
-    ['stMount', 'root sits', 0, 2, 1,
-     ['on the boom keel', 'on the boom deck', 'on the fin tip']],
+    ['stMount', 'root sits', 0, 3, 1,
+     ['on the boom keel', 'on the boom deck', 'on the fin tip',
+      'between the booms']],
     ['stX', 'in / out (root half-track)', 0, 0.30, 0.005],
     ['stY', 'up / down (from the seat)', -0.20, 0.80, 0.005],
     ['stZ', 'fore / aft',       -0.60, 0.60, 0.005],
@@ -171,7 +172,14 @@ PAGE.post = ctx => {
   // the flat root: a constant line at the fiche's own root level, with the
   // LIVE tail cap as the rebase anchor (from the same centreline sweep the
   // fin uses)
-  const deck = FIN.finCentreline(mesh, deckSkin);
+  // twin booms (2026-09-04): the stab's deck is the boom's line, its tail
+  // cap the boom tip — the stab spans from boom to boom (stX 0, one panel)
+  const TB = window.CAGE_BOOMS;
+  const FSd = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
+  const deck = TB
+    ? { top: z => TB.yTop(z * FSd) / FSd, bot: z => TB.yBot(z * FSd) / FSd,
+        z0: TB.zTip / FSd, z1: TB.zRoot / FSd }
+    : FIN.finCentreline(mesh, deckSkin);
   const rootLine = FIN.FIN_DEFAULT.lo.H;
   S.deck = {
     top: () => rootLine,
@@ -200,6 +208,8 @@ PAGE.post = ctx => {
   const cant = cantDeg * Math.PI / 180;
   let zSeat = 0;
   if (mount >= 1 && deck) yRef = deck.top(FIN.FIN_DEFAULT.zH1 + dzS);
+  if (mount === 3 && deck)                       // the boom's own centre
+    yRef = 0.5 * (deck.top(FIN.FIN_DEFAULT.zH1 + dzS) + deck.bot(FIN.FIN_DEFAULT.zH1 + dzS));
   if (mount === 2) {
     const FN = window.CAGE_FIN;
     if (FN && FN.disp && FN.disp.V.length && +P.finOn) {

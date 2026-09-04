@@ -1045,7 +1045,7 @@ function buildCage2(S, step) {
   // reaches a second component and the global volume flip follows the
   // fuselage — this component normalizes itself.
   const emitRodFree = () => {
-    if (MIR || !S.rod || !R.rodSpan) return;
+    if (MIR || !S.rod || S.rod.twin || !R.rodSpan) return;
     const F0 = F.length;
     const rT = R.rodSpan.ring('rodTip', R.rodSpan.zTip);
     const rR = R.rodSpan.ring('rodRoot', R.rodSpan.zRoot + 0.01);
@@ -4889,7 +4889,7 @@ function cageInterior(m, S) {
     // gear's V-panel idiom: inset from the member centrelines so the
     // tubes still read at the edges, lifted outward by the tube
     // radius, thin box.
-    if (S.rod) (() => {
+    if (S.rod && !S.rod.twin) (() => {
       const rr = S.rod.r, cyR = S.rod.y;
       const circ = (n, rad, z) => {
         const o = [];
@@ -6135,6 +6135,8 @@ const CAGE_PARAMS = {
   // truss's longerons — the landing gear's V-panel idiom. 0 = bare.
   taperOn: 0, taperLen: 0.6, taperW: 1, taperPanels: 0,
   boomStyle: 0, rodY: 0, rodD: 0.12,
+  // twin booms (2026-09-04): drawn by the wing layer off the trailing edge
+  boomX: 1.2, boomD: 0.16, boomTaper: 0.7,
   // the aero aft (2026-09-04, cut 1): the cowl layer lofts it on the aft face
   aeroAftOn: 0, aeroAftLen: 0.9, aeroAftDroop: 0, aeroAftTip: 0.5,
   // bubble crest (G15, superseded by canopy below — kept as a dev param):
@@ -6498,8 +6500,11 @@ function cageSpec(P) {
         w: Math.max(0.1, Math.min(1, P.taperW == null ? 1 : P.taperW)),
         panels: P.taperPanels ? 1 : 0 }
     : 0;
+  // boomStyle 2 (twin booms) is the ROD's table — the pod ends at the
+  // bulkhead — with no tube of its own: the wing layer draws the two booms
   S.rod = P.boomStyle
-    ? { r: Math.max(0.015, (P.rodD || 0.12) / 2), y: P.rodY || 0 }
+    ? { r: Math.max(0.015, (P.rodD || 0.12) / 2), y: P.rodY || 0,
+        twin: Math.round(P.boomStyle) === 2 ? 1 : 0 }
     : 0;
 
   const aLean = { keel: T.aft.keelYA - T.aft.keelYB,

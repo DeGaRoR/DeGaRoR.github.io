@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 1fb7fe4a0fc29f99
+// body-sha256: a5eb2365ef4deba2
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -9059,7 +9059,12 @@ const GEN_DEFAULT = {
           // one too many, and this is which one gives way.
           dorsal: { len: 0.34, height: 0.16, width: 0.55, angle: null },
           vHeight: null, vChord: null, vX: null,
-          place: { dx: 0 } },
+          place: { dx: 0 },
+          // twin booms (2026-09-04): the type says two fins on two booms at
+          // ±boomX; the FRAME still builds the centreline tail (its post, one
+          // FIN node) — cut 1's stated approximation, the two fins' area on
+          // the one node, the booms' drag not yet priced
+          boomX: null, boomLen: null },
   // `stiffness` is the suspension: 1.0 is the mass-scaled default, below that
   // is soft (long travel, bottoms out), above is hard (jars, but holds).
   // type 'taildragger' puts the third wheel at the tail and the mains AHEAD of
@@ -9545,7 +9550,9 @@ function clampSpec(spec) {
   if (S.tail.tipV != null && !GEN_TIPS[S.tail.tipV]) S.tail.tipV = null;
   if (S.tail.tipH != null && !GEN_TIPS[S.tail.tipH]) S.tail.tipH = null;
   S.tail.hTaper = genClamp(S.tail.hTaper == null ? 1 : S.tail.hTaper, 0.35, 1.0);
-  if (!['conventional', 'v'].includes(S.tail.type)) S.tail.type = 'conventional';
+  if (!['conventional', 'v', 'twinBoom'].includes(S.tail.type)) S.tail.type = 'conventional';
+  S.tail.boomX = genClampN(S.tail.boomX, 0.3, 4.0);
+  S.tail.boomLen = genClampN(S.tail.boomLen, 0.5, 8.0);
   // the V's dihedral. Too shallow and it cannot make yaw at any sane area; too
   // steep and it cannot make pitch. The Bonanza's is about 33.
   S.tail.vAngle = genClamp(S.tail.vAngle == null ? 33 : S.tail.vAngle, 20, 55);
@@ -9953,6 +9960,9 @@ function resolveSpec(spec) {
   // from. Areas resolve FIRST so the spans and chords below derive from the
   // EFFECTIVE area, whichever of the rule or the builder supplied it. The
   // arms stay computed — they are geometry readouts, not choices.
+  // twin booms: a MEASURED fin is one of two, so the vertical area is twice it
+  if (t.type === 'twinBoom' && t.Sv == null && t.vHeight != null && t.vChord != null)
+    t.Sv = 2 * t.vHeight * t.vChord;
   put(t, 'Sh', GEN_RULES.Vh * S.geom.Sw * cBar / lh, 'tail.Sh');
   put(t, 'Sv', GEN_RULES.Vv * S.geom.Sw * w.span / lv, 'tail.Sv');
   const Sh = t.Sh, Sv = t.Sv;
