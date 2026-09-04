@@ -1010,6 +1010,10 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 #edInfo #pqRows .r.wide b { flex:0 1 auto; min-width:0; text-align:right;
   white-space:normal; line-height:1.25; }
 
+/* the bound the row is judged against, in the value cell, dim (G179.4) */
+#edInfo #pqRows .r b i { font:400 11px/1 'IBM Plex Sans'; font-style:normal;
+  color:var(--ed-dim); margin-left:6px; }
+
 /* no green "ok" colour anywhere: ok is simply the ink */
 #edInfo #pqRows .r.warn b { color:var(--ed-warn); }
 

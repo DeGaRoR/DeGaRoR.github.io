@@ -738,6 +738,45 @@ checkNoDeadEnds(PARTS);
 }
 
 // ---------------------------------------------------------------------------
+// 8 A PART THAT IS NOT A SET OF SLIDERS (2026-09-05)
+// ---------------------------------------------------------------------------
+// `panel` names a global whose `panel()` hands the inspector its whole column
+// (editor.js's render). The failure it is worth gating is the quiet one: the
+// global gets renamed, or the export is dropped in a refactor, and the tree
+// row is still there and shows NOTHING — which is exactly the state the fuel
+// panel was in for the whole of its life before this part existed, mounted in
+// a column the game hides. Every other rule in this file is about parameters,
+// and a `panel` part claims none, so it is checked here instead:
+//   - it claims no parameter, no section and no body zone (or two rules above
+//     would be silently answering about a part that has neither)
+//   - the layer file that publishes the global really does export a `panel`
+{
+  const fs2 = require('fs');
+  const files = fs2.readdirSync(__dirname)
+    .filter(f => /^_(cage|gear|eng|cowl|fin|fit|strut|bay|vessel)_.*\.js$/.test(f))
+    .map(f => [f, fs2.readFileSync(path.join(__dirname, f), 'utf8')]);
+  for (const p of PARTS.CAGE_PARTS) {
+    if (!p.panel) continue;
+    check(PARTS.cagePartParams(p).length === 0,
+      'a `panel` part also claims parameters — the column would show both',
+      p.key);
+    check(!(p.sections || []).length && !p.zone,
+      'a `panel` part claims a mesh section or a body zone', p.key);
+    let where = null;
+    for (const [f, src] of files) {
+      const i = src.indexOf('window.' + p.panel + ' = {');
+      if (i < 0) continue;
+      const end = src.indexOf('};', i);
+      if (/(^|[\s,{])panel\s*:/.test(src.slice(i, end < 0 ? src.length : end)))
+        where = f;
+    }
+    check(!!where,
+      'a `panel` part names a global that exports no panel() — the tree row ' +
+      'would be there and the column empty', p.key + ' -> window.' + p.panel);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // NEGATIVE VERIFICATION
 // ---------------------------------------------------------------------------
 if (process.argv.includes('--selftest')) {

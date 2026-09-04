@@ -320,6 +320,42 @@
         "8303"
       ],
       "port": 8303
+    },
+    {
+      "name": "flydiy-vessel",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8312"
+      ],
+      "port": 8312
+    },
+    {
+      "name": "flydiy-bearer",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8318"
+      ],
+      "port": 8318
+    },
+    {
+      "name": "flydiy-seats",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8321"
+      ],
+      "port": 8321
+    },
+    {
+      "name": "flydiy-tankmat",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8324"
+      ],
+      "port": 8324
     }
   ]
 }

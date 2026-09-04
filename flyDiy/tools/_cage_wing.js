@@ -1137,6 +1137,7 @@ PAGE.post = ctx => {
     if (byRoot.size) {
       const bags = { alloy: GG.Bag(), steel: GG.Bag(), strut: GG.Bag() };
       let sLen = 0, sN = 0, dSnap = 0, dOff = 0, onWing = 0;
+      const strutMembers = [];         // G179.2: each member's pin and tip
       for (const [root, tips] of byRoot) {
         const rp = N2[root].p;
         const site = SG.strutSite(AF, nodeCage([rp[0] + sx, rp[1], rp[2]]),
@@ -1153,6 +1154,7 @@ PAGE.post = ctx => {
           dSnap = Math.max(dSnap, site.snap.d);
           for (const st2 of r.struts) {
             sLen += st2.len; sN++;
+            strutMembers.push({ pin: st2.pin, tip: st2.tip });
             dOff = Math.max(dOff, st2.off);
             if (st2.tip !== st2.node) onWing++;
           }
@@ -1164,6 +1166,10 @@ PAGE.post = ctx => {
         // up (editor.js HIT_NAME), so the group carries it and the three
         // meshes under it do not need one each
         sg.name = 'edFit_liftstrut';
+        // G179.2: THE STRUTS ARE A PART OF THE FLOWN AEROPLANE, by identity
+        // (G55's rule): the join reads these lines off the group and the
+        // game poses every vertex along its own member, pin to tip
+        sg.userData.strutMembers = strutMembers;
         // the struts JOIN the livery (phase C): painted trim by default,
         // following the fuselage's colour; the flat Standard stays as the
         // no-editor fallback. surf 0 — a strut has no lattice.

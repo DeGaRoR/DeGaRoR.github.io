@@ -72,6 +72,10 @@ const M = {
             { t: 0.5, w: 0.22, yb: 0.28, yt: 0.66 },
             { t: 1, w: 0.14, yb: 0.31, yt: 0.52 }],
   seating: 'side2', pilots: 2,
+  // G180: the drawn capacity and the seat-by-seat occupancy — four chairs
+  // (a side-by-side with one bay), the cockpit's two filled, the bay's empty.
+  // NON-default on purpose: the table's side2 would say 2 seats.
+  seats: 4, occupied: [1, 1, 0, 0], pax: 0,
   cage: { waistY: -0.05 },
 };
 
@@ -145,6 +149,9 @@ ok(s.tail.hSpan === 2.4 && s.tail.hX === 5.0 && s.tail.vHeight === 1.1 &&
    'tail surfaces pass (G54.3)');
 ok(s.cabin.seating === 'side2' && s.cabin.pilots === 2,
    'seating + pilots pass (sectioned)');
+ok(s.cabin.seats === 4 && Array.isArray(s.cabin.occupied) &&
+   s.cabin.occupied.join() === '1,1,0,0' && s.cabin.pax === 0,
+   'capacity + occupancy pass (G180: seats 4, occupied 1,1,0,0, pax 0)');
 ok(s.cage && s.cage.waistY === -0.05, 'spec.cage rides along');
 
 // the pipeline must BUILD what the join hands it — and the MEASURED rows
@@ -235,6 +242,9 @@ try {
   ok(R.gear.x === 0.82, 'RESOLVED mains station = measured 0.82');
   ok(R.cabin.seating === 'side2' && R.crew === 2,
      'RESOLVED seating side2, crew 2');
+  ok(R.seats === 4 && R.occupants === 2 && R.pax === 0 &&
+     Array.isArray(R.occupied) && R.occupied.join() === '1,1,0,0',
+     'RESOLVED capacity 4 off cabin.seats (not the table\'s 2), two aboard off the list (G180)');
   ok(R.gear.track === 1.62 && R.gear.wheelR === 0.21,
      'RESOLVED gear track + wheelR = measured');
   ok(R.gear.y === -0.31 && !RS.auto['gear.y'],

@@ -98,6 +98,15 @@
 //   layer     which THREE group holds this part's geometry: the cage's own
 //             mesh, or one of the disjoint layers. G79's raycast resolves a hit
 //             to a part through this plus `sections`.
+//   panel     A PART THAT IS NOT A SET OF SLIDERS (2026-09-05). Names a global
+//             (`window[panel].panel()`) that owns its column whole and hands
+//             back one element — the shape refplane.js already has for its
+//             root. For a part whose controls are a LIST rather than a fixed
+//             set of parameters, which is what a tank is: you add one, you
+//             remove one, and each carries its own rows. Such a part claims no
+//             parameter and no section, so every coverage rule GATE PARTS
+//             holds is about the rows that ARE parameters and stays exactly as
+//             it was.
 // ---------------------------------------------------------------------------
 'use strict';
 (function () {
@@ -345,6 +354,9 @@ const CAGE_PARTS = [
              at: 'aft of the cabin' },
     groups: [
       ['bays', ['paxCount', 'paxLen']],
+      // G180: who sits in each bay is the BAY's own row — click a bay, seat
+      // its passengers (bays counted front to back from the cockpit)
+      ['aboard', ['paxOcc1', 'paxOcc2', 'paxOcc3', 'paxOcc4']],
       ['aft bulkhead', ['leanPaxDeg']],
       ['glazing', ['winSillPax']],
       ['doors', ['doorPax', 'doorSillPax']],
@@ -655,6 +667,31 @@ const CAGE_PARTS = [
       ['design point', ['cw_rpm', 'cw_tas', 'cw_power', 'cw_slip']],
     ] },
 
+  // THE TANKS AND THE PACKS (2026-09-05, the user: "I expect a fuel item in
+  // the tree, and the ability to select visually the reservoir"). The energy
+  // layer has owned a whole panel since G99 and it was reachable only through
+  // `#cgUi`, the leftovers column — which the game hides. So it is a PART, and
+  // it lives under the powerplant because a tank is what feeds the engine and
+  // that is where a builder looks for it, whatever bay the tank itself is in.
+  //
+  // NO `when` AND NO `groups`, and both are deliberate. Every aeroplane
+  // carries energy of some kind, so there is nothing to discriminate on; and
+  // this part owns no PARAMETER — its rows are the energy layer's own, built
+  // per vessel, and a vessel is a list entry rather than a slider. `panel`
+  // names the global that hands the column its element whole, exactly as the
+  // reference plane does for its root (editor.js `rootFor(sel).panel`). That
+  // is why GATE PARTS' coverage rules are untouched by it: it claims no
+  // parameter, no section and no body zone.
+  //
+  // `layer` is what makes the CLICK work. app.js's ray reports the group name
+  // (`cageLayer:energy`) and editor.js's `layerDefault` turns it into the
+  // first part declaring that layer — this one — and then the layer's own mesh
+  // names say WHICH vessel, so two tanks are two selections. A tank inside the
+  // covering is reached the way the engine and the cockpit already are, with
+  // `see inside`: what you can see through, you can click through.
+  { key: 'energy', name: 'Fuel & energy', parent: 'power', layer: 'energy',
+    panel: 'CAGE_ENERGY' },
+
   // =========================================================================
   // RUNNING GEAR — the undercarriage bench (G20), two stations and one wheel
   // kit shared between them.
@@ -745,8 +782,9 @@ const CAGE_PARTS = [
              at: 'on the cabin floor' },
     groups: [
       ['seating', ['seatType', 'seatLayout', 'seatZ', 'seatH', 'seatRake',
-                   'seatTilt', 'seatPitch', 'seatGap', 'seatBelt']],
-      ['seat 2', ['seat2H', 'seat2Rake', 'seat2Tilt']],
+                   'seatTilt', 'seatGap', 'seatBelt']],
+      // G180: the passenger seats' own set (every seat in a passenger bay)
+      ['passenger seats', ['paxSeatZ', 'seat2H', 'seat2Rake', 'seat2Tilt']],
     ] },
 
   { key: 'controls', name: 'Controls', parent: 'fit', layer: 'crew',
@@ -775,8 +813,12 @@ const CAGE_PARTS = [
     sections: ['dummy1', 'dummy2'],
     when: P => +P.crewOn,
     groups: [
-      ['dummies', ['dumOn', 'dum2On', 'dumSize']],
-      ['posture', ['dumElbows', 'dumKnees', 'dumRecline', 'dumHandGrip']],
+      // G180: the cockpit's occupants and the two poses (a passenger bay's
+      // occupancy is the bay's own row, see the Passenger bay part)
+      ['aboard', ['dumOn', 'cabOcc']],
+      ['pilot pose', ['dumSize', 'dumElbows', 'dumKnees', 'dumRecline',
+                      'dumHandGrip']],
+      ['passenger pose', ['paxSize', 'paxRecline']],
       ['markers', ['dumMarkers']],
     ] },
 

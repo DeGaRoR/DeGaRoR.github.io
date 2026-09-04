@@ -1380,47 +1380,61 @@ function anchors(spec, P, mesh) {
   }
   return { k, dashLip, dashTop, dashAftZ, floorAt, halfW: spec.cabin.halfW * k,
            roofY: spec.cabin.roofY * k, waistY: spec.waistY * k,
-           zBack, zDash, zWin: win ? win.lv.waist.z * k : 0 };
+           zBack, zDash, zWin: win ? win.lv.waist.z * k : 0,
+           // G180: the resolved rings, so a passenger bay's seat row can be
+           // placed off the bay's own aft ring the way the pilot's is off
+           // the cockpit's
+           rings: R.rings };
 }
+// A ROW PER SECTION (G180, 2026-09-04, the user: "every passenger bay should
+// be able to hold as many seats as the cabin ... for each section, we can
+// decide whether passengers are seated or not"). The cockpit seats one
+// abreast or two (`seatLayout` 0 / 1) and EVERY passenger bay seats the same
+// row, placed off the bay's own aft ring exactly as the pilot's seat is placed
+// off the cockpit's — so the bays are the pitch, and the seats stay where the
+// structure is whoever sits in them. The tandem layout is gone as a choice
+// because it is this rule with one bay: `seatLayout 2` from an older build
+// reads as one abreast (cageFromSpec migrates it to 0).
+//
+// WHO IS ABOARD is per section, never per seat count: `cabOcc` fills the
+// cockpit's second seat, `paxOcc<n>` says how many sit in bay n, bays counted
+// FRONT TO BACK from the cockpit (bay 1 is the one behind the pilot; the cage
+// numbers its rings from the aft bulkhead, which is why the ring index is
+// inverted below). A filled seat gets a dummy AND a mass; an empty one keeps
+// its chair. Seat order out of here is the order the join and the frame bill
+// in: pilot, the cockpit's other seat, then bay 1's row, bay 2's...
 function seatPlaces(A, P) {
   const lay = Math.round(P.seatLayout);
+  const abreast = lay === 1 ? 2 : 1;
   const bays = Math.max(0, Math.round(P.paxCount || 0));
-  if (lay === 0) return [{ x: 0, zBack: A.zBack, pilot: true }];
-  // SIDE BY SIDE, and a SECOND ROW behind it when the bays are there. Three
-  // bays is the same discriminator the join reads for `side4`/`tandem4`, so
-  // what you see in the cage and what the aeroplane weighs cannot disagree.
-  if (lay === 1) {
-    // the outer shoulder sits ~0.21 m outboard of the seat centre (the
-    // dummy's clavicle + joint), so the seat centre stays 0.25 m inside the
-    // waist half-width (2026-09-04: the pilots stuck out of the sides)
-    const gp = Math.min(P.seatGap, Math.max(0.18, A.halfW - 0.25));
-    const row = [{ x: gp, zBack: A.zBack, pilot: true },
-                 { x: -gp, zBack: A.zBack, pilot: false }];
-    if (bays >= 3) {
-      const zr = A.zBack - P.seatPitch;
-      row.push({ x: gp, zBack: zr, pilot: false },
-               { x: -gp, zBack: zr, pilot: false });
-    }
-    return row;
+  // the outer shoulder sits ~0.21 m outboard of the seat centre (the
+  // dummy's clavicle + joint), so the seat centre stays 0.25 m inside the
+  // waist half-width (2026-09-04: the pilots stuck out of the sides)
+  const gapIn = halfW => Math.min(P.seatGap, Math.max(0.18, halfW - 0.25));
+  const row = (zBack, halfW, section, filled) => {
+    const out = [];
+    const gp = abreast === 2 ? gapIn(halfW) : 0;
+    for (let j = 0; j < abreast; j++)
+      out.push({ x: abreast === 2 ? (j ? -gp : gp) : 0, zBack, section,
+                 pilot: section === 0 && j === 0,
+                 filled: section === 0 && j === 0 ? true : j < filled });
+    return out;
+  };
+  const seats = row(A.zBack, A.halfW, 0, 1 + (+P.cabOcc ? 1 : 0));
+  const rings = A.rings || [];
+  const rg = n => rings.find(r => r.name === n);
+  for (let n = 1; n <= bays; n++) {
+    // bay n front-to-back is cage bay (bays - n); its aft ring is
+    // `pilPaxB<i>` (`pilPaxB` for i 0, the aft bulkhead's own ring)
+    const i = bays - n;
+    const r = rg('pilPaxB' + (i || ''));
+    if (!r) continue;                          // a mirrored pod has no bays
+    const zBack = r.lv.waist.z * A.k + 0.05 + (P.paxSeatZ || 0);
+    const halfW = (r.lv.waist.x != null ? r.lv.waist.x * A.k : A.halfW);
+    const want = Math.max(0, Math.round(+P['paxOcc' + n] || 0));
+    seats.push(...row(zBack, halfW, n, Math.min(abreast, want)));
   }
-  // SECTION - SEAT - PASSENGER (G26.4, user ruling): the tandem rear
-  // seat lives in the passenger section — remove the section and the
-  // seat (and its dummy, which follows the seat count) goes with it.
-  // Side-by-side is untouched: both seats share the pilot bay.
-  if (bays < 1) return [{ x: 0, zBack: A.zBack, pilot: true }];
-  const col = [{ x: 0, zBack: A.zBack, pilot: true },
-               { x: 0, zBack: A.zBack - P.seatPitch, pilot: false }];
-  // FOUR IN TANDEM is two PAIRS, not four in a line: a fuselage long enough
-  // for four single seats nose to tail is not an aeroplane anybody builds.
-  if (bays >= 3) {
-    const gp = Math.min(P.seatGap, Math.max(0.14, A.halfW - 0.20));
-    col.length = 0;
-    col.push({ x: gp, zBack: A.zBack, pilot: true },
-             { x: -gp, zBack: A.zBack, pilot: false },
-             { x: gp, zBack: A.zBack - P.seatPitch, pilot: false },
-             { x: -gp, zBack: A.zBack - P.seatPitch, pilot: false });
-  }
-  return col;
+  return seats;
 }
 
 // ---- THE BUILD HOOK -------------------------------------------------------
@@ -1455,13 +1469,16 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   // its own identity wrapper, so clicking a cushion selects Seats rather
   // than the crew layer's first part. An identity group is transparent to
   // anchorWorld (it updates ancestors itself) and to every bag.
+  // G180: the COCKPIT's seats (pilot and co-pilot) are the pilot seat rows'
+  // and every PASSENGER BAY's seat is the passenger rows' — the user: "the
+  // passenger seats have controls separate from the pilot seats"
   const seats = places.map((pl, i) => {
     const sg = new THREE.Group();
     sg.name = 'edSeat' + (i + 1);
     group.add(sg);
-    return Object.assign({}, pl,
-      { SP: i && !pl.pilot ? sp2 : sp1 },
-      buildSeat(sg, A, P, pl.x, pl.zBack, sbs, i && !pl.pilot ? sp2 : sp1));
+    const SP = pl.section ? sp2 : sp1;
+    return Object.assign({}, pl, { SP },
+      buildSeat(sg, A, P, pl.x, pl.zBack, sbs, SP));
   });
   const pilot = seats.find(s => s.pilot);
 
@@ -1484,7 +1501,8 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     if (P.ctlPed) o.pedals = buildPedals(cg, A, P, seat.x);
     return o;
   };
-  const stn = seats.map(s2 => (s2.pilot || sbs) ? mkStation(s2) : null);
+  // dual controls in the COCKPIT only — a passenger bay's row has none (G180)
+  const stn = seats.map(s2 => (s2.pilot || (sbs && !s2.section)) ? mkStation(s2) : null);
   const st1 = stn[seats.indexOf(pilot)];
   let stick = st1.stick, thr = null;
   // the console BOX only exists side-by-side (user): with one seat
@@ -1520,25 +1538,34 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   const panel = buildPanel(group, A, P, pilot.x);
 
   // ---- dummies ----
-  const st = STATURES[clamp(Math.round(P.dumSize), 0, 2)];
-  const s = st / BASE_STATURE;
+  // TWO POSES, NOT ONE PER BODY (G180, the user: "all the passenger and dummy
+  // positions will be the same for all dummies"): the cockpit's occupants
+  // take the pilot's stature and recline, every bay's the passenger set
+  const sPilot = STATURES[clamp(Math.round(P.dumSize), 0, 2)] / BASE_STATURE;
+  const sPax = STATURES[clamp(Math.round(P.paxSize == null ? 1 : P.paxSize), 0, 2)]
+             / BASE_STATURE;
+  const POSE_PILOT = { s: sPilot, recline: P.dumRecline || 0 };
+  const POSE_PAX = { s: sPax, recline: P.paxRecline || 0 };
   const notes = [];
   // EVERY OCCUPANT IS POSED THE SAME WAY (user 2026-08-19): the second
   // dummy is not a passenger ornament — give it a station and it flies
   // from it, by the identical rules. Without one it rests its hands.
-  const seatDummy = (seat, ST, idx) => {
+  const seatDummy = (seat, ST, idx, pose) => {
     const stick = ST && ST.stick, thr = ST && ST.thr, pedals = ST && ST.pedals;
+    const s = (pose || POSE_PILOT).s;
     // the dummy's OWN suit (phase D): one colour of personality each, the
-    // second following the first; ATD amber is the walk's last word
+    // second following the first; ATD amber is the walk's last word. G180:
+    // TWO suits, not one per body — the pilot's, and everyone else's (the
+    // livery declares `dummy1` and `dummy2`; a third name would be nobody's).
     const suit = (typeof window !== 'undefined' && window.CAGE_SECMAT &&
-      window.CAGE_SECMAT('dummy' + (idx || 1),
+      window.CAGE_SECMAT('dummy' + (idx === 1 ? 1 : 2),
         { surf: 0, fieldM: 1, side: THREE.FrontSide, tint0: 0xd6a11c }))
       || null;
     const dum = makeDummy(group, suit);
     dum.fig.name = 'edDum' + (idx || 1);
     dum.fig.scale.setScalar(s);
     const SP = seat.SP || sp1;
-    const recline = clamp((SP.rake - 7) + (P.dumRecline || 0), -10, 55);
+    const recline = clamp((SP.rake - 7) + (pose || POSE_PILOT).recline, -10, 55);
     applyPose(dum.bones,
               seatedPose(recline, !(stick || thr || pedals), SP.tilt));
     dum.fig.position.set(seat.x, seat.panY + 0.03 + 0.105 * s,
@@ -1641,22 +1668,30 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   // coaming lip is, how wide the cabin is at a station — and re-deriving them
   // over there would be a second description of the cabin.
   const DBG = window.CAGE_CREW = { stations: [], panel, floorN, A,
+    // G180: `section` (0 the cockpit, n the n-th bay behind it) and `filled`
+    // ride out with each seat — the join reads the capacity, the occupancy
+    // and the loading numbers off this one list
     seatsAt: seats.map(s2 => ({ x: s2.x, zBack: s2.zBack, pilot: !!s2.pilot,
-                                panY: s2.panY })),
+                                panY: s2.panY, section: s2.section | 0,
+                                filled: !!s2.filled })),
     seats: seats.map(s2 => ({ x: +s2.x.toFixed(3),
       panY: +s2.panY.toFixed(3), h: s2.SP.h, rake: s2.SP.rake,
       tilt: s2.SP.tilt })) };
   const dums = [];
-  if (P.dumOn) dums.push(seatDummy(pilot, st1, 1));
-  // EVERY SEAT THAT IS NOT THE PILOT'S GETS A BODY IN IT when the second
-  // dummy is on. It used to be exactly one — `seats.length > 1` and a single
-  // push — which was right while there were only ever two seats and is what
-  // left a four-seat cabin with two empty chairs behind the front row.
-  if (P.dum2On) {
-    for (let si = 0; si < seats.length; si++) {
-      if (seats[si] === pilot) continue;
-      dums.push(seatDummy(seats[si], stn[si], si + 1));
-    }
+  if (P.dumOn) dums.push(seatDummy(pilot, st1, 1, POSE_PILOT));
+  // A BODY IN EVERY FILLED SEAT (G180). `dum2On` used to put one in every seat
+  // that was not the pilot's; the sections say who is aboard now, and the
+  // join bills exactly the bodies drawn here — what you see is what weighs.
+  // The cockpit's second occupant flies from its own station in the pilot's
+  // pose; a bay's occupants rest their hands in the passenger pose.
+  for (let si = 0; si < seats.length; si++) {
+    if (seats[si] === pilot || !seats[si].filled) continue;
+    dums.push(seatDummy(seats[si], stn[si], si + 1,
+                        seats[si].section ? POSE_PAX : POSE_PILOT));
+  }
+  {
+    const aboard = seats.filter(s2 => s2.filled).length;
+    notes.push('aboard ' + aboard + '/' + seats.length);
   }
 
   // ---- eye point + head clearance (the sizing instruments) ----

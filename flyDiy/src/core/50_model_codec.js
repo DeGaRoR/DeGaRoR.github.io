@@ -79,6 +79,17 @@ function defCG(def) {
 // go through this and nothing cleaner: an orthogonalized or design-axes rest
 // leaves a constant millimetre-scale field at zero load — the at-rest
 // aft-sheared wing, the crease at the first bound row, the kinked struts.
+// The REST ORIGIN is the FIREWALL RING — the structural datum the solver's
+// bodyOrigin() averages live, byte for byte (G179). It was the mass centre,
+// which is not a point on the aeroplane: a sagging engine or a draining tank
+// moves it against the structure, and every bound vertex moved with it.
+function defOrigin(def) {
+  // G179.3: the wing carry-through where declared, the firewall ring otherwise
+  const N = def.nodes, ids = def.refs.origin || def.refs.noseFrame, o = [0, 0, 0];
+  for (const i of ids) { o[0] += N[i].p[0]; o[1] += N[i].p[1]; o[2] += N[i].p[2]; }
+  return [o[0] / ids.length, o[1] / ids.length, o[2] / ids.length];
+}
+
 function defBodyProject(def) {
   const N = def.nodes, R = def.refs;
   const avg = ids => { const o = [0, 0, 0];
@@ -91,7 +102,7 @@ function defBodyProject(def) {
   const yU = nrm(sub(avg(R.upHi), avg(R.upLo)));
   const zL = [xA[1]*yU[2] - xA[2]*yU[1], xA[2]*yU[0] - xA[0]*yU[2],
               xA[0]*yU[1] - xA[1]*yU[0]];
-  const cg = defCG(def);
+  const cg = defOrigin(def);                 // G179: the firewall ring, not the CG
   return p => { const d = sub(p, cg);
     return [d[0]*xA[0] + d[1]*xA[1] + d[2]*xA[2],
             d[0]*yU[0] + d[1]*yU[1] + d[2]*yU[2],
@@ -149,7 +160,7 @@ function makeSkinBinding(pos, nv, def, cfg) {
 
 // Body-frame (z-left) station deltas vs rest. axes = [xAft, yUp]; zL derived.
 function sparDeltas(bind, sim, out) {
-  const cg = sim.cgPos(), [xA, yU] = sim.axes();
+  const cg = sim.bodyOrigin(), [xA, yU] = sim.axes();   // G179: structural origin
   const zL = [xA[1]*yU[2]-xA[2]*yU[1], xA[2]*yU[0]-xA[0]*yU[2], xA[0]*yU[1]-xA[1]*yU[0]];
   for (const S of ['P', 'N']) {
     const { st, rest } = bind[S], d = out[S];

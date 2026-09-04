@@ -588,6 +588,12 @@ PAGE.post = ctx => {
   units.forEach((u, k) => {
     const f = u.face, sfx = k ? '#' + k : '';
     const ug = new THREE.Group();
+    // G179.2: NAMED at the source, so the join makes the whole unit ONE
+    // part that rides its own engine node — it used to be skin, and the
+    // wing-box selector cut it in two on a wing mount (the user: "the
+    // engine block and prop seem to be attached to the body, while the
+    // support is attached to the wing nacelle structure")
+    ug.name = 'edEng' + sfx;
     const engMesh = meshFrom(M);
     ug.add(engMesh);
     const ng = new THREE.Group();

@@ -234,6 +234,11 @@ function cageJoinSpec(P, M, T) {
   // the measured seat stations (see M.seatsX above); absent = the frame's own
   // pillar rule, which is what every fiche and every older save still gets
   if (Array.isArray(M.seatsX) && M.seatsX.length) cabin.seatsX = M.seatsX;
+  // G180: the drawn CAPACITY and the seat-by-seat OCCUPANCY, both off the same
+  // seat list as seatsX (see M.seats / M.occupied above). Written whenever
+  // measured — an all-empty cabin is a real answer, same ruling as `pax`.
+  if (typeof M.seats === 'number' && M.seats >= 1) cabin.seats = M.seats;
+  if (Array.isArray(M.occupied) && M.occupied.length) cabin.occupied = M.occupied;
   if (Object.keys(cabin).length) spec.cabin = cabin;
   // G52: the wing's fore-aft station, from the wing layer's own anchor
   if (typeof M.wingXLE === 'number' && isFinite(M.wingXLE))
@@ -844,21 +849,46 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     // shows: the pilot always, the second dummy when it is drawn, and the
     // rest of the seats empty — `cabin.pax` is a loading number and an
     // aeroplane is not flown full because it could be.
+    //
+    // G180 (the user: "every passenger bay should be able to hold as many
+    // seats as the cabin ... for each section, we can decide whether
+    // passengers are seated"): the crew layer draws a row as wide as the
+    // cockpit's in every bay and marks each seat filled or not from the
+    // section rows (`cabOcc`, `paxOcc<n>`). The join reads CAPACITY, the
+    // OCCUPANCY and both loading numbers off that ONE seat list — the same
+    // list seatsX came from, in the same order — so what is drawn is what
+    // weighs, seat for seat. `seating` keeps naming the FAMILY (it still
+    // sizes a cabin the join did not measure); `cabin.seats` carries the
+    // count, which the table can no longer express (ten seats in a four-bay
+    // side-by-side). Without the crew layer in the page the same numbers
+    // are derived from the rows, so a build with the layer off still loads.
     const bays = Math.max(0, Math.round(+P.paxCount || 0));
     const abreast = Math.round(P.seatLayout) === 1;
+    const perRow = abreast ? 2 : 1;
     M.seating = bays >= 3 ? (abreast ? 'side4' : 'tandem4')
              : bays >= 1 ? (abreast ? 'side2' : 'tandem2')
              : 'single';
-    M.pilots = 1 + ((P.dum2On && bays >= 1) ? 1 : 0);
-    // AND THE LOADING IS WHAT THE CAGE DRAWS. `dum2On` puts a body in every
-    // seat that is not the pilot's, so with four seats it draws four people —
-    // and the join used to hand the game two, which is 160 kg of aeroplane
-    // that is on the screen and not on the scales. The capacity comes from the
-    // seating table rather than from a second copy of it here.
-    const CAP = (typeof GEN_SEATING !== 'undefined') ? GEN_SEATING
-              : (window.GEN_SEATING || null);
-    const seatsN = (CAP && CAP[M.seating]) ? CAP[M.seating].crew : M.pilots;
-    M.pax = P.dum2On ? Math.max(0, seatsN - M.pilots) : 0;
+    const CRW = window.CAGE_CREW;
+    const drawn = CRW && Array.isArray(CRW.seatsAt) && CRW.seatsAt.length
+               && CRW.seatsAt.every(s => typeof s.filled === 'boolean')
+      ? CRW.seatsAt : null;
+    if (drawn) {
+      M.seats = drawn.length;
+      M.occupied = drawn.map(s => s.filled ? 1 : 0);
+      M.pilots = drawn.filter(s => !s.section && s.filled).length;
+      M.pax = drawn.filter(s => s.section && s.filled).length;
+    } else {
+      M.seats = perRow * (1 + bays);
+      const occ = [1];
+      if (abreast) occ.push(+P.cabOcc ? 1 : 0);
+      for (let n = 1; n <= bays; n++) {
+        const k = Math.min(perRow, Math.max(0, Math.round(+P['paxOcc' + n] || 0)));
+        for (let j = 0; j < perRow; j++) occ.push(j < k ? 1 : 0);
+      }
+      M.occupied = occ;
+      M.pilots = occ.slice(0, perRow).reduce((a, b) => a + b, 0);
+      M.pax = occ.slice(perRow).reduce((a, b) => a + b, 0);
+    }
     if (window.CAGE2 && window.CAGE2.cageToSpec)
       try { M.cage = window.CAGE2.cageToSpec(P); }
       catch (e) { ERRS.push('the shape could not be written to the build: '
@@ -1035,6 +1065,25 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         PARTS.others.push({ src: 'edCastorT', kind: 'castorT',
           topC: GB.units.castor.top, axC: GB.units.castor.ax,
           axleC: GB.units.castor.axle, groups: {} });
+      // G179.2: THE LIFT STRUTS ARE A PART — every vertex a point on a
+      // line between the member's own drawn pin (on the fuselage) and tip
+      // (on the wing), published by the wing layer on the group it built
+      // (userData.strutMembers, read in the traversal below). The old
+      // two-end follow keyed on a rig NAME the snapshot only carried when
+      // the strut's section survived the material merge — on the user's
+      // twin it did not, and the wing-box selector cut the tube in three.
+      PARTS.others.push({ src: 'edFit_liftstrut', kind: 'liftstrut',
+        stretch: true, groups: {} });
+      // ...AND SO IS EACH ENGINE UNIT, block, exhaust and all, rigid about
+      // its mount point (the thrust line), riding its own engine node in
+      // the game instead of being split between the wing box and the
+      // fuselage (a wing-mounted block read 6 cm apart on the roll).
+      const CE = window.CAGE_ENG;
+      ((CE && CE.units) || []).forEach((u, k) => {
+        if (!u || !u.at) return;
+        PARTS.others.push({ src: 'edEng' + (k ? '#' + k : ''), kind: 'eng',
+          unit: k, axleC: u.at, groups: {} });
+      });
     } catch (e) {}
     // merge the build's meshes into groups by material look
     const groups = {}, mats = {};
@@ -1092,6 +1141,15 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             part = PARTS.others.find(u => u.src === a.name) || null;
             break;
           }
+          // G179.2: the struts and the engine units (the prop and spinner
+          // under a unit were matched above, deeper in the walk)
+          if (a.name && (a.name === 'edFit_liftstrut' ||
+                         a.name.lastIndexOf('edEng', 0) === 0)) {
+            part = PARTS.others.find(u => u.src === a.name) || null;
+            if (part && a.userData && a.userData.strutMembers)
+              part.membersC = a.userData.strutMembers;
+            break;
+          }
           a = a.parent;
         }
       }
@@ -1109,6 +1167,12 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       const secNames = o.userData && o.userData.matNames;
       const secField = o.userData && o.userData.surfMats;
       const sAttr = geo.attributes.aStruct;
+      // AND THE UV, for the one family that has one. The cage has no unwrap —
+      // `aStruct` is what stands in its place — so this bake has always
+      // written an all-zero uv. A VESSEL is the exception: VESSEL_MESH lays
+      // its uv out in real metres over the finish's tile, and without it the
+      // scanned sheet has nothing to sample and a tank flies flat.
+      const uAttr = geo.attributes.uv;
       for (const r of ranges) {
         const m0 = matList[r.materialIndex] || matList[0];
         if (!m0 || !m0.color) continue;
@@ -1122,6 +1186,14 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         const key = sec ? 's' + sec
           : 'c' + m0.color.getHexString() +
             (m0.transparent ? 'a' + Math.round(m0.opacity * 100) : '') +
+            // ...AND A TANK IS NOT THE AEROPLANE. The vessel materials are
+            // the second factory in the capture, and their whites (a painted
+            // shell is 0xffffff over the sheet) would otherwise merge into
+            // whatever cage section happened to wear the same colour — which
+            // is the same irreversible merge the paragraph above records. The
+            // hue is in the key too, because it is a per-material uniform.
+            (kud.vesSet ? 'v' + kud.vesSet +
+                          (kud.hue ? 'h' + kud.hue.toFixed(4) : '') : '') +
             (kud.aeroFinish ? 'f' + kud.aeroFinish + (kud.aeroGrm || '') +
                               (kud.aeroSurf ? 'S' : '') +
                               (kud.aeroWing ? 'W' + kud.aeroWing : '') +
@@ -1143,6 +1215,17 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           ...(m0.transparent ? { opacity: m0.opacity } : {}),
           ...(sec ? { sec } : {}),
           ...(ud.aeroFinish ? { fin: ud.aeroFinish } : {}),
+          // THE VESSELS' OWN FACTORY (2026-09-04, user: "the fuel tank
+          // material does not seem to make it in game — red in the editor,
+          // white in the flight interface"). Same contract as `fin` above and
+          // for the same reason: what crosses is WHAT THE MATERIAL IS — the
+          // scanned set and the paint hue — so app.js rebuilds it from
+          // CAGE_ENERGY.material instead of approximating a textured, tinted,
+          // hue-rotated shell with a colour and two scalars. The tint is
+          // already in `color`, which the factory multiplies the sheet by.
+          ...(ud.vesSet ? { ves: ud.vesSet } : {}),
+          ...(ud.vesSet && ud.hue ? { vesHue: +ud.hue.toFixed(5) } : {}),
+          ...(ud.vesSet && ud.vesHueOn ? { vesHueOn: 1 } : {}),
           ...(ud.aeroGrm ? { grm: ud.aeroGrm } : {}),
           // G108: the SURFACE CLASS (1 wing, 2 tail; absent means the body),
           // so the flown aeroplane can be told which markings are its wing's
@@ -1164,8 +1247,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           // fact has to survive into the game
           ...((ud.aeroSurf || (secField && secField[r.materialIndex]))
               ? { surf: 1 } : {}),
-          rough: ud.aeroFinish ? m0.roughness : 0.85,
-          metal: ud.aeroFinish ? m0.metalness : 0 };
+          rough: (ud.aeroFinish || ud.vesSet) ? m0.roughness : 0.85,
+          metal: (ud.aeroFinish || ud.vesSet) ? m0.metalness : 0 };
         const end = Math.min(r.start + r.count, idx ? idx.count : p.count);
         // one vertex into a bucket: cage -> model frame, then the G54.2
         // pitch calibration about the model z (left) axis, so the pose's
@@ -1186,6 +1269,10 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           // the pitch calibration do not touch them the way they touch a
           // position or a normal. The field the editor built is the field
           // the aeroplane flies with.
+          if (G3.uv) {
+            if (uAttr) G3.uv.push(uAttr.getX(vi), uAttr.getY(vi));
+            else G3.uv.push(0, 0);
+          }
           if (G3.srf) {
             if (sAttr) G3.srf.push(sAttr.getX(vi), sAttr.getY(vi),
                                    sAttr.getZ(vi), sAttr.getW(vi));
@@ -1193,8 +1280,13 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           }
         };
         const bucket = part ? part.groups : groups;
+        // the uv rides only where a material can sample it: one bucket is one
+        // material, so this is decided once per bucket and never mixes
         const G3 = bucket[key] || (bucket[key] = { pos: [], idx: [], nrm: [],
-                                                   srf: sAttr ? [] : null });
+                                                   srf: sAttr ? [] : null,
+                                                   uv: (m0.userData &&
+                                                        m0.userData.vesSet)
+                                                       ? [] : null });
         for (let i = r.start; i < end; i++) pushV(G3, idx ? idx.getX(i) : i);
       }
     });
@@ -1212,13 +1304,16 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     //
     // The whole capture happens in ONE state now, and the restore is the
     // wrapper's `finally`.)
-    // uv stays an all-zero array: the cage has no unwrap and never will —
-    // `srf` is what replaces it, and it is FOUR numbers, not two. The uv is
-    // kept because mkGeo still binds it and a missing attribute is a
-    // different (louder) failure than an unused one.
+    // uv is an all-zero array for the AEROPLANE: the cage has no unwrap and
+    // never will — `srf` is what replaces it, and it is FOUR numbers, not two.
+    // It is kept because mkGeo still binds it and a missing attribute is a
+    // different (louder) failure than an unused one. The one exception is a
+    // VESSEL, which is not cage skin at all: it is a solid built by
+    // VESSEL_MESH with metre-true uv, and its buckets carry the real thing.
     const bake = g => ({ pos: new Float32Array(g.pos),
       nrm: new Float32Array(g.nrm),
-      uv: new Float32Array((g.pos.length / 3) * 2),
+      uv: (g.uv && g.uv.length) ? new Float32Array(g.uv)
+                                : new Float32Array((g.pos.length / 3) * 2),
       ...(g.srf && g.srf.length ? { srf: new Float32Array(g.srf) } : {}),
       idx: new Uint32Array(g.idx), nv: g.pos.length / 3 });
     // G55: finalize the parts — each rebased about its PIVOT (the wheel's
@@ -1332,6 +1427,10 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         // the hinge runs along the forward edge's longer extent
         hingeAxis = (y1 - y0) > (z1 - z0) ? [0, 1, 0] : [0, 0, 1];
       }
+      // G179.2: a strut part pivots on its first tip (its verts stay
+      // unrebased, like a leg's — the pivot only has to exist)
+      if (pt.kind === 'liftstrut' && pt.membersC && pt.membersC.length && !pt.axleC)
+        pt.axleC = pt.membersC[0].tip;
       const pv = pt.pivotM ? pt.pivotM
         : pt.kind === 'prop' ? pt.hub
         : pt.kind === 'castorT'
@@ -1351,6 +1450,11 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       const out2 = { kind: pt.kind, R: pt.R || 0, pivot: pv,
                      stretch: !!pt.stretch, groups: gs2 };
       if (pt.kind === 'prop' && pt.axis) out2.axis = pt.axis;  // G59.1
+      if (pt.kind === 'liftstrut' && pt.membersC)   // G179.2: each member's line
+        out2.members = pt.membersC.map(m => ({
+          pin: rotP(-m.pin[2], m.pin[1], m.pin[0]),
+          tip: rotP(-m.tip[2], m.tip[1], m.tip[0]) }));
+      if (pt.kind === 'eng') out2.unit = pt.unit;
       if (pt.stretch && pt.rootC)          // G58.7: the fixed airframe end
         out2.root = rotP(-pt.rootC[2], pt.rootC[1], pt.rootC[0]);
       if (pt.surf) {                       // G59: what drives it, and how

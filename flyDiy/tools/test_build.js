@@ -910,6 +910,59 @@ function nullPaths(o, pre, out) {
     ok(isFinite(r.cg) && r.mass > 0, lay + ' still builds with ' + pil +
        ' aboard (' + r.mass.toFixed(1) + ' kg, cg ' + r.cg.toFixed(4) + ')');
   }
+
+  // 6. WHO SITS WHERE (G180). The cage draws a row as wide as the cockpit's in
+  //    every bay, so the CAPACITY can exceed the seating table (`cabin.seats`)
+  //    and the OCCUPANCY names the filled chairs one by one (`cabin.occupied`).
+  //    The claims: the capacity is priced and resolved; the same NUMBER of
+  //    people in DIFFERENT seats is a different balance (a full back bench
+  //    behind an empty co-pilot seat must not read as two people up front);
+  //    the loading numbers are read off the list; and null keeps the old rule.
+  {
+    const six = () => {
+      const s = base(); s.cabin.seating = 'side2'; s.cabin.seats = 6;
+      // one station per seat, three rows 0.8 m apart, the pilot's row first
+      const x0 = C.buildGen(clone(s)).spec.cabin.noseGap;
+      s.cabin.seatsX = [x0, x0, x0 + 0.8, x0 + 0.8, x0 + 1.6, x0 + 1.6];
+      return s;
+    };
+    const R6 = C.resolveSpec(six()).spec;
+    ok(R6.seats === 6, 'cabin.seats 6 on a side2 resolves to six seats (' + R6.seats + ')');
+    const s0 = six(); s0.cabin.pilots = 1; s0.cabin.pax = 0; s0.cabin.occupied = null;
+    const S0 = cg(s0);
+    const front = six(); front.cabin.occupied = [1, 1, 1, 0, 0, 0];   // pilot + co-pilot + one behind
+    const back  = six(); back.cabin.occupied  = [1, 0, 1, 1, 0, 0];   // pilot + the row behind, full
+    const SF = cg(front), SB = cg(back);
+    ok(Math.abs(SF.mass - S0.mass - 160) < 3 && Math.abs(SB.mass - S0.mass - 160) < 3,
+       'two filled seats weigh 160 kg wherever they are (' +
+       (SF.mass - S0.mass).toFixed(1) + ' / ' + (SB.mass - S0.mass).toFixed(1) + ')');
+    // one 80 kg body moved one row (0.8 m) aft over the all-up mass
+    const lever = 80 * 0.8 / SB.mass;
+    ok(Math.abs((SB.cg - SF.cg) - lever) < 0.015,
+       'the same two passengers in different seats are a different balance: ' +
+       'expected +' + (lever * 1000).toFixed(0) + ' mm, got +' +
+       ((SB.cg - SF.cg) * 1000).toFixed(0) + ' mm');
+    const RB = C.resolveSpec(backSpec()).spec;
+    ok(RB.occupants === 3 && RB.crew === 1 && RB.pax === 2,
+       'the loading numbers are read off the occupancy list (occupants ' +
+       RB.occupants + ', crew ' + RB.crew + ', pax ' + RB.pax + ')');
+    const nobody = six(); nobody.cabin.occupied = [0, 0, 0, 0, 0, 0];
+    ok(C.resolveSpec(nobody).spec.occupants === 1,
+       'the pilot is aboard whatever the list says — a seat 0 in the first place is ignored');
+    const over = six(); over.cabin.occupied = [1, 1, 1, 1, 1, 1, 1, 1, 1];
+    ok(C.resolveSpec(over).spec.occupants === 6,
+       'a list longer than the seats is cut to the seats (' + C.resolveSpec(over).spec.occupants + ')');
+    const bad = six(); bad.cabin.pilots = 1; bad.cabin.pax = 0; bad.cabin.occupied = [1, 'yes', 2];
+    ok(Math.abs(cg(bad).cg - S0.cg) < 1e-6,
+       'a malformed occupancy list reads as "the first N seats", never as a jump');
+    // and the old rule is untouched: pilots 1 + pax 2 with NO list fills the
+    // first three seats = exactly the `front` loading above
+    const old3 = six(); old3.cabin.pilots = 1; old3.cabin.pax = 2; old3.cabin.occupied = null;
+    const O3 = cg(old3);
+    ok(Math.abs(O3.cg - SF.cg) < 1e-6 && Math.abs(O3.mass - SF.mass) < 1e-6,
+       'pilots + pax without a list is the first N seats, exactly as before');
+    function backSpec() { const s = six(); s.cabin.occupied = [1, 0, 1, 1, 0, 0]; return s; }
+  }
 }
 
 // ---------------------------------------------------------------------------

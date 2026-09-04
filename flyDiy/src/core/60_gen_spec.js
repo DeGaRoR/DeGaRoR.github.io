@@ -74,8 +74,32 @@ const GEN_MATERIALS = {
     phys: { E: 205e9, rho: 7850, sigY: 460e6 },
     lin:   { fus: 0.58, wing: 0.62, gear: 1.05 },
     cover: 0.42,      // finished fabric: the lattice carries the tubes
-    k:     { fus: 2.0e5, wing: 5.0e5, gear: 2.8e4 },
-    c:     { fus: 60,    wing: 450,   gear: 900 },
+    // THE FUSELAGE ROW x4 (G179.2, the user: "the wing mount to the frame
+    // just seems far too bendy ... You allow the wing to move almost
+    // independently of the cabin"). Measured on the user's wing-mounted twin
+    // at full thrust on the take-off roll, against the firewall: the wing
+    // root 29 mm forward, the strut feet 8 aft, the cabin box sheared 30 mm
+    // roof to floor — and the elongation was not in the box (a x10 on its
+    // own members moved nothing) but 3 mm in EVERY bay's longerons and
+    // diagonals from the firewall to the tail post: the whole truss bending
+    // under a thrust couple, at 0.3-0.5 % strain. The fus row was the Cub
+    // fiche's hand value, ~50x under the E*A/L of the tube it names (see
+    // wingK for the same accounting on the wing); x4 puts a steel truss at
+    // the alloy monocoque's level. Measured after: shear 7 mm, root 8, and
+    // the substep count did not move on ANY material (the wing sets it):
+    // twin 54 -> 54, fleet 46/57/87/124/77/139/107/180 -> the same. The
+    // engine bearer is held at its own measured value (mountK 10 -> 2.5 on
+    // this row). THIS ROW ONLY, and here is why that is not two rules: the
+    // wood, alloy and carbon rows were FITTED to their fiches with the
+    // fuselage's compliance inside the wing's measured flex (a strut-braced
+    // wing's load path runs floor to roof through the box), and x4 on them
+    // dropped their strut cases under GATE LOAD's 0.3-1 % band (wood 0.40
+    // -> 0.15, alloy 0.31 -> 0.11, carbon 0.07 -> -0.01, the last a rig
+    // artefact) — measured. This row was never fitted to anything: it was
+    // the Cub fiche's hand value. Its strut case moves 0.77 -> 0.46 %/g,
+    // inside the band. Re-fitting the other three is their own measurement.
+    k:     { fus: 8.0e5, wing: 5.0e5, gear: 2.8e4 },
+    c:     { fus: 120,   wing: 450,   gear: 900 },
     // The k/c above are the Cub's, and the Cub is a ~390 kg aeroplane. They are
     // NOT constants of the material — you build heavier tube for a heavier
     // machine — so they scale with all-up mass off this reference. Without it a
@@ -1250,6 +1274,38 @@ const GEN_RULES = {
   // work, and says so in the shakedown.
   strutMinOffset: 0.60,
   sparBoxDepth: 0.13,  // cantilever box depth, fraction of chord (Jodel's)
+  // THE ENGINE BEARER (G179, 2026-09-04, the user's wing-mounted twin: "the
+  // engines will move A LOT on their mounts during flight, the whole plane
+  // shakes ... there is still something deforming the wing when not moving").
+  // Measured on that build, parked: each engine hung 300 mm below its mount
+  // and rang at 2.5 Hz, because a wing nacelle was ONE node braced to the
+  // four spar nodes of its bay — all four in one plane, the node a hand's
+  // width above it: rule 1's mechanism, and its stiffness was whatever the
+  // drawn station happened to give (the derived default sat 0.17 m below the
+  // spar line and read 17 mm; the join's measured station 0.07 m above it
+  // read 300). Two rules, both for EVERY mount:
+  //   mountK    an engine bearer is a short WELDED truss, and its members are
+  //             E*A/L stiff where the fuselage row is a calibrated bending
+  //             stand-in (see wingK for the same accounting on the wing).
+  //             The bearer's measured value is 10x the ORIGINAL steel fus
+  //             row (2.0e5): with that row x4 in G179.2, mountK is 2.5 and
+  //             the bearer is byte-identical. c takes the root, so the
+  //             mount's damping ratio is what it was.
+  //   mountFoot a wing nacelle gets a BEARER FOOT: a second node a box depth
+  //             through the spar plane (below a wing the engine sits on, above
+  //             one it hangs under), tied to the same spar nodes and to the
+  //             engine by a post — the depth a real bearer has, so the mount's
+  //             stiffness no longer depends on where the engine was drawn.
+  // GATE MOUNT holds both, on every mount kind, with a negative control.
+  mountK:      2.5,
+  mountFoot:   true,
+  // ...and WHERE the foot goes, as a fraction of the way from the engine to
+  // the front spar: 1 = under the front spar. Measured on the twin (engines
+  // 0.65 m ahead of the spar), foot at 0 / 0.5 / 0.75 / 1 / 1.25 / 1.5:
+  // 13.3 / 8.2 / 6.7 / 6.7 / 9.3 / 15.0 mm. Under the engine every leg back
+  // to the spar is shallow; past the spar the post is. The spar is the
+  // stiff point of the wing, and the foot stands on it.
+  mountFootAt: 1.0,
   // WING STIFFNESS CORRECTION (2026-08-11, GATE FLEX). The wing class is x19
   // softer than the structure the MASS MODEL already pays for: lin.wing
   // 0.62 kg/m over rho 7850 is 0.79 cm2 of cap, and E*A/L at a 1.7 m bay is
@@ -1622,6 +1678,18 @@ const GEN_DEFAULT = {
     // side-by-side and tandem place their rows differently and the layer
     // already knows.
     seatsX: null,
+    // HOW MANY SEATS THERE ARE, and WHO IS IN THEM (G180, 2026-09-04, the
+    // user: "every passenger bay should be able to hold as many seats as the
+    // cabin ... for each section, we can decide whether passengers are
+    // seated"). `seats` is the CAPACITY the cage actually drew — a row as
+    // wide as the cockpit's in the cockpit and in every passenger bay — and
+    // null means the seating table's own count, which is what a fiche and
+    // every older save mean. `occupied` is one 0/1 per seat in seat order
+    // (pilot first, then the cockpit's other seat, then the bays front to
+    // back), so a full back bench behind an empty co-pilot seat is sayable
+    // and bills where it sits; null means "the first pilots + pax seats",
+    // the old rule, which is why no existing aeroplane's balance moves.
+    seats: null, occupied: null,
     // GLAZING. `glazing` is the ROUTE the cabin transparency is built by, and it
     // is a route rather than a style because each has different failure modes
     // (topology, sorting, distortion):
@@ -1711,6 +1779,13 @@ const GEN_DEFAULT = {
   // placement needs one, and that is the change that earns the bump.
   energy: { kind: 'fuel', fuel: 'avgas100LL', cell: 'lifepo4',
             kWh: 0, vessel: null,
+            // THE LOOK, added 2026-09-04 with the drawn vessels and weighing
+            // nothing: `finish` is one of the scanned surfaces (null = as the
+            // vessel is made), `hue` turns the painted sheet's own colour and
+            // `tint` multiplies whichever sheet is on. No version bump, for
+            // the same reason `finish: null` needed none: absent already
+            // means exactly what these values say.
+            finish: null, hue: 0, tint: null,
             // G99 — THE VESSELS, AND THE CAPACITY IS THEIRS. A vessel is a
             // real solid dropped into a declared bay and nudged until it
             // fits, so it is the thing that has a size: `fuel.litres` and
@@ -2250,6 +2325,15 @@ function clampSpec(spec) {
   cb.seatsX = Array.isArray(cb.seatsX) && cb.seatsX.length &&
               cb.seatsX.every(x => typeof x === 'number' && isFinite(x))
     ? cb.seatsX.map(x => genClamp(x, 0.05, 12)) : null;
+  // G180: the drawn capacity — a whole number of seats, or null = the table's;
+  // and the occupancy — a list of 0/1 per seat, or null = the first N. A
+  // malformed list reads as "derived", never as a crash or a jump, the same
+  // ruling seatsX has.
+  cb.seats = (typeof cb.seats === 'number' && isFinite(cb.seats))
+    ? Math.round(genClamp(cb.seats, 0, 24)) : null;
+  cb.occupied = Array.isArray(cb.occupied) && cb.occupied.length &&
+                cb.occupied.every(o => o === 0 || o === 1 || o === true || o === false)
+    ? cb.occupied.map(o => o ? 1 : 0) : null;
 
   const pl = cb.pilot || (cb.pilot = {});
   pl.show    = pl.show !== false;
@@ -2345,6 +2429,16 @@ function clampSpec(spec) {
     if (E.vessel != null &&
         !(GEN_VESSELS[E.vessel] && GEN_VESSELS[E.vessel].holds === want))
       E.vessel = null;
+    // THE LOOK, and it is only a look: `finish` names one of the scanned
+    // surfaces the editor draws a shell with, `hue` turns the painted one's
+    // own colour, `tint` multiplies whichever it is. Nothing here is read by
+    // the ledger — the vessel row above is what weighs and prices a tank —
+    // so there is no version bump and an absent value means "as the vessel
+    // itself is made", which is what every file written before this meant.
+    if (E.finish != null &&
+        !['paint', 'alu', 'plastic', 'rubber'].includes(E.finish)) E.finish = null;
+    E.hue = genClamp(E.hue || 0, 0, 359);
+    if (E.tint != null && !/^#[0-9a-fA-F]{6}$/.test(String(E.tint))) E.tint = null;
     // THE VESSELS ARE THE CAPACITY (G99). Each one is clamped on its own, and
     // the section's total is their sum — so `fuel.litres` and `energy.kWh`
     // stop being settable facts and become readings, which is what stops a
@@ -2361,6 +2455,11 @@ function clampSpec(spec) {
       v.along = v.along == null ? null : genClamp(v.along, -1, 12);
       v.lv = v.lv == null ? null : genClamp(v.lv, 0, 1);
       v.rot = genClamp(v.rot || 0, -90, 90);
+      // ROUND OR SQUARED (2026-09-04). Geometry, and therefore capacity: a
+      // cylinder in the same box holds 0.78 of what the squared shell does,
+      // which _vessel_gen.js applies as the drawn box's fill. Absent means
+      // 'box', so every spec written before this one is unchanged.
+      v.form = v.form === 'cyl' ? 'cyl' : 'box';
       total += v.capacity;
     }
     if (E.kind === 'battery') { E.kWh = total; S.fuel.litres = 0; }
@@ -2670,16 +2769,34 @@ function resolveSpec(spec) {
     else
       S.fuse.windRun = rise / Math.tan(cn.wsAngle * Math.PI / 180);
   }
-  S.seats = seat.crew;
-  S.crew = genClamp(S.pilots | 0, 1, seat.crew);
+  // THE CAPACITY IS WHAT WAS DRAWN (G180): the join writes `cabin.seats` off
+  // the crew layer's own chairs — a row as wide as the cockpit's per section —
+  // and the seating table's count is the fallback for a fiche and every save
+  // from before the field. A drone has none either way.
+  S.seats = (S.cab.seats != null && seat.crew > 0) ? Math.max(1, S.cab.seats) : seat.crew;
+  S.crew = genClamp(S.pilots | 0, 1, Math.max(1, S.seats));
   // WHO ELSE IS ABOARD. `pilots` has always been LOADING rather than capacity
   // (its own comment in GEN_DEFAULT says so); `pax` is the same idea for the
   // seats the flight crew are not in, so the two together are the occupants
   // and `seats` stays the capacity. Clamped to what is left, so a spec cannot
   // load five people into four seats — and 0 by default, which is why no
   // existing aeroplane's mass moves.
-  S.pax = genClamp(S.cab.pax | 0, 0, Math.max(0, seat.crew - S.crew));
+  S.pax = genClamp(S.cab.pax | 0, 0, Math.max(0, S.seats - S.crew));
   S.occupants = S.crew + S.pax;
+  // ...AND WHICH SEATS (G180). `cabin.occupied` names the filled chairs one by
+  // one; the pilot's is always filled (crew is never 0), the list is cut or
+  // padded to the capacity, and the loading numbers are READ OFF IT so the
+  // plaque, the price and the frame cannot disagree about who is aboard.
+  // Null keeps the old rule — the first `occupants` seats in seat order.
+  S.occupied = null;
+  if (Array.isArray(S.cab.occupied) && S.seats > 0) {
+    const occ = [];
+    for (let i = 0; i < S.seats; i++) occ.push(i === 0 ? 1 : (S.cab.occupied[i] ? 1 : 0));
+    S.occupied = occ;
+    S.occupants = occ.reduce((a, b) => a + b, 0);
+    S.crew = genClamp(S.pilots | 0, 1, S.occupants);
+    S.pax = S.occupants - S.crew;
+  }
 
   // 2. wing longitudinal placement — the front spar lands on the cabin-front
   //    frame, which is what puts a high-wing carry-through over the cabin

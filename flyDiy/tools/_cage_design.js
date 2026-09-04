@@ -428,7 +428,7 @@ const CLASS_ROWS = [
     icon: iconSide({ canopy: 'screen', deck: 'cabin', gear: 'tail', prop: true }),
     writes: { spec: { meta: { class: 'eab' } } },
     seed: { cage: { wgSpan: 9.8, wgChord: 1.55, wgChordTip: 1.55,
-                    seatLayout: 2, paxCount: 1, halfW: 0.34, roofHalfW: 0.27,
+                    seatLayout: 0, paxCount: 1, halfW: 0.34, roofHalfW: 0.27,
                     pilotLen: 0.42, paxLen: 0.85, intCons: 1,
                     engPreset: 'continental O-200' },
             spec: { fuel: { litres: 70 },
@@ -627,24 +627,26 @@ const DESIGN_ROWS = [
   // ---- cabin --------------------------------------------------------------
   { key: 'seatLayout', label: 'Seat arrangement', kind: 'discriminator',
     group: 'cabin', status: 'live',
-    help: 'the join derives the seating table from this and the bays — ' +
-          'there is no separate seating control on purpose',
-    read: P => Math.round(P.seatLayout),
+    // G180: the ROW, in the cockpit and in every passenger bay. Tandem is
+    // retired — it is a single row with one bay — and an older build's 2
+    // reads as single (cageFromSpec migrates the saved value).
+    help: 'the row every section seats — the cockpit and each passenger ' +
+          'bay; a tandem is a single row with a bay behind it',
+    read: P => { const v = Math.round(P.seatLayout); return v === 2 ? 0 : v; },
     options: [
       { value: 0, label: 'Single', icon: iconSeats('single'),
         writes: { cage: { seatLayout: 0 } } },
       { value: 1, label: 'Side-by-side', icon: iconSeats('side'),
         writes: { cage: { seatLayout: 1 } } },
-      { value: 2, label: 'Tandem', icon: iconSeats('tandem'),
-        writes: { cage: { seatLayout: 2 } } },
     ] },
 
-  // labelled by what they BUILD, never by what they seat: bays 1 and 2 both
-  // give a two-seater, 3 and 4 both a four-seater (the §5.3 finding — real
-  // structure, real drag, and no extra crew billed until GEN_SEATING grows)
+  // labelled by what they BUILD: each bay is a section of fuselage, and
+  // (G180) each seats the cockpit's row — who actually sits there is the
+  // bay's own `paxOcc<n>` row in the editor, not this tile's business
   { key: 'paxCount', label: 'Passenger bays', kind: 'discriminator',
     group: 'cabin', status: 'live',
-    help: 'each bay is fuselage you pay for; seats follow the seating table',
+    help: 'each bay is fuselage you pay for and seats a row as wide as the ' +
+          'cockpit’s; who is aboard is set bay by bay',
     read: P => Math.round(P.paxCount),
     options: [0, 1, 2, 3, 4].map(n => ({
       value: n, label: n === 0 ? 'No bay' : n + (n === 1 ? ' bay' : ' bays'),
@@ -1160,7 +1162,7 @@ const PLAN_C172 = { wgCrankAt: 0.42, wgCrankChord: P => +P.wgChord,
 const ARCHETYPES = [
   { key: 'cub', kind: 'recreation', name: 'Cub-alike', note: 'taildragger, strut-braced high ' +
       'wing, windscreen, tube & fabric, tandem',
-    sel: { class: 'eab', role: 'bush', seatLayout: 2, paxCount: 1,
+    sel: { class: 'eab', role: 'bush', seatLayout: 0, paxCount: 1,
            canopy: 'screen', mirror: 0, intCons: 1, boomStyle: 0, section: 1,
            wgPos: 0, wgBrace: 0, wgTip: 2, wgFlapType: 0,
            engFamily: 'flat', engModel: 'continental A-65', engMount: 'nose',

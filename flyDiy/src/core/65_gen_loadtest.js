@@ -59,6 +59,31 @@ const GEN_LOAD_ULT = 5.7;           // 1.5 x limit
 const GEN_LOAD_LIFT = 200;
 const GEN_LOAD_WINGTAGS = ['WF', 'WR', 'WB', 'WB2'];
 
+// WHAT THE WING CARRIES (G179). A node is wing-carried when the fuselage
+// cannot reach it without crossing a spar node: flood the beams from the
+// firewall ring, never expanding through a wing tag, and whatever is neither
+// reached nor wing hangs off the wing — a nacelle, its bearer foot. The
+// trestles used to pin every non-spar node, which is a trestle under each
+// wing-mounted engine: the bearer could never be loaded here, and this gate
+// was blind to one that let its engine hang 0.3 m.
+function genLoadCarried(def) {
+  const wing = {};
+  for (const t of GEN_LOAD_WINGTAGS) wing[t] = 1;
+  const adj = def.nodes.map(function () { return []; });
+  for (const b of def.beams) { adj[b.a].push(b.b); adj[b.b].push(b.a); }
+  const seen = new Uint8Array(def.nodes.length);
+  const q = ((def.refs && def.refs.noseFrame) || []).slice();
+  for (const i of q) seen[i] = 1;
+  while (q.length) {
+    const i = q.pop();
+    if (wing[def.nodes[i].tag]) continue;        // the wing is the boundary
+    for (const j of adj[i]) if (!seen[j]) { seen[j] = 1; q.push(j); }
+  }
+  const out = [];
+  def.nodes.forEach(function (n, i) { if (!seen[i] && !wing[n.tag]) out.push(i); });
+  return out;
+}
+
 // spar stations on the +z wing, front node paired with its nearest rear node
 function genLoadStations(def) {
   const wf = [], wr = [];
@@ -120,6 +145,13 @@ function makeLoadTest(sim, def, cfg) {
   // the trestles: everything that is not wing is pinned where it starts
   const wingTag = {};
   for (const t of GEN_LOAD_WINGTAGS) wingTag[t] = 1;
+  // G179: wing-carried nodes (a nacelle and its foot) go FREE, and at n g
+  // their mass is the RELIEF a real sandbag test sees — the bags carry n*W,
+  // the engine pulls n*m the other way, the spar takes the difference, as
+  // in a pull-up. Their 1 g hang is in the datum like the wing's own.
+  const carried = genLoadCarried(def);
+  const carriedTag = {};
+  for (const i of carried) carriedTag[i] = 1;
   const pin = [];
 
   const state = { phase: 'settle', n: 0, nTarget: ULT, tipPct: 0, tipM: 0,
@@ -195,7 +227,8 @@ function makeLoadTest(sim, def, cfg) {
     for (let i = 0; i < sim.n; i++) sim.p[i*3+1] += GEN_LOAD_LIFT;
     pin.length = 0;
     def.nodes.forEach(function (nd, i) {
-      if (!wingTag[nd.tag]) pin.push([i, sim.p[i*3], sim.p[i*3+1], sim.p[i*3+2]]);
+      if (!wingTag[nd.tag] && !carriedTag[i])
+        pin.push([i, sim.p[i*3], sim.p[i*3+1], sim.p[i*3+2]]);
     });
   }
   begin();
@@ -221,6 +254,9 @@ function makeLoadTest(sim, def, cfg) {
     // is what makes that the flight-load direction through the spar.
     for (let k = 0; k < bags.length; k++)
       sim.impulse(bags[k][0], 0, -n * bags[k][1] * dt, 0);
+    // ...and what the wing carries pulls the other way (G179, see `carried`)
+    for (let k = 0; k < carried.length; k++)
+      sim.impulse(carried[k], 0, n * def.nodes[carried[k]].m * 9.81 * dt, 0);
     sim.step(dt); clamp(); relax();
 
     // WHICH member, not just which class. The allowable is per class, so the
@@ -270,5 +306,6 @@ function makeLoadTest(sim, def, cfg) {
   // occasionally exploding. Handing out the same list the physics uses means
   // the sandbags drawn are the sandbags applied, and cannot drift from them.
   return { step: step, state: state, stations: st, semi: semi, W: W,
-           limit: LIM, ult: ULT, bags: bags, lift: GEN_LOAD_LIFT };
+           limit: LIM, ult: ULT, bags: bags, lift: GEN_LOAD_LIFT,
+           carried: carried };
 }

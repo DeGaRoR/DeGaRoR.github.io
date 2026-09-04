@@ -461,10 +461,14 @@ function run(src, tag, report) {
   rich.fuel = { litres: 63, tank: 'wing' };
   // G99: the vessels ARE the capacity now; the 63 litres above are a reading
   // of this list, and `tank: 'wing'` a reading of its first bay
+  // ...and 2026-09-04, the drawn vessels: `finish`, `hue` and `tint` are what
+  // the shell is MADE of and `form` which way its shell is closed. None is
+  // read by the ledger, which is exactly why losing one is silent — the file
+  // would come back weighing the same and looking like a different aeroplane.
   rich.energy = { kind: 'fuel', fuel: 'avgas100LL', cell: 'lifepo4', kWh: 0,
-                  vessel: null,
+                  vessel: null, finish: 'paint', hue: 212, tint: '#3c6ea8',
                   vessels: [{ bay: 'wingRoot', capacity: 63, along: 0.30,
-                              lv: null, rot: 0 }] };
+                              lv: null, rot: 0, form: 'cyl' }] };
   rich.cargo = { len: 0.4, kg: 17 };
   rich.systems = { fit: 'ifr' };
   rich.finish = { sections: { body: { tint: 16764160 },
@@ -515,6 +519,9 @@ function run(src, tag, report) {
     say(v0.bay === 'wingRoot' && v0.capacity === 63 &&
         Math.abs((v0.along || 0) - 0.30) < 1e-9,
         'the VESSELS survive the round trip (bay, capacity, station)');
+    say(v0.form === 'cyl' && E.finish === 'paint' && E.hue === 212 &&
+        E.tint === '#3c6ea8',
+        'the vessel SHAPE and the tank’s finish, hue and tint survive it too');
   }
 }
 run(GARAGE_SRC, '', ok);

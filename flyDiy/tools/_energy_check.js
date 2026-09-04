@@ -657,6 +657,41 @@ if (SHOW) for (const s of seen)
   const ui = fs.readFileSync(path.join(__dirname, '_cage_ui.js'), 'utf8');
   check(/CAGE_ENERGY\.fromSpec\(spec && spec\.energy\)/.test(ui),
     'load: a loaded build seeds the energy panel, unconditionally');
+  // THE LOOK CROSSES THE JOIN TOO (2026-09-04, user: "the fuel tank material
+  // does not seem to make it in game - red in the editor, white in the flight
+  // interface"). A vessel's surface is a scanned sheet, a tint and a hue, and
+  // the capture's fall-through for a material it cannot name is a colour and
+  // two scalars — which on a painted shell is the multiplier alone, i.e.
+  // white. Four things have to hold, and each was broken in turn to see this
+  // gate go red: the factory has to STAMP what the material is, the merge has
+  // to CARRY it (and its uv, or the sheet has nothing to sample), it must not
+  // merge a tank into a cage section of the same colour, and the game has to
+  // come back through the SAME factory rather than approximating it.
+  const en2 = fs.readFileSync(path.join(__dirname, '_cage_energy.js'), 'utf8');
+  const ap = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer',
+                                       'app.js'), 'utf8');
+  check(/m\.userData\.vesSet = F\.set;/.test(en2) &&
+        /material: vesselMatFor/.test(en2),
+    'look: the vessel factory stamps its set on the material and opens a door '
+    + 'for the game (CAGE_ENERGY.material)');
+  check(/const vesPool = new Map\(\);/.test(en2) &&
+        /for \(const m of vesAll\) m\.envMapIntensity/.test(en2),
+    'look: the game’s materials are pooled, and the mood walks every '
+    + 'material the factory made');
+  check(/\.\.\.\(ud\.vesSet \? \{ ves: ud\.vesSet \} : \{\}\),/.test(jn) &&
+        /\.\.\.\(ud\.vesSet && ud\.hue \? \{ vesHue:/.test(jn),
+    'look: the join carries the set and the hue into the build');
+  check(/\(kud\.vesSet \? 'v' \+ kud\.vesSet \+/.test(jn),
+    'look: ...and a tank never merges into a cage section of the same colour');
+  check(/const uAttr = geo\.attributes\.uv;/.test(jn) &&
+        /if \(G3\.uv\) \{/.test(jn) &&
+        /uv: \(g\.uv && g\.uv\.length\) \? new Float32Array\(g\.uv\)/.test(jn),
+    'look: ...and the vessel buckets carry their metre-true uv, which the '
+    + 'rest of the cage has none of');
+  check(/if \(data\.cage && m\.ves && window\.CAGE_ENERGY &&/.test(ap) &&
+        /window\.CAGE_ENERGY\.material\(\{[\s\S]{0,120}set: m\.ves, tint: m\.color/.test(ap),
+    'look: the flown aeroplane rebuilds a vessel from the editor’s own '
+    + 'factory, not from a colour');
   // THE SLIDER LAG (2026-09-04). Every cage build ran the layer's post hook,
   // and the hook emptied the bay caches and re-swept the body (2.0 s of a
   // 2.6 s tick, measured), then fired fourteen aero solves of readouts into
@@ -709,6 +744,7 @@ console.log('  ' + seen.length + ' bodies swept, ' +
             seen.reduce((a, s) => a + s.open, 0) + ' sections measured, ' +
             seen.reduce((a, s) => a + s.litres, 0).toFixed(0) + ' litres of interior');
 for (const f of fail) console.log('  FAIL ' + f);
+let printed = fail.length;
 
 // ===========================================================================
 // G98 — THE VESSEL CATALOGUE
@@ -833,5 +869,174 @@ for (const f of fail) console.log('  FAIL ' + f);
   }
 }
 
+// ===========================================================================
+// THE DRAWN VESSEL (2026-09-04) — _vessel_mesh.js
+// ===========================================================================
+// The failures here are the same KIND as everywhere else in this file: silent,
+// and each reads as a slightly different object rather than as an error.
+//   - a loft wound against its own normals draws a tank you can see the inside
+//     of the far wall through. This is not hypothetical: the first y-axis loft
+//     had 560 of 560 triangles inverted, because laying a 2D section into 3D
+//     about y makes a LEFT-handed basis and the identical point order that
+//     faces out about z faces in about y.
+//   - a normal that is not unit length shades a smooth shell in facets
+//   - a shell that escapes its own declared box is a tank the FIT TEST above
+//     has cleared and the skin has not
+//   - a fitting scaled with the tank puts a 90 mm filler cap on a header tank
+//   - and a fill fraction taken as a HEIGHT draws a quarter-full round tank a
+//     third full, because a cylinder's area is not linear in its depth
+{
+  const VM = require(path.join(__dirname, '_vessel_mesh.js'));
+  const VG = require(path.join(__dirname, '_vessel_gen.js'));
+  const SLOTS = ['shell', 'hard', 'seal', 'mark'];
+  // every proportion a bay can hand it, both forms, both kinds
+  const CASES = [
+    ['a squared tank',       { e: [0.22, 0.16, 0.30], kind: 'fuel', form: 'box' }],
+    ['a cylindrical tank',   { e: [0.16, 0.16, 0.45], kind: 'fuel', form: 'cyl' }],
+    ['a wide deck tank',     { e: [0.42, 0.13, 0.12], kind: 'fuel', form: 'box' }],
+    ['a header tank',        { e: [0.05, 0.04, 0.08], kind: 'fuel', form: 'box' }],
+    ['a ferry tank',         { e: [0.45, 0.40, 1.20], kind: 'fuel', form: 'cyl' }],
+    ['a pack',               { e: [0.30, 0.09, 0.40], kind: 'battery', form: 'box' }],
+    ['a cylindrical pack',   { e: [0.30, 0.12, 0.40], kind: 'battery', form: 'cyl' }],
+  ];
+  let tris = 0;
+  for (const [label, cfg] of CASES) {
+    const r = VM.build(cfg);
+    tris += r.tris;
+    const parts = SLOTS.map(s => r[s]).concat([VM.contents(r, 0.6, 0.006)]);
+    let bad = 0, nonUnit = 0, oob = 0, wrong = 0, out = 0;
+    // the solid is built in a canonical frame (the longer horizontal axis is
+    // z), so the box it must stay inside is the one build() chose
+    const E = r.e;
+    for (const b of parts) {
+      const n = b.pos.length / 3;
+      for (let i = 0; i < n; i++) {
+        for (let k = 0; k < 3; k++) if (!isFinite(b.pos[i * 3 + k])) bad++;
+        for (let k = 0; k < 2; k++) if (!isFinite(b.uv[i * 2 + k])) bad++;
+        const L = Math.hypot(b.nor[i * 3], b.nor[i * 3 + 1], b.nor[i * 3 + 2]);
+        if (!(Math.abs(L - 1) < 1e-6)) nonUnit++;
+      }
+      for (const j of b.idx) if (!(j >= 0 && j < n)) oob++;
+      // winding against the vertex normal the same patch computed
+      for (let t = 0; t < b.idx.length; t += 3) {
+        const a = b.idx[t], c = b.idx[t + 1], d = b.idx[t + 2];
+        const ax = b.pos[a * 3], ay = b.pos[a * 3 + 1], az = b.pos[a * 3 + 2];
+        const u = [b.pos[c * 3] - ax, b.pos[c * 3 + 1] - ay, b.pos[c * 3 + 2] - az];
+        const v = [b.pos[d * 3] - ax, b.pos[d * 3 + 1] - ay, b.pos[d * 3 + 2] - az];
+        const fn = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2],
+                    u[0] * v[1] - u[1] * v[0]];
+        const L = Math.hypot(fn[0], fn[1], fn[2]);
+        if (L < 1e-12) continue;                       // a collapsed corner
+        const dd = (fn[0] * b.nor[a * 3] + fn[1] * b.nor[a * 3 + 1] +
+                    fn[2] * b.nor[a * 3 + 2]) / L;
+        if (dd < -0.25) wrong++;
+      }
+    }
+    // THE SHELL STAYS IN ITS BOX. Hardware does not, and must not — a filler
+    // neck stands proud of any tank — so only the shell and its contents are
+    // held to it, and the hardware is held to a hand's width beyond instead.
+    for (const b of [r.shell, VM.contents(r, 1, 0.006)])
+      for (let i = 0; i < b.pos.length / 3; i++)
+        for (let k = 0; k < 3; k++)
+          if (Math.abs(b.pos[i * 3 + k]) > E[k] + 1e-6) out++;
+    let proud = 0;
+    for (const b of [r.hard, r.seal, r.mark])
+      for (let i = 0; i < b.pos.length / 3; i++)
+        for (let k = 0; k < 3; k++)
+          if (Math.abs(b.pos[i * 3 + k]) > E[k] + 0.075) proud++;
+
+    check(bad === 0, label + ': every vertex and uv is a number', bad + ' were not');
+    check(nonUnit === 0, label + ': every normal is unit length', nonUnit + ' were not');
+    check(oob === 0, label + ': every index is in range', oob + ' were not');
+    check(wrong === 0, label + ': every face is wound the way its normal points',
+          wrong + ' faced in');
+    check(out === 0, label + ': the shell and its contents stay inside the ' +
+          'declared box the fit test cleared', out + ' coordinates escaped');
+    check(proud === 0, label + ': no fitting stands more than 75 mm proud',
+          proud + ' did');
+    for (const s of SLOTS) check(r[s].tris > 0, label + ': the ' + s + ' slot is drawn');
+  }
+
+  // --- THE FITTINGS ARE CLAMPED IN METRES ----------------------------------
+  // The crew layer's rule and the fittings arc's: 35 mm of structure is 35 mm
+  // on a Cub and on a DC-3. A tank thirty times the volume must not carry a
+  // filler cap thirty times the size.
+  {
+    const small = VM.build({ e: [0.10, 0.09, 0.14], kind: 'fuel', form: 'box' });
+    const big = VM.build({ e: [0.45, 0.40, 1.20], kind: 'fuel', form: 'cyl' });
+    const capW = b => {
+      let lo = 1e9, hi = -1e9;
+      for (let i = 0; i < b.mark.pos.length / 3; i++) {
+        const x = b.mark.pos[i * 3];
+        if (x < lo) lo = x; if (x > hi) hi = x;
+      }
+      return hi - lo;
+    };
+    const rs = capW(small), rb = capW(big);
+    const volR = (0.45 * 0.40 * 1.20) / (0.10 * 0.09 * 0.14);
+    check(rb / rs < 4, 'the filler cap is clamped, not scaled: ' +
+      (volR).toFixed(0) + 'x the volume gives ' + (rb / rs).toFixed(2) +
+      'x the cap (' + (rs * 1000).toFixed(0) + ' -> ' + (rb * 1000).toFixed(0) + ' mm)');
+    check(rb > rs, '...but it is not frozen either');
+  }
+
+  // --- THE FILL IS A VOLUME ------------------------------------------------
+  // Half the litres in a lying cylinder is half its height, because it is
+  // symmetric about its axis; a QUARTER of the litres is 19.6% of the height
+  // and not 25%. A level placed at the fill fraction would be right at empty,
+  // half and full and wrong everywhere else — which is exactly the kind of
+  // thing that looks fine in a screenshot taken at 50%.
+  {
+    const r = VM.build({ e: [0.16, 0.16, 0.45], kind: 'fuel', form: 'cyl' });
+    const h = f => (VM.contents(r, f, 0.006).level + 0.154) / 0.308;
+    check(Math.abs(h(0.5) - 0.5) < 0.01, 'fill: half the litres is half the height');
+    check(Math.abs(h(0.25) - 0.302) < 0.02,
+      'fill: a quarter of the litres is 30% of the height in a round tank, ' +
+      'not 25% (measured ' + (h(0.25) * 100).toFixed(1) + '%)');
+    check(h(1) > 0.99, 'fill: full is full');
+  }
+
+  // --- A ROUND TANK IN A SQUARE BOX HOLDS LESS -----------------------------
+  // ...and the ledger has to be told, or a cylinder would be billed the
+  // squared shell's litres. The BOX factor is exactly 1, which is what keeps
+  // every build written before this row weighing what it weighed.
+  {
+    const dims = { L: 0.6, W: 0.44, H: 0.32 };
+    const box = VG.installedFromDims('alu', dims, 'box');
+    const cyl = VG.installedFromDims('alu', dims, 'cyl');
+    const none = VG.installedFromDims('alu', dims);
+    check(Math.abs(box - none) < 1e-9,
+      'form: an unstated form is the squared one — no old build moved');
+    check(cyl < box * 0.85 && cyl > box * 0.70,
+      'form: the cylinder holds 0.78 of the squared shell (' +
+      (cyl / box).toFixed(3) + ')');
+    const d2 = VG.vesselDims('alu', 100, null, 'cyl');
+    const d1 = VG.vesselDims('alu', 100, null, 'box');
+    check(d2.L * d2.W * d2.H > d1.L * d1.W * d1.H,
+      'form: ...so a cylinder of the same litres needs a bigger box');
+  }
+
+  // --- THE LONG WAY IS THE LENGTH ------------------------------------------
+  // A bay-shaped tank is very often wider than it is long, and laying the
+  // straps, the filler and the sump out along the short axis crowds every
+  // fitting into a hand's width.
+  {
+    const wide = VM.build({ e: [0.42, 0.13, 0.12], kind: 'fuel', form: 'box' });
+    check(wide.yaw > 1.5, 'a tank wider than it is long is built turned, ' +
+      'and the layer adds its yaw');
+    check(wide.e[2] > wide.e[0], '...with the long way as its length');
+    const tall = VM.build({ e: [0.12, 0.13, 0.42], kind: 'fuel', form: 'box' });
+    check(tall.yaw === 0, '...and one already the right way round is not turned');
+  }
+
+  if (SHOW) console.log('  drawn vessels: ' + CASES.length + ' cases, ' +
+    tris + ' triangles, ' + SLOTS.length + ' material slots');
+}
+
+// THE FAILURE LIST IS PRINTED WHERE THE VERDICT IS. It used to be printed at
+// the end of the G97 section, which was the end of the file when it was
+// written — so every check added after it failed SILENTLY, with a bare "FAIL"
+// and nothing to read. Found the moment the drawn-vessel section landed.
+for (const f of fail.slice(printed)) console.log('  FAIL ' + f);
 console.log('GATE ENERGY: ' + (fail.length ? 'FAIL' : 'PASS'));
 process.exit(fail.length ? 1 : 0);

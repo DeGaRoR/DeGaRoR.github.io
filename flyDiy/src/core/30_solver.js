@@ -658,6 +658,18 @@ function makeSim(def, world) {
     return [x/totalM, y/totalM, z/totalM];
   }
   function axes() { bodyAxes(); return [xAft.slice(), yUp.slice(), zRt.slice()]; }
+  // THE STRUCTURAL ORIGIN (G179): where the body frame is PINNED. bodyAxes
+  // takes its directions off the firewall ring and the tail post; the origin
+  // of every rest-vs-live comparison used to be the MASS CENTRE, which moves
+  // relative to the structure whenever a heavy node sags or a tank drains. A
+  // wing-mounted pair hanging 0.3 m low dropped the CG 59 mm, and every bound
+  // wing vertex rode UP by that much against an unbound centre section — the
+  // hump at the root, on the stand, that no flight gate could see. The
+  // firewall ring is the reference the axes already use: one datum, not two.
+  // Rest side: defOrigin() in 50_model_codec.js, the same average.
+  // G179.3: the wing carry-through where the frame declares one (refs.origin,
+  // every generated build), the firewall ring otherwise (the imported fiches)
+  function bodyOrigin() { avgP(def.refs.origin || def.refs.noseFrame, t1); return t1.slice(); }
 
   // G121: totalM is a GETTER — it was a copied value, so a mass change via
   // setNodeMass would have been invisible to every external reader (the
@@ -666,6 +678,7 @@ function makeSim(def, world) {
   return { p, v, m, r, beams, n, ctl, out, get totalM() { return totalM; },
            setNodeMass,
            reset, stance, step, probe, stats, impulse, wheelsOnGround, cgPos, cgVel, axes,
+           bodyOrigin,
            setAtmos, setGroundRef, atmos: airOf, thrustAt, probeAir };
 }
 

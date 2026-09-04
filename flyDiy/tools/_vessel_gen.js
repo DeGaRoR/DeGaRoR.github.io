@@ -47,28 +47,44 @@ const SHAPES = {
   wet:      { aspect: [1, 1, 1],          fill: 1.00, form: 'bay'  },
 };
 
+// A ROUND TANK IN A SQUARE BOX HOLDS LESS (2026-09-04, the user: "you may
+// allow for rounded cylinders as geometry, as an alternative to boxes"). The
+// drawn form is the player's, and the ledger has to bill what the drawn thing
+// actually holds — so the catalogue's `fill` is multiplied by the FORM's own
+// occupancy of its bounding box.
+//
+// 0.78 is measured off the solid _vessel_mesh.js draws, not guessed. That
+// cylinder is an elliptic barrel of semi-axes (ex, ey) and length 2*zc closed
+// by two half-spheroids of depth a = 0.30*ez, so zc = 0.70*ez and
+//     V / (8 ex ey ez) = pi (2 zc + 4a/3) / (8 (zc + a)) = pi * 1.8 / 8 = 0.707
+// against the box row's declared 0.90: 0.707 / 0.90 = 0.785. The BOX factor is
+// exactly 1, so nothing that existed before this row changed by a gram.
+const FORM_FILL = { box: 1.00, cyl: 0.78 };
+const formFill = (sh, form) => sh.fill * (FORM_FILL[form] || 1);
+
 // the box a vessel of `installedL` litres needs, in metres — or the box the
 // PLAYER drew, when the vessel carries its own `dims`: the user's rule is
 // "the player will edit themselves the exact placement and geometry and the
 // capacity is calculated", so a drawn box wins and its litres follow it
-function vesselDims(vesselKey, installedL, dims) {
+function vesselDims(vesselKey, installedL, dims, form) {
   const sh = SHAPES[vesselKey] || SHAPES.alu;
+  const fill = formFill(sh, form);
   if (dims && dims.L > 0 && dims.W > 0 && dims.H > 0)
-    return { L: +dims.L, W: +dims.W, H: +dims.H, form: sh.form, fill: sh.fill, own: true };
+    return { L: +dims.L, W: +dims.W, H: +dims.H, form: sh.form, fill, own: true };
   const m3 = Math.max(0, installedL || 0) / 1000;
   const a = sh.aspect;
   // aspect scaled so that (L W H) * fill = m3
-  const k = Math.cbrt(m3 / Math.max(1e-9, a[0] * a[1] * a[2] * sh.fill));
-  return { L: a[0] * k, W: a[1] * k, H: a[2] * k, form: sh.form, fill: sh.fill };
+  const k = Math.cbrt(m3 / Math.max(1e-9, a[0] * a[1] * a[2] * fill));
+  return { L: a[0] * k, W: a[1] * k, H: a[2] * k, form: sh.form, fill };
 }
 // the INSTALLED litres a drawn box holds: its volume, less the shell's
 // rounding. The caller turns installed litres into fuel litres (/1.06) or
 // pack kWh (/1.18, then the chemistry's Wh per litre) — the same factors
 // genVesselResolve applies the other way round, so the two agree
-function installedFromDims(vesselKey, dims) {
+function installedFromDims(vesselKey, dims, form) {
   const sh = SHAPES[vesselKey] || SHAPES.alu;
   if (!dims || !(dims.L > 0 && dims.W > 0 && dims.H > 0)) return 0;
-  return dims.L * dims.W * dims.H * sh.fill * 1000;
+  return dims.L * dims.W * dims.H * formFill(sh, form) * 1000;
 }
 
 // WHERE A VESSEL GOES WHEN NOBODY HAS SAID. The user's rule, verbatim: "the

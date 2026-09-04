@@ -176,6 +176,11 @@ const MANIFEST = {
     // aeroDetailTex reads the table at first material build.
     // skin_tex.js the same, for the sheets that are not wood (the firewall's
     // fireproof foil): one loader, two payload tables, either may be absent.
+    // vessel_tex.js is NOT one of those: it is the props' three-map recipe
+    // (diff / arm / nor), for tanks and packs, which are objects in the scene
+    // rather than covering. The energy layer reads it lazily at first draw, so
+    // it only has to be evaluated before the editor is opened — but it sits
+    // with its siblings because its images, like theirs, start decoding here.
     // aa_resolve.js anywhere before app.js (G144): it only publishes a table
     // and a factory at eval, and app.js is the one caller — it makes the pass
     // in its renderer block and hands it the frame at the bottom of the loop.
@@ -186,6 +191,7 @@ const MANIFEST = {
               'light_rig.js', 'site_tex.js', 'site_ground.js', 'render_world.js',
               'hangar_floor.js', 'hangar_walls.js',
               'hangar_sky.js', 'props.js', 'wood_tex.js', 'skin_tex.js',
+              'vessel_tex.js',
               'aeroskin.js', 'hangar.js',
     // refplane.js before editor.js (G89): the editor's tree offers the
     // REFERENCE PLANE row and calls window.REFPLANE for its badge, its panel
@@ -244,7 +250,7 @@ const MANIFEST = {
     // geometry, then the layer that draws and edits it. _bay_site reads
     // window.FIT_SITE at load, so it sits after _fit_site; the layer reads the
     // crew and the wing in its post hook, so it sits after both.
-    '_bay_site.js', '_vessel_gen.js', '_cage_energy.js',
+    '_bay_site.js', '_vessel_gen.js', '_vessel_mesh.js', '_cage_energy.js',
     '_cage_join.js',        // the physics-bearing table (G45)
     '_cage_ui.js',
   ],

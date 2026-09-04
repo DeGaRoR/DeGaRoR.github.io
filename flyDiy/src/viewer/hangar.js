@@ -3169,6 +3169,15 @@ const setMood = i => {
   // material's own env0 and scales from it, so materials built later by the
   // editor arrive already correct.
   if (typeof aeroSetEnv === 'function') aeroSetEnv(m.env / 0.55);
+  // ...and so are the TANKS AND PACKS (2026-09-04). They are the third family
+  // of materials in the room with a factory of their own — the energy layer's
+  // — and they arrived at envMapIntensity 1.0 against everything else's 2.2,
+  // which on a bare-alloy tank is a dull grey box beside a bright aeroplane.
+  // Same contract as the two above: the factory keeps each material's env0 and
+  // stamps new ones with the current factor, so this only has to say when the
+  // factor moves.
+  if (window.CAGE_ENERGY && window.CAGE_ENERGY.setEnv)
+    window.CAGE_ENERGY.setEnv(m.env / 0.55);
   BG.setHex(m.bg); FOG.color.setHex(m.bg);
   M.daylight.color.setHex(m.card);
   M.skyPanel.emissiveIntensity = m.panel;

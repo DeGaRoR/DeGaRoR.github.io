@@ -606,6 +606,43 @@ function genTuneAP(def) {
 // c*dt is 0.73 (Cub) — both stable. Spruce+ply on the Cub's 24 substeps ran at
 // omega*dt 0.615 and c*dt 0.947 and diverged, which is the whole bug.
 // The bounds below sit just inside the fleet's proven envelope.
+// THE POWER NOSE-OVER (G179, the user's twin: "get the current build and
+// just start it. It falls on its belly"). A taildragger at full static thrust
+// with its tail down is a lever about the main wheels' contact: the thrust,
+// applied at the engines' height above the CG, pitches it nose-down by
+// T*(hT - hCg); its weight, at the CG's distance behind the mains, holds the
+// tail down by W*d; rolling resistance at the contact takes CRR*W*hCg off
+// that. Ratio >= 1 and the aeroplane goes over on power alone — which is what
+// the twin does (engines 1.94 m up, CG 1.14 m up, mains 0.51 m ahead: 1.06)
+// and what nothing could see while the wing nacelle's mount let each engine
+// hang 0.3 m low, shortening the arm by 0.72 kN.m. The static balance says
+// 1.06; the twin tips at 0.78 of full throttle measured, the rest being the
+// tailwheel and the wing going to negative lift once the nose is down — so
+// the pilots' ground cap is 0.75/ratio: what a pilot does on such an
+// aeroplane, power up as the tail comes up. A tricycle's nosewheel takes the
+// moment and reads 1; an engine below the CG reads 1. Posted on the plaque as
+// `powerOver`, so the builder sees the design rather than the crash.
+function genGroundPowerCap(def, T0, W) {
+  const N = def.nodes, R = def.refs, none = { ratio: 0, cap: 1 };
+  if (!R || !R.mains || !R.mains.length || R.tw == null || R.tw < 0 ||
+      !R.engine || !R.engine.length || !(T0 > 0) || !(W > 0)) return none;
+  const mx = R.mains.reduce((s, i) => s + N[i].p[0], 0) / R.mains.length;
+  const my = R.mains.reduce((s, i) => s + N[i].p[1], 0) / R.mains.length;
+  if (!(N[R.tw].p[0] > mx)) return none;          // a nosewheel takes the moment
+  const gy = my - (N[R.mains[0]].r || 0);
+  let cx = 0, cy = 0, m = 0;
+  for (const n of N) { cx += n.p[0] * n.m; cy += n.p[1] * n.m; m += n.m; }
+  cx /= m; cy /= m;
+  const hT = R.engine.reduce((s, i) => s + N[i].p[1], 0) / R.engine.length - gy;
+  const hCg = cy - gy, d = cx - mx;
+  const crr = typeof CRR === 'number' ? CRR : 0.05;
+  const restore = W * d - crr * W * hCg;
+  const over = T0 * (hT - hCg);
+  if (!(over > 0)) return { ratio: 0, cap: 1, hT, hCg, d };
+  const ratio = restore > 1e-6 ? over / restore : 99;
+  return { ratio, cap: Math.min(1, Math.max(0.3, 0.75 / ratio)), hT, hCg, d };
+}
+
 const GEN_WDT_MAX = 0.45;      // omega * dt
 const GEN_CDT_MAX = 0.65;      // damping rate * dt
 function genSubsteps(nodes, beams) {

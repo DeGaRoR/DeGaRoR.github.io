@@ -29372,6 +29372,422 @@ Quicksilver look; a fitting under the pod would take a keel longeron.
 
 **GATE ARCHETYPES: 19 flown, 19 green** (the Skymaster-alike and the
 P-38-alike complete their circuits).
+
+## G179 — THE ENGINE BEARER, AND THE ORIGIN THAT MOVED (2026-09-04, the user's
+## wing-mounted twin: "there is still something deforming the wing when not
+## moving ... the engines will move A LOT on their mounts during flight, the
+## whole plane shakes, its suspension keeps oscillating all flight ... its
+## root section is bending stupidly. That should apply to all airframes and
+## guarantee we don't run into this again.")
+
+**What was measured first** (`flydiy-build.json`, the twin as saved: two Rotax
+582s on the wing at z 1.645, engines drawn 0.65 m AHEAD of the front spar;
+now `tools/fixtures/build_v7_twin_2026-09-04.json`). Parked, settled 20 s:
+
+| node | body-frame dy |
+|---|---|
+| wing root WF | +75 mm |
+| wing tip WF | +62 mm |
+| ENGINE node | −224 mm |
+
+and the engine's trace rang at 2.5 Hz for ~3 s. Two diseases, both in the
+gen build's structure model, and NEITHER visible to any flight gate — they
+all settle first and subtract the baseline — nor to GATE LOAD, which pinned
+the engine to a trestle.
+
+**1. The wing nacelle was a mechanism.** G174 hung a 'wing' engine as ONE
+node on the four spar nodes of its bay, with `fus`-class members. All four
+anchors lie in the spar plane; the node sat 0.07 m above it (the join's
+measured station), 0.65 m ahead of the spar. That is rule 1's snap-through
+geometry: the anchors give no couple arm, and the vertical stiffness was
+whatever `sin²θ` the drawn station happened to leave — 300 mm of sag under a
+53 kg engine (the derived default, which happens to sit 0.17 m BELOW the
+spar line, read 17 mm — same construction, an accident of placement). The
+pair then bounced on that spring through the whole flight, and the prop
+thrust applied at those nodes kept it excited. The first screenshot's
+"root section bending" is real: the root, held by the cabin, stayed put
+while both bays sagged under their engines.
+
+**2. The skin's rest-vs-live origin was the mass centre.** `sparDeltas`,
+`defBodyProject`, `genNodeBody` and the strut's two-end follow all measured
+`p − cgPos()`. A CG is not a point on the aeroplane: 106 kg of engines
+dropping 0.3 m moved it 59 mm against the structure, so every BOUND wing
+vertex read +75 mm against an UNBOUND centre section — the hump at the
+root, on the stand, in the first screenshot. The same thing happens, smaller,
+whenever a tank drains in flight (fuel on wing nodes → the CG walks → the
+whole bound wing walks with it, no structural motion at all). G145 fixed the
+FRAME of that rest (design axes vs body axes) and left its ORIGIN alone.
+
+**The fixes, one rule each, for every airframe the generator builds:**
+
+- `GEN_RULES.mountK` (10): every engine-bearer member — nose, pusher, over
+  the wing, wing pair — is built through `BM()` in 61_gen_frame and takes
+  ×mountK on k and its root on c, **off the tubeFabric row whatever the
+  airframe is built of**: a wooden or carbon aeroplane still hangs its engine
+  on a welded 4130 mount, so the member is stiff, damped, heavy and priced as
+  steel (WYSIWYG, G117). A bearer is a short welded truss; its members are
+  E·A/L stiff where the fuselage row is a calibrated bending stand-in ~100×
+  softer than the tube it names (the same accounting `wingK` makes on the
+  wing). ×10 lands a steel bearer member at the wing cap's level, which the
+  integrator already pays for. MEASURED AND REJECTED on the way: ×10 on the
+  SECTION'S own fus row put the carbon cantilever's GATE LOAD into a slow
+  divergence (0.66 → 14.7 % at 1 g, growing from mid-ramp — the rig's
+  per-frame trestle clamp resonating with a fuselage row already at 1.2e6);
+  steel ×10 is ×1.7 over carbon's row and the rig reads 0.66 / 2.51 / 3.75,
+  unchanged. Nose/pusher/pylon mounts already had depth and read 0.4–4.4 mm;
+  they gain stiffness, not geometry.
+- `GEN_RULES.mountFoot` (true) + `mountFootAt` (1.0): a wing nacelle gets a
+  BEARER FOOT — a second node under the FRONT SPAR at the nacelle station
+  (above it, for an engine slung under a low wing), one `sparBoxDepth`
+  through the spar plane, joined to the engine by a post; both brace to the
+  bay's four spar nodes, and to the box's lower caps where the wing has them
+  (a cap that sits where the foot does is skipped: a zero-length member is
+  strain = Infinity). The post and the two fans are a deep truss with a
+  guaranteed couple arm — what a nacelle ahead of the leading edge really
+  hangs on. Foot legs are `inner`; the tag is `MNT`. Measured on the twin,
+  foot at 0 / 0.5 / 0.75 / 1 / 1.25 / 1.5 of the engine→spar line: 13.3 /
+  8.2 / 6.7 / 6.7 / 9.3 / 15.0 mm — under the engine every leg back to the
+  spar is shallow, past the spar the post is; the spar is the wing's stiff
+  point and the foot stands on it. mountK 15/20/30 measured and rejected:
+  the foot is a light node, so the substep count follows it (twin 54 → 66 →
+  76 → 93) for millimetres nobody sees.
+- **The structural origin.** `sim.bodyOrigin()` = the average of
+  `refs.noseFrame` (the firewall ring — the nodes `bodyAxes` already takes
+  its directions from), `defOrigin(def)` its rest twin in 50_model_codec, and
+  `defBodyProject`, `sparDeltas`, `genNodeBody`, the strut's two-end follow,
+  poseModel and GATE SKIN's anchor check all measure from it. The meshes stay
+  authored where they were (the imported fiches about their calibrated `off`,
+  the gen skin about genRestFrame's design CG — `_cage_wing.js` and
+  `loft_fit.js` map through it, so it was NOT moved): poseModel adds
+  `model.oRest` (the design CG in the rest body frame) to land the group on
+  the new origin, and genNodeBody takes `model.oNode` (the firewall in
+  genRestFrame's frame) so `live − rest` is a delta measured from the
+  structure while the mesh keeps its authoring point. At rest both agree to
+  the byte; in flight the drawn fuselage follows the fuselage NODES.
+- **GATE LOAD sees the mount.** `genLoadCarried(def)` floods the beams from
+  the firewall ring without crossing a spar tag; whatever is neither reached
+  nor wing hangs off the wing (a nacelle, its foot) and goes FREE, with
+  n·m·g of RELIEF the other way from the bags — the engine's weight unloads
+  the spar in a pull-up, as it does in the real sandbag test. Nose builds are
+  untouched (carried = ∅). The twin's 1 g tip went 0.52 → 0.43 %.
+- **GATE MOUNT** (`tools/_mount_check.js`, core): every mount kind on the
+  stock build + the twin fixture, parked 10 s: engine sag vs the centroid of
+  its own anchors < 15 mm on every axis, the vertical trace inside 2 mm of
+  final by 3 s, the wing root < 15 mm against the firewall (the hump net),
+  substeps ≤ 80. `--selftest` sets mountK 1 / mountFoot false and requires
+  the twin to read > 100 mm (it reads 296).
+
+**Measured after** (parked 10 s; sag / quiet after / root / substeps):
+
+| case | sag | quiet after | root vs firewall | substeps |
+|---|---|---|---|---|
+| stock nose | 0.5 mm | 0.00 s | 7.2 mm | 46 |
+| stock pusher | 0.8 mm | 0.00 s | 7.1 mm | 46 |
+| stock over the wing | 4.4 mm | 0.00 s | 9.3 mm | 46 |
+| stock wing pair | 4.0 mm | 0.00 s | 10.3 mm | 59 |
+| twin fixture (join) | **6.7 mm** (was 296) | **1.20 s** (was 3.6+) | 8.8 mm | 54 (was 42) |
+
+GATE LOAD, all ten airframes: byte-close to before (carbon cantilever 0.66 /
+2.51 / 3.75; the twin's 1 g tip 0.52 → 0.43 % with its engines now relieving
+the spar). GATE SKIN's zero-load and parked assertions hold on the new origin
+(the "root" column above IS the parked root-vs-firewall reading the old CG
+origin could not give: 7–10 mm of real cabin flex, bounded, not denied).
+
+**Traps, for the next session:**
+- A structure gate that settles and subtracts its baseline is blind to a
+  wrong REST by construction (G145) — and, it turns out, to a mechanism that
+  settles: the mount reached its 300 mm and sat there, finite, linear, HELD.
+  The only instrument that sees it is "live minus rest, at rest": GATE SKIN's
+  law, now GATE MOUNT's too.
+- A load rig that pins "everything that is not wing" pins whatever the wing
+  carries. Read the tag list of every clamp before trusting a rig on a new
+  mount.
+- The derived default and the join's measured station build the SAME
+  structure and read 17 mm vs 300 mm. A construction whose stiffness is an
+  accident of where the part was drawn is a mechanism even when the default
+  happens to pass — measure the fixture, not the default.
+- `defBodyProject` and `bodyOrigin` are one law in two files; GATE SKIN's
+  zero-load assertion is what holds them equal. Nothing else may build a rest
+  reference (G145's rule stands, with the origin now part of it).
+
+## G180 — WHO SITS WHERE: A ROW PER SECTION, OCCUPANCY PER SECTION (2026-09-04;
+## the user: "every passenger bay should be able to hold as many seats as the
+## cabin ... for each section, we can decide whether passengers are seated or
+## not, and that should impact the physics through weight and CG")
+
+**The rule.** The cockpit seats a ROW — one abreast or two (`seatLayout` 0/1)
+— and EVERY passenger bay seats the same row, placed off the bay's own aft
+ring (`pilPaxB<i>`) exactly as the pilot's seat is placed off the cockpit's
+(`paxSeatZ` is the bay-side `seatZ`). The bays ARE the pitch. TANDEM IS
+RETIRED as a choice: it is a single row with one bay behind it, and
+`cageFromSpec` reads an older build's `seatLayout 2` as 0 (the two stock
+presets and the two archetypes that said 2 now say 0). The seats stay where the
+structure is whoever sits in them.
+
+**Who is aboard is per SECTION.** `cabOcc` fills the cockpit's second seat
+(side-by-side only); `paxOcc<n>` says how many sit in bay n, bays counted
+FRONT TO BACK from the cockpit (the cage numbers its rings from the aft
+bulkhead — the crew layer inverts the index). The rows are 0/1/2 and the crew
+layer clamps to the row's width, so 'two' on a single-row aeroplane seats the
+one seat there is (a dead notch, admitted). `dum2On` (every seat or none) is
+GONE: `cageFromSpec` migrates a file that carried it — only a 0 ever rode in
+spec.cage, 1 was the default — into all-empty sections; a file without it was
+at the default, which the section rows' own defaults (full) reproduce.
+`seatPitch` is gone with the tandem.
+
+**A filled seat is a body drawn AND 80 kg billed where the seat is.** The crew
+layer publishes `section` and `filled` on every `CAGE_CREW.seatsAt` entry; the
+join reads CAPACITY (`cabin.seats`), OCCUPANCY (`cabin.occupied`, one 0/1 per
+seat in seat order: pilot, the cockpit's other seat, bay 1's row, bay 2's...)
+and BOTH loading numbers (`pilots`, `pax`) off that one list — the same list
+`seatsX` comes from. Without the crew layer in the page the same numbers are
+derived from the rows. The spec: `cabin.seats` null = the seating table's
+count (a fiche, an older save); `cabin.occupied` null = "the first pilots+pax
+seats", the old rule — so no existing aeroplane's balance moves. `seating`
+keeps naming the FAMILY (it sizes an unmeasured cabin); the table can no
+longer express the count (ten seats in a four-bay side-by-side). The frame
+bills the filled seats at their stations; past the SEAT_ROWS table a seat
+falls to the ring its row index implies, not to the front ring. The CG
+envelope's corners and the balance chart's slider mean "the first N seats"
+and null the list before they load (64_gen_build, balance.js).
+
+**Two poses, not one per body.** The cockpit's occupants take the pilot's
+stature and recline (`dumSize`, `dumRecline`, the reach rows) and fly from
+their own station (dual controls stay cockpit-only); every bay's occupants
+take the passenger set (`paxSize`, `paxRecline`) and rest their hands. Two
+suits: `dummy1` the pilot's, `dummy2` everyone else's — the livery declares
+exactly those two, a third name would be nobody's. The passenger seats' own
+rows are `seat2H/Rake/Tilt` (relabelled, sentinel -1 = as the pilot's) plus
+`paxSeatZ`; the cockpit's two seats share the pilot seat rows.
+
+**Where the rows live.** Passenger bay part > `aboard` (paxOcc1-4: click a
+bay, seat its passengers); Crew part > `aboard` (dumOn, cabOcc), `pilot
+pose`, `passenger pose`; Seats part > `passenger seats`. The design tile
+**Seat arrangement** offers Single / Side-by-side; **Passenger bays** says
+what a bay seats.
+
+**Measured live (dev.html, a side-by-side with two bays, cabOcc 0, bay 1 two,
+bay 2 one):** six seats at stations 0.57 / 1.52 / 2.28 m aft of the firewall,
+occupied 1,0,1,1,1,0, four dummies, pilots 1 / pax 3, 680.8 kg; every seat
+filled 840.8 kg (+160 for the two empty chairs), envelope corners at 1 and 6
+aboard. Gates: BUILD (a G180 block: capacity 6 on a side2, the same two
+passengers in different seats are a different balance — +106 mm measured
+against +104 expected — the loading numbers read off the list, pilot always
+aboard, a long list cut, a malformed one ignored, pilots+pax without a list =
+the first N exactly), JOIN (seats 4 / occupied 1,1,0,0 through export AND
+resolve), PARTS, DESIGN, SAVE, STARTER, UISMOKE, LIGHT, FIT all green.
+
+**Owed.** A half-filled side-by-side bay is sayable ('one'), a specific SEAT
+is not (it fills the +x seat first). The archetype cards with four bays
+(Beaver-alike, the bush hauler, the DA62's four seats are one bay) now seat
+ten by default — and GATE ARCHETYPES (fleet, 946 s) still flies all seventeen
+cards to a stop inside the bound with every seat filled, so nothing was
+re-tuned; a cargo card wanting its bays empty sets `paxOcc<n> 0` in its
+`over.cage`.
+
+## G181 — A TANK STOPS BEING A CUBE (2026-09-04, the user: "we only generate
+## ugly cubes ... something credible and reasonably modeled, that scales well,
+## that shades well, and that's in line with the level of detail of the rest of
+## the model")
+
+G-NUMBER RACE, FOURTH TIME. G179 and G180 are each taken TWICE in this file
+already (twin-boom session 3 and the engine bearer under 179; session 4 and the
+seating rows under 180) — six sessions in one tree on one day. This is 181.
+
+THE ASK, AND WHAT WAS NOT TOUCHED. The energy module's numbers have been right
+since G99: bays measured off the real skin, a solid placed and fit-tested
+against it, mass billed at the station the picture shows. What it DREW was
+`GEAR_KIT.boxIn` — six flat quads, no uv, one flat colour. The user's second
+message was explicit — "don't touch the physics" — so nothing in the placement,
+the fit test, the ledger or the catalogue moved. `_vessel_gen.js` decides where
+a solid is; a NEW file decides what is in it.
+
+### tools/_vessel_mesh.js — ONE SECTION FUNCTION, AND EVERY PIECE OUT OF IT
+
+A Minkowski rounded box (a box swept by a sphere) and a cylinder with
+elliptical domed ends share one property, and the whole file stands on it: a
+plane cut through either, perpendicular to ANY axis, is a rectangle with
+elliptical corners. So there is one `sectRR(hx, hy, rx, ry)` and:
+
+    the SHELL      that section lofted up y, capped at both poles
+    the CONTENTS   the same section inset by the wall, lofted from the keel to
+                   the level and capped flat there
+    a STRAP        the same section taken in x-y at a station z, offset
+                   outward, lofted over the strap's own width
+    a LID SEAM     the same band about y instead of z
+    a COOLING RIB  a narrow strap
+
+Offsetting a Minkowski box outward by t is EXACTLY (hx+t, hy+t, rx+t, ry+t),
+which is why a strap sits on the shell however round it is with no projection
+step. On the cylinder's elliptical ends the same addition is an approximation
+and at 3 mm against a 200 mm radius it is under a tenth of a millimetre.
+
+A fuel tank gets two straps on rubber pads at the quarter points, a filler neck
+and coloured cap forward on the crown, a sender plate with five bolts, a sump
+and drain at the keel, an outlet stub with a union collar low on the aft face,
+and a vent standing off the crown. A pack gets a lid seam on a gasket with
+bolts along the flanks, cooling ribs, two terminal posts under booted covers (a
+coloured boot on the positive), a pressure vent and four feet. ~1900 triangles
+for a tank, ~2500 for a pack, in four material slots.
+
+### THREE THINGS THAT COST A MEASUREMENT EACH
+
+**THE WINDING SIGN IS NOT A TASTE.** Laying a 2D section into 3D about y sends
+(p0, p1) to (x, z) with y third, and the basis (x, z, y) is LEFT-handed where
+(x, y, z) is right-handed — so the identical point order that faces OUT on a
+z-axis loft faces IN on a y-axis one. The first shell had 560 of 560 triangles
+inverted. It does not read as an error: it draws as a tank you can see the
+inside of the far wall through, because the near wall is what gets culled.
+`AXIS[..].w` is that sign, and loft, cap and band rims all multiply by it.
+
+**A COLLAPSED STATION HAS NO NORMAL OF ITS OWN.** The crown of a lying cylinder
+is the one place a section closes to a LINE — sectRR draws it exactly, as a
+zero-width rectangle walked up one side and back down the other — and the
+parametric normal there is du x dv with du REVERSED on the return half, so half
+the ridge points down while the surface points up. Fourteen faces on every
+cylinder; a hairline of black along the crown, invisible until GATE ENERGY
+named it. Where a section encloses no area, the axis IS the outward direction.
+
+**THE FILL IS A VOLUME, NOT A HEIGHT.** Half the litres in a lying cylinder is
+half its height, because it is symmetric about its axis — but a QUARTER of the
+litres is 19.6% of the height. A level placed at the fill fraction is right at
+empty, half and full and wrong everywhere else, which is exactly the kind of
+thing that looks fine in a screenshot taken at 50%. `contents` integrates the
+section's own area up the tank and inverts on that. It moves no mass.
+
+### AND TWO RULES CARRIED IN FROM ELSEWHERE
+
+**THE LONG WAY IS THE LENGTH.** Straps at the quarter points, filler forward,
+sump aft — all laid out along z. But a bay-shaped tank is very often WIDER than
+it is long (the deck tank measured 0.84 across against 0.24 along), and laying
+it out along the short axis crowds every fitting into a hand's width. `build`
+works in a canonical frame with the longer horizontal half-extent as z and
+returns `yaw`; the layer adds it to the vessel's own `rot`. The declared box is
+unchanged — this is which way round the tank is, not how big.
+
+**THE FITTINGS ARE CLAMPED IN METRES**, the crew layer's and the fittings arc's
+rule: a filler neck is 60 mm across on a Cub and 60 mm across on a Cessna. The
+clamp's FLOOR is itself bounded by the tank, or an 80 mm header tank wears a
+60 mm cap. 30x the volume gives 1.5x the cap; GATE ENERGY holds both ends.
+
+### THE MATERIALS: FOUR SCANNED SETS, AND A HUE ROW THAT IS A MEASUREMENT
+
+`tools/vessel_tex_import.py` + `tools/vessel_tex_prep.js` -> `media/tex/vessel/`
++ `src/viewer/vessel_tex.js`. NOT the aeroskin sheet layout: a tank is an object
+in the scene with a material of its own, so these are the hangar props' recipe
+(diff sRGB / arm linear R ao G rough B metal / nor GL tangent). `paint` is Poly
+Haven's green_metal_rust, `steel` ambientCG's Metal038, `plastic` Plastic002 —
+and `alu` is built from `assets/skin/panel/` (Metal050C), ALREADY IN STORE for
+the instrument facia, because a welded aluminium tank is that same rolled sheet.
+
+UVS ARE IN METRES. `tile` is metres per repeat and the mesh lays u and v out as
+real arc length, rounded to a whole number of repeats around each closed loop
+so the seam matches. That is what makes the library scale: a 20-litre header
+tank and a 180-litre ferry tank wear the same grain at the same size.
+
+THE HUE ROW EXISTS BECAUSE OF A MEASUREMENT. green_metal_rust puts 94% of its
+pixels in one fifteen-degree hue bin at a saturation of 0.325 +- 0.02 (the
+importer prints it) — there is no second hue in the sheet, no orange rust to
+turn blue — so a flat rotation of the whole map is exactly right and needs no
+mask. It runs in GAMMA space, and the two pow()s are the point: map_fragment
+has already decoded to linear, and the 0.299/0.587/0.114 luma weights the hue
+matrix is built on are gamma-space weights; rotating a linear colour with them
+swings brightness as well as hue, which on a dark green reads as the paint
+going chalky rather than changing colour.
+
+Plastic002 is the ONE set whose diffuse is renormalised (to a 0.78 mean). A
+material's `color` MULTIPLIES its map, so a dark map can only be darkened, and
+no tint reaches natural white polythene from (48, 39, 38).
+
+**THE ROOM'S MOOD SCALES THESE TOO.** props.js and aeroskin.js each keep their
+materials' own `env0` and let hangar.js's setMood multiply it. Without the same
+posture a tank arrived at envMapIntensity 1.0 while every other material in the
+garage sat at 2.2 (measured live) — on bare alloy, a dull grey box beside a
+bright aeroplane. `CAGE_ENERGY.setEnv` is the third member of that contract and
+remembers the factor, for the reason aeroskin's own note gives.
+
+### THE ROWS
+
+Section-wide beside `vessel`: `finish` (painted metal / bare alloy / moulded
+plastic / rubber, defaulting to what the vessel is actually MADE of), `paint
+hue` (only for the painted set) and `tint`. Per vessel: `shape` — squared or
+cylindrical. All four are new `spec.energy` fields; none is read by the ledger,
+so NO VERSION BUMP, the same reasoning `finish: null` was added under at G105.
+
+`shape` is the exception and it is deliberate: a cylinder in the same box holds
+0.78 of what the squared shell does, so `_vessel_gen.js` multiplies the
+catalogue's fill by the FORM's own occupancy. 0.78 is measured off the solid
+this file draws, not guessed — an elliptic barrel of length 2*zc closed by two
+half-spheroids of depth 0.30*ez gives V/(8 ex ey ez) = pi*1.8/8 = 0.707 against
+the box row's declared 0.90, so 0.707/0.90 = 0.785. The BOX factor is exactly
+1, which is what keeps every build written before this row weighing what it
+weighed — GATE ENERGYBASE's fourteen aeroplanes say so.
+
+### THE WING TANK STAYS SIMPLE, BY RULING
+
+The user, mid-session: "if we don't have geometry for the wing-mounted tanks,
+just fit a cube within the first section of each wing after the central
+section, and that will be it." It is the tapered box between the spars the
+placement already decided on — given real OUTWARD normals (the layer mirrors
+the left side, which reverses every face on it, and a box lit from the inside
+is easy to ship and hard to see) and metre-true uv, and no hardware.
+
+### THE LEADING EDGE STOPS TELEGRAPHING (same session, the user: "the wing
+### spars are visible everywhere, while IRL the leading edge is smooth")
+
+aeroskin.js already had the band — as a ROUGHNESS and an albedo feature, 0.12 m
+aft of the edge, because a leading edge is a metal D-skin. But a D-skin is a
+stressed shell bonded to the front spar: nothing telegraphs through it, there
+is no sag between the ribs under it, and the one member it is bonded to cannot
+print. So `leK` — off the same uniform — now also multiplies the wing's member
+relief, its sag and its fastener rows. Everything aft of 0.12 m is
+bit-identical, and the body is untouched (the term is gated on `uG5.w > 0.5`).
+
+AND IT IS A CUT, NOT A FADE. The first version ramped over the whole 120 mm;
+the user traced the line on a screenshot and said "rather than a progressive
+disparition of the normal, maybe we should just cut the marks from that line
+onwards? The real things put a smooth semirigid thing in front of the spars, so
+it starts sharp." Right, and for a physical reason: the D-skin's aft edge is a
+LAP JOINT onto the covering, not a blend — the ribs print through right up to
+it and not at all in front of it, and a ramp is a haze where a real wing has an
+edge. The transition is now one FRAGMENT wide (`fw`, the pixel's own footprint
+in metres), which is a hard line that still does not crawl at a distance.
+
+THE BACKTICK TRAP, THIRD ROUND. That comment went in with `fw` in backticks and
+the build died with "Unexpected identifier 'fw'": the whole shader block is a
+JS template literal and a stray backtick ends it mid-shader. The file's own
+header has warned about this since the second round; the warning is now also
+where the accident happens.
+
+### GATE ENERGY GREW A SECTION, AND FOUND ITS OWN BUG
+
+Seven vessels x both forms x both kinds: every vertex and uv finite, every
+normal unit, every index in range, every face wound the way its normal points,
+the shell and its contents inside the declared box the fit test cleared, no
+fitting more than 75 mm proud, all four slots drawn; the clamp on the fittings
+at both ends; the fill inversion at a quarter, a half and full; the form's fill
+factor including that an unstated form moves nothing; and the canonical yaw.
+
+The failure list used to be printed at the end of the G97 section, which was
+the end of the file when it was written — so every check added after it failed
+SILENTLY, with a bare "FAIL" and nothing to read. Found the moment this section
+landed. It is printed at the verdict now.
+
+### THE BENCH PAGE NEEDED THE ASSET BASE
+
+`tools/_cage8.html` never set `window.FLYDIY_ASSET_BASE = '../'`, because until
+now nothing it loaded carried a baked `media/...` URL. The vessel sheets do, so
+every one of them 404'd into `tools/media/` and every tank drew in flat colour.
+One line, the same one `_probe.html` carries and for the same reason.
+
+### NOT MINE, AND STILL RED
+
+GATE ENERGYBASE fails on `carbon` ("node positions moved", "ledger moved") from
+another session's uncommitted 61_gen_frame change — its own comment says "a
+carbon airframe still hangs its engine on a welded steel-tube mount", which is
+that case exactly. It passed on this session's first build and broke on the
+second with no core edit of mine in between; that baseline is theirs to re-cut.
+
 ## G181 — THE TWIN BOOMS FLY AS DRAWN, AND THE AERO AFT IS FUSELAGE
 ## (2026-09-04, the user, with two flight screenshots: "look at the
 ## superimposition with the physical model, that fails absolutely ... the
@@ -29431,3 +29847,350 @@ arc's; left for that session. `.claude/launch.json` gained `flydiy-bearer`
 (8318) for this session's own preview; the twin was verified on the stand in
 dev.html (WIP autosave key `flydiy.wip` = the build document, then reload):
 straight wing, straight struts, engines seated, also at FLEX x4.
+
+### G179.1 — "SERIOUSLY? IT'S WORSE THAN EVER" (2026-09-04, the user: "get the
+### current build and just start it. It falls on its belly, and any impulse
+### makes the wings swing fore and aft ... the truss is associated to the wing
+### for its top third, and to the fuselage for its bottom third ... it should
+### be one end associated with the fuselage, the other end with the wing")
+
+Three things, each measured before touched:
+
+**1. The belly was the POWER NOSE-OVER, and it is real.** The test pilot's
+own take-off roll (`makeTestPilot`, full throttle at t+0.5 s) put the twin's
+tail 5 m up at 8 s — "rejected-takeoff" — where the old mount completed a
+circuit (565 s, three go-arounds). Isolated: the FOOT alone does it at any
+mountK; and the OLD mount does it too the moment its thrust is applied at the
+spar instead of at the sagging engine node. So the mount is not the cause; it
+is the messenger. A taildragger at full static thrust with the tail down is a
+lever about the mains: T·(hT − hCg) nose-down against W·d − CRR·W·hCg. The
+twin: T 2413 N at 1.94 m, CG 1.14 m, mains 0.51 m ahead → 1930 vs 1823 N·m,
+ratio 1.15; tips at 0.78 throttle measured (0.75 holds, 0.80 goes), the rest
+the tailwheel and the wing going to negative lift once pitched. The old mount
+hung the engines 0.3 m low, worth 0.72 kN·m of arm — 35 % of the restoring
+moment — and every high-thrust-line taildragger was flattered by it.
+FIX, honest both ways: `genGroundPowerCap(def, T0, W)` (62_gen_aero) is the
+criterion; the plaque posts `power nose-over 1.15 ×` (bad ≥ 1, warn > 0.75)
+with the pilots' cap beside it; the autopilot AND the test pilot take
+`min(taxiThrMax, cap)` on taxi and `cap` on the roll until V > VTailUp — what a
+pilot does on such an aeroplane, power up as the tail comes up. cap =
+0.75/ratio (0.65 on the twin); 1 for a nosewheel (it takes the moment), 1 for
+an engine at or below the CG — the whole fleet, byte for byte. The twin now
+completes the same circuit (568 s), tail 0.11 m on the roll. The design cure
+is the builder's: mains forward, a nosewheel, or the engines lower.
+
+**2. The strut crank was a BINDING gap, and G140's rule was right.** The
+two-end follow existed only for the rig NAMED `sstrut`; the twin's struts
+survive into the snapshot under a colour bucket (`c…fsteelTube`, no section
+name), so the wing-box selector took the tube above the box's floor by
+station and left the rest with the fuselage — exactly the user's
+description. Now every rig's vertices within 0.07 m of a foot→tip segment
+are that member's (the `sstrut` rig whole, as before), struck from the
+station binding, and lerped foot→tip: a line between two points that cannot
+distort. Verified in dev.html on the stand and taxiing, ×1 and ×4.
+
+**3. "The wing moves almost independently of the cabin" — measured, and
+mostly what the crank made it look like.** 300 N aft at each tip, parked:
+tip 18 mm, ROOT 4 mm (twin and stock identical); 300 N down: 11–17 mm. Free
+decay after a 600 N shove: 0.8 Hz with the engines on the wing (was 2.1 Hz
+with them hanging loose, 1.8 Hz on the stock build), 17 mm peak, quiet in a
+second. The root is not soft; the wing's in-plane bending is the spar chords'
+axial k, the same ×19/×4 accounting as the cantilever's vertical — ~3× soft
+against real, OWED with GATE FLEX's in-plane load case (G145). Not moved
+here: the number is small and the cure is the wingK trade, which is the
+user's battery-time ruling to make.
+
+GATE MOUNT §5 holds the roll: twin criterion > 0.9, tail < 1.5 m on the
+roll, airborne; the stock nose build cap 1 and airborne.
+
+### G179.2 — THE ENGINE IS ONE PIECE, THE STRUT IS ONE LINE, THE TRUSS IS
+### STEEL (2026-09-04, the user: "It remains real bad ... the wing mounted
+### engines deform their main block, they move at least 20 cm away from
+### their support ... Struts do not deform. They simply stretch or elongate
+### ever so slightly, so they remain a straight line ... ALL of the engine
+### mesh should be parented to the wing nodes")
+
+Measured on the live page (FLIGHT_PROBE.model(), new): the drawn engine
+block's vertices were SPLIT by the wing-box selector — 15 % of the castAlu
+bucket bound to the wing stations, the rest riding the rigid fuselage pose;
+on the roll the bound half read 60 mm, the other 0: a 6 cm tear at x1, 24 cm
+at FLEX x4, which is the user's screenshot. The struts' vertices sat in a
+colour bucket (no section name survived the merge) and G179.1's 7 cm search
+around the PHYSICS line caught the middle third only — the drawn strut is
+skew to the physics member (the wing layer snaps its pin to the built cabin
+and its tip onto the wing skin): two jogs per strut, exactly the picture.
+And the whole fuselage truss bent under the thrust couple: 0.3–0.5 % strain
+in every bay's longerons (S0→S1 diagonals 3.3 mm, S2→S3 3.0, S6→tail post
+3.4), roof 18 mm forward of the firewall, floor 8 aft, the wheels 35 —
+which a rigid drawing can only show as "the wing sliding on the cabin".
+
+**Fixes — identity, not surgery (G55's rule):**
+- **The engine unit is a PART.** `_cage_eng.js` names the unit group
+  `edEng#k`; the join lists one `kind:'eng'` part per `CAGE_ENG.units[k]`
+  (pivot = the unit's mount point, verts rebased about it, 70 k verts a
+  unit on the twin); the viewer poses it as a wheel — drawn place + its
+  engine node's travel (`engNodesFor(z)` by the SIGN of z, both nodes of a
+  centreline unit), with the skin's flex gain so it stays on the wing at x4
+  too. The propeller part rides the same node. Measured in the climb at
+  full throttle: engine and prop −30 mm together, the wing station −30.
+- **The lift strut is a PART, a line pin→tip.** The wing layer publishes
+  each member's own drawn pin and tip (`sg.userData.strutMembers`, off
+  `strutBuild`'s output); the join carries them as `members` in the model
+  frame; every vertex takes its nearest member and its projection t along
+  it, and moves by t × that member's physics TIP node travel (0 at the pin
+  on the rigid fuselage, 1 at the tip on the wing's own station). Measured:
+  bend change 0.0–1.5 mm over a 44 mm tip travel (the tube's thickness
+  profile preserved to the millimetre). The G140/G179.1 two-end follow and
+  its rig-name/7 cm capture are deleted. The user's rigid-rotation rule and
+  this affine law coincide to first order; this one also lets the strut
+  stretch the millimetres the pin-to-tip distance actually changes.
+- **The tubeFabric fuselage row ×4** (k 2.0e5 → 8.0e5, c 60 → 120;
+  `mountK` 10 → 2.5 so the bearer is byte-identical). The row was the Cub
+  fiche's hand value, ~50× under the tube's E·A/L. Measured on the twin's
+  roll: cabin shear roof–floor 30 → 7 mm, wing root vs firewall 29 → 8,
+  substeps unchanged on every material (the wing sets them). A cabin-only
+  rule was measured first and REMOVED: ×10 on the 38 box members moved
+  nothing — the elongation is in every bay. The other three rows stay:
+  ×4 on them dropped their GATE LOAD strut cases under the band (wood 0.40
+  → 0.15, alloy 0.31 → 0.11, carbon 0.07 → −0.01) because they were fitted
+  to their fiches with the fuselage's compliance inside the wing's flex.
+- `FLIGHT_PROBE` now exposes `model()`, `sim()`, `def()`: ask the live page
+  which vertices follow what before reasoning about a screenshot.
+
+**What is still true and owed:** the wheels move 70–80 mm fore-aft on the
+roll (the gear's own drag-brace compliance, drawn honestly by the leg
+stretch rigs); the wing's in-plane bending is ~3× soft (G179.1); a node
+gate cannot see the parts pipeline (the snapshot needs the page) — the
+straightness/rigidity check lives in this entry's console recipe.
+
+### G179.3 — THE WHOLE WING IS ONE BODY: THE DATUM IS THE CARRY-THROUGH
+### (2026-09-04, the user: "The center wing section seem to be associated
+### with other stuff than the outer wing sections. Therefore, the wing seems
+### to stretch all the time ... check the position of the wing lamps (the
+### cutouts) compared to the central line ... ensure that you do per object
+### when appropriate rather than per region")
+
+**What it was.** The cage skin binding takes every vertex at |z| ≥ zRoot
+(the wing-box selector) to its spar stations; the centre section, |z| <
+zRoot, is drawn rigid with the fuselage mesh. The two meet at the root, so
+the wing tore there by whatever the root spar nodes moved against the pose
+datum — 29 mm fore-aft on the roll with the firewall as datum (G179), more
+and asymmetric with the CG (before). The lamp cutouts, on the panels, moved
+against the centreline by exactly that.
+
+**Fix.** `refs.origin` = the four root spar nodes (the carry-through), on
+every generated build; `sim.bodyOrigin()` and `defOrigin()` read it (the
+imported fiches, which declare none, keep the firewall ring). The centre
+section is then rigid at the wing's own root by definition; the panels flex
+relative to it, which is the physics; what the drawing does not show is the
+fuselage's own flex (7 mm shear on the twin's roll after the ×4 row). Axes
+stay the fuselage's (bodyAxes is the solver's, not the drawing's).
+Measured on the live page in a 110 km/h turn: centre section 0.0 mm,
+panel skin at |z| 0.4–0.6 0.6–0.7 mm, at 1.0–1.2 1.3–1.5 mm — continuous.
+In cruise (probe): station 1 −2 mm, engine −3, tip −5, no oscillation
+(0.1 Hz drift, 5 mm p-p) — what pulsed was the drawing.
+
+**THE MAPPING AUDIT (per object where the object is rigid, per station
+where the structure flexes — the user's rule, now the file's):**
+
+| drawn thing | law | driven by |
+|---|---|---|
+| fuselage, centre section, tail, cowl | rigid | the pose (datum = carry-through) |
+| wing panels + everything on them (lamps, caps, plates, cutout walls) | per-station skin deform | spar stations by \|z\| (WF/WR), interpolated |
+| control surfaces | hinge (rigid) + skin deform on top | linkage + their stations |
+| engine unit (block, exhaust, spinner, prop) | rigid part | its ENG node(s), by z sign |
+| lift strut, each member | line pin→tip | tip: its spar node; pin: the rigid fuselage |
+| gear leg | stretch root→axle | axle node |
+| wheel, castor | rigid part | axle / tailwheel node |
+| pitot, small fittings on the wing | skin deform (gradient across 10 cm ≈ 0.3 mm) | stations |
+
+Still per-region on purpose: things ON the wing skin ride the skin; a rigid
+fitting is stretched by the station gradient across its own width, which is
+sub-millimetre. If a fitting ever reads visibly bent, it becomes a `kind`
+part with an anchor z and the skin's own interpolated delta at that point —
+the engine part is the template.
+
+GATE MOUNT's ROOT column now reads the root against the datum that IS the
+root (~2 mm: the four nodes' scatter about their mean); it stays as the
+guard that nobody moves the datum back.
+
+
+## G182 — THE TANK'S MATERIAL FLIES (2026-09-04, the user: "the fuel tank
+## material does not seem to make it in game, can you please check? red in the
+## editor, white in the flight interface")
+
+MEASURED FIRST. The editor's shell material: set `paint`, map bound, hue
+4.712 rad (270 deg), colour #ffffff. The same tank in the flown payload:
+`{ color: 16777215, rough: 0.85, metal: 0 }` and nothing else — a flat white
+dielectric. The red the user drew was the SCANNED SHEET, hue-rotated; the
+white they flew was the multiplier over a sheet that was never there.
+
+WHY, in one line: `snapshot()` carries a colour and two scalars for any
+material it cannot NAME, and only AEROSKIN had a name (`fin`, G67). The
+vessels are the second material factory in the capture (G181 gave them four
+scanned sets) and nobody had told the join they existed.
+
+THE FIX IS THE SAME SHAPE AS G67'S, four parts:
+
+1. `_cage_energy.js` — `buildMat` becomes `vesselMat(o)`, a factory that takes
+   what a material IS (`set`, `col`/`tint`, `hueRad`, `hueOn`) and stamps
+   `userData.vesSet` on what it makes. `CAGE_ENERGY.material` is the game's
+   door into it, POOLED — the editor's own cache is mutated on every layout
+   (the tint and the hue uniform are the two live rows), so a shared material
+   would be repainted under the flown aeroplane by a slider nobody was
+   pointing at it. The mood now walks every material the factory made
+   (`vesAll`), the game's included: measured at envMapIntensity 2.2, with the
+   room.
+2. `_cage_join.js` — the material record carries `ves` (the set), `vesHue`
+   (radians; the tint is already `color`) and `vesHueOn`, and the merge KEY
+   carries the set and the hue. That second half matters on its own: a painted
+   shell is #ffffff over the sheet, and the fallback key is the colour, so a
+   tank was one white away from merging irreversibly into a cage section —
+   the same failure G66 records for the sections themselves.
+3. ...AND ITS UV. The cage has no unwrap (`aStruct` stands in its place) so
+   this bake has always written an all-zero uv. A vessel is not cage skin: it
+   is a VESSEL_MESH solid with metre-true uv over the finish's tile, and
+   without it the sheet has nothing to sample. Vessel buckets — and only they
+   — carry the real thing.
+4. `app.js` `matFor` — `m.ves` goes back through `CAGE_ENERGY.material`
+   instead of falling through to the flat-colour branch.
+
+VERIFIED ON THE LIVE PAGE, not by reading. Same geometry, same offscreen
+render, mean RGB over the lit pixels: the flown material and a factory
+material at hue 270 both give [100,120,134]; hue 0 (the sheet as scanned,
+green_metal_rust) gives [105,126,89]; a red tint gives [95,50,36]; and what
+flew before the fix — flat white, roughness 0.85 — gives [255,255,255]. The
+flown material's own properties diff against the editor's in exactly two
+fields, `emissive` and `emissiveIntensity`: the editor's DOES-NOT-FIT red
+glow, which is an instrument and correctly does not fly.
+
+GATE ENERGY grew a `look:` family (five checks, each proven able to go red)
+holding all four parts: the factory stamps and opens its door, the pool and
+the mood walk, the join carries the set and the hue, the merge key separates
+a tank from the aeroplane, the uv rides, and the game comes back through the
+SAME factory rather than approximating it.
+
+THE LESSON, and it is the third time this exact one has been paid for
+(G47 the section colours, G67 AEROSKIN, now this): **a new material factory
+in the editor is a new way to fly a different aeroplane.** The join names
+what it can and approximates the rest, and an approximation of a textured,
+tinted, hue-rotated surface is its multiplier — which for a factory colour is
+plain white. Anything that draws with maps has to cross the join as WHAT IT
+IS, and if its uv is not the cage's field, its uv has to cross too.
+
+### G179.4 — THE PLAQUE SAYS WHAT IT JUDGES AGAINST, AND L/D IS THE GLIDE
+### RATIO (2026-09-05, the user: "I struggle to pass the L/D ratio. First of
+### all, all numbers should give their acceptable bounds. I don't know what
+### I'm working against. By tweaking the wing, I get from 3 to almost 6,
+### but it keeps being red")
+
+**Three things at once, none of them the wing:**
+1. The bound was invisible: `R('L/D', …, LD < 6 ? 'warn')` — a threshold
+   in the row's own code, shown nowhere. Twelve rows were like that.
+2. The number was the CRUISE point's Fy/drag, while the help text promised
+   "glide ratio at best speed". The cruise speed is solved from the power
+   curve (drag = 65 % of thrust available), so a twin with 96 kW cruises at
+   143 km/h, where an open frame's parasite drag buries the wing.
+3. On the user's twin, measured through `genShakedown`:
+
+| variant | L/D at cruise | best L/D (glide) |
+|---|---|---|
+| as built (open frame, two 582s) | 3.90 @ 143 km/h | 7.47 @ 75 km/h |
+| fuselage covered | 5.16 | 8.68 |
+| covered + spats | 5.43 | 8.93 |
+| span 12 m, chord 1.3 (wing only) | 4.44 | 8.93 |
+| everything faired + 12 m | 6.16 | — |
+| stock Cub-like | 6.79 | 9.27 @ 83 |
+
+   The wing moved the judged number 3.9 → 4.4; the covering moved it 3.9 →
+   5.2. The user was tuning the one lever the number does not answer to.
+
+**Fixes.**
+- `genShakedown` sweeps the trimmed polar 1.15–2.25 Vs and posts `LDbest`
+  and `VbestLD`; the plaque shows `best L/D 7.5 at 75 km/h ≥ 6` and, as
+  information, `L/D at cruise 3.9`. The bound (6) now applies to the glide
+  ratio, which is what it was always meant for.
+- ONE `BOUNDS` table in the plaque (app.js): the verdict colour (`judge`)
+  and the printed bound both read it. Rows carry their band in the value
+  cell (`≥ 0.5 m/s`, `≤ 500 m`, `≥ 0.05`, `≥ 0.12 m`, `≥ 15°`, `< 0.75`…)
+  and in the tooltip ("judged against …"); a row with no entry is
+  information, not a judgement. The help texts for L/D say what the number
+  is and which levers move it (parasite drag first).
+
+**Owed, named here:** a wing-mounted engine's NACELLE has no drag term of
+its own (`genFusCdA` prices the fuselage, the open frame and twin booms;
+`genGearCdA` the wheels, legs and struts) — two exposed 582s with
+radiators are ~0.1 m² of CdA the twin is not paying. The role `targets`
+(§5.1) are still read by nothing; the plaque's bounds are the fleet-wide
+ones.
+
+## G183 — THE FUEL PANEL WAS IN THE DOM AND NOWHERE ON SCREEN (2026-09-05, the
+## user: "I can't find the UI for this ... I expect a fuel item in the tree,
+## and the ability to select visually the reservoir, do we have this?")
+
+No, and the answer was worse than "not yet". The panel has existed since G99
+and it was MOUNTED, RENDERED AND INVISIBLE: `mountPanel` appends it to `#cgUi`,
+the leftovers column, and the game hides that column (`opts-off`). On the bench
+it was in plain sight; in the game it was in the document with all eighteen of
+its rows and zero pixels. Two sessions of work on what a tank LOOKS like, on a
+tank you could not reach.
+
+### A PART THAT IS NOT A SET OF SLIDERS
+
+The part table claims rows BY PARAMETER KEY, and the energy layer has none: its
+controls are a LIST — you add a tank, you remove one, each carries its own bay,
+shape, capacity and station — so there is nothing for `emit` to move. The
+answer is the shape refplane.js already had for its ROOT, brought one level
+down to a PART: `panel` names a global, `window[panel].panel()` hands back one
+element, and editor.js appends it under the part's own heading. It is parked
+and re-fetched on every render exactly as the reference panel is — detached,
+never destroyed.
+
+    { key: 'energy', name: 'Fuel & energy', parent: 'power',
+      layer: 'energy', panel: 'CAGE_ENERGY' },
+
+UNDER THE POWERPLANT, because a tank is what feeds the engine and that is where
+a builder looks for it, whatever bay the tank is in. NO `when` (every aeroplane
+carries energy, and GATE PARTS requires a `when` to discriminate) and NO
+`groups` — which is what keeps every coverage rule in that gate about the rows
+that ARE parameters, untouched.
+
+ONE HEADING, NOT TWO. The panel's own `<summary>` is its accordion bar in
+`#cgUi` and would be the same words under themselves in the column, so
+`panelElement()` hides it. Hidden THERE and not in the editor because only the
+editor ever calls that function: the bench has no part tree, never asks for the
+element, and keeps the bar it has always had. One panel, two hosts.
+
+### AND THE CLICK NEEDED NOTHING NEW, EXCEPT WHICH TANK
+
+`layer: 'energy'` is the whole of the first half: app.js reports the group name
+(`cageLayer:energy`) and editor.js's `layerDefault` turns it into the first part
+declaring that layer. A tank inside the covering is reached the way the engine
+and the cockpit already are — `see inside`, and what you can see through you can
+click through. The x-ray leaves the STRUCTURE standing on purpose, so a tank
+behind a longeron is behind a longeron; that is the frame doing its job.
+
+A PART CAN HOLD A LIST, and then a click has to say WHICH ONE. The layer names
+its solids `edVessel_<i>_<slot>` and `edFuel_<i>`, so `instanceOfHit` reads the
+index out of the mesh name and hands it to `CAGE_ENERGY.select`, which returns
+whether it took. That return is load-bearing: a second click on the same PART
+is the editor's "step out to the parent" gesture, and stepping out of the tank
+you just clicked is not what you meant — so a hit that MOVED within the part
+clears `lastPick`. Clicking tank 1 then tank 2 lands on tank 2.
+
+Verified with a real mouse click in the pane, not with a synthetic hit: hover
+lights the `Fuel & energy` tree row, the click selects the part, and the
+outlined entry in the column moves from tank 1 to tank 2. (The synthetic
+`EDITOR_PICK` probe came first and proved the resolution table; it could not
+have proved the ray reaches the mesh, and that was the half worth doubting.)
+
+### GATE PARTS GREW AN EIGHTH SECTION
+
+Every other rule in that file is about parameters and a `panel` part claims
+none, so the one failure worth gating is the quiet one: the global is renamed
+or the export dropped in a refactor, and the tree row is still there showing
+NOTHING — which is precisely the state this panel was in for its whole life.
+The check reads the layer sources for `window.<name> = {` and requires a
+`panel:` in it, and holds that such a part claims no parameter, no section and
+no body zone. Negative-probed by pointing the part at a global that does not
+exist: FAIL, with the reason.

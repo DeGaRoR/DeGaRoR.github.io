@@ -247,6 +247,48 @@ Modifications made:
   `panel` ships the 1k, because the instrument facia is the surface the camera
   spends the most time nearest to. 0.47 MB in all under `media/tex/skin/`.
 
+## Vessel surfaces (`assets/vessel/`, baked and served from media/)
+
+The CC0 PBR sets the fuel tanks and battery packs are made of (2026-09-04).
+These are NOT aeroskin sheets: a tank is an object in the scene with a
+MeshStandardMaterial of its own, so the import writes the hangar props'
+three-map recipe instead — `diff` (sRGB), `arm` (R ao, G roughness, B
+metalness) and `nor` (GL tangent normal).
+
+**Poly Haven, CC0** (https://polyhaven.com) — `green_metal_rust`, the painted
+metal a tank or a case wears, and the one the editor's hue row recolours.
+
+**ambientCG, CC0** (https://ambientcg.com) — `Metal038` (the steel hardware:
+filler necks, sender plates, drain sumps, strap buckles, terminal posts),
+`Plastic002` (moulded tanks and rubber bladders).
+
+The bare-alloy set is **not a fourth download**: it is built from
+`assets/skin/panel/` (ambientCG `Metal050C`), already in store for the
+instrument facia. A welded aluminium tank is that same rolled sheet.
+
+The licence does not require attribution; recorded for the usual reason.
+
+Modifications made:
+
+- **Repacked, not re-encoded in kind.** `tools/vessel_tex_import.py` merges
+  roughness and metalness into one `arm` image (R is white — none of these
+  sets ships a baked occlusion, so no material binds `aoMap`). Metal038's own
+  metalness map rides B; the other three declare a constant there.
+- **Plastic002's diffuse is renormalised to a pale mean (0.78) and the others
+  are not.** A material's `color` MULTIPLIES its map, so a dark map can only
+  ever be darkened — Plastic002's measured colour is a dark red-brown
+  (48, 39, 38) and no tint reaches natural white polythene from there. The
+  painted, steel and alloy sets keep their measured colour, because a hue
+  rotation, a steel fitting and bare alloy are all things whose colour is a
+  fact of the material.
+- **The hue row is a measurement.** `green_metal_rust` puts 94% of its pixels
+  in one fifteen-degree hue bin (90–105°) at a saturation of 0.325 ± 0.02 —
+  there is no second hue in the sheet to protect — which is why a flat hue
+  rotation is enough and needs no mask.
+- **Resampled, and reversibly.** 1k archive beside every working copy, the
+  usual budget rule; the payload ships the 512. 0.74 MB in all under
+  `media/tex/vessel/`.
+
 ## Jodel DR1050 structures (`assets/jodel_structure/`, baked and served from media/)
 
 - **Model**: the author of this repository, in Blender 4.0. A DR1050 fuselage

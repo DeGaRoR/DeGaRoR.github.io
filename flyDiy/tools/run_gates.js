@@ -217,6 +217,10 @@ const GATES = [
   { id: 'FLEX', file: 'test_flex.js', tier: 'core' },
   // the sandbag test: FAR 23 normal category limit + ultimate, on the rig.
   { id: 'LOAD', file: 'test_load.js', tier: 'core' },
+  // THE ENGINE BEARER (G179): every mount kind parked and settled — the
+  // engine stays on its bearer, the bearer stops ringing, the wing root
+  // stays put against the firewall. Negative control on the twin fixture.
+  { id: 'MOUNT', file: '_mount_check.js', tier: 'core' },
 ];
 
 const args = process.argv.slice(2);

@@ -96,7 +96,8 @@ function genLattice(S, gearX, track, kScale) {
   //   'wire'  thin bracing wire or tie rod
   //   'leg'   the suspension leg — drawn as bungee / spring / oleo (63)
   //   'inner' structural, but inside the covering: goes in the frame mesh
-  const B = (a, b, cls, ext, vis) => {
+  //   mnt     an ENGINE BEARER member: GEN_RULES.mountK on k, its root on c
+  const B = (a, b, cls, ext, vis, mnt) => {
     const L = Math.hypot(P[b][0]-P[a][0], P[b][1]-P[a][1], P[b][2]-P[a][2]);
     const isG = cls === 'gear';
     // GEN_RULES.wingK: the wing class is x19 softer than the cap its own mass
@@ -132,16 +133,27 @@ function genLattice(S, gearX, track, kScale) {
     // all-carbon aeroplane's wing — a corner the FLEX matrix already flies.
     // The aeroplane-level scalings (KS from the global refMass, wingK, the
     // gear archetype) stay exactly where they were.
-    beams.push({ a, b, k: MB.k[cls] * (isG ? kG : KS) * kGain,
-                 c: MB.c[cls] * (isG ? cG : CS),
+    // THE ENGINE BEARER IS 4130 TUBE ON EVERY AEROPLANE (G179): a wooden or
+    // a carbon airframe still hangs its engine on a welded steel-tube mount,
+    // so a `mnt` member is stiff, damped and heavy as the tubeFabric row says
+    // — WYSIWYG (G117), and the member IS steel — and takes GEN_RULES.mountK
+    // on k, its root on c (see the constant). Measured and rejected: x10 on
+    // the SECTION'S own fus row put a carbon cantilever's load test into a
+    // slow divergence (0.66 -> 14.7 % at 1 g), the rig's per-frame trestle
+    // clamp resonating with a fuselage row that is already stiff. Steel
+    // x10 is x1.5 over carbon's own row and the rig is quiet.
+    const MM = mnt ? (GEN_MATERIALS.tubeFabric || MB) : MB;
+    const mK = mnt ? (R.mountK == null ? 1 : R.mountK) : 1;
+    beams.push({ a, b, k: MM.k[cls] * (isG ? kG : KS) * kGain * mK,
+                 c: MM.c[cls] * (isG ? cG : CS) * Math.sqrt(mK),
                  gear: isG, cls, ext: vis === 'inner' ? false : (!!ext || isG),
                  vis: vis || null, L });
     // structural mass: linear density x length, half to each end (this is the
     // whole structural mass model — there is no separate mass budget to keep
     // in sync with the geometry)
-    const h = 0.5 * L * MB.lin[cls];
+    const h = 0.5 * L * MM.lin[cls];
     nodes[a].m += h; nodes[b].m += h;
-    bill(2 * h, 2 * h * MB.price);
+    bill(2 * h, 2 * h * MM.price);            // ...and priced as it (G179)
   };
   // ---- the LEDGER (G3). Mass and money, attributed to the section being built
   // rather than reconstructed afterwards. `SEC` is a moving marker because this
@@ -306,11 +318,13 @@ function genLattice(S, gearX, track, kScale) {
   const EAT = S.engAt || [{ mount: 'nose', x: S.engX, y: S.engY, z: 0 }];
   const noseEng = EAT[0].mount === 'nose';
   let EL = -1, ER = -1;
+  // every engine bearer member, on every mount, goes through here (G179)
+  const BM = (a, b, vis) => B(a, b, 'fus', false, vis || null, true);
   if (noseEng) {
     [EL, ER] = NM(S.engX, S.engY, 0.55 * cab.halfW, 'ENG');
-    B(EL, ER, 'fus');
-    B(EL, F[0].TL, 'fus'); B(EL, F[0].BL, 'fus'); B(EL, F[0].BR, 'fus');
-    B(ER, F[0].TR, 'fus'); B(ER, F[0].BR, 'fus'); B(ER, F[0].BL, 'fus');
+    BM(EL, ER);
+    BM(EL, F[0].TL); BM(EL, F[0].BL); BM(EL, F[0].BR);
+    BM(ER, F[0].TR); BM(ER, F[0].BR); BM(ER, F[0].BL);
     // The BLADES weigh what the spec says they weigh (S.prop.mass, derived from
     // diameter, blade count and material) rather than the old 2 kg per metre of
     // registry diameter. It lands on the mount nodes rather than at the hub, which
@@ -693,32 +707,67 @@ function genLattice(S, gearX, track, kScale) {
       if (e.mount === 'pusher') {
         const [PL, PR] = NM(e.x, e.y, 0.55 * cab.halfW, 'ENG');
         const rg = F[iRing(e.x)];
-        B(PL, PR, 'fus');
-        B(PL, rg.TL, 'fus'); B(PL, rg.BL, 'fus'); B(PL, rg.BR, 'fus'); B(PL, rg.TR, 'fus');
-        B(PR, rg.TR, 'fus'); B(PR, rg.BR, 'fus'); B(PR, rg.BL, 'fus'); B(PR, rg.TL, 'fus');
+        BM(PL, PR);
+        BM(PL, rg.TL); BM(PL, rg.BL); BM(PL, rg.BR); BM(PL, rg.TR);
+        BM(PR, rg.TR); BM(PR, rg.BR); BM(PR, rg.BL); BM(PR, rg.TL);
         pt(PL, 0.5 * engM); pt(PR, 0.5 * engM);
         engNodes.push(PL, PR);
       } else if (e.mount === 'wingTop') {
         const [WL, WR] = NM(e.x, e.y, 0.35 * cab.halfW, 'ENG');
         const rg = F[iRing(e.x)];
-        B(WL, WR, 'fus');
+        BM(WL, WR);
         for (const [n, o] of [[WL, 'L'], [WR, 'R']]) {
           const q = o === 'L' ? 'R' : 'L';
-          B(n, wf[o].F[0], 'fus'); B(n, wf[o].R[0], 'fus');
-          B(n, wf[q].F[0], 'fus');                       // cross-brace
-          B(n, rg['T' + o], 'fus');                      // pylon leg, roof
+          BM(n, wf[o].F[0]); BM(n, wf[o].R[0]);
+          BM(n, wf[q].F[0]);                             // cross-brace
+          BM(n, rg['T' + o]);                            // pylon leg, roof
         }
         pt(WL, 0.5 * engM); pt(WR, 0.5 * engM);
         engNodes.push(WL, WR);
       } else if (e.mount === 'wing') {
+        // THE BEARER HAS DEPTH (G179). One node on the four spar nodes of
+        // its bay is a node IN THE PLANE OF ITS ANCHORS — rule 1's mechanism
+        // — and it read 300 mm of sag and a 2.5 Hz bounce on the user's
+        // twin (see GEN_RULES.mountFoot). The engine node stays exactly
+        // where the spec puts the engine; a FOOT goes under the front spar
+        // at the nacelle station (above it, for an engine slung under the
+        // wing), one box depth through the spar plane, and a post joins the
+        // two. Engine and foot each brace to the bay's four spar nodes (and
+        // to the box's lower caps where the wing has them): the post and
+        // the two fans are a deep truss with a guaranteed couple arm, which
+        // is what a nacelle ahead of the leading edge really hangs on.
+        // GEN_RULES.mountFootAt says where along the engine->spar line the
+        // foot stands, and why the spar (measured: 6.7 mm on the twin, vs
+        // 13.3 under the engine). Whichever station the join measured, the
+        // arm is there. The foot's legs are `inner`.
         const [NL, NR] = NM(e.x, e.y, e.z, 'ENG');
         const zAll = [zRoot, ...zs];
         let b = 0;
         for (let k = 0; k < zAll.length - 1; k++) if (e.z >= zAll[k]) b = k;
         b = Math.min(b, zs.length - 1);
-        for (const [n, o] of [[NL, 'L'], [NR, 'R']]) {
-          B(n, wf[o].F[b], 'fus'); B(n, wf[o].F[b + 1], 'fus');
-          B(n, wf[o].R[b], 'fus'); B(n, wf[o].R[b + 1], 'fus');
+        const ySp = yF(e.z), above = e.y >= ySp;
+        const depth = R.sparBoxDepth * linC(Math.min(e.z, G.semi));
+        const xFoot = e.x + (R.mountFootAt == null ? 1 : R.mountFootAt)
+                            * (xFat(e.z) - e.x);
+        const feet = R.mountFoot
+          ? NM(xFoot, ySp + (above ? -depth : depth), e.z, 'MNT') : null;
+        for (const [n, o, ft] of [[NL, 'L', feet && feet[0]],
+                                  [NR, 'R', feet && feet[1]]]) {
+          const W = wf[o];
+          const ring = [W.F[b], W.F[b + 1], W.R[b], W.R[b + 1]];
+          for (const q of ring) BM(n, q);
+          if (ft != null) {
+            BM(n, ft);                                   // the post
+            for (const q of ring) BM(ft, q, 'inner');
+            // a box's own cap can sit where the foot does (an engine drawn
+            // exactly on a station, on the spar) — a zero-length member is
+            // strain = Infinity, so that one leg is simply not built
+            const far = q => Math.hypot(P[q][0] - P[ft][0], P[q][1] - P[ft][1],
+                                        P[q][2] - P[ft][2]) > 0.05;
+            for (const caps of [W.FB, W.RB]) if (caps)
+              for (const k of [b, b + 1])
+                if (caps[k] != null && far(caps[k])) BM(ft, caps[k], 'inner');
+          }
           pt(n, engM);                                   // a whole engine a side
         }
         engNodes.push(NL, NR);
@@ -1021,10 +1070,21 @@ function genLattice(S, gearX, track, kScale) {
     pt(F[a].BL, 0.5 * m * wa);       pt(F[a].BR, 0.5 * m * wa);
   };
   const seatAt = i => (seatsX && typeof seatsX[i] === 'number') ? seatsX[i] : null;
-  for (let i = 0; i < aboard; i++) {
+  // WHICH CHAIRS ARE FILLED (G180). `S.occupied` is the resolved per-seat
+  // list when the spec named one; otherwise the first `aboard` seats, the rule
+  // this loop has always had. The capacity can exceed the layout table now (a
+  // bench in every bay), so a seat past the table's rows falls to the row its
+  // index implies — one ring per row of `abreast` — rather than to the front
+  // ring, which is the collapse the SEAT_ROWS comment above describes.
+  const occ = Array.isArray(S.occupied) ? S.occupied : null;
+  const nSeats = occ ? occ.length : aboard;
+  const abreast = /^side|^tandem4/.test(S.seating || '') ? 2 : 1;
+  for (let i = 0; i < nSeats; i++) {
+    if (occ ? !occ[i] : i >= aboard) continue;
     const sx = seatAt(i);
     if (sx != null) { billAt(sx, 80); continue; }
-    const ri = seatRows[i] != null ? Math.min(seatRows[i], F.length - 1) : 1;
+    const ri = seatRows[i] != null ? Math.min(seatRows[i], F.length - 1)
+             : Math.min(1 + Math.floor(i / abreast), F.length - 1);
     const rg = F[ri] || F[1];
     pt(rg.BL, 40); pt(rg.BR, 40);
   }
@@ -1222,6 +1282,16 @@ function genLattice(S, gearX, track, kScale) {
     fusDrag: [F[2].BL, F[2].BR, F[2].TL, F[2].TR],
     fusDragAft: [F[F.length-2].BL, F[F.length-2].BR, F[F.length-2].TL, F[F.length-2].TR],
     engine: engNodes, mains: [GAL, GAR], tw: TW, fin: FIN, fin2: FIN2,
+    // THE DRAWING'S DATUM IS THE WING CARRY-THROUGH (G179.3, the user: "we
+    // have to treat the whole wing consistently, and get rid of that
+    // different treatment for the central part"). The centre section is
+    // drawn rigid with the fuselage mesh; the panels outboard follow their
+    // spar stations; the two meet at the root — so the root must be where
+    // the pose is pinned, or the wing tears there by whatever the root
+    // moves against the firewall (8-29 mm on the twin's roll). With the
+    // four root spar nodes as the origin, that step is zero by definition,
+    // and what the drawing does not show is the fuselage's own flex.
+    origin: [wf.L.F[0], wf.R.F[0], wf.L.R[0], wf.R.R[0]],
   };
   const parts = {
     ST, F, TPB, TPT, EL, ER, HTL, HTR, FIN, FIN2, HTBL, HTBR, BOOMS, GAL, GAR, TW,

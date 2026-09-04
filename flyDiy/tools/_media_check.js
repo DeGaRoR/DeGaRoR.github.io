@@ -53,7 +53,7 @@ const DATA_BUDGET_KB = 400;
 // ---------------------------------------------------------------------------
 function manifestFiles() {
   const v = ['hangar_walls.js', 'hangar_floor.js', 'site_tex.js',
-             'wood_tex.js', 'skin_tex.js', 'hangar_sky.js']
+             'wood_tex.js', 'skin_tex.js', 'vessel_tex.js', 'hangar_sky.js']
     .map(f => path.join(ROOT, 'src', 'viewer', f));
   const packs = JSON.parse(fs.readFileSync(
     path.join(ROOT, 'src', 'props', 'props_packs.json'), 'utf8'))

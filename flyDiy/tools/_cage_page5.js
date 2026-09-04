@@ -123,13 +123,19 @@ window.CAGE_PAGE = {
     s2_twHornY: 0.17, s2_twHornZ: 0.25, gearOn: 1, gearSit: 1,
     // ---- CREW + COCKPIT (_cage_crew.js) ----
     propSpin: 0, crewOn: 1, seatLayout: 1, seatTilt: 3, seatBelt: 0,
-    seatType: 0, seatZ: 0.205, seatH: 0.08, seatRake: 13, seatPitch: 0.84,
+    seatType: 0, seatZ: 0.205, seatH: 0.08, seatRake: 13,
     seatGap: 0.23, seat2H: -1, seat2Rake: -1, seat2Tilt: -1, ctlStick: 0,
     ctlThr: 0, ctlPed: 1, consoleOn: 0, stickX: 0, stickY: 0, stickZ: 0,
     stickLen: 0.44, thrX: 0, thrY: 0, thrZ: 0, thrLen: 0.16, pedalZ: 0.9,
-    pedalH: 0.18, pedalSpread: 0.15, pedalAngle: 25, dumOn: 1, dum2On: 1,
+    pedalH: 0.18, pedalSpread: 0.15, pedalAngle: 25, dumOn: 1,
     dumSize: 1, dumElbows: 0.08, dumKnees: 0, dumRecline: 0, dumMarkers: 1,
     dumHandGrip: 0.075,
+    // G180 — WHO IS ABOARD, per section, and the passengers' own seat and
+    // pose. Full by default: that is what `dum2On 1` (retired, migrated in
+    // cageFromSpec) drew and billed before. `seatPitch` is gone with the
+    // tandem layout — a bay's length is its pitch.
+    cabOcc: 1, paxOcc1: 2, paxOcc2: 2, paxOcc3: 2, paxOcc4: 2,
+    paxSeatZ: 0, paxSize: 1, paxRecline: 0,
   },
 
   // THE CURATED TREE — cage4's game-panel preview + the crew group.
@@ -371,14 +377,14 @@ window.CAGE_PAGE = {
         ['seatType',  'seat type',      0, 2, 1, ['tube frame',
                                                   'composite shell',
                                                   'airliner']],
-        ['seatLayout','layout',         0, 2, 1, ['single', 'side-by-side',
-                                                  'tandem']],
+        // G180: the ROW — one abreast or two — in the cockpit AND in every
+        // passenger bay. Tandem is retired: it is 'single' with a bay
+        // (cageFromSpec reads an older file's 2 as 0).
+        ['seatLayout','row',            0, 1, 1, ['single', 'side-by-side']],
         ['seatZ',     'fore / aft', -0.50, 0.50, 0.005],
         ['seatH',     'up / down (squab height)', 0.06, 0.50, 0.005],
         ['seatRake',  'back recline',   5, 45, 0.5],
         ['seatTilt',  'squab recline',  0, 30, 0.5],
-        ['seatPitch', 'tandem pitch',   0.55, 1.35, 0.01,
-         { when: P => +P.seatLayout === 2 }],
         ['seatGap',   'sbs seat gap',   0.18, 0.45, 0.005,
          { when: P => +P.seatLayout === 1 }],
         ['seatBelt',  'lap belts',      0, 1, 1],
@@ -386,14 +392,20 @@ window.CAGE_PAGE = {
       // the second seat's own set — the sentinel (-1 = follows the front
       // seat, resolved live by the crew layer) is now a visible LINK
       // checkbox; unticking writes the front seat's value into the slider
-      ['seat 2', [
+      // G180: these are the PASSENGER seats' rows — every seat in a passenger
+      // bay, one set for all of them (the cockpit's two seats are the set
+      // above). `paxSeatZ` places the row inside its bay off the bay's own
+      // aft ring, the way `seatZ` places the pilot's off the cockpit's.
+      ['passenger seats', [
+        ['paxSeatZ',  'fore / aft in bay', -0.50, 0.50, 0.005,
+         { when: P => +P.crewOn && +P.paxCount > 0 }],
         ['seat2H',    'squab height',  -1, 0.50, 0.005,
          { link: { sentinel: -1, from: 'seatH', test: v => v < 0 } }],
         ['seat2Rake', 'back recline',  -1, 45, 0.5,
          { link: { sentinel: -1, from: 'seatRake', test: v => v < 0 } }],
         ['seat2Tilt', 'squab recline', -1, 30, 0.5,
          { link: { sentinel: -1, from: 'seatTilt', test: v => v < 0 } }],
-      ], { when: P => +P.crewOn && +P.seatLayout > 0 }],
+      ], { when: P => +P.crewOn && +P.paxCount > 0 }],
       // ONE controls folder (G28: the three position subfolders merged —
       // each control's position rows sit right under its selector,
       // existing only while that control is fitted). 3-axis shifts off
@@ -434,9 +446,17 @@ window.CAGE_PAGE = {
          { when: P => +P.crewOn && +P.ctlPed }],
         ['consoleOn', 'centre console', 0, 1, 1],
       ], 'open'],
-      ['dummy', [
+      // G180: WHO IS ABOARD is per SECTION. The cockpit's second seat is
+      // here with the pilot dummy; each passenger bay's row is the bay's own
+      // (`5 · passengers` below). A filled seat is a body drawn AND 80 kg
+      // billed where the seat is; `dum2On` (every seat filled or none) is
+      // retired and migrated in cageFromSpec.
+      ['aboard', [
         ['dumOn',     'pilot dummy',    0, 1, 1],
-        ['dum2On',    'second dummy',   0, 1, 1],
+        ['cabOcc',    'co-pilot seated', 0, 1, 1,
+         { when: P => +P.crewOn && +P.seatLayout === 1 }],
+      ], 'open', { when: P => +P.crewOn }],
+      ['pilot pose', [
         ['dumSize',   'stature',        0, 2, 1, ['5th %ile — 1.52 m',
                                                   '50th %ile — 1.75 m',
                                                   '95th %ile — 1.88 m']],
@@ -446,6 +466,15 @@ window.CAGE_PAGE = {
         ['dumHandGrip','hand on grip',  0, 0.16, 0.005],
         ['dumMarkers','eye point',      0, 1, 1],
       ], 'open', { when: P => +P.crewOn }],
+      // one pose for every passenger (the user: "all the passenger and dummy
+      // positions will be the same for all dummies"); a passenger holds no
+      // control, so the reach rows above do not apply
+      ['passenger pose', [
+        ['paxSize',   'stature',        0, 2, 1, ['5th %ile — 1.52 m',
+                                                  '50th %ile — 1.75 m',
+                                                  '95th %ile — 1.88 m']],
+        ['paxRecline','recline offset',-15, 25, 0.5],
+      ], 'open', { when: P => +P.crewOn && +P.paxCount > 0 }],
     ], 'open'],
     ['5 · passengers', [
       ['paxCount',  'pax bays',        0, 4, 1],
@@ -457,6 +486,18 @@ window.CAGE_PAGE = {
        { when: P => +P.paxCount > 0 }],
       ['doorSillPax','door sill',      0, 0.25, 0.002,
        { when: P => +P.paxCount > 0 && +P.doorPax, dim: 'len' }],
+      // G180: WHO SITS IN EACH BAY, bays counted front to back from the
+      // cockpit. A bay seats the cockpit's row (one abreast or two), so
+      // 'two' on a single-row aeroplane seats the one seat there is — the
+      // crew layer clamps, and the join bills the seats actually filled.
+      ['paxOcc1',   'bay 1 seated',    0, 2, 1, ['nobody', 'one', 'two'],
+       { when: P => +P.crewOn && +P.paxCount >= 1 }],
+      ['paxOcc2',   'bay 2 seated',    0, 2, 1, ['nobody', 'one', 'two'],
+       { when: P => +P.crewOn && +P.paxCount >= 2 }],
+      ['paxOcc3',   'bay 3 seated',    0, 2, 1, ['nobody', 'one', 'two'],
+       { when: P => +P.crewOn && +P.paxCount >= 3 }],
+      ['paxOcc4',   'bay 4 seated',    0, 2, 1, ['nobody', 'one', 'two'],
+       { when: P => +P.crewOn && +P.paxCount >= 4 }],
     ]],
     ['7 · boom', [
       // G26 — the dedicated tightening section + the rod boom. The
@@ -600,8 +641,8 @@ window.CAGE_PAGE = {
       finBaseY: 0.14, finMidY: -0.515, finUY: -0.26, finLEZ: -0.49,
       finShoulderZ: 0.17, finTopY: 0.09, finTERoot: -0.245, finTEU: -0.31,
       finTEMid: -0.18, finSharpTip: 0, finSharpAft: 0, finSharpBase: 0,
-      finSharpLE: 0.15, seatLayout: 2, seatTilt: 13, seatZ: 0.215,
-      seatH: 0.22, seatRake: 25.5, seatPitch: 0.72, seatGap: 0.27,
+      finSharpLE: 0.15, seatLayout: 0, seatTilt: 13, seatZ: 0.215,
+      seatH: 0.22, seatRake: 25.5, seatGap: 0.27,
       seat2H: -0.145, seat2Rake: 34.5, seat2Tilt: 2, pedalZ: 0.945,
       pedalH: 0.09, pedalAngle: 47, dumElbows: 0.01,
       cw_aftW: 0.358535049145553, cw_aftH: 0.3356979479364783,
@@ -652,7 +693,7 @@ window.CAGE_PAGE = {
       cowlLoops: 2, crBand: 3, crCap: 3, crNoseCap: 3, crSill: 0,
       crewOn: 1, ctlPed: 1, ctlStick: 0, ctlThr: 2, cutParts: 1,
       dashBack: 0.1, dashCrease: 3, dashDepth: 0.13, doorSill: 0.094,
-      dum2On: 0, dumElbows: 0, dumKnees: 0, dumMarkers: 1, dumOn: 1,
+      cabOcc: 0, dumElbows: 0, dumKnees: 0, dumMarkers: 1, dumOn: 1,
       dumRecline: 0, dumSize: 1, explodeD: 0, halfW: 0.525, intCons: 0,
       intOn: 1, mirror: 1, noseCrown: 0.16, noseFinish: 1, noseH: 1.07,
       noseLen: 0.97, noseTip: 0.97, noseW: 0.9, paxLen: 0.91,
@@ -660,8 +701,8 @@ window.CAGE_PAGE = {
       pfW: 1.21, pillarW: 0.085, pilotLen: 0.42, planeScale: 0.595,
       rimDoor: 0, rimW: 0.01, ringCabW: 0.115, ringNoseTop: -0.35,
       ringPullIn: 0, ringWinW: 0.115, roofHalfW: 0.41, roofY: 0.79,
-      seatBelt: 0, seatGap: 0.285, seatH: 0.06, seatLayout: 2,
-      seatPitch: 0.92, seatRake: 44, seatTilt: 3, seatZ: 0, skylight: 0,
+      seatBelt: 0, seatGap: 0.285, seatH: 0.06, seatLayout: 0,
+      seatRake: 44, seatTilt: 3, seatZ: 0, skylight: 0,
       stickX: 0, stickY: -0.095, stickZ: 0, tailRoofY: 0.3, thrX: 0,
       thrY: 0, thrZ: 0, topAngRoof: 81, topComp: 1.15, topRound: 1,
       waistY: -0.05, wsBaseBow: 0.45, wsBaseLift: 0.05, wsCeilBow: 0.3,

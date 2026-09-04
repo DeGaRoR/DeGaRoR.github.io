@@ -359,6 +359,26 @@ function genShakedown(def, opts) {
   const aMax = 0.85 * def.params.polarWing.aStall;
   const a = genAlphaForLift(sim, V, W, aMax);
   const r0 = genProbeAt(sim, V, a), r1 = genProbeAt(sim, V, a + 0.02);
+  // THE GLIDE RATIO, MEASURED (G179.4, the user: "I struggle to pass the
+  // L/D ratio ... by tweaking the wing I get from 3 to almost 6, but it
+  // keeps being red"). The plaque's L/D was the CRUISE point's Fy/drag —
+  // and the cruise speed is solved from the power curve, so a twin with
+  // 96 kW cruises at 143 km/h where an open frame's parasite drag buries
+  // the wing: 3.9 on the user's twin, 5.2 with the fuselage covered, 6.2
+  // with everything faired and 12 m of span, and the WING alone moved it
+  // 3.9 -> 4.4. The help text promised "glide ratio at best speed" and
+  // showed something else. This sweeps the trimmed polar from 1.15 Vs to
+  // 2.25 Vs and reports the best L/D and the speed it happens at — the
+  // glide ratio a builder can reason about; the cruise figure stays beside
+  // it, named for what it is.
+  let LDbest = 0, VbestLD = V;
+  for (let k = 0; k <= 14; k++) {
+    const v = g.Vs * (1.15 + 1.10 * k / 14);
+    const ak = genAlphaForLift(sim, v, W, aMax);
+    const rk = genProbeAt(sim, v, ak);
+    const ld = rk.Fy / Math.max(1e-6, rk.drag);
+    if (ld > LDbest) { LDbest = ld; VbestLD = v; }
+  }
   const dM = (r1.pitchUp - r0.pitchUp) / 0.02;
   const dL = (r1.Fy - r0.Fy) / 0.02;
   // neutral point: how far aft the CG could move before dM/dalpha reaches zero
@@ -454,10 +474,18 @@ function genShakedown(def, opts) {
     onWheels, restsOn: lowTag, gearStrain, restChassisStrain: chassisStrain,
     springStrain, susTravel, susShift, gearFolded: susShift > 0.5,
     noseOver,
+    // G179: the POWER nose-over — full static thrust with the tail down,
+    // as a ratio of the moment that holds the tail down (>= 1 goes over),
+    // and the ground power cap the pilots fly it with
+    powerOver: (typeof genGroundPowerCap === 'function'
+      ? genGroundPowerCap(def, sim.thrustAt(0), W) : { ratio: 0 }).ratio,
+    groundThrCap: (typeof genGroundPowerCap === 'function'
+      ? genGroundPowerCap(def, sim.thrustAt(0), W) : { cap: 1 }).cap,
     // G115: the DISPLAYED stall is the measured one — same instrument as
     // VsFlap and VsRatio below, so the three cells finally agree. The
     // analytic g.Vs keeps deriving the AP's speed ladder, unchanged.
     Vs: g.VsMeas ?? g.Vs, VCruise: V, LD: r0.Fy / Math.max(1e-6, r0.drag),
+    LDbest, VbestLD,                          // G179.4: the glide ratio itself
     alphaCruise: a * 180 / Math.PI,
     Sw, wingLoad: sim.totalM / Sw,
     cgX: cg[0], npX: cg[0] + npShift, staticMargin: npShift / cBar,
@@ -671,6 +699,9 @@ function genShakedown(def, opts) {
         const cs = genSpecAtFuel(S, L);
         cs.cabin.pilots = 1;
         cs.cabin.pax = Math.max(0, occupants - 1);
+        // G180: a corner is "the first N seats", so the drawn seat-by-seat
+        // occupancy steps aside for it — left in place it would win
+        cs.cabin.occupied = null;
         const sh = genShakedown(buildGen(cs), { slim: true });
         return { label, occupants, litres: L, mass: sh.mass, cgX: sh.cgX,
                  npX: sh.npX, cgPct: pct(sh.cgX), npPct: pct(sh.npX),

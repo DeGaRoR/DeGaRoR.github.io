@@ -68,6 +68,15 @@
   <aside id="ui"></aside>
 </main>
 
+<script>
+// THIS BENCH LIVES IN tools/, ONE LEVEL BELOW THE GAME'S PAGES. The <script>
+// and <link> tags above are written relative to here, but a baked payload's
+// own 'media/...' URL strings are inside JS that no relative tag can re-root —
+// this global is the one prefix that does (tools/_media_lib.js BASE_DECL), and
+// it is what _probe.html sets for exactly the same reason. Without it the
+// vessel sheets 404 into tools/media/ and every tank draws in flat colour.
+window.FLYDIY_ASSET_BASE = '../';
+</script>
 <script src="../vendor/three.min.js"></script>
 <!-- the GAME's generator chain (G30): the wing layer runs it verbatim and
      keeps the wing subset — zero top-level name collisions, checked -->
@@ -80,6 +89,7 @@
 <script src="../src/core/63_gen_wing.js"></script>
 <!-- AEROSKIN (G67): the one material. The bench loads it from src/
      because the GAME does too - one factory, not a bench copy. -->
+<script src="../src/viewer/vessel_tex.js"></script>
 <script src="../src/viewer/aeroskin.js"></script>
 <script src="_cage_page5.js"></script>
 <script src="_cage_gen.js"></script>
@@ -106,6 +116,7 @@
 <script src="_cage_light.js"></script>
 <script src="_bay_site.js"></script>
 <script src="_vessel_gen.js"></script>
+<script src="_vessel_mesh.js"></script>
 <script src="_cage_energy.js"></script>
 <script src="_cage_ui.js"></script>
 <script>CAGE_PAGE_SETUP();</script>

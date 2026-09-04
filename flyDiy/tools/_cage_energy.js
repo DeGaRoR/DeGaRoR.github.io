@@ -45,15 +45,19 @@ const CG2 = () => window.CAGE2;
 // ---------------------------------------------------------------------------
 // THE STATE — a view of spec.energy
 // ---------------------------------------------------------------------------
+// `finish`, `hue` and `tint` are the LOOK of the vessels, section-wide beside
+// `vessel`: what the shell is made of, how far the painted set's hue is turned
+// and what tints it. They weigh nothing and the ledger never reads them — the
+// vessel's mass and price come from GEN_VESSELS, which this does not touch.
 const EN = { kind: 'fuel', fuel: 'avgas100LL', cell: 'lifepo4', vessel: null,
-             vessels: [] };
+             finish: null, hue: 0, tint: null, vessels: [] };
 let seeded = false;
 const cl = o => JSON.parse(JSON.stringify(o));
 
 // what an aeroplane with nothing written carries: the core's own default,
 // the Cub's twelve gallons behind the firewall
 const defaultVessels = () => [{ bay: 'nose', capacity: 45, along: null,
-                                lv: null, rot: 0, dims: null }];
+                                lv: null, rot: 0, form: 'box', dims: null }];
 
 function fromSpec(energy) {
   const E = energy || {};
@@ -61,10 +65,15 @@ function fromSpec(energy) {
   EN.fuel = E.fuel || 'avgas100LL';
   EN.cell = E.cell || 'lifepo4';
   EN.vessel = E.vessel || null;
+  EN.finish = E.finish || null;
+  EN.hue = +E.hue || 0;
+  EN.tint = E.tint || null;
   EN.vessels = Array.isArray(E.vessels) && E.vessels.length
     ? E.vessels.map(v => ({ bay: v.bay || 'nose', capacity: +v.capacity || 0,
         along: v.along == null ? null : +v.along,
         lv: v.lv == null ? null : +v.lv, rot: +v.rot || 0,
+        // a round tank or a squared one — geometry, and the capacity follows
+        form: v.form === 'cyl' ? 'cyl' : 'box',
         // the player's own box, when they drew one
         dims: (v.dims && v.dims.L > 0) ? { L: +v.dims.L, W: +v.dims.W, H: +v.dims.H } : null }))
     : defaultVessels();
@@ -76,8 +85,9 @@ function fromSpec(energy) {
 // derives from this list, so they are not written back
 function toSpec() {
   return { kind: EN.kind, fuel: EN.fuel, cell: EN.cell, vessel: EN.vessel,
+           finish: EN.finish, hue: EN.hue, tint: EN.tint,
            vessels: EN.vessels.map(v => ({ bay: v.bay, capacity: v.capacity,
-             along: v.along, lv: v.lv, rot: v.rot,
+             along: v.along, lv: v.lv, rot: v.rot, form: v.form || 'box',
              dims: v.dims ? { L: v.dims.L, W: v.dims.W, H: v.dims.H } : null })) };
 }
 
@@ -110,11 +120,16 @@ const core = () => ({
   DEFAULT: typeof GEN_DEFAULT !== 'undefined' ? GEN_DEFAULT : null,
 });
 const vesselKey = () => EN.vessel || (EN.kind === 'battery' ? 'packCase' : 'alu');
+// A ROUND TANK IN A SQUARE BOX HOLDS LESS, and the ledger has to know. `form`
+// rides into the two capacity functions in _vessel_gen.js, which apply the
+// catalogue's own fill and then the form's — the box case is 1.0, so every
+// build that existed before this row weighs exactly what it weighed.
+const formOf = v => (v && v.form === 'cyl' ? 'cyl' : 'box');
 // installed litres of a drawn box -> the capacity unit the spec stores
-function capacityFromDims(dims) {
+function capacityFromDims(dims, form) {
   const G = VG(), C = core();
   if (!G || !G.installedFromDims) return 0;
-  const inst = G.installedFromDims(vesselKey(), dims);
+  const inst = G.installedFromDims(vesselKey(), dims, form);
   if (EN.kind === 'battery') {
     const cell = (C.CELLS || {})[EN.cell] || { WhL: 250, packK: 0.7 };
     return Math.max(0, Math.round((inst / 1.18) * (cell.WhL * cell.packK) / 1000 * 10) / 10);
@@ -336,10 +351,10 @@ function placeAll(ctx, inv) {
     // litres derived from them (installed volume, less the shell's rounding,
     // back through the same ullage factor genVesselResolve applies), so the
     // ledger bills what the drawn box holds and nothing else.
-    if (v.dims) v.capacity = capacityFromDims(v.dims);
+    if (v.dims) v.capacity = capacityFromDims(v.dims, formOf(v));
     const res = C.vesselResolve(EN.kind === 'battery' ? 'battery' : 'fuel',
                                 v.capacity, vesselKey(), medium());
-    let dims = G.vesselDims(vesselKey(), res.installedL, v.dims);
+    let dims = G.vesselDims(vesselKey(), res.installedL, v.dims, formOf(v));
     let pl;
     if (bay.on === 'wing') {
       pl = (slice && semi > 0)
@@ -389,11 +404,11 @@ function placeAll(ctx, inv) {
               if (free > 0.06 && free < bf.H) { bf.H = free; bf.capped = true; bf.crew = true; }
             }
             v.dims = { L: +bf.L.toFixed(3), W: +bf.W.toFixed(3), H: +bf.H.toFixed(3) };
-            v.capacity = capacityFromDims(v.dims);
+            v.capacity = capacityFromDims(v.dims, formOf(v));
             v.shaped = bf.crew ? 'crew' : (bf.capped ? 'band' : true);
             const res2 = C.vesselResolve(EN.kind === 'battery' ? 'battery' : 'fuel',
                                          v.capacity, vesselKey(), medium());
-            dims = G.vesselDims(vesselKey(), res2.installedL, v.dims);
+            dims = G.vesselDims(vesselKey(), res2.installedL, v.dims, formOf(v));
             // a new shape settles its own level; the station stays the player's
             v.lv = null;
             wroteBack = true;
@@ -475,31 +490,220 @@ function crewHits(scene, inv, results) {
 }
 
 // ---------------------------------------------------------------------------
-// DRAWING
+// DRAWING — THE LOOKS
 // ---------------------------------------------------------------------------
-// The catalogue's own looks. Plain materials, like the light layer's lodge and
-// seal: a tank is not skin and takes no livery, and the materials panel's
-// `aeroskin` flag keeps it from being handed the grey understudy.
-const LOOK = {
-  alu:      { col: 0xb9c0c6, rough: 0.35, metal: 0.85 },
-  moulded:  { col: 0xe9e4d4, rough: 0.55, metal: 0.00, opacity: 0.88 },
-  bladder:  { col: 0x2b2b2e, rough: 0.90, metal: 0.00 },
-  packCase: { col: 0x2f3338, rough: 0.55, metal: 0.30 },
-  wet:      { col: 0x4a8fd6, rough: 0.30, metal: 0.10, opacity: 0.40 },
+// A tank is not skin: it takes no livery, wears no wear, and the materials
+// panel's `aeroskin` flag keeps it from being handed the G38 grey understudy.
+// What it DOES take is a real surface, because in the editor it is an object
+// an arm's length from the camera. tools/vessel_tex_prep.js bakes four scanned
+// sets — painted metal, bare alloy, moulded plastic and steel — into the
+// hangar props' own three-map recipe (diff sRGB, arm linear R ao / G roughness
+// / B metalness, nor a GL tangent normal), and VESSEL_MESH lays its uv out in
+// METRES, so `tile` from that table is the grain's real size on any tank.
+//
+// THE HUE ROW IS A MEASUREMENT, not a taste knob. green_metal_rust puts 94% of
+// its pixels in one fifteen-degree hue bin at a saturation of 0.325 ± 0.02
+// (tools/vessel_tex_import.py measures and prints it) — there is no second hue
+// in the sheet to protect — so rotating the whole map's hue turns the paint
+// and cannot turn anything else the wrong colour. That is why the row exists
+// for the painted set and for no other.
+const VTEX = () => (typeof VESSEL_TEX_SETS !== 'undefined' ? VESSEL_TEX_SETS : null);
+
+const FINISH = {
+  paint:   { name: 'painted metal',   set: 'paint',   col: 0xffffff, hue: 1 },
+  alu:     { name: 'bare alloy',      set: 'alu',     col: 0xeef1f3 },
+  plastic: { name: 'moulded plastic', set: 'plastic', col: 0xdedac9 },
+  rubber:  { name: 'rubber',          set: 'plastic', col: 0x33333a },
+  steel:   { name: 'steel',           set: 'steel',   col: 0xffffff },
 };
-const mats = {};
-function matFor(key, bad) {
-  const id = key + (bad ? '!' : '');
-  if (mats[id]) return mats[id];
-  const L = LOOK[key] || LOOK.alu;
+// what a catalogue vessel is made of when the player has not said. A rubber
+// bladder is rubber, a moulded tank is polythene, a welded one is bare alloy,
+// and a pack case is painted — which is also the one the hue row recolours, so
+// an electric build is where a player first meets it.
+const FINISH_OF = { alu: 'alu', moulded: 'plastic', bladder: 'rubber',
+                    packCase: 'paint', wet: null };
+const finishKey = () => (FINISH[EN.finish] ? EN.finish : null) ||
+                        FINISH_OF[vesselKey()] || 'alu';
+// the slots VESSEL_MESH fills, and what each is made of. Only the shell is the
+// player's: hardware is steel wherever it is, a strap pad is rubber, and the
+// filler cap and the positive terminal boot are the one spot of colour.
+const SLOT_FIN = { shell: null, hard: 'steel', seal: 'rubber', mark: 'plastic' };
+const SLOT_COL = { hard: 0xffffff, seal: 0x2e2e33, mark: 0xb8402f };
+
+const vTexCache = new Map();
+function vTex(setKey, map, srgb) {
+  const id = setKey + '|' + map;
+  if (vTexCache.has(id)) return vTexCache.get(id);
+  const S = (VTEX() || {})[setKey];
+  const img = S && S[map];
+  if (!img) { vTexCache.set(id, null); return null; }
+  const t = new THREE.Texture(img);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.anisotropy = (typeof window !== 'undefined' && window.FLYDIY_ANISO) || 8;
+  if (srgb) t.encoding = THREE.sRGBEncoding;
+  // the payload starts decoding at script eval; a material built before the
+  // bytes land simply repaints when they arrive
+  const ok = () => { t.needsUpdate = true; };
+  if (img.complete && img.naturalWidth) ok(); else img.addEventListener('load', ok);
+  vTexCache.set(id, t);
+  return t;
+}
+// the metres-per-repeat a finish wants, which VESSEL_MESH needs BEFORE any
+// material exists — the uv is baked into the geometry, not set on the texture
+function tileOf(fin) {
+  const F = FINISH[fin] || FINISH.alu, S = (VTEX() || {})[F.set];
+  return (S && S.tile) || 0.4;
+}
+
+// HUE IN GAMMA SPACE, and the two pow()s are the point. `#include
+// <map_fragment>` has already decoded the texel to linear, and the luma
+// weights the classic hue matrix is built on (0.299 / 0.587 / 0.114) are
+// gamma-space weights — rotating a linear colour with them swings the
+// brightness as well as the hue, which on a dark green reads as the paint
+// going chalky rather than changing colour.
+const HUE_FN = [
+  'uniform float uHue;',
+  'vec3 vesselHue(vec3 c, float a) {',
+  '  if (abs(a) < 0.0005) return c;',
+  '  vec3 g = pow(max(c, vec3(0.0)), vec3(0.45454545));',
+  '  float C = cos(a), S = sin(a);',
+  '  vec3 o = vec3(',
+  '    dot(g, vec3(0.299+0.701*C+0.168*S, 0.587-0.587*C+0.330*S, 0.114-0.114*C-0.497*S)),',
+  '    dot(g, vec3(0.299-0.299*C-0.328*S, 0.587+0.413*C+0.035*S, 0.114-0.114*C+0.292*S)),',
+  '    dot(g, vec3(0.299-0.300*C+1.250*S, 0.587-0.588*C-1.050*S, 0.114+0.886*C-0.203*S)));',
+  '  return pow(clamp(o, vec3(0.0), vec3(1.0)), vec3(2.2));',
+  '}',
+].join('\n');
+
+// ONE FACTORY, TWO WORLDS (2026-09-04). The editor reaches it through
+// `slotMat` below; the FLOWN aeroplane reaches it through
+// `CAGE_ENERGY.material` — app.js's `matFor`, where a cage payload's material
+// record says `ves`. That is the posture AEROSKIN has had since G67, and it is
+// here for the reason it was there, reported the same way: the user's red tank
+// flew WHITE. The join carries a colour and two scalars for any material it
+// cannot name, and on a scanned surface a colour is not the look — the red was
+// the SHEET, tinted and hue-rotated, and none of that crossed. What crosses now
+// is what the material IS: the set, the tint and the hue, rebuilt here into the
+// same material the editor drew.
+//
+//   set     a VESSEL_TEX_SETS key
+//   col     the finish's own colour, when nothing tints it
+//   tint    the player's multiplier over the sheet
+//   hueRad  the paint rotation in RADIANS. EN.hue is DEGREES and slotMat
+//           converts once; the payload carries what the shader wants.
+//   hueOn   whether this sheet takes the row at all — true even at zero for
+//           the editor, because a drag must not have to recompile
+function vesselMat(o) {
+  const O = o || {};
+  const F = { set: (VTEX() && VTEX()[O.set]) ? O.set : (O.set || 'alu'),
+              col: O.col == null ? 0xffffff : O.col };
+  const bad = !!O.bad;
+  const S = (VTEX() || {})[F.set];
   const m = new THREE.MeshStandardMaterial({
-    color: L.col, roughness: L.rough, metalness: L.metal,
-    transparent: L.opacity != null, opacity: L.opacity != null ? L.opacity : 1,
-    emissive: bad ? new THREE.Color(0xff2a1a) : new THREE.Color(0x000000),
+    color: new THREE.Color(O.tint == null ? F.col : O.tint),
+    // with the maps bound the scalars are MULTIPLIERS and 1.0 means "what the
+    // scan measured"; without them they are the scan's own means, so a page
+    // with no payload still looks like roughly the right material
+    roughness: S ? 1.0 : 0.55,
+    metalness: S ? 1.0 : (F.set === 'alu' || F.set === 'steel' ? 0.9 : 0.0),
+    emissive: new THREE.Color(bad ? 0xff2a1a : 0x000000),
     emissiveIntensity: bad ? 0.45 : 0,
-    side: THREE.DoubleSide });
+  });
+  if (S) {
+    m.map = vTex(F.set, 'diff', true);
+    const arm = vTex(F.set, 'arm', false);
+    m.roughnessMap = arm; m.metalnessMap = arm;
+    if (S.ao) { m.aoMap = arm; m.aoMapIntensity = 1; }
+    m.normalMap = vTex(F.set, 'nor', false);
+    m.normalScale = new THREE.Vector2(S.norScl, S.norScl);
+  }
+  m.userData.hue = +O.hueRad || 0;
+  if (O.hueOn || m.userData.hue) m.onBeforeCompile = sh => {
+    sh.uniforms.uHue = { value: m.userData.hue || 0 };
+    sh.fragmentShader = HUE_FN + '\n' + sh.fragmentShader.replace(
+      '#include <map_fragment>',
+      '#include <map_fragment>\n  diffuseColor.rgb = vesselHue(diffuseColor.rgb, uHue);');
+    m.userData.hueU = sh.uniforms.uHue;
+  };
   m.userData.aeroskin = 1;
-  return (mats[id] = m);
+  // WHAT THIS MATERIAL IS, for the join to read off it. The resolved colour is
+  // already on `material.color` — AEROSKIN keeps its albedo there for exactly
+  // this reason — so the SET and the live hue are all the snapshot has left to
+  // carry, and `vesSet` is also what tells the merge that two look-alike whites
+  // are a tank and not the aeroplane.
+  m.userData.vesSet = F.set;
+  if (O.hueOn) m.userData.vesHueOn = 1;
+  // every material this factory has made follows the room, the game's included
+  m.userData.env0 = 1;
+  m.envMapIntensity = VES_ENV_F;
+  vesAll.push(m);
+  return m;
+}
+function buildMat(fin, bad) {
+  const F = FINISH[fin] || FINISH.alu;
+  return vesselMat({ set: F.set, col: F.col, hueOn: !!F.hue, bad });
+}
+// THE GAME'S DOOR IS POOLED AND THE EDITOR'S IS NOT, deliberately: slotMat
+// MUTATES what it caches — the tint and the hue uniform are the two live rows,
+// written on every layout — so one material shared with the flown aeroplane
+// would be repainted under its feet by a slider nobody was pointing at it. A
+// payload's record is fixed, so one material per record is all the game wants,
+// and pooling is what stops a rebuilt aeroplane stacking up materials the
+// room's mood still has to walk (AEROSKIN's own posture, AERO_POOL).
+const vesPool = new Map();
+function vesselMatFor(o) {
+  const O = o || {};
+  const k = [O.set, O.col, O.tint, +O.hueRad || 0,
+             O.hueOn ? 1 : 0, O.bad ? 1 : 0].join('|');
+  let m = vesPool.get(k);
+  if (!m) vesPool.set(k, m = vesselMat(O));
+  return m;
+}
+// THE ROOM'S MOOD SCALES THESE TOO (2026-09-04). props.js and aeroskin.js each
+// keep their materials' own `env0` and let hangar.js's setMood multiply it;
+// without the same posture a tank arrived at envMapIntensity 1.0 while every
+// other material in the room sat at 2.2 (measured, in the garage), which on
+// bare alloy is a dull grey box beside a bright aeroplane. The factor is
+// REMEMBERED, for the reason aeroskin.js's own note gives: a material built
+// between two mood changes would otherwise keep the default until the next.
+const vmats = new Map();
+// EVERY material the factory has made, not just the editor's cache: the flown
+// aeroplane's tank is built from the same factory and stands in the same room.
+const vesAll = [];
+let VES_ENV_F = 1;
+function vesselSetEnv(f) {
+  VES_ENV_F = f;
+  for (const m of vesAll) m.envMapIntensity = (m.userData.env0 || 1) * f;
+  if (wetMat) wetMat.envMapIntensity = f;
+}
+function slotMat(slot, bad) {
+  const fin = slot === 'shell' ? finishKey() : SLOT_FIN[slot];
+  const id = slot + '|' + fin + (bad ? '!' : '');
+  let m = vmats.get(id);
+  if (!m) vmats.set(id, m = buildMat(fin, bad));
+  // the two live rows are applied on every layout rather than baked into the
+  // cache key: a hue drag must not compile a new program for every degree
+  const col = slot === 'shell' ? (EN.tint || FINISH[fin].col) : SLOT_COL[slot];
+  m.color.set(col);
+  const h = (slot === 'shell' && FINISH[fin].hue) ? (EN.hue || 0) * Math.PI / 180 : 0;
+  m.userData.hue = h;
+  if (m.userData.hueU) m.userData.hueU.value = h;
+  return m;
+}
+// A WET WING HAS NO SHELL: it is the spar bay itself, sealed, so what is drawn
+// there is the fuel and not a tank. That one keeps the plain translucent look.
+let wetMat = null;
+function matWet(bad) {
+  if (!wetMat) {
+    wetMat = new THREE.MeshStandardMaterial({ color: 0x4a8fd6, roughness: 0.30,
+      metalness: 0.10, transparent: true, opacity: 0.40, side: THREE.DoubleSide });
+    wetMat.userData.aeroskin = 1;
+    wetMat.userData.env0 = 1;
+    wetMat.envMapIntensity = VES_ENV_F;
+  }
+  wetMat.emissive.set(bad ? 0xff2a1a : 0x000000);
+  wetMat.emissiveIntensity = bad ? 0.45 : 0;
+  return wetMat;
 }
 // the fuel's own look: avgas is dyed blue, mogas is straw
 let fuelMats = {};
@@ -522,67 +726,103 @@ function ghost() {
   return ghostMat;
 }
 
+// one buffer -> one mesh, placed by the SAME transform the placement decided
+// (centre, then the turn about the vertical). The solid is built in the
+// vessel's own frame and moved here, so nothing has to bake a rotation into
+// geometry that a slider will change again a frame later.
+function slotMesh(group, buf, mat, name, c, rot) {
+  if (!buf || !buf.idx.length) return null;
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(buf.pos, 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(buf.nor, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(buf.uv, 2));
+  g.setIndex(buf.idx);
+  const m = new THREE.Mesh(g, mat);
+  m.position.set(c[0], c[1], c[2]);
+  m.rotation.y = rot || 0;
+  m.name = name;
+  group.add(m);
+  return m;
+}
+// THE SOLID IS CACHED ON WHAT CHANGES IT, and a station drag changes none of
+// it. relayout runs on every slider tick and a shell is a couple of thousand
+// triangles; the key is the box, the form, the kind and the grain, so moving a
+// tank along the body or up its bay rebuilds nothing at all.
+const solids = new Map();
+function vesselSolid(r) {
+  const VM = window.VESSEL_MESH;
+  if (!VM) return null;
+  const fin = finishKey();
+  const form = formOf(r.v);
+  const key = r.e.map(x => x.toFixed(4)).join(',') + '|' + form + '|' + EN.kind + '|' + fin;
+  let s = solids.get(key);
+  if (!s) {
+    s = VM.build({ e: r.e, form, kind: EN.kind,
+                   tile: { shell: tileOf(fin), hard: tileOf('steel'),
+                           seal: tileOf('rubber') } });
+    if (solids.size > 24) solids.clear();
+    solids.set(key, s);
+  }
+  return s;
+}
+
 function drawResults(group, ctx, results) {
-  const K = window.GEAR_KIT;
-  if (!K) return;
+  const VM = window.VESSEL_MESH, K = window.GEAR_KIT;
+  const wet = vesselKey() === 'wet';
   for (const r of results) {
     const bad = !r.ok;
-    if (r.on === 'body' && r.c) {
-      const bag = K.Bag();
-      const cs = Math.cos(r.rot), sn = Math.sin(r.rot);
-      K.boxIn(bag, r.c, r.e, [cs, 0, -sn], [0, 1, 0], [sn, 0, cs]);
-      const m = bag.mesh(group, matFor(vesselKey(), bad));
-      if (m) m.name = 'edVessel_' + EN.vessels.indexOf(r.v);
-    } else if (r.on === 'wing' && r.sides) {
+    const i = EN.vessels.indexOf(r.v);
+    if (r.on === 'body' && r.c && VM) {
+      const sol = vesselSolid(r);
+      if (!sol) continue;
+      r.solid = sol;
+      // `sol.yaw` is the solid's own canonical turn (VESSEL_MESH builds along
+      // the longer horizontal axis), not a placement decision — it rides on
+      // top of the vessel's own `rot` and moves nothing the ledger reads.
+      const yaw = r.rot + (sol.yaw || 0);
+      // THE RED IS THE SHELL'S ALONE. It is four fifths of what you can see,
+      // so a tank that does not fit is unmissable either way — and putting the
+      // emissive on the straps, the filler and the sump as well turned the
+      // whole thing into a red blob with no shape left to read, at exactly the
+      // moment the builder needs to see WHICH corner is through the skin.
+      for (const slot of ['shell', 'hard', 'seal', 'mark'])
+        slotMesh(group, sol[slot], slotMat(slot, slot === 'shell' && bad),
+                 'edVessel_' + i + '_' + slot, r.c, yaw);
+      // THE FUEL INSIDE, at the slider's fill. It is the shell's own section
+      // inset by the wall and cut flat at the level — so in a round tank the
+      // fuel has a round bottom and a flat top, and the level itself is placed
+      // by VOLUME, not by height (VESSEL_MESH.contents). A pack does not
+      // drain, so nothing is drawn inside one.
+      if (EN.kind !== 'battery' && VIEW.fill > 0.02)
+        slotMesh(group, VM.contents(sol, VIEW.fill, 0.008), fuelMat(),
+                 'edFuel_' + i, r.c, yaw);
+    } else if (r.on === 'wing' && r.sides && VM) {
+      // THE WING TANK IS THE SIMPLE ONE, by the user's own ruling: a box in
+      // the panel just outboard of the centre section, and that is all. It is
+      // buried between the spars where nothing can see it, so it gets real
+      // outward normals and metre-true uv and no hardware.
       for (const s of r.sides) {
-        const bag = K.Bag();
         const y0 = s.y - s.d / 2, y1 = s.y + s.d / 2;
-        const p = [
-          bag.v([s.x0, y0, s.zR0]), bag.v([s.x0, y0, s.zF0]),
-          bag.v([s.x0, y1, s.zF0]), bag.v([s.x0, y1, s.zR0]),
-          bag.v([s.x1, y0, s.zR1]), bag.v([s.x1, y0, s.zF1]),
-          bag.v([s.x1, y1, s.zF1]), bag.v([s.x1, y1, s.zR1]),
+        const p8 = [
+          [s.x0, y0, s.zR0], [s.x0, y0, s.zF0], [s.x0, y1, s.zF0], [s.x0, y1, s.zR0],
+          [s.x1, y0, s.zR1], [s.x1, y0, s.zF1], [s.x1, y1, s.zF1], [s.x1, y1, s.zR1],
         ];
-        const q = (a, b, c, d) => bag.quad(p[a], p[b], p[c], p[d]);
-        q(0, 1, 2, 3); q(4, 7, 6, 5); q(0, 4, 5, 1);
-        q(1, 5, 6, 2); q(2, 6, 7, 3); q(3, 7, 4, 0);
-        const m = bag.mesh(group, matFor(vesselKey() === 'wet' ? 'wet' : vesselKey(), bad));
-        if (m) m.name = 'edVessel_' + EN.vessels.indexOf(r.v) + (s.sign > 0 ? 'R' : 'L');
-      }
-    }
-  }
-  // THE FUEL INSIDE THE TANK, at the slider's fill: a second box inset in
-  // each liquid vessel, its height the fill fraction of the vessel's — so the
-  // slider is something you can SEE, and a pack, which does not drain, is
-  // drawn full and unchanging. Wing tanks fill from their floor too.
-  if (EN.kind !== 'battery' && VIEW.fill > 0.02) {
-    const f = Math.min(1, VIEW.fill), inset = 0.008;
-    for (const r of results) {
-      if (r.on === 'body' && r.c) {
-        const bag = K.Bag();
-        const cs = Math.cos(r.rot), sn = Math.sin(r.rot);
-        const h = Math.max(0.004, (r.e[1] - inset) * 2 * f);
-        const c = [r.c[0], r.c[1] - r.e[1] + inset + h / 2, r.c[2]];
-        K.boxIn(bag, c, [r.e[0] - inset, h / 2, r.e[2] - inset],
-                [cs, 0, -sn], [0, 1, 0], [sn, 0, cs]);
-        const m = bag.mesh(group, fuelMat());
-        if (m) m.name = 'edFuel_' + EN.vessels.indexOf(r.v);
-      } else if (r.on === 'wing' && r.sides) {
-        for (const s of r.sides) {
-          const bag = K.Bag();
-          const y0 = s.y - s.d / 2 + inset, y1 = y0 + Math.max(0.004, (s.d - 2 * inset) * f);
-          const x0 = s.x0 + (s.x1 > s.x0 ? inset : -inset), x1 = s.x1 - (s.x1 > s.x0 ? inset : -inset);
-          const p = [
-            bag.v([x0, y0, s.zR0 + inset]), bag.v([x0, y0, s.zF0 - inset]),
-            bag.v([x0, y1, s.zF0 - inset]), bag.v([x0, y1, s.zR0 + inset]),
-            bag.v([x1, y0, s.zR1 + inset]), bag.v([x1, y0, s.zF1 - inset]),
-            bag.v([x1, y1, s.zF1 - inset]), bag.v([x1, y1, s.zR1 + inset]),
+        const mat = wet ? matWet(bad) : slotMat('shell', bad);
+        if (!wet)
+          slotMesh(group, VM.wingBox(p8, tileOf(finishKey())), mat,
+                   'edVessel_' + i + (s.sign > 0 ? 'R' : 'L'), [0, 0, 0], 0);
+        if (EN.kind !== 'battery' && VIEW.fill > 0.02) {
+          const inset = wet ? 0.0 : 0.008, f = Math.min(1, VIEW.fill);
+          const g0 = y0 + inset, g1 = g0 + Math.max(0.004, (s.d - 2 * inset) * f);
+          const dx = s.x1 > s.x0 ? inset : -inset;
+          const q8 = [
+            [s.x0 + dx, g0, s.zR0 + inset], [s.x0 + dx, g0, s.zF0 - inset],
+            [s.x0 + dx, g1, s.zF0 - inset], [s.x0 + dx, g1, s.zR0 + inset],
+            [s.x1 - dx, g0, s.zR1 + inset], [s.x1 - dx, g0, s.zF1 - inset],
+            [s.x1 - dx, g1, s.zF1 - inset], [s.x1 - dx, g1, s.zR1 + inset],
           ];
-          const q = (a, b, c, d) => bag.quad(p[a], p[b], p[c], p[d]);
-          q(0, 1, 2, 3); q(4, 7, 6, 5); q(0, 4, 5, 1);
-          q(1, 5, 6, 2); q(2, 6, 7, 3); q(3, 7, 4, 0);
-          const m = bag.mesh(group, fuelMat());
-          if (m) m.name = 'edFuel_' + EN.vessels.indexOf(r.v) + (s.sign > 0 ? 'R' : 'L');
+          slotMesh(group, VM.wingBox(q8, 0.4), wet ? matWet(bad) : fuelMat(),
+                   'edFuel_' + i + (s.sign > 0 ? 'R' : 'L'), [0, 0, 0], 0);
         }
       }
     }
@@ -943,6 +1183,50 @@ function mountPanel() {
   if (dec) ui.insertBefore(panel, dec); else ui.appendChild(panel);
 }
 
+// ---------------------------------------------------------------------------
+// THE PART TREE'S DOOR (2026-09-05, the user: "I expect a fuel item in the
+// tree, and the ability to select visually the reservoir")
+// ---------------------------------------------------------------------------
+// This panel has been mounted into `#cgUi` since G99 — the leftovers column,
+// which the GAME hides (`opts-off`), so on the bench it was in plain sight and
+// in the game it was in the DOM and nowhere on screen. The fix is not a second
+// panel: `_cage_parts.js` declares a `Fuel & energy` part that names this
+// global, and editor.js's column asks for the element and appends it, exactly
+// as it does for the reference plane's root. One panel, two hosts, and the
+// bench keeps the one it always had.
+function panelElement() {
+  if (!panel) mountPanel();
+  if (panel && panelBody && !panelBody.firstChild) renderPanel();
+  // ONE HEADING, NOT TWO. In `#cgUi` this panel's own summary IS its accordion
+  // bar; in the inspector the column has already written the part's name above
+  // it, with the fold, so the summary would be the same words again under
+  // itself. Hidden here rather than by the editor because only this function
+  // is ever called from there — the bench, which has no part tree, never asks
+  // for the element and keeps the bar it has always had.
+  if (panel) {
+    const s = panel.querySelector(':scope > summary');
+    if (s) { s.style.display = 'none'; panel.open = true; }
+  }
+  return panel;
+}
+// WHICH vessel, from a click on the solid itself. Returns whether it took —
+// editor.js reads that to know the click MOVED within the part rather than
+// landing on it a second time (which is its "step out to the parent" gesture,
+// and stepping out of the tank you just clicked is not what you meant).
+function selectVessel(i) {
+  if (!(i >= 0 && i < EN.vessels.length)) return false;
+  selected = i;
+  relayout();                        // the bay ghost follows the selection
+  if (panelBody) {
+    for (const d of panelBody.querySelectorAll('details[data-ves]')) {
+      const on = +d.dataset.ves === i;
+      d.style.outline = on ? '1px solid rgba(255,211,90,.55)' : '';
+      if (on) { d.open = true; if (d.scrollIntoView) d.scrollIntoView({ block: 'nearest' }); }
+    }
+  }
+  return true;
+}
+
 const el = (tag, cls, txt) => {
   const d = document.createElement(tag);
   if (cls) d.className = cls;
@@ -1028,16 +1312,49 @@ function renderPanel() {
       EN.vessel = v || null; renderPanel(); relayout(); commit();
     });
 
+  // ---- what it LOOKS like -------------------------------------------------
+  // Three rows that weigh nothing: the catalogue above decides the mass and
+  // the price, this decides the surface. `finish` starts on whatever the
+  // vessel is actually made of, so a builder who never opens these rows still
+  // gets alloy on a welded tank and rubber on a bladder.
+  {
+    const fk = finishKey();
+    select(B, 'finish', 'the surface the shell wears. It is a look and not a ' +
+      'material: the vessel row above is what decides the weight and the price',
+      Object.keys(FINISH).filter(k => k !== 'steel').map(k => [k, FINISH[k].name]),
+      fk, v => { EN.finish = v; renderPanel(); relayout(); commit(); });
+    if (FINISH[fk] && FINISH[fk].hue)
+      range(B, 'paint hue', 'turns the painted sheet’s own colour right ' +
+        'round. The scan is a single hue at one saturation, so this rotates ' +
+        'the paint and nothing else', 0, 359, 1, EN.hue || 0,
+        x => x.toFixed(0) + '°',
+        x => { EN.hue = x; relayout(); }, x => { EN.hue = x; commit(); });
+    const d = row(B, 'tint', 'multiplies the sheet — white leaves it as ' +
+      'scanned, and a colour darkens it towards that colour');
+    const c = document.createElement('input');
+    c.type = 'color';
+    c.value = EN.tint || '#' + ('000000' + (FINISH[fk] || FINISH.alu).col.toString(16)).slice(-6);
+    c.style.flex = '1';
+    c.oninput = () => { EN.tint = c.value; relayout(); };
+    c.onchange = () => { EN.tint = c.value; commit(); };
+    d.appendChild(c);
+  }
+
   // ---- each vessel --------------------------------------------------------
   EN.vessels.forEach((v, i) => {
     const bay = BAYS.find(b => b.key === v.bay) || BAYS[0];
     const det = document.createElement('details');
     det.open = true;
     det.style.marginLeft = '6px';
+    // the entry a viewport click lands on (see `selectVessel`): the list is
+    // rebuilt on every render, so the index rides on the element rather than
+    // being remembered as a node
+    det.dataset.ves = i;
+    if (i === selected) det.style.outline = '1px solid rgba(255,211,90,.55)';
     const sum = document.createElement('summary');
     sum.textContent = (EN.kind === 'battery' ? 'pack ' : 'tank ') + (i + 1) +
       ' · ' + (bay ? bay.name.toLowerCase() : '?');
-    sum.onclick = () => { selected = i; relayout(); };
+    sum.onclick = () => { selectVessel(i); };
     det.appendChild(sum);
     const box = document.createElement('div');
     det.appendChild(box);
@@ -1049,6 +1366,18 @@ function renderPanel() {
         v.bay = nb; v.along = null; v.lv = null; v.rot = 0;
         selected = i; renderPanel(); relayout(); commit();
       });
+
+    // ROUND OR SQUARED, and the litres follow. A wing tank is neither: it is
+    // the box between the spars and the row is not offered there.
+    if (bay && bay.on !== 'wing')
+      select(box, 'shape', 'a squared shell with radiused corners, or a ' +
+        'cylinder with domed ends. The drawn box is the same either way; a ' +
+        'cylinder simply holds less of it, and the capacity says so',
+        [['box', 'squared'], ['cyl', 'cylindrical']], formOf(v), nf => {
+          v.form = nf === 'cyl' ? 'cyl' : 'box';
+          if (v.dims) v.capacity = capacityFromDims(v.dims, formOf(v));
+          selected = i; renderPanel(); relayout(); commit();
+        });
 
     // capacity: as much as the bay can take, less the vessel's own ullage
     const room = bay ? (bay.roomL || 0) : 0;
@@ -1131,7 +1460,8 @@ function renderPanel() {
       const used = new Set(EN.vessels.map(x => x.bay));
       const free = BAYS.find(x => !used.has(x.key) && x.roomL > 20) || BAYS[0];
       EN.vessels.push({ bay: free ? free.key : 'nose',
-        capacity: EN.kind === 'battery' ? 6 : 30, along: null, lv: null, rot: 0 });
+        capacity: EN.kind === 'battery' ? 6 : 30, along: null, lv: null, rot: 0,
+        form: 'box' });
       selected = EN.vessels.length - 1;
       renderPanel(); relayout(); commit();
     };
@@ -1262,9 +1592,14 @@ function syncReadouts() {
 }
 
 window.CAGE_ENERGY = {
-  EN, fromSpec, toSpec, relayout, commit,
+  EN, fromSpec, toSpec, relayout, commit, setEnv: vesselSetEnv,
+  // the flown aeroplane's door into the factory (app.js matFor, `m.ves`)
+  material: vesselMatFor,
   results: () => LAST.results, bays: () => BAYS,
   chart: () => LAST_CHART, view: VIEW,
-  select: i => { selected = i; relayout(); },
+  // the part tree's two doors: the column asks for the panel, a viewport
+  // click asks for one vessel of the list
+  panel: panelElement,
+  select: selectVessel,
 };
 })();

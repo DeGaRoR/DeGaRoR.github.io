@@ -36,6 +36,12 @@ function makeTestPilot(sim, def, world) {
   const A = def.params.ap;
   // TP + G121: live mass (see the donor's note); exposed as ap.taxiFF so
   // the mass-proofing gate can watch it follow a drained tank.
+  // THE POWER NOSE-OVER CAP (G179): see genGroundPowerCap. 1 for every
+  // aeroplane whose thrust line sits at or below its CG, and for every
+  // tricycle — the whole fleet; less than 1 only on a taildragger that would
+  // go over on power alone, until its tail is up.
+  const GP = (typeof genGroundPowerCap === 'function')
+    ? genGroundPowerCap(def, sim.thrustAt(0), sim.totalM * 9.81) : { cap: 1 };
   const taxiFF = (() => {
     const PP = POWERPLANTS[def.params.powerplant];
     const PR = def.params.prop || PP.prop;
@@ -325,7 +331,7 @@ function makeTestPilot(sim, def, world) {
     const taxi = (Vtgt) => {
       c.de = A.taxiDe ?? 0.30;
       const ff = taxiFF();
-      const cap = A.taxiThrMax ?? 0.85;
+      const cap = Math.min(A.taxiThrMax ?? 0.85, GP.cap);   // G179
       if (ap.t - taxiLastT > 2) taxiI = 0;
       taxiLastT = ap.t;
       const err = Vtgt - Vg;
@@ -418,7 +424,8 @@ function makeTestPilot(sim, def, world) {
       }
 
       case 'ROLL': {
-        c.thr = ap.t > 0.5 ? 1 : 0; c.brake = 0;
+        // G179: power up as the tail comes up (GP.cap is 1 for the fleet)
+        c.thr = ap.t > 0.5 ? (V < (A.VTailUp ?? 0) ? GP.cap : 1) : 0; c.brake = 0;
         // TP: THE ROLL HAS AN EXIT NOW. The donor's ROLL has exactly one —
         // reaching Vr — so an aeroplane that never will rolls to the fence.
         // Three rejection calls, each with margin the whole fleet clears by

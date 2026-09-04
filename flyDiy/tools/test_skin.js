@@ -92,7 +92,7 @@ chk(gmax < 1e-6, 'gen deltas non-zero at zero load (rest reference out of body f
 // the strut anchor nodes get the same zero (app.js's two-end strut binding
 // shares this rest law — the parked strut must not skew)
 const gTo = defBodyProject(gdef);
-const [gxA, gyU] = gsim.axes(), gcg = gsim.cgPos();
+const [gxA, gyU] = gsim.axes(), gcg = gsim.bodyOrigin();   // G179: structural origin
 const gzL = [gxA[1]*gyU[2]-gxA[2]*gyU[1], gxA[2]*gyU[0]-gxA[0]*gyU[2],
              gxA[0]*gyU[1]-gxA[1]*gyU[0]];
 let smax = 0, snodes = 0;

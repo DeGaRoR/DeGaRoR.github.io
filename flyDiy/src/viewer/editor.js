@@ -703,6 +703,20 @@ function editorInit(api) {
         rowsEl.appendChild(h);
         groupsOf.push({ head: h, part: p, group: null, rows: [] });
       }
+      // A PART THAT IS NOT A SET OF SLIDERS (2026-09-05). The energy layer's
+      // controls are a LIST — you add a tank, you remove one, and each carries
+      // its own rows — so there is no fixed set of parameters for the table to
+      // claim and no row for `emit` to move. The part names a global that owns
+      // its column whole and hands back one element, which is exactly the
+      // shape the reference plane's root already has. The parking loop removes
+      // it on the next render (it is not `.r`), and the provider hands back
+      // the same element again: detached, never destroyed.
+      if (p.panel) {
+        const prov = window[p.panel];
+        const el = prov && prov.panel && prov.panel();
+        if (el) emitEls(p, nameOf(p), [el], null, true);
+        continue;
+      }
       // THE COMMON TRUNK — P8 §5's placement strip, widened (2026-09-03, the
       // user: "identify the common trunk in all the controls and group them
       // appropriately. Right now, essential controls live alongside
@@ -1993,6 +2007,19 @@ function editorInit(api) {
   // either position, because that is what makes the tree row mean anything.
   const LS_PICK = 'flydiy.edPickBay';
   let pickBay = pref(LS_PICK) !== 'whole';
+  // A PART CAN HOLD A LIST, and then a click has to say WHICH ONE (2026-09-05).
+  // The energy layer draws one solid per vessel and names it `edVessel_<i>_…`
+  // (`edFuel_<i>` for what is in it), so the index is in the mesh name and the
+  // layer is the only thing that knows what to do with it. Returns true when
+  // the hit named an entry, so the caller knows the click MOVED within a part
+  // and must not read as a second click on the same one.
+  function instanceOfHit(hit) {
+    const n = hit && hit.name;
+    if (!n) return false;
+    const m = /^ed(?:Vessel|Fuel)_(\d+)/.exec(n);
+    if (!m || !window.CAGE_ENERGY || !window.CAGE_ENERGY.select) return false;
+    return window.CAGE_ENERGY.select(+m[1]);
+  }
   function partOfHit(hit) {
     if (!hit) return null;
     if (pickBay && hit.section &&
@@ -2926,6 +2953,15 @@ function editorInit(api) {
       // is app.js's own answer to "the ray was cast and hit nothing"; a bare
       // null means the question was never asked and must change nothing.
       if (key) {
+        // WHICH TANK, not just "a tank" (2026-09-05, the user: "the ability to
+        // select visually the reservoir"). A part is one tree row, and the
+        // energy layer holds a LIST under it — so the layer's own mesh names
+        // say which entry was struck and the panel opens on that one. Told
+        // BEFORE the selection, so the column it builds is already the right
+        // vessel's. Clicking a second tank therefore lands on that tank
+        // instead of stepping out, which is what `lastPick` is reset for.
+        const inst2 = instanceOfHit(hit);
+        if (inst2) lastPick = null;
         select(key === lastPick ? stepOut(sel) : key);
         lastPick = key;
       } else if (hit && hit.miss) {

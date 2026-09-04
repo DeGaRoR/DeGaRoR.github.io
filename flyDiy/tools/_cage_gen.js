@@ -6438,6 +6438,24 @@ function cageFromSpec(spec) {
       if (k in CAGE_VIEW_KEYS) continue;          // an older file may carry one
       if (c[k] !== undefined && c[k] !== null) P[k] = c[k];
     }
+  // G180 MIGRATIONS, at the one door a saved cage comes through. (1) The
+  // TANDEM layout is retired: every bay seats the cockpit's row now, so a
+  // tandem IS one abreast with a bay, and `seatLayout 2` reads as 0. (2) The
+  // SECOND DUMMY switch became per-section occupancy: an older file that
+  // carried `dum2On` (only a 0 ever rode in spec.cage — 1 was the default)
+  // and none of the section rows gets the sections it meant: all full, or
+  // nobody but the pilot. A file with no `dum2On` was at the default, which
+  // the section rows' own defaults reproduce. The old key does not survive.
+  if (Math.round(P.seatLayout) === 2) P.seatLayout = 0;
+  if (c && typeof c === 'object' && 'dum2On' in c &&
+      c.cabOcc == null && c.paxOcc1 == null && c.paxOcc2 == null &&
+      c.paxOcc3 == null && c.paxOcc4 == null) {
+    const on = +c.dum2On ? 1 : 0;
+    P.cabOcc = on;
+    for (let n = 1; n <= 4; n++) P['paxOcc' + n] = on ? 2 : 0;
+  }
+  delete P.dum2On;
+  delete P.seatPitch;                            // the bays are the pitch now
   return P;
 }
 

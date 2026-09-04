@@ -1854,14 +1854,40 @@ vec3 aeroStructure(vec2 m, inout float rgh) {
   // derivatives give the conversion. It is well conditioned here — both vary
   // smoothly and near-linearly across a bay — and clamped anyway, because at
   // a silhouette the ratio is meaningless.
+  // THE D-SKIN IS SMOOTH, AND NOT ONLY PALE (2026-09-04, the user: "the wing
+  // spars are visible everywhere, while IRL the leading edge is smooth. Could
+  // we limit the ribbed normal to the wing but the leading edge"). The band
+  // below already existed — as a ROUGHNESS and an albedo feature, further
+  // down — because a leading edge is a metal D-skin wrapped over the front of
+  // the ribs and bonded to the front spar. That is a stressed shell, not
+  // fabric pulled over stations: nothing telegraphs through it, there is no
+  // sag between the ribs under it, and the front spar it is bonded to is the
+  // one member on a wing that cannot print. So the same band that pales the
+  // paint now also silences the RELIEF, over the same distance in metres from
+  // the edge and off the same uniform, and everything aft of it is unchanged.
+  //
+  // AND IT IS A CUT, NOT A FADE (the user, on the first version, tracing the
+  // line on a screenshot: "rather than a progressive disparition of the
+  // normal, maybe we should just cut the marks from that line onwards? The
+  // real things put a smooth semirigid thing in front of the spars, so it
+  // starts sharp"). That is right, and for a physical reason: the D-skin's aft
+  // edge is a LAP JOINT onto the covering, not a blend — the ribs print
+  // through right up to it and not at all in front of it. A ramp over 120 mm
+  // was a haze where a real wing has an edge. The transition is one fragment
+  // wide (fw is this pixel's own footprint in metres), which is a hard line
+  // that still does not crawl at a distance.
+  // NO BACKTICKS IN HERE — this whole block is a template literal and a stray
+  // one ends it mid-shader. It has now cost three debugging rounds.
+  float leK = (uG4.z > 0.0 && uG5.w > 0.5)
+    ? smoothstep(uG4.z - fw, uG4.z + fw, max(m.y, 0.0)) : 1.0;
   if (uG4.x > 0.0) {
     float mSt = clamp(fwidth(m.x) / max(fwidth(vSurf.z), 1e-5), 0.02, 4.0);
     float mLv = clamp(fwidth(m.y) / max(fwidth(vSurf.w), 1e-5), 0.02, 4.0);
     float dSt = (fract(vSurf.z + 0.5) - 0.5) * mSt;   // metres to the rib
     float dLv = (fract(vSurf.w + 0.5) - 0.5) * mLv;   // metres to the spar
     float w2 = max(uG4.y * uG4.y, 1e-8);
-    dH.x += uG4.x * (-2.0 * dSt / w2) * exp(-dSt * dSt / w2);
-    dH.y += uG4.x * (-2.0 * dLv / w2) * exp(-dLv * dLv / w2);
+    dH.x += leK * uG4.x * (-2.0 * dSt / w2) * exp(-dSt * dSt / w2);
+    dH.y += leK * uG4.x * (-2.0 * dLv / w2) * exp(-dLv * dLv / w2);
     // and the SAG between ribs, which on a fabric wing is the whole look:
     // the covering is pulled between them and the tape rides the ridge
     if (uG1.z > 0.0) {
@@ -1871,14 +1897,14 @@ vec3 aeroStructure(vec2 m, inout float rgh) {
       // division and left the sag ~2.7x too shallow to see.
       const float PI2 = 3.14159265;
       float t = fract(vSurf.z), sg = sin(PI2 * t);
-      dH.x -= uG1.z * uG1.w * pow(max(sg, 1e-4), uG1.w - 1.0)
+      dH.x -= leK * uG1.z * uG1.w * pow(max(sg, 1e-4), uG1.w - 1.0)
             * cos(PI2 * t) * PI2;
     }
     // fasteners along the real members: rib lacing, or the spar-cap rivets
     if (uG4.w > 0.0 && uG2.y > 0.0) {
       float p2 = uG2.y;
       vec4 fr = texture2D(tFast, vec2(m.y / p2, dSt / p2 + 0.5));
-      float mr = 1.0 - smoothstep(uG2.z - fw, uG2.z + fw, abs(dSt));
+      float mr = (1.0 - smoothstep(uG2.z - fw, uG2.z + fw, abs(dSt))) * leK;
       vec2 gr = (fr.rg * 2.0 - 1.0) * mr;
       dH.x += -gr.x * uG4.w;
       dH.y +=  gr.y * uG4.w;

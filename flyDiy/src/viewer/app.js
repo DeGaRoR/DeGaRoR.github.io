@@ -1345,6 +1345,23 @@
               ribM: m.ribM, wearK: m.wearK, wearM: m.wearM,
               side: THREE.DoubleSide });
       }
+      // ...AND SO ARE THE TANKS AND THE PACKS (2026-09-04, user: "the fuel
+      // tank material does not seem to make it in game — red in the editor,
+      // white in the flight interface"). They are the second family in a cage
+      // payload with a factory of its own, and they took the fall-through
+      // below: a flat colour and two scalars. That is not what a tank looks
+      // like — the red was the SCANNED SHEET, tinted and hue-rotated — so a
+      // painted shell flew as its multiplier, which for the factory colour is
+      // plain white. Same answer as AEROSKIN's above, from the same door: the
+      // payload names the SET and the hue, `color` carries the tint, and the
+      // energy layer's own factory rebuilds the material the editor drew.
+      // (The uv comes with it — the snapshot carries a vessel bucket's real
+      // metre-true uv where the rest of the cage has none.)
+      if (data.cage && m.ves && window.CAGE_ENERGY &&
+          window.CAGE_ENERGY.material)
+        return matCache[mn] = window.CAGE_ENERGY.material({
+          set: m.ves, tint: m.color, hueRad: m.vesHue || 0,
+          hueOn: !!m.vesHueOn });
       const s = PBR[mn] || PBR._;
       // W18: MeshStandard, not Lambert — which is what makes the aircraft see
       // scene.environment at all (r128 routes it to Standard materials only).
@@ -1429,6 +1446,7 @@
     // travel is the physics showing through, not an animation. The prop
     // parts join `props` and spin with the existing throttle law.
     const wheelParts = [], stretchRigs = [], surfParts = [];
+    const engRigs = [], strutRigs = [];                              // G179.2
     let castorRig = null;
     if (data.cage && Array.isArray(data.parts)) {
       const twi = Array.isArray(curDef.refs.tw) ? curDef.refs.tw[0]
@@ -1457,6 +1475,27 @@
             offY = (data.off && data.off[1]) || 0;
       const nodeRest = idx => { const q = toB(curDef.nodes[idx].p);
         return [q[0] - offX, q[1] - offY, q[2]]; };
+      // G179.2: which physics engine node(s) a drawn unit rides — by the
+      // SIGN of its z (G58.3's rule), both nodes of a centreline unit
+      const engNodesFor = z => {
+        const E = curDef.refs.engine || [];
+        if (Math.abs(z) < 0.05) return E.slice();
+        const same = E.filter(i => (curDef.nodes[i].p[2] >= 0) === (z >= 0));
+        return same.length ? same : E.slice();
+      };
+      const meanRest = idxs => { const o = [0, 0, 0];
+        for (const i of idxs) { const q = nodeRest(i);
+          o[0] += q[0] / idxs.length; o[1] += q[1] / idxs.length; o[2] += q[2] / idxs.length; }
+        return o; };
+      const dSeg2 = (v, a, b) => {
+        const ab = [b[0]-a[0], b[1]-a[1], b[2]-a[2]];
+        const ap = [v[0]-a[0], v[1]-a[1], v[2]-a[2]];
+        const L2 = ab[0]*ab[0] + ab[1]*ab[1] + ab[2]*ab[2] || 1e-9;
+        const t = (ap[0]*ab[0] + ap[1]*ab[1] + ap[2]*ab[2]) / L2;
+        const tc = Math.max(0, Math.min(1, t));
+        const qx = ap[0]-ab[0]*tc, qy = ap[1]-ab[1]*tc, qz = ap[2]-ab[2]*tc;
+        return [qx*qx + qy*qy + qz*qz, t];
+      };
       for (const pt of data.parts) {
         const pg = new THREE.Group();
         for (const name in pt.groups) {
@@ -1482,6 +1521,72 @@
           // pitch calibration and the mount offsets have tilted
           if (pt.axis) pg.userData.spinAxis = pt.axis;
           grp.add(pg); props.push(pg);
+          // ...and it rides the same node as its engine (G179.2)
+          { const idxs = engNodesFor(pt.pivot[2]);
+            if (idxs.length) engRigs.push({ obj: pg, idxs, pivot: pt.pivot,
+                                            rest0: meanRest(idxs) }); }
+        }
+        else if (pt.kind === 'liftstrut' && pt.members && pt.members.length &&
+                 curDef.parts && curDef.parts.wf) {
+          // A LIFT STRUT IS A LINE BETWEEN TWO POINTS (G179.2, the user:
+          // "one end associated with the fuselage, the other end with the
+          // wing, and the bar does not deform, it just follows the 2 points
+          // ... it can't get distorted"). The wing layer published each
+          // member's own drawn pin and tip; every vertex takes the nearest
+          // member and its projection t along it, and moves by t times that
+          // member's physics TIP node travel — 0 at the pin (the rigid
+          // fuselage), 1 at the tip (the wing skin's own station). Straight
+          // by construction, whatever the physics does.
+          grp.add(pg);
+          const W2 = curDef.parts.wf;
+          const rPos = W2.R && W2.R.strutF != null && curDef.nodes[W2.R.strutF].p[2] > 0;
+          const sideOf = z => ((z >= 0) === rPos ? W2.R : W2.L);
+          const nodeOfMember = pt.members.map(m => {
+            const S2 = sideOf(m.tip[2]);
+            if (!S2 || S2.strutF == null) return null;
+            const same = pt.members.filter(o => (o.tip[2] >= 0) === (m.tip[2] >= 0));
+            const xMin = Math.min(...same.map(o => o.tip[0]));
+            const front = m.tip[0] <= xMin + 1e-6;           // x is aft
+            return front ? S2.strutF : (S2.strutR != null ? S2.strutR : S2.strutF);
+          });
+          pg.traverse(o => {
+            if (!o.isMesh || !o.geometry) return;
+            const pa = o.geometry.attributes.position;
+            if (!pa || !pa.array) return;
+            const src = pt.groups[Object.keys(pt.groups)
+              .find(k => pt.groups[k].pos === pa.array)] || null;
+            if (src) {                       // G58.4's aliasing rule
+              if (!src.base0) src.base0 = pa.array.slice();
+              else pa.array.set(src.base0);
+            }
+            const base = pa.array.slice();
+            const memb = new Uint8Array(pa.count), W = new Float32Array(pa.count);
+            for (let i = 0; i < pa.count; i++) {
+              const v = [base[i*3], base[i*3+1], base[i*3+2]];
+              let best = 0, bd = Infinity, bt = 0;
+              pt.members.forEach((m, k) => {
+                const r2 = dSeg2(v, m.pin, m.tip);
+                if (r2[0] < bd) { bd = r2[0]; best = k; bt = r2[1]; }
+              });
+              memb[i] = best; W[i] = Math.max(0, Math.min(1, bt));
+            }
+            strutRigs.push({ posAttr: pa, base, memb, w: W, idx: nodeOfMember,
+                             rest0: nodeOfMember.map(n => n == null ? null : nodeRest(n)) });
+          });
+        }
+        else if (pt.kind === 'eng') {
+          // THE ENGINE UNIT IS ONE RIGID PART ON ITS OWN NODE (G179.2, the
+          // user: "ALL of the engine mesh should be parented to the wing
+          // nodes"). It used to be skin: the wing-box selector cut a
+          // wing-mounted block through the middle and the halves went two
+          // ways — 6 cm apart on the take-off roll, 24 at FLEX x4. Drawn
+          // place + its engine node's travel, exactly as a wheel is posed.
+          if (pg.position && pg.position.set)
+            pg.position.set(pt.pivot[0], pt.pivot[1], pt.pivot[2]);
+          grp.add(pg);
+          const idxs = engNodesFor(pt.pivot[2]);
+          if (idxs.length) engRigs.push({ obj: pg, idxs, pivot: pt.pivot,
+                                          rest0: meanRest(idxs) });
         }
         else if (pt.stretch && legNode[pt.kind] != null) {
           // G58.3: a LEG deforms toward its axle — verts stay unrebased,
@@ -1779,67 +1884,28 @@
     // the tip's — the tube translates, tilts and stretches between the very
     // nodes its beam runs between (61 exports them as wf.*.strutF/strutR),
     // and can neither kink mid-span nor part company with a flexing wing.
-    let strutBind = null;
-    if (data.cage && dec.sstrut && def.parts && def.parts.wf) {
-      try {
-        const cg0b = defCG(curDef);
-        const dxs = cg0b[0] + ((data.off && data.off[0]) || 0);
-        const dys = cg0b[1] + ((data.off && data.off[1]) || 0);
-        const snap = i => { const p = def.nodes[i].p;
-                            return [p[0] - dxs, p[1] - dys, p[2]]; };
-        const sides = {};
-        for (const sd of ['R', 'L']) {
-          const fw = def.parts.wf[sd];
-          if (!fw || fw.strutRoot == null || fw.strutF == null) continue;
-          sides[sd] = { foot: fw.strutRoot, tipF: fw.strutF, tipR: fw.strutR,
-                        sFoot: snap(fw.strutRoot), sTipF: snap(fw.strutF),
-                        sTipR: snap(fw.strutR) };
-        }
-        const rig = rigs.find(r => r.name === 'sstrut');
-        if (sides.R && sides.L && rig) {
-          const nv = dec.sstrut.nv, base = rig.base;
-          const memb = new Uint8Array(nv), tArr = new Float32Array(nv);
-          const dSeg = (v, a, b) => {
-            const ab = [b[0]-a[0], b[1]-a[1], b[2]-a[2]];
-            const ap = [v[0]-a[0], v[1]-a[1], v[2]-a[2]];
-            const L2 = ab[0]*ab[0] + ab[1]*ab[1] + ab[2]*ab[2] || 1e-9;
-            const t = (ap[0]*ab[0] + ap[1]*ab[1] + ap[2]*ab[2]) / L2;
-            const tc = Math.max(0, Math.min(1, t));
-            const qx = ap[0]-ab[0]*tc, qy = ap[1]-ab[1]*tc, qz = ap[2]-ab[2]*tc;
-            return [qx*qx + qy*qy + qz*qz, t];
-          };
-          for (let i = 0; i < nv; i++) {
-            const v = [base[i*3], base[i*3+1], base[i*3+2]];
-            const S2 = v[2] >= 0 ? sides.R : sides.L;
-            const [dF, tF] = dSeg(v, S2.sFoot, S2.sTipF);
-            const [dR2, tR2] = dSeg(v, S2.sFoot, S2.sTipR);
-            const rear = dR2 < dF;
-            memb[i] = (v[2] >= 0 ? 0 : 2) + (rear ? 1 : 0);
-            tArr[i] = Math.max(0, Math.min(1.05, rear ? tR2 : tF));
-          }
-          const nodesIx = [sides.R.foot, sides.R.tipF, sides.R.tipR,
-                           sides.L.foot, sides.L.tipF, sides.L.tipR];
-          // rest through defBodyProject, like makeSkinBinding's: any other
-          // frame skews the two ends in OPPOSITE directions at zero load
-          // (the foot sits below the CG, the tips above it) — the parked
-          // bent strut.
-          const toB = defBodyProject(def);
-          const rest = new Float32Array(18);
-          nodesIx.forEach((ni, k) => {
-            const q = toB(def.nodes[ni].p);
-            rest[k*3] = q[0]; rest[k*3+1] = q[1]; rest[k*3+2] = q[2];
-          });
-          strutBind = { rig, memb, t: tArr, nodes: nodesIx, rest,
-                        d: new Float32Array(18) };
-        }
-      } catch (e) { strutBind = null; }
-    }
+    // G179.2: the lift struts are PARTS now (kind 'liftstrut', below):
+    // the two-end follow that lived here keyed on a rig NAME, then on a
+    // 7 cm search around the physics line, and both missed struts the
+    // wing layer drew off that line. Identity beats surgery.
     // station structure is a property of the fiche, so one delta buffer serves all
     const nz = rigs[0].bind.zs.length;
     const deltas = { P: new Float32Array(nz * 3), N: new Float32Array(nz * 3) };
-    const m = Object.assign(entry, { grp, props, rigs, deltas, strutBind,
+    const m = Object.assign(entry, { grp, props, rigs, deltas,
                         off: cfg.off,
+                        // G179: the design CG in the rest body frame — what
+                        // poseModel adds to land the CG-authored mesh on the
+                        // structural origin it is now posed from
+                        oRest: defBodyProject(curDef)(defCG(curDef)),
+                        // ...and for the gen skin, whose `rest` genRestFrame
+                        // authored about that CG: the firewall ring in that
+                        // frame, so genNodeBody lands on the same authoring
+                        // point while measuring from the structure
+                        oNode: (key === 'gen' && typeof genRestFrame === 'function')
+                          ? genRestFrame(curDef).to(defOrigin(curDef)) : null,
                         wheelParts: wheelParts.length ? wheelParts : null,
+                        engRigs: engRigs.length ? engRigs : null,       // G179.2
+                        strutRigs: strutRigs.length ? strutRigs : null, // G179.2
                         stretchRigs: stretchRigs.length ? stretchRigs : null,
                         surfParts: surfParts.length ? surfParts : null,
                         castorRig,
@@ -1855,15 +1921,25 @@
     // a generated model keeps posing in Frame mode: mode 2 hides the covering
     // and shows the tube truss, which is still the same rigged mesh
     if (!model || (skinMode === 2 && !model.gen)) return;
-    const [xA, yU] = sim.axes(), cg = sim.cgPos(),
-          O = model.off || SKIN_CFG[curKey].off;
+    // G179: THE POSE IS PINNED TO THE STRUCTURE. `cg` here is sim.bodyOrigin()
+    // — the firewall ring, the datum the axes are already taken from — not
+    // the mass centre. The mesh is authored about the DESIGN CG, so `oR`
+    // (that CG in the rest body frame) carries the group there: at rest the
+    // two agree exactly, and in flight the drawn fuselage follows the
+    // fuselage NODES instead of a CG that a sagging engine or a draining
+    // tank moves against them. nodeLocal below reads the same `cg`, and the
+    // gear rigs' rest (nodeRest, via defBodyProject) is built on the same
+    // origin — one datum on both sides of every delta.
+    const [xA, yU] = sim.axes(), cg = sim.bodyOrigin(),
+          O = model.off || SKIN_CFG[curKey].off, oR = model.oRest || [0, 0, 0];
     vX.set(xA[0], xA[1], xA[2]); vY.set(yU[0], yU[1], yU[2]);
     vZ.crossVectors(vX, vY);                     // z left: keeps the basis proper (no mirror)
     mBasis.makeBasis(vX, vY, vZ);
+    const ox = O[0] + oR[0], oy = O[1] + oR[1], oz = oR[2];
     mBasis.setPosition(
-      cg[0] + O[0]*xA[0] + O[1]*yU[0],
-      cg[1] + O[0]*xA[1] + O[1]*yU[1],
-      cg[2] + O[0]*xA[2] + O[1]*yU[2]);
+      cg[0] + ox*xA[0] + oy*yU[0] + oz*vZ.x,
+      cg[1] + ox*xA[1] + oy*yU[1] + oz*vZ.y,
+      cg[2] + ox*xA[2] + oy*yU[2] + oz*vZ.z);
     model.grp.matrix.copy(mBasis);
     // THE PROJECTOR'S FRAME IS THIS ONE, AND IT MOVES (G160.2). The box decal
     // modes read `vCraftPos = uCraftInv * modelMatrix * v`, so uCraftInv has to
@@ -1914,7 +1990,7 @@
       // User report: "the x4 deformation is confusing, it's unclear what's
       // applied in the view structure". It was applied. See GATE FLEX.
       const gain = skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0];
-      genNodeBody(sim, model.nodeBody);
+      genNodeBody(sim, model.nodeBody, model.oNode);
       // CONTROL SURFACES: one quaternion each. They also ride the deflection of
       // the spar they hang on, so a bending wing does not leave its aileron
       // behind — a rigid transform driven by node motion, not a vertex deform.
@@ -1962,37 +2038,6 @@
                       r.hb && r.hb.hinged);
       r.posAttr.needsUpdate = true;   // normals kept from rest pose: flex < ~5 deg
     }
-    // G140: the strut's two-end follow — six node deltas in body axes
-    // (sparDeltas' own projection, on the strut's exact beam ends), then
-    // every vertex lerps foot->tip along its own member. See the binding's
-    // construction in buildModel.
-    if (model.strutBind) {
-      const SB = model.strutBind;
-      const gain = skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0];
-      const cgS = sim.cgPos(), axS = sim.axes(), xA2 = axS[0], yU2 = axS[1];
-      const zL2 = [xA2[1]*yU2[2] - xA2[2]*yU2[1],
-                   xA2[2]*yU2[0] - xA2[0]*yU2[2],
-                   xA2[0]*yU2[1] - xA2[1]*yU2[0]];
-      const D6 = SB.d;
-      for (let k = 0; k < 6; k++) {
-        const i3 = SB.nodes[k] * 3;
-        const ddx = sim.p[i3] - cgS[0], ddy = sim.p[i3+1] - cgS[1],
-              ddz = sim.p[i3+2] - cgS[2];
-        D6[k*3]   = (ddx*xA2[0] + ddy*xA2[1] + ddz*xA2[2]) - SB.rest[k*3];
-        D6[k*3+1] = (ddx*yU2[0] + ddy*yU2[1] + ddz*yU2[2]) - SB.rest[k*3+1];
-        D6[k*3+2] = (ddx*zL2[0] + ddy*zL2[1] + ddz*zL2[2]) - SB.rest[k*3+2];
-      }
-      const pos2 = SB.rig.posAttr.array, base2 = SB.rig.base;
-      for (let i = 0; i < SB.memb.length; i++) {
-        const m2 = SB.memb[i];
-        const kF = m2 < 2 ? 0 : 3, kT = kF + 1 + (m2 & 1);
-        const t = SB.t[i], u = 1 - t;
-        pos2[i*3]   = base2[i*3]   + gain * (u*D6[kF*3]   + t*D6[kT*3]);
-        pos2[i*3+1] = base2[i*3+1] + gain * (u*D6[kF*3+1] + t*D6[kT*3+1]);
-        pos2[i*3+2] = base2[i*3+2] + gain * (u*D6[kF*3+2] + t*D6[kT*3+2]);
-      }
-      SB.rig.posAttr.needsUpdate = true;
-    }
     // G55: each wheel rides its AXLE NODE — its position is the node's
     // live coordinates in the SAME basis the pose maps the group into
     // (minus the pose's own x/y offset), so suspension travel is exact by
@@ -2034,6 +2079,39 @@
     // G58.3: the LEGS stretch toward their axle — each vertex moves by its
     // nearness-weight times the node's travel since rest, so the airframe
     // end holds and the axle end follows: the suspension compresses.
+    // G179.2: the ENGINE UNITS and their propellers ride their own node —
+    // drawn place + the node's travel, with the skin's flex gain so a unit
+    // stays on the wing it sits on at FLEX x4 as well as at x1
+    if (model.engRigs) for (const e of model.engRigs) {
+      if (!e.obj.position || !e.obj.position.set) continue;      // smoke stub
+      const g = skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0];
+      let lx = 0, ly = 0, lz = 0;
+      for (const i of e.idxs) { const L = nodeLocal(i); lx += L[0]; ly += L[1]; lz += L[2]; }
+      const n = e.idxs.length;
+      e.obj.position.set(e.pivot[0] + g * (lx / n - e.rest0[0]),
+                         e.pivot[1] + g * (ly / n - e.rest0[1]),
+                         e.pivot[2] + g * (lz / n - e.rest0[2]));
+    }
+    // ...and the LIFT STRUTS: each vertex moves by its projection along its
+    // own member times that member's tip-node travel — a straight line from
+    // the pin on the rigid fuselage to the tip on the flexing wing
+    if (model.strutRigs) for (const s of model.strutRigs) {
+      if (!s.posAttr || !s.posAttr.array) continue;
+      const g = skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0];
+      const D = s.idx.map((n, k) => {
+        if (n == null || !s.rest0[k]) return [0, 0, 0];
+        const L = nodeLocal(n);
+        return [L[0] - s.rest0[k][0], L[1] - s.rest0[k][1], L[2] - s.rest0[k][2]];
+      });
+      const p2 = s.posAttr.array, b = s.base, W = s.w, M2 = s.memb;
+      for (let i = 0; i < W.length; i++) {
+        const d = D[M2[i]] || D[0], t = g * W[i];
+        p2[i*3]   = b[i*3]   + t * d[0];
+        p2[i*3+1] = b[i*3+1] + t * d[1];
+        p2[i*3+2] = b[i*3+2] + t * d[2];
+      }
+      s.posAttr.needsUpdate = true;
+    }
     if (model.stretchRigs) for (const s of model.stretchRigs) {
       if (!s.posAttr || !s.posAttr.array) continue;
       const L = nodeLocal(s.idx);
@@ -2902,7 +2980,9 @@
   // the capture rig's one handle into the flight (G130): the probe page
   // verifies endings and reads the pilot from OUTSIDE the game — nothing
   // in-page consumes this, and nothing else is exposed
-  window.FLIGHT_PROBE = { ap: () => ap, endFlight };
+  // G179.2: the live model too, so a session can ask WHICH vertices follow
+  // WHAT (rigs, parts, bindings) instead of reasoning about a screenshot
+  window.FLIGHT_PROBE = { ap: () => ap, endFlight, model: () => model, sim: () => sim, def: () => def };
   // THE ARRIVAL CARD (G107.2). The flight's ending, said to the player's
   // face: until now `tdInfo` rendered only inside a telemetry panel that
   // fullReset() closes, so the one thing a flight produced was behind a
@@ -3179,9 +3259,19 @@
     // Both name the CONTROLS a builder has rather than the internals — a
     // pointer to a variable nobody can see is not a recommendation.
     const WHY = {
-      'L/D': { what: 'glide ratio at best speed - metres forward per metre down.',
-        fix: 'raise the aspect ratio (more span, or a narrower chord), fair the '
-           + 'undercarriage, and look at the struts and fittings.' },
+      'best L/D': { what: 'the glide ratio - metres forward per metre down, at '
+           + 'the speed it is best, which is printed with it. Real light '
+           + 'aeroplanes sit at 8-12, an open-frame ultralight nearer 6-8, a '
+           + 'glider 25 and up.',
+        fix: 'on a light aeroplane this is PARASITE drag first: cover the '
+           + 'fuselage, put spats on the wheels, fair the legs and the struts. '
+           + 'Span and a narrower chord help after that. Exposed engines, '
+           + 'radiators and an open truss are what an ultralight pays for.' },
+      'L/D at cruise': { what: 'lift over drag at the cruise speed the power '
+           + 'curve sets (65% of the thrust available). More power buys a '
+           + 'faster cruise, and a faster cruise sits further from the best '
+           + 'glide - so this number FALLS when you add an engine, and the '
+           + 'wing barely moves it.' },
       'climb': { what: 'best rate of climb at sea level, at full power.',
         fix: 'this is power against weight: a bigger engine, a coarser propeller, '
            + 'less structure, or more wing area. Check the empty weight first - '
@@ -3262,11 +3352,45 @@
     };
     const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;')
                               .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    // EVERY NUMBER SAYS WHAT IT IS JUDGED AGAINST (G179.4, the user: "all
+    // numbers should give their acceptable bounds. I don't know what I'm
+    // working against"). ONE table: the verdict colour and the printed bound
+    // both read it, so they cannot disagree, and a row with no entry is
+    // information, not a judgement. `lo`/`hi` are the ok band's edges (warn
+    // past them, or bad when `badAtLo` says the band's edge is the red one);
+    // `badLo`/`badHi` the red edges; `text` is what the row prints.
+    const BOUNDS = {
+      'best L/D':        { lo: 6, text: '\u2265 6' },
+      'climb':           { lo: 0.5, badAtLo: true, text: '\u2265 0.5 m/s' },
+      'take-off run':    { hi: 500, badHi: 1100, text: '\u2264 500 m' },
+      'take-off there':  { hi: 500, badHi: 1100, text: '\u2264 500 m' },
+      'climb there':     { lo: 0.3, badAtLo: true, text: '\u2265 0.3 m/s' },
+      'power there':     { lo: 75, text: '\u2265 75%' },
+      'service ceiling': { lo: 500, text: '\u2265 500 m' },
+      'as loaded':       { text: 'margin \u2265 0.05' },
+      'static margin':   { lo: 0.05, badLo: 0, text: '\u2265 0.05' },
+      'weathervane':     { lo: 0.03, badLo: 0, text: '\u2265 0.03' },
+      'prop clear':      { lo: 0.12, badLo: 0.05, text: '\u2265 0.12 m' },
+      'nose-over':       { lo: 15, text: '\u2265 15\u00b0' },
+      'power nose-over': { hi: 0.75, badHi: 1, text: '< 0.75' },
+    };
+    const judge = (label, v) => {
+      const b = BOUNDS[label];
+      if (!b || v == null || !isFinite(v)) return '';
+      if (b.badLo != null && v < b.badLo) return 'bad';
+      if (b.badHi != null && v > b.badHi) return 'bad';
+      if (b.lo != null && v < b.lo) return b.badAtLo ? 'bad' : 'warn';
+      if (b.hi != null && v > b.hi) return 'warn';
+      return '';
+    };
     const R = (label, val, cls, why) => {
       const w = why !== undefined ? why : WHY[label];
+      const bnd = BOUNDS[label];
       let t = '';
       if (w) t = typeof w === 'string' ? w
               : (w.what || '') + (cls && w.fix ? ' \u2014 ' + w.fix : '');
+      if (bnd) t += (t ? ' \u00b7 ' : '') + 'judged against ' + bnd.text;
+      if (bnd) val = val + ' <i>' + bnd.text + '</i>';
       // A ROW THAT DOES NOT FIT HALF THE PLATE TAKES THE WHOLE PLATE
       // (2026-09-03, the user: "the formatting of the plaque is
       // unacceptable"). The sheet is a two-column grid and a value cell could
@@ -3289,14 +3413,14 @@
     R('area', n1(s.Sw, 1) + ' m²');
     R('loading', n1(s.wingLoad, 1) + ' kg/m²');
     R('aspect', n1(s.AR, 1));
-    R('L/D', n1(s.LD, 1), (s.LD || 0) < 6 ? 'warn' : '');
+    R('best L/D', n1(s.LDbest, 1) + ' at ' + n1((s.VbestLD || 0) * 3.6, 0) + ' km/h',
+      judge('best L/D', s.LDbest));
+    R('L/D at cruise', n1(s.LD, 1));
     H('speeds & field');
     R('stall', n1(s.Vs * 3.6, 0) + ' km/h');
     R('cruise', n1(s.VCruise * 3.6, 0) + ' km/h');
-    R('climb', n1(s.climbRate, 2) + ' m/s',
-      (s.climbRate || 0) < 0.5 ? 'bad' : '');
-    R('take-off run', n1(s.TORun, 0) + ' m',
-      (s.TORun || 0) > 1100 ? 'bad' : ((s.TORun || 0) > 500 ? 'warn' : ''));
+    R('climb', n1(s.climbRate, 2) + ' m/s', judge('climb', s.climbRate || 0));
+    R('take-off run', n1(s.TORun, 0) + ' m', judge('take-off run', s.TORun || 0));
     // IN THIN AIR (G72) — only when its own bench test has been run on THIS
     // build, so the section is earned the same way the plaque is.
     const da = densAltIfRun();
@@ -3305,16 +3429,14 @@
       H('in thin air');
       if (hot) {
         R('density altitude', n1(hot.densAlt, 0) + ' m');
-        R('take-off there', n1(hot.TORun, 0) + ' m',
-          (hot.TORun || 0) > 1100 ? 'bad' : ((hot.TORun || 0) > 500 ? 'warn' : ''));
-        R('climb there', n1(hot.climbRate, 2) + ' m/s',
-          (hot.climbRate || 0) < 0.3 ? 'bad' : '');
+        R('take-off there', n1(hot.TORun, 0) + ' m', judge('take-off there', hot.TORun || 0));
+        R('climb there', n1(hot.climbRate, 2) + ' m/s', judge('climb there', hot.climbRate || 0));
         R('power there', n1((hot.power || 1) * 100, 0) + '%',
-          (hot.power || 1) < 0.75 ? 'warn' : '');
+          judge('power there', (hot.power || 1) * 100));
       }
       const cap = v => v == null ? '> ' + n1(da.ceilingCap, 0) + ' m' : n1(v, 0) + ' m';
       R('service ceiling', cap(da.serviceCeiling),
-        (da.serviceCeiling != null && da.serviceCeiling < 500) ? 'warn' : '');
+        da.serviceCeiling == null ? '' : judge('service ceiling', da.serviceCeiling));
       R('absolute ceiling', cap(da.absCeiling));
     }
     // ON THE TEST FLIGHT (G107) — only when the test-pilot circuit has been
@@ -3378,7 +3500,7 @@
     // it is, so a builder can see which corner they happen to be sitting in.
     const E = s.envelope;
     const pc = v => v == null ? '\u2014' : n1(v * 100, 0) + '% MAC';
-    const smCls = v => (v || 0) < 0 ? 'bad' : (v || 0) < 0.05 ? 'warn' : '';
+    const smCls = v => judge('static margin', v || 0);
     if (E && E.aft && E.fwd) {
       R('as loaded', pc(E.cgPct) + ' \u00b7 margin ' + n1(s.staticMargin, 2),
         smCls(s.staticMargin));
@@ -3396,8 +3518,7 @@
     // reads 0.08, the Cub family 0.11; under 0.03 is a wanderer, negative
     // swaps ends. Fin AREA and fin HEIGHT both move it now.
     if (s.cnBeta != null)
-      R('weathervane', n1(s.cnBeta, 3),
-        (s.cnBeta || 0) < 0 ? 'bad' : (s.cnBeta || 0) < 0.03 ? 'warn' : '');
+      R('weathervane', n1(s.cnBeta, 3), judge('weathervane', s.cnBeta || 0));
     // G121: the sheet AT RESERVES — the same airframe with 15% fuel. The
     // static margin is the row this group exists for: with a nose or
     // outboard tank it genuinely moves as the fuel goes, and a plaque that
@@ -3449,11 +3570,13 @@
         (s.propPitch === 'climb' ? 'fine (climb)'
           : s.propPitch === 'cruise' ? 'coarse (cruise)' : 'standard') +
         (s.propPitchAuto ? ' · chosen for you' : ''));
-    R('prop clear', n1(s.propClear, 2) + ' m',
-      (s.propClear || 0) < 0.05 ? 'bad'
-        : (s.propClear || 0) < 0.12 ? 'warn' : '');
-    R('nose-over', n1(s.noseOver, 0) + '°',
-      (s.noseOver || 0) < 15 ? 'warn' : '');
+    R('prop clear', n1(s.propClear, 2) + ' m', judge('prop clear', s.propClear || 0));
+    R('nose-over', n1(s.noseOver, 0) + '°', judge('nose-over', s.noseOver || 0));
+    // G179: a high thrust line on a taildragger — over on power alone at >= 1
+    if (s.powerOver > 0.5)
+      R('power nose-over', n1(s.powerOver, 2) + ' ×' +
+        (s.groundThrCap < 1 ? ' · pilots hold ' + n1(s.groundThrCap * 100, 0) + '% until the tail is up' : ''),
+        judge('power nose-over', s.powerOver));
     if (s.gearFolded) R('gear', 'FOLDED', 'bad');
     $('pqRows').innerHTML = rows.join('');
     $('pqNote').textContent = s.engineName + ' · ' + n1(s.hp, 0) + ' hp · ' +

@@ -901,15 +901,22 @@ function poseSkinGen(g, rest, live, base, pos, gain, hinged) {
 }
 
 // Live node positions in the body frame, for poseSkinGen. Mirrors the codec's
-// sparDeltas: same axes, same CG reference.
-function genNodeBody(sim, out) {
-  const cg = sim.cgPos(), [xA, yU] = sim.axes();
+// sparDeltas: same axes, same STRUCTURAL origin (G179: sim.bodyOrigin, the
+// firewall ring — not the mass centre, which a sagging engine or a draining
+// tank moves against the structure and every bound vertex moved with).
+// `o` is the constant that puts the origin back on the point the gen mesh is
+// authored about (genRestFrame's design CG, see the viewer's oNode): the
+// mesh and its `rest` stay where they were authored, and `live - rest` is a
+// delta measured from the firewall.
+function genNodeBody(sim, out, o) {
+  const cg = sim.bodyOrigin(), [xA, yU] = sim.axes();
+  const ox = o ? o[0] : 0, oy = o ? o[1] : 0, oz = o ? o[2] : 0;
   const zL = [xA[1]*yU[2]-xA[2]*yU[1], xA[2]*yU[0]-xA[0]*yU[2], xA[0]*yU[1]-xA[1]*yU[0]];
   for (let i = 0; i < sim.n; i++) {
     const dx = sim.p[i*3]-cg[0], dy = sim.p[i*3+1]-cg[1], dz = sim.p[i*3+2]-cg[2];
-    out[i*3]   = dx*xA[0]+dy*xA[1]+dz*xA[2];
-    out[i*3+1] = dx*yU[0]+dy*yU[1]+dz*yU[2];
-    out[i*3+2] = dx*zL[0]+dy*zL[1]+dz*zL[2];
+    out[i*3]   = dx*xA[0]+dy*xA[1]+dz*xA[2] + ox;
+    out[i*3+1] = dx*yU[0]+dy*yU[1]+dz*yU[2] + oy;
+    out[i*3+2] = dx*zL[0]+dy*zL[1]+dz*zL[2] + oz;
   }
   return out;
 }

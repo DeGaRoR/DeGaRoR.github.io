@@ -50,6 +50,7 @@ function compute(S, core, opts) {
     const cs = core.genSpecAtFuel(S, L);
     cs.cabin.pilots = 1;
     cs.cabin.pax = Math.max(0, occ - 1);
+    cs.cabin.occupied = null;     // G180: the slider means "the first N seats"
     cs.cabin.baggage = bag;
     const sh = core.genShakedown(core.buildGen(cs), { slim: true });
     return { litres: L, mass: sh.mass, cgX: sh.cgX, npX: sh.npX, staticMargin: sh.staticMargin };
@@ -79,7 +80,7 @@ function compute(S, core, opts) {
   if (!corners) {
     const corner = (label, n, L) => {
       const cs = core.genSpecAtFuel(S, L);
-      cs.cabin.pilots = 1; cs.cabin.pax = Math.max(0, n - 1);
+      cs.cabin.pilots = 1; cs.cabin.pax = Math.max(0, n - 1); cs.cabin.occupied = null;
       const sh = core.genShakedown(core.buildGen(cs), { slim: true });
       return { label, occupants: n, litres: L, mass: sh.mass, cgX: sh.cgX,
                staticMargin: sh.staticMargin, cgPct: sc.pct(sh.cgX) };
