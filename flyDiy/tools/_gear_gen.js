@@ -846,7 +846,9 @@ function legBeam(bags, AF, P, st, sgn) {
   const drop = st.drop, half = st.x;
   // the blade sits ON its doubler, not above it
   const root = off(F.p, F.n, 0.009 + P.beamT * 0.5);
-  const axle = [sgn * half, AF.keelAt(st.z) - drop, st.z + P.beamRake * drop];
+  // the station's own wheel offset (s<i>AxZ) rides on top of the family law
+  const axle = [sgn * half, AF.keelAt(st.z) - drop,
+                st.z + P.beamRake * drop + (st.axZ || 0)];
   const axleIn = [axle[0] - sgn * hubIn, axle[1], axle[2]];
   // the blade bows: the control point pulls it outboard, which is what
   // gives a spring leg its arc and its track gain under load
@@ -902,7 +904,8 @@ function legLink(bags, AF, P, st, sgn) {
   const pivY = st.mount ? st.mount(0, mdx).p[1]
                         : AF.surf(st.z, sgn * P.linkAng * D2R)[1];
   const axle = [sgn * half, axY,
-                st.z + Math.max(0.02, pivY - axY) * Math.tan(swing)];
+                st.z + Math.max(0.02, pivY - axY) * Math.tan(swing)
+                + (st.axZ || 0)];
   const hubIn = cen ? 0 : st.R * 0.40 + 0.020;
   const axleIn = [axle[0] - sgn * hubIn, axle[1], axle[2]];
   const PADT = 0.008, R = P.linkArmW * 0.5;
@@ -1069,7 +1072,9 @@ function legOleo(bags, AF, P, st, sgn) {
   const F = fitOn(AF, st, st.z, aS * P.oleoAng * D2R, -aS * hubIn);
   const drop = st.drop, half = st.x;
   const trunn = off(F.p, F.n, 0.009 + P.oleoDia * 0.42);
-  const axle = [sgn * half, AF.keelAt(st.z) - drop, st.z];
+  // an oleo had no rake law of its own: the wheel offset IS its rake — the
+  // strut is whatever line joins the trunnion to the axle
+  const axle = [sgn * half, AF.keelAt(st.z) - drop, st.z + (st.axZ || 0)];
   const axleIn = [axle[0] - sgn * hubIn, axle[1], axle[2]];
   const dir = nrm(sub(axleIn, trunn));
   const L = len(sub(axleIn, trunn));

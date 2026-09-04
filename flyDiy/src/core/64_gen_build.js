@@ -500,7 +500,14 @@ function genShakedown(def, opts) {
       : S.gear.fairing === 'spat' ? 'spats'
       : S.gear.legFair === 'fair' ? 'faired legs' : null;
     out.bracing = P.bracing;
-    out.propClear = (S.engY - S.propR) - ground;
+    // the covering, reported (2026-09-04): 'open' says the plaque's mass and
+    // drag are a bare truss's, so the two rows do not look mis-measured
+    out.covering = S.fuselage.covering || 'skin';
+    // the lowest disc is the one that strikes (2026-09-04): a nose mount is engY
+    out.propClear = ((S.engAt ? Math.min(...S.engAt.map(e => e.y)) : S.engY)
+                     - S.propR) - ground;
+    out.engMount = S.engAt ? S.engAt[0].mount : 'nose';
+    out.nEngines = S.engines.length;
     // The two halves of the split suspension height, as BUILT rather than as
     // asked for: legDrop is the knob, but gear.y can be bound by prop clearance
     // instead, and the third leg's length is derived for a nosewheel. Reporting

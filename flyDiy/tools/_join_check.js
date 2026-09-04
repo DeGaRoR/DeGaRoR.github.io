@@ -282,6 +282,102 @@ try {
   ok(false, 'measurement-less export threw: ' + e.message);
 }
 
+// THE COVERING IS JOINED (2026-09-04): skinOn 0 -> fuselage.covering 'open',
+// absent otherwise; resolved, an open frame is LIGHTER (no cloth on the
+// fuselage bays) and DRAGGIER (the truss in the wind) than the same build
+// covered — and the covered build's own numbers are the ones it always had
+// (the delta rule, as the gear's).
+try {
+  ok(s.fuselage.covering === undefined, 'default skinOn writes no covering');
+  const sO = cageJoinSpec(Object.assign({}, P, { skinOn: 0 }), M, T);
+  ok(sO.fuselage.covering === 'open', 'skinOn 0 -> fuselage.covering open');
+  const RO = resolveSpec(JSON.parse(JSON.stringify(sO))).spec;
+  ok(RO.fuselage.covering === 'open', 'RESOLVED covering = open');
+  const dS = C.buildGen(JSON.parse(JSON.stringify(s)));
+  const dO = C.buildGen(JSON.parse(JSON.stringify(sO)));
+  const mS = dS.nodes.reduce((t, n) => t + n.m, 0);
+  const mO = dO.nodes.reduce((t, n) => t + n.m, 0);
+  ok(mO < mS - 2, 'an open frame is lighter than the covered one (' +
+     mS.toFixed(1) + ' -> ' + mO.toFixed(1) + ' kg)');
+  ok(dO.params.fusCdA[0] > dS.params.fusCdA[0] + 0.05,
+     'an open frame is draggier (fusCdA ' + dS.params.fusCdA[0].toFixed(3) +
+     ' -> ' + dO.params.fusCdA[0].toFixed(3) + ' m2)');
+  const sB = JSON.parse(JSON.stringify(s)); sB.fuselage.covering = 'bogus';
+  const RC = resolveSpec(sB).spec;
+  ok(RC.fuselage.covering === 'skin', 'a nonsense covering clamps to skin');
+} catch (e) {
+  ok(false, 'covering join threw: ' + e.message);
+}
+
+// THE MOUNTS ARE JOINED (2026-09-04): engMount 1/2/3 -> engines[].mount, the
+// drawn units' stations ride in as x/y/z, a pair is two entries; resolved,
+// the frame hangs the engine where the join said and a pair pulls twice.
+try {
+  ok(s.engines.length === 1 && s.engines[0].mount === 'nose' &&
+     s.engines[0].x === undefined, 'default mount: nose, no station written');
+  const MU = Object.assign({}, M, { engUnits: [{ x: 3.1, y: 0.62, z: 0 }] });
+  const sP = cageJoinSpec(Object.assign({}, P, { engMount: 1 }), MU, T);
+  ok(sP.engines[0].mount === 'pusher' && sP.engines[0].x === 3.1 &&
+     sP.engines[0].y === 0.62, 'engMount 1 -> pusher at the drawn station');
+  const RP = resolveSpec(JSON.parse(JSON.stringify(sP))).spec;
+  ok(RP.engAt && RP.engAt[0].mount === 'pusher' && RP.engAt[0].x === 3.1,
+     'RESOLVED engAt = the drawn pusher station');
+  const dP = C.buildGen(JSON.parse(JSON.stringify(sP)));
+  const eN = dP.refs.engine.map(i => dP.nodes[i]);
+  ok(eN.length === 2 && eN.every(n => Math.abs(n.p[0] - 3.1) < 1e-9 && n.m > 20),
+     'pusher frame: two mount nodes at x 3.1 carrying the engine (' +
+     eN.map(n => n.m.toFixed(1)).join('/') + ' kg)');
+  ok(dP.params.nEngines === 1, 'a pusher is one engine');
+  const MW = Object.assign({}, M, { engUnits: [{ x: 0.9, y: 1.4, z: 2.1 }, { x: 0.9, y: 1.4, z: -2.1 }] });
+  const sW = cageJoinSpec(Object.assign({}, P, { engMount: 3 }), MW, T);
+  ok(sW.engines.length === 2 && sW.engines.every(e => e.mount === 'wing' && e.z === 2.1),
+     'engMount 3 -> a wing pair, |z| 2.1');
+  const dW = C.buildGen(JSON.parse(JSON.stringify(sW)));
+  const wN = dW.refs.engine.map(i => dW.nodes[i]);
+  ok(dW.params.nEngines === 2 && wN.length === 2 &&
+     Math.abs(wN[0].p[2] + wN[1].p[2]) < 1e-9 && Math.abs(Math.abs(wN[0].p[2]) - 2.1) < 1e-9,
+     'wing pair: nEngines 2, mirrored nacelle nodes at |z| 2.1');
+  const sT = cageJoinSpec(Object.assign({}, P, { engMount: 2, engPylonH: 0.4 }), M, T);
+  ok(sT.engines[0].mount === 'wingTop' && sT.engines[0].pylon === 0.4 &&
+     sT.engines[0].x === undefined, 'engMount 2 -> over the wing, pylon 0.4, station derived');
+  const RT = resolveSpec(JSON.parse(JSON.stringify(sT))).spec;
+  ok(RT.engAt[0].mount === 'wingTop' && RT.engAt[0].y > RT.cab.h + 0.4 - 1e-9,
+     'RESOLVED over-the-wing engine sits a pylon above the deck (' +
+     RT.engAt[0].y.toFixed(2) + ' m)');
+  const dT = C.buildGen(JSON.parse(JSON.stringify(sT)));
+  ok(dT.refs.engine.length === 2 && dT.nodes[dT.refs.engine[0]].p[1] > RT.cab.h,
+     'over-the-wing frame: mount nodes above the cabin');
+} catch (e) {
+  ok(false, 'mount join threw: ' + e.message);
+}
+
+// THE V-TAIL IS JOINED (2026-09-04): the stab layer's cant >= 20 deg writes
+// tail.type 'v' + vAngle; the panels' measured projection survives resolve
+// (a built V keeps its span, the AR rule does not re-size it) and the frame
+// builds with no FIN node; a flat stab writes no type at all.
+try {
+  ok(s.tail.type === undefined, 'a flat stab writes no tail.type');
+  const sV = cageJoinSpec(P, Object.assign({}, M, { tailCant: 35 }), T);
+  ok(sV.tail.type === 'v' && sV.tail.vAngle === 35,
+     'cant 35 -> tail.type v, vAngle 35');
+  const RSV = resolveSpec(JSON.parse(JSON.stringify(sV)));
+  const RV = RSV.spec;
+  ok(RV.tail.type === 'v' && Math.abs(RV.tail.vG - 35 * Math.PI / 180) < 1e-9,
+     'RESOLVED type v, vG = 35 deg');
+  ok(Math.abs(RV.tail.hSpan - 2.4) < 1e-9 && !RSV.auto['tail.hSpan'],
+     'RESOLVED V-tail keeps the measured projection 2.4 (' +
+     RV.tail.hSpan.toFixed(3) + ')');
+  ok(Math.abs(RV.tail.Svt - (2.4 / Math.cos(RV.tail.vG)) * 0.8) < 1e-9,
+     'RESOLVED V panel area = (span / cos) x chord');
+  const frV = genFrame(RV);
+  ok(frV.cg0.every(Number.isFinite) && !frV.nodes.some(n => n.tag === 'FIN'),
+     'V-tail frame builds, and has no FIN node');
+  const sC = cageJoinSpec(P, Object.assign({}, M, { tailCant: 10 }), T);
+  ok(sC.tail.type === undefined, 'a 10 deg dihedral stab is not a V');
+} catch (e) {
+  ok(false, 'V-tail join threw: ' + e.message);
+}
+
 // G134: the CUSTOM ENGINE row — facts in, clamped, priced, flown. And its
 // ABSENCE is load-bearing: no engineFacts = the registry preset flies, which
 // is the identity ruling's untouched-preset half.

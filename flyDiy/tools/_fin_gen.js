@@ -823,12 +823,20 @@ function finThicken(m, opts) {
 // sheet was built against), so the root lands at rootX exactly.
 // side +1 = right (a reflection — faces reverse to stay outward), -1 = left
 // (two reflections = a rotation — winding survives).
+// `cant` (2026-09-04, the V-tail): the laid-flat panel rotates about its own
+// ROOT LINE by that many radians, tip up, before the mirror — span x goes to
+// (cos, sin), thickness y to (-sin, cos). A rotation keeps the winding, so the
+// side rule below is untouched; 0 (the default) takes the old branch and is
+// bit-identical to every stab built before the option existed.
 function finToStab(m, opts) {
   const side = (opts.side || 1) >= 0 ? 1 : -1;
   const rootX = opts.rootX || 0, stabY = opts.stabY || 0;
   const sRef = opts.sRef || 0, zOff = opts.zOff || 0;
-  const V = m.V.map(p => [side * (rootX + (p[1] - sRef)),
-                          stabY + p[0], p[2] + zOff]);
+  const cant = opts.cant || 0, cC = Math.cos(cant), sC = Math.sin(cant);
+  const V = m.V.map(p => cant
+    ? [side * (rootX + (p[1] - sRef) * cC - p[0] * sC),
+       stabY + (p[1] - sRef) * sC + p[0] * cC, p[2] + zOff]
+    : [side * (rootX + (p[1] - sRef)), stabY + p[0], p[2] + zOff]);
   const F = m.F.map(f => ({
     v: side > 0 ? f.v.slice().reverse() : f.v.slice(),
     m: f.m, part: f.part }));

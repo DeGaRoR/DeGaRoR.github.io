@@ -701,6 +701,27 @@ console.log(`health: ${cases} cases (dorsal x root x keel x crease x ` +
                                    sRef: rootLine });
   const Lh = FIN.finToStab(solid, { side: -1, rootX: 0.05, stabY: 0.25,
                                     sRef: rootLine });
+  // THE CANT (2026-09-04): a rotation of the laid-flat panel about its root
+  // line — every vertex of the canted lay is the flat lay's, rotated; and
+  // cant 0 (or absent) is the flat lay to the bit
+  {
+    const G = 0.6, cG = Math.cos(G), sG = Math.sin(G);
+    const Rc = FIN.finToStab(solid, { side: 1, rootX: 0.05, stabY: 0.25,
+                                      sRef: rootLine, cant: G });
+    const R0 = FIN.finToStab(solid, { side: 1, rootX: 0.05, stabY: 0.25,
+                                      sRef: rootLine, cant: 0 });
+    let worst = 0, ident = 0;
+    for (let i = 0; i < R.V.length; i++) {
+      const s = R.V[i][0] - 0.05, t = R.V[i][1] - 0.25;
+      const ex = 0.05 + s * cG - t * sG, ey = 0.25 + s * sG + t * cG;
+      worst = Math.max(worst, Math.abs(Rc.V[i][0] - ex),
+                       Math.abs(Rc.V[i][1] - ey), Math.abs(Rc.V[i][2] - R.V[i][2]));
+      for (let k = 0; k < 3; k++) if (R0.V[i][k] !== R.V[i][k]) ident++;
+    }
+    if (worst > 1e-9) fail(`stab cant: not a rotation about the root (${worst.toExponential(2)})`);
+    if (ident) fail(`stab cant 0: ${ident} coordinates differ from the flat lay`);
+    console.log(`stab cant 0.6 rad: rotation residue ${worst.toExponential(2)}, cant 0 identical`);
+  }
   for (const [name, h, sideSign] of [['right', R, 1], ['left', Lh, -1]]) {
     if (!h.V.every(p => p.every(Number.isFinite)))
       fail(`stab ${name}: not finite`);

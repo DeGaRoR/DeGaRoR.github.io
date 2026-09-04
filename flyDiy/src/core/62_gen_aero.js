@@ -96,6 +96,18 @@ function genStrips(S, fr) {
   // fraction of propwash a strip at |z| sees; fitted to the Cub's hand values
   // (centre strip 1.0, first outboard strip 0.5, everything beyond 0)
   const washAt = z => Math.max(0, 1 - (z / Reff) * (z / Reff));
+  // WHO BLOWS ON WHAT (2026-09-04, the mounts): a nose engine washes the
+  // centre section and the inboard wing exactly as fitted to the Cub; a
+  // pusher behind the cabin and an over-the-wing pusher blow on NOTHING
+  // ahead of them (the Chinook's own rule: "pusher -> no wash on the wing")
+  // and on the tail as before; a wing pair washes the wing about EACH
+  // nacelle and the tail, between the two wakes, not at all.
+  const E0 = S.engAt && S.engAt[0], mount = E0 ? E0.mount : 'nose';
+  const wingWash = mount === 'nose' ? washAt
+    : mount === 'wing' ? (z => { const u = (Math.abs(z) - E0.z) / Reff;
+                                 return Math.max(0, 1 - u * u); })
+    : () => 0;
+  const tailWash = mount === 'wing' ? 0 : 1;
   // c/4 between the spars: weight the front spar by how far the quarter chord
   // sits from the rear one
   const cf = (P.sparRear - 0.25) / (P.sparRear - P.sparFront), cr = 1 - cf;
@@ -129,7 +141,7 @@ function genStrips(S, fr) {
           fIn: fw.F[b], fOut: fw.F[b + 1], rIn: fw.R[b], rOut: fw.R[b + 1],
           w: [[fw.F[b], cf * (1 - t)], [fw.F[b + 1], cf * t],
               [fw.R[b], cr * (1 - t)], [fw.R[b + 1], cr * t]],
-          wash: washAt(zc), ail: zc > aStart ? 1 : 0, flap: fFrac,
+          wash: wingWash(zc), ail: zc > aStart ? 1 : 0, flap: fFrac,
         });
       }
     }
@@ -144,7 +156,7 @@ function genStrips(S, fr) {
     fIn: cL.F[0], fOut: cR2.F[0], rIn: cL.R[0], rOut: cR2.R[0],
     w: [[cL.F[0], cf * 0.5], [cR2.F[0], cf * 0.5],
         [cL.R[0], cr * 0.5], [cR2.R[0], cr * 0.5]],
-    wash: 1, ail: 0, flap: 0,
+    wash: mount === 'nose' ? 1 : 0, ail: 0, flap: 0,
   });
 
   const hc = S.tail.hChord;
@@ -157,21 +169,21 @@ function genStrips(S, fr) {
     for (const [H, side] of [[P.HTL, -1], [P.HTR, 1]]) {
       strips.push({ kind: 'vtail', side, cosV: cV, sinV: sV,
         area: 0.565 * S.tail.Svt / 2, chord: hc,
-        wash: R.stabWash, w: [[H, .50], [P.TPB, .30], [P.TPT, .20]] });
+        wash: tailWash * R.stabWash, w: [[H, .50], [P.TPB, .30], [P.TPT, .20]] });
       strips.push({ kind: 'vtail', side, cosV: cV, sinV: sV,
         area: 0.435 * S.tail.Svt / 2, chord: hc,
-        wash: R.stabWash, w: [[H, .25], [P.TPB, .45], [P.TPT, .30]] });
+        wash: tailWash * R.stabWash, w: [[H, .25], [P.TPB, .45], [P.TPT, .30]] });
     }
     return strips;
   }
   for (const [H, side] of [[P.HTL, -1], [P.HTR, 1]]) {
     strips.push({ kind: 'stab', side, area: 0.565 * S.tail.Sh / 2, chord: hc,
-      wash: R.stabWash, w: [[H, .50], [P.TPB, .30], [P.TPT, .20]] });
+      wash: tailWash * R.stabWash, w: [[H, .50], [P.TPB, .30], [P.TPT, .20]] });
     strips.push({ kind: 'stab', side, area: 0.435 * S.tail.Sh / 2, chord: hc,
-      wash: R.stabWash, w: [[H, .25], [P.TPB, .45], [P.TPT, .30]] });
+      wash: tailWash * R.stabWash, w: [[H, .25], [P.TPB, .45], [P.TPT, .30]] });
   }
   strips.push({ kind: 'fin', area: S.tail.Sv, chord: S.tail.vChord,
-    wash: R.finWash, w: [[P.FIN, .40], [P.TPT, .35], [P.TPB, .25]] });
+    wash: tailWash * R.finWash, w: [[P.FIN, .40], [P.TPT, .35], [P.TPB, .25]] });
   return strips;
 }
 
@@ -188,10 +200,22 @@ function genFusCdA(S, fr) {
     const A = 0.5 * ((a.yt - a.yb) + (b.yt - b.yb)) * (b.x - a.x);
     if (i < 2) sFwd += A; else sAft += A;
   }
-  return {
+  const out = {
     fusCdA: [0.75 * frontal, 0.57 * sFwd, 0.57 * sFwd],
     fusCdAAft: [0, 0.31 * sAft, 0.31 * sAft],
   };
+  // AN OPEN FRAME (2026-09-04): the truss uncovered, the occupants in the
+  // wind. Priced as a DELTA on the covered figure — the gear model's own rule
+  // (genGearCdADelta) — so a covered build's calibration does not move at
+  // all. The figure: an exposed tube truss with two seated people runs about
+  // 0.35 of the section's frontal area above a faired pod of the same size
+  // (Hoerner's open-cockpit / ultralight bodies, CdA 0.9-1.1 on frontal vs
+  // 0.75 faired), and the seated bodies add side area a smooth pod lacked.
+  if (S.fuselage && S.fuselage.covering === 'open') {
+    out.fusCdA[0] += 0.35 * frontal;
+    out.fusCdA[1] += 0.10 * sFwd; out.fusCdA[2] += 0.10 * sFwd;
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------

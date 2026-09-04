@@ -52,7 +52,11 @@ const ED = EP.engDefaults();
 const VALS = {};                 // drop key -> value table (P stores index)
 const defaults = { engOn: 1, engPreset: 0, engPower: 0,
                    engDetail: 0.8, eng_screws: ED.screws ? 1 : 0,
-                   engY: 0, propOn: 1 };
+                   engY: 0, propOn: 1,
+                   // THE MOUNT (2026-09-04): 0 nose, 1 pusher on the aft
+                   // bulkhead, 2 over the wing (one engine, high wing, a pylon
+                   // engPylonH tall), 3 a wing pair at engNacAt of the semispan
+                   engMount: 0, engNacAt: 0.35, engPylonH: 0.30 };
 for (const [, rows] of EP.GROUPS)
   for (const r of rows) {
     const [k, , m3, opts] = r;
@@ -247,6 +251,13 @@ const ENG_ITEMS = [
   ['engPreset', 'preset (applies once)', 0,
    Math.max(1, PRESET_NAMES.length - 1), 1, PRESET_NAMES,
    { when: P => +P.engOn }],
+  ['engMount',  'mount', 0, 3, 1,
+   ['nose', 'pusher (aft bulkhead)', 'over the wing (high wing)',
+    'wing nacelles (twin)'], { when: P => +P.engOn }],
+  ['engNacAt',  'nacelle station (semispan)', 0.15, 0.70, 0.01,
+   { when: P => +P.engOn && Math.round(P.engMount) === 3 }],
+  ['engPylonH', 'pylon height', 0.05, 1.0, 0.01,
+   { when: P => +P.engOn && Math.round(P.engMount) === 2, dim: 'm' }],
   ['engY',      'up / down', -0.5, 0.5, 0.005,
    { when: P => +P.engOn, dim: 'm' }],
   ...BENCH_SUBS,
@@ -465,12 +476,21 @@ PAGE.post = ctx => {
   }
 
   const FS = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
-  const nf = window.CAGE_NOSE && window.CAGE_NOSE.noseFace;
-  const face = nf ? nf(mesh, FS) : null;
-  if (!face) {
-    if (stat) stat.textContent += '  ·  engine: no engine face on this body';
+  // THE FACES (2026-09-04): one per engine, from the cowl layer's own
+  // description (nose / aft bulkhead / a pylon over the wing / a nacelle a
+  // side). None = say why, draw nothing.
+  const NF = window.CAGE_NOSE;
+  const mountK = Math.round(P.engMount || 0);
+  const units = NF && NF.engineFaces ? NF.engineFaces(mesh, FS, P) : [];
+  if (!units.length) {
+    if (stat) stat.textContent += '  ·  engine: ' +
+      (mountK === 1 ? (P.boomStyle ? 'no aft bulkhead face' : 'a pusher needs a rod boom (the pod ends at the aft bulkhead)')
+     : mountK === 2 ? (Math.round(P.wgPos || 0) === 0 ? 'no wing to sit on' : 'the over-the-wing mount needs a HIGH wing')
+     : mountK === 3 ? 'no wing to hang the nacelles on'
+     : 'no engine face on this body');
     return;
   }
+  const face = units[0].face;
 
   // spec: the shared dial dict (engSpecOfP — the join resolves the same
   // one, G134); the plate the builder computes against IS the cage's face
@@ -479,7 +499,9 @@ PAGE.post = ctx => {
   const spec = engSpecOfP(P);
   spec.quality = Math.max(0.3, P.engDetail || 0.8);
   spec.screws = P.eng_screws ? 1 : 0;
-  spec.fwOn = 0;                     // the genuine firewall is the cage's
+  // the genuine firewall is the cage's — off the body (a pylon, a nacelle)
+  // the engine draws its own mount plate
+  spec.fwOn = face.synthetic ? 1 : 0;
   spec.fwW = Math.max(0.2, Math.min(2.2, 2 * face.halfW));
   spec.fwH = Math.max(0.2, Math.min(2.2, 2 * face.halfH));
   let M;
@@ -498,8 +520,6 @@ PAGE.post = ctx => {
   // part lives in, and G79's raycast resolves a hit to a part through
   // that. One string, no behaviour.
   group.name = 'cageLayer:eng';
-  const engMesh = meshFrom(M);
-  group.add(engMesh);
 
   // spinner + blades — the cowl tool's geometry, on the crank. NO SHAFT
   // (G32, user): the engine provides the crank and the flange, so the
@@ -511,8 +531,13 @@ PAGE.post = ctx => {
       CW.P[k] = P['cw_' + k];
   const ax = CW.axisXY();
   const nOff = CW.P.noseOff || 0;
-  const ng = new THREE.Group();
-  {
+  // ONE ENGINE PER FACE (2026-09-04). The same engine mesh, spinner and
+  // blades per unit; an AFT unit is turned round (its +z, the crank, points
+  // backwards) so the firewall plate stays on the face and the propeller
+  // runs behind it. Group k > 0 names its spinner/prop with a '#k' suffix so
+  // the join can spin each one about its own hub.
+  const unitOut = [];
+  const spinGeo = (() => {
     const d2 = Math.max(0.35, Math.min(2, CW.P.detail || 1));
     const NS = Math.max(10, Math.round(16 * d2));
     const SA = Math.max(20, Math.round(40 * d2));
@@ -542,58 +567,83 @@ PAGE.post = ctx => {
       new THREE.BufferAttribute(new Float32Array(pos), 3));
     geo.setIndex(idx);
     geo.computeVertexNormals();
-    ng.add(new THREE.Mesh(geo, propMat('spinner')));
-  }
-  ng.position.set(0, 0, nOff);               // cone base -> flange + dial
-  // G55: NAMED for the join's snapshot (G47.2's prescription) — the parts
-  // that turn with the propeller carry their identity at the source
-  ng.name = 'edSpinner';
-  group.add(ng);
-  let pg = null;
-  if (P.propOn) {
-    pg = new THREE.Group();
-    pg.name = 'edProp';
-    // the blade plane rides the cone exactly as the tool placed it
-    pg.position.set(0, 0, nOff + CW.P.spinLen *
-      Math.max(0.02, Math.min(0.95, CW.P.bladeStation)));
-    const info = CW.propGeometry();
-    const pm = propMat();
-    for (let k = 0; k < Math.round(CW.P.bladeN); k++) {
-      const b = new THREE.Group();
-      b.add(new THREE.Mesh(info.geom, pm));
-      b.add(new THREE.Mesh(info.root, pm));
-      b.add(new THREE.Mesh(info.tip, pm));
-      b.rotation.z = k / Math.round(CW.P.bladeN) * Math.PI * 2;
-      pg.add(b);
-    }
-    group.add(pg);
-  }
-
-  // ON THE THRUSTLINE, BOLTED TO THE GENUINE FIREWALL — plus the mount's
-  // own up/down (G32)
-  group.position.set(ax.x, face.yc + ax.y + (P.engY || 0), face.z - zFw);
+    return geo;
+  })();
+  const propInfo = P.propOn ? CW.propGeometry() : null;
   const ex = Math.max(0, P.explodeD || 0) * FS;
-  if (ex > 0) {
-    ng.position.z += ex * 1.5;
-    if (pg) pg.position.z += ex * 2.0;
-  }
+  units.forEach((u, k) => {
+    const f = u.face, sfx = k ? '#' + k : '';
+    const ug = new THREE.Group();
+    const engMesh = meshFrom(M);
+    ug.add(engMesh);
+    const ng = new THREE.Group();
+    ng.add(new THREE.Mesh(spinGeo, propMat('spinner')));
+    ng.position.set(0, 0, nOff);             // cone base -> flange + dial
+    // G55: NAMED for the join's snapshot (G47.2's prescription) — the parts
+    // that turn with the propeller carry their identity at the source
+    ng.name = 'edSpinner' + sfx;
+    ug.add(ng);
+    let pg = null;
+    if (P.propOn) {
+      pg = new THREE.Group();
+      pg.name = 'edProp' + sfx;
+      // the blade plane rides the cone exactly as the tool placed it
+      pg.position.set(0, 0, nOff + CW.P.spinLen *
+        Math.max(0.02, Math.min(0.95, CW.P.bladeStation)));
+      const pm = propMat();
+      for (let b0 = 0; b0 < Math.round(CW.P.bladeN); b0++) {
+        const b = new THREE.Group();
+        b.add(new THREE.Mesh(propInfo.geom, pm));
+        b.add(new THREE.Mesh(propInfo.root, pm));
+        b.add(new THREE.Mesh(propInfo.tip, pm));
+        b.rotation.z = b0 / Math.round(CW.P.bladeN) * Math.PI * 2;
+        pg.add(b);
+      }
+      ug.add(pg);
+    }
+    // ON THE THRUSTLINE, BOLTED TO THE FACE — plus the mount's own up/down
+    // (G32). An aft unit's firewall plane lands on the face from behind.
+    if (u.aft) ug.rotation.y = Math.PI;
+    ug.position.set((f.x || 0) + (u.aft ? -ax.x : ax.x),
+                    f.yc + ax.y + (P.engY || 0),
+                    u.aft ? f.z + zFw : f.z - zFw);
+    if (ex > 0) {
+      ng.position.z += ex * 1.5;
+      if (pg) pg.position.z += ex * 2.0;
+    }
+    group.add(ug);
+    // THE PYLON (the over-the-wing mount): one tapered post from the upper
+    // skin to the mount plate, in the mount's own material
+    if (u.kind === 'wingTop' && f.yBase != null) {
+      const h = Math.max(0.02, f.yc - f.halfH - f.yBase + 0.02);
+      const pl = new THREE.Mesh(
+        new THREE.BoxGeometry(0.09, h, Math.max(0.25, 0.42 * (f.chord || 1))),
+        matOf('emMount'));
+      pl.position.set(f.x || 0, f.yBase + h / 2, f.z + 0.05);
+      group.add(pl);
+    }
+    // THE EXHAUST EXIT IN THE SCENE'S OWN FRAME (G70). The mesh measured it in
+    // the engine's local frame; the group has just been placed on the thrust
+    // line, so one localToWorld puts it in the same metric frame the gear
+    // publishes its contacts in — which is what lets the wear ask the CAGE
+    // where that point is on its skin.
+    let exhaustAt = null;
+    if (engMesh.userData.exhaustExit) {
+      ug.updateMatrixWorld(true);
+      const v = new THREE.Vector3().fromArray(engMesh.userData.exhaustExit);
+      engMesh.localToWorld(v);
+      exhaustAt = [v.x, v.y, v.z];
+    }
+    unitOut.push({ kind: u.kind, aft: !!u.aft, exhaustAt,
+                   at: [ug.position.x, ug.position.y, ug.position.z] });
+  });
   scene.add(group);
-
-  // THE EXHAUST EXIT IN THE SCENE'S OWN FRAME (G70). The mesh measured it in
-  // the engine's local frame; the group has just been placed on the thrust
-  // line, so one localToWorld puts it in the same metric frame the gear
-  // publishes its contacts in — which is what lets the wear ask the CAGE
-  // where that point is on its skin.
-  let exhaustAt = null;
-  if (engMesh.userData.exhaustExit) {
-    group.updateMatrixWorld(true);
-    const v = new THREE.Vector3().fromArray(engMesh.userData.exhaustExit);
-    engMesh.localToWorld(v);
-    exhaustAt = [v.x, v.y, v.z];
-  }
+  const exhaustAt = unitOut[0].exhaustAt;
 
   window.CAGE_ENG = { name: PRESET_NAMES[Math.round(P.engPreset)],
                       resolved: R, zFw, exhaustAt,
+                      mount: ['nose', 'pusher', 'wingTop', 'wing'][mountK] || 'nose',
+                      units: unitOut,
                       spec, quads: M.stats && M.stats.quads };
   if (stat) {
     const head = R.arch === 'electric'

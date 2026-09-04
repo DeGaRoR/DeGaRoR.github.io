@@ -1238,7 +1238,7 @@ PAGE.post = ctx => {
   // the wing at its own place — the dims-pane rule); the answer is the
   // lowest skin point above that position with its normal turned downward,
   // or null off the planform. Cage-space metres, the gear layer's units.
-  let underAt = null;
+  let underAt = null, overAt = null, leAt = null, wbox = null;
   if (skinProbe.length && THREE.Raycaster) {
     const pg = new THREE.Group();
     // DoubleSide, explicitly: the Raycaster culls by material.side, and an
@@ -1260,10 +1260,33 @@ PAGE.post = ctx => {
       const sg2 = n.y > 0 ? -1 : 1;
       return { y: h[0].point.y, n: [n.x * sg2, n.y * sg2, n.z * sg2] };
     };
+    // THE UPPER SKIN AND THE LEADING EDGE (2026-09-04, the engine mounts): the
+    // same probe, cast DOWN for the top; and `leAt(x)` walks the planform
+    // from the front at lateral x until both skins answer — the leading edge
+    // at that station, with the wing's top and bottom there. Metres, the
+    // engine and cowl layers' units.
+    const dDn = new THREE.Vector3(0, -1, 0);
+    overAt = (x, z) => {
+      o.set(x, 60, z);
+      rc.set(o, dDn);
+      const h = rc.intersectObject(pg, true);
+      return h.length ? { y: h[0].point.y } : null;
+    };
+    const bb = new THREE.Box3().setFromObject(pg);
+    wbox = { min: [bb.min.x, bb.min.y, bb.min.z], max: [bb.max.x, bb.max.y, bb.max.z] };
+    leAt = x => {
+      const N = 48;
+      for (let k = 0; k <= N; k++) {
+        const z = bb.max.z - (bb.max.z - bb.min.z) * k / N;
+        const t = overAt(x, z), u = underAt(x, z);
+        if (t && u) return { z, yTop: t.y, yBot: u.y };
+      }
+      return null;
+    };
   }
   window.CAGE_WING = { def, semi: def.spec.geom && def.spec.geom.semi,
                        skinFaces: faces, anchor: { zCab, yAnchor }, group,
-                       underAt };
+                       underAt, overAt, leAt, box: wbox };
   if (stat) {
     const g2 = def.spec.geom || {};
     stat.textContent += '  ·  wing: ' + (g2.S ? g2.S.toFixed(1) + ' m2 · ' : '') +

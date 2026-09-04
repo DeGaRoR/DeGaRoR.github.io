@@ -651,5 +651,34 @@ for (const f of fail) console.log('  FAIL ' + f);
   }
 }
 
+// ---------------------------------------------------------------------------
+// 10 THE WHEEL FALLS WHERE THE STATION SAYS, THE FITTING STAYS (2026-09-04)
+// ---------------------------------------------------------------------------
+// The user: "tune the point of attachment and where the wheels fall
+// independently". `s<i>AxZ` moves the AXLE fore/aft by exactly itself on
+// every leg family and moves the ROOT by nothing; y and x of the axle are
+// untouched (the keel datum, G53/G133, still holds).
+{
+  for (let kind = 0; kind < 3; kind++) {
+    const P = JSON.parse(JSON.stringify(P0));
+    const st0 = GP.gearStations(P)[0];
+    const fn = [GG.legBeam, GG.legLink, GG.legOleo][kind];
+    const a = fn(freshBags(), AF, st0.P, Object.assign({}, st0, { leg: kind }), 1);
+    const b = fn(freshBags(), AF, st0.P,
+                 Object.assign({}, st0, { leg: kind, axZ: 0.35 }), 1);
+    check(Math.abs((b.axle[2] - a.axle[2]) - 0.35) < 1e-6,
+      `${LEGNAME[kind]}: s1AxZ did not move the axle by itself`,
+      `dz ${(b.axle[2] - a.axle[2]).toFixed(3)}`);
+    check(Math.abs(b.axle[0] - a.axle[0]) < 1e-9 && Math.abs(b.axle[1] - a.axle[1]) < 1e-9,
+      `${LEGNAME[kind]}: s1AxZ moved the axle off its keel datum`);
+    check(!!a.root && !!b.root && a.root.every((v, i) => Math.abs(v - b.root[i]) < 1e-9),
+      `${LEGNAME[kind]}: s1AxZ moved the FITTING — the root must stay`);
+  }
+  // the station composer carries it, so the cage layer cannot forget it
+  const P = JSON.parse(JSON.stringify(P0)); P.s1AxZ = 0.2;
+  check(Math.abs(GP.gearStations(P)[0].axZ - 0.2) < 1e-9,
+    'gearStations does not carry s1AxZ');
+}
+
 console.log('GATE GEAR: ' + (fail.length ? 'FAIL' : 'PASS'));
 process.exit(fail.length ? 1 : 0);

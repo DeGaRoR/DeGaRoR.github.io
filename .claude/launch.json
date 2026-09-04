@@ -311,6 +311,15 @@
         "8300"
       ],
       "port": 8300
+    },
+    {
+      "name": "flydiy-mounts",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8303"
+      ],
+      "port": 8303
     }
   ]
 }

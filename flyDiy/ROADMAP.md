@@ -356,7 +356,9 @@ machinery mostly exists — departure/destination selects, multi-leg chaining
 its own arc; none is a side effect of another. Ordered by ratio of new
 aeroplanes to risk.*
 
-1. **V-tail** [L]. The physics half exists — settable Sv/Sh since G115, and
+1. **V-tail** [L] — **LANDED as G173** (2026-09-04): `stCant` + `stMount`,
+   the join writes `tail.type v` from the cant, ruddervators through the
+   codec's second drive. Was: the physics half exists — settable Sv/Sh since G115, and
    the microsurface already resolves canted panels without knowing V-tails
    exist. Geometry and join are the arc. Its opening gate is the synthetic
    canted-panel probe G113.3 owed and never wrote.
@@ -369,11 +371,14 @@ aeroplanes to risk.*
 4. **Retractable gear** [L]. G148's rigging contract is the enabler and drag
    is already delta-from-reference (G115), so this is a drag delta + a motion
    law + editor rows rather than new physics.
-5. **Wing-mounted engines and multiengine** [L, old P7]. Physics has counted
+5. **Wing-mounted engines and multiengine** [L, old P7] — **LANDED as G174**
+   (a tractor pair on the wing; engine-out / Vmc still nobody's number).
+   Was: physics has counted
    engines honestly since G4.9. Unlocks the twin references (P.68) as mimicry
    targets and the heavy-cargo tier later.
-6. **Pushers** [M-L, old P7]. The Chinook has always been one in physics; the
-   bench needs the pusher cowl and mount.
+6. **Pushers** [M-L, old P7] — **LANDED as G174** (the aft bulkhead on a rod
+   boom, and one engine over a high wing). Was: the Chinook has always been
+   one in physics; the bench needs the pusher cowl and mount.
 7. **Turboprops and small turbines** [L]. A new registry family and its
    aspiration law. Distinct from the far-backlog jet module.
 8. **Biplane** [L]. The big one: a second wing plane, cabane and interplane
@@ -578,12 +583,12 @@ this doubles as "what do I get, and when".
 | Travel pod | 2 | 8 | M |
 | Wilga-type suspension | 2 | 9 | M |
 | Little airports | 4 | all | L (the phase) |
-| V-tail | 6 | 1 | L |
+| V-tail — **LANDED G173** (2026-09-04) | 6 | 1 | L |
 | Double boom | 6 | 2 | M-L |
 | Elliptic wing | 6 | 3 | M-L |
 | Retractable wheels | 6 | 4 | L |
-| Wing-mounted engines / multiengine | 6 | 5 | L |
-| Pushers | 6 | 6 | M-L |
+| Wing-mounted engines / multiengine — **LANDED G174** (a wing pair; no engine-out yet) | 6 | 5 | L |
+| Pushers — **LANDED G174** (aft bulkhead + over the wing) | 6 | 6 | M-L |
 | Turboprops / small turbines | 6 | 7 | L |
 | Biplane | 6 | 8 | L |
 | STOL wing, slats/tips (geometry) | 6 | 9 | L |
@@ -1811,7 +1816,9 @@ their accordion (the P8 ruling). Both models measure TRUE SCALE on decode
 (PA-18 span 10.713 m, C172 11.00 m), so the size slider is a correction knob
 for future imports, not a necessity for these two.
 
-**F2 — naked structures.** Door removal and the tube structure dressed to
+**F2 — naked structures.** The HONEST half LANDED as G172 (2026-09-04):
+`skinOn` 0 is `fuselage.covering open` — no covering mass, an open-frame drag
+delta, a Covering design tile. The DRESS below is still owed. Door removal and the tube structure dressed to
 hero level for the open-frame class (Top Rudder / Ruckus): the truss stops
 being interior and becomes the visible airframe — gussets, fittings, bolted
 clusters at the engine-bench finish. G13's I-series is the foundation.

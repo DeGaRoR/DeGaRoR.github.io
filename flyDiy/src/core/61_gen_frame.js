@@ -257,6 +257,11 @@ function genLattice(S, gearX, track, kScale) {
     B(BL, TR, 'fus'); B(BR, TL, 'fus');
     return { BL, BR, TL, TR };
   });
+  // AN OPEN FRAME CARRIES NO COVERING (2026-09-04): the truss below is built
+  // exactly the same; the four panels per bay and the tail-post panel are
+  // simply not billed — no cloth, no paint on them — and genFusCdA prices the
+  // exposed truss. The wing and the tail keep their own covering.
+  const fusCovered = !(S.fuselage && S.fuselage.covering === 'open');
   for (let i = 0; i < F.length - 1; i++) {
     const a = F[i], b = F[i + 1], alt = i % 2;
     B(a.BL, b.BL, 'fus'); B(a.BR, b.BR, 'fus');
@@ -269,10 +274,12 @@ function genLattice(S, gearX, track, kScale) {
     B(a.BL, b.BR, 'fus'); B(a.BR, b.BL, 'fus');     // rule 4, bottom panel
     // covering, four panels per bay, onto the bay's own corners
     const s0 = ST[i], s1 = ST[i + 1];
-    cover(genQuadArea(P, a.TL, a.TR, b.TR, b.TL), [a.TL, a.TR, b.TR, b.TL]);
-    cover(genQuadArea(P, a.BL, a.BR, b.BR, b.BL), [a.BL, a.BR, b.BR, b.BL]);
-    cover(genQuadArea(P, a.TL, a.BL, b.BL, b.TL), [a.TL, a.BL, b.BL, b.TL]);
-    cover(genQuadArea(P, a.TR, a.BR, b.BR, b.TR), [a.TR, a.BR, b.BR, b.TR]);
+    if (fusCovered) {
+      cover(genQuadArea(P, a.TL, a.TR, b.TR, b.TL), [a.TL, a.TR, b.TR, b.TL]);
+      cover(genQuadArea(P, a.BL, a.BR, b.BR, b.BL), [a.BL, a.BR, b.BR, b.BL]);
+      cover(genQuadArea(P, a.TL, a.BL, b.BL, b.TL), [a.TL, a.BL, b.BL, b.TL]);
+      cover(genQuadArea(P, a.TR, a.BR, b.BR, b.TR), [a.TR, a.BR, b.BR, b.TR]);
+    }
     void s0; void s1;
   }
   const last = F[F.length - 1], lastST = ST[ST.length - 1];
@@ -284,25 +291,34 @@ function genLattice(S, gearX, track, kScale) {
   B(last.BL, TPB, 'fus'); B(last.BR, TPB, 'fus');
   B(last.TL, TPT, 'fus'); B(last.TR, TPT, 'fus');
   B(last.TL, TPB, 'fus'); B(last.TR, TPB, 'fus');
-  cover(genQuadArea(P, last.TL, last.BL, TPB, TPT)
-      + genQuadArea(P, last.TR, last.BR, TPB, TPT), [last.TL, last.TR, TPB, TPT]);
+  if (fusCovered)
+    cover(genQuadArea(P, last.TL, last.BL, TPB, TPT)
+        + genQuadArea(P, last.TR, last.BR, TPB, TPT), [last.TL, last.TR, TPB, TPT]);
 
   // ---- 2. engine ------------------------------------------------------
   sec('engines');
   // G134: the resolved spec's own powerplant row — custom dials outrank the
   // registry preset; same shape either way (see resolveSpec's S.pplant).
   const PP = S.pplant || POWERPLANTS[S.engine];
-  const [EL, ER] = NM(S.engX, S.engY, 0.55 * cab.halfW, 'ENG');
-  B(EL, ER, 'fus');
-  B(EL, F[0].TL, 'fus'); B(EL, F[0].BL, 'fus'); B(EL, F[0].BR, 'fus');
-  B(ER, F[0].TR, 'fus'); B(ER, F[0].BR, 'fus'); B(ER, F[0].BL, 'fus');
-  // The BLADES weigh what the spec says they weigh (S.prop.mass, derived from
-  // diameter, blade count and material) rather than the old 2 kg per metre of
-  // registry diameter. It lands on the mount nodes rather than at the hub, which
-  // is 0.10 m further forward — worth 3 cm of CG on a 500 kg aeroplane with the
-  // heaviest prop the clamps allow, and there is no node out there to hang it on.
-  pt(EL, 0.5 * (PP.engine.mass + S.prop.mass));
-  pt(ER, 0.5 * (PP.engine.mass + S.prop.mass));
+  // THE MOUNT (2026-09-04): a nose engine is the firewall pair below, byte for
+  // byte; every other mount needs the wing's spar nodes and is built in 2b,
+  // after the wing — so the default aeroplane's node order never moves.
+  const EAT = S.engAt || [{ mount: 'nose', x: S.engX, y: S.engY, z: 0 }];
+  const noseEng = EAT[0].mount === 'nose';
+  let EL = -1, ER = -1;
+  if (noseEng) {
+    [EL, ER] = NM(S.engX, S.engY, 0.55 * cab.halfW, 'ENG');
+    B(EL, ER, 'fus');
+    B(EL, F[0].TL, 'fus'); B(EL, F[0].BL, 'fus'); B(EL, F[0].BR, 'fus');
+    B(ER, F[0].TR, 'fus'); B(ER, F[0].BR, 'fus'); B(ER, F[0].BL, 'fus');
+    // The BLADES weigh what the spec says they weigh (S.prop.mass, derived from
+    // diameter, blade count and material) rather than the old 2 kg per metre of
+    // registry diameter. It lands on the mount nodes rather than at the hub, which
+    // is 0.10 m further forward — worth 3 cm of CG on a 500 kg aeroplane with the
+    // heaviest prop the clamps allow, and there is no node out there to hang it on.
+    pt(EL, 0.5 * (PP.engine.mass + S.prop.mass));
+    pt(ER, 0.5 * (PP.engine.mass + S.prop.mass));
+  }
   spend((PP.price || 0) * S.engines.length);
   spend(S.prop.price || 0);
 
@@ -653,6 +669,63 @@ function genLattice(S, gearX, track, kScale) {
     B(wf.L.FB[0], wf.R.F[0], 'wing'); B(wf.R.FB[0], wf.L.F[0], 'wing');
   }
   cover(1.9 * 2 * zRoot * w.chord, [wf.L.F[0], wf.R.F[0], wf.L.R[0], wf.R.R[0]]);
+
+  // ---- 2b. engines OFF the nose (2026-09-04) ----------------------------
+  // The pusher hangs on the ring nearest its station (the aft bulkhead) as
+  // the nose engine hangs on the firewall; the over-the-wing engine is a
+  // pylon: its pair braces to the root spars of BOTH sides and back to the
+  // cabin roof; a wing nacelle sits on the four spar nodes of its own bay.
+  // Each mount node carries its engine's share of engine + blades. refs.engine
+  // is whatever list results — the solver spreads the thrust over it and
+  // nEngines (the entries) multiplies it, so a pair pulls twice.
+  const engNodes = noseEng ? [EL, ER] : [];
+  if (!noseEng) {
+    sec('engines');
+    const iRing = x => {
+      let b = 0, d = 1e9;
+      ST.forEach((s, i) => { const dd = Math.abs(s.x - x); if (dd < d) { d = dd; b = i; } });
+      return b;
+    };
+    const engM = PP.engine.mass + S.prop.mass;
+    for (let i = 0; i < EAT.length; i++) {
+      const e = EAT[i];
+      if (e.mount === 'wing' && i > 0) continue;      // the pair's mirror
+      if (e.mount === 'pusher') {
+        const [PL, PR] = NM(e.x, e.y, 0.55 * cab.halfW, 'ENG');
+        const rg = F[iRing(e.x)];
+        B(PL, PR, 'fus');
+        B(PL, rg.TL, 'fus'); B(PL, rg.BL, 'fus'); B(PL, rg.BR, 'fus'); B(PL, rg.TR, 'fus');
+        B(PR, rg.TR, 'fus'); B(PR, rg.BR, 'fus'); B(PR, rg.BL, 'fus'); B(PR, rg.TL, 'fus');
+        pt(PL, 0.5 * engM); pt(PR, 0.5 * engM);
+        engNodes.push(PL, PR);
+      } else if (e.mount === 'wingTop') {
+        const [WL, WR] = NM(e.x, e.y, 0.35 * cab.halfW, 'ENG');
+        const rg = F[iRing(e.x)];
+        B(WL, WR, 'fus');
+        for (const [n, o] of [[WL, 'L'], [WR, 'R']]) {
+          const q = o === 'L' ? 'R' : 'L';
+          B(n, wf[o].F[0], 'fus'); B(n, wf[o].R[0], 'fus');
+          B(n, wf[q].F[0], 'fus');                       // cross-brace
+          B(n, rg['T' + o], 'fus');                      // pylon leg, roof
+        }
+        pt(WL, 0.5 * engM); pt(WR, 0.5 * engM);
+        engNodes.push(WL, WR);
+      } else if (e.mount === 'wing') {
+        const [NL, NR] = NM(e.x, e.y, e.z, 'ENG');
+        const zAll = [zRoot, ...zs];
+        let b = 0;
+        for (let k = 0; k < zAll.length - 1; k++) if (e.z >= zAll[k]) b = k;
+        b = Math.min(b, zs.length - 1);
+        for (const [n, o] of [[NL, 'L'], [NR, 'R']]) {
+          B(n, wf[o].F[b], 'fus'); B(n, wf[o].F[b + 1], 'fus');
+          B(n, wf[o].R[b], 'fus'); B(n, wf[o].R[b + 1], 'fus');
+          pt(n, engM);                                   // a whole engine a side
+        }
+        engNodes.push(NL, NR);
+      }
+    }
+    EL = engNodes[0]; ER = engNodes[1];
+  }
 
   // ---- 4. empennage ---------------------------------------------------
   sec('tail');
@@ -1042,8 +1115,10 @@ function genLattice(S, gearX, track, kScale) {
       for (let i = 0; i < seats; i++) billAt(seatAt(i) != null ? seatAt(i) : ST[1].x, seat.kg);
     else half(F[1].BL, F[1].BR, seatM);
     half(F[1].TL, F[1].TR, panelM + plumbM);
-    half(F[0].TL, F[0].TR, cowlM);
-    half(F[0].BL, F[0].BR, exhM);
+    // the cowl and the exhaust go where the ENGINE is (2026-09-04): a nose
+    // mount bills them on the firewall frame exactly as before
+    half(noseEng ? F[0].TL : EL, noseEng ? F[0].TR : ER, cowlM);
+    half(noseEng ? F[0].BL : EL, noseEng ? F[0].BR : ER, exhM);
     half(F[1].TL, F[1].TR, glassM);
     half(F[1].BL, F[1].BR, 0.5 * ctlM);
     half(F[2].BL, F[2].BR, 0.5 * ctlM);
@@ -1087,7 +1162,7 @@ function genLattice(S, gearX, track, kScale) {
     upLo: [F[0].BL, F[0].BR], upHi: [F[0].TL, F[0].TR],
     fusDrag: [F[2].BL, F[2].BR, F[2].TL, F[2].TR],
     fusDragAft: [F[F.length-2].BL, F[F.length-2].BR, F[F.length-2].TL, F[F.length-2].TR],
-    engine: [EL, ER], mains: [GAL, GAR], tw: TW, fin: FIN,
+    engine: engNodes, mains: [GAL, GAR], tw: TW, fin: FIN,
   };
   const parts = {
     ST, F, TPB, TPT, EL, ER, HTL, HTR, FIN, GAL, GAR, TW,

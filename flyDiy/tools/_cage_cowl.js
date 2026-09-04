@@ -250,20 +250,24 @@ function mats() {
 //   'pillarFront' the aperture band's material. Always there, and 11 mm
 //                further aft because the band has depth; the stand-off slider
 //                covers that.
-function noseFace(mesh, FS) {
+// `end` (2026-09-04): 'nose' (default) takes the forward-most aperture as
+// always; 'tail' the aft-most — the pusher's face on the aft bulkhead, which
+// the rod-boom cage caps and marks exactly as it marks the nose.
+function noseFace(mesh, FS, end) {
   if (!mesh || !mesh.F) return null;
   let caps = mesh.F.filter(f => f.capFace);
   if (!caps.length) caps = mesh.F.filter(f => f.m === 'firewall');
   if (!caps.length) caps = mesh.F.filter(f => f.m === 'pillarFront');
   if (!caps.length) return null;
+  const sg = end === 'tail' ? -1 : 1;
   let zBest = -Infinity;
   for (const f of caps) for (const i of f.v)
-    if (mesh.V[i][2] > zBest) zBest = mesh.V[i][2];
+    if (sg * mesh.V[i][2] > zBest) zBest = sg * mesh.V[i][2];
   // keep only the faces belonging to that end
   let x1 = 0, y0 = Infinity, y1 = -Infinity, zs = 0, n = 0;
   for (const f of caps) {
     let fz = -Infinity;
-    for (const i of f.v) fz = Math.max(fz, mesh.V[i][2]);
+    for (const i of f.v) fz = Math.max(fz, sg * mesh.V[i][2]);
     if (fz < zBest - 0.25) continue;              // the other end's aperture
     for (const i of f.v) {
       const p = mesh.V[i];
@@ -289,6 +293,53 @@ function noseFace(mesh, FS) {
   }
   if (!cn) return null;
   return { z, halfW: cx, halfH: (cy1 - cy0) / 2, yc: (cy0 + cy1) / 2 };
+}
+
+// THE ENGINE FACES (2026-09-04): one description of where every engine
+// bolts on, read by the cowl layer AND the engine layer. A list, because a
+// wing pair is two. Each unit: the face (z, yc, halfW, halfH, x lateral),
+// `aft` when the engine faces backwards (the pusher and the over-the-wing
+// engine push), and `kind`. Faces off the body are SYNTHETIC: the engine
+// draws its own mount plate on them (fwOn), the cage having no firewall
+// there. The over-the-wing mount needs a HIGH wing (the user's rule) and
+// sits its plate a pylon above the upper skin at 30 % chord; a nacelle's
+// plate is just inside the leading edge at the station asked for.
+function engineFaces(mesh, FS, P) {
+  const mount = Math.round((P && P.engMount) || 0);
+  const W = window.CAGE_WING;
+  if (mount === 1) {
+    const f = noseFace(mesh, FS, 'tail');
+    return f ? [{ face: f, aft: true, kind: 'pusher' }] : [];
+  }
+  if (mount === 2) {
+    if (!W || !W.leAt || Math.round(P.wgPos || 0) !== 0) return [];
+    const le = W.leAt(0);
+    if (!le) return [];
+    const ch = (W.def && W.def.parts && W.def.parts.chordAt)
+      ? W.def.parts.chordAt(0) : 1.4;
+    const hp = Math.max(0.05, +P.engPylonH || 0.30);
+    return [{ face: { z: le.z - 0.30 * ch, yc: le.yTop + hp, x: 0,
+                      halfW: 0.16, halfH: 0.14, uv: null, waist: 0,
+                      synthetic: 1, yBase: le.yTop, chord: ch },
+              aft: true, kind: 'wingTop' }];
+  }
+  if (mount === 3) {
+    if (!W || !W.leAt) return [];
+    const semi = W.semi || 5;
+    const x = Math.max(0.3, (+P.engNacAt || 0.35) * semi);
+    const out = [];
+    for (const s of [1, -1]) {
+      const le = W.leAt(s * x);
+      if (!le) continue;
+      out.push({ face: { z: le.z + 0.10, yc: 0.5 * (le.yTop + le.yBot), x: s * x,
+                         halfW: 0.20, halfH: 0.5 * (le.yTop - le.yBot) + 0.10,
+                         uv: null, waist: 0, synthetic: 1 },
+                 aft: false, kind: 'nacelle' });
+    }
+    return out;
+  }
+  const f = noseFace(mesh, FS);
+  return f ? [{ face: f, aft: false, kind: 'nose' }] : [];
 }
 
 // THE OUTLINE COMES FROM THE CONTRACT, NOT FROM THE CAP'S VERTICES.
@@ -540,12 +591,14 @@ PAGE.post = ctx => {
 
   LIVE_P = P;
   const FS = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
-  const station = noseFace(mesh, FS);
-  if (!station) { if (stat) stat.textContent += '  ·  cowl: no engine face on this body'; return; }
+  const units = engineFaces(mesh, FS, P);
+  if (!units.length) { if (stat) stat.textContent += '  ·  cowl: no engine face on this body'; return; }
+  const station = units[0].face;
   const AF = GG ? GG.cageAirframe(mesh, FS) : null;
-  // SIZE from the cap, SHAPE from the first dense slice behind it
-  const prof = AF ? noseProfile(AF, noseSampleZ(AF, station.z, station.halfW), 180)
-                  : null;
+  // SIZE from the cap, SHAPE from the first dense slice behind it (a
+  // synthetic face has no body behind it and stays round)
+  const prof = AF && !station.synthetic
+    ? noseProfile(AF, noseSampleZ(AF, station.z, station.halfW), 180) : null;
   const face = Object.assign({}, station,
     prof ? { uv: prof.uv, waist: prof.waist } : { uv: null, waist: 0 });
 
@@ -651,17 +704,32 @@ PAGE.post = ctx => {
   // to move to the aperture's centre — x on the centreline, y at the face's
   // middle (which is NOT y = 0: a drooping nose puts it well below), z at the
   // face itself plus whatever stand-off the builder asked for.
-  group.position.set(0, face.yc, face.z + (P.cowlGap || 0));
-  // THE COWL SHELL EXPLODES WITH THE AIRFRAME (G28, user), forward off
-  // the face, scaled like the cage parts (explodeD is cage units, this
-  // group is metres, so × FS); the engine layer stages the cone and the
-  // blades beyond it
+  // ONE SHELL PER ENGINE (2026-09-04): the first unit's cowl is the one just
+  // built; every further unit (a wing pair's other side) wears a clone at
+  // its own face. An AFT unit turns the shell round — its firewall end stays
+  // on the face, its inlet faces the propeller behind.
   const ex = Math.max(0, P.explodeD || 0) * FS;
-  if (ex > 0) cowl.position.z += ex * 0.9;
+  units.forEach((u, k) => {
+    const f = u.face;
+    const c = k === 0 ? cowl : cowl.clone();
+    const ug = k === 0 ? group : new THREE.Group();
+    if (k) { ug.name = 'cageLayer:cowl'; ug.userData.xray = XRAY ? 1 : 0; }
+    if (k) ug.add(c);
+    if (u.aft) ug.rotation.y = Math.PI;
+    ug.position.set(f.x || 0, f.yc,
+                    f.z + (u.aft ? -1 : 1) * (P.cowlGap || 0));
+    // THE COWL SHELL EXPLODES WITH THE AIRFRAME (G28, user), forward off
+    // the face, scaled like the cage parts (explodeD is cage units, this
+    // group is metres, so × FS); the engine layer stages the cone and the
+    // blades beyond it
+    if (ex > 0) c.position.z += ex * 0.9;
+    if (k) group.add(ug);
+  });
   scene.add(group);
 
   applyRowStates(mode);
-  window.CAGE_COWL = { face, len: CW.zEnd(), aps: aps.length, mode };
+  window.CAGE_COWL = { face, len: CW.zEnd(), aps: aps.length, mode,
+                       units: units.map(u => ({ kind: u.kind, aft: u.aft })) };
   if (stat) {
     stat.textContent += `  ·  cowl: face ${(face.halfW * 2).toFixed(2)}×` +
       `${(face.halfH * 2).toFixed(2)} at z ${face.z.toFixed(2)} · ` +
@@ -670,5 +738,5 @@ PAGE.post = ctx => {
 };
 // the engine layer reads the same nose face (G29) — one description of
 // where the firewall is, not two
-window.CAGE_NOSE = { noseFace };
+window.CAGE_NOSE = { noseFace, engineFaces };
 })();

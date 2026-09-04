@@ -6392,11 +6392,17 @@ function cageSpec(P) {
                ceil: P.crCeil, frame: P.crFrame, cap: P.crCap,
                frontCap: P.crFrontCap, noseCap: P.crNoseCap,
                sillNose: P.crSillNose };
+  // THE MOUNT DECIDES THE ENDS (2026-09-04): a pusher (engMount 1) opens the
+  // aft bulkhead as the engine face — which only exists as a face on a rod
+  // boom, where the pod ends there (a lofted boom's "rear" cap is the tail
+  // tip) — and any mount off the nose finishes the nose aero. The page's own
+  // nose-finish / rear-aperture rows still say yes on their own.
+  const engMountK = Math.round(P.engMount || 0);
   S.config = {
     noseMode: P.aeroNose ? 'aero' : 'cowl',
-    rearAperture: P.rearAperture ? 1 : 0,
+    rearAperture: (P.rearAperture || (engMountK === 1 && P.boomStyle)) ? 1 : 0,
     noseCrown: P.noseCrown,
-    noseFinish: P.noseFinish ? 'aero' : 'engine',
+    noseFinish: (P.noseFinish || engMountK >= 1) ? 'aero' : 'engine',
     cowl: { loops: Math.max(0, Math.round(P.cowlLoops)),
             ease: P.cowlEase, bulge: P.cowlBulge },
     aero: { wsLen: P.aeroWsLen, len: P.aeroLen, droop: P.aeroDroop,

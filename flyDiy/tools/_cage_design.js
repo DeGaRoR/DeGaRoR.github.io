@@ -266,8 +266,18 @@ const ICON = {
                   ' L' + P2(32 + Math.cos(a) * 17, 20 + Math.sin(a) * 17), w: 2 };
     })] },
   mountNose: iconSide({ canopy: 'screen', deck: 'cabin', gear: 'none', prop: true }),
+  // the covering tiles: a closed pod, and the same pod as a bare truss
+  coverSkin: { vb: '0 0 64 40', paths: [{ d: 'M6 20 Q14 8 32 8 Q52 8 58 20 Q52 32 32 32 Q14 32 6 20 Z' }] },
+  coverOpen: { vb: '0 0 64 40', paths: [
+    { d: 'M6 20 Q14 8 32 8 Q52 8 58 20 Q52 32 32 32 Q14 32 6 20 Z', w: 1 },
+    { d: 'M14 12 L50 28', w: 1 }, { d: 'M14 28 L50 12', w: 1 },
+    { d: 'M32 8 L32 32', w: 1 }, { d: 'M20 10 L20 30', w: 1 }, { d: 'M44 10 L44 30', w: 1 }] },
   mountPusher: { vb: '0 0 68 40', paths: [{ d: 'M8 16 Q20 10 32 16 L32 26 Q20 30 8 26 Z' },
     { d: 'M32 21 L58 19' }, { d: 'M34 10 L34 30', w: 1 }] },
+  // the over-the-wing pusher: a pod, the wing line, a pylon and a disc above
+  mountWingTop: { vb: '0 0 68 40', paths: [{ d: 'M8 24 Q20 18 34 24 L34 32 Q20 36 8 32 Z' },
+    { d: 'M14 22 L62 22', w: 2 }, { d: 'M34 22 L36 12 L44 12', w: 1 },
+    { d: 'M46 4 L46 20', w: 1 }] },
   fixed: { vb: '0 0 64 40', paths: [{ d: 'M30 6 L34 6 L34 24 L30 24 Z' },
     { d: 'M32 26 a5 5 0 1 0 0.1 0', w: 1 }] },
   retract: { vb: '0 0 64 40', paths: [{ d: 'M30 6 L34 6 L34 14 L30 14 Z' },
@@ -670,6 +680,23 @@ const DESIGN_ROWS = [
         writes: { cage: { boomStyle: 1 } } },
     ] },
 
+  // THE COVERING (2026-09-04, the user: "ability to remove all fuselage and
+  // interior skin, naked structure"). `skinOn` is the one row (Structure &
+  // skin > covering); the open tile also switches the interior structure ON,
+  // because with the skin culled the drawn truss is the interior pass's
+  // (nothing else draws a member). JOINED: fuselage.covering.
+  { key: 'covering', label: 'Covering', kind: 'discriminator',
+    group: 'structure', status: 'live',
+    help: 'an open frame flies lighter and draggier — the truss is the airframe',
+    read: P => (P.skinOn == null || +P.skinOn) ? 'skin' : 'open',
+    options: [
+      { value: 'skin', label: 'Covered', icon: ICON.coverSkin,
+        writes: { cage: { skinOn: 1 } } },
+      { value: 'open', label: 'Open frame', icon: ICON.coverOpen,
+        note: 'no fuselage covering, no liner — the truss in the wind',
+        writes: { cage: { skinOn: 0, intOn: 1, intPillars: 1 } } },
+    ] },
+
   { key: 'section', label: 'Section profile', kind: 'starter',
     group: 'structure', status: 'live', once: true,
     help: 'a starting point, not a cage — the roundness stays continuous',
@@ -752,29 +779,38 @@ const DESIGN_ROWS = [
     read: P => null,   // applied-once; the panel's own row shows the last pick
     options: designEngineModels },
 
+  // 2026-09-04: THE MOUNTS ARE LIVE. `engMount` is the engine layer's row
+  // (0 nose / 1 pusher / 2 over the wing / 3 a wing pair); the pusher needs
+  // the pod to END at the aft bulkhead (a rod boom), the over-the-wing
+  // engine a high wing — each tile writes what it needs. The pair is the
+  // ENGINES row's (count and placement are one fact).
   { key: 'engMount', label: 'Engine mount', kind: 'discriminator',
     group: 'propulsion', status: 'live',
-    read: () => 'nose',
+    read: P => Math.round(P.engMount) === 1 ? 'pusher'
+             : Math.round(P.engMount) === 2 ? 'wingTop' : 'nose',
     options: [
-      { value: 'nose', label: 'Nose', icon: ICON.mountNose, def: true,
-        note: 'the one live mount' },
+      { value: 'nose', label: 'Nose', icon: ICON.mountNose,
+        writes: { cage: { engMount: 0 } } },
       { value: 'pusher', label: 'Pusher', icon: ICON.mountPusher,
-        inactive: 'pusher cowl: ROADMAP P7' },
-      // wing nacelles moved to the ENGINES row below (user, 2026-08-31):
-      // count and placement are one fact — a twin IS wing-mounted
+        note: 'on the back of the aft bulkhead — the pod ends there (rod boom)',
+        writes: { cage: { engMount: 1, boomStyle: 1 } } },
+      { value: 'wingTop', label: 'Over the wing', icon: ICON.mountWingTop,
+        note: 'one engine on a pylon over the centre section, pushing; high wing',
+        writes: { cage: { engMount: 2, wgPos: 0 } } },
     ] },
 
   { key: 'engCount', label: 'Engines', kind: 'discriminator',
     group: 'propulsion', status: 'live',
     help: 'count and placement are one choice — a twin puts them on the wing',
-    read: () => 1,
+    read: P => Math.round(P.engMount) === 3 ? 2 : 1,
     options: [
-      { value: 1, label: 'Nose engine', icon: iconTopEngines(true, 0),
-        def: true },
+      // one engine: back to the nose unless a single mount is already chosen
+      { value: 1, label: 'Single engine', icon: iconTopEngines(true, 0),
+        writes: { cage: { engMount: P => Math.round(P.engMount) === 3 ? 0
+                                       : Math.round(P.engMount || 0) } } },
       { value: 2, label: 'Twin (wings)', icon: iconTopEngines(false, 2),
-        inactive: 'wing nacelles: ROADMAP P7 — the solver has counted ' +
-                  'engines honestly since G4.9, the cage has not, and ' +
-                  'clampSpec truncates engines[] to 1 meanwhile' },
+        note: 'a tractor nacelle a side, at the front spar; both pull',
+        writes: { cage: { engMount: 3 } } },
       { value: 3, label: 'Three (nose + wings)', icon: iconTopEngines(true, 2),
         inactive: 'wing nacelles: ROADMAP P7' },
       { value: 4, label: 'Four (wings)', icon: iconTopEngines(false, 4),
@@ -844,23 +880,33 @@ const DESIGN_ROWS = [
     // (2026-08-31, on the page's fin): stY 0.408 -> 0.10, 1.05 -> ~0.40,
     // 2.35 -> ~0.97 — a first guess of 1.25 measured 0.52, which is a
     // cruciform wearing a T-tail's tile, and only the measurement said so
-    read: P => +P.stY >= 1.8 ? 't' : +P.stY >= 0.75 ? 'cruci' : 'conv',
+    // 2026-09-04: the T-tail is a SEAT now (stMount 2 = the fin tip, whatever
+    // the fin's height — the 2.35 guess only fitted the page's fin), and the
+    // V is live: the stab layer cants its panels (stCant), roots them on the
+    // boom deck at the centreline and the fin goes; the join writes
+    // tail.type 'v' from the cant, the ruddervator mix is the solver's own
+    read: P => +P.stCant >= 20 ? 'v'
+             : (Math.round(P.stMount) === 2 || +P.stY >= 1.8) ? 't'
+             : +P.stY >= 0.75 ? 'cruci' : 'conv',
     options: [
       { value: 'conv', label: 'Conventional',
         icon: iconSide({ canopy: 'none', gear: 'none', tail: 'conv' }),
-        writes: { cage: { stY: 0.408 } } },
+        writes: { cage: { stY: 0.408, stMount: 0, stCant: 0, stX: 0.05,
+                          finOn: 1 } } },
       { value: 't', label: 'T-tail',
         icon: iconSide({ canopy: 'none', gear: 'none', tail: 't' }),
         note: 'the stab rides the fin tip',
-        writes: { cage: { stY: 2.35, stZ: -0.25 } } },
+        writes: { cage: { stMount: 2, stY: 0.02, stZ: -0.10, stCant: 0,
+                          stX: 0.05, finOn: 1 } } },
       { value: 'cruci', label: 'Cruciform',
         icon: iconSide({ canopy: 'none', gear: 'none', tail: 'cruci' }),
-        writes: { cage: { stY: 1.05, stZ: -0.12 } } },
+        writes: { cage: { stY: 1.05, stZ: -0.12, stMount: 0, stCant: 0,
+                          stX: 0.05, finOn: 1 } } },
       { value: 'v', label: 'V-tail',
         icon: iconSide({ canopy: 'none', gear: 'none', tail: 'v' }),
-        inactive: 'the spec and the solver both support tail.type "v" (the ' +
-          'ruddervator mixing falls out of the panel normals) — the ' +
-          'cage does not build one yet' },
+        note: 'two canted panels, no fin — ruddervators',
+        writes: { cage: { stCant: 35, stMount: 1, stX: 0, stY: 0, stZ: 0,
+                          finOn: 0 } } },
       { value: 'twin', label: 'Twin boom',
         icon: iconSide({ canopy: 'none', gear: 'none', tail: 'twin' }),
         inactive: 'needs a twin tail CARRIER, not a new tail — the one ' +
@@ -1058,8 +1104,11 @@ const ARCHETYPES = [
            gearLayout: 'tail', suspension: 'bungee', s1Fair: 0,
            empennage: 'conv', scheme: 'bare' },
     over: { cage: PLAN_RECT } },
-  { key: 'pusherPod', name: 'Pod-and-boom pusher', note: 'mirror + rod + pusher',
-    sel: { class: 'ulm', role: 'trainer', canopy: 'full', mirror: 1,
+  // 2026-09-04: LIVE. The pod ends at the aft bulkhead (no mirror — a
+  // mirrored pod has no bulkhead face, its aft half is a second nose), the
+  // rod runs from there and the engine sits on the bulkhead's back.
+  { key: 'pusherPod', name: 'Pod-and-boom pusher', note: 'rod + pusher',
+    sel: { class: 'ulm', role: 'trainer', canopy: 'full', mirror: 0,
            boomStyle: 1, engFamily: 'inline', engModel: 'rotax 582',
            engMount: 'pusher', gearLayout: 'trike' } },
   { key: 'motorglider', name: 'Motorglider', note: 'long span',

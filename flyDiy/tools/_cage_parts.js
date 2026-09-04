@@ -508,7 +508,7 @@ const CAGE_PARTS = [
     groups: [
       ['fitted', ['stOn', 'stRootGuard']],
       ['construction', ['stCons']],
-      ['position', ['stX', 'stY', 'stZ']],
+      ['position', ['stMount', 'stX', 'stY', 'stZ', 'stCant']],
       ['cut', ['stCut', 'stCutGap']],
       ['thickness', ['stSolid', 'stThick', 'stThickTE']],
       // the fin's outline laid flat — same corners, same order, "in / out"
@@ -533,9 +533,10 @@ const CAGE_PARTS = [
   { key: 'engine', name: 'Engine', parent: 'power', layer: 'eng',
     when: P => +P.engOn, gate: 'engOn',
     place: { on: 'engOn',
-             type: ['engPower', 'engPreset', 'eng_arch', 'eng_cyl',
+             type: ['engMount', 'engPower', 'engPreset', 'eng_arch', 'eng_cyl',
                     'eng_radialRows', 'eng_inlineAim', 'eng_eStyle'],
-             fore: 'eng_mountGap', up: 'engY', at: 'on the firewall face' },
+             fore: 'eng_mountGap', out: 'engNacAt', up: 'engY',
+             at: 'on its mount face' },
     // THE ENGINE IS FINISHED IN THREE (G113.4). AERO_HARD still says what
     // every part IS — a plug is chrome, a lead is rubber — but the castings
     // are painted, and the user asked for the block and the covers by name.
@@ -543,7 +544,8 @@ const CAGE_PARTS = [
     // bucket, which is a home but not an ANSWER.
     sections: ['engBlock', 'engJug', 'engCover', 'engMount'],
     groups: [
-      ['fitted', ['engOn', 'engPower', 'engPreset', 'engY']],
+      ['fitted', ['engOn', 'engMount', 'engNacAt', 'engPylonH', 'engPower',
+                  'engPreset', 'engY']],
       // THE STAND FIRST (2026-09-03, the user: "the stand is very important for
       // engine placement"): the mount's stand-off is the engine's fore / aft seat
       // and rides in the trunk; the rest of the mount follows it here, before any
@@ -654,7 +656,7 @@ const CAGE_PARTS = [
     groups: [
       // `s1R`/`s2R` (the wheel radii) -> `wheels` (2026-09-03, the user: "the
       // wheel radius for example is under the main gear and not the wheel")
-      ['station', ['s1On', 's1Z', 's1X', 's1Leg', 's1Drop', 's1Brake',
+      ['station', ['s1On', 's1Z', 's1X', 's1Leg', 's1Drop', 's1AxZ', 's1Brake',
                    's1Steer']],
       ['fairing', ['s1Fair', 's1FairSkirt', 's1FairTail', 's1FairRake',
                    's1FairW', 's1LegFair']],
@@ -679,7 +681,7 @@ const CAGE_PARTS = [
              type: ['s2Leg', 's2Steer', 's2Brake', 's2Fair', 's2LegFair'],
              fore: 's2Z', out: 's2X', up: 's2Drop', at: 'station 2' },
     groups: [
-      ['station', ['s2On', 's2Z', 's2X', 's2Leg', 's2Drop', 's2Brake',
+      ['station', ['s2On', 's2Z', 's2X', 's2Leg', 's2Drop', 's2AxZ', 's2Brake',
                    's2Steer']],
       ['fairing', ['s2Fair', 's2FairSkirt', 's2FairTail', 's2FairRake',
                    's2FairW', 's2LegFair']],

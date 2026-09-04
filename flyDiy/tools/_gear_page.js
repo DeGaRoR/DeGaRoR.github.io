@@ -27,6 +27,11 @@ const DEF = {
   s2On: 1, s2Z: -3.05, s2X: 0, s2Leg: 3, s2R: 0.10, s2Drop: 0.20,
   s2Brake: 0, s2Steer: 1, s2Fair: 0,
   s2FairSkirt: 0, s2FairTail: 1, s2FairRake: 0, s2FairW: 1, s2LegFair: 0,
+  // THE WHEEL'S OWN FORE/AFT (2026-09-04, the user: "tune the point of
+  // attachment and where the wheels fall independently"). s<i>Z sites the
+  // FITTING on the body; this moves the AXLE alone, on every leg family, so
+  // a leg rakes without its root moving. 0 = each family's own law as before.
+  s1AxZ: 0, s2AxZ: 0,
   // one build material for all of them — a set of spats is laid up as one job
   fairCons: 0,
   // the wheel
@@ -61,7 +66,7 @@ const LEG_ROWS = {
     ['beamT', 'blade thick', 0.008, 0.05, 0.001],
     ['beamTaper', 'tip taper', 0.35, 1, 0.01],
     ['beamBow', 'bow out', 0.6, 1.6, 0.01],
-    ['beamRake', 'axle rake', -0.4, 0.4, 0.01],
+    ['beamRake', 'axle rake', -0.8, 0.8, 0.01],
   ],
   1: [
     ['linkAng', 'pivot angle', 0, 90, 1],
@@ -91,7 +96,7 @@ const LEG_ROWS = {
     ['twSpringW', 'spring width', 0.02, 0.10, 0.002],
     ['twSpringT', 'leaf thick', 0.004, 0.020, 0.001],
     ['twLeaves', 'leaves', 1, 4, 1],
-    ['twRake', 'castor rake', 0, 40, 0.5],
+    ['twRake', 'castor rake', 0, 50, 0.5],
     ['twTrail', 'castor trail', 0.01, 0.14, 0.002],
     ['twLegDrop', 'swivel drop', 0.03, 0.30, 0.005],
     ['twSteer', 'steer angle', -40, 40, 1],
@@ -168,6 +173,7 @@ const gearStations = P => {
     out.push({ id: i, z: P['s' + i + 'Z'], x: P['s' + i + 'X'],
                leg: Math.round(P['s' + i + 'Leg']), R: P['s' + i + 'R'],
                drop: P['s' + i + 'Drop'], brake: P['s' + i + 'Brake'],
+               axZ: +P['s' + i + 'AxZ'] || 0,
                fair: Math.round(P['s' + i + 'Fair'] || 0),
                fairSkirt: +P['s' + i + 'FairSkirt'] || 0,
                fairTail: +P['s' + i + 'FairTail'] || 1,

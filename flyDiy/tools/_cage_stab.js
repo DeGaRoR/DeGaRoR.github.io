@@ -45,7 +45,14 @@ const ST2FIN = {
 };
 const stDef = { stOn: 1, stCut: 1, stCutGap: 0.012,
   stSolid: 1, stThick: 0.05, stThickTE: 0.012,
-  stX: 0.05, stY: 0.25, stZ: 0, stCons: 0 };
+  stX: 0.05, stY: 0.25, stZ: 0, stCons: 0,
+  // THE ROOT'S SEAT + THE CANT (2026-09-04, the user's "V tail and T tail
+  // variants"): stMount 0 = the boom keel (G26.5, as always), 1 = the boom
+  // DECK (a V-tail's panels meet on top of the boom), 2 = the FIN TIP (a
+  // T-tail rides the fin, whatever its height); stY stays the offset from
+  // that seat. stCant tips each panel up about its root line — 0 is a flat
+  // tailplane, 30-40 a V-tail; the join reads >= 20 as tail.type 'v'.
+  stMount: 0, stCant: 0 };
 for (const [sk, fk] of Object.entries(ST2FIN))
   stDef[sk] = FIN.FIN_CUB[fk] !== undefined ? FIN.FIN_CUB[fk]
                                             : FIN.FIN_PARAMS[fk];
@@ -69,9 +76,12 @@ const GROUP = ['8b · tail — stab & elevator', [
    ['as the aeroplane', 'composite', 'steel tube', 'plywood', 'aluminium'],
    { when: P => +P.stOn }],
   ['position', [
+    ['stMount', 'root sits', 0, 2, 1,
+     ['on the boom keel', 'on the boom deck', 'on the fin tip']],
     ['stX', 'in / out (root half-track)', 0, 0.30, 0.005],
-    ['stY', 'up / down (over the keel)', -0.20, 0.80, 0.005],
+    ['stY', 'up / down (from the seat)', -0.20, 0.80, 0.005],
     ['stZ', 'fore / aft',       -0.60, 0.60, 0.005],
+    ['stCant', 'cant (V-tail) °', 0, 55, 0.5],
   ], 'open', { when: P => +P.stOn }],
   ['cut', [
     ['stCut',    'stab / elevator', 0, 2, 1,
@@ -177,7 +187,36 @@ PAGE.post = ctx => {
   // rod height AND diameter); stY is the offset from there. No deck =
   // 0 = the historic absolute placement.
   const dzS = deck ? deck.z0 - FIN.FIN_DEFAULT.zCap : 0;
-  const yRef = deck ? deck.bot(FIN.FIN_DEFAULT.zH1 + dzS) : 0;
+  let yRef = deck ? deck.bot(FIN.FIN_DEFAULT.zH1 + dzS) : 0;
+  // THE SEAT (2026-09-04): deck = the top of the same centreline sweep at
+  // the hinge station; fin tip = the built fin's highest vertex (the fin
+  // layer runs first — build.js MANIFEST order — so CAGE_FIN is this frame's)
+  // plus half the stab's own thickness, so its underside rests ON the tip;
+  // and the stab slides aft to the tip's own station (a swept fin's tip is
+  // behind its root, and the stab is the fin model's stations). No fin
+  // built = the deck seat; no deck = the historic absolute placement.
+  const mount = Math.round(P.stMount || 0);
+  const cantDeg = Math.max(0, +P.stCant || 0);
+  const cant = cantDeg * Math.PI / 180;
+  let zSeat = 0;
+  if (mount >= 1 && deck) yRef = deck.top(FIN.FIN_DEFAULT.zH1 + dzS);
+  if (mount === 2) {
+    const FN = window.CAGE_FIN;
+    if (FN && FN.disp && FN.disp.V.length && +P.finOn) {
+      let top = -Infinity;
+      for (const p of FN.disp.V) top = Math.max(top, p[1]);
+      let zs = 0, n = 0;
+      for (const p of FN.disp.V) if (p[1] > top - 0.06) { zs += p[2]; n++; }
+      const zTip = n ? zs / n : 0;
+      yRef = top + 0.5 * (P.stThick || 0.05);
+      // the stab's own root line sits at the fin fiche's stations; the
+      // tip station is measured off the fiche the same way
+      let zr = 0, nr = 0;
+      for (const p of FIN.buildFin2(S).V)
+        if (Math.abs(p[1] - rootLine) < 0.02) { zr += p[2]; nr++; }
+      zSeat = zTip - (nr ? zr / nr : 0);
+    }
+  }
 
   const L = $('lvl') ? +$('lvl').value : 2;
   let s = m0;
@@ -211,9 +250,10 @@ PAGE.post = ctx => {
   // that. One string, no behaviour.
   group.name = 'cageLayer:stab';
   const ex = cutMode ? Math.max(0, P.explodeD || 0) : 0;
+  const lay = { rootX: P.stX || 0, stabY: yRef + (P.stY || 0),
+                sRef: rootLine, zOff: zSeat + (P.stZ || 0), cant };
   for (const side of [1, -1]) {
-    const half = FIN.finToStab(disp, { side, rootX: P.stX || 0,
-      stabY: yRef + (P.stY || 0), sRef: rootLine, zOff: P.stZ || 0 });
+    const half = FIN.finToStab(disp, Object.assign({ side }, lay));
     for (const part of cutMode ? ['fin', 'rudder'] : [null]) {
       const sub = part
         ? { V: half.V, F: half.F.filter(f => f.part === part) } : half;
@@ -235,9 +275,10 @@ PAGE.post = ctx => {
   // the stab is the fin model laid flat (G23) — so a caller holding a named
   // fin vertex cannot place it without the same `finToStab` opts this build
   // used. The editor's hover pin is the caller; `side` is its own (both).
-  window.CAGE_STAB = { spec: S, cage: m0, mesh: s, disp,
-    lay: { rootX: P.stX || 0, stabY: yRef + (P.stY || 0),
-           sRef: rootLine, zOff: P.stZ || 0 } };
+  // `cant` (degrees) and `mount` ride along for the join: >= 20 deg of cant
+  // is a V-tail (tail.type 'v', the physics' own ruddervator mix)
+  window.CAGE_STAB = { spec: S, cage: m0, mesh: s, disp, lay,
+    cant: cantDeg, mount };
   if (stat) {
     let t = `  ·  stab: L${L} ${s.V.length} v x2`;
     if (cutMode) {

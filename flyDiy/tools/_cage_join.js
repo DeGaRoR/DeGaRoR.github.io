@@ -98,20 +98,34 @@ function cageJoinSpec(P, M, T) {
     // ---- JOINED: the registry engine, in the CANONICAL form (the
     // spec's field is `engines: [{type,...}]`; flat `engine` is a
     // derived convenience the normaliser would overwrite) ----
-    engines: [{
-      type: CAGE_JOIN_ENGINES[(T.PRESET_NAMES || [])[Math.round(P.engPreset)]]
-        || 'a65_sensenich74',
-      mount: 'nose', place: { dx: 0, dy: 0 },
-      // G134: THE DRAWN ENGINE IS THE PHYSICS' AUTHOR — the G132 prop rule,
-      // applied to the engine itself. M.engineFacts is engResolve over the
-      // same dial dict the mesh build renders (CAGE_ENG_FACTS, one keeper in
-      // _cage_eng.js), and it is null exactly when the dials still ARE the
-      // applied preset (identity ruling 2026-09-01: an untouched preset
-      // flies the registry row under its certified name; a deviated one is
-      // "modified <name>"/"custom ...", never a wrong name). The preset key
-      // above survives as the fallback row and the prop-diameter default.
-      ...(M.engineFacts ? { custom: M.engineFacts } : {}),
-    }],
+    // JOINED (2026-09-04): THE MOUNT IS THE DRAWN MOUNT. engMount is the
+    // engine layer's row; the station each drawn unit was placed at
+    // (M.engUnits, measured off the layer in the model frame) rides in as
+    // x/y/z so the frame hangs the mass and the thrust where the engine was
+    // drawn; a wing pair is two entries. Absent measurements = the spec's
+    // own derivation for that mount.
+    engines: (() => {
+      const mk = ['nose', 'pusher', 'wingTop', 'wing'][Math.round(P.engMount || 0)]
+               || 'nose';
+      const type = CAGE_JOIN_ENGINES[(T.PRESET_NAMES || [])[Math.round(P.engPreset)]]
+                || 'a65_sensenich74';
+      const EU = Array.isArray(M.engUnits) ? M.engUnits : [];
+      const one = i => ({
+        type, mount: mk, place: { dx: 0, dy: 0 },
+        ...(mk !== 'nose' && EU[i] ? { x: EU[i].x, y: EU[i].y, z: Math.abs(EU[i].z) } : {}),
+        ...(mk === 'wingTop' ? { pylon: Math.max(0.05, +P.engPylonH || 0.30) } : {}),
+        // G134: THE DRAWN ENGINE IS THE PHYSICS' AUTHOR — the G132 prop rule,
+        // applied to the engine itself. M.engineFacts is engResolve over the
+        // same dial dict the mesh build renders (CAGE_ENG_FACTS, one keeper in
+        // _cage_eng.js), and it is null exactly when the dials still ARE the
+        // applied preset (identity ruling 2026-09-01: an untouched preset
+        // flies the registry row under its certified name; a deviated one is
+        // "modified <name>"/"custom ...", never a wrong name). The preset key
+        // above survives as the fallback row and the prop-diameter default.
+        ...(M.engineFacts ? { custom: M.engineFacts } : {}),
+      });
+      return mk === 'wing' ? [one(0), one(1)] : [one(0)];
+    })(),
     // ---- G132: THE PROPELLER FLIES AS DRAWN. spec.prop is the thrust
     // model's whole input (Tstatic, kV2, disc, mass all derive from D,
     // blades, material — "a bigger disc really does pull harder"), and the
@@ -222,6 +236,12 @@ function cageJoinSpec(P, M, T) {
   // clampSpec's envelope bounds them, and tailY stays 0 (it is the
   // editor's OFFSET knob; these are absolute measurements).
   const fus = {};
+  // JOINED (2026-09-04): THE COVERING IS THE DRAWN COVERING. `skinOn` 0 has
+  // culled the fuselage skin and every liner from the drawn (and so the
+  // flown) mesh since G26.4 while the physics went on billing the cloth and
+  // pricing a faired pod — a naked aeroplane that flew covered. The G121.1
+  // rule: the drawn state IS the declaration. Absent = 'skin', the default.
+  if (!(P.skinOn == null || +P.skinOn)) fus.covering = 'open';
   if (M.tailArm > 0) fus.tailArm = M.tailArm;
   if (M.postGap > 0) fus.postGap = M.postGap;
   // G54: the boom's path between the measured endpoints. clampSpec
@@ -248,6 +268,11 @@ function cageJoinSpec(P, M, T) {
   if (M.vX > 0) tl.vX = M.vX;
   if (M.vSweep === 0) tl.vSweep = 0;
   if (typeof M.stabH === 'number' && isFinite(M.stabH)) tl.stabH = M.stabH;
+  // the V (2026-09-04): the cant the stab layer built, clampSpec's own
+  // envelope (20-55) bounds it; absent = 'conventional', the default
+  if (typeof M.tailCant === 'number' && M.tailCant >= 20) {
+    tl.type = 'v'; tl.vAngle = M.tailCant;
+  }
   // THE TAIL'S OWN CONSTRUCTIONS (G116), same contract as the wing's:
   // 0 says nothing, absent means the aeroplane's own material
   {
@@ -465,6 +490,36 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     });
     return { stab: sOK ? stab : null, fin: fin.n > 20 ? fin : null };
   };
+  // ONE LAYER'S OWN BOUNDS (2026-09-04): a V-tail's panels root on the
+  // centreline, so tailSurfBounds' outboard-of-the-boom classifier would
+  // split each panel between "stab" and "fin"; the stab LAYER is the V, and
+  // its group is walked whole in the same mount frame.
+  const layerBounds = (layerName) => {
+    const mnt = edMount();
+    if (!mnt || typeof THREE === 'undefined') return null;
+    mnt.updateMatrixWorld(true);
+    const inv = new THREE.Matrix4().copy(mnt.matrixWorld).invert();
+    const tmp = new THREE.Matrix4(), v = new THREE.Vector3();
+    const B = { x0: 1e9, x1: -1e9, y0: 1e9, y1: -1e9, z0: 1e9, z1: -1e9, n: 0 };
+    let grp = null;
+    mnt.traverse(o => { if (!grp && o.name === layerName) grp = o; });
+    if (!grp) return null;
+    grp.traverse(o => {
+      if (!o.isMesh || !o.visible || !o.geometry) return;
+      if (o.userData && o.userData.edHi) return;
+      const p = o.geometry.attributes.position;
+      if (!p) return;
+      tmp.multiplyMatrices(inv, o.matrixWorld);
+      for (let i = 0; i < p.count; i++) {
+        v.set(p.getX(i), p.getY(i), p.getZ(i)).applyMatrix4(tmp);
+        B.n++;
+        if (v.x < B.x0) B.x0 = v.x; if (v.x > B.x1) B.x1 = v.x;
+        if (v.y < B.y0) B.y0 = v.y; if (v.y > B.y1) B.y1 = v.y;
+        if (v.z < B.z0) B.z0 = v.z; if (v.z > B.z1) B.z1 = v.z;
+      }
+    });
+    return B.n > 20 ? B : null;
+  };
   // WHAT THE MEASUREMENT COULD NOT TAKE (G64). One list, refilled by every
   // measure(), read by the engineering bench. A join that cannot measure the
   // build must not hand back a plausible aeroplane in silence — that is a
@@ -579,6 +634,14 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         const mainsY = G2.contacts.filter(c => c.st && c.st.x > 0.01);
         if (mainsY.length)
           M.gearY = mainsY.reduce((s, c) => s + c.p[1], 0) / mainsY.length - yD;
+      }
+      // THE ENGINES' STATIONS (2026-09-04): each drawn unit's mount point,
+      // model frame — x aft of the firewall, y over the cabin keel, z lateral
+      {
+        const CE = window.CAGE_ENG;
+        if (CE && Array.isArray(CE.units) && CE.units.length)
+          M.engUnits = CE.units.map(u =>
+            ({ x: zFw - u.at[2], y: u.at[1] - yD, z: u.at[0] }));
       }
       // G52: the PILLAR PROPORTIONS and the wing's station (user: "the
       // visual fit remains very approximate"). The cabin's x-extent is
@@ -707,7 +770,22 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             M.hX = zFw - (sB.z0 + sB.z1) / 2;
             M.stabY = (sB.y0 + sB.y1) / 2 - yD;
           }
-          if (fB && (fB.y1 - fB.y0) > 0.3) {
+          // THE V-TAIL (2026-09-04): the stab layer says it is canted, so
+          // the whole layer is the tail — horizontal projection as hSpan,
+          // its chord, its station and root height; the cant is the type.
+          // No fin is read (a V has none; a fin left switched on would be
+          // a three-surface tail the frame does not build).
+          const SBv = window.CAGE_STAB;
+          if (SBv && SBv.cant >= 20) {
+            const vb = layerBounds('cageLayer:stab');
+            if (vb && (vb.x1 - vb.x0) > 0.5) {
+              M.tailCant = SBv.cant;
+              M.hSpan = 2 * Math.max(Math.abs(vb.x0), Math.abs(vb.x1));
+              M.hChord = vb.z1 - vb.z0;
+              M.hX = zFw - (vb.z0 + vb.z1) / 2;
+              M.stabY = vb.y0 - yD;
+            }
+          } else if (fB && (fB.y1 - fB.y0) > 0.3) {
             const finTop = fB.y1 - yD;
             M.vHeight = (finTop - M.tailTop) / 0.82;
             M.vChord = fB.z1 - fB.z0;
@@ -892,7 +970,13 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     // static). The prop cannot be found geometrically (it sits at the
     // cowl face, well BEHIND the cage's own nose tip), so the engine
     // layer NAMES it at the source (edSpinner/edProp — G47.2's rule).
-    const PARTS = { wheels: [], others: [], prop: { kind: 'prop', groups: {} } };
+    // ONE PROP PART PER ENGINE (2026-09-04): the engine layer suffixes unit
+    // k's spinner/prop names with '#k', and each spins about its own hub
+    const PARTS = { wheels: [], others: [], props: [] };
+    const propPart = k => PARTS.props[k] ||
+      (PARTS.props[k] = { kind: 'prop', groups: {}, unit: k, hub: null,
+                          hubRaw: null, axis: null });
+    const unitOf = nm => { const h = nm.indexOf('#'); return h < 0 ? 0 : (+nm.slice(h + 1) || 0); };
     try {
       const GB = window.CAGE_GEAR || {};
       for (const c of GB.contacts || [])
@@ -960,8 +1044,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       {
         let a = o;
         while (a && a !== mount) {
-          if (a.name === 'edProp' || a.name === 'edSpinner') {
-            part = PARTS.prop; break;
+          if (a.name && (a.name.lastIndexOf('edProp', 0) === 0 ||
+                         a.name.lastIndexOf('edSpinner', 0) === 0)) {
+            part = propPart(unitOf(a.name)); break;
           }
           if (a.name === 'edWheelL' || a.name === 'edWheelR' ||
               a.name === 'edWheelT') {
@@ -1109,14 +1194,15 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     // axle; the spinner's own origin for the prop), pitch-calibrated like
     // everything else, so the game spins/rides them about the right point
     const rotP = (x, y, z) => [x * cB - y * sB, x * sB + y * cB, z];
-    let hub = null, hubRaw = null, spinners = 0, propAxis = null;
+    let spinners = 0;
     mount.traverse(o => {
-      if (o.name === 'edSpinner') {
+      if (o.name && o.name.lastIndexOf('edSpinner', 0) === 0) {
         spinners++;
-        if (!hub) {
+        const pp = propPart(unitOf(o.name));
+        if (!pp.hub) {
           o.getWorldPosition(v); v.applyMatrix4(inv);
-          hubRaw = [v.x, v.y, v.z];
-          hub = rotP(-v.z, v.y, v.x);
+          pp.hubRaw = [v.x, v.y, v.z];
+          pp.hub = rotP(-v.z, v.y, v.x);
           // G59.1 THE SHAFT AXIS (user: "the propeller and nose cone are
           // wrongly rotated, and they oscillate. They should be perfectly
           // aligned with the engine's shaft"). The spinner is built along
@@ -1130,7 +1216,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
               .transformDirection(o.matrixWorld).transformDirection(inv);
             const a2 = rotP(-d.z, d.y, d.x);
             const L2 = Math.hypot(a2[0], a2[1], a2[2]) || 1;
-            propAxis = [a2[0] / L2, a2[1] / L2, a2[2] / L2];
+            pp.axis = [a2[0] / L2, a2[1] / L2, a2[2] / L2];
           } catch (e2) {}
         }
       }
@@ -1141,32 +1227,43 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     // windscreen is not a hub. Refuse it — the prop then rides the
     // static merge at its captured place instead of spinning around a
     // wrong pivot — and say so loudly with everything a repro needs.
+    // (2026-09-04: the tripwire applies to a NOSE unit only — a pusher's or
+    // a nacelle's hub is behind the nose by design, and the engine layer
+    // says which each unit is)
     try {
-      const G2t = window.CAGE_GEAR;
-      if (hub && G2t && G2t.AF && hubRaw && hubRaw[2] < G2t.AF.z1 - 0.6) {
-        console.warn('CAGE JOIN: prop hub captured at', hubRaw,
-          'which is INSIDE the body (skin nose z =', G2t.AF.z1,
-          ', spinners seen:', spinners,
-          ') — prop left static this build. Please report what the',
-          'editor was showing (explode? engine panel open?) when this',
-          'logged.');
-        hub = null;
+      const G2t = window.CAGE_GEAR, CEu = window.CAGE_ENG;
+      for (const pp of PARTS.props) {
+        if (!pp || !pp.hub) continue;
+        const un = CEu && CEu.units && CEu.units[pp.unit];
+        if (un && un.kind !== 'nose') continue;
+        if (G2t && G2t.AF && pp.hubRaw && pp.hubRaw[2] < G2t.AF.z1 - 0.6) {
+          console.warn('CAGE JOIN: prop hub captured at', pp.hubRaw,
+            'which is INSIDE the body (skin nose z =', G2t.AF.z1,
+            ', spinners seen:', spinners,
+            ') — prop left static this build. Please report what the',
+            'editor was showing (explode? engine panel open?) when this',
+            'logged.');
+          pp.hub = null;
+        }
       }
     } catch (e) {}
     // a refused hub folds the prop back into the STATIC merge — present
     // and correct at its captured place, just not spinning this build
-    if (!hub) for (const k in PARTS.prop.groups) {
-      const src = PARTS.prop.groups[k];
-      const dst = groups[k] || (groups[k] = { pos: [], idx: [], nrm: [] });
-      const base0 = dst.pos.length / 3;
-      for (const ix of src.idx) dst.idx.push(ix + base0);
-      for (const pv2 of src.pos) dst.pos.push(pv2);
-      for (const nv2 of src.nrm) dst.nrm.push(nv2);
-      delete PARTS.prop.groups[k];
+    for (const pp of PARTS.props) {
+      if (!pp || pp.hub) continue;
+      for (const k in pp.groups) {
+        const src = pp.groups[k];
+        const dst = groups[k] || (groups[k] = { pos: [], idx: [], nrm: [] });
+        const base0 = dst.pos.length / 3;
+        for (const ix of src.idx) dst.idx.push(ix + base0);
+        for (const pv2 of src.pos) dst.pos.push(pv2);
+        for (const nv2 of src.nrm) dst.nrm.push(nv2);
+        delete pp.groups[k];
+      }
     }
     for (const k in groups) groups[k] = bake(groups[k]);
     const parts = [];
-    for (const pt of PARTS.wheels.concat(PARTS.others, [PARTS.prop])) {
+    for (const pt of PARTS.wheels.concat(PARTS.others, PARTS.props.filter(Boolean))) {
       const keys = Object.keys(pt.groups);
       if (!keys.length) continue;
       // pivot: wheel = its axle; castor = its swivel TOP (it yaws about
@@ -1205,7 +1302,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         hingeAxis = (y1 - y0) > (z1 - z0) ? [0, 1, 0] : [0, 0, 1];
       }
       const pv = pt.pivotM ? pt.pivotM
-        : pt.kind === 'prop' ? hub
+        : pt.kind === 'prop' ? pt.hub
         : pt.kind === 'castorT'
           ? rotP(-pt.topC[2], pt.topC[1], pt.topC[0])
           : pt.axleC ? rotP(-pt.axleC[2], pt.axleC[1], pt.axleC[0])
@@ -1222,7 +1319,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       }
       const out2 = { kind: pt.kind, R: pt.R || 0, pivot: pv,
                      stretch: !!pt.stretch, groups: gs2 };
-      if (pt.kind === 'prop' && propAxis) out2.axis = propAxis;  // G59.1
+      if (pt.kind === 'prop' && pt.axis) out2.axis = pt.axis;  // G59.1
       if (pt.stretch && pt.rootC)          // G58.7: the fixed airframe end
         out2.root = rotP(-pt.rootC[2], pt.rootC[1], pt.rootC[0]);
       if (pt.surf) {                       // G59: what drives it, and how
@@ -1234,6 +1331,19 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
                    : (S2 === 'flapR' || S2 === 'flapL') ? 'fl' : 'da';
         // ailerons are ANTISYMMETRIC; the rest move together
         out2.sgn = (S2 === 'ailL') ? -1 : 1;
+        // THE RUDDERVATOR (2026-09-04): on a V-tail each elevator panel
+        // also answers the rudder — the codec's second drive (50_model_
+        // codec applyHinges, written for exactly this). The solver's mix is
+        // al -= elevTau*de + rudTau*dr*side, so the right panel (cage +x =
+        // model +z, side +1) deflects de + dr and the left de - dr. The
+        // hinge runs along the CANTED root: [0, ±sin, cos] in the model
+        // frame, the y part mirrored so a symmetric `de` stays symmetric.
+        const SBh = window.CAGE_STAB;
+        if ((S2 === 'elevR' || S2 === 'elevL') && SBh && SBh.cant >= 20) {
+          const G = SBh.cant * Math.PI / 180, sd = S2 === 'elevR' ? 1 : -1;
+          out2.axis = [0, sd * Math.sin(G), Math.cos(G)];
+          out2.drive2 = 'dr'; out2.sgn2 = sd;
+        }
       }
       if (pt.kind === 'castorT') {
         const axm = rotP(-pt.axC[2], pt.axC[1], pt.axC[0]);

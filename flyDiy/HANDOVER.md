@@ -28693,70 +28693,6 @@ later").
   aeroplane ([[seeing-the-browser-pane]] again). Anything about motion is
   measured in node; the pane verifies DOM and pixels only.
 
-## G169 — THE LEFT BAR WENT DEAD, AND THE START IS THE PLAYER'S (2026-09-04)
-
-The user's playtest, in flight: "None of the left bar controls seem to work
-anymore. The minimap is not displayed anymore. The trace cannot be hidden
-anymore." Three symptoms, two causes, neither of them a code change in the
-tree — and one option added.
-
-**1. Chrome 148 retargets the click to the element holding pointer capture.**
-`flPlace` (G141.3) took `setPointerCapture` on POINTERDOWN so that a panel
-drag could not lose its pointer; the click that ends a non-drag press was
-then still dispatched to the BUTTON under it, and everything in the ribbon,
-the PFD's fold and the map's canvas pressed. The browser's rule moved:
-pointerup and the click after it now go to the capturing element, so every
-press on the ribbon became a click on `#flRail` itself. Measured with a
-capturing document listener: `pointerdown -> svg (inside the button)`,
-`pointerup -> DIV#flRail`, `click -> DIV#flRail`. A scripted `.click()` still
-worked, which is why nothing in the smoke gate saw it. No console error.
-The pointer is captured only once the 4 px threshold has made the gesture a
-drag (in pointermove; the grip captures at once since it has nothing to
-press). GATE UISMOKE pins it: the `down` handler must contain no
-`setPointerCapture`, the `pointermove` handler must.
-
-**2. `#ui #telp { display:flex }` outranked `#telp[hidden]`.** Two ids beat
-one id plus an attribute, so the trace showed with `hidden` SET — and the
-toggle that would have hidden it was behind the dead ribbon. The hide rule
-is `#ui #telp[hidden]` now (the same specificity trap G141 already recorded
-for `#ui #pfd`); the smoke gate greps for it. The trace's DEFAULT was already
-off (`panels.trace:false`); a browser whose saved pref says on keeps its
-choice, and one click in the trace flyout turns it off.
-
-**3. The map was never broken** — it is summoned (G141), off by default, and
-its `show` toggle was behind the same dead ribbon.
-
-**The start.** "The planes are really a lot too slow when rolling out of the
-hangar ... an option to just remove that. In the left bar somewhere." A sixth
-ribbon question, `start` — "Where the flight starts" — with one toggle,
-`taxi out` (from the stand / lined up), pref `flydiy.flStart` = `taxi` |
-`lineup`, read by `applyRoute` on every call so RESTART applies it. Off, the
-aeroplane takes the pre-G151 path verbatim: `placeAtAerodrome` on the spawn
-identity, no `departFrom`, the pilot starts in ROLL. Default stays `taxi`.
-
-Measured headless (the default garage build, `makeTestPilot`, the gates'
-own runner), lined up vs from the stand:
-
-    lined up   ROLL at 0 s, throttle open at 0.5 s, LIFTOFF 13.6 s, CLIMB 24.4 s, 50 m agl at 34 s
-    stand      TAXI 0-58 s (1.2 m/s for the first 35 s, 4 m/s after the turn),
-               LINEUP 58 s, ROLL 59 s, LIFTOFF 70 s, 50 m agl at 91 s
-
-So the "too slow" is the G151-noted debt exactly: the taxi governor is
-thrust-limited at ~1.2 m/s where a real taxi is 4-5 (`taxiFF` assumes thrust
-linear in throttle). Raising it moves every taxi in the battery — the user's
-call, deferred by the user ("we'll see what we do with the roll out behaviour
-later").
-
-**Traps paid for on the way:**
-- `st && st.stand && flStartTaxi()` is `true`, not the stand. Placed at
-  `true`, the aeroplane went NaN the moment it moved, and the world went black
-  behind a NaN camera. Caught live, in the first minute of verification.
-- **The Browser pane throttles rAF to ~1 frame in 3 s** while the game is
-  up. The sim only stepped when a click or a screenshot pumped a frame, so
-  a "stuck in TAKEOFF ROLL at 0 % throttle" read was the instrument, not the
-  aeroplane ([[seeing-the-browser-pane]] again). Anything about motion is
-  measured in node; the pane verifies DOM and pixels only.
-
 ## G170 — THE TAXI, THE TAIL WHEEL, AND THE STANCE (2026-09-04)
 
 The user's second batch, after G169: "still too slow on taxi, much too slow.
@@ -28864,3 +28800,263 @@ the governor and the spring.
   GAME's orbit onto the tail; the ribbon's camera presets are the only
   honest way to a nose view. The nose gear was verified numerically (GATE
   GEAR §7) and by the first screenshot after the layout switch.
+
+## G171 — THE WHEEL FALLS WHERE THE STATION SAYS, THE FITTING STAYS
+## (2026-09-04, the user: "allow for more rake of the suspension, we need to
+## tune for all suspensions, the point of attachment and where the wheels fall
+## (z station) independently")
+
+**What the rows were.** `s<i>Z` has always been the FITTING on the body (the
+defaults note in `_cage_gear.js` says so: siting the fitting where the wheel
+should go put the contact behind the CG). Where the WHEEL then fell was each
+leg family's own law, and only two of the three had one: a beam's axle sat at
+`st.z + beamRake × drop` (rake ±0.4), a swinging link's at the pivot plus its
+reach × tan(`linkSwing`), and an OLEO had no rake at all — its wheel was
+exactly under the trunnion, whatever you did. No row moved a wheel without
+moving its fitting, or the other way round.
+
+**What landed.**
+- `s<i>AxZ` "wheel fore / aft (from fitting)", −1.2..1.2 m, per station, on
+  every leg family: it is added to the AXLE's z and to nothing else. The root
+  (the fitting) does not move, the axle's x and y do not move (the keel datum
+  of G53/G133 holds), and on an oleo it IS the rake — the strut is whatever
+  line joins the trunnion to the axle, so it leans with the wheel and the
+  torque scissor, the drag brace and the shroud follow. Hidden on a tailwheel,
+  whose `twSpringLen` already is that knob (two rows, one fact).
+- `beamRake` widened to ±0.8, `twRake` (the castor's) to 0..50°.
+- The `s<i>Z` label now says "fitting fore / aft".
+- `gearStations` carries `axZ`, so the cage layer cannot forget it.
+
+**The contract, pinned.** GATE GEAR §10: for beam, link and oleo an `axZ` of
+0.35 moves the axle's z by exactly 0.35 and its x/y by nothing, and leaves the
+root bit-identical; and `gearStations` carries the row. §7.3 (the mount never
+moves the wheel) still holds because the axle still reads no `st.mount`.
+
+**Physics.** Nothing new: the join measures the CONTACTS (`M.gearX`, the
+wheelbase, the stance), so a wheel moved aft is a wheel moved aft in the sim
+— the CG angle and the nose share on the plaque follow, as they did for the
+link's swing.
+
+## G172 — THE NAKED STRUCTURE FLIES NAKED (2026-09-04, the user: "ability to
+## remove all fuselage and interior skin, naked structure")
+
+**It was already drawn, and it lied.** `skinOn` 0 (G26.4, Structure & skin >
+covering) has culled the fuselage skin, the pillar bands, the taper, the doors
+AND every interior liner from the DRAWN mesh since G26.4 — and because the
+join's snapshot bakes the drawn meshes, from the FLOWN one too. The physics
+never heard: `61_gen_frame` billed every fuselage bay's covering (`cover()`,
+`GEN_MATERIALS.cover` kg/m² + the paint on it) and `genFusCdA` priced a faired
+pod. A naked aeroplane flew covered.
+
+**What landed — one JOINED row.**
+- `spec.fuselage.covering`: `'skin'` (default, absent = skin, clamped) |
+  `'open'`. The join writes `'open'` exactly when `skinOn` is 0 (the G121.1
+  rule: the drawn state IS the declaration). GEN_SPEC_V does not move —
+  genDefaults fills `'skin'` into every older save, which is what it meant.
+- `61_gen_frame`: with `'open'` the four panels per bay and the tail-post
+  panel are not billed (no cloth, no paint on them); the truss is built
+  exactly as before. The wing and the tail keep their covering.
+- `genFusCdA`: `'open'` adds a DELTA on the covered figure — +0.35 × frontal
+  on the axial term, +0.10 × forward side area on the side terms (Hoerner's
+  open-cockpit / ultralight bodies, CdA ~0.9-1.1 on frontal against 0.75
+  faired, and two seated people offer side area a pod did not) — the gear
+  model's own rule (genGearCdADelta), so no covered build moves.
+- The plaque reports `covering`.
+- A design tile, Structure > **Covering**: Covered / Open frame. The open tile
+  also switches the interior structure ON (`intOn`, `intPillars`): with the
+  skin culled the drawn truss IS the interior pass's — nothing else draws a
+  member — so an open frame with the interior off would show glass, seals and
+  air.
+
+**Measured** (GATE JOIN, the join's own fixture, rotax 912): covered 527.4 kg
+/ fusCdA 0.879 m² -> open 518.9 kg / 1.327 m² — 8.5 kg of cloth and paint
+off that pod, and half again the body drag.
+GATE GEN's configuration matrix gained `open frame`: rigid, stands, flies a
+leg.
+
+**What is still the display's.** The cull keeps the `joint` beads (G26.4's
+own choice: "glass, joints and the bare structure") — orphan seals on an open
+frame are a look, not a lie, and the user can judge them. Door removal
+(`doorGone`) is separate and unchanged.
+
+## G173 — THE V-TAIL AND THE T-TAIL ARE SEATS AND A CANT (2026-09-04, the
+## user: "we can also do the V tail and the T tail variants")
+
+**Where each half already stood.** The solver has flown `tail.type 'v'`
+since G4 (four `vtail` strips with canted normals, the ruddervator mix
+`al -= elevTau·de + rudTau·dr·side` written and signed), the spec sizes one
+from the volume coefficients, GATE GEN sweeps vAngle 25-55 for sense and
+cross-talk, and the codec's `applyHinges` takes a SECOND drive per surface
+"for exactly this". The cage built no V (the design tile said so), and the
+"T-tail" tile wrote `stY 2.35` — a guess that fitted the page's own fin and
+nothing else.
+
+**What landed.**
+- `finToStab` takes `cant` (radians): the laid-flat panel rotates about its
+  ROOT LINE, tip up, before the mirror — a rotation, so the winding rule is
+  untouched, and cant 0 takes the old branch and is bit-identical (GATE FIN
+  §6b asserts both: every canted vertex is the flat one rotated, residue
+  2e-16; cant 0 differs in zero coordinates).
+- Two stab rows, in `position`: `stMount` "root sits" — 0 the boom keel
+  (G26.5, as always), 1 the boom DECK (the top of the same centreline sweep at
+  the hinge station), 2 the FIN TIP (the built fin's highest vertex plus half
+  the stab's thickness, and the stab slides aft to the tip's own station — a
+  swept fin's tip is behind its root and the stab is the fin model's
+  stations); `stY` stays the offset from whichever seat. `stCant` 0..55°.
+  No fin built = the deck seat.
+- `CAGE_STAB` publishes `lay` (with `cant`), `cant` (degrees) and `mount`;
+  the editor's hover pin (G162) spreads `lay` and so pins the canted corners
+  for free.
+- **The join**: a stab layer with cant ≥ 20° IS the tail — its whole group is
+  measured (`layerBounds`, in the mount frame; `tailSurfBounds`' outboard-of-
+  the-boom classifier would have split each panel between "stab" and "fin"):
+  horizontal projection -> `hSpan`, chord, station, root height; and
+  `tail.type = 'v'`, `tail.vAngle = cant`. Below 20° a dihedralled stab flies
+  flat (clampSpec's own floor is 20). The elevator surfaces get the codec's
+  second drive: `drive2 'dr'`, `sgn2 = ±1` (right +, from the solver's own
+  sign), and the hinge axis runs along the CANTED root `[0, ±sin Γ, cos Γ]`
+  in the model frame, the y part mirrored so a symmetric `de` stays symmetric.
+- **The spec**: a BUILT V keeps its measured panels (G54.3's rule): with
+  `hSpan`/`hChord` from the join, the panel span is the projection un-canted
+  and `Svt` is what those panels have; only a spec left null takes the
+  volume-coefficient sizing. `auto['tail.hSpan']` is not set for a built one.
+- The design tile: **V-tail** is live (`stCant 35, stMount 1, stX 0, stY 0,
+  finOn 0`); **T-tail** is a seat (`stMount 2, stY 0.02, stZ −0.10`, fin on);
+  Conventional and Cruciform put the seat back on the keel and the fin back
+  on. `read` says V above 20° of cant, T on the fin-tip seat (or the old
+  2.35), cruciform above 0.75.
+
+**Pinned.** GATE JOIN: cant 35 -> type v / vAngle 35, resolved vG, the
+measured 2.4 m projection survives resolve and is not auto, panel area =
+(span / cos) × chord, the frame builds with no FIN node; cant 10 writes no
+type. GATE FIN §6b as above. GATE DESIGN: the tiles read what they write.
+
+**Not done, said plainly.** The join's fin measurement on a T-tail excludes
+the stab's bounding box from the fin (the G54.3 rule for a high stab), so
+`vHeight` reads a stab-thickness short — a centimetre or two, unchanged from
+before. The physics of a cant between 1° and 19° is flat.
+
+## G174 — THE MOUNTS: A PUSHER ON THE AFT BULKHEAD, ONE ENGINE OVER THE
+## WING, A PAIR ON THE WING (2026-09-04, the user: "Pushers · Wing mounted
+## engines · Pusher engine will anchor at the back of the aft bulkhead · an
+## option for a wing mounted single engine too, like ultra light delta wings
+## ... on top of the central wing section (requires high wing) and the cabin
+## has an aero nose")
+
+**Where it stood.** One mount. `engines[].mount` accepted 'nose' | 'wing' and
+nothing read 'wing'; clampSpec truncated `engines[]` to one ("a second entry
+would fly as doubled thrust with ZERO asymmetry"); the frame hung one pair of
+ENG nodes on the firewall; the join hard-coded `mount: 'nose'`; the cowl and
+the engine layers both read `noseFace`, which picks the FORWARD-most aperture
+by design; the design tiles for pusher and twin were greyed "ROADMAP P7".
+The aft-bulkhead cap and its firewall plate already existed (`rearAperture`,
+"the pusher path", G26) — nothing drove them.
+
+**The spec.** `engines[i]`: `mount` ∈ nose | pusher | wingTop | wing;
+`x, y, z` the mount station in the frame's metres (x aft of the firewall, y
+over the cabin keel, z the nacelle half-span), null = derived; `pylon` the
+over-the-wing pylon height. `resolveSpec` publishes `S.engAt[]` — engX/engY
+STAY the nose station (the cowl loft, the nose gear and every fiche read
+them); engAt is the mount the frame builds. Derivations: a pusher 0.30 m
+behind `boxRear` at 0.45 cab.h; over-the-wing at 30 % chord behind the LE, a
+pylon (0.30 default) above the upper skin; a pair at the front spar, 35 % out
+from the root. 'wing' is EXACTLY two entries (a lone one is doubled; the
+second is the first's mirror — type, station, custom row), every other mount
+one. The gear's prop-clearance bound and the plaque's `propClear` read the
+LOWEST engine's disc (a nose mount = engY, as before).
+
+**The frame.** A nose engine is the firewall pair, byte for byte and in the
+same node order (the default aeroplane's numbers do not move). The others are
+built in a block 2b AFTER the wing (they need its spar nodes): the pusher's
+pair hangs on the ring nearest its station (the aft bulkhead) as the nose
+engine hangs on the firewall; the over-the-wing pair braces to BOTH sides'
+root spars, cross-braced, and back to the cabin roof (the pylon's legs); a
+nacelle sits on the four spar nodes of its own bay, one whole engine a side.
+`refs.engine` is whatever list results — the solver spreads T over it and
+`nEngines` (the entries) multiplies it: a pair pulls twice. The cowl and the
+exhaust masses go where the engine is.
+
+**The wash.** A nose engine washes the centre section and the inboard wing
+exactly as fitted to the Cub. A pusher and the over-the-wing pusher blow on
+NOTHING ahead of them (the Chinook's own rule) and on the tail as before. A
+wing pair washes the wing about EACH nacelle (`washAt(|z| − zNac)`) and the
+tail, between the two wakes, not at all.
+
+**The cage.**
+- `engMount` (0 nose / 1 pusher / 2 over the wing / 3 pair), `engNacAt`
+  (semispan fraction, pair), `engPylonH` (m, over the wing) — the engine
+  layer's rows, in the engine part's `fitted` group; `engMount` also derives
+  the ENDS in `cageSpec`: a pusher opens the aft bulkhead (`rearAperture`) —
+  which is a FACE only on a rod boom, where the pod ends there (a lofted
+  boom's "rear cap" is the tail tip) — and any mount off the nose finishes
+  the nose aero. The page's own configuration select still says yes on its
+  own.
+- `noseFace(mesh, FS, end)`: 'tail' takes the aft-most aperture. `engineFaces
+  (mesh, FS, P)` is the ONE description of where every engine bolts on, read
+  by the cowl AND the engine layer: nose; the aft bulkhead (aft); a synthetic
+  plate a pylon over the centre section's LE at 30 % chord (aft; needs a HIGH
+  wing, else the layer says so and draws nothing); a synthetic plate just
+  inside the LE at ±`engNacAt` × semispan (tractor). Synthetic faces make the
+  engine draw its own mount plate (`fwOn`).
+- The wing layer publishes `overAt(x,z)`, `leAt(x)` (walks the planform from
+  the front at lateral x until both skins answer — the LE with the top and
+  bottom there) and `box`, next to G133's `underAt`.
+- The engine layer builds ONE UNIT PER FACE (the same engine mesh, spinner and
+  blades); an aft unit is turned round (`rotation.y = π`, its firewall plane
+  lands on the face from behind: z = face.z + zFw) so the propeller runs
+  behind. Unit k > 0 names its spinner/prop `edSpinner#k` / `edProp#k`. The
+  over-the-wing unit gets a pylon post in the mount material. `CAGE_ENG`
+  publishes `mount` and `units[{kind, aft, at, exhaustAt}]`.
+- The cowl layer builds one shell and CLONES it to every further face; an aft
+  face turns the shell round (firewall end on the face, inlet round the
+  spinner behind — the Long-EZ look).
+- **The join** measures every unit's mount point into the model frame
+  (`M.engUnits`: x = zFw − at.z, y = at.y − yD, z = at.x) and writes
+  `engines[]` with the drawn mount and stations; a pair is two entries. The
+  snapshot has ONE PROP PART PER ENGINE (`PARTS.props[k]`, hub and shaft axis
+  per unit); the G58.4 "hub inside the body" tripwire applies to a NOSE unit
+  only — a pusher's hub is behind the nose by design.
+- Design: **Engine mount** tiles Nose / Pusher (writes `boomStyle 1` too) /
+  Over the wing (writes `wgPos 0`); **Engines** Single / Twin (wings) —
+  count and placement stay one fact, Single puts a pair back to the nose and
+  leaves a single mount alone. The `pusherPod` archetype is LIVE and loses
+  its mirror (a mirrored pod has no bulkhead face — its aft half is a second
+  nose).
+
+**Measured** (dev.html, the default cage, rotax 912 inline): pusher unit at
+z 1.06 behind the bulkhead face at z 1.54 (zFw −0.48); over the wing: LE at
+z 2.11, upper skin 0.66, face at z 1.68 / y 0.96, engine at (0, 1.04, 1.21),
+prop aft; pair: nacelle faces at x ±1.65 (0.35 × 4.7), z 2.06, engines at
+z 2.53 ahead of the LE. GATE JOIN: engMount 1 with a drawn station 3.1 m ->
+pusher nodes at x 3.1 carrying the engine, nEngines 1; engMount 3 -> two
+'wing' entries, nEngines 2, mirrored nodes at |z| 2.1; engMount 2 -> pylon
+0.4, the engine above the deck. GATE GEN's configuration matrix gained
+`pusher`, `over the wing`, `wing twin` — each rigid, stands, flies a leg.
+
+**The wing follows the engine — measured out of GATE GEN.** The first
+battery landed the pusher configuration at 4.61 m/s sink (limit 2.0): moving
+the engine from x −0.48 to +1.70 dragged the CG aft by its lever and the
+static margin went +0.19 -> −0.11 (over the wing: 0.00), because the wing
+station is derived from the CABIN. A DERIVED `wing.xLE` now moves aft by
+`n·mE·(xE − engX0) / (refMass + (n−1)·mE)` for any mount off the nose
+(estimated off the registry masses, before the frame exists); a MEASURED
+station (the join's, off a drawn wing) is the builder's and stays. After:
+pusher SM +0.10, over the wing +0.08, pair +0.19 (the nose build +0.19,
+untouched). The plaque tells the margin either way.
+
+**Not done, said plainly.**
+- No engine-out, no asymmetric thrust: a pair is two engines that always
+  run; Vmc is nobody's number yet.
+- The over-the-wing engine always PUSHES (the user's delta-wing picture; a
+  Seabee's does too). A tractor-over-the-wing row is one flag away
+  (`aft` in `engineFaces`).
+- A pusher needs a rod boom; on a lofted boom the layer says so and draws no
+  engine (the physics still flies the pusher station).
+- The nacelles have no tail cone of their own — the wing swallows the cowl's
+  aft end, which is what most light twins look like, but a nacelle standing
+  proud of a thin wing would want `aftMode 1` surfaced (the cowl bench has it).
+- The exhaust/wear reads unit 0's exit only.
+- Pixels: the Browser pane orbits by a real pointer drag and screenshots a
+  fresh frame after it (the setView call does not repaint; the ribbon's
+  presets do) — the pusher and the T-tail were looked at, the V and the pair
+  were verified by the numbers above.
