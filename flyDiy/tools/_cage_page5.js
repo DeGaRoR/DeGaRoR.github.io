@@ -480,6 +480,17 @@ window.CAGE_PAGE = {
        { when: P => +P.taperOn && !+P.boomStyle }],
       ['taperPanels','taper panels',   0, 1, 1,
        { when: P => +P.taperOn && +P.boomStyle === 1 }],
+      // THE AERO AFT (2026-09-04, TWIN-BOOM spec §1.2, cut 1): the pod's tail
+      // when nothing sits on the bulkhead — off by a pusher (its cowl does
+      // the job). Length, droop, and the tip from a rounded dome to a teardrop.
+      ['aeroAftOn', 'aero aft',        0, 1, 1,
+       { when: P => +P.boomStyle === 1 && Math.round(P.engMount || 0) !== 1 }],
+      ['aeroAftLen', 'aero aft length', 0.3, 2.0, 0.01,
+       { when: P => +P.boomStyle === 1 && +P.aeroAftOn, dim: 'len' }],
+      ['aeroAftDroop', 'aero aft droop', -0.3, 0.3, 0.005,
+       { when: P => +P.boomStyle === 1 && +P.aeroAftOn, dim: 'len' }],
+      ['aeroAftTip', 'aero aft tip (dome → teardrop)', 0, 1, 0.01,
+       { when: P => +P.boomStyle === 1 && +P.aeroAftOn }],
       ['rodY',      'rod height',     -0.9, 0.9, 0.005,
        { when: P => +P.boomStyle === 1, dim: 'len' }],
       ['rodD',      'rod diameter',    0.04, 0.32, 0.002,

@@ -6135,6 +6135,8 @@ const CAGE_PARAMS = {
   // truss's longerons — the landing gear's V-panel idiom. 0 = bare.
   taperOn: 0, taperLen: 0.6, taperW: 1, taperPanels: 0,
   boomStyle: 0, rodY: 0, rodD: 0.12,
+  // the aero aft (2026-09-04, cut 1): the cowl layer lofts it on the aft face
+  aeroAftOn: 0, aeroAftLen: 0.9, aeroAftDroop: 0, aeroAftTip: 0.5,
   // bubble crest (G15, superseded by canopy below — kept as a dev param):
   // a smooth longitudinal bump of the roof/ceil over the pilot+pax cabin.
   // h 0 = off (the fit identity path).
@@ -6441,7 +6443,8 @@ function cageSpec(P) {
   const engMountK = Math.round(P.engMount || 0);
   S.config = {
     noseMode: P.aeroNose ? 'aero' : 'cowl',
-    rearAperture: (P.rearAperture || (engMountK === 1 && P.boomStyle)) ? 1 : 0,
+    rearAperture: (P.rearAperture || (engMountK === 1 && P.boomStyle)
+                   || (P.aeroAftOn && P.boomStyle)) ? 1 : 0,
     noseCrown: P.noseCrown,
     noseFinish: (P.noseFinish || engMountK >= 1) ? 'aero' : 'engine',
     cowl: { loops: Math.max(0, Math.round(P.cowlLoops)),

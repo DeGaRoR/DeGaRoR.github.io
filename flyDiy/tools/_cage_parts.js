@@ -369,6 +369,8 @@ const CAGE_PARTS = [
     groups: [
       // boomStyle -> `design`; these shape the rod once it is chosen
       ['rod', ['rodY', 'rodD']],
+      // the pod's aero tail on a rod boom (2026-09-04, cut 1)
+      ['aero aft', ['aeroAftOn', 'aeroAftLen', 'aeroAftDroop', 'aeroAftTip']],
       ['length & aft section', ['boomLen', 'aftRoofY', 'aftKeelY']],
       ['pod ring', ['boomMidOn', 'boomMidT', 'boomMidPinch']],
     ] },

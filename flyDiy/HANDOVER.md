@@ -29280,3 +29280,18 @@ item 7. Without it a Caravan/Kodiak-alike is an R-985 with a long nose.
 - Light gates green: DESIGN, PARTS, JOIN, COWL, STARTER, SAVE, BUILD, UISMOKE,
   CAGEFIT, FIT, GEAR. The core battery is the user's, run once for all
   sessions (their ruling, 2026-09-04).
+
+## G178 — TWIN-BOOM SPEC, SESSION 2: THE AERO AFT, CUT 1 (2026-09-04)
+
+On a rod boom with nothing on the bulkhead, `aeroAftOn` lofts the cowl bench's
+tail cone OFF THE AFT FACE, turned round: the face's section shrinks over
+`aeroAftLen` (0.3–2.0) to a point — `aeroAftTip` 0 is the dome's sqrt law,
+1 a teardrop — the axis dropping by `aeroAftDroop`. The rows are the Boom
+part's; the aft bulkhead is capped for it (`rearAperture`, as for a pusher)
+and a pusher (`engMount 1`) switches it off: its cowl does the job. Its own
+`PAGE.post` hook in _cage_cowl.js, so it exists with the cowl off. CUT 1'S
+ADMITTED COMPROMISE: it wears the cowl's skin section and the cowl's layer
+name (a click lands on the cowl part) — the fuselage's own rings are cut 2,
+after the look is judged. Measured: face z 1.54 / y −0.04 on the default
+pod, 1.10 m, tip 0.80. (The rows are `aeroAft*` — `aftDroop` was already the
+mirrored pod's aft-deck droop; GATE PARTS caught the double claim.)

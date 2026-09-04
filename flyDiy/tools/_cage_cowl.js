@@ -782,6 +782,60 @@ PAGE.post = ctx => {
       `${(CW.zEnd() * 1000).toFixed(0)} mm long`;
   }
 };
+// THE AERO AFT, CUT 1 (2026-09-04, TWIN-BOOM spec §1.2; the user: "an 'aero
+// aft' to the cabin, encompassing the bulkhead — not so different from a cowl
+// fitted at the back really, maybe we can start there? — and finishing
+// rounded or as a teardrop (slider wanted)"). On a rod boom with nothing on
+// the bulkhead, the cowl bench's own tail-cone loft is lofted OFF THE AFT
+// FACE, turned round: the face's section shrinks over `aftLen` to a point
+// (`aftTip` 0 = the dome's sqrt law, 1 = a teardrop), the axis dropping by
+// `aftDroop`. It wears the cowl's skin section (cut 1's admitted compromise:
+// the fuselage's own rings are cut 2) and lives in its own hook so it exists
+// with the cowl switched off — a pusher's aft face is the engine's, not this.
+let aftGroup = null;
+const prevPostAft = PAGE.post;
+PAGE.post = ctx => {
+  if (prevPostAft) prevPostAft(ctx);
+  const { scene, mesh, P, stat } = ctx;
+  if (aftGroup) {
+    aftGroup.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+    if (aftGroup.parent) aftGroup.parent.remove(aftGroup);
+    aftGroup = null;
+  }
+  if (!+P.aeroAftOn || !+P.boomStyle || Math.round(P.engMount || 0) === 1) return;
+  const FS = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
+  const face = noseFace(mesh, FS, 'tail');
+  if (!face) { if (stat) stat.textContent += '  ·  aero aft: no aft face'; return; }
+  const L = Math.max(0.3, +P.aeroAftLen || 0.9), droop = +P.aeroAftDroop || 0;
+  const tip = Math.max(0, Math.min(1, +P.aeroAftTip == null ? 0.5 : +P.aeroAftTip));
+  const sect = { a: face.halfW, bT: face.halfH, bB: face.halfH,
+                 nT: CW.sqExp(0.65), nB: CW.sqExp(0.65), yw: 0 };
+  const NS = 22, NA = 48, rings = [];
+  for (let i = 0; i < NS; i++) {
+    const e = CW.smooth(i / (NS - 1));
+    // dome (tip 0): sqrt(1 - e^2.2); teardrop (tip 1): (1 - e^0.9)^1.4
+    const k = Math.pow(Math.max(0, 1 - Math.pow(e, 2.2 - 1.3 * tip)), 0.5 + 0.9 * tip);
+    const ring = [];
+    for (let j = 0; j < NA; j++) {
+      const th = j / NA * Math.PI * 2;
+      const [x, y] = CW.sectPt(th, { a: Math.max(sect.a * k, 0.012),
+        bT: Math.max(sect.bT * k, 0.012), bB: Math.max(sect.bB * k, 0.012),
+        nT: CW.lerp(sect.nT, 2, e), nB: CW.lerp(sect.nB, 2, e), yw: 0 });
+      ring.push(new THREE.Vector3(x, face.yc - droop * e + y, face.z - e * L));
+    }
+    rings.push(ring);
+  }
+  let cA = (window.CAGE_VIEW && window.CAGE_VIEW.cowlA != null) ? window.CAGE_VIEW.cowlA : 1;
+  if (window.CAGE_VIEW && window.CAGE_VIEW.xray) cA = Math.min(cA, window.CAGE_VIEW.xrayA || 0.12);
+  const M = cowlMats(cA);
+  aftGroup = new THREE.Group();
+  aftGroup.name = 'cageLayer:cowl';
+  aftGroup.add(new THREE.Mesh(CW.loftRings(rings, null), M.skin));
+  scene.add(aftGroup);
+  window.CAGE_AERO_AFT = { face, len: L, droop, tip };
+  if (stat) stat.textContent += '  ·  aero aft: ' + L.toFixed(2) + ' m, tip ' + tip.toFixed(2);
+};
+
 // the engine layer reads the same nose face (G29) — one description of
 // where the firewall is, not two
 window.CAGE_NOSE = { noseFace, engineFaces };
