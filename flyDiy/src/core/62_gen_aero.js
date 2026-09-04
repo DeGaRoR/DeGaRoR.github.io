@@ -182,6 +182,20 @@ function genStrips(S, fr) {
     }
     return strips;
   }
+  // TWIN BOOMS (2026-09-04): the stab hangs on the boom tails (its HT nodes
+  // and the tails' bottom nodes), and there are two fins, one a boom
+  if (P.BOOMS && P.FIN2 != null) {
+    for (const [H, Bn, Bo, side] of [[P.HTL, P.HTBL, P.HTBR, -1], [P.HTR, P.HTBR, P.HTBL, 1]]) {
+      strips.push({ kind: 'stab', side, area: 0.565 * S.tail.Sh / 2, chord: hc,
+        wash: tailWash * R.stabWash, w: [[H, .50], [Bn, .30], [Bo, .20]] });
+      strips.push({ kind: 'stab', side, area: 0.435 * S.tail.Sh / 2, chord: hc,
+        wash: tailWash * R.stabWash, w: [[H, .25], [Bn, .45], [Bo, .30]] });
+    }
+    for (const [Fn, H, Bn] of [[P.FIN, P.HTR, P.HTBR], [P.FIN2, P.HTL, P.HTBL]])
+      strips.push({ kind: 'fin', area: S.tail.Sv / 2, chord: S.tail.vChord,
+        wash: tailWash * R.finWash, w: [[Fn, .40], [H, .35], [Bn, .25]] });
+    return strips;
+  }
   for (const [H, side] of [[P.HTL, -1], [P.HTR, 1]]) {
     strips.push({ kind: 'stab', side, area: 0.565 * S.tail.Sh / 2, chord: hc,
       wash: tailWash * R.stabWash, w: [[H, .50], [P.TPB, .30], [P.TPT, .20]] });
@@ -220,6 +234,16 @@ function genFusCdA(S, fr) {
   if (S.fuselage && S.fuselage.covering === 'open') {
     out.fusCdA[0] += 0.35 * frontal;
     out.fusCdA[1] += 0.10 * sFwd; out.fusCdA[2] += 0.10 * sFwd;
+  }
+  // TWIN BOOMS (2026-09-04): two slender tubes — a blunt-ish nose each
+  // (Cd 0.3 on the frontal) plus skin friction on the wetted length, and
+  // their side area as aft body
+  const tb = S.tail;
+  if (tb && tb.type === 'twinBoom' && tb.boomLen > 0) {
+    const rb = Math.max(0.04, tb.boomR || 0.09), Lb = tb.boomLen;
+    out.fusCdA[0] += 2 * (0.30 * Math.PI * rb * rb + 0.004 * 2 * Math.PI * rb * Lb);
+    out.fusCdAAft[1] += 0.31 * 2 * (2 * rb * Lb);
+    out.fusCdAAft[2] += 0.31 * 2 * (2 * rb * Lb);
   }
   return out;
 }

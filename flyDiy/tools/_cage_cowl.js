@@ -803,6 +803,8 @@ PAGE.post = ctx => {
     if (aftGroup.parent) aftGroup.parent.remove(aftGroup);
     aftGroup = null;
   }
+  return;   // CUT 2 (2026-09-04): the cage's own rings draw the aero aft now
+  // eslint-disable-next-line no-unreachable
   if (!+P.aeroAftOn || !(+P.boomStyle || +P.boomTwin) || Math.round(P.engMount || 0) === 1) return;
   const FS = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
   const face = noseFace(mesh, FS, 'tail');

@@ -29372,3 +29372,62 @@ Quicksilver look; a fitting under the pod would take a keel longeron.
 
 **GATE ARCHETYPES: 19 flown, 19 green** (the Skymaster-alike and the
 P-38-alike complete their circuits).
+## G181 — THE TWIN BOOMS FLY AS DRAWN, AND THE AERO AFT IS FUSELAGE
+## (2026-09-04, the user, with two flight screenshots: "look at the
+## superimposition with the physical model, that fails absolutely ... the
+## aero bottom is not selectable, and frankly it looks bad ... reuse the
+## topology of the back of the fuselage rather than reinventing ... it should
+## inherit the fuselage settings ... the booms are not selectable")
+
+**What the screenshot showed.** Cut 1 flew a twin-boom aeroplane on a
+CENTRELINE truss: the fuselage frame ran to the pod's end, the stab's nodes
+hung at the pod's tail height a metre below the drawn stab, the fin node on
+the centreline — and the skin binding dragged the drawn tail to the nodes.
+The stated approximation was not flyable.
+
+**Cut 2, the physics.** `tail.type 'twinBoom'` builds TWO BOOMS in
+61_gen_frame: each a PRISM TRUSS (three nodes a station — a top and two
+bottoms — triangles at the stations, longitudinals and diagonals along
+three bays) rooted on the wing's four spar nodes of its own bay 0.10 m aft
+of the rear spar, running `boomLen` aft at ±`boomX` in the wing's plane,
+radius `boomR` (the join's, from the drawn tube). The stab's nodes ARE the
+two tail tops (they keep the HTL/HTR tags every consumer keys off), the
+panel between the booms ties them, one FIN node stands over each tail
+(`FIN`, `FIN2`; `refs.fin2`). 62_gen_aero: the stab strips hang on the
+boom tails (`HTBL/HTBR`, the tails' bottom nodes) instead of the tail post,
+two fin strips at half Sv each; `genFusCdA` adds the booms (Cd 0.30 on
+their frontal, skin friction on their wetted length, their side area aft).
+Measured on the default build with booms at 1.25 / 3.0 m: rigid (rank 225
+of 225), SM 0.087, the test pilot completes a circuit in 286 s but lands at 2.18 sink (GEN's bound is 2.0); at 3.5 m of boom the sink is 0.67, at 4.0 m 0.46 — the tail arm is the lever, and the configuration in the matrix takes 3.5.
+GATE JOIN asserts the two booms in the frame; GATE GEN's configuration
+matrix gained `twin boom`.
+
+**Cut 2, the aero aft.** The cowl cone is GONE. On a pod that ends at the
+bulkhead, `S.config.aeroAft` adds two of the FUSELAGE'S OWN RINGS aft of
+the aft pillar (`aeroAftM`, `aeroAftTip`) — the aero nose's
+ellipse-quadrant taper run the other way from the bulkhead's own section,
+the tip power from a dome (`aeroAftTip` 0) to a teardrop (1), a droop —
+so it is skinned, zoned, lined and painted as fuselage, fits the section it
+grows from, and a click on it is the fuselage's. The tip cap takes the
+aero nose's crease (a dome, not a cut). The aft bulkhead no longer needs
+its aperture cap for it (a pusher still has one).
+
+**Selection.** A boom click resolves to Fuselage › Boom (`edBoomL/R` in
+HIT_NAME; verified through the editor's own pick with the hit shape
+`pickAt` produces: `{name, layer}`).
+
+**Still cut 1.** Round/level booms rooted on the wing whatever nacelle sits
+at the station; the stab's span is the fin model's own; push-pull is the
+mixed-mount list the frame does not loop over.
+
+**Battery (2026-09-04, after):** core 55/57 green + ARCHETYPES green (19
+flown). The two reds: **ENERGYBASE** — alloy +0.35 kg, carbon +0.88 kg,
+exactly the bearer members now weighing as 4130 instead of the section's own
+row; re-blessed (`_energy_base.json`, the diff is the record) because that is
+the deliberate mass change the gate's own header names. **GEN** — "drone body
+has no windscreen step" reads `crew 1` with the old mount AND the new one
+(measured), so it is the concurrent G180 seats/occupied work's, not this
+arc's; left for that session. `.claude/launch.json` gained `flydiy-bearer`
+(8318) for this session's own preview; the twin was verified on the stand in
+dev.html (WIP autosave key `flydiy.wip` = the build document, then reload):
+straight wing, straight struts, engines seated, also at FLEX x4.

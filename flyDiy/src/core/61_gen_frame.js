@@ -735,6 +735,7 @@ function genLattice(S, gearX, track, kScale) {
   // the gate harness all key off those names — so only their position changes
   // and there is simply no FIN node to build.
   const isV = t.type === 'v';
+  const isTB = t.type === 'twinBoom' && t.boomX > 0 && t.boomLen > 0;
   const tailY = lastST.yb + 0.55 * (lastST.yt - lastST.yb);
   // STAB HEIGHT. 0 leaves it on the tail cone where it has always been; 1 puts
   // it level with the fin tip, which is a T-tail. Y only — `hX` is the tail arm
@@ -742,13 +743,70 @@ function genLattice(S, gearX, track, kScale) {
   const finTopY = lastST.yt + t.vHeight * 0.82;
   const stabY = isV ? tailY + t.vHeight
                     : tailY + (t.stabH || 0) * (finTopY - tailY);
-  const [HTL, HTR] = NM(t.hX, stabY, 0.5 * t.hSpan, 'HT');
+  let HTL, HTR, FIN = null, FIN2 = null, HTBL = null, HTBR = null, BOOMS = null;
+  if (isTB) {
+    // ---- TWIN BOOMS (2026-09-04, TWIN-BOOM spec §1.3, cut 2) --------------
+    // Each boom is a PRISM TRUSS — three nodes a station (a top and two
+    // bottoms, in and out), triangles at the stations, longitudinals and
+    // diagonals along the bays — rooted on the wing's four spar nodes of its
+    // own bay just aft of the rear spar, running `boomLen` aft at ±boomX in
+    // the wing's own plane. The stab's nodes ARE the two tail tops (they keep
+    // the HTL/HTR tags every consumer keys off); the panel between the booms
+    // ties them; one FIN node stands over each tail. The booms are covered
+    // tubes (their skin billed at 2πr per metre) in the tail's material.
+    const bx = t.boomX, len = t.boomLen;
+    const rB = Math.max(0.04, t.boomR || 0.09);
+    const zAll = [zRoot, ...zs];
+    let b = 0;
+    for (let k = 0; k < zAll.length - 1; k++) if (bx >= zAll[k]) b = k;
+    b = Math.min(b, zs.length - 1);
+    const zB = Math.min(bx, zs[zs.length - 1]);
+    const x0 = xRat(zB) + 0.10, y0 = yF(zB);
+    const NB = 3, chains = {};
+    for (const [sd, sg] of [['L', -1], ['R', 1]]) {
+      const st = [];
+      for (let k = 0; k <= NB; k++) {
+        const x = x0 + len * k / NB;
+        const T = N(x, y0 + rB, sg * bx, k === NB ? 'HT' + sd : 'BM' + sd + 'T');
+        const I = N(x, y0 - 0.5 * rB, sg * bx - sg * 0.9 * rB, 'BM' + sd + 'I');
+        const O = N(x, y0 - 0.5 * rB, sg * bx + sg * 0.9 * rB, 'BM' + sd + 'O');
+        B(T, I, 'fus'); B(I, O, 'fus'); B(O, T, 'fus');
+        if (k) {
+          const p = st[k - 1];
+          B(p.T, T, 'fus'); B(p.I, I, 'fus'); B(p.O, O, 'fus');
+          B(p.T, I, 'fus'); B(p.I, O, 'fus'); B(p.O, T, 'fus');
+        }
+        st.push({ T, I, O });
+      }
+      const w = wf[sd];
+      for (const n of [st[0].T, st[0].I, st[0].O])
+        for (const m of [w.F[b], w.F[b + 1], w.R[b], w.R[b + 1]]) B(n, m, 'fus');
+      cover(2 * Math.PI * rB * len, st.flatMap(q => [q.T, q.I, q.O]));
+      chains[sd] = st;
+    }
+    const tl = chains.L[NB], tr = chains.R[NB];
+    HTL = tl.T; HTR = tr.T; HTBL = tl.I; HTBR = tr.I;
+    // the panel between the booms ties them — the stab's own cover
+    B(tl.T, tr.T, 'fus'); B(tl.I, tr.I, 'fus'); B(tl.T, tr.I, 'fus'); B(tr.T, tl.I, 'fus');
+    cover(1.9 * t.Sh, [HTL, HTR, tl.I, tr.I]);
+    MB = GEN_MATERIALS[t.finMaterial] || M;
+    const finTopB = y0 + rB + t.vHeight * 0.82;
+    const xFin = x0 + len - 0.30 * t.vChord;
+    FIN = N(xFin, finTopB, bx, 'FIN');
+    FIN2 = N(xFin, finTopB, -bx, 'FIN2');
+    for (const [f, q, sd] of [[FIN, tr, 'R'], [FIN2, tl, 'L']]) {
+      B(f, q.T, 'fus'); B(f, q.I, 'fus'); B(f, q.O, 'fus');
+      B(f, chains[sd][NB - 1].T, 'fus');
+    }
+    cover(1.9 * t.Sv, [FIN, FIN2, tl.T, tr.T]);
+    BOOMS = { L: chains.L, R: chains.R, r: rB, x0, len };
+  } else {
+  [HTL, HTR] = NM(t.hX, stabY, 0.5 * t.hSpan, 'HT');
   for (const [H, side] of [[HTL, 'L'], [HTR, 'R']]) {
     B(H, TPB, 'fus'); B(H, TPT, 'fus');
     B(H, side === 'L' ? last.BL : last.BR, 'fus');
     B(H, side === 'L' ? last.TL : last.TR, 'fus');
   }
-  let FIN = null;
   if (isV) {
     cover(1.9 * t.Svt, [HTL, HTR, TPB, TPT]);
   } else {
@@ -763,6 +821,7 @@ function genLattice(S, gearX, track, kScale) {
             finTopY, 0, 'FIN');
     B(FIN, TPT, 'fus'); B(FIN, last.TL, 'fus'); B(FIN, last.TR, 'fus');
     cover(1.9 * t.Sv, [FIN, TPT, last.TL, last.TR]);
+  }
   }
 
   // ---- 5. gear --------------------------------------------------------
@@ -1162,10 +1221,10 @@ function genLattice(S, gearX, track, kScale) {
     upLo: [F[0].BL, F[0].BR], upHi: [F[0].TL, F[0].TR],
     fusDrag: [F[2].BL, F[2].BR, F[2].TL, F[2].TR],
     fusDragAft: [F[F.length-2].BL, F[F.length-2].BR, F[F.length-2].TL, F[F.length-2].TR],
-    engine: engNodes, mains: [GAL, GAR], tw: TW, fin: FIN,
+    engine: engNodes, mains: [GAL, GAR], tw: TW, fin: FIN, fin2: FIN2,
   };
   const parts = {
-    ST, F, TPB, TPT, EL, ER, HTL, HTR, FIN, GAL, GAR, TW,
+    ST, F, TPB, TPT, EL, ER, HTL, HTR, FIN, FIN2, HTBL, HTBR, BOOMS, GAL, GAR, TW,
     wf, zs, zRoot, zCrank, xF, xR, xFat, xRat, sparFront, sparRear, sparSpacing,
     chordAt, yF, incAt, cabRear, gx, tr, twX, twY,
     ribZ,                       // G66: where the ribs the mass model billed are

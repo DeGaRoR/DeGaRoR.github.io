@@ -281,7 +281,10 @@ function cageJoinSpec(P, M, T) {
   }
   // twin booms (2026-09-04): the type, the half-track and the length — the
   // two fins are one Sv (the spec doubles the measured fin)
-  if (M.boomX > 0) { tl.type = 'twinBoom'; tl.boomX = M.boomX; tl.boomLen = M.boomLen; }
+  if (M.boomX > 0) {
+    tl.type = 'twinBoom'; tl.boomX = M.boomX; tl.boomLen = M.boomLen;
+    if (M.boomR > 0) tl.boomR = M.boomR;
+  }
   // THE TAIL'S OWN CONSTRUCTIONS (G116), same contract as the wing's:
   // 0 says nothing, absent means the aeroplane's own material
   {
@@ -790,7 +793,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             // tails, the stab layer the panel between them — both measured
             // whole; vHeight above the boom's line, hSpan the panel's own
             const fb2 = layerBounds('cageLayer:fin'), sb2 = layerBounds('cageLayer:stab');
-            M.boomX = TBj.x; M.boomLen = TBj.len;
+            M.boomX = TBj.x; M.boomLen = TBj.len; M.boomR = TBj.r0;
             if (sb2 && (sb2.x1 - sb2.x0) > 0.5) {
               M.hSpan = 2 * Math.max(Math.abs(sb2.x0), Math.abs(sb2.x1));
               M.hChord = sb2.z1 - sb2.z0;

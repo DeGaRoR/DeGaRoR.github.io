@@ -1924,7 +1924,7 @@ const GEN_DEFAULT = {
           // ±boomX; the FRAME still builds the centreline tail (its post, one
           // FIN node) — cut 1's stated approximation, the two fins' area on
           // the one node, the booms' drag not yet priced
-          boomX: null, boomLen: null },
+          boomX: null, boomLen: null, boomR: null },
   // `stiffness` is the suspension: 1.0 is the mass-scaled default, below that
   // is soft (long travel, bottoms out), above is hard (jars, but holds).
   // type 'taildragger' puts the third wheel at the tail and the mains AHEAD of
@@ -2413,6 +2413,7 @@ function clampSpec(spec) {
   if (!['conventional', 'v', 'twinBoom'].includes(S.tail.type)) S.tail.type = 'conventional';
   S.tail.boomX = genClampN(S.tail.boomX, 0.3, 4.0);
   S.tail.boomLen = genClampN(S.tail.boomLen, 0.5, 8.0);
+  S.tail.boomR = genClampN(S.tail.boomR, 0.03, 0.30);
   // the V's dihedral. Too shallow and it cannot make yaw at any sane area; too
   // steep and it cannot make pitch. The Bonanza's is about 33.
   S.tail.vAngle = genClamp(S.tail.vAngle == null ? 33 : S.tail.vAngle, 20, 55);

@@ -433,6 +433,40 @@ function cageResolve(S) {
     add(fullRing('pilTaperB', zTaperA, taperD), { mat: CAGE_MAT.taper });
   }
   }
+  // THE AERO AFT, CUT 2 (2026-09-04, the user: "reuse the topology of the
+  // back of the fuselage rather than reinventing ... it should inherit the
+  // fuselage settings"): on a pod that ends at the bulkhead, the FUSELAGE'S
+  // OWN RINGS continue aft of it into a cone — the aero nose's ellipse-
+  // quadrant taper run the other way from the bulkhead's own section, a
+  // droop, and a tip that runs from a dome (tip 0) to a teardrop point
+  // (tip 1). Ordinary rings: skinned, zoned, lined and painted as fuselage,
+  // and the cap at the tip is the tail cap, domed by its crease.
+  const AA = ROD && S.config && S.config.aeroAft;
+  if (!MIR && AA) {
+    const baseD = TAP ? cabD : aftDA;
+    const zTipA = zPaxA - AA.len;
+    const ringAft = (name, zz) => {
+      const f = Math.min(1, (zPaxA - zz) / Math.max(1e-6, zPaxA - zTipA));
+      const pw = 2.2 - 1.3 * AA.tip;                  // dome ... teardrop
+      const e = 1 - Math.pow(Math.max(0, 1 - Math.pow(f, pw)), 0.5 + 0.9 * AA.tip);
+      const tipK = 0.05;
+      const sc = 1 - (1 - tipK) * e;
+      const mid = 0.5 * (baseD.roofY + baseD.keelY);
+      const dy = -AA.droop * f * f;
+      const Rg = fullRing(name, zz, {
+        Ww: baseD.Ww * sc, Wr: baseD.Wr * sc,
+        roofY: mid + (baseD.roofY - mid) * sc,
+        ceilY: mid + (baseD.ceilY - mid) * sc,
+        floorY: mid + (baseD.floorY - mid) * sc,
+        keelY: mid + (baseD.keelY - mid) * sc,
+      });
+      for (const k in Rg.lv) { Rg.lv[k].y += dy;
+        if (Rg.lv[k].yC != null) Rg.lv[k].yC += dy; }
+      return Rg;
+    };
+    add(ringAft('aeroAftTip', zTipA), null);
+    add(ringAft('aeroAftM', zPaxA - 0.55 * AA.len), { mat: CAGE_MAT.plain });
+  }
   // with the taper on, the pillar pair reverts to the full cabin section
   // — a pillar is a pillar again, the contraction is the taper's
   if (!MIR) add(fullRing('pilPaxA', zPaxA, TAP ? cabD : aftDA),
@@ -1545,7 +1579,8 @@ function buildCage2(S, step) {
         tagLoop(nIds[i], r, CW.noseCap != null ? CW.noseCap : CW.cap);
     });
   }
-  if (E && !MIR) tagLoop(ids[0], seq[0], CW.cap);      // tail cap edge
+  if (E && !MIR) tagLoop(ids[0], seq[0],               // tail cap edge:
+    (S.config && S.config.aeroAft && CW.noseCap != null) ? CW.noseCap : CW.cap);  // a cone domes
 
   // ---- MIRRORED POD (user design, G18 S2) ---------------------------------
   // The aft half is the front half REFLECTED about the cabin-pillar
@@ -6453,10 +6488,16 @@ function cageSpec(P) {
   // tip) — and any mount off the nose finishes the nose aero. The page's own
   // nose-finish / rear-aperture rows still say yes on their own.
   const engMountK = Math.round(P.engMount || 0);
+  // the aero aft (cut 2): the pod's own rings past the bulkhead; never with
+  // a pusher on the bulkhead (its cowl is the aft), only where the pod ends
+  const aeroAft = (+P.aeroAftOn && (P.boomStyle || +P.boomTwin) && engMountK !== 1)
+    ? { len: Math.max(0.3, +P.aeroAftLen || 0.9), droop: +P.aeroAftDroop || 0,
+        tip: Math.max(0, Math.min(1, +P.aeroAftTip == null ? 0.5 : +P.aeroAftTip)) }
+    : null;
   S.config = {
     noseMode: P.aeroNose ? 'aero' : 'cowl',
-    rearAperture: (P.rearAperture || (engMountK === 1 && P.boomStyle)
-                   || (P.aeroAftOn && (P.boomStyle || +P.boomTwin))) ? 1 : 0,
+    rearAperture: (P.rearAperture || (engMountK === 1 && P.boomStyle)) ? 1 : 0,
+    aeroAft,
     noseCrown: P.noseCrown,
     noseFinish: (P.noseFinish || engMountK >= 1) ? 'aero' : 'engine',
     cowl: { loops: Math.max(0, Math.round(P.cowlLoops)),

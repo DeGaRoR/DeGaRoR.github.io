@@ -359,7 +359,12 @@ try {
   ok(sT.tail.type === 'twinBoom' && sT.tail.boomX === 1.25, 'boomX -> tail.type twinBoom');
   const RT2 = resolveSpec(JSON.parse(JSON.stringify(sT))).spec;
   ok(Math.abs(RT2.tail.Sv - 2 * 0.9 * 0.8) < 1e-9, 'RESOLVED Sv = two measured fins (' + RT2.tail.Sv.toFixed(3) + ')');
-  ok(genFrame(RT2).cg0.every(Number.isFinite), 'a twin-boom spec builds');
+  const frT = genFrame(RT2);
+  ok(frT.cg0.every(Number.isFinite), 'a twin-boom spec builds');
+  ok(frT.parts.BOOMS && frT.parts.FIN2 != null &&
+     Math.abs(frT.nodes[frT.parts.HTR].p[2] - 1.25) < 1e-9 &&
+     Math.abs(frT.nodes[frT.parts.FIN2].p[2] + 1.25) < 1e-9,
+     'the frame has two booms: the stab nodes at ±boomX, a fin node a boom');
 } catch (e) { ok(false, 'twin-boom join threw: ' + e.message); }
 
 // THE GLAZING IS JOINED (2026-09-04): glazeOn 0 -> cabin.glazing 'none' and
