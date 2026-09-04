@@ -50,12 +50,19 @@ const ROWS = window.COWL_ROWS || [];
 // ENGINE layer (G29 — they are the engine's children now), which re-homes
 // their rows and builds their meshes. Their VALUES still ride through
 // CW.P (SHOWN keeps them), so the tool stays one parameter set.
-const SKIP_GROUPS = new Set(['g_aft', 'g_mesh', 'g_spin', 'g_prop']);
+const SKIP_GROUPS = new Set(['g_mesh', 'g_spin', 'g_prop']);
+// THE NACELLE (2026-09-04, the user: "the original engine cage/bench tool had
+// a nacelle generator, can we have this back please?"): the bench's
+// termination group is back — `aftMode` (blend / tail cone), `tailLen`,
+// `tailDrop` — for a cowl on a synthetic face (a pylon, a nacelle). The
+// fuselage stub and the bench's pylon-and-wing-stub scenery stay out.
+const NACELLE_SKIP = new Set(['stubLen', 'pylon']);
 
 const SHOWN = [];
 for (const g of ROWS) {
-  if (g.id === 'g_aft') continue;
-  for (const r of g.rows) if (CW.P[r.k] !== undefined) SHOWN.push(r.k);
+  for (const r of g.rows)
+    if (CW.P[r.k] !== undefined && !(g.id === 'g_aft' && NACELLE_SKIP.has(r.k)))
+      SHOWN.push(r.k);
 }
 const cowlDef = { cowlOn: 1, fitNose: 1, cowlGap: 0.0 };
 for (const k of SHOWN) cowlDef['cw_' + k] = CW.P[k];
@@ -67,7 +74,7 @@ PAGE.defaults = Object.assign(cowlDef, PAGE.defaults || {});
 const rowNames = r => r.k === 'material' && CW.MATERIALS
   ? CW.MATERIALS.map(mm => mm.name) : r.names;
 const groupItems = g => g.rows
-  .filter(r => CW.P[r.k] !== undefined)
+  .filter(r => CW.P[r.k] !== undefined && !(g.id === 'g_aft' && NACELLE_SKIP.has(r.k)))
   .map(r => ['cw_' + r.k, r.label, r.lo,
              r.k === 'material' && CW.MATERIALS ? CW.MATERIALS.length - 1
                                                 : r.hi,
@@ -81,9 +88,12 @@ const GROUP = ['2b · cowl', [
   ['cowlGap', 'fore / aft (stand-off from the face)', -0.05, 0.15, 0.002,
    { when: P => +P.cowlOn }],
 ].concat(ROWS.filter(g => !SKIP_GROUPS.has(g.id))
-             .map(g => [g.name.toLowerCase(), groupItems(g),
+             .map(g => [g.id === 'g_aft' ? 'nacelle' : g.name.toLowerCase(), groupItems(g),
                         g.id === 'g_body' || g.id === 'g_scoop' ? 'open' : undefined,
-                        { when: P => +P.cowlOn }]))];
+                        // the nacelle rows only mean something off the body
+                        g.id === 'g_aft'
+                          ? { when: P => +P.cowlOn && Math.round(P.engMount || 0) >= 2 }
+                          : { when: P => +P.cowlOn }]))];
 (PAGE.groupsOverride || (PAGE.groups = PAGE.groups || [])).push(GROUP);
 
 // ---- WHAT IS LOCKED, AND WHAT DOES NOT APPLY ------------------------------
@@ -735,6 +745,13 @@ PAGE.post = ctx => {
   // that say this panel comes off. Guarded, because the cowl module is shared
   // with a bench that may predate them.
   if (CW.buildDetail) CW.buildDetail(cowl, M);
+  // THE NACELLE TAIL CONE (2026-09-04): on a face that is not the body's,
+  // `aftMode` 1 closes the shell on the bench's own tail cone — the pylon
+  // scenery off, the cone in the cowl's skin
+  if (station.synthetic && Math.round(CW.P.aftMode) === 1) {
+    CW.P.pylon = 0;
+    CW.buildAft(cowl, M);
+  }
   // NO buildAft — THE STUB FUSELAGE IS NOT DRAWN HERE.
   // `buildAft` is the bench's stand-in for the aeroplane: at aftMode 0 it lofts
   // a constant section aft from the firewall in `mats.host`, and at aftMode 1 a
@@ -755,13 +772,17 @@ PAGE.post = ctx => {
   // built; every further unit (a wing pair's other side) wears a clone at
   // its own face. An AFT unit turns the shell round — its firewall end stays
   // on the face, its inlet faces the propeller behind.
+  // (2026-09-04, the user's screenshot: the second cowl a metre off its
+  // engine — the clone's group was a CHILD of the first unit's group and
+  // inherited its translation and its π turn. Every unit now has its own
+  // group under an identity root.)
   const ex = Math.max(0, P.explodeD || 0) * FS;
   units.forEach((u, k) => {
     const f = u.face;
     const c = k === 0 ? cowl : cowl.clone();
-    const ug = k === 0 ? group : new THREE.Group();
-    if (k) { ug.name = 'cageLayer:cowl'; ug.userData.xray = XRAY ? 1 : 0; }
-    if (k) ug.add(c);
+    const ug = new THREE.Group();
+    ug.name = 'cageLayer:cowl'; ug.userData.xray = XRAY ? 1 : 0;
+    ug.add(c);
     if (u.aft) ug.rotation.y = Math.PI;
     ug.position.set(f.x || 0, f.yc,
                     f.z + (u.aft ? -1 : 1) * (P.cowlGap || 0));
@@ -770,7 +791,7 @@ PAGE.post = ctx => {
     // group is metres, so × FS); the engine layer stages the cone and the
     // blades beyond it
     if (ex > 0) c.position.z += ex * 0.9;
-    if (k) group.add(ug);
+    group.add(ug);
   });
   scene.add(group);
 

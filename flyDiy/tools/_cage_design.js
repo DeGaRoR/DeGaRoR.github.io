@@ -882,7 +882,8 @@ const DESIGN_ROWS = [
         writes: { cage: { engMount: 1, boomStyle: 1, taperOn: 1, cowlOn: 0 } } },
       { value: 'wingTop', label: 'Over the wing', icon: ICON.mountWingTop,
         note: 'one engine on a pylon over the centre section, pushing; high wing; no cowl',
-        writes: { cage: { engMount: 2, wgPos: 0, cowlOn: 0 } } },
+        writes: { cage: { engMount: 2, wgPos: 0, cowlOn: 0, cw_aftMode: 1,
+                          cw_tailLen: 1.0 } } },
     ] },
 
   { key: 'engCount', label: 'Engines', kind: 'discriminator',
@@ -896,7 +897,7 @@ const DESIGN_ROWS = [
                                        : Math.round(P.engMount || 0) } } },
       { value: 2, label: 'Twin (wings)', icon: iconTopEngines(false, 2),
         note: 'a tractor nacelle a side, at the front spar; both pull',
-        writes: { cage: { engMount: 3 } } },
+        writes: { cage: { engMount: 3, cw_aftMode: 1, cw_tailLen: 1.2 } } },
       { value: 3, label: 'Three (nose + wings)', icon: iconTopEngines(true, 2),
         inactive: 'wing nacelles: ROADMAP P7' },
       { value: 4, label: 'Four (wings)', icon: iconTopEngines(false, 4),

@@ -602,6 +602,8 @@ const CAGE_PARTS = [
     groups: [
       // `cowlLoops/Ease/Bulge` -> `nose`: they loft the CAGE's nose cap, not this layer
       ['fitted', ['cowlOn', 'fitNose', 'cowlGap']],
+      // the bench's nacelle termination, back (2026-09-04)
+      ['nacelle', ['cw_aftMode', 'cw_tailLen', 'cw_tailDrop']],
       ['body', ['cw_cowlLen', 'cw_aftW', 'cw_aftH', 'cw_taperW',
                 'cw_taperH', 'cw_lidRise', 'cw_faceRise', 'cw_lidLen',
                 'cw_lidShoulder', 'cw_keelSweep', 'cw_deckSweep',
