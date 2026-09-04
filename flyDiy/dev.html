@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Garage Flight Sim</title>
 <link rel="stylesheet" href="src/viewer/style.css?v=771a9126">
-<link rel="stylesheet" href="src/viewer/editor.css?v=d76486d8">
+<link rel="stylesheet" href="src/viewer/editor.css?v=430f3ecf">
 <link rel="stylesheet" href="src/viewer/flight.css?v=09feb86e">
 </head>
 <body>
@@ -346,10 +346,17 @@
          is what it is made of and looks like. The bar heads the column,
          above the selection it qualifies. -->
     <nav id="edViewTabs">
-      <button id="edTabDesign" class="edTab"
+      <!-- 2026-09-04 (the user: "I am getting annoyed with my own previous
+           decision of splitting the controls into design and shape"): the
+           design tiles are SPRINKLED into the structure view, by part — click
+           the boom and its fuselage-style tile is there — and the grid as a
+           whole is reached from NEW > Custom build. The tab stays in the
+           document (the smoke gate names it, EDITOR_SET_VIEW opens it) but
+           not in the bar. -->
+      <button id="edTabDesign" class="edTab" hidden
               title="The whole aeroplane's macro choices — class, role, configuration">design</button>
       <button id="edTabShape" class="edTab on"
-              title="What this part is — its dimensions and its shape">shape</button>
+              title="What this part is — its structure, its dimensions and its shape">structure</button>
       <button id="edTabFinish" class="edTab"
               title="What this part is made of — finish, colour, and the grain of it">finish</button>
     </nav>
@@ -520,7 +527,7 @@
 
 
 <script src="vendor/three.min.js"></script>
-<script src="src/core/00_registry.js?v=18edae6c"></script>
+<script src="src/core/00_registry.js?v=b7e30cba"></script>
 <script src="src/core/05_atmos.js?v=1c6d1ec0"></script>
 <script src="src/core/10_aircraft_cub.js?v=1803c66b"></script>
 <script src="src/core/11_aircraft_dc3.js?v=25fe8318"></script>
@@ -541,7 +548,7 @@
 <script src="src/core/41_test_pilot.js?v=0835c8cb"></script>
 <script src="src/core/50_model_codec.js?v=e36e7ce9"></script>
 <script src="src/core/51_prop_codec.js?v=2a556ad5"></script>
-<script src="src/core/60_gen_spec.js?v=7a99aee5"></script>
+<script src="src/core/60_gen_spec.js?v=c56cb355"></script>
 <script src="src/core/60b_gen_loft.js?v=66bc7e3a"></script>
 <script src="src/core/60c_gen_energy.js?v=d237729c"></script>
 <script src="src/core/61_gen_frame.js?v=f5f69a3f"></script>
@@ -574,11 +581,11 @@
 <script src="src/props/props_fixture.js?v=93362da1"></script>
 <script src="src/props/props_airframe.js?v=88d864cd"></script>
 <script>window.CAGE_UI_LAZY = 1; window.CAGE_IN_GAME = 1;</script>
-<script src="tools/_cage_parts.js?v=5b43decf"></script>
-<script src="tools/_cage_design.js?v=d2702f2e"></script>
+<script src="tools/_cage_parts.js?v=b8a03d50"></script>
+<script src="tools/_cage_design.js?v=aeff6d6c"></script>
 <script src="tools/_cage_page5.js?v=9670ea59"></script>
-<script src="tools/_cage_gen.js?v=a463ec58"></script>
-<script src="tools/_cage_crew.js?v=2ef22d44"></script>
+<script src="tools/_cage_gen.js?v=519d7df2"></script>
+<script src="tools/_cage_crew.js?v=67fa133d"></script>
 <script src="tools/_gear_kit.js?v=d726c883"></script>
 <script src="tools/_gear_gen.js?v=b67acf6e"></script>
 <script src="tools/_gear_page.js?v=56e030a7"></script>
@@ -586,10 +593,10 @@
 <script src="tools/_fit_gen.js?v=bec944ff"></script>
 <script src="tools/_eng_gen.js?v=691d7605"></script>
 <script src="tools/_eng_mesh.js?v=23873d10"></script>
-<script src="tools/_eng_page.js?v=0f27d1cb"></script>
+<script src="tools/_eng_page.js?v=251ddf88"></script>
 <script src="tools/_cowl_gen.js?v=01dfdf26"></script>
-<script src="tools/_cowl_rows.js?v=88acf0df"></script>
-<script src="tools/_cage_cowl.js?v=37495fc3"></script>
+<script src="tools/_cowl_rows.js?v=b97b239b"></script>
+<script src="tools/_cage_cowl.js?v=d8d098e9"></script>
 <script src="tools/_cage_eng.js?v=cea2c29c"></script>
 <script src="tools/_strut_gen.js?v=81765408"></script>
 <script src="tools/_cage_wing.js?v=5b3f36b7"></script>
@@ -602,7 +609,7 @@
 <script src="tools/_bay_site.js?v=7bbcf819"></script>
 <script src="tools/_vessel_gen.js?v=4ecf7942"></script>
 <script src="tools/_cage_energy.js?v=5f5e9fb1"></script>
-<script src="tools/_cage_join.js?v=d38a42b4"></script>
+<script src="tools/_cage_join.js?v=af979e71"></script>
 <script src="tools/_cage_ui.js?v=543858c4"></script>
 <script src="src/viewer/assets.js?v=5ae00b40"></script>
 <script src="src/viewer/aa_resolve.js?v=d43f4c1b"></script>
@@ -622,9 +629,9 @@
 <script src="src/viewer/workshop.js?v=7396d813"></script>
 <script src="src/viewer/bench.js?v=225ed458"></script>
 <script src="src/viewer/refplane.js?v=19535b38"></script>
-<script src="src/viewer/design_flow.js?v=ddfd90cc"></script>
+<script src="src/viewer/design_flow.js?v=e48bedd2"></script>
 <script src="src/viewer/balance.js?v=b4d643d3"></script>
-<script src="src/viewer/editor.js?v=94911790"></script>
+<script src="src/viewer/editor.js?v=ae1aacd8"></script>
 <script src="src/viewer/app.js?v=a7affb0c"></script>
 </body>
 </html>

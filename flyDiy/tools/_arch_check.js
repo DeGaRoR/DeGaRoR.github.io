@@ -175,7 +175,10 @@ if (!process.argv.includes('--selftest')) {
     catch (e) { check(false, a.name + ': shakedown ran', e.message); continue; }
     const role = D.optionOf('role', a.sel.role);
     checkShakedown(a.name, sh, role && role.targets);
-    const r = fly(spec, 420);
+    // a GLIDER cruises at 30 m/s and flies the same circuit the tourers fly at
+    // 45 (measured 2026-09-04: the motorglider was still in CRUISE at 420 s,
+    // the Archaeopteryx-alike on APPROACH) — the bound scales with the role
+    const r = fly(spec, role && role.value === 'glider' ? 640 : 420);
     checkFlight(a.name, r);
     flown++;
   }

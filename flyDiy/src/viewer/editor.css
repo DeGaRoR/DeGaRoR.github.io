@@ -351,6 +351,7 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 .edTab:hover { color:var(--ed-dim); }
 
 .edTab.on { background:var(--ed-acc); color:var(--ed-acc-ink); }
+.edTab[hidden] { display:none; }
 
 /* the reference plane and the shed are not painted, so they get no tabs —
    and neither the FINISH view nor the DESIGN view has a per-part reset or any
@@ -1534,6 +1535,16 @@ body.mode-fly #wsUI { display:none; }
 .dfArch b { font:600 12px/1.2 'IBM Plex Sans'; color:var(--ed-ink); }
 .dfArch span { font:400 10.5px/1.35 'IBM Plex Sans'; }
 .dfArch:hover { border-color:rgba(255,255,255,.3); }
+/* NEW > Custom build: the first card, lit (2026-09-04) */
+.dfArch.dfCustom { border-color:var(--ed-acc); box-shadow:inset 0 0 0 1px var(--ed-acc); }
+.dfArch.dfCustom b { color:var(--ed-acc); }
+.dfKindH { grid-column:1 / -1; font:500 10px/1 'IBM Plex Sans'; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--ed-dim); margin:8px 0 2px; }
+.dfArch.dfReal b::after { content:' ·'; color:var(--ed-dim); }
+/* the design tiles sprinkled into the STRUCTURE view, by part */
+.dfWrap.dfInline { margin:0 0 10px; padding-bottom:8px;
+  border-bottom:1px solid rgba(255,255,255,.08); }
+.dfBack { align-self:flex-start; margin-bottom:6px; }
 .dfArch:disabled { opacity:.35; cursor:not-allowed; }
 .dfArch:disabled:hover { border-color:var(--ed-btn-bd); }
 

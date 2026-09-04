@@ -380,7 +380,11 @@ aeroplanes to risk.*
    boom, and one engine over a high wing). Was: the Chinook has always been
    one in physics; the bench needs the pusher cowl and mount.
 7. **Turboprops and small turbines** [L]. A new registry family and its
-   aspiration law. Distinct from the far-backlog jet module.
+   aspiration law. Distinct from the far-backlog jet module. COSTED 2026-09-04
+   (HANDOVER G176): a `turbine` family + flat-rated lapse branch in 05_atmos,
+   a bench architecture (can + inlet + gearbox + stack), a nacelle cowl style,
+   PT6A rows with synthesised props, Jet-A in GEN_FUELS — two sessions. Unlocks
+   the Caravan / Kodiak-alikes the user named.
 8. **Biplane** [L]. The big one: a second wing plane, cabane and interplane
    struts, fittings for the lower wing (G85 names the gap — `wings` is an
    array and only the first plane carries fittings), and the join.
@@ -595,6 +599,21 @@ this doubles as "what do I get, and when".
 | Time of day synced with the hangar | 7 | 6 | M |
 | Manual controls, joystick, TrackIR | 8 | 1 | L |
 | STOL physics | 8 | 4 | L |
+
+## THE ARCHETYPE BENCH (2026-09-04, the user: "Let's build more archetypes,
+fine tune them, then they will eventually become our extended test bench
+rather than the rather outdated original planes like the DC3 ... Eventually,
+there will only be garage builds")
+
+GATE ARCHETYPES flies every LIVE card of tools/_cage_design.js (G175/G176:
+seventeen — the twelve of the list, the Whittaker-alike, the Archaeopteryx-
+alike, the DA62-alike, the Twin bush hauler and the Beaver-alike; the utility
+class is the one card still out). Each card carries `kind`: a RECREATION
+(after a real aeroplane, the user reviews and exports each) or FICTION. The direction: each card that
+lands gets a role target and a measured line, and a fiche the fleet keeps only
+until a card covers it. The next round is a TUNING pass card by card in the
+page (the gate flies the pre-join spec; the stand flies the joined build), then
+the DC-3 / Chinook / drone fiches go to reference-only as their cards arrive.
 
 ## THE NEXT PLAYTEST (proposed)
 

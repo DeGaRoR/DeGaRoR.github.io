@@ -71,6 +71,43 @@ let armed = null;          // { rowKey, value, count }
 let lastUndo = null;       // { label, cage: {k: prev}, spec: patch-of-prev }
 let hostEl = null;         // where the tiles currently live
 let birthEl = null;
+let inlineHost = null;     // { el, sel } — the tiles sprinkled into STRUCTURE
+
+// WHICH PART A MACRO ROW BELONGS TO (2026-09-04, the user: "sprinkle back the
+// controls into the shape section ... I can't find the rod setting when
+// clicking on the boom"). Part keys are tools/_cage_parts.js's; a row lists
+// every part whose selection should show it. The livery rows are FINISH's
+// and are listed nowhere. 'design' (the Design & construction part) shows
+// every non-livery row, 'craft' (the root) the identity rows.
+const DESIGN_PART = {
+  reg: ['craft'], role: ['craft'], class: ['craft'],
+  seatLayout: ['cabin', 'fit', 'seats', 'crew'],
+  paxCount: ['cabin', 'pax'],
+  canopy: ['cabin', 'windscreen', 'pilotWindow', 'skylight'],
+  mirror: ['fuselage', 'aftDeck', 'aftCabin', 'cabin'],
+  seatType: ['seats', 'fit', 'cockpit'],
+  intCons: ['structure', 'fuselage'],
+  boomStyle: ['boom', 'tailcone', 'taper', 'fuselage'],
+  covering: ['structure', 'fuselage'],
+  section: ['fuselage', 'cabin', 'nose'],
+  wgPos: ['wings', 'wingPanel'], wgBrace: ['wings', 'struts'],
+  wgTip: ['wings', 'wingPanel'], wgFlapType: ['wingCtl', 'wings'],
+  engFamily: ['power', 'engine'], engModel: ['engine', 'power'],
+  engMount: ['engine', 'power', 'cowl'], engCount: ['power', 'engine'],
+  prop: ['prop', 'power'],
+  empennage: ['tail', 'fin', 'stab'],
+  gearLayout: ['gear', 'mains', 'third'], retract: ['gear'],
+  suspension: ['mains', 'gear', 'third'],
+  s1Fair: ['wheels', 'mains', 'gear'],
+};
+function rowsForPart(sel) {
+  const d = D();
+  return d.DESIGN_ROWS.filter(r => {
+    if (sel === 'design') return r.group !== 'livery';
+    const pk = DESIGN_PART[r.key];
+    return !!pk && pk.indexOf(sel) >= 0;
+  });
+}
 
 // previous values at a spec patch's own paths, for the undo — absent reads
 // as null on purpose: GARAGE_SPEC.update round-trips through JSON and would
@@ -309,12 +346,49 @@ function rowBlock(row) {
   return wrap;
 }
 
+// the armed / undo line, shared by the grid and the inline tiles
+function noteEl() {
+  if (armed) {
+    const n = document.createElement('div');
+    n.className = 'dfNote';
+    n.textContent = 'this starter will overwrite ' + armed.count +
+      ' tuned value' + (armed.count > 1 ? 's' : '') +
+      ' — click the tile again to apply';
+    return n;
+  }
+  if (lastUndo) {
+    const n = document.createElement('div');
+    n.className = 'dfNote';
+    n.innerHTML = '<span></span><button type="button" class="dfPill">undo</button>';
+    n.firstChild.textContent = 'applied ' + lastUndo.label + ' ';
+    n.lastChild.addEventListener('click', undo);
+    return n;
+  }
+  return null;
+}
+
+function fillInline(wrap, rows) {
+  wrap.innerHTML = '';
+  const n = noteEl();
+  if (n) wrap.appendChild(n);
+  for (const r of rows) wrap.appendChild(rowBlock(r));
+}
+
 function buildInto(host, opts) {
   host.innerHTML = '';
   const top = document.createElement('div');
   top.className = 'dfTop';
+  // the grid is the Custom-build window (2026-09-04): it says how to leave
+  if (!(opts && opts.birth) && window.EDITOR_SET_VIEW) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'dfPill dfBack';
+    b.textContent = '‹ back to structure';
+    b.addEventListener('click', () => window.EDITOR_SET_VIEW('shape'));
+    top.appendChild(b);
+  }
   const strip = stripHtml();
-  if (strip) top.innerHTML = '<div class="dfStrip">' + strip + '</div>';
+  if (strip) top.insertAdjacentHTML('beforeend', '<div class="dfStrip">' + strip + '</div>');
   if (armed) {
     const n = document.createElement('div');
     n.className = 'dfNote';
@@ -345,7 +419,23 @@ function buildInto(host, opts) {
 
 function refresh() {
   if (hostEl && hostEl.isConnected) buildInto(hostEl, hostEl._dfOpts);
+  if (inlineHost && inlineHost.el.isConnected)
+    fillInline(inlineHost.el, rowsForPart(inlineHost.sel));
   if (birthEl && birthEl.isConnected) renderBirth();
+}
+
+// HOST 1b — the STRUCTURE view, by part (2026-09-04): the macro rows this
+// part owns, at the head of its column. Returns whether anything was drawn.
+function renderTilesFor(rowsEl, sel) {
+  if (!D() || !CU()) return false;
+  const rows = rowsForPart(sel);
+  if (!rows.length) { inlineHost = null; return false; }
+  const wrap = document.createElement('div');
+  wrap.className = 'dfWrap dfInline';
+  inlineHost = { el: wrap, sel };
+  fillInline(wrap, rows);
+  rowsEl.appendChild(wrap);
+  return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -382,6 +472,8 @@ function bakeBirth(sel, over) { return D().designBake(sel, over); }
 function birthApply(arch) {
   try {
     const spec = bakeBirth(arch.sel, arch.over);
+    // the cowl fits the chosen engine on the birth's first build
+    if (window.CAGE_COWL_FIT_NEXT) window.CAGE_COWL_FIT_NEXT();
     GS().set(spec);
     closeBirth();
   } catch (e) {
@@ -410,19 +502,52 @@ function renderBirth() {
   const box = birthEl.querySelector('.dfBirthBox');
   const grid = box.querySelector('.dfArchGrid');
   grid.innerHTML = '';
-  for (const a of d.ARCHETYPES) {
+  // CUSTOM BUILD, FIRST AND LIT (2026-09-04, the user): a fresh stock
+  // aeroplane on the stand and the design grid beside it — the tiles in the
+  // properties column, the aeroplane in the viewport, no overlay
+  {
+    const c = document.createElement('button');
+    c.type = 'button';
+    c.className = 'dfArch dfCustom';
+    const eab = d.optionOf('class', 'eab');
+    c.innerHTML = svgFor(eab && eab.icon) + '<b></b><span></span>';
+    c.querySelector('b').textContent = 'Custom build';
+    c.querySelector('span').textContent =
+      'choose every macro yourself — the design tiles, beside the aeroplane';
+    c.addEventListener('click', () => {
+      if (window.CAGE_COWL_FIT_NEXT) window.CAGE_COWL_FIT_NEXT();
+      try { GS().set(bakeBirth({})); } catch (e) { console.error('custom:', e); }
+      closeBirth();
+      if (window.EDITOR_SET_VIEW) window.EDITOR_SET_VIEW('design');
+    });
+    grid.appendChild(c);
+  }
+  const kinds = [['recreation', 'recreations — after a real aeroplane'],
+                 ['fiction', 'fictional — the shed\'s own']];
+  for (const [kind, title] of kinds) {
+    const list = d.ARCHETYPES.filter(a => (a.kind || 'fiction') === kind);
+    if (!list.length) continue;
+    const h = document.createElement('div');
+    h.className = 'dfKindH';
+    h.textContent = title;
+    grid.appendChild(h);
+  for (const a of list) {
     const reason = d.archInactive(a);
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = 'dfArch';
+    b.className = 'dfArch' + (kind === 'recreation' ? ' dfReal' : '');
     const clsOpt = d.optionOf('class', a.sel['class']);
-    b.innerHTML = svgFor(clsOpt && clsOpt.icon) +
+    // the card wears ITS OWN aeroplane (2026-09-04, "the pusher does not push")
+    const icon = a.icon || (d.archIcon ? d.archIcon(a) : null) ||
+                 (clsOpt && clsOpt.icon);
+    b.innerHTML = svgFor(icon) +
       '<b></b><span></span>';
     b.querySelector('b').textContent = a.name;
     b.querySelector('span').textContent = a.note || '';
     if (reason) { b.disabled = true; b.title = reason; }
     else b.addEventListener('click', () => birthApply(a));
     grid.appendChild(b);
+  }
   }
 }
 
@@ -485,7 +610,7 @@ if (typeof window !== 'undefined') {
   else window.addEventListener('load', maybeAutoOpen);
 }
 
-window.DESIGN_FLOW = { renderTiles, openBirth, closeBirth, bakeBirth,
-                       surpriseSel };
+window.DESIGN_FLOW = { renderTiles, renderTilesFor, openBirth, closeBirth,
+                       bakeBirth, surpriseSel };
 
 })();

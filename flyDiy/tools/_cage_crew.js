@@ -1390,7 +1390,10 @@ function seatPlaces(A, P) {
   // bays is the same discriminator the join reads for `side4`/`tandem4`, so
   // what you see in the cage and what the aeroplane weighs cannot disagree.
   if (lay === 1) {
-    const gp = Math.min(P.seatGap, Math.max(0.18, A.halfW - 0.20));
+    // the outer shoulder sits ~0.21 m outboard of the seat centre (the
+    // dummy's clavicle + joint), so the seat centre stays 0.25 m inside the
+    // waist half-width (2026-09-04: the pilots stuck out of the sides)
+    const gp = Math.min(P.seatGap, Math.max(0.18, A.halfW - 0.25));
     const row = [{ x: gp, zBack: A.zBack, pilot: true },
                  { x: -gp, zBack: A.zBack, pilot: false }];
     if (bays >= 3) {

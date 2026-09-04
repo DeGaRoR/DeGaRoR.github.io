@@ -189,8 +189,43 @@ function iconSide(o) {
                                  { d: 'M10 32 a2.6 2.6 0 1 0 0.1 0', w: 1 },
                                  { d: 'M30 32 a2.6 2.6 0 1 0 0.1 0', w: 1 });
   if (o.bigTyres) paths.push({ d: 'M18 30 a5 5 0 1 0 0.1 0', w: 1 });
-  if (o.prop) paths.push({ d: 'M4 10 L4 32', w: 1 });
+  // THE PROPELLER IS WHERE THE MOUNT PUTS IT (2026-09-04, the user: "the
+  // pusher does not push"): `prop: true` stays the nose line; 'pusher' is
+  // an engine block behind the pod with its disc aft; 'wingTop' a block on a
+  // pylon over the deck, disc behind; 'twin' a nacelle on the wing line.
+  const pr = o.prop === true ? 'nose' : o.prop;
+  if (pr === 'nose') paths.push({ d: 'M4 10 L4 32', w: 1 });
+  if (pr === 'pusher')
+    paths.push({ d: 'M34 15 L40 15 L40 22 L34 22 Z', w: 1 },
+               { d: 'M42 9 L42 28', w: 1 });
+  if (pr === 'wingTop')
+    paths.push({ d: 'M27 7 L34 7 L34 12 L27 12 Z', w: 1 },
+               { d: 'M30 12 L30 18', w: 1 }, { d: 'M36 3 L36 16', w: 1 });
+  if (pr === 'twin')
+    paths.push({ d: 'M24 14 L32 14 L32 20 L24 20 Z', w: 1 },
+               { d: 'M23 9 L23 25', w: 1 });
+  // an open frame: the truss showing through the body
+  if (o.open) paths.push({ d: 'M12 20 L31 25', w: 0.8 },
+                         { d: 'M12 25 L31 20', w: 0.8 },
+                         { d: 'M22 18 L22 26', w: 0.8 });
   return { vb: '0 0 68 40', paths };
+}
+
+// AN ARCHETYPE'S OWN ICON (2026-09-04): drawn from its selection, so the card
+// shows the aeroplane it bakes — the pod, the tail, the gear and where the
+// propeller is — instead of its size class's silhouette.
+function archIcon(a) {
+  const s = (a && a.sel) || {};
+  const prop = s.engMount === 'pusher' ? 'pusher'
+             : s.engMount === 'wingTop' ? 'wingTop'
+             : s.engCount === 2 ? 'twin' : 'nose';
+  return iconSide({
+    canopy: s.canopy || 'screen',
+    gear: s.gearLayout === 'trike' ? 'trike' : 'tail',
+    tail: s.empennage || 'conv',
+    pod: s.boomStyle === 1, prop,
+    radial: s.engFamily === 'radial', open: s.covering === 'open',
+    deck: s.mirror === 1 ? 'turtle' : undefined });
 }
 
 // FRONT VIEW — wing position and bracing.
@@ -330,8 +365,14 @@ const ICON = {
 // `engPreset` mechanism the row uses, so a class cannot fit an engine the
 // panel could not.
 // ---------------------------------------------------------------------------
+// 2026-09-04: the envelope opened for the SAILPLANE — clampSpec holds the wing
+// to 6.5–18 m span and 0.80–2.10 m chord now (aspect ratio to 20); the
+// utility class stays out for its own measured reason.
 const ENV_REASON = 'outside the buildable envelope: clampSpec holds the wing ' +
-  'to 6.5–14 m span and 1.15–2.10 m chord (§5.2 — its own chantier)';
+  'to 6.5–18 m span and 0.80–2.10 m chord';
+const UTIL_REASON = 'the R-1830 class: no airframe the clamps allow can carry ' +
+  'it (measured 2026-08-31 — the tourer could not be landed); wants the ' +
+  'heavy-structure chantier';
 
 const CLASS_ROWS = [
   { value: 'rc', label: 'RC model', note: 'park flyer → large sport',
@@ -355,8 +396,11 @@ const CLASS_ROWS = [
   { value: 'ulm', label: 'Microlight / ULM', note: '472–600 kg · 2 seats',
     icon: iconSide({ canopy: 'screen', gear: 'tail', prop: true }),
     writes: { spec: { meta: { class: 'ulm' } } },
+    // 2026-09-04 (the user: "your side by side setups are generally too
+    // narrow, and the pilots stick out from the sides"): 1.12 m across at the
+    // waist and 0.94 at the roof — two pairs of shoulders fit
     seed: { cage: { wgSpan: 9.2, wgChord: 1.45, wgChordTip: 1.45,
-                    seatLayout: 1, paxCount: 1, halfW: 0.525, roofHalfW: 0.41,
+                    seatLayout: 1, paxCount: 1, halfW: 0.56, roofHalfW: 0.47,
                     pilotLen: 0.42, paxLen: 0.91, intCons: 1,
                     engPreset: 'rotax 582' },
             spec: { fuel: { litres: 50 },
@@ -365,7 +409,7 @@ const CLASS_ROWS = [
     icon: iconSide({ canopy: 'half', gear: 'trike', prop: true }),
     writes: { spec: { meta: { class: 'lsa' } } },
     seed: { cage: { wgSpan: 9.0, wgChord: 1.40, wgChordTip: 1.15,
-                    seatLayout: 1, paxCount: 1, halfW: 0.525, roofHalfW: 0.41,
+                    seatLayout: 1, paxCount: 1, halfW: 0.56, roofHalfW: 0.47,
                     pilotLen: 0.42, paxLen: 0.91, intCons: 3,
                     engPreset: 'rotax 912 (flat)' },
             spec: { fuel: { litres: 65 },
@@ -383,15 +427,25 @@ const CLASS_ROWS = [
     icon: iconSide({ canopy: 'screen', gear: 'trike', prop: true }),
     writes: { spec: { meta: { class: 'n23' } } },
     seed: { cage: { wgSpan: 11.0, wgChord: 1.60, wgChordTip: 1.15,
-                    seatLayout: 1, paxCount: 3, halfW: 0.56, roofHalfW: 0.44,
+                    seatLayout: 1, paxCount: 3, halfW: 0.59, roofHalfW: 0.49,
                     pilotLen: 0.45, paxLen: 0.95, intCons: 3,
                     engPreset: 'lycoming IO-360' },
             spec: { fuel: { litres: 120 },
                     systems: { fit: 'ifr' }, cabin: { baggage: 40 } } } },
   { value: 'util', label: 'Utility / cargo', note: 'Beaver · DC-3',
-    inactive: ENV_REASON, icon: iconSide({ canopy: 'screen', gear: 'tail', radial: true, prop: true }) },
+    inactive: UTIL_REASON, icon: iconSide({ canopy: 'screen', gear: 'tail', radial: true, prop: true }) },
+  // 2026-09-04: LIVE (the user: "we have a sailplane model from the old days
+  // ... and electrical engines"). A single seat under a full canopy, a slender
+  // 15 m wing at 1.0 m chord tapering to 0.55, composite, no fuel — the
+  // sustainer is electric.
   { value: 'sail', label: 'Sailplane / motorglider', note: '15–18 m span',
-    inactive: ENV_REASON, icon: iconSide({ canopy: 'full', deck: 'turtle', gear: 'none', pod: true }) },
+    icon: iconSide({ canopy: 'full', deck: 'turtle', gear: 'none', pod: true }),
+    writes: { spec: { meta: { class: 'sail' } } },
+    seed: { cage: { wgSpan: 15.0, wgChord: 1.00, wgChordTip: 0.55,
+                    seatLayout: 0, paxCount: 0, halfW: 0.33, roofHalfW: 0.26,
+                    pilotLen: 0.42, intCons: 0, engPreset: 'FES sustainer' },
+            spec: { fuel: { litres: 0 },
+                    systems: { fit: 'minimal' }, cabin: { baggage: 0 } } } },
 ];
 
 // ---------------------------------------------------------------------------
@@ -617,7 +671,7 @@ const DESIGN_ROWS = [
       { value: 'full', label: 'Full bubble',
         icon: iconSide({ canopy: 'full', gear: 'none' }),
         note: 'a blown hood standing proud',
-        writes: { cage: { canopy: 3, bubH: 0.85, bubW: 1.25, canLoops: 1 } } },
+        writes: { cage: { canopy: 3, bubH: 0.79, bubW: 1.25, canLoops: 1 } } },
     ] },
 
   // the key stays `mirror` (it rides spec.cage into every save; renaming it
@@ -675,9 +729,11 @@ const DESIGN_ROWS = [
     options: [
       { value: 0, label: 'Lofted skin', icon: ICON.boomLoft,
         writes: { cage: { boomStyle: 0 } } },
+      // 2026-09-04 (the user): "the rod settings should automatically turn
+      // the taper section on. It can be removed manually afterwards"
       { value: 1, label: 'Rod & pod', icon: ICON.boomRod,
-        note: 'an always-bare tube carries the tail',
-        writes: { cage: { boomStyle: 1 } } },
+        note: 'an always-bare tube carries the tail; the taper section comes on with it',
+        writes: { cage: { boomStyle: 1, taperOn: 1 } } },
     ] },
 
   // THE COVERING (2026-09-04, the user: "ability to remove all fuselage and
@@ -789,14 +845,18 @@ const DESIGN_ROWS = [
     read: P => Math.round(P.engMount) === 1 ? 'pusher'
              : Math.round(P.engMount) === 2 ? 'wingTop' : 'nose',
     options: [
+      // 2026-09-04 (the user): "pusher configs should have no cowl by
+      // default, possible to manually reactivate it" — the two pushing
+      // mounts switch the cowl off, the nose puts it back; the rod brings
+      // its taper section (the Fuselage-style tile's own rule)
       { value: 'nose', label: 'Nose', icon: ICON.mountNose,
-        writes: { cage: { engMount: 0 } } },
+        writes: { cage: { engMount: 0, cowlOn: 1 } } },
       { value: 'pusher', label: 'Pusher', icon: ICON.mountPusher,
-        note: 'on the back of the aft bulkhead — the pod ends there (rod boom)',
-        writes: { cage: { engMount: 1, boomStyle: 1 } } },
+        note: 'on the back of the aft bulkhead — the pod ends there (rod boom); no cowl',
+        writes: { cage: { engMount: 1, boomStyle: 1, taperOn: 1, cowlOn: 0 } } },
       { value: 'wingTop', label: 'Over the wing', icon: ICON.mountWingTop,
-        note: 'one engine on a pylon over the centre section, pushing; high wing',
-        writes: { cage: { engMount: 2, wgPos: 0 } } },
+        note: 'one engine on a pylon over the centre section, pushing; high wing; no cowl',
+        writes: { cage: { engMount: 2, wgPos: 0, cowlOn: 0 } } },
     ] },
 
   { key: 'engCount', label: 'Engines', kind: 'discriminator',
@@ -976,14 +1036,17 @@ const DESIGN_ROWS = [
 
   { key: 's1Fair', label: 'Wheel fairings', kind: 'starter',
     group: 'undercarriage', status: 'live',
+    // 2026-09-04 (the user: "the fairing is missing for the front wheel of
+    // tricycle"): the tile wrote the MAINS' row only, so a trike's nose wheel
+    // stayed bare whatever the card said. Both stations, one choice.
     read: P => Math.round(P.s1Fair),
     options: [
       { value: 0, label: 'None', icon: ICON.fairNone,
-        writes: { cage: { s1Fair: 0 } } },
+        writes: { cage: { s1Fair: 0, s2Fair: 0 } } },
       { value: 1, label: 'Spats', icon: ICON.fairSpat,
-        writes: { cage: { s1Fair: 1 } } },
+        writes: { cage: { s1Fair: 1, s2Fair: 1 } } },
       { value: 2, label: 'Full trousers', icon: ICON.fairFull,
-        writes: { cage: { s1Fair: 2 } } },
+        writes: { cage: { s1Fair: 2, s2Fair: 2 } } },
     ] },
 
   // ---- livery -------------------------------------------------------------
@@ -1051,7 +1114,7 @@ const PLAN_C172 = { wgCrankAt: 0.42, wgCrankChord: P => +P.wgChord,
                     wgTipX: 0.30 };
 
 const ARCHETYPES = [
-  { key: 'cub', name: 'Cub-alike', note: 'taildragger, strut-braced high ' +
+  { key: 'cub', kind: 'recreation', name: 'Cub-alike', note: 'taildragger, strut-braced high ' +
       'wing, windscreen, tube & fabric, tandem',
     sel: { class: 'eab', role: 'bush', seatLayout: 2, paxCount: 1,
            canopy: 'screen', mirror: 0, intCons: 1, boomStyle: 0, section: 1,
@@ -1059,8 +1122,12 @@ const ARCHETYPES = [
            engFamily: 'flat', engModel: 'continental A-65', engMount: 'nose',
            gearLayout: 'tail', suspension: 'bungee', s1Fair: 0,
            empennage: 'conv', scheme: 'sweep', base: 0xf2c437, trim: 0x1b3a5c },
-    over: { cage: PLAN_RECT } },
-  { key: 'jodel', name: 'Jodel-alike', note: 'cantilever wood wing, ' +
+    // 2026-09-04 (the user: "be a little more inventive with the liveries
+    // ... use at least the preset decals"): the Cub's lightning flash
+    over: { cage: PLAN_RECT,
+            spec: { finish: { decals: { m1On: 1, m1Pat: 3, m1A: 0x1b3a5c,
+                                        m1B: 0xffffff, m1D: 0x1b3a5c } } } } },
+  { key: 'jodel', kind: 'recreation', name: 'Jodel-alike', note: 'cantilever wood wing, ' +
       'side-by-side, the page’s own aeroplane reborn',
     sel: { class: 'eab', role: 'touring', seatLayout: 1, paxCount: 1,
            canopy: 'screen', mirror: 0, intCons: 2, boomStyle: 0, section: 1,
@@ -1068,8 +1135,11 @@ const ARCHETYPES = [
            engFamily: 'flat', engModel: 'continental O-200', engMount: 'nose',
            gearLayout: 'tail', suspension: 'spring', s1Fair: 1,
            empennage: 'conv', scheme: 'trim', base: 0xefe6cf, trim: 0x7c3327 },
-    over: { cage: PLAN_TAPER } },
-  { key: 'c172', name: 'C172-alike', note: 'alloy, tricycle, 2+2 cabin, ' +
+    // a cheat line along the Jodel's waist
+    over: { cage: PLAN_TAPER,
+            spec: { finish: { decals: { m1On: 1, m1Pat: 0, m1A: 0x7c3327,
+                                        m1B: 0xefe6cf, m1D: 0x7c3327 } } } } },
+  { key: 'c172', kind: 'recreation', name: 'C172-alike', note: 'alloy, tricycle, 2+2 cabin, ' +
       'slotted flaps',
     sel: { class: 'n23', role: 'touring', seatLayout: 1, paxCount: 3,
            canopy: 'screen', mirror: 0, intCons: 3, boomStyle: 0, section: 1,
@@ -1077,16 +1147,22 @@ const ARCHETYPES = [
            engFamily: 'flat', engModel: 'lycoming IO-360', engMount: 'nose',
            gearLayout: 'trike', suspension: 'spring', s1Fair: 1,
            empennage: 'conv', scheme: 'sweep', base: 0xefe6cf, trim: 0x2c4a31 },
-    over: { cage: PLAN_C172 } },
-  { key: 'rv', name: 'RV-alike', note: 'low wing, bubble, cantilever alloy, fast',
+    // the twin stripe every 172 of the seventies wore
+    over: { cage: PLAN_C172,
+            spec: { finish: { decals: { m1On: 1, m1Pat: 1, m1A: 0x2c4a31,
+                                        m1B: 0xc96f2a, m1D: 0xefe6cf } } } } },
+  { key: 'rv', kind: 'recreation', name: 'RV-alike', note: 'low wing, bubble, cantilever alloy, fast',
     sel: { class: 'eab', role: 'touring', seatLayout: 1, paxCount: 1,
            canopy: 'full', mirror: 1, intCons: 3, boomStyle: 0, section: 3,
            wgPos: 2, wgBrace: 1, wgTip: 1, wgFlapType: 1,
            engFamily: 'flat', engModel: 'lycoming IO-360', engMount: 'nose',
            gearLayout: 'trike', suspension: 'spring', s1Fair: 1,
            empennage: 'conv', scheme: 'sweep', base: 0xc7c9cc, trim: 0x7c3327 },
-    over: { cage: PLAN_TAPER } },
-  { key: 'savannah', name: 'Savannah-alike', note: 'STOL microlight, high ' +
+    // the RV's two-tone sweep, bent up aft
+    over: { cage: PLAN_TAPER,
+            spec: { finish: { decals: { m1On: 1, m1Pat: 2, m1A: 0x7c3327,
+                                        m1B: 0xc7c9cc, m1D: 0x7c3327 } } } } },
+  { key: 'savannah', kind: 'recreation', name: 'Savannah-alike', note: 'STOL microlight, high ' +
       'wing, big flaps, bush role',
     sel: { class: 'ulm', role: 'bush', seatLayout: 1, paxCount: 1,
            canopy: 'screen', mirror: 0, intCons: 3, boomStyle: 0, section: 0,
@@ -1095,7 +1171,7 @@ const ARCHETYPES = [
            gearLayout: 'tail', suspension: 'bungee', s1Fair: 0,
            empennage: 'conv', scheme: 'trim', base: 0x7fa8c9, trim: 0xf4f2ea },
     over: { cage: PLAN_RECT } },
-  { key: 'ul1', name: 'Single-seat ultralight', note: 'the smallest ' +
+  { key: 'ul1', kind: 'fiction', name: 'Single-seat ultralight', note: 'the smallest ' +
       'buildable, minimum systems',
     sel: { class: 'ul1', role: 'trainer', seatLayout: 0, paxCount: 0,
            canopy: 'screen', mirror: 0, intCons: 1, boomStyle: 1, section: 0,
@@ -1107,14 +1183,27 @@ const ARCHETYPES = [
   // 2026-09-04: LIVE. The pod ends at the aft bulkhead (no mirror — a
   // mirrored pod has no bulkhead face, its aft half is a second nose), the
   // rod runs from there and the engine sits on the bulkhead's back.
-  { key: 'pusherPod', name: 'Pod-and-boom pusher', note: 'rod + pusher',
+  { key: 'pusherPod', kind: 'fiction', name: 'Pod-and-boom pusher', note: 'rod + pusher',
     sel: { class: 'ulm', role: 'trainer', canopy: 'full', mirror: 0,
            boomStyle: 1, engFamily: 'inline', engModel: 'rotax 582',
            engMount: 'pusher', gearLayout: 'trike' } },
-  { key: 'motorglider', name: 'Motorglider', note: 'long span',
-    sel: { class: 'sail', role: 'glider', canopy: 'full', mirror: 1,
-           boomStyle: 1, engFamily: 'electric', engModel: 'FES sustainer',
-           gearLayout: 'tail' } },
+  // 2026-09-04: LIVE with the sail class — a cantilever mid wing on a round
+  // slender body, T-tail, the electric sustainer in the nose, a tailwheel.
+  { key: 'motorglider', kind: 'fiction', name: 'Motorglider', note: '15 m cantilever wing, ' +
+      'electric sustainer, T-tail',
+    sel: { class: 'sail', role: 'glider', seatLayout: 0, paxCount: 0,
+           canopy: 'full', mirror: 1, intCons: 0, boomStyle: 0, section: 3,
+           wgPos: 1, wgBrace: 1, wgTip: 2, wgFlapType: 0,
+           engFamily: 'electric', engModel: 'pipistrel E-811', engMount: 'nose',
+           gearLayout: 'tail', suspension: 'spring', s1Fair: 1,
+           empennage: 't', scheme: 'trim', base: 0xefe6cf, trim: 0x1b3a5c },
+    // MEASURED (2026-09-04): at the class's 15 m the test pilot reports
+    // 'wont-climb' at 88 s and never completes the circuit; at 13 m x 1.15
+    // (AR 11) it completes in 330 s, sink 0.79. The 15 m wing's flight is a
+    // debt of the opened envelope (HANDOVER G176), not of the card.
+    over: { cage: Object.assign({}, PLAN_TAPER, { wgSpan: 13.0, wgChord: 1.15,
+                                                   wgChordTip: 0.65 }),
+            spec: { fuel: { litres: 0 } } } },
   // MEASURED OUT (2026-08-31): the R-1830 tourer FLIES (TORun 187 m,
   // VCruise 67 m/s) and cannot be LANDED — the test pilot gave up still
   // INBOUND at 900 s; carded circuits refuse (cant-hold-speed at 45 and a
@@ -1124,20 +1213,19 @@ const ARCHETYPES = [
   // arriving as a flight result. Unblocks with the `util` class, i.e. the
   // envelope chantier. `blocked` is archetype-level backlog: the family and
   // the engine stay live on the tiles.
-  { key: 'radial', name: 'Radial tourer', note: 'the heaviest live engine on ' +
-      'a monoplane (the spec’s biplane corrected — nothing builds ' +
-      'a second wing)',
-    blocked: 'the R-1830 cannot be landed inside the buildable envelope — ' +
-      'measured: gave-up still INBOUND at 900 s, carded circuits refuse ' +
-      '(cant-hold-speed); wants the util class, i.e. the wing-clamp chantier',
+  // 2026-09-04: LIVE on an AMATEUR radial (the user: "we have more radial
+  // engines now") — the Rotec R3600, 150 hp, on the touring airframe the
+  // R-1830 could not be landed on; the R-1830 stays on the family list.
+  { key: 'radial', kind: 'fiction', name: 'Radial tourer', note: 'a nine-cylinder Rotec on ' +
+      'a low-wing tourer, oleo legs, trousers',
     sel: { class: 'n23', role: 'touring', seatLayout: 1, paxCount: 1,
            canopy: 'screen', mirror: 0, intCons: 3, boomStyle: 0, section: 3,
            wgPos: 2, wgBrace: 1, wgTip: 2, wgFlapType: 1,
-           engFamily: 'radial', engModel: 'P&W R-1830', engMount: 'nose',
+           engFamily: 'radial', engModel: 'Rotec R3600', engMount: 'nose',
            gearLayout: 'tail', suspension: 'oleo', s1Fair: 2,
            empennage: 'conv', scheme: 'sweep', base: 0x3d5c40, trim: 0xf4f2ea },
     over: { cage: PLAN_TAPER } },
-  { key: 'etrainer', name: 'Electric trainer', note: 'no fuel; the altitude ' +
+  { key: 'etrainer', kind: 'fiction', name: 'Electric trainer', note: 'no fuel; the altitude ' +
       'model’s other branch',
     sel: { class: 'lsa', role: 'trainer', seatLayout: 1, paxCount: 1,
            canopy: 'half', mirror: 0, intCons: 0, boomStyle: 0, section: 3,
@@ -1146,22 +1234,111 @@ const ARCHETYPES = [
            gearLayout: 'trike', suspension: 'spring', s1Fair: 1,
            empennage: 'conv', scheme: 'sweep', base: 0xefe6cf, trim: 0xc96f2a },
     over: { cage: PLAN_TAPER, spec: { fuel: { litres: 0 } } } },
-  { key: 'ttail', name: 'T-tail tourer', note: 'stab on the fin tip; ' +
-      'retractable when the model exists',
+  // 2026-09-04: LIVE — the stab rides the fin tip (G173's seat); the
+  // retraction it once asked for stays declared and is not asked for
+  { key: 'ttail', kind: 'fiction', name: 'T-tail tourer', note: 'stab on the fin tip, low ' +
+      'cantilever wing, half bubble',
     sel: { class: 'n23', role: 'touring', seatLayout: 1, paxCount: 1,
            canopy: 'half', mirror: 0, intCons: 3, boomStyle: 0, section: 3,
            wgPos: 2, wgBrace: 1, wgTip: 1, wgFlapType: 1,
            engFamily: 'flat', engModel: 'lycoming IO-360', engMount: 'nose',
-           gearLayout: 'trike', retract: 'retract', suspension: 'oleo',
+           gearLayout: 'trike', suspension: 'oleo',
            s1Fair: 1, empennage: 't', scheme: 'sweep',
            base: 0xefe6cf, trim: 0x1b3a5c },
     over: { cage: PLAN_TAPER } },
-  { key: 'vtail', name: 'V-tail tourer', note: 'the configuration the ' +
-      'physics supports and the builder cannot reach (§11.5)',
+  { key: 'vtail', kind: 'fiction', name: 'V-tail tourer', note: 'two canted panels, no fin — ' +
+      'ruddervators',
     sel: { class: 'n23', role: 'touring', canopy: 'half', mirror: 0,
            wgPos: 2, wgBrace: 1, engFamily: 'flat',
            engModel: 'lycoming IO-360', gearLayout: 'trike',
            empennage: 'v' } },
+  // 2026-09-04 (the user): "a more-than-ultra-light, basically a suspended
+  // cabin, bare metal tubes, and the engine mounted on top of the wing.
+  // Maybe even a swept wing. I'm thinking of the Whittaker MW5/6" — an
+  // assembly of wing + rod + engine with a suspended nacelle: the open
+  // frame (no covering, the truss in the wind), a strut-braced high wing
+  // with a little sweep, the two-stroke on a pylon over the centre section
+  // pushing, a rod boom, a trike.
+  { key: 'mw5', kind: 'recreation', name: 'Whittaker-alike', note: 'open-frame nacelle, engine ' +
+      'over a swept high wing, rod boom',
+    sel: { class: 'ul1', role: 'trainer', seatLayout: 0, paxCount: 0,
+           canopy: 'screen', mirror: 0, intCons: 1, covering: 'open',
+           boomStyle: 1, section: 0,
+           wgPos: 0, wgBrace: 0, wgTip: 0, wgFlapType: 0,
+           engFamily: 'inline', engModel: 'rotax 582', engMount: 'wingTop',
+           gearLayout: 'trike', suspension: 'bungee', s1Fair: 0,
+           empennage: 'conv', scheme: 'bare' },
+    // (the sweep is the tip's own station since G140 — wgTipX walks the tip aft)
+    over: { cage: Object.assign({}, PLAN_RECT, { wgTipX: 0.30, engPylonH: 0.32 }) } },
+  // ...and "the Archaeopteryx is probably one of the strangest designs out
+  // there. Rod almost directly on the high wing, a suspended cabin with aero
+  // nose, and an electric engine in pusher config, at the bottom" — the pod
+  // keeps its skin and its full canopy, the aero nose follows from the
+  // mount, the rod rides high on the bulkhead and the electric pusher hangs
+  // LOW on the bulkhead's back (engY down).
+  { key: 'archaeopteryx', kind: 'recreation', name: 'Archaeopteryx-alike', note: 'suspended pod, ' +
+      'rod on the wing, electric pusher low on the bulkhead',
+    sel: { class: 'ul1', role: 'glider', seatLayout: 0, paxCount: 0,
+           canopy: 'full', mirror: 0, intCons: 0, covering: 'skin',
+           boomStyle: 1, section: 3,
+           wgPos: 0, wgBrace: 0, wgTip: 2, wgFlapType: 0,
+           engFamily: 'electric', engModel: 'pipistrel E-811', engMount: 'pusher',
+           gearLayout: 'trike', suspension: 'bungee', s1Fair: 0,
+           empennage: 'conv', scheme: 'trim', base: 0xefe6cf, trim: 0xc96f2a },
+    over: { cage: Object.assign({}, PLAN_RECT, { rodY: 0.42, engY: -0.30,
+                                                 wgSpan: 11.0, wgChord: 1.30,
+                                                 wgChordTip: 1.30 }),
+            spec: { fuel: { litres: 0 } } } },
+  // 2026-09-04 (the user): "We need a twin engine aircraft archetype, maybe
+  // a couple of them. I'm thinking a luxury, small tourer, like the Diamond
+  // DA62 or the Beechcraft Baron, and a larger plane (maybe our first)".
+  // THE LUXURY TWIN: a low cantilever composite wing carrying an IO-360 a
+  // side, four seats under a half bubble, a T-tail, spatted trike gear, a
+  // 14 m span. Count and placement are one fact — the ENGINES row writes
+  // the pair (engMount 3) after the mount row's nose, in row order.
+  { key: 'da62', kind: 'recreation', name: 'DA62-alike', note: 'luxury twin: ' +
+      'low composite wing, an engine a side, T-tail, four seats',
+    sel: { class: 'n23', role: 'touring', seatLayout: 1, paxCount: 3,
+           canopy: 'half', mirror: 0, intCons: 0, boomStyle: 0, section: 3,
+           wgPos: 2, wgBrace: 1, wgTip: 1, wgFlapType: 1,
+           engFamily: 'flat', engModel: 'lycoming IO-360', engMount: 'nose',
+           engCount: 2, gearLayout: 'trike', suspension: 'oleo', s1Fair: 1,
+           empennage: 't', scheme: 'trim', base: 0xefe6cf, trim: 0x1b3a5c },
+    over: { cage: Object.assign({}, PLAN_TAPER, { wgSpan: 14.0, wgChord: 1.55,
+                                                   wgChordTip: 0.95 }),
+            spec: { finish: { decals: { m1On: 1, m1Pat: 2, m1A: 0x1b3a5c,
+                                        m1B: 0xefe6cf, m1D: 0x1b3a5c } } } } },
+  // THE LARGER TWIN — the first "larger plane": a strut-braced high wing on
+  // a boxy alloy body, four bays, an IO-360 a side at the front spar, fixed
+  // trike gear, a conventional tail; the Twin Otter's shape at the size the
+  // registry's pistons can lift.
+  { key: 'twinBush', kind: 'fiction', name: 'Twin bush hauler', note: 'the ' +
+      'first larger aeroplane: high strut wing, an engine a side, four bays',
+    sel: { class: 'n23', role: 'cargo', seatLayout: 1, paxCount: 4,
+           canopy: 'screen', mirror: 0, intCons: 3, boomStyle: 0, section: 0,
+           wgPos: 0, wgBrace: 0, wgTip: 0, wgFlapType: 2,
+           engFamily: 'flat', engModel: 'lycoming IO-360', engMount: 'nose',
+           engCount: 2, gearLayout: 'trike', suspension: 'oleo', s1Fair: 0,
+           empennage: 'conv', scheme: 'trim', base: 0xefe6cf, trim: 0xc96f2a },
+    over: { cage: Object.assign({}, PLAN_RECT, { wgSpan: 16.0, wgChord: 1.95,
+                                                  wgChordTip: 1.95 }),
+            spec: { finish: { decals: { m1On: 1, m1Pat: 0, m1A: 0xc96f2a,
+                                        m1B: 0x1b3a5c, m1D: 0xc96f2a } } } } },
+  // "a mono engine larger aircraft ... something like the Beaver now that we
+  // have large radial engines": the R-985 Wasp Junior (this batch's registry
+  // row) on a strut-braced high wing, four bays, a taildragger on oleos.
+  { key: 'beaver', kind: 'recreation', name: 'Beaver-alike', note: 'the bush ' +
+      'radial: R-985, strut high wing, four bays, taildragger',
+    sel: { class: 'n23', role: 'bush', seatLayout: 1, paxCount: 4,
+           canopy: 'screen', mirror: 0, intCons: 3, boomStyle: 0, section: 1,
+           wgPos: 0, wgBrace: 0, wgTip: 0, wgFlapType: 2,
+           engFamily: 'radial', engModel: 'P&W R-985', engMount: 'nose',
+           gearLayout: 'tail', suspension: 'oleo', s1Fair: 0,
+           empennage: 'conv', scheme: 'sweep', base: 0xf2c437, trim: 0x2c4a31 },
+    over: { cage: Object.assign({}, PLAN_RECT, { wgSpan: 14.6, wgChord: 1.95,
+                                                  wgChordTip: 1.95 }),
+            spec: { finish: { decals: { m1On: 1, m1Pat: 1, m1A: 0x3d5c40,
+                                        m1B: 0xefe6cf, m1D: 0x3d5c40 } } } } },
 ];
 
 // ---------------------------------------------------------------------------
@@ -1331,7 +1508,17 @@ function designBake(sel, over) {
            : W.CAGE_JOIN_ENGINES;
   const names = designEngineModels().map(o => o.value);
   const engKey = JE && JE[names[Math.round(full.engPreset)]];
-  if (engKey) designMerge(out, { engines: [{ type: engKey }] });
+  // THE MOUNT IS INTENT (2026-09-04): the pre-join spec GATE ARCHETYPES flies
+  // must carry the mount the tiles chose, or a pusher archetype flies as a
+  // tractor until the page's join runs. A wing pair is two entries.
+  const mk = ['nose', 'pusher', 'wingTop', 'wing'][Math.round(full.engMount || 0)]
+           || 'nose';
+  const eng = Object.assign(engKey ? { type: engKey } : {}, { mount: mk });
+  if (mk === 'wingTop') eng.pylon = Math.max(0.05, +full.engPylonH || 0.30);
+  designMerge(out, { engines: mk === 'wing' ? [eng, Object.assign({}, eng)] : [eng] });
+  // ...and so is an open frame (G172's joined row)
+  if (!(full.skinOn == null || +full.skinOn))
+    designMerge(out, { fuselage: { covering: 'open' } });
   designMerge(out, spec);
   if (over) designMerge(out, over.spec || over);
   return out;
@@ -1356,7 +1543,7 @@ function archInactive(a) {
 
 const API = { DESIGN_ROWS, DESIGN_GROUPS, ARCHETYPES, rowByKey, rowOptions,
               optionOf, designApply, designSeed, designMerge,
-              designOverwriteCount, designBake, archInactive,
+              designOverwriteCount, designBake, archInactive, archIcon,
               designEngineModels, designEngineFamilies, designPresetFamily,
               designPresetIndex };
 

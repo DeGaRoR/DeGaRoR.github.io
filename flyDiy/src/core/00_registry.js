@@ -134,6 +134,18 @@ const POWERPLANTS = {
   // a radial like these swings whatever its owner chose — so Tstatic and kV2
   // are scaled from the neighbours above at ~18 N per kW, and are estimates
   // wearing a real prop's diameter rather than measurements.
+  // THE BUSH RADIAL (2026-09-04, the user: "we could do something like the
+  // DC3 / Beaver now that we have large radial engines"): the R-985 Wasp
+  // Junior, the Beaver's own — 450 hp, 290 kg. Mass and power are the
+  // published ones; like the R-1830 it was SUPERCHARGED and lapses here as
+  // a normally-aspirated engine ('turbo' is reserved). The PROP is DERIVED,
+  // not chosen: genPropSynth's own output at 2.59 m, two blades, alloy,
+  // standard pitch — the Hamilton Standard 2B20 the Beaver swings.
+  r985_hs2b20: {
+    price: 48000,
+    engine: { name: 'P&W R-985 Wasp Junior', mass: 290, powerW: 336000, aspiration: 'na', family: 'four', cooling: 'air' },
+    prop:   { name: 'Hamilton Standard 2B20', D: 2.59, Tstatic: 5408, kV2: 0.368 },
+  },
   verner7u_wood: {
     price: 22000,
     engine: { name: 'Verner Scarlett 7U', mass: 78, powerW: 78000, aspiration: 'na', family: 'four', cooling: 'air' },

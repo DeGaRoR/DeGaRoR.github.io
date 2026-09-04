@@ -305,8 +305,10 @@ function editorInit(api) {
   // "tiles when the design part is selected" dispatch without costing the
   // design part its raw rows (they are SHAPE's again, convertible/open back
   // on their slider).
-  let view = ['finish', 'design'].includes(pref(LS_VIEW)) ? pref(LS_VIEW)
-                                                          : 'shape';
+  // 2026-09-04: DESIGN is no longer a tab — it is the Custom-build window
+  // NEW opens (EDITOR_SET_VIEW), so a boot restores STRUCTURE or FINISH only;
+  // the tiles themselves are sprinkled into STRUCTURE by part (render()).
+  let view = pref(LS_VIEW) === 'finish' ? 'finish' : 'shape';
   // WHERE A BORROWED ELEMENT GOES BACK TO. The parameter rows have one home
   // (the nursery) and need no map; the finish rows have two — the materials
   // panel's body and the decals panel's — and `buildMatPanel` clears its body
@@ -675,6 +677,12 @@ function editorInit(api) {
     if (view === 'finish') { renderFinish(); applyVis(); reopenFly(); return; }
     const shown = partsShown(sel);
     const many = shown.length > 1;
+    // THE DESIGN TILES OF THIS PART (2026-09-04, the user: "sprinkle back the
+    // controls into the shape section ... I can't find the rod setting when
+    // clicking on the boom"): design_flow.js knows which macro rows belong
+    // to which part and puts them at the head of the column, above the rows.
+    if (window.DESIGN_FLOW && window.DESIGN_FLOW.renderTilesFor)
+      window.DESIGN_FLOW.renderTilesFor(rowsEl, sel);
     for (const p of shown) {
       // A PART THAT DOES NOT EXIST IS STILL EMITTED, and then hidden by
       // applyVis — which is where every other existence rule is answered, so
@@ -2942,6 +2950,8 @@ function editorInit(api) {
     const t1 = $('edTabShape'); if (t1) t1.onclick = () => setView('shape');
     const t2 = $('edTabFinish'); if (t2) t2.onclick = () => setView('finish');
     const t3 = $('edTabDesign'); if (t3) t3.onclick = () => setView('design');
+    // NEW > Custom build and the tiles' own "back" pill switch the view
+    window.EDITOR_SET_VIEW = setView;
     wrap.classList.toggle('fin', view === 'finish');
     if (t1) t1.classList.toggle('on', view === 'shape');
     if (t2) t2.classList.toggle('on', view === 'finish');

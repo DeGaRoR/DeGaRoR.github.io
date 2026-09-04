@@ -29060,3 +29060,195 @@ untouched). The plaque tells the margin either way.
   fresh frame after it (the setView call does not repaint; the ribbon's
   presets do) — the pusher and the T-tail were looked at, the V and the pair
   were verified by the numbers above.
+
+## G175 — THE TILES COME HOME, THE ARCHETYPES GROW UP (2026-09-04, the user:
+## "I am getting annoyed with my own previous decision of splitting the
+## controls into design and shape ... I can't find the rod setting when
+## clicking on the boom ... sprinkle back the controls into the shape section
+## (that can become structure again), and let the grouping of design only as
+## an option when clicking on 'new' ... 'custom build' ... architected in
+## such a way that the changes can be seen directly on the plane ... The
+## archetypes are pretty cool ... enable the radial tourer ... the motor
+## glider ... the T-Tail tourer, completing your list. Please review the
+## icons too. The pusher does not push ... a more-than-ultra-light ...
+## Whittaker MW5/6 ... The Archaeopteryx ... Let's build more archetypes,
+## fine tune them, then they will eventually become our extended test bench")
+
+**1. STRUCTURE, with the tiles in it.** The SHAPE tab is STRUCTURE. The
+DESIGN tab is out of the bar (the element stays — the smoke gate names it and
+`EDITOR_SET_VIEW` opens it — with `hidden`). The design rows are sprinkled
+into the structure view BY PART: `DESIGN_PART` in design_flow.js says which
+part keys show which macro row (the boom, the tail cone, the taper and the
+fuselage all show *Fuselage style*; the engine, the powerplant and the cowl
+show the mount; the fin, the stab and the tail show the empennage; the root
+shows the identity rows; the *Design & construction* part shows every
+non-livery row), and `renderTilesFor(rowsEl, sel)` puts them at the head of
+the column, above the part's own rows — `refresh()` redraws the inline block
+on every pick exactly as it redraws the grid. A boot restores STRUCTURE or
+FINISH; never DESIGN.
+
+**2. NEW > Custom build.** The birth overlay's first card, lit
+(`.dfArch.dfCustom`): a fresh stock aeroplane on the stand (`bakeBirth({})`,
+the page's own defaults) and the design view in the PROPERTIES COLUMN — the
+tiles beside the aeroplane, no overlay, the viewport untouched (the user:
+"don't put a huge full screen window"). The grid carries a `‹ back to
+structure` pill at its head; `window.EDITOR_SET_VIEW` is the editor's door
+for both.
+
+**3. The cards wear their own aeroplane.** Every archetype card drew its SIZE
+CLASS's silhouette — a nose propeller on the pusher ("the pusher does not
+push"). `archIcon(a)` draws the card from its selection: canopy, gear
+layout, empennage, pod-and-rod, an open frame's truss, and the propeller
+WHERE THE MOUNT PUTS IT — `iconSide` takes `prop: 'nose' | 'pusher' |
+'wingTop' | 'twin'` now (`true` stays the nose line) and `open`.
+
+**4. The birth spec carries the mount and the covering.** `designBake`'s
+intent channel wrote `engines: [{type}]` and nothing about the mount, so
+GATE ARCHETYPES flew the pusher archetype as a TRACTOR (the join corrected
+it in the page; the gate never saw the join). It writes the mount (a wing
+pair as two entries, the pylon height for over-the-wing) and
+`fuselage.covering 'open'` for a skinless frame now.
+
+**5. The list, completed.**
+- *Radial tourer* — LIVE on the Rotec R3600 (the user: "we have more radial
+  engines now"); the `blocked` field goes with it. The R-1830 stays a family
+  choice.
+- *Motorglider* — LIVE: the SAIL class is live (the user: "we have a
+  sailplane model from the old days ... and electrical engines"). Its seed:
+  15 m span, 1.0 m chord tapering to 0.55, composite, single seat, the FES
+  sustainer, no fuel. THE ENVELOPE OPENED for it: clampSpec holds the wing
+  to 0.80-2.10 m chord and 6.5-18 m span (aspect ratio to 20) — every build
+  inside the old box is untouched; GATE DESIGN's envelope check and GATE GEN's
+  wild-spec check read the new numbers; the utility class stays out for its
+  own measured reason (`UTIL_REASON`).
+- *T-tail tourer* — LIVE: the retraction it asked for stays declared and is
+  simply not asked for; the T is G173's seat.
+- *Whittaker-alike* (MW5/6) — NEW: the open frame, a strut-braced high wing
+  with its tip walked aft (`wgTipX 0.30` — the sweep is the tip's own
+  station since G140), the 582 on a pylon over the centre section pushing,
+  a rod boom, a trike.
+- *Archaeopteryx-alike* — NEW: the pod keeps its skin under a full canopy,
+  the aero nose follows from the mount, the rod rides high on the bulkhead
+  (`rodY 0.42`), the electric sustainer pushes LOW on the bulkhead's back
+  (`engY −0.30`), a wide light wing.
+
+**Measured.** GATE ARCHETYPES on this list: 14 flown, 12 green; the motorglider and the Archaeopteryx-alike red on the 22 kW sustainer (rejected take-off / still on approach at 420 s) — both taken up in G176.
+
+**What the user said and is still owed.** "Almost all need little
+adjustments, and most will simply not fly as they are" — the gate flies the
+PRE-JOIN spec (designBake's intent), not the joined page build, so a card
+that flies here can still balance differently on the stand once the join
+measures the drawn wing; the tuning pass over each card in the page is the
+next playtest's, card by card. "Eventually there will only be garage
+builds": GATE ARCHETYPES is the bench that grows toward it — every card
+added is a fiche the fleet no longer needs.
+
+## G176 — THE BUG PASS, THE LIVERIES, AND THE BIG ONES (2026-09-04, the user:
+## "The fairing is missing for the front wheel of tricycle · the default
+## bubble canopy height should be 0.79, the bubble sliders part of the
+## windshield selection · the wheel a child of suspension, the propeller of
+## the engine, cabin fit in cabin · the passenger section has no choice but
+## to be dead straight · little attention to match the engine size with the
+## cowl ... systematically too short, and not wide enough · side by side
+## setups too narrow, the pilots stick out · the rod settings should turn
+## the taper section on · pushers should have no cowl by default · be more
+## inventive with the liveries · separate recreations from fictional · a
+## twin engine archetype, maybe a couple · a mono engine larger aircraft ·
+## Let's go, bugs first")
+
+**Bugs, in the order asked.**
+1. *Nose fairing.* The **Wheel fairings** tile wrote `s1Fair` — the mains —
+   only; a trike's nose wheel stayed bare whatever the card said. It writes
+   both stations now. (The castor's own spat path was there since G170; the
+   row just never got its value.)
+2. *Bubble.* `bubH` default 0.85 -> 0.79, the Full-bubble tile with it; the
+   twelve bubble rows moved from the cabin part to the **windscreen** part
+   ("bubble canopy" group) — the bubble is the screen's own continuation.
+3. *The tree.* Wheels & tyres under Main gear, Propeller under Engine, Cabin
+   fit (seats, controls, cockpit, crew, lights) under Cabin. GATE PARTS holds
+   the claims; the editor's tree nests to any depth.
+4. *The passenger run has a profile.* Every intermediate ring — the second
+   and later bay rings and the mid pillars — blends from the aft pillar's
+   section to the cabin's by its station (`paxD(z)`, a linear lerp of the
+   ring dims), so roof, ceiling, floor and keel run from one to the other
+   instead of stepping at the last bay. The aft pillar pair and the cabin
+   pillar keep their sections exactly: the one-bay template is bit-identical
+   (GATE CAGEFIT/FIT green); with the taper on both ends are the cabin's and
+   the blend is a no-op. "Impose a profile" beyond linear is a later knob.
+5. *The cowl takes the engine's size.* Three things were wrong at once:
+   `COWL_BY_ARCH` returned null for flat/inline/electric (the earlier "a
+   boxer keeps the bench default" ruling), so only a radial was ever sized;
+   the starter fired on an ARCHITECTURE change only, so an O-200 swapped
+   for an IO-360 kept the smaller cowl; and a BIRTH is a load, which
+   (rightly) keeps every starter quiet — so every card was born in the page's
+   default cowl around whatever engine it chose. Now: flat/inline/electric
+   take the engine's SIZE (taper to the enclosing radius, barrel = engine
+   length + 10 %) and keep their style rows; the starter's step is the
+   ENVELOPE signature (arch + radius + length); the birth flow asks for one
+   fit on the first build (`CAGE_COWL_FIT_NEXT`), a saved build never. The
+   taper cap rose 1.15 -> 1.30 (row and rule): an IO-360's heads (radius
+   0.48) on an n23 firewall (0.40) need 1.28, and a real cowl bulges past its
+   firewall round a big boxer. Measured on the C172-alike: taper 0.82 ->
+   1.29, front 0.33 -> 0.51 m against 0.51 needed, length 0.58 -> 0.61.
+6. *Side-by-side width.* The seat centres sat at `halfW − 0.20`, the
+   dummy's outer shoulder ~0.21 m outboard of that, and the roof half-width
+   (0.41 in the seeds) narrower still at shoulder height. The seats keep
+   their centres 0.25 m inside the waist; the ulm/lsa seeds go 0.525/0.41 ->
+   0.56/0.47 (1.12 m at the waist, 0.94 at the roof) and n23 0.56/0.44 ->
+   0.59/0.49. Measured on the C172-alike: seats ±0.19, shoulders ±0.40
+   inside a 0.49 roof half-width.
+7. *Rod -> taper on.* The **Rod & pod** tile writes `taperOn 1` with the
+   rod; the taper stays its own switch after.
+8. *Pushers -> no cowl.* The Pusher and Over-the-wing tiles write `cowlOn 0`,
+   the Nose tile puts it back; the cowl's own switch reactivates it.
+
+**The liveries.** Archetypes may carry a marking-kit RECIPE in
+`over.spec.finish.decals` (m1On / m1Pat / m1A / m1B / m1D — G162's layer 1;
+patterns 0 cheat line, 1 twin stripe, 2 sweep, 3 flash). The Cub wears a
+flash, the Jodel a cheat line, the 172 the seventies' twin stripe, the RV a
+bent sweep, and the three new ones their own. GATE DESIGN's spec-path check
+admits `finish.decals.m<1-3><Field>` (finish is null in GEN_DEFAULT by
+design). Measured in the page: the birth spec carries the recipe and the
+Cub's flank shows the flash.
+
+**Recreations and fiction.** Every archetype carries `kind: 'recreation' |
+'fiction'`; the NEW grid shows the recreations first under their heading
+(a `·` after the name), the shed's own after. The user reviews and exports
+each; the recreations will want their reference exports beside them.
+
+**The big ones.**
+- *DA62-alike* (recreation): the luxury twin — low cantilever composite wing
+  at 14 m, an IO-360 a side at the front spar (the ENGINES row's pair,
+  written after the mount row's nose in row order), four seats under a half
+  bubble, T-tail, spatted oleo trike.
+- *Twin bush hauler* (fiction, "the first larger aeroplane"): a strut-braced
+  16 m high wing on a boxy alloy body, four bays, an IO-360 a side, fixed
+  trike, conventional tail — the Twin Otter's shape at the size the
+  registry's pistons lift. ("flat six" maps to the A-65 row in the join —
+  a 65 hp six is a lie; the pair is IO-360s.)
+- *Beaver-alike* (recreation): the **P&W R-985 Wasp Junior** joins the
+  registry (450 hp, 290 kg, `r985_hs2b20`; prop DERIVED by genPropSynth at
+  2.59 m / two blades / alloy: Tstatic 5408 N, kV2 0.368; lapses as
+  normally-aspirated like the R-1830) with its bench preset (nine
+  cylinders, 5.1875 in square, 2300 rpm, firewall 1.10) and its join-map
+  row. GATE ENGID / ENGINE / ENGMESH / JOIN green with it. The archetype:
+  strut high wing at 14.6 m × 1.95, four bays, oleo taildragger.
+- The two electric archetypes take the **E-811** (57 kW): the 22 kW
+  sustainer had the test pilot reject the take-off on the 15 m glider. GATE
+  ARCHETYPES gives the GLIDER role 640 s instead of 420: a 30 m/s cruise
+  flies the tourers' circuit slower, and the bound was the instrument.
+
+**Measured.** GATE ARCHETYPES, seventeen cards: sixteen complete their circuit and stop inside the bound. The motorglider at the class's 15 m GAVE UP (the test pilot: no climb left at 88 s, terrain go-around) even with the E-811 and the 640 s bound; at 13 m × 1.15 (AR 11) it completes in 330 s, sink 0.79 — the card takes 13 m, and the 15 m wing's flight is the opened envelope's debt (the shakedown clears it, the pilot does not: something in the long-span build — the wash, the flex, or the ground effect — is worth a session). The core battery is the user's, run once for all sessions.
+
+**Turboprops — what it would take (the user asked).** A registry FAMILY
+(`turbine`) with its own thermo row (sfc ~0.35 kg/kWh, flat-rated power so
+`atmosPowerRatio` holds rated power to a density altitude instead of
+lapsing like a piston — a new branch in 05_atmos, ~40 lines), a bench
+ARCHITECTURE for the engine mesh (a can, an inlet, a reduction gearbox and
+a single exhaust stack — the electric can is the nearest starting shape),
+`ENG_AIM` for the stack, the cowl STYLE (a long round nacelle with a chin
+inlet — COWL_BY_ARCH's radial row is the template), a registry row per
+engine (PT6A-34 for a Caravan, -114A for a Kodiak: 500-750 shp, ~150 kg)
+with genPropSynth props at 2.7-2.9 m, three blades; and the fuel kind
+(Jet-A in GEN_FUELS, its density and price). Two sessions; ROADMAP Phase 6
+item 7. Without it a Caravan/Kodiak-alike is an R-985 with a long nose.

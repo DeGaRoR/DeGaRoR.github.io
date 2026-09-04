@@ -334,10 +334,17 @@
          is what it is made of and looks like. The bar heads the column,
          above the selection it qualifies. -->
     <nav id="edViewTabs">
-      <button id="edTabDesign" class="edTab"
+      <!-- 2026-09-04 (the user: "I am getting annoyed with my own previous
+           decision of splitting the controls into design and shape"): the
+           design tiles are SPRINKLED into the structure view, by part — click
+           the boom and its fuselage-style tile is there — and the grid as a
+           whole is reached from NEW > Custom build. The tab stays in the
+           document (the smoke gate names it, EDITOR_SET_VIEW opens it) but
+           not in the bar. -->
+      <button id="edTabDesign" class="edTab" hidden
               title="The whole aeroplane's macro choices — class, role, configuration">design</button>
       <button id="edTabShape" class="edTab on"
-              title="What this part is — its dimensions and its shape">shape</button>
+              title="What this part is — its structure, its dimensions and its shape">structure</button>
       <button id="edTabFinish" class="edTab"
               title="What this part is made of — finish, colour, and the grain of it">finish</button>
     </nav>

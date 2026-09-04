@@ -438,12 +438,34 @@ function cageResolve(S) {
   if (!MIR) add(fullRing('pilPaxA', zPaxA, TAP ? cabD : aftDA),
                 { mat: CAGE_PILLAR('pillarPassenger') });
   let z = zPaxB;
+  // THE PASSENGER RUN HAS A PROFILE (2026-09-04, the user: "the passenger
+  // section has no choice but to be dead straight ... at least something
+  // linear across all passenger bays"). The aft pillar pair keeps the aft
+  // section and the cabin pillar the cabin's, exactly as before (the one-bay
+  // template is bit-identical); every ring BETWEEN them — the second and
+  // later bay rings and the mid pillars — blends the two by its station, so
+  // the roof, the ceiling, the floor and the keel run linearly from one to
+  // the other instead of stepping at the last bay. With the taper on, both
+  // ends are the cabin section and the blend is a no-op.
+  const zPaxEnd = zPaxB + S.pax.count * S.pax.len
+                + Math.max(0, S.pax.count - 1) * S.paxPillarW;
+  const paxAftD = TAP ? cabD : aftDB;
+  const lerpD = (a, b, t) => {
+    const o = {};
+    for (const k in a) o[k] = typeof a[k] === 'number' && typeof b[k] === 'number'
+      ? a[k] + (b[k] - a[k]) * t : a[k];
+    return o;
+  };
+  const paxD = zz => {
+    const t = Math.max(0, Math.min(1, (zz - zPaxB) / Math.max(1e-6, zPaxEnd - zPaxB)));
+    return lerpD(paxAftD, cabD, t);
+  };
   if (!MIR) for (let i = 0; i < S.pax.count; i++) {
-    add(fullRing('pilPaxB' + (i || ''), z, (i || TAP) ? cabD : aftDB),
+    add(fullRing('pilPaxB' + (i || ''), z, i === 0 ? paxAftD : paxD(z)),
         { mat: matPax(i), guards: [S.pax.guardTA, S.pax.guardTB] });
     z += S.pax.len;
     if (i < S.pax.count - 1) {
-      add(fullRing('pilPaxM' + i, z, cabD),
+      add(fullRing('pilPaxM' + i, z, paxD(z)),
           { mat: CAGE_PILLAR('pillarPassenger') });
       z += S.paxPillarW;
     }
@@ -6108,7 +6130,7 @@ const CAGE_PARAMS = {
   // cageCanopy component on the recorded seam — G16c). The cut line is
   // the waistband TOP (the bottom option was DROPPED, user 2026-08-18:
   // "it causes only issues").
-  canopy: 0, bubH: 0.85, bubAt: 0.45,
+  canopy: 0, bubH: 0.79, bubAt: 0.45,      // 0.79: the user's default (2026-09-04)
   // bubble width: 1 = flush arcs; >1 bulges the crown shoulders past
   // the flanks (blown canopy) — the feet stay on the sills
   bubW: 1.0,

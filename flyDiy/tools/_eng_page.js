@@ -104,6 +104,11 @@ const PRESETS = {
     bore: 0.090, stroke: 0.096, rpm: 2600, exStyle: 2 },
   'DH Gipsy Major': { arch: 'inline', cyl: 4, twoStroke: 0, inlineAim: 0,
     bore: 0.118, stroke: 0.140, rpm: 2100, exStyle: 2 },
+  // THE R-985 (2026-09-04): nine cylinders, 5.1875 in square, single row,
+  // direct drive; the firewall is sized from the heads the resolve builds
+  'P&W R-985': { arch: 'radial', cyl: 9, exStyle: 2,
+    bore: 5.1875 * IN, stroke: 5.1875 * IN, rpm: 2300, finR: 1.4,
+    fwW: 1.10, fwH: 1.10, carbOn: 0, airbox: 0, plumb: 0 },
   'P&W R-1830': { arch: 'radial', cyl: 14, radialRows: 2, geared: 1,
     exStyle: 2, bore: 5.5 * IN, stroke: 5.5 * IN, rpm: 2700,
     finR: 1.4, mountGap: 1.2, fwW: 1.35, fwH: 1.35,

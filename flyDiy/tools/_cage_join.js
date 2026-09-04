@@ -32,6 +32,7 @@ const CAGE_JOIN_ENGINES = {
   'rotax 582': 'rotax582_ivo',
   'Verner Scarlett 7U': 'verner7u_wood',
   'Rotec R3600': 'rotec3600_std',
+  'P&W R-985': 'r985_hs2b20',
   'P&W R-1830': 'r1830_hs23e50',
   'RC 2212 outrunner': 'outrunner2212_9x47',
   'RC 6374 outrunner': 'outrunner6374_18x10',

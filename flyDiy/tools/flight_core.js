@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 19fca1aff526156e
+// body-sha256: e68db9307e42f0f7
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -136,6 +136,18 @@ const POWERPLANTS = {
   // a radial like these swings whatever its owner chose — so Tstatic and kV2
   // are scaled from the neighbours above at ~18 N per kW, and are estimates
   // wearing a real prop's diameter rather than measurements.
+  // THE BUSH RADIAL (2026-09-04, the user: "we could do something like the
+  // DC3 / Beaver now that we have large radial engines"): the R-985 Wasp
+  // Junior, the Beaver's own — 450 hp, 290 kg. Mass and power are the
+  // published ones; like the R-1830 it was SUPERCHARGED and lapses here as
+  // a normally-aspirated engine ('turbo' is reserved). The PROP is DERIVED,
+  // not chosen: genPropSynth's own output at 2.59 m, two blades, alloy,
+  // standard pitch — the Hamilton Standard 2B20 the Beaver swings.
+  r985_hs2b20: {
+    price: 48000,
+    engine: { name: 'P&W R-985 Wasp Junior', mass: 290, powerW: 336000, aspiration: 'na', family: 'four', cooling: 'air' },
+    prop:   { name: 'Hamilton Standard 2B20', D: 2.59, Tstatic: 5408, kV2: 0.368 },
+  },
   verner7u_wood: {
     price: 22000,
     engine: { name: 'Verner Scarlett 7U', mass: 78, powerW: 78000, aspiration: 'na', family: 'four', cooling: 'air' },
@@ -9489,9 +9501,14 @@ function clampSpec(spec) {
   }
   cb.baggage = genClamp(cb.baggage, 0, 60);
   const w = S.wings[0];
-  w.chord = genClamp(w.chord, 1.15, 2.10);
+  // 2026-09-04: the envelope opened for the SAILPLANE class (the user: "you
+  // should be able to enable the motor glider") — 0.80 m chord and 18 m span,
+  // aspect ratio to 20. Every build inside the old 1.15-2.10 / 6.5-14 box is
+  // untouched; GATE GEN's wild spec still clamps, and the sail archetype's
+  // circuit is the new corner's flight test.
+  w.chord = genClamp(w.chord, 0.80, 2.10);
   w.span = genClamp(w.span, Math.max(6.5, 4.0 * w.chord),
-                            Math.min(14.0, 10.0 * w.chord));
+                            Math.min(18.0, 20.0 * w.chord));
   w.taper = genClamp(w.taper, 0.45, 1.0);
   w.dihedral = genClamp(w.dihedral, 0, 6);
   // Quarter-chord sweep, degrees, positive aft. At the speeds this game flies

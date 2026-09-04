@@ -244,9 +244,8 @@ const CAGE_PARTS = [
       // mirror + canopy -> `design`: they decide whether there IS a pod and
       // what kind, which is a configuration question. What is left here is
       // the SHAPE of the one you chose.
-      ['pod & canopy', ['bubble', 'arcFit', 'bubH', 'bubAt', 'bubW',
-                        'canLoops', 'bubH2', 'bubAt2', 'bubW2', 'bubH3',
-                        'bubAt3', 'bubW3']],
+      // (the bubble's rows are the WINDSCREEN's since 2026-09-04 — the user:
+      // "the bubble sliders should be part of the windshield selection")
       // THE CABIN'S TWO RINGS: the window ring at its forward end (Win) and
       // the cabin pillar pair at its aft (Cab). Both are the bay's own
       // cross-sections, moved bodily in metres — the ring editor G18 built,
@@ -265,6 +264,10 @@ const CAGE_PARTS = [
     place: { up: 'wsTopOff', len: 'wsRun', at: 'on the cabin front ring' },
     groups: [
       ['shape', ['wsRun', 'wsTopOff', 'wsBaseBow', 'wsCeilBow']],
+      // the bubble canopy IS the screen's own continuation (2026-09-04)
+      ['bubble canopy', ['bubble', 'arcFit', 'bubH', 'bubAt', 'bubW',
+                         'canLoops', 'bubH2', 'bubAt2', 'bubW2', 'bubH3',
+                         'bubAt3', 'bubW3']],
       // the screen BASE ring pair (wsFront + wsAft): where the screen stands
       // on the shell, and how wide the shell is there
       ['rings', ['ringScrBot', 'ringScrW']],
@@ -622,7 +625,8 @@ const CAGE_PARTS = [
 
   // the propeller's GEOMETRY is the engine layer's (_cage_eng.js names the
   // spinner and the blades), even though its parameters are the cowl page's
-  { key: 'prop', name: 'Propeller', parent: 'power', layer: 'eng',
+  // 2026-09-04 (the user: "the propeller child of the engine")
+  { key: 'prop', name: 'Propeller', parent: 'engine', layer: 'eng',
     when: P => +P.propOn, gate: 'propOn',
     place: { on: 'propOn', type: 'cw_material', count: 'cw_bladeN',
              fore: 'cw_noseOff', wide: 'cw_propD',
@@ -700,7 +704,8 @@ const CAGE_PARTS = [
                   's2_twHornY', 's2_twHornZ']],
     ] },
 
-  { key: 'wheels', name: 'Wheels & tyres', parent: 'gear', layer: 'gear',
+  // 2026-09-04 (the user: "the wheel is a child of suspension"): under the mains
+  { key: 'wheels', name: 'Wheels & tyres', parent: 'mains', layer: 'gear',
     when: P => +P.gearOn,
     sections: ['spat'],
     place: { type: ['whProfile', 'whTread', 'whRim', 'whCap', 'whBrake', 'fairCons'],
@@ -718,7 +723,8 @@ const CAGE_PARTS = [
   // dummy. A disjoint layer over the cage; never in the mesh, the gates or the
   // OBJ.
   // =========================================================================
-  { key: 'fit', name: 'Cabin fit', parent: null, layer: 'crew' },
+  // 2026-09-04 (the user: "cabin fit should definitely be in cabin")
+  { key: 'fit', name: 'Cabin fit', parent: 'cabin', layer: 'crew' },
 
   { key: 'seats', name: 'Seats', parent: 'fit', layer: 'crew',
     sections: ['seatTrim'],

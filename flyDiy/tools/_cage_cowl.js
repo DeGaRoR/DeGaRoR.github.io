@@ -485,9 +485,17 @@ const dispose = o => {
 // user remembered, and it is a STYLE choice rather than something an engine
 // implies — a Camel has one and a DC-3 does not.
 const COWL_CLEAR = 0.06;          // 6% over the engine's own enclosing radius
-const COWL_TAPER_LO = 0.3, COWL_TAPER_HI = 1.15;   // the row's own range
+// 2026-09-04: the cap rose 1.15 -> 1.30 — an IO-360's heads (radius 0.48)
+// on an n23 firewall (0.40 half-width) need 1.28, and a cowl that bulges
+// past its firewall is what a real one does round a big boxer
+const COWL_TAPER_LO = 0.3, COWL_TAPER_HI = 1.30;   // the row's own range
+// 2026-09-04 (the user: "there seems to be little attention in your builds to
+// match the engine size with the cowl. They are quite systematically too
+// short, and not wide enough, leading to massive clipping"): the boxer, the
+// in-line and the electric keep their STYLE (the bench default — the earlier
+// ruling) but take the engine's SIZE: an empty style row means "size only".
 const COWL_BY_ARCH = {
-  flat: null, inline: null, electric: null,
+  flat: {}, inline: {}, electric: {},
   radial: {
     fitNose: 2,                        // sealed: firewall size, round section
     // ROUND, and level: no deck rise, no keel sweep, no waist
@@ -514,6 +522,7 @@ const COWL_BY_ARCH = {
 window.CAGE_COWL_FOR_ENGINE = function (arch, env, face) {
   const base = COWL_BY_ARCH[arch];
   if (!base || !env || !face || !(env.radius > 0)) return null;
+  const styled = Object.keys(base).length > 0;
   const vals = Object.assign({}, base);
   const aftW = Math.max(1e-3, face.halfW), aftH = Math.max(1e-3, face.halfH);
   const need = env.radius * (1 + COWL_CLEAR);
@@ -531,13 +540,18 @@ window.CAGE_COWL_FOR_ENGINE = function (arch, env, face) {
   // proportions taken from the preset the user approved, expressed against the
   // size this engine actually needs rather than against that aeroplane's
   const front = Math.min(aftW * vals.cw_taperW, aftH * vals.cw_taperH);
-  vals.cw_lidLen = +Math.max(0.02, Math.min(1, vals.cw_cowlLen * 0.30)).toFixed(3);
-  vals.cw_lidR = +Math.max(0.005, Math.min(0.55, front * 0.23)).toFixed(3);
-  vals.cw_apW = +Math.max(0.02, Math.min(0.7, front * 0.58)).toFixed(3);
-  vals.cw_apH = vals.cw_apW;
+  // the lid and inlet proportions are the RADIAL preset's — a boxer keeps
+  // its own lid and aperture rows (size only, see COWL_BY_ARCH)
+  if (styled) {
+    vals.cw_lidLen = +Math.max(0.02, Math.min(1, vals.cw_cowlLen * 0.30)).toFixed(3);
+    vals.cw_lidR = +Math.max(0.005, Math.min(0.55, front * 0.23)).toFixed(3);
+    vals.cw_apW = +Math.max(0.02, Math.min(0.7, front * 0.58)).toFixed(3);
+    vals.cw_apH = vals.cw_apW;
+  }
   const note = front + 1e-9 < need
-    ? 'radial cowl: the firewall is too small — ' + (front * 2).toFixed(2) +
-      ' m across where this engine needs ' + (need * 2).toFixed(2) + ' m'
+    ? (styled ? 'radial' : arch) + ' cowl: the firewall is too small — ' +
+      (front * 2).toFixed(2) + ' m across where this engine needs ' +
+      (need * 2).toFixed(2) + ' m'
     : null;
   return { vals, note, need, front };
 };
@@ -555,7 +569,14 @@ window.CAGE_COWL_FOR_ENGINE = function (arch, env, face) {
 // recorded it?" — with `PAGE.load` as the editor's way of saying P was
 // replaced rather than edited. Published for GATE STARTER, which drives it
 // without a scene; see the engine layer's own starter for the twin.
+// ...AND ON A CHANGE OF THE ENGINE'S SIZE, not only of its architecture
+// (2026-09-04): an O-200 swapped for an IO-360 is the same boxer in a cowl
+// drawn for the smaller one, which is the clipping the user reported. The
+// step is "has the architecture OR the enclosing radius OR the length
+// changed since I last recorded it?" — a dress dial moves none of those.
 let lastArch = null;
+const envSig = (arch, R) => arch + ':' +
+  (R && R.env ? (R.env.radius || 0).toFixed(2) + ':' + (R.env.length || 0).toFixed(2) : '');
 function cowlArchStarter(P) {
   const specOf = window.CAGE_ENG_SPEC, EG2 = window.ENG_GEN;
   if (!specOf || !EG2 || !EG2.engResolve || !+P.engOn) return null;
@@ -563,16 +584,32 @@ function cowlArchStarter(P) {
   try { spec = specOf(P); R = EG2.engResolve(spec); } catch (e) { return null; }
   const arch = spec && spec.arch;
   if (!arch) return null;
-  if (lastArch === null) { lastArch = arch; return null; }
-  if (arch === lastArch) return null;
-  lastArch = arch;
+  const sig = envSig(arch, R);
+  if (lastArch === null) { lastArch = sig; return null; }
+  if (sig === lastArch) return null;
+  lastArch = sig;
   return { arch, R };
 }
 const prevLoad = PAGE.load;
 PAGE.load = () => { if (prevLoad) prevLoad(); lastArch = null; };
 window.CAGE_COWL_STARTER = cowlArchStarter;
+// A BIRTH IS THE ONE LOAD THAT WANTS THE FIT (2026-09-04): a card bakes a
+// fresh cage with the page's default cowl rows around whatever engine it
+// chose, and the load rule (rightly) keeps the starter quiet — so every
+// archetype was born in a cowl drawn for the default engine. The birth flow
+// asks for one fit on the next build; a saved build never does.
+let fitNext = false;
+window.CAGE_COWL_FIT_NEXT = () => { fitNext = true; };
 function cowlForEngine(P, face, stat) {
-  const hit = cowlArchStarter(P);
+  let hit = cowlArchStarter(P);
+  if (!hit && fitNext) {
+    const specOf = window.CAGE_ENG_SPEC, EG2 = window.ENG_GEN;
+    try {
+      const spec = specOf(P), R = EG2.engResolve(spec);
+      if (spec && spec.arch) hit = { arch: spec.arch, R };
+    } catch (e) {}
+  }
+  fitNext = false;
   if (!hit) return;
   const got = window.CAGE_COWL_FOR_ENGINE(hit.arch, hit.R.env, face);
   if (!got) return;

@@ -134,6 +134,10 @@ try {
 // element, the genDefaults convention)?
 function specPathOk(pathStr) {
   if (NEW_SPEC_FIELDS.includes(pathStr)) return true;
+  // THE MARKING KIT (2026-09-04): finish is null in GEN_DEFAULT by design (the
+  // factory finish), and its decals are AERO_DEC_DEF's fields — the kit's
+  // three layers are m1..m3 + a field name. An archetype may carry a recipe.
+  if (/^finish.decals.m[123][A-Z][A-Za-z]*$/.test(pathStr)) return true;
   let node = CORE.GEN_DEFAULT;
   for (const part of pathStr.split('.')) {
     if (Array.isArray(node)) node = node[0];
@@ -298,9 +302,9 @@ function checkEnvelope(A) {
     const c = (o.seed && o.seed.cage) || (o.writes && o.writes.cage) || {};
     const chord = +c.wgChord, span = +c.wgSpan;
     if (!Number.isFinite(chord) || !Number.isFinite(span)) continue;
-    const okChord = chord >= 1.15 && chord <= 2.10;
+    const okChord = chord >= 0.80 && chord <= 2.10;
     const okSpan = span >= Math.max(6.5, 4.0 * chord) &&
-                   span <= Math.min(14.0, 10.0 * chord);
+                   span <= Math.min(18.0, 20.0 * chord);
     ok = check(okChord && okSpan,
       'live class declares a wing outside clampSpec\'s envelope (the clamp ' +
       'would bite a declared value)', `${o.value}: ${span} x ${chord}`) && ok;
