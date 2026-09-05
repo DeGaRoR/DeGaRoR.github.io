@@ -1,4 +1,63 @@
 // ============================================================
+// ---------------------------------------------------------------------------
+// THE VORTEX KERNEL (G185.5) — the mutual interference between the planes of
+// a biplane, and the wing's downwash on the tail, as the induced velocity of
+// discrete HORSESHOE VORTICES. Each wing strip is one horseshoe: its bound
+// vortex along the quarter-chord line of the strip's own sub-span, two
+// semi-infinite trailing legs downstream. Biot-Savart, closed form, with a
+// Rankine core so a control point that lands in a wake is finite.
+//
+// WHAT IS AND IS NOT IN IT (Munk's decomposition, Di = Di1 + Di2 + 2 Di12): a
+// strip's OWN plane's induced velocity is already inside its polar (the
+// lifting-line eAR and the ground-effect factor) and is never evaluated
+// here — the pair list in makeSim excludes same-plane pairs. What the kernel
+// adds is the OTHER plane's field at this plane, and both planes' field at
+// the tail: the terms a single polar cannot hold.
+//   segment(A, B, P)  the finite bound vortex A -> B, unit circulation
+//   semi(A, d, P)     the semi-infinite leg from A to infinity along unit d
+//   horseshoe(A, B, d, rc, P)  bound A->B, leg out of B, leg into A
+// The circulation's SIGN rides on the strip (Gam[]): + means A -> B, and the
+// solver picks the sign each pass so that ev x Gam is the strip's lift
+// direction (Kutta-Joukowski, F' = rho V x Gamma).
+const VK_INV4PI = 1 / (4 * Math.PI);
+function vkSegment(A, B, rc, P, out) {
+  const r1x = P[0]-A[0], r1y = P[1]-A[1], r1z = P[2]-A[2];
+  const r2x = P[0]-B[0], r2y = P[1]-B[1], r2z = P[2]-B[2];
+  const r0x = B[0]-A[0], r0y = B[1]-A[1], r0z = B[2]-A[2];
+  const xx = r1y*r2z - r1z*r2y, xy = r1z*r2x - r1x*r2z, xz = r1x*r2y - r1y*r2x;
+  let x2 = xx*xx + xy*xy + xz*xz;
+  const L0 = Math.sqrt(r0x*r0x + r0y*r0y + r0z*r0z);
+  const c2 = (rc * L0) * (rc * L0);
+  if (x2 < c2) x2 = c2;
+  if (!(x2 > 0)) return out;
+  const m1 = Math.sqrt(r1x*r1x + r1y*r1y + r1z*r1z) || 1e-12;
+  const m2 = Math.sqrt(r2x*r2x + r2y*r2y + r2z*r2z) || 1e-12;
+  const k = VK_INV4PI / x2 * (r0x*(r1x/m1 - r2x/m2) + r0y*(r1y/m1 - r2y/m2) + r0z*(r1z/m1 - r2z/m2));
+  out[0] += k * xx; out[1] += k * xy; out[2] += k * xz;
+  return out;
+}
+// the leg from A to infinity along unit d, unit circulation flowing A -> inf
+function vkSemi(A, d, rc, P, sign, out) {
+  const r1x = P[0]-A[0], r1y = P[1]-A[1], r1z = P[2]-A[2];
+  const xx = d[1]*r1z - d[2]*r1y, xy = d[2]*r1x - d[0]*r1z, xz = d[0]*r1y - d[1]*r1x;
+  let x2 = xx*xx + xy*xy + xz*xz;
+  if (x2 < rc * rc) x2 = rc * rc;
+  if (!(x2 > 0)) return out;
+  const m1 = Math.sqrt(r1x*r1x + r1y*r1y + r1z*r1z) || 1e-12;
+  const k = sign * VK_INV4PI / x2 * (1 + (d[0]*r1x + d[1]*r1y + d[2]*r1z) / m1);
+  out[0] += k * xx; out[1] += k * xy; out[2] += k * xz;
+  return out;
+}
+// one horseshoe of unit circulation A -> B, legs along d; the leg at A flows
+// INTO A (minus), the leg at B flows OUT (plus)
+function vkHorseshoe(A, B, d, rc, P, out) {
+  vkSegment(A, B, rc, P, out);
+  vkSemi(B, d, rc, P, 1, out);
+  vkSemi(A, d, rc, P, -1, out);
+  return out;
+}
+const vortexKernel = { segment: vkSegment, semi: vkSemi, horseshoe: vkHorseshoe };
+
 function makeSim(def, world) {
   const P_ = def.params;
   const PP = POWERPLANTS[P_.powerplant];
@@ -65,13 +124,140 @@ function makeSim(def, world) {
 
   // wingspan datum for ground effect: outermost wing-strip node |z| in def
   // coordinates. Derived, not a fiche param — works for every aircraft.
-  let bSpan = 0;
-  for (const st of def.strips) if (st.kind === 'wing')
+  // G185: PER PLANE — a sesquiplane's lower wing reads its own span, not the
+  // upper's. A monoplane has one entry and the same number as before.
+  const bOf = [];
+  for (const st of def.strips) if (st.kind === 'wing') {
+    const k = st.plane | 0;
+    let b = bOf[k] || 0;
     for (const i of [st.fIn, st.fOut, st.rIn, st.rOut])
-      bSpan = Math.max(bSpan, Math.abs(def.nodes[i].p[2]));
-  bSpan = Math.max(0.1, bSpan * 2);
+      b = Math.max(b, Math.abs(def.nodes[i].p[2]));
+    bOf[k] = b;
+  }
+  for (let k = 0; k < bOf.length; k++) bOf[k] = Math.max(0.1, (bOf[k] || 0) * 2);
+  const bSpan = bOf[0] || 0.1;
+
+  // G185.5: THE INDUCTION PAIRS. Targets: every wing strip, from the wing
+  // strips of the OTHER planes (never its own — the polar has those); every
+  // stab / V-tail strip, from every wing strip (the downwash). The tail pairs
+  // are built for every aeroplane so the downwash can be MEASURED
+  // (out.tailEps, the sheet's dEpsDa); they are APPLIED only when the def
+  // asks for the vortex model (params.downwashModel 'vortex' — biplanes;
+  // a monoplane keeps its calibrated constant and its numbers, to the bit).
+  // A fin sees sidewash, which this does not model — no fin pairs.
+  const NST = def.strips.length;
+  const IND = P_.induction || { core: 0.30, kProbe: 3 };
+  const DWM = P_.downwashModel || 'const';
+  const WS = [];
+  def.strips.forEach((st, i) => { if (st.kind === 'wing') WS.push(i); });
+  const pairs = [];                 // [target strip, source strip, applied]
+  for (let ti = 0; ti < NST; ti++) {
+    const t = def.strips[ti];
+    if (t.kind === 'wing') {
+      for (const sj of WS) if ((def.strips[sj].plane | 0) !== (t.plane | 0)) pairs.push([ti, sj, 1]);
+    } else if (t.kind === 'stab' || t.kind === 'vtail') {
+      for (const sj of WS) pairs.push([ti, sj, DWM === 'vortex' ? 1 : 0]);
+    }
+  }
+  const NP = pairs.length;
+  const crossPlane = pairs.some(pr => def.strips[pr[0]].kind === 'wing');
+  // passes a probe needs to converge the circulation: the wing<->wing loop is
+  // a contraction (round-trip gain ~0.02, see HANDOVER G185.5) and three
+  // passes leave a residual under 0.2 %; a monoplane's tail-only pairs are
+  // open-loop and two passes measure them exactly
+  const K_PROBE = NP ? (crossPlane ? (IND.kProbe || 3) : 2) : 1;
+  const Gam = new Float64Array(NST), GamPrev = new Float64Array(NST);
+  const vi = new Float64Array(NST * 3);
+  const AIC = new Float64Array(NP * 3);
+  const sA = new Float64Array(NST * 3), sB = new Float64Array(NST * 3), sD = [0, 0, 0];
+  const cpt = new Float64Array(NST * 3);
+  let aicHash = NaN;
+  const cpOf = (st, o) => {                 // a strip's control point: its attach-weighted c/4
+    o[0] = o[1] = o[2] = 0;
+    for (const [i, w] of st.w) { o[0] += p[i*3]*w; o[1] += p[i*3+1]*w; o[2] += p[i*3+2]*w; }
+    return o;
+  };
+  // the bound vortex of a wing strip: the quarter-chord line over the
+  // strip's own sub-span (a half bay at t 0.28 / 0.78; the centre strip's
+  // whole width at t 0.5), from its spar nodes and its c/4 weight
+  const boundOf = (st, A, B) => {
+    const cf = st.cf != null ? st.cf : 0.8, cr = 1 - cf;
+    const tA = st.t === 0.5 ? 0 : st.t < 0.5 ? 0 : 0.5;
+    const tB = st.t === 0.5 ? 1 : st.t < 0.5 ? 0.5 : 1;
+    for (let k = 0; k < 3; k++) {
+      const fi = p[st.fIn*3+k], fo = p[st.fOut*3+k], ri = p[st.rIn*3+k], ro = p[st.rOut*3+k];
+      A[k] = cf * (fi + (fo - fi) * tA) + cr * (ri + (ro - ri) * tA);
+      B[k] = cf * (fi + (fo - fi) * tB) + cr * (ri + (ro - ri) * tB);
+    }
+  };
+  const _A = [0, 0, 0], _B = [0, 0, 0], _P = [0, 0, 0], _o = [0, 0, 0];
+  const _Ai = [0, 0, 0], _Bi = [0, 0, 0], _Di = [0, 0, 0];
+  // the influence coefficients: geometry only, per unit circulation, with
+  // the GROUND IMAGE (mirrored in y about gH, circulation reversed) when the
+  // pass has a ground — the cross-plane and tail terms then see ground
+  // effect too, where the polar's McCormick factor only ever held a plane's
+  // own image. Called once per frame in flight and on a geometry change in a
+  // probe; never per substep (it is ~25 strip loops' worth of arithmetic).
+  function buildAIC(gH, dx, dy, dz) {
+    sD[0] = dx; sD[1] = dy; sD[2] = dz;
+    for (const j of WS) { boundOf(def.strips[j], _A, _B); for (let k = 0; k < 3; k++) { sA[j*3+k] = _A[k]; sB[j*3+k] = _B[k]; } }
+    for (let ti = 0; ti < NST; ti++) { cpOf(def.strips[ti], _P); cpt[ti*3] = _P[0]; cpt[ti*3+1] = _P[1]; cpt[ti*3+2] = _P[2]; }
+    for (let q = 0; q < NP; q++) {
+      const ti = pairs[q][0], sj = pairs[q][1];
+      const rc = IND.core * def.strips[sj].chord;
+      _P[0] = cpt[ti*3]; _P[1] = cpt[ti*3+1]; _P[2] = cpt[ti*3+2];
+      _A[0] = sA[sj*3]; _A[1] = sA[sj*3+1]; _A[2] = sA[sj*3+2];
+      _B[0] = sB[sj*3]; _B[1] = sB[sj*3+1]; _B[2] = sB[sj*3+2];
+      _o[0] = _o[1] = _o[2] = 0;
+      vkHorseshoe(_A, _B, sD, rc, _P, _o);
+      if (gH !== null && gH !== undefined) {
+        _Ai[0] = _A[0]; _Ai[1] = 2*gH - _A[1]; _Ai[2] = _A[2];
+        _Bi[0] = _B[0]; _Bi[1] = 2*gH - _B[1]; _Bi[2] = _B[2];
+        _Di[0] = dx; _Di[1] = -dy; _Di[2] = dz;
+        const im = [0, 0, 0];
+        vkHorseshoe(_Ai, _Bi, _Di, rc, _P, im);
+        _o[0] -= im[0]; _o[1] -= im[1]; _o[2] -= im[2];
+      }
+      AIC[q*3] = _o[0]; AIC[q*3+1] = _o[1]; AIC[q*3+2] = _o[2];
+    }
+  }
+  // a cheap signature of what the coefficients depend on
+  function aicSig(gH, dx, dy, dz) {
+    let h = (gH === null || gH === undefined) ? -1e9 : gH;
+    for (const j of WS) { const st = def.strips[j];
+      for (const i of [st.fIn, st.fOut, st.rIn, st.rOut]) h += p[i*3] + 2*p[i*3+1] + 3*p[i*3+2]; }
+    return h * 1.000001 + dx * 7 + dy * 11 + dz * 13;
+  }
+  function applyInduction() {
+    vi.fill(0);
+    for (let q = 0; q < NP; q++) {
+      if (!pairs[q][2]) continue;
+      const g = Gam[pairs[q][1]];
+      if (!g) continue;
+      const ti = pairs[q][0];
+      vi[ti*3] += AIC[q*3] * g; vi[ti*3+1] += AIC[q*3+1] * g; vi[ti*3+2] += AIC[q*3+2] * g;
+    }
+  }
+  // the tail's downwash, MEASURED whether or not it is applied: the induced
+  // angle at the stab strips from every wing strip's circulation
+  function measureTailEps() {
+    // the MEAN induced velocity over the tail strips (each strip sums its
+    // wing sources; the strips are then averaged, not summed)
+    let eps = 0, nT = 0, last = -1;
+    for (let q = 0; q < NP; q++) {
+      const ti = pairs[q][0], st = def.strips[ti];
+      if (st.kind !== 'stab' && st.kind !== 'vtail') continue;
+      if (ti !== last) { nT++; last = ti; }
+      const g = Gam[pairs[q][1]];
+      if (!g) continue;
+      // downwash = induced velocity against the tail's normal (yUp for a stab)
+      eps += -(AIC[q*3]*yUp[0] + AIC[q*3+1]*yUp[1] + AIC[q*3+2]*yUp[2]) * g;
+    }
+    return nT ? eps / nT : 0;
+  }
 
   function reset(drop = 0) {
+    if (NP) { Gam.fill(0); GamPrev.fill(0); aicHash = NaN; }   // G185.5
     totalM = 0;                    // G121: masses may have changed (setNodeMass)
     for (let i = 0; i < n; i++) {
       const nd = def.nodes[i];
@@ -83,6 +269,9 @@ function makeSim(def, world) {
     }
     for (const b of beams) {
       b.L0 = Math.hypot(p[b.b*3]-p[b.a*3], p[b.b*3+1]-p[b.a*3+1], p[b.b*3+2]-p[b.a*3+2]);
+      // G185: RIGGING. A wire's rest length is a hair short of the drawn
+      // distance, so it stands in tension at rest — the turnbuckle's job.
+      if (b.pre) b.L0 *= (1 - b.pre);
       b.strain = 0;
     }
     // THE THREE-POINT STANCE (2026-09-04, the user: "quite a few of my builds
@@ -273,6 +462,7 @@ function makeSim(def, world) {
       }
     }
     out.aeroFy = 0; out.wingFy = 0; out.stabFy = 0; out.dbgAl = 0; out.dbgN = 0;
+    const planeFy = out.planeFy = [];                // G185: each plane's lift
     out.thrust = T; out.wash = wash;
     // THREE SPEEDS, and the distinction is load-bearing now that the air can be
     // thin: out.V is TRUE airspeed (air-relative — what alpha is built on and
@@ -288,7 +478,25 @@ function makeSim(def, world) {
                            -(avx*xAft[0]+avy*xAft[1]+avz*xAft[2]));
     out.vs = vmy;
 
+    // G185.5: the induced field, from the LAST pass's circulations (one
+    // substep of lag; the loop is a contraction, see the kernel's note). The
+    // wake trails the way the air goes past: opposite the air-relative
+    // velocity. Coefficients are rebuilt when the geometry signature moves
+    // (a probe with new positions, a frame in flight), never per substep.
+    let tailEpsSum = 0, tailEpsN = 0;
+    if (NP) {
+      const va = Math.hypot(avx, avy, avz) || 1;
+      const dx = -avx / va, dy = -avy / va, dz = -avz / va;
+      const sg = aicSig(gH, dx, dy, dz);
+      if (sg !== aicHash) { buildAIC(gH, dx, dy, dz); aicHash = sg; }
+      applyInduction();
+      out.tailEps = out.V > 0.5 ? measureTailEps() / out.V : 0;
+    } else out.tailEps = 0;
+    GamPrev.set(Gam);
+
+    let stripIdx = -1;
     for (const st of def.strips) {
+      stripIdx++;
       // --- strip frame ---
       if (st.kind === 'wing') {
         const fi=st.fIn*3, fo=st.fOut*3, ri=st.rIn*3, ro=st.rOut*3, t=st.t;
@@ -331,12 +539,18 @@ function makeSim(def, world) {
       // relative air velocity = air motion (wash + wind) - node motion
       const wsh = wash * st.wash;
       let rx = wsh*xAft[0]+wx_-vx, ry = wsh*xAft[1]+wy_-vy, rz = wsh*xAft[2]+wz_-vz;
+      // G185.5: ...plus the induced velocity of the other plane and, on a
+      // tail flying the vortex model, of the wing. The lift vector is built
+      // on the LOCAL wind below, so a downwash tilts it aft and the mutual
+      // induced drag falls out of the geometry — no separate term.
+      if (NP) { const si = stripIdx * 3; rx += vi[si]; ry += vi[si+1]; rz += vi[si+2]; }
       const u = rx*sc[0]+ry*sc[1]+rz*sc[2];
       const w_ = rx*sn[0]+ry*sn[1]+rz*sn[2];
       const V2 = u*u + w_*w_;
       if (V2 < 0.01) continue;
       let al = Math.atan2(w_, u);
-      let P = P_.polarWing;
+      // G185: a wing strip flies ITS PLANE's polar (plane 0's is polarWing)
+      let P = P_.polarWings ? (P_.polarWings[st.plane | 0] || P_.polarWing) : P_.polarWing;
       let fl = 0;                                  // flap fraction on this strip
       if (st.kind === 'wing') {
         al += P_.ailTau * ctl.da * st.side * st.ail;
@@ -345,7 +559,10 @@ function makeSim(def, world) {
           al += (FP.tau || 0) * fl;                // flaperon droop (surface rotates)
         }
       } else if (st.kind === 'stab') {
-        al = (1 - P_.downwash) * al + P_.stabTrim - P_.elevTau * ctl.de;
+        // G185.5: the vortex model's downwash is already in the local wind
+        // (vi above), so the calibrated constant stands aside on a def that
+        // asks for it; every other def keeps the constant, to the bit
+        al = (DWM === 'vortex' ? al : (1 - P_.downwash) * al) + P_.stabTrim - P_.elevTau * ctl.de;
         P = P_.polarTail;
       } else if (st.kind === 'vtail') {
         // ruddervator: elevator SYMMETRIC (both panels the same way, vertical
@@ -356,7 +573,7 @@ function makeSim(def, world) {
         // toward the centreline, not away from it. With +side the aeroplane
         // yawed the wrong way on every rudder input: measured d(yawLeft)/d(dr)
         // = -6991 against a conventional tail's +3814.
-        al = (1 - P_.downwash) * al + P_.stabTrim - P_.elevTau * ctl.de
+        al = (DWM === 'vortex' ? al : (1 - P_.downwash) * al) + P_.stabTrim - P_.elevTau * ctl.de
              - P_.rudTau * ctl.dr * PAR.rudderSign * st.side;
         P = P_.polarTail;
       } else {
@@ -371,7 +588,7 @@ function makeSim(def, world) {
       let sig = 1;
       if (gH !== null && st.kind === 'wing') {
         const hb = Math.max(0.02,
-          ((p[st.fIn*3+1] + p[st.fOut*3+1]) * 0.5 - gH) / bSpan);
+          ((p[st.fIn*3+1] + p[st.fOut*3+1]) * 0.5 - gH) / (bOf[st.plane | 0] || bSpan));
         const g16 = 16 * hb;
         sig = g16 * g16 / (1 + g16 * g16);
       }
@@ -379,12 +596,25 @@ function makeSim(def, world) {
         ? polar(al, P, sig, (FP.dCl0 || 0) * fl, (FP.dCd0 || 0) * fl, (FP.dAStall || 0) * fl)
         : polar(al, P, sig);
       const q = 0.5 * rho * V2 * st.area, iv = 1 / Math.sqrt(V2);
+      // G185.5: this strip's circulation for the NEXT pass — Kutta-Joukowski,
+      // Gamma = Cl c V / 2 per unit span, signed so that (wind x bound) is
+      // the lift direction: the bound runs A -> B (inboard -> outboard) and
+      // the sign is what makes ev x sAB agree with the strip normal
+      if (NP && st.kind === 'wing') {
+        const si = stripIdx * 3;
+        const bx = sB[si] - sA[si], by = sB[si+1] - sA[si+1], bz = sB[si+2] - sA[si+2];
+        // ev x b, dotted with the normal: the lift of a + circulation A -> B
+        const cx = (ry*bz - rz*by), cy = (rz*bx - rx*bz), cz = (rx*by - ry*bx);
+        const sgn = (cx*sn[0] + cy*sn[1] + cz*sn[2]) >= 0 ? 1 : -1;
+        Gam[stripIdx] = 0.5 * Cl * st.chord / iv * sgn;
+      }
       // drag along relative wind (in strip plane), lift perpendicular
       const dx=(u*sc[0]+w_*sn[0])*iv, dy=(u*sc[1]+w_*sn[1])*iv, dz=(u*sc[2]+w_*sn[2])*iv;
       const lx=(u*sn[0]-w_*sc[0])*iv, ly=(u*sn[1]-w_*sc[1])*iv, lz=(u*sn[2]-w_*sc[2])*iv;
       const Fx = q*(Cl*lx + Cd*dx), Fy = q*(Cl*ly + Cd*dy), Fz = q*(Cl*lz + Cd*dz);
       out.aeroFy += Fy;
       if (st.kind === 'wing') { out.wingFy += Fy; out.dbgAl += al; out.dbgN++;
+        planeFy[st.plane | 0] = (planeFy[st.plane | 0] || 0) + Fy;   // G185: per plane
         if (out.dump) out.dump.push({ side: st.side, t: st.t, wash: st.wash,
           al: al*57.3, Fy, ch: st.chord }); }
       else if (st.kind === 'stab' || st.kind === 'vtail') out.stabFy += Fy;
@@ -395,8 +625,9 @@ function makeSim(def, world) {
       // flap dCm0 feeds in here — the couple reading polarWing.Cm0 alone would
       // silently ignore the flap pitching moment (HANDOVER "watch Cm0")
       if (st.kind === 'wing') {
-        const Fc = q * (P_.polarWing.Cm0 + (fl > 0 ? (FP.dCm0 || 0) * fl : 0))
-                     * st.chord / P_.sparSpacing, t = st.t;
+        // G185: the strip's own plane's Cm0 and spar spacing
+        const Fc = q * (P.Cm0 + (fl > 0 ? (FP.dCm0 || 0) * fl : 0))
+                     * st.chord / (st.sparSpacing || P_.sparSpacing), t = st.t;
         const cW = [[st.fIn, (1-t)], [st.fOut, t], [st.rIn, -(1-t)], [st.rOut, -t]];
         for (const [i, w] of cW) {
           f[i*3] += Fc*w*sn[0]; f[i*3+1] += Fc*w*sn[1]; f[i*3+2] += Fc*w*sn[2];
@@ -493,8 +724,10 @@ function makeSim(def, world) {
       const L = Math.hypot(dx, dy, dz) || 1e-9;
       dx/=L; dy/=L; dz/=L;
       const vrel = (v[b3]-v[a3])*dx + (v[b3+1]-v[a3+1])*dy + (v[b3+2]-v[a3+2])*dz;
-      const Fb = b.k * (L - b.L0) + b.c * vrel;
       b.strain = (L - b.L0) / b.L0;
+      // G185: a WIRE carries tension only — slack, it is not there (no
+      // spring, and no damper either: a slack cable damps nothing)
+      const Fb = (b.tens && L <= b.L0) ? 0 : b.k * (L - b.L0) + b.c * vrel;
       f[a3]+=Fb*dx; f[a3+1]+=Fb*dy; f[a3+2]+=Fb*dz;
       f[b3]-=Fb*dx; f[b3+1]-=Fb*dy; f[b3+2]-=Fb*dz;
     }
@@ -640,7 +873,16 @@ function makeSim(def, world) {
       f[i*3]=f[i*3+1]=f[i*3+2]=0;
       v[i*3]=vel[0]; v[i*3+1]=vel[1]; v[i*3+2]=vel[2];
     }
-    aeroPass(true);
+    // G185.5: a probe has no history, so the circulation is iterated to a
+    // fixed point — a FIXED number of passes (never a tolerance loop: the
+    // trim search needs a smooth function of speed), the residual posted
+    Gam.fill(0);
+    for (let k = 0; k < K_PROBE; k++) {
+      if (k) for (let i = 0; i < n; i++) f[i*3]=f[i*3+1]=f[i*3+2]=0;
+      aeroPass(true);
+    }
+    if (NP) { let d = 0, s = 0; for (const j of WS) { d += Math.abs(Gam[j] - GamPrev[j]); s += Math.abs(Gam[j]); }
+              out.gamResid = s > 0 ? d / s : 0; } else out.gamResid = 0;
     let cgx=0, cgy=0, cgz=0;
     for (let i = 0; i < n; i++) { cgx+=p[i*3]*m[i]; cgy+=p[i*3+1]*m[i]; cgz+=p[i*3+2]*m[i]; }
     cgx/=totalM; cgy/=totalM; cgz/=totalM;
@@ -651,7 +893,8 @@ function makeSim(def, world) {
       My += (p[i*3+2]-cgz)*f[i*3] - (p[i*3]-cgx)*f[i*3+2];
     }
     // nose-up pitch = -Mz ; nose-LEFT yaw = +My  (nose -x, +z is the LEFT side)
-    return { Fx, Fy, Fz, pitchUp: -Mz, yawLeft: My, cg: [cgx, cgy, cgz] };
+    return { Fx, Fy, Fz, pitchUp: -Mz, yawLeft: My, cg: [cgx, cgy, cgz],
+             planeFy: out.planeFy ? out.planeFy.slice() : [] };   // G185
   }
 
   function stats() {

@@ -195,8 +195,12 @@ Nothing here is forgotten; not everything here is scheduled.
   and each other; blind to gear, engine, tail (the tie-down inside the castor
   was found by counting pixels) (G85).
 - **Nothing is fitted to the fin or stabiliser** (G85).
-- **A biplane's lower wing gets no fittings** — `wings` is an array and only
-  the first plane carries them (G85; P7's problem, and the biplane arc's).
+- ~~**A biplane's lower wing gets no fittings**~~ — CLOSED G185 (2026-09-05):
+  the second plane has its own field (`on: 'wing2'`) and its own two rows
+  (filler cap when a vessel sits in a second-plane bay, bellcrank cover when
+  it carries ailerons). Still owed there: the editor's energy layer does not
+  yet tell the access layer about a second-plane tank (`E.tank2`), so the
+  second cap appears on the resolved spec's path only.
 - **A decal is on BOTH sides or neither** (G69). STILL OPEN after G162: the
   roadmap asked for it inside the marking kit and the kit did not need it,
   because a livery IS symmetric. G162 did split the OTHER half of this — a

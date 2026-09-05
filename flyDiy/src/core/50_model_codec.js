@@ -123,6 +123,9 @@ function makeSkinBinding(pos, nv, def, cfg) {
   const sides = { P: {}, N: {} };            // keyed by |z| station
   def.nodes.forEach((n, i) => {
     if (!cfg.tags.includes(n.tag)) return;
+    // G185: one plane per binding — the stations are keyed by |z| per tag,
+    // and a biplane's two planes at one station would otherwise AVERAGE
+    if (cfg.plane != null && (n.plane || 0) !== cfg.plane) return;
     const s = n.p[2] > 0 ? 'P' : 'N', key = Math.abs(n.p[2]).toFixed(2);
     (sides[s][key] = sides[s][key] || []).push(i);
   });

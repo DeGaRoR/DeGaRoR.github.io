@@ -28,7 +28,10 @@ function scale(S, sh) {
   const cBar = (sh.staticMargin && isFinite(sh.staticMargin) && Math.abs(sh.staticMargin) > 1e-6)
     ? (sh.npX - sh.cgX) / sh.staticMargin : null;
   const w0 = S && S.wings && S.wings[0];
-  const xLE = (w0 && typeof w0.xLE === 'number' && isFinite(w0.xLE)) ? w0.xLE : null;
+  // G185: a biplane's datum is the combined MAC's leading edge (the shakedown
+  // posts it); a monoplane's is its wing's xLE, exactly as before
+  const xLE = (sh && typeof sh.xLEmac === 'number' && isFinite(sh.xLEmac)) ? sh.xLEmac
+            : (w0 && typeof w0.xLE === 'number' && isFinite(w0.xLE)) ? w0.xLE : null;
   return { cBar, xLE, pct: x => (cBar && xLE != null) ? (x - xLE) / cBar : null };
 }
 

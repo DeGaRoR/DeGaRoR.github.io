@@ -229,11 +229,22 @@ function archIcon(a) {
 }
 
 // FRONT VIEW — wing position and bracing.
-function iconFront(pos, brace) {
+function iconFront(pos, brace, opt) {
   const paths = [];
-  const y = pos === 'high' ? 12 : pos === 'mid' ? 19 : 26;
+  const y = pos === 'parasol' ? 4 : pos === 'high' ? 12 : pos === 'mid' ? 19 : 26;
   paths.push({ d: 'M28 12 Q34 8 40 12 L40 28 Q34 32 28 28 Z' });
   paths.push({ d: poly([[2, y], [66, y], [66, y + 3], [2, y + 3]]) });
+  // G185: a parasol stands on its cabane — two splayed posts to the deck
+  if (pos === 'parasol') paths.push({ d: 'M30 11 L27 7', w: 1 }, { d: 'M38 11 L41 7', w: 1 });
+  // G185: the second plane — a bar on the low band (its span as a fraction of
+  // the first's), two interplane posts and the X of wires between
+  if (opt && opt.second) {
+    const f = opt.second, x0 = 34 - 32 * f, x1 = 34 + 32 * f, y2 = 26;
+    paths.push({ d: poly([[x0, y2], [x1, y2], [x1, y2 + 3], [x0, y2 + 3]]) });
+    for (const x of [34 - 22 * f, 34 + 22 * f]) paths.push({ d: 'M' + x + ' ' + (y + 3) + ' L' + x + ' ' + y2, w: 1 });
+    paths.push({ d: 'M' + (34 - 22 * f) + ' ' + (y + 3) + ' L' + (34 + 22 * f) + ' ' + y2, w: 0.6 },
+               { d: 'M' + (34 + 22 * f) + ' ' + (y + 3) + ' L' + (34 - 22 * f) + ' ' + y2, w: 0.6 });
+  }
   if (brace === 'strut') paths.push({ d: 'M12 ' + (y + 3) + ' L30 27', w: 1 },
                                     { d: 'M56 ' + (y + 3) + ' L38 27', w: 1 });
   return { vb: '0 0 68 40', paths };
@@ -818,6 +829,10 @@ const DESIGN_ROWS = [
         writes: { cage: { wgPos: 1 } } },
       { value: 2, label: 'Low', icon: iconFront('low'),
         writes: { cage: { wgPos: 2 } } },
+      // G185: on a cabane above the deck, lift struts to the lower longeron
+      { value: 3, label: 'Parasol', icon: iconFront('parasol', 'strut'),
+        note: 'the wing on cabane struts above the deck',
+        writes: { cage: { wgPos: 3 } } },
     ] },
 
   { key: 'wgBrace', label: 'Bracing', kind: 'discriminator',
@@ -829,6 +844,55 @@ const DESIGN_ROWS = [
         writes: { cage: { wgBrace: 0 } } },
       { value: 1, label: 'Cantilever', icon: iconFront('low'),
         writes: { cage: { wgBrace: 1 } } },
+    ] },
+
+  // G185: THE PLANES. One, two, or a big one over a small one. The option
+  // WRITES the switch and SEEDS the second plane from the first (span,
+  // chord, tips), a cabane under the first when it is high or mid, the
+  // second on the low band, a classic stagger, ailerons on the lower plane
+  // only (Tiger Moth, Stearman), N struts and both wire sets — the
+  // arm + seed contract (G132): the seed is a one-shot the panel offers,
+  // never a second home for the rows.
+  { key: 'planes', label: 'Wings', kind: 'discriminator',
+    group: 'wing', status: 'live', arm: true,
+    help: 'a second plane is a real aeroplane: its truss braces both wings',
+    read: P => !+P.w2On ? 'mono'
+             : (+P.w2Span < 0.8 * +P.wgSpan ? 'sesqui' : 'biplane'),
+    options: [
+      { value: 'mono', label: 'Monoplane', icon: iconFront('high'),
+        writes: { cage: { w2On: 0 } } },
+      // the option's own fact is the lower span's RATIO to the upper's (that
+      // is what "biplane" vs "sesquiplane" means, and what `read` derives
+      // it from), so the span it writes is a real write, armed — a custom
+      // equal-or-longer lower plane is kept by max()
+      { value: 'biplane', label: 'Biplane', icon: iconFront('parasol', 'none', { second: 1 }),
+        note: 'two equal planes, wires and N struts',
+        writes: { cage: { w2On: 1,
+                          w2Span: P => Math.max(+P.w2Span || 0, +(0.8 * +P.wgSpan).toFixed(2)) } },
+        seed: { cage: {
+          wgPos: P => Math.round(P.wgPos) === 2 ? 2 : 3,
+          wgParaH: 0.45,
+          w2Pos: P => Math.round(P.wgPos) === 2 ? 0 : 2,
+          w2ParaH: 0.45,
+          w2Stagger: P => Math.round(P.wgPos) === 2 ? -0.35 : 0.35,
+          w2Span: P => +P.wgSpan, w2Chord: P => +P.wgChord,
+          w2ChordTip: P => +P.wgChordTip, w2Tip: P => P.wgTip,
+          wgAilOn: P => Math.round(P.wgPos) === 2 ? 1 : 0,
+          w2AilOn: P => Math.round(P.wgPos) === 2 ? 0 : 1,
+          bpInter: 0, bpWires: 1, bpCabane: 0 } } },
+      { value: 'sesqui', label: 'Sesquiplane', icon: iconFront('parasol', 'none', { second: 0.7 }),
+        note: 'a short lower plane under a long upper',
+        writes: { cage: { w2On: 1, w2Span: P => +(0.72 * +P.wgSpan).toFixed(2) } },
+        seed: { cage: {
+          wgPos: P => Math.round(P.wgPos) === 2 ? 2 : 3,
+          wgParaH: 0.45,
+          w2Pos: P => Math.round(P.wgPos) === 2 ? 0 : 2,
+          w2ParaH: 0.45,
+          w2Stagger: P => Math.round(P.wgPos) === 2 ? -0.35 : 0.35,
+          w2Chord: P => +(0.80 * +P.wgChord).toFixed(2),
+          w2ChordTip: P => +(0.80 * +P.wgChordTip).toFixed(2), w2Tip: P => P.wgTip,
+          wgAilOn: 1, w2AilOn: 0,
+          bpInter: 0, bpWires: 1, bpCabane: 0 } } },
     ] },
 
   // G140: THE PLANFORM ROW IS RETIRED (the user: "retire this option from
@@ -1181,6 +1245,75 @@ const ARCHETYPES = [
     over: { cage: PLAN_RECT,
             spec: { finish: { decals: { m1On: 1, m1Pat: 3, m1A: 0x1b3a5c,
                                         m1B: 0xffffff, m1D: 0x1b3a5c } } } } },
+  // G185: the parasol — the wing on a cabane, lift struts to the lower
+  // longeron, wood, two open cockpits. The Air Camper is the type.
+  { key: 'pietenpol', kind: 'recreation', name: 'Air Camper-alike', note: 'parasol wing ' +
+      'on cabane struts, wood, tandem open cockpits',
+    sel: { class: 'eab', role: 'touring', seatLayout: 0, paxCount: 1,
+           canopy: 'screen', mirror: 0, intCons: 2, boomStyle: 0, section: 1,
+           wgPos: 3, wgBrace: 0, wgTip: 2, wgFlapType: 0,
+           engFamily: 'flat', engModel: 'continental A-65', engMount: 'nose',
+           gearLayout: 'tail', suspension: 'bungee', s1Fair: 0,
+           empennage: 'conv', scheme: 'trim', base: 0xb5342a, trim: 0xf4f2ea },
+    over: { cage: { wgSpan: 8.8, wgChord: 1.52, wgChordTip: 1.52, wgTipX: 0,
+                    wgParaH: 0.50 } } },
+  // G185: THE BIPLANES. A parasol first plane over a low second, N struts
+  // and both wire sets; the DH.82's swept upper plane and lower-only
+  // ailerons; the PT-17's radial and oleos; the aerobatic four-aileron
+  // I-strut fiction; the sesquiplane fiction. Every value a panel key or a
+  // live option (GATE DESIGN); every one flown (GATE ARCHETYPES).
+  // (the DH.82's inverted Gipsy Major has no row in the join's engine map
+  // yet — the card flies the A-65 and says so; the Gipsy row is owed)
+  { key: 'tigermoth', kind: 'recreation', name: 'Tiger Moth-alike', note: 'wood & fabric biplane, ' +
+      'swept upper plane, lower ailerons, wires, tandem open cockpits (flat four for the Gipsy)',
+    sel: { class: 'eab', role: 'trainer', seatLayout: 0, paxCount: 1,
+           canopy: 'screen', mirror: 0, intCons: 2, boomStyle: 0, section: 1,
+           wgPos: 3, wgBrace: 1, wgTip: 2, wgFlapType: 0, planes: 'biplane',
+           engFamily: 'flat', engModel: 'continental A-65', engMount: 'nose',
+           gearLayout: 'tail', suspension: 'bungee', s1Fair: 0,
+           empennage: 'conv', scheme: 'trim', base: 0xf2c437, trim: 0x1b3a5c },
+    over: { cage: { wgSpan: 8.94, wgChord: 1.37, wgChordTip: 1.37, wgTipX: 0.30,
+                    wgParaH: 0.40, w2Span: 8.94, w2Chord: 1.37, w2ChordTip: 1.37,
+                    w2Pos: 2, w2Stagger: 0.55, wgAilOn: 0, w2AilOn: 1,
+                    bpInter: 0, bpWires: 1, bpCabane: 0 } } },
+  { key: 'stearman', kind: 'recreation', name: 'Stearman-alike', note: 'radial biplane trainer, ' +
+      'oleo gear, wires and N struts, lower ailerons',
+    sel: { class: 'n23', role: 'trainer', seatLayout: 0, paxCount: 1,
+           canopy: 'screen', mirror: 0, intCons: 1, boomStyle: 0, section: 1,
+           wgPos: 3, wgBrace: 1, wgTip: 2, wgFlapType: 0, planes: 'biplane',
+           engFamily: 'radial', engModel: 'P&W R-985', engMount: 'nose',
+           gearLayout: 'tail', suspension: 'oleo', s1Fair: 0,
+           empennage: 'conv', scheme: 'trim', base: 0xf2c437, trim: 0x1b3a5c },
+    over: { cage: { wgSpan: 9.80, wgChord: 1.52, wgChordTip: 1.52, wgTipX: 0,
+                    wgDx: 0.60,      // wings forward: the R-985 sits on the nose (CG 22 % MAC, margin 21 %)
+                    wgParaH: 0.45, w2Span: 9.80, w2Chord: 1.52, w2ChordTip: 1.52,
+                    w2Pos: 2, w2Stagger: 0.60, wgAilOn: 0, w2AilOn: 1,
+                    bpInter: 0, bpWires: 1, bpCabane: 0 } } },
+  { key: 'pittsAlike', kind: 'fiction', name: 'aerobatic biplane', note: 'short-span four-aileron ' +
+      'biplane on I struts and wires, spring gear, flat six',
+    sel: { class: 'eab', role: 'touring', seatLayout: 0, paxCount: 0,
+           canopy: 'screen', mirror: 0, intCons: 1, boomStyle: 0, section: 1,
+           wgPos: 3, wgBrace: 1, wgTip: 0, wgFlapType: 0, planes: 'biplane',
+           engFamily: 'flat', engModel: 'lycoming IO-360', engMount: 'nose',
+           gearLayout: 'tail', suspension: 'spring', s1Fair: 1,
+           empennage: 'conv', scheme: 'trim', base: 0xb5342a, trim: 0xf4f2ea },
+    over: { cage: { wgSpan: 6.5, wgChord: 1.15, wgChordTip: 1.15, wgTipX: 0,
+                    wgDx: 0.40,      // wings forward over the short fuselage (CG 25 % MAC, margin 21 %)
+                    wgParaH: 0.35, w2Span: 6.5, w2Chord: 1.15, w2ChordTip: 1.15,
+                    w2Pos: 2, w2Stagger: 0.30, wgAilOn: 1, w2AilOn: 1,
+                    bpInter: 1, bpWires: 1, bpCabane: 0 } } },
+  { key: 'sesqui', kind: 'fiction', name: 'sesquiplane', note: 'a short lower plane under a ' +
+      'long upper one, leaning struts, wires',
+    sel: { class: 'eab', role: 'touring', seatLayout: 0, paxCount: 1,
+           canopy: 'screen', mirror: 0, intCons: 1, boomStyle: 0, section: 1,
+           wgPos: 3, wgBrace: 1, wgTip: 2, wgFlapType: 0, planes: 'sesqui',
+           engFamily: 'flat', engModel: 'continental O-200', engMount: 'nose',
+           gearLayout: 'tail', suspension: 'bungee', s1Fair: 0,
+           empennage: 'conv', scheme: 'trim', base: 0xefe6cf, trim: 0x7c3327 },
+    over: { cage: { wgSpan: 10.0, wgChord: 1.45, wgChordTip: 1.45, wgTipX: 0,
+                    wgParaH: 0.45, w2Span: 6.5, w2Chord: 1.15, w2ChordTip: 1.15,
+                    w2Pos: 2, w2Stagger: 0.35, wgAilOn: 1, w2AilOn: 0,
+                    bpInter: 0, bpWires: 1, bpCabane: 0 } } },
   { key: 'jodel', kind: 'recreation', name: 'Jodel-alike', note: 'cantilever wood wing, ' +
       'side-by-side, the page’s own aeroplane reborn',
     sel: { class: 'eab', role: 'touring', seatLayout: 1, paxCount: 1,
@@ -1612,8 +1745,45 @@ function designBake(sel, over) {
   };
   if (tipKeys[Math.round(full.wgTip)])
     wing.tip = tipKeys[Math.round(full.wgTip)];
-  designMerge(out, { wings: [wing], bracing: {
-    type: Math.round(full.wgBrace) ? 'cantilever' : 'strut' } });
+  // G185: a parasol's cabane height and the SECOND plane ride the intent
+  // channel too — the pre-join spec GATE ARCHETYPES flies must be a biplane
+  // when the card says so, or the card flies a monoplane and passes wrongly
+  wing.position = ['high', 'mid', 'low', 'parasol'][Math.round(full.wgPos)] || 'high';
+  if (wing.position === 'parasol') wing.cabaneH = +full.wgParaH || 0.45;
+  // G185.11: THE FORE/AFT ROW IS A CHOICE, NOT A MEASUREMENT. The join reads
+  // it back off the cabin ring (M.wingXLE; cage z runs FORWARD), so the
+  // pre-join spec carries it as the plane's own nudge in body x (aft +).
+  // A card with a 450 hp radial on the nose has to move its wings forward
+  // to balance: the Stearman-alike sat 3 % MAC AHEAD of its leading edge
+  // (47 % static margin) and ran out of up elevator on approach, twice.
+  if (+full.wgDx) wing.place = { dx: -(+full.wgDx), dy: 0 };
+  const wings = [wing];
+  const bracing = { type: Math.round(full.wgBrace) ? 'cantilever' : 'strut' };
+  if (+full.w2On) {
+    const w2 = {
+      span: +full.w2Span, chord: +full.w2Chord,
+      taper: +full.w2Chord > 0 ? +(+full.w2ChordTip / +full.w2Chord).toFixed(4) : 1,
+      dihedral: +full.w2Dihedral, incidence: +full.w2Incidence,
+      position: ['parasol', 'mid', 'low'][Math.round(full.w2Pos)] || 'low',
+      stagger: +full.w2Stagger || 0,
+      controls: { aileron: { span: +full.w2AilOn ? +full.w2AilSpan : 0, chord: +full.w2AilChord },
+                  flap: { type: flapKeys[Math.round(full.w2FlapType)] || 'none',
+                          span: +full.w2FlapSpan, chord: +full.w2FlapChord } },
+    };
+    if (w2.position === 'parasol') w2.cabaneH = +full.w2ParaH || 0.45;
+    if (tipKeys[Math.round(full.w2Tip)]) w2.tip = tipKeys[Math.round(full.w2Tip)];
+    wings.push(w2);
+    Object.assign(bracing, {
+      interplane: ['N', 'I', 'none'][Math.round(full.bpInter || 0)] || 'N',
+      interplaneAt: +full.bpInterAt || 0.62,
+      wires: ['none', 'both', 'flying'][Math.round(full.bpWires == null ? 1 : full.bpWires)] || 'both',
+      cabane: Math.round(full.bpCabane || 0) ? 'V' : 'N' });
+    // the first plane's aileron switch is intent too (a Tiger Moth's upper
+    // plane carries none)
+    if (full.wgAilOn != null && !+full.wgAilOn)
+      designMerge(out, { controls: { aileron: { span: 0 } } });
+  }
+  designMerge(out, { wings, bracing });
   if (flapKeys[Math.round(full.wgFlapType)])
     designMerge(out, { controls: { flap: {
       type: flapKeys[Math.round(full.wgFlapType)] } } });

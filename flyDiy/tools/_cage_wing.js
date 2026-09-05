@@ -71,22 +71,41 @@ PAGE.defaults = Object.assign({
   wgTip: Math.max(0, TIP_KEYS.indexOf('rounded')), wgPos: 0,
   wgCentre: 0, wgBrace: 0, wgCrankAt: 0, wgDihedralOut: 6,
   wgPanels: 3, wgDx: 0, wgDy: 0,
+  // G185: a PARASOL wing's cabane height above the deck (wgPos 3)
+  wgParaH: 0.45,
   // G86/G87: the lift strut's two trim offsets, in METRES off the site the
   // structure picks (see the strut block below). Zero is the frame's own
   // answer, so a build that never touches them is the one physics asked for.
   wgStrutZ: 0, wgStrutX: 0,
   wgFlapType: Math.max(0, FLAP_KEYS.indexOf('none')),
   wgFlapSpan: 0.50, wgFlapChord: 0.20,
-  wgAilSpan: 0.38, wgAilChord: 0.22,
+  // G185: ailerons are a switch per plane (a biplane's upper plane may carry
+  // none); off writes an aileron span of 0 to the spec
+  wgAilOn: 1, wgAilSpan: 0.38, wgAilChord: 0.22,
   wgCons: 0,
+  // G185: THE SECOND PLANE — the full key set of the first (port the full
+  // surface: never a subset), its own position band, cabane height, nudge
+  // and stagger (metres its leading edge sits AFT of the first plane's,
+  // the trunk's fore/aft sign). Off by default: a monoplane.
+  w2On: 0, w2Pos: 2, w2ParaH: 0.45, w2Stagger: 0.35, w2Dy: 0,
+  w2Span: 10.0, w2Chord: 1.60, w2ChordTip: 1.60, w2TipX: 0,
+  w2CrankAt: 0, w2CrankChord: 1.60, w2CrankX: 0, w2DihedralOut: 6,
+  w2Dihedral: 3.0, w2Incidence: 1.5, w2Washout: 1.5, w2Camber: 2, w2Thick: 12,
+  w2Tip: Math.max(0, TIP_KEYS.indexOf('rounded')), w2Centre: 0, w2Panels: 3,
+  w2Cons: 0,
+  w2FlapType: Math.max(0, FLAP_KEYS.indexOf('none')),
+  w2FlapSpan: 0.50, w2FlapChord: 0.20,
+  w2AilOn: 1, w2AilSpan: 0.38, w2AilChord: 0.22,
 }, PAGE.defaults || {});
 
 // ---- panel ----------------------------------------------------------------
 const on = { when: P => +P.wingOn };
 const WING_ITEMS = [
   ['wingOn',   'wings',          0, 1, 1],
-  ['wgPos',    'position',       0, 2, 1,
-   ['high wing', 'mid wing', 'low wing'], on],
+  // G185: 'parasol' — on cabane struts above the deck, lift struts to the
+  // lower longeron (a Pietenpol); its height is wgParaH
+  ['wgPos',    'position',       0, 3, 1,
+   ['high wing', 'mid wing', 'low wing', 'parasol'], on],
   ['wgSpan',   'span',           6.5, 14, 0.1, { ...on, dim: 'm' }],
   ['wgChord',  'root chord',     1.15, 2.10, 0.05, { ...on, dim: 'm' }],
   ['wgChordTip', 'tip chord',    0.55, 2.10, 0.05, { ...on, dim: 'm' }],
@@ -111,8 +130,9 @@ const WING_ITEMS = [
   ['wgWashout', 'washout',       0, 4, 0.1, on],
   ['wgCamber', 'camber',         0, 6, 1, on],
   ['wgThick',  'thickness',      9, 18, 1, on],
-  ['wgCentre', 'centre section', 0, 2, 1, ['solid', 'glass', 'open'],
-   { when: P => +P.wingOn && +P.wgPos === 0 }],
+  // G185: 'cutout' — the trailing edge cut back over the cockpit
+  ['wgCentre', 'centre section', 0, 3, 1, ['solid', 'glass', 'open', 'cutout'],
+   { when: P => +P.wingOn && [0, 3].includes(Math.round(P.wgPos)) }],
   ['wgPanels', 'spar stations',  2, 5, 1, on],
   // THE WING'S OWN CONSTRUCTION (G110): 0 follows the aeroplane's `intCons`,
   // 1..4 pin what THIS surface is built from — the structure grammar and the
@@ -126,8 +146,13 @@ const WING_ITEMS = [
    on],
   ['wgDx',     'fore / aft',       -1.5, 1.8, 0.05, on],
   ['wgDy',     'up / down',         -1.0, 1.0, 0.02, on],
+  ['wgParaH',  'height (cabane)',    0.25, 1.20, 0.01,
+   { when: P => +P.wingOn && Math.round(P.wgPos) === 3, dim: 'm' }],
   ['struts & fixation', [
-    ['wgBrace', 'fixation',      0, 1, 1, ['lift struts', 'cantilever']],
+    // G185: a biplane has no fuselage lift-strut fan (the truss braces it),
+    // so the row steps aside when the second plane is on
+    ['wgBrace', 'fixation',      0, 1, 1, ['lift struts', 'cantilever'],
+     { when: P => +P.wingOn && !+P.w2On }],
     // G86/G87, user: "sliders ... to control the exact placement fore/aft
     // and lateral", then "constrained to the wing chord ... excluding the
     // leading edge and the control surface ... the fore/aft position of both
@@ -153,14 +178,55 @@ const WING_ITEMS = [
      { when: P => FLAP_KEYS[Math.round(P.wgFlapType)] !== 'none' }],
     ['wgFlapChord', 'flap chord', 0.10, 0.40, 0.01,
      { when: P => FLAP_KEYS[Math.round(P.wgFlapType)] !== 'none' }],
-    ['wgAilSpan', 'ail. span',   0.15, 0.55, 0.01],
-    ['wgAilChord', 'ail. chord', 0.10, 0.35, 0.01],
+    ['wgAilOn', 'ailerons', 0, 1, 1],
+    ['wgAilSpan', 'ail. span',   0.15, 0.55, 0.01, { when: P => +P.wgAilOn }],
+    ['wgAilChord', 'ail. chord', 0.10, 0.35, 0.01, { when: P => +P.wgAilOn }],
   ], 'open', on],
 ];
+// G185: THE SECOND PLANE'S ROWS, GENERATED from the first's — the same
+// labels, ranges and steps, the keys re-prefixed, every `when` ANDed with
+// the second-plane switch. A row added to the first plane lands on both.
+// Dropped: the master switch, the fuselage-strut rows and the fore/aft
+// nudge (the second plane's fore/aft IS its stagger); added: its position
+// band, its cabane height, its stagger and its aileron switch.
+const W2_DROP = new Set(['wingOn', 'wgPos', 'wgBrace', 'wgStrutZ', 'wgStrutX',
+                         'wgDx', 'wgParaH']);
+const w2Key = k => 'w2' + k.slice(2);
+const w2On = P => +P.wingOn && +P.w2On;
+const w2When = f => P => w2On(P) && (!f || f(new Proxy(P, {
+  // the first plane's `when`s read wg* keys; the second plane's rows answer
+  // with their own values under those names
+  get: (t, k) => (typeof k === 'string' && /^wg[A-Z]/.test(k)) ? t[w2Key(k)] : t[k] })));
+const w2Row = it => {
+  if (Array.isArray(it[1])) {                 // a nested group
+    const last = it[it.length - 1];
+    const opts = (last && typeof last === 'object' && !Array.isArray(last)) ? last : null;
+    const rows = it[1].map(w2Row).filter(Boolean);
+    return rows.length ? [it[0], rows, ...(it.includes('open') ? ['open'] : []),
+                          Object.assign({}, opts || {}, { when: w2When(opts && opts.when) })] : null;
+  }
+  if (W2_DROP.has(it[0])) return null;
+  const out = it.slice();
+  out[0] = w2Key(it[0]);
+  const last = out[out.length - 1];
+  const opts = (last && typeof last === 'object' && !Array.isArray(last)) ? last : null;
+  const o2 = Object.assign({}, opts || {}, { when: w2When(opts && opts.when) });
+  if (opts) out[out.length - 1] = o2; else out.push(o2);
+  return out;
+};
+const W2_ITEMS = [
+  ['w2On', 'second wing', 0, 1, 1, on],
+  ['w2Pos', 'position', 0, 2, 1, ['parasol', 'mid wing', 'low wing'], { when: w2On }],
+  ['w2ParaH', 'height (cabane)', 0.25, 1.20, 0.01,
+   { when: P => w2On(P) && Math.round(P.w2Pos) === 0, dim: 'm' }],
+  ['w2Stagger', 'fore / aft (stagger)', -1.00, 1.00, 0.02, { when: w2On, dim: 'm' }],
+  ['w2Dy', 'up / down', -1.0, 1.0, 0.02, { when: w2On }],
+  ...WING_ITEMS.map(w2Row).filter(Boolean),
+];
 const host6 = (PAGE.groupsOverride || []).find(g => g[0] === '6 · wings');
-if (host6) host6[1].push(...WING_ITEMS);
+if (host6) host6[1].push(...WING_ITEMS, ['second wing', W2_ITEMS, { when: P => +P.wingOn }]);
 else (PAGE.groupsOverride || (PAGE.groups = PAGE.groups || []))
-  .push(['6 · wings', WING_ITEMS]);
+  .push(['6 · wings', WING_ITEMS.concat([['second wing', W2_ITEMS, { when: P => +P.wingOn }]])]);
 
 // ---- materials ------------------------------------------------------------
 // EVERY PART ITS OWN COLOUR (user, G31/G32): the MAIN wing skin wears the
@@ -223,7 +289,11 @@ const glassMat = () => {
 const CLSEC = { main: 'wingSkin', centre: 'wingSkin', tip: 'wingTip',
                 ailR: 'wingAil', ailL: 'wingAil',
                 flapR: 'wingFlap', flapL: 'wingFlap' };
-function wingMat(cl) {
+// G185: the second plane's classes map to its own livery sections
+const CLSEC2 = { main: 'wingSkin2', centre: 'wingSkin2', tip: 'wingTip2',
+                 ailR: 'wingAil2', ailL: 'wingAil2',
+                 flapR: 'wingFlap2', flapL: 'wingFlap2' };
+function wingMat(cl, plane) {
   const A = (typeof window !== 'undefined' && window.AEROSKIN) || null;
   const P0 = (window.CAGE_UI && window.CAGE_UI.P) || {};
   const on = document.getElementById('mat');
@@ -232,18 +302,28 @@ function wingMat(cl) {
   // the ailerons and flaps take the wing's because this one function
   // dresses every class
   const CONS4 = ['carbon', 'tubeFabric', 'wood', 'alloy'];
-  const kc = Math.round(P0.wgCons || 0);
+  const kc = Math.round((plane ? P0.w2Cons : P0.wgCons) || 0);
   const cons = kc > 0 ? CONS4[kc - 1]
     : CONS4[Math.max(0, Math.min(3, Math.round(P0.intCons || 0)))] ||
       'tubeFabric';
   // the editor's per-part livery, when its UI is on the page; the direct
   // factory call below stays as the standalone bench's path
   if (window.CAGE_SECMAT) {
-    const m = window.CAGE_SECMAT(CLSEC[cl] || 'wingSkin', {
+    const m = window.CAGE_SECMAT((plane ? CLSEC2 : CLSEC)[cl] || (plane ? 'wingSkin2' : 'wingSkin'), {
       cons, struct: 1, wing: 1,
       surf: 1, fieldM: 1,        // the wing's field is ALREADY in metres
       side: THREE.DoubleSide });
-    if (m) return m;
+    if (!m) return null;
+    if (!plane) return m;
+    // THE SECOND PLANE'S MATERIAL IS ITS OWN OBJECT. AEROSKIN pools on LOOK,
+    // and a second plane dressed like the first would come back as the very
+    // same material — the join would then bucket both skins together and
+    // the game bind them as one (measured: the second skin bound nothing).
+    // A clone shares the shader and carries the plane on its userData, which
+    // is what the join's bucket key and the game's binding read.
+    const m2 = m.clone();
+    m2.userData = Object.assign({}, m.userData, { aeroPlane: 2 });
+    return m2;
   }
   return A.aeroMaterial(THREE, {
     finish: A.aeroFinishFor('body', cons),
@@ -388,6 +468,36 @@ PAGE.post = ctx => {
   // needs the BUILT cabin, not the generator's default one (see below).
   const AF = GG && GG.cageAirframe ? GG.cageAirframe(mesh, FS) : null;
   const cam = Math.round(P.wgCamber), thk = Math.round(P.wgThick);
+  // G185: the second plane's spec, from its own rows (the join writes the
+  // same fields — _join_check holds the mapping)
+  const w2SpecOf = () => {
+    const c2 = Math.round(P.w2Camber), t2 = Math.round(P.w2Thick);
+    return {
+      span: P.w2Span, chord: P.w2Chord,
+      taper: Math.max(0.2, Math.min(1.0, P.w2ChordTip / Math.max(0.2, P.w2Chord))),
+      tipX: +P.w2TipX || 0,
+      dihedral: P.w2Dihedral, incidence: P.w2Incidence, washout: P.w2Washout,
+      naca: c2 * 1000 + (c2 > 0 ? 400 : 0) + t2,
+      panels: Math.round(P.w2Panels),
+      position: ['parasol', 'mid', 'low'][Math.round(P.w2Pos)] || 'low',
+      cabaneH: Math.round(P.w2Pos) === 0 ? (+P.w2ParaH || 0.45) : null,
+      stagger: +P.w2Stagger || 0,
+      place: { dx: 0, dy: +P.w2Dy || 0 },
+      tip: TIP_KEYS[Math.round(P.w2Tip)] || 'rounded',
+      crankAt: P.w2CrankAt > 0 ? P.w2CrankAt : 0,
+      crankChord: P.w2CrankAt > 0 ? +P.w2CrankChord : null,
+      crankX: P.w2CrankAt > 0 ? (+P.w2CrankX || 0) : null,
+      dihedralOut: P.w2CrankAt > 0 ? P.w2DihedralOut : null,
+      centre: ['solid', 'glass', 'open', 'cutout'][Math.round(P.w2Centre)] || 'solid',
+      controls: {
+        flap: { type: FLAP_KEYS[Math.round(P.w2FlapType)] || 'none',
+                span: P.w2FlapSpan, chord: P.w2FlapChord },
+        aileron: { span: +P.w2AilOn ? P.w2AilSpan : 0, chord: P.w2AilChord },
+      },
+      ...(Math.round(P.w2Cons) > 0
+        ? { material: ['carbon', 'tubeFabric', 'wood', 'alloy'][Math.round(P.w2Cons) - 1] } : {}),
+    };
+  };
   const gspec = {
     wings: [{
       span: P.wgSpan, chord: P.wgChord,
@@ -401,22 +511,30 @@ PAGE.post = ctx => {
       washout: P.wgWashout,
       naca: cam * 1000 + (cam > 0 ? 400 : 0) + thk,
       panels: Math.round(P.wgPanels),
-      position: ['high', 'mid', 'low'][Math.round(P.wgPos)] || 'high',
+      position: ['high', 'mid', 'low', 'parasol'][Math.round(P.wgPos)] || 'high',
+      cabaneH: Math.round(P.wgPos) === 3 ? (+P.wgParaH || 0.45) : null,
       tip: TIP_KEYS[Math.round(P.wgTip)] || 'rounded',
       crankAt: P.wgCrankAt > 0 ? P.wgCrankAt : 0,
       crankChord: P.wgCrankAt > 0 ? +P.wgCrankChord : null,
       crankX: P.wgCrankAt > 0 ? (+P.wgCrankX || 0) : null,
       dihedralOut: P.wgCrankAt > 0 ? P.wgDihedralOut : null,
-      centre: ['solid', 'glass', 'open'][Math.round(P.wgCentre)] || 'solid',
+      centre: ['solid', 'glass', 'open', 'cutout'][Math.round(P.wgCentre)] || 'solid',
       // G189: the lamp bay's two edges as loft stations, so the cut is the
       // width asked for (the same declaration the bay below resolves)
       cuts: wingCutsOf(P),
-    }],
-    bracing: { type: Math.round(P.wgBrace) ? 'cantilever' : 'strut' },
+    }, ...(+P.w2On ? [w2SpecOf()] : [])],
+    bracing: { type: Math.round(P.wgBrace) ? 'cantilever' : 'strut',
+               cabane: Math.round(P.bpCabane || 0) ? 'V' : 'N',
+               // G185: the biplane's truss, from the brace layer's rows
+               ...(+P.w2On ? { interplane: ['N', 'I', 'none'][Math.round(P.bpInter || 0)] || 'N',
+                               interplaneAt: +P.bpInterAt || 0.62,
+                               wires: ['none', 'both', 'flying'][Math.round(P.bpWires == null ? 1 : P.bpWires)] || 'both' }
+                           : {}) },
     controls: {
       flap: { type: FLAP_KEYS[Math.round(P.wgFlapType)] || 'none',
               span: P.wgFlapSpan, chord: P.wgFlapChord },
-      aileron: { span: P.wgAilSpan, chord: P.wgAilChord },
+      aileron: { span: (P.wgAilOn == null || +P.wgAilOn) ? P.wgAilSpan : 0,
+                 chord: P.wgAilChord },
     },
   };
   // THE STRUT LANDS ON THE BUILT CABIN (G59.2, user: "the wing struts do
@@ -473,6 +591,7 @@ PAGE.post = ctx => {
     const pos = Math.round(P.wgPos);
     yAnchor = pos === 2 ? keelY + 0.22 * (deckY - keelY)  // low: belly band
       : pos === 1 ? keelY + 0.55 * (deckY - keelY)        // mid: the waist
+      : pos === 3 ? deckY + 0.01 + (+P.wgParaH || 0.45)   // parasol: the cabane
       : deckY + 0.01;                                     // high: the deck
   }
   const dx = P.wgDx || 0, dy = P.wgDy || 0;
@@ -1076,6 +1195,46 @@ PAGE.post = ctx => {
   // toCage without the undo, and it is the only correct map for a node.
   const nodeCage = p => [p[2], yAnchor + (p[1] - refP[1]) + dy,
                          zCab - (p[0] - refP[0]) + dx];
+  // G185: A FUSELAGE NODE DOES NOT RIDE THE WING'S NUDGE. The map above
+  // carries the panel's fore/aft and up/down offsets (dx, dy) because it is
+  // the WING's map — but a strut FOOT is a fuselage station, and mapping it
+  // through the wing's offsets put the foot 1.2 m ahead of the ring it
+  // belongs to on a build nudged 1.2 m aft, past the snap's own window
+  // (measured: snap 403 mm on the lift strut, 494 on the cabane). The foot
+  // lands where its ring is; the member is drawn from there to the wing's
+  // fitting, which is what a real strut does when the wing moves — and the
+  // flown frame's own beam runs between the join's MEASURED stations.
+  const nodeCageBody = p => [p[2], yAnchor + (p[1] - refP[1]),
+                             zCab - (p[0] - refP[0])];
+    // THE WING'S OWN SURFACE, for the fittings that land on it. This layer
+    // owns the geometry and THREE; the strut module owns the fitting and
+    // knows nothing about either. So what crosses between them is ONE RAW
+    // RAY — from, direction, first hit, and a normal turned to face where
+    // the ray started. Which surface of the wing a fitting belongs on is the
+    // strut's question, not this file's, and it asks it by aiming the ray.
+    let wingRay = null;
+    if (wingGeo && THREE.Raycaster) {
+      const probe = new THREE.Mesh(wingGeo, MAT.main);
+      probe.updateMatrixWorld(true);
+      const rc = new THREE.Raycaster();
+      rc.far = 1.2;
+      const o = new THREE.Vector3(), d = new THREE.Vector3();
+      wingRay = (from, dir) => {
+        o.set(from[0], from[1], from[2]);
+        d.set(dir[0], dir[1], dir[2]).normalize();
+        rc.set(o, d);
+        const h = rc.intersectObject(probe, false);
+        if (!h.length || !h[0].face) return null;
+        const n = h[0].face.normal;
+        // FACING THE RAY'S ORIGIN, always. The wing skin is double-sided and
+        // its winding is genSkin's business, so the only trustworthy way to
+        // orient a normal here is against the direction we came from.
+        const sg2 = n.x * d.x + n.y * d.y + n.z * d.z > 0 ? -1 : 1;
+        return { p: h[0].point.toArray(),
+                 n: [n.x * sg2, n.y * sg2, n.z * sg2] };
+      };
+    }
+
   let strutOn = false, strutNote = '';
   const SG = window.STRUT_GEN;
   if (SG && GG && AF && !WIRE && gs.liftstrut) {
@@ -1117,42 +1276,13 @@ PAGE.post = ctx => {
     const sx = Math.max(band.lo, Math.min(band.hi, want));
     const clamped = Math.abs(sx - want) > 1e-6;
 
-    // THE WING'S OWN SURFACE, for the fittings that land on it. This layer
-    // owns the geometry and THREE; the strut module owns the fitting and
-    // knows nothing about either. So what crosses between them is ONE RAW
-    // RAY — from, direction, first hit, and a normal turned to face where
-    // the ray started. Which surface of the wing a fitting belongs on is the
-    // strut's question, not this file's, and it asks it by aiming the ray.
-    let wingRay = null;
-    if (wingGeo && THREE.Raycaster) {
-      const probe = new THREE.Mesh(wingGeo, MAT.main);
-      probe.updateMatrixWorld(true);
-      const rc = new THREE.Raycaster();
-      rc.far = 1.2;
-      const o = new THREE.Vector3(), d = new THREE.Vector3();
-      wingRay = (from, dir) => {
-        o.set(from[0], from[1], from[2]);
-        d.set(dir[0], dir[1], dir[2]).normalize();
-        rc.set(o, d);
-        const h = rc.intersectObject(probe, false);
-        if (!h.length || !h[0].face) return null;
-        const n = h[0].face.normal;
-        // FACING THE RAY'S ORIGIN, always. The wing skin is double-sided and
-        // its winding is genSkin's business, so the only trustworthy way to
-        // orient a normal here is against the direction we came from.
-        const sg2 = n.x * d.x + n.y * d.y + n.z * d.z > 0 ? -1 : 1;
-        return { p: h[0].point.toArray(),
-                 n: [n.x * sg2, n.y * sg2, n.z * sg2] };
-      };
-    }
-
     if (byRoot.size) {
       const bags = { alloy: GG.Bag(), steel: GG.Bag(), strut: GG.Bag() };
       let sLen = 0, sN = 0, dSnap = 0, dOff = 0, onWing = 0;
       const strutMembers = [];         // G179.2: each member's pin and tip
       for (const [root, tips] of byRoot) {
         const rp = N2[root].p;
-        const site = SG.strutSite(AF, nodeCage([rp[0] + sx, rp[1], rp[2]]),
+        const site = SG.strutSite(AF, nodeCageBody([rp[0] + sx, rp[1], rp[2]]),
                                   0, P.wgStrutX || 0);
         // FRONT FIRST: cage z is forward, so the front spar's fitting is the
         // larger z, and it takes the forward pin.
@@ -1313,9 +1443,130 @@ PAGE.post = ctx => {
       return null;
     };
   }
+  // ---- G185: THE SECOND PLANE -------------------------------------------
+  // The same extraction, classing, field and dressing as the first plane,
+  // over the loft's own `skin2` group and the second plane's spar record —
+  // into ITS OWN group (cageLayer:wing2) so a click resolves to its own
+  // part, with its own probes published beside the first's. The first
+  // plane's block above is untouched (its picture is every monoplane's).
+  // Not on this plane, by design: the lamp bay (the light layer chooses a
+  // plane at G185.10), the pitot, the fuselage lift struts (a biplane has
+  // none; the truss is the brace layer's), the glass carry-through.
+  const probesOf = geos => {
+    let uA = null, oA = null, lA = null, tA = null, bx = null;
+    if (geos.length && THREE.Raycaster) {
+      const pg = new THREE.Group();
+      const pm = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+      for (const g of geos) pg.add(new THREE.Mesh(g, pm));
+      pg.updateMatrixWorld(true);
+      const rc = new THREE.Raycaster();
+      rc.far = 1000;
+      const o = new THREE.Vector3(), dUp = new THREE.Vector3(0, 1, 0), dDn = new THREE.Vector3(0, -1, 0);
+      uA = (x, z) => { o.set(x, -60, z); rc.set(o, dUp);
+        const h = rc.intersectObject(pg, true); if (!h.length || !h[0].face) return null;
+        const n = h[0].face.normal, sg2 = n.y > 0 ? -1 : 1;
+        return { y: h[0].point.y, n: [n.x * sg2, n.y * sg2, n.z * sg2] }; };
+      oA = (x, z) => { o.set(x, 60, z); rc.set(o, dDn);
+        const h = rc.intersectObject(pg, true); return h.length ? { y: h[0].point.y } : null; };
+      const bb = new THREE.Box3().setFromObject(pg);
+      bx = { min: [bb.min.x, bb.min.y, bb.min.z], max: [bb.max.x, bb.max.y, bb.max.z] };
+      lA = x => { for (let k = 0; k <= 48; k++) { const z = bb.max.z - (bb.max.z - bb.min.z) * k / 48;
+        const t = oA(x, z), u = uA(x, z); if (t && u) return { z, yTop: t.y, yBot: u.y }; } return null; };
+      tA = x => { for (let k = 0; k <= 48; k++) { const z = bb.min.z + (bb.max.z - bb.min.z) * k / 48;
+        const t = oA(x, z), u = uA(x, z); if (t && u) return { z, yTop: t.y, yBot: u.y }; } return null; };
+    }
+    return { underAt: uA, overAt: oA, leAt: lA, teAt: tA, box: bx };
+  };
+  const rootYOf = PL => {
+    const i = PL && PL.wf && PL.wf.R && PL.wf.R.F ? PL.wf.R.F[0] : null;
+    return i != null ? nodeCage(N2[i].p)[1] : yAnchor;
+  };
+  let group2 = null, plane1 = null;
+  const PL1 = def.parts.planes && def.parts.planes[1];
+  if (+P.w2On && gs.skin2 && PL1 && !WIRE) {
+    const W1 = def.spec.wings[1] || {};
+    const WN2 = new Set();
+    for (const side of [PL1.wf.L, PL1.wf.R]) if (side)
+      for (const arr of [side.F, side.R]) if (arr) for (const i of arr) WN2.add(i);
+    const vert2 = g => i => {
+      let any = false;
+      for (let k = 0; k < G_INFL; k++) {
+        const w = g.ww[i * G_INFL + k];
+        if (w > 1e-6) { if (!WN2.has(g.wi[i * G_INFL + k])) return false; any = true; }
+      }
+      return any;
+    };
+    const zRoot2 = PL1.zRoot || 0;
+    const tipOn2 = (W1.tipR || 0) > 1e-6, tipZ2 = tipOn2 ? W1.tipZ : Infinity;
+    const ribZ2 = (PL1.ribZ || []).slice().sort((a, b) => a - b)
+      .filter((z, i, A) => i === 0 || z - A[i - 1] > 1e-4);
+    const field2 = g => {
+      if (!g.uv) return null;
+      return i => {
+        const cf = g.uv[i * 2];
+        const az = Math.abs(toBody([g.pos[i*3], g.pos[i*3+1], g.pos[i*3+2]])[2]);
+        const chord = PL1.chordAt ? PL1.chordAt(az) : 1;
+        let st = 0;
+        if (ribZ2.length) {
+          let k = 0;
+          while (k < ribZ2.length && ribZ2[k] < az) k++;
+          const lo = k > 0 ? ribZ2[k - 1] : zRoot2;
+          const hi = k < ribZ2.length ? ribZ2[k] : ribZ2[ribZ2.length - 1];
+          const d = hi - lo;
+          st = k + (d > 1e-6 ? (az - hi) / d : 0);
+        }
+        return [az - zRoot2, cf * chord, st, (cf - sparF) / sparSpan];
+      };
+    };
+    const class2 = cen => {
+      const az = Math.abs(toBody(cen)[2]);
+      if (az <= zRoot2 + 1e-3) return 'centre';
+      if (tipOn2 && az >= tipZ2 - 1e-3) return 'tip';
+      return 'main';
+    };
+    group2 = new THREE.Group();
+    group2.name = 'cageLayer:wing2';
+    const probe2 = [];
+    const parts2 = pickParts(gs.skin2, vert2(gs.skin2), toCage, class2, field2(gs.skin2));
+    for (const cl of ['main', 'centre', 'tip']) {
+      const pr = parts2 && parts2[cl];
+      if (!pr) continue;
+      const o = new THREE.Mesh(pr.geo, wingMat(cl, 1));
+      group2.add(o); probe2.push(pr.geo); faces += pr.geo.index.count / 3;
+    }
+    const yes2 = () => () => true;
+    for (const nm of ['ailR', 'ailL', 'flapR', 'flapL']) {
+      const g2 = gs[nm + '2'];
+      if (!g2) continue;
+      const pr = pickParts(g2, yes2(), toCage, null, field2(g2));
+      if (pr && pr.x) {
+        const o = new THREE.Mesh(pr.x.geo, wingMat(nm, 1));
+        if (ex > 0) o.position.set(0, -0.18 * ex, -0.65 * ex);
+        o.name = 'edSurf_' + nm + '2';
+        group2.add(o);
+      }
+    }
+    scene.add(group2);
+    plane1 = Object.assign({ k: 1, def, group: group2, semi: PL1.semi, spar: WN2,
+                             rootY: rootYOf(PL1), zRoot: zRoot2 }, probesOf(probe2));
+  }
+  const plane0 = { k: 0, def, group, semi: def.spec.geom && def.spec.geom.semi,
+                   spar: WN, rootY: rootYOf(def.parts.planes && def.parts.planes[0]),
+                   zRoot, underAt, overAt, leAt, teAt, box: wbox, wingRay };
+  const planes = plane1 ? [plane0, plane1] : [plane0];
+  let lowest = 0, upper = 0;
+  planes.forEach((pl, i) => { if (pl.rootY < planes[lowest].rootY) lowest = i;
+                              if (pl.rootY > planes[upper].rootY) upper = i; });
+
   window.CAGE_WING = { def, semi: def.spec.geom && def.spec.geom.semi,
                        skinFaces: faces, anchor: { zCab, yAnchor }, group,
-                       underAt, overAt, leAt, teAt, box: wbox };
+                       underAt, overAt, leAt, teAt, box: wbox,
+                       // G185: what the BRACE layer needs to put a fitting on
+                       // this wing and on the body it stands on
+                       wingRay, nodeCage, nodeCageBody, AF, FS,
+                       // G185: every plane, with the index of the lowest (the
+                       // gear's) and the upper (the pylon engine's)
+                       planes, lowest, upper };
   // THE TWIN BOOMS (2026-09-04, TWIN-BOOM spec §1.3): two tapering tubes off
   // the wing's TRAILING EDGE at ±boomX, level, `boomLen` long, carrying the
   // fins the fin layer builds twice and the stab the stab layer seats between
@@ -1369,7 +1620,12 @@ PAGE.post = ctx => {
     const g2 = def.spec.geom || {};
     stat.textContent += '  ·  wing: ' + (g2.S ? g2.S.toFixed(1) + ' m2 · ' : '') +
       'span ' + P.wgSpan.toFixed(1) + ' · ' +
-      (gspec.wings[0].position) + '/' + gspec.bracing.type;
+      (gspec.wings[0].position) + '/' + gspec.bracing.type +
+      // G185: the second plane, its gap (a READOUT — the cabane height and
+      // the low band decide it) and its stagger
+      (plane1 ? ' · 2 planes · gap ' +
+        ((def.parts.planes[0].wingY0 || 0) - (def.parts.planes[1].wingY0 || 0)).toFixed(2) +
+        ' m · stagger ' + (+P.w2Stagger || 0).toFixed(2) + ' m' : '');
   }
 };
 })();

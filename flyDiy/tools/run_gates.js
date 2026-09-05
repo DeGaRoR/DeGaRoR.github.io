@@ -49,6 +49,11 @@ const GATES = [
   // polar + the measured weathervane, and the plaque agreeing with itself.
   // Carries --selftest.
   { id: 'HONEST', file: 'test_honest.js', tier: 'core' },
+  // THE BIPLANE (G185): the truss (rigidity rank, the wire-cut negative),
+  // the parasol's cabane, the tension-only wire, and — from G185.5 — the
+  // vortex kernel against Prandtl's sigma, Munk's stagger theorem and the
+  // tail-downwash window. Carries --selftest.
+  { id: 'BIPLANE', file: 'test_biplane.js', tier: 'core' },
   // MASS CAN CHANGE NOW (G121): the P-4 solver proofing, landed before the
   // energy arc's burn — the setNodeMass door, live totalM, dry-mass substeps,
   // the fuel record, the live taxi feedforward, the sheet at reserves, and
@@ -139,7 +144,11 @@ const GATES = [
   // test pilot flies it to a full stop. Inactive archetypes are SKIPPED
   // WITH THEIR REASON PRINTED, so the gate log is also the backlog. Full
   // tier: it flies every active archetype's circuit (~13 min).
-  { id: 'ARCHETYPES', file: '_arch_check.js', tier: 'full' },
+  // G185: 25 cards flown (five of them biplanes at 98 substeps and 536
+  // beams, ~5 min of wall each) measured 1939 s uncapped, PASS, under five
+  // peer sessions' load — the 1800 s cap below bit twice with no failed check
+  // to point at, the exact false red its own paragraph describes. Doubled.
+  { id: 'ARCHETYPES', file: '_arch_check.js', tier: 'full', timeout: 3600_000 },
   { id: 'VIEW', file: '_view_check.js', tier: 'core' },
   // THE LIFT-STRUT FOOT (G86-G88): the site the fitting is built on — the
   // frame's own strut root snapped to the built skin — and the declared
@@ -242,7 +251,7 @@ for (const g of GATES) {
   // and it will recur every time the generator gains a case, so the headroom
   // is doubled rather than shaved. If a gate ever genuinely hangs, this still
   // catches it.
-  const r = spawnSync(process.execPath, [g.file], { cwd: __dirname, encoding: 'utf8', timeout: 1800_000 });
+  const r = spawnSync(process.execPath, [g.file], { cwd: __dirname, encoding: 'utf8', timeout: g.timeout || 1800_000 });
   const secs = ((Date.now() - t0) / 1000).toFixed(1);
   const stdout = r.stdout || '';
   const pass = r.status === 0 && new RegExp(`^GATE ${g.id}: PASS$`, 'm').test(stdout);

@@ -83,6 +83,38 @@ function cageWingCuts(P) {
 }
 if (typeof window !== 'undefined') window.CAGE_JOIN_WING_CUTS = cageWingCuts;
 
+// G185: the SECOND plane, from its own rows — the fields of the first plus
+// its position band, cabane height, stagger, nudge and its own controls
+function cageJoinPlane2(P, T) {
+  const c2 = Math.round(P.w2Camber), t2 = Math.round(P.w2Thick);
+  const tip = (T.TIP_KEYS || [])[Math.round(P.w2Tip)] || 'rounded';
+  const flap = (T.FLAP_KEYS || [])[Math.round(P.w2FlapType)] || 'none';
+  return {
+    span: P.w2Span, chord: P.w2Chord,
+    taper: Math.max(0.2, Math.min(1.0, P.w2ChordTip / Math.max(0.2, P.w2Chord))),
+    tipX: +P.w2TipX || 0,
+    dihedral: P.w2Dihedral, incidence: P.w2Incidence, washout: P.w2Washout,
+    naca: c2 * 1000 + (c2 > 0 ? 400 : 0) + t2,
+    panels: Math.round(P.w2Panels),
+    position: ['parasol', 'mid', 'low'][Math.round(P.w2Pos)] || 'low',
+    cabaneH: Math.round(P.w2Pos) === 0 ? (+P.w2ParaH || 0.45) : null,
+    stagger: +P.w2Stagger || 0,
+    place: { dx: 0, dy: +P.w2Dy || 0 },
+    tip,
+    crankAt: P.w2CrankAt > 0 ? P.w2CrankAt : 0,
+    crankChord: P.w2CrankAt > 0 ? +P.w2CrankChord : null,
+    crankX: P.w2CrankAt > 0 ? (+P.w2CrankX || 0) : null,
+    dihedralOut: P.w2CrankAt > 0 ? P.w2DihedralOut : null,
+    centre: ['solid', 'glass', 'open', 'cutout'][Math.round(P.w2Centre)] || 'solid',
+    controls: {
+      flap: { type: flap, span: P.w2FlapSpan, chord: P.w2FlapChord },
+      aileron: { span: +P.w2AilOn ? P.w2AilSpan : 0, chord: P.w2AilChord },
+    },
+    ...(Math.round(P.w2Cons) > 0
+      ? { material: ['carbon', 'tubeFabric', 'wood', 'alloy'][Math.round(P.w2Cons) - 1] } : {}),
+  };
+}
+
 function cageJoinSpec(P, M, T) {
   M = M || {}; T = T || {};
   const cam = Math.round(P.wgCamber), thk = Math.round(P.wgThick);
@@ -102,13 +134,15 @@ function cageJoinSpec(P, M, T) {
       washout: P.wgWashout,
       naca: cam * 1000 + (cam > 0 ? 400 : 0) + thk,
       panels: Math.round(P.wgPanels),
-      position: ['high', 'mid', 'low'][Math.round(P.wgPos)] || 'high',
+      position: ['high', 'mid', 'low', 'parasol'][Math.round(P.wgPos)] || 'high',
+      // G185: a parasol's cabane height (null on every other position)
+      cabaneH: Math.round(P.wgPos) === 3 ? (+P.wgParaH || 0.45) : null,
       tip,
       crankAt: P.wgCrankAt > 0 ? P.wgCrankAt : 0,
       crankChord: P.wgCrankAt > 0 ? +P.wgCrankChord : null,
       crankX: P.wgCrankAt > 0 ? (+P.wgCrankX || 0) : null,
       dihedralOut: P.wgCrankAt > 0 ? P.wgDihedralOut : null,
-      centre: ['solid', 'glass', 'open'][Math.round(P.wgCentre)] || 'solid',
+      centre: ['solid', 'glass', 'open', 'cutout'][Math.round(P.wgCentre)] || 'solid',
       // G189: the lamp bay's edges as loft stations (null = none), the same
       // arithmetic the wing layer uses, so the flown loft has the bay's rows
       cuts: cageWingCuts(P),
@@ -118,11 +152,21 @@ function cageJoinSpec(P, M, T) {
       ...(Math.round(P.wgCons) > 0
         ? { material: ['carbon', 'tubeFabric', 'wood',
                        'alloy'][Math.round(P.wgCons) - 1] } : {}),
-    }],
-    bracing: { type: Math.round(P.wgBrace) ? 'cantilever' : 'strut' },
+    }, ...(+P.w2On ? [cageJoinPlane2(P, T)] : [])],
+    bracing: { type: Math.round(P.wgBrace) ? 'cantilever' : 'strut',
+               // G185: the cabane's drawing style rides only when there is one
+               ...(Math.round(P.wgPos) === 3 || +P.w2On
+                   ? { cabane: Math.round(P.bpCabane || 0) ? 'V' : 'N' } : {}),
+               // ...and the truss only on a biplane (absent = the defaults)
+               ...(+P.w2On ? { interplane: ['N', 'I', 'none'][Math.round(P.bpInter || 0)] || 'N',
+                               interplaneAt: +P.bpInterAt || 0.62,
+                               wires: ['none', 'both', 'flying'][Math.round(P.bpWires == null ? 1 : P.bpWires)] || 'both' }
+                           : {}) },
     controls: {
       flap: { type: flap, span: P.wgFlapSpan, chord: P.wgFlapChord },
-      aileron: { span: P.wgAilSpan, chord: P.wgAilChord },
+      // G185: the aileron switch — off is a span of 0, which the clamp admits
+      aileron: { span: (P.wgAilOn == null || +P.wgAilOn) ? P.wgAilSpan : 0,
+                 chord: P.wgAilChord },
     },
     // ---- JOINED: the registry engine, in the CANONICAL form (the
     // spec's field is `engines: [{type,...}]`; flat `engine` is a
@@ -1137,8 +1181,10 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // minimum x), and the axis is the direction that edge runs —
       // SPANWISE (z) for ailerons/flaps/elevators, VERTICAL (y) for the
       // rudder. Sign and drive per surface, ailerons antisymmetric.
+      // G185: the second plane's four surfaces ride the same way; their
+      // names carry a '2', which the drive map strips below
       for (const nm of ['ailR', 'ailL', 'flapR', 'flapL', 'rud', 'rud2',
-                        'elevR', 'elevL'])
+                        'elevR', 'elevL', 'ailR2', 'ailL2', 'flapR2', 'flapL2'])
         PARTS.others.push({ src: 'edSurf_' + nm, kind: 'surf_' + nm,
           surf: nm, groups: {} });
       if (GB.units && GB.units.castor)
@@ -1154,6 +1200,13 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // twin it did not, and the wing-box selector cut the tube in three.
       PARTS.others.push({ src: 'edFit_liftstrut', kind: 'liftstrut',
         stretch: true, groups: {} });
+      // G185: the truss — the cabane, the interplane struts and the wires
+      // are parts of the same kind: every vertex a point on a line between
+      // its member's two drawn ends, each end riding its own physics node
+      for (const [src, kind] of [['edFit_cabane', 'cabane'],
+                                 ['edFit_interplane', 'interplane'],
+                                 ['edFit_wire', 'wire']])
+        PARTS.others.push({ src, kind, stretch: true, groups: {} });
       // ...AND SO IS EACH ENGINE UNIT, block, exhaust and all, rigid about
       // its mount point (the thrust line), riding its own engine node in
       // the game instead of being split between the wing box and the
@@ -1224,6 +1277,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           // G179.2: the struts and the engine units (the prop and spinner
           // under a unit were matched above, deeper in the walk)
           if (a.name && (a.name === 'edFit_liftstrut' ||
+                         a.name === 'edFit_cabane' || a.name === 'edFit_interplane' ||
+                         a.name === 'edFit_wire' ||
                          a.name.lastIndexOf('edEng', 0) === 0)) {
             part = PARTS.others.find(u => u.src === a.name) || null;
             if (part && a.userData && a.userData.strutMembers)
@@ -1282,7 +1337,10 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
                               (kud.aeroTileK ? 'T' + kud.aeroTileK : '') +
                               (kud.aeroRoughK ? 'R' + kud.aeroRoughK : '') +
                               (kud.aeroNrmK ? 'N' + kud.aeroNrmK : '') +
-                              (kud.aeroWearM ? 'M' + kud.aeroWearM : '') : '');
+                              (kud.aeroWearM ? 'M' + kud.aeroWearM : '') : '') +
+            // G185: the second plane's materials are their own buckets — the
+            // game binds each plane's skin to its own spar stations
+            (kud.aeroPlane ? 'P' + kud.aeroPlane : '');
         // AEROSKIN (G67) rides across as WHAT IT IS, not as what it looked
         // like: the finish key and the shader branch, so the game rebuilds
         // the same material from the same factory rather than approximating
@@ -1307,6 +1365,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           ...(ud.vesSet && ud.hue ? { vesHue: +ud.hue.toFixed(5) } : {}),
           ...(ud.vesSet && ud.vesHueOn ? { vesHueOn: 1 } : {}),
           ...(ud.aeroGrm ? { grm: ud.aeroGrm } : {}),
+          // G185: which plane a wing material dresses (2 = the second) — the
+          // game binds that group to the second plane's spar stations
+          ...(ud.aeroPlane ? { plane: ud.aeroPlane } : {}),
           // G108: the SURFACE CLASS (1 wing, 2 tail; absent means the body),
           // so the flown aeroplane can be told which markings are its wing's
           // and which are its fuselage's. Without it every flown surface came
@@ -1509,7 +1570,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       }
       // G179.2: a strut part pivots on its first tip (its verts stay
       // unrebased, like a leg's — the pivot only has to exist)
-      if (pt.kind === 'liftstrut' && pt.membersC && pt.membersC.length && !pt.axleC)
+      const TRUSS = pt.kind === 'liftstrut' || pt.kind === 'cabane' ||
+                    pt.kind === 'interplane' || pt.kind === 'wire';
+      if (TRUSS && pt.membersC && pt.membersC.length && !pt.axleC)
         pt.axleC = pt.membersC[0].tip;
       const pv = pt.pivotM ? pt.pivotM
         : pt.kind === 'prop' ? pt.hub
@@ -1530,17 +1593,21 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       const out2 = { kind: pt.kind, R: pt.R || 0, pivot: pv,
                      stretch: !!pt.stretch, groups: gs2 };
       if (pt.kind === 'prop' && pt.axis) out2.axis = pt.axis;  // G59.1
-      if (pt.kind === 'liftstrut' && pt.membersC)   // G179.2: each member's line
+      if (TRUSS && pt.membersC)   // G179.2: each member's line (G185: the truss too)
         out2.members = pt.membersC.map(m => ({
           pin: rotP(-m.pin[2], m.pin[1], m.pin[0]),
-          tip: rotP(-m.tip[2], m.tip[1], m.tip[0]) }));
+          tip: rotP(-m.tip[2], m.tip[1], m.tip[0]),
+          ...(m.pinAt ? { pinAt: m.pinAt, tipAt: m.tipAt } : {}) }));
       if (pt.kind === 'eng') out2.unit = pt.unit;
       if (pt.stretch && pt.rootC)          // G58.7: the fixed airframe end
         out2.root = rotP(-pt.rootC[2], pt.rootC[1], pt.rootC[0]);
       if (pt.surf) {                       // G59: what drives it, and how
         out2.surf = pt.surf;
         out2.axis = hingeAxis;
-        const S2 = pt.surf;
+        // G185: a second-plane surface drives as its first-plane twin
+        // (the '2' is only its name) and says which plane it belongs to
+        const S2 = pt.surf.replace(/2$/, '');
+        if (/2$/.test(pt.surf)) out2.plane = 2;
         out2.drive = (S2 === 'rud' || S2 === 'rud2') ? 'dr'
                    : (S2 === 'elevR' || S2 === 'elevL') ? 'de'
                    : (S2 === 'flapR' || S2 === 'flapL') ? 'fl' : 'da';

@@ -320,7 +320,9 @@ function noseFace(mesh, FS, end) {
 // nacelle roots at the TRAILING edge (`teAt`), a puller at the leading edge.
 function engineFaces(mesh, FS, P) {
   const mount = Math.round((P && P.engMount) || 0);
-  const W = window.CAGE_WING;
+  // G185: an over-the-wing engine sits on the UPPER plane of a biplane
+  const W0 = window.CAGE_WING;
+  const W = (W0 && W0.planes) ? (W0.planes[W0.upper] || W0) : W0;
   const bz = +P.engBlockZ || 0, by = +P.engBlockY || 0;
   const aim = Math.round(P.engAim || 0);
   if (mount === 1) {
@@ -328,11 +330,12 @@ function engineFaces(mesh, FS, P) {
     return f ? [{ face: f, aft: true, kind: 'pusher' }] : [];
   }
   if (mount === 2) {
-    if (!W || !W.leAt || Math.round(P.wgPos || 0) !== 0) return [];
+    if (!W || !W.leAt || ![0, 3].includes(Math.round(P.wgPos || 0))) return [];   // G185: or a parasol
     const le = W.leAt(0);
     if (!le) return [];
-    const ch = (W.def && W.def.parts && W.def.parts.chordAt)
-      ? W.def.parts.chordAt(0) : 1.4;
+    const chPl = W.def && W.def.parts &&
+      ((W.def.parts.planes && W.def.parts.planes[W.k || 0]) || W.def.parts);
+    const ch = (chPl && chPl.chordAt) ? chPl.chordAt(0) : 1.4;
     const hp = Math.max(0.05, +P.engPylonH || 0.30);
     const aft = aim === 0 ? true : aim === 2;
     return [{ face: { z: le.z - 0.30 * ch + bz, yc: le.yTop + hp + by, x: 0,

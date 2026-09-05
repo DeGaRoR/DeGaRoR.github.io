@@ -99,6 +99,36 @@ ok(s.wings[0].crankChord === null && s.wings[0].crankX === null,
      'crank chord + seat pass when the crank is on');
 }
 ok(s.bracing.type === 'strut', 'bracing maps');
+ok(s.bracing.cabane === undefined && s.wings[0].cabaneH === null,
+   'G185: no cabane key and a null cabane height off a high wing');
+{
+  // G185: the parasol writes its position, its cabane height and the cabane
+  // style; the aileron switch off writes a span of 0
+  const Pp = Object.assign({}, P, { wgPos: 3, wgParaH: 0.61, bpCabane: 1, wgAilOn: 0 });
+  const sp = cageJoinSpec(Pp, M, T);
+  ok(sp.wings[0].position === 'parasol' && sp.wings[0].cabaneH === 0.61,
+     'G185: parasol position + cabane height');
+  ok(sp.bracing.cabane === 'V', 'G185: cabane style rides with the parasol');
+  ok(sp.controls.aileron.span === 0, 'G185: ailerons off -> span 0');
+  // the second plane: two entries, its own fields, and the truss keys — and
+  // NONE of them when the switch is off
+  ok(s.wings.length === 1 && s.bracing.interplane === undefined,
+     'G185: one plane and no truss keys with w2On off');
+  const Pb = Object.assign({}, P, { w2On: 1, w2Pos: 2, w2Stagger: 0.41, w2Span: 8.7, w2Chord: 1.31,
+    w2ChordTip: 1.31, w2Camber: 2, w2Thick: 12, w2Panels: 3, w2Tip: T.TIP_KEYS.indexOf('rounded'),
+    w2CrankAt: 0, w2Centre: 0, w2Dy: -0.05, w2AilOn: 0, w2AilSpan: 0.3, w2AilChord: 0.2,
+    w2FlapType: 0, w2FlapSpan: 0.5, w2FlapChord: 0.2, w2Dihedral: 2, w2Incidence: 2, w2Washout: 1,
+    w2TipX: 0.1, w2Cons: 3, bpInter: 1, bpInterAt: 0.55, bpWires: 2, bpCabane: 0 });
+  const sb = cageJoinSpec(Pb, M, T);
+  ok(sb.wings.length === 2 && sb.wings[1].span === 8.7 && sb.wings[1].stagger === 0.41 &&
+     sb.wings[1].position === 'low' && sb.wings[1].place.dy === -0.05 &&
+     sb.wings[1].controls.aileron.span === 0 && sb.wings[1].material === 'wood' &&
+     sb.wings[1].tipX === 0.1 && sb.wings[1].naca === 2412,
+     'G185: the second plane carries its own rows');
+  ok(sb.bracing.interplane === 'I' && sb.bracing.interplaneAt === 0.55 &&
+     sb.bracing.wires === 'flying' && sb.bracing.cabane === 'N',
+     'G185: the truss keys map (I strut at 0.55, flying wires only)');
+}
 ok(s.gear.fairing === 'spat', 'fairing switch -> gear.fairing (G121.1)');
 ok(s.gear.twFairing === 'full',
    'third-wheel switch -> gear.twFairing (G121.2)');
@@ -347,16 +377,6 @@ try {
   ok(dW.params.nEngines === 2 && wN.length === 2 &&
      Math.abs(wN[0].p[2] + wN[1].p[2]) < 1e-9 && Math.abs(Math.abs(wN[0].p[2]) - 2.1) < 1e-9,
      'wing pair: nEngines 2, mirrored nacelle nodes at |z| 2.1');
-  const sT = cageJoinSpec(Object.assign({}, P, { engMount: 2, engPylonH: 0.4 }), M, T);
-  ok(sT.engines[0].mount === 'wingTop' && sT.engines[0].pylon === 0.4 &&
-     sT.engines[0].x === undefined, 'engMount 2 -> over the wing, pylon 0.4, station derived');
-  const RT = resolveSpec(JSON.parse(JSON.stringify(sT))).spec;
-  ok(RT.engAt[0].mount === 'wingTop' && RT.engAt[0].y > RT.cab.h + 0.4 - 1e-9,
-     'RESOLVED over-the-wing engine sits a pylon above the deck (' +
-     RT.engAt[0].y.toFixed(2) + ' m)');
-  const dT = C.buildGen(JSON.parse(JSON.stringify(sT)));
-  ok(dT.refs.engine.length === 2 && dT.nodes[dT.refs.engine[0]].p[1] > RT.cab.h,
-     'over-the-wing frame: mount nodes above the cabin');
   // G194: THE HAND AND THE LEVERS. engRotate 1 (tops inward) is port +1 /
   // starboard -1 through the join and the resolve; the frame says which
   // engine each node carries; the solver shares thrust per ENGINE and is
@@ -403,6 +423,16 @@ try {
     simW.ctl.eng = null; simW.step(1 / 60);
     ok(Math.abs(simW.out.thrustPer[0] - simW.out.thrustPer[1]) < 1e-9, 'levers null again: even again');
   }
+  const sT = cageJoinSpec(Object.assign({}, P, { engMount: 2, engPylonH: 0.4 }), M, T);
+  ok(sT.engines[0].mount === 'wingTop' && sT.engines[0].pylon === 0.4 &&
+     sT.engines[0].x === undefined, 'engMount 2 -> over the wing, pylon 0.4, station derived');
+  const RT = resolveSpec(JSON.parse(JSON.stringify(sT))).spec;
+  ok(RT.engAt[0].mount === 'wingTop' && RT.engAt[0].y > RT.cab.h + 0.4 - 1e-9,
+     'RESOLVED over-the-wing engine sits a pylon above the deck (' +
+     RT.engAt[0].y.toFixed(2) + ' m)');
+  const dT = C.buildGen(JSON.parse(JSON.stringify(sT)));
+  ok(dT.refs.engine.length === 2 && dT.nodes[dT.refs.engine[0]].p[1] > RT.cab.h,
+     'over-the-wing frame: mount nodes above the cabin');
 } catch (e) {
   ok(false, 'mount join threw: ' + e.message);
 }

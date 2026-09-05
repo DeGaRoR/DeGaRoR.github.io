@@ -177,6 +177,9 @@ function measureBays(S, ctx) {
   for (const k in C.BAYS) {
     const B = C.BAYS[k];
     if (B.on === 'wing' && !(S.wing && window.CAGE_WING)) continue;
+    // G185: a bay on the second plane needs the second plane DRAWN
+    if (B.on === 'wing' && B.plane && !(window.CAGE_WING.planes &&
+                                        window.CAGE_WING.planes[B.plane])) continue;
     let r = null;
     try { r = C.bayResolve(S, k, null); } catch (e) { r = null; }
     if (!r) continue;
@@ -246,8 +249,10 @@ const bayKey = (bay, zFw) => bay.key + '|' + (+bay.x0).toFixed(4) + '|' + (+bay.
 
 // the wing asked about itself: thickness and chord at a span station, off
 // the loft the wing layer built, in this layer's own frame (the lights' rule)
-function wingSlicer(ctx, inv) {
-  const W = window.CAGE_WING;
+function wingSlicer(ctx, inv, plane) {
+  // G185: the slicer measures ONE plane — the second's loft when asked
+  const W0 = window.CAGE_WING;
+  const W = (plane && W0 && W0.planes && W0.planes[plane]) ? W0.planes[plane] : W0;
   if (!W || !W.group || !window.THREE) return null;
   const V = new THREE.Vector3();
   const cache = new Map();
@@ -266,8 +271,9 @@ function wingSlicer(ctx, inv) {
   // nearest the height the wing is KNOWN to be at — the layer's own anchor,
   // raised by the dihedral — and lets everything else fall away.
   const spec = W.def && W.def.spec;
-  const wing = spec && (spec.wing || (spec.wings || [])[0]) || {};
-  const yAnchor = (W.anchor && W.anchor.yAnchor != null) ? W.anchor.yAnchor : null;
+  const wing = spec && ((plane && spec.wings && spec.wings[plane]) || spec.wing || (spec.wings || [])[0]) || {};
+  const yAnchor = plane ? (W.rootY != null ? W.rootY : null)
+                : (W0.anchor && W0.anchor.yAnchor != null) ? W0.anchor.yAnchor : null;
   const dih = Math.tan(((wing.dihedral || 0) * Math.PI) / 180);
   return xAt => {
     const key = Math.round(xAt * 200);
@@ -354,6 +360,10 @@ function placeAll(ctx, inv) {
   const W = window.CAGE_WING;
   const semi = W ? (W.semi || (W.def && W.def.spec && W.def.spec.geom && W.def.spec.geom.semi) || 0) : 0;
   const slice = W ? wingSlicer(ctx, inv) : null;
+  // G185: the second plane's own semispan and slice, for its bays
+  const semiOf = k => (k && W && W.planes && W.planes[k] && W.planes[k].semi) || semi;
+  const sliceCache = { 0: slice };
+  const sliceOf = k => { if (!(k in sliceCache)) sliceCache[k] = W ? wingSlicer(ctx, inv, k) : null; return sliceCache[k]; };
   // the datum the ledger bills against, read off this cage's own rings
   const zFw = G.firewallZ ? G.firewallZ(ctx.spec, CG2()) : null;
   for (const v of EN.vessels) {
@@ -369,8 +379,9 @@ function placeAll(ctx, inv) {
     let dims = G.vesselDims(vesselKey(), res.installedL, v.dims, formOf(v));
     let pl;
     if (bay.on === 'wing') {
-      pl = (slice && semi > 0)
-        ? G.wingPlace(semi, bay, v, res.installedL, slice, C.RULES || {}, bay.litres)
+      const kp = bay.plane | 0, sl = sliceOf(kp), sm = semiOf(kp);
+      pl = (sl && sm > 0)
+        ? G.wingPlace(sm, bay, v, res.installedL, sl, C.RULES || {}, bay.litres)
         : { on: 'wing', ok: false, why: ['no wing to put it in'], sides: [] };
     } else {
       const cache = cacheOf(bay);
@@ -1292,6 +1303,7 @@ function panelElement() {
   }
   return panelWrap || panel;
 }
+let panelWrap = null;
 // WHICH vessel, from a click on the solid itself. Returns whether it took —
 // editor.js reads that to know the click MOVED within the part rather than
 // landing on it a second time (which is its "step out to the parent" gesture,
@@ -1303,7 +1315,6 @@ function selectVessel(i) {
   if (panelBody) {
     for (const d of panelBody.querySelectorAll('details[data-ves]')) {
       const on = +d.dataset.ves === i;
-let panelWrap = null;
       d.style.outline = on ? '1px solid rgba(255,211,90,.55)' : '';
       if (on) { d.open = true; if (d.scrollIntoView) d.scrollIntoView({ block: 'nearest' }); }
     }

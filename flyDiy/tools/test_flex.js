@@ -56,10 +56,11 @@ const REALITY = [
 // nodes WF/WR, so one finder works for the whole fleet. One side only (z > 0);
 // the airframes are mirrored and GATE GEN already proves the symmetry.
 // ---------------------------------------------------------------------------
-function stations(def) {
+function stations(def, plane) {
   const wf = [], wr = [];
+  plane = plane || 0;
   def.nodes.forEach((n, i) => {
-    if (n.p[2] <= 0) return;
+    if (n.p[2] <= 0 || (n.plane || 0) !== plane) return;   // G185: one plane
     if (n.tag === 'WF') wf.push(i);
     if (n.tag === 'WR') wr.push(i);
   });
@@ -143,18 +144,20 @@ function audit(def, matKey) {
 // thing no single-load-case measurement can see. Run it at two torques and
 // compare: a linear structure doubles its twist when you double the couple.
 // ---------------------------------------------------------------------------
-function statTorsion(def, torque) {
+function statTorsion(def, torque, plane) {
   const sim = makeSim(def, null);            // no world: free-air, gear on a flat plane
   sim.reset(0);
-  const st = stations(def);
+  const st = stations(def, plane);
   if (st.length < 2) return null;
   const root = st[0], tip = st[st.length - 1];
   // mirror of the tip station on the other wing
   const mirror = (i) => {
     const n = def.nodes[i]; let best = -1, bd = Infinity;
     def.nodes.forEach((o, j) => {
-      if (o.tag !== n.tag || o.p[2] >= 0) return;
-      const d = Math.abs(o.p[2] + n.p[2]) + Math.abs(o.p[0] - n.p[0]);
+      if (o.tag !== n.tag || o.p[2] >= 0 || (o.plane || 0) !== (n.plane || 0)) return;
+      // G185: y in the match too — an unstaggered biplane has the other plane's
+      // station at the same x and z
+      const d = Math.abs(o.p[2] + n.p[2]) + Math.abs(o.p[0] - n.p[0]) + Math.abs(o.p[1] - n.p[1]);
       if (d < bd) { bd = d; best = j; }
     });
     return best;
@@ -191,17 +194,19 @@ function statTorsion(def, torque) {
 // tip: a tip point load is not comparable across panel counts, because the tip
 // station stands for a different fraction of the wing at 2 panels than at 5,
 // and reading it that way makes station density look like a stiffness change.
-function statBend(def, load) {
+function statBend(def, load, plane) {
   const sim = makeSim(def, null);
   sim.reset(0);
-  const st = stations(def);
+  const st = stations(def, plane);
   if (st.length < 2) return null;
   const root = st[0], tip = st[st.length - 1];
   const mir = (i) => {
     const n = def.nodes[i]; let best = -1, bd = Infinity;
     def.nodes.forEach((o, j) => {
-      if (o.tag !== n.tag || o.p[2] >= 0) return;
-      const d = Math.abs(o.p[2] + n.p[2]) + Math.abs(o.p[0] - n.p[0]);
+      if (o.tag !== n.tag || o.p[2] >= 0 || (o.plane || 0) !== (n.plane || 0)) return;
+      // G185: y in the match too — an unstaggered biplane has the other plane's
+      // station at the same x and z
+      const d = Math.abs(o.p[2] + n.p[2]) + Math.abs(o.p[0] - n.p[0]) + Math.abs(o.p[1] - n.p[1]);
       if (d < bd) { bd = d; best = j; }
     });
     return best;
@@ -441,6 +446,8 @@ const TORS_FLOOR = 0.05;   // deg at 200 N.m
     ['mid wing',          s => { s.wings[0].position = 'mid'; }],
     ['low wing',          s => { s.wings[0].position = 'low'; }],
     ['low cantilever',    s => { s.wings[0].position = 'low'; s.bracing.type = 'cantilever'; }],
+    // G185: the parasol — the wing on a cabane, lift struts to the lower longeron
+    ['parasol',           s => { s.wings[0].position = 'parasol'; s.wings[0].cabaneH = 0.50; }],
     // planform variants: a crank INSERTS a spar station, so these reach 4
     // stations at the default 3 panels and exercise the same fan gap that
     // panels 4-5 do — from a different direction and without the slider.
@@ -473,6 +480,26 @@ const TORS_FLOOR = 0.05;   // deg at 200 N.m
   for (const m of Object.keys(GEN_MATERIALS))
     CFG.push([`${m} cantilever`, wing(s => { s.fuselage.material = m;
                                              s.bracing.type = 'cantilever'; s.wings[0].span = 13; })]);
+  // G185: THE BIPLANE ROWS. A second plane on the low band under a parasol
+  // first plane, N interplane struts and flying + landing wires (the wired
+  // truss); the sesquiplane (a short lower plane, the strut leaning); the
+  // I-strut cantilever (no wires, both planes boxed); and the risk corners
+  // the monoplane rows walk — five stations, 14 m. Both planes are measured
+  // and the WORSE is what the row carries (see the loop).
+  const bip = (f) => (s) => {
+    Object.assign(s.wings[0], { position: 'parasol', cabaneH: 0.50, chord: 1.4, span: 9 });
+    s.wings[1] = Object.assign(JSON.parse(JSON.stringify(s.wings[0])),
+      { position: 'low', cabaneH: null, stagger: 0.35,
+        controls: { aileron: { span: 0.38, chord: 0.22 }, flap: { type: 'none', span: 0.5, chord: 0.2 } } });
+    s.bracing = { type: 'cantilever', interplane: 'N', interplaneAt: 0.62, wires: 'both', cabane: 'N' };
+    if (f) f(s);
+  };
+  CFG.push(['biplane N + wires', bip()]);
+  CFG.push(['sesquiplane', bip(s => { s.wings[1].span = 6.5; s.wings[1].chord = 1.1; })]);
+  CFG.push(['biplane I cantilever', bip(s => { s.bracing.interplane = 'I'; s.bracing.wires = 'none'; })]);
+  CFG.push(['biplane panels 5', bip(s => { s.wings[0].panels = 5; s.wings[1].panels = 5; })]);
+  CFG.push(['biplane 14 m', bip(s => { s.wings[0].span = 14; s.wings[1].span = 14; })]);
+  CFG.push(['biplane flying wires only', bip(s => { s.bracing.wires = 'flying'; })]);
 
   say('GARAGE MATRIX — static structure across the configuration space.');
   say('  torsion deg @200 / @400 N.m antisymmetric tip couple; doubling < ' +
@@ -485,7 +512,15 @@ const TORS_FLOOR = 0.05;   // deg at 200 N.m
       if (fn) fn(sp);
       d = buildGen(sp);
     } catch (e) { rows.push({ lbl, err: e.message }); continue; }
-    const t2 = statTorsion(d, 200), t4 = statTorsion(d, 400), bd = statBend(d, 2000);
+    // G185: a biplane is measured on BOTH planes and carries the worse
+    const nPl = (d.parts.planes || [null]).length;
+    let t2 = null, t4 = null, bd = null;
+    for (let k = 0; k < nPl; k++) {
+      const a2 = statTorsion(d, 200, k), a4 = statTorsion(d, 400, k), ab = statBend(d, 2000, k);
+      if (a2 == null || a4 == null || ab == null) continue;
+      if (t2 == null || a2 > t2) { t2 = a2; t4 = a4; }
+      if (bd == null || ab > bd) bd = ab;
+    }
     const st = stations(d);
     const r = { lbl, t2, t4, bd, panels: d.spec.wings[0].panels,
                 semi: st.length ? d.nodes[st[st.length-1].f].p[2] : NaN,
@@ -546,6 +581,27 @@ const TORS_FLOOR = 0.05;   // deg at 200 N.m
       cut.size >= 4 && Number.isFinite(bdCut) && bdCut > BEND_MAX;
     say(`  negative: ${cut.size} strut lower chords cut -> bend ` +
         `${bdCut == null ? '?' : bdCut.toFixed(1)}% (must exceed ${BEND_MAX}%)`);
+  }
+  // G185: THE WIRES CARRY THE WING. Rebuild the wired biplane, strip its
+  // flying and landing wires, and the bend must rise by 3x or more on the
+  // worse plane (measured 0.23 -> 1.26 % upper, 0.13 -> 1.16 % lower) —
+  // otherwise the wire members are decoration. It does not fold: the
+  // braced spar keeps its box (61_gen_frame's note), so the test is the
+  // SHARE the wires take, not a collapse.
+  {
+    const sp = JSON.parse(JSON.stringify(GEN_DEFAULT));
+    Object.assign(sp.wings[0], { position: 'parasol', cabaneH: 0.50, chord: 1.4, span: 9 });
+    sp.wings[1] = Object.assign(JSON.parse(JSON.stringify(sp.wings[0])),
+      { position: 'low', cabaneH: null, stagger: 0.35 });
+    sp.bracing = { type: 'cantilever', interplane: 'N', interplaneAt: 0.62, wires: 'both', cabane: 'N' };
+    const d = buildGen(sp);
+    const wires = d.beams.filter(b => b.cls === 'wire').length;
+    const d2 = Object.assign({}, d, { beams: d.beams.filter(b => b.cls !== 'wire') });
+    const bd0 = Math.max(statBend(d, 2000, 0) ?? 0, statBend(d, 2000, 1) ?? 0);
+    const bd1 = Math.max(statBend(d2, 2000, 0) ?? 0, statBend(d2, 2000, 1) ?? 0);
+    results['the wires carry the wing (wires cut -> bend x3 or more)'] =
+      wires >= 8 && Number.isFinite(bd1) && bd1 >= 3 * bd0 && bd0 <= BEND_MAX;
+    say(`  negative: ${wires} wires cut -> bend ${bd1.toFixed(2)}% (was ${bd0.toFixed(2)}%, must be 3x or more)`);
   }
 }
 

@@ -128,6 +128,8 @@ const defaults = { lightOn: 1, lightSw: 1,
   li_beaconSink: 0.16,
   // THE WINGTIP NAV, which was five inline literals and no rows at all.
   li_navSpan: 0.02, li_navChord: 0.10, li_navRise: 0.0,
+  // G185: on a biplane, which plane carries the bay and the tip lights
+  li_plane: 0,
   // the reflector inside a lit fitting glows (user: "it feels strange to have
   // this reflector full dark with a lit bulb in it")
   li_reflect: 1 };
@@ -144,6 +146,8 @@ const items = [
     .map(k => ['li_' + k, LIGHTS[k].name, 0, 1, 0.05]),
    { when: P => +P.lightOn }],
   ['the wing bay', [
+    ['li_plane', 'tip lights on which wing', 0, 1, 1, ['first', 'second'],
+     { when: P => +P.lightOn && !!+P.w2On }],
     ['li_bayFrac', 'station (semispan)', 0.10, 0.80, 0.01],
     // THE RANGE HAS TO REACH THE NEXT ROW. The cut snaps to the loft's own
     // spanwise rows, which on this wing are 0.735 m apart — so a slider that
@@ -734,7 +738,11 @@ function sites(scene, group, P) {
     const yMid = m2 ? (sy - slope * sz) / m2 + slope * zMid : yTop;
     return { y: yTop, yMid, slope, zMid, x0, x1, z0, z1, n };
   };
-  const W = window.CAGE_WING, C = window.CAGE_CREW;
+  // G185: on a biplane the tip lights sit on the plane the row chose (the
+  // landing-light bay stays the first plane's — it is cut there)
+  const W0 = window.CAGE_WING, C = window.CAGE_CREW;
+  const liPl = +((window.CAGE_UI && window.CAGE_UI.P || {}).li_plane || 0);
+  const W = (W0 && W0.planes && liPl && W0.planes[liPl]) ? W0.planes[liPl] : W0;
   const wb = W && box(W.group);
   if (wb) {
     // A WING IS NOT A BOX, AND THIS IS WHERE THAT BITES. The first cut took

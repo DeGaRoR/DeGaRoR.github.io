@@ -85,10 +85,11 @@ function genLoadCarried(def) {
 }
 
 // spar stations on the +z wing, front node paired with its nearest rear node
-function genLoadStations(def) {
+function genLoadStations(def, plane) {
   const wf = [], wr = [];
+  plane = plane || 0;
   def.nodes.forEach((n, i) => {
-    if (n.p[2] <= 0) return;
+    if (n.p[2] <= 0 || (n.plane || 0) !== plane) return;   // G185: one plane
     if (n.tag === 'WF') wf.push(i);
     if (n.tag === 'WR') wr.push(i);
   });
@@ -233,11 +234,26 @@ function makeLoadTest(sim, def, cfg) {
   }
   begin();
 
+  // THE TRESTLES HOLD EVERY SUBSTEP (G185). The clamp used to reset the
+  // pinned nodes once per FRAME: for a whole frame's substeps a clamped node
+  // moved freely under the stiff members hung on it, then snapped back —
+  // an impulse at the frame rate that a stiff member from a pinned node to
+  // a light free one turns into a divergence. G179 met it as "the rig's
+  // per-frame trestle clamp resonating with a fuselage row that is already
+  // stiff" and worked around it with the bearer's material; a parasol's
+  // cabane and a biplane's box on a wood, alloy or carbon airframe (member
+  // strains 0.11-0.20 at 1 g, tips -13 % to +35 %, tubeFabric alone sane)
+  // made it a defect. A trestle does not let go between substeps: the
+  // clamp now runs inside the frame, after every substep.
+  const SUB = (def.params && def.params.substeps) || 24;
+  function stepClamped(dt) {
+    for (let k = 0; k < SUB; k++) { sim.step(dt / SUB, 1); clamp(); }
+  }
   function step(dt) {
     if (state.done || !ok) return state;
     t += dt;
     if (state.phase === 'settle') {
-      sim.step(dt); clamp(); relax();
+      stepClamped(dt); relax();
       if (t >= SETTLE) {
         // the settled shape under the wing's OWN weight is the jig datum, which
         // is what the real test measures deflection from
@@ -257,7 +273,7 @@ function makeLoadTest(sim, def, cfg) {
     // ...and what the wing carries pulls the other way (G179, see `carried`)
     for (let k = 0; k < carried.length; k++)
       sim.impulse(carried[k], 0, n * def.nodes[carried[k]].m * 9.81 * dt, 0);
-    sim.step(dt); clamp(); relax();
+    stepClamped(dt); relax();
 
     // WHICH member, not just which class. The allowable is per class, so the
     // percentage could always be worked out — but "78% of yield" does not tell

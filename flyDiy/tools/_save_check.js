@@ -90,7 +90,7 @@ function loadPanel() {
     '_cage_gear.js', '_fit_site.js', '_fit_gen.js',
     '_eng_gen.js', '_eng_mesh.js', '_eng_page.js',
     '_cowl_gen.js', '_cowl_rows.js', '_cage_cowl.js', '_cage_eng.js',
-    '_strut_gen.js', '_cage_wing.js', '_fin_gen.js', '_cage_fin.js',
+    '_strut_gen.js', '_cage_wing.js', '_cage_brace.js', '_fin_gen.js', '_cage_fin.js',
     '_cage_stab.js', '_cage_access.js', '_cage_light.js'])
     require(path.join(__dirname, f));
   return global.window.CAGE_PAGE;
@@ -112,6 +112,8 @@ const EDITS = {
   cw_cowlLen: 0.613, cw_apW: 0.331, cw_apMode: 0,   // cowl  <- the reported one
   eng_mountGap: 1.37, eng_exDrop: 1.81,       // engine
   wgSpan: 9.43, wgChord: 1.553,               // wing
+  w2On: 1, w2Span: 8.7, w2Stagger: 0.21,      // the second plane (G185)
+  bpInterAt: 0.55, li_plane: 1,               // its truss, its lamp bay
   s1Z: 1.913, s1Drop: 0.517,                  // gear
   finTipY: -0.301,                            // fin
   stTipZ: -0.183,                             // stab

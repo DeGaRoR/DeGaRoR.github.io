@@ -604,6 +604,23 @@ const AERO_SEC = {
   // worked — the section adds the override on top).
   strut:    { parent: 'body', fin: 'trim',      label: 'the lift struts',
               layer: 'wing' },
+  // G185: the truss follows the lift struts (paint, the fuselage's colour)
+  cabane:   { parent: 'strut', fin: 'trim',     label: 'the cabane struts',
+              layer: 'brace' },
+  interplane: { parent: 'strut', fin: 'trim',   label: 'the interplane struts',
+              layer: 'brace' },
+  braceWire: { parent: null,   fin: 'steelTube', label: 'the bracing wires',
+              layer: 'brace' },
+  // the second plane follows the first by default; painting it re-paints
+  // its own tips, ailerons and flaps and nothing of the first
+  wingSkin2: { parent: 'wingSkin',  role: 'skin', label: 'the second wing',
+              layer: 'wing2' },
+  wingTip2:  { parent: 'wingSkin2', role: 'skin', label: 'the second wing tips',
+              layer: 'wing2' },
+  wingAil2:  { parent: 'wingSkin2', role: 'skin', label: 'the second ailerons',
+              layer: 'wing2' },
+  wingFlap2: { parent: 'wingSkin2', role: 'skin', label: 'the second flaps',
+              layer: 'wing2' },
   spat:     { parent: 'body', fin: 'trim',      label: 'the wheel fairings',
               layer: 'gear' },
   gearLeg:  { parent: null,   fin: 'steelTube', label: 'the gear legs',
@@ -2281,14 +2298,14 @@ const AERO_ALBEDO_FS = `
   // (mix toward 0xdfe3e8 at the very edge). Roughness alone reads as a
   // reflection change; the pale band is what makes it look like bare metal
   // ahead of painted fabric.
-  #if AEROSKIN_SURF == 1
-    if (uG4.z > 0.0 && uG5.w > 0.5)
-      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.86, 0.88, 0.90),
   // ...AND ONLY ON AN AEROPLANE THAT HAS FLOWN (G187, the user: "the leading
   // edge fading should only be there for weathered aircraft, not for factory
   // fresh"). The wash is paint worn off by rain and bugs, so it rides the
   // condition dial: nothing at factory fresh, full by 'flown' (0.35). The
   // roughness polish above stays — a smooth D-skin is how it is built.
+  #if AEROSKIN_SURF == 1
+    if (uG4.z > 0.0 && uG5.w > 0.5)
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.86, 0.88, 0.90),
         (1.0 - smoothstep(0.0, uG4.z, max(vSurf.y * uFieldM, 0.0))) * 0.30
         * clamp(uWear.x * uWearK / 0.35, 0.0, 1.0));
   #endif

@@ -235,6 +235,10 @@ const MANIFEST = {
     '_eng_gen.js', '_eng_mesh.js', '_eng_page.js',
     '_cowl_gen.js', '_cowl_rows.js', '_cage_cowl.js', '_cage_eng.js',
     '_strut_gen.js', '_cage_wing.js',
+    // THE BRACE LAYER (G185): the cabane, interplane struts and wires — reads
+    // the wing layer's def and ray, so after the wing; changes nothing the
+    // gear reads, so before it.
+    '_cage_brace.js',
     // THE GEAR LAYER BUILDS AFTER THE WING (G138): the low-wing rule roots
     // a leg on the wing's built underside (CAGE_WING.underAt), and PAGE.post
     // runs in load order — earlier, it would read the previous build's wing,

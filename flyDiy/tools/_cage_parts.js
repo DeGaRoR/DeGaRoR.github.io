@@ -177,7 +177,7 @@ const CAGE_PARTS = [
     groups: [
       ['construction', ['intCons']],
       ['configuration', ['boomStyle', 'mirror', 'canopy']],
-      ['wing', ['wgPos', 'wgBrace']],
+      ['wing', ['wgPos', 'wgBrace', 'w2On']],
       ['what it has', ['wingOn', 'gearOn', 'crewOn']],
     ] },
 
@@ -450,7 +450,7 @@ const CAGE_PARTS = [
   { key: 'wingPanel', name: 'Wing panels', parent: 'wings', layer: 'wing',
     when: P => +P.wingOn,
     place: { type: ['wgTip', 'wgCentre', 'wgCons'], count: 'wgPanels',
-             fore: 'wgDx', up: 'wgDy', len: 'wgChord', wide: 'wgSpan',
+             fore: 'wgDx', up: ['wgDy', 'wgParaH'], len: 'wgChord', wide: 'wgSpan',
              at: 'on the cabin carry-through' },
     // LAYER sections (AEROSKIN's AERO_SEC), not cage mesh names: the wing's
     // own livery rows, following the fuselage until overridden
@@ -463,7 +463,7 @@ const CAGE_PARTS = [
                    'wgWashout']],
       ['aerofoil', ['wgCamber', 'wgThick']],
       ['structure', ['wgCentre', 'wgPanels', 'wgCons']],
-      ['placement', ['wgDx', 'wgDy']],
+      ['placement', ['wgDx', 'wgDy', 'wgParaH']],
     ] },
 
   { key: 'struts', name: 'Lift struts', parent: 'wings', layer: 'wing',
@@ -486,7 +486,67 @@ const CAGE_PARTS = [
     place: { type: 'wgFlapType', at: 'along the trailing edge' },
     groups: [
       ['flaps', ['wgFlapType', 'wgFlapSpan', 'wgFlapChord']],
-      ['ailerons', ['wgAilSpan', 'wgAilChord']],
+      ['ailerons', ['wgAilOn', 'wgAilSpan', 'wgAilChord']],
+    ] },
+
+  // G185: THE CABANE — the struts a parasol wing (and a biplane's upper
+  // plane) stands on. Its members are the frame's own root ties, drawn; the
+  // brace layer dresses them with the lift strut's plate and clevis. The
+  // switch that makes it exist is the wing position (design's), so no gate.
+  { key: 'cabane', name: 'Cabane struts', parent: 'wings', layer: 'brace',
+    when: P => +P.wingOn && (Math.round(P.wgPos || 0) === 3 || !!+P.w2On),
+    sections: ['cabane'],
+    place: { type: 'bpCabane', fore: 'bpStrutZ', out: 'bpStrutX',
+             at: 'the foot, on the deck' },
+    groups: [
+      ['cabane', ['bpCabane']],
+      ['foot', ['bpStrutZ', 'bpStrutX']],
+    ] },
+
+  // G185: THE SECOND PLANE — the first's rows, re-prefixed (the wing layer
+  // generates them from the same table), with its own position band,
+  // cabane height, stagger and nudge as its trunk. Its switch is design's.
+  { key: 'wingPanel2', name: 'Second wing panels', parent: 'wings', layer: 'wing2',
+    when: P => +P.wingOn && !!+P.w2On,
+    place: { type: ['w2Pos', 'w2Tip', 'w2Centre', 'w2Cons'], count: 'w2Panels',
+             fore: 'w2Stagger', up: ['w2Dy', 'w2ParaH'], len: 'w2Chord', wide: 'w2Span',
+             at: 'off the first wing’s root spars' },
+    sections: ['wingSkin2', 'wingTip2'],
+    groups: [
+      ['planform', ['w2Span', 'w2Chord', 'w2ChordTip', 'w2Tip',
+                    'w2CrankAt', 'w2CrankChord', 'w2CrankX', 'w2TipX']],
+      ['rigging', ['w2Dihedral', 'w2DihedralOut', 'w2Incidence', 'w2Washout']],
+      ['aerofoil', ['w2Camber', 'w2Thick']],
+      ['structure', ['w2Centre', 'w2Panels', 'w2Cons']],
+      ['placement', ['w2Pos', 'w2Stagger', 'w2Dy', 'w2ParaH']],
+    ] },
+
+  { key: 'wingCtl2', name: 'Second wing surfaces', parent: 'wings', layer: 'wing2',
+    when: P => +P.wingOn && !!+P.w2On,
+    sections: ['wingAil2', 'wingFlap2'],
+    place: { type: 'w2FlapType', at: 'along the second wing’s trailing edge' },
+    groups: [
+      ['flaps', ['w2FlapType', 'w2FlapSpan', 'w2FlapChord']],
+      ['ailerons', ['w2AilOn', 'w2AilSpan', 'w2AilChord']],
+    ] },
+
+  // the truss between the planes: the interplane struts at their station,
+  // and the flying/landing wires — the frame's own members, drawn
+  { key: 'interplane', name: 'Interplane struts', parent: 'wings', layer: 'brace',
+    when: P => +P.wingOn && !!+P.w2On,
+    sections: ['interplane'],
+    place: { type: 'bpInter', out: 'bpInterAt', fore: 'bpInterZ',
+             at: 'between the two planes, on the spars' },
+    groups: [
+      ['struts', ['bpInter', 'bpInterAt', 'bpInterZ']],
+    ] },
+
+  { key: 'wires', name: 'Bracing wires', parent: 'wings', layer: 'brace',
+    when: P => +P.wingOn && !!+P.w2On,
+    sections: ['braceWire'],
+    place: { type: 'bpWires', at: 'root to strut, both ways' },
+    groups: [
+      ['wires', ['bpWires', 'bpWireD']],
     ] },
 
   // =========================================================================
@@ -853,7 +913,7 @@ const CAGE_PARTS = [
       ['inside (dimmers)', ['li_flood', 'li_panel', 'li_pedal', 'li_pax']],
       // the wing bay is the lights' own geometry: where it is cut, how big it
       // is, how deep the box behind it goes, and how big the lamp in it is
-      ['the wing bay', ['li_bayFrac', 'li_bayHalf', 'li_bayChord',
+      ['the wing bay', ['li_plane', 'li_bayFrac', 'li_bayHalf', 'li_bayChord',
                         'li_bayDepth', 'li_lampSize']],
       ['lamp fairings', ['li_podLen', 'li_podGirth', 'li_reflect']],
       ['the navigation lights', ['li_navSpan', 'li_navChord', 'li_navRise']],

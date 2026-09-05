@@ -327,14 +327,6 @@ is already sitting hardcoded in the physics hot path.*
    and edit a strip. Designed against §9.5's two constraints: it may only ever
    write modifier records (an editor that MUTATES terrain breaks GATE WORLD
    silently), and physics and renderer must agree in the same frame.
-4. **The base aerodrome, rebuilt through the new layer** [M]. Its own proof,
-   and it retires the last hand-written numbers.
-5. **Sites become destinations** [S]. The `AIRFIELD_SITES` null meadow slots
-   (G128) are the granting hook.
-
-**THE HONEST COST, stated up front:** airports authored on today's 24 km world
-DO NOT SURVIVE the island — the coordinates die at Phase 7's W5. The FORMAT,
-the editor and the practice all survive. Build practice airports on the
 3b. **The pattern editor** [M]. G193 (2026-09-05) declared the GROUND PATTERN
    per aerodrome — the taxi graph with its filleted corners and hold points,
    the two approaches with their touchdown targets and slopes — as data
@@ -344,6 +336,14 @@ the editor and the practice all survive. Build practice airports on the
    node, add a hold, set a slope, save it into the site — the same modifier
    format as 3, written against the same validator, so a pattern a player
    draws is refused the moment it crosses the fence.
+4. **The base aerodrome, rebuilt through the new layer** [M]. Its own proof,
+   and it retires the last hand-written numbers.
+5. **Sites become destinations** [S]. The `AIRFIELD_SITES` null meadow slots
+   (G128) are the granting hook.
+
+**THE HONEST COST, stated up front:** airports authored on today's 24 km world
+DO NOT SURVIVE the island — the coordinates die at Phase 7's W5. The FORMAT,
+the editor and the practice all survive. Build practice airports on the
 practice world knowingly, or wait for Phase 7 and lose the play in between.
 My recommendation is to build them now: the editor is the durable artefact.
 
@@ -427,9 +427,17 @@ aeroplanes to risk.*
    and its cowl fixed on the way. STILL OWED:
    a side aperture pair for the stacks, the `cgFwd` half-session, the `util`
    class, a straight-through style. Unlocks the Caravan / Kodiak-alikes.
-8. **Biplane** [L]. The big one: a second wing plane, cabane and interplane
-   struts, fittings for the lower wing (G85 names the gap — `wings` is an
-   array and only the first plane carries fittings), and the join.
+8. **Biplane** [L] — **LANDED as G185** (2026-09-05): `wings[1]` with the
+   full key set + stagger, parasol/cabane, the interplane truss with
+   tension-only wires, one polar per plane and the horseshoe-vortex kernel
+   for the mutual interference (Munk exact, Prandtl σ, Diehl), computed tail
+   downwash on biplanes, the second plane drawn, joined, flown, lit, tanked
+   and fitted; five archetypes. NEXT LINE OF THIS ITEM: flip the monoplanes
+   to the kernel's downwash (measured anchors in HANDOVER G185: stock 0.223,
+   cantilever 0.229, mid 0.233 against the 0.40 constant) and re-read every
+   anchor; the braced-spar row; the second plane's lamp bay. Was: the big
+   one — a second wing plane, cabane and interplane struts, fittings for the
+   lower wing (G85 named the gap), and the join.
 9. **STOL surfaces** [L]. Slats and tips as GEOMETRY on the stations P2
    reserved. **The PHYSICS stays in Phase 8** by the standing ruling: flaps
    are real and measured (GATE FLAPS), and a slat without measured physics is
@@ -636,7 +644,7 @@ this doubles as "what do I get, and when".
 | Wing-mounted engines / multiengine — **LANDED G174** (a wing pair; no engine-out yet) | 6 | 5 | L |
 | Pushers — **LANDED G174** (aft bulkhead + over the wing) | 6 | 6 | M-L |
 | Turboprops / small turbines | 6 | 7 | L |
-| Biplane | 6 | 8 | L |
+| Biplane — **LANDED G185** (2026-09-05; the monoplane downwash flip is its next line) | 6 | 8 | L |
 | STOL wing, slats/tips (geometry) | 6 | 9 | L |
 | Time of day synced with the hangar | 7 | 6 | M |
 | Manual controls, joystick, TrackIR | 8 | 1 | L |

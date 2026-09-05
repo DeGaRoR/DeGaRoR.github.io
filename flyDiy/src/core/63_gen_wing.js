@@ -27,7 +27,10 @@
 // z-fights at any camera distance, small enough that the wall never reads as a
 // thickness: 18 mm on an aeroplane whose fuselage is a metre across.
 const INTR_T = 0.018;
-const GEN_TUBE_R = { fus: 0.016, wing: 0.020, gear: 0.024 };
+const GEN_TUBE_R = { fus: 0.016, wing: 0.020, gear: 0.024,
+                     // G185: the truss classes — struts as the lift strut's
+                     // streamline section, a wire as a 5 mm cable
+                     cabane: 0.020, interplane: 0.020, wire: 0.0025 };
 // FUSELAGE SECTION RESOLUTION. 40, not 20, because the cabin opening's sill is
 // a RING INDEX — `round(sill * GEN_RADIAL / 2)` — so this constant is also the
 // number of sill positions the slider can reach and how finely the cut can
@@ -424,7 +427,7 @@ function genBeamInto(M, b, N, B) {
     const r = b.vis === 'wire' ? 0.0045 : GEN_TUBE_R[b.cls] * (b.ext ? 1.15 : 1);
     // Only a wing's external member is a lift strut. Every `vis === 'wire'` beam
     // 61_gen_frame.js emits is `cls: 'gear'`, so no wire reaches this branch.
-    const lift = b.ext && b.cls === 'wing';
+    const lift = b.ext && (b.cls === 'wing' || b.cls === 'cabane' || b.cls === 'interplane');
     if (lift) {
       // chord fore-and-aft: body x, projected perpendicular to the strut axis
       const d = ax[0];
@@ -494,22 +497,33 @@ function genWingInto(def, out) {
   const S = def.spec, P = def.parts, N = def.nodes;
   const B = out.B, skin = out.skin, pitot = out.pitot, canopy = out.canopy;
   const CTRL_MESH = out.ctrl;
+  // G185: WHICH PLANE. The loft reads its plane's own spec (W), its own spar
+  // record (PP: stations, roots, ribs, chord law) and its own controls; a
+  // monoplane's plane 0 reads exactly what it always read, so its emission
+  // is byte-identical (GATE WINGSPLIT). `out.plane` picks the plane; the
+  // second plane's control-surface groups carry a '2'.
+  const kPl = out.plane | 0;
+  const W = S.wings[kPl] || S.wings[0];
+  const PP = (P.planes && P.planes[kPl]) || P;
+  const semiK = kPl === 0 ? S.geom.semi : (PP.semi != null ? PP.semi : 0.5 * W.span);
+  const CTL = kPl === 0 ? S.controls
+            : (W.controls || { aileron: { span: 0, chord: 0.22 }, flap: { type: 'none', span: 0.5, chord: 0.2 } });
+  const GSFX = kPl ? String(kPl + 1) : '';
   // ---- 3. wing --------------------------------------------------------
   // A section at every spar station, lofted along the span. Chordwise position
   // is affine on the two spar nodes (the spars ARE the chord frame, so the
   // weights are exact and extrapolate past LE and TE); the thickness offset is
   // a rest-frame constant, which is what `base` carries.
-  const af = genAirfoil(S.wing.naca);
-  const sparF = P.sparFront, sparR = P.sparRear;
+  const af = genAirfoil(W.naca);
+  const sparF = PP.sparFront, sparR = PP.sparRear;
   const kOf = xc => (xc - sparF) / (sparR - sparF);
   // Hinge lines follow the chords the player actually set, so a 30% aileron
   // LOOKS like a 30% aileron. The flap band is inboard, the aileron outboard,
   // and clampSpec has already guaranteed the gap between them.
-  const CTL = S.controls;
-  const aStart = (1 - CTL.aileron.span) * S.geom.semi;
+  const aStart = (1 - CTL.aileron.span) * semiK;
   const AIL_HINGE = 1 - CTL.aileron.chord;
   const FLAP_ON = GEN_FLAPS[CTL.flap.type].dCl > 0;
-  const fEnd = FLAP_ON ? CTL.flap.span * S.geom.semi : -1;
+  const fEnd = FLAP_ON ? CTL.flap.span * semiK : -1;
   const FLAP_HINGE = 1 - CTL.flap.chord;
   // sidAt: which control surface this station belongs to, or 0. Outboard of
   // aStart is aileron, inboard of fEnd is flap; the hinge fraction differs
@@ -549,6 +563,8 @@ function genWingInto(def, out) {
   const wingSection = (nF, nR, chord) =>
     wingSectionAt(N[nF].p, N[nR].p, [[nF, 1]], [[nR, 1]], chord, af);
 
+  // (plane 0's only — a biplane carries one pitot)
+  if (kPl === 0) {
   // ---- 3a. PITOT MAST, on the wing's lower skin ------------------------
   // It hangs UNDER the wing, so its root has to be a point on the lower
   // SURFACE. It used to be a hardcoded 0.10 m below a front-spar NODE, and a
@@ -564,15 +580,15 @@ function genWingInto(def, out) {
   // the node weights, so the mast is attached by construction and flexes with
   // the wing instead of being fitted to it.
   {
-    const i = Math.min(1, P.wf.L.F.length - 1);
-    const nF = P.wf.L.F[i], nR = P.wf.L.R[i];
+    const i = Math.min(1, PP.wf.L.F.length - 1);
+    const nF = PP.wf.L.F[i], nR = PP.wf.L.R[i];
     // chordwise station of the mast: well aft of the leading edge, so it is
     // clear of the LE radius and sits on a part of the section that is
     // genuinely flat-ish whatever the aerofoil
     const XC = 0.35;
-    const chord = P.chordAt(Math.abs(N[nF].p[2]));
+    const chord = PP.chordAt(Math.abs(N[nF].p[2]));
     const root = wingSectionAt(N[nF].p, N[nR].p, [[nF, 1]], [[nR, 1]], chord,
-                               [genAfEval(S.wing.naca).lo(XC)])[0];
+                               [genAfEval(W.naca).lo(XC)])[0];
     // the mast drops a fixed distance below the skin, and the probe runs
     // forward from its foot into clean air ahead of the leading edge
     const DROP = 0.22, REACH = 0.24;
@@ -581,13 +597,14 @@ function genWingInto(def, out) {
     genTubeInto(pitot, foot, [foot[0] - REACH, foot[1], foot[2]], 0.011, 8,
                 root.infl, B);
   }
+  }
   // the loft pair is module-level now (G67.1) so the wing can take them with
   // it and the empennage can go on using them; `B` is the only thing they
   // closed over, so it becomes the last argument and nothing else changes.
   const emitLoft = (rows, mesh, vOf, flip, close) =>
     genEmitLoft(rows, mesh, vOf, flip, close, B);
   const capLoft = genCapLoft;
-  const W = S.wing, TIP = GEN_TIPS[W.tip] || GEN_TIPS.rounded;
+  const TIP = GEN_TIPS[W.tip] || GEN_TIPS.rounded;
   // ---- 3b. the wing, and its control surfaces as SEPARATE MESHES ----------
   // The fixed skin is lofted over [0..hinge] and each surface over [hinge..1].
   // They are different groups, so a surface is a rigid body with a pivot and an
@@ -603,14 +620,14 @@ function genWingInto(def, out) {
   // ruled on the same spar frames and the node weights are built the
   // same way, so nothing physical moves.
   const NAF = GEN_AF, NSURF = 7;
-  for (const [side, fw] of [[1, P.wf.R], [-1, P.wf.L]]) {
+  for (const [side, fw] of [[1, PP.wf.R], [-1, PP.wf.L]]) {
     const sd = side > 0 ? 'R' : 'L';
-    const zAll = [P.zRoot, ...P.zs];
+    const zAll = [PP.zRoot, ...PP.zs];
     const zAilEnd = W.tipR > 1e-6 ? W.tipZ : zAll[zAll.length - 1];
     // which surface owns a station, and where its hinge is
     const bandAt = z => {
       if (z > aStart - 1e-6 && z < zAilEnd + 1e-6) return { n: 'ail', h: AIL_HINGE };
-      if (FLAP_ON && z < fEnd + 1e-6 && z > P.zRoot - 1e-6) return { n: 'flap', h: FLAP_HINGE };
+      if (FLAP_ON && z < fEnd + 1e-6 && z > PP.zRoot - 1e-6) return { n: 'flap', h: FLAP_HINGE };
       return null;
     };
     // spar frame at an arbitrary z, and a section over any chord range
@@ -624,7 +641,7 @@ function genWingInto(def, out) {
                                 a3[2] + (b3[2]-a3[2])*t];
       return { pF: lerp(N[F0].p, N[F1].p), pR: lerp(N[R0].p, N[R1].p),
                wF: [[F0, 1-t], [F1, t]], wR: [[R0, 1-t], [R1, t]],
-               chord: P.chordAt(z) };
+               chord: PP.chordAt(z) };
     };
     const secAt = (z, a, b, n) => {
       const f = frameAt(z);
@@ -708,7 +725,7 @@ function genWingInto(def, out) {
     // control surfaces became their own lofts each of them grew a stripe of its
     // own at its inboard end. Span fraction makes the paint continuous across
     // the cut, which is the point of cutting it there.
-    const spanV = z => (z - P.zRoot) / Math.max(1e-6, S.geom.semi - P.zRoot);
+    const spanV = z => (z - PP.zRoot) / Math.max(1e-6, semiK - PP.zRoot);
     const ids = emitLoft(fixRows, skin, r => spanV(fixRows[r].z0), flip, true);
     capLoft([ids[0], ids[ids.length-1]], skin, flip);
     // ---- each surface: its own group, its own loft ----
@@ -717,8 +734,8 @@ function genWingInto(def, out) {
       // wing's alpha). Signs re-measured after the cut became real: while the
       // "surface" was still a full-chord copy its centroid sat FORWARD of the
       // hinge, so every sign came out inverted and calibrated to the wrong body.
-      ['ail',  'ail' + sd,  'da', -1, 1.0, null, 0],
-      ['flap', 'flap' + sd, 'flap', -side, 0.70, null, 0],
+      ['ail',  'ail' + sd + GSFX,  'da', -1, 1.0, null, 0],
+      ['flap', 'flap' + sd + GSFX, 'flap', -side, 0.70, null, 0],
     ]) {
       const zz = zs2.filter(z => { const b = bandAt(z); return b && b.n === nm; });
       if (zz.length < 2) continue;
@@ -751,18 +768,25 @@ function genWingInto(def, out) {
   //   open   only the UPPER surface, so the wing's own top skin is the roof and
   //          you look up into it, which is what a Cub's centre section does
   {
-    const CTR = (S.wing.centre === 'glass' || S.wing.centre === 'open')
-      ? S.wing.centre : 'solid';
-    let rows = [
-      wingSection(P.wf.L.F[0], P.wf.L.R[0], S.wing.chord, 0),
-      wingSection(P.wf.R.F[0], P.wf.R.R[0], S.wing.chord, 0),
+    const CTR = (W.centre === 'glass' || W.centre === 'open'
+                 || W.centre === 'cutout') ? W.centre : 'solid';
+    // G185: 'cutout' — the centre section's trailing edge cut back to 62 %
+    // chord over the cockpit, as a CLOSED section so the aft wall is the
+    // flat rib face the hinge walls already use (emitLoft's `close`)
+    const cutPts = CTR === 'cutout' ? genAfSeg(W.naca, 0, 0.62, GEN_AF) : null;
+    let rows = cutPts
+      ? [ wingSectionAt(N[PP.wf.L.F[0]].p, N[PP.wf.L.R[0]].p, [[PP.wf.L.F[0], 1]], [[PP.wf.L.R[0], 1]], W.chord, cutPts),
+          wingSectionAt(N[PP.wf.R.F[0]].p, N[PP.wf.R.R[0]].p, [[PP.wf.R.F[0], 1]], [[PP.wf.R.R[0], 1]], W.chord, cutPts) ]
+      : [
+      wingSection(PP.wf.L.F[0], PP.wf.L.R[0], W.chord, 0),
+      wingSection(PP.wf.R.F[0], PP.wf.R.R[0], W.chord, 0),
     ];
     // the carry-through IS the root: both rows sit at span fraction 0. Row
     // index put the tip band on one side of it and the wing walk on the other.
     // the aerofoil contour runs TE -> upper -> LE -> lower -> TE, so its first
     // half IS the upper surface and the cut needs no new sampling
     if (CTR === 'open') rows = rows.map(r => r.slice(0, Math.ceil(r.length / 2)));
-    emitLoft(rows, CTR === 'glass' ? canopy : skin, () => 0.02);
+    emitLoft(rows, CTR === 'glass' ? canopy : skin, () => 0.02, false, !!cutPts);
   }
 
   return { aStart, fEnd, FLAP_ON, FLAP_HINGE, AIL_HINGE, sparF };
@@ -789,20 +813,34 @@ function genWing(def) {
   const FR = genRestFrame(def);
   const B = FR.to;
   const skin = genMesh(), canopy = genMesh(), pitot = genMesh(),
-        liftstrut = genMesh();
+        liftstrut = genMesh(), cabane = genMesh(), interplane = genMesh(),
+        wire = genMesh();
   const CTRL_MESH = [];
-  genWingInto(def, { B, skin, pitot, canopy, ctrl: CTRL_MESH });
+  genWingInto(def, { B, skin, pitot, canopy, ctrl: CTRL_MESH, plane: 0 });
+  // G185: THE SECOND PLANE, into its own meshes — plane 0's groups are the
+  // groups they always were, so a monoplane's payload is byte-identical
+  const skin2 = genMesh(), canopy2 = genMesh();
+  if (S.wings.length > 1 && def.parts.planes && def.parts.planes[1])
+    genWingInto(def, { B, skin: skin2, pitot: genMesh(), canopy: canopy2, ctrl: CTRL_MESH, plane: 1 });
   // AN EXTERNAL WING BEAM IS A LIFT STRUT, and that is genSkin's own test
   // (`b.cls === 'wing' ? liftstrut : strut`, and only when `b.ext`). A leg is
   // never a wing beam and every wire 61_gen_frame emits is gear-class, so the
   // two branches this skips cannot reach here.
-  for (const b of def.beams)
+  for (const b of def.beams) {
     if (b.ext && b.cls === 'wing') genBeamInto(liftstrut, b, N, B);
+    // G185: the truss, by class — each its own group so the editor and the
+    // join can dress, paint and follow them separately
+    else if (b.ext && b.cls === 'cabane') genBeamInto(cabane, b, N, B);
+    else if (b.ext && b.cls === 'interplane') genBeamInto(interplane, b, N, B);
+    else if (b.ext && b.cls === 'wire') genBeamInto(wire, b, N, B);
+  }
 
   const groups = {};
   const put = (nm, M) => { const g = M.done(); if (g.nv) groups[nm] = g; };
   put('skin', skin); put('canopy', canopy);
   put('pitot', pitot); put('liftstrut', liftstrut);
+  put('cabane', cabane); put('interplane', interplane); put('wire', wire);
+  put('skin2', skin2); put('canopy2', canopy2);
   const moving = [];
   for (const c of CTRL_MESH) {
     put(c.group, c.mesh);
@@ -814,14 +852,23 @@ function genWing(def) {
   return {
     v: 5, generated: true, wingOnly: true,
     linTex: ['bump', 'mr'],
-    cover: ['skin', 'canopy'].concat(moving.map(m => m.group)),
+    cover: ['skin', 'canopy'].concat(groups.skin2 ? ['skin2', 'canopy2'] : [], moving.map(m => m.group)),
     groups, moving,
     mats: {
       skin: genPaintRow(S),
       ailR: genPaintRow(S), ailL: genPaintRow(S),
       flapR: genPaintRow(S), flapL: genPaintRow(S),
       canopy:    { color: 0xa9c6d6, opacity: 0.32, rough: 0.04, metal: 0.0 },
+      // G185: the second plane's rows (same paint; the editor's livery
+      // sections override per part)
+      skin2: genPaintRow(S),
+      ailR2: genPaintRow(S), ailL2: genPaintRow(S),
+      flapR2: genPaintRow(S), flapL2: genPaintRow(S),
+      canopy2:   { color: 0xa9c6d6, opacity: 0.32, rough: 0.04, metal: 0.0 },
       liftstrut: { color: 0xe6e2d8, rough: 0.30, metal: 0.10 },
+      cabane:    { color: 0xe6e2d8, rough: 0.30, metal: 0.10 },
+      interplane:{ color: 0xe6e2d8, rough: 0.30, metal: 0.10 },
+      wire:      { color: 0x9aa0a6, rough: 0.35, metal: 0.80 },
       pitot:     { color: 0x7d8792, rough: 0.42, metal: 0.45 },
     },
     rest: (() => {

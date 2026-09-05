@@ -20,6 +20,7 @@ function genProbeAt(sim, V, a) {
   const vel = [0, 0, 0];
   for (let k = 0; k < 3; k++) vel[k] = -V * (Math.cos(a) * xA[k] + Math.sin(a) * yU[k]);
   const r = sim.probe(vel);
+  r.tailEps = sim.out.tailEps || 0;          // G185.5: the measured downwash
   // forward unit vector: drag is the aero force opposing it
   r.drag = -(r.Fx * -Math.cos(a) * xA[0] + r.Fy * -Math.cos(a) * xA[1] + r.Fz * -Math.cos(a) * xA[2])
            - (r.Fx * -Math.sin(a) * yU[0] + r.Fy * -Math.sin(a) * yU[1] + r.Fz * -Math.sin(a) * yU[2]);
@@ -41,7 +42,9 @@ function genYawStiff(sim, def, V) {
     [-V * Math.cos(b), 0, -V * Math.sin(b)]).yawLeft;
   const dN = (yaw(bet) - yaw(-bet)) / (2 * bet);
   const g = def.params.gen || {};
-  const Sw = g.Sw || 10, b = Math.sqrt(Sw * (g.AR || 6));
+  // G185: the span itself when the build states it; the AR back-derivation
+  // for a def that does not
+  const Sw = g.Sw || 10, b = g.span || Math.sqrt(Sw * (g.AR || 6));
   // minus: with this velocity construction the whole fleet measures a
   // NEGATIVE slope when stable (verified by the G115 yaw probe — every
   // fiche and the stock build), so the sign is flipped once, here, and
@@ -102,7 +105,9 @@ function genTrim(def) {
   const sim = makeSim(def, null);
   sim.reset(0);
   const W = sim.totalM * 9.81;
-  const aMax = 0.85 * def.params.polarWing.aStall;
+  // G185: the lowest of the planes' stall angles bounds the trim search
+  const aMax = 0.85 * (def.params.polarWings || [def.params.polarWing])
+    .reduce((m, p) => Math.min(m, p.aStall), Infinity);
   // through the SIM, so the sheet and the aeroplane cannot disagree about how
   // much thrust there is in this air (G72). Identical at the datum.
   const Tav = v => sim.thrustAt(v, 1);
@@ -167,6 +172,12 @@ function genTrim(def) {
   def.params.ap.thrCruise = Math.min(0.95, Math.max(0.15, fin.r.drag / Tavail));
   def.params.gen.alphaCruise = fin.a;
   def.params.gen.LD = fin.r.Fy / Math.max(1e-6, fin.r.drag);
+  // G185: how the lift is shared between the planes at cruise (a monoplane's
+  // is [1]); the plaque prints it and GATE BIPLANE reads it
+  if (fin.r.planeFy && fin.r.planeFy.length) {
+    const tot = fin.r.planeFy.reduce((s, v) => s + (v || 0), 0) || 1;
+    def.params.gen.liftSplit = fin.r.planeFy.map(v => (v || 0) / tot);
+  }
 
   // ---- THE APPROACH, MEASURED --------------------------------------------
   // The glideslope, the approach throttle and the pitch floor used to be the
@@ -384,6 +395,9 @@ function genShakedown(def, opts) {
   const dL = (r1.Fy - r0.Fy) / 0.02;
   // neutral point: how far aft the CG could move before dM/dalpha reaches zero
   const npShift = -dM / Math.max(1e-6, dL);
+  // G185.5: d(epsilon)/d(alpha) at the tail as the kernel measures it —
+  // applied on a biplane, a readout beside the 0.40 constant on a monoplane
+  const dEpsDa = (r1.tailEps - r0.tailEps) / 0.02;
   const cg = r0.cg;
   // ONE REFERENCE AREA ON THE SHEET. This summed the strips, which is all a
   // hand-written fiche has — but a generated aeroplane also carries `gen.Sw`,
@@ -489,7 +503,12 @@ function genShakedown(def, opts) {
     LDbest, VbestLD,                          // G179.4: the glide ratio itself
     alphaCruise: a * 180 / Math.PI,
     Sw, wingLoad: sim.totalM / Sw,
+    // G185: the planes' own numbers, the lift split, the % MAC datum
+    planes: g.planes || null, liftSplit: g.liftSplit || null,
+    xLEmac: g.xLEmac, span: g.span, stagger: g.stagger, decalage: g.decalage,
+    braceDCdA: g.braceDCdA || 0,
     cgX: cg[0], npX: cg[0] + npShift, staticMargin: npShift / cBar,
+    dEpsDa,                                   // G185.5: the tail's measured downwash slope
     // G115: the directional half of the balance story, measured the same way
     cnBeta: genYawStiff(sim, def, V),
     TORun: def.params.ap.TORun, thrCruise: def.params.ap.thrCruise,
@@ -693,7 +712,10 @@ function genShakedown(def, opts) {
   if (!(opts && opts.slim) && !(opts && opts.corners === false) && S && S.cabin) {
     try {
       const w0 = S.wings && S.wings[0];
-      const xLE = (w0 && typeof w0.xLE === 'number' && isFinite(w0.xLE)) ? w0.xLE : null;
+      // G185: the % MAC datum — a biplane's combined MAC leading edge, a
+      // monoplane's wing xLE exactly as before
+      const xLE = (typeof g.xLEmac === 'number' && isFinite(g.xLEmac)) ? g.xLEmac
+                : (w0 && typeof w0.xLE === 'number' && isFinite(w0.xLE)) ? w0.xLE : null;
       const pct = x => (xLE == null || !(cBar > 0)) ? null : (x - xLE) / cBar;
       const seats = Math.max(1, S.seats | 0);
       const litresFull = (S.fuel && S.fuel.litres > 0) ? S.fuel.litres : 0;

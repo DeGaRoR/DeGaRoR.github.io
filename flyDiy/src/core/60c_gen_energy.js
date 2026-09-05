@@ -393,6 +393,17 @@ const GEN_BAYS = {
     serves: 'the outboard spar bay — relieves the spar, slows the roll',
     span: [0.55, 0.88], feed: 'pumped',
   },
+  // G185: the SECOND plane's bays — the same two, on wings[1]
+  wing2Root: {
+    name: 'Second wing root', on: 'wing', plane: 1,
+    serves: 'the second plane’s inboard spar bay',
+    span: [0.12, 0.55], feed: 'pumped',
+  },
+  wing2Panel: {
+    name: 'Second wing panel', on: 'wing', plane: 1,
+    serves: 'the second plane’s outboard spar bay',
+    span: [0.55, 0.88], feed: 'pumped',
+  },
 };
 
 // THE BAYS OF THIS AEROPLANE, measured. Body bays get their station range from
@@ -408,8 +419,12 @@ function genBayResolve(S, key, ST) {
   const B = GEN_BAYS[key];
   if (!B) return null;
   if (B.on === 'wing') {
-    const litres = genWingBay(S.wing, { spanLo: B.span[0], spanHi: B.span[1] });
+    // G185: a bay on the second plane measures the second plane
+    const wk = (B.plane && S.wings && S.wings[B.plane]) || S.wing;
+    if (B.plane && !(S.wings && S.wings[B.plane])) return null;
+    const litres = genWingBay(wk, { spanLo: B.span[0], spanHi: B.span[1] });
     return { key, name: B.name, on: 'wing', feed: B.feed, free: !!B.free,
+             plane: B.plane || 0,                    // G185: which plane holds it
              span: B.span.slice(), litres,
              // where its mass acts: the mid-span of the bay, both sides
              zFrac: 0.5 * (B.span[0] + B.span[1]) };
@@ -461,7 +476,13 @@ function genBayResolve(S, key, ST) {
 }
 function genBayList(S, ST) {
   const out = [];
-  for (const k in GEN_BAYS) out.push(genBayResolve(S, k, ST));
+  for (const k in GEN_BAYS) {
+    // G185: a bay on a plane the aeroplane does not have is not a bay of
+    // this aeroplane (genBayResolve answers null for it) — a monoplane's
+    // list is the list it always was
+    const b = genBayResolve(S, k, ST);
+    if (b) out.push(b);
+  }
   return out;
 }
 

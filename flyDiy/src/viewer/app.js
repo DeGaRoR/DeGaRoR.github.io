@@ -1580,6 +1580,57 @@
                              rest0: nodeOfMember.map(n => n == null ? null : nodeRest(n)) });
           });
         }
+        else if ((pt.kind === 'cabane' || pt.kind === 'interplane' || pt.kind === 'wire') &&
+                 pt.members && pt.members.length) {
+          // G185: THE TRUSS FOLLOWS ITS OWN TWO ENDS. Each drawn member's
+          // pin and tip find the physics node nearest them at rest (within
+          // 0.4 m, in the mesh's own frame — the design CG's, so the rest
+          // positions are shifted by oR); a vertex takes (1-t) of the pin
+          // node's travel and t of the tip node's — a strut translates,
+          // tilts and stretches between the very nodes its beam runs
+          // between, a wire the same. An end with no node within reach is
+          // held (the fuselage's, on a cabane foot).
+          grp.add(pg);
+          const oR = defBodyProject(curDef)(defCG(curDef));
+          const nearNode = q => {
+            let best = null, bd = 0.16;               // 0.4 m squared
+            for (let i = 0; i < curDef.nodes.length; i++) {
+              const r = nodeRest(i);
+              const dx = r[0] - oR[0] - q[0], dy = r[1] - oR[1] - q[1], dz = r[2] - oR[2] - q[2];
+              const d2 = dx*dx + dy*dy + dz*dz;
+              if (d2 < bd) { bd = d2; best = i; }
+            }
+            return best;
+          };
+          const tipOf = pt.members.map(m => nearNode(m.tip));
+          const pinOf = pt.members.map(m => nearNode(m.pin));
+          pg.traverse(o => {
+            if (!o.isMesh || !o.geometry) return;
+            const pa = o.geometry.attributes.position;
+            if (!pa || !pa.array) return;
+            const src = pt.groups[Object.keys(pt.groups)
+              .find(k => pt.groups[k].pos === pa.array)] || null;
+            if (src) {
+              if (!src.base0) src.base0 = pa.array.slice();
+              else pa.array.set(src.base0);
+            }
+            const base = pa.array.slice();
+            const memb = new Uint8Array(pa.count), W = new Float32Array(pa.count);
+            for (let i = 0; i < pa.count; i++) {
+              const v = [base[i*3], base[i*3+1], base[i*3+2]];
+              let best = 0, bd = Infinity, bt = 0;
+              pt.members.forEach((m, k) => {
+                const r2 = dSeg2(v, m.pin, m.tip);
+                if (r2[0] < bd) { bd = r2[0]; best = k; bt = r2[1]; }
+              });
+              memb[i] = best; W[i] = Math.max(0, Math.min(1, bt));
+            }
+            strutRigs.push({ posAttr: pa, base, memb, w: W, idx: tipOf,
+                             rest0: tipOf.map(n => n == null ? null : nodeRest(n)),
+                             idxPin: pinOf,
+                             restPin: pinOf.map(n => n == null ? null : nodeRest(n)) });
+          });
+        }
         else if (pt.kind === 'eng') {
           // THE ENGINE UNIT IS ONE RIGID PART ON ITS OWN NODE (G179.2, the
           // user: "ALL of the engine mesh should be parented to the wing
@@ -1686,7 +1737,8 @@
             surfParts.push({ posAttr: pa, base, dsg, nv2, bind: null,
               hinged: new Uint8Array(nv2).fill(1),
               axis: pt.axis || [0, 0, 1],
-              drive: pt.drive, sgn: pt.sgn || 1 });
+              drive: pt.drive, sgn: pt.sgn || 1,
+              plane: pt.plane || 1 });      // G185: which plane's box binds it
           });
         }
         else if (pt.kind === 'castorT') {
@@ -1821,13 +1873,19 @@
     // old open selector also caught the cabin sidewall (it sits exactly at
     // |z| = zRoot), the strut roots and the gear leg, and pulled them aft
     // with the lifting wing.
-    const cageCfg = () => {
-      const W2 = curDef.spec && curDef.spec.wing;
-      const zR = ((curDef.parts && curDef.parts.zRoot) || 0.5) + 0.06;
+    // G185: one binding box PER PLANE — plane 1 reads its own spec, spar
+    // record and root, and the binding keeps only that plane's spar nodes
+    // (cfg.plane), or a biplane's two planes at one station would AVERAGE
+    const cageCfg = (kPl) => {
+      const k = kPl | 0;
+      const PLk = k && curDef.parts && curDef.parts.planes ? curDef.parts.planes[k] : null;
+      const W2 = k ? (curDef.spec && curDef.spec.wings && curDef.spec.wings[k])
+                   : (curDef.spec && curDef.spec.wing);
+      const zR = ((PLk ? PLk.zRoot : (curDef.parts && curDef.parts.zRoot)) || 0.5) + 0.06;
       const offC = [(data.off && data.off[0]) || 0,
                     (data.off && data.off[1]) || 0, 0];
       if (!W2 || W2.xLE == null)
-        return { off: offC, tags: ['WF', 'WR'], zRoot: zR, xMax: 1.5 };
+        return { off: offC, tags: ['WF', 'WR'], zRoot: zR, xMax: 1.5, plane: k };
       // the binding tests SNAPSHOT-LOCAL coordinates — design minus
       // (cg0 + off) on x and y (which is why the old `x ≤ 1.5` was, in
       // design terms, "everything but the extreme tail"). The box is
@@ -1843,21 +1901,25 @@
         * ((+W2.tipX || 0) < 0 || (W2.sweep || 0) < 0 ? -1 : 1);
       let yMin;
       try {
-        const F = curDef.parts.wf.R.F;
+        const F = (PLk ? PLk.wf : curDef.parts.wf).R.F;
         yMin = Math.min(curDef.nodes[F[0]].p[1],
-                        curDef.nodes[F[F.length - 1]].p[1]) - 0.30 - dy0;
+                        def.nodes[F[F.length - 1]].p[1]) - 0.30 - dy0;
       } catch (e) { yMin = undefined; }
-      return { off: offC, tags: ['WF', 'WR'], zRoot: zR,
+      return { off: offC, tags: ['WF', 'WR'], zRoot: zR, plane: k,
                xMin: W2.xLE - 0.15 + Math.min(0, sw) - dx0,
                xMax: W2.xLE + W2.chord + 0.25 + Math.max(0, sw) - dx0,
                yMin };
     };
-    const cfg = data.cage ? cageCfg() : SKIN_CFG[key];
+    const cfg = data.cage ? cageCfg(0) : SKIN_CFG[key];
+    // G185: the second plane's box, when the def has one
+    const cfg2 = (data.cage && curDef.parts && curDef.parts.planes && curDef.parts.planes[1])
+      ? cageCfg(1) : null;
+    const isPlane2 = name => !!(cfg2 && data.mats && data.mats[name] && data.mats[name].plane === 2);
     // G59.3 second pass: bind each control surface to the SAME spar
     // stations the wing skin uses, so it flexes with the wing it is
     // bolted to instead of only deflecting on its hinge.
     for (const s2 of surfParts) {
-      try { s2.bind = makeSkinBinding(s2.dsg, s2.nv2, def, cfg); }
+      try { s2.bind = makeSkinBinding(s2.dsg, s2.nv2, def, (s2.plane === 2 && cfg2) ? cfg2 : cfg); }
       catch (e) { s2.bind = null; }
       s2.dsg = null;
     }
@@ -1873,7 +1935,8 @@
       // zRoot:Infinity binds nothing here; the strut takes its OWN binding —
       // the two-end follow built just below (G140).
       const bindCfg = (data.cage && name === 'sstrut')
-        ? { ...cfg, zRoot: Infinity } : cfg;
+        ? { ...cfg, zRoot: Infinity }
+        : isPlane2(name) ? cfg2 : cfg;   // G185: the second plane's skin
       return {
         name, posAttr, base: posAttr.array.slice(),
         bind: makeSkinBinding(posAttr.array, dec[name].nv, def, bindCfg),
@@ -2123,12 +2186,20 @@
         const L = nodeLocal(n);
         return [L[0] - s.rest0[k][0], L[1] - s.rest0[k][1], L[2] - s.rest0[k][2]];
       });
+      // G185: a truss member's PIN end moves too (a lift strut's pin is the
+      // rigid fuselage and has no idxPin)
+      const DP = s.idxPin ? s.idxPin.map((n, k) => {
+        if (n == null || !s.restPin[k]) return [0, 0, 0];
+        const L = nodeLocal(n);
+        return [L[0] - s.restPin[k][0], L[1] - s.restPin[k][1], L[2] - s.restPin[k][2]];
+      }) : null;
       const p2 = s.posAttr.array, b = s.base, W = s.w, M2 = s.memb;
       for (let i = 0; i < W.length; i++) {
         const d = D[M2[i]] || D[0], t = g * W[i];
-        p2[i*3]   = b[i*3]   + t * d[0];
-        p2[i*3+1] = b[i*3+1] + t * d[1];
-        p2[i*3+2] = b[i*3+2] + t * d[2];
+        const dp = DP ? (DP[M2[i]] || DP[0]) : null, tp = dp ? g * (1 - W[i]) : 0;
+        p2[i*3]   = b[i*3]   + t * d[0] + (dp ? tp * dp[0] : 0);
+        p2[i*3+1] = b[i*3+1] + t * d[1] + (dp ? tp * dp[1] : 0);
+        p2[i*3+2] = b[i*3+2] + t * d[2] + (dp ? tp * dp[2] : 0);
       }
       s.posAttr.needsUpdate = true;
     }

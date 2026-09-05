@@ -30417,6 +30417,87 @@ aircraft-change door. `.claude/launch.json` at the repository root carries
 forty session-named dev-server entries; it is the user's tool config, not
 the game, and was not touched.
 
+## G187 — THE PLAYTEST PASS, PHASE 1: THE PICKER THAT STAYED, THE TREE THAT
+## STOPPED INDENTING, THE ENGINE THAT WOULD NOT SAY ITS WEIGHT (2026-09-05, the
+## user's UltraLight3 review: fifteen corrections, six phases; this is the
+## quick-wins phase)
+
+The user flew their rod-boom twin-Rotax ultralight and came back with a
+list. Five of the fifteen were cheap and are landed here; the rest are
+G189+ (geometry: taper rule, fittings on the rod, pins, lamp bay, tank
+mount; the box decal in flight; the fuel panel restyle; the taxi/approach
+patterns and the take-off diagnosis; per-engine control). The plan is the
+session's approved plan; each phase is one commit with its own entry.
+
+**1. The recent-colours strip outlived the screen (the user: "ensure that
+thing is hidden out of context is all I ask. Right now it even survives the
+flight context, that's ridiculous").** G156's strip hung off `<body>` and
+closed on hover timers, so fly with a well hovered and it stood over the
+runway. And its whole reason to exist was a workaround: an
+`<input type=color>` opens the OS dialog on click, and that dialog has no
+DOM to host a swatch, so the swatches had to get in front of you BEFORE the
+click. Both problems have one answer: THE PICKER IS OURS NOW. `wellRecent`
+takes the well's click (`preventDefault` stops the dialog) and opens a
+popup — saturation/value square, hue bar, hex field, and the recent row
+INSIDE it, which is where the user asked for it. It mounts under `#edWrap`
+when there is one (so `hidden` on the editor hides it), `setMode(false)` and
+`closeEditor` call `CAGE_RECENT.hide()` as well, and a pointer down
+anywhere outside, Escape, a scroll of the column or a window blur all close
+it. `input` fires live while dragging so the aeroplane follows; ONE
+`change` fires on commit, which is what records a recent colour; Escape
+puts the colour back. On the benches (no `#edWrap`) it mounts on `<body>`
+as before. Measured in the page: a drag = 2 inputs and 0 changes, a click
+outside = 1 change, the reopened picker shows the swatch, and ROLL OUT &
+FLY leaves `.cgPicker` hidden with the editor. The six attach sites are
+untouched (`CAGE_RECENT.attach`), and `_energy_check`'s own assertion on the
+tank well still holds.
+
+**2. The part tree stopped indenting at the third level, and every row
+had a rule under it.** The type ladder is three rungs (asm / part / leaf)
+and the indent was keyed on the same capped class, so a fourth level
+(Cabin > Glazing > windscreen) sat flush with its parent and read as a
+sibling. `paintTree` now writes the row's true depth as `--lv` and one CSS
+rule indents by it; the `lvN` class is typography only. Measured: 12 / 23 /
+34 / 45 / 56 px down the ladder. The hairlines went — under the leaves,
+under a branch's last row (`edEnd`), under a group's last row (`endg`),
+under a rolled-up heading and the 1 px line in the leftovers header — and
+sections end by their spacing, which they already had. The user's ruling
+was "rows and groups only", so the borders that delimit REGIONS (column
+headers, footers, the status strip, flyout headers) stay.
+
+**3. The engine dropdown says what it weighs and what it makes.** The
+option reads `rotax 582 · 43 kg · 48 kW`. The number is THE NUMBER THAT
+FLIES: an untouched preset flies its registry row (the G134 identity
+ruling), so `POWERPLANTS[CAGE_JOIN_ENGINES[name]].engine.{mass,powerW}` is
+the label; the two fantasy presets fly their own resolve and quote it,
+marked ≈. Two facts shaped the code: `_cage_join.js` is bundled AFTER
+`_cage_eng.js`, so `typeof CAGE_JOIN_ENGINES` is 'undefined' at load and
+the labels are built LAZILY at row-build time (`PRESET_LABELS()`); and five
+consumers index `PRESET_NAMES` by position, so the row's `names` stays the
+key list and `mkRow` grew `opts.optLabels` (an array or a function) for
+what the option SAYS. GATE ENGID asserts the 582's row numbers and the flat
+twin's ≈.
+
+**4. The taper panels vanished on a "no skin" build.** `skinOn 0` culls
+the displayed mesh by `INTSTRUCT` (the x-ray reads the same set), and
+`taperPanel` was in neither that set nor the glass, so the truss's own
+cladding — switched on by its own row — went with the covering, and the
+user's rod ultralight read as bare pipe with a truss. `taperPanel` joined
+`INTSTRUCT` beside `boomTube`; GATE PARTS asserts both by name.
+
+**5. The leading-edge wash only on an aeroplane that has flown.** The
+pale band ahead of the spar (G70's `uG4.z`) was unconditional — a factory
+fresh wing shipped with worn paint. It now rides the condition dial:
+`× clamp(uWear.x · uWearK / 0.35, 0, 1)`, nothing at factory fresh, full by
+'flown'. The roughness polish stays: a smooth D-skin is how it is built,
+not how it wore.
+
+Also: `tools/fixtures/build_v7_ultralight_2026-09-05.json` is the user's
+UltraLight3 as a fixture (GATE TAKEOFF will fly it, G18x); `launch.json`
+gained `flydiy-playtest` (8330). Gates: ENGID, PARTS (its two reds are the
+biplane session's in-flight rows, told), UISMOKE, ENERGY, SAVE, STARTER,
+SKINMAT, TREE.
+
 ## G186 — THE TURBINE FLIES: A THIRD ASPIRATION, FLAT-RATED, ON KEROSENE
 ## (2026-09-05; session 1 of futureDesigns/TURBOPROP-2026-09-05.md, the user:
 ## "agree with your recommendations ... have a strategy to avoid conflicts
@@ -30521,86 +30602,126 @@ part-load SFC when the burn model lands. Session 2 must wait for
 
 **GEN rerun after the recalibration: 73/73, PASS.** Battery for this arc: ATMOS, GEN, BUILD, ENGINE, ENERGYBASE, ENERGY (core) and HOTHIGH (full) all green on the shared tree, with the biplane and UltraLight sessions' hunks in it. The heading is G186 by agreement with both peers (the biplane holds G185.x, the UltraLight session wrote G187 knowing this one was taken), so it sits after G187 in the file the way G182.1 sits after G183.
 
-## G187 — THE PLAYTEST PASS, PHASE 1: THE PICKER THAT STAYED, THE TREE THAT
-## STOPPED INDENTING, THE ENGINE THAT WOULD NOT SAY ITS WEIGHT (2026-09-05, the
-## user's UltraLight3 review: fifteen corrections, six phases; this is the
-## quick-wins phase)
+## G188 — THE PAWNEE: FOUR MEASUREMENTS THAT NEVER REACHED THE FRAME, AND
+## THE POD THAT COULD NOT BE MEASURED (2026-09-05, the user, with a flight
+## screenshot of a mirrored-pod build: "the nose part and the engine part
+## ... does not work · the wings are not at the right level · the boom is
+## really screwed up, feels like an artifact from the twin boom · the wheel
+## stations do not match ... fixing that plane is not the ultimate goal,
+## fixing our physics and our generators is")
 
-The user flew their rod-boom twin-Rotax ultralight and came back with a
-list. Five of the fifteen were cheap and are landed here; the rest are
-G188+ (geometry: taper rule, fittings on the rod, pins, lamp bay, tank
-mount; the box decal in flight; the fuel panel restyle; the taxi/approach
-patterns and the take-off diagnosis; per-engine control). The plan is the
-session's approved plan; each phase is one commit with its own entry.
+**THE INSTRUMENT FIRST.** `CAGE_JOIN.fitReport` (G52/G54.2) on the build
+loaded in dev.html, before anything was touched — every symptom is a row:
 
-**1. The recent-colours strip outlived the screen (the user: "ensure that
-thing is hidden out of context is all I ask. Right now it even survives the
-flight context, that's ridiculous").** G156's strip hung off `<body>` and
-closed on hover timers, so fly with a well hovered and it stood over the
-runway. And its whole reason to exist was a workaround: an
-`<input type=color>` opens the OS dialog on click, and that dialog has no
-DOM to host a swatch, so the swatches had to get in front of you BEFORE the
-click. Both problems have one answer: THE PICKER IS OURS NOW. `wellRecent`
-takes the well's click (`preventDefault` stops the dialog) and opens a
-popup — saturation/value square, hue bar, hex field, and the recent row
-INSIDE it, which is where the user asked for it. It mounts under `#edWrap`
-when there is one (so `hidden` on the editor hides it), `setMode(false)` and
-`closeEditor` call `CAGE_RECENT.hide()` as well, and a pointer down
-anywhere outside, Escape, a scroll of the column or a window blur all close
-it. `input` fires live while dragging so the aeroplane follows; ONE
-`change` fires on commit, which is what records a recent colour; Escape
-puts the colour back. On the benches (no `#edWrap`) it mounts on `<body>`
-as before. Measured in the page: a drag = 2 inputs and 0 changes, a click
-outside = 1 change, the reopened picker shows the swatch, and ROLL OUT &
-FLY leaves `.cgPicker` hidden with the editor. The six attach sites are
-untouched (`CAGE_RECENT.attach`), and `_energy_check`'s own assertion on the
-tank well still holds.
+| row | frame | visual |
+|---|---|---|
+| wing LE @ outboard | −0.20 | −1.06 |
+| extent fwd (mount vs spinner) | −0.42 | −2.14 |
+| extent aft (post vs rudder TE) | 6.33 | 3.47 |
+| boom belly @ mid | 0.38 | −0.15 |
+| SETTLED TW over ground (want 0) | | 1.02 |
 
-**2. The part tree stopped indenting at the third level, and every row
-had a rule under it.** The type ladder is three rungs (asm / part / leaf)
-and the indent was keyed on the same capped class, so a fourth level
-(Cabin > Glazing > windscreen) sat flush with its parent and read as a
-sibling. `paintTree` now writes the row's true depth as `--lv` and one CSS
-rule indents by it; the `lvN` class is typography only. Measured: 12 / 23 /
-34 / 45 / 56 px down the ladder. The hairlines went — under the leaves,
-under a branch's last row (`edEnd`), under a group's last row (`endg`),
-under a rolled-up heading and the 1 px line in the leftovers header — and
-sections end by their spacing, which they already had. The user's ruling
-was "rows and groups only", so the borders that delimit REGIONS (column
-headers, footers, the status strip, flyout headers) stay.
+The frame's tail post stood at 4.40 m, the tailwheel at 3.11 m, the stab and
+fin at 6.33 m — three stations that coincide on a taildragger spread over
+3.2 m — and the physics aeroplane had tipped onto its nose (the tailwheel a
+metre in the air) because its mains were 2.4 m behind the drawn ones.
 
-**3. The engine dropdown says what it weighs and what it makes.** The
-option reads `rotax 582 · 43 kg · 48 kW`. The number is THE NUMBER THAT
-FLIES: an untouched preset flies its registry row (the G134 identity
-ruling), so `POWERPLANTS[CAGE_JOIN_ENGINES[name]].engine.{mass,powerW}` is
-the label; the two fantasy presets fly their own resolve and quote it,
-marked ≈. Two facts shaped the code: `_cage_join.js` is bundled AFTER
-`_cage_eng.js`, so `typeof CAGE_JOIN_ENGINES` is 'undefined' at load and
-the labels are built LAZILY at row-build time (`PRESET_LABELS()`); and five
-consumers index `PRESET_NAMES` by position, so the row's `names` stays the
-key list and `mkRow` grew `opts.optLabels` (an array or a function) for
-what the option SAYS. GATE ENGID asserts the 582's row numbers and the flat
-twin's ≈.
+**FIVE CAUSES, ALL GLOBAL, NONE OF THEM THE PAWNEE'S.** The build is only
+special in four ways (mirrored canopy, long pre-cowl nose, short boom, low
+wing with top struts), and each way walked into a door every build passes:
 
-**4. The taper panels vanished on a "no skin" build.** `skinOn 0` culls
-the displayed mesh by `INTSTRUCT` (the x-ray reads the same set), and
-`taperPanel` was in neither that set nor the glass, so the truss's own
-cladding — switched on by its own row — went with the covering, and the
-user's rod ultralight read as bare pipe with a truss. `taperPanel` joined
-`INTSTRUCT` beside `boomTube`; GATE PARTS asserts both by name.
+1. **The third wheel was classified by LATERAL OFFSET.** Four classifiers
+   (the gear layer's sides and wheel kinds, the join's `mains`/`single`, the
+   join's `gearX`/`gearY` means, the visual snapshot's calibration) all read
+   "single" as `st.x <= 0.01`. This build's tailwheel row carries `s2X 0.1`
+   (drawn on the centreline regardless — a tailwheel builder ignores x), so
+   the tailwheel was a PAIR OF MAINS to every one of them: the mains'
+   station became the mean of four contacts (0.96 m instead of −1.42 m),
+   `gearType` fell to its default, and no single wheel was ever measured —
+   `twX`/`twY` stayed stale from an earlier export. The station's IDENTITY
+   is the classifier now: `gearStations` flags row 2 `single`, and every
+   reader takes `st.single` (the offset reading survives only for contacts
+   without the flag). GATE GEAR pins it.
 
-**5. The leading-edge wash only on an aeroplane that has flown.** The
-pale band ahead of the spar (G70's `uG4.z`) was unconditional — a factory
-fresh wing shipped with worn paint. It now rides the condition dial:
-`× clamp(uWear.x · uWearK / 0.35, 0, 1)`, nothing at factory fresh, full by
-'flown'. The roughness polish stays: a smooth D-skin is how it is built,
-not how it wore.
+2. **A MIRRORED POD NAMES NO AFT PILLAR AND NO TAIL POST.** `cageResolve`'s
+   table stops at `pilCabB` in mirror mode — "the tail stack, pax machinery
+   and aft shoulder never exist"; buildCage2 reflects the front half and
+   marches the boom aft from the reflected aperture. The join measured the
+   cabin length off `pilPaxA`, the post gap, the tail section, the boom
+   profile AND all eight tail rows off `tailPost`, every one gated on
+   `zPost != null` — so on a pod NONE of them was ever taken, and `merge`'s
+   declared hazard ("a key the join writes only when it can measure keeps
+   its previous value") handed the frame a stab station, a fin chord and a
+   nine-row boom profile from an earlier, longer state of the same build.
+   That is the "twin-boom artifact": a 6.3 m stab on a 3.1 m aeroplane.
+   Now: `cageResolve` publishes `pod: { zCabA, zCabB }` for a mirrored spec
+   (the aft end of the full section is the REFLECTED WINDSCREEN BASE,
+   placed with buildCage2's own reflection constant, the aft override spec
+   resolved when there is one); the join takes the post as `AF.z0 +
+   tailLen·FS` when no ring names it (exactly where the regular table puts
+   its own: zCap = zPost − tail.len — a ROD boom gets the same fallback, so
+   its tail section is measured from now on too); and a pillar or third
+   wheel that still cannot be located is an ERRS line (G64's rule), never
+   a silent stale number.
 
-Also: `tools/fixtures/build_v7_ultralight_2026-09-05.json` is the user's
-UltraLight3 as a fixture (GATE TAKEOFF will fly it, G18x); `launch.json`
-gained `flydiy-playtest` (8330). Gates: ENGID, PARTS (its two reds are the
-biplane session's in-flight rows, told), UISMOKE, ENERGY, SAVE, STARTER,
-SKINMAT, TREE.
+3. **resolveSpec OVERRODE MEASURED STATIONS WITH DESIGN RULES AND CLAMPS.**
+   `tailArm = max(tailArm, boxRear + 0.9·chord)` is the derived arm's floor
+   and stretched a measured 3.11 m boom to 4.05 m (auto-only now, a 0.30 m
+   bay otherwise); `xLE ≥ −0.20` cut a wing drawn under the nose at −1.12
+   (−2.50 now); `gear.x ≥ −0.50` cut the mains at −1.42 (−3.00 now) — and
+   because the visual is calibrated wheels-to-axles, THAT clamp shifted the
+   whole drawn aeroplane 0.93 m aft of the frame on every row of the report;
+   `postGap ≥ 0.35` stood the post 0.22 m behind the tail (0.08 now);
+   `cab.halfW ≥ 0.28`, `cab.len ≥ 0.60`, `noseGap ≥ 0.40` and
+   `engines[].x ≥ −1.0` each bit a scaled-down pod (0.18 / 0.30 / 0.20 /
+   −3.0 now). The rule: a clamp is a GEOMETRIC envelope; the balance is the
+   plaque's to judge.
+
+4. **THE NOSE ENGINE WAS NEVER MEASURED.** The join wrote `x/y/z` for every
+   mount but the nose, and the frame hung a nose engine at
+   −(0.18 + 0.32·propR) whatever nose was drawn in front of it: on this
+   build the powerplant's mass sat 1.56 m aft of its cowl. The join writes
+   the drawn station for the nose too (x/y, no z); resolveSpec moves
+   `engX`/`engY` onto it so the frame, the cowl loft, the nose gear and
+   `engAt` share the one fact.
+
+5. **THE WING'S HEIGHT WAS THREE FORMULAS AND NO MEASUREMENT.** The frame
+   seated a low wing at `−wingStandoff` (0.10 m BELOW the keel), the cage's
+   wing layer at 22 % up the section, resolveSpec's `engAt` at 0.22·cab.h —
+   0.24 m apart on this build, 0.4 m on a full-height cabin, on EVERY
+   low-wing build; mid and high had their own pairs. The join measures the
+   root chord line over the keel off the wing layer's anchor (+ the up/down
+   row) into `wings[0].y` (new, nullable, no GEN_SPEC_V bump — a null keeps
+   the position's rule to the bit); the frame and `engAt` take it.
+
+**THE SAME REPORT, AFTER.** wing LE −1.12 / −1.11 · fin apex 1.96 / 1.91 ·
+extent aft 3.35 / 3.43 · boom belly 0.18 / 0.12 · IDENT TW x 3.35 / 3.35,
+mains y −0.47 / −0.47 · STANCE 7.31 / 7.31 · SETTLED TW and mains on the
+ground · settled pitch vs predicted −0.15°. The overlay in the flight view
+sits on the aeroplane. The plaque now says what was drawn: static margin
+−0.25 (cg −0.06, np −0.44 — a wing 1.1 m ahead of the firewall with a 3 m
+tail arm), which is the builder's to fix, not the generator's.
+
+**ONE MEASURED NON-ISSUE.** The engine 2 m ahead on six bearer members: a
+first instrument read 27 cm of sag at rest and it was the THREE-POINT STANCE
+rotation (2 m × sin 7.3°) — G54.2's own trap, again. In the body frame the
+bearer sags 1 mm on the default nose, 10 mm at 2 m, 6 mm on the pawnee. No
+nose structure is owed for stiffness.
+
+**GATES.** JOIN +15 rows (every door above, held open through cageJoinSpec →
+resolveSpec → genFrame, plus the pod anatomy off `cageResolve`), GEAR +1
+(row 2 is single whatever its offset). GEN 73/73, JOIN, GEAR green; the
+full battery ran after (see the session's last log line).
+
+**OWED.** (a) The merge hazard is still a hazard for any measurement not on
+the ERRS list — the honest fix is the join writing `null` for a measured-
+only key it could not take (null = derived), which reverses G63's "last
+good number" ruling; the user's call. (b) A 1.4 m drawn nose carries no
+covering or structure mass in the frame (the ENG pair hangs on the firewall
+ring, the cowl mass is priced off `noseGap`). (c) The fit report's "boom
+deck @ mid" reads the fin layer's dorsal strip as deck on this build
+(+0.21) — cosmetic. (d) The rod boom's tail section is now measured on its
+next export — expected, but a rod build's physics will move by it.
 
 ## G189 — THE PLAYTEST PASS, PHASE 2: THE TAPER EATS THE BOOM, THE ROD GETS
 ## CLAMPS, THE DOTS FIND BOTH BOOMS, THE LAMP BAY CUTS ITS OWN ROWS, THE TANK
@@ -30753,86 +30874,6 @@ chain by source.
 
 Verified in the page: an image loaded into the wing slot → save → reload →
 the wing wears it in the shed and in flight.
-
-## LABEL CONVENTIONS (2026-09-05, written down at the user's request: "revise
-## the fuel interface styling and adjust to the label conventions (maybe to
-## be written explicitly)")
-
-The rules the inspector already lived by, in one place. A new row, a new
-panel or a new part follows them; GATE PARTS and GATE UISMOKE catch the
-mechanics, this paragraph is the reason.
-
-1. **A row label is a lower-case sentence fragment**, two or three words,
-   no trailing unit and no colon: `taper length`, `fuel aboard`, `paint
-   hue`. The unit lives in the VALUE readout (`1.46 m`, `43 kg`, `48 kW`),
-   never in the label. A word in brackets is the domain word when the plain
-   word would be ambiguous: `fore / aft (base off the flange)`.
-2. **The common trunk uses the trunk's words.** Every part opens with
-   `fitted / type / position / size`, and a row that IS one of those says
-   so with the slot's own word wherever that is literally what it does:
-   `fore / aft`, `up / down`, `in / out`, `length`, `width`, `height`. A row
-   that means something narrower keeps its own word and says the slot word
-   in brackets. The trunk gives a row a heading and an order, never a
-   second name (the glossary rule: one label, one keeper — the layer file
-   that declares the row).
-3. **UPPERCASE IS RESERVED FOR GROUP LABELS** (editor.css's type ladder):
-   a group heading names a KIND of thing (`POSITION`, `TWIN BOOMS`,
-   `MARKINGS`); a part, a row, a value, an option never shouts. A heading's
-   right-hand meta is a lower-case fragment too (`aft of the taper`).
-4. **`·` joins facts in one line** — `tank 1 · nose`, `rotax 582 · 43 kg ·
-   48 kW`, `HOME → circuit` — and it is the ONLY joiner: no dashes, no
-   slashes between facts (the slash is the trunk's `fore / aft` pair and
-   nothing else).
-5. **An option says what flies.** A dropdown option carries the fact the
-   choice changes (`rotax 582 · 43 kg · 48 kW`, `nose bay · 132 L · gravity
-   fed`), read off the number the physics reads, and `≈` in front of a
-   number the physics derives rather than declares.
-6. **A switch row is the part's own `fitted`**; a starter (`preset (applies
-   once)`) says so in its label; a row that only VIEWS something (`show
-   bay`, `fuel aboard` when it is the drawn fill) is view state and says
-   nothing about the aeroplane — it is not saved.
-7. **Titles explain, labels name.** The `title` (tooltip) is the sentence:
-   what the row does, what the datum is, what happens at the ends. The
-   label never tries to.
-8. **No hairline between rows or groups** (G187): a section ends by its
-   spacing; the borders that remain delimit REGIONS (headers, footers).
-9. **A panel that is not a set of sliders** (`panel:` parts — the tanks)
-   renders inside an `.edRoot` so it takes the same folds, indent and row
-   grammar as every sliders part, and its list entries are `details`
-   folds headed the way a part is (`tank 1 · nose`).
-
-Where the rules came from: the trunk vocabulary (HANDOVER G16x "twenty-two
-parts got a trunk"), the type ladder (editor.css `--ed-t-*`), the glossary
-rule (`_cage_parts.js` "a glossary rots"), the option-says-what-flies rule
-(G187), the separators ruling (G187, "rows and groups only").
-
-## G191 — THE PLAYTEST PASS, PHASE 4: THE FUEL PANEL JOINS THE COLUMN, AND THE
-## LABEL CONVENTIONS ARE WRITTEN DOWN (2026-09-05, the user: "revise the fuel
-## interface styling and adjust to the label conventions (maybe to be written
-## explicitly)")
-
-**The styling.** G183 put the fuel & energy panel in the inspector as the
-bare `<details>` it had on the bench, and the column's sheet never heard
-of it: editor.css styles a panel-owned column through `.edRoot` (the
-reference plane's root — the folds with their uppercase summaries, the
-indent step, the boxed sub-folds), and this panel was outside it, so its
-tank folds had no box, no indent and a summary in the wrong type, flush
-against the column's left edge while every sliders part sat one step in.
-Both doors now hand their element over INSIDE an `.edRoot`: the structure
-door wraps the panel (its own outer fold flattened by the sheet the way the
-shed's is, `data-g="energy"`), the finish door makes its tank list the
-root. Nothing in the panel's own builders changed — the rows were already
-the column's `.r > span.k` grammar; what was missing was the container the
-sheet keys on.
-
-**The labels.** The panel's rows now speak the trunk's words where they are
-literally what the row does — `fore / aft` (was `station`), `up / down`
-(was `level`), `in / out (span)` for the wing tank's start, `turn (about
-the vertical)`, `show bay` — and the conventions every row lives by are a
-HANDOVER section of their own, LABEL CONVENTIONS, so the next panel does
-not have to infer them from the type ladder's comment and the trunk's.
-GATE ENERGY's source assertions are on builders and calls, not labels, and
-pass unchanged; UISMOKE and PARTS pass.
 
 ## G192 — THE TURBINE IS DRAWN: THE PT6 ON THE BENCH, IN THE EDITOR, UNDER
 ## ITS OWN NACELLE (2026-09-05; session 2 of futureDesigns/TURBOPROP-2026-09-05.md,
@@ -31040,6 +31081,36 @@ around its exported loader (`loadPanel` + `fly`, verbatim) answers a
 one-card question in a minute, and the verdict is the gate's own because
 the loop is.
 
+
+## G191 — THE PLAYTEST PASS, PHASE 4: THE FUEL PANEL JOINS THE COLUMN, AND THE
+## LABEL CONVENTIONS ARE WRITTEN DOWN (2026-09-05, the user: "revise the fuel
+## interface styling and adjust to the label conventions (maybe to be written
+## explicitly)")
+
+**The styling.** G183 put the fuel & energy panel in the inspector as the
+bare `<details>` it had on the bench, and the column's sheet never heard
+of it: editor.css styles a panel-owned column through `.edRoot` (the
+reference plane's root — the folds with their uppercase summaries, the
+indent step, the boxed sub-folds), and this panel was outside it, so its
+tank folds had no box, no indent and a summary in the wrong type, flush
+against the column's left edge while every sliders part sat one step in.
+Both doors now hand their element over INSIDE an `.edRoot`: the structure
+door wraps the panel (its own outer fold flattened by the sheet the way the
+shed's is, `data-g="energy"`), the finish door makes its tank list the
+root. Nothing in the panel's own builders changed — the rows were already
+the column's `.r > span.k` grammar; what was missing was the container the
+sheet keys on.
+
+**The labels.** The panel's rows now speak the trunk's words where they are
+literally what the row does — `fore / aft` (was `station`), `up / down`
+(was `level`), `in / out (span)` for the wing tank's start, `turn (about
+the vertical)`, `show bay` — and the conventions every row lives by are a
+HANDOVER section of their own, LABEL CONVENTIONS, so the next panel does
+not have to infer them from the type ladder's comment and the trunk's.
+GATE ENERGY's source assertions are on builders and calls, not labels, and
+pass unchanged; UISMOKE and PARTS pass.
+
+
 ## G193 — THE PLAYTEST PASS, PHASE 5: THE PATTERN ON THE GROUND, THE STOP, THE
 ## TAKE-OFF THAT WENT INTO THE GRASS (2026-09-05, the user: "notion of taxi
 ## pattern and approach pattern ... a glide slope, a touchdown target (there
@@ -31221,192 +31292,6 @@ the game would not open on that machine until localStorage was cleared.
 Pre-existing (HEAD has the same line), caught here because the test origin
 had that preference saved. `drawMap` now returns without a sim.
 
-## G194.1 — THE STAGING TRAP: ZERO-CONTEXT HUNKS LAND AT THE WORKING TREE'S
-## LINE NUMBERS (2026-09-05, found by building HEAD in a clean worktree)
-
-Six sessions share one working tree, so each commit is "HEAD + my hunks".
-For G189/G190/G193-G194 my hunks were staged with `git apply --cached
---unidiff-zero` from a `git diff -U0` of the working tree. With NO context
-lines git has nothing to match, so it placed each hunk at the working
-tree's line number — in an index that lacked the peers' unstaged hunks
-above it. Every commit LOOKED complete (the diff --cached carried the right
-lines) and `node --check` passed, and HEAD was broken in seven places: the
-join's `sense` in the gear block (`mk` undefined), the solver's lever reset
-inside the strip loop, the frame's `engIdx` in a nested brace, the JOIN
-gate's block outside its `try`, engAt's map without its `(e, i)`,
-loadSpec's fifth argument, setMode's `hide()` spliced apart from its `if`,
-the G190 seed block in the wrong function, and a peer's untracked
-`_cage_brace.js` in the parts gate's require list. Fixed as 40800d5,
-837aac1, 0617679, 611a68b, bf6396d, 5202174 (three sessions).
-
-THE RULE: stage HEAD + EXACT EDITS (`reapply.js`: the HEAD blob, an ordered
-list of [old, new] strings that must each match once, `hash-object` +
-`update-index`), into a TEMPORARY index (`GIT_INDEX_FILE`) so a peer's
-concurrent staging cannot drop yours, and VERIFY THE COMMIT, not the tree:
-`git worktree add --detach <tmp> HEAD`, build there, run the gates there.
-The working tree passing proves nothing about HEAD while anyone holds
-unstaged hunks. Never `-U0` hunks; never the shared index for the commit.
-
-## G192.1 — A BIRTH IS THE ONE LOAD THAT WANTS THE COWL FIT, AND THE CARD'S
-## PROP GOES THROUGH THE TILE (2026-09-05; the user: "Can I see screenshots
-## of the builds and the edition menu/sliders?")
-
-The screenshots asked for were taken headlessly (Chrome `--headless=new` +
-raw CDP over Node 22's WebSocket, no package — the Browser pane cannot save
-a file, and five dev servers belonged to other chats) and they found two
-defects a gate had not, both in the Caravan card AS BORN:
-
-1. **Born in the default cowl.** The card came up with the 1.46 m PT6 in a
-   0.455 m fitted boxer cowl, the engine through the shell. A birth is a
-   LOAD, and the cowl starter is rightly silent on a load (2026-09-03) — so
-   nothing ever fitted a card's cowl to a styled engine, and the Beaver-alike
-   has been born round its R-985 the same way since it existed. The old
-   `CAGE_COWL_FIT_NEXT` door (left inert when the boxer size rule was
-   withdrawn) is RE-ARMED for STYLED architectures only: `birthApply`
-   (design_flow.js) asks once, `cowlForEngine` answers when `COWL_BY_ARCH`
-   has a row for the engine — radial and turbine — and the boxer, the
-   in-line and the electric keep the bench default exactly as the user
-   ruled. GATE STARTER unchanged (the door is not the starter, and no load
-   fires it).
-2. **The card's prop was the cage's.** `over.spec.prop` (2.7 m, three
-   blades) was born as the cage's default 2-blade 1.91 m: the cage's
-   `cw_bladeN/cw_propD` rows outrank `spec.prop` through the join. The card
-   now selects the `carbon3` prop TILE and sets `cw_propD: 2.7` in its cage
-   override, which is how a card is meant to say it. Re-flown alone through
-   the gate's own loop: cruise 50.2, Vs 22.4, full stop at 340 s, sink 1.82.
-
-Measured after the fix, headless: the Caravan-alike is born under a sealed
-1.60 m nacelle with its three-blade prop, the four bays and the 14 m strutted
-wing; the engine rows read TURBINE / P&W PT6A-114A / PT6 reverse-flow; the
-turbine group shows gas generator 0.400 x 1.050, gearbox 1.2, flat rating
-1.26, prop rpm 1900, paired stacks. COWL, STARTER, DESIGN, SAVE, PARTS green.
-
-Two observations, not fixed: the inspector's design TILES are rendered at
-part selection and go stale across a birth (the powertrain tile still lit
-the previous build's family until the part was re-selected — a screenshot
-trap first, a UI nit second); and the legacy bench page `_engine.html` has
-no cowl, so its PT6 is bare by design.
-
-## G188 — THE PAWNEE: FOUR MEASUREMENTS THAT NEVER REACHED THE FRAME, AND
-## THE POD THAT COULD NOT BE MEASURED (2026-09-05, the user, with a flight
-## screenshot of a mirrored-pod build: "the nose part and the engine part
-## ... does not work · the wings are not at the right level · the boom is
-## really screwed up, feels like an artifact from the twin boom · the wheel
-## stations do not match ... fixing that plane is not the ultimate goal,
-## fixing our physics and our generators is")
-
-**THE INSTRUMENT FIRST.** `CAGE_JOIN.fitReport` (G52/G54.2) on the build
-loaded in dev.html, before anything was touched — every symptom is a row:
-
-| row | frame | visual |
-|---|---|---|
-| wing LE @ outboard | −0.20 | −1.06 |
-| extent fwd (mount vs spinner) | −0.42 | −2.14 |
-| extent aft (post vs rudder TE) | 6.33 | 3.47 |
-| boom belly @ mid | 0.38 | −0.15 |
-| SETTLED TW over ground (want 0) | | 1.02 |
-
-The frame's tail post stood at 4.40 m, the tailwheel at 3.11 m, the stab and
-fin at 6.33 m — three stations that coincide on a taildragger spread over
-3.2 m — and the physics aeroplane had tipped onto its nose (the tailwheel a
-metre in the air) because its mains were 2.4 m behind the drawn ones.
-
-**FIVE CAUSES, ALL GLOBAL, NONE OF THEM THE PAWNEE'S.** The build is only
-special in four ways (mirrored canopy, long pre-cowl nose, short boom, low
-wing with top struts), and each way walked into a door every build passes:
-
-1. **The third wheel was classified by LATERAL OFFSET.** Four classifiers
-   (the gear layer's sides and wheel kinds, the join's `mains`/`single`, the
-   join's `gearX`/`gearY` means, the visual snapshot's calibration) all read
-   "single" as `st.x <= 0.01`. This build's tailwheel row carries `s2X 0.1`
-   (drawn on the centreline regardless — a tailwheel builder ignores x), so
-   the tailwheel was a PAIR OF MAINS to every one of them: the mains'
-   station became the mean of four contacts (0.96 m instead of −1.42 m),
-   `gearType` fell to its default, and no single wheel was ever measured —
-   `twX`/`twY` stayed stale from an earlier export. The station's IDENTITY
-   is the classifier now: `gearStations` flags row 2 `single`, and every
-   reader takes `st.single` (the offset reading survives only for contacts
-   without the flag). GATE GEAR pins it.
-
-2. **A MIRRORED POD NAMES NO AFT PILLAR AND NO TAIL POST.** `cageResolve`'s
-   table stops at `pilCabB` in mirror mode — "the tail stack, pax machinery
-   and aft shoulder never exist"; buildCage2 reflects the front half and
-   marches the boom aft from the reflected aperture. The join measured the
-   cabin length off `pilPaxA`, the post gap, the tail section, the boom
-   profile AND all eight tail rows off `tailPost`, every one gated on
-   `zPost != null` — so on a pod NONE of them was ever taken, and `merge`'s
-   declared hazard ("a key the join writes only when it can measure keeps
-   its previous value") handed the frame a stab station, a fin chord and a
-   nine-row boom profile from an earlier, longer state of the same build.
-   That is the "twin-boom artifact": a 6.3 m stab on a 3.1 m aeroplane.
-   Now: `cageResolve` publishes `pod: { zCabA, zCabB }` for a mirrored spec
-   (the aft end of the full section is the REFLECTED WINDSCREEN BASE,
-   placed with buildCage2's own reflection constant, the aft override spec
-   resolved when there is one); the join takes the post as `AF.z0 +
-   tailLen·FS` when no ring names it (exactly where the regular table puts
-   its own: zCap = zPost − tail.len — a ROD boom gets the same fallback, so
-   its tail section is measured from now on too); and a pillar or third
-   wheel that still cannot be located is an ERRS line (G64's rule), never
-   a silent stale number.
-
-3. **resolveSpec OVERRODE MEASURED STATIONS WITH DESIGN RULES AND CLAMPS.**
-   `tailArm = max(tailArm, boxRear + 0.9·chord)` is the derived arm's floor
-   and stretched a measured 3.11 m boom to 4.05 m (auto-only now, a 0.30 m
-   bay otherwise); `xLE ≥ −0.20` cut a wing drawn under the nose at −1.12
-   (−2.50 now); `gear.x ≥ −0.50` cut the mains at −1.42 (−3.00 now) — and
-   because the visual is calibrated wheels-to-axles, THAT clamp shifted the
-   whole drawn aeroplane 0.93 m aft of the frame on every row of the report;
-   `postGap ≥ 0.35` stood the post 0.22 m behind the tail (0.08 now);
-   `cab.halfW ≥ 0.28`, `cab.len ≥ 0.60`, `noseGap ≥ 0.40` and
-   `engines[].x ≥ −1.0` each bit a scaled-down pod (0.18 / 0.30 / 0.20 /
-   −3.0 now). The rule: a clamp is a GEOMETRIC envelope; the balance is the
-   plaque's to judge.
-
-4. **THE NOSE ENGINE WAS NEVER MEASURED.** The join wrote `x/y/z` for every
-   mount but the nose, and the frame hung a nose engine at
-   −(0.18 + 0.32·propR) whatever nose was drawn in front of it: on this
-   build the powerplant's mass sat 1.56 m aft of its cowl. The join writes
-   the drawn station for the nose too (x/y, no z); resolveSpec moves
-   `engX`/`engY` onto it so the frame, the cowl loft, the nose gear and
-   `engAt` share the one fact.
-
-5. **THE WING'S HEIGHT WAS THREE FORMULAS AND NO MEASUREMENT.** The frame
-   seated a low wing at `−wingStandoff` (0.10 m BELOW the keel), the cage's
-   wing layer at 22 % up the section, resolveSpec's `engAt` at 0.22·cab.h —
-   0.24 m apart on this build, 0.4 m on a full-height cabin, on EVERY
-   low-wing build; mid and high had their own pairs. The join measures the
-   root chord line over the keel off the wing layer's anchor (+ the up/down
-   row) into `wings[0].y` (new, nullable, no GEN_SPEC_V bump — a null keeps
-   the position's rule to the bit); the frame and `engAt` take it.
-
-**THE SAME REPORT, AFTER.** wing LE −1.12 / −1.11 · fin apex 1.96 / 1.91 ·
-extent aft 3.35 / 3.43 · boom belly 0.18 / 0.12 · IDENT TW x 3.35 / 3.35,
-mains y −0.47 / −0.47 · STANCE 7.31 / 7.31 · SETTLED TW and mains on the
-ground · settled pitch vs predicted −0.15°. The overlay in the flight view
-sits on the aeroplane. The plaque now says what was drawn: static margin
-−0.25 (cg −0.06, np −0.44 — a wing 1.1 m ahead of the firewall with a 3 m
-tail arm), which is the builder's to fix, not the generator's.
-
-**ONE MEASURED NON-ISSUE.** The engine 2 m ahead on six bearer members: a
-first instrument read 27 cm of sag at rest and it was the THREE-POINT STANCE
-rotation (2 m × sin 7.3°) — G54.2's own trap, again. In the body frame the
-bearer sags 1 mm on the default nose, 10 mm at 2 m, 6 mm on the pawnee. No
-nose structure is owed for stiffness.
-
-**GATES.** JOIN +15 rows (every door above, held open through cageJoinSpec →
-resolveSpec → genFrame, plus the pod anatomy off `cageResolve`), GEAR +1
-(row 2 is single whatever its offset). GEN 73/73, JOIN, GEAR green; the
-full battery ran after (see the session's last log line).
-
-**OWED.** (a) The merge hazard is still a hazard for any measurement not on
-the ERRS list — the honest fix is the join writing `null` for a measured-
-only key it could not take (null = derived), which reverses G63's "last
-good number" ruling; the user's call. (b) A 1.4 m drawn nose carries no
-covering or structure mass in the frame (the ENG pair hangs on the firewall
-ring, the cowl mass is priced off `noseGap`). (c) The fit report's "boom
-deck @ mid" reads the fin layer's dorsal strip as deck on this build
-(+0.21) — cosmetic. (d) The rod boom's tail section is now measured on its
-next export — expected, but a rod build's physics will move by it.
 
 ### G194 FIX-UPS (2026-09-05, three commits after G188): the G193-G194 commit
 ### (32441ba) had landed four of its hunks at the wrong offset — the join's
@@ -31420,6 +31305,183 @@ next export — expected, but a rod build's physics will move by it.
 ### shared tree by hunk: build the commit's tree in a WORKTREE and run the
 ### gates on THAT, not on the working copy — the working copy carries every
 ### session's hunks and will pass for reasons the commit does not have.
+
+## G195 — ENGINE COVERAGE: THE BLOWER, THE V TESTED, SIXTEEN ROWS FROM 50 TO
+## 1 050 HP, AND THE PICKER (TYPE → CATALOGUE ENGINE | CUSTOM) (2026-09-05)
+
+The user's first message was a study, no code: "build a table comparing the
+engines per type, with their weight and power … cover the whole scale from
+50 HP to 1000 HP, on almost all types … identify the gaps, suggest reasonable
+options". The table said: 24 rows, dense from 59 to 100 hp in a flat, then
+100 → 180 in one jump and nothing above; two in-lines; two two-strokes; four
+radials with 150 → 450 → 1 200 hp gaps; NO V at all (the bench's row was
+UNVALIDATED and the panel's cylinder drop had no 8 or 12); electrics 77 →
+349 hp with nothing between; two PT6s at 675 and 751 shp. 200-300 hp was
+EMPTY IN EVERY LAYOUT — the Cherokee 235, the Pawnee (a reference plane
+already in the garage), the Stearman, the Cessna 195 could not be built —
+and so was 450-600. Two structural constraints shaped any fill: no blower
+model (`'turbo'` was a reserved word; every piston above 400 hp is blown),
+and the four-stroke price law (`60·kW^1.3`, fitted on the amateur market)
+reading 2.4x on the R-985 and 6.4x on the R-1830 against a 3.0 band.
+
+The user's second message set the order: "a proper blower model first (so
+we get turbocharged engines, which is still different from turboprops,
+right?)", the price law, "test the V configs, since they've never been
+done", then the selection; and a new picker: "either the user picks an
+existing engine (after choosing the type of engine), either he chooses
+custom engine, and the engine-related options are shown. Warning, the engine
+mount parameters for example should stay available, but not everything
+related to the engine geometry itself."
+
+**1. THE BLOWER** (05_atmos, 30_solver, 00_registry, 60_gen_spec's custom
+clamp, the bench, the editor's facts, GATE ATMOS + ENGINE). Yes, different
+from a turboprop: a blown piston holds manifold pressure — and so RATED
+power — up to its CRITICAL ALTITUDE, then lapses like a naturally aspirated
+one FROM THAT AIR. `atmosPowerRatio(sig, aspiration, flat, critSig)`:
+`'turbo'` and `'super'` share the law (`sig >= cs ? 1 : 1 - 1.132(1 -
+sig/cs)`), critSig 1 is a ground-boosted blower and IS the NA law (the honest
+row for an R-1340, 600 hp at the strip and 550 at 5 000 ft). The row carries
+`critAlt` in metres of ISA altitude; the solver converts it to sigma once
+(`CRIT`, beside `FLAT`). Continuous through the ceiling, exactly 1 at sigma 1
+(the gate battery's identity), a blown row must carry critAlt and no other
+row may (GATE ATMOS §8, the flatK rule's twin). The R-1830 and the R-985 are
+`'super'` to 1 500 m now — their published low-blower ratings — so the DC-3-
+and Beaver-alikes stop losing at altitude what the real ones did not. On the
+bench: `blower` (none / turbocharger / supercharger), `boost` (rated MAP over
+ambient, multiplies bmep — a 914's 40 inHg is 1.34, an R-1830's 48 is 1.60),
+`critAlt`; a turbo adds 8 % + 2 kg (a 914 over a 912: +6 kg on 58), a
+mechanical blower 4 % (the big radials the mass law was fitted on already
+carry one). A custom row keeps `aspiration` + `critAlt` into the def, and
+the ENGINE gate flies a custom turbo four at 3 000 m: rated power there,
+where the NA twin makes 71 %.
+
+**2. THE PRICE LAW BENDS.** `kW^1.3` holds to the IO-360 (130 kW); above,
+the second-hand warbird market prices by provenance: `·(kW/130)^0.35`, fitted
+on the R-985 (48 k) and R-1830 (65 k) — x0.98 and x1.02, the R-1830's waiver
+retired.
+
+**3. THE V, TESTED.** `ENG_ARCH.vee` was a guess (kM 1.10, "UNVALIDATED"),
+the mesh refused it and the panel could not select it. Now: counts 6/8/12,
+the bank angle is a row (`vee`, 45-120°) about the in-line's own aim row
+(an aero V is almost always INVERTED), kM fitted on three published
+air-cooled aero Vs — Hirth HM 508D (8.0 L, 209 kW, 186 kg), Argus As 10C
+(12.7 L, 176 kW, 213 kg), Ranger V-770 (12.6 L, 388 kW, 320 kg, blown) — kM
+alone, the shared exponent kept (G165's rule): 0.95, residuals -5 / +25 /
+-17 %, THE WIDEST OF THE FOUR FAMILIES AND DECLARED: an Argus is magnesium,
+a Ranger is long and heavy for its litres, an LS auto conversion (6.2 L,
+205 kg) reads 27 % light and is a published-row engine forever. bmep 9.5
+from the two NA rows (10.5 and 8.5 bar) — the in-line's figure, which is
+what a V is. The mesh dresses it THROUGH THE BOXER'S BRANCH (every cylinder
+is built off its own angle), and GATE ENGMESH ran the whole battery on an
+upright 60° V8, the two inverted registry Vs and an inverted V12. It found
+SEVEN things, all real:
+  - the across-axis `e2` is a GLOBAL direction on a boxer (down, both banks)
+    and an in-line; on a V it put one bank's ports into the valley and the
+    other's outboard, and the +x bank's exhaust knee through the -x bank's
+    barrels. On a V, `e2 = [-sx, 0, 0]`: negative p is OUTBOARD on both
+    banks, where a real V carries its exhaust;
+  - the intake runner's plenum point was the boxer's frame literal; a V's
+    runner leaves the induction face on its own bank's side and comes round
+    the flank like an in-line's (G165's route, mirrored);
+  - an INVERTED V's heads hang below the case, so a collector at the sump's
+    height sat in the barrels: `yFloor` = the lowest metal, V only; the pipe
+    drops outboard first, then turns in to the can;
+  - two 1.45 b cylinder pads overlapped in a 60° valley: a V's pad is no
+    wider than the chord between banks;
+  - THE CASE IS A ROUNDED SQUARE, and a 45° bank meets its CORNER at 1.19 cR
+    where a boxer's meets a flat at cR — a barrel rooted at 0.96 cR started
+    its fins inside the corner, and the 90° Argus put a fin plane on the
+    corner facet to 0.1 mm (the gate's "case | fins"). `caseDistAlong`
+    roots each barrel on the case's own boundary along its bank;
+  - plug leads: the boxer's corridors (over the spine, down the flank, in
+    the cylinder's frame) put both banks' bottom leads into one corridor and
+    they touched; a V's top leads run up the VALLEY (1.9 cR: widest between
+    the fins and the heads — lower, the field pass pushed every lead onto
+    the same fin edge), its bottom leads go OUTBOARD (over the spine behind
+    the last cylinder for the far bank), each station on its own track; an
+    inverted V's top leads round the flank first, the mags being on top;
+  - twelve towers on one line of a 2.1 r magneto cap sit 0.18 r apart,
+    closer than a tower is wide: two rows of six past eight cylinders.
+  And one latent coincidence in EVERY layout: the prop flange's boss step
+  landed on the timing cover's front face at bore ≈ 0.105 m (0.2 mm apart,
+  read as one plane); the step now clears it, the A-65's moves by 0.3 mm.
+  The IO-720's flat EIGHT (counts 2/4/6/8 now) found its own: eight top
+  leads from one cap into one corridor over the case were pushed onto the
+  same surface — past six cylinders they fan out a track a station.
+  The residual table (`_eng_check`): HM 508D -9 % power / -5 % mass, As 10C
+  +14 % / +25 %.
+
+**4. THE COVERAGE FILL** — sixteen registry rows + bench presets + join
+rows, every one a published engine (mass and power the maker's, the PROP
+genPropSynth's own output at a stated diameter and blades, the price the
+bent law's): O-320 (150 hp), O-540-B2C5 (235 — the Pawnee's), IO-550-N
+(310), IO-720-A1A (400, flat eight), Rotax 915 iS (141, `'turbo'` to
+4 600 m), Ranger L-440-5 (200, inverted six — the in-line's ceiling), W-670-
+6A (220 — the Stearman's), Jacobs R-755-A2 (300), Vedeneyev M-14P (360,
+`'super'` to 500 m), R-1340-AN-1 Wasp (600, `'super'` to 300 m), Rotax 503
+(50), EMRAX 268 (145 hp — it was in the electric mass fit and had no row),
+Hirth HM 508D (280) and Argus As 10C (240) for the V, PT6A-42 (850 shp) and
+PT6A-60A (1 050) inside the turboprop study's ruling 3 — their gas-generator
+diameters FITTED so the bench's power-from-geometry law makes the rating at
+each flat margin (0.447 m → 634 kW at 1.24; 0.489 → 783 at 1.20). Every
+100-hp band from 50 to 1 050 now has a row in at least two layouts.
+
+**5. FOUR ORPHAN PRESETS.** The Walter Mikron, the Gipsy Major, the E-811
+and the SP260D had NO row in `CAGE_JOIN_ENGINES`, so an untouched preset of
+any of them flew as an A-65 under its own name (the G185 entry noticed the
+Tiger Moth's). Mapped; GATE ENGID now asserts every non-fantasy preset maps
+to a registry row — it went red on the two electrics the moment it existed.
+
+**6. THE PICKER** (`_cage_eng.js`, `_cage_ui.js`, `_cage_design.js`). The
+trunk reads powertrain → LAYOUT (`eng_arch` moved out of the geometry group
+it hid in; same key, same drop) → ENGINE. The engine row lists THIS TYPE's
+catalogue (`optHide`, a new row option: `P => [hidden per option]`, applied
+live in applyRowVis; the value stays the index into the full list so a saved
+number never changes meaning) and, last, `custom engine` — appended, so
+every saved index still names the same engine. A catalogue pick is a starter
+for the dials, as before, AND A MODE: its geometry rows stay hidden, its
+geometry IS the preset's (`engSpecOfP` overlays only the INSTALLATION keys —
+mount + firewall, services, radiator — on `presetSpecOf`), and the registry
+row flies whatever a hidden dial says. The custom engine shows every row and
+flies the dials, named "custom <layout> n-cyl X L" — "modified <name>" is
+retired: once you are editing bore and stroke it is your engine. Two
+consequences, both pinned in GATE ENGID: THE TYPE LEADS (`engTypeFollow` —
+switch the layout to radial under a Continental and the list hands you the
+first radial; the custom engine follows no list), and THE LOAD AUDIT
+(`engCatalogueAudit` — a file saved before this ruling that named a
+catalogue engine over deviating dials FLEW those dials; it is flipped to
+custom once per load, so nothing a file flew changes under it; a dress dial
+does not flip it). GATE PARTS caught the one trap: the radiator group's
+`when` read `eng_liquid`, a dial now hidden under a catalogue engine, and
+its rescue sweep (values 0..3) cannot reach a custom index of 42 — "a switch
+out of reach from the default aeroplane that nothing reachable brings back".
+Right on both counts: the radiator follows THE ENGINE THAT IS FLOWN
+(`liquidOf`: the preset's cooling for a catalogue engine, the dial's for
+custom). The birth flow's model list carries the custom entry in every
+family; the design tile that said "Two-stroke (inline)" since G165 made it
+a lie says "Inline"; the V tile is live.
+
+**Verified in the page** (dev.html, the Cub build): the trunk shows
+powertrain / layout (flat, inline, radial, V) / engine; with the 582's
+build the engine list shows the six in-lines and the custom entry, 35 others
+folded; the geometry rows are hidden under the catalogue engine.
+
+**Gates**: ATMOS, ENGINE, ENGID, ENGMESH (four V cases + a flat eight), COWL
+(a 90° V case), JOIN, STARTER, SAVE, PARTS, DESIGN, UISMOKE green on the
+working tree; the full battery's verdict is in the commit's message.
+
+**Not done, said plainly.** Turbine rows below 500 shp (Allison 250, PBS
+TP100) wait on the study's ruling 3; the Wright R-1820, Ranger V-770 and
+Hispano 12Y (the 800-1 000 hp piston rungs) are one row each now that the
+blower exists; the Verner Scarlett 5Si's published figures were not verified
+so the 50-hp radial rung is still empty; a supercharger's INTERCOOLER and a
+turbo's snail are not drawn (the blower has physics and mass, no geometry);
+the bench's residuals on the 915 iS (-18 % power, -26 % mass) say the
+declared additions under-read a modern injected liquid geared turbo — a
+fifth fit point, not a fudge; `presetSpecOf` is called for every build of a
+catalogue engine (cheap, uncached).
+
+---
 
 ## G194.1 — THE STAGING TRAP: ZERO-CONTEXT HUNKS LAND AT THE WORKING TREE'S
 ## LINE NUMBERS (2026-09-05, found by building HEAD in a clean worktree)
@@ -31470,3 +31532,217 @@ FAIL — the rigidity-rank term held without G185, so the earlier reading
 that it needed the biplane frame was wrong; the row had failed on the fuel
 bound. The biplane landing (b76f6fed, its user's call) is the one thing
 still only in the working tree.
+
+## G185 — THE BIPLANE: A SECOND PLANE, A CABANE, A TRUSS OF STRUTS AND WIRES,
+## AND THE INTERFERENCE BETWEEN THE PLANES (2026-09-05, the user: "DO a full
+## study on double wings. What to add to the physics, and to the editor? To
+## the 3D model? Probably we need to model some sort of support for the high
+## wing? ... a detailed plan that leaves no stone unturned and ensures
+## robustness. No physics shortcuts.")
+
+**Where it stood.** `wings` was an array "because a biplane is a real aeroplane"
+and every consumer read `wings[0]`; one `polarWing`, a constant `downwash 0.40`,
+one `bSpan`, no cabane, no interplane strut, no wire, no literature in the tree.
+ROADMAP Phase 6 item 8, and G3.5b's costing: "a second wing needs an
+interference model on each wing's induced drag and a cabane/interplane
+structure". The user's rulings before the first line: computed tail downwash
+on BIPLANES now, monoplanes keep the constant and only MEASURE (the flip is the
+next arc, with the numbers below as its anchors); biplane + sesquiplane +
+parasol, no triplane; wires tension-only with rigging pre-strain; the second
+plane's fittings, bays and lights in the arc.
+
+**The spec (v7, additive — no migrator).** `wings[1]` optional, the FULL plane
+key set plus `stagger` (metres its leading edge sits AFT of plane 0's — the
+trunk's fore/aft sign) and its own `controls` (absent = no surfaces). Every
+plane has `position ∈ {high, mid, low, parasol}` and `cabaneH` (metres above
+the roof on a cabane). `wings[0]` is ALWAYS the wg* plane, whatever its height.
+`bracing` grew `interplane 'none'|'N'|'I'`, `interplaneAt` (fraction of plane
+0's exposed semispan), `wires 'none'|'both'|'flying'`, `cabane 'N'|'V'` (a
+drawing selector; the structure is identical). `centre` admits `'cutout'` (the
+trailing edge cut back to 62 % chord over the cockpit). THE GAP IS A READOUT:
+the cabane height and the lower plane's band decide it (`S.geom.gap`); a gap
+row would have been a second home for the cabin height (G132). clampSpec ->
+`clampWing(w, S, k)` per plane and `clampControls`; the pair clamp (parasol|high
+over low|mid), the sesquiplane floor (0.45x), a two-plane build's `bracing.type`
+reads 'cantilever' (no fuselage fan). `S.geom` composes the planes: `Sw` the
+sum, `cBar` area-weighted, `xAC` area-and-slope-weighted, `AR = span²/Sw` (the
+system's), `planes[k]` each plane's own record; one plane is EXACTLY its record
+(the single-plane branch is the record, not a sum of one term — a·b/a is not b
+in floating point). Tail volumes, `tailArm`, `genYawStiff`'s b and `genAP`'s
+tau read the combined numbers; the % MAC datum is `gen.xLEmac` (a biplane's
+combined MAC leading edge; a monoplane's `wings[0].xLE` exactly as before).
+
+**The frame.** `genLattice`'s wing block is `buildPlane(k)` (byte-identical for
+one plane: GATE GEN G8, WINGSPLIT's 13 digests, the def sha in the commit).
+Node tags stay WF/WR/WB on every plane and a node FIELD `plane` discriminates
+(a tag suffix would have dropped the second plane from the load test's wing
+set, the skin binding and the join's span); `makeSkinBinding` filters by
+`cfg.plane`. `parts.planes[k]`; the flat `parts.wf/zs/...` are plane 0's
+aliases. THE CABANE: a plane more than `cabaneMin` above the roof has its
+root ties to the top longerons emitted as class `cabane`, drawn (`'N'` = the
+post to the nearest ring and one diagonal; `'V'` = the two straddling members),
+its roots splayed `cabaneSplay` outboard so the posts lean out in the front
+view — the structure a parasol Pietenpol and a Tiger Moth's top wing stand on;
+a parasol keeps its lift struts. THE INTERPLANE STATION is inserted into both
+planes' station lists like the crank (a shorter second plane clamps it inboard:
+the sesquiplane's strut leans). THE TRUSS (block 3b, after both planes): `'N'`
+= two posts and a diagonal, drawn; `'I'` = two posts drawn, the diagonal inner
+(a blade's shear path — the one named lumped member); flying wires lower root
+-> upper station, landing wires upper root -> lower station, class `wire`,
+`tens: true, pre: wirePreStrain` — TENSION-ONLY in the solver (no spring and no
+damper in compression) and rigged short by 5e-4 so both sets stand taut at 1 g.
+The truss classes are 4130 on every airframe, routed as `mnt` is. Mass per
+member; the second plane's `material` its own. Fuel bays `wing2Root` /
+`wing2Panel` with `plane: 1`; `wingPair(frac, plane)`.
+
+**Measured twice, and why the wired plane keeps its spar box.** First cut:
+planar two-spar bays inboard of the strut, G140's box outboard — rank 272/276.
+An interior station between the root and the strut has every member in the
+wing's plane and is free to leave it: two nodes a side, four ranks. Second cut,
+one inner bay — 248/252: the OUTER PANEL HINGES at the strut station about its
+own chord line, because the overhang's bending moment is reacted by nothing but
+spar continuity through the station, and a planar inner bay has none (the strut
+and the wires act AT the station, with no lever). That is the real aeroplane's
+load path too: a braced spar is a bending member everywhere and the truss
+relieves it. So a wired plane is the cantilever box with the struts and wires
+ON it, and the wires carry a measured share: cut them and the bend rises 0.23
+-> 1.26 % (upper), 0.13 -> 1.16 % (lower) under GATE FLEX's 2 kN spread — the
+negative control is "x3 or more", not a fold. DECLARED SIMPLIFICATION: the
+braced spar is modelled at cantilever depth and cap stiffness; a lighter
+braced-spar row is owed. The cabane's own instrument is the load SHARE at 1 g
+(35 % of the root's vertical load through the drawn members, the rest the
+lift-strut fan and rule 3's depth ties) — the rank test cannot see it, and a
+deflection reading was contaminated by the whole aeroplane pitching on its gear.
+
+**The aero.** One polar PER PLANE (`polarWings[k]`: its own AR, section, sweep,
+tip; the interplane strut spoils both planes' Oswald as a lift strut does).
+`genStrips` walks the planes (plane 0's strips first, byte-identical, then the
+second plane's); strips carry `plane`, `sparSpacing`, `cf`; each plane's own
+aileron/flap flags; the second plane pays only the EXTRA radial distance from
+the thrustline for its propwash (`washAt` is fitted to the Cub at the Cub's
+wing height, and plane 0 keeps it untouched). Ground effect per plane (`bOf`).
+THE VORTEX KERNEL (`vortexKernel` in 30_solver.js, exported): each wing strip
+a horseshoe — bound vortex on the strip's own sub-span at c/4, two
+semi-infinite legs down the air-relative wind, Rankine core 0.30 c — and the
+pair list built once in makeSim: every wing strip from the OTHER plane's strips
+(never its own: Munk's decomposition Di = Di1 + Di2 + 2·Di12, and the polar's
+eAR is the self term), every stab/V-tail strip from every wing strip. The
+induced velocity is ADDED to the strip's local wind, so the mutual induced drag
+falls out of the tilted lift vector with no separate term; Γ = ½·Cl·c·V, signed
+so ev × Γ is the lift direction, one substep of lag (the loop is a contraction,
+round-trip gain ~0.02). Influence coefficients are rebuilt per FRAME in flight
+and on a geometry-signature change in a probe, never per substep; the ground
+image (mirrored, circulation reversed) rides in the cross-plane and tail
+terms only. A probe runs a FIXED three passes (two on a monoplane, where the
+tail pairs are measured and not applied; never a tolerance loop — the trim
+search needs a smooth function of speed), posts `gamResid`. The tail:
+`downwashModel 'vortex'` on a biplane replaces the (1 − 0.40) factor by the
+kernel's own downwash; a monoplane keeps the constant and `genShakedown`
+posts `dEpsDa` on every build. `out.planeFy[]`, `gen.liftSplit`.
+
+**Measured (GATE BIPLANE).** The kernel equals a 400 000-element Biot-Savart
+integral to 1e-6 at three points; Munk's stagger theorem holds to 1e-9 on the
+kernel (control points on the bound lines — move them 0.1 c off and it breaks,
+the negative); the ground image mirrors. Prandtl's σ on the aeroplane (both
+planes' drag minus each plane's own drag fitted D0 + cL² alone, the fuselage
+out of every run): G/b 0.114 -> 0.537 vs the elliptic fit 0.628, 0.178 ->
+0.440/0.517, 0.246 -> 0.370/0.427, 0.354 -> 0.284/0.325 — 0.85-0.88 of the fit
+at every gap (rectangular planes, four strips a side), monotone; the band is
+0.75-1.05. Diehl: the upper share 0.480 / 0.520 / 0.556 at stagger −0.4 / 0 /
++0.4 m (the 0.52 at zero is area — the parasol's splayed centre section), +2°
+decalage on the upper plane +0.084; the total drag at fixed alpha moves 0.4 %
+with stagger (Munk, soft). The tail's dε/dα: stock 0.223, cantilever 0.229,
+mid wing 0.233, the biplane 0.390 — the classical far-field estimate for the
+stock is 0.43; the tail is 2.6 chords aft and below the wake; the window is
+[0.15, 0.55] and the core radius has no effect on it. A biplane builds in
+17 ms against the stock's 6. Every monoplane def digest (nodes, beams,
+strips, params, refs — the new fields stripped) is byte-identical to the
+pre-G185 baseline after every sub-step.
+
+**The rig (GATE LOAD).** The sandbag rig's trestle clamp reset the pinned nodes
+once per FRAME; a stiff member from a pinned node to a light free one diverged
+on wood, alloy and carbon parasols and biplanes (tips −13 % to +35 %, member
+strains 0.11-0.20 at 1 g, tubeFabric alone sane — G179 met it as "the rig's
+per-frame trestle clamp resonating" and worked around it with the bearer's
+material). The clamp now runs after every substep. EVERY PUBLISHED LOAD ROW
+MOVED: the strut rows read 0.31 / 0.09 / 0.06 / −0.03 %/g at 1 g (tubeFabric /
+wood / alloy / carbon; were 0.46 / 0.40 / 0.31 / 0.08) — the old numbers
+measured the clamp letting go between frames. Two named exemptions: a wing
+under a 0.05 % floor is "too stiff to rate" (GATE FLEX's own rule), and a
+WIRE-BRACED wing is bilinear by construction (the landing set slackens as the
+load rises) — held to "grows with load", not to ±15 %. The biplane rows: tube
+0.31 / 1.50 / 2.19 %, wood 0.10 / 0.58, alloy 0.19 / 0.87, carbon 0.07 / 0.39.
+
+**The editor.** `_cage_wing.js`: `wgPos` grew 'parasol' (+ `wgParaH`),
+`wgCentre` 'cutout', `wgAilOn`; the second plane's rows are GENERATED from the
+first's (`W2_ITEMS`: same labels, ranges, steps; keys re-prefixed w2*; every
+`when` ANDed with `w2On` and re-pointed at the w2 keys — a row added to the
+first plane lands on both; dropped: the master switch, the fuselage-strut rows,
+the fore/aft nudge — the second plane's fore/aft IS its stagger) with
+`w2Pos/w2ParaH/w2Stagger/w2Dy/w2AilOn`; the layer draws the second plane into
+its own group `cageLayer:wing2` (its own extraction by binding, classes, field,
+livery sections `wingSkin2/wingTip2/wingAil2/wingFlap2`, surfaces
+`edSurf_ailR2..`, probes) and publishes `CAGE_WING.planes[]` with `lowest` and
+`upper`; the status line prints the gap and the stagger. NEW `_cage_brace.js`
+(after the wing, before the gear): the cabane, the interplane struts and the
+wires, drawn from the frame's own members through `_strut_gen`'s plate + clevis
+(a wing-to-wing member has TWO wing plates, deduped per node; a wire a lug per
+end), each group carrying `strutMembers` for the join; rows `bpCabane,
+bpStrutZ/X, bpInter, bpInterAt, bpInterZ, bpWires, bpWireD`; the fore/aft trim
+is clamped to the INTERSECTION of both planes' bands. Parts: `cabane`,
+`wingPanel2`, `wingCtl2`, `interplane`, `wires`; `w2On` is design's. The join:
+`cageJoinPlane2`, the truss keys only on a biplane; designBake's intent channel
+carries the second plane and the truss (else GATE ARCHETYPES would fly a
+monoplane for a biplane card). The design flow: a `planes` tile (mono /
+biplane / sesquiplane; the lower span's RATIO is the option's own fact, written
+armed; the rest seeded), `iconFront` draws a parasol and a second plane; five
+archetypes: pietenpol (parasol), tigermoth, stearman, pittsAlike (four
+ailerons, I struts), sesqui. Lights: `li_plane` moves the TIP lights to the
+chosen plane (the bay stays the first plane's — it is cut there). Energy: the
+bays carry `plane`, `wingSlicer(ctx, inv, plane)`. Gear: the wheel meets the
+LOWEST plane. Cowl: the over-the-wing engine sits on the UPPER plane; a
+parasol accepts it. Access: the second plane's field is `'wing2'`,
+`fuelCapWing2` and `inspAileron2` (DEBT §5 closed on the resolved-spec path;
+the editor's E does not yet carry `tank2`). Flight: `cageCfg(k)` per plane,
+the second skin binds to the second plane's stations, the second plane's
+surfaces drive as their twins (`plane: 2`), and a generic truss rig follows
+BOTH ends of every cabane/interplane/wire member to their nearest rest nodes.
+
+**Four traps the gates did not have.** (1) AEROSKIN pools materials on LOOK,
+so the second plane dressed like the first came back as the SAME object, the
+join bucketed both skins together and the game bound the second to nothing —
+the second plane's material is a clone carrying `aeroPlane`, and the bucket
+key ends `P2`. (2) GATE PARTS' existence probe tried 0 and default-or-1 only:
+a part gated on an enum's fourth value could never read on; it tries each
+key's ROW MAXIMUM now, and its spy answers with the default aeroplane (a `when`
+reading `+P.wingOn` first short-circuited on the bare template). (3) A strut
+FOOT must not ride the wing's nudge: the user's build with wgDx 1.2 had the
+lift-strut foot 403 mm off the skin (`nodeCageBody`; snap now 89 mm). (4) The
+tail-downwash readout summed four stab strips instead of averaging them.
+(5) THE CARD CANNOT MOVE ITS WING. The first full ARCHETYPES run left the
+Stearman-alike and the aerobatic biplane in CRUISE at 420 s after two
+go-arounds on 'terrain': a scratch trace of the pilot showed its sink loop
+asking for +5 m/s while the aeroplane sank 3 m/s at 8.5 deg with the elevator
+pinned at 0.30 for 45 s. Not the pilot: the Stearman's CG sat 3 % MAC AHEAD
+of its leading edge (margin 47 %) with the R-985 on the nose, the Pitts at
+4 % (43 %). The wing's fore/aft row was the player's cure and the card could
+not use it — designBake's intent channel carried only choices and the join
+measures wgDx back off the cabin ring, so a card's wgDx did nothing on the
+pre-join path. designBake now carries it as `wings[0].place.dx = -wgDx`
+(cage z runs forward, body x aft), the Stearman card sets wgDx 0.60 (CG 22 %
+MAC, margin 21 %) and the Pitts 0.40 (25 %, 21 %); both complete the circuit
+with no verdicts (Stearman FLARE at 239 s, run to a stop at 267 s). The
+sweep: every 0.1 m forward buys the Stearman ~4 % of margin.
+GATE ARCHETYPES then PASSED uncapped — 25 cards, 1939 s wall under five peer
+sessions — against the runner's 1800 s cap, which had bitten twice with no
+failed check to point at; the gate carries its own 3600 s cap now (the
+runner's doubling rule). A biplane card costs ~5 min: 98 substeps (the two
+wing boxes' 1.5 kHz beams, not the wires) over 536 beams, 39 strips.
+
+**Not done, said plainly.** The braced-spar row; the second plane's lamp bay
+(only the tip lights move); the Gipsy Major row in the join's engine map (the
+Tiger Moth card flies an A-65 and says so); `E.tank2` from the energy layer;
+wing PIN rows; the monoplane downwash flip (next arc; anchors above); the
+mutual term in ground effect uses the same image as the self term (McCormick
+holds the self image); a fin sees no sidewash; V-tail strips take the kernel's
+downwash but a twin-boom's second fin none.

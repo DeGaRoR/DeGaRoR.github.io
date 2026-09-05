@@ -580,7 +580,8 @@ function padOn(bags, K, ctr, n0, fore, L, W, t, proj, FIT) {
 }
 
 const API = { STRUT_FIT, STRUT_BAND, strutBand,
-              strutSnap, strutSite, strutSkin, strutBuild, strutClevisUp };
+              strutSnap, strutSite, strutSkin, strutBuild, strutClevisUp,
+              padOn };   // G185: the wing plate, for the brace layer's wing-to-wing members
 if (typeof window !== 'undefined') window.STRUT_GEN = API;
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })();

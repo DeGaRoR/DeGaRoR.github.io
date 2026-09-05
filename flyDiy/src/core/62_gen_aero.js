@@ -116,21 +116,38 @@ function genStrips(S, fr) {
   // c/4 between the spars: weight the front spar by how far the quarter chord
   // sits from the rear one
   const cf = (P.sparRear - 0.25) / (P.sparRear - P.sparFront), cr = 1 - cf;
-  const semi = S.geom.semi;
+  // G185: EVERY PLANE, in order — plane 0 exactly as it always was (its wing
+  // strips, then its centre strip), then the second plane's the same way, so
+  // a monoplane's list is byte-identical. Each plane reads its OWN semispan,
+  // stations, spar record, controls and propwash.
+  const PLANES = P.planes || [P];
+  const NONE_CT = { aileron: { span: 0, chord: 0.22 }, flap: { type: 'none', span: 0.5, chord: 0.2 } };
+  // the thrustline, for the second plane's share of the wash (see below)
+  const yProp = S.engY != null ? S.engY : 0;
+  for (let k = 0; k < PLANES.length; k++) {
+  const PL = PLANES[k], wk = S.wings[k] || S.wing;
+  const semi = k === 0 ? S.geom.semi : (PL.semi != null ? PL.semi : 0.5 * wk.span);
   // where the surfaces live along the semispan. The aileron is measured inboard
   // from the tip, the flap outboard from the centreline, and clampSpec has
   // already guaranteed a gap between the two.
-  const CT = S.controls;
+  const CT = k === 0 ? S.controls : (wk.controls || NONE_CT);
   const aStart = (1 - CT.aileron.span) * semi;
   const fEnd = GEN_FLAPS[CT.flap.type].dCl > 0 ? CT.flap.span * semi : -1;
+  // PROPWASH ON THE SECOND PLANE (G185): washAt is fitted to the Cub with the
+  // Cub's wing at its own height, so plane 0 keeps that law untouched; plane
+  // k pays only the EXTRA radial distance from the thrustline beyond plane
+  // 0's — a lower plane nearer the axis than the upper reads the full wash
+  const dy0 = Math.abs((PLANES[0].wingY0 != null ? PLANES[0].wingY0 : yProp) - yProp);
+  const dyk = Math.abs((PL.wingY0 != null ? PL.wingY0 : yProp) - yProp);
+  const fyk = k === 0 ? 1 : Math.max(0, 1 - Math.pow(Math.max(0, dyk - dy0) / Reff, 2));
 
-  const zAll = [P.zRoot, ...P.zs];
-  for (const [side, fw] of [[1, P.wf.R], [-1, P.wf.L]]) {
-    for (let b = 0; b < P.zs.length; b++) {
+  const zAll = [PL.zRoot, ...PL.zs];
+  for (const [side, fw] of [[1, PL.wf.R], [-1, PL.wf.L]]) {
+    for (let b = 0; b < PL.zs.length; b++) {
       const zi = zAll[b], zo = zAll[b + 1];
       for (const t of [0.28, 0.78]) {
         const zc = zi + (zo - zi) * t;
-        const ch = P.chordAt(zc);
+        const ch = PL.chordAt(zc);
         // Each strip is HALF a bay, so it has a real sub-span, and `flap` is a
         // FRACTION rather than a flag: how much of this strip carries a flap.
         // With a bare flag the span slider quantised — 0.50 and 0.62 produced
@@ -146,7 +163,12 @@ function genStrips(S, fr) {
           fIn: fw.F[b], fOut: fw.F[b + 1], rIn: fw.R[b], rOut: fw.R[b + 1],
           w: [[fw.F[b], cf * (1 - t)], [fw.F[b + 1], cf * t],
               [fw.R[b], cr * (1 - t)], [fw.R[b + 1], cr * t]],
-          wash: wingWash(zc), ail: zc > aStart ? 1 : 0, flap: fFrac,
+          wash: k === 0 ? wingWash(zc) : wingWash(zc) * fyk,
+          ail: zc > aStart ? 1 : 0, flap: fFrac,
+          // G185: the plane this strip belongs to, its plane's spar spacing
+          // (the Cm0 couple arm) and the quarter-chord weight — the solver
+          // reads the strip's own numbers, never a single aeroplane-wide one
+          plane: k, sparSpacing: PL.sparSpacing, cf,
         });
       }
     }
@@ -154,16 +176,18 @@ function genStrips(S, fr) {
   // Centre section over the cabin: one strip, fully in the slipstream. It hangs
   // off the WING's own spar roots, not the fuselage frames — otherwise the
   // centre section's lift stays behind when the wing is moved.
-  const cL = P.wf.L, cR2 = P.wf.R;
+  const cL = PL.wf.L, cR2 = PL.wf.R;
+  const cWash = mount === 'nose' ? 1 : (mount === 'wingTop' && !pushes) ? 0.6 : 0;
   strips.push({
-    kind: 'wing', side: 1, t: 0.5, chord: S.wing.chord,
-    area: 2 * P.zRoot * S.wing.chord,
+    kind: 'wing', side: 1, t: 0.5, chord: wk.chord,
+    area: 2 * PL.zRoot * wk.chord,
     fIn: cL.F[0], fOut: cR2.F[0], rIn: cL.R[0], rOut: cR2.R[0],
     w: [[cL.F[0], cf * 0.5], [cR2.F[0], cf * 0.5],
         [cL.R[0], cr * 0.5], [cR2.R[0], cr * 0.5]],
-    wash: mount === 'nose' ? 1 : (mount === 'wingTop' && !pushes) ? 0.6 : 0,
-    ail: 0, flap: 0,
+    wash: k === 0 ? cWash : cWash * fyk,
+    ail: 0, flap: 0, plane: k, sparSpacing: PL.sparSpacing, cf,
   });
+  }
 
   const hc = S.tail.hChord;
   if (S.tail.type === 'v') {
@@ -333,7 +357,7 @@ const GEN_TAU_REF = 10.0 / 26.0;      // Cub span / VCruise
 
 function genAP(S, Vs, mass) {
   const V = k => Math.round(GEN_VRATIO[k] * Vs * 10) / 10;
-  const tau = S.wing.span / (GEN_VRATIO.VCruise * Vs);
+  const tau = (S.geom && S.geom.span ? S.geom.span : S.wing.span) / (GEN_VRATIO.VCruise * Vs);
   const kD = tau / GEN_TAU_REF;
   // A tricycle lands and rolls out differently: there is no tail to fly down,
   // so the AP de-rotates onto the nosewheel instead of pinning a tailwheel.
@@ -713,11 +737,15 @@ function genPlant(nodes, strips, P, V) {
   // both would over-damp a V-tail by cos G and mis-tune its pitch loop.
   let Lda = 0, Lp = 0, ShC = 0, ShD = 0, arm = 0;
   const px = ws => { let x = 0; for (const [i, w] of ws) x += nodes[i].p[0] * w; return x; };
+  // G185: a second plane's strips carry ITS slope, as a ratio to plane 0's so
+  // the monoplane sums are the same numbers they always were
+  const PW = P.polarWings;
+  const kA = st => (PW && PW.length > 1 && st.plane) ? PW[st.plane].a3d / aW : 1;
   for (const st of strips) {
     if (st.kind === 'wing') {
       const zc = nodes[st.fIn].p[2] + (nodes[st.fOut].p[2] - nodes[st.fIn].p[2]) * st.t;
-      Lp += st.area * zc * zc;                       // roll damping, all strips
-      if (st.ail) Lda += st.area * st.ail * Math.abs(zc);
+      Lp += st.area * zc * zc * kA(st);              // roll damping, all strips
+      if (st.ail) Lda += st.area * st.ail * Math.abs(zc) * kA(st);
     } else if (st.kind === 'stab') {
       ShC += st.area; ShD += st.area; arm += st.area * (px(st.w) - cx);
     } else if (st.kind === 'vtail') {
@@ -727,6 +755,10 @@ function genPlant(nodes, strips, P, V) {
     }
   }
   Lda *= q * aW * P.ailTau;                          // roll moment per unit da
+  // G185: a build with NO aileron strips (every plane's aileron span 0) has
+  // no roll authority — a real defect the test pilot reports, not a NaN in
+  // the roll gains, so the moment is floored at a hair above nothing
+  Lda = Math.max(1e-6, Lda);
   Lp = -(q * aW / V) * Lp;                           // negative: it damps
   const lh = arm / Math.max(1e-6, ShD);
   return { M, Ixx, Iyy, Lda, Lp, lh,
@@ -770,9 +802,19 @@ function genParams(S, fr, strips) {
   const G = S.geom;
   // G140: sweepEff — the legacy field verbatim, or the area-weighted |LE
   // sweep| the three-station law derives (resolveSpec sets it either way)
-  const polarWing = genPolar(S.wing.naca, G.AR, S.wing.strut, M.cd0, M.clmaxK,
-                             S.wing.sweepEff != null ? S.wing.sweepEff : S.wing.sweep,
-                             (GEN_TIPS[S.wing.tip] || GEN_TIPS.rounded).e);
+  // G185: ONE POLAR PER PLANE — its own aspect ratio, section, sweep and tip;
+  // the bracing penalty on Oswald is the fuselage strut's for plane 0 and
+  // the interplane strut's for both planes of a biplane. genOswald itself is
+  // untouched: it is the plane's SELF term, and the mutual term between the
+  // planes is the solver's kernel (G185.5), never a second factor here.
+  const interplane = !!(S.bracing && S.bracing.interplane && S.bracing.interplane !== 'none');
+  const polarWings = S.wings.map((wk, k) => {
+    const Gk = (G.planes && G.planes[k]) || G;
+    return genPolar(wk.naca, Gk.AR, (k === 0 && S.wing.strut) || interplane, M.cd0, M.clmaxK,
+                    wk.sweepEff != null ? wk.sweepEff : wk.sweep,
+                    (GEN_TIPS[wk.tip] || GEN_TIPS.rounded).e);
+  });
+  const polarWing = polarWings[0];
   const hAR = S.tail.hSpan * S.tail.hSpan / S.tail.Sh;
   const polarTail = genTailPolar(hAR, M.cd0);
   // G115 (the review's S4): the FIN flies on its OWN aspect ratio. It flew
@@ -784,7 +826,11 @@ function genParams(S, fr, strips) {
   const vAR = S.tail.vHeight * S.tail.vHeight / Math.max(1e-6, S.tail.Sv);
   const polarFin = genTailPolar(vAR, M.cd0);
   const mass = fr.cg0[3];
-  const ClMax3D = polarWing.Cl0 + polarWing.a3d * polarWing.aStall;
+  // G185: the aeroplane's CLmax is its planes' area-weighted one (a monoplane's
+  // is exactly its own)
+  const ClMax3D = polarWings.length === 1
+    ? polarWing.Cl0 + polarWing.a3d * polarWing.aStall
+    : polarWings.reduce((s, p, k) => s + G.planes[k].Sw * (p.Cl0 + p.a3d * p.aStall), 0) / G.Sw;
   // Vs is an EQUIVALENT airspeed, and always was: it is computed in the datum
   // air (RHO), not in the air the aeroplane happens to be in. G72 only made
   // that explicit — the literal used to say 1.225 as if it were a fact about
@@ -814,6 +860,20 @@ function genParams(S, fr, strips) {
         cda.fusCdA[0] += (cowled ? 0.30 : 0.90) * frontal;
       }
   }
+  // THE TRUSS PAYS ITS DRAG (G185). Every drawn cabane and interplane strut
+  // is a streamline section strutT thick at Cd 0.10 (the lift strut's own
+  // figure, 62:299); every wire a round cable wireD thick at Cd 1.0. Built
+  // lengths, off the frame's own members. The Cub lift struts a biplane
+  // does NOT have drop out of the gear reference delta above (its type reads
+  // cantilever), which is the credit for not having them. Axial only, the
+  // gear model's rule.
+  let braceDCdA = 0;
+  for (const b of fr.beams) {
+    if (!b.ext) continue;
+    if (b.cls === 'interplane' || b.cls === 'cabane') braceDCdA += 0.10 * b.L * GEN_RULES.strutT;
+    else if (b.cls === 'wire') braceDCdA += 1.0 * b.L * GEN_RULES.wireD;
+  }
+  cda.fusCdA[0] += braceDCdA;
   // Control effectiveness from surface chord. The reference pairs are the
   // fleet's own calibrated numbers at the default chord fractions, so a stock
   // aeroplane reproduces them exactly and theory only supplies the trend.
@@ -862,7 +922,17 @@ function genParams(S, fr, strips) {
     prop: { D: S.prop.D, Tstatic: S.prop.Tstatic, kV2: S.prop.kV2 },
     substeps: genSubsteps(fr.nodes, fr.beams),
     polarWing, polarTail, polarFin,
+    // G185: one polar PER PLANE (polarWing stays the alias of plane 0's —
+    // GATE GEN's G9 and every reader of the flat name keep working)
+    polarWings,
     elevTau, rudTau, ailTau, downwash: 0.40,
+    // G185.5: a biplane flies the vortex model's downwash on its tail (its
+    // planes' mutual field always); a monoplane keeps the calibrated 0.40 and
+    // only MEASURES what the kernel says (gen.dEpsDa) — the flip is the next
+    // arc's, with those numbers as its anchors. core: the Rankine radius as
+    // a fraction of the source strip's chord; kProbe: fixed-point passes.
+    downwashModel: S.wings.length > 1 ? 'vortex' : 'const',
+    induction: { core: 0.30, kProbe: 3 },
     flaps,
     stabTrim: 0, sparSpacing: fr.parts.sparSpacing,
     fusCdA: cda.fusCdA, fusCdAAft: cda.fusCdAAft,
@@ -871,6 +941,18 @@ function genParams(S, fr, strips) {
     twSteer: S.gear.type === 'tricycle' ? -0.35 : 0.5,
     ap,
     gen: { Vs, ClMax3D, Sw: G.Sw, AR: G.AR, cBar: G.cBar, mass,
-           Sh: S.tail.Sh, Sv: S.tail.Sv, hAR, vAR, gearDCdA, plant: pl },
+           Sh: S.tail.Sh, Sv: S.tail.Sv, hAR, vAR, gearDCdA, braceDCdA, plant: pl,
+           // G185: the planes' own numbers beside the combined ones, the
+           // combined MAC's leading edge (the % MAC datum on a biplane — a
+           // monoplane keeps its wing's xLE), and the span the yaw instrument
+           // divides by
+           span: G.span,
+           planes: S.wings.map((wk, k) => {
+             const Gk = (G.planes && G.planes[k]) || G, p = polarWings[k];
+             return { Sw: Gk.Sw, AR: Gk.AR, cBar: Gk.cBar, span: Gk.span, xAC: Gk.xAC,
+                      a3d: p.a3d, eAR: p.eAR, aStall: p.aStall };
+           }),
+           xLEmac: S.wings.length > 1 ? G.xAC - 0.25 * G.cBar : S.wings[0].xLE,
+           gap: G.gap, stagger: G.stagger, decalage: G.decalage },
   };
 }

@@ -75,8 +75,12 @@ function genLattice(S, gearX, track, kScale) {
   const D = Math.PI / 180;
   const nodes = [], beams = [];
   const P = [];                                     // positions, for area math
+  // G185: WHICH PLANE a node belongs to. Tags stay WF/WR/WB on every plane
+  // (a tag suffix would silently drop the second plane from the load test's
+  // wing set, the skin binding and the join's span); the plane is a FIELD.
+  let curPlane = 0;
   const N = (x, y, z, tag, r = 0) => {
-    nodes.push({ p: [x, y, z], m: 0, r, tag }); P.push([x, y, z]);
+    nodes.push({ p: [x, y, z], m: 0, r, tag, plane: curPlane }); P.push([x, y, z]);
     return nodes.length - 1;
   };
   const NM = (x, y, z, tag, r = 0) =>
@@ -97,7 +101,9 @@ function genLattice(S, gearX, track, kScale) {
   //   'leg'   the suspension leg — drawn as bungee / spring / oleo (63)
   //   'inner' structural, but inside the covering: goes in the frame mesh
   //   mnt     an ENGINE BEARER member: GEN_RULES.mountK on k, its root on c
-  const B = (a, b, cls, ext, vis, mnt) => {
+  //   opt     G185: { tens, pre } — a TENSION-ONLY member (a wire: no spring
+  //           and no damper in compression) and its rigging pre-strain
+  const B = (a, b, cls, ext, vis, mnt, opt) => {
     const L = Math.hypot(P[b][0]-P[a][0], P[b][1]-P[a][1], P[b][2]-P[a][2]);
     const isG = cls === 'gear';
     // GEN_RULES.wingK: the wing class is x19 softer than the cap its own mass
@@ -142,12 +148,17 @@ function genLattice(S, gearX, track, kScale) {
     // slow divergence (0.66 -> 14.7 % at 1 g), the rig's per-frame trestle
     // clamp resonating with a fuselage row that is already stiff. Steel
     // x10 is x1.5 over carbon's own row and the rig is quiet.
-    const MM = mnt ? (GEN_MATERIALS.tubeFabric || MB) : MB;
+    // G185: the truss classes are steel on every airframe too
+    const steel = mnt || cls === 'cabane' || cls === 'interplane' || cls === 'wire';
+    const MM = steel ? (GEN_MATERIALS.tubeFabric || MB) : MB;
     const mK = mnt ? (R.mountK == null ? 1 : R.mountK) : 1;
-    beams.push({ a, b, k: MM.k[cls] * (isG ? kG : KS) * kGain * mK,
+    const bm = { a, b, k: MM.k[cls] * (isG ? kG : KS) * kGain * mK,
                  c: MM.c[cls] * (isG ? cG : CS) * Math.sqrt(mK),
                  gear: isG, cls, ext: vis === 'inner' ? false : (!!ext || isG),
-                 vis: vis || null, L });
+                 vis: vis || null, L };
+    if (opt && opt.tens) bm.tens = true;
+    if (opt && opt.pre) bm.pre = opt.pre;
+    beams.push(bm);
     // structural mass: linear density x length, half to each end (this is the
     // whole structural mass model — there is no separate mass budget to keep
     // in sync with the geometry)
@@ -336,10 +347,54 @@ function genLattice(S, gearX, track, kScale) {
   spend((PP.price || 0) * S.engines.length);
   spend(S.prop.price || 0);
 
+  // which frames straddle a given station, so a component that moves finds new
+  // ones to attach to instead of dragging its old ones along
+  const straddle = x => {
+    let f = 0;
+    for (let i = 0; i < ST.length; i++) if (ST[i].x < x - 0.05) f = i;
+    let a = Math.min(F.length - 1, f + 1);
+    for (let i = 0; i < ST.length; i++) if (ST[i].x > x + 0.05) { a = i; break; }
+    return [f, Math.max(a, Math.min(f + 1, F.length - 1))];
+  };
+  const nearestRing = x => {
+    let best = 0, bd = 1e9;
+    ST.forEach((s, i) => { const d = Math.abs(s.x - x); if (d < bd) { bd = d; best = i; } });
+    return best;
+  };
   // ---- 3. wing --------------------------------------------------------
+  // G185: ONE PLANE AT A TIME. The wing block is a function of the plane
+  // index so a biplane's second plane is the same construction over
+  // S.wings[1] and S.geom.planes[1]; a monoplane calls it once and emits the
+  // nodes and beams it always did, in the same order (GATE GEN's G8 and the
+  // WINGSPLIT digests hold that).
+  // G185: THE INTERPLANE STATION, one number both planes share — measured on
+  // the first plane's exposed semispan so the struts stand vertical between
+  // equal planes; a shorter second plane clamps it inboard (its own
+  // buildPlane does), so the struts lean, as a sesquiplane's do.
+  const IP = (() => {
+    const BR = S.bracing || {};
+    if (!(S.biplane && BR.interplane && BR.interplane !== 'none')) return 0;
+    const w0 = S.wings[0], p0 = (S.geom.planes && S.geom.planes[0]) || S.geom;
+    const cH = w0.position === 'parasol' ? (w0.cabaneH == null ? 0.55 : w0.cabaneH) : 0;
+    const zR = cab.halfW + (cH > R.cabaneMin ? R.cabaneSplay : 0);
+    return zR + (p0.semi - zR) * (BR.interplaneAt == null ? 0.62 : BR.interplaneAt);
+  })();
+  // where a plane sits, before it is built — the truss needs to know which
+  // of the two is the upper one to put the box caps on the far side
+  const yOfPlane = w => {
+    const POSk = { high: 1, mid: 0.5, low: 0, parasol: 1 }[w.position] ?? 1;
+    const cH = w.position === 'parasol' ? (w.cabaneH == null ? 0.55 : w.cabaneH) : 0;
+    return cab.h * POSk + (cH > 0 ? cH : R.wingStandoff * (POSk >= 0.75 ? 1 : POSk <= 0.25 ? -1 : 0));
+  };
+  const buildPlane = (k) => {
   sec('wings');
-  const w = S.wing, G = S.geom;
-  const zRoot = cab.halfW;
+  curPlane = k;
+  const w = S.wings[k], G = (S.geom.planes && S.geom.planes[k]) || S.geom;
+  // G185: a PARASOL plane stands on a cabane this far above the roof, and
+  // its roots splay outboard of the cabin side (see GEN_RULES.cabaneSplay)
+  const cabH = w.position === 'parasol' ? (w.cabaneH == null ? 0.55 : w.cabaneH) : 0;
+  const cabane = cabH > R.cabaneMin;
+  const zRoot = cab.halfW + (cabane ? R.cabaneSplay : 0);
   // CRANK: a second wing section. The break gets its own spar station, because
   // it is a real joint — the outer panel bolts to the centre section there —
   // and because the dihedral changes across it, so a node has to exist at the
@@ -357,6 +412,40 @@ function genLattice(S, gearX, track, kScale) {
     for (let i = zs.length - 1; i > 0; i--)
       if (zs[i] - zs[i - 1] < 0.12) zs.splice(zs[i] === zCrank ? i - 1 : i, 1);
   }
+  // G185: the interplane station is a real joint too — the strut and the
+  // wires bolt on there — so it gets its own spar station, the crank's rule
+  let zIP = IP > 0 ? Math.min(IP, G.semi - 0.12) : 0;
+  if (zIP > zRoot + 0.12) {
+    zs.push(zIP);
+    zs.sort((a2, b2) => a2 - b2);
+    for (let i = zs.length - 1; i > 0; i--)
+      if (zs[i] - zs[i - 1] < 0.12) zs.splice(zs[i] === zIP ? i - 1 : i, 1);
+  } else zIP = 0;
+  // the wired truss: both planes braced by the interplane struts and the
+  // flying/landing wires, never by a fuselage fan
+  const BRk = S.bracing || {};
+  const trussHere = zIP > 0 && BRk.wires !== 'none';
+  // THE WIRED PLANE KEEPS ITS SPAR BOX (measured, twice). First cut: planar
+  // two-spar inboard of the strut station, G140's box outboard — rank
+  // 272/276: a spar station between the root and the strut has every member
+  // in the wing's plane and is free to leave it. Second cut, one inner bay:
+  // 248/252 — the outer panel HINGES at the strut station about its own
+  // chord line, because the overhang's bending moment is reacted by nothing
+  // but spar continuity through the station, and a planar inner bay has
+  // none (the strut and the wires act AT the station, with no lever). That
+  // is also the real aeroplane's load path: a braced spar is a bending
+  // member everywhere and the truss relieves it. So a wired plane is built
+  // as the cantilever box below and the interplane struts and wires go ON
+  // it (block 3b) — the wires then carry a measured share of the lift
+  // (GATE BIPLANE) rather than being the only thing between the wing and
+  // the ground. DECLARED SIMPLIFICATION: the braced spar is modelled at
+  // cantilever depth and cantilever cap stiffness; a lighter braced-spar
+  // row (spruce I-beam sized for the braced case) is owed.
+
+  // is this the UPPER plane of the pair (the box caps go on the far side)
+  const upperHere = !S.biplane || S.wings.length < 2
+    || (k === 0 ? yOfPlane(S.wings[0]) >= yOfPlane(S.wings[1])
+                : yOfPlane(S.wings[1]) > yOfPlane(S.wings[0]));
   // the planform, tip bow included. One function, so the ribs, the covering,
   // the strips and the outline cannot disagree about where the wing is —
   // G140: and that one function is genPlanLaw's, shared with resolveSpec's
@@ -384,9 +473,9 @@ function genLattice(S, gearX, track, kScale) {
   // under the floor, mid through the cabin. `attach` is which longeron pair
   // carries it and `oppose` is the one the strut or the depth tie reaches to —
   // the strut on a low wing goes UP, not down.
-  const POS = { high: 1, mid: 0.5, low: 0 }[w.position] ?? 1;
+  const POS = { high: 1, mid: 0.5, low: 0, parasol: 1 }[w.position] ?? 1;
   const wingY0 = cab.h * POS
-    + R.wingStandoff * (POS >= 0.75 ? 1 : POS <= 0.25 ? -1 : 0);
+    + (cabH > 0 ? cabH : R.wingStandoff * (POS >= 0.75 ? 1 : POS <= 0.25 ? -1 : 0));
   // G188: THE DRAWN HEIGHT WINS. wingY0 is the position's rule; a wing the
   // join measured (w.y, root chord line over the keel) sits where it was
   // drawn — the rule put a low wing 0.10 m below the keel while the cage
@@ -421,21 +510,8 @@ function genLattice(S, gearX, track, kScale) {
     if (zCrank <= 0 || z <= zCrank) return base + (z - zRoot) * dih;
     return base + (zCrank - zRoot) * dih + (z - zCrank) * dihOut;
   };
-  // which frames straddle a given station, so a component that moves finds new
-  // ones to attach to instead of dragging its old ones along
-  const straddle = x => {
-    let f = 0;
-    for (let i = 0; i < ST.length; i++) if (ST[i].x < x - 0.05) f = i;
-    let a = Math.min(F.length - 1, f + 1);
-    for (let i = 0; i < ST.length; i++) if (ST[i].x > x + 0.05) { a = i; break; }
-    return [f, Math.max(a, Math.min(f + 1, F.length - 1))];
-  };
-  const nearestRing = x => {
-    let best = 0, bd = 1e9;
-    ST.forEach((s, i) => { const d = Math.abs(s.x - x); if (d < bd) { bd = d; best = i; } });
-    return best;
-  };
   const wf = { L: null, R: null };
+  let iStrutK = 0;
   const mkWing = (s) => {
     // The wing owns its spar roots. They USED to be two fuselage frame nodes,
     // which is why the wing could not move: shifting it aft left the root on
@@ -481,7 +557,26 @@ function genLattice(S, gearX, track, kScale) {
     const lo = opposeTag + sd;
     for (const [nd, x] of [[rootF, xF], [rootR, xR]]) {
       const [iA, iB] = straddle(x), iN = nearestRing(x);
-      for (const i of [...new Set([iN, iA, iB])]) B(nd, F[i][side], 'wing');
+      const rings = [...new Set([iN, iA, iB])];
+      if (!cabane) for (const i of rings) B(nd, F[i][side], 'wing');
+      else {
+        // G185: THE CABANE IS THESE MEMBERS, IN OPEN AIR. On a plane a cabane
+        // height above the roof the root ties to the top longerons are not
+        // hidden under the fabric — they are the struts you see, so they are
+        // drawn (G117: WYSIWYG) and carry the steel class. Which are drawn
+        // is the drawing selector bracing.cabane: 'N' = the post to the
+        // nearest ring and one diagonal to the straddling ring (the third,
+        // if any, stays inner); 'V' = the two straddling members, the post
+        // inner. The structure is identical either way — the rigidity rank
+        // is the proof — and no member is lumped: what is drawn is the
+        // load path.
+        const style = (S.bracing && S.bracing.cabane) === 'V' ? 'V' : 'N';
+        const iD = iA !== iN ? iA : iB;
+        for (const i of rings) {
+          const drawn = style === 'N' ? (i === iN || i === iD) : (i === iA || i === iB);
+          B(nd, F[i][side], 'cabane', drawn, drawn ? null : 'inner');
+        }
+      }
       B(nd, F[iN][lo], 'wing');                          // full depth: rule 3
       B(nd, F[iN][other], 'wing');                       // lateral shear path
     }
@@ -525,8 +620,11 @@ function genLattice(S, gearX, track, kScale) {
     // which is where the strut goes on a wing with no break.
     const iCrank = zCrank > 0
       ? zs.findIndex(z2 => Math.abs(z2 - zCrank) < 1e-9) : -1;
+    const iIP = zIP > 0 ? zs.findIndex(z2 => Math.abs(z2 - zIP) < 1e-9) : -1;
     const iStrut = iCrank >= 0 ? iCrank : (WF.length > 1 ? 1 : 0);
-    if (useStrut) {
+    // G185: on a biplane the station the truss reads is the interplane one
+    iStrutK = iIP >= 0 ? iIP : iStrut;
+    if (useStrut && !trussHere) {
       // rule 1: SPAR BOX ALWAYS. This wing has no full-depth box, so the
       // barrier against snap-through fold is the strut anchor a full cabin
       // height below the wing — the Cub geometry, and the only reason a
@@ -668,8 +766,8 @@ function genLattice(S, gearX, track, kScale) {
     // two-end strut binding needs the exact nodes the beam runs between,
     // and guessing "station 1" over there is how the kink bug was born
     wf[s > 0 ? 'R' : 'L'] = { F: cF, R: cR, FB: cFB, RB: cRB, strutRoot,
-                              strutF: useStrut ? WF[iStrut] : null,
-                              strutR: useStrut ? WR[iStrut] : null };
+                              strutF: useStrut && !trussHere ? WF[iStrut] : null,
+                              strutR: useStrut && !trussHere ? WR[iStrut] : null };
   };
   mkWing(+1); mkWing(-1);
   // carry-through: the two spars run across the top of the cabin as one piece,
@@ -688,6 +786,57 @@ function genLattice(S, gearX, track, kScale) {
     B(wf.L.FB[0], wf.R.F[0], 'wing'); B(wf.R.FB[0], wf.L.F[0], 'wing');
   }
   cover(1.9 * 2 * zRoot * w.chord, [wf.L.F[0], wf.R.F[0], wf.L.R[0], wf.R.R[0]]);
+  curPlane = 0;
+  return { k, w, wf, zs, zRoot, zCrank, xF, xR, xFat, xRat, sparSpacing, chordAt,
+           yF, incAt, ribZ, linC, useStrut, strutOffset, iStrut: iStrutK,
+           semi: G.semi, sparFront, sparRear, cabane, cabH, wingY0,
+           zIP, truss: trussHere, upper: upperHere,
+           bracing: trussHere ? 'interplane truss'
+                  : useStrut ? (w.crankAt > 0 ? 'strut + boxed outer' : 'strut')
+                             : 'cantilever box' };
+  };
+  const planes = [buildPlane(0)];
+  for (let k = 1; k < S.wings.length; k++) planes.push(buildPlane(k));
+  // ---- 3b. THE INTERPLANE TRUSS (G185) ----------------------------------
+  // Both planes exist now. Per side: the interplane strut between the two
+  // station pairs ('N' = two posts and a diagonal, all drawn; 'I' = a blade,
+  // drawn as its two posts, its shear path the one inner diagonal); the
+  // wires — flying, lower root to upper station; landing, upper root to
+  // lower station — tension-only and rigged (see B's opt). The truss
+  // closes: quad root-station-station-root, its post, both its diagonals.
+  if (planes.length > 1) {
+    sec('bracing');
+    const BR = S.bracing || {};
+    const [pA, pB] = planes;
+    const up = pA.wingY0 >= pB.wingY0 ? pA : pB, lo = up === pA ? pB : pA;
+    const iU = up.iStrut + 1, iL = lo.iStrut + 1;      // cF index of the station
+    const wopt = { tens: true, pre: R.wirePreStrain };
+    for (const sd of ['L', 'R']) {
+      const U = up.wf[sd], Lw = lo.wf[sd];
+      const U1F = U.F[iU], U1R = U.R[iU], L1F = Lw.F[iL], L1R = Lw.R[iL];
+      if (U1F == null || L1F == null || U1R == null || L1R == null) continue;
+      if (BR.interplane === 'N') {
+        B(U1F, L1F, 'interplane', true); B(U1R, L1R, 'interplane', true);
+        B(U1F, L1R, 'interplane', true);
+      } else if (BR.interplane === 'I') {
+        B(U1F, L1F, 'interplane', true); B(U1R, L1R, 'interplane', true);
+        B(U1F, L1R, 'interplane', false, 'inner');      // the blade's shear path
+      }
+      if (BR.wires && BR.wires !== 'none') {
+        B(Lw.F[0], U1F, 'wire', true, null, false, wopt);      // flying
+        B(Lw.R[0], U1R, 'wire', true, null, false, wopt);
+        if (BR.wires === 'both') {
+          B(U.F[0], L1F, 'wire', true, null, false, wopt);     // landing
+          B(U.R[0], L1R, 'wire', true, null, false, wopt);
+        }
+      }
+    }
+    sec('wings');
+  }
+  // plane 0's record under the names every later block has always read
+  const { wf, zs, zRoot, zCrank, xF, xR, xFat, xRat, sparSpacing, chordAt, yF,
+          incAt, ribZ, linC, useStrut, strutOffset, sparFront, sparRear } = planes[0];
+  const w = S.wing, G = S.geom;
 
   // ---- 2b. engines OFF the nose (2026-09-04) ----------------------------
   // The pusher hangs on the ring nearest its station (the aft bulkhead) as
@@ -1120,8 +1269,9 @@ function genLattice(S, gearX, track, kScale) {
     const rg = F[best];
     return (lvWant >= 0.5) ? [rg.TL, rg.TR] : [rg.BL, rg.BR];
   };
-  const wingPair = frac => {
-    const arrL = wf.L.F, arrR = wf.R.F;
+  const wingPair = (frac, plane) => {
+    const W2 = (planes[plane | 0] || planes[0]).wf;        // G185: per plane
+    const arrL = W2.L.F, arrR = W2.R.F;
     const k = Math.max(0, Math.min(arrL.length - 1,
       Math.round(frac * (arrL.length - 1))));
     return [arrL[k], arrR[k]];
@@ -1142,7 +1292,7 @@ function genLattice(S, gearX, track, kScale) {
       // out; a null `along` reproduces that rather than picking a midpoint.
       const frac = v.along != null ? v.along
                  : (v.bay === 'wingPanel' ? 0.34 : 0);
-      pair = wingPair(frac);
+      pair = wingPair(frac, B.plane || 0);
     } else {
       const xW = v.along != null ? v.along : bay.xMid;
       const lvW = v.lv != null ? v.lv
@@ -1308,7 +1458,8 @@ function genLattice(S, gearX, track, kScale) {
     ST, F, TPB, TPT, EL, ER, HTL, HTR, FIN, FIN2, HTBL, HTBR, BOOMS, GAL, GAR, TW,
     wf, zs, zRoot, zCrank, xF, xR, xFat, xRat, sparFront, sparRear, sparSpacing,
     chordAt, yF, incAt, cabRear, gx, tr, twX, twY,
-    ribZ,                       // G66: where the ribs the mass model billed are
+    ribZ,
+    planes,                     // G185: one record per plane; the flat fields above are planes[0]'s                       // G66: where the ribs the mass model billed are
 
     bracing: useStrut ? (w.crankAt > 0 ? 'strut + boxed outer' : 'strut')
                       : 'cantilever box', strutOffset, trike,

@@ -566,7 +566,7 @@ PAGE.post = ctx => {
   if (!units.length) {
     if (stat) stat.textContent += '  ·  engine: ' +
       (mountK === 1 ? (P.boomStyle ? 'no aft bulkhead face' : 'a pusher needs a rod boom (the pod ends at the aft bulkhead)')
-     : mountK === 2 ? (Math.round(P.wgPos || 0) === 0 ? 'no wing to sit on' : 'the over-the-wing mount needs a HIGH wing')
+     : mountK === 2 ? ([0, 3].includes(Math.round(P.wgPos || 0)) ? 'no wing to sit on' : 'the over-the-wing mount needs a HIGH wing')
      : mountK === 3 ? 'no wing to hang the nacelles on'
      : 'no engine face on this body');
     return;

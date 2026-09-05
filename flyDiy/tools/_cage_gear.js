@@ -248,8 +248,10 @@ PAGE.post = ctx => {
   // they take a mount FRAME, and the axle is keel-datum'd either way, so
   // where the leg roots never moves the wheel, the stance or the join's
   // measured rows.
-  const WUA = (typeof window !== 'undefined' && window.CAGE_WING &&
-               window.CAGE_WING.underAt) || null;
+  // G185: on a biplane the wheel meets the LOWEST plane
+  const WCW = (typeof window !== 'undefined' && window.CAGE_WING) || null;
+  const WLO = WCW && WCW.planes ? (WCW.planes[WCW.lowest] || WCW) : WCW;
+  const WUA = (WLO && WLO.underAt) || null;
   let onWing = 0;
   // THE OPEN-FRAME MOUNT: a frame provider (zOff, dx) -> {p, n, fore, side}
   // like the wing's, over the interior pass's published members (cage units

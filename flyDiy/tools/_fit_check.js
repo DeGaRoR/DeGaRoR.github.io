@@ -484,7 +484,7 @@ function checkDeclared(name, row) {
     String(row.form));
   check(row.size && Object.keys(row.size).length,
     tag + ': carries no size');
-  if (row.on === 'wing') {
+  if (row.on === 'wing' || row.on === 'wing2') {   // G185: the second plane's too
     check(isFinite(row.at.sL) && row.at.sL >= 0,
       tag + ': spanwise station is not a distance from the root',
       String(row.at.sL));
@@ -632,6 +632,9 @@ function runReach(mode) {
     { material: 'alloy' }, { material: 'wood' }, { material: 'carbon' },
     { cargo: 1.2 }, { sillH: 0.9 }, { wing: false }, { engine: false },
     { tailHalfW: 0.30 },
+    // G185: a biplane with a tank in a second-plane bay, and one without
+    { wing2: true, semispan2: 4.5, tank2: true, ail2: true },
+    { wing2: true, semispan2: 4.5, tank2: false, ail2: false },
   ];
   for (const over of SPREAD) {
     const R = Object.assign({}, base, over);

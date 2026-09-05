@@ -1979,6 +1979,11 @@ function editorInit(api) {
     [/^edLegT|^edCastorT/, 'third'],
     [/^edLeg|^edCastor/, 'mains'],
     [/^edSpinner|^edProp/, 'prop'],
+    [/^edSurf_(ail|flap)[RL]2$/, 'wingCtl2'],   // G185: the second plane's surfaces
+    [/^edLens_wing2|^edBay_wing2/, 'wingPanel2'],
+    [/^edFit_cabane/, 'cabane'],           // G185
+    [/^edFit_interplane/, 'interplane'],
+    [/^edFit_wire/, 'wires'],
     [/^edFit_liftstrut/, 'struts'],
     [/^edFit_pitot/, 'wingPanel'],
     [/^edSurf_ail/, 'wingCtl'],
@@ -2352,11 +2357,6 @@ function editorInit(api) {
     PIN_ROW.stZ = { layer: 'stab', at: 'rootLine' };
     PIN_ROW.stX = { layer: 'stab', at: 'rootLine' };
     PIN_ROW.stY = { layer: 'stab', at: 'rootLine' };
-    // the cowl, by the feature each row shapes. `C` is COWL_GEN.
-    const ring = (zf, n) => C => {
-      const out = [], z = zf(C), N = n || 16;
-      for (let i = 0; i < N; i++) {
-        const p = C.surfPoint(i / N * Math.PI * 2, z);
     // THE BOOMS AND THE ROD (G189): rows that move a tube, pinned at the
     // tube's ends. These points are SCENE METRES and their host is the mount
     // itself (`root`): the twin booms are published by the wing layer in
@@ -2397,6 +2397,11 @@ function editorInit(api) {
     PIN_ROW.taperLen = { layer: 'root',
       fn: rod((sp, r, t) => t ? [[0, r.y + r.r, sp.zRoot - t.len],
                                  [0, r.y - r.r, sp.zRoot - t.len]] : []) };
+    // the cowl, by the feature each row shapes. `C` is COWL_GEN.
+    const ring = (zf, n) => C => {
+      const out = [], z = zf(C), N = n || 16;
+      for (let i = 0; i < N; i++) {
+        const p = C.surfPoint(i / N * Math.PI * 2, z);
         out.push([p[0], p[1], z]);
       }
       return out;
@@ -2532,10 +2537,15 @@ function editorInit(api) {
   // whose own children carry the name yields to them.
   const pinLayers = name => {
     const root = window.CAGE_UI_SCENE;
-    if (!root) return null;
-    for (const c of root.children)
-      if (c.name === 'cageLayer:' + name) return c;
-    return null;
+    if (!root) return [];
+    if (name === 'root') return [root];     // scene-metre points, no layer
+    const out = [];
+    for (const c of root.children) {
+      if (c.name !== 'cageLayer:' + name) continue;
+      const kids = c.children.filter(k => k.name === 'cageLayer:' + name);
+      if (kids.length) out.push(...kids); else out.push(c);
+    }
+    return out;
   };
   // the named tail vertices, resolved against the cage THIS BUILD made
   const pinTailPts = (cage, names) => {
@@ -2570,6 +2580,7 @@ function editorInit(api) {
         const C = window.COWL_GEN;
         return (C && spec.fn) ? spec.fn(C) : [];
       }
+      if (spec.layer === 'root') return spec.fn ? spec.fn() : [];
     } catch (e) {}
     return [];
   }
@@ -2580,7 +2591,6 @@ function editorInit(api) {
   }
   function pinBuild(key) {
     pinClear();
-      if (spec.layer === 'root') return spec.fn ? spec.fn() : [];
     pinKey = key || null;
     if (!pinKey || typeof THREE === 'undefined') return;
     const spec = PIN_ROW[pinKey];
@@ -2592,16 +2602,20 @@ function editorInit(api) {
     if (!pinGeo) pinGeo = new THREE.SphereGeometry(1, 12, 8);
     if (!pinMat) pinMat = pinMaterial();
     const out = [];
-    for (const p of pts) {
-      const m = new THREE.Mesh(pinGeo, pinMat);
-      m.position.set(p[0], p[1], p[2]);
-      m.renderOrder = 9;
-      m.frustumCulled = false;       // the dot is bigger than its own geometry
-      m.userData.edHi = 1;           // never the aeroplane: the capture skips it
-      m.onBeforeRender = hiPxFeed;
-      host.add(m);
-      out.push(m);
-    }
+    // the same LOCAL points in every host: a clone's frame is the original's
+    // mirrored, a cowl unit's is its own face, and the point set was made in
+    // the layer's own frame either way
+    for (const host of hosts)
+      for (const p of pts) {
+        const m = new THREE.Mesh(pinGeo, pinMat);
+        m.position.set(p[0], p[1], p[2]);
+        m.renderOrder = 9;
+        m.frustumCulled = false;       // the dot is bigger than its own geometry
+        m.userData.edHi = 1;           // never the aeroplane: the capture skips it
+        m.onBeforeRender = hiPxFeed;
+        host.add(m);
+        out.push(m);
+      }
     pinObjs = out;
   }
   // THE ROW SAYS WHICH POINT. Delegated, because the rows are _cage_ui's own

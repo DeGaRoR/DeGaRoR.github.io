@@ -106,6 +106,22 @@ function checkFin(o) {
     'fin: halving the fin area weakens the weathervane (' +
     o.cnSmall.toFixed(3) + ' < ' + o.cnStock.toFixed(3) + ')');
 }
+// G185: THE TRUSS PAYS. A wired biplane's bracing is a real drag area; taking
+// its wires away lowers it; an I-strut is cleaner than an N; and the second
+// plane of a sesquiplane flies its OWN, lower, lift slope.
+function checkBrace(o) {
+  check(o.bip > 0.10,
+    'brace: a wired biplane pays its truss (' + o.bip.toFixed(3) + ' m² > 0.10)');
+  check(o.noWires < o.bip - 0.05,
+    'brace: no wires, less drag (' + o.noWires.toFixed(3) + ' < ' + o.bip.toFixed(3) + ' - 0.05)');
+  check(o.iStrut < o.nStrut,
+    'brace: an I-strut is cleaner than an N (' + o.iStrut.toFixed(3) + ' < ' + o.nStrut.toFixed(3) + ')');
+  check(o.aLower < o.aUpper,
+    'brace: the sesquiplane\'s short plane flies its own lower slope (' +
+    o.aLower.toFixed(2) + ' < ' + o.aUpper.toFixed(2) + ')');
+  check(o.mono === 0,
+    'brace: a monoplane pays nothing here (' + o.mono + ')');
+}
 function checkPlaque(o) {
   check(o.torun === o.roll + o.air,
     'plaque: TORun IS roll + air, no padding factor (' + o.roll + ' + ' +
@@ -162,6 +178,14 @@ if (process.argv.includes('--selftest')) {
     ['two stall instruments again', checkPlaque,
      { torun: 346, roll: 220, air: 126, airWeak: 300, vs: 18, vsMeas: 18.7,
        vsFlap: 16, vsRatio: 16 / 18.7 }],
+    ['a truss that costs nothing', checkBrace,
+     { bip: 0.02, noWires: 0.01, iStrut: 0.05, nStrut: 0.06, aLower: 4.0, aUpper: 4.4, mono: 0 }],
+    ['wires that cost nothing', checkBrace,
+     { bip: 0.15, noWires: 0.14, iStrut: 0.05, nStrut: 0.06, aLower: 4.0, aUpper: 4.4, mono: 0 }],
+    ['a second plane on the first plane\'s polar', checkBrace,
+     { bip: 0.15, noWires: 0.07, iStrut: 0.05, nStrut: 0.06, aLower: 4.4, aUpper: 4.4, mono: 0 }],
+    ['a monoplane charged for a truss', checkBrace,
+     { bip: 0.15, noWires: 0.07, iStrut: 0.05, nStrut: 0.06, aLower: 4.0, aUpper: 4.4, mono: 0.01 }],
   ];
   let caught = 0;
   for (const [nm, fn, o] of probes) {
@@ -252,6 +276,28 @@ checkFin({
   cnStock: genShakedown(stockDef).cnBeta,
   cnSmall: genShakedown(smallFin).cnBeta,
 });
+
+console.log('-- S9: the truss pays (G185) --');
+{
+  const bipSpec = over => {
+    const sp = { wings: [
+      { position: 'parasol', cabaneH: 0.50, chord: 1.4, span: 9, taper: 1 },
+      { position: 'low', chord: 1.4, span: 9, taper: 1, stagger: 0.35 } ],
+      bracing: { type: 'cantilever', interplane: 'N', interplaneAt: 0.62, wires: 'both', cabane: 'N' } };
+    if (over) over(sp);
+    return sp;
+  };
+  const g = sp => buildGen(sp).params.gen;
+  const bip = g(bipSpec()), noW = g(bipSpec(s => { s.bracing.wires = 'none'; }));
+  const iS = g(bipSpec(s => { s.bracing.interplane = 'I'; s.bracing.wires = 'none'; }));
+  const nS = g(bipSpec(s => { s.bracing.wires = 'none'; }));
+  const sesq = buildGen(bipSpec(s => { s.wings[1].span = 6.5; s.wings[1].chord = 1.1; }));
+  const PW = sesq.params.polarWings || [sesq.params.polarWing, sesq.params.polarWing];
+  checkBrace({ bip: bip.braceDCdA || 0, noWires: noW.braceDCdA || 0,
+               iStrut: iS.braceDCdA || 0, nStrut: nS.braceDCdA || 0,
+               aLower: PW[1] ? PW[1].a3d : 0, aUpper: PW[0].a3d,
+               mono: stockDef.params.gen.braceDCdA || 0 });
+}
 
 console.log('-- S7/S8: the plaque agrees with itself --');
 {

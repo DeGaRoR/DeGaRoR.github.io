@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 8d596dbb6a3e607b
+// body-sha256: 906e9609e087d2f4
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -29,6 +29,12 @@ const RHO = 1.225;
 //   'na'       breathes it, so power lapses with density (Gagg-Ferrar)
 //   'electric' does not — the power comes out of the pack, and only the
 //              PROPELLER notices the altitude
+//   'turbine'  is FLAT-RATED (2026-09-05): the core makes more than the
+//              rating and the fuel control holds rated power until the
+//              thinning air brings the core down to it — `flatK` on the row
+//              is that margin (core over rated), and the row may also carry
+//              `length` (flange to accessory case, m) for the engine box,
+//              because a turbine is light for its length
 // The difference is large enough to change which aeroplane gets out of a
 // mountain strip in August, which is exactly why it is declared per row rather
 // than sniffed from the name. See 05_atmos.js for both scalings.
@@ -38,7 +44,7 @@ const RHO = 1.225;
 // cowl must reject for the coming ventilation model. Declared per row for the
 // same reason aspiration is: a 582 is liquid-cooled and a 912 carries
 // radiators, and sniffing that from a name is how a table starts lying.
-//   family   'four' | 'two' | 'electric'   (fires-per-rev + the SFC class)
+//   family   'four' | 'two' | 'electric' | 'turbine'   (the SFC class)
 //   cooling  'air'  | 'liquid'             (fins vs a radiator carry the heat)
 //
 // AN HONEST CUT, named here because it is a real aeroplane getting a wrong
@@ -248,6 +254,25 @@ const POWERPLANTS = {
     engine: { name: 'SP260D-class 260 kW', mass: 68.0, powerW: 260000, aspiration: 'electric', family: 'electric', cooling: 'air' },
     prop:   { name: 'MT 3-pale 2.20 m', D: 2.20, Tstatic: 4313, kV2: 0.3121 },
   },
+  // THE TURBOPROPS (2026-09-05, futureDesigns/TURBOPROP-2026-09-05.md §4) —
+  // the PT6A reverse-flow pair the user named, a Caravan's and a Kodiak's.
+  // Dry masses are P&W's (with the reduction gearbox, without the prop);
+  // `flatK` is the flat-rating margin 05_atmos reads (core ~850 shp behind a
+  // 675 rating; ~1 000 behind a 750); `length` is flange to accessory case,
+  // for the engine box. The props are genPropSynth's own output at each
+  // row's diameter, blades and rated power (standard pitch, aluminium) —
+  // 7.7 kN static on the Caravan's 2.69 m three-blade is inside the
+  // published band. Prices are the second-hand market's: 5-7x an R-985.
+  pt6a114a_hartzell3: {
+    price: 240000,
+    engine: { name: 'P&W PT6A-114A', mass: 160, powerW: 503000, aspiration: 'turbine', family: 'turbine', cooling: 'air', flatK: 1.26, length: 1.60 },
+    prop:   { name: 'Hartzell 3-blade 2.69 m', D: 2.69, Tstatic: 7657, kV2: 0.4667 },
+  },
+  pt6a34_hartzell4: {
+    price: 265000,
+    engine: { name: 'P&W PT6A-34', mass: 150, powerW: 560000, aspiration: 'turbine', family: 'turbine', cooling: 'air', flatK: 1.33, length: 1.57 },
+    prop:   { name: 'Hartzell 4-blade 2.44 m', D: 2.44, Tstatic: 8109, kV2: 0.4472 },
+  },
 };
 // ============================================================
 // ENGINE THERMO LAWS (G134). Two numbers per family, both quoted at RATED
@@ -274,6 +299,13 @@ const GEN_ENG_THERMO = {
   four:     { sfcKgKWh: 0.30, eta: null, cool: { air: 0.45, liquid: 0.42 } },
   two:      { sfcKgKWh: 0.50, eta: null, cool: { air: 0.55, liquid: 0.50 } },
   electric: { sfcKgKWh: 0,    eta: 0.90, cool: { air: 0.11, liquid: 0.11 } },
+  // A TURBINE (2026-09-05, futureDesigns/TURBOPROP-2026-09-05.md §1): a PT6
+  // burns 0.33-0.37 kg/kWh at rated power (the classic 0.55-0.60 lb/shp-h);
+  // the heat leaves BY THE PIPE and the cowl only cools the oil — ~5 % of
+  // shaft power, which is why a turboprop nacelle is closed where a radial's
+  // is a ring. Quoted at RATED like the rest; a turbine's part-load SFC is the
+  // worst of the four (~1.3x at half power) and is the burn model's to carry.
+  turbine:  { sfcKgKWh: 0.35, eta: null, cool: { air: 0.05, liquid: 0.05 } },
 };
 
 // The thermo sheet for one engine dict ({powerW, family, cooling, ...}).
@@ -310,6 +342,10 @@ function genEnginePrice(family, powerW) {
     return Math.round(kW < 3 ? 60 * Math.pow(kW, 0.9)
                              : 300 * kW);
   if (family === 'two') return Math.round(90 * Math.pow(kW, 1.15));
+  // a turbine is the dear end of the market — 5-7x a radial of the same
+  // power second-hand (a used PT6A-34 against a used R-985); fitted on the
+  // two PT6A rows and banded by _engcustom_check like every other family
+  if (family === 'turbine') return Math.round(250 * Math.pow(kW, 1.1));
   return Math.round(60 * Math.pow(kW, 1.3));
 }
 
@@ -476,8 +512,23 @@ const ATMOS_ISA = makeAtmos({});
 // changes is what the propeller can do with it. That difference is real, it is
 // large (a piston loses a quarter of its thrust where a motor loses a
 // twentieth), and it costs one declared field on the registry row.
-function atmosPowerRatio(sig, aspiration) {
+//
+// A TURBINE IS FLAT-RATED (2026-09-05, futureDesigns/TURBOPROP-2026-09-05.md
+// §2). Its core makes more power than the gearbox and the rating allow — a
+// PT6A-114A is rated 675 shp from a core good for ~850 — and the fuel control
+// holds the rating until the thinning air brings the core's own power (which
+// falls ~sigma, with mass flow) down to meet it. `flat` is that margin,
+// thermodynamic over rated, declared per engine as `flatK` on the row: 1.26
+// holds rated power to sigma 0.79 (~2 300 m ISA, or a 35 °C day at 1 200 m),
+// then the lapse is the core's. Exactly 1 at sigma = 1 for any margin, so
+// the sea-level identity every gate stands on is untouched. FIRST CUT, named:
+// the real limit is turbine inlet temperature, so a hot day bites a turbine
+// through temperature more than through density; sigma carries both with the
+// right sign and the split is the second cut, when a plaque asks for it.
+function atmosPowerRatio(sig, aspiration, flat = 1) {
   if (aspiration === 'electric') return 1;
+  if (aspiration === 'turbine')
+    return Math.min(1, Math.max(1, flat || 1) * sig);
   // Written as 1 - 1.132(1 - sigma) rather than 1.132 sigma - 0.132. Same line,
   // but this one returns EXACTLY 1 at sigma = 1 instead of 1 + 2e-16.
   return Math.max(0, 1 - 1.132 * (1 - sig));
@@ -501,8 +552,10 @@ function atmosPowerRatio(sig, aspiration) {
 // The two families differ in kT alone — sigma for the piston (its power lapses
 // too), sigma^(1/3) for the motor (only the disc is thinner). At sigma = 1 both
 // are exactly 1, which is the identity the whole gate battery stands on.
-function atmosPropScale(sig, aspiration) {
-  const pr = atmosPowerRatio(sig, aspiration);
+// The turbine is one more `pr` (flat, then the core's lapse) — `flat` is
+// only passed through.
+function atmosPropScale(sig, aspiration, flat = 1) {
+  const pr = atmosPowerRatio(sig, aspiration, flat);
   const kT = Math.cbrt(sig) * Math.pow(pr, 2 / 3);
   return { kT, kV: sig, power: pr };
 }
@@ -2265,6 +2318,193 @@ function siteHangarBox(H) {
   const h = H || AIRFIELD_SITE.hangar;
   return { x0: h.x - h.HW, x1: h.x + h.HW, z0: h.z - h.HD, z1: h.z + h.HD };
 }
+
+// ---- THE PATTERN (G193): the ground graph and the two approaches ---------
+// The user, 2026-09-05: "notion of taxi pattern and approach pattern to the
+// airport ... a glide slope, a touchdown target (warning, there should be 2
+// touchdown for both directions), and a taxi pattern ... mostly 90° turns
+// (smoothed out), and complete a graph dot-arc and try to follow that. We
+// need the notion of stop point, where the plane lines up and completely
+// stops before taking off. Ultimately, these should be part of the editor."
+//
+// DECLARED, NOT INVENTED IN THE PILOT — the same ruling `taxiOut` landed
+// under at G151, widened: every obstacle on the ground belongs to the PLACE,
+// and so does the way round it. `sitePattern` builds the graph from the
+// datums this file already declares (stand, apron, taxiway, fence gate, the
+// runway ends) for HOME, and a minimal one (spawn → hold → run) for every
+// generated strip — same shape either way, so the editor that will one day
+// write `site.pattern` by hand writes what this function returns. A site
+// that carries an authored `pattern` is returned verbatim.
+//
+// THE SHAPE. Nodes are the dots (`kind`: stand | apron | gate | entry | taxi |
+// hold; a corner may carry its own fillet `r`, a hold its lined-up `hdg`);
+// arcs the drawn edges; `routes.out[T]` the way from the stand to the hold
+// for take-off direction T (0 = along the record's hdg, from end0; 1 = the
+// reverse, from end1), `routes.back[T]` the lane-and-U-turn from anywhere on
+// the strip to the same hold. 39_ground_path.js samples a route into the
+// path the pilots follow.
+//
+// TWO TOUCHDOWN TARGETS, one per landing direction k (0 = landing along
+// -hdg, the record's own `tdz`, so every calm gate keeps its number to the
+// bit; 1 = landing along +hdg, the mirror off the other threshold). `aimAP`
+// is the point the autopilot actually flies to (70 m past the target, which
+// is what A.xAim's -520 against the frame's -450 has always meant); the
+// painted aim0/aim1 stay the different thing siteRunway says they are. `gs`
+// null = the aircraft's own slope; a number is the editor's future
+// declaration, flown if shallower than the aircraft's.
+const GP_FILLET = 12, GP_HOLD_IN = 110, GP_LANE = 12, GP_UTURN_R = 12;
+function sitePattern(aero, site) {
+  if (site && site.pattern) return site.pattern;
+  const R = siteRunway(aero);
+  const d = [R.dx, R.dz], n = [R.nx, R.nz];
+  const at = (px, pz, a, k) => [px + a[0] * k, pz + a[1] * k];
+  const nodes = [], arcs = [], routes = { out: [null, null], back: [null, null] };
+  const add = (id, p, kind, extra) => {
+    nodes.push(Object.assign({ id, x: +p[0].toFixed(3), z: +p[1].toFixed(3), kind }, extra || {}));
+    return id;
+  };
+  const link = (a, b) => arcs.push([a, b]);
+  // the taxiway side, so the backtrack lane keeps AWAY from it
+  let laneSg = 1;
+  if (site && site.taxiway) {
+    const tz = 0.5 * (site.taxiway.z0 + site.taxiway.z1), tx = 0.5 * (site.taxiway.x0 + site.taxiway.x1);
+    const side = (tx - R.cx) * n[0] + (tz - R.cz) * n[1];
+    laneSg = side > 0 ? -1 : 1;
+  }
+  const lane = Math.min(GP_LANE, R.half - 2.5);
+  const ends = [R.end0, R.end1];
+  const holds = [];
+  for (const T of [0, 1]) {
+    const dir = T === 0 ? d : [-d[0], -d[1]];
+    const E = [ends[T].x, ends[T].z];
+    const hdg = Math.atan2(dir[1], dir[0]);
+    const hold = add('hold' + T, at(E[0], E[1], dir, GP_HOLD_IN), 'hold', { hdg });
+    holds.push(hold);
+    // the lane-and-U-turn back to this hold from anywhere on the strip
+    const la = add('l' + T + 'a', at(...at(E[0], E[1], dir, 27), n, laneSg * lane), 'taxi', { r: GP_UTURN_R });
+    const lb = add('l' + T + 'b', at(...at(E[0], E[1], dir, 27), n, -laneSg * lane), 'taxi', { r: GP_UTURN_R });
+    const lc = add('l' + T + 'c', at(...at(E[0], E[1], dir, 51), n, -laneSg * lane), 'taxi', { r: GP_FILLET });
+    const dg = add('d' + T, at(E[0], E[1], dir, 90), 'taxi', { r: GP_FILLET });
+    link(la, lb); link(lb, lc); link(lc, dg); link(dg, hold);
+    routes.back[T] = [la, lb, lc, dg, hold];
+  }
+  if (site && site.stand && site.taxiway && site.apron) {
+    // HOME: stand -> the apron row's west end -> the gate -> the strip's
+    // edge -> a corner onto the centreline -> the hold, for direction 0; the
+    // lane corner and the generic U-turn for direction 1
+    const tx = 0.5 * (site.taxiway.x0 + site.taxiway.x1);
+    const st = add('stand', [site.stand.x, site.stand.z], 'stand', { hdg: site.stand.hdg });
+    const ap = add('apronW', [tx, site.stand.z], 'apron', { r: GP_FILLET });
+    const ga = add('gate', [tx, site.fence ? site.fence.z : Math.min(site.taxiway.z0, site.taxiway.z1)], 'gate');
+    const ed = add('edge', [tx, R.cz + R.half * Math.sign(site.taxiway.z0 - R.cz || 1)], 'entry');
+    const c0 = add('c0', [tx, R.cz], 'taxi', { r: GP_FILLET });
+    link(st, ap); link(ap, ga); link(ga, ed); link(ed, c0); link(c0, holds[0]);
+    routes.out[0] = [st, ap, ga, ed, c0, holds[0]];
+    const c1 = add('c1', at(tx, R.cz, n, laneSg * lane), 'taxi', { r: GP_FILLET });
+    link(ed, c1); link(c1, 'l1a');
+    routes.out[1] = [st, ap, ga, ed, c1].concat(routes.back[1]);
+  } else if (aero.spawn) {
+    // a generated strip: the spawn identity is 35 m in from end0
+    const sp = add('spawn', [aero.spawn[0], aero.spawn[1]], 'stand',
+                   { hdg: Math.atan2(d[1], d[0]) });
+    link(sp, holds[0]);
+    routes.out[0] = [sp, holds[0]];
+    routes.out[1] = routes.back[1];
+  }
+  // the two approaches
+  const tdz = [R.tdz.x, R.tdz.z];
+  const D = Math.abs((tdz[0] - R.thr1.x) * d[0] + (tdz[1] - R.thr1.z) * d[1]);
+  const mk = (k, u, thr, td) => ({
+    k, u: [u[0], u[1]], thr: [thr.x, thr.z], td: [td[0], td[1]],
+    aimAP: [+(td[0] + u[0] * 70).toFixed(3), +(td[1] + u[1] * 70).toFixed(3)],
+    gs: null, ga: { hdg: Math.atan2(u[1], u[0]) },
+  });
+  const approaches = [
+    mk(0, [-d[0], -d[1]], R.thr1, tdz),
+    mk(1, [d[0], d[1]], R.thr0, at(R.thr0.x, R.thr0.z, d, D)),
+  ];
+  return { id: aero.id || 'HOME', elev: aero.elev || 0, fillet: GP_FILLET,
+           nodes, arcs, routes, stops: holds,
+           runway: { c0: { x: R.end0.x, z: R.end0.z }, c1: { x: R.end1.x, z: R.end1.z },
+                     hdg: R.hdg, wid: R.wid, len: R.len },
+           approaches };
+}
+
+// THE VALIDATOR, and the future editor's too: every claim a pattern makes
+// about the ground, as a list of complaints (empty = sound). `Rmin` is the
+// tightest turn the aeroplane it is being checked for can taxi
+// (groundRmin); `path` is 39_ground_path.js's sampler, passed in so this file
+// stays free of it in node.
+function sitePatternIssues(pat, aero, site, Rmin, patternPath) {
+  const out = [];
+  if (!pat || !pat.nodes || !pat.routes) return ['no pattern'];
+  const R = siteRunway(aero);
+  const byId = {}; for (const nd of pat.nodes) byId[nd.id] = nd;
+  const box = site && site.hangar ? siteHangarBox(site.hangar) : null;
+  const inBox = (x, z) => box && x > box.x0 && x < box.x1 && z > box.z0 && z < box.z1;
+  const onStrip = (x, z) => {
+    const a = (x - R.end0.x) * R.dx + (z - R.end0.z) * R.dz;
+    const c = Math.abs((x - R.cx) * R.nx + (z - R.cz) * R.nz);
+    return a >= -0.01 && a <= R.len + 0.01 && c <= R.half + 0.01;
+  };
+  for (const h of pat.stops || []) {
+    const nd = byId[h];
+    if (!nd) { out.push('hold ' + h + ' is not a node'); continue; }
+    const c = Math.abs((nd.x - R.cx) * R.nx + (nd.z - R.cz) * R.nz);
+    if (c > 0.01) out.push('hold ' + h + ' is ' + c.toFixed(2) + ' m off the centreline');
+    const ux = Math.cos(nd.hdg), uz = Math.sin(nd.hdg);
+    if (Math.abs(Math.abs(ux * R.dx + uz * R.dz) - 1) > 1e-6)
+      out.push('hold ' + h + ' is not lined up with the strip');
+    const along = (nd.x - R.end0.x) * R.dx + (nd.z - R.end0.z) * R.dz;
+    const ahead = (ux * R.dx + uz * R.dz) > 0 ? R.len - along : along;
+    const want = Math.min(500, R.len - 150);
+    if (ahead < want) out.push('hold ' + h + ' leaves ' + ahead.toFixed(0) + ' m of run, under ' + want);
+  }
+  const walk = (ids, what) => {
+    if (!ids) return;
+    let P;
+    try { P = patternPath ? patternPath(pat, ids, 1.0) : null; } catch (e) { out.push(what + ': ' + e.message); return; }
+    if (!P) return;
+    if (P.pts.length < 2) out.push(what + ' samples to nothing');
+    // a strip too narrow to turn this aeroplane round inside its own width
+    // cannot be blamed for its U-turn: the lane is the strip's, the follower
+    // slows for the bend it gets, and only a site's own corners are held to
+    // the radius
+    const wideEnough = R.half - 2.5 >= Rmin;
+    if (Rmin > 0 && wideEnough && P.rMin < 1.05 * Rmin)
+      out.push(what + ' has a ' + P.rMin.toFixed(1) + ' m corner, under the aeroplane’s ' + Rmin.toFixed(1) + ' m');
+    for (const q of P.pts) {
+      if (site && typeof siteOnFlat === 'function' && !siteOnFlat(aero, q.x, q.z)) {
+        out.push(what + ' leaves the flat ground at (' + q.x.toFixed(0) + ', ' + q.z.toFixed(0) + ')'); break;
+      }
+      if (inBox(q.x, q.z)) { out.push(what + ' passes under the hangar'); break; }
+    }
+    // a crossing of the fence line only through the gate, 6 m clear of each run
+    if (site && site.fence) {
+      const F = site.fence;
+      for (let i = 1; i < P.pts.length; i++) {
+        const a = P.pts[i - 1], b = P.pts[i];
+        if ((a.z - F.z) * (b.z - F.z) < 0) {
+          const t = (F.z - a.z) / (b.z - a.z), xc = a.x + t * (b.x - a.x);
+          for (const [r0, r1] of F.runs)
+            if (xc > Math.min(r0, r1) - 6 && xc < Math.max(r0, r1) + 6)
+              out.push(what + ' crosses the fence at x ' + xc.toFixed(1) + ', inside or within 6 m of the run ' + r0 + '..' + r1);
+        }
+      }
+    }
+  };
+  for (const T of [0, 1]) { walk(pat.routes.out[T], 'route out[' + T + ']'); walk(pat.routes.back[T], 'route back[' + T + ']'); }
+  const A = pat.approaches || [];
+  if (A.length !== 2) out.push('a pattern has two approaches, one per direction');
+  for (const ap of A) {
+    if (!onStrip(ap.td[0], ap.td[1])) out.push('approach ' + ap.k + ' touchdown target is off the strip');
+    if (!onStrip(ap.aimAP[0], ap.aimAP[1])) out.push('approach ' + ap.k + ' aim point is off the strip');
+    if (ap.gs != null && !(ap.gs >= 0.035 && ap.gs <= 0.10)) out.push('approach ' + ap.k + ' slope ' + ap.gs + ' is outside 2..5.7 deg');
+    if (ap.k === 0 && aero.tdz && (Math.abs(ap.td[0] - aero.tdz[0]) > 1e-6 || Math.abs(ap.td[1] - aero.tdz[1]) > 1e-6))
+      out.push('approach 0 does not land on the record’s own tdz');
+  }
+  return out;
+}
 // ===========================================================================
 // THE FIT-OUT — what a hangar IS, what is IN it, and what you can DO there.
 // ===========================================================================
@@ -2933,6 +3173,65 @@ function hangarWants(S) {
   return HANGAR_CAPS.filter(v => want.has(v));
 }
 // ============================================================
+// ---------------------------------------------------------------------------
+// THE VORTEX KERNEL (G185.5) — the mutual interference between the planes of
+// a biplane, and the wing's downwash on the tail, as the induced velocity of
+// discrete HORSESHOE VORTICES. Each wing strip is one horseshoe: its bound
+// vortex along the quarter-chord line of the strip's own sub-span, two
+// semi-infinite trailing legs downstream. Biot-Savart, closed form, with a
+// Rankine core so a control point that lands in a wake is finite.
+//
+// WHAT IS AND IS NOT IN IT (Munk's decomposition, Di = Di1 + Di2 + 2 Di12): a
+// strip's OWN plane's induced velocity is already inside its polar (the
+// lifting-line eAR and the ground-effect factor) and is never evaluated
+// here — the pair list in makeSim excludes same-plane pairs. What the kernel
+// adds is the OTHER plane's field at this plane, and both planes' field at
+// the tail: the terms a single polar cannot hold.
+//   segment(A, B, P)  the finite bound vortex A -> B, unit circulation
+//   semi(A, d, P)     the semi-infinite leg from A to infinity along unit d
+//   horseshoe(A, B, d, rc, P)  bound A->B, leg out of B, leg into A
+// The circulation's SIGN rides on the strip (Gam[]): + means A -> B, and the
+// solver picks the sign each pass so that ev x Gam is the strip's lift
+// direction (Kutta-Joukowski, F' = rho V x Gamma).
+const VK_INV4PI = 1 / (4 * Math.PI);
+function vkSegment(A, B, rc, P, out) {
+  const r1x = P[0]-A[0], r1y = P[1]-A[1], r1z = P[2]-A[2];
+  const r2x = P[0]-B[0], r2y = P[1]-B[1], r2z = P[2]-B[2];
+  const r0x = B[0]-A[0], r0y = B[1]-A[1], r0z = B[2]-A[2];
+  const xx = r1y*r2z - r1z*r2y, xy = r1z*r2x - r1x*r2z, xz = r1x*r2y - r1y*r2x;
+  let x2 = xx*xx + xy*xy + xz*xz;
+  const L0 = Math.sqrt(r0x*r0x + r0y*r0y + r0z*r0z);
+  const c2 = (rc * L0) * (rc * L0);
+  if (x2 < c2) x2 = c2;
+  if (!(x2 > 0)) return out;
+  const m1 = Math.sqrt(r1x*r1x + r1y*r1y + r1z*r1z) || 1e-12;
+  const m2 = Math.sqrt(r2x*r2x + r2y*r2y + r2z*r2z) || 1e-12;
+  const k = VK_INV4PI / x2 * (r0x*(r1x/m1 - r2x/m2) + r0y*(r1y/m1 - r2y/m2) + r0z*(r1z/m1 - r2z/m2));
+  out[0] += k * xx; out[1] += k * xy; out[2] += k * xz;
+  return out;
+}
+// the leg from A to infinity along unit d, unit circulation flowing A -> inf
+function vkSemi(A, d, rc, P, sign, out) {
+  const r1x = P[0]-A[0], r1y = P[1]-A[1], r1z = P[2]-A[2];
+  const xx = d[1]*r1z - d[2]*r1y, xy = d[2]*r1x - d[0]*r1z, xz = d[0]*r1y - d[1]*r1x;
+  let x2 = xx*xx + xy*xy + xz*xz;
+  if (x2 < rc * rc) x2 = rc * rc;
+  if (!(x2 > 0)) return out;
+  const m1 = Math.sqrt(r1x*r1x + r1y*r1y + r1z*r1z) || 1e-12;
+  const k = sign * VK_INV4PI / x2 * (1 + (d[0]*r1x + d[1]*r1y + d[2]*r1z) / m1);
+  out[0] += k * xx; out[1] += k * xy; out[2] += k * xz;
+  return out;
+}
+// one horseshoe of unit circulation A -> B, legs along d; the leg at A flows
+// INTO A (minus), the leg at B flows OUT (plus)
+function vkHorseshoe(A, B, d, rc, P, out) {
+  vkSegment(A, B, rc, P, out);
+  vkSemi(B, d, rc, P, 1, out);
+  vkSemi(A, d, rc, P, -1, out);
+  return out;
+}
+const vortexKernel = { segment: vkSegment, semi: vkSemi, horseshoe: vkHorseshoe };
+
 function makeSim(def, world) {
   const P_ = def.params;
   const PP = POWERPLANTS[P_.powerplant];
@@ -2977,28 +3276,162 @@ function makeSim(def, world) {
   // dials started from, exactly as params.prop already outranks PP.prop above.
   const EN = P_.engine || PP.engine;
   const ASP = (EN && EN.aspiration) || 'na';
+  // a turbine's flat-rating margin (2026-09-05, TURBOPROP §2) — 1 for every
+  // other family, which 05_atmos ignores; the three readers below pass it
+  const FLAT = (EN && EN.flatK) || 1;
   const n = def.nodes.length;
   const p = new Float64Array(n * 3), v = new Float64Array(n * 3),
         f = new Float64Array(n * 3), m = new Float64Array(n),
         r = new Float64Array(n);
   const beams = def.beams.map(b => ({ ...b, L0: 0, strain: 0 }));
   const _treeScratch = [];
-  const ctl = { thr: 0, de: 0, da: 0, dr: 0, brake: 0, flap: 0 };
+  // G194: `eng` is null (every engine running, full lever — bit-identical to
+  // before) or [{ on, thr }] per engine, a MULTIPLIER on the pilot's `thr`
+  // that the pilots never read or write: the player's levers over the
+  // pilot's one throttle.
+  const ctl = { thr: 0, de: 0, da: 0, dr: 0, brake: 0, flap: 0, eng: null };
   const FP = P_.flaps;   // per-aircraft high-lift deltas; undefined = no flaps
   let simT = 0;          // sim time for the deterministic wind field
-  const out = { V: 0, alpha: 0, thrust: 0, wash: 0, alt: 0, vs: 0 };
+  const out = { V: 0, alpha: 0, thrust: 0, wash: 0, alt: 0, vs: 0, thrustPer: [] };
   let totalM = 0;
   for (const nd of def.nodes) totalM += nd.m;
 
   // wingspan datum for ground effect: outermost wing-strip node |z| in def
   // coordinates. Derived, not a fiche param — works for every aircraft.
-  let bSpan = 0;
-  for (const st of def.strips) if (st.kind === 'wing')
+  // G185: PER PLANE — a sesquiplane's lower wing reads its own span, not the
+  // upper's. A monoplane has one entry and the same number as before.
+  const bOf = [];
+  for (const st of def.strips) if (st.kind === 'wing') {
+    const k = st.plane | 0;
+    let b = bOf[k] || 0;
     for (const i of [st.fIn, st.fOut, st.rIn, st.rOut])
-      bSpan = Math.max(bSpan, Math.abs(def.nodes[i].p[2]));
-  bSpan = Math.max(0.1, bSpan * 2);
+      b = Math.max(b, Math.abs(def.nodes[i].p[2]));
+    bOf[k] = b;
+  }
+  for (let k = 0; k < bOf.length; k++) bOf[k] = Math.max(0.1, (bOf[k] || 0) * 2);
+  const bSpan = bOf[0] || 0.1;
+
+  // G185.5: THE INDUCTION PAIRS. Targets: every wing strip, from the wing
+  // strips of the OTHER planes (never its own — the polar has those); every
+  // stab / V-tail strip, from every wing strip (the downwash). The tail pairs
+  // are built for every aeroplane so the downwash can be MEASURED
+  // (out.tailEps, the sheet's dEpsDa); they are APPLIED only when the def
+  // asks for the vortex model (params.downwashModel 'vortex' — biplanes;
+  // a monoplane keeps its calibrated constant and its numbers, to the bit).
+  // A fin sees sidewash, which this does not model — no fin pairs.
+  const NST = def.strips.length;
+  const IND = P_.induction || { core: 0.30, kProbe: 3 };
+  const DWM = P_.downwashModel || 'const';
+  const WS = [];
+  def.strips.forEach((st, i) => { if (st.kind === 'wing') WS.push(i); });
+  const pairs = [];                 // [target strip, source strip, applied]
+  for (let ti = 0; ti < NST; ti++) {
+    const t = def.strips[ti];
+    if (t.kind === 'wing') {
+      for (const sj of WS) if ((def.strips[sj].plane | 0) !== (t.plane | 0)) pairs.push([ti, sj, 1]);
+    } else if (t.kind === 'stab' || t.kind === 'vtail') {
+      for (const sj of WS) pairs.push([ti, sj, DWM === 'vortex' ? 1 : 0]);
+    }
+  }
+  const NP = pairs.length;
+  const crossPlane = pairs.some(pr => def.strips[pr[0]].kind === 'wing');
+  // passes a probe needs to converge the circulation: the wing<->wing loop is
+  // a contraction (round-trip gain ~0.02, see HANDOVER G185.5) and three
+  // passes leave a residual under 0.2 %; a monoplane's tail-only pairs are
+  // open-loop and two passes measure them exactly
+  const K_PROBE = NP ? (crossPlane ? (IND.kProbe || 3) : 2) : 1;
+  const Gam = new Float64Array(NST), GamPrev = new Float64Array(NST);
+  const vi = new Float64Array(NST * 3);
+  const AIC = new Float64Array(NP * 3);
+  const sA = new Float64Array(NST * 3), sB = new Float64Array(NST * 3), sD = [0, 0, 0];
+  const cpt = new Float64Array(NST * 3);
+  let aicHash = NaN;
+  const cpOf = (st, o) => {                 // a strip's control point: its attach-weighted c/4
+    o[0] = o[1] = o[2] = 0;
+    for (const [i, w] of st.w) { o[0] += p[i*3]*w; o[1] += p[i*3+1]*w; o[2] += p[i*3+2]*w; }
+    return o;
+  };
+  // the bound vortex of a wing strip: the quarter-chord line over the
+  // strip's own sub-span (a half bay at t 0.28 / 0.78; the centre strip's
+  // whole width at t 0.5), from its spar nodes and its c/4 weight
+  const boundOf = (st, A, B) => {
+    const cf = st.cf != null ? st.cf : 0.8, cr = 1 - cf;
+    const tA = st.t === 0.5 ? 0 : st.t < 0.5 ? 0 : 0.5;
+    const tB = st.t === 0.5 ? 1 : st.t < 0.5 ? 0.5 : 1;
+    for (let k = 0; k < 3; k++) {
+      const fi = p[st.fIn*3+k], fo = p[st.fOut*3+k], ri = p[st.rIn*3+k], ro = p[st.rOut*3+k];
+      A[k] = cf * (fi + (fo - fi) * tA) + cr * (ri + (ro - ri) * tA);
+      B[k] = cf * (fi + (fo - fi) * tB) + cr * (ri + (ro - ri) * tB);
+    }
+  };
+  const _A = [0, 0, 0], _B = [0, 0, 0], _P = [0, 0, 0], _o = [0, 0, 0];
+  const _Ai = [0, 0, 0], _Bi = [0, 0, 0], _Di = [0, 0, 0];
+  // the influence coefficients: geometry only, per unit circulation, with
+  // the GROUND IMAGE (mirrored in y about gH, circulation reversed) when the
+  // pass has a ground — the cross-plane and tail terms then see ground
+  // effect too, where the polar's McCormick factor only ever held a plane's
+  // own image. Called once per frame in flight and on a geometry change in a
+  // probe; never per substep (it is ~25 strip loops' worth of arithmetic).
+  function buildAIC(gH, dx, dy, dz) {
+    sD[0] = dx; sD[1] = dy; sD[2] = dz;
+    for (const j of WS) { boundOf(def.strips[j], _A, _B); for (let k = 0; k < 3; k++) { sA[j*3+k] = _A[k]; sB[j*3+k] = _B[k]; } }
+    for (let ti = 0; ti < NST; ti++) { cpOf(def.strips[ti], _P); cpt[ti*3] = _P[0]; cpt[ti*3+1] = _P[1]; cpt[ti*3+2] = _P[2]; }
+    for (let q = 0; q < NP; q++) {
+      const ti = pairs[q][0], sj = pairs[q][1];
+      const rc = IND.core * def.strips[sj].chord;
+      _P[0] = cpt[ti*3]; _P[1] = cpt[ti*3+1]; _P[2] = cpt[ti*3+2];
+      _A[0] = sA[sj*3]; _A[1] = sA[sj*3+1]; _A[2] = sA[sj*3+2];
+      _B[0] = sB[sj*3]; _B[1] = sB[sj*3+1]; _B[2] = sB[sj*3+2];
+      _o[0] = _o[1] = _o[2] = 0;
+      vkHorseshoe(_A, _B, sD, rc, _P, _o);
+      if (gH !== null && gH !== undefined) {
+        _Ai[0] = _A[0]; _Ai[1] = 2*gH - _A[1]; _Ai[2] = _A[2];
+        _Bi[0] = _B[0]; _Bi[1] = 2*gH - _B[1]; _Bi[2] = _B[2];
+        _Di[0] = dx; _Di[1] = -dy; _Di[2] = dz;
+        const im = [0, 0, 0];
+        vkHorseshoe(_Ai, _Bi, _Di, rc, _P, im);
+        _o[0] -= im[0]; _o[1] -= im[1]; _o[2] -= im[2];
+      }
+      AIC[q*3] = _o[0]; AIC[q*3+1] = _o[1]; AIC[q*3+2] = _o[2];
+    }
+  }
+  // a cheap signature of what the coefficients depend on
+  function aicSig(gH, dx, dy, dz) {
+    let h = (gH === null || gH === undefined) ? -1e9 : gH;
+    for (const j of WS) { const st = def.strips[j];
+      for (const i of [st.fIn, st.fOut, st.rIn, st.rOut]) h += p[i*3] + 2*p[i*3+1] + 3*p[i*3+2]; }
+    return h * 1.000001 + dx * 7 + dy * 11 + dz * 13;
+  }
+  function applyInduction() {
+    vi.fill(0);
+    for (let q = 0; q < NP; q++) {
+      if (!pairs[q][2]) continue;
+      const g = Gam[pairs[q][1]];
+      if (!g) continue;
+      const ti = pairs[q][0];
+      vi[ti*3] += AIC[q*3] * g; vi[ti*3+1] += AIC[q*3+1] * g; vi[ti*3+2] += AIC[q*3+2] * g;
+    }
+  }
+  // the tail's downwash, MEASURED whether or not it is applied: the induced
+  // angle at the stab strips from every wing strip's circulation
+  function measureTailEps() {
+    // the MEAN induced velocity over the tail strips (each strip sums its
+    // wing sources; the strips are then averaged, not summed)
+    let eps = 0, nT = 0, last = -1;
+    for (let q = 0; q < NP; q++) {
+      const ti = pairs[q][0], st = def.strips[ti];
+      if (st.kind !== 'stab' && st.kind !== 'vtail') continue;
+      if (ti !== last) { nT++; last = ti; }
+      const g = Gam[pairs[q][1]];
+      if (!g) continue;
+      // downwash = induced velocity against the tail's normal (yUp for a stab)
+      eps += -(AIC[q*3]*yUp[0] + AIC[q*3+1]*yUp[1] + AIC[q*3+2]*yUp[2]) * g;
+    }
+    return nT ? eps / nT : 0;
+  }
 
   function reset(drop = 0) {
+    if (NP) { Gam.fill(0); GamPrev.fill(0); aicHash = NaN; }   // G185.5
     totalM = 0;                    // G121: masses may have changed (setNodeMass)
     for (let i = 0; i < n; i++) {
       const nd = def.nodes[i];
@@ -3010,6 +3443,9 @@ function makeSim(def, world) {
     }
     for (const b of beams) {
       b.L0 = Math.hypot(p[b.b*3]-p[b.a*3], p[b.b*3+1]-p[b.a*3+1], p[b.b*3+2]-p[b.a*3+2]);
+      // G185: RIGGING. A wire's rest length is a hair short of the drawn
+      // distance, so it stands in tension at rest — the turnbuckle's job.
+      if (b.pre) b.L0 *= (1 - b.pre);
       b.strain = 0;
     }
     // THE THREE-POINT STANCE (2026-09-04, the user: "quite a few of my builds
@@ -3034,6 +3470,7 @@ function makeSim(def, world) {
     for (let i = 0; i < n; i++) minC = Math.min(minC, p[i*3+1] - r[i]);
     for (let i = 0; i < n; i++) p[i*3+1] += -minC + 0.01 + drop;
     ctl.thr = ctl.de = ctl.da = ctl.dr = ctl.brake = ctl.flap = 0;
+    ctl.eng = null;                                  // G194: every lever back to full
     simT = 0;
   }
   function stance() {
@@ -3132,7 +3569,7 @@ function makeSim(def, world) {
     // and what the powerplant makes of it — see 05_atmos.js, where both
     // scalings are re-derived from 60_gen_spec's own prop synthesis rather than
     // asserted.
-    const PS = atmosPropScale(sig, ASP);
+    const PS = atmosPropScale(sig, ASP, FLAT);
     out.rho = rho; out.sigma = sig; out.easK = easK;
     out.densityAlt = AIR.densityAlt(hAir); out.oatC = AIR.T(hAir) - 273.15;
     out.powerK = PS.power; out.thrustK = PS.kT;
@@ -3173,19 +3610,33 @@ function makeSim(def, world) {
       // many engines make it. `params.nEngines` says that, and every def
       // states it. The registry's Tstatic/kV2 are PER PROPELLER.
       const nE = def.params.nEngines || 1;
-      const Tper = ctl.thr * Math.max(0, PR.Tstatic * PS.kT - PR.kV2 * PS.kV * Vfwd * Vfwd);
-      T = Tper * nE;                                   // registry values are per engine
+      const Tcap = Math.max(0, PR.Tstatic * PS.kT - PR.kV2 * PS.kV * Vfwd * Vfwd);
+      // G194: PER ENGINE. Each engine's thrust is the pilot's throttle times
+      // its own lever (ctl.eng, null = every lever full and on), and each
+      // mount node takes its OWN engine's share (refs.engineOf) — so a cut
+      // or trimmed engine on a wing pair is a real yaw couple through the two
+      // nodes at +-z, with no new physics. With ctl.eng null this is
+      // Tper * nE spread evenly, to the bit.
+      const lev = i => { const e = ctl.eng && ctl.eng[i]; return e ? (e.on ? +e.thr : 0) : 1; };
+      const EO = def.refs.engineOf || def.refs.engine.map(() => 0);
+      const cnt = new Array(nE).fill(0);
+      for (const k of EO) if (k < nE) cnt[k]++;
+      const Ti = out.thrustPer; Ti.length = nE;
+      T = 0;
+      for (let i = 0; i < nE; i++) { Ti[i] = ctl.thr * lev(i) * Tcap; T += Ti[i]; }
       // propwash is ONE disc's — the tail flies in the wake of the prop ahead
-      // of it, not in the sum of the aeroplane's engines
-      wash = Math.sqrt(Vfwd * Vfwd + 2 * Tper / (rho * PROPA)) - Vfwd;
-      const per = T / def.refs.engine.length;          // spread over the MOUNTS
-      for (const e of def.refs.engine) {
+      // of it, not in the sum of the aeroplane's engines (the mean disc now)
+      wash = Math.sqrt(Vfwd * Vfwd + 2 * (T / nE) / (rho * PROPA)) - Vfwd;
+      for (let j = 0; j < def.refs.engine.length; j++) {
+        const e = def.refs.engine[j], k = EO[j] < nE ? EO[j] : 0;
+        const per = Ti[k] / Math.max(1, cnt[k]);
         f[e*3]   -= per * xAft[0];
         f[e*3+1] -= per * xAft[1];
         f[e*3+2] -= per * xAft[2];
       }
     }
     out.aeroFy = 0; out.wingFy = 0; out.stabFy = 0; out.dbgAl = 0; out.dbgN = 0;
+    const planeFy = out.planeFy = [];                // G185: each plane's lift
     out.thrust = T; out.wash = wash;
     // THREE SPEEDS, and the distinction is load-bearing now that the air can be
     // thin: out.V is TRUE airspeed (air-relative — what alpha is built on and
@@ -3201,7 +3652,25 @@ function makeSim(def, world) {
                            -(avx*xAft[0]+avy*xAft[1]+avz*xAft[2]));
     out.vs = vmy;
 
+    // G185.5: the induced field, from the LAST pass's circulations (one
+    // substep of lag; the loop is a contraction, see the kernel's note). The
+    // wake trails the way the air goes past: opposite the air-relative
+    // velocity. Coefficients are rebuilt when the geometry signature moves
+    // (a probe with new positions, a frame in flight), never per substep.
+    let tailEpsSum = 0, tailEpsN = 0;
+    if (NP) {
+      const va = Math.hypot(avx, avy, avz) || 1;
+      const dx = -avx / va, dy = -avy / va, dz = -avz / va;
+      const sg = aicSig(gH, dx, dy, dz);
+      if (sg !== aicHash) { buildAIC(gH, dx, dy, dz); aicHash = sg; }
+      applyInduction();
+      out.tailEps = out.V > 0.5 ? measureTailEps() / out.V : 0;
+    } else out.tailEps = 0;
+    GamPrev.set(Gam);
+
+    let stripIdx = -1;
     for (const st of def.strips) {
+      stripIdx++;
       // --- strip frame ---
       if (st.kind === 'wing') {
         const fi=st.fIn*3, fo=st.fOut*3, ri=st.rIn*3, ro=st.rOut*3, t=st.t;
@@ -3244,12 +3713,18 @@ function makeSim(def, world) {
       // relative air velocity = air motion (wash + wind) - node motion
       const wsh = wash * st.wash;
       let rx = wsh*xAft[0]+wx_-vx, ry = wsh*xAft[1]+wy_-vy, rz = wsh*xAft[2]+wz_-vz;
+      // G185.5: ...plus the induced velocity of the other plane and, on a
+      // tail flying the vortex model, of the wing. The lift vector is built
+      // on the LOCAL wind below, so a downwash tilts it aft and the mutual
+      // induced drag falls out of the geometry — no separate term.
+      if (NP) { const si = stripIdx * 3; rx += vi[si]; ry += vi[si+1]; rz += vi[si+2]; }
       const u = rx*sc[0]+ry*sc[1]+rz*sc[2];
       const w_ = rx*sn[0]+ry*sn[1]+rz*sn[2];
       const V2 = u*u + w_*w_;
       if (V2 < 0.01) continue;
       let al = Math.atan2(w_, u);
-      let P = P_.polarWing;
+      // G185: a wing strip flies ITS PLANE's polar (plane 0's is polarWing)
+      let P = P_.polarWings ? (P_.polarWings[st.plane | 0] || P_.polarWing) : P_.polarWing;
       let fl = 0;                                  // flap fraction on this strip
       if (st.kind === 'wing') {
         al += P_.ailTau * ctl.da * st.side * st.ail;
@@ -3258,7 +3733,10 @@ function makeSim(def, world) {
           al += (FP.tau || 0) * fl;                // flaperon droop (surface rotates)
         }
       } else if (st.kind === 'stab') {
-        al = (1 - P_.downwash) * al + P_.stabTrim - P_.elevTau * ctl.de;
+        // G185.5: the vortex model's downwash is already in the local wind
+        // (vi above), so the calibrated constant stands aside on a def that
+        // asks for it; every other def keeps the constant, to the bit
+        al = (DWM === 'vortex' ? al : (1 - P_.downwash) * al) + P_.stabTrim - P_.elevTau * ctl.de;
         P = P_.polarTail;
       } else if (st.kind === 'vtail') {
         // ruddervator: elevator SYMMETRIC (both panels the same way, vertical
@@ -3269,7 +3747,7 @@ function makeSim(def, world) {
         // toward the centreline, not away from it. With +side the aeroplane
         // yawed the wrong way on every rudder input: measured d(yawLeft)/d(dr)
         // = -6991 against a conventional tail's +3814.
-        al = (1 - P_.downwash) * al + P_.stabTrim - P_.elevTau * ctl.de
+        al = (DWM === 'vortex' ? al : (1 - P_.downwash) * al) + P_.stabTrim - P_.elevTau * ctl.de
              - P_.rudTau * ctl.dr * PAR.rudderSign * st.side;
         P = P_.polarTail;
       } else {
@@ -3284,7 +3762,7 @@ function makeSim(def, world) {
       let sig = 1;
       if (gH !== null && st.kind === 'wing') {
         const hb = Math.max(0.02,
-          ((p[st.fIn*3+1] + p[st.fOut*3+1]) * 0.5 - gH) / bSpan);
+          ((p[st.fIn*3+1] + p[st.fOut*3+1]) * 0.5 - gH) / (bOf[st.plane | 0] || bSpan));
         const g16 = 16 * hb;
         sig = g16 * g16 / (1 + g16 * g16);
       }
@@ -3292,12 +3770,25 @@ function makeSim(def, world) {
         ? polar(al, P, sig, (FP.dCl0 || 0) * fl, (FP.dCd0 || 0) * fl, (FP.dAStall || 0) * fl)
         : polar(al, P, sig);
       const q = 0.5 * rho * V2 * st.area, iv = 1 / Math.sqrt(V2);
+      // G185.5: this strip's circulation for the NEXT pass — Kutta-Joukowski,
+      // Gamma = Cl c V / 2 per unit span, signed so that (wind x bound) is
+      // the lift direction: the bound runs A -> B (inboard -> outboard) and
+      // the sign is what makes ev x sAB agree with the strip normal
+      if (NP && st.kind === 'wing') {
+        const si = stripIdx * 3;
+        const bx = sB[si] - sA[si], by = sB[si+1] - sA[si+1], bz = sB[si+2] - sA[si+2];
+        // ev x b, dotted with the normal: the lift of a + circulation A -> B
+        const cx = (ry*bz - rz*by), cy = (rz*bx - rx*bz), cz = (rx*by - ry*bx);
+        const sgn = (cx*sn[0] + cy*sn[1] + cz*sn[2]) >= 0 ? 1 : -1;
+        Gam[stripIdx] = 0.5 * Cl * st.chord / iv * sgn;
+      }
       // drag along relative wind (in strip plane), lift perpendicular
       const dx=(u*sc[0]+w_*sn[0])*iv, dy=(u*sc[1]+w_*sn[1])*iv, dz=(u*sc[2]+w_*sn[2])*iv;
       const lx=(u*sn[0]-w_*sc[0])*iv, ly=(u*sn[1]-w_*sc[1])*iv, lz=(u*sn[2]-w_*sc[2])*iv;
       const Fx = q*(Cl*lx + Cd*dx), Fy = q*(Cl*ly + Cd*dy), Fz = q*(Cl*lz + Cd*dz);
       out.aeroFy += Fy;
       if (st.kind === 'wing') { out.wingFy += Fy; out.dbgAl += al; out.dbgN++;
+        planeFy[st.plane | 0] = (planeFy[st.plane | 0] || 0) + Fy;   // G185: per plane
         if (out.dump) out.dump.push({ side: st.side, t: st.t, wash: st.wash,
           al: al*57.3, Fy, ch: st.chord }); }
       else if (st.kind === 'stab' || st.kind === 'vtail') out.stabFy += Fy;
@@ -3308,8 +3799,9 @@ function makeSim(def, world) {
       // flap dCm0 feeds in here — the couple reading polarWing.Cm0 alone would
       // silently ignore the flap pitching moment (HANDOVER "watch Cm0")
       if (st.kind === 'wing') {
-        const Fc = q * (P_.polarWing.Cm0 + (fl > 0 ? (FP.dCm0 || 0) * fl : 0))
-                     * st.chord / P_.sparSpacing, t = st.t;
+        // G185: the strip's own plane's Cm0 and spar spacing
+        const Fc = q * (P.Cm0 + (fl > 0 ? (FP.dCm0 || 0) * fl : 0))
+                     * st.chord / (st.sparSpacing || P_.sparSpacing), t = st.t;
         const cW = [[st.fIn, (1-t)], [st.fOut, t], [st.rIn, -(1-t)], [st.rOut, -t]];
         for (const [i, w] of cW) {
           f[i*3] += Fc*w*sn[0]; f[i*3+1] += Fc*w*sn[1]; f[i*3+2] += Fc*w*sn[2];
@@ -3345,7 +3837,8 @@ function makeSim(def, world) {
   }
 
   // G115: DEFDAMP is overridable per def — for the MEASUREMENT instrument
-  // (tools/_yaw_probe.js runs free-yaw decay at two settings), not for play.
+  // (the G115 yaw probe ran free-yaw decay at two settings; the probe
+  // retired with the fleet, 2026-09-05), not for play.
   // No fiche and no generated build sets it, so everything flies 0.5 as ever.
   const G = -9.81, DEFDAMP = def.params.defDamp ?? 0.5;
   // ground stiffness scales with node mass so light aircraft stay stable at the same dt
@@ -3405,8 +3898,10 @@ function makeSim(def, world) {
       const L = Math.hypot(dx, dy, dz) || 1e-9;
       dx/=L; dy/=L; dz/=L;
       const vrel = (v[b3]-v[a3])*dx + (v[b3+1]-v[a3+1])*dy + (v[b3+2]-v[a3+2])*dz;
-      const Fb = b.k * (L - b.L0) + b.c * vrel;
       b.strain = (L - b.L0) / b.L0;
+      // G185: a WIRE carries tension only — slack, it is not there (no
+      // spring, and no damper either: a slack cable damps nothing)
+      const Fb = (b.tens && L <= b.L0) ? 0 : b.k * (L - b.L0) + b.c * vrel;
       f[a3]+=Fb*dx; f[a3+1]+=Fb*dy; f[a3+2]+=Fb*dz;
       f[b3]-=Fb*dx; f[b3+1]-=Fb*dy; f[b3+2]-=Fb*dz;
     }
@@ -3535,13 +4030,13 @@ function makeSim(def, world) {
     const A = airOf(), sg = A.sigma(hProbe);
     return { air: A, h: hProbe, rho: A.rho(hProbe), sigma: sg,
              easK: Math.sqrt(sg), densityAlt: A.densityAlt(hProbe),
-             oatC: A.T(hProbe) - 273.15, power: atmosPowerRatio(sg, ASP),
+             oatC: A.T(hProbe) - 273.15, power: atmosPowerRatio(sg, ASP, FLAT),
              aspiration: ASP };
   }
 
   function thrustAt(V, floor = 0, hAlt) {
     const A = airOf();
-    const PS = atmosPropScale(A.sigma(hAlt == null ? hProbe : hAlt), ASP);
+    const PS = atmosPropScale(A.sigma(hAlt == null ? hProbe : hAlt), ASP, FLAT);
     return Math.max(floor, PR.Tstatic * PS.kT - PR.kV2 * PS.kV * V * V)
            * (def.params.nEngines || 1);
   }
@@ -3552,7 +4047,16 @@ function makeSim(def, world) {
       f[i*3]=f[i*3+1]=f[i*3+2]=0;
       v[i*3]=vel[0]; v[i*3+1]=vel[1]; v[i*3+2]=vel[2];
     }
-    aeroPass(true);
+    // G185.5: a probe has no history, so the circulation is iterated to a
+    // fixed point — a FIXED number of passes (never a tolerance loop: the
+    // trim search needs a smooth function of speed), the residual posted
+    Gam.fill(0);
+    for (let k = 0; k < K_PROBE; k++) {
+      if (k) for (let i = 0; i < n; i++) f[i*3]=f[i*3+1]=f[i*3+2]=0;
+      aeroPass(true);
+    }
+    if (NP) { let d = 0, s = 0; for (const j of WS) { d += Math.abs(Gam[j] - GamPrev[j]); s += Math.abs(Gam[j]); }
+              out.gamResid = s > 0 ? d / s : 0; } else out.gamResid = 0;
     let cgx=0, cgy=0, cgz=0;
     for (let i = 0; i < n; i++) { cgx+=p[i*3]*m[i]; cgy+=p[i*3+1]*m[i]; cgz+=p[i*3+2]*m[i]; }
     cgx/=totalM; cgy/=totalM; cgz/=totalM;
@@ -3563,7 +4067,8 @@ function makeSim(def, world) {
       My += (p[i*3+2]-cgz)*f[i*3] - (p[i*3]-cgx)*f[i*3+2];
     }
     // nose-up pitch = -Mz ; nose-LEFT yaw = +My  (nose -x, +z is the LEFT side)
-    return { Fx, Fy, Fz, pitchUp: -Mz, yawLeft: My, cg: [cgx, cgy, cgz] };
+    return { Fx, Fy, Fz, pitchUp: -Mz, yawLeft: My, cg: [cgx, cgy, cgz],
+             planeFy: out.planeFy ? out.planeFy.slice() : [] };   // G185
   }
 
   function stats() {
@@ -3617,6 +4122,219 @@ function makeSim(def, world) {
 }
 
 
+// ============================================================
+// THE GROUND PATH (G193) — a declared pattern graph, sampled into a path
+// the pilots can FOLLOW rather than chase.
+//
+// The user, 2026-09-05: "the current taxi pattern is wrong, the plane cuts
+// corners. It should do mostly 90° turns (smoothed out), and complete a
+// graph dot-arc and try to follow that. We need the notion of stop point,
+// where the plane lines up and completely stops before taking off."
+//
+// Two facts drove the shape of this file. The old TAXI was pure pursuit at a
+// single waypoint with a 10/22 m capture radius — it could not hold a LEG,
+// only a point, so every corner was cut by the capture radius. And the
+// aeroplane it was flying could not make the corner anyway: a tailwheel
+// steer is a rear-steered bicycle, R = Lwb / tan(|twSteer| · dr), which on
+// the user's ultralight at the ±0.45 rudder clamp is 20.8 m — the taxiway's
+// 12 m corners were physically out of reach at the travel the pilot allowed.
+// So the path carries its CURVATURE, the follower feeds that curvature
+// forward into the rudder (the PD only trims), the taxi speed comes down for
+// the bend ahead, and the rudder may use its whole travel at taxi speed.
+//
+// PURE: no THREE, no DOM, no solver. 25_airfield.js declares the pattern,
+// 40_/41_ follow it, pattern_vis.js draws it, GATE SITE and GATE TAKEOFF
+// measure it — all off this one sampling, so the ribbon on the ground is the
+// line the aeroplane is steering to.
+//
+// THE PATTERN'S SHAPE (sitePattern, 25_airfield.js):
+//   nodes[]      { id, x, z, kind, r?, hdg? }   kind: stand | apron | gate |
+//                entry | taxi | hold. `r` is the corner's own fillet radius
+//                (else pattern.fillet); a `hold` carries the lined-up heading.
+//   arcs[]       [idA, idB] — the graph's edges, for the drawing
+//   routes       { out: [ids by take-off direction T], back: [...] }
+//   stops[]      the hold ids
+//   approaches[] one per LANDING direction k (see 25_airfield.js)
+//
+// THE SAMPLED PATH (patternPath):
+//   pts[]  { x, z, hdg, kap, s }  hdg = atan2(dz, dx) of the tangent, kap the
+//          signed curvature (+ = turning toward increasing atan2, the same
+//          sense as the pilots' heading error `e`), s the arc length
+//   len, sEnd, sStop (= sEnd when the last node is a hold), rMin (the
+//   smallest fillet actually drawn — a corner too tight for its legs is
+//   REDUCED and reported, never silently drawn wrong).
+// ============================================================
+
+const GP_DS = 1.0;                 // sample spacing, metres
+const GP_MAXPTS = 4000;
+
+function gpUnit(ax, az, bx, bz) {
+  const dx = bx - ax, dz = bz - az, l = Math.hypot(dx, dz) || 1e-9;
+  return [dx / l, dz / l, l];
+}
+// left of a direction in the (x, z) plane, the +atan2 side
+function gpLeft(ux, uz) { return [-uz, ux]; }
+
+// pattern + an ordered list of node ids -> the sampled path. `from` (optional,
+// [x, z]) is a start point PREPENDED as a node, so a route that begins where
+// the aeroplane happens to be gets a real join leg and a real fillet at the
+// first declared node, instead of a jump.
+function patternPath(pattern, ids, ds, from) {
+  ds = ds || GP_DS;
+  const byId = {};
+  for (const n of pattern.nodes) byId[n.id] = n;
+  const nodes = [];
+  if (from && isFinite(from[0]) && isFinite(from[1])) {
+    const n0 = byId[ids[0]];
+    if (!n0 || Math.hypot(from[0] - n0.x, from[1] - n0.z) > 1.0)
+      nodes.push({ id: '@', x: from[0], z: from[1], kind: 'pose' });
+  }
+  for (const id of ids) { const n = byId[id]; if (n) nodes.push(n); }
+  if (nodes.length < 2) return { pts: [], len: 0, sEnd: 0, sStop: null, rMin: Infinity, ids };
+  // straight-through nodes (< 2 deg of bend) are drawn dots, not corners: the
+  // fillet legs are measured between CORNERS and endpoints
+  const isCorner = new Array(nodes.length).fill(false);
+  for (let i = 1; i < nodes.length - 1; i++) {
+    const [u1x, u1z] = gpUnit(nodes[i - 1].x, nodes[i - 1].z, nodes[i].x, nodes[i].z);
+    const [u2x, u2z] = gpUnit(nodes[i].x, nodes[i].z, nodes[i + 1].x, nodes[i + 1].z);
+    const dot = Math.max(-1, Math.min(1, u1x * u2x + u1z * u2z));
+    isCorner[i] = Math.acos(dot) > 2 * Math.PI / 180;
+  }
+  // the corner list with its legs to the previous / next corner-or-endpoint
+  const cIdx = [];
+  for (let i = 0; i < nodes.length; i++)
+    if (i === 0 || i === nodes.length - 1 || isCorner[i]) cIdx.push(i);
+  // tangent length per corner, clamped so neighbouring fillets never overlap
+  const tan = {}, rEff = {};
+  let rMin = Infinity;
+  for (let k = 1; k < cIdx.length - 1; k++) {
+    const i = cIdx[k], A = nodes[cIdx[k - 1]], B = nodes[i], C = nodes[cIdx[k + 1]];
+    const [u1x, u1z, l1] = gpUnit(A.x, A.z, B.x, B.z);
+    const [u2x, u2z, l2] = gpUnit(B.x, B.z, C.x, C.z);
+    const dot = Math.max(-1, Math.min(1, u1x * u2x + u1z * u2z));
+    const th = Math.acos(dot);
+    const r = B.r != null ? B.r : (pattern.fillet != null ? pattern.fillet : 12);
+    let t = r * Math.tan(th / 2);
+    const tMax = 0.5 * Math.min(l1, l2);
+    if (t > tMax) t = tMax;
+    const re = t / Math.max(1e-9, Math.tan(th / 2));
+    tan[i] = t; rEff[i] = re;
+    if (re < rMin) rMin = re;
+  }
+  // walk corner to corner: straight to the fillet's start, the arc, on
+  const pts = [];
+  let s = 0;
+  const push = (x, z, hdg, kap) => {
+    if (pts.length) {
+      const q = pts[pts.length - 1];
+      s += Math.hypot(x - q.x, z - q.z);
+    }
+    pts.push({ x, z, hdg, kap, s });
+  };
+  const straight = (ax, az, bx, bz) => {
+    const [ux, uz, l] = gpUnit(ax, az, bx, bz);
+    const hdg = Math.atan2(uz, ux);
+    if (!pts.length) push(ax, az, hdg, 0);
+    const n = Math.max(1, Math.round(l / ds));
+    for (let i = 1; i <= n; i++) push(ax + ux * l * i / n, az + uz * l * i / n, hdg, 0);
+  };
+  let cur = [nodes[cIdx[0]].x, nodes[cIdx[0]].z];
+  for (let k = 1; k < cIdx.length; k++) {
+    const i = cIdx[k], B = nodes[i];
+    if (k === cIdx.length - 1) { straight(cur[0], cur[1], B.x, B.z); break; }
+    const A = nodes[cIdx[k - 1]], C = nodes[cIdx[k + 1]];
+    const [u1x, u1z] = gpUnit(A.x, A.z, B.x, B.z);
+    const [u2x, u2z] = gpUnit(B.x, B.z, C.x, C.z);
+    const t = tan[i], r = rEff[i];
+    const P1 = [B.x - u1x * t, B.z - u1z * t], P2 = [B.x + u2x * t, B.z + u2z * t];
+    straight(cur[0], cur[1], P1[0], P1[1]);
+    // the arc: centre off P1 on the turning side; sign = the turn's sense
+    const cr = u1x * u2z - u1z * u2x;          // + = toward increasing atan2
+    const sg = cr >= 0 ? 1 : -1;
+    const [lx, lz] = gpLeft(u1x, u1z);
+    const cx = P1[0] + sg * lx * r, cz = P1[1] + sg * lz * r;
+    const a0 = Math.atan2(P1[1] - cz, P1[0] - cx);
+    const a1 = Math.atan2(P2[1] - cz, P2[0] - cx);
+    let dA = a1 - a0;
+    while (dA > Math.PI) dA -= 2 * Math.PI;
+    while (dA < -Math.PI) dA += 2 * Math.PI;
+    const n = Math.max(2, Math.ceil(Math.abs(dA) * r / ds));
+    for (let j = 1; j <= n; j++) {
+      const a = a0 + dA * j / n;
+      const x = cx + r * Math.cos(a), z = cz + r * Math.sin(a);
+      // the tangent turns with the arc: heading = radius angle +/- 90 deg
+      const hdg = a + sg * Math.PI / 2;
+      push(x, z, Math.atan2(Math.sin(hdg), Math.cos(hdg)), sg / r);
+    }
+    cur = P2;
+  }
+  if (pts.length > GP_MAXPTS) pts.length = GP_MAXPTS;
+  const last = nodes[nodes.length - 1];
+  return { pts, len: s, sEnd: s, sStop: last.kind === 'hold' ? s : null,
+           rMin, ids: nodes.map(n => n.id), holdHdg: last.hdg };
+}
+
+// the nearest path point to (x, z), searched MONOTONICALLY from the last
+// index so the aeroplane cannot latch onto a later leg that passes nearby (the
+// U-turn's two legs are 22 m apart). Returns the index, the signed cross-track
+// (+ = the aeroplane is on the path's left, the +atan2 side) and the length
+// still to run.
+function pathLocate(path, i0, x, z) {
+  const P = path.pts;
+  if (!P.length) return { i: 0, ey: 0, sRem: 0, dist: 0 };
+  const a = Math.max(0, (i0 | 0) - 5), b = Math.min(P.length - 1, (i0 | 0) + 60);
+  let best = a, bd = Infinity;
+  for (let i = a; i <= b; i++) {
+    const d = (P[i].x - x) * (P[i].x - x) + (P[i].z - z) * (P[i].z - z);
+    if (d < bd) { bd = d; best = i; }
+  }
+  const q = P[best];
+  const tx = Math.cos(q.hdg), tz = Math.sin(q.hdg);
+  const dx = x - q.x, dz = z - q.z;
+  const ey = tx * dz - tz * dx;
+  return { i: best, ey, sRem: path.len - q.s, dist: Math.sqrt(bd) };
+}
+
+// what is AHEAD: the tangent heading and curvature a lookahead away, and the
+// tightest bend within the stopping distance, for the speed governor
+function pathLook(path, i, Vg) {
+  const P = path.pts;
+  if (!P.length) return { hdgL: 0, kapL: 0, kapMax: 0 };
+  const La = Math.max(3, Math.min(8, 0.8 * Vg + 2));
+  const s0 = P[Math.min(i, P.length - 1)].s;
+  let j = i;
+  while (j < P.length - 1 && P[j].s - s0 < La) j++;
+  const dLook = Vg * Vg / (2 * 0.5) + 6;
+  let kapMax = 0, k = i;
+  while (k < P.length && P[k].s - s0 <= dLook) { kapMax = Math.max(kapMax, Math.abs(P[k].kap)); k++; }
+  return { hdgL: P[j].hdg, kapL: P[j].kap, kapMax };
+}
+
+// the taxi speed this stretch allows: the cap, the bend ahead (1 m/s^2 of
+// lateral acceleration), and the stop at the end of the path (0.5 m/s^2)
+function pathSpeed(path, i, Vg, Vmax, sRem) {
+  const K = pathLook(path, i, Vg);
+  let v = Vmax;
+  if (K.kapMax > 1e-6) v = Math.min(v, Math.sqrt(1.0 / K.kapMax));
+  if (path.sStop != null) v = Math.min(v, Math.sqrt(2 * 0.5 * Math.max(0, sRem - 1.5)));
+  return Math.max(0, v);
+}
+
+// the tightest turn this aeroplane can taxi: a rear-steered bicycle,
+// wheelbase over the tangent of the steer angle at `drMax` of rudder
+function groundRmin(def, drMax) {
+  const N = def.nodes, R = def.refs;
+  if (!R || !R.mains || !R.mains.length || R.tw == null || R.tw < 0) return Infinity;
+  const mx = R.mains.reduce((s, i) => s + N[i].p[0], 0) / R.mains.length;
+  const Lwb = Math.abs(N[R.tw].p[0] - mx);
+  const st = Math.abs((def.params && def.params.twSteer) || 0.5) * (drMax || 0.85);
+  return Lwb / Math.max(1e-6, Math.tan(st));
+}
+
+if (typeof module !== 'undefined') {
+  module.exports = { patternPath, pathLocate, pathLook, pathSpeed, groundRmin,
+                     GP_DS };
+}
 // ============================================================
 // M3 — autopilot: full circuit. takeoff, climb, outbound cruise,
 // 180 turnback, inbound track, glideslope, flare, rollout, stop.
@@ -3691,6 +4409,35 @@ function makeAutopilot(sim, def, world) {
   // go over on power alone, until its tail is up.
   const GP = (typeof genGroundPowerCap === 'function')
     ? genGroundPowerCap(def, sim.thrustAt(0), sim.totalM * 9.81) : { cap: 1 };
+  // G193: THE FOLLOWER'S OWN NUMBERS. A tailwheel steer is a rear-steered
+  // bicycle: the turn the rudder commands is atan(Lwb * kap) / twSteer, so
+  // the wheelbase and the steer gain are read off the frame once. And the
+  // THREE-POINT RUN: a taildragger whose ground power is capped (thrust line
+  // above the CG, the user's wing-mounted twin) keeps its tail DOWN until
+  // rotation so the tailwheel steers the whole run; every other build rolls
+  // exactly as before (A.rotate was never set by anything, and still is not
+  // for them).
+  const TW = (() => {
+    const N = def.nodes, R = def.refs;
+    let Lwb = 4.0;
+    if (R && R.mains && R.mains.length && R.tw != null && R.tw >= 0) {
+      const mx = R.mains.reduce((s, i) => s + N[i].p[0], 0) / R.mains.length;
+      Lwb = Math.max(0.5, Math.abs(N[R.tw].p[0] - mx));
+    }
+    return { Lwb, steer: Math.abs(def.params.twSteer || 0.5) };
+  })();
+  // (measured: three-point for EVERY taildragger was tried and is wrong — the
+  // elevator cannot hold the tail down at full power anyway, the crosswind
+  // drift grew to 10 m and the hover fixture changed verdict. Capped builds
+  // only, as designed.)
+  const threePoint = (def.params.twSteer || 0.5) > 0 && GP.cap < 1;
+  // ...and EVERY taildragger rotates at Vr (G193). A.rotate was never set by
+  // anything, so the tail-up branch was dead code and a taildragger ran on its
+  // mains until it floated off — measured on the user's ultralight: Vr 15.4,
+  // airborne at 34 m/s after 300 m on two wheels with the wing carrying the
+  // weight and the tyres carrying nothing, which a 2 m/s crosswind turned into
+  // a 36 m slide. The tail-up steering schedule below arms for the same set.
+  const rotateTD = A.rotate != null ? !!A.rotate : (def.params.twSteer || 0.5) > 0;
   const taxiFF = (() => {
     const PP = POWERPLANTS[def.params.powerplant];
     const PR = def.params.prop || PP.prop;
@@ -3705,7 +4452,14 @@ function makeAutopilot(sim, def, world) {
       const d = ux * sx + uz * sz;
       if (d < 0) { ux = -ux; uz = -uz; }
     } else { ux = -ux; uz = -uz; }          // departure: land opposite takeoff
-    return { ux, uz, ox: a.tdz[0] + 450 * ux, oz: a.tdz[1] + 450 * uz };
+    // G193: TWO TOUCHDOWN TARGETS, one per landing direction. k = 0 lands
+    // along -hdg on the record's own tdz, to the bit, so every calm gate keeps
+    // its number; k = 1 lands along +hdg on the pattern's mirror target off
+    // the other threshold — a wind-flipped arrival used to aim at mid-field.
+    const k = (ux * Math.cos(a.hdg) + uz * Math.sin(a.hdg)) > 0 ? 1 : 0;
+    const PT = (k === 1 && ap.patOf) ? ap.patOf(a) : null;
+    const td = (PT && PT.approaches && PT.approaches[1]) ? PT.approaches[1].td : a.tdz;
+    return { ux, uz, ox: td[0] + 450 * ux, oz: td[1] + 450 * uz, k };
   };
   const HOMEISH = { hdg: Math.PI, tdz: [-450, 0], elev: 0 };  // world-less fallback
   const ap = {
@@ -3736,7 +4490,31 @@ function makeAutopilot(sim, def, world) {
   // centreline (see 25_airfield.js). Optional, and absent for every caller
   // that departs from the strip itself — GATE XCTY5's backtrack passes two
   // arguments and is unchanged.
-  ap.departFrom = (from, to, taxiOut) => {
+  // G193: the pattern of an aerodrome, built once per record from its site
+  // (25_airfield.js sitePattern) — the graph the taxi follows and the two
+  // approaches the frame lands on
+  const PATS = {};
+  ap.patOf = a => {
+    if (!a) return null;
+    const key = a.id || 'HOME';
+    if (PATS[key] !== undefined) return PATS[key];
+    let P = null;
+    try {
+      if (typeof sitePattern === 'function')
+        P = sitePattern(a, typeof siteOf === 'function' ? siteOf(a.id) : null);
+    } catch (e) { P = null; }
+    PATS[key] = P;
+    return P;
+  };
+  // the third argument is the SITE now (the pattern is built from it); a
+  // bare taxiOut list still works for the callers that pass one
+  ap.departFrom = (from, to, siteOrTaxiOut) => {
+    const site = (siteOrTaxiOut && !Array.isArray(siteOrTaxiOut)) ? siteOrTaxiOut : null;
+    ap.site = site;
+    ap.path = null; ap.pathI = 0; ap.stopAfterLineup = false; holdN = 0;
+    ap.taxiPath = null;
+    ap.taxiOut = Array.isArray(siteOrTaxiOut) && siteOrTaxiOut.length ? siteOrTaxiOut
+               : (site && site.taxiOut) || null;
     ap.route = { from, to };
     ap.xc = from !== to;
     ap.altRef = from.elev;
@@ -3793,6 +4571,8 @@ function makeAutopilot(sim, def, world) {
   let phaseT = 0, headingCapT = 0, thFlare0 = 0, thLift0 = 0, brakeRamp = 0, holdActive = false, holdWas = false;
   // THE TAXI GOVERNOR'S INTEGRATOR (2026-09-04). See taxi() below.
   let taxiI = 0, taxiLastT = -1e9;
+  // G193: the path follower's and the three-point run's state
+  let holdN = 0, thRest = null, thrRoll = 0, taxiXT = 0, taxiSRem = 0, tailUpNow = false;
   let eAP = 0, eAR = 0, eARslow = 0;   // course-over-ground error chain (air guidance)
   let eTrim = 0;                        // wind-only course trim (standing bank for slip)
   let pendReEng = false;                // W14: full state re-latch on next update
@@ -3933,8 +4713,27 @@ function makeAutopilot(sim, def, world) {
       holdPitch(clamp(thcI + (A.vsP ?? 0.010) * (VSc - vsF), fl, thMax));
     };
     const groundSteer = () => {
-      c.dr = clamp(-3.2 * e - 1.2 * eR, -0.45, 0.45);
+      // G193: THE PLANT CHANGES WHEN THE TAIL LIFTS. Only the tailwheel
+      // steers on the ground (30_solver.js), and its branch stops the frame
+      // the wheel unloads: authority drops from a first-order steer to the
+      // aero rudder alone — an inertial plant at low q — while these gains
+      // were tuned on the first. Measured on the user's ultralight: the
+      // heading it had at tail-up was the heading it kept, into the grass.
+      // The tail state is read solver-free (both mains down, pitch under the
+      // latched three-point stance), and only a three-point build takes the
+      // branch — the fleet's calm numbers do not move.
+      const tailUp = rotateTD && onG <= 2 && thRest !== null && (thRest - th) > 0.04;
+      // (measured on the crosswind trace: the full travel with the 1.4x gain
+      // swings the nose +-10 deg once but holds the excursion to 7 m at 2 m/s
+      // across; a softer 0.70 / 1.0x let it drift to 15 m)
+      const drMax = tailUp ? 0.95 : 0.45;
+      const kP = tailUp
+        ? 3.2 * 1.4 * clamp(((A.VTailUp ?? 12) / Math.max(V, 5)) ** 2, 0.6, 2.0)
+        : 3.2;
+      const kD = tailUp ? 3.0 : 1.2;
+      c.dr = clamp(-kP * e - kD * eR, -drMax, drMax);
       c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
+      tailUpNow = tailUp;
     };
 
     // W14 taxi governor: slow ground speed hold, slower through tight turns
@@ -4021,6 +4820,30 @@ function makeAutopilot(sim, def, world) {
         // TAXI onto the centreline first — which is what TAXI already does.
         const sCr0 = -(cg[0] - from.x) * uz + (cg[2] - from.z) * ux;
         const offCl = Math.abs(sCr0) > 15;
+        // G193: THE PATTERN WINS. Off the strip, the declared route out for
+        // this take-off direction; on the strip with too little run, the
+        // lane-and-U-turn back; on the strip with the run in front, a full
+        // STOP on the spot, lined up, before the roll. Every route ends on a
+        // hold: the aeroplane stops there, checks its alignment, then rolls.
+        {
+          const T = sg > 0 ? 0 : 1;
+          const PAT = ap.patOf(from);
+          const fits = !offCl && from.len / 2 - sPos >= need;
+          if (PAT && PAT.routes) {
+            const ids = offCl ? PAT.routes.out[T] : (fits ? null : PAT.routes.back[T]);
+            if (ids && typeof patternPath === 'function') {
+              ap.path = patternPath(PAT, ids, 1.0, [cg[0], cg[2]]);
+              ap.pathI = 0; ap.stopAfterLineup = true;
+              ap.phase = 'TAXI'; phaseT = 0;
+              break;
+            }
+            if (fits) {
+              ap.stopAfterLineup = true;
+              ap.phase = Vg < 0.3 ? 'HOLD' : 'STOP'; phaseT = 0;
+              break;
+            }
+          }
+        }
         if (!offCl && from.len / 2 - sPos >= need) { ap.phase = 'LINEUP'; phaseT = 0; break; }
         // THE DECLARED WAY OUT wins whenever the site states one, because the
         // obstacles are the PLACE's and this planner cannot see a fence.
@@ -4050,6 +4873,31 @@ function makeAutopilot(sim, def, world) {
       }
 
       case 'TAXI': {
+        if (ap.path) {
+          // G193: FOLLOW THE PATH, do not chase a point. Cross-track error
+          // (Stanley's atan of the offset over the speed) turns the target
+          // heading toward the line; the path's own curvature a lookahead
+          // ahead goes STRAIGHT INTO THE RUDDER as a feed-forward, so a
+          // corner is steered before an error exists — pure pursuit had to
+          // build the error first, which is the corner-cut. The speed comes
+          // down for the bend within the stopping distance and for the STOP
+          // at the end, and the rudder has its whole travel at taxi speed
+          // (the ±0.45 clamp could not make a 12 m corner on this aeroplane).
+          const L = pathLocate(ap.path, ap.pathI, cg[0], cg[2]);
+          ap.pathI = L.i; taxiXT = L.ey; taxiSRem = L.sRem;
+          const K = pathLook(ap.path, L.i, Vg);
+          const eXT = clamp(Math.atan2(0.9 * L.ey, Vg + 1.0), -0.6, 0.6);
+          const hT = K.hdgL - eXT;
+          ap.targetDir = [Math.cos(hT), 0, Math.sin(hT)];
+          const drFF = -Math.atan(TW.Lwb * K.kapL) / Math.max(0.05, TW.steer);
+          const drMaxG = 0.85 - 0.40 * clamp((Vg - 6) / 4, 0, 1);
+          c.dr = clamp(-3.2 * e - 1.2 * eR + drFF, -drMaxG, drMaxG);
+          taxi(pathSpeed(ap.path, L.i, Vg, A.taxiV ?? 5.0, L.sRem));
+          const tMax = 40 + 1.6 * ap.path.len / (A.taxiV ?? 5.0);
+          if (L.sRem < 2.0 || (L.sRem < 6 && Vg < 0.6)) { ap.phase = 'STOP'; phaseT = 0; }
+          else if (phaseT > tMax) { ap.phase = 'LINEUP'; phaseT = 0; }
+          break;
+        }
         const ddx = ap.taxiTgt[0] - cg[0], ddz = ap.taxiTgt[1] - cg[2];
         const dist = Math.hypot(ddx, ddz) || 1e-9;
         ap.targetDir = [ddx / dist, 0, ddz / dist];
@@ -4074,20 +4922,72 @@ function makeAutopilot(sim, def, world) {
         const alig = -(nose[0] * F.ux + nose[1] * F.uz);  // dot(nose, takeoff dir)
         taxi(alig > 0.5 ? 4.5 : 2.4);
         if (alig > 0.988 && Math.abs(sCr) < 8 && Math.abs(eR) < 0.15) {
+          // G193: a departure that came by the pattern STOPS before the roll
+          if (ap.stopAfterLineup) { ap.phase = 'STOP'; phaseT = 0; break; }
           ap.phase = 'ROLL'; phaseT = 0;
           ap.t = Math.max(ap.t, 1);          // ROLL's 0.5 s throttle delay is long past
         }
         break;
       }
 
+      // G193: THE STOP POINT (the user: "the plane lines up and completely
+      // stops before taking off"). STOP brakes to a standstill, still
+      // steering the path's last heading while it has speed to steer with;
+      // HOLD sits two seconds, checks it is lined up inside 2.5 m and 6 deg,
+      // and rolls — or takes one LINEUP correction and stops again.
+      case 'STOP': {
+        c.thr = 0; c.brake = 0.7; c.de = A.taxiDe ?? 0.30;
+        if (ap.path && Vg > 1.0) {
+          const L = pathLocate(ap.path, ap.pathI, cg[0], cg[2]);
+          ap.pathI = L.i; taxiXT = L.ey; taxiSRem = L.sRem;
+          const K = pathLook(ap.path, L.i, Vg);
+          ap.targetDir = [Math.cos(K.hdgL), 0, Math.sin(K.hdgL)];
+          c.dr = clamp(-3.2 * e - 1.2 * eR, -0.85, 0.85);
+        } else c.dr = 0;
+        c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
+        if (Vg < 0.3 || phaseT > 30) { ap.phase = 'HOLD'; phaseT = 0; }
+        break;
+      }
+      case 'HOLD': {
+        c.thr = 0.3 * taxiFF(); c.brake = 0.5; c.de = A.taxiDe ?? 0.30;
+        c.dr = 0; c.da = 0;
+        if (phaseT >= (A.holdS ?? 2.0)) {
+          const alig = -(nose[0] * F.ux + nose[1] * F.uz);   // dot(nose, takeoff dir)
+          const lined = alig > 0.9945 && Math.abs(sCr) < 2.5;
+          if (lined || holdN >= 2) {
+            ap.phase = 'ROLL'; phaseT = 0; ap.t = Math.max(ap.t, 1);
+            ap.trackHold = true; thrRoll = GP.cap; thRest = null;
+          } else {
+            holdN++;
+            ap.stopAfterLineup = true;
+            ap.phase = 'LINEUP'; phaseT = 0; ap.trackHold = true;
+          }
+        }
+        break;
+      }
+
       case 'ROLL':
         // G179: power up as the tail comes up (GP.cap is 1 for the fleet)
-        c.thr = ap.t > 0.5 ? (V < (A.VTailUp ?? 0) ? GP.cap : 1) : 0; c.brake = 0;
-        if (A.rotate) {
-          // taildragger sequence: tail up first, run on the mains, rotate at Vr
+        // G193: the capped build RAMPS to full power over thrRampS once the
+        // tail-up speed is reached, instead of stepping in one frame — the
+        // step was the nose-over moment arriving all at once. cap 1 (the
+        // fleet): capT is 1 throughout, bit-identical to before.
+        {
+          const capT = V < (A.VTailUp ?? 0) ? GP.cap : 1;
+          thrRoll = GP.cap < 1
+            ? Math.min(capT, Math.max(thrRoll, GP.cap) + (1 - GP.cap) / (A.thrRampS ?? 2) * dt)
+            : capT;
+          c.thr = ap.t > 0.5 ? thrRoll : 0; c.brake = 0;
+        }
+        if (thRest === null) thRest = th;    // the stance pitch, latched at the roll's start
+        if (rotateTD) {
+          // taildragger sequence: rotate at Vr; before that a THREE-POINT
+          // build (G193) holds the stance it started in so the tailwheel
+          // keeps steering, a conventional one lifts the tail at VTailUp
           if (V > A.VRot) holdPitch(A.thRotate ?? A.liftoffTh);
-          else if (V > A.VTailUp) holdPitch(A.thTailUp ?? 0.02);
-          else c.de = A.rollDe;
+          else if (threePoint || V < (A.VTailUp ?? 0))
+            holdPitch(threePoint ? Math.min(thRest, A.liftoffTh) : (A.thTailUp ?? 0.02));
+          else holdPitch(A.thTailUp ?? 0.02);
         } else c.de = A.rollDe;
         groundSteer();
         if (onG === 0 && V > A.VRot) { ap.phase = 'LIFTOFF'; phaseT = 0; thLift0 = th; }
@@ -4375,7 +5275,8 @@ function makeAutopilot(sim, def, world) {
     aDa += clamp(c.da - aDa, -A.slew * dt, A.slew * dt); c.da = aDa;
     aDr += clamp(c.dr - aDr, -A.slew * dt, A.slew * dt); c.dr = aDr;
     holdWas = holdActive; holdActive = false;   // W14: per-frame resync bookkeeping
-    ap.dbg = { e, th, ph, q, beta, V, alt: cg[1], z: sCr, s: sAl, agl };
+    ap.dbg = { e, th, ph, q, beta, V, alt: cg[1], z: sCr, s: sAl, agl,
+               xt: taxiXT, sRem: taxiSRem, tailUp: tailUpNow };   // G193
   };
   return ap;
 }
@@ -4424,6 +5325,35 @@ function makeTestPilot(sim, def, world) {
   // go over on power alone, until its tail is up.
   const GP = (typeof genGroundPowerCap === 'function')
     ? genGroundPowerCap(def, sim.thrustAt(0), sim.totalM * 9.81) : { cap: 1 };
+  // G193: THE FOLLOWER'S OWN NUMBERS. A tailwheel steer is a rear-steered
+  // bicycle: the turn the rudder commands is atan(Lwb * kap) / twSteer, so
+  // the wheelbase and the steer gain are read off the frame once. And the
+  // THREE-POINT RUN: a taildragger whose ground power is capped (thrust line
+  // above the CG, the user's wing-mounted twin) keeps its tail DOWN until
+  // rotation so the tailwheel steers the whole run; every other build rolls
+  // exactly as before (A.rotate was never set by anything, and still is not
+  // for them).
+  const TW = (() => {
+    const N = def.nodes, R = def.refs;
+    let Lwb = 4.0;
+    if (R && R.mains && R.mains.length && R.tw != null && R.tw >= 0) {
+      const mx = R.mains.reduce((s, i) => s + N[i].p[0], 0) / R.mains.length;
+      Lwb = Math.max(0.5, Math.abs(N[R.tw].p[0] - mx));
+    }
+    return { Lwb, steer: Math.abs(def.params.twSteer || 0.5) };
+  })();
+  // (measured: three-point for EVERY taildragger was tried and is wrong — the
+  // elevator cannot hold the tail down at full power anyway, the crosswind
+  // drift grew to 10 m and the hover fixture changed verdict. Capped builds
+  // only, as designed.)
+  const threePoint = (def.params.twSteer || 0.5) > 0 && GP.cap < 1;
+  // ...and EVERY taildragger rotates at Vr (G193). A.rotate was never set by
+  // anything, so the tail-up branch was dead code and a taildragger ran on its
+  // mains until it floated off — measured on the user's ultralight: Vr 15.4,
+  // airborne at 34 m/s after 300 m on two wheels with the wing carrying the
+  // weight and the tyres carrying nothing, which a 2 m/s crosswind turned into
+  // a 36 m slide. The tail-up steering schedule below arms for the same set.
+  const rotateTD = A.rotate != null ? !!A.rotate : (def.params.twSteer || 0.5) > 0;
   const taxiFF = (() => {
     const PP = POWERPLANTS[def.params.powerplant];
     const PR = def.params.prop || PP.prop;
@@ -4437,7 +5367,14 @@ function makeTestPilot(sim, def, world) {
       const d = ux * sx + uz * sz;
       if (d < 0) { ux = -ux; uz = -uz; }
     } else { ux = -ux; uz = -uz; }
-    return { ux, uz, ox: a.tdz[0] + 450 * ux, oz: a.tdz[1] + 450 * uz };
+    // G193: TWO TOUCHDOWN TARGETS, one per landing direction. k = 0 lands
+    // along -hdg on the record's own tdz, to the bit, so every calm gate keeps
+    // its number; k = 1 lands along +hdg on the pattern's mirror target off
+    // the other threshold — a wind-flipped arrival used to aim at mid-field.
+    const k = (ux * Math.cos(a.hdg) + uz * Math.sin(a.hdg)) > 0 ? 1 : 0;
+    const PT = (k === 1 && ap.patOf) ? ap.patOf(a) : null;
+    const td = (PT && PT.approaches && PT.approaches[1]) ? PT.approaches[1].td : a.tdz;
+    return { ux, uz, ox: td[0] + 450 * ux, oz: td[1] + 450 * uz, k };
   };
   const HOMEISH = { hdg: Math.PI, tdz: [-450, 0], elev: 0, len: 1100 };
   const ap = {
@@ -4466,9 +5403,31 @@ function makeTestPilot(sim, def, world) {
   ap.setRoute(world ? world.aerodromes[0] : HOMEISH,
               world ? world.aerodromes[0] : HOMEISH);
   // G151: `taxiOut` — the site's declared way out. Donor's signature, carried.
-  ap.departFrom = (from, to, taxiOut) => {
+  // G193: the pattern of an aerodrome, built once per record from its site
+  // (25_airfield.js sitePattern) — the graph the taxi follows and the two
+  // approaches the frame lands on
+  const PATS = {};
+  ap.patOf = a => {
+    if (!a) return null;
+    const key = a.id || 'HOME';
+    if (PATS[key] !== undefined) return PATS[key];
+    let P = null;
+    try {
+      if (typeof sitePattern === 'function')
+        P = sitePattern(a, typeof siteOf === 'function' ? siteOf(a.id) : null);
+    } catch (e) { P = null; }
+    PATS[key] = P;
+    return P;
+  };
+  // the third argument is the SITE now (the pattern is built from it); a
+  // bare taxiOut list still works for the callers that pass one
+  ap.departFrom = (from, to, siteOrTaxiOut) => {
+    const site = (siteOrTaxiOut && !Array.isArray(siteOrTaxiOut)) ? siteOrTaxiOut : null;
+    ap.site = site;
+    ap.path = null; ap.pathI = 0; ap.stopAfterLineup = false; holdN = 0;
     ap.taxiPath = null;
-    ap.taxiOut = (taxiOut && taxiOut.length) ? taxiOut : null;
+    ap.taxiOut = Array.isArray(siteOrTaxiOut) && siteOrTaxiOut.length ? siteOrTaxiOut
+               : (site && site.taxiOut) || null;
     ap.route = { from, to };
     ap.xc = from !== to;
     ap.altRef = from.elev;
@@ -4506,6 +5465,8 @@ function makeTestPilot(sim, def, world) {
   let phaseT = 0, headingCapT = 0, thFlare0 = 0, thLift0 = 0, brakeRamp = 0, holdActive = false, holdWas = false;
   // THE TAXI GOVERNOR'S INTEGRATOR (2026-09-04). See taxi() below.
   let taxiI = 0, taxiLastT = -1e9;
+  // G193: the path follower's and the three-point run's state
+  let holdN = 0, thRest = null, thrRoll = 0, taxiXT = 0, taxiSRem = 0, tailUpNow = false;
   let eAP = 0, eAR = 0, eARslow = 0;
   let eTrim = 0;
   let pendReEng = false;
@@ -4689,8 +5650,27 @@ function makeTestPilot(sim, def, world) {
       holdPitch(clamp(thcI + (A.vsP ?? 0.010) * (VSc - vsF), fl, thMax));
     };
     const groundSteer = () => {
-      c.dr = clamp(-3.2 * e - 1.2 * eR, -0.45, 0.45);
+      // G193: THE PLANT CHANGES WHEN THE TAIL LIFTS. Only the tailwheel
+      // steers on the ground (30_solver.js), and its branch stops the frame
+      // the wheel unloads: authority drops from a first-order steer to the
+      // aero rudder alone — an inertial plant at low q — while these gains
+      // were tuned on the first. Measured on the user's ultralight: the
+      // heading it had at tail-up was the heading it kept, into the grass.
+      // The tail state is read solver-free (both mains down, pitch under the
+      // latched three-point stance), and only a three-point build takes the
+      // branch — the fleet's calm numbers do not move.
+      const tailUp = rotateTD && onG <= 2 && thRest !== null && (thRest - th) > 0.04;
+      // (measured on the crosswind trace: the full travel with the 1.4x gain
+      // swings the nose +-10 deg once but holds the excursion to 7 m at 2 m/s
+      // across; a softer 0.70 / 1.0x let it drift to 15 m)
+      const drMax = tailUp ? 0.95 : 0.45;
+      const kP = tailUp
+        ? 3.2 * 1.4 * clamp(((A.VTailUp ?? 12) / Math.max(V, 5)) ** 2, 0.6, 2.0)
+        : 3.2;
+      const kD = tailUp ? 3.0 : 1.2;
+      c.dr = clamp(-kP * e - kD * eR, -drMax, drMax);
       c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
+      tailUpNow = tailUp;
     };
 
     // THE TAXI GOVERNOR FEEDS BACK ON GROUND SPEED (2026-09-04, the user:
@@ -4755,6 +5735,30 @@ function makeTestPilot(sim, def, world) {
         // budget and produced a 'gave-up' on a sound aeroplane.
         const sCr0 = -(cg[0] - from.x) * uz + (cg[2] - from.z) * ux;
         const offCl = Math.abs(sCr0) > 15;
+        // G193: THE PATTERN WINS. Off the strip, the declared route out for
+        // this take-off direction; on the strip with too little run, the
+        // lane-and-U-turn back; on the strip with the run in front, a full
+        // STOP on the spot, lined up, before the roll. Every route ends on a
+        // hold: the aeroplane stops there, checks its alignment, then rolls.
+        {
+          const T = sg > 0 ? 0 : 1;
+          const PAT = ap.patOf(from);
+          const fits = !offCl && from.len / 2 - sPos >= need;
+          if (PAT && PAT.routes) {
+            const ids = offCl ? PAT.routes.out[T] : (fits ? null : PAT.routes.back[T]);
+            if (ids && typeof patternPath === 'function') {
+              ap.path = patternPath(PAT, ids, 1.0, [cg[0], cg[2]]);
+              ap.pathI = 0; ap.stopAfterLineup = true;
+              ap.phase = 'TAXI'; phaseT = 0;
+              break;
+            }
+            if (fits) {
+              ap.stopAfterLineup = true;
+              ap.phase = Vg < 0.3 ? 'HOLD' : 'STOP'; phaseT = 0;
+              break;
+            }
+          }
+        }
         if (!offCl && from.len / 2 - sPos >= need) { ap.phase = 'LINEUP'; phaseT = 0; break; }
         // the site's declared route wins — the fence is the place's, not the
         // pilot's (see the donor for the measurement that proved it).
@@ -4776,6 +5780,31 @@ function makeTestPilot(sim, def, world) {
       }
 
       case 'TAXI': {
+        if (ap.path) {
+          // G193: FOLLOW THE PATH, do not chase a point. Cross-track error
+          // (Stanley's atan of the offset over the speed) turns the target
+          // heading toward the line; the path's own curvature a lookahead
+          // ahead goes STRAIGHT INTO THE RUDDER as a feed-forward, so a
+          // corner is steered before an error exists — pure pursuit had to
+          // build the error first, which is the corner-cut. The speed comes
+          // down for the bend within the stopping distance and for the STOP
+          // at the end, and the rudder has its whole travel at taxi speed
+          // (the ±0.45 clamp could not make a 12 m corner on this aeroplane).
+          const L = pathLocate(ap.path, ap.pathI, cg[0], cg[2]);
+          ap.pathI = L.i; taxiXT = L.ey; taxiSRem = L.sRem;
+          const K = pathLook(ap.path, L.i, Vg);
+          const eXT = clamp(Math.atan2(0.9 * L.ey, Vg + 1.0), -0.6, 0.6);
+          const hT = K.hdgL - eXT;
+          ap.targetDir = [Math.cos(hT), 0, Math.sin(hT)];
+          const drFF = -Math.atan(TW.Lwb * K.kapL) / Math.max(0.05, TW.steer);
+          const drMaxG = 0.85 - 0.40 * clamp((Vg - 6) / 4, 0, 1);
+          c.dr = clamp(-3.2 * e - 1.2 * eR + drFF, -drMaxG, drMaxG);
+          taxi(pathSpeed(ap.path, L.i, Vg, A.taxiV ?? 5.0, L.sRem));
+          const tMax = 40 + 1.6 * ap.path.len / (A.taxiV ?? 5.0);
+          if (L.sRem < 2.0 || (L.sRem < 6 && Vg < 0.6)) { ap.phase = 'STOP'; phaseT = 0; }
+          else if (phaseT > tMax) { ap.phase = 'LINEUP'; phaseT = 0; }
+          break;
+        }
         const ddx = ap.taxiTgt[0] - cg[0], ddz = ap.taxiTgt[1] - cg[2];
         const dist = Math.hypot(ddx, ddz) || 1e-9;
         ap.targetDir = [ddx / dist, 0, ddz / dist];
@@ -4798,16 +5827,66 @@ function makeTestPilot(sim, def, world) {
         const alig = -(nose[0] * F.ux + nose[1] * F.uz);
         taxi(alig > 0.5 ? 4.5 : 2.4);
         if (alig > 0.988 && Math.abs(sCr) < 8 && Math.abs(eR) < 0.15) {
+          // G193: a departure that came by the pattern STOPS before the roll
+          if (ap.stopAfterLineup) { ap.phase = 'STOP'; phaseT = 0; break; }
           ap.phase = 'ROLL'; phaseT = 0;
-          ap.t = Math.max(ap.t, 1);
+          ap.t = Math.max(ap.t, 1);          // ROLL's 0.5 s throttle delay is long past
           rollS0 = null;                   // TP: fresh run instrument
+        }
+        break;
+      }
+
+      // G193: THE STOP POINT (the user: "the plane lines up and completely
+      // stops before taking off"). STOP brakes to a standstill, still
+      // steering the path's last heading while it has speed to steer with;
+      // HOLD sits two seconds, checks it is lined up inside 2.5 m and 6 deg,
+      // and rolls — or takes one LINEUP correction and stops again.
+      case 'STOP': {
+        c.thr = 0; c.brake = 0.7; c.de = A.taxiDe ?? 0.30;
+        if (ap.path && Vg > 1.0) {
+          const L = pathLocate(ap.path, ap.pathI, cg[0], cg[2]);
+          ap.pathI = L.i; taxiXT = L.ey; taxiSRem = L.sRem;
+          const K = pathLook(ap.path, L.i, Vg);
+          ap.targetDir = [Math.cos(K.hdgL), 0, Math.sin(K.hdgL)];
+          c.dr = clamp(-3.2 * e - 1.2 * eR, -0.85, 0.85);
+        } else c.dr = 0;
+        c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
+        if (Vg < 0.3 || phaseT > 30) { ap.phase = 'HOLD'; phaseT = 0; }
+        break;
+      }
+      case 'HOLD': {
+        c.thr = 0.3 * taxiFF(); c.brake = 0.5; c.de = A.taxiDe ?? 0.30;
+        c.dr = 0; c.da = 0;
+        if (phaseT >= (A.holdS ?? 2.0)) {
+          const alig = -(nose[0] * F.ux + nose[1] * F.uz);   // dot(nose, takeoff dir)
+          const lined = alig > 0.9945 && Math.abs(sCr) < 2.5;
+          if (lined || holdN >= 2) {
+            ap.phase = 'ROLL'; phaseT = 0; ap.t = Math.max(ap.t, 1);
+            ap.trackHold = true; thrRoll = GP.cap; thRest = null;
+            rollS0 = null;                   // TP: fresh run instrument
+          } else {
+            holdN++;
+            ap.stopAfterLineup = true;
+            ap.phase = 'LINEUP'; phaseT = 0; ap.trackHold = true;
+          }
         }
         break;
       }
 
       case 'ROLL': {
         // G179: power up as the tail comes up (GP.cap is 1 for the fleet)
-        c.thr = ap.t > 0.5 ? (V < (A.VTailUp ?? 0) ? GP.cap : 1) : 0; c.brake = 0;
+        // G193: the capped build RAMPS to full power over thrRampS once the
+        // tail-up speed is reached, instead of stepping in one frame — the
+        // step was the nose-over moment arriving all at once. cap 1 (the
+        // fleet): capT is 1 throughout, bit-identical to before.
+        {
+          const capT = V < (A.VTailUp ?? 0) ? GP.cap : 1;
+          thrRoll = GP.cap < 1
+            ? Math.min(capT, Math.max(thrRoll, GP.cap) + (1 - GP.cap) / (A.thrRampS ?? 2) * dt)
+            : capT;
+          c.thr = ap.t > 0.5 ? thrRoll : 0; c.brake = 0;
+        }
+        if (thRest === null) thRest = th;    // the stance pitch, latched at the roll's start
         // TP: THE ROLL HAS AN EXIT NOW. The donor's ROLL has exactly one —
         // reaching Vr — so an aeroplane that never will rolls to the fence.
         // Three rejection calls, each with margin the whole fleet clears by
@@ -4834,10 +5913,14 @@ function makeTestPilot(sim, def, world) {
           ap.phase = 'ABORT'; phaseT = 0;
           break;
         }
-        if (A.rotate) {
+        if (rotateTD) {
+          // taildragger sequence: rotate at Vr; before that a THREE-POINT
+          // build (G193) holds the stance it started in so the tailwheel
+          // keeps steering, a conventional one lifts the tail at VTailUp
           if (V > A.VRot) holdPitch(A.thRotate ?? A.liftoffTh);
-          else if (V > A.VTailUp) holdPitch(A.thTailUp ?? 0.02);
-          else c.de = A.rollDe;
+          else if (threePoint || V < (A.VTailUp ?? 0))
+            holdPitch(threePoint ? Math.min(thRest, A.liftoffTh) : (A.thTailUp ?? 0.02));
+          else holdPitch(A.thTailUp ?? 0.02);
         } else c.de = A.rollDe;
         groundSteer();
         if (onG === 0 && V > A.VRot) { ap.phase = 'LIFTOFF'; phaseT = 0; thLift0 = th; }
@@ -5102,7 +6185,8 @@ function makeTestPilot(sim, def, world) {
     aDa += clamp(c.da - aDa, -A.slew * dt, A.slew * dt); c.da = aDa;
     aDr += clamp(c.dr - aDr, -A.slew * dt, A.slew * dt); c.dr = aDr;
     holdWas = holdActive; holdActive = false;
-    ap.dbg = { e, th, ph, q, beta, V, alt: cg[1], z: sCr, s: sAl, agl };
+    ap.dbg = { e, th, ph, q, beta, V, alt: cg[1], z: sCr, s: sAl, agl,
+               xt: taxiXT, sRem: taxiSRem, tailUp: tailUpNow };   // G193
   };
   return ap;
 }
@@ -5231,6 +6315,9 @@ function makeSkinBinding(pos, nv, def, cfg) {
   const sides = { P: {}, N: {} };            // keyed by |z| station
   def.nodes.forEach((n, i) => {
     if (!cfg.tags.includes(n.tag)) return;
+    // G185: one plane per binding — the stations are keyed by |z| per tag,
+    // and a biplane's two planes at one station would otherwise AVERAGE
+    if (cfg.plane != null && (n.plane || 0) !== cfg.plane) return;
     const s = n.p[2] > 0 ? 'P' : 'N', key = Math.abs(n.p[2]).toFixed(2);
     (sides[s][key] = sides[s][key] || []).push(i);
   });
@@ -5552,7 +6639,13 @@ const GEN_MATERIALS = {
   tubeFabric: {
     name: '4130 tube + fabric',
     phys: { E: 205e9, rho: 7850, sigY: 460e6 },
-    lin:   { fus: 0.58, wing: 0.62, gear: 1.05 },
+    // G185: cabane / interplane struts and the bracing wires are 4130 on
+    // EVERY airframe (B() routes these classes here, as it does the engine
+    // bearer). Strut k is the wing class at its wingK correction, baked in;
+    // a wire is E*A/L of a 2.4 m 4 mm 7x7 cable, its mass with the
+    // turnbuckle and fittings amortised.
+    lin:   { fus: 0.58, wing: 0.62, gear: 1.05,
+             cabane: 0.62, interplane: 0.62, wire: 0.16 },
     cover: 0.42,      // finished fabric: the lattice carries the tubes
     // THE FUSELAGE ROW x4 (G179.2, the user: "the wing mount to the frame
     // just seems far too bendy ... You allow the wing to move almost
@@ -5578,8 +6671,10 @@ const GEN_MATERIALS = {
     // artefact) — measured. This row was never fitted to anything: it was
     // the Cub fiche's hand value. Its strut case moves 0.77 -> 0.46 %/g,
     // inside the band. Re-fitting the other three is their own measurement.
-    k:     { fus: 8.0e5, wing: 5.0e5, gear: 2.8e4 },
-    c:     { fus: 120,   wing: 450,   gear: 900 },
+    k:     { fus: 8.0e5, wing: 5.0e5, gear: 2.8e4,
+             cabane: 2.0e6, interplane: 2.0e6, wire: 1.0e6 },
+    c:     { fus: 120,   wing: 450,   gear: 900,
+             cabane: 450,  interplane: 450,  wire: 300 },
     // The k/c above are the Cub's, and the Cub is a ~390 kg aeroplane. They are
     // NOT constants of the material — you build heavier tube for a heavier
     // machine — so they scale with all-up mass off this reference. Without it a
@@ -6008,7 +7103,9 @@ const GEN_ACCESS = {
     // meet round the back. Measured: on the rod build the port and starboard
     // rings landed 112 mm apart and needed 150. The narrow case puts its one
     // ring underneath, which is where you would actually cut it.
-    need: R => R.material === 'carbon' ? 0 : (R.tailHalfW < 0.16 ? 1 : 2),
+    // ...AND NONE AT ALL ON A ROD (G189): a bare tube has no fabric to lace
+    // a ring into and nothing inside it to inspect — the cables run outside.
+    need: R => (R.material === 'carbon' || R.rod) ? 0 : (R.tailHalfW < 0.16 ? 1 : 2),
     at: R => ({ sL: R.tailArm * 0.86,
                 lv: R.tailHalfW < 0.16 ? 'keel' : 1.7 }),
     snap: 'bay', side: R => R.tailHalfW < 0.16 ? 'centre' : 'both',
@@ -6034,6 +7131,29 @@ const GEN_ACCESS = {
     // edge — with the stock 15/65% spars the TE is lv 1.7 — so 1.25 is in the
     // bay between the rear spar and the aileron hinge.
     at: R => ({ sL: R.semispan * 0.66, lv: 1.25 }),
+    snap: 'bay', side: 'lower',
+    form: 'plateOval', size: { w: 0.150, h: 0.110 },
+  },
+  // G185: THE SECOND PLANE'S OWN FITTINGS (DEBT §5 closed: "a biplane's
+  // lower wing gets no fittings"). The same two rows, on 'wing2' — the
+  // second plane's field — with their own needs: a cap when a vessel sits
+  // in a second-plane bay, a bellcrank cover when the second plane carries
+  // ailerons. Their stations read the second plane's semispan.
+  fuelCapWing2: {
+    name: 'Second wing filler cap',
+    serves: 'the second wing tank',
+    need: R => (R.wing2 && R.tank2) ? 2 : 0,
+    on: 'wing2',
+    at: R => ({ sL: R.semispan2 * 0.30, lv: 0.35 }),
+    snap: 'bay', side: 'upper',
+    form: 'capFlush', size: { d: 0.075, h: 0.006 },
+  },
+  inspAileron2: {
+    name: 'Second aileron bellcrank cover',
+    serves: 'the second plane\'s aileron bellcrank',
+    need: R => (R.wing2 && R.ail2 && R.material !== 'carbon') ? 2 : 0,
+    on: 'wing2',
+    at: R => ({ sL: R.semispan2 * 0.66, lv: 1.25 }),
     snap: 'bay', side: 'lower',
     form: 'plateOval', size: { w: 0.150, h: 0.110 },
   },
@@ -6101,7 +7221,12 @@ const GEN_ACCESS = {
     name: 'Nav aerial',
     serves: 'the VOR receiver',
     need: R => R.systems === 'ifr' ? 1 : 0,
-    at: R => ({ sL: R.tailArm * 0.55, lv: 'crown' }),
+    // ON A ROD (G189) it is clamped to the tube's crown, a third of the way
+    // down it — `on` picks the surface per aeroplane, and the rod placer
+    // puts a split collar under whatever form the row draws
+    on: R => R.rod ? 'rod' : 'body',
+    at: R => R.rod ? { sL: R.rod.from + R.rod.len * 0.35, lv: 'crown' }
+                   : { sL: R.tailArm * 0.55, lv: 'crown' },
     snap: 'ring', side: 'centre',
     // `foot` is what it OCCUPIES, which is not what it spans. The wire runs
     // 1.2 m aft to the fin and passes clean over anything under it, so
@@ -6122,8 +7247,10 @@ const GEN_ACCESS = {
     // cabin instead, it is clear of the drain on every fuselage, and it is
     // also where a real one is: under the baggage bay, behind the spar.
     need: R => R.systems === 'ifr' ? 1 : 0,
-    at: R => ({ sL: R.cabinAft + (R.tailArm - R.cabinAft) * 0.18,
-                lv: 'keel' }),
+    on: R => R.rod ? 'rod' : 'body',          // G189: clamped under the tube
+    at: R => R.rod ? { sL: R.rod.from + R.rod.len * 0.18, lv: 'keel' }
+                   : { sL: R.cabinAft + (R.tailArm - R.cabinAft) * 0.18,
+                       lv: 'keel' },
     snap: 'bay', side: 'centre',
     form: 'bladeAerial', size: { h: 0.075, c: 0.050, t: 0.008 },
   },
@@ -6141,8 +7268,10 @@ const GEN_ACCESS = {
     // on a short-coupled aeroplane, where the roof is glazed and the fitting
     // is refused. Measured from the back of the cabin to the tailpost it is
     // always on the turtledeck, which is where a beacon goes.
-    at: R => ({ sL: R.cabinAft + (R.tailArm - R.cabinAft) * 0.60,
-                lv: 'crown' }),
+    on: R => R.rod ? 'rod' : 'body',          // G189: clamped on the tube
+    at: R => R.rod ? { sL: R.rod.from + R.rod.len * 0.60, lv: 'crown' }
+                   : { sL: R.cabinAft + (R.tailArm - R.cabinAft) * 0.60,
+                       lv: 'crown' },
     snap: 'free', side: 'centre',
     form: 'lightBeacon', size: { d: 0.062, h: 0.055 },
   },
@@ -6192,7 +7321,11 @@ const GEN_ACCESS = {
     // declared limit of GATE FIT: it checks fittings against the SKIN and
     // against each other, and knows nothing about the gear, engine or tail
     // layers. Cross-layer clearance is not solved here.
-    at: R => ({ sL: R.tailArm * 0.86, lv: 'keel' }),
+    // ON A ROD (G189) the ring hangs off a clamp on the tube's underside,
+    // forward of the tailwheel's own clamp
+    on: R => R.rod ? 'rod' : 'body',
+    at: R => R.rod ? { sL: R.rod.from + R.rod.len * 0.80, lv: 'keel' }
+                   : { sL: R.tailArm * 0.86, lv: 'keel' },
     snap: 'ring', side: 'centre',
     form: 'ringTiedown', size: { d: 0.044, t: 0.008 },
   },
@@ -6238,6 +7371,17 @@ function genAccessNeeds(S) {
     // reading it as a single object is how this row silently answered "no
     // wing" for every aeroplane ever built.
     wing:      !!(S.wings && S.wings.length),
+    // G185: the second plane, its semispan, whether a vessel sits in one of
+    // its bays and whether it carries ailerons
+    wing2:     !!(S.wings && S.wings.length > 1),
+    semispan2: ((S.wings && S.wings[1] && S.wings[1].span) || 0) * 0.5,
+    tank2:     !!(S.energy && Array.isArray(S.energy.vessels) &&
+                  S.energy.vessels.some(v => v && /^wing2/.test(v.bay || ''))),
+    ail2:      !!(S.wings && S.wings[1] && S.wings[1].controls &&
+                  S.wings[1].controls.aileron && S.wings[1].controls.aileron.span > 0),
+    // the game spec carries no rod flag (a rod boom's fittings are the
+    // editor's own bake, through genAccessNeedsCage); this door never has one
+    rod:       null,
     // the geometry the placement rules need, in metres on the skin
     tailArm:   need(f.tailArm, 4.0),
     // the section at the tailpost, which decides whether two inspection rings
@@ -6289,16 +7433,33 @@ function genAccessNeedsCage(P, extra) {
     engine:    !!(P.engOn == null ? 1 : +P.engOn),
     cowl:      !!(P.cowlOn == null ? 1 : +P.cowlOn),
     wing:      !!(P.wingOn == null ? 1 : +P.wingOn),
+    // G185: the second plane, off the panel; the vessel rows are the energy
+    // layer's, so a second-plane tank is E's to say
+    wing2:     !!((P.wingOn == null ? 1 : +P.wingOn) && +P.w2On),
+    semispan2: (+P.w2On ? (P.w2Span || 10) : 0) * 0.5,
+    tank2:     !!(E && E.tank2),
+    ail2:      !!(+P.w2On && (P.w2AilOn == null ? 1 : +P.w2AilOn)),
     // MEASURED OFF THE CAGE, not guessed. The cabin's length, the bays and
     // the boom's run are parameters the panel already has, so a short
     // aeroplane gets its fittings closer together — which is the whole reason
     // the rules are metric rather than fractions of anything.
+    // G189: on a ROD the taper is carved out of boomLen (the truss wraps the
+    // tube's first stretch), so it adds nothing here either
     tailArm:   (P.pilotLen || 1.6) + (P.paxLen || 0) * bays
-               + (+P.taperOn ? (P.taperLen || 0) : 0) + (P.boomLen || 2.2),
+               + (+P.taperOn && +P.boomStyle !== 1 ? (P.taperLen || 0) : 0)
+               + (P.boomLen || 2.2),
     cabinAft:  (P.pilotLen || 1.6) + 0.45,
     // a ROD boom is its own diameter; a lofted tail cone is its half-width
     tailHalfW: (+P.boomStyle === 1) ? (P.rodD || 0.18) * 0.5
                                     : (P.tailHalfW == null ? 0.10 : P.tailHalfW),
+    // THE ROD (G189): a bare tube from the aft bulkhead to the tail, and the
+    // rows that live on it say so through `on`. `from` is the bulkhead's
+    // station in the same tape arithmetic tailArm uses; `len` the tube's run.
+    rod: (+P.boomStyle === 1 && !+P.boomTwin)
+      ? (() => { const from = (P.pilotLen || 1.6) + (P.paxLen || 0) * bays;
+                 return { from, len: Math.max(0.5, (P.boomLen || 2.2)),
+                          r: (P.rodD || 0.12) * 0.5 }; })()
+      : null,
     semispan:  (P.wgSpan || 10) * 0.5,
     deckArc:   deck * 0.94,
     keelArc:   keel * 0.94,
@@ -6329,7 +7490,8 @@ function genAccessList(R) {
       key, n, at,
       name:   row.name,
       serves: row.serves,
-      on:     row.on || 'body',
+      // G189: a row may pick its SURFACE per aeroplane (the rod boom)
+      on:     typeof row.on === 'function' ? (row.on(R) || 'body') : (row.on || 'body'),
       snap:   row.snap || 'free',
       side:   typeof row.side === 'function' ? row.side(R) : (row.side || 'both'),
       form:   typeof row.form === 'function' ? row.form(R) : row.form,
@@ -6742,6 +7904,20 @@ const GEN_RULES = {
   // degenerate beams would hide that; giving the spar the depth it physically
   // has removes the coincidence altogether.
   wingStandoff: 0.10,
+  // THE CABANE (G185). A plane standing more than cabaneMin above the roof is
+  // on a cabane: its root ties to the top longerons are drawn (they are the
+  // struts you see on a Pietenpol or under a Tiger Moth's top wing), and the
+  // roots splay cabaneSplay outboard of the cabin side so the posts lean out
+  // in the front view — which is what makes a cabane laterally stiff.
+  cabaneMin:   0.30,
+  cabaneSplay: 0.20,
+  // THE WIRES (G185). A flying/landing wire is a 4 mm cable, tension-only, and
+  // rigged to a small pre-strain so both sets are taut at 1 g (a slack landing
+  // wire in flight is the real aeroplane's behaviour under negative g, and
+  // the solver reproduces it). Streamline struts are strutT thick for drag.
+  wirePreStrain: 5e-4,
+  wireD:       0.004,
+  strutT:      0.06,
   sparFront:   0.15,   // front spar, fraction of chord
   // Rule 1 again, as a NUMBER. "The Cub survives only because its strut root is
   // a full metre below the wing" — the anchor offset IS the barrier against
@@ -6957,7 +8133,14 @@ const GEN_RULES = {
 // crankX / tipX (null = derived from sweep/taper exactly as v5 did), the
 // cage retired wgSweep, and GEN_MIGRATORS[5] lifts a save's stored angle
 // into the offsets. The v5 fixture that proves it: build_v5_swept_*.json.
-const GEN_SPEC_V = 7;
+// v7 -> v8 (G189): on a ROD boom the taper section stopped ADDING its length
+// and now lives inside boomLen, so a saved rod build keeps its tube by
+// carrying taperLen over into boomLen — GEN_MIGRATORS[7]. The two cage
+// defaults it needs are pinned in GEN_MIGRATE_CAGE_DEFAULTS and asserted
+// against cageDefaults() by GATE PARTS, because the core cannot read the
+// cage's own table.
+const GEN_SPEC_V = 8;
+const GEN_MIGRATE_CAGE_DEFAULTS = { boomLen: 3.983966, taperLen: 0.6 };
 
 // { fromVersion: spec => spec } — each entry lifts a spec one version. May
 // mutate and return its argument. Runs BEFORE normalisation, on the raw shape
@@ -7014,7 +8197,25 @@ const GEN_MIGRATORS = {
   // migrated vessel is given the station those nodes are AT — explicitly, in
   // the spec, where it can be read — rather than a bay midpoint that would
   // look reasonable and quietly move a Cub's twelve gallons half a metre aft.
-  6: S => genEnergyLift(S),};
+  6: S => genEnergyLift(S),
+  // 7 -> 8 (G189): the rod boom's taper is carved out of boomLen now (the
+  // truss wraps the tube's first stretch instead of pushing the tail aft),
+  // so a save that had both keeps the tube it was drawn with: taperLen
+  // rides into boomLen. Absent keys are the cage defaults (pinned above);
+  // a lofted taper still adds its length and is left alone; twin booms
+  // never had a rod taper. Only the CAGE moves — the spec's own tailArm is
+  // re-measured by the join off the drawn tube, which is now the same tube.
+  7: r => {
+    const c = r && r.cage;
+    if (!c || typeof c !== 'object') return r;
+    if (+c.boomStyle === 1 && !+c.boomTwin && +c.taperOn) {
+      const D = GEN_MIGRATE_CAGE_DEFAULTS;
+      const bl = c.boomLen == null ? D.boomLen : +c.boomLen;
+      const tl = c.taperLen == null ? D.taperLen : +c.taperLen;
+      if (isFinite(bl) && isFinite(tl)) c.boomLen = +Math.min(6.0, bl + tl).toFixed(4);
+    }
+    return r;
+  },};
 
 function genMigrateSpec(r) {
   if (!r || typeof r !== 'object') return r;
@@ -7396,8 +8597,15 @@ const GEN_DEFAULT = {
   // frame's own metres (x aft of the firewall, y over the cabin keel, z the
   // nacelle's half-span); null = each mount's own derivation; the join writes
   // them off the drawn engine. `pylon` is the over-the-wing pylon's height.
+  // `sense` (G194): which way the propeller turns, seen from behind — +1
+  // clockwise (the Lycoming / Continental hand), -1 anticlockwise. Absent
+  // means +1, which is what every spec before this field meant, so
+  // GEN_SPEC_V does not move for it. The one field a wing pair's two entries
+  // may DISAGREE on (counter-rotation); the solver reads nothing from it yet
+  // (futureDesigns/PROP-EFFECTS-2026-09-05.md is the assessment), the drawn
+  // propellers turn by it.
   engines: [{ type: 'a65_sensenich74', mount: 'nose', place: { dx: 0, dy: 0 },
-              x: null, y: null, z: null, pylon: null }],
+              x: null, y: null, z: null, pylon: null, sense: 1 }],
   // THE PROPELLER IS ITS OWN COMPONENT. `D` null keeps the one the chosen
   // powerplant shipped with, so a build nobody has touched flies exactly as it
   // did. Everything about it is honest physics rather than decoration: the disc
@@ -7438,18 +8646,42 @@ const GEN_DEFAULT = {
             // Null = derived from sweep/taper exactly as v5 did — `sweep`
             // stays the legacy input; these are the honest model.
             crankChord: null, crankX: null, tipX: null,
+            // EXTRA LOFT STATIONS (G189): spanwise metres from the centreline
+            // where the covering must have a row — the lamp bay's two edges,
+            // so a narrow bay is cut on its own geometry. Null = none.
+            // Display topology only: spars, ribs and node weights ignore it.
+            cuts: null,
             // THE CENTRE SECTION: what happens where a high wing's carry-through
             // crosses the cabin roof. 'solid' covers it, 'glass' makes the wing
             // itself the roof and you look up into it (a Cub's centre section),
             // 'open' leaves the bay out altogether. Ignored on a low wing, which
             // has no bay over the cabin to treat.
             centre: 'solid',
+            // G185: THE CABANE. A 'parasol' plane stands this far above the
+            // cabin roof on four drawn cabane struts (null = the default
+            // 0.55 m). Ignored on every other position. It is the ONE knob
+            // for a biplane's gap: the lower plane sits on the fuselage's own
+            // longeron band, so the gap is a readout (S.geom.gap), never a key.
+            cabaneH: null,
+            // G188: the root chord line's HEIGHT over the cabin keel, measured
+            // by the join off the drawn wing (null = the position's own rule:
+            // a standoff below the keel for a low wing, above the roof for a
+            // high one, half-way for mid). The frame used to seat a low wing
+            // 0.10 m below the keel whatever was drawn.
+            y: null,
             xLE: null, place: { dx: 0, dy: 0 } }],
   // Wing fixation, its own section because it is its own structure. Cantilever
   // gets a real four-chord spar box — rule 1 says a planar two-spar wing only
   // survives because the strut anchor is a long way below it, so taking the
   // strut away without adding the box builds an aeroplane that folds.
-  bracing: { type: 'strut' },
+  bracing: { type: 'strut',
+             // G185: the biplane's truss. `interplane` N (two posts and a
+             // diagonal) | I (one blade) | none; `interplaneAt` its station as
+             // a fraction of the first plane's exposed semispan; `wires` the
+             // flying + landing wires ('both'), flying only, or none;
+             // `cabane` how the upper centre section's struts are drawn.
+             // A monoplane never reads them.
+             interplane: 'none', interplaneAt: 0.62, wires: 'both', cabane: 'N' },
   tail: { type: 'conventional', vAngle: 33,
           hSpan: null, hChord: null, hX: null, hTaper: 1.0,
           // `tip` is the tail's shared tip shape and stays the one the V-tail
@@ -7648,6 +8880,8 @@ function genNormaliseSpec(raw) {
 // writes through an alias updates the section too.
 function genAlias(S) {
   S.wing = S.wings[0];
+  S.planes = S.wings;                          // G185: every plane, in order
+  S.biplane = S.wings.length >= 2;
   S.cab = S.cabin;
   S.fuse = S.fuselage;
   S.name = S.meta.name; S.reg = S.meta.reg;
@@ -7706,6 +8940,119 @@ function nacaParts(code) {
 // Keep the parameter space inside an envelope this chantier has flown. The
 // editor calls this on every change, so a slider can never build something the
 // structure rules were not written for.
+// G185: ONE PLANE'S CONTROL SURFACES — the aeroplane's block and a second
+// plane's own, clamped by the same lines
+function clampControls(ct) {
+  ct.flap = ct.flap || { type: 'none', span: 0.50, chord: 0.20 };
+  ct.aileron = ct.aileron || { span: 0, chord: 0.22 };
+  if (!GEN_FLAPS[ct.flap.type]) ct.flap.type = 'none';
+  // a span of 0 is a plane WITHOUT ailerons (a biplane's upper plane,
+  // usually) and is admitted as such; anything else is clamped as before
+  ct.aileron.span = ct.aileron.span > 0 ? genClamp(ct.aileron.span, 0.15, 0.55) : 0;
+  ct.aileron.chord = genClamp(ct.aileron.chord == null ? 0.22 : ct.aileron.chord, 0.10, 0.35);
+  // the flap gets whatever semispan the aileron leaves, less a 4% gap for the
+  // break between them — they cannot share a section
+  ct.flap.span = genClamp(ct.flap.span == null ? 0.50 : ct.flap.span, 0.10,
+                          Math.max(0.10, 1 - ct.aileron.span - 0.04));
+  ct.flap.chord = genClamp(ct.flap.chord == null ? 0.20 : ct.flap.chord, 0.10, 0.40);
+}
+
+// G185: ONE PLANE'S CLAMP. Lifted out of clampSpec so a biplane's second
+// plane is clamped by the same lines as the first (every wing key lives on
+// each entry of wings[]); the text is the old block verbatim.
+function clampWing(w, S, k) {
+  // G185: the SECOND plane's own keys. stagger is metres its leading edge
+  // sits AFT of the first plane's (the trunk's fore/aft sign; classic
+  // positive stagger, upper forward, is a lower plane aft). Its controls,
+  // when it carries any, are clamped as the aeroplane's are.
+  if (k > 0) {
+    w.stagger = genClamp(w.stagger == null ? 0.35 : w.stagger, -1.0, 1.0);
+    if (w.controls && typeof w.controls === 'object') clampControls(w.controls);
+    else w.controls = null;
+  }
+  // 2026-09-04: the envelope opened for the SAILPLANE class (the user: "you
+  // should be able to enable the motor glider") — 0.80 m chord and 18 m span,
+  // aspect ratio to 20. Every build inside the old 1.15-2.10 / 6.5-14 box is
+  // untouched; GATE GEN's wild spec still clamps, and the sail archetype's
+  // circuit is the new corner's flight test.
+  w.chord = genClamp(w.chord, 0.80, 2.10);
+  w.span = genClamp(w.span, Math.max(6.5, 4.0 * w.chord),
+                            Math.min(18.0, 20.0 * w.chord));
+  w.taper = genClamp(w.taper, 0.45, 1.0);
+  w.dihedral = genClamp(w.dihedral, 0, 6);
+  // Quarter-chord sweep, degrees, positive aft. At the speeds this game flies
+  // sweep buys nothing aerodynamically — it is a compressibility device — so it
+  // is here as a BALANCE tool: it walks the aerodynamic centre aft without
+  // moving the spar root off its frame. It costs lift-curve slope either way,
+  // which is why forward sweep is allowed and is not free.
+  w.sweep = genClamp(w.sweep || 0, -15, 30);
+  // The wing's fore-aft STATION, now that the join measures it off the built
+  // wing's anchor (G52). Nullable — left alone it keeps the noseGap-derived
+  // default. The envelope spans a wing rooted on the firewall to one rooted
+  // well down the cabin; static margin is the honest consequence either way,
+  // and the shakedown posts it.
+  // G188: a wing drawn under a long nose sits well AHEAD of the firewall
+  // (−1.12 m on the pod that found the old −0.20 floor); the frame's rings
+  // straddle a negative station like any other, so the envelope is geometric.
+  w.xLE = genClampN(w.xLE, -2.50, 3.00);
+  if (!GEN_TIPS[w.tip]) w.tip = 'rounded';
+  // CRANK: a second wing section, and only a second. `crankAt` is the break
+  // station as a fraction of the semispan; 0 means a single straight panel.
+  // This is the Jodel's wing — a flat centre section and sharply dihedralled
+  // outer panels — which is a real structure, not a styling choice: the crank
+  // is where the outer panel bolts to the centre section.
+  w.crankAt = genClamp(w.crankAt || 0, 0, 0.85);
+  if (w.crankAt > 0 && w.crankAt < 0.15) w.crankAt = 0;
+  w.dihedralOut = genClampN(w.dihedralOut, 0, 20);
+  // G140: the three stations. Chord at the crank inside the chord clamp;
+  // the offsets inside the sweep clamp's own reach (tan 30 deg of the
+  // exposed semispan — the same envelope the angle always had). Null stays
+  // null: it is the derive-from-sweep contract, not a value.
+  {
+    const reach = Math.tan(30 * Math.PI / 180) *
+                  Math.max(0.5, 0.5 * w.span - 0.3);
+    if (w.crankChord != null)
+      w.crankChord = genClamp(w.crankChord, 0.55, 2.10);
+    if (w.tipX != null) w.tipX = genClamp(w.tipX, -reach, reach);
+    if (w.crankX != null) w.crankX = genClamp(w.crankX, -reach, reach);
+    // G189: loft cuts are finite stations strictly inside the semispan,
+    // sorted, at most four; anything else is no cut at all
+    if (w.cuts != null) {
+      const semi = 0.5 * w.span;
+      const cs = (Array.isArray(w.cuts) ? w.cuts : [])
+        .map(Number).filter(z => isFinite(z) && z > 0.05 && z < semi - 0.05)
+        .sort((a, b) => a - b).slice(0, 4);
+      w.cuts = cs.length ? cs : null;
+    }
+    // a crank field without a crank is a claim about a station that does
+    // not exist — nulled, same rule as dihedralOut's "left alone" line
+    if (!(w.crankAt > 0)) { w.crankChord = null; w.crankX = null; }
+  }
+  w.incidence = genClamp(w.incidence, -1, 4);
+  w.washout = genClamp(w.washout, 0, 4);
+  w.panels = genClamp(w.panels | 0, 2, 5);
+  const n = nacaParts(w.naca);
+  w.naca = (genClamp(Math.round(n.m * 100), 0, 6) * 1000)
+         + (genClamp(Math.round(n.p * 10), 2, 6) * 100)
+         + genClamp(Math.round(n.t * 100), 9, 18);
+  // G185: 'parasol' — on a cabane, this far above the roof
+  if (!['high', 'mid', 'low', 'parasol'].includes(w.position)) w.position = 'high';
+  w.cabaneH = genClampN(w.cabaneH, 0.25, 1.20);
+  // the centre section over the cabin. NOTE the path: this is `wings[].centre`,
+  // not `cabin.wingBay` — the transfer spec named it the latter, and the latter
+  // exists nowhere. The enum is `glass`, not `skylight`, for the same reason.
+  // G185: 'cutout' — the trailing edge of the centre section cut back over
+  // the cockpit, the classic view from a biplane's seat
+  if (!['solid', 'glass', 'open', 'cutout'].includes(w.centre)) w.centre = 'solid';
+  // placement: generous bounds, because the point is to allow bad aeroplanes.
+  // These stop the geometry going degenerate, nothing more.
+  w.place.dx = genClamp(w.place.dx, -1.2, 1.8);
+  w.place.dy = genClamp(w.place.dy, -0.25, 0.60);
+  // G188: the measured root height, nullable like xLE; a wing on the belly
+  // to one on a tall cabane, nothing degenerate in between
+  w.y = genClampN(w.y, -0.60, 2.60);
+}
+
 function clampSpec(spec) {
   const S = genNormaliseSpec(spec);
   const fu = S.fuselage, cb = S.cabin;
@@ -7740,13 +9087,7 @@ function clampSpec(spec) {
   if (!GEN_TANKS[S.fuel.tank]) S.fuel.tank = 'nose';
   if (!GEN_SYSTEMS[S.systems.fit]) S.systems.fit = 'basic';
   const ct = S.controls;
-  if (!GEN_FLAPS[ct.flap.type]) ct.flap.type = 'none';
-  ct.aileron.span = genClamp(ct.aileron.span, 0.15, 0.55);
-  ct.aileron.chord = genClamp(ct.aileron.chord, 0.10, 0.35);
-  // the flap gets whatever semispan the aileron leaves, less a 4% gap for the
-  // break between them — they cannot share a section
-  ct.flap.span = genClamp(ct.flap.span, 0.10, Math.max(0.10, 1 - ct.aileron.span - 0.04));
-  ct.flap.chord = genClamp(ct.flap.chord, 0.10, 0.40);
+  clampControls(ct);
   ct.elevator.chord = genClamp(ct.elevator.chord, 0.20, 0.55);
   ct.rudder.chord = genClamp(ct.rudder.chord, 0.20, 0.60);
   if (!GEN_SEATING[cb.seating]) cb.seating = 'tandem2';
@@ -7860,13 +9201,16 @@ function clampSpec(spec) {
   fu.tailTop += fu.tailY;
 
   for (const e of S.engines) {
+    e.sense = (+e.sense === -1) ? -1 : 1;             // G194: +1 or -1, never else
     if (typeof POWERPLANTS !== 'undefined' && !POWERPLANTS[e.type])
       e.type = 'a65_sensenich74';
     if (!['nose', 'pusher', 'wingTop', 'wing'].includes(e.mount)) e.mount = 'nose';
     e.place.dx = genClamp(e.place.dx, -0.60, 0.45);
     e.place.dy = genClamp(e.place.dy, -0.30, 0.40);
     // the mount station (2026-09-04): an envelope, null kept for derivation
-    e.x = genClampN(e.x, -1.0, 8.0);
+    // G188: a nose engine drawn at the tip of a long nose is 2 m ahead of the
+    // firewall — the envelope is geometric, the balance is the plaque's
+    e.x = genClampN(e.x, -3.0, 8.0);
     e.y = genClampN(e.y, -1.0, 2.5);
     e.z = genClampN(e.z, 0, 6.0);
     e.pylon = genClampN(e.pylon, 0.05, 1.0);
@@ -7888,23 +9232,51 @@ function clampSpec(spec) {
       cu.powerW = genClamp(cu.powerW, 100, 1000000);
       cu.rpm = genClamp(cu.rpm == null ? 2300 : cu.rpm, 400, 14000);
       cu.torque = genClampN(cu.torque, 0, 5000);
-      cu.aspiration = cu.aspiration === 'electric' ? 'electric' : 'na';
+      cu.aspiration = cu.aspiration === 'electric' ? 'electric'
+        : cu.aspiration === 'turbine' ? 'turbine' : 'na';
       cu.family = (typeof GEN_ENG_THERMO !== 'undefined' && GEN_ENG_THERMO[cu.family])
-        ? cu.family : (cu.aspiration === 'electric' ? 'electric' : 'four');
+        ? cu.family : (cu.aspiration === 'electric' ? 'electric'
+                       : cu.aspiration === 'turbine' ? 'turbine' : 'four');
       cu.cooling = cu.cooling === 'liquid' ? 'liquid' : 'air';
+      // A TURBINE'S OWN TWO NUMBERS (2026-09-05, TURBOPROP §1/§8): the
+      // flat-rating margin 05_atmos reads (absent = 1.3, a PT6A's usual), and
+      // the bare length the engine box reads. Neither exists on any other
+      // family — a piston that smuggles a margin would flat-rate itself.
+      if (cu.aspiration === 'turbine') {
+        cu.flatK = genClamp(cu.flatK == null ? 1.3 : cu.flatK, 1, 2);
+        cu.length = genClampN(cu.length, 0.3, 3);
+      } else { delete cu.flatK; delete cu.length; }
       // an unpriced custom row takes the market curve — one keeper (00_registry)
+      // (the cap rose 200k -> 600k with the turbine curve, 2026-09-05)
       cu.price = genClamp(cu.price == null
-        ? genEnginePrice(cu.family, cu.powerW) : cu.price, 10, 200000);
+        ? genEnginePrice(cu.family, cu.powerW) : cu.price, 10, 600000);
     } else if ('custom' in e) delete e.custom;
   }
   if (!['strut', 'cantilever'].includes(S.bracing.type)) S.bracing.type = 'strut';
-  S.fuel.litres = genClamp(S.fuel.litres, 0, 140);
+  // THE FUEL CAPS ROSE (2026-09-05, TURBOPROP §5, the user's ruling): 140 L
+  // here and 400 L per vessel / in total were a light aeroplane's numbers;
+  // a Caravan carries 1 250 L. Now 2 000 L total, 1 000 L a vessel. Every
+  // saved file sits inside the old range, so nothing moves.
+  S.fuel.litres = genClamp(S.fuel.litres, 0, 2000);
   if (!S.outfit || typeof S.outfit !== 'object') S.outfit = { seats: 'sling' };
   if (!GEN_SEATS[S.outfit.seats]) S.outfit.seats = 'sling';
   {
     const E = S.energy || (S.energy = {});
     if (E.kind !== 'battery') E.kind = 'fuel';
     if (!GEN_FUELS[E.fuel]) E.fuel = 'avgas100LL';
+    // ONE KEEPER of "a turbine burns Jet-A and a piston does not" (2026-09-05,
+    // TURBOPROP §5). The medium is a READING of the engine, the way `kind`
+    // is a reading of the vessels below: the first engine's family — its
+    // custom row's if it ships one, else the registry row's — decides, and
+    // the editor's fuel select shows what this wrote. Not GATE DESIGN's, not
+    // the panel's: a save cannot put avgas in a PT6 or kerosene in a Rotax.
+    {
+      const e0 = S.engines && S.engines[0];
+      const fam = e0 && e0.custom && e0.custom.family ? e0.custom.family
+        : (e0 && POWERPLANTS[e0.type] ? POWERPLANTS[e0.type].engine.family : null);
+      if (fam === 'turbine') E.fuel = 'jetA';
+      else if (E.fuel === 'jetA') E.fuel = 'avgas100LL';
+    }
     if (!GEN_CELLS[E.cell]) E.cell = 'lifepo4';
     E.kWh = genClamp(E.kWh || 0, 0, 400);
     // a vessel that cannot hold this kind is not a vessel for this aeroplane
@@ -7934,7 +9306,7 @@ function clampSpec(spec) {
     for (const v of E.vessels) {
       if (!GEN_BAYS[v.bay]) v.bay = 'nose';
       v.capacity = genClamp(v.capacity || 0, 0,
-                            E.kind === 'battery' ? 400 : 400);
+                            E.kind === 'battery' ? 400 : 1000);
       v.along = v.along == null ? null : genClamp(v.along, -1, 12);
       v.lv = v.lv == null ? null : genClamp(v.lv, 0, 1);
       v.rot = genClamp(v.rot || 0, -90, 90);
@@ -7959,7 +9331,7 @@ function clampSpec(spec) {
       total += v.capacity;
     }
     if (E.kind === 'battery') { E.kWh = total; S.fuel.litres = 0; }
-    else { S.fuel.litres = genClamp(total, 0, 400); E.kWh = 0; }
+    else { S.fuel.litres = genClamp(total, 0, 2000); E.kWh = 0; }
     // `fuel.tank` is the pre-G99 station and is kept as a READING of the first
     // vessel's bay, because GEN_ACCESS decides where the filler cap goes from
     // it and a cap that moved would be a fitting nobody asked to move.
@@ -7969,30 +9341,37 @@ function clampSpec(spec) {
   }
   cb.baggage = genClamp(cb.baggage, 0, 60);
   if (!['glass', 'none'].includes(cb.glazing)) cb.glazing = 'glass';
-  const w = S.wings[0];
-  // 2026-09-04: the envelope opened for the SAILPLANE class (the user: "you
-  // should be able to enable the motor glider") — 0.80 m chord and 18 m span,
-  // aspect ratio to 20. Every build inside the old 1.15-2.10 / 6.5-14 box is
-  // untouched; GATE GEN's wild spec still clamps, and the sail archetype's
-  // circuit is the new corner's flight test.
-  w.chord = genClamp(w.chord, 0.80, 2.10);
-  w.span = genClamp(w.span, Math.max(6.5, 4.0 * w.chord),
-                            Math.min(18.0, 20.0 * w.chord));
-  w.taper = genClamp(w.taper, 0.45, 1.0);
-  w.dihedral = genClamp(w.dihedral, 0, 6);
-  // Quarter-chord sweep, degrees, positive aft. At the speeds this game flies
-  // sweep buys nothing aerodynamically — it is a compressibility device — so it
-  // is here as a BALANCE tool: it walks the aerodynamic centre aft without
-  // moving the spar root off its frame. It costs lift-curve slope either way,
-  // which is why forward sweep is allowed and is not free.
-  w.sweep = genClamp(w.sweep || 0, -15, 30);
-  // The wing's fore-aft STATION, now that the join measures it off the built
-  // wing's anchor (G52). Nullable — left alone it keeps the noseGap-derived
-  // default. The envelope spans a wing rooted on the firewall to one rooted
-  // well down the cabin; static margin is the honest consequence either way,
-  // and the shakedown posts it.
-  w.xLE = genClampN(w.xLE, -0.20, 3.00);
-  if (!GEN_TIPS[w.tip]) w.tip = 'rounded';
+  // G185: the wing clamp is a function of the PLANE (clampWing, above), run
+  // on every entry of wings[] — a biplane's second plane keeps the same
+  // envelope as the first.
+  // G185: at most TWO planes (a triplane is a follow-on)
+  if (S.wings.length > 2) S.wings.length = 2;
+  S.wings.forEach((wk, k) => clampWing(wk, S, k));
+  {
+    const br = S.bracing;
+    if (!['none', 'N', 'I'].includes(br.interplane)) br.interplane = 'none';
+    br.interplaneAt = genClamp(br.interplaneAt == null ? 0.62 : br.interplaneAt, 0.30, 0.95);
+    if (!['none', 'both', 'flying'].includes(br.wires)) br.wires = 'both';
+    if (!['N', 'V'].includes(br.cabane)) br.cabane = 'N';
+    if (S.wings.length === 2) {
+      // THE PAIR. One plane above the other, and not both on one longeron:
+      // (parasol|high) over (low|mid). The first plane keeps what it says;
+      // the second is coerced to the other band.
+      const rank = { low: 0, mid: 0.5, high: 1, parasol: 1.5 };
+      const [w0, w1] = S.wings;
+      if (Math.abs(rank[w0.position] - rank[w1.position]) < 0.5)
+        w1.position = rank[w0.position] >= 1 ? 'low' : 'parasol';
+      // wires need the interplane station to land on
+      if (br.wires !== 'none' && br.interplane === 'none') br.interplane = 'N';
+      // a sesquiplane's small plane is at least 0.45 of the big one
+      const up = rank[w0.position] > rank[w1.position] ? w0 : w1, lo = up === w0 ? w1 : w0;
+      if (lo.span < 0.45 * up.span) lo.span = 0.45 * up.span;
+      // THE FUSELAGE LIFT-STRUT FAN DOES NOT EXIST ON A BIPLANE — the truss
+      // braces both planes (61_gen_frame's truss branch) — so the fuselage
+      // bracing reads 'cantilever' for every consumer of the flat flag
+      br.type = 'cantilever';
+    }
+  }
   if (!GEN_TIPS[S.tail.tip]) S.tail.tip = 'rounded';
   // null is legal on the two overrides and means 'use tail.tip'
   S.tail.stabH = genClamp(S.tail.stabH == null ? 0 : S.tail.stabH, 0, 1);
@@ -8012,45 +9391,6 @@ function clampSpec(spec) {
   // the V's dihedral. Too shallow and it cannot make yaw at any sane area; too
   // steep and it cannot make pitch. The Bonanza's is about 33.
   S.tail.vAngle = genClamp(S.tail.vAngle == null ? 33 : S.tail.vAngle, 20, 55);
-  // CRANK: a second wing section, and only a second. `crankAt` is the break
-  // station as a fraction of the semispan; 0 means a single straight panel.
-  // This is the Jodel's wing — a flat centre section and sharply dihedralled
-  // outer panels — which is a real structure, not a styling choice: the crank
-  // is where the outer panel bolts to the centre section.
-  w.crankAt = genClamp(w.crankAt || 0, 0, 0.85);
-  if (w.crankAt > 0 && w.crankAt < 0.15) w.crankAt = 0;
-  w.dihedralOut = genClampN(w.dihedralOut, 0, 20);
-  // G140: the three stations. Chord at the crank inside the chord clamp;
-  // the offsets inside the sweep clamp's own reach (tan 30 deg of the
-  // exposed semispan — the same envelope the angle always had). Null stays
-  // null: it is the derive-from-sweep contract, not a value.
-  {
-    const reach = Math.tan(30 * Math.PI / 180) *
-                  Math.max(0.5, 0.5 * w.span - 0.3);
-    if (w.crankChord != null)
-      w.crankChord = genClamp(w.crankChord, 0.55, 2.10);
-    if (w.tipX != null) w.tipX = genClamp(w.tipX, -reach, reach);
-    if (w.crankX != null) w.crankX = genClamp(w.crankX, -reach, reach);
-    // a crank field without a crank is a claim about a station that does
-    // not exist — nulled, same rule as dihedralOut's "left alone" line
-    if (!(w.crankAt > 0)) { w.crankChord = null; w.crankX = null; }
-  }
-  w.incidence = genClamp(w.incidence, -1, 4);
-  w.washout = genClamp(w.washout, 0, 4);
-  w.panels = genClamp(w.panels | 0, 2, 5);
-  const n = nacaParts(w.naca);
-  w.naca = (genClamp(Math.round(n.m * 100), 0, 6) * 1000)
-         + (genClamp(Math.round(n.p * 10), 2, 6) * 100)
-         + genClamp(Math.round(n.t * 100), 9, 18);
-  if (!['high', 'mid', 'low'].includes(w.position)) w.position = 'high';
-  // the centre section over the cabin. NOTE the path: this is `wings[].centre`,
-  // not `cabin.wingBay` — the transfer spec named it the latter, and the latter
-  // exists nowhere. The enum is `glass`, not `skylight`, for the same reason.
-  if (!['solid', 'glass', 'open'].includes(w.centre)) w.centre = 'solid';
-  // placement: generous bounds, because the point is to allow bad aeroplanes.
-  // These stop the geometry going degenerate, nothing more.
-  w.place.dx = genClamp(w.place.dx, -1.2, 1.8);
-  w.place.dy = genClamp(w.place.dy, -0.25, 0.60);
   if (!['taildragger', 'tricycle'].includes(S.gear.type)) S.gear.type = 'taildragger';
   if (!GEN_SUSPENSION[S.gear.suspension]) S.gear.suspension = 'bungee';
   // WHEEL FAIRINGS, off by default. `spat` is the shell over the wheel alone;
@@ -8088,15 +9428,22 @@ function clampSpec(spec) {
     if (pair && S.engines.length === 1) S.engines.push(genClone(S.engines[0]));
     for (let i = 1; i < S.engines.length; i++) {
       const e = S.engines[i], e0 = S.engines[0];
+      // ...and its own HAND (G194): `sense` is the one field the pair may
+      // disagree on — counter-rotation is the whole point of it. `aim` is
+      // a pair property and follows the first entry like the rest.
       e.mount = e0.mount; e.type = e0.type;
       e.x = e0.x; e.y = e0.y; e.z = e0.z; e.pylon = e0.pylon;
+      if (e0.aim) e.aim = e0.aim; else delete e.aim;
       if (e0.custom) e.custom = genClone(e0.custom); else delete e.custom;
     }
   }
   S.cargo.len = genClamp(S.cargo.len || 0, 0, 2.5);
   S.cargo.kg = genClamp(S.cargo.kg || 0, 0, 400);
   fu.tailBays = genClamp(fu.tailBays | 0, 3, 6);
-  fu.postGap = genClamp(fu.postGap, 0.35, 1.10);
+  // G188: the join measures this gap as the drawn tail cone's own length (the
+  // post to the skin's aft extreme) — 0.13 m on a pod; the old 0.35 floor
+  // stood the frame's post 0.22 m behind the drawn tail
+  fu.postGap = genClamp(fu.postGap, 0.08, 1.10);
   fu.crownTop = genClamp(fu.crownTop, 0, 1);
   fu.crownSide = genClamp(fu.crownSide, 0, 0.6);
   // The TAIL-END SECTION. These were in the spec from the start but had no
@@ -8138,7 +9485,7 @@ function clampSpec(spec) {
   // respectively — again fractions, so a bigger propeller gets a bigger nose
   sn.len = genClamp(sn.len == null ? 2.2  : sn.len, 0.6,  4.0);
   sn.dia = genClamp(sn.dia == null ? 0.17 : sn.dia, 0.08, 0.32);
-  cb.noseGap = genClamp(cb.noseGap, 0.40, 1.10);
+  cb.noseGap = genClamp(cb.noseGap, 0.20, 1.10);   // G188: a short pilot bay measures short
   S.gear.stiffness = genClamp(S.gear.stiffness == null ? 1 : S.gear.stiffness, 0.35, 3.0);
   S.gear.place.dx = genClamp(S.gear.place.dx, -0.80, 1.20);
   S.gear.place.dtrack = genClamp(S.gear.place.dtrack, -0.80, 1.50);
@@ -8164,9 +9511,12 @@ function clampSpec(spec) {
     }
     fu.profile = P2.length >= 2 ? P2 : null;
   } else fu.profile = null;
-  cb.halfW = genClampN(cb.halfW, 0.28, 0.75);
+  // G188: a scaled-down pod measures a 0.24 m half-width and a 0.50 m cabin
+  // box (front pillar to the aft screen's base); the old floors (0.28 / 0.60)
+  // silently widened and lengthened the frame's box past the drawn one
+  cb.halfW = genClampN(cb.halfW, 0.18, 0.75);
   cb.h = genClampN(cb.h, 0.75, 1.45);
-  cb.len = genClampN(cb.len, 0.60, 2.60);
+  cb.len = genClampN(cb.len, 0.30, 2.60);
   fu.tailArm = genClampN(fu.tailArm, 2.00, 6.50);
   S.tail.hSpan = genClampN(S.tail.hSpan, 1.50, 4.50);
   S.tail.hChord = genClampN(S.tail.hChord, 0.40, 1.60);
@@ -8206,7 +9556,11 @@ function clampSpec(spec) {
   // the CG/rake placement rule — deliberately: the wheels go where the built
   // aeroplane's wheels are, and the shakedown's noseOver row posts the
   // consequence. The height (gear.y) stays the prop-clearance rule's.
-  S.gear.x = genClampN(S.gear.x, -0.50, 3.00);
+  // G188: mains drawn under a long nose sit well ahead of the firewall
+  // (−1.42 m on the pod that found the old −0.50 floor); the visual is
+  // calibrated wheels-to-axles, so a clamped station shifts the WHOLE drawn
+  // aeroplane by the clamp — 0.93 m of misfit on every row of the report
+  S.gear.x = genClampN(S.gear.x, -3.00, 3.00);
   // Camber, degrees, tops-outboard positive. Real aeroplanes run a few degrees
   // either way; the range is wide enough to be a look and not wide enough for
   // the wheel to lie on its side.
@@ -8328,10 +9682,21 @@ function resolveSpec(spec) {
     const mRef = ((GEN_MATERIALS[S.material] || {}).refMass || 390) + (n - 1) * mE;
     w.xLE += n * mE * (xE - engX0) / mRef;
   }
+  // G185: THE PLANFORM OF ONE PLANE. The block below is the old one verbatim
+  // as a function of the plane, so a biplane's second plane gets the same
+  // law, MAC, aerodynamic centre, tip bow and reference area as the first.
+  // Returns the plane's own geometry record; S.geom composes the planes.
+  const resolvePlane = (w, k) => {
+  // G185: the SECOND plane's station is the first's plus its stagger (an
+  // explicit xLE wins, like every nullable), then its own nudge
+  if (k > 0) {
+    put(w, 'xLE', S.wings[0].xLE + (w.stagger || 0), 'wing.xLE' + k);
+    w.xLE += (w.place && w.place.dx) || 0;
+  }
   // an uncranked wing's outer dihedral IS its dihedral, so the field can be
   // left alone and the aeroplane stays a single straight panel
   put(w, 'dihedralOut', w.crankAt > 0 ? Math.min(20, w.dihedral + 11) : w.dihedral,
-      'wing.dihedralOut');
+      'wing.dihedralOut' + (k ? k : ''));
   const semi = 0.5 * w.span;
   const zR0 = S.cab.halfW;
   // G140: the one planform law — legacy fields reproduce the pre-G140
@@ -8414,13 +9779,49 @@ function resolveSpec(spec) {
             + (semi - LAW.zC) * (LAW.cAt(LAW.zC) + LAW.cAt(semi))
           : (semi - zR0) * (LAW.cAt(zR0) + LAW.cAt(semi)))
       - 2 * w.tipC * Rb * (1 - Math.PI / 4);
-  S.geom = { xAC, cBar, semi, Sw, AR: w.span * w.span / Sw };
+  return { xAC, cBar, semi, Sw, AR: w.span * w.span / Sw, span: w.span,
+           yMac, sweepEff: w.sweepEff };
+  };
+  const planes = S.wings.map(resolvePlane);
+  // THE COMBINED REFERENCE (G185.4). One plane: exactly its own record, to
+  // the bit (the single-plane branch is the record itself, not a sum of one
+  // term — a*b/a is not b in floating point). Two planes: the reference
+  // area is the sum; the mean chord is area-weighted; the aerodynamic
+  // centre is weighted by area AND lift slope (a cheap 2π/(1+2/AR) here —
+  // genPolar is not available at this level, and the neutral point that
+  // matters is MEASURED by the shakedown anyway); the aspect ratio is the
+  // system's, span²/Sw, the number a biplane's efficiency is judged by;
+  // semi stays plane 0's for the readers that only ever had one.
+  let geom;
+  if (planes.length === 1) {
+    const p0 = planes[0];
+    geom = { xAC: p0.xAC, cBar: p0.cBar, semi: p0.semi, Sw: p0.Sw, AR: p0.AR,
+             span: p0.span };
+  } else {
+    let Sw = 0, cS = 0, xS = 0, aS = 0, span = 0;
+    for (const p of planes) {
+      const a = 2 * Math.PI / (1 + 2 / Math.max(1e-6, p.AR));
+      Sw += p.Sw; cS += p.Sw * p.cBar; xS += p.Sw * a * p.xAC; aS += p.Sw * a;
+      span = Math.max(span, p.span);
+    }
+    geom = { xAC: xS / aS, cBar: cS / Sw, semi: planes[0].semi, Sw, AR: span * span / Sw, span,
+             stagger: S.wings[1].stagger || 0,
+             decalage: (S.wings[0].incidence || 0) - (S.wings[1].incidence || 0) };
+  }
+  geom.planes = planes;
+  S.geom = geom;
+  const { xAC, cBar, semi } = geom;
 
   // 3. fuselage length from the tail arm rule. The cargo bay is full-section
   //    fuselage aft of the cabin, so the tail has to start behind it.
   S.fuse.boxRear = S.cab.noseGap + S.cab.len + S.fuse.cargoLen;
   put(S.fuse, 'tailArm', xAC + GEN_RULES.tailArmC * w.chord, 'fuse.tailArm');
-  S.fuse.tailArm = Math.max(S.fuse.tailArm, S.fuse.boxRear + 0.9 * w.chord);
+  // G188: the 0.9-chord floor is a DESIGN rule for the DERIVED arm, not a
+  // bound on a MEASURED one — it stretched a pod's measured 3.11 m boom to
+  // 4.05 m and stood the tail post 0.9 m behind the drawn tail. A built boom
+  // only has to leave a bay behind the box.
+  S.fuse.tailArm = Math.max(S.fuse.tailArm,
+    S.fuse.boxRear + (auto['fuse.tailArm'] ? 0.9 * w.chord : 0.30));
   const post = S.fuse.tailArm + S.fuse.postGap;
   S.fuse.postX = post;
 
@@ -8442,7 +9843,9 @@ function resolveSpec(spec) {
   if (t.type === 'twinBoom' && t.Sv == null && t.vHeight != null && t.vChord != null)
     t.Sv = 2 * t.vHeight * t.vChord;
   put(t, 'Sh', GEN_RULES.Vh * S.geom.Sw * cBar / lh, 'tail.Sh');
-  put(t, 'Sv', GEN_RULES.Vv * S.geom.Sw * w.span / lv, 'tail.Sv');
+  // G185: the vertical volume divides by the aeroplane's span (a biplane's
+  // longer plane; a monoplane's own, exactly)
+  put(t, 'Sv', GEN_RULES.Vv * S.geom.Sw * (S.geom.span || w.span) / lv, 'tail.Sv');
   const Sh = t.Sh, Sv = t.Sv;
   put(t, 'hSpan', Math.sqrt(Sh * GEN_RULES.hAR), 'tail.hSpan');
   put(t, 'hChord', Sh / t.hSpan, 'tail.hChord');
@@ -8556,6 +9959,19 @@ function resolveSpec(spec) {
   S.propR = propR;
   S.engY = 0.36 * S.cab.h + pl.engineDy;        // thrustline, above the lower longeron
   S.engX = -(0.18 + 0.32 * propR) + pl.engineDx; // firewall forward: cowl + prop
+  // G188: A NOSE ENGINE THE JOIN MEASURED sits where it was drawn. The cowl-
+  // and-prop rule above is the derivation for a spec that says nothing; a
+  // drawn unit's station (engines[0].x/y, off the engine layer, firewall/keel
+  // datum) is the builder's — 1.56 m further forward on the long-nosed pod
+  // that found this, and the whole powerplant's mass with it. engX/engY stay
+  // the one nose station every reader (frame, cowl loft, nose gear) shares.
+  {
+    const e0 = S.engines[0];
+    if ((e0.mount || 'nose') === 'nose') {
+      if (e0.x != null) S.engX = e0.x + pl.engineDx;
+      if (e0.y != null) S.engY = e0.y + pl.engineDy;
+    }
+  }
   // WHERE EACH ENGINE ACTUALLY SITS (2026-09-04): engX/engY stay the NOSE
   // station (the cowl loft, the nose gear and the fleet read them); engAt is
   // the mount the frame builds and the wash blows from. A nose mount IS
@@ -8564,10 +9980,11 @@ function resolveSpec(spec) {
   // at 0.45 of the cabin height; the over-the-wing engine 30 % of the chord
   // behind the leading edge, a pylon above the upper skin; a wing pair at
   // the front spar, 35 % of the way out from the root.
-  S.engAt = S.engines.map(e => {
+  S.engAt = S.engines.map((e, i) => {
     const m = e.mount || 'nose';
     const semi = 0.5 * w.span, zR = S.cab.halfW;
-    const wingY = S.wing.position === 'low' ? 0.22 * S.cab.h
+    const wingY = S.wing.y != null ? S.wing.y            // G188: as drawn
+                : S.wing.position === 'low' ? 0.22 * S.cab.h
                 : S.wing.position === 'mid' ? 0.55 * S.cab.h : S.cab.h + 0.01;
     const pylon = e.pylon != null ? e.pylon : 0.30;
     const d = m === 'pusher' ? { x: S.fuse.boxRear + 0.30, y: 0.45 * S.cab.h, z: 0 }
@@ -8577,8 +9994,13 @@ function resolveSpec(spec) {
                                z: zR + 0.35 * Math.max(0.5, semi - zR) }
             : { x: S.engX, y: S.engY, z: 0 };
     return { mount: m,
-             x: e.x != null ? e.x : d.x,
-             y: e.y != null ? e.y : d.y,
+             // G194: the hand, and which SIDE of a wing pair this entry is
+             // (the frame builds NL from entry 0 and NR from entry 1)
+             sense: (+e.sense === -1) ? -1 : 1,
+             side: m === 'wing' ? (i === 0 ? -1 : 1) : 0,
+             // a nose mount IS engX/engY (a measured one already moved them)
+             x: e.x != null && m !== 'nose' ? e.x : d.x,
+             y: e.y != null && m !== 'nose' ? e.y : d.y,
              z: m === 'wing' ? Math.abs(e.z != null ? e.z : d.z) : 0,
              pylon,
              pushes: m === 'pusher' ? true : m === 'nose' ? false
@@ -8592,15 +10014,24 @@ function resolveSpec(spec) {
   // to `cylZ` either side, which is what pokes out of a Cub's cowl on purpose.
   {
     const k = Math.cbrt(Math.max(8, PP ? PP.engine.mass : 80) / 80);
-    const halfW = 0.105 * k, cylZ = 0.30 * k, cylR = 0.072 * k;
+    // A TURBINE HAS NO CYLINDERS AND IS LIGHT FOR ITS LENGTH (2026-09-05,
+    // TURBOPROP §8): cube-root-of-mass gives a 160 kg / 1.6 m PT6 a 0.35 m
+    // box with phantom cylinders reaching 0.38 m either side, and both the
+    // nacelle drag (62_gen_aero) and the cowl floor (4c) read it. The row's
+    // own `length` sizes the box fore-aft and nothing reaches sideways.
+    // Piston and electric are byte-identical to before.
+    const turbine = !!(PP && PP.engine.family === 'turbine');
+    const halfW = 0.105 * k, cylZ = turbine ? halfW : 0.30 * k, cylR = 0.072 * k;
     // A cylinder is a TILTED tube, so its outer cap ring reaches further out
     // than its axis does — 15 mm on an O-200, which is exactly the margin the
     // enclosure verdict was getting wrong. `cylZ` is what the skin draws to;
     // `cylReach` is what actually sticks out, and is what the test uses.
     const tilt = (0.04 * k) / Math.hypot(0.04 * k, cylZ - halfW);
     S.engBox = { k, halfW, halfH: 0.105 * k, cylZ, cylR,
-                 cylReach: cylZ + cylR * tilt,
-                 xF: S.engX - 0.09 * k, xA: S.engX + 0.19 * k };
+                 cylReach: turbine ? halfW : cylZ + cylR * tilt,
+                 xF: S.engX - 0.09 * k,
+                 xA: turbine ? S.engX - 0.09 * k + (PP.engine.length || 1.4)
+                             : S.engX + 0.19 * k };
   }
 
   // 4c. THE COWL's nose section, about the THRUSTLINE. Derived from the firewall
@@ -8741,7 +10172,8 @@ if (typeof module !== 'undefined' && typeof exports !== 'undefined') { /* concat
 //     value — always true for `yt` and `w` across the cabin — the "smoothed"
 //     curve collapsed to a dead flat.
 //
-// Measured with tools/loft_fit.js on the stock preset, the deck-line slope went
+// Measured with the (since retired) loft_fit instrument on the stock preset,
+// the deck-line slope went
 // 0.009 -> 1.633 -> 0.418 across two adjacent vertex rows. The reference meshes
 // do nothing of the kind. The C172's envelope through the windshield is
 // 1.598 -> 1.660 -> 1.857 -> 1.949 -> 1.998 -> 2.002, monotone and smooth: its
@@ -9173,6 +10605,12 @@ const GEN_FUELS = {
                 note: 'the certified default; leaded' },
   mogas:      { name: 'Mogas (95)',  kgL: 0.745, MJkg: 43.4, price: 1.60,
                 note: 'cheaper and denser; a Rotax or a VW runs on it' },
+  // 2026-09-05 (futureDesigns/TURBOPROP-2026-09-05.md §5): what a turbine
+  // burns. Denser than avgas, so the same litres weigh 11 % more and the
+  // same kilograms take fewer of them. The spec clamp is the ONE keeper of
+  // "a turbine burns Jet-A and a piston does not" (60_gen_spec.js).
+  jetA:       { name: 'Jet A-1',     kgL: 0.80,  MJkg: 43.0, price: 1.30,
+                note: 'kerosene; the turbine fuel — the clamp keeps it there' },
 };
 
 // ---------------------------------------------------------------------------
@@ -9384,6 +10822,17 @@ const GEN_BAYS = {
     serves: 'the outboard spar bay — relieves the spar, slows the roll',
     span: [0.55, 0.88], feed: 'pumped',
   },
+  // G185: the SECOND plane's bays — the same two, on wings[1]
+  wing2Root: {
+    name: 'Second wing root', on: 'wing', plane: 1,
+    serves: 'the second plane’s inboard spar bay',
+    span: [0.12, 0.55], feed: 'pumped',
+  },
+  wing2Panel: {
+    name: 'Second wing panel', on: 'wing', plane: 1,
+    serves: 'the second plane’s outboard spar bay',
+    span: [0.55, 0.88], feed: 'pumped',
+  },
 };
 
 // THE BAYS OF THIS AEROPLANE, measured. Body bays get their station range from
@@ -9399,8 +10848,12 @@ function genBayResolve(S, key, ST) {
   const B = GEN_BAYS[key];
   if (!B) return null;
   if (B.on === 'wing') {
-    const litres = genWingBay(S.wing, { spanLo: B.span[0], spanHi: B.span[1] });
+    // G185: a bay on the second plane measures the second plane
+    const wk = (B.plane && S.wings && S.wings[B.plane]) || S.wing;
+    if (B.plane && !(S.wings && S.wings[B.plane])) return null;
+    const litres = genWingBay(wk, { spanLo: B.span[0], spanHi: B.span[1] });
     return { key, name: B.name, on: 'wing', feed: B.feed, free: !!B.free,
+             plane: B.plane || 0,                    // G185: which plane holds it
              span: B.span.slice(), litres,
              // where its mass acts: the mid-span of the bay, both sides
              zFrac: 0.5 * (B.span[0] + B.span[1]) };
@@ -9452,7 +10905,13 @@ function genBayResolve(S, key, ST) {
 }
 function genBayList(S, ST) {
   const out = [];
-  for (const k in GEN_BAYS) out.push(genBayResolve(S, k, ST));
+  for (const k in GEN_BAYS) {
+    // G185: a bay on a plane the aeroplane does not have is not a bay of
+    // this aeroplane (genBayResolve answers null for it) — a monoplane's
+    // list is the list it always was
+    const b = genBayResolve(S, k, ST);
+    if (b) out.push(b);
+  }
   return out;
 }
 
@@ -9533,8 +10992,12 @@ function genLattice(S, gearX, track, kScale) {
   const D = Math.PI / 180;
   const nodes = [], beams = [];
   const P = [];                                     // positions, for area math
+  // G185: WHICH PLANE a node belongs to. Tags stay WF/WR/WB on every plane
+  // (a tag suffix would silently drop the second plane from the load test's
+  // wing set, the skin binding and the join's span); the plane is a FIELD.
+  let curPlane = 0;
   const N = (x, y, z, tag, r = 0) => {
-    nodes.push({ p: [x, y, z], m: 0, r, tag }); P.push([x, y, z]);
+    nodes.push({ p: [x, y, z], m: 0, r, tag, plane: curPlane }); P.push([x, y, z]);
     return nodes.length - 1;
   };
   const NM = (x, y, z, tag, r = 0) =>
@@ -9555,7 +11018,9 @@ function genLattice(S, gearX, track, kScale) {
   //   'leg'   the suspension leg — drawn as bungee / spring / oleo (63)
   //   'inner' structural, but inside the covering: goes in the frame mesh
   //   mnt     an ENGINE BEARER member: GEN_RULES.mountK on k, its root on c
-  const B = (a, b, cls, ext, vis, mnt) => {
+  //   opt     G185: { tens, pre } — a TENSION-ONLY member (a wire: no spring
+  //           and no damper in compression) and its rigging pre-strain
+  const B = (a, b, cls, ext, vis, mnt, opt) => {
     const L = Math.hypot(P[b][0]-P[a][0], P[b][1]-P[a][1], P[b][2]-P[a][2]);
     const isG = cls === 'gear';
     // GEN_RULES.wingK: the wing class is x19 softer than the cap its own mass
@@ -9600,12 +11065,17 @@ function genLattice(S, gearX, track, kScale) {
     // slow divergence (0.66 -> 14.7 % at 1 g), the rig's per-frame trestle
     // clamp resonating with a fuselage row that is already stiff. Steel
     // x10 is x1.5 over carbon's own row and the rig is quiet.
-    const MM = mnt ? (GEN_MATERIALS.tubeFabric || MB) : MB;
+    // G185: the truss classes are steel on every airframe too
+    const steel = mnt || cls === 'cabane' || cls === 'interplane' || cls === 'wire';
+    const MM = steel ? (GEN_MATERIALS.tubeFabric || MB) : MB;
     const mK = mnt ? (R.mountK == null ? 1 : R.mountK) : 1;
-    beams.push({ a, b, k: MM.k[cls] * (isG ? kG : KS) * kGain * mK,
+    const bm = { a, b, k: MM.k[cls] * (isG ? kG : KS) * kGain * mK,
                  c: MM.c[cls] * (isG ? cG : CS) * Math.sqrt(mK),
                  gear: isG, cls, ext: vis === 'inner' ? false : (!!ext || isG),
-                 vis: vis || null, L });
+                 vis: vis || null, L };
+    if (opt && opt.tens) bm.tens = true;
+    if (opt && opt.pre) bm.pre = opt.pre;
+    beams.push(bm);
     // structural mass: linear density x length, half to each end (this is the
     // whole structural mass model — there is no separate mass budget to keep
     // in sync with the geometry)
@@ -9794,10 +11264,54 @@ function genLattice(S, gearX, track, kScale) {
   spend((PP.price || 0) * S.engines.length);
   spend(S.prop.price || 0);
 
+  // which frames straddle a given station, so a component that moves finds new
+  // ones to attach to instead of dragging its old ones along
+  const straddle = x => {
+    let f = 0;
+    for (let i = 0; i < ST.length; i++) if (ST[i].x < x - 0.05) f = i;
+    let a = Math.min(F.length - 1, f + 1);
+    for (let i = 0; i < ST.length; i++) if (ST[i].x > x + 0.05) { a = i; break; }
+    return [f, Math.max(a, Math.min(f + 1, F.length - 1))];
+  };
+  const nearestRing = x => {
+    let best = 0, bd = 1e9;
+    ST.forEach((s, i) => { const d = Math.abs(s.x - x); if (d < bd) { bd = d; best = i; } });
+    return best;
+  };
   // ---- 3. wing --------------------------------------------------------
+  // G185: ONE PLANE AT A TIME. The wing block is a function of the plane
+  // index so a biplane's second plane is the same construction over
+  // S.wings[1] and S.geom.planes[1]; a monoplane calls it once and emits the
+  // nodes and beams it always did, in the same order (GATE GEN's G8 and the
+  // WINGSPLIT digests hold that).
+  // G185: THE INTERPLANE STATION, one number both planes share — measured on
+  // the first plane's exposed semispan so the struts stand vertical between
+  // equal planes; a shorter second plane clamps it inboard (its own
+  // buildPlane does), so the struts lean, as a sesquiplane's do.
+  const IP = (() => {
+    const BR = S.bracing || {};
+    if (!(S.biplane && BR.interplane && BR.interplane !== 'none')) return 0;
+    const w0 = S.wings[0], p0 = (S.geom.planes && S.geom.planes[0]) || S.geom;
+    const cH = w0.position === 'parasol' ? (w0.cabaneH == null ? 0.55 : w0.cabaneH) : 0;
+    const zR = cab.halfW + (cH > R.cabaneMin ? R.cabaneSplay : 0);
+    return zR + (p0.semi - zR) * (BR.interplaneAt == null ? 0.62 : BR.interplaneAt);
+  })();
+  // where a plane sits, before it is built — the truss needs to know which
+  // of the two is the upper one to put the box caps on the far side
+  const yOfPlane = w => {
+    const POSk = { high: 1, mid: 0.5, low: 0, parasol: 1 }[w.position] ?? 1;
+    const cH = w.position === 'parasol' ? (w.cabaneH == null ? 0.55 : w.cabaneH) : 0;
+    return cab.h * POSk + (cH > 0 ? cH : R.wingStandoff * (POSk >= 0.75 ? 1 : POSk <= 0.25 ? -1 : 0));
+  };
+  const buildPlane = (k) => {
   sec('wings');
-  const w = S.wing, G = S.geom;
-  const zRoot = cab.halfW;
+  curPlane = k;
+  const w = S.wings[k], G = (S.geom.planes && S.geom.planes[k]) || S.geom;
+  // G185: a PARASOL plane stands on a cabane this far above the roof, and
+  // its roots splay outboard of the cabin side (see GEN_RULES.cabaneSplay)
+  const cabH = w.position === 'parasol' ? (w.cabaneH == null ? 0.55 : w.cabaneH) : 0;
+  const cabane = cabH > R.cabaneMin;
+  const zRoot = cab.halfW + (cabane ? R.cabaneSplay : 0);
   // CRANK: a second wing section. The break gets its own spar station, because
   // it is a real joint — the outer panel bolts to the centre section there —
   // and because the dihedral changes across it, so a node has to exist at the
@@ -9815,6 +11329,40 @@ function genLattice(S, gearX, track, kScale) {
     for (let i = zs.length - 1; i > 0; i--)
       if (zs[i] - zs[i - 1] < 0.12) zs.splice(zs[i] === zCrank ? i - 1 : i, 1);
   }
+  // G185: the interplane station is a real joint too — the strut and the
+  // wires bolt on there — so it gets its own spar station, the crank's rule
+  let zIP = IP > 0 ? Math.min(IP, G.semi - 0.12) : 0;
+  if (zIP > zRoot + 0.12) {
+    zs.push(zIP);
+    zs.sort((a2, b2) => a2 - b2);
+    for (let i = zs.length - 1; i > 0; i--)
+      if (zs[i] - zs[i - 1] < 0.12) zs.splice(zs[i] === zIP ? i - 1 : i, 1);
+  } else zIP = 0;
+  // the wired truss: both planes braced by the interplane struts and the
+  // flying/landing wires, never by a fuselage fan
+  const BRk = S.bracing || {};
+  const trussHere = zIP > 0 && BRk.wires !== 'none';
+  // THE WIRED PLANE KEEPS ITS SPAR BOX (measured, twice). First cut: planar
+  // two-spar inboard of the strut station, G140's box outboard — rank
+  // 272/276: a spar station between the root and the strut has every member
+  // in the wing's plane and is free to leave it. Second cut, one inner bay:
+  // 248/252 — the outer panel HINGES at the strut station about its own
+  // chord line, because the overhang's bending moment is reacted by nothing
+  // but spar continuity through the station, and a planar inner bay has
+  // none (the strut and the wires act AT the station, with no lever). That
+  // is also the real aeroplane's load path: a braced spar is a bending
+  // member everywhere and the truss relieves it. So a wired plane is built
+  // as the cantilever box below and the interplane struts and wires go ON
+  // it (block 3b) — the wires then carry a measured share of the lift
+  // (GATE BIPLANE) rather than being the only thing between the wing and
+  // the ground. DECLARED SIMPLIFICATION: the braced spar is modelled at
+  // cantilever depth and cantilever cap stiffness; a lighter braced-spar
+  // row (spruce I-beam sized for the braced case) is owed.
+
+  // is this the UPPER plane of the pair (the box caps go on the far side)
+  const upperHere = !S.biplane || S.wings.length < 2
+    || (k === 0 ? yOfPlane(S.wings[0]) >= yOfPlane(S.wings[1])
+                : yOfPlane(S.wings[1]) > yOfPlane(S.wings[0]));
   // the planform, tip bow included. One function, so the ribs, the covering,
   // the strips and the outline cannot disagree about where the wing is —
   // G140: and that one function is genPlanLaw's, shared with resolveSpec's
@@ -9842,14 +11390,19 @@ function genLattice(S, gearX, track, kScale) {
   // under the floor, mid through the cabin. `attach` is which longeron pair
   // carries it and `oppose` is the one the strut or the depth tie reaches to —
   // the strut on a low wing goes UP, not down.
-  const POS = { high: 1, mid: 0.5, low: 0 }[w.position] ?? 1;
+  const POS = { high: 1, mid: 0.5, low: 0, parasol: 1 }[w.position] ?? 1;
   const wingY0 = cab.h * POS
-    + R.wingStandoff * (POS >= 0.75 ? 1 : POS <= 0.25 ? -1 : 0);
+    + (cabH > 0 ? cabH : R.wingStandoff * (POS >= 0.75 ? 1 : POS <= 0.25 ? -1 : 0));
+  // G188: THE DRAWN HEIGHT WINS. wingY0 is the position's rule; a wing the
+  // join measured (w.y, root chord line over the keel) sits where it was
+  // drawn — the rule put a low wing 0.10 m below the keel while the cage
+  // seated it 22 % up the section, 0.24-0.4 m apart on every low-wing build.
+  const wingYr = w.y != null ? w.y : wingY0;
   const attachHi = POS >= 0.5, attachTag = attachHi ? 'T' : 'B';
   const opposeTag = attachHi ? 'B' : 'T';
   // a strut is only a brace if its anchor is far enough from the wing — see
   // GEN_RULES.strutMinOffset. Otherwise build the box instead.
-  const strutOffset = Math.abs(wingY0 - (attachHi ? 0 : cab.h));
+  const strutOffset = Math.abs(wingYr - (attachHi ? 0 : cab.h));
   // G140: A CRANKED WING CAN BE STRUT-BRACED — WHEN THE STRUT LANDS ON THE
   // CRANK. The 2026-08-11 exclusion stays true for what it measured: a fan
   // reaching PAST the crank read 22.95 deg @200 N.m at 1.34x (the worst
@@ -9870,25 +11423,12 @@ function genLattice(S, gearX, track, kScale) {
   // straight line it always was.
   const dihOut = Math.tan((w.dihedralOut == null ? w.dihedral : w.dihedralOut) * D);
   const yF = z => {
-    const base = wingY0 + S.place.wingDy;
+    const base = wingYr + S.place.wingDy;
     if (zCrank <= 0 || z <= zCrank) return base + (z - zRoot) * dih;
     return base + (zCrank - zRoot) * dih + (z - zCrank) * dihOut;
   };
-  // which frames straddle a given station, so a component that moves finds new
-  // ones to attach to instead of dragging its old ones along
-  const straddle = x => {
-    let f = 0;
-    for (let i = 0; i < ST.length; i++) if (ST[i].x < x - 0.05) f = i;
-    let a = Math.min(F.length - 1, f + 1);
-    for (let i = 0; i < ST.length; i++) if (ST[i].x > x + 0.05) { a = i; break; }
-    return [f, Math.max(a, Math.min(f + 1, F.length - 1))];
-  };
-  const nearestRing = x => {
-    let best = 0, bd = 1e9;
-    ST.forEach((s, i) => { const d = Math.abs(s.x - x); if (d < bd) { bd = d; best = i; } });
-    return best;
-  };
   const wf = { L: null, R: null };
+  let iStrutK = 0;
   const mkWing = (s) => {
     // The wing owns its spar roots. They USED to be two fuselage frame nodes,
     // which is why the wing could not move: shifting it aft left the root on
@@ -9934,7 +11474,26 @@ function genLattice(S, gearX, track, kScale) {
     const lo = opposeTag + sd;
     for (const [nd, x] of [[rootF, xF], [rootR, xR]]) {
       const [iA, iB] = straddle(x), iN = nearestRing(x);
-      for (const i of [...new Set([iN, iA, iB])]) B(nd, F[i][side], 'wing');
+      const rings = [...new Set([iN, iA, iB])];
+      if (!cabane) for (const i of rings) B(nd, F[i][side], 'wing');
+      else {
+        // G185: THE CABANE IS THESE MEMBERS, IN OPEN AIR. On a plane a cabane
+        // height above the roof the root ties to the top longerons are not
+        // hidden under the fabric — they are the struts you see, so they are
+        // drawn (G117: WYSIWYG) and carry the steel class. Which are drawn
+        // is the drawing selector bracing.cabane: 'N' = the post to the
+        // nearest ring and one diagonal to the straddling ring (the third,
+        // if any, stays inner); 'V' = the two straddling members, the post
+        // inner. The structure is identical either way — the rigidity rank
+        // is the proof — and no member is lumped: what is drawn is the
+        // load path.
+        const style = (S.bracing && S.bracing.cabane) === 'V' ? 'V' : 'N';
+        const iD = iA !== iN ? iA : iB;
+        for (const i of rings) {
+          const drawn = style === 'N' ? (i === iN || i === iD) : (i === iA || i === iB);
+          B(nd, F[i][side], 'cabane', drawn, drawn ? null : 'inner');
+        }
+      }
       B(nd, F[iN][lo], 'wing');                          // full depth: rule 3
       B(nd, F[iN][other], 'wing');                       // lateral shear path
     }
@@ -9978,8 +11537,11 @@ function genLattice(S, gearX, track, kScale) {
     // which is where the strut goes on a wing with no break.
     const iCrank = zCrank > 0
       ? zs.findIndex(z2 => Math.abs(z2 - zCrank) < 1e-9) : -1;
+    const iIP = zIP > 0 ? zs.findIndex(z2 => Math.abs(z2 - zIP) < 1e-9) : -1;
     const iStrut = iCrank >= 0 ? iCrank : (WF.length > 1 ? 1 : 0);
-    if (useStrut) {
+    // G185: on a biplane the station the truss reads is the interplane one
+    iStrutK = iIP >= 0 ? iIP : iStrut;
+    if (useStrut && !trussHere) {
       // rule 1: SPAR BOX ALWAYS. This wing has no full-depth box, so the
       // barrier against snap-through fold is the strut anchor a full cabin
       // height below the wing — the Cub geometry, and the only reason a
@@ -10121,8 +11683,8 @@ function genLattice(S, gearX, track, kScale) {
     // two-end strut binding needs the exact nodes the beam runs between,
     // and guessing "station 1" over there is how the kink bug was born
     wf[s > 0 ? 'R' : 'L'] = { F: cF, R: cR, FB: cFB, RB: cRB, strutRoot,
-                              strutF: useStrut ? WF[iStrut] : null,
-                              strutR: useStrut ? WR[iStrut] : null };
+                              strutF: useStrut && !trussHere ? WF[iStrut] : null,
+                              strutR: useStrut && !trussHere ? WR[iStrut] : null };
   };
   mkWing(+1); mkWing(-1);
   // carry-through: the two spars run across the top of the cabin as one piece,
@@ -10141,6 +11703,57 @@ function genLattice(S, gearX, track, kScale) {
     B(wf.L.FB[0], wf.R.F[0], 'wing'); B(wf.R.FB[0], wf.L.F[0], 'wing');
   }
   cover(1.9 * 2 * zRoot * w.chord, [wf.L.F[0], wf.R.F[0], wf.L.R[0], wf.R.R[0]]);
+  curPlane = 0;
+  return { k, w, wf, zs, zRoot, zCrank, xF, xR, xFat, xRat, sparSpacing, chordAt,
+           yF, incAt, ribZ, linC, useStrut, strutOffset, iStrut: iStrutK,
+           semi: G.semi, sparFront, sparRear, cabane, cabH, wingY0,
+           zIP, truss: trussHere, upper: upperHere,
+           bracing: trussHere ? 'interplane truss'
+                  : useStrut ? (w.crankAt > 0 ? 'strut + boxed outer' : 'strut')
+                             : 'cantilever box' };
+  };
+  const planes = [buildPlane(0)];
+  for (let k = 1; k < S.wings.length; k++) planes.push(buildPlane(k));
+  // ---- 3b. THE INTERPLANE TRUSS (G185) ----------------------------------
+  // Both planes exist now. Per side: the interplane strut between the two
+  // station pairs ('N' = two posts and a diagonal, all drawn; 'I' = a blade,
+  // drawn as its two posts, its shear path the one inner diagonal); the
+  // wires — flying, lower root to upper station; landing, upper root to
+  // lower station — tension-only and rigged (see B's opt). The truss
+  // closes: quad root-station-station-root, its post, both its diagonals.
+  if (planes.length > 1) {
+    sec('bracing');
+    const BR = S.bracing || {};
+    const [pA, pB] = planes;
+    const up = pA.wingY0 >= pB.wingY0 ? pA : pB, lo = up === pA ? pB : pA;
+    const iU = up.iStrut + 1, iL = lo.iStrut + 1;      // cF index of the station
+    const wopt = { tens: true, pre: R.wirePreStrain };
+    for (const sd of ['L', 'R']) {
+      const U = up.wf[sd], Lw = lo.wf[sd];
+      const U1F = U.F[iU], U1R = U.R[iU], L1F = Lw.F[iL], L1R = Lw.R[iL];
+      if (U1F == null || L1F == null || U1R == null || L1R == null) continue;
+      if (BR.interplane === 'N') {
+        B(U1F, L1F, 'interplane', true); B(U1R, L1R, 'interplane', true);
+        B(U1F, L1R, 'interplane', true);
+      } else if (BR.interplane === 'I') {
+        B(U1F, L1F, 'interplane', true); B(U1R, L1R, 'interplane', true);
+        B(U1F, L1R, 'interplane', false, 'inner');      // the blade's shear path
+      }
+      if (BR.wires && BR.wires !== 'none') {
+        B(Lw.F[0], U1F, 'wire', true, null, false, wopt);      // flying
+        B(Lw.R[0], U1R, 'wire', true, null, false, wopt);
+        if (BR.wires === 'both') {
+          B(U.F[0], L1F, 'wire', true, null, false, wopt);     // landing
+          B(U.R[0], L1R, 'wire', true, null, false, wopt);
+        }
+      }
+    }
+    sec('wings');
+  }
+  // plane 0's record under the names every later block has always read
+  const { wf, zs, zRoot, zCrank, xF, xR, xFat, xRat, sparSpacing, chordAt, yF,
+          incAt, ribZ, linC, useStrut, strutOffset, sparFront, sparRear } = planes[0];
+  const w = S.wing, G = S.geom;
 
   // ---- 2b. engines OFF the nose (2026-09-04) ----------------------------
   // The pusher hangs on the ring nearest its station (the aft bulkhead) as
@@ -10151,6 +11764,12 @@ function genLattice(S, gearX, track, kScale) {
   // is whatever list results — the solver spreads the thrust over it and
   // nEngines (the entries) multiplies it, so a pair pulls twice.
   const engNodes = noseEng ? [EL, ER] : [];
+  // G194: WHICH ENGINE each mount node belongs to — a single mount hangs one
+  // engine on two nodes (0, 0); a wing pair hangs entry 0 on the port node
+  // and entry 1 on the starboard one. Published as refs.engineOf so the
+  // solver can share thrust per ENGINE (a cut engine, a trimmed lever)
+  // instead of evenly over the nodes.
+  const engIdx = noseEng ? [0, 0] : [];
   if (!noseEng) {
     sec('engines');
     const iRing = x => {
@@ -10169,7 +11788,7 @@ function genLattice(S, gearX, track, kScale) {
         BM(PL, rg.TL); BM(PL, rg.BL); BM(PL, rg.BR); BM(PL, rg.TR);
         BM(PR, rg.TR); BM(PR, rg.BR); BM(PR, rg.BL); BM(PR, rg.TL);
         pt(PL, 0.5 * engM); pt(PR, 0.5 * engM);
-        engNodes.push(PL, PR);
+        engNodes.push(PL, PR); engIdx.push(0, 0);
       } else if (e.mount === 'wingTop') {
         const [WL, WR] = NM(e.x, e.y, 0.35 * cab.halfW, 'ENG');
         const rg = F[iRing(e.x)];
@@ -10181,7 +11800,7 @@ function genLattice(S, gearX, track, kScale) {
           BM(n, rg['T' + o]);                            // pylon leg, roof
         }
         pt(WL, 0.5 * engM); pt(WR, 0.5 * engM);
-        engNodes.push(WL, WR);
+        engNodes.push(WL, WR); engIdx.push(0, 0);
       } else if (e.mount === 'wing') {
         // THE BEARER HAS DEPTH (G179). One node on the four spar nodes of
         // its bay is a node IN THE PLANE OF ITS ANCHORS — rule 1's mechanism
@@ -10228,7 +11847,7 @@ function genLattice(S, gearX, track, kScale) {
           }
           pt(n, engM);                                   // a whole engine a side
         }
-        engNodes.push(NL, NR);
+        engNodes.push(NL, NR); engIdx.push(0, 1);
       }
     }
     EL = engNodes[0]; ER = engNodes[1];
@@ -10567,8 +12186,9 @@ function genLattice(S, gearX, track, kScale) {
     const rg = F[best];
     return (lvWant >= 0.5) ? [rg.TL, rg.TR] : [rg.BL, rg.BR];
   };
-  const wingPair = frac => {
-    const arrL = wf.L.F, arrR = wf.R.F;
+  const wingPair = (frac, plane) => {
+    const W2 = (planes[plane | 0] || planes[0]).wf;        // G185: per plane
+    const arrL = W2.L.F, arrR = W2.R.F;
     const k = Math.max(0, Math.min(arrL.length - 1,
       Math.round(frac * (arrL.length - 1))));
     return [arrL[k], arrR[k]];
@@ -10589,7 +12209,7 @@ function genLattice(S, gearX, track, kScale) {
       // out; a null `along` reproduces that rather than picking a midpoint.
       const frac = v.along != null ? v.along
                  : (v.bay === 'wingPanel' ? 0.34 : 0);
-      pair = wingPair(frac);
+      pair = wingPair(frac, B.plane || 0);
     } else {
       const xW = v.along != null ? v.along : bay.xMid;
       const lvW = v.lv != null ? v.lv
@@ -10739,7 +12359,7 @@ function genLattice(S, gearX, track, kScale) {
     upLo: [F[0].BL, F[0].BR], upHi: [F[0].TL, F[0].TR],
     fusDrag: [F[2].BL, F[2].BR, F[2].TL, F[2].TR],
     fusDragAft: [F[F.length-2].BL, F[F.length-2].BR, F[F.length-2].TL, F[F.length-2].TR],
-    engine: engNodes, mains: [GAL, GAR], tw: TW, fin: FIN, fin2: FIN2,
+    engine: engNodes, engineOf: engIdx, mains: [GAL, GAR], tw: TW, fin: FIN, fin2: FIN2,
     // THE DRAWING'S DATUM IS THE WING CARRY-THROUGH (G179.3, the user: "we
     // have to treat the whole wing consistently, and get rid of that
     // different treatment for the central part"). The centre section is
@@ -10755,7 +12375,8 @@ function genLattice(S, gearX, track, kScale) {
     ST, F, TPB, TPT, EL, ER, HTL, HTR, FIN, FIN2, HTBL, HTBR, BOOMS, GAL, GAR, TW,
     wf, zs, zRoot, zCrank, xF, xR, xFat, xRat, sparFront, sparRear, sparSpacing,
     chordAt, yF, incAt, cabRear, gx, tr, twX, twY,
-    ribZ,                       // G66: where the ribs the mass model billed are
+    ribZ,
+    planes,                     // G185: one record per plane; the flat fields above are planes[0]'s                       // G66: where the ribs the mass model billed are
 
     bracing: useStrut ? (w.crankAt > 0 ? 'strut + boxed outer' : 'strut')
                       : 'cantilever box', strutOffset, trike,
@@ -10926,21 +12547,38 @@ function genStrips(S, fr) {
   // c/4 between the spars: weight the front spar by how far the quarter chord
   // sits from the rear one
   const cf = (P.sparRear - 0.25) / (P.sparRear - P.sparFront), cr = 1 - cf;
-  const semi = S.geom.semi;
+  // G185: EVERY PLANE, in order — plane 0 exactly as it always was (its wing
+  // strips, then its centre strip), then the second plane's the same way, so
+  // a monoplane's list is byte-identical. Each plane reads its OWN semispan,
+  // stations, spar record, controls and propwash.
+  const PLANES = P.planes || [P];
+  const NONE_CT = { aileron: { span: 0, chord: 0.22 }, flap: { type: 'none', span: 0.5, chord: 0.2 } };
+  // the thrustline, for the second plane's share of the wash (see below)
+  const yProp = S.engY != null ? S.engY : 0;
+  for (let k = 0; k < PLANES.length; k++) {
+  const PL = PLANES[k], wk = S.wings[k] || S.wing;
+  const semi = k === 0 ? S.geom.semi : (PL.semi != null ? PL.semi : 0.5 * wk.span);
   // where the surfaces live along the semispan. The aileron is measured inboard
   // from the tip, the flap outboard from the centreline, and clampSpec has
   // already guaranteed a gap between the two.
-  const CT = S.controls;
+  const CT = k === 0 ? S.controls : (wk.controls || NONE_CT);
   const aStart = (1 - CT.aileron.span) * semi;
   const fEnd = GEN_FLAPS[CT.flap.type].dCl > 0 ? CT.flap.span * semi : -1;
+  // PROPWASH ON THE SECOND PLANE (G185): washAt is fitted to the Cub with the
+  // Cub's wing at its own height, so plane 0 keeps that law untouched; plane
+  // k pays only the EXTRA radial distance from the thrustline beyond plane
+  // 0's — a lower plane nearer the axis than the upper reads the full wash
+  const dy0 = Math.abs((PLANES[0].wingY0 != null ? PLANES[0].wingY0 : yProp) - yProp);
+  const dyk = Math.abs((PL.wingY0 != null ? PL.wingY0 : yProp) - yProp);
+  const fyk = k === 0 ? 1 : Math.max(0, 1 - Math.pow(Math.max(0, dyk - dy0) / Reff, 2));
 
-  const zAll = [P.zRoot, ...P.zs];
-  for (const [side, fw] of [[1, P.wf.R], [-1, P.wf.L]]) {
-    for (let b = 0; b < P.zs.length; b++) {
+  const zAll = [PL.zRoot, ...PL.zs];
+  for (const [side, fw] of [[1, PL.wf.R], [-1, PL.wf.L]]) {
+    for (let b = 0; b < PL.zs.length; b++) {
       const zi = zAll[b], zo = zAll[b + 1];
       for (const t of [0.28, 0.78]) {
         const zc = zi + (zo - zi) * t;
-        const ch = P.chordAt(zc);
+        const ch = PL.chordAt(zc);
         // Each strip is HALF a bay, so it has a real sub-span, and `flap` is a
         // FRACTION rather than a flag: how much of this strip carries a flap.
         // With a bare flag the span slider quantised — 0.50 and 0.62 produced
@@ -10956,7 +12594,12 @@ function genStrips(S, fr) {
           fIn: fw.F[b], fOut: fw.F[b + 1], rIn: fw.R[b], rOut: fw.R[b + 1],
           w: [[fw.F[b], cf * (1 - t)], [fw.F[b + 1], cf * t],
               [fw.R[b], cr * (1 - t)], [fw.R[b + 1], cr * t]],
-          wash: wingWash(zc), ail: zc > aStart ? 1 : 0, flap: fFrac,
+          wash: k === 0 ? wingWash(zc) : wingWash(zc) * fyk,
+          ail: zc > aStart ? 1 : 0, flap: fFrac,
+          // G185: the plane this strip belongs to, its plane's spar spacing
+          // (the Cm0 couple arm) and the quarter-chord weight — the solver
+          // reads the strip's own numbers, never a single aeroplane-wide one
+          plane: k, sparSpacing: PL.sparSpacing, cf,
         });
       }
     }
@@ -10964,16 +12607,18 @@ function genStrips(S, fr) {
   // Centre section over the cabin: one strip, fully in the slipstream. It hangs
   // off the WING's own spar roots, not the fuselage frames — otherwise the
   // centre section's lift stays behind when the wing is moved.
-  const cL = P.wf.L, cR2 = P.wf.R;
+  const cL = PL.wf.L, cR2 = PL.wf.R;
+  const cWash = mount === 'nose' ? 1 : (mount === 'wingTop' && !pushes) ? 0.6 : 0;
   strips.push({
-    kind: 'wing', side: 1, t: 0.5, chord: S.wing.chord,
-    area: 2 * P.zRoot * S.wing.chord,
+    kind: 'wing', side: 1, t: 0.5, chord: wk.chord,
+    area: 2 * PL.zRoot * wk.chord,
     fIn: cL.F[0], fOut: cR2.F[0], rIn: cL.R[0], rOut: cR2.R[0],
     w: [[cL.F[0], cf * 0.5], [cR2.F[0], cf * 0.5],
         [cL.R[0], cr * 0.5], [cR2.R[0], cr * 0.5]],
-    wash: mount === 'nose' ? 1 : (mount === 'wingTop' && !pushes) ? 0.6 : 0,
-    ail: 0, flap: 0,
+    wash: k === 0 ? cWash : cWash * fyk,
+    ail: 0, flap: 0, plane: k, sparSpacing: PL.sparSpacing, cf,
   });
+  }
 
   const hc = S.tail.hChord;
   if (S.tail.type === 'v') {
@@ -11143,7 +12788,7 @@ const GEN_TAU_REF = 10.0 / 26.0;      // Cub span / VCruise
 
 function genAP(S, Vs, mass) {
   const V = k => Math.round(GEN_VRATIO[k] * Vs * 10) / 10;
-  const tau = S.wing.span / (GEN_VRATIO.VCruise * Vs);
+  const tau = (S.geom && S.geom.span ? S.geom.span : S.wing.span) / (GEN_VRATIO.VCruise * Vs);
   const kD = tau / GEN_TAU_REF;
   // A tricycle lands and rolls out differently: there is no tail to fly down,
   // so the AP de-rotates onto the nosewheel instead of pinning a tailwheel.
@@ -11523,11 +13168,15 @@ function genPlant(nodes, strips, P, V) {
   // both would over-damp a V-tail by cos G and mis-tune its pitch loop.
   let Lda = 0, Lp = 0, ShC = 0, ShD = 0, arm = 0;
   const px = ws => { let x = 0; for (const [i, w] of ws) x += nodes[i].p[0] * w; return x; };
+  // G185: a second plane's strips carry ITS slope, as a ratio to plane 0's so
+  // the monoplane sums are the same numbers they always were
+  const PW = P.polarWings;
+  const kA = st => (PW && PW.length > 1 && st.plane) ? PW[st.plane].a3d / aW : 1;
   for (const st of strips) {
     if (st.kind === 'wing') {
       const zc = nodes[st.fIn].p[2] + (nodes[st.fOut].p[2] - nodes[st.fIn].p[2]) * st.t;
-      Lp += st.area * zc * zc;                       // roll damping, all strips
-      if (st.ail) Lda += st.area * st.ail * Math.abs(zc);
+      Lp += st.area * zc * zc * kA(st);              // roll damping, all strips
+      if (st.ail) Lda += st.area * st.ail * Math.abs(zc) * kA(st);
     } else if (st.kind === 'stab') {
       ShC += st.area; ShD += st.area; arm += st.area * (px(st.w) - cx);
     } else if (st.kind === 'vtail') {
@@ -11537,6 +13186,10 @@ function genPlant(nodes, strips, P, V) {
     }
   }
   Lda *= q * aW * P.ailTau;                          // roll moment per unit da
+  // G185: a build with NO aileron strips (every plane's aileron span 0) has
+  // no roll authority — a real defect the test pilot reports, not a NaN in
+  // the roll gains, so the moment is floored at a hair above nothing
+  Lda = Math.max(1e-6, Lda);
   Lp = -(q * aW / V) * Lp;                           // negative: it damps
   const lh = arm / Math.max(1e-6, ShD);
   return { M, Ixx, Iyy, Lda, Lp, lh,
@@ -11580,9 +13233,19 @@ function genParams(S, fr, strips) {
   const G = S.geom;
   // G140: sweepEff — the legacy field verbatim, or the area-weighted |LE
   // sweep| the three-station law derives (resolveSpec sets it either way)
-  const polarWing = genPolar(S.wing.naca, G.AR, S.wing.strut, M.cd0, M.clmaxK,
-                             S.wing.sweepEff != null ? S.wing.sweepEff : S.wing.sweep,
-                             (GEN_TIPS[S.wing.tip] || GEN_TIPS.rounded).e);
+  // G185: ONE POLAR PER PLANE — its own aspect ratio, section, sweep and tip;
+  // the bracing penalty on Oswald is the fuselage strut's for plane 0 and
+  // the interplane strut's for both planes of a biplane. genOswald itself is
+  // untouched: it is the plane's SELF term, and the mutual term between the
+  // planes is the solver's kernel (G185.5), never a second factor here.
+  const interplane = !!(S.bracing && S.bracing.interplane && S.bracing.interplane !== 'none');
+  const polarWings = S.wings.map((wk, k) => {
+    const Gk = (G.planes && G.planes[k]) || G;
+    return genPolar(wk.naca, Gk.AR, (k === 0 && S.wing.strut) || interplane, M.cd0, M.clmaxK,
+                    wk.sweepEff != null ? wk.sweepEff : wk.sweep,
+                    (GEN_TIPS[wk.tip] || GEN_TIPS.rounded).e);
+  });
+  const polarWing = polarWings[0];
   const hAR = S.tail.hSpan * S.tail.hSpan / S.tail.Sh;
   const polarTail = genTailPolar(hAR, M.cd0);
   // G115 (the review's S4): the FIN flies on its OWN aspect ratio. It flew
@@ -11594,7 +13257,11 @@ function genParams(S, fr, strips) {
   const vAR = S.tail.vHeight * S.tail.vHeight / Math.max(1e-6, S.tail.Sv);
   const polarFin = genTailPolar(vAR, M.cd0);
   const mass = fr.cg0[3];
-  const ClMax3D = polarWing.Cl0 + polarWing.a3d * polarWing.aStall;
+  // G185: the aeroplane's CLmax is its planes' area-weighted one (a monoplane's
+  // is exactly its own)
+  const ClMax3D = polarWings.length === 1
+    ? polarWing.Cl0 + polarWing.a3d * polarWing.aStall
+    : polarWings.reduce((s, p, k) => s + G.planes[k].Sw * (p.Cl0 + p.a3d * p.aStall), 0) / G.Sw;
   // Vs is an EQUIVALENT airspeed, and always was: it is computed in the datum
   // air (RHO), not in the air the aeroplane happens to be in. G72 only made
   // that explicit — the literal used to say 1.225 as if it were a fact about
@@ -11624,6 +13291,20 @@ function genParams(S, fr, strips) {
         cda.fusCdA[0] += (cowled ? 0.30 : 0.90) * frontal;
       }
   }
+  // THE TRUSS PAYS ITS DRAG (G185). Every drawn cabane and interplane strut
+  // is a streamline section strutT thick at Cd 0.10 (the lift strut's own
+  // figure, 62:299); every wire a round cable wireD thick at Cd 1.0. Built
+  // lengths, off the frame's own members. The Cub lift struts a biplane
+  // does NOT have drop out of the gear reference delta above (its type reads
+  // cantilever), which is the credit for not having them. Axial only, the
+  // gear model's rule.
+  let braceDCdA = 0;
+  for (const b of fr.beams) {
+    if (!b.ext) continue;
+    if (b.cls === 'interplane' || b.cls === 'cabane') braceDCdA += 0.10 * b.L * GEN_RULES.strutT;
+    else if (b.cls === 'wire') braceDCdA += 1.0 * b.L * GEN_RULES.wireD;
+  }
+  cda.fusCdA[0] += braceDCdA;
   // Control effectiveness from surface chord. The reference pairs are the
   // fleet's own calibrated numbers at the default chord fractions, so a stock
   // aeroplane reproduces them exactly and theory only supplies the trend.
@@ -11663,13 +13344,26 @@ function genParams(S, fr, strips) {
     // is a real aeroplane in this spec and the day `engines` has two entries
     // this must already be right.
     nEngines: S.engines.length,
+    // G194: per engine, the hand and the side (the viewer spins each prop by
+    // its own lever and sense; the solver reads only the count)
+    engines: (S.engAt || []).map(e => ({ sense: e.sense || 1, side: e.side || 0 })),
     // THE PROP IS THE AEROPLANE'S, not the powerplant's. The solver prefers this
     // over POWERPLANTS[powerplant].prop when it is present, and a fiche never
     // sets it — so the fleet reads the registry exactly as before.
     prop: { D: S.prop.D, Tstatic: S.prop.Tstatic, kV2: S.prop.kV2 },
     substeps: genSubsteps(fr.nodes, fr.beams),
     polarWing, polarTail, polarFin,
+    // G185: one polar PER PLANE (polarWing stays the alias of plane 0's —
+    // GATE GEN's G9 and every reader of the flat name keep working)
+    polarWings,
     elevTau, rudTau, ailTau, downwash: 0.40,
+    // G185.5: a biplane flies the vortex model's downwash on its tail (its
+    // planes' mutual field always); a monoplane keeps the calibrated 0.40 and
+    // only MEASURES what the kernel says (gen.dEpsDa) — the flip is the next
+    // arc's, with those numbers as its anchors. core: the Rankine radius as
+    // a fraction of the source strip's chord; kProbe: fixed-point passes.
+    downwashModel: S.wings.length > 1 ? 'vortex' : 'const',
+    induction: { core: 0.30, kProbe: 3 },
     flaps,
     stabTrim: 0, sparSpacing: fr.parts.sparSpacing,
     fusCdA: cda.fusCdA, fusCdAAft: cda.fusCdAAft,
@@ -11678,7 +13372,19 @@ function genParams(S, fr, strips) {
     twSteer: S.gear.type === 'tricycle' ? -0.35 : 0.5,
     ap,
     gen: { Vs, ClMax3D, Sw: G.Sw, AR: G.AR, cBar: G.cBar, mass,
-           Sh: S.tail.Sh, Sv: S.tail.Sv, hAR, vAR, gearDCdA, plant: pl },
+           Sh: S.tail.Sh, Sv: S.tail.Sv, hAR, vAR, gearDCdA, braceDCdA, plant: pl,
+           // G185: the planes' own numbers beside the combined ones, the
+           // combined MAC's leading edge (the % MAC datum on a biplane — a
+           // monoplane keeps its wing's xLE), and the span the yaw instrument
+           // divides by
+           span: G.span,
+           planes: S.wings.map((wk, k) => {
+             const Gk = (G.planes && G.planes[k]) || G, p = polarWings[k];
+             return { Sw: Gk.Sw, AR: Gk.AR, cBar: Gk.cBar, span: Gk.span, xAC: Gk.xAC,
+                      a3d: p.a3d, eAR: p.eAR, aStall: p.aStall };
+           }),
+           xLEmac: S.wings.length > 1 ? G.xAC - 0.25 * G.cBar : S.wings[0].xLE,
+           gap: G.gap, stagger: G.stagger, decalage: G.decalage },
   };
 }
 // ============================================================
@@ -11710,7 +13416,10 @@ function genParams(S, fr, strips) {
 // z-fights at any camera distance, small enough that the wall never reads as a
 // thickness: 18 mm on an aeroplane whose fuselage is a metre across.
 const INTR_T = 0.018;
-const GEN_TUBE_R = { fus: 0.016, wing: 0.020, gear: 0.024 };
+const GEN_TUBE_R = { fus: 0.016, wing: 0.020, gear: 0.024,
+                     // G185: the truss classes — struts as the lift strut's
+                     // streamline section, a wire as a 5 mm cable
+                     cabane: 0.020, interplane: 0.020, wire: 0.0025 };
 // FUSELAGE SECTION RESOLUTION. 40, not 20, because the cabin opening's sill is
 // a RING INDEX — `round(sill * GEN_RADIAL / 2)` — so this constant is also the
 // number of sill positions the slider can reach and how finely the cut can
@@ -12107,7 +13816,7 @@ function genBeamInto(M, b, N, B) {
     const r = b.vis === 'wire' ? 0.0045 : GEN_TUBE_R[b.cls] * (b.ext ? 1.15 : 1);
     // Only a wing's external member is a lift strut. Every `vis === 'wire'` beam
     // 61_gen_frame.js emits is `cls: 'gear'`, so no wire reaches this branch.
-    const lift = b.ext && b.cls === 'wing';
+    const lift = b.ext && (b.cls === 'wing' || b.cls === 'cabane' || b.cls === 'interplane');
     if (lift) {
       // chord fore-and-aft: body x, projected perpendicular to the strut axis
       const d = ax[0];
@@ -12177,22 +13886,33 @@ function genWingInto(def, out) {
   const S = def.spec, P = def.parts, N = def.nodes;
   const B = out.B, skin = out.skin, pitot = out.pitot, canopy = out.canopy;
   const CTRL_MESH = out.ctrl;
+  // G185: WHICH PLANE. The loft reads its plane's own spec (W), its own spar
+  // record (PP: stations, roots, ribs, chord law) and its own controls; a
+  // monoplane's plane 0 reads exactly what it always read, so its emission
+  // is byte-identical (GATE WINGSPLIT). `out.plane` picks the plane; the
+  // second plane's control-surface groups carry a '2'.
+  const kPl = out.plane | 0;
+  const W = S.wings[kPl] || S.wings[0];
+  const PP = (P.planes && P.planes[kPl]) || P;
+  const semiK = kPl === 0 ? S.geom.semi : (PP.semi != null ? PP.semi : 0.5 * W.span);
+  const CTL = kPl === 0 ? S.controls
+            : (W.controls || { aileron: { span: 0, chord: 0.22 }, flap: { type: 'none', span: 0.5, chord: 0.2 } });
+  const GSFX = kPl ? String(kPl + 1) : '';
   // ---- 3. wing --------------------------------------------------------
   // A section at every spar station, lofted along the span. Chordwise position
   // is affine on the two spar nodes (the spars ARE the chord frame, so the
   // weights are exact and extrapolate past LE and TE); the thickness offset is
   // a rest-frame constant, which is what `base` carries.
-  const af = genAirfoil(S.wing.naca);
-  const sparF = P.sparFront, sparR = P.sparRear;
+  const af = genAirfoil(W.naca);
+  const sparF = PP.sparFront, sparR = PP.sparRear;
   const kOf = xc => (xc - sparF) / (sparR - sparF);
   // Hinge lines follow the chords the player actually set, so a 30% aileron
   // LOOKS like a 30% aileron. The flap band is inboard, the aileron outboard,
   // and clampSpec has already guaranteed the gap between them.
-  const CTL = S.controls;
-  const aStart = (1 - CTL.aileron.span) * S.geom.semi;
+  const aStart = (1 - CTL.aileron.span) * semiK;
   const AIL_HINGE = 1 - CTL.aileron.chord;
   const FLAP_ON = GEN_FLAPS[CTL.flap.type].dCl > 0;
-  const fEnd = FLAP_ON ? CTL.flap.span * S.geom.semi : -1;
+  const fEnd = FLAP_ON ? CTL.flap.span * semiK : -1;
   const FLAP_HINGE = 1 - CTL.flap.chord;
   // sidAt: which control surface this station belongs to, or 0. Outboard of
   // aStart is aileron, inboard of fEnd is flap; the hinge fraction differs
@@ -12232,6 +13952,8 @@ function genWingInto(def, out) {
   const wingSection = (nF, nR, chord) =>
     wingSectionAt(N[nF].p, N[nR].p, [[nF, 1]], [[nR, 1]], chord, af);
 
+  // (plane 0's only — a biplane carries one pitot)
+  if (kPl === 0) {
   // ---- 3a. PITOT MAST, on the wing's lower skin ------------------------
   // It hangs UNDER the wing, so its root has to be a point on the lower
   // SURFACE. It used to be a hardcoded 0.10 m below a front-spar NODE, and a
@@ -12247,15 +13969,15 @@ function genWingInto(def, out) {
   // the node weights, so the mast is attached by construction and flexes with
   // the wing instead of being fitted to it.
   {
-    const i = Math.min(1, P.wf.L.F.length - 1);
-    const nF = P.wf.L.F[i], nR = P.wf.L.R[i];
+    const i = Math.min(1, PP.wf.L.F.length - 1);
+    const nF = PP.wf.L.F[i], nR = PP.wf.L.R[i];
     // chordwise station of the mast: well aft of the leading edge, so it is
     // clear of the LE radius and sits on a part of the section that is
     // genuinely flat-ish whatever the aerofoil
     const XC = 0.35;
-    const chord = P.chordAt(Math.abs(N[nF].p[2]));
+    const chord = PP.chordAt(Math.abs(N[nF].p[2]));
     const root = wingSectionAt(N[nF].p, N[nR].p, [[nF, 1]], [[nR, 1]], chord,
-                               [genAfEval(S.wing.naca).lo(XC)])[0];
+                               [genAfEval(W.naca).lo(XC)])[0];
     // the mast drops a fixed distance below the skin, and the probe runs
     // forward from its foot into clean air ahead of the leading edge
     const DROP = 0.22, REACH = 0.24;
@@ -12264,13 +13986,14 @@ function genWingInto(def, out) {
     genTubeInto(pitot, foot, [foot[0] - REACH, foot[1], foot[2]], 0.011, 8,
                 root.infl, B);
   }
+  }
   // the loft pair is module-level now (G67.1) so the wing can take them with
   // it and the empennage can go on using them; `B` is the only thing they
   // closed over, so it becomes the last argument and nothing else changes.
   const emitLoft = (rows, mesh, vOf, flip, close) =>
     genEmitLoft(rows, mesh, vOf, flip, close, B);
   const capLoft = genCapLoft;
-  const W = S.wing, TIP = GEN_TIPS[W.tip] || GEN_TIPS.rounded;
+  const TIP = GEN_TIPS[W.tip] || GEN_TIPS.rounded;
   // ---- 3b. the wing, and its control surfaces as SEPARATE MESHES ----------
   // The fixed skin is lofted over [0..hinge] and each surface over [hinge..1].
   // They are different groups, so a surface is a rigid body with a pivot and an
@@ -12286,14 +14009,14 @@ function genWingInto(def, out) {
   // ruled on the same spar frames and the node weights are built the
   // same way, so nothing physical moves.
   const NAF = GEN_AF, NSURF = 7;
-  for (const [side, fw] of [[1, P.wf.R], [-1, P.wf.L]]) {
+  for (const [side, fw] of [[1, PP.wf.R], [-1, PP.wf.L]]) {
     const sd = side > 0 ? 'R' : 'L';
-    const zAll = [P.zRoot, ...P.zs];
+    const zAll = [PP.zRoot, ...PP.zs];
     const zAilEnd = W.tipR > 1e-6 ? W.tipZ : zAll[zAll.length - 1];
     // which surface owns a station, and where its hinge is
     const bandAt = z => {
       if (z > aStart - 1e-6 && z < zAilEnd + 1e-6) return { n: 'ail', h: AIL_HINGE };
-      if (FLAP_ON && z < fEnd + 1e-6 && z > P.zRoot - 1e-6) return { n: 'flap', h: FLAP_HINGE };
+      if (FLAP_ON && z < fEnd + 1e-6 && z > PP.zRoot - 1e-6) return { n: 'flap', h: FLAP_HINGE };
       return null;
     };
     // spar frame at an arbitrary z, and a section over any chord range
@@ -12307,7 +14030,7 @@ function genWingInto(def, out) {
                                 a3[2] + (b3[2]-a3[2])*t];
       return { pF: lerp(N[F0].p, N[F1].p), pR: lerp(N[R0].p, N[R1].p),
                wF: [[F0, 1-t], [F1, t]], wR: [[R0, 1-t], [R1, t]],
-               chord: P.chordAt(z) };
+               chord: PP.chordAt(z) };
     };
     const secAt = (z, a, b, n) => {
       const f = frameAt(z);
@@ -12319,6 +14042,18 @@ function genWingInto(def, out) {
     const brk = zAll.slice();
     for (const zb of [fEnd, aStart, zAilEnd])
       if (zb > zAll[0] + 1e-3 && zb < zAll[zAll.length-1] - 1e-3) brk.push(zb);
+    // EXTRA LOOP CUTS (G189, the user: "the lights within the wings are now
+    // constrained to 1 spar length, it's too much, we should be able to set
+    // it up much narrower, even if that means adding loop cuts to the
+    // wing"). `W.cuts` is a list of spanwise stations (metres from the
+    // centreline) the loft must put a row at — the lamp bay's two edges —
+    // so a cut between two spar stations lands on real geometry instead of
+    // snapping to the nearest existing row. A cut within 30 mm of a row the
+    // loft already has snaps to that row rather than making a sliver strip.
+    // Display topology only: the spars, ribs and node weights are the same.
+    for (const zc of (Array.isArray(W.cuts) ? W.cuts : []))
+      if (isFinite(zc) && zc > zAll[0] + 0.03 && zc < zAll[zAll.length-1] - 0.03
+          && !brk.some(zb => Math.abs(zb - zc) < 0.03)) brk.push(zc);
     brk.sort((a2, b2) => a2 - b2);
     const zBrk = brk.filter((v, i) => i === 0 || v - brk[i-1] > 1e-3);
     const zStraight = W.tipR > 1e-6 ? W.tipZ : zAll[zAll.length - 1];
@@ -12379,7 +14114,7 @@ function genWingInto(def, out) {
     // control surfaces became their own lofts each of them grew a stripe of its
     // own at its inboard end. Span fraction makes the paint continuous across
     // the cut, which is the point of cutting it there.
-    const spanV = z => (z - P.zRoot) / Math.max(1e-6, S.geom.semi - P.zRoot);
+    const spanV = z => (z - PP.zRoot) / Math.max(1e-6, semiK - PP.zRoot);
     const ids = emitLoft(fixRows, skin, r => spanV(fixRows[r].z0), flip, true);
     capLoft([ids[0], ids[ids.length-1]], skin, flip);
     // ---- each surface: its own group, its own loft ----
@@ -12388,8 +14123,8 @@ function genWingInto(def, out) {
       // wing's alpha). Signs re-measured after the cut became real: while the
       // "surface" was still a full-chord copy its centroid sat FORWARD of the
       // hinge, so every sign came out inverted and calibrated to the wrong body.
-      ['ail',  'ail' + sd,  'da', -1, 1.0, null, 0],
-      ['flap', 'flap' + sd, 'flap', -side, 0.70, null, 0],
+      ['ail',  'ail' + sd + GSFX,  'da', -1, 1.0, null, 0],
+      ['flap', 'flap' + sd + GSFX, 'flap', -side, 0.70, null, 0],
     ]) {
       const zz = zs2.filter(z => { const b = bandAt(z); return b && b.n === nm; });
       if (zz.length < 2) continue;
@@ -12422,18 +14157,25 @@ function genWingInto(def, out) {
   //   open   only the UPPER surface, so the wing's own top skin is the roof and
   //          you look up into it, which is what a Cub's centre section does
   {
-    const CTR = (S.wing.centre === 'glass' || S.wing.centre === 'open')
-      ? S.wing.centre : 'solid';
-    let rows = [
-      wingSection(P.wf.L.F[0], P.wf.L.R[0], S.wing.chord, 0),
-      wingSection(P.wf.R.F[0], P.wf.R.R[0], S.wing.chord, 0),
+    const CTR = (W.centre === 'glass' || W.centre === 'open'
+                 || W.centre === 'cutout') ? W.centre : 'solid';
+    // G185: 'cutout' — the centre section's trailing edge cut back to 62 %
+    // chord over the cockpit, as a CLOSED section so the aft wall is the
+    // flat rib face the hinge walls already use (emitLoft's `close`)
+    const cutPts = CTR === 'cutout' ? genAfSeg(W.naca, 0, 0.62, GEN_AF) : null;
+    let rows = cutPts
+      ? [ wingSectionAt(N[PP.wf.L.F[0]].p, N[PP.wf.L.R[0]].p, [[PP.wf.L.F[0], 1]], [[PP.wf.L.R[0], 1]], W.chord, cutPts),
+          wingSectionAt(N[PP.wf.R.F[0]].p, N[PP.wf.R.R[0]].p, [[PP.wf.R.F[0], 1]], [[PP.wf.R.R[0], 1]], W.chord, cutPts) ]
+      : [
+      wingSection(PP.wf.L.F[0], PP.wf.L.R[0], W.chord, 0),
+      wingSection(PP.wf.R.F[0], PP.wf.R.R[0], W.chord, 0),
     ];
     // the carry-through IS the root: both rows sit at span fraction 0. Row
     // index put the tip band on one side of it and the wing walk on the other.
     // the aerofoil contour runs TE -> upper -> LE -> lower -> TE, so its first
     // half IS the upper surface and the cut needs no new sampling
     if (CTR === 'open') rows = rows.map(r => r.slice(0, Math.ceil(r.length / 2)));
-    emitLoft(rows, CTR === 'glass' ? canopy : skin, () => 0.02);
+    emitLoft(rows, CTR === 'glass' ? canopy : skin, () => 0.02, false, !!cutPts);
   }
 
   return { aStart, fEnd, FLAP_ON, FLAP_HINGE, AIL_HINGE, sparF };
@@ -12460,20 +14202,34 @@ function genWing(def) {
   const FR = genRestFrame(def);
   const B = FR.to;
   const skin = genMesh(), canopy = genMesh(), pitot = genMesh(),
-        liftstrut = genMesh();
+        liftstrut = genMesh(), cabane = genMesh(), interplane = genMesh(),
+        wire = genMesh();
   const CTRL_MESH = [];
-  genWingInto(def, { B, skin, pitot, canopy, ctrl: CTRL_MESH });
+  genWingInto(def, { B, skin, pitot, canopy, ctrl: CTRL_MESH, plane: 0 });
+  // G185: THE SECOND PLANE, into its own meshes — plane 0's groups are the
+  // groups they always were, so a monoplane's payload is byte-identical
+  const skin2 = genMesh(), canopy2 = genMesh();
+  if (S.wings.length > 1 && def.parts.planes && def.parts.planes[1])
+    genWingInto(def, { B, skin: skin2, pitot: genMesh(), canopy: canopy2, ctrl: CTRL_MESH, plane: 1 });
   // AN EXTERNAL WING BEAM IS A LIFT STRUT, and that is genSkin's own test
   // (`b.cls === 'wing' ? liftstrut : strut`, and only when `b.ext`). A leg is
   // never a wing beam and every wire 61_gen_frame emits is gear-class, so the
   // two branches this skips cannot reach here.
-  for (const b of def.beams)
+  for (const b of def.beams) {
     if (b.ext && b.cls === 'wing') genBeamInto(liftstrut, b, N, B);
+    // G185: the truss, by class — each its own group so the editor and the
+    // join can dress, paint and follow them separately
+    else if (b.ext && b.cls === 'cabane') genBeamInto(cabane, b, N, B);
+    else if (b.ext && b.cls === 'interplane') genBeamInto(interplane, b, N, B);
+    else if (b.ext && b.cls === 'wire') genBeamInto(wire, b, N, B);
+  }
 
   const groups = {};
   const put = (nm, M) => { const g = M.done(); if (g.nv) groups[nm] = g; };
   put('skin', skin); put('canopy', canopy);
   put('pitot', pitot); put('liftstrut', liftstrut);
+  put('cabane', cabane); put('interplane', interplane); put('wire', wire);
+  put('skin2', skin2); put('canopy2', canopy2);
   const moving = [];
   for (const c of CTRL_MESH) {
     put(c.group, c.mesh);
@@ -12485,14 +14241,23 @@ function genWing(def) {
   return {
     v: 5, generated: true, wingOnly: true,
     linTex: ['bump', 'mr'],
-    cover: ['skin', 'canopy'].concat(moving.map(m => m.group)),
+    cover: ['skin', 'canopy'].concat(groups.skin2 ? ['skin2', 'canopy2'] : [], moving.map(m => m.group)),
     groups, moving,
     mats: {
       skin: genPaintRow(S),
       ailR: genPaintRow(S), ailL: genPaintRow(S),
       flapR: genPaintRow(S), flapL: genPaintRow(S),
       canopy:    { color: 0xa9c6d6, opacity: 0.32, rough: 0.04, metal: 0.0 },
+      // G185: the second plane's rows (same paint; the editor's livery
+      // sections override per part)
+      skin2: genPaintRow(S),
+      ailR2: genPaintRow(S), ailL2: genPaintRow(S),
+      flapR2: genPaintRow(S), flapL2: genPaintRow(S),
+      canopy2:   { color: 0xa9c6d6, opacity: 0.32, rough: 0.04, metal: 0.0 },
       liftstrut: { color: 0xe6e2d8, rough: 0.30, metal: 0.10 },
+      cabane:    { color: 0xe6e2d8, rough: 0.30, metal: 0.10 },
+      interplane:{ color: 0xe6e2d8, rough: 0.30, metal: 0.10 },
+      wire:      { color: 0x9aa0a6, rough: 0.35, metal: 0.80 },
       pitot:     { color: 0x7d8792, rough: 0.42, metal: 0.45 },
     },
     rest: (() => {
@@ -12625,6 +14390,7 @@ function genProbeAt(sim, V, a) {
   const vel = [0, 0, 0];
   for (let k = 0; k < 3; k++) vel[k] = -V * (Math.cos(a) * xA[k] + Math.sin(a) * yU[k]);
   const r = sim.probe(vel);
+  r.tailEps = sim.out.tailEps || 0;          // G185.5: the measured downwash
   // forward unit vector: drag is the aero force opposing it
   r.drag = -(r.Fx * -Math.cos(a) * xA[0] + r.Fy * -Math.cos(a) * xA[1] + r.Fz * -Math.cos(a) * xA[2])
            - (r.Fx * -Math.sin(a) * yU[0] + r.Fy * -Math.sin(a) * yU[1] + r.Fz * -Math.sin(a) * yU[2]);
@@ -12638,16 +14404,19 @@ function genProbeAt(sim, V, a) {
 // WEATHERVANE STIFFNESS is the slope — normalised to Cn_beta on wing area
 // and span: the directional analogue of the static margin. Positive is
 // stable (nose swings back into the wind); the sign convention is verified
-// against the whole fleet in tools/_yaw_probe.js.
+// against the whole fleet by the G115 yaw probe (retired with the fleet,
+// 2026-09-05; its numbers are in HANDOVER's G115).
 function genYawStiff(sim, def, V) {
   const bet = 0.06;
   const yaw = b => sim.probe(
     [-V * Math.cos(b), 0, -V * Math.sin(b)]).yawLeft;
   const dN = (yaw(bet) - yaw(-bet)) / (2 * bet);
   const g = def.params.gen || {};
-  const Sw = g.Sw || 10, b = Math.sqrt(Sw * (g.AR || 6));
+  // G185: the span itself when the build states it; the AR back-derivation
+  // for a def that does not
+  const Sw = g.Sw || 10, b = g.span || Math.sqrt(Sw * (g.AR || 6));
   // minus: with this velocity construction the whole fleet measures a
-  // NEGATIVE slope when stable (verified in tools/_yaw_probe.js — every
+  // NEGATIVE slope when stable (verified by the G115 yaw probe — every
   // fiche and the stock build), so the sign is flipped once, here, and
   // stable reads positive the way the static margin does.
   return -dN / (0.5 * RHO * V * V * Sw * b);
@@ -12706,7 +14475,9 @@ function genTrim(def) {
   const sim = makeSim(def, null);
   sim.reset(0);
   const W = sim.totalM * 9.81;
-  const aMax = 0.85 * def.params.polarWing.aStall;
+  // G185: the lowest of the planes' stall angles bounds the trim search
+  const aMax = 0.85 * (def.params.polarWings || [def.params.polarWing])
+    .reduce((m, p) => Math.min(m, p.aStall), Infinity);
   // through the SIM, so the sheet and the aeroplane cannot disagree about how
   // much thrust there is in this air (G72). Identical at the datum.
   const Tav = v => sim.thrustAt(v, 1);
@@ -12771,6 +14542,12 @@ function genTrim(def) {
   def.params.ap.thrCruise = Math.min(0.95, Math.max(0.15, fin.r.drag / Tavail));
   def.params.gen.alphaCruise = fin.a;
   def.params.gen.LD = fin.r.Fy / Math.max(1e-6, fin.r.drag);
+  // G185: how the lift is shared between the planes at cruise (a monoplane's
+  // is [1]); the plaque prints it and GATE BIPLANE reads it
+  if (fin.r.planeFy && fin.r.planeFy.length) {
+    const tot = fin.r.planeFy.reduce((s, v) => s + (v || 0), 0) || 1;
+    def.params.gen.liftSplit = fin.r.planeFy.map(v => (v || 0) / tot);
+  }
 
   // ---- THE APPROACH, MEASURED --------------------------------------------
   // The glideslope, the approach throttle and the pitch floor used to be the
@@ -12988,6 +14765,9 @@ function genShakedown(def, opts) {
   const dL = (r1.Fy - r0.Fy) / 0.02;
   // neutral point: how far aft the CG could move before dM/dalpha reaches zero
   const npShift = -dM / Math.max(1e-6, dL);
+  // G185.5: d(epsilon)/d(alpha) at the tail as the kernel measures it —
+  // applied on a biplane, a readout beside the 0.40 constant on a monoplane
+  const dEpsDa = (r1.tailEps - r0.tailEps) / 0.02;
   const cg = r0.cg;
   // ONE REFERENCE AREA ON THE SHEET. This summed the strips, which is all a
   // hand-written fiche has — but a generated aeroplane also carries `gen.Sw`,
@@ -13093,7 +14873,12 @@ function genShakedown(def, opts) {
     LDbest, VbestLD,                          // G179.4: the glide ratio itself
     alphaCruise: a * 180 / Math.PI,
     Sw, wingLoad: sim.totalM / Sw,
+    // G185: the planes' own numbers, the lift split, the % MAC datum
+    planes: g.planes || null, liftSplit: g.liftSplit || null,
+    xLEmac: g.xLEmac, span: g.span, stagger: g.stagger, decalage: g.decalage,
+    braceDCdA: g.braceDCdA || 0,
     cgX: cg[0], npX: cg[0] + npShift, staticMargin: npShift / cBar,
+    dEpsDa,                                   // G185.5: the tail's measured downwash slope
     // G115: the directional half of the balance story, measured the same way
     cnBeta: genYawStiff(sim, def, V),
     TORun: def.params.ap.TORun, thrCruise: def.params.ap.thrCruise,
@@ -13182,6 +14967,9 @@ function genShakedown(def, opts) {
       const E = genEnergyResolve(S);
       out.energyKind = E.battery ? 'battery' : 'fuel';
       out.energyMedium = (E.battery ? GEN_CELLS[E.medium] : GEN_FUELS[E.medium]).name;
+      // the medium's own density, so the plaque's L/h line stops assuming
+      // avgas (2026-09-05: Jet-A is 0.80, and a PT6 burns 220 L/h, not 244)
+      out.energyKgL = E.battery ? null : GEN_FUELS[E.medium].kgL;
       out.vesselName = E.vessel.name;
       out.vesselKg = E.vesselKg;
       out.energyKg = E.contentsKg;
@@ -13294,7 +15082,10 @@ function genShakedown(def, opts) {
   if (!(opts && opts.slim) && !(opts && opts.corners === false) && S && S.cabin) {
     try {
       const w0 = S.wings && S.wings[0];
-      const xLE = (w0 && typeof w0.xLE === 'number' && isFinite(w0.xLE)) ? w0.xLE : null;
+      // G185: the % MAC datum — a biplane's combined MAC leading edge, a
+      // monoplane's wing xLE exactly as before
+      const xLE = (typeof g.xLEmac === 'number' && isFinite(g.xLEmac)) ? g.xLEmac
+                : (w0 && typeof w0.xLE === 'number' && isFinite(w0.xLE)) ? w0.xLE : null;
       const pct = x => (xLE == null || !(cBar > 0)) ? null : (x - xLE) / cBar;
       const seats = Math.max(1, S.seats | 0);
       const litresFull = (S.fuel && S.fuel.litres > 0) ? S.fuel.litres : 0;
@@ -13632,10 +15423,11 @@ function genLoadCarried(def) {
 }
 
 // spar stations on the +z wing, front node paired with its nearest rear node
-function genLoadStations(def) {
+function genLoadStations(def, plane) {
   const wf = [], wr = [];
+  plane = plane || 0;
   def.nodes.forEach((n, i) => {
-    if (n.p[2] <= 0) return;
+    if (n.p[2] <= 0 || (n.plane || 0) !== plane) return;   // G185: one plane
     if (n.tag === 'WF') wf.push(i);
     if (n.tag === 'WR') wr.push(i);
   });
@@ -13780,11 +15572,26 @@ function makeLoadTest(sim, def, cfg) {
   }
   begin();
 
+  // THE TRESTLES HOLD EVERY SUBSTEP (G185). The clamp used to reset the
+  // pinned nodes once per FRAME: for a whole frame's substeps a clamped node
+  // moved freely under the stiff members hung on it, then snapped back —
+  // an impulse at the frame rate that a stiff member from a pinned node to
+  // a light free one turns into a divergence. G179 met it as "the rig's
+  // per-frame trestle clamp resonating with a fuselage row that is already
+  // stiff" and worked around it with the bearer's material; a parasol's
+  // cabane and a biplane's box on a wood, alloy or carbon airframe (member
+  // strains 0.11-0.20 at 1 g, tips -13 % to +35 %, tubeFabric alone sane)
+  // made it a defect. A trestle does not let go between substeps: the
+  // clamp now runs inside the frame, after every substep.
+  const SUB = (def.params && def.params.substeps) || 24;
+  function stepClamped(dt) {
+    for (let k = 0; k < SUB; k++) { sim.step(dt / SUB, 1); clamp(); }
+  }
   function step(dt) {
     if (state.done || !ok) return state;
     t += dt;
     if (state.phase === 'settle') {
-      sim.step(dt); clamp(); relax();
+      stepClamped(dt); relax();
       if (t >= SETTLE) {
         // the settled shape under the wing's OWN weight is the jig datum, which
         // is what the real test measures deflection from
@@ -13804,7 +15611,7 @@ function makeLoadTest(sim, def, cfg) {
     // ...and what the wing carries pulls the other way (G179, see `carried`)
     for (let k = 0; k < carried.length; k++)
       sim.impulse(carried[k], 0, n * def.nodes[carried[k]].m * 9.81 * dt, 0);
-    sim.step(dt); clamp(); relax();
+    stepClamped(dt); relax();
 
     // WHICH member, not just which class. The allowable is per class, so the
     // percentage could always be worked out — but "78% of yield" does not tell
@@ -13976,4 +15783,4 @@ function playerShedDims(doc, id, site) {
   return { HW: d.HW || h.HW, HD: d.HD || h.HD, EAVE: d.EAVE || h.EAVE };
 }
 if (typeof module !== 'undefined')
-  module.exports = { AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, ATM, makeAtmos, ATMOS_ISA, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, makeSim, makeAutopilot, makeTestPilot, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, GEN_MIGRATORS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims };
+  module.exports = { AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, makeSim, vortexKernel, makeAutopilot, makeTestPilot, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims };

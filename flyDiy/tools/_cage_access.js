@@ -186,8 +186,11 @@ const frameAt = SITE.frameAt;
 // must be divided by FS. Reading them out of the live group rather than off a
 // published handle keeps this working while that layer is being reworked, and
 // bakes each mesh's own placement in through `xf`.
-function wingField(mount) {
-  const W = window.CAGE_WING;
+function wingField(mount, plane) {
+  // G185: the second plane's field is its own group's, named 'wing2'
+  const W0 = window.CAGE_WING;
+  const W = (plane && W0 && W0.planes && W0.planes[plane]) ? W0.planes[plane] : W0;
+  const NAME = plane ? 'wing' + (plane + 1) : 'wing';
   if (!W || !W.group || !SITE.geoMesh) return null;
   const recs = [];
   W.group.updateMatrixWorld(true);
@@ -199,7 +202,7 @@ function wingField(mount) {
     if (!o.geometry.attributes || !o.geometry.attributes.aStruct) return;
     tmp.copy(o.matrixWorld);
     if (inv) tmp.premultiply(inv);
-    recs.push({ geo: o.geometry, name: 'wing',
+    recs.push({ geo: o.geometry, name: NAME,
                 xf: q => { v.set(q[0], q[1], q[2]).applyMatrix4(tmp);
                            return [v.x, v.y, v.z]; } });
   });
@@ -417,6 +420,7 @@ PAGE.post = ctx => {
 
   // the wing's field, read once per build rather than once per fitting
   let wingF = null, wingTried = false;
+  let wingF2 = null, wing2Tried = false;      // G185: the second plane's field
 
   for (const row of rows) {
     const fam = FAMILY[row.key];
@@ -454,6 +458,13 @@ PAGE.post = ctx => {
       sites = wingF ? SITE.accessSites(wingF, {
         sL: atSL, lv: atLV, sC: row.at.sC,
         snap: row.snap, side: row.side, allow: ['wing'],
+      }) : [];
+    } else if (row.on === 'wing2') {
+      // G185: the second plane's fittings land on the second plane's field
+      if (!wing2Tried) { wing2Tried = true; wingF2 = wingField(scene, 1); }
+      sites = wingF2 ? SITE.accessSites(wingF2, {
+        sL: atSL, lv: atLV, sC: row.at.sC,
+        snap: row.snap, side: row.side, allow: ['wing2'],
       }) : [];
     } else {
       // `lv` is a RAIL INDEX and is not a length, so it is not scaled; sL is

@@ -72,7 +72,13 @@ const GEN_MATERIALS = {
   tubeFabric: {
     name: '4130 tube + fabric',
     phys: { E: 205e9, rho: 7850, sigY: 460e6 },
-    lin:   { fus: 0.58, wing: 0.62, gear: 1.05 },
+    // G185: cabane / interplane struts and the bracing wires are 4130 on
+    // EVERY airframe (B() routes these classes here, as it does the engine
+    // bearer). Strut k is the wing class at its wingK correction, baked in;
+    // a wire is E*A/L of a 2.4 m 4 mm 7x7 cable, its mass with the
+    // turnbuckle and fittings amortised.
+    lin:   { fus: 0.58, wing: 0.62, gear: 1.05,
+             cabane: 0.62, interplane: 0.62, wire: 0.16 },
     cover: 0.42,      // finished fabric: the lattice carries the tubes
     // THE FUSELAGE ROW x4 (G179.2, the user: "the wing mount to the frame
     // just seems far too bendy ... You allow the wing to move almost
@@ -98,8 +104,10 @@ const GEN_MATERIALS = {
     // artefact) — measured. This row was never fitted to anything: it was
     // the Cub fiche's hand value. Its strut case moves 0.77 -> 0.46 %/g,
     // inside the band. Re-fitting the other three is their own measurement.
-    k:     { fus: 8.0e5, wing: 5.0e5, gear: 2.8e4 },
-    c:     { fus: 120,   wing: 450,   gear: 900 },
+    k:     { fus: 8.0e5, wing: 5.0e5, gear: 2.8e4,
+             cabane: 2.0e6, interplane: 2.0e6, wire: 1.0e6 },
+    c:     { fus: 120,   wing: 450,   gear: 900,
+             cabane: 450,  interplane: 450,  wire: 300 },
     // The k/c above are the Cub's, and the Cub is a ~390 kg aeroplane. They are
     // NOT constants of the material — you build heavier tube for a heavier
     // machine — so they scale with all-up mass off this reference. Without it a
@@ -559,6 +567,29 @@ const GEN_ACCESS = {
     snap: 'bay', side: 'lower',
     form: 'plateOval', size: { w: 0.150, h: 0.110 },
   },
+  // G185: THE SECOND PLANE'S OWN FITTINGS (DEBT §5 closed: "a biplane's
+  // lower wing gets no fittings"). The same two rows, on 'wing2' — the
+  // second plane's field — with their own needs: a cap when a vessel sits
+  // in a second-plane bay, a bellcrank cover when the second plane carries
+  // ailerons. Their stations read the second plane's semispan.
+  fuelCapWing2: {
+    name: 'Second wing filler cap',
+    serves: 'the second wing tank',
+    need: R => (R.wing2 && R.tank2) ? 2 : 0,
+    on: 'wing2',
+    at: R => ({ sL: R.semispan2 * 0.30, lv: 0.35 }),
+    snap: 'bay', side: 'upper',
+    form: 'capFlush', size: { d: 0.075, h: 0.006 },
+  },
+  inspAileron2: {
+    name: 'Second aileron bellcrank cover',
+    serves: 'the second plane\'s aileron bellcrank',
+    need: R => (R.wing2 && R.ail2 && R.material !== 'carbon') ? 2 : 0,
+    on: 'wing2',
+    at: R => ({ sL: R.semispan2 * 0.66, lv: 1.25 }),
+    snap: 'bay', side: 'lower',
+    form: 'plateOval', size: { w: 0.150, h: 0.110 },
+  },
   baggageDoor: {
     name: 'Baggage door',
     serves: 'the cargo bay',
@@ -773,6 +804,14 @@ function genAccessNeeds(S) {
     // reading it as a single object is how this row silently answered "no
     // wing" for every aeroplane ever built.
     wing:      !!(S.wings && S.wings.length),
+    // G185: the second plane, its semispan, whether a vessel sits in one of
+    // its bays and whether it carries ailerons
+    wing2:     !!(S.wings && S.wings.length > 1),
+    semispan2: ((S.wings && S.wings[1] && S.wings[1].span) || 0) * 0.5,
+    tank2:     !!(S.energy && Array.isArray(S.energy.vessels) &&
+                  S.energy.vessels.some(v => v && /^wing2/.test(v.bay || ''))),
+    ail2:      !!(S.wings && S.wings[1] && S.wings[1].controls &&
+                  S.wings[1].controls.aileron && S.wings[1].controls.aileron.span > 0),
     // the game spec carries no rod flag (a rod boom's fittings are the
     // editor's own bake, through genAccessNeedsCage); this door never has one
     rod:       null,
@@ -827,6 +866,12 @@ function genAccessNeedsCage(P, extra) {
     engine:    !!(P.engOn == null ? 1 : +P.engOn),
     cowl:      !!(P.cowlOn == null ? 1 : +P.cowlOn),
     wing:      !!(P.wingOn == null ? 1 : +P.wingOn),
+    // G185: the second plane, off the panel; the vessel rows are the energy
+    // layer's, so a second-plane tank is E's to say
+    wing2:     !!((P.wingOn == null ? 1 : +P.wingOn) && +P.w2On),
+    semispan2: (+P.w2On ? (P.w2Span || 10) : 0) * 0.5,
+    tank2:     !!(E && E.tank2),
+    ail2:      !!(+P.w2On && (P.w2AilOn == null ? 1 : +P.w2AilOn)),
     // MEASURED OFF THE CAGE, not guessed. The cabin's length, the bays and
     // the boom's run are parameters the panel already has, so a short
     // aeroplane gets its fittings closer together — which is the whole reason
@@ -1292,6 +1337,20 @@ const GEN_RULES = {
   // degenerate beams would hide that; giving the spar the depth it physically
   // has removes the coincidence altogether.
   wingStandoff: 0.10,
+  // THE CABANE (G185). A plane standing more than cabaneMin above the roof is
+  // on a cabane: its root ties to the top longerons are drawn (they are the
+  // struts you see on a Pietenpol or under a Tiger Moth's top wing), and the
+  // roots splay cabaneSplay outboard of the cabin side so the posts lean out
+  // in the front view — which is what makes a cabane laterally stiff.
+  cabaneMin:   0.30,
+  cabaneSplay: 0.20,
+  // THE WIRES (G185). A flying/landing wire is a 4 mm cable, tension-only, and
+  // rigged to a small pre-strain so both sets are taut at 1 g (a slack landing
+  // wire in flight is the real aeroplane's behaviour under negative g, and
+  // the solver reproduces it). Streamline struts are strutT thick for drag.
+  wirePreStrain: 5e-4,
+  wireD:       0.004,
+  strutT:      0.06,
   sparFront:   0.15,   // front spar, fraction of chord
   // Rule 1 again, as a NUMBER. "The Cub survives only because its strut root is
   // a full metre below the wing" — the anchor offset IS the barrier against
@@ -2031,6 +2090,12 @@ const GEN_DEFAULT = {
             // 'open' leaves the bay out altogether. Ignored on a low wing, which
             // has no bay over the cabin to treat.
             centre: 'solid',
+            // G185: THE CABANE. A 'parasol' plane stands this far above the
+            // cabin roof on four drawn cabane struts (null = the default
+            // 0.55 m). Ignored on every other position. It is the ONE knob
+            // for a biplane's gap: the lower plane sits on the fuselage's own
+            // longeron band, so the gap is a readout (S.geom.gap), never a key.
+            cabaneH: null,
             // G188: the root chord line's HEIGHT over the cabin keel, measured
             // by the join off the drawn wing (null = the position's own rule:
             // a standoff below the keel for a low wing, above the roof for a
@@ -2042,7 +2107,14 @@ const GEN_DEFAULT = {
   // gets a real four-chord spar box — rule 1 says a planar two-spar wing only
   // survives because the strut anchor is a long way below it, so taking the
   // strut away without adding the box builds an aeroplane that folds.
-  bracing: { type: 'strut' },
+  bracing: { type: 'strut',
+             // G185: the biplane's truss. `interplane` N (two posts and a
+             // diagonal) | I (one blade) | none; `interplaneAt` its station as
+             // a fraction of the first plane's exposed semispan; `wires` the
+             // flying + landing wires ('both'), flying only, or none;
+             // `cabane` how the upper centre section's struts are drawn.
+             // A monoplane never reads them.
+             interplane: 'none', interplaneAt: 0.62, wires: 'both', cabane: 'N' },
   tail: { type: 'conventional', vAngle: 33,
           hSpan: null, hChord: null, hX: null, hTaper: 1.0,
           // `tip` is the tail's shared tip shape and stays the one the V-tail
@@ -2241,6 +2313,8 @@ function genNormaliseSpec(raw) {
 // writes through an alias updates the section too.
 function genAlias(S) {
   S.wing = S.wings[0];
+  S.planes = S.wings;                          // G185: every plane, in order
+  S.biplane = S.wings.length >= 2;
   S.cab = S.cabin;
   S.fuse = S.fuselage;
   S.name = S.meta.name; S.reg = S.meta.reg;
@@ -2299,6 +2373,119 @@ function nacaParts(code) {
 // Keep the parameter space inside an envelope this chantier has flown. The
 // editor calls this on every change, so a slider can never build something the
 // structure rules were not written for.
+// G185: ONE PLANE'S CONTROL SURFACES — the aeroplane's block and a second
+// plane's own, clamped by the same lines
+function clampControls(ct) {
+  ct.flap = ct.flap || { type: 'none', span: 0.50, chord: 0.20 };
+  ct.aileron = ct.aileron || { span: 0, chord: 0.22 };
+  if (!GEN_FLAPS[ct.flap.type]) ct.flap.type = 'none';
+  // a span of 0 is a plane WITHOUT ailerons (a biplane's upper plane,
+  // usually) and is admitted as such; anything else is clamped as before
+  ct.aileron.span = ct.aileron.span > 0 ? genClamp(ct.aileron.span, 0.15, 0.55) : 0;
+  ct.aileron.chord = genClamp(ct.aileron.chord == null ? 0.22 : ct.aileron.chord, 0.10, 0.35);
+  // the flap gets whatever semispan the aileron leaves, less a 4% gap for the
+  // break between them — they cannot share a section
+  ct.flap.span = genClamp(ct.flap.span == null ? 0.50 : ct.flap.span, 0.10,
+                          Math.max(0.10, 1 - ct.aileron.span - 0.04));
+  ct.flap.chord = genClamp(ct.flap.chord == null ? 0.20 : ct.flap.chord, 0.10, 0.40);
+}
+
+// G185: ONE PLANE'S CLAMP. Lifted out of clampSpec so a biplane's second
+// plane is clamped by the same lines as the first (every wing key lives on
+// each entry of wings[]); the text is the old block verbatim.
+function clampWing(w, S, k) {
+  // G185: the SECOND plane's own keys. stagger is metres its leading edge
+  // sits AFT of the first plane's (the trunk's fore/aft sign; classic
+  // positive stagger, upper forward, is a lower plane aft). Its controls,
+  // when it carries any, are clamped as the aeroplane's are.
+  if (k > 0) {
+    w.stagger = genClamp(w.stagger == null ? 0.35 : w.stagger, -1.0, 1.0);
+    if (w.controls && typeof w.controls === 'object') clampControls(w.controls);
+    else w.controls = null;
+  }
+  // 2026-09-04: the envelope opened for the SAILPLANE class (the user: "you
+  // should be able to enable the motor glider") — 0.80 m chord and 18 m span,
+  // aspect ratio to 20. Every build inside the old 1.15-2.10 / 6.5-14 box is
+  // untouched; GATE GEN's wild spec still clamps, and the sail archetype's
+  // circuit is the new corner's flight test.
+  w.chord = genClamp(w.chord, 0.80, 2.10);
+  w.span = genClamp(w.span, Math.max(6.5, 4.0 * w.chord),
+                            Math.min(18.0, 20.0 * w.chord));
+  w.taper = genClamp(w.taper, 0.45, 1.0);
+  w.dihedral = genClamp(w.dihedral, 0, 6);
+  // Quarter-chord sweep, degrees, positive aft. At the speeds this game flies
+  // sweep buys nothing aerodynamically — it is a compressibility device — so it
+  // is here as a BALANCE tool: it walks the aerodynamic centre aft without
+  // moving the spar root off its frame. It costs lift-curve slope either way,
+  // which is why forward sweep is allowed and is not free.
+  w.sweep = genClamp(w.sweep || 0, -15, 30);
+  // The wing's fore-aft STATION, now that the join measures it off the built
+  // wing's anchor (G52). Nullable — left alone it keeps the noseGap-derived
+  // default. The envelope spans a wing rooted on the firewall to one rooted
+  // well down the cabin; static margin is the honest consequence either way,
+  // and the shakedown posts it.
+  // G188: a wing drawn under a long nose sits well AHEAD of the firewall
+  // (−1.12 m on the pod that found the old −0.20 floor); the frame's rings
+  // straddle a negative station like any other, so the envelope is geometric.
+  w.xLE = genClampN(w.xLE, -2.50, 3.00);
+  if (!GEN_TIPS[w.tip]) w.tip = 'rounded';
+  // CRANK: a second wing section, and only a second. `crankAt` is the break
+  // station as a fraction of the semispan; 0 means a single straight panel.
+  // This is the Jodel's wing — a flat centre section and sharply dihedralled
+  // outer panels — which is a real structure, not a styling choice: the crank
+  // is where the outer panel bolts to the centre section.
+  w.crankAt = genClamp(w.crankAt || 0, 0, 0.85);
+  if (w.crankAt > 0 && w.crankAt < 0.15) w.crankAt = 0;
+  w.dihedralOut = genClampN(w.dihedralOut, 0, 20);
+  // G140: the three stations. Chord at the crank inside the chord clamp;
+  // the offsets inside the sweep clamp's own reach (tan 30 deg of the
+  // exposed semispan — the same envelope the angle always had). Null stays
+  // null: it is the derive-from-sweep contract, not a value.
+  {
+    const reach = Math.tan(30 * Math.PI / 180) *
+                  Math.max(0.5, 0.5 * w.span - 0.3);
+    if (w.crankChord != null)
+      w.crankChord = genClamp(w.crankChord, 0.55, 2.10);
+    if (w.tipX != null) w.tipX = genClamp(w.tipX, -reach, reach);
+    if (w.crankX != null) w.crankX = genClamp(w.crankX, -reach, reach);
+    // G189: loft cuts are finite stations strictly inside the semispan,
+    // sorted, at most four; anything else is no cut at all
+    if (w.cuts != null) {
+      const semi = 0.5 * w.span;
+      const cs = (Array.isArray(w.cuts) ? w.cuts : [])
+        .map(Number).filter(z => isFinite(z) && z > 0.05 && z < semi - 0.05)
+        .sort((a, b) => a - b).slice(0, 4);
+      w.cuts = cs.length ? cs : null;
+    }
+    // a crank field without a crank is a claim about a station that does
+    // not exist — nulled, same rule as dihedralOut's "left alone" line
+    if (!(w.crankAt > 0)) { w.crankChord = null; w.crankX = null; }
+  }
+  w.incidence = genClamp(w.incidence, -1, 4);
+  w.washout = genClamp(w.washout, 0, 4);
+  w.panels = genClamp(w.panels | 0, 2, 5);
+  const n = nacaParts(w.naca);
+  w.naca = (genClamp(Math.round(n.m * 100), 0, 6) * 1000)
+         + (genClamp(Math.round(n.p * 10), 2, 6) * 100)
+         + genClamp(Math.round(n.t * 100), 9, 18);
+  // G185: 'parasol' — on a cabane, this far above the roof
+  if (!['high', 'mid', 'low', 'parasol'].includes(w.position)) w.position = 'high';
+  w.cabaneH = genClampN(w.cabaneH, 0.25, 1.20);
+  // the centre section over the cabin. NOTE the path: this is `wings[].centre`,
+  // not `cabin.wingBay` — the transfer spec named it the latter, and the latter
+  // exists nowhere. The enum is `glass`, not `skylight`, for the same reason.
+  // G185: 'cutout' — the trailing edge of the centre section cut back over
+  // the cockpit, the classic view from a biplane's seat
+  if (!['solid', 'glass', 'open', 'cutout'].includes(w.centre)) w.centre = 'solid';
+  // placement: generous bounds, because the point is to allow bad aeroplanes.
+  // These stop the geometry going degenerate, nothing more.
+  w.place.dx = genClamp(w.place.dx, -1.2, 1.8);
+  w.place.dy = genClamp(w.place.dy, -0.25, 0.60);
+  // G188: the measured root height, nullable like xLE; a wing on the belly
+  // to one on a tall cabane, nothing degenerate in between
+  w.y = genClampN(w.y, -0.60, 2.60);
+}
+
 function clampSpec(spec) {
   const S = genNormaliseSpec(spec);
   const fu = S.fuselage, cb = S.cabin;
@@ -2333,13 +2520,7 @@ function clampSpec(spec) {
   if (!GEN_TANKS[S.fuel.tank]) S.fuel.tank = 'nose';
   if (!GEN_SYSTEMS[S.systems.fit]) S.systems.fit = 'basic';
   const ct = S.controls;
-  if (!GEN_FLAPS[ct.flap.type]) ct.flap.type = 'none';
-  ct.aileron.span = genClamp(ct.aileron.span, 0.15, 0.55);
-  ct.aileron.chord = genClamp(ct.aileron.chord, 0.10, 0.35);
-  // the flap gets whatever semispan the aileron leaves, less a 4% gap for the
-  // break between them — they cannot share a section
-  ct.flap.span = genClamp(ct.flap.span, 0.10, Math.max(0.10, 1 - ct.aileron.span - 0.04));
-  ct.flap.chord = genClamp(ct.flap.chord, 0.10, 0.40);
+  clampControls(ct);
   ct.elevator.chord = genClamp(ct.elevator.chord, 0.20, 0.55);
   ct.rudder.chord = genClamp(ct.rudder.chord, 0.20, 0.60);
   if (!GEN_SEATING[cb.seating]) cb.seating = 'tandem2';
@@ -2593,33 +2774,37 @@ function clampSpec(spec) {
   }
   cb.baggage = genClamp(cb.baggage, 0, 60);
   if (!['glass', 'none'].includes(cb.glazing)) cb.glazing = 'glass';
-  const w = S.wings[0];
-  // 2026-09-04: the envelope opened for the SAILPLANE class (the user: "you
-  // should be able to enable the motor glider") — 0.80 m chord and 18 m span,
-  // aspect ratio to 20. Every build inside the old 1.15-2.10 / 6.5-14 box is
-  // untouched; GATE GEN's wild spec still clamps, and the sail archetype's
-  // circuit is the new corner's flight test.
-  w.chord = genClamp(w.chord, 0.80, 2.10);
-  w.span = genClamp(w.span, Math.max(6.5, 4.0 * w.chord),
-                            Math.min(18.0, 20.0 * w.chord));
-  w.taper = genClamp(w.taper, 0.45, 1.0);
-  w.dihedral = genClamp(w.dihedral, 0, 6);
-  // Quarter-chord sweep, degrees, positive aft. At the speeds this game flies
-  // sweep buys nothing aerodynamically — it is a compressibility device — so it
-  // is here as a BALANCE tool: it walks the aerodynamic centre aft without
-  // moving the spar root off its frame. It costs lift-curve slope either way,
-  // which is why forward sweep is allowed and is not free.
-  w.sweep = genClamp(w.sweep || 0, -15, 30);
-  // The wing's fore-aft STATION, now that the join measures it off the built
-  // wing's anchor (G52). Nullable — left alone it keeps the noseGap-derived
-  // default. The envelope spans a wing rooted on the firewall to one rooted
-  // well down the cabin; static margin is the honest consequence either way,
-  // and the shakedown posts it.
-  // G188: a wing drawn under a long nose sits well AHEAD of the firewall
-  // (−1.12 m on the pod that found the old −0.20 floor); the frame's rings
-  // straddle a negative station like any other, so the envelope is geometric.
-  w.xLE = genClampN(w.xLE, -2.50, 3.00);
-  if (!GEN_TIPS[w.tip]) w.tip = 'rounded';
+  // G185: the wing clamp is a function of the PLANE (clampWing, above), run
+  // on every entry of wings[] — a biplane's second plane keeps the same
+  // envelope as the first.
+  // G185: at most TWO planes (a triplane is a follow-on)
+  if (S.wings.length > 2) S.wings.length = 2;
+  S.wings.forEach((wk, k) => clampWing(wk, S, k));
+  {
+    const br = S.bracing;
+    if (!['none', 'N', 'I'].includes(br.interplane)) br.interplane = 'none';
+    br.interplaneAt = genClamp(br.interplaneAt == null ? 0.62 : br.interplaneAt, 0.30, 0.95);
+    if (!['none', 'both', 'flying'].includes(br.wires)) br.wires = 'both';
+    if (!['N', 'V'].includes(br.cabane)) br.cabane = 'N';
+    if (S.wings.length === 2) {
+      // THE PAIR. One plane above the other, and not both on one longeron:
+      // (parasol|high) over (low|mid). The first plane keeps what it says;
+      // the second is coerced to the other band.
+      const rank = { low: 0, mid: 0.5, high: 1, parasol: 1.5 };
+      const [w0, w1] = S.wings;
+      if (Math.abs(rank[w0.position] - rank[w1.position]) < 0.5)
+        w1.position = rank[w0.position] >= 1 ? 'low' : 'parasol';
+      // wires need the interplane station to land on
+      if (br.wires !== 'none' && br.interplane === 'none') br.interplane = 'N';
+      // a sesquiplane's small plane is at least 0.45 of the big one
+      const up = rank[w0.position] > rank[w1.position] ? w0 : w1, lo = up === w0 ? w1 : w0;
+      if (lo.span < 0.45 * up.span) lo.span = 0.45 * up.span;
+      // THE FUSELAGE LIFT-STRUT FAN DOES NOT EXIST ON A BIPLANE — the truss
+      // braces both planes (61_gen_frame's truss branch) — so the fuselage
+      // bracing reads 'cantilever' for every consumer of the flat flag
+      br.type = 'cantilever';
+    }
+  }
   if (!GEN_TIPS[S.tail.tip]) S.tail.tip = 'rounded';
   // null is legal on the two overrides and means 'use tail.tip'
   S.tail.stabH = genClamp(S.tail.stabH == null ? 0 : S.tail.stabH, 0, 1);
@@ -2639,57 +2824,6 @@ function clampSpec(spec) {
   // the V's dihedral. Too shallow and it cannot make yaw at any sane area; too
   // steep and it cannot make pitch. The Bonanza's is about 33.
   S.tail.vAngle = genClamp(S.tail.vAngle == null ? 33 : S.tail.vAngle, 20, 55);
-  // CRANK: a second wing section, and only a second. `crankAt` is the break
-  // station as a fraction of the semispan; 0 means a single straight panel.
-  // This is the Jodel's wing — a flat centre section and sharply dihedralled
-  // outer panels — which is a real structure, not a styling choice: the crank
-  // is where the outer panel bolts to the centre section.
-  w.crankAt = genClamp(w.crankAt || 0, 0, 0.85);
-  if (w.crankAt > 0 && w.crankAt < 0.15) w.crankAt = 0;
-  w.dihedralOut = genClampN(w.dihedralOut, 0, 20);
-  // G140: the three stations. Chord at the crank inside the chord clamp;
-  // the offsets inside the sweep clamp's own reach (tan 30 deg of the
-  // exposed semispan — the same envelope the angle always had). Null stays
-  // null: it is the derive-from-sweep contract, not a value.
-  {
-    const reach = Math.tan(30 * Math.PI / 180) *
-                  Math.max(0.5, 0.5 * w.span - 0.3);
-    if (w.crankChord != null)
-      w.crankChord = genClamp(w.crankChord, 0.55, 2.10);
-    if (w.tipX != null) w.tipX = genClamp(w.tipX, -reach, reach);
-    if (w.crankX != null) w.crankX = genClamp(w.crankX, -reach, reach);
-    // G189: loft cuts are finite stations strictly inside the semispan,
-    // sorted, at most four; anything else is no cut at all
-    if (w.cuts != null) {
-      const semi = 0.5 * w.span;
-      const cs = (Array.isArray(w.cuts) ? w.cuts : [])
-        .map(Number).filter(z => isFinite(z) && z > 0.05 && z < semi - 0.05)
-        .sort((a, b) => a - b).slice(0, 4);
-      w.cuts = cs.length ? cs : null;
-    }
-    // a crank field without a crank is a claim about a station that does
-    // not exist — nulled, same rule as dihedralOut's "left alone" line
-    if (!(w.crankAt > 0)) { w.crankChord = null; w.crankX = null; }
-  }
-  w.incidence = genClamp(w.incidence, -1, 4);
-  w.washout = genClamp(w.washout, 0, 4);
-  w.panels = genClamp(w.panels | 0, 2, 5);
-  const n = nacaParts(w.naca);
-  w.naca = (genClamp(Math.round(n.m * 100), 0, 6) * 1000)
-         + (genClamp(Math.round(n.p * 10), 2, 6) * 100)
-         + genClamp(Math.round(n.t * 100), 9, 18);
-  if (!['high', 'mid', 'low'].includes(w.position)) w.position = 'high';
-  // the centre section over the cabin. NOTE the path: this is `wings[].centre`,
-  // not `cabin.wingBay` — the transfer spec named it the latter, and the latter
-  // exists nowhere. The enum is `glass`, not `skylight`, for the same reason.
-  if (!['solid', 'glass', 'open'].includes(w.centre)) w.centre = 'solid';
-  // placement: generous bounds, because the point is to allow bad aeroplanes.
-  // These stop the geometry going degenerate, nothing more.
-  w.place.dx = genClamp(w.place.dx, -1.2, 1.8);
-  w.place.dy = genClamp(w.place.dy, -0.25, 0.60);
-  // G188: the measured root height, nullable like xLE; a wing on the belly
-  // to one on a tall cabane, nothing degenerate in between
-  w.y = genClampN(w.y, -0.60, 2.60);
   if (!['taildragger', 'tricycle'].includes(S.gear.type)) S.gear.type = 'taildragger';
   if (!GEN_SUSPENSION[S.gear.suspension]) S.gear.suspension = 'bungee';
   // WHEEL FAIRINGS, off by default. `spat` is the shell over the wheel alone;
@@ -2732,6 +2866,7 @@ function clampSpec(spec) {
       // a pair property and follows the first entry like the rest.
       e.mount = e0.mount; e.type = e0.type;
       e.x = e0.x; e.y = e0.y; e.z = e0.z; e.pylon = e0.pylon;
+      if (e0.aim) e.aim = e0.aim; else delete e.aim;
       if (e0.custom) e.custom = genClone(e0.custom); else delete e.custom;
     }
   }
@@ -2980,10 +3115,21 @@ function resolveSpec(spec) {
     const mRef = ((GEN_MATERIALS[S.material] || {}).refMass || 390) + (n - 1) * mE;
     w.xLE += n * mE * (xE - engX0) / mRef;
   }
+  // G185: THE PLANFORM OF ONE PLANE. The block below is the old one verbatim
+  // as a function of the plane, so a biplane's second plane gets the same
+  // law, MAC, aerodynamic centre, tip bow and reference area as the first.
+  // Returns the plane's own geometry record; S.geom composes the planes.
+  const resolvePlane = (w, k) => {
+  // G185: the SECOND plane's station is the first's plus its stagger (an
+  // explicit xLE wins, like every nullable), then its own nudge
+  if (k > 0) {
+    put(w, 'xLE', S.wings[0].xLE + (w.stagger || 0), 'wing.xLE' + k);
+    w.xLE += (w.place && w.place.dx) || 0;
+  }
   // an uncranked wing's outer dihedral IS its dihedral, so the field can be
   // left alone and the aeroplane stays a single straight panel
   put(w, 'dihedralOut', w.crankAt > 0 ? Math.min(20, w.dihedral + 11) : w.dihedral,
-      'wing.dihedralOut');
+      'wing.dihedralOut' + (k ? k : ''));
   const semi = 0.5 * w.span;
   const zR0 = S.cab.halfW;
   // G140: the one planform law — legacy fields reproduce the pre-G140
@@ -3066,7 +3212,38 @@ function resolveSpec(spec) {
             + (semi - LAW.zC) * (LAW.cAt(LAW.zC) + LAW.cAt(semi))
           : (semi - zR0) * (LAW.cAt(zR0) + LAW.cAt(semi)))
       - 2 * w.tipC * Rb * (1 - Math.PI / 4);
-  S.geom = { xAC, cBar, semi, Sw, AR: w.span * w.span / Sw };
+  return { xAC, cBar, semi, Sw, AR: w.span * w.span / Sw, span: w.span,
+           yMac, sweepEff: w.sweepEff };
+  };
+  const planes = S.wings.map(resolvePlane);
+  // THE COMBINED REFERENCE (G185.4). One plane: exactly its own record, to
+  // the bit (the single-plane branch is the record itself, not a sum of one
+  // term — a*b/a is not b in floating point). Two planes: the reference
+  // area is the sum; the mean chord is area-weighted; the aerodynamic
+  // centre is weighted by area AND lift slope (a cheap 2π/(1+2/AR) here —
+  // genPolar is not available at this level, and the neutral point that
+  // matters is MEASURED by the shakedown anyway); the aspect ratio is the
+  // system's, span²/Sw, the number a biplane's efficiency is judged by;
+  // semi stays plane 0's for the readers that only ever had one.
+  let geom;
+  if (planes.length === 1) {
+    const p0 = planes[0];
+    geom = { xAC: p0.xAC, cBar: p0.cBar, semi: p0.semi, Sw: p0.Sw, AR: p0.AR,
+             span: p0.span };
+  } else {
+    let Sw = 0, cS = 0, xS = 0, aS = 0, span = 0;
+    for (const p of planes) {
+      const a = 2 * Math.PI / (1 + 2 / Math.max(1e-6, p.AR));
+      Sw += p.Sw; cS += p.Sw * p.cBar; xS += p.Sw * a * p.xAC; aS += p.Sw * a;
+      span = Math.max(span, p.span);
+    }
+    geom = { xAC: xS / aS, cBar: cS / Sw, semi: planes[0].semi, Sw, AR: span * span / Sw, span,
+             stagger: S.wings[1].stagger || 0,
+             decalage: (S.wings[0].incidence || 0) - (S.wings[1].incidence || 0) };
+  }
+  geom.planes = planes;
+  S.geom = geom;
+  const { xAC, cBar, semi } = geom;
 
   // 3. fuselage length from the tail arm rule. The cargo bay is full-section
   //    fuselage aft of the cabin, so the tail has to start behind it.
@@ -3099,7 +3276,9 @@ function resolveSpec(spec) {
   if (t.type === 'twinBoom' && t.Sv == null && t.vHeight != null && t.vChord != null)
     t.Sv = 2 * t.vHeight * t.vChord;
   put(t, 'Sh', GEN_RULES.Vh * S.geom.Sw * cBar / lh, 'tail.Sh');
-  put(t, 'Sv', GEN_RULES.Vv * S.geom.Sw * w.span / lv, 'tail.Sv');
+  // G185: the vertical volume divides by the aeroplane's span (a biplane's
+  // longer plane; a monoplane's own, exactly)
+  put(t, 'Sv', GEN_RULES.Vv * S.geom.Sw * (S.geom.span || w.span) / lv, 'tail.Sv');
   const Sh = t.Sh, Sv = t.Sv;
   put(t, 'hSpan', Math.sqrt(Sh * GEN_RULES.hAR), 'tail.hSpan');
   put(t, 'hChord', Sh / t.hSpan, 'tail.hChord');
