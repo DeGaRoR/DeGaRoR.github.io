@@ -356,6 +356,24 @@
         "8324"
       ],
       "port": 8324
+    },
+    {
+      "name": "flydiy-playtest",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8330"
+      ],
+      "port": 8330
+    },
+    {
+      "name": "flydiy-biplane",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8333"
+      ],
+      "port": 8333
     }
   ]
 }

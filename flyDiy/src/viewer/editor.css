@@ -251,9 +251,10 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 .edN > i.warn { color:var(--ed-warn); }
 
 /* THE FOUR LEVELS, off the one ladder. Quieter and smaller at every step
-   down, and nothing below the root shouts — SEPARATORS ONLY UNDER THE LEAVES.
-   Assemblies and parts have no rule under them: that is deliberate, and
-   was specifically asked for. */
+   down, and nothing below the root shouts. NO RULES BETWEEN ROWS AT ALL
+   (G187, the user: "no need for using horizontal separators anywhere"): the
+   leaves used to carry a hairline each and a branch's last row another;
+   both are gone, and a section ends by its spacing. */
 .edN.lv0 > span { font:var(--ed-t-asm); letter-spacing:.06em;
   color:var(--ed-dim); }
 
@@ -262,8 +263,6 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 
 .edN.lv2 > span { font:var(--ed-t-leaf); letter-spacing:.01em;
   color:var(--ed-faint); }
-
-.edN.lv2 { border-bottom-color:var(--ed-hair); }
 
 .edN.on > span { color:var(--ed-ink); }
 
@@ -275,12 +274,11 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 .edN.edOff:hover > span, .edN.edOff.on > span, .edN.edOff.hov > span
   { opacity:.75; }
 
-/* the indent ladder: 0 for a root, one step per level under it */
-.edN.lv0:not(.root) { padding-left:calc(12px + var(--ed-indent)); }
-
-.edN.lv1 { padding-left:calc(12px + var(--ed-indent) * 2); }
-
-.edN.lv2 { padding-left:calc(12px + var(--ed-indent) * 3); }
+/* the indent ladder: 0 for a root, one step per level under it — and it
+   keeps stepping past the type ladder's third rung. `--lv` is the row's true
+   depth, written by paintTree; the lvN class is only its typography. */
+.edN:not(.root) {
+  padding-left:calc(12px + var(--ed-indent) * (var(--lv, 0) + 1)); }
 
 /* THE SCENE'S OBJECTS, at the top level: the build, the reference standing
    beside it, and the shed and the world when they arrive. They are PEERS —
@@ -288,10 +286,8 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
    as headings, because an assembly heading is a label and these are
    selectable, and they are the loudest thing in the column because they are
    the top of it.
-   NO RULE UNDER A ROOT. There used to be one, and it sat between a head and
-   the branch it heads — the user's "you put vertical separators after a head
-   of section". The rule is `edEnd`'s, on the last row BEFORE the next root,
-   which is where a section actually ends. */
+   NO RULE UNDER A ROOT, and since G187 none under the branch's last row
+   either: `edEnd` keeps only its spacing, which is what marks the end. */
 .edN.root { padding-top:9px; padding-bottom:9px; padding-left:12px; }
 
 .edN.root + .edN { padding-top:7px; }
@@ -299,10 +295,9 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 .edN.root > span { font:var(--ed-t-root); letter-spacing:.01em;
   text-transform:none; color:var(--ed-ink); }
 
-/* ...and the section ends here. Space below as well as a rule, so the next
-   root reads as a new object rather than as one more row. */
-.edN.edEnd { border-bottom-color:var(--ed-hair); margin-bottom:9px;
-  padding-bottom:9px; }
+/* ...and the section ends here: space below, so the next root reads as a
+   new object rather than as one more row. */
+.edN.edEnd { margin-bottom:9px; padding-bottom:9px; }
 
 .edN.root.on > span { color:var(--ed-ink); }
 
@@ -461,11 +456,9 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
   letter-spacing:0; }
 .edH.edHC { cursor:pointer; }
 .edH.edHC:hover > span, .edH.edHC:hover > i { color:var(--ed-ink); opacity:1; }
-/* A ROLLED-UP SECTION KEEPS ITS RULE. The hairline under a group is normally
-   the last row's (.endg); with no rows on screen it would vanish and the
-   headings would run together into a list with no grain. */
-.edH.shut { margin-bottom:10px; padding-bottom:8px;
-  border-bottom:1px solid var(--ed-hair); }
+/* A ROLLED-UP SECTION KEEPS ITS SPACING (its hairline went with every other
+   row rule, G187), so the headings do not run together. */
+.edH.shut { margin-bottom:10px; padding-bottom:8px; }
 .edH.shut > i { opacity:.9; }
 
 /* the first heading in the column needs no space above it */
@@ -499,11 +492,12 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 #edRows > .dfWrap {
   margin-left:var(--ed-indent); }
 
-/* THE SECTION ENDS HERE — the one rule in this column, on the last visible
-   row of a group. `applyVis` puts the class on and takes it off, and only
-   when the answer changed, because this runs on every pixel of a drag. */
-#edRows > .endg { border-bottom:1px solid var(--ed-hair);
-  margin-bottom:9px; padding-bottom:5px; height:auto; min-height:30px; }
+/* THE SECTION ENDS HERE — by spacing alone (no hairline between rows, G187),
+   on the last visible row of a group. `applyVis` puts the class on and takes
+   it off, and only when the answer changed, because this runs on every pixel
+   of a drag. */
+#edRows > .endg { margin-bottom:9px; padding-bottom:5px; height:auto;
+  min-height:30px; }
 
 #edRows .r > span.k { width:var(--ed-lab); flex:none;
   font:400 12px/1.3 'IBM Plex Sans'; letter-spacing:0; color:var(--ed-dim);
@@ -715,7 +709,7 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 #edOptsHead > span { font:600 10px/1 'IBM Plex Sans'; letter-spacing:.2em;
   text-transform:uppercase; color:var(--ed-faint); }
 
-#edOptsHead > i { flex:1; height:1px; background:var(--ed-hair); }
+#edOptsHead > i { flex:1; }
 
 #edOptsHead > em { flex:none; font-style:normal; font:400 10px/1;
   color:var(--ed-faint); }

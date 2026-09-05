@@ -30391,3 +30391,84 @@ them blind. The `key`/`curKey` plumbing stays for the same reason: it is the
 aircraft-change door. `.claude/launch.json` at the repository root carries
 forty session-named dev-server entries; it is the user's tool config, not
 the game, and was not touched.
+
+## G187 — THE PLAYTEST PASS, PHASE 1: THE PICKER THAT STAYED, THE TREE THAT
+## STOPPED INDENTING, THE ENGINE THAT WOULD NOT SAY ITS WEIGHT (2026-09-05, the
+## user's UltraLight3 review: fifteen corrections, six phases; this is the
+## quick-wins phase)
+
+The user flew their rod-boom twin-Rotax ultralight and came back with a
+list. Five of the fifteen were cheap and are landed here; the rest are
+G188+ (geometry: taper rule, fittings on the rod, pins, lamp bay, tank
+mount; the box decal in flight; the fuel panel restyle; the taxi/approach
+patterns and the take-off diagnosis; per-engine control). The plan is the
+session's approved plan; each phase is one commit with its own entry.
+
+**1. The recent-colours strip outlived the screen (the user: "ensure that
+thing is hidden out of context is all I ask. Right now it even survives the
+flight context, that's ridiculous").** G156's strip hung off `<body>` and
+closed on hover timers, so fly with a well hovered and it stood over the
+runway. And its whole reason to exist was a workaround: an
+`<input type=color>` opens the OS dialog on click, and that dialog has no
+DOM to host a swatch, so the swatches had to get in front of you BEFORE the
+click. Both problems have one answer: THE PICKER IS OURS NOW. `wellRecent`
+takes the well's click (`preventDefault` stops the dialog) and opens a
+popup — saturation/value square, hue bar, hex field, and the recent row
+INSIDE it, which is where the user asked for it. It mounts under `#edWrap`
+when there is one (so `hidden` on the editor hides it), `setMode(false)` and
+`closeEditor` call `CAGE_RECENT.hide()` as well, and a pointer down
+anywhere outside, Escape, a scroll of the column or a window blur all close
+it. `input` fires live while dragging so the aeroplane follows; ONE
+`change` fires on commit, which is what records a recent colour; Escape
+puts the colour back. On the benches (no `#edWrap`) it mounts on `<body>`
+as before. Measured in the page: a drag = 2 inputs and 0 changes, a click
+outside = 1 change, the reopened picker shows the swatch, and ROLL OUT &
+FLY leaves `.cgPicker` hidden with the editor. The six attach sites are
+untouched (`CAGE_RECENT.attach`), and `_energy_check`'s own assertion on the
+tank well still holds.
+
+**2. The part tree stopped indenting at the third level, and every row
+had a rule under it.** The type ladder is three rungs (asm / part / leaf)
+and the indent was keyed on the same capped class, so a fourth level
+(Cabin > Glazing > windscreen) sat flush with its parent and read as a
+sibling. `paintTree` now writes the row's true depth as `--lv` and one CSS
+rule indents by it; the `lvN` class is typography only. Measured: 12 / 23 /
+34 / 45 / 56 px down the ladder. The hairlines went — under the leaves,
+under a branch's last row (`edEnd`), under a group's last row (`endg`),
+under a rolled-up heading and the 1 px line in the leftovers header — and
+sections end by their spacing, which they already had. The user's ruling
+was "rows and groups only", so the borders that delimit REGIONS (column
+headers, footers, the status strip, flyout headers) stay.
+
+**3. The engine dropdown says what it weighs and what it makes.** The
+option reads `rotax 582 · 43 kg · 48 kW`. The number is THE NUMBER THAT
+FLIES: an untouched preset flies its registry row (the G134 identity
+ruling), so `POWERPLANTS[CAGE_JOIN_ENGINES[name]].engine.{mass,powerW}` is
+the label; the two fantasy presets fly their own resolve and quote it,
+marked ≈. Two facts shaped the code: `_cage_join.js` is bundled AFTER
+`_cage_eng.js`, so `typeof CAGE_JOIN_ENGINES` is 'undefined' at load and
+the labels are built LAZILY at row-build time (`PRESET_LABELS()`); and five
+consumers index `PRESET_NAMES` by position, so the row's `names` stays the
+key list and `mkRow` grew `opts.optLabels` (an array or a function) for
+what the option SAYS. GATE ENGID asserts the 582's row numbers and the flat
+twin's ≈.
+
+**4. The taper panels vanished on a "no skin" build.** `skinOn 0` culls
+the displayed mesh by `INTSTRUCT` (the x-ray reads the same set), and
+`taperPanel` was in neither that set nor the glass, so the truss's own
+cladding — switched on by its own row — went with the covering, and the
+user's rod ultralight read as bare pipe with a truss. `taperPanel` joined
+`INTSTRUCT` beside `boomTube`; GATE PARTS asserts both by name.
+
+**5. The leading-edge wash only on an aeroplane that has flown.** The
+pale band ahead of the spar (G70's `uG4.z`) was unconditional — a factory
+fresh wing shipped with worn paint. It now rides the condition dial:
+`× clamp(uWear.x · uWearK / 0.35, 0, 1)`, nothing at factory fresh, full by
+'flown'. The roughness polish stays: a smooth D-skin is how it is built,
+not how it wore.
+
+Also: `tools/fixtures/build_v7_ultralight_2026-09-05.json` is the user's
+UltraLight3 as a fixture (GATE TAKEOFF will fly it, G18x); `launch.json`
+gained `flydiy-playtest` (8330). Gates: ENGID, PARTS (its two reds are the
+biplane session's in-flight rows, told), UISMOKE, ENERGY, SAVE, STARTER,
+SKINMAT, TREE.

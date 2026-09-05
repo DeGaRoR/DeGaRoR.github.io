@@ -107,6 +107,23 @@ const fresh = (name) => {
   const P = fresh('continental A-65'); P.engOn = 0;
   ok(FACTS(P) === null, 'engine layer off -> null');
 }
+// 8. THE OPTION SAYS WHAT FLIES (G187): the registry row's mass and power for
+//    a mapped preset, the resolve's own (marked ≈) for a fantasy one
+{
+  const L = window.CAGE_ENG_PRESET_LABELS;
+  ok(typeof L === 'function', 'CAGE_ENG_PRESET_LABELS exported');
+  const labels = L ? L() : [];
+  const i582 = PRESET_NAMES.findIndex(n => /582/.test(n));
+  const l582 = labels[i582] || '';
+  const row = POWERPLANTS[CAGE_JOIN_ENGINES[PRESET_NAMES[i582]]];
+  const kg = row.engine.mass.toFixed(0), kW = (row.engine.powerW / 1000).toFixed(0);
+  ok(l582.includes(kg + ' kg') && l582.includes(kW + ' kW') && !/≈/.test(l582),
+     `rotax 582 option quotes its registry row: "${l582}"`);
+  const iFT = PRESET_NAMES.indexOf('flat twin');
+  ok(/≈\d+ kg · ≈[\d.]+ kW$/.test(labels[iFT] || ''),
+     `flat twin option quotes its own resolve, marked ≈: "${labels[iFT]}"`);
+  ok(labels.length === PRESET_NAMES.length, 'one label per preset, same order');
+}
 
 // THE VERDICT CONTRACT (G67.1): the runner requires BOTH signals.
 if (fails) console.log('\n  ' + fails + ' check(s) failed');

@@ -2240,7 +2240,13 @@ const AERO_ALBEDO_FS = `
   #if AEROSKIN_SURF == 1
     if (uG4.z > 0.0 && uG5.w > 0.5)
       diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.86, 0.88, 0.90),
-        (1.0 - smoothstep(0.0, uG4.z, max(vSurf.y * uFieldM, 0.0))) * 0.30);
+  // ...AND ONLY ON AN AEROPLANE THAT HAS FLOWN (G187, the user: "the leading
+  // edge fading should only be there for weathered aircraft, not for factory
+  // fresh"). The wash is paint worn off by rain and bugs, so it rides the
+  // condition dial: nothing at factory fresh, full by 'flown' (0.35). The
+  // roughness polish above stays — a smooth D-skin is how it is built.
+        (1.0 - smoothstep(0.0, uG4.z, max(vSurf.y * uFieldM, 0.0))) * 0.30
+        * clamp(uWear.x * uWearK / 0.35, 0.0, 1.0));
   #endif
 
   // ---- THE WEAR (G70), and it goes on LAST, over the paint and over the

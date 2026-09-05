@@ -1203,6 +1203,10 @@ function editorInit(api) {
       // last row BEFORE the next root; the last row of the tree gets nothing,
       // because the end of the list is already an end.
       const ends = !r.p.root && i + 1 < rows.length && rows[i + 1].p.root;
+      // THE TYPE LADDER STOPS AT THREE RUNGS (asm / part / leaf); THE INDENT
+      // DOES NOT (G187, the user: "deeper, more indented"). A fourth level
+      // used to sit flush with the third and read as its sibling.
+      d.style.setProperty('--lv', r.lvl);
       d.className = 'edN lv' + Math.min(2, r.lvl) +
         (r.p.root ? ' root' : '') + (ends ? ' edEnd' : '') +
         (r.off ? ' edOff' : '') +
@@ -1223,7 +1227,7 @@ function editorInit(api) {
           saveFolded(); treeSig = ''; paintTree();
         };
         d.appendChild(t);
-      } else if (r.lvl < 2) {
+      } else {
         const t = document.createElement('u');
         t.className = 'fold none';
         d.appendChild(t);

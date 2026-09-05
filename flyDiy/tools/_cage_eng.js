@@ -204,6 +204,42 @@ window.CAGE_ENG_FACTS = (P) => {
 
 // ---- panel ----------------------------------------------------------------
 const PRESET_NAMES = Object.keys(EP.PRESETS).filter(n => n !== 'bare engine');
+// WHAT THE OPTION SAYS (G187, the user: "all engines should show their mass
+// and power, straight in the drop down"). The number quoted is THE NUMBER
+// THAT FLIES: an untouched preset flies its registry row (the join's identity
+// ruling), so the row's mass and powerW are the label; the two fantasy
+// presets fly their own resolve, so that is theirs, marked ≈. Computed LAZILY
+// and once, because _cage_join.js (the name -> registry key map) is bundled
+// AFTER this file — at load time `typeof CAGE_JOIN_ENGINES` is 'undefined'
+// here, at row-build time it is not. The option VALUE stays the index into
+// PRESET_NAMES: every consumer of the preset (the join, the design tiles,
+// the facts) keys on that and never on the text.
+let PRESET_LABELS_CACHE = null;
+const presetLabel = (name) => {
+  let m = 0, p = 0, approx = false;
+  if (!ENG_FANTASY.has(name) && typeof POWERPLANTS !== 'undefined'
+      && typeof CAGE_JOIN_ENGINES !== 'undefined') {
+    const row = POWERPLANTS[CAGE_JOIN_ENGINES[name]];
+    if (row && row.engine) { m = row.engine.mass; p = row.engine.powerW; }
+  }
+  if (!(m > 0 && p > 0)) {
+    const EG = (typeof window !== 'undefined') && window.ENG_GEN;
+    const ps = presetSpecOf(name);
+    if (EG && EG.engResolve && ps) {
+      try { const R = EG.engResolve(ps); m = R.mass; p = R.powerW; approx = true; }
+      catch (e) { m = 0; p = 0; }
+    }
+  }
+  if (!(m > 0 && p > 0)) return name;
+  const kW = p / 1000;
+  return `${name} · ${approx ? '≈' : ''}${m.toFixed(0)} kg · ` +
+         `${approx ? '≈' : ''}${kW.toFixed(kW < 10 ? 1 : 0)} kW`;
+};
+const PRESET_LABELS = () => {
+  if (!PRESET_LABELS_CACHE) PRESET_LABELS_CACHE = PRESET_NAMES.map(presetLabel);
+  return PRESET_LABELS_CACHE;
+};
+if (typeof window !== 'undefined') window.CAGE_ENG_PRESET_LABELS = PRESET_LABELS;
 const rowNames = r => r.k === 'material' && CW.MATERIALS
   ? CW.MATERIALS.map(mm => mm.name) : r.names;
 const LBL = { noseOff: 'fore / aft (base off the flange)' };
@@ -258,7 +294,7 @@ const ENG_ITEMS = [
   // row below stays yours to edit after (the seating-starter pattern)
   ['engPreset', 'preset (applies once)', 0,
    Math.max(1, PRESET_NAMES.length - 1), 1, PRESET_NAMES,
-   { when: P => +P.engOn }],
+   { when: P => +P.engOn, optLabels: PRESET_LABELS }],
   ['engMount',  'mount', 0, 3, 1,
    ['nose', 'pusher (aft bulkhead)', 'over the wing (high wing)',
     'wing nacelles (twin)'], { when: P => +P.engOn }],

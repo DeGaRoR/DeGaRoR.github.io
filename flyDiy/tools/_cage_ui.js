@@ -278,9 +278,13 @@ const GLASSM = new Set(['windshield', 'pilotWindow', 'pasengerWindow',
 const INTSKIN = new Set(['plywood', 'cloth', 'composite', 'toele']);
 // boomTube = the G26 rod: it IS structure — fading the fuselage skin
 // must leave the rod standing (the naked Ruckus test)
+// taperPanel = the sheets bolted over the rod's tightening truss (G26). They
+// are the TRUSS's own cladding, switched on by their own row, so a "no skin"
+// build keeps them the way it keeps the tubes they are riveted to — the
+// user's rod ultralight lost them at skinOn 0 and read as bare pipe (G187).
 const INTSTRUCT = new Set(['bulkhead', 'firewall', 'fireProof', 'fireSeal',
                            'dash', 'dashFace', 'tube',
-                           'woodFrame', 'aluminium', 'boomTube']);
+                           'woodFrame', 'aluminium', 'boomTube', 'taperPanel']);
 // WHAT THE X-RAY TAKES AWAY, and what it must leave standing. It takes the
 // COVERING — the outer skin, its glazing, and the interior linings that are
 // the same covering seen from inside — because those are what stand between
@@ -413,8 +417,9 @@ aeroLoadPrefs();
 //
 // Positioned and sized INLINE rather than from editor.css, because the wells
 // are borrowed into `#edRows` in the game and stand in `#cgUi` on the benches,
-// and the strip itself hangs off <body> — outside both roots. Keying its
-// looks off a stylesheet only one of those loads is the G112 mistake exactly.
+// and the picker itself hangs off #edWrap in one and <body> in the other.
+// Keying its looks off a stylesheet only one of those loads is the G112
+// mistake exactly.
 const RECENT_PREF = 'flydiy.recentColours';
 const RECENT_N = 12;
 let RECENT = [];
@@ -429,83 +434,240 @@ function recentPush(hex) {
   RECENT = [hex].concat(RECENT.filter(h => h !== hex)).slice(0, RECENT_N);
   try { localStorage.setItem(RECENT_PREF, JSON.stringify(RECENT)); } catch (e) {}
 }
-let recentEl = null, recentFor = null;
-function recentHide() { if (recentEl) recentEl.hidden = true; recentFor = null; }
-function recentShow(input) {
-  if (!RECENT.length) return;
-  if (!recentEl) {
-    recentEl = document.createElement('div');
-    recentEl.className = 'cgRecent';
-    recentEl.style.cssText = 'position:fixed;z-index:60;display:flex;gap:3px;' +
-      'padding:4px;border-radius:5px;background:#1b1d21;' +
-      'border:1px solid rgba(255,255,255,.16);box-shadow:0 4px 14px #0009';
-    recentEl.hidden = true;
-    document.body.appendChild(recentEl);
-    // a mousedown on the strip must not blur the well before the click lands
-    recentEl.addEventListener('mousedown', e => e.preventDefault());
-    // ...and the pointer has to be able to TRAVEL from the well to the strip
-    // without the leave-timer closing it on the way
-    recentEl.addEventListener('mouseenter', () => clearTimeout(recentT));
-    recentEl.addEventListener('mouseleave', () => recentLater(recentHide, HOVER_OUT));
+// ---- THE PICKER (G187) --------------------------------------------------
+// THE RECENT COLOURS LIVE INSIDE THE PICKER NOW (the user: "recent colours
+// should be in the colour picker window"). An <input type=color> opens the OS
+// dialog on its click, and that dialog has no DOM to put a swatch in — so the
+// click is taken over (preventDefault stops the dialog) and a popup of our own
+// opens instead: a saturation/value square, a hue bar, the hex, and the
+// recent row. The hover strip that used to pre-empt the dialog is retired;
+// its one job was to get the swatches in front of you before the dialog
+// buried them, and now nothing buries them.
+//
+// IT IS HIDDEN WITH THE EDITOR. The old strip hung off <body> and closed on
+// timers, so it OUTLIVED THE SCREEN: fly with a well hovered and the strip
+// stayed up over the runway (the user: "it even survives the flight context,
+// that's ridiculous"). The popup mounts under #edWrap when there is one, so
+// `hidden` on the editor hides it too; app.js calls `CAGE_RECENT.hide()` on
+// the switch as well; and a pointer down anywhere outside, Escape, a scroll
+// of the column or the window losing focus all close it. On the benches
+// (no #edWrap) it mounts on <body> as before.
+//
+// `input` fires live while dragging so the aeroplane follows; ONE `change`
+// fires on commit (click outside, Enter, a swatch), which is what RECORDS a
+// recent colour — the twenty shades passed on the way are never recorded.
+// Escape puts the well back to the colour it opened with.
+let pkEl = null, pkFor = null, pkHex0 = '', pkH = 0, pkS = 0, pkV = 0;
+let pkSV = null, pkHue = null, pkHexIn = null, pkRow = null, pkDrag = null;
+const PK_W = 180, PK_SVH = 118, PK_HH = 12;
+const hexToRgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255);
+const rgbToHex = (r, g, b) => '#' + [r, g, b].map(x =>
+  Math.round(Math.max(0, Math.min(1, x)) * 255).toString(16).padStart(2, '0')).join('');
+const rgbToHsv = ([r, g, b]) => {
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+  let h = 0;
+  if (d > 1e-9) {
+    h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    h = (h * 60 + 360) % 360;
   }
-  recentFor = input;
-  recentEl.textContent = '';
+  return [h, mx > 1e-9 ? d / mx : 0, mx];
+};
+const hsvToRgb = (h, s, v) => {
+  const c = v * s, x = c * (1 - Math.abs(((h / 60) % 2) - 1)), m = v - c;
+  const k = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x]
+          : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
+  return [k[0] + m, k[1] + m, k[2] + m];
+};
+const pkHex = () => rgbToHex(...hsvToRgb(pkH, pkS, pkV));
+function pkPaint() {
+  if (!pkSV) return;
+  const cs = pkSV.getContext('2d'), W = PK_W, H = PK_SVH;
+  const [hr, hg, hb] = hsvToRgb(pkH, 1, 1);
+  const gx = cs.createLinearGradient(0, 0, W, 0);
+  gx.addColorStop(0, '#fff'); gx.addColorStop(1, rgbToHex(hr, hg, hb));
+  cs.fillStyle = gx; cs.fillRect(0, 0, W, H);
+  const gy = cs.createLinearGradient(0, 0, 0, H);
+  gy.addColorStop(0, 'rgba(0,0,0,0)'); gy.addColorStop(1, '#000');
+  cs.fillStyle = gy; cs.fillRect(0, 0, W, H);
+  cs.beginPath(); cs.arc(pkS * W, (1 - pkV) * H, 5, 0, Math.PI * 2);
+  cs.lineWidth = 2; cs.strokeStyle = pkV > 0.5 && pkS < 0.5 ? '#000' : '#fff';
+  cs.stroke();
+  const ch = pkHue.getContext('2d');
+  const gh = ch.createLinearGradient(0, 0, W, 0);
+  for (let i = 0; i <= 6; i++)
+    gh.addColorStop(i / 6, rgbToHex(...hsvToRgb(i * 60 % 360, 1, 1)));
+  ch.fillStyle = gh; ch.fillRect(0, 0, W, PK_HH);
+  const hx = pkH / 360 * W;
+  ch.fillStyle = '#fff'; ch.fillRect(hx - 1.5, 0, 3, PK_HH);
+  ch.fillStyle = '#000'; ch.fillRect(hx - 0.5, 0, 1, PK_HH);
+  if (pkHexIn && document.activeElement !== pkHexIn) pkHexIn.value = pkHex();
+}
+// the well takes the value; `input` only — `change` waits for the commit
+function pkApply() {
+  if (!pkFor) return;
+  const h = pkHex();
+  if (pkFor.value === h) return;
+  pkFor.value = h;
+  pkFor.dispatchEvent(new Event('input', { bubbles: true }));
+}
+function pkCommit() {
+  const t = pkFor;
+  pkHide();
+  if (!t) return;
+  if (t.value !== pkHex0)
+    t.dispatchEvent(new Event('change', { bubbles: true }));
+}
+function pkRevert() {
+  const t = pkFor;
+  pkHide();
+  if (!t || t.value === pkHex0) return;
+  t.value = pkHex0;
+  t.dispatchEvent(new Event('input', { bubbles: true }));
+}
+// `hidden` AND display: an inline `display:flex` outranks the attribute's UA
+// rule, so the attribute alone left the popup on screen (measured: hidden
+// true, computed display flex — it only vanished while #edWrap was gone)
+function pkHide() {
+  if (pkEl) { pkEl.hidden = true; pkEl.style.display = 'none'; }
+  pkFor = null; pkDrag = null;
+}
+function pkSwatches() {
+  pkRow.textContent = '';
+  pkRow.style.display = RECENT.length ? 'flex' : 'none';
+  if (!RECENT.length) return;
   for (const h of RECENT) {
     const b = document.createElement('button');
     b.type = 'button'; b.title = h;
     b.style.cssText = 'width:14px;height:14px;padding:0;border-radius:3px;' +
       'cursor:pointer;border:1px solid rgba(255,255,255,.28);background:' + h;
     b.onclick = () => {
-      const t = recentFor;
-      recentHide();
-      if (!t) return;
-      t.value = h;
-      // the wells listen on `oninput`; `change` is what records a pick, and
-      // both are dispatched so a swatch behaves exactly like the OS picker
-      t.dispatchEvent(new Event('input', { bubbles: true }));
-      t.dispatchEvent(new Event('change', { bubbles: true }));
+      [pkH, pkS, pkV] = rgbToHsv(hexToRgb(h));
+      pkApply(); pkCommit();
     };
-    recentEl.appendChild(b);
+    pkRow.appendChild(b);
   }
-  const r = input.getBoundingClientRect();
-  recentEl.hidden = false;
-  // measured only once it is laid out, then CLAMPED to the window: these wells
-  // live in the right-hand column, so a strip hung from the left edge of one
-  // near the bottom or the right of the panel would otherwise hang off the
-  // screen. Flips above the well rather than below when there is no room.
-  const s = recentEl.getBoundingClientRect();
+}
+function pkBuild() {
+  pkEl = document.createElement('div');
+  pkEl.className = 'cgPicker';
+  pkEl.style.cssText = 'position:fixed;z-index:60;display:none;flex-direction:' +
+    'column;gap:6px;padding:6px;border-radius:6px;background:#1b1d21;' +
+    'border:1px solid rgba(255,255,255,.16);box-shadow:0 4px 14px #0009;' +
+    'width:' + (PK_W + 12) + 'px;user-select:none';
+  pkEl.hidden = true;
+  // a pointer down inside must not blur the well (the row's own listeners
+  // key on it), and must not count as "outside"
+  pkEl.addEventListener('mousedown', e => e.preventDefault());
+  pkEl.addEventListener('pointerdown', e => e.stopPropagation());
+  pkSV = document.createElement('canvas');
+  pkSV.width = PK_W; pkSV.height = PK_SVH;
+  pkSV.style.cssText = 'display:block;border-radius:4px;cursor:crosshair;' +
+    'touch-action:none';
+  pkHue = document.createElement('canvas');
+  pkHue.width = PK_W; pkHue.height = PK_HH;
+  pkHue.style.cssText = 'display:block;border-radius:3px;cursor:ew-resize;' +
+    'touch-action:none';
+  const drag = (cv, fn) => {
+    const at = e => {
+      const r = cv.getBoundingClientRect();
+      fn(Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)),
+         Math.max(0, Math.min(1, (e.clientY - r.top) / r.height)));
+      pkPaint(); pkApply();
+    };
+    cv.addEventListener('pointerdown', e => {
+      e.preventDefault(); pkDrag = cv;
+      try { cv.setPointerCapture(e.pointerId); } catch (err) {}
+      at(e);
+    });
+    cv.addEventListener('pointermove', e => { if (pkDrag === cv) at(e); });
+    const up = () => { pkDrag = null; };
+    cv.addEventListener('pointerup', up);
+    cv.addEventListener('pointercancel', up);
+  };
+  drag(pkSV, (u, v) => { pkS = u; pkV = 1 - v; });
+  drag(pkHue, (u) => { pkH = u * 360; });
+  const line = document.createElement('div');
+  line.style.cssText = 'display:flex;align-items:center;gap:6px';
+  pkHexIn = document.createElement('input');
+  pkHexIn.type = 'text'; pkHexIn.spellcheck = false; pkHexIn.maxLength = 7;
+  pkHexIn.style.cssText = 'flex:1;min-width:0;font:11px/1.4 monospace;' +
+    'padding:2px 5px;border-radius:3px;border:1px solid rgba(255,255,255,.2);' +
+    'background:#111;color:#ddd';
+  pkHexIn.addEventListener('input', () => {
+    const t = pkHexIn.value.trim();
+    if (!isHex(t)) return;
+    [pkH, pkS, pkV] = rgbToHsv(hexToRgb(t));
+    pkPaint(); pkApply();
+  });
+  pkHexIn.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); pkCommit(); }
+    else if (e.key === 'Escape') { e.preventDefault(); pkRevert(); }
+    e.stopPropagation();
+  });
+  const ok = document.createElement('button');
+  ok.type = 'button'; ok.textContent = 'ok';
+  ok.style.cssText = 'font:11px/1 sans-serif;padding:3px 8px;border-radius:3px;' +
+    'border:1px solid rgba(255,255,255,.25);background:#2a2d33;color:#ddd;' +
+    'cursor:pointer';
+  ok.onclick = pkCommit;
+  line.appendChild(pkHexIn); line.appendChild(ok);
+  pkRow = document.createElement('div');
+  pkRow.className = 'cgRecent';
+  pkRow.style.cssText = 'display:none;flex-wrap:wrap;gap:3px';
+  pkEl.appendChild(pkSV); pkEl.appendChild(pkHue);
+  pkEl.appendChild(line); pkEl.appendChild(pkRow);
+  const host = document.getElementById('edWrap') || document.body;
+  host.appendChild(pkEl);
+  // OUT OF CONTEXT = CLOSED: anything that is not the popup or its well
+  document.addEventListener('pointerdown', e => {
+    if (!pkFor || pkEl.hidden) return;
+    if (e.target === pkFor || pkEl.contains(e.target)) return;
+    pkCommit();
+  }, true);
+  document.addEventListener('keydown', e => {
+    if (!pkFor || pkEl.hidden) return;
+    if (e.key === 'Escape') { e.preventDefault(); pkRevert(); }
+    else if (e.key === 'Enter') { e.preventDefault(); pkCommit(); }
+  }, true);
+  document.addEventListener('scroll', e => {
+    if (pkFor && !pkEl.hidden && e.target !== pkSV && !pkEl.contains(e.target))
+      pkCommit();
+  }, true);
+  window.addEventListener('blur', () => { if (pkFor) pkCommit(); });
+}
+function pkShow(input) {
+  if (!pkEl) pkBuild();
+  if (pkFor && pkFor !== input) pkCommit();
+  pkFor = input;
+  pkHex0 = isHex(input.value) ? input.value.toLowerCase() : '#000000';
+  [pkH, pkS, pkV] = rgbToHsv(hexToRgb(pkHex0));
+  pkSwatches();
+  pkEl.hidden = false; pkEl.style.display = 'flex';
+  pkPaint();
+  // measured once it is laid out, then CLAMPED to the window: the wells live
+  // in the right-hand column, and a popup hung from the left edge of one near
+  // the bottom would hang off the screen. Flips above the well when needed.
+  const r = input.getBoundingClientRect(), s = pkEl.getBoundingClientRect();
   const vw = window.innerWidth || s.width, vh = window.innerHeight || s.height;
   let x = r.left, y = r.bottom + 4;
   if (x + s.width > vw - 6) x = Math.max(6, vw - 6 - s.width);
   if (y + s.height > vh - 6) y = Math.max(6, r.top - 4 - s.height);
-  recentEl.style.left = Math.round(x) + 'px';
-  recentEl.style.top = Math.round(y) + 'px';
+  pkEl.style.left = Math.round(x) + 'px';
+  pkEl.style.top = Math.round(y) + 'px';
 }
-// EVERY well routes through this one call.
-//
-// IT OPENS ON HOVER, AND THAT IS THE WHOLE DESIGN — measured, not preferred.
-// A `<input type=color>` opens the OS picker on the CLICK, so a strip that
-// appeared on focus would be drawn underneath a modal dialog and be useless
-// exactly when it was wanted. Hovering happens BEFORE the click: point at the
-// well, the colours you used last appear under it, and you either take one or
-// carry on into the picker. Focus is kept as well, because it is what a
-// keyboard reaches the well with and what the OS picker returns to on close.
-//
-// `change` (not `input`) is what RECORDS: `input` fires continuously while the
-// picker is dragged and would fill the strip with the twenty shades passed on
-// the way to the one that was chosen.
-const HOVER_IN = 350, HOVER_OUT = 260;
-let recentT = 0;
-function recentLater(fn, ms) { clearTimeout(recentT); recentT = setTimeout(fn, ms); }
+// EVERY well routes through this one call. The click that would open the OS
+// dialog opens ours; Enter/Space on a focused well the same; `change` (ours,
+// fired once on commit) is what RECORDS.
 function wellRecent(c) {
-  c.addEventListener('mouseenter', () => recentLater(() => recentShow(c), HOVER_IN));
-  c.addEventListener('mouseleave', () => recentLater(recentHide, HOVER_OUT));
-  c.addEventListener('focus', () => recentShow(c));
-  c.addEventListener('change', () => { recentPush(c.value); recentHide(); });
+  c.addEventListener('click', e => { e.preventDefault(); pkShow(c); });
+  c.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pkShow(c); }
+  });
+  c.addEventListener('change', () => { recentPush(c.value); });
 }
 if (typeof window !== 'undefined')
   window.CAGE_RECENT = { push: recentPush, list: () => RECENT.slice(),
-                         attach: wellRecent };
+                         attach: wellRecent, hide: pkHide };
 // THE LAYERS ASK AEROSKIN, AND AEROSKIN ASKS HERE (G70). The gear, engine,
 // cowl and cabin layers must know whether the aeroplane is wearing its
 // finishes or the diagnostic palette, and none of them owns this select —
@@ -1340,8 +1502,15 @@ const mkRow = (parent, k, label, lo, hi, st, val, oninput, names, opts) => {
     meta.kind = 'select';
     const sel = document.createElement('select');
     sel.id = 'p_' + k; sel.style.flex = '1';
+    // optLabels (G187): what the option SAYS, when that is more than the
+    // name — an array or a function returning one, read at build time so a
+    // page can join in facts from files bundled after its own. `names` stays
+    // the key list and the value stays its index.
+    const shown = typeof opts.optLabels === 'function' ? opts.optLabels()
+                : opts.optLabels;
     sel.innerHTML = names.map((n, i) =>
-      `<option value="${i}"${+val === i ? ' selected' : ''}>${n}</option>`)
+      `<option value="${i}"${+val === i ? ' selected' : ''}>` +
+      `${(shown && shown[i]) || n}</option>`)
       .join('');
     d.appendChild(sel);
     sel.onchange = e => oninput(+e.target.value);

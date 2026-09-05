@@ -102,7 +102,7 @@ function loadPanel() {
     '_cage_gear.js', '_fit_site.js', '_fit_gen.js',
     '_eng_gen.js', '_eng_mesh.js', '_eng_page.js',
     '_cowl_gen.js', '_cowl_rows.js', '_cage_cowl.js', '_cage_eng.js',
-    '_strut_gen.js', '_cage_wing.js', '_fin_gen.js', '_cage_fin.js',
+    '_strut_gen.js', '_cage_wing.js', '_cage_brace.js', '_fin_gen.js', '_cage_fin.js',
     '_cage_stab.js', '_cage_access.js', '_cage_light.js',
     '_bay_site.js', '_vessel_gen.js', '_cage_energy.js'])
     require(path.join(T, f));
@@ -471,14 +471,28 @@ checkPlacement(PARTS);
 // ---------------------------------------------------------------------------
 // 5 EXISTENCE — a `when` that never changes is not a `when`
 // ---------------------------------------------------------------------------
+// G185: each panel row's maximum, for the existence probe's third state
+const ROWMAX = (() => {
+  const out = new Map();
+  const walk = items => { for (const it of items) {
+    if (Array.isArray(it[1])) { walk(it[1]); continue; }
+    if (typeof it[3] === 'number') out.set(it[0], it[3]);
+  } };
+  for (const g of (W.CAGE_PAGE.groupsOverride || [])) walk(g[1]);
+  return out;
+})();
 function checkExistence(P) {
   let ok = true;
   // the discriminator sweep: every parameter any `when` reads, at both ends of
   // its range. Built by asking each `when` which keys it touches, through a
   // Proxy — no list to keep in step with the table.
+  // G185: the spy answers with the DEFAULT AEROPLANE (template + every
+  // layer's defaults), not the bare template — a `when` that reads a layer
+  // switch first (`+P.wingOn && ...`) short-circuited on the template's
+  // undefined and never revealed the keys behind it
   const probe = when => {
     const touched = new Set();
-    const spy = new Proxy(Object.assign({}, G.CAGE_PARAMS), {
+    const spy = new Proxy(Object.assign({}, G.CAGE_PARAMS, W.CAGE_PAGE.defaults), {
       get: (t, k) => { if (typeof k === 'string') touched.add(k); return t[k]; },
     });
     try { when(spy); } catch (e) {}
@@ -490,11 +504,19 @@ function checkExistence(P) {
     ok = check(keys.length > 0, 'part `when` reads no parameter', p.key) && ok;
     let sawTrue = false, sawFalse = false;
     // off = every key it reads at 0; on = every key at its default (or 1)
+    // — OR at its panel row's MAXIMUM (G185): a part that exists only at one
+    // end of an enum (the cabane, on wing position 3 = parasol) is a real
+    // part that 0-and-1 could never switch on
     const off = Object.assign({}, G.CAGE_PARAMS);
     const on = Object.assign({}, G.CAGE_PARAMS);
-    for (const k of keys) { off[k] = 0; on[k] = (+G.CAGE_PARAMS[k] || 1) || 1; }
+    const hi = Object.assign({}, G.CAGE_PARAMS);
+    for (const k of keys) {
+      off[k] = 0; on[k] = (+G.CAGE_PARAMS[k] || 1) || 1;
+      hi[k] = ROWMAX.has(k) ? ROWMAX.get(k) : on[k];
+    }
     try { sawFalse = !p.when(off); } catch (e) {}
     try { sawTrue = !!p.when(on); } catch (e) {}
+    try { sawTrue = sawTrue || !!p.when(hi); } catch (e) {}
     ok = check(sawTrue && sawFalse,
       'part `when` does not discriminate (always on, or always off)',
       `${p.key} on=${sawTrue} off=${sawFalse}`) && ok;
@@ -774,6 +796,34 @@ checkNoDeadEnds(PARTS);
       'a `panel` part names a global that exports no panel() — the tree row ' +
       'would be there and the column empty', p.key + ' -> window.' + p.panel);
   }
+}
+
+// ---------------------------------------------------------------------------
+// 6. WHAT THE NAKED VIEW KEEPS, AND WHAT OUTLIVES THE SCREEN (G187)
+// ---------------------------------------------------------------------------
+// skinOn 0 culls the DISPLAYED mesh by _cage_ui.js's INTSTRUCT set (the
+// x-ray reads the same set): a name outside it vanishes with the covering.
+// The taper panels are the rod truss's own cladding, switched on by their
+// own row, and the user's rod ultralight lost them at skinOn 0 — so the set
+// is asserted here, by name, the way the section table is. And the colour
+// picker: it mounts under #edWrap (hidden with the editor) and app.js tells
+// it to hide on the flight switch — the strip it replaced hung off <body>
+// and was found standing over the runway.
+{
+  const fs2 = require('fs');
+  const ui = fs2.readFileSync(path.join(__dirname, '_cage_ui.js'), 'utf8');
+  const m = ui.match(/const INTSTRUCT = new Set\(\[([\s\S]*?)\]\);/);
+  const names = m ? [...m[1].matchAll(/'([^']+)'/g)].map(x => x[1]) : [];
+  check(names.includes('taperPanel') && names.includes('boomTube'),
+    'the naked view (skinOn 0) keeps the rod AND its truss cladding',
+    'INTSTRUCT = ' + names.join(' '));
+  check(/getElementById\('edWrap'\) \|\| document\.body/.test(ui) &&
+        /hide: pkHide/.test(ui),
+    'the colour picker mounts under #edWrap and exports hide()');
+  const app = fs2.readFileSync(
+    path.join(__dirname, '..', 'src', 'viewer', 'app.js'), 'utf8');
+  check(/function setMode\(ws\) \{[\s\S]{0,900}CAGE_RECENT\.hide\(\)/.test(app),
+    'the flight switch (setMode) hides the colour picker');
 }
 
 // ---------------------------------------------------------------------------
