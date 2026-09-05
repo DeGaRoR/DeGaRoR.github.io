@@ -149,7 +149,10 @@ const items = [
     // spanwise rows, which on this wing are 0.735 m apart — so a slider that
     // stopped at 0.45 could never widen the bay past one cell, and moving it
     // did nothing at all. Whatever the user asks for, the bay steps.
-    ['li_bayHalf', 'half-width (snaps to ribs)', 0.06, 2.0, 0.01,
+    // ...and since G189 the loft CUTS a row at each edge of the bay (the
+    // wing spec's `cuts`), so the width is the width asked for, down to a
+    // lamp's own size, instead of one loft strip
+    ['li_bayHalf', 'half-width', 0.04, 2.0, 0.01,
      { dim: 'm' }],
     ['li_bayChord', 'cut aft to (chord)', 0.04, 0.14, 0.005],
     ['li_bayDepth', 'lamp setback', 0.03, 0.28, 0.005, { dim: 'm' }],

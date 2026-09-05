@@ -258,6 +258,44 @@ function cowlSite(row, P) {
            side: c[0] < 0 ? 'port' : 'star' };
 }
 
+// THE ROD (G189, the user: "the fittings should be adapted to rod boom"). A
+// bare tube from the aft bulkhead to the tail: nothing is let INTO it — what
+// lives on it is CLAMPED to it, a split collar round the tube with the row's
+// own form on top (a tie-down ring under, an aerial or the beacon on the
+// crown). The rod is read off the cage's own resolve (rodSpan, cage units),
+// the station off the row in the table's tape metres from the requirement
+// record's `rod.from` (the bulkhead) — the same tape tailArm is measured in.
+// The collar goes straight into the metal bag here: it is the SITE's own
+// hardware, not the form's, the way the cowl's placement is the cowl's.
+function rodSite(row, P, needs, atSL, atLV, bags) {
+  if (!CG2 || !CG2.cageSpec || !CG2.cageResolve || !needs || !needs.rod) return null;
+  let S, R;
+  try { S = CG2.cageSpec(Object.assign({}, P)); R = CG2.cageResolve(S); }
+  catch (e) { return null; }
+  if (!S.rod || S.rod.twin || !R || !R.rodSpan) return null;
+  const FS = (CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
+  const sp = R.rodSpan, r = S.rod.r, y0 = S.rod.y;
+  // the station: tape metres past the bulkhead, along the tube (z runs fwd)
+  const zRaw = sp.zRoot - (atSL - needs.rod.from) / FS;
+  const z = Math.max(sp.zTip + 0.06 / FS, Math.min(sp.zRoot - 0.06 / FS, zRaw));
+  const under = atLV === 'keel';
+  const sgn = under ? -1 : 1;
+  const p = [0, (y0 + sgn * r) * FS, z * FS];
+  const n = [0, sgn, 0];
+  if (bags && bags.metal && K && K.revolve) {
+    const rm = r * FS, ctr = [0, y0 * FS, z * FS];
+    // the split collar: a 24 mm wide band, 4 mm proud, and its two clamp
+    // lugs standing off the flanks where the bolts go through
+    K.revolve(bags.metal, [ctr[0], ctr[1], ctr[2] - 0.012], [0, 0, 1],
+      [[rm + 0.0008, 0], [rm + 0.0045, 0.0015], [rm + 0.0045, 0.0225],
+       [rm + 0.0008, 0.024]], 20, true);
+    for (const s of [-1, 1])
+      K.revolve(bags.metal, [s * (rm + 0.0030), ctr[1], ctr[2]], [s, 0, 0],
+        [[0.0060, 0], [0.0060, 0.0090], [0.0035, 0.0110]], 10, true);
+  }
+  return { p, n, sL: atSL, sC: 0, st: 0, lv: 0, mat: 'boomTube', side: 'centre' };
+}
+
 // ---- build ----------------------------------------------------------------
 let group = null;
 const dispose = o => {
@@ -407,6 +445,9 @@ PAGE.post = ctx => {
     let sites;
     if (row.on === 'cowl') {
       const one = cowlSite(row, P);
+      sites = one ? [one] : [];
+    } else if (row.on === 'rod') {
+      const one = rodSite(row, P, R, atSL, atLV, bags);
       sites = one ? [one] : [];
     } else if (row.on === 'wing') {
       if (!wingTried) { wingTried = true; wingF = wingField(scene); }

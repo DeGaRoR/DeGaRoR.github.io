@@ -653,6 +653,18 @@ function genWingInto(def, out) {
     const flip = side < 0;
     // EDGE LOOPS AT THE BAND ENDS. A cut row next to a full-chord row lofts as
     // a RAMP from the hinge line out to the trailing edge, so every band end
+    // EXTRA LOOP CUTS (G189, the user: "the lights within the wings are now
+    // constrained to 1 spar length, it's too much, we should be able to set
+    // it up much narrower, even if that means adding loop cuts to the
+    // wing"). `W.cuts` is a list of spanwise stations (metres from the
+    // centreline) the loft must put a row at — the lamp bay's two edges —
+    // so a cut between two spar stations lands on real geometry instead of
+    // snapping to the nearest existing row. A cut within 30 mm of a row the
+    // loft already has snaps to that row rather than making a sliver strip.
+    // Display topology only: the spars, ribs and node weights are the same.
+    for (const zc of (Array.isArray(W.cuts) ? W.cuts : []))
+      if (isFinite(zc) && zc > zAll[0] + 0.03 && zc < zAll[zAll.length-1] - 0.03
+          && !brk.some(zb => Math.abs(zb - zc) < 0.03)) brk.push(zc);
     // came out as a triangular wedge instead of a straight cut. (The root end
     // looked right only because the flap band starts at the first station and
     // has no neighbour to ramp from.) Emitting the boundary station TWICE —

@@ -701,7 +701,48 @@ function wingBox(p8, tile) {
   return buf;
 }
 
+// ---------------------------------------------------------------------------
+// THE MOUNT (G189, the user: "a small mount for the fuel tank? Nothing crazy,
+// but a small structure that links it to the surface it's attached to. Light,
+// tubes."). In the solid's OWN frame (the layer places the buffer with the
+// tank's centre and yaw, as it does every other slot): under each strap, two
+// legs from the strap's pad to the surface `dy` away — below (dy < 0, the
+// tank stands on the keel) or above (dy > 0, hung under the deck) — a cross
+// tube between the two feet a hand off the surface, and a foot plate where
+// each leg lands. Null when there is nothing to bridge, or the gap is not a
+// mount's. `sol` is build()'s own result; the tile is the hardware's.
+// ---------------------------------------------------------------------------
+const MOUNT_R = 0.006, MOUNT_MAX = 0.6, MOUNT_MIN = 0.015;
+function mount(sol, dy, tile) {
+  const e = sol && sol.e;
+  if (!e || !isFinite(dy)) return null;
+  const hang = dy > 0;
+  const gap = Math.abs(dy) - e[1];                  // from the shell's face
+  if (!(gap > MOUNT_MIN) || gap > MOUNT_MAX) return null;
+  const out = Buf();
+  const T = tile || 0.22, r0 = MOUNT_R;
+  const ySurf = dy, yEdge = hang ? e[1] : -e[1];
+  const ax = hang ? [0, 1, 0] : [0, -1, 0];         // leg direction, off the tank
+  const upS = hang ? [0, -1, 0] : [0, 1, 0];        // the foot plate's normal
+  for (const sz of [-0.48 * e[2], 0.48 * e[2]]) {   // under each strap
+    const feet = [];
+    for (const sx of [-0.62 * e[0], 0.62 * e[0]]) {
+      tubeBuild(out, [sx, yEdge, sz], ax, r0, r0, gap, T, 8, false, false);
+      const foot = [sx, ySurf, sz];
+      tubeBuild(out, foot, upS, r0 * 3.2, r0 * 1.6, 0.004, T, 12, true, true);
+      feet.push(foot);
+    }
+    const lift = hang ? -0.03 : 0.03;
+    const a = [feet[0][0], ySurf + lift, sz], b = [feet[1][0], ySurf + lift, sz];
+    const L = b[0] - a[0];
+    tubeBuild(out, a, [1, 0, 0], r0 * 0.85, r0 * 0.85, L, T, 8, true, true);
+  }
+  out.feet = { ySurf, hang, gap };
+  return out;
+}
+
 const API = { build, contents, wingBox, mkShape, sectRR, widthAt, heightAt, Buf,
+              mount,
               loftBuild, capBuild, bandBuild, tubeBuild };
 if (typeof window !== 'undefined') window.VESSEL_MESH = API;
 if (typeof module !== 'undefined') module.exports = API;

@@ -807,6 +807,18 @@ function vesselSolid(r) {
   return s;
 }
 
+// WHICH SURFACE THE TANK IS MOUNTED TO (G189): the section's deck when the
+// tank sits in the upper half of its section (the nose bay's band tops out
+// at the cowl deck, so a nose tank hangs), its keel otherwise. Returns the
+// signed distance from the tank's centre to that surface, for VESSEL_MESH's
+// own mount builder (which draws it in the tank's frame), or null.
+function tankMountDy(r) {
+  const c = r && r.c, sec = r && r.section;
+  if (!c || !sec) return null;
+  const hang = c[1] > 0.5 * (sec.yLo + sec.yHi);
+  return (hang ? sec.yHi : sec.yLo) - c[1];
+}
+
 function drawResults(group, ctx, results) {
   const VM = window.VESSEL_MESH, K = window.GEAR_KIT;
   const wet = vesselKey() === 'wet';
@@ -829,6 +841,23 @@ function drawResults(group, ctx, results) {
       for (const slot of ['shell', 'hard', 'seal', 'mark'])
         slotMesh(group, sol[slot], slotMat(slot, slot === 'shell' && bad, i, r.v),
                  'edVessel_' + i + '_' + slot, r.c, yaw);
+      // THE MOUNT (G189, the user: "a small mount for the fuel tank? Nothing
+      // crazy, but a small structure that links it to the surface it's
+      // attached to. Light, tubes."). Under each strap, two legs from the
+      // strap's pad to the surface the bay stands on — the keel of the
+      // section for a floor bay, the deck above for a tank HUNG in the nose
+      // bay's band — a cross tube between the two feet, and a foot plate
+      // where each leg lands. It is the strap's own station and the tank's
+      // own turn, so it follows a drag, a resize and a re-yaw, and it takes
+      // the hardware finish (the `hard` slot) like the straps it belongs to.
+      if (r.section && sol.e && VM.mount) {
+        try {
+          const dy = tankMountDy(r);
+          const mb = dy != null ? VM.mount(sol, dy) : null;
+          if (mb) slotMesh(group, mb, slotMat('hard', false, i, r.v),
+                           'edVessel_' + i + '_mount', r.c, yaw);
+        } catch (e) {}
+      }
       // THE FUEL INSIDE, at the slider's fill. It is the shell's own section
       // inset by the wall and cut flat at the level — so in a round tank the
       // fuel has a round bottom and a flat top, and the level itself is placed

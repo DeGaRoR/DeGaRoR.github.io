@@ -1109,6 +1109,29 @@ let printed = fail.length;
     check(tall.yaw === 0, '...and one already the right way round is not turned');
   }
 
+  // --- THE MOUNT (G189) ------------------------------------------------------
+  // Legs from the straps to the surface the bay stands on, in the tank's own
+  // frame: the feet land ON the surface, standing (keel below) or hung (deck
+  // above); a tank already on the surface, or half a metre off it, gets none.
+  {
+    const sol = VM.build({ e: [0.15, 0.12, 0.30], kind: 'fuel', form: 'cyl' });
+    const stand = VM.mount(sol, -0.30);           // keel 0.30 below the centre
+    check(!!stand && stand.tris > 0, 'mount: a tank 18 cm off the keel gets one');
+    let lo = Infinity, hi = -Infinity;
+    if (stand) for (let i = 1; i < stand.pos.length; i += 3) {
+      lo = Math.min(lo, stand.pos[i]); hi = Math.max(hi, stand.pos[i]);
+    }
+    check(stand && Math.abs(lo - (-0.30)) < 1e-6,
+      'mount: the feet land on the surface', 'lowest y ' + lo);
+    check(stand && hi <= -sol.e[1] + 1e-6,
+      'mount: nothing of it reaches above the shell’s underside');
+    check(stand && stand.feet && !stand.feet.hang, 'mount: standing, not hung');
+    const hung = VM.mount(sol, +0.25);
+    check(!!hung && hung.feet.hang, 'mount: a tank under a deck hangs from it');
+    check(VM.mount(sol, -0.125) === null, 'mount: a tank on the surface gets none');
+    check(VM.mount(sol, -1.2) === null, 'mount: a metre of air is not a mount');
+  }
+
   if (SHOW) console.log('  drawn vessels: ' + CASES.length + ' cases, ' +
     tris + ' triangles, ' + SLOTS.length + ' material slots');
 }

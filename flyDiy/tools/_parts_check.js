@@ -824,6 +824,14 @@ checkNoDeadEnds(PARTS);
     path.join(__dirname, '..', 'src', 'viewer', 'app.js'), 'utf8');
   check(/function setMode\(ws\) \{[\s\S]{0,900}CAGE_RECENT\.hide\(\)/.test(app),
     'the flight switch (setMode) hides the colour picker');
+  // G189: the v7 -> v8 migrator (a rod's taper carved out of boomLen) needs
+  // two cage defaults the core cannot read; they are pinned there and must
+  // be the cage's own
+  const MD = global.GEN_MIGRATE_CAGE_DEFAULTS, CD = G.cageDefaults();
+  check(!!MD && Math.abs(MD.boomLen - CD.boomLen) < 1e-9 &&
+        Math.abs(MD.taperLen - CD.taperLen) < 1e-9,
+    'GEN_MIGRATE_CAGE_DEFAULTS is the cage’s own boomLen / taperLen',
+    JSON.stringify(MD) + ' vs ' + CD.boomLen + ' / ' + CD.taperLen);
 }
 
 // ---------------------------------------------------------------------------

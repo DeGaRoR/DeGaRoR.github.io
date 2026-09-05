@@ -368,7 +368,11 @@ const CAGE_PARTS = [
     sections: ['taper', 'pillarTaper', 'taperPanel'],
     zone: 'taper',
     place: { on: 'taperOn', type: 'taperPanels', len: 'taperLen',
-             wide: 'taperW', at: 'aft of the last bay' },
+             wide: 'taperW',
+             // G189: on a rod the truss is the boom's first stretch, not a
+             // section added behind the bay (the anchor is one string: the
+             // trunk renderer and GATE PARTS read it as a name, not a rule)
+             at: 'aft of the last bay; on a rod, the boom’s first stretch' },
     groups: [
       ['tightening', ['taperOn', 'taperLen', 'taperW', 'taperPanels']],
     ] },

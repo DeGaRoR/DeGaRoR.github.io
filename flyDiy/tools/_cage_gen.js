@@ -328,6 +328,15 @@ function cageResolve(S) {
   // section sits between pillars. ADDITIVE lengths throughout.
   // In rod mode the tightening carries NO SKIN (user ruling): the
   // pillar and bay never emit — the taper is the truss's span only.
+  // ...AND IN ROD MODE IT EATS INTO THE BOOM (G189, the user: "the taper
+  // section should rather eat into the length of the boom than adding
+  // length to the plane. It's mostly used for struts to the rod boom, and
+  // the rod still goes to the aft bulkhead"). The truss wraps the first
+  // taperLen of a tube that runs from the bulkhead anyway, so its span is
+  // carved out of boomLen rather than pushed onto the tail: zPost and zCap
+  // stay where boomLen alone puts them (the spec clamps taperLen under it).
+  // A LOFTED taper is a real skinned section between two pillars and keeps
+  // adding its length, as every section does (user ruling: rod only).
   const TAP = S.taper && S.taper.len > 0 ? S.taper : null;
   const tpW = TAP && !S.rod
     ? (S.pillarW > 0 ? S.pillarW : S.paxPillarW) : 0;
@@ -6607,6 +6616,12 @@ function cageSpec(P) {
              z: ap(fr(wf.ceil.z, wf.roofZ, wf.waist.z), F.roofZ, F.waist.z) };
   F.bandZ = ap(fr(wf.bandZ, wf.waist.z, wf.ceil.z), F.waist.z, F.ceil.z);
   F.floorY = ap(fr(wf.floorY, T.waistY, T.cabin.floorY), P.waistY, P.floorY);
+  // G189: on a rod the taper's truss lives INSIDE the boom's length (see
+  // cageResolve), so it cannot be longer than the boom less a hand of bare
+  // tube for the tail to clamp onto
+  if (S.rod && S.taper)
+    S.taper.len = Math.min(S.taper.len,
+                           Math.max(0.08, (P.boomLen || 2.2) - 0.3));
   F.keelY = dn(dnT(wf.keelY));
   C.waistZ = F.waist.z + P.wsBaseBow;
   C.ceil = { y: F.ceil.y, z: F.ceil.z + P.wsCeilBow };

@@ -74,6 +74,12 @@ const AX_RAIL = [0, 3];
 const NOT_SKIN = new Set([
   'windshield', 'pilotWindow', 'pasengerWindow', 'skyWindows',   // glazing
   'joint',                                                       // rim beads
+  // the ROD BOOM (G189): a bare 120 mm tube is not a skin to lace a ring
+  // into or screw a plate onto — what goes on it is a CLAMP, and the rod
+  // placer (_cage_access.js rodSite) puts those there. Without this the
+  // body placer walked the crown/keel chains down the tube and laced a
+  // 130 mm inspection ring into a pipe.
+  'boomTube',
   'bulkhead', 'firewall', 'dash', 'dashFace', 'tube', 'woodFrame',
   'aluminium',
   'plywood', 'cloth', 'composite', 'toele',                      // interior

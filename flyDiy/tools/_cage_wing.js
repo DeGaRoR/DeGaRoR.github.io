@@ -54,6 +54,12 @@ if (typeof resolveSpec !== 'function' || typeof genFrame !== 'function' ||
 // the garage's @chordTip does.
 const TIP_KEYS = Object.keys(GEN_TIPS);
 const FLAP_KEYS = Object.keys(GEN_FLAPS);
+// G189: the lamp bay's edges as loft stations — the join's cageWingCuts,
+// the same arithmetic off the same declaration, so the drawn loft and the
+// flown loft have the same rows (see the join's note)
+const wingCutsOf = P => (typeof CAGE_JOIN_WING_CUTS === 'function')
+  ? CAGE_JOIN_WING_CUTS(P)
+  : (window.CAGE_JOIN_WING_CUTS ? window.CAGE_JOIN_WING_CUTS(P) : null);
 PAGE.defaults = Object.assign({
   // G140: wgSweep is RETIRED — the planform is three stations now (root,
   // crank, tip), each with a chord and a fore/aft offset in metres. The
@@ -402,6 +408,9 @@ PAGE.post = ctx => {
       crankX: P.wgCrankAt > 0 ? (+P.wgCrankX || 0) : null,
       dihedralOut: P.wgCrankAt > 0 ? P.wgDihedralOut : null,
       centre: ['solid', 'glass', 'open'][Math.round(P.wgCentre)] || 'solid',
+      // G189: the lamp bay's two edges as loft stations, so the cut is the
+      // width asked for (the same declaration the bay below resolves)
+      cuts: wingCutsOf(P),
     }],
     bracing: { type: Math.round(P.wgBrace) ? 'cantilever' : 'strut' },
     controls: {
@@ -634,11 +643,14 @@ PAGE.post = ctx => {
     }
     const rows = [...seen.values()].sort((x, y) => x - y);
     if (!rows.length) return null;
-    // the row nearest the declared station, plus its neighbours out to the
-    // declared half-width — at least one row, so the bay is never empty
+    // the rows inside the declared band — at least one row, so the bay is
+    // never empty. Since G189 the loft cuts a row at each EDGE of the band
+    // (`cuts` on the wing spec, from this same declaration), so the face
+    // rows between them are the band and nothing outside it: the width is
+    // the width asked for, not the nearest whole loft strip.
     let best = rows[0];
     for (const r of rows) if (Math.abs(r - bayZ) < Math.abs(best - bayZ)) best = r;
-    const keep = rows.filter(r => Math.abs(r - best) <= BAY.half + 1e-6);
+    const keep = rows.filter(r => Math.abs(r - bayZ) <= BAY.half + 1e-6);
     const use = keep.length ? keep : [best];
     // THE STATION IT ACTUALLY SNAPPED TO, not the one it was asked for. The
     // light layer puts a lamp behind this bay and has to use the row the cut

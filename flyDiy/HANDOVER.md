@@ -30472,3 +30472,104 @@ UltraLight3 as a fixture (GATE TAKEOFF will fly it, G18x); `launch.json`
 gained `flydiy-playtest` (8330). Gates: ENGID, PARTS (its two reds are the
 biplane session's in-flight rows, told), UISMOKE, ENERGY, SAVE, STARTER,
 SKINMAT, TREE.
+
+## G189 — THE PLAYTEST PASS, PHASE 2: THE TAPER EATS THE BOOM, THE ROD GETS
+## CLAMPS, THE DOTS FIND BOTH BOOMS, THE LAMP BAY CUTS ITS OWN ROWS, THE TANK
+## GETS LEGS (2026-09-05; the geometry phase of the UltraLight3 review)
+
+**1. The taper carved out of the rod boom (the user: "the taper section
+should rather eat into the length of the boom than adding length to the
+plane. It's mostly used for struts to the rod boom, and the rod still goes
+to the aft bulkhead").** cageResolve appended `taperLen` behind the aft
+bulkhead whatever the boom style, so on a rod the truss pushed the tail
+aft by its own length while wrapping a tube that ran from the bulkhead
+anyway. Now `zTaperA = zPaxA - (TAP && !S.rod ? TAP.len : 0)`: on a rod
+the truss is the boom's first stretch, zPost and zCap sit where boomLen
+alone puts them, and the spec clamps `taperLen <= boomLen - 0.3` so the
+collar always has bare tube behind it. A LOFTED taper still adds its length
+(user ruling: rod only). `genAccessNeedsCage`'s tailArm drops the taper
+term on a rod for the same reason.
+  - THE MIGRATION: GEN_SPEC_V 7 -> 8, `GEN_MIGRATORS[7]` — a v7 save with
+    boomStyle 1, no twin and taperOn carries taperLen into boomLen, so the
+    tube it was drawn with is the tube it loads with (the user's file:
+    2.99 + 1.46 -> 4.45 m, measured in the page). Absent keys read as the
+    cage defaults, which the core cannot see: they are pinned in
+    `GEN_MIGRATE_CAGE_DEFAULTS` and GATE PARTS asserts them against
+    `cageDefaults()`. GATE BUILD walks the lift on four shapes (rod,
+    lofted, twin, absent keys). The gate's "shrink theorem" learned that
+    fat is a VINTAGE, not a key count: the ultralight is a v7 file with 121
+    honest deviations and re-saves to 121.
+
+**2. Fittings on the rod (the user: "the fittings should be adapted to rod
+boom").** The rod's tube is emitted with the surface field's full
+annotations and its crown/keel centre columns, so the body placer walked
+the chains down a 150 mm pipe and laced a 130 mm inspection ring into it.
+Three changes, one per layer of the mechanism: `boomTube` joined
+`NOT_SKIN` (the body placer refuses the tube); the requirement record
+carries `rod: {from, len, r}` on a rod build and the table's rows pick
+their SURFACE per aeroplane (`on` may be a function — `genAccessList`
+resolves it): the tail inspection ring is not needed at all (nothing
+inside a tube to inspect), and the tail tie-down, the beacon and the two
+aerials say `on: 'rod'` with stations along the tube; and a fourth placer,
+`rodSite` (FIT_SURFACES.rod), puts each of those on the tube's crown or
+keel at its station, drawing a split collar with two clamp lugs into the
+metal bag under whatever the row's own form is. Measured on the
+ultralight: beacon and tail tie-down `@rod/boomTube`, nothing laced into
+the tube. GATE FIT's `runRod` pins the table's answers.
+
+**3. The dots on the twin boom and the cowl (the user: "the control dots on
+Cowl and fins/tips seem to get confused with double boom").** Two host
+bugs and one missing table. `pinLayer` returned the FIRST child called
+`cageLayer:fin` — on a twin boom that is the clone at -boomX, so the pin
+lit the port fin only; and it returned the cowl's identity ROOT, under
+which every engine unit sits in its own same-named group carrying the
+face offset and the pusher's π turn, so cowl pins drew at the aeroplane's
+origin. `pinLayers` now returns every host wearing the name, descending
+into same-named children, and `pinBuild` places the point set in each
+(the same LOCAL points: a clone's frame is the original's mirrored, a
+unit's is its own face). Measured: both fins at ±1.2 m take the tip pin,
+32 cowl pins across both nacelles at their own height. And the boom rows
+had no pins at all: `boomX/boomLen/boomD/boomTaper` (off CAGE_BOOMS, scene
+metres) and `rodY/rodD/taperLen` (off the cage's own resolve, scaled) now
+pin the tube ends and the collar, hosted on the mount itself (`root`).
+
+**4. The lamp bay cuts its own rows (the user: "the lights within the
+wings are now constrained to 1 spar length, it's too much, we should be
+able to set it up much narrower, even if that means adding loop cuts to
+the wing").** G96 snapped the bay to the loft's existing spanwise rows,
+which are `(semi - zRoot) / (panels × GEN_WSEG)` apart — 0.75 m on this
+wing — so every half-width under a strip gave the same one-strip hole.
+The wing spec gained `cuts` (spanwise stations the loft must put a row
+at; clamped to inside the semispan, at most four), 63_gen_wing's station
+list honours them (a cut within 30 mm of an existing row snaps to it), and
+the bay's two edges are those cuts — ONE arithmetic, `cageWingCuts` in the
+join (the flown loft) and `wingCutsOf` in the wing layer (the drawn loft),
+off the same declaration. The bay now keeps the rows INSIDE the band
+(`|r - bayZ| <= half`) rather than the neighbours of the nearest one.
+Measured: half-widths 0.05 / 0.17 / 0.40 give lens widths 0.10 / 0.34 /
+0.80 m. `li_bayHalf` floors at 0.04 and no longer says "snaps to ribs".
+GATE GEN asserts a row at each declared station and none without.
+
+**5. The tank's mount (the user: "a small mount for the fuel tank? Nothing
+crazy, but a small structure that links it to the surface it's attached
+to. Light, tubes.").** Two straps on rubber pads terminated on the tank and
+nothing reached the airframe. `VESSEL_MESH.mount(sol, dy)` builds, in the
+tank's own frame: under each strap two 6 mm legs from the strap's pad to
+the surface `dy` away — the section's keel when the tank stands, the deck
+above when it hangs (a nose tank in its band's upper half) — a cross tube
+between the feet a hand off the surface, and a foot plate where each leg
+lands; nothing when the tank already sits on the surface or the gap is
+not a mount's (over 0.6 m). The energy layer decides which surface
+(`tankMountDy`, off the placement's measured section) and places the
+buffer as it places every other slot, in the `hard` finish. GATE ENERGY
+measures the feet on the surface, standing and hung, and the two refusals.
+
+Verified in the page on the user's build: boomLen 2.99 -> 4.45 with the
+tube unchanged, the two rod fittings, `edVessel_0_mount`, the three lens
+widths, both fins' and both booms' pins. Gates: GEN (1309 s), JOIN, FIT,
+PARTS, ENERGY, BAY, LIGHT, SAVE, BUILD, TREE, SKINMAT, STARTER, DESIGN,
+WINGSPLIT, STRUT, ENERGYBASE, VIEW, UISMOKE. The Browser pane's page is
+HIDDEN in this session (`document.hidden`), which throttles rAF and stalls
+every rebuild: measurements ran off a `requestAnimationFrame` shim and a
+detached async script writing `window.__out`, polled afterwards — and
+`CAGE_UI.setParam` only writes P, `build()` has to follow it.

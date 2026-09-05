@@ -646,6 +646,38 @@ function runReach(mode) {
 }
 
 // ---------------------------------------------------------------------------
+// THE ROD BOOM'S ROWS (G189): a bare tube is not a skin. The requirement
+// record says `rod` on a rod build, the table then asks for NO inspection
+// ring on it and puts the tie-down, the beacon and the aerials ON THE ROD
+// (a surface with its own placer), at stations along the tube — and the
+// tube's material is refused by the body placer outright.
+// ---------------------------------------------------------------------------
+function runRod() {
+  const AC = ACC();
+  const D = G.cageDefaults();
+  const P = Object.assign({}, D, { boomStyle: 1 });
+  const R = AC.genAccessNeedsCage(P, { systems: 'ifr' });
+  check(!!R.rod && R.rod.len > 0.5 && R.rod.r > 0,
+    'rod: the requirement record carries the rod (from, len, r)');
+  const rows = AC.genAccessList(R);
+  const by = {}; for (const r of rows) by[r.key] = r;
+  check(!by.inspTail, 'rod: no inspection ring is laced into a tube');
+  for (const k of ['tieDownTail', 'beacon', 'navAerial', 'xpdrAerial']) {
+    check(!!by[k] && by[k].on === 'rod', 'rod: ' + k + ' is placed on the rod',
+      by[k] ? by[k].on : 'absent');
+    check(!!by[k] && by[k].at.sL > R.rod.from && by[k].at.sL < R.rod.from + R.rod.len,
+      'rod: ' + k + ' sits along the tube', by[k] ? by[k].at.sL.toFixed(2) : '-');
+  }
+  const R0 = AC.genAccessNeedsCage(D, { systems: 'ifr' });
+  const rows0 = AC.genAccessList(R0);
+  check(!R0.rod && rows0.some(r => r.key === 'inspTail') &&
+        rows0.every(r => r.on !== 'rod'),
+    'rod: a lofted boom keeps its rings and nothing is on a rod');
+  check(FS_.NOT_SKIN.has('boomTube'), 'rod: the body placer refuses the tube');
+}
+runRod();
+
+// ---------------------------------------------------------------------------
 if (SELFTEST) {
   const MODES = [
     ['onskin', 'a site 5 cm off the skin'],

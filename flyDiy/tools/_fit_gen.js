@@ -446,7 +446,10 @@ const FIT_BAGS = ['paint', 'metal', 'lens'];
 // A row on a surface with no placer is REPORTED unplaced, never dropped: an
 // aeroplane quietly missing its wing filler cap is the acceptance test failing
 // quietly, and quietly is how this gap survived two chantiers.
-const FIT_SURFACES = { body: true, wing: true, cowl: true };
+// ...and a fourth since G189: the ROD boom, a tube a fitting is CLAMPED to
+// rather than let into (placed by _cage_access.js rodSite — a split collar
+// under whatever the row's own form is).
+const FIT_SURFACES = { body: true, wing: true, cowl: true, rod: true };
 
 const API = { FORMS, FIT_BAGS, FIT_SURFACES, plateInto, fastenRing, at };
 if (typeof module !== 'undefined' && module.exports) module.exports = API;

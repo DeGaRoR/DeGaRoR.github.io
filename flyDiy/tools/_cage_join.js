@@ -58,6 +58,27 @@ const CAGE_JOIN_ENGINES = {
 const CAGE_JOIN_PROP_MATS = ['wood', 'wood', 'alu', 'carbon', 'carbon',
                              'carbon', 'maple', 'walnut'];
 
+// G189: THE LAMP BAY'S EDGES AS LOFT STATIONS. The light layer declares the
+// bay (station as a fraction of the semispan, half-width in metres) and the
+// wing layer cuts it; the flown loft has to carry the same two rows or the
+// bay it was drawn with is a strip wide again in flight. One arithmetic, in
+// the join (this) and the wing layer (wingCutsOf), off the same panel keys —
+// through CAGE_BAY_FROM_P when the light layer is loaded, its defaults when
+// a node gate builds without it. Null when no lamp is fitted (G98: the wing
+// is cut when the lamp is FITTED, not when it is switched on).
+function cageWingCuts(P) {
+  if (!P || !+P.lightOn) return null;
+  const B = (typeof window !== 'undefined' && window.CAGE_BAY_FROM_P)
+    ? window.CAGE_BAY_FROM_P(P)
+    : { frac: P.li_bayFrac != null ? +P.li_bayFrac : 0.24,
+        half: P.li_bayHalf != null ? +P.li_bayHalf : 0.17 };
+  const semi = 0.5 * (+P.wgSpan > 0 ? +P.wgSpan : 10);
+  const z = semi * B.frac, h = Math.max(0.02, B.half);
+  const cs = [z - h, z + h].filter(v => v > 0.05 && v < semi - 0.05);
+  return cs.length === 2 ? cs.map(v => +v.toFixed(4)) : null;
+}
+if (typeof window !== 'undefined') window.CAGE_JOIN_WING_CUTS = cageWingCuts;
+
 function cageJoinSpec(P, M, T) {
   M = M || {}; T = T || {};
   const cam = Math.round(P.wgCamber), thk = Math.round(P.wgThick);
@@ -84,6 +105,9 @@ function cageJoinSpec(P, M, T) {
       crankX: P.wgCrankAt > 0 ? (+P.wgCrankX || 0) : null,
       dihedralOut: P.wgCrankAt > 0 ? P.wgDihedralOut : null,
       centre: ['solid', 'glass', 'open'][Math.round(P.wgCentre)] || 'solid',
+      // G189: the lamp bay's edges as loft stations (null = none), the same
+      // arithmetic the wing layer uses, so the flown loft has the bay's rows
+      cuts: cageWingCuts(P),
       // THE WING'S OWN CONSTRUCTION (G116): 0 says nothing — absent means
       // the aeroplane's own material, which is what every build before this
       // field existed already meant. 1..4 in intCons's display order.
@@ -442,7 +466,7 @@ const VIEW_KEEP = {
 };
 
 if (typeof module !== 'undefined' && module.exports)
-  module.exports = { cageJoinSpec, CAGE_JOIN_ENGINES, CAGE_JOIN_PROP_MATS,
+  module.exports = { cageJoinSpec, cageWingCuts, CAGE_JOIN_ENGINES, CAGE_JOIN_PROP_MATS,
                      VIEW_STATE, VIEW_KEEP };
 
 // ---- browser glue: measurements + the button (game bundle only) ----

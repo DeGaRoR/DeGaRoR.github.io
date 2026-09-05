@@ -2357,6 +2357,46 @@ function editorInit(api) {
       const out = [], z = zf(C), N = n || 16;
       for (let i = 0; i < N; i++) {
         const p = C.surfPoint(i / N * Math.PI * 2, z);
+    // THE BOOMS AND THE ROD (G189): rows that move a tube, pinned at the
+    // tube's ends. These points are SCENE METRES and their host is the mount
+    // itself (`root`): the twin booms are published by the wing layer in
+    // scene metres (CAGE_BOOMS), and the rod's span comes off the cage's own
+    // resolve in cage units, scaled here.
+    const booms = fn => () => {
+      const B = window.CAGE_BOOMS;
+      return B ? fn(B) : [];
+    };
+    const boomEnds = booms(B => [[B.x, B.y, B.zRoot], [-B.x, B.y, B.zRoot],
+                                 [B.x, B.y, B.zTip], [-B.x, B.y, B.zTip]]);
+    PIN_ROW.boomX = { layer: 'root', fn: boomEnds };
+    PIN_ROW.boomLen = { layer: 'root',
+      fn: booms(B => [[B.x, B.y, B.zTip], [-B.x, B.y, B.zTip]]) };
+    PIN_ROW.boomD = { layer: 'root',
+      fn: booms(B => [[B.x, B.y + B.r0, B.zRoot], [-B.x, B.y + B.r0, B.zRoot],
+                      [B.x, B.y - B.r0, B.zRoot], [-B.x, B.y - B.r0, B.zRoot]]) };
+    PIN_ROW.boomTaper = { layer: 'root',
+      fn: booms(B => [[B.x, B.y + B.r1, B.zTip], [-B.x, B.y + B.r1, B.zTip],
+                      [B.x, B.y - B.r1, B.zTip], [-B.x, B.y - B.r1, B.zTip]]) };
+    const rod = fn => () => {
+      const C2 = window.CAGE2, P = window.CAGE_UI && window.CAGE_UI.P;
+      if (!C2 || !C2.cageSpec || !C2.cageResolve || !P) return [];
+      const S = C2.cageSpec(Object.assign({}, P));
+      if (!S.rod || S.rod.twin) return [];
+      const R = C2.cageResolve(S);
+      if (!R || !R.rodSpan) return [];
+      const FS = (C2.CAGE_UNIT || 1) * (P.planeScale || 1);
+      return fn(R.rodSpan, S.rod, S.taper || null).map(p => [p[0] * FS, p[1] * FS, p[2] * FS]);
+    };
+    PIN_ROW.rodY = { layer: 'root',
+      fn: rod((sp, r) => [[0, r.y, sp.zRoot], [0, r.y, sp.zTip]]) };
+    PIN_ROW.rodD = { layer: 'root',
+      fn: rod((sp, r) => [[0, r.y + r.r, sp.zRoot], [0, r.y - r.r, sp.zRoot],
+                          [0, r.y + r.r, sp.zTip], [0, r.y - r.r, sp.zTip]]) };
+    // the taper's welded collar: taperLen aft of the bulkhead on a rod, the
+    // taper pillar's station on a lofted boom
+    PIN_ROW.taperLen = { layer: 'root',
+      fn: rod((sp, r, t) => t ? [[0, r.y + r.r, sp.zRoot - t.len],
+                                 [0, r.y - r.r, sp.zRoot - t.len]] : []) };
         out.push([p[0], p[1], z]);
       }
       return out;
@@ -2482,7 +2522,15 @@ function editorInit(api) {
     m.userData.cageUni = 1;
     return m;
   }
-  const pinLayer = name => {
+  // EVERY HOST THAT WEARS THE NAME (G189). A twin-boom fin is two groups
+  // with one name (the second a clone at −boomX), and a cowl's units each
+  // sit in their own named group UNDER an identity root that wears the same
+  // name — so "the first child called cageLayer:fin" was the port fin only,
+  // and "the group called cageLayer:cowl" was the root with none of the
+  // unit's face offset or its π turn: the user's dots on the cowl and on
+  // the fins were on the wrong boom, or at the aeroplane's origin. A host
+  // whose own children carry the name yields to them.
+  const pinLayers = name => {
     const root = window.CAGE_UI_SCENE;
     if (!root) return null;
     for (const c of root.children)
@@ -2532,12 +2580,13 @@ function editorInit(api) {
   }
   function pinBuild(key) {
     pinClear();
+      if (spec.layer === 'root') return spec.fn ? spec.fn() : [];
     pinKey = key || null;
     if (!pinKey || typeof THREE === 'undefined') return;
     const spec = PIN_ROW[pinKey];
     if (!spec) return;
-    const host = pinLayer(spec.layer);
-    if (!host) return;
+    const hosts = pinLayers(spec.layer);
+    if (!hosts.length) return;
     const pts = pinPoints(spec);
     if (!pts.length) return;
     if (!pinGeo) pinGeo = new THREE.SphereGeometry(1, 12, 8);

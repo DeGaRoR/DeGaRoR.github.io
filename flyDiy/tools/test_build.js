@@ -563,7 +563,11 @@ function nullPaths(o, pre, out) {
     // G140: the shrink theorem is about FAT vintages (the 518-key snapshot
     // era). A fixture frozen slim — the swept v5, saved after the boundary
     // fix — has nothing to shrink; it must simply not grow.
-    if (fat > 120)
+    // G189: "fat" is a VINTAGE, not a key count. The user's ultralight is a
+    // v7 file with 121 honest deviations (every one of them off the
+    // template), and it re-saves to exactly 121 — so a post-boundary file
+    // takes the lean test whatever its size; only the snapshot era shrinks.
+    if (fat > 120 && !(spec.v >= 6))
       ok(thin < fat / 3, 'and the re-save is deviations, not a snapshot (' +
          fat + ' keys -> ' + thin + ')');
     else
@@ -619,10 +623,28 @@ function nullPaths(o, pre, out) {
   // spec's v upward, so the lift OUT OF 6 lives under 6. Filed under 7 it ran
   // on nothing at all, which is precisely the stray-or-lost entry this
   // assertion names the exact set to catch.
-  ok(MIG && typeof MIG === 'object' && Object.keys(MIG).join(',') === '5,6' &&
-     typeof MIG[5] === 'function' && typeof MIG[6] === 'function',
-     'the migrator table carries exactly v5->v6 (the wing stations) and ' +
-     'v6->v7 (the energy vessels)');
+  // ...and G189's, keyed 7: a rod boom's taper carved out of boomLen, so a
+  // v7 rod save keeps its tube (boomLen += taperLen).
+  ok(MIG && typeof MIG === 'object' && Object.keys(MIG).join(',') === '5,6,7' &&
+     typeof MIG[5] === 'function' && typeof MIG[6] === 'function' &&
+     typeof MIG[7] === 'function',
+     'the migrator table carries exactly v5->v6 (the wing stations), ' +
+     'v6->v7 (the energy vessels) and v7->v8 (the rod taper)');
+  // the v7->v8 lift itself, on the shape the user's file has: a rod with a
+  // 1.46 m taper and a 2.99 m boom keeps its 4.45 m tube; a lofted boom and
+  // a twin boom are left alone; absent keys read as the cage defaults
+  {
+    const up = c => C.genMigrateSpec({ v: 7, cage: c }).cage;
+    const r1 = up({ boomStyle: 1, taperOn: 1, taperLen: 1.46, boomLen: 2.99 });
+    ok(Math.abs(r1.boomLen - 4.45) < 1e-9, 'v7->v8: a rod save carries its taper into boomLen (2.99 -> ' + r1.boomLen + ')');
+    const r2 = up({ boomStyle: 0, taperOn: 1, taperLen: 1.0, boomLen: 3.0 });
+    ok(r2.boomLen === 3.0, 'v7->v8: a lofted taper is left alone');
+    const r3 = up({ boomStyle: 1, boomTwin: 1, taperOn: 1, taperLen: 1.0, boomLen: 3.0 });
+    ok(r3.boomLen === 3.0, 'v7->v8: twin booms are left alone');
+    const D = C.GEN_MIGRATE_CAGE_DEFAULTS, r4 = up({ boomStyle: 1, taperOn: 1 });
+    ok(Math.abs(r4.boomLen - (D.boomLen + D.taperLen)) < 1e-3,   // the lift rounds to 4 places
+       'v7->v8: absent keys read as the cage defaults (' + r4.boomLen + ')');
+  }
   const ran = [];
   MIG[3] = s => { ran.push(3); if (s.oldName) s.newName = s.oldName; return s; };
   MIG[4] = s => { ran.push(4); return s; };

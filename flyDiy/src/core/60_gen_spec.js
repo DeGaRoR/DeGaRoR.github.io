@@ -528,7 +528,9 @@ const GEN_ACCESS = {
     // meet round the back. Measured: on the rod build the port and starboard
     // rings landed 112 mm apart and needed 150. The narrow case puts its one
     // ring underneath, which is where you would actually cut it.
-    need: R => R.material === 'carbon' ? 0 : (R.tailHalfW < 0.16 ? 1 : 2),
+    // ...AND NONE AT ALL ON A ROD (G189): a bare tube has no fabric to lace
+    // a ring into and nothing inside it to inspect — the cables run outside.
+    need: R => (R.material === 'carbon' || R.rod) ? 0 : (R.tailHalfW < 0.16 ? 1 : 2),
     at: R => ({ sL: R.tailArm * 0.86,
                 lv: R.tailHalfW < 0.16 ? 'keel' : 1.7 }),
     snap: 'bay', side: R => R.tailHalfW < 0.16 ? 'centre' : 'both',
@@ -621,7 +623,12 @@ const GEN_ACCESS = {
     name: 'Nav aerial',
     serves: 'the VOR receiver',
     need: R => R.systems === 'ifr' ? 1 : 0,
-    at: R => ({ sL: R.tailArm * 0.55, lv: 'crown' }),
+    // ON A ROD (G189) it is clamped to the tube's crown, a third of the way
+    // down it — `on` picks the surface per aeroplane, and the rod placer
+    // puts a split collar under whatever form the row draws
+    on: R => R.rod ? 'rod' : 'body',
+    at: R => R.rod ? { sL: R.rod.from + R.rod.len * 0.35, lv: 'crown' }
+                   : { sL: R.tailArm * 0.55, lv: 'crown' },
     snap: 'ring', side: 'centre',
     // `foot` is what it OCCUPIES, which is not what it spans. The wire runs
     // 1.2 m aft to the fin and passes clean over anything under it, so
@@ -642,8 +649,10 @@ const GEN_ACCESS = {
     // cabin instead, it is clear of the drain on every fuselage, and it is
     // also where a real one is: under the baggage bay, behind the spar.
     need: R => R.systems === 'ifr' ? 1 : 0,
-    at: R => ({ sL: R.cabinAft + (R.tailArm - R.cabinAft) * 0.18,
-                lv: 'keel' }),
+    on: R => R.rod ? 'rod' : 'body',          // G189: clamped under the tube
+    at: R => R.rod ? { sL: R.rod.from + R.rod.len * 0.18, lv: 'keel' }
+                   : { sL: R.cabinAft + (R.tailArm - R.cabinAft) * 0.18,
+                       lv: 'keel' },
     snap: 'bay', side: 'centre',
     form: 'bladeAerial', size: { h: 0.075, c: 0.050, t: 0.008 },
   },
@@ -661,8 +670,10 @@ const GEN_ACCESS = {
     // on a short-coupled aeroplane, where the roof is glazed and the fitting
     // is refused. Measured from the back of the cabin to the tailpost it is
     // always on the turtledeck, which is where a beacon goes.
-    at: R => ({ sL: R.cabinAft + (R.tailArm - R.cabinAft) * 0.60,
-                lv: 'crown' }),
+    on: R => R.rod ? 'rod' : 'body',          // G189: clamped on the tube
+    at: R => R.rod ? { sL: R.rod.from + R.rod.len * 0.60, lv: 'crown' }
+                   : { sL: R.cabinAft + (R.tailArm - R.cabinAft) * 0.60,
+                       lv: 'crown' },
     snap: 'free', side: 'centre',
     form: 'lightBeacon', size: { d: 0.062, h: 0.055 },
   },
@@ -712,7 +723,11 @@ const GEN_ACCESS = {
     // declared limit of GATE FIT: it checks fittings against the SKIN and
     // against each other, and knows nothing about the gear, engine or tail
     // layers. Cross-layer clearance is not solved here.
-    at: R => ({ sL: R.tailArm * 0.86, lv: 'keel' }),
+    // ON A ROD (G189) the ring hangs off a clamp on the tube's underside,
+    // forward of the tailwheel's own clamp
+    on: R => R.rod ? 'rod' : 'body',
+    at: R => R.rod ? { sL: R.rod.from + R.rod.len * 0.80, lv: 'keel' }
+                   : { sL: R.tailArm * 0.86, lv: 'keel' },
     snap: 'ring', side: 'centre',
     form: 'ringTiedown', size: { d: 0.044, t: 0.008 },
   },
@@ -758,6 +773,9 @@ function genAccessNeeds(S) {
     // reading it as a single object is how this row silently answered "no
     // wing" for every aeroplane ever built.
     wing:      !!(S.wings && S.wings.length),
+    // the game spec carries no rod flag (a rod boom's fittings are the
+    // editor's own bake, through genAccessNeedsCage); this door never has one
+    rod:       null,
     // the geometry the placement rules need, in metres on the skin
     tailArm:   need(f.tailArm, 4.0),
     // the section at the tailpost, which decides whether two inspection rings
@@ -813,12 +831,23 @@ function genAccessNeedsCage(P, extra) {
     // the boom's run are parameters the panel already has, so a short
     // aeroplane gets its fittings closer together — which is the whole reason
     // the rules are metric rather than fractions of anything.
+    // G189: on a ROD the taper is carved out of boomLen (the truss wraps the
+    // tube's first stretch), so it adds nothing here either
     tailArm:   (P.pilotLen || 1.6) + (P.paxLen || 0) * bays
-               + (+P.taperOn ? (P.taperLen || 0) : 0) + (P.boomLen || 2.2),
+               + (+P.taperOn && +P.boomStyle !== 1 ? (P.taperLen || 0) : 0)
+               + (P.boomLen || 2.2),
     cabinAft:  (P.pilotLen || 1.6) + 0.45,
     // a ROD boom is its own diameter; a lofted tail cone is its half-width
     tailHalfW: (+P.boomStyle === 1) ? (P.rodD || 0.18) * 0.5
                                     : (P.tailHalfW == null ? 0.10 : P.tailHalfW),
+    // THE ROD (G189): a bare tube from the aft bulkhead to the tail, and the
+    // rows that live on it say so through `on`. `from` is the bulkhead's
+    // station in the same tape arithmetic tailArm uses; `len` the tube's run.
+    rod: (+P.boomStyle === 1 && !+P.boomTwin)
+      ? (() => { const from = (P.pilotLen || 1.6) + (P.paxLen || 0) * bays;
+                 return { from, len: Math.max(0.5, (P.boomLen || 2.2)),
+                          r: (P.rodD || 0.12) * 0.5 }; })()
+      : null,
     semispan:  (P.wgSpan || 10) * 0.5,
     deckArc:   deck * 0.94,
     keelArc:   keel * 0.94,
@@ -849,7 +878,8 @@ function genAccessList(R) {
       key, n, at,
       name:   row.name,
       serves: row.serves,
-      on:     row.on || 'body',
+      // G189: a row may pick its SURFACE per aeroplane (the rod boom)
+      on:     typeof row.on === 'function' ? (row.on(R) || 'body') : (row.on || 'body'),
       snap:   row.snap || 'free',
       side:   typeof row.side === 'function' ? row.side(R) : (row.side || 'both'),
       form:   typeof row.form === 'function' ? row.form(R) : row.form,
@@ -1477,7 +1507,14 @@ const GEN_RULES = {
 // crankX / tipX (null = derived from sweep/taper exactly as v5 did), the
 // cage retired wgSweep, and GEN_MIGRATORS[5] lifts a save's stored angle
 // into the offsets. The v5 fixture that proves it: build_v5_swept_*.json.
-const GEN_SPEC_V = 7;
+// v7 -> v8 (G189): on a ROD boom the taper section stopped ADDING its length
+// and now lives inside boomLen, so a saved rod build keeps its tube by
+// carrying taperLen over into boomLen — GEN_MIGRATORS[7]. The two cage
+// defaults it needs are pinned in GEN_MIGRATE_CAGE_DEFAULTS and asserted
+// against cageDefaults() by GATE PARTS, because the core cannot read the
+// cage's own table.
+const GEN_SPEC_V = 8;
+const GEN_MIGRATE_CAGE_DEFAULTS = { boomLen: 3.983966, taperLen: 0.6 };
 
 // { fromVersion: spec => spec } — each entry lifts a spec one version. May
 // mutate and return its argument. Runs BEFORE normalisation, on the raw shape
@@ -1534,7 +1571,25 @@ const GEN_MIGRATORS = {
   // migrated vessel is given the station those nodes are AT — explicitly, in
   // the spec, where it can be read — rather than a bay midpoint that would
   // look reasonable and quietly move a Cub's twelve gallons half a metre aft.
-  6: S => genEnergyLift(S),};
+  6: S => genEnergyLift(S),
+  // 7 -> 8 (G189): the rod boom's taper is carved out of boomLen now (the
+  // truss wraps the tube's first stretch instead of pushing the tail aft),
+  // so a save that had both keeps the tube it was drawn with: taperLen
+  // rides into boomLen. Absent keys are the cage defaults (pinned above);
+  // a lofted taper still adds its length and is left alone; twin booms
+  // never had a rod taper. Only the CAGE moves — the spec's own tailArm is
+  // re-measured by the join off the drawn tube, which is now the same tube.
+  7: r => {
+    const c = r && r.cage;
+    if (!c || typeof c !== 'object') return r;
+    if (+c.boomStyle === 1 && !+c.boomTwin && +c.taperOn) {
+      const D = GEN_MIGRATE_CAGE_DEFAULTS;
+      const bl = c.boomLen == null ? D.boomLen : +c.boomLen;
+      const tl = c.taperLen == null ? D.taperLen : +c.taperLen;
+      if (isFinite(bl) && isFinite(tl)) c.boomLen = +Math.min(6.0, bl + tl).toFixed(4);
+    }
+    return r;
+  },};
 
 function genMigrateSpec(r) {
   if (!r || typeof r !== 'object') return r;
@@ -1958,6 +2013,11 @@ const GEN_DEFAULT = {
             // Null = derived from sweep/taper exactly as v5 did — `sweep`
             // stays the legacy input; these are the honest model.
             crankChord: null, crankX: null, tipX: null,
+            // EXTRA LOFT STATIONS (G189): spanwise metres from the centreline
+            // where the covering must have a row — the lamp bay's two edges,
+            // so a narrow bay is cut on its own geometry. Null = none.
+            // Display topology only: spars, ribs and node weights ignore it.
+            cuts: null,
             // THE CENTRE SECTION: what happens where a high wing's carry-through
             // crosses the cabin roof. 'solid' covers it, 'glass' makes the wing
             // itself the roof and you look up into it (a Cub's centre section),
@@ -2551,6 +2611,15 @@ function clampSpec(spec) {
       w.crankChord = genClamp(w.crankChord, 0.55, 2.10);
     if (w.tipX != null) w.tipX = genClamp(w.tipX, -reach, reach);
     if (w.crankX != null) w.crankX = genClamp(w.crankX, -reach, reach);
+    // G189: loft cuts are finite stations strictly inside the semispan,
+    // sorted, at most four; anything else is no cut at all
+    if (w.cuts != null) {
+      const semi = 0.5 * w.span;
+      const cs = (Array.isArray(w.cuts) ? w.cuts : [])
+        .map(Number).filter(z => isFinite(z) && z > 0.05 && z < semi - 0.05)
+        .sort((a, b) => a - b).slice(0, 4);
+      w.cuts = cs.length ? cs : null;
+    }
     // a crank field without a crank is a claim about a station that does
     // not exist — nulled, same rule as dihedralOut's "left alone" line
     if (!(w.crankAt > 0)) { w.crankChord = null; w.crankX = null; }
