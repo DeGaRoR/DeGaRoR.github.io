@@ -31216,3 +31216,29 @@ logged), `hud()`/`loop()` never ran, and the splash stayed up for ever —
 the game would not open on that machine until localStorage was cleared.
 Pre-existing (HEAD has the same line), caught here because the test origin
 had that preference saved. `drawMap` now returns without a sim.
+
+## G194.1 — THE STAGING TRAP: ZERO-CONTEXT HUNKS LAND AT THE WORKING TREE'S
+## LINE NUMBERS (2026-09-05, found by building HEAD in a clean worktree)
+
+Six sessions share one working tree, so each commit is "HEAD + my hunks".
+For G189/G190/G193-G194 my hunks were staged with `git apply --cached
+--unidiff-zero` from a `git diff -U0` of the working tree. With NO context
+lines git has nothing to match, so it placed each hunk at the working
+tree's line number — in an index that lacked the peers' unstaged hunks
+above it. Every commit LOOKED complete (the diff --cached carried the right
+lines) and `node --check` passed, and HEAD was broken in seven places: the
+join's `sense` in the gear block (`mk` undefined), the solver's lever reset
+inside the strip loop, the frame's `engIdx` in a nested brace, the JOIN
+gate's block outside its `try`, engAt's map without its `(e, i)`,
+loadSpec's fifth argument, setMode's `hide()` spliced apart from its `if`,
+the G190 seed block in the wrong function, and a peer's untracked
+`_cage_brace.js` in the parts gate's require list. Fixed as 40800d5,
+837aac1, 0617679, 611a68b, bf6396d, 5202174 (three sessions).
+
+THE RULE: stage HEAD + EXACT EDITS (`reapply.js`: the HEAD blob, an ordered
+list of [old, new] strings that must each match once, `hash-object` +
+`update-index`), into a TEMPORARY index (`GIT_INDEX_FILE`) so a peer's
+concurrent staging cannot drop yours, and VERIFY THE COMMIT, not the tree:
+`git worktree add --detach <tmp> HEAD`, build there, run the gates there.
+The working tree passing proves nothing about HEAD while anyone holds
+unstaged hunks. Never `-U0` hunks; never the shared index for the commit.
