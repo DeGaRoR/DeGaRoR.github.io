@@ -31,6 +31,10 @@ validation anchors, and the roadmap.
 5. The GARAGE aircraft (`gen`) is GENERATED: its numbers move when the spec
    does. Never hand-edit its anchors — re-read them off GATE GEN's own
    SHAKEDOWN line. See THE GARAGE.
+6. COMMITTING FROM THE SHARED TREE (2026-09-05): read `docs/SHARED-TREE-
+   PRACTICES.md` first — HEAD + exact edits into a temporary index, prove the
+   commit from a clean worktree, never a bare `git commit`. Four commits
+   landed hunks at the wrong offset the day it was written.
 
 ## FILES
 Everything under `src/` is SOURCE. `tools/flight_core.js`, `index.html`,
@@ -31282,3 +31286,187 @@ part selection and go stale across a birth (the powertrain tile still lit
 the previous build's family until the part was re-selected — a screenshot
 trap first, a UI nit second); and the legacy bench page `_engine.html` has
 no cowl, so its PT6 is bare by design.
+
+## G188 — THE PAWNEE: FOUR MEASUREMENTS THAT NEVER REACHED THE FRAME, AND
+## THE POD THAT COULD NOT BE MEASURED (2026-09-05, the user, with a flight
+## screenshot of a mirrored-pod build: "the nose part and the engine part
+## ... does not work · the wings are not at the right level · the boom is
+## really screwed up, feels like an artifact from the twin boom · the wheel
+## stations do not match ... fixing that plane is not the ultimate goal,
+## fixing our physics and our generators is")
+
+**THE INSTRUMENT FIRST.** `CAGE_JOIN.fitReport` (G52/G54.2) on the build
+loaded in dev.html, before anything was touched — every symptom is a row:
+
+| row | frame | visual |
+|---|---|---|
+| wing LE @ outboard | −0.20 | −1.06 |
+| extent fwd (mount vs spinner) | −0.42 | −2.14 |
+| extent aft (post vs rudder TE) | 6.33 | 3.47 |
+| boom belly @ mid | 0.38 | −0.15 |
+| SETTLED TW over ground (want 0) | | 1.02 |
+
+The frame's tail post stood at 4.40 m, the tailwheel at 3.11 m, the stab and
+fin at 6.33 m — three stations that coincide on a taildragger spread over
+3.2 m — and the physics aeroplane had tipped onto its nose (the tailwheel a
+metre in the air) because its mains were 2.4 m behind the drawn ones.
+
+**FIVE CAUSES, ALL GLOBAL, NONE OF THEM THE PAWNEE'S.** The build is only
+special in four ways (mirrored canopy, long pre-cowl nose, short boom, low
+wing with top struts), and each way walked into a door every build passes:
+
+1. **The third wheel was classified by LATERAL OFFSET.** Four classifiers
+   (the gear layer's sides and wheel kinds, the join's `mains`/`single`, the
+   join's `gearX`/`gearY` means, the visual snapshot's calibration) all read
+   "single" as `st.x <= 0.01`. This build's tailwheel row carries `s2X 0.1`
+   (drawn on the centreline regardless — a tailwheel builder ignores x), so
+   the tailwheel was a PAIR OF MAINS to every one of them: the mains'
+   station became the mean of four contacts (0.96 m instead of −1.42 m),
+   `gearType` fell to its default, and no single wheel was ever measured —
+   `twX`/`twY` stayed stale from an earlier export. The station's IDENTITY
+   is the classifier now: `gearStations` flags row 2 `single`, and every
+   reader takes `st.single` (the offset reading survives only for contacts
+   without the flag). GATE GEAR pins it.
+
+2. **A MIRRORED POD NAMES NO AFT PILLAR AND NO TAIL POST.** `cageResolve`'s
+   table stops at `pilCabB` in mirror mode — "the tail stack, pax machinery
+   and aft shoulder never exist"; buildCage2 reflects the front half and
+   marches the boom aft from the reflected aperture. The join measured the
+   cabin length off `pilPaxA`, the post gap, the tail section, the boom
+   profile AND all eight tail rows off `tailPost`, every one gated on
+   `zPost != null` — so on a pod NONE of them was ever taken, and `merge`'s
+   declared hazard ("a key the join writes only when it can measure keeps
+   its previous value") handed the frame a stab station, a fin chord and a
+   nine-row boom profile from an earlier, longer state of the same build.
+   That is the "twin-boom artifact": a 6.3 m stab on a 3.1 m aeroplane.
+   Now: `cageResolve` publishes `pod: { zCabA, zCabB }` for a mirrored spec
+   (the aft end of the full section is the REFLECTED WINDSCREEN BASE,
+   placed with buildCage2's own reflection constant, the aft override spec
+   resolved when there is one); the join takes the post as `AF.z0 +
+   tailLen·FS` when no ring names it (exactly where the regular table puts
+   its own: zCap = zPost − tail.len — a ROD boom gets the same fallback, so
+   its tail section is measured from now on too); and a pillar or third
+   wheel that still cannot be located is an ERRS line (G64's rule), never
+   a silent stale number.
+
+3. **resolveSpec OVERRODE MEASURED STATIONS WITH DESIGN RULES AND CLAMPS.**
+   `tailArm = max(tailArm, boxRear + 0.9·chord)` is the derived arm's floor
+   and stretched a measured 3.11 m boom to 4.05 m (auto-only now, a 0.30 m
+   bay otherwise); `xLE ≥ −0.20` cut a wing drawn under the nose at −1.12
+   (−2.50 now); `gear.x ≥ −0.50` cut the mains at −1.42 (−3.00 now) — and
+   because the visual is calibrated wheels-to-axles, THAT clamp shifted the
+   whole drawn aeroplane 0.93 m aft of the frame on every row of the report;
+   `postGap ≥ 0.35` stood the post 0.22 m behind the tail (0.08 now);
+   `cab.halfW ≥ 0.28`, `cab.len ≥ 0.60`, `noseGap ≥ 0.40` and
+   `engines[].x ≥ −1.0` each bit a scaled-down pod (0.18 / 0.30 / 0.20 /
+   −3.0 now). The rule: a clamp is a GEOMETRIC envelope; the balance is the
+   plaque's to judge.
+
+4. **THE NOSE ENGINE WAS NEVER MEASURED.** The join wrote `x/y/z` for every
+   mount but the nose, and the frame hung a nose engine at
+   −(0.18 + 0.32·propR) whatever nose was drawn in front of it: on this
+   build the powerplant's mass sat 1.56 m aft of its cowl. The join writes
+   the drawn station for the nose too (x/y, no z); resolveSpec moves
+   `engX`/`engY` onto it so the frame, the cowl loft, the nose gear and
+   `engAt` share the one fact.
+
+5. **THE WING'S HEIGHT WAS THREE FORMULAS AND NO MEASUREMENT.** The frame
+   seated a low wing at `−wingStandoff` (0.10 m BELOW the keel), the cage's
+   wing layer at 22 % up the section, resolveSpec's `engAt` at 0.22·cab.h —
+   0.24 m apart on this build, 0.4 m on a full-height cabin, on EVERY
+   low-wing build; mid and high had their own pairs. The join measures the
+   root chord line over the keel off the wing layer's anchor (+ the up/down
+   row) into `wings[0].y` (new, nullable, no GEN_SPEC_V bump — a null keeps
+   the position's rule to the bit); the frame and `engAt` take it.
+
+**THE SAME REPORT, AFTER.** wing LE −1.12 / −1.11 · fin apex 1.96 / 1.91 ·
+extent aft 3.35 / 3.43 · boom belly 0.18 / 0.12 · IDENT TW x 3.35 / 3.35,
+mains y −0.47 / −0.47 · STANCE 7.31 / 7.31 · SETTLED TW and mains on the
+ground · settled pitch vs predicted −0.15°. The overlay in the flight view
+sits on the aeroplane. The plaque now says what was drawn: static margin
+−0.25 (cg −0.06, np −0.44 — a wing 1.1 m ahead of the firewall with a 3 m
+tail arm), which is the builder's to fix, not the generator's.
+
+**ONE MEASURED NON-ISSUE.** The engine 2 m ahead on six bearer members: a
+first instrument read 27 cm of sag at rest and it was the THREE-POINT STANCE
+rotation (2 m × sin 7.3°) — G54.2's own trap, again. In the body frame the
+bearer sags 1 mm on the default nose, 10 mm at 2 m, 6 mm on the pawnee. No
+nose structure is owed for stiffness.
+
+**GATES.** JOIN +15 rows (every door above, held open through cageJoinSpec →
+resolveSpec → genFrame, plus the pod anatomy off `cageResolve`), GEAR +1
+(row 2 is single whatever its offset). GEN 73/73, JOIN, GEAR green; the
+full battery ran after (see the session's last log line).
+
+**OWED.** (a) The merge hazard is still a hazard for any measurement not on
+the ERRS list — the honest fix is the join writing `null` for a measured-
+only key it could not take (null = derived), which reverses G63's "last
+good number" ruling; the user's call. (b) A 1.4 m drawn nose carries no
+covering or structure mass in the frame (the ENG pair hangs on the firewall
+ring, the cowl mass is priced off `noseGap`). (c) The fit report's "boom
+deck @ mid" reads the fin layer's dorsal strip as deck on this build
+(+0.21) — cosmetic. (d) The rod boom's tail section is now measured on its
+next export — expected, but a rod build's physics will move by it.
+
+### G194 FIX-UPS (2026-09-05, three commits after G188): the G193-G194 commit
+### (32441ba) had landed four of its hunks at the wrong offset — the join's
+### `sense:` block inside the gear fairing comment, the frame's `engIdx`
+### definition inside the twin-boom fin loop, the hand-and-levers checks
+### outside the mount try-block, and `engAt`'s map missing its `(e, i)`. The
+### WORKING COPY was right throughout; only the committed tree was red at
+### GATE JOIN ("mk / engIdx / MW / i is not defined"). Moved back where the
+### working copy has them, verified in a throwaway worktree of HEAD (JOIN,
+### GEAR, TAKEOFF, SITE green). Lesson for every session committing from the
+### shared tree by hunk: build the commit's tree in a WORKTREE and run the
+### gates on THAT, not on the working copy — the working copy carries every
+### session's hunks and will pass for reasons the commit does not have.
+
+## G194.1 — THE STAGING TRAP: ZERO-CONTEXT HUNKS LAND AT THE WORKING TREE'S
+## LINE NUMBERS (2026-09-05, found by building HEAD in a clean worktree)
+
+Six sessions share one working tree, so each commit is "HEAD + my hunks".
+For G189/G190/G193-G194 my hunks were staged with `git apply --cached
+--unidiff-zero` from a `git diff -U0` of the working tree. With NO context
+lines git has nothing to match, so it placed each hunk at the working
+tree's line number — in an index that lacked the peers' unstaged hunks
+above it. Every commit LOOKED complete (the diff --cached carried the right
+lines) and `node --check` passed, and HEAD was broken in seven places: the
+join's `sense` in the gear block (`mk` undefined), the solver's lever reset
+inside the strip loop, the frame's `engIdx` in a nested brace, the JOIN
+gate's block outside its `try`, engAt's map without its `(e, i)`,
+loadSpec's fifth argument, setMode's `hide()` spliced apart from its `if`,
+the G190 seed block in the wrong function, and a peer's untracked
+`_cage_brace.js` in the parts gate's require list. Fixed as 40800d5,
+837aac1, 0617679, 611a68b, bf6396d, 5202174 (three sessions).
+
+THE RULE: stage HEAD + EXACT EDITS (`reapply.js`: the HEAD blob, an ordered
+list of [old, new] strings that must each match once, `hash-object` +
+`update-index`), into a TEMPORARY index (`GIT_INDEX_FILE`) so a peer's
+concurrent staging cannot drop yours, and VERIFY THE COMMIT, not the tree:
+`git worktree add --detach <tmp> HEAD`, build there, run the gates there.
+The working tree passing proves nothing about HEAD while anyone holds
+unstaged hunks. Never `-U0` hunks; never the shared index for the commit.
+
+**THE COMMITTED TREE, AS OF THE G190/G194 FIX-UPS (2026-09-05, this session
+ran the core battery on a clean worktree of HEAD):** JOIN, GEAR, BUILD,
+TAKEOFF, SITE green. GEN red on two rows that PASS on the working tree and
+FAIL on HEAD because the hunks they exercise are not committed: "wing loft
+cuts put a row at each declared station" (G189's row; `63_gen_wing.js`
+carries 129 uncommitted lines — the cuts code the row tests is among them
+or beside the biplane's) and "clampSpec holds the envelope" (its rigidity-
+rank term: the wild frame is a mechanism without the biplane arc's frame
+hunks in `61_gen_frame.js`/`60_gen_spec.js`). UISMOKE and SKINMAT were red
+at 611a68b: the first was `setMode ... hide` (the playtest session's 5202174
+put it back); the second was NOT a lost hunk — a fresh checkout is CRLF
+under core.autocrlf while the shared tree is LF, and the gate's source scans
+matched a bare newline (1a9a391 reads them as LF; see
+docs/SHARED-TREE-PRACTICES.md §5). The loft-cuts row landed as f204077.
+Owners of what remained: the biplane session (G185, whose landing its user
+holds). Nothing here is G188's — its rows and the whole battery were green
+on the working tree. **AND THEN GREEN ON HEAD:** after f204077 (loft cuts),
+1a9a391 (SKINMAT reads LF) and abf7c46 (the envelope row's net-of-fuel
+bound), the core battery on a clean worktree of 1a9a391 read 52 PASS, 0
+FAIL — the rigidity-rank term held without G185, so the earlier reading
+that it needed the biplane frame was wrong; the row had failed on the fuel
+bound. The biplane landing (b76f6fed, its user's call) is the one thing
+still only in the working tree.
