@@ -3234,7 +3234,7 @@ function resolveSpec(spec) {
   // at 0.45 of the cabin height; the over-the-wing engine 30 % of the chord
   // behind the leading edge, a pylon above the upper skin; a wing pair at
   // the front spar, 35 % of the way out from the root.
-  S.engAt = S.engines.map(e => {
+  S.engAt = S.engines.map((e, i) => {
     const m = e.mount || 'nose';
     const semi = 0.5 * w.span, zR = S.cab.halfW;
     const wingY = S.wing.y != null ? S.wing.y            // G188: as drawn
