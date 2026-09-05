@@ -1,5 +1,12 @@
 # SKIN-PROC — 3D model skinning over the soft-body sim
 
+> **2026-09-05 — the hand-written fleet retired.** The PA-18 skin this
+> document describes no longer flies; the codec it documents (50_model_codec:
+> makeSkinBinding, sparDeltas, hinges, the linkage) is what the CAGE VISUAL
+> of a garage build rides in app.js's buildModel, and GATE SKIN now holds the
+> generated build's rest frame alone. Read it for the runtime contract; the
+> pa18 fiche and `test_ctrl.js` it cites are gone.
+
 Status: **in trunk** (ported from the flexbody branch 2026-08, then extended
 with flaps + full interior). This is a working procedure, meant to be edited
 as the approach evolves. Sections marked ⚙ are the tunable decisions;

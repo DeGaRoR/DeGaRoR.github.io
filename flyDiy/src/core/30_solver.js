@@ -411,7 +411,8 @@ function makeSim(def, world) {
   }
 
   // G115: DEFDAMP is overridable per def — for the MEASUREMENT instrument
-  // (tools/_yaw_probe.js runs free-yaw decay at two settings), not for play.
+  // (the G115 yaw probe ran free-yaw decay at two settings; the probe
+  // retired with the fleet, 2026-09-05), not for play.
   // No fiche and no generated build sets it, so everything flies 0.5 as ever.
   const G = -9.81, DEFDAMP = def.params.defDamp ?? 0.5;
   // ground stiffness scales with node mass so light aircraft stay stable at the same dt

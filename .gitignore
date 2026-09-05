@@ -1,22 +1,35 @@
 __pycache__/
 battlebotsPWA/tools/engine.cjs
 
-# flyDiy: regenerable model-import intermediates.
-# assets/c172/ is produced from assetsSketchfab/free_cessna_172sp.glb (which IS
-# committed) by `python tools/glb_extract.py c172`; the baked payload
-# src/models/c172_model.js is committed. Contact sheets are scratch.
-flyDiy/assets/c172/
+# flyDiy: EXTERNAL ASSETS ARE NOT TRACKED (2026-09-05, user ruling). The
+# shipped store is flyDiy/media/ (every file baked by a tools/*_prep.* baker
+# and named by its manifest — GATE MEDIA holds it) plus the src/models and
+# src/props payloads. The raw third-party sets those bakers READ — Poly Haven
+# and ambientCG texture sets, the Sketchfab prop and aeroplane GLBs, the
+# extracted OBJ intermediates — are local inputs: ~500 MiB that a fresh clone
+# does not need to serve the game, and that CREDITS.md says where to re-fetch
+# from, listing by listing. Two source folders stay TRACKED on purpose:
+#   flyDiy/assets/pa18/             the PA-18 OBJ+MTL+textures — GPL source
+#                                   availability for the derived payload
+#   flyDiy/assets/jodel_structure/  the user's OWN hand-modelled Jodel
+#                                   structures (not external at all)
+flyDiy/assets/*
+!flyDiy/assets/pa18/
+!flyDiy/assets/jodel_structure/
+flyDiy/assetsSketchfab/
 flyDiy/tools/_glbview/
+# hand-made renderer probe pages at the flyDiy root (the tooled one,
+# tools/_probe.html, is listed below)
+flyDiy/_probe*.html
 # flyDiy renderer probe pages + the previous-commit viewer sources they measure
 # against: all written by `node tools/make_probe.js --base`.
 flyDiy/tools/_probe.html
 flyDiy/tools/_probe_base.html
 flyDiy/tools/_base_*.js
-# body loft prototypes: judge the fuselage topology before src/core is
-# rewritten around them. The CAGE family (tools/_cage_gen.js, _cage_ui.js,
-# _cage_fit.js, _cage2/_cage3.html, _cage_ref_*.obj) is TRACKED — it is the
-# fuselage rework's foundation (HANDOVER G12). Only the superseded first
-# demonstrator stays ignored.
+# body loft prototypes (2026-08): the first fuselage demonstrators, superseded
+# by the CAGE family (tools/_cage_gen.js, _cage_ui.js, _cage_fit.js,
+# _cage_ref_*.obj — TRACKED, HANDOVER G12). The bench pages _cage2..7.html
+# were deleted 2026-09-05; tools/_cage8.html is the one standalone bench.
 flyDiy/tools/_loft*.html
 flyDiy/tools/_wins*.html
 flyDiy/tools/_cage.html

@@ -33,7 +33,8 @@ function genProbeAt(sim, V, a) {
 // WEATHERVANE STIFFNESS is the slope — normalised to Cn_beta on wing area
 // and span: the directional analogue of the static margin. Positive is
 // stable (nose swings back into the wind); the sign convention is verified
-// against the whole fleet in tools/_yaw_probe.js.
+// against the whole fleet by the G115 yaw probe (retired with the fleet,
+// 2026-09-05; its numbers are in HANDOVER's G115).
 function genYawStiff(sim, def, V) {
   const bet = 0.06;
   const yaw = b => sim.probe(
@@ -42,7 +43,7 @@ function genYawStiff(sim, def, V) {
   const g = def.params.gen || {};
   const Sw = g.Sw || 10, b = Math.sqrt(Sw * (g.AR || 6));
   // minus: with this velocity construction the whole fleet measures a
-  // NEGATIVE slope when stable (verified in tools/_yaw_probe.js — every
+  // NEGATIVE slope when stable (verified by the G115 yaw probe — every
   // fiche and the stock build), so the sign is flipped once, here, and
   // stable reads positive the way the static margin does.
   return -dN / (0.5 * RHO * V * V * Sw * b);

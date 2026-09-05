@@ -1,7 +1,18 @@
-// High-lift gate: free-air tunnel, clean vs flapped, on the two aircraft that
-// anchor the model — C172 (POH Vs0/Vs1 ratio) and Chinook (flaperons must not
-// destroy CLmax) — plus the AP flap-servo rate limit.
-const { buildC172, buildChinook, buildPA18, makeSim, makeAutopilot, makeWorld } = require('./flight_core.js');
+// High-lift gate: free-air tunnel, clean vs flapped, on the GARAGE BUILD —
+// the flapped CLmax and the Vs ratio the generator's own flap synthesis
+// (GEN_FLAPS, genClMax) hands the solver — plus the AP flap-servo rate limit.
+//
+// Until 2026-09-05 this measured the C172 (POH Vs0/Vs1 ratio), the Chinook
+// (flaperons must not destroy CLmax) and the PA-18 (POH 43/48 mph); those
+// fiches retired with the hand-written fleet and the garage build is the
+// only aeroplane now. Its bands are the build's OWN measured numbers with
+// margin (regression bands, not a POH). The stock build has NO flap
+// (controls.flap.type 'none'), so the subject is the stock build with the
+// SLOTTED flap declared — the same family the PA-18 fiche was calibrated on
+// (POH ratio ~0.90), and what genClMax hands the AP's approach speeds.
+const { buildGen, makeSim, makeAutopilot, makeWorld } = require('./flight_core.js');
+const FLAPPED = { controls: { flap: { type: 'slotted' } } };
+const buildFlapped = () => buildGen(JSON.parse(JSON.stringify(FLAPPED)));
 
 function tunnel(build) {
   const def = build();
@@ -29,16 +40,12 @@ function tunnel(build) {
   return { c, f, sim, def };
 }
 
-const C = tunnel(buildC172);
-console.log(`C172: clean CLmax=${C.c.CLmax.toFixed(2)} Vs=${C.c.Vs.toFixed(1)} | flapped CLmax=${C.f.CLmax.toFixed(2)} Vs=${C.f.Vs.toFixed(1)} | ratio=${(C.f.Vs / C.c.Vs).toFixed(3)} | drag x${(C.f.D / C.c.D).toFixed(2)}`);
-const K = tunnel(buildChinook);
-console.log(`CHNK: clean CLmax=${K.c.CLmax.toFixed(2)} | full-droop CLmax=${K.f.CLmax.toFixed(2)} (${(100 * K.f.CLmax / K.c.CLmax - 100).toFixed(1)}%)`);
-const P = tunnel(buildPA18);
-console.log(`PA18: clean CLmax=${P.c.CLmax.toFixed(2)} Vs=${P.c.Vs.toFixed(1)} | flapped CLmax=${P.f.CLmax.toFixed(2)} Vs=${P.f.Vs.toFixed(1)} | ratio=${(P.f.Vs / P.c.Vs).toFixed(3)} | drag x${(P.f.D / P.c.D).toFixed(2)}`);
+const G = tunnel(buildFlapped);
+console.log(`GEN : clean CLmax=${G.c.CLmax.toFixed(2)} Vs=${G.c.Vs.toFixed(1)} | flapped CLmax=${G.f.CLmax.toFixed(2)} Vs=${G.f.Vs.toFixed(1)} | ratio=${(G.f.Vs / G.c.Vs).toFixed(3)} | drag x${(G.f.D / G.c.D).toFixed(2)}`);
 
 // AP flap servo: rate-limited deployment on approach
 const world = makeWorld();
-const def = buildC172();
+const def = buildFlapped();
 const sim = makeSim(def, world);
 sim.reset(0);
 for (let s = 0; s < 120; s++) sim.step(1/60);
@@ -54,14 +61,11 @@ for (let s = 0; s < 20 * 60; s++) {
 console.log(`AP servo: flap after 1 s = ${flapAt1s.toFixed(3)} (rate ${rate}/s) | full at t=${tFull} s`);
 
 const checks = {
-  'C172 Vs ratio in 0.85..0.91': C.f.Vs / C.c.Vs > 0.85 && C.f.Vs / C.c.Vs < 0.91,
-  'C172 dCLmax>0.35': C.f.CLmax - C.c.CLmax > 0.35,
-  'C172 flapped drag x1.15+': C.f.D / C.c.D > 1.15,
-  'CHNK full-droop CLmax within 8% of clean': Math.abs(K.f.CLmax / K.c.CLmax - 1) < 0.08,
-  // PA-18: slotted flaps calibrated to the POH Vs ratio 43/48 mph (~0.90)
-  'PA18 Vs ratio in 0.87..0.93': P.f.Vs / P.c.Vs > 0.87 && P.f.Vs / P.c.Vs < 0.93,
-  'PA18 dCLmax>0.3': P.f.CLmax - P.c.CLmax > 0.3,
-  'PA18 flapped drag x1.5+': P.f.D / P.c.D > 1.5,
+  // measured 2026-09-05 on the stock build + slotted flap: ratio 0.846,
+  // dCLmax 0.60, drag x3.36 — the bands sit around those with margin
+  'GEN Vs ratio in 0.80..0.95': G.f.Vs / G.c.Vs > 0.80 && G.f.Vs / G.c.Vs < 0.95,
+  'GEN dCLmax>0.4': G.f.CLmax - G.c.CLmax > 0.4,
+  'GEN flapped drag x2+': G.f.D / G.c.D > 2.0,
   'servo rate-limited (~rate after 1 s)': flapAt1s > rate * 0.8 && flapAt1s < rate * 1.2,
   'servo reaches full': tFull !== null && tFull < 1 / rate + 2,
 };

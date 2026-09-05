@@ -5,7 +5,8 @@
 // blocks are NOT executed — buildWorldScene is stubbed so the gate stays
 // focused on core + models + app wiring. Runs setAircraft, the full loop
 // path (script/sync/poseModel/hud) for 120 frames, then every button
-// handler and an aircraft switch through the selAc dropdown.
+// handler and the aircraft-change door (selAc, the garage build — the fleet
+// keys it used to switch through retired with the fiches, 2026-09-05).
 const fs = require('fs'), vm = require('vm'), path = require('path');
 
 const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
@@ -294,14 +295,6 @@ try {
   // render_world is not executed; the app only needs its factory's return shape
   sandbox.buildWorldScene = () => ({ worldUpdate() {} });
   vm.runInContext(appBlock, sandbox, { filename: 'app.js' });        // UI (runs setAircraft)
-  // the flyables' bins land asynchronously even from fs — wait for both so
-  // the pa18/c172 selections below find a warm decode, not a loading gap
-  if (typeof sandbox.window.MODEL_LOAD === 'function') {
-    if (!(await sandbox.window.MODEL_LOAD('pa18')))
-      throw new Error('pa18 geometry failed to load from its bin');
-    if (!(await sandbox.window.MODEL_LOAD('c172')))
-      throw new Error('c172 geometry failed to load from its bin');
-  }
   if (!handlers['bSkin']) throw new Error('bSkin not wired');
   // drive the loop: HOLDING frames, then press Fly and run 2 s of circuit
   frames(30);
@@ -317,18 +310,6 @@ try {
   for (const id of ['bSkin', 'bSkin', 'bSkin', 'bPause', 'bPause',
                     'bEdit', 'bReset'])
     handlers[id] && handlers[id]({ target: els[id] });
-  // aircraft switch through the dropdown: model-less path, then cache reuse
-  handlers['selAc']({ target: { value: 'drone' } });
-  frames(30);
-  handlers['selAc']({ target: { value: 'pa18' } });
-  frames(30);
-  // the c172 skin exercises the multi-group rig (its steering nose gear spans
-  // four payload groups) and the flat-colour opaque interior materials
-  handlers['selAc']({ target: { value: 'c172' } });
-  frames(60);
-  for (const id of ['bSkin', 'bSkin', 'bSkin'])
-    handlers[id]({ target: els[id] });
-  frames(30);
   // ---- THE GARAGE (G3.2): selecting the generated build stops the solver ----
   // The observable is the phase rail. script() is what writes HOLDING there,
   // and in the garage script() must not run at all — so if the `!inGarage`

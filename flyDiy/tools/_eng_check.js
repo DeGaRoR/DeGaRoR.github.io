@@ -1,5 +1,5 @@
 // ENGINE GENERATOR — THE VERDICT. Runs the model against the registry's real
-// engines and prints both, the way tools/make_perf.js does for the fleet: this
+// engines and prints both, the way gen_ap_probe.js does for the garage: this
 // is an INSTRUMENT, not a bound. It fails only on things that are actually
 // wrong (a broken mesh, a negative mass), never on a percentage.
 //

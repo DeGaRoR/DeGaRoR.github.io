@@ -1,8 +1,15 @@
 # MODEL-IMPORT-PROC — adding a 3D model to a garage-flight aircraft
 
+> **2026-09-05 — the hand-written fleet retired.** Nothing flies an imported
+> mesh any more: every vessel is a garage build, and imported models are
+> REFERENCE planes (`tools/ref_prep.py` + `tools/ref_table.py`, display only,
+> GATE REF). This procedure is kept as the record of how the PA-18 and C172
+> payloads were baked with rigging (`tools/model_prep.py`, `tools/models/`),
+> and for the day a rigged import is wanted again. The gates it cites
+> (`test_model.js`, `test_ctrl.js`, `test_c172_model.js`) are gone.
+
 Editable working procedure. Executed once for the PA-18 → Super Cub fiche
-(reference implementation, including the full interior); follow it for the
-drone / DC-3 / Jodel / C172 / Chinook.
+(reference implementation, including the full interior), then for the C172.
 Companion: SKIN-PROC.md (how the runtime works), tools/model_prep.py (the
 bake), tools/models/<key>.py (per-model config), tools/model_inspect.py
 (the measuring tool).

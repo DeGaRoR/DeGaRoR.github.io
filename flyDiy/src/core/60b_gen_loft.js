@@ -12,7 +12,8 @@
 //     value — always true for `yt` and `w` across the cabin — the "smoothed"
 //     curve collapsed to a dead flat.
 //
-// Measured with tools/loft_fit.js on the stock preset, the deck-line slope went
+// Measured with the (since retired) loft_fit instrument on the stock preset,
+// the deck-line slope went
 // 0.009 -> 1.633 -> 0.418 across two adjacent vertex rows. The reference meshes
 // do nothing of the kind. The C172's envelope through the windshield is
 // 1.598 -> 1.660 -> 1.857 -> 1.949 -> 1.998 -> 2.002, monotone and smooth: its

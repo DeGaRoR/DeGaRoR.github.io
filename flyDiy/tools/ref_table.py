@@ -74,9 +74,9 @@ REF_MODELS = {
         lic='CC-BY-4.0',
         url='https://sketchfab.com/3d-models/jodel-d112-d11-variant-747c7684ec8645398ff8e00e280a5f97',
         axes='xaft', scale=1.0, tex='none',
-        note='taildragger, drawn fuselage-level; the flyable jodel fiche '
-             '(14_aircraft_jodel.js) is the same family, so this is the '
-             'reference that fiche never had.',
+        note='taildragger, drawn fuselage-level; the old jodel fiche '
+             '(retired with the fleet, 2026-09-05) was the same family, so '
+             'this is the reference that fiche never had.',
     ),
     'pio200': dict(
         key='pio200',

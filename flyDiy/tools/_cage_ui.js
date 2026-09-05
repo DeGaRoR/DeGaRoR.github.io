@@ -13,7 +13,8 @@
 //   defaultStep:'crease' | '2' | ...,
 //   presets:    { name: {param overrides} } shown in a preset menu,
 // } then loads _cage_gen.js and this file. The page's HTML skeleton must
-// carry the header controls and the #view/#ui layout (see _cage2.html).
+// carry the header controls and the #view/#ui layout (see _cage8.html, the
+// one standalone bench left since 2026-09-05).
 'use strict';
 // THE BOOT IS A NAMED FUNCTION (G35): standalone bench pages boot at load
 // exactly as before; the GAME bundle sets window.CAGE_UI_LAZY before this

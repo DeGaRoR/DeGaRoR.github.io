@@ -17,6 +17,14 @@ interleaves bench work with loop work from there.
 
 # THE PLAN (v3 — 2026-09-01)
 
+> **2026-09-05 (G184).** The hand-written fleet is RETIRED — every vessel is a
+> garage build, the fiches and their gates are gone, the PA-18 and C172 are
+> reference planes. The bench-page audit in Phase 1 §8 is ruled: `_cage2..7`,
+> `_lean`, `_pwr`, `loft_fit`, `_spat_norm`, `obj_sanitize` deleted; `_cage8`,
+> `_engine`, `_gear`, `_terrain`, `_props` stay. Raw external assets are
+> gitignored (media/ is the shipped store). Wherever a phase below says
+> "fleet" it means the player's rack of garage builds, never the fiches.
+
 The loop is live end to end: design → certify on the bench tab → roll out →
 AP circuit or leg → arrival card → logbook write. So the plan stops being
 sequenced by architecture and is sequenced by play. The judging criterion for

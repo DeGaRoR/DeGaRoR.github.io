@@ -1,7 +1,8 @@
 // CAGE PAGE 5 — the aeroplane the light editor opens on, and its curated
-// panel. Lifted out of _cage5.html so cage5 and cage6 are ONE page definition
-// with different layers over it: cage6 is this plus the undercarriage, and a
-// slider added here appears in both.
+// panel. Lifted out of the (since deleted) _cage5 bench so every later bench
+// and the game's editor are ONE page definition with layers over it: a
+// slider added here appears everywhere the page is loaded (_cage8.html, the
+// game's MANIFEST.editor).
 //
 // `CAGE_PAGE_SETUP()` is the page's derived selectors (nose configuration,
 // seating starters). It is a function rather than a bare IIFE because it needs
@@ -122,7 +123,7 @@ window.CAGE_PAGE = {
     s2_twTrail: 0.048, s2_twLegDrop: 0.175, s2_twSteer: 0, s2_twSteerVis: 1,
     s2_twHornY: 0.17, s2_twHornZ: 0.25, gearOn: 1, gearSit: 1,
     // ---- CREW + COCKPIT (_cage_crew.js) ----
-    propSpin: 0, crewOn: 1, seatLayout: 1, seatTilt: 3, seatBelt: 0,
+    crewOn: 1, seatLayout: 1, seatTilt: 3, seatBelt: 0,
     seatType: 0, seatZ: 0.205, seatH: 0.08, seatRake: 13,
     seatGap: 0.23, seat2H: -1, seat2Rake: -1, seat2Tilt: -1, ctlStick: 0,
     ctlThr: 0, ctlPed: 1, consoleOn: 0, stickX: 0, stickY: 0, stickZ: 0,

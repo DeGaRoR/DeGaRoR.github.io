@@ -7,7 +7,8 @@
 //
 // Four things, in rising cost:
 //   1. the solver reports the air it is in, and it is the air the model says
-//   2. the SAME aeroplane, FLOWN off the same strip on two different days —
+//   2. the SAME aeroplane (the garage build, since the fleet retired
+//      2026-09-05), FLOWN off the same strip on two different days —
 //      the take-off run grows, the equivalent airspeed at unstick does not,
 //      and the true airspeed does
 //   3. an ELECTRIC build degrades LESS than a piston one, which is the whole
@@ -23,7 +24,7 @@
 //
 // Run: node tools/test_hothigh.js   (contract: one final `GATE HOTHIGH: ...`)
 
-const { makeWorld, makeSim, makeAutopilot, placeAtAerodrome, buildPA18, buildC172,
+const { makeWorld, makeSim, makeAutopilot, placeAtAerodrome,
         buildGen, genDensityAlt, makeAtmos, GEN_DEFAULT } = require('./flight_core.js');
 const { runCircuit } = require('./circuit_harness.js');
 
@@ -48,6 +49,7 @@ const HOT_DAY = { oatC: 35, qnhPa: 100800,
                   wind: { base: [-2.2, 0, 2.6], gust: 0.7, refH: 10 } };
 const STD = null;
 const worldAt = w => { const W = makeWorld(); if (w) W.setWeather(w); return W; };
+const GEN_ZS = buildGen().parts.zs;
 
 // ---- 1. the solver is in the air the model says it is in --------------------
 console.log('--- 1. the solver reports its own air ---');
@@ -55,7 +57,7 @@ console.log('--- 1. the solver reports its own air ---');
   const W = worldAt(HOT);
   const strip = W.aerodromes.find(a => a.name === 'Brekk Strip');
   yes(!!strip, 'Brekk Strip exists');
-  const def = buildPA18(), sim = makeSim(def, W);
+  const def = buildGen(), sim = makeSim(def, W);
   sim.reset(0);
   placeAtAerodrome(sim, strip);
   for (let f = 0; f < 120; f++) sim.step(1 / 60);       // settle, and run a pass
@@ -73,7 +75,7 @@ console.log('--- 1. the solver reports its own air ---');
       `the piston makes ${(o.powerK * 100).toFixed(1)}% of its rated power`);
   // and the STANDARD day at the same place is the datum's own air
   const W2 = worldAt(STD);
-  const sim2 = makeSim(buildPA18(), W2);
+  const sim2 = makeSim(buildGen(), W2);
   sim2.reset(0); placeAtAerodrome(sim2, strip);
   for (let f = 0; f < 120; f++) sim2.step(1 / 60);
   yes(sim2.out.sigma < 1 && sim2.out.sigma > 0.98,
@@ -82,7 +84,7 @@ console.log('--- 1. the solver reports its own air ---');
 }
 
 // ---- 2. THE SAME AEROPLANE, FLOWN, ON TWO DAYS ------------------------------
-// Distance to 2.5 m above the start, which is make_perf's own definition, run
+// Distance to 2.5 m above the start (the old make_perf definition), run
 // here off a 113 m strip instead of off HOME.
 console.log('--- 2. the take-off run, flown ---');
 function takeoffRun(build, weather, stripName) {
@@ -104,7 +106,7 @@ function takeoffRun(build, weather, stripName) {
   // while the propeller was a 42 %-efficient one with little excess to
   // accelerate on; the moment G158 gave it a real one the PA-18 read 1.094 on
   // a 1.06 bound, and the gate was failing a claim it was not measuring. The
-  // RUN is still to the screen, which is make_perf's own definition.
+  // RUN is still to the screen, the old make_perf definition.
   let vT = null, vE = null;
   for (let f = 0; f < 120 * 60; f++) {
     ap.update(1 / 60); sim.step(1 / 60);
@@ -121,7 +123,7 @@ function takeoffRun(build, weather, stripName) {
   }
   return { run: null, why: 'never reached 2.5 m in 120 s' };
 }
-for (const [name, build] of [['PA-18', buildPA18], ['C172', buildC172]]) {
+for (const [name, build] of [['GEN', buildGen]]) {
   const a = takeoffRun(build, STD, 'Brekk Strip');
   const b = takeoffRun(build, HOT, 'Brekk Strip');
   if (a.run == null || b.run == null) {
@@ -194,9 +196,12 @@ console.log('--- 3. electric against piston, in the same thin air ---');
 console.log('--- 4. a whole circuit, off a hot strip, in sheared wind ---');
 const R = [];
 R.push(runCircuit({
-  id: 'HH-PA18', build: buildPA18, world: worldAt(HOT_DAY), from: 'Brekk Strip',
+  id: 'HH-GEN', build: buildGen, world: worldAt(HOT_DAY), from: 'Brekk Strip',
   uprightCheck: false, perturb: { z: 1.0, v: 0.001 }, settleS: 12, maxS: 320,
-  tip: { tag: 'WF', midZ: 3.4, tipZ: 5.0, tol: 0.1 }, flapDuring: () => true,
+  // tip/mid stations from the spec, like GATE STRESS: the generated wing
+  // moves when a slider does
+  tip: { tag: 'WF', midZ: GEN_ZS[0], tipZ: GEN_ZS[GEN_ZS.length - 1], tol: 0.1 },
+  flapDuring: () => true,
   wingNote: 'hot afternoon, 113 m gravel strip, wind sheared off a 10 m reference',
   extraLines: c => {
     const W = c.world, s = c.sim.cgPos();
@@ -210,7 +215,7 @@ R.push(runCircuit({
       `wind over the strip: ${at(2).toFixed(2)} m/s at 2 m agl, ${at(10).toFixed(2)} at 10, ` +
       `${at(120).toFixed(2)} at 120`];
   },
-  // the same bounds XCTY4 holds the PA-18 to on this strip in a breeze: the
+  // the bounds the old XCTY4 held the PA-18 to on this strip in a breeze: the
   // point is that thin air does not break the arrival, so the bar does not move
   checks: c => ({
     'touchdown': !!c.td,

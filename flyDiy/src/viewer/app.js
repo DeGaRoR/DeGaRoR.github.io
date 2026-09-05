@@ -6,8 +6,11 @@
   // G3 while nothing ever set it, which is how a build ended up reachable only
   // from inside a closure and a user lost an aeroplane to a reload. See G7.
   let genSpec = null;
-  const AIRCRAFT = { pa18: buildPA18, cub: buildCub, drone: buildDrone, dc3: buildDC3, jojo: buildJodel, c172: buildC172, chnk: buildChinook,
-                     gen: () => buildGen(genSpec) };
+  // ONE AEROPLANE (2026-09-05). The hand-written fleet — pa18, cub, drone,
+  // dc3, jojo, c172, chnk — retired with its fiches; every vessel is a garage
+  // build. The map and the `key` plumbing stay because the aircraft change
+  // door (setAircraft) is the one path a rebuilt spec comes through.
+  const AIRCRAFT = { gen: () => buildGen(genSpec) };
   let def, sim, ap, nb, curKey;
   // `rigLift` lives up here with groundY because applyEnv() reads it, and that
   // runs long before the load-test block further down is reached.
@@ -967,9 +970,11 @@
     proxy = { ids, pos, attr: geo.attributes.position, mesh };
   }
 
-  // ================= 3d skin (baked OBJ, pa18 only for now) =================
-  // Rigid mount in the body frame: model frame is (x aft, y up, z left), RH.
-  // Offset calibrated so model main wheels sit on the sim's axle contact points.
+  // ================= 3d skin: the baked payloads =================
+  // Model frame is (x aft, y up, z left), RH. Every payload here is a
+  // REFERENCE plane for refplane.js since the fleet retired (2026-09-05):
+  // the PA-18 and the C172 still carry the rigging they were baked with
+  // (tools/model_prep.py) but nothing flies them any more.
   const MODELS3D = {};
   if (typeof MODEL_PA18 !== 'undefined') MODELS3D.pa18 = MODEL_PA18;
   if (typeof MODEL_C172 !== 'undefined') MODELS3D.c172 = MODEL_C172;
@@ -994,17 +999,13 @@
   if (typeof MODEL_YAK18T !== 'undefined') MODELS3D.yak18t = MODEL_YAK18T;
   if (typeof MODEL_EIII !== 'undefined') MODELS3D.eiii = MODEL_EIII;
   if (typeof MODEL_PA28 !== 'undefined') MODELS3D.pa28 = MODEL_PA28;
-  // per-aircraft skin config: body-frame mount offset + binding thresholds (SKIN-PROC.md)
-  // pa18 geometry is a byte-copy of the cub's, so the calibration is shared.
-  // `rig` = groups that carry hinges and/or flex (default ['skin']); the c172's
-  // steering nose gear spans four materials, so four extra groups are rigged.
+  // skin config per aircraft key: body-frame mount offset + binding thresholds
+  // (SKIN-PROC.md). Only the garage build is left (the pa18/c172 rows — a
+  // measured mount offset and, for the c172, five rigged groups — retired with
+  // the fleet, 2026-09-05). The generated skin is built FROM the sim's own
+  // node positions, in the sim's own body frame, so there is no mount to
+  // calibrate: the offset is zero by construction, not by measurement.
   const SKIN_CFG = {
-    pa18: { off: [1.690, -0.070, 0], tags: ['WF', 'WR'], zRoot: 1.30, xMax: 1.5 },
-    c172: { off: [1.694, -1.420, 0], tags: ['WF', 'WR'], zRoot: 2.00, xMax: 1.5,
-            rig: ['skin', 'metal', 'tyre', 'hub', 'gear'] },
-    // The generated skin is built FROM the sim's own node positions, in the
-    // sim's own body frame, so there is no mount to calibrate: the offset is
-    // zero by construction, not by measurement (see 63_gen_skin.js).
     gen:  { off: [0, 0, 0] },
   };
   // W18 PBR fallback: roughness / metalness / envMapIntensity per PAYLOAD
@@ -2302,19 +2303,15 @@
     }
   }
   // G107: YOUR builds fly the TEST PILOT (41_test_pilot.js) — bounded
-  // attempts, structured verdicts; the hand-built fleet keeps the classic
-  // autopilot, which is what its eleven gates are calibrated on.
-  // G130: that rule became the DEFAULT of a choice. 'auto' is exactly the
-  // old behaviour; the selector can put the classic autopilot under your
-  // build, which flies it on unbounded the way the fleet does.
-  // G135: the other half of that sentence — the test pilot under a fleet
-  // fiche — is no longer reachable from the UI, because no fiche is. The
-  // BRANCH stays: mkPilot is keyed on the aircraft, not on the menu, and the
-  // gates that call setAircraft with a fiche key still get the right pilot.
+  // attempts, structured verdicts; the classic autopilot (40_) is what the
+  // generator's own gates are calibrated on.
+  // G130: that rule became the DEFAULT of a choice. 'auto' is the test pilot
+  // for your build; 'classic' puts the old autopilot under it, which flies
+  // it unbounded. (Until the fleet retired, 2026-09-05, 'auto' also meant
+  // "classic under a fiche" — there is no fiche now, so 'auto' is 'test'.)
   let pilotChoice = 'auto';
-  const mkPilot = k => {
-    const test = pilotChoice === 'test' ||
-                 (pilotChoice === 'auto' && k === 'gen');
+  const mkPilot = () => {
+    const test = pilotChoice !== 'classic';
     return (test && typeof makeTestPilot === 'function')
       ? makeTestPilot(sim, def, world) : makeAutopilot(sim, def, world);
   };
@@ -2344,7 +2341,7 @@
     pPos = new Float32Array(sim.n * 3);
     pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
     pts = new THREE.Points(pGeo, new THREE.PointsMaterial({ color: 0xc8d8ea,
-      size: key === 'drone' ? 0.018 : 0.06 }));
+      size: 0.06 }));
     pts.frustumCulled = false;
     craft.add(pts);
     buildShadowProxy();
@@ -2363,10 +2360,8 @@
     // aeroSetDecals was the editor panel, so a placed registration was painted
     // on while you were building and gone the moment you flew.
     //
-    // ONLY THE GARAGE BUILD. A fleet aeroplane wears an imported skin with its
-    // own markings baked into its own texture, and projecting a registration
-    // over the top of one would be this project's own aeroplane-with-two-
-    // registrations. `genSpec` is the garage's spec and nothing else has one.
+    // `genSpec` is the garage's spec; nothing else has one (a boot before the
+    // editor's first commit has none yet, and flies bare).
     if (key === 'gen' && genSpec && window.AEROSKIN
         && window.AEROSKIN.aeroApplySpecDecals) {
       try {
@@ -2386,9 +2381,6 @@
         console.error('markings: this build’s own decals did not go on —', e);
       }
     }
-    // a fleet aeroplane never stands behind a cage build (G65) — settled
-    // before the one visibility ruling below, not after it
-    if (curKey !== 'gen') showCage = false;
     applySkinVis();
     dist = distT = def.params.viewDist;   // aircraft change SNAPS, no glide
     const PP = POWERPLANTS[def.params.powerplant];
@@ -2405,10 +2397,9 @@
     // debug number printed over a render. What the flight wants from it is the
     // one number that decides how the aeroplane behaves today: what it weighs.
     $('acSpec').textContent = `${mass} all-up`;
-    // the plaque belongs to the GARAGE BUILD alone, so every aircraft
-    // change re-asks: switching to a fleet aeroplane left the previous
-    // build's numbers hanging on screen, which is the one thing a plaque
-    // must never do — it would be reading someone else's certificate.
+    // the plaque belongs to the build on the stand, so every aircraft
+    // change re-asks: a rebuilt aeroplane must never wear the previous
+    // build's numbers — it would be reading someone else's certificate.
     if (typeof drawPlaque === 'function') drawPlaque();
     // the file ribbon's shelf shows only while the garage build is on the
     // stand, and a programmatic aircraft switch fires no 'change' event on
@@ -3965,7 +3956,7 @@
     // the cage build comes back up if the editor has ever booted (G65), and
     // the roll-out button re-reads the certificate
     showCage = !!window.CAGE_UI && curKey === 'gen';
-    applySkinVis();     // restores the mesh for a fleet craft; hides it under the cage
+    applySkinVis();     // hides the mesh under the cage build
     syncGoLabel();
     // THE PLAQUE goes up whenever the aeroplane comes home — including
     // after build & fly, which reaches here through GARAGE_SPEC.apply, so
@@ -4050,13 +4041,10 @@
     drawArrNotes();
   };
   // G130: the door home is ON THE BAR now, not only on the arrival card — a
-  // circling flight, a hopeless climb, a fleet fiche mid-leg all walk back.
-  // A fleet aeroplane switches to the garage build on the way in, because
-  // the garage is only ever YOUR aeroplane's room (same rule as the card).
+  // circling flight, a hopeless climb, a leg abandoned mid-way all walk back.
   if ($('bHangar2')) $('bHangar2').onclick = () => {
     $('arrCard').hidden = true; arrivalShown = false;
     flyOpenSet(null);
-    if (curKey !== 'gen') { $('selAc').value = 'gen'; setAircraft('gen'); }
     enterGarage();
     openEditor();
   };
@@ -4074,18 +4062,16 @@
     railPhase = ''; setRail(null);
   }
   $('bReset').onclick = fullReset;
-  // selecting the Garage build puts you IN the garage; any other aeroplane is
-  // finished and goes straight to the strip. Since G35 the garage's editor
-  // is the CAGE EDITOR overlay — it opens with the garage, and closing it
-  // leaves you at the stand (builds bar, env buttons, Roll out & fly).
-  // G135: the MENU behind this now holds the garage build alone, so in the
-  // game only the first branch can fire. The handler keeps both because it is
-  // the surface UISMOKE drives with the fiche keys — the gates switch
-  // aeroplane through exactly this code path, and a handler that had been
-  // narrowed to one value would stop proving the switch works.
+  // selecting the Garage build puts you IN the garage. Since G35 the garage's
+  // editor is the CAGE EDITOR overlay — it opens with the garage, and closing
+  // it leaves you at the stand (builds bar, env buttons, Roll out & fly).
+  // G135 hid the menu behind this and left it holding the garage build alone;
+  // the fleet's keys retired with the fiches (2026-09-05). It stays the
+  // aircraft-change door UISMOKE drives — the gate switches aeroplane through
+  // exactly this code path.
   $('selAc').onchange = e => {
     setAircraft(e.target.value);
-    if (curKey === 'gen') { enterGarage(); openEditor(); } else rollOut();
+    enterGarage(); openEditor();
     hud();
   };
   // ---- THE EDITOR (G35, remounted G36): the cage bench, embedded. Boot
@@ -5647,7 +5633,9 @@
   flApplyFov();
   flRender();
 
-  setAircraft('pa18');
+  // the first aeroplane is the garage build on its defaults; the garage
+  // bridge below re-applies the restored WIP over it before the first frame
+  setAircraft('gen');
   syncEnvBtn();               // garage-only buttons start hidden
 
   // ---- GARAGE bridge. src/viewer/garage.js owns the panel and the paint; this
@@ -5899,9 +5887,8 @@
   // materials and the thing you booted into did not.
   //
   // So the first thing on screen is the aeroplane you are building, in the
-  // room you build it in — and the PA-18 and the C172 take the role the
-  // 2026-08-08 scope decision gave them: measuring sticks in the rack, one
-  // selection away.
+  // room you build it in — and the PA-18 and the C172 are measuring sticks
+  // (reference planes in the editor's tree), not aeroplanes you fly.
   //
   // IT RUNS LAST, after every bridge above has been wired, because opening the
   // editor is not a small thing: it boots the cage bundle, the four layers, the
@@ -5978,13 +5965,8 @@
     try { const sel = $('selAc'); if (sel) sel.value = 'gen';
           setAircraft('gen'); } catch (e2) {}
   }
-  // WARM THE FLYABLES' GEOMETRY behind the splash (2026-09-01, external
-  // media). The boot subject is the garage build — procedural, nothing to
-  // fetch — but the PA-18 and the C172 are one dropdown selection away, and
-  // their bins are small; starting them now means the switch usually finds a
-  // warm cache instead of flying the truss for a beat. Fire-and-forget: a
-  // fetchless page (the smoke gate) resolves null and nothing waits.
-  if (window.MODEL_LOAD) { window.MODEL_LOAD('pa18'); window.MODEL_LOAD('c172'); }
+  // (Until the fleet retired, 2026-09-05, the PA-18 and C172 bins were warmed
+  // here behind the splash; a reference plane fetches its own on pick.)
   hud();
   loop();
 })();

@@ -378,7 +378,7 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
    ---------------------------------------------------------------------------
    There were SIX scrollers on this screen - #edInfoBody, #edTree, #edRows,
    #edOpts, #edFly and #edRef .refMats - and not one line of scrollbar styling
-   anywhere in the project outside tools/_pwr.html. Every one of them was a
+   anywhere in the project outside the old _pwr bench page. Every one of them was a
    native Chromium bar: a wide light track with a grey thumb, over a panel that
    is #201d1a.
    Scoped to `#wsUI` and to `#wsUI *` for the same reason the controls above

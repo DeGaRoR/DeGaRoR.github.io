@@ -9,18 +9,20 @@
 //        --no-build       skip the rebuild (escape hatch)
 const { spawnSync } = require('child_process');
 
-// TIERS (2026-08-11). The project is a GARAGE: the generated aeroplane and the
-// two imported meshes (PA-18, C172) are the product, and the hand fiches are
-// reference and gating that will eventually be replaced by procedural builds.
-// The full battery is ~19 min, which is too slow to iterate a generator change
-// against, so gates carry a tier:
-//   core  — the two mesh aircraft, the generator, the structural instrument,
-//           and everything cheap (world, skin, codec). ~10 min.
-//   fleet — the reference fiches and their cross-country legs. ~9 min on top.
+// TIERS (2026-08-11; the fleet retired 2026-09-05). The project is a GARAGE:
+// the generated aeroplane is the product, and every gate below flies or
+// measures a generated build. The full battery is too slow to iterate a
+// generator change against, so gates carry a tier:
+//   core  — the generator, the structural instruments, the editor's gates
+//           and everything cheap (world, skin, codec).
+//   full  — the slow sweeps on top: ARCHETYPES (fourteen builds flown) and
+//           HOTHIGH (the hot-day circuit).
 // `node tools/run_gates.js` runs CORE. `--all` runs everything, and the summary
 // says loudly which it did: a core pass is NOT a delivery verdict, and the
 // session ritual's "never deliver on a non-zero exit" now reads "never deliver
 // without a green --all".
+// (The hand-written fleet's own gates — WIND, M3, DRONE, DC3, JODEL, C172,
+// CHINOOK, PA18, C172M, MODEL, CTRL, XCTY/2/3/4/5 — went with the fiches.)
 const GATES = [
   // THE ATMOSPHERE (G72). Pure model, under a second: the ISA tables, the
   // exact sea-level identity every other gate's anchors depend on, and the
@@ -33,14 +35,7 @@ const GATES = [
   { id: 'ATMOS', file: 'test_atmos.js', tier: 'core' },
   { id: 'GE', file: 'test_ground_effect.js', tier: 'core' },
   { id: 'FLAPS', file: 'test_flaps.js', tier: 'core' },
-  { id: 'WIND', file: 'test_wind.js', tier: 'fleet' },   // flies the WHOLE fleet: 222 s
-  { id: 'M3', file: 'test_m3.js', tier: 'fleet' },
-  { id: 'DRONE', file: 'test_drone.js', tier: 'fleet' },
-  { id: 'DC3', file: 'test_dc3.js', tier: 'fleet' },
-  { id: 'JODEL', file: 'test_jodel.js', tier: 'fleet' },
-  { id: 'C172', file: 'test_c172.js', tier: 'core' },    // mesh aircraft
-  { id: 'CHINOOK', file: 'test_chinook.js', tier: 'fleet' },
-  { id: 'STRESS', file: 'test_stress.js', tier: 'core' },   // covers `gen` too
+  { id: 'STRESS', file: 'test_stress.js', tier: 'core' },
   { id: 'GEN', file: 'test_gen.js', tier: 'core' },
   // THE TEST PILOT (G107): the second autopilot's own battery, negative-first —
   // a build that cannot fly must come back SAYING SO in bounded time. Carries
@@ -58,12 +53,8 @@ const GATES = [
   { id: 'MASS', file: 'test_massproof.js', tier: 'core' },
   { id: 'TREE', file: 'test_tree.js', tier: 'core' },
   // flexbody skin (appended: keeps the physics battery log prefix diffable)
-  { id: 'MODEL', file: 'test_model.js', tier: 'core' },
   { id: 'SKIN', file: 'test_skin.js', tier: 'core' },
-  { id: 'CTRL', file: 'test_ctrl.js', tier: 'core' },
   { id: 'UISMOKE', file: 'test_ui_smoke.js', tier: 'core' },
-  { id: 'PA18', file: 'test_pa18.js', tier: 'core' },     // mesh aircraft
-  { id: 'C172M', file: 'test_c172_model.js', tier: 'core' },
   { id: 'WORLDRENDER', file: 'test_world_render.js', tier: 'core' },
   // the hangar prop library: baked payload vs the declared table
   { id: 'PROPS', file: '_prop_check.js', tier: 'core' },
@@ -143,9 +134,9 @@ const GATES = [
   // ...and the declared canonical builds actually FLY: designBake -> clamp
   // must not bite a declared value -> shakedown clears the circuit -> the
   // test pilot flies it to a full stop. Inactive archetypes are SKIPPED
-  // WITH THEIR REASON PRINTED, so the gate log is also the backlog. Fleet
-  // tier: it flies eight circuits.
-  { id: 'ARCHETYPES', file: '_arch_check.js', tier: 'fleet' },
+  // WITH THEIR REASON PRINTED, so the gate log is also the backlog. Full
+  // tier: it flies every active archetype's circuit (~13 min).
+  { id: 'ARCHETYPES', file: '_arch_check.js', tier: 'full' },
   { id: 'VIEW', file: '_view_check.js', tier: 'core' },
   // THE LIFT-STRUT FOOT (G86-G88): the site the fitting is built on — the
   // frame's own strut root snapped to the built skin — and the declared
@@ -198,19 +189,12 @@ const GATES = [
   { id: 'BIOME', file: 'test_biome.js', tier: 'core' },
   { id: 'SETTLE', file: 'test_settle.js', tier: 'core' },
   { id: 'AERO', file: 'test_aero.js', tier: 'core' },
-  { id: 'XCTY', file: 'test_xcty.js', tier: 'fleet' },    // cub
-  { id: 'XCTY2', file: 'test_xcty2.js', tier: 'fleet' },  // c172, but a ROUTE test
-  { id: 'XCTY3', file: 'test_xcty3.js', tier: 'fleet' },  // cub
-  // XCTY4 is the original user short-field repro (PA-18 into Stein) and stays
-  // in core: it is the only gate that asserts an upright arrival on a bench.
-  { id: 'XCTY4', file: 'test_xcty4.js', tier: 'core' },
-  { id: 'XCTY5', file: 'test_xcty5.js', tier: 'fleet' },
   // HOT AND HIGH (G72): the atmosphere with an aeroplane in it. GATE ATMOS
   // proves the model, this proves it reaches the wing and the engine — two
   // flown take-offs off a 113 m strip on two different days, the electric-
   // vs-piston split the `aspiration` field buys, and a full circuit in that
-  // air. Fleet tier: it flies.
-  { id: 'HOTHIGH', file: 'test_hothigh.js', tier: 'fleet' },
+  // air. Full tier: it flies (the garage build, since the fleet retired).
+  { id: 'HOTHIGH', file: 'test_hothigh.js', tier: 'full' },
   // structural realism instrument (appended: keeps the battery log prefix
   // diffable). Measures only — it asserts finiteness and determinism, not
   // bounds. See test_flex.js's header and HANDOVER's STRUCTURAL REALISM.
@@ -228,9 +212,9 @@ const onlyArg = args.find(a => a.startsWith('--only='));
 const only = onlyArg ? onlyArg.slice(7).toUpperCase().split(',').filter(Boolean) : null;
 const verbose = args.includes('--verbose');
 const all = args.includes('--all');
-// GATES_CORE is read by the gates themselves, not just the runner: FLEX uses it
-// to measure the two mesh aircraft and the generator instead of all seven
-// fiches. --only=... is an explicit request for those gates, so it implies full.
+// GATES_CORE is read by the gates themselves, not just the runner (a gate may
+// scope a sweep by it). --only=... is an explicit request for those gates, so
+// it implies full.
 const coreOnly = !all && !only;
 if (coreOnly) process.env.GATES_CORE = '1';
 
@@ -244,10 +228,9 @@ for (const g of GATES) {
   if (coreOnly && g.tier !== 'core') { skipped++; continue; }
   const t0 = Date.now();
   // 1800 s, not 900 and certainly not 300: a timeout is not a verdict, and a
-  // false red is worse than a slow one. WIND was the original reason (it flies
-  // the WHOLE fleet through gusty circuits: ~226 s quiet, ~297 s busy) and a
-  // 300 s cap turned an ordinary slow machine into a red battery with no
-  // failed check to point at.
+  // false red is worse than a slow one. The old fleet's WIND gate was the
+  // original reason (~226 s quiet, ~297 s busy) and a 300 s cap turned an
+  // ordinary slow machine into a red battery with no failed check to point at.
   //
   // RAISED 900 -> 1800 (2026-08-29). GEN had crept to 872/883/882 s over three
   // runs in one afternoon and then took 901 — and was killed one second short
@@ -279,12 +262,12 @@ for (const [id, pass, secs] of rows)
   console.log(`${id.padEnd(9)} ${pass ? 'PASS' : 'FAIL'}  ${secs.padStart(6)} s`);
 const total = rows.reduce((s, r) => s + Number(r[2]), 0).toFixed(1);
 console.log(`${'total'.padEnd(9)}       ${total.padStart(6)} s`);
-// The verdict NAMES the tier. A core pass proves the garage and the two mesh
-// aircraft; it says nothing about the reference fiches, and calling both
-// "BATTERY: PASS" is exactly how a green run stops meaning anything.
+// The verdict NAMES the tier. A core pass proves the garage; it says nothing
+// about the slow full-tier sweeps, and calling both "BATTERY: PASS" is exactly
+// how a green run stops meaning anything.
 if (anyFail) console.log(`\n${coreOnly ? 'CORE ' : ''}BATTERY: FAIL — never deliver red.`);
 else if (coreOnly)
-  console.log(`\nCORE BATTERY: PASS — ${skipped} fleet gates SKIPPED.` +
+  console.log(`\nCORE BATTERY: PASS — ${skipped} full-tier gates SKIPPED.` +
               '\nNOT a delivery verdict: run `node tools/run_gates.js --all` before delivering.');
 else console.log('\nBATTERY: PASS');
 process.exitCode = anyFail ? 1 : 0;

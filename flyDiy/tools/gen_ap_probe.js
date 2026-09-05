@@ -1,5 +1,5 @@
-// gen_ap_probe.js — GARAGE autopilot INSTRUMENT. Asserts nothing, like
-// make_perf.js: it flies a spread of generated aeroplanes and prints where the
+// gen_ap_probe.js — GARAGE autopilot INSTRUMENT. Asserts nothing: it flies a
+// spread of generated aeroplanes and prints where the
 // loops SATURATE, which is the only readout that tells you why a circuit went
 // wrong rather than that it did.
 //

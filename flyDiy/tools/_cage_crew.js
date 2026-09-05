@@ -1,4 +1,5 @@
-// CAGE CREW — the cockpit occupancy layer for _cage5.html (G17).
+// CAGE CREW — the cockpit occupancy layer (G17; born on the _cage5 bench,
+// now one layer of _cage8.html and the game's editor).
 //
 // Seats (ported from the game's 63_gen_skin.js "2h. SEATS" — frame, pan,
 // cushion, piping, lap belts: leaving any out is what makes a seat read

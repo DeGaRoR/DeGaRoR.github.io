@@ -30,11 +30,13 @@
 - CC-BY requires visible attribution: it is carried in the sim's footer and in
   the provenance header of the baked payload `src/models/c172_model.js`
   (written by `tools/model_prep.py`).
-- The GLB as delivered ships at `assetsSketchfab/free_cessna_172sp.glb` in this
-  public repository. The model-frame OBJ + MTL + textures at `assets/c172/`
-  are *generated* from it by `python tools/glb_extract.py c172` and are
-  gitignored — regenerate rather than edit. (Contrast the PA-18, whose OBJ is
-  the delivered source and is committed.)
+- The GLB as delivered lives at `assetsSketchfab/free_cessna_172sp.glb`,
+  which since 2026-09-05 is a LOCAL INPUT rather than a tracked file (the
+  external-asset ruling: the shipped store is `media/`, the raw sets are
+  re-fetched from the listing above). The model-frame OBJ + MTL + textures at
+  `assets/c172/` are *generated* from it by `python tools/glb_extract.py c172`
+  — regenerate rather than edit. (Contrast the PA-18, whose OBJ is the
+  delivered source and stays committed for GPL source availability.)
 - Modifications made, as CC-BY asks to be indicated: axis/scale conversion to
   the sim's model frame, removal of the "remove before flight" ribbons and
   ground tie-downs, splitting the fused flap and aileron meshes into left and
@@ -49,7 +51,11 @@ aeroplane beside your build. These eleven are all by the same modeller as the
 PA-18 above, delivered as Sketchfab GLBs and baked to reference-only payloads
 by `python tools/ref_prep.py --all` from the declared table in
 `tools/ref_table.py`. They are **display only** — never flown, never an input
-to the spec, and GATE REF asserts both.
+to the spec, and GATE REF asserts both. Since the hand-written fleet retired
+(2026-09-05) the PA-18 and the C172 above are reference planes too: their
+payloads still carry the rigging they were baked with, but nothing flies them.
+The delivered GLBs are local inputs (not tracked — see `.gitignore`); each
+listing below is where a fresh clone re-fetches its file.
 
 - **Model**: Emmanuel BARANGER (**helijah**, https://sketchfab.com/helijah),
   created for FlightGear.

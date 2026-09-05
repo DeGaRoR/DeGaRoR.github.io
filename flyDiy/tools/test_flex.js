@@ -31,8 +31,7 @@
 // assert bounds. Asserting realism targets nobody has agreed to would be
 // trading a fact for a preference, and the whole point of the chantier is to
 // produce the numbers that decide what the targets should be.
-const { buildCub, buildDrone, buildDC3, buildJodel, buildC172, buildChinook,
-        buildPA18, buildGen, makeSim, makeAutopilot, makeWorld,
+const { buildGen, makeSim, makeAutopilot, makeWorld,
         GEN_MATERIALS, GEN_DEFAULT } = require('./flight_core.js');
 
 const world = makeWorld();
@@ -391,25 +390,9 @@ REALITY.forEach(say);
 say('');
 
 const runs = [];
-// CORE mode (see run_gates.js tiers): the two mesh aircraft only. The other
-// five fiches are reference — they are not being changed, their numbers are
-// recorded in HANDOVER's STRUCTURAL REALISM tables, and re-flying them to
-// cruise costs about 40 s every time the generator is touched. `--all` and
-// `--only=FLEX` both measure the whole fleet.
-const CORE = process.env.GATES_CORE === '1';
-const FLEET = CORE
-  ? [['C172', buildC172], ['PA-18', buildPA18]]
-  : [['CUB', buildCub], ['DRONE', buildDrone], ['DC-3', buildDC3],
-     ['JODEL', buildJodel], ['C172', buildC172],
-     ['CHINOOK', buildChinook], ['PA-18', buildPA18]];
-say(`FLEET (hand-written fiches — no material behind k, so no softness column)` +
-    `${CORE ? ' — CORE: mesh aircraft only, --all for all seven' : ''}:`);
-for (const [nm, build] of FLEET) {
-  const o = flex(nm, build());
-  if (o) runs.push(o);
-  report(o);
-}
-say('');
+// The hand-written fiches measured here too until the fleet retired
+// (2026-09-05); their rows live on in HANDOVER's STRUCTURAL REALISM tables as
+// the reality column's own history. Every airframe below is generated.
 say('GARAGE (generated — `lin` closes to an area, so softness and yield margin follow):');
 for (const m of Object.keys(GEN_MATERIALS)) {
   const spec = JSON.parse(JSON.stringify(GEN_DEFAULT));
@@ -424,7 +407,7 @@ for (const m of Object.keys(GEN_MATERIALS)) {
 // existed its structure was verified at exactly one point of a space that spans
 // 6.5-14 m of wing, 2-5 panels, three wing positions, strut or cantilever, four
 // materials and a cargo bay. GATE GEN flies eleven configurations but measures
-// no deflection; the FLEET half above measures deflection but only at the stock
+// no deflection; the materials sweep above measures deflection but only at the stock
 // spec. The corner that was actually broken — strut bracing at 4 or 5 panels —
 // was reachable by moving one slider in the panel and was invisible to every
 // instrument in the battery, because the framework stays infinitesimally rigid
@@ -573,7 +556,7 @@ for (const o of runs) {
   for (const c of Object.keys(o.peak)) nums.push(o.peak[c].F, o.peak[c].strain);
 }
 results['every airframe reached cruise and was measured'] =
-  runs.length === FLEET.length + Object.keys(GEN_MATERIALS).length;
+  runs.length === Object.keys(GEN_MATERIALS).length;
 results['every measurement is finite'] = nums.every(Number.isFinite);
 results['no airframe diverged during the sweep'] = runs.every(o => !o.bad);
 

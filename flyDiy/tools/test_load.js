@@ -30,7 +30,7 @@
 // GARAGE runs the same test in-game: you build, you load test, then you roll
 // out. One implementation, ticked headlessly by this gate and per-frame by the
 // viewer — so an in-game verdict and a gate verdict can never disagree.
-const { buildGen, buildPA18, buildC172, makeSim,
+const { buildGen, makeSim,
         makeLoadTest, GEN_LOAD_LIMIT, GEN_LOAD_ULT,
         GEN_DEFAULT, GEN_MATERIALS } = require('./flight_core.js');
 
@@ -150,8 +150,6 @@ for (const m of Object.keys(GEN_MATERIALS))
       sp.fuselage.material = m; sp.bracing.type = br;
       return buildGen(sp);
     }, m]);
-CASES.push(['PA-18 (imported)', buildPA18, null]);
-CASES.push(['C172 (imported)', buildC172, null]);
 
 const rows = [];
 say('airframe                     1.0 g    3.8 g LIMIT   5.7 g ULT    worst member @ult');

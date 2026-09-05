@@ -1,9 +1,11 @@
 # GARAGE FLIGHT SIM — HANDOVER
 
-Node-beam chassis + strip-theory aero flight sim. Six validated aircraft, one
-solver, untouched since M1. Split into part files (src/) with a node build;
-headless node gates that actually fail. This document carries everything the
-code can't: conventions, hard-won rules, validation anchors, and the roadmap.
+Node-beam chassis + strip-theory aero flight sim. One solver, and since
+2026-09-05 ONE KIND OF AEROPLANE: the garage build (the six hand-written
+fiches that validated the solver from M1 are retired — G184). Split into part
+files (src/) with a node build; headless node gates that actually fail. This
+document carries everything the code can't: conventions, hard-won rules,
+validation anchors, and the roadmap.
 
 ## SESSION RITUAL (PTIS-style, non-negotiable)
 1. Read this file and the relevant code BEFORE editing.
@@ -16,20 +18,18 @@ code can't: conventions, hard-won rules, validation anchors, and the roadmap.
    non-zero exit, and never deliver on a core-only pass.
    (`node tools/build.js` for a standalone build; `--only=ID[,ID]`, `--verbose`,
    `--no-build` on the runner; `--only=` implies full, it is an explicit ask.)
-   TIERS (2026-08-11, user call): the garage and the two mesh aircraft are the
-   product and the hand fiches are reference that will eventually be replaced by
-   procedural builds, so core = PA18 + C172 + GEN + FLEX + STRESS + UISMOKE +
-   XCTY4 + the cheap world/skin/codec gates, and fleet = WIND, M3, DRONE, DC3,
-   JODEL, CHINOOK, XCTY/2/3/5. The runner exports `GATES_CORE=1` so gates can
-   scope themselves; FLEX uses it to measure the two mesh aircraft instead of
-   all seven fiches (82 s -> 42 s).
-4. New aircraft checklist: new `src/core/1x_aircraft_*.js` fiche + MANIFEST entry
-   in `tools/build.js` + thin gate config (see any `test_*.js`) + entry in
-   `test_stress.js` + `<option>` in the aircraft select in
-   `src/viewer/body.html` + AIRCRAFT map entry in `src/viewer/app.js` +
-   line in the fleet table below.
-5. The GARAGE aircraft (`gen`) is GENERATED, not a fiche: its numbers move when
-   the spec does. Never hand-edit its anchors — re-read them off GATE GEN's own
+   TIERS (2026-08-11, user call; re-cut G184): core = GEN + PILOT + FLEX +
+   STRESS + LOAD + UISMOKE + the editor's gates + the cheap world/skin/codec
+   gates; full = ARCHETYPES + HOTHIGH (the slow sweeps). The runner exports
+   `GATES_CORE=1` so a gate can scope a sweep by it. (The fleet tier — WIND,
+   M3, DRONE, DC3, JODEL, CHINOOK, XCTY/2/3/5 — retired with the fiches.)
+4. There is no "new aircraft checklist" any more (G184): an aeroplane is a
+   spec, and a new KIND of aeroplane is an archetype in `_cage_design.js`
+   (GATE DESIGN / GATE ARCHETYPES). A new REFERENCE plane is a row in
+   `tools/ref_table.py` + `python tools/ref_prep.py` + a preset in
+   `src/viewer/refplane.js` + a line in `build.js` MANIFEST.models.
+5. The GARAGE aircraft (`gen`) is GENERATED: its numbers move when the spec
+   does. Never hand-edit its anchors — re-read them off GATE GEN's own
    SHAKEDOWN line. See THE GARAGE.
 
 ## FILES
@@ -51,11 +51,10 @@ before every battery so stale hand-edits get overwritten, loudly.
   than with the world because 60_gen_spec and 64_gen_build need it as much as
   the solver does. The model, its constants and its named cuts are in that
   file's own header — there is no separate spec document to drift from it.
-- `src/core/10..16_aircraft_*.js` — one fiche per aircraft (cub, dc3, chinook,
-  c172, jodel, drone, pa18). Fully self-contained builders; only POLARS is
-  external. The ideal parallel-agent boundary: one agent per fiche, zero
-  conflicts. The pa18 is a byte-copy of the cub geometry + flap physics and
-  carries the 3D skin; the J-3 stays wireframe (may retire later).
+- `src/core/10..16_aircraft_*.js` — RETIRED G184 (2026-09-05). The seven
+  hand-written fiches (cub, dc3, chinook, c172, jodel, drone, pa18) and their
+  gates are gone from the tree; their validation rows stay below as history.
+  The `pa18` and `c172` payloads live on as REFERENCE planes.
 - `tools/glb_inspect.py` / `glb_render.py` / `glb_extract.py` — the GLB branch
   of the model import (docs/MODEL-IMPORT-PROC.md Step 0b). inspect =
   world-space inventory + textures + animation channels; render = orthographic
@@ -126,18 +125,16 @@ before every battery so stale hand-edits get overwritten, loudly.
   browser, no build; regenerate only when markup or MANIFEST changes).
   All slot substitution uses replacer functions ($-pattern safety).
 - `tools/run_gates.js` — gate runner; `tools/circuit_harness.js` — shared
-  circuit pipeline; `test_*.js` — thin per-aircraft configs + stress + tree
-  + the flexbody battery (test_model/skin/ctrl/ui_smoke/pa18).
+  circuit pipeline (GATE GEN, HOTHIGH and the archetypes fly through it);
+  `test_*.js` — the solver/world/codec gates, every one of them on a
+  generated build since G184.
 - `tools/test_flex.js` — GATE FLEX, the structural-realism instrument. Not a
   bound: it measures deflection/g, torsion, softness and load margin against
   real-aeroplane figures and prints both. Read STRUCTURAL REALISM before
   changing any `k`, `c` or strain threshold on the strength of an impression.
-- `tools/make_perf.js` — FLEET PERFORMANCE instrument: static thrust, Vs, Vmax,
-  best climb, best glide and the FLOWN takeoff run to 2.5 m agl, for all eight
-  aircraft. This is where the FLEET & VALIDATION ANCHORS rows are re-read from;
-  before it existed those numbers had no instrument and could only be hand-edited,
-  which is the one thing the session ritual forbids. NOT a gate: no verdict line,
-  no bounds. `--json` for A/B diffing across a physics change. See G4.9.
+- `tools/make_perf.js` — RETIRED with the fleet (G184). The garage build's
+  performance sheet is `genShakedown` (the plaque) and `gen_ap_probe.js` is the
+  garage's autopilot instrument.
 - `tools/make_probe.js` — renderer measurement instrument (hand-pumped frames,
   GL draw counters, before/after against the previous commit's viewer, and
   handles on scene/renderer/camera/WF that are otherwise sealed in app.js's
@@ -146,12 +143,14 @@ before every battery so stale hand-edits get overwritten, loudly.
 - `tools/model_prep.py` (generic bake, needs Pillow) + `tools/models/<key>.py`
   (per-model config: groups, SURFACES hinge table, texture settings) +
   `tools/model_inspect.py` (OBJ inventory + hinge-line probe). Procedure:
-  docs/MODEL-IMPORT-PROC.md.
+  docs/MODEL-IMPORT-PROC.md. Since G184 this is the RIGGED-import record
+  (nothing flies an import); `tools/ref_prep.py` + `ref_table.py` is the live
+  reference-plane baker.
 - `vendor/` — three.js r128 PINNED (renderer code targets r128 APIs; do not
   upgrade casually) + IBM Plex woff2 (latin).
 - Multi-agent etiquette: core agents own `src/core/`, viewer agents own
-  `src/viewer/`, either regenerates via build.js. Fiche agents never touch the
-  solver; solver changes re-anchor the whole fleet table.
+  `src/viewer/`, either regenerates via build.js. Solver changes re-anchor
+  GATE GEN's SHAKEDOWN line and the garage's own bounds.
 
 ## GATES
 Verdict contract: every gate prints exactly one final `GATE <ID>: PASS|FAIL`
@@ -207,15 +206,9 @@ reported, not gated, because the allowable is a class average and the
 worst-loaded member is usually the lift strut. `LOAD_JSON=1` dumps the
 measurements on stderr so a report page is built from the gate's own numbers.
 See GATE LOAD under STRUCTURAL REALISM.
-GATE XCTY4 (~32 s) is the W13.2 short-field leg: PA-18 HOME -> Stein
-(340 m gravel fly-in) in the viewer BREEZE preset — touch in the first
-40%, bounded skip, on-strip stop, UPRIGHT tail-down, tail rig intact.
-GATE C172M (appended after PA18, ~2 s) is the second skin's contract:
-payload decode, span/length, tricycle mount calibration at BOTH gear ends,
-hinge axes (unit + aero-consistent signs) for the non-cardinal C172 hinges,
-nose-gear steering across four payload groups, flex-band containment and
-L/R symmetry, and that the strut fittings ride the wing while the fuel caps
-stay rigid. The pa18's MODEL/SKIN/CTRL gates are untouched.
+GATE XCTY4 and GATE C172M — RETIRED G184 with the fleet (the short-field
+PA-18 leg and the C172 skin contract; see G184 for what covers the ground
+now).
 GATE WORLDRENDER (~3 s) is the only coverage render_world.js has — UISMOKE
 stubs buildWorldScene out entirely — and runs the real builder against a THREE
 stub that records what gets created. Its renderer stub carries the whole
@@ -255,11 +248,12 @@ from the pre-contract build) and checks determinism, the tile/treesNear
 contracts, aerodrome invariants and the terrainH perf budget. **Any
 intentional terrain change must re-capture the goldens (snippet in
 WORLD-CONTRACT §4) in the same commit, with the change explained.**
-Flexbody gates (appended, keeping the physics log prefix diffable): MODEL
-(payload decode + wheel calibration), SKIN (flex binding), CTRL (hinges +
-linkage), UISMOKE (executes the built artifact's core+models+app blocks in a
-node vm with DOM/THREE stubs — the vendor and render blocks are deliberately
-NOT executed, buildWorldScene is stubbed), PA18 (flapped circuit).
+Flexbody gates (appended, keeping the physics log prefix diffable): SKIN
+(the generated build's REST FRAME — its PA-18 flex-binding half retired with
+the fleet, as did MODEL, CTRL and PA18; GATE REF decodes every payload),
+UISMOKE (executes the built artifact's core+models+app blocks in a node vm
+with DOM/THREE stubs — the vendor and render blocks are deliberately NOT
+executed, buildWorldScene is stubbed).
 
 GATE ATMOS (appended G72, core tier, under a second) is the atmosphere with no
 aeroplane in it: the ISA tables to 0.2% over 11 km, the density-altitude
@@ -275,10 +269,11 @@ cannot quietly default an electric motor into lapsing like a piston. Section 9
 covers the surface layer, INCLUDING that a wind with no `refH` is still a
 uniform column.
 
-GATE HOTHIGH (appended G72, fleet tier, ~120 s) is the same air with an
-aeroplane in it, which is a different claim: that the model REACHES the wing
-and the engine. Four sections — the solver reporting the air the model says it
-is in; the PA-18 and the C172 FLOWN off Brekk Strip on two different days, so
+GATE HOTHIGH (appended G72, full tier) is the same air with an aeroplane in
+it, which is a different claim: that the model REACHES the wing and the
+engine. Four sections — the solver reporting the air the model says it is
+in; the garage build (the PA-18 and C172 until G184) FLOWN off Brekk Strip on
+two different days, so
 the take-off run grows while the unstick EAS does not and the TAS does; an
 electric build losing measurably less field length than a piston one, which
 falls out of the prop synthesis and is asserted nowhere; and a full circuit off
@@ -11485,7 +11480,11 @@ should know about it.
 5. **G1** — fairings, geometry and drag.
 
 
-## FLEET & VALIDATION ANCHORS (re-verify after any physics change)
+## FLEET & VALIDATION ANCHORS (HISTORY since G184 — the fiches are gone)
+**The hand-written fleet retired 2026-09-05 (G184).** The rows below are what
+the solver was validated against while it had them; nothing re-reads them
+now (make_perf is gone). The live anchor is the `gen` row, re-read off GATE
+GEN's SHAKEDOWN line.
 | Aircraft | Mass | Sub | Key validated numbers |
 |---|---|---|---|
 | Foam Trainer 1.4m | 1.108 kg | 48 | Vs 6.4; elevator ~ZERO authority w/o propwash (probe: 1 N·m) |
@@ -30304,3 +30303,91 @@ spec keeps a painted tank's three fields and an untouched tank's nulls, junk is
 refused (`chrome`, `red`, hue 900 -> null/null/359), paint weighs nothing
 (450.110 kg either way), the material is keyed per tank, and the column builds
 a block per tank — each proven able to go red.
+
+## G184 — THE QUALITY PASS: THE FLEET RETIRES, THE EXTERNAL ASSETS LEAVE THE
+## REPOSITORY, THE STALE BENCHES GO (2026-09-05, the user: "quality pass.
+## Structure review, bug hunting, clean-up. Do not change behaviour ... retire
+## the old fleet, from now on all vessels are garage ones. Do we still need the
+## cage tools? Certainly not all of them.")
+
+**WHAT RETIRED.** The seven hand-written fiches (`10..16_aircraft_*.js`), their
+seventeen gates (WIND, M3, DRONE, DC3, JODEL, C172, CHINOOK, PA18, C172M,
+MODEL, CTRL, XCTY/2/3/4/5), the two fleet instruments (`make_perf.js`,
+`_yaw_probe.js`), the `AIRCRAFT` map's seven keys, `SKIN_CFG`'s two measured
+mounts and the boot's PA-18 warm-up in app.js, the fiche selections in
+UISMOKE, and the seven `build*` node exports. The pa18 and c172 PAYLOADS stay
+— reference planes now, exactly like helijah's eleven, still carrying the
+rigging they were baked with. The game opens on `setAircraft('gen')` with a
+null spec (buildGen falls back to GEN_DEFAULT) and the garage bridge
+re-applies the WIP before the first frame, which is what it always did after
+the PA-18 placeholder.
+
+**THE GATES THAT FLEW A FICHE FOR A SOLVER CLAIM WERE PORTED, NOT DROPPED.**
+Every one of these asserted a property of the SOLVER and used a fiche as its
+subject; the subject is the garage build now, the bounds are the same unless
+said otherwise:
+- GE (Cub -> gen): McCormick shape bounds, unchanged. Reads drag cut 10.6 %,
+  lift gain 13.4 % at h/b 0.05.
+- FLAPS (C172/Chinook/PA-18 -> gen + slotted flap): the stock build has no
+  flap, so the subject declares `controls.flap.type = 'slotted'`. The POH
+  bands were the fiches'; the new bands are the build's own measured numbers
+  with margin (ratio 0.846 in 0.80..0.95, dCLmax 0.60 > 0.4, drag x3.36 > 2)
+  plus the unchanged AP servo checks.
+- TREE (Cub -> gen), STRESS (seven fiches + gen -> gen), LOAD (the two
+  imported rows dropped), FLEX (the FLEET half dropped; the garage matrix and
+  the four-material sweep are the whole gate), SKIN (the PA-18 flex-binding
+  half dropped; the G145 rest-frame half IS the gate), HOTHIGH (the PA-18 and
+  C172 take-offs and the HH circuit fly the garage build; tip stations off
+  `parts.zs` like STRESS).
+- DROPPED without a port: the XCTY family (the classic autopilot's
+  cross-country legs, calibrated per fiche — GATE PILOT and GATE GEN's
+  circuit are the garage's equivalents), WIND (GATE GEN's parked-tailwind
+  dwell + cruise-quiet-in-wind keep the wind claims), and the per-fiche
+  circuit gates. XCTY4's upright-arrival-on-a-bench claim has no gate now:
+  owed, if a short-field bench arrival ever goes wrong again.
+
+**THE TIERS RE-CUT.** `fleet` tier -> `full` tier, holding ARCHETYPES and
+HOTHIGH. The runner's summary says "full-tier gates SKIPPED".
+
+**ONE BUG FOUND BY THE BASELINE.** GATE GEN was RED at HEAD before a line was
+touched: `drone body has no windscreen step` failed on `crew === 0`. G180's
+occupancy rule clamped `S.crew` to `>= 1` for every seating including the
+drone's (seats 0), so a drone carried a pilot. Fixed in resolveSpec: the
+floor of one applies when `seats > 0`; a drone has crew 0, pax 0.
+
+**EXTERNAL ASSETS LEAVE THE REPOSITORY.** `.gitignore` now ignores
+`flyDiy/assets/*` and `flyDiy/assetsSketchfab/` (~450 MiB of Poly Haven,
+ambientCG and Sketchfab raw sets and GLBs — `git rm --cached`, files still on
+disk, CREDITS.md says where each is re-fetched from), with two negations:
+`assets/pa18/` (GPL source availability for the derived payload) and
+`assets/jodel_structure/` (the user's own hand-modelled structures). The
+shipped store is `media/` + `src/models` + `src/props`, unchanged. The
+MakeHuman assets (`assets/humanClothes*` and the ten `assets/textures/*.png`
+suits/eyes/shoes) were referenced by nothing and are DELETED.
+
+**STALE TOOLING DELETED** (the ROADMAP's bench-page audit, ruled): the bench
+pages `_cage2..7.html` (`_cage8.html` is the one standalone bench and
+build.js's authority), `_lean.html` + `_lean_page.js` (the study landed in
+G-lean), `_pwr.html` (its cowl and engine live in `_cage8`/`_engine.html`),
+`_spat_norm.js` (one-off with an absolute path in it), `loft_fit.js` (the old
+fuselage's instrument), `obj_sanitize.py` (a decimator — against the
+import-as-is rule), the root `_probe_flex.html` and the empty `probe` file,
+`graphicRedesign/cub-m3.html` (the pre-redesign page). Kept: `_engine.html`,
+`_gear.html` (sub-benches with live module partners), `_terrain.html`,
+`_props.html`, `make_probe.js`/`_light_probe.js` (instruments),
+`earlierVersions/` (cited here as the backup of the old game).
+
+**THE ROW AUDIT.** Every editor row was checked for a reader (739 keys, by
+identifier and by layer prefix): every row is read by the layer that declares
+it, except `propSpin` in `_cage_page5.js`'s defaults — no row, no reader,
+deleted. `li_instr` is declared-and-not-drawn ON PURPOSE (its own note). Every
+`<button>` in body.html has a handler.
+
+**LEFT AS IT WAS, ON PURPOSE.** app.js's `buildModel` still carries the
+imported-payload and the old generated-skin branches (`MODELS3D[key]`,
+`data.generated`); with one key in the map they are unreachable, but they are
+interleaved through 750 lines of the visual and this pass did not rewrite
+them blind. The `key`/`curKey` plumbing stays for the same reason: it is the
+aircraft-change door. `.claude/launch.json` at the repository root carries
+forty session-named dev-server entries; it is the user's tool config, not
+the game, and was not touched.

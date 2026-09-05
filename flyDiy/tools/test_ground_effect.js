@@ -1,10 +1,13 @@
-// Ground-effect gate: height sweep on the Cub via probe with a live world.
+// Ground-effect gate: height sweep on the GARAGE BUILD via probe with a live
+// world. (It swept the Cub fiche until the hand-written fleet retired,
+// 2026-09-05; the bounds are shape bounds on the McCormick model and moved
+// for no aeroplane.)
 // Asserts the McCormick-shaped behaviour: total drag at fixed alpha falls
 // monotonically as the wing approaches the ground, lift rises, and both
 // converge to free-air values far from it.
-const { buildCub, makeSim, makeWorld } = require('./flight_core.js');
+const { buildGen, makeSim, makeWorld } = require('./flight_core.js');
 const world = makeWorld();
-const def = buildCub();
+const def = buildGen();
 
 // same span datum the solver derives
 let b = 0;

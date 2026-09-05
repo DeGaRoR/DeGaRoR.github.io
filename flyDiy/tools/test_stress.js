@@ -1,4 +1,6 @@
-const { buildCub, buildDrone, buildDC3, buildJodel, buildC172, buildChinook, buildPA18, buildGen, makeSim, makeAutopilot, makeWorld } = require('./flight_core.js');
+// GATE STRESS — full-deflection abuse of the GARAGE BUILD at cruise (the
+// seven fiches flew it too until the fleet retired, 2026-09-05).
+const { buildGen, makeSim, makeAutopilot, makeWorld } = require('./flight_core.js');
 const world = makeWorld();
 function stress(name, build, tipTag, tipZ, midZ, flapLim) {
   const def = build();
@@ -34,18 +36,11 @@ function stress(name, build, tipTag, tipZ, midZ, flapLim) {
   console.log(`${name}: flap ${flapMin.toFixed(1)}..${flapMax.toFixed(1)} deg  strain ${(smax*100).toFixed(0)}%  NaN=${bad}  ${ok ? 'OK' : 'FAIL'}`);
   return ok;
 }
-const a = stress('CUB   full-deflection abuse', buildCub, 'WF', 5.0, 3.4, 10);
-const b = stress('DRONE full-deflection abuse', buildDrone, 'WF', 0.68, 0.36, 10);
-const c = stress('DC-3  full-deflection abuse', buildDC3, 'WF', 14.3, 7.6, 12);
-const d = stress('JODEL full-deflection abuse', buildJodel, 'WF', 4.36, 2.10, 34);
-const e = stress('C172  full-deflection abuse', buildC172, 'WF', 5.50, 2.30, 12);
-const f = stress('CHNK  full-deflection abuse', buildChinook, 'WF', 5.34, 2.00, 30);
-const g = stress('PA18  full-deflection abuse', buildPA18, 'WF', 5.0, 3.4, 10);
 // GARAGE preset: tip/mid stations come from the spec, not a literal, because
 // the generated wing moves when a slider does
 const gd = buildGen();
 const h = stress('GEN   full-deflection abuse', buildGen, 'WF',
                  gd.parts.zs[gd.parts.zs.length - 1], gd.parts.zs[0], 10);
-const pass = a && b && c && d && e && f && g && h;
+const pass = h;
 console.log(pass ? 'GATE STRESS: PASS' : 'GATE STRESS: FAIL');
 process.exitCode = pass ? 0 : 1;

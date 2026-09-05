@@ -1,6 +1,8 @@
-const { buildCub, makeSim, makeWorld } = require('./flight_core.js');
+// GATE TREE — drive the GARAGE BUILD into a trunk (the Cub fiche until the
+// fleet retired, 2026-09-05; the bounds are the collision's, not an aeroplane's).
+const { buildGen, makeSim, makeWorld } = require('./flight_core.js');
 const world = makeWorld();
-const def = buildCub();
+const def = buildGen();
 const sim = makeSim(def, world);
 sim.reset(0);
 // teleport in front of a tree on open terrain, drive into it.

@@ -29,13 +29,10 @@ const MANIFEST = {
     // 64_gen_build quotes stall speeds at one, so it sits in the 00_ band
     // rather than with the world.
     '05_atmos.js',
-    '10_aircraft_cub.js',
-    '11_aircraft_dc3.js',
-    '12_aircraft_chinook.js',
-    '13_aircraft_c172.js',
-    '14_aircraft_jodel.js',
-    '15_aircraft_drone.js',
-    '16_aircraft_pa18.js',
+    // THE HAND-WRITTEN FLEET RETIRED 2026-09-05 (user ruling: every vessel is
+    // a garage one). The seven fiches (cub, dc3, chinook, c172, jodel, drone,
+    // pa18) that stood here, their circuit gates and make_perf are gone; the
+    // PA-18 and C172 payloads stay as REFERENCE planes (MANIFEST.models).
     '20_world.js',
     '21_world_hydro.js',
     '22_world_biomes.js',
@@ -78,8 +75,9 @@ const MANIFEST = {
     '70_player.js',
     '90_node_exports.js',
   ],
-  // baked 3D model payloads (tools/model_prep.py for the two FLYABLE ones,
-  // tools/ref_prep.py for the reference-only ones — data, not core):
+  // baked 3D model payloads (tools/model_prep.py baked the PA-18 and C172
+  // when they were flyable, tools/ref_prep.py the rest — all REFERENCE
+  // planes since the fleet retired 2026-09-05; data, not core):
   // <script src> refs in BOTH pages since 2026-09-01, when the artifact went
   // multi-file (assets externalized) and the single-file form retired to
   // flyDiy/archiveSingle/. The old 100 MiB-per-file push ceiling died with

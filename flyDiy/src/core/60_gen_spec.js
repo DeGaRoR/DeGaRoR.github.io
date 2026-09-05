@@ -2790,7 +2790,11 @@ function resolveSpec(spec) {
   // and the seating table's count is the fallback for a fiche and every save
   // from before the field. A drone has none either way.
   S.seats = (S.cab.seats != null && seat.crew > 0) ? Math.max(1, S.cab.seats) : seat.crew;
-  S.crew = genClamp(S.pilots | 0, 1, Math.max(1, S.seats));
+  // A DRONE HAS NO CREW (2026-09-05). G180's clamp read `never fewer than one
+  // pilot` and put a pilot in a drone: `seats` is 0 there, and the seating
+  // table's crew 0 is the rule — GATE GEN's drone case asserts it. Every
+  // crewed seating keeps the G180 floor of one.
+  S.crew = S.seats > 0 ? genClamp(S.pilots | 0, 1, S.seats) : 0;
   // WHO ELSE IS ABOARD. `pilots` has always been LOADING rather than capacity
   // (its own comment in GEN_DEFAULT says so); `pax` is the same idea for the
   // seats the flight crew are not in, so the two together are the occupants
