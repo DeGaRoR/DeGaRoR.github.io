@@ -4390,6 +4390,12 @@
     if (!genSpec.cage || !Object.keys(genSpec.cage).length) return;
     try { E.applySpec(genSpec); }
     catch (err) { console.error('cage editor seed:', err); }
+    // G190: the autosave's image pages come back before the editor exists;
+    // the seed is the first moment they can be baked onto the atlas
+    try {
+      const G = window.GARAGE_SPEC;
+      if (E.decalImagesFrom && G && G.images) E.decalImagesFrom(G.images() || {});
+    } catch (err) { console.error('cage editor seed (images):', err); }
   }
   function openEditor() {
     const w = $('edWrap');
@@ -4457,19 +4463,13 @@
     if (v) v.hidden = !ws;
     if (!ws && typeof window.EDITOR_RELEASE === 'function')
       window.EDITOR_RELEASE();
-    // A BACKSTOP FOR THE RENDER'S SIZE. The canvas's width transitions with
-    // the panel (G77.1) and the drawing buffer follows its client box, so a
     // G187: nothing of the editor's chrome outlives the switch — the colour
     // picker used to (a strip off <body>, closed by timers), and sat over the
     // runway. It hides with #edWrap now, and is told as well.
     if (!ws && window.CAGE_RECENT && window.CAGE_RECENT.hide)
-    // G190: the autosave's image pages come back before the editor exists;
-    // the seed is the first moment they can be baked onto the atlas
-    try {
-      const G = window.GARAGE_SPEC;
-      if (E.decalImagesFrom && G && G.images) E.decalImagesFrom(G.images() || {});
-    } catch (err) { console.error('cage editor seed (images):', err); }
       window.CAGE_RECENT.hide();
+    // A BACKSTOP FOR THE RENDER'S SIZE. The canvas's width transitions with
+    // the panel (G77.1) and the drawing buffer follows its client box, so a
     // transition that does not finish leaves the buffer at whatever it had
     // reached. `transitionend` covers the ordinary case; this covers the ones
     // where the event never arrives — a tab backgrounded across the switch, a
@@ -4479,9 +4479,9 @@
   function closeEditor() {
     const w = $('edWrap');
     if (w) w.hidden = true;
+    if (window.CAGE_RECENT && window.CAGE_RECENT.hide) window.CAGE_RECENT.hide();
     setMode(false);
     // ...AND THE AEROPLANE STAYS (G65). Closing the panel used to put the
-    if (window.CAGE_RECENT && window.CAGE_RECENT.hide) window.CAGE_RECENT.hide();
     // GENERATED model back on the stand in place of the cage build, so hiding
     // the sliders swapped the aeroplane for a different-looking one — the
     // "stand" the flow had to pass through was that swap, and there is no
