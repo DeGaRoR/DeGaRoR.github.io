@@ -340,7 +340,7 @@ function cageResolve(S) {
   const TAP = S.taper && S.taper.len > 0 ? S.taper : null;
   const tpW = TAP && !S.rod
     ? (S.pillarW > 0 ? S.pillarW : S.paxPillarW) : 0;
-  const zTaperA = zPaxA - (TAP ? TAP.len : 0);   // fwd end of taper pillar
+  const zTaperA = zPaxA - (TAP && !S.rod ? TAP.len : 0);   // fwd end of taper pillar
   const zTaperP = zTaperA - tpW;                 // aft ring of taper pillar
   const zPost = zTaperP - S.boom.len;
   const zCap  = zPost - S.tail.len;
@@ -6616,6 +6616,12 @@ function cageSpec(P) {
     ? { r: Math.max(0.015, (P.rodD || 0.12) / 2), y: P.rodY || 0,
         twin: +P.boomTwin ? 1 : 0 }
     : 0;
+  // G189: on a rod the taper's truss lives INSIDE the boom's length (see
+  // cageResolve), so it cannot be longer than the boom less a hand of bare
+  // tube for the tail to clamp onto
+  if (S.rod && S.taper)
+    S.taper.len = Math.min(S.taper.len,
+                           Math.max(0.08, (P.boomLen || 2.2) - 0.3));
 
   const aLean = { keel: T.aft.keelYA - T.aft.keelYB,
                   floor: T.aft.floorYA - T.aft.floorYB };
@@ -6648,12 +6654,6 @@ function cageSpec(P) {
              z: ap(fr(wf.ceil.z, wf.roofZ, wf.waist.z), F.roofZ, F.waist.z) };
   F.bandZ = ap(fr(wf.bandZ, wf.waist.z, wf.ceil.z), F.waist.z, F.ceil.z);
   F.floorY = ap(fr(wf.floorY, T.waistY, T.cabin.floorY), P.waistY, P.floorY);
-  // G189: on a rod the taper's truss lives INSIDE the boom's length (see
-  // cageResolve), so it cannot be longer than the boom less a hand of bare
-  // tube for the tail to clamp onto
-  if (S.rod && S.taper)
-    S.taper.len = Math.min(S.taper.len,
-                           Math.max(0.08, (P.boomLen || 2.2) - 0.3));
   F.keelY = dn(dnT(wf.keelY));
   C.waistZ = F.waist.z + P.wsBaseBow;
   C.ceil = { y: F.ceil.y, z: F.ceil.z + P.wsCeilBow };
