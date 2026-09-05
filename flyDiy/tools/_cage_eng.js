@@ -218,6 +218,10 @@ window.CAGE_ENG_FACTS = (P) => {
   // flat-rating margin 05_atmos reads, and the bare length the engine box
   // reads
   if (turb) { facts.flatK = R.flatK; facts.length = R.env.length; }
+  // where its mass sits (the cgFwd half-session, 2026-09-05): the resolve's
+  // own CG aft of the flange, the number GEN_ENG_CG holds for the registry
+  // rows — measured the same way, so an untouched preset and its row agree
+  facts.cgAft = +(-R.cgZ).toFixed(3);
   // a blown piston's critical altitude rides to the clamp the same way
   // (the blower model, 2026-09-05)
   if (!elec && !turb && R.critAlt > 0) facts.critAlt = R.critAlt;
@@ -235,7 +239,11 @@ window.CAGE_ENG_FACTS = (P) => {
     && (!turb || eq(R.flatK, R0.flatK))
     // a blower is a physics dial too (2026-09-05): its kind and its ceiling
     && (elec || turb || (R.aspiration === R0.aspiration
-                         && eq(R.critAlt || 0, R0.critAlt || 0)));
+                         && eq(R.critAlt || 0, R0.critAlt || 0)))
+    // and so is WHERE THE MASS SITS (the cgFwd half-session, 2026-09-05):
+    // an engine whose centre of mass moved is a different engine — a longer
+    // core, a deeper accessory case — while the fins and covers cannot move it
+    && Math.abs((R.cgZ || 0) - (R0.cgZ || 0)) < 0.005;
   if (isPreset && !ENG_FANTASY.has(psName)) return null;
   // deviated (or fantasy): name the thing by what it now is
   const kW = R.powerW / 1000;

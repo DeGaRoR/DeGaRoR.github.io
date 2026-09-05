@@ -31746,3 +31746,112 @@ wing PIN rows; the monoplane downwash flip (next arc; anchors above); the
 mutual term in ground effect uses the same image as the self term (McCormick
 holds the self image); a fin sees no sidewash; V-tail strips take the kernel's
 downwash but a twin-boom's second fin none.
+
+## G198 — WHERE THE ENGINE'S MASS SITS: THE cgFwd HALF-SESSION (2026-09-05;
+## TURBOPROP §8's owed item, the user: "start the cgFwd half-session")
+
+**The defect.** The frame hung the whole engine plus the blades on its two
+mount nodes at the FLANGE station — `engX` is the flange (the join measures a
+drawn engine's flange; the prop rule approximates one) — and an engine's
+centre of mass is not at its flange. The bench had always known where it
+was (`cgZ`, the sum of the resolve's mass items along the crank) and the
+frame never read it: a boxer's 0.20 m, a Gipsy's 0.39, a PT6A-114A's 0.63,
+a -60A's 0.78 — the longest arm on the aeroplane, wrong by the engine's own
+half-length, on every build since G4.7.
+
+**What landed.**
+- **`cgAft`** — the CG aft of the prop flange, metres, ENGINE-INTRINSIC so
+  it means the same thing on a nose, a nacelle and a pusher (the study
+  called it `cgFwd`, ahead of the firewall; that number depends on the mount
+  gap and the nose rule, and the intrinsic one does not).
+- **`GEN_ENG_CG`** (00_registry.js): one measured number per registry row —
+  the bench's own `cgZ` for the preset that maps to the row, 39 rows, a
+  SEPARATE table rather than a field on each row because the
+  engine-coverage session was mid-flight in those rows and a table keyed by
+  row collides with nobody. `genEngineCgAft(key, engine)`: a custom row's
+  own number outranks it; no entry = null = the old lump, byte for byte
+  (`outrunner3548_12x6` has no preset and no entry).
+- **The spec reads it** (`S.engCgAft`, resolveSpec, right after `S.pplant`)
+  — a READING on the spec, never written into the registry dict, which
+  every build shares. The custom clamp carries `cu.cgAft` (0..2.5); the
+  facts carry `-R.cgZ` for a drawn engine, and the identity ruling now
+  compares `cgZ` too: an engine whose centre of mass moved is a different
+  engine (a longer core, a deeper accessory case), while fins and covers
+  cannot move it.
+- **The frame hangs the engine at its CG** (61_gen_frame.js): one `CGE`
+  node at `engX + cgAft` (a pusher's flange faces aft: `engX - cgAft`),
+  held by the two mount nodes and the ring's four corners (the nose) or the
+  mount's own anchors (pusher, over-the-wing, wing pair — `hangEngine`,
+  one rule for the four mounts) — a deep truss, the G179 bearer's own
+  lesson; the BLADES stay on the flange. `CGE` is deliberately not an
+  `ENG` tag: `refs.engine` (thrust, the viewer, the solver's per-engine
+  levers) keeps its meaning; GATE MOUNT measures `CGE` like a mount node.
+- **The nose rule knows a long engine**: `engX` is the prop rule OR the
+  row's declared `length` + 0.10 m, whichever is further out — a derived
+  PT6 stood 0.61 m ahead of the firewall on the prop rule where its flange
+  is 1.6 m out (a bake has only the row; the join measures a drawn one).
+- **The Caravan card's wing moved 0.10 m aft**: with the mass at its true
+  CG the card went around on terrain and was still on approach at 420 s;
+  at `wgDx 0.10` it completes at 340 s (sink 2.0), at 0.20 at 347.
+
+**Measured — what moved, every live archetype, frame CG aft (cm, % MAC):**
+Stearman 4.4 / 2.9 · aerobatic biplane 5.1 / 4.4 · sesquiplane 2.5 / 1.9 ·
+Jodel 3.1 / 2.5 · C172 5.5 / 4.0 · Caravan 8.6 / 5.0 · RV 5.5 / 4.3 ·
+Savannah 2.9 / 2.0 · ultralight 1.6 / 1.1 · pod-and-boom PUSHER -1.8 / -1.2 ·
+motorglider 1.1 / 1.2 · radial tourer 1.8 / 1.4 · electric trainer 1.1 / 0.9 ·
+T-tail 5.1 / 3.9 · V-tail 5.1 / 3.7 · Whittaker (pusher) -2.1 / -1.5 ·
+Archaeopteryx (pusher) -1.7 / -1.3 · DA62 twin 8.2 / 6.4 · twin bush 7.9 /
+4.1 · Skymaster 5.1 / 3.9 · P-38 4.8 / 3.8 · Beaver 5.0 / 2.6. Tractors move
+aft by 1-6 % MAC, pushers forward by ~1.3; every one is the direction the
+physics says. GATE ENGINE: 0.5 m more arm on a 60 kg engine moves the frame
+CG 7.2 cm aft against m_e·0.5/M = 7.0 (the 0.2 is the mains following the
+CG aft and their legs re-lengthening — the locating members weigh nothing).
+GATE ENGID §10: the table matches the bench for 39 rows within 2 cm; a
+longer core moves the facts' CG. GATE MOUNT: green with the CGE nodes
+measured like mounts. GATE JOIN's pusher check now reads the blades on the
+mount pair and the engine on its CG node 0.23 m AHEAD of a pusher's flange.
+
+- **The DA62 card's wing moved 0.10 m aft too**: GATE ARCHETYPES on the
+  working tree flew 25 cards and failed one, the twin, still in TURNBACK at
+  420 s (SM 18.7 % as it was, 8.2 cm of CG shift — the most of any card); at
+  `wgDx 0.10` (SM 14.7 %) it completes at 279 s, sink 1.13. The other 24
+  landed with their engines at their CG, the Caravan included.
+
+**Gates.** On the working tree: ATMOS, ENGINE, ENGID, MOUNT, JOIN, BUILD,
+LOAD, ENERGY, ENERGYBASE (re-frozen), COWL, PARTS, SAVE, STARTER, DESIGN
+green; ARCHETYPES 24/25 before the DA62 re-trim, re-run in the proof; GEN
+hit the runner's 1800 s timeout with three batteries competing (a spawn
+ETIMEDOUT, not a verdict) and is proven in the clean worktree per
+docs/SHARED-TREE-PRACTICES.md §2 — the proof's own line is in the commit
+that follows this entry if it needed a fix-up, and nowhere if it did not.
+
+**Traps.**
+1. The study's name was the wrong number. `cgFwd` (ahead of the firewall)
+   folds the mount gap and the nose rule into an engine property; the
+   intrinsic `cgAft` (aft of the flange) is what the bench measures and what
+   every mount can use. Renamed before it was written.
+2. The peer's picker ruling landed while this was being written: a
+   catalogue engine's dials are INERT now, so the identity test that
+   lengthens a core must first switch to the custom MODE (the last preset
+   index, `CAGE_ENG_CUSTOM`) — the first cut of ENGID §10 read null and
+   looked like a broken facts line.
+3. **Six tubes that are not there.** Every member bills its own mass to its
+   two ends, so the six `fus` members that LOCATE the CG node billed 1.7 kg
+   of steel onto the stock build (the engine-coverage session's battery
+   read it: "+1.7 kg, cg0 0.849 -> 0.882" — its ENERGYBASE, on my
+   uncommitted frame). A member that only holds a point where a mass sits
+   is a modelling device, not structure: `B(..., { noMass: true })` keeps
+   it stiff and damped and bills nothing, the CGE node carries exactly
+   60.000 kg in GATE ENGINE, and the stock build's mass moved 0.04 kg for
+   a 3.7 cm CG shift.
+4. **What ENERGYBASE says moved, and why it is right to bless it**: every
+   frozen case gains one node (the CGE) and moves its cg0 aft by 3.4-4.1 cm
+   (stock 0.8492 -> 0.8860 m); the mass moves 0.04 kg on the stock build
+   and 0.85 on the nose-tank case — the mains are placed against the CG, so
+   they follow it aft and their legs re-length (AXLE +0.43), and the nose
+   tank's split between rings 1 and 2 follows them (S1B -0.85, S2B +1.23).
+   Downstream of the correction, not beside it. Blessed as the new truth.
+5. A mass correction of a few centimetres is enough to fail a card at the
+   margin: the Caravan's approach, not its stability (SM 45-50 % on the
+   sheet's own scale), went from 340 s to a go-around. The wing moved, not
+   the engine.

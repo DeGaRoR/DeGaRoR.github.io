@@ -421,6 +421,13 @@ different family — nothing new below the cowl.
   engine nodes, then the same field on every registry row (a radial's CG is
   behind its mount, a boxer's about on it). Not in the two sessions; a
   half-session of its own, with GATE MOUNT's sag/ring numbers re-measured.
+  **LANDED as G198 (2026-09-05)** — as `cgAft`, the CG AFT OF THE FLANGE
+  (engine-intrinsic; the study's "ahead of the mount" folded the mount gap
+  and the nose rule into an engine property), a measured table
+  `GEN_ENG_CG` per registry row (39 rows, the bench's own `cgZ`, ENGID §10
+  re-measures it), a `CGE` mass node off the mount on all four mounts, the
+  blades left on the flange, and the nose rule reading a declared engine
+  length. The shifts, measured on every card, are in HANDOVER G198.
 
 ## 9. The editor and the design tab
 

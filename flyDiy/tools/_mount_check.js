@@ -79,7 +79,9 @@ function measure(lbl, build) {
   catch (e) { say(`  ${lbl.padEnd(22)} BUILD FAILED: ${e.message}`); chk(false, `${lbl}: build failed`); return null; }
   const N = def.nodes, eng = def.refs.engine || [];
   if (!chk(eng.length >= 1, `${lbl}: no engine nodes`)) return null;
-  const isMount = i => /^(ENG|MNT)/.test(N[i].tag);
+  // CGE (2026-09-05, the cgFwd half-session): the engine's mass node at its
+  // own CG, cantilevered off the mount pair — measured like a mount node
+  const isMount = i => /^(ENG|MNT|CGE)/.test(N[i].tag);
   const anchors = i => {
     const s = new Set();
     for (const b of def.beams) {

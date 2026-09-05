@@ -212,6 +212,37 @@ console.log('resolveSpec + genFrame: the custom engine flies');
      genEnginePrice('turbine', 503000) / POWERPLANTS.pt6a114a_hartzell3.price < 2,
      'the turbine price curve sits on its own rows');
 }
+{
+  // WHERE THE MASS SITS (2026-09-05, the cgFwd half-session): a custom row's
+  // cgAft survives the clamp and outranks the table; the frame hangs the
+  // engine at its CG — the same engine 0.5 m further aft moves the frame's
+  // CG aft by m_e * 0.5 / M, and a row with no number hangs the old lump
+  const mk = cgAft => {
+    const s = clone(GEN_DEFAULT);
+    s.engines = [{ type: 'rotax912_warp', mount: 'nose', place: { dx: 0, dy: 0 },
+                   custom: Object.assign({ name: 'cg test', mass: 60, powerW: 59600,
+                     rpm: 5800, aspiration: 'na', family: 'four', cooling: 'liquid' },
+                     cgAft == null ? {} : { cgAft }) }];
+    return s;
+  };
+  const rA = resolveSpec(clampSpec(mk(0.2))).spec;
+  ok(rA.engines[0].custom.cgAft === 0.2 && rA.engCgAft === 0.2,
+     'a custom cgAft survives the clamp and is the spec\'s reading');
+  const rN = resolveSpec(clampSpec(mk(null))).spec;
+  ok(rN.engCgAft === 0.23, 'a custom row without one reads the registry table\'s (912: 0.23)');
+  const fA = genFrame(rA), fB = genFrame(resolveSpec(clampSpec(mk(0.7))).spec);
+  const dx = fB.cg0[0] - fA.cg0[0], want = 60 * 0.5 / fA.cg0[3];
+  ok(Math.abs(dx - want) < 0.005,
+     `0.5 m more engine arm moves the CG aft by ${(dx * 100).toFixed(1)} cm (m_e·0.5/M = ${(want * 100).toFixed(1)})`);
+  ok(fA.nodes.some(nd => nd.tag === 'CGE'),
+     'the engine hangs on a CGE node when the row knows its CG');
+  // the node carries the engine and NOTHING ELSE: the members that locate it
+  // are weightless (opt.noMass) — the first cut read 60.80, six tubes of
+  // bearer that are not there
+  const mCG = fA.nodes.filter(nd => nd.tag === 'CGE').reduce((q, nd) => q + nd.m, 0);
+  ok(Math.abs(mCG - 60) < 1e-9,
+     `and exactly the engine mass is on it (${mCG.toFixed(3)} kg; the blades stay on the flange, the locating members weigh nothing)`);
+}
 
 // THE VERDICT CONTRACT (G67.1): the runner requires BOTH signals.
 if (fails) console.log('\n  ' + fails + ' check(s) failed');

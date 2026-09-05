@@ -162,9 +162,17 @@ function genLattice(S, gearX, track, kScale) {
     // structural mass: linear density x length, half to each end (this is the
     // whole structural mass model — there is no separate mass budget to keep
     // in sync with the geometry)
-    const h = 0.5 * L * MM.lin[cls];
-    nodes[a].m += h; nodes[b].m += h;
-    bill(2 * h, 2 * h * MM.price);            // ...and priced as it (G179)
+    // ...except a member that only LOCATES a mass (opt.noMass — the engine's
+    // CG node, 2026-09-05): the bearer that carries the engine already weighs
+    // what it weighs on the mount nodes; six more steel tubes to hold a point
+    // where the engine's mass sits would bill 1.7 kg of tube that is not
+    // there (measured on the stock build). Stiff and damped like the rest,
+    // weightless and unpriced.
+    if (!(opt && opt.noMass)) {
+      const h = 0.5 * L * MM.lin[cls];
+      nodes[a].m += h; nodes[b].m += h;
+      bill(2 * h, 2 * h * MM.price);          // ...and priced as it (G179)
+    }
   };
   // ---- the LEDGER (G3). Mass and money, attributed to the section being built
   // rather than reconstructed afterwards. `SEC` is a moving marker because this
@@ -341,8 +349,31 @@ function genLattice(S, gearX, track, kScale) {
     // registry diameter. It lands on the mount nodes rather than at the hub, which
     // is 0.10 m further forward — worth 3 cm of CG on a 500 kg aeroplane with the
     // heaviest prop the clamps allow, and there is no node out there to hang it on.
-    pt(EL, 0.5 * (PP.engine.mass + S.prop.mass));
-    pt(ER, 0.5 * (PP.engine.mass + S.prop.mass));
+    //
+    // THE ENGINE'S MASS SITS WHERE THE ENGINE IS (2026-09-05, the cgFwd
+    // half-session, TURBOPROP §8). The mount nodes are the FLANGE station
+    // (engX — the join measures a drawn engine's flange, the prop rule
+    // approximates one), and the engine's centre of mass is `S.engCgAft`
+    // behind it: 0.20 m on a boxer, 0.63 on a PT6 — the longest arm on the
+    // aeroplane, and the lump on the flange had every CG a few centimetres
+    // forward of true (a Caravan-alike's by a seat). One node at the CG,
+    // held by the two mount nodes and the firewall ring's four corners — a
+    // deep truss, the G179 bearer's own lesson — carries the ENGINE; the
+    // blades stay on the flange, where they are. A row with no measured CG
+    // (S.engCgAft null) hangs the lump exactly as before, byte for byte.
+    if (S.engCgAft != null) {
+      const CG = N(S.engX + S.engCgAft, S.engY, 0, 'CGE');
+      const farN = (a, b) => Math.hypot(P[a][0] - P[b][0], P[a][1] - P[b][1],
+                                        P[a][2] - P[b][2]) > 0.05;
+      for (const q of [EL, ER, F[0].TL, F[0].TR, F[0].BL, F[0].BR])
+        if (farN(CG, q)) B(CG, q, 'fus', false, 'inner', true, { noMass: true });
+      pt(CG, PP.engine.mass);
+      pt(EL, 0.5 * S.prop.mass);
+      pt(ER, 0.5 * S.prop.mass);
+    } else {
+      pt(EL, 0.5 * (PP.engine.mass + S.prop.mass));
+      pt(ER, 0.5 * (PP.engine.mass + S.prop.mass));
+    }
   }
   spend((PP.price || 0) * S.engines.length);
   spend(S.prop.price || 0);
@@ -861,6 +892,24 @@ function genLattice(S, gearX, track, kScale) {
       return b;
     };
     const engM = PP.engine.mass + S.prop.mass;
+    // the engine's mass at its CG, behind the flange (ahead of it on a
+    // pusher, whose flange faces aft) — the nose block's rule, per mount
+    // (2026-09-05, the cfFwd half-session). Anchors: the mount pair and the
+    // members the mount itself stands on. Null = the lump on the mount nodes.
+    const cgA = S.engCgAft;
+    const farN = (a, b) => Math.hypot(P[a][0] - P[b][0], P[a][1] - P[b][1],
+                                      P[a][2] - P[b][2]) > 0.05;
+    const hangEngine = (e, mountNodes, anchors, z, mEng, mProp) => {
+      if (cgA == null) {
+        for (const n of mountNodes) pt(n, (mEng + mProp) / mountNodes.length);
+        return;
+      }
+      const CG = N(e.x + (e.pushes ? -cgA : cgA), e.y, z, 'CGE');
+      for (const q of mountNodes.concat(anchors))
+        if (farN(CG, q)) B(CG, q, 'fus', false, 'inner', true, { noMass: true });
+      pt(CG, mEng);
+      for (const n of mountNodes) pt(n, mProp / mountNodes.length);
+    };
     for (let i = 0; i < EAT.length; i++) {
       const e = EAT[i];
       if (e.mount === 'wing' && i > 0) continue;      // the pair's mirror
@@ -870,7 +919,8 @@ function genLattice(S, gearX, track, kScale) {
         BM(PL, PR);
         BM(PL, rg.TL); BM(PL, rg.BL); BM(PL, rg.BR); BM(PL, rg.TR);
         BM(PR, rg.TR); BM(PR, rg.BR); BM(PR, rg.BL); BM(PR, rg.TL);
-        pt(PL, 0.5 * engM); pt(PR, 0.5 * engM);
+        hangEngine(e, [PL, PR], [rg.TL, rg.TR, rg.BL, rg.BR], 0,
+                   PP.engine.mass, S.prop.mass);
         engNodes.push(PL, PR); engIdx.push(0, 0);
       } else if (e.mount === 'wingTop') {
         const [WL, WR] = NM(e.x, e.y, 0.35 * cab.halfW, 'ENG');
@@ -882,7 +932,8 @@ function genLattice(S, gearX, track, kScale) {
           BM(n, wf[q].F[0]);                             // cross-brace
           BM(n, rg['T' + o]);                            // pylon leg, roof
         }
-        pt(WL, 0.5 * engM); pt(WR, 0.5 * engM);
+        hangEngine(e, [WL, WR], [wf.L.F[0], wf.R.F[0], wf.L.R[0], wf.R.R[0]], 0,
+                   PP.engine.mass, S.prop.mass);
         engNodes.push(WL, WR); engIdx.push(0, 0);
       } else if (e.mount === 'wing') {
         // THE BEARER HAS DEPTH (G179). One node on the four spar nodes of
@@ -928,7 +979,10 @@ function genLattice(S, gearX, track, kScale) {
               for (const k of [b, b + 1])
                 if (caps[k] != null && far(caps[k])) BM(ft, caps[k], 'inner');
           }
-          pt(n, engM);                                   // a whole engine a side
+          // a whole engine a side — at its CG when the row knows one, on the
+          // nacelle node otherwise (the mirror's z is the node's own)
+          hangEngine({ x: e.x, y: e.y, pushes: e.pushes }, [n], ring,
+                     P[n][2], PP.engine.mass, S.prop.mass);
         }
         engNodes.push(NL, NR); engIdx.push(0, 1);
       }

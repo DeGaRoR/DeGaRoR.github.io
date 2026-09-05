@@ -474,6 +474,46 @@ function genEnginePrice(family, powerW) {
   return Math.round(60 * Math.pow(knee, 1.3) * Math.pow(kW / knee, 0.35));
 }
 
+// ============================================================
+// WHERE AN ENGINE'S MASS SITS (2026-09-05, the cgFwd half-session of
+// futureDesigns/TURBOPROP-2026-09-05.md §8). `cgAft` is the engine's centre
+// of mass AFT OF ITS PROP FLANGE, in metres — engine-intrinsic, so it means
+// the same thing on a nose, a nacelle and a pusher. The frame used to hang
+// the whole engine on its mount nodes at the flange station: a PT6's mass sat
+// 0.63 m ahead of where it is, a boxer's 0.20 — the longest arm on the
+// aeroplane, wrong by the engine's own half-length.
+//
+// MEASURED, NOT DECLARED: every number is the bench's own `cgZ` for the
+// preset that maps to the row (tools/_eng_gen.js resolve of the
+// _eng_page.js preset, through CAGE_JOIN_ENGINES), which is the sum of the
+// resolve's mass items along the crank. GATE ENGID §10 re-measures each one
+// against the bench and goes red at 2 cm, so this table cannot drift from the
+// engine it describes. A row without an entry (no preset behind it) hangs its
+// mass where it always did — absent means today, byte for byte.
+const GEN_ENG_CG = {
+  a65_sensenich74: 0.20, o200_eprops: 0.21, io360_mccauley: 0.24,
+  jabiru2200_std: 0.20, vw2180_wood: 0.19, rotax912_warp: 0.23,
+  rotax277_pusher: 0.11, rotax582_ivo: 0.17, rotax503_wood: 0.16,
+  verner7u_wood: 0.12, rotec3600_std: 0.12,
+  mikron3_wood: 0.31, gipsymajor1_wood: 0.39,
+  hirth508_wood: 0.35, argus10c_wood: 0.39,
+  o320_mccauley: 0.24, o540_hartzell: 0.33, io550_hartzell3: 0.34,
+  io720_hartzell3: 0.42, rotax915_carbon: 0.24, ranger440_wood: 0.50,
+  w670_hs2b: 0.15, r755_hs2b: 0.16, m14p_v530: 0.14, r1340_hs12d40: 0.16,
+  r985_hs2b20: 0.15, r1830_hs23e50: 0.16,
+  outrunner2212_9x47: 0.02, outrunner6374_18x10: 0.06, eppg_direct_130: 0.13,
+  fes_folding_100: 0.12, emrax228_3blade: 0.12, e811_velis: 0.19,
+  sp260d_class: 0.31, emrax268_carbon: 0.14,
+  pt6a114a_hartzell3: 0.63, pt6a34_hartzell4: 0.65, pt6a42_hartzell4: 0.71,
+  pt6a60a_hartzell4: 0.78,
+};
+// the one reader: a custom row's own number outranks the table's
+function genEngineCgAft(key, engine) {
+  if (engine && engine.cgAft != null && isFinite(engine.cgAft)) return engine.cgAft;
+  const v = GEN_ENG_CG[key];
+  return v == null ? null : v;
+}
+
 const POLARS = {
   usa35b_AR7: { a3d: 4.34, Cl0: 0.35, aStall: 0.297, Cd0: 0.010, eAR: Math.PI * 0.75 * 6.95, Cm0: -0.080 },
   flat_tail_cub: { a3d: 3.4, Cl0: 0, aStall: 0.24, Cd0: 0.008, eAR: Math.PI * 0.7 * 3.7, Cm0: 0 },

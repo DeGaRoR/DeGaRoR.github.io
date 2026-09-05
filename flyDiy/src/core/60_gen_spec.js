@@ -2671,6 +2671,10 @@ function clampSpec(spec) {
         ? cu.family : (cu.aspiration === 'electric' ? 'electric'
                        : cu.aspiration === 'turbine' ? 'turbine' : 'four');
       cu.cooling = cu.cooling === 'liquid' ? 'liquid' : 'air';
+      // WHERE ITS MASS SITS (the cgFwd half-session, 2026-09-05): the CG aft
+      // of the prop flange, the bench's own cgZ for a drawn engine; null lets
+      // the registry table (GEN_ENG_CG) answer, or the old mount-node lump
+      cu.cgAft = genClampN(cu.cgAft, 0, 2.5);
       // A TURBINE'S OWN TWO NUMBERS (2026-09-05, TURBOPROP §1/§8): the
       // flat-rating margin 05_atmos reads (absent = 1.3, a PT6A's usual), and
       // the bare length the engine box reads. Neither exists on any other
@@ -3373,6 +3377,13 @@ function resolveSpec(spec) {
     ? { price: CU.price, engine: CU, prop: REG ? REG.prop : { D: 1.80 } }
     : REG;
   S.pplant = PP;
+  // WHERE THE ENGINE'S MASS SITS (2026-09-05, the cgFwd half-session): the CG
+  // aft of the prop flange, the custom row's own number or the registry's
+  // measured table (GEN_ENG_CG); null = no entry = the frame hangs the lump
+  // on the mount nodes as it always did. A READING on the spec, never
+  // written into the registry row (a registry dict is shared by every build).
+  S.engCgAft = (typeof genEngineCgAft === 'function' && PP)
+    ? genEngineCgAft(S.engine, PP.engine) : null;
   // 4a. THE PROPELLER, synthesised from the disc it actually is. The registry's
   // prop is the DEFAULT diameter and nothing more; every number below is derived,
   // so a bigger disc really does pull harder and blow harder over the tail.
@@ -3397,7 +3408,14 @@ function resolveSpec(spec) {
   const propR = S.prop.D / 2;
   S.propR = propR;
   S.engY = 0.36 * S.cab.h + pl.engineDy;        // thrustline, above the lower longeron
-  S.engX = -(0.18 + 0.32 * propR) + pl.engineDx; // firewall forward: cowl + prop
+  // firewall forward: cowl + prop — OR the engine's own declared length plus
+  // a stand-off, when the row says how long it is (2026-09-05, the cgFwd
+  // half-session: a derived PT6 stood 0.61 m ahead of the firewall on the
+  // prop rule where its flange is 1.6 m out; the join measures a drawn one,
+  // a bake has only the row)
+  S.engX = -Math.max(0.18 + 0.32 * propR,
+                     (PP && PP.engine.length > 0 ? PP.engine.length + 0.10 : 0))
+           + pl.engineDx;
   // G188: A NOSE ENGINE THE JOIN MEASURED sits where it was drawn. The cowl-
   // and-prop rule above is the derivation for a spec that says nothing; a
   // drawn unit's station (engines[0].x/y, off the engine layer, firewall/keel

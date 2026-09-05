@@ -1375,7 +1375,14 @@ const ARCHETYPES = [
            empennage: 'conv', scheme: 'sweep', base: 0xc7c9cc, trim: 0x1b3a5c },
     over: { cage: Object.assign({}, PLAN_C172,
                                 { wgSpan: 14, wgChord: 1.9, wgChordTip: 1.5,
-                                  cw_propD: 2.7 }),
+                                  cw_propD: 2.7,
+                                  // the wing 0.10 m aft (the cgFwd half-session,
+                                  // 2026-09-05): with the PT6's mass at its true
+                                  // CG, 8.6 cm further aft than the flange lump,
+                                  // the card went around on terrain and was
+                                  // still on approach at 420 s; at wgDx 0.10 it
+                                  // completes at 340 s (sink 2.0), at 0.20 at 347
+                                  wgDx: 0.10 }),
             spec: { fuel: { litres: 600 }, prop: { D: 2.7, blades: 3 },
                     finish: { decals: { m1On: 1, m1Pat: 1, m1A: 0x1b3a5c,
                                         m1B: 0x7fa8c9, m1D: 0xc7c9cc } } } } },
@@ -1533,7 +1540,16 @@ const ARCHETYPES = [
            engCount: 2, gearLayout: 'trike', suspension: 'oleo', s1Fair: 1,
            empennage: 't', scheme: 'trim', base: 0xefe6cf, trim: 0x1b3a5c },
     over: { cage: Object.assign({}, PLAN_TAPER, { wgSpan: 14.0, wgChord: 1.55,
-                                                   wgChordTip: 0.95 }),
+                                                   wgChordTip: 0.95,
+                                                   // the wing 0.10 m aft (G198, the
+                                                   // cgFwd half-session): with both
+                                                   // engines' mass at their true CG
+                                                   // (8.2 cm aft, 6.4 % MAC — the
+                                                   // largest shift of any card) the
+                                                   // twin was still in TURNBACK at
+                                                   // 420 s; at wgDx 0.10 (SM 14.7 %)
+                                                   // it completes at 279 s, sink 1.13
+                                                   wgDx: 0.10 }),
             spec: { finish: { decals: { m1On: 1, m1Pat: 2, m1A: 0x1b3a5c,
                                         m1B: 0xefe6cf, m1D: 0x1b3a5c } } } } },
   // THE LARGER TWIN — the first "larger plane": a strut-braced high wing on

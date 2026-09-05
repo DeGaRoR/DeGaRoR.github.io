@@ -364,9 +364,15 @@ try {
      'RESOLVED engAt = the drawn pusher station');
   const dP = C.buildGen(JSON.parse(JSON.stringify(sP)));
   const eN = dP.refs.engine.map(i => dP.nodes[i]);
-  ok(eN.length === 2 && eN.every(n => Math.abs(n.p[0] - 3.1) < 1e-9 && n.m > 20),
-     'pusher frame: two mount nodes at x 3.1 carrying the engine (' +
-     eN.map(n => n.m.toFixed(1)).join('/') + ' kg)');
+  // the mount nodes carry the BLADES; the engine hangs on its own CG node,
+  // AHEAD of a pusher's flange (2026-09-05, the cgFwd half-session)
+  const cgN = dP.nodes.filter(n => n.tag === 'CGE');
+  ok(eN.length === 2 && eN.every(n => Math.abs(n.p[0] - 3.1) < 1e-9 && n.m > 0) &&
+     cgN.length === 1 && cgN[0].p[0] < 3.1 - 0.05 && cgN[0].m > 20,
+     'pusher frame: two mount nodes at x 3.1 (' + eN.map(n => n.m.toFixed(1)).join('/') +
+     ' kg of blades), the engine (' + (cgN[0] ? cgN[0].m.toFixed(1) : '?') +
+     ' kg) on its CG node ' + (cgN[0] ? (3.1 - cgN[0].p[0]).toFixed(2) : '?') +
+     ' m ahead of the flange');
   ok(dP.params.nEngines === 1, 'a pusher is one engine');
   const MW = Object.assign({}, M, { engUnits: [{ x: 0.9, y: 1.4, z: 2.1 }, { x: 0.9, y: 1.4, z: -2.1 }] });
   const sW = cageJoinSpec(Object.assign({}, P, { engMount: 3 }), MW, T);

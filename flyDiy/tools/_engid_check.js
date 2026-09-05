@@ -201,6 +201,36 @@ ok(Number.isInteger(CUSTOM) && CUSTOM === PRESET_NAMES.length,
   ok(FACTS(P5) === null, 'the stacks are dress: a bare PT6A-114A is still a PT6A-114A -> null');
 }
 
+// 10. WHERE THE MASS SITS IS MEASURED (2026-09-05, the cgFwd half-session):
+//     GEN_ENG_CG's number for every registry row with a preset behind it is
+//     the bench's own cgZ for that preset, within 2 cm — the table cannot
+//     drift from the engine it describes, and the facts carry the same number
+//     so an untouched preset and its row agree.
+{
+  const CG = new Function(fs.readFileSync(at('src/core/00_registry.js'), 'utf8') +
+    '; return GEN_ENG_CG;')();
+  const EP = window.ENG_PAGE, EG = window.ENG_GEN;
+  let n = 0, bad = [];
+  for (const name of PRESET_NAMES) {
+    const key = CAGE_JOIN_ENGINES[name];
+    if (!key || name === 'flat twin' || name === 'flat six') continue;
+    const R = EG.engResolve(Object.assign(EP.engDefaults(), EP.PRESETS[name]));
+    const bench = -R.cgZ, table = CG[key];
+    if (table == null) { bad.push(key + ': no entry (bench ' + bench.toFixed(2) + ')'); continue; }
+    n++;
+    if (Math.abs(bench - table) > 0.02)
+      bad.push(key + ': table ' + table + ' vs bench ' + bench.toFixed(3));
+  }
+  ok(n >= 30 && bad.length === 0,
+     `GEN_ENG_CG matches the bench for ${n} rows` + (bad.length ? ' — ' + bad.join('; ') : ''));
+  // the picker ruling (2026-09-05): a catalogue engine's dials are inert —
+  // the custom MODE (the last option) is what reads them
+  const P = fresh('P&W PT6A-114A'); P.engPreset = window.CAGE_ENG_CUSTOM; P.eng_tCanL += 0.2;
+  const f = FACTS(P);
+  ok(!!f && f.cgAft > CG.pt6a114a_hartzell3 + 0.05,
+     `a longer core moves the facts' CG aft (${f && f.cgAft} m behind the flange)`);
+}
+
 // THE VERDICT CONTRACT (G67.1): the runner requires BOTH signals.
 if (fails) console.log('\n  ' + fails + ' check(s) failed');
 console.log('GATE ENGID: ' + (fails ? 'FAIL' : 'PASS'));

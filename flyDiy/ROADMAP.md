@@ -424,9 +424,14 @@ aeroplanes to risk.*
    the Turboprop tile and a caravan card on `n23` that lands its circuit
    (on a 14 x 1.9 m wing — on the C172 plan's it could not be landed, the
    R-1830 finding again); and a pre-existing one-build lag between a preset
-   and its cowl fixed on the way. STILL OWED:
-   a side aperture pair for the stacks, the `cgFwd` half-session, the `util`
-   class, a straight-through style. Unlocks the Caravan / Kodiak-alikes.
+   and its cowl fixed on the way. **THE CG-ARM HALF-SESSION LANDED as G198**
+   (same day): every engine's mass now hangs at its own centre of mass
+   (`cgAft`, aft of the flange — a measured table per registry row, checked
+   against the bench by ENGID §10), on a `CGE` node off the mount; tractors
+   moved 1-6 % MAC aft, pushers ~1.3 forward, and the nose rule reads a
+   declared engine length. STILL OWED: a side aperture pair for the stacks,
+   the `util` class, a straight-through style. Unlocks the Caravan /
+   Kodiak-alikes.
 8. **Biplane** [L] — **LANDED as G185** (2026-09-05): `wings[1]` with the
    full key set + stagger, parasol/cabane, the interplane truss with
    tension-only wires, one polar per plane and the horseshoe-vortex kernel
