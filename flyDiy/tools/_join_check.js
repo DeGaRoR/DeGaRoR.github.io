@@ -357,26 +357,6 @@ try {
   const dT = C.buildGen(JSON.parse(JSON.stringify(sT)));
   ok(dT.refs.engine.length === 2 && dT.nodes[dT.refs.engine[0]].p[1] > RT.cab.h,
      'over-the-wing frame: mount nodes above the cabin');
-} catch (e) {
-  ok(false, 'mount join threw: ' + e.message);
-}
-
-// THE TWIN BOOMS ARE JOINED (2026-09-04, cut 1): the booms' half-track and
-// length write tail.type twinBoom; a measured fin counts twice in Sv; the
-// frame still builds (the centreline post stands in — the stated approximation)
-try {
-  const sT = cageJoinSpec(P, Object.assign({}, M, { boomX: 1.25, boomLen: 3.2, vHeight: 0.9, vChord: 0.8 }), T);
-  ok(sT.tail.type === 'twinBoom' && sT.tail.boomX === 1.25, 'boomX -> tail.type twinBoom');
-  const RT2 = resolveSpec(JSON.parse(JSON.stringify(sT))).spec;
-  ok(Math.abs(RT2.tail.Sv - 2 * 0.9 * 0.8) < 1e-9, 'RESOLVED Sv = two measured fins (' + RT2.tail.Sv.toFixed(3) + ')');
-  const frT = genFrame(RT2);
-  ok(frT.cg0.every(Number.isFinite), 'a twin-boom spec builds');
-  ok(frT.parts.BOOMS && frT.parts.FIN2 != null &&
-     Math.abs(frT.nodes[frT.parts.HTR].p[2] - 1.25) < 1e-9 &&
-     Math.abs(frT.nodes[frT.parts.FIN2].p[2] + 1.25) < 1e-9,
-     'the frame has two booms: the stab nodes at ±boomX, a fin node a boom');
-} catch (e) { ok(false, 'twin-boom join threw: ' + e.message); }
-
   // G194: THE HAND AND THE LEVERS. engRotate 1 (tops inward) is port +1 /
   // starboard -1 through the join and the resolve; the frame says which
   // engine each node carries; the solver shares thrust per ENGINE and is
@@ -423,6 +403,26 @@ try {
     simW.ctl.eng = null; simW.step(1 / 60);
     ok(Math.abs(simW.out.thrustPer[0] - simW.out.thrustPer[1]) < 1e-9, 'levers null again: even again');
   }
+} catch (e) {
+  ok(false, 'mount join threw: ' + e.message);
+}
+
+// THE TWIN BOOMS ARE JOINED (2026-09-04, cut 1): the booms' half-track and
+// length write tail.type twinBoom; a measured fin counts twice in Sv; the
+// frame still builds (the centreline post stands in — the stated approximation)
+try {
+  const sT = cageJoinSpec(P, Object.assign({}, M, { boomX: 1.25, boomLen: 3.2, vHeight: 0.9, vChord: 0.8 }), T);
+  ok(sT.tail.type === 'twinBoom' && sT.tail.boomX === 1.25, 'boomX -> tail.type twinBoom');
+  const RT2 = resolveSpec(JSON.parse(JSON.stringify(sT))).spec;
+  ok(Math.abs(RT2.tail.Sv - 2 * 0.9 * 0.8) < 1e-9, 'RESOLVED Sv = two measured fins (' + RT2.tail.Sv.toFixed(3) + ')');
+  const frT = genFrame(RT2);
+  ok(frT.cg0.every(Number.isFinite), 'a twin-boom spec builds');
+  ok(frT.parts.BOOMS && frT.parts.FIN2 != null &&
+     Math.abs(frT.nodes[frT.parts.HTR].p[2] - 1.25) < 1e-9 &&
+     Math.abs(frT.nodes[frT.parts.FIN2].p[2] + 1.25) < 1e-9,
+     'the frame has two booms: the stab nodes at ±boomX, a fin node a boom');
+} catch (e) { ok(false, 'twin-boom join threw: ' + e.message); }
+
 // THE GLAZING IS JOINED (2026-09-04): glazeOn 0 -> cabin.glazing 'none' and
 // a lighter frame (no glass); absent = glass, a nonsense value clamps
 try {

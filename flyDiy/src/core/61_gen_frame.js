@@ -698,6 +698,12 @@ function genLattice(S, gearX, track, kScale) {
   // is whatever list results — the solver spreads the thrust over it and
   // nEngines (the entries) multiplies it, so a pair pulls twice.
   const engNodes = noseEng ? [EL, ER] : [];
+  // G194: WHICH ENGINE each mount node belongs to — a single mount hangs one
+  // engine on two nodes (0, 0); a wing pair hangs entry 0 on the port node
+  // and entry 1 on the starboard one. Published as refs.engineOf so the
+  // solver can share thrust per ENGINE (a cut engine, a trimmed lever)
+  // instead of evenly over the nodes.
+  const engIdx = noseEng ? [0, 0] : [];
   if (!noseEng) {
     sec('engines');
     const iRing = x => {
@@ -852,12 +858,6 @@ function genLattice(S, gearX, track, kScale) {
       B(f, q.T, 'fus'); B(f, q.I, 'fus'); B(f, q.O, 'fus');
       B(f, chains[sd][NB - 1].T, 'fus');
     }
-  // G194: WHICH ENGINE each mount node belongs to — a single mount hangs one
-  // engine on two nodes (0, 0); a wing pair hangs entry 0 on the port node
-  // and entry 1 on the starboard one. Published as refs.engineOf so the
-  // solver can share thrust per ENGINE (a cut engine, a trimmed lever)
-  // instead of evenly over the nodes.
-  const engIdx = noseEng ? [0, 0] : [];
     cover(1.9 * t.Sv, [FIN, FIN2, tl.T, tr.T]);
     BOOMS = { L: chains.L, R: chains.R, r: rB, x0, len };
   } else {
