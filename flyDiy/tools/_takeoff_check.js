@@ -22,9 +22,9 @@
 //   TAXI    cross-track under 2.5 m the whole way, never within 2 m of a fence
 //           post, never on the strip's flanks outside its length
 //   STOP    a real standstill (Vg < 0.3 m/s) before the roll begins
-//   ROLL    begins inside 2.5 m and 6 deg; cross-track under 4 m (8 m in
+//   ROLL    begins inside 2.5 m and 6 deg; cross-track under 4 m (12 m in
 //           wind) to lift-off
-//   LIFTOFF inside 4 m (8 m in wind) of the centreline, heading within 6 deg,
+//   LIFTOFF inside 4 m (12 m in wind) of the centreline, heading within 6 deg,
 //           no rejection
 //   TIME    stand to roll under 150 s in calm air; airborne inside 300 s
 //
@@ -116,11 +116,24 @@ function judge(name, r, opts) {
   check(!!r.roll && Math.abs(r.roll.sCr) < 2.5 && Math.abs(r.roll.e) < 0.105,
         tag + 'the roll begins lined up (< 2.5 m, < 6 deg)',
         r.roll ? r.roll.sCr.toFixed(2) + ' m, ' + (r.roll.e * 57.3).toFixed(1) + ' deg' : 'no roll');
-  // a direct crosswind is allowed twice the excursion of calm air: the tail
-  // is up for the last two seconds of the roll and the tyres carry little;
-  // 7 m at 2 m/s across is what the tail-up schedule holds it to (measured;
-  // it was 36 m before the roll rotated at Vr at all)
-  const lim = opts.wind ? 8.0 : 4.0;
+  // a direct crosswind is allowed a wider excursion than calm air: the tail
+  // is up for the last two seconds of the roll and the tyres carry little.
+  // THE WIND BOUND IS THE FIXTURE'S OWN PHYSICS, RE-FROZEN (user ruling,
+  // 2026-09-05, HANDOVER G193.1). At 2 m/s across the roll held 6.5 m with
+  // the engines' mass at the nacelle flange; G198 hung each 582 at its true
+  // centre of mass, 17 cm aft, the fixture's CG moved 3.4 cm aft (0.94 m
+  // behind the mains, 0.90 before) and the same roll measures 10.1 m
+  // (10.1-10.5 over the three crosswind departures), nose peak 23 deg
+  // instead of 18. No pilot gain restores 8 m: the rudder sits at its 0.95
+  // stop for a full second through the swing in both mass states, and the
+  // tail is lifted by the aeroplane at 14 m/s (the nacelles' thrust line
+  // ~0.9 m above the CG), not by the pilot — kP factor 1.4 / 2.0 / 2.6 gave
+  // 10.11 / 9.72 / 9.59 m, kD 4.5 gave 10.23 m, a 2.5x pitch gain held 7.7 m
+  // and then drifted 15 m at lift-off. 12 m is that swing plus the margin
+  // 8 m carried over 6.5; the excursion is the design's crosswind limit, not
+  // a pilot defect, and belongs to the builder (mains, fin, thrust line).
+  // Calm air keeps 4 m. (Before the roll rotated at Vr at all it was 36 m.)
+  const lim = opts.wind ? 12.0 : 4.0;
   check(r.maxSCrRoll < lim, tag + 'cross-track under ' + lim + ' m through the roll', r.maxSCrRoll.toFixed(2) + ' m');
   check(!!r.lift && Math.abs(r.lift.sCr) < lim && Math.abs(r.lift.e) < 0.105,
         tag + 'lifts off inside ' + lim + ' m and 6 deg', r.lift ? r.lift.sCr + ' m, ' + (r.lift.e * 57.3).toFixed(1) + ' deg' : 'never airborne');

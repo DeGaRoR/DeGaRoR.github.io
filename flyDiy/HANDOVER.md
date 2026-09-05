@@ -31855,3 +31855,38 @@ that follows this entry if it needed a fix-up, and nowhere if it did not.
    margin: the Caravan's approach, not its stability (SM 45-50 % on the
    sheet's own scale), went from 340 s to a go-around. The wing moved, not
    the engine.
+
+## G193.1 — THE CROSSWIND BOUND RE-FROZEN ON THE FIXTURE'S OWN PHYSICS
+## (2026-09-05, the user: "Re-freeze the wind bound, record the numbers")
+
+G198 hung every engine at its true centre of mass. On the ultralight
+fixture that is each 582's 43 kg 17 cm aft of the nacelle flange, the
+fixture's CG 3.4 cm further aft (0.94 m behind the mains, 0.90 before), and
+GATE TAKEOFF went red on its three crosswind departures: 10.1–10.5 m of
+cross-track through the roll against the 8 m bound G193 froze off a
+measured 6.5 m.
+
+THE TURBINE SESSION MEASURED IT RATHER THAN TUNING IT (the numbers are
+theirs): the excursion rises monotonically with the engine's CG offset
+(6.5 m at 0, 8.1 at 8 cm, 10.1 at 17 cm, 11.5 at 30 cm; the CG node itself
+moves 2 mm, so it is not a bounce); a taildragger with its CG further behind
+the mains swings harder — the nose peaks at 22.7 deg instead of 18.2 and
+settles at 13.5 instead of 8, the proportional balance against the mains'
+side force. No pilot gain restores 8 m: through the swing the rudder sits at
+its 0.95 stop for a full second in both mass states; kP factor 1.4 / 2.0 /
+2.6 gives 10.11 / 9.72 / 9.59 m, kD 3.0 → 4.5 gives 10.23 m; VTailUp is
+irrelevant because the tail is lifted by the aeroplane at 14 m/s (pitch 9.2
+→ 3.7 deg while the hold asks 8.6 with the elevator at its +0.35 stop — the
+wing nacelles' thrust line sits ~0.9 m above the CG, G193's own finding); a
+2.5x pitch gain holds the roll to 7.7 m and then drifts 15 m at lift-off.
+The declared gain knobs were tried and reverted; 40_autopilot.js and
+41_test_pilot.js are byte-identical to before.
+
+THE RULING: the wind bound is the fixture's own physics, re-frozen at 12 m
+(the measured 10.1–10.5 m plus the margin 8 carried over 6.5); calm air
+keeps 4 m; the selftest's doctored records are calm-air and still trip. The
+10 m swing in a 2 m/s crosswind is the DESIGN'S crosswind limit, not a pilot
+defect, and belongs to the builder — mains further aft, a bigger fin, a
+lower thrust line — which is the game. Owed: the plaque should say it (a
+crosswind limit next to the take-off run), so the player learns it from the
+certificate rather than from the grass.
