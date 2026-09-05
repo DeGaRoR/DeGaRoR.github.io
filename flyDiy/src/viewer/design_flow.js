@@ -473,6 +473,10 @@ function bakeBirth(sel, over) { return D().designBake(sel, over); }
 function birthApply(arch) {
   try {
     const spec = bakeBirth(arch.sel, arch.over);
+    // A BIRTH IS THE ONE LOAD THAT WANTS THE COWL FIT (2026-09-05): the cowl
+    // starter is silent on a load, so the card asks once through the cowl
+    // layer's door — answered only for a STYLED architecture (radial, turbine)
+    if (window.CAGE_COWL_FIT_NEXT) window.CAGE_COWL_FIT_NEXT();
     GS().set(spec);
     closeBirth();
   } catch (e) {

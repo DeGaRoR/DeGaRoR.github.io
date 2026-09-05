@@ -31242,3 +31242,43 @@ concurrent staging cannot drop yours, and VERIFY THE COMMIT, not the tree:
 `git worktree add --detach <tmp> HEAD`, build there, run the gates there.
 The working tree passing proves nothing about HEAD while anyone holds
 unstaged hunks. Never `-U0` hunks; never the shared index for the commit.
+
+## G192.1 — A BIRTH IS THE ONE LOAD THAT WANTS THE COWL FIT, AND THE CARD'S
+## PROP GOES THROUGH THE TILE (2026-09-05; the user: "Can I see screenshots
+## of the builds and the edition menu/sliders?")
+
+The screenshots asked for were taken headlessly (Chrome `--headless=new` +
+raw CDP over Node 22's WebSocket, no package — the Browser pane cannot save
+a file, and five dev servers belonged to other chats) and they found two
+defects a gate had not, both in the Caravan card AS BORN:
+
+1. **Born in the default cowl.** The card came up with the 1.46 m PT6 in a
+   0.455 m fitted boxer cowl, the engine through the shell. A birth is a
+   LOAD, and the cowl starter is rightly silent on a load (2026-09-03) — so
+   nothing ever fitted a card's cowl to a styled engine, and the Beaver-alike
+   has been born round its R-985 the same way since it existed. The old
+   `CAGE_COWL_FIT_NEXT` door (left inert when the boxer size rule was
+   withdrawn) is RE-ARMED for STYLED architectures only: `birthApply`
+   (design_flow.js) asks once, `cowlForEngine` answers when `COWL_BY_ARCH`
+   has a row for the engine — radial and turbine — and the boxer, the
+   in-line and the electric keep the bench default exactly as the user
+   ruled. GATE STARTER unchanged (the door is not the starter, and no load
+   fires it).
+2. **The card's prop was the cage's.** `over.spec.prop` (2.7 m, three
+   blades) was born as the cage's default 2-blade 1.91 m: the cage's
+   `cw_bladeN/cw_propD` rows outrank `spec.prop` through the join. The card
+   now selects the `carbon3` prop TILE and sets `cw_propD: 2.7` in its cage
+   override, which is how a card is meant to say it. Re-flown alone through
+   the gate's own loop: cruise 50.2, Vs 22.4, full stop at 340 s, sink 1.82.
+
+Measured after the fix, headless: the Caravan-alike is born under a sealed
+1.60 m nacelle with its three-blade prop, the four bays and the 14 m strutted
+wing; the engine rows read TURBINE / P&W PT6A-114A / PT6 reverse-flow; the
+turbine group shows gas generator 0.400 x 1.050, gearbox 1.2, flat rating
+1.26, prop rpm 1900, paired stacks. COWL, STARTER, DESIGN, SAVE, PARTS green.
+
+Two observations, not fixed: the inspector's design TILES are rendered at
+part selection and go stale across a birth (the powertrain tile still lit
+the previous build's family until the part was re-selected — a screenshot
+trap first, a UI nit second); and the legacy bench page `_engine.html` has
+no cowl, so its PT6 is bare by design.

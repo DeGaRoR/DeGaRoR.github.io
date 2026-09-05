@@ -1222,11 +1222,15 @@ const ARCHETYPES = [
            wgPos: 0, wgBrace: 0, wgTip: 1, wgFlapType: 2,
            engFamily: 'turbine', engModel: 'P&W PT6A-114A', engMount: 'nose',
            gearLayout: 'trike', suspension: 'spring', s1Fair: 1,
+           // the prop through the TILE (its rows outrank spec.prop in the
+           // editor — a spec-only prop was born as the cage's 2-blade 1.91)
+           prop: 'carbon3',
            // the palette's own silver and night blue — a card must pick
            // from the six the rows list (GATE DESIGN checks)
            empennage: 'conv', scheme: 'sweep', base: 0xc7c9cc, trim: 0x1b3a5c },
     over: { cage: Object.assign({}, PLAN_C172,
-                                { wgSpan: 14, wgChord: 1.9, wgChordTip: 1.5 }),
+                                { wgSpan: 14, wgChord: 1.9, wgChordTip: 1.5,
+                                  cw_propD: 2.7 }),
             spec: { fuel: { litres: 600 }, prop: { D: 2.7, blades: 3 },
                     finish: { decals: { m1On: 1, m1Pat: 1, m1A: 0x1b3a5c,
                                         m1B: 0x7fa8c9, m1D: 0xc7c9cc } } } } },

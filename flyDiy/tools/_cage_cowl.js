@@ -663,10 +663,27 @@ window.CAGE_COWL_STARTER = cowlArchStarter;
 // chose, and the load rule (rightly) keeps the starter quiet — so every
 // archetype was born in a cowl drawn for the default engine. The birth flow
 // asks for one fit on the next build; a saved build never does.
-// (the birth fit is withdrawn with the size rule; the door stays, inert)
-window.CAGE_COWL_FIT_NEXT = () => {};
+// RE-ARMED FOR STYLED ARCHITECTURES ONLY (2026-09-05, TURBOPROP): the size
+// rule's withdrawal left the door inert, and every card born with a radial
+// or a turbine came up in the DEFAULT cowl with the engine through the
+// shell (the Caravan-alike: a 1.46 m PT6 in a 0.455 m fitted boxer cowl —
+// seen in a screenshot, not a gate). The starter is rightly silent on a
+// load; a birth asks ONCE through this door, and only an architecture with
+// a COWL_BY_ARCH style answers — the boxer, the in-line and the electric
+// keep the bench default exactly as the user ruled.
+let fitNext = false;
+window.CAGE_COWL_FIT_NEXT = () => { fitNext = true; };
 function cowlForEngine(P, face, stat) {
-  const hit = cowlArchStarter(P);
+  let hit = cowlArchStarter(P);
+  if (!hit && fitNext) {
+    const specOf = window.CAGE_ENG_SPEC, EG2 = window.ENG_GEN;
+    try {
+      const spec = specOf && +P.engOn ? specOf(P) : null;
+      const R = spec && EG2 && EG2.engResolve ? EG2.engResolve(spec) : null;
+      if (R && COWL_BY_ARCH[spec.arch]) hit = { arch: spec.arch, R };
+    } catch (e) { hit = null; }
+  }
+  fitNext = false;
   if (!hit) return;
   const got = window.CAGE_COWL_FOR_ENGINE(hit.arch, hit.R.env, face);
   if (!got) return;
