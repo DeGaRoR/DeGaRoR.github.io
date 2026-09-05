@@ -626,7 +626,7 @@ function garageInit(api) {
                log: o.log || newLog(),
                images: (o.images && typeof o.images === 'object') ? o.images : null };
     if (o && (o.wings || o.fuselage || o.cabin || o.cage))
-      return { name: null, spec: o, plaque: null, log: newLog() };
+      return { name: null, spec: o, plaque: null, log: newLog(), images: null };
     throw new Error('not a flyDiy build');
   };
 
@@ -856,7 +856,7 @@ function garageInit(api) {
     try { return (typeof genNormaliseSpec === 'function') ? genNormaliseSpec(s) : s; }
     catch (e) { return s; }
   };
-  function loadSpec(s, name, pq, lg) {
+  function loadSpec(s, name, pq, lg, im) {
     spec = whole(s);
     slotName = name || '';
     plaque = pq || null;
