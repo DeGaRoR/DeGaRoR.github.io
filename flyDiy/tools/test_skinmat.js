@@ -34,6 +34,13 @@
 // change is indistinguishable from a check that works.
 'use strict';
 const fs = require('fs');
+// A FRESH CHECKOUT IS CRLF (core.autocrlf on this machine) while the shared
+// tree is LF, and every source scan below matches on a bare newline — so the
+// gate was red on any clean worktree of HEAD (2026-09-05) with nothing
+// missing from the commit. Read every source as LF.
+const _rfs = fs.readFileSync;
+fs.readFileSync = (p, opt) => { const r = _rfs(p, opt);
+  return typeof r === 'string' ? r.replace(/\r\n/g, '\n') : r; };
 const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
