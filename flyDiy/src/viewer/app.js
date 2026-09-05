@@ -4410,6 +4410,12 @@
     // picker used to (a strip off <body>, closed by timers), and sat over the
     // runway. It hides with #edWrap now, and is told as well.
     if (!ws && window.CAGE_RECENT && window.CAGE_RECENT.hide)
+    // G190: the autosave's image pages come back before the editor exists;
+    // the seed is the first moment they can be baked onto the atlas
+    try {
+      const G = window.GARAGE_SPEC;
+      if (E.decalImagesFrom && G && G.images) E.decalImagesFrom(G.images() || {});
+    } catch (err) { console.error('cage editor seed (images):', err); }
       window.CAGE_RECENT.hide();
     // transition that does not finish leaves the buffer at whatever it had
     // reached. `transitionend` covers the ordinary case; this covers the ones

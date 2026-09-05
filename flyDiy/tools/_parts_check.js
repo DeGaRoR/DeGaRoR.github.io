@@ -832,6 +832,24 @@ checkNoDeadEnds(PARTS);
         Math.abs(MD.taperLen - CD.taperLen) < 1e-9,
     'GEN_MIGRATE_CAGE_DEFAULTS is the cage’s own boomLen / taperLen',
     JSON.stringify(MD) + ' vs ' + CD.boomLen + ' / ' + CD.taperLen);
+  // G190: THE IMAGE PAGES TRAVEL WITH THE BUILD. The envelope carries them
+  // beside the plaque and the log (never in the spec), every load hands them
+  // back to the editor, and the editor bakes them through aeroskin's own
+  // drawer — the chain a saved livery image needs to reach the flown aeroplane.
+  const gar = fs2.readFileSync(
+    path.join(__dirname, '..', 'src', 'viewer', 'garage.js'), 'utf8');
+  const sk = fs2.readFileSync(
+    path.join(__dirname, '..', 'src', 'viewer', 'aeroskin.js'), 'utf8');
+  check(/imagesNow\(\) \? \{ images: imagesNow\(\) \}/.test(gar) &&
+        /images: \(o\.images && typeof o\.images === 'object'\)/.test(gar),
+    'the save envelope carries the image pages, and unwrap hands them back');
+  check(/function loadSpec\(s, name, pq, lg, im\)/.test(gar) &&
+        (gar.match(/, (g|got)\.images\)/g) || []).length >= 2 &&
+        /E\.decalImagesFrom\(wipImages \|\| \{\}\)/.test(gar),
+    'every load restores the image pages into the editor (and clears them when the file has none)');
+  check(/decalImages, decalImagesFrom \}/.test(ui) &&
+        /aeroDecalImageData, aeroDecalImageFrom, aeroDecalImageClear/.test(sk),
+    'the editor and aeroskin export the image page doors');
 }
 
 // ---------------------------------------------------------------------------

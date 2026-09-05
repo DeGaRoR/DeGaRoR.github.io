@@ -2866,6 +2866,43 @@ function applyDecals() {
   A.aeroSetDecals(THREE, R.list);
 }
 
+// ---- THE IMAGE PAGES, IN AND OUT (G190) ------------------------------------
+// The body image is atlas page 1 (imgOn), the wing image page 2 (wimOn). Out:
+// the pages that hold an image, as the page's own pixels plus the aspect the
+// upload measured (the lock reads it), for the save envelope. In: the same
+// object, baked back through aeroskin's drawer and re-applied — the flags and
+// the placement come from the spec's decals, this is only the picture.
+const DEC_IMG_PAGES = { 1: 'imgOn', 2: 'wimOn' };
+function decalImages() {
+  const A = AK();
+  if (!A || !A.aeroDecalImageData) return null;
+  const out = {};
+  for (const pg in DEC_IMG_PAGES) {
+    const d = A.aeroDecalImageData(+pg);
+    if (d) out[pg] = { data: d, aspect: ASPECT[DEC_IMG_PAGES[pg]] || 1 };
+  }
+  return Object.keys(out).length ? out : null;
+}
+function decalImagesFrom(images) {
+  const A = AK();
+  if (!A || !A.aeroDecalImageFrom || !images || typeof images !== 'object') return 0;
+  let n = 0;
+  for (const pg in DEC_IMG_PAGES) {
+    const rec = images[pg];
+    const key = DEC_IMG_PAGES[pg];
+    if (!rec || !rec.data) {
+      // nothing for this page: the previous build's picture goes
+      if (A.aeroDecalImageClear) { A.aeroDecalImageClear(THREE, +pg); ASPECT[key] = 1; }
+      continue;
+    }
+    if (A.aeroDecalImageFrom(THREE, +pg, rec.data, () => {
+      ASPECT[key] = +rec.aspect > 0 ? +rec.aspect : 1;
+      try { applyDecals(); draw(); } catch (e) {}
+    })) n++;
+  }
+  return n;
+}
+
 // ---- THE WEAR (G70) -------------------------------------------------------
 // The dial is one number; WHERE it lands is measured off this build, every
 // build. Two sources, and both are real places on the aeroplane rather than
@@ -3883,7 +3920,10 @@ window.CAGE_UI = { P, build, draw, applyPreset, syncSliders,
   setParam: (k, v) => { P[k] = v; },
   // THE FINISH, in and out of the spec (G105). `applySpec` already calls the
   // second one; the first is what `_cage_join.js`'s export puts on the build.
-  finishToSpec, finishFromSpec };
+  finishToSpec, finishFromSpec,
+  // THE IMAGE PAGES (G190): out as {page: dataURL, aspect} for the save
+  // envelope, in from one — the pixels a spec deliberately does not carry
+  decalImages, decalImagesFrom };
 // THE ROWS EXIST NOW, and the game's editor can take them. It runs BEFORE the
 // first build(): the panel it builds is what the build's own applyRowVis pass
 // then decides the visibility of, and doing it the other way round would show

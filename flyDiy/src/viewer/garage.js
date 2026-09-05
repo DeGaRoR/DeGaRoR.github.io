@@ -593,6 +593,20 @@ function garageInit(api) {
   // fleet grows out of — when it was built, what has been tested, what it has
   // flown.
   const newLog = () => ({ built: null, tests: [], flights: [] });
+  // THE IMAGE PAGES RIDE THE ENVELOPE TOO (G190, the user: "the box projection
+  // decal does not survive the flight interface"). A livery image was baked
+  // into the session's atlas and nowhere else, so a save carried the marking's
+  // placement and not its picture: the reload — and the aeroplane that then
+  // flew — wore an empty page. The spec stays pixel-free (its own ruling);
+  // the envelope, which already carries what is NOT a design decision, takes
+  // the pages beside the plaque and the log. Read live off the editor when it
+  // is up, else whatever the last load brought in.
+  let wipImages = null;
+  const imagesNow = () => {
+    const E = ed();
+    if (E && E.decalImages) { try { const im = E.decalImages(); if (im) wipImages = im; } catch (e) {} }
+    return wipImages;
+  };
   const envelope = (name, s, pq, lg) => JSON.stringify({
     what: 'flydiy-build', v: (typeof GEN_SPEC_V === 'number' ? GEN_SPEC_V : null),
     // NULL when the build has no slot yet, never a placeholder: the working
@@ -601,6 +615,7 @@ function garageInit(api) {
     // session silently adopt it as its slot.
     name: name || null, spec: s,
     plaque: pq || null, log: lg || newLog(),
+    ...(imagesNow() ? { images: imagesNow() } : {}),
   });
   // Accepts an envelope OR a bare spec, because a spec pasted out of a console
   // is a perfectly good thing to want to load.
@@ -608,7 +623,8 @@ function garageInit(api) {
     const o = JSON.parse(txt);
     if (o && o.spec && typeof o.spec === 'object')
       return { name: o.name, spec: o.spec, plaque: o.plaque || null,
-               log: o.log || newLog() };
+               log: o.log || newLog(),
+               images: (o.images && typeof o.images === 'object') ? o.images : null };
     if (o && (o.wings || o.fuselage || o.cabin || o.cage))
       return { name: null, spec: o, plaque: null, log: newLog() };
     throw new Error('not a flyDiy build');
@@ -738,6 +754,7 @@ function garageInit(api) {
     if (wip) try {
       const got = unwrap(wip);
       spec = got.spec; plaque = got.plaque; log = got.log;
+      wipImages = got.images || null;      // baked once the editor is up (G190)
       try { if (typeof genNormaliseSpec === 'function') spec = genNormaliseSpec(spec); }
       catch (e) {}
       // and WHICH BUILD it was, so Save still knows its target after a reload.
@@ -844,6 +861,10 @@ function garageInit(api) {
     slotName = name || '';
     plaque = pq || null;
     log = lg || newLog();
+    // the image pages this build was saved with, or none: a load that only
+    // brought pixels in when the file had some would leave the previous
+    // aeroplane's picture on the next one's wing
+    wipImages = (im && typeof im === 'object') ? im : null;
     // clampSpec runs inside the build, so an out-of-envelope or partial file
     // is pulled straight rather than refused — what flies is the honest
     // readout of what the file asked for.
@@ -861,6 +882,11 @@ function garageInit(api) {
       if (typeof window.BUILD_SYNC === 'function') window.BUILD_SYNC();
       else { const J = join();
              if (J) { try { spec = merge(spec, J.export()); rebuild(); } catch (e) {} } }
+      // ...and the pictures back onto their pages (G190). After applySpec,
+      // which reset the decal state to the file's own; the atlas pages the
+      // file did not carry are cleared by the same call, so an image never
+      // outlives the build it was loaded with.
+      if (E.decalImagesFrom) { try { E.decalImagesFrom(wipImages || {}); } catch (e) {} }
     }
     syncRibbon();
     // THE CERTIFICATE COMES BACK WITH THE BUILD (G107.3). Everything above —
@@ -958,7 +984,7 @@ function garageInit(api) {
   const loadSlot = n => {
     const txt = lsGet(SLOT + n);
     if (!txt) return void syncRibbon();
-    try { const g = unwrap(txt); loadSpec(g.spec, n, g.plaque, g.log); }
+    try { const g = unwrap(txt); loadSpec(g.spec, n, g.plaque, g.log, g.images); }
     catch (e) { alert('That saved build could not be read: ' + e.message); }
   };
   const loadStock = nm => {
@@ -1139,7 +1165,7 @@ function garageInit(api) {
       try {
         const got = unwrap(String(r.result));
         loadSpec(got.spec, got.name || f.name.replace(/\.json$/i, ''),
-                 got.plaque, got.log);
+                 got.plaque, got.log, got.images);
       } catch (e) { alert('That file is not a flyDiy build: ' + e.message); }
     };
     r.readAsText(f);
@@ -1211,6 +1237,9 @@ function garageInit(api) {
   try {
     window.GARAGE_SPEC = {
       get: () => JSON.parse(JSON.stringify(spec)),
+      // G190: the image pages the working build was restored with, for the
+      // editor's boot seed (the autosave comes back before the editor exists)
+      images: () => wipImages,
       set: s => loadSpec(JSON.parse(JSON.stringify(s)), slotName, plaque, log),
       // THE JOIN'S DOOR. Merges rather than replaces — see `merge` above.
       update: j => { spec = merge(spec, JSON.parse(JSON.stringify(j))); rebuild(); },

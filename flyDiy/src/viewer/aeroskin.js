@@ -1094,7 +1094,51 @@ function aeroDecalImage(THREE, page, img) {
   g.drawImage(img, px + (P - w) / 2, py + (P - h) / 2, w, h);
   aeroDilate(g, px, py, P, P, 5);
   t.needsUpdate = true;
+  AERO_PAGE_IMG[page] = { aspect: img.width / img.height };
   return img.width / img.height;
+}
+// THE IMAGE PAGES TRAVEL WITH THE BUILD (G190, the user: "the box projection
+// decal does not survive the flight interface"). A page a builder loaded an
+// image into was baked into this session's atlas and NOWHERE ELSE: the spec
+// records where the marking sits and never the pixels (60_gen_spec's own
+// deliberate gap), so a save, a reload and the aeroplane that then flew all
+// had the placement of a picture that was not there. The pixels still stay
+// out of the SPEC; they ride the save ENVELOPE beside the plaque and the log,
+// as the page itself — 256 px square, already fitted and dilated — so a
+// livery image is a few tens of kilobytes, not the upload. `aeroDecalImageData`
+// reads a page out (null when none was ever loaded there), and
+// `aeroDecalImageFrom` puts one back, through the same drawer the upload uses.
+const AERO_PAGE_IMG = {};
+function aeroDecalImageData(page) {
+  if (!AERO_PAGE_IMG[page] || !AERO_ATLAS_CV) return null;
+  const S = AERO_ATLAS_PX, N = AERO_ATLAS_N;
+  const P = S / N, px = (page % N) * P, py = Math.floor(page / N) * P;
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = P;
+  cv.getContext('2d').drawImage(AERO_ATLAS_CV, px, py, P, P, 0, 0, P, P);
+  return cv.toDataURL('image/png');
+}
+// ...and a page is CLEARED when the build that comes in has nothing for it:
+// the previous aeroplane's picture must not stay on the next one's wing.
+function aeroDecalImageClear(THREE, page) {
+  if (!AERO_PAGE_IMG[page] || !AERO_ATLAS_CV) return;
+  const S = AERO_ATLAS_PX, N = AERO_ATLAS_N;
+  const P = S / N, px = (page % N) * P, py = Math.floor(page / N) * P;
+  AERO_ATLAS_CV.getContext('2d').clearRect(px, py, P, P);
+  delete AERO_PAGE_IMG[page];
+  const t = aeroAtlas(THREE); t.needsUpdate = true;
+}
+function aeroDecalImageFrom(THREE, page, dataURL, cb) {
+  if (!dataURL || typeof dataURL !== 'string' || !/^data:image\//.test(dataURL)) return false;
+  const im = new Image();
+  im.onload = () => {
+    const a = aeroDecalImage(THREE, page, im);
+    // the stored page is square and fitted; the marking's own aspect is
+    // the one the upload measured, carried beside it by the caller
+    if (cb) cb(a);
+  };
+  im.src = dataURL;
+  return true;
 }
 
 // A DECAL BELONGS TO THE AEROPLANE, NOT TO A SECTION, so these uniform
@@ -2902,6 +2946,7 @@ if (typeof window !== 'undefined')
                       aeroSetDecals, aeroSetCraft,
                       aeroDecalsFor, aeroApplySpecDecals, AERO_DEC_DEF,
                       aeroDecalText, aeroDecalImage,
+                      aeroDecalImageData, aeroDecalImageFrom, aeroDecalImageClear,
                       aeroAtlas, aeroPageRect, AERO_MAXD, AERO_ATLAS_N,
                       AERO_DEC_FONTS,
                       AERO_KIT, AERO_KIT_LAYERS, AERO_KIT_PAGE0,

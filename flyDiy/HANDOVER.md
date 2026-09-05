@@ -30573,3 +30573,54 @@ HIDDEN in this session (`document.hidden`), which throttles rAF and stalls
 every rebuild: measurements ran off a `requestAnimationFrame` shim and a
 detached async script writing `window.__out`, polled afterwards — and
 `CAGE_UI.setParam` only writes P, `build()` has to follow it.
+
+## G190 — THE PLAYTEST PASS, PHASE 3: THE PICTURE THAT DID NOT TRAVEL
+## (2026-09-05, the user: "the box projection decal does not survive the
+## flight interface")
+
+**What was suspected, and measured false.** The planning read of the code
+put the two projector callers in different frames: the editor's craft root
+is the mount (the cage datum), the flight's is `model.grp`, which poseModel
+places at the design CG — so a `side`/`plan` marking would land a metre or
+two off in flight. Measured in the page: it does not. The join's snapshot
+maps every vertex through `inv(mount.matrixWorld) × object.matrixWorld`,
+so the flown mesh is authored about the MOUNT'S ORIGIN (rotated by the
+G54.2 pitch calibration β), and `oRest`/`off` go into the group's
+POSITION, not its vertices; `uCraftInv = P × inv(grp.matrixWorld)` therefore
+hands the shader mesh-local = cage-frame coordinates on both screens. A
+wing image placed in plan mode at (lateral 0, aft −1.4 m, 6 × 1.4 m) in the
+editor reads `uDecA = [0, −1.4, 3, 0.7]` in the flight material and is on
+the flown wing's root, where the editor's wing measures aft −2.15..−0.65.
+The frames agree to the β rotation (3.7° on the default build), and no
+origin fix was needed. The explorer's hypothesis is recorded here so it is
+not re-derived: THE MESH ORIGIN IS THE CAGE DATUM.
+
+**What was actually wrong.** The user's file holds the marking's placement
+(`m1Pat/L/C/W/H/Tgt`, and the wing image slot defaults to `wimMode 2` =
+box plan — "the box projection decal") and NO PICTURE: a livery image was
+drawn into the session's atlas page and nowhere else, which
+`aeroApplySpecDecals`'s own header calls a deliberate gap ("finish.decals
+records where a livery image sits and never the pixels"). So a save, a
+reload, and the aeroplane that then flew all carried the placement of a
+page that was blank — and in the same session the ON flag of a layer
+switched on after the last save reached the flight only through the
+roll-out commit. The flight side was never at fault; the persistence was.
+
+**The fix keeps the spec pixel-free and makes the ENVELOPE carry the
+pages.** `aeroDecalImageData(page)` reads an atlas page out as a 256 px PNG
+data URL (already fitted and dilated — tens of kilobytes, not the upload),
+`aeroDecalImageFrom` bakes one back through the same drawer the upload
+uses, `aeroDecalImageClear` empties a page. The editor exports
+`decalImages()` / `decalImagesFrom()` (page 1 = the body image, page 2 =
+the wing image, each with the aspect the lock reads). garage.js's envelope
+gains `images` beside `plaque` and `log` (read live off the editor, else
+the last load's), `unwrap` hands them back, every `loadSpec` restores them
+AFTER applySpec — and clears the pages when the file has none, so the
+previous aeroplane's picture never stays on the next one's wing — and the
+autosave restore keeps them until the editor boots (`GARAGE_SPEC.images()`,
+baked by the seed). The fleet slots, the WIP and the exported file all go
+through `envelope`, so all three carry the pages. GATE PARTS asserts the
+chain by source.
+
+Verified in the page: an image loaded into the wing slot → save → reload →
+the wing wears it in the shed and in flight.
