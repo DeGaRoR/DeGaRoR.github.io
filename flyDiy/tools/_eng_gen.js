@@ -69,10 +69,9 @@ const ENG_MASS_E = 0.8735;       // exponent on litres
 // `kM` multiplies the shared mass law. Flat and radial are 1.00 because they
 // are what the fit was made from. INLINE WAS FITTED AT G165, when the first
 // four-stroke in-lines could exist to fit it on — two of them, and the row
-// below says which and what the residuals are. Only V is still marked
-// UNVALIDATED: there is no registry example, a longer crank with more mains
-// really should weigh more, and that number remains the model's one guess.
-// Treat what it produces as an estimate, not as a measurement.
+// below says which and what the residuals are. THE V WAS FITTED LAST
+// (2026-09-05, the V test), on three published air-cooled aero Vs; its row
+// says why its residuals are the widest of the four families.
 // ---------------------------------------------------------------------------
 // WHICH WAY A THING POINTS, once (G164). The engine already had one of
 // these — `_eng_mesh.js` carried `AIM = [[0,-1],[0,1],[-1,0],[1,0]]` for the
@@ -99,7 +98,7 @@ const engAimDeg = i => {
 
 const ENG_ARCH = {
   flat: {
-    name: 'Flat (boxer)', counts: [2, 4, 6], kM: 1.00, bmep: 9.8,
+    name: 'Flat (boxer)', counts: [2, 4, 6, 8], kM: 1.00, bmep: 9.8,   // 8: the IO-720 (2026-09-05)
     // alternating banks, one cylinder per station per side
     angles: n => Array.from({ length: n }, (_, i) => (i % 2 ? 90 : -90)),
     stations: n => Array.from({ length: n }, (_, i) => Math.floor(i / 2)),
@@ -139,9 +138,29 @@ const ENG_ARCH = {
     nStations: n => n,
   },
   vee: {
-    name: 'V', counts: [8, 12], kM: 1.10, bmep: 10.2, vee: 60,  // UNVALIDATED
-    angles: (n, P) => Array.from({ length: n },
-      (_, i) => (i % 2 ? 1 : -1) * (P && P.vee != null ? P.vee : 60) / 2),
+    // FITTED (2026-09-05, the V test — the user: "test the V configs, since
+    // they've never been done"). Three published air-cooled aero Vs, all
+    // inverted, none in the registry until this date:
+    //   Hirth HM 508D   8.0 L, 3000 rpm — 209 kW, 186 kg   (V8 60°, NA)
+    //   Argus As 10C   12.7 L, 2000 rpm — 176 kW, 213 kg   (V8 90°, NA)
+    //   Ranger V-770   12.6 L, 3150 rpm — 388 kW, 320 kg   (V12 60°, blown)
+    // kM ALONE, least squares in the log, the shared exponent kept (G165's
+    // rule): 1.10 was the guess and read +11 % / +45 % / -4 % on mass; 0.95
+    // reads -5 % / +25 % / -17 %. The scatter IS the finding: an Argus is
+    // magnesium and light, a Ranger is long and heavy for its litres, and
+    // one exponent cannot hold both — declared, not fudged. bmep from the two
+    // NA rows (10.5 and 8.5 bar): 9.5, the in-line's own figure, which is
+    // what a V is — two in-lines on one crank. An automobile V8 conversion
+    // (an LS: 6.2 L, 205 kg with its drive) reads 27 % light under this law
+    // and is a published-row engine, never a bench-derived one.
+    name: 'V', counts: [6, 8, 12], kM: 0.95, bmep: 9.5, vee: 60,
+    // two banks `vee` degrees apart, about the AIM the in-line already has
+    // (G164's row: 1 up, 0 down — an aero V is almost always inverted)
+    angles: (n, P) => {
+      const d = engAimDeg(P && P.inlineAim != null ? P.inlineAim : 1);
+      const half = (P && P.vee != null ? P.vee : 60) / 2;
+      return Array.from({ length: n }, (_, i) => d + (i % 2 ? 1 : -1) * half);
+    },
     stations: n => Array.from({ length: n }, (_, i) => Math.floor(i / 2)),
     nStations: n => Math.ceil(n / 2),
   },
@@ -279,6 +298,11 @@ const ENG_DEFAULT = {
   // would make one number mean three.
   geared: 0, gearRatio: 2.27,
   liquid: 0,
+  // THE BLOWER (2026-09-05): 0 none, 1 turbocharger, 2 supercharger.
+  // `boost` is the rated manifold pressure over ambient (a 914's 40 inHg is
+  // 1.34) and multiplies bmep; `critAlt` is metres of ISA altitude the rating
+  // holds to (05_atmos reads it through the row's aspiration).
+  blower: 0, boost: 1.0, critAlt: 0,
   // ELECTRIC (arch 'electric'): the can IS the fiche. Defaults are the
   // registry's own 2212 outrunner — the electric anchor, as the A-65 is
   // the combustion one. rpm rides the shared key (electric default 8500
@@ -517,7 +541,11 @@ function engResolve(spec) {
   // two-stroke keeps up with a litre of four-stroke.
   const strokeDiv = P.twoStroke ? 1 : 2;
   const revS = P.rpm / 60;
-  const powerW = (A.bmep * 1e5) * Vd * revS / strokeDiv;
+  // a blower raises the charge density and so the bmep, by the manifold
+  // pressure ratio — the whole of a supercharger, at rated power
+  const blown = Math.round(P.blower || 0) > 0;
+  const boost = blown ? Math.max(1, Math.min(2.5, +P.boost || 1)) : 1;
+  const powerW = (A.bmep * boost * 1e5) * Vd * revS / strokeDiv;
 
   // 3. mass, from swept volume, sub-linearly, with the extras declared.
   // The law was fitted against the registry's DRY ENGINE masses, which are
@@ -530,6 +558,12 @@ function engResolve(spec) {
   if (!P.exhaust) mass *= 0.965;
   if (P.geared) mass += 0.14 * mass + 3.0;    // reduction unit
   if (P.liquid) mass += 0.11 * mass + 2.5;    // jacket, pump, radiator, coolant
+  // THE BLOWER'S MASS, declared like the gearbox's: a turbocharger is a
+  // housing, a wastegate and an intercooler outside the engine (a 914 over a
+  // 912: +6 kg on 58 — 8 % + 2 kg); a mechanical supercharger is an impeller
+  // in the rear case, and the big radials the mass law was fitted on already
+  // carry one, so it adds the drive alone
+  if (blown) mass += Math.round(P.blower) === 1 ? 0.08 * mass + 2.0 : 0.04 * mass;
 
   // ---- ENVELOPE + CG ------------------------------------------------------
   // The cowl is built around THIS, so it is measured off the same placement
@@ -633,6 +667,10 @@ function engResolve(spec) {
     arch: P.arch, archName: A.name, cyl: n,
     displacement: Vd, litres, bmep: A.bmep,
     powerW, powerHP: powerW / 745.7, rpm: P.rpm,
+    // the blower (2026-09-05): what the row's aspiration and critAlt become
+    blower: blown ? Math.round(P.blower) : 0, boost,
+    critAlt: blown ? Math.max(0, +P.critAlt || 0) : 0,
+    aspiration: blown ? (Math.round(P.blower) === 1 ? 'turbo' : 'super') : 'na',
     mass, kgPerLitre: litres ? mass / litres : 0,
     kgPerKW: powerW ? mass / (powerW / 1000) : 0,
     env, cgZ, items,

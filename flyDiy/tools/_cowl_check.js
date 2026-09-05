@@ -118,6 +118,9 @@ const CASES = [
     bore: 0.100, stroke: 0.095, rpm: 2600 },
   { name: 'Radial nine', arch: 'radial', cyl: 9,
     bore: 5.5 * IN, stroke: 5.5 * IN, rpm: 2200 },
+  // the V (2026-09-05): an inverted 90° V8 — the widest bank the registry has
+  { name: 'V8 90 inverted', arch: 'vee', cyl: 8, vee: 90, inlineAim: 0,
+    bore: 0.120, stroke: 0.140, rpm: 2000 },
 ];
 const pad = (s, n) => String(s).padEnd(n);
 const padL = (s, n) => String(s).padStart(n);

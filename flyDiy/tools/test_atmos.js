@@ -57,7 +57,7 @@ exact(ATMOS_ISA.densityAlt(0), 0, 'densityAlt(0)');
 exact(ATMOS_ISA.pressureAlt(0), 0, 'pressureAlt(0)');
 exact(ATMOS_ISA.dISA, 0, 'ISA offset');
 exact(Math.sqrt(ATMOS_ISA.sigma(0)), 1, 'sqrt(sigma(0)) — the EAS factor');
-for (const asp of ['na', 'electric', 'turbine']) {
+for (const asp of ['na', 'electric', 'turbine', 'turbo', 'super']) {
   const s = atmosPropScale(ATMOS_ISA.sigma(0), asp);
   exact(s.kT, 1, `propScale.kT at sigma=1 (${asp})`);
   exact(s.kV, 1, `propScale.kV at sigma=1 (${asp})`);
@@ -145,6 +145,30 @@ yes(atmosPropScale(0.7, 'turbine', 1.26).kV === 0.7 &&
     Math.abs(atmosPropScale(0.7, 'turbine', 1.26).kT
              - Math.cbrt(0.7) * Math.pow(0.7 * 1.26, 2 / 3)) < 1e-12,
     'the prop scaling is the same three lines with the turbine\'s own power ratio');
+// THE BLOWER (2026-09-05): rated to the critical density ratio, then the
+// piston's own lapse from that air. The fourth argument is per engine
+// (`critAlt` on the row; the solver converts it to sigma once).
+const cs = ATMOS_ISA.sigma(1500);
+yes(atmosPowerRatio(1, 'super', 1, cs) === 1 && atmosPowerRatio(1, 'turbo', 1, cs) === 1,
+    'a blown engine at sigma 1 is exactly rated');
+yes(atmosPowerRatio(cs, 'super', 1, cs) === 1,
+    `and still rated AT its critical altitude (sigma ${cs.toFixed(3)} for 1 500 m)`);
+yes(atmosPowerRatio(0.6, 'super', 1, cs) < 1 &&
+    atmosPowerRatio(0.6, 'super', 1, cs) > atmosPowerRatio(0.6, 'na'),
+    'above it the lapse is the piston\'s own from the critical air — and beats an NA engine');
+yes(Math.abs(atmosPowerRatio(0.6, 'turbo', 1, cs) - (1 - 1.132 * (1 - 0.6 / cs))) < 1e-12,
+    'the law above the critical altitude is Gagg-Ferrar in sigma / sigmaCrit');
+yes(atmosPowerRatio(0.8, 'turbo', 1, 1) === atmosPowerRatio(0.8, 'na'),
+    'a ground-boosted blower (critSig 1) is the NA law exactly');
+yes(atmosPowerRatio(0.8, 'super') === atmosPowerRatio(0.8, 'na'),
+    'and so is a blown row that declares no ceiling');
+yes(Math.abs(atmosPowerRatio(cs + 1e-9, 'super', 1, cs)
+             - atmosPowerRatio(cs - 1e-9, 'super', 1, cs)) < 1e-6,
+    'continuous through the critical altitude');
+yes(atmosPropScale(0.7, 'turbo', 1, 0.8).kV === 0.7 &&
+    Math.abs(atmosPropScale(0.7, 'turbo', 1, 0.8).kT
+             - Math.cbrt(0.7) * Math.pow(atmosPowerRatio(0.7, 'turbo', 1, 0.8), 2 / 3)) < 1e-12,
+    'the prop scaling passes the blower\'s ceiling through');
 
 // ---- 7. and what the propeller does about that -----------------------------
 // The claim in 05_atmos.js is that the two scalings are not asserted but fall
@@ -180,11 +204,17 @@ for (const sig of [0.93, 0.80, 0.65]) {
 // assertion that a new registry row cannot skip it.
 console.log('--- 8. every powerplant declares what it breathes ---');
 const keys = Object.keys(POWERPLANTS);
-let missing = [], bad = [], nEl = 0, nTu = 0;
+let missing = [], bad = [], nEl = 0, nTu = 0, nBl = 0;
 for (const k of keys) {
   const a = POWERPLANTS[k].engine && POWERPLANTS[k].engine.aspiration;
   if (a == null) missing.push(k);
-  else if (a !== 'na' && a !== 'electric' && a !== 'turbine') bad.push(k + '=' + a);
+  else if (!['na', 'electric', 'turbine', 'turbo', 'super'].includes(a)) bad.push(k + '=' + a);
+  // a blown row must carry the altitude 05_atmos holds it to; nothing else
+  // may (the blower model, 2026-09-05)
+  const blown = a === 'turbo' || a === 'super';
+  if (blown && !(POWERPLANTS[k].engine.critAlt >= 0)) bad.push(k + ' has no critAlt');
+  if (!blown && POWERPLANTS[k].engine.critAlt != null) bad.push(k + ' smuggles a critAlt');
+  if (blown) nBl++;
   if (a === 'electric') nEl++;
   if (a === 'turbine') nTu++;
   // a turbine row must carry the margin 05_atmos reads; nothing else may
@@ -193,9 +223,10 @@ for (const k of keys) {
 }
 yes(missing.length === 0, `all ${keys.length} rows declare an aspiration` +
     (missing.length ? ' — MISSING: ' + missing.join(', ') : ''));
-yes(bad.length === 0, "every value is 'na', 'electric' or 'turbine', and only a turbine carries flatK" + (bad.length ? ' — BAD: ' + bad.join(', ') : ''));
+yes(bad.length === 0, "every value is 'na', 'turbo', 'super', 'electric' or 'turbine'; only a turbine carries flatK, only a blown row a critAlt" + (bad.length ? ' — BAD: ' + bad.join(', ') : ''));
 yes(nEl > 0 && nEl < keys.length, `the table has both kinds (${nEl} electric, ${keys.length - nEl} breathing)`);
 yes(nTu > 0, `and ${nTu} turbine row(s) since 2026-09-05`);
+yes(nBl > 0, `and ${nBl} blown row(s) since the blower model (2026-09-05)`);
 // and the datum the whole project is anchored at is one number, not two
 exact(RHO, ATM.RHO0, 'RHO and ATM.RHO0 are the same datum');
 

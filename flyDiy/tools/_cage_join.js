@@ -34,11 +34,39 @@ const CAGE_JOIN_ENGINES = {
   'Rotec R3600': 'rotec3600_std',
   'P&W R-985': 'r985_hs2b20',
   'P&W R-1830': 'r1830_hs23e50',
+  // THE TWO G165 IN-LINES WERE ORPHANS until 2026-09-05: neither had a row
+  // here, so an untouched Mikron or Gipsy preset flew as an A-65 through
+  // the fallback below — the four-orphan trap, struck a fifth and sixth
+  // time. GATE ENGID now asserts every non-fantasy preset maps to a row.
+  'Walter Mikron III': 'mikron3_wood',
+  'DH Gipsy Major': 'gipsymajor1_wood',
+  // the aero Vs (2026-09-05, the V test)
+  'Hirth HM 508D': 'hirth508_wood',
+  'Argus As 10C': 'argus10c_wood',
+  // the coverage fill (2026-09-05)
+  'lycoming O-320': 'o320_mccauley',
+  'lycoming O-540': 'o540_hartzell',
+  'continental IO-550': 'io550_hartzell3',
+  'lycoming IO-720': 'io720_hartzell3',
+  'rotax 915 iS': 'rotax915_carbon',
+  'Ranger L-440': 'ranger440_wood',
+  'Continental W-670': 'w670_hs2b',
+  'Jacobs R-755': 'r755_hs2b',
+  'Vedeneyev M-14P': 'm14p_v530',
+  'P&W R-1340': 'r1340_hs12d40',
+  'rotax 503': 'rotax503_wood',
+  'EMRAX 268': 'emrax268_carbon',
+  'P&W PT6A-42': 'pt6a42_hartzell4',
+  'P&W PT6A-60A': 'pt6a60a_hartzell4',
   'RC 2212 outrunner': 'outrunner2212_9x47',
   'RC 6374 outrunner': 'outrunner6374_18x10',
   'e-PPG 12 kW': 'eppg_direct_130',
   'FES sustainer': 'fes_folding_100',
   'EMRAX 228': 'emrax228_3blade',
+  // TWO MORE ORPHANS (2026-09-05, found by GATE ENGID's new row): the two
+  // certified-class electrics flew as an A-65 under their own names
+  'pipistrel E-811': 'e811_velis',
+  'SP260D-class': 'sp260d_class',
   // the turboprops (2026-09-05) — a preset without a row here flies as an
   // A-65 through the fallback below, which is the four-orphan trap
   'P&W PT6A-114A': 'pt6a114a_hartzell3',

@@ -19,7 +19,8 @@
 'use strict';
 const C = require('./flight_core.js');
 const { POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, genEnginePrice,
-        clampSpec, resolveSpec, genFrame, buildGen, GEN_DEFAULT } = C;
+        clampSpec, resolveSpec, genFrame, buildGen, GEN_DEFAULT,
+        makeSim, ATMOS_ISA } = C;
 
 let fails = 0;
 const ok = (cond, label) => {
@@ -31,10 +32,11 @@ const clone = o => JSON.parse(JSON.stringify(o));
 // ---- 1. the laws over the registry ----------------------------------------
 console.log('THERMO + PRICE over every registry row');
 // waived from the price band, each for a declared reason:
-//   r1830 — a warbird's market price is provenance, not kilowatts
+//   (r1830 was waived here until 2026-09-05; the four-stroke law now bends
+//    above 130 kW to the warbird market and fits it within 2 %)
 //   e811  — the 2.5x over its EMRAX twin IS the type certificate, and a
 //           garage engine is uncertified by construction
-const PRICE_WAIVED = new Set(['r1830_hs23e50', 'e811_velis']);
+const PRICE_WAIVED = new Set(['e811_velis']);
 for (const [key, row] of Object.entries(POWERPLANTS)) {
   const e = row.engine;
   ok(!!GEN_ENG_THERMO[e.family], `${key}: family '${e.family}' declared`);
@@ -140,6 +142,29 @@ console.log('resolveSpec + genFrame: the custom engine flies');
   const d = buildGen(s);
   ok(d.params.engine && d.params.engine.aspiration === 'electric',
      'an electric custom row keeps its aspiration into the def');
+}
+{
+  // THE BLOWER (2026-09-05): a blown custom row keeps its aspiration and its
+  // critical altitude into the def, and the solver holds rated power there
+  const s = clone(GEN_DEFAULT);
+  s.engines = [{ type: 'o200_eprops', mount: 'nose', place: { dx: 0, dy: 0 },
+                 custom: { name: 'custom turbo four', mass: 90, powerW: 85000,
+                           rpm: 2750, aspiration: 'turbo', critAlt: 4500,
+                           family: 'four', cooling: 'air' } }];
+  const d = buildGen(s);
+  ok(d.params.engine && d.params.engine.aspiration === 'turbo'
+     && d.params.engine.critAlt === 4500,
+     'a turbocharged custom row keeps aspiration + critAlt into the def');
+  const sim = makeSim(d, null); sim.reset(0);
+  sim.setAtmos(ATMOS_ISA, 3000);
+  const pBlown = sim.probeAir().power;
+  const sN = clone(s); sN.engines[0].custom.aspiration = 'na';
+  const dN = buildGen(sN);
+  ok(!('critAlt' in dN.params.engine), 'an NA row cannot smuggle a critAlt');
+  const simN = makeSim(dN, null); simN.reset(0); simN.setAtmos(ATMOS_ISA, 3000);
+  ok(pBlown === 1 && simN.probeAir().power < 0.8,
+     `at 3 000 m the turbo still makes rated power (${pBlown}), the NA one ` +
+     `${(simN.probeAir().power * 100).toFixed(0)} %`);
 }
 {
   // TURBINE (2026-09-05, TURBOPROP §1/§5/§8): the third aspiration, its own

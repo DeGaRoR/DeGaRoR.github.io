@@ -526,7 +526,7 @@ const COWL_TAPER_LO = 0.3, COWL_TAPER_HI = 1.15;   // the row's own range
 // length so the nose cone falls right, adjusting the engine's distance from
 // the firewall on the way.
 const COWL_BY_ARCH = {
-  flat: null, inline: null, electric: null,
+  flat: null, inline: null, vee: null, electric: null,
   radial: {
     fitNose: 2,                        // sealed: firewall size, round section
     // ROUND, and level: no deck rise, no keel sweep, no waist

@@ -622,7 +622,9 @@ const CAGE_PARTS = [
   { key: 'engine', name: 'Engine', parent: 'power', layer: 'eng',
     when: P => +P.engOn, gate: 'engOn',
     place: { on: 'engOn',
-             type: ['engMount', 'engAim', 'engPower', 'engPreset', 'eng_arch',
+             // the TYPE before the engine (2026-09-05, the picker ruling:
+             // "picks an existing engine, after choosing the type")
+             type: ['engMount', 'engAim', 'engPower', 'eng_arch', 'engPreset',
                     'eng_cyl', 'eng_radialRows', 'eng_inlineAim', 'eng_eStyle',
                     'eng_tStyle'],
              fore: 'engBlockZ', out: 'engNacAt', up: 'engBlockY',
@@ -645,9 +647,11 @@ const CAGE_PARTS = [
       // layout and cylinder count are TYPE rows (the trunk): a builder picks them
       // through the preset and only then reaches for bore and stroke
       ['geometry', ['eng_arch', 'eng_cyl', 'eng_radialRows', 'eng_inlineAim',
-                    'eng_bore',
+                    'eng_vee', 'eng_bore',
                     'eng_stroke', 'eng_rpm', 'eng_stagger']],
-      ['architecture', ['eng_twoStroke', 'eng_liquid', 'eng_geared']],
+      // the blower rows (2026-09-05): what holds the rating, and to where
+      ['architecture', ['eng_twoStroke', 'eng_liquid', 'eng_geared',
+                        'eng_blower', 'eng_boost', 'eng_critAlt']],
       ['electric', ['eng_eStyle', 'eng_canD', 'eng_canL', 'eng_volts',
                     'eng_eFins', 'eng_escOn']],
       // the turboprop's own keys (2026-09-05, TURBOPROP §3), so no row is

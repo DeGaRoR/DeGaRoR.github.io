@@ -2665,8 +2665,8 @@ function clampSpec(spec) {
       cu.powerW = genClamp(cu.powerW, 100, 1000000);
       cu.rpm = genClamp(cu.rpm == null ? 2300 : cu.rpm, 400, 14000);
       cu.torque = genClampN(cu.torque, 0, 5000);
-      cu.aspiration = cu.aspiration === 'electric' ? 'electric'
-        : cu.aspiration === 'turbine' ? 'turbine' : 'na';
+      cu.aspiration = ['electric', 'turbine', 'turbo', 'super']
+        .includes(cu.aspiration) ? cu.aspiration : 'na';
       cu.family = (typeof GEN_ENG_THERMO !== 'undefined' && GEN_ENG_THERMO[cu.family])
         ? cu.family : (cu.aspiration === 'electric' ? 'electric'
                        : cu.aspiration === 'turbine' ? 'turbine' : 'four');
@@ -2679,6 +2679,12 @@ function clampSpec(spec) {
         cu.flatK = genClamp(cu.flatK == null ? 1.3 : cu.flatK, 1, 2);
         cu.length = genClampN(cu.length, 0.3, 3);
       } else { delete cu.flatK; delete cu.length; }
+      // A BLOWN PISTON'S OWN NUMBER (the blower model, 2026-09-05): the
+      // critical altitude 05_atmos holds the rating to; nothing else may
+      // carry one, or an A-65 would supercharge itself by a stray field
+      if (cu.aspiration === 'turbo' || cu.aspiration === 'super')
+        cu.critAlt = genClamp(cu.critAlt == null ? 0 : cu.critAlt, 0, 9000);
+      else delete cu.critAlt;
       // an unpriced custom row takes the market curve — one keeper (00_registry)
       // (the cap rose 200k -> 600k with the turbine curve, 2026-09-05)
       cu.price = genClamp(cu.price == null

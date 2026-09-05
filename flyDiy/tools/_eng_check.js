@@ -34,6 +34,43 @@ const REF = [
   { key: 'r1830_hs23e50', name: 'P&W R-1830 Twin Wasp', arch: 'radial', cyl: 9,
     bore: 5.5 * IN, stroke: 5.5 * IN, rpm: 2700, mass: 750, powerW: 895000,
     rows: 2 },
+  // THE Vs (2026-09-05, the V test): the two published NA aero Vs the
+  // family's kM was fitted on — the residuals printed here ARE the fit
+  { key: 'hirth508_wood', name: 'Hirth HM 508D', arch: 'vee', cyl: 8,
+    vee: 60, inlineAim: 0, bore: 0.105, stroke: 0.115, rpm: 3000,
+    mass: 186, powerW: 209000 },
+  { key: 'argus10c_wood', name: 'Argus As 10C', arch: 'vee', cyl: 8,
+    vee: 90, inlineAim: 0, bore: 0.120, stroke: 0.140, rpm: 2000,
+    mass: 213, powerW: 176000 },
+  // THE COVERAGE FILL (2026-09-05): every new piston row, so the instrument
+  // reads the whole ladder — the blown ones through their published boost
+  { key: 'o320_mccauley', name: 'Lycoming O-320-E2D', arch: 'flat', cyl: 4,
+    bore: 5.125 * IN, stroke: 3.875 * IN, rpm: 2700, mass: 122, powerW: 112000 },
+  { key: 'o540_hartzell', name: 'Lycoming O-540-B2C5', arch: 'flat', cyl: 6,
+    bore: 5.125 * IN, stroke: 4.375 * IN, rpm: 2575, mass: 176, powerW: 175000 },
+  { key: 'io550_hartzell3', name: 'Continental IO-550-N', arch: 'flat', cyl: 6,
+    bore: 5.25 * IN, stroke: 4.25 * IN, rpm: 2700, mass: 195, powerW: 231000 },
+  { key: 'io720_hartzell3', name: 'Lycoming IO-720-A1A', arch: 'flat', cyl: 8,
+    bore: 5.125 * IN, stroke: 4.375 * IN, rpm: 2650, mass: 257, powerW: 298000 },
+  { key: 'rotax915_carbon', name: 'Rotax 915 iS', arch: 'flat', cyl: 4,
+    bore: 0.084, stroke: 0.061, rpm: 5800, mass: 84, powerW: 105000,
+    geared: 1, liquid: 1, blower: 1, boost: 1.35 },
+  { key: 'ranger440_wood', name: 'Ranger L-440-5', arch: 'inline', cyl: 6,
+    inlineAim: 0, bore: 4.125 * IN, stroke: 5.5 * IN, rpm: 2450,
+    mass: 170, powerW: 149000 },
+  { key: 'w670_hs2b', name: 'Continental W-670-6A', arch: 'radial', cyl: 7,
+    bore: 5.125 * IN, stroke: 4.625 * IN, rpm: 2075, mass: 211, powerW: 164000 },
+  { key: 'r755_hs2b', name: 'Jacobs R-755-A2', arch: 'radial', cyl: 7,
+    bore: 5.25 * IN, stroke: 5.0 * IN, rpm: 2200, mass: 230, powerW: 224000 },
+  { key: 'm14p_v530', name: 'Vedeneyev M-14P', arch: 'radial', cyl: 9,
+    bore: 0.105, stroke: 0.130, rpm: 2900, mass: 214, powerW: 268000,
+    blower: 2, boost: 1.35 },
+  { key: 'r1340_hs12d40', name: 'P&W R-1340-AN-1', arch: 'radial', cyl: 9,
+    bore: 5.75 * IN, stroke: 5.75 * IN, rpm: 2250, mass: 400, powerW: 447000,
+    blower: 2, boost: 1.20 },
+  { key: 'rotax503_wood', name: 'Rotax 503 UL', arch: 'inline', cyl: 2,
+    twoStroke: 1, geared: 1, bore: 0.072, stroke: 0.072, rpm: 6800,
+    mass: 38, powerW: 37000 },
 ];
 
 const pct = (a, b) => (100 * (a - b) / b);
@@ -62,7 +99,11 @@ for (const r of REF) {
   const rows = r.rows || 1;
   const R = engResolve({ arch: r.arch, cyl: r.cyl, bore: r.bore,
                          stroke: r.stroke, rpm: r.rpm,
-                         geared: r.geared || 0, liquid: r.liquid || 0 });
+                         geared: r.geared || 0, liquid: r.liquid || 0,
+                         vee: r.vee || 60,
+                         inlineAim: r.inlineAim == null ? 1 : r.inlineAim,
+                         twoStroke: r.twoStroke || 0,
+                         blower: r.blower || 0, boost: r.boost || 1 });
   const powerW = R.powerW * rows, mass = R.mass * rows;
   const litres = R.litres * rows;
   const eP = pct(powerW, r.powerW), eM = pct(mass, r.mass);
@@ -90,7 +131,8 @@ console.log(pad('engine', 22) + padL('width', 8) + padL('height', 8) +
 console.log('-'.repeat(62));
 for (const r of REF) {
   const R = engResolve({ arch: r.arch, cyl: r.cyl, bore: r.bore,
-                         stroke: r.stroke, rpm: r.rpm });
+                         stroke: r.stroke, rpm: r.rpm, vee: r.vee || 60,
+                         inlineAim: r.inlineAim == null ? 1 : r.inlineAim });
   const e = R.env;
   console.log(pad(r.name, 22) + padL(f(e.width, 3), 8) + padL(f(e.height, 3), 8) +
     padL(f(e.length, 3), 8) + padL(f(e.radius, 3), 8) + padL(f(R.cgZ, 3), 8));

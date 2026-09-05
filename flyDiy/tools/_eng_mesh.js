@@ -35,7 +35,9 @@
 // SCOPE: every registry family is dressed — flat (G24), inline two-stroke
 // (G24.12/14), radial (G24.15) and ELECTRIC (G25: outrunner, axial pancake,
 // housed inrunner — its own branch on the shared primitives, mount and
-// plate). Only the vee still refuses, loudly, rather than half-drawing.
+// plate) — and the V (2026-09-05), dressed through the boxer's own branch:
+// every cylinder is built off its own angle, so two banks `vee` degrees apart
+// take the flat's furniture as they stand.
 //
 // The mesh is an ASSEMBLY OF PARTS THAT INTERSECT, hidden by flanges and
 // bosses at the joints — the gear and crew precedent. No booleans, no welded
@@ -196,8 +198,8 @@ const EM = (() => {
   function engMeshBuild(spec) {
     // ARCH COMPATIBILITY IS COERCED BEFORE RESOLVE (G24.15), so the
     // physics and the mesh always agree and no UI combination throws:
-    // a radial is an air-cooled four-stroke. Only genuinely undressed
-    // families (vee, electric) refuse.
+    // a radial is an air-cooled four-stroke. Nothing refuses since the V
+    // joined (2026-09-05); an unknown arch still does, loudly.
     //
     // AN IN-LINE'S TWO-STROKE IS A DEFAULT NOW, NOT A LAW (G165). It was a
     // law because the registry's only in-lines were a Rotax 277 and a 582,
@@ -212,15 +214,22 @@ const EM = (() => {
     if (archAsk === 'inline' && spec.twoStroke === undefined) spec.twoStroke = 1;
     if (archAsk === 'radial') { spec.twoStroke = 0; spec.liquid = 0; }
     const R = EG.engResolve(spec);
+    // THE V IS DRESSED THROUGH THE BOXER'S BRANCH (2026-09-05, the V test):
+    // `inline` and `radial` are both false for it, so it takes a collector
+    // under each bank, the induction on the face the banks leave free (`iS`
+    // reads the first cylinder's own outward vector, so an inverted V puts
+    // its carburettor on top like a Gipsy), the conical gearbox when geared.
+    // GATE ENGMESH runs the whole battery on an upright V8, the two inverted
+    // registry Vs and a V12.
     if (R.arch !== 'flat' && R.arch !== 'inline' && R.arch !== 'radial' &&
-        R.arch !== 'electric' && R.arch !== 'turbine')
-      throw new Error('engMeshBuild: dressed families are flat, inline ' +
-                      '(two-stroke), radial, electric and turbine (got "' +
-                      R.arch + '")');
+        R.arch !== 'vee' && R.arch !== 'electric' && R.arch !== 'turbine')
+      throw new Error('engMeshBuild: dressed families are flat, inline, V, ' +
+                      'radial, electric and turbine (got "' + R.arch + '")');
     const elec = R.arch === 'electric';
     const turb = R.arch === 'turbine';
     const inline = R.arch === 'inline';
     const radial = R.arch === 'radial';
+    const vee = R.arch === 'vee';
     const P = Object.assign({}, ENGM_DEFAULT, R.P);   // R.P carries ride-through keys
     // the MESH's own default for a knob the physics fiche also carries:
     // real fins are thin and NUMEROUS (G24.6) — spec still overrides
@@ -1428,6 +1437,17 @@ const EM = (() => {
     const rows = radial
       ? Math.min(2, Math.max(1, Math.round(P.radialRows))) : 1;
     const perRow = radial ? Math.ceil(R.cyl / rows) : 0;
+    // THE ROUNDED-SQUARE CASE'S BOUNDARY along a unit direction (dx, dy):
+    // the flat at cR where the ray meets a side, else the corner arc
+    // (half-side cR, corner radius 0.55 cR — caseShape's own numbers)
+    const caseDistAlong = (dx, dy) => {
+      const ax = Math.abs(dx), ay = Math.abs(dy);
+      const s = 0.45 * cR, rc = 0.55 * cR;
+      if (ay >= ax && cR * ax / ay <= s + 1e-9) return cR / ay;
+      if (ax > ay && cR * ay / ax <= s + 1e-9) return cR / ax;
+      const bq = -2 * s * (ax + ay), cq = 2 * s * s - rc * rc;
+      return (-bq + Math.sqrt(bq * bq - 4 * cq)) / 2;
+    };
     const cyls = [];
     for (let i = 0; i < R.cyl; i++) {
       // the INLINE lies on its side (G24.14): a single lateral bank. The
@@ -1459,7 +1479,14 @@ const EM = (() => {
           : (Math.sin(a) >= 0 ? 1 : -1) * 0.5 * P.stagger * b);
       }
       const sx = Math.sin(a) >= 0 ? 1 : -1;
-      const rr0 = cR * 0.96;                    // barrel root, buried in the case
+      // WHERE THE CASE SURFACE IS, ALONG THIS CYLINDER (2026-09-05, the V
+      // test). A boxer's and an in-line's banks meet the case's flats at
+      // exactly cR; a V's meet its CORNERS further out (1.14 cR at 60°,
+      // 1.19 cR at 90°), and a barrel rooted at 0.96 cR there starts its
+      // fins inside the corner — the 90° Argus put a fin plane on the corner
+      // facet to 0.1 mm. V only, so nothing drawn before this moves.
+      const caseD = vee ? caseDistAlong(Math.sin(a), Math.cos(a)) : cR;
+      const rr0 = caseD * 0.96;                 // barrel root, buried in the case
       const finTop = L.r0 + R.P.stroke + 0.55 * b;   // fin zone ends, head begins
       const headTop = finTop + 0.85 * b;
       const rockerOut = L.rTip;                 // the DRESSED width IS the envelope's
@@ -1468,7 +1495,14 @@ const EM = (() => {
       const dir = [Math.sin(a), Math.cos(a), 0];
       const uw = { u: [Math.cos(a), -Math.sin(a), 0], w: [0, 0, 1] };
       // the plate/cover free axis: ⊥ the cylinder, in the engine's plane
+      // A V's ACROSS AXIS POINTS OUTBOARD (2026-09-05, the V test). The
+      // across coordinate is a global direction on a boxer (down, for both
+      // banks) and on an in-line; on a V that put one bank's ports into the
+      // valley and the other's outboard, and sent the +x bank's exhaust
+      // knee through the -x bank's barrels. Negative p is outboard on BOTH
+      // banks now — a real V carries its exhaust on the outer faces.
       const e2 = radial ? uw.u
+        : vee ? [-sx, 0, 0]
         : (Math.abs(Math.sin(a)) > 0.5 ? [0, 1, 0] : [1, 0, 0]);
       const pt = r => [dir[0] * r, dir[1] * r, z];
       // THE CYLINDER'S OWN FRAME (G162), and it is the whole of the
@@ -1522,7 +1556,7 @@ const EM = (() => {
         };
       }
       cyls.push(Object.assign({
-        i, sx, z, dir, uw, e2, uOut,
+        i, sx, z, dir, uw, e2, uOut, caseD,
         rr0, finTop, headTop, rockerOut,
         at: pt, route,
       }, ports));
@@ -1588,15 +1622,33 @@ const EM = (() => {
       const pos = [sx * 0.50 * cR, 0.55 * cR, accT1 - 1.4 * r];
       const capZ = pos[2] - 1.25 * r;                // cap front face
       const n = Math.max(1, R.cyl);
-      const dx = Math.min(0.55, 2.0 / Math.max(1, n - 1)) * r;
+      // TWO ROWS OF TOWERS PAST EIGHT (2026-09-05, the V test): twelve
+      // towers on one line of a 2.1 r cap sit 0.18 r apart, closer than a
+      // tower is wide, and a V12's leads overlapped at their own magneto.
+      // A deeper cap carries two rows of six; a cap of eight or fewer is
+      // bit-identical to before.
+      const rows2 = n > 8 ? 2 : 1;
+      const per = Math.ceil(n / rows2);
+      const capD = rows2 > 1 ? 1.0 * r : 0.5 * r;
+      const dx = Math.min(0.55, 2.0 / Math.max(1, per - 1)) * r;
       const towers = [];
-      for (let i = 0; i < n; i++)
-        towers.push([pos[0] + (i - (n - 1) / 2) * dx, pos[1] + 1.35 * r,
-                     capZ - 0.25 * r]);
-      return { pos, r, capZ, towers };
+      for (let i = 0; i < n; i++) {
+        const row = i % rows2, k = Math.floor(i / rows2);
+        towers.push([pos[0] + (k - (per - 1) / 2) * dx, pos[1] + 1.35 * r,
+                     capZ - (rows2 > 1 ? (0.22 + 0.56 * row) : 0.25) * r]);
+      }
+      return { pos, r, capZ, capD, towers };
     };
     const magL = mkMag(-1), magR = mkMag(1);
     const sumpY = -cR - L.sump;                      // the case's underside
+    // THE LOWEST METAL (2026-09-05, the V test): where an exhaust may drop
+    // to. On a boxer and an upright in-line that is the sump; on a V the
+    // heads of an INVERTED bank hang below the case, and a collector at the
+    // sump's height would sit in the barrels. V only, so nothing drawn
+    // before this line moves by a float.
+    const yFloor = vee
+      ? Math.min(sumpY, ...cyls.map(c => c.dir[1] * L.rTip))
+      : sumpY;
     // THE INDUCTION SITS ON THE FACE THE BANK LEAVES FREE (G164). The sump,
     // the carburettor, the airbox and their two service lines all hang from
     // ONE face of the crankcase, and on every engine drawn before the aim row
@@ -1630,7 +1682,7 @@ const EM = (() => {
     // only. The LEFT carb carries the services, so the fuel/throttle ports
     // move to it and the side-of-destination rule below follows for free.
     const twin = P.airStyle === 1 && !inj && !P.twoStroke &&
-                 !radial && !inline && P.carbOn;
+                 !radial && !inline && !vee && P.carbOn;
     const twinC = twin ? [-1, 1].map(sx2 => ({
       sx: sx2,
       pos: [sx2 * 0.52 * cR, cR + 0.55 * b, zTail + 0.14 * cR],
@@ -1895,7 +1947,7 @@ const EM = (() => {
         part('magCap', 'solid', 1 + R.cyl);
         prism([mg.pos[0], mg.pos[1], 0], Z, X, Y,
               roundRect(2.1 * mg.r, 2.1 * mg.r, 0.5 * mg.r),
-              mg.capZ - 0.5 * mg.r, mg.capZ, ENGM_MAT.cap, true, true,
+              mg.capZ - mg.capD, mg.capZ, ENGM_MAT.cap, true, true,
               0.12 * mg.r);
         for (const tw of mg.towers)
           lathe([tw[0], tw[1] - 0.30 * mg.r, tw[2]], [0, 1, 0],
@@ -2047,8 +2099,13 @@ const EM = (() => {
     // flange disc wider than the shaft, bolt circle riding the disc.
     // splits are fractions of the ACTUAL nose depth (zNose varies from a
     // deep geared snout to a big bore's sliver), ordered by construction
-    const bossEnd = 0.62 * zNose;
-    const discBk = Math.max(0.52 * zNose, -0.08 * b);
+    // the boss step must not land ON the timing cover's front face
+    // (2026-09-05, the V test: at a 0.105 m bore the two planes were 0.2 mm
+    // apart and the gate read them as one — a latent coincidence of cR / b,
+    // not a V defect; the A-65's own step moves by 0.3 mm)
+    const zTimF = zNose + 0.055 * cR;
+    const bossEnd = Math.max(0.62 * zNose, zTimF + 0.02 * cR);
+    const discBk = Math.max(0.52 * zNose, -0.08 * b, bossEnd + 0.01 * cR);
     lathe([0, 0, 0], Z, { u: X, w: Y }, [
       { t: zNose - 0.045 * cR, r: 0.26 * b }, { t: bossEnd, r: 0.26 * b },
       { t: bossEnd, r: 0.16 * b },
@@ -2100,9 +2157,16 @@ const EM = (() => {
       const padGap = radial ? (rows > 1 ? 1.45 * b : 8 * b)
                             : Math.min(c.gapDn, c.gapUp, 8 * b);
       const padZ = Math.min(1.45 * b, padGap - 0.06 * b);
+      // a V's pads share the case between banks `vee` degrees apart, so
+      // each is no wider than the chord it has (2026-09-05; at 60° two
+      // 1.45 b pads overlapped in the valley)
+      const padW = vee
+        ? Math.min(1.45 * b,
+                   1.8 * cR * Math.sin(Math.abs(L.ang[1] - L.ang[0]) / 2))
+        : 1.45 * b;
       prism(o, c.dir, Z, c.e2,
-            roundRect(padZ, 1.45 * b, Math.min(0.30 * b, 0.40 * padZ)),
-            cR * 0.88, cR * 1.03, ENGM_MAT.pad, false, true, 0.05 * b);
+            roundRect(padZ, padW, Math.min(0.30 * b, 0.40 * padZ, 0.45 * padW)),
+            c.caseD * 0.88, c.caseD * 1.03, ENGM_MAT.pad, false, true, 0.05 * b);
 
       // the neighbour planes: fins and heads are wider than the half-pitch
       // and get CLIPPED against the next cylinder, like the real casting.
@@ -2244,6 +2308,10 @@ const EM = (() => {
           : twin
           ? [tc.pos[0], tc.pos[1] - 0.62 * b,
              tc.pos[2] + (L.stn[c.i] - (L.nSt - 1) / 2) * 0.12 * b]
+          // a V's runner leaves the induction face on its own bank's side
+          // and comes round the flank like an in-line's (2026-09-05)
+          : vee
+          ? [c.sx * 0.42 * cR, indY - iS * 0.10 * b, c.z + 0.20 * b]
           : inline
           ? [0, indY - iS * 0.10 * b, c.z + 0.20 * b]
           : c.route(0.42 * cR, sumpY + 0.10 * b, 0.20 * b);
@@ -2265,6 +2333,8 @@ const EM = (() => {
              [c.sx * (c.finTop + 0.05 * b + trk), -0.92 * b,
               zTail - 0.02 * cR],
              [c.sx * (c.finTop + 0.05 * b + trk), -0.92 * b, c.z + 0.50 * b]]
+          : vee
+          ? [[c.sx * (cR + 0.45 * b), (indY + c.intakeP[1]) / 2, c.z + 0.30 * b]]
           : inline
           // A SINGLE BANK'S RUNNER COMES ROUND THE BARREL (G165). On a boxer
           // the plenum and the head port both lie in the induction plane, so
@@ -2339,7 +2409,11 @@ const EM = (() => {
       } else if (exMode === 1) {
         part('exhaust' + c.i, 'tube');
         const knee = c.route(c.finTop - 0.30 * b, -cR - L.sump * 0.4, -0.40 * b);
-        const tip = c.route(0.72 * cR, sumpY - P.exDrop * b, 0.30 * b);
+        // a V's stack drops straight down OUTBOARD of its bank, to below the
+        // lowest metal (2026-09-05); the boxer's goes out under the case
+        const tip = vee
+          ? [knee[0], yFloor - P.exDrop * b, c.z + 0.30 * b]
+          : c.route(0.72 * cR, sumpY - P.exDrop * b, 0.30 * b);
         const path = fillet([c.exhaustP, knee, tip], 0.75 * b);
         const rr = path.map((_, k) =>
           0.18 * b * (k >= path.length - 2 ? 1.14 : 1));    // flared outlet
@@ -2430,7 +2504,7 @@ const EM = (() => {
           }
         }
       };
-      if (P.rockerSpan && !inline && !radial) {
+      if (P.rockerSpan && !inline && !radial && !vee) {
         let bi = 0;
         for (const bank of [-1, 1]) {
           const row = cyls.filter(c2 => c2.sx === bank);
@@ -2476,7 +2550,7 @@ const EM = (() => {
       for (const sx of (oneCan ? [-1] : [-1, 1])) {
         const side = oneCan ? cyls : cyls.filter(c => c.sx === sx);
         if (!side.length) continue;
-        const colY = sumpY - 0.75 * P.exDrop * b;
+        const colY = yFloor - 0.75 * P.exDrop * b;   // yFloor IS sumpY off a V
         const colX = sx * 0.55 * cR;
         const zMin = Math.min(...side.map(c => c.z)) - 0.4 * b;
         const zMax = Math.max(...side.map(c => c.z)) + 0.4 * b;
@@ -2484,7 +2558,11 @@ const EM = (() => {
           part('exhaust' + c.i, 'tube');
           const jn = [colX, colY, c.z - 0.35 * b];    // plunges into the collector
           const knee = c.route(c.finTop - 0.30 * b, -cR - L.sump * 0.4, -0.42 * b);
-          const path = fillet([c.exhaustP, knee, jn], 0.7 * b);
+          // a V's pipe drops outboard of its bank first, then turns in to
+          // the can (2026-09-05) — the diagonal would cross the barrel base
+          const path = vee
+            ? fillet([c.exhaustP, knee, [knee[0], colY, knee[2]], jn], 0.7 * b)
+            : fillet([c.exhaustP, knee, jn], 0.7 * b);
           artery('exhaust' + c.i, 'head' + c.i, 'collector',
             sweep(path, 0.17 * b, ENGM_MAT.exhaust,
                   { capA: true, capB: true, sides: S.pipe }));
@@ -2538,6 +2616,14 @@ const EM = (() => {
     if (P.leads && P.mags && hasAcc) {
       const lr = Math.max(P.leadR * b, 0.02 * cR);
       for (const c of cyls) {
+        // A V's OWN CORRIDORS (2026-09-05, the V test): the boxer's
+        // waypoints sit over the spine and down the flank in the cylinder's
+        // frame, which on a V put both banks' bottom leads into one corridor
+        // over the case (they touched). `vs` is the side the banks point to
+        // (the valley's side), `nOut` the outboard normal of this bank.
+        const vs = c.dir[1] >= 0 ? 1 : -1;
+        const nOut = c.uw.u[0] * c.sx > 0
+          ? [c.uw.u[0], c.uw.u[1], 0] : [-c.uw.u[0], -c.uw.u[1], 0];
         part('leadT' + c.i, 'tube');
         const mg = magL.pos;
         const pT = routeSafe(smooth(radial ? [
@@ -2548,9 +2634,30 @@ const EM = (() => {
            (mg[2] + c.plugT[2]) / 2],
           [c.plugT[0], c.plugT[1], c.plugT[2] + 0.26 * b],
           c.plugT,
+        ] : vee ? [
+          // top plugs face the valley: forward up the valley, each lead on
+          // its own bank's side of the centreline
+          magL.towers[c.i],
+          // an INVERTED V's valley is under the case and the mags are on
+          // top: round the flank first, clear of the bottom leads' own point
+          ...(vs < 0 ? [[c.sx * 1.4 * cR, -0.3 * cR, zTail - 0.05 * cR]] : []),
+          // each station rides its own height, or same-bank leads coincide
+          // (1.9 cR up: the valley is widest between the fins and the heads;
+          // lower, the field pass pushed every lead onto the same fin edge)
+          [c.sx * 0.15 * cR, vs * (1.9 * cR + 0.15 * b * L.stn[c.i]),
+           zTail - 0.05 * cR],
+          [c.sx * 0.15 * cR, vs * (1.9 * cR + 0.15 * b * L.stn[c.i]),
+           c.z + 0.20 * b],
+          add(c.plugT, [c.e2[0] * 0.24 * b, c.e2[1] * 0.24 * b, 0]),
+          c.plugT,
         ] : [
           magL.towers[c.i],
-          c.route(0.30 * cR, cR * 1.12, (mg[2] - c.z) / 2),
+          // PAST SIX CYLINDERS the top leads fan out across the spine, one
+          // track a station (2026-09-05, the IO-720 row): eight leads from
+          // one cap into one corridor over the case were pushed onto the
+          // same surface by the field pass and touched. Six or fewer: 0.
+          c.route(0.30 * cR + (R.cyl > 6 ? 0.10 * b * L.stn[c.i] : 0),
+                  cR * 1.12, (mg[2] - c.z) / 2),
           c.route(0.75 * cR, cR * 0.75, -0.05 * b),
           add(c.plugT, [c.e2[0] * 0.24 * b, c.e2[1] * 0.24 * b, 0]),
           c.plugT,
@@ -2566,6 +2673,21 @@ const EM = (() => {
           [c.dir[0] * 1.15 * cR, c.dir[1] * 1.15 * cR,
            (mgB[2] + c.plugB[2]) / 2],
           [c.plugB[0], c.plugB[1], c.plugB[2] - 0.26 * b],
+          c.plugB,
+        ] : vee ? [
+          // bottom plugs face outboard: over the spine behind the last
+          // cylinder for the far bank, then forward along the outside of
+          // the bank, clear of its fins
+          magR.towers[c.i],
+          // each station rides its own track outboard, or same-bank leads
+          // coincide behind the last cylinder
+          [c.dir[0] * 0.9 * cR + nOut[0] * (0.85 * cR + 0.10 * b * L.stn[c.i]),
+           c.dir[1] * 0.9 * cR + nOut[1] * (0.85 * cR + 0.10 * b * L.stn[c.i]),
+           zTail - 0.05 * cR],
+          [c.dir[0] * (c.finTop - 0.30 * b) + nOut[0] * (0.97 + 0.05 * L.stn[c.i]) * b,
+           c.dir[1] * (c.finTop - 0.30 * b) + nOut[1] * (0.97 + 0.05 * L.stn[c.i]) * b,
+           c.z - 0.05 * b],
+          add(c.plugB, [-c.e2[0] * 0.24 * b, -c.e2[1] * 0.24 * b, 0]),
           c.plugB,
         ] : [
           magR.towers[c.i],

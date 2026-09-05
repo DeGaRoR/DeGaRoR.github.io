@@ -105,6 +105,11 @@ function makeSim(def, world) {
   // a turbine's flat-rating margin (2026-09-05, TURBOPROP §2) — 1 for every
   // other family, which 05_atmos ignores; the three readers below pass it
   const FLAT = (EN && EN.flatK) || 1;
+  // a blown piston's critical altitude (the blower model, 2026-09-05), as
+  // the ISA density ratio 05_atmos reads — 1 for every other family, and 1
+  // for a ground-boosted blower, which is the NA law
+  const CRIT = (EN && (ASP === 'turbo' || ASP === 'super') && EN.critAlt > 0)
+    ? ATMOS_ISA.sigma(EN.critAlt) : 1;
   const n = def.nodes.length;
   const p = new Float64Array(n * 3), v = new Float64Array(n * 3),
         f = new Float64Array(n * 3), m = new Float64Array(n),
@@ -395,7 +400,7 @@ function makeSim(def, world) {
     // and what the powerplant makes of it — see 05_atmos.js, where both
     // scalings are re-derived from 60_gen_spec's own prop synthesis rather than
     // asserted.
-    const PS = atmosPropScale(sig, ASP, FLAT);
+    const PS = atmosPropScale(sig, ASP, FLAT, CRIT);
     out.rho = rho; out.sigma = sig; out.easK = easK;
     out.densityAlt = AIR.densityAlt(hAir); out.oatC = AIR.T(hAir) - 273.15;
     out.powerK = PS.power; out.thrustK = PS.kT;
@@ -856,13 +861,13 @@ function makeSim(def, world) {
     const A = airOf(), sg = A.sigma(hProbe);
     return { air: A, h: hProbe, rho: A.rho(hProbe), sigma: sg,
              easK: Math.sqrt(sg), densityAlt: A.densityAlt(hProbe),
-             oatC: A.T(hProbe) - 273.15, power: atmosPowerRatio(sg, ASP, FLAT),
+             oatC: A.T(hProbe) - 273.15, power: atmosPowerRatio(sg, ASP, FLAT, CRIT),
              aspiration: ASP };
   }
 
   function thrustAt(V, floor = 0, hAlt) {
     const A = airOf();
-    const PS = atmosPropScale(A.sigma(hAlt == null ? hProbe : hAlt), ASP, FLAT);
+    const PS = atmosPropScale(A.sigma(hAlt == null ? hProbe : hAlt), ASP, FLAT, CRIT);
     return Math.max(floor, PR.Tstatic * PS.kT - PR.kV2 * PS.kV * V * V)
            * (def.params.nEngines || 1);
   }

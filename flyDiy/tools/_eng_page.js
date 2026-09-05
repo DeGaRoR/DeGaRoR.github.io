@@ -86,6 +86,9 @@ const PRESETS = {
     exStyle: 3, bore: 0.072, stroke: 0.068, rpm: 6250, finR: 1.5 },
   'rotax 582': { arch: 'inline', cyl: 2, twoStroke: 1, geared: 1,
     liquid: 1, exStyle: 3, bore: 0.076, stroke: 0.064, rpm: 6500 },
+  // the 50 hp two-stroke (2026-09-05, the coverage fill): 72 x 72 = 497 cc
+  'rotax 503': { arch: 'inline', cyl: 2, twoStroke: 1, geared: 1,
+    exStyle: 3, bore: 0.072, stroke: 0.072, rpm: 6800 },
   // G157: the amateur radials. Bore and stroke are the real displacements
   // (2.25 L over seven, 3.61 L over nine — the published 2260 cc and 3600 cc),
   // and they take the R-1830's own radial treatment: no under-slung carb and
@@ -109,12 +112,58 @@ const PRESETS = {
     bore: 0.090, stroke: 0.096, rpm: 2600, exStyle: 2 },
   'DH Gipsy Major': { arch: 'inline', cyl: 4, twoStroke: 0, inlineAim: 0,
     bore: 0.118, stroke: 0.140, rpm: 2100, exStyle: 2 },
+  // THE AERO Vs (2026-09-05, the V test): both INVERTED, both air-cooled,
+  // the two published NA Vs the family's kM was fitted on. Bore and stroke
+  // are the real ones (105 x 115 over eight = 7.96 L; 120 x 140 = 12.67 L),
+  // the bank angles theirs (60 and 90).
+  'Hirth HM 508D': { arch: 'vee', cyl: 8, vee: 60, twoStroke: 0, inlineAim: 0,
+    bore: 0.105, stroke: 0.115, rpm: 3000, exStyle: 2 },
+  'Argus As 10C': { arch: 'vee', cyl: 8, vee: 90, twoStroke: 0, inlineAim: 0,
+    bore: 0.120, stroke: 0.140, rpm: 2000, exStyle: 2 },
+  // THE COVERAGE FILL (2026-09-05). Bore, stroke and rpm are the
+  // manufacturers' (O-320 5.125 x 3.875 in, O-540 / IO-720 5.125 x 4.375,
+  // IO-550 5.25 x 4.25, Ranger 4.125 x 5.5, W-670 5.125 x 4.625, R-755
+  // 5.25 x 5.0, M-14P 105 x 130, R-1340 5.75 x 5.75, 915 84 x 61); the
+  // blown ones carry the published take-off manifold pressure over ambient
+  // and their ceiling. The firewalls of the radials follow the R-985's rule
+  // of thumb (sized from the heads the resolve builds).
+  'lycoming O-320': { bore: 5.125 * IN, stroke: 3.875 * IN, rpm: 2700,
+    rodPos: 1 },
+  'lycoming O-540': { cyl: 6, bore: 5.125 * IN, stroke: 4.375 * IN, rpm: 2575,
+    rodPos: 1, exStyle: 2 },
+  'continental IO-550': { cyl: 6, bore: 5.25 * IN, stroke: 4.25 * IN,
+    rpm: 2700, injected: 1, exStyle: 2 },
+  'lycoming IO-720': { cyl: 8, bore: 5.125 * IN, stroke: 4.375 * IN,
+    rpm: 2650, injected: 1, rodPos: 1, exStyle: 2 },
+  'rotax 915 iS': { bore: 0.084, stroke: 0.061, rpm: 5800, liquid: 1,
+    geared: 1, injected: 1, airStyle: 1, blower: 1, boost: 1.35,
+    critAlt: 4600 },
+  'Ranger L-440': { arch: 'inline', cyl: 6, twoStroke: 0, inlineAim: 0,
+    bore: 4.125 * IN, stroke: 5.5 * IN, rpm: 2450, exStyle: 2 },
+  'Continental W-670': { arch: 'radial', cyl: 7, exStyle: 2,
+    bore: 5.125 * IN, stroke: 4.625 * IN, rpm: 2075, finR: 1.4,
+    fwW: 1.05, fwH: 1.05, carbOn: 0, airbox: 0, plumb: 0 },
+  'Jacobs R-755': { arch: 'radial', cyl: 7, exStyle: 2,
+    bore: 5.25 * IN, stroke: 5.0 * IN, rpm: 2200, finR: 1.4,
+    fwW: 1.10, fwH: 1.10, carbOn: 0, airbox: 0, plumb: 0 },
+  'Vedeneyev M-14P': { arch: 'radial', cyl: 9, exStyle: 2, blower: 2,
+    boost: 1.35, critAlt: 500, bore: 0.105, stroke: 0.130, rpm: 2900,
+    finR: 1.4, fwW: 1.00, fwH: 1.00, carbOn: 0, airbox: 0, plumb: 0 },
+  'P&W R-1340': { arch: 'radial', cyl: 9, exStyle: 2, blower: 2,
+    boost: 1.20, critAlt: 300, bore: 5.75 * IN, stroke: 5.75 * IN,
+    rpm: 2250, finR: 1.4, fwW: 1.25, fwH: 1.25, carbOn: 0, airbox: 0,
+    plumb: 0 },
   // THE R-985 (2026-09-04): nine cylinders, 5.1875 in square, single row,
   // direct drive; the firewall is sized from the heads the resolve builds
-  'P&W R-985': { arch: 'radial', cyl: 9, exStyle: 2,
+  // SUPERCHARGED since the blower model (2026-09-05): boost is the published
+  // take-off manifold pressure over ambient (36.5 inHg -> 1.22), the ceiling
+  // its 5 000 ft rating; the R-1830's 48 inHg is 1.60 to 4 900 ft
+  'P&W R-985': { arch: 'radial', cyl: 9, exStyle: 2, blower: 2, boost: 1.22,
+    critAlt: 1500,
     bore: 5.1875 * IN, stroke: 5.1875 * IN, rpm: 2300, finR: 1.4,
     fwW: 1.10, fwH: 1.10, carbOn: 0, airbox: 0, plumb: 0 },
   'P&W R-1830': { arch: 'radial', cyl: 14, radialRows: 2, geared: 1,
+    blower: 2, boost: 1.60, critAlt: 1500,
     exStyle: 2, bore: 5.5 * IN, stroke: 5.5 * IN, rpm: 2700,
     finR: 1.4, mountGap: 1.2, fwW: 1.35, fwH: 1.35,
     // a radial breathes through its rear spider — no under-slung carb
@@ -139,6 +188,9 @@ const PRESETS = {
     rpm: 2500, volts: 345, liquid: 1, fwW: 0.70, fwH: 0.65 },
   'SP260D-class': { arch: 'electric', eStyle: 2, canD: 0.418, canL: 0.30,
     rpm: 2500, volts: 580, liquid: 1, fwW: 0.85, fwH: 0.80 },
+  // the 268 (2026-09-05): 268 x 91 published, the pancake style, 470 V
+  'EMRAX 268': { arch: 'electric', eStyle: 1, canD: 0.268, canL: 0.091,
+    rpm: 4500, volts: 470, fwW: 0.65, fwH: 0.60 },
   // THE TURBOPROPS (2026-09-05, TURBOPROP §3) — the two PT6A registry rows.
   // Can diameters are the calibration anchors (0.40 m -> 499 kW rated at
   // 1.26; 0.435 -> 559 at 1.33); prop rpm is each installation's (a
@@ -149,6 +201,17 @@ const PRESETS = {
     carbOn: 0, airbox: 0, plumb: 0 },
   'P&W PT6A-34': { arch: 'turbine', tStyle: 0, tCanD: 0.435, tCanL: 1.05,
     gearK: 1.15, flatK: 1.33, tRpm: 2200, fwW: 0.85, fwH: 0.85,
+    carbOn: 0, airbox: 0, plumb: 0 },
+  // THE MEDIUM PT6s (2026-09-05, the coverage fill). Power from geometry
+  // (ruling 2): the can diameters are FITTED so the resolve makes the
+  // rating at each engine's flat margin (0.447 m -> 634 kW at 1.24, 0.489
+  // -> 783 kW at 1.20); the lengths are the published ones less the
+  // gearbox; prop rpm a B200's 2 000 and a 350's 1 700.
+  'P&W PT6A-42': { arch: 'turbine', tStyle: 0, tCanD: 0.4473, tCanL: 1.20,
+    gearK: 1.20, flatK: 1.24, tRpm: 2000, fwW: 0.90, fwH: 0.90,
+    carbOn: 0, airbox: 0, plumb: 0 },
+  'P&W PT6A-60A': { arch: 'turbine', tStyle: 0, tCanD: 0.489, tCanL: 1.30,
+    gearK: 1.20, flatK: 1.20, tRpm: 1700, fwW: 1.00, fwH: 1.00,
     carbOn: 0, airbox: 0, plumb: 0 },
   'bare engine': { mount: 0, fwOn: 0, plumb: 0 },
 };
@@ -202,15 +265,22 @@ const ENG_GROUPS = [
     ['screws',     'screws',       'check'],
   ]],
   ['engine', [
+    // APPEND-ONLY, both drops: the cage stores the INDEX (VALS in
+    // _cage_eng.js), so a saved build's layout is the position in this list.
+    // 'inline (2-stroke)' until 2026-09-05 — a two-stroke is a default there
+    // since G165, not a law; the V joined the same day (the V test).
     ['arch',    'layout',    'drop', [['flat', 'flat (boxer)'],
-                                      ['inline', 'inline (2-stroke)'],
-                                      ['radial', 'radial']]],
+                                      ['inline', 'inline'],
+                                      ['radial', 'radial'],
+                                      ['vee', 'V']]],
     ['cyl',     'cylinders', 'drop', [[1, 'single'], [2, 'twin'],
                                       [4, 'four'], [6, 'six'],
                                       [5, 'five (radial)'],
                                       [7, 'seven (radial)'],
                                       [9, 'nine (radial)'],
-                                      [14, 'fourteen (radial)']]],
+                                      [14, 'fourteen (radial)'],
+                                      [8, 'eight (V)'],
+                                      [12, 'twelve (V)']]],
     ['radialRows', 'two-row radial', 'drop', [[1, 'one row'],
                                               [2, 'two rows']]],
     // WHICH WAY AN IN-LINE'S BANK POINTS (G164, the user's own item). The
@@ -222,6 +292,9 @@ const ENG_GROUPS = [
     // is actually looking for — a Gipsy Major.
     ['inlineAim', 'cylinders point', 'drop',
       EG.ENG_AIM.map((a, i) => [i, a.name === 'down' ? 'down (inverted)' : a.name])],
+    // the V's own angle (2026-09-05): its two banks sit this far apart,
+    // about the aim above — 60 on a Hirth, 90 on an Argus
+    ['vee',     'V angle deg', 45, 120, 1, x => x.toFixed(0)],
     ['bore',    'bore mm',   0.05, 0.16, 0.001, mm],
     ['stroke',  'stroke mm', 0.04, 0.14, 0.001, mm],
     ['rpm',     'rpm',       1800, 6500, 50],
@@ -231,6 +304,12 @@ const ENG_GROUPS = [
     ['twoStroke', 'two-stroke',    'check'],
     ['liquid',    'liquid cooled', 'check'],
     ['geared',    'gearbox',       'check'],
+    // THE BLOWER (2026-09-05): what holds the rating up to `critAlt`
+    ['blower',  'induction',  'drop', [[0, 'naturally aspirated'],
+                                       [1, 'turbocharger'],
+                                       [2, 'supercharger']]],
+    ['boost',   'boost (MAP / ambient)', 1.0, 2.5, 0.01, x => x.toFixed(2)],
+    ['critAlt', 'critical altitude m', 0, 9000, 50, x => x.toFixed(0)],
   ], isPiston],
   ['cylinder dress', [
     ['finN',     'barrel fins', 4, 18, 1],
@@ -311,6 +390,9 @@ const ENG_GROUPS = [
   ]],
 ];
 
+// THE CUSTOM ENGINE'S NAME (2026-09-05, the picker ruling) — the option the
+// cage editor and the birth flow append after the catalogue; one keeper
 window.ENG_PAGE = { COL, NEUTRAL, PROPS, engDefaults, PRESETS,
-                    GROUPS: ENG_GROUPS, isElec, isPiston, isTurbine };
+                    GROUPS: ENG_GROUPS, isElec, isPiston, isTurbine,
+                    CUSTOM_ENGINE: 'custom engine' };
 })();

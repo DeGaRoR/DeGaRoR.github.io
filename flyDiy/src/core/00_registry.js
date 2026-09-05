@@ -45,13 +45,16 @@ const RHO = 1.225;
 //   family   'four' | 'two' | 'electric' | 'turbine'   (the SFC class)
 //   cooling  'air'  | 'liquid'             (fins vs a radiator carry the heat)
 //
-// AN HONEST CUT, named here because it is a real aeroplane getting a wrong
-// number: the R-1830 Twin Wasp was SUPERCHARGED, and a supercharged engine
-// holds its power to its critical altitude instead of lapsing from sea level.
-// We have no blower model, so it is declared 'na' and the DC-3 therefore loses
-// more at altitude than the real one did. 'turbo' is reserved for when there
-// is something behind it; a field that lies quietly is worse than one that is
-// missing.
+// THE BLOWER (2026-09-05). Until this date the R-1830 was declared 'na' as an
+// honest cut — "'turbo' is reserved for when there is something behind it".
+// There is now: 05_atmos holds a blown engine's rated power to its critical
+// altitude and lapses it as a piston from that air. Two values, one law:
+//   aspiration 'super'   a mechanical supercharger (its drive is inside the
+//                        rated figure — every big radial, the M-14P)
+//   aspiration 'turbo'   an exhaust turbocharger (a Rotax 914/915, a TIO-540)
+//   critAlt              metres of ISA pressure altitude the blower holds the
+//                        rating to; 0 = ground-boosted, which is the NA law
+// A blown row MUST carry critAlt and no other row may (GATE ATMOS §8).
 const POWERPLANTS = {
   a65_sensenich74: {
     price: 9000,
@@ -67,7 +70,9 @@ const POWERPLANTS = {
   },
   r1830_hs23e50: {
     price: 65000,
-    engine: { name: 'P&W R-1830 Twin Wasp', mass: 750, powerW: 895000, aspiration: 'na', family: 'four', cooling: 'air' },
+    // 'super' since the blower model (2026-09-05): rated to 1 500 m, the
+    // -92's 4 900 ft low-blower critical altitude
+    engine: { name: 'P&W R-1830 Twin Wasp', mass: 750, powerW: 895000, aspiration: 'super', critAlt: 1500, family: 'four', cooling: 'air' },
     prop:   { name: 'Hamilton Standard 23E50', D: 3.4, Tstatic: 11000, kV2: 0.543 },
   },
   io360_mccauley: {
@@ -143,13 +148,13 @@ const POWERPLANTS = {
   // THE BUSH RADIAL (2026-09-04, the user: "we could do something like the
   // DC3 / Beaver now that we have large radial engines"): the R-985 Wasp
   // Junior, the Beaver's own — 450 hp, 290 kg. Mass and power are the
-  // published ones; like the R-1830 it was SUPERCHARGED and lapses here as
-  // a normally-aspirated engine ('turbo' is reserved). The PROP is DERIVED,
+  // published ones; like the R-1830 it is SUPERCHARGED — 'super', held to
+  // 1 500 m (its 5 000 ft rating) since the blower model. The PROP is DERIVED,
   // not chosen: genPropSynth's own output at 2.59 m, two blades, alloy,
   // standard pitch — the Hamilton Standard 2B20 the Beaver swings.
   r985_hs2b20: {
     price: 48000,
-    engine: { name: 'P&W R-985 Wasp Junior', mass: 290, powerW: 336000, aspiration: 'na', family: 'four', cooling: 'air' },
+    engine: { name: 'P&W R-985 Wasp Junior', mass: 290, powerW: 336000, aspiration: 'super', critAlt: 1500, family: 'four', cooling: 'air' },
     prop:   { name: 'Hamilton Standard 2B20', D: 2.59, Tstatic: 5408, kV2: 0.368 },
   },
   verner7u_wood: {
@@ -189,6 +194,106 @@ const POWERPLANTS = {
     price: 26000,
     engine: { name: 'DH Gipsy Major 1', mass: 139, powerW: 97000, aspiration: 'na', family: 'four', cooling: 'air' },
     prop:   { name: '2-pale bois 1.98 m', D: 1.98, Tstatic: 1975, kV2: 0.2153 },
+  },
+  // THE AERO Vs (2026-09-05, the V test — the user: "test the V configs,
+  // since they've never been done"). The registry had no V at all, the
+  // bench's V row was marked UNVALIDATED and the panel could not even
+  // select it (no 8 or 12 in the cylinder drop). These two are the published
+  // normally-aspirated air-cooled inverted V8s the family's kM was fitted
+  // on: the Hirth HM 508 (Arado Ar 79, Klemm Kl 35) and the Argus As 10
+  // (Fieseler Storch, Bf 108 Taifun). Mass and power are published; the
+  // PROPS are genPropSynth's own output at two wooden blades of 2.30 and
+  // 2.40 m at standard pitch; the prices are the bent four-stroke law's.
+  hirth508_wood: {
+    price: 40000,
+    engine: { name: 'Hirth HM 508D', mass: 186, powerW: 209000, aspiration: 'na', family: 'four', cooling: 'air' },
+    prop:   { name: '2-pale bois 2.30 m', D: 2.30, Tstatic: 3641, kV2: 0.2905 },
+  },
+  argus10c_wood: {
+    price: 38000,
+    engine: { name: 'Argus As 10C', mass: 213, powerW: 176000, aspiration: 'na', family: 'four', cooling: 'air' },
+    prop:   { name: '2-pale bois 2.40 m', D: 2.40, Tstatic: 3340, kV2: 0.3163 },
+  },
+  // THE COVERAGE FILL (2026-09-05, the engine-coverage study — the user:
+  // "make sure we cover the whole scale from 50 HP to 1000 HP, on almost
+  // all types"). The registry had NOTHING between 100 and 180 hp in a flat,
+  // nothing at all between 200 and 300 hp in any layout, nothing between
+  // 450 and 600, and no V. Every row here is a published engine: mass and
+  // power are the manufacturer's, the PROP is genPropSynth's own output at
+  // a stated diameter, blade count and standard pitch (never fitted), and
+  // the price is the bent four-stroke law's (or the family's) rounded.
+  // The blown ones say so and carry their critical altitude.
+  //
+  // THE FLATS: 100 -> 150 -> 180 -> 235 -> 310 -> 400 hp
+  o320_mccauley: {
+    price: 28000,
+    engine: { name: 'Lycoming O-320-E2D', mass: 122, powerW: 112000, aspiration: 'na', family: 'four', cooling: 'air' },
+    prop:   { name: '2-blade alloy 1.93 m', D: 1.93, Tstatic: 2137, kV2: 0.2046 },
+  },
+  o540_hartzell: {
+    price: 38000,
+    engine: { name: 'Lycoming O-540-B2C5', mass: 176, powerW: 175000, aspiration: 'na', family: 'four', cooling: 'air' },
+    prop:   { name: '2-blade alloy 2.13 m', D: 2.13, Tstatic: 3073, kV2: 0.2492 },
+  },
+  io550_hartzell3: {
+    price: 42000,
+    engine: { name: 'Continental IO-550-N', mass: 195, powerW: 231000, aspiration: 'na', family: 'four', cooling: 'air' },
+    prop:   { name: '3-blade alloy 1.98 m', D: 1.98, Tstatic: 3716, kV2: 0.2528 },
+  },
+  io720_hartzell3: {
+    price: 45000,
+    engine: { name: 'Lycoming IO-720-A1A', mass: 257, powerW: 298000, aspiration: 'na', family: 'four', cooling: 'air' },
+    prop:   { name: '3-blade alloy 2.03 m', D: 2.03, Tstatic: 4477, kV2: 0.2658 },
+  },
+  // the amateur turbo (the 912's blown sibling): 'turbo', held to 4 600 m
+  rotax915_carbon: {
+    price: 34000,
+    engine: { name: 'Rotax 915 iS', mass: 84, powerW: 105000, aspiration: 'turbo', critAlt: 4600, family: 'four', cooling: 'liquid' },
+    prop:   { name: '3-blade carbon 1.80 m', D: 1.80, Tstatic: 2061, kV2: 0.2090 },
+  },
+  // THE IN-LINE'S CEILING: the inverted six of the PT-19 trainer
+  ranger440_wood: {
+    price: 35000,
+    engine: { name: 'Ranger L-440-5', mass: 170, powerW: 149000, aspiration: 'na', family: 'four', cooling: 'air' },
+    prop:   { name: '2-blade wood 2.20 m', D: 2.20, Tstatic: 2821, kV2: 0.2658 },
+  },
+  // THE CLASSIC RADIALS: 150 -> 220 -> 300 -> 360 -> 450 -> 600 hp
+  w670_hs2b: {
+    price: 36000,
+    engine: { name: 'Continental W-670-6A', mass: 211, powerW: 164000, aspiration: 'na', family: 'four', cooling: 'air' },
+    prop:   { name: '2-blade alloy 2.59 m', D: 2.59, Tstatic: 3352, kV2: 0.3684 },
+  },
+  r755_hs2b: {
+    price: 41000,
+    engine: { name: 'Jacobs R-755-A2', mass: 230, powerW: 224000, aspiration: 'na', family: 'four', cooling: 'air' },
+    prop:   { name: '2-blade alloy 2.59 m', D: 2.59, Tstatic: 4127, kV2: 0.3684 },
+  },
+  // the aerobatic radial of today (Yak-52, Sukhoi): supercharged, and
+  // nearly ground-boosted — rated to 500 m
+  m14p_v530: {
+    price: 43000,
+    engine: { name: 'Vedeneyev M-14P', mass: 214, powerW: 268000, aspiration: 'super', critAlt: 500, family: 'four', cooling: 'air' },
+    prop:   { name: '2-blade alloy 2.40 m', D: 2.40, Tstatic: 4421, kV2: 0.3163 },
+  },
+  // the Wasp (Harvard, Otter, Ag Cat): ground-boosted — 600 hp at the
+  // strip, 550 at 5 000 ft, so its ceiling is nearly the NA law
+  r1340_hs12d40: {
+    price: 52000,
+    engine: { name: 'P&W R-1340-AN-1 Wasp', mass: 400, powerW: 447000, aspiration: 'super', critAlt: 300, family: 'four', cooling: 'air' },
+    prop:   { name: '2-blade alloy 2.74 m', D: 2.74, Tstatic: 6792, kV2: 0.4123 },
+  },
+  // the two-stroke's 50 hp rung (mass with its gearbox, the 582's convention)
+  rotax503_wood: {
+    price: 4000,
+    engine: { name: 'Rotax 503 UL + B red.', mass: 38, powerW: 37000, aspiration: 'na', family: 'two', cooling: 'air' },
+    prop:   { name: '2-blade wood 1.60 m', D: 1.60, Tstatic: 901, kV2: 0.1406 },
+  },
+  // the electric ladder's missing rung: the 268 was one of the five motors
+  // the electric mass law was fitted on and had no row of its own
+  emrax268_carbon: {
+    price: 32000,
+    engine: { name: 'EMRAX 268 / 107 kW', mass: 20.3, powerW: 107000, aspiration: 'electric', family: 'electric', cooling: 'air' },
+    prop:   { name: '3-blade carbon 1.90 m', D: 1.90, Tstatic: 2164, kV2: 0.2328 },
   },
   outrunner2212_9x47: {
     price: 25,
@@ -271,6 +376,20 @@ const POWERPLANTS = {
     engine: { name: 'P&W PT6A-34', mass: 150, powerW: 560000, aspiration: 'turbine', family: 'turbine', cooling: 'air', flatK: 1.33, length: 1.57 },
     prop:   { name: 'Hartzell 4-blade 2.44 m', D: 2.44, Tstatic: 8109, kV2: 0.4472 },
   },
+  // THE MEDIUM PT6s (2026-09-05, the coverage fill — inside the study's
+  // ruling 3, PT6 only): a King Air B200's -42 and a King Air 350's -60A,
+  // the 850 and 1 050 shp rungs. Dry masses are P&W's; the props are
+  // genPropSynth's output at each installation's four-blade diameter.
+  pt6a42_hartzell4: {
+    price: 300000,
+    engine: { name: 'P&W PT6A-42', mass: 183, powerW: 634000, aspiration: 'turbine', family: 'turbine', cooling: 'air', flatK: 1.24, length: 1.70 },
+    prop:   { name: 'Hartzell 4-blade 2.36 m', D: 2.36, Tstatic: 8615, kV2: 0.4183 },
+  },
+  pt6a60a_hartzell4: {
+    price: 380000,
+    engine: { name: 'P&W PT6A-60A', mass: 218, powerW: 783000, aspiration: 'turbine', family: 'turbine', cooling: 'air', flatK: 1.20, length: 1.85 },
+    prop:   { name: 'Hartzell 4-blade 2.67 m', D: 2.67, Tstatic: 10767, kV2: 0.5355 },
+  },
 };
 // ============================================================
 // ENGINE THERMO LAWS (G134). Two numbers per family, both quoted at RATED
@@ -344,7 +463,15 @@ function genEnginePrice(family, powerW) {
   // power second-hand (a used PT6A-34 against a used R-985); fitted on the
   // two PT6A rows and banded by _engcustom_check like every other family
   if (family === 'turbine') return Math.round(250 * Math.pow(kW, 1.1));
-  return Math.round(60 * Math.pow(kW, 1.3));
+  // THE FOUR-STROKE LAW BENDS (2026-09-05): kW^1.3 is the AMATEUR market and
+  // holds to the IO-360; above it the second-hand warbird market prices by
+  // provenance more than by kilowatts. Fitted on the R-985 (336 kW, 48k) and
+  // the R-1830 (895 kW, 65k): a knee at 130 kW, then kW^0.35 — within 2 % of
+  // both, where the straight law read 2.4x and 6.4x. The R-1830's waiver in
+  // _engcustom_check is retired by this line.
+  const knee = 130;
+  if (kW <= knee) return Math.round(60 * Math.pow(kW, 1.3));
+  return Math.round(60 * Math.pow(knee, 1.3) * Math.pow(kW / knee, 0.35));
 }
 
 const POLARS = {

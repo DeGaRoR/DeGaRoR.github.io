@@ -48,6 +48,9 @@ const CASES = [
       genOn: 0, rockerSpan: 1 } },
   { name: 'flat twin', spec: { cyl: 2 } },
   { name: 'flat six', spec: { cyl: 6 } },
+  // the flat eight (2026-09-05, the IO-720 row): four stations of two
+  { name: 'flat eight (IO-720-ish)', spec: { cyl: 8, bore: 5.125 * IN,
+      stroke: 4.375 * IN, rpm: 2650, injected: 1, rodPos: 1, exStyle: 2 } },
   { name: 'collector exhaust', spec: { exStyle: 2 } },
   { name: 'bare (all dress off)', spec: { mount: 0, fwOn: 0, carbOn: 0, leads: 0,
       intake: 0, exStyle: 0, mags: 0, genOn: 0, oilFill: 0, airbox: 0,
@@ -109,6 +112,18 @@ const CASES = [
       geared: 1, exStyle: 2, bore: 5.5 * IN, stroke: 5.5 * IN, rpm: 2700 } },
   { name: 'radial 7 single-row', spec: { arch: 'radial', cyl: 7,
       radialRows: 1, exStyle: 1 } },
+  // THE V (2026-09-05, the V test): dressed through the boxer's branch, so
+  // the honest hold is the whole battery — an upright 60° V8, the two
+  // inverted aero Vs the registry carries (a 60° Hirth, a 90° Argus, whose
+  // banks lean past the e2 knee at 45°) and an inverted V12
+  { name: 'V8 60 upright', spec: { arch: 'vee', cyl: 8, vee: 60, inlineAim: 1,
+      bore: 0.105, stroke: 0.115, rpm: 3000, exStyle: 2 } },
+  { name: 'HM 508-ish (V8 60 inverted)', spec: { arch: 'vee', cyl: 8, vee: 60,
+      inlineAim: 0, bore: 0.105, stroke: 0.115, rpm: 3000, exStyle: 2 } },
+  { name: 'As 10-ish (V8 90 inverted)', spec: { arch: 'vee', cyl: 8, vee: 90,
+      inlineAim: 0, bore: 0.120, stroke: 0.140, rpm: 2000, exStyle: 1 } },
+  { name: 'V12 60 inverted', spec: { arch: 'vee', cyl: 12, vee: 60,
+      inlineAim: 0, bore: 0.100, stroke: 0.110, rpm: 3000, exStyle: 2 } },
   // THE ELECTRIC (G25), one case per style plus the liquid axis. The plate
   // is aircraft-side and sized per aeroplane (a park flyer's ply square,
   // a trainer's real bulkhead) — the case specs say so like the presets do.
@@ -903,12 +918,14 @@ hard('dressed flat-4 budget at q1 (< 30000 quads)',
        'worst ' + worstT.toExponential(2));
 }
 
-// dressed families: flat, inline (coerced two-stroke), radial (coerced
-// four-stroke, air), electric (G25) — only genuinely undressed layouts refuse
+// dressed families: flat, inline, V (2026-09-05), radial (coerced
+// four-stroke, air), electric (G25), turbine — only an unknown layout refuses
 {
+  hard('a V builds (2026-09-05, the V test)',
+       engMeshBuild({ arch: 'vee', cyl: 8 }).stats.quads > 0);
   let threw = false;
-  try { engMeshBuild({ arch: 'vee' }); } catch (e) { threw = true; }
-  hard('a vee refuses loudly', threw);
+  try { engMeshBuild({ arch: 'wankel' }); } catch (e) { threw = true; }
+  hard('an unknown layout still refuses loudly', threw);
   hard('an electric builds (G25)',
        engMeshBuild({ arch: 'electric' }).stats.quads > 0);
   hard('a turboprop builds (2026-09-05)',

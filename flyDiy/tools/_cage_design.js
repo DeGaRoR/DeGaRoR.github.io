@@ -550,13 +550,17 @@ function designEngineFamilies() {
   return [
     { value: 'electric', label: 'Electric', icon: ICON.engElectric,
       writes: { cage: { engPower: 1 } } },
-    { value: 'inline', label: 'Two-stroke (inline)', icon: ICON.engInline,
+    // 'Two-stroke (inline)' until 2026-09-05: since G165 the in-line holds
+    // a Mikron and a Gipsy Major, both four-strokes, so the label lied
+    { value: 'inline', label: 'Inline', icon: ICON.engInline,
       writes: { cage: { engPower: 0, eng_arch: 1 } } },
     { value: 'flat', label: 'Flat (boxer)', icon: ICON.engFlat,
       writes: { cage: { engPower: 0, eng_arch: 0 } } },
+    // LIVE since 2026-09-05 (the V test): eng_arch 3 is the bench's fourth
+    // layout, kM fitted on three published Vs, two of them registry rows,
+    // and the mesh dresses it through the boxer's branch
     { value: 'vee', label: 'V engine', icon: ICON.engVee,
-      inactive: 'no registry model, and ENG_ARCH marks the row UNVALIDATED ' +
-        '— the seam where the procedural engine generator arrives' },
+      writes: { cage: { engPower: 0, eng_arch: 3 } } },
     { value: 'radial', label: 'Radial', icon: ICON.engRadial,
       writes: { cage: { engPower: 0, eng_arch: 2 } } },
     // the turboprop (2026-09-05, TURBOPROP §9): the powertrain row's third
@@ -576,20 +580,26 @@ function designPresetFamily(name) {
 // the model options, each carrying its family for the tile filter; `value`
 // is the PRESET'S NAME — designApply resolves it to the panel's own index so
 // a reordered preset list cannot silently re-engine every archetype.
+// the custom engine (2026-09-05, the picker ruling): the option after the
+// catalogue, in every family — no `family`, so the list filter keeps it
 function designEngineModels() {
   const EP = gEngPage();
   if (!EP || !EP.PRESETS) return [];
+  const custom = EP.CUSTOM_ENGINE || 'custom engine';
   return Object.keys(EP.PRESETS).filter(n => n !== 'bare engine').map(n => ({
     value: n, label: n, family: designPresetFamily(n),
     writes: { cage: { engPreset: n } },
-  }));
+  })).concat([{ value: custom, label: custom + ' — every geometry row is yours',
+                writes: { cage: { engPreset: custom } } }]);
 }
 
-// engPreset is an INDEX into the panel's filtered name list; resolve a name
+// engPreset is an INDEX into the panel's name list (the catalogue, then the
+// custom engine); resolve a name
 function designPresetIndex(name) {
   const EP = gEngPage();
   if (!EP || !EP.PRESETS) return null;
-  const names = Object.keys(EP.PRESETS).filter(n => n !== 'bare engine');
+  const names = Object.keys(EP.PRESETS).filter(n => n !== 'bare engine')
+    .concat([EP.CUSTOM_ENGINE || 'custom engine']);
   const i = names.indexOf(name);
   return i >= 0 ? i : null;
 }
@@ -923,7 +933,7 @@ const DESIGN_ROWS = [
     group: 'propulsion', status: 'live',
     help: 'selects into ENG_ARCH; the model list below follows it',
     read: P => [null, 'electric', 'turbine'][Math.round(P.engPower)]
-             || (['flat', 'inline', 'radial'][Math.round(P.eng_arch)] || 'flat'),
+             || (['flat', 'inline', 'radial', 'vee'][Math.round(P.eng_arch)] || 'flat'),
     options: designEngineFamilies },
 
   // `plain`: the model list renders as a LIST, not icon tiles — eighteen
@@ -931,7 +941,9 @@ const DESIGN_ROWS = [
   // reading names ("choosing electric then picking among seven")
   { key: 'engModel', label: 'Engine model', kind: 'starter',
     group: 'propulsion', status: 'live', plain: true, once: true,
-    help: 'a preset (applies once) — every engine row stays yours after',
+    help: 'a catalogue engine of the family above (its geometry is the ' +
+          'maker\'s; the mount stays yours), or the custom engine, whose ' +
+          'every row you edit',
     read: P => null,   // applied-once; the panel's own row shows the last pick
     options: designEngineModels },
 

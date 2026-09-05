@@ -2421,6 +2421,18 @@ function applyRowVis() {
       if (vis && o.when) { try { vis = !!o.when(P); } catch (e) {} }
       meta.row.style.display = vis ? '' : 'none';
     }
+    // optHide (2026-09-05): a select whose OPTIONS follow a discriminator —
+    // P => [hidden per option]. The value stays the index into the full
+    // list, so a saved number never changes meaning; the engine row folds
+    // the other layouts' catalogue away.
+    if (meta.kind === 'select' && o && o.optHide && meta.el) {
+      let hide = null;
+      try { hide = o.optHide(P); } catch (e) {}
+      if (hide)
+        Array.from(meta.el.options).forEach((op, i) => {
+          op.hidden = !!hide[i]; op.disabled = !!hide[i];
+        });
+    }
     if (meta.mu)
       meta.mu.textContent = P[meta.k] == null ? '' :
         '≈ ' + (P[meta.k] * (meta.opts.dim === 'm' ? 1 : FS)).toFixed(2) +

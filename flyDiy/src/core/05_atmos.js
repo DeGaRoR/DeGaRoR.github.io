@@ -120,10 +120,27 @@ const ATMOS_ISA = makeAtmos({});
 // the real limit is turbine inlet temperature, so a hot day bites a turbine
 // through temperature more than through density; sigma carries both with the
 // right sign and the split is the second cut, when a plaque asks for it.
-function atmosPowerRatio(sig, aspiration, flat = 1) {
+//
+// A BLOWN PISTON (2026-09-05, the blower model — 'turbo' is no longer a
+// reserved word). A supercharger or a turbocharger holds manifold pressure,
+// and so RATED power, up to the CRITICAL ALTITUDE where the blower runs out
+// of margin; above it manifold pressure falls with ambient and the engine
+// lapses like a naturally aspirated one FROM THAT AIR. The critical density
+// ratio is the fourth argument, per engine (`critAlt` on the row, converted
+// once by the solver). critSig 1 is a ground-boosted blower, which is the NA
+// law exactly — the honest row for an R-1340. 'super' and 'turbo' share the
+// law: a mechanical blower's drive is already inside its rated figure and a
+// turbo's is free, so what differs is a name on the plaque and a mass on the
+// bench. Exactly 1 at sigma = 1 for any ceiling, so the sea-level identity
+// every gate stands on is untouched.
+function atmosPowerRatio(sig, aspiration, flat = 1, critSig = 1) {
   if (aspiration === 'electric') return 1;
   if (aspiration === 'turbine')
     return Math.min(1, Math.max(1, flat || 1) * sig);
+  if (aspiration === 'turbo' || aspiration === 'super') {
+    const cs = Math.min(1, Math.max(0.05, critSig || 1));
+    return sig >= cs ? 1 : Math.max(0, 1 - 1.132 * (1 - sig / cs));
+  }
   // Written as 1 - 1.132(1 - sigma) rather than 1.132 sigma - 0.132. Same line,
   // but this one returns EXACTLY 1 at sigma = 1 instead of 1 + 2e-16.
   return Math.max(0, 1 - 1.132 * (1 - sig));
@@ -149,8 +166,8 @@ function atmosPowerRatio(sig, aspiration, flat = 1) {
 // are exactly 1, which is the identity the whole gate battery stands on.
 // The turbine is one more `pr` (flat, then the core's lapse) — `flat` is
 // only passed through.
-function atmosPropScale(sig, aspiration, flat = 1) {
-  const pr = atmosPowerRatio(sig, aspiration, flat);
+function atmosPropScale(sig, aspiration, flat = 1, critSig = 1) {
+  const pr = atmosPowerRatio(sig, aspiration, flat, critSig);
   const kT = Math.cbrt(sig) * Math.pow(pr, 2 / 3);
   return { kT, kV: sig, power: pr };
 }

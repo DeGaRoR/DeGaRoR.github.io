@@ -106,20 +106,46 @@ const coolingOf = (arch, spec) => arch === 'turbine' ? 'air'
 // the SAME engine the screen shows. Two callers, one mapping: a drift here
 // was a drawn engine flying different numbers, which is the whole bug this
 // arc exists to close.
-const engSpecOfP = (P) => {
-  const spec = EP.engDefaults();
+// THE INSTALLATION GROUPS stay the builder's whatever the engine (the
+// user's picker ruling, 2026-09-05: "the engine mount parameters for
+// example should stay available, but not everything related to the engine
+// geometry itself"): where it is held, and what reaches it.
+const INSTALL_GROUPS = new Set(['mount + firewall', 'services (entry points)',
+                                'radiator (liquid)']);
+const INSTALL_KEYS = new Set();
+for (const [name, rows] of EP.GROUPS)
+  if (INSTALL_GROUPS.has(name)) for (const r of rows) INSTALL_KEYS.add(r[0]);
+// the dial dict: every row off P (`onlyInstall` = only the installation
+// rows, over a base that is the preset's own geometry)
+const dialSpecOfP = (P, base, onlyInstall) => {
+  const spec = base || EP.engDefaults();
   for (const [, rows] of EP.GROUPS)
     for (const r of rows) {
       const k = r[0];
       if (SKIP.has(k)) continue;
+      if (onlyInstall && !INSTALL_KEYS.has(k)) continue;
       const v = P['eng_' + k];
       if (v === undefined) continue;
       spec[k] = r[2] === 'drop'
         ? VALS[k][Math.max(0, Math.min(VALS[k].length - 1, Math.round(v)))]
         : (r[2] === 'check' ? (v ? 1 : 0) : v);
     }
+  // the TYPE rows name the layout, catalogue or custom. A catalogue engine
+  // of another layout than the type rows say is replaced by that type's
+  // first entry in post (engTypeFollow), before the mesh is built
   spec.arch = archOf(P);
   return spec;
+};
+const engSpecOfP = (P) => {
+  // A CATALOGUE ENGINE'S GEOMETRY IS ITS PRESET'S (2026-09-05, the picker
+  // ruling): its geometry rows are hidden, so the dials cannot be what is
+  // drawn or flown; only the installation rows are read off P. The custom
+  // engine reads every row, as every engine did before this line.
+  const name = PRESET_NAMES[Math.max(0, Math.min(PRESET_NAMES.length - 1,
+    Math.round(P.engPreset)))];
+  const catalogue = !isCustomEng(P) && !!EP.PRESETS[name];
+  return catalogue ? dialSpecOfP(P, presetSpecOf(name), true)
+                   : dialSpecOfP(P, null, false);
 };
 // G154: published so the COWL can ask what engine it is wrapping. The cowl
 // layer's post runs BEFORE this one, so it cannot wait to be told — it reads
@@ -184,7 +210,7 @@ window.CAGE_ENG_FACTS = (P) => {
     mass: R.mass, powerW: R.powerW, rpm: R.rpm,
     torque: R.torque != null ? R.torque
       : R.powerW / (2 * Math.PI * Math.max(1, R.rpm) / 60),
-    aspiration: elec ? 'electric' : turb ? 'turbine' : 'na',
+    aspiration: elec ? 'electric' : turb ? 'turbine' : (R.aspiration || 'na'),
     family: familyOf(R.arch, spec),
     cooling: coolingOf(R.arch, spec),
   };
@@ -192,6 +218,9 @@ window.CAGE_ENG_FACTS = (P) => {
   // flat-rating margin 05_atmos reads, and the bare length the engine box
   // reads
   if (turb) { facts.flatK = R.flatK; facts.length = R.env.length; }
+  // a blown piston's critical altitude rides to the clamp the same way
+  // (the blower model, 2026-09-05)
+  if (!elec && !turb && R.critAlt > 0) facts.critAlt = R.critAlt;
   const psName = PRESET_NAMES[Math.max(0, Math.min(PRESET_NAMES.length - 1,
     Math.round(P.engPreset)))];
   const ps = presetSpecOf(psName);
@@ -203,7 +232,10 @@ window.CAGE_ENG_FACTS = (P) => {
     && facts.family === familyOf(R0.arch, ps)
     && facts.cooling === coolingOf(R0.arch, ps)
     // a turbine's margin is a physics dial too: moving it moves what flies
-    && (!turb || eq(R.flatK, R0.flatK));
+    && (!turb || eq(R.flatK, R0.flatK))
+    // a blower is a physics dial too (2026-09-05): its kind and its ceiling
+    && (elec || turb || (R.aspiration === R0.aspiration
+                         && eq(R.critAlt || 0, R0.critAlt || 0)));
   if (isPreset && !ENG_FANTASY.has(psName)) return null;
   // deviated (or fantasy): name the thing by what it now is
   const kW = R.powerW / 1000;
@@ -222,7 +254,33 @@ window.CAGE_ENG_FACTS = (P) => {
 };
 
 // ---- panel ----------------------------------------------------------------
-const PRESET_NAMES = Object.keys(EP.PRESETS).filter(n => n !== 'bare engine');
+// THE CATALOGUE, PLUS ONE (2026-09-05, the user's picker ruling: "either
+// the user picks an existing engine (after choosing the type of engine),
+// either he chooses custom engine, and the engine-related options are
+// shown"). The LAST option is the custom engine — not a preset, a MODE:
+// with it the geometry rows appear and the dials fly; with any catalogue
+// entry the geometry IS the preset's and the registry row flies, and only
+// the installation rows (mount, firewall, services, radiator) stay the
+// builder's. Appended, so every saved index still names the same engine.
+const CUSTOM_ENGINE = EP.CUSTOM_ENGINE || 'custom engine';
+const PRESET_NAMES = Object.keys(EP.PRESETS).filter(n => n !== 'bare engine')
+  .concat([CUSTOM_ENGINE]);
+const CUSTOM_IDX = PRESET_NAMES.length - 1;
+const isCustomEng = P => Math.round(P.engPreset) === CUSTOM_IDX;
+// the type a preset belongs to, from its own table row (null for custom)
+const presetArch = name => {
+  const pre = EP.PRESETS[name];
+  return pre ? (pre.arch || 'flat') : null;
+};
+// whether the engine that is FLOWN is liquid-cooled: a catalogue engine's
+// cooling is its preset's, the custom engine's is the dial's (2026-09-05 —
+// the dial is hidden under a catalogue engine, and GATE PARTS rightly
+// refuses a switch nothing on the panel reaches)
+const liquidOf = P => isCustomEng(P) ? !!+P.eng_liquid
+  : !!(EP.PRESETS[PRESET_NAMES[Math.round(P.engPreset)]] || {}).liquid;
+// the layout row's labels, from the bench's own drop (VALS.arch order)
+const ARCH_LABELS = (EP.GROUPS.find(g => g[0] === 'engine')[1]
+  .find(r => r[0] === 'arch') || [0, 0, 0, []])[3].map(o => o[1]);
 // WHAT THE OPTION SAYS (G187, the user: "all engines should show their mass
 // and power, straight in the drop down"). The number quoted is THE NUMBER
 // THAT FLIES: an untouched preset flies its registry row (the join's identity
@@ -235,6 +293,7 @@ const PRESET_NAMES = Object.keys(EP.PRESETS).filter(n => n !== 'bare engine');
 // the facts) keys on that and never on the text.
 let PRESET_LABELS_CACHE = null;
 const presetLabel = (name) => {
+  if (name === CUSTOM_ENGINE) return 'custom engine · the geometry rows are yours';
   let m = 0, p = 0, approx = false;
   if (!ENG_FANTASY.has(name) && typeof POWERPLANTS !== 'undefined'
       && typeof CAGE_JOIN_ENGINES !== 'undefined') {
@@ -290,7 +349,8 @@ for (const g of EP.GROUPS) {
   const [name, rows, show] = g;
   if (name === 'polycount') continue;      // engDetail + screws live in
                                            // the page's own polycount folder
-  const items = rows.filter(r => !SKIP.has(r[0])).map(engRow);
+  // the layout row moved to the trunk (2026-09-05): it is a TYPE row now
+  const items = rows.filter(r => !SKIP.has(r[0]) && r[0] !== 'arch').map(engRow);
   if (!items.length) continue;
   let when = P => +P.engOn;
   if (show === EP.isElec) when = P => +P.engOn && archOf(P) === 'electric';
@@ -300,9 +360,18 @@ for (const g of EP.GROUPS) {
   // the radiator only exists on a liquid engine, and a radial coerces
   // air-cooled (G28 audit discipline, applied to the import); a turbine has
   // an oil cooler in the cowl and no radiator
+  // THE RADIATOR FOLLOWS THE ENGINE THAT IS FLOWN (2026-09-05, the picker
+  // ruling): `liquidOf`, not the dial — see it
   if (name === 'radiator (liquid)')
     when = P => +P.engOn && archOf(P) !== 'electric' && archOf(P) !== 'turbine' &&
-                +P.eng_liquid && archOf(P) !== 'radial';
+                archOf(P) !== 'radial' && liquidOf(P);
+  // THE GEOMETRY IS THE CUSTOM ENGINE'S (2026-09-05, the picker ruling):
+  // every bench group that is not an installation group shows only when
+  // the engine row says custom
+  if (!INSTALL_GROUPS.has(name)) {
+    const w0 = when;
+    when = P => w0(P) && isCustomEng(P);
+  }
   BENCH_SUBS.push([name === 'engine' ? 'engine geometry' : name,
                    items, { when }]);
 }
@@ -311,11 +380,20 @@ const ENG_ITEMS = [
   ['engOn',     'engine',        0, 1, 1],
   ['engPower',  'powertrain',    0, 2, 1, ['piston', 'electric', 'turbine'],
    { when: P => +P.engOn }],
-  // A STARTER: writes the preset's values into the rows once — every
-  // row below stays yours to edit after (the seating-starter pattern)
-  ['engPreset', 'preset (applies once)', 0,
+  // THE TYPE ROW (2026-09-05, the picker ruling): the layout is chosen
+  // BEFORE the engine, so it sits in the trunk rather than among the
+  // geometry rows it used to hide in. Same key, same drop table.
+  ['eng_arch',  'layout', 0, Math.max(1, ARCH_LABELS.length - 1), 1,
+   ARCH_LABELS, { when: P => +P.engOn && Math.round(P.engPower) === 0 }],
+  // THE ENGINE: this type's catalogue, or the custom engine. A catalogue
+  // pick is a starter for the dials (the seating-starter pattern) AND a
+  // mode — its geometry rows stay hidden and its registry row flies;
+  // `optHide` folds the other types' entries away.
+  ['engPreset', 'engine', 0,
    Math.max(1, PRESET_NAMES.length - 1), 1, PRESET_NAMES,
-   { when: P => +P.engOn, optLabels: PRESET_LABELS }],
+   { when: P => +P.engOn, optLabels: PRESET_LABELS,
+     optHide: P => PRESET_NAMES.map(n => n !== CUSTOM_ENGINE &&
+                                         presetArch(n) !== archOf(P)) }],
   ['engMount',  'mount', 0, 3, 1,
    ['nose', 'pusher (aft bulkhead)', 'over the wing (high wing)',
     'wing nacelles (twin)'], { when: P => +P.engOn }],
@@ -494,6 +572,51 @@ let group = null;
 // is the editor saying "P was replaced, not edited": forget the memory, so
 // the next build records the loaded value instead of reacting to it.
 let lastPreset = null;           // the one-shot starter's memory
+// THE LOAD AUDIT (2026-09-05, the picker ruling). A build saved before the
+// ruling may name a catalogue engine while its dials say otherwise — those
+// dials used to fly, as "modified <name>". They still do: the audit reads
+// the dials the OLD way, and where they resolve to a different engine than
+// the preset it flips the row to the custom engine, so nothing a file flew
+// changes under it. Runs once per load (and once at the first build).
+// Returns true when it flipped. Published for GATE ENGID.
+let auditPending = true;
+function engCatalogueAudit(P) {
+  if (!+P.engOn || isCustomEng(P)) return false;
+  const name = PRESET_NAMES[Math.round(P.engPreset)];
+  if (!EP.PRESETS[name] || ENG_FANTASY.has(name)) return false;
+  const EG = window.ENG_GEN;
+  if (!EG || !EG.engResolve) return false;
+  let R, R0;
+  try {
+    R = EG.engResolve(dialSpecOfP(P, null, false));
+    R0 = EG.engResolve(presetSpecOf(name));
+  } catch (e) { return false; }
+  if (!R || !R0) return false;
+  const eq = (a, b) => Math.abs(a - b) <= 1e-6 * Math.max(1, Math.abs(b));
+  if (eq(R.mass, R0.mass) && eq(R.powerW, R0.powerW) && eq(R.rpm, R0.rpm)
+      && R.arch === R0.arch) return false;
+  P.engPreset = CUSTOM_IDX;
+  return true;
+}
+// THE TYPE LEADS (2026-09-05): a catalogue engine of another layout than
+// the type rows (powertrain, layout) say is replaced by the first entry of
+// that type — a starter, applied by the caller. Returns the name to apply,
+// or null. The custom engine follows no list.
+function engTypeFollow(P) {
+  if (!+P.engOn || isCustomEng(P)) return null;
+  const want = archOf(P);
+  const name = PRESET_NAMES[Math.round(P.engPreset)];
+  if (presetArch(name) === want) return null;
+  const first = PRESET_NAMES.find(n => presetArch(n) === want);
+  if (!first) return null;
+  P.engPreset = PRESET_NAMES.indexOf(first);
+  return first;
+}
+if (typeof window !== 'undefined') {
+  window.CAGE_ENG_AUDIT = engCatalogueAudit;
+  window.CAGE_ENG_FOLLOW = engTypeFollow;
+  window.CAGE_ENG_CUSTOM = CUSTOM_IDX;
+}
 function engPresetStarter(P) {
   const psel = Math.round(P.engPreset);
   if (lastPreset === null) { lastPreset = psel; return null; }
@@ -502,7 +625,7 @@ function engPresetStarter(P) {
   return PRESET_NAMES[psel] || null;
 }
 const prevLoad = PAGE.load;
-PAGE.load = () => { if (prevLoad) prevLoad(); lastPreset = null; };
+PAGE.load = () => { if (prevLoad) prevLoad(); lastPreset = null; auditPending = true; };
 if (typeof window !== 'undefined') window.CAGE_ENG_STARTER = engPresetStarter;
 const dispose = o => {
   if (!o) return;
@@ -545,11 +668,23 @@ PAGE.post = ctx => {
   // up in a 0.64 m boxer cowl round a 1.46 m engine; a radial preset had
   // always had the same one-build lag).
   if (+P.engOn) {
+    const sync = () => {
+      const UI = window.CAGE_UI;
+      if (UI && UI.syncSliders) UI.syncSliders();
+    };
+    // the load audit, then the type leads the list (both 2026-09-05, the
+    // picker ruling — see the two functions), then the starter
+    if (auditPending) { auditPending = false; if (engCatalogueAudit(P)) sync(); }
+    const follow = engTypeFollow(P);
+    if (follow) {
+      applyEngPreset(P, follow);
+      lastPreset = Math.round(P.engPreset);
+      sync();
+    }
     const fire = engPresetStarter(P);
     if (fire) {
       applyEngPreset(P, fire);
-      const UI = window.CAGE_UI;
-      if (UI && UI.syncSliders) UI.syncSliders();
+      sync();
     }
   }
   if (prevPost) prevPost(ctx);
