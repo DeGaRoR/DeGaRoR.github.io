@@ -1277,7 +1277,20 @@ function panelElement() {
     const s = panel.querySelector(':scope > summary');
     if (s) { s.style.display = 'none'; panel.open = true; }
   }
-  return panel;
+  // INSIDE THE COLUMN'S OWN GRAMMAR (G191, the user: "revise the fuel
+  // interface styling"). editor.css styles a panel-owned column through
+  // `.edRoot` — the folds, their uppercase summaries, the row indent — and
+  // this panel landed as a bare <details> the sheet never heard of: no box
+  // round a tank, no indent, a summary in the wrong type. Handed over inside
+  // an `.edRoot` it takes the reference plane's look; the panel's OWN outer
+  // fold is flattened by the sheet (data-g="energy"), as the shed's is.
+  if (panel && !panelWrap) {
+    panelWrap = document.createElement('div');
+    panelWrap.className = 'edRoot';
+    panelWrap.dataset.panel = 'energy';
+    panelWrap.appendChild(panel);
+  }
+  return panelWrap || panel;
 }
 // WHICH vessel, from a click on the solid itself. Returns whether it took —
 // editor.js reads that to know the click MOVED within the part rather than
@@ -1290,6 +1303,7 @@ function selectVessel(i) {
   if (panelBody) {
     for (const d of panelBody.querySelectorAll('details[data-ves]')) {
       const on = +d.dataset.ves === i;
+let panelWrap = null;
       d.style.outline = on ? '1px solid rgba(255,211,90,.55)' : '';
       if (on) { d.open = true; if (d.scrollIntoView) d.scrollIntoView({ block: 'nearest' }); }
     }
@@ -1435,7 +1449,15 @@ function renderLook() {
 // part's own heading.
 function lookElement() {
   if (!HAS_DOM) return null;
-  if (!lookBody) { lookBody = document.createElement('div'); renderLook(); }
+  if (!lookBody) {
+    lookBody = document.createElement('div');
+    // INSIDE THE COLUMN'S OWN GRAMMAR (G191): `.edRoot` is what editor.css
+    // styles a panel-owned column with — the folds, their uppercase
+    // summaries, the indent — so the tank folds read like every other part
+    // instead of a bare <details> the sheet never heard of
+    lookBody.className = 'edRoot';
+    renderLook();
+  }
   if (!lookBody.firstChild) renderLook();
   return lookBody;
 }
@@ -1557,22 +1579,25 @@ function renderPanel() {
     }
 
     if (bay && bay.on === 'wing') {
-      range(box, 'station', 'where the tank STARTS, as a fraction of the ' +
+      // LABELS ARE THE TRUNK'S WORDS (G191, HANDOVER "LABEL CONVENTIONS"):
+      // a row that is a fore/aft or an up/down says so, the domain word in
+      // brackets where the plain word would be ambiguous
+      range(box, 'in / out (span)', 'where the tank STARTS, as a fraction of the ' +
         'semispan; it runs outboard from here until it holds its litres',
         bay.span[0], bay.span[1], 0.01,
         v.along != null ? v.along : bay.span[0], fmtF,
         x => { v.along = x; relayout(); }, x => { v.along = x; commit(); });
     } else if (bay) {
       const dflt = 0.5 * (bay.x0 + bay.x1);
-      range(box, 'station', 'metres aft of the firewall — the bay runs ' +
+      range(box, 'fore / aft', 'metres aft of the firewall — the bay runs ' +
         bay.x0.toFixed(2) + ' to ' + bay.x1.toFixed(2) + ' m', bay.x0, bay.x1,
         0.01, v.along != null ? v.along : dflt, fmtM,
         x => { v.along = x; relayout(); }, x => { v.along = x; commit(); });
       const lvB = bay.lv || [0, 1];
-      range(box, 'level', 'keel to crown, within the bay’s own band', lvB[0],
+      range(box, 'up / down', 'keel to crown, within the bay’s own band', lvB[0],
         lvB[1], 0.01, v.lv != null ? v.lv : 0.5 * (lvB[0] + lvB[1]), fmtF,
         x => { v.lv = x; relayout(); }, x => { v.lv = x; commit(); });
-      range(box, 'turn', 'about the vertical — a long tank across a wide bay, ' +
+      range(box, 'turn (yaw)', 'about the vertical: a long tank across a wide bay, ' +
         'or along a narrow one', -90, 90, 1, v.rot || 0, fmtD,
         x => { v.rot = x; relayout(); }, x => { v.rot = x; commit(); });
     }
@@ -1613,7 +1638,7 @@ function renderPanel() {
     r.appendChild(b);
   }
   {
-    const d = row(B, 'show the bay', 'a translucent box of the selected bay\u2019s ' +
+    const d = row(B, 'show bay', 'a translucent box of the selected bay\u2019s ' +
       'extents \u2014 a guide for dragging a tank to its edge');
     const c = document.createElement('input');
     c.type = 'checkbox'; c.checked = !!VIEW.showBay;

@@ -30624,3 +30624,83 @@ chain by source.
 
 Verified in the page: an image loaded into the wing slot → save → reload →
 the wing wears it in the shed and in flight.
+
+## LABEL CONVENTIONS (2026-09-05, written down at the user's request: "revise
+## the fuel interface styling and adjust to the label conventions (maybe to
+## be written explicitly)")
+
+The rules the inspector already lived by, in one place. A new row, a new
+panel or a new part follows them; GATE PARTS and GATE UISMOKE catch the
+mechanics, this paragraph is the reason.
+
+1. **A row label is a lower-case sentence fragment**, two or three words,
+   no trailing unit and no colon: `taper length`, `fuel aboard`, `paint
+   hue`. The unit lives in the VALUE readout (`1.46 m`, `43 kg`, `48 kW`),
+   never in the label. A word in brackets is the domain word when the plain
+   word would be ambiguous: `fore / aft (base off the flange)`.
+2. **The common trunk uses the trunk's words.** Every part opens with
+   `fitted / type / position / size`, and a row that IS one of those says
+   so with the slot's own word wherever that is literally what it does:
+   `fore / aft`, `up / down`, `in / out`, `length`, `width`, `height`. A row
+   that means something narrower keeps its own word and says the slot word
+   in brackets. The trunk gives a row a heading and an order, never a
+   second name (the glossary rule: one label, one keeper — the layer file
+   that declares the row).
+3. **UPPERCASE IS RESERVED FOR GROUP LABELS** (editor.css's type ladder):
+   a group heading names a KIND of thing (`POSITION`, `TWIN BOOMS`,
+   `MARKINGS`); a part, a row, a value, an option never shouts. A heading's
+   right-hand meta is a lower-case fragment too (`aft of the taper`).
+4. **`·` joins facts in one line** — `tank 1 · nose`, `rotax 582 · 43 kg ·
+   48 kW`, `HOME → circuit` — and it is the ONLY joiner: no dashes, no
+   slashes between facts (the slash is the trunk's `fore / aft` pair and
+   nothing else).
+5. **An option says what flies.** A dropdown option carries the fact the
+   choice changes (`rotax 582 · 43 kg · 48 kW`, `nose bay · 132 L · gravity
+   fed`), read off the number the physics reads, and `≈` in front of a
+   number the physics derives rather than declares.
+6. **A switch row is the part's own `fitted`**; a starter (`preset (applies
+   once)`) says so in its label; a row that only VIEWS something (`show
+   bay`, `fuel aboard` when it is the drawn fill) is view state and says
+   nothing about the aeroplane — it is not saved.
+7. **Titles explain, labels name.** The `title` (tooltip) is the sentence:
+   what the row does, what the datum is, what happens at the ends. The
+   label never tries to.
+8. **No hairline between rows or groups** (G187): a section ends by its
+   spacing; the borders that remain delimit REGIONS (headers, footers).
+9. **A panel that is not a set of sliders** (`panel:` parts — the tanks)
+   renders inside an `.edRoot` so it takes the same folds, indent and row
+   grammar as every sliders part, and its list entries are `details`
+   folds headed the way a part is (`tank 1 · nose`).
+
+Where the rules came from: the trunk vocabulary (HANDOVER G16x "twenty-two
+parts got a trunk"), the type ladder (editor.css `--ed-t-*`), the glossary
+rule (`_cage_parts.js` "a glossary rots"), the option-says-what-flies rule
+(G187), the separators ruling (G187, "rows and groups only").
+
+## G191 — THE PLAYTEST PASS, PHASE 4: THE FUEL PANEL JOINS THE COLUMN, AND THE
+## LABEL CONVENTIONS ARE WRITTEN DOWN (2026-09-05, the user: "revise the fuel
+## interface styling and adjust to the label conventions (maybe to be written
+## explicitly)")
+
+**The styling.** G183 put the fuel & energy panel in the inspector as the
+bare `<details>` it had on the bench, and the column's sheet never heard
+of it: editor.css styles a panel-owned column through `.edRoot` (the
+reference plane's root — the folds with their uppercase summaries, the
+indent step, the boxed sub-folds), and this panel was outside it, so its
+tank folds had no box, no indent and a summary in the wrong type, flush
+against the column's left edge while every sliders part sat one step in.
+Both doors now hand their element over INSIDE an `.edRoot`: the structure
+door wraps the panel (its own outer fold flattened by the sheet the way the
+shed's is, `data-g="energy"`), the finish door makes its tank list the
+root. Nothing in the panel's own builders changed — the rows were already
+the column's `.r > span.k` grammar; what was missing was the container the
+sheet keys on.
+
+**The labels.** The panel's rows now speak the trunk's words where they are
+literally what the row does — `fore / aft` (was `station`), `up / down`
+(was `level`), `in / out (span)` for the wing tank's start, `turn (about
+the vertical)`, `show bay` — and the conventions every row lives by are a
+HANDOVER section of their own, LABEL CONVENTIONS, so the next panel does
+not have to infer them from the type ladder's comment and the trunk's.
+GATE ENERGY's source assertions are on builders and calls, not labels, and
+pass unchanged; UISMOKE and PARTS pass.

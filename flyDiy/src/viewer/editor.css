@@ -1346,15 +1346,20 @@ body.mode-fly #wsUI { display:none; }
    like a group: no border, no summary, its plain rows one indent step in like
    any part's, and only the material sub-groups keep the box — they are the
    panel's real nesting. */
-.edRoot > details[data-g="hangar"] { border:0; border-radius:0;
+.edRoot > details[data-g="hangar"],
+.edRoot > details[data-g="energy"] { border:0; border-radius:0;
   padding:0; margin:0; }
 
-.edRoot > details[data-g="hangar"] > summary { display:none; }
+.edRoot > details[data-g="hangar"] > summary,
+.edRoot > details[data-g="energy"] > summary { display:none; }
 
 /* the #edRows prefix is not decoration: `#edRows .r { margin:0 }` carries an
    id and would beat a class-only selector, exactly as the line-475 note says */
 #edRows .edRoot > details[data-g="hangar"] > .r,
-.edRoot > details[data-g="hangar"] > details { margin-left:var(--ed-indent); }
+#edRows .edRoot > details[data-g="energy"] > .r,
+#edRows .edRoot > details[data-g="energy"] > div,
+.edRoot > details[data-g="hangar"] > details,
+.edRoot > details[data-g="energy"] > details { margin-left:var(--ed-indent); }
 
 .edRoot .lt { display:flex; flex-wrap:wrap; gap:4px; flex:1; min-width:0; }
 
