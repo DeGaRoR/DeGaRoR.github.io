@@ -711,7 +711,7 @@ function genLattice(S, gearX, track, kScale) {
         BM(PL, rg.TL); BM(PL, rg.BL); BM(PL, rg.BR); BM(PL, rg.TR);
         BM(PR, rg.TR); BM(PR, rg.BR); BM(PR, rg.BL); BM(PR, rg.TL);
         pt(PL, 0.5 * engM); pt(PR, 0.5 * engM);
-        engNodes.push(PL, PR);
+        engNodes.push(PL, PR); engIdx.push(0, 0);
       } else if (e.mount === 'wingTop') {
         const [WL, WR] = NM(e.x, e.y, 0.35 * cab.halfW, 'ENG');
         const rg = F[iRing(e.x)];
@@ -723,7 +723,7 @@ function genLattice(S, gearX, track, kScale) {
           BM(n, rg['T' + o]);                            // pylon leg, roof
         }
         pt(WL, 0.5 * engM); pt(WR, 0.5 * engM);
-        engNodes.push(WL, WR);
+        engNodes.push(WL, WR); engIdx.push(0, 0);
       } else if (e.mount === 'wing') {
         // THE BEARER HAS DEPTH (G179). One node on the four spar nodes of
         // its bay is a node IN THE PLANE OF ITS ANCHORS — rule 1's mechanism
@@ -770,7 +770,7 @@ function genLattice(S, gearX, track, kScale) {
           }
           pt(n, engM);                                   // a whole engine a side
         }
-        engNodes.push(NL, NR);
+        engNodes.push(NL, NR); engIdx.push(0, 1);
       }
     }
     EL = engNodes[0]; ER = engNodes[1];
@@ -847,6 +847,12 @@ function genLattice(S, gearX, track, kScale) {
       B(f, q.T, 'fus'); B(f, q.I, 'fus'); B(f, q.O, 'fus');
       B(f, chains[sd][NB - 1].T, 'fus');
     }
+  // G194: WHICH ENGINE each mount node belongs to — a single mount hangs one
+  // engine on two nodes (0, 0); a wing pair hangs entry 0 on the port node
+  // and entry 1 on the starboard one. Published as refs.engineOf so the
+  // solver can share thrust per ENGINE (a cut engine, a trimmed lever)
+  // instead of evenly over the nodes.
+  const engIdx = noseEng ? [0, 0] : [];
     cover(1.9 * t.Sv, [FIN, FIN2, tl.T, tr.T]);
     BOOMS = { L: chains.L, R: chains.R, r: rB, x0, len };
   } else {
@@ -1281,7 +1287,7 @@ function genLattice(S, gearX, track, kScale) {
     upLo: [F[0].BL, F[0].BR], upHi: [F[0].TL, F[0].TR],
     fusDrag: [F[2].BL, F[2].BR, F[2].TL, F[2].TR],
     fusDragAft: [F[F.length-2].BL, F[F.length-2].BR, F[F.length-2].TL, F[F.length-2].TR],
-    engine: engNodes, mains: [GAL, GAR], tw: TW, fin: FIN, fin2: FIN2,
+    engine: engNodes, engineOf: engIdx, mains: [GAL, GAR], tw: TW, fin: FIN, fin2: FIN2,
     // THE DRAWING'S DATUM IS THE WING CARRY-THROUGH (G179.3, the user: "we
     // have to treat the whole wing consistently, and get rid of that
     // different treatment for the central part"). The centre section is

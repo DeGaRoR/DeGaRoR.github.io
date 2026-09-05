@@ -203,6 +203,11 @@ function cageJoinSpec(P, M, T) {
     // bench, and since G115 the spec's `gear.fairing` prices it
     // (genGearCdA: spat 0.22 vs bare 0.55 on the wheel's frontal, trousers
     // fair the legs too) — this line is the wire between them. A PARAM, not
+        // G194: the hand, seen from behind (+1 clockwise). A pair's row says
+        // same hand / tops inward / tops outward; tops inward is port +1,
+        // starboard -1 (down-going blades inboard). A single mount is +1.
+        sense: mk === 'wing' && Math.round(P.engRotate || 0)
+          ? ((i === 0) === (Math.round(P.engRotate) === 1) ? 1 : -1) : 1,
     // a measurement, deliberately: the drawn spat is generated FROM s1Fair,
     // so the switch IS the geometry's own declaration, the same way accOn
     // rides.

@@ -377,6 +377,52 @@ try {
      'the frame has two booms: the stab nodes at ±boomX, a fin node a boom');
 } catch (e) { ok(false, 'twin-boom join threw: ' + e.message); }
 
+  // G194: THE HAND AND THE LEVERS. engRotate 1 (tops inward) is port +1 /
+  // starboard -1 through the join and the resolve; the frame says which
+  // engine each node carries; the solver shares thrust per ENGINE and is
+  // bit-identical with the levers null.
+  const sR = cageJoinSpec(Object.assign({}, P, { engMount: 3, engRotate: 1 }), MW, T);
+  ok(sR.engines[0].sense === 1 && sR.engines[1].sense === -1,
+     'engRotate 1 -> port +1, starboard -1 (tops inward)');
+  const RR = resolveSpec(JSON.parse(JSON.stringify(sR))).spec;
+  ok(RR.engines[0].sense === 1 && RR.engines[1].sense === -1 &&
+     RR.engines[1].z === RR.engines[0].z && RR.engines[1].type === RR.engines[0].type,
+     'RESOLVED: the pair keeps its hands and stays mirrored in everything else');
+  ok(RR.engAt[0].side === -1 && RR.engAt[1].side === 1 && RR.engAt[1].sense === -1,
+     'engAt carries side (-1 port, +1 starboard) and sense');
+  const sO = cageJoinSpec(Object.assign({}, P, { engMount: 3, engRotate: 2 }), MW, T);
+  ok(sO.engines[0].sense === -1 && sO.engines[1].sense === 1, 'engRotate 2 -> tops outward');
+  ok(JSON.stringify(dW.refs.engineOf) === '[0,1]' && dW.nodes[dW.refs.engine[0]].p[2] < 0,
+     'refs.engineOf: node 0 (port, z < 0) is engine 0, node 1 is engine 1');
+  ok(dW.params.engines && dW.params.engines.length === 2 && dW.params.engines[0].side === -1,
+     'params.engines carries side and sense to the viewer');
+  {
+    const simW = C.makeSim(dW); simW.reset(0);
+    for (let i = 0; i < 120; i++) simW.step(1 / 60);
+    simW.ctl.thr = 1; simW.ctl.eng = null; simW.step(1 / 60);
+    const T0 = simW.out.thrust, P0 = simW.out.thrustPer.slice();
+    ok(P0.length === 2 && Math.abs(P0[0] - P0[1]) < 1e-9 && Math.abs(T0 - P0[0] - P0[1]) < 1e-6,
+       'levers null: two equal engines, thrust their sum (' + T0.toFixed(0) + ' N)');
+    simW.ctl.eng = [{ on: 1, thr: 1 }, { on: 1, thr: 0.5 }]; simW.step(1 / 60);
+    const P1 = simW.out.thrustPer.slice();
+    ok(Math.abs(P1[1] - 0.5 * P1[0]) < 1e-6 * Math.max(1, P1[0]),
+       'starboard lever at 50 %: half the port thrust (' + P1[0].toFixed(0) + ' / ' + P1[1].toFixed(0) + ' N)');
+    simW.ctl.eng = [{ on: 1, thr: 1 }, { on: 0, thr: 1 }]; simW.step(1 / 60);
+    ok(simW.out.thrustPer[1] === 0 && simW.out.thrust > 0, 'a cut engine makes no thrust, the other still does');
+    // the yaw couple: with the starboard engine cut, the port thrust at -z is
+    // a moment about the CG — exact off the node position — and the nose
+    // swings within three seconds
+    const zL = dW.nodes[dW.refs.engine[0]].p[2];
+    ok(Math.abs(simW.out.thrustPer[0] * zL) > 100,
+       'port thrust alone is a real yaw moment (' + Math.abs(simW.out.thrustPer[0] * zL).toFixed(0) + ' N m)');
+    const hdg = () => { const x = simW.axes()[0]; return Math.atan2(-x[2], -x[0]); };
+    const h0 = hdg();
+    for (let i = 0; i < 180; i++) simW.step(1 / 60);
+    let dh = hdg() - h0; while (dh > Math.PI) dh -= 2 * Math.PI; while (dh < -Math.PI) dh += 2 * Math.PI;
+    ok(Math.abs(dh) > 0.01, 'the nose swings on one engine (' + (dh * 57.3).toFixed(1) + ' deg in 3 s)');
+    simW.ctl.eng = null; simW.step(1 / 60);
+    ok(Math.abs(simW.out.thrustPer[0] - simW.out.thrustPer[1]) < 1e-9, 'levers null again: even again');
+  }
 // THE GLAZING IS JOINED (2026-09-04): glazeOn 0 -> cabin.glazing 'none' and
 // a lighter frame (no glass); absent = glass, a nonsense value clamps
 try {

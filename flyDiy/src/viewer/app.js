@@ -1525,7 +1525,12 @@
           // ...and it rides the same node as its engine (G179.2)
           { const idxs = engNodesFor(pt.pivot[2]);
             if (idxs.length) engRigs.push({ obj: pg, idxs, pivot: pt.pivot,
-                                            rest0: meanRest(idxs) }); }
+                                            rest0: meanRest(idxs) });
+            // G194: which ENGINE this prop belongs to, off the node it rides
+            // (refs.engineOf), so its spin follows that engine's own lever
+            const EO = curDef.refs.engineOf || [];
+            const j = idxs.length ? curDef.refs.engine.indexOf(idxs[0]) : -1;
+            pg.userData.engIdx = j >= 0 && EO[j] != null ? EO[j] : 0; }
         }
         else if (pt.kind === 'liftstrut' && pt.members && pt.members.length &&
                  curDef.parts && curDef.parts.wf) {
@@ -1970,13 +1975,27 @@
     }
     if (running)                                 // a paused world holds its prop
       for (const p of model.props) {
-        const d = (8 + 110 * sim.ctl.thr) * (1/60);                // visual only
-        const ax2 = p.userData && p.userData.spinAxis;
+        // G194: EACH PROP ITS OWN ENGINE. The rate follows that engine's lever
+        // (a cut engine winds down over ~1.5 s to a windmill that stops when
+        // the aeroplane does), the sense is the engine's own hand, so a
+        // counter-rotating pair turns in opposite directions on screen.
+        const ud = p.userData || {};
+        const ei = ud.engIdx || 0;
+        const eng = sim.ctl.eng && sim.ctl.eng[ei];
+        const lever = eng ? (eng.on ? +eng.thr : 0) : 1;
+        const on = !eng || eng.on;
+        const V = (sim.out && sim.out.V) || 0;
+        const target = on ? 8 + 110 * sim.ctl.thr * lever : Math.min(8, 0.4 * V);
+        ud.spinRate = (ud.spinRate == null ? target : ud.spinRate) +
+                      (target - (ud.spinRate == null ? target : ud.spinRate)) * (1 - Math.exp(-(1/60) / 1.5));
+        const sense = ((def && def.params && def.params.engines || [])[ei] || {}).sense || 1;
+        const d = sense * ud.spinRate * (1/60);                     // visual only
+        const ax2 = ud.spinAxis;
         if (ax2 && p.quaternion && p.quaternion.setFromAxisAngle) {
           // G59.1: about the shaft, so the disc stays in its own plane
-          p.userData.spinAng = (p.userData.spinAng || 0) + d;
+          ud.spinAng = (ud.spinAng || 0) + d;
           vSpin.set(ax2[0], ax2[1], ax2[2]);
-          p.quaternion.setFromAxisAngle(vSpin, p.userData.spinAng);
+          p.quaternion.setFromAxisAngle(vSpin, ud.spinAng);
         } else p.rotation.x += d;
       }
     const link = model.link.step(sim.ctl, 1/60);   // once per frame: it is stateful
@@ -2266,6 +2285,31 @@
   // the flight layer's flPref objects are declared far below this and this
   // must be readable by the very first applyRoute at boot.
   const flStartTaxi = () => prefGet('flydiy.flStart', 'taxi') !== 'lineup';
+  // G193: THE PATTERN ON THE GROUND. One overlay per applied route, built by
+  // pattern_vis.js from the same declaration the pilot follows (sitePattern)
+  // and the same sampler (patternPath), so the ribbon is the line the
+  // aeroplane steers to. Its layers are the rail's `patterns` flyout; off by
+  // default, so nothing on screen changes until asked.
+  let patVis = null, patVisK = -1;
+  const patOnGet = () => {
+    try { return patOn; } catch (e) { return { graph: false, slope: false, targets: false, map: false }; }
+  };
+  function patternVisFor(from, st) {
+    if (patVis) { try { patVis.dispose(); } catch (e) {} patVis = null; }
+    if (!from || !window.PATTERN_VIS || typeof sitePattern !== 'function') return;
+    let P = null;
+    try { P = sitePattern(from, st || null); } catch (e) { P = null; }
+    if (!P) return;
+    const gy = (x, z) => (world && typeof world.terrainH === 'function')
+      ? world.terrainH(x, z) : (from.elev || 0);
+    try {
+      patVis = window.PATTERN_VIS.buildPatternVis(THREE, P, gy,
+        { patternPath: (typeof patternPath === 'function') ? patternPath : null });
+      scene.add(patVis.group);
+      patVis.setLayers(patOnGet());
+      patVisK = -1;
+    } catch (e) { console.error('pattern overlay:', e); patVis = null; }
+  }
   function applyRoute() {
     const from = aeroById(fromId);
     const to = destId === 'CIRCUIT' ? from : aeroById(destId);
@@ -2286,6 +2330,7 @@
     // in the design frame, before the placement rotates it onto the site.
     if (typeof sim.stance === 'function') sim.stance();
     const st = (typeof siteOf === 'function') ? siteOf(from.id) : null;
+    patternVisFor(from, st);
     // ...AND WHETHER IT DOES IS THE PLAYER'S (2026-09-04, the user: "the
     // planes are really a lot too slow when rolling out of the hangar ... an
     // option to just remove that"). The rail's `start` flyout writes this
@@ -2296,7 +2341,9 @@
     if (stand) {
       placeAtStand(sim, from, stand);
       ap.setRoute(from, to);      // frame + altRef, so the HUD has them at once
-      ap.departFrom(from, to, st.taxiOut);   // then plan from the live pose
+      // G193: the whole SITE, not its taxiOut list — the pilot builds the
+      // pattern (the taxi graph, the hold, the two touchdown targets) from it
+      ap.departFrom(from, to, st);   // then plan from the live pose
     } else {
       placeAtAerodrome(sim, from);   // HOME is a bit-exact no-op
       ap.setRoute(from, to);
@@ -2917,6 +2964,10 @@
     // drifts downwind while you pick a route). ROLL sets brake=0 on start.
     if (!started) { sim.ctl.brake = 0.6; setRail(null); return; }
     ap.update(dt);
+    if (patVis && ap.frame && ap.frame.k !== patVisK) {
+      patVisK = ap.frame.k;
+      patVis.setActive(patVisK, ap.gs);
+    }
     record(dt);
     setRail(ap.phase);
     // THE GAME IS THE "EXTERNAL RUNNER" (G130). The test pilot's watchdog
@@ -4559,12 +4610,19 @@
     if (instOn.aoa) R.aoa.textContent = (o.alpha * 57.3).toFixed(1);
     if (instOn.bank) R.bank.textContent = ((d.ph || 0) * 57.3).toFixed(1);
     if (instOn.agl) R.agl.textContent = (d.agl || 0).toFixed(0);
-    if (instOn.thr) R.thr.textContent = (c.thr * 100).toFixed(0);
+    if (instOn.thr) R.thr.textContent = (c.eng && c.eng.length > 1)
+      ? c.eng.map(e => (c.thr * (e.on ? e.thr : 0) * 100).toFixed(0)).join('·')
+      : (c.thr * 100).toFixed(0);
     if (instOn.tas) R.tas.textContent = (o.V * 3.6).toFixed(0);
     if (instOn.pwr) R.pwr.textContent = ((o.powerK ?? 1) * 100).toFixed(0);
     // the air's own numbers, in the flyout that is about the air (G72's OAT
     // and density altitude, which were two of the twelve cells)
     if (flyOpen === 'air') flAirLive(o);
+    if (flyOpen === 'engines' && o.thrustPer)
+      for (let i = 0; i < o.thrustPer.length; i++) {
+        const el = $('flEngT' + i);
+        if (el) el.textContent = (o.thrustPer[i] || 0).toFixed(0) + ' N';
+      }
   }
 
   // ---- W13 minimap: baked terrain underlay (from render_world) + live
@@ -4576,7 +4634,7 @@
   const NOSE_RANGE = 6000;
   function drawMap() {
     const base = WF.minimap, cv = $('mm');
-    if (!base || !cv.getContext) return;
+    if (!base || !cv.getContext || !sim) return;   // G194: a persisted 'large map' drew it at boot, before the sim
     const g = cv.getContext('2d'), W2 = cv.width, mk = W2 / 344;
     const cg2 = sim.cgPos(), xA = sim.axes()[0];       // nose = -x aft axis
     const hdg = Math.atan2(-xA[2], -xA[0]);
@@ -4624,6 +4682,48 @@
       g.beginPath(); g.moveTo(PX(from.x, from.z), PY(from.x, from.z));
       g.lineTo(PX(to.x, to.z), PY(to.x, to.z)); g.stroke();
       g.setLineDash([]);
+    }
+    // G193: the patterns on the map — the two glide-slope tracks and the two
+    // touchdown targets of the aerodromes in play, the active slope brighter,
+    // and the taxi graph once the map is nose-up (at 24 km per 344 px a 100 m
+    // taxiway is a pixel)
+    if (patOnGet().map && ap.patOf) {
+      const aes = to !== from ? [from, to] : [from];
+      for (const a of aes) {
+        const P = ap.patOf(a);
+        if (!P || !P.approaches) continue;
+        for (const apr of P.approaches) {
+          const act = ap.frame && ap.frame.k === apr.k && a.id === (ap.route && ap.route.to && ap.route.to.id);
+          g.strokeStyle = act ? 'rgba(143,215,255,.95)' : 'rgba(143,215,255,.45)';
+          g.lineWidth = (act ? 2 : 1.2) * mk; g.setLineDash([4 * mk, 3 * mk]);
+          g.beginPath(); g.moveTo(PX(apr.aimAP[0], apr.aimAP[1]), PY(apr.aimAP[0], apr.aimAP[1]));
+          g.lineTo(PX(apr.aimAP[0] - apr.u[0] * 2500, apr.aimAP[1] - apr.u[1] * 2500),
+                   PY(apr.aimAP[0] - apr.u[0] * 2500, apr.aimAP[1] - apr.u[1] * 2500));
+          g.stroke(); g.setLineDash([]);
+          g.beginPath(); g.arc(PX(apr.td[0], apr.td[1]), PY(apr.td[0], apr.td[1]), 3 * mk, 0, 6.283);
+          g.fillStyle = act ? '#8fd7ff' : 'rgba(143,215,255,.6)'; g.fill();
+        }
+        if (mapNoseUp && typeof patternPath === 'function') {
+          g.strokeStyle = 'rgba(255,178,87,.8)'; g.lineWidth = 1.5 * mk;
+          for (const T of [0, 1]) for (const kind of ['out', 'back']) {
+            const ids = P.routes && P.routes[kind] && P.routes[kind][T];
+            if (!ids) continue;
+            let path; try { path = patternPath(P, ids, 1.0); } catch (e) { continue; }
+            g.beginPath();
+            for (let i = 0; i < path.pts.length; i += 4) {
+              const q = path.pts[i];
+              if (i === 0) g.moveTo(PX(q.x, q.z), PY(q.x, q.z)); else g.lineTo(PX(q.x, q.z), PY(q.x, q.z));
+            }
+            g.stroke();
+          }
+          for (const h of P.stops || []) {
+            const nd = P.nodes.find(n => n.id === h);
+            if (!nd) continue;
+            g.beginPath(); g.arc(PX(nd.x, nd.z), PY(nd.x, nd.z), 2.6 * mk, 0, 6.283);
+            g.fillStyle = '#ffd35a'; g.fill();
+          }
+        }
+      }
     }
     g.font = `500 ${Math.round(11 * mk)}px "IBM Plex Sans", sans-serif`;
     for (const a of world.aerodromes) {
@@ -4726,6 +4826,9 @@
     catch (e) { return Object.assign({}, d); }
   };
   const flSave = (k, v) => prefSet('flydiy.fl' + k, JSON.stringify(v));
+  // G193: which pattern layers are shown (off by default: no change on screen
+  // until asked)
+  const patOn = flPref('Pat', { graph: false, slope: false, targets: false, map: false });
   // THESE TWO REPLACE `#mmp.big` AND `#telp.show`. The map and the trace were
   // permanent panels; they are summoned now, so whether they are up is the
   // player's and is kept.
@@ -4768,6 +4871,15 @@
     // or lined up on the strip. A runway in perspective, centreline dashed.
     { k: 'start', label: 'start', title: 'Where the flight starts',
       icon: 'M5.6 15.4 7.6 2.6|M12.4 15.4 10.4 2.6|M9 3.6v1.6|M9 7.4v1.8|M9 11.4v2.2' },
+    // G193: THE PATTERNS — the taxi graph, the glide slopes and the two
+    // touchdown targets, drawn on the ground and on the map. A dot-and-arc
+    // glyph: three dots joined by a bent path.
+    { k: 'patterns', label: 'patterns', title: 'The taxi and approach patterns',
+      icon: 'M3.2 14.2h5.4a3 3 0 0 0 3-3V6.4a2.6 2.6 0 0 1 2.6-2.6H15|M3.2 14.2a1 1 0 1 0 0-.1|M8.6 14.2a1 1 0 1 0 0-.1|M15 3.8a1 1 0 1 0 0-.1' },
+    // G194: THE ENGINES — a lever and a switch per engine over the pilot's one
+    // throttle. A two-blade prop glyph.
+    { k: 'engines', label: 'engines', title: 'What each engine is doing',
+      icon: 'M9 9.2a1.4 1.4 0 1 0 0-2.8 1.4 1.4 0 0 0 0 2.8Z|M9 6.4C9 3.6 10.6 2.4 12.2 2.4c1.8 0 2 1.4 1 2.6L9 7.8|M9 9.2c0 2.8-1.6 4-3.2 4-1.8 0-2-1.4-1-2.6L9 7.8' },
   ];
   const FL_SLOTS = {
     ac:    { title: 'Which aeroplane' },
@@ -5043,6 +5155,47 @@
       flNote(body, 'On, the aeroplane is wheeled out of the shed and taxis to ' +
                    'the strip; off, it starts on the runway, lined up. Takes ' +
                    'effect on Restart.');
+    },
+    engines(body) {
+      if (!sim) { flNote(body, 'No aeroplane on the field yet.'); return; }
+      const n = (def && def.params && def.params.nEngines) || 1;
+      if (!sim.ctl.eng || sim.ctl.eng.length !== n)
+        sim.ctl.eng = Array.from({ length: n }, () => ({ on: 1, thr: 1 }));
+      const E = sim.ctl.eng;
+      const sides = (def && def.params && def.params.engines) || [];
+      for (let i = 0; i < n; i++) {
+        const side = (sides[i] && sides[i].side) || 0;
+        const name = n > 1 ? 'engine ' + (i + 1) + (side < 0 ? ' · port' : side > 0 ? ' · starboard' : '')
+                           : 'engine';
+        const r = flRow(body, name);
+        r.style.fontWeight = '600';
+        flPills(body, [{ label: 'running', value: 1 }, { label: 'cut', value: 0 }],
+                o => o.value === E[i].on, o => { E[i].on = o.value; flRender(); });
+        flRange(body, 'lever', 0, 100, 5, () => E[i].thr * 100,
+                v => { E[i].thr = v / 100; }, v => v.toFixed(0) + ' %');
+        const live = flRow(body, 'thrust');
+        const v = document.createElement('span');
+        v.className = 'v'; v.id = 'flEngT' + i; v.textContent = '—';
+        live.appendChild(v);
+      }
+      flPills(body, [{ label: 'sync levers', value: 1 }], () => false,
+              () => { for (const e of E) { e.on = 1; e.thr = 1; } flRender(); });
+      flNote(body, 'The levers scale the pilot’s own throttle: the pilot keeps ' +
+                   'one throttle and does not know you touched these — cut one ' +
+                   'engine of a pair and the good one carries the yaw. Restart ' +
+                   'puts every lever back.');
+    },
+    patterns(body) {
+      const set = k => v => { patOn[k] = !!v; flSave('Pat', patOn);
+                              if (patVis) patVis.setLayers(patOn); drawMap(); };
+      flToggle(body, 'taxi graph', () => patOn.graph, set('graph'));
+      flToggle(body, 'glide slopes', () => patOn.slope, set('slope'));
+      flToggle(body, 'touchdown targets', () => patOn.targets, set('targets'));
+      flToggle(body, 'on the map', () => patOn.map, set('map'));
+      flNote(body, 'The taxi graph is what the pilot follows out of the stand: ' +
+                   'the dots, the smoothed corners, the amber STOP bar where it ' +
+                   'lines up and halts. There are two touchdown targets, one per ' +
+                   'landing direction; the brighter slope is the one being flown.');
     },
     trace(body) {
       flToggle(body, 'show', () => panels.trace, v => flPanel('trace', v));

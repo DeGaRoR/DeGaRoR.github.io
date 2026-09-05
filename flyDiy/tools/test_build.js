@@ -645,6 +645,19 @@ function nullPaths(o, pre, out) {
     ok(Math.abs(r4.boomLen - (D.boomLen + D.taperLen)) < 1e-3,   // the lift rounds to 4 places
        'v7->v8: absent keys read as the cage defaults (' + r4.boomLen + ')');
   }
+  // G194: the propeller's hand survives the resolve, and absent means +1
+  {
+    const sp = JSON.parse(JSON.stringify(C.GEN_DEFAULT));
+    sp.engines = [{ type: 'rotax582_ivo', mount: 'wing', place: { dx: 0, dy: 0 }, sense: 1 },
+                  { type: 'rotax582_ivo', mount: 'wing', place: { dx: 0, dy: 0 }, sense: -1 }];
+    const R = C.resolveSpec(sp).spec;
+    ok(R.engines.length === 2 && R.engines[0].sense === 1 && R.engines[1].sense === -1,
+       'sense: a counter-rotating pair keeps both hands through resolveSpec');
+    const sp2 = JSON.parse(JSON.stringify(C.GEN_DEFAULT)); delete sp2.engines[0].sense;
+    ok(C.resolveSpec(sp2).spec.engines[0].sense === 1, 'sense: absent reads as +1');
+    const sp3 = JSON.parse(JSON.stringify(C.GEN_DEFAULT)); sp3.engines[0].sense = 7;
+    ok(C.resolveSpec(sp3).spec.engines[0].sense === 1, 'sense: anything but -1 is +1');
+  }
   const ran = [];
   MIG[3] = s => { ran.push(3); if (s.oldName) s.newName = s.oldName; return s; };
   MIG[4] = s => { ran.push(4); return s; };

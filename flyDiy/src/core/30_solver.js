@@ -49,10 +49,14 @@ function makeSim(def, world) {
         r = new Float64Array(n);
   const beams = def.beams.map(b => ({ ...b, L0: 0, strain: 0 }));
   const _treeScratch = [];
-  const ctl = { thr: 0, de: 0, da: 0, dr: 0, brake: 0, flap: 0 };
+  // G194: `eng` is null (every engine running, full lever — bit-identical to
+  // before) or [{ on, thr }] per engine, a MULTIPLIER on the pilot's `thr`
+  // that the pilots never read or write: the player's levers over the
+  // pilot's one throttle.
+  const ctl = { thr: 0, de: 0, da: 0, dr: 0, brake: 0, flap: 0, eng: null };
   const FP = P_.flaps;   // per-aircraft high-lift deltas; undefined = no flaps
   let simT = 0;          // sim time for the deterministic wind field
-  const out = { V: 0, alpha: 0, thrust: 0, wash: 0, alt: 0, vs: 0 };
+  const out = { V: 0, alpha: 0, thrust: 0, wash: 0, alt: 0, vs: 0, thrustPer: [] };
   let totalM = 0;
   for (const nd of def.nodes) totalM += nd.m;
 
@@ -239,13 +243,26 @@ function makeSim(def, world) {
       // many engines make it. `params.nEngines` says that, and every def
       // states it. The registry's Tstatic/kV2 are PER PROPELLER.
       const nE = def.params.nEngines || 1;
-      const Tper = ctl.thr * Math.max(0, PR.Tstatic * PS.kT - PR.kV2 * PS.kV * Vfwd * Vfwd);
-      T = Tper * nE;                                   // registry values are per engine
+      const Tcap = Math.max(0, PR.Tstatic * PS.kT - PR.kV2 * PS.kV * Vfwd * Vfwd);
+      // G194: PER ENGINE. Each engine's thrust is the pilot's throttle times
+      // its own lever (ctl.eng, null = every lever full and on), and each
+      // mount node takes its OWN engine's share (refs.engineOf) — so a cut
+      // or trimmed engine on a wing pair is a real yaw couple through the two
+      // nodes at +-z, with no new physics. With ctl.eng null this is
+      // Tper * nE spread evenly, to the bit.
+      const lev = i => { const e = ctl.eng && ctl.eng[i]; return e ? (e.on ? +e.thr : 0) : 1; };
+      const EO = def.refs.engineOf || def.refs.engine.map(() => 0);
+      const cnt = new Array(nE).fill(0);
+      for (const k of EO) if (k < nE) cnt[k]++;
+      const Ti = out.thrustPer; Ti.length = nE;
+      T = 0;
+      for (let i = 0; i < nE; i++) { Ti[i] = ctl.thr * lev(i) * Tcap; T += Ti[i]; }
       // propwash is ONE disc's — the tail flies in the wake of the prop ahead
-      // of it, not in the sum of the aeroplane's engines
-      wash = Math.sqrt(Vfwd * Vfwd + 2 * Tper / (rho * PROPA)) - Vfwd;
-      const per = T / def.refs.engine.length;          // spread over the MOUNTS
-      for (const e of def.refs.engine) {
+      // of it, not in the sum of the aeroplane's engines (the mean disc now)
+      wash = Math.sqrt(Vfwd * Vfwd + 2 * (T / nE) / (rho * PROPA)) - Vfwd;
+      for (let j = 0; j < def.refs.engine.length; j++) {
+        const e = def.refs.engine[j], k = EO[j] < nE ? EO[j] : 0;
+        const per = Ti[k] / Math.max(1, cnt[k]);
         f[e*3]   -= per * xAft[0];
         f[e*3+1] -= per * xAft[1];
         f[e*3+2] -= per * xAft[2];
@@ -292,6 +309,7 @@ function makeSim(def, world) {
         // the mixing falls out of the geometry instead of being asserted.
         const cV = st.cosV, sV = st.sinV * st.side;
         sc[0]=xAft[0]; sc[1]=xAft[1]; sc[2]=xAft[2];
+    ctl.eng = null;                                  // G194: every lever back to full
         sn[0]=cV*yUp[0]-sV*zRt[0]; sn[1]=cV*yUp[1]-sV*zRt[1]; sn[2]=cV*yUp[2]-sV*zRt[2];
         norm3(sn);
       } else { // fin

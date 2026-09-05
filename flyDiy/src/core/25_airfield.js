@@ -277,3 +277,190 @@ function siteHangarBox(H) {
   const h = H || AIRFIELD_SITE.hangar;
   return { x0: h.x - h.HW, x1: h.x + h.HW, z0: h.z - h.HD, z1: h.z + h.HD };
 }
+
+// ---- THE PATTERN (G193): the ground graph and the two approaches ---------
+// The user, 2026-09-05: "notion of taxi pattern and approach pattern to the
+// airport ... a glide slope, a touchdown target (warning, there should be 2
+// touchdown for both directions), and a taxi pattern ... mostly 90° turns
+// (smoothed out), and complete a graph dot-arc and try to follow that. We
+// need the notion of stop point, where the plane lines up and completely
+// stops before taking off. Ultimately, these should be part of the editor."
+//
+// DECLARED, NOT INVENTED IN THE PILOT — the same ruling `taxiOut` landed
+// under at G151, widened: every obstacle on the ground belongs to the PLACE,
+// and so does the way round it. `sitePattern` builds the graph from the
+// datums this file already declares (stand, apron, taxiway, fence gate, the
+// runway ends) for HOME, and a minimal one (spawn → hold → run) for every
+// generated strip — same shape either way, so the editor that will one day
+// write `site.pattern` by hand writes what this function returns. A site
+// that carries an authored `pattern` is returned verbatim.
+//
+// THE SHAPE. Nodes are the dots (`kind`: stand | apron | gate | entry | taxi |
+// hold; a corner may carry its own fillet `r`, a hold its lined-up `hdg`);
+// arcs the drawn edges; `routes.out[T]` the way from the stand to the hold
+// for take-off direction T (0 = along the record's hdg, from end0; 1 = the
+// reverse, from end1), `routes.back[T]` the lane-and-U-turn from anywhere on
+// the strip to the same hold. 39_ground_path.js samples a route into the
+// path the pilots follow.
+//
+// TWO TOUCHDOWN TARGETS, one per landing direction k (0 = landing along
+// -hdg, the record's own `tdz`, so every calm gate keeps its number to the
+// bit; 1 = landing along +hdg, the mirror off the other threshold). `aimAP`
+// is the point the autopilot actually flies to (70 m past the target, which
+// is what A.xAim's -520 against the frame's -450 has always meant); the
+// painted aim0/aim1 stay the different thing siteRunway says they are. `gs`
+// null = the aircraft's own slope; a number is the editor's future
+// declaration, flown if shallower than the aircraft's.
+const GP_FILLET = 12, GP_HOLD_IN = 110, GP_LANE = 12, GP_UTURN_R = 12;
+function sitePattern(aero, site) {
+  if (site && site.pattern) return site.pattern;
+  const R = siteRunway(aero);
+  const d = [R.dx, R.dz], n = [R.nx, R.nz];
+  const at = (px, pz, a, k) => [px + a[0] * k, pz + a[1] * k];
+  const nodes = [], arcs = [], routes = { out: [null, null], back: [null, null] };
+  const add = (id, p, kind, extra) => {
+    nodes.push(Object.assign({ id, x: +p[0].toFixed(3), z: +p[1].toFixed(3), kind }, extra || {}));
+    return id;
+  };
+  const link = (a, b) => arcs.push([a, b]);
+  // the taxiway side, so the backtrack lane keeps AWAY from it
+  let laneSg = 1;
+  if (site && site.taxiway) {
+    const tz = 0.5 * (site.taxiway.z0 + site.taxiway.z1), tx = 0.5 * (site.taxiway.x0 + site.taxiway.x1);
+    const side = (tx - R.cx) * n[0] + (tz - R.cz) * n[1];
+    laneSg = side > 0 ? -1 : 1;
+  }
+  const lane = Math.min(GP_LANE, R.half - 2.5);
+  const ends = [R.end0, R.end1];
+  const holds = [];
+  for (const T of [0, 1]) {
+    const dir = T === 0 ? d : [-d[0], -d[1]];
+    const E = [ends[T].x, ends[T].z];
+    const hdg = Math.atan2(dir[1], dir[0]);
+    const hold = add('hold' + T, at(E[0], E[1], dir, GP_HOLD_IN), 'hold', { hdg });
+    holds.push(hold);
+    // the lane-and-U-turn back to this hold from anywhere on the strip
+    const la = add('l' + T + 'a', at(...at(E[0], E[1], dir, 27), n, laneSg * lane), 'taxi', { r: GP_UTURN_R });
+    const lb = add('l' + T + 'b', at(...at(E[0], E[1], dir, 27), n, -laneSg * lane), 'taxi', { r: GP_UTURN_R });
+    const lc = add('l' + T + 'c', at(...at(E[0], E[1], dir, 51), n, -laneSg * lane), 'taxi', { r: GP_FILLET });
+    const dg = add('d' + T, at(E[0], E[1], dir, 90), 'taxi', { r: GP_FILLET });
+    link(la, lb); link(lb, lc); link(lc, dg); link(dg, hold);
+    routes.back[T] = [la, lb, lc, dg, hold];
+  }
+  if (site && site.stand && site.taxiway && site.apron) {
+    // HOME: stand -> the apron row's west end -> the gate -> the strip's
+    // edge -> a corner onto the centreline -> the hold, for direction 0; the
+    // lane corner and the generic U-turn for direction 1
+    const tx = 0.5 * (site.taxiway.x0 + site.taxiway.x1);
+    const st = add('stand', [site.stand.x, site.stand.z], 'stand', { hdg: site.stand.hdg });
+    const ap = add('apronW', [tx, site.stand.z], 'apron', { r: GP_FILLET });
+    const ga = add('gate', [tx, site.fence ? site.fence.z : Math.min(site.taxiway.z0, site.taxiway.z1)], 'gate');
+    const ed = add('edge', [tx, R.cz + R.half * Math.sign(site.taxiway.z0 - R.cz || 1)], 'entry');
+    const c0 = add('c0', [tx, R.cz], 'taxi', { r: GP_FILLET });
+    link(st, ap); link(ap, ga); link(ga, ed); link(ed, c0); link(c0, holds[0]);
+    routes.out[0] = [st, ap, ga, ed, c0, holds[0]];
+    const c1 = add('c1', at(tx, R.cz, n, laneSg * lane), 'taxi', { r: GP_FILLET });
+    link(ed, c1); link(c1, 'l1a');
+    routes.out[1] = [st, ap, ga, ed, c1].concat(routes.back[1]);
+  } else if (aero.spawn) {
+    // a generated strip: the spawn identity is 35 m in from end0
+    const sp = add('spawn', [aero.spawn[0], aero.spawn[1]], 'stand',
+                   { hdg: Math.atan2(d[1], d[0]) });
+    link(sp, holds[0]);
+    routes.out[0] = [sp, holds[0]];
+    routes.out[1] = routes.back[1];
+  }
+  // the two approaches
+  const tdz = [R.tdz.x, R.tdz.z];
+  const D = Math.abs((tdz[0] - R.thr1.x) * d[0] + (tdz[1] - R.thr1.z) * d[1]);
+  const mk = (k, u, thr, td) => ({
+    k, u: [u[0], u[1]], thr: [thr.x, thr.z], td: [td[0], td[1]],
+    aimAP: [+(td[0] + u[0] * 70).toFixed(3), +(td[1] + u[1] * 70).toFixed(3)],
+    gs: null, ga: { hdg: Math.atan2(u[1], u[0]) },
+  });
+  const approaches = [
+    mk(0, [-d[0], -d[1]], R.thr1, tdz),
+    mk(1, [d[0], d[1]], R.thr0, at(R.thr0.x, R.thr0.z, d, D)),
+  ];
+  return { id: aero.id || 'HOME', elev: aero.elev || 0, fillet: GP_FILLET,
+           nodes, arcs, routes, stops: holds,
+           runway: { c0: { x: R.end0.x, z: R.end0.z }, c1: { x: R.end1.x, z: R.end1.z },
+                     hdg: R.hdg, wid: R.wid, len: R.len },
+           approaches };
+}
+
+// THE VALIDATOR, and the future editor's too: every claim a pattern makes
+// about the ground, as a list of complaints (empty = sound). `Rmin` is the
+// tightest turn the aeroplane it is being checked for can taxi
+// (groundRmin); `path` is 39_ground_path.js's sampler, passed in so this file
+// stays free of it in node.
+function sitePatternIssues(pat, aero, site, Rmin, patternPath) {
+  const out = [];
+  if (!pat || !pat.nodes || !pat.routes) return ['no pattern'];
+  const R = siteRunway(aero);
+  const byId = {}; for (const nd of pat.nodes) byId[nd.id] = nd;
+  const box = site && site.hangar ? siteHangarBox(site.hangar) : null;
+  const inBox = (x, z) => box && x > box.x0 && x < box.x1 && z > box.z0 && z < box.z1;
+  const onStrip = (x, z) => {
+    const a = (x - R.end0.x) * R.dx + (z - R.end0.z) * R.dz;
+    const c = Math.abs((x - R.cx) * R.nx + (z - R.cz) * R.nz);
+    return a >= -0.01 && a <= R.len + 0.01 && c <= R.half + 0.01;
+  };
+  for (const h of pat.stops || []) {
+    const nd = byId[h];
+    if (!nd) { out.push('hold ' + h + ' is not a node'); continue; }
+    const c = Math.abs((nd.x - R.cx) * R.nx + (nd.z - R.cz) * R.nz);
+    if (c > 0.01) out.push('hold ' + h + ' is ' + c.toFixed(2) + ' m off the centreline');
+    const ux = Math.cos(nd.hdg), uz = Math.sin(nd.hdg);
+    if (Math.abs(Math.abs(ux * R.dx + uz * R.dz) - 1) > 1e-6)
+      out.push('hold ' + h + ' is not lined up with the strip');
+    const along = (nd.x - R.end0.x) * R.dx + (nd.z - R.end0.z) * R.dz;
+    const ahead = (ux * R.dx + uz * R.dz) > 0 ? R.len - along : along;
+    const want = Math.min(500, R.len - 150);
+    if (ahead < want) out.push('hold ' + h + ' leaves ' + ahead.toFixed(0) + ' m of run, under ' + want);
+  }
+  const walk = (ids, what) => {
+    if (!ids) return;
+    let P;
+    try { P = patternPath ? patternPath(pat, ids, 1.0) : null; } catch (e) { out.push(what + ': ' + e.message); return; }
+    if (!P) return;
+    if (P.pts.length < 2) out.push(what + ' samples to nothing');
+    // a strip too narrow to turn this aeroplane round inside its own width
+    // cannot be blamed for its U-turn: the lane is the strip's, the follower
+    // slows for the bend it gets, and only a site's own corners are held to
+    // the radius
+    const wideEnough = R.half - 2.5 >= Rmin;
+    if (Rmin > 0 && wideEnough && P.rMin < 1.05 * Rmin)
+      out.push(what + ' has a ' + P.rMin.toFixed(1) + ' m corner, under the aeroplane’s ' + Rmin.toFixed(1) + ' m');
+    for (const q of P.pts) {
+      if (site && typeof siteOnFlat === 'function' && !siteOnFlat(aero, q.x, q.z)) {
+        out.push(what + ' leaves the flat ground at (' + q.x.toFixed(0) + ', ' + q.z.toFixed(0) + ')'); break;
+      }
+      if (inBox(q.x, q.z)) { out.push(what + ' passes under the hangar'); break; }
+    }
+    // a crossing of the fence line only through the gate, 6 m clear of each run
+    if (site && site.fence) {
+      const F = site.fence;
+      for (let i = 1; i < P.pts.length; i++) {
+        const a = P.pts[i - 1], b = P.pts[i];
+        if ((a.z - F.z) * (b.z - F.z) < 0) {
+          const t = (F.z - a.z) / (b.z - a.z), xc = a.x + t * (b.x - a.x);
+          for (const [r0, r1] of F.runs)
+            if (xc > Math.min(r0, r1) - 6 && xc < Math.max(r0, r1) + 6)
+              out.push(what + ' crosses the fence at x ' + xc.toFixed(1) + ', inside or within 6 m of the run ' + r0 + '..' + r1);
+        }
+      }
+    }
+  };
+  for (const T of [0, 1]) { walk(pat.routes.out[T], 'route out[' + T + ']'); walk(pat.routes.back[T], 'route back[' + T + ']'); }
+  const A = pat.approaches || [];
+  if (A.length !== 2) out.push('a pattern has two approaches, one per direction');
+  for (const ap of A) {
+    if (!onStrip(ap.td[0], ap.td[1])) out.push('approach ' + ap.k + ' touchdown target is off the strip');
+    if (!onStrip(ap.aimAP[0], ap.aimAP[1])) out.push('approach ' + ap.k + ' aim point is off the strip');
+    if (ap.gs != null && !(ap.gs >= 0.035 && ap.gs <= 0.10)) out.push('approach ' + ap.k + ' slope ' + ap.gs + ' is outside 2..5.7 deg');
+    if (ap.k === 0 && aero.tdz && (Math.abs(ap.td[0] - aero.tdz[0]) > 1e-6 || Math.abs(ap.td[1] - aero.tdz[1]) > 1e-6))
+      out.push('approach 0 does not land on the record’s own tdz');
+  }
+  return out;
+}

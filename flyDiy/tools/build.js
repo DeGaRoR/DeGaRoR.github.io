@@ -48,6 +48,10 @@ const MANIFEST = {
     // proves placement in plain node and hangar.js only stands the meshes.
     '26_hangar_fit.js',
     '30_solver.js',
+    // THE GROUND PATH (G193): a declared pattern graph sampled into a path the
+    // pilots follow (fillets, curvature, a STOP); pure, read by 25_'s
+    // sitePattern consumers, the two pilots, pattern_vis.js and the gates.
+    '39_ground_path.js',
     '40_autopilot.js',
     // the TEST PILOT (G107): the second autopilot, forked from 40_ — bounded
     // attempts, structured verdicts. Generated builds fly it; the fleet keeps 40_.
@@ -205,7 +209,9 @@ const MANIFEST = {
     // weight-and-balance chart through window.BALANCE, and reads it lazily
     // like REFPLANE and DESIGN_FLOW; it needs the core (buildGen, genShakedown,
     // genSpecAtFuel), which the core bundle already put in scope.
-              'design_flow.js', 'balance.js', 'editor.js', 'app.js'],
+    // pattern_vis.js before app.js (G193): the ground pattern's overlay,
+    // built by app.js's applyRoute through window.PATTERN_VIS
+              'design_flow.js', 'balance.js', 'pattern_vis.js', 'editor.js', 'app.js'],
   },
   // THE EDITOR (G35): the cage bench, embedded — the game's editor since the
   // old garage panel retired. The list and its ORDER are tools/_cage8.html's

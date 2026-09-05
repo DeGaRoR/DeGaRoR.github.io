@@ -64,7 +64,12 @@ const defaults = { engOn: 1, engPreset: 0, engPower: 0,
                    // move together); and which way a wing engine faces —
                    // 0 the mount's own (over the wing pushes, a pair pulls),
                    // 1 puller, 2 pusher
-                   engBlockZ: 0, engBlockY: 0, engAim: 0 };
+                   engBlockZ: 0, engBlockY: 0, engAim: 0,
+                   // THE HAND OF A PAIR (G194): 0 same hand, 1 counter-rotating
+                   // tops inward (the Seneca arrangement: down-going blades
+                   // inboard, no critical engine), 2 tops outward. The solver
+                   // reads nothing from it yet (PROP-EFFECTS-2026-09-05.md).
+                   engRotate: 0 };
 for (const [, rows] of EP.GROUPS)
   for (const r of rows) {
     const [k, , m3, opts] = r;
@@ -301,6 +306,9 @@ const ENG_ITEMS = [
   ['engAim',    'faces', 0, 2, 1, ['as the mount', 'puller', 'pusher'],
    { when: P => +P.engOn && Math.round(P.engMount) >= 2 }],
   ['engNacAt',  'nacelle station (semispan)', 0.15, 0.70, 0.01,
+   { when: P => +P.engOn && Math.round(P.engMount) === 3 }],
+  ['engRotate',  'rotation (pair)', 0, 2, 1,
+   ['same hand', 'counter-rotating, tops inward', 'counter-rotating, tops outward'],
    { when: P => +P.engOn && Math.round(P.engMount) === 3 }],
   ['engBlockZ', 'block fore / aft', -1.0, 1.0, 0.01,
    { when: P => +P.engOn && Math.round(P.engMount) >= 2, dim: 'm' }],

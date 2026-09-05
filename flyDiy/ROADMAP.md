@@ -327,6 +327,15 @@ is already sitting hardcoded in the physics hot path.*
 **THE HONEST COST, stated up front:** airports authored on today's 24 km world
 DO NOT SURVIVE the island — the coordinates die at Phase 7's W5. The FORMAT,
 the editor and the practice all survive. Build practice airports on the
+3b. **The pattern editor** [M]. G193 (2026-09-05) declared the GROUND PATTERN
+   per aerodrome — the taxi graph with its filleted corners and hold points,
+   the two approaches with their touchdown targets and slopes — as data
+   (`sitePattern` builds it from the datums, an authored `site.pattern` is
+   taken verbatim, `sitePatternIssues` validates either) and drew it in
+   flight (the rail's `patterns` flyout). What is owed is the hand: drag a
+   node, add a hold, set a slope, save it into the site — the same modifier
+   format as 3, written against the same validator, so a pattern a player
+   draws is refused the moment it crosses the fence.
 practice world knowingly, or wait for Phase 7 and lose the play in between.
 My recommendation is to build them now: the editor is the durable artefact.
 
@@ -1819,6 +1828,14 @@ with a contact sheet. THREE THINGS THIS ENTRY DID NOT ANTICIPATE:
   index.html is 3.98 MiB against a mechanical 6 MiB budget (GATE MEDIA), the
   ceiling is gone, all eleven CC-BY references ship, and the four
   "SKETCHFAB Standard" imports were deleted outright rather than held. New
+**F0 — propeller effects** (torque, slipstream swirl; P-factor and gyroscopic
+later). ASSESSED 2026-09-05 instead of coded, at the user's ruling during the
+UltraLight3 pass: `futureDesigns/PROP-EFFECTS-2026-09-05.md`. Felt on one
+aeroplane only — the single-engine taildragger's roll (~0.4 of rudder at
+rotation); a twin's pairs fly identically same-hand or counter-rotating
+until then. Needs a SHAFT SPEED on every registry row first; `sense` per
+engine already ships (G194). One gated chantier: torque + swirl + rpm.
+
   assets cost their own bytes now, not a slice of a shared ceiling.
 
 **AND EIGHT MORE, ALL CC-BY — G142, 2026-09-01.** Diamond DA40, Grob G115,

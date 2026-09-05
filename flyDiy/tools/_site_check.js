@@ -337,6 +337,63 @@ function run(mut) {
        ' m off the centreline at the 22 m handover, and LINEUP wants < 8');
   }
 
+  // ---- THE PATTERN (G193): the ground graph and the two approaches --------
+  // `sitePattern` builds the taxi graph, the hold points and the two
+  // touchdown targets off the datums above; `sitePatternIssues` is the one
+  // validator (the future editor's too). Checked for HOME against the user's
+  // own ultralight — the tightest-turning fixture, whose 0.85-rudder taxi
+  // radius is the corner every fillet must clear — and for every generated
+  // strip of the validated world with the minimal pattern.
+  {
+    let Rmin = 0;
+    try {
+      const fx = path.join(ROOT, 'tools', 'fixtures', 'build_v7_ultralight_2026-09-05.json');
+      const spec = JSON.parse(fs.readFileSync(fx, 'utf8')).spec;
+      Rmin = CORE.groundRmin(CORE.buildGen(CORE.genMigrateSpec(spec)), 0.85);
+    } catch (e) { Rmin = 10.5; }
+    ok(Rmin > 5 && Rmin < 30, 'the reference taxi radius is sensible (' + Rmin.toFixed(1) + ' m)');
+    const world = CORE.makeWorld();
+    const homeA = world.aerodromes[0];
+    const PAT = CORE.sitePattern(homeA, S);
+    const issues = CORE.sitePatternIssues(PAT, homeA, S, Rmin, CORE.patternPath);
+    for (const m of issues) ok(false, 'HOME pattern: ' + m);
+    ok(PAT.routes.out[0] && PAT.routes.out[1] && PAT.routes.back[0] && PAT.routes.back[1],
+       'HOME declares a route out and a route back for both directions');
+    ok(PAT.stops.length === 2, 'HOME has one hold per direction');
+    // the route out really starts on the stand and ends on a hold
+    for (const T of [0, 1]) {
+      const r = PAT.routes.out[T];
+      ok(r[0] === 'stand' && PAT.stops.includes(r[r.length - 1]),
+         'HOME route out[' + T + '] runs from the stand to a hold');
+    }
+    // the corners are mostly right angles, smoothed: every fillet drawn is
+    // its declared radius (the tangent clamp never bit)
+    for (const T of [0, 1]) {
+      const p = CORE.patternPath(PAT, PAT.routes.out[T], 1.0);
+      ok(p.rMin >= 11 - 1e-6, 'HOME route out[' + T + '] keeps its corner radii (' + p.rMin.toFixed(1) + ' m)');
+      ok(p.sStop != null && Math.abs(p.sStop - p.len) < 1e-6, 'HOME route out[' + T + '] ends on a STOP');
+    }
+    // approach 0 is the record's own tdz; approach 1 mirrors it off the other bar
+    const A0 = PAT.approaches[0], A1 = PAT.approaches[1];
+    near(A0.td[0], homeA.tdz[0], 1e-9, 'approach 0 lands on HOME.tdz (x)');
+    near(A0.td[1], homeA.tdz[1], 1e-9, 'approach 0 lands on HOME.tdz (z)');
+    const R2 = CORE.siteRunway(homeA);
+    const d0 = Math.hypot(A0.td[0] - R2.thr1.x, A0.td[1] - R2.thr1.z);
+    const d1 = Math.hypot(A1.td[0] - R2.thr0.x, A1.td[1] - R2.thr0.z);
+    near(d1, d0, 1e-6, 'approach 1 sits as far in from its own threshold as approach 0');
+    ok(A0.u[0] * A1.u[0] + A0.u[1] * A1.u[1] < -0.999, 'the two approaches face opposite ways');
+    // every generated strip carries a sound minimal pattern
+    let strips = 0;
+    for (const a of world.aerodromes) {
+      if (a.kind === 'meadow' || a.id === 'HOME') continue;
+      strips++;
+      const P = CORE.sitePattern(a, null);
+      for (const m of CORE.sitePatternIssues(P, a, null, Rmin, CORE.patternPath))
+        ok(false, a.id + ' pattern: ' + m);
+    }
+    ok(strips > 0, 'the validated world has generated strips to pattern');
+  }
+
   // ---- ON THE PAD ---------------------------------------------------------
   const pts = [];
   const push = (x, z, what) => pts.push([x, z, what]);
@@ -441,6 +498,25 @@ const BREAKS = [
   // the regression that produced the whole chantier: parked facing the shed
   ['the stand parked facing away from its own route',
    { S: S => { S.stand = { x: 42, z: 40, hdg: Math.PI - 0.62 }; } }],
+  // G193 — THE PATTERN. An authored `site.pattern` is taken verbatim, which is
+  // how a hand-edited one will arrive; each break is one a future editor could
+  // save, and the validator must refuse it.
+  ['a pattern whose hold is off the centreline', { S: S => {
+    const P = JSON.parse(JSON.stringify(CORE.sitePattern(CORE.makeWorld().aerodromes[0], S)));
+    P.nodes.find(n => n.id === 'hold0').z = 3; S.pattern = P; } }],
+  ['a pattern with a 6 m corner', { S: S => {
+    const P = JSON.parse(JSON.stringify(CORE.sitePattern(CORE.makeWorld().aerodromes[0], S)));
+    P.nodes.find(n => n.id === 'c0').r = 6; S.pattern = P; } }],
+  ['a pattern whose route out drives through the fence', { S: S => {
+    const P = JSON.parse(JSON.stringify(CORE.sitePattern(CORE.makeWorld().aerodromes[0], S)));
+    P.nodes.find(n => n.id === 'gate').x = -20; P.nodes.find(n => n.id === 'edge').x = -20;
+    P.nodes.find(n => n.id === 'apronW').x = -20; S.pattern = P; } }],
+  ['a pattern whose touchdown target is off the strip', { S: S => {
+    const P = JSON.parse(JSON.stringify(CORE.sitePattern(CORE.makeWorld().aerodromes[0], S)));
+    P.approaches[1].td = [-590, 40]; S.pattern = P; } }],
+  ['a pattern whose hold leaves no run', { S: S => {
+    const P = JSON.parse(JSON.stringify(CORE.sitePattern(CORE.makeWorld().aerodromes[0], S)));
+    P.nodes.find(n => n.id === 'hold0').x = -900; S.pattern = P; } }],
 ];
 let bad = 0;
 for (const [name, mut] of BREAKS) {

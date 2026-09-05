@@ -853,6 +853,9 @@ function genParams(S, fr, strips) {
     // is a real aeroplane in this spec and the day `engines` has two entries
     // this must already be right.
     nEngines: S.engines.length,
+    // G194: per engine, the hand and the side (the viewer spins each prop by
+    // its own lever and sense; the solver reads only the count)
+    engines: (S.engAt || []).map(e => ({ sense: e.sense || 1, side: e.side || 0 })),
     // THE PROP IS THE AEROPLANE'S, not the powerplant's. The solver prefers this
     // over POWERPLANTS[powerplant].prop when it is present, and a fiche never
     // sets it — so the fleet reads the registry exactly as before.

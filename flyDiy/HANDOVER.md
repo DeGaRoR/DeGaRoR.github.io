@@ -30704,3 +30704,184 @@ HANDOVER section of their own, LABEL CONVENTIONS, so the next panel does
 not have to infer them from the type ladder's comment and the trunk's.
 GATE ENERGY's source assertions are on builders and calls, not labels, and
 pass unchanged; UISMOKE and PARTS pass.
+
+## G193 — THE PLAYTEST PASS, PHASE 5: THE PATTERN ON THE GROUND, THE STOP, THE
+## TAKE-OFF THAT WENT INTO THE GRASS (2026-09-05, the user: "notion of taxi
+## pattern and approach pattern ... a glide slope, a touchdown target (there
+## should be 2, for both directions), and a taxi pattern. The current taxi
+## pattern is wrong, the plane cuts corners. It should do mostly 90° turns
+## (smoothed out), and complete a graph dot-arc and try to follow that. We
+## need the notion of stop point ... Diagnosis on the difficulty to take off
+## straight on the ultralight (as soon as the boom lifts off, the autopilot is
+## incapable of maintaining direction)")
+
+**THE DIAGNOSIS, measured on the user's own build (`tools/fixtures/
+build_v7_ultralight_2026-09-05.json`, flown headless by the test pilot).**
+Four 'rejected-takeoff' in eight logged attempts, and the mechanism was not
+the one the user named — the boom lifting was the symptom's last frame.
+1. LINEUP handed the aeroplane to ROLL still moving, up to 8 m off the
+   centreline with residual yaw, and ROLL's 20 m pursuit then commanded a
+   20°+ crab from the first metre. There was no stop.
+2. THE ROLL NEVER ROTATED. `A.rotate` was set by nothing, so the tail-up
+   sequence in ROLL was dead code on every build: a taildragger ran at a
+   fixed stick (`rollDe` 0.10), its tail lifted on its own at ~12 m/s, and
+   it then ran ON ITS MAINS until it floated off — measured: Vr 15.4 m/s,
+   airborne at 34 m/s after 300 m on two wheels with the wing carrying the
+   weight and the tyres carrying nothing. In a 2 m/s crosswind that run
+   slid 36 m sideways; the test pilot saw the airspeed stagnate against the
+   drag and called "not accelerating" at 8 s.
+3. When the tail lifts, the tailwheel branch of the solver's ground contact
+   stops (`pen <= 0`): the only steering left is the aero rudder at low q,
+   an inertial plant, while the rudder gains and the ±0.45 clamp were tuned
+   on the tailwheel's first-order one. Whatever heading the aeroplane had
+   at tail-up was the heading it kept.
+4. Not the cause: no torque, P-factor or swirl exists (Phase 6's
+   assessment); the twin is symmetric; the logged rejects are in calm air.
+   And the taxi: at the ±0.45 clamp this aeroplane's minimum ground turn is
+   `Lwb / tan(0.5 · 0.45)` = 20.8 m — the taxiway's 12 m corners were out
+   of reach at the travel the pilot allowed, which is the other half of
+   "cuts corners".
+
+**THE FIX, autopilot and generator only (no solver edit).**
+- `rotateTD`: EVERY taildragger rotates at Vr (`holdPitch(liftoffTh)`);
+  below it a capped build (`genGroundPowerCap` < 1) holds its three-point
+  stance so the tailwheel steers the whole run, an uncapped one lifts the
+  tail at VTailUp as the doctrine says. Three-point for every taildragger
+  was TRIED and is wrong: the elevator cannot hold the tail down at full
+  power anyway, the crosswind drift grew to 10 m and the PILOT gate's hover
+  fixture changed verdict.
+- `groundSteer` schedules on the tail state, read solver-free (both mains
+  down and pitch 2.3° under the latched stance): full rudder travel, a
+  q-scheduled P gain (×1.4 at VTailUp) and a stronger D. Tuned on the
+  trace: a softer 0.70 / 1.0× let a 2 m/s crosswind drift to 15 m; this
+  holds it to 7 m and every lift-off inside 3 m and 2.5°.
+- The ground-power throttle RAMPS from the cap to full over 2 s at VTailUp
+  instead of stepping (identical for cap 1).
+- The PILOT gate's HOVER fixture (582 + 360 kg) now rotates at Vr, sags
+  in ground effect and is condemned on the strip as 'not accelerating'
+  rather than airborne as 'wont-climb' — the same bounded refusal by
+  another door; the gate accepts either verdict and still refuses a record
+  with neither.
+
+**THE PATTERN (`sitePattern`, 25_airfield.js; `39_ground_path.js`).** A
+declared graph per aerodrome — nodes (stand · apron · gate · entry · taxi ·
+hold, a corner carrying its own fillet radius, a hold its lined-up
+heading), arcs, `routes.out[T]` from the stand to the hold for each take-off
+direction and `routes.back[T]` (a lane-and-U-turn) from anywhere on the
+strip, and TWO APPROACHES: `approaches[0]` lands on the record's own `tdz`
+to the bit (every calm gate keeps its number), `approaches[1]` on the mirror
+off the other threshold — a wind-flipped arrival used to aim at mid-field.
+HOME's is built from its datums (stand → apron row → gate → strip edge →
+centreline corner → hold 110 m in; 12 m fillets; the U-turn lane 12 m off
+the centreline, its corners 12 m); every generated strip gets the minimal
+spawn → hold → run. An authored `site.pattern` is returned verbatim, and
+`sitePatternIssues` is the validator the future editor reuses (holds on the
+centreline and lined up with ≥ 500 m of run, fillets ≥ 1.05 × the
+reference aeroplane's taxi radius where the strip is wide enough for one,
+nothing under the hangar, the fence crossed only through the gate with 6 m
+to spare, targets on the strip, slopes 2..5.7°). The editor for it is on
+ROADMAP.
+
+**THE FOLLOWER.** `patternPath` samples a route at 1 m with the tangent
+heading, the SIGNED CURVATURE and the arc length, corners filleted at their
+radius (the tangent length clamped to half the shorter leg, and the reduced
+radius REPORTED, never drawn wrong). TAXI steers on Stanley's cross-track
+term plus a curvature FEED-FORWARD (`-atan(Lwb · κ) / twSteer`) — a corner is
+steered before an error exists, which is what pure pursuit could not do —
+with the rudder's full travel at taxi speed, and a speed governor for the
+bend ahead (1 m/s²) and the stop at the end (0.5 m/s²). Two new phases:
+STOP (brakes to a standstill, steering the last heading while there is
+speed to steer with) and HOLD (two seconds still, lined up inside 2.5 m and
+6°, else one LINEUP correction and another stop). `departFrom` takes the
+site; the old `taxiOut` list still works for callers that pass one.
+Measured from the stand: taxi cross-track ≤ 2.1 m through 12 m corners at
+5 m/s, 11 m from the nearest fence post, the hold at 39.5 s, the roll at
+42 s from exactly 0.00 m and 0.0°.
+
+**VISIBILITY (`pattern_vis.js`, the rail's `patterns` flyout).** A ribbon
+along every route (shared arcs once), a disc per node, an amber STOP bar
+and arrow at each hold; the two glide slopes as dashed lines climbing from
+each aim point at the slope flown, the active one bright; a ring and a
+chevron at each touchdown target; and the same on the minimap (slopes and
+targets always, the taxi graph once nose-up). All off by default, so
+nothing on screen changes until asked.
+
+**GATES.** New GATE TAKEOFF (core, ~3 min): the fixture from the stand and
+from the spawn in calm air, two crosswinds, a headwind and a quartering
+wind — taxi cross-track < 2.5 m, > 2 m from every fence post, never on the
+flanks; a real stop; the roll begun inside 2.5 m and 6°; cross-track < 4 m
+(8 m in wind) through the roll; lift-off inside the same and 6°; no
+rejection; stand to roll < 150 s. Negative-verified on doctored records.
+GATE SITE grew the pattern checks (HOME against the ultralight's radius,
+every generated strip's minimal pattern, five authored breaks refused).
+PILOT's hover verdict widened as above. GEN re-flown (the calm datums:
+every taildragger now rotates at Vr).
+
+## G194 — THE PLAYTEST PASS, PHASE 6: EACH ENGINE ITS OWN LEVER, AND THE
+## PROPELLER EFFECTS ASSESSED INSTEAD OF FAKED (2026-09-05, the user: "further
+## individual control of the 2 engines (counter-rotation, turn one or the
+## other off, including in flight, ability to throttle them independently)";
+## on the physics: "pause this then, and replace with an assessment of the
+## physics gap we have there, impact, should we have it, how will it move our
+## existing fleet?")
+
+**THE LEVERS, no new physics.** `ctl.eng` is null (every engine running at
+full lever — the solver's thrust block is bit-identical to before, GATE
+JOIN holds the identity) or `[{ on, thr }]` per engine, a MULTIPLIER on
+the pilot's one throttle; the pilots never read or write it, and the test
+pilot's speed loop opens the good engine by itself when one is cut. The
+frame publishes `refs.engineOf` (which engine each mount node carries: a
+single mount `0, 0`, a wing pair port `0` / starboard `1`), `62_gen_aero`
+publishes `params.engines[{sense, side}]`, and the solver shares thrust
+PER ENGINE over its own nodes (`out.thrustPer`), so a cut or trimmed engine
+on a wing pair is a real yaw couple through the two nodes at ±z — an
+engine cut is 100 % asymmetric thrust, which the model already carried
+exactly. Measured in GATE JOIN: starboard at 50 % makes half the port
+thrust; cut, it makes none and the nose swings on the other. The rail's
+`engines` flyout: per engine a `running / cut` pill, a `lever` 0–100 %, a
+live thrust readout, and `sync levers`; the HUD's `% thr` joins the two
+engines with `·`. Restart puts every lever back (`sim.reset` nulls it).
+The props spin each by its own engine: the rate follows the lever, a cut
+engine winds down over 1.5 s to a windmill that stops when the aeroplane
+does, and the SENSE is the engine's own hand.
+
+**THE HAND, as spec truth.** `engines[i].sense` (+1 clockwise from behind,
+the Lycoming hand; −1 the other; absent = +1, so GEN_SPEC_V does not move)
+is the one field a wing pair's two entries may disagree on — the mirror
+clamp forces geometry, type, station, pylon and (now) `aim`, and exempts
+it. The editor's `rotation (pair)` row (`same hand · counter-rotating, tops
+inward · tops outward`) writes it through the join: tops inward is port +1 /
+starboard −1, the Seneca arrangement. `S.engAt` carries `sense` and `side`.
+The solver reads nothing from it yet.
+
+**THE ASSESSMENT is `futureDesigns/PROP-EFFECTS-2026-09-05.md`**: the four
+effects (reaction torque, P-factor, slipstream swirl, gyroscopic), what
+each needs from the model that it does not have (a shaft speed on every
+registry row — the one thing no stock row carries; a blade model; a swirl
+field), their size on the user's twin (370 N·m of roll same-hand, nothing
+counter-rotating; ~0.15 of rudder), on a Cub-class single (~100 N·m of left
+yaw at rotation, ~0.4 of rudder — the "right rudder on the roll" every
+taildragger pilot is taught, and the one place the gap is felt), and on a
+twin in general (only the DIFFERENCE between the engines matters, which is
+what counter-rotation removes); which builds it would move and by how much
+(every single-engine build gains a standing left roll and yaw the
+autopilots' existing trims absorb; the calm gates' zero traces stop being
+zero); and the recommendation: ship `sense` now (done), add torque and
+swirl TOGETHER WITH a shaft speed on every row as one gated chantier, leave
+P-factor and gyroscopic until a blade model exists — a constant dressed as
+physics is G115's DEFDAMP claim again. Until then, as the registry says of
+the R-1830's missing blower: same-hand and counter-rotating pairs fly
+identically, and there is no critical engine.
+
+Gates: JOIN (hands through the join and the resolve, `engineOf`, the
+levers, the identity, the yaw), BUILD (`sense` round trip, absent → +1),
+ENGID (the 582's label from G187), UISMOKE, PARTS (the new row claimed).
+
+**FOUND ON THE WAY: the boot that never opened.** A persisted "large map"
+panel preference (`flydiy.flPanels.big`) made the flight layer's boot call
+`flMapBig(true)` → `drawMap()` before any sim existed; `sim.cgPos()` threw
+inside the boot's tail (after the cage boot's try/catch, so nothing was
+logged), `hud()`/`loop()` never ran, and the splash stayed up for ever —
+the game would not open on that machine until localStorage was cleared.
+Pre-existing (HEAD has the same line), caught here because the test origin
+had that preference saved. `drawMap` now returns without a sim.

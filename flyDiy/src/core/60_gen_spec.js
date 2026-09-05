@@ -1971,8 +1971,15 @@ const GEN_DEFAULT = {
   // frame's own metres (x aft of the firewall, y over the cabin keel, z the
   // nacelle's half-span); null = each mount's own derivation; the join writes
   // them off the drawn engine. `pylon` is the over-the-wing pylon's height.
+  // `sense` (G194): which way the propeller turns, seen from behind — +1
+  // clockwise (the Lycoming / Continental hand), -1 anticlockwise. Absent
+  // means +1, which is what every spec before this field meant, so
+  // GEN_SPEC_V does not move for it. The one field a wing pair's two entries
+  // may DISAGREE on (counter-rotation); the solver reads nothing from it yet
+  // (futureDesigns/PROP-EFFECTS-2026-09-05.md is the assessment), the drawn
+  // propellers turn by it.
   engines: [{ type: 'a65_sensenich74', mount: 'nose', place: { dx: 0, dy: 0 },
-              x: null, y: null, z: null, pylon: null }],
+              x: null, y: null, z: null, pylon: null, sense: 1 }],
   // THE PROPELLER IS ITS OWN COMPONENT. `D` null keeps the one the chosen
   // powerplant shipped with, so a build nobody has touched flies exactly as it
   // did. Everything about it is honest physics rather than decoration: the disc
@@ -2440,6 +2447,7 @@ function clampSpec(spec) {
   fu.tailTop += fu.tailY;
 
   for (const e of S.engines) {
+    e.sense = (+e.sense === -1) ? -1 : 1;             // G194: +1 or -1, never else
     if (typeof POWERPLANTS !== 'undefined' && !POWERPLANTS[e.type])
       e.type = 'a65_sensenich74';
     if (!['nose', 'pusher', 'wingTop', 'wing'].includes(e.mount)) e.mount = 'nose';
@@ -2677,6 +2685,9 @@ function clampSpec(spec) {
     if (pair && S.engines.length === 1) S.engines.push(genClone(S.engines[0]));
     for (let i = 1; i < S.engines.length; i++) {
       const e = S.engines[i], e0 = S.engines[0];
+      // ...and its own HAND (G194): `sense` is the one field the pair may
+      // disagree on — counter-rotation is the whole point of it. `aim` is
+      // a pair property and follows the first entry like the rest.
       e.mount = e0.mount; e.type = e0.type;
       e.x = e0.x; e.y = e0.y; e.z = e0.z; e.pylon = e0.pylon;
       if (e0.custom) e.custom = genClone(e0.custom); else delete e.custom;
@@ -3166,6 +3177,10 @@ function resolveSpec(spec) {
                                z: zR + 0.35 * Math.max(0.5, semi - zR) }
             : { x: S.engX, y: S.engY, z: 0 };
     return { mount: m,
+             // G194: the hand, and which SIDE of a wing pair this entry is
+             // (the frame builds NL from entry 0 and NR from entry 1)
+             sense: (+e.sense === -1) ? -1 : 1,
+             side: m === 'wing' ? (i === 0 ? -1 : 1) : 0,
              x: e.x != null ? e.x : d.x,
              y: e.y != null ? e.y : d.y,
              z: m === 'wing' ? Math.abs(e.z != null ? e.z : d.z) : 0,
