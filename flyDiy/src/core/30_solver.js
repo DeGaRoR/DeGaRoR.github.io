@@ -107,6 +107,7 @@ function makeSim(def, world) {
     for (let i = 0; i < n; i++) minC = Math.min(minC, p[i*3+1] - r[i]);
     for (let i = 0; i < n; i++) p[i*3+1] += -minC + 0.01 + drop;
     ctl.thr = ctl.de = ctl.da = ctl.dr = ctl.brake = ctl.flap = 0;
+    ctl.eng = null;                                  // G194: every lever back to full
     simT = 0;
   }
   function stance() {
@@ -312,7 +313,6 @@ function makeSim(def, world) {
         // the mixing falls out of the geometry instead of being asserted.
         const cV = st.cosV, sV = st.sinV * st.side;
         sc[0]=xAft[0]; sc[1]=xAft[1]; sc[2]=xAft[2];
-    ctl.eng = null;                                  // G194: every lever back to full
         sn[0]=cV*yUp[0]-sV*zRt[0]; sn[1]=cV*yUp[1]-sV*zRt[1]; sn[2]=cV*yUp[2]-sV*zRt[2];
         norm3(sn);
       } else { // fin

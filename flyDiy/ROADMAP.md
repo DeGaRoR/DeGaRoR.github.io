@@ -1820,6 +1820,14 @@ made that argument load-bearing instead of decorative).
 
 ## FLOATING CHANTIERS (pull forward at will)
 
+**F0 — propeller effects** (torque, slipstream swirl; P-factor and gyroscopic
+later). ASSESSED 2026-09-05 instead of coded, at the user's ruling during the
+UltraLight3 pass: `futureDesigns/PROP-EFFECTS-2026-09-05.md`. Felt on one
+aeroplane only — the single-engine taildragger's roll (~0.4 of rudder at
+rotation); a twin's pairs fly identically same-hand or counter-rotating
+until then. Needs a SHAFT SPEED on every registry row first; `sense` per
+engine already ships (G194). One gated chantier: torque + swirl + rpm.
+
 **F1 — the reference overlay.** — PULLED FORWARD, STARTED 2026-08-30, arc
 numbers RESERVED G89-G93 (claimed in HANDOVER before starting, per the
 G76-G80 note's own protocol), user: "the goal is to recreate an existing
@@ -1853,14 +1861,6 @@ with a contact sheet. THREE THINGS THIS ENTRY DID NOT ANTICIPATE:
   index.html is 3.98 MiB against a mechanical 6 MiB budget (GATE MEDIA), the
   ceiling is gone, all eleven CC-BY references ship, and the four
   "SKETCHFAB Standard" imports were deleted outright rather than held. New
-**F0 — propeller effects** (torque, slipstream swirl; P-factor and gyroscopic
-later). ASSESSED 2026-09-05 instead of coded, at the user's ruling during the
-UltraLight3 pass: `futureDesigns/PROP-EFFECTS-2026-09-05.md`. Felt on one
-aeroplane only — the single-engine taildragger's roll (~0.4 of rudder at
-rotation); a twin's pairs fly identically same-hand or counter-rotating
-until then. Needs a SHAFT SPEED on every registry row first; `sense` per
-engine already ships (G194). One gated chantier: torque + swirl + rpm.
-
   assets cost their own bytes now, not a slice of a shared ceiling.
 
 **AND EIGHT MORE, ALL CC-BY — G142, 2026-09-01.** Diamond DA40, Grob G115,
