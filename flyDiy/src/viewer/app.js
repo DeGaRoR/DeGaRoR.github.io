@@ -3331,7 +3331,8 @@
            + 'the margin is small, so weight comes off before power goes on.' },
       'power there': { what: 'the fraction of sea-level power the engine still makes.',
         fix: 'a normally aspirated engine cannot avoid this. A turbocharged or an '
-           + 'electric powerplant holds its output far better with height.' },
+           + 'electric powerplant holds its output far better with height, and a '
+           + 'flat-rated turbine keeps its full rating to a density altitude.' },
       'service ceiling': { what: 'the height at which climb falls to 0.5 m/s.',
         fix: 'power against weight again, and wing area. A low ceiling and a poor '
            + 'climb are the same problem read twice.' },
@@ -3523,14 +3524,15 @@
     // cowl will one day have to swallow (the ventilation arc consumes it);
     // the burn is full-throttle shaft work through the family SFC, quoted
     // now so the consumption arc lands on a number the player has already
-    // lived with. 0.72 kg/L is the ledger's own avgas density (61_gen_frame).
+    // lived with. The litres use the MEDIUM'S density off the sheet (Jet-A
+    // 0.80, avgas 0.72 — 2026-09-05); 0.72 only for a sheet that predates it.
     if (s.coolKW != null) {
       H('powerplant');
       if (s.engineFamily === 'electric')
         R('full-throttle draw', n1(s.drawKW, 1) + ' kW');
       else if (s.burnKgH != null)
         R('full-throttle burn', n1(s.burnKgH, 1) + ' kg/h (' +
-          n1(s.burnKgH / 0.72, 0) + ' L/h)');
+          n1(s.burnKgH / (s.energyKgL || 0.72), 0) + ' L/h)');
       R('cooling duty', n1(s.coolKW, 0) + ' kW · ' +
         (s.engineCooling === 'liquid' ? 'by radiator' : 'by fins'));
     }

@@ -125,6 +125,36 @@ const fresh = (name) => {
   ok(labels.length === PRESET_NAMES.length, 'one label per preset, same order');
 }
 
+// 9. THE TURBOPROP (2026-09-05, TURBOPROP §9): an untouched PT6A preset IS
+//    its registry row; the flat-rating margin and the core diameter are
+//    physics dials (modified, named); a powertrain flip is custom. This is
+//    the block that would have passed BY ACCIDENT before familyOf existed —
+//    a turbine classed 'four' on both sides compares equal.
+{
+  const P = fresh('P&W PT6A-34');
+  ok(FACTS(P) === null, 'untouched PT6A-34 -> null (certified row flies)');
+  ok(Math.round(P.engPower) === 2, 'the preset set the powertrain row to turbine');
+  const P2 = fresh('P&W PT6A-34');
+  P2.eng_flatK = +(P2.eng_flatK + 0.1).toFixed(2);
+  const f2 = FACTS(P2);
+  ok(!!f2 && f2.name === 'modified P&W PT6A-34',
+     `margin change -> ${f2 && f2.name}`);
+  ok(f2 && f2.aspiration === 'turbine' && f2.family === 'turbine' &&
+     f2.cooling === 'air', 'aspiration/family ride turbine, cooling air');
+  ok(f2 && f2.flatK > 1.4 && f2.length > 1,
+     `and the margin (${f2 && f2.flatK}) and length (${f2 && f2.length.toFixed(2)} m) ride with it`);
+  const P3 = fresh('P&W PT6A-34'); P3.eng_tCanD += 0.05;
+  const f3 = FACTS(P3);
+  ok(!!f3 && f3.powerW > 600000 && /^modified /.test(f3.name),
+     `a fatter core makes more power (${f3 && (f3.powerW / 1e3).toFixed(0)} kW), still a PT6A-34 modified`);
+  const P4 = fresh('P&W PT6A-34'); P4.engPower = 0;
+  const f4 = FACTS(P4);
+  ok(!!f4 && /^custom /.test(f4.name) && f4.family !== 'turbine',
+     `powertrain flipped to piston -> custom (${f4 && f4.name})`);
+  const P5 = fresh('P&W PT6A-114A'); P5.eng_stackStyle = 1 - Math.round(P5.eng_stackStyle);
+  ok(FACTS(P5) === null, 'the stacks are dress: a bare PT6A-114A is still a PT6A-114A -> null');
+}
+
 // THE VERDICT CONTRACT (G67.1): the runner requires BOTH signals.
 if (fails) console.log('\n  ' + fails + ' check(s) failed');
 console.log('GATE ENGID: ' + (fails ? 'FAIL' : 'PASS'));

@@ -125,6 +125,14 @@ const CASES = [
       canL: 0.086, rpm: 5000, fwW: 0.60, fwH: 0.55 } },
   { name: 'E-811 housed liquid', spec: { arch: 'electric', eStyle: 2,
       canD: 0.268, canL: 0.19, rpm: 2500, liquid: 1, fwW: 0.70, fwH: 0.65 } },
+  // THE TURBOPROP (2026-09-05): the two presets, and a bare one without
+  // stacks or a plate
+  { name: 'PT6A-114A (turboprop)', spec: { arch: 'turbine', tCanD: 0.40,
+      tCanL: 1.05, flatK: 1.26, tRpm: 1900, fwW: 0.80, fwH: 0.80 } },
+  { name: 'PT6A-34 (turboprop)', spec: { arch: 'turbine', tCanD: 0.435,
+      tCanL: 1.05, gearK: 1.15, flatK: 1.33, tRpm: 2200, fwW: 0.85, fwH: 0.85 } },
+  { name: 'bare turboprop', spec: { arch: 'turbine', stackStyle: 0,
+      mount: 0, fwOn: 0 } },
   // the LOD ladder: full battery EXCEPT density — a LOD trades density by
   // definition, but its cables must still connect and still not clip
   { name: 'LOD close', spec: ENGM_LODS[1].set, lod: true },
@@ -162,7 +170,8 @@ const findPart = (M, name, occ) => {
 // the case tail follows the stagger (G24.10) — same formula as the builder
 const zTailOf = M => {
   const R = M.resolved;
-  if (R.arch === 'electric') return R.place.zCanB;
+  // the turbine publishes the electric's can keys on purpose (2026-09-05)
+  if (R.arch === 'electric' || R.arch === 'turbine') return R.place.zCanB;
   const zBack = R.place.zAft + (R.P.accessories ? R.P.accLen : 0);
   // bank stagger exists only on the flat; a radial's rear ROW sits one
   // mesh row-pitch aft (same formulas as the builder)
@@ -178,7 +187,7 @@ const caseSDF = (M, p) => {
   const R = M.resolved, cR = R.place.caseR;
   // the electric body's field is the can cylinder over its own z-range —
   // the check's ruler, recomputed from resolve like the combustion one
-  if (R.arch === 'electric') {
+  if (R.arch === 'electric' || R.arch === 'turbine') {
     const L = R.place;
     if (p[2] > L.zCanF + 1e-9 || p[2] < L.zCanB - 1e-9) return 1e9;
     return Math.hypot(p[0], p[1]) - L.canR;
@@ -445,8 +454,10 @@ for (const C of CASES) {
       hard(C.name + ': no canister airbox with twin cones', !hasPart(/^air$/));
     }
   }
-  // BAY FURNITURE (G25.1): the flags must produce their parts
-  if (M.resolved.arch !== 'electric') {
+  // BAY FURNITURE (G25.1): the flags must produce their parts — a PISTON
+  // bay's (a turbine's starter is the starter-generator on its accessory
+  // case, `startGen`, and it has no oil filter to spin on, 2026-09-05)
+  if (M.resolved.arch !== 'electric' && M.resolved.arch !== 'turbine') {
     if (M.P.starter) hard(C.name + ': starter present', hasPart(/^starter$/));
     if (M.P.oilFilter && !M.P.twoStroke)
       hard(C.name + ': spin-on oil filter present', hasPart(/^oilFilter$/));
@@ -478,6 +489,22 @@ for (const C of CASES) {
            M.arteries.filter(a => /^dc\d$/.test(a.name)).length === 2);
     hard(C.name + ': no combustion parts on an electric',
          !hasPart(/^barrel|^head|^rocker|^carb|^mag|^sump$|^collector/));
+  }
+  if (M.resolved.arch === 'turbine') {
+    // the turboprop's consequences (2026-09-05): no pistons, no copper; a
+    // gearbox, a can, a plenum with its screen, an accessory case; two
+    // stacks unless bare; the mount contract when mounted
+    hard(C.name + ': no combustion or electric parts on a turbine',
+         !hasPart(/^barrel|^head|^rocker|^carb|^mag|^sump$|^collector|^windings|^esc$/));
+    hard(C.name + ': gearbox, can, plenum, screen, accessory case',
+         hasPart(/^gearbox$/) && hasPart(/^can$/) && hasPart(/^plenum$/) &&
+         hasPart(/^inletScreen$/) && hasPart(/^accCase$/));
+    const nStack = M.parts.filter(p => /^stack[LR]$/.test(p.name)).length;
+    hard(C.name + (M.P.stackStyle === 0 ? ': bare, no stacks' : ': two stacks, left and right'),
+         nStack === (M.P.stackStyle === 0 ? 0 : 2));
+    if (M.P.mount)
+      hard(C.name + ': four mount tubes on the plenum ring',
+           M.arteries.filter(a => /^mountTube\d$/.test(a.name)).length === 4);
   }
   if (M.P.twoStroke) {
     hard(C.name + ': two-stroke has no pushrods', !hasPart(/^rod\d/));
@@ -857,6 +884,25 @@ hard('dressed flat-4 budget at q1 (< 30000 quads)',
        'worst ' + worstE.toExponential(2));
 }
 
+// ---- 5c: scale invariance, turboprop (2026-09-05) --------------------------
+{
+  const S = 2;
+  const bareT = { arch: 'turbine', fwOn: 0, battOn: 0, ecuOn: 0, plumb: 0 };
+  const T1 = engMeshBuild(Object.assign({}, bareT));
+  const T2 = engMeshBuild(Object.assign({}, bareT,
+    { tCanD: 0.40 * S, tCanL: 1.05 * S, fwW: 0.80 * S, fwH: 0.80 * S }));
+  hard('turbine scale: same counts',
+       T1.V.length === T2.V.length && T1.F.length === T2.F.length,
+       T1.V.length + ' vs ' + T2.V.length);
+  let worstT = 0;
+  if (T1.V.length === T2.V.length)
+    for (let i = 0; i < T1.V.length; i++)
+      for (let k = 0; k < 3; k++)
+        worstT = Math.max(worstT, Math.abs(T2.V[i][k] - S * T1.V[i][k]));
+  hard('turbine scale: coordinates exactly 2x', worstT < 1e-9,
+       'worst ' + worstT.toExponential(2));
+}
+
 // dressed families: flat, inline (coerced two-stroke), radial (coerced
 // four-stroke, air), electric (G25) — only genuinely undressed layouts refuse
 {
@@ -865,6 +911,8 @@ hard('dressed flat-4 budget at q1 (< 30000 quads)',
   hard('a vee refuses loudly', threw);
   hard('an electric builds (G25)',
        engMeshBuild({ arch: 'electric' }).stats.quads > 0);
+  hard('a turboprop builds (2026-09-05)',
+       engMeshBuild({ arch: 'turbine' }).stats.quads > 0);
   hard('an inline is coerced to two-stroke',
        engMeshBuild({ arch: 'inline', cyl: 2 }).P.twoStroke === 1);
   hard('a radial is coerced to air-cooled four-stroke', (() => {

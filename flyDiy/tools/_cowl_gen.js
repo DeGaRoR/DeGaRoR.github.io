@@ -48,7 +48,7 @@ const P={
   lobeN:2, lobeAmp:0.022, lobeAz:0, lobeSig:34.0, lobeT:0.45, lobeTSig:0.3,
   cutSpan:0, cutAz:270.0,
   // chin scoop
-  scoopOn:1, scoopW:0.065, scoopH:0.055, scoopLen:0.22, scoopDrop:0.7,
+  scoopOn:1, scoopZ:0, scoopW:0.065, scoopH:0.055, scoopLen:0.22, scoopDrop:0.7,
   scoopAp:0.68, scoopSq:0.5, scoopRake:0.18,
   scoopLipH:0.011, scoopLipDepth:0.032, scoopDuct:0.125,
   // aft — the fuselage is a given; the cowl inherits its section by default
@@ -617,7 +617,11 @@ function buildScoop(group,mats){
   const d=clamp(P.detail,0.35,2), ze=zEnd(), rings=[], inside=[];
   const NS=Math.max(9,Math.round(14*d)), SS=Math.max(18,Math.round(32*d));
   const baseY=spineY(ze*0.6)-sectionAtZ(P.cowlLen*0.5).bB*P.scoopDrop;
-  const z1=P.cowlLen+P.lidLen*0.35, z0=z1-P.scoopLen;
+  // THE STATION (2026-09-05): scoopZ slides the mouth from the lid (0, the
+  // line every cowl before it was drawn from — byte-identical there) back to
+  // the firewall (1), where a reverse-flow turbine takes its air
+  const zMouth0=P.cowlLen+P.lidLen*0.35;
+  const z1=zMouth0-(P.scoopZ||0)*(zMouth0-P.scoopLen), z0=z1-P.scoopLen;
   const n=sqExp(P.scoopSq);
   for(let i=0;i<NS;i++){
     const t=i/(NS-1), e=smooth(t);

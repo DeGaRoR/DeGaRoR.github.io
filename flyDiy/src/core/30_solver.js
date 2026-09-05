@@ -43,6 +43,9 @@ function makeSim(def, world) {
   // dials started from, exactly as params.prop already outranks PP.prop above.
   const EN = P_.engine || PP.engine;
   const ASP = (EN && EN.aspiration) || 'na';
+  // a turbine's flat-rating margin (2026-09-05, TURBOPROP §2) — 1 for every
+  // other family, which 05_atmos ignores; the three readers below pass it
+  const FLAT = (EN && EN.flatK) || 1;
   const n = def.nodes.length;
   const p = new Float64Array(n * 3), v = new Float64Array(n * 3),
         f = new Float64Array(n * 3), m = new Float64Array(n),
@@ -202,7 +205,7 @@ function makeSim(def, world) {
     // and what the powerplant makes of it — see 05_atmos.js, where both
     // scalings are re-derived from 60_gen_spec's own prop synthesis rather than
     // asserted.
-    const PS = atmosPropScale(sig, ASP);
+    const PS = atmosPropScale(sig, ASP, FLAT);
     out.rho = rho; out.sigma = sig; out.easK = easK;
     out.densityAlt = AIR.densityAlt(hAir); out.oatC = AIR.T(hAir) - 273.15;
     out.powerK = PS.power; out.thrustK = PS.kT;
@@ -620,13 +623,13 @@ function makeSim(def, world) {
     const A = airOf(), sg = A.sigma(hProbe);
     return { air: A, h: hProbe, rho: A.rho(hProbe), sigma: sg,
              easK: Math.sqrt(sg), densityAlt: A.densityAlt(hProbe),
-             oatC: A.T(hProbe) - 273.15, power: atmosPowerRatio(sg, ASP),
+             oatC: A.T(hProbe) - 273.15, power: atmosPowerRatio(sg, ASP, FLAT),
              aspiration: ASP };
   }
 
   function thrustAt(V, floor = 0, hAlt) {
     const A = airOf();
-    const PS = atmosPropScale(A.sigma(hAlt == null ? hProbe : hAlt), ASP);
+    const PS = atmosPropScale(A.sigma(hAlt == null ? hProbe : hAlt), ASP, FLAT);
     return Math.max(floor, PR.Tstatic * PS.kT - PR.kV2 * PS.kV * V * V)
            * (def.params.nEngines || 1);
   }

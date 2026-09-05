@@ -259,6 +259,10 @@ function rebuild() {
                   : R.mass.toFixed(1) + ' kg') + '\n' +
       'KV ' + R.kv.toFixed(0) + '  ' + R.cells + 'S (' +
       R.P.volts.toFixed(0) + ' V)  ' + R.rpm + ' rpm'
+    : R.arch === 'turbine'
+    ? R.archName + ' — ' + (R.powerW / 1000).toFixed(0) + ' kW rated (core ' +
+      (R.powerThermoW / 1000).toFixed(0) + ')  ' + R.mdot.toFixed(1) + ' kg/s  ' +
+      R.mass.toFixed(0) + ' kg'
     : R.archName + ' ' + R.cyl + ' — ' + R.litres.toFixed(2) + ' L  ' +
       (R.powerW / 1000).toFixed(1) + ' kW  ' + R.mass.toFixed(0) + ' kg';
   $('stat').textContent = head + '\n' +
@@ -282,19 +286,25 @@ function buildPanel() {
   pw.className = 'r';
   pw.innerHTML = '<span class="k">powertrain</span>';
   const psel = document.createElement('select');
-  for (const [val2, lab2] of [['piston', 'piston'], ['electric', 'electric']]) {
+  for (const [val2, lab2] of [['piston', 'piston'], ['electric', 'electric'],
+                              ['turbine', 'turbine']]) {
     const o = document.createElement('option');
     o.value = val2; o.textContent = lab2;
     psel.appendChild(o);
   }
-  psel.value = P.arch === 'electric' ? 'electric' : 'piston';
+  psel.value = P.arch === 'electric' ? 'electric'
+    : P.arch === 'turbine' ? 'turbine' : 'piston';
   psel.onchange = () => {
+    // remember what we leave (2026-09-05: a three-way, the turbine keeps
+    // its own rpm key so it neither takes nor gives one)
+    if (P.arch === 'electric') lastElec = { rpm: P.rpm };
+    else if (P.arch !== 'turbine') lastPiston = { arch: P.arch, rpm: P.rpm };
     if (psel.value === 'electric') {
-      lastPiston = { arch: P.arch, rpm: P.rpm };
       P.arch = 'electric';
       P.rpm = lastElec.rpm;
+    } else if (psel.value === 'turbine') {
+      P.arch = 'turbine';
     } else {
-      lastElec = { rpm: P.rpm };
       P.arch = lastPiston.arch;
       P.rpm = lastPiston.rpm;
     }

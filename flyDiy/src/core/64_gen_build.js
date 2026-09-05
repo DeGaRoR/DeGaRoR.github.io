@@ -578,6 +578,9 @@ function genShakedown(def, opts) {
       const E = genEnergyResolve(S);
       out.energyKind = E.battery ? 'battery' : 'fuel';
       out.energyMedium = (E.battery ? GEN_CELLS[E.medium] : GEN_FUELS[E.medium]).name;
+      // the medium's own density, so the plaque's L/h line stops assuming
+      // avgas (2026-09-05: Jet-A is 0.80, and a PT6 burns 220 L/h, not 244)
+      out.energyKgL = E.battery ? null : GEN_FUELS[E.medium].kgL;
       out.vesselName = E.vessel.name;
       out.vesselKg = E.vesselKg;
       out.energyKg = E.contentsKg;

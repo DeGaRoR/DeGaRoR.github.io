@@ -57,7 +57,12 @@ const engDefaults = () => Object.assign(
     // the electric fiche (G25) rides the same dict
     eStyle: EG.ENG_DEFAULT.eStyle, canD: EG.ENG_DEFAULT.canD,
     canL: EG.ENG_DEFAULT.canL, volts: EG.ENG_DEFAULT.volts,
-    escOn: EG.ENG_DEFAULT.escOn },
+    escOn: EG.ENG_DEFAULT.escOn,
+    // the turboprop fiche (2026-09-05) rides the same dict
+    tStyle: EG.ENG_DEFAULT.tStyle, tCanD: EG.ENG_DEFAULT.tCanD,
+    tCanL: EG.ENG_DEFAULT.tCanL, gearK: EG.ENG_DEFAULT.gearK,
+    flatK: EG.ENG_DEFAULT.flatK, tRpm: EG.ENG_DEFAULT.tRpm,
+    stackStyle: EG.ENG_DEFAULT.stackStyle },
   JSON.parse(JSON.stringify(EMOD.ENGM_DEFAULT)));
 
 const IN = 0.0254;
@@ -134,6 +139,17 @@ const PRESETS = {
     rpm: 2500, volts: 345, liquid: 1, fwW: 0.70, fwH: 0.65 },
   'SP260D-class': { arch: 'electric', eStyle: 2, canD: 0.418, canL: 0.30,
     rpm: 2500, volts: 580, liquid: 1, fwW: 0.85, fwH: 0.80 },
+  // THE TURBOPROPS (2026-09-05, TURBOPROP §3) — the two PT6A registry rows.
+  // Can diameters are the calibration anchors (0.40 m -> 499 kW rated at
+  // 1.26; 0.435 -> 559 at 1.33); prop rpm is each installation's (a
+  // Caravan's 106 in prop turns 1900, a Kodiak's 96 in 2200). The firewall
+  // is sized off the plenum the resolve builds, as the radials' are.
+  'P&W PT6A-114A': { arch: 'turbine', tStyle: 0, tCanD: 0.40, tCanL: 1.05,
+    gearK: 1.20, flatK: 1.26, tRpm: 1900, fwW: 0.80, fwH: 0.80,
+    carbOn: 0, airbox: 0, plumb: 0 },
+  'P&W PT6A-34': { arch: 'turbine', tStyle: 0, tCanD: 0.435, tCanL: 1.05,
+    gearK: 1.15, flatK: 1.33, tRpm: 2200, fwW: 0.85, fwH: 0.85,
+    carbOn: 0, airbox: 0, plumb: 0 },
   'bare engine': { mount: 0, fwOn: 0, plumb: 0 },
 };
 
@@ -145,8 +161,22 @@ const PRESETS = {
 const mm = x => (x * 1000).toFixed(0);
 const sFmt = x => x ? x : 'auto';
 const isElec = p => p.arch === 'electric';
-const isPiston = p => p.arch !== 'electric';
+const isTurbine = p => p.arch === 'turbine';
+const isPiston = p => p.arch !== 'electric' && p.arch !== 'turbine';
 const ENG_GROUPS = [
+  // THE TURBOPROP (2026-09-05, TURBOPROP §3): its own keys, so no row is
+  // rendered twice; NO aim row — a PT6's two stacks are left and right by
+  // construction, and the ENG_AIM scan in _eng_check stays at two.
+  ['turbine', [
+    ['tStyle',  'style', 'drop', EG.TURB_STYLE.map((t, i) => [i, t.name])],
+    ['tCanD',   'gas generator dia mm',    0.25, 0.60, 0.005, mm],
+    ['tCanL',   'gas generator length mm', 0.50, 1.40, 0.01, mm],
+    ['gearK',   'gearbox dia / can',       0.9, 1.5, 0.01],
+    ['flatK',   'flat rating (core / rated)', 1.0, 1.6, 0.01],
+    ['tRpm',    'prop rpm',                1500, 2700, 10],
+    ['stackStyle', 'exhaust', 'drop', [[1, 'paired stacks (PT6)'],
+                                       [0, 'none (bare)']]],
+  ], isTurbine],
   ['electric', [
     ['eStyle',  'style', 'drop', [[0, 'outrunner (RC / FES)'],
                                   [1, 'axial pancake (EMRAX)'],
@@ -282,5 +312,5 @@ const ENG_GROUPS = [
 ];
 
 window.ENG_PAGE = { COL, NEUTRAL, PROPS, engDefaults, PRESETS,
-                    GROUPS: ENG_GROUPS, isElec, isPiston };
+                    GROUPS: ENG_GROUPS, isElec, isPiston, isTurbine };
 })();

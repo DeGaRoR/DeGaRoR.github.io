@@ -57,12 +57,15 @@ exact(ATMOS_ISA.densityAlt(0), 0, 'densityAlt(0)');
 exact(ATMOS_ISA.pressureAlt(0), 0, 'pressureAlt(0)');
 exact(ATMOS_ISA.dISA, 0, 'ISA offset');
 exact(Math.sqrt(ATMOS_ISA.sigma(0)), 1, 'sqrt(sigma(0)) — the EAS factor');
-for (const asp of ['na', 'electric']) {
+for (const asp of ['na', 'electric', 'turbine']) {
   const s = atmosPropScale(ATMOS_ISA.sigma(0), asp);
   exact(s.kT, 1, `propScale.kT at sigma=1 (${asp})`);
   exact(s.kV, 1, `propScale.kV at sigma=1 (${asp})`);
   exact(s.power, 1, `powerRatio at sigma=1 (${asp})`);
 }
+// and a flat-rating margin changes nothing at sea level (2026-09-05)
+exact(atmosPropScale(ATMOS_ISA.sigma(0), 'turbine', 1.6).power, 1,
+      'powerRatio at sigma=1 (turbine, margin 1.6)');
 // and the empty call really is the standard day
 const blank = makeAtmos();
 exact(blank.rho(0), 1.225, 'makeAtmos() with no argument is ISA');
@@ -124,6 +127,24 @@ yes(atmosPowerRatio(0.8, 'na') < 1, `piston at sigma 0.8 makes ${(atmosPowerRati
 yes(atmosPowerRatio(0.8, 'na') < 0.8,
     'Gagg-Ferrar is WORSE than linear in sigma (that is why it is carried)');
 yes(atmosPowerRatio(0.05, 'na') === 0, 'the lapse clamps at zero, never negative');
+// THE TURBINE (2026-09-05, TURBOPROP §2): flat to where the core's own
+// power meets the rating, then the core's lapse (~sigma). The margin is the
+// third argument, per engine (`flatK` on the row).
+yes(atmosPowerRatio(1, 'turbine', 1.26) === 1, 'a turbine at sigma 1 is exactly rated');
+yes(atmosPowerRatio(0.85, 'turbine', 1.26) === 1,
+    'flat-rated: sigma 0.85 still makes rated power on a 1.26 margin');
+yes(Math.abs(atmosPowerRatio(0.6, 'turbine', 1.26) - 0.756) < 1e-12,
+    'above the flat band the core lapses with sigma (0.6 x 1.26 = 0.756)');
+yes(atmosPowerRatio(0.85, 'turbine', 1.26) > atmosPowerRatio(0.85, 'na'),
+    'and a turbine beats a piston in the same thin air');
+yes(atmosPowerRatio(0.85, 'turbine') === 0.85,
+    'with no margin declared a turbine lapses like its core from sea level');
+yes(atmosPowerRatio(0.9, 'turbine', 0.5) === 0.9,
+    'a margin below 1 reads as 1 — a rating above the core is not a thing');
+yes(atmosPropScale(0.7, 'turbine', 1.26).kV === 0.7 &&
+    Math.abs(atmosPropScale(0.7, 'turbine', 1.26).kT
+             - Math.cbrt(0.7) * Math.pow(0.7 * 1.26, 2 / 3)) < 1e-12,
+    'the prop scaling is the same three lines with the turbine\'s own power ratio');
 
 // ---- 7. and what the propeller does about that -----------------------------
 // The claim in 05_atmos.js is that the two scalings are not asserted but fall
@@ -159,17 +180,22 @@ for (const sig of [0.93, 0.80, 0.65]) {
 // assertion that a new registry row cannot skip it.
 console.log('--- 8. every powerplant declares what it breathes ---');
 const keys = Object.keys(POWERPLANTS);
-let missing = [], bad = [], nEl = 0;
+let missing = [], bad = [], nEl = 0, nTu = 0;
 for (const k of keys) {
   const a = POWERPLANTS[k].engine && POWERPLANTS[k].engine.aspiration;
   if (a == null) missing.push(k);
-  else if (a !== 'na' && a !== 'electric') bad.push(k + '=' + a);
+  else if (a !== 'na' && a !== 'electric' && a !== 'turbine') bad.push(k + '=' + a);
   if (a === 'electric') nEl++;
+  if (a === 'turbine') nTu++;
+  // a turbine row must carry the margin 05_atmos reads; nothing else may
+  if (a === 'turbine' && !(POWERPLANTS[k].engine.flatK >= 1)) bad.push(k + ' has no flatK');
+  if (a !== 'turbine' && POWERPLANTS[k].engine.flatK != null) bad.push(k + ' smuggles a flatK');
 }
 yes(missing.length === 0, `all ${keys.length} rows declare an aspiration` +
     (missing.length ? ' — MISSING: ' + missing.join(', ') : ''));
-yes(bad.length === 0, "every value is 'na' or 'electric'" + (bad.length ? ' — BAD: ' + bad.join(', ') : ''));
+yes(bad.length === 0, "every value is 'na', 'electric' or 'turbine', and only a turbine carries flatK" + (bad.length ? ' — BAD: ' + bad.join(', ') : ''));
 yes(nEl > 0 && nEl < keys.length, `the table has both kinds (${nEl} electric, ${keys.length - nEl} breathing)`);
+yes(nTu > 0, `and ${nTu} turbine row(s) since 2026-09-05`);
 // and the datum the whole project is anchored at is one number, not two
 exact(RHO, ATM.RHO0, 'RHO and ATM.RHO0 are the same datum');
 

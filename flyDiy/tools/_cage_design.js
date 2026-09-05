@@ -288,6 +288,10 @@ const iconSwatch = hex => ({ vb: '0 0 64 40',
 // simple glyphs for the rest
 const ICON = {
   engElectric: { vb: '0 0 64 40', paths: [{ d: 'M36 2 L20 24 L30 24 L26 38 L44 16 L33 16 Z' }] },
+  // a turboprop: the long can, the fat gearbox at the front, two stacks
+  engTurbine: { vb: '0 0 64 40', paths: [{ d: 'M18 14 L54 14 L54 26 L18 26 Z' },
+    { d: 'M8 11 L18 11 L18 29 L8 29 Z' }, { d: 'M4 16 L8 16 L8 24 L4 24 Z' },
+    { d: 'M20 14 L24 6 L30 6 L26 14 Z' }, { d: 'M20 26 L24 34 L30 34 L26 26 Z' }] },
   engFlat: { vb: '0 0 64 40', paths: [{ d: 'M24 14 L40 14 L40 26 L24 26 Z' },
     { d: 'M4 16 L24 16 L24 24 L4 24 Z' }, { d: 'M40 16 L60 16 L60 24 L40 24 Z' }] },
   engInline: { vb: '0 0 64 40', paths: [{ d: 'M26 20 L38 20 L38 34 L26 34 Z' },
@@ -544,6 +548,10 @@ function designEngineFamilies() {
         '— the seam where the procedural engine generator arrives' },
     { value: 'radial', label: 'Radial', icon: ICON.engRadial,
       writes: { cage: { engPower: 0, eng_arch: 2 } } },
+    // the turboprop (2026-09-05, TURBOPROP §9): the powertrain row's third
+    // value, the way electric is its second
+    { value: 'turbine', label: 'Turboprop', icon: ICON.engTurbine,
+      writes: { cage: { engPower: 2 } } },
   ];
 }
 
@@ -850,8 +858,8 @@ const DESIGN_ROWS = [
   { key: 'engFamily', label: 'Powertrain family', kind: 'discriminator',
     group: 'propulsion', status: 'live',
     help: 'selects into ENG_ARCH; the model list below follows it',
-    read: P => Math.round(P.engPower) ? 'electric'
-             : (['flat', 'inline', 'radial'][Math.round(P.eng_arch)] || 'flat'),
+    read: P => [null, 'electric', 'turbine'][Math.round(P.engPower)]
+             || (['flat', 'inline', 'radial'][Math.round(P.eng_arch)] || 'flat'),
     options: designEngineFamilies },
 
   // `plain`: the model list renders as a LIST, not icon tiles — eighteen
@@ -1197,6 +1205,31 @@ const ARCHETYPES = [
     over: { cage: PLAN_C172,
             spec: { finish: { decals: { m1On: 1, m1Pat: 1, m1A: 0x2c4a31,
                                         m1B: 0xc96f2a, m1D: 0xefe6cf } } } } },
+  // THE TURBOPROP SINGLE (2026-09-05, TURBOPROP §9 — the reason the arc
+  // exists): a PT6A-114A on a strutted high-wing tricycle with the most
+  // bays the class allows. On `n23` by the user's ruling (`util` stays
+  // inactive until this card lands its circuit). THE WING IS THE
+  // MEASUREMENT: on the C172 plan's 11 x 1.6 m the card cruised 61.9 m/s
+  // against the role's 50, and the test pilot went around twice on terrain
+  // and was still going around at 420 s; at the slider's full 14 m and a
+  // 1.9 m chord (a Caravan's is 15.9 x 1.8) it cruises 50.3, stalls 22.5,
+  // and completes the circuit with a full stop at 334 s (sink 1.86 m/s).
+  // The fuel is what the raised cap allows a card to declare.
+  { key: 'caravan', kind: 'recreation', name: 'Caravan-alike', note: 'turboprop single, ' +
+      'strut-braced high wing, four bays, tricycle',
+    sel: { class: 'n23', role: 'touring', seatLayout: 1, paxCount: 4,
+           canopy: 'screen', mirror: 0, intCons: 3, boomStyle: 0, section: 1,
+           wgPos: 0, wgBrace: 0, wgTip: 1, wgFlapType: 2,
+           engFamily: 'turbine', engModel: 'P&W PT6A-114A', engMount: 'nose',
+           gearLayout: 'trike', suspension: 'spring', s1Fair: 1,
+           // the palette's own silver and night blue — a card must pick
+           // from the six the rows list (GATE DESIGN checks)
+           empennage: 'conv', scheme: 'sweep', base: 0xc7c9cc, trim: 0x1b3a5c },
+    over: { cage: Object.assign({}, PLAN_C172,
+                                { wgSpan: 14, wgChord: 1.9, wgChordTip: 1.5 }),
+            spec: { fuel: { litres: 600 }, prop: { D: 2.7, blades: 3 },
+                    finish: { decals: { m1On: 1, m1Pat: 1, m1A: 0x1b3a5c,
+                                        m1B: 0x7fa8c9, m1D: 0xc7c9cc } } } } },
   { key: 'rv', kind: 'recreation', name: 'RV-alike', note: 'low wing, bubble, cantilever alloy, fast',
     sel: { class: 'eab', role: 'touring', seatLayout: 1, paxCount: 1,
            canopy: 'full', mirror: 1, intCons: 3, boomStyle: 0, section: 3,

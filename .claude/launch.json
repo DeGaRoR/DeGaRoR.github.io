@@ -169,6 +169,15 @@
       "port": 8138
     },
     {
+      "name": "flydiy-turbo",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8140"
+      ],
+      "port": 8140
+    },
+    {
       "name": "flydiy-livery",
       "runtimeExecutable": "node",
       "runtimeArgs": [

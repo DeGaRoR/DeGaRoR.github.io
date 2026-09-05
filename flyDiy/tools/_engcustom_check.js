@@ -141,6 +141,52 @@ console.log('resolveSpec + genFrame: the custom engine flies');
   ok(d.params.engine && d.params.engine.aspiration === 'electric',
      'an electric custom row keeps its aspiration into the def');
 }
+{
+  // TURBINE (2026-09-05, TURBOPROP §1/§5/§8): the third aspiration, its own
+  // two numbers, and the fuel it forces
+  const s = clone(GEN_DEFAULT);
+  s.engines = [{ type: 'rotax912_warp', mount: 'nose',
+                 place: { dx: 0, dy: 0 },
+                 custom: { name: 'custom turbine 60 kW', mass: 40,
+                           powerW: 59600, rpm: 2200, aspiration: 'turbine',
+                           family: 'turbine', cooling: 'air',
+                           flatK: 1.4, length: 0.9 } }];
+  s.energy = { kind: 'fuel', fuel: 'avgas100LL' };
+  const r = resolveSpec(clampSpec(clone(s))).spec;
+  const cu = r.engines[0].custom;
+  ok(cu.aspiration === 'turbine' && cu.family === 'turbine',
+     'a turbine custom row keeps both keys through the clamp');
+  ok(cu.flatK === 1.4 && cu.length === 0.9,
+     'and its flat-rating margin and length ride with it');
+  ok(r.energy.fuel === 'jetA', 'the clamp put Jet-A in a turbine that asked for avgas');
+  ok(r.engBox.cylZ === r.engBox.halfW && r.engBox.cylReach === r.engBox.halfW &&
+     Math.abs((r.engBox.xA - r.engBox.xF) - 0.9) < 1e-9,
+     'the engine box has no cylinders and runs the declared length');
+  const d = buildGen(s);
+  ok(d.params.engine && d.params.engine.aspiration === 'turbine' &&
+     d.params.engine.flatK === 1.4,
+     'the def carries the turbine aspiration and its margin to the solver');
+  // the margin is the turbine's alone: a piston that declares one loses it
+  const p = clone(GEN_DEFAULT);
+  p.engines = [{ type: 'rotax912_warp', mount: 'nose', place: { dx: 0, dy: 0 },
+                 custom: { name: 'x', mass: 58, powerW: 59600, rpm: 5800,
+                           aspiration: 'na', family: 'four', cooling: 'liquid',
+                           flatK: 1.5, length: 1 } }];
+  p.energy = { kind: 'fuel', fuel: 'jetA' };
+  const rp = resolveSpec(clampSpec(clone(p))).spec;
+  ok(rp.engines[0].custom.flatK === undefined && rp.engines[0].custom.length === undefined,
+     'a piston cannot smuggle a flat-rating margin');
+  ok(rp.energy.fuel === 'avgas100LL', 'and the clamp took the kerosene out of it');
+  // the registry rows themselves force the fuel too
+  const t = clone(GEN_DEFAULT);
+  t.engines = [{ type: 'pt6a114a_hartzell3', mount: 'nose', place: { dx: 0, dy: 0 } }];
+  const rt = resolveSpec(clampSpec(t)).spec;
+  ok(rt.energy.fuel === 'jetA' && rt.pplant.engine.aspiration === 'turbine',
+     'a registry PT6 flies as a turbine and burns Jet-A');
+  ok(genEnginePrice('turbine', 503000) / POWERPLANTS.pt6a114a_hartzell3.price > 0.5 &&
+     genEnginePrice('turbine', 503000) / POWERPLANTS.pt6a114a_hartzell3.price < 2,
+     'the turbine price curve sits on its own rows');
+}
 
 // THE VERDICT CONTRACT (G67.1): the runner requires BOTH signals.
 if (fails) console.log('\n  ' + fails + ' check(s) failed');

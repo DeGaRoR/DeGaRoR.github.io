@@ -84,9 +84,21 @@ for (const [, rows] of EP.GROUPS)
 PAGE.defaults = Object.assign(defaults, PAGE.defaults || {});
 
 // the effective architecture, for the group `show` predicates and the spec
-const archOf = P => Math.round(P.engPower)
-  ? 'electric'
-  : (VALS.arch[Math.round(P.eng_arch)] || 'flat');
+// the powertrain row: 0 piston (the arch drop decides which), 1 electric,
+// 2 turbine (2026-09-05, TURBOPROP §9 — the binary became a three-way in
+// SIX places, every one through this table or familyOf below)
+const POWER_ARCH = [null, 'electric', 'turbine'];
+const archOf = P => POWER_ARCH[Math.round(P.engPower)]
+  || (VALS.arch[Math.round(P.eng_arch)] || 'flat');
+// the thermo family and the cooling an architecture + its dials imply — ONE
+// keeper, because CAGE_ENG_FACTS compared these four times over with the
+// piston/electric binary written out each time, and a turbine preset would
+// have been classed 'four' on BOTH sides and passed GATE ENGID by accident
+const familyOf = (arch, spec) => arch === 'electric' ? 'electric'
+  : arch === 'turbine' ? 'turbine' : (spec.twoStroke ? 'two' : 'four');
+const coolingOf = (arch, spec) => arch === 'turbine' ? 'air'
+  : (arch !== 'electric' && arch === 'radial') ? 'air'   // a radial coerces
+  : (spec.liquid ? 'liquid' : 'air');                    // air-cooled (G28)
 
 // ---- the dial dict, ONE KEEPER (G134) -------------------------------------
 // Every panel row, values through the drop tables — the same dict the mesh
@@ -133,7 +145,7 @@ const presetSpecOf = (name) => {
       } else if (r[2] === 'check') spec[k] = base[k] ? 1 : 0;
       else spec[k] = base[k];
     }
-  spec.arch = base.arch === 'electric' ? 'electric'
+  spec.arch = (base.arch === 'electric' || base.arch === 'turbine') ? base.arch
     : (VALS.arch.indexOf(base.arch) >= 0 ? base.arch : spec.arch);
   return spec;
 };
@@ -167,16 +179,19 @@ window.CAGE_ENG_FACTS = (P) => {
   let R;
   try { R = EG.engResolve(spec); } catch (e) { return null; }
   if (!R || !(R.powerW > 0) || !(R.mass > 0)) return null;
-  const elec = R.arch === 'electric';
+  const elec = R.arch === 'electric', turb = R.arch === 'turbine';
   const facts = {
     mass: R.mass, powerW: R.powerW, rpm: R.rpm,
     torque: R.torque != null ? R.torque
       : R.powerW / (2 * Math.PI * Math.max(1, R.rpm) / 60),
-    aspiration: elec ? 'electric' : 'na',
-    family: elec ? 'electric' : (spec.twoStroke ? 'two' : 'four'),
-    cooling: (!elec && spec.arch === 'radial') ? 'air'   // a radial coerces
-      : (spec.liquid ? 'liquid' : 'air'),                // air-cooled (G28)
+    aspiration: elec ? 'electric' : turb ? 'turbine' : 'na',
+    family: familyOf(R.arch, spec),
+    cooling: coolingOf(R.arch, spec),
   };
+  // a turbine's own two numbers ride to the clamp (TURBOPROP §1/§8): the
+  // flat-rating margin 05_atmos reads, and the bare length the engine box
+  // reads
+  if (turb) { facts.flatK = R.flatK; facts.length = R.env.length; }
   const psName = PRESET_NAMES[Math.max(0, Math.min(PRESET_NAMES.length - 1,
     Math.round(P.engPreset)))];
   const ps = presetSpecOf(psName);
@@ -185,16 +200,15 @@ window.CAGE_ENG_FACTS = (P) => {
   const eq = (a, b) => Math.abs(a - b) <= 1e-6 * Math.max(1, Math.abs(b));
   const isPreset = R0 && eq(R.mass, R0.mass) && eq(R.powerW, R0.powerW)
     && eq(R.rpm, R0.rpm) && R.arch === R0.arch
-    && facts.family === (R0.arch === 'electric' ? 'electric'
-                          : (ps.twoStroke ? 'two' : 'four'))
-    && facts.cooling === ((R0.arch !== 'electric' && ps.arch === 'radial')
-                          ? 'air' : (ps.liquid ? 'liquid' : 'air'));
+    && facts.family === familyOf(R0.arch, ps)
+    && facts.cooling === coolingOf(R0.arch, ps)
+    // a turbine's margin is a physics dial too: moving it moves what flies
+    && (!turb || eq(R.flatK, R0.flatK));
   if (isPreset && !ENG_FANTASY.has(psName)) return null;
   // deviated (or fantasy): name the thing by what it now is
   const kW = R.powerW / 1000;
   const sameKind = R0 && R.arch === R0.arch && !ENG_FANTASY.has(psName)
-    && facts.family === (R0.arch === 'electric' ? 'electric'
-                          : (ps.twoStroke ? 'two' : 'four'));
+    && facts.family === familyOf(R0.arch, ps);
   let regName = null;
   if (sameKind && typeof CAGE_JOIN_ENGINES !== 'undefined'
       && typeof POWERPLANTS !== 'undefined') {
@@ -202,7 +216,7 @@ window.CAGE_ENG_FACTS = (P) => {
     if (row) regName = row.engine.name;
   }
   facts.name = regName ? `modified ${regName}`
-    : elec ? `custom ${R.archName} ${kW.toFixed(kW < 10 ? 1 : 0)} kW`
+    : (elec || turb) ? `custom ${R.archName} ${kW.toFixed(kW < 10 ? 1 : 0)} kW`
     : `custom ${R.archName} ${R.cyl}-cyl ${R.litres.toFixed(1)} L`;
   return facts;
 };
@@ -280,12 +294,14 @@ for (const g of EP.GROUPS) {
   if (!items.length) continue;
   let when = P => +P.engOn;
   if (show === EP.isElec) when = P => +P.engOn && archOf(P) === 'electric';
+  else if (show === EP.isTurbine) when = P => +P.engOn && archOf(P) === 'turbine';
   else if (show === EP.isPiston)
-    when = P => +P.engOn && archOf(P) !== 'electric';
+    when = P => +P.engOn && archOf(P) !== 'electric' && archOf(P) !== 'turbine';
   // the radiator only exists on a liquid engine, and a radial coerces
-  // air-cooled (G28 audit discipline, applied to the import)
+  // air-cooled (G28 audit discipline, applied to the import); a turbine has
+  // an oil cooler in the cowl and no radiator
   if (name === 'radiator (liquid)')
-    when = P => +P.engOn && archOf(P) !== 'electric' &&
+    when = P => +P.engOn && archOf(P) !== 'electric' && archOf(P) !== 'turbine' &&
                 +P.eng_liquid && archOf(P) !== 'radial';
   BENCH_SUBS.push([name === 'engine' ? 'engine geometry' : name,
                    items, { when }]);
@@ -293,7 +309,7 @@ for (const g of EP.GROUPS) {
 
 const ENG_ITEMS = [
   ['engOn',     'engine',        0, 1, 1],
-  ['engPower',  'powertrain',    0, 1, 1, ['piston', 'electric'],
+  ['engPower',  'powertrain',    0, 2, 1, ['piston', 'electric', 'turbine'],
    { when: P => +P.engOn }],
   // A STARTER: writes the preset's values into the rows once — every
   // row below stays yours to edit after (the seating-starter pattern)
@@ -499,7 +515,7 @@ function applyEngPreset(P, name) {
   const pre = EP.PRESETS[name];
   if (!pre) return;
   const base = Object.assign(EP.engDefaults(), pre);
-  P.engPower = base.arch === 'electric' ? 1 : 0;
+  P.engPower = base.arch === 'electric' ? 1 : base.arch === 'turbine' ? 2 : 0;
   for (const [, rows] of EP.GROUPS)
     for (const r of rows) {
       const k = r[0];
@@ -520,18 +536,25 @@ if (typeof window !== 'undefined') window.CAGE_ENG_APPLY_PRESET = applyEngPreset
 
 const prevPost = PAGE.post;
 PAGE.post = ctx => {
-  if (prevPost) prevPost(ctx);
   const { scene, mesh, P, stat } = ctx;
+  // the preset starter fires exactly when the ROW changes — never on a load.
+  // AND IT FIRES BEFORE THE REST OF THE CHAIN (2026-09-05): the cowl's post
+  // runs inside prevPost and reads the engine's spec off P, so a preset that
+  // changes the architecture had to be written before the cowl looks — or
+  // the cowl fitted the OLD engine for one build (the first turboprop came
+  // up in a 0.64 m boxer cowl round a 1.46 m engine; a radial preset had
+  // always had the same one-build lag).
+  if (+P.engOn) {
+    const fire = engPresetStarter(P);
+    if (fire) {
+      applyEngPreset(P, fire);
+      const UI = window.CAGE_UI;
+      if (UI && UI.syncSliders) UI.syncSliders();
+    }
+  }
+  if (prevPost) prevPost(ctx);
   dispose(group); group = null;
   if (!P.engOn) return;
-
-  // the preset starter fires exactly when the ROW changes — never on a load
-  const fire = engPresetStarter(P);
-  if (fire) {
-    applyEngPreset(P, fire);
-    const UI = window.CAGE_UI;
-    if (UI && UI.syncSliders) UI.syncSliders();
-  }
 
   const FS = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
   // THE FACES (2026-09-04): one per engine, from the cowl layer's own
@@ -712,6 +735,9 @@ PAGE.post = ctx => {
   if (stat) {
     const head = R.arch === 'electric'
       ? (R.powerW / 1000).toFixed(1) + ' kW cont'
+      : R.arch === 'turbine'
+      ? (R.powerW / 1000).toFixed(0) + ' kW rated (core ' +
+        (R.powerThermoW / 1000).toFixed(0) + ')'
       : R.litres.toFixed(2) + ' L · ' + (R.powerW / 1000).toFixed(0) + ' kW';
     stat.textContent += '  ·  engine: ' + R.archName +
       (R.cyl ? ' ' + R.cyl : '') + ' · ' + head + ' · ' +

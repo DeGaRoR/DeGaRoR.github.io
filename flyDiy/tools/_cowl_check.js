@@ -344,8 +344,9 @@ ok('  ...and reports that it already fits', big.fits);
 
 // ---- 3. THE COWL FOLLOWS THE ENGINE (G154) --------------------------------
 // The user's scope: a round open cowl for radials, properly calibrated; the
-// boxer keeps the bench default. So the properties to hold are (a) exactly one
-// architecture changes anything, (b) what it produces CLEARS the engine, and
+// boxer keeps the bench default. So the properties to hold are (a) exactly TWO
+// architectures change anything — the radial, and since 2026-09-05 the
+// turboprop (TURBOPROP §7) — (b) what it produces CLEARS the engine, and
 // (c) the size comes from the ENGINE rather than a copied literal — the last
 // being the whole difference between "calibrated" and "a preset".
 //
@@ -401,6 +402,36 @@ ok('  ...and reports that it already fits', big.fits);
       ok('...with a real clearance over the heads, not a hug',
          r.need > radial.env.radius, f(r.need) + ' vs ' + f(radial.env.radius));
       ok('no note when it fits', r.note === null);
+    }
+
+    // THE TURBOPROP (2026-09-05, TURBOPROP §7): the radial's rows at the
+    // back, the opposite at the front, and the scoop where the engine
+    // breathes. No proportion band against a preset — there is no approved
+    // turbine preset yet; the user draws the first one.
+    const turbine = engResolve({ arch: 'turbine', tCanD: 0.40, tCanL: 1.05 });
+    const t = FOR('turbine', turbine.env, bigFace);
+    ok('a turboprop gets a cowl', !!t);
+    if (t && r) {
+      ok('turboprop: sealed and round, like the radial',
+         t.vals.fitNose === 2 && t.vals.cw_sqAftTop === 0.5 &&
+         t.vals.cw_sqFrontTop === 0.5 && t.vals.cw_sqAftBot === 0.5);
+      ok("turboprop: a CLOSED nose — one small annulus, well under a radial's ring",
+         t.vals.cw_apMode === 1 &&
+         t.vals.cw_apW / t.front < 0.6 * (r.vals.cw_apW / r.front),
+         f(t.vals.cw_apW / t.front, 3) + ' of the barrel vs the radial\'s ' +
+         f(r.vals.cw_apW / r.front, 3));
+      ok('turboprop: the chin scoop is ON and AT THE FIREWALL (a PT6 breathes at the back)',
+         t.vals.cw_scoopOn === 1 && t.vals.cw_scoopZ === 1 &&
+         t.vals.cw_scoopW > 0 && t.vals.cw_scoopLen > 0);
+      ok('turboprop: no lobes, and the cut-out left alone',
+         t.vals.cw_lobeN === 0 && t.vals.cw_cutSpan === undefined);
+      ok('turboprop: THE BARREL CLEARS THE PLENUM AND THE GEARBOX',
+         t.front >= t.need - 1e-9,
+         f(t.front * 2) + ' m across vs ' + f(t.need * 2) + ' needed');
+      ok("turboprop: the nacelle runs the engine's own length",
+         Math.abs(t.vals.cw_cowlLen - Math.min(2, turbine.env.length * 1.10)) < 2e-3,
+         f(t.vals.cw_cowlLen) + ' m for a ' + f(turbine.env.length) + ' m engine');
+      ok('turboprop: no note when it fits', t.note === null);
     }
 
     // CALIBRATED, NOT COPIED: a bigger engine must give a bigger cowl off the

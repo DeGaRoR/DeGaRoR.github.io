@@ -213,11 +213,12 @@ const EM = (() => {
     if (archAsk === 'radial') { spec.twoStroke = 0; spec.liquid = 0; }
     const R = EG.engResolve(spec);
     if (R.arch !== 'flat' && R.arch !== 'inline' && R.arch !== 'radial' &&
-        R.arch !== 'electric')
+        R.arch !== 'electric' && R.arch !== 'turbine')
       throw new Error('engMeshBuild: dressed families are flat, inline ' +
-                      '(two-stroke), radial and electric (got "' +
+                      '(two-stroke), radial, electric and turbine (got "' +
                       R.arch + '")');
     const elec = R.arch === 'electric';
+    const turb = R.arch === 'turbine';
     const inline = R.arch === 'inline';
     const radial = R.arch === 'radial';
     const P = Object.assign({}, ENGM_DEFAULT, R.P);   // R.P carries ride-through keys
@@ -891,6 +892,148 @@ const EM = (() => {
     // `leads` gates the phase cables and `plumb` the DC pair, so the LOD
     // recipes shed electric wiring exactly as they shed plug leads.
     // =======================================================================
+    // =======================================================================
+    // THE TURBOPROP (2026-09-05, TURBOPROP §6) — the PT6 reverse-flow, its
+    // own short branch beside the electric one, on the same primitives and
+    // the same mount contract. From the flange aft: the reduction gearbox
+    // (fatter than the core), the two exhaust stacks just behind it (left
+    // AND right by construction — no aim row), the gas generator can, the
+    // inlet plenum wrapping the can's rear with its screen, the accessory
+    // case with the fuel control and the starter-generator, and the mount
+    // ring on the plenum with the truss to the plate. Stacks are PARTS, not
+    // arteries — a casting, not a route. Every dimension a ratio of
+    // cR/canL, so the 2x scale claim holds. No arteries: the services group
+    // is the piston's, and a turbine's fuel and throttle lines are the burn
+    // model's to draw when it lands.
+    // =======================================================================
+    if (turb) {
+      const canL = L.canL;
+      const zGF = L.zGearF, zCF = L.zCanF, zCB = L.zCanB, zAft = L.zAft;
+      const flangeL = L.flangeL, gearL = L.gearL, gearR = L.gearR;
+      const accL = L.accL, plenR = L.plenR;
+      const ports = {};
+      const arteries = [];
+      const artery = (name, from, to, ends) =>
+        arteries.push(Object.assign({ name, from, to }, ends));
+      const nV = P.eFins > 0 ? Math.round(P.eFins)
+        : Math.max(6, Math.min(22, Math.round(2 * Math.PI * cR / (3.2 * EDGE))));
+
+      // ---- shaft + prop flange (the electric's, verbatim) -----------------
+      part('flange');
+      lathe([0, 0, 0], [0, 0, -1], { u: X, w: Y }, [
+        { t: 0, r: 0.42 * cR }, { t: 0.16 * flangeL, r: 0.42 * cR },
+        { t: 0.16 * flangeL, r: 0.14 * cR }, { t: flangeL, r: 0.14 * cR },
+      ], ENGM_MAT.flange, true, false, S.shaft);
+      if (P.screws) {
+        part('flangeBolt', 'solid', 12);
+        for (let k = 0; k < 6; k++) {
+          const a2 = k / 6 * 2 * Math.PI;
+          bolt([Math.cos(a2) * 0.27 * cR, Math.sin(a2) * 0.27 * cR, 0],
+               [0, 0, 1], 0.05 * cR, ENGM_MAT.flange);
+        }
+      }
+
+      // ---- the reduction gearbox: a bell, its base INSIDE the can ---------
+      part('gearbox');
+      lathe([0, 0, zGF + 0.06 * flangeL], [0, 0, -1], { u: X, w: Y }, [
+        { t: 0, r: 0.50 * gearR }, { t: 0.08 * gearL, r: 0.86 * gearR },
+        { t: 0.20 * gearL, r: gearR }, { t: 0.72 * gearL, r: gearR },
+        { t: 0.90 * gearL, r: 0.93 * gearR },
+        { t: gearL + 0.06 * flangeL + 0.04 * canL, r: 0.96 * cR },
+      ], ENGM_MAT.case, true, true, S.acc);
+
+      // ---- the gas generator can, a gentle combustor bulge forward -------
+      part('can');
+      lathe([0, 0, zCF - 0.02 * canL], [0, 0, -1], { u: X, w: Y }, [
+        { t: 0, r: 0.94 * cR }, { t: 0.06 * canL, r: cR },
+        { t: 0.30 * canL, r: 1.03 * cR }, { t: 0.42 * canL, r: cR },
+        { t: 0.96 * canL, r: cR }, { t: canL, r: 0.94 * cR },
+      ], ENGM_MAT.case, true, true, S.acc);
+
+      // ---- the inlet plenum round the rear of the can, and its screen -----
+      // (a PT6 breathes at the BACK: the air comes in here, turns forward
+      // through the compressor and leaves by the stacks at the front)
+      const zPlF = zCB + 0.34 * canL, zPlB = zCB + 0.07 * canL;
+      part('plenum');
+      lathe([0, 0, zPlF], [0, 0, -1], { u: X, w: Y }, [
+        { t: 0, r: 0.97 * cR }, { t: 0.03 * canL, r: plenR },
+        { t: zPlF - zPlB - 0.03 * canL, r: plenR },
+        { t: zPlF - zPlB, r: 0.97 * cR },
+      ], ENGM_MAT.intake, false, false, S.acc);
+      {
+        // the screen: thin rings proud of the plenum barrel
+        part('inletScreen', 'fins', nV);
+        for (let k = 0; k < nV; k++) {
+          const zc = zPlF - (0.06 + 0.88 * (k + 0.5) / nV) * (zPlF - zPlB);
+          const th = 0.88 * (zPlF - zPlB) / nV * 0.14;
+          lathe([0, 0, zc], Z, { u: X, w: Y }, [
+            { t: -th, r: plenR * 0.995 }, { t: -th, r: plenR * 1.04 },
+            { t: th, r: plenR * 1.04 }, { t: th, r: plenR * 0.995 },
+          ], ENGM_MAT.intake, false, false, S.acc);
+        }
+      }
+
+      // ---- the accessory case, and what hangs on it -----------------------
+      part('accCase');
+      lathe([0, 0, zCB + 0.03 * canL], [0, 0, -1], { u: X, w: Y }, [
+        { t: 0, r: 0.86 * cR }, { t: 0.03 * canL + 0.25 * accL, r: 0.80 * cR },
+        { t: 0.03 * canL + 0.70 * accL, r: 0.66 * cR },
+        { t: 0.03 * canL + accL, r: 0.42 * cR },
+      ], ENGM_MAT.acc, true, true, S.acc);
+      if (P.accessories === undefined || P.accessories) {
+        // the fuel control unit, low on the left; its front face aft of the
+        // can's own cap so nothing kisses (G25.3)
+        part('fcu');
+        prism([-0.55 * cR, -0.45 * cR, 0], Z, X, Y,
+              roundRect(0.34 * cR, 0.26 * cR, 0.05 * cR),
+              zCB - 0.05 * canL, zCB - 0.05 * canL - 0.75 * accL,
+              ENGM_MAT.acc, true, true, 0.02 * cR);
+        // the starter-generator, high on the right
+        part('startGen');
+        lathe([0.45 * cR, 0.55 * cR, zCB - 0.05 * canL], [0, 0, -1],
+              { u: X, w: Y }, [
+          { t: 0, r: 0.16 * cR }, { t: 0.60 * accL, r: 0.16 * cR },
+        ], ENGM_MAT.acc, true, true, S.detail);
+      }
+
+      // ---- the two stacks, just behind the gearbox, out and aft -----------
+      if (Math.round(P.stackStyle === undefined ? 1 : P.stackStyle) !== 0 &&
+          (P.exhaust === undefined || P.exhaust)) {
+        const z0 = zCF - 0.10 * canL;
+        for (const [nm, sx] of [['stackL', -1], ['stackR', 1]]) {
+          part(nm, 'tube');
+          const path = fillet([
+            [sx * 0.60 * cR, 0.45 * cR, z0],                 // rooted in the can
+            [sx * 1.30 * cR, 0.62 * cR, z0 - 0.02 * canL],
+            [sx * 1.75 * cR, 0.62 * cR, z0 - 0.30 * canL],   // out, then aft
+          ], 0.35 * cR);
+          sweep(path, 0.24 * cR, ENGM_MAT.exhaust,
+                { capA: true, lipB: true, sides: S.pipe });
+        }
+      }
+
+      // ---- mount ring on the plenum, truss to the plate -------------------
+      // a PT6 hangs from the rear of its gas generator and cantilevers
+      // forward; the lugs sit in the plenum's own metal at radius cR, the
+      // truss runs outboard and aft past the accessory case
+      const zFw = zAft - P.mountGap * cR;
+      const rL = cR / Math.SQRT2;
+      const lugC = [[-rL, rL, zPlB], [rL, rL, zPlB],
+                    [-rL, -rL, zPlB], [rL, -rL, zPlB]];
+      const lugs = lugC.map(p => [p[0], p[1], zPlB - 0.26 * cR]);
+      const fwPts = fwPtsOf(lugC, zFw);
+      if (P.mount) mountTruss(lugC, lugs, fwPts, zFw, artery, {});
+      if (P.fwOn) fwPlateAt(zFw);
+      ports.lugs = lugs; ports.fwPts = fwPts;
+
+      endParts();
+      let tris = 0;
+      for (const f of F) tris += new Set(f.v).size >= 4 ? 2 : 1;
+      return { V, F, parts, ports, arteries, resolved: R, P,
+               edgeTarget: EDGE,
+               stats: { verts: V.length, quads: F.length, tris } };
+    }
+
     if (elec) {
       const canL = L.canL, s = L.eStyle;
       const zCF = L.zCanF, zCB = L.zCanB, zAft = L.zAft;

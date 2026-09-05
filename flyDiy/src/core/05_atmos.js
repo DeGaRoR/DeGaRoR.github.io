@@ -107,8 +107,23 @@ const ATMOS_ISA = makeAtmos({});
 // changes is what the propeller can do with it. That difference is real, it is
 // large (a piston loses a quarter of its thrust where a motor loses a
 // twentieth), and it costs one declared field on the registry row.
-function atmosPowerRatio(sig, aspiration) {
+//
+// A TURBINE IS FLAT-RATED (2026-09-05, futureDesigns/TURBOPROP-2026-09-05.md
+// §2). Its core makes more power than the gearbox and the rating allow — a
+// PT6A-114A is rated 675 shp from a core good for ~850 — and the fuel control
+// holds the rating until the thinning air brings the core's own power (which
+// falls ~sigma, with mass flow) down to meet it. `flat` is that margin,
+// thermodynamic over rated, declared per engine as `flatK` on the row: 1.26
+// holds rated power to sigma 0.79 (~2 300 m ISA, or a 35 °C day at 1 200 m),
+// then the lapse is the core's. Exactly 1 at sigma = 1 for any margin, so
+// the sea-level identity every gate stands on is untouched. FIRST CUT, named:
+// the real limit is turbine inlet temperature, so a hot day bites a turbine
+// through temperature more than through density; sigma carries both with the
+// right sign and the split is the second cut, when a plaque asks for it.
+function atmosPowerRatio(sig, aspiration, flat = 1) {
   if (aspiration === 'electric') return 1;
+  if (aspiration === 'turbine')
+    return Math.min(1, Math.max(1, flat || 1) * sig);
   // Written as 1 - 1.132(1 - sigma) rather than 1.132 sigma - 0.132. Same line,
   // but this one returns EXACTLY 1 at sigma = 1 instead of 1 + 2e-16.
   return Math.max(0, 1 - 1.132 * (1 - sig));
@@ -132,8 +147,10 @@ function atmosPowerRatio(sig, aspiration) {
 // The two families differ in kT alone — sigma for the piston (its power lapses
 // too), sigma^(1/3) for the motor (only the disc is thinner). At sigma = 1 both
 // are exactly 1, which is the identity the whole gate battery stands on.
-function atmosPropScale(sig, aspiration) {
-  const pr = atmosPowerRatio(sig, aspiration);
+// The turbine is one more `pr` (flat, then the core's lapse) — `flat` is
+// only passed through.
+function atmosPropScale(sig, aspiration, flat = 1) {
+  const pr = atmosPowerRatio(sig, aspiration, flat);
   const kT = Math.cbrt(sig) * Math.pow(pr, 2 / 3);
   return { kT, kV: sig, power: pr };
 }

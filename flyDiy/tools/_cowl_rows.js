@@ -146,6 +146,10 @@ const COWL_ROWS = [
   // ---- Chin scoop ----
   { id: 'g_scoop', name: 'Chin scoop', rows: [
     { k: 'scoopOn', label: 'Chin scoop', lo: 0, hi: 1, step: 1 },
+    // 2026-09-05 (TURBOPROP §7): where along the cowl the scoop sits —
+    // 0 is the lip (every cowl drawn before this row), 1 is the firewall,
+    // which is where a PT6 breathes
+    { k: 'scoopZ', label: 'Station (lip → firewall)', lo: 0, hi: 1, step: 0.01 },
     { k: 'scoopLen', label: 'Length', lo: 0.05, hi: 0.8, step: 0.01 },
     { k: 'scoopW', label: 'Half-width', lo: 0.03, hi: 0.3, step: 0.005 },
     { k: 'scoopH', label: 'Half-height', lo: 0.02, hi: 0.2, step: 0.002 },

@@ -541,6 +541,37 @@ const COWL_BY_ARCH = {
     // goes through the ring, not through a chin scoop
     cw_lobeN: 0, cw_scoopOn: 0,
   },
+  // THE TURBOPROP (2026-09-05, TURBOPROP §7): the radial's rows at the back
+  // and the OPPOSITE at the front. Sealed and round, a CLOSED nose rolled to
+  // the spinner with one small annulus for the gearbox's cooling air (a
+  // radial's ring is the whole engine's, a turbine's is a gearbox's), no
+  // lobes — and the chin scoop ON and AT THE FIREWALL, because a PT6
+  // breathes at the back of its can. The two exhaust stacks pierce the skin
+  // where they stand: a side aperture pair for them is owed (the tool cuts
+  // its apertures in the front face only).
+  turbine: {
+    fitNose: 2,
+    cw_sqAftTop: 0.5, cw_sqAftBot: 0.5, cw_sqFrontTop: 0.5, cw_sqFrontBot: 0.5,
+    cw_lidSqTop: 0.5, cw_lidSqBot: 0.5,
+    cw_deckH: 1, cw_keelH: 1, cw_waist: 0,
+    cw_lidRise: 0, cw_faceRise: 0,
+    cw_keelSweep: 0, cw_deckSweep: 0, cw_waistSweep: 0,
+    cw_lidMode: 0, cw_lidRound: 0.75, cw_lidShoulder: 0.35,
+    cw_apMode: 1, cw_apSq: 0.5, cw_apOffX: 0, cw_apOffY: 0,
+    cw_lipMode: 1, cw_lipThick: 0.020, cw_lipProtrude: 0.4, cw_lipInset: 0.04,
+    cw_lipDepth: 0.10, cw_lipRound: 0.7, cw_ductLen: 0.16,
+    cw_scoopOn: 1, cw_scoopZ: 1, cw_scoopDrop: 0.9, cw_scoopSq: 0.55,
+    cw_lobeN: 0,
+  },
+};
+// THE PROPORTIONS a styled cowl takes from its engine's own size: the lid
+// and the inlet as fractions of the barrel, the scoop (turbine only) too.
+// The radial's are the approved preset's; the turbine's inlet is a third of
+// it because it cools a gearbox, not nine cylinders.
+const COWL_PROPS = {
+  radial:  { lid: 0.30, lidR: 0.23, ap: 0.58 },
+  turbine: { lid: 0.30, lidR: 0.23, ap: 0.22,
+             scoopW: 0.42, scoopH: 0.30, scoopLen: 0.30 },
 };
 
 // PURE, so the gate can exercise it without a browser. Returns the cage keys
@@ -571,13 +602,19 @@ window.CAGE_COWL_FOR_ENGINE = function (arch, env, face) {
   // the lid and inlet proportions are the RADIAL preset's — a boxer keeps
   // its own lid and aperture rows (size only, see COWL_BY_ARCH)
   if (styled) {
-    vals.cw_lidLen = +Math.max(0.02, Math.min(1, vals.cw_cowlLen * 0.30)).toFixed(3);
-    vals.cw_lidR = +Math.max(0.005, Math.min(0.55, front * 0.23)).toFixed(3);
-    vals.cw_apW = +Math.max(0.02, Math.min(0.7, front * 0.58)).toFixed(3);
+    const PR = COWL_PROPS[arch] || COWL_PROPS.radial;
+    vals.cw_lidLen = +Math.max(0.02, Math.min(1, vals.cw_cowlLen * PR.lid)).toFixed(3);
+    vals.cw_lidR = +Math.max(0.005, Math.min(0.55, front * PR.lidR)).toFixed(3);
+    vals.cw_apW = +Math.max(0.02, Math.min(0.7, front * PR.ap)).toFixed(3);
     vals.cw_apH = vals.cw_apW;
+    if (PR.scoopW) {
+      vals.cw_scoopW = +Math.max(0.03, Math.min(0.3, front * PR.scoopW)).toFixed(3);
+      vals.cw_scoopH = +Math.max(0.02, Math.min(0.2, front * PR.scoopH)).toFixed(3);
+      vals.cw_scoopLen = +Math.max(0.05, Math.min(0.8, vals.cw_cowlLen * PR.scoopLen)).toFixed(3);
+    }
   }
   const note = front + 1e-9 < need
-    ? (styled ? 'radial' : arch) + ' cowl: the firewall is too small — ' +
+    ? arch + ' cowl: the firewall is too small — ' +
       (front * 2).toFixed(2) + ' m across where this engine needs ' +
       (need * 2).toFixed(2) + ' m'
     : null;

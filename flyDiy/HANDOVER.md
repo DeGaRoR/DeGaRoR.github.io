@@ -29252,6 +29252,27 @@ with genPropSynth props at 2.7-2.9 m, three blades; and the fuel kind
 (Jet-A in GEN_FUELS, its density and price). Two sessions; ROADMAP Phase 6
 item 7. Without it a Caravan/Kodiak-alike is an R-985 with a long nose.
 
+**Turboprops — THE STUDY (2026-09-05, no G-number: nothing built).** The
+paragraph above is superseded by `futureDesigns/TURBOPROP-2026-09-05.md`.
+Three rulings from the user: the deliverable is the study; the bench derives
+power FROM GEOMETRY (an inlet annulus inside the can sets mass flow, mass
+flow sets thermodynamic power, a `flatK` dial flat-rates it — `elecResolve`'s
+shape, `turbResolve` beside it); the PT6 REVERSE-FLOW is the one layout.
+What the study found that the costing had not: an engine is THREE independent
+keys (`aspiration` / `family` / `arch`) and the turbine needs a value in each
+plus ONE new per-row number (`flatK`), carried into `atmosPowerRatio` as an
+optional third argument through the three solver call sites; the editor's
+piston/electric BINARY lives in six places and a turbine preset would pass
+GATE ENGID by accident (classed 'four' on both sides); the `engBox` is
+cube-root-of-mass and gives a 160 kg / 1.6 m turbine a 0.35 m box with
+phantom cylinders; the frame hangs the engine's mass AT THE MOUNT RING and a
+PT6's CG is ~0.7 m ahead of it — the largest error the category introduces,
+proposed as `cgFwd` on every row in its own half-session; the 400 L fuel cap
+bites a Caravan's 1 250 L; the chin scoop has no station row; and the mesh
+gate's ENG_AIM "exactly 2 drops" scan is dodged by giving a PT6 no aim row
+(its two stacks are left and right by construction). Session 1 the turbine
+FLIES (code only), session 2 it is DRAWN; §13 owes the user three answers.
+
 ## G177 — TWIN-BOOM SPEC, SESSION 1: THE ENGINE BLOCK, THE GLAZING, THE
 ## BOOM'S TOP TUBES (2026-09-04; the spec is futureDesigns/TWIN-BOOM-2026-09-04.md,
 ## the user: "Go with your proposals")
@@ -30392,6 +30413,110 @@ aircraft-change door. `.claude/launch.json` at the repository root carries
 forty session-named dev-server entries; it is the user's tool config, not
 the game, and was not touched.
 
+## G186 — THE TURBINE FLIES: A THIRD ASPIRATION, FLAT-RATED, ON KEROSENE
+## (2026-09-05; session 1 of futureDesigns/TURBOPROP-2026-09-05.md, the user:
+## "agree with your recommendations ... have a strategy to avoid conflicts
+## and reserve g numbers if needed")
+
+**The strategy, first, because it is what the user asked for.** ROADMAP's
+own protocol (~line 1284): a number is taken WHEN THE CHANTIER LANDS, at most
+the one being written is reserved. So nothing was reserved; FILES were held
+instead, and the two live peer sessions were told which (by message, before
+the first edit). The biplane session answered that it was taking G185 with
+sub-steps G185.1..12 and asked this one to take G186 — hence the number. The
+UltraLight session answered with its own regions and a GEN_SPEC_V 7->8 bump;
+this arc bumps nothing (nullable fields only), so migrator 7 is theirs. Both
+sessions' hunks landed in the same files (30_solver, 60_gen_spec, 64_gen_build,
+app.js) during the same hours without a collision, because every edit here
+re-read its region first and wrote the region only; `git diff` shows the
+interleaving. One `build.js` at the end; nothing reverted with git.
+
+**What landed (code only, nothing drawn — the study's §11 "the turbine
+FLIES").**
+- **Three keys and one number** (§1). `aspiration: 'turbine'` (00_registry
+  header, `'turbo'` stays reserved for a blower), `family: 'turbine'` in
+  `GEN_ENG_THERMO` (sfc 0.35 kg/kWh, cool 0.05 — the heat leaves by the
+  pipe), and `flatK` on the engine dict (core over rated, 1.26 on a -114A,
+  1.33 on a -34), plus an optional `length` for the engine box.
+- **The law** (§2). `atmosPowerRatio(sig, aspiration, flat = 1)`:
+  `min(1, flat * sig)` for a turbine — rated power to where the core's own
+  ~sigma lapse meets it, then the core's. Exactly 1 at sigma 1 for any
+  margin. `atmosPropScale` passes `flat` through; the solver reads
+  `FLAT = EN.flatK || 1` beside `ASP` and passes it at its three call sites.
+- **Two registry rows** (§4): `pt6a114a_hartzell3` (503 kW, 160 kg, 240 000
+  credits) and `pt6a34_hartzell4` (560 kW, 150 kg, 265 000), props by
+  `genPropSynth` at their own disc (7.7 kN and 8.1 kN static). A `turbine`
+  price curve (250 · kW^1.1) sits on both within 2 %; the custom-row price
+  cap rose 200k -> 600k to admit it.
+- **Jet-A and its ONE keeper** (§5). `GEN_FUELS.jetA` (0.80 kg/L, 43.0
+  MJ/kg, 1.30/L). The spec clamp derives the first engine's family (custom
+  row, else registry) and coerces the medium: a turbine gets kerosene, a
+  piston never does. The editor's select shows what the clamp wrote. The
+  plaque's L/h line reads the medium's density off the sheet
+  (`energyKgL`) instead of 0.72, and the hot-and-high advice text names the
+  flat-rated turbine.
+- **The fuel caps rose** (§5, the user's ruling): 140 / 400 / 400 ->
+  2 000 / 1 000 per vessel / 2 000 total. No fixture moved.
+- **The engine box** (§8): a turbine has no cylinders (`cylZ = cylReach =
+  halfW`) and runs its declared `length` fore-aft; piston and electric are
+  byte-identical (GATE GEN compares).
+- **Gates**: ATMOS (§2 identity for three aspirations + margin, §6 the flat
+  band and the lapse, §8 the enum + "only a turbine carries flatK"),
+  ENGINE (custom turbine row keeps its keys, margin and length; a piston
+  cannot smuggle them; the clamp puts kerosene in and takes it out; a
+  registry PT6 flies as a turbine), HOTHIGH §3 (a third sheet: the SAME
+  airframe and 59.6 kW as the piston, as a custom row).
+
+**Measured.**
+- Cold `buildGen` of the PT6A-114A on the default airframe: fuel `jetA`,
+  plaque `turbine · 176.0 kg/h (220 L/h) · Jet A-1 · cooling 25.2 kW`, the
+  box 1.60 m long with no reach; DA sheet ISA 100 % / hot (sigma 0.854)
+  100 %.
+- HOTHIGH: turbine x1.252 field-length ratio against the piston's x1.490 on
+  the same 1 614 m density altitude, 100 % power there; a 5 000 m probe
+  (sigma 0.601) reads 78 % = 0.601 x 1.3 to 1e-9.
+- ATMOS, ENGINE, BUILD, ENERGYBASE, ENERGY, HOTHIGH: PASS. GEN: see the
+  trap below (re-calibrated, rerun noted at the end of this entry).
+
+**Traps, each measured before it was written down.**
+1. **"At sea level the two are the same aeroplane" was FALSE by 4.00 kg**,
+   and the model was the honest party: the clamp had put Jet A-1 in the
+   turbine's 50 L, and kerosene is 0.08 kg/L denser — 155 m -> 159 m of
+   run. The assertion now says exactly that (`+4.00 kg for 50 L, expected
+   +4.00`), from `GEN_FUELS` rather than a literal.
+2. **GATE GEN's "clampSpec holds the envelope" was measuring the fuel cap,
+   not the aeroplane**: the wild spec's 9 999 L clamped to 140 L for two
+   years and its `mass < 900` bound was calibrated to that; at 1 000 L
+   (720 kg of avgas) the bound tripped. It is now net of fuel
+   (`s2.mass - s2.energyKg < 900 && litres <= 2000`). The biplane session
+   diagnosed the same red independently (same litres, same mass) and asked
+   whether the cap should be bounded by the airframe: the honest bound
+   already exists one level down — a vessel must FIT its bay (`vesselFit`
+   on the plaque, `GEN_BAYS` capacity) — what does not exist is a REFUSAL,
+   and that is recorded as owed rather than invented as a class cap.
+3. **`'alloy'` is not a prop material key** (`alu` is); `genPropSynth` fell
+   back to wood without a word. Thrust does not read the material, so the
+   registry numbers are right — and the row's prop NAME is decorative
+   anyway: the spec's own prop outranks the registry's, and a cold build
+   showed `2-blade wood 2.69 m`.
+4. **Two gate batteries at once** — this session's `--only` run and a peer's
+   full core run started four seconds apart — put two 600 MB `test_gen.js`
+   side by side: GEN took 1 260 s. Check `wmic process` before reading a
+   silent runner as hung; the runner prints nothing until a gate ends.
+5. A 20 KB heredoc hits Windows' command-line limit (`ENAMETOOLONG` from
+   `uv_spawn`); the Write tool does not.
+
+**Owed (the study's own list).** Session 2 — the turbine is DRAWN
+(`turbResolve` beside `elecResolve`, the PT6 mesh branch, the slim nacelle
+cowl style with a `scoopZ` row, `engPower` 0..2 in six places, the tile,
+the caravan archetype on `n23`); the half-session for `cgFwd` (the frame
+hangs 160 kg at the mount ring, a PT6's CG is 0.7 m ahead — the largest
+error the category introduces); the `util` class; residual jet thrust;
+part-load SFC when the burn model lands. Session 2 must wait for
+`_cage_eng.js` to be free — the UltraLight session holds it.
+
+**GEN rerun after the recalibration: 73/73, PASS.** Battery for this arc: ATMOS, GEN, BUILD, ENGINE, ENERGYBASE, ENERGY (core) and HOTHIGH (full) all green on the shared tree, with the biplane and UltraLight sessions' hunks in it. The heading is G186 by agreement with both peers (the biplane holds G185.x, the UltraLight session wrote G187 knowing this one was taken), so it sits after G187 in the file the way G182.1 sits after G183.
+
 ## G187 — THE PLAYTEST PASS, PHASE 1: THE PICKER THAT STAYED, THE TREE THAT
 ## STOPPED INDENTING, THE ENGINE THAT WOULD NOT SAY ITS WEIGHT (2026-09-05, the
 ## user's UltraLight3 review: fifteen corrections, six phases; this is the
@@ -30704,6 +30829,212 @@ HANDOVER section of their own, LABEL CONVENTIONS, so the next panel does
 not have to infer them from the type ladder's comment and the trunk's.
 GATE ENERGY's source assertions are on builders and calls, not labels, and
 pass unchanged; UISMOKE and PARTS pass.
+
+## G192 — THE TURBINE IS DRAWN: THE PT6 ON THE BENCH, IN THE EDITOR, UNDER
+## ITS OWN NACELLE (2026-09-05; session 2 of futureDesigns/TURBOPROP-2026-09-05.md,
+## the user: "start session 2 once _cage_eng.js is free")
+
+**Sequencing, first.** Session 2 waited for the UltraLight session to release
+`_cage_eng.js` (it said so by message after its G189 commit) and asked the
+biplane session which of the dirty cage-layer files were its before opening
+one region in each; both answered with their regions, none overlapped. The
+bench trio (`_eng_gen`, `_eng_mesh`, `_eng_page`), the cowl generator and
+rows, and their gates were clean and were taken first. G186's number was
+agreed by message; this one was read off the last `## G` heading at the
+moment of writing, per ROADMAP's protocol — and STILL COLLIDED: the UltraLight
+session had committed its own G191 (736dc33) minutes earlier, and its commit
+rebuilds HANDOVER from HEAD plus its entry, so the working file I read did
+not yet carry it. Renumbered to G192 at its request. LESSON: the last
+heading in the WORKING file is not the last heading in HEAD; read
+`git log --oneline -1` too, and say the number by message before writing.
+
+**What landed.**
+- **The bench law** (§3, the user's ruling: power FROM GEOMETRY). `ENG_ARCH.
+  turbine` (counts empty), `TURB_STYLE` (one row, the PT6 reverse-flow: kD
+  0.55, kH 0.50, vax 100, specKW 180, n1 37 500, n2 33 000) and
+  `turbResolve` beside `elecResolve` in `_eng_gen.js`: the first compressor
+  stage is an annulus inside the can, so mass flow is inlet geometry; the
+  core's power is mass flow; the rating is the core over `flatK`; mass is
+  `3.75 · kWthermo^0.57`; the gearbox reduces n2 to the prop rpm the builder
+  dials. Same output contract as the electric resolve, with the electric's
+  `canR/zCanF/zCanB` published on purpose so the mesh gate's rulers read it
+  through the branch they already have. Its own keys — `tCanD`, `tCanL`,
+  `tRpm`, `gearK`, `flatK`, `tStyle`, `stackStyle` — so no row renders
+  twice. NO aim row: the stacks are left and right by construction, and the
+  `ENG_AIM` scan in `_eng_check.js` stays at two.
+- **The mesh** (§6): a `turb` branch in `_eng_mesh.js` beside the electric
+  one — flange, the reduction gearbox bell (fatter than the core, its base
+  inside the can), the gas generator can with a combustor bulge, the inlet
+  plenum round the rear of the can with its screen (thin rings proud of the
+  barrel), the accessory case with the fuel control and the
+  starter-generator, two exhaust stacks just behind the gearbox (parts, not
+  arteries), and the mount ring ON THE PLENUM with the shared truss to the
+  plate. Materials reused (`case, acc, exhaust, intake, flange, mount, puck,
+  firewall`), so no section grew.
+- **The page** (`_eng_page.js`): a `turbine` group with `isTurbine`,
+  `isPiston` now "neither electric nor turbine", two presets (`P&W
+  PT6A-114A`, `P&W PT6A-34`) with their join rows in `_cage_join.js` — the
+  option labels quote the registry rows (160 kg · 503 kW), which is how a
+  missing join row would have shown.
+- **The editor** (§9): `engPower` 0..2 (`piston / electric / turbine`), and
+  the six binaries became one `POWER_ARCH` table plus `familyOf` /
+  `coolingOf` in `_cage_eng.js` — `archOf`, `presetSpecOf`, the facts, the
+  two identity expressions, `applyEngPreset`, the group predicates; a
+  turbine's `flatK` and `length` ride on the facts to the clamp; the stat
+  line reads "kW rated (core N)".
+- **The cowl** (§7): `COWL_BY_ARCH.turbine` — the radial's rows at the back,
+  a CLOSED nose (one annulus at 0.22 of the barrel where the radial's ring is
+  0.58 — `COWL_PROPS` now carries the per-architecture proportions), the
+  chin scoop ON and AT THE FIREWALL through a new `scoopZ` row
+  (`_cowl_rows.js`, `_cowl_gen.js` — byte-identical at 0, which is every cowl
+  drawn before it), no lobes, and the scoop sized off the barrel.
+- **The design tab**: a `Turboprop` tile (its own icon), the `engFamily`
+  read three-way, and a `caravan` card on `n23` — a PT6A-114A on the C172
+  plan with four bays, spring gear, 600 L, a 2.7 m three-blade, in the
+  palette's silver and night blue.
+- **The parts table**: the `turbine` group under the engine part,
+  `eng_tStyle` in the trunk's type list, `cw_scoopZ` under the chin scoop.
+- **The legacy bench page** (`_engine.html`): the powertrain select is a
+  three-way and the stat line reads the turbine.
+- **Gates**: ENGMESH (three turbine cases, a 2x scale case, "a turboprop
+  builds", the turbine's own consequences block, the bay-furniture checks
+  scoped to pistons), ENGID §9 (untouched PT6A-34 → null; the margin and
+  the core diameter are physics dials → `modified P&W PT6A-34`; a
+  powertrain flip → custom; the stacks are dress), COWL §3 widened to two
+  architectures with a turbine block, DESIGN/PARTS/SAVE/STARTER/JOIN/UISMOKE.
+
+**Measured.**
+- `turbResolve`: 0.40 m of can → 3.49 kg/s, 629 kW core, 499 kW rated at
+  1.26 (the -114A's 503), 148 kg; 0.435 m → 743 kW core, 559 rated at 1.33
+  (the -34's 560), 162 kg. Envelope radius 0.240 / 0.250 m, length 1.46 /
+  1.49 m, CG 0.63 m behind the flange.
+- The mesh: 14 325 verts / 14 176 quads on the -114A, four arteries (the
+  mount tubes), density 0.50 of target, scale-exact at 2x.
+- In the editor (dev.html, the peer's static server at 8125): preset →
+  powertrain TURBINE, style PT6 reverse-flow, no console errors; the cowl
+  panel reads SEALED (SIZE ONLY), 1.604 m from the firewall, one opening on
+  the axis 0.056 m, scoop at station 1, taper 1.12, no lobes.
+- Battery: ATMOS, ENGINE, ENGMESH, ENGID, COWL, PARTS, SAVE, STARTER, JOIN,
+  DESIGN, UISMOKE all PASS on the shared tree (the biplane's and the
+  UltraLight's hunks in it). ARCHETYPES: see the last line of this entry.
+
+**Traps, each measured before it was written down.**
+1. **THE PRESET FIRED ONE BUILD TOO LATE, and always had.** The preset
+   starter ran inside the engine's post, which runs AFTER the cowl's
+   (manifest order), so a preset that changes the architecture left the cowl
+   fitted to the OLD engine for a build: the first turboprop came up in a
+   0.635 m boxer cowl round a 1.46 m engine. A radial preset had the same
+   lag since G154 — nobody had measured the cowl panel right after a preset.
+   The starter now fires BEFORE `prevPost` (`_cage_eng.js`), so the cowl
+   sees the new P in the same build; GATE STARTER (fires on a row, never on
+   a load) is untouched.
+2. **A rebuild is the only cache-buster.** dev.html loads the tool scripts
+   under a `?v=<hash>` from the last build; an edit AFTER the build is
+   invisible to a tab that has that hash cached, and `fetch(..., {cache:
+   'reload'})` on every script did not change what ran. `node
+   tools/build.js` and a reload did. Verify after a build, never after an
+   edit.
+3. **The mesh gate assumed every non-electric engine was a piston**: the
+   bay-furniture claims (starter, oil filter, battery) went red on a
+   turbine whose starter is the starter-generator on its accessory case.
+   Scoped to pistons.
+4. **A card's colours must come from the palette** (six hexes each for base
+   and trim) — the biplane session read GATE DESIGN before I did and named
+   it; silver and night blue.
+5. **The mass law's own honesty**: the study said fitting on the core's
+   power "explains the light -34". It does not — the -34 is lighter than the
+   -114A on core power too (150 kg at 743 kWth against 160 at 629). The
+   residuals are ±8 % with the exponent declared, which is the two engines
+   disagreeing about a gearbox, and the study's sentence is corrected here.
+6. **Five dev servers per folder** and all five were other chats': the pane
+   opened the dev page on a peer's static server by URL instead
+   (`_serve.js` serves the tree, so any of them will do).
+7. The `zoom` action does not crop in this pane, the camera flyout's
+   buttons move with the panels, and the 3D strip is narrow until both side
+   panels fold — three rounds each, none worth repeating.
+
+**Owed.**
+- A SIDE aperture pair for the stacks: the cowl tool cuts apertures in the
+  front face only, so the two stacks pierce the skin where they stand.
+- `cgFwd` (the engine's CG arm — its own half-session, the user's ruling).
+- The caravan card flies a 14 x 1.9 m wing (the slider's full span), not a
+  Caravan's 15.9 x 1.8; the `util` class stays inactive — the card lands its
+  circuit on `n23`, which was the user's condition, and the class is the next
+  decision.
+- A straight-through style (`TURB_STYLE[1]`): TPE331, Walter M601.
+- The plenum screen is rings, not mesh; the FCU and starter-generator are
+  a box and a can; the stacks' lips are the sweep's own. The user's eye on
+  the first drawn PT6 is the next step before any of it is refined.
+
+## LABEL CONVENTIONS (2026-09-05, written down at the user's request: "revise
+## the fuel interface styling and adjust to the label conventions (maybe to
+## be written explicitly)")
+
+The rules the inspector already lived by, in one place. A new row, a new
+panel or a new part follows them; GATE PARTS and GATE UISMOKE catch the
+mechanics, this paragraph is the reason.
+
+1. **A row label is a lower-case sentence fragment**, two or three words,
+   no trailing unit and no colon: `taper length`, `fuel aboard`, `paint
+   hue`. The unit lives in the VALUE readout (`1.46 m`, `43 kg`, `48 kW`),
+   never in the label. A word in brackets is the domain word when the plain
+   word would be ambiguous: `fore / aft (base off the flange)`.
+2. **The common trunk uses the trunk's words.** Every part opens with
+   `fitted / type / position / size`, and a row that IS one of those says
+   so with the slot's own word wherever that is literally what it does:
+   `fore / aft`, `up / down`, `in / out`, `length`, `width`, `height`. A row
+   that means something narrower keeps its own word and says the slot word
+   in brackets. The trunk gives a row a heading and an order, never a
+   second name (the glossary rule: one label, one keeper — the layer file
+   that declares the row).
+3. **UPPERCASE IS RESERVED FOR GROUP LABELS** (editor.css's type ladder):
+   a group heading names a KIND of thing (`POSITION`, `TWIN BOOMS`,
+   `MARKINGS`); a part, a row, a value, an option never shouts. A heading's
+   right-hand meta is a lower-case fragment too (`aft of the taper`).
+4. **`·` joins facts in one line** — `tank 1 · nose`, `rotax 582 · 43 kg ·
+   48 kW`, `HOME → circuit` — and it is the ONLY joiner: no dashes, no
+   slashes between facts (the slash is the trunk's `fore / aft` pair and
+   nothing else).
+5. **An option says what flies.** A dropdown option carries the fact the
+   choice changes (`rotax 582 · 43 kg · 48 kW`, `nose bay · 132 L · gravity
+   fed`), read off the number the physics reads, and `≈` in front of a
+   number the physics derives rather than declares.
+6. **A switch row is the part's own `fitted`**; a starter (`preset (applies
+   once)`) says so in its label; a row that only VIEWS something (`show
+   bay`, `fuel aboard` when it is the drawn fill) is view state and says
+   nothing about the aeroplane — it is not saved.
+7. **Titles explain, labels name.** The `title` (tooltip) is the sentence:
+   what the row does, what the datum is, what happens at the ends. The
+   label never tries to.
+8. **No hairline between rows or groups** (G187): a section ends by its
+   spacing; the borders that remain delimit REGIONS (headers, footers).
+9. **A panel that is not a set of sliders** (`panel:` parts — the tanks)
+   renders inside an `.edRoot` so it takes the same folds, indent and row
+   grammar as every sliders part, and its list entries are `details`
+   folds headed the way a part is (`tank 1 · nose`).
+
+Where the rules came from: the trunk vocabulary (HANDOVER G16x "twenty-two
+parts got a trunk"), the type ladder (editor.css `--ed-t-*`), the glossary
+rule (`_cage_parts.js` "a glossary rots"), the option-says-what-flies rule
+(G187), the separators ruling (G187, "rows and groups only").
+
+**GATE ARCHETYPES, measured (the last line promised above).** The full run
+went red on six checks, four of them the biplane session's two cards
+(Stearman-alike and the aerobatic biplane, still in CRUISE at 420 s — theirs,
+told) and two the Caravan's: on the C172 plan's 11 x 1.6 m wing the card
+cruised 61.9 m/s against the touring role's 50, the test pilot went around
+twice on terrain and was still in GOAROUND at 420 s — the R-1830 finding
+again, a heavy fast single on a circuit sized for 50. The answer was the
+WING, not the `blocked` hatch: flown alone through the gate's own loader and
+flight loop (three variants, ~60 s each), 14 m x 1.8 m completes at 337 s
+(sink 2.16) and 14 m x 1.9 m at 334 s (sink 1.86, run 611 m, cruise 50.3,
+Vs 22.5, TORun 78 m, 1 151 kg). The card carries the 14 x 1.9 wing now and
+GATE DESIGN is green on it; the full ARCHETYPES battery stays red on the
+biplane's two cards until that session lands them. LESSON: the archetype
+gate has no single-card switch and costs 25 min a run; a scratch script
+around its exported loader (`loadPanel` + `fly`, verbatim) answers a
+one-card question in a minute, and the verdict is the gate's own because
+the loop is.
 
 ## G193 — THE PLAYTEST PASS, PHASE 5: THE PATTERN ON THE GROUND, THE STOP, THE
 ## TAKE-OFF THAT WENT INTO THE GRASS (2026-09-05, the user: "notion of taxi

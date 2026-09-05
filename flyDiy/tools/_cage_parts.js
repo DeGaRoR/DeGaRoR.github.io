@@ -563,7 +563,8 @@ const CAGE_PARTS = [
     when: P => +P.engOn, gate: 'engOn',
     place: { on: 'engOn',
              type: ['engMount', 'engAim', 'engPower', 'engPreset', 'eng_arch',
-                    'eng_cyl', 'eng_radialRows', 'eng_inlineAim', 'eng_eStyle'],
+                    'eng_cyl', 'eng_radialRows', 'eng_inlineAim', 'eng_eStyle',
+                    'eng_tStyle'],
              fore: 'engBlockZ', out: 'engNacAt', up: 'engBlockY',
              at: 'on its mount face' },
     // THE ENGINE IS FINISHED IN THREE (G113.4). AERO_HARD still says what
@@ -589,6 +590,10 @@ const CAGE_PARTS = [
       ['architecture', ['eng_twoStroke', 'eng_liquid', 'eng_geared']],
       ['electric', ['eng_eStyle', 'eng_canD', 'eng_canL', 'eng_volts',
                     'eng_eFins', 'eng_escOn']],
+      // the turboprop's own keys (2026-09-05, TURBOPROP §3), so no row is
+      // rendered twice
+      ['turbine', ['eng_tStyle', 'eng_tCanD', 'eng_tCanL', 'eng_gearK',
+                   'eng_flatK', 'eng_tRpm', 'eng_stackStyle']],
       ['cylinder dress', ['eng_finN', 'eng_finR', 'eng_headFins',
                           'eng_rockerW', 'eng_rockerH', 'eng_rockerR',
                           'eng_rockerBoss', 'eng_rockerBossW',
@@ -641,7 +646,7 @@ const CAGE_PARTS = [
       ['bulges & cut-out', ['cw_lobeN', 'cw_lobeAmp', 'cw_lobeT',
                             'cw_cutSpan', 'cw_lobeAz', 'cw_lobeSig',
                             'cw_lobeTSig', 'cw_cutAz']],
-      ['chin scoop', ['cw_scoopOn', 'cw_scoopLen', 'cw_scoopW',
+      ['chin scoop', ['cw_scoopOn', 'cw_scoopZ', 'cw_scoopLen', 'cw_scoopW',
                       'cw_scoopH', 'cw_scoopSq', 'cw_scoopLipH',
                       'cw_scoopDrop', 'cw_scoopRake', 'cw_scoopAp',
                       'cw_scoopLipDepth', 'cw_scoopDuct']],

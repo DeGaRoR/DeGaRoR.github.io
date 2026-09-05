@@ -27,6 +27,12 @@ const RHO = 1.225;
 //   'na'       breathes it, so power lapses with density (Gagg-Ferrar)
 //   'electric' does not — the power comes out of the pack, and only the
 //              PROPELLER notices the altitude
+//   'turbine'  is FLAT-RATED (2026-09-05): the core makes more than the
+//              rating and the fuel control holds rated power until the
+//              thinning air brings the core down to it — `flatK` on the row
+//              is that margin (core over rated), and the row may also carry
+//              `length` (flange to accessory case, m) for the engine box,
+//              because a turbine is light for its length
 // The difference is large enough to change which aeroplane gets out of a
 // mountain strip in August, which is exactly why it is declared per row rather
 // than sniffed from the name. See 05_atmos.js for both scalings.
@@ -36,7 +42,7 @@ const RHO = 1.225;
 // cowl must reject for the coming ventilation model. Declared per row for the
 // same reason aspiration is: a 582 is liquid-cooled and a 912 carries
 // radiators, and sniffing that from a name is how a table starts lying.
-//   family   'four' | 'two' | 'electric'   (fires-per-rev + the SFC class)
+//   family   'four' | 'two' | 'electric' | 'turbine'   (the SFC class)
 //   cooling  'air'  | 'liquid'             (fins vs a radiator carry the heat)
 //
 // AN HONEST CUT, named here because it is a real aeroplane getting a wrong
@@ -246,6 +252,25 @@ const POWERPLANTS = {
     engine: { name: 'SP260D-class 260 kW', mass: 68.0, powerW: 260000, aspiration: 'electric', family: 'electric', cooling: 'air' },
     prop:   { name: 'MT 3-pale 2.20 m', D: 2.20, Tstatic: 4313, kV2: 0.3121 },
   },
+  // THE TURBOPROPS (2026-09-05, futureDesigns/TURBOPROP-2026-09-05.md §4) —
+  // the PT6A reverse-flow pair the user named, a Caravan's and a Kodiak's.
+  // Dry masses are P&W's (with the reduction gearbox, without the prop);
+  // `flatK` is the flat-rating margin 05_atmos reads (core ~850 shp behind a
+  // 675 rating; ~1 000 behind a 750); `length` is flange to accessory case,
+  // for the engine box. The props are genPropSynth's own output at each
+  // row's diameter, blades and rated power (standard pitch, aluminium) —
+  // 7.7 kN static on the Caravan's 2.69 m three-blade is inside the
+  // published band. Prices are the second-hand market's: 5-7x an R-985.
+  pt6a114a_hartzell3: {
+    price: 240000,
+    engine: { name: 'P&W PT6A-114A', mass: 160, powerW: 503000, aspiration: 'turbine', family: 'turbine', cooling: 'air', flatK: 1.26, length: 1.60 },
+    prop:   { name: 'Hartzell 3-blade 2.69 m', D: 2.69, Tstatic: 7657, kV2: 0.4667 },
+  },
+  pt6a34_hartzell4: {
+    price: 265000,
+    engine: { name: 'P&W PT6A-34', mass: 150, powerW: 560000, aspiration: 'turbine', family: 'turbine', cooling: 'air', flatK: 1.33, length: 1.57 },
+    prop:   { name: 'Hartzell 4-blade 2.44 m', D: 2.44, Tstatic: 8109, kV2: 0.4472 },
+  },
 };
 // ============================================================
 // ENGINE THERMO LAWS (G134). Two numbers per family, both quoted at RATED
@@ -272,6 +297,13 @@ const GEN_ENG_THERMO = {
   four:     { sfcKgKWh: 0.30, eta: null, cool: { air: 0.45, liquid: 0.42 } },
   two:      { sfcKgKWh: 0.50, eta: null, cool: { air: 0.55, liquid: 0.50 } },
   electric: { sfcKgKWh: 0,    eta: 0.90, cool: { air: 0.11, liquid: 0.11 } },
+  // A TURBINE (2026-09-05, futureDesigns/TURBOPROP-2026-09-05.md §1): a PT6
+  // burns 0.33-0.37 kg/kWh at rated power (the classic 0.55-0.60 lb/shp-h);
+  // the heat leaves BY THE PIPE and the cowl only cools the oil — ~5 % of
+  // shaft power, which is why a turboprop nacelle is closed where a radial's
+  // is a ring. Quoted at RATED like the rest; a turbine's part-load SFC is the
+  // worst of the four (~1.3x at half power) and is the burn model's to carry.
+  turbine:  { sfcKgKWh: 0.35, eta: null, cool: { air: 0.05, liquid: 0.05 } },
 };
 
 // The thermo sheet for one engine dict ({powerW, family, cooling, ...}).
@@ -308,6 +340,10 @@ function genEnginePrice(family, powerW) {
     return Math.round(kW < 3 ? 60 * Math.pow(kW, 0.9)
                              : 300 * kW);
   if (family === 'two') return Math.round(90 * Math.pow(kW, 1.15));
+  // a turbine is the dear end of the market — 5-7x a radial of the same
+  // power second-hand (a used PT6A-34 against a used R-985); fitted on the
+  // two PT6A rows and banded by _engcustom_check like every other family
+  if (family === 'turbine') return Math.round(250 * Math.pow(kW, 1.1));
   return Math.round(60 * Math.pow(kW, 1.3));
 }
 

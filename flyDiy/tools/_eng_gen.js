@@ -156,6 +156,14 @@ const ENG_ARCH = {
     name: 'Electric', counts: [0], kM: 1.00, bmep: 0,
     angles: () => [], stations: () => [], nStations: () => 1,
   },
+  // THE TURBOPROP (2026-09-05, futureDesigns/TURBOPROP-2026-09-05.md §3):
+  // no cylinders, so `counts` is EMPTY (the shape census in _eng_check has
+  // nothing to iterate) and the resolve is turbResolve's, beside the
+  // electric one. `kM`/`bmep` are the combustion law's and mean nothing here.
+  turbine: {
+    name: 'Turboprop', counts: [], kM: 1.00, bmep: 0,
+    angles: () => [], stations: () => [], nStations: () => 1,
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -213,6 +221,34 @@ const ELEC_STYLE = [
   { key: 'pancake', name: 'Axial pancake', kD: 0.90, diskL: 0.23, sigma: 28e3 },
   { key: 'housed', name: 'Housed inrunner', kD: 0.75, kL: 0.55, sigma: 25e3 },
 ];
+// ---------------------------------------------------------------------------
+// THE TURBINE'S CLASS CONSTANTS (2026-09-05, TURBOPROP §3 — the user's
+// ruling: power FROM GEOMETRY, the electric can's precedent). A gas
+// generator's first compressor stage is an annulus inside the can: its tip is
+// `kD` of the can, its hub `kH` of the tip, and the air enters at `vax`
+// metres a second — so the MASS FLOW is inlet geometry, and the core's
+// THERMODYNAMIC power is `specKW` kilowatts per kilogram a second (pressure
+// ratio 7-8, ~1000 °C turbine inlet). `specKW` and `vax` were fitted as ONE
+// PRODUCT on the PT6A-114A and -34 (the kM lesson: two anchors cannot
+// honestly move two constants): 0.40 m of can gives 3.49 kg/s and 629 kW,
+// which a 1.26 margin flat-rates to 499 kW against the -114A's 503; 0.435 m
+// gives 743 kW, 559 rated against the -34's 560. `n1` is the gas-generator
+// spool (a readout), `n2` the power turbine the gearbox reduces from.
+// ONE style today, the reverse-flow PT6 (ruling 3); a straight-through row
+// (TPE331, Walter M601) is the next entry, not a rewrite.
+const TURB_STYLE = [
+  { key: 'pt6', name: 'PT6 reverse-flow', kD: 0.55, kH: 0.50, vax: 100,
+    specKW: 180, n1: 37500, n2: 33000 },
+];
+const TURB_RHO0 = 1.225;        // the ISA datum, the same 1.225 05_atmos declares
+// MASS TRACKS THE CORE'S POWER, sub-linearly: m = K * kWthermo^E. Fitted on
+// the -114A (160 kg, 629 kWth) and the -34 (150 kg, 743 kWth) with the
+// exponent DECLARED, the way kM was: K 3.75 puts the residuals at -8 % and
+// +8 %, which is the two engines disagreeing about how heavy a gearbox is,
+// left declared rather than fudged. The registry rows keep P&W's own numbers.
+const TURB_MASS_K = 3.75;
+const TURB_MASS_E = 0.57;
+
 const ELEC_MASS_K = 0.274;      // kg at one newton-metre (continuous)
 const ELEC_MASS_E = 0.822;      // exponent on torque
 const ELEC_ESC_KGKW = 0.085;    // controller kg per continuous kW
@@ -253,6 +289,16 @@ const ENG_DEFAULT = {
   canL: 0.026,             // m — can / housing length, bearing to bearing
   volts: 11.1,             // pack voltage (readout: cells, implied KV)
   escOn: 1,                // controller in the mass, as normally equipped
+  // TURBOPROP (arch 'turbine', 2026-09-05): the gas generator IS the fiche.
+  // Its own keys (tCanD/tCanL, not the electric can's) so the two groups do
+  // not double-render one row. Defaults are the PT6A-114A's — the Caravan's.
+  tStyle: 0,               // index into TURB_STYLE
+  tCanD: 0.40,             // m — gas generator case diameter
+  tCanL: 1.05,             // m — gas generator length, gearbox face to accessory case
+  gearK: 1.20,             // reduction gearbox diameter / can diameter
+  flatK: 1.26,             // flat-rating margin, core over rated (05_atmos reads it)
+  tRpm: 1900,              // propeller rpm (the gearbox's output)
+  stackStyle: 1,           // 1 = the PT6's paired stacks, 0 = bare
   // installation
   accessories: 1,          // magnetos, pumps, starter, alternator
   exhaust: 1,
@@ -360,11 +406,104 @@ function elecResolve(P, spec) {
 }
 
 // ---------------------------------------------------------------------------
+// RESOLVE, TURBOPROP (2026-09-05, TURBOPROP §3) — the electric resolve's
+// shape exactly: the same output contract (env, cgZ, items, place with the
+// combustion keys satisfied trivially AND the electric's canR/zCanF/zCanB so
+// the mesh gate's rulers read it through the branch they already have), and
+// every dimension a ratio of tCanD/tCanL — no metre constants.
+//
+//   1. mass flow is inlet geometry     mdot = rho0 * vax * A(kD, kH, canD)
+//   2. the core's power is mass flow   Pthermo = specKW * mdot
+//   3. rated power is the flat rating  P = Pthermo / flatK
+//   4. mass tracks the core's power    m = K * kWthermo^E
+//   5. the gearbox reduces n2 to the prop rpm the builder dials
+//
+// The layout along the crank, flange at z = 0, aft is -z: flange, the
+// reduction gearbox (fatter than the core — a PT6's nose is not a taper),
+// the gas generator can, the accessory case. The inlet plenum wraps the
+// rear of the can, which is why `env.radius` is the larger of gearbox and
+// plenum and not the can itself.
+// ---------------------------------------------------------------------------
+function turbResolve(P, spec) {
+  const s = Math.max(0, Math.min(TURB_STYLE.length - 1, Math.round(P.tStyle)));
+  const ST = TURB_STYLE[s];
+  const canD = Math.max(0.05, P.tCanD), canL = Math.max(0.1, P.tCanL);
+
+  // 1. mass flow is inlet geometry
+  const dTip = ST.kD * canD, dHub = ST.kH * dTip;
+  const inletA = Math.PI / 4 * (dTip * dTip - dHub * dHub);
+  const mdot = TURB_RHO0 * ST.vax * inletA;                 // kg/s
+
+  // 2-3. the core's power, flat-rated to what the gearbox is sold for
+  const powerThermoW = ST.specKW * 1e3 * mdot;
+  const flatK = Math.max(1, Math.min(2, +P.flatK || 1));
+  const powerW = powerThermoW / flatK;
+
+  // 5. the prop turns what the builder dialled; the gearbox makes it so
+  const rpm = Math.max(1, +P.tRpm || 1);
+  const gearRatio = ST.n2 / rpm;
+  const torque = powerW / (rpm / 60 * 2 * Math.PI);        // Nm at the prop
+
+  // 4. mass, from the core's power; the extras declared, never folded
+  let mass = TURB_MASS_K * Math.pow(powerThermoW / 1000, TURB_MASS_E);
+  if (!P.accessories) mass *= 0.93;       // starter-generator, FCU, pumps
+  if (!P.exhaust) mass *= 0.985;          // the two stacks
+
+  // ---- ENVELOPE + CG ------------------------------------------------------
+  const canR = canD / 2;
+  const gearK = Math.max(0.9, Math.min(1.5, +P.gearK || 1.2));
+  const gearR = gearK * canR;
+  const flangeL = 0.12 * canD, gearL = 0.55 * canD, accL = 0.35 * canD;
+  const plenR = 1.12 * canR;                                // the inlet plenum
+  const zGearF = -flangeL, zCanF = zGearF - gearL;
+  const zCanB = zCanF - canL, zAft = zCanB - accL;
+  const rE = Math.max(gearR, plenR);
+  const hull = [];
+  for (let k = 0; k < 16; k++) {
+    const t = k / 16 * Math.PI * 2;
+    hull.push([Math.sin(t) * rE, Math.cos(t) * rE]);
+  }
+  const env = { x0: -rE, x1: rE, y0: -rE, y1: rE, z0: zAft, z1: 0, hull,
+                width: 2 * rE, height: 2 * rE, length: -zAft, radius: rE };
+
+  // CG: the gearbox is a third of the engine and sits right behind the
+  // flange; the core is most of the rest, mid-can; the accessories hang
+  // aft. A PT6's CG is well AHEAD of its mount ring, which is the number the
+  // frame cannot use yet (TURBOPROP §8, `cgFwd` owed).
+  const accShare = P.accessories ? 0.10 : 0.03;
+  const items = [
+    { what: 'gearbox', m: mass * 0.35, z: zGearF - 0.5 * gearL },
+    { what: 'core', m: mass * (0.65 - accShare), z: zCanF - 0.5 * canL },
+    { what: 'accessories', m: mass * accShare, z: zCanB - 0.5 * accL },
+  ];
+  const mTot = items.reduce((q, it) => q + it.m, 0) || 1;
+  const cgZ = items.reduce((q, it) => q + it.m * it.z, 0) / mTot;
+
+  return {
+    arch: 'turbine', archName: ST.name + ' turboprop', styleKey: ST.key,
+    cyl: 0, displacement: 0, litres: 0, bmep: 0,
+    mdot, inletA, powerThermoW, flatK, torque,
+    powerW, powerHP: powerW / 745.7, rpm, n1: ST.n1, n2: ST.n2, gearRatio,
+    mass, kgPerLitre: 0, kgPerKW: powerW ? mass / (powerW / 1000) : 0,
+    env, cgZ, items,
+    place: { canR, canD, canL, gearR, gearL, flangeL, accL, plenR,
+             zGearF, zCanF, zCanB, zAft, tStyle: s,
+             // the combustion place contract, satisfied trivially (the
+             // electric's own ruling): caseR IS the can radius
+             caseR: canR, ang: [], stn: [], nSt: 1, pitch: 0,
+             r0: canR, cylLen: 0, rTip: canR, headR: 0, sump: 0,
+             zOf: () => zCanB },
+    P: Object.assign({}, P, { rpm }),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // RESOLVE — the numbers. Pure; no geometry, no THREE, node-callable.
 // ---------------------------------------------------------------------------
 function engResolve(spec) {
   const P = Object.assign({}, ENG_DEFAULT, spec || {});
   if (P.arch === 'electric') return elecResolve(P, spec);
+  if (P.arch === 'turbine') return turbResolve(P, spec);
   const A = ENG_ARCH[P.arch] || ENG_ARCH.flat;
   const n = Math.max(1, Math.round(P.cyl));
 
@@ -656,8 +795,8 @@ function engBuild(spec) {
 }
 
 if (typeof module !== 'undefined')
-  module.exports = { ENG_ARCH, ENG_AIM, engAimDeg, ELEC_STYLE, ENG_DEFAULT,
-                     ENG_MAT, ENG_UNIT, engResolve, engBuild };
+  module.exports = { ENG_ARCH, ENG_AIM, engAimDeg, ELEC_STYLE, TURB_STYLE,
+                     ENG_DEFAULT, ENG_MAT, ENG_UNIT, engResolve, engBuild };
 if (typeof window !== 'undefined')
-  window.ENG_GEN = { ENG_ARCH, ENG_AIM, engAimDeg, ELEC_STYLE, ENG_DEFAULT,
-                     ENG_MAT, ENG_UNIT, engResolve, engBuild };
+  window.ENG_GEN = { ENG_ARCH, ENG_AIM, engAimDeg, ELEC_STYLE, TURB_STYLE,
+                     ENG_DEFAULT, ENG_MAT, ENG_UNIT, engResolve, engBuild };

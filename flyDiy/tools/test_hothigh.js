@@ -25,7 +25,8 @@
 // Run: node tools/test_hothigh.js   (contract: one final `GATE HOTHIGH: ...`)
 
 const { makeWorld, makeSim, makeAutopilot, placeAtAerodrome,
-        buildGen, genDensityAlt, makeAtmos, GEN_DEFAULT } = require('./flight_core.js');
+        buildGen, genDensityAlt, makeAtmos, GEN_DEFAULT,
+        GEN_FUELS } = require('./flight_core.js');
 const { runCircuit } = require('./circuit_harness.js');
 
 let fails = 0;
@@ -149,23 +150,62 @@ for (const [name, build] of [['GEN', buildGen]]) {
 // the bench does, so this checks the sheet the player will actually read.
 console.log('--- 3. electric against piston, in the same thin air ---');
 {
-  const sheetOf = eng => {
+  const sheetOf = (eng, custom) => {
     // CANONICAL SHAPE: `engines: [{ type }]`. A flat `engine` key is silently
     // overwritten by the normaliser, and the build comes back as the default
     // A-65 with no complaint — which made the first cut of this section
     // "prove" that electric and piston behave identically.
-    const def = buildGen(Object.assign({}, GEN_DEFAULT, { engines: [{ type: eng }] }));
+    const def = buildGen(Object.assign({}, GEN_DEFAULT,
+      { engines: [custom ? { type: eng, custom } : { type: eng }] }));
     const d = genDensityAlt(def);
     if (!d) return null;
     const isa = d.cases.filter(c => c.id === 'isa')[0];
     const hot = d.cases.filter(c => c.id === 'hot')[0];
-    return { isa, hot, d, ratio: hot.TORun / isa.TORun,
+    return { isa, hot, d, def, ratio: hot.TORun / isa.TORun,
              asp: def.params.powerplant };
   };
   const pis = sheetOf('rotax912_warp');       // 59.6 kW, breathes
   const ele = sheetOf('emrax228_3blade');     // 55 kW, does not
+  // THE TURBINE (2026-09-05, TURBOPROP §2): the SAME airframe and the same
+  // 59.6 kW as the piston, as a custom row — only the lapse law differs, so
+  // the difference measured is the flat rating's and nothing else's
+  const tur = sheetOf('rotax912_warp', {
+    name: 'test turbine 60 kW', mass: 58, powerW: 59600, rpm: 2200,
+    aspiration: 'turbine', family: 'turbine', cooling: 'liquid', flatK: 1.3 });
   if (!pis || !ele) fail('no density-altitude sheet for one of the builds');
   else {
+    if (!tur) fail('no density-altitude sheet for the turbine build');
+    else {
+      console.log(`  turbine  ISA ${tur.isa.TORun} m / ${tur.isa.climbRate.toFixed(2)} m/s  ->  ` +
+        `DA ${tur.hot.densAlt.toFixed(0)} m: ${tur.hot.TORun} m / ${tur.hot.climbRate.toFixed(2)} m/s ` +
+        `on ${(tur.hot.power * 100).toFixed(0)}% power  (x${tur.ratio.toFixed(3)})`);
+      yes(tur.hot.aspiration === 'turbine', 'the turbine custom row reached the solver');
+      yes(tur.hot.power === 1,
+          `flat-rated: still 100% power at DA ${tur.hot.densAlt.toFixed(0)} m (sigma ${tur.hot.sigma.toFixed(3)})`);
+      yes(tur.ratio < pis.ratio,
+          `the turbine loses less field length than the piston (x${tur.ratio.toFixed(3)} against x${pis.ratio.toFixed(3)})`);
+      // at sea level the two are the same aeroplane BUT FOR THE FUEL: the
+      // clamp put Jet A-1 in the turbine's tank, and kerosene is 0.08 kg/L
+      // denser than avgas — 4.0 kg in the default 50 L, measured as exactly
+      // that before this line was written (the first cut said "same run
+      // within a metre" and the model, honestly, disagreed by 4 m)
+      const massOf = d => d.nodes.reduce((q, nd) => q + nd.m, 0);
+      const dm = massOf(tur.def) - massOf(pis.def);
+      const dFuel = GEN_DEFAULT.fuel.litres * (GEN_FUELS.jetA.kgL - GEN_FUELS.avgas100LL.kgL);
+      yes(Math.abs(dm - dFuel) < 0.05,
+          `at sea level the only difference is the kerosene: +${dm.toFixed(2)} kg for ${GEN_DEFAULT.fuel.litres} L (expected +${dFuel.toFixed(2)})`);
+      yes(tur.isa.TORun >= pis.isa.TORun && tur.isa.TORun - pis.isa.TORun <= 8,
+          `and the heavier fuel costs a few metres of sea-level run, no more (${pis.isa.TORun} -> ${tur.isa.TORun} m)`);
+      // above the flat band the core's own lapse takes over: a probe at
+      // 5 000 m ISA (sigma 0.60) reads 0.60 x 1.3 = 0.78, a piston 0.55
+      const sim = makeSim(tur.def, null);
+      sim.reset(0);
+      sim.setAtmos(makeAtmos({}), 5000);
+      const up = sim.probeAir();
+      yes(up.aspiration === 'turbine' && up.power < 1 && up.power > 0.7 &&
+          Math.abs(up.power - Math.min(1, 1.3 * up.sigma)) < 1e-9,
+          `above the flat band the turbine lapses with its core: ${(up.power * 100).toFixed(0)}% at 5 000 m (sigma ${up.sigma.toFixed(3)})`);
+    }
     for (const [nm, s] of [['piston', pis], ['electric', ele]])
       console.log(`  ${nm.padEnd(8)} ISA ${s.isa.TORun} m / ${s.isa.climbRate.toFixed(2)} m/s  ->  ` +
         `DA ${s.hot.densAlt.toFixed(0)} m: ${s.hot.TORun} m / ${s.hot.climbRate.toFixed(2)} m/s ` +

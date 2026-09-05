@@ -176,6 +176,12 @@ const GEN_FUELS = {
                 note: 'the certified default; leaded' },
   mogas:      { name: 'Mogas (95)',  kgL: 0.745, MJkg: 43.4, price: 1.60,
                 note: 'cheaper and denser; a Rotax or a VW runs on it' },
+  // 2026-09-05 (futureDesigns/TURBOPROP-2026-09-05.md §5): what a turbine
+  // burns. Denser than avgas, so the same litres weigh 11 % more and the
+  // same kilograms take fewer of them. The spec clamp is the ONE keeper of
+  // "a turbine burns Jet-A and a piston does not" (60_gen_spec.js).
+  jetA:       { name: 'Jet A-1',     kgL: 0.80,  MJkg: 43.0, price: 1.30,
+                note: 'kerosene; the turbine fuel — the clamp keeps it there' },
 };
 
 // ---------------------------------------------------------------------------
