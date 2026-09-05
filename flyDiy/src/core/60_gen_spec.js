@@ -2484,23 +2484,51 @@ function clampSpec(spec) {
       cu.powerW = genClamp(cu.powerW, 100, 1000000);
       cu.rpm = genClamp(cu.rpm == null ? 2300 : cu.rpm, 400, 14000);
       cu.torque = genClampN(cu.torque, 0, 5000);
-      cu.aspiration = cu.aspiration === 'electric' ? 'electric' : 'na';
+      cu.aspiration = cu.aspiration === 'electric' ? 'electric'
+        : cu.aspiration === 'turbine' ? 'turbine' : 'na';
       cu.family = (typeof GEN_ENG_THERMO !== 'undefined' && GEN_ENG_THERMO[cu.family])
-        ? cu.family : (cu.aspiration === 'electric' ? 'electric' : 'four');
+        ? cu.family : (cu.aspiration === 'electric' ? 'electric'
+                       : cu.aspiration === 'turbine' ? 'turbine' : 'four');
       cu.cooling = cu.cooling === 'liquid' ? 'liquid' : 'air';
+      // A TURBINE'S OWN TWO NUMBERS (2026-09-05, TURBOPROP §1/§8): the
+      // flat-rating margin 05_atmos reads (absent = 1.3, a PT6A's usual), and
+      // the bare length the engine box reads. Neither exists on any other
+      // family — a piston that smuggles a margin would flat-rate itself.
+      if (cu.aspiration === 'turbine') {
+        cu.flatK = genClamp(cu.flatK == null ? 1.3 : cu.flatK, 1, 2);
+        cu.length = genClampN(cu.length, 0.3, 3);
+      } else { delete cu.flatK; delete cu.length; }
       // an unpriced custom row takes the market curve — one keeper (00_registry)
+      // (the cap rose 200k -> 600k with the turbine curve, 2026-09-05)
       cu.price = genClamp(cu.price == null
-        ? genEnginePrice(cu.family, cu.powerW) : cu.price, 10, 200000);
+        ? genEnginePrice(cu.family, cu.powerW) : cu.price, 10, 600000);
     } else if ('custom' in e) delete e.custom;
   }
   if (!['strut', 'cantilever'].includes(S.bracing.type)) S.bracing.type = 'strut';
-  S.fuel.litres = genClamp(S.fuel.litres, 0, 140);
+  // THE FUEL CAPS ROSE (2026-09-05, TURBOPROP §5, the user's ruling): 140 L
+  // here and 400 L per vessel / in total were a light aeroplane's numbers;
+  // a Caravan carries 1 250 L. Now 2 000 L total, 1 000 L a vessel. Every
+  // saved file sits inside the old range, so nothing moves.
+  S.fuel.litres = genClamp(S.fuel.litres, 0, 2000);
   if (!S.outfit || typeof S.outfit !== 'object') S.outfit = { seats: 'sling' };
   if (!GEN_SEATS[S.outfit.seats]) S.outfit.seats = 'sling';
   {
     const E = S.energy || (S.energy = {});
     if (E.kind !== 'battery') E.kind = 'fuel';
     if (!GEN_FUELS[E.fuel]) E.fuel = 'avgas100LL';
+    // ONE KEEPER of "a turbine burns Jet-A and a piston does not" (2026-09-05,
+    // TURBOPROP §5). The medium is a READING of the engine, the way `kind`
+    // is a reading of the vessels below: the first engine's family — its
+    // custom row's if it ships one, else the registry row's — decides, and
+    // the editor's fuel select shows what this wrote. Not GATE DESIGN's, not
+    // the panel's: a save cannot put avgas in a PT6 or kerosene in a Rotax.
+    {
+      const e0 = S.engines && S.engines[0];
+      const fam = e0 && e0.custom && e0.custom.family ? e0.custom.family
+        : (e0 && POWERPLANTS[e0.type] ? POWERPLANTS[e0.type].engine.family : null);
+      if (fam === 'turbine') E.fuel = 'jetA';
+      else if (E.fuel === 'jetA') E.fuel = 'avgas100LL';
+    }
     if (!GEN_CELLS[E.cell]) E.cell = 'lifepo4';
     E.kWh = genClamp(E.kWh || 0, 0, 400);
     // a vessel that cannot hold this kind is not a vessel for this aeroplane
@@ -2530,7 +2558,7 @@ function clampSpec(spec) {
     for (const v of E.vessels) {
       if (!GEN_BAYS[v.bay]) v.bay = 'nose';
       v.capacity = genClamp(v.capacity || 0, 0,
-                            E.kind === 'battery' ? 400 : 400);
+                            E.kind === 'battery' ? 400 : 1000);
       v.along = v.along == null ? null : genClamp(v.along, -1, 12);
       v.lv = v.lv == null ? null : genClamp(v.lv, 0, 1);
       v.rot = genClamp(v.rot || 0, -90, 90);
@@ -2555,7 +2583,7 @@ function clampSpec(spec) {
       total += v.capacity;
     }
     if (E.kind === 'battery') { E.kWh = total; S.fuel.litres = 0; }
-    else { S.fuel.litres = genClamp(total, 0, 400); E.kWh = 0; }
+    else { S.fuel.litres = genClamp(total, 0, 2000); E.kWh = 0; }
     // `fuel.tank` is the pre-G99 station and is kept as a READING of the first
     // vessel's bay, because GEN_ACCESS decides where the filler cap goes from
     // it and a cap that moved would be a fitting nobody asked to move.
@@ -3240,15 +3268,24 @@ function resolveSpec(spec) {
   // to `cylZ` either side, which is what pokes out of a Cub's cowl on purpose.
   {
     const k = Math.cbrt(Math.max(8, PP ? PP.engine.mass : 80) / 80);
-    const halfW = 0.105 * k, cylZ = 0.30 * k, cylR = 0.072 * k;
+    // A TURBINE HAS NO CYLINDERS AND IS LIGHT FOR ITS LENGTH (2026-09-05,
+    // TURBOPROP §8): cube-root-of-mass gives a 160 kg / 1.6 m PT6 a 0.35 m
+    // box with phantom cylinders reaching 0.38 m either side, and both the
+    // nacelle drag (62_gen_aero) and the cowl floor (4c) read it. The row's
+    // own `length` sizes the box fore-aft and nothing reaches sideways.
+    // Piston and electric are byte-identical to before.
+    const turbine = !!(PP && PP.engine.family === 'turbine');
+    const halfW = 0.105 * k, cylZ = turbine ? halfW : 0.30 * k, cylR = 0.072 * k;
     // A cylinder is a TILTED tube, so its outer cap ring reaches further out
     // than its axis does — 15 mm on an O-200, which is exactly the margin the
     // enclosure verdict was getting wrong. `cylZ` is what the skin draws to;
     // `cylReach` is what actually sticks out, and is what the test uses.
     const tilt = (0.04 * k) / Math.hypot(0.04 * k, cylZ - halfW);
     S.engBox = { k, halfW, halfH: 0.105 * k, cylZ, cylR,
-                 cylReach: cylZ + cylR * tilt,
-                 xF: S.engX - 0.09 * k, xA: S.engX + 0.19 * k };
+                 cylReach: turbine ? halfW : cylZ + cylR * tilt,
+                 xF: S.engX - 0.09 * k,
+                 xA: turbine ? S.engX - 0.09 * k + (PP.engine.length || 1.4)
+                             : S.engX + 0.19 * k };
   }
 
   // 4c. THE COWL's nose section, about the THRUSTLINE. Derived from the firewall

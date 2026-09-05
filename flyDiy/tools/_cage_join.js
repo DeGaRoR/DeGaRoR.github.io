@@ -39,6 +39,10 @@ const CAGE_JOIN_ENGINES = {
   'e-PPG 12 kW': 'eppg_direct_130',
   'FES sustainer': 'fes_folding_100',
   'EMRAX 228': 'emrax228_3blade',
+  // the turboprops (2026-09-05) — a preset without a row here flies as an
+  // A-65 through the fallback below, which is the four-orphan trap
+  'P&W PT6A-114A': 'pt6a114a_hartzell3',
+  'P&W PT6A-34': 'pt6a34_hartzell4',
 };
 
 // G132: THE DRAWN BLADE IS THE PHYSICS' AUTHOR. cw_material indexes the cowl

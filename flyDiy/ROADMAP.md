@@ -405,11 +405,28 @@ aeroplanes to risk.*
    boom, and one engine over a high wing). Was: the Chinook has always been
    one in physics; the bench needs the pusher cowl and mount.
 7. **Turboprops and small turbines** [L]. A new registry family and its
-   aspiration law. Distinct from the far-backlog jet module. COSTED 2026-09-04
-   (HANDOVER G176): a `turbine` family + flat-rated lapse branch in 05_atmos,
-   a bench architecture (can + inlet + gearbox + stack), a nacelle cowl style,
-   PT6A rows with synthesised props, Jet-A in GEN_FUELS — two sessions. Unlocks
-   the Caravan / Kodiak-alikes the user named.
+   aspiration law. Distinct from the far-backlog jet module. STUDIED 2026-09-05
+   — the spec is `futureDesigns/TURBOPROP-2026-09-05.md` (supersedes the G176
+   costing). Three rulings: study first, no code; the bench derives power FROM
+   GEOMETRY (inlet annulus → mass flow → thermodynamic power, flat-rated by a
+   `flatK` dial — the electric can's precedent); PT6 reverse-flow only. Two
+   sessions (§11: the turbine FLIES, code-only; then it is DRAWN) plus a
+   half-session for the engine's CG arm (`cgFwd`, the biggest error the
+   category introduces). §13's three questions ANSWERED the same day (caps
+   raised to 2 000 / 1 000 L, `cgFwd` its own half-session, the card on
+   `n23`). **SESSION 1 LANDED as G186** (2026-09-05): `aspiration: 'turbine'`
+   flat-rated in 05_atmos, the `turbine` thermo row and price curve, two
+   PT6A registry rows, Jet-A with the spec clamp as its one keeper, the
+   engine box without cylinders, ATMOS/ENGINE/HOTHIGH extended. **SESSION 2
+   LANDED as G192** (same day): `turbResolve` (power from geometry), the PT6
+   mesh, the `turbine` page group and two presets, `engPower` 0..2 in the
+   editor, the closed-nose nacelle with the scoop at the firewall (`scoopZ`),
+   the Turboprop tile and a caravan card on `n23` that lands its circuit
+   (on a 14 x 1.9 m wing — on the C172 plan's it could not be landed, the
+   R-1830 finding again); and a pre-existing one-build lag between a preset
+   and its cowl fixed on the way. STILL OWED:
+   a side aperture pair for the stacks, the `cgFwd` half-session, the `util`
+   class, a straight-through style. Unlocks the Caravan / Kodiak-alikes.
 8. **Biplane** [L]. The big one: a second wing plane, cabane and interplane
    struts, fittings for the lower wing (G85 names the gap — `wings` is an
    array and only the first plane carries fittings), and the join.
