@@ -751,7 +751,39 @@ function cageResolve(S) {
   // buildCage2 are the keepers; the seam they expose stays the contract
   // for whatever the bubble becomes.)
 
-  return { rings, bays, chain, noseTwin, noseRing, mirrorZ,
+  // G188: THE POD'S AFT ANATOMY, for the join. A mirrored pod has no pilPaxA
+  // and no tailPost ring — its aft half is the front half REFLECTED inside
+  // buildCage2 — so the two stations the join measures the boom between were
+  // never there, and the cabin length, every boom section and all eight tail
+  // rows fell through to whatever the spec carried from before (a 6.3 m stab
+  // station on a 3.1 m aeroplane). The aft end of the full section is the
+  // REFLECTED WINDSCREEN BASE — the aft screen's own base ring — placed by the
+  // same constant buildCage2 reflects with (CZ = zBm − pillarW + zBs,
+  // rz(z) = CZ − z), the source half being the aft override spec when there
+  // is one. Cage units, like the rings. The tail post has no ring either; the
+  // join reads it off the skin (aft extreme + the tail cone's length).
+  let pod = null;
+  if (MIR) {
+    const zOfR = (RR, nm) => {
+      const r = RR.rings.find(q => q.name === nm);
+      const l = r && r.lv && (r.lv.waist || r.lv.keel);
+      return l && isFinite(l.z) ? l.z : null;
+    };
+    const SA = CFG.mirrorAftSpec;
+    let zBs = mirrorZ + S.cabinPillarW / 2, zWsA = zOfR({ rings }, 'wsFront');
+    if (SA) {
+      try {
+        const RA = cageResolve(SA);
+        zBs = RA.mirrorZ + SA.cabinPillarW / 2;
+        const w2 = zOfR(RA, 'wsFront');
+        if (w2 != null) zWsA = w2;
+      } catch (e) { /* the front half's own numbers stand in */ }
+    }
+    const CZ = (mirrorZ + S.cabinPillarW / 2) - S.cabinPillarW + zBs;
+    pod = { zCabA: zWsA != null ? CZ - zWsA : null, zCabB: CZ - zBs };
+  }
+
+  return { rings, bays, chain, noseTwin, noseRing, mirrorZ, pod,
            rodSpan: ROD ? { zRoot: zPaxA, zTip: zCap, ring: rodRing } : null };
 }
 

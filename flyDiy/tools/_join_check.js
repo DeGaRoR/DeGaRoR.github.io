@@ -493,6 +493,69 @@ try {
   ok(false, 'custom engine block threw: ' + e.message);
 }
 
+// ---- G188: WHAT THE POD FOUND — a measurement must REACH THE FRAME --------
+// The pawnee build (a mirrored pod, long nose, low wing on top struts) flew
+// with its engine 1.56 m aft of its cowl, its wing 0.9 m aft and 0.24 m
+// below the drawn one, its tail post 0.9 m behind the drawn tail and its
+// stab 3 m further still: every one a measurement the join took (or could
+// not take) that resolveSpec or the frame then overrode. Each row here is
+// one of those doors, held open.
+try {
+  const M6 = Object.assign({}, M, {
+    wingY: 0.14, wingXLE: -1.12, tailArm: 3.11, cabLen: 1.0,
+    engUnits: [{ x: -1.98, y: 0.34, z: 0 }] });
+  const s6 = cageJoinSpec(Object.assign({}, P, { engMount: 0 }), M6, T);
+  ok(s6.wings[0].y === 0.14, 'G188: wing root height -> wings[0].y');
+  ok(s6.engines[0].x === -1.98 && s6.engines[0].y === 0.34 &&
+     s6.engines[0].z === undefined,
+     'G188: a NOSE engine carries its drawn station (x/y, no z)');
+  const R6 = resolveSpec(JSON.parse(JSON.stringify(s6))).spec;
+  ok(Math.abs(R6.fuse.tailArm - 3.11) < 1e-9,
+     'G188: a measured tail arm is not stretched to the 0.9-chord floor');
+  ok(Math.abs(R6.wing.xLE + 1.12) < 1e-9,
+     'G188: a measured wing ahead of the firewall survives the clamp');
+  ok(Math.abs(R6.engX + 1.98) < 1e-9 && Math.abs(R6.engY - 0.34) < 1e-9,
+     'G188: the nose station (engX/engY) follows the drawn engine');
+  ok(R6.engAt[0].x === R6.engX && R6.engAt[0].y === R6.engY,
+     'G188: engAt and engX are the same fact for a nose mount');
+  const fr6 = genFrame(R6);
+  const wfRoot = fr6.nodes.filter(n => n.tag === 'WF')
+    .reduce((a, n) => Math.abs(n.p[2]) < Math.abs(a.p[2]) ? n : a);
+  ok(Math.abs(wfRoot.p[1] - 0.14) < 1e-6,
+     'G188: the front spar root sits at the measured height');
+  const eng = fr6.nodes.find(n => n.tag === 'ENGL');
+  ok(eng && Math.abs(eng.p[0] + 1.98) < 1e-9,
+     'G188: the engine mount node is at the drawn station');
+  ok(fr6.cg0.every(Number.isFinite),
+     'G188: a wing ahead of the firewall still builds to a finite CG');
+  // the DERIVED arm keeps its floor: a spec that says nothing about the tail
+  // arm still gets a bay behind the box the old way
+  const s7 = cageJoinSpec(P, Object.assign({}, M, { tailArm: 0 }), T);
+  const R7 = resolveSpec(JSON.parse(JSON.stringify(s7))).spec;
+  ok(R7.fuse.tailArm >= R7.fuse.boxRear + 0.9 * R7.wing.chord - 1e-9,
+     'G188: a derived tail arm still honours the 0.9-chord floor');
+  // the POD's anatomy: a mirrored cabin names no aft pillar ring, and
+  // cageResolve publishes the reflected windscreen base instead
+  const G6 = require('./_cage_gen.js');
+  const Pp = Object.assign(G6.cageFromSpec(null),
+    { mirror: 1, aftPilotLen: 0.12, aftWsRun: 0.55, aftNoseLen: 0.44 });
+  const RP = G6.cageResolve(G6.cageSpec(Object.assign({}, Pp)));
+  const zOfP = (RR, nm) => RR.rings.find(r => r.name === nm).lv.waist.z;
+  ok(RP.pod && RP.pod.zCabA != null && RP.rings.every(r => r.name !== 'pilPaxA'),
+     'G188: a mirrored pod publishes its aft pillar, which no ring names');
+  ok(RP.pod.zCabA < zOfP(RP, 'pilCabB') &&
+     (zOfP(RP, 'pilCabB') - RP.pod.zCabA) > 0.3 * (zOfP(RP, 'wsFront') - zOfP(RP, 'pilCabB')),
+     'G188: the pod\'s aft pillar lies a cockpit-length aft of the cabin pillar');
+  const RQ = G6.cageResolve(G6.cageSpec(Object.assign(G6.cageFromSpec(null), { mirror: 1 })));
+  ok(Math.abs(RQ.pod.zCabA - (2 * RQ.mirrorZ - zOfP(RQ, 'wsFront'))) < 1e-9,
+     'G188: an unmodified pod reflects its windscreen base about mirrorZ');
+  const RN = G6.cageResolve(G6.cageSpec(G6.cageFromSpec(null)));
+  ok(RN.pod === null && RN.rings.some(r => r.name === 'pilPaxA'),
+     'G188: a regular cabin publishes no pod anatomy and keeps its pilPaxA');
+} catch (e) {
+  ok(false, 'G188 block threw: ' + e.message);
+}
+
 // THE VERDICT CONTRACT (G67.1): this checker joins the battery, and the
 // runner requires BOTH signals — the line and the exit code.
 if (fails) console.log('\n  ' + fails + ' check(s) failed');

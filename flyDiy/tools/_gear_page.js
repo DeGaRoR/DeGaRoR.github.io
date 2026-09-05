@@ -170,7 +170,11 @@ const gearStations = P => {
   const out = [];
   for (let i = 1; i <= 2; i++) {
     if (!P['s' + i + 'On']) continue;
-    out.push({ id: i, z: P['s' + i + 'Z'], x: P['s' + i + 'X'],
+    // G188: row 2 IS the third wheel — its identity, not its lateral offset.
+    // Every classifier used to read "single" off `x <= 0.01`, so a tailwheel
+    // row carrying a 0.1 offset was a pair of mains to the gear layer AND to
+    // the join, which averaged the mains' station with it (2.4 m off).
+    out.push({ id: i, single: i === 2, z: P['s' + i + 'Z'], x: P['s' + i + 'X'],
                leg: Math.round(P['s' + i + 'Leg']), R: P['s' + i + 'R'],
                drop: P['s' + i + 'Drop'], brake: P['s' + i + 'Brake'],
                axZ: +P['s' + i + 'AxZ'] || 0,

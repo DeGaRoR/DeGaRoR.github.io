@@ -387,11 +387,16 @@ function genLattice(S, gearX, track, kScale) {
   const POS = { high: 1, mid: 0.5, low: 0 }[w.position] ?? 1;
   const wingY0 = cab.h * POS
     + R.wingStandoff * (POS >= 0.75 ? 1 : POS <= 0.25 ? -1 : 0);
+  // G188: THE DRAWN HEIGHT WINS. wingY0 is the position's rule; a wing the
+  // join measured (w.y, root chord line over the keel) sits where it was
+  // drawn — the rule put a low wing 0.10 m below the keel while the cage
+  // seated it 22 % up the section, 0.24-0.4 m apart on every low-wing build.
+  const wingYr = w.y != null ? w.y : wingY0;
   const attachHi = POS >= 0.5, attachTag = attachHi ? 'T' : 'B';
   const opposeTag = attachHi ? 'B' : 'T';
   // a strut is only a brace if its anchor is far enough from the wing — see
   // GEN_RULES.strutMinOffset. Otherwise build the box instead.
-  const strutOffset = Math.abs(wingY0 - (attachHi ? 0 : cab.h));
+  const strutOffset = Math.abs(wingYr - (attachHi ? 0 : cab.h));
   // G140: A CRANKED WING CAN BE STRUT-BRACED — WHEN THE STRUT LANDS ON THE
   // CRANK. The 2026-08-11 exclusion stays true for what it measured: a fan
   // reaching PAST the crank read 22.95 deg @200 N.m at 1.34x (the worst
@@ -412,7 +417,7 @@ function genLattice(S, gearX, track, kScale) {
   // straight line it always was.
   const dihOut = Math.tan((w.dihedralOut == null ? w.dihedral : w.dihedralOut) * D);
   const yF = z => {
-    const base = wingY0 + S.place.wingDy;
+    const base = wingYr + S.place.wingDy;
     if (zCrank <= 0 || z <= zCrank) return base + (z - zRoot) * dih;
     return base + (zCrank - zRoot) * dih + (z - zCrank) * dihOut;
   };

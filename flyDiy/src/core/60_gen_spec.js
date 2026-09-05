@@ -2031,6 +2031,12 @@ const GEN_DEFAULT = {
             // 'open' leaves the bay out altogether. Ignored on a low wing, which
             // has no bay over the cabin to treat.
             centre: 'solid',
+            // G188: the root chord line's HEIGHT over the cabin keel, measured
+            // by the join off the drawn wing (null = the position's own rule:
+            // a standoff below the keel for a low wing, above the roof for a
+            // high one, half-way for mid). The frame used to seat a low wing
+            // 0.10 m below the keel whatever was drawn.
+            y: null,
             xLE: null, place: { dx: 0, dy: 0 } }],
   // Wing fixation, its own section because it is its own structure. Cantilever
   // gets a real four-chord spar box — rule 1 says a planar two-spar wing only
@@ -2454,7 +2460,9 @@ function clampSpec(spec) {
     e.place.dx = genClamp(e.place.dx, -0.60, 0.45);
     e.place.dy = genClamp(e.place.dy, -0.30, 0.40);
     // the mount station (2026-09-04): an envelope, null kept for derivation
-    e.x = genClampN(e.x, -1.0, 8.0);
+    // G188: a nose engine drawn at the tip of a long nose is 2 m ahead of the
+    // firewall — the envelope is geometric, the balance is the plaque's
+    e.x = genClampN(e.x, -3.0, 8.0);
     e.y = genClampN(e.y, -1.0, 2.5);
     e.z = genClampN(e.z, 0, 6.0);
     e.pylon = genClampN(e.pylon, 0.05, 1.0);
@@ -2579,7 +2587,10 @@ function clampSpec(spec) {
   // default. The envelope spans a wing rooted on the firewall to one rooted
   // well down the cabin; static margin is the honest consequence either way,
   // and the shakedown posts it.
-  w.xLE = genClampN(w.xLE, -0.20, 3.00);
+  // G188: a wing drawn under a long nose sits well AHEAD of the firewall
+  // (−1.12 m on the pod that found the old −0.20 floor); the frame's rings
+  // straddle a negative station like any other, so the envelope is geometric.
+  w.xLE = genClampN(w.xLE, -2.50, 3.00);
   if (!GEN_TIPS[w.tip]) w.tip = 'rounded';
   if (!GEN_TIPS[S.tail.tip]) S.tail.tip = 'rounded';
   // null is legal on the two overrides and means 'use tail.tip'
@@ -2648,6 +2659,9 @@ function clampSpec(spec) {
   // These stop the geometry going degenerate, nothing more.
   w.place.dx = genClamp(w.place.dx, -1.2, 1.8);
   w.place.dy = genClamp(w.place.dy, -0.25, 0.60);
+  // G188: the measured root height, nullable like xLE; a wing on the belly
+  // to one on a tall cabane, nothing degenerate in between
+  w.y = genClampN(w.y, -0.60, 2.60);
   if (!['taildragger', 'tricycle'].includes(S.gear.type)) S.gear.type = 'taildragger';
   if (!GEN_SUSPENSION[S.gear.suspension]) S.gear.suspension = 'bungee';
   // WHEEL FAIRINGS, off by default. `spat` is the shell over the wheel alone;
@@ -2696,7 +2710,10 @@ function clampSpec(spec) {
   S.cargo.len = genClamp(S.cargo.len || 0, 0, 2.5);
   S.cargo.kg = genClamp(S.cargo.kg || 0, 0, 400);
   fu.tailBays = genClamp(fu.tailBays | 0, 3, 6);
-  fu.postGap = genClamp(fu.postGap, 0.35, 1.10);
+  // G188: the join measures this gap as the drawn tail cone's own length (the
+  // post to the skin's aft extreme) — 0.13 m on a pod; the old 0.35 floor
+  // stood the frame's post 0.22 m behind the drawn tail
+  fu.postGap = genClamp(fu.postGap, 0.08, 1.10);
   fu.crownTop = genClamp(fu.crownTop, 0, 1);
   fu.crownSide = genClamp(fu.crownSide, 0, 0.6);
   // The TAIL-END SECTION. These were in the spec from the start but had no
@@ -2738,7 +2755,7 @@ function clampSpec(spec) {
   // respectively — again fractions, so a bigger propeller gets a bigger nose
   sn.len = genClamp(sn.len == null ? 2.2  : sn.len, 0.6,  4.0);
   sn.dia = genClamp(sn.dia == null ? 0.17 : sn.dia, 0.08, 0.32);
-  cb.noseGap = genClamp(cb.noseGap, 0.40, 1.10);
+  cb.noseGap = genClamp(cb.noseGap, 0.20, 1.10);   // G188: a short pilot bay measures short
   S.gear.stiffness = genClamp(S.gear.stiffness == null ? 1 : S.gear.stiffness, 0.35, 3.0);
   S.gear.place.dx = genClamp(S.gear.place.dx, -0.80, 1.20);
   S.gear.place.dtrack = genClamp(S.gear.place.dtrack, -0.80, 1.50);
@@ -2764,9 +2781,12 @@ function clampSpec(spec) {
     }
     fu.profile = P2.length >= 2 ? P2 : null;
   } else fu.profile = null;
-  cb.halfW = genClampN(cb.halfW, 0.28, 0.75);
+  // G188: a scaled-down pod measures a 0.24 m half-width and a 0.50 m cabin
+  // box (front pillar to the aft screen's base); the old floors (0.28 / 0.60)
+  // silently widened and lengthened the frame's box past the drawn one
+  cb.halfW = genClampN(cb.halfW, 0.18, 0.75);
   cb.h = genClampN(cb.h, 0.75, 1.45);
-  cb.len = genClampN(cb.len, 0.60, 2.60);
+  cb.len = genClampN(cb.len, 0.30, 2.60);
   fu.tailArm = genClampN(fu.tailArm, 2.00, 6.50);
   S.tail.hSpan = genClampN(S.tail.hSpan, 1.50, 4.50);
   S.tail.hChord = genClampN(S.tail.hChord, 0.40, 1.60);
@@ -2806,7 +2826,11 @@ function clampSpec(spec) {
   // the CG/rake placement rule — deliberately: the wheels go where the built
   // aeroplane's wheels are, and the shakedown's noseOver row posts the
   // consequence. The height (gear.y) stays the prop-clearance rule's.
-  S.gear.x = genClampN(S.gear.x, -0.50, 3.00);
+  // G188: mains drawn under a long nose sit well ahead of the firewall
+  // (−1.42 m on the pod that found the old −0.50 floor); the visual is
+  // calibrated wheels-to-axles, so a clamped station shifts the WHOLE drawn
+  // aeroplane by the clamp — 0.93 m of misfit on every row of the report
+  S.gear.x = genClampN(S.gear.x, -3.00, 3.00);
   // Camber, degrees, tops-outboard positive. Real aeroplanes run a few degrees
   // either way; the range is wide enough to be a look and not wide enough for
   // the wheel to lie on its side.
@@ -3020,7 +3044,12 @@ function resolveSpec(spec) {
   //    fuselage aft of the cabin, so the tail has to start behind it.
   S.fuse.boxRear = S.cab.noseGap + S.cab.len + S.fuse.cargoLen;
   put(S.fuse, 'tailArm', xAC + GEN_RULES.tailArmC * w.chord, 'fuse.tailArm');
-  S.fuse.tailArm = Math.max(S.fuse.tailArm, S.fuse.boxRear + 0.9 * w.chord);
+  // G188: the 0.9-chord floor is a DESIGN rule for the DERIVED arm, not a
+  // bound on a MEASURED one — it stretched a pod's measured 3.11 m boom to
+  // 4.05 m and stood the tail post 0.9 m behind the drawn tail. A built boom
+  // only has to leave a bay behind the box.
+  S.fuse.tailArm = Math.max(S.fuse.tailArm,
+    S.fuse.boxRear + (auto['fuse.tailArm'] ? 0.9 * w.chord : 0.30));
   const post = S.fuse.tailArm + S.fuse.postGap;
   S.fuse.postX = post;
 
@@ -3156,6 +3185,19 @@ function resolveSpec(spec) {
   S.propR = propR;
   S.engY = 0.36 * S.cab.h + pl.engineDy;        // thrustline, above the lower longeron
   S.engX = -(0.18 + 0.32 * propR) + pl.engineDx; // firewall forward: cowl + prop
+  // G188: A NOSE ENGINE THE JOIN MEASURED sits where it was drawn. The cowl-
+  // and-prop rule above is the derivation for a spec that says nothing; a
+  // drawn unit's station (engines[0].x/y, off the engine layer, firewall/keel
+  // datum) is the builder's — 1.56 m further forward on the long-nosed pod
+  // that found this, and the whole powerplant's mass with it. engX/engY stay
+  // the one nose station every reader (frame, cowl loft, nose gear) shares.
+  {
+    const e0 = S.engines[0];
+    if ((e0.mount || 'nose') === 'nose') {
+      if (e0.x != null) S.engX = e0.x + pl.engineDx;
+      if (e0.y != null) S.engY = e0.y + pl.engineDy;
+    }
+  }
   // WHERE EACH ENGINE ACTUALLY SITS (2026-09-04): engX/engY stay the NOSE
   // station (the cowl loft, the nose gear and the fleet read them); engAt is
   // the mount the frame builds and the wash blows from. A nose mount IS
@@ -3167,7 +3209,8 @@ function resolveSpec(spec) {
   S.engAt = S.engines.map(e => {
     const m = e.mount || 'nose';
     const semi = 0.5 * w.span, zR = S.cab.halfW;
-    const wingY = S.wing.position === 'low' ? 0.22 * S.cab.h
+    const wingY = S.wing.y != null ? S.wing.y            // G188: as drawn
+                : S.wing.position === 'low' ? 0.22 * S.cab.h
                 : S.wing.position === 'mid' ? 0.55 * S.cab.h : S.cab.h + 0.01;
     const pylon = e.pylon != null ? e.pylon : 0.30;
     const d = m === 'pusher' ? { x: S.fuse.boxRear + 0.30, y: 0.45 * S.cab.h, z: 0 }
@@ -3181,8 +3224,9 @@ function resolveSpec(spec) {
              // (the frame builds NL from entry 0 and NR from entry 1)
              sense: (+e.sense === -1) ? -1 : 1,
              side: m === 'wing' ? (i === 0 ? -1 : 1) : 0,
-             x: e.x != null ? e.x : d.x,
-             y: e.y != null ? e.y : d.y,
+             // a nose mount IS engX/engY (a measured one already moved them)
+             x: e.x != null && m !== 'nose' ? e.x : d.x,
+             y: e.y != null && m !== 'nose' ? e.y : d.y,
              z: m === 'wing' ? Math.abs(e.z != null ? e.z : d.z) : 0,
              pylon,
              pushes: m === 'pusher' ? true : m === 'nose' ? false
