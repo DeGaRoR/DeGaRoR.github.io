@@ -27,6 +27,10 @@
 //   LIFTOFF inside 4 m (12 m in wind) of the centreline, heading within 6 deg,
 //           no rejection
 //   TIME    stand to roll under 150 s in calm air; airborne inside 300 s
+//   CROSSWIND LIMIT (G193.2) — the plaque's own number, measured by
+//           42_crosswind.js on the fixture: a number, the band is the strip's
+//           edge lines, every passed rung at or under it and every failed rung
+//           above it, and a 1 m band or a 4 m/s cap moves it as declared
 //
 // NEGATIVE-VERIFIED: --selftest doctors a departure record each way the
 // gate can be wrong and requires the matching check to go red.
@@ -172,6 +176,36 @@ if (!SELF) {
     check(/case 'STOP':/.test(s) && /case 'HOLD':/.test(s), 'both pilots carry STOP and HOLD');
     check(/pathLocate\(ap\.path/.test(s) && /pathSpeed\(ap\.path/.test(s), 'both pilots follow the path');
     check(/const tailUp = rotateTD/.test(s), 'both pilots schedule the ground steer on the tail state');
+  }
+  // ---- THE CROSSWIND LIMIT on the plaque (G193.2) -----------------------------
+  {
+    const R = C.siteRunway(C.makeWorld().aerodromes[0]);
+    const t0 = Date.now();
+    const xw = C.genCrosswindLimit(def);
+    const wall = (Date.now() - t0) / 1000;
+    const tag = 'crosswind limit: ';
+    check(xw && typeof xw.limit === 'number' && xw.limit >= 1 && xw.limit <= 10,
+          tag + 'a measured number between 1 and 10 m/s', xw ? String(xw.limit) : 'none');
+    check(Math.abs(xw.band - (R.half - 2.5)) < 1e-6,
+          tag + 'the band is the strip\'s own edge lines (half - 2.5 m)', xw.band + ' m');
+    check(xw.runs.every(r => r.ok ? r.w <= xw.limit + 1e-9 : r.w > xw.limit - 1e-9),
+          tag + 'every passed rung at or under the limit, every failed rung above it',
+          xw.runs.map(r => r.w + (r.ok ? ' ok' : ' x')).join(', '));
+    check(xw.runs.every(r => r.ok === (r.roll <= xw.band)),
+          tag + 'a pass is exactly a roll inside the band (the heading is reported, not judged)');
+    check(typeof xw.e === 'number' && xw.e >= 0, tag + 'the lift-off heading rides beside the limit', (xw.e * 57.3).toFixed(1) + ' deg');
+    check(xw.roll != null && xw.roll <= xw.band, tag + 'the roll at the limit is inside the band', xw.roll + ' m');
+    check(xw.failWhy === 'off the edge line' || xw.failWhy == null,
+          tag + 'past the limit it is the edge line that goes, not a rejection', String(xw.failWhy));
+    check(wall < 60, tag + 'measured inside a minute of wall clock', wall.toFixed(1) + ' s');
+    // declared knobs move it as declared: a 1 m band cannot be held even in
+    // calm air; a 4 m/s cap with a 100 m band reports "> cap"
+    const tight = C.genCrosswindLimit(def, { band: 1 });
+    check(tight.limit != null && tight.limit < 1, tag + 'a 1 m band reads under 1 m/s', String(tight.limit));
+    const loose = C.genCrosswindLimit(def, { band: 100, cap: 4 });
+    check(loose.limit == null && loose.cap === 4, tag + 'a 100 m band with a 4 m/s cap reads "> 4"', String(loose.limit));
+    console.log('  crosswind limit ' + xw.limit + ' m/s (band ' + xw.band + ' m, roll ' + xw.roll +
+                ' m at the limit; first failure ' + xw.failW + ' m/s, ' + xw.failRoll + ' m) in ' + wall.toFixed(1) + ' s');
   }
   for (const f of fail) console.log('  FAIL ' + f);
   console.log('GATE TAKEOFF: ' + (fail.length ? 'FAIL' : 'PASS'));

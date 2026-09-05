@@ -401,6 +401,33 @@ try {
       `${hot.TORun.toFixed(0)} m take-off, ${hot.climbRate.toFixed(2)} m/s climb on ` +
       `${(hot.power * 100).toFixed(0)}% power, service ceiling ` +
       `${da.serviceCeiling == null ? '> ' + da.ceilingCap : da.serviceCeiling.toFixed(0)} m`);
+    // THE CROSSWIND LIMIT (G193.2) rides the test flight's report and the
+    // plaque prints it in the test-flight section — with the roll and the
+    // lift-off heading beside it, and the row's own bound. Restored the way
+    // a saved certificate comes back, so the round trip is the thing tested.
+    B.restoreSheets({ flight: { t: 300, report: {
+      outcome: 'completed', verdicts: [],
+      landing: { run: 152, sink: 0.8, V: 20, offCentre: 0.1, pastAim: 10 },
+      xwind: { limit: 2, cap: 10, band: 12.5, roll: 10.11, e: 0.227, runs: [] } } } });
+    B.plaque(true);
+    {
+      const h = els['pqRows'].innerHTML;
+      if (!/crosswind limit/.test(h))
+        throw new Error('the plaque did not print the crosswind limit');
+      if (!/2\.0 m\/s/.test(h) || !/roll 10\.1 m/.test(h) || !/13\u00b0 off/.test(h))
+        throw new Error('the crosswind row does not carry its limit, roll and heading: ' +
+                        (h.match(/crosswind limit[^<]*<[^>]*>[^<]*/) || [''])[0]);
+      if (!/\u2265 4 m\/s/.test(h))
+        throw new Error('the crosswind row does not print its bound');
+    }
+    B.restoreSheets({ flight: { t: 300, report: {
+      outcome: 'completed', verdicts: [],
+      landing: { run: 152, sink: 0.8, V: 20, offCentre: 0.1, pastAim: 10 },
+      xwind: { limit: null, cap: 10, band: 12.5, roll: 3.2, e: 0.02, runs: [] } } } });
+    B.plaque(true);
+    if (!/&gt; 10 m\/s|> 10 m\/s/.test(els['pqRows'].innerHTML))
+      throw new Error('a limit above the cap does not print as "> cap"');
+    console.log('bench crosswind limit: the plaque row reads 2.0 m/s · roll 10.1 m · 13° off, and "> 10 m/s" above the cap');
     // the live test, through the bench's own calls
     B.showPhysical(true);
     B.loadTest();

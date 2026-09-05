@@ -31890,3 +31890,60 @@ defect, and belongs to the builder — mains further aft, a bigger fin, a
 lower thrust line — which is the game. Owed: the plaque should say it (a
 crosswind limit next to the take-off run), so the player learns it from the
 certificate rather than from the grass.
+
+## G193.2 — THE CROSSWIND LIMIT ON THE PLAQUE (2026-09-05, the user: "Put the
+## crosswind limit on the plaque")
+
+G193.1 owed it: the swing a crosswind puts into the take-off roll is the
+design's limit, so the certificate should say it. It does now, in the
+plaque's "on the test flight" section beside the landing run — because it
+is the one number that needs the PILOT (the swing is the tailwheel
+unloading and the rudder holding what it can), genShakedown's still-air
+integrals cannot measure it, and the test flight already runs a second sim
+on the test pilot offscreen.
+
+THE DEFINITION (`src/core/42_crosswind.js`): the strongest crosswind, from
+the right (+z, the side GATE TAKEOFF found worse on the twin), in which the
+test pilot keeps the take-off roll between the base strip's painted edge
+lines (|cross-track| ≤ R.half − 2.5 = 12.5 m on HOME's 30 m strip) and gets
+airborne without a rejected take-off. The band is the STRIP'S, so the
+number means "this aeroplane leaves this field straight in this much wind",
+the way the take-off run is judged against the strip's length. THE HEADING
+AS THE WHEELS LEAVE IS REPORTED BESIDE IT, NOT JUDGED — the first cut judged
+it and was wrong twice over: read at the safe height it penalised the
+default aeroplane's deliberate crab into wind (10° at 4 m/s, airmanship);
+read as the wheels left it penalised the ultralight's weathervane onto its
+scrubbing mains (13° at 2 m/s — the swing G193.1 recorded, real, but the
+strip's edge is what the strip cares about). Both numbers ride the row.
+
+THE MEASUREMENT: a ladder (2, 4, 6, 8, 10 m/s) to the first failure, then
+a bisection to 0.5 m/s; a failure on the first rung adds a calm-air
+departure so "cannot take off straight at all" is measured, not assumed;
+above the 10 m/s cap the row prints "> 10 m/s". Four to seven departures
+from the runway, no taxi, ~40 s of sim each — MEASURED 16 s of wall clock
+for the ultralight and 30 s for the default aeroplane in node. In the page
+it is `makeCrosswindProbe`, polled on the circuit's own wall-clock budget
+after the circuit lands (`tfPoll` chains it; the bench shows CROSSWIND
+w m/s as its phase); the gates call `genCrosswindLimit` whole.
+
+MEASURED, so the row is read against something:
+
+| aeroplane | limit | roll at the limit | heading as the wheels leave | first failure |
+|---|---|---|---|---|
+| the user's ultralight (twin 582, rod boom) | 2.0 m/s | 10.1 m | 13° | 2.5 m/s, 18.7 m off the edge line |
+| the default aeroplane (Cub-class) | 7.5 m/s | 11.8 m | 1° | 8 m/s, 40 m — a sharp knee |
+
+The row's bound is ≥ 4 m/s (warn under it, bad under 2): a Cub's
+demonstrated crosswind is about 5 m/s, and the ultralight's 2.0 m/s reads
+warn, which is what its builder should see. The "why" text names the
+levers: mains further aft, a bigger fin, a lower thrust line — no pilot
+gain moves this number (G193.1).
+
+Gates: TAKEOFF grew the block (a number between 1 and 10, the band is the
+strip's edge lines, every passed rung at or under the limit and every failed
+rung above it, a pass is exactly a roll inside the band, the heading rides
+beside it, inside a minute; a 1 m band reads under 1 m/s, a 100 m band with
+a 4 m/s cap reads "> 4"); UISMOKE restores a report with `xwind` the way a
+saved certificate comes back and reads the row (limit · roll · heading, the
+bound, "> 10 m/s" above the cap). The certificate persists with the report
+(G107.3's envelope carries it unchanged).

@@ -56,6 +56,10 @@ const MANIFEST = {
     // the TEST PILOT (G107): the second autopilot, forked from 40_ — bounded
     // attempts, structured verdicts. Generated builds fly it; the fleet keeps 40_.
     '41_test_pilot.js',
+    // THE CROSSWIND LIMIT (G193.2): the plaque's measured crosswind, a ladder
+    // of departures on the test pilot; pure, polled by the page, run whole by
+    // the gates.
+    '42_crosswind.js',
     '50_model_codec.js',
     '51_prop_codec.js',
     // GARAGE: procedural airframe generator (spec -> loft -> frame -> aero -> skin)

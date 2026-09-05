@@ -3291,6 +3291,19 @@
   function tfPoll() {
     if (!tf) return null;
     const t0 = performance.now();
+    // G193.2: THE CROSSWIND LIMIT rides after the circuit, on the same build,
+    // in a world of its own (the live day's wind must not be the test's).
+    // Polled on the same wall-clock budget; the plaque reads `report.xwind`.
+    if (tf.xw) {
+      const r = tf.xw.poll(60);
+      if (!r.done) return { phase: 'CROSSWIND ' + r.w.toFixed(1) + ' m/s', t: tf.t,
+                            frac: 0.9 + 0.1 * r.frac };
+      tf.rep.xwind = r.result;
+      tfFor = tf.def; tfVal = { report: tf.rep, t: tf.t };
+      const out = { done: true, report: tf.rep, t: tf.t };
+      tf = null;
+      return out;
+    }
     let fin = null;
     while (performance.now() - t0 < 60 && !fin) {
       for (let i = 0; i < 60; i++) {
@@ -3306,6 +3319,12 @@
     const rep = tf.ap.report || { verdicts: [], outcome: null, landing: null };
     if (fin.bad) rep.outcome = 'broke-up';
     else if (!rep.outcome) rep.outcome = 'gave-up';
+    if (!fin.bad && typeof makeCrosswindProbe === 'function') {
+      try {
+        tf.rep = rep; tf.xw = makeCrosswindProbe(tf.def);
+        return { phase: 'CROSSWIND', t: tf.t, frac: 0.9 };
+      } catch (e) { console.error('crosswind probe:', e); tf.xw = null; }
+    }
     tfFor = tf.def; tfVal = { report: rep, t: tf.t };
     tf = null;
     return { done: true, report: rep, t: tfVal.t };
@@ -3457,6 +3476,13 @@
       'past the aim': { what: 'how far beyond the aiming point it touched down.',
         fix: 'floating means too much speed on the approach for the drag '
            + 'available; a flap that adds drag as well as lift settles it.' },
+      'crosswind limit': { what: 'the strongest crosswind in which the test '
+           + 'pilot keeps the take-off roll between the strip\'s edge lines; the '
+           + 'heading as the wheels leave is shown beside it.',
+        fix: 'a taildragger with its CG far behind the mains swings harder, and '
+           + 'a high thrust line lifts the tail before the rudder has the air to '
+           + 'hold it: mains further aft, a bigger fin, or a lower thrust line. '
+           + 'No pilot gain moves this number (HANDOVER G193.1).' },
       'held': { what: 'what the pilot actually flew on the cruise leg, against '
            + 'what the test card asked for.',
         fix: 'the aeroplane could not hold the ask. Speed short is drag or power; '
@@ -3487,6 +3513,7 @@
       'prop clear':      { lo: 0.12, badLo: 0.05, text: '\u2265 0.12 m' },
       'nose-over':       { lo: 15, text: '\u2265 15\u00b0' },
       'power nose-over': { hi: 0.75, badHi: 1, text: '< 0.75' },
+      'crosswind limit': { lo: 4, badLo: 2, text: '\u2265 4 m/s' },
     };
     const judge = (label, v) => {
       const b = BOUNDS[label];
@@ -3568,6 +3595,16 @@
           (L.sink || 0) > 1.8 ? 'warn' : '');
         R('past the aim', n1(L.pastAim, 0) + ' m',
           Math.abs(L.pastAim || 0) > 150 ? 'warn' : '');
+      }
+      // G193.2: THE CROSSWIND LIMIT — measured after the circuit on the same
+      // build; the band is the strip's own edge lines (`xwind.band`)
+      const XW = rep.xwind;
+      if (XW) {
+        const v = XW.limit == null ? '> ' + n1(XW.cap, 0) + ' m/s'
+                : n1(XW.limit, 1) + ' m/s';
+        R('crosswind limit', v + (XW.roll != null ? ' · roll ' + n1(XW.roll, 1) + ' m' : '')
+                              + (XW.e != null ? ' · ' + n1(XW.e * 57.3, 0) + '\u00b0 off' : ''),
+          judge('crosswind limit', XW.limit == null ? XW.cap : XW.limit));
       }
       // the TEST CARD (G107.1): what was asked, what was flown — the flown
       // means from the settled cruise leg, judged against the ask
