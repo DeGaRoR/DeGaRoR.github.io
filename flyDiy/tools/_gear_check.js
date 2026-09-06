@@ -126,6 +126,15 @@ const P0 = GP.gearDefaults();
 const AF = GG.stubAirframe(P0);
 const STATIONS = GP.gearStations(P0);
 check(STATIONS.length >= 1, 'the default bench has no gear stations');
+// G188: the third wheel is row 2 BY IDENTITY — the flag every classifier
+// (gear layer sides/kinds, the join's mains/single, the visual calibration)
+// reads instead of the lateral offset that once made a 0.1 m tailwheel row
+// a pair of mains
+{
+  const S2 = GP.gearStations(Object.assign({}, P0, { s1On: 1, s2On: 1, s2X: 0.1 }));
+  check(S2.length === 2 && S2[0].single === false && S2[1].single === true,
+        'gearStations: row 2 is the single station whatever its lateral offset');
+}
 
 // build ONE leg of a named family at a station, with its wheel on it
 function buildLeg(legKind, opt) {

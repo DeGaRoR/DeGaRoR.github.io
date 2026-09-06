@@ -664,14 +664,23 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
   // failed test, and the bench says so instead of posting a plaque for an
   // aeroplane nobody built.
   const ERRS = [];
+  // G188: WHICH CONTACT IS THE THIRD WHEEL is the station's identity (the gear
+  // layer flags its row 2 `single`), not its lateral offset. Four classifiers
+  // here read `x <= 0.01`; a tailwheel row carrying 0.1 m was therefore a pair
+  // of MAINS to all of them — the mains' station averaged with the tail's
+  // (0.96 m instead of −1.42 m), the visual calibrated onto that mean, and no
+  // third wheel measured at all, so twX/twY stayed stale. Older contacts
+  // without the flag keep the offset reading.
+  const isSingle = c => !!(c && c.st) &&
+    (c.st.single != null ? !!c.st.single : c.st.x <= 0.01);
   const measure = () => {
     ERRS.length = 0;
     const P = window.CAGE_UI ? window.CAGE_UI.P : {};
     const M = {};
     const G2 = window.CAGE_GEAR || {};
     if (G2.contacts && G2.contacts.length) {
-      const mains = G2.contacts.filter(c => c.st && c.st.x > 0.01);
-      const single = G2.contacts.find(c => c.st && c.st.x <= 0.01);
+      const mains = G2.contacts.filter(c => c.st && !isSingle(c));
+      const single = G2.contacts.find(isSingle);
       if (mains.length) {
         M.track = 2 * Math.max(...mains.map(c => Math.abs(c.p[0])));
         M.contactR = mains[0].R;
@@ -757,7 +766,12 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // keel DATUM exists whenever the airframe does; only the stations
       // (twX) additionally need the firewall anchor.
       if (G2.contacts && G2.contacts.length) {
-        const single = G2.contacts.find(c => c.st && c.st.x <= 0.01);
+        const single = G2.contacts.find(isSingle);
+        // G188: a drawn third wheel that produced no single contact is SAID —
+        // the merge would otherwise keep a stale twX/twY without a word
+        if (!single && +P.s2On)
+          ERRS.push('the third wheel is drawn but no single contact was '
+                    + 'found: its station and height not measured');
         if (single && fwOk) {
           M.twX = zFw - single.p[2];      // model x aft of the firewall
           M.twY = single.p[1] - yD;
@@ -769,7 +783,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         // so). Live only since the mains got their rule-10 snap-blocker:
         // without it a shallow measured stance reflected the axle through
         // the belly-plane anchors at 0.28% strain.
-        const mainsY = G2.contacts.filter(c => c.st && c.st.x > 0.01);
+        const mainsY = G2.contacts.filter(c => c.st && !isSingle(c));
         if (mainsY.length)
           M.gearY = mainsY.reduce((s, c) => s + c.p[1], 0) / mainsY.length - yD;
       }
@@ -824,7 +838,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         // x-mapping becomes firewall-EXACT for every part, not just the
         // wheels. The CG/rake placement rule is bypassed; noseOver is
         // posted by the shakedown, which is the honest trade.
-        const mains2 = (G2.contacts || []).filter(c => c.st && c.st.x > 0.01);
+        const mains2 = (G2.contacts || []).filter(c => c.st && !isSingle(c));
         if (mains2.length)
           M.gearX = zFw - mains2.reduce((s, c) => s + c.p[2], 0) / mains2.length;
         const zRing = zOf2('ring');
@@ -1107,7 +1121,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       const mfx = (mains[0][0] + mains[1][0]) / 2,
             mfy = (mains[0][1] + mains[1][1]) / 2;
       const G2 = window.CAGE_GEAR;
-      const cm = G2.contacts.filter(c => c.st && c.st.x > 0.01);
+      const cm = G2.contacts.filter(c => c.st && !isSingle(c));
       const cz = cm.reduce((s, c) => s + c.p[2], 0) / cm.length,
             cy = cm.reduce((s, c) => s + c.p[1], 0) / cm.length;
       // G54.2 THE PITCH CALIBRATION (user: "it's like the plane has

@@ -33108,3 +33108,30 @@ below is reintroduced here):
    section by rule (and the join says so), or the frame grows a `tube`
    member class whose k carries a round tube's torsion — a design decision
    for the user, not a fix.
+
+## G199.4 — THE PAWNEE'S SAFE PIECES, BACK ON THEIR OWN (2026-09-06, the
+## user: "commit this revert, then bring back the safe items")
+
+Two of G188's ten pieces are measurement-honesty with no reach into a frame
+row, and they return here exactly as G188 wrote them (its own hunks replayed
+onto the reverted HEAD):
+
+- **The third wheel is the station the table flags `single` (row 2), not
+  whichever contact sits within 1 cm of the centreline.** `_gear_page.js`
+  flags the row, `_cage_gear.js` draws one contact for it whatever its lateral
+  offset and classifies mains against it, and the join's four contact filters
+  (`mains`, `single`, `mainsY`, `mains2`, `cm`) key on the flag. A tailwheel
+  row carrying a 0.1 m offset was a pair of mains to all of them, so its
+  station and height were never measured. GATE GEAR pins the flag.
+- **A drawn third wheel that produced no single contact is SAID** (an ERRS
+  row), so the merge's "last good number" cannot stand in for it silently.
+
+**Deliberately NOT back, and why.** The aft-pillar ERRS row ("no pilPaxA ring,
+no pod anatomy") would fire on every POD build now that the pod anatomy is
+out, and the bench calls a build with an ERRS row a failed test: it returns
+WITH the pod anatomy, for pods. The nose engine station, the wing's height,
+the clamp widenings, the pod anatomy and the ring-less post fallback stay
+out pending the A/Bs listed under G199.3 — the fallback never for a rod boom.
+
+On the ultralight this changes nothing measurable (its tailwheel row sits on
+the centreline); the fixture's load rows are identical before and after.
