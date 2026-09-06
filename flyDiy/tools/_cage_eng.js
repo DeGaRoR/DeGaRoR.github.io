@@ -326,6 +326,40 @@ const PRESET_LABELS = () => {
   return PRESET_LABELS_CACHE;
 };
 if (typeof window !== 'undefined') window.CAGE_ENG_PRESET_LABELS = PRESET_LABELS;
+// THE LIST READS BY POWER (2026-09-06, the user: "all engines should be
+// ordered by increasing power"). The option VALUE stays the index into
+// PRESET_NAMES (a saved number never changes meaning); only the ORDER the
+// options are shown in follows the power that flies — the registry row's
+// for a mapped preset, the resolve's own for a fantasy one — and the custom
+// engine is always last. Lazy and cached, like the labels, for the same
+// bundling reason.
+const presetPowerOf = (name) => {
+  if (name === CUSTOM_ENGINE) return Infinity;
+  if (!ENG_FANTASY.has(name) && typeof POWERPLANTS !== 'undefined'
+      && typeof CAGE_JOIN_ENGINES !== 'undefined') {
+    const row = POWERPLANTS[CAGE_JOIN_ENGINES[name]];
+    if (row && row.engine && row.engine.powerW > 0) return row.engine.powerW;
+  }
+  const EG = (typeof window !== 'undefined') && window.ENG_GEN;
+  const ps = presetSpecOf(name);
+  if (EG && EG.engResolve && ps) {
+    try { return EG.engResolve(ps).powerW || 0; } catch (e) { return 0; }
+  }
+  return 0;
+};
+let PRESET_ORDER_CACHE = null;
+const PRESET_ORDER = () => {
+  if (!PRESET_ORDER_CACHE) {
+    const pw = PRESET_NAMES.map(presetPowerOf);
+    PRESET_ORDER_CACHE = PRESET_NAMES.map((_, i) => i)
+      .sort((a, b) => (pw[a] - pw[b]) || (a - b));
+  }
+  return PRESET_ORDER_CACHE;
+};
+if (typeof window !== 'undefined') {
+  window.CAGE_ENG_PRESET_ORDER = PRESET_ORDER;
+  window.CAGE_ENG_PRESET_POWER = presetPowerOf;
+}
 const rowNames = r => r.k === 'material' && CW.MATERIALS
   ? CW.MATERIALS.map(mm => mm.name) : r.names;
 const LBL = { noseOff: 'fore / aft (base off the flange)' };
@@ -399,7 +433,7 @@ const ENG_ITEMS = [
   // `optHide` folds the other types' entries away.
   ['engPreset', 'engine', 0,
    Math.max(1, PRESET_NAMES.length - 1), 1, PRESET_NAMES,
-   { when: P => +P.engOn, optLabels: PRESET_LABELS,
+   { when: P => +P.engOn, optLabels: PRESET_LABELS, optOrder: PRESET_ORDER,
      optHide: P => PRESET_NAMES.map(n => n !== CUSTOM_ENGINE &&
                                          presetArch(n) !== archOf(P)) }],
   ['engMount',  'mount', 0, 3, 1,

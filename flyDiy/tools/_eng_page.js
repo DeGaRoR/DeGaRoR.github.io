@@ -54,6 +54,15 @@ const engDefaults = () => Object.assign(
     twoStroke: EG.ENG_DEFAULT.twoStroke, liquid: EG.ENG_DEFAULT.liquid,
     inlineAim: EG.ENG_DEFAULT.inlineAim,
     geared: EG.ENG_DEFAULT.geared, arch: 'flat', finN: 14,
+    // THE BLOWER AND THE V ANGLE (2026-09-06). EVERY ROW-BACKED KEY MUST
+    // HAVE A DEFAULT HERE: applyEngPreset writes `defaults + preset` and
+    // skips a key it finds undefined, so a key missing from this dict is
+    // never RESET by the next preset — the 915's turbo (blower 1, boost
+    // 1.35, 4 600 m) rode into a Rotax 582's dials, and the load audit
+    // rightly read a blown 582 and flipped the build to custom. GATE ENGID
+    // §0 now asserts the invariant for every panel row.
+    blower: EG.ENG_DEFAULT.blower, boost: EG.ENG_DEFAULT.boost,
+    critAlt: EG.ENG_DEFAULT.critAlt, vee: EG.ENG_DEFAULT.vee,
     // the electric fiche (G25) rides the same dict
     eStyle: EG.ENG_DEFAULT.eStyle, canD: EG.ENG_DEFAULT.canD,
     canL: EG.ENG_DEFAULT.canL, volts: EG.ENG_DEFAULT.volts,

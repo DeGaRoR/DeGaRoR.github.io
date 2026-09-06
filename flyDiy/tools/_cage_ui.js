@@ -1508,9 +1508,18 @@ const mkRow = (parent, k, label, lo, hi, st, val, oninput, names, opts) => {
     // the key list and the value stays its index.
     const shown = typeof opts.optLabels === 'function' ? opts.optLabels()
                 : opts.optLabels;
-    sel.innerHTML = names.map((n, i) =>
+    // optOrder (2026-09-06): the ORDER the options are shown in — a function
+    // returning the indices in display order. The value is still the index
+    // into `names`, so a saved number never changes meaning; only the list
+    // reads differently (the engine row reads by power).
+    let order = names.map((n, i) => i);
+    if (typeof opts.optOrder === 'function') {
+      try { const o = opts.optOrder(); if (Array.isArray(o) && o.length === names.length) order = o; }
+      catch (e) {}
+    }
+    sel.innerHTML = order.map(i =>
       `<option value="${i}"${+val === i ? ' selected' : ''}>` +
-      `${(shown && shown[i]) || n}</option>`)
+      `${(shown && shown[i]) || names[i]}</option>`)
       .join('');
     d.appendChild(sel);
     sel.onchange = e => oninput(+e.target.value);
@@ -2429,7 +2438,9 @@ function applyRowVis() {
       let hide = null;
       try { hide = o.optHide(P); } catch (e) {}
       if (hide)
-        Array.from(meta.el.options).forEach((op, i) => {
+        Array.from(meta.el.options).forEach(op => {
+          // by VALUE, not position: optOrder may have reordered the options
+          const i = +op.value;
           op.hidden = !!hide[i]; op.disabled = !!hide[i];
         });
     }

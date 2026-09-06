@@ -31483,6 +31483,41 @@ catalogue engine (cheap, uncached).
 
 ---
 
+## G195.1 — THE ENGINE LIST READS BY POWER (2026-09-06)
+
+The user, on seeing the picker: "in the slide menu, the layout option should
+be on top of the engine option. All engines should be ordered by increasing
+power." The first was already in b14f964 (the parts table's `place.type`
+puts `eng_arch` before `engPreset`; the screenshot the user saw predated
+that hunk). The second is a new panel row option, `optOrder` (a function
+returning the indices in DISPLAY order): mkRow builds the `<option>`s in
+that order while the VALUE stays the index into the full list, so a saved
+number never changes meaning; applyRowVis's `optHide` indexes by option
+value now, not position. The engine layer's `PRESET_ORDER` sorts by the
+power that flies (the registry row for a mapped preset, the resolve's own
+for a fantasy one — `presetPowerOf`, lazy and cached like the labels), the
+custom engine last; the birth flow's model list sorts the same way through
+`window.CAGE_ENG_PRESET_POWER`. GATE ENGID §7a holds it: a permutation of
+every option, non-decreasing power, custom last, a Rotax 277 before a Twin
+Wasp. Verified in dev.html: the flat list reads flat twin (26 kW) → VW 2180 →
+A-65 → 912 → Jabiru → O-200 → flat six → 915 iS → O-320 → IO-360 → O-540 →
+IO-550 → IO-720 → custom; over every layout the RC outrunners come first and
+the Twin Wasp is the last engine before custom.
+
+**And a real bug the page showed on the way** (the gates had not): a saved
+catalogue 582 came back as CUSTOM after a reload. `engDefaults()` in
+_eng_page.js copies the generator's defaults KEY BY NAME, and the four dials
+G195 added (blower, boost, critAlt, vee) were not in it; applyEngPreset
+writes `defaults + preset` and skips an undefined key, so the next preset
+never RESET them — the 915 iS's turbo (blower 1, boost 1.35, 4 600 m) rode
+into the 582's dials, and the load audit read a blown 582 and flipped the
+build to custom, exactly as it should. The four defaults are in; GATE ENGID
+§0 asserts every panel row key has a default in engDefaults() and that a 582
+applied after a 915 carries no turbo. Verified: pick the 582, reload, it is
+the 582.
+
+---
+
 ## G194.1 — THE STAGING TRAP: ZERO-CONTEXT HUNKS LAND AT THE WORKING TREE'S
 ## LINE NUMBERS (2026-09-05, found by building HEAD in a clean worktree)
 

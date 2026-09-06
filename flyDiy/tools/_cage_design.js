@@ -586,7 +586,12 @@ function designEngineModels() {
   const EP = gEngPage();
   if (!EP || !EP.PRESETS) return [];
   const custom = EP.CUSTOM_ENGINE || 'custom engine';
-  return Object.keys(EP.PRESETS).filter(n => n !== 'bare engine').map(n => ({
+  // by increasing power (2026-09-06), the engine layer's own reading of
+  // what flies — the list is the layer's order when the layer is loaded
+  const names = Object.keys(EP.PRESETS).filter(n => n !== 'bare engine');
+  const pw = (typeof window !== 'undefined') && window.CAGE_ENG_PRESET_POWER;
+  if (pw) names.sort((a, b) => (pw(a) - pw(b)) || 0);
+  return names.map(n => ({
     value: n, label: n, family: designPresetFamily(n),
     writes: { cage: { engPreset: n } },
   })).concat([{ value: custom, label: custom + ' — every geometry row is yours',

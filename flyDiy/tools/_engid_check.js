@@ -50,6 +50,26 @@ const fresh = (name) => {
   return P;
 };
 
+// 0. EVERY PANEL ROW HAS A DEFAULT (2026-09-06): applyEngPreset writes
+//    `engDefaults() + preset` and SKIPS an undefined key, so a row key with
+//    no default is never reset by the next preset — the 915's turbo dials
+//    rode into a 582 and the load audit flipped that build to custom.
+{
+  const D = window.ENG_PAGE.engDefaults();
+  const SKIP = new Set(['quality', 'sideCyl', 'sideShaft', 'sideAcc',
+                        'sidePipe', 'sideDetail', 'screws',
+                        'fwOn', 'fwW', 'fwH', 'ruler']);
+  const missing = [];
+  for (const [, rows] of window.ENG_PAGE.GROUPS)
+    for (const r of rows) if (!SKIP.has(r[0]) && D[r[0]] === undefined) missing.push(r[0]);
+  ok(missing.length === 0, 'every panel row key has a default in engDefaults()' +
+     (missing.length ? ' — MISSING: ' + missing.join(', ') : ''));
+  // and the behaviour: a 915 iS then a 582 leaves an untouched 582
+  const P = fresh('rotax 915 iS');
+  P.engPreset = PRESET_NAMES.indexOf('rotax 582'); APPLY(P, 'rotax 582');
+  ok(window.CAGE_ENG_AUDIT(P) === false && +P.eng_blower === 0,
+     'a preset applied after a turbo preset carries no turbo (the audit leaves it alone)');
+}
 // 1. untouched preset IS the engine -> null (registry row flies)
 {
   const P = fresh('rotax 912 (flat)');
@@ -140,6 +160,25 @@ ok(Number.isInteger(CUSTOM) && CUSTOM === PRESET_NAMES.length,
 {
   const P = fresh('continental A-65'); P.engOn = 0;
   ok(FACTS(P) === null, 'engine layer off -> null');
+}
+// 7a. THE LIST READS BY POWER (2026-09-06, the user's ruling): the engine
+//     row's display order is non-decreasing in the power that flies, the
+//     custom engine last, and every index appears exactly once
+{
+  const order = window.CAGE_ENG_PRESET_ORDER ? window.CAGE_ENG_PRESET_ORDER() : null;
+  const pw = window.CAGE_ENG_PRESET_POWER;
+  ok(Array.isArray(order) && order.length === PRESET_NAMES.length + 1
+     && new Set(order).size === order.length,
+     'the display order is a permutation of every option, the custom engine included');
+  const full = PRESET_NAMES.concat(['custom engine']);
+  let sorted = !!order, seenCustomLast = !!order && order[order.length - 1] === PRESET_NAMES.length;
+  if (order) for (let k = 1; k < order.length; k++)
+    if (pw(full[order[k - 1]]) > pw(full[order[k]])) sorted = false;
+  ok(sorted, 'the options read by non-decreasing power');
+  ok(seenCustomLast, 'and the custom engine is the last option');
+  const i277 = order ? order.indexOf(PRESET_NAMES.indexOf('rotax 277')) : -1;
+  const i1830 = order ? order.indexOf(PRESET_NAMES.indexOf('P&W R-1830')) : -1;
+  ok(i277 >= 0 && i1830 > i277, 'a Rotax 277 reads before a Twin Wasp');
 }
 // 7b. NO ORPHAN PRESET (2026-09-05): every preset that is not a fantasy maps
 //     to a registry row, or the join flies it as an A-65 under its own name.
