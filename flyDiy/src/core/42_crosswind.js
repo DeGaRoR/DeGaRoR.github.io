@@ -59,7 +59,7 @@ function makeCrosswindProbe(def, opts) {
     sim.reset(0);
     for (let i = 0; i < 600; i++) sim.step(1 / 60);       // parked settle
     placeAtAerodrome(sim, a);
-    const ap = makeTestPilot(sim, def, world);
+    const ap = makePilot(sim, def, world);
     ap.setRoute(a, a);
     ap.departFrom(a, a, site);
     cur = { w, sim, ap, t: 0, roll: 0, e: 0, fin: null };

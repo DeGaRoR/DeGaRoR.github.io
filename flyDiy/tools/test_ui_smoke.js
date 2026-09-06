@@ -574,7 +574,7 @@ try {
     // is the whole reason this redesign added no second source of truth.
     const flight = ['flStore', 'selAc', 'flTop', 'flPlate', 'flSlots',
                     'flLine', 'flNotice', 'flActs', 'bGo', 'bHangar2',
-                    'flRail', 'flFly', 'pfd', 'rail', 'phName', 'track',
+                    'flRail', 'flFly', 'pfd', 'rail', 'phName', 'phNext', 'track',
                     'telp', 'mmp',
                     // the ARRIVAL CARD — the flight's ending is flight chrome
                     // by definition, and its two buttons belong to the FLIGHT

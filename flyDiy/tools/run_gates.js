@@ -46,6 +46,8 @@ const GATES = [
   // a build that cannot fly must come back SAYING SO in bounded time. Carries
   // --selftest (doctored reports; every check proven able to go red).
   { id: 'PILOT', file: 'test_pilot.js', tier: 'core' },
+  // THE NAV (G202.1): the navigator and the units, pure and fast
+  { id: 'NAV', file: 'test_nav.js', tier: 'core' },
   // G193: the user's ultralight off the stand through the declared pattern —
   // the stop, the straight roll, in calm air and in wind (~3 min)
   { id: 'TAKEOFF', file: '_takeoff_check.js', tier: 'core' },

@@ -34,7 +34,7 @@
 'use strict';
 const fs = require('fs'), path = require('path');
 const { buildGen, makeSim, makeWorld, defBodyProject, makeSkinBinding,
-        sparDeltas, makeTestPilot, genGroundPowerCap,
+        sparDeltas, makePilot, genGroundPowerCap,
         GEN_DEFAULT, GEN_RULES } = require('./flight_core.js');
 
 // 15 mm is under a rib tape's width — invisible on the stand — where the
@@ -159,7 +159,7 @@ chk(measure.length === 2, 'instrument shape');
     const sim = makeSim(def, world); sim.reset(0);
     for (let s = 0; s < 600; s++) sim.step(1 / 60);
     const GP = genGroundPowerCap(def, sim.thrustAt(0), sim.totalM * 9.81);
-    const ap = makeTestPilot(sim, def, world);
+    const ap = makePilot(sim, def, world);
     const tw = def.refs.tw;
     const gy = i => sim.p[i*3+1] - world.terrainH(sim.p[i*3], sim.p[i*3+2]);
     let twMax = 0, lifted = false, thrMax = 0;

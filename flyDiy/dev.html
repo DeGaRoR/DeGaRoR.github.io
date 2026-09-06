@@ -7,7 +7,7 @@
 <title>Garage Flight Sim</title>
 <link rel="stylesheet" href="src/viewer/style.css?v=771a9126">
 <link rel="stylesheet" href="src/viewer/editor.css?v=d1ff92cc">
-<link rel="stylesheet" href="src/viewer/flight.css?v=09feb86e">
+<link rel="stylesheet" href="src/viewer/flight.css?v=f8456e11">
 <link rel="stylesheet" href="src/viewer/controls.css?v=c73aba83">
 </head>
 <body>
@@ -56,7 +56,9 @@
     </select>
     <select id="selPilot" aria-label="Pilot">
       <option value="auto">Pilot &middot; auto</option>
-      <option value="test">Test pilot</option>
+      <option value="cautious">Pilot &middot; cautious</option>
+      <option value="brisk">Pilot &middot; brisk</option>
+      <option value="test">Test pilot (G107)</option>
       <option value="classic">Autopilot</option>
     </select>
     <select id="selFrom" aria-label="Departure"></select>
@@ -165,7 +167,7 @@
         <div class="rd" data-i="da" hidden><b id="r-da">+0</b><i>% ail</i></div>
         <div class="rd" data-i="dr" hidden><b id="r-dr">+0</b><i>% rud</i></div>
       </div>
-      <div id="rail" class="held"><b id="phName">HOLDING</b><div id="track"></div>
+      <div id="rail" class="held"><b id="phName">HOLDING</b><i id="phNext"></i><div id="track"></div>
         <!-- THE SMALL PFD. Four numbers instead of nine, two thirds of the
              type, the steps unchanged — for when the aeroplane is what you
              want to be looking at. It overrides the `instruments` flyout for
@@ -549,13 +551,15 @@
 <script src="src/core/22_world_biomes.js?v=da7fb9a6"></script>
 <script src="src/core/23_world_settle.js?v=24706f45"></script>
 <script src="src/core/24_world_aero.js?v=5c2dd151"></script>
-<script src="src/core/25_airfield.js?v=6c663373"></script>
+<script src="src/core/25_airfield.js?v=1b1a623a"></script>
 <script src="src/core/26_hangar_fit.js?v=cf8efdbe"></script>
 <script src="src/core/30_solver.js?v=2aaca20a"></script>
+<script src="src/core/38_nav.js?v=9e55ea9b"></script>
 <script src="src/core/39_ground_path.js?v=ba709a8e"></script>
 <script src="src/core/40_autopilot.js?v=581ea889"></script>
 <script src="src/core/41_test_pilot.js?v=02a9d7a4"></script>
-<script src="src/core/42_crosswind.js?v=d25a040b"></script>
+<script src="src/core/42_crosswind.js?v=0105de41"></script>
+<script src="src/core/43_pilot.js?v=a9dc8a24"></script>
 <script src="src/core/50_model_codec.js?v=860cd2a9"></script>
 <script src="src/core/51_prop_codec.js?v=2a556ad5"></script>
 <script src="src/core/60_gen_spec.js?v=6cdaa7ce"></script>
@@ -567,7 +571,7 @@
 <script src="src/core/64_gen_build.js?v=309f6480"></script>
 <script src="src/core/65_gen_loadtest.js?v=92395afd"></script>
 <script src="src/core/70_player.js?v=492b9918"></script>
-<script src="src/core/90_node_exports.js?v=75b4fa88"></script>
+<script src="src/core/90_node_exports.js?v=0ae279b3"></script>
 <script src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script src="src/models/c172_model.js?v=267306e7"></script>
 <script src="src/models/d112_model.js?v=3be353d3"></script>
@@ -644,10 +648,10 @@
 <script src="src/viewer/refplane.js?v=19535b38"></script>
 <script src="src/viewer/design_flow.js?v=584e7f50"></script>
 <script src="src/viewer/balance.js?v=6b250999"></script>
-<script src="src/viewer/pattern_vis.js?v=e5e23732"></script>
+<script src="src/viewer/pattern_vis.js?v=ccd7e67c"></script>
 <script src="src/viewer/input.js?v=e3729343"></script>
 <script src="src/viewer/input_panel.js?v=d273356b"></script>
 <script src="src/viewer/editor.js?v=729d2eab"></script>
-<script src="src/viewer/app.js?v=9d17bd44"></script>
+<script src="src/viewer/app.js?v=85842073"></script>
 </body>
 </html>

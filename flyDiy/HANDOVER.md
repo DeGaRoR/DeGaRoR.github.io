@@ -32663,3 +32663,348 @@ again on that worktree with this session's three files copied in (DESIGN
 PASS beside them): they are the other sessions' frame work (G198/G199.1) owing
 a re-freeze, not this pass's. Everything else in core green (2567 s under
 the archetype gate and the re-flights).
+
+## G202 — THE PILOT: A THIRD PILOT, THREE LAYERS, AND THE FLIGHT NOBODY HAD
+## FLOWN — LAND, TURN AROUND, TAKE OFF AGAIN (2026-09-06, the user: "test
+## pilot revamp (possibly a new one again, expert) ... Robustness and
+## precision, and clear feedback are the keys")
+
+**The brief, verbatim where it matters.** "It easily misses the glide slope,
+starts going around for no reason, don't deploy the flaps before landing,
+seem to have no idea how to control the glideslope, it does not rotate on
+take off for tricycles apparently, it easily overshoots its control points
+in the ground circuit, it easily misses key steps and keep in a flight phase
+forever ... no one has ever been able to properly land, turn around and take
+off again. It gets confused with the track direction." Plus: markings on the
+strip that match what the pilot flies to, a hold line, a glideslope aid
+"with the lights (VASI?) if it helps", the phase and the conditions for the
+next one said clearly, an unflyable build that "should start and take off,
+but abort if it sees it's gonna run off", and a behaviour knob. And, an hour
+in: "write core functions typical from autopilots, Vs, fpm, altitude
+heading, gps, etc. The whole garmin thing."
+
+**The audit, before writing anything.** Every defect on the list is in the
+test pilot's DECISION layer, not its servos. Measured on 41_test_pilot.js:
+(1) the circuit was a teardrop — out along the strip, a 180 at xTurn, back
+in — so it LANDED OPPOSITE to the take-off, downwind on every windy day
+(DEPART picks the take-off into wind; enterArrival never re-chose for a
+circuit); (2) INBOUND held level until the slope came up to it and handed
+off only inside 40 m of it, so a build arriving above the slope crossed the
+aim still high and took a `past-aim` go-around, and an APPROACH 60 m above
+the slope for 5 s went around whatever the distance — the "for no reason";
+(3) a tricycle in ROLL held `rollDe` (0.02) until the wing floated it off:
+`rotateTD` was the taildragger's alone (the Whittaker's 76 s roll, G201);
+(4) the flap schedule was right but reached LDG only in APPROACH, which the
+high arrivals never entered; (5) after a landing the departure planner
+handed the follower a route whose first node was BEHIND the nose (the U-turn
+lane at the far end), and the follower's first act was a 180 on a point with
+a 20 m turn radius on a 30 m strip; (6) the only bounded phases were the
+ones G107 bounded — every leg of the circuit could be held for ever by a
+lookahead that never captured. And nothing on screen said what the pilot was
+waiting for.
+
+**What was built: `src/core/43_pilot.js`, `makePilot(sim, def, world,
+{ style })`.** Three layers, like the box in a real panel:
+
+- THE SERVOS — holdPitch, airLateral, speedThrottle, holdVS, groundSteer, the
+  taxi governor and the path follower — the test pilot's, carried VERBATIM.
+  genTuneAP sizes their gains per aeroplane and the G201 pass proved them on
+  25 archetypes; nothing here re-tunes them.
+- THE AFCS ("the whole garmin thing") — the modes a flight-control computer
+  offers, each a function of a selected target, `engage(lat, vert, thr, sel)`
+  applied ONCE per frame after the phase logic: lateral HDG (a heading) · TRK
+  (a point) · NAV (a leg, cross-track corrected, turn anticipation
+  R·tan(Δθ/2)) · LOC (the runway centreline of the landing frame) · RWY (the
+  centreline on the wheels) · TAXI (the ground path) · DECRAB; vertical ALT ·
+  VS · FLC (an airspeed with pitch) · GS (the glideslope, groundspeed
+  feed-forward) · PITCH · DE; thrust SPD (an airspeed with the throttle) ·
+  FULL · IDLE · SET · TAXI (a ground speed). `ap.afcs` carries the modes, the
+  selected targets and the flight director (`fd` = the commanded pitch and
+  bank the servos are flying to). `PILOT_UNITS` converts for a panel that
+  wants kt / fpm / ft; the pilot itself is SI.
+- THE PILOT — the phase machine, which only SELECTS modes and targets, plans
+  the ground route and the arrival, judges the take-off, and says what it is
+  doing. `ap.status = { phase, label, goal, conds[{what, have, want, ok,
+  unit}], afcs }`, written every frame; the rail shows it under the phase
+  name (`#phNext`, app.js `railStatus`): "accelerating to rotation speed —
+  airspeed 12.4/17.5 m/s · runway left 940/183 m ✓ · accel 1.6/0.08 m/s² ✓
+  [RWY PITCH SET]".
+
+**The circuit is rectangular and lands into wind.** CLIMB straight ahead to
+`hTurn = max(hSafe + 10, hTurnK · 0.35 · hCruise)`, then NAV legs CROSSWIND →
+DOWNWIND → BASE → FINAL on the left, the pattern `patW · Rturn` wide (R =
+VTurn²/(g tan bankLim); 553 m on the stock build), the IAF on the extended
+centreline at `sAim − hCruise/gs − max(400, 10·VTurn)` at circuit height, a
+level segment, the slope captured FROM BELOW (GS engages at 4 m under it),
+flaps to LDG at the start of FINAL. The landing frame is the take-off
+direction's (`mkFrame(to, u)`, unchanged: origin td + 450u, xAim −520 = 70 m
+short of the target) — so `frame.k` differs between the departure and the
+arrival now, and `sitePattern`'s `aimAP` was found 140 m wrong (it read td +
+70u; the flown slope meets the ground at td − 70u; fixed, the overlay's
+slope now starts where the pilot's does). Cross-country: straight in from
+beyond the IAF inside 60° of the course, else a downwind join on the side
+the aeroplane is on; ENROUTE cruises at the departure's hCruise (or terrain
++ hClear), descends at 3° onto the destination's circuit height by 800 m
+before the entry, climb-out heading held until within 60 m of the leg height
+(W10 rule 3, kept). A ceiling that will not come is accepted as before.
+
+**Go-arounds only when the landing is unrecoverable:** more than `gaHigh`
+(60 m) above the slope inside 600 m for 3 s; more than `gaXT` (15 m) off the
+centreline inside 250 m; terrain under 15 m beyond 400 m out; past the aim by
+150 m still above three flare heights; floating in the flare with less than
+2·stopDist + 100 m of strip left. Two, then the landing is COMMITTED and
+said so. A go-around climbs the runway heading to hTurn and re-flies the
+whole circuit through the same planner.
+
+**Every aeroplane rotates.** A tricycle takes PITCH liftoffTh at Vr like a
+taildragger takes its tail-up / three-point schedule. The stock build on a
+nosewheel: airborne at 134 m of a 145 m sheet (GATE PILOT holds < 1.5×).
+
+**The accelerate-stop call**, four ways on the roll, each said with its
+numbers: `stopDist(v) = v²/(2·aStop) + v` with aStop = 0.8·g·(CRR +
+brakeMax·MU_BRAKE) ≈ 1.8 m/s² on the grass datum; reject when `left − sd <
+reserve` (80 m); EARLY when the 2 s-filtered acceleration cannot reach Vr
+before that point ("will not reach Vr: 0.08 m/s² needs 824 m more, 695 m
+left" — HOVER at 32 s, HEAVY at 3 s, both stopped on the strip with the
+`abort` record on the report: V0, run, left, onStrip); at `rejectFrac` (60 %)
+of the strip without Vr ("dropping it"); not accelerating after 8 s. In
+LIFTOFF a hover in ground effect is put down when the strip left is under
+its stop + 120 m, not only after 25 s. THE SAME ARITHMETIC IS THE PLANNER'S:
+`runNeeded() = needK · (0.85·TORun + stopDist(VRot) + reserve)` decides
+whether a stopped aeroplane rolls from where it is or goes to a hold — the
+first draft used TORun + 60 there and the roll then rightly rejected a
+mid-strip departure it had just accepted (leg 2 of the turn-around: 269 m
+left, 85 m more needed). A short field's hold accepts min(runNeeded,
+0.7·len) and lets the roll judge.
+
+**Land, turn around, take off again.** `planDeparture(cg, nose)` from any
+pose: the take-off direction is the wind's (> 0.7 m/s), else the nose's if
+the run ahead fits, else the OPPOSITE end (the nearer hold); the route is the
+pattern's `routes.out[T]` off the strip and `routes.back[T]` on it; and when
+the route's first node is behind the nose (cos < −0.2, > 60 m away) a U-turn
+is spliced at the pose — `@ua/@ub/@uc`, out to the lane opposite the node,
+a half-circle of the lane's radius (12 m) across the strip, back along the
+node's lane — the pattern's own U-turn shape drawn where the aeroplane is,
+so the follower never spins on a point. Long straights (a backtrack) taxi at
+min(8, 1.6·taxiV); the bends and the stop still govern through pathSpeed.
+Measured, the stock build at HOME, calm: circuit 299 s (the teardrop was
+290); the second leg from the stopped pose taxis 67 s (back to the end, the
+U-turn, the hold) and completes at 370 s, k flipped; the third leg the same
+from the other end. A 3 m/s headwind from the spawn: a 1 km backtrack in
+167 s (240 before the fast straight), landing into wind, run 172 m. GATE
+PILOT's AGAIN case holds it.
+
+**Bounded, all of it.** Every phase carries a timeout and a fallback: TAXI
+stops where it is; LINEUP stops to replan; HOLD tries two line-ups, then
+re-plans the departure three times, then `taxi-lost` (gave-up); a leg that
+overruns 2.5× its expected time moves to the next with `leg-timeout`; FINAL
+past 240 s goes around; FLARE past 20 s with no strip goes around; ROLLOUT
+and ABORT stop at 120 / 90 s. The watchdog budget still says `gave-up`. The
+report is the test pilot's contract plus `phases[]`, `abort`, `landing.k`,
+`style`; a clean flight has NO verdicts (an informational "on the slope"
+line was written and removed: the arrival card reads the list as "what went
+wrong").
+
+**Styles.** `PILOT_STYLES` cautious / normal / brisk scale the reject
+fraction (0.50 / 0.60 / 0.70), the bank (0.8 / 1 / 1.15), the approach speed
+(1.06 / 1 / 0.97), the go-around tolerances, the taxi speed, the crosswind
+turn height, the reserve (120 / 80 / 50 m), the pattern width and the run
+the planner wants (1.3 / 1 / 0.9). The flight screen's pilot select offers
+all three (`auto` = normal) beside the G107 test pilot and the classic
+autopilot; the stock circuit flies 311 / 299 / 294 s.
+
+**The ground reads what the pilot flies.** `siteRunway` carries `td0`/`td1`
+(the record's tdz and its mirror off the other bar — sitePattern's two
+approaches read them now, one keeper) and `holdIn`; `sitePaintStrip` paints
+the touchdown markers AT td0/td1 (bars astride the centreline, a chevron the
+way that landing runs) and a hold-short line at each hold, 110 m in; the
+quarter-point aim0/aim1 stay derived for GATE SITE and are not painted (a
+marker the pilot does not fly to is a lie on the ground). pattern_vis.js
+grew a PAPI — four lights abeam the slope's ground intercept, left side,
+22 m off the centreline, white above their angle and red below, the four
+angles straddling the slope flown (gs ± 0.17°, ± 0.5°), recoloured every
+frame from the aeroplane's position, dark from behind — and a `legs` layer
+that draws the pilot's planned circuit in the air the moment it plans it.
+Both are on unless the flyout says otherwise; the three G193 overlays stay
+off until asked.
+
+**Who flies it.** Generated builds (app.js `mkPilot`), 42_crosswind.js, and
+every gate that flew the test pilot: test_pilot.js, _takeoff_check.js (its
+both-pilots source check includes 43_), arch_fly.js, _arch_check.js,
+_mount_check.js, test_biplane.js. 41_test_pilot.js stays whole for A/B; the
+fork doctrine's "mirror every phase edit" no longer binds it — the pilot is
+the one that moves.
+
+**GATE PILOT grew four cases** (negative-verified, six new selftest probes):
+AGAIN (a second leg from the stopped pose must taxi to a hold and complete
+inside 450 s with no rejection), WIND (3 m/s along the strip, planned from
+the spawn: the landing direction · wind < 0 — the whole point of the
+rectangle), TRIKE (lift-off inside 1.5× the sheet's run), FLAPS + STATUS (the
+ultralight fixture from the stand lands with its flaps down and the roll's
+status names airspeed and runway left with the AFCS annunciated). TRAP met
+writing it: `ap.status` is written at the END of a phase's frame, so the
+first frame of a new phase still carries the old phase's status — the gate
+samples 5 m into the roll.
+
+**Measured, the stock build:** GOOD 299 s, run 261 m, sink 0.78, 11 m past
+the aim; card 64 m of 70 / 25.0 of 25; the 45 m/s ask said and 39.4 flown;
+2.5 m/s crosswind circuit 0.2 m off centre at touchdown; HOME → M1 → HOME
+378 + 382 s (an ENROUTE at terrain + 130 m, a downwind join on the side it
+arrived on, the meadow's hold accepted at 350 m of run). The ultralight from
+the stand: taxi 40 s, hold, roll, airborne at 49 s, landing flaps 1.00,
+run 72 m; in a 2 m/s crosswind the roll holds 10.5 m (the G193.1 swing, the
+design's, unchanged). C172-alike through all six series tests clean (run
+418 m); the motorglider's card stays red on its G201 cruise shortfall.
+
+**The accelerate-stop call, as it ended up — four rules and V1, learned on
+the aeroplane in the garage.** The user's current build (an A-65 on
+703 kg, sheet run 618 m, Vr 22) was the case the fixtures did not have:
+it reached Vr at ~600 m, rotated, and did NOT unstick — rolling at 25 m/s
+with the tail up, off the end of the strip with every rule quiet, because
+every rule asked `V < Vr` first. Three iterations, each measured in the
+page: (1) a "well past Vr on the wheels" speed rule caught it — and GATE
+PILOT condemned the STOCK build with it: Vr is the derived rotation
+(0.99 Vs, G159) and every aeroplane unsticks at 1.4-1.5 Vr, 4-8 s later;
+(2) the user's own rule instead — a fraction of the run used still on the
+wheels, whatever the speed — measured on the strip's LENGTH it fired 5 m
+after the point of no stopping (the roll starts at a hold 110 m in);
+(3) measured on the run AVAILABLE from where the roll began it drops the
+build at 595 m with 214 m of strip left, stopped on the grass, the arrival
+card reading "595 m used (60 % of the run) still on the wheels at V=25.3
+past Vr=22.0 (the sheet says 618 m) — dropping it". So, while a stop on the
+strip is still possible (`left − stopDist(V) ≥ reserve`): the measured
+acceleration cannot reach Vr in what is left (the prediction waits 7 s for
+the 2 s filter to settle — at 3 s the Tiger Moth-alike on a hot day read a
+third of its true acceleration and was condemned on the spot); the
+fraction of the run used on the wheels; not accelerating after 8 s. Past
+that point: `committed-takeoff` said once and the climb continued like a
+real one past V1 — and a strip that ends under an aeroplane still rolling
+is `ran off the end`, a rejection with the fence in it. In LIFTOFF the
+put-down applies only while a stop is still possible; past it the hover is
+committed to the 25 s rule. `runNeeded()` for the planner is the same
+arithmetic. The arithmetic is the design's honesty: a 618 m sheet on a
+990 m run from the hold IS marginal, and the pilot now says so on the strip
+instead of in the fence.
+
+**Seen in the page** (dev.html through a peer's server; the pane's rAF is
+throttled so the sim was pumped through `FLIGHT_PROBE`): the rail reads
+"TAXI · following the taxi route to the hold — to the hold 153/2 m · off the
+line 0/2.5 m ✓ [TAXI DE TAXI]", then "TAKEOFF ROLL · accelerating to
+rotation speed — airspeed 5/22 m/s · runway left 980/93 m ✓ · accel
+1/0.1 m/s² ✓ [RWY PITCH SET]"; the arrival card carries the verdict; FLY ON
+from the stopped pose plans the turn-around.
+
+**Gates, measured on the final build.** GATE PILOT PASS (the eleven old
+checks and the four new cases; selftest 14/14 caught); GATE TAKEOFF PASS
+(seven departures, crosswind limit 2.0 m/s as G193.2 froze it); GATE
+ARCHETYPES PASS — 25 flown, 0 skipped, every card's circuit under the new
+pilot; BIPLANE, MOUNT, SITE, WORLDRENDER, UISMOKE, DESIGN PASS. The core
+battery on the working tree: PASS on every gate but WINGSPLIT ("stock
+positions moved") and ENERGYBASE ("stock cg0 0.885981 -> 0.886566, node
+masses moved") — the SAME two rows and the same numbers G201 attributed to
+the G198/G199.1 frame work owing a re-freeze, and both are RED ON A CLEAN
+WORKTREE OF HEAD (0593dc7) with none of this session's files in it. Not
+this chantier's; the re-freeze is still owed by the frame's owners.
+arch_fly series: C172-alike, Whittaker-alike (lift-off at 12 s, the 76 s
+roll gone), Caravan-alike, Tiger Moth-alike all six green; the motorglider's
+card stays on its G201 cruise shortfall. Not committed — the tree is
+shared (docs/SHARED-TREE-PRACTICES.md); the user holds commits. Files:
+`src/core/43_pilot.js` (new), `25_airfield.js`, `42_crosswind.js`,
+`90_node_exports.js`, `viewer/app.js`, `body.html`, `flight.css`,
+`pattern_vis.js`, `tools/build.js`, `test_pilot.js`, `_takeoff_check.js`,
+`arch_fly.js`, `_arch_check.js`, `_mount_check.js`, `test_biplane.js`,
+`test_ui_smoke.js`, ROADMAP 3b; a `flydiy-pilot` dev-server entry in the
+root launch.json.
+
+## G202.1 — THE AP BOX AND THE NAV: THE MODES AS A DEVICE, A GPS-STYLE
+## NAVIGATOR, ONE READOUT FOR THE PANEL TO COME (2026-09-06, the user:
+## "did you develop unit functions that we could reuse? fpm, constant VS,
+## GPS, heading, etc? Are we close to getting something like the Garmin
+## navigation system functionality? ... let's do it. Ultimately, we're gonna
+## probably have a PFD/MFD recreation, so let's get the functions up and
+## running")
+
+**The honest state before this entry.** G202's AFCS layer had every mode
+(HDG, TRK, NAV, LOC, RWY, TAXI, DECRAB / ALT, VS, FLC, GS, PITCH, DE / SPD,
+FULL, IDLE, SET, TAXI) as a function of a selected target, but `engage` and
+`apply` were closures inside the pilot's update and the phase machine
+re-selected the modes every frame. Nothing outside could say "hold 125 m,
+heading 270, 34 m/s" and be obeyed; there was no navigation layer, no
+flight plan, no readouts; the G200 hand could not share an axis with the
+pilot. What was reusable: `ap.afcs` (modes, targets, flight director) and
+`PILOT_UNITS`.
+
+**THE NAV — `src/core/38_nav.js`, pure.** `navMake({ waypoints })` is a
+navigator: a waypoint database (the aerodromes, plus `add`), `plan(ids,
+from)` for a flight plan of legs, `directTo(wp, x, z)`, `leg()` the active
+leg, `update(x, z, vx, vz, R)` which SEQUENCES by turn anticipation (a leg
+is passed R·tan(Δθ/2) before its corner — the pilots' own rule — and the
+last waypoint is held with `arrived` flagged, never dropped) and returns
+the readouts a navigator shows: DTK, TRK, BRG, DIS, XTK (+ = right of
+course), CDI (−1..+1 of a 300 m full scale, + = fly right), ETE, GS; and
+`vnav(altNow, altTgt)` — the vertical speed that reaches the target at the
+fix. Headings: this world has no compass, so `navDeg` defines one — 0° =
++x, increasing toward +z — the same angle the pilots steer by (atan2(uz,
+ux)), in degrees; `navRad`, `navDiff` (−180..180) beside it. SI throughout;
+`PILOT_UNITS` (kt, fpm, ft, km/h, deg) converts for a panel. `navLegGeom(A,
+B, x, z)` is the leg arithmetic on its own (along-track, cross-track,
+remaining, DTK), the piece the pilot's NAV mode and the panel share.
+
+**THE AP BOX — on the pilot (43_pilot.js).** `ap.engage({ lat, vert, thr },
+sel)`: a mode per axis (undefined = keep, null = RELEASE THE AXIS TO THE
+HAND); the phase machine steps aside (phase `BOX`, rail "AP BOX") and the
+box flies only the axes that have a mode — the servo slew runs on those and
+tracks the hand's value on the others, so nothing jumps when the box takes
+an axis back. `ap.select(sel)` moves the targets; `ap.disengage(resume)`
+hands back to the pilot, which re-latches its filters from the live state
+and resumes at the phase given or where the aeroplane is (ROLLOUT on the
+wheels, CLIMB in the air — which plans the circuit home from wherever it
+is). `ap.setNav(nav)` gives NAV mode a navigator; the box steps it every
+frame with the aeroplane's own turn radius and follows its active leg with
+the pilot's pursuit lookahead. Targets: `hdg` (rad, world angle), `alt` (m,
+absolute), `vs` (m/s), `ias` (m/s), `trk` ([x, z]), `pitch`, `thr`, `gs`
+(LOC + GS is an ILS on the landing frame). The box pushes the watchdog
+budget ahead of itself — a box flight is as long as you want. The status
+line reads "AP box: HDG ALT SPD — altitude 165/165 m ✓ · heading 180/180
+deg ✓ · airspeed 34.3/34.3 m/s ✓".
+
+**THE ONE READOUT — `ap.instruments()`.** Everything the last update
+measured (ias, tas, gs, alt, agl, aglT, vs, pitch, bank, hdg, trk, beta,
+x, z, onGround, t), the phase and whether the box is on, the modes and
+targets engaged, the flight director, the navigator's readouts. The PFD/MFD
+to come reads this one object and converts with `PILOT_UNITS`; it never
+reaches into the pilot.
+
+**THE HAND SHARES THE AEROPLANE.** app.js: in manual flight, when the box is
+on, the input layer writes the controls and then `ap.update` overwrites
+only the axes the box holds (before: the pilot did not run at all under a
+hand). The rail's status line shows the box instead of "by hand". One
+navigator per flight screen (`flNav`, the aerodromes as its database) is
+handed to every pilot; `FLIGHT_PROBE.nav()` exposes it.
+
+**Gates.** GATE NAV (new, core, pure, --selftest six probes): leg geometry
+and its signs, sequencing before the fix, the last waypoint held, the
+readouts' signs and arithmetic, VNAV, the units. GATE PILOT grew the BOX
+case: the pilot flies the stock build to its downwind; the box takes HDG +
+ALT + SPD (40 m higher, the flown track, cruise) for 60 s; VS −1.5 for 20 s;
+the lateral axis is RELEASED to a hand holding 0.05 of aileron for 5 s
+while ALT holds; NAV direct-to M1 for 90 s; disengage — and the pilot must
+resume and land. Four selftest probes (altitude drift, the hand's aileron
+written, NAV not converging, the pilot not resuming).
+
+**Measured (the stock build, GATE PILOT's BOX case):** ALT held to 0.4 m,
+HDG to 0.0 deg, SPD to 0.1 m/s, VS −1.5 to 0.04 m/s; the hand's 0.05 of
+aileron untouched while ALT held to 4.4 m through the roll it commanded;
+NAV direct-to M1: 2 m of cross-track after 90 s, 2226 m nearer; the
+pilot resumed on disengage and landed. GATE NAV PASS (selftest 6/6),
+GATE PILOT PASS, GATE UISMOKE PASS. In the page (dev.html through a peer's
+server) the box engaged over a hand-flown aeroplane on the ground (phase
+BOX, the SET throttle held); the pane's frame loop did not fire in 16 s, so
+the app's manual-plus-box hook is proved by the headless case and by
+inspection, not by a frame. ARCHETYPES not re-run: the box branch is a
+no-op while the box is off. Files: `src/core/38_nav.js` (new),
+`43_pilot.js`, `90_node_exports.js`, `viewer/app.js`, `tools/build.js`,
+`run_gates.js`, `test_nav.js` (new), `test_pilot.js`.
+Core battery on the final build: 52 gates PASS (NAV among them), red only
+on WINGSPLIT and ENERGYBASE — the two rows red on a clean HEAD worktree
+(G202 above), not this chantier's.

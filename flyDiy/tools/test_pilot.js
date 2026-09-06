@@ -42,7 +42,9 @@
 // node tools/test_pilot.js --selftest -> negative verification of the checks
 //    themselves, on doctored reports: a check that cannot fail gates nothing.
 'use strict';
-const { makeSim, makeTestPilot, makeWorld, buildGen, GEN_DEFAULT } = require('./flight_core.js');
+const fs = require('fs'), path = require('path');
+const { makeSim, makePilot, makeWorld, buildGen, GEN_DEFAULT, siteOf, placeAtStand,
+        genMigrateSpec, navMake, navRad, navDeg, navDiff } = require('./flight_core.js');
 
 const fails = [];
 const check = (ok, label, extra) => {
@@ -55,23 +57,54 @@ const check = (ok, label, extra) => {
 // the runner: settle parked, then fly until STOPPED or the case's bound.
 // Returns the pilot's report plus the termination facts the checks need.
 // ---------------------------------------------------------------------------
-function fly(spec, maxS, card) {
+// G202: `opts` — { wind: [wx, wz], depart: true (plan from the pose), stand:
+// true (start on the stand), def (a built def instead of a spec), again:
+// true (a second leg on the SAME sim from the stopped pose) }. The record
+// grows the facts the new checks read: the lift-off run, the flap at the
+// flare, the status on the roll, the landing direction, the phase list.
+function fly(spec, maxS, card, opts) {
+  opts = opts || {};
   const world = makeWorld();
-  const def = spec ? buildGen(spec) : buildGen();
+  if (opts.wind && world.setWind) world.setWind({ base: [opts.wind[0], 0, opts.wind[1]], gust: 0 });
+  const def = opts.def || (spec ? buildGen(spec) : buildGen());
   const sim = makeSim(def, world);
   sim.reset(0);
   for (let i = 0; i < 600; i++) sim.step(1 / 60);
-  const ap = makeTestPilot(sim, def, world);
+  const a = world.aerodromes[0], site = siteOf('HOME');
+  if (opts.stand) { if (sim.stance) sim.stance(); placeAtStand(sim, a, site.stand); }
+  const mk = () => makePilot(sim, def, world);
+  let ap = mk();
+  if (opts.stand || opts.depart) { ap.setRoute(a, a); ap.departFrom(a, a, site); }
   if (card) ap.setCard(card);              // SI here — the UI converts, not us
-  let aglMax = 0, tEnd = maxS, nan = false;
-  for (let s = 0; s < maxS * 60; s++) {
-    ap.update(1 / 60); sim.step(1 / 60);
-    if (sim.stats().bad) { nan = true; tEnd = s / 60; break; }
-    aglMax = Math.max(aglMax, ap.dbg.agl || 0);
-    if (ap.phase === 'STOPPED' && ap.t > 5) { tEnd = s / 60; break; }
+  const leg = (ap) => {
+    const rec = { aglMax: 0, tEnd: maxS, nan: false, liftRun: null, flapAtFlare: null,
+                  statusRoll: null, landDir: null, phases: [] };
+    let last = null, sRoll = null;
+    for (let s = 0; s < maxS * 60; s++) {
+      ap.update(1 / 60); sim.step(1 / 60);
+      if (ap.phase !== last) { rec.phases.push(ap.phase); last = ap.phase; }
+      if (ap.phase === 'ROLL') {
+        if (sRoll == null) sRoll = ap.dbg.s;
+        // five metres into the roll: the status is written at the end of a
+        // phase's own frame, so the first ROLL frame still carries the hold's
+        if (!rec.statusRoll && Math.abs(ap.dbg.s - sRoll) > 5) rec.statusRoll = JSON.parse(JSON.stringify(ap.status || null));
+      }
+      if (ap.phase === 'LIFTOFF' && rec.liftRun == null && sRoll != null) rec.liftRun = Math.abs(ap.dbg.s - sRoll);
+      if (ap.phase === 'FLARE' && rec.flapAtFlare == null) { rec.flapAtFlare = sim.ctl.flap; rec.landDir = [ap.frame.ux, ap.frame.uz]; }
+      if (sim.stats().bad) { rec.nan = true; rec.tEnd = s / 60; break; }
+      rec.aglMax = Math.max(rec.aglMax, ap.dbg.agl || 0);
+      if (ap.phase === 'STOPPED' && ap.t > 5) { rec.tEnd = s / 60; break; }
+    }
+    return Object.assign(rec, { report: ap.report, phase: ap.phase, t: rec.tEnd, gaN: ap.gaN || 0 });
+  };
+  const r = leg(ap);
+  r.def = def;
+  if (opts.again && r.report.outcome === 'completed') {
+    const ap2 = mk();
+    ap2.departFrom(a, a);                  // from the stopped pose, no site: the strip's own pattern
+    r.again = leg(ap2);
   }
-  return { report: ap.report, phase: ap.phase, t: tEnd, aglMax, nan,
-           gaN: ap.gaN || 0 };
+  return r;
 }
 
 const has = (r, code) => r.report.verdicts.some(v => v.code === code);
@@ -138,6 +171,100 @@ function checkCardHeld(r) {
         'card: held the asked speed (' + (cd ? cd.VFlown : '—') +
         ' m/s of 25)');
 }
+// G202: THE PILOT's own checks (43_pilot.js)
+// AGAIN — the flight everyone failed: land, turn around on the strip, take
+// off again. The second leg must taxi (a U-turn or a backtrack), complete,
+// and never be a rejected take-off from a run that does not fit.
+function checkAgain(r) {
+  const s = r.again;
+  check(!!s && !s.nan, 'again: a second leg was flown from the stopped pose');
+  check(!!s && s.phases.includes('TAXI') && s.phases.includes('HOLD'),
+        'again: it taxied to a hold before rolling', s ? s.phases.join(' ') : 'none');
+  check(!!s && s.report.outcome === 'completed' && s.phase === 'STOPPED' && s.t < 450,
+        'again: the second circuit completes inside 450 s', s ? s.report.outcome + ' at ' + s.t.toFixed(0) + ' s' : '—');
+  check(!!s && !has(s, 'rejected-takeoff') && !has(s, 'taxi-lost'),
+        'again: no rejection and no lost taxi on the turn-around');
+}
+// WIND — 3 m/s along the strip: the circuit lands INTO it (the old pilots
+// flew out and back and landed downwind on every windy day)
+function checkWind(r, wind) {
+  check(!r.nan && r.report.outcome === 'completed', 'wind: the windy circuit completes', String(r.report.outcome));
+  const dot = r.landDir ? r.landDir[0] * wind[0] + r.landDir[1] * wind[1] : 1;
+  check(r.landDir != null && dot < 0, 'wind: the landing is INTO the wind', r.landDir ? 'u.w = ' + dot.toFixed(1) : 'no landing');
+  const L = r.report.landing;
+  check(!!L && Math.abs(L.pastAim) < 200, 'wind: touched within 200 m of the aim' + (L ? ' (' + L.pastAim + ' m)' : ''));
+}
+// TRIKE — a nosewheel build ROTATES at Vr: airborne inside 1.5x the sheet's
+// run (the old ROLL held a fixed elevator until the wing floated it off)
+function checkTrike(r) {
+  const A = r.def.params.ap;
+  check(!r.nan && r.report.outcome === 'completed', 'trike: the tricycle completes its circuit', String(r.report.outcome));
+  check(r.liftRun != null && r.liftRun < 1.5 * A.TORun,
+        'trike: lifts off inside 1.5x the sheet run (' + (r.liftRun == null ? '—' : r.liftRun.toFixed(0)) + ' of ' + A.TORun + ' m)');
+  const L = r.report.landing;
+  check(!!L && L.sink > 0 && L.sink < 3, 'trike: a landing, not an arrival (' + (L ? L.sink + ' m/s' : '—') + ')');
+}
+// FLAPS + STATUS — a flapped build (the user's ultralight) has its flaps
+// DOWN at the flare, and the pilot says what it is doing on the roll
+function checkFlapsStatus(r) {
+  check(!r.nan && r.report.outcome === 'completed', 'flaps: the flapped build completes from the stand', String(r.report.outcome));
+  check(r.flapAtFlare != null && r.flapAtFlare > 0.9, 'flaps: landing flaps are down at the flare (' + (r.flapAtFlare == null ? '—' : r.flapAtFlare.toFixed(2)) + ')');
+  const st = r.statusRoll;
+  check(!!st && !!st.goal && Array.isArray(st.conds) && st.conds.some(c => c.what === 'airspeed') && st.conds.some(c => c.what === 'runway left'),
+        'status: the roll says its goal and its conditions (airspeed, runway left)', st ? JSON.stringify(st.conds.map(c => c.what)) : 'no status');
+  check(!!st && st.afcs && typeof st.afcs.lat === 'string' && typeof st.afcs.vert === 'string' && typeof st.afcs.thr === 'string',
+        'status: the AFCS modes are annunciated');
+}
+// BOX (G202.1) — the modes as a device: engaged mid-circuit over the pilot,
+// HDG + ALT + SPD held, VS held, an axis released to the hand untouched,
+// NAV direct-to a meadow converging, and the pilot resuming to a landing
+// when the box is disengaged.
+function checkBox(r) {
+  check(!r.nan, 'box: no NaN');
+  check(r.phaseBox === 'BOX' && /^AP box/.test(r.statusBox || ''), 'box: the phase and the status say the box is flying', r.phaseBox + ' / ' + r.statusBox);
+  check(r.altErr < 8, 'box: ALT holds the selected altitude (' + (r.altErr == null ? '—' : r.altErr.toFixed(1)) + ' m off)');
+  check(r.hdgErr < 3, 'box: HDG holds the selected heading (' + (r.hdgErr == null ? '—' : r.hdgErr.toFixed(1)) + ' deg off)');
+  check(r.iasErr < 2, 'box: SPD holds the selected airspeed (' + (r.iasErr == null ? '—' : r.iasErr.toFixed(1)) + ' m/s off)');
+  check(r.vsErr < 0.4, 'box: VS holds the selected vertical speed (' + (r.vsErr == null ? '—' : r.vsErr.toFixed(2)) + ' m/s off)');
+  check(r.handDa === 0.05, 'box: an axis released to the hand is left untouched (da ' + r.handDa + ')');
+  check(r.altHold2 < 15, 'box: ALT still holds while the hand rolls (' + (r.altHold2 == null ? '—' : r.altHold2.toFixed(1)) + ' m)');
+  check(r.xtk < 60, 'box: NAV direct-to converges on the course (xtk ' + (r.xtk == null ? '—' : r.xtk.toFixed(0)) + ' m)');
+  check(r.disDrop > 1500, 'box: NAV closes on the waypoint (' + (r.disDrop == null ? '—' : r.disDrop.toFixed(0)) + ' m nearer)');
+  check(r.outcome === 'completed' && r.phase === 'STOPPED', 'box: the pilot resumes on disengage and lands', r.outcome + ' / ' + r.phase + ' at ' + (r.t || 0).toFixed(0) + ' s');
+}
+function flyBox() {
+  const world = makeWorld();
+  const def = buildGen();
+  const sim = makeSim(def, world); sim.reset(0);
+  for (let i = 0; i < 600; i++) sim.step(1 / 60);
+  const ap = makePilot(sim, def, world);
+  const nav = navMake({ waypoints: world.aerodromes });
+  ap.setNav(nav);
+  const rec = { nan: false };
+  const step = (n, hand) => { for (let i = 0; i < n; i++) { if (hand) hand(); ap.update(1 / 60); sim.step(1 / 60); if (sim.stats().bad) { rec.nan = true; return false; } } return true; };
+  let n = 0; while (ap.phase !== 'DOWNWIND' && n++ < 60 * 200) step(1);
+  step(60 * 8);
+  const m0 = ap.instruments();
+  const alt1 = m0.alt + 40, hdg1 = navRad(m0.trk), Vc = def.params.ap.VCruise;
+  ap.engage({ lat: 'HDG', vert: 'ALT', thr: 'SPD' }, { hdg: hdg1, alt: alt1, ias: Vc });
+  step(60 * 60);
+  let m = ap.instruments();
+  rec.altErr = Math.abs(m.alt - alt1); rec.hdgErr = Math.abs(navDiff(m.hdg, navDeg(hdg1))); rec.iasErr = Math.abs(m.ias - Vc);
+  rec.phaseBox = ap.phase; rec.statusBox = ap.status.goal;
+  ap.engage({ vert: 'VS' }, { vs: -1.5 });
+  step(60 * 20); m = ap.instruments(); rec.vsErr = Math.abs(m.vs + 1.5);
+  ap.engage({ lat: null, vert: 'ALT' }, { alt: m.alt });
+  step(60 * 5, () => { sim.ctl.da = 0.05; sim.ctl.dr = 0; });
+  rec.handDa = sim.ctl.da; m = ap.instruments(); rec.altHold2 = Math.abs(m.alt - ap.box.sel.alt);
+  nav.directTo('M1', m.x, m.z);
+  ap.engage({ lat: 'NAV', vert: 'ALT' }, { alt: m.alt + 60 });
+  const dis0 = nav.update(m.x, m.z, 0, 0, 0).dis;
+  step(60 * 90); const R = nav.last; rec.xtk = R ? Math.abs(R.xtk) : 1e9; rec.disDrop = R ? dis0 - R.dis : -1;
+  ap.disengage();
+  n = 0; while (ap.phase !== 'STOPPED' && n++ < 60 * 600 && !rec.nan) step(1);
+  rec.outcome = ap.report.outcome; rec.phase = ap.phase; rec.t = ap.t; rec.verdicts = ap.report.verdicts;
+  return rec;
+}
 function checkCardFast(r) {
   const cd = r.report.card;
   check(!r.nan && r.report.outcome === 'completed',
@@ -184,6 +311,29 @@ if (process.argv.includes('--selftest')) {
     ['impossible speed ask goes unsaid', checkCardFast,
      (r => { r.report.card = { alt: null, V: 45, altFlown: 110, VFlown: 29 };
              return r; })(goodish())],
+    // G202
+    ['again never turned around', checkAgain,
+     (r => { r.again = Object.assign(goodish(), { phases: ['DEPART', 'HOLD', 'ROLL', 'ABORT', 'STOPPED'] }); return r; })(goodish())],
+    ['again rejected the second take-off', checkAgain,
+     (r => { r.again = Object.assign(goodish(), { phases: ['TAXI', 'HOLD', 'ROLL'] });
+             r.again.report.verdicts.push({ t: 1, code: 'rejected-takeoff', note: '' }); return r; })(goodish())],
+    ['windy landing was downwind', r => checkWind(r, [-3, 0]),
+     (r => { r.landDir = [-1, 0]; return r; })(goodish())],
+    ['trike floated off late', checkTrike,
+     (r => { r.def = { params: { ap: { TORun: 150 } } }; r.liftRun = 400; return r; })(goodish())],
+    ['flaps stayed up at the flare', checkFlapsStatus,
+     (r => { r.flapAtFlare = 0; r.statusRoll = { goal: 'x', conds: [{ what: 'airspeed' }, { what: 'runway left' }], afcs: { lat: 'RWY', vert: 'DE', thr: 'SET' } }; return r; })(goodish())],
+    ['status said nothing on the roll', checkFlapsStatus,
+     (r => { r.flapAtFlare = 1; r.statusRoll = { goal: '', conds: [], afcs: null }; return r; })(goodish())],
+    // G202.1
+    ['box let the altitude drift', checkBox,
+     { nan: false, phaseBox: 'BOX', statusBox: 'AP box: HDG ALT SPD', altErr: 30, hdgErr: 1, iasErr: 1, vsErr: 0.1, handDa: 0.05, altHold2: 3, xtk: 10, disDrop: 2500, outcome: 'completed', phase: 'STOPPED', t: 500 }],
+    ['box wrote the hand\'s aileron', checkBox,
+     { nan: false, phaseBox: 'BOX', statusBox: 'AP box: HDG ALT SPD', altErr: 2, hdgErr: 1, iasErr: 1, vsErr: 0.1, handDa: 0, altHold2: 3, xtk: 10, disDrop: 2500, outcome: 'completed', phase: 'STOPPED', t: 500 }],
+    ['nav never converged', checkBox,
+     { nan: false, phaseBox: 'BOX', statusBox: 'AP box: HDG ALT SPD', altErr: 2, hdgErr: 1, iasErr: 1, vsErr: 0.1, handDa: 0.05, altHold2: 3, xtk: 300, disDrop: 2500, outcome: 'completed', phase: 'STOPPED', t: 500 }],
+    ['pilot never resumed', checkBox,
+     { nan: false, phaseBox: 'BOX', statusBox: 'AP box: HDG ALT SPD', altErr: 2, hdgErr: 1, iasErr: 1, vsErr: 0.1, handDa: 0.05, altHold2: 3, xtk: 10, disDrop: 2500, outcome: null, phase: 'BOX', t: 900 }],
   ];
   let caught = 0;
   for (const [nm, fn, r] of probes) {
@@ -289,6 +439,47 @@ console.log('-- FAST: the stock build, asked for 45 m/s it does not have --');
 const fast = fly(null, 340, { V: 45 });
 for (const v of fast.report.verdicts) console.log('   ' + v.t + 's ' + v.code + ' — ' + v.note);
 checkCardFast(fast);
+
+// ---- G202: THE PILOT's own cases ------------------------------------------
+console.log('-- AGAIN: the stock build lands, turns around on the strip, takes off again --');
+const again = fly(null, 450, null, { again: true });
+if (again.again) {
+  for (const v of again.again.report.verdicts) console.log('   ' + v.t + 's ' + v.code + ' — ' + v.note);
+  console.log('   second leg: ' + again.again.phases.join(' ') + ' | ' + again.again.report.outcome + ' at ' + again.again.t.toFixed(0) + ' s');
+}
+checkAgain(again);
+
+console.log('-- WIND: 3 m/s along the strip, planned from the spawn — lands into it --');
+const windy = fly(null, 560, null, { wind: [-3, 0], depart: true });
+for (const v of windy.report.verdicts) console.log('   ' + v.t + 's ' + v.code + ' — ' + v.note);
+console.log('   landed along ' + JSON.stringify(windy.landDir) + ' in ' + windy.t.toFixed(0) + ' s');
+checkWind(windy, [-3, 0]);
+
+console.log('-- TRIKE: the stock build on a nosewheel --');
+const trike = fly({ gear: { type: 'tricycle' } }, 340);
+for (const v of trike.report.verdicts) console.log('   ' + v.t + 's ' + v.code + ' — ' + v.note);
+console.log('   lift-off run ' + (trike.liftRun == null ? '—' : trike.liftRun.toFixed(0)) + ' m of a ' + trike.def.params.ap.TORun + ' m sheet');
+checkTrike(trike);
+
+console.log('-- FLAPS + STATUS: the ultralight fixture from the stand --');
+{
+  const FIX = path.join(__dirname, 'fixtures', 'build_v7_ultralight_2026-09-05.json');
+  const spec = JSON.parse(fs.readFileSync(FIX, 'utf8')).spec;
+  const def = buildGen(genMigrateSpec(JSON.parse(JSON.stringify(spec))));
+  const ul = fly(null, 400, null, { def, stand: true });
+  for (const v of ul.report.verdicts) console.log('   ' + v.t + 's ' + v.code + ' — ' + v.note);
+  console.log('   flap at the flare ' + (ul.flapAtFlare == null ? '—' : ul.flapAtFlare.toFixed(2)) + ' | roll status: ' +
+              (ul.statusRoll ? ul.statusRoll.goal + ' [' + ul.statusRoll.afcs.lat + ' ' + ul.statusRoll.afcs.vert + ' ' + ul.statusRoll.afcs.thr + ']' : 'none'));
+  checkFlapsStatus(ul);
+}
+
+console.log('-- BOX: the modes as a device, over the pilot and over a hand --');
+{
+  const bx = flyBox();
+  for (const v of bx.verdicts || []) console.log('   ' + v.t + 's ' + v.code + ' — ' + v.note);
+  console.log('   alt ' + bx.altErr.toFixed(1) + ' m, hdg ' + bx.hdgErr.toFixed(1) + ' deg, ias ' + bx.iasErr.toFixed(1) + ' m/s, vs ' + bx.vsErr.toFixed(2) + ' m/s | hand da ' + bx.handDa + ', alt ' + bx.altHold2.toFixed(1) + ' m | nav xtk ' + bx.xtk.toFixed(0) + ' m, ' + bx.disDrop.toFixed(0) + ' m nearer | ' + bx.outcome + ' at ' + bx.t.toFixed(0) + ' s');
+  checkBox(bx);
+}
 
 if (fails.length) console.log('FAILED CHECKS: ' + fails.join(', '));
 console.log('GATE PILOT: ' + (fails.length ? 'FAIL' : 'PASS'));

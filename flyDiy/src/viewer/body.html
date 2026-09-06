@@ -43,7 +43,9 @@
     </select>
     <select id="selPilot" aria-label="Pilot">
       <option value="auto">Pilot &middot; auto</option>
-      <option value="test">Test pilot</option>
+      <option value="cautious">Pilot &middot; cautious</option>
+      <option value="brisk">Pilot &middot; brisk</option>
+      <option value="test">Test pilot (G107)</option>
       <option value="classic">Autopilot</option>
     </select>
     <select id="selFrom" aria-label="Departure"></select>
@@ -152,7 +154,7 @@
         <div class="rd" data-i="da" hidden><b id="r-da">+0</b><i>% ail</i></div>
         <div class="rd" data-i="dr" hidden><b id="r-dr">+0</b><i>% rud</i></div>
       </div>
-      <div id="rail" class="held"><b id="phName">HOLDING</b><div id="track"></div>
+      <div id="rail" class="held"><b id="phName">HOLDING</b><i id="phNext"></i><div id="track"></div>
         <!-- THE SMALL PFD. Four numbers instead of nine, two thirds of the
              type, the steps unchanged — for when the aeroplane is what you
              want to be looking at. It overrides the `instruments` flyout for

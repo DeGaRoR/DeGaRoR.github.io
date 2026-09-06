@@ -401,6 +401,15 @@
         "8339"
       ],
       "port": 8339
+    },
+    {
+      "name": "flydiy-pilot",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8340"
+      ],
+      "port": 8340
     }
   ]
 }

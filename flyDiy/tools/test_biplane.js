@@ -23,7 +23,7 @@
 // node tools/test_biplane.js            -> the checks
 // node tools/test_biplane.js --selftest -> the checks proven able to go red
 'use strict';
-const { buildGen, makeSim, makeWorld, makeTestPilot, genShakedown,
+const { buildGen, makeSim, makeWorld, makePilot, genShakedown,
         GEN_RULES, vortexKernel } = require('./flight_core.js');
 const { rigidityRank } = require('./_rigidity.js');
 
@@ -236,7 +236,7 @@ function fly(spec, maxS) {
   const sim = makeSim(def, world);
   sim.reset(0);
   for (let i = 0; i < 600; i++) sim.step(1 / 60);
-  const ap = makeTestPilot(sim, def, world);
+  const ap = makePilot(sim, def, world);
   let tEnd = maxS, nan = false;
   for (let s = 0; s < maxS * 60; s++) {
     ap.update(1 / 60); sim.step(1 / 60);

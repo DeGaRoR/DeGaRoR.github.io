@@ -51,6 +51,10 @@ const MANIFEST = {
     // THE GROUND PATH (G193): a declared pattern graph sampled into a path the
     // pilots follow (fillets, curvature, a STOP); pure, read by 25_'s
     // sitePattern consumers, the two pilots, pattern_vis.js and the gates.
+    // THE NAV (G202.1): a GPS-style navigator — waypoints, a flight plan, a
+    // direct-to, DTK/XTK/DIS/ETE/CDI and VNAV; pure, read by the pilot's AP
+    // box and by the panel to come.
+    '38_nav.js',
     '39_ground_path.js',
     '40_autopilot.js',
     // the TEST PILOT (G107): the second autopilot, forked from 40_ — bounded
@@ -60,6 +64,11 @@ const MANIFEST = {
     // of departures on the test pilot; pure, polled by the page, run whole by
     // the gates.
     '42_crosswind.js',
+    // THE PILOT (G202): the third pilot — the test pilot's inner loops under a
+    // new decision layer (rectangular circuit into wind, planned arrival,
+    // accelerate-stop reject, trike rotation, taxi-back with a U-turn, a
+    // published status). Generated builds fly it; 41_ stays for A/B.
+    '43_pilot.js',
     '50_model_codec.js',
     '51_prop_codec.js',
     // GARAGE: procedural airframe generator (spec -> loft -> frame -> aero -> skin)

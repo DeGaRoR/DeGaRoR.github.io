@@ -79,7 +79,7 @@ function circuit(opts) {
   const sim = C.makeSim(def, world);
   sim.reset(0);
   for (let i = 0; i < 600; i++) sim.step(1 / 60);
-  const ap = C.makeTestPilot(sim, def, world);
+  const ap = C.makePilot(sim, def, world);
   if (opts.card) ap.setCard(opts.card);
   const maxS = opts.maxS || (glider ? 640 : 420);
   let tEnd = maxS, nan = false, aglMax = 0;
@@ -138,7 +138,7 @@ function depart(opts) {
   for (let i = 0; i < 600; i++) sim.step(1 / 60);
   if (sim.stance) sim.stance();
   C.placeAtStand(sim, ad, site.stand);
-  const ap = C.makeTestPilot(sim, def, world);
+  const ap = C.makePilot(sim, def, world);
   ap.setRoute(ad, ad);
   ap.departFrom(ad, ad, site);
   const posts = [];

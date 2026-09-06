@@ -460,6 +460,16 @@
 
 #rail.held #phName { color:var(--ed-faint); }
 
+/* G202: THE STATUS LINE — the pilot's goal, the conditions it is waiting
+   for (have / want, a tick when met) and the AFCS modes engaged, in the
+   rail beside the phase name. Mono, faint, one line, clipped; hidden while
+   the rail is held (nothing is being flown). */
+#phNext { flex:1 1 auto; min-width:0; font:400 8.5px/1.2 'IBM Plex Mono', monospace;
+  letter-spacing:.02em; color:var(--ed-faint); white-space:nowrap; overflow:hidden;
+  text-overflow:ellipsis; font-style:normal; }
+#rail.held #phNext { display:none; }
+#ui #pfd.small #phNext { display:none; }
+
 #track { display:flex; gap:3px; align-items:center; margin-left:auto;
   margin-block:-7px; }
 

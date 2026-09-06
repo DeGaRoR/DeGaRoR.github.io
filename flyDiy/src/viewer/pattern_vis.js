@@ -34,7 +34,10 @@ function buildPatternVis(THREE, pattern, groundY, core) {
     color: col, transparent: true, opacity: op, depthWrite: false, side: THREE.DoubleSide });
   const lineMat = (col, op) => new THREE.LineBasicMaterial({
     color: col, transparent: true, opacity: op, depthWrite: false });
-  const layers = { graph: new THREE.Group(), slope: new THREE.Group(), targets: new THREE.Group() };
+  const layers = { graph: new THREE.Group(), slope: new THREE.Group(), targets: new THREE.Group(),
+                   // G202: the PAPI (an airfield fixture, on unless switched off) and the
+                   // pilot's planned legs in the air (its circuit, drawn as it plans it)
+                   papi: new THREE.Group(), legs: new THREE.Group() };
   for (const k in layers) { layers[k].name = 'pattern:' + k; layers[k].renderOrder = 8; group.add(layers[k]); }
 
   // ---- the graph -----------------------------------------------------------
@@ -183,8 +186,73 @@ function buildPatternVis(THREE, pattern, groundY, core) {
     // (drawn by app.js from the runway record; here only the pattern's own)
   }
 
+  // ---- THE PAPI (G202, the user: "a glideslope following thing, with the
+  // lights (VASI?) if it helps"). Four lights abeam the slope's ground
+  // intercept, on the LEFT of each landing direction, 22 m off the
+  // centreline. Unit i shows WHITE when the aeroplane is above its own
+  // angle and RED below it; the four angles straddle the slope flown
+  // (gs -0.5, -0.17, +0.17, +0.5 deg), so two white and two red is ON the
+  // slope, the way a real PAPI reads. `papiUpdate(x, y, z)` recolours them
+  // from the aeroplane's position every frame; `setActive(k, gs)` re-aims
+  // the boxes when the slope flown changes. Dark from behind.
+  const papis = [];
+  if (pattern && pattern.approaches) {
+    const white = 0xfff4d6, red = 0xff3a2a, dark = 0x2a2622;
+    for (const ap of pattern.approaches) {
+      const u = ap.u, aim = ap.aimAP;
+      const lx = u[1], lz = -u[0];                     // left of the landing direction
+      const bx = aim[0] + lx * 22, bz = aim[1] + lz * 22;
+      const units = [];
+      for (let i = 0; i < 4; i++) {
+        const g = new THREE.BoxGeometry(1.2, 0.9, 1.2);
+        const m = new THREE.MeshBasicMaterial({ color: dark });
+        const box = new THREE.Mesh(g, m);
+        const x = bx + lx * (i * 3.2), z = bz + lz * (i * 3.2);
+        box.position.set(x, gy(x, z) + 0.6, z);
+        box.frustumCulled = false;
+        layers.papi.add(box);
+        units.push({ box, m, x, z, y: gy(x, z) + 0.6 });
+      }
+      papis.push({ k: ap.k, u, units, gs: ap.gs || 0.07, white, red, dark });
+    }
+  }
+  const papiUpdate = (x, y, z) => {
+    for (const P of papis) {
+      const dist = (P.units[0].x - x) * P.u[0] + (P.units[0].z - z) * P.u[1];
+      for (let i = 0; i < 4; i++) {
+        const U = P.units[i];
+        let col = P.dark;
+        if (dist > 40) {
+          const ang = Math.atan2(y - U.y, dist);
+          const a_i = P.gs + (i - 1.5) * 0.0058;      // -0.5 .. +0.5 deg about the slope
+          col = ang > a_i ? P.white : P.red;
+        }
+        if (U.m.color.getHex() !== col) U.m.color.setHex(col);
+      }
+    }
+  };
+  // ---- THE PILOT'S LEGS (G202): the circuit as planned, a line in the air
+  let legsObj = null;
+  const setLegs = (legs, altRef) => {
+    if (legsObj) { layers.legs.remove(legsObj); if (legsObj.geometry) legsObj.geometry.dispose(); legsObj = null; }
+    if (!legs || !legs.length) return;
+    const pos = [];
+    for (const L of legs) {
+      if (!L.A || !L.B) continue;
+      const hA = altRef + (L.h != null ? L.h : 0), hB = L.name === 'FINAL' ? gy(L.B[0], L.B[1]) + 2 : hA;
+      pos.push(L.A[0], hA, L.A[1], L.B[0], hB, L.B[1]);
+    }
+    if (!pos.length) return;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
+    legsObj = new THREE.LineSegments(g, lineMat(0xffb257, 0.55));
+    legsObj.renderOrder = 8; legsObj.frustumCulled = false;
+    layers.legs.add(legsObj);
+  };
+
   let activeK = -1;
   const api = {
+    papiUpdate, setLegs,
     group, layers,
     // the direction the pilot is landing (frame.k) brightens that slope and
     // redraws it at the slope actually flown
@@ -199,10 +267,14 @@ function buildPatternVis(THREE, pattern, groundY, core) {
         }
         so.obj.material.opacity = on ? 0.9 : 0.3;
       }
+      for (const P of papis) if (P.k === k && gsActive) P.gs = gsActive;
       activeK = k;
     },
+    // the PAPI and the legs are ON unless the flyout says otherwise; the
+    // three G193 overlays stay off until asked
     setLayers(on) {
-      for (const k in layers) layers[k].visible = !!(on && on[k]);
+      for (const k in layers)
+        layers[k].visible = (k === 'papi' || k === 'legs') ? !(on && on[k] === false) : !!(on && on[k]);
     },
     dispose() {
       group.traverse(o => {

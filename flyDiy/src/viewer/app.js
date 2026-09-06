@@ -2373,7 +2373,7 @@
   // and the same sampler (patternPath), so the ribbon is the line the
   // aeroplane steers to. Its layers are the rail's `patterns` flyout; off by
   // default, so nothing on screen changes until asked.
-  let patVis = null, patVisK = -1;
+  let patVis = null, patVisK = -1, patLegsRef = null;
   const patOnGet = () => {
     try { return patOn; } catch (e) { return { graph: false, slope: false, targets: false, map: false }; }
   };
@@ -2390,7 +2390,7 @@
         { patternPath: (typeof patternPath === 'function') ? patternPath : null });
       scene.add(patVis.group);
       patVis.setLayers(patOnGet());
-      patVisK = -1;
+      patVisK = -1; patLegsRef = null;
     } catch (e) { console.error('pattern overlay:', e); patVis = null; }
   }
   function applyRoute() {
@@ -2439,11 +2439,22 @@
   // for your build; 'classic' puts the old autopilot under it, which flies
   // it unbounded. (Until the fleet retired, 2026-09-05, 'auto' also meant
   // "classic under a fiche" — there is no fiche now, so 'auto' is 'test'.)
+  // G202: 'auto' is THE PILOT (43_pilot.js) in its normal style; 'cautious'
+  // and 'brisk' are its other two; 'test' keeps the G107 test pilot for A/B
+  // and 'classic' the unbounded autopilot.
   let pilotChoice = 'auto';
+  // G202.1: ONE navigator for the flight screen (the aerodromes as its
+  // database), handed to every pilot so the AP box's NAV mode has a plan
+  let flNav = null;
   const mkPilot = () => {
-    const test = pilotChoice !== 'classic';
-    return (test && typeof makeTestPilot === 'function')
-      ? makeTestPilot(sim, def, world) : makeAutopilot(sim, def, world);
+    if (pilotChoice === 'classic') return makeAutopilot(sim, def, world);
+    if (pilotChoice === 'test' && typeof makeTestPilot === 'function') return makeTestPilot(sim, def, world);
+    if (typeof makePilot === 'function') {
+      const p = makePilot(sim, def, world, { style: pilotChoice === 'auto' ? 'normal' : pilotChoice });
+      if (typeof navMake === 'function') { if (!flNav) flNav = navMake({ waypoints: world.aerodromes }); p.setNav(flNav); }
+      return p;
+    }
+    return makeTestPilot(sim, def, world);
   };
   if ($('selPilot')) $('selPilot').onchange = e => {
     pilotChoice = e.target.value;
@@ -2771,11 +2782,34 @@
     }
   }
   let railPhase = '';
+  // G202: THE PILOT's phases carry their own label and the tick they sit
+  // under (PILOT_PHASES in 43_pilot.js); the classic list stays the ticks
+  const phaseLabel = k => (typeof PILOT_PHASES !== 'undefined' && PILOT_PHASES[k]) ? PILOT_PHASES[k][0]
+                        : (PHASES.find(p => p[0] === k) || [0, k])[1];
+  const phaseTick = k => (typeof PILOT_PHASES !== 'undefined' && PILOT_PHASES[k]) ? PILOT_PHASES[k][1] : k;
+  // THE STATUS LINE (G202, the user: "clearer on the phase it's in, and what
+  // are the conditions for reaching the next phase"): the pilot's goal, its
+  // live conditions (have / want, a tick when met) and the AFCS modes
+  // engaged, under the phase name; a hand-flown flight says so instead
+  let railStatN = 0;
+  function railStatus(st) {
+    const el = $('phNext');
+    if (!el) return;
+    if (manual && !(ap && ap.box && ap.box.on)) { el.textContent = 'by hand'; return; }
+    if (!st || railPhase === null) { el.textContent = ''; return; }
+    if ((railStatN++ % 6) !== 0) return;
+    const f = v => typeof v === 'number' ? (Math.abs(v) >= 100 ? Math.round(v) : Math.round(v * 10) / 10) : v;
+    const conds = (st.conds || []).slice(0, 3)
+      .map(c => c.what + ' ' + f(c.have) + '/' + f(c.want) + (c.unit ? ' ' + c.unit : '') + (c.ok ? ' ✓' : ''))
+      .join(' · ');
+    const af = st.afcs ? '  [' + st.afcs.lat + ' ' + st.afcs.vert + ' ' + st.afcs.thr + ']' : '';
+    el.textContent = (st.goal || '') + (conds ? ' — ' + conds : '') + af;
+  }
   function setRail(active) {
     if (active === railPhase) return;
     railPhase = active;
-    $('phName').textContent = active === null ? 'HOLDING'
-      : (PHASES.find(p => p[0] === active) || [0, active])[1];
+    $('phName').textContent = active === null ? 'HOLDING' : phaseLabel(active);
+    if ($('phNext')) $('phNext').textContent = '';
     // THE PHASE IS THE CLOCK OF THIS SCREEN (the flight rebaseline). It says
     // the word in the plate's own header, it decides whether the brief is
     // open or folded, and it decides which verbs are on the row — because the
@@ -2787,9 +2821,10 @@
     // text directly left railPhase stale, so a later setRail(null) matched and
     // returned early — the rail kept saying GARAGE while the solver ran.
     let past = active !== null && active !== 'GARAGE';
+    const tick = active === null ? null : phaseTick(active);
     for (const [k] of PHASES) {
       const d = tickEls[k];
-      if (k === active) { d.className = 'now'; past = false; }
+      if (k === tick) { d.className = 'now'; past = false; }
       else d.className = past ? 'done' : '';
     }
   }
@@ -3053,14 +3088,26 @@
     // AP and the stand's control check reads a real hand); here it is
     // WRITTEN. ap.t keeps counting under your hand — the trace, the arrival
     // card and the logbook all read the flight's own clock from it.
-    if (manual && INP) { INP.write(sim.ctl); ap.t += dt; manualEnding(dt); }
-    else ap.update(dt);
+    if (manual && INP) {
+      INP.write(sim.ctl);
+      // G202.1: the AP box flies the axes it holds over your hand; the rest
+      // of the pilot stays out of it
+      if (ap.box && ap.box.on) ap.update(dt); else ap.t += dt;
+      manualEnding(dt);
+    } else ap.update(dt);
     if (patVis && ap.frame && ap.frame.k !== patVisK) {
       patVisK = ap.frame.k;
       patVis.setActive(patVisK, ap.gs);
     }
     record(dt);
     setRail(ap.phase);
+    railStatus(ap.status);
+    // G202: the PAPI reads the aeroplane's position; the planned legs are
+    // drawn the moment the pilot plans them
+    if (patVis) {
+      if (patVis.papiUpdate) { const cgP = sim.cgPos(); patVis.papiUpdate(cgP[0], cgP[1], cgP[2]); }
+      if (patVis.setLegs && ap.legs !== patLegsRef) { patLegsRef = ap.legs; try { patVis.setLegs(ap.legs, ap.altRef); } catch (e) {} }
+    }
     // THE GAME IS THE "EXTERNAL RUNNER" (G130). The test pilot's watchdog
     // writes outcome='gave-up' at its budget and keeps flying, deferring the
     // actual stop to whoever runs the sim (41_test_pilot.js) — and the live
@@ -3118,7 +3165,8 @@
   // G179.2: the live model too, so a session can ask WHICH vertices follow
   // WHAT (rigs, parts, bindings) instead of reasoning about a screenshot
   window.FLIGHT_PROBE = { ap: () => ap, endFlight, model: () => model, sim: () => sim, def: () => def,
-                          setManual, manual: () => manual, input: () => INP };   // G200
+                          setManual, manual: () => manual, input: () => INP,     // G200
+                          nav: () => flNav };                                       // G202.1
   // ---- MANUAL CONTROLS (G200): who is flying, and the ending when it is you
   // The toggle is a KEY (apToggle) and a pill in the `controls` flyout;
   // both land here. Hand → AP re-latches every integrator (ap.reEngage, W14)

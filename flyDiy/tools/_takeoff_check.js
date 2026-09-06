@@ -64,7 +64,7 @@ function depart(def, opts) {
   for (let i = 0; i < 600; i++) sim.step(1 / 60);
   if (opts.stand) { if (sim.stance) sim.stance(); C.placeAtStand(sim, a, site.stand); }
   else C.placeAtAerodrome(sim, a);
-  const ap = C.makeTestPilot(sim, def, world);
+  const ap = C.makePilot(sim, def, world);
   ap.setRoute(a, a);
   ap.departFrom(a, a, site);
   const posts = [];
@@ -172,7 +172,8 @@ if (!SELF) {
   // known failure, and this is the cheap insurance against it
   const s40 = fs.readFileSync(path.join(__dirname, '..', 'src', 'core', '40_autopilot.js'), 'utf8');
   const s41 = fs.readFileSync(path.join(__dirname, '..', 'src', 'core', '41_test_pilot.js'), 'utf8');
-  for (const s of [s40, s41]) {
+  const s43 = fs.readFileSync(path.join(__dirname, '..', 'src', 'core', '43_pilot.js'), 'utf8');   // G202: the third pilot
+  for (const s of [s40, s41, s43]) {
     check(/case 'STOP':/.test(s) && /case 'HOLD':/.test(s), 'both pilots carry STOP and HOLD');
     check(/pathLocate\(ap\.path/.test(s) && /pathSpeed\(ap\.path/.test(s), 'both pilots follow the path');
     check(/const tailUp = rotateTD/.test(s), 'both pilots schedule the ground steer on the tail state');

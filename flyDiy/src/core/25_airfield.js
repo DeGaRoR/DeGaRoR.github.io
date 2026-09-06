@@ -187,6 +187,20 @@ function siteRunway(home) {
     aim0: { x: R0x + dx * aimIn, z: R0z + dz * aimIn },
     aim1: { x: R1x - dx * aimIn, z: R1z - dz * aimIn },
     tdz: { x: home.tdz ? home.tdz[0] : home.x, z: home.tdz ? home.tdz[1] : home.z },
+    // THE TWO TOUCHDOWN TARGETS THE PILOT FLIES TO (G202): td0 is the
+    // record's own tdz (landing along -hdg, over thr1); td1 mirrors it off
+    // the other bar (landing along +hdg, over thr0). sitePattern's two
+    // approaches read these, and the strip's paint marks THESE now — the
+    // user: "there are markers on the runway, but they don't correspond to
+    // the actual markers used by the autopilot". aim0/aim1 above stay as
+    // the derived quarter-points GATE SITE checks; they are no longer painted.
+    td0: { x: home.tdz ? home.tdz[0] : home.x, z: home.tdz ? home.tdz[1] : home.z },
+    td1: (() => {
+      const tx = home.tdz ? home.tdz[0] : home.x, tz = home.tdz ? home.tdz[1] : home.z;
+      const D = Math.abs((tx - R1x) * dx + (tz - R1z) * dz);
+      return { x: R0x + dx * D, z: R0z + dz * D };
+    })(),
+    holdIn: 110,                  // the hold-short line, in from each end (GP_HOLD_IN)
     half: hw,
     markerOff: hw + 0.5,          // edge boards, just outside the mown edge
     markerStep: 70,
@@ -241,12 +255,29 @@ function sitePaintStrip(q, R, RW, RH, marks) {
   q.fillStyle = '#d9d3c0';                           // centre dashes
   for (let t = 25.5; t < R.len - 25; t += 29)
     q.fillRect(U(t - 5.5), V(-0.3), UW(11), VW(0.6));
-  // TOUCHDOWN MARKERS (G107): the aiming point, a quarter of the way in from
-  // each threshold — one per landing direction, the way a real runway wears
-  // them. NOT the registry's tdz; see the note on aim0/aim1 above.
+  // TOUCHDOWN MARKERS (G107, moved G202): the pilot's own two targets, one
+  // per landing direction — td0/td1 above, the points 43_pilot.js lands on —
+  // a pair of bold bars astride the centreline with a chevron pointing the
+  // way that landing runs. The quarter-point aim0/aim1 are not painted any
+  // more: a marker the pilot does not fly to is a lie on the ground.
   q.fillStyle = '#efe9da';
-  for (const A of [R.aim0, R.aim1]) for (const zz of [-6.5, 4])
-    q.fillRect(U(sOf(A) - 9), V(zz), UW(18), VW(2.5));
+  for (const [A, sg] of [[R.td0, -1], [R.td1, 1]]) {
+    for (const zz of [-6.5, 4]) q.fillRect(U(sOf(A) - 9), V(zz), UW(18), VW(2.5));
+    // the chevron: two strokes meeting on the centreline, pointing the way
+    // the landing runs (td0 is landed along -hdg, i.e. toward end0 = increasing t)
+    const s0 = sOf(A), dir = sg < 0 ? 1 : -1;
+    q.beginPath();
+    q.moveTo(U(s0 + dir * 4), V(-6.5)); q.lineTo(U(s0 + dir * 12), V(0)); q.lineTo(U(s0 + dir * 4), V(6.5));
+    q.lineWidth = Math.max(1, VW(1.2)); q.strokeStyle = '#efe9da'; q.stroke();
+  }
+  // THE HOLD-SHORT LINES (G202): one bar across the strip at each hold, the
+  // point the pilot STOPS on lined up before the roll (25_airfield.js
+  // GP_HOLD_IN, 110 m in from each end)
+  q.fillStyle = '#e6c35c';
+  for (const t of [R.holdIn, R.len - R.holdIn]) {
+    q.fillRect(U(t - 0.5), V(-(R.half - 2.5)), UW(1.0), VW(2 * (R.half - 2.5)));
+    for (let a = -(R.half - 2.5); a < R.half - 2.5; a += 3.0) q.fillRect(U(t + 1.5), V(a), UW(1.0), VW(1.5));
+  }
 }
 
 // is (x, z) on the flat pad, where y = 0 is exact?
@@ -370,17 +401,19 @@ function sitePattern(aero, site) {
     routes.out[0] = [sp, holds[0]];
     routes.out[1] = routes.back[1];
   }
-  // the two approaches
-  const tdz = [R.tdz.x, R.tdz.z];
-  const D = Math.abs((tdz[0] - R.thr1.x) * d[0] + (tdz[1] - R.thr1.z) * d[1]);
+  // the two approaches — the targets are siteRunway's td0/td1 (G202: one
+  // keeper, and the strip's paint reads the same two). aimAP is where the
+  // pilots' slope meets the ground: 70 m SHORT of the target along the
+  // landing direction (A.xAim -520 against the frame's -450), the flare
+  // carrying the aeroplane the rest of the way; it read 70 m past before.
   const mk = (k, u, thr, td) => ({
     k, u: [u[0], u[1]], thr: [thr.x, thr.z], td: [td[0], td[1]],
-    aimAP: [+(td[0] + u[0] * 70).toFixed(3), +(td[1] + u[1] * 70).toFixed(3)],
+    aimAP: [+(td[0] - u[0] * 70).toFixed(3), +(td[1] - u[1] * 70).toFixed(3)],
     gs: null, ga: { hdg: Math.atan2(u[1], u[0]) },
   });
   const approaches = [
-    mk(0, [-d[0], -d[1]], R.thr1, tdz),
-    mk(1, [d[0], d[1]], R.thr0, at(R.thr0.x, R.thr0.z, d, D)),
+    mk(0, [-d[0], -d[1]], R.thr1, [R.td0.x, R.td0.z]),
+    mk(1, [d[0], d[1]], R.thr0, [R.td1.x, R.td1.z]),
   ];
   return { id: aero.id || 'HOME', elev: aero.elev || 0, fillet: GP_FILLET,
            nodes, arcs, routes, stops: holds,

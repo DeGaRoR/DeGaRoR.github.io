@@ -352,6 +352,14 @@ is already sitting hardcoded in the physics hot path.*
    node, add a hold, set a slope, save it into the site — the same modifier
    format as 3, written against the same validator, so a pattern a player
    draws is refused the moment it crosses the fence.
+   G202 (2026-09-06) moved the flying onto THE PILOT (43_pilot.js): the
+   pattern's two targets are now the strip's painted markers, a hold-short
+   line is painted at each hold, a PAPI stands abeam each aim point, and the
+   pilot's planned legs are drawn in the air — all read from `sitePattern`,
+   so the editor's hand, when it comes, moves them all at once. Still owed
+   from the pilot's side: a right-hand circuit flag on the site, a per-site
+   `gs`, and the meadows' free landing heading (they land on the record's
+   axis only).
 4. **The base aerodrome, rebuilt through the new layer** [M]. Its own proof,
    and it retires the last hand-written numbers.
 5. **Sites become destinations** [S]. The `AIRFIELD_SITES` null meadow slots
