@@ -33008,3 +33008,103 @@ no-op while the box is off. Files: `src/core/38_nav.js` (new),
 Core battery on the final build: 52 gates PASS (NAV among them), red only
 on WINGSPLIT and ENERGYBASE — the two rows red on a clean HEAD worktree
 (G202 above), not this chantier's.
+
+## G199.3 — THE PAWNEE UPDATE IS REVERTED (2026-09-06, the user: "the
+## ultralight keeps twisting its tail, the tail wheel does crazy things, it's
+## like we have lost all the boom's rigidity ... let's re-establish behaviour
+## by just cancelling the pawnee update, then critically look at that
+## session's content")
+
+**What G199.1 got wrong, said plainly.** Its proof was a static settle. The
+rows G188 measures on a rod boom — the tube's own section (tailW 0.057,
+tailBot 0.279, tailTop 0.393) and nine profile rows at that width from
+t 0.375 aft — make the frame build the whole aft truss 0.11 m deep instead
+of the 0.2-0.4 m the old defaults gave it, and a truss that shallow has
+almost no torsional or bending stiffness. A parked aeroplane cannot show that;
+a tailwheel steering load can, and did. The gates stayed green because they
+fly the FILE's rows while the game flies the rows the join re-measures on
+load. G199.1's frame rules (the fin stay, the 0.15 m post) were answers to
+the wrong question and are taken out with it.
+
+**The revert.** Commit 4a5b4cf (G188) is reversed in the working tree, hunk
+by hunk with exact CRLF-safe matching (a scratch script; `git apply -R` does
+not fit a shared tree with three sessions' uncommitted work in the same
+files): `60_gen_spec.js` (the clamp widenings, the auto-only tail-arm floor,
+the nose engine station, the wing's height), `61_gen_frame.js` (wingYr),
+`_cage_gear.js` and `_gear_page.js` (the `single` classifier), `_cage_gen.js`
+(the pod anatomy), `_cage_join.js` (all eleven hunks: the nose engine x/y,
+wings[0].y, isSingle, podCabA, the ring-less post fallback, the two ERRS
+rows, M.wingY), `_gear_check.js`, `_join_check.js` and the ROADMAP note. Every
+G188 hunk is now absent (the reverse patch matches nothing). G199's own
+`cageJoinPostZ` is gone with it; two things of this arc stay because they
+are not G188's and are inert on the ultralight: `tailSurfBounds` walks the
+stab and fin layers only (G199), and the second plane's group is disposed on
+rebuild (G199.2).
+
+**Verified with the right instruments this time.**
+- The editor, after the rebuild, loading the user's file: NO fuselage, tail,
+  wing-height or gear row rewritten (the remaining load diffs are G189's
+  boom-length migration, G185's bracing defaults, G194's engine sense and
+  the v7->v8 stamp — none of them a frame row).
+- A boom-rigidity instrument (scratch `twist.js`): the test pilot flies the
+  fixture's ground run and circuit while the stab-tip line's roll against the
+  mains' axle line, the tailwheel's lateral sway in the cabin frame and the
+  tail post's drift from its rest position are recorded.
+
+| core, rows | tail twist max / rms | tailwheel sway | post drift |
+|---|---|---|---|
+| eb9df15 (yesterday), file rows | 6.8° / 0.61° | 0.053 m | 0.25 m |
+| reverted tree, file rows | **1.6° / 0.14°** | 0.012 m | 0.05 m |
+| reverted tree, the rows G188 measured (station + tube section + profile + stab) | **80.2° / 10.1°** | 0.32 m | 0.76 m |
+| reverted tree, the tube section + profile alone, post where it was | 78.1° / 9.7° | 0.35 m | 0.96 m |
+
+The last two rows are the mechanism in one number: the post's station is
+not what breaks the boom, the tube's SECTION is — an 80-degree twist of the
+stab against the mains on a circuit the pilot still completes, which is why
+the game showed it and the plaque did not.
+
+Gates on the reverted tree: JOIN (with a G199.3 block: rows the join did not
+measure are not written), GEAR, STRESS, TAKEOFF, PILOT green; GEN re-run
+alone after the revert: PASS. ARCHETYPES stays red for its own reason
+(the archetype engine mapping, HANDOVER G199.1's last paragraph).
+
+**THE USER'S OWN SHED NEEDS ONE ACTION.** The merge keeps a row it does not
+measure, so a WIP autosave or a shelf slot written while the fallback was
+live still carries the tube-section rows, and the reverted join will not
+touch them. Re-import UltraLight3.json from the file (its rows are
+yesterday's); do not trust a slot saved on 2026-09-05 after 16:47.
+
+**The pawnee session, reviewed for what is worth bringing back** (nothing
+below is reintroduced here):
+1. The third wheel classified by station identity (`single` on row 2, the
+   gear layer and the join's four filters). Correct and safe; only a tailwheel
+   row with a lateral offset ever sees it. Bring back, with its gate.
+2. The ERRS rows ("third wheel drawn but no single contact", "aft pillar not
+   located"). Reporting only. Bring back.
+3. The nose engine's drawn station reaching the frame (EU x/y for a nose
+   mount, resolveSpec engX/engY from engines[0], the engine list not taking
+   e.x/e.y for a nose mount) and the clamps it needs (e.x to -3, gear.x to
+   -3, noseGap to 0.20, cab.halfW to 0.18, cab.len to 0.30). Bring back
+   after an A/B on the default Cub and one nose-engine archetype — GEN
+   flies both.
+4. The wing's height measured (M.wingY -> wings[0].y -> the lattice's
+   wingYr) with its clamp. It moves every strut root and the CG height on
+   EVERY build, the ultralight included (it measured 1.20 m). Bring back
+   only with a measured A/B of strut geometry on the three presets and the
+   rod fixture.
+5. The pod anatomy (cageResolve `pod.zCabA`, `podCabA` in the join) and the
+   auto-only tail-arm floor, so a pod measures its cabin length, boom
+   profile and tail rows. Bring back for PODS — with `tailSurfBounds`
+   walking the tail layers (kept), which is what the pawnee's "stab 3 m
+   further aft" also needed.
+6. The ring-less post fallback and the postGap clamp to 0.08. NOT for a rod
+   boom, ever: a rod's honest section is what the truss cannot carry. For a
+   pod with a lofted boom the section at the post is real fuselage and the
+   fallback is right; guard it on `boomStyle === 0` AND `R.pod`.
+7. The real lesson, owed to the frame: the truss idiom has no notion of a
+   tube boom. A rod-boom build flies the lofted defaults' section (0.2-0.4 m
+   deep) because that is the only depth at which the truss is stiff, and
+   measuring the tube honestly collapses it. Either a rod keeps the default
+   section by rule (and the join says so), or the frame grows a `tube`
+   member class whose k carries a round tube's torsion — a design decision
+   for the user, not a fix.

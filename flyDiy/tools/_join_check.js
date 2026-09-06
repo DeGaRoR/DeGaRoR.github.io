@@ -8,7 +8,7 @@
 const C = require('./flight_core.js');
 const { GEN_TIPS, GEN_FLAPS, POWERPLANTS, resolveSpec, genFrame,
         GEN_PROP_MATS, GEN_SUSPENSION } = C;
-const { cageJoinSpec, cageJoinPostZ, CAGE_JOIN_ENGINES, CAGE_JOIN_PROP_MATS } =
+const { cageJoinSpec, CAGE_JOIN_ENGINES, CAGE_JOIN_PROP_MATS } =
   require('./_cage_join.js');
 
 let fails = 0;
@@ -529,130 +529,12 @@ try {
   ok(false, 'custom engine block threw: ' + e.message);
 }
 
-// ---- G188: WHAT THE POD FOUND — a measurement must REACH THE FRAME --------
-// The pawnee build (a mirrored pod, long nose, low wing on top struts) flew
-// with its engine 1.56 m aft of its cowl, its wing 0.9 m aft and 0.24 m
-// below the drawn one, its tail post 0.9 m behind the drawn tail and its
-// stab 3 m further still: every one a measurement the join took (or could
-// not take) that resolveSpec or the frame then overrode. Each row here is
-// one of those doors, held open.
-try {
-  const M6 = Object.assign({}, M, {
-    wingY: 0.14, wingXLE: -1.12, tailArm: 3.11, cabLen: 1.0,
-    engUnits: [{ x: -1.98, y: 0.34, z: 0 }] });
-  const s6 = cageJoinSpec(Object.assign({}, P, { engMount: 0 }), M6, T);
-  ok(s6.wings[0].y === 0.14, 'G188: wing root height -> wings[0].y');
-  ok(s6.engines[0].x === -1.98 && s6.engines[0].y === 0.34 &&
-     s6.engines[0].z === undefined,
-     'G188: a NOSE engine carries its drawn station (x/y, no z)');
-  const R6 = resolveSpec(JSON.parse(JSON.stringify(s6))).spec;
-  ok(Math.abs(R6.fuse.tailArm - 3.11) < 1e-9,
-     'G188: a measured tail arm is not stretched to the 0.9-chord floor');
-  ok(Math.abs(R6.wing.xLE + 1.12) < 1e-9,
-     'G188: a measured wing ahead of the firewall survives the clamp');
-  ok(Math.abs(R6.engX + 1.98) < 1e-9 && Math.abs(R6.engY - 0.34) < 1e-9,
-     'G188: the nose station (engX/engY) follows the drawn engine');
-  ok(R6.engAt[0].x === R6.engX && R6.engAt[0].y === R6.engY,
-     'G188: engAt and engX are the same fact for a nose mount');
-  const fr6 = genFrame(R6);
-  const wfRoot = fr6.nodes.filter(n => n.tag === 'WF')
-    .reduce((a, n) => Math.abs(n.p[2]) < Math.abs(a.p[2]) ? n : a);
-  ok(Math.abs(wfRoot.p[1] - 0.14) < 1e-6,
-     'G188: the front spar root sits at the measured height');
-  const eng = fr6.nodes.find(n => n.tag === 'ENGL');
-  ok(eng && Math.abs(eng.p[0] + 1.98) < 1e-9,
-     'G188: the engine mount node is at the drawn station');
-  ok(fr6.cg0.every(Number.isFinite),
-     'G188: a wing ahead of the firewall still builds to a finite CG');
-  // the DERIVED arm keeps its floor: a spec that says nothing about the tail
-  // arm still gets a bay behind the box the old way
-  const s7 = cageJoinSpec(P, Object.assign({}, M, { tailArm: 0 }), T);
-  const R7 = resolveSpec(JSON.parse(JSON.stringify(s7))).spec;
-  ok(R7.fuse.tailArm >= R7.fuse.boxRear + 0.9 * R7.wing.chord - 1e-9,
-     'G188: a derived tail arm still honours the 0.9-chord floor');
-  // the POD's anatomy: a mirrored cabin names no aft pillar ring, and
-  // cageResolve publishes the reflected windscreen base instead
-  const G6 = require('./_cage_gen.js');
-  const Pp = Object.assign(G6.cageFromSpec(null),
-    { mirror: 1, aftPilotLen: 0.12, aftWsRun: 0.55, aftNoseLen: 0.44 });
-  const RP = G6.cageResolve(G6.cageSpec(Object.assign({}, Pp)));
-  const zOfP = (RR, nm) => RR.rings.find(r => r.name === nm).lv.waist.z;
-  ok(RP.pod && RP.pod.zCabA != null && RP.rings.every(r => r.name !== 'pilPaxA'),
-     'G188: a mirrored pod publishes its aft pillar, which no ring names');
-  ok(RP.pod.zCabA < zOfP(RP, 'pilCabB') &&
-     (zOfP(RP, 'pilCabB') - RP.pod.zCabA) > 0.3 * (zOfP(RP, 'wsFront') - zOfP(RP, 'pilCabB')),
-     'G188: the pod\'s aft pillar lies a cockpit-length aft of the cabin pillar');
-  const RQ = G6.cageResolve(G6.cageSpec(Object.assign(G6.cageFromSpec(null), { mirror: 1 })));
-  ok(Math.abs(RQ.pod.zCabA - (2 * RQ.mirrorZ - zOfP(RQ, 'wsFront'))) < 1e-9,
-     'G188: an unmodified pod reflects its windscreen base about mirrorZ');
-  const RN = G6.cageResolve(G6.cageSpec(G6.cageFromSpec(null)));
-  ok(RN.pod === null && RN.rings.some(r => r.name === 'pilPaxA'),
-     'G188: a regular cabin publishes no pod anatomy and keeps its pilPaxA');
-} catch (e) {
-  ok(false, 'G188 block threw: ' + e.message);
-}
 
-// ---- G199 / G199.1: THE RING-LESS POST, AND THE FRAME THAT CAN TAKE IT ----
-// G188's "no tail post ring -> the post is the skin's end plus the cone" fired
-// on the user's rod-boom ultralight and the frame fell apart on it: the wheel
-// TRAILS a rod boom's post by 0.3 m and the post section is the tube's, so the
-// tailwheel fan had every anchor ahead of the wheel on a 4 cm post (13 %
-// strain, the tail hunting, the "erratic tailwheel" report). The station was
-// honest; the frame was not ready for it. G199.1 gave the frame the trailing
-// wheel's stay and a 0.15 m minimum post, and the fallback is G188's again.
-// Pinned here: the helper's two answers, the frame's two rules, and the
-// fixture — the user's own build — settled on its wheels with the rows the
-// join measures today AND with the rows it saved yesterday.
+// ---- G199.3: ROWS THE JOIN DID NOT MEASURE ARE NOT WRITTEN --------------
+// The merge writes a fuselage or tail row only from a measurement; a save's
+// own rows stand otherwise. This is the whole of what let the user's rod-boom
+// ultralight fly on 2026-09-04, and what G188's ring-less fallback took away.
 try {
-  const z0 = -1.9026, FS = 0.745, tailLen = 0.1698;
-  ok(cageJoinPostZ(-2.4, z0, tailLen, FS) === -2.4,
-     'G199: a named tail post ring is the post');
-  ok(Math.abs(cageJoinPostZ(null, z0, tailLen, FS) - (z0 + tailLen * FS)) < 1e-12,
-     'G199: no ring -> the skin's aft end plus the cone (G188, every boom)');
-  ok(Math.abs(cageJoinPostZ(undefined, z0, tailLen, FS) - (z0 + tailLen * FS)) < 1e-12 &&
-     Math.abs(cageJoinPostZ(NaN, z0, tailLen, FS) - (z0 + tailLen * FS)) < 1e-12,
-     'G199: an unresolved ring (undefined / NaN) is no ring');
-  // the fixture is the user's ultralight (GATE TAKEOFF flies the same file)
-  const FIX = require('path').join(__dirname, 'fixtures', 'build_v7_ultralight_2026-09-05.json');
-  const saved = JSON.parse(require('fs').readFileSync(FIX, 'utf8')).spec;
-  // ...and these are the rows the join MEASURES on it after G199.1 (read off
-  // the editor: the post at the rod's end, the tube's section, the stab and
-  // fin from their own layers). Constants on purpose: the browser measure()
-  // cannot run here, and the numbers are the contract.
-  const measured = JSON.parse(JSON.stringify(saved));
-  Object.assign(measured.fuselage, { tailArm: 4.4103, postGap: 0.126512,
-    tailW: 0.056731, tailBot: 0.279459, tailTop: 0.392941 });
-  Object.assign(measured.tail, { hX: 4.50, hSpan: 2.96, hChord: 1.235 });
-  const settle = (spec, label) => {
-    const def = C.buildGen(JSON.parse(JSON.stringify(spec)));
-    const sim = C.makeSim(def, C.makeWorld());
-    sim.reset(0); sim.stance();
-    for (let i = 0; i < 600; i++) sim.step(1 / 60);
-    const st = sim.stats();
-    const [xA] = sim.axes();
-    const pitch = 180 - Math.atan2(-xA[1], -xA[0]) * 180 / Math.PI;
-    const tw = def.refs.tw, fin = def.nodes.findIndex(n => n.tag === 'FIN');
-    const tpb = def.nodes.findIndex(n => n.tag === 'TPB'), tpt = def.nodes.findIndex(n => n.tag === 'TPT');
-    const stay = def.beams.some(b => (b.a === tw && b.b === fin) || (b.a === fin && b.b === tw));
-    const postH = def.nodes[tpt].p[1] - def.nodes[tpb].p[1];
-    const trailing = def.nodes[tw].p[0] > def.nodes[tpb].p[0] + 0.02;
-    return { label, smax: st.smax, bad: st.bad, pitch, onG: sim.wheelsOnGround(), stay, postH, trailing };
-  };
-  const A = settle(saved, 'saved rows'), B = settle(measured, 'measured rows');
-  for (const r of [A, B]) {
-    ok(!r.bad && r.onG === 3 && r.smax < 0.03,
-       'G199.1: the ultralight settles on three wheels under 3 % strain (' + r.label +
-       ': ' + (r.smax * 100).toFixed(2) + ' %)');
-    ok(r.pitch > 7 && r.pitch < 11,
-       'G199.1: three-point attitude 7-11 deg (' + r.label + ': ' + r.pitch.toFixed(1) + ')');
-    ok(r.postH >= 0.15 - 1e-9,
-       'G199.1: the tail post stands at least 0.15 m (' + r.label + ': ' + r.postH.toFixed(3) + ')');
-  }
-  ok(B.trailing && B.stay,
-     'G199.1: a wheel that trails the post takes the stay to the fin apex');
-  ok(!A.trailing && !A.stay,
-     'G199.1: a wheel ahead of the post builds no stay (yesterday's frame, untouched)');
-  // ...and the merge: rows the join writes only from a measurement stay unwritten
   const M9 = Object.assign({}, M);
   for (const k of ['postGap', 'tailW', 'tailBot', 'tailTop', 'profile',
                    'hSpan', 'hChord', 'hX', 'vHeight', 'vChord', 'vX', 'stabH'])
@@ -660,12 +542,12 @@ try {
   const s9 = cageJoinSpec(P, M9, T);
   ok(s9.fuselage.postGap == null && s9.fuselage.tailW == null &&
      s9.fuselage.tailBot == null && s9.fuselage.tailTop == null,
-     'G199: unmeasured post rows are not written (the save's own stand)');
+     "G199.3: unmeasured post rows are not written (the save's own stand)");
   ok(!s9.tail || (s9.tail.hSpan == null && s9.tail.hX == null &&
                   s9.tail.vHeight == null),
-     'G199: unmeasured tail surface rows are not written');
+     'G199.3: unmeasured tail surface rows are not written');
 } catch (e) {
-  ok(false, 'G199 block threw: ' + e.message);
+  ok(false, 'G199.3 block threw: ' + e.message);
 }
 
 // THE VERDICT CONTRACT (G67.1): this checker joins the battery, and the

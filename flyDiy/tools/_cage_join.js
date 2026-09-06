@@ -216,11 +216,7 @@ function cageJoinSpec(P, M, T) {
       const one = i => ({
         type, mount: mk, place: { dx: 0, dy: 0 },
         ...(aim && mk !== 'nose' && mk !== 'pusher' ? { aim } : {}),
-        // G188: the NOSE engine too — the frame hung it 0.18 m + 0.16 D ahead
-        // of the firewall whatever the nose drawn in front of it, so a
-        // long-nosed pod flew its powerplant 1.56 m aft of the cowl it was in
-        ...(EU[i] ? { x: EU[i].x, y: EU[i].y,
-                      ...(mk === 'nose' ? {} : { z: Math.abs(EU[i].z) }) } : {}),
+        ...(mk !== 'nose' && EU[i] ? { x: EU[i].x, y: EU[i].y, z: Math.abs(EU[i].z) } : {}),
         ...(mk === 'wingTop' ? { pylon: Math.max(0.05, +P.engPylonH || 0.30) } : {}),
         // G134: THE DRAWN ENGINE IS THE PHYSICS' AUTHOR — the G132 prop rule,
         // applied to the engine itself. M.engineFacts is engResolve over the
@@ -352,9 +348,6 @@ function cageJoinSpec(P, M, T) {
   // G52: the wing's fore-aft station, from the wing layer's own anchor
   if (typeof M.wingXLE === 'number' && isFinite(M.wingXLE))
     spec.wings[0].xLE = M.wingXLE;
-  // G188: ...and its height (root chord line over the keel), same anchor
-  if (typeof M.wingY === 'number' && isFinite(M.wingY))
-    spec.wings[0].y = M.wingY;
   // G49: the tail-end section and the cowl deck ride with the tail arm —
   // clampSpec's envelope bounds them, and tailY stays 0 (it is the
   // editor's OFFSET knob; these are absolute measurements).
@@ -553,33 +546,8 @@ const VIEW_KEEP = {
     'after the skip, selected or not)',
 };
 
-// WHERE THE TAIL POST IS WHEN NO RING NAMES IT (G199, 2026-09-05/06). G188
-// put the post of a ring-less boom at the skin's aft extreme plus the tail
-// cone — "where the boom's tail cone begins, which is exactly where the
-// regular table puts its own (zCap = zPost - tail.len)". Written for the pod,
-// it is right for the ROD as well: the fin's hinge line sits at the tube's
-// end (measured on the user's ultralight: hinge z -1.896 against the rod's
-// end -1.903), and the frame's post has always been the skin's aft extreme
-// (postX = tailArm + postGap = zFw - AF.z0 on every loft).
-//
-// What that line broke on the rod was not the station — it was what the FRAME
-// did with it: the tailwheel roots at the tube's end and TRAILS the post by
-// 0.3 m, and the post section is the tube's 0.11 m, so the frame built a
-// tailwheel fan with every anchor ahead of the wheel on a 4 cm post (13 %
-// strain, the tail hunting), and the tail bounds walked the whole mount and
-// read the wing's trailing edge as stab. G199 (05) took the fallback back to
-// pods while that was found; G199.1 (06) fixed the frame (the trailing wheel's
-// stay to the fin apex, the 0.15 m post) and the bounds (the tail layers
-// only), and the fallback is G188's again, for every boom the ring table
-// does not name. Pure, so GATE JOIN can pin it, and one place, so the next
-// hand finds the whole story here.
-function cageJoinPostZ(zRing, z0, tailLen, FS) {
-  if (zRing != null && isFinite(zRing)) return zRing;
-  return z0 + Math.max(0, +tailLen || 0) * (FS || 1);
-}
-
 if (typeof module !== 'undefined' && module.exports)
-  module.exports = { cageJoinSpec, cageJoinPostZ, cageWingCuts, CAGE_JOIN_ENGINES, CAGE_JOIN_PROP_MATS,
+  module.exports = { cageJoinSpec, cageWingCuts, CAGE_JOIN_ENGINES, CAGE_JOIN_PROP_MATS,
                      VIEW_STATE, VIEW_KEEP };
 
 // ---- browser glue: measurements + the button (game bundle only) ----
@@ -696,23 +664,14 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
   // failed test, and the bench says so instead of posting a plaque for an
   // aeroplane nobody built.
   const ERRS = [];
-  // G188: WHICH CONTACT IS THE THIRD WHEEL is the station's identity (the gear
-  // layer flags its row 2 `single`), not its lateral offset. Four classifiers
-  // here read `x <= 0.01`; a tailwheel row carrying 0.1 m was therefore a pair
-  // of MAINS to all of them — the mains' station averaged with the tail's
-  // (0.96 m instead of −1.42 m), the visual calibrated onto that mean, and no
-  // third wheel measured at all, so twX/twY stayed stale. Older contacts
-  // without the flag keep the offset reading.
-  const isSingle = c => !!(c && c.st) &&
-    (c.st.single != null ? !!c.st.single : c.st.x <= 0.01);
   const measure = () => {
     ERRS.length = 0;
     const P = window.CAGE_UI ? window.CAGE_UI.P : {};
     const M = {};
     const G2 = window.CAGE_GEAR || {};
     if (G2.contacts && G2.contacts.length) {
-      const mains = G2.contacts.filter(c => c.st && !isSingle(c));
-      const single = G2.contacts.find(isSingle);
+      const mains = G2.contacts.filter(c => c.st && c.st.x > 0.01);
+      const single = G2.contacts.find(c => c.st && c.st.x <= 0.01);
       if (mains.length) {
         M.track = 2 * Math.max(...mains.map(c => Math.abs(c.p[0])));
         M.contactR = mains[0].R;
@@ -734,7 +693,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // tail arm. The ws rings SLOPE (roof z is aft of keel z), so the
       // base is their WAIST/KEEL z, not their roof. Ring z is cage
       // units; AF is metres — × FS (CAGE_UNIT × planeScale) converts.
-      let zFw = AF.z1, fwOk = false, zPost = null, podCabA = null;
+      let zFw = AF.z1, fwOk = false, zPost = null;
       let zOf2 = () => null;               // named-ring z lookup, metres
       try {
         const C2 = window.CAGE2;
@@ -750,19 +709,6 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
                  : zOf2('aeroWsA') != null ? zOf2('aeroWsA') : zOf2('ring');
         if (fw != null) { zFw = fw; fwOk = true; }
         zPost = zOf2('tailPost');          // a ROD boom has no tail rings
-        // G188: NEITHER HAS A POD (a mirrored cabin: its boom is built by
-        // reflection, not from the ring table). Without a post ring the
-        // post is where the boom's tail cone begins — the skin's aft extreme
-        // plus the cone's length, which is exactly where the regular table
-        // puts its own (zCap = zPost − tail.len) — and the aft pillar is the
-        // reflected windscreen base cageResolve publishes. Before this the
-        // cabin length, every boom section and all eight tail rows were
-        // simply never measured on a pod, and the merge kept whatever the
-        // spec had from an earlier state of the same build.
-        // G199/G199.1: one place — see cageJoinPostZ for what this did to a
-        // rod boom and what the frame had to learn before it could be right.
-        zPost = cageJoinPostZ(zPost, AF.z0, +P.tailLen, FS);
-        if (R.pod && R.pod.zCabA != null) podCabA = R.pod.zCabA * FS;
       } catch (e) {
         // NOT SWALLOWED (G64). `fwOk` false skips the whole firewall-anchored
         // block below — the cabin's x-extent, the gear station and ride
@@ -811,12 +757,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // keel DATUM exists whenever the airframe does; only the stations
       // (twX) additionally need the firewall anchor.
       if (G2.contacts && G2.contacts.length) {
-        const single = G2.contacts.find(isSingle);
-        // G188: a drawn third wheel that produced no single contact is SAID —
-        // the merge would otherwise keep a stale twX/twY without a word
-        if (!single && +P.s2On)
-          ERRS.push('the third wheel is drawn but no single contact was '
-                    + 'found: its station and height not measured');
+        const single = G2.contacts.find(c => c.st && c.st.x <= 0.01);
         if (single && fwOk) {
           M.twX = zFw - single.p[2];      // model x aft of the firewall
           M.twY = single.p[1] - yD;
@@ -828,7 +769,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         // so). Live only since the mains got their rule-10 snap-blocker:
         // without it a shallow measured stance reflected the axle through
         // the belly-plane anchors at 0.28% strain.
-        const mainsY = G2.contacts.filter(c => c.st && !isSingle(c));
+        const mainsY = G2.contacts.filter(c => c.st && c.st.x > 0.01);
         if (mainsY.length)
           M.gearY = mainsY.reduce((s, c) => s + c.p[1], 0) / mainsY.length - yD;
       }
@@ -850,15 +791,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // actually anchors the FRONT SPAR: the cage's `ring` station
       // (+ the panel's dx), minus sparFront x chord back to the LE.
       if (fwOk) {
-        const zCabF = zOf2('pilCabB');
-        const zCabA = zOf2('pilPaxA') != null ? zOf2('pilPaxA') : podCabA;
-        // G188: a measurement that cannot be taken is SAID (G64's rule), not
-        // left to the merge's "last good number" — which on a pod was a
-        // number from a different aeroplane.
-        if (zCabA == null)
-          ERRS.push('the aft cabin pillar could not be located (no pilPaxA '
-                    + 'ring, no pod anatomy): cabin length, boom profile and '
-                    + 'tail rows not measured');
+        const zCabF = zOf2('pilCabB'), zCabA = zOf2('pilPaxA');
         if (zCabF != null && zFw > zCabF) M.noseGap = zFw - zCabF;
         if (zCabF != null && zCabA != null && zCabF > zCabA)
           M.cabLen = zCabF - zCabA;
@@ -891,7 +824,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         // x-mapping becomes firewall-EXACT for every part, not just the
         // wheels. The CG/rake placement rule is bypassed; noseOver is
         // posted by the shakedown, which is the honest trade.
-        const mains2 = (G2.contacts || []).filter(c => c.st && !isSingle(c));
+        const mains2 = (G2.contacts || []).filter(c => c.st && c.st.x > 0.01);
         if (mains2.length)
           M.gearX = zFw - mains2.reduce((s, c) => s + c.p[2], 0) / mains2.length;
         const zRing = zOf2('ring');
@@ -901,13 +834,6 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           M.wingXLE = (zFw - zRing - (P.wgDx || 0))
                     - sparF * (P.wgChord || 1.5);
         }
-        // G188: THE WING'S HEIGHT, off the same anchor. The frame seated a
-        // low wing 0.10 m BELOW the keel whatever the builder drew (the cage
-        // seats it 22 % up the section, plus the up/down row) — 0.24 m on the
-        // pod that found it, 0.4 m on a full-height cabin; mid and high had
-        // their own two formulas. The root chord line, over the keel.
-        if (W && W.anchor && isFinite(W.anchor.yAnchor))
-          M.wingY = W.anchor.yAnchor + (+P.wgDy || 0) - yD;
         // G54: the SHAPE FAMILY — the PATH of the boom between the
         // measured endpoints (user: "it starts diverging from the
         // passenger pillar onwards"). The lattice interpolates its
@@ -1181,7 +1107,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       const mfx = (mains[0][0] + mains[1][0]) / 2,
             mfy = (mains[0][1] + mains[1][1]) / 2;
       const G2 = window.CAGE_GEAR;
-      const cm = G2.contacts.filter(c => c.st && !isSingle(c));
+      const cm = G2.contacts.filter(c => c.st && c.st.x > 0.01);
       const cz = cm.reduce((s, c) => s + c.p[2], 0) / cm.length,
             cy = cm.reduce((s, c) => s + c.p[1], 0) / cm.length;
       // G54.2 THE PITCH CALIBRATION (user: "it's like the plane has

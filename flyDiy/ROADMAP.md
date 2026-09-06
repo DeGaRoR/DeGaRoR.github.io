@@ -41,14 +41,6 @@ interleaves bench work with loop work from there.
 > GATE FIT now measures the DRAWING against the published set
 > (HANDOVER G196, G196.1).
 
-> **2026-09-05 (G188).** The join's measurements now REACH the frame on every
-> build: the third wheel is classified by station identity (not lateral
-> offset), a mirrored pod publishes its aft pillar and takes its post off the
-> skin, the nose engine and the wing's height are measured, and resolveSpec's
-> clamps and the 0.9-chord tail-arm floor no longer override a measured
-> station. Owed there: the merge's "last good number" hazard for any
-> measurement not on the ERRS list (HANDOVER G188).
-
 The loop is live end to end: design → certify on the bench tab → roll out →
 AP circuit or leg → arrival card → logbook write. So the plan stops being
 sequenced by architecture and is sequenced by play. The judging criterion for

@@ -340,13 +340,8 @@ PAGE.post = ctx => {
   };
 
   const contacts = [];
-  // G188: the third wheel is the station the table FLAGS single (row 2), not
-  // whichever contact happens to sit on the centreline; a tailwheel builder
-  // is centreline by construction, so it gets one contact whatever its row's
-  // lateral offset says (two identical contacts otherwise).
-  const isSingle = st => st.single != null ? !!st.single : st.x <= 0.01;
   for (const st of stations) {
-    const sides = (st.leg === 3 || st.x <= 0.01) ? [0] : [-1, 1];
+    const sides = st.x > 0.01 ? [-1, 1] : [0];
     for (const s of sides) {
       const sgn = s === 0 ? 1 : s;
       let r;
@@ -406,7 +401,7 @@ PAGE.post = ctx => {
       }
       delete st.mount;
       wu.wb.axle = r.axle; wu.wb.R = st.R;
-      wu.wb.kind = (st.leg === 3 || isSingle(st)) ? 'T'
+      wu.wb.kind = (st.leg === 3 || st.x <= 0.01) ? 'T'
                  : (r.axle[0] > 0 ? 'L' : 'R');
       // G58.7: BOTH ends are anchors. `root` bolts to the airframe and
       // must stay put; the moving end is the spring's own tip (the
@@ -496,8 +491,8 @@ PAGE.post = ctx => {
   // Measured in the SAT frame — rotated and dropped — because a CG angle read
   // off an untilted drawing is not the angle the aeroplane has.
   const toG = p => { const q = rot(p); return [q[0], q[1] - gy, q[2]]; };
-  const mains = contacts.filter(c => !isSingle(c.st)).map(c => toG(c.p));
-  const singles = contacts.filter(c => isSingle(c.st)).map(c => toG(c.p));
+  const mains = contacts.filter(c => c.st.x > 0.01).map(c => toG(c.p));
+  const singles = contacts.filter(c => c.st.x <= 0.01).map(c => toG(c.p));
   const notes = [];
   if (mains.length) {
     const mz = mains.reduce((s, p) => s + p[2], 0) / mains.length;
