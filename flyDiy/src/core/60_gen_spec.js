@@ -1388,6 +1388,31 @@ const GEN_RULES = {
   // GATE MOUNT holds both, on every mount kind, with a negative control.
   mountK:      2.5,
   mountFoot:   true,
+  // A ROD BOOM IS A TUBE, AND THE TRUSS IS NOT (G199.5, 2026-09-07; the user:
+  // "the stabs are moving with the tail wheel, and getting a huge torsion,
+  // even when simply taxiing"). A rod-boom build flies the lofted default
+  // section — a 0.1 x 0.18 m lattice at the post — because measuring the
+  // tube's own section collapses the truss (G199.3), and that lattice is
+  // about 12x softer in torsion than the 113 mm tube it stands for: the
+  // tailwheel's steering side-load (0.3 m below the boom axis) rolls the
+  // whole tail against the mains at full rudder on the taxi. This multiplies
+  // k (and c by its root) on every 'fus' member aft of boxRear of a boom
+  // declared 'rod'. MEASURED on the user's ultralight (GATE TAKEOFF's
+  // fixture), the taxi at full rudder and the 2 m/s crosswind take-off roll:
+  //   rodBoomK   stab roll vs the mains   cross-track through the roll
+  //      1            3.09 deg                   11.2 m
+  //      2            2.48                       12.0
+  //      3            1.49                       12.5
+  //      4            1.29                       12.7
+  //      8            the integrator blows up on the spawn
+  // The twist goes down as it should; the crosswind wander goes UP, because
+  // the autopilot's tailwheel steering was tuned on the soft boom, and GATE
+  // TAKEOFF bounds that wander at 12 m. So the switch is landed at 1 — the
+  // aeroplane flies exactly what it flew — with the machinery and its gates
+  // in place. Turning it to 4 is the user's ruling, paired with either a
+  // retune of the AP's crosswind steering or a re-based 12 m bound; the
+  // remaining 3x to the real tube is the tube member class, owed.
+  rodBoomK:    1,
   // ...and WHERE the foot goes, as a fraction of the way from the engine to
   // the front spar: 1 = under the front spar. Measured on the twin (engines
   // 0.65 m ahead of the spar), foot at 0 / 0.5 / 0.75 / 1 / 1.25 / 1.5:
@@ -1956,6 +1981,13 @@ const GEN_DEFAULT = {
           covering: 'skin',
           tailArm: null, postGap: 0.67, tailBays: 4,
           tailW: 0.10, tailBot: 0.20, tailTop: 0.38,
+          // THE BOOM'S CONSTRUCTION (G199.5): 'rod' (one bare tube carries the
+          // tail), 'loft' (a lofted, trussed boom) or 'twin'; null = unsaid, and
+          // the frame treats it as a loft. Written by the join off the cage's
+          // boomStyle; the frame reads it to stiffen a rod's bays by GEN_RULES.
+          // rodBoomK — the truss has no tube class, and a rod boom flying the
+          // lofted default section is ~12x too soft in torsion (HANDOVER G199.5).
+          boom: null,
           // THE MEASURED BOOM PROFILE (G54.1): rows of {t, w, yb, yt} with t
           // normalised over boxRear..tailArm. When present, the aft stations
           // take their section from HERE (interpolated by t) instead of the
@@ -2871,6 +2903,7 @@ function clampSpec(spec) {
   S.cargo.len = genClamp(S.cargo.len || 0, 0, 2.5);
   S.cargo.kg = genClamp(S.cargo.kg || 0, 0, 400);
   fu.tailBays = genClamp(fu.tailBays | 0, 3, 6);
+  fu.boom = (fu.boom === 'rod' || fu.boom === 'loft' || fu.boom === 'twin') ? fu.boom : null;
   fu.postGap = genClamp(fu.postGap, 0.35, 1.10);
   fu.crownTop = genClamp(fu.crownTop, 0, 1);
   fu.crownSide = genClamp(fu.crownSide, 0, 0.6);

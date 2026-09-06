@@ -50,6 +50,9 @@ const check = (ok, label, extra) => {
 
 function fixture() {
   const spec = JSON.parse(fs.readFileSync(FIX, 'utf8')).spec;
+  // G199.5: what the join writes for this cage (boomStyle 1, a rod boom); the
+  // file predates the field, and the game flies it with the row set
+  spec.fuselage.boom = 'rod';
   return C.buildGen(C.genMigrateSpec(JSON.parse(JSON.stringify(spec))));
 }
 
@@ -71,8 +74,24 @@ function depart(def, opts) {
   for (const [x0, x1] of site.fence.runs)
     for (let x = Math.min(x0, x1); x <= Math.max(x0, x1) + 1e-6; x += site.fence.step) posts.push([x, site.fence.z]);
   const R = C.siteRunway(a);
+  // G199.5: THE STAB'S ROLL AGAINST THE MAINS' AXLE LINE, in the aeroplane's
+  // own frame — the boom's twist under the tailwheel's steering loads (the
+  // user: "the stabs are moving with the tail wheel ... even when simply
+  // taxiing"). This fixture at full rudder on the lofted default lattice:
+  // 3.1 deg; with rodBoomK 4: 1.3; with the pawnee rows (G199.3): 80. The
+  // bound below is a regression guard on today's number, not a target.
+  const iH = def.nodes.findIndex(n => n.tag === 'HTL'), iH2 = def.nodes.findIndex(n => n.tag === 'HTR');
+  const [iL, iR] = def.refs.mains;
+  const stabRoll = () => {
+    if (iH < 0 || iH2 < 0) return 0;
+    const [, yU, zR] = sim.axes(), p = sim.p;
+    const ang = (i, j) => Math.atan2(
+      (p[j*3]-p[i*3])*yU[0] + (p[j*3+1]-p[i*3+1])*yU[1] + (p[j*3+2]-p[i*3+2])*yU[2],
+      (p[j*3]-p[i*3])*zR[0] + (p[j*3+1]-p[i*3+1])*zR[1] + (p[j*3+2]-p[i*3+2])*zR[2]) * 180 / Math.PI;
+    let d = ang(iH, iH2) - ang(iL, iR); d = ((d + 540) % 360) - 180; return d;
+  };
   const rec = { phases: [], maxXT: 0, minPost: 1e9, offStrip: 0, stopped: false, minVgHold: 1e9,
-                roll: null, maxSCrRoll: 0, lift: null, outcome: null, tRoll: null, tailUp: null,
+                roll: null, maxSCrRoll: 0, maxStabRoll: 0, lift: null, outcome: null, tRoll: null, tailUp: null,
                 rejected: false, t: 0 };
   let last = null;
   const T = opts.maxS || 300;
@@ -83,6 +102,7 @@ function depart(def, opts) {
     if (ap.phase !== last) { rec.phases.push({ t: +t.toFixed(1), phase: ap.phase }); last = ap.phase; }
     if (ap.phase === 'TAXI') {
       rec.maxXT = Math.max(rec.maxXT, Math.abs(d.xt || 0));
+      rec.maxStabRoll = Math.max(rec.maxStabRoll, Math.abs(stabRoll()));
       for (const p of posts) rec.minPost = Math.min(rec.minPost, Math.hypot(cg[0] - p[0], cg[2] - p[1]));
       // on the strip's flanks: inside the strip's half-width, outside its length
       const along = (cg[0] - R.end0.x) * R.dx + (cg[2] - R.end0.z) * R.dz;
@@ -112,6 +132,8 @@ function judge(name, r, opts) {
   if (opts.stand) {
     check(r.phases.some(p => p.phase === 'TAXI'), tag + 'taxied off the stand');
     check(r.maxXT < 2.5, tag + 'taxi cross-track under 2.5 m', r.maxXT.toFixed(2) + ' m');
+    check(r.maxStabRoll < 3.5, tag + 'the stab rolls under 3.5 deg against the mains through the taxi (G199.5)',
+          r.maxStabRoll.toFixed(2) + ' deg');
     check(r.minPost > 2.0, tag + 'never within 2 m of a fence post', r.minPost.toFixed(1) + ' m');
     check(r.offStrip === 0, tag + 'never on the strip’s flanks outside its length', r.offStrip + ' frames');
   }
@@ -216,7 +238,7 @@ if (!SELF) {
 // ---- negative verification: a doctored record each way ---------------------
 {
   const good = { phases: [{ t: 0, phase: 'DEPART' }, { t: 0.1, phase: 'TAXI' }, { t: 40, phase: 'STOP' }, { t: 44, phase: 'HOLD' }, { t: 46, phase: 'ROLL' }, { t: 60, phase: 'LIFTOFF' }],
-                 maxXT: 0.8, minPost: 5, offStrip: 0, stopped: true, minVgHold: 0.1,
+                 maxXT: 0.8, minPost: 5, offStrip: 0, stopped: true, minVgHold: 0.1, maxStabRoll: 0.8,
                  roll: { t: 46, sCr: 0.5, e: 0.02 }, maxSCrRoll: 1.2, lift: { t: 62, sCr: 1.0, e: 0.03, V: 16 },
                  outcome: null, tRoll: 46, tailUp: null, rejected: false, t: 62 };
   const BREAKS = [
@@ -225,6 +247,7 @@ if (!SELF) {
     ['no stop before the roll', r => { r.stopped = false; }],
     ['a roll begun 5 m off', r => { r.roll.sCr = 5; }],
     ['a roll that wandered', r => { r.maxSCrRoll = 9; }],
+    ['a stab rolling 5 deg with the tailwheel', r => { r.maxStabRoll = 5; }],
     ['a lift-off 6 m off', r => { r.lift.sCr = 6; }],
     ['a rejected take-off', r => { r.rejected = true; }],
     ['never airborne', r => { r.lift = null; }],

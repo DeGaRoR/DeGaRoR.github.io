@@ -358,6 +358,12 @@ function cageJoinSpec(P, M, T) {
   // pricing a faired pod — a naked aeroplane that flew covered. The G121.1
   // rule: the drawn state IS the declaration. Absent = 'skin', the default.
   if (!(P.skinOn == null || +P.skinOn)) fus.covering = 'open';
+  // G199.5: THE BOOM'S CONSTRUCTION is the cage's own declaration — the frame
+  // keys a rod boom's stiffening on it (GEN_RULES.rodBoomK), because the
+  // lattice it flies is not the tube it draws. Written on every join: the
+  // cage IS the declaration, a save predating the field takes it on load.
+  fus.boom = (+P.boomTwin || Math.round(+P.boomStyle || 0) === 2) ? 'twin'
+           : Math.round(+P.boomStyle || 0) === 1 ? 'rod' : 'loft';
   if (M.tailArm > 0) fus.tailArm = M.tailArm;
   if (M.postGap > 0) fus.postGap = M.postGap;
   // G54: the boom's path between the measured endpoints. clampSpec

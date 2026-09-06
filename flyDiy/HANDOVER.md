@@ -33135,3 +33135,62 @@ out pending the A/Bs listed under G199.3 — the fallback never for a rod boom.
 
 On the ultralight this changes nothing measurable (its tailwheel row sits on
 the centreline); the fixture's load rows are identical before and after.
+
+## G199.5 — WHY THE STABS MOVE WITH THE TAILWHEEL, MEASURED; THE ROD-BOOM
+## SWITCH LANDED OFF, WITH ITS TRADE WRITTEN NEXT TO IT (2026-09-07, the user:
+## "in all versions, it's like the stabs are moving with the tail wheel, and
+## getting a huge torsion, even when simply taxiing. Don't we have something
+## simply to be corrected there?")
+
+**The instrument** (`_takeoff_check.js`, now a row of the gate): the game's own
+departure from the stand — the taxi with its turns, the hold, the roll — with
+the STAB's roll against the mains' axle line recorded in the aeroplane's own
+frame, the tailwheel's sideways sway and the tail post's lean beside it. On
+the user's ultralight at full rudder on the taxi: **3.1 deg** of stab roll,
+2.8 deg of post lean, 2 cm of tailwheel sway. The stab rolls because the
+WHOLE TAIL rolls: it is boom torsion, driven by the tailwheel's steering
+side-load 0.3 m below the boom axis.
+
+**Two things it is NOT**, each tried and measured:
+
+- not the stab flexing on the post: bracing wires from the stab tips to the
+  fin apex (the Cub's own flying wires) change nothing (3.05 deg);
+- not the wires from the tailwheel to the stab tips carrying the load the
+  wrong way: taking them to the fin apex instead makes it WORSE (3.5 deg,
+  the wheel swaying 11 cm, the post 4.2 deg) — those wires are what gives
+  the wheel its lateral stiffness (rule 10's wide pyramid).
+
+**What it IS.** A rod-boom build flies the lofted default section (G199.3: the
+tube's own section collapses the truss), a 0.1 x 0.18 m lattice at the post,
+and a lattice that slender is about 12x softer in torsion than the 113 mm
+aluminium tube it stands for (GJ ~ 29 kN m^2 for a 4 mm wall: 0.2 deg for the
+same load). The truss idiom has no tube.
+
+**The correction, built and measured.** `fuselage.boom` ('rod' | 'loft' |
+'twin', null = loft) is the cage's own declaration, written by the join off
+`boomStyle` on every load; the frame multiplies k (c by its root) on every
+fuselage-class member aft of boxRear of a 'rod' boom by `GEN_RULES.rodBoomK`
+— same lattice, same mass, nothing else touched (GATE JOIN pins all of it and
+exercises the switch at 4). Measured, the ultralight, taxi at full rudder and
+the 2 m/s crosswind take-off roll:
+
+| rodBoomK | stab roll vs the mains | cross-track through the roll |
+|---|---|---|
+| 1 (today) | 3.09 deg | 11.2 m |
+| 2 | 2.48 | 12.0 |
+| 3 | 1.49 | 12.5 |
+| 4 | 1.29 | 12.7 |
+| 8 | the integrator blows up on the spawn | |
+
+The twist goes down as it should. The crosswind wander goes UP with every
+step — the autopilot's tailwheel steering was tuned on the soft boom — and
+GATE TAKEOFF bounds that wander at 12 m (set at G193 with 11.2 measured).
+There is no value of the switch that helps and keeps the battery green.
+
+**So the switch is landed at 1.** The aeroplane flies exactly what it flew
+(bit-identical k and c), the machinery, its gates and the instrument are in
+place, and the ruling is the user's: turn `rodBoomK` to 4 paired with either
+a retune of the AP's crosswind steering or a re-based 12 m bound. The
+remaining 3x to the real tube is the tube member class, owed since G199.3.
+The stab-roll row guards today's 3.1 deg at 3.5 — the pawnee rows read 80 —
+and its self-test doctors a 5 deg roll.

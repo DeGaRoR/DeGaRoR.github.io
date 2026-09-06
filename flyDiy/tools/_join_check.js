@@ -550,6 +550,59 @@ try {
   ok(false, 'G199.3 block threw: ' + e.message);
 }
 
+// ---- G199.5: A ROD BOOM DECLARES ITSELF, AND THE FRAME CAN STIFFEN ITS BAYS
+// The truss has no tube class: a rod-boom build flies the lofted default
+// section, ~12x too soft in torsion, and the tail rolls with the tailwheel.
+// The cage's boomStyle reaches the spec as fuselage.boom, survives the
+// resolve, and the frame multiplies k on the boom's members by
+// GEN_RULES.rodBoomK — and nothing else: same lattice, same mass. The rule
+// is 1 today (its own comment has the measured trade), so the ratio is
+// pinned to WHATEVER the rule says, not to a number.
+try {
+  const sRod = cageJoinSpec(Object.assign({}, P, { boomStyle: 1 }), M, T);
+  const sLoft = cageJoinSpec(Object.assign({}, P, { boomStyle: 0 }), M, T);
+  const sTwin = cageJoinSpec(Object.assign({}, P, { boomStyle: 2 }), M, T);
+  ok(sRod.fuselage.boom === 'rod' && sLoft.fuselage.boom === 'loft' &&
+     sTwin.fuselage.boom === 'twin',
+     'G199.5: the cage\'s boom construction reaches the spec (rod / loft / twin)');
+  const RR = resolveSpec(sRod), RL = resolveSpec(sLoft);
+  ok(RR.spec.fuse.boom === 'rod' && RL.spec.fuse.boom === 'loft',
+     'G199.5: ...and survives resolveSpec');
+  const fR = genFrame(RR.spec), fL = genFrame(RL.spec);
+  ok(fR.beams.length === fL.beams.length && fR.nodes.length === fL.nodes.length,
+     'G199.5: the rod boom builds the same lattice (nodes and members)');
+  const xb = RL.spec.fuse.boxRear, KR = C.GEN_RULES.rodBoomK;
+  let boom = 0, other = 0, bad = 0;
+  for (let i = 0; i < fL.beams.length; i++) {
+    const b = fL.beams[i], r = fR.beams[i];
+    const aft = fL.nodes[b.a].p[0] >= xb - 1e-6 && fL.nodes[b.b].p[0] >= xb - 1e-6;
+    const ratio = r.k / b.k, cr = r.c / b.c;
+    if (b.cls === 'fus' && aft) { boom++; if (Math.abs(ratio - KR) > 1e-9 || Math.abs(cr - Math.sqrt(KR)) > 1e-9) bad++; }
+    else { other++; if (Math.abs(ratio - 1) > 1e-9 || Math.abs(cr - 1) > 1e-9) bad++; }
+  }
+  ok(KR >= 1 && boom > 20 && bad === 0,
+     'G199.5: every boom member carries rodBoomK (' + KR + ') on k and its root on c, nothing else moved (' +
+     boom + ' boom, ' + other + ' other)');
+  const mR = fR.nodes.reduce((s, n) => s + n.m, 0), mL = fL.nodes.reduce((s, n) => s + n.m, 0);
+  ok(Math.abs(mR - mL) < 1e-9, 'G199.5: the stiffening weighs nothing');
+  const s0 = cageJoinSpec(P, M, T);
+  ok(s0.fuselage.boom === 'loft', 'G199.5: a cage without a boomStyle row declares a loft');
+  // the switch itself, exercised: with the rule at 4 the rod's members are 4x
+  const saved = C.GEN_RULES.rodBoomK;
+  C.GEN_RULES.rodBoomK = 4;
+  try {
+    const f4 = genFrame(resolveSpec(sRod).spec);
+    let n4 = 0, bad4 = 0;
+    for (let i = 0; i < fL.beams.length; i++) {
+      const b = fL.beams[i], aft = fL.nodes[b.a].p[0] >= xb - 1e-6 && fL.nodes[b.b].p[0] >= xb - 1e-6;
+      if (b.cls === 'fus' && aft) { n4++; if (Math.abs(f4.beams[i].k / b.k - 4) > 1e-9) bad4++; }
+    }
+    ok(n4 > 20 && bad4 === 0, 'G199.5: turned to 4, every boom member is 4x (the switch works)');
+  } finally { C.GEN_RULES.rodBoomK = saved; }
+} catch (e) {
+  ok(false, 'G199.5 block threw: ' + e.message);
+}
+
 // THE VERDICT CONTRACT (G67.1): this checker joins the battery, and the
 // runner requires BOTH signals — the line and the exit code.
 if (fails) console.log('\n  ' + fails + ' check(s) failed');

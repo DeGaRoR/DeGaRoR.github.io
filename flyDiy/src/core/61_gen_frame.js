@@ -152,8 +152,17 @@ function genLattice(S, gearX, track, kScale) {
     const steel = mnt || cls === 'cabane' || cls === 'interplane' || cls === 'wire';
     const MM = steel ? (GEN_MATERIALS.tubeFabric || MB) : MB;
     const mK = mnt ? (R.mountK == null ? 1 : R.mountK) : 1;
-    const bm = { a, b, k: MM.k[cls] * (isG ? kG : KS) * kGain * mK,
-                 c: MM.c[cls] * (isG ? cG : CS) * Math.sqrt(mK),
+    // G199.5: a ROD boom's bays are a tube, not a lattice — GEN_RULES.rodBoomK
+    // on every fuselage-class member aft of the cabin box (the post, the
+    // stab's and fin's truss included: they stand on the tube). Damping by
+    // the root, as the bearer's mountK does. Weightless: k only. The rule
+    // sits at 1 today (see it for the measured trade against the AP's
+    // crosswind roll), so this changes nothing until it is turned.
+    const bK = (S.fuse.boom === 'rod' && cls === 'fus' && !mnt &&
+                P[a][0] >= S.fuse.boxRear - 1e-6 && P[b][0] >= S.fuse.boxRear - 1e-6)
+      ? (R.rodBoomK == null ? 1 : R.rodBoomK) : 1;
+    const bm = { a, b, k: MM.k[cls] * (isG ? kG : KS) * kGain * mK * bK,
+                 c: MM.c[cls] * (isG ? cG : CS) * Math.sqrt(mK) * Math.sqrt(bK),
                  gear: isG, cls, ext: vis === 'inner' ? false : (!!ext || isG),
                  vis: vis || null, L };
     if (opt && opt.tens) bm.tens = true;
