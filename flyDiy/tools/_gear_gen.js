@@ -489,6 +489,109 @@ const CAGE_MATS = new Set(["body", "pillarWindow", "pillarCabin",
   "skyWindows", "pilotWindow", "pasengerWindow", "ceilingLoop",
   "floorLoop", "waistband", "boomTube", "taper", "pillarTaper",
   "taperPanel"]);
+// ---- CLOSING THE SECTION OVER WHAT IS NOT THERE ---------------------------
+// A ray that hits nothing came back as radius ZERO, and every consumer of this
+// contract believed it. Zero is not "there is no surface here" — it reads as
+// "the surface is on the centreline", so `surf` handed back the middle of the
+// cabin, and the lift-strut doubler, the gear leg root and the fitting site
+// all went there. That is the user's report exactly: the plate hunts for skin,
+// finds none, and the fitting ends up inside the cockpit and through the pilot.
+//
+// AND THE HOLE IS NORMAL. `doorGone` takes the door panel away and leaves the
+// opening; an open cockpit has no side at all; a naked frame is holes with an
+// aeroplane round them. On the build that was reported, stations z 1.85..2.70
+// answered ZERO over two thirds of the ring — the whole flank, both sides,
+// which is precisely the band a main leg and a lift strut root in.
+//
+// A HOLE IS NOT A SHAPE. What a fitting wants is the ENVELOPE — the surface
+// the covering would lie on — and the aeroplane's own skin either side of the
+// gap says where that is.
+//
+// THE GAP IS CLOSED ALONG THE BODY, NOT ROUND THE SECTION, and that is the
+// whole of the method. A fuselage changes slowly from frame to frame and fast
+// from keel to crown, so the trustworthy neighbours of a missing flank are the
+// SAME ANGLE at the stations fore and aft of it — the line the fabric would
+// run — and not the crown and keel of its own ring. Measured on the reported
+// build: closing round the ring put the flank at 0.42 m, because it was
+// interpolating a 0.29 m flank between a 0.64 m keel and a 0.64 m crown;
+// closing along the body puts it at 0.29 m, which is what the frames either
+// side of the door actually measure.
+//
+// The ring is still the fallback, for an angle that is open at EVERY station
+// (a fuselage with no top at all): walk to the nearest hit each way and
+// interpolate, then relax those cells against their neighbours so the two
+// fills meet without a step. A station with no section at all — the gap
+// between a pod and its rod boom — takes its centre line the same way.
+//
+// WHAT IT DOES NOT DO IS PRETEND. `HIT` is kept and published as `solidAt`, so
+// a fitting can ask whether there is real skin under it before it bolts a
+// doubler to a hole: no skin, no plate — root on the structure instead. That
+// is the other half of the user's ask and it lives at the call sites.
+//
+// -> the number of cells filled, or -1 when the mesh answered nothing at all.
+function airframeClose(RAD, HIT, CY, LIVE, NZ, NA) {
+  const live = [];
+  for (let i = 0; i <= NZ; i++) if (LIVE[i]) live.push(i);
+  if (!live.length) return -1;
+  // the centre line first: a station with no section has none of its own, and
+  // every radius below is measured from it
+  for (let i = 0; i <= NZ; i++) {
+    if (LIVE[i]) continue;
+    let lo = -1, hi = -1;
+    for (const j of live) { if (j < i) lo = j; else { hi = j; break; } }
+    const A = lo < 0 ? hi : lo, B = hi < 0 ? lo : hi;
+    const t = (lo < 0 || hi < 0) ? 0 : (i - lo) / (hi - lo);
+    CY[i] = CY[A] + (CY[B] - CY[A]) * t;
+  }
+  let filled = 0;
+  const ring = [];                     // what the body could not answer
+  // 1. ALONG THE BODY, at this angle
+  for (let k = 0; k < NA; k++) {
+    const col = [];
+    for (let i = 0; i <= NZ; i++) if (HIT[i][k]) col.push(i);
+    for (let i = 0; i <= NZ; i++) {
+      if (HIT[i][k]) continue;
+      if (!col.length) { ring.push([i, k]); continue; }
+      let lo = -1, hi = -1;
+      for (const j of col) { if (j < i) lo = j; else { hi = j; break; } }
+      const A = lo < 0 ? hi : lo, B = hi < 0 ? lo : hi;
+      const t = (lo < 0 || hi < 0) ? 0 : (i - lo) / (hi - lo);
+      RAD[i][k] = RAD[A][k] + (RAD[B][k] - RAD[A][k]) * t;
+      filled++;
+    }
+  }
+  if (!ring.length) return filled;
+  // 2. ...and round the section for an angle the body never answered
+  const known = (i, k) => HIT[i][k] || RAD[i][k] > 0;
+  for (const [i, k] of ring) {
+    let a = 1, b = 1;
+    while (a < NA && !known(i, (k - a + NA) % NA)) a++;
+    while (b < NA && !known(i, (k + b) % NA)) b++;
+    if (a >= NA && b >= NA) continue;             // nothing on this ring
+    const ra = RAD[i][(k - a + NA) % NA], rb = RAD[i][(k + b) % NA];
+    RAD[i][k] = a >= NA ? rb : b >= NA ? ra : ra + (rb - ra) * (a / (a + b));
+    filled++;
+  }
+  // 3. and settle them, so a bridged crown meets the fill either side of it
+  //    without a step. Gauss-Seidel in place — it carries this sweep's own
+  //    progress into the next cell, so it settles in about half the passes a
+  //    Jacobi sweep needs — stopped on the answer, not on a count: a hundredth
+  //    of a millimetre is far below anything a fitting can see.
+  const at = (i, k) => RAD[i < 0 ? 0 : i > NZ ? NZ : i][(k + NA) % NA];
+  for (let pass = 0; pass < 200; pass++) {
+    let worst = 0;
+    for (const [i, k] of ring) {
+      const v = 0.25 * (at(i - 1, k) + at(i + 1, k) +
+                        at(i, k - 1) + at(i, k + 1));
+      const d = Math.abs(v - RAD[i][k]);
+      if (d > worst) worst = d;
+      RAD[i][k] = v;
+    }
+    if (worst < 1e-5) break;
+  }
+  return filled;
+}
+
 // THE BAKE, over a plain indexed mesh — `V` a list of points, `F` a list of
 // index arrays, already filtered to the skin. Split out of objAirframe so a
 // FROZEN export and a LIVE cage reach the contract by the same code path
@@ -511,7 +614,7 @@ function meshAirframe(V, F) {
     for (const i of f) { a = Math.min(a, V[i][2]); b = Math.max(b, V[i][2]); }
     for (let k = iz(a); k <= iz(b); k++) buckets[k].push(f);
   }
-  const RAD = [], CY = [];
+  const RAD = [], CY = [], HIT = [], LIVE = [];
   for (let i = 0; i <= NZ; i++) {
     const z = z0 + (z1 - z0) * i / NZ;
     // slice: every face crossing this plane yields one segment
@@ -532,8 +635,8 @@ function meshAirframe(V, F) {
       }
     }
     const cy = segs.length ? (yLo + yHi) / 2 : 0;
-    CY.push(cy);
-    const row = [];
+    CY.push(cy); LIVE.push(segs.length > 0);
+    const row = [], hit = [];
     for (let k = 0; k < NA; k++) {
       const ang = -Math.PI + 2 * Math.PI * k / NA;
       const dx = Math.sin(ang), dy = -Math.cos(ang);   // 0 = straight down
@@ -548,9 +651,15 @@ function meshAirframe(V, F) {
         if (t > best && u >= 0 && u <= 1) best = t;
       }
       row.push(best);
+      // A MISS IS A MISS, not a radius (see airframeClose): the ray left the
+      // section without touching anything, and the honest reading of that is
+      // "no skin at this angle", never "the skin is on the centreline".
+      hit.push(best > 0);
     }
-    RAD.push(row);
+    RAD.push(row); HIT.push(hit);
   }
+  const open = airframeClose(RAD, HIT, CY, LIVE, NZ, NA);
+  if (open < 0) return null;                // nothing was hit anywhere
   const radAt = (z, ang) => {
     const fz = clamp((z - z0) / (z1 - z0) * NZ, 0, NZ);
     const i0 = Math.floor(fz), i1 = Math.min(NZ, i0 + 1), tz = fz - i0;
@@ -572,6 +681,21 @@ function meshAirframe(V, F) {
     const r = radAt(z, ang);
     return [Math.sin(ang) * r, cyAt(z) - Math.cos(ang) * r, z];
   };
+  // IS THERE ANYTHING HERE TO BOLT TO? True only when all four table samples
+  // under the point were real skin. A fitting asks this before it draws a
+  // doubler: over an opening — a removed door, an open cockpit, a bare frame
+  // — the envelope above is still the right SHAPE, and it is still nothing to
+  // rivet a plate onto, so the fitting roots on the structure instead.
+  const solidAt = (z, ang) => {
+    const fz = clamp((z - z0) / (z1 - z0) * NZ, 0, NZ);
+    const i0 = Math.floor(fz), i1 = Math.min(NZ, i0 + 1);
+    let a = ang;
+    while (a < -Math.PI) a += 2 * Math.PI;
+    while (a > Math.PI) a -= 2 * Math.PI;
+    const fa = (a + Math.PI) / (2 * Math.PI) * NA;
+    const k0 = Math.floor(fa) % NA, k1 = (k0 + 1) % NA;
+    return !!(HIT[i0][k0] && HIT[i0][k1] && HIT[i1][k0] && HIT[i1][k1]);
+  };
   const keelAt = z => surf(z, 0)[1];
   const halfWAt = z => Math.abs(surf(z, Math.PI / 2)[0]);
   const heightAt = z => (surf(z, Math.PI)[1] - surf(z, 0)[1]) / 2;
@@ -581,8 +705,11 @@ function meshAirframe(V, F) {
     const n = nrm(crs(sub(b, a), sub(c, surf(z, ang))));
     return dot(n, [0, -1, 0]) > 0 ? n : mul(n, -1);
   };
-  return { z0, z1, surf, keelAt, halfWAt, heightAt, cyAt, nrmAt,
-           mesh: { V, F }, stub: false };
+  return { z0, z1, surf, keelAt, halfWAt, heightAt, cyAt, nrmAt, solidAt,
+           // how much of the envelope was inferred rather than measured —
+           // the gates read it, and it is the one number that says "this
+           // aeroplane has openings where fittings go"
+           open: open, mesh: { V, F }, stub: false };
 }
 
 function objAirframe(text) {
@@ -661,6 +788,16 @@ function fitFrame(AF, z, ang) {
 }
 // a bolted DOUBLER PAD: the plate that spreads a leg's load into the
 // skin. Sits ON the surface, follows it, and carries its own bolts.
+// A PLATE MAY NOT WRAP ITSELF ROUND THE AEROPLANE. `W` is an arc length and
+// the section it is laid on can be narrower than the plate is wide — a boom, a
+// tailpost, a nose cone — so the conversion to an angle has to be bounded or
+// the doubler closes on itself and comes out as a twisted tube. 2.0 rad of
+// total sweep is 115 degrees: far more than any real fitting takes, and far
+// less than a shape. On anything with a body under it this changes nothing (a
+// 100 mm plate on a 300 mm half-width spans 0.33 rad).
+const PAD_ARC = 2.0;
+const padArc = (AF, z, W) =>
+  Math.min(PAD_ARC, W / Math.max(0.05, AF.halfWAt(z)));
 function fitPad(bags, AF, z, ang, L, W, opt) {
   opt = opt || {};
   const NL = 7, NW = 5;
@@ -670,7 +807,7 @@ function fitPad(bags, AF, z, ang, L, W, opt) {
     const zz = z + L * (i / NL - 0.5);
     const ri = [], ro = [];
     for (let k = 0; k <= NW; k++) {
-      const aa = ang + (W / Math.max(0.05, AF.halfWAt(zz))) * (k / NW - 0.5);
+      const aa = ang + padArc(AF, zz, W) * (k / NW - 0.5);
       const p = AF.surf(zz, aa), n = AF.nrmAt(zz, aa);
       // rounded corners: pull the plate in at the ends
       const fi = Math.min(1, 2.6 * Math.min(i / NL, 1 - i / NL) + 0.35);
@@ -694,7 +831,7 @@ function fitPad(bags, AF, z, ang, L, W, opt) {
     bag.quad(rows[NL][k], rows[NL][k + 1], out[NL][k + 1], out[NL][k]);
   }
   if (opt.bolts !== false) {
-    const bw = W * 0.34 / Math.max(0.05, AF.halfWAt(z));
+    const bw = padArc(AF, z, W) * 0.34;
     for (const dz of [-L * 0.38, L * 0.38])
       for (const da of [-bw, bw]) {
         const p = AF.surf(z + dz, ang + da), n = AF.nrmAt(z + dz, ang + da);
@@ -729,6 +866,62 @@ function padOn(bags, AF, st, z, ang, L, W, opt, dx) {
   else if (st && st.mount) padFlat(bags, st.mount(z - st.z, dx), L, W, opt);
   else fitPad(bags, AF, z, ang, L, W, opt);
 }
+// WHERE THE STRUCTURE IS, when the skin is not (2026-09-05). The interior
+// pass publishes every truss member it draws as a segment (`window
+// .CAGE_MEMBERS`, cage units); this turns "the point the skin contract WOULD
+// have given" into a frame ON THE NEAREST TUBE:
+//
+//   p     the tube's surface, on the side the fitting is coming from
+//   n     that side's outward direction
+//   fore  the MEMBER's own direction, always aft-positive, which is what a
+//         lug pair straddles and what a pin runs along
+//
+// ONE DESCRIPTION, TWO CALLERS. The gear layer had this inline and the lift
+// struts needed the same answer; a second copy would be a second rule, and
+// the two would part company the first time either was touched.
+//
+// `k` converts the member list to metres (cage units x CAGE_UNIT x scale) —
+// the hardware is metric and never scales, the cage is and does.
+//
+// `maxD` IS NOT OPTIONAL IN SPIRIT. "The nearest tube" is only an answer while
+// there IS one near: the interior pass publishes the members it draws, and a
+// rod boom is not one of them, so a tailspring asking this question at the
+// tailpost was handed the cabin frame a metre and a half forward and stretched
+// itself to reach it. Past the reach the honest answer is "nothing here", and
+// the caller falls back to the skin it does have.
+function memberFrame(MB, tgt, k, maxD) {
+  if (!MB || !MB.length) return null;
+  const s = k || 1;
+  let best = null;
+  for (const mb of MB) {
+    const a = mul(mb.a, s), b = mul(mb.b, s);
+    const d = sub(b, a), L2 = dot(d, d);
+    if (L2 < 1e-8) continue;
+    const t = clamp(dot(sub(tgt, a), d) / L2, 0, 1);
+    const q = add(a, mul(d, t));
+    const dist = len(sub(tgt, q));
+    if (!best || dist < best.dist) best = { dist, q, d, r: mb.r * s };
+  }
+  if (!best || (maxD != null && best.dist > maxD)) return null;
+  let fore = nrm(best.d);
+  if (fore[2] < 0) fore = mul(fore, -1);
+  // WHICH WAY ROUND THE TUBE, and it is a RADIAL direction — the component of
+  // "towards the fitting" that is perpendicular to the member. A bracket
+  // clamped to a tube sits on its surface and faces out of it; the along-the-
+  // tube part of that vector is not a direction the bracket can face, and
+  // leaving it in tips every lug and pin by the tube's own rake. It matters
+  // most exactly where it is easiest to miss: when the nearest point is a
+  // member's END, the raw vector is mostly ALONG the tube.
+  let v = sub(tgt, best.q);
+  v = sub(v, mul(fore, dot(v, fore)));
+  // ...and a target on the axis itself leaves nothing to normalise, so it
+  // falls back to "downward" — the side a leg or a strut foot arrives from on
+  // every aeroplane there has ever been.
+  const n = len(v) > 1e-6 ? nrm(v) : [0, -1, 0];
+  return { p: add(best.q, mul(n, best.r)), n, fore, side: nrm(crs(n, fore)),
+           r: best.r, d: best.dist };
+}
+
 // THE PIVOT (2026-09-04, TWIN-BOOM spec §1.7; the user: "when there's only
 // the structure, they should aim straight for the structural elements with
 // their pivot point, and drop the metal plate entirely"): a lug pair astride
@@ -1252,7 +1445,11 @@ function castorUnit(bags, P, top, sgn, R, steer, showLink) {
 function legTailwheel(bags, AF, P, st) {
   // the station owns the wheel radius, as it does for every other leg —
   // a second `twR` alongside it was two names for one thing
-  const F = fitFrame(AF, st.z, 0);
+  // ...and it takes its mount the way the other three families do (2026-09-05):
+  // this was the one leg still asking the fuselage contract directly, so a
+  // tailpost with no skin on it got the spring bolted to a doubler spread over
+  // nothing while every other leg on the same aeroplane had a lug.
+  const F = fitOn(AF, st, st.z, 0);
   const root = off(F.p, F.n, 0.008 + P.twSpringT * 0.5);
   const tipZ = st.z - P.twSpringLen;
   const tip = [0, AF.keelAt(st.z) - P.twSpringDrop, tipZ];
@@ -1270,8 +1467,8 @@ function legTailwheel(bags, AF, P, st) {
     // each leaf sits under the last
     for (let k = 0; k < seg.length; k++) seg[k] = seg[k];
   }
-  fitPad(bags, AF, st.z, 0, P.twSpringW * 2.2, P.twSpringW * 1.6,
-         { thick: 0.008 });
+  padOn(bags, AF, st, st.z, 0, P.twSpringW * 2.2, P.twSpringW * 1.6,
+        { thick: 0.008 });
   boxIn(bags.alloy, off(root, F.n, P.twSpringT * leaves * 0.5 + 0.006),
         [P.twSpringW * 0.62, 0.010, 0.030], [1, 0, 0], F.n, F.fore);
   for (const s of [-1, 1])
@@ -1305,8 +1502,9 @@ function legTailwheel(bags, AF, P, st) {
 }
 
 window.GEAR_GEN = { MAT, gearMat, stubAirframe, drawStub, objAirframe, drawBody,
-                    meshAirframe, cageAirframe, CAGE_MATS,
-                    wheel, spat, fitFrame,
+                    meshAirframe, cageAirframe, CAGE_MATS, airframeClose,
+                    padArc, PAD_ARC,
+                    wheel, spat, fitFrame, memberFrame, pivotOn, padFlat,
                     fitPad, legBeam, legLink, legOleo, castorUnit,
                     legTailwheel, Bag };
 })();

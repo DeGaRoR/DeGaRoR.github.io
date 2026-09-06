@@ -2892,10 +2892,31 @@ function cageInterior(m, S) {
   const { V, F } = m;
   const add = [];
   // THE MEMBERS, PUBLISHED (2026-09-04, TWIN-BOOM spec §1.7): every truss
-  // member this pass draws — longerons, diagonals, the rod truss — as a
-  // segment {a, b, r} in cage units, so the gear can root a leg ON THE
-  // STRUCTURE when there is no skin to root on
+  // member this pass draws — longerons, diagonals, hoops, formers, the rod
+  // truss — as a segment {a, b, r, kind} in cage units, so a gear leg or a
+  // lift-strut foot can root ON THE STRUCTURE when there is no skin to root on
+  // (GEAR_GEN.memberFrame).
+  //
+  // ONE DOOR, and it is why this is a function rather than three `MEMB.push`
+  // lines (2026-09-05). The set was published by the three SEGMENT primitives
+  // only — `tubeSeg`, `beam`, `metalAngle` — while the pass draws structure by
+  // three more routes that never reached it: `tubePath`/`tubeRuns` (every BENT
+  // tube — the pillar hoops, the taper rings, and the boom's own longerons and
+  // chines), `punched` (metal construction's whole ajoure frame) and the
+  // plywood boom couples. On the build that reported the fittings bug that
+  // left TWENTY members for a whole aeroplane, none of them along the boom,
+  // and the nearest tube to the main gear's site was a cabin diagonal 327 mm
+  // away. A publisher that most of the drawing bypasses is a map with the
+  // roads missing. GATE FIT measures the DRAWING against this list.
   const MEMB = [];
+  const memb = (A, B, r, kind) => {
+    if (!A || !B || !(r > 0)) return;
+    // a zero-length member is a NODE, and a node has no direction — the frame
+    // built on it would take its `fore` from a normalise-by-zero
+    const d = Math.hypot(B[0] - A[0], B[1] - A[1], B[2] - A[2]);
+    if (!(d > 1e-6)) return;
+    MEMB.push({ a: A.slice(0, 3), b: B.slice(0, 3), r, kind });
+  };
   // CONSTRUCTION (G13 idioms, user brief): the material idiom IS the
   // internal structure. 'carbon' = the thickened-skin liner over the
   // pillar bands; 'tube' = a welded truss off the CONTROL cage; 'wood'
@@ -3284,7 +3305,7 @@ function cageInterior(m, S) {
       q2(cb[0], cb[1], cb[2], cb[3]);
     };
     const metalAngle = (A, B, w, axisPt) => {
-      MEMB.push({ a: A.slice(0, 3), b: B.slice(0, 3), r: w / 2 });
+      memb(A, B, w / 2, 'angle');
       if (typeof globalThis !== 'undefined' && globalThis.CAGE_DBG)
         globalThis.CAGE_DBG.push({ k: 'metalAngle', A: A.slice(),
           B: B.slice(), w, at: (new Error().stack.split('\n')[2] || '').trim() });
@@ -3360,7 +3381,7 @@ function cageInterior(m, S) {
     const nrm3 = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1;
       return [v[0]/l, v[1]/l, v[2]/l]; };
     const beam = (A, B, w, h, mat) => {
-      MEMB.push({ a: A.slice(0, 3), b: B.slice(0, 3), r: Math.max(w, h) / 2 });
+      memb(A, B, Math.max(w, h) / 2, 'beam');
       const dn = nrm3([B[0]-A[0], B[1]-A[1], B[2]-A[2]]);
       let sd = [dn[2], 0, -dn[0]];
       const sl = Math.hypot(sd[0], sd[1], sd[2]);
@@ -3398,6 +3419,15 @@ function cageInterior(m, S) {
       const n = Math.min(O.length, H.length);
       if (n < 2) return;
       const NQ = closed ? n : n - 1;
+      // A FORMER IS STRUCTURE (2026-09-05). This is metal construction's
+      // whole frame — the ajoure hoops and the longeron runs — and it was
+      // absent from the published set, so a metal aeroplane offered a fitting
+      // nothing at all to root on. The line published is `O`, the flange
+      // edge lying AGAINST THE COVERING, which is where a bracket bolts; the
+      // radius is the section's own half-thickness across the frame, with a
+      // floor for the flat-sheet case that has none.
+      const rF = Math.max(0.004, Math.max(wz || 0, fz || 0) / 2);
+      for (let i = 0; i < NQ; i++) memb(O[i], O[(i + 1) % n], rF, 'former');
       const lp3 = (a, b, t) => [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t,
                                 a[2]+(b[2]-a[2])*t];
       const q = (p0, p1, p2, p3) => add.push({
@@ -3481,7 +3511,7 @@ function cageInterior(m, S) {
     // sized down a tad (user: the tubing poked the skin here and there)
     const TUBE_R = 0.010, TUBE_RP = 0.018;
     const tubeSeg = (A, B, r) => {
-      MEMB.push({ a: A.slice(0, 3), b: B.slice(0, 3), r });
+      memb(A, B, r, 'tube');
       if (typeof globalThis !== 'undefined' && globalThis.CAGE_DBG)
         globalThis.CAGE_DBG.push({ k: 'tubeSeg', A: A.slice(),
           B: B.slice(), r, at: (new Error().stack.split('\n')[2] || '').trim() });
@@ -3525,6 +3555,14 @@ function cageInterior(m, S) {
     const tubePath = (pts, r, closed) => {
       const N = pts.length;
       if (N < 2) return;
+      // A BENT TUBE IS STILL A TUBE, one leg of the polyline at a time. This
+      // is the boom's own longerons and chines, the pillar hoops and the taper
+      // rings — drawn as ONE sweep for the shading (the rings are shared so
+      // the smooth normals run the whole bend) and published as the segments
+      // they are, because "root on the nearest member" is a question about
+      // straight pieces.
+      for (let i = 0; i < (closed ? N : N - 1); i++)
+        memb(pts[i], pts[(i + 1) % N], r, 'tube');
       if (typeof globalThis !== 'undefined' && globalThis.CAGE_DBG)
         globalThis.CAGE_DBG.push({ k: 'tubePath', A: pts[0].slice(),
           B: pts[N - 1].slice(), n: N, closed: !!closed,
@@ -4713,6 +4751,13 @@ function cageInterior(m, S) {
           add.push({ v: [hB[i2], hB[j], oB[j], oB[i2]], m: 'woodFrame' });
           add.push({ v: [oB[i2], oB[j], oF[j], oF[i2]], m: 'woodFrame' });
           add.push({ v: [hF[i2], hF[j], hB[j], hB[i2]], m: 'woodFrame' });
+          // ...and the couple is published like any other member: it is the
+          // plywood boom's FORMER, the same thing `punched` draws in metal,
+          // and a fitting on a wooden boom has nothing else to bolt to. The
+          // line is the OUTER rim, against the lining; the radius is the web's
+          // own half thickness.
+          memb([o2[i2][0], o2[i2][1], zk], [o2[j][0], o2[j][1], zk],
+               TH, 'former');
         }
       }
       // the boom's bottom-corner stations run as their OWN chine run,

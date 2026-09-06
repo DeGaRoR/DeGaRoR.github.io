@@ -93,6 +93,10 @@ SEEDS.push([0.02, AF.cyAt(0.8) + 0.60, 0.8]);        // over the deck
 SEEDS.push([1.60, -0.40, 0.9]);                      // well outside, +x
 SEEDS.push([-1.60, -0.40, 0.9]);                     // well outside, -x
 
+// the headless kit section 5 builds, kept for section 9 (the no-plate path
+// has to be MEASURED, and measuring it means drawing it)
+let HEADLESS = null;
+
 // ---------------------------------------------------------------------------
 // 1: the snap IS the nearest point, and it is ON the surface
 // ---------------------------------------------------------------------------
@@ -285,6 +289,7 @@ const RULES = [
                        { filename: f });
   }
   const K = win.GEAR_KIT, GG = win.GEAR_GEN;
+  HEADLESS = { K, GG, win };
   if (!check(!!K && !!GG, 'ear: the kit did not load headlessly')) {
     // nothing below can run; the failure is already recorded
   } else {
@@ -494,6 +499,76 @@ const RULES = [
     check(SG.strutSkin({ z0: 0, z1: 1, cyAt: () => 0 }, 0, 1) === null,
           'skin: a bodyless airframe returned a surface');
   }
+}
+
+// ---------------------------------------------------------------------------
+// 9: NO SKIN, NO PLATE (2026-09-05). The user: the fittings "look for a plate
+// to attach to. It fails in some cases, resulting in a distorted mesh ...
+// I thought I had asked already for no-plate-options, so it can attach
+// straight to a tube structure for example."
+//
+// A doubler is drawn by sweeping the airframe's own surface across the plate's
+// footprint. Over an opening — a removed door, an open cockpit, a naked frame
+// — there is no surface to sweep, only the ENVELOPE the contract infers, and
+// bolting to that draws a large thin sheet standing where the skin would be.
+// So the caller hands in `opt.mount`, a frame on a truss member, and the foot
+// becomes the same lug pair the undercarriage grew for the same reason.
+//
+// MEASURED, not read: `strutBuild` is run BOTH WAYS over the headless kit and
+// the two drawings compared. This is the only check in the file that builds
+// the fitting rather than the site, which is why it waits for section 5's
+// window.
+// ---------------------------------------------------------------------------
+if (HEADLESS) {
+  const { K, GG, win } = HEADLESS;
+  const prev = global.window;
+  global.window = win;                       // strutBuild reaches the kit here
+  try {
+    const site = SG.strutSite(AF, [0.38, AF.keelAt(0.6) + 0.06, 0.6], 0, 0,
+                              { pad: PAD });
+    const ends = [{ top: [1.4, 1.1, site.z + 0.30], beam: [1.4, 1.1, site.z + 0.30] },
+                  { top: [1.4, 1.1, site.z - 0.30], beam: [1.4, 1.1, site.z - 0.30] }];
+    const bagset = () => ({ alloy: K.Bag(), steel: K.Bag(), strut: K.Bag() });
+    const MT = GG.memberFrame(
+      [{ a: [0, AF.keelAt(0.6) + 0.10, 0.0], b: [0, AF.keelAt(0.6) + 0.10, 1.4],
+         r: 0.018 }],
+      AF.surf(site.z, site.ang), 1);
+    const bp = bagset(), bm = bagset();
+    const plated = SG.strutBuild(bp, AF, site, ends, {});
+    const pivot  = SG.strutBuild(bm, AF, site, ends, { mount: MT });
+    if (check(!!plated && !!pivot && !!MT,
+              'no-plate: the fitting did not build headlessly')) {
+      check(plated.pivot === false && pivot.pivot === true,
+            'no-plate: the build does not report which fitting it drew');
+      // THE PLATE IS THE DIFFERENCE. A doubler is 7x5 grid quads plus its
+      // bolts and screws; a lug pair astride a tube is a fraction of that.
+      check(bm.alloy.tris > 0 && bm.alloy.tris < bp.alloy.tris * 0.6,
+            'no-plate: a mounted foot still draws its doubler',
+            bm.alloy.tris + ' vs ' + bp.alloy.tris + ' triangles');
+      // ...AND BOTH FEET ARE ON THE MEMBER. They straddle the site fore and
+      // aft, so they must lie along the tube — not round a section that is
+      // not there.
+      for (const st of pivot.struts) {
+        const v = [st.pin[0] - MT.p[0], st.pin[1] - MT.p[1], st.pin[2] - MT.p[2]];
+        const along = v[0] * MT.fore[0] + v[1] * MT.fore[1] + v[2] * MT.fore[2];
+        const off = Math.hypot(v[0] - MT.fore[0] * along,
+                               v[1] - MT.fore[1] * along,
+                               v[2] - MT.fore[2] * along);
+        check(Math.abs(Math.abs(along) - SG.STRUT_FIT.lugGap) < 1e-6,
+              'no-plate: a foot is not one lug gap along the member',
+              along.toFixed(4));
+        check(off <= SG.STRUT_FIT.standoff + 1e-6,
+              'no-plate: a foot stands off the member by more than its pin',
+              off.toFixed(4));
+      }
+      // the strut itself is unchanged in kind: still two members, still built
+      check(pivot.struts.length === plated.struts.length &&
+            pivot.struts.length === 2,
+            'no-plate: the mounted fitting lost a strut');
+      if (VERBOSE) console.log('  no-plate: doubler ' + bp.alloy.tris +
+        ' tris -> lugs ' + bm.alloy.tris + ' tris, both feet on the member');
+    }
+  } finally { global.window = prev; }
 }
 
 // ---------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 906e9609e087d2f4
+// body-sha256: 41590d4a50c1cbc2
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -47,13 +47,16 @@ const RHO = 1.225;
 //   family   'four' | 'two' | 'electric' | 'turbine'   (the SFC class)
 //   cooling  'air'  | 'liquid'             (fins vs a radiator carry the heat)
 //
-// AN HONEST CUT, named here because it is a real aeroplane getting a wrong
-// number: the R-1830 Twin Wasp was SUPERCHARGED, and a supercharged engine
-// holds its power to its critical altitude instead of lapsing from sea level.
-// We have no blower model, so it is declared 'na' and the DC-3 therefore loses
-// more at altitude than the real one did. 'turbo' is reserved for when there
-// is something behind it; a field that lies quietly is worse than one that is
-// missing.
+// THE BLOWER (2026-09-05). Until this date the R-1830 was declared 'na' as an
+// honest cut — "'turbo' is reserved for when there is something behind it".
+// There is now: 05_atmos holds a blown engine's rated power to its critical
+// altitude and lapses it as a piston from that air. Two values, one law:
+//   aspiration 'super'   a mechanical supercharger (its drive is inside the
+//                        rated figure — every big radial, the M-14P)
+//   aspiration 'turbo'   an exhaust turbocharger (a Rotax 914/915, a TIO-540)
+//   critAlt              metres of ISA pressure altitude the blower holds the
+//                        rating to; 0 = ground-boosted, which is the NA law
+// A blown row MUST carry critAlt and no other row may (GATE ATMOS §8).
 const POWERPLANTS = {
   a65_sensenich74: {
     price: 9000,
@@ -69,7 +72,9 @@ const POWERPLANTS = {
   },
   r1830_hs23e50: {
     price: 65000,
-    engine: { name: 'P&W R-1830 Twin Wasp', mass: 750, powerW: 895000, aspiration: 'na', family: 'four', cooling: 'air' },
+    // 'super' since the blower model (2026-09-05): rated to 1 500 m, the
+    // -92's 4 900 ft low-blower critical altitude
+    engine: { name: 'P&W R-1830 Twin Wasp', mass: 750, powerW: 895000, aspiration: 'super', critAlt: 1500, family: 'four', cooling: 'air' },
     prop:   { name: 'Hamilton Standard 23E50', D: 3.4, Tstatic: 11000, kV2: 0.543 },
   },
   io360_mccauley: {
@@ -145,13 +150,13 @@ const POWERPLANTS = {
   // THE BUSH RADIAL (2026-09-04, the user: "we could do something like the
   // DC3 / Beaver now that we have large radial engines"): the R-985 Wasp
   // Junior, the Beaver's own — 450 hp, 290 kg. Mass and power are the
-  // published ones; like the R-1830 it was SUPERCHARGED and lapses here as
-  // a normally-aspirated engine ('turbo' is reserved). The PROP is DERIVED,
+  // published ones; like the R-1830 it is SUPERCHARGED — 'super', held to
+  // 1 500 m (its 5 000 ft rating) since the blower model. The PROP is DERIVED,
   // not chosen: genPropSynth's own output at 2.59 m, two blades, alloy,
   // standard pitch — the Hamilton Standard 2B20 the Beaver swings.
   r985_hs2b20: {
     price: 48000,
-    engine: { name: 'P&W R-985 Wasp Junior', mass: 290, powerW: 336000, aspiration: 'na', family: 'four', cooling: 'air' },
+    engine: { name: 'P&W R-985 Wasp Junior', mass: 290, powerW: 336000, aspiration: 'super', critAlt: 1500, family: 'four', cooling: 'air' },
     prop:   { name: 'Hamilton Standard 2B20', D: 2.59, Tstatic: 5408, kV2: 0.368 },
   },
   verner7u_wood: {
@@ -191,6 +196,106 @@ const POWERPLANTS = {
     price: 26000,
     engine: { name: 'DH Gipsy Major 1', mass: 139, powerW: 97000, aspiration: 'na', family: 'four', cooling: 'air' },
     prop:   { name: '2-pale bois 1.98 m', D: 1.98, Tstatic: 1975, kV2: 0.2153 },
+  },
+  // THE AERO Vs (2026-09-05, the V test — the user: "test the V configs,
+  // since they've never been done"). The registry had no V at all, the
+  // bench's V row was marked UNVALIDATED and the panel could not even
+  // select it (no 8 or 12 in the cylinder drop). These two are the published
+  // normally-aspirated air-cooled inverted V8s the family's kM was fitted
+  // on: the Hirth HM 508 (Arado Ar 79, Klemm Kl 35) and the Argus As 10
+  // (Fieseler Storch, Bf 108 Taifun). Mass and power are published; the
+  // PROPS are genPropSynth's own output at two wooden blades of 2.30 and
+  // 2.40 m at standard pitch; the prices are the bent four-stroke law's.
+  hirth508_wood: {
+    price: 40000,
+    engine: { name: 'Hirth HM 508D', mass: 186, powerW: 209000, aspiration: 'na', family: 'four', cooling: 'air' },
+    prop:   { name: '2-pale bois 2.30 m', D: 2.30, Tstatic: 3641, kV2: 0.2905 },
+  },
+  argus10c_wood: {
+    price: 38000,
+    engine: { name: 'Argus As 10C', mass: 213, powerW: 176000, aspiration: 'na', family: 'four', cooling: 'air' },
+    prop:   { name: '2-pale bois 2.40 m', D: 2.40, Tstatic: 3340, kV2: 0.3163 },
+  },
+  // THE COVERAGE FILL (2026-09-05, the engine-coverage study — the user:
+  // "make sure we cover the whole scale from 50 HP to 1000 HP, on almost
+  // all types"). The registry had NOTHING between 100 and 180 hp in a flat,
+  // nothing at all between 200 and 300 hp in any layout, nothing between
+  // 450 and 600, and no V. Every row here is a published engine: mass and
+  // power are the manufacturer's, the PROP is genPropSynth's own output at
+  // a stated diameter, blade count and standard pitch (never fitted), and
+  // the price is the bent four-stroke law's (or the family's) rounded.
+  // The blown ones say so and carry their critical altitude.
+  //
+  // THE FLATS: 100 -> 150 -> 180 -> 235 -> 310 -> 400 hp
+  o320_mccauley: {
+    price: 28000,
+    engine: { name: 'Lycoming O-320-E2D', mass: 122, powerW: 112000, aspiration: 'na', family: 'four', cooling: 'air' },
+    prop:   { name: '2-blade alloy 1.93 m', D: 1.93, Tstatic: 2137, kV2: 0.2046 },
+  },
+  o540_hartzell: {
+    price: 38000,
+    engine: { name: 'Lycoming O-540-B2C5', mass: 176, powerW: 175000, aspiration: 'na', family: 'four', cooling: 'air' },
+    prop:   { name: '2-blade alloy 2.13 m', D: 2.13, Tstatic: 3073, kV2: 0.2492 },
+  },
+  io550_hartzell3: {
+    price: 42000,
+    engine: { name: 'Continental IO-550-N', mass: 195, powerW: 231000, aspiration: 'na', family: 'four', cooling: 'air' },
+    prop:   { name: '3-blade alloy 1.98 m', D: 1.98, Tstatic: 3716, kV2: 0.2528 },
+  },
+  io720_hartzell3: {
+    price: 45000,
+    engine: { name: 'Lycoming IO-720-A1A', mass: 257, powerW: 298000, aspiration: 'na', family: 'four', cooling: 'air' },
+    prop:   { name: '3-blade alloy 2.03 m', D: 2.03, Tstatic: 4477, kV2: 0.2658 },
+  },
+  // the amateur turbo (the 912's blown sibling): 'turbo', held to 4 600 m
+  rotax915_carbon: {
+    price: 34000,
+    engine: { name: 'Rotax 915 iS', mass: 84, powerW: 105000, aspiration: 'turbo', critAlt: 4600, family: 'four', cooling: 'liquid' },
+    prop:   { name: '3-blade carbon 1.80 m', D: 1.80, Tstatic: 2061, kV2: 0.2090 },
+  },
+  // THE IN-LINE'S CEILING: the inverted six of the PT-19 trainer
+  ranger440_wood: {
+    price: 35000,
+    engine: { name: 'Ranger L-440-5', mass: 170, powerW: 149000, aspiration: 'na', family: 'four', cooling: 'air' },
+    prop:   { name: '2-blade wood 2.20 m', D: 2.20, Tstatic: 2821, kV2: 0.2658 },
+  },
+  // THE CLASSIC RADIALS: 150 -> 220 -> 300 -> 360 -> 450 -> 600 hp
+  w670_hs2b: {
+    price: 36000,
+    engine: { name: 'Continental W-670-6A', mass: 211, powerW: 164000, aspiration: 'na', family: 'four', cooling: 'air' },
+    prop:   { name: '2-blade alloy 2.59 m', D: 2.59, Tstatic: 3352, kV2: 0.3684 },
+  },
+  r755_hs2b: {
+    price: 41000,
+    engine: { name: 'Jacobs R-755-A2', mass: 230, powerW: 224000, aspiration: 'na', family: 'four', cooling: 'air' },
+    prop:   { name: '2-blade alloy 2.59 m', D: 2.59, Tstatic: 4127, kV2: 0.3684 },
+  },
+  // the aerobatic radial of today (Yak-52, Sukhoi): supercharged, and
+  // nearly ground-boosted — rated to 500 m
+  m14p_v530: {
+    price: 43000,
+    engine: { name: 'Vedeneyev M-14P', mass: 214, powerW: 268000, aspiration: 'super', critAlt: 500, family: 'four', cooling: 'air' },
+    prop:   { name: '2-blade alloy 2.40 m', D: 2.40, Tstatic: 4421, kV2: 0.3163 },
+  },
+  // the Wasp (Harvard, Otter, Ag Cat): ground-boosted — 600 hp at the
+  // strip, 550 at 5 000 ft, so its ceiling is nearly the NA law
+  r1340_hs12d40: {
+    price: 52000,
+    engine: { name: 'P&W R-1340-AN-1 Wasp', mass: 400, powerW: 447000, aspiration: 'super', critAlt: 300, family: 'four', cooling: 'air' },
+    prop:   { name: '2-blade alloy 2.74 m', D: 2.74, Tstatic: 6792, kV2: 0.4123 },
+  },
+  // the two-stroke's 50 hp rung (mass with its gearbox, the 582's convention)
+  rotax503_wood: {
+    price: 4000,
+    engine: { name: 'Rotax 503 UL + B red.', mass: 38, powerW: 37000, aspiration: 'na', family: 'two', cooling: 'air' },
+    prop:   { name: '2-blade wood 1.60 m', D: 1.60, Tstatic: 901, kV2: 0.1406 },
+  },
+  // the electric ladder's missing rung: the 268 was one of the five motors
+  // the electric mass law was fitted on and had no row of its own
+  emrax268_carbon: {
+    price: 32000,
+    engine: { name: 'EMRAX 268 / 107 kW', mass: 20.3, powerW: 107000, aspiration: 'electric', family: 'electric', cooling: 'air' },
+    prop:   { name: '3-blade carbon 1.90 m', D: 1.90, Tstatic: 2164, kV2: 0.2328 },
   },
   outrunner2212_9x47: {
     price: 25,
@@ -273,6 +378,20 @@ const POWERPLANTS = {
     engine: { name: 'P&W PT6A-34', mass: 150, powerW: 560000, aspiration: 'turbine', family: 'turbine', cooling: 'air', flatK: 1.33, length: 1.57 },
     prop:   { name: 'Hartzell 4-blade 2.44 m', D: 2.44, Tstatic: 8109, kV2: 0.4472 },
   },
+  // THE MEDIUM PT6s (2026-09-05, the coverage fill — inside the study's
+  // ruling 3, PT6 only): a King Air B200's -42 and a King Air 350's -60A,
+  // the 850 and 1 050 shp rungs. Dry masses are P&W's; the props are
+  // genPropSynth's output at each installation's four-blade diameter.
+  pt6a42_hartzell4: {
+    price: 300000,
+    engine: { name: 'P&W PT6A-42', mass: 183, powerW: 634000, aspiration: 'turbine', family: 'turbine', cooling: 'air', flatK: 1.24, length: 1.70 },
+    prop:   { name: 'Hartzell 4-blade 2.36 m', D: 2.36, Tstatic: 8615, kV2: 0.4183 },
+  },
+  pt6a60a_hartzell4: {
+    price: 380000,
+    engine: { name: 'P&W PT6A-60A', mass: 218, powerW: 783000, aspiration: 'turbine', family: 'turbine', cooling: 'air', flatK: 1.20, length: 1.85 },
+    prop:   { name: 'Hartzell 4-blade 2.67 m', D: 2.67, Tstatic: 10767, kV2: 0.5355 },
+  },
 };
 // ============================================================
 // ENGINE THERMO LAWS (G134). Two numbers per family, both quoted at RATED
@@ -346,7 +465,55 @@ function genEnginePrice(family, powerW) {
   // power second-hand (a used PT6A-34 against a used R-985); fitted on the
   // two PT6A rows and banded by _engcustom_check like every other family
   if (family === 'turbine') return Math.round(250 * Math.pow(kW, 1.1));
-  return Math.round(60 * Math.pow(kW, 1.3));
+  // THE FOUR-STROKE LAW BENDS (2026-09-05): kW^1.3 is the AMATEUR market and
+  // holds to the IO-360; above it the second-hand warbird market prices by
+  // provenance more than by kilowatts. Fitted on the R-985 (336 kW, 48k) and
+  // the R-1830 (895 kW, 65k): a knee at 130 kW, then kW^0.35 — within 2 % of
+  // both, where the straight law read 2.4x and 6.4x. The R-1830's waiver in
+  // _engcustom_check is retired by this line.
+  const knee = 130;
+  if (kW <= knee) return Math.round(60 * Math.pow(kW, 1.3));
+  return Math.round(60 * Math.pow(knee, 1.3) * Math.pow(kW / knee, 0.35));
+}
+
+// ============================================================
+// WHERE AN ENGINE'S MASS SITS (2026-09-05, the cgFwd half-session of
+// futureDesigns/TURBOPROP-2026-09-05.md §8). `cgAft` is the engine's centre
+// of mass AFT OF ITS PROP FLANGE, in metres — engine-intrinsic, so it means
+// the same thing on a nose, a nacelle and a pusher. The frame used to hang
+// the whole engine on its mount nodes at the flange station: a PT6's mass sat
+// 0.63 m ahead of where it is, a boxer's 0.20 — the longest arm on the
+// aeroplane, wrong by the engine's own half-length.
+//
+// MEASURED, NOT DECLARED: every number is the bench's own `cgZ` for the
+// preset that maps to the row (tools/_eng_gen.js resolve of the
+// _eng_page.js preset, through CAGE_JOIN_ENGINES), which is the sum of the
+// resolve's mass items along the crank. GATE ENGID §10 re-measures each one
+// against the bench and goes red at 2 cm, so this table cannot drift from the
+// engine it describes. A row without an entry (no preset behind it) hangs its
+// mass where it always did — absent means today, byte for byte.
+const GEN_ENG_CG = {
+  a65_sensenich74: 0.20, o200_eprops: 0.21, io360_mccauley: 0.24,
+  jabiru2200_std: 0.20, vw2180_wood: 0.19, rotax912_warp: 0.23,
+  rotax277_pusher: 0.11, rotax582_ivo: 0.17, rotax503_wood: 0.16,
+  verner7u_wood: 0.12, rotec3600_std: 0.12,
+  mikron3_wood: 0.31, gipsymajor1_wood: 0.39,
+  hirth508_wood: 0.35, argus10c_wood: 0.39,
+  o320_mccauley: 0.24, o540_hartzell: 0.33, io550_hartzell3: 0.34,
+  io720_hartzell3: 0.42, rotax915_carbon: 0.24, ranger440_wood: 0.50,
+  w670_hs2b: 0.15, r755_hs2b: 0.16, m14p_v530: 0.14, r1340_hs12d40: 0.16,
+  r985_hs2b20: 0.15, r1830_hs23e50: 0.16,
+  outrunner2212_9x47: 0.02, outrunner6374_18x10: 0.06, eppg_direct_130: 0.13,
+  fes_folding_100: 0.12, emrax228_3blade: 0.12, e811_velis: 0.19,
+  sp260d_class: 0.31, emrax268_carbon: 0.14,
+  pt6a114a_hartzell3: 0.63, pt6a34_hartzell4: 0.65, pt6a42_hartzell4: 0.71,
+  pt6a60a_hartzell4: 0.78,
+};
+// the one reader: a custom row's own number outranks the table's
+function genEngineCgAft(key, engine) {
+  if (engine && engine.cgAft != null && isFinite(engine.cgAft)) return engine.cgAft;
+  const v = GEN_ENG_CG[key];
+  return v == null ? null : v;
 }
 
 const POLARS = {
@@ -525,10 +692,27 @@ const ATMOS_ISA = makeAtmos({});
 // the real limit is turbine inlet temperature, so a hot day bites a turbine
 // through temperature more than through density; sigma carries both with the
 // right sign and the split is the second cut, when a plaque asks for it.
-function atmosPowerRatio(sig, aspiration, flat = 1) {
+//
+// A BLOWN PISTON (2026-09-05, the blower model — 'turbo' is no longer a
+// reserved word). A supercharger or a turbocharger holds manifold pressure,
+// and so RATED power, up to the CRITICAL ALTITUDE where the blower runs out
+// of margin; above it manifold pressure falls with ambient and the engine
+// lapses like a naturally aspirated one FROM THAT AIR. The critical density
+// ratio is the fourth argument, per engine (`critAlt` on the row, converted
+// once by the solver). critSig 1 is a ground-boosted blower, which is the NA
+// law exactly — the honest row for an R-1340. 'super' and 'turbo' share the
+// law: a mechanical blower's drive is already inside its rated figure and a
+// turbo's is free, so what differs is a name on the plaque and a mass on the
+// bench. Exactly 1 at sigma = 1 for any ceiling, so the sea-level identity
+// every gate stands on is untouched.
+function atmosPowerRatio(sig, aspiration, flat = 1, critSig = 1) {
   if (aspiration === 'electric') return 1;
   if (aspiration === 'turbine')
     return Math.min(1, Math.max(1, flat || 1) * sig);
+  if (aspiration === 'turbo' || aspiration === 'super') {
+    const cs = Math.min(1, Math.max(0.05, critSig || 1));
+    return sig >= cs ? 1 : Math.max(0, 1 - 1.132 * (1 - sig / cs));
+  }
   // Written as 1 - 1.132(1 - sigma) rather than 1.132 sigma - 0.132. Same line,
   // but this one returns EXACTLY 1 at sigma = 1 instead of 1 + 2e-16.
   return Math.max(0, 1 - 1.132 * (1 - sig));
@@ -554,8 +738,8 @@ function atmosPowerRatio(sig, aspiration, flat = 1) {
 // are exactly 1, which is the identity the whole gate battery stands on.
 // The turbine is one more `pr` (flat, then the core's lapse) — `flat` is
 // only passed through.
-function atmosPropScale(sig, aspiration, flat = 1) {
-  const pr = atmosPowerRatio(sig, aspiration, flat);
+function atmosPropScale(sig, aspiration, flat = 1, critSig = 1) {
+  const pr = atmosPowerRatio(sig, aspiration, flat, critSig);
   const kT = Math.cbrt(sig) * Math.pow(pr, 2 / 3);
   return { kT, kV: sig, power: pr };
 }
@@ -3279,6 +3463,11 @@ function makeSim(def, world) {
   // a turbine's flat-rating margin (2026-09-05, TURBOPROP §2) — 1 for every
   // other family, which 05_atmos ignores; the three readers below pass it
   const FLAT = (EN && EN.flatK) || 1;
+  // a blown piston's critical altitude (the blower model, 2026-09-05), as
+  // the ISA density ratio 05_atmos reads — 1 for every other family, and 1
+  // for a ground-boosted blower, which is the NA law
+  const CRIT = (EN && (ASP === 'turbo' || ASP === 'super') && EN.critAlt > 0)
+    ? ATMOS_ISA.sigma(EN.critAlt) : 1;
   const n = def.nodes.length;
   const p = new Float64Array(n * 3), v = new Float64Array(n * 3),
         f = new Float64Array(n * 3), m = new Float64Array(n),
@@ -3345,6 +3534,23 @@ function makeSim(def, world) {
   const AIC = new Float64Array(NP * 3);
   const sA = new Float64Array(NST * 3), sB = new Float64Array(NST * 3), sD = [0, 0, 0];
   const cpt = new Float64Array(NST * 3);
+  // G197: THE WAKE THE POLAR ALREADY ASSUMES. Every strip carries the same
+  // 2D lift coefficient, so the circulation is spanwise-uniform and the
+  // trailing vorticity is all shed at the tips — and a uniformly loaded
+  // wing's far-field centreline downwash is HALF the elliptic one (the
+  // stock's tail read 0.22 for a classical 0.41; Prandtl's sigma read 0.87
+  // of the fit). The polar's own 3D terms (a3d, eAR) assume near-elliptic
+  // loading, so the kernel's SOURCES shed that loading: each source strip's
+  // circulation is weighed by the elliptic template over its own plane's
+  // live projected span, renormalised per plane every pass so the plane's
+  // total circulation-length is conserved (strip forces are untouched —
+  // this is the mutual term only). 'uniform' is the negative control.
+  const LOADING = IND.loading || 'elliptic';
+  const Ez = new Float64Array(NST), Dz = new Float64Array(NST), Wg = new Float64Array(NST);
+  const PLANE = new Int8Array(NST); let NPL = 1;
+  for (const j of WS) { PLANE[j] = def.strips[j].plane | 0; NPL = Math.max(NPL, PLANE[j] + 1); }
+  const bHalf = new Float64Array(NPL);
+  const ellF = u => { u = Math.max(-1, Math.min(1, u)); return 0.5 * (u * Math.sqrt(1 - u * u) + Math.asin(u)); };
   let aicHash = NaN;
   const cpOf = (st, o) => {                 // a strip's control point: its attach-weighted c/4
     o[0] = o[1] = o[2] = 0;
@@ -3375,6 +3581,17 @@ function makeSim(def, world) {
   function buildAIC(gH, dx, dy, dz) {
     sD[0] = dx; sD[1] = dy; sD[2] = dz;
     for (const j of WS) { boundOf(def.strips[j], _A, _B); for (let k = 0; k < 3; k++) { sA[j*3+k] = _A[k]; sB[j*3+k] = _B[k]; } }
+    // the template: the mean of sqrt(1 - (2z/b)^2) over each strip's bound
+    // sub-span, b = the plane's live projected span (its outermost endpoint)
+    bHalf.fill(0);
+    for (const j of WS) bHalf[PLANE[j]] = Math.max(bHalf[PLANE[j]], Math.abs(sA[j*3+2]), Math.abs(sB[j*3+2]));
+    for (const j of WS) {
+      const b2 = bHalf[PLANE[j]] || 1, zA = sA[j*3+2], zB = sB[j*3+2];
+      Dz[j] = Math.abs(zB - zA);
+      const u0 = Math.min(zA, zB) / b2, u1 = Math.max(zA, zB) / b2;
+      Ez[j] = LOADING === 'uniform' ? 1
+            : (u1 - u0 > 1e-9 ? (ellF(u1) - ellF(u0)) / (u1 - u0) : Math.sqrt(Math.max(0, 1 - u0 * u0)));
+    }
     for (let ti = 0; ti < NST; ti++) { cpOf(def.strips[ti], _P); cpt[ti*3] = _P[0]; cpt[ti*3+1] = _P[1]; cpt[ti*3+2] = _P[2]; }
     for (let q = 0; q < NP; q++) {
       const ti = pairs[q][0], sj = pairs[q][1];
@@ -3402,11 +3619,36 @@ function makeSim(def, world) {
       for (const i of [st.fIn, st.fOut, st.rIn, st.rOut]) h += p[i*3] + 2*p[i*3+1] + 3*p[i*3+2]; }
     return h * 1.000001 + dx * 7 + dy * 11 + dz * 13;
   }
+  // the weighed sources. The bound vortex runs root to tip on BOTH sides,
+  // so the two sides' circulations carry opposite signs; folding the side's
+  // sign in (sg) makes a lifting plane's circulation one-signed and the
+  // template can run plane-wide, centre strip included (excluded, the centre
+  // kept its uniform value beside a root raised to 1.25x — a dip shedding a
+  // counter-rotating pair right under the tail, 30 % of the effect). The
+  // plane's MEAN circulation is spread on the elliptic template, scaled so
+  // the template integrates to the same total, and each strip's own
+  // deviation from the mean (washout, flaps, ailerons, wash) is shed where
+  // it is — a washed-out tip is not rolled off twice, an aileron's
+  // antisymmetric part cancels in the mean and rides the deviations.
+  const pG = new Float64Array(NPL), pS = new Float64Array(NPL), pDz = new Float64Array(NPL), pEDz = new Float64Array(NPL);
+  const sgOf = new Float64Array(NST);
+  for (const j of WS) sgOf[j] = def.strips[j].side < 0 ? -1 : 1;
+  function weighSources() {
+    if (LOADING === 'uniform') { for (const j of WS) Wg[j] = Gam[j]; return; }
+    pG.fill(0); pDz.fill(0); pEDz.fill(0);
+    for (const j of WS) { const k = PLANE[j];
+      pG[k] += sgOf[j] * Gam[j] * Dz[j]; pDz[k] += Dz[j]; pEDz[k] += Ez[j] * Dz[j]; }
+    for (let k = 0; k < NPL; k++) { pS[k] = pEDz[k] > 1e-9 ? pDz[k] / pEDz[k] : 1; pG[k] = pDz[k] > 1e-9 ? pG[k] / pDz[k] : 0; }
+    for (const j of WS) {
+      const k = PLANE[j], gt = sgOf[j] * Gam[j];
+      Wg[j] = sgOf[j] * (pG[k] * pS[k] * Ez[j] + (gt - pG[k]));
+    }
+  }
   function applyInduction() {
-    vi.fill(0);
+    vi.fill(0); weighSources();
     for (let q = 0; q < NP; q++) {
       if (!pairs[q][2]) continue;
-      const g = Gam[pairs[q][1]];
+      const g = Wg[pairs[q][1]];
       if (!g) continue;
       const ti = pairs[q][0];
       vi[ti*3] += AIC[q*3] * g; vi[ti*3+1] += AIC[q*3+1] * g; vi[ti*3+2] += AIC[q*3+2] * g;
@@ -3417,12 +3659,12 @@ function makeSim(def, world) {
   function measureTailEps() {
     // the MEAN induced velocity over the tail strips (each strip sums its
     // wing sources; the strips are then averaged, not summed)
-    let eps = 0, nT = 0, last = -1;
+    let eps = 0, nT = 0, last = -1; weighSources();
     for (let q = 0; q < NP; q++) {
       const ti = pairs[q][0], st = def.strips[ti];
       if (st.kind !== 'stab' && st.kind !== 'vtail') continue;
       if (ti !== last) { nT++; last = ti; }
-      const g = Gam[pairs[q][1]];
+      const g = Wg[pairs[q][1]];
       if (!g) continue;
       // downwash = induced velocity against the tail's normal (yUp for a stab)
       eps += -(AIC[q*3]*yUp[0] + AIC[q*3+1]*yUp[1] + AIC[q*3+2]*yUp[2]) * g;
@@ -3569,7 +3811,7 @@ function makeSim(def, world) {
     // and what the powerplant makes of it — see 05_atmos.js, where both
     // scalings are re-derived from 60_gen_spec's own prop synthesis rather than
     // asserted.
-    const PS = atmosPropScale(sig, ASP, FLAT);
+    const PS = atmosPropScale(sig, ASP, FLAT, CRIT);
     out.rho = rho; out.sigma = sig; out.easK = easK;
     out.densityAlt = AIR.densityAlt(hAir); out.oatC = AIR.T(hAir) - 273.15;
     out.powerK = PS.power; out.thrustK = PS.kT;
@@ -4030,13 +4272,13 @@ function makeSim(def, world) {
     const A = airOf(), sg = A.sigma(hProbe);
     return { air: A, h: hProbe, rho: A.rho(hProbe), sigma: sg,
              easK: Math.sqrt(sg), densityAlt: A.densityAlt(hProbe),
-             oatC: A.T(hProbe) - 273.15, power: atmosPowerRatio(sg, ASP, FLAT),
+             oatC: A.T(hProbe) - 273.15, power: atmosPowerRatio(sg, ASP, FLAT, CRIT),
              aspiration: ASP };
   }
 
   function thrustAt(V, floor = 0, hAlt) {
     const A = airOf();
-    const PS = atmosPropScale(A.sigma(hAlt == null ? hProbe : hAlt), ASP, FLAT);
+    const PS = atmosPropScale(A.sigma(hAlt == null ? hProbe : hAlt), ASP, FLAT, CRIT);
     return Math.max(floor, PR.Tstatic * PS.kT - PR.kV2 * PS.kV * V * V)
            * (def.params.nEngines || 1);
   }
@@ -4117,6 +4359,8 @@ function makeSim(def, world) {
   return { p, v, m, r, beams, n, ctl, out, get totalM() { return totalM; },
            setNodeMass,
            reset, stance, step, probe, stats, impulse, wheelsOnGround, cgPos, cgVel, axes,
+           // G197: the kernel's sources, readable (the gate asserts the weights' normalisation)
+           induction: () => ({ WS: WS.slice(), plane: Array.from(PLANE), bHalf: Array.from(bHalf), Ez: Array.from(Ez), Dz: Array.from(Dz), Gam: Array.from(Gam), Wg: Array.from(Wg), zA: WS.map(j => sA[j*3+2]), zB: WS.map(j => sB[j*3+2]), A: WS.map(j => [sA[j*3], sA[j*3+1], sA[j*3+2]]), B: WS.map(j => [sB[j*3], sB[j*3+1], sB[j*3+2]]), d: sD.slice(), cpt: Array.from(cpt), pairs: pairs.length, loading: LOADING }),
            bodyOrigin,
            setAtmos, setGroundRef, atmos: airOf, thrustAt, probeAir };
 }
@@ -4584,7 +4828,14 @@ function makeAutopilot(sim, def, world) {
   // DC-3-at-Vr nose-over documented in HANDOVER). restAlt is left alone:
   // it anchors the current route's altitude refs. Never called by the
   // AP's own flow — zero effect on existing batteries.
-  ap.reEngage = () => { pendReEng = true; };
+  ap.reEngage = (o) => {
+    pendReEng = true;
+    // G200: after a stretch of MANUAL flight the PHASE can be a lie as well —
+    // a hand-flown take-off leaves the AP in DEPART with the aeroplane at
+    // 300 m, and DEPART would taxi it. The caller (app.js setManual) says
+    // where the aeroplane actually is; phaseT restarts with the phase.
+    if (o && typeof o.phase === 'string' && o.phase !== ap.phase) { ap.phase = o.phase; phaseT = 0; }
+  };
 
   ap.update = (dt) => {
     ap.t += dt; phaseT += dt;
@@ -5474,7 +5725,11 @@ function makeTestPilot(sim, def, world) {
   // been attempted, and a 2 s acceleration filter for the stagnation call.
   let rollS0 = null, rollN = 0, accF = 0, vPrev = null;
   const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
-  ap.reEngage = () => { pendReEng = true; };
+  ap.reEngage = (o) => {
+    pendReEng = true;
+    // G200: the phase re-latches with the state (see 40_autopilot.js)
+    if (o && typeof o.phase === 'string' && o.phase !== ap.phase) { ap.phase = o.phase; phaseT = 0; }
+  };
   ap.taxiFF = taxiFF;              // TP/G121: instrument surface
 
   // TP: THE TEST CARD (G107.1). The game imposes a card on the flight —
@@ -6189,6 +6444,172 @@ function makeTestPilot(sim, def, world) {
                xt: taxiXT, sRem: taxiSRem, tailUp: tailUpNow };   // G193
   };
   return ap;
+}
+// ============================================================
+// THE CROSSWIND LIMIT (G193.2, 2026-09-05, the user: "Put the crosswind
+// limit on the plaque").
+//
+// A take-off roll in a crosswind is the one certificate number that needs
+// the PILOT: the swing is the tailwheel unloading and the rudder holding
+// what it can, so genShakedown's still-air integrals cannot measure it. It
+// is measured the way the test flight measures the landing run — a second
+// sim, the test pilot, offscreen — and it rides on the same report.
+//
+// THE DEFINITION. The crosswind limit is the strongest crosswind, from the
+// right (+z, the side GATE TAKEOFF found the worse on the twin), in which
+// the test pilot keeps the take-off roll between the base strip's painted
+// edge lines (|cross-track| <= R.half - 2.5, the lines 25_airfield paints)
+// and gets airborne, without a rejected take-off. The heading as the wheels
+// leave is REPORTED beside it, not judged: a tail-up taildragger weathervanes
+// into wind on its scrubbing mains and a flying aeroplane crabs on purpose,
+// and neither is what the strip's edge cares about.
+// The band is the STRIP'S, so the number means "this aeroplane leaves this
+// field straight in this much wind" — the plaque's own runway, the way the
+// take-off run is judged against the strip's length. G193.1 recorded why no
+// pilot gain moves it: the rudder is at its stop through the swing and the
+// tail is lifted by the aeroplane; the number belongs to the builder (mains,
+// fin, thrust line).
+//
+// THE MEASUREMENT. A ladder (2, 4, 6, 8, 10 m/s) until the first failure,
+// then a bisection between the last pass and that failure to 0.5 m/s; a
+// failure on the first rung adds a calm-air departure so "cannot take off
+// straight at all" is measured rather than assumed. Four to seven departures
+// from the runway (no taxi), ~40 s of sim each — MEASURED 17 s of wall clock
+// for the ultralight fixture (4 departures) and 20 s for the default
+// aeroplane in node, budgeted per poll like the circuit so the panel never
+// freezes. Above the cap the limit is reported as "> cap": the strip has no
+// wind that strong on offer. The heading is judged as the wheels leave, not
+// at the safe height, because a crosswind climb is crabbed on purpose.
+//
+// `makeCrosswindProbe(def, opts)` is the steppable form the page polls;
+// `genCrosswindLimit(def, opts)` runs it to the end for the gates. Both are
+// pure of THREE and of the page. opts: { world, band, step, res, cap, maxS }.
+// ============================================================
+function makeCrosswindProbe(def, opts) {
+  opts = opts || {};
+  const world = opts.world || makeWorld();
+  const a = world.aerodromes[0];
+  const site = (typeof siteOf === 'function') ? siteOf(a.id || 'HOME') : null;
+  const R = siteRunway(a);
+  const band = opts.band != null ? opts.band : Math.max(3, R.half - 2.5);
+  const hSafe = (def.params && def.params.ap && def.params.ap.hSafe) || 8;
+  const maxS = opts.maxS || 150;
+  const step = opts.step || 2;
+  const res = opts.res || 0.5;
+  const cap = opts.cap || 10;
+  const runs = [];
+  let cur = null, lo = 0, hi = null, calmTried = false, result = null;
+
+  function start(w) {
+    if (world.setWind) world.setWind({ base: [0, 0, w], gust: 0 });
+    const sim = makeSim(def, world);
+    sim.reset(0);
+    for (let i = 0; i < 600; i++) sim.step(1 / 60);       // parked settle
+    placeAtAerodrome(sim, a);
+    const ap = makeTestPilot(sim, def, world);
+    ap.setRoute(a, a);
+    ap.departFrom(a, a, site);
+    cur = { w, sim, ap, t: 0, roll: 0, e: 0, fin: null };
+  }
+  // one 1/60 s step of the departure in flight; true when it is decided
+  function stepOne() {
+    const c = cur;
+    c.ap.update(1 / 60); c.sim.step(1 / 60); c.t += 1 / 60;
+    const d = c.ap.dbg || {};
+    if (c.ap.phase === 'ROLL') c.roll = Math.max(c.roll, Math.abs(d.z || 0));
+    // the heading is read AS THE WHEELS LEAVE: once flying in a crosswind the
+    // pilot crabs into it on purpose (11 deg at 4 m/s across a 20 m/s climb),
+    // which is airmanship, not a swing
+    if (c.ap.phase === 'LIFTOFF' && c.eLift == null) c.eLift = Math.abs(d.e || 0);
+    if (c.sim.stats && c.sim.stats().bad) { c.fin = { ok: false, why: 'broke-up' }; return true; }
+    const rep = c.ap.report;
+    if (rep && (rep.outcome === 'rejected-takeoff' ||
+        (rep.verdicts && rep.verdicts.length &&
+         rep.verdicts[rep.verdicts.length - 1].code === 'rejected-takeoff'))) {
+      c.fin = { ok: false, why: 'rejected-takeoff' }; return true;
+    }
+    if ((c.ap.phase === 'LIFTOFF' || c.ap.phase === 'CLIMB') && (d.agl || 0) > hSafe) {
+      c.e = c.eLift != null ? c.eLift : Math.abs(d.e || 0);
+      // THE BAND IS THE VERDICT; the heading is reported, not judged. As the
+      // wheels leave, a tail-up taildragger has weathervaned into wind on its
+      // scrubbing mains (the ultralight: 13 deg at 2 m/s, the swing G193.1
+      // recorded), and once flying the pilot crabs on purpose (the default
+      // aeroplane: 10 deg at 4 m/s). What the strip cares about is its edge.
+      const inBand = c.roll <= band;
+      c.fin = { ok: inBand, why: inBand ? null : 'off the edge line' };
+      return true;
+    }
+    if (c.ap.phase === 'STOPPED') { c.fin = { ok: false, why: 'stopped' }; return true; }
+    if (c.t > maxS) { c.fin = { ok: false, why: 'never airborne' }; return true; }
+    return false;
+  }
+  // the next rung, or the verdict
+  function plan() {
+    if (hi == null) {
+      const w = runs.length ? lo + step : step;
+      if (w > cap + 1e-9) return finish(null);
+      return w;
+    }
+    if (hi - lo <= res + 1e-9) return finish(lo);
+    return Math.round(((lo + hi) / 2) / res) * res;
+  }
+  function finish(limit) {
+    const at = limit == null ? runs.filter(r => r.ok).slice(-1)[0]
+             : runs.filter(r => r.ok && Math.abs(r.w - limit) < 1e-9)[0] || null;
+    const first = runs.filter(r => !r.ok).sort((p, q) => p.w - q.w)[0] || null;
+    result = { limit, cap, band: Math.round(band * 10) / 10,
+               roll: at ? at.roll : null, e: at ? at.e : null,
+               failW: first ? first.w : null, failWhy: first ? first.why : null,
+               failRoll: first ? first.roll : null,
+               runs: runs.map(r => ({ w: r.w, ok: r.ok, roll: r.roll, e: r.e, why: r.why })),
+               side: '+z' };
+    return null;
+  }
+  function record() {
+    const c = cur, f = c.fin;
+    runs.push({ w: c.w, ok: f.ok, roll: Math.round(c.roll * 100) / 100,
+                e: Math.round(c.e * 1000) / 1000, why: f.why });
+    if (f.ok) lo = Math.max(lo, c.w);
+    else {
+      hi = hi == null ? c.w : Math.min(hi, c.w);
+      // a failure on the first rung: is calm air even straight?
+      if (runs.length === 1 && !calmTried) { calmTried = true; cur = null; return 0; }
+    }
+    cur = null;
+    return null;
+  }
+  // poll(ms): step for up to `ms` of wall clock; { done:false, w, frac } or
+  // { done:true, result }
+  function poll(ms) {
+    const t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    const now = () => (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    while (!result) {
+      if (!cur) {
+        const w = plan();
+        if (result) break;
+        start(w);
+      }
+      let decided = false;
+      for (let i = 0; i < 60 && !decided; i++) decided = stepOne();
+      if (decided) {
+        const calm = record();
+        if (calm === 0) { start(0); }
+      }
+      if (ms != null && now() - t0 >= ms) break;
+    }
+    if (result) return { done: true, result };
+    return { done: false, w: cur ? cur.w : 0, t: cur ? cur.t : 0,
+             frac: Math.min(0.95, runs.length / 6) };
+  }
+  return { poll, get result() { return result; }, band, cap };
+}
+
+// the whole measurement at once (the gates)
+function genCrosswindLimit(def, opts) {
+  const p = makeCrosswindProbe(def, opts);
+  let r;
+  do { r = p.poll(null); } while (!r.done);
+  return r.result;
 }
 // model_codec.js — decode baked model payloads (see tools/model_prep.py).
 // Pure JS, no three.js: same code runs in the artifact and in the node gates.
@@ -9232,12 +9653,16 @@ function clampSpec(spec) {
       cu.powerW = genClamp(cu.powerW, 100, 1000000);
       cu.rpm = genClamp(cu.rpm == null ? 2300 : cu.rpm, 400, 14000);
       cu.torque = genClampN(cu.torque, 0, 5000);
-      cu.aspiration = cu.aspiration === 'electric' ? 'electric'
-        : cu.aspiration === 'turbine' ? 'turbine' : 'na';
+      cu.aspiration = ['electric', 'turbine', 'turbo', 'super']
+        .includes(cu.aspiration) ? cu.aspiration : 'na';
       cu.family = (typeof GEN_ENG_THERMO !== 'undefined' && GEN_ENG_THERMO[cu.family])
         ? cu.family : (cu.aspiration === 'electric' ? 'electric'
                        : cu.aspiration === 'turbine' ? 'turbine' : 'four');
       cu.cooling = cu.cooling === 'liquid' ? 'liquid' : 'air';
+      // WHERE ITS MASS SITS (the cgFwd half-session, 2026-09-05): the CG aft
+      // of the prop flange, the bench's own cgZ for a drawn engine; null lets
+      // the registry table (GEN_ENG_CG) answer, or the old mount-node lump
+      cu.cgAft = genClampN(cu.cgAft, 0, 2.5);
       // A TURBINE'S OWN TWO NUMBERS (2026-09-05, TURBOPROP §1/§8): the
       // flat-rating margin 05_atmos reads (absent = 1.3, a PT6A's usual), and
       // the bare length the engine box reads. Neither exists on any other
@@ -9246,6 +9671,12 @@ function clampSpec(spec) {
         cu.flatK = genClamp(cu.flatK == null ? 1.3 : cu.flatK, 1, 2);
         cu.length = genClampN(cu.length, 0.3, 3);
       } else { delete cu.flatK; delete cu.length; }
+      // A BLOWN PISTON'S OWN NUMBER (the blower model, 2026-09-05): the
+      // critical altitude 05_atmos holds the rating to; nothing else may
+      // carry one, or an A-65 would supercharge itself by a stray field
+      if (cu.aspiration === 'turbo' || cu.aspiration === 'super')
+        cu.critAlt = genClamp(cu.critAlt == null ? 0 : cu.critAlt, 0, 9000);
+      else delete cu.critAlt;
       // an unpriced custom row takes the market curve — one keeper (00_registry)
       // (the cap rose 200k -> 600k with the turbine curve, 2026-09-05)
       cu.price = genClamp(cu.price == null
@@ -9934,6 +10365,13 @@ function resolveSpec(spec) {
     ? { price: CU.price, engine: CU, prop: REG ? REG.prop : { D: 1.80 } }
     : REG;
   S.pplant = PP;
+  // WHERE THE ENGINE'S MASS SITS (2026-09-05, the cgFwd half-session): the CG
+  // aft of the prop flange, the custom row's own number or the registry's
+  // measured table (GEN_ENG_CG); null = no entry = the frame hangs the lump
+  // on the mount nodes as it always did. A READING on the spec, never
+  // written into the registry row (a registry dict is shared by every build).
+  S.engCgAft = (typeof genEngineCgAft === 'function' && PP)
+    ? genEngineCgAft(S.engine, PP.engine) : null;
   // 4a. THE PROPELLER, synthesised from the disc it actually is. The registry's
   // prop is the DEFAULT diameter and nothing more; every number below is derived,
   // so a bigger disc really does pull harder and blow harder over the tail.
@@ -9958,7 +10396,14 @@ function resolveSpec(spec) {
   const propR = S.prop.D / 2;
   S.propR = propR;
   S.engY = 0.36 * S.cab.h + pl.engineDy;        // thrustline, above the lower longeron
-  S.engX = -(0.18 + 0.32 * propR) + pl.engineDx; // firewall forward: cowl + prop
+  // firewall forward: cowl + prop — OR the engine's own declared length plus
+  // a stand-off, when the row says how long it is (2026-09-05, the cgFwd
+  // half-session: a derived PT6 stood 0.61 m ahead of the firewall on the
+  // prop rule where its flange is 1.6 m out; the join measures a drawn one,
+  // a bake has only the row)
+  S.engX = -Math.max(0.18 + 0.32 * propR,
+                     (PP && PP.engine.length > 0 ? PP.engine.length + 0.10 : 0))
+           + pl.engineDx;
   // G188: A NOSE ENGINE THE JOIN MEASURED sits where it was drawn. The cowl-
   // and-prop rule above is the derivation for a spec that says nothing; a
   // drawn unit's station (engines[0].x/y, off the engine layer, firewall/keel
@@ -11079,9 +11524,17 @@ function genLattice(S, gearX, track, kScale) {
     // structural mass: linear density x length, half to each end (this is the
     // whole structural mass model — there is no separate mass budget to keep
     // in sync with the geometry)
-    const h = 0.5 * L * MM.lin[cls];
-    nodes[a].m += h; nodes[b].m += h;
-    bill(2 * h, 2 * h * MM.price);            // ...and priced as it (G179)
+    // ...except a member that only LOCATES a mass (opt.noMass — the engine's
+    // CG node, 2026-09-05): the bearer that carries the engine already weighs
+    // what it weighs on the mount nodes; six more steel tubes to hold a point
+    // where the engine's mass sits would bill 1.7 kg of tube that is not
+    // there (measured on the stock build). Stiff and damped like the rest,
+    // weightless and unpriced.
+    if (!(opt && opt.noMass)) {
+      const h = 0.5 * L * MM.lin[cls];
+      nodes[a].m += h; nodes[b].m += h;
+      bill(2 * h, 2 * h * MM.price);          // ...and priced as it (G179)
+    }
   };
   // ---- the LEDGER (G3). Mass and money, attributed to the section being built
   // rather than reconstructed afterwards. `SEC` is a moving marker because this
@@ -11226,7 +11679,15 @@ function genLattice(S, gearX, track, kScale) {
   // tail post: two centreline nodes. refs.tailMid points here, so rule 8
   // (attitude reference on RIGID structure) is satisfied by construction.
   const TPB = N(fu.postX, lastST.yb + 0.05, 0, 'TPB');
-  const TPT = N(fu.postX, lastST.yt - 0.02, 0, 'TPT');
+  // A TAIL POST IS NEVER SHORTER THAN 0.15 m (G199.1, 2026-09-06). The two
+  // insets assume a fuselage section at the post; on a ROD boom the section
+  // there is the tube's (measured 0.11 m on the user's ultralight), so TPB and
+  // TPT came out 0.044 m apart and that stub carried the whole tail — 5.8 %
+  // strain with every other member under 2 %. The post on a rod is the socket
+  // fitting the fin stands in, and it stands above the tube. Inert on every
+  // build whose post section already clears 0.22 m, which is every loft.
+  const TPT = N(fu.postX, Math.max(lastST.yt - 0.02, lastST.yb + 0.05 + 0.15),
+                0, 'TPT');
   B(TPB, TPT, 'fus');
   B(last.BL, TPB, 'fus'); B(last.BR, TPB, 'fus');
   B(last.TL, TPT, 'fus'); B(last.TR, TPT, 'fus');
@@ -11258,8 +11719,31 @@ function genLattice(S, gearX, track, kScale) {
     // registry diameter. It lands on the mount nodes rather than at the hub, which
     // is 0.10 m further forward — worth 3 cm of CG on a 500 kg aeroplane with the
     // heaviest prop the clamps allow, and there is no node out there to hang it on.
-    pt(EL, 0.5 * (PP.engine.mass + S.prop.mass));
-    pt(ER, 0.5 * (PP.engine.mass + S.prop.mass));
+    //
+    // THE ENGINE'S MASS SITS WHERE THE ENGINE IS (2026-09-05, the cgFwd
+    // half-session, TURBOPROP §8). The mount nodes are the FLANGE station
+    // (engX — the join measures a drawn engine's flange, the prop rule
+    // approximates one), and the engine's centre of mass is `S.engCgAft`
+    // behind it: 0.20 m on a boxer, 0.63 on a PT6 — the longest arm on the
+    // aeroplane, and the lump on the flange had every CG a few centimetres
+    // forward of true (a Caravan-alike's by a seat). One node at the CG,
+    // held by the two mount nodes and the firewall ring's four corners — a
+    // deep truss, the G179 bearer's own lesson — carries the ENGINE; the
+    // blades stay on the flange, where they are. A row with no measured CG
+    // (S.engCgAft null) hangs the lump exactly as before, byte for byte.
+    if (S.engCgAft != null) {
+      const CG = N(S.engX + S.engCgAft, S.engY, 0, 'CGE');
+      const farN = (a, b) => Math.hypot(P[a][0] - P[b][0], P[a][1] - P[b][1],
+                                        P[a][2] - P[b][2]) > 0.05;
+      for (const q of [EL, ER, F[0].TL, F[0].TR, F[0].BL, F[0].BR])
+        if (farN(CG, q)) B(CG, q, 'fus', false, 'inner', true, { noMass: true });
+      pt(CG, PP.engine.mass);
+      pt(EL, 0.5 * S.prop.mass);
+      pt(ER, 0.5 * S.prop.mass);
+    } else {
+      pt(EL, 0.5 * (PP.engine.mass + S.prop.mass));
+      pt(ER, 0.5 * (PP.engine.mass + S.prop.mass));
+    }
   }
   spend((PP.price || 0) * S.engines.length);
   spend(S.prop.price || 0);
@@ -11778,6 +12262,24 @@ function genLattice(S, gearX, track, kScale) {
       return b;
     };
     const engM = PP.engine.mass + S.prop.mass;
+    // the engine's mass at its CG, behind the flange (ahead of it on a
+    // pusher, whose flange faces aft) — the nose block's rule, per mount
+    // (2026-09-05, the cfFwd half-session). Anchors: the mount pair and the
+    // members the mount itself stands on. Null = the lump on the mount nodes.
+    const cgA = S.engCgAft;
+    const farN = (a, b) => Math.hypot(P[a][0] - P[b][0], P[a][1] - P[b][1],
+                                      P[a][2] - P[b][2]) > 0.05;
+    const hangEngine = (e, mountNodes, anchors, z, mEng, mProp) => {
+      if (cgA == null) {
+        for (const n of mountNodes) pt(n, (mEng + mProp) / mountNodes.length);
+        return;
+      }
+      const CG = N(e.x + (e.pushes ? -cgA : cgA), e.y, z, 'CGE');
+      for (const q of mountNodes.concat(anchors))
+        if (farN(CG, q)) B(CG, q, 'fus', false, 'inner', true, { noMass: true });
+      pt(CG, mEng);
+      for (const n of mountNodes) pt(n, mProp / mountNodes.length);
+    };
     for (let i = 0; i < EAT.length; i++) {
       const e = EAT[i];
       if (e.mount === 'wing' && i > 0) continue;      // the pair's mirror
@@ -11787,7 +12289,8 @@ function genLattice(S, gearX, track, kScale) {
         BM(PL, PR);
         BM(PL, rg.TL); BM(PL, rg.BL); BM(PL, rg.BR); BM(PL, rg.TR);
         BM(PR, rg.TR); BM(PR, rg.BR); BM(PR, rg.BL); BM(PR, rg.TL);
-        pt(PL, 0.5 * engM); pt(PR, 0.5 * engM);
+        hangEngine(e, [PL, PR], [rg.TL, rg.TR, rg.BL, rg.BR], 0,
+                   PP.engine.mass, S.prop.mass);
         engNodes.push(PL, PR); engIdx.push(0, 0);
       } else if (e.mount === 'wingTop') {
         const [WL, WR] = NM(e.x, e.y, 0.35 * cab.halfW, 'ENG');
@@ -11799,7 +12302,8 @@ function genLattice(S, gearX, track, kScale) {
           BM(n, wf[q].F[0]);                             // cross-brace
           BM(n, rg['T' + o]);                            // pylon leg, roof
         }
-        pt(WL, 0.5 * engM); pt(WR, 0.5 * engM);
+        hangEngine(e, [WL, WR], [wf.L.F[0], wf.R.F[0], wf.L.R[0], wf.R.R[0]], 0,
+                   PP.engine.mass, S.prop.mass);
         engNodes.push(WL, WR); engIdx.push(0, 0);
       } else if (e.mount === 'wing') {
         // THE BEARER HAS DEPTH (G179). One node on the four spar nodes of
@@ -11845,7 +12349,10 @@ function genLattice(S, gearX, track, kScale) {
               for (const k of [b, b + 1])
                 if (caps[k] != null && far(caps[k])) BM(ft, caps[k], 'inner');
           }
-          pt(n, engM);                                   // a whole engine a side
+          // a whole engine a side — at its CG when the row knows one, on the
+          // nacelle node otherwise (the mirror's z is the node's own)
+          hangEngine({ x: e.x, y: e.y, pushes: e.pushes }, [n], ring,
+                     P[n][2], PP.engine.mass, S.prop.mass);
         }
         engNodes.push(NL, NR); engIdx.push(0, 1);
       }
@@ -12090,6 +12597,18 @@ function genLattice(S, gearX, track, kScale) {
     // stands in Frame mode and still carries exactly the same load.
     B(TW, TPB, 'gear', false, 'leg');
     B(TW, last.BL, 'gear', false, 'wire'); B(TW, last.BR, 'gear', false, 'wire');
+    // A WHEEL THAT TRAILS THE POST (G199.1, 2026-09-06). The pyramid below
+    // assumes the wheel sits just AHEAD of the sternpost (the default twX is
+    // postX - 0.10), so its base — the last frame and the post — straddles
+    // the wheel. A rod-boom build roots its leaf spring at the tube's end and
+    // the wheel trails 0.3 m BEHIND the post: every anchor is then forward of
+    // the wheel, the fan spans 20 degrees, and the tail hunts on it (measured:
+    // 13 % strain, three-point pitch 13.4 deg against 9.2). A real spring is a
+    // cantilever the truss cannot carry, so the wheel takes a stay up to the
+    // fin's apex — the tallest lever the tail has — declared INTERNAL like the
+    // snap-blocker (under the covering it is not there). Measured: 1.7 %,
+    // 8.4 deg. A wheel ahead of the post builds exactly what it built.
+    if (FIN != null && twX > fu.postX + 0.02) B(TW, FIN, 'gear', false, 'inner');
     // rule 10: a near-axial chain LATCHES with every strain under 1%, and no
     // strain gate can see it. Both cures the Cub needed are mandatory here:
     // a snap-blocking near-vertical member, AND a wide lateral pyramid.
@@ -13363,7 +13882,7 @@ function genParams(S, fr, strips) {
     // arc's, with those numbers as its anchors. core: the Rankine radius as
     // a fraction of the source strip's chord; kProbe: fixed-point passes.
     downwashModel: S.wings.length > 1 ? 'vortex' : 'const',
-    induction: { core: 0.30, kProbe: 3 },
+    induction: { core: 0.30, kProbe: 3, loading: 'elliptic' },  // G197: the sources shed the polar's loading
     flaps,
     stabTrim: 0, sparSpacing: fr.parts.sparSpacing,
     fusCdA: cda.fusCdA, fusCdAAft: cda.fusCdAAft,
@@ -15783,4 +16302,4 @@ function playerShedDims(doc, id, site) {
   return { HW: d.HW || h.HW, HD: d.HD || h.HD, EAVE: d.EAVE || h.EAVE };
 }
 if (typeof module !== 'undefined')
-  module.exports = { AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, makeSim, vortexKernel, makeAutopilot, makeTestPilot, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims };
+  module.exports = { AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, makeSim, vortexKernel, makeAutopilot, makeTestPilot, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims };

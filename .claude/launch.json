@@ -385,6 +385,15 @@
       "port": 8333
     },
     {
+      "name": "flydiy-engines",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8336"
+      ],
+      "port": 8336
+    },
+    {
       "name": "flydiy-controls",
       "runtimeExecutable": "node",
       "runtimeArgs": [

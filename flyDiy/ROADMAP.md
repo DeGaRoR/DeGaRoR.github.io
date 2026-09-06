@@ -25,6 +25,22 @@ interleaves bench work with loop work from there.
 > gitignored (media/ is the shipped store). Wherever a phase below says
 > "fleet" it means the player's rack of garage builds, never the fiches.
 
+> **2026-09-05 (G196).** The airframe contract no longer reports a MISS as a
+> radius of zero. `meshAirframe` closes its section table over its own holes —
+> a removed door, an open cockpit, a bare frame — along the BODY, not round
+> the ring, and publishes `solidAt(z, ang)` so a fitting can ask whether there
+> is real skin under it. Where there is not, gear legs, tailwheel springs and
+> lift struts root on the nearest published truss member with a lug pair and
+> NO doubler (`GEAR_GEN.memberFrame`, one description for all of them), and a
+> doubler's wrap is bounded (`padArc`). **G196.1** (same day) finishes it:
+> `cageInterior` publishes every tube it draws — the bent ones
+> (`tubePath`/`tubeRuns`: pillar hoops, taper rings, the boom's own
+> longerons and chines) and the formers (metal's `punched`, plywood's boom
+> couples) were drawn and never published, which left 20 members for a whole
+> aeroplane and none along the boom. 20 -> 170 on the reported build, and
+> GATE FIT now measures the DRAWING against the published set
+> (HANDOVER G196, G196.1).
+
 > **2026-09-05 (G188).** The join's measurements now REACH the frame on every
 > build: the third wheel is classified by station identity (not lateral
 > offset), a mirrored pod publishes its aft pillar and takes its post off the
@@ -652,7 +668,7 @@ this doubles as "what do I get, and when".
 | Wing-mounted engines / multiengine — **LANDED G174** (a wing pair; no engine-out yet) | 6 | 5 | L |
 | Pushers — **LANDED G174** (aft bulkhead + over the wing) | 6 | 6 | M-L |
 | Turboprops / small turbines | 6 | 7 | L |
-| Biplane — **LANDED G185** (2026-09-05; the monoplane downwash flip is its next line) | 6 | 8 | L |
+| Biplane — **LANDED G185** (2026-09-05); G197 made the kernel's sources shed elliptic loading (stock tail slope 0.22 -> 0.32; anchors stock 0.318 / cantilever 0.324 / mid 0.354 vs the 0.40 constant) — the monoplane downwash flip is the next line and is NOT a no-op (+13 % tail effectiveness on the stock) | 6 | 8 | L |
 | STOL wing, slats/tips (geometry) | 6 | 9 | L |
 | Time of day synced with the hangar | 7 | 6 | M |
 | Manual controls, joystick, TrackIR | 8 | 1 | L |

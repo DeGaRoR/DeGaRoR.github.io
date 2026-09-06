@@ -715,7 +715,127 @@ for (const f of fail) console.log('  FAIL ' + f);
   }
 }
 
-// the sections after the summary (7-centre, 10, 11) print their own reds
+// ---------------------------------------------------------------------------
+// 12 A HOLE IS NOT A RADIUS (2026-09-05)
+// ---------------------------------------------------------------------------
+// The user's report: the fittings for the gear, the suspension and the lift
+// struts "look for a plate to attach to. It fails in some cases, resulting in
+// a distorted mesh ... extending into the cabin and the pilot."
+//
+// The cause was one line in `meshAirframe`: a ray that hit nothing returned
+// radius ZERO, which every consumer read as "the surface is on the centre
+// line". A removed door (`doorGone`), an open cockpit or a bare frame leaves
+// exactly that hole, and on the reported build it covered the whole flank at
+// the stations a main leg and a lift strut root in — so both went to the
+// middle of the cabin and the doubler was drawn across the cockpit.
+//
+// The instrument is A BOX WITH A DOORWAY IN ONE FLANK, which is the reported
+// aeroplane in miniature: skin fore and aft of the gap, nothing across it.
+{
+  // a 1 m square box, 3 m long, with the +x flank cut into three bands so the
+  // middle one can be taken away
+  const V = [], F = [];
+  const ZS = [0, 1, 2, 3];
+  const id = (iz, x, y) => iz * 4 + (x > 0 ? 2 : 0) + (y > 0 ? 1 : 0);
+  for (const z of ZS) for (const x of [-0.5, 0.5]) for (const y of [-0.5, 0.5])
+    V.push([x, y, z]);
+  const N = ZS.length - 1;
+  for (let b = 0; b < N; b++) {
+    const A = b, B = b + 1;
+    F.push({ n: 'floor', v: [id(A,-1,-1), id(A,1,-1), id(B,1,-1), id(B,-1,-1)] });
+    F.push({ n: 'roof',  v: [id(A,-1,1),  id(B,-1,1), id(B,1,1),  id(A,1,1)] });
+    F.push({ n: 'port',  v: [id(A,-1,-1), id(B,-1,-1), id(B,-1,1), id(A,-1,1)] });
+    F.push({ n: 'door' + b,
+             v: [id(A,1,-1), id(A,1,1), id(B,1,1), id(B,1,-1)] });
+  }
+  F.push({ n: 'nose', v: [id(0,-1,-1), id(0,-1,1), id(0,1,1), id(0,1,-1)] });
+  F.push({ n: 'tail', v: [id(N,-1,-1), id(N,1,-1), id(N,1,1), id(N,-1,1)] });
+  const quads = keep => F.filter(f => keep(f.n)).map(f => f.v);
+  const whole = GG.meshAirframe(V, quads(() => true));
+  const holed = GG.meshAirframe(V, quads(n => n !== 'door1'));   // z 1..2 open
+  const bare  = GG.meshAirframe(V, quads(n => !/^door/.test(n))); // no flank
+  const AT = Math.PI / 2;                       // the flank, +x
+  if (check(!!whole && !!holed && !!bare,
+            'meshAirframe answered nothing for a box')) {
+    const rW = Math.abs(whole.surf(1.5, AT)[0]);
+    const rH = Math.abs(holed.surf(1.5, AT)[0]);
+    check(rH > 0.2,
+      'a doorway still reads as radius ZERO — the fitting goes to the ' +
+      'centreline', 'half-width ' + rH.toFixed(3));
+    // ...and the envelope it closes with is the skin either side of the gap,
+    // because that is the direction it is solved along
+    check(Math.abs(rH - rW) < 0.002,
+      'the closed envelope does not follow the flank either side of the gap',
+      rH.toFixed(3) + ' vs ' + rW.toFixed(3));
+    check(holed.halfWAt(1.5) > 0.2 && holed.heightAt(1.5) > 0.2,
+      'a holed body reports a collapsed section',
+      holed.halfWAt(1.5).toFixed(3) + ' x ' + holed.heightAt(1.5).toFixed(3));
+    // an angle open at EVERY station has no fore-and-aft skin to follow, and
+    // it still may not answer the centreline — the ring closes it instead
+    check(Math.abs(bare.surf(1.5, AT)[0]) > 0.3,
+      'a flank open end to end collapses onto the centreline',
+      Math.abs(bare.surf(1.5, AT)[0]).toFixed(3));
+    // AND IT SAYS SO. The envelope is the right SHAPE and it is still nothing
+    // to bolt a doubler to; `solidAt` is how a fitting tells the two apart,
+    // and without it the no-plate rule has nothing to fire on.
+    check(typeof holed.solidAt === 'function',
+      'the airframe cannot say whether there is skin under a fitting');
+    check(holed.solidAt(1.5, 0) === true,
+      'solidAt calls a measured keel inferred');
+    check(holed.solidAt(1.5, AT) === false,
+      'solidAt calls a doorway solid — no fitting will ever choose a lug');
+    check(holed.solidAt(0.5, AT) === true && holed.solidAt(2.5, AT) === true,
+      'solidAt calls the skin fore and aft of the gap a hole too');
+    check(whole.solidAt(1.5, AT) === true,
+      'solidAt calls a whole flank a hole — every fitting loses its plate');
+    check(whole.open === 0 && holed.open > 0,
+      'the inferred-cell count does not tell the two bodies apart',
+      whole.open + ' / ' + holed.open);
+  }
+  // A PLATE MAY NOT WRAP ITSELF ROUND THE AEROPLANE. The other half of a
+  // distorted doubler: `W` is an arc length, and on a section narrower than
+  // the plate the angle it converts to used to be unbounded.
+  const thin = { halfWAt: () => 0.02 };
+  check(GG.padArc(thin, 0, 0.30) <= GG.PAD_ARC + 1e-9,
+    'a doubler on a thin section wraps past the bound',
+    GG.padArc(thin, 0, 0.30).toFixed(2) + ' rad');
+  check(Math.abs(GG.padArc({ halfWAt: () => 0.30 }, 0, 0.10) - 1 / 3) < 1e-9,
+    'the bound changed the plate on an ordinary body');
+}
+
+// ---------------------------------------------------------------------------
+// 13 THE NEAREST TUBE, AND ONLY WHEN THERE IS ONE (2026-09-05)
+// ---------------------------------------------------------------------------
+// `memberFrame` is the one description of "root on the structure" — the gear
+// layer and the lift struts both ask it, so it is checked once here rather
+// than twice by eye in a page.
+{
+  const MB = [{ a: [0, 0, 0], b: [0, 0, 4], r: 0.02 },      // along z at origin
+              { a: [-3, 0, 0], b: [-3, 0, 4], r: 0.02 }];
+  const F = GG.memberFrame(MB, [0.5, 0, 2], 1);
+  if (check(!!F, 'memberFrame found no tube at all')) {
+    check(Math.abs(F.p[0] - 0.02) < 1e-6 && Math.abs(F.p[2] - 2) < 1e-6,
+      'the frame is not on the near tube surface', JSON.stringify(F.p));
+    check(Math.abs(F.n[0] - 1) < 1e-6, 'the normal does not face the fitting');
+    check(Math.abs(F.fore[2] - 1) < 1e-6, 'fore is not the member direction');
+  }
+  // THE NORMAL IS RADIAL, and it is the trap this pays for: at a member's END
+  // the raw "towards the fitting" vector is mostly ALONG the tube, and every
+  // lug and pin built on it comes out raked by the tube's own angle.
+  const E = GG.memberFrame(MB, [0.3, 0, 6], 1);
+  check(!!E && Math.abs(E.n[2]) < 1e-6,
+    'the frame at a member END leans along the tube',
+    E ? E.n.map(v => v.toFixed(3)).join(',') : 'none');
+  // ...AND THE REACH IS REAL. A rod boom publishes no members, so a tailspring
+  // asking at the tailpost was handed the cabin frame a metre and a half
+  // forward and stretched itself to reach it.
+  check(GG.memberFrame(MB, [0.5, 0, 2], 1, 0.10) === null,
+    'memberFrame answered a tube outside the reach it was given');
+  check(GG.memberFrame([], [0, 0, 0], 1) === null,
+    'memberFrame invented a tube where none are published');
+}
+
+// the sections after the summary (7-centre, 10-13) print their own reds
 for (const f of fail) if (!printed.has(f)) console.log('  FAIL ' + f);
 console.log('GATE GEAR: ' + (fail.length ? 'FAIL' : 'PASS'));
 process.exit(fail.length ? 1 : 0);

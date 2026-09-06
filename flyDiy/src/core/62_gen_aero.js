@@ -932,7 +932,7 @@ function genParams(S, fr, strips) {
     // arc's, with those numbers as its anchors. core: the Rankine radius as
     // a fraction of the source strip's chord; kProbe: fixed-point passes.
     downwashModel: S.wings.length > 1 ? 'vortex' : 'const',
-    induction: { core: 0.30, kProbe: 3 },
+    induction: { core: 0.30, kProbe: 3, loading: 'elliptic' },  // G197: the sources shed the polar's loading
     flaps,
     stabTrim: 0, sparSpacing: fr.parts.sparSpacing,
     fusCdA: cda.fusCdA, fusCdAAft: cda.fusCdAAft,

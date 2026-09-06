@@ -31782,6 +31782,200 @@ mutual term in ground effect uses the same image as the self term (McCormick
 holds the self image); a fin sees no sidewash; V-tail strips take the kernel's
 downwash but a twin-boom's second fin none.
 
+## G196 — A HOLE IS NOT A RADIUS: THE FITTINGS THAT WENT LOOKING FOR A PLATE
+## AND FOUND THE PILOT (2026-09-05, the user, with a saved build attached: "The
+## fitting points for the landing gear, suspension and struts look for a plate
+## to attach to. It fails in some cases, resulting in a distorted mesh, in this
+## example, extending into the cabin and the pilot. I thought I had asked
+## already for no-plate-options, so it can attach straight to a tube structure
+## for example. Can you look into that, and ensure we avoid artifacts and
+## overly distorted meshes in any case?")
+
+**One line, and it had been there since G20.** `meshAirframe`'s section table
+is baked by slicing the skin at each of 96 stations and casting a ray from the
+section centre at each of 72 angles, keeping the outermost hit. A ray that hit
+NOTHING pushed `best`, which is initialised to **0** — and every consumer read
+that as a radius. Zero is not "there is no surface at this angle"; it reads as
+"the surface is on the centreline", and `surf(z, ang)` duly returned the middle
+of the cabin.
+
+**The reported build (`UltraLight3`) is where that becomes visible.** It is a
+naked-frame ultralight: `doorGone 1` (G26.4 — define the door, then take it
+away, opening and all), `skinOn 0`, a pod on a rod boom. `doorGone` DELETES the
+door panel's faces, so the flank really is a hole in the mesh — and measured on
+the loaded build, stations z 1.85..2.70 answered **radius 0 over 27 of the 72
+angles, both flanks**: the whole side of the cabin. `AF.surf(2.1, ±pi/2)` came
+back `[0, -0.046, 2.1]`, dead centre, at waist height, where the pilot is.
+
+So: both main legs rooted at that one point and crossed the centreline
+(`edLegR` spanned x -0.874 **to +0.126**); both lift-strut feet converged on
+it; and `fitPad`, whose angular half-width is `W / halfWAt(z)` with `halfWAt`
+clamped at 0.05, drew the doubler as a huge twisted sheet standing through the
+cockpit — the pale panel in the user's picture.
+
+**THE FIX IS AT THE CONTRACT, because the contract is what lied.**
+`airframeClose` (`_gear_gen.js`) now closes the table over its own misses and
+keeps `HIT` so the inference can be told from the measurement:
+
+- **A HOLE IS NOT A SHAPE.** What a fitting wants is the ENVELOPE — the surface
+  the covering would lie on — and the aeroplane's own skin either side of the
+  gap says where that is.
+- **THE GAP IS CLOSED ALONG THE BODY, NOT ROUND THE SECTION**, and that is the
+  whole of the method. A fuselage changes slowly frame to frame and fast keel
+  to crown, so the trustworthy neighbours of a missing flank are the SAME ANGLE
+  at the stations fore and aft of it — the line the fabric would run.
+  MEASURED both ways on this build: closing round the ring puts the flank at
+  **0.42 m** (it interpolates a 0.29 m flank between a 0.64 m keel and a 0.64 m
+  crown); closing along the body puts it at **0.29 m**, which is what the
+  frames either side of the door actually measure. `halfWAt` across the cabin
+  band now reads 0.293 -> 0.284 instead of **0.000**.
+- The ring is the FALLBACK, for an angle open at every station (a fuselage with
+  no top at all): walk to the nearest hit each way, interpolate, then relax
+  those cells (Gauss-Seidel in place, stopped on the answer at 1e-5) so the two
+  fills meet without a step. A station with no section at all — the gap between
+  a pod and its rod boom — takes its whole row and its centre line the same way.
+- **AND IT SAYS SO.** `AF.solidAt(z, ang)` is true only when all four table
+  samples under the point were real skin; `AF.open` counts the inferred cells
+  (default jodel **35**, all at the nose aperture; this build **1174**).
+
+**NO SKIN, NO PLATE — the user's second ask, finished.** G180 gave open-frame
+GEAR legs a lug pivot; the struts never got one, and the gear's trigger was
+"this aeroplane has no covering" when the honest question is "is there covering
+HERE".
+
+- `GEAR_GEN.memberFrame(MB, tgt, k, maxD)` is now the ONE description of "the
+  nearest tube" over `window.CAGE_MEMBERS`; the gear layer's inline copy is
+  gone and `_cage_wing.js` asks the same function. Two traps it pays for:
+  the normal is **RADIAL** (the component of "towards the fitting"
+  perpendicular to the member) — at a member's END the raw vector is mostly
+  ALONG the tube and every lug and pin built on it comes out raked by the
+  tube's own angle; and `maxD` is real — a rod boom publishes no members, so a
+  tailspring asking at the tailpost was handed the cabin frame 1.6 m forward
+  and stretched to reach it. The callers pass `max(0.25, halfWAt x 1.2)`.
+- `strutBuild(..., {mount})` draws `pivotOn` — a lug pair astride the tube with
+  a bolt through — instead of the doubler and its ten fasteners, and the two
+  feet straddle the site ALONG THE MEMBER instead of round a section that is
+  not there. Measured headless: **1020 -> 352 alloy triangles**. It reports
+  `pivot`, and the status line says `· 2 on frame`, because a fitting that
+  silently switches kind is a fitting nobody can check.
+- `legTailwheel` was the one leg still asking the fuselage contract directly
+  (`fitFrame`/`fitPad`, not `fitOn`/`padOn`): on a tailpost with no skin it
+  bolted its spring to a doubler spread over nothing while every other leg on
+  the same aeroplane had a lug. It goes through the mount now.
+
+**AND A PLATE MAY NOT WRAP ITSELF ROUND THE AEROPLANE** (the "in any case"
+half). `W` is an ARC LENGTH and the section under it can be narrower than the
+plate is wide — a boom, a tailpost, a nose cone — so `padArc` bounds the
+conversion at `PAD_ARC` 2.0 rad (115 deg). On anything with a body under it this
+changes nothing: a 100 mm plate on a 300 mm half-width spans 0.33 rad.
+
+**It was a physics bug too, not only a picture.** `_cage_join.js` measures the
+flown aeroplane's cabin off this same contract — `M.halfW = AF.halfWAt(zs)`,
+`M.cabH`, `M.tailW`, the boom profile rows. A join station that landed in the
+hole handed the solver a **zero-width cabin** with nothing said. On this build
+`zs` fell 0.3 m ahead of the door and it got away with it.
+
+**What is checked.** GATE GEAR section 12 builds a 3 m box whose +x flank is
+cut into three bands and takes the middle one away — the reported aeroplane in
+miniature — and requires the envelope across the doorway to match the intact
+flank within 2 mm, `solidAt` false across it and true fore and aft, a flank
+open END TO END still not collapsing to the centreline, `open` telling the two
+bodies apart, and `padArc` bounded. Section 13 pins `memberFrame`: on the
+tube's surface, normal facing the fitting, RADIAL at a member's end, null
+outside `maxD`, null with nothing published. GATE STRUT section 9 builds the
+fitting BOTH WAYS over the headless kit and compares the drawings.
+
+Green: GEAR, STRUT, FIT, PARTS, MOUNT, DESIGN, SAVE, VIEW, LIGHT, BAY, BEACON,
+ENERGY, SITE, COWL, FIN, CAGEFIT. JOIN was already red on this tree before the
+change (`pusher frame: two mount nodes at x 3.1`) and is red identically after
+— A/B'd by stashing the five files. ARCHETYPES (full tier, ~1 h) not run.
+
+**Not done, said plainly.** The published member set is THIN — `CAGE_MEMBERS`
+carried 20 segments on this build, and at the main-gear station the nearest was
+a front diagonal 327 mm from the site, so the leg roots higher up the frame
+than a beam gear naturally would. That is the interior pass's publication being
+partial, not the mount; the cure is for `cageInterior` to emit every tube it
+draws. `_cage_access.js`'s big conforming plates still divide by a clamped
+`halfWAt` rather than going through `padArc`.
+
+## G197 — THE WAKE THE POLAR ALREADY ASSUMES: THE KERNEL'S SOURCES SHED
+## ELLIPTIC LOADING (2026-09-05, user: "go ahead with the elliptic loading fix")
+
+**The finding.** G185's kernel read the stock monoplane's tail downwash slope
+at 0.223 against a classical far-field 2a/(pi AR) of 0.41, and Prandtl's
+sigma at 0.85-0.88 of the fit; the gate's window was widened to admit it.
+The core cut was suspected and measured inert (0.219 at every core from
+0.30 c to 0.01 c). The cause is the LOADING: every strip carries the same 2D
+lift coefficient, so the circulation is spanwise-uniform and the trailing
+vorticity is all shed at the tips — and a uniformly loaded wing's far-field
+centreline downwash is exactly HALF the elliptic one (eps = CL/(pi AR)
+against 2 CL/(pi AR)). The exported kernel alone, at the Cub's geometry
+(span 9.8, chord 1.55, tail 4.6 m aft and 0.9 m below the c/4 line),
+converged to 64 strips a side:
+
+| loading | far field | at the tail |
+|---|---|---|
+| uniform (what the strips carry) | 0.213 | 0.252 |
+| elliptic | 0.425 | 0.405 |
+
+**The change** (`30_solver.js`, the induction block). The polar's own 3D
+terms (a3d, eAR) already assume near-elliptic loading, so the kernel's
+SOURCES shed that loading; strip forces are untouched — this is the mutual
+term only. Each wing strip gets `Ez`, the mean of sqrt(1 - (2z/b)^2) over
+its bound sub-span with b the plane's live projected span (rebuilt with the
+coefficients), and at application (`weighSources`, before `applyInduction`
+and `measureTailEps`) the plane's MEAN circulation is spread on the template
+scaled so it integrates to the same total, while each strip's own deviation
+from the mean (washout, flaps, ailerons, wash) is shed where it is. The
+bound vortex runs root to tip on BOTH sides, so the side's sign is folded in
+(`sgOf`) to make a lifting plane's circulation one-signed. `induction.loading
+'uniform'` is the negative control and reproduces G185 to 0.001;
+`sim.induction()` exposes the sources for the gate. Monoplanes keep the 0.40
+constant and their flight numbers to the bit (their tail pairs stay
+applied=0); biplanes fly the new field.
+
+**Three wrong versions on the way, each measured.** (1) A plane-wide SIGNED
+sum: the two sides cancel to the centre strip and the scale came out 1.00
+instead of 4/pi. (2) The centre strip excluded from the template: it kept its
+uniform value beside a root raised to 1.25x, a dip shedding a counter-
+rotating pair right under the tail — 30 % of the effect. (3) My outside
+reproduction of the sim's readout disagreed by 2x until it lost its world:
+`makeSim(def, world)` probes IN GROUND EFFECT (gH is the terrain under the
+aeroplane in every aero pass); `genShakedown` builds `makeSim(def, null)`
+and is free-air. With that, the sim's readout, the reproduction from its own
+weights, a pure template and a straight bound line all agree (0.323 /
+0.323 / 0.330 / 0.327).
+
+**Why 0.32 and not 0.40 on the stock.** Toggled one at a time in the
+reproduction: core 0.384 -> 0.384, real bound line (dihedral) 0.384 ->
+0.383, WAKE TILT 0.384 -> 0.333. The legs trail along the free stream; at
+positive alpha the wake rises relative to the body, so a tail already 0.9 m
+below the wing moves further from the wake as alpha grows, and the slope is
+smaller than the on-wake classical figure. That is the straight-wake
+model's physics (a real wake also deflects down by the induced angle, which
+this does not model), not a defect.
+
+**Numbers, from GATE BIPLANE (PASS, four new checks, all four self-tests
+caught).** Tail slope: stock 0.318 (uniform control 0.224), cantilever
+0.324, mid wing 0.354, biplane 0.528. Weights on the stock: centre 1.23x,
+tip 0.26x of the strip circulation; sum(W dz) = sum(Gam dz) to 1e-9.
+Prandtl sigma model/fit: 0.85, 0.88, 0.91, 0.93 at G/b 0.11, 0.18, 0.25,
+0.35 (was 0.85-0.88 flat) — the target planes' strip forces are still
+uniform, so the mutual drag is measured against a uniform target; the
+remaining deficit belongs to the lifting-line-proper arc (the strips
+carrying the loading themselves, with the polar's 3D terms retired), not to
+this one. Munk's stagger theorem still exact (1e-9). GE, HONEST PASS. The
+biplane cards' margins moved with the stronger tail wash (Stearman-alike
+21 -> 13 %, Tiger Moth-alike 24 -> 21 %); ARCHETYPES re-flown.
+
+**The monoplane flip, restated for the user's ruling.** With these anchors
+(0.318 / 0.324 / 0.354 against the 0.40 constant) the flip is NOT a no-op:
+the tail becomes ~13 % more effective on the stock (1 - 0.32 vs 1 - 0.40)
+and every monoplane's static margin rises by a few % MAC. The number is
+honest at each aeroplane's own tail position; the constant is a textbook
+on-wake figure. One line (`downwashModel 'vortex'` for every build) and a
+fleet re-baseline; not done here.
+
 ## G198 — WHERE THE ENGINE'S MASS SITS: THE cgFwd HALF-SESSION (2026-09-05;
 ## TURBOPROP §8's owed item, the user: "start the cgFwd half-session")
 
@@ -31891,120 +32085,6 @@ that follows this entry if it needed a fix-up, and nowhere if it did not.
    sheet's own scale), went from 340 s to a go-around. The wing moved, not
    the engine.
 
-## G193.1 — THE CROSSWIND BOUND RE-FROZEN ON THE FIXTURE'S OWN PHYSICS
-## (2026-09-05, the user: "Re-freeze the wind bound, record the numbers")
-
-G198 hung every engine at its true centre of mass. On the ultralight
-fixture that is each 582's 43 kg 17 cm aft of the nacelle flange, the
-fixture's CG 3.4 cm further aft (0.94 m behind the mains, 0.90 before), and
-GATE TAKEOFF went red on its three crosswind departures: 10.1–10.5 m of
-cross-track through the roll against the 8 m bound G193 froze off a
-measured 6.5 m.
-
-THE TURBINE SESSION MEASURED IT RATHER THAN TUNING IT (the numbers are
-theirs): the excursion rises monotonically with the engine's CG offset
-(6.5 m at 0, 8.1 at 8 cm, 10.1 at 17 cm, 11.5 at 30 cm; the CG node itself
-moves 2 mm, so it is not a bounce); a taildragger with its CG further behind
-the mains swings harder — the nose peaks at 22.7 deg instead of 18.2 and
-settles at 13.5 instead of 8, the proportional balance against the mains'
-side force. No pilot gain restores 8 m: through the swing the rudder sits at
-its 0.95 stop for a full second in both mass states; kP factor 1.4 / 2.0 /
-2.6 gives 10.11 / 9.72 / 9.59 m, kD 3.0 → 4.5 gives 10.23 m; VTailUp is
-irrelevant because the tail is lifted by the aeroplane at 14 m/s (pitch 9.2
-→ 3.7 deg while the hold asks 8.6 with the elevator at its +0.35 stop — the
-wing nacelles' thrust line sits ~0.9 m above the CG, G193's own finding); a
-2.5x pitch gain holds the roll to 7.7 m and then drifts 15 m at lift-off.
-The declared gain knobs were tried and reverted; 40_autopilot.js and
-41_test_pilot.js are byte-identical to before.
-
-THE RULING: the wind bound is the fixture's own physics, re-frozen at 12 m
-(the measured 10.1–10.5 m plus the margin 8 carried over 6.5); calm air
-keeps 4 m; the selftest's doctored records are calm-air and still trip. The
-10 m swing in a 2 m/s crosswind is the DESIGN'S crosswind limit, not a pilot
-defect, and belongs to the builder — mains further aft, a bigger fin, a
-lower thrust line — which is the game. Owed: the plaque should say it (a
-crosswind limit next to the take-off run), so the player learns it from the
-certificate rather than from the grass.
-
-## G193.2 — THE CROSSWIND LIMIT ON THE PLAQUE (2026-09-05, the user: "Put the
-## crosswind limit on the plaque")
-
-G193.1 owed it: the swing a crosswind puts into the take-off roll is the
-design's limit, so the certificate should say it. It does now, in the
-plaque's "on the test flight" section beside the landing run — because it
-is the one number that needs the PILOT (the swing is the tailwheel
-unloading and the rudder holding what it can), genShakedown's still-air
-integrals cannot measure it, and the test flight already runs a second sim
-on the test pilot offscreen.
-
-THE DEFINITION (`src/core/42_crosswind.js`): the strongest crosswind, from
-the right (+z, the side GATE TAKEOFF found worse on the twin), in which the
-test pilot keeps the take-off roll between the base strip's painted edge
-lines (|cross-track| ≤ R.half − 2.5 = 12.5 m on HOME's 30 m strip) and gets
-airborne without a rejected take-off. The band is the STRIP'S, so the
-number means "this aeroplane leaves this field straight in this much wind",
-the way the take-off run is judged against the strip's length. THE HEADING
-AS THE WHEELS LEAVE IS REPORTED BESIDE IT, NOT JUDGED — the first cut judged
-it and was wrong twice over: read at the safe height it penalised the
-default aeroplane's deliberate crab into wind (10° at 4 m/s, airmanship);
-read as the wheels left it penalised the ultralight's weathervane onto its
-scrubbing mains (13° at 2 m/s — the swing G193.1 recorded, real, but the
-strip's edge is what the strip cares about). Both numbers ride the row.
-
-THE MEASUREMENT: a ladder (2, 4, 6, 8, 10 m/s) to the first failure, then
-a bisection to 0.5 m/s; a failure on the first rung adds a calm-air
-departure so "cannot take off straight at all" is measured, not assumed;
-above the 10 m/s cap the row prints "> 10 m/s". Four to seven departures
-from the runway, no taxi, ~40 s of sim each — MEASURED 16 s of wall clock
-for the ultralight and 30 s for the default aeroplane in node. In the page
-it is `makeCrosswindProbe`, polled on the circuit's own wall-clock budget
-after the circuit lands (`tfPoll` chains it; the bench shows CROSSWIND
-w m/s as its phase); the gates call `genCrosswindLimit` whole.
-
-MEASURED, so the row is read against something:
-
-| aeroplane | limit | roll at the limit | heading as the wheels leave | first failure |
-|---|---|---|---|---|
-| the user's ultralight (twin 582, rod boom) | 2.0 m/s | 10.1 m | 13° | 2.5 m/s, 18.7 m off the edge line |
-| the default aeroplane (Cub-class) | 7.5 m/s | 11.8 m | 1° | 8 m/s, 40 m — a sharp knee |
-
-The row's bound is ≥ 4 m/s (warn under it, bad under 2): a Cub's
-demonstrated crosswind is about 5 m/s, and the ultralight's 2.0 m/s reads
-warn, which is what its builder should see. The "why" text names the
-levers: mains further aft, a bigger fin, a lower thrust line — no pilot
-gain moves this number (G193.1).
-
-Gates: TAKEOFF grew the block (a number between 1 and 10, the band is the
-strip's edge lines, every passed rung at or under the limit and every failed
-rung above it, a pass is exactly a roll inside the band, the heading rides
-beside it, inside a minute; a 1 m band reads under 1 m/s, a 100 m band with
-a 4 m/s cap reads "> 4"); UISMOKE restores a report with `xwind` the way a
-saved certificate comes back and reads the row (limit · roll · heading, the
-bound, "> 10 m/s" above the cap). The certificate persists with the report
-(G107.3's envelope carries it unchanged).
-
-## G198.1 — G198's proof: WINGSPLIT re-frozen, GEN proven, TAKEOFF red for a
-## reason that is not the pilot's (2026-09-05)
-
-**WINGSPLIT** went red on 677306c because the CGE node moves every wing node's
-INDEX up by one; every wing node is where it was, by tag, to the millimetre.
-`tools/_wing_split.json` re-frozen. **GEN**: proven on a clean worktree of 677306c, alone on the
-machine at last: 74/74 checks, the envelope, the wing flap and chatter all
-inside (the two 1800 s timeouts were three batteries competing, not verdicts).
-
-**TAKEOFF went red on 677306c, and it was the aeroplane, not the gate's
-pilot.** The ultralight fixture's pulling 582 pair hangs its 2 x 43 kg at
-the true CG, 0.17 m aft of the flange, so the fixture's CG moved 3.4 cm aft
-(0.990 -> 1.024 m; the mains stay at 0.086, drawn) and its three crosswind
-departures tracked 10.1-10.5 m through the roll against G193's 8 m bound —
-monotonic in where the mass sits (6.53 / 8.07 / 10.11 / 11.48 m at 0 / 0.08
-/ 0.17 / 0.30 m aft), the CGE node itself moving 2 mm through the roll. The
-swing is the tail-up moment with the rudder at 0.95 for a full second in
-both mass states; no pilot gain restores 8 m (the sweep was tried and NOT
-landed — 40/41 are byte-identical). **The user ruled: re-freeze the wind
-bound to the measured physics.** The gate is the UltraLight session's, and
-its G193.1 carries the re-freeze and every number; calm stays at 4 m.
-
 ## G200 — MANUAL CONTROLS: THE KEYBOARD, THE STICK, AND ONE MAPPING PANEL ON
 ## BOTH SCREENS (2026-09-05)
 
@@ -32102,3 +32182,484 @@ never did. The shed flyout truncates device labels at the editor's `.v`
 width. Real-hardware listen not exercised by a session. Items 3 and 4 as
 planned in the study.
 
+### G196.1 — AND THE INTERIOR PASS PUBLISHES EVERY TUBE IT DRAWS (2026-09-05,
+### the user, on the debt G196 declared: "fix the interior pass so it publishes
+### every tube it draws")
+
+G196 left this named: `CAGE_MEMBERS` carried **20 segments for a whole
+aeroplane** on the reported build, none of them along the boom, so the nearest
+tube to the main gear's site was a cabin diagonal 327 mm away and the leg
+rooted higher up the frame than a beam gear naturally would.
+
+**IT WAS NEVER A COUNT, IT WAS FOUR MISSING ROUTES.** `cageInterior` published
+from the three SEGMENT primitives only — `tubeSeg`, `beam`, `metalAngle` — and
+the pass draws structure by four more that never reached the list:
+
+- **`tubePath`** (and `tubeRuns`, which delegates to it) — every BENT tube: the
+  pillar hoops, the taper rings, and the boom's own longerons and chines. This
+  is the one that hurt: a rod-boom aeroplane's whole aft structure is drawn
+  here, which is why a tailspring at the tailpost found nothing within 1.6 m.
+  Bent tubes are drawn as ONE sweep for the shading (the rings are shared so
+  the smooth normals run the whole bend) and are published as the segments they
+  are, because "root on the nearest member" is a question about straight pieces.
+- **`punched`** — metal construction's entire frame, the ajouré former hoops
+  and the longeron runs. An aluminium aeroplane published its L-angles and
+  nothing else. The line published is `O`, the flange edge lying AGAINST THE
+  COVERING (where a bracket bolts); the radius is the section's own
+  half-thickness across the frame, floored for the flat-sheet case.
+- **the plywood boom couples** — drawn inline with `add.push`, the wooden
+  equivalent of `punched`, and a fitting on a wooden boom had nothing else.
+
+**ONE DOOR NOW.** `memb(A, B, r, kind)` sits beside `MEMB` and every emitter
+goes through it; it drops zero-length segments, because a node has no direction
+and the frame built on one would take its `fore` from a normalise-by-zero.
+`kind ∈ {tube, beam, angle, former}` says which primitive drew it.
+
+**Measured, on the build that reported the bug** (`intCons` swept, same
+aeroplane):
+
+| construction | members before | after | nearest tube to the gear site |
+|---|---|---|---|
+| steel tube | 20 | **170** | 327 mm → **247 mm** |
+| aluminium | 24 (angles only) | **168** (144 former + 24 angle) | 327 → **247 mm** |
+| plywood (lofted boom) | 41 | **211** (41 beam + 170 former) | — |
+| composite | 15 | 15 | — (a monocoque has no truss, and says so) |
+
+The bench presets: jodel 41 → **211**, piper cub → **569**, sailplane **0**
+(composite: honest). The main leg's root moved from `y +0.06` — above the waist,
+inside the cabin — to `y −0.11`, and it now sits on the flank tube at
+`[0.281, −0.168, 1.627]` against a requested site of `[0.293, −0.168, 1.86]`:
+the same height, a longeron node forward.
+
+**Nothing moved on a skinned aeroplane.** `memberFrame` is consulted only where
+`solidAt` says there is no covering, so all three presets keep their doublers
+and their identical strut notes.
+
+**What is checked, and a grep would prove nothing** — the failure is a drawing
+route that forgot to publish, and a new route can forget again. So THE DRAWING
+IS THE INSTRUMENT. GATE FIT now:
+
+- takes every face the pass emits in the `tube` material (the material only
+  `tubeSeg` and `tubePath` write) and requires a published member near it. A
+  tube face sits one radius off its own axis, so "near" is centimetres —
+  measured, every face is INSIDE its member (−1 mm). Delete `tubePath`'s
+  publisher and it reports *819 mm at z −2.00*, which is the reported bug in
+  one line;
+- names each route by `kind` per technique — tube → `tube`, plywood →
+  `beam` + `former`, aluminium → `angle` + `former` — so a technique that
+  loses a route is a missing kind, not a number that quietly got smaller;
+- requires the published span to COVER the drawn structure's span within a
+  bay (0.25 cage units), which is the "a boom full of tubes with no member in
+  it" failure stated directly;
+- and requires no zero-length or radiusless segment to be published.
+
+All three publishers were removed one at a time and each is caught alone:
+`tubePath` → 4 reds, `punched` → 2, the plywood couples → 1.
+
+Green: FIT, PARTS, GEAR, STRUT, MOUNT, STARTER, CAGEFIT, JOIN, SKINMAT, SURF,
+ENERGY, BAY, LIGHT, BEACON, DESIGN, SAVE, COWL, FIN, SITE, VIEW. (GATE JOIN's
+pusher red from earlier in the day is gone — another session's fix on this
+tree, not this one's.)
+
+**Still not published, and deliberately.** The rod socket's hardware — flange
+plates, the welded sleeve, its bolts — is a FITTING, not a member; a leg has no
+business rooting on a bolt head. The composite technique publishes 15 segments
+because a monocoque genuinely has no truss: there its shell IS the structure,
+and a fitting on it falls back to the envelope with a doubler, which is right.
+The pre-existing `5 unplaced` fittings on an open-frame build (the access
+layer refusing sites with no covering) was there before this arc and is
+untouched — A/B'd by stashing.
+
+## G193.1 — THE CROSSWIND BOUND RE-FROZEN ON THE FIXTURE'S OWN PHYSICS
+## (2026-09-05, the user: "Re-freeze the wind bound, record the numbers")
+
+G198 hung every engine at its true centre of mass. On the ultralight
+fixture that is each 582's 43 kg 17 cm aft of the nacelle flange, the
+fixture's CG 3.4 cm further aft (0.94 m behind the mains, 0.90 before), and
+GATE TAKEOFF went red on its three crosswind departures: 10.1–10.5 m of
+cross-track through the roll against the 8 m bound G193 froze off a
+measured 6.5 m.
+
+THE TURBINE SESSION MEASURED IT RATHER THAN TUNING IT (the numbers are
+theirs): the excursion rises monotonically with the engine's CG offset
+(6.5 m at 0, 8.1 at 8 cm, 10.1 at 17 cm, 11.5 at 30 cm; the CG node itself
+moves 2 mm, so it is not a bounce); a taildragger with its CG further behind
+the mains swings harder — the nose peaks at 22.7 deg instead of 18.2 and
+settles at 13.5 instead of 8, the proportional balance against the mains'
+side force. No pilot gain restores 8 m: through the swing the rudder sits at
+its 0.95 stop for a full second in both mass states; kP factor 1.4 / 2.0 /
+2.6 gives 10.11 / 9.72 / 9.59 m, kD 3.0 → 4.5 gives 10.23 m; VTailUp is
+irrelevant because the tail is lifted by the aeroplane at 14 m/s (pitch 9.2
+→ 3.7 deg while the hold asks 8.6 with the elevator at its +0.35 stop — the
+wing nacelles' thrust line sits ~0.9 m above the CG, G193's own finding); a
+2.5x pitch gain holds the roll to 7.7 m and then drifts 15 m at lift-off.
+The declared gain knobs were tried and reverted; 40_autopilot.js and
+41_test_pilot.js are byte-identical to before.
+
+THE RULING: the wind bound is the fixture's own physics, re-frozen at 12 m
+(the measured 10.1–10.5 m plus the margin 8 carried over 6.5); calm air
+keeps 4 m; the selftest's doctored records are calm-air and still trip. The
+10 m swing in a 2 m/s crosswind is the DESIGN'S crosswind limit, not a pilot
+defect, and belongs to the builder — mains further aft, a bigger fin, a
+lower thrust line — which is the game. Owed: the plaque should say it (a
+crosswind limit next to the take-off run), so the player learns it from the
+certificate rather than from the grass.
+
+## G193.2 — THE CROSSWIND LIMIT ON THE PLAQUE (2026-09-05, the user: "Put the
+## crosswind limit on the plaque")
+
+G193.1 owed it: the swing a crosswind puts into the take-off roll is the
+design's limit, so the certificate should say it. It does now, in the
+plaque's "on the test flight" section beside the landing run — because it
+is the one number that needs the PILOT (the swing is the tailwheel
+unloading and the rudder holding what it can), genShakedown's still-air
+integrals cannot measure it, and the test flight already runs a second sim
+on the test pilot offscreen.
+
+THE DEFINITION (`src/core/42_crosswind.js`): the strongest crosswind, from
+the right (+z, the side GATE TAKEOFF found worse on the twin), in which the
+test pilot keeps the take-off roll between the base strip's painted edge
+lines (|cross-track| ≤ R.half − 2.5 = 12.5 m on HOME's 30 m strip) and gets
+airborne without a rejected take-off. The band is the STRIP'S, so the
+number means "this aeroplane leaves this field straight in this much wind",
+the way the take-off run is judged against the strip's length. THE HEADING
+AS THE WHEELS LEAVE IS REPORTED BESIDE IT, NOT JUDGED — the first cut judged
+it and was wrong twice over: read at the safe height it penalised the
+default aeroplane's deliberate crab into wind (10° at 4 m/s, airmanship);
+read as the wheels left it penalised the ultralight's weathervane onto its
+scrubbing mains (13° at 2 m/s — the swing G193.1 recorded, real, but the
+strip's edge is what the strip cares about). Both numbers ride the row.
+
+THE MEASUREMENT: a ladder (2, 4, 6, 8, 10 m/s) to the first failure, then
+a bisection to 0.5 m/s; a failure on the first rung adds a calm-air
+departure so "cannot take off straight at all" is measured, not assumed;
+above the 10 m/s cap the row prints "> 10 m/s". Four to seven departures
+from the runway, no taxi, ~40 s of sim each — MEASURED 16 s of wall clock
+for the ultralight and 30 s for the default aeroplane in node. In the page
+it is `makeCrosswindProbe`, polled on the circuit's own wall-clock budget
+after the circuit lands (`tfPoll` chains it; the bench shows CROSSWIND
+w m/s as its phase); the gates call `genCrosswindLimit` whole.
+
+MEASURED, so the row is read against something:
+
+| aeroplane | limit | roll at the limit | heading as the wheels leave | first failure |
+|---|---|---|---|---|
+| the user's ultralight (twin 582, rod boom) | 2.0 m/s | 10.1 m | 13° | 2.5 m/s, 18.7 m off the edge line |
+| the default aeroplane (Cub-class) | 7.5 m/s | 11.8 m | 1° | 8 m/s, 40 m — a sharp knee |
+
+The row's bound is ≥ 4 m/s (warn under it, bad under 2): a Cub's
+demonstrated crosswind is about 5 m/s, and the ultralight's 2.0 m/s reads
+warn, which is what its builder should see. The "why" text names the
+levers: mains further aft, a bigger fin, a lower thrust line — no pilot
+gain moves this number (G193.1).
+
+Gates: TAKEOFF grew the block (a number between 1 and 10, the band is the
+strip's edge lines, every passed rung at or under the limit and every failed
+rung above it, a pass is exactly a roll inside the band, the heading rides
+beside it, inside a minute; a 1 m band reads under 1 m/s, a 100 m band with
+a 4 m/s cap reads "> 4"); UISMOKE restores a report with `xwind` the way a
+saved certificate comes back and reads the row (limit · roll · heading, the
+bound, "> 10 m/s" above the cap). The certificate persists with the report
+(G107.3's envelope carries it unchanged).
+
+## G199 — THE TAIL POST THAT MOVED AHEAD OF THE TAILWHEEL: G188'S POD FALLBACK
+## FIRED ON EVERY ROD BOOM (2026-09-05, the user, UltraLight3 attached: "its
+## tail wheel behaves really erratically, and I checked, most tail wheels have
+## issues, and it seems like the whole tail might have issues. It was stable in
+## this build before, and now it breaks on load")
+
+**Where it was NOT.** The saved build, run headless through `buildGen` +
+`makeSim` + `stance` + a 600-frame settle, is the same aeroplane on yesterday's
+last commit (eb9df15), on HEAD and on the working tree: tailwheel at rest on
+the third frame, max strain 1.8 %, three-point pitch 9.2°. G196's hole-closing
+leaves the tailwheel contact and `twX/twY` bit-identical; G197's loading is
+inert on a monoplane; the cage's `boomLen 2.99 -> 4.45` on load is G189's
+taper migration and the skin's extents are identical either side of it. The
+solver was innocent. The LOAD was not.
+
+**Where it was.** The build loaded in the real editor on all three code
+states (the join's `export()` read back after `GARAGE_SPEC.set`). Yesterday's
+commit rewrites no fuselage or tail row. HEAD and the working tree rewrite
+these, identically:
+
+| row | saved | rewritten on load |
+|---|---|---|
+| fuselage.postGap | 0.67 | 0.127 |
+| fuselage.tailArm | 4.54 | 4.41 |
+| tailW / tailBot / tailTop | 0.10 / 0.20 / 0.38 | 0.057 / 0.279 / 0.393 |
+| tail.hSpan x hChord | null (generator 2.96 x 0.80) | 11.8 x 3.25 (clamped 4.5 x 1.6) |
+| tail.hX | null (5.0) | 3.54 |
+
+**One line, in 4a5b4cf (G188, 16:47 the same day).** `_cage_join.js`
+measure(): `if (zPost == null) zPost = AF.z0 + tailLen x FS`. It was written
+for a POD — a reflected cabin has no ring table, so its post is the skin's aft
+extreme plus the tail cone — but the condition it was written under is "no
+tail post ring", and a ROD boom has no ring either (G26: "a ROD boom has no
+tail rings"). On a rod the skin ENDS AT THE ROD (`AF.z0` -1.90) while the fin
+spans z -3.4..-1.15 and the tailwheel contact sits at z -2.21: the fallback put
+the post at -1.78, so the frame built `TPB/TPT` at x 4.54 against a tailwheel
+node at x 4.85 — 0.67 m AHEAD of the wheel it holds up. The leg `TW->TPB` and
+the rule-10 snap-blocker `TW->TPT` pointed backwards, the post section became
+the rod's own (9 cm tall), and `M.postGap` shrank from the default gap that
+happened to be right to the cone's length. Before G188, `zPost` null skipped
+the whole tail block and the saved rows stood; that is why yesterday flew.
+
+**The stab at the wing's span is the same gate, one block on.** With the tail
+block now reached, `tailSurfBounds(zCabA - 0.8)` walked the WHOLE mount and
+classified every vertex outboard of the boom as stab. On this short-cabin
+build the region starts at z 0.739 and the wing's trailing edge is at 0.651,
+so the wing's TE vertices (|x| to 5.9) were counted: hSpan 11.8, hChord 3.25
+(the wing TE to the stab TE), the stab 1.5 m forward of where it is.
+
+**A/B, headless, today's rows fed to the solver one family at a time:**
+
+| rows | sustained max strain | three-point pitch |
+|---|---|---|
+| saved | 1.8 % | 9.2° |
+| today's fuselage tail rows only | 12-13 % | 13.4° |
+| today's stab rows only | 1.3 % | 9.2° |
+
+The post rows are the killer; the stab rows are wrong but mild alone.
+
+**The fix, two lines of intent.**
+- `cageJoinPostZ(zRing, pod, z0, tailLen, FS)` is the ONE place the post
+  fallback lives, module-level and exported: a ring is the ring; a pod with no
+  ring takes G188's skin-end-plus-cone; anything else with no ring measures NO
+  post, and the merge keeps the saved rows (`if (M.postGap > 0)`, as always).
+  A rod boom therefore flies exactly what it flew before G188. The honest
+  station for a rod's post — the fin root, or the tailwheel's own station — is
+  still owed; the default gap is a default, and the code says so.
+- `tailSurfBounds` walks `cageLayer:stab` and `cageLayer:fin` (the named
+  groups `layerBounds` already finds) instead of the whole mount; the whole
+  mount is the fallback only when neither exists. "Wing, struts and gear are
+  forward of the region" was an assumption; it is no longer relied on.
+
+**What is checked.** GATE JOIN pins `cageJoinPostZ`'s three answers (ring /
+pod / rod), the undefined-and-NaN ring, and that a join with no post and no
+tail measurement writes NONE of `postGap/tailW/tailBot/tailTop/hSpan/hX/
+vHeight` — the save's own stand. The load itself was re-verified in the
+browser after the rebuild: the ultralight's fuselage and tail rows come back
+unchanged (zero diffs against the file), and the default aeroplane (a lofted
+boom with its ring) still measures its post (tailArm 4.87) and its stab
+(3.05 x 0.89).
+
+Core battery after the rebuild: every gate green except GEN, which hit the
+runner's 1800 s cap with no failed check (peer sessions' load); re-run alone it
+PASSES in 1872 s — past the cap even alone, so the cap is now too short on
+this machine (the runner's own note: "a timeout is not a verdict"). Not
+committed — the tree is shared; see docs/SHARED-TREE-PRACTICES.md.
+
+**Verified against a rod-boom build, which is the lesson.** Every join change
+since G45 was A/B'd on the default lofted boom, which has every ring. The two
+ring-less constructions — pod and rod — are where a "no ring" fallback lands,
+and they want opposite answers.
+
+## G199.1 / G199.2 — THE ROD BOOM'S OWN POST, THE FRAME THAT CAN CARRY A
+## TRAILING TAILWHEEL, AND THE SECOND PLANE'S GROUP THAT WAS NEVER DISPOSED
+## (2026-09-06, the user: "fix the 2 owed items")
+
+**G199.1 — the honest post station, and what the frame had to learn.** G199
+took G188's fallback back to pods while the regression was found. Measuring
+the rod boom properly says the fallback was RIGHT for the rod as well: the
+fin's hinge line sits at the tube's end (fin cage `loH1/uH1` at z -2.545 cage
+units = -1.896 m against the rod's end -1.903), the tailwheel roots there
+(spring root z -1.843) and trails to -2.211, and the frame's post has always
+been the skin's aft extreme (postX = tailArm + postGap = zFw - AF.z0 on every
+loft). So `cageJoinPostZ(zRing, z0, tailLen, FS)` is G188's line again for
+every ring-less boom, and the two things that actually broke were the frame's:
+
+- **A wheel that trails the post.** The rule-10 pyramid's base — the last
+  frame and the post — is meant to straddle the wheel (the default twX is
+  postX - 0.10). With the wheel 0.3 m behind the post every anchor was
+  forward of it, the fan spanned 20 degrees, and the tail hunted on it. The
+  station alone, on the frame as it was: 5.9 % sustained strain; with the
+  tube's section as well, 13 %. A real leaf spring is a cantilever the truss
+  cannot carry, so a wheel with `twX > postX + 0.02` takes an INTERNAL stay to
+  the fin apex (`61_gen_frame.js`, beside the snap-blocker; not drawn under
+  the covering). A wheel ahead of the post builds exactly what it built.
+- **A post never shorter than 0.15 m.** TPB/TPT sit 0.05 in from the floor
+  and 0.02 from the deck of the post section; on the rod that section is the
+  tube's 0.11 m, so the post was a 0.044 m stub carrying the whole tail (5.8 %
+  on that one member with everything else under 2 %). The post on a rod is
+  the socket fitting the fin stands in, and it stands above the tube. Inert
+  on every loft (their post sections clear 0.22 m).
+
+Measured headless on the user's ultralight, each step on its own:
+
+| rows -> frame | max strain | three-point pitch |
+|---|---|---|
+| saved rows, frame as it was | 1.80 % | 9.2° |
+| honest station, frame as it was | 13.1 % | 13.8° |
+| + the fin stay | 5.8 % (the post stub) | 9.1° |
+| + the 0.15 m post | **1.71 %** | **8.4°** |
+| saved rows, new frame | 1.74 % | 9.0° |
+
+What the join now measures on the build (the editor, after the rebuild):
+tailArm 4.41, postGap 0.127, the tube's section 0.057 / 0.279 / 0.393, and
+from the tail layers alone (G199) hSpan 3.06, hChord 1.26, hX 4.53, vHeight
+1.66, vX 4.40 — a stab of the size drawn instead of the wing's, and no error
+row. GATE JOIN pins the helper's two answers and flies the fixture (the user's
+own file, the one GATE TAKEOFF flies) twice: the saved rows and the measured
+rows as constants, each settling on three wheels under 3 % strain at 7-11
+degrees, the trailing wheel with its stay and the ahead wheel without, the
+post at least 0.15 m.
+
+**G199.2 — the second plane's group.** `group2` (`cageLayer:wing2`) was a
+`let` inside the wing layer's build, so nothing held it between two builds
+and nothing disposed it: every rebuild of a biplane added another copy to the
+mount (three identical groups measured on the shared tree's page), and every
+walk over the mount — the tail bounds, the snapshot — saw the stale copies.
+It is module-level beside `group` and disposed with it. Verified in the
+editor: `w2On` on -> one wing2; two more rebuilds -> still one; off -> none.
+
+Gates after the rebuild: JOIN (the new G199 block), GEAR, STRESS, TAKEOFF
+green; GEN re-run alone after the frame change: PASS. ARCHETYPES is
+RED, and it was red before this session touched the frame — A/B'd against a
+copy of the pre-change core: identical failures. The Cub-alike bakes with
+engine `outrunner2212_9x47` (an RC outrunner: climb 0.09 m/s, take-off run
+1.95 km), so designBake's engine choice no longer lands on the row it names —
+G195's picker/registry re-cut, not this arc's. Not fixed here; flagged.
+
+Not committed — the tree is shared; see docs/SHARED-TREE-PRACTICES.md.
+
+## G201 — THE FLIGHT-TEST PASS: EVERY CARD THROUGH EVERY TEST, AND THE ENGINE
+## THAT WAS SOMEONE ELSE'S (2026-09-06, the user: "have all the archetypes run
+## at least the first flight test, and see what comes up. For the ones
+## clearing it, run all of them. Report, with the reason for failure. Then fix
+## all the easy wins, then report again")
+
+**The series.** Six headless flight tests per card, on designBake's pre-join
+spec through GATE ARCHETYPES's own loader (verbatim), 12 cards at a time on
+the 24 cores: (1) THE CIRCUIT — the test pilot to a full stop, the gate's
+step 4, and the first flight test: a card red here flies nothing else; (2)
+THE TEST CARD — 150 m at the sheet's own cruise, held within 7 % on the
+settled leg (the plaque's `held` row); (3) THE CROSSWIND LIMIT (G193.2),
+ok at 4 m/s and up; (4)+(5) TWO DEPARTURES FROM THE STAND, calm and a 2 m/s
+crosswind, under GATE TAKEOFF's judge (taxi cross-track, a real stop on the
+hold, a straight roll, lift-off inside 4 / 12 m); (6) THE CIRCUIT ON GATE
+HOTHIGH'S DAY (35 C, 1008 hPa, wind and gust). The runner is in the tree
+now as `tools/arch_fly.js <key> [tests]` — a bench, not a gate: one card,
+every test, WHY as JSON, in a minute (a biplane in twenty). The G190 lesson
+("a scratch script around the gate's loader answers a one-card question in
+a minute") made a tool.
+
+**What the first flight found: every card was flying someone else's engine.**
+Five cards rejected their take-off at 8 s with "thrust is going nowhere":
+the Cub-alike baked with `outrunner2212_9x47` (an RC outrunner, climb 0.09
+m/s, run 1.95 km), the ultralight with the A-65, the C172-alike with the
+12 kW paramotor, the Caravan with the PT6A-34, the Stearman with the Hirth
+508. Bisected on two clean worktrees (G200 right, HEAD wrong): G195.1
+sorted the birth flow's engine tiles by power and designBake read that
+SORTED list with the SAVED index at both of its look-ups (the preset apply
+and the join-map row). designPresetIndex wrote the unsorted index; the
+read-back used the sorted list; 25 of 25 cards were born with another
+card's engine, in the game too, since 02:09 this morning. The full-tier
+gate was the only thing that could have said so, and it had not been run
+(the G199.1 session ran it, saw the red, A/B'd it clear of its own change
+and flagged it — the note at the end of that entry). FIXED: ONE list,
+`designPresetNames()` (the layer's saved order), for the write and both
+read-backs. GATE DESIGN holds it now, statically and in the core tier: for
+every live card that names a model, the baked `engines[0].type` must be the
+join map's row for that name ("archetype bakes the engine it names"; the
+selftest doctors designBake to hand back an outrunner and the check goes
+red). Run against the broken HEAD worktree the new check fails 25 of 25.
+Two stale selftest cases fixed on the way — the "inactive family" probe
+crashed on `undefined` since G195 made every family live (it takes any
+row's inactive option now), and the envelope probe's 16 m span stopped
+biting when G175 opened the sail class to 18 (30 m).
+
+**With the right engines, the run: 25 flown, 25 complete their first
+flight, 25 cleared to the series; 23 of 25 green on all six tests.**
+
+| card | mass | SM | climb | TO | Vs | Vc | xwind | landing run / sink | red |
+|---|---|---|---|---|---|---|---|---|---|
+| Cub-alike | 470 | .187 | 3.1 | 235 | 18.2 | 34.1 | 7.0 | 290 / 0.72 | — |
+| Air Camper-alike | 480 | .279 | 2.7 | 318 | 19.6 | 32.6 | 5.5 | 333 / 1.43 | — |
+| Tiger Moth-alike | 638 | .211 | 1.3 | 301 | 17.0 | 26.5 | 6.5 | 241 / 1.43 | card: no settled leg |
+| Stearman-alike | 641 | .134 | 11.3 | 71 | 19.1 | 42.0 | >10 | 260 / 1.16 | — |
+| aerobatic biplane | 641 | .107 | 6.3 | 164 | 21.7 | 46.2 | >10 | 78 / 1.92 | — |
+| sesquiplane | 648 | .149 | 2.6 | 243 | 18.3 | 33.3 | >10 | 303 / 1.45 | — |
+| Jodel-alike | 530 | .130 | 4.7 | 231 | 21.2 | 41.5 | 8.5 | 346 / 0.86 | — |
+| C172-alike | 593 | .277 | 8.0 | 111 | 20.2 | 45.2 | 9.5 | 437 / 1.19 | — |
+| Caravan-alike | 1149 | .443 | 19.3 | 69 | 22.5 | 50.3 | >10 | 595 / 1.97 | — |
+| RV-alike | 592 | .258 | 8.5 | 130 | 22.3 | 49.9 | >10 | 466 / 0.80 | — |
+| Savannah-alike | 416 | .155 | 4.5 | 163 | 18.0 | 37.4 | 8.0 | 140 / 2.13 | — |
+| ultralight | 363 | .115 | 4.0 | 142 | 16.6 | 34.6 | 8.0 | 215 / 0.85 | — |
+| pod-and-boom pusher | 403 | .115 | 3.3 | 152 | 18.0 | 32.4 | >10 | 228 / 1.24 | — |
+| Motorglider | 372 | **-.031** | 5.5 | 117 | 18.3 | 39.4 | 9.5 | 181 / 1.53 | card: holds 33.3 of 39.4 |
+| Radial tourer | 599 | .136 | 7.0 | 164 | 21.0 | 47.0 | >10 | 381 / 0.90 | — |
+| Electric trainer | 373 | **-.026** | 5.2 | 133 | 19.6 | 39.0 | >10 | 108 / **5.11** | — |
+| T-tail tourer | 639 | .206 | 7.8 | 131 | 21.6 | 48.2 | >10 | 426 / 0.80 | — |
+| V-tail tourer | 641 | .199 | 7.7 | 126 | 21.1 | 47.3 | >10 | 402 / 0.88 | — |
+| Whittaker-alike | 366 | .134 | 3.2 | 123 | 16.7 | 28.6 | >10 | 159 / 1.69 | card: no settled leg (76 s roll) |
+| Archaeopteryx-alike | 330 | **-.048** | 5.5 | 76 | 15.7 | 35.2 | >10 | 147 / 1.48 | — |
+| DA62-alike | 831 | .147 | 13.6 | 86 | 22.4 | 49.6 | >10 | 379 / 1.12 | — |
+| Twin bush hauler | 860 | .197 | 10.7 | 54 | 17.0 | 38.0 | >10 | 245 / 1.15 | — |
+| Skymaster-alike | 639 | .258 | 7.8 | 138 | 21.6 | 48.2 | >10 | 491 / 1.44 | — |
+| P-38-alike | 573 | .130 | 8.8 | 105 | 20.9 | 46.7 | >10 | 281 / 1.36 | — |
+| Beaver-alike | 848 | .311 | 13.3 | 61 | 17.6 | 39.5 | >10 | 335 / 0.69 | — |
+
+(mass kg, SM static margin, climb m/s, TO take-off run m, Vs / Vc m/s,
+xwind the crosswind limit m/s, sink m/s at touchdown. Every card: crosswind
+at or above the plaque's 4 m/s, both stand departures clean, the hot day
+completed. The two cards without a settled cruise leg on the 150 m ask are
+the slow climbers — the Tiger Moth on the A-65 reaches 150 m at the turn.)
+
+**The easy wins, measured and applied.**
+- *The three electric cards* baked with the margin UNDER ZERO (the plaque's
+  red) and flew anyway; the e-trainer arrived at 5.1 m/s of sink. The E-811
+  is light for the noses it sits in. Swept: +5 % of margin per 10 cm of
+  wing station AFT (`wgDx` negative — the sign convention, measured: the
+  Stearman's +0.60 is forward). All three take `wgDx -0.30`: motorglider
+  12.0 % (circuit 314 s, sink 0.36), e-trainer 10.9 % (227 s, sink 1.05,
+  card held 39.5 of 39.0), Archaeopteryx 10.4 % (253 s, sink 1.07, card
+  held 35.5 of 35.3).
+- *The Whittaker-alike* rolled 76 s to 35 m/s on THREE wheels (the sheet
+  says 123 m) — no power cap (`genGroundPowerCap` reads 1), full thrust,
+  but the 582 on a 0.32 m pylon over a high wing pushes the nose down and a
+  tricycle in the test pilot's ROLL holds a fixed elevator (`rollDe 0.02`)
+  until the wing floats it off: `rotateTD` is the taildragger's alone. The
+  same 582 on the ultralight's nose lifts at 12 s. The pylon at 0.15 m:
+  32 s (0.05 m: 27 s); the engine stays over the wing; the card holds its
+  cruise leg now (143 m / 28.2 of 28.6). The rest is a TRIKE ROTATION in the
+  pilot — every tricycle with a high thrust line rolls long until it has
+  one — and that is a pilot chantier with the fleet gates behind it, not a
+  card fix. Flagged.
+
+**After the fixes: 24 of 25 green on all six tests.** The one red is the
+motorglider's test card: at full throttle the pilot holds 33.6 m/s at 150 m
+against the sheet's 39.5 cruise (cant-hold-speed). Probed free-air at the
+sheet's cruise: 654 N of drag against 1000 N of thrust at 39.5 — the sheet
+is not wrong on its own terms, and the e-trainer with the same engine holds
+39.5 of 39.0. Something the flown circuit has that the free-air probe does
+not (the 13 m wing's flex, the T-tail's trim, the live world's air) costs
+this card a third of its thrust margin. Owed to the shakedown-vs-flown
+question, a session of its own; the card is not touched for it.
+
+**What the pass did not fix, on purpose.** The Caravan's 595 m landing run
+(the plaque warns at 500), the Savannah's and the aerobatic biplane's firm
+arrivals (2.13 / 1.92 m/s of sink against the 1.8 warn), the Tiger Moth's
+1.3 m/s climb on the A-65 (the Gipsy row is still owed) — all information
+the plaque already prints, none a failure.
+
+**Gates.** GATE DESIGN + selftest 17/17 green (the new case caught, the two
+stale ones repaired). The core battery and GATE ARCHETYPES on the working
+tree: see the last line of this entry.
+
+**The tree.** The working tree carried other sessions' uncommitted work
+throughout (G197's elliptic loading in the solver — monoplanes unchanged by
+its own account; G199's join and frame; the crosswind file); the flights
+above are the working tree's. Not committed — the tree is shared; see
+docs/SHARED-TREE-PRACTICES.md. Files: `tools/_cage_design.js` (the fix,
+four cards), `tools/_design_check.js` (the check, two selftest repairs),
+`tools/arch_fly.js` (new).
+
+**Gates, measured.** GATE ARCHETYPES on the working tree: PASS, 25 flown, 0
+skipped, 176 checks (the official full-tier verdict, after the fixes). The
+core battery on the working tree: FAIL on three — WINGSPLIT (positions and
+hinges moved), ENERGYBASE (the stock build's cg0 0.8860 -> 0.8866, masses,
+positions, ledger), JOIN — all three PASS on a clean HEAD worktree, and PASS
+again on that worktree with this session's three files copied in (DESIGN
+PASS beside them): they are the other sessions' frame work (G198/G199.1) owing
+a re-freeze, not this pass's. Everything else in core green (2567 s under
+the archetype gate and the re-flights).

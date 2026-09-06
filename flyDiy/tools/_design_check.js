@@ -353,6 +353,26 @@ function checkArchetypes(A) {
       for (const p of patchPaths(a.over.spec))
         ok = check(specPathOk(p), 'archetype over.spec path GEN_DEFAULT ' +
           'does not carry', `${a.key}: ${p}`) && ok;
+    // 2026-09-06: THE ENGINE IT NAMES IS THE ENGINE IT BAKES. G195.1 sorted
+    // the model tiles by power and designBake read the sorted list with the
+    // saved index — every card flew some other card's engine (the Cub-alike
+    // an RC outrunner, the ultralight the A-65) and only the full-tier
+    // flight gate could have said so. This is the static half: the baked
+    // spec's engine type must be the join map's row for the model the card
+    // selects, for every live card that names one.
+    if (a.sel.engModel && !A.archInactive(a) && typeof A.designBake === 'function') {
+      const JE = W.CAGE_JOIN_ENGINES ||
+        (W.CAGE_JOIN_ENGINES = require(path.join(T, '_cage_join.js')).CAGE_JOIN_ENGINES);
+      let baked = null;
+      try { baked = A.designBake(a.sel, a.over); }
+      catch (e) { ok = check(false, 'archetype designBake threw', `${a.key}: ${e.message}`); }
+      if (baked) {
+        const got = baked.engines && baked.engines[0] && baked.engines[0].type;
+        ok = check(!!JE[a.sel.engModel] && got === JE[a.sel.engModel],
+          'archetype bakes the engine it names',
+          `${a.key}: ${a.sel.engModel} -> ${got} (the join map says ${JE[a.sel.engModel]})`) && ok;
+      }
+    }
   }
   // at least one archetype flies today — a list that is all backlog would
   // make GATE ARCHETYPES a no-op wearing green
@@ -502,6 +522,7 @@ if (process.argv.includes('--selftest')) {
         return (r.options || []).find(o => o.value === v) || null;
       },
       designApply: D.designApply, archInactive: D.archInactive,
+      designBake: D.designBake,
       designPresetIndex: D.designPresetIndex,
     };
   };
@@ -513,7 +534,10 @@ if (process.argv.includes('--selftest')) {
     ['an option that writes nothing and says nothing', A => {
       delete A.rowByKey.mirror.options[0].writes; return checkOptions(A); }],
     ['an inactive option that writes anyway', A => {
-      const o = A.rowByKey.engFamily.options.find(x => x.inactive);
+      // any row's inactive option (the engine families are all live since
+      // G195 — this case crashed on `undefined` from then to 2026-09-06)
+      const o = A.DESIGN_ROWS.flatMap(r => Array.isArray(r.options) ? r.options : [])
+        .find(x => x.inactive);
       o.writes = { cage: { engPower: 0 } }; return checkOptions(A); }],
     ['an option with no drawable icon', A => {
       A.rowByKey.wgPos.options[0].icon = { vb: '0 0 1 1', paths: [] };
@@ -539,7 +563,7 @@ if (process.argv.includes('--selftest')) {
     ['a live class promising a wing the clamp would bite', A => {
       // G132: the class's wing lives in its SEED now
       const o = A.rowByKey['class'].options.find(x => !x.inactive && x.seed);
-      o.seed.cage.wgSpan = 16.0; return checkEnvelope(A); }],
+      o.seed.cage.wgSpan = 30.0; return checkEnvelope(A); }],  // 16 m stopped biting when the sail class opened the envelope to 18 (G175)
     ['an archetype selecting a row that does not exist', A => {
       A.ARCHETYPES[0].sel = Object.assign({}, A.ARCHETYPES[0].sel,
                                           { warpDrive: 1 });
@@ -547,6 +571,12 @@ if (process.argv.includes('--selftest')) {
     ['an archetype selecting an option that does not exist', A => {
       A.ARCHETYPES[0].sel = Object.assign({}, A.ARCHETYPES[0].sel,
                                           { canopy: 'dome' });
+      return checkArchetypes(A); }],
+    ["an archetype baked with another card's engine", A => {
+      const real = A.designBake;
+      A.designBake = (sel, over) => {
+        const s = real(sel, over);
+        s.engines[0].type = 'outrunner2212_9x47'; return s; };
       return checkArchetypes(A); }],
     // G132: the two new families must themselves be breakable
     ['a tile lighting the wrong state', A => {

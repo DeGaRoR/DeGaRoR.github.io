@@ -396,20 +396,49 @@ function strutBuild(bags, AF, site, ends, opt) {
   // plate plus both clevises plus a station either side for the normals.
   const reach = FIT.padL * 0.5 + FIT.lugGap + 0.10;
   const S = strutSkin(AF, site.z - reach, site.z + reach) || AF;
-  const F = GG.fitFrame(S, site.z, site.ang);
 
-  // the doubler and its four bolts
-  GG.fitPad(bags, S, site.z, site.ang, FIT.padL, FIT.padW, { thick: FIT.padT });
-  // ...and the screws, on the plate's own curve. The angular half-width is the
-  // same conversion fitPad uses, so a screw lands on the plate and not beside
-  // it however fat or thin the section under it is.
-  const aw = FIT.padW * 0.36 / Math.max(0.05, S.halfWAt(site.z));
-  for (const [dz, da] of [[0, -aw], [0, aw],
-                          [-FIT.padL * 0.46, 0], [FIT.padL * 0.46, 0],
-                          [-FIT.padL * 0.24, -aw], [FIT.padL * 0.24, aw]]) {
-    const zz = site.z + dz, aa = site.ang + da;
-    K.bolt(bags.alloy, K.off(S.surf(zz, aa), S.nrmAt(zz, aa), FIT.padT),
-           S.nrmAt(zz, aa), FIT.screwR, FIT.screwL);
+  // NO SKIN, NO PLATE (2026-09-05, the user: the fittings "look for a plate to
+  // attach to ... I thought I had asked already for no-plate-options, so it
+  // can attach straight to a tube structure"). `opt.mount` is a frame ON A
+  // TRUSS MEMBER, handed in by the caller when the contract says there is no
+  // covering at this site — a naked frame, or a flank whose door has been
+  // taken off. It is the SAME arrangement the undercarriage grew for the same
+  // reason (GEAR_GEN's `pivotOn`, G180): a lug pair astride the tube with a
+  // bolt through it, and nothing spreading a load into a skin that is not
+  // there. The two feet then sit fore and aft along the MEMBER instead of
+  // along the body, which is what a strut fitting on a longeron does.
+  //
+  // WHY IT MATTERS BEYOND THE LOOK: a doubler is drawn by sweeping the
+  // airframe's own surface across the plate's footprint, and over an opening
+  // that surface is inferred. Bolting the plate to it draws a large, thin,
+  // twisted sheet standing where the skin would be — which on the reported
+  // build was a sheet through the middle of the cockpit.
+  const MT = (opt && opt.mount) || null;
+  const F = MT || GG.fitFrame(S, site.z, site.ang);
+  // where a foot sits: along the member for a pivot, round the body otherwise
+  const footAt = d => MT
+    ? { p: K.off(MT.p, MT.fore, d), n: MT.n, fore: MT.fore }
+    : { p: S.surf(site.z + d, site.ang), n: S.nrmAt(site.z + d, site.ang),
+        fore: F.fore };
+
+  if (MT) {
+    GG.pivotOn(bags, MT);
+  } else {
+    // the doubler and its four bolts
+    GG.fitPad(bags, S, site.z, site.ang, FIT.padL, FIT.padW,
+              { thick: FIT.padT });
+    // ...and the screws, on the plate's own curve. The angular half-width is
+    // the same conversion fitPad uses, so a screw lands on the plate and not
+    // beside it however fat or thin the section under it is.
+    const aw = (GG.padArc ? GG.padArc(S, site.z, FIT.padW)
+                          : FIT.padW / Math.max(0.05, S.halfWAt(site.z))) * 0.36;
+    for (const [dz, da] of [[0, -aw], [0, aw],
+                            [-FIT.padL * 0.46, 0], [FIT.padL * 0.46, 0],
+                            [-FIT.padL * 0.24, -aw], [FIT.padL * 0.24, aw]]) {
+      const zz = site.z + dz, aa = site.ang + da;
+      K.bolt(bags.alloy, K.off(S.surf(zz, aa), S.nrmAt(zz, aa), FIT.padT),
+             S.nrmAt(zz, aa), FIT.screwR, FIT.screwL);
+    }
   }
 
   const cw = FIT.chordK * FIT.strutR;
@@ -466,9 +495,8 @@ function strutBuild(bags, AF, site, ends, opt) {
   const out = [];
   for (let i = 0; i < Math.min(2, ends.length); i++) {
     const sgn = i === 0 ? 1 : -1;
-    const zz = site.z + sgn * FIT.lugGap;
-    const foot = clevis(S.surf(zz, site.ang), S.nrmAt(zz, site.ang),
-                        F.fore, FIT.standoff);
+    const ft = footAt(sgn * FIT.lugGap);
+    const foot = clevis(ft.p, ft.n, ft.fore, FIT.standoff);
 
     // THE WING END IS A FITTING TOO (user: "the struts are also well anchored
     // on the wings ... it also needs to be fixed through attachment with
@@ -525,7 +553,7 @@ function strutBuild(bags, AF, site, ends, opt) {
     out.push({ pin: foot, tip, node, len: d3(foot, tip),
                off: Math.hypot(tip[0] - bm[0], tip[2] - bm[2]) });
   }
-  return { F, site, exact: !!S.exact, wing: !!ray, struts: out };
+  return { F, site, exact: !!S.exact, wing: !!ray, pivot: !!MT, struts: out };
 }
 
 // project v into the plane whose normal is n

@@ -37,6 +37,7 @@ const FS_ = require(path.join(__dirname, '_fit_site.js'));
 
 const argv = process.argv.slice(2);
 const SELFTEST = argv.includes('--selftest');
+const VERBOSE = argv.includes('--verbose') || argv.includes('-v');
 const SHOW = argv.includes('--sites');
 
 let PLACED = 0, UNPLACED = 0;
@@ -679,6 +680,143 @@ function runRod() {
   check(FS_.NOT_SKIN.has('boomTube'), 'rod: the body placer refuses the tube');
 }
 runRod();
+
+// ---------------------------------------------------------------------------
+// THE STRUCTURE PUBLISHES ITSELF (2026-09-05). `cageInterior` hands the truss
+// out as `mesh.members` — segments in cage units — and that list is what a
+// gear leg or a lift-strut foot roots on when there is no skin at the site
+// (GEAR_GEN.memberFrame, HANDOVER G196). It was published by the three SEGMENT
+// primitives only, so every BENT tube (`tubePath`/`tubeRuns`: the pillar
+// hoops, the taper rings, and the boom's own longerons and chines) and every
+// FORMER (metal's `punched`, plywood's boom couples) was drawn and not
+// published. On the reported build that left twenty members for a whole
+// aeroplane and NONE along the boom, so a tailspring asking at the tailpost
+// was handed the cabin frame a metre and a half forward.
+//
+// A GREP WOULD PROVE NOTHING — the failure is a drawing route that forgot to
+// publish, and a new route can forget again. So the DRAWING is the instrument:
+// every face the pass emits in the `tube` material (the material only
+// `tubeSeg` and `tubePath` write) must have a published member near it. A tube
+// face is one radius off its own axis, so "near" is centimetres; a boom with
+// no members in it is a metre out, which is the distance being guarded.
+// ---------------------------------------------------------------------------
+function runMembers() {
+  // the four techniques, each on a build that HAS a truss to publish: the
+  // lofted boom for the plywood couples, the rod for the taper's own tubes
+  const CONS = [['composite', 0], ['steel tube', 1], ['plywood', 2],
+                ['aluminium', 3]];
+  const segD = (p, a, b) => {                 // point to segment, cage units
+    const d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+    const L2 = d[0] * d[0] + d[1] * d[1] + d[2] * d[2];
+    if (L2 < 1e-12) return Math.hypot(p[0] - a[0], p[1] - a[1], p[2] - a[2]);
+    let t = ((p[0] - a[0]) * d[0] + (p[1] - a[1]) * d[1] +
+             (p[2] - a[2]) * d[2]) / L2;
+    t = t < 0 ? 0 : t > 1 ? 1 : t;
+    return Math.hypot(p[0] - a[0] - d[0] * t, p[1] - a[1] - d[1] * t,
+                      p[2] - a[2] - d[2] * t);
+  };
+  let anyTruss = 0;
+  for (const [nm, cons] of CONS) for (const [bn, boom] of [['lofted', 0], ['rod', 1]]) {
+    const label = nm + ' / ' + bn + ' boom';
+    const mesh = displayMesh({ intOn: 1, intCons: cons, boomStyle: boom,
+                               taperOn: boom ? 1 : 0 });
+    const MB = mesh.members || [];
+    // the drawn tubes, by their faces' centroids
+    const pts = [];
+    for (const f of mesh.F) {
+      if (f.m !== 'tube' || !f.v || f.v.length < 3) continue;
+      const c = [0, 0, 0];
+      for (const i of f.v) for (let k = 0; k < 3; k++) c[k] += mesh.V[i][k] / f.v.length;
+      pts.push(c);
+    }
+    if (!pts.length) continue;               // this technique draws no tube
+    anyTruss++;
+    check(MB.length > 0, label + ': tubes are drawn and NO member is published',
+      pts.length + ' tube faces');
+    if (!MB.length) continue;
+    let worst = -Infinity, wp = null;
+    for (const c of pts) {
+      let best = Infinity;
+      for (const mb of MB) {
+        const d = segD(c, mb.a, mb.b) - mb.r;
+        if (d < best) best = d;
+      }
+      if (best > worst) { worst = best; wp = c; }
+    }
+    // 60 mm: a tube face sits ONE RADIUS off its axis (subtracted above) and
+    // the subdivided sweep bulges a little between rings. A drawing route that
+    // publishes nothing is metres out, not centimetres.
+    check(worst < 0.06,
+      label + ': a drawn tube has no published member near it — a drawing ' +
+      'route bypasses the publisher',
+      'worst ' + (worst * 1000).toFixed(0) + ' mm at z ' +
+      (wp ? wp[2].toFixed(2) : '?'));
+    if (VERBOSE) console.log('  members ' + label.padEnd(26) + ' ' +
+      String(MB.length).padStart(4) + ' published · ' + pts.length +
+      ' tube faces · worst ' + (worst * 1000).toFixed(0) + ' mm');
+  }
+  // AND EVERY ROUTE REACHES THE PUBLISHER, named one at a time. The `kind`
+  // says which primitive drew a member, so a technique that loses one of its
+  // drawing routes is a missing kind rather than a number that got smaller:
+  //   tube      tubeSeg + tubePath (the straight members and the bent ones)
+  //   beam      the plywood posts and rails
+  //   former    the plywood boom couples and metal's punched frames — the two
+  //             routes that drew a whole aeroplane's structure and published
+  //             none of it
+  //   angle     metal's L-sections
+  // ...and the published set must SPAN what is drawn: a boom full of tubes
+  // with no member in it is the reported bug, and it shows here as a member
+  // span that stops short of the structure's.
+  const SM = new Set(['tube', 'woodFrame', 'aluminium']);
+  const NEED = { 1: ['tube'], 2: ['beam', 'former'], 3: ['angle', 'former'] };
+  for (const [nm, cons] of CONS) for (const [bn, boom] of [['lofted', 0], ['rod', 1]]) {
+    // the plywood couples are the LOFTED boom's formers; a rod boom is a tube
+    // and has none, so the kinds are asked of the boom that draws them
+    if (cons === 2 && boom) continue;
+    const label = nm + ' / ' + bn + ' boom';
+    const mesh = displayMesh({ intOn: 1, intCons: cons, boomStyle: boom,
+                               taperOn: boom ? 1 : 0 });
+    const MB = mesh.members || [];
+    const kinds = new Set(MB.map(mb => mb.kind));
+    for (const k of (NEED[cons] || []))
+      check(kinds.has(k), label + ': nothing is published as `' + k +
+        '` — that drawing route bypasses the publisher',
+        [...kinds].join(',') || 'nothing');
+    let sLo = 1e9, sHi = -1e9;
+    for (const f of mesh.F) if (SM.has(f.m) && f.v) for (const i2 of f.v) {
+      const z = mesh.V[i2][2]; if (z < sLo) sLo = z; if (z > sHi) sHi = z;
+    }
+    if (sHi < sLo) continue;                 // this build draws no structure
+    let mLo = 1e9, mHi = -1e9;
+    for (const mb of MB) for (const q of [mb.a, mb.b]) {
+      if (q[2] < mLo) mLo = q[2]; if (q[2] > mHi) mHi = q[2];
+    }
+    // 0.25 cage units is about one bay. The failure this bounds is not a
+    // rounding: the boom's members were absent over FOUR units of z.
+    check(MB.length > 0 && mLo <= sLo + 0.25 && mHi >= sHi - 0.25,
+      label + ': the published members do not span the structure that is drawn',
+      'struct [' + sLo.toFixed(2) + ',' + sHi.toFixed(2) + '] members ' +
+      (MB.length ? '[' + mLo.toFixed(2) + ',' + mHi.toFixed(2) + ']' : 'none'));
+    if (VERBOSE) console.log('  span ' + label.padEnd(26) +
+      String(MB.length).padStart(4) + ' published {' + [...kinds].join(',') +
+      '} · struct [' + sLo.toFixed(2) + ',' + sHi.toFixed(2) + '] members [' +
+      (MB.length ? mLo.toFixed(2) + ',' + mHi.toFixed(2) : '-') + ']');
+  }
+  check(anyTruss >= 2,
+    'members: no technique in the set draws a tube — this check is inert',
+    String(anyTruss));
+  // ...and a member must be a MEMBER: two distinct ends and a real radius, or
+  // the frame built on it takes its direction from a normalise-by-zero
+  const mAll = displayMesh({ intOn: 1, intCons: 1 }).members || [];
+  let degen = 0;
+  for (const mb of mAll) {
+    const L = Math.hypot(mb.b[0] - mb.a[0], mb.b[1] - mb.a[1], mb.b[2] - mb.a[2]);
+    if (!(L > 1e-6) || !(mb.r > 0)) degen++;
+  }
+  check(degen === 0, 'members: zero-length or radiusless segments published',
+    degen + ' of ' + mAll.length);
+}
+runMembers();
 
 // ---------------------------------------------------------------------------
 if (SELFTEST) {

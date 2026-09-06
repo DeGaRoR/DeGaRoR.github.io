@@ -176,6 +176,23 @@ function makeSim(def, world) {
   const AIC = new Float64Array(NP * 3);
   const sA = new Float64Array(NST * 3), sB = new Float64Array(NST * 3), sD = [0, 0, 0];
   const cpt = new Float64Array(NST * 3);
+  // G197: THE WAKE THE POLAR ALREADY ASSUMES. Every strip carries the same
+  // 2D lift coefficient, so the circulation is spanwise-uniform and the
+  // trailing vorticity is all shed at the tips — and a uniformly loaded
+  // wing's far-field centreline downwash is HALF the elliptic one (the
+  // stock's tail read 0.22 for a classical 0.41; Prandtl's sigma read 0.87
+  // of the fit). The polar's own 3D terms (a3d, eAR) assume near-elliptic
+  // loading, so the kernel's SOURCES shed that loading: each source strip's
+  // circulation is weighed by the elliptic template over its own plane's
+  // live projected span, renormalised per plane every pass so the plane's
+  // total circulation-length is conserved (strip forces are untouched —
+  // this is the mutual term only). 'uniform' is the negative control.
+  const LOADING = IND.loading || 'elliptic';
+  const Ez = new Float64Array(NST), Dz = new Float64Array(NST), Wg = new Float64Array(NST);
+  const PLANE = new Int8Array(NST); let NPL = 1;
+  for (const j of WS) { PLANE[j] = def.strips[j].plane | 0; NPL = Math.max(NPL, PLANE[j] + 1); }
+  const bHalf = new Float64Array(NPL);
+  const ellF = u => { u = Math.max(-1, Math.min(1, u)); return 0.5 * (u * Math.sqrt(1 - u * u) + Math.asin(u)); };
   let aicHash = NaN;
   const cpOf = (st, o) => {                 // a strip's control point: its attach-weighted c/4
     o[0] = o[1] = o[2] = 0;
@@ -206,6 +223,17 @@ function makeSim(def, world) {
   function buildAIC(gH, dx, dy, dz) {
     sD[0] = dx; sD[1] = dy; sD[2] = dz;
     for (const j of WS) { boundOf(def.strips[j], _A, _B); for (let k = 0; k < 3; k++) { sA[j*3+k] = _A[k]; sB[j*3+k] = _B[k]; } }
+    // the template: the mean of sqrt(1 - (2z/b)^2) over each strip's bound
+    // sub-span, b = the plane's live projected span (its outermost endpoint)
+    bHalf.fill(0);
+    for (const j of WS) bHalf[PLANE[j]] = Math.max(bHalf[PLANE[j]], Math.abs(sA[j*3+2]), Math.abs(sB[j*3+2]));
+    for (const j of WS) {
+      const b2 = bHalf[PLANE[j]] || 1, zA = sA[j*3+2], zB = sB[j*3+2];
+      Dz[j] = Math.abs(zB - zA);
+      const u0 = Math.min(zA, zB) / b2, u1 = Math.max(zA, zB) / b2;
+      Ez[j] = LOADING === 'uniform' ? 1
+            : (u1 - u0 > 1e-9 ? (ellF(u1) - ellF(u0)) / (u1 - u0) : Math.sqrt(Math.max(0, 1 - u0 * u0)));
+    }
     for (let ti = 0; ti < NST; ti++) { cpOf(def.strips[ti], _P); cpt[ti*3] = _P[0]; cpt[ti*3+1] = _P[1]; cpt[ti*3+2] = _P[2]; }
     for (let q = 0; q < NP; q++) {
       const ti = pairs[q][0], sj = pairs[q][1];
@@ -233,11 +261,36 @@ function makeSim(def, world) {
       for (const i of [st.fIn, st.fOut, st.rIn, st.rOut]) h += p[i*3] + 2*p[i*3+1] + 3*p[i*3+2]; }
     return h * 1.000001 + dx * 7 + dy * 11 + dz * 13;
   }
+  // the weighed sources. The bound vortex runs root to tip on BOTH sides,
+  // so the two sides' circulations carry opposite signs; folding the side's
+  // sign in (sg) makes a lifting plane's circulation one-signed and the
+  // template can run plane-wide, centre strip included (excluded, the centre
+  // kept its uniform value beside a root raised to 1.25x — a dip shedding a
+  // counter-rotating pair right under the tail, 30 % of the effect). The
+  // plane's MEAN circulation is spread on the elliptic template, scaled so
+  // the template integrates to the same total, and each strip's own
+  // deviation from the mean (washout, flaps, ailerons, wash) is shed where
+  // it is — a washed-out tip is not rolled off twice, an aileron's
+  // antisymmetric part cancels in the mean and rides the deviations.
+  const pG = new Float64Array(NPL), pS = new Float64Array(NPL), pDz = new Float64Array(NPL), pEDz = new Float64Array(NPL);
+  const sgOf = new Float64Array(NST);
+  for (const j of WS) sgOf[j] = def.strips[j].side < 0 ? -1 : 1;
+  function weighSources() {
+    if (LOADING === 'uniform') { for (const j of WS) Wg[j] = Gam[j]; return; }
+    pG.fill(0); pDz.fill(0); pEDz.fill(0);
+    for (const j of WS) { const k = PLANE[j];
+      pG[k] += sgOf[j] * Gam[j] * Dz[j]; pDz[k] += Dz[j]; pEDz[k] += Ez[j] * Dz[j]; }
+    for (let k = 0; k < NPL; k++) { pS[k] = pEDz[k] > 1e-9 ? pDz[k] / pEDz[k] : 1; pG[k] = pDz[k] > 1e-9 ? pG[k] / pDz[k] : 0; }
+    for (const j of WS) {
+      const k = PLANE[j], gt = sgOf[j] * Gam[j];
+      Wg[j] = sgOf[j] * (pG[k] * pS[k] * Ez[j] + (gt - pG[k]));
+    }
+  }
   function applyInduction() {
-    vi.fill(0);
+    vi.fill(0); weighSources();
     for (let q = 0; q < NP; q++) {
       if (!pairs[q][2]) continue;
-      const g = Gam[pairs[q][1]];
+      const g = Wg[pairs[q][1]];
       if (!g) continue;
       const ti = pairs[q][0];
       vi[ti*3] += AIC[q*3] * g; vi[ti*3+1] += AIC[q*3+1] * g; vi[ti*3+2] += AIC[q*3+2] * g;
@@ -248,12 +301,12 @@ function makeSim(def, world) {
   function measureTailEps() {
     // the MEAN induced velocity over the tail strips (each strip sums its
     // wing sources; the strips are then averaged, not summed)
-    let eps = 0, nT = 0, last = -1;
+    let eps = 0, nT = 0, last = -1; weighSources();
     for (let q = 0; q < NP; q++) {
       const ti = pairs[q][0], st = def.strips[ti];
       if (st.kind !== 'stab' && st.kind !== 'vtail') continue;
       if (ti !== last) { nT++; last = ti; }
-      const g = Gam[pairs[q][1]];
+      const g = Wg[pairs[q][1]];
       if (!g) continue;
       // downwash = induced velocity against the tail's normal (yUp for a stab)
       eps += -(AIC[q*3]*yUp[0] + AIC[q*3+1]*yUp[1] + AIC[q*3+2]*yUp[2]) * g;
@@ -948,6 +1001,8 @@ function makeSim(def, world) {
   return { p, v, m, r, beams, n, ctl, out, get totalM() { return totalM; },
            setNodeMass,
            reset, stance, step, probe, stats, impulse, wheelsOnGround, cgPos, cgVel, axes,
+           // G197: the kernel's sources, readable (the gate asserts the weights' normalisation)
+           induction: () => ({ WS: WS.slice(), plane: Array.from(PLANE), bHalf: Array.from(bHalf), Ez: Array.from(Ez), Dz: Array.from(Dz), Gam: Array.from(Gam), Wg: Array.from(Wg), zA: WS.map(j => sA[j*3+2]), zB: WS.map(j => sB[j*3+2]), A: WS.map(j => [sA[j*3], sA[j*3+1], sA[j*3+2]]), B: WS.map(j => [sB[j*3], sB[j*3+1], sB[j*3+2]]), d: sD.slice(), cpt: Array.from(cpt), pairs: pairs.length, loading: LOADING }),
            bodyOrigin,
            setAtmos, setGroundRef, atmos: airOf, thrustAt, probeAir };
 }

@@ -599,13 +599,20 @@ function designEngineModels() {
 }
 
 // engPreset is an INDEX into the panel's name list (the catalogue, then the
-// custom engine); resolve a name
-function designPresetIndex(name) {
+// custom engine) — the layer's SAVED order, which is the registry's, never
+// the sorted order the tiles display (G195.1 sorted the tiles by power and
+// designBake read the sorted list with the saved index: every card was born
+// with some other card's engine — the Cub-alike on an RC outrunner, the
+// ultralight on the A-65 — 2026-09-06, caught by the flight-test pass).
+// ONE list for the write and the read-back, here.
+function designPresetNames() {
   const EP = gEngPage();
-  if (!EP || !EP.PRESETS) return null;
-  const names = Object.keys(EP.PRESETS).filter(n => n !== 'bare engine')
+  if (!EP || !EP.PRESETS) return [];
+  return Object.keys(EP.PRESETS).filter(n => n !== 'bare engine')
     .concat([EP.CUSTOM_ENGINE || 'custom engine']);
-  const i = names.indexOf(name);
+}
+function designPresetIndex(name) {
+  const i = designPresetNames().indexOf(name);
   return i >= 0 ? i : null;
 }
 
@@ -1441,8 +1448,16 @@ const ARCHETYPES = [
     // 'wont-climb' at 88 s and never completes the circuit; at 13 m x 1.15
     // (AR 11) it completes in 330 s, sink 0.79. The 15 m wing's flight is a
     // debt of the opened envelope (HANDOVER G176), not of the card.
+    // THE WING 0.30 m AFT (2026-09-06, the flight-test pass): with the E-811
+    // at its true CG the card baked at a static margin of -3.1 % (the plaque's
+    // red) and still flew; the sweep read +5 % of margin per 10 cm of wing
+    // station, and at wgDx -0.30 it is 12.0 % (circuit 314 s, sink 0.36).
+    // What the wing station does not fix: at full throttle the pilot holds
+    // 33.6 m/s at 150 m against the sheet's 39.5 cruise (cant-hold-speed) —
+    // the sheet's cruise solve and the flown aeroplane disagree on this card
+    // alone, and that is owed to the shakedown, not to the card.
     over: { cage: Object.assign({}, PLAN_TAPER, { wgSpan: 13.0, wgChord: 1.15,
-                                                   wgChordTip: 0.65 }),
+                                                   wgChordTip: 0.65, wgDx: -0.30 }),
             spec: { fuel: { litres: 0 } } } },
   // MEASURED OUT (2026-08-31): the R-1830 tourer FLIES (TORun 187 m,
   // VCruise 67 m/s) and cannot be LANDED — the test pilot gave up still
@@ -1473,7 +1488,12 @@ const ARCHETYPES = [
            engFamily: 'electric', engModel: 'pipistrel E-811', engMount: 'nose',
            gearLayout: 'trike', suspension: 'spring', s1Fair: 1,
            empennage: 'conv', scheme: 'sweep', base: 0xefe6cf, trim: 0xc96f2a },
-    over: { cage: PLAN_TAPER, spec: { fuel: { litres: 0 } } } },
+    // the wing 0.30 m aft (2026-09-06, the flight-test pass): margin -2.6 %
+    // as drawn (the E-811 is light for the nose it sits in), and the circuit
+    // arrived at 5.1 m/s of sink; at wgDx -0.30 the margin is 10.9 % and the
+    // sink 1.05 (circuit 227 s, the card held 39.5 of 39.0 at 150 m)
+    over: { cage: Object.assign({}, PLAN_TAPER, { wgDx: -0.30 }),
+            spec: { fuel: { litres: 0 } } } },
   // 2026-09-04: LIVE — the stab rides the fin tip (G173's seat); the
   // retraction it once asked for stays declared and is not asked for
   { key: 'ttail', kind: 'fiction', name: 'T-tail tourer', note: 'stab on the fin tip, low ' +
@@ -1509,7 +1529,15 @@ const ARCHETYPES = [
            gearLayout: 'trike', suspension: 'bungee', s1Fair: 0,
            empennage: 'conv', scheme: 'bare' },
     // (the sweep is the tip's own station since G140 — wgTipX walks the tip aft)
-    over: { cage: Object.assign({}, PLAN_RECT, { wgTipX: 0.30, engPylonH: 0.32 }) } },
+    // THE PYLON AT 0.15 m (2026-09-06, the flight-test pass): the 582 on a
+    // 0.32 m pylon over a high wing pushes the nose DOWN, and a tricycle
+    // rolls on a fixed elevator (41_test_pilot ROLL: rotateTD is the
+    // taildragger's alone) until the wing floats it off — measured 76 s and
+    // 35 m/s on three wheels against the sheet's 123 m run; the same 582 on
+    // the ultralight's nose lifts at 12 s. At 0.15 m the roll is 32 s, at
+    // 0.05 m 27 s; the engine stays over the wing. The rest is the trike's
+    // rotation, which is the pilot's and is flagged, not the card's.
+    over: { cage: Object.assign({}, PLAN_RECT, { wgTipX: 0.30, engPylonH: 0.15 }) } },
   // ...and "the Archaeopteryx is probably one of the strangest designs out
   // there. Rod almost directly on the high wing, a suspended cabin with aero
   // nose, and an electric engine in pusher config, at the bottom" — the pod
@@ -1525,9 +1553,12 @@ const ARCHETYPES = [
            engFamily: 'electric', engModel: 'pipistrel E-811', engMount: 'pusher',
            gearLayout: 'trike', suspension: 'bungee', s1Fair: 0,
            empennage: 'conv', scheme: 'trim', base: 0xefe6cf, trim: 0xc96f2a },
+    // the wing 0.30 m aft (2026-09-06, the flight-test pass): the third
+    // electric card with the margin under zero as drawn (-4.8 %); at
+    // wgDx -0.30 it is 10.4 % and the circuit is unchanged (253 s, sink 1.07)
     over: { cage: Object.assign({}, PLAN_RECT, { rodY: 0.42, engY: -0.30,
                                                  wgSpan: 11.0, wgChord: 1.30,
-                                                 wgChordTip: 1.30 }),
+                                                 wgChordTip: 1.30, wgDx: -0.30 }),
             spec: { fuel: { litres: 0 } } } },
   // 2026-09-04 (the user): "We need a twin engine aircraft archetype, maybe
   // a couple of them. I'm thinking a luxury, small tourer, like the Diamond
@@ -1753,8 +1784,7 @@ function designBake(sel, over) {
   }
   const full = Object.assign(base, cage);
   if ('engPreset' in cage && W.CAGE_ENG_APPLY_PRESET) {
-    const names = designEngineModels().map(o => o.value);
-    const nm = names[cage.engPreset];
+    const nm = designPresetNames()[Math.round(cage.engPreset)];
     if (nm) W.CAGE_ENG_APPLY_PRESET(full, nm);
   }
   const out = { cage: C2.cageToSpec(full) };
@@ -1822,8 +1852,7 @@ function designBake(sel, over) {
       type: flapKeys[Math.round(full.wgFlapType)] } } });
   const JE = (typeof CAGE_JOIN_ENGINES !== 'undefined') ? CAGE_JOIN_ENGINES
            : W.CAGE_JOIN_ENGINES;
-  const names = designEngineModels().map(o => o.value);
-  const engKey = JE && JE[names[Math.round(full.engPreset)]];
+  const engKey = JE && JE[designPresetNames()[Math.round(full.engPreset)]];
   // THE MOUNT IS INTENT (2026-09-04): the pre-join spec GATE ARCHETYPES flies
   // must carry the mount the tiles chose, or a pusher archetype flies as a
   // tractor until the page's join runs. A wing pair is two entries.

@@ -553,8 +553,33 @@ const VIEW_KEEP = {
     'after the skip, selected or not)',
 };
 
+// WHERE THE TAIL POST IS WHEN NO RING NAMES IT (G199, 2026-09-05/06). G188
+// put the post of a ring-less boom at the skin's aft extreme plus the tail
+// cone — "where the boom's tail cone begins, which is exactly where the
+// regular table puts its own (zCap = zPost - tail.len)". Written for the pod,
+// it is right for the ROD as well: the fin's hinge line sits at the tube's
+// end (measured on the user's ultralight: hinge z -1.896 against the rod's
+// end -1.903), and the frame's post has always been the skin's aft extreme
+// (postX = tailArm + postGap = zFw - AF.z0 on every loft).
+//
+// What that line broke on the rod was not the station — it was what the FRAME
+// did with it: the tailwheel roots at the tube's end and TRAILS the post by
+// 0.3 m, and the post section is the tube's 0.11 m, so the frame built a
+// tailwheel fan with every anchor ahead of the wheel on a 4 cm post (13 %
+// strain, the tail hunting), and the tail bounds walked the whole mount and
+// read the wing's trailing edge as stab. G199 (05) took the fallback back to
+// pods while that was found; G199.1 (06) fixed the frame (the trailing wheel's
+// stay to the fin apex, the 0.15 m post) and the bounds (the tail layers
+// only), and the fallback is G188's again, for every boom the ring table
+// does not name. Pure, so GATE JOIN can pin it, and one place, so the next
+// hand finds the whole story here.
+function cageJoinPostZ(zRing, z0, tailLen, FS) {
+  if (zRing != null && isFinite(zRing)) return zRing;
+  return z0 + Math.max(0, +tailLen || 0) * (FS || 1);
+}
+
 if (typeof module !== 'undefined' && module.exports)
-  module.exports = { cageJoinSpec, cageWingCuts, CAGE_JOIN_ENGINES, CAGE_JOIN_PROP_MATS,
+  module.exports = { cageJoinSpec, cageJoinPostZ, cageWingCuts, CAGE_JOIN_ENGINES, CAGE_JOIN_PROP_MATS,
                      VIEW_STATE, VIEW_KEEP };
 
 // ---- browser glue: measurements + the button (game bundle only) ----
@@ -568,14 +593,30 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     return g;
   };
   // mount-frame bounds of the TAIL SURFACES, classified geometrically in
-  // one traversal (the fin/stab layers do not export their placed groups):
-  // aft of the pax pillar, OUTBOARD of the boom = stab, ABOVE the boom's
-  // deck = fin. Wing/struts/gear are forward of the region; the boom skin
-  // fails both classifiers; the tailwheel fails both.
+  // one traversal: aft of the pax pillar, OUTBOARD of the boom = stab, ABOVE
+  // the boom's deck = fin. The boom skin fails both classifiers; the
+  // tailwheel fails both.
+  //
+  // G199: THE WALK IS OVER THE TAIL LAYERS, NOT THE WHOLE MOUNT. "Wing,
+  // struts and gear are forward of the region" was an assumption, and on a
+  // short-cabin build it is false: the region starts 0.8 m ahead of the aft
+  // pillar, which on the user's ultralight was 0.09 m AHEAD of the wing's
+  // trailing edge, so the wing's TE vertices (|x| up to 5.9) were counted as
+  // stab — hSpan 11.8 m, hChord 3.25 m, the stab 1.5 m forward of where it
+  // is. The fin and stab layers are named groups on the mount
+  // (`cageLayer:fin`, `cageLayer:stab` — layerBounds finds them the same
+  // way), so the walk is over those and nothing else; the whole mount is
+  // the fallback only when neither group exists, which is a bench without
+  // the tail layers loaded.
   const tailSurfBounds = (zAft, boomHalfW, yDeckRel, yD) => {
     const mnt = edMount();
     if (!mnt || typeof THREE === 'undefined') return null;
     mnt.updateMatrixWorld(true);
+    const roots = [];
+    mnt.traverse(o => {
+      if (o.name === 'cageLayer:stab' || o.name === 'cageLayer:fin') roots.push(o);
+    });
+    if (!roots.length) roots.push(mnt);
     const inv = new THREE.Matrix4().copy(mnt.matrixWorld).invert();
     const tmp = new THREE.Matrix4(), v = new THREE.Vector3();
     const mk = () => ({ x0: 1e9, x1: -1e9, y0: 1e9, y1: -1e9,
@@ -590,7 +631,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       if (y < B.y0) B.y0 = y;
       if (z < B.z0) B.z0 = z; if (z > B.z1) B.z1 = z; };
     const xBand = Math.max(0.32, boomHalfW + 0.08);
-    const each = fn => mnt.traverse(o => {
+    const each = fn => roots.forEach(root => root.traverse(o => {
       if (!o.isMesh || !o.visible || !o.geometry) return;
       // the highlight is never the part (G132) — an overlay re-draws the
       // same vertices in the same frame, so it could not MOVE these bounds,
@@ -603,7 +644,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         v.set(p.getX(i), p.getY(i), p.getZ(i)).applyMatrix4(tmp);
         if (v.z <= zAft) fn(v);
       }
-    });
+    }));
     // pass 1: the STAB is everything outboard of the boom
     each(v => { if (Math.abs(v.x) > xBand) grow(stab, v.x, v.y, v.z); });
     // pass 2: the FIN is the centreline surface above the deck — MINUS the
@@ -718,7 +759,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         // cabin length, every boom section and all eight tail rows were
         // simply never measured on a pod, and the merge kept whatever the
         // spec had from an earlier state of the same build.
-        if (zPost == null) zPost = AF.z0 + Math.max(0, +P.tailLen || 0) * FS;
+        // G199/G199.1: one place — see cageJoinPostZ for what this did to a
+        // rod boom and what the frame had to learn before it could be right.
+        zPost = cageJoinPostZ(zPost, AF.z0, +P.tailLen, FS);
         if (R.pod && R.pod.zCabA != null) podCabA = R.pod.zCabA * FS;
       } catch (e) {
         // NOT SWALLOWED (G64). `fwOk` false skips the whole firewall-anchored

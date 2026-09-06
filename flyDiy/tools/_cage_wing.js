@@ -443,6 +443,13 @@ function pickParts(g, keep, toCage, classOf, field) {
 
 // ---- the build ------------------------------------------------------------
 let group = null;
+// THE SECOND PLANE'S GROUP LIVES HERE TOO (G199.2, 2026-09-06). It was a
+// `let` inside the build, so nothing held it between two builds and nothing
+// disposed it: every rebuild of a biplane added another `cageLayer:wing2` to
+// the scene on top of the last (measured on the shared tree's page: three
+// identical wing2 groups under the mount), and every measurement that walks
+// the mount — the tail bounds, the snapshot — saw the stale copies as well.
+let group2 = null;
 const dispose = o => {
   if (!o) return;
   o.traverse(c => { if (c.geometry) c.geometry.dispose(); });
@@ -455,6 +462,7 @@ PAGE.post = ctx => {
   if (prevPost) prevPost(ctx);
   const { scene, spec, mesh, P, stat } = ctx;
   dispose(group); group = null;
+  dispose(group2); group2 = null;
   // G133: no wing, no contract — a stale CAGE_WING would hand the gear
   // layer an underside probe for a wing that is no longer there
   if (!P.wingOn) { window.CAGE_WING = null; return; }
@@ -1272,18 +1280,35 @@ PAGE.post = ctx => {
                   def.spec.controls.aileron.chord) || 0.22;
     const band = SG.strutBand(chord, sF, sR, ailC);
     // cage +z is FORWARD and body +x is AFT, so the slider's "fore" is -x
+    // a build with the covering switched off has no skin ANYWHERE, whatever
+    // the section table says it measured from the cage's own faces
+    const bareSkin = !(P.skinOn == null || +P.skinOn);
     const want = -(P.wgStrutZ || 0);
     const sx = Math.max(band.lo, Math.min(band.hi, want));
     const clamped = Math.abs(sx - want) > 1e-6;
 
     if (byRoot.size) {
       const bags = { alloy: GG.Bag(), steel: GG.Bag(), strut: GG.Bag() };
-      let sLen = 0, sN = 0, dSnap = 0, dOff = 0, onWing = 0;
+      let sLen = 0, sN = 0, dSnap = 0, dOff = 0, onWing = 0, onFrame = 0;
       const strutMembers = [];         // G179.2: each member's pin and tip
       for (const [root, tips] of byRoot) {
         const rp = N2[root].p;
         const site = SG.strutSite(AF, nodeCageBody([rp[0] + sx, rp[1], rp[2]]),
                                   0, P.wgStrutX || 0);
+        // NO SKIN, NO PLATE (2026-09-05, the user's report: the fittings
+        // "look for a plate to attach to ... it fails in some cases,
+        // resulting in a distorted mesh, extending into the cabin and the
+        // pilot"). Where the airframe says there is no covering at the site —
+        // a naked frame, or a flank whose door has been removed — the foot
+        // roots on the nearest TRUSS MEMBER with a lug pair, exactly as an
+        // open-frame undercarriage leg does. `memberFrame` is GEAR_GEN's, and
+        // is the same answer the gear layer asks for: one description of
+        // "the nearest tube", not a second copy of it here.
+        const solid = !bareSkin && (!AF.solidAt || AF.solidAt(site.z, site.ang));
+        const mount = solid ? null
+          : GG.memberFrame(window.CAGE_MEMBERS,
+                           AF.surf(site.z, site.ang), FS,
+                           Math.max(0.25, AF.halfWAt(site.z) * 1.2));
         // FRONT FIRST: cage z is forward, so the front spar's fitting is the
         // larger z, and it takes the forward pin.
         const ends = tips
@@ -1291,8 +1316,9 @@ PAGE.post = ctx => {
                        return { top: nodeCage([q[0] + sx, q[1], q[2]]),
                                 beam: nodeCage(q) }; })
           .sort((a, b) => b.top[2] - a.top[2]);
-        const r = SG.strutBuild(bags, AF, site, ends, { wingRay });
+        const r = SG.strutBuild(bags, AF, site, ends, { wingRay, mount });
         if (r) {
+          if (r.pivot) onFrame++;
           dSnap = Math.max(dSnap, site.snap.d);
           for (const st2 of r.struts) {
             sLen += st2.len; sN++;
@@ -1335,7 +1361,11 @@ PAGE.post = ctx => {
           // collapsed clamps a moved slider back to zero, and that is exactly
           // the case the player most needs told about.
           (sx || clamped ? ' · fwd ' + (-sx).toFixed(2) +
-                           (clamped ? '!' : '') : '');
+                           (clamped ? '!' : '') : '') +
+          // ...and whether the foot found skin to bolt a doubler to, or went
+          // to the frame instead. A silent switch between two fittings is a
+          // fitting nobody can check.
+          (onFrame ? ' · ' + onFrame + ' on frame' : '');
       }
     }
   }
@@ -1481,7 +1511,7 @@ PAGE.post = ctx => {
     const i = PL && PL.wf && PL.wf.R && PL.wf.R.F ? PL.wf.R.F[0] : null;
     return i != null ? nodeCage(N2[i].p)[1] : yAnchor;
   };
-  let group2 = null, plane1 = null;
+  let plane1 = null;
   const PL1 = def.parts.planes && def.parts.planes[1];
   if (+P.w2On && gs.skin2 && PL1 && !WIRE) {
     const W1 = def.spec.wings[1] || {};

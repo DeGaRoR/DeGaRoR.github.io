@@ -317,7 +317,15 @@ function genLattice(S, gearX, track, kScale) {
   // tail post: two centreline nodes. refs.tailMid points here, so rule 8
   // (attitude reference on RIGID structure) is satisfied by construction.
   const TPB = N(fu.postX, lastST.yb + 0.05, 0, 'TPB');
-  const TPT = N(fu.postX, lastST.yt - 0.02, 0, 'TPT');
+  // A TAIL POST IS NEVER SHORTER THAN 0.15 m (G199.1, 2026-09-06). The two
+  // insets assume a fuselage section at the post; on a ROD boom the section
+  // there is the tube's (measured 0.11 m on the user's ultralight), so TPB and
+  // TPT came out 0.044 m apart and that stub carried the whole tail — 5.8 %
+  // strain with every other member under 2 %. The post on a rod is the socket
+  // fitting the fin stands in, and it stands above the tube. Inert on every
+  // build whose post section already clears 0.22 m, which is every loft.
+  const TPT = N(fu.postX, Math.max(lastST.yt - 0.02, lastST.yb + 0.05 + 0.15),
+                0, 'TPT');
   B(TPB, TPT, 'fus');
   B(last.BL, TPB, 'fus'); B(last.BR, TPB, 'fus');
   B(last.TL, TPT, 'fus'); B(last.TR, TPT, 'fus');
@@ -1227,6 +1235,18 @@ function genLattice(S, gearX, track, kScale) {
     // stands in Frame mode and still carries exactly the same load.
     B(TW, TPB, 'gear', false, 'leg');
     B(TW, last.BL, 'gear', false, 'wire'); B(TW, last.BR, 'gear', false, 'wire');
+    // A WHEEL THAT TRAILS THE POST (G199.1, 2026-09-06). The pyramid below
+    // assumes the wheel sits just AHEAD of the sternpost (the default twX is
+    // postX - 0.10), so its base — the last frame and the post — straddles
+    // the wheel. A rod-boom build roots its leaf spring at the tube's end and
+    // the wheel trails 0.3 m BEHIND the post: every anchor is then forward of
+    // the wheel, the fan spans 20 degrees, and the tail hunts on it (measured:
+    // 13 % strain, three-point pitch 13.4 deg against 9.2). A real spring is a
+    // cantilever the truss cannot carry, so the wheel takes a stay up to the
+    // fin's apex — the tallest lever the tail has — declared INTERNAL like the
+    // snap-blocker (under the covering it is not there). Measured: 1.7 %,
+    // 8.4 deg. A wheel ahead of the post builds exactly what it built.
+    if (FIN != null && twX > fu.postX + 0.02) B(TW, FIN, 'gear', false, 'inner');
     // rule 10: a near-axial chain LATCHES with every strain under 1%, and no
     // strain gate can see it. Both cures the Cub needed are mandatory here:
     // a snap-blocking near-vertical member, AND a wide lateral pyramid.

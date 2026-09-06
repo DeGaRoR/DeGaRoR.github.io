@@ -292,6 +292,15 @@ const C = {
   // wake, and the kernel read 0.223 (stock) / 0.229 (cantilever) when this
   // was set — the window catches a kernel reading nonsense, not a taste
   epsWindow: e => e > 0.15 && e < 0.55,
+  // G197 — the sources shed the polar's elliptic loading. The uniform control
+  // reproduces G185's stock reading (0.223); elliptic reads 1.3x+ of it (the
+  // far-field ratio is 2, the tail sits 0.9 m below a wake that tilts away
+  // with alpha); the weights conserve each plane's circulation-length to
+  // 1e-9 and shape it root-heavy, tip-light
+  loadingLifts: (ell, uni) => ell > 1.3 * uni,
+  uniformAnchor: u => Math.abs(u - 0.223) < 0.03,
+  weightsConserve: (a, b) => Math.abs(a - b) < 1e-9 * Math.max(1, Math.abs(a)),
+  weightsShape: (root, tip) => root > 1.1 && tip < 0.6,
   epsBiplaneMore: (bip, mono) => bip > mono,
   resid: r => r >= 0 && r < 0.02,
   perf: (bip, stock) => bip < 3.0 * stock,
@@ -428,6 +437,31 @@ if (!process.argv.includes('--selftest')) {
         ' · mid wing ' + eps['mid wing'].toFixed(3) + ' · biplane ' + shB.dEpsDa.toFixed(3) +
         ' (applied on the biplane, a readout on the others; constant 0.40)');
     check(C.epsWindow(shB.dEpsDa) && C.epsBiplaneMore(shB.dEpsDa, eps.stock), 'the biplane\'s tail sees more downwash than a monoplane\'s');
+    // ---- G197 the loading the sources shed --------------------------------
+    {
+      const dU = buildGen(); dU.params.induction.loading = 'uniform';
+      const uni = genShakedown(dU).dEpsDa;
+      say('LOADING: stock tail slope elliptic ' + eps.stock.toFixed(3) + ' · uniform control ' + uni.toFixed(3) +
+          ' (G185 read 0.223 with uniform sources; classical far-field 2a/(pi AR) 0.41)');
+      check(C.uniformAnchor(uni), 'the uniform control reproduces the G185 reading', uni.toFixed(3));
+      check(C.loadingLifts(eps.stock, uni), 'elliptic sources lift the tail slope 1.3x over uniform', (eps.stock / uni).toFixed(2));
+      const dE = buildGen(), sim = makeSim(dE, null); sim.reset(0);
+      const [xA, yU] = sim.axes(), vel = [0, 0, 0];
+      for (let k = 0; k < 3; k++) vel[k] = -25 * (Math.cos(0.05) * xA[k] + Math.sin(0.05) * yU[k]);
+      sim.probe(vel);
+      const I = sim.induction();
+      let sG = 0, sW = 0, root = null, tip = null, zMax = 0;
+      I.WS.forEach((j, n) => {
+        const st = dE.strips[j], sg = st.side < 0 ? -1 : 1;
+        sG += sg * I.Gam[j] * I.Dz[j]; sW += sg * I.Wg[j] * I.Dz[j];
+        const zo = Math.max(Math.abs(I.zA[n]), Math.abs(I.zB[n]));
+        if (st.t === 0.5) root = I.Wg[j] / I.Gam[j];
+        if (zo > zMax) { zMax = zo; tip = I.Wg[j] / I.Gam[j]; }
+      });
+      say('WEIGHTS: centre ' + root.toFixed(3) + ' · tip ' + tip.toFixed(3) + ' of the strip circulation; sum(W dz) ' + sW.toFixed(6) + ' vs sum(Gam dz) ' + sG.toFixed(6));
+      check(C.weightsConserve(sW, sG), 'the weights conserve each plane circulation-length');
+      check(C.weightsShape(root, tip), 'the weights are root-heavy and tip-light', root.toFixed(2) + ' / ' + tip.toFixed(2));
+    }
     const sim = makeSim(dB, null); sim.reset(0); sim.probe([-30, 0, 0]);
     check(C.resid(sim.out.gamResid), 'the probe\'s circulation converges (residual < 2 %)', sim.out.gamResid.toExponential(2));
     check(dB.params.downwashModel === 'vortex' && buildGen().params.downwashModel === 'const',
@@ -468,6 +502,10 @@ if (process.argv.includes('--selftest')) {
     ['a split that ignores stagger', !C.splitRises({ upper: 0.5 }, { upper: 0.5 }, { upper: 0.5 })],
     ['decalage doing nothing', !C.splitDecalage({ upper: 0.5 }, { upper: 0.51 })],
     ['downwash slope 0.9',   !C.epsWindow(0.9)],
+    ['elliptic no better than uniform', !C.loadingLifts(0.25, 0.22)],
+    ['uniform control off by 0.05', !C.uniformAnchor(0.28)],
+    ['weights losing 1e-6 of the circulation', !C.weightsConserve(1, 1 + 1e-6)],
+    ['weights flat along the span', !C.weightsShape(1.0, 1.0)],
     ['a residual of 5 %',    !C.resid(0.05)],
     ['a biplane 4x the stock', !C.perf(80, 20)],
   ];
