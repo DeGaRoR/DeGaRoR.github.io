@@ -145,6 +145,12 @@
         <div class="rd" data-i="thr" hidden><b id="r-thr">0</b><i>% thr</i></div>
         <div class="rd" data-i="tas" hidden><b id="r-tas">0</b><i>km/h tas</i></div>
         <div class="rd" data-i="pwr" hidden><b id="r-pwr">100</b><i>% power</i></div>
+        <!-- G200: the three control cells, back for the one case that asks
+             for them — when the pilot is you. `instruments` toggles, signed as
+             a pilot reads them (+ is nose up, roll right, right pedal). -->
+        <div class="rd" data-i="de" hidden><b id="r-de">+0</b><i>% elev</i></div>
+        <div class="rd" data-i="da" hidden><b id="r-da">+0</b><i>% ail</i></div>
+        <div class="rd" data-i="dr" hidden><b id="r-dr">+0</b><i>% rud</i></div>
       </div>
       <div id="rail" class="held"><b id="phName">HOLDING</b><div id="track"></div>
         <!-- THE SMALL PFD. Four numbers instead of nine, two thirds of the
@@ -512,3 +518,11 @@
      UI-MODEL section 2.4 reserves exactly one sheet for the FLEET RACK, and
      that chantier brings its own scrim rather than inheriting a dead one. -->
 </section>
+
+<!-- THE CONTROLS PANEL (G200). A THIRD top-level host, sibling of #ui and
+     #wsUI: each of those hides the other by a body-class rule, and this one
+     mapping interface opens from both screens. Empty here on purpose —
+     src/viewer/input_panel.js builds it on the first open, off the input
+     model app.js makes (window.FLYDIY_INPUT); src/viewer/controls.css
+     styles it. Neither screen holds any of its state. -->
+<div id="ctlPanel" hidden></div>

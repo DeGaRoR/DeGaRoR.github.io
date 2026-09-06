@@ -42,6 +42,17 @@
     : (typeof window !== 'undefined' && window.AA_RESOLVE)
       ? window.AA_RESOLVE.make(THREE, renderer) : null;
   if (typeof window !== 'undefined') window.FLYDIY_AA = aa;
+  // MANUAL CONTROLS (G200): the input model, made once, exactly like the pass
+  // above. src/viewer/input.js publishes only its API at eval; this is the
+  // one instance, and the two rails and input_panel.js read it through
+  // window.FLYDIY_INPUT. `manual` is WHO IS FLYING — flight state, kept as a
+  // pref, and never a selPilot option (that select restarts the flight).
+  const INP = (typeof window !== 'undefined' && window.FLYDIY_INPUT_API)
+    ? window.FLYDIY_INPUT_API.make({ win: window,
+        nav: (typeof navigator !== 'undefined') ? navigator : null })
+    : null;
+  if (typeof window !== 'undefined') window.FLYDIY_INPUT = INP;
+  let manual = false, inpEv = null;
   const scene = new THREE.Scene();
 
   const camera = new THREE.PerspectiveCamera(46, 1, 0.5, 7000);
@@ -1738,6 +1749,7 @@
               hinged: new Uint8Array(nv2).fill(1),
               axis: pt.axis || [0, 0, 1],
               drive: pt.drive, sgn: pt.sgn || 1,
+              k: pt.drive === 'flap' ? 0.70 : 1,   // G200: a flap fraction is not radians
               plane: pt.plane || 1 });      // G185: which plane's box binds it
           });
         }
@@ -2219,10 +2231,10 @@
     }
     // G59: the CONTROL SURFACES deflect about their own hinges, driven by
     // the same linkage the generated skin uses (so they lag identically).
-    // `link` carries da/de/dr/fl in radians of surface deflection.
+    // `link` carries da/de/dr/flap as sim.ctl units; `k` scales a 0..1 flap to its travel (0.70 rad, the generated table's own) of surface deflection.
     if (model.surfParts) for (const s of model.surfParts) {
       if (!s.posAttr || !s.posAttr.array) continue;
-      const ang = s.sgn * (link[s.drive] || 0);
+      const ang = s.sgn * (s.k || 1) * (link[s.drive] || 0);
       const b = s.base, out = s.posAttr.array;
       const ax = s.axis, ca = Math.cos(ang), sa = Math.sin(ang), C1 = 1 - ca;
       // Rodrigues about the hinge, which passes through the group's own
@@ -2444,6 +2456,8 @@
     sim = makeSim(def, world);
     sim.reset(0);
     ap = mkPilot(key);
+    // G200: the flap notches and the engine count are the aeroplane's
+    if (INP) INP.aircraft({ flaps: def.params.flaps, nEngines: def.params.nEngines || 1 });
     applyRoute();
     nb = sim.beams.length;
     if (lines) { craft.remove(lines); lines.geometry.dispose(); }
@@ -2888,7 +2902,7 @@
     telAcc = 0;
     let sm = 0;
     try { sm = sim.stats().smax || 0; } catch (e) {}
-    const o = sim.out, c = sim.ctl, d = ap.dbg;
+    const o = sim.out, c = sim.ctl, d = flDbg();
     tel.t.push(telBase + ap.t);
     // EVERY CHANNEL, ALWAYS. Recording only what is currently drawn would mean
     // turning a lane on mid-flight showed a graph that starts now — which is
@@ -3034,7 +3048,13 @@
     // parking brake while HOLDING (W13 wind: a free-rolling taildragger
     // drifts downwind while you pick a route). ROLL sets brake=0 on start.
     if (!started) { sim.ctl.brake = 0.6; setRail(null); return; }
-    ap.update(dt);
+    // MANUAL CONTROLS (G200): the pilot is the autopilot or it is you. The
+    // hand was READ at the top of loop() (so the toggle key works under the
+    // AP and the stand's control check reads a real hand); here it is
+    // WRITTEN. ap.t keeps counting under your hand — the trace, the arrival
+    // card and the logbook all read the flight's own clock from it.
+    if (manual && INP) { INP.write(sim.ctl); ap.t += dt; manualEnding(dt); }
+    else ap.update(dt);
     if (patVis && ap.frame && ap.frame.k !== patVisK) {
       patVisK = ap.frame.k;
       patVis.setActive(patVisK, ap.gs);
@@ -3050,8 +3070,10 @@
     // fleet gets a generous wall-clock bound of its own (the longest gate
     // legs fly ~600 s; a new leg makes a new pilot, so the clock is per leg).
     if (ap.phase !== 'STOPPED') {
-      if (ap.report && ap.report.outcome === 'gave-up') endFlight('gave-up');
-      else if (!ap.report && ap.t > 900) endFlight('gave-up');
+      // ...and neither watchdog judges a hand: a flight YOU are flying gives
+      // up when you do (G200)
+      if (ap.report && ap.report.outcome === 'gave-up' && !manual) endFlight('gave-up');
+      else if (!ap.report && ap.t > 900 && !manual) endFlight('gave-up');
       // the card just went up mid-air: the phase-moved branch below would
       // read "not STOPPED" and take it straight back down
       if (flightOver) return;
@@ -3095,7 +3117,107 @@
   // in-page consumes this, and nothing else is exposed
   // G179.2: the live model too, so a session can ask WHICH vertices follow
   // WHAT (rigs, parts, bindings) instead of reasoning about a screenshot
-  window.FLIGHT_PROBE = { ap: () => ap, endFlight, model: () => model, sim: () => sim, def: () => def };
+  window.FLIGHT_PROBE = { ap: () => ap, endFlight, model: () => model, sim: () => sim, def: () => def,
+                          setManual, manual: () => manual, input: () => INP };   // G200
+  // ---- MANUAL CONTROLS (G200): who is flying, and the ending when it is you
+  // The toggle is a KEY (apToggle) and a pill in the `controls` flyout;
+  // both land here. Hand → AP re-latches every integrator (ap.reEngage, W14)
+  // AND the phase: a hand-flown take-off leaves the AP in DEPART with the
+  // aeroplane at 300 m, and DEPART would taxi it. AP → hand seeds the input
+  // from the live ctl so nothing jumps, and carries the AP's elevator as
+  // trim. The test pilot's watchdog budget is pushed out past the time the
+  // hand took, or it says 'gave-up' on the very next frame.
+  function setManual(on) {
+    on = !!on;
+    if (!INP || on === manual) return;
+    manual = on;
+    prefSet('flydiy.flManual', on ? '1' : '0');
+    if (on) { INP.seed(sim.ctl); stillT = 0; }
+    else {
+      ap.reEngage({ phase: resyncPhase() });
+      if (ap.budget) ap.budget = Math.max(ap.budget, ap.t + 300);
+    }
+    flRender();
+    if (flyOpen === 'controls') flyOpenSet('controls');
+  }
+  const GROUND_PHASES = ['DEPART', 'TAXI', 'LINEUP', 'HOLD', 'STOP', 'ROLL',
+                         'LIFTOFF', 'ROLLOUT', 'STOPPED', 'ABORT', 'PUTDOWN'];
+  function groundH(x, z) {
+    return (world && typeof world.terrainH === 'function') ? world.terrainH(x, z)
+         : (ap && ap.refAlt != null ? ap.refAlt : 0);
+  }
+  function resyncPhase() {
+    const onG = sim.wheelsOnGround(), cg = sim.cgPos(), v = sim.cgVel();
+    const agl = cg[1] - groundH(cg[0], cg[2]);
+    const Vg = Math.hypot(v[0], v[2]);
+    const wasGround = GROUND_PHASES.indexOf(ap.phase) >= 0;
+    if (onG === 0 && agl > 10 && wasGround) return 'CLIMB';
+    if (onG >= 2 && Vg < 15 && !wasGround) return 'ROLLOUT';
+    return ap.phase;
+  }
+  // THE ENDING WHEN IT IS YOU. No pilot writes a report, so the flight ends
+  // the way a real one does: it was in the air, and now it is stopped on its
+  // wheels — three seconds still, on at least two of them. Touchdown is
+  // measured on the first frame back on the wheels (the same fields both
+  // pilots publish, in the landing frame), 'completed' if that is within a
+  // kilometre of where you said you were going and 'landed-out' if not — in
+  // which case the touchdown is NOT logged as an arrival, because it was
+  // not one. An abandoned take-off is not an ending; the shed is the door.
+  let airborneSeen = false, wasAir = false, stillT = 0;
+  function manualEnding(dt) {
+    if (flightOver || ap.phase === 'STOPPED') return;
+    const cg = sim.cgPos(), v = sim.cgVel(), onG = sim.wheelsOnGround();
+    const agl = cg[1] - groundH(cg[0], cg[2]);
+    if (agl > 15) airborneSeen = true;
+    if (!airborneSeen) return;
+    if (onG > 0 && wasAir) {
+      wasAir = false;
+      const F = ap.frame, o = sim.out || {};
+      if (F) {
+        const rx = cg[0] - F.ox, rz = cg[2] - F.oz;
+        const Vt = Math.hypot(v[0] - (o.windX || 0), v[1] - (o.windY || 0), v[2] - (o.windZ || 0));
+        ap.tdInfo = { sink: -v[1], z: -rx * F.uz + rz * F.ux, x: rx * F.ux + rz * F.uz,
+                      V: Vt * (o.easK || 1), drift: -v[0] * F.uz + v[2] * F.ux };
+      }
+    } else if (onG === 0 && agl > 2) wasAir = true;
+    const Vg = Math.hypot(v[0], v[2]);
+    stillT = (onG >= 2 && Vg < 1.0) ? stillT + dt : 0;
+    if (stillT < 3) return;
+    const to = destId === 'CIRCUIT' ? aeroById(fromId) : aeroById(destId);
+    const near = !!to && Math.hypot(cg[0] - to.x, cg[2] - to.z) < 1000;
+    if (!ap.report) ap.report = { verdicts: [], outcome: null, landing: null };
+    if (!ap.report.outcome) ap.report.outcome = near ? 'completed' : 'landed-out';
+    if (!near) ap.tdInfo = null;
+    ap.phase = 'STOPPED';
+  }
+  // THE HUD'S SOURCE. Bank, pitch, height and the landing frame come off
+  // ap.dbg, which the AP writes on every update — and under your hand it is
+  // not updating. The same numbers, from the same solver facts the AP reads
+  // (40_autopilot.js:309-310 for the attitude), computed here instead.
+  // AGL is against the terrain, not ap.refAlt: a flight that STARTS by hand
+  // never latched one.
+  function flDbg() {
+    if (!manual || !INP || !ap) return ap ? ap.dbg : {};
+    const [xA, yU, zR] = sim.axes(), cg = sim.cgPos(), v = sim.cgVel(), o = sim.out || {};
+    const th = Math.asin(Math.max(-1, Math.min(1, -xA[1])));
+    const ph = Math.atan2(-zR[1], yU[1]);
+    const ax = v[0] - (o.windX || 0), ay = v[1] - (o.windY || 0), az = v[2] - (o.windZ || 0);
+    const Vt = Math.hypot(ax, ay, az) || 1e-9;
+    const beta = Math.asin(Math.max(-1, Math.min(1, (ax * zR[0] + ay * zR[1] + az * zR[2]) / Vt)));
+    const F = ap.frame || { ox: 0, oz: 0, ux: 1, uz: 0 };
+    const rx = cg[0] - F.ox, rz = cg[2] - F.oz;
+    return { th, ph, beta, V: Vt * (o.easK || 1), alt: cg[1], agl: cg[1] - groundH(cg[0], cg[2]),
+             s: rx * F.ux + rz * F.uz, z: -rx * F.uz + rz * F.ux, q: 0, e: 0 };
+  }
+  // the view key walks the camera flyout's own list, skipping a cockpit the
+  // build cannot offer (flEyeWhy says why, exactly as the pill does)
+  function flCamNext() {
+    if (inGarage || !FL.ready) return;
+    const ks = FL_CAM.map(c => c.k).filter(k => k !== 'cockpit' || !flEyeWhy());
+    flCamMode(ks[(ks.indexOf(cam.mode) + 1) % ks.length]);
+    if (flyOpen === 'camera') flyOpenSet('camera');
+  }
+
   // THE ARRIVAL CARD (G107.2). The flight's ending, said to the player's
   // face: until now `tdInfo` rendered only inside a telemetry panel that
   // fullReset() closes, so the one thing a flight produced was behind a
@@ -3139,7 +3261,7 @@
                        td.sink.toFixed(2) + ' m/s');
       row('off centreline', Math.abs(td.z).toFixed(1) + ' m');
       row('landing run', Math.round(L ? L.run
-        : Math.abs((ap.dbg.s ?? td.x) - td.x)) + ' m');
+        : Math.abs((flDbg().s ?? td.x) - td.x)) + ' m');
       row('past the aim', Math.round(L ? L.pastAim : td.x - ap.xAim) + ' m');
     }
     // PEAK STRAIN IS ON THE CARD AND ON THE TRACE, and it is the same number:
@@ -4212,6 +4334,10 @@
   function fullReset() {
     if (inGarage) return enterGarage();   // Reset in the garage means back to the stand
     sim.reset(0); ap = mkPilot(curKey); applyRoute(); started = false; running = true;
+    // G200: who flies is remembered; the hand starts from the reset ctl
+    manual = !!INP && prefGet('flydiy.flManual', '0') === '1';
+    if (INP) INP.seed(sim.ctl);
+    airborneSeen = wasAir = false; stillT = 0;
     $('bPause').textContent = 'Pause'; $('bPause').classList.remove('on');
     telClear(); telLast = null; telHover = -1;
     lastPhase = 'ROLL'; telBase = 0; flightLogged = false; flightOver = false;
@@ -4692,13 +4818,17 @@
   // AEROPLANE is doing; peak strain became a line on the trace; and elevator,
   // aileron and rudder went, because a control POSITION is what the autopilot
   // is holding, not something the screen is being asked.
-  const R = ['ias','alt','vs','aoa','bank','agl','thr','tas','pwr']
+  // ...UNTIL THE PILOT IS YOU (G200). Under your hand a control position is
+  // exactly what you are asking, so the three cells are back — as
+  // `instruments` toggles, off by default, signed as a pilot reads them
+  // (+ is nose up, roll right, RIGHT pedal).
+  const R = ['ias','alt','vs','aoa','bank','agl','thr','tas','pwr','de','da','dr']
     .reduce((o, k) => (o[k] = $('r-' + k), o), {});
   const RD = {};
   for (const d0 of document.querySelectorAll ? document.querySelectorAll('#pfdRow .rd') : [])
     RD[d0.dataset.i] = d0;
   function hud() {
-    const o = sim.out, cg = sim.cgPos(), c = sim.ctl, d = ap.dbg;
+    const o = sim.out, cg = sim.cgPos(), c = sim.ctl, d = flDbg();
     // THE LABEL SAYS IAS, so the number is now an indicated one (G72). It read
     // o.V, which is TRUE airspeed — identical at sea level and a lie everywhere
     // else, on the one instrument a pilot would use to decide not to stall.
@@ -4725,6 +4855,10 @@
       : (c.thr * 100).toFixed(0);
     if (instOn.tas) R.tas.textContent = (o.V * 3.6).toFixed(0);
     if (instOn.pwr) R.pwr.textContent = ((o.powerK ?? 1) * 100).toFixed(0);
+    const sgn = x => (x >= 0 ? '+' : '−') + Math.abs(x * 100).toFixed(0);
+    if (instOn.de && R.de) R.de.textContent = sgn(c.de);
+    if (instOn.da && R.da) R.da.textContent = sgn(c.da);
+    if (instOn.dr && R.dr) R.dr.textContent = sgn(-c.dr);   // shown as the pedal
     // the air's own numbers, in the flyout that is about the air (G72's OAT
     // and density altitude, which were two of the twelve cells)
     if (flyOpen === 'air') flAirLive(o);
@@ -4951,7 +5085,8 @@
   // existing. Three is right for watching; a builder debugging a wing wants
   // more, and that is what this is for.
   const instOn = flPref('Inst', { aoa: false, bank: false, agl: false,
-                                  thr: false, tas: false, pwr: false });
+                                  thr: false, tas: false, pwr: false,
+                                  de: false, da: false, dr: false });
   // WHICH LANES ARE DRAWN. The default is the five a builder watches on a
   // first circuit — where it got to, how fast, whether it was climbing, what
   // the pilot was asking of the engine, and what the airframe was taking.
@@ -4990,6 +5125,9 @@
     // throttle. A two-blade prop glyph.
     { k: 'engines', label: 'engines', title: 'What each engine is doing',
       icon: 'M9 9.2a1.4 1.4 0 1 0 0-2.8 1.4 1.4 0 0 0 0 2.8Z|M9 6.4C9 3.6 10.6 2.4 12.2 2.4c1.8 0 2 1.4 1 2.6L9 7.8|M9 9.2c0 2.8-1.6 4-3.2 4-1.8 0-2-1.4-1-2.6L9 7.8' },
+    // G200: THE CONTROLS — who is flying, and with what. A stick on its box.
+    { k: 'controls', label: 'controls', title: 'Who is flying, and with what',
+      icon: 'M9 10.6V4.2|M9 4.2a1.3 1.3 0 1 0 0-.1|M5 15.4h8a1.4 1.4 0 0 0 1.4-1.4V12a1.4 1.4 0 0 0-1.4-1.4H5A1.4 1.4 0 0 0 3.6 12v2a1.4 1.4 0 0 0 1.4 1.4Z' },
   ];
   const FL_SLOTS = {
     ac:    { title: 'Which aeroplane' },
@@ -5266,6 +5404,29 @@
                    'the strip; off, it starts on the runway, lined up. Takes ' +
                    'effect on Restart.');
     },
+    // G200: WHO IS FLYING, AND WITH WHAT. The pill is the toggle the A key
+    // presses; the panel is the one mapping interface, opened from here and
+    // from the shed's own rail — neither screen holds any of its state.
+    controls(body) {
+      if (!INP) { flNote(body, 'This build has no input model.'); return; }
+      flRow(body, 'the pilot');
+      flPills(body, [{ label: 'autopilot', value: false }, { label: 'by hand', value: true }],
+              o => o.value === manual, o => setManual(o.value));
+      for (const d of INP.devices()) {
+        const r = flRow(body, d.kind === 'keyboard' ? 'keyboard' : 'controller');
+        const v = document.createElement('span');
+        v.className = 'v'; v.style.flex = 'none'; v.style.textAlign = 'left';
+        v.textContent = d.kind === 'keyboard' ? 'always' : d.label;
+        r.appendChild(v);
+      }
+      flPills(body, [{ label: 'map the controls…', value: 1 }], () => false,
+              () => { if (window.INPUT_PANEL) window.INPUT_PANEL.open(INP,
+                { who: () => (inGarage ? 'in the shed' : manual ? 'you are flying' : 'the autopilot is flying') }); });
+      flNote(body, 'A controller appears once you press a button on it. On the ' +
+                   'keyboard: arrows fly it, PageUp/PageDown the throttle, F/G ' +
+                   'the flaps, B the brakes, numpad 1/7 the trim, A hands it ' +
+                   'over either way, C walks the views.');
+    },
     engines(body) {
       if (!sim) { flNote(body, 'No aeroplane on the field yet.'); return; }
       const n = (def && def.params && def.params.nEngines) || 1;
@@ -5281,8 +5442,15 @@
         r.style.fontWeight = '600';
         flPills(body, [{ label: 'running', value: 1 }, { label: 'cut', value: 0 }],
                 o => o.value === E[i].on, o => { E[i].on = o.value; flRender(); });
-        flRange(body, 'lever', 0, 100, 5, () => E[i].thr * 100,
+        const lv = flRange(body, 'lever', 0, 100, 5, () => E[i].thr * 100,
                 v => { E[i].thr = v / 100; }, v => v.toFixed(0) + ' %');
+        // G200: a lever bound to a controller has ONE writer, and it is not
+        // this slider — it goes grey and says whose it is
+        if (INP && INP.isBound('eng' + (i + 1))) {
+          lv.classList.add('off');
+          const ri = lv.querySelector('input'); if (ri) ri.disabled = true;
+          lv.title = 'bound to a controller — see controls';
+        }
         const live = flRow(body, 'thrust');
         const v = document.createElement('span');
         v.className = 'v'; v.id = 'flEngT' + i; v.textContent = '—';
@@ -5342,7 +5510,8 @@
 
   const FL_INST = [['aoa', 'angle of attack'], ['bank', 'bank'],
     ['agl', 'height above ground'], ['thr', 'throttle'],
-    ['tas', 'true airspeed'], ['pwr', 'power']];
+    ['tas', 'true airspeed'], ['pwr', 'power'],
+    ['de', 'elevator'], ['da', 'aileron'], ['dr', 'rudder']];
   const SKIN_NAMES = ['covered', 'flex ×4', 'frame', 'overlay'];
 
   // WHICH READOUTS THE PFD CARRIES — and the SMALL PFD overrides that answer
@@ -5835,7 +6004,7 @@
     $('flLineName').textContent = $('acName').textContent;
     $('flLineTrip').textContent = flTrip();
     $('flLineDay').textContent = flDay();
-    $('flHold').textContent = held ? 'held' : (stopped ? 'down' : 'flying');
+    $('flHold').textContent = held ? 'held' : (stopped ? 'down' : (manual ? 'flying · by hand' : 'flying'));
     // THE VERBS. Pause and Restart never move between states; the primary is
     // never disabled, and changes its WORDS rather than its state.
     //
@@ -5883,7 +6052,20 @@
   window.addEventListener('keydown', e => {
     if (e.key === 'Escape' && flyOpen) { flyOpenSet(null); e.preventDefault(); }
   });
-  $('c').addEventListener('pointerdown', () => { if (flyOpen) flyOpenSet(null); });
+  $('c').addEventListener('pointerdown', () => {
+    if (flyOpen) flyOpenSet(null);
+    // G200: a click on the world takes the keys back from whatever had them
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  });
+  // G200: A PRESSED BUTTON KEEPS FOCUS, and Space then presses it again —
+  // which, with the keyboard flying the aeroplane, means a rail button
+  // re-fires on a key you meant for the flaps (HANDOVER's own W14 note).
+  // Every button lets go after its click.
+  if (typeof document.addEventListener === 'function')
+    document.addEventListener('click', e => {
+      const b = e.target && typeof e.target.closest === 'function' ? e.target.closest('button') : null;
+      if (b && typeof b.blur === 'function') b.blur();
+    });
   window.addEventListener('resize', () => {
     flLayout();
     if (flyOpen) flyOpenSet(flyOpen);
@@ -6059,6 +6241,14 @@
   let frame = 0, wdFrame = 0;
   function loop() {
     requestAnimationFrame(loop);
+    // MANUAL CONTROLS (G200): the hand is read FIRST, every frame, in the shed
+    // and in the air — the toggle and the view keys work under the AP, and
+    // a stand with a real hand on it shows THAT instead of the sweep below.
+    inpEv = INP ? INP.update(1 / 60) : null;
+    if (inpEv && !inGarage && FL.ready && inpEv.fired.length) {
+      if (inpEv.fired.indexOf('apToggle') >= 0) setManual(!manual);
+      if (inpEv.fired.indexOf('viewNext') >= 0) flCamNext();
+    }
     if (inGarage) {
       // CONTROL CHECK. The solver is stopped in the garage, so every control
       // sits at zero and the surfaces never move — which reads as "the surfaces
@@ -6066,11 +6256,17 @@
       // walk a control check before flight: four different periods so nothing
       // syncs up and each surface can be watched on its own. Physics is off, so
       // writing ctl here has no consequence, and roll-out zeroes it in reset().
+      // ...unless a hand is on it (G200): a stick moved or a key held in the
+      // last seconds is a control check the player is doing, and the stand
+      // answers it — physics off, so it costs nothing either.
       const tS = frame / 60;
-      sim.ctl.de = 0.30 * Math.sin(tS * 0.90);
-      sim.ctl.da = 0.35 * Math.sin(tS * 0.62 + 1.0);
-      sim.ctl.dr = 0.35 * Math.sin(tS * 0.45 + 2.0);
-      sim.ctl.flap = 0.5 - 0.5 * Math.cos(tS * 0.33);
+      if (INP && INP.active()) INP.write(sim.ctl);
+      else {
+        sim.ctl.de = 0.30 * Math.sin(tS * 0.90);
+        sim.ctl.da = 0.35 * Math.sin(tS * 0.62 + 1.0);
+        sim.ctl.dr = 0.35 * Math.sin(tS * 0.45 + 2.0);
+        sim.ctl.flap = 0.5 - 0.5 * Math.cos(tS * 0.33);
+      }
     }
     // the garage does not step — EXCEPT on the load-test rig, which is the one
     // thing that moves while the aeroplane is still on the stand

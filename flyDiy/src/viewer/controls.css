@@ -1,0 +1,125 @@
+/* =========================================================================
+   THE CONTROLS PANEL (G200) — the one mapping interface, on both screens.
+
+   WHY A FOURTH SHEET. style.css is the game's, editor.css the workshop's
+   (scoped under #edWrap), flight.css the flight layer's (scoped under #ui).
+   Each of those two layers HIDES the other by a body-class rule, and this
+   one panel opens from both — so it is a third top-level host, #ctlPanel,
+   under neither palette root. It redeclares the tokens it uses (the same
+   hexes as flight.css, which are the editor's), for the reason flight.css
+   gives: a token that lives on another root is not inherited here.
+
+   It is a DOCUMENT, not chrome — opaque on --ed-panel like the arrival
+   card, centred, with its own scroll — because mapping a stick is a thing
+   you sit down and do, not a thing you glance at while flying.
+   ========================================================================= */
+
+#ctlPanel {
+  --ed-panel:#201d1a;
+  --ed-ink:#f4efe6; --ed-dim:#c0b8ac; --ed-faint:#97907f;
+  --ed-acc:#e6dbc9; --ed-acc-ink:#221f1b;
+  --ed-acc-soft:rgba(230,219,201,.14);
+  --ed-hair:rgba(255,248,236,.09); --ed-border:rgba(255,248,236,.14);
+  --ed-btn-bg:rgba(255,255,255,.06); --ed-btn-bd:rgba(255,255,255,.18);
+  --ed-track:rgba(0,0,0,.3);
+  --ed-warn:#d8a07a;
+
+  position:fixed; left:50%; top:50%; transform:translate(-50%,-50%);
+  width:640px; max-width:calc(100% - 44px); max-height:calc(100% - 44px);
+  display:flex; flex-direction:column;
+  background:var(--ed-panel); color:var(--ed-ink);
+  border:1px solid var(--ed-border); border-radius:11px;
+  box-shadow:0 24px 60px rgba(0,0,0,.55);
+  font-family:'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  font-variant-numeric:tabular-nums;
+  /* above the flight's arrival card (30) and the workshop's flyouts */
+  z-index:60;
+  pointer-events:auto;
+}
+
+/* written AFTER the display rule, one id against one id — the two-id trap
+   flight.css documents on #telp does not apply, but the order still does */
+#ctlPanel[hidden] { display:none; }
+
+#ctlPanel button { font-family:inherit; letter-spacing:0; text-transform:none;
+  color:var(--ed-ink); background:var(--ed-btn-bg); border:1px solid var(--ed-btn-bd);
+  border-radius:6px; padding:5px 9px; font-size:11px; line-height:1; cursor:pointer;
+  text-shadow:none; }
+#ctlPanel button:hover { border-color:rgba(255,255,255,.32); }
+
+#ctlHead { display:flex; align-items:baseline; gap:12px; flex:none;
+  padding:16px 20px 12px; border-bottom:1px solid var(--ed-hair); }
+#ctlHead h2 { margin:0; font:600 15px/1 'IBM Plex Sans'; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--ed-ink); }
+#ctlHead .who { font:400 11px/1 'IBM Plex Sans'; color:var(--ed-faint); }
+#ctlHead .x { margin-left:auto; padding:3px 8px; font-size:14px; }
+
+/* ---- the devices ---- */
+#ctlDevs { flex:none; display:flex; flex-wrap:wrap; gap:8px; padding:12px 20px 10px;
+  border-bottom:1px solid var(--ed-hair); }
+#ctlDevs .dev { display:flex; flex-direction:column; gap:4px; padding:7px 10px;
+  border:1px solid var(--ed-border); border-radius:7px; min-width:120px; }
+#ctlDevs .dev b { font:600 11px/1.2 'IBM Plex Sans'; color:var(--ed-ink);
+  max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#ctlDevs .dev i { font:400 10px/1.2 'IBM Plex Sans'; font-style:normal; color:var(--ed-faint); }
+#ctlDevs .meter { display:flex; gap:3px; height:14px; align-items:flex-end; }
+#ctlDevs .meter span { --v:0%; width:7px; height:100%; position:relative;
+  background:var(--ed-track); border-radius:2px; overflow:hidden; }
+#ctlDevs .meter span::after { content:''; position:absolute; left:0; right:0; bottom:0;
+  height:var(--v); background:var(--ed-dim); }
+#ctlDevs .meter span.neg::after { background:var(--ed-warn); }
+#ctlDevs .meter span.on::after { background:var(--ed-acc); }
+#ctlDevs .hint { flex-basis:100%; font:400 10.5px/1.5 'IBM Plex Sans'; color:var(--ed-faint); }
+
+/* ---- the rows ---- */
+#ctlBody { flex:1 1 auto; overflow:auto; padding:6px 20px 12px; }
+#ctlBody h3 { margin:14px 0 6px; font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.2em;
+  text-transform:uppercase; color:var(--ed-faint); }
+#ctlBody h3:first-child { margin-top:8px; }
+.ctlRow { display:grid; grid-template-columns:150px 1fr; gap:4px 12px; align-items:center;
+  padding:7px 0; border-top:1px solid var(--ed-hair); }
+.ctlRow.listening { background:var(--ed-acc-soft); margin:0 -8px; padding-left:8px; padding-right:8px;
+  border-radius:6px; }
+.ctlRow .k { display:flex; flex-direction:column; gap:2px; }
+.ctlRow .k b { font:500 11.5px/1.2 'IBM Plex Sans'; color:var(--ed-ink); }
+.ctlRow .k i { font:400 10px/1.3 'IBM Plex Sans'; font-style:normal; color:var(--ed-faint); }
+.ctlRow .chips { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+.ctlRow .chip { display:inline-flex; align-items:stretch; }
+.ctlRow .chip > button { border-radius:6px 0 0 6px; }
+.ctlRow .chip > button:only-child { border-radius:6px; }
+.ctlRow .chip > button.x { border-left:none; border-radius:0 6px 6px 0; padding:5px 6px;
+  color:var(--ed-faint); }
+.ctlRow .chip.key > button:first-child em { font-style:normal; color:var(--ed-faint);
+  margin-left:5px; font-size:9.5px; letter-spacing:.06em; text-transform:uppercase; }
+.ctlRow .chip.pad > button:first-child { background:var(--ed-acc-soft); }
+.ctlRow .chip.add > button { color:var(--ed-faint); border-style:dashed; }
+.ctlRow .bar { grid-column:2; position:relative; height:4px; border-radius:2px;
+  background:var(--ed-track); overflow:hidden; }
+.ctlRow .bar i { position:absolute; top:0; bottom:0; left:0; width:0; background:var(--ed-acc); }
+.ctlRow .bar.centred::before { content:''; position:absolute; left:50%; top:-2px; bottom:-2px;
+  width:1px; background:var(--ed-border); }
+.ctlRow .prompt { grid-column:1 / -1; font:500 11px/1.3 'IBM Plex Sans'; color:var(--ed-acc); }
+.ctlRow .tune { grid-column:1 / -1; display:flex; flex-wrap:wrap; gap:6px 18px; padding:6px 0 2px;
+  font:400 10.5px/1 'IBM Plex Sans'; color:var(--ed-dim); }
+.ctlRow .tune label { display:inline-flex; align-items:center; gap:6px; }
+.ctlRow .tune input[type=range] { width:80px; height:16px; accent-color:var(--ed-acc); }
+.ctlRow .tune input[type=checkbox] { accent-color:var(--ed-acc); }
+.ctlRow .tune select { font:inherit; color:var(--ed-ink); background:var(--ed-btn-bg);
+  border:1px solid var(--ed-btn-bd); border-radius:4px; padding:2px 4px; }
+.ctlRow .tune b { font-weight:500; min-width:34px; text-align:right; }
+
+/* ---- the foot ---- */
+#ctlFoot { flex:none; display:flex; gap:8px; align-items:center; padding:10px 20px 14px;
+  border-top:1px solid var(--ed-hair); }
+#ctlFoot .note { margin-left:auto; font:400 10.5px/1 'IBM Plex Sans'; color:var(--ed-faint); }
+#ctlJSON { flex:none; margin:0 20px 16px; height:140px; resize:vertical;
+  font:400 10.5px/1.4 ui-monospace, Menlo, Consolas, monospace;
+  color:var(--ed-ink); background:rgba(0,0,0,.25); border:1px solid var(--ed-border);
+  border-radius:6px; padding:8px; }
+#ctlJSON[hidden] { display:none; }
+
+@media (max-width:700px) {
+  #ctlPanel { width:calc(100% - 24px); }
+  .ctlRow { grid-template-columns:1fr; }
+  .ctlRow .bar { grid-column:1; }
+}

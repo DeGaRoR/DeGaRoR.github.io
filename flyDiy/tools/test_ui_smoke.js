@@ -60,6 +60,10 @@ const appBlock = pick('function setAircraft', 'app');
 // set — which is what "the trace cannot be hidden any more" was.
 if (!html.includes('#ui #telp[hidden]'))
   throw new Error('flight.css: #telp[hidden] needs #ui in front of it, or #ui #telp{display:flex} wins');
+// ...AND THE CONTROLS PANEL CLOSES (G200): #ctlPanel is a third top-level
+// host with its own sheet, and its hide rule has to be in the artifact
+if (!html.includes('#ctlPanel[hidden]'))
+  throw new Error('controls.css: #ctlPanel[hidden] is missing — the mapping panel could not be closed');
 
 // ---- THREE stub: chainable no-ops with just enough shape ----
 function mkObj() {
@@ -292,6 +296,13 @@ const frames = n => { for (let i = 0; i < n && rafCb; i++) { const cb = rafCb; r
 try {
   vm.runInContext(coreBlock, sandbox, { filename: 'core.js' });      // physics + codec
   vm.runInContext(modelsBlock, sandbox, { filename: 'models.js' });  // baked payloads
+  // MANUAL CONTROLS (G200): src/viewer/input.js rides in the RENDER block,
+  // which is not executed here — so it is run from its own source, or app.js
+  // would make no instance and the manual branch of script() would never be
+  // on the smoked path. There is no navigator and no localStorage in this
+  // sandbox, and the model has to live with both absent.
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'input.js'), 'utf8'),
+                  sandbox, { filename: 'input.js' });
   // render_world is not executed; the app only needs its factory's return shape
   sandbox.buildWorldScene = () => ({ worldUpdate() {} });
   vm.runInContext(appBlock, sandbox, { filename: 'app.js' });        // UI (runs setAircraft)
@@ -300,6 +311,26 @@ try {
   frames(30);
   handlers['bGo'] && handlers['bGo']();
   frames(120);
+  // ---- THE PILOT IS YOU (G200) ----
+  // Hand the aeroplane over, hold a key, read the elevator, hand it back.
+  // The probe is the door the capture rig uses; the same three handles here.
+  {
+    const P = sandbox.window.FLIGHT_PROBE;
+    if (!P || typeof P.setManual !== 'function') throw new Error('FLIGHT_PROBE has no setManual (G200)');
+    P.setManual(true);
+    if (!P.manual()) throw new Error('setManual(true) did not take');
+    P.input().press('ArrowDown', true);
+    frames(60);
+    if (!(P.sim().ctl.de > 0.5))
+      throw new Error('a held ArrowDown did not reach sim.ctl.de under manual (' + P.sim().ctl.de + ')');
+    P.input().press('ArrowDown', false);
+    frames(30);
+    P.setManual(false);
+    frames(60);
+    if (P.manual()) throw new Error('setManual(false) did not take');
+    if (typeof P.ap().phase !== 'string') throw new Error('the AP came back with no phase');
+    console.log('manual controls: a key flew it, the AP took it back in ' + P.ap().phase);
+  }
   // exercise every wired button (Skin cycles all 3 states)
   // bEdit is the editor door the shelf's move left behind (G63): CAGE_UI_BOOT
   // does not exist in this sandbox, so what it proves is the WIRING — that the

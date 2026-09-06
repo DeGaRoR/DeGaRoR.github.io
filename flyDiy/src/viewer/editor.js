@@ -1511,6 +1511,13 @@ function editorInit(api) {
     { k: 'measure', label: 'measure', title: 'What the build measures',
       icon: 'M2.6 6.4h12.8v5.2H2.6z|M5.4 6.4v2.2|M8.2 6.4v3|M11 6.4v2.2|M13.8 6.4v3',
       rows: ['dims box'] },
+    // G200: THE CONTROLS — the mapping panel, from the shed too (the user's
+    // ruling: "triggered from both environments"). LITERAL FIELDS ONLY: GATE
+    // VIEW reads this table in an empty vm, and `controls` is not one of the
+    // MESH_FLYOUTS it holds against the capture. openFly builds it by name,
+    // as it does `camera`.
+    { k: 'controls', label: 'controls', title: 'How you fly it',
+      icon: 'M9 10.6V4.2|M9 4.2a1.3 1.3 0 1 0 0-.1|M5 15.4h8a1.4 1.4 0 0 0 1.4-1.4V12a1.4 1.4 0 0 0-1.4-1.4H5A1.4 1.4 0 0 0 3.6 12v2a1.4 1.4 0 0 0 1.4 1.4Z' },
   ];
   let flyOpen = null;
 
@@ -1871,6 +1878,7 @@ function editorInit(api) {
     }
     head.textContent = t.title;
     if (t.k === 'camera') buildCamera(body);
+    if (t.k === 'controls') buildControls(body);
     const idx = labelIndex();
     for (const label of (t.rows || [])) {
       const r = idx.get(label);
@@ -1894,6 +1902,43 @@ function editorInit(api) {
 
   // THE FRAMING PRESETS. The game's own orbit camera, driven through the
   // bridge — the bench's `setView` moves a camera the game does not use.
+  // G200: WHO FLIES IT, AND WITH WHAT — the same panel the flight screen
+  // opens, reached from the shed (the user's ruling: both environments).
+  // The rows READ window.FLYDIY_INPUT; the panel IS window.INPUT_PANEL;
+  // this file holds none of it. On the stand a hand on a bound control moves
+  // the surfaces (app.js's control-check sweep yields to it), so a mapping
+  // can be checked without rolling out.
+  function buildControls(body) {
+    const inp = (typeof window !== 'undefined' && window.FLYDIY_INPUT) || null;
+    const row = (label, txt) => {
+      const r = document.createElement('div'); r.className = 'r';
+      const k = document.createElement('span'); k.className = 'k'; k.textContent = label;
+      const v = document.createElement('span'); v.className = 'v';
+      v.style.width = 'auto'; v.style.textAlign = 'left'; v.textContent = txt;
+      r.appendChild(k); r.appendChild(v); body.appendChild(r);
+      return r;
+    };
+    if (!inp) { row('controls', 'not in this build'); return; }
+    for (const d of inp.devices())
+      row(d.kind === 'keyboard' ? 'keyboard' : 'controller',
+          d.kind === 'keyboard' ? 'always' : d.label);
+    const w = document.createElement('div');
+    w.className = 'edCam';
+    const b = document.createElement('button');
+    b.className = 'pill';
+    b.textContent = 'map the controls…';
+    b.title = 'Bind the keyboard, a stick and a throttle — the same panel the ' +
+              'flight screen opens. Move a bound control and the aeroplane on ' +
+              'the stand answers it.';
+    b.onclick = () => {
+      if (window.INPUT_PANEL)
+        window.INPUT_PANEL.open(inp, { who: () => 'in the shed — the stand answers the hand' });
+    };
+    w.appendChild(b);
+    body.appendChild(w);
+    row('a controller', 'press a button on it first');
+  }
+
   function buildCamera(body) {
     const wrap2 = document.createElement('div');
     wrap2.className = 'edCam';

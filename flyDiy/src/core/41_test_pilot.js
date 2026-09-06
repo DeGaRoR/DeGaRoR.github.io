@@ -191,7 +191,11 @@ function makeTestPilot(sim, def, world) {
   // been attempted, and a 2 s acceleration filter for the stagnation call.
   let rollS0 = null, rollN = 0, accF = 0, vPrev = null;
   const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
-  ap.reEngage = () => { pendReEng = true; };
+  ap.reEngage = (o) => {
+    pendReEng = true;
+    // G200: the phase re-latches with the state (see 40_autopilot.js)
+    if (o && typeof o.phase === 'string' && o.phase !== ap.phase) { ap.phase = o.phase; phaseT = 0; }
+  };
   ap.taxiFF = taxiFF;              // TP/G121: instrument surface
 
   // TP: THE TEST CARD (G107.1). The game imposes a card on the flight —

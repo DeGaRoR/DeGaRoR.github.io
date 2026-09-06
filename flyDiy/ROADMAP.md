@@ -483,6 +483,9 @@ trigger is you asking for it.*
 1. **Manual controls, joystick, TrackIR** [L]. The user's own "at some point,
    I'll want to fly them myself." `reEngage` and `holdWas` landed in W14; what
    remains is input UI and its gate.
+   LANDED 2026-09-05 as G200 (keyboard + HOTAS + the mapping panel on both
+   screens); TrackIR and the instruments are written as plans in
+   futureDesigns/MANUAL-CONTROLS-2026-09-05.md, not executed.
 2. **Fleet and discovery** [L, old P6]. The rack (forty aeroplanes — the one
    sheet UI-MODEL still reserves), hours, wear, the found aircraft as
    measuring sticks, the envelope card on the plaque.

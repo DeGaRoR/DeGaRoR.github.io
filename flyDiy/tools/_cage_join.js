@@ -1638,7 +1638,10 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         if (/2$/.test(pt.surf)) out2.plane = 2;
         out2.drive = (S2 === 'rud' || S2 === 'rud2') ? 'dr'
                    : (S2 === 'elevR' || S2 === 'elevL') ? 'de'
-                   : (S2 === 'flapR' || S2 === 'flapL') ? 'fl' : 'da';
+                   // G200: 'flap', the linkage's own key (50_model_codec makeLinkage
+                   // carries de/da/dr/flap). It read 'fl' here, which the linkage
+                   // never carried, so a cage build's flaps never moved on screen.
+                   : (S2 === 'flapR' || S2 === 'flapL') ? 'flap' : 'da';
         // ailerons are ANTISYMMETRIC; the rest move together
         out2.sgn = (S2 === 'ailL') ? -1 : 1;
         // THE RUDDERVATOR (2026-09-04): on a V-tail each elevator panel

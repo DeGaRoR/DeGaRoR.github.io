@@ -32,6 +32,11 @@ const GATES = [
   // and the ACES coefficients against the ones in vendor/three.min.js, which
   // are now duplicated and would otherwise re-grade the game on a three bump.
   { id: 'AA', file: 'test_aa.js', tier: 'core' },
+  // MANUAL CONTROLS (G200). Pure model, instant: the action table, the
+  // keyboard shaping, the gamepad mapping and listen inference, the profile
+  // round trip — and the one thing that flew wrong in W14's notes, the
+  // re-engage after hand flying, flown headless on both pilots.
+  { id: 'INPUT', file: 'test_input.js', tier: 'core' },
   { id: 'ATMOS', file: 'test_atmos.js', tier: 'core' },
   { id: 'GE', file: 'test_ground_effect.js', tier: 'core' },
   { id: 'FLAPS', file: 'test_flaps.js', tier: 'core' },

@@ -247,7 +247,14 @@ function makeAutopilot(sim, def, world) {
   // DC-3-at-Vr nose-over documented in HANDOVER). restAlt is left alone:
   // it anchors the current route's altitude refs. Never called by the
   // AP's own flow — zero effect on existing batteries.
-  ap.reEngage = () => { pendReEng = true; };
+  ap.reEngage = (o) => {
+    pendReEng = true;
+    // G200: after a stretch of MANUAL flight the PHASE can be a lie as well —
+    // a hand-flown take-off leaves the AP in DEPART with the aeroplane at
+    // 300 m, and DEPART would taxi it. The caller (app.js setManual) says
+    // where the aeroplane actually is; phaseT restarts with the phase.
+    if (o && typeof o.phase === 'string' && o.phase !== ap.phase) { ap.phase = o.phase; phaseT = 0; }
+  };
 
   ap.update = (dt) => {
     ap.t += dt; phaseT += dt;

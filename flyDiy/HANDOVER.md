@@ -31969,3 +31969,101 @@ both mass states; no pilot gain restores 8 m (the sweep was tried and NOT
 landed — 40/41 are byte-identical). **The user ruled: re-freeze the wind
 bound to the measured physics.** The gate is the UltraLight session's, and
 its G193.1 carries the re-freeze and every number; calm stays at 4 m.
+
+## G200 — MANUAL CONTROLS: THE KEYBOARD, THE STICK, AND ONE MAPPING PANEL ON
+## BOTH SCREENS (2026-09-05)
+
+The user: "at some point, I'll want to fly them myself" — and today "it will
+be time soon", four steps named (keyboard; stick + throttle with a mapping
+interface; TrackIR; interior instruments), and one ruling on the shape: ONE
+proper mapping interface from the keyboard step onward, opened from both the
+shed and the flight screen, mapping actions against N devices. Items 1 and 2
+land here; 3 and 4 are PLANS in `futureDesigns/MANUAL-CONTROLS-2026-09-05.md`
+and are not executed (the user's ruling). The study, the sizing and both
+plans live in that file; this entry is what was built and what it cost.
+
+**The model — `src/viewer/input.js`**, shaped like the resolve pass: it owns
+the ACTION table (axes pitch/roll/yaw/throttle/eng1-4/six head axes, the
+brakes as a button, flaps/trim/AP-toggle/view as steps), the PROFILE and its
+pref (`flydiy.input`), publishes `window.FLYDIY_INPUT_API` at eval and
+`module.exports` for node; app.js makes the one instance
+(`window.FLYDIY_INPUT`). A binding is one device's way of asking for one
+action — keys by `KeyboardEvent.code` (AZERTY-proof), a gamepad axis with
+invert/deadzone/expo and the raw span it maps (a throttle idling at +1 lands
+on 0), a button, a hat position. Keyboard axes are rate-shaped (full in
+0.4 s, centred in under 0.2), the throttle latches, trim is an input-side
+bias on the elevator applied AFTER the merge. The yaw action carries scale
+-1: the solver's dr>0 is nose LEFT and "right pedal" must read +1 to a
+human. `write(ctl)` clamps everything, since the solver clamps nothing.
+
+**The panel — `src/viewer/input_panel.js` + `controls.css`** in `#ctlPanel`,
+a THIRD top-level host: `#ui` and `#wsUI` each hide the other by a
+body-class rule (editor.css G86), so a panel inside either exists on one
+screen only. Both rails carry `controls`; the editor's RAIL entry is
+literal-only (GATE VIEW reads the table in an empty vm) and `openFly` builds
+it by name as it does `camera`. Devices with a meter per axis (wiggle a
+stick to tell which is which), a row per action with a chip per device, the
+LISTEN flow (press the chip, then the key / the axis the positive way / the
+button — sign and span inferred from what you did), tuning under an axis
+chip, live bars, defaults / export / import as a text document (the sandbox
+blocks downloads). Measured on the user's machine: the page already listed
+a HOTAS Warthog throttle and a VKBsim Gladiator EVO R, 10 axes and 32
+buttons each.
+
+**The mux** in `script()`: `manual ? INP.write(sim.ctl) : ap.update(dt)`; the
+hand is READ at the top of `loop()` so the A key works under the AP and the
+stand's control-check sweep yields to a real hand. `setManual`: hand → AP
+calls `ap.reEngage({ phase })` — both pilots gained the phase argument,
+because a hand-flown take-off leaves the AP in DEPART at 300 m and DEPART
+would taxi it — and pushes the test pilot's watchdog budget past the time
+the hand took; AP → hand seeds the input from the live ctl (the AP's
+elevator becomes trim, nothing jumps). `fullReset` remembers who flies
+(`flydiy.flManual`). The HUD, the trace and the arrival card read
+`flDbg()` — `ap.dbg` under the AP, the same numbers from
+`sim.axes()/cgPos()/cgVel()` under the hand, AGL against the terrain since
+a flight that starts by hand never latched `refAlt`. The PFD's three
+control cells are back as `instruments` toggles (the flight rebaseline
+removed them because "a control POSITION is what the autopilot is
+holding"; under your hand it is what you are asking). A manual flight ENDS
+like a real one: airborne once, then still on two wheels for three seconds;
+touchdown measured on the first frame back on the wheels in the landing
+frame; `completed` within a kilometre of the destination, else
+`landed-out` and the touchdown is NOT logged as an arrival. An abandoned
+take-off is not an ending; the shed is the door.
+
+**Fixed on the way.** The cage join named the flap drive `'fl'` while the
+linkage carries `'flap'`, so a cage build's flaps NEVER deflected on
+screen (`'flap'` now, scaled 0.70 rad like the generated table — the
+stand's sweep shows them). A pressed button kept focus so Space re-fired
+it (the W14 note); every button blurs after its click, and a click on the
+world blurs whatever had the keys.
+
+**GATE INPUT** (`tools/test_input.js`, core, 86 checks): the table, the
+shaping, the mapping, the listen inference against a HOTAS fixture
+(idle-at-+1 throttle, hat on axis 9), the profile round trip, the seed —
+and the W14 note FLOWN: a held 30° bank under the hand, then the AP takes
+it back, both pilots, once through the keyboard so ArrowRight-rolls-right
+and ArrowDown-is-nose-up are proven end to end (bank held 32-40°, the AP
+back level within 25 s, 0-5 m lost). UISMOKE runs input.js in its sandbox
+and flies a key through `FLIGHT_PROBE.setManual`.
+
+**Measured traps, each a red gate.** (1) The listen baseline must be the
+FIRST POLL AFTER the ask: a baseline taken at the ask, with no pads polled,
+read the throttle's resting +1 as an excursion and bound it to roll. (2)
+THE LAST TO SPEAK OWNS THE AXIS, AND A STILL STICK DOES NOT SPEAK: the
+first merge let a stick that already owned an axis keep it over a held
+key. (3) A device seen for the first time only records itself — or a
+throttle idling at +1 pulls the lever to idle when plugged in — and so a
+binding just made or tuned must CLAIM its action, or a lever bound at full
+sits at idle until it moves again. (4) The Browser pane's rAF never fires
+(measured with a race): the DOM key path was proven by dispatching real
+KeyboardEvents and stepping `INP.update` by hand; motion is the node
+gate's. (5) The G-number race, three times: G196, G197 and G198 were all
+taken between the plan and the commit; this arc is G200.
+
+**Owed.** The fixed-step accumulator (Phase 8 item 6) — a 144 Hz player
+flies 2.4× fast and a hand on the stick will notice what the autopilot
+never did. The shed flyout truncates device labels at the editor's `.v`
+width. Real-hardware listen not exercised by a session. Items 3 and 4 as
+planned in the study.
+

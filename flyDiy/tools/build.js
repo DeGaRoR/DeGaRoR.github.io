@@ -137,7 +137,12 @@ const MANIFEST = {
     // sessions working on two different surfaces are guaranteed to collide.
     // It is last because it declares the editor's Bone palette on #ui, and
     // that declaration is the whole of what makes the two screens one product.
-    styles: ['style.css', 'editor.css', 'flight.css'],
+    // ...AND A FOURTH (G200). controls.css is the CONTROL-MAPPING panel's,
+    // scoped entirely under #ctlPanel — a third top-level host, because the
+    // flight layer and the workshop layer each hide the other (editor.css's
+    // mode rules) and this one panel opens from BOTH screens. It redeclares
+    // the palette it uses for the same reason flight.css does.
+    styles: ['style.css', 'editor.css', 'flight.css', 'controls.css'],
     body: 'body.html',
     // the LAST entry fills the APP slot; everything before it fills RENDER
     // hangar.js before app.js: app.js asks whether the room can be built at all
@@ -215,7 +220,13 @@ const MANIFEST = {
     // genSpecAtFuel), which the core bundle already put in scope.
     // pattern_vis.js before app.js (G193): the ground pattern's overlay,
     // built by app.js's applyRoute through window.PATTERN_VIS
-              'design_flow.js', 'balance.js', 'pattern_vis.js', 'editor.js', 'app.js'],
+    // input.js before editor.js AND app.js (G200): the manual-controls model
+    // publishes window.FLYDIY_INPUT_API at eval, like aa_resolve.js; app.js
+    // makes the instance and editor.js's rail reads it. input_panel.js is the
+    // mapping panel over it, opened from both rails; DOM-lazy, built on the
+    // first open, so its position only has to precede the two callers.
+              'design_flow.js', 'balance.js', 'pattern_vis.js',
+              'input.js', 'input_panel.js', 'editor.js', 'app.js'],
   },
   // THE EDITOR (G35): the cage bench, embedded — the game's editor since the
   // old garage panel retired. The list and its ORDER are tools/_cage8.html's
