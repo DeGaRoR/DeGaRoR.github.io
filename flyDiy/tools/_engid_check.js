@@ -270,6 +270,131 @@ ok(Number.isInteger(CUSTOM) && CUSTOM === PRESET_NAMES.length,
      `a longer core moves the facts' CG aft (${f && f.cgAft} m behind the flange)`);
 }
 
+// 11. THE INSTALLATION IS THE BUILDER'S (2026-09-06, the user: "bring back
+//     the cylinder orientation for all engines … the exhaust management,
+//     which is not part of the engine geometry … the radiator positioning,
+//     and everything apart from the block design"). Four claims, and the
+//     third is the one that keeps the panel honest:
+//       a. every key declared an installation row IS a panel row;
+//       b. a row you can SEE is a row the spec READS, and one you cannot see
+//          is one it ignores — the shown set is exactly CAGE_ENG_INSTALL;
+//       c. no installation row can move the resolve, so a builder can pipe,
+//          filter, clock and furnish a catalogue engine all day and it stays
+//          that engine under its certified name (the identity ruling);
+//       d. the block stays the manufacturer's: bore, stroke, cylinders,
+//          fins, the blower and the gearbox appear under `custom engine`
+//          and nowhere else.
+{
+  const EP = window.ENG_PAGE, EG = window.ENG_GEN;
+  const INSTALL = window.CAGE_ENG_INSTALL, SPEC = window.CAGE_ENG_SPEC;
+  const ITEMS = ((window.CAGE_PAGE.groups || [])[0] || [])[1] || [];
+  ok(INSTALL instanceof Set && ITEMS.length > 0,
+     'the layer publishes its installation set and its panel items');
+  // (a) every declared key is a real row
+  const ROWKEYS = new Set();
+  for (const [, rows] of EP.GROUPS) for (const r of rows) ROWKEYS.add(r[0]);
+  const phantom = [...INSTALL].filter(k => !ROWKEYS.has(k));
+  ok(phantom.length === 0,
+     'every installation key is a panel row' + (phantom.length ? ' — ' + phantom.join(', ') : ''));
+  // the visible `eng_` rows of a build, groups' own `when`s included
+  const shownOf = (P) => {
+    const out = new Set();
+    const walk = (items, live) => {
+      for (const it of items) {
+        if (Array.isArray(it[1])) {
+          let g = {};
+          for (const x of it.slice(2)) if (x && typeof x === 'object' && !Array.isArray(x)) g = x;
+          let v = live;
+          if (v && g.when) { try { v = !!g.when(P); } catch (e) { v = false; } }
+          walk(it[1], v);
+          continue;
+        }
+        let o = null;
+        for (const x of it.slice(5)) if (x && typeof x === 'object' && !Array.isArray(x)) o = x;
+        let v = live;
+        if (v && o && o.when) { try { v = !!o.when(P); } catch (e) { v = false; } }
+        if (v && /^eng_/.test(it[0])) out.add(it[0].slice(4));
+      }
+    };
+    walk(ITEMS, true);
+    return out;
+  };
+  // (b) shown == read, on a liquid boxer (every group alive at once)
+  {
+    const P = fresh('rotax 912 (flat)');
+    const shown = shownOf(P);
+    // `arch` is the TYPE row in the trunk (G195 §6): picking a layout
+    // re-leads the catalogue rather than editing the engine, so it is
+    // neither an installation row nor one of the geometry rows below.
+    const extra = [...shown].filter(k => !INSTALL.has(k) && k !== 'arch');
+    ok(extra.length === 0,
+       'a catalogue engine shows installation rows and nothing else' +
+       (extra.length ? ' — ' + extra.join(', ') : ''));
+    for (const k of ['exStyle', 'exDrop', 'exOut', 'exAim', 'exOutX', 'exOutY',
+                     'exOutZ', 'radX', 'radY', 'radZ', 'radW', 'radH', 'radD',
+                     'airbox', 'airStyle', 'genOn', 'mags', 'leads', 'leadR',
+                     'starter', 'oilFilter', 'battOn', 'ecuOn',
+                     'mount', 'mountGap', 'fuelX', 'thrY'])
+      ok(shown.has(k), `a catalogue 912 keeps '${k}'`);
+    // (d) and the block is not on offer
+    for (const k of ['bore', 'stroke', 'cyl', 'rpm', 'finN', 'finR', 'rodPos',
+                     'twoStroke', 'liquid', 'geared', 'blower', 'boost',
+                     'critAlt', 'injected', 'stagger'])
+      ok(!shown.has(k), `and hides '${k}' — that would be another engine`);
+    const P2 = fresh('rotax 912 (flat)'); P2.engPreset = CUSTOM;
+    const all = shownOf(P2);
+    for (const k of ['bore', 'stroke', 'cyl', 'finN', 'blower', 'exStyle', 'radY'])
+      ok(all.has(k), `the custom engine shows '${k}'`);
+  }
+  // the aim comes back on an inline and a V, and only there: a boxer's
+  // cylinders lie across its case and a radial's are a circle
+  {
+    ok(shownOf(fresh('DH Gipsy Major')).has('inlineAim'),
+       'a catalogue inline can be clocked (cylinders point)');
+    ok(shownOf(fresh('Hirth HM 508D')).has('inlineAim'),
+       'and so can a catalogue V');
+    ok(!shownOf(fresh('continental A-65')).has('inlineAim'),
+       'a boxer cannot: the row is not offered');
+    ok(!shownOf(fresh('P&W R-985')).has('inlineAim'),
+       'nor a radial');
+    ok(shownOf(fresh('P&W PT6A-34')).has('stackStyle'),
+       'a turboprop keeps its stacks (the exhaust is the airframe\'s)');
+    const e = shownOf(fresh('pipistrel E-811'));
+    ok(e.has('leads') && e.has('plumb') && !e.has('canD') && !e.has('escOn'),
+       'an electric keeps its cables, not its can');
+  }
+  // (c) no installation row moves the resolve — swept, one row at a time,
+  //     over a piston, a turboprop and an electric
+  {
+    const ROW = k => EP.GROUPS.flatMap(g => g[1]).find(r => r[0] === k);
+    const bump = (P, k) => {
+      const row = ROW(k), v = P['eng_' + k];
+      if (row[2] === 'drop') P['eng_' + k] = (Math.round(v) + 1) % row[3].length;
+      else if (row[2] === 'check') P['eng_' + k] = v ? 0 : 1;
+      else P['eng_' + k] = Math.min(row[3], Math.max(row[2], v + (row[3] - row[2]) * 0.3));
+    };
+    const facts = R => [R.mass, R.powerW, R.rpm, R.cgZ, R.aspiration,
+                        R.critAlt || 0].join('|');
+    for (const name of ['rotax 912 (flat)', 'P&W R-985', 'DH Gipsy Major',
+                        'P&W PT6A-34', 'pipistrel E-811']) {
+      const base = facts(EG.engResolve(SPEC(fresh(name))));
+      const moved = [];
+      for (const k of INSTALL) {
+        const P = fresh(name);
+        if (P['eng_' + k] === undefined) continue;
+        bump(P, k);
+        let f;
+        try { f = facts(EG.engResolve(SPEC(P))); } catch (e) { f = 'THREW'; }
+        if (f !== base) moved.push(k);
+        if (FACTS(P) !== null) moved.push(k + ' (renamed)');
+      }
+      ok(moved.length === 0,
+         `${name}: no installation row moves the facts or the name` +
+         (moved.length ? ' — ' + moved.join(', ') : ''));
+    }
+  }
+}
+
 // THE VERDICT CONTRACT (G67.1): the runner requires BOTH signals.
 if (fails) console.log('\n  ' + fails + ' check(s) failed');
 console.log('GATE ENGID: ' + (fails ? 'FAIL' : 'PASS'));

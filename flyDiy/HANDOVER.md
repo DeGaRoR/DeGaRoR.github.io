@@ -33136,6 +33136,114 @@ out pending the A/Bs listed under G199.3 — the fallback never for a rod boom.
 On the ultralight this changes nothing measurable (its tailwheel row sits on
 the centreline); the fixture's load rows are identical before and after.
 
+---
+
+## G203 — THE INSTALLATION IS THE BUILDER'S, ROW BY ROW: THE EXHAUST, THE
+## RADIATOR, THE ACCESSORY PAD AND HOW IT IS CLOCKED COME BACK ON EVERY
+## ENGINE (2026-09-06, the user: "let's bring back the cylinder orientation
+## for all engines, not only for the custom one. Same for the exhaust
+## management, which is not part of the engine geometry. Same for the
+## radiator positioning, and everything apart from the block design. Be
+## critical, and bring back what would be adjusted IRL without being an
+## engine manufacturer")
+
+G195's picker made a catalogue engine a MODE: its geometry is its preset's,
+its registry row flies, and only "the installation" stayed the builder's.
+The installation was drawn as THREE WHOLE GROUPS — mount + firewall,
+services, radiator — and that was too narrow by exactly the width of a real
+build. Under a catalogue engine you could not choose an exhaust, fit an air
+filter, hang an alternator, put a battery on the firewall or turn an
+inverted six upright: 23 rows on a Rotax 912 where the custom engine had 93.
+
+**THE LINE, stated once and applied per row.** You BUY the engine — its
+case, its cylinders, its bore and stroke, its gearbox, its blower, its
+castings and covers. You BUILD the installation — how it is clocked in the
+airframe, the exhaust system, the air filter, what is bolted to the
+accessory pad, what stands in the bay, the radiator and where it hangs, and
+what reaches the firewall. A row on the second list is a row NO ENGINE MAKER
+decides for you; a row on the first would make the thing a different engine.
+
+**WHAT CAME BACK** (`INSTALL_ROWS` in _cage_eng.js, beside the four whole
+INSTALL_GROUPS — `engine bay` joined the three):
+- **the exhaust, entire** (`exStyle`, `exDrop`, `exOut`, `exAim`,
+  `exOutX/Y/Z`, and the turboprop's `stackStyle`). Nobody sells you the
+  pipe. Stacks or a collector, how far it drops, one can or two, where the
+  outlet leaves — that is made FOR THE AIRFRAME and is the first thing a
+  builder changes. The user's own words: not part of the engine geometry.
+- **how it is clocked** (`inlineAim`, the "cylinders point" row) — but only
+  on an INLINE or a V, which is the critical half of the ask. `flat.angles`
+  is ±90 by construction and `radial.angles` is a circle, so on a boxer or a
+  radial the drop moved nothing and never had; it is gated to the two
+  layouts that have a bank to turn (`ROW_WHEN`), and is silent nowhere.
+- **the air filter** (`airbox`, `airStyle`) — a canister or a pair of cones,
+  or none: a bolt-on, on every engine in the list.
+- **the accessory pad and the harness** (`genOn`, `mags`, `leads`, `leadR`).
+  An alternator is an option on every one of these engines, electronic
+  ignition in place of a magneto is the commonest modification in the
+  experimental world, and the leads are routed by hand round whatever else
+  the builder put there. The electric's phase cables are the same key.
+- **the bay** (`starter`, `oilFilter`, `battOn`, `ecuOn`) — a bay is
+  furnished by whoever builds it.
+- **the radiator was already there** and stays: six rows the moment the
+  engine that FLIES is liquid-cooled (`liquidOf`, G195's own ruling), which
+  is why an air-cooled catalogue engine shows none.
+
+**WHAT STAYS THE MANUFACTURER'S, and why each.** Bore, stroke, cylinders,
+rpm, stagger, rows and bank angle ARE the engine. `twoStroke`, `liquid`,
+`geared`, `blower`, `boost`, `critAlt` are physics-bearing, and a catalogue
+engine flies its REGISTRY ROW — a dial that moved the resolve would make the
+certified name a lie (or trip the load audit into flipping the build to
+custom, which is worse: it would happen to a file that only re-piped its
+exhaust). The cylinder dress is castings. `injected` is NOT an installation
+row: carburettor or injection is what the O in an O-320 means, and flipping
+it under a catalogue name would draw an engine that is not the one named.
+`intake` risers and `oilFill` come bolted to the case. The electric's
+`escOn` moves `elecResolve`'s mass AND its CG, so the controller is part of
+the machine as the fit models it; `eStyle/canD/canL/volts/eFins` and the
+turbine's core are its geometry.
+
+**PER ROW, NEVER PER GROUP** — the mechanism, and the reason it could not
+stay where it was. Three of these groups are MIXED (the exhaust sits beside
+the injection, the alternator beside the oil filler), and BOTH HOSTS hide a
+group's rows through the GROUP's own `when`: the accordion by DOM
+containment, the game's inspector through the `inherited` rules editor.js
+captures before it moves the rows out of it. A group-level `isCustomEng`
+therefore takes the installation rows down with the geometry — which is the
+bug. The gate now sits on each row (`{ when }` appended by the BENCH_SUBS
+loop), and ONE SET — `INSTALL_KEYS`, published as `window.CAGE_ENG_INSTALL`
+— decides both what is SHOWN and what `dialSpecOfP` READS over the preset's
+own geometry. A row you can see is a row that flies; a row you cannot see is
+one the spec ignores.
+
+**GATE ENGID §11** holds four claims: every declared installation key is a
+real panel row (a typo would be a row that silently does nothing); the shown
+set is exactly the read set on a catalogue engine (`arch` excepted — it is
+the type row that re-leads the picker); the block is not on offer under a
+catalogue name and is under `custom engine`; and — the sweep — NO
+installation row moves the facts or the name, bumped one at a time over a
+912, an R-985, a Gipsy Major, a PT6A-34 and an E-811.
+
+**Verified in the page** (dev.html, the Cub build): a catalogue 912 goes
+from 23 rows to 40. On the A-65 the exhaust moved from stacks to a collector
+and the engine stayed a Continental A-65 (facts null — the row flies). On
+the catalogue Rotax 582 the inspector shows mount + firewall, induction +
+exhaust (nine rows), ignition + accessories, radiator, engine bay and
+services, with geometry / architecture / cylinder dress hidden; clocking its
+bank from up to down took the drawn envelope from 0.386 m to 0.348 m tall
+with mass, power and the name untouched.
+
+**Gates**: ENGID, ENGINE, ENGMESH, COWL, JOIN, MOUNT, PARTS, STARTER, SAVE,
+DESIGN, UISMOKE green.
+
+**Not done, said plainly.** A liquid-cooled ELECTRIC (E-811, SP260D) still
+has no radiator: G25 stops its hoses at the firewall and calls the
+airframe's core a rough pass, so the six rows stay piston-only rather than
+becoming a set of dials that draw nothing. The exhaust rows do not follow
+`exStyle` — a stack drop shows with the exhaust switched off, exactly as it
+did for the custom engine before this entry — and the collector outlet rows
+show on a radial, whose ring collector does not read them. Both are
+pre-existing and untouched here.
+
 ## G199.5 — WHY THE STABS MOVE WITH THE TAILWHEEL, MEASURED; THE ROD-BOOM
 ## SWITCH LANDED OFF, WITH ITS TRADE WRITTEN NEXT TO IT (2026-09-07, the user:
 ## "in all versions, it's like the stabs are moving with the tail wheel, and

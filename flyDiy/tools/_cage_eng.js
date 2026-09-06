@@ -106,15 +106,64 @@ const coolingOf = (arch, spec) => arch === 'turbine' ? 'air'
 // the SAME engine the screen shows. Two callers, one mapping: a drift here
 // was a drawn engine flying different numbers, which is the whole bug this
 // arc exists to close.
-// THE INSTALLATION GROUPS stay the builder's whatever the engine (the
-// user's picker ruling, 2026-09-05: "the engine mount parameters for
-// example should stay available, but not everything related to the engine
-// geometry itself"): where it is held, and what reaches it.
+// THE INSTALLATION STAYS THE BUILDER'S WHATEVER THE ENGINE (the user's
+// picker ruling, 2026-09-05: "the engine mount parameters for example
+// should stay available, but not everything related to the engine geometry
+// itself" — WIDENED 2026-09-06 to the line it was always reaching for:
+// "bring back the cylinder orientation for all engines … same for the
+// exhaust management, which is not part of the engine geometry … same for
+// the radiator positioning, and everything apart from the block design. Be
+// critical, and bring back what would be adjusted IRL without being an
+// engine manufacturer").
+//
+// THE LINE: you BUY an engine — its case, its cylinders, its bore and
+// stroke, its gearbox, its blower, its castings and covers. You BUILD the
+// installation — how it is clocked in the airframe, the exhaust system, the
+// air filter, the radiator and where it hangs, what is bolted to the
+// accessory pad, what stands in the bay, and what reaches the firewall.
+// Everything on the second list is a row on this panel under a catalogue
+// engine; everything on the first would make it a DIFFERENT engine and
+// stays the custom engine's.
+//
+// Three whole groups are installation...
 const INSTALL_GROUPS = new Set(['mount + firewall', 'services (entry points)',
-                                'radiator (liquid)']);
-const INSTALL_KEYS = new Set();
+                                'radiator (liquid)',
+                                // starter, oil filter, battery, ECU: a bay
+                                // is furnished by whoever builds it
+                                'engine bay']);
+// ...and these rows are installation while sitting in a group that is not.
+// A row here must be one NO ENGINE MAKER decides for you AND one engResolve
+// does not read — an install row rides over the preset's own geometry, so a
+// row that moved mass, power or the CG would silently make the certified
+// name a lie (GATE ENGID §11 asserts both halves).
+const INSTALL_ROWS = new Set([
+  // HOW IT IS CLOCKED. Only an inline or a V has a bank to turn (a boxer
+  // lies across its case, a radial is a circle), so the row is gated to
+  // those in ROW_WHEN below rather than shown where it does nothing.
+  'inlineAim',
+  // THE EXHAUST IS NOT THE ENGINE (the user's own words). Nobody sells you
+  // the pipe: stacks or a collector, how far it drops, one can or two, and
+  // where the outlet leaves are made FOR THE AIRFRAME, by the builder, and
+  // are the first thing changed on a real installation. A turboprop's
+  // stacks are the same choice, so `stackStyle` rides here with them.
+  'exStyle', 'exDrop', 'exOut', 'exAim', 'exOutX', 'exOutY', 'exOutZ',
+  'stackStyle',
+  // THE AIR FILTER, likewise a bolt-on: a canister airbox or a pair of
+  // cones, or none at all. (`injected` is NOT here — carburettor or
+  // injection is what the O in an O-320 means, and flipping it under a
+  // catalogue name would draw an engine that is not the one named.)
+  'airbox', 'airStyle',
+  // THE ACCESSORY PAD AND THE HARNESS: an alternator is an option on every
+  // engine in this list, electronic ignition in place of a magneto is the
+  // commonest modification there is, and the leads are routed by hand
+  // round whatever else the builder put there. The electric's `leads` row
+  // (phase cables) is the same key and comes back with them.
+  'genOn', 'mags', 'leads', 'leadR',
+]);
+const INSTALL_KEYS = new Set(INSTALL_ROWS);
 for (const [name, rows] of EP.GROUPS)
   if (INSTALL_GROUPS.has(name)) for (const r of rows) INSTALL_KEYS.add(r[0]);
+if (typeof window !== 'undefined') window.CAGE_ENG_INSTALL = INSTALL_KEYS;
 // the dial dict: every row off P (`onlyInstall` = only the installation
 // rows, over a base that is the preset's own geometry)
 const dialSpecOfP = (P, base, onlyInstall) => {
@@ -377,6 +426,15 @@ const SPINPROP_KEYS = ['g_spin', 'g_prop'].flatMap(id =>
 // the crank and the flange — its rows go with it
 const DEAD_SPIN = new Set(['shaftR', 'shaftLen']);
 
+// A ROW THAT ONLY MEANS SOMETHING ON SOME LAYOUTS SAYS SO (2026-09-06).
+// The aim row turns a BANK, and only an inline or a V has one to turn:
+// `flat.angles` is ±90 by construction and `radial.angles` is a circle, so
+// on those two the drop has always moved nothing — it was as silent under
+// the custom engine as it would now be under a catalogue one, and a row
+// that cannot change the aeroplane is not a row.
+const ROW_WHEN = {
+  inlineAim: P => archOf(P) === 'inline' || archOf(P) === 'vee',
+};
 // bench groups -> cage subgroups, every row, same labels + ranges
 const engRow = r => {
   const [k, label, m3, a, b, ] = r;
@@ -407,12 +465,23 @@ for (const g of EP.GROUPS) {
   if (name === 'radiator (liquid)')
     when = P => +P.engOn && archOf(P) !== 'electric' && archOf(P) !== 'turbine' &&
                 archOf(P) !== 'radial' && liquidOf(P);
-  // THE GEOMETRY IS THE CUSTOM ENGINE'S (2026-09-05, the picker ruling):
-  // every bench group that is not an installation group shows only when
-  // the engine row says custom
-  if (!INSTALL_GROUPS.has(name)) {
-    const w0 = when;
-    when = P => w0(P) && isCustomEng(P);
+  // THE GEOMETRY IS THE CUSTOM ENGINE'S, ROW BY ROW (2026-09-05's ruling,
+  // widened 2026-09-06): a catalogue engine keeps every installation row
+  // and hides only the ones that would make it a different engine.
+  //
+  // PER ROW AND NEVER PER GROUP, because three of these groups are MIXED —
+  // the exhaust sits beside the injection, the alternator beside the oil
+  // filler — and BOTH HOSTS hide a group's rows through the group's own
+  // `when`: the accordion by DOM containment, the game's inspector through
+  // the `inherited` rules it captures before it moves the rows out. A group
+  // rule would take the installation rows down with the geometry, which is
+  // exactly the bug this widening exists to fix.
+  for (const it of items) {
+    const k = it[0].slice(4);                    // the 'eng_' prefix back off
+    const own = ROW_WHEN[k] || null;
+    if (INSTALL_KEYS.has(k)) { if (own) it.push({ when: own }); continue; }
+    it.push(own ? { when: P => own(P) && isCustomEng(P) }
+                : { when: isCustomEng });
   }
   BENCH_SUBS.push([name === 'engine' ? 'engine geometry' : name,
                    items, { when }]);
