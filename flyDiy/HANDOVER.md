@@ -33877,3 +33877,16 @@ throughout (the only core edits publish two numbers the sheet already had).
   extra fields, nothing removed. Old builds' first dirty stamps rather than
   withdraws. The characters session's working-tree HANDOVER carries a
   second `## G206.1` heading (THE PILOT ALONE) — not mine, not renumbered.
+## G211 — THE BAR ACROSS THE COCKPIT WAS THE CONSOLE BOX (2026-09-07, the
+## user, having clicked it: "the bar is the throttle console box, remove it")
+
+- `buildConsole`'s BOX — 0.19 x 0.26 x 0.85 m between the seats — was forced
+  on whenever the throttle was the console TYPE (`ctlThr` 2), so `centre
+  console` OFF still drew it, straight through the pilot's lap. The box is
+  the switch's alone now (`boxWanted = sbs && consoleOn`); a console
+  throttle without it floats on its own small mount, as buildConsole has
+  handled since 2026-08-19.
+- Found by asking: three sessions could not name it from the code (not the
+  belts, off by default; not a yoke; not the panel rows). Click-to-select
+  named it in one go — the instrument for "what is that thing" is the
+  editor's own part picker, not a grep.

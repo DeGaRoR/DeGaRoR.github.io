@@ -1544,7 +1544,13 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   // the console BOX only exists side-by-side (user): with one seat
   // across the cabin there is nowhere for it to stand, so single and
   // tandem get the throttle quadrant alone
-  const boxWanted = sbs && (P.consoleOn || thrMode === 2);
+  // THE BOX IS THE SWITCH'S ALONE (G211, the user, having clicked the
+  // horizontal bar across the cockpit: "the bar is the throttle console
+  // box, remove it"). It was forced on whenever the throttle was the
+  // console TYPE, so `centre console` off drew it anyway — a 0.26 m box
+  // through the pilot's lap. A console throttle without the box floats on
+  // its own small mount, which buildConsole has handled since 2026-08-19.
+  const boxWanted = sbs && !!(+P.consoleOn);
   let consoleThr = null;
   if (boxWanted || thrMode === 2) {
     // sbs: between the seats. Otherwise on the throttle-hand side —
