@@ -668,9 +668,22 @@ function makeTestPilot(sim, def, world) {
         break;
       }
 
-      case 'LIFTOFF':
+      case 'LIFTOFF': {
         c.thr = 1;
-        holdPitch(Math.min(thLift0 + (A.liftoffRamp ?? 9) * phaseT, A.liftoffTh));
+        // G208.3: PAST THE SCREEN HEIGHT THE NOSE COMES DOWN FOR SPEED. The
+        // lift-off attitude was held for as long as LIFTOFF lasted, and on the
+        // default garage build (tube-and-fabric, 10 m high wing, 65 hp) that
+        // is for ever: airborne at 23 m/s, climbing 2 m/s at 9.6°, the speed
+        // sits 0.5 m/s UNDER VClimbMin and the exit below never fires — 1160 m
+        // up and still "taking off". Measured on f7fcf5f, HEAD and the shared
+        // tree alike (the user: "the last test gets stuck in take off mode,
+        // never gets into the next phases, despite the plane climbing"). Above
+        // hSafe the pitch is capped by CLIMB's own speed-seeking law, so a slow
+        // climber lowers its nose and picks up VClimb the way CLIMB would.
+        let thT = Math.min(thLift0 + (A.liftoffRamp ?? 9) * phaseT, A.liftoffTh);
+        if (agl > A.hSafe)
+          thT = Math.min(thT, clamp(A.climbThBase + A.climbThGain * (V - ap.VClimb), 0.02, A.thMax));
+        holdPitch(thT);
         airLateral(0.15);
         // TP: LIFTOFF is bounded too. Measured (rotax582 + 260 kg): airborne
         // at t=65, then HOVERING at half a metre in ground effect for the
@@ -684,8 +697,11 @@ function makeTestPilot(sim, def, world) {
           ap.phase = 'PUTDOWN'; phaseT = 0;
           break;
         }
-        if (agl > A.hSafe && V > A.VClimbMin) { ap.phase = 'CLIMB'; phaseT = 0; }
+        // ...and a climber that is clearly away — twice the screen height —
+        // goes to CLIMB whatever its speed; CLIMB's law finishes the job
+        if (agl > A.hSafe && (V > A.VClimbMin || agl > 2 * A.hSafe)) { ap.phase = 'CLIMB'; phaseT = 0; }
         break;
+      }
 
       // TP: the low-hover reject — throttle closed, a gentle nose-up mush
       // until the wheels touch, then the ABORT brakes take it. Outcome is a

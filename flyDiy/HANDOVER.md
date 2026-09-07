@@ -33924,6 +33924,53 @@ throughout (the only core edits publish two numbers the sheet already had).
   fin's along/up extent and the wing's vertices), not by a screenshot —
   the pane's 800 px frame cannot show a 120 mm roundel on the fin. A real
   browser look at "the fin" and "the wing" is owed.
+
+## G208.3 — THE DEFAULT BUILD TOOK OFF FOR EVER: THE LIFT-OFF EXIT (2026-09-07,
+## the user: "the default build ... the last test gets stuck in take off mode,
+## never gets into the next phases, despite the plane climbing ... we need to
+## ensure the tests still work")
+
+- **Measured, not assumed.** A headless probe (scratchpad probe.js: build →
+  load rig → verdict; build → test pilot AND the revamped pilot → phase
+  timeline) on THREE cores — f7fcf5f (before G208), HEAD 926c333, and the
+  shared working tree with other sessions' uncommitted hunks — on two
+  builds: GEN_DEFAULT and the page's own export of the default garage build
+  ("Garage Special": tube-and-fabric, 10 m high wing, 65 hp; now
+  `tools/_bench_fixture_build.json`).
+  - GEN_DEFAULT: load HELD 77 % of yield and the circuit completed on both
+    committed cores, IDENTICAL before and after G208 — nothing in G208
+    touched the physics or the pilots. The working-tree core reads "HELD —
+    over yield" (worst wing 131 %, tip 0.36 % against 1.79 %): the
+    uncommitted G213 surface-material hunks (60_gen_spec / 61_gen_frame /
+    62_gen_aero) hand the rig a different wing row. Reported to both
+    sessions that could own it; not mine to land.
+  - THE GARAGE BUILD: load HELD (81 %) everywhere; the circuit GAVE UP on
+    ALL THREE cores, both pilots, identically: `ROLL@0 LIFTOFF@14` and then
+    nothing to 1160 m. Airborne at 22.9 m/s the pilot held the lift-off
+    attitude (9.6°) and climbed 2 m/s with the speed pinned at 22.7-23.8
+    against VClimbMin 23.7 — the exit `agl > hSafe && V > VClimbMin` never
+    fired. Pre-existing on every core; build-specific (GEN_DEFAULT clears
+    VClimbMin at 25 s). The user's "typical defect of previous autopilots"
+    was in both pilots' shared rule.
+- **The rule, in both pilots** (41_test_pilot.js and 43_pilot.js LIFTOFF):
+  above hSafe the lift-off attitude is CAPPED by CLIMB's own speed-seeking
+  law (`climbThBase + climbThGain·(V − VClimb)`), so a slow climber lowers
+  its nose and picks up VClimb the way CLIMB would; and a climber clearly
+  away — twice the screen height — goes to CLIMB whatever its speed, CLIMB
+  finishing the acceleration. Measured after: the garage build leaves
+  LIFTOFF at 27 s (12 s after lifting off) and completes the circuit on both
+  pilots (landing 218 / 224 m); GEN_DEFAULT's timeline unchanged to the
+  second (LIFTOFF@16 CLIMB@26 … STOPPED@279 / 301).
+- **GATE BENCH grows THE FLIGHT:** the fixture flies the test circuit on the
+  test pilot (LIFTOFF→CLIMB within 40 s, `completed`, a landing run), so the
+  aeroplane every player starts with is the one the gate flies — GATE PILOT
+  flies GEN_DEFAULT, which is not the same aeroplane once the join has
+  measured it. Skips, not fails, when flight_core.js is not built.
+- **Not switched to the revamped pilot.** The user asked whether the test
+  flight should use 43_pilot.js; both pilots failed and both pass the same
+  way, and the bench's report contract (verdicts, outcome, landing, card,
+  trimDe, the crosswind probe after it) is the test pilot's. Left as is;
+  the revamped pilot is one `makePilot` away in tfStart if wanted.
 ## G211 — THE BAR ACROSS THE COCKPIT WAS THE CONSOLE BOX (2026-09-07, the
 ## user, having clicked it: "the bar is the throttle console box, remove it")
 

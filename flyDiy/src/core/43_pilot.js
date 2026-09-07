@@ -1013,7 +1013,14 @@ function makePilot(sim, def, world, opts) {
       }
 
       case 'LIFTOFF': {
-        engage('LOC', 'PITCH', 'FULL', { pitch: Math.min(thLift0 + (A.liftoffRamp ?? 9) * phaseT, A.liftoffTh), bank: 0.15 });
+        // G208.3: above the screen height the lift-off attitude is capped by
+        // CLIMB's speed-seeking law, so a slow climber lowers its nose for
+        // VClimb instead of climbing for ever 0.5 m/s under VClimbMin (the
+        // default garage build did exactly that; see 41_test_pilot.js)
+        let thT = Math.min(thLift0 + (A.liftoffRamp ?? 9) * phaseT, A.liftoffTh);
+        if (agl > A.hSafe)
+          thT = Math.min(thT, clamp(A.climbThBase + A.climbThGain * (V - ap.VClimb), 0.02, A.thMax));
+        engage('LOC', 'PITCH', 'FULL', { pitch: thT, bank: 0.15 });
         flapTgt = fTO;
         const left = runwayLeft();
         setStatus('climbing out of ground effect', [
@@ -1039,7 +1046,9 @@ function makePilot(sim, def, world, opts) {
           committedTO = true;
           say('committed-takeoff', 'airborne with ' + Math.round(left) + ' m of strip left, past the point of stopping — continuing');
         }
-        if (agl > A.hSafe && V > A.VClimbMin) { go('CLIMB'); climbMode = true; ceilT = 0; }
+        // ...and clearly away (twice the screen height) goes to CLIMB whatever
+        // its speed — CLIMB's law finishes the acceleration (G208.3)
+        if (agl > A.hSafe && (V > A.VClimbMin || agl > 2 * A.hSafe)) { go('CLIMB'); climbMode = true; ceilT = 0; }
         break;
       }
 

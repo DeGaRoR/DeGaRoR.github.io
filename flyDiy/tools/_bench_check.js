@@ -194,6 +194,46 @@ console.log('THE STRIP');
   ok(/pos: \[cgN\[0\], cgN\[1\], cgN\[2\]\]/.test(APP), 'the circuit poll carries the trace');
 }
 
+// ---- THE FLIGHT (G208.3) --------------------------------------------------
+// The default garage build — the join's own export of the stock aeroplane,
+// tube-and-fabric, 10 m high wing, 65 hp (tools/_bench_fixture_build.json,
+// taken off the page 2026-09-07) — flies the test circuit on the test pilot
+// and comes home. It did not: airborne at 23 m/s it climbed at 9.6° for
+// ever, 0.5 m/s under VClimbMin, and the bench read GAVE UP on the aeroplane
+// every player starts with. GATE PILOT flies GEN_DEFAULT, which is not the
+// same aeroplane once the join has measured it; this is the one the bench
+// shows. Skipped (not failed) when the core is not built.
+console.log('THE FLIGHT');
+{
+  let core = null;
+  try { core = require(path.join(ROOT, 'tools', 'flight_core.js')); } catch (e) {}
+  if (!core || !core.makeTestPilot) console.log('  skip  tools/flight_core.js not built');
+  else {
+    const spec = JSON.parse(rd('tools/_bench_fixture_build.json')).spec;
+    const def = core.buildGen(spec), world = core.makeWorld();
+    const sim = core.makeSim(def, world); sim.reset(0);
+    for (let i = 0; i < 600; i++) sim.step(1 / 60);
+    const ap = core.makeTestPilot(sim, def, world);
+    const phases = []; let last = null, t = 0, fin = null, tLift = null, tClimb = null;
+    while (t < 700) {
+      ap.update(1 / 60); sim.step(1 / 60); t += 1 / 60;
+      if (ap.phase !== last) { phases.push(ap.phase); last = ap.phase;
+        if (ap.phase === 'LIFTOFF' && tLift == null) tLift = t;
+        if (ap.phase === 'CLIMB' && tClimb == null) tClimb = t; }
+      if (sim.stats().bad) { fin = 'broke-up'; break; }
+      if (ap.phase === 'STOPPED' && ap.t > 5) { fin = 'stopped'; break; }
+    }
+    const rep = ap.report || {};
+    ok(tClimb != null && tLift != null && tClimb - tLift < 40,
+       'the default garage build leaves LIFTOFF for CLIMB within 40 s of lifting off' +
+       (tLift != null && tClimb != null ? ' (' + (tClimb - tLift).toFixed(0) + ' s)' : ' (never)'));
+    ok(fin === 'stopped' && rep.outcome === 'completed',
+       'it flies the whole circuit and stops: ' + (rep.outcome || fin || 'timeout') + ' — ' + phases.join(' '));
+    ok(rep.landing && rep.landing.run > 0 && rep.landing.run < 600,
+       'with a landing run (' + (rep.landing ? Math.round(rep.landing.run) + ' m' : 'none') + ')');
+  }
+}
+
 // ---- NEGATIVE VERIFICATION ------------------------------------------------
 if (SELF) {
   console.log('SELFTEST');
