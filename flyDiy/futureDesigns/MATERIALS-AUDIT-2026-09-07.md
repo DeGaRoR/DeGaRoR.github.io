@@ -330,8 +330,8 @@ the join snapshot (`aeroCC`, `aeroField` on userData like `aeroTileK`).
 ---------------------------------------------------------------------------
 ## 7. LANDED (G206, 2026-09-07, same day)
 
-Items 1-6 of §6 landed as G206 — see HANDOVER.md "G206". Still owed from
-this audit: the cabin darkening (§1.1 item 4), the pane's own EDGE strip
+Items 1-6 of §6 landed as G206 — see HANDOVER.md "G206"; the cabin
+darkening (§1.1 item 4) as G206.1. Still owed: the pane's own EDGE strip
 (§1.2; the inset + retaining strip landed), the scratches re-seeded from
 the field noise (§1.4), and the roughness/gain numbers set by eye in the
 lab rather than by reasoning here.

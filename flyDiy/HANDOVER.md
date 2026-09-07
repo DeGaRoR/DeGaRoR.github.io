@@ -33631,3 +33631,26 @@ TRAPS, this pass:
   exist; it does now, and the glass scratches should be re-seeded from it
   (owed, with the interior darkening and the pane's own edge strip — audit
   §1.1.4, §1.2).
+
+## G206.1 — THE CABIN IS DARKER THAN THE DAY (2026-09-07, the user: "Now add
+## the cabin darkening behind the panes")
+
+- **What is inside is a fact about the section.** `aeroIsInside`: the
+  roles liner / struct / pad / panel / fire (not the boom tube or the taper
+  panels), the cabin fit (AERO_HARD.crew, through aeroHardMat), the crew
+  layer's sections (seats, dummies), and the characters' own skinned
+  materials. The exterior skin's BACK FACE is inside too (uInside.y) — it is
+  what you see through a window on an aeroplane built without liners.
+- **In the shader:** after `lights_fragment_end`, an inside fragment keeps
+  (1 - uCabin.x) of every lit term, direct and indirect, diffuse and
+  specular; emissive is spared (a lit instrument face should glow). One
+  shared uniform `uCabin`, amount 0.55 (the lab's `cabin darkness` under
+  the gains) times the aeroplane's glazing COVERAGE (1 with a pane drawn,
+  0.4 for an open cockpit — there is still a combing and a floor), set by
+  `aeroSetCabin` from both worlds.
+- **Materials that are not AEROSKIN's** take it through `aeroCabinHook`: a
+  second, tiny module-level hook (one program per three-parameter set) on
+  the characters (_cage_char.js) and on the flown payload's textured
+  buckets that the join marked `inside` (aeroInside or charSkin).
+- The bucket key carries `I` so an inside bucket never merges with an
+  outside twin of the same colour.

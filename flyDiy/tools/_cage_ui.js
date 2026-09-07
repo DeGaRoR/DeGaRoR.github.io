@@ -739,6 +739,9 @@ const matOf = name => {
         tileK: secTile[name], roughK: secRough[name], nrmK: secNrm[name],
         ccK: secCc[name], fieldK: secField[name],
         wearM: secWear[name],
+        // G206.1: liners, frames, the dash and the fireproof sheet are in the
+        // cabin; the exterior skin's back face is, by the factory's own rule
+        inside: A.aeroIsInside && A.aeroIsInside(name) ? 1 : 0,
         // the field is per-SECTION and pure (see _surf_check): the mesh
         // publishes which groups carry it, and meshFrom passes it in
         surf: matSurf[name] ? 1 : 0,
@@ -832,6 +835,8 @@ function secMat(name, g) {
     tileK: (r.tileK != null ? r.tileK : 1) * ((g && g.tileK0) || 1),
     roughK: r.roughK, nrmK: r.nrmK, wearM: r.wearM,
     ccK: r.ccK, fieldK: r.fieldK,                    // G206
+    // G206.1: the crew layer's sections (the seats, the dummies) sit inside
+    inside: (A.AERO_SEC[name] && A.AERO_SEC[name].layer === 'crew') ? 1 : 0,
     detRot: g && g.detRot ? 1 : 0,
   });
 }
@@ -1326,6 +1331,11 @@ function build() {
       A0.aeroSetCraft(THREE, root.matrixWorld,
                       { lateral: 'x', along: 'z', up: 'y', aft: true });
     }
+    // THE CABIN'S DARKNESS FOLLOWS THE GLAZING (G206.1): a glazed cabin
+    // keeps the lab's whole darkness, an open one (no pane drawn) keeps
+    // less — there is still a combing and a floor over it
+    if (A0 && A0.aeroSetCabin)
+      A0.aeroSetCabin(THREE, { coverage: Object.keys(GLASS_EXT).length ? 1 : 0.4 });
   } catch (e) {}
   try { buildMatPanel(); decRange(); decApplyRanges(); applyDecals(); }
   catch (e) { console.error('CAGE_UI: the finish panels did not build —', e); }

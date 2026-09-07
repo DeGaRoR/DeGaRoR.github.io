@@ -1357,6 +1357,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
                               (kud.aeroWearM ? 'M' + kud.aeroWearM : '') +
                               (kud.aeroCcK ? 'C' + kud.aeroCcK : '') +
                               (kud.aeroFieldK ? 'F' + kud.aeroFieldK : '') : '') +
+            // G206.1: an inside bucket must not merge with an outside one
+            ((kud.aeroInside || kud.charSkin) ? 'I' : '') +
             // G185: the second plane's materials are their own buckets — the
             // game binds each plane's skin to its own spar stations
             (kud.aeroPlane ? 'P' + kud.aeroPlane : '');
@@ -1402,6 +1404,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           // G206: the sheen and the field dials cross the same way
           ...(ud.aeroCcK ? { ccK: ud.aeroCcK } : {}),
           ...(ud.aeroFieldK ? { fieldK: ud.aeroFieldK } : {}),
+          // G206.1: in the cabin — a liner, a seat, a person (charSkin)
+          ...((ud.aeroInside || ud.charSkin) ? { inside: 1 } : {}),
           ...(ud.aeroRibM ? { ribM: ud.aeroRibM } : {}),
           ...(ud.aeroWearK != null ? { wearK: ud.aeroWearK } : {}),
           ...(ud.aeroWearM != null ? { wearM: ud.aeroWearM } : {}),

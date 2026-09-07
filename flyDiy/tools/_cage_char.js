@@ -210,6 +210,13 @@ function material(c, mi) {
   const mat = new THREE.MeshStandardMaterial(o);
   mat.name = 'char:' + c.key + ':' + (m.name || mi);
   mat.userData.charSkin = 1;                 // the editor's passes leave it be
+  // A PERSON SITS IN THE CABIN (G206.1): the same darkness the liners and
+  // the seats take, through AEROSKIN's small hook for materials that are not
+  // its own. aeroskin.js loads after tools/* in the bundle, and this runs at
+  // build time, so it is there; a page without it keeps a lit crew.
+  if (typeof window !== 'undefined' && window.AEROSKIN &&
+      window.AEROSKIN.aeroCabinHook)
+    window.AEROSKIN.aeroCabinHook(THREE, mat, 1);
   return (MATS[k] = mat);
 }
 

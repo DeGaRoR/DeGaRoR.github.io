@@ -353,6 +353,23 @@ const AERO_ROLE = {
   dash: 'pad', dashFace: 'panel',
   plywood: 'liner', cloth: 'liner', composite: 'liner', toele: 'liner',
 };
+// THE CABIN IS DARKER THAN THE DAY (G206.1, the audit's §1.1 item 4). The
+// crew behind a pane were lit at the exterior's level — nothing in a
+// forward renderer occludes the shed's rig inside the cabin — and that lack
+// of contrast is half of what made a window read as a film rather than as
+// a hole into a volume. What is INSIDE is a fact about the section: the
+// liners, the frames and bulkheads, the dash, the fireproof sheet, the
+// cabin fit (AERO_HARD.crew), the seats and the crew. The exterior skin's
+// BACK FACE is inside too, which is what you see through a window on an
+// aeroplane built without liners. `aeroIsInside` is the section rule; the
+// factory takes `inside` and the shader scales every lit term by
+// (1 - uCabin.x) on those fragments — sky, lamps and sun alike, because a
+// roof and a skin stop all three.
+const AERO_INSIDE_ROLES = new Set(['liner', 'struct', 'pad', 'panel', 'fire']);
+function aeroIsInside(section) {
+  if (section === 'boomTube' || section === 'taperPanel') return false;
+  return AERO_INSIDE_ROLES.has(AERO_ROLE[section]);
+}
 // the interior LINERS say what they are made of in their own name — that is
 // the whole point of the construction dropdown reading "composite / steel
 // tube / plywood / aluminium" — so they resolve by name, not by construction
@@ -587,6 +604,8 @@ function aeroHardMat(THREE, layer, name, tint, o) {
     side: (o && o.side != null) ? o.side : THREE.FrontSide,
     opacity: (o && o.opacity != null) ? o.opacity : 1,
     wearK: o && o.wearK,
+    // the cabin fit lives in the cabin (G206.1); a caller may say otherwise
+    inside: (o && o.inside != null) ? o.inside : (layer === 'crew' ? 1 : 0),
   });
 }
 
@@ -1262,6 +1281,9 @@ function aeroSharedU(THREE) {
     // field. Shared, so the lab's one write reaches every material.
     uGain:  { value: new THREE.Vector3(AERO_GAIN_DEF.x, AERO_GAIN_DEF.y,
                                        AERO_GAIN_DEF.z) },
+    // THE CABIN'S DARKNESS (G206.1): x = how much of the light an inside
+    // fragment loses, already times the aeroplane's glazing coverage
+    uCabin: { value: new THREE.Vector4(AERO_CABIN_DEF, 0, 0, 0) },
   });
 }
 const aeroDecUniforms = aeroSharedU;    // the name G69 wrote it under
@@ -1851,6 +1873,11 @@ uniform vec3 uGain;
 // THE LARGE-SCALE FIELD (G206): x amplitude m, y wavelength m, z roughness
 // gain. Per material, off the finish row times the section's own dial.
 uniform vec4 uField;
+// THE CABIN (G206.1): uCabin.x the darkening (shared); uInside.x this
+// material is inside on both faces, uInside.y on its BACK face only (the
+// exterior skin seen from within)
+uniform vec4 uCabin;
+uniform vec2 uInside;
 uniform vec4 uG4;   // x realRise  y realHalfW(m)  z lePolish(chord frac)  w realFast
 // uG5.w was a wing? FLAG and is a surface CLASS now (G108): 0 the body,
 // 1 the wing, 2 the tail. Everything that tested > 0.5 for "is this a
@@ -2652,8 +2679,60 @@ const AEROSKIN_HOOK = function (shader) {
     // is brushed ONTO the tapes and the set panels; it takes the perturbed
     // normal. Inert on a Standard material: the include is not in its shader.
     .replace('#include <clearcoat_normal_fragment_begin>',
-             '#ifdef CLEARCOAT\n  vec3 clearcoatNormal = normal;\n#endif');
+             '#ifdef CLEARCOAT\n  vec3 clearcoatNormal = normal;\n#endif')
+    .replace('#include <lights_fragment_end>', AERO_CABIN_FS);
 };
+
+// THE CABIN'S DARKNESS, IN THE SHADER (G206.1). After every light has been
+// summed and before the output: an inside fragment keeps (1 - uCabin.x) of
+// all of it. Emissive is spared — a lit instrument face is the one thing
+// that should glow in a dark cabin. faceDirection is r128's own (+1 front,
+// -1 back), declared in normal_fragment_begin, long before this point.
+const AERO_CABIN_FS = `
+#include <lights_fragment_end>
+{
+  float aeroInK = max(uInside.x, uInside.y * step(faceDirection, 0.0));
+  float aeroCab = 1.0 - uCabin.x * aeroInK;
+  reflectedLight.directDiffuse *= aeroCab;
+  reflectedLight.indirectDiffuse *= aeroCab;
+  reflectedLight.directSpecular *= aeroCab;
+  reflectedLight.indirectSpecular *= aeroCab;
+}`;
+
+// THE SAME DARKNESS ON A MATERIAL THAT IS NOT AEROSKIN'S (G206.1): the
+// crew's own skinned materials (_cage_char.js) and the flown payload's
+// textured buckets. ONE module-level function object, like the other hooks
+// and for the same r128 reason (the cache key is its source). It reads the
+// same shared block, attached the same way.
+const AERO_CABIN_HOOK = function (shader) {
+  const u = this.userData.aeroU;
+  for (const k in u) shader.uniforms[k] = u[k];
+  const d = this.userData.aeroD;
+  if (d) for (const k in d) shader.uniforms[k] = d[k];
+  shader.fragmentShader = shader.fragmentShader
+    .replace('#include <common>',
+             'uniform vec4 uCabin;\nuniform vec2 uInside;\n#include <common>')
+    .replace('#include <lights_fragment_end>', AERO_CABIN_FS);
+};
+function aeroCabinHook(THREE, m, inside) {
+  if (!m || !m.isMeshStandardMaterial) return m;
+  m.userData.aeroU = Object.assign(m.userData.aeroU || {},
+    { uInside: { value: new THREE.Vector2(inside != null ? +inside : 1, 0) } });
+  m.userData.aeroD = aeroSharedU(THREE);
+  m.userData.aeroInside = inside != null ? +inside : 1;
+  m.onBeforeCompile = AERO_CABIN_HOOK;
+  m.needsUpdate = true;
+  return m;
+}
+// the aeroplane's coverage scales the darkness: an open cockpit still has a
+// combing and a floor, so it keeps some, and the lab's `cabin` sets the rest
+const AERO_CABIN_DEF = 0.55;
+const AERO_CABIN = { coverage: 1 };
+function aeroSetCabin(THREE, o) {
+  if (o && o.coverage != null) AERO_CABIN.coverage = Math.max(0, Math.min(1, +o.coverage));
+  const amt = AERO_LAB.gain.cabin != null ? AERO_LAB.gain.cabin : AERO_CABIN_DEF;
+  aeroSharedU(THREE).uCabin.value.x = amt * AERO_CABIN.coverage;
+}
 
 // ---------------------------------------------------------------------------
 // GLASS — its own family, its own hook, its own program
@@ -3112,7 +3191,8 @@ function aeroMaterial(THREE, o) {
                'D' + (o.detRot ? 1 : 0),
                // G206: the sheen and the field dials, for the same reason
                'C' + (o.ccK != null ? o.ccK : 1),
-               'F' + (o.fieldK != null ? o.fieldK : 1)].join('|');
+               'F' + (o.fieldK != null ? o.fieldK : 1),
+               'I' + (+o.inside || 0)].join('|');
   const hit = AERO_POOL.get(key);
   if (hit) return hit;
   const row = AERO_FINISH[o.finish] || AERO_FINISH.fabric;
@@ -3141,6 +3221,9 @@ function aeroMaterial(THREE, o) {
     uBoxDet:   { value: o.boxDet ? 1 : 0 },
     uBoxPlane: { value: +o.boxPlane || 0 },
     uDetRot:   { value: o.detRot ? 1 : 0 },
+    // G206.1: inside on both faces, or — exterior skin — on the back face
+    uInside:   { value: new THREE.Vector2(+o.inside || 0,
+                                          (!o.inside && o.struct) ? 1 : 0) },
   });
   aeroGrammarU(THREE, U, o);
   aeroFinishU(THREE, null, U, row, o);
@@ -3212,6 +3295,7 @@ function aeroMaterial(THREE, o) {
   if (o.fieldK != null && o.fieldK !== 1) m.userData.aeroFieldK = o.fieldK;
   // what the lab needs to re-derive the grammar uniforms on this material
   m.userData.aeroStruct = o.struct ? 1 : 0;
+  if (o.inside) m.userData.aeroInside = 1;
   if (o.wearK != null) m.userData.aeroWearK = o.wearK;
   if (o.wearM != null && o.wearM !== 1) m.userData.aeroWearM = o.wearM;
   m.userData.env0 = m.envMapIntensity;
@@ -3388,7 +3472,8 @@ const AERO_LAB_GRAM = {
 };
 const AERO_LAB_GAIN = { x: [0, 8, 0.1, 'members & tapes x'],
                         y: [0, 4, 0.05, 'sag & dish x'],
-                        z: [0, 8, 0.1, 'field x'] };
+                        z: [0, 8, 0.1, 'field x'],
+                        cabin: [0, 0.95, 0.01, 'cabin darkness'] };
 const AERO_LAB_GLASS = { rough:   [0.0, 0.5, 0.005, 'bulk roughness'],
                          ccR:     [0.0, 0.5, 0.005, 'coat roughness'],
                          fresnel: [0, 1.5, 0.01, 'limb closes (fresnel)'],
@@ -3430,7 +3515,7 @@ function aeroLabGramApply() {
 }
 function aeroLabGet(kind, key, field) {
   if (kind === 'gain') return AERO_LAB.gain[key] != null ? AERO_LAB.gain[key]
-                                                        : AERO_GAIN_DEF[key];
+    : (key === 'cabin' ? AERO_CABIN_DEF : AERO_GAIN_DEF[key]);
   if (kind === 'finish') return AERO_FINISH[key] ? AERO_FINISH[key][field] : undefined;
   if (kind === 'grammar') { aeroLabGramApply();
     const G = AERO_GRAMMAR(); return G[key] ? pathGet(G[key], field) : undefined; }
@@ -3461,10 +3546,11 @@ function aeroLabLoad() {
 function aeroLabSet(THREE, kind, key, field, value) {
   value = +value;
   if (kind === 'gain') {
-    if (Math.abs(value - AERO_GAIN_DEF[key]) < 1e-9) delete AERO_LAB.gain[key];
+    const def = key === 'cabin' ? AERO_CABIN_DEF : AERO_GAIN_DEF[key];
+    if (Math.abs(value - def) < 1e-9) delete AERO_LAB.gain[key];
     else AERO_LAB.gain[key] = value;
-    const U = aeroSharedU(THREE);
-    U.uGain.value[key] = value;
+    if (key === 'cabin') aeroSetCabin(THREE);
+    else aeroSharedU(THREE).uGain.value[key] = value;
   } else if (kind === 'finish') {
     const row = AERO_FINISH[key], def = AERO_FINISH_DEF[key];
     if (!row) return;
@@ -3501,6 +3587,7 @@ function aeroLabReset(THREE, kind, key) {
     AERO_LAB.gain = {};
     const U = aeroSharedU(THREE);
     U.uGain.value.set(AERO_GAIN_DEF.x, AERO_GAIN_DEF.y, AERO_GAIN_DEF.z);
+    aeroSetCabin(THREE);
   }
   if (all || kind === 'finish')
     for (const k of (all || !key) ? Object.keys(AERO_LAB.finish) : [key]) {
@@ -3604,6 +3691,8 @@ if (typeof window !== 'undefined')
                       AERO_GLASS, AERO_SKIN_ROLES, aeroFinishFor, aeroIsSkin,
                       aeroMaterial, aeroGlass,
                       aeroGlassTint, aeroGlassCompanion, GLASS_DEF,
+                      aeroIsInside, aeroCabinHook, aeroSetCabin,
+                      AERO_CABIN_DEF,
                       aeroSetEnv, aeroDispose, aeroLinear, AERO_TEX,
                       aeroSetDecals, aeroSetCraft,
                       aeroDecalsFor, aeroApplySpecDecals, AERO_DEC_DEF,
@@ -3642,4 +3731,4 @@ if (typeof module !== 'undefined')
                      aeroKitKnob, aeroKitLayers,
                      AERO_SEC, aeroSecResolve,
                      AERO_FINISH_DEF, AERO_LAB_FIELDS, AERO_LAB_GRAM,
-                     AERO_GAIN_DEF, GLASS_DEF };
+                     AERO_GAIN_DEF, GLASS_DEF, aeroIsInside, AERO_CABIN_DEF };

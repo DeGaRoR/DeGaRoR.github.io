@@ -1355,6 +1355,7 @@
               // the factory numbers.
               tileK: m.tileK, roughK: m.roughK, nrmK: m.nrmK,
               ccK: m.ccK, fieldK: m.fieldK,          // G206
+              inside: m.inside || 0,                  // G206.1
               ribM: m.ribM, wearK: m.wearK, wearM: m.wearM,
               side: THREE.DoubleSide });
       }
@@ -1421,12 +1422,17 @@
       // names a sheet the viewer did not bake. Fall back to the material's own
       // colour, and only tint white when there really is a map to tint.
       const tex = m.tex ? texs[m.tex] : null;
-      return matCache[mn] = new THREE.MeshStandardMaterial(tex
+      const std = new THREE.MeshStandardMaterial(tex
         ? Object.assign({ map: tex,
             color: m.color !== undefined ? m.color : 0xffffff }, common)
         // flat-colour groups: opaque unless the payload asks for opacity < 1
         // (the c172 interior is all flat colour and must write depth)
         : Object.assign({ color: m.color !== undefined ? m.color : 0xaad4ea }, common));
+      // G206.1: a bucket the join marked as inside (the crew, a liner that
+      // is not AEROSKIN's) takes the cabin's darkness through the small hook
+      if (m.inside && typeof AEROSKIN !== 'undefined' && AEROSKIN.aeroCabinHook)
+        AEROSKIN.aeroCabinHook(THREE, std, 1);
+      return matCache[mn] = std;
     };
     const grp = new THREE.Group();
     grp.matrixAutoUpdate = false;
@@ -1461,6 +1467,11 @@
       meshes[name] = mesh;
       grp.add(mesh);
     }
+    // THE CABIN'S DARKNESS FOLLOWS THE GLAZING (G206.1), as in the editor
+    if (typeof AEROSKIN !== 'undefined' && AEROSKIN.aeroSetCabin)
+      AEROSKIN.aeroSetCabin(THREE, {
+        coverage: Object.keys(mats).some(k => mats[k] && mats[k].fin === 'glass')
+          ? 1 : 0.4 });
     // G55 MOVING PARTS (cage visual): each wheel is its own group pivoted
     // at its AXLE and ridden on its axle NODE at pose time — suspension
     // travel is the physics showing through, not an animation. The prop
