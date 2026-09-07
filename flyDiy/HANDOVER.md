@@ -33709,3 +33709,51 @@ TRAPS, this pass:
   `needsUpdate` — a cached program, so a lookup, not a compile.
 - **A NaN in a shared uniform paints the aeroplane black**: one console
   call with four arguments did it. aeroLabSet refuses a non-finite value.
+
+## G207 — THE DOOR GAP AUDITED, THE FITTINGS WEAR THE FUSELAGE, MARKINGS ON
+## PAINTWORK ONLY, THE PANEL IN FOUR BLOCKS, THE ATLAS AT 4096, AND THE
+## REGISTRATION'S HEIGHT IS THE LETTERS' (2026-09-07, the user's list)
+
+- **The door gap, audited.** "Draw the gap" (`rimDoor`) drew a rubber bead
+  on the seam and was SUPPRESSED on every wood, tube and metal interior
+  (structDoor: "a structural door carries no seal") — this aeroplane is
+  wood, so the switch did nothing. `doorDepth` acted only inside the window
+  REVEAL pass, off by default since it turns GATE FIT red. And a cut door
+  filled its hole exactly, coplanar: nothing to see. Now a cut door SHRINKS
+  in-surface by half `doorRim` (a real slit; per-vertex inward directions
+  built as the reveal pass builds them), steps BACK by `doorDepth` (3 mm
+  default now, not the reveal's 20), and `rimDoor` draws a flat dark seal
+  strip on the seam in every construction — the wooden frame the interior
+  raises is inside the doorway, the seal is outside. The seal path lifts by
+  the door's step like the panes' does. Row `door recess` shows with the cut
+  on, not only with the reveal.
+- **The fittings wear the fuselage** (`wears: 'parent'` on accPaint, spat,
+  strut, cabane, interplane, cowlSkin): a painted part with no colour of
+  its own takes the colour its parent actually wears — the parent's
+  override if any (that always walked), else the parent's own finish base
+  — instead of its pinned finish's base. The access cover was `trim`'s pale
+  grey on a ply fuselage.
+- **Markings land on paintwork only** (`uDecOk`, factory option `decals`,
+  `aeroDecOk`): the cage's skin/rail/pillar roles, the flying surfaces, the
+  cowl and the spats. The engine, the prop, the mount, the gear and its
+  legs, the struts, the truss and every interior section refuse the box
+  projection. Hardware through aeroHardMat defaults to 0. Crosses the join
+  as `noDec`. (The tanks were never AEROSKIN's and took none.)
+- **The markings panel is four blocks**: registration, livery (the kit),
+  body image, wing image — every row tagged `data-dec`, the game's FINISH
+  view emitting a heading per block.
+- **The atlas is 4096 px** (a page 256 -> 1024): 6 mm per texel on a
+  registration was the pixels. Dilation and the outline stroke scale with
+  the page; the envelope keeps a 512 px copy of an image page.
+- **The registration's height is the LETTERS' height.** `regH` was the
+  PAGE's, and the glyphs filled a quarter of it: a 300 mm marking drew 80 mm
+  letters, which is the whole of "the height slider is far too limited".
+  The text is drawn to fill its page (up or down), `AERO_TEXT_FIT` records
+  what the glyphs occupy, and the placement divides the page rect by it.
+  Height 0.05-1.2 m, width 0.1-3 m fixed (it followed the fuselage length,
+  which is "goes too high"). A SAVED regH now means letters that tall — a
+  build saved at 0.60 shows 0.60 m letters and wants re-dialling.
+- **Open:** the horizontal bar in the cockpit. Not the lap belts (off by
+  default), not the yoke (this build has a centre stick), not the panel's
+  rows; I could not identify it from the code or reach it with the camera.
+  Click it in the editor — a control resolves to its part — and say which.

@@ -24298,8 +24298,11 @@ window.CAGE_PAGE = {
          { when: P => +P.doorOn, dim: 'len' }],
         ['rimDoor',   'draw the gap',   0, 1, 1,
          { when: P => +P.doorOn }],
-        ['doorDepth', 'door recess',    0, 0.06, 0.002,
-         { when: P => +P.doorOn && +P.winFrameW > 0, dim: 'len' }],
+        // G207: the recess is the cut door's step back now (and still the
+        // reveal's depth when that pass is on)
+        ['doorDepth', 'door recess',    0, 0.06, 0.001,
+         { when: P => +P.doorOn && (+P.cutParts || +P.winFrameW > 0),
+           dim: 'len' }],
         ['doorDeep',  'deep jamb',      0, 1, 1, { when: P => +P.doorOn }],
         // define the door, then take it away: the open doorway stays,
         // jambs and structure built as if it were hung (needs cut
@@ -27034,7 +27037,10 @@ function cageRims(m, S) {
     // tube its own tube outline (all from this same recorded outline)
     const structDoor = IC.on &&
       (consD === 'wood' || consD === 'tube' || consD === 'metal');
-    const enabled = kind === 'door' ? (W.rimDoor && !structDoor)
+    // G207: `rimDoor` is "draw the gap" and it draws in every construction
+    // now — the wooden frame the interior raises is INSIDE the doorway, the
+    // seal strip is outside on the seam; `structDoor` no longer silences it
+    const enabled = kind === 'door' ? W.rimDoor
       : zMat === 'windshield' ? W.rimWs : W.rimWin;
     if (!enabled || !(W.rim > 0)) continue;
 
@@ -27061,8 +27067,9 @@ function cageRims(m, S) {
     // strip sinks with the glass and the step it was cut for disappears.
     // (a PROUD pane — negative inset — keeps the strip at the pane's own
     // level: a retainer over a proud pane rests on the pane)
-    if (kind !== 'door' && S.cut && S.cut.on && W.paneInset > 0) {
-      const li = W.paneInset;
+    if (S.cut && S.cut.on &&
+        (kind === 'door' ? W.doorDepth > 0 : W.paneInset > 0)) {
+      const li = kind === 'door' ? W.doorDepth : W.paneInset;
       pts = pts.map((p, i) => {
         const n = ns[i] || [0, 0, 0];
         return [p[0] + n[0] * li, p[1] + n[1] * li, p[2] + n[2] * li];
@@ -27279,12 +27286,13 @@ function cageRims(m, S) {
         // builder's `rimRise` (0.22 = 2.6 mm on the stock 12 mm), and the
         // section is flat-topped — the sine is clipped so the crown is a
         // face, not a ridge. A DOOR keeps the round-topped rubber at 0.38.
-        const rise = kind === 'door' ? 0.38
+        // ...and a DOOR'S is the flat dark seal in its gap (G207): low, so
+        // it reads as the shadow line a door gap is from any distance
+        const rise = kind === 'door' ? 0.12
                    : (W.rimRise != null ? W.rimRise : 0.38);
         const sn = Math.sin(a);
         const cb = Math.cos(a) * r;
-        const cn = (kind === 'door' ? sn
-                    : Math.max(-1, Math.min(1, sn * 1.5))) * r * rise;
+        const cn = Math.max(-1, Math.min(1, sn * 1.5)) * r * rise;
         let qx = b[0]*cb + n2[0]*cn, qy = b[1]*cb + n2[1]*cn,
             qz = b[2]*cb + n2[2]*cn;
         if (mit) {
@@ -27490,7 +27498,7 @@ function cageCut(m, S) {
     }
     return [...z.values()];
   };
-  const cutZone = (fis, sill, inset, edgeT) => {
+  const cutZone = (fis, sill, inset, edgeT, gap) => {
     let keep = fis;
     if (sill > 0) {
       // ROW-STEPPED SILL (user correction: cut STRAIGHT along the rows
@@ -27608,6 +27616,50 @@ function cageCut(m, S) {
       // fuselage-line features (the waist) in the part's OWN frame
       F[fi].cutOff = off;
     }
+    // THE GAP (G207): the door's boundary ring moves INWARD, in the surface,
+    // by half the seal's gauge — a real slit between the panel and the hole
+    // it came out of, which the seal strip then straddles. Per vertex, the
+    // inward direction is the mean over its boundary edges of (owning face's
+    // centroid - edge midpoint), squared to the edge: the same construction
+    // the reveal pass uses.
+    if (gap > 0) {
+      const own = new Map(), inw = new Map();
+      const addIn = (vi, d) => {
+        const a = inw.get(vi) || [0, 0, 0];
+        a[0] += d[0]; a[1] += d[1]; a[2] += d[2]; inw.set(vi, a);
+      };
+      for (const fi of keep) {
+        const f = F[fi];
+        for (let e = 0; e < 4; e++) {
+          const a = f.v[e], b = f.v[(e + 1) % 4];
+          const k = cageEdgeKey(a, b);
+          if (!own.has(k)) own.set(k, { n: 0, a, b, fi });
+          own.get(k).n++;
+        }
+      }
+      for (const { n, a, b, fi } of own.values()) {
+        if (n !== 1) continue;
+        const f = F[fi], c = [0, 0, 0];
+        for (const vi of f.v) { c[0] += V[vi][0] / 4; c[1] += V[vi][1] / 4;
+                                c[2] += V[vi][2] / 4; }
+        const A = V[a], B = V[b];
+        const mid = [(A[0]+B[0])/2, (A[1]+B[1])/2, (A[2]+B[2])/2];
+        const ed = [B[0]-A[0], B[1]-A[1], B[2]-A[2]];
+        const el = Math.hypot(ed[0], ed[1], ed[2]) || 1;
+        ed[0] /= el; ed[1] /= el; ed[2] /= el;
+        let d = [c[0]-mid[0], c[1]-mid[1], c[2]-mid[2]];
+        const dd = d[0]*ed[0] + d[1]*ed[1] + d[2]*ed[2];
+        d = [d[0]-dd*ed[0], d[1]-dd*ed[1], d[2]-dd*ed[2]];
+        const dl = Math.hypot(d[0], d[1], d[2]) || 1;
+        d = [d[0]/dl, d[1]/dl, d[2]/dl];
+        addIn(a, d); addIn(b, d);
+      }
+      for (const [vi, d] of inw) {
+        const l = Math.hypot(d[0], d[1], d[2]) || 1;
+        V[vi][0] += d[0] / l * gap; V[vi][1] += d[1] / l * gap;
+        V[vi][2] += d[2] / l * gap;
+      }
+    }
     // THE EDGE RING (G206.2). Every boundary edge of the separated part —
     // an edge one kept face owns — is extruded along the part's own vertex
     // normals by the pane's thickness: the acrylic's edge, from the pane's
@@ -27665,14 +27717,16 @@ function cageCut(m, S) {
       : dk && dk.lastIndexOf('pax', 0) === 0
         ? (W.doorSillPax != null ? W.doorSillPax : W.doorSill)
       : W.doorSill;
-    cutZone(z, Math.max(0, sill || 0), 0, 0);
+    // G207: the door steps back by its recess and shrinks by half its seal
+    cutZone(z, Math.max(0, sill || 0), W.doorDepth || 0, 0,
+            (W.doorRim > 0 ? W.doorRim : W.rim * 0.85) * 0.5);
   }
   // DOORS OWN THEIR WINDOWS (user ruling): glass already separated with
   // a door stays with it — only window faces OUTSIDE every cut door form
   // their own parts (a window straddling a door edge splits: the door
   // keeps its share, the rest becomes a fuselage-side window part).
   if (C.wins) for (const z of groups('win', fi => !F[fi].cutPart))
-    cutZone(z, 0, W.paneInset || 0, W.paneThick || 0);
+    cutZone(z, 0, W.paneInset || 0, W.paneThick || 0, 0);
   // DOOR REMOVED (G26.4, user): define the door, then take it away —
   // the OPENING stays and everything around it (jambs, sills, broken
   // waist runs, frames) is built exactly as if the door were hung; the
@@ -31330,7 +31384,20 @@ const CAGE_PARAMS = {
   // and `winDepth` were dark from the day they were written — no rows, and
   // nothing to switch them on. The user asked for the real recess knowing it
   // changes every window on every build.
-  doorDepth: 0.020, doorRim: 0.020, bulkZ: 0,
+  // THE DOOR GAP, AUDITED (G207, the user: "I had asked for a gap for the
+  // door, meaning a gap between the door panel and the fuselage, and small
+  // opening ... there's even a 'draw the gap' option, but it does not do
+  // anything"). Three things, and none of them was a gap: `rimDoor` drew a
+  // rubber BEAD on the seam and was SUPPRESSED on every wood, tube and metal
+  // interior ("a structural door carries no seal") — this aeroplane is wood,
+  // so the switch did nothing; `doorDepth` only acted inside the window
+  // REVEAL pass, which is off by default (it turns GATE FIT red); and the cut
+  // door filled its hole exactly, coplanar, so there was nothing to see. Now:
+  // a cut door SHRINKS in-surface by half `doorRim` (a real slit), steps
+  // BACK by `doorDepth` (a real step, 3 mm), and `rimDoor` draws a flat dark
+  // seal strip on the seam in every construction — the frame the interior
+  // raises for a wood door is inside; the seal is outside.
+  doorDepth: 0.004, doorRim: 0.020, bulkZ: 0,
   // DOOR REMOVED (G26.4): the door is DEFINED (jambs, sills, broken
   // longeron runs — all built) but the panel itself is deleted after
   // the cut, leaving the open doorway. Needs cutParts on.
@@ -57267,6 +57334,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
                               (kud.aeroFieldK ? 'F' + kud.aeroFieldK : '') : '') +
             // G206.1: an inside bucket must not merge with an outside one
             ((kud.aeroInside || kud.charSkin) ? 'I' : '') +
+            (kud.aeroNoDec ? 'K' : '') +
             // G185: the second plane's materials are their own buckets — the
             // game binds each plane's skin to its own spar stations
             (kud.aeroPlane ? 'P' + kud.aeroPlane : '');
@@ -57314,6 +57382,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           ...(ud.aeroFieldK ? { fieldK: ud.aeroFieldK } : {}),
           // G206.1: in the cabin — a liner, a seat, a person (charSkin)
           ...((ud.aeroInside || ud.charSkin) ? { inside: 1 } : {}),
+          // G207: no marking lands here (hardware, structure, the interior)
+          ...(ud.aeroNoDec ? { noDec: 1 } : {}),
           ...(ud.aeroRibM ? { ribM: ud.aeroRibM } : {}),
           ...(ud.aeroWearK != null ? { wearK: ud.aeroWearK } : {}),
           ...(ud.aeroWearM != null ? { wearM: ud.aeroWearM } : {}),
@@ -58511,6 +58581,8 @@ const matOf = name => {
         // G206.1: liners, frames, the dash and the fireproof sheet are in the
         // cabin; the exterior skin's back face is, by the factory's own rule
         inside: A.aeroIsInside && A.aeroIsInside(name) ? 1 : 0,
+        // G207: a marking lands on the exterior skin and nowhere else
+        decals: A.aeroDecOk ? A.aeroDecOk(name) : 1,
         // the field is per-SECTION and pure (see _surf_check): the mesh
         // publishes which groups carry it, and meshFrom passes it in
         surf: matSurf[name] ? 1 : 0,
@@ -58606,6 +58678,9 @@ function secMat(name, g) {
     ccK: r.ccK, fieldK: r.fieldK,                    // G206
     // G206.1: the crew layer's sections (the seats, the dummies) sit inside
     inside: (A.AERO_SEC[name] && A.AERO_SEC[name].layer === 'crew') ? 1 : 0,
+    // G207: the flying surfaces, the cowl and the spats take a marking; the
+    // engine, the mount, the gear, the struts, the crew do not
+    decals: A.aeroDecOk ? A.aeroDecOk(name) : 1,
     detRot: g && g.detRot ? 1 : 0,
   });
 }
@@ -61072,8 +61147,15 @@ function buildDecPanel() {
   ui.insertBefore(decPanel, lg);
   // the optional PARENT is what lets the kit put its layers in nested
   // <details> instead of adding forty-two rows to one flat panel
+  // WHICH BLOCK A ROW BELONGS TO (G207, the user: "the marking and livery
+  // section needs its controls reorganized ... separating clearly the
+  // registration, the livery system, the body and the wing sections"). Every
+  // row carries `data-dec`, and the game's FINISH view emits one heading per
+  // block instead of one for the lot. The bench's flat panel is unchanged.
+  const DECG = { cur: 'reg' };
   const row = (label, title, parent) => {
     const d = document.createElement('div'); d.className = 'r';
+    d.dataset.dec = DECG.cur;
     const k = document.createElement('span');
     k.className = 'k'; k.textContent = label; k.title = title || label;
     d.appendChild(k); (parent || body).appendChild(d); return d;
@@ -61161,10 +61243,14 @@ function buildDecPanel() {
     };
     d.appendChild(i);
   }
-  num('height', 'regH', 0.08, 0.60, 0.01, 'metres — 300 mm is the usual legal size');
-  num('width', 'regW', 0.10, 4.0, 0.02,
+  // G207: these are the GLYPHS' height and width now (the page was a
+  // quarter empty above and below the letters), so the ranges are letter
+  // sizes — 50 mm to 1.2 m tall, up to 3 m wide — and the width no longer
+  // follows the fuselage length
+  num('height', 'regH', 0.05, 1.20, 0.01, 'metres — 300 mm is the usual legal size');
+  num('width', 'regW', 0.10, 3.0, 0.02,
       'metres. Locked, this follows the height at the face aspect; unlocked ' +
-      'it condenses or stretches the marking to fit the space it has', 'len');
+      'it condenses or stretches the marking to fit the space it has');
   // THE MARKING'S OWN COLOURS. Null follows the paint's trim (and white), so
   // an aeroplane that never touches these looks exactly as it always has;
   // double-click the label to go back to following.
@@ -61222,6 +61308,7 @@ function buildDecPanel() {
   // THE KIT IS FIRST IN THE PAINT ORDER and LAST-BUT-ONE in the panel, which
   // is deliberate: the registration is the row people open this panel for, and
   // the image channels below are the ones almost nobody uses.
+  DECG.cur = 'kit';
   if (A.AERO_KIT && A.AERO_KIT_LAYERS) {
     const KIT = A.AERO_KIT;
     const patOf = key => KIT[Math.max(0, Math.min(KIT.length - 1,
@@ -61232,6 +61319,7 @@ function buildDecPanel() {
       const q = 'm' + li;
       const det = document.createElement('details');
       det.dataset.g = 'livery/' + li;
+      det.dataset.dec = 'kit';
       const sum = document.createElement('summary');
       det.appendChild(sum); body.appendChild(det);
       // WHAT THE PATTERN CHANGES, collected rather than chased: a colour slot
@@ -61417,6 +61505,7 @@ function buildDecPanel() {
   const BODY = { on: 'imgOn', w: 'imgW', h: 'imgH', lock: 'imgLock' };
   const WING = { on: 'wimOn', w: 'wimW', h: 'wimH', lock: 'wimLock' };
 
+  DECG.cur = 'body';
   channel('body image', BODY, 1,
           'one image across the fuselage, the cowl and the tail');
   num('body width', 'imgW', 0.1, 4.0, 0.05, 'metres', 'len');
@@ -61432,6 +61521,7 @@ function buildDecPanel() {
   pick('body projected as', 'imgMode', MODE_NAMES, MODE_HELP,
        (a, b) => decReframe(a, b, { l: 'imgL', c: 'imgC' }));
 
+  DECG.cur = 'wing';
   channel('wing image', WING, 2,
           'one image across the wing and its slabs, independent of the body');
   num('wing width', 'wimW', 0.1, 4.0, 0.05, 'metres', 'span');
@@ -65217,7 +65307,12 @@ const VESSEL_TEX_SETS = (typeof Image !== 'undefined') ? (() => {
 // THE LARGE-SCALE FIELD (G206, the user: "something like a musgrave texture
 // at large scale over the whole body ... mostly on metal sheets, medium on
 // wood and low on fabric"). `fld` is its amplitude in METRES, `fldL` its
-// wavelength in metres, `fldR` how much of it reaches the roughness. It is a
+// wavelength in metres, `fldR` how much of it reaches the roughness. THE
+// AMPLITUDES ARE WHAT READS, NOT WHAT A MICROMETER SAYS (G206.3): the first
+// cut carried the honest half-millimetres and was invisible at any gain the
+// eye tolerated elsewhere — measured on the stand, 3 mm at x25 is a set
+// panel and 0.4 mm at x12 is nothing. So ply is 1.5 mm, alclad 2.5, fabric
+// 0.8, at x15, and the lab is where they get set by eye. It is a
 // NON-REPEATING noise evaluated in metres in the shader (aeroField), never a
 // term in the tiling sheet — because a slow term inside a tile IS the visible
 // repeat, which is what the sheets carried until G206 (see aeroHeight).
@@ -65236,37 +65331,37 @@ const AERO_FINISH = {
   fabric:    { name: 'doped fabric', base: 0xd8d4c8, tile: 0.06,
                rough: 0.42, metal: 0.0, nrm: 0.25, alb: 0.13,
                hs: 0.15, bs: 0.8, bake: 'weave',
-               cc: 0.35, ccR: 0.25, fld: 0.00025, fldL: 0.35, fldR: 0.3 },
+               cc: 0.35, ccR: 0.25, fld: 0.0008, fldL: 0.40, fldR: 0.3 },
   // alb 0.50 -> 0.80 with the scanned sheet (G125): the maple face's B span
   // is a quarter of the procedural stripes', so the compensation keeps the
   // ply's grain visible at all — same measurement as spruce's note below
   ply:       { name: 'birch ply',    base: 0xc9a06a, tile: 0.35,
                rough: 0.32, metal: 0.0, nrm: 0.30, alb: 0.80,
                hs: 0.10, bs: 1.6, bake: 'grain', sheet: 'maple',
-               cc: 0.50, ccR: 0.18, fld: 0.0004, fldL: 0.5, fldR: 0.3 },
+               cc: 0.50, ccR: 0.18, fld: 0.0015, fldL: 0.60, fldR: 0.3 },
   alclad:    { name: '2024 alclad',  base: 0xd2d6da, tile: 0.70,
                rough: 0.28, metal: 0.0, nrm: 0.35, alb: 0.10,
                hs: 0.8, bs: 0.5, bake: 'sheet',
-               cc: 0.45, ccR: 0.15, fld: 0.0015, fldL: 0.8, fldR: 0.35 },
+               cc: 0.45, ccR: 0.15, fld: 0.0025, fldL: 0.90, fldR: 0.35 },
   composite: { name: 'carbon/epoxy', base: 0x2b2e33, tile: 0.10,
                rough: 0.20, metal: 0.0, nrm: 0.30, alb: 0.22,
                hs: 0.5, bs: 1.0, bake: 'twill',
-               cc: 0.60, ccR: 0.10, fld: 0.0003, fldL: 1.0, fldR: 0.2 },
+               cc: 0.60, ccR: 0.10, fld: 0.0006, fldL: 1.0, fldR: 0.2 },
   bareAlu:   { name: 'bare alloy',   base: 0xb6bcc3, tile: 0.45,
                rough: 0.26, metal: 0.90, nrm: 0.45, alb: 0.10,
                hs: 0.8, bs: 0.6, bake: 'sheet',
-               fld: 0.0015, fldL: 0.8, fldR: 0.4 },
+               fld: 0.0025, fldL: 0.90, fldR: 0.4 },
   steelTube: { name: '4130 tube',    base: 0x6f7780, tile: 0.30,
                rough: 0.48, metal: 0.80, nrm: 0.50, alb: 0.16,
                hs: 0.9, bs: 0.8, bake: 'sheet',
-               fld: 0.0002, fldL: 0.3, fldR: 0.2 },
+               fld: 0.0006, fldL: 0.3, fldR: 0.2 },
   // alb raised 0.55 -> 0.85 with the scanned sheet (G125): Wood091B's strip
   // boundaries are almost entirely COLOUR, and at 0.55 the laminations
   // vanished into the base — measured on the swatch strip, not guessed
   spruce:    { name: 'spruce',       base: 0xbb9560, tile: 0.30,
                rough: 0.40, metal: 0.0, nrm: 0.30, alb: 0.85,
                hs: 0.14, bs: 1.6, bake: 'grain', sheet: 'laminate',
-               cc: 0.40, ccR: 0.20, fld: 0.0003, fldL: 0.5, fldR: 0.2 },
+               cc: 0.40, ccR: 0.20, fld: 0.0010, fldL: 0.5, fldR: 0.2 },
 
   // ---- THE SCANNED WOODS (G125) -------------------------------------------
   // The first baked CC0 payloads, landing the promise the sheet loader has
@@ -65288,15 +65383,15 @@ const AERO_FINISH = {
   maple:     { name: 'maple',          base: 0xe3d4b9, tile: 0.90,
                rough: 0.42, metal: 0.0, nrm: 0.30, alb: 0.90,
                hs: 0.10, bs: 1.4, bake: 'grain', sheet: 'maple',
-               cc: 0.30, ccR: 0.20, fld: 0.0002, fldL: 0.5, fldR: 0.2 },
+               cc: 0.30, ccR: 0.20, fld: 0.0008, fldL: 0.5, fldR: 0.2 },
   walnut:    { name: 'walnut',         base: 0xa98971, tile: 0.90,
                rough: 0.42, metal: 0.0, nrm: 0.30, alb: 1.10,
                hs: 0.10, bs: 1.6, bake: 'grain', sheet: 'walnut',
-               cc: 0.30, ccR: 0.20, fld: 0.0002, fldL: 0.5, fldR: 0.2 },
+               cc: 0.30, ccR: 0.20, fld: 0.0008, fldL: 0.5, fldR: 0.2 },
   walnutFig: { name: 'figured walnut', base: 0x887e72, tile: 1.10,
                rough: 0.44, metal: 0.0, nrm: 0.30, alb: 1.30,
                hs: 0.10, bs: 1.6, bake: 'grain', sheet: 'walnutfig',
-               cc: 0.30, ccR: 0.20, fld: 0.0002, fldL: 0.5, fldR: 0.2 },
+               cc: 0.30, ccR: 0.20, fld: 0.0008, fldL: 0.5, fldR: 0.2 },
   rubber:    { name: 'rubber',       base: 0x20222b, tile: 0.16,
                rough: 0.94, metal: 0.0, nrm: 0.55, alb: 0.20,
                hs: 0.7, bs: 0.9, bake: 'weave' },
@@ -65306,7 +65401,7 @@ const AERO_FINISH = {
   trim:      { name: 'painted trim', base: 0xd8dde4, tile: 0.40,
                rough: 0.28, metal: 0.10, nrm: 0.25, alb: 0.08,
                hs: 0.6, bs: 0.5, bake: 'sheet',
-               cc: 0.40, ccR: 0.20, fld: 0.0005, fldL: 0.4, fldR: 0.3 },
+               cc: 0.40, ccR: 0.20, fld: 0.0012, fldL: 0.45, fldR: 0.3 },
   // THE FIREPROOF SHEET. A firewall is a structural bulkhead with a sheet of
   // stainless or aluminised foil on the ENGINE side of it, and the foil is
   // the only surface on the aeroplane whose whole appearance is a CRINKLE: it
@@ -65375,7 +65470,7 @@ const AERO_FINISH = {
   panelMetal: { name: 'metal panel',   base: 0xd0d4d8, tile: 0.60,
                 rough: 0.38, metal: 0.92, nrm: 0.35, alb: 0.20,
                 hs: 0.8, bs: 0.5, bake: 'sheet', sheet: 'panel',
-                fld: 0.0003, fldL: 0.4, fldR: 0.3 },
+                fld: 0.0010, fldL: 0.4, fldR: 0.3 },
   leatherDark: { name: 'dark leather', base: 0x2a2622, tile: 0.30,
                  rough: 0.52, metal: 0.0, nrm: 0.55, alb: 0.60,
                  hs: 0.8, bs: 0.9, bake: 'hide', sheet: 'leather' },
@@ -65740,7 +65835,18 @@ function aeroHardMat(THREE, layer, name, tint, o) {
     wearK: o && o.wearK,
     // the cabin fit lives in the cabin (G206.1); a caller may say otherwise
     inside: (o && o.inside != null) ? o.inside : (layer === 'crew' ? 1 : 0),
+    // hardware is not paintwork (G207): no marking lands on it
+    decals: (o && o.decals != null) ? o.decals : 0,
   });
+}
+// WHICH SECTIONS TAKE A MARKING (G207): the cage's exterior skin by role,
+// the flying surfaces by role, and the two painted layer parts by name.
+const AERO_DEC_ROLES = new Set(['skin', 'rail', 'pillar']);
+const AERO_DEC_LAYER = new Set(['cowlSkin', 'spat']);
+function aeroDecOk(section) {
+  const row = AERO_SEC[section];
+  if (row) return (row.role === 'skin' || AERO_DEC_LAYER.has(section)) ? 1 : 0;
+  return AERO_DEC_ROLES.has(AERO_ROLE[section]) ? 1 : 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -65793,13 +65899,19 @@ const AERO_SEC = {
   // own bottom-out finish the engine layer passes per blade material
   // (cw_material stays the structure-tab choice, exactly as the prop always
   // worked — the section adds the override on top).
+  // `wears: 'parent'` (G207): a PAINTED part with no colour of its own takes
+  // the colour its parent actually WEARS — the parent's override if it has
+  // one (that always walked), else the parent's own finish base — instead of
+  // its pinned finish's base. The user: "the maintenance access on the side
+  // should be colored like the fuselage"; a strut, a spat and a cowl are
+  // painted with the fuselage on a light aeroplane, the fittings with it.
   strut:    { parent: 'body', fin: 'trim',      label: 'the lift struts',
-              layer: 'wing' },
+              layer: 'wing', wears: 'parent' },
   // G185: the truss follows the lift struts (paint, the fuselage's colour)
   cabane:   { parent: 'strut', fin: 'trim',     label: 'the cabane struts',
-              layer: 'brace' },
+              layer: 'brace', wears: 'parent' },
   interplane: { parent: 'strut', fin: 'trim',   label: 'the interplane struts',
-              layer: 'brace' },
+              layer: 'brace', wears: 'parent' },
   braceWire: { parent: null,   fin: 'steelTube', label: 'the bracing wires',
               layer: 'brace' },
   // the second plane follows the first by default; painting it re-paints
@@ -65813,7 +65925,7 @@ const AERO_SEC = {
   wingFlap2: { parent: 'wingSkin2', role: 'skin', label: 'the second flaps',
               layer: 'wing2' },
   spat:     { parent: 'body', fin: 'trim',      label: 'the wheel fairings',
-              layer: 'gear' },
+              layer: 'gear', wears: 'parent' },
   gearLeg:  { parent: null,   fin: 'steelTube', label: 'the gear legs',
               layer: 'gear' },
   prop:     { parent: null,                     label: 'the propeller',
@@ -65821,7 +65933,7 @@ const AERO_SEC = {
   spinner:  { parent: 'prop',                   label: 'the spinner',
               layer: 'eng' },
   cowlSkin: { parent: 'body', fin: 'alclad',    label: 'the cowling',
-              layer: 'cowl' },
+              layer: 'cowl', wears: 'parent' },
   // ---- THE ENGINE (G113.4, the user: "get the material and color picker
   // from the engine, block and covers should be pickable... so we have
   // something for the engine") -------------------------------------------
@@ -65857,7 +65969,7 @@ const AERO_SEC = {
   engMount: { parent: 'body',     fin: 'trim',    label: 'the engine mount',
               layer: 'eng' },
   accPaint: { parent: 'body', fin: 'trim',      label: 'the fittings',
-              layer: 'access' },
+              layer: 'access', wears: 'parent' },
   // ---- the cabin and its crew (phase D) -----------------------------------
   // The seats follow NOBODY on purpose: a green fuselage does not force
   // green leather. The dummies are the user's "give them a bit of
@@ -65913,8 +66025,18 @@ function aeroSecResolve(sec, over, ctx) {
   const byCons = AERO_BY_CONS[ctx && ctx.cons] || AERO_BY_CONS.tubeFabric;
   const fin = f.v != null ? f.v
     : (ctx && ctx.fin) || row.fin || byCons[row.role || 'skin'] || byCons.skin;
+  let tint = walk(over && over.tint, chain).v;
+  // WEARS THE PARENT'S COLOUR (G207): no override anywhere up the chain, and
+  // the row says it is painted with its parent — so the colour is the base
+  // of the finish the PARENT resolves to (its own override having been the
+  // walk's answer already). Bounded by the chain, like the walk.
+  if (tint == null && row.wears === 'parent' && row.parent) {
+    const pr = aeroSecResolve(row.parent, over, ctx);
+    const pf = AERO_FINISH[pr.fin];
+    if (pf) tint = pf.base;
+  }
   return { fin, src: f.src,
-           tint: walk(over && over.tint, chain).v,
+           tint,
            tileK: walk(over && over.tile, chain).v,
            roughK: walk(over && over.rough, chain).v,
            nrmK: walk(over && over.nrm, chain).v,
@@ -66188,7 +66310,19 @@ function aeroDetailTex(THREE, key) {
 // panel can actually turn on and not to a round number.
 const AERO_MAXD = 6;
 const AERO_ATLAS_N = 4;              // 4x4 pages
-const AERO_ATLAS_PX = 1024;
+// 1024 -> 4096 (G207, the user: "the current decals are too low resolution,
+// the pixels are clearly visible"). A page was 256 px, stretched over a
+// metre or two of flank: 6 mm per texel at a registration's size. 1024 px
+// a page is 1.5 mm, and the text is now drawn to FILL its page rather than
+// at a fixed font size scaled down only. 64 MB of RGBA on the GPU, which a
+// desktop game carries; the envelope keeps a 512 px copy of an image page
+// (aeroDecalImageData), not the page. Every pixel size below (dilation,
+// the outline stroke) scales with the page.
+const AERO_ATLAS_PX = 4096;
+const AERO_PAGE_REF = 256;           // what the pixel sizes were tuned at
+// the fraction of page 0 the registration's glyph box occupies, written by
+// aeroDecalText and read by the placement (G207)
+let AERO_TEXT_FIT = { w: 0.86, h: 0.27 };
 let AERO_ATLAS = null, AERO_ATLAS_CV = null;
 
 function aeroAtlas(THREE) {
@@ -66284,11 +66418,21 @@ function aeroDecalText(THREE, page, text, colHex, outHex, font) {
     Math.round(+font || 0)))];
   g.font = F.css;
   if ('letterSpacing' in g) g.letterSpacing = F.track + 'px';
-  const w = Math.max(1, g.measureText(text || '').width);
-  const sc = Math.min(1, (P * 0.86) / w);
+  const mt = g.measureText(text || '');
+  const w = Math.max(1, mt.width);
+  // TO FILL THE PAGE, up or down (G207): the marking's size in metres is the
+  // placement's, so the page is only the glyph box and the glyphs may as well
+  // use all of it — capped by the line's own height so two letters do not
+  // climb out of the box
+  const fh = Math.max(1, (mt.actualBoundingBoxAscent || 0) +
+                         (mt.actualBoundingBoxDescent || 0) || 96);
+  const sc = Math.min((P * 0.86) / w, (P * 0.86) / fh);
+  // WHAT THE GLYPHS OCCUPY OF THE PAGE, for the placement: the marking's
+  // height in metres is the GLYPHS' height (G207), not the page's
+  AERO_TEXT_FIT = { w: (w * sc) / P, h: (fh * sc) / P };
   g.scale(sc, sc);
   if (outHex != null) {
-    g.lineWidth = 14; g.lineJoin = 'round';
+    g.lineWidth = 14 * (P / AERO_PAGE_REF) / sc; g.lineJoin = 'round';
     g.strokeStyle = '#' + (outHex >>> 0).toString(16).padStart(6, '0');
     g.strokeText(text || '', 0, 0);
   }
@@ -66296,9 +66440,9 @@ function aeroDecalText(THREE, page, text, colHex, outHex, font) {
     .toString(16).padStart(6, '0');
   g.fillText(text || '', 0, 0);
   g.restore();
-  aeroDilate(g, px, py, P, P, 5);
+  aeroDilate(g, px, py, P, P, Math.round(5 * P / AERO_PAGE_REF));
   t.needsUpdate = true;
-  return (w * sc) / (96 * sc) * 96 / (96 * 1.25);   // glyph aspect, w:h
+  return w / fh;                                    // glyph aspect, w:h
 }
 
 // draw an arbitrary image into a page — "project complex liveries from
@@ -66311,7 +66455,7 @@ function aeroDecalImage(THREE, page, img) {
   const s = Math.min(P / img.width, P / img.height);
   const w = img.width * s, h = img.height * s;
   g.drawImage(img, px + (P - w) / 2, py + (P - h) / 2, w, h);
-  aeroDilate(g, px, py, P, P, 5);
+  aeroDilate(g, px, py, P, P, Math.round(5 * P / AERO_PAGE_REF));
   t.needsUpdate = true;
   AERO_PAGE_IMG[page] = { aspect: img.width / img.height };
   return img.width / img.height;
@@ -66332,9 +66476,12 @@ function aeroDecalImageData(page) {
   if (!AERO_PAGE_IMG[page] || !AERO_ATLAS_CV) return null;
   const S = AERO_ATLAS_PX, N = AERO_ATLAS_N;
   const P = S / N, px = (page % N) * P, py = Math.floor(page / N) * P;
+  // the ENVELOPE copy is capped at 512 px (G207): a 1024 px page is a
+  // quarter-megabyte of PNG per image, and the save is not the upload
+  const E = Math.min(P, 512);
   const cv = document.createElement('canvas');
-  cv.width = cv.height = P;
-  cv.getContext('2d').drawImage(AERO_ATLAS_CV, px, py, P, P, 0, 0, P, P);
+  cv.width = cv.height = E;
+  cv.getContext('2d').drawImage(AERO_ATLAS_CV, px, py, P, P, 0, 0, E, E);
   return cv.toDataURL('image/png');
 }
 // ...and a page is CLEARED when the build that comes in has nothing for it:
@@ -66809,7 +66956,7 @@ function aeroKitDraw(THREE, L) {
   AERO_KIT[L.pat].draw(g, P,
     { a: hex(L.a), b: hex(L.b), d: hex(L.d), p: L.p, q: L.q });
   g.restore();
-  aeroDilate(g, px, py, P, P, 3);
+  aeroDilate(g, px, py, P, P, Math.round(3 * P / AERO_PAGE_REF));
   t.needsUpdate = true;
   return true;
 }
@@ -66833,12 +66980,19 @@ function aeroDecalsFor(THREE, D, opts) {
   // to give it. Deriving it is what makes the flown marking the same shape as
   // the drawn one even when the two ran different fonts.
   const w = D.regLock ? D.regH * Math.max(1.2, aspect) : Math.max(0.02, D.regW);
+  // THE PAGE IS BIGGER THAN THE GLYPHS (G207, the user: "the height slider
+  // is far too limited"). `regH` was the PAGE's height and the glyphs filled
+  // a quarter of it, so a 300 mm marking drew 80 mm letters. The page rect is
+  // the glyph box divided by what the glyphs occupy of it, and the sliders
+  // mean what they say.
+  const fit = AERO_TEXT_FIT || { w: 0.86, h: 0.27 };
+  const pw = w / Math.max(0.05, fit.w), ph = D.regH / Math.max(0.05, fit.h);
   // THE KIT GOES ON FIRST because the shader mixes the list IN ORDER: a kit
   // layer is paint, and a registration painted under its own cheat line is a
   // registration you cannot read.
   const list = [];
   for (const L of aeroKitLayers(D)) { aeroKitDraw(THREE, L); list.push(L.place); }
-  list.push({ page: 0, sL: D.regL, sC: D.regC, w, h: D.regH,
+  list.push({ page: 0, sL: D.regL, sC: D.regC, w: pw, h: ph,
                   rot: D.regRot, rough: -0.06,
                   on: onOf(D.regTarget), mode: modeOf(D.regMode) });
   if (D.imgOn) list.push({ page: 1, sL: D.imgL, sC: D.imgC, w: D.imgW,
@@ -67023,6 +67177,11 @@ uniform vec4 uField;
 // exterior skin seen from within)
 uniform vec4 uCabin;
 uniform vec2 uInside;
+// MARKINGS LAND ON PAINTWORK ONLY (G207, the user: "the box projection
+// should exclude the engine, the prop, the landing gears, the interior, the
+// fuel tanks and the truss"). 1 on the exterior skin, the flying surfaces,
+// the cowl and the spats; 0 on everything else.
+uniform float uDecOk;
 uniform vec4 uG4;   // x realRise  y realHalfW(m)  z lePolish(chord frac)  w realFast
 // uG5.w was a wing? FLAG and is a surface CLASS now (G108): 0 the body,
 // 1 the wing, 2 the tail. Everything that tested > 0.5 for "is this a
@@ -67597,7 +67756,7 @@ const AERO_ALBEDO_FS = `
     dd = vec2(dd.x * cr - dd.y * sr, dd.x * sr + dd.y * cr);
     vec2 q = dd / uDecA[di].zw * 0.5 + 0.5;
     vec2 ib = step(vec2(0.0), q) * step(q, vec2(1.0));
-    float w = ib.x * ib.y * uDecC[di].z * onMe;
+    float w = ib.x * ib.y * uDecC[di].z * onMe * uDecOk;
     // INSET against mip bleed: at low mip a page averages into its
     // neighbours, and a gutter costs a page of atlas where an inset costs
     // nothing. Sampling always happens — w is what decides, not a branch.
@@ -68339,7 +68498,8 @@ function aeroMaterial(THREE, o) {
                // G206: the sheen and the field dials, for the same reason
                'C' + (o.ccK != null ? o.ccK : 1),
                'F' + (o.fieldK != null ? o.fieldK : 1),
-               'I' + (+o.inside || 0)].join('|');
+               'I' + (+o.inside || 0),
+               'K' + (o.decals != null ? +o.decals : 1)].join('|');
   const hit = AERO_POOL.get(key);
   if (hit) return hit;
   const row = AERO_FINISH[o.finish] || AERO_FINISH.fabric;
@@ -68371,6 +68531,8 @@ function aeroMaterial(THREE, o) {
     // G206.1: inside on both faces, or — exterior skin — on the back face
     uInside:   { value: new THREE.Vector2(+o.inside || 0,
                                           (!o.inside && o.struct) ? 1 : 0) },
+    // G207: absent means yes, which is what every caller before G207 meant
+    uDecOk:    { value: o.decals != null ? +o.decals : 1 },
   });
   aeroGrammarU(THREE, U, o);
   aeroFinishU(THREE, null, U, row, o);
@@ -68443,6 +68605,7 @@ function aeroMaterial(THREE, o) {
   // what the lab needs to re-derive the grammar uniforms on this material
   m.userData.aeroStruct = o.struct ? 1 : 0;
   if (o.inside) m.userData.aeroInside = 1;
+  if (o.decals != null && !+o.decals) m.userData.aeroNoDec = 1;
   if (o.wearK != null) m.userData.aeroWearK = o.wearK;
   if (o.wearM != null && o.wearM !== 1) m.userData.aeroWearM = o.wearM;
   m.userData.env0 = m.envMapIntensity;
@@ -68588,7 +68751,7 @@ const AERO_LAB_KEY = 'flydiy.aeroLab';
 // ~3, which is a set panel under a reflection and not a wave. The honest
 // amplitudes stay honest; the gain says how much the eye is helped, as the
 // tape's does. `w*` are the wing and tail's own set.
-const AERO_GAIN_DEF = { x: 4.0, y: 1.2, z: 12.0, wx: 4.0, wy: 1.2, wz: 12.0 };
+const AERO_GAIN_DEF = { x: 4.0, y: 1.2, z: 15.0, wx: 4.0, wy: 1.2, wz: 15.0 };
 // field -> [min, max, step, label]
 const AERO_LAB_FIELDS = {
   tile:  [0.03, 3.0, 0.01, 'tile (m)'],
@@ -68878,7 +69041,7 @@ if (typeof window !== 'undefined')
                       aeroMaterial, aeroGlass,
                       aeroGlassTint, aeroGlassCompanion, GLASS_DEF,
                       aeroIsInside, aeroCabinHook, aeroSetCabin,
-                      AERO_CABIN_DEF,
+                      AERO_CABIN_DEF, aeroDecOk,
                       aeroSetEnv, aeroDispose, aeroLinear, AERO_TEX,
                       aeroSetDecals, aeroSetCraft,
                       aeroDecalsFor, aeroApplySpecDecals, AERO_DEC_DEF,
@@ -68917,7 +69080,8 @@ if (typeof module !== 'undefined')
                      aeroKitKnob, aeroKitLayers,
                      AERO_SEC, aeroSecResolve,
                      AERO_FINISH_DEF, AERO_LAB_FIELDS, AERO_LAB_GRAM,
-                     AERO_GAIN_DEF, GLASS_DEF, aeroIsInside, AERO_CABIN_DEF };
+                     AERO_GAIN_DEF, GLASS_DEF, aeroIsInside, AERO_CABIN_DEF,
+                     aeroDecOk };
 </script>
 <script>
 // ============================================================
@@ -78796,9 +78960,20 @@ function editorInit(api) {
       // designer's bench, on the root beside the livery, never on a part
       if (lab.length) emitEls(p0, 'material lab', lab,
                               'the finish tables, live — not saved with the aeroplane');
+      // FOUR BLOCKS, NOT ONE (G207): the registration, the livery kit, the
+      // body image and the wing image each under their own heading, by the
+      // `data-dec` tag every row carries
       const dec = CU.DECBODY;
-      if (dec) emitEls(p0, 'markings',
-        Array.from(dec.children), 'registration and images');
+      if (dec) {
+        const by = { reg: [], kit: [], body: [], wing: [], other: [] };
+        for (const el of Array.from(dec.children))
+          (by[(el.dataset && el.dataset.dec) || 'other'] || by.other).push(el);
+        emitEls(p0, 'registration', by.reg.concat(by.other),
+                'the legal marking');
+        emitEls(p0, 'livery', by.kit, 'the marking kit — three layers');
+        emitEls(p0, 'body image', by.body, 'a picture on the fuselage');
+        emitEls(p0, 'wing image', by.wing, 'a picture on the wing');
+      }
     }
     // THE GLAZING DIALS FOLLOW THE GLASS (2026-08-31, the user editing the
     // windshield: "I don't have any material options... it's really like it
@@ -82538,6 +82713,7 @@ function editorInit(api) {
               tileK: m.tileK, roughK: m.roughK, nrmK: m.nrmK,
               ccK: m.ccK, fieldK: m.fieldK,          // G206
               inside: m.inside || 0,                  // G206.1
+              decals: m.noDec ? 0 : 1,                // G207
               ribM: m.ribM, wearK: m.wearK, wearM: m.wearM,
               side: THREE.DoubleSide });
       }

@@ -618,7 +618,18 @@ function aeroHardMat(THREE, layer, name, tint, o) {
     wearK: o && o.wearK,
     // the cabin fit lives in the cabin (G206.1); a caller may say otherwise
     inside: (o && o.inside != null) ? o.inside : (layer === 'crew' ? 1 : 0),
+    // hardware is not paintwork (G207): no marking lands on it
+    decals: (o && o.decals != null) ? o.decals : 0,
   });
+}
+// WHICH SECTIONS TAKE A MARKING (G207): the cage's exterior skin by role,
+// the flying surfaces by role, and the two painted layer parts by name.
+const AERO_DEC_ROLES = new Set(['skin', 'rail', 'pillar']);
+const AERO_DEC_LAYER = new Set(['cowlSkin', 'spat']);
+function aeroDecOk(section) {
+  const row = AERO_SEC[section];
+  if (row) return (row.role === 'skin' || AERO_DEC_LAYER.has(section)) ? 1 : 0;
+  return AERO_DEC_ROLES.has(AERO_ROLE[section]) ? 1 : 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -671,13 +682,19 @@ const AERO_SEC = {
   // own bottom-out finish the engine layer passes per blade material
   // (cw_material stays the structure-tab choice, exactly as the prop always
   // worked — the section adds the override on top).
+  // `wears: 'parent'` (G207): a PAINTED part with no colour of its own takes
+  // the colour its parent actually WEARS — the parent's override if it has
+  // one (that always walked), else the parent's own finish base — instead of
+  // its pinned finish's base. The user: "the maintenance access on the side
+  // should be colored like the fuselage"; a strut, a spat and a cowl are
+  // painted with the fuselage on a light aeroplane, the fittings with it.
   strut:    { parent: 'body', fin: 'trim',      label: 'the lift struts',
-              layer: 'wing' },
+              layer: 'wing', wears: 'parent' },
   // G185: the truss follows the lift struts (paint, the fuselage's colour)
   cabane:   { parent: 'strut', fin: 'trim',     label: 'the cabane struts',
-              layer: 'brace' },
+              layer: 'brace', wears: 'parent' },
   interplane: { parent: 'strut', fin: 'trim',   label: 'the interplane struts',
-              layer: 'brace' },
+              layer: 'brace', wears: 'parent' },
   braceWire: { parent: null,   fin: 'steelTube', label: 'the bracing wires',
               layer: 'brace' },
   // the second plane follows the first by default; painting it re-paints
@@ -691,7 +708,7 @@ const AERO_SEC = {
   wingFlap2: { parent: 'wingSkin2', role: 'skin', label: 'the second flaps',
               layer: 'wing2' },
   spat:     { parent: 'body', fin: 'trim',      label: 'the wheel fairings',
-              layer: 'gear' },
+              layer: 'gear', wears: 'parent' },
   gearLeg:  { parent: null,   fin: 'steelTube', label: 'the gear legs',
               layer: 'gear' },
   prop:     { parent: null,                     label: 'the propeller',
@@ -699,7 +716,7 @@ const AERO_SEC = {
   spinner:  { parent: 'prop',                   label: 'the spinner',
               layer: 'eng' },
   cowlSkin: { parent: 'body', fin: 'alclad',    label: 'the cowling',
-              layer: 'cowl' },
+              layer: 'cowl', wears: 'parent' },
   // ---- THE ENGINE (G113.4, the user: "get the material and color picker
   // from the engine, block and covers should be pickable... so we have
   // something for the engine") -------------------------------------------
@@ -735,7 +752,7 @@ const AERO_SEC = {
   engMount: { parent: 'body',     fin: 'trim',    label: 'the engine mount',
               layer: 'eng' },
   accPaint: { parent: 'body', fin: 'trim',      label: 'the fittings',
-              layer: 'access' },
+              layer: 'access', wears: 'parent' },
   // ---- the cabin and its crew (phase D) -----------------------------------
   // The seats follow NOBODY on purpose: a green fuselage does not force
   // green leather. The dummies are the user's "give them a bit of
@@ -791,8 +808,18 @@ function aeroSecResolve(sec, over, ctx) {
   const byCons = AERO_BY_CONS[ctx && ctx.cons] || AERO_BY_CONS.tubeFabric;
   const fin = f.v != null ? f.v
     : (ctx && ctx.fin) || row.fin || byCons[row.role || 'skin'] || byCons.skin;
+  let tint = walk(over && over.tint, chain).v;
+  // WEARS THE PARENT'S COLOUR (G207): no override anywhere up the chain, and
+  // the row says it is painted with its parent — so the colour is the base
+  // of the finish the PARENT resolves to (its own override having been the
+  // walk's answer already). Bounded by the chain, like the walk.
+  if (tint == null && row.wears === 'parent' && row.parent) {
+    const pr = aeroSecResolve(row.parent, over, ctx);
+    const pf = AERO_FINISH[pr.fin];
+    if (pf) tint = pf.base;
+  }
   return { fin, src: f.src,
-           tint: walk(over && over.tint, chain).v,
+           tint,
            tileK: walk(over && over.tile, chain).v,
            roughK: walk(over && over.rough, chain).v,
            nrmK: walk(over && over.nrm, chain).v,
@@ -1066,7 +1093,19 @@ function aeroDetailTex(THREE, key) {
 // panel can actually turn on and not to a round number.
 const AERO_MAXD = 6;
 const AERO_ATLAS_N = 4;              // 4x4 pages
-const AERO_ATLAS_PX = 1024;
+// 1024 -> 4096 (G207, the user: "the current decals are too low resolution,
+// the pixels are clearly visible"). A page was 256 px, stretched over a
+// metre or two of flank: 6 mm per texel at a registration's size. 1024 px
+// a page is 1.5 mm, and the text is now drawn to FILL its page rather than
+// at a fixed font size scaled down only. 64 MB of RGBA on the GPU, which a
+// desktop game carries; the envelope keeps a 512 px copy of an image page
+// (aeroDecalImageData), not the page. Every pixel size below (dilation,
+// the outline stroke) scales with the page.
+const AERO_ATLAS_PX = 4096;
+const AERO_PAGE_REF = 256;           // what the pixel sizes were tuned at
+// the fraction of page 0 the registration's glyph box occupies, written by
+// aeroDecalText and read by the placement (G207)
+let AERO_TEXT_FIT = { w: 0.86, h: 0.27 };
 let AERO_ATLAS = null, AERO_ATLAS_CV = null;
 
 function aeroAtlas(THREE) {
@@ -1162,11 +1201,21 @@ function aeroDecalText(THREE, page, text, colHex, outHex, font) {
     Math.round(+font || 0)))];
   g.font = F.css;
   if ('letterSpacing' in g) g.letterSpacing = F.track + 'px';
-  const w = Math.max(1, g.measureText(text || '').width);
-  const sc = Math.min(1, (P * 0.86) / w);
+  const mt = g.measureText(text || '');
+  const w = Math.max(1, mt.width);
+  // TO FILL THE PAGE, up or down (G207): the marking's size in metres is the
+  // placement's, so the page is only the glyph box and the glyphs may as well
+  // use all of it — capped by the line's own height so two letters do not
+  // climb out of the box
+  const fh = Math.max(1, (mt.actualBoundingBoxAscent || 0) +
+                         (mt.actualBoundingBoxDescent || 0) || 96);
+  const sc = Math.min((P * 0.86) / w, (P * 0.86) / fh);
+  // WHAT THE GLYPHS OCCUPY OF THE PAGE, for the placement: the marking's
+  // height in metres is the GLYPHS' height (G207), not the page's
+  AERO_TEXT_FIT = { w: (w * sc) / P, h: (fh * sc) / P };
   g.scale(sc, sc);
   if (outHex != null) {
-    g.lineWidth = 14; g.lineJoin = 'round';
+    g.lineWidth = 14 * (P / AERO_PAGE_REF) / sc; g.lineJoin = 'round';
     g.strokeStyle = '#' + (outHex >>> 0).toString(16).padStart(6, '0');
     g.strokeText(text || '', 0, 0);
   }
@@ -1174,9 +1223,9 @@ function aeroDecalText(THREE, page, text, colHex, outHex, font) {
     .toString(16).padStart(6, '0');
   g.fillText(text || '', 0, 0);
   g.restore();
-  aeroDilate(g, px, py, P, P, 5);
+  aeroDilate(g, px, py, P, P, Math.round(5 * P / AERO_PAGE_REF));
   t.needsUpdate = true;
-  return (w * sc) / (96 * sc) * 96 / (96 * 1.25);   // glyph aspect, w:h
+  return w / fh;                                    // glyph aspect, w:h
 }
 
 // draw an arbitrary image into a page — "project complex liveries from
@@ -1189,7 +1238,7 @@ function aeroDecalImage(THREE, page, img) {
   const s = Math.min(P / img.width, P / img.height);
   const w = img.width * s, h = img.height * s;
   g.drawImage(img, px + (P - w) / 2, py + (P - h) / 2, w, h);
-  aeroDilate(g, px, py, P, P, 5);
+  aeroDilate(g, px, py, P, P, Math.round(5 * P / AERO_PAGE_REF));
   t.needsUpdate = true;
   AERO_PAGE_IMG[page] = { aspect: img.width / img.height };
   return img.width / img.height;
@@ -1210,9 +1259,12 @@ function aeroDecalImageData(page) {
   if (!AERO_PAGE_IMG[page] || !AERO_ATLAS_CV) return null;
   const S = AERO_ATLAS_PX, N = AERO_ATLAS_N;
   const P = S / N, px = (page % N) * P, py = Math.floor(page / N) * P;
+  // the ENVELOPE copy is capped at 512 px (G207): a 1024 px page is a
+  // quarter-megabyte of PNG per image, and the save is not the upload
+  const E = Math.min(P, 512);
   const cv = document.createElement('canvas');
-  cv.width = cv.height = P;
-  cv.getContext('2d').drawImage(AERO_ATLAS_CV, px, py, P, P, 0, 0, P, P);
+  cv.width = cv.height = E;
+  cv.getContext('2d').drawImage(AERO_ATLAS_CV, px, py, P, P, 0, 0, E, E);
   return cv.toDataURL('image/png');
 }
 // ...and a page is CLEARED when the build that comes in has nothing for it:
@@ -1687,7 +1739,7 @@ function aeroKitDraw(THREE, L) {
   AERO_KIT[L.pat].draw(g, P,
     { a: hex(L.a), b: hex(L.b), d: hex(L.d), p: L.p, q: L.q });
   g.restore();
-  aeroDilate(g, px, py, P, P, 3);
+  aeroDilate(g, px, py, P, P, Math.round(3 * P / AERO_PAGE_REF));
   t.needsUpdate = true;
   return true;
 }
@@ -1711,12 +1763,19 @@ function aeroDecalsFor(THREE, D, opts) {
   // to give it. Deriving it is what makes the flown marking the same shape as
   // the drawn one even when the two ran different fonts.
   const w = D.regLock ? D.regH * Math.max(1.2, aspect) : Math.max(0.02, D.regW);
+  // THE PAGE IS BIGGER THAN THE GLYPHS (G207, the user: "the height slider
+  // is far too limited"). `regH` was the PAGE's height and the glyphs filled
+  // a quarter of it, so a 300 mm marking drew 80 mm letters. The page rect is
+  // the glyph box divided by what the glyphs occupy of it, and the sliders
+  // mean what they say.
+  const fit = AERO_TEXT_FIT || { w: 0.86, h: 0.27 };
+  const pw = w / Math.max(0.05, fit.w), ph = D.regH / Math.max(0.05, fit.h);
   // THE KIT GOES ON FIRST because the shader mixes the list IN ORDER: a kit
   // layer is paint, and a registration painted under its own cheat line is a
   // registration you cannot read.
   const list = [];
   for (const L of aeroKitLayers(D)) { aeroKitDraw(THREE, L); list.push(L.place); }
-  list.push({ page: 0, sL: D.regL, sC: D.regC, w, h: D.regH,
+  list.push({ page: 0, sL: D.regL, sC: D.regC, w: pw, h: ph,
                   rot: D.regRot, rough: -0.06,
                   on: onOf(D.regTarget), mode: modeOf(D.regMode) });
   if (D.imgOn) list.push({ page: 1, sL: D.imgL, sC: D.imgC, w: D.imgW,
@@ -1901,6 +1960,11 @@ uniform vec4 uField;
 // exterior skin seen from within)
 uniform vec4 uCabin;
 uniform vec2 uInside;
+// MARKINGS LAND ON PAINTWORK ONLY (G207, the user: "the box projection
+// should exclude the engine, the prop, the landing gears, the interior, the
+// fuel tanks and the truss"). 1 on the exterior skin, the flying surfaces,
+// the cowl and the spats; 0 on everything else.
+uniform float uDecOk;
 uniform vec4 uG4;   // x realRise  y realHalfW(m)  z lePolish(chord frac)  w realFast
 // uG5.w was a wing? FLAG and is a surface CLASS now (G108): 0 the body,
 // 1 the wing, 2 the tail. Everything that tested > 0.5 for "is this a
@@ -2475,7 +2539,7 @@ const AERO_ALBEDO_FS = `
     dd = vec2(dd.x * cr - dd.y * sr, dd.x * sr + dd.y * cr);
     vec2 q = dd / uDecA[di].zw * 0.5 + 0.5;
     vec2 ib = step(vec2(0.0), q) * step(q, vec2(1.0));
-    float w = ib.x * ib.y * uDecC[di].z * onMe;
+    float w = ib.x * ib.y * uDecC[di].z * onMe * uDecOk;
     // INSET against mip bleed: at low mip a page averages into its
     // neighbours, and a gutter costs a page of atlas where an inset costs
     // nothing. Sampling always happens — w is what decides, not a branch.
@@ -3217,7 +3281,8 @@ function aeroMaterial(THREE, o) {
                // G206: the sheen and the field dials, for the same reason
                'C' + (o.ccK != null ? o.ccK : 1),
                'F' + (o.fieldK != null ? o.fieldK : 1),
-               'I' + (+o.inside || 0)].join('|');
+               'I' + (+o.inside || 0),
+               'K' + (o.decals != null ? +o.decals : 1)].join('|');
   const hit = AERO_POOL.get(key);
   if (hit) return hit;
   const row = AERO_FINISH[o.finish] || AERO_FINISH.fabric;
@@ -3249,6 +3314,8 @@ function aeroMaterial(THREE, o) {
     // G206.1: inside on both faces, or — exterior skin — on the back face
     uInside:   { value: new THREE.Vector2(+o.inside || 0,
                                           (!o.inside && o.struct) ? 1 : 0) },
+    // G207: absent means yes, which is what every caller before G207 meant
+    uDecOk:    { value: o.decals != null ? +o.decals : 1 },
   });
   aeroGrammarU(THREE, U, o);
   aeroFinishU(THREE, null, U, row, o);
@@ -3321,6 +3388,7 @@ function aeroMaterial(THREE, o) {
   // what the lab needs to re-derive the grammar uniforms on this material
   m.userData.aeroStruct = o.struct ? 1 : 0;
   if (o.inside) m.userData.aeroInside = 1;
+  if (o.decals != null && !+o.decals) m.userData.aeroNoDec = 1;
   if (o.wearK != null) m.userData.aeroWearK = o.wearK;
   if (o.wearM != null && o.wearM !== 1) m.userData.aeroWearM = o.wearM;
   m.userData.env0 = m.envMapIntensity;
@@ -3756,7 +3824,7 @@ if (typeof window !== 'undefined')
                       aeroMaterial, aeroGlass,
                       aeroGlassTint, aeroGlassCompanion, GLASS_DEF,
                       aeroIsInside, aeroCabinHook, aeroSetCabin,
-                      AERO_CABIN_DEF,
+                      AERO_CABIN_DEF, aeroDecOk,
                       aeroSetEnv, aeroDispose, aeroLinear, AERO_TEX,
                       aeroSetDecals, aeroSetCraft,
                       aeroDecalsFor, aeroApplySpecDecals, AERO_DEC_DEF,
@@ -3795,4 +3863,5 @@ if (typeof module !== 'undefined')
                      aeroKitKnob, aeroKitLayers,
                      AERO_SEC, aeroSecResolve,
                      AERO_FINISH_DEF, AERO_LAB_FIELDS, AERO_LAB_GRAM,
-                     AERO_GAIN_DEF, GLASS_DEF, aeroIsInside, AERO_CABIN_DEF };
+                     AERO_GAIN_DEF, GLASS_DEF, aeroIsInside, AERO_CABIN_DEF,
+                     aeroDecOk };

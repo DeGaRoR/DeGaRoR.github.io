@@ -883,9 +883,20 @@ function editorInit(api) {
       // designer's bench, on the root beside the livery, never on a part
       if (lab.length) emitEls(p0, 'material lab', lab,
                               'the finish tables, live — not saved with the aeroplane');
+      // FOUR BLOCKS, NOT ONE (G207): the registration, the livery kit, the
+      // body image and the wing image each under their own heading, by the
+      // `data-dec` tag every row carries
       const dec = CU.DECBODY;
-      if (dec) emitEls(p0, 'markings',
-        Array.from(dec.children), 'registration and images');
+      if (dec) {
+        const by = { reg: [], kit: [], body: [], wing: [], other: [] };
+        for (const el of Array.from(dec.children))
+          (by[(el.dataset && el.dataset.dec) || 'other'] || by.other).push(el);
+        emitEls(p0, 'registration', by.reg.concat(by.other),
+                'the legal marking');
+        emitEls(p0, 'livery', by.kit, 'the marking kit — three layers');
+        emitEls(p0, 'body image', by.body, 'a picture on the fuselage');
+        emitEls(p0, 'wing image', by.wing, 'a picture on the wing');
+      }
     }
     // THE GLAZING DIALS FOLLOW THE GLASS (2026-08-31, the user editing the
     // windshield: "I don't have any material options... it's really like it

@@ -335,3 +335,10 @@ darkening (§1.1 item 4) as G206.1, the pane's edge (§1.2) as G206.2. Still owe
 (§1.2; the inset + retaining strip landed), the scratches re-seeded from
 the field noise (§1.4), and the roughness/gain numbers set by eye in the
 lab rather than by reasoning here.
+
+## 8. G207 (same day) — the user's second list
+
+Door gap audited and built (slit + step + seal strip in every construction),
+fittings wear the fuselage's colour, markings refused off paintwork, the
+markings panel in four blocks, atlas 4096, registration height = the
+letters' height. Open: the cockpit bar (unidentified).

@@ -2148,7 +2148,10 @@ function cageRims(m, S) {
     // tube its own tube outline (all from this same recorded outline)
     const structDoor = IC.on &&
       (consD === 'wood' || consD === 'tube' || consD === 'metal');
-    const enabled = kind === 'door' ? (W.rimDoor && !structDoor)
+    // G207: `rimDoor` is "draw the gap" and it draws in every construction
+    // now — the wooden frame the interior raises is INSIDE the doorway, the
+    // seal strip is outside on the seam; `structDoor` no longer silences it
+    const enabled = kind === 'door' ? W.rimDoor
       : zMat === 'windshield' ? W.rimWs : W.rimWin;
     if (!enabled || !(W.rim > 0)) continue;
 
@@ -2175,8 +2178,9 @@ function cageRims(m, S) {
     // strip sinks with the glass and the step it was cut for disappears.
     // (a PROUD pane — negative inset — keeps the strip at the pane's own
     // level: a retainer over a proud pane rests on the pane)
-    if (kind !== 'door' && S.cut && S.cut.on && W.paneInset > 0) {
-      const li = W.paneInset;
+    if (S.cut && S.cut.on &&
+        (kind === 'door' ? W.doorDepth > 0 : W.paneInset > 0)) {
+      const li = kind === 'door' ? W.doorDepth : W.paneInset;
       pts = pts.map((p, i) => {
         const n = ns[i] || [0, 0, 0];
         return [p[0] + n[0] * li, p[1] + n[1] * li, p[2] + n[2] * li];
@@ -2393,12 +2397,13 @@ function cageRims(m, S) {
         // builder's `rimRise` (0.22 = 2.6 mm on the stock 12 mm), and the
         // section is flat-topped — the sine is clipped so the crown is a
         // face, not a ridge. A DOOR keeps the round-topped rubber at 0.38.
-        const rise = kind === 'door' ? 0.38
+        // ...and a DOOR'S is the flat dark seal in its gap (G207): low, so
+        // it reads as the shadow line a door gap is from any distance
+        const rise = kind === 'door' ? 0.12
                    : (W.rimRise != null ? W.rimRise : 0.38);
         const sn = Math.sin(a);
         const cb = Math.cos(a) * r;
-        const cn = (kind === 'door' ? sn
-                    : Math.max(-1, Math.min(1, sn * 1.5))) * r * rise;
+        const cn = Math.max(-1, Math.min(1, sn * 1.5)) * r * rise;
         let qx = b[0]*cb + n2[0]*cn, qy = b[1]*cb + n2[1]*cn,
             qz = b[2]*cb + n2[2]*cn;
         if (mit) {
@@ -2604,7 +2609,7 @@ function cageCut(m, S) {
     }
     return [...z.values()];
   };
-  const cutZone = (fis, sill, inset, edgeT) => {
+  const cutZone = (fis, sill, inset, edgeT, gap) => {
     let keep = fis;
     if (sill > 0) {
       // ROW-STEPPED SILL (user correction: cut STRAIGHT along the rows
@@ -2722,6 +2727,50 @@ function cageCut(m, S) {
       // fuselage-line features (the waist) in the part's OWN frame
       F[fi].cutOff = off;
     }
+    // THE GAP (G207): the door's boundary ring moves INWARD, in the surface,
+    // by half the seal's gauge — a real slit between the panel and the hole
+    // it came out of, which the seal strip then straddles. Per vertex, the
+    // inward direction is the mean over its boundary edges of (owning face's
+    // centroid - edge midpoint), squared to the edge: the same construction
+    // the reveal pass uses.
+    if (gap > 0) {
+      const own = new Map(), inw = new Map();
+      const addIn = (vi, d) => {
+        const a = inw.get(vi) || [0, 0, 0];
+        a[0] += d[0]; a[1] += d[1]; a[2] += d[2]; inw.set(vi, a);
+      };
+      for (const fi of keep) {
+        const f = F[fi];
+        for (let e = 0; e < 4; e++) {
+          const a = f.v[e], b = f.v[(e + 1) % 4];
+          const k = cageEdgeKey(a, b);
+          if (!own.has(k)) own.set(k, { n: 0, a, b, fi });
+          own.get(k).n++;
+        }
+      }
+      for (const { n, a, b, fi } of own.values()) {
+        if (n !== 1) continue;
+        const f = F[fi], c = [0, 0, 0];
+        for (const vi of f.v) { c[0] += V[vi][0] / 4; c[1] += V[vi][1] / 4;
+                                c[2] += V[vi][2] / 4; }
+        const A = V[a], B = V[b];
+        const mid = [(A[0]+B[0])/2, (A[1]+B[1])/2, (A[2]+B[2])/2];
+        const ed = [B[0]-A[0], B[1]-A[1], B[2]-A[2]];
+        const el = Math.hypot(ed[0], ed[1], ed[2]) || 1;
+        ed[0] /= el; ed[1] /= el; ed[2] /= el;
+        let d = [c[0]-mid[0], c[1]-mid[1], c[2]-mid[2]];
+        const dd = d[0]*ed[0] + d[1]*ed[1] + d[2]*ed[2];
+        d = [d[0]-dd*ed[0], d[1]-dd*ed[1], d[2]-dd*ed[2]];
+        const dl = Math.hypot(d[0], d[1], d[2]) || 1;
+        d = [d[0]/dl, d[1]/dl, d[2]/dl];
+        addIn(a, d); addIn(b, d);
+      }
+      for (const [vi, d] of inw) {
+        const l = Math.hypot(d[0], d[1], d[2]) || 1;
+        V[vi][0] += d[0] / l * gap; V[vi][1] += d[1] / l * gap;
+        V[vi][2] += d[2] / l * gap;
+      }
+    }
     // THE EDGE RING (G206.2). Every boundary edge of the separated part —
     // an edge one kept face owns — is extruded along the part's own vertex
     // normals by the pane's thickness: the acrylic's edge, from the pane's
@@ -2779,14 +2828,16 @@ function cageCut(m, S) {
       : dk && dk.lastIndexOf('pax', 0) === 0
         ? (W.doorSillPax != null ? W.doorSillPax : W.doorSill)
       : W.doorSill;
-    cutZone(z, Math.max(0, sill || 0), 0, 0);
+    // G207: the door steps back by its recess and shrinks by half its seal
+    cutZone(z, Math.max(0, sill || 0), W.doorDepth || 0, 0,
+            (W.doorRim > 0 ? W.doorRim : W.rim * 0.85) * 0.5);
   }
   // DOORS OWN THEIR WINDOWS (user ruling): glass already separated with
   // a door stays with it — only window faces OUTSIDE every cut door form
   // their own parts (a window straddling a door edge splits: the door
   // keeps its share, the rest becomes a fuselage-side window part).
   if (C.wins) for (const z of groups('win', fi => !F[fi].cutPart))
-    cutZone(z, 0, W.paneInset || 0, W.paneThick || 0);
+    cutZone(z, 0, W.paneInset || 0, W.paneThick || 0, 0);
   // DOOR REMOVED (G26.4, user): define the door, then take it away —
   // the OPENING stays and everything around it (jambs, sills, broken
   // waist runs, frames) is built exactly as if the door were hung; the
@@ -6444,7 +6495,20 @@ const CAGE_PARAMS = {
   // and `winDepth` were dark from the day they were written — no rows, and
   // nothing to switch them on. The user asked for the real recess knowing it
   // changes every window on every build.
-  doorDepth: 0.020, doorRim: 0.020, bulkZ: 0,
+  // THE DOOR GAP, AUDITED (G207, the user: "I had asked for a gap for the
+  // door, meaning a gap between the door panel and the fuselage, and small
+  // opening ... there's even a 'draw the gap' option, but it does not do
+  // anything"). Three things, and none of them was a gap: `rimDoor` drew a
+  // rubber BEAD on the seam and was SUPPRESSED on every wood, tube and metal
+  // interior ("a structural door carries no seal") — this aeroplane is wood,
+  // so the switch did nothing; `doorDepth` only acted inside the window
+  // REVEAL pass, which is off by default (it turns GATE FIT red); and the cut
+  // door filled its hole exactly, coplanar, so there was nothing to see. Now:
+  // a cut door SHRINKS in-surface by half `doorRim` (a real slit), steps
+  // BACK by `doorDepth` (a real step, 3 mm), and `rimDoor` draws a flat dark
+  // seal strip on the seam in every construction — the frame the interior
+  // raises for a wood door is inside; the seal is outside.
+  doorDepth: 0.004, doorRim: 0.020, bulkZ: 0,
   // DOOR REMOVED (G26.4): the door is DEFINED (jambs, sills, broken
   // longeron runs — all built) but the panel itself is deleted after
   // the cut, leaving the open doorway. Needs cutParts on.

@@ -331,8 +331,11 @@ window.CAGE_PAGE = {
          { when: P => +P.doorOn, dim: 'len' }],
         ['rimDoor',   'draw the gap',   0, 1, 1,
          { when: P => +P.doorOn }],
-        ['doorDepth', 'door recess',    0, 0.06, 0.002,
-         { when: P => +P.doorOn && +P.winFrameW > 0, dim: 'len' }],
+        // G207: the recess is the cut door's step back now (and still the
+        // reveal's depth when that pass is on)
+        ['doorDepth', 'door recess',    0, 0.06, 0.001,
+         { when: P => +P.doorOn && (+P.cutParts || +P.winFrameW > 0),
+           dim: 'len' }],
         ['doorDeep',  'deep jamb',      0, 1, 1, { when: P => +P.doorOn }],
         // define the door, then take it away: the open doorway stays,
         // jambs and structure built as if it were hung (needs cut

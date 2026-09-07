@@ -743,6 +743,8 @@ const matOf = name => {
         // G206.1: liners, frames, the dash and the fireproof sheet are in the
         // cabin; the exterior skin's back face is, by the factory's own rule
         inside: A.aeroIsInside && A.aeroIsInside(name) ? 1 : 0,
+        // G207: a marking lands on the exterior skin and nowhere else
+        decals: A.aeroDecOk ? A.aeroDecOk(name) : 1,
         // the field is per-SECTION and pure (see _surf_check): the mesh
         // publishes which groups carry it, and meshFrom passes it in
         surf: matSurf[name] ? 1 : 0,
@@ -838,6 +840,9 @@ function secMat(name, g) {
     ccK: r.ccK, fieldK: r.fieldK,                    // G206
     // G206.1: the crew layer's sections (the seats, the dummies) sit inside
     inside: (A.AERO_SEC[name] && A.AERO_SEC[name].layer === 'crew') ? 1 : 0,
+    // G207: the flying surfaces, the cowl and the spats take a marking; the
+    // engine, the mount, the gear, the struts, the crew do not
+    decals: A.aeroDecOk ? A.aeroDecOk(name) : 1,
     detRot: g && g.detRot ? 1 : 0,
   });
 }
@@ -3304,8 +3309,15 @@ function buildDecPanel() {
   ui.insertBefore(decPanel, lg);
   // the optional PARENT is what lets the kit put its layers in nested
   // <details> instead of adding forty-two rows to one flat panel
+  // WHICH BLOCK A ROW BELONGS TO (G207, the user: "the marking and livery
+  // section needs its controls reorganized ... separating clearly the
+  // registration, the livery system, the body and the wing sections"). Every
+  // row carries `data-dec`, and the game's FINISH view emits one heading per
+  // block instead of one for the lot. The bench's flat panel is unchanged.
+  const DECG = { cur: 'reg' };
   const row = (label, title, parent) => {
     const d = document.createElement('div'); d.className = 'r';
+    d.dataset.dec = DECG.cur;
     const k = document.createElement('span');
     k.className = 'k'; k.textContent = label; k.title = title || label;
     d.appendChild(k); (parent || body).appendChild(d); return d;
@@ -3393,10 +3405,14 @@ function buildDecPanel() {
     };
     d.appendChild(i);
   }
-  num('height', 'regH', 0.08, 0.60, 0.01, 'metres — 300 mm is the usual legal size');
-  num('width', 'regW', 0.10, 4.0, 0.02,
+  // G207: these are the GLYPHS' height and width now (the page was a
+  // quarter empty above and below the letters), so the ranges are letter
+  // sizes — 50 mm to 1.2 m tall, up to 3 m wide — and the width no longer
+  // follows the fuselage length
+  num('height', 'regH', 0.05, 1.20, 0.01, 'metres — 300 mm is the usual legal size');
+  num('width', 'regW', 0.10, 3.0, 0.02,
       'metres. Locked, this follows the height at the face aspect; unlocked ' +
-      'it condenses or stretches the marking to fit the space it has', 'len');
+      'it condenses or stretches the marking to fit the space it has');
   // THE MARKING'S OWN COLOURS. Null follows the paint's trim (and white), so
   // an aeroplane that never touches these looks exactly as it always has;
   // double-click the label to go back to following.
@@ -3454,6 +3470,7 @@ function buildDecPanel() {
   // THE KIT IS FIRST IN THE PAINT ORDER and LAST-BUT-ONE in the panel, which
   // is deliberate: the registration is the row people open this panel for, and
   // the image channels below are the ones almost nobody uses.
+  DECG.cur = 'kit';
   if (A.AERO_KIT && A.AERO_KIT_LAYERS) {
     const KIT = A.AERO_KIT;
     const patOf = key => KIT[Math.max(0, Math.min(KIT.length - 1,
@@ -3464,6 +3481,7 @@ function buildDecPanel() {
       const q = 'm' + li;
       const det = document.createElement('details');
       det.dataset.g = 'livery/' + li;
+      det.dataset.dec = 'kit';
       const sum = document.createElement('summary');
       det.appendChild(sum); body.appendChild(det);
       // WHAT THE PATTERN CHANGES, collected rather than chased: a colour slot
@@ -3649,6 +3667,7 @@ function buildDecPanel() {
   const BODY = { on: 'imgOn', w: 'imgW', h: 'imgH', lock: 'imgLock' };
   const WING = { on: 'wimOn', w: 'wimW', h: 'wimH', lock: 'wimLock' };
 
+  DECG.cur = 'body';
   channel('body image', BODY, 1,
           'one image across the fuselage, the cowl and the tail');
   num('body width', 'imgW', 0.1, 4.0, 0.05, 'metres', 'len');
@@ -3664,6 +3683,7 @@ function buildDecPanel() {
   pick('body projected as', 'imgMode', MODE_NAMES, MODE_HELP,
        (a, b) => decReframe(a, b, { l: 'imgL', c: 'imgC' }));
 
+  DECG.cur = 'wing';
   channel('wing image', WING, 2,
           'one image across the wing and its slabs, independent of the body');
   num('wing width', 'wimW', 0.1, 4.0, 0.05, 'metres', 'span');
