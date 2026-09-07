@@ -1,5 +1,31 @@
 # RECYCLE — Changelog
 
+## v1.17.3 — the closed sheet was sitting on the tab bar (2026-09-07)
+
+One playtest bug, game-blocking, and two small chrome fixes found while proving it.
+
+- **FIXED (blocking): a CLOSED sheet came to rest ON the legend and tab bar and ate their taps.** v1.17.2 anchored
+  the sheet to `--barsH` so an OPEN sheet sits clear of the dock — correct — but the closed position was still
+  `translateY(110%)`: 110 % of the sheet's OWN height, measured from that anchor. A 500 px sheet therefore slid
+  550 px down from a resting point 138 px above the screen edge, i.e. it stopped with its top 90 px still on
+  screen, over the legend and the tab bar, and since the sheet stacks above them (z 32 over 31) it swallowed
+  every tap on Process / R&D / Goals / Contracts. The shorter the sheet, the worse: a small inspector sheet
+  covered the dock too. The closed transform is now `translateY(calc(100% + var(--barsH) + 24px))` — its own
+  height PLUS the bars it sits on — and a closed sheet is `pointer-events:none` as well, so whatever its rest
+  position it can never take a tap. Measured in a 375×812 viewport: closed sheet `[836,1365]`, fully off
+  screen; a tap at the centre of the tab bar reaches the tab bar.
+- **FIXED: the R&D / Goals / Contracts header sat under the HUD's cash row.** `.vpanel` inset a fixed 52 px from
+  the top, sized for the one-band HUD; the HUD has been two bands (104 px) since v1.17.2. It now insets from the
+  measured `--hudH` (the coach banner, when up, still pushes it further as before).
+- **FIXED: Resume left the plant with no material legend.** Every other route into a game calls `showTabbar(true)`;
+  Resume only hid the menu. The render loop rescued the tab bar on its own, but the legend is toggled nowhere
+  else, so a boot → Resume ran without the Bag / PET / PVC / Steel / Film / Paper / Alu strip.
+- Gated: render smoke now reads `css/app.css` and asserts the closed-sheet transform clears `--barsH`, the
+  pointer-events pair, the `--hudH` panel inset, and that Resume re-shows the chrome.
+- `sw.js` cache bumped to `recycle-pwa-v1.17.3`. As with v1.17.2: if the phone still shows a sheet edge over the
+  tab bar after updating, the OLD service worker is still serving the old stylesheet — pull to refresh twice,
+  or reinstall the PWA.
+
 ## v1.17.2 — bottom-chrome layout fix + bag liveries survive a merge
 
 Two playtest bugs, one of them game-blocking.

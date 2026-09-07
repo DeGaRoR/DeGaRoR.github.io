@@ -86,8 +86,12 @@
   :root{--barsH:0px;}
   #scrim{position:fixed;left:0;right:0;top:0;bottom:var(--barsH);background:rgba(0,0,0,.55);opacity:0;pointer-events:none;transition:opacity .2s;z-index:31;}
   #scrim.show{opacity:1;pointer-events:auto;}
-  .sheet{position:fixed;left:0;right:0;bottom:var(--barsH);background:var(--card);border-radius:18px 18px 0 0;border-top:1px solid var(--line);transform:translateY(110%);transition:transform .25s cubic-bezier(.2,.8,.2,1);z-index:32;padding:8px 16px 18px;max-height:calc(72dvh - var(--barsH));overflow-y:auto;}
-  .sheet.show{transform:translateY(0);}
+  .sheet{position:fixed;left:0;right:0;bottom:var(--barsH);background:var(--card);border-radius:18px 18px 0 0;border-top:1px solid var(--line);transform:translateY(calc(100% + var(--barsH,0px) + 24px));pointer-events:none;transition:transform .25s cubic-bezier(.2,.8,.2,1);z-index:32;padding:8px 16px 18px;max-height:calc(72dvh - var(--barsH));overflow-y:auto;}
+  /* CLOSED = its own height PLUS the bars it sits on. translateY(110%) only cleared the sheet's own box; once the
+     sheet was anchored to --barsH (v1.17.2) the closed sheet came to rest 10% of its height below its open
+     position, i.e. ON the legend and tab bar (z 32 over z 31) and ate their taps. pointer-events off as well,
+     so a closed sheet can never swallow a tap whatever its rest position. */
+  .sheet.show{transform:translateY(0);pointer-events:auto;}
   .grab{width:40px;height:4px;border-radius:2px;background:var(--line);margin:6px auto 12px;}
   .sheet h3{margin:0 0 2px;font-size:18px;} .sheet .real{font-size:12px;color:var(--muted);margin-bottom:12px;}
   .sheet .sx{position:absolute;top:8px;right:10px;width:34px;height:34px;border-radius:50%;background:var(--card2);color:var(--muted);border:1px solid var(--line);font-size:15px;line-height:1;z-index:3;padding:0;}
@@ -193,7 +197,7 @@
   #tabbar button.on{color:var(--accent);background:rgba(217,142,72,.1);}
   #tabbar .dot{position:absolute;top:4px;left:50%;margin-left:6px;width:8px;height:8px;border-radius:50%;background:var(--good);box-shadow:0 0 0 2px #1c1a18;display:none;}
   #tabbar button.hasnew .dot{display:block;}
-  .vpanel{position:absolute;inset:0;z-index:10;background:radial-gradient(130% 90% at 50% 15%,#252220,#15130f 72%);display:none;flex-direction:column;padding-top:52px;}
+  .vpanel{position:absolute;inset:0;z-index:10;background:radial-gradient(130% 90% at 50% 15%,#252220,#15130f 72%);display:none;flex-direction:column;padding-top:calc(var(--hudH,52px) + 6px);} /* the HUD is two bands now; 52px put the panel header under the cash row */
   .vpanel.on{display:flex;}
   .vhead{flex:0 0 auto;padding:12px 18px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--line);}
   .vhead .vt{font-size:13px;font-weight:800;letter-spacing:.06em;}

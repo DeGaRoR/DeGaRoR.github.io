@@ -412,5 +412,17 @@ ok(!!boot && boot.attached, "CAREER still points into G.career after the BOOT re
 ok(!!boot && boot.tech === 2, "owned tech survived the boot resume (" + (boot && boot.tech) + "/2)");
 ok(!!boot && boot.claimed === 1, "claimed objectives survived the boot resume (" + (boot && boot.claimed) + "/1)");
 ok(!!boot && boot.airUnlocked, "tech EFFECTS recomputed from the restored career (air unlocked)");
+// ── bottom-chrome layering (v1.17.3): the CSS is the only place these live, and the stub DOM has no layout, so read it.
+{ const root = process.argv[2] || __dirname + "/..";
+  const dir = fs.existsSync(root) && fs.statSync(root).isFile() ? require("path").dirname(root) : root;
+  let css = ""; try { css = fs.readFileSync(dir + "/css/app.css", "utf8"); } catch (e) {}
+  const closed = (css.match(/\.sheet\{[^}]*transform:([^;]+);/) || [])[1] || "";
+  ok(/calc\(100%\s*\+\s*var\(--barsH/.test(closed), "a CLOSED sheet slides past its own height PLUS --barsH (" + (closed || "no .sheet transform found") + ") — translateY(110%) came to rest on the tab bar");
+  const sheetRule = (css.match(/\.sheet\{[^}]*\}/) || [""])[0], showRule = (css.match(/\.sheet\.show\{[^}]*\}/) || [""])[0];
+  ok(/pointer-events:none/.test(sheetRule) && /pointer-events:auto/.test(showRule), "a closed sheet takes no pointer events; an open one does");
+  const vpad = (css.match(/\.vpanel\{[^}]*padding-top:([^;]+);/) || [])[1] || "";
+  ok(/var\(--hudH/.test(vpad), "the tab panels inset from the MEASURED HUD height (" + (vpad || "none") + "), not a fixed 52px under a two-band HUD");
+  const resumeH = (src.match(/getElementById\("btnResume"\)\.addEventListener\("click",\(\)=>\{[\s\S]*?\}\}\}\);/) || [""])[0];
+  ok(/showTabbar\(true\)/.test(resumeH), "Resume re-shows the bottom chrome (legend + tab bar) like every other route into a game"); }
 console.log(fail ? "SMOKE: " + fail + " FAILURES" : "SMOKE: all green");
 process.exit(fail ? 1 : 0);

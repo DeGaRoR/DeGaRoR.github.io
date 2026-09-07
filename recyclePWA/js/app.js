@@ -2434,8 +2434,10 @@ function chooseContract(){document.getElementById("menu").classList.add("hide");
   sheet.querySelectorAll(".palcard[data-scn]").forEach(c=>c.addEventListener("click",()=>startNew("career",c.dataset.scn)));
   sheet.querySelectorAll(".palcard[data-ck]").forEach(c=>c.addEventListener("click",()=>startNew("career",c.dataset.ck)));}
 document.getElementById("btnResume").addEventListener("click",()=>{
-  if(hasResumable()){document.getElementById("menu").classList.add("hide");last=0;}
-  else{const sv=loadSave();if(sv&&sv.nodes&&sv.nodes.length&&(sv.contractKey||"").indexOf("site_")===0){try{restoreGame(sv);document.getElementById("menu").classList.add("hide");last=0;}catch(e){}}}});
+  // showTabbar(true) like every other route into a game: the render loop rescues the tab bar on its own but the
+  // legend is only toggled here, so a boot → Resume left the plant with no material legend.
+  if(hasResumable()){document.getElementById("menu").classList.add("hide");last=0;showTabbar(true);}
+  else{const sv=loadSave();if(sv&&sv.nodes&&sv.nodes.length&&(sv.contractKey||"").indexOf("site_")===0){try{restoreGame(sv);document.getElementById("menu").classList.add("hide");last=0;showTabbar(true);}catch(e){}}}});
 document.getElementById("btnCareer").addEventListener("click",()=>startNew("career","site_career")); // Career: guided tutorial on an empty site
 document.getElementById("btnAtelier").addEventListener("click",()=>startNew("career","site_atelier")); // Atelier: financial challenge, no tutorial
 document.getElementById("btnSandbox").addEventListener("click",()=>startNew("career","site_free"));  // Sandbox: empty site, no tutorial
