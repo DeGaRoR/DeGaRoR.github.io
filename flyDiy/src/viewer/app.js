@@ -1357,6 +1357,8 @@
               ccK: m.ccK, fieldK: m.fieldK,          // G206
               inside: m.inside || 0,                  // G206.1
               decals: m.noDec ? 0 : 1,                // G207
+              memF: m.memF || null,                   // G214
+              metalK: m.metalK || 0,                  // G215
               ribM: m.ribM, wearK: m.wearK, wearM: m.wearM,
               side: THREE.DoubleSide });
       }

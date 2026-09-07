@@ -34105,3 +34105,51 @@ WHAT LANDED:
   field and a lab slider that rebakes. The lab's tile floor is 5 mm and
   every per-section multiplier starts at 0.05 ("all sliders need to go
   lower").
+
+## G214 — MEMBER SCREWS, RIVETED ALUMINIUM WINDOW FRAMES, THE DOOR'S OWN SEAL,
+## THE OPTIONAL KEYLINE, AND THE BASE COLOUR (2026-09-07, the user: "some
+## subtle rivets along the pillars and rings ... painted in the appropriate
+## color. Smaller than [the cowl's] too, maybe like little nails or small
+## screws. Have an option to hide them and options to configure them. On the
+## registration, we should not be constrained to have an outline ... a macro
+## base color in the plane livery ... the 'joint' would rather be a aluminium
+## riveted frame rather than a rubber joint")
+
+- **THE SKIN IS SCREWED TO THE FRAME.** Heads along the REAL rings and rails
+  of the body — the cage's own stations and levels, where a ply or alloy
+  skin is screwed to its formers and longerons — drawn as a mipped stamp
+  (`tFastM`, the rivet baker's with the screw's numbers) on the normal and
+  a little roughness, never a colour: painted screws. Rows on `Structure &
+  skin`: `member screws` on/off, `screw pitch / head / rise` in METRES
+  (30 mm, 2.5 mm, 0.4 mm). Never on a tube + fabric fuselage (stitched,
+  not screwed), whatever the switch. `memF` crosses the join.
+- **THE WINDOW FRAME IS ALUMINIUM, AND RIVETED.** `joint` (role `bead`) is
+  bare alloy in every construction; a six-sided low frustum every
+  `rimRivet` (0.04 cage units, ~30 mm) along the strip's crown, in the
+  strip's own material — a painted head is a normal. The DOOR keeps a
+  rubber seal in its own section `doorSeal` (role `seal`), claimed by the
+  door part; every pass that skipped `joint` skips it too. GATE PARTS gains
+  a `door gap` shape (the seal exists only with the gap drawn); page 5 draws
+  the gap by default now.
+- **THE KEYLINE IS OPTIONAL**: `outline on` (`regOutOn`) in the registration
+  block; off, the underlay stroke and the field are the ink's alone.
+- **THE BASE COLOUR** at the livery's head writes every exterior cage
+  section's tint (skin, rail, pillar roles) and clears the overrides on the
+  layer parts that wear their parent (cowl, struts, fairings, fittings);
+  the wells below still override; the wing and the tail keep their own.
+
+## G215 — METALLIC PAINT (2026-09-07, the user: "allow for metallic paint on
+## the global fuselage and for the decals")
+
+- A metallic paint is metal flake in a pigment under a clear coat: the
+  material's metalness rises toward a flake's (0.85) with the dial
+  (`metalK`, per section, 0..1, its own row — not a multiplier), and the
+  flake breaks the roughness up at a twelfth of the sheet's tile
+  (`uFlake`) so the reflection SPARKLES instead of reading as one polished
+  plate. `base metallic` beside the base colour sets the whole fuselage.
+- **A MARKING CAN BE FLAKE TOO**: `metallic` on the registration, on each
+  kit layer and on the two image channels (`uDecE.y`); where a metallic
+  marking covers the pixel, the metalness rises to the flake's and the
+  roughness breaks up the same way.
+- The dial crosses the join (`metalK`) and the spec (`metal`) like the
+  other dials; the resolver walks it down the parent chain.

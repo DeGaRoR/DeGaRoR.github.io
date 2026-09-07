@@ -36,7 +36,8 @@ window.CAGE_PAGE = {
     bubble: 1, skylight: 0, crSill: 0, crBand: 3, crCap: 3, crNoseCap: 3,
     noseCrown: 0.16, noseH: 1.07, wsBaseLift: 0.05, cowlEase: 0.29,
     cowlBulge: 0.99, noseTip: 0.25, ringCowl2W: -0.02, ringScrBot: -0.015,
-    rimDoor: 0, intOn: 1, intCons: 2, dashCrease: 3, cutParts: 1,
+    // G214: the door gap is DRAWN by default (the user asked for it twice)
+    rimDoor: 1, intOn: 1, intCons: 2, dashCrease: 3, cutParts: 1,
     // ---- TAIL — stabilizer & elevator (_cage_stab.js) ----
     // stY is measured FROM THE BOOM/ROD UNDERSIDE (G26.5) — 0.408 here
     // reproduces the old absolute 0.33 over the jodel's -0.078 keel
@@ -201,6 +202,14 @@ window.CAGE_PAGE = {
         ['glazeOn',   'glazing',         0, 1, 1],
         ['shellT',    'shell thickness', 0.01, 0.10, 0.002, { dim: 'len' }],
         ['skinT',     'skin thickness',  0, 0.06, 0.001, { dim: 'len' }],
+        // G214: the skin's screws along the rings and rails (metres)
+        ['memFast',   'member screws',   0, 1, 1],
+        ['memPitch',  'screw pitch (m)', 0.01, 0.10, 0.001,
+         { when: P => +P.memFast }],
+        ['memDia',    'screw head (m)',  0.001, 0.008, 0.0001,
+         { when: P => +P.memFast }],
+        ['memRise',   'screw rise (m)',  0, 0.002, 0.00005,
+         { when: P => +P.memFast }],
         ['intPillars','pillar bodies',   0, 1, 1],
         ['intFire',   'firewall',        0, 1, 1],
         // the fireproof sheet's seal band on the engine side (2026-09-03) —
@@ -313,6 +322,7 @@ window.CAGE_PAGE = {
         ['rimRise',   'rim rise',       0.05, 1, 0.01],
         ['paneInset', 'pane inset',     -0.01, 0.01, 0.0005, { dim: 'len' }],
         ['paneThick', 'pane edge',      0, 0.01, 0.0005, { dim: 'len' }],
+        ['rimRivet',  'frame rivets',    0, 0.10, 0.005, { dim: 'len' }],
         // THE REVEAL. `winFrameW` gates the whole frame/recess pass, so it and
         // `winDepth` were unreachable and `doorDepth` did nothing while it sat
         // at 0. At 0 the windows are flush, as they were before this row.

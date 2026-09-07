@@ -1362,6 +1362,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             // G206.1: an inside bucket must not merge with an outside one
             ((kud.aeroInside || kud.charSkin) ? 'I' : '') +
             (kud.aeroNoDec ? 'K' : '') +
+            (kud.aeroMemF ? 'S' + kud.aeroMemF.join(',') : '') +
+            (kud.aeroMetalK ? 'Q' + kud.aeroMetalK : '') +
             // G185: the second plane's materials are their own buckets — the
             // game binds each plane's skin to its own spar stations
             (kud.aeroPlane ? 'P' + kud.aeroPlane : '');
@@ -1411,6 +1413,10 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           ...((ud.aeroInside || ud.charSkin) ? { inside: 1 } : {}),
           // G207: no marking lands here (hardware, structure, the interior)
           ...(ud.aeroNoDec ? { noDec: 1 } : {}),
+          // G214: the skin's screws, as the editor drew them
+          ...(ud.aeroMemF ? { memF: ud.aeroMemF } : {}),
+          // G215: the metal flake in this section's paint
+          ...(ud.aeroMetalK ? { metalK: ud.aeroMetalK } : {}),
           ...(ud.aeroRibM ? { ribM: ud.aeroRibM } : {}),
           ...(ud.aeroWearK != null ? { wearK: ud.aeroWearK } : {}),
           ...(ud.aeroWearM != null ? { wearM: ud.aeroWearM } : {}),

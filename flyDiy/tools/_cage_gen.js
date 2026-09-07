@@ -2421,12 +2421,56 @@ function cageRims(m, S) {
       const a = secIds[i], bq = secIds[(i + 1) % NP];
       for (let j = 0; j < SS; j++) {
         const j2 = (j + 1) % SS;
-        add.push({ v: [a[j], bq[j], bq[j2], a[j2]], m: 'joint' });
+        add.push({ v: [a[j], bq[j], bq[j2], a[j2]],
+                   m: kind === 'door' ? 'doorSeal' : 'joint' });
+      }
+    }
+    // THE RIVETS (G214): a low six-sided dome every `rimRivet` along the
+    // strip's crown, in the strip's own material — a painted head is a
+    // normal, not a colour. Walked by arc length so the pitch is even round
+    // the corners; skipped on doors (a seal has no rivets) and at 0.
+    if (kind !== 'door' && W.rimRivet > 0) {
+      const rr = Math.max(0.0012, r * 0.18), rh = rr * 0.55;   // radius, rise
+      const riseW = W.rimRise != null ? W.rimRise : 0.38;
+      const top = r * riseW;                                   // the crown
+      let acc = 0;
+      for (let i = 0; i < NP; i++) {
+        const A0 = path[i], B0 = path[(i + 1) % NP];
+        const segL = Math.hypot(B0[0]-A0[0], B0[1]-A0[1], B0[2]-A0[2]);
+        const { b, n2 } = sec[i];
+        const tg = nrm(sub(B0, A0));
+        let sAt = W.rimRivet - acc;
+        while (sAt < segL) {
+          const t = sAt / Math.max(segL, 1e-9);
+          const c = [A0[0] + (B0[0]-A0[0]) * t + n2[0] * top,
+                     A0[1] + (B0[1]-A0[1]) * t + n2[1] * top,
+                     A0[2] + (B0[2]-A0[2]) * t + n2[2] * top];
+          // a six-sided low frustum: base ring on the crown, a smaller ring
+          // rh above it — quads only, no degenerate fan, no cap (a 1 mm
+          // hole nobody sees, and every pass here expects four corners)
+          const lo = [], hi = [];
+          for (let q = 0; q < 6; q++) {
+            const a = q * Math.PI / 3;
+            const ca = Math.cos(a), sa = Math.sin(a);
+            lo.push(V.push([c[0] + (tg[0]*ca + b[0]*sa) * rr,
+                            c[1] + (tg[1]*ca + b[1]*sa) * rr,
+                            c[2] + (tg[2]*ca + b[2]*sa) * rr]) - 1);
+            hi.push(V.push([c[0] + (tg[0]*ca + b[0]*sa) * rr * 0.5 + n2[0] * rh,
+                            c[1] + (tg[1]*ca + b[1]*sa) * rr * 0.5 + n2[1] * rh,
+                            c[2] + (tg[2]*ca + b[2]*sa) * rr * 0.5 + n2[2] * rh]) - 1);
+          }
+          for (let q = 0; q < 6; q++)
+            add.push({ v: [lo[q], lo[(q + 1) % 6], hi[(q + 1) % 6], hi[q]],
+                       m: 'joint', rivet: 1 });
+          sAt += W.rimRivet;
+        }
+        acc = (acc + segL) % W.rimRivet;
       }
     }
     // the tube is a disjoint component: orient it outward by its own volume
     let vol = 0;
     for (let k = first; k < add.length; k++) {
+      if (add[k].rivet) continue;              // G214: the domes orient themselves
       const p = add[k].v.map(i => V[i]);
       for (const [x, y, z] of [[p[0], p[1], p[2]], [p[0], p[2], p[3]]])
         vol += x[0]*(y[1]*z[2]-y[2]*z[1]) - x[1]*(y[0]*z[2]-y[2]*z[0])
@@ -3305,7 +3349,7 @@ function cageInterior(m, S) {
                           'skyWindows']);
     const shell = [], pil = [], bands = [];
     F.forEach((f, i) => {
-      if (f.v.length !== 4 || f.m === 'joint' || f.paneEdge || f.capFace) return;
+      if (f.v.length !== 4 || (f.m === 'joint' || f.m === 'doorSeal') || f.paneEdge || f.capFace) return;
       if (GLM2.has(f.m) || f.m === 'boomTube') return;
       const [cy, cz] = cenOf(f);
       if (consAt(cy, cz) !== 'carbon') return;
@@ -3325,7 +3369,7 @@ function cageInterior(m, S) {
     // non-glass faces touching that boundary. Rides the cut part.
     const byDoor = new Map();
     F.forEach((f, i) => {
-      if (f.v.length !== 4 || !f.doorKey || f.m === 'joint') return;
+      if (f.v.length !== 4 || !f.doorKey || (f.m === 'joint' || f.m === 'doorSeal')) return;
       const [cy, cz] = cenOf(f);
       if (consAt(cy, cz) !== 'carbon') return;
       const k = f.doorKey + ':' + (V[f.v[0]][0] >= 0 ? 'P' : 'M');
@@ -3432,7 +3476,7 @@ function cageInterior(m, S) {
     // the posts; the structure (posts, beams, webs) stays as built.
     const selPan = [], selPil = [], selPanM = [];
     F.forEach((f, i) => {
-      if (f.v.length !== 4 || f.cutPart || f.paneEdge || f.m === 'joint' || f.paneEdge || f.capFace
+      if (f.v.length !== 4 || f.cutPart || f.paneEdge || (f.m === 'joint' || f.m === 'doorSeal') || f.capFace
           || f.m === 'boomTube')            // the rod lines nothing
         return;
       const [cy, cz] = cenOf(f);
@@ -4108,7 +4152,7 @@ function cageInterior(m, S) {
     const sliceAt = zk => {
       const pmap = new Map();
       for (const f of F) {
-        if (f.v.length !== 4 || f.m === 'joint' || f.paneEdge || f.capFace) continue;
+        if (f.v.length !== 4 || (f.m === 'joint' || f.m === 'doorSeal') || f.paneEdge || f.capFace) continue;
         const o = f.cutPart && f.cutOff ? f.cutOff : null;
         const P4 = f.v.map(vi => o
           ? [V[vi][0] - o[0], V[vi][1] - o[1], V[vi][2] - o[2]] : V[vi]);
@@ -4601,7 +4645,7 @@ function cageInterior(m, S) {
         // in-between case at other levels/lengths.
         const pmap = new Map();
         for (const f of F) {
-          if (f.v.length !== 4 || f.cutPart || f.paneEdge || f.m === 'joint'
+          if (f.v.length !== 4 || f.cutPart || f.paneEdge || (f.m === 'joint' || f.m === 'doorSeal')
               || f.capFace) continue;
           for (let e = 0; e < 4; e++) {
             const a = f.v[e], b = f.v[(e + 1) % 4];
@@ -5084,7 +5128,7 @@ function cageInterior(m, S) {
       const covered = new Set([...selPan, ...selPil, ...selDoor]);
       const selC = [];
       F.forEach((f, i) => {
-        if (f.v.length !== 4 || f.m === 'joint' || f.paneEdge || f.capFace) return;
+        if (f.v.length !== 4 || (f.m === 'joint' || f.m === 'doorSeal') || f.paneEdge || f.capFace) return;
         if (GLM.has(f.m) || f.m === 'boomTube') return;
         const [cy, cz] = cenOf(f);
         const c = consAt(cy, cz);
@@ -6482,6 +6526,16 @@ const CAGE_PARAMS = {
   // like rimW: 0.0025 is ~1.9 mm at the stock unit) behind the skin, so the strip stands proud of the glass and the pane reads as
   // a solid set into a frame rather than a sticker with a line round it.
   rimRise: 0.22, paneInset: 0.0025,
+  // THE FRAME IS RIVETED (G214): a head every `rimRivet` cage units along
+  // the strip's crown (0.04 ~ 30 mm), 0 = a plain strip. Small low domes on
+  // the strip, so they read as fasteners under the paint, never as beads.
+  rimRivet: 0.04,
+  // THE SKIN IS SCREWED TO THE FRAME (G214): heads along the real rings and
+  // rails, painted with the skin. METRES, because they live in the metric
+  // surface field: a 30 mm pitch, a 2.5 mm head, 0.4 mm proud. `memFast` 0
+  // hides them; a tube + fabric fuselage never shows them (stitched, not
+  // screwed), whatever the switch says.
+  memFast: 1, memPitch: 0.030, memDia: 0.0025, memRise: 0.0004,
   // THE PANE HAS AN EDGE (G206.2): its thickness, cage units (0.004 ~ 3 mm),
   // emitted as a ring of quads off every cut pane's boundary in its own
   // section `paneEdge` — the bright green-white line an acrylic sheet shows
@@ -6977,6 +7031,7 @@ function cageSpec(P) {
             doorDepth: P.doorDepth, rim: P.rimW, doorRim: P.doorRim,
             rimSides: P.rimSides || 8, rimArc: P.rimArc || 1,
             rimRise: P.rimRise != null ? +P.rimRise : 0.38,
+            rimRivet: Math.max(0, +P.rimRivet || 0),
             paneInset: +P.paneInset || 0,
             paneThick: Math.max(0, +P.paneThick || 0),
             rimWin: P.rimWin ? 1 : 0, rimWs: P.rimWs ? 1 : 0,

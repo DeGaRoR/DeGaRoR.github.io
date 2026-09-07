@@ -21681,6 +21681,7 @@ const CAGE_PARTS = [
 
   // the door is CABIN FIT's (2026-09-04, the user)
   { key: 'pilotDoor', name: 'pilot door', parent: 'fit', layer: 'cage',
+    sections: ['doorSeal'],                 // G214: the door's own rubber seal
     place: { on: 'doorOn', type: ['doorGone', 'doorDeep'], up: 'doorSill',
              at: 'cut from the cabin side' },
     // THE GAP BELONGS TO THE DOOR, the seal's gauge to the joints. Both were
@@ -21699,7 +21700,7 @@ const CAGE_PARTS = [
     // G206: the strip's rise and the pane's step down inside it — the two
     // numbers that make a pane a solid set into a frame rather than a
     // sticker with a line drawn round it
-    groups: [['seal', ['rimW', 'rimRise', 'paneInset', 'paneThick']],
+    groups: [['seal', ['rimW', 'rimRise', 'paneInset', 'paneThick', 'rimRivet']],
              ['the reveal', ['winFrameW', 'winDepth']]] },
 
   // the mirrored pod's aft half. FOREVER-SPLIT (the user's ruling): these are
@@ -21816,6 +21817,8 @@ const CAGE_PARTS = [
     groups: [
       ['construction', ['intOn']],   // intCons -> `design` (it decides ALL of it)
       ['covering', ['skinOn', 'skinT', 'shellT']],
+      // G214: the skin's screws along the rings and rails
+      ['fasteners', ['memFast', 'memPitch', 'memDia', 'memRise']],
       ['members', ['intPillars', 'intFire', 'fireSealW', 'intBulk', 'bulkZ']],
       ['cutting', ['cutParts']],
     ] },
@@ -24368,7 +24371,8 @@ window.CAGE_PAGE = {
     bubble: 1, skylight: 0, crSill: 0, crBand: 3, crCap: 3, crNoseCap: 3,
     noseCrown: 0.16, noseH: 1.07, wsBaseLift: 0.05, cowlEase: 0.29,
     cowlBulge: 0.99, noseTip: 0.25, ringCowl2W: -0.02, ringScrBot: -0.015,
-    rimDoor: 0, intOn: 1, intCons: 2, dashCrease: 3, cutParts: 1,
+    // G214: the door gap is DRAWN by default (the user asked for it twice)
+    rimDoor: 1, intOn: 1, intCons: 2, dashCrease: 3, cutParts: 1,
     // ---- TAIL — stabilizer & elevator (_cage_stab.js) ----
     // stY is measured FROM THE BOOM/ROD UNDERSIDE (G26.5) — 0.408 here
     // reproduces the old absolute 0.33 over the jodel's -0.078 keel
@@ -24533,6 +24537,14 @@ window.CAGE_PAGE = {
         ['glazeOn',   'glazing',         0, 1, 1],
         ['shellT',    'shell thickness', 0.01, 0.10, 0.002, { dim: 'len' }],
         ['skinT',     'skin thickness',  0, 0.06, 0.001, { dim: 'len' }],
+        // G214: the skin's screws along the rings and rails (metres)
+        ['memFast',   'member screws',   0, 1, 1],
+        ['memPitch',  'screw pitch (m)', 0.01, 0.10, 0.001,
+         { when: P => +P.memFast }],
+        ['memDia',    'screw head (m)',  0.001, 0.008, 0.0001,
+         { when: P => +P.memFast }],
+        ['memRise',   'screw rise (m)',  0, 0.002, 0.00005,
+         { when: P => +P.memFast }],
         ['intPillars','pillar bodies',   0, 1, 1],
         ['intFire',   'firewall',        0, 1, 1],
         // the fireproof sheet's seal band on the engine side (2026-09-03) —
@@ -24645,6 +24657,7 @@ window.CAGE_PAGE = {
         ['rimRise',   'rim rise',       0.05, 1, 0.01],
         ['paneInset', 'pane inset',     -0.01, 0.01, 0.0005, { dim: 'len' }],
         ['paneThick', 'pane edge',      0, 0.01, 0.0005, { dim: 'len' }],
+        ['rimRivet',  'frame rivets',    0, 0.10, 0.005, { dim: 'len' }],
         // THE REVEAL. `winFrameW` gates the whole frame/recess pass, so it and
         // `winDepth` were unreachable and `doorDepth` did nothing while it sat
         // at 0. At 0 the windows are flush, as they were before this row.
@@ -27675,12 +27688,56 @@ function cageRims(m, S) {
       const a = secIds[i], bq = secIds[(i + 1) % NP];
       for (let j = 0; j < SS; j++) {
         const j2 = (j + 1) % SS;
-        add.push({ v: [a[j], bq[j], bq[j2], a[j2]], m: 'joint' });
+        add.push({ v: [a[j], bq[j], bq[j2], a[j2]],
+                   m: kind === 'door' ? 'doorSeal' : 'joint' });
+      }
+    }
+    // THE RIVETS (G214): a low six-sided dome every `rimRivet` along the
+    // strip's crown, in the strip's own material — a painted head is a
+    // normal, not a colour. Walked by arc length so the pitch is even round
+    // the corners; skipped on doors (a seal has no rivets) and at 0.
+    if (kind !== 'door' && W.rimRivet > 0) {
+      const rr = Math.max(0.0012, r * 0.18), rh = rr * 0.55;   // radius, rise
+      const riseW = W.rimRise != null ? W.rimRise : 0.38;
+      const top = r * riseW;                                   // the crown
+      let acc = 0;
+      for (let i = 0; i < NP; i++) {
+        const A0 = path[i], B0 = path[(i + 1) % NP];
+        const segL = Math.hypot(B0[0]-A0[0], B0[1]-A0[1], B0[2]-A0[2]);
+        const { b, n2 } = sec[i];
+        const tg = nrm(sub(B0, A0));
+        let sAt = W.rimRivet - acc;
+        while (sAt < segL) {
+          const t = sAt / Math.max(segL, 1e-9);
+          const c = [A0[0] + (B0[0]-A0[0]) * t + n2[0] * top,
+                     A0[1] + (B0[1]-A0[1]) * t + n2[1] * top,
+                     A0[2] + (B0[2]-A0[2]) * t + n2[2] * top];
+          // a six-sided low frustum: base ring on the crown, a smaller ring
+          // rh above it — quads only, no degenerate fan, no cap (a 1 mm
+          // hole nobody sees, and every pass here expects four corners)
+          const lo = [], hi = [];
+          for (let q = 0; q < 6; q++) {
+            const a = q * Math.PI / 3;
+            const ca = Math.cos(a), sa = Math.sin(a);
+            lo.push(V.push([c[0] + (tg[0]*ca + b[0]*sa) * rr,
+                            c[1] + (tg[1]*ca + b[1]*sa) * rr,
+                            c[2] + (tg[2]*ca + b[2]*sa) * rr]) - 1);
+            hi.push(V.push([c[0] + (tg[0]*ca + b[0]*sa) * rr * 0.5 + n2[0] * rh,
+                            c[1] + (tg[1]*ca + b[1]*sa) * rr * 0.5 + n2[1] * rh,
+                            c[2] + (tg[2]*ca + b[2]*sa) * rr * 0.5 + n2[2] * rh]) - 1);
+          }
+          for (let q = 0; q < 6; q++)
+            add.push({ v: [lo[q], lo[(q + 1) % 6], hi[(q + 1) % 6], hi[q]],
+                       m: 'joint', rivet: 1 });
+          sAt += W.rimRivet;
+        }
+        acc = (acc + segL) % W.rimRivet;
       }
     }
     // the tube is a disjoint component: orient it outward by its own volume
     let vol = 0;
     for (let k = first; k < add.length; k++) {
+      if (add[k].rivet) continue;              // G214: the domes orient themselves
       const p = add[k].v.map(i => V[i]);
       for (const [x, y, z] of [[p[0], p[1], p[2]], [p[0], p[2], p[3]]])
         vol += x[0]*(y[1]*z[2]-y[2]*z[1]) - x[1]*(y[0]*z[2]-y[2]*z[0])
@@ -28559,7 +28616,7 @@ function cageInterior(m, S) {
                           'skyWindows']);
     const shell = [], pil = [], bands = [];
     F.forEach((f, i) => {
-      if (f.v.length !== 4 || f.m === 'joint' || f.paneEdge || f.capFace) return;
+      if (f.v.length !== 4 || (f.m === 'joint' || f.m === 'doorSeal') || f.paneEdge || f.capFace) return;
       if (GLM2.has(f.m) || f.m === 'boomTube') return;
       const [cy, cz] = cenOf(f);
       if (consAt(cy, cz) !== 'carbon') return;
@@ -28579,7 +28636,7 @@ function cageInterior(m, S) {
     // non-glass faces touching that boundary. Rides the cut part.
     const byDoor = new Map();
     F.forEach((f, i) => {
-      if (f.v.length !== 4 || !f.doorKey || f.m === 'joint') return;
+      if (f.v.length !== 4 || !f.doorKey || (f.m === 'joint' || f.m === 'doorSeal')) return;
       const [cy, cz] = cenOf(f);
       if (consAt(cy, cz) !== 'carbon') return;
       const k = f.doorKey + ':' + (V[f.v[0]][0] >= 0 ? 'P' : 'M');
@@ -28686,7 +28743,7 @@ function cageInterior(m, S) {
     // the posts; the structure (posts, beams, webs) stays as built.
     const selPan = [], selPil = [], selPanM = [];
     F.forEach((f, i) => {
-      if (f.v.length !== 4 || f.cutPart || f.paneEdge || f.m === 'joint' || f.paneEdge || f.capFace
+      if (f.v.length !== 4 || f.cutPart || f.paneEdge || (f.m === 'joint' || f.m === 'doorSeal') || f.capFace
           || f.m === 'boomTube')            // the rod lines nothing
         return;
       const [cy, cz] = cenOf(f);
@@ -29362,7 +29419,7 @@ function cageInterior(m, S) {
     const sliceAt = zk => {
       const pmap = new Map();
       for (const f of F) {
-        if (f.v.length !== 4 || f.m === 'joint' || f.paneEdge || f.capFace) continue;
+        if (f.v.length !== 4 || (f.m === 'joint' || f.m === 'doorSeal') || f.paneEdge || f.capFace) continue;
         const o = f.cutPart && f.cutOff ? f.cutOff : null;
         const P4 = f.v.map(vi => o
           ? [V[vi][0] - o[0], V[vi][1] - o[1], V[vi][2] - o[2]] : V[vi]);
@@ -29855,7 +29912,7 @@ function cageInterior(m, S) {
         // in-between case at other levels/lengths.
         const pmap = new Map();
         for (const f of F) {
-          if (f.v.length !== 4 || f.cutPart || f.paneEdge || f.m === 'joint'
+          if (f.v.length !== 4 || f.cutPart || f.paneEdge || (f.m === 'joint' || f.m === 'doorSeal')
               || f.capFace) continue;
           for (let e = 0; e < 4; e++) {
             const a = f.v[e], b = f.v[(e + 1) % 4];
@@ -30338,7 +30395,7 @@ function cageInterior(m, S) {
       const covered = new Set([...selPan, ...selPil, ...selDoor]);
       const selC = [];
       F.forEach((f, i) => {
-        if (f.v.length !== 4 || f.m === 'joint' || f.paneEdge || f.capFace) return;
+        if (f.v.length !== 4 || (f.m === 'joint' || f.m === 'doorSeal') || f.paneEdge || f.capFace) return;
         if (GLM.has(f.m) || f.m === 'boomTube') return;
         const [cy, cz] = cenOf(f);
         const c = consAt(cy, cz);
@@ -31736,6 +31793,16 @@ const CAGE_PARAMS = {
   // like rimW: 0.0025 is ~1.9 mm at the stock unit) behind the skin, so the strip stands proud of the glass and the pane reads as
   // a solid set into a frame rather than a sticker with a line round it.
   rimRise: 0.22, paneInset: 0.0025,
+  // THE FRAME IS RIVETED (G214): a head every `rimRivet` cage units along
+  // the strip's crown (0.04 ~ 30 mm), 0 = a plain strip. Small low domes on
+  // the strip, so they read as fasteners under the paint, never as beads.
+  rimRivet: 0.04,
+  // THE SKIN IS SCREWED TO THE FRAME (G214): heads along the real rings and
+  // rails, painted with the skin. METRES, because they live in the metric
+  // surface field: a 30 mm pitch, a 2.5 mm head, 0.4 mm proud. `memFast` 0
+  // hides them; a tube + fabric fuselage never shows them (stitched, not
+  // screwed), whatever the switch says.
+  memFast: 1, memPitch: 0.030, memDia: 0.0025, memRise: 0.0004,
   // THE PANE HAS AN EDGE (G206.2): its thickness, cage units (0.004 ~ 3 mm),
   // emitted as a ring of quads off every cut pane's boundary in its own
   // section `paneEdge` — the bright green-white line an acrylic sheet shows
@@ -32231,6 +32298,7 @@ function cageSpec(P) {
             doorDepth: P.doorDepth, rim: P.rimW, doorRim: P.doorRim,
             rimSides: P.rimSides || 8, rimArc: P.rimArc || 1,
             rimRise: P.rimRise != null ? +P.rimRise : 0.38,
+            rimRivet: Math.max(0, +P.rimRivet || 0),
             paneInset: +P.paneInset || 0,
             paneThick: Math.max(0, +P.paneThick || 0),
             rimWin: P.rimWin ? 1 : 0, rimWs: P.rimWs ? 1 : 0,
@@ -57740,6 +57808,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             // G206.1: an inside bucket must not merge with an outside one
             ((kud.aeroInside || kud.charSkin) ? 'I' : '') +
             (kud.aeroNoDec ? 'K' : '') +
+            (kud.aeroMemF ? 'S' + kud.aeroMemF.join(',') : '') +
+            (kud.aeroMetalK ? 'Q' + kud.aeroMetalK : '') +
             // G185: the second plane's materials are their own buckets — the
             // game binds each plane's skin to its own spar stations
             (kud.aeroPlane ? 'P' + kud.aeroPlane : '');
@@ -57789,6 +57859,10 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           ...((ud.aeroInside || ud.charSkin) ? { inside: 1 } : {}),
           // G207: no marking lands here (hardware, structure, the interior)
           ...(ud.aeroNoDec ? { noDec: 1 } : {}),
+          // G214: the skin's screws, as the editor drew them
+          ...(ud.aeroMemF ? { memF: ud.aeroMemF } : {}),
+          // G215: the metal flake in this section's paint
+          ...(ud.aeroMetalK ? { metalK: ud.aeroMetalK } : {}),
           ...(ud.aeroRibM ? { ribM: ud.aeroRibM } : {}),
           ...(ud.aeroWearK != null ? { wearK: ud.aeroWearK } : {}),
           ...(ud.aeroWearM != null ? { wearM: ud.aeroWearM } : {}),
@@ -58396,6 +58470,7 @@ const BASE_GROUPS = [
     ['rimRise',   'rim rise',     0.05, 1, 0.01],
     ['paneInset', 'pane inset',   -0.01, 0.01, 0.0005],
     ['paneThick', 'pane edge',    0, 0.01, 0.0005],
+    ['rimRivet',  'frame rivets', 0, 0.10, 0.005],
     ['rimSides',  'rim sides',    4, 10, 1],
     ['rimArc',    'corner sections', 1, 6, 1],
     ['rimWin',    'window rims',  0, 1, 1],
@@ -58582,6 +58657,14 @@ const fieldM = () => (G.CAGE_UNIT || 1) * (P.planeScale || 1);
 // player reads is 'aluminium')
 const CONS_MAP = { tube: 'tubeFabric', wood: 'wood', metal: 'alloy',
                    carbon: 'carbon' };
+// THE MEMBER SCREWS' NUMBERS (G214), metres, or null when hidden or when the
+// construction has none to show (fabric is stitched, not screwed)
+const memFOf = () => {
+  if (!+P.memFast) return null;
+  const c = consOf();
+  if (c === 'tubeFabric') return null;
+  return [+P.memPitch || 0.03, +P.memDia || 0.0025, +P.memRise || 0.0004];
+};
 const consOf = () => CONS_MAP[['carbon', 'tube', 'wood', 'metal'][
   Math.max(0, Math.min(3, Math.round(P.intCons || 0)))]] || 'tubeFabric';
 // which section is on which shader branch — filled by meshFrom from the
@@ -58600,6 +58683,8 @@ const secFin = {};
 const secTile = {}, secRough = {}, secNrm = {};
 // G206: the sheen (clear coat) and the large-scale field, same shape
 const secCc = {}, secField = {};
+// G215: the metal flake in the paint, 0..1
+const secMetal = {};
 // THE PART'S OWN CONDITION (G114, answering G70's "no per-part condition"):
 // a multiplier on the material's ageing rate, walked down the chains like
 // the dials — the one dial still sets the aeroplane, this says how much of
@@ -58622,6 +58707,7 @@ function aeroLoadPrefs() {
     Object.assign(secWear, j.wearM || {});
     Object.assign(secCc, j.cc || {});
     Object.assign(secField, j.field || {});
+    Object.assign(secMetal, j.metal || {});
     Object.assign(WEAR, j.wear || {});
     aeroLoadGlass(j);
   } catch (e) {}
@@ -58643,7 +58729,7 @@ function aeroSavePrefs() {
     j.tint = secTint; j.finish = secFin; j.wear = WEAR;
     j.tile = secTile; j.rough = secRough; j.nrm = secNrm;
     j.wearM = secWear; j.glass = GLASS;
-    j.cc = secCc; j.field = secField;
+    j.cc = secCc; j.field = secField; j.metal = secMetal;
     localStorage.setItem(AERO_PREF, JSON.stringify(j));
   } catch (e) {}
 }
@@ -58946,7 +59032,8 @@ const matOf = name => {
                 ':' + (secTile[name] || 1) + ':' + (secRough[name] || 1) +
                 ':' + (secNrm[name] || 1) + ':' + (secWear[name] || 1) +
                 ':' + (secCc[name] || 1) + ':' + (secField[name] || 1) +
-                ':' + (WEAR.amount || 0) +
+                ':' + (secMetal[name] || 0) +
+                ':' + (WEAR.amount || 0) + ':' + String(memFOf()) +
                 // THE GLAZING DIALS JOIN THE KEY (2026-08-31, the user:
                 // "none of the sliders do anything"). aeroGlass's own pool
                 // states the rule — "EVERY DIAL JOINS THE KEY, or two panes
@@ -58982,12 +59069,16 @@ const matOf = name => {
         // the three dials; absent is the finish's own number
         tileK: secTile[name], roughK: secRough[name], nrmK: secNrm[name],
         ccK: secCc[name], fieldK: secField[name],
+        metalK: secMetal[name],                       // G215
         wearM: secWear[name],
         // G206.1: liners, frames, the dash and the fireproof sheet are in the
         // cabin; the exterior skin's back face is, by the factory's own rule
         inside: A.aeroIsInside && A.aeroIsInside(name) ? 1 : 0,
         // G207: a marking lands on the exterior skin and nowhere else
         decals: A.aeroDecOk ? A.aeroDecOk(name) : 1,
+        // G214: the skin's screws along the real rings and rails — never on
+        // a tube + fabric fuselage, which is stitched to its stringers
+        memF: memFOf(),
         // the field is per-SECTION and pure (see _surf_check): the mesh
         // publishes which groups carry it, and meshFrom passes it in
         surf: matSurf[name] ? 1 : 0,
@@ -59035,7 +59126,7 @@ const SEC_CTX = {};                     // section -> the g it last drew with
 let SEC_EPOCH = 0;
 const SEC_OVER = { fin: secFin, tint: secTint, tile: secTile,
                    rough: secRough, nrm: secNrm, wear: secWear,
-                   cc: secCc, field: secField };
+                   cc: secCc, field: secField, metal: secMetal };
 function secMat(name, g) {
   if (!aeroOn()) return null;
   const A = AK();
@@ -59081,6 +59172,7 @@ function secMat(name, g) {
     tileK: (r.tileK != null ? r.tileK : 1) * ((g && g.tileK0) || 1),
     roughK: r.roughK, nrmK: r.nrmK, wearM: r.wearM,
     ccK: r.ccK, fieldK: r.fieldK,                    // G206
+    metalK: r.metalK,                                // G215
     // G206.1: the crew layer's sections (the seats, the dummies) sit inside
     inside: (A.AERO_SEC[name] && A.AERO_SEC[name].layer === 'crew') ? 1 : 0,
     // G207: the flying surfaces, the cowl and the spats take a marking; the
@@ -59107,7 +59199,7 @@ const secResolveAuto = name => {
   delete fin2[name];
   return A.aeroSecResolve(name,
     { fin: fin2, tint: secTint, tile: secTile, rough: secRough, nrm: secNrm,
-      wear: secWear, cc: secCc, field: secField },
+      wear: secWear, cc: secCc, field: secField, metal: secMetal },
     { cons: g.cons || consOf(), fin: g.fin });
 };
 if (typeof window !== 'undefined') window.CAGE_SECMAT = secMat;
@@ -59392,8 +59484,8 @@ function measureBox(m, FS) {
   const lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9];
   const seen = new Set();
   for (const f of m.F) {
-    if (f.m === 'joint' || f.m === 'paneEdge' || INTSKIN.has(f.m) ||
-        INTSTRUCT.has(f.m)) continue;
+    if (f.m === 'joint' || f.m === 'doorSeal' || f.m === 'paneEdge' ||
+        INTSKIN.has(f.m) || INTSTRUCT.has(f.m)) continue;
     const o = f.cutOff || [0, 0, 0];
     for (const vi of f.v) {
       const key = vi + ':' + (f.cutOff ? 1 : 0);
@@ -59496,7 +59588,8 @@ function build() {
   // structural members stand on their own). The layers (fin/gear/
   // crew) and the measurements still see the full mesh.
   const skinCull = name => !GLASSM.has(name)
-    && !INTSTRUCT.has(name) && name !== 'joint' && name !== 'paneEdge';
+    && !INTSTRUCT.has(name) && name !== 'joint' && name !== 'doorSeal'
+    && name !== 'paneEdge';
   const sd0 = (P.skinOn == null || P.skinOn) ? s
     : { ...s, F: s.F.filter(f => !skinCull(f.m)) };
   // GLAZING OFF (2026-09-04): the glass faces go the same way the skin does
@@ -60937,7 +61030,8 @@ const DEC = (typeof window !== 'undefined' && window.AEROSKIN
   // sheet also uses — so the two could not disagree. They still cannot: null
   // means "whatever the trim is", and a number is the builder overruling it
   // for this marking only.
-  regCol: null, regOut: null,
+  regCol: null, regOut: null, regOutOn: 1,
+  regMetal: 0, imgMetal: 0, wimMetal: 0,
   // INDEPENDENT WIDTH (G113.1). The width was DERIVED — `regH * aspect` —
   // and there was no way to stretch or condense a marking to fit the space
   // it has. Locked (the default, and exactly what the old code did) the
@@ -61061,7 +61155,7 @@ function finishToSpec() {
   const names = new Set([].concat(
     Object.keys(secFin), Object.keys(secTint), Object.keys(secTile),
     Object.keys(secRough), Object.keys(secNrm), Object.keys(secWear),
-    Object.keys(secCc), Object.keys(secField)));
+    Object.keys(secCc), Object.keys(secField), Object.keys(secMetal)));
   for (const nm of names) {
     const o = {};
     if (secFin[nm]) o.fin = secFin[nm];
@@ -61072,6 +61166,7 @@ function finishToSpec() {
     if (secWear[nm] != null) o.wearM = secWear[nm];
     if (secCc[nm] != null) o.cc = secCc[nm];
     if (secField[nm] != null) o.field = secField[nm];
+    if (secMetal[nm] != null) o.metal = secMetal[nm];
     if (Object.keys(o).length) { sections[nm] = o; n++; }
   }
   // THE GLAZING, deviations only — the same rule the sections and the decals
@@ -61100,7 +61195,7 @@ function finishToSpec() {
 function finishFromSpec(f) {
   decKitDefaults();
   for (const m of [secFin, secTint, secTile, secRough, secNrm, secWear,
-                   secCc, secField])
+                   secCc, secField, secMetal])
     for (const k in m) delete m[k];
   // AND THE REGISTRATION IS CLEARED WITH THE REST (G160). This used to carry
   // DEC.reg across a load, on the reasoning that it belonged to meta.reg and
@@ -61125,6 +61220,7 @@ function finishFromSpec(f) {
       if (typeof r.wearM === 'number') secWear[nm] = r.wearM;
       if (typeof r.cc === 'number') secCc[nm] = r.cc;
       if (typeof r.field === 'number') secField[nm] = r.field;
+      if (typeof r.metal === 'number') secMetal[nm] = r.metal;
     }
     if (typeof o.wear === 'number') WEAR.amount = Math.max(0, Math.min(1, o.wear));
     if (o.decals && typeof o.decals === 'object')
@@ -61684,6 +61780,9 @@ function buildDecPanel() {
     well('ink', 'regCol', 0x1b3a5c,
          'the glyph. Unset it follows the aeroplane trim colour — ' +
          'double-click the label to go back to following');
+    // G214: the keyline is optional
+    flag('outline on', 'regOutOn',
+         'a keyline around the glyphs; off, the ink alone');
     well('outline', 'regOut', 0xffffff,
          'the keyline around the glyph, which is what keeps a dark ' +
          'registration legible on a dark flank');
@@ -61696,6 +61795,8 @@ function buildDecPanel() {
       'metres around the section from the waist rail, + upward', 'up');
   num('turn', 'regRot', -0.6, 0.6, 0.01, 'radians — the atlas has always ' +
       'carried a rotation and nothing ever offered it');
+  num('metallic', 'regMetal', 0, 1, 0.02,
+      'metal flake in the ink — the letters become paint with flake in it');
   pick('goes on', 'regTarget',
        ['the fuselage', 'the flying surfaces', 'both', 'the body & the tail'],
        'a decal is on BOTH flanks by construction — the surface field is ' +
@@ -61813,6 +61914,8 @@ function buildDecPanel() {
           'a transparent layer lets what is under it through — which is how ' +
           'two kit layers read as one scheme instead of two stickers',
           null, det);
+      num('metallic', q + 'Metal', 0, 1, 0.02,
+          'metal flake in this layer\'s paint', null, det);
       flag('mirror', q + 'Flip',
            'flip the pattern fore-and-aft. A sweep that rises AFT becomes one ' +
            'that rises FORE, and it is the same pattern either way',
@@ -61921,6 +62024,7 @@ function buildDecPanel() {
   num('body station', 'imgL', -1.0, 6.0, 0.05, 'metres AFT of the firewall', 'len');
   num('body height on side', 'imgC', -1.2, 1.2, 0.02, 'metres from the waist', 'up');
   num('body turn', 'imgRot', -0.6, 0.6, 0.01, 'radians');
+  num('body metallic', 'imgMetal', 0, 1, 0.02, 'metal flake where the image paints');
   pick('body goes on', 'imgTarget',
        ['the fuselage', 'the flying surfaces', 'both', 'the body & the tail']);
   pick('body projected as', 'imgMode', MODE_NAMES, MODE_HELP,
@@ -61938,6 +62042,7 @@ function buildDecPanel() {
       'metres from the centreline, in PLAN', 'span');
   num('wing along', 'wimC', -3.0, 3.0, 0.02, 'metres fore and aft, in PLAN', 'len');
   num('wing turn', 'wimRot', -0.6, 0.6, 0.01, 'radians');
+  num('wing metallic', 'wimMetal', 0, 1, 0.02, 'metal flake where the image paints');
   pick('wing projected as', 'wimMode', MODE_NAMES, MODE_HELP,
        (a, b) => decReframe(a, b, { l: 'wimL', c: 'wimC' }));
   // THE CERTIFICATION STICKERS (G208.2, the user: "we should be able to
@@ -62043,6 +62148,64 @@ function buildMatPanel() {
       aeroSavePrefs(); build();
     };
     d.appendChild(i); d.appendChild(v);
+  }
+  // ---- THE BASE COLOUR (G214, the user: "a macro base color in the plane
+  // livery, that sets all the fuselage pieces to a single color, including
+  // the rings, the pillars, the cowl, etc") -------------------------------
+  // ONE pick writes every exterior cage section's tint (skin, rail and
+  // pillar roles) and CLEARS the overrides on the layer parts that wear
+  // their parent (the cowl, the struts, the fairings, the fittings), so they
+  // follow the body from here. The per-section wells below still override
+  // afterwards; the wing and the tail keep their own.
+  {
+    const d = mkRow2('base colour', 'one colour for the whole fuselage — ' +
+      'the skin, the rings and pillars, the nose deck, the cowl, the ' +
+      'struts, the fairings and the fittings, in one pick; the wells ' +
+      'below still override a section afterwards');
+    d.dataset.matHead = '1';
+    const c = document.createElement('input');
+    c.type = 'color'; c.style.flex = 'none';
+    wellRecent(c);
+    const cur = () => {
+      const t = secTint.body != null ? secTint.body
+        : A.AERO_FINISH[secFin.body || A.aeroFinishFor('body', cons)].base;
+      return '#' + (t >>> 0).toString(16).padStart(6, '0');
+    };
+    c.value = cur();
+    matPanelSync.push(() => { if (document.activeElement !== c) c.value = cur(); });
+    c.oninput = () => {
+      const v = parseInt(c.value.slice(1), 16);
+      for (const nm of names)
+        if (['skin', 'rail', 'pillar'].includes(A.AERO_ROLE[nm])) secTint[nm] = v;
+      secTint.body = v;
+      if (A.AERO_SEC) for (const k in A.AERO_SEC)
+        if (A.AERO_SEC[k].wears === 'parent') delete secTint[k];
+      aeroSavePrefs(); build();
+    };
+    d.appendChild(c);
+    // G215: THE BASE PAINT'S METAL, the same reach as its colour — every
+    // exterior cage section, and the layer parts that wear the parent
+    const dm = mkRow2('base metallic', 'metal flake in the whole fuselage\'s ' +
+      'paint — 0 plain, 1 all flake; the per-section rows still override');
+    dm.dataset.matHead = '1';
+    const im = document.createElement('input');
+    im.type = 'range'; im.min = '0'; im.max = '1'; im.step = '0.02';
+    im.value = String(secMetal.body != null ? secMetal.body : 0);
+    im.style.flex = '1';
+    const vm = document.createElement('span');
+    vm.className = 'v'; vm.textContent = (+im.value).toFixed(2);
+    im.oninput = () => {
+      const x = +im.value; vm.textContent = x.toFixed(2);
+      for (const nm of names)
+        if (['skin', 'rail', 'pillar'].includes(A.AERO_ROLE[nm])) {
+          if (x <= 0) delete secMetal[nm]; else secMetal[nm] = x;
+        }
+      if (x <= 0) delete secMetal.body; else secMetal.body = x;
+      if (A.AERO_SEC) for (const k in A.AERO_SEC)
+        if (A.AERO_SEC[k].wears === 'parent') delete secMetal[k];
+      aeroSavePrefs(); build();
+    };
+    dm.appendChild(im); dm.appendChild(vm);
   }
   // ---- THE GLAZING, once for every pane (G113.2) -------------------------
   // The user asked for "a lot more options" on the glass and named most of
@@ -62198,8 +62361,31 @@ function buildMatPanel() {
       delete secTint[nm]; delete secFin[nm];
       delete secTile[nm]; delete secRough[nm]; delete secNrm[nm];
       delete secWear[nm]; delete secCc[nm]; delete secField[nm];
+      delete secMetal[nm];
       aeroSavePrefs(); build();
     };
+    // G215: METALLIC, and it is not a multiplier — 0 is plain paint, 1 is
+    // all flake — so it has its own row rather than a slot in the x-dials
+    {
+      const d = mkRow2('   metallic',
+        'metal flake in the paint of ' + nm + ' — 0 plain, 1 all flake');
+      d.className = 'r dial';
+      d.dataset.sec = nm;
+      const inp = document.createElement('input');
+      inp.type = 'range'; inp.min = '0'; inp.max = '1'; inp.step = '0.02';
+      inp.value = String(secMetal[nm] != null ? secMetal[nm] : 0);
+      const v = document.createElement('span');
+      v.className = 'v';
+      const show = () => { v.textContent = (+inp.value).toFixed(2); };
+      show();
+      inp.oninput = () => {
+        show();
+        const x = +inp.value;
+        if (x <= 0) delete secMetal[nm]; else secMetal[nm] = x;
+        aeroSavePrefs(); build();
+      };
+      d.appendChild(inp); d.appendChild(v);
+    }
     // THE THREE DIALS, under the section they belong to. They MULTIPLY the
     // finish's own tile, roughness and normal strength, so 1.00 is the
     // material as designed — which is why they are x and not a value, and
@@ -65995,7 +66181,15 @@ const AERO_ROLE = {
   pillarTail: 'pillar', pillarFront: 'pillar', pillarTaper: 'pillar',
   windshield: 'glass', pilotWindow: 'glass', pasengerWindow: 'glass',
   skyWindows: 'glass',
+  // THE WINDOW FRAME IS ALUMINIUM (G214, the user: "I have looked at cessna
+  // and jodels, and the 'joint' would rather be a aluminium riveted frame
+  // rather than a rubber joint"). `joint` is the riveted retaining strip
+  // round every pane — role `bead`, bare alloy in every construction — and
+  // the DOOR's own seal is its own section now, `doorSeal`, role `seal`,
+  // which stays the rubber the bead used to be: a door gap is sealed, a
+  // window is framed.
   joint: 'bead',
+  doorSeal: 'seal',
   paneEdge: 'edge',        // G206.2: the acrylic's own edge, whatever the build
   // THE FIREWALL IS TWO SURFACES AND A SEAL. `firewall` is the panel itself —
   // structure, so it follows the construction like every other bulkhead — and
@@ -66062,26 +66256,32 @@ const AERO_LINER = { plywood: 'ply', cloth: 'fabric', composite: 'composite',
 const AERO_BY_CONS = {
   tubeFabric: { skin: 'fabric', rail: 'fabric', pillar: 'fabric',
                 struct: 'steelTube', panel: 'panelMetal', pad: 'leatherDark',
-                bead: 'rubber', fire: 'fireFoil', edge: 'acrylicEdge' },
+                bead: 'bareAlu', seal: 'rubber', fire: 'fireFoil',
+                edge: 'acrylicEdge' },
   wood:       { skin: 'ply', rail: 'ply', pillar: 'ply',
                 struct: 'spruce', panel: 'panelMetal', pad: 'leatherDark',
-                bead: 'rubber', fire: 'fireFoil', edge: 'acrylicEdge' },
+                bead: 'bareAlu', seal: 'rubber', fire: 'fireFoil',
+                edge: 'acrylicEdge' },
   alloy:      { skin: 'alclad', rail: 'alclad', pillar: 'alclad',
                 struct: 'bareAlu', panel: 'panelMetal', pad: 'leatherDark',
-                bead: 'rubber', fire: 'fireFoil', edge: 'acrylicEdge' },
+                bead: 'bareAlu', seal: 'rubber', fire: 'fireFoil',
+                edge: 'acrylicEdge' },
   carbon:     { skin: 'composite', rail: 'composite', pillar: 'composite',
                 struct: 'composite', panel: 'panelMetal', pad: 'leatherDark',
-                bead: 'rubber', fire: 'fireFoil', edge: 'acrylicEdge' },
+                bead: 'bareAlu', seal: 'rubber', fire: 'fireFoil',
+                edge: 'acrylicEdge' },
   // THE FLYING SURFACES' OWN CONSTRUCTIONS (G213): fabric over wood, fabric
   // over steel tube — both wear doped fabric; what differs is the structure
   // showing through where a section is left open. Reached only from the
   // wing and tail layers (their cons tokens); a fuselage never says these.
   fabric:     { skin: 'fabric', rail: 'fabric', pillar: 'fabric',
                 struct: 'spruce', panel: 'panelMetal', pad: 'leatherDark',
-                bead: 'rubber', fire: 'fireFoil', edge: 'acrylicEdge' },
+                bead: 'bareAlu', seal: 'rubber', fire: 'fireFoil',
+                edge: 'acrylicEdge' },
   steel:      { skin: 'fabric', rail: 'fabric', pillar: 'fabric',
                 struct: 'steelTube', panel: 'panelMetal', pad: 'leatherDark',
-                bead: 'rubber', fire: 'fireFoil', edge: 'acrylicEdge' },
+                bead: 'bareAlu', seal: 'rubber', fire: 'fireFoil',
+                edge: 'acrylicEdge' },
 };
 const AERO_GLASS = new Set(['windshield', 'pilotWindow', 'pasengerWindow',
                             'skyWindows']);
@@ -66492,7 +66692,9 @@ function aeroSecResolve(sec, over, ctx) {
            wearM: walk(over && over.wear, chain).v,
            // G206: the sheen and the field, same rule
            ccK: walk(over && over.cc, chain).v,
-           fieldK: walk(over && over.field, chain).v };
+           fieldK: walk(over && over.field, chain).v,
+           // G215: the metal flake in the paint
+           metalK: walk(over && over.metal, chain).v };
 }
 
 // ---------------------------------------------------------------------------
@@ -67245,6 +67447,8 @@ const AERO_DEC_DEF = {
   regMode: 0,             // 0 field, 1 box side view, 2 box plan view
   regRot: 0,
   regCol: null, regOut: null,     // null follows spec.paint.trim (G113.4)
+  regOutOn: 1,                    // G214: 0 = the ink alone, no keyline
+  regMetal: 0, imgMetal: 0, wimMetal: 0,   // G215: metal flake in the marking
   regW: 0.96, regLock: 1,         // locked: width follows height at the aspect
   regFont: 0,                     // an index into AERO_DEC_FONTS
   imgOn: 0, imgL: 1.2, imgC: 0.0, imgW: 1.2, imgH: 0.6, imgTarget: 0,
@@ -67320,7 +67524,7 @@ const AERO_KIT_LAYERS = 3;
 const AERO_KIT_LDEF = {
   On: 0, Pat: 0,
   A: 0xb42d2d, B: 0xffffff, D: 0x1b3a5c,
-  Alp: 1, P: null, Q: null,
+  Alp: 1, P: null, Q: null, Metal: 0,
   L: 2.20, C: 0.10, W: 5.00, H: 0.90,
   // THE FIELD FRAME, and the default placement is written in it. `side` is a
   // box projection through the whole craft, so its station is measured from
@@ -67483,6 +67687,7 @@ function aeroKitLayers(D) {
         noMirror: 1,
         opacity: Math.max(0, Math.min(1,
           D[q + 'Alp'] == null ? 1 : (+D[q + 'Alp'] || 0))),
+        metal: +D[q + 'Metal'] || 0,                        // G215
         on: onOf(D[q + 'Tgt']), mode: modeOf(D[q + 'Mode']),
       },
     });
@@ -67535,7 +67740,11 @@ function aeroDecalsFor(THREE, D, opts) {
   const modeOf = m => AERO_DEC_MODES[Math.max(0, Math.min(2, +m || 0))];
   const aspect = aeroDecalText(THREE, 0, opts.reg || D.reg || 'F-PGAR',
                    D.regCol != null ? D.regCol : trim,
-                   D.regOut != null ? D.regOut : 0xffffff, D.regFont) || 3.2;
+                   // G214: the keyline is optional — off, the underlay and
+                   // the field are the ink's alone
+                   (D.regOutOn == null || +D.regOutOn)
+                     ? (D.regOut != null ? D.regOut : 0xffffff) : null,
+                   D.regFont) || 3.2;
   // LOCKED means the width is DERIVED, and it has to be derived here rather
   // than read off the spec: `regW` is only meaningful when the lock is off, and
   // a saved build that was locked carries whatever width the last font happened
@@ -67555,15 +67764,15 @@ function aeroDecalsFor(THREE, D, opts) {
   const list = [];
   for (const L of aeroKitLayers(D)) { aeroKitDraw(THREE, L); list.push(L.place); }
   list.push({ page: 0, sL: D.regL, sC: D.regC, w: pw, h: ph,
-                  rot: D.regRot, rough: -0.06, sdf: 1,
+                  rot: D.regRot, rough: -0.06, sdf: 1, metal: +D.regMetal || 0,
                   on: onOf(D.regTarget), mode: modeOf(D.regMode) });
   if (D.imgOn) list.push({ page: 1, sL: D.imgL, sC: D.imgC, w: D.imgW,
-    h: D.imgH, rot: D.imgRot, rough: -0.04,
+    h: D.imgH, rot: D.imgRot, rough: -0.04, metal: +D.imgMetal || 0,
     on: onOf(D.imgTarget), mode: modeOf(D.imgMode) });
   // the wing's own channel: its own page, its own placement, never the body's
   // classes — that is what "fully independent" means (G113.2).
   if (D.wimOn) list.push({ page: 2, sL: D.wimL, sC: D.wimC, w: D.wimW,
-    h: D.wimH, rot: D.wimRot, rough: -0.04,
+    h: D.wimH, rot: D.wimRot, rough: -0.04, metal: +D.wimMetal || 0,
     on: { wing: 1 }, mode: modeOf(D.wimMode) });
   // G208: THE CERTIFICATION STICKERS — placements the bench's sticker module
   // hands over (page 6, one strip of roundels under the cockpit); it draws
@@ -67621,7 +67830,8 @@ function aeroSetDecals(THREE, list) {
     const on = d.on || { body: 1 };
     U.uDecD.value[i].set(AERO_DEC_MODE[d.mode] || 0,
       on.body ? 1 : 0, on.wing ? 1 : 0, on.tail ? 1 : 0);
-    U.uDecE.value[i].set(d.sdf ? 1 : 0, 0, 0, 0);
+    U.uDecE.value[i].set(d.sdf ? 1 : 0,
+      Math.max(0, Math.min(1, +d.metal || 0)), 0, 0);   // y: metallic (G215)
   }
 }
 
@@ -67729,6 +67939,21 @@ uniform vec4 uG1;   // x tapeW  y tapeRise  z sagFrac  w sagExp
 uniform vec4 uG2;   // x dish  y fastPitch  z fastRowW  w fastGain
 uniform vec4 uG3;   // x seamW  y seamStep  z partingW  w seamRough
 uniform float uGOn; // 0 = this section has no structure (trim, liners, glass)
+// MEMBER SCREWS (G214, the user: "some subtle rivets along the pillars and
+// rings ... painted in the appropriate color. Smaller than [the cowl's]
+// too, maybe like little nails or small screws"). x pitch m, y row half-
+// width m, z gain, w on. The stamp is tFastM; the rows are the REAL members
+// — the cage's rings (integer stations) and rails (integer levels) — which
+// is where a ply or alloy skin is actually screwed to the frame.
+uniform vec4 uG6;
+uniform sampler2D tFastM;
+// METALLIC PAINT (G215, the user: "allow for metallic paint on the global
+// fuselage and for the decals"). x = the flake, 0..1. A metallic paint is
+// metal flake in a pigment under a clear coat: the material's metalness is
+// raised toward the flake's (the factory does that), and the flake breaks
+// the roughness up at a scale far below the sheet's so the reflection
+// SPARKLES instead of reading as one polished plate.
+uniform float uFlake;
 uniform sampler2D tAtlas;
 uniform int  uDecN;
 uniform vec4 uDecA[AERO_MAXD];
@@ -67997,6 +68222,24 @@ vec3 aeroStructure(vec2 m, inout float rgh) {
       dS.x -= leK * uG1.z * uG1.w * pow(max(sg, 1e-4), uG1.w - 1.0)
             * cos(PI2 * t) * PI2;
     }
+    // MEMBER SCREWS (G214) along the real rings and rails of the BODY: the
+    // same stamp discipline as the rivet rows (a head smaller than a pixel
+    // must be a mipped stamp, not an analytic dome), painted — so they are
+    // a normal and a little roughness, never a colour. Where a ring and a
+    // rail cross, the stronger head wins rather than summing to a lump.
+    if (uG6.w > 0.0 && uG6.x > 0.0 && uG5.w < 0.5) {
+      float p3 = uG6.x;
+      vec4 fs2 = texture2D(tFastM, vec2(m.y / p3, dSt / p3 + 0.5));
+      vec4 ff2 = texture2D(tFastM, vec2(m.x / p3, dLv / p3 + 0.5));
+      float ms2 = 1.0 - smoothstep(uG6.y - fw, uG6.y + fw, abs(dSt));
+      float mf2 = 1.0 - smoothstep(uG6.y - fw, uG6.y + fw, abs(dLv));
+      vec2 g2 = (fs2.rg * 2.0 - 1.0) * ms2;
+      vec2 g3 = (ff2.rg * 2.0 - 1.0) * mf2;
+      vec2 gg2 = (dot(g2, g2) > dot(g3, g3)) ? g2 : g3;
+      dH.x += -gg2.x * uG6.z;
+      dH.y +=  gg2.y * uG6.z;
+      rgh += ((fs2.b - 0.5) * ms2 + (ff2.b - 0.5) * mf2) * 0.25;
+    }
     // fasteners along the real members: rib lacing, or the spar-cap rivets
     if (uG4.w > 0.0 && uG2.y > 0.0) {
       float p2 = uG2.y;
@@ -68222,6 +68465,7 @@ const AERO_ALBEDO_FS = `
   // the one that owns the name.
   vec2 aeroM = vSurf.xy * uFieldM;
   float aeroDecR = 0.0;
+  float aeroDecM = 0.0;      // G215: how much of the pixel a METALLIC marking covers
   float aeroD = 0.0;
   // the wear masks, declared here and spent in the surface pass below:
   // grime, sun chalking, exhaust soot, wheel splash
@@ -68355,6 +68599,7 @@ const AERO_ALBEDO_FS = `
     float a = aCov * w;
     diffuseColor.rgb = mix(diffuseColor.rgb, dc, a);
     aeroDecR += a * uDecC[di].y;
+    aeroDecM = max(aeroDecM, a * uDecE[di].y);
   }
   // and the leading edge is WASHED OUT, not merely polished — the other half
   // of the same feature, and the half garage.js did in its paint sheet
@@ -68475,6 +68720,18 @@ const AERO_SURFACE_FS = `
   // most of why a vinyl registration reads as applied rather than printed
   roughnessFactor = clamp(roughnessFactor + aeroRA + aeroDecR, 0.02, 1.0);
   metalnessFactor *= aeroT.a;
+  // THE FLAKE (G215): the detail sheet read at a twelfth of its tile is a
+  // fine, stable, non-repeating-enough breakup; it opens the roughness where
+  // a flake faces the light and closes it beside. A METALLIC MARKING raises
+  // the metalness where it covers the pixel — the ink becomes flake too.
+  {
+    float aeroFl = texture2D(tDetail, aeroST * 12.0).b;
+    float aeroFlake = max(uFlake, aeroDecM);
+    roughnessFactor = mix(roughnessFactor,
+      clamp(roughnessFactor * (0.55 + 1.6 * (aeroFl - 0.80) * 5.0 + 0.45), 0.02, 1.0),
+      aeroFlake * 0.6);
+    metalnessFactor = mix(metalnessFactor, 0.85, aeroDecM);
+  }
 #else
   vec3 aeroGN = normalize(vObjNrm) * faceDirection;
   vec3 aeroW = pow(abs(aeroGN), vec3(4.0));
@@ -68502,6 +68759,15 @@ const AERO_SURFACE_FS = `
   float aeroMet = aeroTX.a * aeroW.x + aeroTY.a * aeroW.y + aeroTZ.a * aeroW.z;
   roughnessFactor *= mix(1.0, aeroR / 0.85, uDetail.y);
   metalnessFactor *= aeroMet;
+  // G215: the flake on a triplanar surface (the cowl, the spats)
+  {
+    float aeroFl = aeroTX.b * aeroW.x + aeroTY.b * aeroW.y + aeroTZ.b * aeroW.z;
+    float aeroFlake = max(uFlake, aeroDecM);
+    roughnessFactor = mix(roughnessFactor,
+      clamp(roughnessFactor * (0.55 + 1.6 * (aeroFl - 0.80) * 5.0 + 0.45), 0.02, 1.0),
+      aeroFlake * 0.6);
+    metalnessFactor = mix(metalnessFactor, 0.85, aeroDecM);
+  }
   // THE FIELD ON A SURFACE WITH NO FIELD (G206): the cowl, the spats, the
   // struts, the gear legs. A craft-space plane stands in for the metric
   // field — the flank plane where the normal is sideways, the plan plane
@@ -68969,6 +69235,17 @@ function aeroGrammarU(THREE, U, o) {
              GR ? (GR.partingAtWaist || 0) : 0,
              GR && GR.rough ? GR.rough.seam : 0);
   v1('uGOn', GR ? 1 : 0);
+  // THE MEMBER SCREWS (G214): `memF` = [pitch m, head diameter m, rise m] or
+  // null. Their stamp is the rivet baker's with the screw's own numbers;
+  // the row half-width is a little more than the head so the mask does not
+  // clip it. Only exterior skin with a grammar carries them.
+  const mf = (GR && o.memF && o.memF[0] > 0) ? o.memF : null;
+  if (!U.tFastM) U.tFastM = { value: null };
+  U.tFastM.value = aeroFastTex(THREE,
+    mf ? 'mem|' + mf.map(x => +x).join(',') : 'mem|-',
+    mf ? { fastener: { kind: 'screw', pitch: mf[0], rowW: mf[1] * 0.6,
+                       dia: mf[1], rise: mf[2] } } : null);
+  v4('uG6', mf ? mf[0] : 0, mf ? mf[1] * 0.6 : 0, 0.5, mf ? 1 : 0);
   // THE WING'S MEMBERS ARE ITS OWN. On the fuselage the real rings take a
   // light extra line over the metric frames; on the wing they ARE the
   // structure, so the metric pitches are switched off entirely and the ribs
@@ -69031,7 +69308,11 @@ function aeroFinishU(THREE, m, U, row, o) {
                      row.fldR || 0, 0);
   if (m) {
     m.roughness = Math.max(0, Math.min(1, row.rough * K('roughK')));
-    m.metalness = row.metal;
+    // G215: a metallic paint is flake under a clear coat — the metalness
+    // rises toward the flake's with the dial, on any painted row
+    const mk = Math.max(0, Math.min(1, +(o.metalK || 0)));
+    m.metalness = row.metal + (0.85 - row.metal) * mk;
+    if (U.uFlake) U.uFlake.value = mk;
     if (m.isMeshPhysicalMaterial) {
       m.clearcoat = Math.max(0, Math.min(1, (row.cc || 0) * K('ccK')));
       m.clearcoatRoughness = row.ccR != null ? row.ccR : 0.2;
@@ -69081,7 +69362,9 @@ function aeroMaterial(THREE, o) {
                'C' + (o.ccK != null ? o.ccK : 1),
                'F' + (o.fieldK != null ? o.fieldK : 1),
                'I' + (+o.inside || 0),
-               'K' + (o.decals != null ? +o.decals : 1)].join('|');
+               'K' + (o.decals != null ? +o.decals : 1),
+               'S' + (o.memF ? o.memF.join(',') : ''),
+               'Q' + (o.metalK != null ? o.metalK : 0)].join('|');
   const hit = AERO_POOL.get(key);
   if (hit) return hit;
   const row = AERO_FINISH[o.finish] || AERO_FINISH.fabric;
@@ -69115,6 +69398,8 @@ function aeroMaterial(THREE, o) {
                                           (!o.inside && o.struct) ? 1 : 0) },
     // G207: absent means yes, which is what every caller before G207 meant
     uDecOk:    { value: o.decals != null ? +o.decals : 1 },
+    // G215: the metal flake in the paint, 0 for every paint before it
+    uFlake:    { value: Math.max(0, Math.min(1, +o.metalK || 0)) },
   });
   aeroGrammarU(THREE, U, o);
   aeroFinishU(THREE, null, U, row, o);
@@ -69188,6 +69473,8 @@ function aeroMaterial(THREE, o) {
   m.userData.aeroStruct = o.struct ? 1 : 0;
   if (o.inside) m.userData.aeroInside = 1;
   if (o.decals != null && !+o.decals) m.userData.aeroNoDec = 1;
+  if (o.memF) m.userData.aeroMemF = o.memF.slice();
+  if (o.metalK != null && +o.metalK > 0) m.userData.aeroMetalK = +o.metalK;
   if (o.wearK != null) m.userData.aeroWearK = o.wearK;
   if (o.wearM != null && o.wearM !== 1) m.userData.aeroWearM = o.wearM;
   m.userData.env0 = m.envMapIntensity;
@@ -69557,7 +69844,7 @@ function aeroLabRefresh(THREE, kind, key, field) {
       if (ud.aeroFinish !== key || !ud.aeroU) continue;
       aeroFinishU(THREE, m, ud.aeroU, row,
         { tileK: ud.aeroTileK, nrmK: ud.aeroNrmK, roughK: ud.aeroRoughK,
-          ccK: ud.aeroCcK, fieldK: ud.aeroFieldK });
+          ccK: ud.aeroCcK, fieldK: ud.aeroFieldK, metalK: ud.aeroMetalK });
       // A SWAPPED SAMPLER NEEDS A RECOMPILE (G206.3, measured): with a new
       // texture object in the uniform and nothing else changed, r128 drew
       // the fuselage BLACK and the wing white until needsUpdate — the
@@ -69578,7 +69865,8 @@ function aeroLabRefresh(THREE, kind, key, field) {
       const ud = m.userData || {};
       if (ud.aeroGrm !== key || !ud.aeroStruct || !ud.aeroU) continue;
       aeroGrammarU(THREE, ud.aeroU, { grm: ud.aeroGrm, struct: 1,
-                                       wing: ud.aeroWing, ribM: ud.aeroRibM });
+                                       wing: ud.aeroWing, ribM: ud.aeroRibM,
+                                       memF: ud.aeroMemF });
     }
   } else if (kind === 'glass') {
     for (const m of AERO_BUILT) {
@@ -84650,6 +84938,8 @@ function editorInit(api) {
               ccK: m.ccK, fieldK: m.fieldK,          // G206
               inside: m.inside || 0,                  // G206.1
               decals: m.noDec ? 0 : 1,                // G207
+              memF: m.memF || null,                   // G214
+              metalK: m.metalK || 0,                  // G215
               ribM: m.ribM, wearK: m.wearK, wearM: m.wearM,
               side: THREE.DoubleSide });
       }

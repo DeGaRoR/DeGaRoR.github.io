@@ -303,6 +303,7 @@ const CAGE_PARTS = [
 
   // the door is CABIN FIT's (2026-09-04, the user)
   { key: 'pilotDoor', name: 'pilot door', parent: 'fit', layer: 'cage',
+    sections: ['doorSeal'],                 // G214: the door's own rubber seal
     place: { on: 'doorOn', type: ['doorGone', 'doorDeep'], up: 'doorSill',
              at: 'cut from the cabin side' },
     // THE GAP BELONGS TO THE DOOR, the seal's gauge to the joints. Both were
@@ -321,7 +322,7 @@ const CAGE_PARTS = [
     // G206: the strip's rise and the pane's step down inside it — the two
     // numbers that make a pane a solid set into a frame rather than a
     // sticker with a line drawn round it
-    groups: [['seal', ['rimW', 'rimRise', 'paneInset', 'paneThick']],
+    groups: [['seal', ['rimW', 'rimRise', 'paneInset', 'paneThick', 'rimRivet']],
              ['the reveal', ['winFrameW', 'winDepth']]] },
 
   // the mirrored pod's aft half. FOREVER-SPLIT (the user's ruling): these are
@@ -438,6 +439,8 @@ const CAGE_PARTS = [
     groups: [
       ['construction', ['intOn']],   // intCons -> `design` (it decides ALL of it)
       ['covering', ['skinOn', 'skinT', 'shellT']],
+      // G214: the skin's screws along the rings and rails
+      ['fasteners', ['memFast', 'memPitch', 'memDia', 'memRise']],
       ['members', ['intPillars', 'intFire', 'fireSealW', 'intBulk', 'bulkZ']],
       ['cutting', ['cutParts']],
     ] },

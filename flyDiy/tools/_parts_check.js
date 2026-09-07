@@ -234,6 +234,8 @@ const SHAPES = [
   ['rod + taper panels', { boomStyle: 1, taperOn: 1, taperPanels: 1 }],
   ['pod', { mirror: 1, canopy: 3 }],
   ['no skin', { skinOn: 0 }],
+  // G214: the door's own seal section exists only with the gap drawn
+  ['door gap', { rimDoor: 1 }],
   ['passengers', { paxCount: 3, doorPax: 1 }],
   ['skylight', { skylight: 1, skyExt: 3 }],
   ['composite', { intOn: 1, intCons: 0, intDash: 1, intFire: 1, intBulk: 1 }],
