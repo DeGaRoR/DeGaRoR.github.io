@@ -34,6 +34,9 @@
   <button class="mbtn" id="btnLoad" style="display:none"><span id="mLoad">Load game</span><div class="sub" id="mLoadSub">Resume a saved career or sandbox, or import a file.</div></button>
   <input type="file" id="importFile" accept="application/json,.json" style="display:none">
   <div id="langRow"><button data-lang="en" class="on">EN</button><button data-lang="fr">FR</button></div>
+  <!-- App-level, not game-level: it lives under the language toggle, quieter than the mode buttons, because
+       it is the one row here that acts on the INSTALL rather than on a plant. -->
+  <button id="btnUpdate" class="mlink"><span id="mUpdate">Update the app</span><b id="mUpdDot" class="updot" hidden></b><span class="mver" id="mUpdVer"></span></button>
 </div>
 <div id="wrap">
   <canvas id="cv"></canvas>

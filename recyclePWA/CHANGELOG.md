@@ -1,5 +1,36 @@
 # RECYCLE — Changelog
 
+## v1.18.0 — the main menu can update the app (2026-09-08)
+
+Asked for after a playtest where the phone kept showing an old build and nothing in the game could say so.
+
+- **NEW: `Update the app` on the main menu**, under the language toggle — quieter than the mode buttons on
+  purpose, because it is the one row there that acts on the INSTALL rather than on a plant. It carries the
+  running version, and a dot when the server has a newer one.
+- **The panel states THREE numbers, because three things can disagree while the symptom is identical** — an
+  app that will not change after a release. `Running now` is the code actually executing; `Offline cache` is
+  what the service worker holds, and if it lags then IT is what serves stale files; `On the server` is what is
+  really deployed. Then one sentence saying what to think, ordered by what is fixable from here: a lagging
+  cache first, since that is what the button cures. Offline or without a service worker each line says so
+  rather than lying or sitting on an ellipsis. Modelled on the settings panel in `gronosaures`.
+- **`sw.js` no longer answers for ITSELF out of the cache.** This is what made the third number possible. The
+  worker is cache-first with `ignoreSearch`, so every cache-busting `?query` collapses onto the one
+  runtime-cached copy: reading `sw.js` to learn the deployed version would have read back our own stale
+  version, which is not a check but the cache being asked whether the cache is stale. Its own path now always
+  goes to the network, ahead of the cache match.
+- The cache line is **directional**: it can sit on either side of the running code, and the two need
+  opposite advice. Behind means it is serving stale files and the update clears it; ahead means a newer build
+  is already downloaded and only a reload starts running it. Caught in verification, where the second state
+  is exactly what you land in one moment after updating.
+- Version comparison is **part-wise**, not the digits mashed into one integer — that shortcut reads 1.99.0 as
+  newer than 2.0.0.
+- Saved games are untouched by the update: it purges caches and unregisters the worker, both of which live
+  nowhere near `localStorage`. The panel says so, and the confirm says so again.
+- Gated: render smoke asserts `APP_VERSION` equals `sw.js`'s `VERSION` (they must be bumped together or the
+  panel lies) and that the self-bypass sits BEFORE the cache match in the fetch handler. French covers all
+  fifteen new strings.
+- `sw.js` cache bumped to `recycle-pwa-v1.18.0`.
+
 ## v1.17.3 — the closed sheet was sitting on the tab bar (2026-09-07)
 
 One playtest bug, game-blocking, and two small chrome fixes found while proving it.

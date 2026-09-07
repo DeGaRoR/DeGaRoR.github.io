@@ -151,6 +151,16 @@
   #infoM.show{display:flex;}
   #infoM .cbox{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;max-width:340px;width:100%;text-align:left;max-height:72dvh;overflow-y:auto;}
   #infoM .cbox h3{margin:0 0 10px;} #infoM .cbox .idesc{border:none;margin:0 0 14px;padding:0;}
+  /* The update row is deliberately NOT an .mbtn: an .mbtn starts a game, and this one does not. */
+  #menu .mlink{display:flex;align-items:center;gap:7px;margin:18px 0 0;padding:8px 14px;border-radius:999px;background:transparent;border:1px solid var(--line);color:var(--muted);font-size:12.5px;font-weight:700;letter-spacing:.03em;}
+  #menu .mlink .mver{color:#6f665c;font-variant-numeric:tabular-nums;font-weight:600;}
+  #menu .mlink .updot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex:0 0 auto;}
+  #menu .mlink .updot[hidden]{display:none;}
+  .uvl{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:13px;}
+  .uvl span{color:var(--muted);} .uvl b{color:var(--text);font-variant-numeric:tabular-nums;font-family:ui-monospace,Menlo,monospace;font-size:12.5px;}
+  .uetat{font-size:12.5px;line-height:1.45;margin:12px 0 14px;padding:9px 11px;border-radius:10px;border:1px solid var(--line);background:var(--card2);color:var(--muted);}
+  .uetat.ok{border-color:var(--good);color:var(--good);}
+  .uetat.alert{border-color:var(--accent);color:var(--accent);}
   #menu .sub{font-size:11px;color:var(--muted);margin-top:3px;font-weight:400;}
   #menu .mbtn.flag .sub{color:#23170c;opacity:.72;font-weight:500;}
   #ov{position:fixed;inset:0;background:rgba(15,13,12,.93);z-index:45;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:28px;}

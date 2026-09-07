@@ -1,6 +1,6 @@
 // RECYCLE service worker — precache-everything, cache-first. Bump VERSION on every release:
 // the old cache is dropped on activate, so clients pick up the new build on next load.
-const VERSION="recycle-pwa-v1.17.3";
+const VERSION="recycle-pwa-v1.18.0";
 const PRECACHE=[
  "./",
  "index.html",
@@ -115,6 +115,13 @@ self.addEventListener("install",e=>{e.waitUntil(caches.open(VERSION).then(c=>c.a
 self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==VERSION).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});
 self.addEventListener("fetch",e=>{
   if(e.request.method!=="GET")return;
+  /* THIS FILE IS NEVER SERVED FROM CACHE. The menu's update panel asks "what is on the server?" by fetching
+     sw.js — but the match below uses ignoreSearch, so every cache-busting ?query collapses onto the one
+     runtime-cached copy and the answer would be our own stale version. That is not a check, it is the cache
+     being asked whether the cache is stale. Go to the network, always, for this one path. */
+  {const _u=new URL(e.request.url);
+   if(_u.origin===location.origin&&/(^|\/)sw\.js$/.test(_u.pathname)){
+     e.respondWith(fetch(e.request,{cache:"no-store"}).catch(()=>new Response("",{status:504})));return;}}
   e.respondWith(caches.match(e.request,{ignoreSearch:true}).then(hit=>hit||fetch(e.request).then(res=>{
     // runtime-cache same-origin GETs so future additions work offline too
     if(res.ok&&new URL(e.request.url).origin===location.origin){const cp=res.clone();caches.open(VERSION).then(c=>c.put(e.request,cp));}

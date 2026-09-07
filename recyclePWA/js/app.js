@@ -55,6 +55,10 @@ function loop(ts){if(!last)last=ts;let dr=(ts-last)/1000;last=ts;if(dr>0.1)dr=0.
           const sc=sheet.scrollTop;inspectNode(_inspectNode);sheet.scrollTop=sc;}}}}
   if(G)render();requestAnimationFrame(loop);}
 const cv=document.getElementById("cv"),ctx=cv.getContext("2d");
+/* The version of the code ACTUALLY LOADED, as opposed to what the cache holds or what is deployed.
+   It must equal sw.js's VERSION — the update panel compares the two and a drift would make it lie.
+   run_gates / rendersmoke assert the equality, so bump both together or the gate goes red. */
+const APP_VERSION="recycle-pwa-v1.18.0";
 let DPR=1,VW=0,VH=0,_rL=0,_rT=0;
 const DBG_HIT=(location.hash||"").indexOf("hit")>=0;let _dbgTap=null; // add #hit to the URL to overlay hit regions + last-tap crosshair
 /* The two measurements the CSS cannot make for itself.
@@ -1102,6 +1106,18 @@ function icon(c,n,cx,cy,s,col){const type=STORE_UNITS[n.type]?"storage":n.type,_
 let LANG_CUR="en";
 function locF(en,fr){return (LANG_CUR==="fr"&&fr)?fr:en;}
 const LANG={fr:{
+  "Update the app":"Mettre \u00e0 jour l\u2019application",
+  "Running now":"Version charg\u00e9e","Offline cache":"Cache hors ligne","On the server":"Sur le serveur",
+  "Checking\u2026":"V\u00e9rification\u2026","Updating\u2026":"Mise \u00e0 jour\u2026","Update now":"Mettre \u00e0 jour maintenant",
+  "none":"aucun","not managed":"non g\u00e9r\u00e9","offline":"hors ligne",
+  "Everything is up to date.":"Tout est \u00e0 jour.",
+  "The offline cache is behind the code you are running. Update to clear it.":"Le cache est en retard sur le code charg\u00e9. Mettez \u00e0 jour pour le vider.",
+  "A newer build is already downloaded. Update to start running it.":"Une version plus r\u00e9cente est d\u00e9j\u00e0 t\u00e9l\u00e9charg\u00e9e. Mettez \u00e0 jour pour l\u2019utiliser.",
+  "A newer version is on the server. Update to install it.":"Une version plus r\u00e9cente est en ligne. Mettez \u00e0 jour pour l\u2019installer.",
+  "Could not reach the server \u2014 check postponed.":"Impossible de joindre le serveur \u2014 v\u00e9rification report\u00e9e.",
+  "Three numbers, because three things can disagree while the symptom stays the same.":"Trois nombres, parce que trois choses peuvent diverger alors que le sympt\u00f4me reste le m\u00eame.",
+  "Your saved games are not touched.":"Vos parties sauvegard\u00e9es ne sont pas touch\u00e9es.",
+  "Update the app? Your saved games are not touched.":"Mettre \u00e0 jour l\u2019application ? Vos parties sauvegard\u00e9es ne sont pas touch\u00e9es.",
   "Effect per waste type":"Effet par type de d\u00e9chet",
   "A sealed bag is opaque: it passes through untouched until an opener frees the contents.":"Un sac ferm\u00e9 est opaque : il passe intact tant qu\u2019un ouvreur n\u2019a pas lib\u00e9r\u00e9 son contenu.",
   "Bar = share pulled to the sorted output. The rest passes straight through.":"Barre = part envoy\u00e9e vers la sortie tri\u00e9e. Le reste passe tout droit.",
@@ -1327,6 +1343,7 @@ function applyLang(){buildLegend();const set=(id,s)=>{const el=document.getEleme
   const dl=document.querySelector("#divStat .lbl");if(dl)dl.textContent=tr("Recycling");
   const pl=document.querySelector("#phaseStat .lbl");if(pl)pl.textContent=tr("Phase");
   set("mResume",tr("Resume"));set("mResumeSub",tr("continue your current run"));
+  set("mUpdate",tr("Update the app"));
   const cy=document.getElementById("confirmYes");if(cy)cy.textContent=tr("Confirm");const cn=document.getElementById("confirmNo");if(cn)cn.textContent=tr("Cancel");
   const ic=document.getElementById("infoClose");if(ic)ic.textContent=tr("Close");
   if(G){updateHUD();_coachIdx=-1;if(!(G.scenario&&G.scenario.tuto)&&typeof renderCoach==="function")renderCoach();}}
@@ -2368,12 +2385,89 @@ function hasResumable(){return !!(G&&G.nodes&&G.nodes.length&&!G.finished);}
 function askConfirm(msg,onYes){const m=document.getElementById("confirmM");document.getElementById("confirmMsg").textContent=msg;m.classList.add("show");
   const y=document.getElementById("confirmYes"),no=document.getElementById("confirmNo");const done=()=>{m.classList.remove("show");y.onclick=null;no.onclick=null;};
   y.onclick=()=>{done();onYes();};no.onclick=done;}
+/* ── UPDATING THE INSTALLED APP ────────────────────────────────────────────────
+   A PWA that will not change after a release is the single most confusing thing this game can do, and the
+   cause is never visible from inside it. So the panel states THREE numbers, because three things can
+   disagree and the symptom is identical:
+
+     Running now     the version of the code executing right now (APP_VERSION).
+     Offline cache   what the service worker is holding. If this is behind, IT is what serves stale files.
+     On the server   what is actually deployed. Read straight from sw.js, past both caches — see the
+                     bypass in sw.js's fetch handler, without which this line would echo the cache.
+
+   Everything is best-effort: offline, or with no service worker at all, each line says so rather than
+   lying or sitting on an ellipsis forever. */
+function _verShort(v){return String(v||"").replace(/^recycle-pwa-/,"");}
+function _verParts(v){return _verShort(v).replace(/^v/,"").split(".").map(n=>parseInt(n,10)||0);}
+/* Part-wise, NOT the digits mashed into one number: that trick reads 1.99.0 as newer than 2.0.0. */
+function _verCmp(a,b){const A=_verParts(a),B=_verParts(b);
+  for(let i=0;i<Math.max(A.length,B.length);i++){const d=(A[i]||0)-(B[i]||0);if(d)return d<0?-1:1;}
+  return 0;}
+async function _cacheVersions(){if(!("caches" in window))return[];
+  try{return (await caches.keys()).filter(k=>/^recycle-pwa-/.test(k));}catch(e){return[];}}
+async function _serverVersion(){
+  const r=await fetch("sw.js?u="+Date.now(),{cache:"no-store"});
+  if(!r.ok)throw new Error("http "+r.status);
+  const m=(await r.text()).match(/VERSION\s*=\s*"(recycle-pwa-[^"]+)"/);
+  if(!m)throw new Error("unreadable");
+  return m[1];}
+let _updSeen=false; // the quiet boot check runs once a session, never on every menu open
+async function _updateCheckQuiet(){if(_updSeen)return;_updSeen=true;
+  try{const srv=await _serverVersion();
+    const dot=document.getElementById("mUpdDot");
+    if(dot&&_verCmp(srv,APP_VERSION)>0)dot.hidden=false;}catch(e){/* offline: say nothing */}}
+async function _fillUpdatePanel(){
+  const ec=document.getElementById("uCache"),es=document.getElementById("uServer"),st=document.getElementById("uState");
+  if(!ec)return;
+  const cv=await _cacheVersions();
+  ec.textContent=cv.length?cv.map(_verShort).join(", "):(("serviceWorker" in navigator)?tr("none"):tr("not managed"));
+  let srv=null,err=null;
+  try{srv=await _serverVersion();}catch(e){err=e;}
+  es.textContent=srv?_verShort(srv):tr("offline");
+  /* Read in order of what is FIXABLE FROM HERE: a lagging cache first, because that is what this button cures. */
+  const behind=cv.filter(k=>_verCmp(k,APP_VERSION)<0).length;
+  const ahead =cv.filter(k=>_verCmp(k,APP_VERSION)>0).length;
+  if(ahead){ // the worker has already fetched a newer build; only a reload swaps the running code over
+    st.textContent=tr("A newer build is already downloaded. Update to start running it.");st.className="uetat alert";}
+  else if(behind){
+    st.textContent=tr("The offline cache is behind the code you are running. Update to clear it.");st.className="uetat alert";}
+  else if(err){st.textContent=tr("Could not reach the server \u2014 check postponed.");st.className="uetat neutral";}
+  else if(_verCmp(srv,APP_VERSION)>0){
+    st.textContent=tr("A newer version is on the server. Update to install it.");st.className="uetat alert";}
+  else{st.textContent=tr("Everything is up to date.");st.className="uetat ok";}}
+function openUpdateSheet(){
+  showSheet('<h3>'+tr("Update the app")+'</h3>'+
+    '<div class="real">'+tr("Three numbers, because three things can disagree while the symptom stays the same.")+'</div>'+
+    '<div class="uvl"><span>'+tr("Running now")+'</span><b>'+_esc(_verShort(APP_VERSION))+'</b></div>'+
+    '<div class="uvl"><span>'+tr("Offline cache")+'</span><b id="uCache">\u2026</b></div>'+
+    '<div class="uvl"><span>'+tr("On the server")+'</span><b id="uServer">\u2026</b></div>'+
+    '<div class="uetat" id="uState">'+tr("Checking\u2026")+'</div>'+
+    '<button class="bigbtn primary" id="uGo" style="width:100%">'+tr("Update now")+'</button>'+
+    '<div class="pd" style="margin-top:9px;text-align:center">'+tr("Your saved games are not touched.")+'</div>');
+  document.getElementById("uGo").addEventListener("click",()=>{
+    askConfirm(tr("Update the app? Your saved games are not touched."),()=>forceAppUpdate());});
+  _fillUpdatePanel();} // the panel opens NOW; the two lines that need a round trip fill in after
+async function forceAppUpdate(){
+  toast(tr("Updating\u2026"),"warn");
+  /* Purge then unregister, then reload: index.html re-registers sw.js, which precaches the current build.
+     Saves live in localStorage and are never touched by either step. */
+  try{if("caches" in window){const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)));}}catch(e){}
+  try{if(navigator.serviceWorker){const rs=await navigator.serviceWorker.getRegistrations();
+    await Promise.all(rs.map(r=>r.unregister()));}}catch(e){}
+  try{location.reload();}catch(e){try{location.href=location.pathname;}catch(e2){}}}
+/* Null-safe, and this one MATTERS more than most: the shell it needs may be the very thing that is
+   stale. An old cached index.html has no #btnUpdate, and an unguarded wiring line would throw HERE, at the
+   top level, killing every statement after it — including the boot auto-resume — and leaving the user with
+   a half-dead app and no way to update out of it. The cure cannot be the casualty. */
+{const _ub=document.getElementById("btnUpdate");if(_ub)_ub.addEventListener("click",openUpdateSheet);}
 function showMenu(){if(G){G.running=false;saveGame();}const res=hasResumable();
   const r=document.getElementById("btnResume");if(r)r.style.display=res?"block":"none";
   document.getElementById("btnResume").classList.toggle("flag",res);
   document.getElementById("btnCareer").classList.toggle("flag",!res);
   document.getElementById("btnSandbox").classList.remove("flag");
   document.getElementById("btnLoad").style.display="block"; // always available (load slot or import a file)
+  const uv=document.getElementById("mUpdVer");if(uv)uv.textContent=_verShort(APP_VERSION);
+  _updateCheckQuiet(); // fire-and-forget: lights the dot if the server is ahead, silent when offline
   document.getElementById("menu").classList.remove("hide");}
 function _slotModeLabel(m){return m==="sandbox"?tr("Sandbox"):tr("Career");}
 function openSaveSheet(){ // name the current run and store it in a slot

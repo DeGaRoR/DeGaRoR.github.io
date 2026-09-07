@@ -422,6 +422,18 @@ ok(!!boot && boot.airUnlocked, "tech EFFECTS recomputed from the restored career
   ok(/pointer-events:none/.test(sheetRule) && /pointer-events:auto/.test(showRule), "a closed sheet takes no pointer events; an open one does");
   const vpad = (css.match(/\.vpanel\{[^}]*padding-top:([^;]+);/) || [])[1] || "";
   ok(/var\(--hudH/.test(vpad), "the tab panels inset from the MEASURED HUD height (" + (vpad || "none") + "), not a fixed 52px under a two-band HUD");
+  // ── the update panel (v1.18.0). Its three numbers are only meaningful if these two hold.
+  let swSrc = ""; try { swSrc = fs.readFileSync(dir + "/sw.js", "utf8"); } catch (e) {}
+  const swV = (swSrc.match(/VERSION\s*=\s*"(recycle-pwa-[^"]+)"/) || [])[1] || "";
+  const appV = (src.match(/APP_VERSION\s*=\s*"(recycle-pwa-[^"]+)"/) || [])[1] || "";
+  ok(!!swV && swV === appV, "APP_VERSION matches sw.js VERSION (" + (appV || "none") + " vs " + (swV || "none") + ") — the update panel compares them and drift would make it lie");
+  const fetchH = (swSrc.match(/addEventListener\("fetch"[\s\S]*$/) || [""])[0];
+  const bypassAt = fetchH.indexOf("sw\\.js$"), matchAt = fetchH.indexOf("caches.match");
+  ok(bypassAt > -1 && matchAt > -1 && bypassAt < matchAt, "sw.js answers for its OWN script from the network, BEFORE the ignoreSearch cache match — otherwise \"on the server\" reads back the cache");
+  // A stale index.html is the exact condition the update panel exists to cure, so its own wiring must
+  // survive one: an unguarded top-level deref would throw and take every later statement with it.
+  ok(src.indexOf('{const _ub=document.getElementById("btnUpdate");if(_ub)') > -1,
+    "the update button wiring is null-safe against an old cached shell (the cure must not be the casualty)");
   const resumeH = (src.match(/getElementById\("btnResume"\)\.addEventListener\("click",\(\)=>\{[\s\S]*?\}\}\}\);/) || [""])[0];
   ok(/showTabbar\(true\)/.test(resumeH), "Resume re-shows the bottom chrome (legend + tab bar) like every other route into a game"); }
 console.log(fail ? "SMOKE: " + fail + " FAILURES" : "SMOKE: all green");
