@@ -419,6 +419,24 @@
         "8343"
       ],
       "port": 8343
+    },
+    {
+      "name": "flydiy-bench",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8346"
+      ],
+      "port": 8346
+    },
+    {
+      "name": "flydiy-tail",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8352"
+      ],
+      "port": 8352
     }
   ]
 }

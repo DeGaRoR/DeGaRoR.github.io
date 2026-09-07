@@ -71,6 +71,7 @@ function loadPanel() {
 
 loadPanel();
 const D = require(path.join(T, '_cage_design.js'));
+const TH = require(path.join(T, '_tail_headless.js'));   // P5: the drawn tail, headless
 const CORE = require(path.join(T, 'flight_core.js'));
 const { makeSim, makePilot, makeWorld, buildGen,
         clampSpec, genShakedown } = CORE;
@@ -169,6 +170,20 @@ if (!process.argv.includes('--selftest')) {
     let spec;
     try { spec = D.designBake(a.sel, a.over); }
     catch (e) { check(false, a.name + ': designBake', e.message); continue; }
+    // TAIL CHANTIER 2 P5 (ruling (s)): THE DRAWN TAIL FLIES HERE. The fin
+    // and stab layers' build with no page (_tail_headless.js — GATE FIN pins
+    // it to the page to the bit) writes the join's own rows into the
+    // pre-join spec, so this gate certifies the tail the player flies, not
+    // the rule's. A twin-boom card keeps the rule tail and says so (the
+    // headless build cannot root its fin on the booms).
+    let tailNote = 'rule tail';
+    try {
+      const full = D.designFull(a.sel, a.over).full;
+      const tb = TH.tailBuild(full, { level: 2 });
+      if (!tb.approx.length) { TH.tailApply(spec, TH.tailRows(tb)); tailNote = 'DRAWN tail'; }
+      else tailNote = 'rule tail — ' + tb.approx.join('; ');
+    } catch (e) { tailNote = 'rule tail — the headless build threw: ' + e.message; }
+    console.log('  ' + a.name + ': flies the ' + tailNote);
     checkClamp(a.name, spec);
     let sh = null;
     try { sh = genShakedown(buildGen(spec)); }

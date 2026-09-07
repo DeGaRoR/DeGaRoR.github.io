@@ -23,7 +23,9 @@
 // WHAT IS A BINDING. One device's way of asking for one action:
 //   { dev:'keyboard', type:'keys', pos, neg[, max, min] }   an axis, by code
 //   { dev:'keyboard', type:'key',  code }                   a button or step
-//   { dev, type:'axis', index, invert, dead, expo, lo, hi } a gamepad axis
+//   { dev, type:'axis', index, invert, dead, expo, gain, lo, hi } a gamepad axis
+//     (gain is the SENSITIVITY, G209: full stick = gain of full travel, after
+//     the expo; 1 is the whole travel, 0.5 half of it — a centred axis only)
 //   { dev, type:'button', index }                           a gamepad button
 //   { dev, type:'hat', index, at }                          a hat position
 // `dev` for a gamepad is its id string plus an ordinal ('#0'), so two
@@ -145,6 +147,7 @@
       else s = Math.sign(s) * (Math.abs(s) - dead) / (1 - dead);
       const ex = clamp(fin(b.expo, 0), 0, 1);
       s = (1 - ex) * s + ex * s * s * s;
+      s = clamp(s * clamp(fin(b.gain, 1), 0.05, 2), -1, 1);   // G209: sensitivity
       if (b.invert) s = -s;
       u = (s + 1) / 2;
     } else {
@@ -182,12 +185,12 @@
           // a lever: rest was `lo`, the far end is `hi`, whichever way it runs
           const lo = Math.abs(r0) > 0.5 ? Math.sign(r0) : 0;
           return { dev, type: 'axis', index: i, invert: false, dead: 0.03,
-                   expo: 0, lo, hi: Math.sign(d) };
+                   expo: 0, gain: 1, lo, hi: Math.sign(d) };
         }
         // a centred axis asked to move the POSITIVE way: a negative excursion
         // means the device runs the other way round
         return { dev, type: 'axis', index: i, invert: d < 0, dead: 0.04,
-                 expo: 0, lo: -1, hi: 1 };
+                 expo: 0, gain: 1, lo: -1, hi: 1 };
       }
     }
     return null;
@@ -220,6 +223,7 @@
           if (!Number.isInteger(b.index) || b.index < 0) continue;
           ok.push({ dev: b.dev, type: 'axis', index: b.index, invert: !!b.invert,
                     dead: clamp(fin(b.dead, 0.04), 0, 0.5), expo: clamp(fin(b.expo, 0), 0, 1),
+                    gain: clamp(fin(b.gain, 1), 0.05, 2),
                     lo: clamp(fin(b.lo, -1), -1, 1), hi: clamp(fin(b.hi, 1), -1, 1) });
         } else if (b.type === 'button') {
           if (act.kind === 'axis' || !Number.isInteger(b.index) || b.index < 0) continue;

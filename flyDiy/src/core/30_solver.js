@@ -556,7 +556,11 @@ function makeSim(def, world) {
     for (const st of def.strips) {
       stripIdx++;
       // --- strip frame ---
-      if (st.kind === 'wing') {
+      // a strip that names its four spar nodes (the wing's, and since TAIL
+      // CHANTIER 2 P4 the stab's and fin's bays) takes its chord and normal
+      // from the DEFORMED nodes; the tail read the body axes before — its
+      // incidence welded to the fuselage whatever its truss did
+      if (st.kind === 'wing' || st.fIn != null) {
         const fi=st.fIn*3, fo=st.fOut*3, ri=st.rIn*3, ro=st.rOut*3, t=st.t;
         sc[0]=(p[ri]+(p[ro]-p[ri])*t)-(p[fi]+(p[fo]-p[fi])*t);
         sc[1]=(p[ri+1]+(p[ro+1]-p[ri+1])*t)-(p[fi+1]+(p[fo+1]-p[fi+1])*t);
@@ -573,13 +577,21 @@ function makeSim(def, world) {
       } else if (st.kind === 'vtail') {
         // V-TAIL panel: chord still aft, but the normal is canted out of the
         // vertical by the panel's own dihedral, INWARD on each side:
-        //   n = cos G * up  -  side * sin G * right
+        //   n = cos G * up  +  side * sin G * right
+        // (side +1 is the +z panel — the PORT one, "+z is the LEFT side" in
+        // probe() below — and inward for it is -z, which is `right`.)
         // Both panels then lift upward together (their lateral parts cancel in
         // symmetric flight) and oppositely in yaw, which is the whole trick —
         // the mixing falls out of the geometry instead of being asserted.
+        // G209: this read `- side` — the normals leaned OUTWARD, and the
+        // rudder mix below was negated to yaw the right way regardless. The
+        // yaw came out right and two things came out backwards: the tail's
+        // sideslip roll couple (a V-tail rolls away from the wind, as a
+        // dihedralled wing does) and the drawn ruddervators, whose sense the
+        // join had matched to the leaning-out model.
         const cV = st.cosV, sV = st.sinV * st.side;
         sc[0]=xAft[0]; sc[1]=xAft[1]; sc[2]=xAft[2];
-        sn[0]=cV*yUp[0]-sV*zRt[0]; sn[1]=cV*yUp[1]-sV*zRt[1]; sn[2]=cV*yUp[2]-sV*zRt[2];
+        sn[0]=cV*yUp[0]+sV*zRt[0]; sn[1]=cV*yUp[1]+sV*zRt[1]; sn[2]=cV*yUp[2]+sV*zRt[2];
         norm3(sn);
       } else { // fin
         sc[0]=xAft[0]; sc[1]=xAft[1]; sc[2]=xAft[2];
@@ -624,15 +636,16 @@ function makeSim(def, world) {
         P = P_.polarTail;
       } else if (st.kind === 'vtail') {
         // ruddervator: elevator SYMMETRIC (both panels the same way, vertical
-        // forces add and lateral cancel), rudder ANTISYMMETRIC (the reverse)
-        // MINUS side, not plus. A V panel's normal leans INWARD (that is what
-        // dihedral does — it is the same geometry that gives a dihedralled wing
-        // its roll stability), so the panel that goes nose-up pushes the tail
-        // toward the centreline, not away from it. With +side the aeroplane
-        // yawed the wrong way on every rudder input: measured d(yawLeft)/d(dr)
-        // = -6991 against a conventional tail's +3814.
+        // forces add and lateral cancel), rudder ANTISYMMETRIC (the reverse).
+        // PLUS side, with the normals leaning inward: dr > 0 (nose LEFT) asks
+        // the port panel for MORE lift, which pulls its tail end up and toward
+        // the centreline — starboard — and the starboard panel for less,
+        // which pushes it down and starboard too. The verticals cancel, the
+        // laterals add. (2026-09-04 wrote MINUS here against an outward-
+        // leaning normal; the same yaw, measured again at G209: d(yawLeft)/
+        // d(dr) unchanged on the V-tail archetype.)
         al = (DWM === 'vortex' ? al : (1 - P_.downwash) * al) + P_.stabTrim - P_.elevTau * ctl.de
-             - P_.rudTau * ctl.dr * PAR.rudderSign * st.side;
+             + P_.rudTau * ctl.dr * PAR.rudderSign * st.side;
         P = P_.polarTail;
       } else {
         al += P_.rudTau * ctl.dr * PAR.rudderSign;

@@ -349,7 +349,10 @@ if (!process.argv.includes('--selftest')) {
   // ---- G185.3 the second plane's structure -------------------------------
   {
     const d = buildGen(bipSpec()), S2 = d.spec, pls = d.parts.planes;
-    const cls = c => d.beams.filter(b => b.cls === c && b.ext).length;
+    // TAIL CHANTIER 2 P4: the stab is wire-braced to the fin post (four
+    // wires on the tip nodes); the rigging rows count the PLANES' wires
+    const tailWire = (dd, b) => /^HT/.test(dd.nodes[b.a].tag) || /^HT/.test(dd.nodes[b.b].tag);
+    const cls = c => d.beams.filter(b => b.cls === c && b.ext && !tailWire(d, b)).length;
     say('BIPLANE: ' + d.nodes.length + ' nodes, ' + d.beams.length + ' beams, planes ' + pls.length +
         ', interplane ' + cls('interplane') + ' drawn, wires ' + cls('wire') +
         ', stations ' + pls.map(p => p.zIP.toFixed(2)).join('/') +
@@ -369,7 +372,7 @@ if (!process.argv.includes('--selftest')) {
     const sim = makeSim(d, null); sim.reset(0);
     for (let s2 = 0; s2 < 300; s2++) sim.step(1 / 60);
     let taut = 0;
-    for (const bm of sim.beams) if (bm.cls === 'wire') {
+    for (const bm of sim.beams) if (bm.cls === 'wire' && !tailWire(d, bm)) {
       const L = Math.hypot(sim.p[bm.b*3]-sim.p[bm.a*3], sim.p[bm.b*3+1]-sim.p[bm.a*3+1], sim.p[bm.b*3+2]-sim.p[bm.a*3+2]);
       if (L > bm.L0) taut++;
     }
@@ -378,7 +381,7 @@ if (!process.argv.includes('--selftest')) {
     check(C.leans(pS[0].zIP, pS[1].zIP), 'the sesquiplane\'s lower station clamps inboard (the strut leans)',
           pS[0].zIP.toFixed(2) + ' vs ' + pS[1].zIP.toFixed(2));
     const dE = buildGen(bipSpec(EAGLE));
-    const clsE = c => dE.beams.filter(b => b.cls === c && b.ext).length;
+    const clsE = c => dE.beams.filter(b => b.cls === c && b.ext && !tailWire(dE, b)).length;
     check(C.iStruts(clsE('interplane')) && clsE('wire') === 0 && !dE.parts.planes[0].truss,
           'I-strut cantilever: four drawn posts, no wires, boxed planes',
           clsE('interplane') + ' / ' + clsE('wire'));

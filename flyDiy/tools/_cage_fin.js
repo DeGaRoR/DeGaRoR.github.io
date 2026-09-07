@@ -83,6 +83,17 @@ const GROUP = ['8 · tail — fin (2D)', [
     ['tailRimN',   'tail edge sections',  2, 12, 1,
      { when: P => +P.finSolid }],
   ], 'open', { when: P => +P.finOn }],
+  // THE MACRO TIER (TAIL CHANTIER 2 P3): the builder's five numbers, in the
+  // wing's vocabulary, over the corner fields below (which are the expert
+  // tier). Transforms of the drawn sheet about the root line and the hinge;
+  // the hinge moves the fiche's guard columns. _fin_gen.js buildFin2 says how.
+  ['size', [
+    ['finHeight',   'height (× the drawn)',           0.50, 1.80, 0.01],
+    ['finChord',    'chord (× the drawn, about the hinge)', 0.50, 1.60, 0.01],
+    ['finChordTip', 'tip chord (of the root)',        0.30, 1.50, 0.01],
+    ['finSweep',    'sweep (deg, the post rakes)',    -10, 45, 0.5],
+    ['finHinge',    'rudder chord (of the root)',     0.08, 0.45, 0.005],
+  ], 'open', { when: P => +P.finOn }],
   // the three corners, each free on two axes (+z fwd, +y up, cage units)
   ['corners', [
     ['finTipZ',  'tip fore / aft (sweep)',     -0.60, 0.60, 0.005],
@@ -91,7 +102,7 @@ const GROUP = ['8 · tail — fin (2D)', [
     ['finAftY',  'top-aft up / down',  -0.90, 0.60, 0.005],
     ['finBaseZ', 'base fore / aft',    -0.50, 0.30, 0.005],
     ['finBaseY', 'base up / down',     -0.15, 0.50, 0.005],
-  ], 'open', { when: P => +P.finOn }],
+  ], 'open', { when: P => +P.finOn, level: 'expert' }],
   // the horizontal rows and the free points that ride them (the Cub tail is
   // drawn with these: rows down, LE root and shoulder ON their rows)
   ['rows & points', [
@@ -103,7 +114,7 @@ const GROUP = ['8 · tail — fin (2D)', [
     ['finShoulderZ', 'shoulder fore / aft (of the tip)', -0.10, 0.50, 0.005],
     ['finShoulderY', 'shoulder up / down (over the mid row)',  -0.10, 0.30, 0.005],
     ['finTopY',      'top pair bulge',   -0.30, 0.30, 0.005],
-  ], { when: P => +P.finOn }],
+  ], { when: P => +P.finOn, level: 'expert' }],
   // the trailing edge's offsets off the top-aft -> base chord, per row:
   // negative bulges aft (the Cub's D-shaped rudder), positive pulls
   // FORWARD — at the root that is the classic clearance notch (the
@@ -113,7 +124,7 @@ const GROUP = ['8 · tail — fin (2D)', [
     ['finTERoot', 'root aft− / notch+', -0.40, 0.40, 0.005],
     ['finTEU',    'u bulge aft',    -0.40, 0.20, 0.005],
     ['finTEMid',  'mid bulge aft',  -0.40, 0.20, 0.005],
-  ], { when: P => +P.finOn }],
+  ], { when: P => +P.finOn, level: 'expert' }],
   // ANGULAR PROFILES (the creasing the original plan promised): corner
   // sharpness = semi-sharp vertex weights on the outline corners, 0 round
   // (the sketch identity) .. 3 crisp; plus the dorsal's own bend creases
@@ -123,12 +134,12 @@ const GROUP = ['8 · tail — fin (2D)', [
     ['finSharpBase',     'base',      0, 3, 0.05],
     ['finSharpShoulder', 'shoulder',  0, 3, 0.05],
     ['finSharpLE',       'LE root',   0, 3, 0.05],
-  ], 'open', { when: P => +P.finOn }],
+  ], 'open', { when: P => +P.finOn, level: 'expert' }],
   // only meaningful while the dorsal exists (user, G28 audit)
   ['dorsal creases', [
     ['finCrA', 'section A crease', 0, 3, 0.05],
     ['finCrB', 'section B crease', 0, 3, 0.05],
-  ], { when: P => +P.finOn && +P.finDorsal && !+P.boomStyle }],
+  ], { when: P => +P.finOn && +P.finDorsal && !+P.boomStyle, level: 'expert' }],
 ], 'open'];
 (PAGE.groupsOverride || (PAGE.groups = PAGE.groups || [])).push(GROUP);
 
@@ -515,6 +526,9 @@ PAGE.post = ctx => {
   if (cutMode)
     disp = FIN.finCutMesh(s, { mode: cutMode, zCut: m0.cutZ,
       gap: P.finCutGap || 0 });
+  // THE MEASURE'S INPUT (TAIL CHANTIER 2, P0): the cut, UNTHICKENED sheet —
+  // one face per patch of skin; the solid below carries both sides
+  const sheet = disp;
 
   // THICKNESS, last: each part becomes its own closed solid — sides at
   // +-t/2, rounded rim on the outline, flat slot faces, thickness tapering
@@ -551,7 +565,11 @@ PAGE.post = ctx => {
     if (part === 'rudder') obj.name = 'edSurf_rud';       // G59
     group.add(obj);
   }
-  if ($('cage') && $('cage').checked && L > 0)
+  // THE CONTROL CAGE FOLLOWS THE EXPERT SWITCH (TAIL CHANTIER 2 P2): the
+  // cage is what the expert rows (corners, rows, edges, sharpness) move, so
+  // turning them on shows it; the display row still shows it on its own
+  const EXP = window.CAGE_UI && window.CAGE_UI.EXPERT && window.CAGE_UI.EXPERT.on;
+  if (L > 0 && (($('cage') && $('cage').checked) || EXP))
     group.add(finWire(m0, 0x7fe0a8));
   group.scale.setScalar(FS);
   if (TB) {
@@ -565,8 +583,16 @@ PAGE.post = ctx => {
   }
   scene.add(group);
 
+  // THE LAYER MEASURES, THE JOIN READS (TAIL CHANTIER 2, P0): areas by
+  // part and material, mean chord, the declared hinge — finMeasure says
+  // what each field is. Metres (×FS). The headless tail (_tail_headless.js)
+  // computes the same object with no page; GATE FIN pins the two.
   window.CAGE_FIN = { spec: S, cage: m0, mesh: s, disp,
-                      rails: { zCut: m0.cutZ, rowY: m0.rowY }, deck, proj };
+                      rails: { zCut: m0.cutZ, rowY: m0.rowY }, deck, proj,
+                      measure: FIN.finMeasure(sheet, { FS, zCut: m0.cutZ,
+                                                       cut: cutMode,
+                                                       hingeLine: m0.hingeLine }),
+                      clamped: m0.clamped || [] };   // P3: the clamps that bit
   if (stat) {
     let t = `  ·  fin: ${m0.V.length} v → L${L} ${s.V.length} v` +
       (proj ? ` · root on skin (${(proj.max * FS * 1000).toFixed(1)} mm cured)`

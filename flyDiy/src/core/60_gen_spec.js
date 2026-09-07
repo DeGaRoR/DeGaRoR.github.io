@@ -1449,8 +1449,19 @@ const GEN_RULES = {
   tailArmC:    2.60,   // wing c/4 -> stab c/4, in root chords (Cub 4.14/1.6)
   hAR:         3.70,   // stab aspect ratio
   vAR:         1.90,   // fin aspect ratio
-  Vh:          0.370,  // horizontal tail volume (Cub effective strip areas)
-  Vv:          0.0267, // vertical tail volume
+  // THE TAIL VOLUMES, RE-BASELINED ONCE (TAIL CHANTIER 2 P5, 2026-09-08).
+  // 0.370 / 0.0267 were "Cub effective strip areas" under a weightless
+  // three-node tail and a constant 0.40 downwash. With the tail carrying
+  // its structure (P4, ~19 kg on a light aeroplane, four metres aft), the
+  // vortex downwash on every build and the fin end-plated (P5), the fleet
+  // measured at those volumes put four archetypes under the 5 % static
+  // margin floor (the Jodel-alike 2.8 %, the electric trainer 4.5 %). At
+  // 0.45 / 0.033 — a typical light aeroplane's, GA runs 0.5-0.7 — one card
+  // is outside the window and it was outside before (the Caravan-alike,
+  // 44 %); the stock reads 15.4 %. The seed (designBake) sizes every drawn
+  // tail to these at birth; the rule stands for a build with no drawn tail.
+  Vh:          0.45,   // horizontal tail volume
+  Vv:          0.033,  // vertical tail volume
   // The carry-through spar sits ON the top longerons, not inside them. Without
   // this the wing root node lands exactly on a frame node, the tie between
   // them is a zero-length beam, and strain reads Infinity. Special-casing
@@ -1532,7 +1543,14 @@ const GEN_RULES = {
   // in place. Turning it to 4 is the user's ruling, paired with either a
   // retune of the AP's crosswind steering or a re-based 12 m bound; the
   // remaining 3x to the real tube is the tube member class, owed.
+  // TAIL CHANTIER 2 P6 (2026-09-08): the number need not be swept — set to
+  // 'computed' the frame derives it as GJ_tube / GJ_lattice on the mid-boom
+  // bay (61_gen_frame.js rodK says how, and prints it in the join's note);
+  // a number here still means that number, 1 the identity. Landed at 1
+  // until GATE TAKEOFF's crosswind roll is flown against the computed
+  // value (P6's own measurement).
   rodBoomK:    1,
+  rodWall:     1.2e-3, // the rod boom's tube wall, m (4130: 1.2 mm on a 113 mm tube)
   // ...and WHERE the foot goes, as a fraction of the way from the engine to
   // the front spar: 1 = under the front spar. Measured on the twin (engines
   // 0.65 m ahead of the spar), foot at 0 / 0.5 / 0.75 / 1 / 1.25 / 1.5:
@@ -1569,6 +1587,37 @@ const GEN_RULES = {
   // buys bend 1.50 for 56/69 substeps where uniform x4 buys 1.61 for 45/55, and
   // it leaves torsion untouched (2.21 vs 0.59). Uniform is strictly better.
   wingK: 4.0,
+  // THE TAIL'S OWN CLASS (TAIL CHANTIER 2 P4, ruling (q)): the stab's and
+  // fin's trusses are class 'tail' — the SURFACE material's wing row (k, c,
+  // lin), the way the wing is what the wing is built of — at this gain, the
+  // wing's own until GATE FLEX measures the tail against a beam of its own
+  // (the wing's 4.0 was measured; the tail's is the wing's idiom, said, not
+  // tuned). The stab's front spar sits at 15 % chord; the rear spar is the
+  // HINGE, wherever the drawn control puts it.
+  tailK: 4.0,
+  tailSparFront: 0.15,
+  // THE FIN'S END-PLATE (P5, ruling (n)): the effective aspect ratio gain
+  // the tailplane lends the fin at its root, by tail type (Raymer's
+  // figures); a V-tail has no fin to plate
+  finEndPlate: { conv: 1.55, cruci: 1.4, t: 1.7, v: 1.0 },
+  // THE TAIL'S SECTION, as a fraction of the wing row's (lin, k and c all
+  // scale with it — k and c by the same factor as the mass, the way a
+  // smaller tube of the same wall is stiffer and heavier in proportion): a
+  // stab spar is 3/4" × 0.035" where a wing spar is 1-1/8" — about half the
+  // metal. A judgement against one number: a J-3's tail group weighs 30-35
+  // lb (14-16 kg) with its fabric, and at 0.25 the archetypes' prism tails
+  // bill 16-20 kg with their brace wires where the three-node tail billed
+  // 10.7 (its skin and eleven members — the structure was never there);
+  // 0.35 read 24 kg and cost the fleet 3-4 % of static margin (P5's
+  // measurement). The tail members' k follows.
+  tailSection: 0.25,
+  // the prism's depth (the third chord under the stab, the pair either side
+  // of the fin) as a fraction of the local chord — the WING's own box depth
+  // (sparBoxDepth), because a lattice of constant-k members is stiff out of
+  // its plane by its depth squared and nothing else: at a tail's real 8 %
+  // thickness the first cut's fin swayed its whole height under its side
+  // load. A modelling depth, said as one.
+  tailBoxDepth: 0.13,
   sparRear:    0.65,   // rear spar. A two-spar wing is 15/65 because that is
                        // where the spars go — NOT, as it was, wherever the
                        // cabin frames happen to be. That coupling is exactly
@@ -1719,6 +1768,18 @@ const GEN_RULES = {
 // cage's own table.
 const GEN_SPEC_V = 8;
 const GEN_MIGRATE_CAGE_DEFAULTS = { boomLen: 3.983966, taperLen: 0.6 };
+// THE PHYSICS VERSION (TAIL CHANTIER 2 P5, ruling (p)). GEN_SPEC_V says what
+// a saved FILE means; this says what the SOLVER answers — and a certificate
+// (bench.js) is measured under both. Bump it BY HAND when a landed change
+// moves the answers the plaque shows for an unchanged spec (an area rule, a
+// downwash model, a structure the mass model bills, a polar); never for a
+// change that only reads new fields. The bench folds both versions into its
+// fingerprint, so a certificate from an older physics loads WITHDRAWN with
+// the reason, never valid over a plaque that now disagrees with it.
+//   1  2026-09-07, TAIL CHANTIER 2: the measured tail (P1), the tail truss
+//      and its mass (P4), the vortex downwash on every build and the fin's
+//      end-plate (P5)
+const PHYSICS_V = 1;
 
 // { fromVersion: spec => spec } — each entry lifts a spec one version. May
 // mutate and return its argument. Runs BEFORE normalisation, on the raw shape
@@ -2263,6 +2324,13 @@ const GEN_DEFAULT = {
              // A monoplane never reads them.
              interplane: 'none', interplaneAt: 0.62, wires: 'both', cabane: 'N' },
   tail: { type: 'conventional', vAngle: 33,
+          // THE AREAS (declared at TAIL CHANTIER 2 P1; inputs since G115).
+          // Null = the volume-coefficient rule sizes them; set — by the
+          // join off the DRAWN sheets, or by hand — they stick and the
+          // spans/chords derive from them. Sh is GROSS (both panels + the
+          // carry-through), Sv the fin proper + rudder + keel tab (the
+          // dorsal apart), Svt a V-tail's two panels uncanted.
+          Sh: null, Sv: null, Svt: null,
           hSpan: null, hChord: null, hX: null, hTaper: 1.0,
           // `tip` is the tail's shared tip shape and stays the one the V-tail
           // uses, since a V-tail is ONE surface. `tipV` and `tipH` override it
@@ -2287,8 +2355,15 @@ const GEN_DEFAULT = {
           // driven from `height`, leave it and it is derived from the two
           // lengths and reads AUTO. Four controls for a three-cornered shape is
           // one too many, and this is which one gives way.
-          dorsal: { len: 0.34, height: 0.16, width: 0.55, angle: null },
+          // `area` (P1): the drawn dorsal's area, measured by the join and
+          // read by nothing yet — Sv excludes it (a stall-delay device)
+          dorsal: { len: 0.34, height: 0.16, width: 0.55, angle: null, area: null },
           vHeight: null, vChord: null, vX: null,
+          // THE FIN'S TAPER (P4), tip chord over root chord, as hTaper is the
+          // stab's — both read by the frame now (they were declared and dead):
+          // the join measures them off the drawn sheets (the 75 % slice over
+          // the 25 %), the truss stations sit on that trapezoid
+          vTaper: 1.0,
           place: { dx: 0 },
           // twin booms (2026-09-04): the type says two fins on two booms at
           // ±boomX; the FRAME still builds the centreline tail (its post, one
@@ -2506,7 +2581,7 @@ const genClampN = (v, lo, hi) => (v == null ? null : genClamp(v, lo, hi));
 // the fleet's own calibrated value is reproduced at that surface's reference
 // chord, and theory only supplies the TREND away from it.
 const genFlapTau = c => {
-  const th = Math.acos(2 * genClamp(c, 0.05, 0.60) - 1);
+  const th = Math.acos(2 * genClamp(c, 0.05, 0.70) - 1);   // 0.70: GEN_TAIL_ENVELOPE's ceiling and a margin
   return 1 - (th - Math.sin(th)) / Math.PI;
 };
 const genTauAt = (c, refC, refTau) => refTau * genFlapTau(c) / genFlapTau(refC);
@@ -2628,6 +2703,23 @@ function clampWing(w, S, k) {
 
 }
 
+// THE TAIL'S FLOWN ENVELOPE (TAIL CHANTIER 2 P1) — the bounds clampSpec
+// cuts the tail rows and the control chords to, declared once so the JOIN
+// can read them and SAY when a DRAWN value is cut (an ERRS row on the
+// build: "the drawn tail is not the flown tail"), instead of the silent cut
+// that hid every over-size drawing until 2026-09-07. Metres, and chord
+// FRACTIONS for the controls. Widen here, nowhere else.
+const GEN_TAIL_ENVELOPE = {
+  hSpan: [1.50, 4.50], hChord: [0.40, 1.60],
+  vHeight: [0.60, 2.20], vChord: [0.40, 1.80],
+  // P3: re-cut to what a DRAWN control can be — the Cub reference reads a
+  // 35 % rudder, a horn-balanced tailplane reaches 60 % (measured on the
+  // stock); the thin-airfoil tau formula holds to 0.70
+  elevChord: [0.15, 0.65], rudChord: [0.15, 0.65],
+  // P4: the trapezoid the truss stands on — tip over root chord
+  hTaper: [0.35, 1.0], vTaper: [0.35, 1.0],
+};
+
 function clampSpec(spec) {
   const S = genNormaliseSpec(spec);
   const fu = S.fuselage, cb = S.cabin;
@@ -2671,8 +2763,8 @@ function clampSpec(spec) {
   if (!GEN_SYSTEMS[S.systems.fit]) S.systems.fit = 'basic';
   const ct = S.controls;
   clampControls(ct);
-  ct.elevator.chord = genClamp(ct.elevator.chord, 0.20, 0.55);
-  ct.rudder.chord = genClamp(ct.rudder.chord, 0.20, 0.60);
+  ct.elevator.chord = genClamp(ct.elevator.chord, ...GEN_TAIL_ENVELOPE.elevChord);
+  ct.rudder.chord = genClamp(ct.rudder.chord, ...GEN_TAIL_ENVELOPE.rudChord);
   if (!GEN_SEATING[cb.seating]) cb.seating = 'tandem2';
 
   // ---- cabin glazing --------------------------------------------------------
@@ -2974,7 +3066,8 @@ function clampSpec(spec) {
   dr.len    = genClamp(dr.len    == null ? 0.34 : dr.len,    0, 2.00);
   if (S.tail.tipV != null && !GEN_TIPS[S.tail.tipV]) S.tail.tipV = null;
   if (S.tail.tipH != null && !GEN_TIPS[S.tail.tipH]) S.tail.tipH = null;
-  S.tail.hTaper = genClamp(S.tail.hTaper == null ? 1 : S.tail.hTaper, 0.35, 1.0);
+  S.tail.hTaper = genClamp(S.tail.hTaper == null ? 1 : S.tail.hTaper, ...GEN_TAIL_ENVELOPE.hTaper);
+  S.tail.vTaper = genClamp(S.tail.vTaper == null ? 1 : S.tail.vTaper, ...GEN_TAIL_ENVELOPE.vTaper);
   if (!['conventional', 'v', 'twinBoom'].includes(S.tail.type)) S.tail.type = 'conventional';
   S.tail.boomX = genClampN(S.tail.boomX, 0.3, 4.0);
   S.tail.boomLen = genClampN(S.tail.boomLen, 0.5, 8.0);
@@ -3104,10 +3197,12 @@ function clampSpec(spec) {
   cb.h = genClampN(cb.h, 0.75, 1.45);
   cb.len = genClampN(cb.len, 0.60, 2.60);
   fu.tailArm = genClampN(fu.tailArm, 2.00, 6.50);
-  S.tail.hSpan = genClampN(S.tail.hSpan, 1.50, 4.50);
-  S.tail.hChord = genClampN(S.tail.hChord, 0.40, 1.60);
-  S.tail.vHeight = genClampN(S.tail.vHeight, 0.60, 2.20);
-  S.tail.vChord = genClampN(S.tail.vChord, 0.40, 1.80);
+  // the tail's flown envelope has ONE home (GEN_TAIL_ENVELOPE, above): the
+  // join reads the same numbers to SAY when a drawn value is cut here
+  S.tail.hSpan = genClampN(S.tail.hSpan, ...GEN_TAIL_ENVELOPE.hSpan);
+  S.tail.hChord = genClampN(S.tail.hChord, ...GEN_TAIL_ENVELOPE.hChord);
+  S.tail.vHeight = genClampN(S.tail.vHeight, ...GEN_TAIL_ENVELOPE.vHeight);
+  S.tail.vChord = genClampN(S.tail.vChord, ...GEN_TAIL_ENVELOPE.vChord);
   // the tail surfaces' STATIONS, measured by the join since G54.3 — bounded
   // like the other measured stations; nullable keeps the volume-coefficient
   // derivation for everything that does not measure them.
@@ -3466,9 +3561,13 @@ function resolveSpec(spec) {
                && t.hChord != null && !auto['tail.hChord'];
     const bVt = built ? t.hSpan / cG
               : Math.sqrt(Math.max(Sh / (cG * cG), Sv / (sG * sG)) * GEN_RULES.hAR);
-    const cVt = built ? t.hChord
+    // P1: a MEASURED panel area (the join's Svt, off the drawn sheets) is
+    // the area; its mean chord is that over the uncanted span. Left null,
+    // the chord is the measured (or ruled) one and the area their product.
+    const cVt = (built && t.Svt > 0) ? t.Svt / bVt
+              : built ? t.hChord
               : Math.max(Sh / (cG * cG), Sv / (sG * sG)) / bVt;
-    const Svt = bVt * cVt;
+    const Svt = (built && t.Svt > 0) ? t.Svt : bVt * cVt;
     S.tail.Svt = Svt; S.tail.vG = G;
     S.tail.hSpan = bVt * cG;                          // horizontal projection
     S.tail.hChord = cVt;

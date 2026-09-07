@@ -135,9 +135,27 @@ console.log('THE WORD');
   ok(/^[0-9a-f]{8}$/.test(f0) && BE.benchFingerprint(spec) === f0, 'the hash is eight hex digits and stable');
   ok(BE.benchHash('') === '811c9dc5' && BE.benchHash('a') === 'e40c292c', 'FNV-1a reference values');
   ok(JSON.stringify(BE.BENCH_COSMETIC) === '["paint","finish","meta"]', 'the cosmetic set is paint, finish, meta');
+  // THE PHYSICS IS IN THE WORD (TAIL CHANTIER 2 P5, ruling (p)): the same
+  // spec under another PHYSICS_V or GEN_SPEC_V is another fingerprint, and
+  // the restore compares instead of stamping
+  {
+    const withV = pv => {
+      const m = { exports: {} };
+      vm.runInNewContext(rd('src/viewer/bench.js'), { module: m, exports: m.exports, console, Math, JSON,
+        parseFloat, isFinite, Number, String, Array, Object, Uint8ClampedArray, Infinity,
+        setTimeout, clearTimeout, setInterval, clearInterval, performance, Date, Symbol,
+        GEN_SPEC_V: 8, PHYSICS_V: pv });
+      return m.exports.benchFingerprint(spec);
+    };
+    ok(withV(1) !== withV(2) && withV(1) === withV(1), 'another PHYSICS_V is another fingerprint, the same one the same');
+    ok(withV(1) !== f0, 'the versions are folded in (a bare context reads v0|p0)');
+  }
   // the bench source keeps the promises the comment makes
   const src = rd('src/viewer/bench.js');
   ok(/results\[id\]\.fp && results\[id\]\.fp !== fp/.test(src), 'the dirty hook compares fingerprints');
+  ok(!/if \(results\[id\] && !results\[id\]\.stale && !results\[id\]\.fp\) results\[id\]\.fp = fp/.test(src) &&
+     /certified before fingerprints/.test(src) && /physics changed since the certificate/.test(src),
+     'the restore withdraws a changed or unstamped certificate instead of stamping the live fingerprint on it');
   ok(/stale: true/.test(src) && /withdrawn/.test(src), 'a withdrawn certificate is kept, struck through');
   ok(/r\.when = today\(\)/.test(src), 'every settled result is dated');
   ok(/trim: \(trimUse && f/.test(src), 'BENCH_STATE carries the advised trim only from a live, accepted flight');

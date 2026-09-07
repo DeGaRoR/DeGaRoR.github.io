@@ -1,0 +1,286 @@
+{
+ "what": "flydiy-build",
+ "note": "TAIL CHANTIER 2 P5 (2026-09-08): a JOINED save with a DRAWN tail — the join's own export off dev.html's boot build, carrying tail.Sh / Sv / hChord / vChord / hTaper / vTaper / dorsal.area and the measured control chords (P1), so the load path is gated: GATE BUILD loads it, resolves it and holds the drawn tail as drawn (Sh, Sv not auto) and its frozen numbers. RULED 2026-09-07: no GEN_SPEC_V bump, no value migrator — compatibility is the join re-running on load; this fixture is what proves a file that carries the rows keeps them.",
+ "spec": {
+  "bracing": {
+   "type": "strut"
+  },
+  "cabin": {
+   "h": 1.3082112915152373,
+   "halfW": 0.5909540971328008,
+   "len": 0.8269500000000003,
+   "noseGap": 1.0206499999999996,
+   "occupied": [
+    1,
+    0,
+    0,
+    0
+   ],
+   "pax": 0,
+   "pilots": 1,
+   "seating": "side2",
+   "seats": 4,
+   "seatsX": [
+    0.5656499999999995,
+    0.5656499999999995,
+    1.5231,
+    1.5231
+   ]
+  },
+  "cage": {
+   "aftKeelY": -0.765,
+   "aftRoofY": 0.78,
+   "apilPerp": 1,
+   "apilW": 0.92,
+   "bubble": 1,
+   "cabPillarW": 0.115,
+   "cowlBulge": 0.99,
+   "cowlEase": 0.29,
+   "crBand": 3,
+   "crCap": 3,
+   "crNoseCap": 3,
+   "crSill": 0,
+   "cutParts": 1,
+   "cw_sqAftBot": 0.5627459322344361,
+   "cw_sqAftTop": 0.38471069760694265,
+   "cw_waist": -0.016997883039809116,
+   "dashCrease": 3,
+   "halfW": 0.795,
+   "intCons": 2,
+   "intOn": 1,
+   "noseCrown": 0.16,
+   "noseH": 1.07,
+   "noseLen": 0.44,
+   "noseTip": 0.25,
+   "noseW": 0.97,
+   "paxLen": 0.91,
+   "paxPillarW": 0.11,
+   "pfW": 0.3,
+   "pillarW": 0.1,
+   "pilotLen": 0.42,
+   "planeScale": 0.745,
+   "rimDoor": 0,
+   "ringCowl2W": -0.02,
+   "ringScrBot": -0.015,
+   "roofY": 0.815,
+   "skylight": 0,
+   "tailRoofY": 0.3,
+   "topAngRoof": 81,
+   "topComp": 1.03,
+   "topRound": 1,
+   "waistY": 0.04,
+   "wsBaseBow": 0.45,
+   "wsBaseLift": 0.05,
+   "wsCeilBow": 0.3,
+   "wsRun": 0.95
+  },
+  "controls": {
+   "aileron": {
+    "chord": 0.22,
+    "span": 0.38
+   },
+   "elevator": {
+    "chord": 0.39331094711869313
+   },
+   "flap": {
+    "chord": 0.2,
+    "span": 0.5,
+    "type": "none"
+   },
+   "rudder": {
+    "chord": 0.27974307407532173
+   }
+  },
+  "energy": {
+   "cell": "lifepo4",
+   "finish": null,
+   "fuel": "avgas100LL",
+   "hue": 0,
+   "kind": "fuel",
+   "tint": null,
+   "vessel": null,
+   "vessels": [
+    {
+     "along": -0.15033473113504475,
+     "bay": "nose",
+     "capacity": 45,
+     "dims": {
+      "H": 0.244,
+      "L": 0.261,
+      "W": 0.832
+     },
+     "finish": null,
+     "form": "box",
+     "hue": null,
+     "lv": 1,
+     "rot": 0,
+     "tint": null
+    }
+   ]
+  },
+  "engines": [
+   {
+    "mount": "nose",
+    "place": {
+     "dx": 0,
+     "dy": 0
+    },
+    "sense": 1,
+    "type": "a65_sensenich74"
+   }
+  ],
+  "finish": {
+   "decals": {
+    "imgH": 1.2,
+    "regW": 1.7366071428571428,
+    "wimH": 2
+   }
+  },
+  "fuselage": {
+   "boom": "loft",
+   "cowlDeck": 0.6924423300962335,
+   "postGap": 0.12641217500000002,
+   "profile": [
+    {
+     "t": 0,
+     "w": 0.5893287567068158,
+     "yb": 0.12420021328137054,
+     "yt": 1.27990650642686
+    },
+    {
+     "t": 0.125,
+     "w": 0.522589379791857,
+     "yb": 0.18637336698631307,
+     "yt": 1.2356015781778207
+    },
+    {
+     "t": 0.25,
+     "w": 0.45346196871529004,
+     "yb": 0.24948362073631308,
+     "yt": 1.1897428118594524
+    },
+    {
+     "t": 0.375,
+     "w": 0.38433037802760545,
+     "yb": 0.31259387448631315,
+     "yt": 1.1438840455410841
+    },
+    {
+     "t": 0.5,
+     "w": 0.31519153949885786,
+     "yb": 0.3757041282363133,
+     "yt": 1.0980252792227159
+    },
+    {
+     "t": 0.625,
+     "w": 0.24598515751984334,
+     "yb": 0.4388143819863133,
+     "yt": 1.0521665129043476
+    },
+    {
+     "t": 0.75,
+     "w": 0.17677699582275896,
+     "yb": 0.5019246357363132,
+     "yt": 1.0063077465859793
+    },
+    {
+     "t": 0.875,
+     "w": 0.10750028469620168,
+     "yb": 0.5650348894863133,
+     "yt": 0.9604489802676108
+    },
+    {
+     "t": 1,
+     "w": 0.03968617416300599,
+     "yb": 0.6261756217420245,
+     "yt": 0.9160213573942266
+    }
+   ],
+   "shape": "straight",
+   "tailArm": 4.81565467,
+   "tailBot": 0.6261756217420245,
+   "tailTop": 0.9160213573942266,
+   "tailW": 0.03968617416300599
+  },
+  "gear": {
+   "fairMat": "glass",
+   "fairTail": 1,
+   "fairing": "none",
+   "legFair": "none",
+   "suspension": "bungee",
+   "track": 1.6,
+   "twFairTail": 1,
+   "twFairing": "none",
+   "twLegFair": "none",
+   "twR": 0.07,
+   "twX": 5.250066844999999,
+   "twY": 0.3631451432363133,
+   "type": "taildragger",
+   "wheelR": 0.2,
+   "x": 0.49157199581477906,
+   "y": -0.3155842991252802
+  },
+  "prop": {
+   "D": 1.91,
+   "blades": 2,
+   "material": "wood"
+  },
+  "tail": {
+   "Sh": 2.293698837387358,
+   "Sv": 1.247842103583232,
+   "dorsal": {
+    "area": 0.13621725015384695
+   },
+   "hChord": 0.7531831780817467,
+   "hSpan": 3.045339970588684,
+   "hTaper": 0.9275158346154213,
+   "hX": 4.8992261699856945,
+   "stabH": 0.09846631838377244,
+   "vChord": 0.7537422727028089,
+   "vHeight": 1.6555288840423583,
+   "vSweep": 0,
+   "vTaper": 0.490520554074803,
+   "vX": 4.7512274775923915
+  },
+  "wings": [
+   {
+    "cabaneH": null,
+    "centre": "solid",
+    "chord": 1.6,
+    "crankAt": 0,
+    "crankChord": null,
+    "crankX": null,
+    "cuts": [
+     1.03,
+     1.37
+    ],
+    "dihedral": 3,
+    "dihedralOut": null,
+    "incidence": 1.5,
+    "naca": 2412,
+    "panels": 3,
+    "position": "high",
+    "span": 10,
+    "taper": 1,
+    "tip": "rounded",
+    "tipX": 0,
+    "washout": 1.5,
+    "xLE": 0.46774999999999967
+   }
+  ]
+ },
+ "frozen": {
+  "Sw": 15.450619298297468,
+  "cBar": 1.6,
+  "AR": 6.47223247621014,
+  "xAC": 0.8677499999999997,
+  "semi": 5,
+  "cg0": [
+   1.0118066,
+   0.6370259,
+   0,
+   475.4506581
+  ],
+  "note": "captured 2026-09-08 at TAIL CHANTIER 2 P5 on PHYSICS_V 1: the drawn tail (Sh 2.2937, Sv 1.2478, not auto) with the prism truss (tailSection 0.25), the vortex downwash and the fin end-plate"
+ }
+}

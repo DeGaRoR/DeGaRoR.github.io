@@ -51,6 +51,18 @@ Nothing here is forgotten; not everything here is scheduled.
   The review of targets is P5/P6's opening move.
 - **Tricycle stance** — gearLayout first-cut values deserve the user's eye on
   the stand (G127).
+- **The flapped approach under the vortex downwash (TAIL CHANTIER 2 P5,
+  2026-09-08)** — the flip to `downwashModel 'vortex'` on every build was
+  ruled (stability); found by GATE FLAPS: the stock with its slotted flap
+  now needs −0.276 rad of elevator (16° DOWN) to balance the flapped
+  approach — the constant model read +0.035 — so the trim solver lands it
+  FLAPLESS at 26.3 m/s. The kernel puts ~9° more downwash on the tail behind
+  a flapped wing than the constant did; real light aeroplanes want UP trim
+  with flaps. Choose: the kernel overstates the flap-induced downwash at the
+  tail (G197's lifting-line deficit) · the 0.18 trim budget is the old
+  model's · the flip stands for stability and the trim solver reads the
+  constant for the flap increment. Until then GATE FLAPS holds the flaps
+  by fiat for its servo row and says so. Numbers: HANDOVER G219.
 - **Day-cycle adoption** — the graded-panorama prototype (G62.1/G62.2,
   1.66 MB for every hour) reads well for all but overcast; adopting it is
   still an open decision (F4).
@@ -296,6 +308,38 @@ detector is the code. Six stale entries were found in two days.
   mechanism only, never under simulated 3G.
 - **Full `run_gates.js --all`** — owed since G142 (the user stopped the
   battery at 61/3); re-run whenever the tree settles.
+- **TAIL CHANTIER 2's leftovers (2026-09-08, P5's checklist — each said
+  here, not in a HANDOVER paragraph):**
+  - the `tube` ELEMENT TYPE — the solver has no rotational DOF (`k` is an
+    axial spring per member, 30_solver.js), so a rod boom's torsion is
+    emergent from its lattice and the honest 113 mm tube collapses the
+    truss (80° of twist, G199.3); a member with a GJ of its own is a new
+    element type, not a class. P6 computes `rodBoomK` from the tube's GJ
+    over the lattice's instead. Owed since G199.3.
+  - the AP YAW PLANT — `genPlant` has none (`Izz` absent); the ground
+    steering constants are hard (40_autopilot.js kP 3.2 / kD 1.2, twice).
+  - PROPWASH SWIRL ON THE FIN (PROP-EFFECTS §"swirl on the fin") — the fin
+    has a measured height above the thrust line since P1; the term is not
+    taken.
+  - the CANARD's three rescue clamps (CANARD-DELTA §3: the `v.z <= zAft`
+    coordinate classifier, the `kp` clamp that throws Mde's sign away,
+    `wPitch` collapsing to its floors) — standing debt; and the same
+    study's `downwash` applied to every `stab` strip unconditionally
+    (30_solver.js) and the one-directional induction pair list (`:157`),
+    which a canard would need reversed.
+  - the TAIL AIRFOIL and `tail.incidence` — `genTailPolar` hardcodes a 9 %
+    symmetric section; the incidence IS the solved `stabTrim`. Not taken:
+    a tail airfoil family is its own chantier.
+  - `tail.tip` / `tail.tipV` / `tail.tipH` / `tail.dorsal.len/height/width/
+    angle` — declared, read by nothing (`hTaper` and `vTaper` came alive at
+    P4; `dorsal.area` is measured and read by nothing yet). Delete or read.
+  - `GEN_RULES.tailK` — the wing's 4.0, said not tuned: GATE FLEX's audit
+    reports the tail class's softness against E·A/L now; a tube aeroplane's
+    fin reads 47 % of its height at ultimate on its side (GATE LOAD, P4).
+  - the V-tail truss — P4 left the V's two tips on four members each (a
+    ruddervator pair is one surface, raked; its own chantier).
+  - the NOTES the join files (`CAGE_JOIN.notes()`: an uncut fin, a rod's
+    fin height, a corner slider the drawing stopped) reach no card yet.
 
 ## VERIFIED PAID (so nobody re-opens them)
 

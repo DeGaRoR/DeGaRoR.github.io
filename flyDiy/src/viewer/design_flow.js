@@ -98,6 +98,7 @@ const DESIGN_PART = {
   engMount: ['engine', 'power', 'cowl'], engCount: ['power', 'engine'],
   prop: ['prop', 'power'],
   empennage: ['tail', 'fin', 'stab'],
+  finArch: ['tail', 'fin', 'stab'],
   gearLayout: ['gear', 'mains', 'third'], retract: ['gear'],
   suspension: ['mains', 'gear', 'third'],
   s1Fair: ['wheels', 'mains', 'gear'],

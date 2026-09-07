@@ -19,7 +19,7 @@
 // action with a chip per device bound to it, a LISTEN flow (press a chip,
 // then press the key / move the axis / press the button — the model infers
 // sign and span from what you did), the tuning under an axis chip (invert,
-// deadzone, expo, span), a live bar per action and a tiny meter per gamepad
+// deadzone, expo, sensitivity, span), a live bar per action and a tiny meter per gamepad
 // axis so a stick can be identified by wiggling it, and the profile as a
 // document: defaults, export, import.
 (() => {
@@ -227,6 +227,10 @@
     t.appendChild(sw('invert', () => b.invert, v => set({ invert: v })));
     t.appendChild(rng('deadzone', 0, 0.3, 0.01, () => b.dead, v => set({ dead: v }), v => (v * 100).toFixed(0) + ' %'));
     t.appendChild(rng('expo', 0, 1, 0.05, () => b.expo, v => set({ expo: v }), v => v.toFixed(2)));
+    // G209: SENSITIVITY — full stick = this much of the control's travel. A
+    // lever has no use for it (its travel IS the reading), so a latch skips it.
+    if (a.shape !== 'latch')
+      t.appendChild(rng('sensitivity', 0.1, 1.5, 0.05, () => (b.gain == null ? 1 : b.gain), v => set({ gain: v }), v => (v * 100).toFixed(0) + ' %'));
     t.appendChild(sel(a.shape === 'latch' ? 'idle reads' : 'span from', () => b.lo, v => set({ lo: v })));
     t.appendChild(sel(a.shape === 'latch' ? 'full reads' : 'to', () => b.hi, v => set({ hi: v })));
     return t;

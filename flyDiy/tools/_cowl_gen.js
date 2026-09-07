@@ -735,13 +735,24 @@ function buildDetail(group,mats){
      Where the two halves come apart. It is a NARROW DARK STRIP rather than a
      modelled gap: a real parting line is a 2 mm shadow, and geometry that
      thin is worse than a strip at every distance the cowl is ever seen from. */
+  /* ...AND IT ENDS AT THE PANEL JOINT (G213, the user: "the parting line
+     should stop at the seam between the face and the body"). The nose bowl
+     is one piece: the halves that part along this line are the barrel
+     panels, so the line runs from the firewall to the aft edge of the joint
+     — a step's set-in edge, a groove's aft shoulder — and no further. With
+     no joint drawn the line runs the whole length, as it always did. */
+  const zP=(()=>{
+    if(!P.seamOn) return ze;
+    const w=Math.max(P.seamWidth,5e-4), z0=clamp(P.seamPos,0,1)*ze;
+    return clamp(z0-(P.seamType===0?w:w*0.5),ze*0.05,ze);
+  })();
   if(P.partOn){
     const th0=P.partY*Math.PI*0.5;                 // 0 = the waist, +-1 = pole
     const NZ=Math.max(6,Math.round(22*d)), w=Math.max(0.0015,P.partW);
     for(const sgn of [1,-1]){
       const rings=[];
       for(let i=0;i<=NZ;i++){
-        const z=ze*i/NZ;
+        const z=zP*i/NZ;
         const row=[];
         for(const o of [-w,w]){
           const th=sgn>0?(th0+o):(Math.PI-th0-o);
@@ -781,13 +792,13 @@ function buildDetail(group,mats){
       const n=Math.max(6,Math.round(girth/pitch));
       for(let k=0;k<n;k++) camlocInto(pos,idx,2*Math.PI*k/n,zA,r,r*0.35);
     }
-    // and along the parting line, both flanks
+    // and along the split line, both flanks — as far as the line goes
     if(P.partOn){
       const th0=P.partY*Math.PI*0.5;
-      const n=Math.max(2,Math.round(ze/pitch));
+      const n=Math.max(2,Math.round(zP/pitch));
       for(const sgn of [1,-1])
         for(let k=1;k<=n;k++){
-          const z=ze*k/(n+1);
+          const z=zP*k/(n+1);
           camlocInto(pos,idx,sgn>0?th0:Math.PI-th0,z,r,r*0.35);
         }
     }
@@ -823,7 +834,20 @@ function buildDetail(group,mats){
     const nSq=sqExp(P.oilSq===undefined?1:P.oilSq);
     const NA=24, NR=3, rings=[];
     const p0=surfPoint(Math.PI/2,zc);
-    const halfAng=Math.min(Math.PI*0.33, hw/Math.max(0.05,Math.hypot(p0[0],1)));
+    /* THE WIDTH IS MEASURED ON THE SECTION (G213). The angular half-extent
+       used to be hw over hypot(x, 1) — a radius of ONE METRE, whatever the
+       cowl's — so the door came out at a third of the width its row said
+       (39 mm for the stock 130 mm on a 0.3 m half-height). Bisected now
+       for the angle whose arc from the deck centre spans hw on the surface
+       the door is actually drawn on. */
+    const halfAng=(()=>{
+      let lo=0, hi=Math.PI*0.33;
+      for(let i=0;i<24;i++){
+        const m=(lo+hi)/2, q=surfPoint(Math.PI/2+m,zc);
+        if(Math.hypot(q[0]-p0[0],q[1]-p0[1])<hw) lo=m; else hi=m;
+      }
+      return (lo+hi)/2;
+    })();
     /* the outline in the surface's own (angle, station) parameters, then
        walked inward: one point per ring per angle, plus the centre. */
     const at=(u,v)=>{
@@ -852,6 +876,50 @@ function buildDetail(group,mats){
     g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
     g.setIndex(idx); g.computeVertexNormals();
     group.add(new THREE.Mesh(g,mats.skin));
+    /* THE GAP ROUND THE DOOR (G213, the user: "the oil door is invisible, I
+       can barely see a few pixels moving behind the cowl"). The panel above
+       is the cowl's own skin lifted a millimetre and a half, and a panel in
+       the same paint on the same surface has no outline: what says "door"
+       on a real cowl is the shadow line of the gap round it. So the gap is
+       drawn the way the split line is — a narrow dark strip on the skin —
+       between the outline and an offset of it 2.5 mm out, in the surface's
+       own (angle, station) parameters. The door itself is unchanged
+       (GATE COWL measures it: first skin mesh, disc topology, roundness). */
+    {
+      const gw=0.0025, fu=1+gw/Math.max(hw,0.01), fv=1+gw/Math.max(hl,0.01);
+      // the strip sits between the panel (1.5 mm) and the skin: 0.6 mm
+      // proud like the split line, so it is never behind either
+      const atH=(u,v,h)=>{
+        const th=clamp(Math.PI/2+u*halfAng,0,Math.PI), z=clamp(zc+v*hl,0.002,ze-0.002);
+        const q=surfPoint(th,z), n=cowlNormalAt(th,z);
+        return [q[0]+n[0]*h,q[1]+n[1]*h,z+n[2]*h];
+      };
+      const gp=[],gi=[];
+      for(let j=0;j<NA;j++){
+        const e=edge[j];
+        gp.push(...atH(e[0],e[1],0.0006), ...atH(e[0]*fu,e[1]*fv,0.0006));
+      }
+      for(let j=0;j<NA;j++){
+        const a=j*2,b=j*2+1,c=((j+1)%NA)*2+1,e=((j+1)%NA)*2;
+        gi.push(a,b,c,a,c,e);
+      }
+      const gg=new THREE.BufferGeometry();
+      gg.setAttribute('position',new THREE.Float32BufferAttribute(gp,3));
+      gg.setIndex(gi); gg.computeVertexNormals();
+      group.add(new THREE.Mesh(gg,mats.dark));
+    }
+    /* THE LATCH, on the aft edge, opposite the hinge: one quarter-turn
+       fastener like the camlocs, because a door with a hinge and no latch is
+       a flap. Placed at 70 % of the way aft, where the outline still spans
+       something (the same reasoning as the hinge below). */
+    {
+      const lp=[],li=[];
+      camlocInto(lp,li,Math.PI/2,clamp(zc-0.70*hl,0.002,ze-0.002),0.007,0.0035);
+      const gl=new THREE.BufferGeometry();
+      gl.setAttribute('position',new THREE.Float32BufferAttribute(lp,3));
+      gl.setIndex(li); gl.computeVertexNormals();
+      group.add(new THREE.Mesh(gl,mats.steel));
+    }
     /* THE HINGE, on the forward edge — and it moves INBOARD with the roundness.
        It used to be a straight chord at the door's forward extreme across the
        full angular width, which is a station where a round door has no width

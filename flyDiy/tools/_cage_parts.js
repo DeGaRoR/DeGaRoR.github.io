@@ -582,16 +582,23 @@ const CAGE_PARTS = [
       // corner, and the trunk above lifts out the two numbers a builder reaches
       // for first: the HEIGHT (the tip's up / down) and the ROOT LENGTH (how far
       // forward the root starts).
+      // THE MACRO TIER (TAIL CHANTIER 2 P3): what a builder sizes the fin
+      // with — the wing's words over the drawn outline
+      ['size', ['finHeight', 'finChord', 'finChordTip', 'finSweep', 'finHinge']],
+      // EXPERT (TAIL CHANTIER 2 P2): the outline's corners, rows, edges and
+      // sharpness are the CAGE's own vertices — the tier a builder reaches
+      // last (TAIL-ARCHETYPES §3). The trunk keeps the height and the root
+      // length; the macro tier above is what a builder sizes the fin with.
       ['tip', ['finTipZ', 'finTipY', 'finShoulderZ', 'finShoulderY',
-               'finTopY']],
-      ['top-aft corner', ['finAftZ', 'finAftY']],
-      ['base corner', ['finBaseZ', 'finBaseY']],
+               'finTopY'], EXPERT],
+      ['top-aft corner', ['finAftZ', 'finAftY'], EXPERT],
+      ['base corner', ['finBaseZ', 'finBaseY'], EXPERT],
       ['leading edge', ['finRootFwd', 'finLEZ', 'finLEY', 'finCrA',
-                        'finCrB']],
-      ['rows', ['finMidY', 'finUY']],
-      ['trailing edge', ['finTERoot', 'finTEU', 'finTEMid']],
+                        'finCrB'], EXPERT],
+      ['rows', ['finMidY', 'finUY'], EXPERT],
+      ['trailing edge', ['finTERoot', 'finTEU', 'finTEMid'], EXPERT],
       ['corner sharpness', ['finSharpTip', 'finSharpAft', 'finSharpBase',
-                            'finSharpShoulder', 'finSharpLE']],
+                            'finSharpShoulder', 'finSharpLE'], EXPERT],
     ] },
 
   { key: 'stab', name: 'Stabiliser & elevator', parent: 'tail', layer: 'stab',
@@ -608,14 +615,17 @@ const CAGE_PARTS = [
       ['thickness', ['stSolid', 'stThick', 'stThickTE']],
       // the fin's outline laid flat — same corners, same order, "in / out"
       // where the fin says "up / down" (the stab IS the fin model laid flat)
-      ['tip', ['stTipZ', 'stTipY', 'stShoulderZ', 'stShoulderY', 'stTopY']],
-      ['tip-aft corner', ['stAftZ', 'stAftY']],
-      ['root-aft corner', ['stBaseZ', 'stBaseY']],
-      ['leading edge', ['stRootFwd', 'stLEZ', 'stLEY']],
-      ['rows', ['stMidY', 'stUY']],
-      ['trailing edge', ['stTERoot', 'stTEU', 'stTEMid']],
+      // the macro tier (P3), the fin's words laid flat
+      ['size', ['stSpan', 'stChord', 'stChordTip', 'stSweep', 'stHinge']],
+      // EXPERT (P2), as the fin's: the cage's own vertices
+      ['tip', ['stTipZ', 'stTipY', 'stShoulderZ', 'stShoulderY', 'stTopY'], EXPERT],
+      ['tip-aft corner', ['stAftZ', 'stAftY'], EXPERT],
+      ['root-aft corner', ['stBaseZ', 'stBaseY'], EXPERT],
+      ['leading edge', ['stRootFwd', 'stLEZ', 'stLEY'], EXPERT],
+      ['rows', ['stMidY', 'stUY'], EXPERT],
+      ['trailing edge', ['stTERoot', 'stTEU', 'stTEMid'], EXPERT],
       ['corner sharpness', ['stSharpTip', 'stSharpAft', 'stSharpBase',
-                            'stSharpShoulder', 'stSharpLE']],
+                            'stSharpShoulder', 'stSharpLE'], EXPERT],
     ] },
 
   // =========================================================================
@@ -685,45 +695,51 @@ const CAGE_PARTS = [
 
   { key: 'cowl', name: 'Cowl', parent: 'power', layer: 'cowl',
     when: P => +P.cowlOn, gate: 'cowlOn',
-    place: { on: 'cowlOn',
-             type: ['fitNose', 'cw_inheritStub', 'cw_apMode', 'cw_lidMode', 'cw_lipMode'],
+    // ONLY the fit mode is a TYPE of the cowl (G213): the inlet count, the
+    // nose ring and the lip edge were pulled up here too, which put "End"
+    // and "Edge" a page away from the rows they switch
+    place: { on: 'cowlOn', type: 'fitNose',
              fore: 'cowlGap', len: 'cw_cowlLen', wide: 'cw_aftW',
              high: 'cw_aftH', at: 'wrapped round the engine' },
     sections: ['cowlSkin'],
+    // THE GROUPS ARE THE COWL'S ANATOMY (G213), aft to forward — the same
+    // table _cowl_rows.js declares, and the vocabulary its head comment
+    // defines: firewall, barrel, nose bowl, nose ring; the section at each
+    // of the three stations; cheeks; inlets and their lip; the chin scoop;
+    // the panel joint, the split line, the camlocs, the oil door; and the
+    // nacelle tail cone for a cowl standing off the body.
     groups: [
       // `cowlLoops/Ease/Bulge` -> `nose`: they loft the CAGE's nose cap, not this layer
       ['fitted', ['cowlOn', 'fitNose', 'cowlGap']],
+      ['barrel', ['cw_cowlLen', 'cw_aftW', 'cw_aftH', 'cw_taperW',
+                  'cw_taperH', 'cw_lidRise']],
+      ['nose bowl', ['cw_lidLen', 'cw_lidShoulder', 'cw_lidRound',
+                     'cw_faceRise', 'cw_deckSweep', 'cw_keelSweep',
+                     'cw_waistSweep', 'cw_lidMode', 'cw_lidR', 'cw_lidGap']],
+      ['section at the firewall', ['cw_deckH', 'cw_keelH', 'cw_waist',
+                                   'cw_sqAftTop', 'cw_sqAftBot']],
+      ['section at the barrel end', ['cw_sqFrontTop', 'cw_sqFrontBot']],
+      ['section at the nose ring', ['cw_lidSqTop', 'cw_lidSqBot']],
+      ['cheeks & cut-out', ['cw_lobeN', 'cw_lobeAmp', 'cw_lobeT',
+                            'cw_lobeAz', 'cw_lobeSig', 'cw_lobeTSig',
+                            'cw_cutSpan', 'cw_cutAz']],
+      ['inlets', ['cw_apMode', 'cw_apW', 'cw_apH', 'cw_apSq',
+                  'cw_apOffX', 'cw_apOffY', 'cw_pairX', 'cw_pairW',
+                  'cw_pairH', 'cw_pairY', 'cw_pairSq']],
+      ['inlet lip', ['cw_lipMode', 'cw_lipThick', 'cw_lipDepth',
+                     'cw_lipRound', 'cw_lipProtrude', 'cw_lipInset',
+                     'cw_ductLen', 'cw_ductFlare']],
+      ['chin scoop', ['cw_scoopOn', 'cw_scoopZ', 'cw_scoopLen', 'cw_scoopW',
+                      'cw_scoopH', 'cw_scoopSq', 'cw_scoopDrop',
+                      'cw_scoopRake', 'cw_scoopAp', 'cw_scoopLipH',
+                      'cw_scoopLipDepth', 'cw_scoopDuct']],
+      ['panel joint', ['cw_seamOn', 'cw_seamType', 'cw_seamPos',
+                       'cw_seamWidth', 'cw_seamDepth']],
+      ['split line', ['cw_partOn', 'cw_partY', 'cw_partW']],
+      ['fasteners', ['cw_fastOn', 'cw_fastPitch', 'cw_fastD']],
+      ['oil door', ['cw_oilOn', 'cw_oilZ', 'cw_oilW', 'cw_oilL', 'cw_oilSq']],
       // the bench's nacelle termination, back (2026-09-04)
       ['nacelle', ['cw_aftMode', 'cw_tailLen', 'cw_tailDrop']],
-      ['body', ['cw_cowlLen', 'cw_aftW', 'cw_aftH', 'cw_taperW',
-                'cw_taperH', 'cw_lidRise', 'cw_faceRise', 'cw_lidLen',
-                'cw_lidShoulder', 'cw_keelSweep', 'cw_deckSweep',
-                'cw_waistSweep', 'cw_lidRound', 'cw_lidMode', 'cw_lidR',
-                'cw_lidGap']],
-      ['section shape', ['cw_inheritStub', 'cw_stubDeckH', 'cw_stubWaist',
-                         'cw_stubKeelH', 'cw_stubSqTop', 'cw_stubSqBot',
-                         'cw_deckH', 'cw_waist', 'cw_keelH', 'cw_sqAftTop',
-                         'cw_sqAftBot', 'cw_sqFrontTop', 'cw_sqFrontBot',
-                         'cw_lidSqTop', 'cw_lidSqBot']],
-      ['panel seam', ['cw_seamOn', 'cw_seamType', 'cw_seamPos',
-                      'cw_seamWidth', 'cw_seamDepth']],
-      ['apertures', ['cw_apMode', 'cw_apW', 'cw_apH', 'cw_apSq',
-                     'cw_pairX', 'cw_pairW', 'cw_pairH', 'cw_apOffX',
-                     'cw_apOffY', 'cw_pairY', 'cw_pairSq']],
-      ['lip', ['cw_lipMode', 'cw_lipThick', 'cw_lipDepth', 'cw_ductLen',
-               'cw_lipProtrude', 'cw_lipInset', 'cw_lipRound',
-               'cw_ductFlare']],
-      ['bulges & cut-out', ['cw_lobeN', 'cw_lobeAmp', 'cw_lobeT',
-                            'cw_cutSpan', 'cw_lobeAz', 'cw_lobeSig',
-                            'cw_lobeTSig', 'cw_cutAz']],
-      ['chin scoop', ['cw_scoopOn', 'cw_scoopZ', 'cw_scoopLen', 'cw_scoopW',
-                      'cw_scoopH', 'cw_scoopSq', 'cw_scoopLipH',
-                      'cw_scoopDrop', 'cw_scoopRake', 'cw_scoopAp',
-                      'cw_scoopLipDepth', 'cw_scoopDuct']],
-      ['fasteners & access', ['cw_fastOn', 'cw_fastPitch', 'cw_fastD',
-                              'cw_partOn', 'cw_partY', 'cw_partW',
-                              'cw_oilOn', 'cw_oilZ', 'cw_oilW', 'cw_oilL',
-                              'cw_oilSq']],
     ] },
 
   // the propeller's GEOMETRY is the engine layer's (_cage_eng.js names the

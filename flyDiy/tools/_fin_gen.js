@@ -103,7 +103,29 @@ const ekey = (a, b) => a < b ? a + '_' + b : b + '_' + a;
 //       midY, uY, leZ, leY, shoulderZ, shoulderY, topY, teRoot, teU, teMid,
 //       deck }
 function buildFin2(S) {
-  const D = FIN_DEFAULT;
+  // THE HINGE IS A FICHE COLUMN PAIR (TAIL CHANTIER 2 P3): `S.hinge` is the
+  // rudder's share of the root chord (the LE column C to the TE); the fiche's
+  // own is 0.2074, and at that value (or null) D is the fiche untouched, so
+  // the sketch and the Cub tail rebuild bit for bit. Set, the guard pair
+  // moves as ONE (its 24 mm gap kept) and every clamp, rail and cut that
+  // reads D.zH1 / D.zH2 follows — one primitive, every consumer.
+  const D0 = FIN_DEFAULT;
+  const rH0 = (D0.zH1 - D0.zTE) / (D0.zC - D0.zTE);
+  let D = D0;
+  if (S.hinge != null && Math.abs(S.hinge - rH0) > 1e-9) {
+    const r = clamp(S.hinge, 0.08, 0.50);
+    const zH1 = D0.zTE + r * (D0.zC - D0.zTE);
+    D = Object.assign({}, D0, { zH1, zH2: zH1 - (D0.zH1 - D0.zH2) });
+  }
+  // THE CLAMPS SPEAK (ruling (b)): every clamp below that CHANGES a value
+  // names itself in out.clamped, so the panel can say a slider stopped
+  // short instead of sliding a number that moves nothing
+  const CL = [];
+  const clampSay = (name, v, lo, hi) => {
+    const c = clamp(v, lo, hi);
+    if (c !== v) CL.push(name);
+    return c;
+  };
   const deck = S.deck || null;
   const dorsal = S.dorsal === undefined ? 1 : Math.round(S.dorsal);
   // ROOT LOOPS (user ask: "could we be more economical through clever use
@@ -161,8 +183,8 @@ function buildFin2(S) {
   // whole surface is not the control): rootFwd moves the drawn front
   // column, clamped between the dorsal's B column (dorsal on) or the
   // dorsal-tip station (off) and the hinge
-  const zCc = clamp(D.zC + (S.rootFwd || 0),
-                    D.zH1 + 0.15, dorsal ? D.zB - 0.05 : D.zA);
+  const zCc = clampSay('root length', D.zC + (S.rootFwd || 0),
+                       D.zH1 + 0.15, dorsal ? D.zB - 0.05 : D.zA);
 
   // root rows per column: on the deck keeping the sketch's gaps, or the
   // fiche's absolute sketch values when no deck is given
@@ -180,11 +202,11 @@ function buildFin2(S) {
   // BASE CORNER ONLY: the Cub sweeps its rudder bottom up for tailwheel
   // clearance while kH1/kH2 stay on the keel at the tailpost.
   const leCz = zCc + (dorsal ? 0 : (S.leZ || 0));
-  const tipZ = clamp(D.zTip + (S.tipZ || 0), D.zH1 + 0.12, leCz - 0.05);
-  const tipY = Math.max(yMid + 0.10, D.yTip + (S.tipY || 0) + dyR);
-  const taZ = clamp(D.zTE + (S.aftZ || 0), D.zTE - 0.5, D.zH2 - 0.03);
-  const taY = Math.max(yMid + 0.10, D.yTop + (S.aftY || 0) + dyR);
-  const baZ = clamp(D.zTE + (S.baseZ || 0), D.zTE - 0.5, D.zH2 - 0.03);
+  const tipZ = clampSay('tip fore / aft', D.zTip + (S.tipZ || 0), D.zH1 + 0.12, leCz - 0.05);
+  const tipY = clampSay('tip up / down', D.yTip + (S.tipY || 0) + dyR, yMid + 0.10, Infinity);
+  const taZ = clampSay('top-aft fore / aft', D.zTE + (S.aftZ || 0), D.zTE - 0.5, D.zH2 - 0.03);
+  const taY = clampSay('top-aft up / down', D.yTop + (S.aftY || 0) + dyR, yMid + 0.10, Infinity);
+  const baZ = clampSay('base fore / aft', D.zTE + (S.baseZ || 0), D.zTE - 0.5, D.zH2 - 0.03);
   const baY = kY + (S.baseY || 0);
 
   // the shoulder rides the tip and the mid row at its fiche offsets — both
@@ -222,9 +244,9 @@ function buildFin2(S) {
   // aft of the hinge band so the surface can never fold through its own
   // hinge columns
   const teLim = D.zH2 - 0.05;
-  const teRootZ = Math.min(teZ((loTEy + hiTEy) / 2) + (S.teRoot || 0), teLim);
-  const teUZ = Math.min(teZ(yU) + (S.teU || 0), teLim);
-  const teMidZ = Math.min(teZ(yMid) + (S.teMid || 0), teLim);
+  const teRootZ = clampSay('TE root', teZ((loTEy + hiTEy) / 2) + (S.teRoot || 0), -Infinity, teLim);
+  const teUZ = clampSay('TE u row', teZ(yU) + (S.teU || 0), -Infinity, teLim);
+  const teMidZ = clampSay('TE mid row', teZ(yMid) + (S.teMid || 0), -Infinity, teLim);
 
   // ---- emission, in the sketch OBJ's own vertex order -----------------------
   // (all z through Z(): the rebase, the identity when there is no deck)
@@ -426,6 +448,50 @@ function buildFin2(S) {
   // this) and the row height, for the cutter and the thickness taper
   out.cutZ = Z((D.zH1 + D.zH2) / 2);
   out.rowY = yMid;                  // the mid row = the horn cut's own rail
+
+  // ---- THE MACRO TIER (TAIL CHANTIER 2 P3) ----------------------------------
+  // Four numbers in the wing's vocabulary — height, chord, tip chord, sweep
+  // (the fifth, the hinge, moved the fiche's columns above) — over the
+  // thirty fields: a spec-time transform of the EMITTED sheet, the corners
+  // untouched (TAIL-ARCHETYPES §4, layering B). Each is an exact no-op at
+  // its identity and GUARDED so the sketch and the Cub tail rebuild bit for
+  // bit (r + 1·(y − r) is not always y in floating point). Order: the
+  // height about the root line (the deck at each station; the keel tab
+  // below the root stays), then the chord and the tip taper about the
+  // HINGE — so the post stays straight and vertical, as a tapered fin's
+  // does — then the sweep as a shear that rakes the post with the sheet (a
+  // swept fin's rudder post rakes). The dorsal's own columns (A, B) keep
+  // their stations: it fairs from wherever the fin's front column lands.
+  // Root vertices leave the deck by the deck's slope × their shift;
+  // finProjectRoot puts them back on it after subdivision, as always. The
+  // hinge goes out as a LINE (root point → top point, fin space [y, z]):
+  // one primitive for the measure, the cutter's rails and the join.
+  {
+    const rootAt = deck ? z => topAt(z) : () => D.lo.H;
+    const hS = S.height == null ? 1 : S.height;
+    const cS = S.chord == null ? 1 : S.chord;
+    const tS = S.chordTip == null ? 1 : S.chordTip;
+    const swp = S.sweep ? Math.tan(S.sweep * Math.PI / 180) : 0;
+    const zH = out.cutZ;
+    const keep = new Set(['leA', 'loA', 'hiA', 'leB', 'loB', 'hiB']
+      .map(n => IX[n]).filter(i => i !== undefined));
+    if (hS !== 1)
+      for (const v of V) { const r = rootAt(v[2]); if (v[1] > r) v[1] = r + hS * (v[1] - r); }
+    if (cS !== 1 || tS !== 1 || swp !== 0) {
+      let top = -Infinity;
+      for (const v of V) if (v[1] > top) top = v[1];
+      V.forEach((v, i) => {
+        if (keep.has(i)) return;
+        const r = rootAt(v[2]);
+        const u = Math.max(0, Math.min(1, (v[1] - r) / Math.max(1e-9, top - r)));
+        const k = cS * (1 + (tS - 1) * u);
+        v[2] = zH + k * (v[2] - zH) - swp * Math.max(0, v[1] - r);
+      });
+    }
+    const mid = (a, b) => [(V[a][1] + V[b][1]) / 2, (V[a][2] + V[b][2]) / 2];
+    out.hingeLine = [mid(IX.loH1, IX.loH2), mid(IX.topH1, IX.topH2)];
+  }
+  out.clamped = CL;
   return out;
 }
 
@@ -938,6 +1004,16 @@ const FIN_PARAMS = {
   // corner sharpness, 0 round .. 3 crisp (semi-sharp vertex weights)
   finSharpTip: 0, finSharpAft: 0, finSharpBase: 0,
   finSharpShoulder: 0, finSharpLE: 0,
+  // THE MACRO TIER (TAIL CHANTIER 2 P3), in the wing's vocabulary: the
+  // builder's numbers over the thirty corner fields. Identity defaults —
+  // 1 is the drawn sheet, 0 sweep, the hinge at the fiche's own share of
+  // the root chord (EXACTLY that number, so finSpec({}) stays the identity)
+  finHeight: 1,       // × the sheet's height over the root line
+  finChord: 1,        // × the chord, about the hinge
+  finChordTip: 1,     // the tip chord as a fraction of the root's (about the hinge)
+  finSweep: 0,        // degrees of shear, the post raking with it
+  finHinge: (FIN_DEFAULT.zH1 - FIN_DEFAULT.zTE) / (FIN_DEFAULT.zC - FIN_DEFAULT.zTE),
+                      // the rudder's share of the root chord (0.2074 = the fiche)
 };
 
 function finSpec(P) {
@@ -959,6 +1035,8 @@ function finSpec(P) {
     sharpTip: g('finSharpTip'), sharpAft: g('finSharpAft'),
     sharpBase: g('finSharpBase'), sharpShoulder: g('finSharpShoulder'),
     sharpLE: g('finSharpLE'),
+    height: g('finHeight'), chord: g('finChord'), chordTip: g('finChordTip'),
+    sweep: g('finSweep'), hinge: g('finHinge'),
     deck: null,
   };
 }
@@ -980,9 +1058,176 @@ const FIN_CUB = {
   finTERoot: -0.146812, finTEU: -0.177424, finTEMid: -0.153038,
 };
 
-const API = { FIN_DEFAULT, FIN_PARAMS, FIN_CUB, FIN_MATS, FIN_BOUNDARY_W,
+// THE STRAIGHT FIN (TAIL CHANTIER 2 P3, the `finArch` starter's second
+// option): a straight-tapered fin with crisp corners — the LE one line from
+// the root corner through the shoulder to the tip, the top one line, the TE
+// the plain top-aft → base chord, no dorsal, the keel tab on. There is no
+// reference OBJ for it, so the dict is FROZEN here (the shoulder station
+// solved once so the shoulder sits ON the LE line: 0.305521) and GATE FIN
+// holds it straight — unfrozen, a solved dict drifts (the G19 sailplane
+// lesson). Every key FIN_CUB lacks is stated, so the starter's delta set is
+// complete and a previous pick leaves nothing behind.
+const FIN_STRAIGHT = {
+  finDorsal: 0, finKeel: 1, finCrA: 0, finCrB: 0,
+  finTipZ: -0.20, finTipY: -0.30,
+  finAftZ: 0, finAftY: -0.30,
+  finBaseZ: 0, finBaseY: 0,
+  finMidY: -0.20, finUY: 0,
+  finRootFwd: 0,
+  finLEZ: -0.10, finLEY: 0,
+  finShoulderZ: 0.305521, finShoulderY: 0,
+  finTopY: 0,
+  finTERoot: 0, finTEU: 0, finTEMid: 0,
+  finSharpTip: 3, finSharpAft: 3, finSharpBase: 3, finSharpShoulder: 0, finSharpLE: 3,
+};
+
+// THE STAB READS THE FIN'S GRAMMAR THROUGH THIS MAP (TAIL CHANTIER 2, P0:
+// moved here from _cage_stab.js so it has ONE home — the stab layer, the
+// headless tail and the sweep all read it; a copy in a bench drifted). The
+// stab is the fin model laid flat (G23): every st* row is a fin row under
+// another name, and the layer composes its spec through this map and
+// nothing else. A new st* macro is a new entry here.
+const ST2FIN = {
+  stRootGuard: 'finRootGuard',
+  stTipZ: 'finTipZ', stTipY: 'finTipY',
+  stAftZ: 'finAftZ', stAftY: 'finAftY',
+  stBaseZ: 'finBaseZ', stBaseY: 'finBaseY',
+  stMidY: 'finMidY', stUY: 'finUY',
+  stRootFwd: 'finRootFwd',
+  stLEZ: 'finLEZ', stLEY: 'finLEY',
+  stShoulderZ: 'finShoulderZ', stShoulderY: 'finShoulderY',
+  stTopY: 'finTopY',
+  stTERoot: 'finTERoot', stTEU: 'finTEU', stTEMid: 'finTEMid',
+  stSharpTip: 'finSharpTip', stSharpAft: 'finSharpAft',
+  stSharpBase: 'finSharpBase', stSharpShoulder: 'finSharpShoulder',
+  stSharpLE: 'finSharpLE',
+  // the macro tier (P3): the wing's words on both surfaces
+  stSpan: 'finHeight', stChord: 'finChord', stChordTip: 'finChordTip',
+  stSweep: 'finSweep', stHinge: 'finHinge',
+};
+
+// ---- THE MEASURE (TAIL CHANTIER 2, P0: the layers measure, the join reads)
+// The drawn sheet's areas and chords — pure mesh arithmetic on the
+// subdivided, CUT, UNTHICKENED sheet (one face per patch of skin; the
+// thickened solid would count both sides and the rim). Until this, the
+// join measured a bounding box and the flown area was the RULE's: eleven
+// times the drawn area reached the same Sh (TAIL-PHYSICS-AUDIT D1).
+//
+// Faces are classed by `part` ('rudder' = the control surface, set by
+// finCutMesh; absent = uncut, everything fixed) and by material (leadingA/B
+// = the dorsal fairing, optionalKeelExtension = the keel tab). Lengths ×FS,
+// areas ×FS² — METRES when FS is the build's scale; FS rides along so no
+// reader has to guess the unit.
+//   area        every face
+//   areaCtl     the control surface (rudder / elevator)
+//   areaDorsal  the dorsal (a stall-delay device — textbook Sv excludes it)
+//   areaKeel    the keel extension tab (the cutter files it with the RUDDER
+//               — the drawn rudder swings it — so it counts in areaCtl too)
+//   areaProper  area − dorsal − keel (the fin proper + its control)
+//   areaTail    area − dorsal: what Sv (and Sh) count — ruling (l), the
+//               keel in, the dorsal out
+//   ctlFrac     areaCtl / areaTail — the area-weighted mean chord fraction
+//               of the moving surface, the honest input to a single-tau
+//               flap model
+//   y0, y1      the proper sheet's extent along the span direction (fin-
+//   span        space y; the stab lays this into its own x)
+//   z0, z1      the proper sheet's chordwise extent — chordBox = z1 − z0 is
+//   chordBox    what the join measured before P1 (the dorsal excluded here)
+//   chordMean   areaProper / span (the rule's own definition of a chord)
+//   chordRoot   chordAt(0)
+//   chordAt(t)  the sheet's chord at span station t (metres from y0): a
+//               slice of the proper faces, so a tapered planform reads its
+//               own taper (the frame's strips read this)
+//   hinge       { z: the hinge plane at the root, fin-space z; zM: ×FS;
+//               line: [[y0, z0], [y1, z1]] root → top, fin space; lineM:
+//               the same ×FS } — the line the control turns about,
+//               DECLARED, so no reader has to infer it from the surface's
+//               own vertices (a horn-balanced rudder's forward-most
+//               vertices are the horn, not the hinge). A swept sheet's
+//               post rakes, so the LINE is the primitive; z is its root
+//   cut         the cut mode the sheet was built with (0 uncut, 1 hinge, 2
+//               horn)
+// sheet: { V, F }; opts: { FS, zCut, cut, hingeLine }
+function finMeasure(sheet, opts) {
+  const FS = (opts && opts.FS) || 1;
+  const DORSAL = new Set(['leadingA', 'leadingB']);
+  const KEEL = 'optionalKeelExtension';
+  const V = sheet.V;
+  const faceArea = f => {                  // Newell: any planar polygon
+    let nx = 0, ny = 0, nz = 0;
+    const n = f.v.length;
+    for (let i = 0; i < n; i++) {
+      const a = V[f.v[i]], b = V[f.v[(i + 1) % n]];
+      nx += (a[1] - b[1]) * (a[2] + b[2]);
+      ny += (a[2] - b[2]) * (a[0] + b[0]);
+      nz += (a[0] - b[0]) * (a[1] + b[1]);
+    }
+    return 0.5 * Math.hypot(nx, ny, nz);
+  };
+  const proper = f => !DORSAL.has(f.m) && f.m !== KEEL;
+  let area = 0, ctl = 0, dorsal = 0, keel = 0;
+  let y0 = Infinity, y1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+  for (const f of sheet.F) {
+    const a = faceArea(f);
+    area += a;
+    if (DORSAL.has(f.m)) { dorsal += a; continue; }
+    if (f.m === KEEL) { keel += a; if (f.part === 'rudder') ctl += a; continue; }
+    if (f.part === 'rudder') ctl += a;
+    for (const i of f.v) {
+      const p = V[i];
+      if (p[1] < y0) y0 = p[1]; if (p[1] > y1) y1 = p[1];
+      if (p[2] < z0) z0 = p[2]; if (p[2] > z1) z1 = p[2];
+    }
+  }
+  // the chord at a span station: every proper edge crossing the plane
+  // y = const, the extreme z of the crossings
+  const chordAt = t => {
+    const y = y0 + t / FS;
+    let lo = Infinity, hi = -Infinity;
+    for (const f of sheet.F) {
+      if (!proper(f)) continue;
+      const n = f.v.length;
+      for (let i = 0; i < n; i++) {
+        const a = V[f.v[i]], b = V[f.v[(i + 1) % n]];
+        const da = a[1] - y, db = b[1] - y;
+        if ((da < 0 && db < 0) || (da > 0 && db > 0)) continue;
+        if (da === db) {                     // the edge lies IN the plane
+          if (a[2] < lo) lo = a[2]; if (a[2] > hi) hi = a[2];
+          if (b[2] < lo) lo = b[2]; if (b[2] > hi) hi = b[2];
+          continue;
+        }
+        const z = a[2] + (b[2] - a[2]) * da / (da - db);
+        if (z < lo) lo = z; if (z > hi) hi = z;
+      }
+    }
+    return hi > lo ? (hi - lo) * FS : 0;
+  };
+  const pr = area - dorsal - keel, tail = area - dorsal;
+  const span = y1 > y0 ? (y1 - y0) * FS : 0;
+  return {
+    FS,
+    area: area * FS * FS, areaCtl: ctl * FS * FS,
+    areaDorsal: dorsal * FS * FS, areaKeel: keel * FS * FS,
+    areaProper: pr * FS * FS, areaTail: tail * FS * FS,
+    ctlFrac: tail > 0 ? ctl / tail : 0,
+    y0: y0 * FS, y1: y1 * FS, span,
+    z0: z0 * FS, z1: z1 * FS, chordBox: z1 > z0 ? (z1 - z0) * FS : 0,
+    chordMean: span > 0 ? pr * FS * FS / span : 0,
+    chordRoot: chordAt(0),
+    chordAt,
+    hinge: (opts && opts.zCut != null)
+      ? { z: opts.zCut, zM: opts.zCut * FS,
+          line: opts.hingeLine || null,
+          lineM: opts.hingeLine ? opts.hingeLine.map(p => [p[0] * FS, p[1] * FS]) : null }
+      : null,
+    cut: (opts && opts.cut != null) ? Math.round(opts.cut) : (ctl > 0 ? 1 : 0),
+  };
+}
+
+const API = { FIN_DEFAULT, FIN_PARAMS, FIN_CUB, FIN_STRAIGHT, FIN_MATS, FIN_BOUNDARY_W,
+              ST2FIN,
               buildFin2, finSpec, finProjectRoot, finCentreline,
-              finCutMesh, finThicken, finToStab };
+              finCutMesh, finThicken, finToStab, finMeasure };
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 if (typeof window !== 'undefined') window.FIN_GEN = API;
 })();

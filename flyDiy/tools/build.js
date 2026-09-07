@@ -257,6 +257,10 @@ const MANIFEST = {
     // THE DECLARED ASSEMBLY (G76) first: the part tree, the param -> part map
     // and the part -> section map every later file reads. Pure data, no deps.
     '_cage_parts.js',
+    // THE FIN GRAMMAR (TAIL CHANTIER 2 P3): pure, no deps — and the design
+    // rows read its frozen dicts (FIN_CUB, FIN_STRAIGHT, ST2FIN) at LOAD
+    // time for the tail-outline starter's delta sets, so it sits before them
+    '_fin_gen.js',
     // THE MACRO ROWS (NEW-AIRCRAFT): the birth certificate's declaration —
     // tiles, archetypes, GATE DESIGN. Pure data too, and every table it
     // reads (GEN_*, ENG_PAGE) is reached lazily, so it sits with its sibling.
@@ -282,7 +286,10 @@ const MANIFEST = {
     // gear MODULES (_gear_kit/_gear_gen/_gear_page) stay early: _cage_fin
     // and _cage_stab read GEAR_GEN.CAGE_MATS at load time.
     '_cage_gear.js',
-    '_fin_gen.js', '_cage_fin.js', '_cage_stab.js',
+    '_cage_fin.js', '_cage_stab.js',              // (_fin_gen.js loads above, with the design rows)
+    // THE HEADLESS TAIL (TAIL CHANTIER 2 P5): the layers' build with no page,
+    // for the birth seed (designBake sizes the drawn tail off the rule once)
+    '_tail_headless.js',
     // THE FITTINGS LAYER IS LAST IN THE POST CHAIN, and it has to be: it
     // measures the sill off the ground line the GEAR settled on, and G84 puts
     // fittings on the WING's loft and the COWL's shell. PAGE.post runs in load

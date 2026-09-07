@@ -118,7 +118,10 @@ function audit(def, matKey) {
   const byCls = {};
   for (const b of def.beams) {
     if (!b.cls) continue;
-    const A = M.lin[b.cls] / rho;               // the mass model already implies it
+    // the tail class (P4) is the wing row of its material at the tail's section
+    const tSec = require('./flight_core.js').GEN_RULES.tailSection;
+    const A = (M.lin[b.cls] != null ? M.lin[b.cls]
+               : (tSec == null ? 0.5 : tSec) * M.lin.wing) / rho;   // the mass model already implies it
     const kPhys = E * A / b.L;
     const g = byCls[b.cls] || (byCls[b.cls] = { A, sigY, n: 0, sSum: 0, sMin: Infinity, sMax: 0, Fy: sigY * A });
     const soft = b.k / kPhys;

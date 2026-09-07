@@ -33971,6 +33971,97 @@ throughout (the only core edits publish two numbers the sheet already had).
   way, and the bench's report contract (verdicts, outcome, landing, card,
   trimDe, the crosswind probe after it) is the test pilot's. Left as is;
   the revamped pilot is one `makePilot` away in tfStart if wanted.
+
+## G210 — THE PILOT ALONE, AND SHE IS CH20 (2026-09-07, the user: "by default,
+## there is only the pilot, and let's make it the car driver in red combi, with
+## the helmet for now")
+
+`_cage_page5.js` defaults: `cabOcc 0`, `paxOcc1..4 0` (the cabin was full by
+default since G180 — what `dum2On 1` drew and billed), and `pilotWho` =
+`WHO_DEFAULT`, Ch20's position in the character registry at page load
+(named, not numbered: `CHAR_REG.order.indexOf('ch20') + 2`, mixed crew where
+no registry is loaded, i.e. the node gates). A saved design keeps whatever
+it says; a NEW one starts with one person, the red suit and the helmet.
+Gates that read defaults and weights (PARTS, DESIGN, JOIN, MASS, ENERGY,
+ENERGYBASE, SAVE, CAGEFIT, UISMOKE, TAKEOFF, STARTER) green.
+TRAP: the working-tree `_cage_page5.js` had been flipped to CRLF by a peer
+write since 2d4d815; the edit normalised it back to LF (the tree is LF —
+the source-scanning gates read bare newlines).
+
+
+## G209 — THE CONTROL SURFACES AUDITED IN EVERY CONFIGURATION: THE AILERONS,
+## THE FLAPS AND THE RUDDER WERE REVERSED ON EVERY CAGE BUILD, THE CRANKED
+## AILERON HINGED 17° OFF ITS LINE, THE RUDDERVATOR NEVER ANSWERED THE RUDDER,
+## AND SENSITIVITY ON THE STICK (2026-09-07, the user: "I have the feeling the
+## flaps are deploying on the wrong direction, the ailerons of the jodel with
+## the crank are not moving as they should, verify that the rudder steers in
+## the right direction... sensitivity parameters on the joystick inputs...
+## an audit of the control surfaces in every configuration (including the tail)")
+
+Two instruments, then the fixes. The whole record, with the tables, is
+`futureDesigns/CONTROLS-AUDIT-2026-09-07.md`.
+
+- **The physics was right everywhere.** Every archetype baked and built in
+  node, the aero probe read with each control alone: `de>0` pitches up,
+  `dr>0` yaws nose-LEFT, `da>0` rolls right (port lift up), `flap>0` lifts
+  and pitches down — all 25, and the V-tail with `tail.type 'v'` forced
+  into the spec (in node the cant is never measured, so the V-tail
+  archetype bakes conventional — a trap for anyone probing it there).
+- **The visual was wrong on three of four surfaces, on every cage build.**
+  Headless Chrome on `dev.html`, every archetype born, the join's snapshot
+  read back and each surface's trailing edge turned by its own `sgn·k·0.3`
+  about its `axis`: elevator UP for `de>0` (right); PORT aileron UP for
+  `da>0` (roll right — reversed, both sides); flaps UP (reversed); rudder
+  to STARBOARD for `dr>0` = nose left (reversed, twin rudders too). THE
+  FACT UNDER ALL OF IT: cage +x is model +z, and **+z is PORT** (the
+  solver's own probe says so; the crew layer's "pilot's right = −x" says
+  so). The cage's 'R' surfaces are the port ones, and the table said
+  `ailL: −1`. Only the elevator, symmetric, could not be wrong.
+- **The crank.** The hinge was a bare model axis ([0,0,1] or [0,1,0] by the
+  forward edge's longer extent). A Jodel with 14° of outer dihedral put the
+  aileron's real hinge 16.7° off that axis — the surface sheared instead of
+  hinging. Now `cageSurfHinge(pts, surf, {cant})` (module scope in
+  `_cage_join.js`, exported) measures pivot AND axis from the forward
+  18 % band — the line between the band's two ends, along z for every
+  surface, along y for a rudder, pointed +z/+y so the signs keep one
+  meaning — and picks drive and sign BY SIDE OF THE PIVOT, never by name.
+  Re-measured: 1.1° on the cranked Jodel; a raked rudder post hinges along
+  its rake; a V-tail root falls out of the same line (no cant formula).
+- **The ruddervator, twice.** (1) app.js `surfParts` never read the join's
+  `drive2/sgn2` (published 2026-09-04) — a cage V-tail moved for the
+  elevator and ignored the rudder; carried and summed now, as the `moving`
+  path already did. (2) The solver's V panel normal leaned OUTWARD
+  (`− side·sinG·right`, with the rudder mix negated to yaw the right way);
+  a dihedralled panel's normal leans in. Fixed both signs: yaw and pitch
+  response unchanged (dr 0.3: yawLeft 2352 → 2358), the tail's sideslip
+  roll couple now has the dihedral sign, and the drawn ruddervator (port
+  DOWN, starboard UP for nose-left, both trailing edges to port) is the
+  Bonanza's.
+- **The nav lights** were the same fact: `navR` at cage max.x wore green —
+  on the port wing, since G96. Port red, starboard green now.
+- **Sensitivity.** `gain` per axis binding (input.js `mapBinding`, after
+  the expo, clamped at full travel, centred axes only — a lever's travel is
+  its reading), 0.05-2 in the model, a `sensitivity` slider 10-150 % in the
+  tuning row under an axis chip (input_panel.js). Inferred bindings carry
+  `gain: 1`; `normalise` fills and clamps it; the round-trip stays exact.
+- **Gates.** JOIN: 15 new checks turn each surface by hand against the
+  physical expectation (port/starboard aileron, flaps, elevator, rudder,
+  raked post, crank within 1°, V-tail's two drives, 10° stab not a V) and
+  probe a V-tail spec for yaw and pitch sign. INPUT: gain (map, saturation,
+  lever immunity, profile) and the flap-drive check asks `cageSurfHinge`
+  instead of scanning the source. Battery subset green: AA INPUT FLAPS
+  PILOT TAKEOFF HONEST BIPLANE MASS SKINMAT UISMOKE BUILD SURF LIGHT FIN
+  JOIN STARTER SAVE GEAR BEACON PARTS DESIGN VIEW.
+- **TRAPS.** `pt.groups[k].pos` in a snapshot are REBASED about the pivot —
+  a side read off their mean is noise; read `pivot[2]`. The pane's rAF is
+  dead but headless Chrome's is not: `DESIGN_FLOW.bakeBirth` +
+  `GARAGE_SPEC.set` + `CAGE_JOIN.snapshot(CAGE_JOIN.export())` is the whole
+  visual instrument, no screenshot needed. A "before" solver is one
+  string-replace on `tools/flight_core.js` into the scratchpad — never a
+  checkout in the shared tree.
+- **Open:** the generated `moving` table (63_gen_wing) keeps its own signs
+  (self-consistent, unused since G184); no keyboard travel setting.
+
 ## G211 — THE BAR ACROSS THE COCKPIT WAS THE CONSOLE BOX (2026-09-07, the
 ## user, having clicked it: "the bar is the throttle console box, remove it")
 
@@ -33985,190 +34076,598 @@ throughout (the only core edits publish two numbers the sheet already had).
   named it in one go — the instrument for "what is that thing" is the
   editor's own part picker, not a grep.
 
-## G212 — THE REGISTRATION IS A DISTANCE FIELD (2026-09-07, the user: "Let's
-## add the SDF text for the registration now")
+## G210.1 — THE MANNEQUIN THAT CAME BACK, AND THE CLICK ZONE A METRE WIDE
+## (2026-09-07, the user: "selecting any mixamo figures gives me back the
+## original mannequin [...] Only the main pilot works" / "the area which
+## triggers a crew selection seems wider than the visual silhouette")
 
-- **The page's alpha is a signed distance to the glyph edge**, 0.5 at the
-  edge, ramping over AERO_SDF_SPREAD (3 % of the page, 30 px at 1024) each
-  side. The shader thresholds it one screen pixel wide (`fwidth`, floored)
-  for decals flagged in `uDecE.x`, MIXED into the loop rather than
-  branched — so the edge is wherever the threshold falls, at any zoom, and
-  the texels behind it can be as coarse as they like. RGB stays the raster
-  colours (ink, outline), with a 2R-wide underlay stroke in the outline's
-  colour so every texel under the ramp already wears a colour (the mips
-  average it; the old dilation walk is not run on this page).
-- **The transform is Felzenszwalb & Huttenlocher's**, exact, separable,
-  O(n) per row, run to the inside and to the outside of the marking's own
-  coverage on a scratch canvas; the difference of the roots is the signed
-  distance. Float64 — the "infinite" seed has to survive adds of squares up
-  to a million. Proven in node on a 3x3 block: corner 4.243 = sqrt(18).
-- **One bake per marking, not per slider**: every decal slider re-applied
-  the list and re-drew the registration with it, which with a transform in
-  the loop would be a laggy slider. `AERO_TEXT_SIG` keys the page on text,
-  colours, font and page size; a hit returns the cached aspect and fit.
-- The kit layers and the image pages are unchanged (raster); the same flag
-  would carry them if a pattern drawer produced a field.
+- **A failed fetch is forgotten, not cached.** `_cage_char.js load()` kept
+  the failed promise for the page's life, and ASSET_FETCH caches a rejection
+  by URL on purpose — so one dropped connection while a mixed crew pulled
+  300 MB of textures (the dev servers drop connections under load) left that
+  character a mannequin until a reload, while the first one in (the red
+  driver) had made it. Now the failure is logged with its reason, the entry
+  cleared, the next build retries, and the retry goes round ASSET_FETCH with
+  a plain fetch. Same rule on the clips. (Reproduced only by inference:
+  on this machine every character loaded and dressed by name and by cycle.)
+- **The sight line answered the clicks.** A THREE.Line is picked with
+  `Raycaster.params.Line.threshold` — ONE METRE by default — so the 0.6 m red
+  sight line of the eye marker answered every click within a metre of the
+  pilot's head, as the crew layer (174 of a 441-ray grid around the pilot,
+  the shells 44). The marker ball and the line are unpickable now; the click
+  zone is the shells, i.e. the silhouette. The silhouette itself is still the
+  ATD's shells around the character (a hair large — a skinned re-draw of the
+  highlight is the owed fix).
 
-## G213 — THE WING IS FABRIC OVER A STRUCTURE, NOT THE FUSELAGE'S SKIN
-## (2026-09-07, the user: "In a plywood plane, the wing is wooden structure,
-## but cloth on top. Only the leading edge is made of plywood. That also
-## means that the list of materials for the wing is wrong; it should be
-## carbon, steel, aluminium or fabric. Fabric being the default when the
-## fuselage is either plywood or steel tubes ... The same goes for the fins
-## and stabilisers")
+## G213 — THE COWL EDITOR REVAMPED: THE ANATOMY NAMES THE GROUPS, THE ROWS
+## CARRY THEIR OWN RELEVANCE, SEALED BY DEFAULT, THE SPLIT LINE ENDS AT THE
+## PANEL JOINT, AND THE OIL DOOR READS AS A DOOR (2026-09-07, the user: "lots
+## of sliders do nothing, are confusing, wrongly grouped ... upper faces and
+## lower faces means nothing at all ... the parting line should stop at the
+## seam ... the oil door is invisible ... we probably need proper terminology
+## for the different parts of the cowl for unambiguous groupings")
 
-THE AUDIT. A wing, a fin and a stab "as the aeroplane" took the FUSELAGE'S
-construction row, so a wood aeroplane grew a PLYWOOD wing: ply's finish and
-grammar (gimp pins, panel laps) on the skin, ply's covering weight (1.35
-kg/m2 for what is 0.42 of fabric) in the ledger, ply's cd0 in the polar. The
-pinned rows offered the fuselage's list (composite / steel tube / plywood /
-aluminium) on every flying surface. And the polar penalty (62_gen_aero)
-read the fuselage's row even when the wing had its own material, so a
-carbon wing on a tube fuselage flew as fabric. The archetypes never pinned a
-surface, so every wood archetype (intCons 2) had ply wings and tails.
+- **The dead rows, measured before anything was renamed.** A node audit
+  (perturb every row at lo / mid / hi, hash the mesh the game draws: surface
+  + lips + scoop + detail) found six rows dead by construction — the tool's
+  STUB fuselage section (`inheritStub`, `stubDeckH`, `stubWaist`,
+  `stubKeelH`, `stubSqTop`, `stubSqBot`), which shape the bench's stand-in
+  fuselage and are forced off on the aeroplane — and ~30 more that are dead
+  only behind a master row (the nose ring radius under a matched ring, the
+  roll under a plain cut, the five pair rows under a single inlet, the
+  cut-out azimuth at span 0, the widest-line sweep with the widest line on
+  the axis). The six are gone from the table; the thirty now HIDE.
+- **Why they showed at all:** the tool's `when`s were applied by
+  `_cage_cowl.js` writing `display` on the DOM row after every build, and
+  the game's inspector (editor.js `applyVis`), which decides display from
+  the row's OPTS, wrote every one of them back to visible — so in the game
+  the cowl was a page of sliders that moved nothing. The condition now
+  rides on the row: `_cowl_rows.js` declares it (source over the tool's P,
+  the G28 audit's extras included), `_cage_cowl.js` rewrites it onto the
+  panel's `cw_` copy and compiles it into the row's opts, and the ONE pass
+  that decides display reads it on the bench and in the game alike.
+  `applyRowStates` keeps only the lock.
+- **The vocabulary** (head of `_cowl_rows.js`; the parts table follows it):
+  FIREWALL (the aft edge, on the fuselage's engine face) · BARREL (the
+  straight tapering panel) · NOSE BOWL (the curved piece closing onto the
+  NOSE RING round the spinner) · the SECTION at three stations (firewall,
+  barrel end, nose ring), each half diamond · round · square, the firewall's
+  with the TOP LINE / BOTTOM LINE / WIDEST LINE heights (the tool's deck,
+  keel, waist) · CHEEKS (the lobes over the cylinder heads) and the CUT-OUT
+  · INLETS and the INLET LIP · CHIN SCOOP · PANEL JOINT (nose bowl / barrel)
+  · SPLIT LINE (upper / lower halves) · FASTENERS · OIL DOOR · NACELLE. The
+  inspector's groups are exactly those, aft to forward; "upper faces /
+  lower faces" became "top half / bottom half (diamond · round · square)"
+  under a heading that names the station; `lidRise` is labelled for what
+  spineY does with it (the axis rise over the BARREL). Only the fit mode
+  stays in the trunk's `type` slot — the inlet count, the ring and the lip
+  edge go back to their own groups.
+- **Sealed by default** (`fitNose` 2): the firewall SIZE is always the
+  fuselage's, the SECTION is the builder's, so every section row is live
+  from the first click. A birth seeds the five firewall rows from the
+  fuselage once (`sectionFromFace`, through the existing
+  `CAGE_COWL_FIT_NEXT` door, styled architectures left alone), so a newborn
+  still meets its nose; `fitted` is one click away and keeps its 2026-09-03
+  meaning (the body wins, every build). A build saved before this carried
+  its fitted section as deviations and keeps its shape; it loses the live
+  coupling to the nose until `fitted` is chosen again. READ AS: the user's
+  "match to the nose cone section should be deactivated by default" —
+  taken as the fit mode, which is what locked the section rows; if the
+  spinner-matched nose ring was meant, that is `cw_lidMode` and one line.
+- **The split line ends at the panel joint** (`zP` in buildDetail): the
+  nose bowl is one piece, so the line and its camlocs run from the firewall
+  to the joint's aft edge (a step's set-in edge, a groove's aft shoulder),
+  the whole length only with no joint drawn.
+- **The oil door has a gap and a latch.** The panel was the cowl's own skin
+  lifted 1.5 mm, in the same paint, with no outline — invisible but for the
+  hinge. A 2.5 mm dark strip now runs round the outline (the split line's
+  own device: a shadow, not a modelled gap), and a quarter-turn latch sits
+  on the aft edge opposite the hinge. The panel mesh itself is unchanged
+  (GATE COWL measures it as the first skin mesh).
+- **...and it was a third of its width.** The door's angular half-extent
+  was `hw / hypot(x, 1)` — a radius of ONE METRE whatever the cowl's — so
+  the stock 130 mm door drew 39 mm wide on a 0.3 m half-height cowl, which
+  is the other half of "invisible". The angle is bisected now for the arc
+  that spans `oilW` on the surface the door is drawn on.
+- Gates: COWL, PARTS, STARTER, SAVE, DESIGN, UISMOKE, LOAD green.
 
-WHAT LANDED:
-- **GEN_SURF_MATERIALS**, the flying surfaces' OWN vocabulary in
-  60_gen_spec.js: `fabric` (wood structure — spruce spars, built-up ribs, a
-  ply D-box at the leading edge — under doped fabric; cover 0.80 kg/m2 =
-  fabric 0.42 + the D-box's share of ply), `steel` (4130 tube structure
-  under fabric, cover 0.42), `alloy`, `carbon` (the fuselage rows, shared).
-  The structure columns (phys, lin, k, c) are shared with the fuselage row
-  they come from — a spruce spar flexes as spruce in a wing or a fuselage —
-  and only the cover, price and cd0 are the surface's. GEN_MATERIALS is
-  untouched: a fuselage of "fabric" is not a thing, and GATE FLEX / LOAD
-  build a fuselage from every row of it.
-- **GEN_SURF_DEFAULT** — tubeFabric -> fabric, wood -> fabric, alloy ->
-  alloy, carbon -> carbon — is what a surface that says nothing is built of.
-  `genSurfKey(S, 'wing'|'fin'|'stab', k)` / `genSurfMaterial` resolve it;
-  clampSpec reads a LEGACY token as what it always meant on a surface
-  (`wood` -> fabric, `tubeFabric` -> steel; GEN_SURF_LEGACY), an unknown as
-  absent, on every plane of a biplane. No GEN_SPEC_V bump: absent still
-  means "the default", and the default is the ruling.
-- 61_gen_frame's section rows (MSEC.wings, MSEC.tail, the fin's MB) and
-  62_gen_aero's three polars read the surface's row. 26_hangar_fit maps the
-  new tokens to the shops (fabric -> wood, steel -> tube).
-- The four editor rows (wgCons / w2Cons / finCons / stCons) read `carbon /
-  steel tube / fabric on wood / aluminium`, in the SAME index order, so a
-  saved 3 that meant "plywood" now means "fabric on wood" — the ruling. The
-  join writes the new tokens; the layers' `as the aeroplane` goes through
-  GEN_SURF_DEFAULT (window-global in the page, a literal fallback on the
-  bench).
-- AERO_BY_CONS gains `fabric` and `steel` (both wear doped fabric;
-  structure spruce / steelTube); GEN_BUILD_GRAMMAR gains the same two keys
-  as tube + fabric's row (what prints through a fabric cover is the ribs,
-  whatever they are made of). GATE SKINMAT's key check is the UNION of the
-  two material tables against the grammar, plus the default rule and the
-  finish walk on the new tokens; GATE BUILD's G116 test names the surface
-  default (and a legacy `wood` wing reads as it); GATE JOIN's biplane
-  expects `fabric`.
-- THE LEADING EDGE is not a separate material: the D-box is under the same
-  dope and paint, and the shader's LE band (smooth, no rib print, the
-  worn wash) has said so since G106. Nothing to draw differently.
-- MASS MOVES on every wood and tube aeroplane: the wing and tail cover
-  billed ply (1.35) or tube fabric (0.42) and bill 0.80 now on a wood
-  fuselage (fabric + D-box). GATE GEN's shakedown anchors are re-read off
-  its own line, as the ritual says.
-- **THE TAIL'S DEFAULT IS THE FUSELAGE'S STRUCTURE UNDER FABRIC** (the
-  test-section session, GATE TAKEOFF: the stab rolled 3.7 deg against the
-  mains through a taxi, over G199.5's 3.5 deg bar): handing a tube
-  aeroplane's tail the wooden row halved its stiffness (k.fus 8.0e5 ->
-  4.15e5). `GEN_SURF_DEFAULT_TAIL` = { tubeFabric: steel, wood: fabric,
-  alloy, carbon }; the wing keeps fabric over wood on both (the user's
-  explicit call). `steel` IS tubeFabric's numbers, so the stock tail is
-  bit-identical to before G213 and the bar stands unmeasured.
-- **THE LOAD RIG JUDGES THE WING AS WHAT IT IS BUILT OF** (the same
-  session: "HELD — over yield", 131 %): 65_gen_loadtest took every class's
-  allowable from the FUSELAGE's row, so a spruce spar was judged against
-  steel's 0.62 kg/m section. `cfg.wingMaterial` (app.js passes
-  genSurfKey(genSpec, 'wing'); test_load.js the surface default) judges the
-  wing class by its own row: stock 85 % HELD (77 % as a tube wing before).
-  A fabric-covered wooden wing also FLEXES MORE than a ply-covered one
-  (2/3 of the wood row's k.wing, a judgement): the ply skin was the shell.
-- The two fabric grammar rows declare `alias: 'tubeFabric'`; GATE SKINMAT's
-  duplicate check steps over declared aliases. GATE BUILD's G117 ratios
-  read the surfaces' table. GATE WINGSPLIT's baseline is re-blessed: the
-  mass model moved, which its header names as the honest case.
-- **THE WING'S CENTRE SECTION HAS ITS OWN SPAN COORDINATE** (the user: "the
-  central part is not correctly mapped"). It is ONE loft bay between the
-  two root rows, both at |z| = zRoot, so a field built from |z| was 0 at
-  both ends and CONSTANT across the metre between (measured: sL 0..0,
-  st -1..-1 on 182 vertices) — the sheet stretched into spanwise stripes.
-  pickParts hands the class to the field builder; the centre takes the
-  signed z (0 at the right root, -2 zRoot at the left, the seam under the
-  fuselage) and the rib index at the first bay's pitch.
-- **THE FABRIC ROW IS THE USER'S DIALS** ("update the defaults to
-  screenshot"): tile 0.063, roughness 1.0 (x4 hit the ceiling: matte
-  pigment under the coat), nrm 0.78, sheen 0.74, field 0.45 mm; and THE
-  CROSS HATCH IS BACK — G206 had flattened it and the 3 cm tile with 30
-  threads made a sub-pixel thread; `weave` (threads a tile, 10) is a row
-  field and a lab slider that rebakes. The lab's tile floor is 5 mm and
-  every per-section multiplier starts at 0.05 ("all sliders need to go
-  lower").
+## G214 — TAIL CHANTIER 2, P0: THE INSTRUMENT — THE LAYERS MEASURE THE DRAWN
+## TAIL, THE PAGE'S BUILD IS ONE FUNCTION, AND THE TAIL BUILDS WITHOUT A PAGE
+## TO THE BIT (2026-09-07, the user: "tail chantier 2. There is a spec written
+## in future designs. Open it, read it critically, suggest your own
+## implementation plan" — and, on the plan: "include also: when horn balance
+## option, the pivot point is wrong")
 
-## G214 — MEMBER SCREWS, RIVETED ALUMINIUM WINDOW FRAMES, THE DOOR'S OWN SEAL,
-## THE OPTIONAL KEYLINE, AND THE BASE COLOUR (2026-09-07, the user: "some
-## subtle rivets along the pillars and rings ... painted in the appropriate
-## color. Smaller than [the cowl's] too, maybe like little nails or small
-## screws. Have an option to hide them and options to configure them. On the
-## registration, we should not be constrained to have an outline ... a macro
-## base color in the plane livery ... the 'joint' would rather be a aluminium
-## riveted frame rather than a rubber joint")
+The spec (`futureDesigns/TAIL-CHANTIER-2-2026-09-07.md`) was verified claim
+by claim against the tree first (~160 line-level claims, three read-only
+sweeps); the corrected plan is the session's plan file and the spec now ends
+with an IMPLEMENTATION NOTES block that lists every premise that changed the
+work (no area row exists on ANY join path; the solver reads deformed nodes
+only for `kind === 'wing'`; a V-tail's Sh/Sv are overwritten by assignment
+after the rule; `mesh: s` carries no part tags; MIR pods fail D4's gate too;
+`empennage` is not `once`; G213 already gives the tail its own material
+row; `bench.js:429-431` STAMPS the live fingerprint onto an unstamped
+certificate on restore). Two rulings taken from the user: the seed lands
+WITH the G197 flip in P5 (one fleet move; P1 measures only), and NO
+GEN_SPEC_V bump / NO value-sniffing migrator (GATE BUILD :282 asserts the
+opposite): compatibility = the join re-runs on load, a frozen v8 fixture
+with a drawn tail gates the load path, PHYSICS_V lands for the certificates.
 
-- **THE SKIN IS SCREWED TO THE FRAME.** Heads along the REAL rings and rails
-  of the body — the cage's own stations and levels, where a ply or alloy
-  skin is screwed to its formers and longerons — drawn as a mipped stamp
-  (`tFastM`, the rivet baker's with the screw's numbers) on the normal and
-  a little roughness, never a colour: painted screws. Rows on `Structure &
-  skin`: `member screws` on/off, `screw pitch / head / rise` in METRES
-  (30 mm, 2.5 mm, 0.4 mm). Never on a tube + fabric fuselage (stitched,
-  not screwed), whatever the switch. `memF` crosses the join.
-- **THE WINDOW FRAME IS ALUMINIUM, AND RIVETED.** `joint` (role `bead`) is
-  bare alloy in every construction; a six-sided low frustum every
-  `rimRivet` (0.04 cage units, ~30 mm) along the strip's crown, in the
-  strip's own material — a painted head is a normal. The DOOR keeps a
-  rubber seal in its own section `doorSeal` (role `seal`), claimed by the
-  door part; every pass that skipped `joint` skips it too. GATE PARTS gains
-  a `door gap` shape (the seal exists only with the gap drawn); page 5 draws
-  the gap by default now.
-- **THE KEYLINE IS OPTIONAL**: `outline on` (`regOutOn`) in the registration
-  block; off, the underlay stroke and the field are the ink's alone.
-- **THE BASE COLOUR** at the livery's head writes every exterior cage
-  section's tint (skin, rail, pillar roles) and clears the overrides on the
-  layer parts that wear their parent (cowl, struts, fairings, fittings);
-  the wells below still override; the wing and the tail keep their own.
+- **`finMeasure` (`_fin_gen.js`) — the drawn sheet's areas and chords**, pure
+  mesh arithmetic on the subdivided, CUT, UNTHICKENED sheet (the thickened
+  solid counts both sides). By part (`rudder` = the control, set by
+  finCutMesh) and material (`leadingA/B` = the dorsal, `optionalKeelExtension`
+  = the keel tab — which the cutter files WITH the rudder, so it swings and
+  counts): `area, areaCtl, areaDorsal, areaKeel, areaProper (− dorsal −
+  keel), areaTail (− dorsal: what Sv/Sh count, ruling (l)), ctlFrac
+  (areaCtl / areaTail — the area-weighted mean chord fraction, the honest
+  input to a single-τ flap model), y0/y1/span, z0/z1/chordBox (the old bbox
+  readout), chordMean (areaProper / span — the rule's own definition),
+  chordRoot, chordAt(t)` (a slice at a span station — the frame's strips
+  will read it), and **`hinge` — the DECLARED cut plane** (`m0.cutZ`, fin
+  space, and ×FS), so no reader has to infer the hinge from the surface's
+  own vertices. Lengths ×FS, areas ×FS²: metres, and FS rides along.
+- **`ST2FIN` moved into `_fin_gen.js`** — one home for the stab-reads-the-
+  fin map (the stab layer, the headless tail and the sweep read it; the
+  sweep's own copy was the drift the plan warned of). A new st* macro is a
+  new entry there, nowhere else.
+- **The layers publish `measure`**: `_cage_fin.js` and `_cage_stab.js` keep
+  the cut sheet as a local before `finThicken` and publish
+  `CAGE_FIN.measure` / `CAGE_STAB.measure` beside `mesh`; the stab's carries
+  `rootX` in METRES (`stX` is a cage-unit row applied before the group's
+  scale — the sweep's first cut added it to metres unscaled), `cant`, `mount`.
+- **`CAGE2.cageSheet(P, { step, level })`** — the page's whole build
+  sequence (spec → cage → subdivide → glass sill → cut → canopy → rims →
+  interior → the explode undo) as ONE pure function; `_cage_ui.js build()`
+  calls it and holds no copy. `sheet` is the mesh the layer contracts are
+  taken on (`sFix`), `mesh` the displayed one.
+- **`tools/_tail_headless.js` — `tailBuild(P, { level, mesh })`**: the fin
+  and stab layers' build with no THREE and no DOM — same spec composition,
+  same deck (`finCentreline` on `cageSheet(P).sheet`), same root projection,
+  same cut, the fin solid too (the T-tail seat reads the THICKENED fin's
+  top) — returning the layers' own objects and `measure`. `approx` names
+  the one thing it cannot reproduce: a twin-boom deck (the wing layer's
+  booms are not built there; the fin roots on the fuselage centreline and
+  the row says so). `designFull(sel, over)` (`_cage_design.js`, the first
+  half of `designBake`) gives an archetype's full P for it.
+- **GATE FIN §8, the proof**: the measure's arithmetic on the sketch (area =
+  the face sum; a slice is an EXTENT and can only over-count — the sketch's
+  root guard bridges the excluded dorsal by ~2 %; the stab panel's slices
+  integrate to the UNCUT sheet's area within 1 % and exceed the cut sheet's
+  by exactly the slot), its units (FS once on lengths, twice on areas), its
+  cuts (rudder 29.4 % hinge / 44.1 % horn on the sketch, elevator 41.8 % on
+  the Cub panel), and **two PAGE fixtures reproduced headless to the BIT**
+  (`tools/fixtures/tail_measure_2026-09-07_{boot,horn}.json`: the page's
+  P and the layers' measures captured off dev.html — the boot build, then
+  horn balance on both surfaces + the stab on the fin tip; worst deviation
+  0.0). That is what licenses ruling (s): a node gate CAN fly the drawn tail.
+- **`tools/tail_sweep.js`** rewritten on top of the above; prints the plan's
+  §1 table. Re-measured (stX in metres, Sv = proper + keel, dorsal out):
+  drawn Sh 2.29 m² (was 2.36 with the units slip) on 25 cards against a
+  ruled 1.05–4.06; drawn Sv 1.25; the drawn elevator is 39.3 % and the
+  drawn rudder 24.2 % of their surfaces on EVERY card (one tail on 25 cards
+  — D3's "fiche" numbers were the two reference OBJs); rod cards 25.5 % (no
+  keel). SM if the drawn tail flew: −4.6 … +13.3 % MAC, every card but the
+  Caravan-alike (already out) inside 5–35 — nothing to re-anchor at P1.
+- **Two hinge defects found for P1** (`_cage_join.js`): (1) the horn
+  balance — `cageSurfHinge` takes the forward-most 18 % of the surface's
+  x-extent as the hinge band; with `finCut 2`/`stCut 2` the control keeps
+  the crown, so that band is the HORN's leading edge at the tip, the pivot
+  lands in the horn and the band's span collapses the axis; (2) **every
+  surface's hinge points are pitched TWICE** — `pushV` (:1509) bakes each
+  vertex into body axes with the frame's pitch β, and the snapshot (:1658)
+  applies the same rotation again before `cageSurfHinge`, so the pivot sits
+  ~β × arm off the true line on every build. The fix (P1): the layers'
+  DECLARED plane (`measure.hinge`) mapped by the ONE transform the vertices
+  take, the vertex heuristic kept only for surfaces that declare none.
+- **Gates**: FIN (new §8), JOIN, UISMOKE, PARTS, DESIGN, SAVE, BUILD, BENCH
+  green; the core battery ran 51 green with three reds none of which load a
+  file P0 touched — GEN killed at the 1800 s cap on a loaded machine,
+  ENERGYBASE (+~7 kg on every frozen aeroplane) and MOUNT (92 substeps over
+  the bound) on the other session's UNCOMMITTED core work (`60_gen_spec.js`
+  +120, `61`/`62`/`65` — G213's GEN_SURF_MATERIALS); both checkers require
+  `flight_core.js` only. Not committed at the time of writing.
 
-## G215 — METALLIC PAINT (2026-09-07, the user: "allow for metallic paint on
-## the global fuselage and for the decals")
+## G215 — TAIL CHANTIER 2, P1: THE DRAWN TAIL IS THE FLOWN TAIL — THE JOIN
+## READS THE LAYERS' MEASURE BY IDENTITY, WRITES THE AREAS AND THE MEAN
+## CHORDS, THE CONTROL CHORDS ARE THE CUT'S, THE CLAMPS SPEAK, AND THE
+## SURFACES HINGE ON THE DECLARED PLANE (2026-09-07)
 
-- A metallic paint is metal flake in a pigment under a clear coat: the
-  material's metalness rises toward a flake's (0.85) with the dial
-  (`metalK`, per section, 0..1, its own row — not a multiplier), and the
-  flake breaks the roughness up at a twelfth of the sheet's tile
-  (`uFlake`) so the reflection SPARKLES instead of reading as one polished
-  plate. `base metallic` beside the base colour sets the whole fuselage.
-- **A MARKING CAN BE FLAKE TOO**: `metallic` on the registration, on each
-  kit layer and on the two image channels (`uDecE.y`); where a metallic
-  marking covers the pixel, the metalness rises to the flake's and the
-  roughness breaks up the same way.
-- The dial crosses the join (`metalK`) and the spec (`metal`) like the
-  other dials; the resolver walks it down the parent chain.
+Before this, the join wrote eight tail rows (spans, stations, heights,
+bounding-box "chords") and NO area — `put` in resolveSpec then sized Sh and
+Sv from the volume rule, so eleven times the drawn area reached the same
+flown tail (TAIL-PHYSICS-AUDIT D1), and on a rod boom or a mirrored pod the
+whole tail block was skipped because it was gated on the fuselage's tail
+post (`zPost != null`, D4). The bounding-box chord swallowed the dorsal and
+the elevator notch: the stock's hChord read 1.28 m for a 0.75 m mean.
 
-## G213.1 — THE FABRIC WING'S STIFFNESS, SET BY THE INTEGRATOR'S OWN BUDGET
+- **The join reads the measure by identity** (`_cage_join.js`, the tail
+  block): `CAGE_STAB.measure` / `CAGE_FIN.measure` exist and the part is on
+  — not `zPost`. Rod booms and pods measure their tail now. `tailSurfBounds`
+  keeps the tip-to-tip span, the stations, the stab's height and the fin's
+  apex; the AREAS and CHORDS are the sheets' own: `Sh` GROSS (both panels +
+  the carry-through `2·rootX·chordRoot`), `Sv` = fin proper + rudder + keel
+  tab, DORSAL OUT (`tail.dorsal.area` measured apart, read by nothing yet),
+  `Svt` on a V (both panels uncanted), `hChord = Sh/hSpan`, `vChord =
+  Sv/vHeight` (mean chords — the rule's own definition), twin booms' `Sv` =
+  two drawn fins (the twin rule stands down). `cageJoinSpec` writes them by
+  assignment beside the eight rows; `GEN_DEFAULT.tail` DECLARES `Sh / Sv /
+  Svt` (inputs since G115, undeclared until now) and `dorsal.area`; the V
+  block takes a measured `Svt` (its mean chord over the uncanted span).
+  vHeight and stabH still invert the lattice's placement formulas and need
+  the tail rings: on a rod they stay the rule's — derived from the MEASURED
+  Sv at the rule's aspect ratio — and a NOTE says so.
+- **The control chords are the drawn ones** (D3): `controls.elevator.chord`
+  and `controls.rudder.chord` = the cut's area fraction (`measure.ctlFrac`),
+  merged into the wing's `controls` object (the flap and aileron rows live
+  there — the first cut replaced it and GATE JOIN's G185 row caught it). An
+  UNCUT surface writes nothing and leaves a note ("the default rudder chord
+  flies"): the garage's merge keeps the last good number otherwise, and a
+  value written as "the default" would be the value-sniff the user ruled out.
+- **The clamps speak.** `GEN_TAIL_ENVELOPE` (`60_gen_spec.js`, one home:
+  hSpan 1.5–4.5, hChord 0.4–1.6, vHeight 0.6–2.2, vChord 0.4–1.8, elevator
+  0.2–0.55, rudder 0.2–0.6) is what `clampSpec` cuts to AND what the join
+  reads: a drawn value outside it is an ERRS row on the build — "flies
+  clamped — the drawn tail is not the flown tail" — never a silent cut (the
+  G206.3 lesson). Exported to node. The horn-balanced stab's 60 % elevator
+  trips it today; P3 re-cuts the envelope with the macros.
+- **NOTES beside ERRS** (`CAGE_JOIN.notes()`): what the join could not
+  measure and flew by rule — an uncut fin, a rod's fin height. Not ERRS: the
+  bench files every ERRS row as a failed test, and a measurement LIMIT is
+  not a failed measurement. Nothing displays them yet (P5's card).
+- **The hinge, twice wrong, fixed** (`cageSurfHinge` + the snapshot):
+  (1) **the horn balance** (the user: "when horn balance option, the pivot
+  point is wrong") — the band was the surface's forward-most 18 %, which on
+  a horn-balanced control is the HORN's leading edge at the tip (the real
+  horn-cut rudder's pivot sat 0.32 m forward of the post); the layer's
+  DECLARED cut plane (`measure.hinge`, mapped through the bake's own
+  transform: px = −z·FS then the frame's pitch → the plane n = (cB, sB, 0),
+  d = −zH·FS; the stab's plane rides its lay's zOff) is the band now, the
+  vertex heuristic the fallback for surfaces that declare none (the wing's)
+  or a plane that catches nothing (`hingeFrom` says which). (2) **every
+  surface's vertices were pitched TWICE** — `pushV` bakes them into body
+  axes with the frame's pitch β and G209's hinge call rotated them again —
+  so every pivot sat off its line and the rudder's axis leaned 2β. Measured
+  on the stock (β = −3.69°): the rudder axis leaned 7.4° before, 3.69° after;
+  the rudder pivot moved 0.55 m in y, the elevator's 0.15 m.
+- **The stock, live** (dev.html, the join re-run): Sh 2.29 m² gross, Sv
+  1.25 (dorsal 0.14 apart), hChord 0.753 / vChord 0.754 (the box said 1.28 /
+  1.46), elevator 39.3 % / rudder 28.0 %; no ERRS, no notes. Horn balance on
+  both: the elevator's 60.2 % trips the envelope (an ERRS row), the rudder
+  pivots on the post. Uncut fin: the note, no rudder row. Rod boom: Sh and
+  Sv measured (Sv 1.11, no keel), the note, vChord left to the rule.
+  `_cage_page5.js`'s frozen stock tail rows carry a comment: box readouts,
+  re-measured on every load, never flown.
+- **GATE JOIN, eleven P1 rows**: the synthetic measurement carries `Sh 2.1 /
+  Sv 0.99 / dorsalArea / elevChord 0.38 / rudChord 0.31`; they pass the
+  export, survive resolve NOT auto (closing the hole that `hChord/vChord`
+  sat in the synthetic M and were asserted nowhere), reach the frame — the
+  stab strips sum to Sh, the fin strip is Sv, the smaller chords lower
+  `elevTau/rudTau` — a measured twin `Sv` and a measured V `Svt` stand over
+  their rules; the horn tab on a synthetic rudder (heuristic: in the horn;
+  declared: on the post, same drive and sign; a plane that catches nothing
+  falls back and says so); the REAL horn-cut rudder off the page fixture
+  through the bake's own map at β 0.08: pivot 2.5 mm off the declared plane,
+  axis along the pitched post, where the heuristic had it 0.32 m forward.
+- No fleet anchor moves: the stock draws no cage, ARCHETYPES flies pre-join
+  (P5 lands the headless tail there with the seed and the flip, RULED).
+  Gates run: JOIN green standalone; the subset JOIN/FIN/DESIGN/PARTS/SAVE/
+  BUILD/HONEST/BIPLANE/UISMOKE/BENCH/GEN — see the line below.
+  Subset run after the live checks: HONEST, BIPLANE, UISMOKE, BUILD, FIN,
+  JOIN, SAVE, BENCH, PARTS, DESIGN green; GEN killed at the runner's 1800 s
+  cap again (as in the P0 battery, before any core edit — the machine is
+  shared by six sessions); re-run uncapped, see G216's line.
+
+## G216 — TAIL CHANTIER 2, P2: THE CAGE'S OWN VERTICES ARE THE EXPERT TIER,
+## AND THE CONTROL CAGE FOLLOWS THE SWITCH (2026-09-07)
+
+- The fin's and the stab's seven shape groups each — tip, top-aft corner,
+  base corner, leading edge, rows, trailing edge, corner sharpness (46 rows,
+  none a builder's word: TAIL-ARCHETYPES §1) — carry the part table's
+  `EXPERT` triple (`_cage_parts.js`, precedent `creases`), so the game's
+  inspector files them behind the expert switch; the bench's own switch
+  reads the same tier off the layers' sub-groups (`level: 'expert'` on the
+  corners / rows & points / trailing edge / corner sharpness / dorsal
+  creases subs of `_cage_fin.js` and `_cage_stab.js`). The trunk keeps the
+  height and the root length. `finOn`/`stOn` sit in their `fitted` groups,
+  so editor.js's gate rescue (`:610`) has nothing to rescue.
+- The fin's CONTROL CAGE (the three-step Blender cage, `finWire`) draws when
+  the expert switch is on as well as when the display row asks — it is what
+  the expert rows move — and `setExpert` (editor.js) rebuilds the cage so
+  the wire appears on the toggle (measured: 0 wire objects off, 1 on). The
+  stab draws no cage (it never did; the fin's is the grammar's).
+- Gates: PARTS, DESIGN, FIN, UISMOKE green.
+
+## G217 — TAIL CHANTIER 2, P3: THE MACRO TIER — HEIGHT, CHORD, TIP CHORD,
+## SWEEP AND THE HINGE IN THE WING'S VOCABULARY, THE HINGE A LINE, THE CLAMPS
+## SPEAK, AND A TAIL-OUTLINE STARTER WITH A FROZEN STRAIGHT FIN (2026-09-07)
+
+- **The five numbers** (`_fin_gen.js`): `finHeight` (× the sheet's height
+  over the root line — the deck at each station; the keel tab below stays),
+  `finChord` (× about the HINGE), `finChordTip` (the tip chord as a fraction
+  of the root's, a taper about the hinge — the post stays straight and
+  vertical, as a tapered fin's does), `finSweep` (degrees of shear; the
+  post RAKES with the sheet, as a swept fin's rudder post does), `finHinge`
+  (the rudder's share of the root chord — not a transform: it moves the
+  fiche's guard column pair as one, so every clamp, rail and cut that reads
+  `D.zH1 / D.zH2` follows; the fiche's own share is 0.2074 and FIN_PARAMS
+  carries EXACTLY that number). Composition = the fiche ⊕ the corner deltas,
+  then the transforms of the EMITTED sheet (TAIL-ARCHETYPES §4 layering B,
+  the corners untouched), each guarded so the identity is a bit-exact no-op
+  (GATE FIN's two OBJ identities untouched — `r + 1·(y − r)` is not `y` in
+  floating point). The dorsal's own columns keep their stations. The stab
+  reads them as `stSpan / stChord / stChordTip / stSweep / stHinge` through
+  `ST2FIN` (five new entries, one map). Rows: a `size` sub-group on both
+  layers and a `size` group in the part table, NOT expert.
+- **The hinge is a LINE** (`buildFin2` → `hingeLine`, root point → top
+  point, fin space; `finMeasure.hinge.line/lineM`): a swept post rakes, so
+  the plane of P1 was a special case. The join (`_cage_join.js` snapshot)
+  maps both points through the vertex map (the stab's through its own
+  `finToStab` lay, per side), and the band plane is the one through the
+  line whose normal lies along the chord (n = x̂ − (x̂·d̂)d̂). Measured on
+  the stock at sweep 25°: the declared line's top moved 0.8 units aft, the
+  captured rudder axis leaned 29.0° = 25° + the frame's 3.7°.
+- **The clamps speak on the drawing too** (ruling (b)): every clamp in
+  `buildFin2` that changes a value names itself (`out.clamped`, the layers
+  publish it) and the join files a NOTE — "the drawing stopped a slider
+  short — tip fore / aft". The stock's own `stTipZ 0.22` was already
+  clamped, silently, before today. GATE FIN sweeps every macro's range ends
+  on both fiches: none clamped on the sketch; on the Cub tail — whose tip
+  sits far aft — a 45 % hinge meets the tip corner's geometric guard and
+  must name it. `finHinge` ranges 0.08–0.45.
+- **GEN_TAIL_ENVELOPE re-cut**: elevator and rudder 0.15–0.65 (the Cub
+  reference reads 35 %, a horn-balanced tailplane 60 %); `genFlapTau`'s own
+  clamp 0.60 → 0.70.
+- **The starter** (`_cage_design.js` `finArch`, "Tail outline", `once`, no
+  `read`; `DESIGN_PART.finArch = ['tail','fin','stab']`; `iconFin`):
+  `rounded` = FIN_CUB, `straight` = `FIN_STRAIGHT` — a straight-tapered fin
+  with crisp corners FROZEN in `_fin_gen.js` (the shoulder station solved
+  once, 0.305521, so it sits ON the LE line) and held by GATE FIN (LE one
+  line to 4e-7, TE the plain chord, top one line within 3 mm, no clamp at
+  rest). Each option writes the same 24 fin keys (FIN_CUB's minus the
+  dorsal and keel switches — the builder's own, ruling (c) — plus the six
+  FIN_CUB does not state) and the same 22 laid flat through ST2FIN — a
+  previous pick leaves nothing behind. `_fin_gen.js` moved ahead of
+  `_cage_design.js` in build.js's MANIFEST (pure, no deps): the design rows
+  read the frozen dicts at load time, and in the browser they were not
+  there yet (node's require fallback had hidden it). Live: 46 keys an
+  option; `straight` on the stock → Sh 2.65, Sv 1.38, rudder 29 %,
+  elevator 26 %.
+- **Live, the macro tier**: chord ×1.3 → Sv 1.25 → 1.60 m², vChord 0.75 →
+  0.97; hinge 35 % → rudder chord 28 → 47 %, the pivot 0.19 m forward on the
+  new post; stab span ×1.3 → Sh 2.29 → 2.94, elevator with a 35 % hinge
+  63 % (inside the re-cut envelope, no ERRS).
+- The V-tail probe the plan owed (DEBT-REGISTER :218) is already in GATE
+  JOIN since G209 ("V-tail dr > 0 yaws nose LEFT", "de > 0 pitches nose
+  UP"); nothing to add. Gates: FIN (§8f macro tier, §8g straight fin),
+  JOIN, PARTS, DESIGN green standalone; the subset run — see the line below.
+
+## G218 — TAIL CHANTIER 2, P4: THE TAIL STRUCTURE IN THE WING'S IDIOM — TWO-
+## SPAR PRISM TRUSSES ON THEIR OWN NODES, STRIPS ON THE BAYS OFF THE
+## DEFORMED SPARS, THE TAIL CLASS, THE LOAD RIG LOADS THE STAB AND THE FIN
 ## (2026-09-07)
 
-- The full battery after G214 found two gates G213's subset had not run:
-  **GATE MOUNT** (stock nose 92 substeps against SUBSTEP_MAX 80) and **GATE
-  ENERGYBASE** (the frozen masses, positions and ledger moved). The first is
-  the fabric row's `k.wing`: 2.1e6 was two thirds of the PLY wing's and
-  four times the tube wing's 5.0e5 that the stock aeroplane had, and the
-  substep count follows the stiffest spring. Measured: 1.0e6 (a third of
-  the ply wing's, twice the tube's — a spruce spar under fabric, which is
-  plausible for what a stressed ply skin adds) holds 64 substeps; `c.wing`
-  700 in proportion.
-- ENERGYBASE is re-blessed: a deliberate change to what the aeroplane
-  weighs, which its header names as the case (stock 461 -> 454 kg, the
-  tricycle 449.9 -> 457.2 with its own tail).
-- RULE, learned twice today (WINGSPLIT, then this): a mass-model change
-  must run the WHOLE core battery, not the subset that seems affected —
-  three gates freeze mass-dependent numbers.
+Before: two tip nodes on four fuselage-class members each to the post and
+the last ring with no spar between them, three members for the fin — 60 %
+of the stab's load and half its skin booked to the fuselage, its incidence
+welded to the body axes, absent from the load test (D2). The three-node tail
+weighed 10.7 kg on the stock; a J-3's tail group weighs 14-16 kg with its
+fabric — the structure was never there.
+
+- **The stab is a two-spar prism** (`61_gen_frame.js`, the conventional
+  branch): stations at the wing's own pitch (0.55 m a bay, 2..4 of them) on
+  the trapezoid the join describes — gross Sh over hSpan for the mean chord,
+  `hTaper` (the join measures it now: the 75 % slice over the 25 %; the
+  field was declared and dead) for the taper, the elevator's chord fraction
+  for the REAR spar (the hinge is a spar), the front spar at
+  `GEN_RULES.tailSparFront` 0.15 — and a THIRD chord (HB) under each station
+  at `GEN_RULES.tailBoxDepth` × chord. Each bay: three chords, the plan's
+  two diagonals (rule 4), the two faces' four, a rib billed as the wing's;
+  the root triangle tied to the post and the last ring and carried THROUGH
+  (HF0L–HF0R, HR0L–HR0R, HB0L–HB0R — the tips were never joined). The tip
+  nodes keep their tags, are made FIRST (app.js's shadow proxy, _base_app,
+  GATE TAKEOFF's stab roll, the tailwheel wires all key on the first node so
+  tagged), hang on the last section AND are wire-braced to the fin post's
+  top and foot (tension-only, the G185 wire law, drawn) with the last ring's
+  pair tied as the old tips were. **The fin is the same up the post**: a
+  diamond section (VF, VR on the centreline, VX either side), `vTaper`
+  measured likewise, the apex keeping FIN, made first, on the last section
+  and the one below it.
+- **Three measured lessons on the way.** (1) A plane lattice has no
+  stiffness out of its plane: the first cut's fin — spars only — folded its
+  whole height under its side load; the wing's box is why the wing does
+  not, so the tail took the wing's depth (0.13 of chord, not a tail's real
+  8 %: a constant-k lattice is stiff by its depth squared and nothing
+  else). (2) A node lighter than the substep rule's 0.5 kg floor breaks the
+  rule: the apex read 0.09 kg with its skin on the spars and the sim was bad
+  from the first frame — the tips, apex and box chords are in the cover
+  lists now, and the stations carry ribs. (3) A root pair a hand's width
+  apart let the stab ROLL on the post: 8.4° against the mains through
+  GATE TAKEOFF's taxi where the old tips held 3.1°; two tail-class struts
+  6.1°; the Cub's wires and the ring ties bring it under the 3.5° bar
+  (a 400 N side load at the apex rolls it 3.0°). The tip's three members
+  in one plane were also a mechanism (GATE BIPLANE's rank 248/249) — the
+  wires and ties close it (249/249).
+- **The tail class** (ruling (q), post-G213): every tail member is `'tail'`
+  — the SURFACE material's wing row (a stab is a small wing, built of what
+  the stab is built of) at `GEN_RULES.tailSection` 0.35 of that row's lin,
+  k and c (a stab spar is 3/4" tube where a wing spar is 1-1/8") and
+  `GEN_RULES.tailK` = the wing's 4.0 (said, not tuned: GATE FLEX's beam
+  comparison for the tail is P5's). `B()` reads the class through `row()`;
+  the load rig's yield column and GATE FLEX's audit take the same section.
+- **The strips ride the bays** (`62_gen_aero.js`): two half-bay strips a
+  bay a side on the four spar nodes with `fIn/fOut/rIn/rOut`, the quarter-
+  chord weight split between the spars as the wing's, one centre strip on
+  the carry-through, the fin one strip a bay — the areas the bays' own and
+  summing to Sh and Sv exactly (13 stab strips on the stock's drawn tail
+  where there were four). `30_solver.js` takes the chord and normal from the
+  DEFORMED nodes for any strip that names them (the branch keyed on
+  `kind === 'wing'` before): the tail's incidence is its truss's now.
+- **The load rig loads the tail** (`65_gen_loadtest.js`,
+  `GEN_LOAD_SURFACES`): `cfg.surface` 'stab' (inverted under bags at the
+  wing's loading — its own area's share of n·W, a stated approximation of
+  the down-load case) or 'fin' (on its side at HALF that — the rudder-kick
+  case); stations on the surface's own tags, the trestles free the surface
+  and the flood's boundary is its tags, deflection along the case's axis.
+  GATE LOAD: the tail on every material, must survive ultimate and not fold
+  past half its span — the stock's stab 2.8 % at limit / 4.0 % at ultimate
+  (the wing 0.3 / 0.5), its fin 32 / 47 % on its side (soft: the constant-k
+  lattice on a tube aeroplane's row; the P5 item).
+- **The numbers, stock**: nodes 55 → 85, members 216 → 365 (150 tail-class,
+  4 wires), substeps 92 → 67 (the tips carry mass now), the tail ledger
+  10.7 → 20.6 kg / 449 → ~950 cr, static margin ~13 → 9.0 % (the mass sits
+  4-5 m aft). The swept fixture re-frozen 501.23 → 515.00 kg, CG 134 mm
+  aft, geometry to every digit (its note). `_energy_base --bless`: the
+  ledger's tail row moves on all 14 aeroplanes (it was bit-identical on
+  five of them — D1 in ledger form); the blessed baseline also carries the
+  other session's uncommitted G213 rows (+7 kg, every aeroplane), said
+  here so nobody hunts for them. GATE MOUNT's twin nose-over bar re-read
+  1.01 → 0.87 → bar 0.8 (the twin's CG aft with its tail's mass; its
+  substep bar of 80 was already red at 92 before this chantier).
+  GATE BIPLANE's rigging rows count the planes' wires, not the stab's.
+- Gates: JOIN (+7 P4 rows: spar nodes, tips first, tail class, strips name
+  their spars, the tapers on the trapezoid, the carry-through), FIN, BUILD,
+  SAVE, MASS, HONEST, STRESS, LOAD (+2 rows), MOUNT, AERO, GEAR, SITE,
+  ENERGYBASE, FLEX, TAKEOFF green; BIPLANE, GEN (uncapped) and ARCHETYPES —
+  see the line below.
+
+## G219 — TAIL CHANTIER 2, P5: THE CONSOLIDATION — THE SEED SIZES EVERY DRAWN
+## TAIL OFF THE RULE AT BIRTH, EVERY BUILD FLIES THE VORTEX DOWNWASH WITH THE
+## FIN END-PLATED, GATE ARCHETYPES FLIES THE DRAWN TAIL, CERTIFICATES CARRY
+## THE PHYSICS, AND THE FLEET IS RE-BASELINED ONCE (2026-09-08)
+
+The user's two rulings (2026-09-07) shaped this phase: the seed lands WITH
+the G197 flip so the fleet moves once, and no GEN_SPEC_V bump — a joined
+save re-measures on load and a fixture that carries the rows keeps them.
+
+- **The seed** (`_cage_design.js` `designTailSeed`, called by `designBake`
+  — the birth flow and the archetypes): the RULE's Sh and Sv for the
+  pre-join spec (the volume coefficients over the card's own wing) over the
+  DRAWN sheets' areas (`_tail_headless.js tailBuild` + `tailRows`, the one
+  arithmetic the sweep and GATE ARCHETYPES share now), applied as the macro
+  tier's height and chord uniformly (the drawn outline keeps its shape and
+  its aspect ratio) and the cuts switched on (ruling (m)). After birth the
+  drawing is the truth. One tail on twenty-five cards became a tail sized to
+  each: the sweep reads drawn/ruled 1.00 on every conventional card, the
+  factors 0.68 (the electric trainer) … 1.55 (the twin bush aeroplane). A
+  twin-boom card keeps its drawn size (the headless build cannot root its
+  fin on the booms and says so); the V-tail seeds nothing in node (G209's
+  own trap: it bakes conventional there). `_tail_headless.js` joined the
+  game's MANIFEST for the birth seed in the browser. The `empennage`
+  starter does NOT re-seed on a later pick (owed, the register).
+- **The flip** (ruling (o)): `62_gen_aero.js` `downwashModel: 'vortex'` for
+  every build — the elliptic kernel at each aeroplane's own tail position
+  where monoplanes flew the 0.40 constant. Measured per card (the P5
+  probe, unseeded tails, section 0.35): −8 % MAC on the Pitts-alike, −4 on
+  the Stearman- and radial-alikes, +3 on the Cub-, ultralight- and
+  motorglider-alikes — not "a few % upward on every monoplane" as the spec
+  guessed.
+- **The end-plate** (ruling (n)): `GEN_RULES.finEndPlate { conv 1.55,
+  cruci 1.4, t 1.7, v 1.0 }` on the fin's aspect ratio in the polar, the
+  type read off `tail.type` and `stabH` (≥ 0.8 a T, ≥ 0.3 cruciform).
+  The stock's cnBeta 0.074 → 0.107.
+- **The fleet, re-baselined ONCE.** With the tail carrying its structure
+  (P4), the flip and the end-plate, the seeded fleet at Vh 0.37 / Vv 0.0267
+  put FOUR archetypes under the 5 % floor (the Jodel-alike 2.8 %, the
+  electric trainer 4.5 %, the Archaeopteryx-alike 4.4 %, the P-38-alike).
+  Two levers, both measured: `GEN_RULES.tailSection` 0.35 → 0.25 (the
+  archetypes' tails 24 → 16-20 kg with their wires — the J-3's 14-16 kg —
+  and +3-4 % MAC on every card) and the volumes 0.370 / 0.0267 → 0.45 /
+  0.033 (a typical light aeroplane's; the old pair was calibrated under a
+  weightless tail and a constant downwash). Now ONE card is outside the
+  window and it was outside before (the Caravan-alike, 44 %); the stock
+  reads 15.4 % (Sh 2.40, Sv 1.07, tail 18.0 kg, 65 substeps). The seeded
+  fleet's margins: 5.8 (etrainer) … 29.8 (pietenpol), the sweep's table.
+- **GATE ARCHETYPES flies the DRAWN tail** (ruling (s), licensed by GATE
+  FIN's page-vs-headless fixtures): `_arch_check.js` builds each card's
+  tail headless off `designFull`, writes the join's rows into the pre-join
+  spec through `tailApply`, and prints which tail each card flies; a
+  twin-boom card flies the rule tail and the line says so.
+- **Certificates carry the physics** (ruling (p)): `PHYSICS_V` declared in
+  `60_gen_spec.js` beside `GEN_SPEC_V` with its bump rule (1: this
+  chantier); `bench.js`'s fingerprint folds `v<GEN_SPEC_V>|p<PHYSICS_V>|`
+  ahead of the spec; `BENCH_RESTORE` COMPARES — a settled certificate whose
+  fingerprint is not the live one loads WITHDRAWN ("the build or its physics
+  changed since the certificate"), one with none "certified before
+  fingerprints" — where it used to STAMP the live fingerprint onto an
+  unstamped result (re-certifying a pre-G208 certificate against whatever
+  stood on the stand). GATE BENCH: two versions are two fingerprints, the
+  fold is in, the stamp is gone.
+- **The load path is gated on a drawn tail**: `tools/fixtures/build_v8_
+  drawn-tail_2026-09-08.json` — the join's own export off dev.html's boot
+  build with its frozen numbers on PHYSICS_V 1 — and GATE BUILD's new row:
+  a vintage that carries the join's tail rows flies them as drawn, Sh and
+  Sv not auto, the chords to the digit. No migrator, no version bump.
+- **The records**: the debt register's §7 carries the chantier's leftovers
+  (the `tube` element type, the AP yaw plant, propwash swirl on the fin,
+  the canard's clamps and the unconditional stab downwash, the tail airfoil
+  and incidence, the dead `tail.tip/dorsal.*` fields, `tailK` against a
+  beam, the V-tail truss, the notes reaching no card); ROADMAP Phase 1
+  carries the dated blockquote; `TAIL-PHYSICS-AUDIT` and `CANARD-DELTA` got
+  the ERRATA blocks they never had; the chantier spec's IMPLEMENTATION
+  NOTES carry every phase. The swept fixture re-frozen a third time
+  (513.69 kg, CG +121 mm).
+- Gates: BUILD (+ the v8 row), BENCH, JOIN, FIN, DESIGN, PARTS, UISMOKE
+  green standalone; GEN uncapped, ARCHETYPES (the drawn tails) and the core
+  battery — see the line below.
+- **RULING OWED (found by the battery, 2026-09-08): the flapped approach
+  under the vortex downwash.** GATE FLAPS went red because the stock (with
+  the slotted flap the gate declares) now LANDS FLAPLESS: the trim solver
+  (64_gen_build.js genTrim) measured the elevator needed to balance the
+  flapped approach at −0.276 rad — 16° DOWN — past its 0.18 budget, and did
+  the one thing a builder would do. Isolated on a scratch bundle: under the
+  constant 0.40 downwash the same build reads +0.035 (a touch of up
+  elevator, flaps kept); the tail's mass, the volumes and the end-plate
+  move it by hundredths. The vortex kernel puts ~9° more downwash on the
+  tail behind a flapped wing (ε ≈ 2·CL/π·AR at CL 2.1 is 10.6° far-field;
+  the constant read 3°) — a real effect whose SIZE at one and a half chords
+  behind a high wing, against the flap's own nose-down moment, is the
+  question: real light aeroplanes want UP trim with flaps, not sixteen
+  degrees of down. Three answers, the user's to choose: (1) the kernel's
+  flap-induced downwash at the tail is overstated — G197's own "remaining
+  deficit", the lifting-line arc; (2) the 0.18 budget is the old model's
+  and the flapped approach is honestly this heavy on the elevator; (3) the
+  flip is right for stability and wrong on final, and the trim solver
+  should read the constant for the flap increment. Landed meanwhile: the
+  flip as RULED; GATE FLAPS tests the servo's rate on flaps held by fiat and
+  SAYS so; the stock lands flapless at 26.3 m/s (was 21.7) until the ruling.
+
+## G210.2 — THE PEOPLE FLY (2026-09-08, the user: "the mixamo characters are
+## not making it into flight mode, I only see the dummies in bright white")
+
+The join bakes the editor's meshes into the flown snapshot, and it had never
+been told what a character is. Three things were wrong, each its own rule:
+
+- **An invisible MATERIAL is not the aeroplane.** The walk asked the OBJECT
+  (`o.visible`) and never the material, so the crew layer's pick/silhouette
+  proxy — the ATD shells a dressed dummy keeps under `visible: false` (G204.2)
+  — baked as geometry, in MeshBasicMaterial's default WHITE. Six white
+  mannequins flew inside six people. `matList.every(m => m.visible === false)`
+  now skips them.
+- **A character bakes POSED.** The bake reads geometry attributes, which for
+  a skinned mesh are the BIND pose — a T-pose at the armature origin under
+  the floor. `cageSkinMatrix` does what the GPU does (the linear blend of the
+  four weighted bone matrices) for the position and, as its 3x3, for the
+  normal, so a bent elbow is lit like a bent elbow.
+- **A person is their character's own material**, the contract AEROSKIN's
+  `fin` and the vessels' `ves` already had: the material record carries
+  `char` (the key) and `charMat` (the index), the key buckets per character
+  per material so two skins never merge, and app.js rebuilds it from
+  `CAGE_CHAR.flatMaterial` — same maps, same cutout, same cabin darkness,
+  `skinning` off for the baked mesh. AND THE UV RIDES WITH IT: the bake keeps
+  a uv array only where a material can sample one (the vessels' exception),
+  so without adding `charKey` there every person flew flat-coloured — the
+  first fix's own symptom, measured as uv min 0 max 0 over 299,202 floats.
+
+TRAP, same shape as G204.2's PICK_MAT: `_cage_join.js` is REQUIRED IN NODE by
+the gates, where THREE does not exist, so the skinning scratch is built on
+first use — at module scope it took GATE JOIN, BUILD and VIEW down with a
+ReferenceError before their first check.
+
+Measured: three people in the cabin cost ~315 k baked vertices against the
+aeroplane's ~250 k (the bake is per-index/unwelded, so ~5x the mesh's own
+count). Textured and posed in flight, verified in a rendered frame. That
+cost is the reason the character-optimisation thread (a per-row texture
+budget, and now a vertex one) stays owed.
+Gates: JOIN, BUILD, VIEW, MASS, SAVE, UISMOKE, PARTS, MEDIA green.
+

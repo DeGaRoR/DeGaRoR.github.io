@@ -148,20 +148,35 @@ function rig(key) {
 }
 
 // ---- LOAD: the bin through the page's one fetch ---------------------------
-const DEC = {}, LOADING = {};
+const DEC = {}, LOADING = {}, FAILED = {};
 function ready(key) { return DEC[key] || null; }
+// A FAILED FETCH IS NOT REMEMBERED (G210.1, the user: 'selecting any mixamo
+// figures gives me back the original mannequin'). The first cut cached the
+// failed promise for the page's life, and ASSET_FETCH caches a rejection by
+// URL on purpose — so one dropped connection while a mixed crew pulled
+// 300 MB of textures (the dev servers drop connections under load) left
+// that character a mannequin until a reload. Now a failure is forgotten,
+// the next build tries again, and the retry goes round ASSET_FETCH's cached
+// rejection with a plain fetch.
+function fetchBytes(url, plain) {
+  if (!plain && typeof window.ASSET_FETCH === 'function') return window.ASSET_FETCH(url);
+  return fetch(url).then(r => { if (!r.ok) throw new Error(url + ' -> ' + r.status);
+                                return r.arrayBuffer(); }).then(b => new Uint8Array(b));
+}
 function load(key) {
   if (DEC[key]) return Promise.resolve(DEC[key]);
   const c = REG().chars[key];
   if (!c) return Promise.resolve(null);
   if (LOADING[key]) return LOADING[key];
-  const fetchBin = typeof window.ASSET_FETCH === 'function'
-    ? window.ASSET_FETCH(c.bin)
-    : fetch(c.bin).then(r => { if (!r.ok) throw new Error(c.bin + ' -> ' + r.status);
-                               return r.arrayBuffer(); }).then(b => new Uint8Array(b));
-  return (LOADING[key] = fetchBin.then(buf => (DEC[key] = decodeChar(c, buf)))
-    .catch(e => { console.warn('char ' + key + ' failed to load:', e && e.message);
-                  return null; }));
+  return (LOADING[key] = fetchBytes(c.bin, !!FAILED[key])
+    .then(buf => { FAILED[key] = 0; return (DEC[key] = decodeChar(c, buf)); })
+    .catch(e => {
+      console.warn('char ' + key + ' failed to load (will retry on the next build):',
+                   e && e.message);
+      FAILED[key] = (FAILED[key] | 0) + 1;
+      return null;
+    })
+    .finally(() => { if (!DEC[key]) delete LOADING[key]; }));
 }
 
 // ---- textures + materials -------------------------------------------------
@@ -210,6 +225,12 @@ function material(c, mi) {
   const mat = new THREE.MeshStandardMaterial(o);
   mat.name = 'char:' + c.key + ':' + (m.name || mi);
   mat.userData.charSkin = 1;                 // the editor's passes leave it be
+  // WHICH PERSON AND WHICH OF THEIR MATERIALS (G210.2): the join carries
+  // these two across so the flown aeroplane rebuilds the person from this
+  // same factory — the contract AEROSKIN's `fin` and the vessels' `ves`
+  // already have. Without it a character flew as a bare colour.
+  mat.userData.charKey = c.key;
+  mat.userData.charMat = mi;
   // A PERSON SITS IN THE CABIN (G206.1): the same darkness the liners and
   // the seats take, through AEROSKIN's small hook for materials that are not
   // its own. aeroskin.js loads after tools/* in the bundle, and this runs at
@@ -357,16 +378,13 @@ function dispose(inst) {
 //           controls the IK put them on.
 const ANIMS = () => (typeof CHAR_ANIMS !== 'undefined' ? CHAR_ANIMS
                      : (window.CHAR_ANIMS || { anims: {}, order: [] }));
-const ADEC = {}, ALOAD = {};
+const ADEC = {}, ALOAD = {}, AFAILED = {};
 function animLoad(key) {
   if (ADEC[key]) return Promise.resolve(ADEC[key]);
   const a = ANIMS().anims[key];
   if (!a) return Promise.resolve(null);
   if (ALOAD[key]) return ALOAD[key];
-  const fetchBin = typeof window.ASSET_FETCH === 'function'
-    ? window.ASSET_FETCH(a.bin)
-    : fetch(a.bin).then(r => { if (!r.ok) throw new Error(a.bin + ' -> ' + r.status);
-                               return r.arrayBuffer(); }).then(b => new Uint8Array(b));
+  const fetchBin = fetchBytes(a.bin, !!AFAILED[key]);   // same forgetting rule as load()
   return (ALOAD[key] = fetchBin.then(buf => {
     a._ji = {}; a.joints.forEach((n, i) => { a._ji[n] = i; });
     const dec = decodeCharAnim(a, buf);
@@ -391,8 +409,10 @@ function animLoad(key) {
     }
     a._mean = mean;
     return (ADEC[key] = dec);
-  }).catch(e => { console.warn('clip ' + key + ' failed to load:', e && e.message);
-                  return null; }));
+  }).catch(e => { console.warn('clip ' + key + ' failed to load (will retry):', e && e.message);
+                  AFAILED[key] = (AFAILED[key] | 0) + 1;
+                  return null; })
+    .finally(() => { if (!ADEC[key]) delete ALOAD[key]; }));
 }
 const _qa = new THREE.Quaternion(), _qb = new THREE.Quaternion(),
       _qd = new THREE.Quaternion(), _qm = new THREE.Quaternion();
@@ -462,7 +482,24 @@ function tick() {
     window.CAGE_UI.draw();
 }
 
+// THE SAME MATERIAL, FOR A MESH THAT IS NO LONGER SKINNED (G210.2). The
+// flight snapshot bakes the character POSED, into a plain BufferGeometry, so
+// what dresses it there is this material with `skinning` off — same maps,
+// same cutout, same cabin darkness. Cached per (character, material).
+const FLAT = {};
+function flatMaterial(key, mi) {
+  const k = key + '/' + mi;
+  if (FLAT[k]) return FLAT[k];
+  const c = REG().chars[key];
+  if (!c || !c.mats || !c.mats[mi]) return null;
+  const m = material(c, mi).clone();
+  m.skinning = false;
+  m.userData = Object.assign({}, m.userData);
+  m.needsUpdate = true;
+  return (FLAT[k] = m);
+}
+
 window.CAGE_CHAR = { MAP, list: () => REG().order.map(k => REG().chars[k]),
-  rig, load, ready, instance, dress, dispose,
+  rig, load, ready, instance, dress, dispose, flatMaterial,
   animLoad, animate, clearAnims, anims: () => ANIMS().order.slice() };
 })();

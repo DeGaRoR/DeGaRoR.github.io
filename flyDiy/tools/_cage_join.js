@@ -98,6 +98,43 @@ const CAGE_JOIN_PROP_MATS = ['wood', 'wood', 'alu', 'carbon', 'carbon',
 // through CAGE_BAY_FROM_P when the light layer is loaded, its defaults when
 // a node gate builds without it. Null when no lamp is fitted (G98: the wing
 // is cut when the lamp is FITTED, not when it is switched on).
+// ---- SKINNING, FOR THE BAKE (G210.2) --------------------------------------
+// The snapshot reads geometry attributes, and a character's are its BIND
+// pose — a T-pose at the armature origin, under the floor. So the bake does
+// what the GPU does: the linear blend of the four bone matrices weighting
+// this vertex, applied to the position AND (as its 3x3) to the normal, so a
+// bent elbow is lit like a bent elbow. `bindMatrix` is the identity for our
+// characters (glTF: the skinned node's transform is ignored) but the general
+// form costs nothing and cannot be wrong.
+// LAZY, because this file is REQUIRED IN NODE (the gates) where THREE does
+// not exist — a `new THREE.Vector4()` at module scope took GATE JOIN, BUILD
+// and VIEW down with a ReferenceError before the first check ran.
+let _skIdx, _skWt, _skBone, _skBlend;
+function cageSkinMatrix(sm, vi, out) {
+  if (!_skIdx) {
+    _skIdx = new THREE.Vector4(); _skWt = new THREE.Vector4();
+    _skBone = new THREE.Matrix4(); _skBlend = new THREE.Matrix4();
+  }
+  const g = sm.geometry;
+  _skIdx.fromBufferAttribute(g.attributes.skinIndex, vi);
+  _skWt.fromBufferAttribute(g.attributes.skinWeight, vi);
+  const el = _skBlend.elements;
+  for (let k = 0; k < 16; k++) el[k] = 0;
+  for (let i = 0; i < 4; i++) {
+    const w = _skWt.getComponent(i);
+    if (!w) continue;
+    const bi = _skIdx.getComponent(i);
+    const bone = sm.skeleton.bones[bi];
+    if (!bone) continue;
+    _skBone.multiplyMatrices(bone.matrixWorld, sm.skeleton.boneInverses[bi]);
+    const be = _skBone.elements;
+    for (let k = 0; k < 16; k++) el[k] += be[k] * w;
+  }
+  // object -> cage frame, through the skin: tmp * bindInv * blend * bind
+  return out.multiplyMatrices(_skBlend, sm.bindMatrix)
+            .premultiply(sm.bindMatrixInverse);
+}
+
 function cageWingCuts(P) {
   if (!P || !+P.lightOn) return null;
   const B = (typeof window !== 'undefined' && window.CAGE_BAY_FROM_P)
@@ -392,6 +429,25 @@ function cageJoinSpec(P, M, T) {
   if (M.vX > 0) tl.vX = M.vX;
   if (M.vSweep === 0) tl.vSweep = 0;
   if (typeof M.stabH === 'number' && isFinite(M.stabH)) tl.stabH = M.stabH;
+  // THE AREAS (TAIL CHANTIER 2 P1): the sheets' own, by assignment like the
+  // rows above — resolveSpec's volume rule is `put` and stands down (G115).
+  // Sh gross, Sv dorsal-free, Svt a V's panels; the dorsal measured apart.
+  if (M.Sh > 0) tl.Sh = M.Sh;
+  if (M.Sv > 0) tl.Sv = M.Sv;
+  if (M.Svt > 0) tl.Svt = M.Svt;
+  if (M.hTaper > 0) tl.hTaper = M.hTaper;          // P4: the trusses' trapezoids
+  if (M.vTaper > 0) tl.vTaper = M.vTaper;
+  if (typeof M.dorsalArea === 'number' && isFinite(M.dorsalArea))
+    tl.dorsal = { area: M.dorsalArea };
+  // THE CONTROL CHORDS ARE THE DRAWN ONES (P1, D3): the cut's area fraction.
+  // An uncut surface writes nothing and the join's note says the default
+  // flies (a measured chord from an earlier build would otherwise stick
+  // through the garage's merge — "the last good number").
+  if (M.elevChord > 0 || M.rudChord > 0) {
+    const ct = spec.controls || (spec.controls = {});   // the wing's flap and aileron rows live here
+    if (M.elevChord > 0) ct.elevator = { chord: M.elevChord };
+    if (M.rudChord > 0) ct.rudder = { chord: M.rudChord };
+  }
   // the V (2026-09-04): the cant the stab layer built, clampSpec's own
   // envelope (20-55) bounds it; absent = 'conventional', the default
   if (typeof M.tailCant === 'number' && M.tailCant >= 20) {
@@ -554,9 +610,108 @@ const VIEW_KEEP = {
     'after the skip, selected or not)',
 };
 
+// ---------------------------------------------------------------------------
+// G209 — THE HINGE, FROM THE SURFACE'S OWN FORWARD EDGE (the user: "the
+// ailerons of the jodel with the crank are not moving as they should").
+// ---------------------------------------------------------------------------
+// The hinge used to be a bare model axis — [0,0,1] when the forward edge ran
+// wider than it stood, [0,1,0] otherwise — so an aileron on a cranked outer
+// panel (14 deg of dihedral, a few degrees of plan taper) turned about a line
+// 17 deg off its real one and sheared out of the wing instead of hinging.
+// Now the axis is the line between the two ENDS of the forward band, taken
+// along z for every surface but the rudder (y), and pointed the way the old
+// axis pointed (+z spanwise, +y up the post) so the signs keep their meaning.
+// A V-tail root, a dihedralled stab, a raked rudder post and a cranked wing
+// all fall out of the same measurement; no layer has to declare its cant.
+//
+// AND THE SIGNS, BY SIDE RATHER THAN BY NAME. The cage's 'R' surfaces sit at
+// cage +x, which is model +z — the PORT side (30_solver's probe: "+z is the
+// LEFT side"; _cage_crew: "pilot's right = -x"). Written as `ailL: -1`, the
+// old table had the PORT aileron going UP for da > 0, which the solver flies
+// as roll RIGHT — so every cage build's ailerons moved against its physics;
+// the flaps rose (sgn +1 about +z lifts a trailing edge); and the rudder
+// swung to starboard for a nose-LEFT command. Measured on every archetype:
+// futureDesigns/CONTROLS-AUDIT-2026-09-07.md. The rotation is Rodrigues
+// about `axis`, right-handed: +ang about +z lifts a trailing edge at +x,
+// +ang about +y swings it to -z (starboard).
+//   de > 0 nose up        elevator TE up              sgn +1 about +z
+//   da > 0 roll right     port TE down, stbd TE up    sgn -1 / +1 by pivot z
+//   dr > 0 nose LEFT      rudder TE to port (+z)      sgn -1 about +y
+//   flap > 0              TE down                     sgn -1
+//   V-tail, dr > 0        port panel TE down, stbd TE up (both TEs to port,
+//                         the solver's inward-leaning normals — G209)
+// pts: [[x, y, z], ...] of the surface in the MODEL frame (x aft, y up, +z
+// port). Pure and exported: GATE JOIN turns each surface by hand.
+// THE DECLARED HINGE (TAIL CHANTIER 2 P1, the user: "when horn balance
+// option, the pivot point is wrong"). The band above is the surface's own
+// forward-most 18 % — right for a hinge-cut surface, whose forward edge IS
+// the slot, and WRONG for a horn-balanced one: with finCut 2 / stCut 2 the
+// control keeps the crown, so its forward-most vertices are the HORN's
+// leading edge at the tip, the pivot lands in the horn and the band's span
+// collapses the axis. The layer that drew the surface knows its hinge (the
+// cut plane, finMeasure's `hinge`), so `opts.hinge = { n, d, eps }` names
+// the plane n·p = d in the model frame and the band is the vertices within
+// eps of it — the horn's crown vertices near the plane lie ON the hinge
+// line and only move the pivot along it. The vertex heuristic stays as the
+// fallback for a surface that declares no plane (the wing's), and for a
+// declared plane that catches no vertices (a stale layer). `hingeFrom` says
+// which was used.
+function cageSurfHinge(pts, surf, opts) {
+  const S2 = surf.replace(/2$/, '');
+  const H = opts && opts.hinge && opts.hinge.n ? opts.hinge : null;
+  let mnx = 1e9, mxx = -1e9;
+  for (const p of pts) { if (p[0] < mnx) mnx = p[0]; if (p[0] > mxx) mxx = p[0]; }
+  const band = mnx + 0.18 * Math.max(0.02, mxx - mnx);
+  const c = S2 === 'rud' ? 1 : 2;              // the extent the hinge runs along
+  let sx = 0, sy = 0, sz = 0, n = 0, lo = 1e9, hi = -1e9;
+  let B = [];
+  let hingeFrom = 'vertices';
+  if (H) {
+    const eps = H.eps || 0.05;
+    for (const p of pts)
+      if (Math.abs(H.n[0] * p[0] + H.n[1] * p[1] + H.n[2] * p[2] - H.d) <= eps) B.push(p);
+    if (B.length >= 4) hingeFrom = 'declared'; else B = [];
+  }
+  if (hingeFrom === 'vertices') for (const p of pts) if (p[0] <= band) B.push(p);
+  for (const p of B) {
+    sx += p[0]; sy += p[1]; sz += p[2]; n++;
+    if (p[c] < lo) lo = p[c]; if (p[c] > hi) hi = p[c];
+  }
+  if (!n) return null;
+  const pivot = [sx / n, sy / n, sz / n];
+  let axis = c === 1 ? [0, 1, 0] : [0, 0, 1];
+  const span = hi - lo;
+  if (span > 1e-3) {
+    const e0 = [0, 0, 0], e1 = [0, 0, 0]; let n0 = 0, n1 = 0;
+    for (const p of B) {
+      if (p[c] <= lo + 0.1 * span) { e0[0] += p[0]; e0[1] += p[1]; e0[2] += p[2]; n0++; }
+      if (p[c] >= hi - 0.1 * span) { e1[0] += p[0]; e1[1] += p[1]; e1[2] += p[2]; n1++; }
+    }
+    if (n0 && n1) {
+      const d = [e1[0] / n1 - e0[0] / n0, e1[1] / n1 - e0[1] / n0, e1[2] / n1 - e0[2] / n0];
+      const L = Math.hypot(d[0], d[1], d[2]);
+      if (L > 1e-6 && d[c] > 0) axis = [d[0] / L, d[1] / L, d[2] / L];
+    }
+  }
+  const port = pivot[2] > 0;
+  const out = { pivot, axis, hingeFrom };
+  if (S2 === 'rud') { out.drive = 'dr'; out.sgn = -1; }
+  else if (S2 === 'elevR' || S2 === 'elevL') {
+    out.drive = 'de'; out.sgn = 1;
+    // THE RUDDERVATOR (2026-09-04): past 20 deg of cant the panel also answers
+    // the rudder — the codec's second drive (50_model_codec applyHinges).
+    // dr > 0 is nose LEFT: both trailing edges swing to port, which on the
+    // port panel is DOWN along its own normal and on the starboard one UP.
+    if (opts && opts.cant >= 20) { out.drive2 = 'dr'; out.sgn2 = port ? -1 : 1; }
+  }
+  else if (S2 === 'flapR' || S2 === 'flapL') { out.drive = 'flap'; out.sgn = -1; }
+  else { out.drive = 'da'; out.sgn = port ? -1 : 1; }
+  return out;
+}
+
 if (typeof module !== 'undefined' && module.exports)
   module.exports = { cageJoinSpec, cageWingCuts, CAGE_JOIN_ENGINES, CAGE_JOIN_PROP_MATS,
-                     VIEW_STATE, VIEW_KEEP };
+                     VIEW_STATE, VIEW_KEEP, cageSurfHinge };
 
 // ---- browser glue: measurements + the button (game bundle only) ----
 if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
@@ -672,6 +827,12 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
   // failed test, and the bench says so instead of posting a plaque for an
   // aeroplane nobody built.
   const ERRS = [];
+  // NOTES (TAIL CHANTIER 2 P1): what the join could not measure and flew by
+  // rule instead, said aloud — an uncut fin, a rod boom's fin height. Not
+  // an ERRS row: the bench files every ERRS row as a failed test, and a
+  // measurement LIMIT is not a failed measurement. Read through
+  // CAGE_JOIN.notes().
+  const NOTES = [];
   // G188: WHICH CONTACT IS THE THIRD WHEEL is the station's identity (the gear
   // layer flags its row 2 `single`), not its lateral offset. Four classifiers
   // here read `x <= 0.01`; a tailwheel row carrying 0.1 m was therefore a pair
@@ -683,6 +844,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     (c.st.single != null ? !!c.st.single : c.st.x <= 0.01);
   const measure = () => {
     ERRS.length = 0;
+    NOTES.length = 0;
     const P = window.CAGE_UI ? window.CAGE_UI.P : {};
     const M = {};
     const G2 = window.CAGE_GEAR || {};
@@ -908,34 +1070,94 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           }
           M.profile = prof;
         }
-        // G54.3: THE TAIL SURFACES (user: "these ones seem never to have
-        // been matched" — correct, they were declared cosmetic v1 at
-        // G45). Measured from the placed fin/stab layers' own meshes:
-        // stations from their z-midpoints, span/chord from extents,
-        // heights in the keel datum. stabH and vHeight invert the
-        // lattice's own placement formulas (stabY = tailY + stabH·
-        // (finTop − tailY); finTop = tailTop + 0.82·vHeight) so the
-        // frame's tips land where the built surfaces are. Areas follow
-        // span × chord — the flown tail volume becomes the BUILT tail's,
-        // and the shakedown posts the stability that results.
-        if (fwOk && zPost != null &&
-            typeof M.tailTop === 'number' && typeof M.tailBot === 'number') {
-          const TB = tailSurfBounds(zCabA != null ? zCabA - 0.8 : zPost + 1.5,
-                                    M.tailW || 0.2, M.tailTop, yD);
+        // THE TAIL SURFACES — MEASURED, NOT INFERRED (G54.3; rewritten at
+        // TAIL CHANTIER 2 P1, 2026-09-07). The fin and stab LAYERS measure
+        // their own drawn sheets (CAGE_FIN.measure / CAGE_STAB.measure —
+        // finMeasure in _fin_gen.js: areas by part and material, mean
+        // chords, the declared hinge). This block reads them BY IDENTITY —
+        // the layer exists and measured — not by a fuselage coordinate: the
+        // old gate (`zPost != null`) skipped the whole tail on a ROD boom
+        // and on a mirrored pod (no tail rings), so the user's own
+        // ultralight flew a tail the rule invented from its wing, whatever
+        // was drawn (TAIL-PHYSICS-AUDIT D4). And until this the AREAS were
+        // never written at all: "areas follow span × chord" was a comment
+        // from G54.3 that G115's `put` undid in silence — eleven times the
+        // drawn area reached the same flown Sh (D1).
+        //   Sh  GROSS: both panels + the carry-through 2·rootX·chordRoot
+        //       (the fuselage carries lift across the root; Vh is a gross-
+        //       area coefficient; the wing's Sw is gross)
+        //   Sv  the fin proper + its rudder + the keel tab, the DORSAL
+        //       excluded (a stall-delay device; measured apart, dorsalArea)
+        //   Svt a V's two panels, uncanted
+        //   hChord / vChord   MEAN chords, area over span — the rule's own
+        //       definition; the bounding box swallowed the dorsal and the
+        //       elevator notch
+        //   elevChord / rudChord   the cut's area fraction — the honest
+        //       input to a single-tau flap model (D3)
+        // The bounding box (tailSurfBounds) keeps what it is good at: the
+        // tip-to-tip span, the stations, the stab's height, the fin's apex.
+        // vHeight and stabH still invert the lattice's placement formulas
+        // (stabY = tailY + stabH·(finTop − tailY); finTop = tailTop +
+        // 0.82·vHeight) and need the tail rings' datum — on a rod they stay
+        // the rule's (derived from the MEASURED Sv at the rule's aspect
+        // ratio) and the note says so.
+        const FNm = window.CAGE_FIN, SBm = window.CAGE_STAB;
+        const stOnP = Math.round(P.stOn === undefined ? 1 : P.stOn);
+        const finM = (+P.finOn && FNm && FNm.measure) ? FNm.measure : null;
+        const stabM = (stOnP && SBm && SBm.measure) ? SBm.measure : null;
+        if (+P.finOn && !finM)
+          ERRS.push('tail: the fin is drawn but not measured — the rule\'s fin flies');
+        if (stOnP && !stabM)
+          ERRS.push('tail: the stabiliser is drawn but not measured — the rule\'s tailplane flies');
+        // THE CLAMPS SPEAK, on the drawing too (P3, ruling (b)): a corner
+        // slider that stopped short names itself (buildFin2's clamped list)
+        if (FNm && FNm.clamped && FNm.clamped.length)
+          NOTES.push('fin: the drawing stopped a slider short — ' + FNm.clamped.join(', '));
+        if (stabM && SBm.clamped && SBm.clamped.length)
+          NOTES.push('stab: the drawing stopped a slider short — ' + SBm.clamped.join(', '));
+        const tailDatum = zPost != null &&
+          typeof M.tailTop === 'number' && typeof M.tailBot === 'number';
+        if (fwOk && (finM || stabM)) {
+          const zAftB = zCabA != null ? zCabA - 0.8
+                      : zPost != null ? zPost + 1.5 : AF.z0 + 2.0;
+          const TB = tailSurfBounds(zAftB, M.tailW || 0.2,
+                                    tailDatum ? M.tailTop : 0, yD);
           const sB = TB && TB.stab, fB = TB && TB.fin;
-          const tailYm = M.tailBot + 0.55 * (M.tailTop - M.tailBot);
+          const tailYm = tailDatum ? M.tailBot + 0.55 * (M.tailTop - M.tailBot) : null;
           if (sB && (sB.x1 - sB.x0) > 0.5) {
             M.hSpan = 2 * Math.max(Math.abs(sB.x0), Math.abs(sB.x1));
-            M.hChord = sB.z1 - sB.z0;
             M.hX = zFw - (sB.z0 + sB.z1) / 2;
             M.stabY = (sB.y0 + sB.y1) / 2 - yD;
           }
+          const SBv = SBm, TBj = window.CAGE_BOOMS;
+          const isV = !!(SBv && SBv.cant >= 20);
+          // THE AREAS AND THE CONTROL FRACTIONS, off the sheets
+          // THE TAPER (P4): tip chord over root chord, read as the 75 %
+          // slice over the 25 % — the trapezoid the frame's truss stands on
+          // (a rounded planform has no single taper; this is its straight fit)
+          const taperOf = m => {
+            const a = m.chordAt(0.25 * m.span), b = m.chordAt(0.75 * m.span);
+            return a > 1e-6 ? Math.max(0.05, Math.min(1, b / a)) : 1;
+          };
+          if (stabM && stabM.areaTail > 0) {
+            if (isV) M.Svt = 2 * stabM.areaTail;
+            else M.Sh = 2 * stabM.areaTail + 2 * stabM.rootX * stabM.chordRoot;
+            M.hTaper = taperOf(stabM);
+            if (stabM.ctlFrac > 0) M.elevChord = stabM.ctlFrac;
+            else NOTES.push('tail: the stabiliser is drawn UNCUT — no elevator is drawn, the default elevator chord flies');
+          }
+          if (finM && finM.areaTail > 0 && !isV) {
+            M.Sv = (TBj ? 2 : 1) * finM.areaTail;      // two fins on twin booms
+            M.dorsalArea = finM.areaDorsal;
+            M.vTaper = taperOf(finM);
+            if (finM.ctlFrac > 0) M.rudChord = finM.ctlFrac;
+            else NOTES.push('tail: the fin is drawn UNCUT — no rudder is drawn, the default rudder chord flies');
+          }
           // THE V-TAIL (2026-09-04): the stab layer says it is canted, so
           // the whole layer is the tail — horizontal projection as hSpan,
-          // its chord, its station and root height; the cant is the type.
-          // No fin is read (a V has none; a fin left switched on would be
-          // a three-surface tail the frame does not build).
-          const SBv = window.CAGE_STAB, TBj = window.CAGE_BOOMS;
+          // its station and root height; the cant is the type. No fin is
+          // read (a V has none; a fin left switched on would be a
+          // three-surface tail the frame does not build).
           if (TBj) {
             // TWIN BOOMS (2026-09-04): the fin layer is TWO fins on the boom
             // tails, the stab layer the panel between them — both measured
@@ -944,30 +1166,26 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             M.boomX = TBj.x; M.boomLen = TBj.len; M.boomR = TBj.r0;
             if (sb2 && (sb2.x1 - sb2.x0) > 0.5) {
               M.hSpan = 2 * Math.max(Math.abs(sb2.x0), Math.abs(sb2.x1));
-              M.hChord = sb2.z1 - sb2.z0;
               M.hX = zFw - (sb2.z0 + sb2.z1) / 2;
               M.stabY = (sb2.y0 + sb2.y1) / 2 - yD;
             }
             if (fb2 && (fb2.y1 - fb2.y0) > 0.3) {
               const boomTop = TBj.y + TBj.r1 - yD;
               M.vHeight = Math.max(0.2, (fb2.y1 - yD - boomTop) / 0.82);
-              M.vChord = fb2.z1 - fb2.z0;
               M.vX = zFw - (fb2.z0 + fb2.z1) / 2;
               M.vSweep = 0;
             }
-          } else if (SBv && SBv.cant >= 20) {
+          } else if (isV) {
             const vb = layerBounds('cageLayer:stab');
             if (vb && (vb.x1 - vb.x0) > 0.5) {
               M.tailCant = SBv.cant;
               M.hSpan = 2 * Math.max(Math.abs(vb.x0), Math.abs(vb.x1));
-              M.hChord = vb.z1 - vb.z0;
               M.hX = zFw - (vb.z0 + vb.z1) / 2;
               M.stabY = vb.y0 - yD;
             }
-          } else if (fB && (fB.y1 - fB.y0) > 0.3) {
+          } else if (fB && (fB.y1 - fB.y0) > 0.3 && tailDatum) {
             const finTop = fB.y1 - yD;
             M.vHeight = (finTop - M.tailTop) / 0.82;
-            M.vChord = fB.z1 - fB.z0;
             // the apex lands ON the fin's top vertex: with vSweep 0 the
             // lattice puts FIN at (vX, finTop), so vX = the top point's
             // own station (user: "the top point of the fin"). The sweep
@@ -978,6 +1196,28 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             if (typeof M.stabY === 'number' && finTop > tailYm + 0.1)
               M.stabH = Math.max(0, Math.min(1,
                 (M.stabY - tailYm) / (finTop - tailYm)));
+          } else if (fB && !tailDatum) {
+            NOTES.push('tail: no tail rings (a rod boom or a pod) — the fin\'s area is the drawn one, its height and the tailplane\'s seat are the rule\'s');
+          }
+          // MEAN CHORDS — area over span
+          if (M.Sh > 0 && M.hSpan > 0) M.hChord = M.Sh / M.hSpan;
+          if (M.Svt > 0 && M.hSpan > 0 && M.tailCant >= 20)
+            M.hChord = M.Svt / (M.hSpan / Math.cos(M.tailCant * Math.PI / 180));
+          if (M.Sv > 0 && M.vHeight > 0) M.vChord = (TBj ? M.Sv / 2 : M.Sv) / M.vHeight;
+          // THE CLAMPS SPEAK (P1, the G206.3 lesson): a measured value the
+          // flown envelope cuts is said, never cut in silence. The envelope
+          // is the spec's own (GEN_TAIL_ENVELOPE, one home, clampSpec reads
+          // the same numbers).
+          const ENV = (typeof GEN_TAIL_ENVELOPE !== 'undefined') ? GEN_TAIL_ENVELOPE : null;
+          if (ENV) for (const [k, key, unit] of [['hSpan', 'hSpan', 'm'], ['hChord', 'hChord', 'm'],
+              ['vHeight', 'vHeight', 'm'], ['vChord', 'vChord', 'm'],
+              ['elevChord', 'elevChord', ''], ['rudChord', 'rudChord', ''],
+              ['hTaper', 'hTaper', ''], ['vTaper', 'vTaper', '']]) {
+            const v = M[k], r = ENV[key];
+            if (!(v > 0) || !r) continue;
+            if (v < r[0] - 1e-9 || v > r[1] + 1e-9)
+              ERRS.push(`tail: the drawn ${key} ${v.toFixed(3)}${unit} is outside the flown envelope ` +
+                        `${r[0]}–${r[1]}${unit} and flies clamped — the drawn tail is not the flown tail`);
           }
         }
       }
@@ -1107,13 +1347,19 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     window.CAGE_UI.build();
   };
 
+  // WHICH OBJECT IS THE AEROPLANE (G216). The bake is in this frame, so the
+  // payload's origin IS this object's origin — which makes it the only
+  // honest craft root for a box projection, in the editor as in flight.
+  // Published so `_cage_ui.js` reads it rather than keeping a second walk
+  // that can drift (it passed the ROOM's origin, 2.59 m away).
+  const joinMount = () => {
+    let g = window.CAGE_WING && window.CAGE_WING.group;
+    while (g && g.parent && !g.parent.isScene &&
+           g.parent.parent && !g.parent.parent.isScene) g = g.parent;
+    return g;                        // edSitP: the inner (pitch) mount
+  };
   const snapshotAt = spec => {
-    const mount = (() => {           // edSitP: the editor's mount group
-      let g = window.CAGE_WING && window.CAGE_WING.group;
-      while (g && g.parent && !g.parent.isScene &&
-             g.parent.parent && !g.parent.parent.isScene) g = g.parent;
-      return g;                      // the inner (pitch) mount
-    })();
+    const mount = joinMount();
     if (!mount) return null;
     // calibration: rest-lattice main axles vs cage mains. The sim's body
     // frame is CG-RELATIVE (makeSkinBinding subtracts defCG; the pose
@@ -1242,7 +1488,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     mount.updateMatrixWorld(true);
     const inv = new THREE.Matrix4().copy(mount.matrixWorld).invert();
     const tmp = new THREE.Matrix4(), nm = new THREE.Matrix3(),
-          v = new THREE.Vector3(), n = new THREE.Vector3();
+          v = new THREE.Vector3(), n = new THREE.Vector3(),
+          skinM = new THREE.Matrix4(), skinN = new THREE.Matrix3();
     mount.traverse(o => {
       if (!o.isMesh || !o.visible || !o.geometry) return;
       // THE HIGHLIGHT IS NEVER THE PART (G132). The editor's selection
@@ -1254,8 +1501,21 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       if (o.userData && o.userData.edHi) return;
       const matList = Array.isArray(o.material) ? o.material : [o.material];
       if (!matList[0] || !matList[0].color) return;
+      // AN INVISIBLE MATERIAL IS NOT THE AEROPLANE (G210.2, the user: 'I only
+      // see the dummies in bright white'). The crew layer keeps a dressed
+      // dummy's ATD shells as the click/silhouette proxy under a material
+      // with `visible: false` — which this walk took, because it asked the
+      // OBJECT and never the material, and MeshBasicMaterial's default colour
+      // is white. Six white mannequins flew inside six people.
+      if (matList.every(m => m && m.visible === false)) return;
       const geo = o.geometry, idx = geo.index;
       const p = geo.attributes.position, na = geo.attributes.normal;
+      // A CHARACTER BAKES POSED (G210.2): its attributes are the bind pose,
+      // so every vertex goes through cageSkinMatrix instead of one shared
+      // object matrix. Needs the skeleton's world matrices to be current,
+      // which mount.updateMatrixWorld above has just made them.
+      const skin = (o.isSkinnedMesh && o.skeleton && geo.attributes.skinIndex)
+        ? o : null;
       tmp.multiplyMatrices(inv, o.matrixWorld);   // object -> cage frame
       nm.getNormalMatrix(tmp);
       // A MULTI-MATERIAL MESH SPLITS BY ITS GEOMETRY GROUPS (G47.2 fix,
@@ -1361,9 +1621,15 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
                               (kud.aeroFieldK ? 'F' + kud.aeroFieldK : '') : '') +
             // G206.1: an inside bucket must not merge with an outside one
             ((kud.aeroInside || kud.charSkin) ? 'I' : '') +
+            // G210.2: a person is their own bucket, per character and per
+            // material — two characters' skins must never merge
+            (kud.charKey ? 'H' + kud.charKey + '.' + kud.charMat : '') +
             (kud.aeroNoDec ? 'K' : '') +
             (kud.aeroMemF ? 'S' + kud.aeroMemF.join(',') : '') +
             (kud.aeroMetalK ? 'Q' + kud.aeroMetalK : '') +
+            (kud.aeroFieldM != null ? 'U' + kud.aeroFieldM : '') +
+            (kud.aeroBoxDet ? 'X' + (kud.aeroBoxPlane || 0) : '') +
+            (kud.aeroDetRot ? 'D' : '') +
             // G185: the second plane's materials are their own buckets — the
             // game binds each plane's skin to its own spar stations
             (kud.aeroPlane ? 'P' + kud.aeroPlane : '');
@@ -1411,13 +1677,28 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           ...(ud.aeroFieldK ? { fieldK: ud.aeroFieldK } : {}),
           // G206.1: in the cabin — a liner, a seat, a person (charSkin)
           ...((ud.aeroInside || ud.charSkin) ? { inside: 1 } : {}),
+          // G210.2: WHICH PERSON, WHICH OF THEIR MATERIALS — app.js rebuilds
+          // it from CAGE_CHAR.flatMaterial, maps and all
+          ...(ud.charKey ? { char: ud.charKey, charMat: ud.charMat | 0 } : {}),
           // G207: no marking lands here (hardware, structure, the interior)
           ...(ud.aeroNoDec ? { noDec: 1 } : {}),
           // G214: the skin's screws, as the editor drew them
           ...(ud.aeroMemF ? { memF: ud.aeroMemF } : {}),
           // G215: the metal flake in this section's paint
           ...(ud.aeroMetalK ? { metalK: ud.aeroMetalK } : {}),
+          // G216: THE UNIT THE SURFACE FIELD IS IN. Absent means 1, which is
+          // what every payload written before this meant and what the wing
+          // already was; a cage built at planeScale 0.745 says so, and the
+          // flown aeroplane stops measuring its own skin in the wrong unit.
+          ...(ud.aeroFieldM != null && ud.aeroFieldM !== 1
+              ? { fieldM: ud.aeroFieldM } : {}),
+          // ...and a PANE carries its own extent and dials (G216)
+          ...(ud.aeroGlassE ? { gext: ud.aeroGlassE } : {}),
           ...(ud.aeroRibM ? { ribM: ud.aeroRibM } : {}),
+          // G216: the box-mapped microsurface and the turned grain — the
+          // tail's mapping and the propeller's spanwise laminations
+          ...(ud.aeroBoxDet ? { boxDet: 1, boxPlane: ud.aeroBoxPlane || 0 } : {}),
+          ...(ud.aeroDetRot ? { detRot: 1 } : {}),
           ...(ud.aeroWearK != null ? { wearK: ud.aeroWearK } : {}),
           ...(ud.aeroWearM != null ? { wearM: ud.aeroWearM } : {}),
           // whether this group carries the surface field decides which
@@ -1432,12 +1713,17 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         // pitch calibration about the model z (left) axis, so the pose's
         // body-axis alignment lands the visual exactly on the frame
         const pushV = (G3, vi) => {
+          if (skin) {                       // G210.2: posed, not bind
+            cageSkinMatrix(skin, vi, skinM).premultiply(tmp);
+            skinN.getNormalMatrix(skinM);
+            v.set(p.getX(vi), p.getY(vi), p.getZ(vi)).applyMatrix4(skinM);
+          } else
           v.set(p.getX(vi), p.getY(vi), p.getZ(vi)).applyMatrix4(tmp);
           G3.idx.push(G3.pos.length / 3);
           const px = -v.z, py = v.y;
           G3.pos.push(px * cB - py * sB, px * sB + py * cB, v.x);
           if (na) { n.set(na.getX(vi), na.getY(vi), na.getZ(vi))
-            .applyMatrix3(nm).normalize();
+            .applyMatrix3(skin ? skinN : nm).normalize();
             const qx = -n.z, qy = n.y;
             G3.nrm.push(qx * cB - qy * sB, qx * sB + qy * cB, n.x); }
           else G3.nrm.push(0, 1, 0);
@@ -1462,8 +1748,14 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         // material, so this is decided once per bucket and never mixes
         const G3 = bucket[key] || (bucket[key] = { pos: [], idx: [], nrm: [],
                                                    srf: sAttr ? [] : null,
+                                                   // G210.2: a PERSON has an
+                                                   // unwrap too — without it
+                                                   // the diffuse map samples
+                                                   // one texel and everybody
+                                                   // flies flat-coloured
                                                    uv: (m0.userData &&
-                                                        m0.userData.vesSet)
+                                                        (m0.userData.vesSet ||
+                                                         m0.userData.charKey))
                                                        ? [] : null });
         for (let i = r.start; i < end; i++) pushV(G3, idx ? idx.getX(i) : i);
       }
@@ -1576,34 +1868,69 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // G59: a control surface's pivot is the centre of its own FORWARD
       // edge — computed in the MODEL frame from the captured vertices,
       // so it needs no anchor from the layer that drew it.
-      let hingeAxis = null;
+      // G209: pivot, hinge axis, drive and sign in ONE measurement of the
+      // surface's own vertices (cageSurfHinge, module scope, says why)
+      let hinge = null;
       if (pt.surf) {
-        let mnx = 1e9, mxx = -1e9;
+        // THE VERTICES ARE ALREADY IN BODY AXES: pushV baked every one with
+        // the frame's pitch (px·cB − py·sB, ...). G209 turned them a SECOND
+        // time here, so every pivot sat ~β × arm off its line and the
+        // rudder's axis leaned 2β (measured on the stock: 7.4° for a 3.7°
+        // frame). TAIL CHANTIER 2 P1: read them as they are.
+        const pts = [];
         for (const k of keys) {
           const q = pt.groups[k].pos;
-          for (let i = 0; i < q.length; i += 3) {
-            const x0 = q[i] * cB - q[i + 1] * sB;
-            if (x0 < mnx) mnx = x0; if (x0 > mxx) mxx = x0;
-          }
+          for (let i = 0; i < q.length; i += 3) pts.push([q[i], q[i + 1], q[i + 2]]);
         }
-        const band = mnx + 0.18 * Math.max(0.02, mxx - mnx);
-        let sx = 0, sy = 0, sz = 0, n2 = 0,
-            y0 = 1e9, y1 = -1e9, z0 = 1e9, z1 = -1e9;
-        for (const k of keys) {
-          const q = pt.groups[k].pos;
-          for (let i = 0; i < q.length; i += 3) {
-            const x0 = q[i] * cB - q[i + 1] * sB,
-                  yy = q[i] * sB + q[i + 1] * cB, zz = q[i + 2];
-            if (x0 > band) continue;
-            sx += x0; sy += yy; sz += zz; n2++;
-            if (yy < y0) y0 = yy; if (yy > y1) y1 = yy;
-            if (zz < z0) z0 = zz; if (zz > z1) z1 = zz;
-          }
+        const SBh = window.CAGE_STAB, FNh = window.CAGE_FIN;
+        // THE DECLARED PLANE (P1): the layer's own cut plane, cage z = zH,
+        // through the map the vertices took — px = −z·FS, then the pitch —
+        // is the plane n·p = d with n = (cB, sB, 0), d = −zH·FS. The stab's
+        // rides its lay's zOff (finToStab adds it to every z). A horn-
+        // balanced control's forward-most vertices are the HORN, which is
+        // why the vertex heuristic is the fallback and not the rule
+        // (cageSurfHinge says the rest).
+        // THE LINE (P3): a swept sheet's post rakes, so the layer declares
+        // the hinge as a LINE (root point → top point, fin space [y, z]);
+        // the stab's is laid by its own finToStab (side, rootX, stabY,
+        // sRef, zOff, cant — the lay the layer built with). Both points go
+        // through the vertex map — cage (x, y, z) → (−z·FS, y·FS, x·FS),
+        // then the pitch — and the band plane is the one through the line
+        // whose normal lies along the chord: n = x̂ − (x̂·d̂)d̂, d = n·p0.
+        const S2h = pt.surf.replace(/2$/, '');
+        const FIN2 = window.FIN_GEN;
+        let hplane = null;
+        const toModel = c => {                       // cage → body axes
+          const px = -c[2], py = c[1];
+          return [px * cB - py * sB, px * sB + py * cB, c[0]];
+        };
+        let cagePts = null;                          // [p0, p1] in cage units × FS
+        if (S2h === 'rud' && FNh && FNh.measure && FNh.measure.hinge && FNh.measure.hinge.line) {
+          const FS = FNh.measure.FS;
+          cagePts = FNh.measure.hinge.line.map(p => [0, p[0] * FS, p[1] * FS]);
+        } else if ((S2h === 'elevR' || S2h === 'elevL') && SBh && SBh.measure &&
+                   SBh.measure.hinge && SBh.measure.hinge.line && SBh.lay && FIN2) {
+          const FS = SBh.measure.FS;
+          const side = S2h === 'elevR' ? 1 : -1;     // 'R' is the cage's +x
+          const laid = FIN2.finToStab({ V: SBh.measure.hinge.line.map(p => [0, p[0], p[1]]), F: [] },
+                                      Object.assign({}, SBh.lay, { side })).V;
+          cagePts = laid.map(p => [p[0] * FS, p[1] * FS, p[2] * FS]);
         }
-        if (!n2) continue;
-        pt.pivotM = [sx / n2, sy / n2, sz / n2];
-        // the hinge runs along the forward edge's longer extent
-        hingeAxis = (y1 - y0) > (z1 - z0) ? [0, 1, 0] : [0, 0, 1];
+        if (cagePts) {
+          const p0 = toModel(cagePts[0]), p1 = toModel(cagePts[1]);
+          const d = [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]];
+          const L = Math.hypot(d[0], d[1], d[2]) || 1;
+          const dh = [d[0] / L, d[1] / L, d[2] / L];
+          const n = [1 - dh[0] * dh[0], -dh[0] * dh[1], -dh[0] * dh[2]];
+          const nL = Math.hypot(n[0], n[1], n[2]) || 1;
+          const nh = [n[0] / nL, n[1] / nL, n[2] / nL];
+          hplane = { n: nh, d: nh[0] * p0[0] + nh[1] * p0[1] + nh[2] * p0[2] };
+        }
+        hinge = cageSurfHinge(pts, pt.surf, { cant: SBh ? SBh.cant : 0, hinge: hplane });
+        if (!hinge) continue;
+        if (hplane && hinge.hingeFrom !== 'declared')
+          console.warn('CAGE JOIN: ' + pt.surf + ' declared hinge line caught no vertices — the forward-edge heuristic stands in');
+        pt.pivotM = hinge.pivot;
       }
       // G179.2: a strut part pivots on its first tip (its verts stay
       // unrebased, like a leg's — the pivot only has to exist)
@@ -1640,32 +1967,15 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         out2.root = rotP(-pt.rootC[2], pt.rootC[1], pt.rootC[0]);
       if (pt.surf) {                       // G59: what drives it, and how
         out2.surf = pt.surf;
-        out2.axis = hingeAxis;
         // G185: a second-plane surface drives as its first-plane twin
         // (the '2' is only its name) and says which plane it belongs to
-        const S2 = pt.surf.replace(/2$/, '');
         if (/2$/.test(pt.surf)) out2.plane = 2;
-        out2.drive = (S2 === 'rud' || S2 === 'rud2') ? 'dr'
-                   : (S2 === 'elevR' || S2 === 'elevL') ? 'de'
-                   // G200: 'flap', the linkage's own key (50_model_codec makeLinkage
-                   // carries de/da/dr/flap). It read 'fl' here, which the linkage
-                   // never carried, so a cage build's flaps never moved on screen.
-                   : (S2 === 'flapR' || S2 === 'flapL') ? 'flap' : 'da';
-        // ailerons are ANTISYMMETRIC; the rest move together
-        out2.sgn = (S2 === 'ailL') ? -1 : 1;
-        // THE RUDDERVATOR (2026-09-04): on a V-tail each elevator panel
-        // also answers the rudder — the codec's second drive (50_model_
-        // codec applyHinges, written for exactly this). The solver's mix is
-        // al -= elevTau*de + rudTau*dr*side, so the right panel (cage +x =
-        // model +z, side +1) deflects de + dr and the left de - dr. The
-        // hinge runs along the CANTED root: [0, ±sin, cos] in the model
-        // frame, the y part mirrored so a symmetric `de` stays symmetric.
-        const SBh = window.CAGE_STAB;
-        if ((S2 === 'elevR' || S2 === 'elevL') && SBh && SBh.cant >= 20) {
-          const G = SBh.cant * Math.PI / 180, sd = S2 === 'elevR' ? 1 : -1;
-          out2.axis = [0, sd * Math.sin(G), Math.cos(G)];
-          out2.drive2 = 'dr'; out2.sgn2 = sd;
-        }
+        // G209: the hinge, the drive ('flap' is the linkage's own key, G200)
+        // and the sign, by geometry and by SIDE — cageSurfHinge, and the
+        // ruddervator's second drive with it
+        out2.axis = hinge.axis;
+        out2.drive = hinge.drive; out2.sgn = hinge.sgn;
+        if (hinge.drive2) { out2.drive2 = hinge.drive2; out2.sgn2 = hinge.sgn2; }
       }
       if (pt.kind === 'castorT') {
         const axm = rotP(-pt.axC[2], pt.axC[1], pt.axC[0]);
@@ -1855,7 +2165,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     export: () => cageJoinSpec(window.CAGE_UI.P, measure(), tables()),
     // read AFTER export: measure() is what fills it
     errors: () => ERRS.slice(),
+    notes: () => NOTES.slice(),
     snapshot, fitReport,
+    mount: joinMount,                // G216: the craft root, for the editor
   };
   // THE BUTTON IS GONE (G65, user: "there's an intermediate step to build...
   // It's one too much"). `build & fly` did three things — export through this

@@ -771,6 +771,253 @@ console.log(`health: ${cases} cases (dorsal x root x keel x crease x ` +
     fail('finSpec({}) is not the identity');
 }
 
+// ---- 8: THE MEASURE (TAIL CHANTIER 2, P0) ----------------------------------
+// finMeasure is what the join will fly (P1): the drawn sheet's areas by part
+// and material, its mean chord, its declared hinge. Pinned three ways — on
+// the sketch's own arithmetic, on the fin-space units, and against the PAGE:
+// a fixture captured off dev.html (tools/fixtures/tail_measure_*.json,
+// the page's P and the two `measure` objects the layers published) must be
+// reproduced by _tail_headless.js to 1e-6, which is what licenses a node
+// gate to fly the drawn tail (ruling (s)).
+{
+  const sub2 = m => G.cageSubdivide(G.cageSubdivide(m));
+  const near = (a, b, tol) => Math.abs(a - b) <= tol;
+  const polyArea = (V, ids) => {           // Newell, the check's own copy
+    let nx = 0, ny = 0, nz = 0;
+    for (let i = 0; i < ids.length; i++) {
+      const a = V[ids[i]], b = V[ids[(i + 1) % ids.length]];
+      nx += (a[1] - b[1]) * (a[2] + b[2]);
+      ny += (a[2] - b[2]) * (a[0] + b[0]);
+      nz += (a[0] - b[0]) * (a[1] + b[1]);
+    }
+    return 0.5 * Math.hypot(nx, ny, nz);
+  };
+  // 8a: the sketch identity, uncut — the sum of its faces, and a slice
+  const m0 = FIN.buildFin2(FIN.finSpec(FIN.FIN_PARAMS));
+  const s = sub2(m0);
+  const M = FIN.finMeasure(s, { zCut: m0.cutZ, cut: 0 });
+  const sum = s.F.reduce((t, f) => t + polyArea(s.V, f.v), 0);
+  if (!near(M.area, sum, 1e-9)) fail(`measure: area ${M.area} != face sum ${sum}`);
+  if (M.areaCtl !== 0 || M.ctlFrac !== 0) fail('measure: an uncut sheet has a control');
+  if (!(M.areaDorsal > 0 && M.areaKeel > 0)) fail('measure: the sketch has a dorsal and a keel');
+  if (!near(M.areaProper, M.area - M.areaDorsal - M.areaKeel, 1e-12)) fail('measure: proper != area - dorsal - keel');
+  if (!(M.span > 0 && M.chordMean > 0 && M.chordRoot > 0)) fail('measure: span/chord not positive');
+  if (!(M.chordRoot <= M.chordBox + 1e-9 && M.chordAt(M.span * 0.5) <= M.chordBox + 1e-9))
+    fail('measure: a slice wider than the box');
+  if (M.chordAt(M.span) > 1e-9) fail('measure: the tip slice is not a point');
+  // the slices are the polygon area: ∫ chordAt dt over the span (Simpson,
+  // 400 stations) against areaProper. A slice is an EXTENT, so it can only
+  // over-count — on the sketch the root guard strand runs forward under the
+  // (excluded) dorsal and bridges it, ~2 %; the stab panel (8d) has no such
+  // gap and must agree within 1 %
+  const integral = (Mx, n) => {
+    const h = Mx.span / n;
+    let I = 0;
+    for (let i = 0; i <= n; i++) I += (i === 0 || i === n ? 1 : (i % 2 ? 4 : 2)) * Mx.chordAt(i * h);
+    return I * h / 3;
+  };
+  {
+    const I = integral(M, 400);
+    if (I < M.areaProper - 1e-6 || I > 1.03 * M.areaProper)
+      fail(`measure: the slices integrate to ${I.toFixed(4)}, the faces sum to ${M.areaProper.toFixed(4)}`);
+  }
+  if (!M.hinge || M.hinge.z !== m0.cutZ) fail('measure: the hinge is not the declared cutZ');
+  // 8b: the units — FS scales lengths once and areas twice
+  const M2 = FIN.finMeasure(s, { zCut: m0.cutZ, cut: 0, FS: 2 });
+  if (!near(M2.area, 4 * M.area, 1e-9) || !near(M2.span, 2 * M.span, 1e-9) ||
+      !near(M2.chordAt(M2.span * 0.3), 2 * M.chordAt(M.span * 0.3), 1e-9) ||
+      !near(M2.hinge.zM, 2 * m0.cutZ, 1e-12))
+    fail('measure: FS does not scale lengths once and areas twice');
+  // 8c: the cut — the control's area is the rudder part's, the horn adds
+  // to it, and the loss to the slot is the band the cutter drops
+  const mC = FIN.buildFin2(Object.assign(FIN.finSpec(FIN.FIN_PARAMS), { cutPrep: 1 }));
+  const sC = sub2(mC);
+  const c1 = FIN.finCutMesh(sC, { mode: 1, zCut: mC.cutZ, gap: 0.012 });
+  const M1 = FIN.finMeasure(c1, { zCut: mC.cutZ, cut: 1 });
+  const rud = c1.F.reduce((t, f) => t + (f.part === 'rudder' ? polyArea(c1.V, f.v) : 0), 0);
+  if (!near(M1.areaCtl, rud, 1e-9)) fail('measure: areaCtl is not the rudder part');
+  if (!c1.F.some(f => f.part === 'rudder' && f.m === 'optionalKeelExtension'))
+    fail('measure: the keel tab no longer rides the rudder — re-read ctlFrac\'s denominator');
+  if (!near(M1.areaTail, M1.areaProper + M1.areaKeel, 1e-12)) fail('measure: areaTail != proper + keel');
+  if (!(M1.ctlFrac > 0.10 && M1.ctlFrac < 0.60)) fail(`measure: hinge-cut rudder fraction ${M1.ctlFrac} outside (0.10, 0.60)`);
+  if (!(M1.area < M.area && M.area - M1.area < 0.12)) fail('measure: the cut sheet did not lose the slot');
+  const mH = FIN.buildFin2(Object.assign(FIN.finSpec(FIN.FIN_PARAMS), { cutPrep: 2 }));
+  const c2 = FIN.finCutMesh(sub2(mH), { mode: 2, zCut: mH.cutZ, gap: 0.012 });
+  const MH = FIN.finMeasure(c2, { zCut: mH.cutZ, cut: 2 });
+  if (!(MH.ctlFrac > M1.ctlFrac)) fail('measure: the horn balance did not add to the rudder');
+  if (MH.cut !== 2 || M1.cut !== 1) fail('measure: the cut mode is not carried');
+  console.log(`measure (sketch, L2): area ${M.area.toFixed(4)} proper ${M.areaProper.toFixed(4)} ` +
+    `dorsal ${M.areaDorsal.toFixed(4)} keel ${M.areaKeel.toFixed(4)} · span ${M.span.toFixed(3)} ` +
+    `chord mean ${M.chordMean.toFixed(3)} root ${M.chordRoot.toFixed(3)} box ${M.chordBox.toFixed(3)} · ` +
+    `rudder ${(100 * M1.ctlFrac).toFixed(1)} % (hinge) ${(100 * MH.ctlFrac).toFixed(1)} % (horn)`);
+  // 8d: the stab on its flat deck (the Cub tail laid flat) has neither
+  const finP = {};
+  for (const [sk, fk] of Object.entries(FIN.ST2FIN)) finP[fk] = FIN.FIN_CUB[fk] !== undefined ? FIN.FIN_CUB[fk] : FIN.FIN_PARAMS[fk];
+  const SS = FIN.finSpec(finP); SS.dorsal = 0; SS.keelExt = 0; SS.cutPrep = 1;
+  const rootLine = FIN.FIN_DEFAULT.lo.H;
+  SS.deck = { top: () => rootLine, bot: () => FIN.FIN_DEFAULT.yKeel - FIN.FIN_DEFAULT.offKeel, z0: FIN.FIN_DEFAULT.zCap, z1: 1e9 };
+  const mS = FIN.buildFin2(SS);
+  const sS = sub2(mS);
+  const cS = FIN.finCutMesh(sS, { mode: 1, zCut: mS.cutZ, gap: 0.012 });
+  const MS = FIN.finMeasure(cS, { zCut: mS.cutZ, cut: 1 });
+  if (MS.areaDorsal !== 0 || MS.areaKeel !== 0) fail('measure: the stab sheet carries a dorsal or a keel');
+  if (!near(MS.y0, rootLine, 0.03)) fail(`measure: the stab root ${MS.y0} is not at the root line ${rootLine}`);
+  if (!(MS.chordRoot > MS.chordAt(MS.span * 0.999))) fail('measure: the stab tip is not narrower than its root');
+  {
+    // a slice bridges the hinge SLOT (the cutter drops the band's faces;
+    // the chord does not), so the slices of the cut sheet are the UNCUT
+    // sheet's area — within 1 % — and exceed the cut sheet's by the slot
+    const MS0 = FIN.finMeasure(sS, { zCut: mS.cutZ, cut: 0 });
+    const I = integral(MS, 400);
+    if (Math.abs(I - MS0.areaProper) > 0.01 * MS0.areaProper)
+      fail(`measure: the stab slices integrate to ${I.toFixed(4)}, the uncut faces sum to ${MS0.areaProper.toFixed(4)}`);
+    if (!(I > MS.areaProper)) fail('measure: the stab slices do not bridge the slot');
+  }
+  console.log(`measure (cub stab panel, L2): area ${MS.area.toFixed(4)} span ${MS.span.toFixed(3)} ` +
+    `chord mean ${MS.chordMean.toFixed(3)} root ${MS.chordRoot.toFixed(3)} · elevator ${(100 * MS.ctlFrac).toFixed(1)} %`);
+  // 8f: THE MACRO TIER (TAIL CHANTIER 2 P3) — five numbers in the wing's
+  // vocabulary over the corner fields. Identity exact (7 above already pins
+  // finSpec({}) bit for bit; here the five at their defaults against the
+  // fiche), each one does what it says on the measure, no macro is clamped
+  // inside its own declared range on either fiche (TAIL-ARCHETYPES §7's
+  // row, restored), and the hinge goes out as a LINE that rakes with sweep
+  {
+    const mk = (P, extra) => {
+      const m = FIN.buildFin2(Object.assign(FIN.finSpec(P), extra || {}));
+      return { m, M: FIN.finMeasure(sub2(m), { zCut: m.cutZ, cut: 0, hingeLine: m.hingeLine }) };
+    };
+    const base = mk(FIN.FIN_PARAMS), cub = mk(FIN.FIN_CUB);
+    const idM = mk(Object.assign({}, FIN.FIN_PARAMS, { finHeight: 1, finChord: 1, finChordTip: 1, finSweep: 0,
+      finHinge: FIN.FIN_PARAMS.finHinge }));
+    if (JSON.stringify(idM.m.V) !== JSON.stringify(base.m.V)) fail('macro: the identity moved a vertex');
+    if (base.m.clamped.length) fail('macro: the sketch identity reports a clamp: ' + base.m.clamped.join(', '));
+    if (cub.m.clamped.length) fail('macro: the Cub tail reports a clamp: ' + cub.m.clamped.join(', '));
+    const H = mk(Object.assign({}, FIN.FIN_PARAMS, { finHeight: 1.4 }));
+    if (!near(H.M.span, 1.4 * base.M.span, 1e-6)) fail(`macro: height 1.4 gave span ${H.M.span} vs ${1.4 * base.M.span}`);
+    if (!near(H.M.areaKeel, base.M.areaKeel, 1e-9)) fail('macro: the height moved the keel tab');
+    // (the dorsal's own columns keep their stations, so the slices under it
+    // near the root scale less; from mid-span up the scale is exact — and
+    // on the dorsal-less Cub tail it is exact everywhere)
+    const C = mk(Object.assign({}, FIN.FIN_PARAMS, { finChord: 1.3 }));
+    if (!near(C.M.chordAt(C.M.span * 0.7), 1.3 * base.M.chordAt(base.M.span * 0.7), 1e-6))
+      fail('macro: chord 1.3 did not scale the 70 % slice 1.3x');
+    const Cc = mk(Object.assign({}, FIN.FIN_CUB, { finChord: 1.3 }));
+    if (!near(Cc.M.chordAt(Cc.M.span * 0.3), 1.3 * cub.M.chordAt(cub.M.span * 0.3), 1e-6))
+      fail('macro: chord 1.3 on the Cub tail did not scale the 30 % slice 1.3x');
+    if (!near(C.m.hingeLine[0][1], base.m.hingeLine[0][1], 1e-9)) fail('macro: the chord moved the hinge');
+    const T = mk(Object.assign({}, FIN.FIN_PARAMS, { finChordTip: 0.5 }));
+    if (!(T.M.chordAt(T.M.span * 0.9) < base.M.chordAt(base.M.span * 0.9) - 0.05 &&
+          near(T.M.chordRoot, base.M.chordRoot, 1e-6)))
+      fail('macro: tip chord 0.5 did not narrow the tip and keep the root');
+    if (!near(T.m.hingeLine[1][1], base.m.hingeLine[1][1], 1e-9)) fail('macro: the taper raked the post');
+    const W = mk(Object.assign({}, FIN.FIN_PARAMS, { finSweep: 20 }));
+    const rake = (W.m.hingeLine[0][1] - W.m.hingeLine[1][1]) / (W.m.hingeLine[1][0] - W.m.hingeLine[0][0]);
+    if (!near(rake, Math.tan(20 * Math.PI / 180), 1e-6)) fail(`macro: sweep 20 raked the post by atan ${rake}, not 20 deg`);
+    // a shear is affine on every quad — the emitted sheet keeps its area to
+    // 0.01 % — but the dorsal's own columns keep their stations, and the
+    // subdivision carries that non-affine patch into the proper faces
+    // beside it (measured 0.27 %); the dorsal-less Cub tail is exact
+    if (!near(W.M.areaProper, base.M.areaProper, 5e-3 * base.M.areaProper)) fail('macro: a shear changed the area');
+    const Wc = mk(Object.assign({}, FIN.FIN_CUB, { finSweep: 20 }));
+    if (!near(Wc.M.areaProper, cub.M.areaProper, 1e-6)) fail('macro: a shear changed the Cub tail\'s area');
+    const G = mk(Object.assign({}, FIN.FIN_PARAMS, { finHinge: 0.35 }));
+    const rootChord = FIN.FIN_DEFAULT.zC - FIN.FIN_DEFAULT.zTE;
+    const slotHalf = (FIN.FIN_DEFAULT.zH1 - FIN.FIN_DEFAULT.zH2) / 2;   // the line is the slot's centre
+    if (!near((G.m.hingeLine[0][1] + slotHalf - FIN.FIN_DEFAULT.zTE) / rootChord, 0.35, 1e-9))
+      fail('macro: hinge 0.35 did not put the post at 35 % of the root chord from the TE');
+    const cG = FIN.finCutMesh(sub2(G.m), { mode: 1, zCut: G.m.cutZ, gap: 0.012 });
+    const MG = FIN.finMeasure(cG, { zCut: G.m.cutZ, cut: 1 });
+    if (!(MG.ctlFrac > M1.ctlFrac + 0.05)) fail(`macro: a 35 % hinge did not grow the cut rudder (${MG.ctlFrac} vs ${M1.ctlFrac})`);
+    // no macro row is clamped inside its own declared range on the SKETCH
+    // (the reference the ranges were cut against); on the Cub tail — whose
+    // tip sits far aft — a forward hinge meets the tip corner's geometric
+    // guard, and that clamp must NAME itself (ruling (b)), never bite in
+    // silence. The ranges here are the layers' rows (_cage_fin.js 'size').
+    const RANGES = { finHeight: [0.50, 1.80], finChord: [0.50, 1.60], finChordTip: [0.30, 1.50],
+                     finSweep: [-10, 45], finHinge: [0.08, 0.45] };
+    let swept = 0, clampedAt = [], cubNamed = 0;
+    for (const fiche of [FIN.FIN_PARAMS, FIN.FIN_CUB])
+      for (const [k, [lo, hi]] of Object.entries(RANGES))
+        for (const v of [lo, (lo + hi) / 2, hi]) {
+          const m = FIN.buildFin2(FIN.finSpec(Object.assign({}, fiche, { [k]: v })));
+          swept++;
+          if (!m.V.every(p => p.every(Number.isFinite))) fail(`macro: ${k} ${v} not finite`);
+          if (m.clamped.length) {
+            if (fiche === FIN.FIN_PARAMS) clampedAt.push(`${k}=${v}: ${m.clamped.join('/')}`);
+            else cubNamed++;
+          }
+        }
+    if (clampedAt.length) fail('macro: a macro row is clamped inside its own range on the sketch — ' + clampedAt.join('; '));
+    {  // the Cub's forward hinge: the tip guard bites and says so
+      const m = FIN.buildFin2(FIN.finSpec(Object.assign({}, FIN.FIN_CUB, { finHinge: 0.45 })));
+      if (!(m.clamped.length && m.clamped.indexOf('tip fore / aft') >= 0))
+        fail('macro: the Cub tail at hinge 0.45 must name the tip clamp it meets');
+    }
+    console.log(`macro tier: identity exact, height/chord/tip/sweep/hinge do what they say, ${swept} range ends, ` +
+      `none clamped on the sketch, ${cubNamed} named on the Cub`);
+  }
+  // 8g: THE STRAIGHT FIN (P3, the finArch starter's second option) — frozen
+  // in _fin_gen.js with no reference OBJ, so the gate holds it to what it
+  // claims: the LE one line through the shoulder, the TE the plain chord,
+  // the top one line, no clamp, and a delta set that covers FIN_CUB's keys
+  // plus the six it lacks (the starter writes both options' full sets)
+  {
+    const m = FIN.buildFin2(FIN.finSpec(FIN.FIN_STRAIGHT));
+    const Pn = n => m.V[m.IX[n]];
+    const dev = (a, b, c) => Math.abs((b[2] - a[2]) * (c[1] - a[1]) - (c[2] - a[2]) * (b[1] - a[1])) /
+                             Math.hypot(b[1] - a[1], b[2] - a[2]);
+    if (dev(Pn('leC'), Pn('shoulder'), Pn('tip')) > 1e-4) fail('straight fin: the LE is not one line');
+    if (dev(Pn('topTE'), Pn('midTE'), Pn('kTE')) > 1e-6 || dev(Pn('topTE'), Pn('uTE'), Pn('kTE')) > 1e-6)
+      fail('straight fin: the TE is not the plain chord');
+    if (dev(Pn('tip'), Pn('topH1'), Pn('topTE')) > 5e-3) fail('straight fin: the top is not one line');
+    if (m.clamped.length) fail('straight fin: a clamp bites at rest — ' + m.clamped.join(', '));
+    if (m.V.some(p => p.some(x => !Number.isFinite(x)))) fail('straight fin: not finite');
+    const want = Object.keys(FIN.FIN_CUB).filter(k => k !== 'finDorsal' && k !== 'finKeel')
+      .concat(['finRootFwd', 'finSharpTip', 'finSharpAft', 'finSharpBase', 'finSharpShoulder', 'finSharpLE']);
+    const missing = want.filter(k => !(k in FIN.FIN_STRAIGHT));
+    if (missing.length) fail('straight fin: delta set incomplete — ' + missing.join(', '));
+    console.log(`straight fin: LE dev ${dev(Pn('leC'), Pn('shoulder'), Pn('tip')).toExponential(1)}, ` +
+      `top dev ${dev(Pn('tip'), Pn('topH1'), Pn('topTE')).toExponential(1)}, ${want.length} keys`);
+  }
+  // 8e: THE PAGE AND THE HEADLESS TAIL AGREE — every captured fixture
+  const TH = require('./_tail_headless.js');
+  const fxDir = path.join(__dirname, 'fixtures');
+  const fx = fs.existsSync(fxDir)
+    ? fs.readdirSync(fxDir).filter(f => /^tail_measure_.*\.json$/.test(f)) : [];
+  if (!fx.length) fail('measure: no tail_measure_*.json fixture (capture one off dev.html)');
+  for (const f of fx) {
+    const raw = JSON.parse(fs.readFileSync(path.join(fxDir, f), 'utf8'));
+    // a fixture carries the page's whole P, or names a `base` fixture and
+    // the `delta` the page applied over it before its build
+    let P = raw.P;
+    if (!P && raw.base) {
+      const b = JSON.parse(fs.readFileSync(path.join(fxDir, raw.base), 'utf8'));
+      P = Object.assign({}, b.P, raw.delta || {});
+    }
+    if (!P) { fail(`${f}: no P and no base`); continue; }
+    if (typeof raw.fin === 'object' && raw.fin && !('hinge' in raw.fin)) fail(`${f}: fin measure has no hinge`);
+    const t = TH.tailBuild(P, { level: raw.level, step: raw.step });
+    let worst = 0, worstK = '';
+    for (const [name, page, mine] of [['fin', raw.fin, t.fin && t.fin.measure],
+                                      ['stab', raw.stab, t.stab && t.stab.measure]]) {
+      if (!page && !mine) continue;
+      if (!page || !mine) { fail(`${f}: ${name} drawn on one side only`); continue; }
+      const cmp = (pg, mn, pre) => {
+        for (const k in pg) {
+          if (pg[k] && typeof pg[k] === 'object') { cmp(pg[k], mn[k] || {}, pre + k + '.'); continue; }
+          if (typeof pg[k] !== 'number') continue;
+          const d = Math.abs(pg[k] - mn[k]);
+          if (!(d <= 1e-6 * Math.max(1, Math.abs(pg[k])))) fail(`${f}: ${pre}${k} page ${pg[k]} vs headless ${mn[k]}`);
+          if (d > worst) { worst = d; worstK = pre + k; }
+        }
+      };
+      cmp(page, mine, name + '.');
+    }
+    if (t.approx.length) fail(`${f}: headless build approximate — ${t.approx.join('; ')}`);
+    console.log(`measure: ${f} (${raw.what || 'page'}, L${raw.level}) reproduced headless, worst ${worst.toExponential(1)} at ${worstK || '-'}`);
+  }
+}
+
 // THE VERDICT CONTRACT (G67.1): this checker joins the battery, and the
 // runner requires BOTH signals — the line and the exit code.
 console.log('GATE FIN: ' + (anyFail ? 'FAIL' : 'PASS'));

@@ -165,6 +165,23 @@ const out = I => { const c = { eng: null }; I.write(c); return c; };
   for (let x = -1; x <= 1.0001; x += 0.05) { const y = API.mapBinding(be, x, act); if (y < prev - 1e-9) mono = false; prev = y; }
   ck('mapBinding: expo is monotonic and keeps the endpoints',
      mono && near(API.mapBinding(be, 1, act), 1) && near(API.mapBinding(be, -1, act), -1) && Math.abs(API.mapBinding(be, 0.5, act)) < 0.5);
+  // G209: SENSITIVITY — full stick = gain of the travel, after the expo,
+  // clamped at the travel; a lever ignores it; the profile keeps it
+  const bg = Object.assign({}, b0, { gain: 0.5 });
+  ck('mapBinding: gain 0.5 halves a centred axis (full stick -> half travel) and keeps the centre',
+     near(API.mapBinding(bg, 1, act), 0.5) && near(API.mapBinding(bg, -1, act), -0.5) && near(API.mapBinding(bg, 0, act), 0));
+  ck('mapBinding: gain above 1 saturates at full travel, and applies after the expo',
+     near(API.mapBinding(Object.assign({}, b0, { gain: 2 }), 1, act), 1) &&
+     near(API.mapBinding(Object.assign({}, b0, { gain: 2, expo: 1 }), 0.5, act), 0.25));
+  ck('mapBinding: a lever ignores gain',
+     near(API.mapBinding({ lo: 1, hi: -1, dead: 0, expo: 0, gain: 0.5 }, -1, lever), 1));
+  {
+    const n = API.normalise({ bindings: { roll: [{ dev: 'stick#0', type: 'axis', index: 0, gain: 0.4 }],
+                                          pitch: [{ dev: 'stick#0', type: 'axis', index: 1 }] } });
+    ck('normalise: keeps a gain, fills 1 when absent, clamps garbage',
+       n.bindings.roll[0].gain === 0.4 && n.bindings.pitch[0].gain === 1 &&
+       API.normalise({ bindings: { roll: [{ dev: 'stick#0', type: 'axis', index: 0, gain: 99 }] } }).bindings.roll[0].gain === 2);
+  }
   ck('mapBinding: a throttle that idles at +1 (lo:1, hi:-1) maps +1→0 and -1→1',
      near(API.mapBinding({ lo: 1, hi: -1, dead: 0, expo: 0 }, 1, lever), 0) &&
      near(API.mapBinding({ lo: 1, hi: -1, dead: 0, expo: 0 }, -1, lever), 1) &&
@@ -289,7 +306,10 @@ ck('app.js re-engages the AP (with a phase) from setManual',
 ck('the HUD, the trace and the arrival card read flDbg(), not ap.dbg, when the pilot is you',
    (app.match(/flDbg\(\)/g) || []).length >= 3);
 ck('the cage join names the flap drive as the linkage carries it (\'flap\', not \'fl\')',
-   /\? 'flap' : 'da'/.test(join) && !/\? 'fl' : 'da'/.test(join));
+   // G209: the drive comes out of cageSurfHinge now, so ask it rather than the source
+   (() => { try { const h = require('./_cage_join.js').cageSurfHinge(
+       [[0, 0, 1], [0.3, 0, 1], [0, 0, 1.5], [0.3, 0, 1.5]], 'flapL'); return !!h && h.drive === 'flap'; }
+     catch (e) { return false; } })() && !/\? 'fl' : 'da'/.test(join));
 ck('both rails carry a controls entry', /k: 'controls'/.test(app) && /k: 'controls'/.test(editor));
 ck('the editor rail\'s controls entry is a literal (GATE VIEW reads it in an empty vm)',
    (() => { const i = editor.indexOf("k: 'controls'"); return i > 0 && !/rows:|\(\)\s*=>/.test(editor.slice(i, editor.indexOf('}', i))); })());

@@ -1903,13 +1903,20 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
                                  : [d.bones.head]) };
     if (P.dumMarkers) {
       const eye = group.worldToLocal(eyeW.clone());
-      ballAt(group, M.marker, [eye.x, eye.y, eye.z], 0.015);
+      // THE MARKERS ARE NOT CLICKABLE (G210.1, the user: 'the area which
+      // triggers a crew selection seems wider than the visual silhouette').
+      // A THREE.Line is picked with Raycaster.params.Line.threshold, ONE
+      // METRE by default — so this 0.6 m sight line answered every click
+      // within a metre of the pilot's head, for the crew. The eye ball too.
+      ballAt(group, M.marker, [eye.x, eye.y, eye.z], 0.015).raycast = () => {};
       const gq = group.getWorldQuaternion(new THREE.Quaternion()).invert();
       const fwd = fwdW.clone().applyQuaternion(gq);
       const lg = new THREE.BufferGeometry().setFromPoints(
         [eye, eye.clone().addScaledVector(fwd, 0.6)]);
-      group.add(new THREE.Line(lg, new THREE.LineBasicMaterial(
-        { color: 0xff4d3d, transparent: true, opacity: 0.55 })));
+      const sight = new THREE.Line(lg, new THREE.LineBasicMaterial(
+        { color: 0xff4d3d, transparent: true, opacity: 0.55 }));
+      sight.raycast = () => {};
+      group.add(sight);
       const crown = group.worldToLocal(new THREE.Vector3(0, 0.245, 0)
         .applyMatrix4(head.matrixWorld));
       const seatFloor = A.floorAt(pilot.zBack + 0.20);

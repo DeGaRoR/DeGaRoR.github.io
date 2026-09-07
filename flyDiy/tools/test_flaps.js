@@ -46,6 +46,16 @@ console.log(`GEN : clean CLmax=${G.c.CLmax.toFixed(2)} Vs=${G.c.Vs.toFixed(1)} |
 // AP flap servo: rate-limited deployment on approach
 const world = makeWorld();
 const def = buildFlapped();
+// TAIL CHANTIER 2 P5 (2026-09-08, RULING OWED — HANDOVER G219, DEBT-REGISTER
+// §1): under the vortex downwash every build flies now, the trim solver
+// measures the stock's flapped approach at −0.28 rad of elevator and LANDS
+// IT FLAPLESS (flaps.ldg 0) — the constant model read +0.035 and kept the
+// flaps. This block tests the SERVO's rate, not the trim solver's verdict,
+// so the flaps are held by fiat here and said so; the ruling decides the rest
+if (!(def.params.flaps.ldg > 0)) {
+  console.log('  (the trim solver landed this build flapless — flaps held at 1 for the servo row; RULING OWED)');
+  def.params.flaps.ldg = 1;
+}
 const sim = makeSim(def, world);
 sim.reset(0);
 for (let s = 0; s < 120; s++) sim.step(1/60);

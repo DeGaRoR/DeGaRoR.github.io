@@ -66,8 +66,14 @@ const M = {
   tailW: 0.14, tailBot: 0.31, tailTop: 0.52, cowlDeck: 0.66,
   noseGap: 0.93, cabLen: 1.24, postGap: 0.42, wingXLE: 0.55, gearX: 0.82,
   gearY: -0.31, shape: 'boom',
-  hSpan: 2.4, hChord: 0.8, hX: 5.0, vHeight: 1.1, vChord: 0.9, vX: 5.2,
+  hSpan: 2.4, hChord: 0.875, hX: 5.0, vHeight: 1.1, vChord: 0.9, vX: 5.2,
   stabH: 0.15,
+  // TAIL CHANTIER 2 P1: the AREAS off the sheets (hChord = Sh / hSpan and
+  // vChord = Sv / vHeight, as the join writes them), the dorsal apart, and
+  // the control chords as area fractions — all NON-default (the rule would
+  // size a very different tail for this wing; the defaults are 0.40 / 0.42)
+  Sh: 2.1, Sv: 0.99, dorsalArea: 0.12, elevChord: 0.38, rudChord: 0.31,
+  hTaper: 0.6, vTaper: 0.7,                    // P4: the trusses' trapezoids (defaults 1.0)
   profile: [{ t: 0, w: 0.45, yb: -0.05, yt: 1.15 },
             { t: 0.5, w: 0.22, yb: 0.28, yt: 0.66 },
             { t: 1, w: 0.14, yb: 0.31, yt: 0.52 }],
@@ -177,6 +183,11 @@ ok(Array.isArray(s.fuselage.profile) && s.fuselage.profile.length === 3,
 ok(s.tail.hSpan === 2.4 && s.tail.hX === 5.0 && s.tail.vHeight === 1.1 &&
    s.tail.vX === 5.2 && s.tail.stabH === 0.15,
    'tail surfaces pass (G54.3)');
+ok(s.tail.Sh === 2.1 && s.tail.Sv === 0.99 && s.tail.hChord === 0.875 &&
+   s.tail.vChord === 0.9 && s.tail.dorsal && s.tail.dorsal.area === 0.12 &&
+   s.controls && s.controls.elevator.chord === 0.38 && s.controls.rudder.chord === 0.31,
+   'P1: the areas, the mean chords, the dorsal and the control chords pass');
+ok(s.tail.hTaper === 0.6 && s.tail.vTaper === 0.7, 'P4: the measured tapers pass');
 ok(s.cabin.seating === 'side2' && s.cabin.pilots === 2,
    'seating + pilots pass (sectioned)');
 ok(s.cabin.seats === 4 && Array.isArray(s.cabin.occupied) &&
@@ -286,6 +297,58 @@ try {
   ok(R.tail.hSpan === 2.4 && R.tail.hX === 5.0 && !RS.auto['tail.hX'] &&
      R.tail.vHeight === 1.1 && R.tail.vX === 5.2 && R.tail.stabH === 0.15,
      'RESOLVED tail surfaces = measured, stations not auto');
+  // P1: THE DRAWN TAIL IS THE FLOWN TAIL — the areas survive resolve (the
+  // volume rule is `put` and stands down), the chords are the MEAN ones,
+  // the control chords reach the tau, and the frame's strips sum to the
+  // measured areas: measured -> resolved -> frame, end to end
+  ok(R.tail.Sh === 2.1 && !RS.auto['tail.Sh'] && R.tail.Sv === 0.99 && !RS.auto['tail.Sv'] &&
+     R.tail.hChord === 0.875 && !RS.auto['tail.hChord'] &&
+     R.tail.vChord === 0.9 && !RS.auto['tail.vChord'] &&
+     R.tail.dorsal.area === 0.12 &&
+     R.controls.elevator.chord === 0.38 && R.controls.rudder.chord === 0.31,
+     'P1 RESOLVED: Sh 2.1 / Sv 0.99 stand (not auto), mean chords, dorsal 0.12, control chords 0.38 / 0.31');
+  try {
+    const dP1 = C.buildGen(JSON.parse(JSON.stringify(s)));
+    const st = dP1.strips || [];
+    const shS = st.filter(q => q.kind === 'stab').reduce((t, q) => t + q.area, 0);
+    const svS = st.filter(q => q.kind === 'fin').reduce((t, q) => t + q.area, 0);
+    ok(Math.abs(shS - 2.1) < 1e-9 && Math.abs(svS - 0.99) < 1e-9,
+       'P1 FRAME: the stab strips sum to Sh 2.1 and the fin strip is Sv 0.99 (' +
+       shS.toFixed(4) + ' / ' + svS.toFixed(4) + ')');
+    const d0 = C.buildGen(JSON.parse(JSON.stringify(Object.assign({}, s, { controls: undefined }))));
+    ok(dP1.params.elevTau < d0.params.elevTau - 1e-6 && dP1.params.rudTau < d0.params.rudTau - 1e-6,
+       'P1 FRAME: the measured (smaller) control chords reach the tau (' +
+       dP1.params.elevTau.toFixed(3) + ' < ' + d0.params.elevTau.toFixed(3) + ', ' +
+       dP1.params.rudTau.toFixed(3) + ' < ' + d0.params.rudTau.toFixed(3) + ')');
+    // P4: THE TAIL IS A TRUSS — spar nodes on both surfaces, the tip nodes
+    // FIRST under their old tags (every consumer keys on the first so
+    // tagged), every tail member class 'tail', the strips on the bays with
+    // their four spar nodes, the measured tapers on the trapezoid (the tip
+    // station's chord over the root's = hTaper), the carry-through tied
+    const tg = {}; for (const n of dP1.nodes) tg[n.tag] = (tg[n.tag] || 0) + 1;
+    ok(tg.HF >= 6 && tg.HR >= 6 && tg.VF >= 3 && tg.VR >= 3 && tg.HTL === 1 && tg.HTR === 1 && tg.FIN === 1,
+       'P4 FRAME: the tail has spar nodes (HF ' + tg.HF + ', HR ' + tg.HR + ', VF ' + tg.VF + ', VR ' + tg.VR + ') and one tip a side');
+    ok(dP1.nodes.findIndex(n => n.tag === 'HTL') < dP1.nodes.findIndex(n => n.tag === 'HF') &&
+       dP1.nodes.findIndex(n => n.tag === 'FIN') < dP1.nodes.findIndex(n => n.tag === 'VF'),
+       'P4 FRAME: the tip nodes and the apex are made before their spars (the first-tagged rule)');
+    const tailB = dP1.beams.filter(b => b.cls === 'tail');
+    ok(tailB.length >= 40 && !dP1.beams.some(b => b.cls === 'fus' && dP1.nodes[b.a].tag === 'HTL'),
+       'P4 FRAME: ' + tailB.length + ' tail-class members, none of the tail on the fuselage class');
+    const T = dP1.parts.TAIL;
+    ok(T && st.filter(q => q.kind === 'stab').every(q => q.fIn != null && q.rOut != null) &&
+       st.filter(q => q.kind === 'fin').every(q => q.fIn != null),
+       'P4 FRAME: every stab and fin strip names its four spar nodes');
+    ok(T && Math.abs(T.chordH(T.semiH) / T.chordH(0) - M.hTaper) < 1e-9 &&
+       Math.abs(T.chordV(1) / T.chordV(0) - M.vTaper) < 1e-9,
+       'P4 FRAME: the trusses stand on the measured tapers (' + M.hTaper + ' / ' + M.vTaper + ')');
+    const ct = dP1.beams.some(b => (dP1.nodes[b.a] === dP1.nodes[T.HF.L[0]] && b.b === T.HF.R[0]) ||
+                                   (b.a === T.HF.L[0] && b.b === T.HF.R[0]));
+    ok(ct, 'P4 FRAME: the front spar carries through (HF0L–HF0R)');
+    // ...and the solver reads the deformed spars: a stab strip's normal comes
+    // off its nodes (kind stays 'stab' — the alpha law, the elevator and the
+    // downwash key on it), so a tail-only pitch of the frame is seen
+    ok(st.filter(q => q.kind === 'stab').every(q => q.kind === 'stab'), 'P4: the strips keep their kind');
+  } catch (e) { ok(false, 'P1 frame row threw: ' + e.message); }
   // the frame must actually FOLLOW the profile: the mid-boom station's floor
   // sits at the measured 0.28, not on the family curve
   {
@@ -447,10 +510,18 @@ try {
 // length write tail.type twinBoom; a measured fin counts twice in Sv; the
 // frame still builds (the centreline post stands in — the stated approximation)
 try {
-  const sT = cageJoinSpec(P, Object.assign({}, M, { boomX: 1.25, boomLen: 3.2, vHeight: 0.9, vChord: 0.8 }), T);
+  // (P1: with no MEASURED Sv the twin rule doubles the fin's height × chord;
+  // with one, the join has already doubled the drawn fin and the rule stands
+  // down — both pinned)
+  const sT = cageJoinSpec(P, Object.assign({}, M, { boomX: 1.25, boomLen: 3.2, vHeight: 0.9, vChord: 0.8, Sv: undefined }), T);
   ok(sT.tail.type === 'twinBoom' && sT.tail.boomX === 1.25, 'boomX -> tail.type twinBoom');
   const RT2 = resolveSpec(JSON.parse(JSON.stringify(sT))).spec;
   ok(Math.abs(RT2.tail.Sv - 2 * 0.9 * 0.8) < 1e-9, 'RESOLVED Sv = two measured fins (' + RT2.tail.Sv.toFixed(3) + ')');
+  {
+    const sT3 = cageJoinSpec(P, Object.assign({}, M, { boomX: 1.25, boomLen: 3.2, vHeight: 0.9, vChord: 0.8, Sv: 1.6 }), T);
+    const RT3 = resolveSpec(JSON.parse(JSON.stringify(sT3))).spec;
+    ok(Math.abs(RT3.tail.Sv - 1.6) < 1e-9, 'P1: a measured twin Sv (the join doubled the drawn fin) stands over the twin rule');
+  }
   const frT = genFrame(RT2);
   ok(frT.cg0.every(Number.isFinite), 'a twin-boom spec builds');
   ok(frT.parts.BOOMS && frT.parts.FIN2 != null &&
@@ -489,8 +560,17 @@ try {
   ok(Math.abs(RV.tail.hSpan - 2.4) < 1e-9 && !RSV.auto['tail.hSpan'],
      'RESOLVED V-tail keeps the measured projection 2.4 (' +
      RV.tail.hSpan.toFixed(3) + ')');
-  ok(Math.abs(RV.tail.Svt - (2.4 / Math.cos(RV.tail.vG)) * 0.8) < 1e-9,
+  ok(Math.abs(RV.tail.Svt - (2.4 / Math.cos(RV.tail.vG)) * M.hChord) < 1e-9,
      'RESOLVED V panel area = (span / cos) x chord');
+  // P1: a MEASURED panel area (the join's Svt off the drawn sheets) is the
+  // area; the mean chord follows over the uncanted span
+  {
+    const sV2 = cageJoinSpec(P, Object.assign({}, M, { tailCant: 35, Svt: 2.2 }), T);
+    const RV2 = resolveSpec(JSON.parse(JSON.stringify(sV2))).spec;
+    ok(sV2.tail.Svt === 2.2 && Math.abs(RV2.tail.Svt - 2.2) < 1e-9 &&
+       Math.abs(RV2.tail.hChord - 2.2 / (2.4 / Math.cos(RV2.tail.vG))) < 1e-9,
+       'P1: a measured V Svt 2.2 stands and its mean chord is Svt over the uncanted span');
+  }
   const frV = genFrame(RV);
   ok(frV.cg0.every(Number.isFinite) && !frV.nodes.some(n => n.tag === 'FIN'),
      'V-tail frame builds, and has no FIN node');
@@ -601,6 +681,144 @@ try {
   } finally { C.GEN_RULES.rodBoomK = saved; }
 } catch (e) {
   ok(false, 'G199.5 block threw: ' + e.message);
+}
+
+// ---------------------------------------------------------------------------
+// G209 — THE SURFACES TURN THE WAY THE SOLVER FLIES THEM. cageSurfHinge is
+// the join's one measurement of a control surface (pivot, hinge axis, drive,
+// sign); each expectation below is a physical fact, not a table read back:
+//   de > 0 nose up      -> elevator TE UP
+//   da > 0 roll right   -> PORT (+z) aileron TE DOWN, starboard TE UP
+//   dr > 0 nose LEFT    -> rudder TE to PORT (+z); castor already steers so
+//   flap > 0            -> TE DOWN
+//   V-tail, dr > 0      -> port panel TE DOWN, starboard TE UP
+// and the hinge follows the panel: a cranked 14 deg outer panel hinges
+// along its own root, not along the model z. The old table failed the first
+// four of these on every cage build (ailerons, flaps and rudder reversed,
+// only the elevator right) and put a 17 deg error on a Jodel's aileron.
+// ---------------------------------------------------------------------------
+try {
+  const { cageSurfHinge } = require('./_cage_join.js');
+  // a panel in the MODEL frame: chord 0.3 aft (+x), span 1 about zc (+z is
+  // PORT), `dih` of rise per metre outboard, `rake` of aft lean per metre
+  const panel = (zc, dih, rake, vertical) => {
+    const pts = [];
+    for (let i = 0; i <= 10; i++) for (let j = 0; j <= 3; j++) {
+      const s = -0.5 + i / 10, x = j * 0.1;
+      pts.push(vertical ? [x + rake * s, s + 1, 0] : [x + rake * s, dih * s * Math.sign(zc || 1), zc + s]);
+    }
+    return pts;
+  };
+  const rot = (v, ax, ang) => {
+    const ca = Math.cos(ang), sa = Math.sin(ang), C1 = 1 - ca, d = ax[0] * v[0] + ax[1] * v[1] + ax[2] * v[2];
+    return [v[0] * ca + (ax[1] * v[2] - ax[2] * v[1]) * sa + ax[0] * d * C1,
+            v[1] * ca + (ax[2] * v[0] - ax[0] * v[2]) * sa + ax[1] * d * C1,
+            v[2] * ca + (ax[0] * v[1] - ax[1] * v[0]) * sa + ax[2] * d * C1];
+  };
+  const TE = [0.3, 0, 0];                       // a trailing-edge point, pivot-relative
+  const swing = (H, drive2) => rot(TE, H.axis, drive2 ? H.sgn2 * 0.3 : H.sgn * 0.3);
+  const hP = cageSurfHinge(panel(2, 0, 0), 'ailR'), hS = cageSurfHinge(panel(-2, 0, 0), 'ailL');
+  ok(hP && hP.drive === 'da' && hP.pivot[2] > 0 && swing(hP)[1] < -0.05,
+     'G209: the PORT aileron (the cage\'s "ailR", at +z) goes DOWN for da > 0 (roll right)');
+  ok(hS && hS.drive === 'da' && hS.pivot[2] < 0 && swing(hS)[1] > 0.05,
+     'G209: the starboard aileron goes UP for da > 0');
+  const fP = cageSurfHinge(panel(1, 0, 0), 'flapR'), fS = cageSurfHinge(panel(-1, 0, 0), 'flapL');
+  ok(fP && fP.drive === 'flap' && swing(fP)[1] < -0.05 && fS && swing(fS)[1] < -0.05,
+     'G209: both flaps go DOWN for flap > 0');
+  const eP = cageSurfHinge(panel(1, 0, 0), 'elevR'), eS = cageSurfHinge(panel(-1, 0, 0), 'elevL');
+  ok(eP && eP.drive === 'de' && !eP.drive2 && swing(eP)[1] > 0.05 && swing(eS)[1] > 0.05,
+     'G209: the elevator goes UP for de > 0 (nose up), no second drive on a flat stab');
+  const r = cageSurfHinge(panel(0, 0, 0, true), 'rud');
+  ok(r && r.drive === 'dr' && Math.abs(r.axis[1]) > 0.99 && swing(r)[2] > 0.05,
+     'G209: the rudder swings to PORT (+z) for dr > 0 (nose left)');
+  const r2 = cageSurfHinge(panel(0, 0, 0.12, true), 'rud2');
+  ok(r2 && r2.drive === 'dr' && Math.abs(r2.axis[0] - 0.12 / Math.hypot(1, 0.12)) < 0.02,
+     'G209: a raked post hinges along its rake; the twin-boom\'s second rudder reads as a rudder');
+  // the crank: 14 deg of dihedral and 6 deg of plan taper on the outer panel
+  const dih = Math.tan(14 / 57.3), rk = Math.tan(6 / 57.3);
+  const cP = cageSurfHinge(panel(3, dih, rk), 'ailR'), cS = cageSurfHinge(panel(-3, dih, rk), 'ailL');
+  const want = [rk, dih, 1].map((x, _, a) => x / Math.hypot(a[0], a[1], a[2]));
+  const dotP = cP.axis[0] * want[0] + cP.axis[1] * want[1] + cP.axis[2] * want[2];
+  const dotS = cS.axis[0] * want[0] - cS.axis[1] * want[1] + cS.axis[2] * want[2];
+  ok(dotP > 0.9998 && dotS > 0.9998 && cP.axis[2] > 0 && cS.axis[2] > 0,
+     'G209: a cranked panel\'s aileron hinges along its own root, within 1 deg, either side');
+  ok(swing(cP)[1] < -0.05 && swing(cS)[1] > 0.05,
+     'G209: ...and still antisymmetric: port down, starboard up for da > 0');
+  // the V-tail: 35 deg of cant, the panel rising outboard on each side
+  const vd = Math.tan(35 / 57.3);
+  const vP = cageSurfHinge(panel(1, vd, 0), 'elevR', { cant: 35 }), vS = cageSurfHinge(panel(-1, vd, 0), 'elevL', { cant: 35 });
+  ok(vP && vP.drive2 === 'dr' && vS && vS.drive2 === 'dr' && Math.abs(vP.axis[1] - Math.sin(35 / 57.3)) < 0.02,
+     'G209: past 20 deg of cant both panels answer the rudder too, hinged along the canted root');
+  ok(swing(vP)[1] > 0.05 && swing(vS)[1] > 0.05,
+     'G209: V-tail de > 0: both panels UP');
+  ok(swing(vP, 1)[1] < -0.05 && swing(vS, 1)[1] > 0.05 && swing(vP, 1)[2] > 0 && swing(vS, 1)[2] > 0,
+     'G209: V-tail dr > 0 (nose left): port panel DOWN, starboard UP, both trailing edges to port');
+  ok(!cageSurfHinge(panel(1, 0, 0), 'elevR', { cant: 10 }).drive2,
+     'G209: 10 deg of stab dihedral is not a V-tail');
+  // TAIL CHANTIER 2 P1 — THE DECLARED HINGE (the user: "when horn balance
+  // option, the pivot point is wrong"). A horn-balanced rudder keeps a tab
+  // FORWARD of the hinge at its tip: the forward-edge heuristic puts the
+  // pivot in the tab; the layer's declared plane puts it on the post.
+  {
+    const horn = panel(0, 0, 0, true);                 // the rudder, x 0..0.3, y 1..2
+    for (let i = 0; i <= 4; i++) for (let j = 0; j <= 3; j++)
+      horn.push([-0.15 + 0.15 * j / 3, 1.9 + 0.1 * i / 4, 0]);   // the horn: x −0.15..0 at the top
+    const h0 = cageSurfHinge(horn, 'rud');
+    const h1 = cageSurfHinge(horn, 'rud', { hinge: { n: [1, 0, 0], d: 0, eps: 0.03 } });
+    ok(h0 && h0.hingeFrom === 'vertices' && h0.pivot[0] < -0.05,
+       'P1: the vertex heuristic puts a horn-balanced rudder\'s pivot in the HORN (x ' + h0.pivot[0].toFixed(3) + ')');
+    ok(h1 && h1.hingeFrom === 'declared' && Math.abs(h1.pivot[0]) < 0.02 &&
+       Math.abs(h1.axis[1]) > 0.999 && h1.drive === 'dr' && h1.sgn === -1,
+       'P1: the declared plane puts it on the post (x ' + h1.pivot[0].toFixed(3) + '), axis up the post, drive and sign unchanged');
+    ok(cageSurfHinge(horn, 'rud', { hinge: { n: [1, 0, 0], d: 9, eps: 0.03 } }).hingeFrom === 'vertices',
+       'P1: a declared plane that catches no vertex falls back to the heuristic, and says so');
+  }
+  // ...and on the REAL horn-cut fin: the page fixture's aeroplane with
+  // finCut 2, built headless, its rudder part mapped the way the bake maps
+  // every vertex (px = −z·FS, py = y·FS, pz = x·FS, then the frame's pitch
+  // β), the declared plane through the same map — the pivot lies on the
+  // plane and the axis is the pitched post
+  try {
+    const TH = require('./_tail_headless.js');
+    const raw = require('./fixtures/tail_measure_2026-09-07_boot.json');
+    const t = TH.tailBuild(Object.assign({}, raw.P, { finCut: 2 }), { level: raw.level });
+    const sh = t.fin.sheet, FS = t.FS, beta = 0.08, cB = Math.cos(beta), sB = Math.sin(beta);
+    const seen = new Set(), pts = [];
+    for (const f of sh.F) if (f.part === 'rudder') for (const vi of f.v) {
+      if (seen.has(vi)) continue;
+      seen.add(vi);
+      const v = sh.V[vi], px = -v[2] * FS, py = v[1] * FS;
+      pts.push([px * cB - py * sB, px * sB + py * cB, v[0] * FS]);
+    }
+    const zM = t.fin.measure.hinge.zM;
+    const H = { n: [cB, sB, 0], d: -zM };
+    const hd = cageSurfHinge(pts, 'rud', { hinge: H });
+    const hv = cageSurfHinge(pts, 'rud');
+    const onPlane = p => H.n[0] * p[0] + H.n[1] * p[1] - H.d;
+    const post = [-sB, cB, 0];
+    ok(hd && hd.hingeFrom === 'declared' && Math.abs(onPlane(hd.pivot)) < 0.02 &&
+       hd.axis[0] * post[0] + hd.axis[1] * post[1] > 0.998,
+       'P1: the real horn-cut rudder (' + pts.length + ' verts) pivots ON the declared plane (' +
+       onPlane(hd.pivot).toFixed(4) + ' m off), axis along the pitched post');
+    ok(hv && onPlane(hv.pivot) < -0.05,
+       'P1: ...where the vertex heuristic had put it ' + (-onPlane(hv.pivot)).toFixed(3) + ' m forward, in the horn');
+  } catch (e) { ok(false, 'P1 real horn row threw: ' + e.message); }
+  // and the solver agrees with the drawn ruddervator: a V-tail spec yaws
+  // nose-LEFT for dr > 0 and pitches up for de > 0 (the inward normal, G209)
+  {
+    const { makeSim, makeWorld, buildGen } = C;
+    const sv = cageJoinSpec(P, Object.assign({}, M, { tailCant: 35 }), T);
+    ok(sv.tail.type === 'v' && sv.tail.vAngle === 35, 'G209: the measured cant makes the spec a V-tail');
+    const def = buildGen(sv), sim = makeSim(def, makeWorld());
+    sim.reset(0); for (let i = 0; i < 120; i++) sim.step(1 / 60);
+    const ax = sim.axes(), vel = [-ax[0][0] * 30, -ax[0][1] * 30, -ax[0][2] * 30];
+    const pr = c => { sim.ctl.de = c.de || 0; sim.ctl.dr = c.dr || 0; return sim.probe(vel); };
+    const b = pr({}), d = pr({ dr: 0.3 }), e = pr({ de: 0.3 });
+    ok(d.yawLeft - b.yawLeft > 100, 'G209: V-tail dr > 0 yaws nose LEFT (' + (d.yawLeft - b.yawLeft).toFixed(0) + ')');
+    ok(e.pitchUp - b.pitchUp > 100, 'G209: V-tail de > 0 pitches nose UP (' + (e.pitchUp - b.pitchUp).toFixed(0) + ')');
+  }
+} catch (e) {
+  ok(false, 'G209 block threw: ' + e.message);
 }
 
 // THE VERDICT CONTRACT (G67.1): this checker joins the battery, and the

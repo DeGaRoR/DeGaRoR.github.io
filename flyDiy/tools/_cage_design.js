@@ -149,6 +149,37 @@ function iconFlap(key) {
   return { vb: '0 0 64 40', paths: p };
 }
 
+// THE TAIL OUTLINE TILES (TAIL CHANTIER 2 P3): a fin in side view on a
+// stub of tail cone, rounded or straight, and the hinge line
+function iconFin(kind) {
+  const cone = 'M4 30 L60 30 L60 26 L4 24 Z';
+  const fin = kind === 'straight'
+    ? 'M22 24 L34 8 L48 8 L52 26 Z'
+    : 'M20 24 Q28 6 38 6 Q48 6 50 16 L52 26 Z';
+  return { vb: '0 0 64 40', paths: [{ d: cone }, { d: fin }, { d: 'M44 8 L46 26' }] };
+}
+
+// the finArch starter's delta sets, from the grammar's own frozen dicts:
+// FIN_CUB (rounded) / FIN_STRAIGHT (straight) minus the dorsal and keel
+// switches, plus the six keys FIN_CUB does not state, and the same set laid
+// flat for the stab through ST2FIN (no creases on a tailplane). Computed
+// once at load; the layers' defaults carry every key (GATE DESIGN checks).
+function finArchWrites(kind) {
+  const FG = W.FIN_GEN || ((typeof require === 'function') ? require('./_fin_gen.js') : null);
+  if (!FG) return {};
+  const src = kind === 'straight' ? FG.FIN_STRAIGHT : FG.FIN_CUB;
+  const fill = { finRootFwd: 0, finSharpTip: 0, finSharpAft: 0, finSharpBase: 0,
+                 finSharpShoulder: 0, finSharpLE: 0 };
+  const fin = {};
+  for (const k of Object.keys(Object.assign({}, fill, src)))
+    if (k !== 'finDorsal' && k !== 'finKeel')
+      fin[k] = src[k] !== undefined ? src[k] : fill[k];
+  const out = Object.assign({}, fin);
+  for (const [sk, fk] of Object.entries(FG.ST2FIN))
+    if (fk in fin) out[sk] = fin[fk];
+  return out;
+}
+
 // SIDE VIEW — one parameterised aeroplane profile. `o`: canopy 'screen' |
 // 'half' | 'full' | 'none'; deck 'cabin' | 'turtle'; gear 'tail' | 'trike' |
 // 'none'; tail 'conv' | 't' | 'v' | 'cruci' | 'twin'; pod (rod boom), radial
@@ -1115,6 +1146,30 @@ const DESIGN_ROWS = [
           'empennage that is a boom question (ROADMAP-adjacent, unclaimed)' },
     ] },
 
+  // THE TAIL'S OUTLINE, AS A STARTER (TAIL CHANTIER 2 P3, TAIL-ARCHETYPES
+  // §3 tier 1): two shapes, rounded (the Cub reference cage) and straight
+  // (a frozen, gated dict), each writing the FULL corner set of BOTH
+  // surfaces — 24 fin keys and the same laid flat through ST2FIN as 22 stab
+  // keys — ONCE. No `read`: the corners cannot faithfully recover which
+  // shape they came from once a builder has moved one (the honesty field).
+  // The dorsal and the keel tab are the builder's own switches and are not
+  // written (ruling (c)); the macro tier sizes what this shapes.
+  { key: 'finArch', label: 'Tail outline', kind: 'starter',
+    group: 'tail', status: 'live', once: true,
+    help: 'the fin and tailplane outline to start from — the size rows ' +
+          'scale it, the expert rows move its corners',
+    read: P => null,
+    options: [
+      { value: 'rounded', label: 'Rounded',
+        icon: iconFin('rounded'),
+        note: 'the Cub\'s round-topped fin and elliptical tailplane',
+        writes: { cage: finArchWrites('rounded') } },
+      { value: 'straight', label: 'Straight',
+        icon: iconFin('straight'),
+        note: 'straight tapered edges, crisp corners',
+        writes: { cage: finArchWrites('straight') } },
+    ] },
+
   // ---- undercarriage ------------------------------------------------------
   // `gear.type` is a MEASUREMENT (_cage_join.js): the join reads taildragger
   // vs tricycle off where the built third wheel stands. So the layout tile is
@@ -1764,7 +1819,12 @@ function designOverwriteCount(P, cageWrites, defaults) {
 // cageToSpec as deviations). The engine preset's ~40 values land through the
 // panel's own exported mapping — an index alone would bake a default engine
 // wearing the preset's name.
-function designBake(sel, over) {
+// THE FULL CAGE OF A SELECTION (TAIL CHANTIER 2, P0): the page's own P for
+// an archetype — defaults ⊕ the tiles' writes ⊕ the card's cage patch ⊕ the
+// engine preset — as one object, so the headless tail (_tail_headless.js
+// tailBuild) and the sweep build the drawn tail from exactly what the page
+// would draw. designBake is this plus the spec composition.
+function designFull(sel, over) {
   const C2 = W.CAGE2 || ((typeof CAGE2 !== 'undefined') ? CAGE2 : null);
   const PG = W.CAGE_PAGE || ((typeof CAGE_PAGE !== 'undefined') ? CAGE_PAGE : null);
   if (!C2 || !C2.cageToSpec) throw new Error('CAGE2 not loaded');
@@ -1787,6 +1847,12 @@ function designBake(sel, over) {
     const nm = designPresetNames()[Math.round(cage.engPreset)];
     if (nm) W.CAGE_ENG_APPLY_PRESET(full, nm);
   }
+  return { full, cage, spec };
+}
+
+function designBake(sel, over) {
+  const C2 = W.CAGE2 || ((typeof CAGE2 !== 'undefined') ? CAGE2 : null);
+  const { full, spec } = designFull(sel, over);
   const out = { cage: C2.cageToSpec(full) };
   // THE BIRTH SPEC STATES WHAT IT CHOSE. spec.cage carries the wing and the
   // engine as PANEL values, and in the app the join measures them back into
@@ -1866,7 +1932,43 @@ function designBake(sel, over) {
     designMerge(out, { fuselage: { covering: 'open' } });
   designMerge(out, spec);
   if (over) designMerge(out, over.spec || over);
+  // THE SEED (TAIL CHANTIER 2 P5; RULED 2026-09-07: lands with the vortex
+  // flip, one fleet move). At birth the RULE sizes the DRAWN tail once: the
+  // volume coefficients' Sh and Sv — what this pre-join spec would fly — over
+  // the drawn sheets' own areas, applied as the macro tier's height and
+  // chord, uniform, so the drawn outline keeps its shape and the tail its
+  // aspect ratio; and the cuts switched on (ruling (m): the flown aeroplane
+  // has a rudder and an elevator). After this the drawing is the truth and
+  // the join measures it — no circularity: this runs at birth, `once`. One
+  // tail on twenty-five cards (the sweep, P0) becomes a tail sized to each
+  // card's own wing. A twin-boom card keeps its drawn size (the headless
+  // build cannot root its fin on the booms and says so).
+  const seed = designTailSeed(full, out);
+  if (seed) {
+    Object.assign(full, seed);
+    out.cage = C2.cageToSpec(full);
+  }
   return out;
+}
+
+function designTailSeed(full, spec0) {
+  const TH = W.TAIL_HEADLESS || ((typeof require === 'function') ? require('./_tail_headless.js') : null);
+  const RS = (typeof resolveSpec === 'function') ? resolveSpec
+           : ((typeof require === 'function') ? require('./flight_core.js').resolveSpec : null);
+  if (!TH || !RS) return null;
+  let R, t;
+  try { R = RS(JSON.parse(JSON.stringify(spec0))).spec.tail; } catch (e) { return null; }
+  try { t = TH.tailBuild(full, { level: 2 }); } catch (e) { return null; }
+  if (t.approx.length) return null;
+  const rows = TH.tailRows(t);
+  // the macro rows' own ranges (the layers' `size` groups): a ratio past
+  // them is clamped, and the join's areas will say by how much
+  const cl = v => Math.max(0.5, Math.min(1.6, v));
+  const out = {};
+  if (rows.Sh > 0 && R.Sh > 0) { const s = cl(Math.sqrt(R.Sh / rows.Sh)); out.stSpan = s; out.stChord = s; out.stCut = 1; }
+  else if (rows.Svt > 0 && R.Svt > 0) { const s = cl(Math.sqrt(R.Svt / rows.Svt)); out.stSpan = s; out.stChord = s; out.stCut = 1; }
+  if (rows.Sv > 0 && R.Sv > 0) { const s = cl(Math.sqrt(R.Sv / rows.Sv)); out.finHeight = s; out.finChord = s; out.finCut = 1; }
+  return Object.keys(out).length ? out : null;
 }
 
 // an archetype is skippable exactly when one of its selected options is
@@ -1888,7 +1990,7 @@ function archInactive(a) {
 
 const API = { DESIGN_ROWS, DESIGN_GROUPS, ARCHETYPES, rowByKey, rowOptions,
               optionOf, designApply, designSeed, designMerge,
-              designOverwriteCount, designBake, archInactive, archIcon,
+              designOverwriteCount, designBake, designFull, archInactive, archIcon,
               designEngineModels, designEngineFamilies, designPresetFamily,
               designPresetIndex };
 

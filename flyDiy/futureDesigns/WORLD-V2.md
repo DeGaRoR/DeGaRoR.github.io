@@ -4,6 +4,14 @@
 
 STATUS: specification, unimplemented.
 
+> **AMENDED 2026-09-07** — `RENDERER-DECISION-2026-09-07.md`. The structure,
+> the budget and the data pipeline stand unchanged. What changed: the RENDERER
+> TARGET is now declared (§8.0) instead of being chosen by default; §8.3 was
+> one paragraph about the thing the user will not compromise on and is now the
+> tree ladder (§8.3); the atmosphere is taken off the shelf (§8.4); the shipped
+> world is W4’s slice until the loop proves itself (§11); and §5.4 states the
+> physics continuity the quadtree actually offers.
+
 **THIS REPLACES THE FIRST DRAFT** (kept as `WORLD-V2.superseded.md`), which was
 too complicated and said so on inspection. What went, and why, is §13. The
 short version: three tiers became two, the clipmap went, the streaming went,
@@ -276,6 +284,24 @@ un-nominated gravel bar therefore touches a smoother surface than it should.
 the player's map.** Anywhere plausibly landable gets subdivided automatically,
 so the limitation applies only to genuinely implausible ground.
 
+### 5.4 What the physics gets, stated (2026-09-07)
+
+The composed height is **C⁰, not C¹**: bilinear interpolation inside an int16
+patch is continuous, its derivative is not, and the derivative jumps again at a
+depth change. WORLD-GEN-PROC’s analytic `h0` was C¹ and this is a real
+regression, so it is stated rather than discovered:
+
+- **Wheels and ground contact: fine.** Contact reads height, not slope, and at
+  a strip’s 0.69 m cells the facet is far below a tyre’s own footprint.
+- **Ground effect: fine.** It reads height under the aeroplane, smoothed over
+  a span.
+- **Anything reading a GRADIENT is not**: a taxi-slope law, a ski or float
+  planing model, a rolling-resistance term keyed on slope. Those must sample
+  the gradient over a baseline of at least one cell, never by differencing two
+  points a centimetre apart. Write that in the sampler, once.
+- The modifier layer (§6) stays analytic and stays C¹, so a graded strip —
+  the one place a gradient law would matter — is smooth by construction.
+
 ---
 
 ## 6. THE MODIFIER LAYER
@@ -375,7 +401,40 @@ limitation: plausible ground is fine ground, automatically.
 
 ## 8. RENDERING, IN ORDER OF IMPACT
 
-### 8.1 Terrain material — do this first, it depends on nothing
+### 8.0 THE RENDERER TARGET — declared, not defaulted (2026-09-07)
+
+**Target: three.js `WebGPURenderer` with TSL, WebGL2 as its fallback backend.**
+One material description, two backends, chosen at runtime by capability.
+
+The reason is not benchmarks, it is drift. The world work below is where the
+shader surface doubles — splat weighting, canopy shells, aerial perspective are
+all material work — and the project already carries **27 `onBeforeCompile`
+sites and 97 `ShaderMaterial`/`ShaderChunk` references across 9 files**
+(measured 2026-09-07). Every one is a hand-patched string against three.js’s
+WebGL shader internals, and every new one raises the cost of a decision that
+has not been taken. Declaring the target now makes §8.1–8.4 the FIRST work
+written in TSL rather than the last work written in GLSL.
+
+The port surface is bounded and lopsided, which is why this is affordable:
+`src/viewer/aeroskin.js` holds 5 hooks, 4 ShaderMaterials and ~249 lines of
+GLSL — the aeroplane’s whole material system, G206’s shared block included.
+The other eight files hold 1–6 hooks each and almost no GLSL; they are small
+patches, not systems. So: **one chantier for aeroskin, one sweep for the rest**,
+and it is a prerequisite of W1, not of the whole plan.
+
+Constraints that come with it, stated so nobody rediscovers them:
+- WebGL2 stays the FALLBACK, not a second implementation. If a feature cannot
+  be expressed once for both backends, it does not ship in the world layer.
+- Confirm current WebGPU availability per browser before relying on it; the
+  fallback is what makes that a performance question and not a support one.
+- `WORLD-CONTRACT.md` §0 keeps world DATA free of renderer types. The
+  aeroplane’s materials were never behind that contract and still are not —
+  this section is what stands in for it on the render side.
+
+### 8.1 Terrain material — depends on nothing but the renderer target
+
+*(2026-09-07: still the first thing that depends on no other WORLD work — but
+W0’s tree spike now runs ahead of it, and it is written in TSL per §8.0.)*
 
 Replace altitude-banded vertex colour with a **splat material**: a small set of
 tiling PBR materials, weighted per fragment, triplanar on steep ground.
@@ -394,20 +453,88 @@ tiling PBR materials, weighted per fragment, triplanar on steep ground.
 §2. Replaces the two-ring mesh, its seam, the ~100 m far strips and the 5 km
 fog cap.
 
-### 8.3 Trees — replace the source geometry, keep the ladder
+### 8.3 Trees — THE LADDER (rewritten 2026-09-07)
 
-The impostor system, chunking, species and tinting all work. The atlas is baked
-at boot **from the near-tier geometry** — which is a cylinder, a cone and an
-icosahedron. Replace the source and every tier improves at once.
+This is the section the user will not compromise on — *“real tree densities,
+and the close-up trees need to look good”* — and in the first draft it was one
+paragraph. It is the world’s single largest visual defect. Measured, today:
 
-Now with three real inputs: WorldCover says *what*, DSM−DTM says *how tall*,
-ORI says *how dense*.
+| layer | placement | ceiling | geometry |
+|---|---|---|---|
+| collidable stand trees (`20_world.js:259`) | one per 64 m cell | **≤ 244 / km²** | cylinder + cone + icosahedron |
+| W13 dense fill (`_base_render_world.js:540`) | ~13.1 m jittered grid, FOREST_FLOOR only, 1024 m chunks to 5.6 km | **≤ 5 800 / km²** | 5-sided open cone 5 m + icosahedron r 1.9 |
+| far field | — | fog wall at 5.2 km | — |
 
-### 8.4 Aerial perspective
+A Southeast-Alaska conifer stand is **tens of thousands of stems per km²**
+under a CLOSED canopy. The fill’s 3.8 m crowns at 13 m spacing give roughly
+**7 % canopy cover**. The gap is about one order of magnitude in count and one
+in crown size — and the close-up asset is a cone.
+
+**Four rungs. Each has an owner, a budget and a number.**
+
+**R1 — the near asset (< ~250 m).** A real tree: trunk mesh plus alpha-tested
+leaf cards, 2–8 k triangles, 3–5 species × 2–3 age classes. Sourced, not
+authored from nothing: a procedural generator (ez-tree class) baked to GLB, or
+the CC0 scans already shipped. **This is an asset problem, not a platform
+problem** — it is the single change that most improves the close-up view, and
+it improves every rung below it because they are baked FROM it.
+
+**R2 — impostors (250 m – 2 km).** An octahedral or crossed-card atlas baked
+at boot from R1. The bake, the chunking, the species and the tinting all
+already work; only the source changes. This is the first draft’s whole
+paragraph, and it was right — it was just not the section.
+
+**R3 — the CANOPY SHELL (> 2 km).** The rung the first draft did not have, and
+the one that makes a 195 km horizon affordable. `ISLAND-PREPACK.md` §3.2
+already delivers a canopy height model for free (IFSAR DSM − DTM, 5 m).
+Render it as a displaced surface at canopy height with a forest material and
+the far forest becomes a texture with the RIGHT SILHOUETTE — one more terrain
+layer, no instances at all. Beyond the shell there is only aerial perspective
+(§8.4). Note what this deletes: the 5.2 km fog wall exists to hide the fact
+that there is nothing past it.
+
+**R4 — density, and the count that follows.** Real density inside a 3 km
+radius is order 1–2 M instances. That is reachable on WebGL2 with the chunk
+culling the renderer already does, and comfortable on WebGPU with compute-side
+culling and indirect draws (§8.0). Foliage is fill-rate and overdraw bound —
+the same wall a native renderer hits, which is why the platform is not the
+thing standing between this project and real trees.
+
+**The three real inputs, unchanged from the first draft:** WorldCover says
+*what*, DSM − DTM says *how tall*, ORI says *how dense*. What is added is that
+a density TARGET per land-cover class is a number in the asset, not a constant
+in the renderer.
+
+**THE GATE (this is what makes the rung a rung).** GATE TREES asserts, on a
+fixed camera set over a forested slice: canopy cover fraction within a band of
+the class target; instances drawn; frame time on a declared reference GPU; and
+that R1’s asset is what R2’s atlas was baked from. A tree pass without a number
+is how this section stayed one paragraph.
+
+### 8.4 Aerial perspective — TAKEN, NOT WRITTEN (amended 2026-09-07)
 
 Fog is not distance. Ursoy is 145 km long and the horizon from 3 000 m is
 195 km — you will see one end from the other, and height-dependent extinction
 and in-scattering are what separate a landscape from a model.
+
+**This is the one part of the world renderer that is genuinely available
+ready-made, and it should be taken.** Precomputed-scattering atmospheres for
+three.js exist as libraries (the Takram `three-geospatial` / `three-atmosphere`
+family: Bruneton-style scattering, sun and moon, aerial perspective, clouds).
+Writing a scattering atmosphere is a month that buys nothing this project is
+about.
+
+What is NOT available ready-made, and the distinction is worth writing down
+because it is the answer to “could we just find a world renderer”: there is no
+drop-in world renderer with a day–night cycle for three.js, because that is
+what an ENGINE is. What exists is COMPONENTS — an atmosphere, tree generators,
+CC0 assets, post-processing. The terrain engine is ours because the shipping
+alternatives (Cesium, 3D Tiles) exist to STREAM the real Earth, which §13
+deliberately deleted. Take the components; keep the structure.
+
+Check the licence and the backend of any library taken here against §8.0 — a
+WebGL-only atmosphere would decide the renderer question by the back door.
+
 
 ---
 
@@ -433,49 +560,104 @@ Add: with no asset present, `makeWorld({analytic:0})` reproduces today's world
 bit-identically (§5.1).
 
 **GATE TERRAIN** (new).
-1. C¹ across every patch boundary and every modifier falloff — sampled.
+1. **C⁰ across every patch boundary — no step, sampled** (amended 2026-09-07:
+   the first draft asked for C¹ here, which a bilinear int16 patch cannot give
+   and §5.4 now states plainly. The modifier falloffs ARE C¹ and are still
+   asserted as such; the patch field is asserted continuous, plus a bound on
+   the gradient jump at a depth change.)
 2. Physics and renderer sample the same height at the same (x, z) at the
    finest drawn level.
 3. 2:1 balance holds everywhere; no crack at any boundary.
 4. **Baked and live modifier evaluation agree** to within quantisation (§6.3).
 5. Hot path within budget, measured against the current `h0`.
 
+**GATE TREES** (new, 2026-09-07 — §8.3). On a fixed camera set over a forested
+slice, on a DECLARED reference GPU: canopy cover fraction within a band of the
+per-class target; instances drawn; frame time; and that the impostor atlas was
+baked from the same asset R1 ships. A tree pass without a number is how §8.3
+stayed one paragraph for a month.
+
 **GATE SITES** (new) — every nominated site is flyable into, measured with
 `41_test_pilot.js`.
 
 ---
 
-## 11. STAGING
+## 11. STAGING (revised 2026-09-07)
 
-**W1 — the material pass.** Splat materials on today's mesh and today's 24 km
-analytic world. Depends on nothing. Largest visible improvement available.
+Two stages are ADDED IN FRONT and numbered W0/W0.5 so that every existing
+reference to W1–W7 — here, in `ISLAND-ADMIRALTY.md`, in the ROADMAP — keeps
+its meaning. Nothing below W1 changed except where it says so.
+
+**W0 — THE TREE SPIKE. A DECISION, NOT A FEATURE.** One week, one ~3 km slice
+of the analytic world, on TODAY’S WebGL2 renderer. Build all four rungs of
+§8.3 cheaply: one real near asset, an impostor atlas baked from it, a canopy
+shell from a stand-in height field, and real per-class density. Then MEASURE —
+and measure the right thing:
+
+- frame time on a declared mid-range reference GPU, at real density;
+- canopy cover fraction, against the class target;
+- **and WHICH WALL is hit** — CPU-side (draw calls, culling, instance upload)
+  or GPU-side (fill rate, overdraw). This is the whole point of running it
+  first. A CPU wall is what WebGPU’s compute culling and indirect draws fix,
+  so it argues FOR W0.5. A fill-rate wall is the same wall a native engine
+  hits, so it argues that the platform was never the constraint. Only a
+  fill-rate wall that is still unacceptable after LOD and overdraw work is an
+  argument for leaving the web — and then `WORLD-CONTRACT.md` is the exit.
+
+W0 is first because it is the cheapest test of the most expensive assumption,
+and because every stage after it is a bet on the answer. It is deliberately
+run on the CURRENT renderer: a spike that needed the port first would not be a
+spike.
+
+**W0.5 — THE RENDERER TARGET** (§8.0), conditional on W0. Port
+`src/viewer/aeroskin.js` (5 hooks, 4 ShaderMaterials, ~249 GLSL lines) to TSL
+as its own chantier, then sweep the remaining ~22 hooks across eight files,
+which are small patches rather than systems. Prerequisite of W1 — not because
+W1 needs WebGPU, but because W1 is the first big new shader surface and should
+not be written twice.
+
+**W1 — the material pass.** Splat materials on today’s mesh and today’s 24 km
+analytic world. Depends on nothing (except being written in TSL, per W0.5).
+Largest visible improvement available after the trees.
 
 **W2 — the quadtree, on the analytic world.** Build the baker, the format, the
 renderer and the physics sampler against `h0` — a world whose right answer is
-already known, and against which every existing gate still runs.
+already known, and against which every existing gate still runs. Ship §5.4’s
+gradient rule with the sampler.
 
-**W3 — trees.** New source geometry; the ladder inherits it.
+**W3 — trees, productionised.** W0’s spike becomes the real ladder: the
+species set, the density targets per WorldCover class, the atlas bake at boot,
+the canopy shell driven by real DSM − DTM, and GATE TREES (§8.3).
 
 **W4 — the pipeline, on a slice.** `ISLAND-PREPACK.md` §6 on one 20 × 20 km
 piece of Ursoy, loaded as the 24 km domain. First real tuning of ε, the zone
 budgets and the palette.
 
+> **W4 IS THE SHIPPED WORLD, and for a long time (2026-09-07).** Ursoy is
+> 145 km long; the game is little airports and short hops. A 20 × 20 km slice
+> holds more airfields than the loop has yet earned, and it is the world the
+> playtest cycle should run on. W5 is the step that “invalidates every golden”
+> and buys scale the game is not yet asking for — take it when the loop is
+> proven fun, not before. This is the same ruling as the ROADMAP’s own
+> “validated ugly”, applied to geography.
+
 **W5 — the whole island.** The step that invalidates every golden, and the step
-that does nothing else.
+that does nothing else. Deferred per the note above.
 
 **W6 — nomination + zones.** The landability pass, promotion, the zone list.
 
-**W7 — the airfield editor.** Its own document, on §6's format.
+**W7 — the airfield editor.** Its own document, on §6’s format.
 
 W2 before W4 is deliberate: prove the structure on a world you already trust
 before introducing a world you do not.
+
 
 ---
 
 ## 12. OPEN QUESTIONS
 
 1. **Skirts or stitching** (§2.2). Recommend skirts; decide with the format.
-1b. **Parent prediction.** A child's even samples ARE its parent's, so a child
+1b. **Parent prediction.** A child’s even samples ARE its parent’s, so a child
    could be predicted from the upsampled parent and only the high-frequency
    residual stored. Noted in `terrain_codec.js` and deliberately not taken
    until the current baseline had been measured. It is now measured (2.55×),
@@ -486,6 +668,27 @@ before introducing a world you do not.
    at W4, not argued on paper.
 4. **Is `assets/` committed?** (§4.) One `git ls-files` above `flyDiy/`.
 5. **Does Angoon survive?** (`ISLAND-ADMIRALTY.md` §12.3.)
+
+### Added 2026-09-07 (`RENDERER-DECISION-2026-09-07.md`)
+
+6. **(t) The renderer target** — WebGPURenderer/TSL with a WebGL2 fallback
+   (§8.0), and the aeroskin port as its own chantier. **Recommended; the
+   user agreed 2026-09-07.** Conditional on W0’s verdict only in the sense
+   that a fill-rate verdict would change what is worth porting to.
+7. **(u) W0, the tree spike, ahead of W1** (§11), with a numeric gate.
+   **Recommended.** It is the cheapest test of the platform assumption.
+8. **(v) The atmosphere taken off the shelf** rather than written (§8.4).
+   **Recommended** — check the library’s backend against §8.0.
+9. **(w) W4’s 20 × 20 km slice is the shipped world** until the loop proves
+   itself (§11). **Recommended.**
+10. **The reference GPU for GATE TREES.** A frame-time gate needs a declared
+   machine or it is not a gate. Name one at W0.
+11. **Tree asset provenance and licence** — a procedural generator baked to
+   GLB, or CC0 scans. `CREDITS.md` already has the home for the answer.
+12. **Does the canopy shell (§8.3 R3) replace the 5.2 km fog wall entirely**,
+   or does a shortened wall remain behind it? Decide at W0, when there is
+   something to look at.
+
 
 ---
 

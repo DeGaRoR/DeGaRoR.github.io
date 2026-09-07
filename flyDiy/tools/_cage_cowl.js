@@ -64,7 +64,13 @@ for (const g of ROWS) {
     if (CW.P[r.k] !== undefined && !(g.id === 'g_aft' && NACELLE_SKIP.has(r.k)))
       SHOWN.push(r.k);
 }
-const cowlDef = { cowlOn: 1, fitNose: 1, cowlGap: 0.0 };
+// SEALED BY DEFAULT (G213, the user: "the match to the nose cone section
+// should be deactivated by default"): the firewall SIZE is always the
+// fuselage's, the SECTION is the builder's — so every section row is live
+// from the first click. A birth still seeds the section from the fuselage
+// once (see `sectionFromFace` in PAGE.post), and `fitted` is one click away
+// for a builder who wants the body to keep winning.
+const cowlDef = { cowlOn: 1, fitNose: 2, cowlGap: 0.0 };
 for (const k of SHOWN) cowlDef['cw_' + k] = CW.P[k];
 PAGE.defaults = Object.assign(cowlDef, PAGE.defaults || {});
 
@@ -73,23 +79,44 @@ PAGE.defaults = Object.assign(cowlDef, PAGE.defaults || {});
 // them at runtime) — the real list lives in CW.MATERIALS
 const rowNames = r => r.k === 'material' && CW.MATERIALS
   ? CW.MATERIALS.map(mm => mm.name) : r.names;
+// THE ROW'S OWN `when` RIDES ON THE ROW (G213). The tool's conditions are
+// source over its own P (`P.lidMode===0`); the panel keeps the same values
+// under `cw_` keys, so the text is rewritten onto that copy and compiled
+// into the row's opts — which is what _cage_ui's applyRowVis AND the game's
+// inspector (editor.js applyVis) both read. Before this the conditions were
+// applied here by writing `display` on the DOM row, and the inspector, which
+// decides display from the row's opts, put every hidden row straight back:
+// the nose ring radius under a matched ring, the roll depth under a plain
+// cut, all five pair rows under a single inlet — a page of sliders that
+// moved nothing (the user: "lots of sliders do nothing").
+const panelWhen = src => {
+  try { return new Function('P', 'return (' + src.replace(/P\.(\w+)/g, '+P.cw_$1') + ');'); }
+  catch (e) { return null; }           // a condition that will not compile never hides
+};
 const groupItems = g => g.rows
   .filter(r => CW.P[r.k] !== undefined && !(g.id === 'g_aft' && NACELLE_SKIP.has(r.k)))
-  .map(r => ['cw_' + r.k, r.label, r.lo,
-             r.k === 'material' && CW.MATERIALS ? CW.MATERIALS.length - 1
-                                                : r.hi,
-             r.step, rowNames(r)]);
+  .map(r => {
+    const it = ['cw_' + r.k, r.label, r.lo,
+                r.k === 'material' && CW.MATERIALS ? CW.MATERIALS.length - 1
+                                                   : r.hi,
+                r.step, rowNames(r)];
+    const w = r.when ? panelWhen(r.when) : null;
+    if (w) it.push({ when: w });
+    return it;
+  });
 
 const GROUP = ['2b · cowl', [
   ['cowlOn',  'cowl',            0, 1, 1],
   ['fitNose', 'fit to the nose', 0, 2, 1,
-   ['free (tool only)', 'fitted (size + section)', 'sealed (size only)'],
+   ['free — nothing from the fuselage',
+    'fitted — size and section follow the fuselage',
+    'sealed — size follows, the section is yours'],
    { when: P => +P.cowlOn }],
   ['cowlGap', 'fore / aft (stand-off from the face)', -0.05, 0.15, 0.002,
    { when: P => +P.cowlOn }],
 ].concat(ROWS.filter(g => !SKIP_GROUPS.has(g.id))
              .map(g => [g.id === 'g_aft' ? 'nacelle' : g.name.toLowerCase(), groupItems(g),
-                        g.id === 'g_body' || g.id === 'g_scoop' ? 'open' : undefined,
+                        g.id === 'g_barrel' || g.id === 'g_bowl' || g.id === 'g_scoop' ? 'open' : undefined,
                         // the nacelle rows only mean something off the body
                         g.id === 'g_aft'
                           ? { when: P => +P.cowlOn && Math.round(P.engMount || 0) >= 2 }
@@ -111,45 +138,19 @@ const lockedFor = mode =>
   : mode === 2 ? LOCK_SIZE.concat(['inheritStub'])
   : ['inheritStub'];
 
-// the tool's conditions are source text over its own P; compile once
-const WHENS = {};
-for (const g of ROWS) for (const r of g.rows) {
-  if (!r.when) continue;
-  try { WHENS[r.k] = new Function('P', 'return (' + r.when + ');'); }
-  catch (e) { /* a condition that will not compile simply never hides */ }
-}
-// G28 AUDIT: relevance the tool's own rows never declared. The seam and
-// scoop sets follow their master toggles, the aperture dims follow the
-// mode that draws them, and the STUB section rows are dead here by
-// construction (inheritStub is forced 0 on this page) so they never
-// show. Supplemental, never overriding a tool `when` that says hide.
-const scoopW = Q => Q.scoopOn > 0;
-const apOne = Q => { const m2 = Math.round(Q.apMode); return m2 === 1 || m2 === 3; };
-const apPair = Q => Math.round(Q.apMode) >= 2;
-const dead = () => false;
-const WHEN_EXTRA = {
-  seamType: Q => Q.seamOn > 0, seamPos: Q => Q.seamOn > 0,
-  seamWidth: Q => Q.seamOn > 0, seamDepth: Q => Q.seamOn > 0,
-  scoopLen: scoopW, scoopW: scoopW, scoopH: scoopW, scoopSq: scoopW,
-  scoopLipH: scoopW, scoopDrop: scoopW, scoopRake: scoopW, scoopAp: scoopW,
-  scoopLipDepth: scoopW, scoopDuct: scoopW,
-  apW: apOne, apH: apOne, apSq: apOne, apOffX: apOne, apOffY: apOne,
-  pairX: apPair, pairW: apPair, pairH: apPair, pairY: apPair, pairSq: apPair,
-  stubDeckH: dead, stubWaist: dead, stubKeelH: dead,
-  stubSqTop: dead, stubSqBot: dead,
-};
+// HIDDEN is the row's own business now (G213): every relevance condition —
+// the tool's, and the ones G28's audit added (the seam, scoop, inlet and
+// pair sets behind their master rows) — is declared on the row in
+// _cowl_rows.js and compiled into its opts above, so the one pass that
+// decides display (applyRowVis, and the inspector's applyVis over it) reads
+// it. The stub section rows are gone from the table altogether. This pass
+// keeps only the LOCK, which is this page's own knowledge.
 function applyRowStates(mode) {
   const locked = new Set(lockedFor(mode));
   for (const k of SHOWN) {
     const el = document.getElementById('p_cw_' + k);
     if (!el) continue;
     const rowEl = el.parentElement;
-    let show = true;
-    if (WHENS[k]) { try { show = !!WHENS[k](CW.P); } catch (e) { show = true; } }
-    if (show && WHEN_EXTRA[k]) {
-      try { show = !!WHEN_EXTRA[k](CW.P); } catch (e) { show = true; }
-    }
-    rowEl.style.display = show ? '' : 'none';
     const lock = locked.has(k);
     el.disabled = lock;
     rowEl.style.opacity = lock ? 0.42 : '';
@@ -678,6 +679,7 @@ let fitNext = false;
 window.CAGE_COWL_FIT_NEXT = () => { fitNext = true; };
 function cowlForEngine(P, face, stat) {
   let hit = cowlArchStarter(P);
+  const birth = fitNext;
   if (!hit && fitNext) {
     const specOf = window.CAGE_ENG_SPEC, EG2 = window.ENG_GEN;
     try {
@@ -687,13 +689,27 @@ function cowlForEngine(P, face, stat) {
     } catch (e) { hit = null; }
   }
   fitNext = false;
-  if (!hit) return;
+  if (!hit) return { birth, styled: false };
   const got = window.CAGE_COWL_FOR_ENGINE(hit.arch, hit.R.env, face);
-  if (!got) return;
+  if (!got) return { birth, styled: false };
   for (const k in got.vals) if (P[k] !== undefined) P[k] = got.vals[k];
   const UI = window.CAGE_UI;
   if (UI && UI.syncSliders) UI.syncSliders();
   if (got.note && stat) stat.textContent += '  ·  ' + got.note;
+  return { birth, styled: true };
+}
+
+// THE SECTION THE FUSELAGE IMPLIES, as the five firewall rows. `fitted`
+// writes it every build; a BIRTH in `sealed` writes it once (below), so a
+// newborn's cowl meets its nose with no step and the rows are the builder's
+// from then on. yc is the face's mid-height, so the two halves are equal by
+// construction and the deck/keel scalings must not then shorten one of them.
+function sectionFromFace(face) {
+  const out = { deckH: 1, keelH: 1, waist: face.waist || 0 };
+  const fit = fitSection(face);
+  if (fit && fit.top) out.sqAftTop = sqOf(fit.top);
+  if (fit && fit.bot) out.sqAftBot = sqOf(fit.bot);
+  return out;
 }
 
 const prevPost = PAGE.post;
@@ -722,7 +738,19 @@ PAGE.post = ctx => {
   // staleness the manifest's own comments warn about twice. It runs here, with
   // the firewall just measured and the panel's values not yet copied, so the
   // cowl this frame draws is the cowl the new engine asked for.
-  cowlForEngine(P, face, stat);
+  const forEng = cowlForEngine(P, face, stat) || { birth: false, styled: false };
+  // A BIRTH SEEDS THE SECTION ONCE (G213): sealed is the default now, so a
+  // newborn would otherwise wear the bench's own section against a nose
+  // that is not that shape. Written into the PANEL's rows (they are the
+  // keeper in sealed mode) — a styled architecture (radial, turbine) has
+  // just been given its round section and is left alone.
+  if (forEng.birth && !forEng.styled && Math.round(P.fitNose) === 2 &&
+      !station.synthetic && face.uv) {
+    const sec = sectionFromFace(face);
+    for (const k in sec) if (P['cw_' + k] !== undefined) P['cw_' + k] = sec[k];
+    const UI = window.CAGE_UI;
+    if (UI && UI.syncSliders) UI.syncSliders();
+  }
 
   // push the panel's values into the cowl's own parameter set
   for (const k of SHOWN) {
@@ -757,16 +785,11 @@ PAGE.post = ctx => {
     CW.P.aftH = face.halfH;
   }
   if (mode === 1) {
-    // SECTION FROM THE BODY. yc is the face's mid-height, so the two halves are
-    // equal by construction and the deck/keel scalings must not then shorten
-    // one of them.
-    CW.P.deckH = 1; CW.P.keelH = 1;
-    CW.P.waist = face.waist;
-    fit = fitSection(face);
-    if (fit && fit.top) CW.P.sqAftTop = sqOf(fit.top);
-    if (fit && fit.bot) CW.P.sqAftBot = sqOf(fit.bot);
-    // and put the fitted values back on the panel, so the sliders read what the
-    // cowl is rather than what it was before the body decided
+    // SECTION FROM THE BODY (sectionFromFace), then the fitted values back on
+    // the panel, so the sliders read what the cowl is rather than what it
+    // was before the body decided
+    fit = sectionFromFace(face);
+    Object.assign(CW.P, fit);
     syncFitted();
   }
 

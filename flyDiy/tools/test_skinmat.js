@@ -982,8 +982,17 @@ if (process.argv.includes('--selftest')) {
   //     flown one is painted in a frame nobody set
   const UI = fs.readFileSync(path.join(ROOT, 'tools', '_cage_ui.js'), 'utf8');
   const APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
-  check(/aeroSetCraft\(THREE, root\.matrixWorld/.test(UI),
+  // G216: and it must be the AEROPLANE's own frame, not the room's. The
+  // editor passed CAGE_UI_SCENE — the hangar — so a box projection was
+  // measured from the room's origin while the flown one is measured from the
+  // aeroplane's, 2.59 m away on the stock build. The mount is the join's own
+  // (CAGE_JOIN.mount), which is the frame the payload is baked in.
+  check(/aeroSetCraft\(THREE, mnt\.matrixWorld/.test(UI),
         'projector: the editor never tells AEROSKIN where the craft is');
+  check(/CAGE_JOIN\.mount\(\)/.test(UI) && /mount: joinMount/.test(
+          fs.readFileSync(path.join(ROOT, 'tools', '_cage_join.js'), 'utf8')),
+        'projector: the editor and the join disagree about which object is ' +
+        'the aeroplane — a box livery would move between the two worlds');
   check(/wing: m\.wing \|\| 0/.test(APP),
         'projector: the join does not carry the surface class into flight');
   const JOIN = fs.readFileSync(path.join(ROOT, 'tools', '_cage_join.js'), 'utf8');
@@ -1147,7 +1156,48 @@ if (process.argv.includes('--selftest')) {
 {
   const G = /const GLASS_DEF = \{([\s\S]*?)\};/.exec(SRC);
   check(G, 'glazing: there is no declared default set');
-  if (G) for (const k of ['tint', 'opacity', 'scratch', 'wipe', 'grime',
+  // ---------------------------------------------------------------------
+  // THE JOIN CENSUS (G216, the user: "do a large review of the material work
+  // ... check that everything is accounted for through the join")
+  // ---------------------------------------------------------------------
+  // Every fact the factory stamps on a material is a fact the FLOWN aeroplane
+  // needs, or it would not have been stamped. The join is the only road, so
+  // each one either has a record there or is on this list with its reason.
+  // Two were missing when this was written: the box-mapped microsurface (the
+  // tail flew with the wrong mapping) and the turned grain (the propeller's
+  // laminations ran chordwise in the air and spanwise on the stand).
+  {
+    const JOIN = fs.readFileSync(path.join(ROOT, 'tools', '_cage_join.js'), 'utf8');
+    const APPJ = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
+    const EXEMPT = {
+      aeroU: 'the uniform block, rebuilt by the factory on the other side',
+      aeroD: 'the shared aeroplane-wide uniforms, one object per page',
+      aeroskin: "the G38 understudy's flag, an editor concern",
+      aeroCompanion: "the glass multiply mesh's own tag, never in a payload",
+      aeroStruct: "the lab's re-derivation flag; `grm` carries the fact",
+      aeroGlassD: 'the glazing dials ride the SPEC (aeroGlassSpec), not the ' +
+                  'payload — one description, and the flight side reads it',
+    };
+    const stamped = new Set();
+    const re = /userData\.(aero[A-Za-z]+)\s*=/g;
+    let mm2;
+    while ((mm2 = re.exec(SRC))) stamped.add(mm2[1]);
+    const orphan = [...stamped].filter(k => !EXEMPT[k] &&
+      !new RegExp('\b(?:ud|kud)\.' + k + '\b').test(JOIN));
+    check(orphan.length === 0,
+      'a material fact the factory stamps has no road through the join',
+      orphan.join(' '));
+    // and the FLIGHT side must read what the join wrote: every key the
+    // material record can carry has to be named in app.js's rebuild
+    for (const k of ['fin', 'grm', 'surf', 'wing', 'tileK', 'roughK', 'nrmK',
+                     'ccK', 'fieldK', 'metalK', 'memF', 'inside', 'noDec',
+                     'ribM', 'wearK', 'wearM', 'fieldM', 'boxDet', 'detRot'])
+      check(new RegExp('m\.' + k + '\b').test(APPJ),
+        'the flown aeroplane never reads a material fact the join carries', k);
+  }
+
+  // G217: `scratch` and `wipe` retired — a smear, not a score
+  if (G) for (const k of ['tint', 'opacity', 'touch', 'grime',
                           'refl', 'rainbow'])
     check(new RegExp('\\b' + k + ':').test(G[1]),
           'glazing: the declared set is missing a dial', k);
@@ -1159,7 +1209,7 @@ if (process.argv.includes('--selftest')) {
   // could differ by.)
   const K = /const key = 'glass\|'([\s\S]*?);\n/.exec(SRC);
   check(K, 'glazing: the pool key could not be read');
-  if (K) for (const k of ['opacity', 'scratch', 'wipe', 'grime', 'refl',
+  if (K) for (const k of ['opacity', 'touch', 'grime', 'refl',
                           'rainbow', 'ext'])
     check(K[1].indexOf(k) >= 0,
           'glazing: a dial is not in the pool key — two panes set differently ' +
@@ -1168,17 +1218,21 @@ if (process.argv.includes('--selftest')) {
   check(/uniform vec4  uGlass;/.test(SRC) && /uniform vec4  uGlassE;/.test(SRC),
         'glazing: the dials or the pane extent are not declared');
 
-  // A SCRATCH IS GEOMETRY. On a transmission 0.92 / clearcoat 1.0 pane the
-  // BASE roughness barely shows — the clear layer owns the specular — so a
-  // scratch that only roughened the base was invisible, measured, in two
-  // renders that came back pixel-identical. It has to tilt the clearcoat
-  // normal, and this is the check that keeps it doing so.
-  check(/clearcoatNormal = normalize\(clearcoatNormal - T \* dg\.x - B \* dg\.y\);/
-        .test(SRC),
-        'glazing: the scratches no longer perturb the clearcoat normal — on ' +
-        'this material that makes them invisible');
-  check(/aeroGSC = sc;/.test(SRC),
-        'glazing: the scratch field is not carried to the clearcoat chunk');
+  // A SMEAR IS NOT GEOMETRY (G217). The scratches tilted the clear coat,
+  // which is what a hairline does to a reflection and why they had to; the
+  // handling that replaced them is a ROUGHNESS and must stay one, or the
+  // corduroy comes back by another name. Nothing but the moulding ripple
+  // may reach clearcoatNormal, and the smear may not touch the normal at all.
+  check(!/aeroGSC/.test(SRC),
+        'glazing: the retired scratch field is still in the shader');
+  {
+    const CC = /#include <clearcoat_normal_fragment_begin>'[\s\S]*?`\)/.exec(SRC);
+    check(CC && !/dFdx|dFdy/.test(CC[0]),
+      'glazing: something is tilting the clear coat off a screen gradient ' +
+      'again — a smear is roughness, not relief');
+  }
+  check(/roughnessFactor \+= \(sm \* 2\.2 \+ sm2 \* 3\.2\) \* uGlass\.x;/.test(SRC),
+        'glazing: the handling smear is not a roughness read off the sheet');
 
   // THE EDGE IS THE PANE'S OWN, not the screen's. A screen-space edge detect
   // would move when the camera did, and dirt that moves is not dirt.
@@ -1466,8 +1520,8 @@ if (process.argv.includes('--selftest')) {
   // G70: "glass takes no wear", and G113.2 shipped the dials still saying so.
   // The condition ADDS to the builder's own numbers rather than replacing
   // them: the dials are the floor an aeroplane leaves the factory with.
-  check(/if \(k === 'scratch'\) return Math\.min\(1, v \+ wr \* 0\.55\);/.test(SK),
-        'glazing: the condition dial does not age the scratches, or it ' +
+  check(/if \(k === 'touch'\) return Math\.min\(1, v \+ wr \* 0\.55\);/.test(SK),
+        'glazing: the condition dial does not age the handling, or it ' +
         'REPLACES the number the builder set instead of adding to it');
   check(/if \(k === 'grime'\)\s+return Math\.min\(1, v \+ wr \* 0\.70\);/.test(SK),
         'glazing: the condition dial does not age the grime');
@@ -1513,7 +1567,7 @@ if (process.argv.includes('--selftest')) {
                 .test('DEC[keys.l] += FIREWALL_OFFSET;')],
       ['wear that REPLACES the number the builder set',
         () => !/return Math\.min\(1, v \+ wr \* 0\.55\);/
-                .test("if (k === 'scratch') return wr * 0.55;")],
+                .test("if (k === 'touch') return wr * 0.55;")],
       ['wear left out of the glass pool key',
         () => !/'\|' \+ wr\.toFixed\(3\)/
                 .test("const key = 'glass|' + o.tint + '|' + G('opacity');")],

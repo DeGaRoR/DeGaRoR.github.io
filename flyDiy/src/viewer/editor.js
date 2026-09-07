@@ -1447,6 +1447,9 @@ function editorInit(api) {
     const b = $('edExpert');
     if (b) b.classList.toggle('on', !!on);
     CU.applyRowVis();
+    // TAIL CHANTIER 2 P2: the fin's control cage follows this switch (it is
+    // what the expert rows move), and the cage is drawn at build time
+    if (CU.P && +CU.P.finOn && typeof CU.build === 'function') CU.build();
   }
 
   // ONE PLACE MEASURES THE RIGHT PANEL. It is two columns that fold
@@ -2526,9 +2529,7 @@ function editorInit(api) {
       lipProtrude: 'end', lipInset: 'end', lipRound: 'end', ductFlare: 'end',
       aftW: 'face', aftH: 'face', taperW: 'face', taperH: 'face',
       lidRise: 'face', deckH: 'face', waist: 'face', keelH: 'face',
-      sqAftTop: 'face', sqAftBot: 'face', inheritStub: 'face',
-      stubDeckH: 'face', stubWaist: 'face', stubKeelH: 'face',
-      stubSqTop: 'face', stubSqBot: 'face',
+      sqAftTop: 'face', sqAftBot: 'face',
       sqFrontTop: 'barrel', sqFrontBot: 'barrel',
       keelSweep: 'barrel', deckSweep: 'barrel', waistSweep: 'barrel',
       seamOn: 'seam', seamType: 'seam', seamPos: 'seam',

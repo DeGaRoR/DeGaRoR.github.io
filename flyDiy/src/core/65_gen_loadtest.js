@@ -58,6 +58,25 @@ const GEN_LOAD_ULT = 5.7;           // 1.5 x limit
 // and the test ran in an empty sky. The room now carries the same offset.
 const GEN_LOAD_LIFT = 200;
 const GEN_LOAD_WINGTAGS = ['WF', 'WR', 'WB', 'WB2'];
+// THE SURFACES THE RIG CAN LOAD (TAIL CHANTIER 2 P4): the wing as always,
+// and the stab and the fin on their own spar nodes (61_gen_frame's tail
+// truss). `tags` are the nodes left FREE on the trestles and the flood's
+// boundary; `strips` the strips the bags land on; `axis` the body axis the
+// load presses along and the deflection is read on (1 = up: the wing and
+// the stab, inverted on the trestles as the sandbag test is; 2 = the fin's
+// side load, the aeroplane upright); `station` the coordinate the stations
+// are ordered on; `ref` the share of the aeroplane's weight the bags carry
+// at 1 g — the whole of it on the wing, and on a tail surface its own
+// area's share (the tail loaded at the wing's own loading — a stated
+// approximation of the certification down-load, not a sizing case).
+const GEN_LOAD_SURFACES = {
+  wing: { tags: GEN_LOAD_WINGTAGS, strips: ['wing'], axis: 1, station: 2, front: 'WF', rear: 'WR', ref: 1 },
+  // the stab at the wing's own loading (a tailplane's down-load case is of
+  // that order); the fin at HALF — the rudder-kick case sits near half the
+  // wing's lift coefficient, a fin never flies at the wing's
+  stab: { tags: ['HF', 'HR', 'HB', 'HT'], strips: ['stab'], axis: 1, station: 2, front: 'HF', rear: 'HR', ref: 1 },
+  fin:  { tags: ['VF', 'VR', 'VX', 'FIN'], strips: ['fin'], axis: 2, station: 1, front: 'VF', rear: 'VR', ref: 0.5 },
+};
 
 // WHAT THE WING CARRIES (G179). A node is wing-carried when the fuselage
 // cannot reach it without crossing a spar node: flood the beams from the
@@ -66,9 +85,9 @@ const GEN_LOAD_WINGTAGS = ['WF', 'WR', 'WB', 'WB2'];
 // trestles used to pin every non-spar node, which is a trestle under each
 // wing-mounted engine: the bearer could never be loaded here, and this gate
 // was blind to one that let its engine hang 0.3 m.
-function genLoadCarried(def) {
+function genLoadCarried(def, tags) {
   const wing = {};
-  for (const t of GEN_LOAD_WINGTAGS) wing[t] = 1;
+  for (const t of (tags || GEN_LOAD_WINGTAGS)) wing[t] = 1;
   const adj = def.nodes.map(function () { return []; });
   for (const b of def.beams) { adj[b.a].push(b.b); adj[b.b].push(b.a); }
   const seen = new Uint8Array(def.nodes.length);
@@ -84,20 +103,24 @@ function genLoadCarried(def) {
   return out;
 }
 
-// spar stations on the +z wing, front node paired with its nearest rear node
-function genLoadStations(def, plane) {
+// spar stations on the +z wing (or, P4, on the +z stab / up the fin), front
+// node paired with its nearest rear node; `z` is the station coordinate
+function genLoadStations(def, plane, surface) {
+  const SF = GEN_LOAD_SURFACES[surface || 'wing'] || GEN_LOAD_SURFACES.wing;
+  const k = SF.station;
   const wf = [], wr = [];
   plane = plane || 0;
   def.nodes.forEach((n, i) => {
-    if (n.p[2] <= 0 || (n.plane || 0) !== plane) return;   // G185: one plane
-    if (n.tag === 'WF') wf.push(i);
-    if (n.tag === 'WR') wr.push(i);
+    if (k === 2 && n.p[2] <= 0) return;                      // one side
+    if (SF === GEN_LOAD_SURFACES.wing && (n.plane || 0) !== plane) return;   // G185: one plane
+    if (n.tag === SF.front) wf.push(i);
+    if (n.tag === SF.rear) wr.push(i);
   });
-  wf.sort((a, b) => def.nodes[a].p[2] - def.nodes[b].p[2]);
+  wf.sort((a, b) => def.nodes[a].p[k] - def.nodes[b].p[k]);
   return wf.map(f => {
-    const z = def.nodes[f].p[2];
+    const z = def.nodes[f].p[k];
     let r = -1, bd = Infinity;
-    for (const q of wr) { const d = Math.abs(def.nodes[q].p[2] - z); if (d < bd) { bd = d; r = q; } }
+    for (const q of wr) { const d = Math.abs(def.nodes[q].p[k] - z); if (d < bd) { bd = d; r = q; } }
     return { f: f, r: r, z: z };
   });
 }
@@ -128,38 +151,45 @@ function makeLoadTest(sim, def, cfg) {
         ? ((typeof GEN_SURF_MATERIALS !== 'undefined' && GEN_SURF_MATERIALS[cfg.wingMaterial]) || null)
         : cfg.wingMaterial);
 
-  const st = genLoadStations(def);
+  // THE SURFACE (P4): the wing unless the case names the stab or the fin
+  const SURF = GEN_LOAD_SURFACES[cfg.surface || 'wing'] || GEN_LOAD_SURFACES.wing;
+  const AX = SURF.axis, SK = SURF.station;
+  const st = genLoadStations(def, 0, cfg.surface);
   const ok = st.length >= 2;
   const root = ok ? st[0] : null, tip = ok ? st[st.length - 1] : null;
-  const semi = ok ? def.nodes[tip.f].p[2] : 1;
+  const semi = ok ? def.nodes[tip.f].p[SK] - (SK === 1 ? def.nodes[root.f].p[SK] : 0) : 1;
 
   // total weight, and the bags: n*W split over the wing strips by area, then on
   // to nodes through each strip's own attachment weights — the same path the
   // solver uses for lift, so the bags sit where the lift does by construction.
+  // A tail surface's bags carry its own area's share of W at the WING's
+  // loading (see GEN_LOAD_SURFACES.ref).
   let W = 0;
   for (const nd of def.nodes) W += nd.m;
   W *= 9.81;
   const perG = new Map();
   {
-    const wing = def.strips.filter(s => s.kind === 'wing');
-    let area = 0;
+    const wing = def.strips.filter(s => SURF.strips.indexOf(s.kind) >= 0);
+    let area = 0, areaW = 0;
     for (const s of wing) area += s.area;
+    for (const s of def.strips) if (s.kind === 'wing') areaW += s.area;
+    const share0 = SURF === GEN_LOAD_SURFACES.wing ? 1 : (areaW > 0 ? area / areaW : 0.2) * (SURF.ref || 1);
     if (area > 0) for (const s of wing) {
-      const share = W * (s.area / area);
+      const share = W * share0 * (s.area / area);
       for (const wq of s.w) perG.set(wq[0], (perG.get(wq[0]) || 0) + share * wq[1]);
     }
   }
   const bags = [];
   perG.forEach((f, i) => bags.push([i, f]));
 
-  // the trestles: everything that is not wing is pinned where it starts
+  // the trestles: everything that is not the surface is pinned where it starts
   const wingTag = {};
-  for (const t of GEN_LOAD_WINGTAGS) wingTag[t] = 1;
+  for (const t of SURF.tags) wingTag[t] = 1;
   // G179: wing-carried nodes (a nacelle and its foot) go FREE, and at n g
   // their mass is the RELIEF a real sandbag test sees — the bags carry n*W,
   // the engine pulls n*m the other way, the spar takes the difference, as
   // in a pull-up. Their 1 g hang is in the datum like the wing's own.
-  const carried = genLoadCarried(def);
+  const carried = genLoadCarried(def, SURF.tags);
   const carriedTag = {};
   for (const i of carried) carriedTag[i] = 1;
   const pin = [];
@@ -198,9 +228,12 @@ function makeLoadTest(sim, def, cfg) {
     if (!MAT || !MAT.phys) return null;
     let worst = null;
     for (const cls in peak) {
-      const R = (cls === 'wing' && WM && WM.phys && WM.lin) ? WM : MAT;
-      if (!R.lin[cls]) continue;
-      const A = R.lin[cls] / R.phys.rho;
+      const R = ((cls === 'wing' || cls === 'tail') && WM && WM.phys && WM.lin) ? WM : MAT;
+      // the tail class (P4) is the wing row of its material at the tail's section
+      const tSec = (typeof GEN_RULES !== 'undefined' && GEN_RULES.tailSection != null) ? GEN_RULES.tailSection : 0.5;
+      const linC = R.lin[cls] != null ? R.lin[cls] : (cls === 'tail' ? tSec * R.lin.wing : null);
+      if (!linC) continue;
+      const A = linC / R.phys.rho;
       const pct = 100 * peak[cls].F / (R.phys.sigY * A);
       if (!worst || pct > worst.pct) worst = { cls: cls, pct: pct, bi: peak[cls].bi };
     }
@@ -268,7 +301,7 @@ function makeLoadTest(sim, def, cfg) {
         // the settled shape under the wing's OWN weight is the jig datum, which
         // is what the real test measures deflection from
         const ax = sim.axes();
-        base = st.map(s => rise(s, ax[1]));
+        base = st.map(s => rise(s, ax[AX]));
         state.phase = 'ramp'; t = 0;
       }
       return state;
@@ -277,12 +310,19 @@ function makeLoadTest(sim, def, cfg) {
     const n = state.phase === 'hold' ? ULT : Math.min(ULT, ULT * (t / RAMP));
     state.n = n;
     // the bags press DOWN, because they are bags. The aeroplane being inverted
-    // is what makes that the flight-load direction through the spar.
-    for (let k = 0; k < bags.length; k++)
-      sim.impulse(bags[k][0], 0, -n * bags[k][1] * dt, 0);
-    // ...and what the wing carries pulls the other way (G179, see `carried`)
-    for (let k = 0; k < carried.length; k++)
-      sim.impulse(carried[k], 0, n * def.nodes[carried[k]].m * 9.81 * dt, 0);
+    // is what makes that the flight-load direction through the spar. The
+    // fin's case (P4) presses SIDEWAYS along the body's own right axis.
+    if (AX === 1) {
+      for (let k = 0; k < bags.length; k++)
+        sim.impulse(bags[k][0], 0, -n * bags[k][1] * dt, 0);
+      // ...and what the wing carries pulls the other way (G179, see `carried`)
+      for (let k = 0; k < carried.length; k++)
+        sim.impulse(carried[k], 0, n * def.nodes[carried[k]].m * 9.81 * dt, 0);
+    } else {
+      const zB = sim.axes()[2];
+      for (let k = 0; k < bags.length; k++)
+        sim.impulse(bags[k][0], -n * bags[k][1] * dt * zB[0], -n * bags[k][1] * dt * zB[1], -n * bags[k][1] * dt * zB[2]);
+    }
     stepClamped(dt); relax();
 
     // WHICH member, not just which class. The allowable is per class, so the
@@ -297,7 +337,7 @@ function makeLoadTest(sim, def, cfg) {
       if (F > g.F) { g.F = F; g.bi = bi; }
     }
     const ax = sim.axes();
-    state.defl = st.map((s, i) => 100 * (rise(s, ax[1]) - base[i]) / semi);
+    state.defl = st.map((s, i) => 100 * (rise(s, ax[AX]) - base[i]) / semi);
     state.tipPct = state.defl[state.defl.length - 1];
     state.tipM = state.tipPct / 100 * semi;
     const w = yieldPct();

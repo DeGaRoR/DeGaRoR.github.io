@@ -1238,26 +1238,15 @@ function build() {
   }
   const stepSel = $('step') ? $('step').value : (PAGE.defaultStep || 'crease');
   const step = stepSel === 'crease' ? 'crease' : +stepSel;
-  const spec = G.cageSpec({ ...P });
-  const m = G.buildCage2(spec, step);
-  M0 = m;
-  let s = m;
   const L = +$('lvl').value;
-  for (let i = 0; i < L; i++) s = G.cageSubdivide(s);
-  // rim joints sweep the boundary of the mesh AT THIS level — they stick
-  // to the displayed surface exactly, at any subsurf setting
-  // glass sill first: rows under the pilot/pax glass reassign to glass
-  // so the cut and the joints see the extended windows
-  if (step === 'crease' && G.cageGlassSill) s = G.cageGlassSill(s, spec);
-  // G14: cut doors/windows into separate parts BEFORE the rims, so the
-  // joints are traced on (and travel with) the moved panels
-  if (step === 'crease' && G.cageCut) s = G.cageCut(s, spec);
-  // the bubble canopy: a post-subdivision component on the displayed
-  // seam — before the rims so it gets its frame seal
-  if (step === 'crease' && G.cageCanopy) s = G.cageCanopy(s, spec);
-  if (step === 'crease') s = G.cageRims(s, spec);
-  // interior elements are disjoint post-passes too (G13)
-  if (step === 'crease' && G.cageInterior) s = G.cageInterior(s, spec);
+  // ONE BUILD, SHARED (TAIL CHANTIER 2, P0): the sequence — spec, cage,
+  // subdivide, glass sill, cut, canopy, rims, interior, the explode undo —
+  // lives in CAGE2.cageSheet, so the headless tail (_tail_headless.js) and
+  // the node gates hold the mesh the layers see; the page holds no copy
+  const built = G.cageSheet(P, { step, level: L });
+  const spec = built.spec, m = built.cage;
+  M0 = m;
+  let s = built.mesh;
   MS = s;
 
   disposeObj(meshObj);
@@ -1352,9 +1341,21 @@ function build() {
   // the same thing here as it does in the surface field.
   try {
     const A0 = AK(), root = (typeof window !== 'undefined') && window.CAGE_UI_SCENE;
-    if (A0 && A0.aeroSetCraft && root) {
-      root.updateWorldMatrix(true, false);
-      A0.aeroSetCraft(THREE, root.matrixWorld,
+    // THE CRAFT FRAME IS THE AEROPLANE'S, NOT THE ROOM'S (G216, the user:
+    // "the decal/livery ... is not located in the same place [in flight]").
+    // This passed CAGE_UI_SCENE — the room the editor mounts into — so a box
+    // projection was measured from the HANGAR's origin, while the flown one
+    // is measured from the aeroplane's own (the payload is baked in the
+    // mount's frame). Measured on the stock build: 2.59 m along and 1.08 m
+    // up between them, which is exactly how far a side-projected livery
+    // moved on the way to the runway. The mount is the join's own — one
+    // description of "which object is the aeroplane" — and the room is the
+    // fallback for a bench page that has no mount.
+    const mnt = (window.CAGE_JOIN && window.CAGE_JOIN.mount &&
+                 window.CAGE_JOIN.mount()) || root;
+    if (A0 && A0.aeroSetCraft && mnt) {
+      mnt.updateWorldMatrix(true, false);
+      A0.aeroSetCraft(THREE, mnt.matrixWorld,
                       { lateral: 'x', along: 'z', up: 'y', aft: true });
     }
     // THE CABIN'S DARKNESS FOLLOWS THE GLAZING (G206.1): a glazed cabin
@@ -1370,20 +1371,10 @@ function build() {
   // LAYERS SEE THE AEROPLANE AS-BUILT (G29): exploded cut parts carry
   // their translation as cutOff — the DISPLAY keeps the offsets, but the
   // contracts (gear stance, fin/stab decks, the engine face) must never
-  // move with a flying door (user: the undercarriage followed `explode`)
-  let sFix = s;
-  if ((P.explodeD || 0) > 0) {
-    const V2 = s.V.map(p => p.slice());
-    const undone = new Set();
-    for (const f of s.F) if (f.cutOff)
-      for (const vi of f.v) {
-        if (undone.has(vi)) continue;
-        undone.add(vi);
-        V2[vi] = [V2[vi][0] - f.cutOff[0], V2[vi][1] - f.cutOff[1],
-                  V2[vi][2] - f.cutOff[2]];
-      }
-    sFix = Object.assign({}, s, { V: V2 });
-  }
+  // move with a flying door (user: the undercarriage followed `explode`).
+  // The undo is cageSheet's (P0); `sheet` is `mesh` itself when nothing is
+  // exploded
+  const sFix = built.sheet;
   // THE LAYER SECTIONS ARE CLAIMED INSIDE THE POST HOOK, which runs AFTER
   // the materials panel above was built — so the epoch turns over here, the
   // layers stamp SEC_LIVE as they draw, and the panel gets a SECOND look
@@ -3166,7 +3157,9 @@ function decReframe(fromMode, toMode, keys) {
 // (that is `secTint`, which glass has always been able to take and never had
 // a well for); what is shared is the CONDITION of the glazing.
 // G206: opacity 0.5 -> 0.2 with the hand blend — see aeroskin.js GLASS_DEF
-const GLASS = { tint: null, opacity: 0.2, scratch: 0, wipe: 0, grime: 0,
+// G217: `scratch` and `wipe` retired (they read as corduroy at any strength
+// that showed); `touch` is the handling smear that replaced them
+const GLASS = { tint: null, opacity: 0.2, touch: 0.35, grime: 0,
                 refl: 1, rainbow: 0 };
 const GLASS_DEFV = JSON.parse(JSON.stringify(GLASS));
 
@@ -3930,11 +3923,9 @@ function buildMatPanel() {
     gr('glazing: clarity', 'opacity', 0.05, 1, 0.01,
        'how much of the pane you see THROUGH — the view alpha still wins ' +
        'when it is asking for less, because that is a way of looking');
-    gr('glazing: scratches', 'scratch', 0, 1, 0.02,
-       'fine crazing in two crossed families, in real millimetres on the pane');
-    gr('glazing: wiper arc', 'wipe', 0, 1, 0.02,
-       'the swept band a wiper leaves — placed from a pivot, not tiled, ' +
-       'which is what makes it an arc rather than curved texture');
+    gr('glazing: handling', 'touch', 0, 1, 0.02,
+       'the smear hands, cuffs and a cloth leave — a ROUGHNESS with no ' +
+       'relief at all, and the pane goes rougher toward its frame with it');
     gr('glazing: edge grime', 'grime', 0, 1, 0.02,
        'dirt gathering toward the frame, measured from the PANE own extent ' +
        'so it does not move when the camera does');

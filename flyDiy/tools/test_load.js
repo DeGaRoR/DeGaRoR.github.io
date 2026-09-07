@@ -96,7 +96,7 @@ function rigNodes(def) {
 }
 
 // Returns per-station deflection (% of semispan) and the worst member load.
-function loadTest(def, n, matKey) {
+function loadTest(def, n, matKey, surface) {
   // Thin wrapper over the shared rig in src/core/65_gen_loadtest.js. Ramping to
   // `n` and holding is exactly what the rig does, so this asks for a run whose
   // ultimate IS n and reads the settled state off it.
@@ -106,6 +106,9 @@ function loadTest(def, n, matKey) {
                                        // G213: the wing class is judged as the
                                        // surface this fuselage defaults to
                                        wingMaterial: GEN_SURF_DEFAULT[matKey],
+                                       // TAIL CHANTIER 2 P4: the stab and the fin
+                                       // on their own spar nodes (default: the wing)
+                                       surface: surface || 'wing',
                                        rampS: 3.0, holdS: 2.0, settleS: 4.0 });
   if (!rig.state.ok) return null;
   const dt = 1 / 60;
@@ -231,6 +234,43 @@ say('');
 
 // ---------------------------------------------------------------------------
 results['every airframe survived the ultimate load'] = rows.every(r => r.ok);
+
+// ---------------------------------------------------------------------------
+// THE TAIL (TAIL CHANTIER 2 P4). The stab and the fin are trusses on their
+// own spar nodes now (61_gen_frame's prism), and the rig loads them as it
+// loads the wing: the stab inverted under bags at the WING's loading (its
+// own area's share of n·W), the fin on its side at half that (the rudder-
+// kick case, GEN_LOAD_SURFACES says why). Deflection is % of the semispan
+// (the stab) or of the height (the fin); the tail surface must survive the
+// ultimate case on every material, and its worst member is reported as the
+// wing's is. The three-node tail of before could not be loaded at all.
+// ---------------------------------------------------------------------------
+say('');
+say('THE TAIL — the stab under bags, the fin on its side, on every material');
+say('airframe                     surface   1.0 g    3.8 g LIMIT   5.7 g ULT    worst member @ult');
+const tailRows = [];
+for (const m of Object.keys(GEN_MATERIALS)) {
+  const build = () => { const sp = JSON.parse(JSON.stringify(GEN_DEFAULT)); sp.fuselage.material = m; return buildGen(sp); };
+  for (const surf of ['stab', 'fin']) {
+    const r1 = loadTest(build(), 1.0, m, surf), rl = loadTest(build(), LIMIT, m, surf), ru = loadTest(build(), ULT, m, surf);
+    if (!r1 || !rl || !ru) { say(`  GEN ${m.padEnd(22)} ${surf.padEnd(6)} not measurable`); tailRows.push({ ok: false }); continue; }
+    const ok = !r1.bad && !rl.bad && !ru.bad;
+    const yp = ru.worst ? ru.worst.pct : null;
+    tailRows.push({ ok, lbl: `${m} ${surf}`, ult: ru.tip });
+    say(`  GEN ${m.padEnd(22)} ${surf.padEnd(6)} ${r1.tip.toFixed(2).padStart(6)} % ${rl.tip.toFixed(2).padStart(9)} %` +
+        ` ${ru.tip.toFixed(2).padStart(11)} %   ` +
+        (yp === null ? '        n/a' : `${yp.toFixed(0).padStart(4)}% of yield (${ru.worst.cls})`) +
+        `   ${!ok ? '*** DID NOT SURVIVE' : 'ok'}`);
+  }
+}
+results['P4: every tail surface survived its ultimate case'] = tailRows.every(r => r.ok);
+// the fold bound: a tube aeroplane's fin reads ~47 % of its height at
+// ultimate on its side (the stab 4 %) — a constant-k lattice 13 % deep is
+// soft in that direction, and GEN_RULES.tailK is the wing's until GATE
+// FLEX measures the tail against a beam of its own (P5); a surface past
+// half its span has folded, and that is what this row refuses
+results['P4: no tail surface deflects past half its span at ultimate'] =
+  tailRows.every(r => !r.ok || Math.abs(r.ult) < 50);
 // G185: TWO HONEST EXEMPTIONS, each named in the table. (1) A wing under the
 // instrument's floor — the carbon strut wing reads 0.03 % at 1 g, 1.5 mm at
 // the tip, and the sign of that is noise — is "too stiff to rate", GATE

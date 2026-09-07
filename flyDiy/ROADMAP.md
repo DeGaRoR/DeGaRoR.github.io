@@ -86,6 +86,18 @@ chantier touches them:
 *Make what already exists feel finished. Everything here is visible in the
 first ten minutes of play, and almost all of it is small.*
 
+> **2026-09-08 — TAIL CHANTIER 2 (G214–G219).** The drawn tail is the flown
+> tail: the fin and stab layers measure their sheets, the join writes the
+> areas, the mean chords and the control chords (rod booms and pods
+> measure too), the surfaces hinge on the layer's declared line (the horn
+> balance and a double-pitched pivot fixed), the tail has a two-spar
+> prism truss of its own class in the load test, the builder sizes it in
+> the wing's words over an expert tier of corners, and every build flies
+> the vortex downwash with the fin end-plated. The fleet was re-baselined
+> ONCE (P5): which archetypes' seed tails moved is in the HANDOVER's G219.
+> Certificates carry PHYSICS_V. Left, said in the debt register: the rod
+> boom (P6), the tube element type, the AP yaw plant, tailK against a beam.
+
 1. ~~**The sweep-30 ruling, applied.**~~ **DONE — G150, 2026-09-01.** The one
    red in the battery, ruled and closed. It was a TIMEOUT, not a crash. Leaves
    ONE item owed, promoted into Phase 2 below: the **balance advisory**.

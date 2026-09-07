@@ -173,7 +173,12 @@ chk(measure.length === 2, 'instrument shape');
     return { GP, twMax, lifted };
   };
   const t = roll('twin fixture (join)', () => JSON.parse(JSON.stringify(twin)), 90);
-  chk(t.GP.ratio > 0.9, 'twin: the criterion no longer sees the high thrust line');
+  // TAIL CHANTIER 2 P4: the tail carries its own structure now (the stab
+  // and fin trusses, ~+8 kg four metres aft), so the twin's CG sits aft
+  // and its power nose-over ratio read 1.01 → 0.87 — the criterion still
+  // sees the high thrust line, at a lower ratio; the bar is re-read to
+  // 0.8 with that number, not to the old one
+  chk(t.GP.ratio > 0.8, 'twin: the criterion no longer sees the high thrust line');
   chk(t.twMax < 1.5, `twin: tail rose ${t.twMax.toFixed(2)} m on the roll (power nose-over)`);
   chk(t.lifted, 'twin: the test pilot did not get it airborne');
   const c = roll('stock nose', () => stock('nose'), 60);

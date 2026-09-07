@@ -800,14 +800,18 @@ function sites(scene, group, P) {
     // than by an absolute distance, so it means the same thing on a 52 mm tip
     // and a 126 mm one: -1 the lower surface, 0 the mid-thickness, +1 the upper.
     const tipY = t => t ? (t.y0 + t.y1) / 2 + navRise * (t.y1 - t.y0) * 0.5 : 0;
+    // G209: cage +x is the PORT wing (model +z; the crew layer's "pilot's
+    // right = -x"), so the lamp at max.x wears the port RED and the one at
+    // min.x the starboard GREEN. They were the other way round: a green
+    // lens on the left wing of every build since G96.
     if (tipR) out.navR = { p: [wb.max.x - navSpan, tipY(tipR),
                                tipR.zLE - navChord],
-                           ax: [1, 0, 0], col: 0x18e04a, chord: [0, 0, -1],
+                           ax: [1, 0, 0], col: 0xff2a1e, chord: [0, 0, -1],
                            len: tipLen(tipR), thick: tipR.y1 - tipR.y0,
                            pod: true, noseLens: true };
     if (tipL) out.navL = { p: [wb.min.x + navSpan, tipY(tipL),
                                tipL.zLE - navChord],
-                           ax: [-1, 0, 0], col: 0xff2a1e, chord: [0, 0, -1],
+                           ax: [-1, 0, 0], col: 0x18e04a, chord: [0, 0, -1],
                            len: tipLen(tipL), thick: tipL.y1 - tipL.y0,
                            pod: true, noseLens: true };
     // THE LANDING AND TAXI LAMPS LIVE IN THE LEADING EDGE, inboard, where the

@@ -541,6 +541,19 @@ function nullPaths(o, pre, out) {
         ok(R2.geom.xAC <= Z.xAC + 1e-6 && R2.geom.xAC > Z.xAC - 0.20,
            'vintage ' + f + ': xAC inside the honesty window (' +
            R2.geom.xAC.toFixed(4) + ' vs frozen ' + Z.xAC.toFixed(4) + ')');
+        // TAIL CHANTIER 2 P5: a vintage that carries the JOIN's tail rows (a
+        // drawn tail — Sh, Sv, the mean chords, the control chords) keeps
+        // them through the load: the volume rule stands down (not auto),
+        // and the tail that flies is the one that was drawn, to the digit
+        if (bare && bare.tail && bare.tail.Sh > 0) {
+          ok(Math.abs(R2.tail.Sh - bare.tail.Sh) < 1e-9 && !RS2.auto['tail.Sh'] &&
+             Math.abs(R2.tail.Sv - bare.tail.Sv) < 1e-9 && !RS2.auto['tail.Sv'] &&
+             Math.abs(R2.tail.hChord - bare.tail.hChord) < 1e-9 &&
+             (!bare.controls || !bare.controls.rudder ||
+              Math.abs(R2.controls.rudder.chord - bare.controls.rudder.chord) < 1e-9),
+             'vintage ' + f + ': the drawn tail it carries flies as drawn (Sh ' +
+             R2.tail.Sh.toFixed(3) + ', Sv ' + R2.tail.Sv.toFixed(3) + ', not auto)');
+        }
       } catch (e) {
         ok(false, 'vintage ' + f + ': frozen-number comparison threw (' +
            e.message + ')');

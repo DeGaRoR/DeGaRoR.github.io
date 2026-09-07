@@ -7565,13 +7565,68 @@ function cageCanopy(m, S) {
 // scale is a spec parameter, and it is the only other multiplier.
 const CAGE_UNIT = 1.0;                    // metres per cage unit
 
+// ---- THE SHEET, HEADLESS (TAIL CHANTIER 2, P0) -----------------------------
+// The page's own build sequence — cageSpec → buildCage2 → subdivide L →
+// glass sill → cut → canopy → rims → interior → the explode undo — as ONE
+// pure function, so a layer's deck (the fin's, the stab's), a bench and a
+// node gate all hold the SAME mesh the page hands PAGE.post as `mesh`. The
+// page calls this (_cage_ui.js build); the six benches that repeat the
+// first two lines by hand may adopt it. Nothing else builds the displayed
+// cage.
+//   P     the full param set (cageDefaults ⊕ the page's defaults ⊕ the
+//         build's values — the page's own P)
+//   opts  { step: 'crease' | <n> (the page's #step), level: subsurf L (2) }
+//   -> { spec, cage: the control cage, mesh: the displayed mesh (a door may
+//        sit exploded), sheet: the mesh with every cutOff undone — the mesh
+//        the layer contracts (decks, stance, the engine face) are taken on }
+function cageSheet(P, opts) {
+  const step = (opts && opts.step != null) ? opts.step : 'crease';
+  const L = (opts && opts.level != null) ? +opts.level : 2;
+  const spec = cageSpec({ ...P });
+  const m = buildCage2(spec, step);
+  let s = m;
+  for (let i = 0; i < L; i++) s = cageSubdivide(s);
+  if (step === 'crease') {
+    // glass sill first: rows under the pilot/pax glass reassign to glass
+    // so the cut and the joints see the extended windows; G14: doors and
+    // windows cut into separate parts BEFORE the rims, so the joints are
+    // traced on (and travel with) the moved panels; the bubble canopy is a
+    // post-subdivision component on the displayed seam, before the rims so
+    // it gets its frame seal; interior elements are disjoint post-passes
+    // (G13). Rim joints sweep the boundary AT THIS level.
+    s = cageGlassSill(s, spec);
+    s = cageCut(s, spec);
+    s = cageCanopy(s, spec);
+    s = cageRims(s, spec);
+    s = cageInterior(s, spec);
+  }
+  // LAYERS SEE THE AEROPLANE AS-BUILT (G29): exploded cut parts carry their
+  // translation as cutOff — the DISPLAY keeps the offsets, the contracts
+  // must never move with a flying door (user: the undercarriage followed
+  // `explode`)
+  let sheet = s;
+  if ((P.explodeD || 0) > 0) {
+    const V2 = s.V.map(p => p.slice());
+    const undone = new Set();
+    for (const f of s.F) if (f.cutOff)
+      for (const vi of f.v) {
+        if (undone.has(vi)) continue;
+        undone.add(vi);
+        V2[vi] = [V2[vi][0] - f.cutOff[0], V2[vi][1] - f.cutOff[1],
+                  V2[vi][2] - f.cutOff[2]];
+      }
+    sheet = Object.assign({}, s, { V: V2 });
+  }
+  return { spec, cage: m, mesh: s, sheet };
+}
+
 if (typeof module !== 'undefined')
   module.exports = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, CAGE_AFT_SUB,
                      CAGE_UNIT,
                      buildCage2, cageResolve, cageSpec, cageSubdivide,
                      cageRims, cageInterior, cageCut, cageGlassSill,
                      cageCanopy, cageBodyZones, cageZoneAt, CAGE_ZONE_RINGS,
-                     cageDefaults, cageFromSpec, cageToSpec,
+                     cageDefaults, cageFromSpec, cageToSpec, cageSheet,
                      CAGE_VIEW_KEYS, CAGE_LVI_BASE, cageLvIndex };
 if (typeof window !== 'undefined')
   window.CAGE2 = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, CAGE_AFT_SUB,
@@ -7579,5 +7634,5 @@ if (typeof window !== 'undefined')
                    buildCage2, cageResolve, cageSpec, cageSubdivide,
                    cageRims, cageInterior, cageCut, cageGlassSill,
                    cageCanopy, cageBodyZones, cageZoneAt, CAGE_ZONE_RINGS,
-                   cageDefaults, cageFromSpec, cageToSpec,
+                   cageDefaults, cageFromSpec, cageToSpec, cageSheet,
                    CAGE_VIEW_KEYS, CAGE_LVI_BASE, cageLvIndex };

@@ -106,6 +106,49 @@ function genLattice(S, gearX, track, kScale) {
   //   mnt     an ENGINE BEARER member: GEN_RULES.mountK on k, its root on c
   //   opt     G185: { tens, pre } — a TENSION-ONLY member (a wire: no spring
   //           and no damper in compression) and its rigging pre-strain
+  // THE ROD BOOM'S COMPENSATOR, COMPUTED (TAIL CHANTIER 2 P6, ruling (j)).
+  // G199.5 swept `rodBoomK` by hand (1 / 2 / 3 / 4 / 8) and landed it at 1
+  // because the number was a guess and the AP's crosswind steering was tuned
+  // on the soft boom. The number is not a guess: the solver has no
+  // rotational DOF, so a bay's torsion is what its DIAGONALS give it —
+  // twist a bay of length L by θ and a face of width s at lever r from the
+  // axis moves its aft edge by r·θ, a diagonal of length d = √(L² + s²)
+  // stretches by that times s/d and pulls back with k times that, at lever
+  // r through the same s/d: K_bay = Σ_faces n_diag · k · (s/d)² · r², and
+  // GJ_lattice = K_bay · L (the audit's recipe). The TUBE the rod draws has
+  // GJ_tube = G · 2π r³ t (thin wall, G = E/2.6 from the material's phys, t
+  // = GEN_RULES.rodWall). Their ratio, on the mid-boom bay, is the factor
+  // every boom member's k takes — `GEN_RULES.rodBoomK` set to 'computed';
+  // a number there still means that number, 1 the identity. Measured on
+  // the stock rod (the mid bay 0.10 × 0.20 m, L 0.7 m, fus k 8.0e5 at KS):
+  // GJ_lattice ~11 kN·m², the 113 mm × 1.2 mm 4130 tube ~110 → ~10, the
+  // "12× softer" the audit measured. The remaining honesty gap is that a
+  // truss's axial springs stand in for a tube's shear: the `tube` element
+  // type, in the debt register.
+  let rodKv = null;
+  const rodK = () => {
+    if (rodKv != null) return rodKv;
+    const r = R.rodBoomK;
+    if (r !== 'computed') return (rodKv = (r == null ? 1 : +r));
+    const rod = S.fuse.rod, ph = M && M.phys;
+    if (!rod || !(rod.r > 0) || !ph || !(ph.E > 0)) return (rodKv = 1);
+    const t = R.rodWall == null ? 1.2e-3 : R.rodWall;
+    const G = ph.E / 2.6;
+    const GJt = G * 2 * Math.PI * Math.pow(rod.r, 3) * t;
+    // the mid-boom bay: its section off the station profile, its length
+    // off the bay count, its diagonals as the bay loop lays them (one a
+    // side, two on the top, two on the bottom)
+    const x0 = S.fuse.boxRear, x1 = S.fuse.tailArm;
+    const L = Math.max(0.2, (x1 - x0) / Math.max(1, S.fuse.tailBays || 1));
+    const stAt = ST.length ? ST[Math.max(0, Math.min(ST.length - 1, Math.round(ST.length * 0.7)))] : null;
+    const w = stAt ? stAt.w : (S.fuse.tailW || 0.05), h = stAt ? Math.max(0.05, stAt.yt - stAt.yb) : 0.2;
+    const kf = (M.k.fus || 0) * KS;
+    const face = (n, s, lev) => { const d = Math.hypot(L, s); return n * kf * (s / d) * (s / d) * lev * lev; };
+    const Kbay = 2 * face(1, h, w) + face(2, 2 * w, 0.5 * h) + face(2, 2 * w, 0.5 * h);
+    const GJl = Kbay * L;
+    rodKv = GJl > 0 ? Math.max(1, Math.min(20, GJt / GJl)) : 1;
+    return rodKv;
+  };
   const B = (a, b, cls, ext, vis, mnt, opt) => {
     const L = Math.hypot(P[b][0]-P[a][0], P[b][1]-P[a][1], P[b][2]-P[a][2]);
     const isG = cls === 'gear';
@@ -114,7 +157,12 @@ function genLattice(S, gearX, track, kScale) {
     // trade. Damping is NOT scaled with it — a stiffer structure at the same c
     // is a more lightly damped one, which is what a real one does, and c is not
     // what binds the timestep here.
-    const kGain = cls === 'wing' ? (R.wingK ?? 1) : 1;
+    // ...and the TAIL class (P4) is the surface material's WING row — a
+    // stab is a small wing, built of what the stab is built of — at its own
+    // gain (GEN_RULES.tailK), so the rows below read `cls` through `row()`
+    const kGain = cls === 'wing' ? (R.wingK ?? 1) : cls === 'tail' ? (R.tailK ?? R.wingK ?? 1) : 1;
+    const tSec = R.tailSection == null ? 0.5 : R.tailSection;
+    const row = (tbl, c) => (tbl[c] != null ? tbl[c] : (c === 'tail' ? tSec * tbl.wing : undefined));
     // a gear member is either the SPRING (vis 'leg') or its bracing
     let kG = vis === 'leg' ? KG : KGB, cG = vis === 'leg' ? CG : CGB;
     // A SHORT SPRING IS A STIFF SPRING (2026-09-04, the user: "quite a few of
@@ -163,9 +211,9 @@ function genLattice(S, gearX, track, kScale) {
     // crosswind roll), so this changes nothing until it is turned.
     const bK = (S.fuse.boom === 'rod' && cls === 'fus' && !mnt &&
                 P[a][0] >= S.fuse.boxRear - 1e-6 && P[b][0] >= S.fuse.boxRear - 1e-6)
-      ? (R.rodBoomK == null ? 1 : R.rodBoomK) : 1;
-    const bm = { a, b, k: MM.k[cls] * (isG ? kG : KS) * kGain * mK * bK,
-                 c: MM.c[cls] * (isG ? cG : CS) * Math.sqrt(mK) * Math.sqrt(bK),
+      ? rodK() : 1;
+    const bm = { a, b, k: row(MM.k, cls) * (isG ? kG : KS) * kGain * mK * bK,
+                 c: row(MM.c, cls) * (isG ? cG : CS) * Math.sqrt(mK) * Math.sqrt(bK),
                  gear: isG, cls, ext: vis === 'inner' ? false : (!!ext || isG),
                  vis: vis || null, L };
     if (opt && opt.tens) bm.tens = true;
@@ -181,7 +229,7 @@ function genLattice(S, gearX, track, kScale) {
     // there (measured on the stock build). Stiff and damped like the rest,
     // weightless and unpriced.
     if (!(opt && opt.noMass)) {
-      const h = 0.5 * L * MM.lin[cls];
+      const h = 0.5 * L * row(MM.lin, cls);
       nodes[a].m += h; nodes[b].m += h;
       bill(2 * h, 2 * h * MM.price);          // ...and priced as it (G179)
     }
@@ -1014,6 +1062,7 @@ function genLattice(S, gearX, track, kScale) {
   const stabY = isV ? tailY + t.vHeight
                     : tailY + (t.stabH || 0) * (finTopY - tailY);
   let HTL, HTR, FIN = null, FIN2 = null, HTBL = null, HTBR = null, BOOMS = null;
+  let TAIL = null;                    // P4: the conventional tail's truss record (the strips read it)
   if (isTB) {
     // ---- TWIN BOOMS (2026-09-04, TWIN-BOOM spec §1.3, cut 2) --------------
     // Each boom is a PRISM TRUSS — three nodes a station (a top and two
@@ -1070,28 +1119,158 @@ function genLattice(S, gearX, track, kScale) {
     }
     cover(1.9 * t.Sv, [FIN, FIN2, tl.T, tr.T]);
     BOOMS = { L: chains.L, R: chains.R, r: rB, x0, len };
-  } else {
+  } else if (isV) {
+  // the V keeps its two tip nodes on four members each (the ruddervator
+  // pair is one surface, raked; a truss for it is its own chantier)
   [HTL, HTR] = NM(t.hX, stabY, 0.5 * t.hSpan, 'HT');
   for (const [H, side] of [[HTL, 'L'], [HTR, 'R']]) {
     B(H, TPB, 'fus'); B(H, TPT, 'fus');
     B(H, side === 'L' ? last.BL : last.BR, 'fus');
     B(H, side === 'L' ? last.TL : last.TR, 'fus');
   }
-  if (isV) {
-    cover(1.9 * t.Svt, [HTL, HTR, TPB, TPT]);
+  cover(1.9 * t.Svt, [HTL, HTR, TPB, TPT]);
   } else {
-    cover(1.9 * t.Sh, [HTL, HTR, TPB, TPT]);
-    // THE FIN'S OWN MATERIAL (G116): the stab was billed above under the
-    // tail section's default; the fin bills its own from here — sec('gear')
-    // below resets the marker, so nothing after can inherit it by accident
-    MB = genSurfMaterial(S, 'fin');            // G213
-    // the fin's apex node follows the RAKE, so the truss leans with the fin the
-    // skin draws instead of standing upright inside a swept one
-    FIN = N(t.vX + Math.tan((t.vSweep || 0) * Math.PI / 180) * t.vHeight * 0.82,
-            finTopY, 0, 'FIN');
-    B(FIN, TPT, 'fus'); B(FIN, last.TL, 'fus'); B(FIN, last.TR, 'fus');
-    cover(1.9 * t.Sv, [FIN, TPT, last.TL, last.TR]);
+  // ---- THE TAIL IN THE WING'S IDIOM (TAIL CHANTIER 2 P4) --------------------
+  // Two tip nodes on four members each to the post and the last ring, no
+  // spar between them, three members for the fin: that was D2 — 60 % of the
+  // stab's load and half its skin booked to the fuselage, the incidence
+  // welded to the body axes, the tail absent from the load test. The stab
+  // is a TWO-SPAR TRUSS now: stations at the wing's own pitch (0.55 m a
+  // bay, 2..4 of them) on the planform the join describes — gross Sh over
+  // hSpan for the mean chord, hTaper (tip over root) for the trapezoid, the
+  // elevator's chord fraction for the REAR spar (the hinge is a spar), the
+  // front spar at GEN_RULES.tailSparFront — each bay a rib and two
+  // diagonals (the wing's rule 4), the root pair tied to the post and the
+  // last ring (as the tips were) and carried THROUGH (HF0L–HF0R,
+  // HR0L–HR0R: the tips were never joined), the skin billed bay by bay
+  // where it is. The fin is the same up the post, the apex following the
+  // rake. The TIP nodes keep their tags and are made FIRST — app.js's
+  // shadow proxy, _base_app, GATE TAKEOFF's stab roll and the tailwheel
+  // wires key on the first node so tagged — hung on the last rib; the apex
+  // keeps FIN. Every member is class 'tail': the surface material's wing
+  // row at GEN_RULES.tailK (B() says how).
+  const semiH = 0.5 * t.hSpan;
+  [HTL, HTR] = NM(t.hX, stabY, semiH, 'HT');
+  const CT = (S.controls && S.controls.elevator && S.controls.elevator.chord > 0)
+    ? S.controls.elevator.chord : 0.40;
+  const CR = (S.controls && S.controls.rudder && S.controls.rudder.chord > 0)
+    ? S.controls.rudder.chord : 0.42;
+  const sparF = R.tailSparFront == null ? 0.15 : R.tailSparFront;
+  const hTap = t.hTaper == null ? 1 : t.hTaper;
+  const hc = t.Sh / t.hSpan;                                   // the mean chord
+  const cRootH = 2 * hc / (1 + hTap), cTipH = hTap * cRootH;
+  const zRootH = Math.max(0.03, Math.min(0.4 * semiH, S.fuse.tailW || 0.08));
+  const chordH = z => cRootH + (cTipH - cRootH) * Math.min(1, Math.max(0, z / semiH));
+  const xFH = z => t.hX + (sparF - 0.5) * chordH(z);
+  const xRH = z => t.hX + (0.5 - CT) * chordH(z);
+  const nH = Math.max(2, Math.min(4, Math.round(semiH / 0.55)));
+  const zsH = [zRootH];
+  for (let i = 1; i <= nH; i++) zsH.push(zRootH + (semiH - zRootH) * i / nH);
+  // A PLANE LATTICE HAS NO STIFFNESS OUT OF ITS PLANE (measured on the
+  // first cut: the fin folded flat under its side load, −100 % of its
+  // height), which is why the wing carries a BOX under its spars. The tail
+  // is a PRISM: a third chord (HB) under each stab station at the tail's
+  // own depth (GEN_RULES.tailBoxDepth × chord), and a pair (VX) either side
+  // of the fin — the twin boom's own three-chord idiom.
+  const dep = R.tailBoxDepth == null ? 0.08 : R.tailBoxDepth;
+  const HF = { L: [], R: [] }, HR = { L: [], R: [] }, HB = { L: [], R: [] };
+  for (const [sd, sg] of [['L', -1], ['R', 1]]) {
+    HF[sd] = zsH.map(z => N(xFH(z), stabY, sg * z, 'HF'));
+    HR[sd] = zsH.map(z => N(xRH(z), stabY, sg * z, 'HR'));
+    HB[sd] = zsH.map(z => N(0.5 * (xFH(z) + xRH(z)), stabY - dep * chordH(z), sg * z, 'HB'));
+    const ring = sd === 'L' ? [last.TL, last.BL] : [last.TR, last.BR];
+    for (const nd of [HF[sd][0], HR[sd][0], HB[sd][0]]) {
+      B(nd, TPB, 'tail'); B(nd, TPT, 'tail');
+      for (const r of ring) B(nd, r, 'tail');
+    }
+    for (let i = 0; i <= nH; i++) {                           // the section triangle
+      B(HF[sd][i], HR[sd][i], 'tail'); B(HF[sd][i], HB[sd][i], 'tail'); B(HR[sd][i], HB[sd][i], 'tail');
+    }
+    for (let i = 0; i < nH; i++) {
+      const f0 = HF[sd][i], f1 = HF[sd][i + 1], r0 = HR[sd][i], r1 = HR[sd][i + 1];
+      const b0 = HB[sd][i], b1 = HB[sd][i + 1];
+      B(f0, f1, 'tail'); B(r0, r1, 'tail'); B(b0, b1, 'tail'); // the three chords
+      B(f0, r1, 'tail'); B(r0, f1, 'tail');                   // rule 4: the plan's diagonals
+      B(f0, b1, 'tail'); B(b0, f1, 'tail');                   // ...and the two faces'
+      B(r0, b1, 'tail'); B(b0, r1, 'tail');
+      const zi = zsH[i], zo = zsH[i + 1];
+      // the skin on the whole section — the box chord and, on the last
+      // bay, the tip node too: a node lighter than the substep rule's
+      // 0.5 kg floor is what folded the first cut's fin at its first frame
+      const H = sd === 'L' ? HTL : HTR;
+      cover(1.9 * (zo - zi) * 0.5 * (chordH(zi) + chordH(zo)),
+            i === nH - 1 ? [f0, f1, r0, r1, b0, b1, H] : [f0, f1, r0, r1, b0, b1]);
+      // ribs, as the wing's: one every 0.4 m of span, hung on the spars
+      const nRib = Math.max(1, Math.round((zo - zi) / 0.4));
+      const ribM = nRib * 0.5 * (chordH(zi) + chordH(zo)) * 0.30;
+      pt(f1, 0.5 * ribM); pt(r1, 0.5 * ribM);
+    }
+    const H = sd === 'L' ? HTL : HTR;                         // the tip, on the last section
+    B(H, HF[sd][nH], 'tail'); B(H, HR[sd][nH], 'tail'); B(H, HB[sd][nH], 'tail');
+    // THE BRACES (measured on the first cut): the tip's three members lie in
+    // its own station's plane, a mechanism (GATE BIPLANE's rank read one
+    // short), and a root pair a hand's width apart let the stab ROLL on the
+    // post through a taxi — 8.4° against the mains where the old tips held
+    // 3.1° (two tail-class struts to the post: 6.1°). A Cub braces its stab
+    // with steel WIRES from the tips up to the fin post and down to its foot
+    // — tension-only, the G185 wire law, drawn — and the tip still ties to
+    // the last ring's pair as the old tips did (the lattice's own roll path)
+    B(H, TPT, 'wire', true, 'wire', null, { tens: true, pre: 5e-4 });
+    B(H, TPB, 'wire', true, 'wire', null, { tens: true, pre: 5e-4 });
+    for (const r of ring) B(H, r, 'tail');
   }
+  B(HF.L[0], HF.R[0], 'tail'); B(HR.L[0], HR.R[0], 'tail');   // the carry-through
+  B(HB.L[0], HB.R[0], 'tail');
+  cover(1.9 * 2 * zRootH * 0.5 * (chordH(0) + chordH(zRootH)), [HF.L[0], HF.R[0], HR.L[0], HR.R[0]]);
+  // THE FIN'S OWN MATERIAL (G116): the stab was billed above under the
+  // tail section's default; the fin bills its own from here — sec('gear')
+  // below resets the marker, so nothing after can inherit it by accident
+  MB = genSurfMaterial(S, 'fin');            // G213
+  // the fin's apex node follows the RAKE, so the truss leans with the fin the
+  // skin draws instead of standing upright inside a swept one
+  const rakeV = Math.tan((t.vSweep || 0) * Math.PI / 180);
+  const hV = finTopY - lastST.yt;                              // the truss's own height
+  FIN = N(t.vX + rakeV * hV, finTopY, 0, 'FIN');
+  const vTap = t.vTaper == null ? 1 : t.vTaper;
+  const vc = t.Sv / hV;                                        // the mean chord over the truss
+  const cRootV = 2 * vc / (1 + vTap), cTipV = vTap * cRootV;
+  const chordV = u => cRootV + (cTipV - cRootV) * u;
+  const xFV = u => t.vX + rakeV * hV * u + (sparF - 0.5) * chordV(u);
+  const xRV = u => t.vX + rakeV * hV * u + (0.5 - CR) * chordV(u);
+  const nV = Math.max(2, Math.min(3, Math.round(hV / 0.55)));
+  const VF = [], VR = [], VX = [], VX2 = [];
+  for (let i = 0; i <= nV; i++) {
+    const u = i / nV, y = lastST.yt + hV * u, xm = 0.5 * (xFV(u) + xRV(u));
+    VF.push(N(xFV(u), y, 0, 'VF')); VR.push(N(xRV(u), y, 0, 'VR'));
+    // the pair either side: the fin's own thickness, a diamond section
+    VX.push(N(xm, y, 0.5 * dep * chordV(u), 'VX')); VX2.push(N(xm, y, -0.5 * dep * chordV(u), 'VX'));
+  }
+  for (const nd of [VF[0], VR[0], VX[0], VX2[0]]) {
+    B(nd, TPT, 'tail'); B(nd, TPB, 'tail');                   // the root, the keel row to TPB
+    B(nd, last.TL, 'tail'); B(nd, last.TR, 'tail');
+  }
+  for (let i = 0; i <= nV; i++) {                             // the section diamond
+    B(VF[i], VX[i], 'tail'); B(VX[i], VR[i], 'tail'); B(VR[i], VX2[i], 'tail'); B(VX2[i], VF[i], 'tail');
+    B(VF[i], VR[i], 'tail');
+  }
+  for (let i = 0; i < nV; i++) {
+    const ch = [[VF[i], VF[i + 1]], [VR[i], VR[i + 1]], [VX[i], VX[i + 1]], [VX2[i], VX2[i + 1]]];
+    for (const [a, b] of ch) B(a, b, 'tail');                 // the four chords
+    B(VF[i], VR[i + 1], 'tail'); B(VR[i], VF[i + 1], 'tail'); // the plane's diagonals
+    for (const X of [VX, VX2]) {                              // the faces'
+      B(VF[i], X[i + 1], 'tail'); B(X[i], VF[i + 1], 'tail');
+      B(VR[i], X[i + 1], 'tail'); B(X[i], VR[i + 1], 'tail');
+    }
+    const bayV = (hV / nV) * 0.5 * (chordV(i / nV) + chordV((i + 1) / nV));
+    cover(1.9 * bayV, [VF[i], VF[i + 1], VR[i], VR[i + 1], VX[i], VX[i + 1], VX2[i], VX2[i + 1]]
+                        .concat(i === nV - 1 ? [FIN] : []));
+    const ribV = Math.max(1, Math.round((hV / nV) / 0.4)) * 0.5 * (chordV(i / nV) + chordV((i + 1) / nV)) * 0.30;
+    pt(VF[i + 1], 0.5 * ribV); pt(VR[i + 1], 0.5 * ribV);
+  }
+  for (const nd of [VF[nV], VR[nV], VX[nV], VX2[nV]]) B(FIN, nd, 'tail');   // the apex on the last section
+  B(FIN, VF[nV - 1], 'tail'); B(FIN, VR[nV - 1], 'tail');   // ...and out of its plane (the same mechanism)
+  TAIL = { HF, HR, HB, VF, VR, VX, VX2, zsH, semiH, zRootH, chordH, hV, chordV, nV,
+           sparFront: sparF, rearH: 1 - CT, rearV: 1 - CR };
   }
 
   // ---- 5. gear --------------------------------------------------------
@@ -1517,6 +1696,7 @@ function genLattice(S, gearX, track, kScale) {
   };
   const parts = {
     ST, F, TPB, TPT, EL, ER, HTL, HTR, FIN, FIN2, HTBL, HTBR, BOOMS, GAL, GAR, TW,
+    TAIL,                       // P4: the stab's and fin's spar nodes and planform
     wf, zs, zRoot, zCrank, xF, xR, xFat, xRat, sparFront, sparRear, sparSpacing,
     chordAt, yF, incAt, cabRear, gx, tr, twX, twY,
     ribZ,

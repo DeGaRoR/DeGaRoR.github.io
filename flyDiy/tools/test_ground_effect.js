@@ -57,7 +57,15 @@ const checks = {
   'drag monotonic with height': monoD,
   'lift monotonic with height': monoL,
   'drag cut @0.05 in 8..45%': dragCut > 0.08 && dragCut < 0.45,
-  'lift gain @0.05 in 1..15%': liftGain > 0.01 && liftGain < 0.15,
+  // TAIL CHANTIER 2 P5 (2026-09-08): the window was cut on the constant-
+  // downwash model, where the TAIL saw the same downwash on the ground as in
+  // the air and the gain was the wing's alone (12.7 % here). Every build
+  // flies the vortex model now, and near the ground the image vortices
+  // cancel the downwash at the tail: the stab lifts 179 N at h/b 0.05 where
+  // it lifted nothing far away, and the whole aeroplane — which is what the
+  // probe measures — gains 19.9 %. That is the flare's nose-down, real;
+  // the window is re-read to hold it, not the tail's lift removed
+  'lift gain @0.05 in 1..25%': liftGain > 0.01 && liftGain < 0.25,
   'free-air converged by h/b=5': converged,
 };
 const failed = Object.keys(checks).filter(k => !checks[k]);

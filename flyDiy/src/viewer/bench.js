@@ -293,9 +293,19 @@ function benchHash(str) {
   }
   return ('0000000' + h.toString(16)).slice(-8);
 }
+// ...AND THE PHYSICS IT WAS MEASURED UNDER (TAIL CHANTIER 2 P5, ruling (p)):
+// GEN_SPEC_V (what the file means) and PHYSICS_V (what the solver answers,
+// 60_gen_spec.js) are folded in ahead of the spec, so a certificate earned
+// under an older physics does not load VALID over a plaque that now says
+// otherwise — it loads withdrawn, with the reason (BENCH_RESTORE).
+function benchVersionTag() {
+  const sv = (typeof GEN_SPEC_V !== 'undefined') ? GEN_SPEC_V : 0;
+  const pv = (typeof PHYSICS_V !== 'undefined') ? PHYSICS_V : 0;
+  return 'v' + sv + '|p' + pv + '|';
+}
 function benchFingerprint(spec) {
   const c = benchStripCosmetic(spec);
-  return c ? benchHash(JSON.stringify(c)) : null;
+  return c ? benchHash(benchVersionTag() + JSON.stringify(c)) : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -426,9 +436,38 @@ function benchInit(api) {
     for (const id in results) if (results[id] && results[id].running) delete results[id];
     trimUse = pq.trimUse !== false;
     withdrawnNote = anyStale() ? 'the build changed' : '';
+    // THE RESTORE COMPARES, IT DOES NOT STAMP (TAIL CHANTIER 2 P5, ruling
+    // (p)). It used to write the LIVE fingerprint onto any certificate that
+    // had none — re-certifying a pre-G208 result against whatever aeroplane
+    // was on the stand — and never looked at a stored one. Now: a settled
+    // certificate whose fingerprint is not the live one (the build changed,
+    // or the physics did — PHYSICS_V is in the fingerprint) is WITHDRAWN
+    // here with the reason, kept struck through as the dirty hook keeps
+    // them; one with no fingerprint at all is withdrawn as certified before
+    // fingerprints. Only what was measured on THIS aeroplane under THIS
+    // physics loads valid.
     const fp = fpNow();
-    if (fp) for (const id in results)
-      if (results[id] && !results[id].stale && !results[id].fp) results[id].fp = fp;
+    if (fp) {
+      let changed = 0, unstamped = 0;
+      for (const id in results) {
+        const r = results[id];
+        if (!r || r.stale) continue;
+        if (!r.fp) unstamped++;
+        else if (r.fp !== fp) changed++;
+      }
+      if (changed || unstamped) {
+        const reason = changed ? 'the build or its physics changed since the certificate'
+                               : 'certified before fingerprints';
+        for (const id in results) {
+          const r = results[id];
+          if (!r || r.stale) continue;
+          if (!r.fp || r.fp !== fp)
+            results[id] = { stale: true, was: r.verdict || '', ok: false,
+                            when: r.when || null, why: reason };
+        }
+        withdrawnNote = reason;
+      }
+    }
     if (typeof api.restoreSheets === 'function')
       api.restoreSheets(pq.sheets || null);
     api.plaque(plaqueOn());

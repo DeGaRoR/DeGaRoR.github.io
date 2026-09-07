@@ -220,6 +220,53 @@ function genStrips(S, fr) {
         wash: tailWash * R.finWash, w: [[Fn, .40], [H, .35], [Bn, .25]] });
     return strips;
   }
+  // THE TAIL'S STRIPS RIDE ITS BAYS (TAIL CHANTIER 2 P4): with the truss
+  // built (P.TAIL), the stab is two half-bay strips a bay a side on its own
+  // spar nodes — `fIn/fOut/rIn/rOut` so the solver takes the chord and the
+  // normal from the DEFORMED nodes, as the wing's — plus one centre strip
+  // on the carry-through, and the fin one strip a bay up the post. The
+  // areas are the bays' own and sum to Sh and Sv exactly (the join's areas
+  // are what the trapezoid was built from). The quarter-chord weight splits
+  // between the spars as the wing's does. Before this, 60 % of the stab's
+  // load went to the post pair and the tail's incidence was the body's.
+  const T = P.TAIL;
+  if (T && T.HF && T.VF) {
+    const cfH = (T.rearH - 0.25) / (T.rearH - T.sparFront), crH = 1 - cfH;
+    for (const [side, sd] of [[-1, 'L'], [1, 'R']]) {
+      const F = T.HF[sd], Rr = T.HR[sd], zA = T.zsH;
+      for (let b = 0; b < zA.length - 1; b++) {
+        const zi = zA[b], zo = zA[b + 1];
+        const bay = (zo - zi) * 0.5 * (T.chordH(zi) + T.chordH(zo));
+        for (const tt of [0.28, 0.78]) {
+          const zc = zi + (zo - zi) * tt;
+          strips.push({ kind: 'stab', side, t: tt, chord: T.chordH(zc), area: 0.5 * bay,
+            fIn: F[b], fOut: F[b + 1], rIn: Rr[b], rOut: Rr[b + 1],
+            w: [[F[b], cfH * (1 - tt)], [F[b + 1], cfH * tt],
+                [Rr[b], crH * (1 - tt)], [Rr[b + 1], crH * tt]],
+            wash: tailWash * R.stabWash });
+        }
+      }
+    }
+    // the carry-through, one strip on the four root nodes (side +1: fIn is
+    // the port root, fOut the starboard — the span runs +z, as a wing's)
+    strips.push({ kind: 'stab', side: 1, t: 0.5, chord: T.chordH(0),
+      area: 2 * T.zRootH * 0.5 * (T.chordH(0) + T.chordH(T.zRootH)),
+      fIn: T.HF.L[0], fOut: T.HF.R[0], rIn: T.HR.L[0], rOut: T.HR.R[0],
+      w: [[T.HF.L[0], cfH * 0.5], [T.HF.R[0], cfH * 0.5],
+          [T.HR.L[0], crH * 0.5], [T.HR.R[0], crH * 0.5]],
+      wash: tailWash * R.stabWash });
+    const cfV = (T.rearV - 0.25) / (T.rearV - T.sparFront), crV = 1 - cfV;
+    for (let b = 0; b < T.nV; b++) {
+      const u0 = b / T.nV, u1 = (b + 1) / T.nV;
+      strips.push({ kind: 'fin', side: 1, t: 0.5, chord: T.chordV(0.5 * (u0 + u1)),
+        area: (T.hV / T.nV) * 0.5 * (T.chordV(u0) + T.chordV(u1)),
+        fIn: T.VF[b], fOut: T.VF[b + 1], rIn: T.VR[b], rOut: T.VR[b + 1],
+        w: [[T.VF[b], cfV * 0.5], [T.VF[b + 1], cfV * 0.5],
+            [T.VR[b], crV * 0.5], [T.VR[b + 1], crV * 0.5]],
+        wash: tailWash * R.finWash });
+    }
+    return strips;
+  }
   for (const [H, side] of [[P.HTL, -1], [P.HTR, 1]]) {
     strips.push({ kind: 'stab', side, area: 0.565 * S.tail.Sh / 2, chord: hc,
       wash: tailWash * R.stabWash, w: [[H, .50], [P.TPB, .30], [P.TPT, .20]] });
@@ -827,7 +874,17 @@ function genParams(S, fr, strips) {
   // number, and it moves when the builder reshapes the fin. The fleet's
   // fiches never set polarFin, so the solver's fallback keeps them exact.
   const vAR = S.tail.vHeight * S.tail.vHeight / Math.max(1e-6, S.tail.Sv);
-  const polarFin = genTailPolar(vAR, genSurfMaterial(S, 'fin').cd0);      // G213
+  // THE END-PLATE (TAIL CHANTIER 2 P5, ruling (n)): the tailplane at the
+  // fin's root is an end plate to the fin — a conventional tail raises the
+  // fin's effective aspect ratio ~1.55× (Raymer), a cruciform less, a T-tail
+  // more, a V none. The one textbook term the fin was missing; it moves
+  // cnBeta on every build and rides the same re-baseline as the flip below.
+  const EP = GEN_RULES.finEndPlate || {};
+  const tt = S.tail.type === 'v' ? 'v'
+           : (S.tail.stabH || 0) >= 0.8 ? 't'
+           : (S.tail.stabH || 0) >= 0.3 ? 'cruci' : 'conv';
+  const vARe = vAR * (EP[tt] == null ? 1 : EP[tt]);
+  const polarFin = genTailPolar(vARe, genSurfMaterial(S, 'fin').cd0);     // G213
   const mass = fr.cg0[3];
   // G185: the aeroplane's CLmax is its planes' area-weighted one (a monoplane's
   // is exactly its own)
@@ -934,7 +991,12 @@ function genParams(S, fr, strips) {
     // only MEASURES what the kernel says (gen.dEpsDa) — the flip is the next
     // arc's, with those numbers as its anchors. core: the Rankine radius as
     // a fraction of the source strip's chord; kProbe: fixed-point passes.
-    downwashModel: S.wings.length > 1 ? 'vortex' : 'const',
+    // THE FLIP (TAIL CHANTIER 2 P5, ruling (o), RULED by the user 2026-09-07):
+    // every build flies the vortex downwash — the elliptic kernel at each
+    // aeroplane's own tail position — where monoplanes flew the 0.40
+    // constant (G197 measured the stock at 0.318 and left the flip to the
+    // user). One fleet re-baseline, with the seed and the end-plate.
+    downwashModel: 'vortex',
     induction: { core: 0.30, kProbe: 3, loading: 'elliptic' },  // G197: the sources shed the polar's loading
     flaps,
     stabTrim: 0, sparSpacing: fr.parts.sparSpacing,

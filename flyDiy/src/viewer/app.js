@@ -1336,10 +1336,22 @@
       if (data.cage && typeof AEROSKIN !== 'undefined' && m.fin) {
         const A = AEROSKIN;
         return matCache[mn] = (m.fin === 'glass')
-          ? A.aeroGlass(THREE, { tintLin: m.color, opacity: op, fieldM: 1 })
+          // G216: THE PANE AS THE BUILDER LEFT IT — the spec's own glazing
+          // dials (aeroGlassSpec), the pane's measured extent and the field
+          // scale it was measured in. This used to be a colour and an
+          // opacity, so a dirty tinted canopy flew clean and its edge grime
+          // had no extent to sit in.
+          ? A.aeroGlass(THREE, Object.assign(
+              A.aeroGlassSpec ? A.aeroGlassSpec(genSpec) : {},
+              { tintLin: m.color, opacity: op,
+                ext: m.gext, fieldM: m.fieldM || 1 }))
           : A.aeroMaterial(THREE, { finish: m.fin, tintLin: m.color,
               grm: m.grm || '', struct: m.grm ? 1 : 0,
-              opacity: op, fieldM: 1, surf: m.surf ? 1 : 0,
+              // G216: the field's own unit, as the editor measured it, and
+              // the box mapping the tail and the propeller were drawn with
+              opacity: op, fieldM: m.fieldM || 1, surf: m.surf ? 1 : 0,
+              boxDet: m.boxDet || 0, boxPlane: m.boxPlane || 0,
+              detRot: m.detRot || 0,
               // THE FLOWN AEROPLANE IS PAINTED LIKE THE EDITOR'S (G108). Two
               // arguments were missing and both mattered to the markings: the
               // surface CLASS, without which every flown surface was a
@@ -1374,6 +1386,17 @@
       // energy layer's own factory rebuilds the material the editor drew.
       // (The uv comes with it — the snapshot carries a vessel bucket's real
       // metre-true uv where the rest of the cage has none.)
+      // A PERSON IS THEIR CHARACTER'S OWN MATERIAL (G210.2, the user: 'the
+      // mixamo characters are not making it into flight mode'). Same contract
+      // as the finish and the vessel: what crossed the join is WHICH
+      // character and WHICH of its materials, so the factory that dressed
+      // them in the shed dresses them here — diffuse map, normal map, cutout
+      // and cabin darkness included, with skinning off for the baked mesh.
+      if (data.cage && m.char && window.CAGE_CHAR &&
+          window.CAGE_CHAR.flatMaterial) {
+        const cm = window.CAGE_CHAR.flatMaterial(m.char, m.charMat || 0);
+        if (cm) return matCache[mn] = cm;
+      }
       if (data.cage && m.ves && window.CAGE_ENERGY &&
           window.CAGE_ENERGY.material)
         return matCache[mn] = window.CAGE_ENERGY.material({
@@ -1775,6 +1798,10 @@
               hinged: new Uint8Array(nv2).fill(1),
               axis: pt.axis || [0, 0, 1],
               drive: pt.drive, sgn: pt.sgn || 1,
+              // G209: the ruddervator's second drive, which the join has
+              // published since 2026-09-04 and this path never read — a
+              // cage V-tail answered the elevator and ignored the rudder
+              drive2: pt.drive2 || null, sgn2: pt.sgn2 || 0,
               k: pt.drive === 'flap' ? 0.70 : 1,   // G200: a flap fraction is not radians
               plane: pt.plane || 1 });      // G185: which plane's box binds it
           });
@@ -2260,7 +2287,8 @@
     // `link` carries da/de/dr/flap as sim.ctl units; `k` scales a 0..1 flap to its travel (0.70 rad, the generated table's own) of surface deflection.
     if (model.surfParts) for (const s of model.surfParts) {
       if (!s.posAttr || !s.posAttr.array) continue;
-      const ang = s.sgn * (s.k || 1) * (link[s.drive] || 0);
+      const ang = s.sgn * (s.k || 1) * (link[s.drive] || 0)
+        + (s.drive2 ? (s.sgn2 || 1) * (link[s.drive2] || 0) : 0);   // G209
       const b = s.base, out = s.posAttr.array;
       const ax = s.axis, ca = Math.cos(ang), sa = Math.sin(ang), C1 = 1 - ca;
       // Rodrigues about the hinge, which passes through the group's own

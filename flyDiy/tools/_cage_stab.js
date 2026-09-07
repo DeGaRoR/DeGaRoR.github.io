@@ -27,22 +27,10 @@ if (!FIN) { console.error('cage stab layer: _fin_gen.js not loaded'); return; }
 
 // ---- parameters -----------------------------------------------------------
 // st* mirrors the fin's grammar; defaults are the CUB TAIL, mapped straight
-// from FIN_CUB so they cannot drift from the checked reference values
-const ST2FIN = {
-  stRootGuard: 'finRootGuard',
-  stTipZ: 'finTipZ', stTipY: 'finTipY',
-  stAftZ: 'finAftZ', stAftY: 'finAftY',
-  stBaseZ: 'finBaseZ', stBaseY: 'finBaseY',
-  stMidY: 'finMidY', stUY: 'finUY',
-  stRootFwd: 'finRootFwd',
-  stLEZ: 'finLEZ', stLEY: 'finLEY',
-  stShoulderZ: 'finShoulderZ', stShoulderY: 'finShoulderY',
-  stTopY: 'finTopY',
-  stTERoot: 'finTERoot', stTEU: 'finTEU', stTEMid: 'finTEMid',
-  stSharpTip: 'finSharpTip', stSharpAft: 'finSharpAft',
-  stSharpBase: 'finSharpBase', stSharpShoulder: 'finSharpShoulder',
-  stSharpLE: 'finSharpLE',
-};
+// from FIN_CUB so they cannot drift from the checked reference values.
+// THE MAP LIVES IN _fin_gen.js (TAIL CHANTIER 2, P0): one home, read by
+// this layer, the headless tail and the sweep alike
+const ST2FIN = FIN.ST2FIN;
 const stDef = { stOn: 1, stCut: 1, stCutGap: 0.012,
   stSolid: 1, stThick: 0.05, stThickTE: 0.012,
   stX: 0.05, stY: 0.25, stZ: 0, stCons: 0,
@@ -97,6 +85,14 @@ const GROUP = ['8b · tail — stab & elevator', [
     ['stThickTE', 'TE thickness',   0.004, 0.06, 0.002,
      { when: P => +P.stSolid }],
   ], 'open', { when: P => +P.stOn }],
+  // THE MACRO TIER (P3), the fin's words laid flat: span for height
+  ['size', [
+    ['stSpan',     'span (× the drawn)',                0.50, 1.80, 0.01],
+    ['stChord',    'chord (× the drawn, about the hinge)', 0.50, 1.60, 0.01],
+    ['stChordTip', 'tip chord (of the root)',           0.30, 1.50, 0.01],
+    ['stSweep',    'sweep (deg, the hinge rakes)',      -10, 45, 0.5],
+    ['stHinge',    'elevator chord (of the root)',      0.08, 0.45, 0.005],
+  ], 'open', { when: P => +P.stOn }],
   ['corners', [
     ['stTipZ',  'tip fore / aft (sweep)',     -0.60, 0.60, 0.005],
     ['stTipY',  'span (tip in / out)',     -0.80, 0.80, 0.005],
@@ -104,7 +100,7 @@ const GROUP = ['8b · tail — stab & elevator', [
     ['stAftY',  'tip-aft in / out', -0.90, 0.60, 0.005],
     ['stBaseZ', 'root-aft fore / aft', -0.50, 0.30, 0.005],
     ['stBaseY', 'root-aft in / out', -0.15, 0.50, 0.005],
-  ], 'open', { when: P => +P.stOn }],
+  ], 'open', { when: P => +P.stOn, level: 'expert' }],
   ['rows & points', [
     ['stRootFwd',   'root length (forward point)',   -1.20, 2.00, 0.005],
     ['stMidY',      'mid row in / out',          -0.80, 0.40, 0.005],
@@ -114,7 +110,7 @@ const GROUP = ['8b · tail — stab & elevator', [
     ['stShoulderZ', 'shoulder fore / aft (of the tip)', -0.10, 0.50, 0.005],
     ['stShoulderY', 'shoulder in / out (over the mid row)',   -0.10, 0.30, 0.005],
     ['stTopY',      'tip pair bulge',   -0.30, 0.30, 0.005],
-  ], { when: P => +P.stOn }],
+  ], { when: P => +P.stOn, level: 'expert' }],
   // positive root offset = the classic rudder-clearance notch: the
   // elevator's inboard TE eases forward so the rudder can swing; its
   // spanwise reach is the u row's position
@@ -122,14 +118,14 @@ const GROUP = ['8b · tail — stab & elevator', [
     ['stTERoot', 'root aft− / notch+', -0.40, 0.40, 0.005],
     ['stTEU',    'u bulge aft',    -0.40, 0.20, 0.005],
     ['stTEMid',  'mid bulge aft',  -0.40, 0.20, 0.005],
-  ], { when: P => +P.stOn }],
+  ], { when: P => +P.stOn, level: 'expert' }],
   ['corner sharpness', [
     ['stSharpTip',      'tip',      0, 3, 0.05],
     ['stSharpAft',      'tip-aft',  0, 3, 0.05],
     ['stSharpBase',     'root-aft', 0, 3, 0.05],
     ['stSharpShoulder', 'shoulder', 0, 3, 0.05],
     ['stSharpLE',       'LE root',  0, 3, 0.05],
-  ], { when: P => +P.stOn }],
+  ], { when: P => +P.stOn, level: 'expert' }],
 ], 'open'];
 (PAGE.groupsOverride || (PAGE.groups = PAGE.groups || [])).push(GROUP);
 
@@ -239,6 +235,9 @@ PAGE.post = ctx => {
   if (cutMode)
     disp = FIN.finCutMesh(s, { mode: cutMode, zCut: m0.cutZ,
       gap: P.stCutGap || 0 });
+  // THE MEASURE'S INPUT (TAIL CHANTIER 2, P0): the cut, UNTHICKENED sheet,
+  // one panel, in FIN space before the lay — the solid carries both sides
+  const sheet = disp;
   const solidOn = Math.round(P.stSolid === undefined ? 1 : P.stSolid);
   if (solidOn) {
     let zA = Infinity;
@@ -287,8 +286,18 @@ PAGE.post = ctx => {
   // used. The editor's hover pin is the caller; `side` is its own (both).
   // `cant` (degrees) and `mount` ride along for the join: >= 20 deg of cant
   // is a V-tail (tail.type 'v', the physics' own ruddervator mix)
+  // THE LAYER MEASURES, THE JOIN READS (TAIL CHANTIER 2, P0): ONE panel's
+  // areas (the join doubles), its mean chord, the declared hinge — plus the
+  // root half-track in METRES (stX is a cage-unit row applied before the
+  // group's scale — the sweep once added it to metres unscaled) and the
+  // cant/mount the join keys on. _tail_headless.js computes the same
+  // object with no page; GATE FIN pins the two.
   window.CAGE_STAB = { spec: S, cage: m0, mesh: s, disp, lay,
-    cant: cantDeg, mount };
+    cant: cantDeg, mount,
+    measure: Object.assign(
+      FIN.finMeasure(sheet, { FS, zCut: m0.cutZ, cut: cutMode, hingeLine: m0.hingeLine }),
+      { rootX: (P.stX || 0) * FS, cant: cantDeg, mount }),
+    clamped: m0.clamped || [] };                     // P3: the clamps that bit
   if (stat) {
     let t = `  ·  stab: L${L} ${s.V.length} v x2`;
     if (cutMode) {

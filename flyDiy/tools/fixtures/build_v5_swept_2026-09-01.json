@@ -286,12 +286,12 @@
   "xAC": 1.2860870515952907,
   "semi": 5,
   "cg0": [
-   1.0059343,
-   0.5363988,
-   -7.088e-18,
-   501.2314
+   1.1270216,
+   0.5465892,
+   0,
+   513.6939935
   ],
-  "note": "captured 2026-09-01 pre-G136; xAC is the OLD from-centreline walk (yMac*tan) — the station model walks from zRoot, so the migrated xAC may sit up to tan(sweep)*zRoot forward of this. cg0 RE-FROZEN 2026-09-03 at G159: the mass model gained paint (6 kg on this aeroplane), the outfit — seats, panel, cowl, exhaust, plumbing, controls, glazing — and honest covering densities for wood, alloy and carbon, and G98 gave the tank its own shell. 460.92 -> 501.23 kg, and the centre of gravity moved 50 mm FORWARD because most of what was added hangs on the firewall. THE GEOMETRY DID NOT MOVE and that is the invariant this fixture is really for: Sw, cBar and AR are unchanged to every digit, so the migrated aeroplane is still the same aeroplane — it is now weighed properly."
+  "note": "cg0 RE-FROZEN 2026-09-08 at TAIL CHANTIER 2 P4/P5 (the tail truss, then the fleet re-baseline): the stab and the fin are two-spar prisms on their own nodes now, the stab wire-braced to the fin post and its foot as a Cub's is, with ribs and their skin billed bay by bay, in the tail class at GEN_RULES.tailSection 0.25 of the wing row, and the rule tail (this fixture draws none) sized at Vh 0.45 / Vv 0.033 — 501.23 -> 513.69 kg (+2.5 %, the tail ledger 10.7 -> 18.0 kg on the stock: a J-3's tail group is 14-16 kg with its fabric and this one carries its wires; the three-node tail never carried its structure), and the centre of gravity moved 121 mm AFT because the mass sits 4-5 m behind the datum. THE GEOMETRY DID NOT MOVE: Sw, cBar, AR, xAC unchanged. Before that: captured 2026-09-01 pre-G136; xAC is the OLD from-centreline walk (yMac*tan) — the station model walks from zRoot, so the migrated xAC may sit up to tan(sweep)*zRoot forward of this. cg0 RE-FROZEN 2026-09-03 at G159: the mass model gained paint (6 kg on this aeroplane), the outfit — seats, panel, cowl, exhaust, plumbing, controls, glazing — and honest covering densities for wood, alloy and carbon, and G98 gave the tank its own shell. 460.92 -> 501.23 kg, and the centre of gravity moved 50 mm FORWARD because most of what was added hangs on the firewall. THE GEOMETRY DID NOT MOVE and that is the invariant this fixture is really for: Sw, cBar and AR are unchanged to every digit, so the migrated aeroplane is still the same aeroplane — it is now weighed properly."
  },
  "log": {
   "built": "2026-09-01",

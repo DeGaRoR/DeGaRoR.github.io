@@ -1,0 +1,10 @@
+{
+ "what": "dev.html 2026-09-07, horn balance on fin and stab (finCut 2, stCut 2), T-tail seat (stMount 2)",
+ "note": "TAIL CHANTIER 2 P0: the boot fixture's P with `delta` applied, then window.CAGE_UI.build(); the measures the two layers published. The T-tail seat reads the THICKENED fin's highest vertex, so this fixture also pins the headless fin solid; the horn cuts pin the rudder/elevator area with the crown in.",
+ "base": "tail_measure_2026-09-07_boot.json",
+ "delta": {"finCut":2,"stCut":2,"stMount":2,"stY":0.02,"stZ":-0.1},
+ "level": 2,
+ "step": "crease",
+ "fin": {"FS":0.745,"area":1.3789458541749204,"areaCtl":0.4547131152205572,"areaDorsal":0.13621725015384695,"areaKeel":0.0624103295158552,"areaProper":1.1803182745052185,"areaTail":1.2427286040210737,"chordBox":2.9871087206842413,"chordMean":0.8823487523192504,"chordRoot":0.2989431006842412,"ctlFrac":0.3658989692111781,"cut":2,"hinge":{"z":-3.1011069999999994,"zM":-2.3103247149999997},"span":1.3377003950000002,"y0":0.22852132071292933,"y1":1.5662217157129295,"z0":-2.600448505684241,"z1":0.3866602150000003},
+ "stab": {"FS":0.745,"area":1.1335651799675766,"areaCtl":0.6821943828387964,"areaDorsal":0,"areaKeel":0,"areaProper":1.1335651799675766,"areaTail":1.1335651799675766,"cant":0,"chordBox":0.8748834641259475,"chordMean":0.7729565029072897,"chordRoot":0.43646183531250005,"ctlFrac":0.6018131069078084,"cut":2,"hinge":{"z":-3.1011069999999994,"zM":-2.3103247149999997},"mount":2,"rootX":0.03725,"span":1.4665316556674848,"y0":0.380434995,"y1":1.8469666506674847,"z0":-2.6807042366259473,"z1":-1.8058207724999995}
+}

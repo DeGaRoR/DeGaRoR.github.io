@@ -15,6 +15,14 @@
 // two alike while there are enough of them; 1 = the ATD; 2.. = one person
 const WHO_NAMES = ['mixed crew (rotate)', 'ATD-01 crash dummy'].concat(
   typeof CHAR_REG !== 'undefined' ? CHAR_REG.order.map(k => CHAR_REG.chars[k].label) : []);
+// THE DEFAULT PILOT IS NAMED, NOT NUMBERED (2026-09-07, the user: 'by default,
+// there is only the pilot, [...] the car driver in red combi, with the
+// helmet'): Ch20's position in the registry, whatever order the table is
+// in; mixed crew where no registry is loaded (the node gates)
+const WHO_DEFAULT = (() => {
+  const i = typeof CHAR_REG !== 'undefined' ? CHAR_REG.order.indexOf('ch20') : -1;
+  return i >= 0 ? i + 2 : 0;
+})();
 // Jodel-ish defaults: near-semicircular top, full roundness, glass canopy.
 window.CAGE_PAGE = {
   defaultStep: 'crease',
@@ -69,9 +77,7 @@ window.CAGE_PAGE = {
     cw_taperH: 0.78, cw_lidRise: 0.06, cw_faceRise: 0.018, cw_lidLen: 0.125,
     cw_lidShoulder: 0.45, cw_keelSweep: 0.55, cw_deckSweep: 0,
     cw_waistSweep: 0, cw_lidRound: 0.53, cw_lidMode: 1, cw_lidR: 0.17,
-    cw_lidGap: 0.009, cw_inheritStub: 1, cw_stubDeckH: 0.99,
-    cw_stubWaist: 0.34, cw_stubKeelH: 0.98, cw_stubSqTop: 0.81,
-    cw_stubSqBot: 0.79, cw_deckH: 1, cw_waist: 0.05337383734191484,
+    cw_lidGap: 0.009, cw_deckH: 1, cw_waist: 0.05337383734191484,
     cw_keelH: 1, cw_sqAftTop: 0.5329149083978864,
     cw_sqAftBot: 0.5639850552920584, cw_sqFrontTop: 0.54, cw_sqFrontBot: 0.48,
     cw_lidSqTop: 0.62, cw_lidSqBot: 0.6, cw_detail: 1, cw_seamOn: 1,
@@ -137,14 +143,16 @@ window.CAGE_PAGE = {
     stickLen: 0.44, thrX: 0, thrY: 0, thrZ: 0, thrLen: 0.16, pedalZ: 0.9,
     pedalH: 0.18, pedalSpread: 0.15, pedalAngle: 25, dumOn: 1,
     dumSize: 1, dumElbows: 0.08, dumKnees: 0, dumRecline: 0, dumMarkers: 1,
-    pilotWho: 0, copWho: 0, dumFist: 0.5, dumIdle: 0.5,
+    pilotWho: WHO_DEFAULT, copWho: 0, dumFist: 0.5, dumIdle: 0.5,
     paxFeetOn: 1, paxFeetZ: 0.55, paxFeetY: 0, paxFeetX: 0.14, paxIdle: 1,
     dumHandGrip: 0.075,
     // G180 — WHO IS ABOARD, per section, and the passengers' own seat and
-    // pose. Full by default: that is what `dum2On 1` (retired, migrated in
-    // cageFromSpec) drew and billed before. `seatPitch` is gone with the
-    // tandem layout — a bay's length is its pitch.
-    cabOcc: 1, paxOcc1: 2, paxOcc2: 2, paxOcc3: 2, paxOcc4: 2,
+    // pose. THE PILOT ALONE by default (2026-09-07, the user: 'by default,
+    // there is only the pilot'); it was full — what `dum2On 1` (retired,
+    // migrated in cageFromSpec) drew and billed — until then. A saved
+    // design keeps whatever it says. `seatPitch` is gone with the tandem
+    // layout — a bay's length is its pitch.
+    cabOcc: 0, paxOcc1: 0, paxOcc2: 0, paxOcc3: 0, paxOcc4: 0,
     paxSeatZ: 0, paxSize: 1, paxRecline: 0,
   },
 
@@ -837,6 +845,11 @@ window.CAGE_PAGE = {
         centre: "open", xLE: 0.28475339999999993, place: { dx: 0,
         dy: 0 } }],
       bracing: { type: "strut" },
+      // the tail rows below are G54.3's BOUNDING-BOX readouts (hChord and
+      // vChord are box extents, not chords) and carry no areas; since TAIL
+      // CHANTIER 2 P1 the join re-measures every one of them on load
+      // (BUILD_SYNC) off the drawn sheets — mean chords, Sh, Sv — so what
+      // is frozen here never flies. Kept as the file's own history.
       tail:
         { type: "conventional", vAngle: 33, hSpan: 2.906604804992676,
         hChord: 1.2756185054779055, hX: 5.0341699094937145, hTaper: 1,
