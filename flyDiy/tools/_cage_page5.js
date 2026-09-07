@@ -311,7 +311,8 @@ window.CAGE_PAGE = {
         ['rimW',      'joint size',     0.00, 0.04, 0.001, { dim: 'len' }],
         // G206: the strip's rise (x rimW) and the pane's step down behind it
         ['rimRise',   'rim rise',       0.05, 1, 0.01],
-        ['paneInset', 'pane inset',     0, 0.01, 0.0005, { dim: 'len' }],
+        ['paneInset', 'pane inset',     -0.01, 0.01, 0.0005, { dim: 'len' }],
+        ['paneThick', 'pane edge',      0, 0.01, 0.0005, { dim: 'len' }],
         // THE REVEAL. `winFrameW` gates the whole frame/recess pass, so it and
         // `winDepth` were unreachable and `doorDepth` did nothing while it sat
         // at 0. At 0 the windows are flush, as they were before this row.

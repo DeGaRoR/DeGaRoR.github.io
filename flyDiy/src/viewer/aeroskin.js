@@ -301,6 +301,12 @@ const AERO_FINISH = {
   copper:    { name: 'enamelled copper', base: 0xb3622f, tile: 0.06,
                rough: 0.38, metal: 0.90, nrm: 0.30, alb: 0.12,
                hs: 0.5, bs: 0.7, bake: 'sheet' },
+  // THE ACRYLIC'S EDGE (G206.2): a sawn sheet edge lit by total internal
+  // reflection reads as a bright green-white line, glossier than the pane's
+  // face. Opaque — it is the one part of a pane that is — and a dielectric.
+  acrylicEdge: { name: 'acrylic edge', base: 0xb9e8cf, tile: 0.10,
+                 rough: 0.10, metal: 0.0, nrm: 0.10, alb: 0.04,
+                 hs: 0.2, bs: 0.3, bake: 'sheet', cc: 0.6, ccR: 0.05 },
 };
 
 // THE TABLE AS WRITTEN (G206): the material lab edits AERO_FINISH in place
@@ -329,6 +335,7 @@ const AERO_ROLE = {
   windshield: 'glass', pilotWindow: 'glass', pasengerWindow: 'glass',
   skyWindows: 'glass',
   joint: 'bead',
+  paneEdge: 'edge',        // G206.2: the acrylic's own edge, whatever the build
   // THE FIREWALL IS TWO SURFACES AND A SEAL. `firewall` is the panel itself —
   // structure, so it follows the construction like every other bulkhead — and
   // `fireProof` is the sheet on its ENGINE side, which follows nothing: a
@@ -394,16 +401,16 @@ const AERO_LINER = { plywood: 'ply', cloth: 'fabric', composite: 'composite',
 const AERO_BY_CONS = {
   tubeFabric: { skin: 'fabric', rail: 'fabric', pillar: 'fabric',
                 struct: 'steelTube', panel: 'panelMetal', pad: 'leatherDark',
-                bead: 'rubber', fire: 'fireFoil' },
+                bead: 'rubber', fire: 'fireFoil', edge: 'acrylicEdge' },
   wood:       { skin: 'ply', rail: 'ply', pillar: 'ply',
                 struct: 'spruce', panel: 'panelMetal', pad: 'leatherDark',
-                bead: 'rubber', fire: 'fireFoil' },
+                bead: 'rubber', fire: 'fireFoil', edge: 'acrylicEdge' },
   alloy:      { skin: 'alclad', rail: 'alclad', pillar: 'alclad',
                 struct: 'bareAlu', panel: 'panelMetal', pad: 'leatherDark',
-                bead: 'rubber', fire: 'fireFoil' },
+                bead: 'rubber', fire: 'fireFoil', edge: 'acrylicEdge' },
   carbon:     { skin: 'composite', rail: 'composite', pillar: 'composite',
                 struct: 'composite', panel: 'panelMetal', pad: 'leatherDark',
-                bead: 'rubber', fire: 'fireFoil' },
+                bead: 'rubber', fire: 'fireFoil', edge: 'acrylicEdge' },
 };
 const AERO_GLASS = new Set(['windshield', 'pilotWindow', 'pasengerWindow',
                             'skyWindows']);

@@ -2173,6 +2173,8 @@ function cageRims(m, S) {
     // on the pane, which cageCut has just recessed by paneInset — lift the
     // path back by the same amount along the outline's own normals, or the
     // strip sinks with the glass and the step it was cut for disappears.
+    // (a PROUD pane — negative inset — keeps the strip at the pane's own
+    // level: a retainer over a proud pane rests on the pane)
     if (kind !== 'door' && S.cut && S.cut.on && W.paneInset > 0) {
       const li = W.paneInset;
       pts = pts.map((p, i) => {
@@ -2458,7 +2460,7 @@ function cageGlassSill(m, S) {
     if (!(sv > 0)) continue;
     const eF = new Map();
     F.forEach((f, i) => {
-      if (f.v.length !== 4 || f.capFace) return;
+      if (f.v.length !== 4 || f.paneEdge || f.capFace) return;
       if (f.m !== gm && !BELOW.has(f.m)) return;
       for (let e = 0; e < 4; e++) {
         const k = cageEdgeKey(f.v[e], f.v[(e + 1) % 4]);
@@ -2602,7 +2604,7 @@ function cageCut(m, S) {
     }
     return [...z.values()];
   };
-  const cutZone = (fis, sill, inset) => {
+  const cutZone = (fis, sill, inset, edgeT) => {
     let keep = fis;
     if (sill > 0) {
       // ROW-STEPPED SILL (user correction: cut STRAIGHT along the rows
@@ -2693,7 +2695,7 @@ function cageCut(m, S) {
     // one, because a raked screen recesses square to its glass. The strip
     // (cageRims) lifts its path back up by the same amount, so the seal
     // stands on the skin and the pane sits behind it. Doors pass 0.
-    if (inset > 0) {
+    if (inset) {
       off[0] -= nx / nl * inset; off[1] -= ny / nl * inset;
       off[2] -= nz / nl * inset;
     }
@@ -2720,6 +2722,56 @@ function cageCut(m, S) {
       // fuselage-line features (the waist) in the part's OWN frame
       F[fi].cutOff = off;
     }
+    // THE EDGE RING (G206.2). Every boundary edge of the separated part —
+    // an edge one kept face owns — is extruded along the part's own vertex
+    // normals by the pane's thickness: the acrylic's edge, from the pane's
+    // (possibly recessed) face up toward the skin. Its own material
+    // `paneEdge`, UNFIELDED on its own four vertices (the post-pass
+    // families carry no field — GATE SURF says so of `joint`), flagged
+    // `paneEdge` so the interior and fitting passes walk past it exactly as
+    // they walk past the bead (NOT `capFace`: the firewall pass DROPS those
+    // forward of the cabin, and took the whole ring with it). Doors pass 0
+    // and get none.
+    if (edgeT > 0) {
+      const own = new Map(), vn = new Map();
+      const acc = (vi, n) => {
+        const a = vn.get(vi) || [0, 0, 0];
+        a[0] += n[0]; a[1] += n[1]; a[2] += n[2]; vn.set(vi, a);
+      };
+      for (const fi of keep) {
+        const f = F[fi], p = f.v.map(i => V[i]);
+        const u = [p[2][0]-p[0][0], p[2][1]-p[0][1], p[2][2]-p[0][2]];
+        const w2 = [p[3][0]-p[1][0], p[3][1]-p[1][1], p[3][2]-p[1][2]];
+        const n = [u[1]*w2[2]-u[2]*w2[1], u[2]*w2[0]-u[0]*w2[2],
+                   u[0]*w2[1]-u[1]*w2[0]];
+        for (let e = 0; e < 4; e++) {
+          const a = f.v[e], b = f.v[(e + 1) % 4];
+          const k = cageEdgeKey(a, b);
+          if (!own.has(k)) own.set(k, { n: 0, a, b });
+          own.get(k).n++;
+        }
+        for (const vi of f.v) acc(vi, n);
+      }
+      const lo = new Map(), hi = new Map();
+      const dup = (vi, t) => {
+        const n = vn.get(vi) || [nx, ny, nz];
+        const l = Math.hypot(n[0], n[1], n[2]) || 1;
+        const ni = V.push([V[vi][0] + n[0] / l * t, V[vi][1] + n[1] / l * t,
+                           V[vi][2] + n[2] / l * t]) - 1;
+        if (m.A) m.A[ni] = null;
+        return ni;
+      };
+      const at = (map, vi, t) => {
+        if (!map.has(vi)) map.set(vi, dup(vi, t));
+        return map.get(vi);
+      };
+      for (const { n, a, b } of own.values()) {
+        if (n !== 1) continue;
+        F.push({ v: [at(lo, a, 0), at(lo, b, 0), at(hi, b, edgeT),
+                     at(hi, a, edgeT)],
+                 m: 'paneEdge', cutPart: 1, cutOff: off, paneEdge: 1 });
+      }
+    }
   };
   if (C.doors) for (const z of groups('door')) {
     const dk = F[z[0]].doorKey;
@@ -2727,14 +2779,14 @@ function cageCut(m, S) {
       : dk && dk.lastIndexOf('pax', 0) === 0
         ? (W.doorSillPax != null ? W.doorSillPax : W.doorSill)
       : W.doorSill;
-    cutZone(z, Math.max(0, sill || 0), 0);
+    cutZone(z, Math.max(0, sill || 0), 0, 0);
   }
   // DOORS OWN THEIR WINDOWS (user ruling): glass already separated with
   // a door stays with it — only window faces OUTSIDE every cut door form
   // their own parts (a window straddling a door edge splits: the door
   // keeps its share, the rest becomes a fuselage-side window part).
   if (C.wins) for (const z of groups('win', fi => !F[fi].cutPart))
-    cutZone(z, 0, W.paneInset || 0);
+    cutZone(z, 0, W.paneInset || 0, W.paneThick || 0);
   // DOOR REMOVED (G26.4, user): define the door, then take it away —
   // the OPENING stays and everything around it (jambs, sills, broken
   // waist runs, frames) is built exactly as if the door were hung; the
@@ -3202,7 +3254,7 @@ function cageInterior(m, S) {
                           'skyWindows']);
     const shell = [], pil = [], bands = [];
     F.forEach((f, i) => {
-      if (f.v.length !== 4 || f.m === 'joint' || f.capFace) return;
+      if (f.v.length !== 4 || f.m === 'joint' || f.paneEdge || f.capFace) return;
       if (GLM2.has(f.m) || f.m === 'boomTube') return;
       const [cy, cz] = cenOf(f);
       if (consAt(cy, cz) !== 'carbon') return;
@@ -3329,7 +3381,7 @@ function cageInterior(m, S) {
     // the posts; the structure (posts, beams, webs) stays as built.
     const selPan = [], selPil = [], selPanM = [];
     F.forEach((f, i) => {
-      if (f.v.length !== 4 || f.cutPart || f.m === 'joint' || f.capFace
+      if (f.v.length !== 4 || f.cutPart || f.paneEdge || f.m === 'joint' || f.paneEdge || f.capFace
           || f.m === 'boomTube')            // the rod lines nothing
         return;
       const [cy, cz] = cenOf(f);
@@ -4005,7 +4057,7 @@ function cageInterior(m, S) {
     const sliceAt = zk => {
       const pmap = new Map();
       for (const f of F) {
-        if (f.v.length !== 4 || f.m === 'joint' || f.capFace) continue;
+        if (f.v.length !== 4 || f.m === 'joint' || f.paneEdge || f.capFace) continue;
         const o = f.cutPart && f.cutOff ? f.cutOff : null;
         const P4 = f.v.map(vi => o
           ? [V[vi][0] - o[0], V[vi][1] - o[1], V[vi][2] - o[2]] : V[vi]);
@@ -4498,7 +4550,7 @@ function cageInterior(m, S) {
         // in-between case at other levels/lengths.
         const pmap = new Map();
         for (const f of F) {
-          if (f.v.length !== 4 || f.cutPart || f.m === 'joint'
+          if (f.v.length !== 4 || f.cutPart || f.paneEdge || f.m === 'joint'
               || f.capFace) continue;
           for (let e = 0; e < 4; e++) {
             const a = f.v[e], b = f.v[(e + 1) % 4];
@@ -4981,7 +5033,7 @@ function cageInterior(m, S) {
       const covered = new Set([...selPan, ...selPil, ...selDoor]);
       const selC = [];
       F.forEach((f, i) => {
-        if (f.v.length !== 4 || f.m === 'joint' || f.capFace) return;
+        if (f.v.length !== 4 || f.m === 'joint' || f.paneEdge || f.capFace) return;
         if (GLM.has(f.m) || f.m === 'boomTube') return;
         const [cy, cz] = cenOf(f);
         const c = consAt(cy, cz);
@@ -6379,6 +6431,13 @@ const CAGE_PARAMS = {
   // like rimW: 0.0025 is ~1.9 mm at the stock unit) behind the skin, so the strip stands proud of the glass and the pane reads as
   // a solid set into a frame rather than a sticker with a line round it.
   rimRise: 0.22, paneInset: 0.0025,
+  // THE PANE HAS AN EDGE (G206.2): its thickness, cage units (0.004 ~ 3 mm),
+  // emitted as a ring of quads off every cut pane's boundary in its own
+  // section `paneEdge` — the bright green-white line an acrylic sheet shows
+  // where its edge is not under a strip. `paneInset` may go NEGATIVE now
+  // (a pane set PROUD of the skin, screwed over a fabric covering), which is
+  // where the edge is seen at all on a strip-less window.
+  paneThick: 0.004,
   doorOn: 1, doorPax: 0, doorDeep: 1, doorSill: 0.06, doorSillPax: 0.06,
   // THE DOOR'S OWN GAP and the REVEAL it sits in. `winFrameW` gates the whole
   // frame/recess pass (cageWinFrames returns immediately at 0), so `doorDepth`
@@ -6854,7 +6913,8 @@ function cageSpec(P) {
             doorDepth: P.doorDepth, rim: P.rimW, doorRim: P.doorRim,
             rimSides: P.rimSides || 8, rimArc: P.rimArc || 1,
             rimRise: P.rimRise != null ? +P.rimRise : 0.38,
-            paneInset: Math.max(0, +P.paneInset || 0),
+            paneInset: +P.paneInset || 0,
+            paneThick: Math.max(0, +P.paneThick || 0),
             rimWin: P.rimWin ? 1 : 0, rimWs: P.rimWs ? 1 : 0,
             rimDoor: P.rimDoor ? 1 : 0,
             doorSill: Math.max(0, P.doorSill || 0),

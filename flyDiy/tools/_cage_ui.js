@@ -151,7 +151,8 @@ const BASE_GROUPS = [
     ['rimW',      'rim size',     0.00, 0.04, 0.001],
     // G206: the strip's rise (a fraction of rimW) and the pane's step down
     ['rimRise',   'rim rise',     0.05, 1, 0.01],
-    ['paneInset', 'pane inset',   0, 0.01, 0.0005],
+    ['paneInset', 'pane inset',   -0.01, 0.01, 0.0005],
+    ['paneThick', 'pane edge',    0, 0.01, 0.0005],
     ['rimSides',  'rim sides',    4, 10, 1],
     ['rimArc',    'corner sections', 1, 6, 1],
     ['rimWin',    'window rims',  0, 1, 1],
@@ -1143,7 +1144,8 @@ function measureBox(m, FS) {
   const lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9];
   const seen = new Set();
   for (const f of m.F) {
-    if (f.m === 'joint' || INTSKIN.has(f.m) || INTSTRUCT.has(f.m)) continue;
+    if (f.m === 'joint' || f.m === 'paneEdge' || INTSKIN.has(f.m) ||
+        INTSTRUCT.has(f.m)) continue;
     const o = f.cutOff || [0, 0, 0];
     for (const vi of f.v) {
       const key = vi + ':' + (f.cutOff ? 1 : 0);
@@ -1246,12 +1248,12 @@ function build() {
   // structural members stand on their own). The layers (fin/gear/
   // crew) and the measurements still see the full mesh.
   const skinCull = name => !GLASSM.has(name)
-    && !INTSTRUCT.has(name) && name !== 'joint';
+    && !INTSTRUCT.has(name) && name !== 'joint' && name !== 'paneEdge';
   const sd0 = (P.skinOn == null || P.skinOn) ? s
     : { ...s, F: s.F.filter(f => !skinCull(f.m)) };
   // GLAZING OFF (2026-09-04): the glass faces go the same way the skin does
   const sd = (P.glazeOn == null || +P.glazeOn) ? sd0
-    : { ...sd0, F: sd0.F.filter(f => !GLASSM.has(f.m)) };
+    : { ...sd0, F: sd0.F.filter(f => !GLASSM.has(f.m) && f.m !== 'paneEdge') };
   const surfSel = $('surf') ? $('surf').value : 'off';
   meshObj = (surfSel !== 'off') ? surfMesh(sd, surfSel)
     : ($('curv') && $('curv').checked) ? curvatureMesh(sd)

@@ -315,13 +315,13 @@ const CAGE_PARTS = [
     ] },
 
   { key: 'joints', name: 'window joints', parent: 'glazing', layer: 'cage',
-    sections: ['joint'],
+    sections: ['joint', 'paneEdge'],        // G206.2: the acrylic's edge too
     // the REVEAL is the windows' own: it is what `winFrameW` gates, and it
     // reaches every glazed zone rather than any one part
     // G206: the strip's rise and the pane's step down inside it — the two
     // numbers that make a pane a solid set into a frame rather than a
     // sticker with a line drawn round it
-    groups: [['seal', ['rimW', 'rimRise', 'paneInset']],
+    groups: [['seal', ['rimW', 'rimRise', 'paneInset', 'paneThick']],
              ['the reveal', ['winFrameW', 'winDepth']]] },
 
   // the mirrored pod's aft half. FOREVER-SPLIT (the user's ruling): these are

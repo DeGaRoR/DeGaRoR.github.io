@@ -21328,13 +21328,13 @@ const CAGE_PARTS = [
     ] },
 
   { key: 'joints', name: 'window joints', parent: 'glazing', layer: 'cage',
-    sections: ['joint'],
+    sections: ['joint', 'paneEdge'],        // G206.2: the acrylic's edge too
     // the REVEAL is the windows' own: it is what `winFrameW` gates, and it
     // reaches every glazed zone rather than any one part
     // G206: the strip's rise and the pane's step down inside it — the two
     // numbers that make a pane a solid set into a frame rather than a
     // sticker with a line drawn round it
-    groups: [['seal', ['rimW', 'rimRise', 'paneInset']],
+    groups: [['seal', ['rimW', 'rimRise', 'paneInset', 'paneThick']],
              ['the reveal', ['winFrameW', 'winDepth']]] },
 
   // the mirrored pod's aft half. FOREVER-SPLIT (the user's ruling): these are
@@ -24278,7 +24278,8 @@ window.CAGE_PAGE = {
         ['rimW',      'joint size',     0.00, 0.04, 0.001, { dim: 'len' }],
         // G206: the strip's rise (x rimW) and the pane's step down behind it
         ['rimRise',   'rim rise',       0.05, 1, 0.01],
-        ['paneInset', 'pane inset',     0, 0.01, 0.0005, { dim: 'len' }],
+        ['paneInset', 'pane inset',     -0.01, 0.01, 0.0005, { dim: 'len' }],
+        ['paneThick', 'pane edge',      0, 0.01, 0.0005, { dim: 'len' }],
         // THE REVEAL. `winFrameW` gates the whole frame/recess pass, so it and
         // `winDepth` were unreachable and `doorDepth` did nothing while it sat
         // at 0. At 0 the windows are flush, as they were before this row.
@@ -27058,6 +27059,8 @@ function cageRims(m, S) {
     // on the pane, which cageCut has just recessed by paneInset — lift the
     // path back by the same amount along the outline's own normals, or the
     // strip sinks with the glass and the step it was cut for disappears.
+    // (a PROUD pane — negative inset — keeps the strip at the pane's own
+    // level: a retainer over a proud pane rests on the pane)
     if (kind !== 'door' && S.cut && S.cut.on && W.paneInset > 0) {
       const li = W.paneInset;
       pts = pts.map((p, i) => {
@@ -27343,7 +27346,7 @@ function cageGlassSill(m, S) {
     if (!(sv > 0)) continue;
     const eF = new Map();
     F.forEach((f, i) => {
-      if (f.v.length !== 4 || f.capFace) return;
+      if (f.v.length !== 4 || f.paneEdge || f.capFace) return;
       if (f.m !== gm && !BELOW.has(f.m)) return;
       for (let e = 0; e < 4; e++) {
         const k = cageEdgeKey(f.v[e], f.v[(e + 1) % 4]);
@@ -27487,7 +27490,7 @@ function cageCut(m, S) {
     }
     return [...z.values()];
   };
-  const cutZone = (fis, sill, inset) => {
+  const cutZone = (fis, sill, inset, edgeT) => {
     let keep = fis;
     if (sill > 0) {
       // ROW-STEPPED SILL (user correction: cut STRAIGHT along the rows
@@ -27578,7 +27581,7 @@ function cageCut(m, S) {
     // one, because a raked screen recesses square to its glass. The strip
     // (cageRims) lifts its path back up by the same amount, so the seal
     // stands on the skin and the pane sits behind it. Doors pass 0.
-    if (inset > 0) {
+    if (inset) {
       off[0] -= nx / nl * inset; off[1] -= ny / nl * inset;
       off[2] -= nz / nl * inset;
     }
@@ -27605,6 +27608,56 @@ function cageCut(m, S) {
       // fuselage-line features (the waist) in the part's OWN frame
       F[fi].cutOff = off;
     }
+    // THE EDGE RING (G206.2). Every boundary edge of the separated part —
+    // an edge one kept face owns — is extruded along the part's own vertex
+    // normals by the pane's thickness: the acrylic's edge, from the pane's
+    // (possibly recessed) face up toward the skin. Its own material
+    // `paneEdge`, UNFIELDED on its own four vertices (the post-pass
+    // families carry no field — GATE SURF says so of `joint`), flagged
+    // `paneEdge` so the interior and fitting passes walk past it exactly as
+    // they walk past the bead (NOT `capFace`: the firewall pass DROPS those
+    // forward of the cabin, and took the whole ring with it). Doors pass 0
+    // and get none.
+    if (edgeT > 0) {
+      const own = new Map(), vn = new Map();
+      const acc = (vi, n) => {
+        const a = vn.get(vi) || [0, 0, 0];
+        a[0] += n[0]; a[1] += n[1]; a[2] += n[2]; vn.set(vi, a);
+      };
+      for (const fi of keep) {
+        const f = F[fi], p = f.v.map(i => V[i]);
+        const u = [p[2][0]-p[0][0], p[2][1]-p[0][1], p[2][2]-p[0][2]];
+        const w2 = [p[3][0]-p[1][0], p[3][1]-p[1][1], p[3][2]-p[1][2]];
+        const n = [u[1]*w2[2]-u[2]*w2[1], u[2]*w2[0]-u[0]*w2[2],
+                   u[0]*w2[1]-u[1]*w2[0]];
+        for (let e = 0; e < 4; e++) {
+          const a = f.v[e], b = f.v[(e + 1) % 4];
+          const k = cageEdgeKey(a, b);
+          if (!own.has(k)) own.set(k, { n: 0, a, b });
+          own.get(k).n++;
+        }
+        for (const vi of f.v) acc(vi, n);
+      }
+      const lo = new Map(), hi = new Map();
+      const dup = (vi, t) => {
+        const n = vn.get(vi) || [nx, ny, nz];
+        const l = Math.hypot(n[0], n[1], n[2]) || 1;
+        const ni = V.push([V[vi][0] + n[0] / l * t, V[vi][1] + n[1] / l * t,
+                           V[vi][2] + n[2] / l * t]) - 1;
+        if (m.A) m.A[ni] = null;
+        return ni;
+      };
+      const at = (map, vi, t) => {
+        if (!map.has(vi)) map.set(vi, dup(vi, t));
+        return map.get(vi);
+      };
+      for (const { n, a, b } of own.values()) {
+        if (n !== 1) continue;
+        F.push({ v: [at(lo, a, 0), at(lo, b, 0), at(hi, b, edgeT),
+                     at(hi, a, edgeT)],
+                 m: 'paneEdge', cutPart: 1, cutOff: off, paneEdge: 1 });
+      }
+    }
   };
   if (C.doors) for (const z of groups('door')) {
     const dk = F[z[0]].doorKey;
@@ -27612,14 +27665,14 @@ function cageCut(m, S) {
       : dk && dk.lastIndexOf('pax', 0) === 0
         ? (W.doorSillPax != null ? W.doorSillPax : W.doorSill)
       : W.doorSill;
-    cutZone(z, Math.max(0, sill || 0), 0);
+    cutZone(z, Math.max(0, sill || 0), 0, 0);
   }
   // DOORS OWN THEIR WINDOWS (user ruling): glass already separated with
   // a door stays with it — only window faces OUTSIDE every cut door form
   // their own parts (a window straddling a door edge splits: the door
   // keeps its share, the rest becomes a fuselage-side window part).
   if (C.wins) for (const z of groups('win', fi => !F[fi].cutPart))
-    cutZone(z, 0, W.paneInset || 0);
+    cutZone(z, 0, W.paneInset || 0, W.paneThick || 0);
   // DOOR REMOVED (G26.4, user): define the door, then take it away —
   // the OPENING stays and everything around it (jambs, sills, broken
   // waist runs, frames) is built exactly as if the door were hung; the
@@ -28087,7 +28140,7 @@ function cageInterior(m, S) {
                           'skyWindows']);
     const shell = [], pil = [], bands = [];
     F.forEach((f, i) => {
-      if (f.v.length !== 4 || f.m === 'joint' || f.capFace) return;
+      if (f.v.length !== 4 || f.m === 'joint' || f.paneEdge || f.capFace) return;
       if (GLM2.has(f.m) || f.m === 'boomTube') return;
       const [cy, cz] = cenOf(f);
       if (consAt(cy, cz) !== 'carbon') return;
@@ -28214,7 +28267,7 @@ function cageInterior(m, S) {
     // the posts; the structure (posts, beams, webs) stays as built.
     const selPan = [], selPil = [], selPanM = [];
     F.forEach((f, i) => {
-      if (f.v.length !== 4 || f.cutPart || f.m === 'joint' || f.capFace
+      if (f.v.length !== 4 || f.cutPart || f.paneEdge || f.m === 'joint' || f.paneEdge || f.capFace
           || f.m === 'boomTube')            // the rod lines nothing
         return;
       const [cy, cz] = cenOf(f);
@@ -28890,7 +28943,7 @@ function cageInterior(m, S) {
     const sliceAt = zk => {
       const pmap = new Map();
       for (const f of F) {
-        if (f.v.length !== 4 || f.m === 'joint' || f.capFace) continue;
+        if (f.v.length !== 4 || f.m === 'joint' || f.paneEdge || f.capFace) continue;
         const o = f.cutPart && f.cutOff ? f.cutOff : null;
         const P4 = f.v.map(vi => o
           ? [V[vi][0] - o[0], V[vi][1] - o[1], V[vi][2] - o[2]] : V[vi]);
@@ -29383,7 +29436,7 @@ function cageInterior(m, S) {
         // in-between case at other levels/lengths.
         const pmap = new Map();
         for (const f of F) {
-          if (f.v.length !== 4 || f.cutPart || f.m === 'joint'
+          if (f.v.length !== 4 || f.cutPart || f.paneEdge || f.m === 'joint'
               || f.capFace) continue;
           for (let e = 0; e < 4; e++) {
             const a = f.v[e], b = f.v[(e + 1) % 4];
@@ -29866,7 +29919,7 @@ function cageInterior(m, S) {
       const covered = new Set([...selPan, ...selPil, ...selDoor]);
       const selC = [];
       F.forEach((f, i) => {
-        if (f.v.length !== 4 || f.m === 'joint' || f.capFace) return;
+        if (f.v.length !== 4 || f.m === 'joint' || f.paneEdge || f.capFace) return;
         if (GLM.has(f.m) || f.m === 'boomTube') return;
         const [cy, cz] = cenOf(f);
         const c = consAt(cy, cz);
@@ -31264,6 +31317,13 @@ const CAGE_PARAMS = {
   // like rimW: 0.0025 is ~1.9 mm at the stock unit) behind the skin, so the strip stands proud of the glass and the pane reads as
   // a solid set into a frame rather than a sticker with a line round it.
   rimRise: 0.22, paneInset: 0.0025,
+  // THE PANE HAS AN EDGE (G206.2): its thickness, cage units (0.004 ~ 3 mm),
+  // emitted as a ring of quads off every cut pane's boundary in its own
+  // section `paneEdge` — the bright green-white line an acrylic sheet shows
+  // where its edge is not under a strip. `paneInset` may go NEGATIVE now
+  // (a pane set PROUD of the skin, screwed over a fabric covering), which is
+  // where the edge is seen at all on a strip-less window.
+  paneThick: 0.004,
   doorOn: 1, doorPax: 0, doorDeep: 1, doorSill: 0.06, doorSillPax: 0.06,
   // THE DOOR'S OWN GAP and the REVEAL it sits in. `winFrameW` gates the whole
   // frame/recess pass (cageWinFrames returns immediately at 0), so `doorDepth`
@@ -31739,7 +31799,8 @@ function cageSpec(P) {
             doorDepth: P.doorDepth, rim: P.rimW, doorRim: P.doorRim,
             rimSides: P.rimSides || 8, rimArc: P.rimArc || 1,
             rimRise: P.rimRise != null ? +P.rimRise : 0.38,
-            paneInset: Math.max(0, +P.paneInset || 0),
+            paneInset: +P.paneInset || 0,
+            paneThick: Math.max(0, +P.paneThick || 0),
             rimWin: P.rimWin ? 1 : 0, rimWs: P.rimWs ? 1 : 0,
             rimDoor: P.rimDoor ? 1 : 0,
             doorSill: Math.max(0, P.doorSill || 0),
@@ -57858,7 +57919,8 @@ const BASE_GROUPS = [
     ['rimW',      'rim size',     0.00, 0.04, 0.001],
     // G206: the strip's rise (a fraction of rimW) and the pane's step down
     ['rimRise',   'rim rise',     0.05, 1, 0.01],
-    ['paneInset', 'pane inset',   0, 0.01, 0.0005],
+    ['paneInset', 'pane inset',   -0.01, 0.01, 0.0005],
+    ['paneThick', 'pane edge',    0, 0.01, 0.0005],
     ['rimSides',  'rim sides',    4, 10, 1],
     ['rimArc',    'corner sections', 1, 6, 1],
     ['rimWin',    'window rims',  0, 1, 1],
@@ -58850,7 +58912,8 @@ function measureBox(m, FS) {
   const lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9];
   const seen = new Set();
   for (const f of m.F) {
-    if (f.m === 'joint' || INTSKIN.has(f.m) || INTSTRUCT.has(f.m)) continue;
+    if (f.m === 'joint' || f.m === 'paneEdge' || INTSKIN.has(f.m) ||
+        INTSTRUCT.has(f.m)) continue;
     const o = f.cutOff || [0, 0, 0];
     for (const vi of f.v) {
       const key = vi + ':' + (f.cutOff ? 1 : 0);
@@ -58953,12 +59016,12 @@ function build() {
   // structural members stand on their own). The layers (fin/gear/
   // crew) and the measurements still see the full mesh.
   const skinCull = name => !GLASSM.has(name)
-    && !INTSTRUCT.has(name) && name !== 'joint';
+    && !INTSTRUCT.has(name) && name !== 'joint' && name !== 'paneEdge';
   const sd0 = (P.skinOn == null || P.skinOn) ? s
     : { ...s, F: s.F.filter(f => !skinCull(f.m)) };
   // GLAZING OFF (2026-09-04): the glass faces go the same way the skin does
   const sd = (P.glazeOn == null || +P.glazeOn) ? sd0
-    : { ...sd0, F: sd0.F.filter(f => !GLASSM.has(f.m)) };
+    : { ...sd0, F: sd0.F.filter(f => !GLASSM.has(f.m) && f.m !== 'paneEdge') };
   const surfSel = $('surf') ? $('surf').value : 'off';
   meshObj = (surfSel !== 'off') ? surfMesh(sd, surfSel)
     : ($('curv') && $('curv').checked) ? curvatureMesh(sd)
@@ -65337,6 +65400,12 @@ const AERO_FINISH = {
   copper:    { name: 'enamelled copper', base: 0xb3622f, tile: 0.06,
                rough: 0.38, metal: 0.90, nrm: 0.30, alb: 0.12,
                hs: 0.5, bs: 0.7, bake: 'sheet' },
+  // THE ACRYLIC'S EDGE (G206.2): a sawn sheet edge lit by total internal
+  // reflection reads as a bright green-white line, glossier than the pane's
+  // face. Opaque — it is the one part of a pane that is — and a dielectric.
+  acrylicEdge: { name: 'acrylic edge', base: 0xb9e8cf, tile: 0.10,
+                 rough: 0.10, metal: 0.0, nrm: 0.10, alb: 0.04,
+                 hs: 0.2, bs: 0.3, bake: 'sheet', cc: 0.6, ccR: 0.05 },
 };
 
 // THE TABLE AS WRITTEN (G206): the material lab edits AERO_FINISH in place
@@ -65365,6 +65434,7 @@ const AERO_ROLE = {
   windshield: 'glass', pilotWindow: 'glass', pasengerWindow: 'glass',
   skyWindows: 'glass',
   joint: 'bead',
+  paneEdge: 'edge',        // G206.2: the acrylic's own edge, whatever the build
   // THE FIREWALL IS TWO SURFACES AND A SEAL. `firewall` is the panel itself —
   // structure, so it follows the construction like every other bulkhead — and
   // `fireProof` is the sheet on its ENGINE side, which follows nothing: a
@@ -65430,16 +65500,16 @@ const AERO_LINER = { plywood: 'ply', cloth: 'fabric', composite: 'composite',
 const AERO_BY_CONS = {
   tubeFabric: { skin: 'fabric', rail: 'fabric', pillar: 'fabric',
                 struct: 'steelTube', panel: 'panelMetal', pad: 'leatherDark',
-                bead: 'rubber', fire: 'fireFoil' },
+                bead: 'rubber', fire: 'fireFoil', edge: 'acrylicEdge' },
   wood:       { skin: 'ply', rail: 'ply', pillar: 'ply',
                 struct: 'spruce', panel: 'panelMetal', pad: 'leatherDark',
-                bead: 'rubber', fire: 'fireFoil' },
+                bead: 'rubber', fire: 'fireFoil', edge: 'acrylicEdge' },
   alloy:      { skin: 'alclad', rail: 'alclad', pillar: 'alclad',
                 struct: 'bareAlu', panel: 'panelMetal', pad: 'leatherDark',
-                bead: 'rubber', fire: 'fireFoil' },
+                bead: 'rubber', fire: 'fireFoil', edge: 'acrylicEdge' },
   carbon:     { skin: 'composite', rail: 'composite', pillar: 'composite',
                 struct: 'composite', panel: 'panelMetal', pad: 'leatherDark',
-                bead: 'rubber', fire: 'fireFoil' },
+                bead: 'rubber', fire: 'fireFoil', edge: 'acrylicEdge' },
 };
 const AERO_GLASS = new Set(['windshield', 'pilotWindow', 'pasengerWindow',
                             'skyWindows']);

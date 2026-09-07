@@ -33654,3 +33654,29 @@ TRAPS, this pass:
   buckets that the join marked `inside` (aeroInside or charSkin).
 - The bucket key carries `I` so an inside bucket never merges with an
   outside twin of the same colour.
+
+## G206.2 — THE PANE HAS AN EDGE (2026-09-07, the user: "Now add the pane
+## edge strip")
+
+- **The acrylic's thickness, as geometry.** In cageCut, every boundary
+  edge of a separated window part (an edge one kept face owns) is extruded
+  along the part's own vertex normals by `paneThick` (cage units, 0.004 ~
+  3 mm) into a ring of quads in its own section `paneEdge` — from the
+  recessed pane face up toward the skin. Its finish is `acrylicEdge`
+  (role `edge`, the same in all four constructions): a bright green-white
+  glossy dielectric, the sawn edge lit by total internal reflection.
+- **Where it shows:** under a retaining strip it is covered, as on the real
+  thing; with the window rims off, or with `pane inset` NEGATIVE — a pane
+  set PROUD of the skin, screwed over a fabric covering, which the row now
+  allows — the edge is the line round the pane. A proud pane keeps the
+  strip at its own level (the lift is only for a recess).
+- **Its four vertices are its own and unfielded**, like the bead's (GATE
+  SURF: the post-pass families carry no field), and the faces are flagged
+  `paneEdge` so every interior and fitting pass that skips `joint` skips
+  them too. NOT `capFace`: the firewall pass drops capFace faces forward of
+  the cabin, and the first cut lost the whole ring to it — found by
+  counting the faces after each pass, which is the instrument for "a
+  section no build emits".
+- The joints part claims `paneEdge` and the `pane edge` row; page 5
+  renders the row; the glazing-off and skin-off culls take the edge with
+  the glass.
