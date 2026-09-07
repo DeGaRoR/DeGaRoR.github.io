@@ -33680,3 +33680,32 @@ TRAPS, this pass:
 - The joints part claims `paneEdge` and the `pane edge` row; page 5
   renders the row; the glazing-off and skin-off culls take the edge with
   the glass.
+
+## G206.3 — THE LAB OPENED ON THE WRONG ROW, THE FIELD WAS TOO SHY, AND THE
+## GAINS SPLIT BY SURFACE (2026-09-07, the user: "I can't see a single thing
+## moving from any slider in finish rows and construction rows. The display
+## gain work, but we need it separate for the body and the wing. I can't see
+## the changes from sag & dish nor field X")
+
+- **The lab opened on doped fabric and tube + fabric; the aeroplane was ply
+  on wood.** Every slider edited a row nothing on the stand wore — driven
+  from a console, the ply row moved the fuselage at once. The finish select
+  now opens on the FUSELAGE'S finish, the construction select on the
+  build's, and both mark what is on the aeroplane with a bullet.
+- **The field was invisible at its honest numbers**: ply's 0.4 mm over
+  0.5 m at x3 is a quarter of a degree. Measured on the stand, 3 mm at x25
+  is a set panel. Amplitudes are what READS now (ply 1.5 mm, alclad and bare
+  alloy 2.5, fabric 0.8, trim 1.2, the woods 0.8) at a x15 default; the
+  field-x range caps at 30 and the amplitude at 3 mm, past which the
+  normals tip over the light and the flank goes black.
+- **Sag & dish on a wood aeroplane act on nothing** — G206 set ply's sag and
+  dish to 0 on purpose (a stressed skin is flat). The slider's label says so.
+- **Two gain sets**: `uGain` for the body, `uGainW` for the wing and tail,
+  picked in the shader by the surface class (uG5.w); `wx`/`wy`/`wz` in the
+  lab. The saved gains are laid on the shared block the first time it
+  exists (aeroLabGains), not only when a slider moves.
+- **A swapped sampler needs a recompile** (measured): after `hs`/`bs`
+  rebaked the sheet, the fuselage drew BLACK and the wing white until
+  `needsUpdate` — a cached program, so a lookup, not a compile.
+- **A NaN in a shared uniform paints the aeroplane black**: one console
+  call with four arguments did it. aeroLabSet refuses a non-finite value.

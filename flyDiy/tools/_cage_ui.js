@@ -3148,11 +3148,35 @@ const GLASS_DEFV = JSON.parse(JSON.stringify(GLASS));
 // section list changes shape. Sliders write LIVE (uniforms and scalars, no
 // rebuild); `cc` rebuilds on release because a clear coat appearing on a row
 // changes the material class; the resets rebuild too.
-const LAB = { kind: 'finish', key: 'fabric', gkey: 'tubeFabric', open: false };
+const LAB = { kind: 'finish', key: null, gkey: null, open: false };
+// WHAT THIS AEROPLANE WEARS (G206.3, the user: "I can't see a single thing
+// moving from any slider in finish rows and construction rows" — the lab
+// opened on doped fabric and tube + fabric, and the aeroplane was ply on a
+// wood construction; every slider was editing a row nothing on the stand
+// wore). The finish select now opens on the FUSELAGE'S finish, the
+// construction select on the build's, and rows in use are marked.
+function labUsed() {
+  const fins = new Set(), grms = new Set();
+  const sc = (typeof window !== 'undefined') && window.CAGE_UI_SCENE;
+  if (sc) sc.traverse(o => {
+    const ms = Array.isArray(o.material) ? o.material
+             : (o.material ? [o.material] : []);
+    for (const m of ms) {
+      const u = m && m.userData;
+      if (!u) continue;
+      if (u.aeroFinish) fins.add(u.aeroFinish);
+      if (u.aeroGrm && u.aeroStruct) grms.add(u.aeroGrm);
+    }
+  });
+  return { fins, grms };
+}
 function labRender(box) {
   const A = AK();
   if (!A || !A.aeroLabSet) return;
   box.textContent = '';
+  const used = labUsed();
+  if (!LAB.key) LAB.key = secFin.body || A.aeroFinishFor('body', consOf());
+  if (!LAB.gkey) LAB.gkey = consOf();
   const sel = (opts, val, on) => {
     const s = document.createElement('select'); s.style.flex = '1';
     for (const [v, t] of opts) {
@@ -3185,8 +3209,10 @@ function labRender(box) {
   if (LAB.kind === 'finish') {
     const keys = Object.keys(A.AERO_FINISH);
     if (!A.AERO_FINISH[LAB.key]) LAB.key = keys[0];
-    const kr = row('finish', 'the row being edited (* = deviates)');
+    const kr = row('finish', 'the row being edited (* = deviates; ' +
+                   '\u2022 = on this aeroplane)');
     kr.appendChild(sel(keys.map(k => [k, A.AERO_FINISH[k].name +
+                                          (used.fins.has(k) ? ' \u2022' : '') +
                                           (A.AERO_LAB.finish[k] ? ' *' : '')]),
                        LAB.key, v => { LAB.key = v; labRender(box); }));
     key = LAB.key; fields = A.AERO_LAB_FIELDS;
@@ -3197,8 +3223,10 @@ function labRender(box) {
     const keys = Object.keys(D);
     if (!keys.length) { row('(the core is not loaded)', ''); return; }
     if (!D[LAB.gkey]) LAB.gkey = keys[0];
-    const kr = row('construction', 'the construction row (* = deviates)');
+    const kr = row('construction', 'the construction row (* = deviates; ' +
+                   '\u2022 = this build)');
     kr.appendChild(sel(keys.map(k => [k, (D[k].name || k) +
+                                         (used.grms.has(k) ? ' \u2022' : '') +
                                          (A.AERO_LAB.grammar[k] ? ' *' : '')]),
                        LAB.gkey, v => { LAB.gkey = v; labRender(box); }));
     key = LAB.gkey; fields = A.AERO_LAB_GRAM;

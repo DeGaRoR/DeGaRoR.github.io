@@ -90,7 +90,12 @@
 // THE LARGE-SCALE FIELD (G206, the user: "something like a musgrave texture
 // at large scale over the whole body ... mostly on metal sheets, medium on
 // wood and low on fabric"). `fld` is its amplitude in METRES, `fldL` its
-// wavelength in metres, `fldR` how much of it reaches the roughness. It is a
+// wavelength in metres, `fldR` how much of it reaches the roughness. THE
+// AMPLITUDES ARE WHAT READS, NOT WHAT A MICROMETER SAYS (G206.3): the first
+// cut carried the honest half-millimetres and was invisible at any gain the
+// eye tolerated elsewhere — measured on the stand, 3 mm at x25 is a set
+// panel and 0.4 mm at x12 is nothing. So ply is 1.5 mm, alclad 2.5, fabric
+// 0.8, at x15, and the lab is where they get set by eye. It is a
 // NON-REPEATING noise evaluated in metres in the shader (aeroField), never a
 // term in the tiling sheet — because a slow term inside a tile IS the visible
 // repeat, which is what the sheets carried until G206 (see aeroHeight).
@@ -109,37 +114,37 @@ const AERO_FINISH = {
   fabric:    { name: 'doped fabric', base: 0xd8d4c8, tile: 0.06,
                rough: 0.42, metal: 0.0, nrm: 0.25, alb: 0.13,
                hs: 0.15, bs: 0.8, bake: 'weave',
-               cc: 0.35, ccR: 0.25, fld: 0.00025, fldL: 0.35, fldR: 0.3 },
+               cc: 0.35, ccR: 0.25, fld: 0.0008, fldL: 0.40, fldR: 0.3 },
   // alb 0.50 -> 0.80 with the scanned sheet (G125): the maple face's B span
   // is a quarter of the procedural stripes', so the compensation keeps the
   // ply's grain visible at all — same measurement as spruce's note below
   ply:       { name: 'birch ply',    base: 0xc9a06a, tile: 0.35,
                rough: 0.32, metal: 0.0, nrm: 0.30, alb: 0.80,
                hs: 0.10, bs: 1.6, bake: 'grain', sheet: 'maple',
-               cc: 0.50, ccR: 0.18, fld: 0.0004, fldL: 0.5, fldR: 0.3 },
+               cc: 0.50, ccR: 0.18, fld: 0.0015, fldL: 0.60, fldR: 0.3 },
   alclad:    { name: '2024 alclad',  base: 0xd2d6da, tile: 0.70,
                rough: 0.28, metal: 0.0, nrm: 0.35, alb: 0.10,
                hs: 0.8, bs: 0.5, bake: 'sheet',
-               cc: 0.45, ccR: 0.15, fld: 0.0015, fldL: 0.8, fldR: 0.35 },
+               cc: 0.45, ccR: 0.15, fld: 0.0025, fldL: 0.90, fldR: 0.35 },
   composite: { name: 'carbon/epoxy', base: 0x2b2e33, tile: 0.10,
                rough: 0.20, metal: 0.0, nrm: 0.30, alb: 0.22,
                hs: 0.5, bs: 1.0, bake: 'twill',
-               cc: 0.60, ccR: 0.10, fld: 0.0003, fldL: 1.0, fldR: 0.2 },
+               cc: 0.60, ccR: 0.10, fld: 0.0006, fldL: 1.0, fldR: 0.2 },
   bareAlu:   { name: 'bare alloy',   base: 0xb6bcc3, tile: 0.45,
                rough: 0.26, metal: 0.90, nrm: 0.45, alb: 0.10,
                hs: 0.8, bs: 0.6, bake: 'sheet',
-               fld: 0.0015, fldL: 0.8, fldR: 0.4 },
+               fld: 0.0025, fldL: 0.90, fldR: 0.4 },
   steelTube: { name: '4130 tube',    base: 0x6f7780, tile: 0.30,
                rough: 0.48, metal: 0.80, nrm: 0.50, alb: 0.16,
                hs: 0.9, bs: 0.8, bake: 'sheet',
-               fld: 0.0002, fldL: 0.3, fldR: 0.2 },
+               fld: 0.0006, fldL: 0.3, fldR: 0.2 },
   // alb raised 0.55 -> 0.85 with the scanned sheet (G125): Wood091B's strip
   // boundaries are almost entirely COLOUR, and at 0.55 the laminations
   // vanished into the base — measured on the swatch strip, not guessed
   spruce:    { name: 'spruce',       base: 0xbb9560, tile: 0.30,
                rough: 0.40, metal: 0.0, nrm: 0.30, alb: 0.85,
                hs: 0.14, bs: 1.6, bake: 'grain', sheet: 'laminate',
-               cc: 0.40, ccR: 0.20, fld: 0.0003, fldL: 0.5, fldR: 0.2 },
+               cc: 0.40, ccR: 0.20, fld: 0.0010, fldL: 0.5, fldR: 0.2 },
 
   // ---- THE SCANNED WOODS (G125) -------------------------------------------
   // The first baked CC0 payloads, landing the promise the sheet loader has
@@ -161,15 +166,15 @@ const AERO_FINISH = {
   maple:     { name: 'maple',          base: 0xe3d4b9, tile: 0.90,
                rough: 0.42, metal: 0.0, nrm: 0.30, alb: 0.90,
                hs: 0.10, bs: 1.4, bake: 'grain', sheet: 'maple',
-               cc: 0.30, ccR: 0.20, fld: 0.0002, fldL: 0.5, fldR: 0.2 },
+               cc: 0.30, ccR: 0.20, fld: 0.0008, fldL: 0.5, fldR: 0.2 },
   walnut:    { name: 'walnut',         base: 0xa98971, tile: 0.90,
                rough: 0.42, metal: 0.0, nrm: 0.30, alb: 1.10,
                hs: 0.10, bs: 1.6, bake: 'grain', sheet: 'walnut',
-               cc: 0.30, ccR: 0.20, fld: 0.0002, fldL: 0.5, fldR: 0.2 },
+               cc: 0.30, ccR: 0.20, fld: 0.0008, fldL: 0.5, fldR: 0.2 },
   walnutFig: { name: 'figured walnut', base: 0x887e72, tile: 1.10,
                rough: 0.44, metal: 0.0, nrm: 0.30, alb: 1.30,
                hs: 0.10, bs: 1.6, bake: 'grain', sheet: 'walnutfig',
-               cc: 0.30, ccR: 0.20, fld: 0.0002, fldL: 0.5, fldR: 0.2 },
+               cc: 0.30, ccR: 0.20, fld: 0.0008, fldL: 0.5, fldR: 0.2 },
   rubber:    { name: 'rubber',       base: 0x20222b, tile: 0.16,
                rough: 0.94, metal: 0.0, nrm: 0.55, alb: 0.20,
                hs: 0.7, bs: 0.9, bake: 'weave' },
@@ -179,7 +184,7 @@ const AERO_FINISH = {
   trim:      { name: 'painted trim', base: 0xd8dde4, tile: 0.40,
                rough: 0.28, metal: 0.10, nrm: 0.25, alb: 0.08,
                hs: 0.6, bs: 0.5, bake: 'sheet',
-               cc: 0.40, ccR: 0.20, fld: 0.0005, fldL: 0.4, fldR: 0.3 },
+               cc: 0.40, ccR: 0.20, fld: 0.0012, fldL: 0.45, fldR: 0.3 },
   // THE FIREPROOF SHEET. A firewall is a structural bulkhead with a sheet of
   // stainless or aluminised foil on the ENGINE side of it, and the foil is
   // the only surface on the aeroplane whose whole appearance is a CRINKLE: it
@@ -248,7 +253,7 @@ const AERO_FINISH = {
   panelMetal: { name: 'metal panel',   base: 0xd0d4d8, tile: 0.60,
                 rough: 0.38, metal: 0.92, nrm: 0.35, alb: 0.20,
                 hs: 0.8, bs: 0.5, bake: 'sheet', sheet: 'panel',
-                fld: 0.0003, fldL: 0.4, fldR: 0.3 },
+                fld: 0.0010, fldL: 0.4, fldR: 0.3 },
   leatherDark: { name: 'dark leather', base: 0x2a2622, tile: 0.30,
                  rough: 0.52, metal: 0.0, nrm: 0.55, alb: 0.60,
                  hs: 0.8, bs: 0.9, bake: 'hide', sheet: 'leather' },
@@ -1248,7 +1253,12 @@ function aeroSharedU(THREE) {
   if (AERO_DEC) return AERO_DEC;
   const z4 = () => Array.from({ length: AERO_MAXD },
     () => new THREE.Vector4(0, 0, 0, 0));
-  return (AERO_DEC = {
+  AERO_DEC = aeroSharedU0(THREE, z4);
+  aeroLabGains(THREE);           // the saved gains, once the block exists
+  return AERO_DEC;
+}
+function aeroSharedU0(THREE, z4) {
+  return ({
     tAtlas: { value: aeroAtlas(THREE) },
     uDecN:  { value: 0 },
     uDecA:  { value: z4() },     // xy centre (sL, sC) m, zw half-size m
@@ -1288,6 +1298,11 @@ function aeroSharedU(THREE) {
     // field. Shared, so the lab's one write reaches every material.
     uGain:  { value: new THREE.Vector3(AERO_GAIN_DEF.x, AERO_GAIN_DEF.y,
                                        AERO_GAIN_DEF.z) },
+    // ...and the WING AND TAIL'S OWN (G206.3, the user: "we need it separate
+    // for the body and the wing"). Picked in the shader by the surface class
+    // in uG5.w, so one material serves both and nothing is rebuilt.
+    uGainW: { value: new THREE.Vector3(AERO_GAIN_DEF.wx, AERO_GAIN_DEF.wy,
+                                       AERO_GAIN_DEF.wz) },
     // THE CABIN'S DARKNESS (G206.1): x = how much of the light an inside
     // fragment loses, already times the aeroplane's glazing coverage
     uCabin: { value: new THREE.Vector4(AERO_CABIN_DEF, 0, 0, 0) },
@@ -1877,6 +1892,7 @@ uniform float uInset;
 // tapes, y sag and dish, z the large-scale field. uGGain was one x4 over
 // everything, and that one number was most of the waffle.
 uniform vec3 uGain;
+uniform vec3 uGainW;     // the same three for the wing and the tail (G206.3)
 // THE LARGE-SCALE FIELD (G206): x amplitude m, y wavelength m, z roughness
 // gain. Per material, off the finish row times the section's own dial.
 uniform vec4 uField;
@@ -2061,6 +2077,8 @@ vec3 aeroStructure(vec2 m, inout float rgh) {
   vec2 dH = vec2(0.0);
   vec2 dS = vec2(0.0);
   vec2 dF = vec2(0.0);
+  // the body's gains, or the flying surfaces' (uG5.w is the surface class)
+  vec3 gn = (uG5.w > 0.5) ? uGainW : uGain;
   float fw = max(fwidth(m.x) + fwidth(m.y), 1e-6);   // ~metres per pixel
   // the field applies to every skin that declares one, structure or not: a
   // painted strut fairing has no frames and still has set panels
@@ -2305,8 +2323,8 @@ vec3 aeroStructure(vec2 m, inout float rgh) {
   // covering does between members (near 1: those numbers were honest and
   // were quadrupled), uGain.z the large-scale field. All three are the lab's.
   }
-  return normalize(vec3(-(dH.x * uGain.x + dS.x * uGain.y + dF.x * uGain.z),
-                         (dH.y * uGain.x + dS.y * uGain.y + dF.y * uGain.z),
+  return normalize(vec3(-(dH.x * gn.x + dS.x * gn.y + dF.x * gn.z),
+                         (dH.y * gn.x + dS.y * gn.y + dF.y * gn.z),
                          1.0));
 }
 
@@ -3441,7 +3459,14 @@ function aeroGlass(THREE, o) {
 // material CLASS, so the affected pooled materials are dropped and the next
 // build makes Physical ones.
 const AERO_LAB_KEY = 'flydiy.aeroLab';
-const AERO_GAIN_DEF = { x: 4.0, y: 1.2, z: 3.0 };
+// THE FIELD'S GAIN WAS INVISIBLE AT 3 (G206.3, the user: "I can't see the
+// changes from ... field x"). Measured on the numbers: ply's 0.4 mm over
+// 0.5 m through the multifractal's gradient is a slope of ~0.0016, and x3
+// is a quarter of a degree — nothing. x12 puts ply at ~1 deg and alclad at
+// ~3, which is a set panel under a reflection and not a wave. The honest
+// amplitudes stay honest; the gain says how much the eye is helped, as the
+// tape's does. `w*` are the wing and tail's own set.
+const AERO_GAIN_DEF = { x: 4.0, y: 1.2, z: 15.0, wx: 4.0, wy: 1.2, wz: 15.0 };
 // field -> [min, max, step, label]
 const AERO_LAB_FIELDS = {
   tile:  [0.03, 3.0, 0.01, 'tile (m)'],
@@ -3453,7 +3478,7 @@ const AERO_LAB_FIELDS = {
   bs:    [0, 2.0, 0.01, 'sheet roughness (rebakes)'],
   cc:    [0, 1, 0.01, 'clear coat'],
   ccR:   [0, 1, 0.01, 'clear coat roughness'],
-  fld:   [0, 0.004, 0.00005, 'field amplitude (m)'],
+  fld:   [0, 0.003, 0.00005, 'field amplitude (m)'],
   fldL:  [0.1, 2.0, 0.01, 'field wavelength (m)'],
   fldR:  [0, 1, 0.01, 'field -> roughness'],
 };
@@ -3477,10 +3502,19 @@ const AERO_LAB_GRAM = {
   partingAtWaist:  [0, 0.02, 0.0005, 'parting line (m)'],
   'rough.seam':    [0, 0.2, 0.005, 'seam roughness'],
 };
-const AERO_LAB_GAIN = { x: [0, 8, 0.1, 'members & tapes x'],
-                        y: [0, 4, 0.05, 'sag & dish x'],
-                        z: [0, 8, 0.1, 'field x'],
-                        cabin: [0, 0.95, 0.01, 'cabin darkness'] };
+const AERO_LAB_GAIN = {
+  x:  [0, 8, 0.1, 'body: members & tapes x'],
+  y:  [0, 4, 0.05, 'body: sag & dish x (fabric sags, alloy dishes; ply neither)'],
+  z:  [0, 30, 0.5, 'body: field x'],
+  wx: [0, 8, 0.1, 'wing & tail: members & tapes x'],
+  wy: [0, 4, 0.05, 'wing & tail: sag x'],
+  wz: [0, 30, 0.5, 'wing & tail: field x'],
+  cabin: [0, 0.95, 0.01, 'cabin darkness'] };
+// which shared vector a gain key writes, and which component
+function aeroGainSlot(THREE, key) {
+  const U = aeroSharedU(THREE);
+  return key[0] === 'w' ? [U.uGainW.value, key[1]] : [U.uGain.value, key];
+}
 const AERO_LAB_GLASS = { rough:   [0.0, 0.5, 0.005, 'bulk roughness'],
                          ccR:     [0.0, 0.5, 0.005, 'coat roughness'],
                          fresnel: [0, 1.5, 0.01, 'limb closes (fresnel)'],
@@ -3549,15 +3583,30 @@ function aeroLabLoad() {
   for (const k in AERO_LAB.glass)
     if (k in GLASS_LAB_DEF) GLASS_DEF[k] = AERO_LAB.glass[k];
 }
+// THE GAINS COME BACK WITH THE PAGE (G206.3): the shared block is built
+// lazily, so the saved gains are laid on it the first time it exists
+function aeroLabGains(THREE) {
+  const U = aeroSharedU(THREE);
+  for (const k in AERO_LAB.gain) {
+    if (k === 'cabin') continue;
+    const [v, c] = aeroGainSlot(THREE, k);
+    v[c] = AERO_LAB.gain[k];
+  }
+  aeroSetCabin(THREE);
+  return U;
+}
 // write one number: the table, the deviation record, every live material
 function aeroLabSet(THREE, kind, key, field, value) {
   value = +value;
+  // a NaN in a shared uniform paints the aeroplane black (measured: one
+  // four-argument call from a console); refuse it here, once
+  if (!isFinite(value)) return;
   if (kind === 'gain') {
     const def = key === 'cabin' ? AERO_CABIN_DEF : AERO_GAIN_DEF[key];
     if (Math.abs(value - def) < 1e-9) delete AERO_LAB.gain[key];
     else AERO_LAB.gain[key] = value;
     if (key === 'cabin') aeroSetCabin(THREE);
-    else aeroSharedU(THREE).uGain.value[key] = value;
+    else { const [v, c] = aeroGainSlot(THREE, key); v[c] = value; }
   } else if (kind === 'finish') {
     const row = AERO_FINISH[key], def = AERO_FINISH_DEF[key];
     if (!row) return;
@@ -3594,6 +3643,7 @@ function aeroLabReset(THREE, kind, key) {
     AERO_LAB.gain = {};
     const U = aeroSharedU(THREE);
     U.uGain.value.set(AERO_GAIN_DEF.x, AERO_GAIN_DEF.y, AERO_GAIN_DEF.z);
+    U.uGainW.value.set(AERO_GAIN_DEF.wx, AERO_GAIN_DEF.wy, AERO_GAIN_DEF.wz);
     aeroSetCabin(THREE);
   }
   if (all || kind === 'finish')
@@ -3640,7 +3690,14 @@ function aeroLabRefresh(THREE, kind, key, field) {
       aeroFinishU(THREE, m, ud.aeroU, row,
         { tileK: ud.aeroTileK, nrmK: ud.aeroNrmK, roughK: ud.aeroRoughK,
           ccK: ud.aeroCcK, fieldK: ud.aeroFieldK });
-      if (rebake) ud.aeroU.tDetail.value = aeroDetailTex(THREE, key);
+      // A SWAPPED SAMPLER NEEDS A RECOMPILE (G206.3, measured): with a new
+      // texture object in the uniform and nothing else changed, r128 drew
+      // the fuselage BLACK and the wing white until needsUpdate — the
+      // program is cached, so the recompile is a lookup, not a compile
+      if (rebake) {
+        ud.aeroU.tDetail.value = aeroDetailTex(THREE, key);
+        m.needsUpdate = true;
+      }
       // THE CLASS CHANGED: a clear coat on a row that had none (or gone from
       // one that had) — the material cannot become Physical in place, so it
       // leaves the pool and the next build makes the right one

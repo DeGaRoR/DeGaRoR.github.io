@@ -60916,11 +60916,35 @@ const GLASS_DEFV = JSON.parse(JSON.stringify(GLASS));
 // section list changes shape. Sliders write LIVE (uniforms and scalars, no
 // rebuild); `cc` rebuilds on release because a clear coat appearing on a row
 // changes the material class; the resets rebuild too.
-const LAB = { kind: 'finish', key: 'fabric', gkey: 'tubeFabric', open: false };
+const LAB = { kind: 'finish', key: null, gkey: null, open: false };
+// WHAT THIS AEROPLANE WEARS (G206.3, the user: "I can't see a single thing
+// moving from any slider in finish rows and construction rows" — the lab
+// opened on doped fabric and tube + fabric, and the aeroplane was ply on a
+// wood construction; every slider was editing a row nothing on the stand
+// wore). The finish select now opens on the FUSELAGE'S finish, the
+// construction select on the build's, and rows in use are marked.
+function labUsed() {
+  const fins = new Set(), grms = new Set();
+  const sc = (typeof window !== 'undefined') && window.CAGE_UI_SCENE;
+  if (sc) sc.traverse(o => {
+    const ms = Array.isArray(o.material) ? o.material
+             : (o.material ? [o.material] : []);
+    for (const m of ms) {
+      const u = m && m.userData;
+      if (!u) continue;
+      if (u.aeroFinish) fins.add(u.aeroFinish);
+      if (u.aeroGrm && u.aeroStruct) grms.add(u.aeroGrm);
+    }
+  });
+  return { fins, grms };
+}
 function labRender(box) {
   const A = AK();
   if (!A || !A.aeroLabSet) return;
   box.textContent = '';
+  const used = labUsed();
+  if (!LAB.key) LAB.key = secFin.body || A.aeroFinishFor('body', consOf());
+  if (!LAB.gkey) LAB.gkey = consOf();
   const sel = (opts, val, on) => {
     const s = document.createElement('select'); s.style.flex = '1';
     for (const [v, t] of opts) {
@@ -60953,8 +60977,10 @@ function labRender(box) {
   if (LAB.kind === 'finish') {
     const keys = Object.keys(A.AERO_FINISH);
     if (!A.AERO_FINISH[LAB.key]) LAB.key = keys[0];
-    const kr = row('finish', 'the row being edited (* = deviates)');
+    const kr = row('finish', 'the row being edited (* = deviates; ' +
+                   '\u2022 = on this aeroplane)');
     kr.appendChild(sel(keys.map(k => [k, A.AERO_FINISH[k].name +
+                                          (used.fins.has(k) ? ' \u2022' : '') +
                                           (A.AERO_LAB.finish[k] ? ' *' : '')]),
                        LAB.key, v => { LAB.key = v; labRender(box); }));
     key = LAB.key; fields = A.AERO_LAB_FIELDS;
@@ -60965,8 +60991,10 @@ function labRender(box) {
     const keys = Object.keys(D);
     if (!keys.length) { row('(the core is not loaded)', ''); return; }
     if (!D[LAB.gkey]) LAB.gkey = keys[0];
-    const kr = row('construction', 'the construction row (* = deviates)');
+    const kr = row('construction', 'the construction row (* = deviates; ' +
+                   '\u2022 = this build)');
     kr.appendChild(sel(keys.map(k => [k, (D[k].name || k) +
+                                         (used.grms.has(k) ? ' \u2022' : '') +
                                          (A.AERO_LAB.grammar[k] ? ' *' : '')]),
                        LAB.gkey, v => { LAB.gkey = v; labRender(box); }));
     key = LAB.gkey; fields = A.AERO_LAB_GRAM;
@@ -66347,7 +66375,12 @@ function aeroSharedU(THREE) {
   if (AERO_DEC) return AERO_DEC;
   const z4 = () => Array.from({ length: AERO_MAXD },
     () => new THREE.Vector4(0, 0, 0, 0));
-  return (AERO_DEC = {
+  AERO_DEC = aeroSharedU0(THREE, z4);
+  aeroLabGains(THREE);           // the saved gains, once the block exists
+  return AERO_DEC;
+}
+function aeroSharedU0(THREE, z4) {
+  return ({
     tAtlas: { value: aeroAtlas(THREE) },
     uDecN:  { value: 0 },
     uDecA:  { value: z4() },     // xy centre (sL, sC) m, zw half-size m
@@ -66387,6 +66420,11 @@ function aeroSharedU(THREE) {
     // field. Shared, so the lab's one write reaches every material.
     uGain:  { value: new THREE.Vector3(AERO_GAIN_DEF.x, AERO_GAIN_DEF.y,
                                        AERO_GAIN_DEF.z) },
+    // ...and the WING AND TAIL'S OWN (G206.3, the user: "we need it separate
+    // for the body and the wing"). Picked in the shader by the surface class
+    // in uG5.w, so one material serves both and nothing is rebuilt.
+    uGainW: { value: new THREE.Vector3(AERO_GAIN_DEF.wx, AERO_GAIN_DEF.wy,
+                                       AERO_GAIN_DEF.wz) },
     // THE CABIN'S DARKNESS (G206.1): x = how much of the light an inside
     // fragment loses, already times the aeroplane's glazing coverage
     uCabin: { value: new THREE.Vector4(AERO_CABIN_DEF, 0, 0, 0) },
@@ -66976,6 +67014,7 @@ uniform float uInset;
 // tapes, y sag and dish, z the large-scale field. uGGain was one x4 over
 // everything, and that one number was most of the waffle.
 uniform vec3 uGain;
+uniform vec3 uGainW;     // the same three for the wing and the tail (G206.3)
 // THE LARGE-SCALE FIELD (G206): x amplitude m, y wavelength m, z roughness
 // gain. Per material, off the finish row times the section's own dial.
 uniform vec4 uField;
@@ -67160,6 +67199,8 @@ vec3 aeroStructure(vec2 m, inout float rgh) {
   vec2 dH = vec2(0.0);
   vec2 dS = vec2(0.0);
   vec2 dF = vec2(0.0);
+  // the body's gains, or the flying surfaces' (uG5.w is the surface class)
+  vec3 gn = (uG5.w > 0.5) ? uGainW : uGain;
   float fw = max(fwidth(m.x) + fwidth(m.y), 1e-6);   // ~metres per pixel
   // the field applies to every skin that declares one, structure or not: a
   // painted strut fairing has no frames and still has set panels
@@ -67404,8 +67445,8 @@ vec3 aeroStructure(vec2 m, inout float rgh) {
   // covering does between members (near 1: those numbers were honest and
   // were quadrupled), uGain.z the large-scale field. All three are the lab's.
   }
-  return normalize(vec3(-(dH.x * uGain.x + dS.x * uGain.y + dF.x * uGain.z),
-                         (dH.y * uGain.x + dS.y * uGain.y + dF.y * uGain.z),
+  return normalize(vec3(-(dH.x * gn.x + dS.x * gn.y + dF.x * gn.z),
+                         (dH.y * gn.x + dS.y * gn.y + dF.y * gn.z),
                          1.0));
 }
 
@@ -68540,7 +68581,14 @@ function aeroGlass(THREE, o) {
 // material CLASS, so the affected pooled materials are dropped and the next
 // build makes Physical ones.
 const AERO_LAB_KEY = 'flydiy.aeroLab';
-const AERO_GAIN_DEF = { x: 4.0, y: 1.2, z: 3.0 };
+// THE FIELD'S GAIN WAS INVISIBLE AT 3 (G206.3, the user: "I can't see the
+// changes from ... field x"). Measured on the numbers: ply's 0.4 mm over
+// 0.5 m through the multifractal's gradient is a slope of ~0.0016, and x3
+// is a quarter of a degree — nothing. x12 puts ply at ~1 deg and alclad at
+// ~3, which is a set panel under a reflection and not a wave. The honest
+// amplitudes stay honest; the gain says how much the eye is helped, as the
+// tape's does. `w*` are the wing and tail's own set.
+const AERO_GAIN_DEF = { x: 4.0, y: 1.2, z: 12.0, wx: 4.0, wy: 1.2, wz: 12.0 };
 // field -> [min, max, step, label]
 const AERO_LAB_FIELDS = {
   tile:  [0.03, 3.0, 0.01, 'tile (m)'],
@@ -68552,7 +68600,7 @@ const AERO_LAB_FIELDS = {
   bs:    [0, 2.0, 0.01, 'sheet roughness (rebakes)'],
   cc:    [0, 1, 0.01, 'clear coat'],
   ccR:   [0, 1, 0.01, 'clear coat roughness'],
-  fld:   [0, 0.004, 0.00005, 'field amplitude (m)'],
+  fld:   [0, 0.003, 0.00005, 'field amplitude (m)'],
   fldL:  [0.1, 2.0, 0.01, 'field wavelength (m)'],
   fldR:  [0, 1, 0.01, 'field -> roughness'],
 };
@@ -68576,10 +68624,19 @@ const AERO_LAB_GRAM = {
   partingAtWaist:  [0, 0.02, 0.0005, 'parting line (m)'],
   'rough.seam':    [0, 0.2, 0.005, 'seam roughness'],
 };
-const AERO_LAB_GAIN = { x: [0, 8, 0.1, 'members & tapes x'],
-                        y: [0, 4, 0.05, 'sag & dish x'],
-                        z: [0, 8, 0.1, 'field x'],
-                        cabin: [0, 0.95, 0.01, 'cabin darkness'] };
+const AERO_LAB_GAIN = {
+  x:  [0, 8, 0.1, 'body: members & tapes x'],
+  y:  [0, 4, 0.05, 'body: sag & dish x (fabric sags, alloy dishes; ply neither)'],
+  z:  [0, 30, 0.5, 'body: field x'],
+  wx: [0, 8, 0.1, 'wing & tail: members & tapes x'],
+  wy: [0, 4, 0.05, 'wing & tail: sag x'],
+  wz: [0, 30, 0.5, 'wing & tail: field x'],
+  cabin: [0, 0.95, 0.01, 'cabin darkness'] };
+// which shared vector a gain key writes, and which component
+function aeroGainSlot(THREE, key) {
+  const U = aeroSharedU(THREE);
+  return key[0] === 'w' ? [U.uGainW.value, key[1]] : [U.uGain.value, key];
+}
 const AERO_LAB_GLASS = { rough:   [0.0, 0.5, 0.005, 'bulk roughness'],
                          ccR:     [0.0, 0.5, 0.005, 'coat roughness'],
                          fresnel: [0, 1.5, 0.01, 'limb closes (fresnel)'],
@@ -68648,15 +68705,30 @@ function aeroLabLoad() {
   for (const k in AERO_LAB.glass)
     if (k in GLASS_LAB_DEF) GLASS_DEF[k] = AERO_LAB.glass[k];
 }
+// THE GAINS COME BACK WITH THE PAGE (G206.3): the shared block is built
+// lazily, so the saved gains are laid on it the first time it exists
+function aeroLabGains(THREE) {
+  const U = aeroSharedU(THREE);
+  for (const k in AERO_LAB.gain) {
+    if (k === 'cabin') continue;
+    const [v, c] = aeroGainSlot(THREE, k);
+    v[c] = AERO_LAB.gain[k];
+  }
+  aeroSetCabin(THREE);
+  return U;
+}
 // write one number: the table, the deviation record, every live material
 function aeroLabSet(THREE, kind, key, field, value) {
   value = +value;
+  // a NaN in a shared uniform paints the aeroplane black (measured: one
+  // four-argument call from a console); refuse it here, once
+  if (!isFinite(value)) return;
   if (kind === 'gain') {
     const def = key === 'cabin' ? AERO_CABIN_DEF : AERO_GAIN_DEF[key];
     if (Math.abs(value - def) < 1e-9) delete AERO_LAB.gain[key];
     else AERO_LAB.gain[key] = value;
     if (key === 'cabin') aeroSetCabin(THREE);
-    else aeroSharedU(THREE).uGain.value[key] = value;
+    else { const [v, c] = aeroGainSlot(THREE, key); v[c] = value; }
   } else if (kind === 'finish') {
     const row = AERO_FINISH[key], def = AERO_FINISH_DEF[key];
     if (!row) return;
@@ -68693,6 +68765,7 @@ function aeroLabReset(THREE, kind, key) {
     AERO_LAB.gain = {};
     const U = aeroSharedU(THREE);
     U.uGain.value.set(AERO_GAIN_DEF.x, AERO_GAIN_DEF.y, AERO_GAIN_DEF.z);
+    U.uGainW.value.set(AERO_GAIN_DEF.wx, AERO_GAIN_DEF.wy, AERO_GAIN_DEF.wz);
     aeroSetCabin(THREE);
   }
   if (all || kind === 'finish')
@@ -68739,7 +68812,14 @@ function aeroLabRefresh(THREE, kind, key, field) {
       aeroFinishU(THREE, m, ud.aeroU, row,
         { tileK: ud.aeroTileK, nrmK: ud.aeroNrmK, roughK: ud.aeroRoughK,
           ccK: ud.aeroCcK, fieldK: ud.aeroFieldK });
-      if (rebake) ud.aeroU.tDetail.value = aeroDetailTex(THREE, key);
+      // A SWAPPED SAMPLER NEEDS A RECOMPILE (G206.3, measured): with a new
+      // texture object in the uniform and nothing else changed, r128 drew
+      // the fuselage BLACK and the wing white until needsUpdate — the
+      // program is cached, so the recompile is a lookup, not a compile
+      if (rebake) {
+        ud.aeroU.tDetail.value = aeroDetailTex(THREE, key);
+        m.needsUpdate = true;
+      }
       // THE CLASS CHANGED: a clear coat on a row that had none (or gone from
       // one that had) — the material cannot become Physical in place, so it
       // leaves the pool and the next build makes the right one
