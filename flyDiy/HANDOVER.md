@@ -33757,3 +33757,123 @@ TRAPS, this pass:
   default), not the yoke (this build has a centre stick), not the panel's
   rows; I could not identify it from the code or reach it with the camera.
   Click it in the editor — a control resolves to its part — and say which.
+
+## G208 — THE BENCH CERTIFIES: THE CORNERS GONE, CERTIFICATES KEPT ON A
+## FINGERPRINT, THE TEST WATCHED, THE AWARD, THE STICKERS, THE TRIM ADVISOR,
+## AND EVERY PLAQUE ROW EXPLAINED (2026-09-07, the user: "flydiy test section.
+## Its UI needs to be redone ... certifications need to be awarded ... a small
+## circular sticker on approved plane's fuselage ... titles cut with no tooltip")
+
+The user's brief, in order: drop the four corner tests ("that one seems to
+fail a lot, while the underlying machines fly OK"); an advisor on the default
+trim after the first test; decorum — certificates awarded, kept unless
+something changes, one small sticker per passed test; freeze the interface
+during a test and report progress with as much feedback as possible; results
+presented so the titles are neither cut nor unexplained. Physics untouched
+throughout (the only core edits publish two numbers the sheet already had).
+
+- **The corners are gone from the bench.** The static-margin row read RED at
+  the worst of four loading corners while the aeroplane flew; the corners
+  never withheld the certificate (that was `flyableCircuit` plus the load
+  test plus the flight) but painted the plaque as a failure. `shakeOf` runs
+  `genShakedown(def, { corners: false })` — four fewer shakedowns per bench
+  check — and the plaque judges the margin AS LOADED, with the CG in % MAC
+  beside it (`cBar` now published by the shakedown; `xLEmac` already was).
+  The weight-and-balance chart (balance.js) keeps drawing its corners: a
+  loading sheet is not a test.
+- **The plaque's sheet is plaque.js's** (`window.PLAQUE.sheet()`): one
+  column, no label ever clipped, EVERY row with a `what` (fifteen had none:
+  empty, payload, cost, area, loading, aspect, stall, cruise, CG, neutral
+  pt, deck angle, density altitude, absolute ceiling, test card, the
+  powerplant rows), a hover card (`#pqTip`, not a native title) that a click
+  pins under the row, a band bar on every judged row showing where the value
+  sits between bad, warn and ok, and every section heading with a line
+  saying what it groups. WHY, BOUNDS and `judge` moved out of app.js
+  unchanged; GATE BENCH scans drawPlaque's literal labels against the table,
+  so a row nobody explained is a red gate, not a grey number.
+- **Certificates are kept on a fingerprint** (bench.js `benchFingerprint`):
+  FNV-1a over the join's spec with `paint`, `finish` and `meta` removed.
+  Every settled result carries `when` and `fp`; BENCH_DIRTY debounces 150 ms
+  and withdraws only the results whose fingerprint differs from the build's.
+  A recolour, a decal, a name keep every certificate; a slider on the wing
+  loses them. A withdrawn certificate stays on its row struck through with
+  the reason ("withdrawn — the build changed") until the test runs again.
+  Restored results without a fingerprint (saves before G208) are stamped
+  with the loaded build's own. `BENCH_RESTORE(null)` now clears the bench
+  (loading a different build must not show the last one's withdrawals).
+- **The test is watched.** A live test freezes the interface (`#bFreeze`
+  over everything, `body.benchBusy` dims the panel, Escape or ABORT ends it)
+  and reports in a card over the free estate (`#bRun`, centred between the
+  two panels off `--ws-left`/`--ws-right`): the phase strip (seven steps
+  for the flight, mapped from every pilot phase; five for the load), the
+  sim clock, the live numbers (speed, height, elevator; g and tip %), the
+  pilot's verdicts as they arrive, and a trace — the circuit in plan over
+  the pattern the pilot laid out with height against time under it, or the
+  g ramp with the limit and ultimate marks and the bending semispan. tfPoll
+  carries `pos`, `V`, `agl`, `de`, `path`, `frame`, `notes` on every poll
+  for it. An instant test shows the card too (indeterminate bar) so the
+  tunnel's second is not a hang.
+- **The award.** A settled test opens `#bAward`: CERTIFIED with the roundel
+  it earns (stamped in at scale, rotated 6°), the date, the note; auto-closes
+  in 2.8 s or on a click. A failed test says NOT AWARDED with what it found
+  and what to turn (`why`/`fix` on the result) and waits for the click. Run
+  all chains through the cards.
+- **The stickers** (stickers.js): one 120 mm roundel per passed test in a
+  0.57 m strip on both flanks, AFT OF THE DOOR under the registration's
+  letters (field frame, 1.70 m aft of the firewall, 0.16 m below the
+  waist — the first placement under the side window drew nothing: the cut
+  door is its own section and refuses the box projection, G207): cream vinyl, navy
+  rim carrying the test round the top and FLYDIY · ENGINEERING BENCH round
+  the bottom, an emblem (balance beam, sandbags on a wing, mountain and
+  sun, the circuit with an aeroplane on downwind), the date under it. Drawn
+  in METRES on atlas page 6 through `setTransform(P/w, P/h)` — a page maps
+  its width and height to the decal's independently, so a circle in metres
+  is an ellipse in page pixels — and dilated. ONE decal for the strip:
+  `AERO_MAXD` 6 → 7 (JS const and the GLSL define), and `aeroDecalsFor`
+  appends `window.AERO_EXTRA_DECALS(THREE)` at the end of its list, so the
+  stand and the flown aeroplane wear the same strip. Never stored: the strip
+  is a picture of `BENCH_STATE().certs`; a withdrawal peels it off through
+  `STICKERS.refresh()` → `CAGE_UI.redecal()` (new handle). The seals in the
+  panel are the same drawing on small canvases (`small` drops the
+  lettering).
+- **The trim advisor.** After the bench check: "the tunnel set the
+  stabiliser to X° for cruise, elevator neutral — start with the trim at
+  neutral" (`stabTrim` off the shakedown, radians → degrees). After a
+  passed test flight: the elevator the pilot held on the settled cruise leg
+  (41_test_pilot.js accumulates `report.trimDe` beside the card's means,
+  card or no card), in clicks of 0.02 (input.js TRIM_STEP), with "set it as
+  the roll-out trim" ticked by default; `BENCH_STATE().trim` carries it
+  while the flight certificate stands and fullReset seeds the hand from it
+  (`INP.setTrim`) after the AP→manual seed. The plaque prints `trim flown`.
+- **The bench rows** carry the seal, the date, "run again" on a certified
+  row, the reason on a failed one, and the advisor's line. The header
+  counts certificates and says "airworthy" when the gating three pass.
+- **GATE BENCH** (`tools/_bench_check.js`, 49 checks, --selftest): every
+  literal plaque row and heading explained, the thresholds unchanged, the
+  band marker on the bar and monotone with the value and in the judge's
+  zone, the fingerprint blind to paint/finish/meta and sighted to a wing or
+  a cage row, FNV reference values, the strip knows all 19 pilot phases,
+  the four roundels draw on a stub context, page 6, the seventh slot, the
+  hook, the manifest, the redecal handle, the trace on the poll.
+- **Files:** NEW src/viewer/plaque.js, stickers.js, bench.css,
+  tools/_bench_check.js; bench.js rewritten; app.js (drawPlaque, shakeOf,
+  tfPoll, fullReset), aeroskin.js (three hunks), 41_test_pilot.js (the
+  accumulator), 64_gen_build.js (`cBar`), _cage_ui.js (`redecal`),
+  build.js (manifest), run_gates.js (BENCH), test_ui_smoke.js (the sandbox
+  runs plaque.js and stickers.js, or drawPlaque throws before its first
+  row).
+- **Seen in the browser (dev.html):** the bench check certifies and its
+  card stamps in; the plaque fills one column with the band bars; the load
+  test's card shows the g bar at 0.00 and never moves — the Browser pane's
+  rAF does not fire (known: "rAF is dead in the pane"), and the load test
+  steps in the app's frame loop, so it cannot be watched there (it can in a
+  real browser; the poll loop is setInterval and is what the card reads);
+  ABORT ends it and the queue goes on; the test flight's card runs (the
+  circuit polls step the sim themselves): phase strip, live numbers, the
+  track drawn in plan, height strip, then the crosswind probe.
+- **Open:** the panel's own dev server for this session is
+  `flydiy-bench` (8346). A saved envelope's `plaque.results` is richer now
+  (`when`, `fp`, `stale`, `trim`, `trimUse`) and older readers of it get
+  extra fields, nothing removed. Old builds' first dirty stamps rather than
+  withdraws. The characters session's working-tree HANDOVER carries a
+  second `## G206.1` heading (THE PILOT ALONE) — not mine, not renumbered.

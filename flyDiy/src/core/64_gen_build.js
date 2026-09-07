@@ -507,7 +507,7 @@ function genShakedown(def, opts) {
     planes: g.planes || null, liftSplit: g.liftSplit || null,
     xLEmac: g.xLEmac, span: g.span, stagger: g.stagger, decalage: g.decalage,
     braceDCdA: g.braceDCdA || 0,
-    cgX: cg[0], npX: cg[0] + npShift, staticMargin: npShift / cBar,
+    cgX: cg[0], npX: cg[0] + npShift, staticMargin: npShift / cBar, cBar,
     dEpsDa,                                   // G185.5: the tail's measured downwash slope
     // G115: the directional half of the balance story, measured the same way
     cnBeta: genYawStiff(sim, def, V),

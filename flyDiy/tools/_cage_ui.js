@@ -4165,6 +4165,10 @@ window.CAGE_UI = { P, build, draw, applyPreset, syncSliders,
   finishToSpec, finishFromSpec,
   // THE IMAGE PAGES (G190): out as {page: dataURL, aspect} for the save
   // envelope, in from one — the pixels a spec deliberately does not carry
+  // G208: the certification stickers ride the decal list through aeroskin's
+  // AERO_EXTRA_DECALS hook; when a certificate is awarded or withdrawn the
+  // bench asks for the list to be rebuilt, which is this call
+  redecal: () => { try { applyDecals(); draw(); } catch (e) {} },
   decalImages, decalImagesFrom };
 // THE ROWS EXIST NOW, and the game's editor can take them. It runs BEFORE the
 // first build(): the panel it builds is what the build's own applyRowVis pass

@@ -1091,7 +1091,7 @@ function aeroDetailTex(THREE, key) {
 // the two image channels. Every one of these is an unrolled iteration of a
 // texture fetch in the fragment shader, so the array is sized to what the
 // panel can actually turn on and not to a round number.
-const AERO_MAXD = 6;
+const AERO_MAXD = 7;             // G208: +1, the certification stickers' strip
 const AERO_ATLAS_N = 4;              // 4x4 pages
 // 1024 -> 4096 (G207, the user: "the current decals are too low resolution,
 // the pixels are clearly visible"). A page was 256 px, stretched over a
@@ -1786,6 +1786,15 @@ function aeroDecalsFor(THREE, D, opts) {
   if (D.wimOn) list.push({ page: 2, sL: D.wimL, sC: D.wimC, w: D.wimW,
     h: D.wimH, rot: D.wimRot, rough: -0.04,
     on: { wing: 1 }, mode: modeOf(D.wimMode) });
+  // G208: THE CERTIFICATION STICKERS — placements the bench's sticker module
+  // hands over (page 6, one strip of roundels under the cockpit); it draws
+  // its own page and returns nothing while the aeroplane holds no
+  // certificate. Through a window hook so this file knows no bench.
+  try {
+    const X = (typeof window !== 'undefined' && typeof window.AERO_EXTRA_DECALS === 'function')
+            ? window.AERO_EXTRA_DECALS(THREE) : null;
+    if (X) for (const p of X) list.push(p);
+  } catch (e) {}
   return { list, aspect };
 }
 
@@ -1932,7 +1941,7 @@ function aeroFastTex(THREE, gk, G) {
 }
 
 const AERO_PARS_FS = `
-#define AERO_MAXD 6
+#define AERO_MAXD 7
 uniform sampler2D tDetail;
 uniform sampler2D tFast;
 uniform vec4 uG0;   // x framePitch  y stringerPitch  z panelAlong  w panelAround

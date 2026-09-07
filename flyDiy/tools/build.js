@@ -158,7 +158,7 @@ const MANIFEST = {
     // flight layer and the workshop layer each hide the other (editor.css's
     // mode rules) and this one panel opens from BOTH screens. It redeclares
     // the palette it uses for the same reason flight.css does.
-    styles: ['style.css', 'editor.css', 'flight.css', 'controls.css'],
+    styles: ['style.css', 'editor.css', 'flight.css', 'controls.css', 'bench.css'],
     body: 'body.html',
     // the LAST entry fills the APP slot; everything before it fills RENDER
     // hangar.js before app.js: app.js asks whether the room can be built at all
@@ -229,7 +229,10 @@ const MANIFEST = {
     // design_flow.js before editor.js: the tile renderer over the macro-row
     // declaration; editor.js's render() dispatches to window.DESIGN_FLOW
     // (lazily, like REFPLANE) when `Design & construction` is selected.
-              'garage.js', 'workshop.js', 'bench.js', 'refplane.js',
+    // plaque.js and stickers.js before bench.js (G208): the plaque's sheet
+    // (explanations, bounds, hover cards) and the certification roundels;
+    // bench.js and app.js read both through window.PLAQUE / window.STICKERS.
+              'garage.js', 'workshop.js', 'plaque.js', 'stickers.js', 'bench.js', 'refplane.js',
     // balance.js before editor.js (G101): the energy layer's panel draws the
     // weight-and-balance chart through window.BALANCE, and reads it lazily
     // like REFPLANE and DESIGN_FLOW; it needs the core (buildGen, genShakedown,

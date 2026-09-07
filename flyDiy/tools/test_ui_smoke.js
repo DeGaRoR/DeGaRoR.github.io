@@ -303,6 +303,14 @@ try {
   // sandbox, and the model has to live with both absent.
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'input.js'), 'utf8'),
                   sandbox, { filename: 'input.js' });
+  // THE PLAQUE'S SHEET AND THE STICKERS (G208) ride the RENDER block too:
+  // app.js's drawPlaque builds its rows through window.PLAQUE, and the decal
+  // list app.js applies asks window.AERO_EXTRA_DECALS for the certification
+  // strip — so both run from their own source, or the plaque would throw
+  // before its first row.
+  for (const f of ['plaque.js', 'stickers.js'])
+    vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', f), 'utf8'),
+                    sandbox, { filename: f });
   // render_world is not executed; the app only needs its factory's return shape
   sandbox.buildWorldScene = () => ({ worldUpdate() {} });
   vm.runInContext(appBlock, sandbox, { filename: 'app.js' });        // UI (runs setAircraft)

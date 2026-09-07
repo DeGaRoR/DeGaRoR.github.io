@@ -131,6 +131,11 @@ const GATES = [
   // 2026-09-03: what you SAVE is what is on the stand. The shelf's spec was
   // a cache of the editor that only a roll-out refreshed.
   { id: 'SAVE', file: '_save_check.js', tier: 'core' },
+  // G208: the test section explains itself (every plaque row has its
+  // explanation, the band bar stays on the bar), keeps its word (the
+  // fingerprint ignores paint/finish/meta and nothing else) and wears its
+  // stickers (one roundel per test, page 6, the seventh decal slot).
+  { id: 'BENCH', file: '_bench_check.js', tier: 'core' },
   // THE UNDERCARRIAGE (G67.3), and it closes the one gap G67.2 declared: the
   // three leg families as three different drawings — the check GATE GEN lost
   // when the old skin's leg drawer went — plus the wheel turning on its own,

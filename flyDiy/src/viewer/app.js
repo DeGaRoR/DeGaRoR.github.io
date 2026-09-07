@@ -3440,7 +3440,13 @@
   let shakeFor = null, shakeVal = null;
   const shakeOf = () => {
     if (curKey !== 'gen') return null;
-    if (shakeFor !== def) { shakeFor = def; shakeVal = genShakedown(def); }
+    // G208: WITHOUT THE FOUR LOADING CORNERS (the user: "drop the four corner
+    // tests, looking for the CG margin. That one seems to fail a lot, while
+    // the underlying machines fly OK"). Four extra shakedowns per bench check
+    // went with them; the balance chart still draws its own corners, because
+    // a loading sheet is not a test.
+    if (shakeFor !== def) { shakeFor = def; shakeVal = genShakedown(def, { corners: false }); }
+
     return shakeVal;
   };
 
@@ -3508,8 +3514,17 @@
         }
       }
     }
-    if (!fin) return { phase: tf.ap.phase, t: tf.t,
-                       frac: Math.min(1, tf.t / 300) };
+    if (!fin) {
+      // G208: THE FLIGHT IS WATCHED. The bench draws the circuit as it is
+      // flown — the track in plan, height and speed against time — so the
+      // trace rides every poll: the CG, the pilot's own readouts, the pattern
+      // path once it exists, and the field frame the pilot flies in.
+      const cgN = tf.sim.cgPos(), d = tf.ap.dbg || {};
+      return { phase: tf.ap.phase, t: tf.t, frac: Math.min(1, tf.t / 300),
+               pos: [cgN[0], cgN[1], cgN[2]], V: d.V, agl: d.agl, de: d.e,
+               path: tf.ap.path || null, frame: tf.ap.frame || null,
+               notes: (tf.ap.report && tf.ap.report.verdicts) || [] };
+    }
     const rep = tf.ap.report || { verdicts: [], outcome: null, landing: null };
     if (fin.bad) rep.outcome = 'broke-up';
     else if (!rep.outcome) rep.outcome = 'gave-up';
@@ -3567,178 +3582,13 @@
     v.textContent = s.flyableCircuit
       ? 'FLIES A CIRCUIT'
       : 'WILL NOT FLY A CIRCUIT — ' + why.join('; ');
-    // rows: label, value, and a verdict class where the code has a rule
-    const rows = [];
-    const H = t => rows.push('<div class="h">' + t + '</div>');
-    // WHY A ROW IS RED, AND WHAT TO TURN. The user asked for it in these
-    // words: "every failure of the test should come accompanied with
-    // explanations and recommendations. A simple hover over the values should
-    // suffice, with pointers to what parameters to adjust."
-    //
-    // KEYED ON THE ROW'S OWN LABEL, so the pointers live in ONE place rather
-    // than threaded through twenty call sites — and a row that grows a verdict
-    // later gets its explanation simply by naming itself.
-    //
-    // `what` is shown ALWAYS, because a number you do not understand is not
-    // much better for being green. `fix` is appended only when the row is
-    // actually warn or bad: a clean row does not need telling how to recover.
-    // Both name the CONTROLS a builder has rather than the internals — a
-    // pointer to a variable nobody can see is not a recommendation.
-    const WHY = {
-      'best L/D': { what: 'the glide ratio - metres forward per metre down, at '
-           + 'the speed it is best, which is printed with it. Real light '
-           + 'aeroplanes sit at 8-12, an open-frame ultralight nearer 6-8, a '
-           + 'glider 25 and up.',
-        fix: 'on a light aeroplane this is PARASITE drag first: cover the '
-           + 'fuselage, put spats on the wheels, fair the legs and the struts. '
-           + 'Span and a narrower chord help after that. Exposed engines, '
-           + 'radiators and an open truss are what an ultralight pays for.' },
-      'L/D at cruise': { what: 'lift over drag at the cruise speed the power '
-           + 'curve sets (65% of the thrust available). More power buys a '
-           + 'faster cruise, and a faster cruise sits further from the best '
-           + 'glide - so this number FALLS when you add an engine, and the '
-           + 'wing barely moves it.' },
-      'climb': { what: 'best rate of climb at sea level, at full power.',
-        fix: 'this is power against weight: a bigger engine, a coarser propeller, '
-           + 'less structure, or more wing area. Check the empty weight first - '
-           + 'covering and fittings add up faster than they look.' },
-      'take-off run': { what: 'ground roll plus the climb to the 15 m screen.',
-        fix: 'more power or less weight shortens it; so does more wing area and a '
-           + 'flap that actually lifts (a plain flap does little). A fine-pitch '
-           + 'propeller helps here and costs you cruise speed.' },
-      'take-off there': { what: 'the same run at the hot-and-high field.',
-        fix: 'thin air takes power and lift together. A normally aspirated engine '
-           + 'loses roughly 3% per 300 m of density altitude, so the levers are '
-           + 'installed power and weight, in that order.' },
-      'climb there': { what: 'rate of climb at the hot-and-high field.',
-        fix: 'the same lever as climb but less forgiving - at density altitude '
-           + 'the margin is small, so weight comes off before power goes on.' },
-      'power there': { what: 'the fraction of sea-level power the engine still makes.',
-        fix: 'a normally aspirated engine cannot avoid this. A turbocharged or an '
-           + 'electric powerplant holds its output far better with height, and a '
-           + 'flat-rated turbine keeps its full rating to a density altitude.' },
-      'service ceiling': { what: 'the height at which climb falls to 0.5 m/s.',
-        fix: 'power against weight again, and wing area. A low ceiling and a poor '
-           + 'climb are the same problem read twice.' },
-      'static margin': { what: 'how far the centre of gravity sits ahead of the '
-           + 'neutral point, as a fraction of the mean chord, AT THE WORST OF '
-           + 'THE FOUR LOADING CORNERS (solo and full cabin, full fuel and '
-           + 'reserves). Positive means the aeroplane returns to trim by itself '
-           + 'however you load it; the fleet sits near 0.20.',
-        fix: 'move mass FORWARD (the engine, the tanks, the seats) or move the '
-           + 'wing AFT. A longer tail arm carries the neutral point back and '
-           + 'helps both. Negative is unflyable, not merely twitchy.' },
-      'as loaded': { what: 'the CG of the aeroplane exactly as it stands — the '
-           + 'dummies you have switched on, the fuel you specified — as a '
-           + 'fraction of the mean chord behind the leading edge, and its own '
-           + 'margin.' },
-      'forward corner': { what: 'the loading that puts the CG furthest forward, '
-           + 'and where. A published CG range for a real aeroplane is this '
-           + 'corner to the aft one.' },
-      'aft corner': { what: 'the loading that puts the CG furthest aft. This is '
-           + 'the corner the static margin is judged at.',
-        fix: 'the aft seat and the tail-end fuel are what move it. Bring the '
-           + 'seats forward, or the wing aft, or carry the fuel nearer the '
-           + 'wing.' },
-      'weathervane': { what: 'directional stiffness (Cn_beta) - how hard the '
-           + 'aeroplane points itself back into the airflow. The Cub reads 0.11.',
-        fix: 'fin AREA and fin HEIGHT both move it, and so does a longer tail '
-           + 'arm. Under 0.03 it wanders; negative and it swaps ends.' },
-      'stands on': { what: 'what the aeroplane is actually resting on, measured '
-           + 'rather than assumed.',
-        fix: 'if it is not on its wheels the undercarriage geometry is wrong - '
-           + 'leg length, rake, and where the mains sit relative to the CG.' },
-      'prop clear': { what: 'propeller tip to the ground in the resting attitude.',
-        fix: 'longer undercarriage legs, a smaller propeller disc, or raise the '
-           + 'thrust line. Under 0.05 m it strikes on any soft field.' },
-      'nose-over': { what: 'the angle from the mains to the CG - how hard you can '
-           + 'brake before it goes on its nose.',
-        fix: 'move the main wheels FORWARD, or the CG aft. Under 15 degrees is a '
-           + 'taildragger that will not forgive a firm brake.' },
-      'gear': { what: 'the undercarriage as built.',
-        fix: 'FOLDED means it collapsed under its own weight - the legs are too '
-           + 'soft, or the aeroplane is too heavy for them.' },
-      'outcome': { what: 'whether the test pilot completed the circuit.',
-        fix: 'read the pilot notes below - the circuit stopped somewhere, and the '
-           + 'phase it stopped in names the problem.' },
-      'landing run': { what: 'roll from touchdown to a stop.',
-        fix: 'a lower stall speed is almost the whole of it - more wing area, or '
-           + 'a flap that lifts. The approach speed follows the stall.' },
-      'touchdown': { what: 'sink rate and speed at the moment the wheels arrive.',
-        fix: 'a firm arrival is usually approach speed or the flare. More wing '
-           + 'area lowers both; softer gear absorbs what is left.' },
-      'past the aim': { what: 'how far beyond the aiming point it touched down.',
-        fix: 'floating means too much speed on the approach for the drag '
-           + 'available; a flap that adds drag as well as lift settles it.' },
-      'crosswind limit': { what: 'the strongest crosswind in which the test '
-           + 'pilot keeps the take-off roll between the strip\'s edge lines; the '
-           + 'heading as the wheels leave is shown beside it.',
-        fix: 'a taildragger with its CG far behind the mains swings harder, and '
-           + 'a high thrust line lifts the tail before the rudder has the air to '
-           + 'hold it: mains further aft, a bigger fin, or a lower thrust line. '
-           + 'No pilot gain moves this number (HANDOVER G193.1).' },
-      'held': { what: 'what the pilot actually flew on the cruise leg, against '
-           + 'what the test card asked for.',
-        fix: 'the aeroplane could not hold the ask. Speed short is drag or power; '
-           + 'height short is climb.' },
-      'pilot notes': { what: 'bounded verdicts the test pilot recorded in flight.',
-        fix: 'each code names one thing it did not like - the newest is shown.' },
-    };
-    const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;')
-                              .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    // EVERY NUMBER SAYS WHAT IT IS JUDGED AGAINST (G179.4, the user: "all
-    // numbers should give their acceptable bounds. I don't know what I'm
-    // working against"). ONE table: the verdict colour and the printed bound
-    // both read it, so they cannot disagree, and a row with no entry is
-    // information, not a judgement. `lo`/`hi` are the ok band's edges (warn
-    // past them, or bad when `badAtLo` says the band's edge is the red one);
-    // `badLo`/`badHi` the red edges; `text` is what the row prints.
-    const BOUNDS = {
-      'best L/D':        { lo: 6, text: '\u2265 6' },
-      'climb':           { lo: 0.5, badAtLo: true, text: '\u2265 0.5 m/s' },
-      'take-off run':    { hi: 500, badHi: 1100, text: '\u2264 500 m' },
-      'take-off there':  { hi: 500, badHi: 1100, text: '\u2264 500 m' },
-      'climb there':     { lo: 0.3, badAtLo: true, text: '\u2265 0.3 m/s' },
-      'power there':     { lo: 75, text: '\u2265 75%' },
-      'service ceiling': { lo: 500, text: '\u2265 500 m' },
-      'as loaded':       { text: 'margin \u2265 0.05' },
-      'static margin':   { lo: 0.05, badLo: 0, text: '\u2265 0.05' },
-      'weathervane':     { lo: 0.03, badLo: 0, text: '\u2265 0.03' },
-      'prop clear':      { lo: 0.12, badLo: 0.05, text: '\u2265 0.12 m' },
-      'nose-over':       { lo: 15, text: '\u2265 15\u00b0' },
-      'power nose-over': { hi: 0.75, badHi: 1, text: '< 0.75' },
-      'crosswind limit': { lo: 4, badLo: 2, text: '\u2265 4 m/s' },
-    };
-    const judge = (label, v) => {
-      const b = BOUNDS[label];
-      if (!b || v == null || !isFinite(v)) return '';
-      if (b.badLo != null && v < b.badLo) return 'bad';
-      if (b.badHi != null && v > b.badHi) return 'bad';
-      if (b.lo != null && v < b.lo) return b.badAtLo ? 'bad' : 'warn';
-      if (b.hi != null && v > b.hi) return 'warn';
-      return '';
-    };
-    const R = (label, val, cls, why) => {
-      const w = why !== undefined ? why : WHY[label];
-      const bnd = BOUNDS[label];
-      let t = '';
-      if (w) t = typeof w === 'string' ? w
-              : (w.what || '') + (cls && w.fix ? ' \u2014 ' + w.fix : '');
-      if (bnd) t += (t ? ' \u00b7 ' : '') + 'judged against ' + bnd.text;
-      if (bnd) val = val + ' <i>' + bnd.text + '</i>';
-      // A ROW THAT DOES NOT FIT HALF THE PLATE TAKES THE WHOLE PLATE
-      // (2026-09-03, the user: "the formatting of the plaque is
-      // unacceptable"). The sheet is a two-column grid and a value cell could
-      // not shrink, so '14.5 kg/h (20 L/h)' or 'coarse (cruise)' pushed its
-      // column past the panel edge and the clip took the number with it --
-      // '97 kr', '218', '5.2' -- and the burn-off line ran across its
-      // neighbour. The threshold is the widest value the half-width holds at
-      // this type size; anything past it spans, and its value may wrap.
-      const wide = String(val).length > 11 || String(label).length > 15;
-      rows.push('<div class="r' + (cls ? ' ' + cls : '') + (wide ? ' wide' : '') +
-        '"' + (t ? ' title="' + esc(t) + '"' : '') +
-        '><span>' + label + '</span><b>' + val + '</b></div>');
-    };
+    // THE SHEET IS plaque.js's (G208, the user: "there are titles cut with
+    // no tooltip, I have no idea what they mean"). The explanations, the
+    // bounds, the hover cards and the band bars live there; this function
+    // only says which numbers go under which heading. `judge` reads the same
+    // table the printed bound and the bar read, so they cannot disagree.
+    const PQ = window.PLAQUE.sheet();
+    const H = PQ.H, R = PQ.R, judge = PQ.judge;
     H('weights');
     R('empty', n1(s.empty, 0) + ' kg');
     R('payload', n1(s.payload, 0) + ' kg');
@@ -3783,10 +3633,9 @@
       R('outcome', rep.outcome || '—',
         rep.outcome === 'completed' ? '' : 'bad');
       if (L) {
-        R('landing run', n1(L.run, 0) + ' m',
-          (L.run || 0) > 500 ? 'warn' : '');
+        R('landing run', n1(L.run, 0) + ' m', judge('landing run', L.run || 0));
         R('touchdown', n1(L.sink, 2) + ' m/s · ' + n1(L.V * 3.6, 0) + ' km/h',
-          (L.sink || 0) > 1.8 ? 'warn' : '');
+          judge('touchdown', L.sink || 0));
         R('past the aim', n1(L.pastAim, 0) + ' m',
           Math.abs(L.pastAim || 0) > 150 ? 'warn' : '');
       }
@@ -3816,6 +3665,13 @@
                       cd.VFlown != null ? n1(cd.VFlown * 3.6, 0) + ' km/h' : null]
           .filter(Boolean).join(' · ');
         R('held', flew || '— never settled on the leg', short || !flew ? 'warn' : '');
+        // G208: the elevator the pilot held on the settled leg, as the trim
+        // clicks the hand would set (input.js TRIM_STEP 0.02 per click)
+      }
+      if (rep.trimDe != null && isFinite(rep.trimDe)) {
+        const k = Math.round(rep.trimDe / 0.02);
+        R('trim flown', k === 0 ? 'neutral'
+          : Math.abs(k) + (Math.abs(k) === 1 ? ' click ' : ' clicks ') + (k > 0 ? 'nose up' : 'nose down'));
       }
       if (rep.verdicts.length)
         R('pilot notes', rep.verdicts.length + ' — ' +
@@ -3841,24 +3697,17 @@
     H('balance');
     R('CG', n1(s.cgX, 2) + ' m');
     R('neutral pt', n1(s.npX, 2) + ' m');
-    // THE CG ENVELOPE (2026-09-03): the four loading corners, the margin at
-    // the worst of them. The as-drawn number is still shown, named for what
-    // it is, so a builder can see which corner they happen to be sitting in.
-    const E = s.envelope;
-    const pc = v => v == null ? '\u2014' : n1(v * 100, 0) + '% MAC';
+    // THE MARGIN AS LOADED (G208). The four loading corners and the margin at
+    // the worst of them left the plaque with the corner tests: the aeroplane
+    // is judged as it stands — the crew switched on, the fuel specified — and
+    // its CG is quoted the way a weight-and-balance sheet quotes it, in % MAC
+    // behind the leading edge, when the wing gives a datum. The fleet's own
+    // band: the Cub measures 0.22, the stock build 0.20. Under 0.05 is
+    // twitchy; negative is unflyable.
     const smCls = v => judge('static margin', v || 0);
-    if (E && E.aft && E.fwd) {
-      R('as loaded', pc(E.cgPct) + ' \u00b7 margin ' + n1(s.staticMargin, 2),
-        smCls(s.staticMargin));
-      R('forward corner', E.fwd.label + ' \u00b7 ' + pc(E.fwd.cgPct));
-      R('aft corner', E.aft.label + ' \u00b7 ' + pc(E.aft.cgPct));
-      R('static margin', n1(E.staticMarginAft, 2) + ' \u00b7 ' + E.worst.label,
-        smCls(E.staticMarginAft));
-    } else {
-      // the fleet's own band: the Cub measures 0.22, the stock build 0.20.
-      // Under 0.05 is twitchy; negative is unflyable.
-      R('static margin', n1(s.staticMargin, 2), smCls(s.staticMargin));
-    }
+    R('static margin', n1(s.staticMargin, 2), smCls(s.staticMargin));
+    if (s.cBar > 0 && typeof s.xLEmac === 'number' && isFinite(s.xLEmac))
+      R('CG as loaded', n1((s.cgX - s.xLEmac) / s.cBar * 100, 0) + '% MAC');
     // G115: the directional half, at last — the fin was the one surface with
     // no readout. Measured Cn_beta (weathervane stiffness): the stock build
     // reads 0.08, the Cub family 0.11; under 0.03 is a wanderer, negative
@@ -3875,9 +3724,8 @@
       R('stall', n1(s.reserve.Vs * 3.6, 0) + ' km/h');
       // the margin at reserves is one of the envelope's corners now and is
       // judged there; this sheet keeps the numbers that are only about fuel
-      if (!(E && E.aft))
-        R('static margin', n1(s.reserve.staticMargin, 2),
-          smCls(s.reserve.staticMargin));
+      R('static margin', n1(s.reserve.staticMargin, 2),
+        smCls(s.reserve.staticMargin));
       R('climb', n1(s.reserve.climbRate, 2) + ' m/s');
     }
     H('on the ground');
@@ -3890,7 +3738,9 @@
     if (s.energyKind) {
       H(s.energyKind === 'battery' ? 'the pack' : 'fuel and tank');
       R(s.energyKind === 'battery' ? 'cells' : 'fuel', s.energyMedium);
-      R(s.vesselName, n1(s.vesselKg, 1) + ' kg');
+      // the vessel row's label is the vessel's own name (G208: it hands its
+      // explanation over, like the bay rows below)
+      R(s.vesselName, n1(s.vesselKg, 1) + ' kg', '', window.PLAQUE.WHY_VESSEL);
       R(s.energyKind === 'battery' ? 'cell mass' : 'fuel aboard',
         n1(s.energyKg, 1) + ' kg' +
         (s.energyKind === 'battery' ? ' · empty weight' : ' · payload, and it burns off'));
@@ -3906,10 +3756,7 @@
           v.fits ? (v.fill > 0.85 ? 'warn' : '') : 'bad',
           // a bay row's label is the BAY's own name, so it cannot be keyed by
           // label like the rest - it hands its explanation over directly.
-          { what: 'what this vessel holds, against the room the bay actually has.',
-            fix: 'move it to a larger bay, split it across two, or ask for less '
-               + 'capacity. A wing bay grows with span and chord; a body bay '
-               + 'grows with the cabin length and the fuselage section.' });
+          window.PLAQUE.WHY_BAY);
     }
     if (s.propPitch)
       R('propeller pitch',
@@ -3924,7 +3771,11 @@
         (s.groundThrCap < 1 ? ' · pilots hold ' + n1(s.groundThrCap * 100, 0) + '% until the tail is up' : ''),
         judge('power nose-over', s.powerOver));
     if (s.gearFolded) R('gear', 'FOLDED', 'bad');
-    $('pqRows').innerHTML = rows.join('');
+    PQ.mount($('pqRows'));
+    if (PQ.missing.length && !drawPlaque.saidMissing) {
+      drawPlaque.saidMissing = true;
+      console.warn('plaque rows without an explanation:', PQ.missing.join(', '));
+    }
     $('pqNote').textContent = s.engineName + ' · ' + n1(s.hp, 0) + ' hp · ' +
       s.propName + ' · ' + s.gearType +
       (s.gearFairing ? ' (' + s.gearFairing + ')' : '') + ' · ' + s.bracing +
@@ -4409,6 +4260,15 @@
     // G200: who flies is remembered; the hand starts from the reset ctl
     manual = !!INP && prefGet('flydiy.flManual', '0') === '1';
     if (INP) INP.seed(sim.ctl);
+    // G208: THE ADVISED TRIM. The bench's certificate can carry the trim the
+    // test pilot held on the cruise leg, and the builder can accept it as the
+    // roll-out default; the hand then starts from it instead of from the
+    // reset ctl's zero. Only for the garage's own aeroplane.
+    if (INP && INP.setTrim && curKey === 'gen'
+        && typeof window.BENCH_STATE === 'function') {
+      const st = window.BENCH_STATE();
+      if (st && st.trim != null && isFinite(st.trim)) INP.setTrim(st.trim);
+    }
     airborneSeen = wasAir = false; stillT = 0;
     $('bPause').textContent = 'Pause'; $('bPause').classList.remove('on');
     telClear(); telLast = null; telHover = -1;

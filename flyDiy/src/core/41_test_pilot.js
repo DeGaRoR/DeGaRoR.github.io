@@ -208,10 +208,14 @@ function makeTestPilot(sim, def, world) {
   // capable aeroplane asked for real altitude is given the time to earn it
   // instead of a 'gave-up'. Call before the first update.
   let cardAcc = null;                    // { n, alt, V, saidV } while flying
+  // G208: THE TRIM ACCUMULATOR rides beside the card and does not need one —
+  // the elevator held on the settled cruise leg is the trim advisor's number,
+  // and a standard circuit (blank card) is where most builds first fly.
+  let trimAcc = { n: 0, de: 0 };
   ap.setCard = (card) => {
     if (!card || (!isFinite(card.alt) && !isFinite(card.V))) return;
     const c = { alt: null, V: null, altCmd: null, VCmd: null,
-                altFlown: null, VFlown: null };
+                altFlown: null, VFlown: null, deFlown: null };
     // THE ASK GOES ON THE REPORT AS IT WAS ASKED (G159). It used to be the
     // CLAMPED value that was recorded, which reads as the pilot having been
     // asked for something it was always going to do — and the clamp then has
@@ -249,7 +253,7 @@ function makeTestPilot(sim, def, world) {
       ap.VCruise = c.VCmd;
     }
     ap.report.card = c;
-    cardAcc = { n: 0, alt: 0, V: 0, saidV: false };
+    cardAcc = { n: 0, alt: 0, V: 0, de: 0, saidV: false };
   };
 
   ap.update = (dt) => {
@@ -735,6 +739,12 @@ function makeTestPilot(sim, def, world) {
         // means of height and speed, and a said-once verdict when full
         // throttle cannot hold the asked speed. The accumulators live in the
         // closure; only the flown numbers reach the report.
+        if (phaseT > 8) {
+          // G208: the elevator held on the settled leg (the slewed command,
+          // which is what a hand would hold), published as `report.trimDe`
+          trimAcc.n += dt; trimAcc.de += aDe * dt;
+          ap.report.trimDe = Math.round(trimAcc.de / trimAcc.n * 1000) / 1000;
+        }
         if (cardAcc && phaseT > 8) {
           cardAcc.n += dt;
           cardAcc.alt += (cg[1] - ap.altRef) * dt;
