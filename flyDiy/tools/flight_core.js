@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 89469fd04a034683
+// body-sha256: e1adcaf63d2eb86d
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -8807,9 +8807,9 @@ const GEN_SURF_MATERIALS = {
   // wing's k (a judgement, not a measurement), the damping in proportion.
   fabric: { name: 'wood + fabric', phys: GEN_MATERIALS.wood.phys,
             lin: GEN_MATERIALS.wood.lin,
-            k: { fus: GEN_MATERIALS.wood.k.fus, wing: 2.1e6,
+            k: { fus: GEN_MATERIALS.wood.k.fus, wing: 1.0e6,
                  gear: GEN_MATERIALS.wood.k.gear },
-            c: { fus: GEN_MATERIALS.wood.c.fus, wing: 980,
+            c: { fus: GEN_MATERIALS.wood.c.fus, wing: 700,
                  gear: GEN_MATERIALS.wood.c.gear },
             cover: 0.80, price: 50, cd0: 0.0022, clmaxK: 1.00, shop: 'wood' },
   steel:  { name: 'steel tube + fabric', phys: GEN_MATERIALS.tubeFabric.phys,

@@ -257,13 +257,16 @@ const GEN_MATERIALS = {
 const GEN_SURF_MATERIALS = {
   // ...and it FLEXES MORE than a ply-covered one: the ply skin of the wood
   // row's wing is a stressed shell and most of its torsional and a share of
-  // its bending stiffness; fabric carries neither. Two thirds of the ply
-  // wing's k (a judgement, not a measurement), the damping in proportion.
+  // its bending stiffness; fabric carries neither. A THIRD of the ply
+  // wing's k, twice the tube wing's (G213.1: 2/3 put the stock aeroplane at
+  // 92 integrator substeps against GATE MOUNT's 80; a third holds 64 — the
+  // integrator's budget set the number where no measurement could), the
+  // damping in proportion.
   fabric: { name: 'wood + fabric', phys: GEN_MATERIALS.wood.phys,
             lin: GEN_MATERIALS.wood.lin,
-            k: { fus: GEN_MATERIALS.wood.k.fus, wing: 2.1e6,
+            k: { fus: GEN_MATERIALS.wood.k.fus, wing: 1.0e6,
                  gear: GEN_MATERIALS.wood.k.gear },
-            c: { fus: GEN_MATERIALS.wood.c.fus, wing: 980,
+            c: { fus: GEN_MATERIALS.wood.c.fus, wing: 700,
                  gear: GEN_MATERIALS.wood.c.gear },
             cover: 0.80, price: 50, cd0: 0.0022, clmaxK: 1.00, shop: 'wood' },
   steel:  { name: 'steel tube + fabric', phys: GEN_MATERIALS.tubeFabric.phys,

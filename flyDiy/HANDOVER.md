@@ -34153,3 +34153,22 @@ WHAT LANDED:
   roughness breaks up the same way.
 - The dial crosses the join (`metalK`) and the spec (`metal`) like the
   other dials; the resolver walks it down the parent chain.
+
+## G213.1 — THE FABRIC WING'S STIFFNESS, SET BY THE INTEGRATOR'S OWN BUDGET
+## (2026-09-07)
+
+- The full battery after G214 found two gates G213's subset had not run:
+  **GATE MOUNT** (stock nose 92 substeps against SUBSTEP_MAX 80) and **GATE
+  ENERGYBASE** (the frozen masses, positions and ledger moved). The first is
+  the fabric row's `k.wing`: 2.1e6 was two thirds of the PLY wing's and
+  four times the tube wing's 5.0e5 that the stock aeroplane had, and the
+  substep count follows the stiffest spring. Measured: 1.0e6 (a third of
+  the ply wing's, twice the tube's — a spruce spar under fabric, which is
+  plausible for what a stressed ply skin adds) holds 64 substeps; `c.wing`
+  700 in proportion.
+- ENERGYBASE is re-blessed: a deliberate change to what the aeroplane
+  weighs, which its header names as the case (stock 461 -> 454 kg, the
+  tricycle 449.9 -> 457.2 with its own tail).
+- RULE, learned twice today (WINGSPLIT, then this): a mass-model change
+  must run the WHOLE core battery, not the subset that seems affected —
+  three gates freeze mass-dependent numbers.
