@@ -364,7 +364,11 @@ if (BG) {
     if (f) {
       check(f.pitch >= 0.015 && f.pitch <= 0.12,
         `${k}: fastener pitch ${f.pitch} m`);
-      check(f.dia >= 0.001 && f.dia <= 0.008,
+      // 10 mm, not 8 (G217): the ceiling was set with rivets and gimp pins
+      // in mind, and a ply skin is SCREWED to its frame as well as pinned —
+      // a #12 wood screw's head is 9.9 mm across, which is what the user
+      // dialled the wooden row to when they made its fasteners read.
+      check(f.dia >= 0.001 && f.dia <= 0.010,
         `${k}: fastener diameter ${f.dia} m`);
       // HEADS MUST NOT TOUCH. dia >= pitch means the row is a continuous
       // ridge, which is not a row of rivets and reads as a weld bead.
@@ -1194,7 +1198,8 @@ if (process.argv.includes('--selftest')) {
     // and the FLIGHT side must read what the join wrote: every key the
     // material record can carry has to be named in app.js's rebuild
     for (const k of ['fin', 'grm', 'surf', 'wing', 'tileK', 'roughK', 'nrmK',
-                     'ccK', 'fieldK', 'metalK', 'memF', 'inside', 'noDec',
+                     'ccK', 'fieldK', 'fieldLK', 'metalK', 'memF', 'inside',
+                     'noDec',
                      'ribM', 'wearK', 'wearM', 'fieldM', 'boxDet', 'detRot'])
       check(APPJ.indexOf('m.' + k) >= 0,
         'the flown aeroplane never reads a material fact the join carries', k);

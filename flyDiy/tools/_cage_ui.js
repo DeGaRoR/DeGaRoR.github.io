@@ -368,6 +368,8 @@ const secTile = {}, secRough = {}, secNrm = {};
 const secCc = {}, secField = {};
 // G215: the metal flake in the paint, 0..1
 const secMetal = {};
+// G217: the field's wavelength, x the finish row's own (the cowl's dial)
+const secFieldL = {};
 // THE PART'S OWN CONDITION (G114, answering G70's "no per-part condition"):
 // a multiplier on the material's ageing rate, walked down the chains like
 // the dials — the one dial still sets the aeroplane, this says how much of
@@ -391,6 +393,7 @@ function aeroLoadPrefs() {
     Object.assign(secCc, j.cc || {});
     Object.assign(secField, j.field || {});
     Object.assign(secMetal, j.metal || {});
+    Object.assign(secFieldL, j.fieldL || {});
     Object.assign(WEAR, j.wear || {});
     aeroLoadGlass(j);
   } catch (e) {}
@@ -413,6 +416,7 @@ function aeroSavePrefs() {
     j.tile = secTile; j.rough = secRough; j.nrm = secNrm;
     j.wearM = secWear; j.glass = GLASS;
     j.cc = secCc; j.field = secField; j.metal = secMetal;
+    j.fieldL = secFieldL;
     localStorage.setItem(AERO_PREF, JSON.stringify(j));
   } catch (e) {}
 }
@@ -715,7 +719,7 @@ const matOf = name => {
                 ':' + (secTile[name] || 1) + ':' + (secRough[name] || 1) +
                 ':' + (secNrm[name] || 1) + ':' + (secWear[name] || 1) +
                 ':' + (secCc[name] || 1) + ':' + (secField[name] || 1) +
-                ':' + (secMetal[name] || 0) +
+                ':' + (secMetal[name] || 0) + ':' + (secFieldL[name] || 1) +
                 ':' + (WEAR.amount || 0) + ':' + String(memFOf()) +
                 // THE GLAZING DIALS JOIN THE KEY (2026-08-31, the user:
                 // "none of the sliders do anything"). aeroGlass's own pool
@@ -753,6 +757,7 @@ const matOf = name => {
         tileK: secTile[name], roughK: secRough[name], nrmK: secNrm[name],
         ccK: secCc[name], fieldK: secField[name],
         metalK: secMetal[name],                       // G215
+        fieldLK: secFieldL[name],                     // G217
         wearM: secWear[name],
         // G206.1: liners, frames, the dash and the fireproof sheet are in the
         // cabin; the exterior skin's back face is, by the factory's own rule
@@ -809,7 +814,8 @@ const SEC_CTX = {};                     // section -> the g it last drew with
 let SEC_EPOCH = 0;
 const SEC_OVER = { fin: secFin, tint: secTint, tile: secTile,
                    rough: secRough, nrm: secNrm, wear: secWear,
-                   cc: secCc, field: secField, metal: secMetal };
+                   cc: secCc, field: secField, metal: secMetal,
+                   fieldL: secFieldL };
 function secMat(name, g) {
   if (!aeroOn()) return null;
   const A = AK();
@@ -856,6 +862,7 @@ function secMat(name, g) {
     roughK: r.roughK, nrmK: r.nrmK, wearM: r.wearM,
     ccK: r.ccK, fieldK: r.fieldK,                    // G206
     metalK: r.metalK,                                // G215
+    fieldLK: r.fieldLK,                              // G217
     // G206.1: the crew layer's sections (the seats, the dummies) sit inside
     inside: (A.AERO_SEC[name] && A.AERO_SEC[name].layer === 'crew') ? 1 : 0,
     // G207: the flying surfaces, the cowl and the spats take a marking; the
@@ -882,7 +889,8 @@ const secResolveAuto = name => {
   delete fin2[name];
   return A.aeroSecResolve(name,
     { fin: fin2, tint: secTint, tile: secTile, rough: secRough, nrm: secNrm,
-      wear: secWear, cc: secCc, field: secField, metal: secMetal },
+      wear: secWear, cc: secCc, field: secField, metal: secMetal,
+      fieldL: secFieldL },
     { cons: g.cons || consOf(), fin: g.fin });
 };
 if (typeof window !== 'undefined') window.CAGE_SECMAT = secMat;
@@ -2829,7 +2837,8 @@ function finishToSpec() {
   const names = new Set([].concat(
     Object.keys(secFin), Object.keys(secTint), Object.keys(secTile),
     Object.keys(secRough), Object.keys(secNrm), Object.keys(secWear),
-    Object.keys(secCc), Object.keys(secField), Object.keys(secMetal)));
+    Object.keys(secCc), Object.keys(secField), Object.keys(secMetal),
+    Object.keys(secFieldL)));
   for (const nm of names) {
     const o = {};
     if (secFin[nm]) o.fin = secFin[nm];
@@ -2841,6 +2850,7 @@ function finishToSpec() {
     if (secCc[nm] != null) o.cc = secCc[nm];
     if (secField[nm] != null) o.field = secField[nm];
     if (secMetal[nm] != null) o.metal = secMetal[nm];
+    if (secFieldL[nm] != null) o.fieldL = secFieldL[nm];
     if (Object.keys(o).length) { sections[nm] = o; n++; }
   }
   // THE GLAZING, deviations only — the same rule the sections and the decals
@@ -2869,7 +2879,7 @@ function finishToSpec() {
 function finishFromSpec(f) {
   decKitDefaults();
   for (const m of [secFin, secTint, secTile, secRough, secNrm, secWear,
-                   secCc, secField, secMetal])
+                   secCc, secField, secMetal, secFieldL])
     for (const k in m) delete m[k];
   // AND THE REGISTRATION IS CLEARED WITH THE REST (G160). This used to carry
   // DEC.reg across a load, on the reasoning that it belonged to meta.reg and
@@ -2895,6 +2905,7 @@ function finishFromSpec(f) {
       if (typeof r.cc === 'number') secCc[nm] = r.cc;
       if (typeof r.field === 'number') secField[nm] = r.field;
       if (typeof r.metal === 'number') secMetal[nm] = r.metal;
+      if (typeof r.fieldL === 'number') secFieldL[nm] = r.fieldL;
     }
     if (typeof o.wear === 'number') WEAR.amount = Math.max(0, Math.min(1, o.wear));
     if (o.decals && typeof o.decals === 'object')
@@ -3216,11 +3227,17 @@ function labRender(box) {
     b.style.cssText = 'font:inherit;font-size:10px;padding:1px 6px;';
     b.onclick = on; return b;
   };
-  const head = row('table', 'which table this bench is over');
-  head.appendChild(sel([['finish', 'finish rows'],
-                        ['grammar', 'construction rows'],
-                        ['gain', 'display gains'],
-                        ['glass', 'glazing base']],
+  // WHAT THESE TWO SELECTS ARE (G217, the user: "there is no effect on
+  // changing the finish in 'finish rows' and 'construction rows', and I also
+  // don't understand the terminology"). They PICK WHICH ROW THE SLIDERS
+  // BELOW EDIT. Changing them is meant to have no effect on the aeroplane —
+  // the aeroplane's own finish is the dropdown on each section further down
+  // this panel. Said in the labels now rather than in a comment nobody sees.
+  const head = row('editing', 'which of the tables these sliders are over');
+  head.appendChild(sel([['finish', 'a MATERIAL (what a surface is made of)'],
+                        ['grammar', 'a CONSTRUCTION (how its structure shows)'],
+                        ['gain', 'the display gains (how much is exaggerated)'],
+                        ['glass', 'the glazing itself']],
                        LAB.kind, v => { LAB.kind = v; labRender(box); }));
   let fields, get, set, key = null;
   const fmt = v => v == null ? '-'
@@ -3229,8 +3246,10 @@ function labRender(box) {
   if (LAB.kind === 'finish') {
     const keys = Object.keys(A.AERO_FINISH);
     if (!A.AERO_FINISH[LAB.key]) LAB.key = keys[0];
-    const kr = row('finish', 'the row being edited (* = deviates; ' +
-                   '\u2022 = on this aeroplane)');
+    const kr = row('  material', 'WHICH material the sliders below edit — ' +
+                   'picking one here does not change what the aeroplane is ' +
+                   'made of (that is the finish dropdown on each section ' +
+                   'below). * = edited, \u2022 = worn by this aeroplane');
     kr.appendChild(sel(keys.map(k => [k, A.AERO_FINISH[k].name +
                                           (used.fins.has(k) ? ' \u2022' : '') +
                                           (A.AERO_LAB.finish[k] ? ' *' : '')]),
@@ -3243,8 +3262,10 @@ function labRender(box) {
     const keys = Object.keys(D);
     if (!keys.length) { row('(the core is not loaded)', ''); return; }
     if (!D[LAB.gkey]) LAB.gkey = keys[0];
-    const kr = row('construction', 'the construction row (* = deviates; ' +
-                   '\u2022 = this build)');
+    const kr = row('  construction', 'WHICH construction the sliders below ' +
+                   'edit — picking one here does not change what the ' +
+                   'aeroplane is built of (that is Design & construction). ' +
+                   '* = edited, \u2022 = this build');
     kr.appendChild(sel(keys.map(k => [k, (D[k].name || k) +
                                          (used.grms.has(k) ? ' \u2022' : '') +
                                          (A.AERO_LAB.grammar[k] ? ' *' : '')]),
@@ -4035,7 +4056,7 @@ function buildMatPanel() {
       delete secTint[nm]; delete secFin[nm];
       delete secTile[nm]; delete secRough[nm]; delete secNrm[nm];
       delete secWear[nm]; delete secCc[nm]; delete secField[nm];
-      delete secMetal[nm];
+      delete secMetal[nm]; delete secFieldL[nm];
       aeroSavePrefs(); build();
     };
     // G215: METALLIC, and it is not a multiplier — 0 is plain paint, 1 is
@@ -4072,6 +4093,7 @@ function buildMatPanel() {
                                        // of the finish's own numbers
                                        ['sheen', secCc, 'sheen x'],
                                        ['field', secField, 'field x'],
+                                       ['fieldL', secFieldL, 'field length x'],
                                        // the part's own CONDITION (G114):
                                        // multiplies how much of the
                                        // aeroplane's one wear dial this

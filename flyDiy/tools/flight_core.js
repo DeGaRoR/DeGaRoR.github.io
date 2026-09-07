@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: f92cbca1056ada82
+// body-sha256: bc15469e39acba9c
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -8939,24 +8939,33 @@ const GEN_BUILD_GRAMMAR = {
   // Filled from tubeFabric's row below the table.
   fabric: null,
   steel: null,
+  // THE USER'S OWN, off the lab (G217): wider bays, a wider and FLAT tape
+  // (the members do not telegraph at all through a varnished ply skin), no
+  // sag, and the look carried by a shallow per-bay dish and a proud pinned
+  // fastener. The numbers are theirs; the reasons in the lines below are the
+  // ones the table was built on and still hold.
   wood: {
     name: 'spruce + ply',
-    framePitch: 0.38,
-    stringerPitch: 0.22,
-    panelAlong: 2.0,         // a ply sheet is 1220 x 2440 and scarfs at a frame
-    panelAround: 0.85,       // and will not wrap much past this
-    tape: { w: 0.020, rise: 0.00012 },   // the frame under the skin, barely
+    framePitch: 0.555,
+    stringerPitch: 0.330,
+    panelAlong: 1.88,        // a ply sheet is 1220 x 2440 and scarfs at a frame
+    panelAround: 0.86,       // and will not wrap much past this
+    tape: { w: 0.044, rise: 0 },         // the frame under the skin: nothing
     // A STRESSED PLY SKIN IS FLAT (G206): glued to every longeron and frame,
     // it neither sags nor dishes between them at 0.22 m — a Jodel's flank is
     // dead flat with the members ghosting through and a scarf or two. The
     // 0.3 mm dish per cell, quadrupled by the old single gain, was a quilt.
     sag: { frac: 0, exp: 2.0 },
-    dish: 0,
-    // gimp pins at 25 mm (Jodel plans), 1.6 mm heads standing 0.10-0.15 mm
-    fastener: { kind: 'nail', pitch: 0.025, rowW: 0.020,
-                dia: 0.0016, rise: 0.00012 },
-    seam: { width: 0.015, step: 0.0004 },   // a 10:1 scarf, sanded flush-ish
-    rough: { member: 0.0, seam: 0.05 },
+    dish: 0.00065,           // G217: the user's, and it BULGES rather than dishes
+    // pins on the glue lines, at the size the user dialled them to read at
+    // ...and the row is 15 mm, not the 12.5 the lab was left at: the mask
+    // clips a head wider than 2/3 of its band, so a 9.8 mm screw in a
+    // 12.5 mm row came out as a stripe rather than a head (GATE SKINMAT's
+    // own rule, and it is why the row is stated beside the head).
+    fastener: { kind: 'nail', pitch: 0.040, rowW: 0.015,
+                dia: 0.0098, rise: 0.0008 },
+    seam: { width: 0.0015, step: 0.00025 },  // a 10:1 scarf, sanded flush-ish
+    rough: { member: 0.0, seam: 0.065 },
   },
   // 2024-T3 semi-monocoque. The loudest grammar, and where believability is
   // won: A RIVET IS A LOAD PATH. It exists only where the skin meets a frame,

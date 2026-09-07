@@ -124,17 +124,21 @@ const AERO_FINISH = {
   // were, so a saved build carries no deviation it did not ask for; a
   // section still dialled from before this multiplies AGAIN and wants its
   // label double-clicked back to 1.
-  fabric:    { name: 'doped fabric', base: 0xd8d4c8, tile: 0.063,
-               rough: 1.00, metal: 0.0, nrm: 0.78, alb: 0.13,
+  fabric:    { name: 'doped fabric', base: 0xd8d4c8, tile: 0.0536,
+               rough: 0.90, metal: 0.0, nrm: 1.87, alb: 0.13,
                hs: 0.45, bs: 0.8, bake: 'weave', weave: 10,
-               cc: 0.74, ccR: 0.25, fld: 0.00045, fldL: 0.40, fldR: 0.3 },
+               cc: 1.00, ccR: 0.25, fld: 0.00056, fldL: 0.40, fldR: 0.3 },
   // alb 0.50 -> 0.80 with the scanned sheet (G125): the maple face's B span
   // is a quarter of the procedural stripes', so the compensation keeps the
   // ply's grain visible at all — same measurement as spruce's note below
-  ply:       { name: 'birch ply',    base: 0xc9a06a, tile: 0.35,
-               rough: 0.32, metal: 0.0, nrm: 0.30, alb: 0.80,
-               hs: 0.10, bs: 1.6, bake: 'grain', sheet: 'maple',
-               cc: 0.50, ccR: 0.18, fld: 0.0015, fldL: 0.60, fldR: 0.3 },
+  // THE USER'S OWN, off the lab (G217, "find the new defaults settings,
+  // update"): a wide 0.59 m sheet, nearly matte under a full clear coat, the
+  // grain carried almost entirely by COLOUR (hs 0 — no relief at all) and a
+  // long slow field. That is a varnished ply flank, and it is the row now.
+  ply:       { name: 'birch ply',    base: 0xc9a06a, tile: 0.59,
+               rough: 0.21, metal: 0.0, nrm: 0.32, alb: 0.67,
+               hs: 0.00, bs: 1.45, bake: 'grain', sheet: 'maple',
+               cc: 1.00, ccR: 0.12, fld: 0.00075, fldL: 0.93, fldR: 0.78 },
   alclad:    { name: '2024 alclad',  base: 0xd2d6da, tile: 0.70,
                rough: 0.28, metal: 0.0, nrm: 0.35, alb: 0.10,
                hs: 0.8, bs: 0.5, bake: 'sheet',
@@ -597,6 +601,7 @@ const AERO_PROP_FIN = ['ply', 'spruce', 'bareAlu', 'composite', 'composite',
 // tyre lives on the ground, and a spinner gets wiped every time somebody
 // walks past it with a rag.
 const AERO_WEAR_K = {
+  fabric: 0.9,                    // G217: the user's own `wear x` on the wing
   exhaust: 2.2, rubber: 1.6, castAlu: 1.3, bronze: 1.2, copper: 1.2,
   steelTube: 1.1, webbing: 1.0, leather: 0.8, plastic: 0.7, chrome: 0.5,
 };
@@ -864,6 +869,8 @@ function aeroSecResolve(sec, over, ctx) {
            // G206: the sheen and the field, same rule
            ccK: walk(over && over.cc, chain).v,
            fieldK: walk(over && over.field, chain).v,
+           // G217: and the field's WAVELENGTH — the cowl's own, mostly
+           fieldLK: walk(over && over.fieldL, chain).v,
            // G215: the metal flake in the paint
            metalK: walk(over && over.metal, chain).v };
 }
@@ -3064,7 +3071,7 @@ function aeroCabinHook(THREE, m, inside) {
 }
 // the aeroplane's coverage scales the darkness: an open cockpit still has a
 // combing and a floor, so it keeps some, and the lab's `cabin` sets the rest
-const AERO_CABIN_DEF = 0.55;
+const AERO_CABIN_DEF = 0.81;      // G217: the user's own
 const AERO_CABIN = { coverage: 1 };
 function aeroSetCabin(THREE, o) {
   if (o && o.coverage != null) AERO_CABIN.coverage = Math.max(0, Math.min(1, +o.coverage));
@@ -3161,10 +3168,11 @@ const GLASS_DEF = {
   refl: 1.0,        // x envMapIntensity, on top of the mood's own scale
   rainbow: 0.0,     // thin-film interference, an EFFECT and not physics
   // ---- THE BASE NUMBERS (G206), the lab's rather than the builder's ----
-  rough: 0.02,      // the bulk: a polished pane, nearly a mirror
-  ccR: 0.03,        // the clear layer that carries the moulding ripple
-  fresnel: 1.0,     // how far the limb closes to a mirror (0 = old flat pane)
-  diffuse: 0.6,     // what an OPAQUE pane shows of a lit body colour
+  // G217: the user's own, off the lab
+  rough: 0.12,      // the bulk
+  ccR: 0.13,        // the clear layer that carries the moulding ripple
+  fresnel: 1.18,    // how far the limb closes to a mirror (0 = old flat pane)
+  diffuse: 0.20,    // what an OPAQUE pane shows of a lit body colour
 };
 
 const AEROGLASS_HOOK = function (shader) {
@@ -3484,7 +3492,14 @@ function aeroFinishU(THREE, m, U, row, o) {
   if (!U.uAlb) U.uAlb = { value: 0 };
   U.uAlb.value = row.alb;
   if (!U.uField) U.uField = { value: new THREE.Vector4() };
-  U.uField.value.set((row.fld || 0) * K('fieldK'), row.fldL || 0.5,
+  // A SHORT PART WANTS A SHORT FIELD (G217, the user: "there should be a
+  // special field slider for the cowl"). The amplitude was dialled per
+  // section since G206 and the WAVELENGTH was not, so a cowl — 700 mm of
+  // tightly curved sheet — carried the fuselage's 0.8 m undulation and read
+  // as flat. `fieldL x` multiplies the row's own wavelength; every section
+  // has it, and the cowl is the one that needed it.
+  U.uField.value.set((row.fld || 0) * K('fieldK'),
+                     (row.fldL || 0.5) * K('fieldLK'),
                      row.fldR || 0, 0);
   if (m) {
     m.roughness = Math.max(0, Math.min(1, row.rough * K('roughK')));
@@ -3541,6 +3556,7 @@ function aeroMaterial(THREE, o) {
                // G206: the sheen and the field dials, for the same reason
                'C' + (o.ccK != null ? o.ccK : 1),
                'F' + (o.fieldK != null ? o.fieldK : 1),
+               'L' + (o.fieldLK != null ? o.fieldLK : 1),
                'I' + (+o.inside || 0),
                'K' + (o.decals != null ? +o.decals : 1),
                'S' + (o.memF ? o.memF.join(',') : ''),
@@ -3655,6 +3671,7 @@ function aeroMaterial(THREE, o) {
                   m.userData.aeroBoxPlane = +o.boxPlane || 0; }
   if (o.ccK != null && o.ccK !== 1) m.userData.aeroCcK = o.ccK;
   if (o.fieldK != null && o.fieldK !== 1) m.userData.aeroFieldK = o.fieldK;
+  if (o.fieldLK != null && o.fieldLK !== 1) m.userData.aeroFieldLK = o.fieldLK;
   // what the lab needs to re-derive the grammar uniforms on this material
   m.userData.aeroStruct = o.struct ? 1 : 0;
   if (o.inside) m.userData.aeroInside = 1;
@@ -3829,13 +3846,15 @@ const AERO_LAB_KEY = 'flydiy.aeroLab';
 // ~3, which is a set panel under a reflection and not a wave. The honest
 // amplitudes stay honest; the gain says how much the eye is helped, as the
 // tape's does. `w*` are the wing and tail's own set.
-const AERO_GAIN_DEF = { x: 4.0, y: 1.2, z: 15.0, wx: 4.0, wy: 1.2, wz: 15.0 };
+// G217: the user's own, off the lab — the body reads quieter than the
+// flying surfaces (a fuselage is stressed skin, a wing is fabric over ribs)
+const AERO_GAIN_DEF = { x: 3.0, y: 1.15, z: 8.5, wx: 4.3, wy: 2.2, wz: 15.0 };
 // field -> [min, max, step, label]
 const AERO_LAB_FIELDS = {
   tile:  [0.005, 3.0, 0.005, 'tile (m)'],
   rough: [0.02, 1.0, 0.01, 'roughness'],
   metal: [0, 1, 0.01, 'metalness'],
-  nrm:   [0, 1.5, 0.01, 'sheet normal'],
+  nrm:   [0, 3.0, 0.01, 'sheet normal'],
   alb:   [0, 1.5, 0.01, 'sheet albedo'],
   hs:    [0, 1.5, 0.01, 'sheet height (rebakes)'],
   bs:    [0, 2.0, 0.01, 'sheet roughness (rebakes)'],
@@ -4053,7 +4072,8 @@ function aeroLabRefresh(THREE, kind, key, field) {
       if (ud.aeroFinish !== key || !ud.aeroU) continue;
       aeroFinishU(THREE, m, ud.aeroU, row,
         { tileK: ud.aeroTileK, nrmK: ud.aeroNrmK, roughK: ud.aeroRoughK,
-          ccK: ud.aeroCcK, fieldK: ud.aeroFieldK, metalK: ud.aeroMetalK });
+          ccK: ud.aeroCcK, fieldK: ud.aeroFieldK, fieldLK: ud.aeroFieldLK,
+          metalK: ud.aeroMetalK });
       // A SWAPPED SAMPLER NEEDS A RECOMPILE (G206.3, measured): with a new
       // texture object in the uniform and nothing else changed, r128 drew
       // the fuselage BLACK and the wing white until needsUpdate — the

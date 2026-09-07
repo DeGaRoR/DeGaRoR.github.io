@@ -1618,7 +1618,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
                               (kud.aeroNrmK ? 'N' + kud.aeroNrmK : '') +
                               (kud.aeroWearM ? 'M' + kud.aeroWearM : '') +
                               (kud.aeroCcK ? 'C' + kud.aeroCcK : '') +
-                              (kud.aeroFieldK ? 'F' + kud.aeroFieldK : '') : '') +
+                              (kud.aeroFieldK ? 'F' + kud.aeroFieldK : '') +
+                              (kud.aeroFieldLK ? 'L' + kud.aeroFieldLK : '') : '') +
             // G206.1: an inside bucket must not merge with an outside one
             ((kud.aeroInside || kud.charSkin) ? 'I' : '') +
             // G210.2: a person is their own bucket, per character and per
@@ -1675,6 +1676,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           // G206: the sheen and the field dials cross the same way
           ...(ud.aeroCcK ? { ccK: ud.aeroCcK } : {}),
           ...(ud.aeroFieldK ? { fieldK: ud.aeroFieldK } : {}),
+          ...(ud.aeroFieldLK ? { fieldLK: ud.aeroFieldLK } : {}),   // G217
           // G206.1: in the cabin — a liner, a seat, a person (charSkin)
           ...((ud.aeroInside || ud.charSkin) ? { inside: 1 } : {}),
           // G210.2: WHICH PERSON, WHICH OF THEIR MATERIALS — app.js rebuilds

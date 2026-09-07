@@ -1367,6 +1367,7 @@
               // the factory numbers.
               tileK: m.tileK, roughK: m.roughK, nrmK: m.nrmK,
               ccK: m.ccK, fieldK: m.fieldK,          // G206
+              fieldLK: m.fieldLK,                     // G217
               inside: m.inside || 0,                  // G206.1
               decals: m.noDec ? 0 : 1,                // G207
               memF: m.memF || null,                   // G214

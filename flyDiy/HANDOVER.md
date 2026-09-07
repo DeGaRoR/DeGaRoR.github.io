@@ -34681,3 +34681,96 @@ the characters crossing the join as LIVE skinned meshes instead of baked
 groups — the one exception to "the flying aeroplane is a snapshot" — and the
 motion it would buy is small (Sitting Idle deviates at most 4.7 deg).
 
+
+## G216 - THE JOIN AUDIT: THE FLOWN AEROPLANE MEASURED ITS OWN SKIN IN THE
+## WRONG UNIT, AND WAS PAINTED FROM THE ROOM'S ORIGIN (2026-09-08, the user:
+## "the registration still fails through the join, and is placed and styled
+## differently in flight. Same for the decal/livery ... do a large review of
+## the material work and check that everything is accounted for through the
+## join")
+
+Both halves MEASURED before anything was touched, which is the only reason
+they were found - each had a comment next to it asserting the opposite.
+
+- **THE FIELD'S UNIT.** `aStruct` is in whatever unit the layer that built it
+  works in, and `uFieldM` is what turns it into metres: the cage's is
+  CAGE_UNIT x planeScale, the wing's is 1, the tail's its own. The join
+  copies the field verbatim ("THE SURFACE FIELD CROSSES THE JOIN UNCHANGED")
+  and app.js then passed `fieldM: 1` with a comment claiming the payload's
+  field "is already in metres". On the user's build **planeScale is 0.745**,
+  so every metric quantity on the flown fuselage was 34 % out: the
+  registration sat a third of a metre forward of where it was placed and
+  drew larger, the grammar's pitches were coarse, the wear streaks ran long.
+  The material now REMEMBERS its scale (`userData.aeroFieldM`), the join
+  carries it, and app.js passes it. Verified in the page: 24 cage records
+  carry 0.745.
+- **THE CRAFT ORIGIN.** A box projection (`side` / `plan`) is measured from
+  the craft frame, and the editor built it from `CAGE_UI_SCENE` - the ROOM
+  the editor mounts into - while the flown one is built from the aeroplane.
+  Measured: 2.59 m along and 1.08 m up between the two origins, which is
+  exactly how far a side-projected livery moved on the way to the runway.
+  The editor now uses the join's own mount (`CAGE_JOIN.mount()`, published
+  for this): the frame the payload is baked in, so the two agree by
+  construction. A box placement authored before this shifts once.
+- **THE GLAZING NEVER CROSSED AT ALL.** app.js built a flown pane from a
+  colour and an opacity, so a dirty, tinted, reflective canopy flew clean.
+  `aeroGlassSpec(spec)` resolves the saved dials (they were always in
+  `finish.glass`), the join carries each pane's measured EXTENT (`gext`)
+  and its field scale, and the flight side passes the lot.
+- **TWO MORE FACTS HAD NO ROAD**: the box-mapped microsurface (G113.3 - the
+  flown tail fell back to the surface field) and the turned grain (G125.1 -
+  the propeller's laminations ran chordwise in the air, spanwise on the
+  stand). Both stamped and carried now.
+- **THE CENSUS** (GATE SKINMAT): every `userData.aero*` the factory stamps
+  either has a record in the join or is on an exemption list WITH ITS
+  REASON, and every key the join can carry is read by app.js. It found the
+  two above. NEGATIVELY VERIFIED - and it had to be: the first cut built its
+  patterns by escaping into a string, the escapes collapsed (the pattern for
+  `m.tileK` ended in a literal backspace), and every key read as present. A
+  test that cannot fail is not a test; it is `indexOf` now.
+
+## G217 - THE USER'S OWN NUMBERS, THE PANE THAT WAS TOUCHED RATHER THAN
+## SCORED, AND WHAT THE LAB IS EDITING (2026-09-08)
+
+- **THE DEFAULTS ARE THE USER'S DIALS**, off the lab and the section rows:
+  the ply row (0.59 m sheet, nearly matte under a full clear coat, the grain
+  entirely COLOUR at hs 0, a long slow field), the wood construction row
+  (wider bays, a flat tape - nothing telegraphs through a varnished ply
+  skin - a shallow per-bay bulge and a proud pinned fastener), the display
+  gains (the body quieter than the flying surfaces), the glazing base, and
+  the fabric row with the wing's own multipliers folded in. `AERO_WEAR_K`
+  gains fabric 0.9. TWO THINGS THE GATE HAD TO SAY: a 9.8 mm head is a #12
+  wood screw, not a gimp pin, so the ceiling moved 8 -> 10 mm with that
+  reason; and the row band was left at 12.5 mm, narrower than the head it
+  had to contain, so it is 15 mm (the mask clips anything narrower into a
+  stripe).
+- **THE SCRATCHES AND THE WIPER ARC ARE GONE** (the user: "the window
+  scratches is pretty bad ... but let's add some roughness map like they
+  have been touched, and maybe rougher around the edges"). They were two
+  periodic families tilting the clear coat, and they read as corduroy at any
+  strength that showed. `touch` replaces both: two reads of the sheet at a
+  quarter-metre and a metre, added as ROUGHNESS ONLY - no normal, no relief,
+  which is the whole difference between a smeared pane and a scored one -
+  and the pane goes rougher toward its frame, where it is held and cleaned
+  least. The condition dial ages `touch` and `grime` and nothing else.
+- **THE LAB SAYS WHAT IT IS EDITING** (the user: "no effect on changing the
+  finish in finish rows and construction rows, and I don't understand the
+  terminology"). Those two selects PICK WHICH ROW THE SLIDERS EDIT; changing
+  them is meant to do nothing to the aeroplane, and the labels say so now
+  ("editing: a MATERIAL / a CONSTRUCTION / the display gains / the glazing
+  itself", then "which material the sliders below edit - picking one here
+  does not change what the aeroplane is made of").
+- **A FIELD WAVELENGTH PER SECTION** (`fieldL x`), because a cowl is 700 mm
+  of tightly curved sheet carrying the fuselage's 0.8 m undulation and
+  reading flat. Every section has it; the cowl is the one that needed it.
+
+**OPEN, AND NOT MINE:** GATE HONEST fails at HEAD ("brace: a monoplane pays
+nothing here, 0.024") with none of this session's work in the tree - proven
+by running it in a clean worktree at HEAD. It arrived with another session's
+tail/shader work.
+
+**ALSO OF RECORD:** the join half of G216 was written into the working tree
+and then swept into `9fe0bda` ("tail chantier, aircraft shader, mixamo
+integration") by a whole-tree commit from outside this session, along with
+every other session's work in flight at the time. Nothing was lost; the
+history simply does not name it.

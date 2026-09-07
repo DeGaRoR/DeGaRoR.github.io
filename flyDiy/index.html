@@ -12304,24 +12304,33 @@ const GEN_BUILD_GRAMMAR = {
   // Filled from tubeFabric's row below the table.
   fabric: null,
   steel: null,
+  // THE USER'S OWN, off the lab (G217): wider bays, a wider and FLAT tape
+  // (the members do not telegraph at all through a varnished ply skin), no
+  // sag, and the look carried by a shallow per-bay dish and a proud pinned
+  // fastener. The numbers are theirs; the reasons in the lines below are the
+  // ones the table was built on and still hold.
   wood: {
     name: 'spruce + ply',
-    framePitch: 0.38,
-    stringerPitch: 0.22,
-    panelAlong: 2.0,         // a ply sheet is 1220 x 2440 and scarfs at a frame
-    panelAround: 0.85,       // and will not wrap much past this
-    tape: { w: 0.020, rise: 0.00012 },   // the frame under the skin, barely
+    framePitch: 0.555,
+    stringerPitch: 0.330,
+    panelAlong: 1.88,        // a ply sheet is 1220 x 2440 and scarfs at a frame
+    panelAround: 0.86,       // and will not wrap much past this
+    tape: { w: 0.044, rise: 0 },         // the frame under the skin: nothing
     // A STRESSED PLY SKIN IS FLAT (G206): glued to every longeron and frame,
     // it neither sags nor dishes between them at 0.22 m — a Jodel's flank is
     // dead flat with the members ghosting through and a scarf or two. The
     // 0.3 mm dish per cell, quadrupled by the old single gain, was a quilt.
     sag: { frac: 0, exp: 2.0 },
-    dish: 0,
-    // gimp pins at 25 mm (Jodel plans), 1.6 mm heads standing 0.10-0.15 mm
-    fastener: { kind: 'nail', pitch: 0.025, rowW: 0.020,
-                dia: 0.0016, rise: 0.00012 },
-    seam: { width: 0.015, step: 0.0004 },   // a 10:1 scarf, sanded flush-ish
-    rough: { member: 0.0, seam: 0.05 },
+    dish: 0.00065,           // G217: the user's, and it BULGES rather than dishes
+    // pins on the glue lines, at the size the user dialled them to read at
+    // ...and the row is 15 mm, not the 12.5 the lab was left at: the mask
+    // clips a head wider than 2/3 of its band, so a 9.8 mm screw in a
+    // 12.5 mm row came out as a stripe rather than a head (GATE SKINMAT's
+    // own rule, and it is why the row is stated beside the head).
+    fastener: { kind: 'nail', pitch: 0.040, rowW: 0.015,
+                dia: 0.0098, rise: 0.0008 },
+    seam: { width: 0.0015, step: 0.00025 },  // a 10:1 scarf, sanded flush-ish
+    rough: { member: 0.0, seam: 0.065 },
   },
   // 2024-T3 semi-monocoque. The loudest grammar, and where believability is
   // won: A RIVET IS A LOAD PATH. It exists only where the skin meets a frame,
@@ -59069,13 +59078,19 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     window.CAGE_UI.build();
   };
 
+  // WHICH OBJECT IS THE AEROPLANE (G216). The bake is in this frame, so the
+  // payload's origin IS this object's origin — which makes it the only
+  // honest craft root for a box projection, in the editor as in flight.
+  // Published so `_cage_ui.js` reads it rather than keeping a second walk
+  // that can drift (it passed the ROOM's origin, 2.59 m away).
+  const joinMount = () => {
+    let g = window.CAGE_WING && window.CAGE_WING.group;
+    while (g && g.parent && !g.parent.isScene &&
+           g.parent.parent && !g.parent.parent.isScene) g = g.parent;
+    return g;                        // edSitP: the inner (pitch) mount
+  };
   const snapshotAt = spec => {
-    const mount = (() => {           // edSitP: the editor's mount group
-      let g = window.CAGE_WING && window.CAGE_WING.group;
-      while (g && g.parent && !g.parent.isScene &&
-             g.parent.parent && !g.parent.parent.isScene) g = g.parent;
-      return g;                      // the inner (pitch) mount
-    })();
+    const mount = joinMount();
     if (!mount) return null;
     // calibration: rest-lattice main axles vs cage mains. The sim's body
     // frame is CG-RELATIVE (makeSkinBinding subtracts defCG; the pose
@@ -59334,7 +59349,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
                               (kud.aeroNrmK ? 'N' + kud.aeroNrmK : '') +
                               (kud.aeroWearM ? 'M' + kud.aeroWearM : '') +
                               (kud.aeroCcK ? 'C' + kud.aeroCcK : '') +
-                              (kud.aeroFieldK ? 'F' + kud.aeroFieldK : '') : '') +
+                              (kud.aeroFieldK ? 'F' + kud.aeroFieldK : '') +
+                              (kud.aeroFieldLK ? 'L' + kud.aeroFieldLK : '') : '') +
             // G206.1: an inside bucket must not merge with an outside one
             ((kud.aeroInside || kud.charSkin) ? 'I' : '') +
             // G210.2: a person is their own bucket, per character and per
@@ -59343,6 +59359,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             (kud.aeroNoDec ? 'K' : '') +
             (kud.aeroMemF ? 'S' + kud.aeroMemF.join(',') : '') +
             (kud.aeroMetalK ? 'Q' + kud.aeroMetalK : '') +
+            (kud.aeroFieldM != null ? 'U' + kud.aeroFieldM : '') +
+            (kud.aeroBoxDet ? 'X' + (kud.aeroBoxPlane || 0) : '') +
+            (kud.aeroDetRot ? 'D' : '') +
             // G185: the second plane's materials are their own buckets — the
             // game binds each plane's skin to its own spar stations
             (kud.aeroPlane ? 'P' + kud.aeroPlane : '');
@@ -59388,6 +59407,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           // G206: the sheen and the field dials cross the same way
           ...(ud.aeroCcK ? { ccK: ud.aeroCcK } : {}),
           ...(ud.aeroFieldK ? { fieldK: ud.aeroFieldK } : {}),
+          ...(ud.aeroFieldLK ? { fieldLK: ud.aeroFieldLK } : {}),   // G217
           // G206.1: in the cabin — a liner, a seat, a person (charSkin)
           ...((ud.aeroInside || ud.charSkin) ? { inside: 1 } : {}),
           // G210.2: WHICH PERSON, WHICH OF THEIR MATERIALS — app.js rebuilds
@@ -59399,7 +59419,19 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           ...(ud.aeroMemF ? { memF: ud.aeroMemF } : {}),
           // G215: the metal flake in this section's paint
           ...(ud.aeroMetalK ? { metalK: ud.aeroMetalK } : {}),
+          // G216: THE UNIT THE SURFACE FIELD IS IN. Absent means 1, which is
+          // what every payload written before this meant and what the wing
+          // already was; a cage built at planeScale 0.745 says so, and the
+          // flown aeroplane stops measuring its own skin in the wrong unit.
+          ...(ud.aeroFieldM != null && ud.aeroFieldM !== 1
+              ? { fieldM: ud.aeroFieldM } : {}),
+          // ...and a PANE carries its own extent and dials (G216)
+          ...(ud.aeroGlassE ? { gext: ud.aeroGlassE } : {}),
           ...(ud.aeroRibM ? { ribM: ud.aeroRibM } : {}),
+          // G216: the box-mapped microsurface and the turned grain — the
+          // tail's mapping and the propeller's spanwise laminations
+          ...(ud.aeroBoxDet ? { boxDet: 1, boxPlane: ud.aeroBoxPlane || 0 } : {}),
+          ...(ud.aeroDetRot ? { detRot: 1 } : {}),
           ...(ud.aeroWearK != null ? { wearK: ud.aeroWearK } : {}),
           ...(ud.aeroWearM != null ? { wearM: ud.aeroWearM } : {}),
           // whether this group carries the surface field decides which
@@ -59868,6 +59900,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     errors: () => ERRS.slice(),
     notes: () => NOTES.slice(),
     snapshot, fitReport,
+    mount: joinMount,                // G216: the craft root, for the editor
   };
   // THE BUTTON IS GONE (G65, user: "there's an intermediate step to build...
   // It's one too much"). `build & fly` did three things — export through this
@@ -60251,6 +60284,8 @@ const secTile = {}, secRough = {}, secNrm = {};
 const secCc = {}, secField = {};
 // G215: the metal flake in the paint, 0..1
 const secMetal = {};
+// G217: the field's wavelength, x the finish row's own (the cowl's dial)
+const secFieldL = {};
 // THE PART'S OWN CONDITION (G114, answering G70's "no per-part condition"):
 // a multiplier on the material's ageing rate, walked down the chains like
 // the dials — the one dial still sets the aeroplane, this says how much of
@@ -60274,6 +60309,7 @@ function aeroLoadPrefs() {
     Object.assign(secCc, j.cc || {});
     Object.assign(secField, j.field || {});
     Object.assign(secMetal, j.metal || {});
+    Object.assign(secFieldL, j.fieldL || {});
     Object.assign(WEAR, j.wear || {});
     aeroLoadGlass(j);
   } catch (e) {}
@@ -60296,6 +60332,7 @@ function aeroSavePrefs() {
     j.tile = secTile; j.rough = secRough; j.nrm = secNrm;
     j.wearM = secWear; j.glass = GLASS;
     j.cc = secCc; j.field = secField; j.metal = secMetal;
+    j.fieldL = secFieldL;
     localStorage.setItem(AERO_PREF, JSON.stringify(j));
   } catch (e) {}
 }
@@ -60598,7 +60635,7 @@ const matOf = name => {
                 ':' + (secTile[name] || 1) + ':' + (secRough[name] || 1) +
                 ':' + (secNrm[name] || 1) + ':' + (secWear[name] || 1) +
                 ':' + (secCc[name] || 1) + ':' + (secField[name] || 1) +
-                ':' + (secMetal[name] || 0) +
+                ':' + (secMetal[name] || 0) + ':' + (secFieldL[name] || 1) +
                 ':' + (WEAR.amount || 0) + ':' + String(memFOf()) +
                 // THE GLAZING DIALS JOIN THE KEY (2026-08-31, the user:
                 // "none of the sliders do anything"). aeroGlass's own pool
@@ -60636,6 +60673,7 @@ const matOf = name => {
         tileK: secTile[name], roughK: secRough[name], nrmK: secNrm[name],
         ccK: secCc[name], fieldK: secField[name],
         metalK: secMetal[name],                       // G215
+        fieldLK: secFieldL[name],                     // G217
         wearM: secWear[name],
         // G206.1: liners, frames, the dash and the fireproof sheet are in the
         // cabin; the exterior skin's back face is, by the factory's own rule
@@ -60692,7 +60730,8 @@ const SEC_CTX = {};                     // section -> the g it last drew with
 let SEC_EPOCH = 0;
 const SEC_OVER = { fin: secFin, tint: secTint, tile: secTile,
                    rough: secRough, nrm: secNrm, wear: secWear,
-                   cc: secCc, field: secField, metal: secMetal };
+                   cc: secCc, field: secField, metal: secMetal,
+                   fieldL: secFieldL };
 function secMat(name, g) {
   if (!aeroOn()) return null;
   const A = AK();
@@ -60739,6 +60778,7 @@ function secMat(name, g) {
     roughK: r.roughK, nrmK: r.nrmK, wearM: r.wearM,
     ccK: r.ccK, fieldK: r.fieldK,                    // G206
     metalK: r.metalK,                                // G215
+    fieldLK: r.fieldLK,                              // G217
     // G206.1: the crew layer's sections (the seats, the dummies) sit inside
     inside: (A.AERO_SEC[name] && A.AERO_SEC[name].layer === 'crew') ? 1 : 0,
     // G207: the flying surfaces, the cowl and the spats take a marking; the
@@ -60765,7 +60805,8 @@ const secResolveAuto = name => {
   delete fin2[name];
   return A.aeroSecResolve(name,
     { fin: fin2, tint: secTint, tile: secTile, rough: secRough, nrm: secNrm,
-      wear: secWear, cc: secCc, field: secField, metal: secMetal },
+      wear: secWear, cc: secCc, field: secField, metal: secMetal,
+      fieldL: secFieldL },
     { cons: g.cons || consOf(), fin: g.fin });
 };
 if (typeof window !== 'undefined') window.CAGE_SECMAT = secMat;
@@ -61224,9 +61265,21 @@ function build() {
   // the same thing here as it does in the surface field.
   try {
     const A0 = AK(), root = (typeof window !== 'undefined') && window.CAGE_UI_SCENE;
-    if (A0 && A0.aeroSetCraft && root) {
-      root.updateWorldMatrix(true, false);
-      A0.aeroSetCraft(THREE, root.matrixWorld,
+    // THE CRAFT FRAME IS THE AEROPLANE'S, NOT THE ROOM'S (G216, the user:
+    // "the decal/livery ... is not located in the same place [in flight]").
+    // This passed CAGE_UI_SCENE — the room the editor mounts into — so a box
+    // projection was measured from the HANGAR's origin, while the flown one
+    // is measured from the aeroplane's own (the payload is baked in the
+    // mount's frame). Measured on the stock build: 2.59 m along and 1.08 m
+    // up between them, which is exactly how far a side-projected livery
+    // moved on the way to the runway. The mount is the join's own — one
+    // description of "which object is the aeroplane" — and the room is the
+    // fallback for a bench page that has no mount.
+    const mnt = (window.CAGE_JOIN && window.CAGE_JOIN.mount &&
+                 window.CAGE_JOIN.mount()) || root;
+    if (A0 && A0.aeroSetCraft && mnt) {
+      mnt.updateWorldMatrix(true, false);
+      A0.aeroSetCraft(THREE, mnt.matrixWorld,
                       { lateral: 'x', along: 'z', up: 'y', aft: true });
     }
     // THE CABIN'S DARKNESS FOLLOWS THE GLAZING (G206.1): a glazed cabin
@@ -62700,7 +62753,8 @@ function finishToSpec() {
   const names = new Set([].concat(
     Object.keys(secFin), Object.keys(secTint), Object.keys(secTile),
     Object.keys(secRough), Object.keys(secNrm), Object.keys(secWear),
-    Object.keys(secCc), Object.keys(secField), Object.keys(secMetal)));
+    Object.keys(secCc), Object.keys(secField), Object.keys(secMetal),
+    Object.keys(secFieldL)));
   for (const nm of names) {
     const o = {};
     if (secFin[nm]) o.fin = secFin[nm];
@@ -62712,6 +62766,7 @@ function finishToSpec() {
     if (secCc[nm] != null) o.cc = secCc[nm];
     if (secField[nm] != null) o.field = secField[nm];
     if (secMetal[nm] != null) o.metal = secMetal[nm];
+    if (secFieldL[nm] != null) o.fieldL = secFieldL[nm];
     if (Object.keys(o).length) { sections[nm] = o; n++; }
   }
   // THE GLAZING, deviations only — the same rule the sections and the decals
@@ -62740,7 +62795,7 @@ function finishToSpec() {
 function finishFromSpec(f) {
   decKitDefaults();
   for (const m of [secFin, secTint, secTile, secRough, secNrm, secWear,
-                   secCc, secField, secMetal])
+                   secCc, secField, secMetal, secFieldL])
     for (const k in m) delete m[k];
   // AND THE REGISTRATION IS CLEARED WITH THE REST (G160). This used to carry
   // DEC.reg across a load, on the reasoning that it belonged to meta.reg and
@@ -62766,6 +62821,7 @@ function finishFromSpec(f) {
       if (typeof r.cc === 'number') secCc[nm] = r.cc;
       if (typeof r.field === 'number') secField[nm] = r.field;
       if (typeof r.metal === 'number') secMetal[nm] = r.metal;
+      if (typeof r.fieldL === 'number') secFieldL[nm] = r.fieldL;
     }
     if (typeof o.wear === 'number') WEAR.amount = Math.max(0, Math.min(1, o.wear));
     if (o.decals && typeof o.decals === 'object')
@@ -63028,7 +63084,9 @@ function decReframe(fromMode, toMode, keys) {
 // (that is `secTint`, which glass has always been able to take and never had
 // a well for); what is shared is the CONDITION of the glazing.
 // G206: opacity 0.5 -> 0.2 with the hand blend — see aeroskin.js GLASS_DEF
-const GLASS = { tint: null, opacity: 0.2, scratch: 0, wipe: 0, grime: 0,
+// G217: `scratch` and `wipe` retired (they read as corduroy at any strength
+// that showed); `touch` is the handling smear that replaced them
+const GLASS = { tint: null, opacity: 0.2, touch: 0.35, grime: 0,
                 refl: 1, rainbow: 0 };
 const GLASS_DEFV = JSON.parse(JSON.stringify(GLASS));
 
@@ -63085,11 +63143,17 @@ function labRender(box) {
     b.style.cssText = 'font:inherit;font-size:10px;padding:1px 6px;';
     b.onclick = on; return b;
   };
-  const head = row('table', 'which table this bench is over');
-  head.appendChild(sel([['finish', 'finish rows'],
-                        ['grammar', 'construction rows'],
-                        ['gain', 'display gains'],
-                        ['glass', 'glazing base']],
+  // WHAT THESE TWO SELECTS ARE (G217, the user: "there is no effect on
+  // changing the finish in 'finish rows' and 'construction rows', and I also
+  // don't understand the terminology"). They PICK WHICH ROW THE SLIDERS
+  // BELOW EDIT. Changing them is meant to have no effect on the aeroplane —
+  // the aeroplane's own finish is the dropdown on each section further down
+  // this panel. Said in the labels now rather than in a comment nobody sees.
+  const head = row('editing', 'which of the tables these sliders are over');
+  head.appendChild(sel([['finish', 'a MATERIAL (what a surface is made of)'],
+                        ['grammar', 'a CONSTRUCTION (how its structure shows)'],
+                        ['gain', 'the display gains (how much is exaggerated)'],
+                        ['glass', 'the glazing itself']],
                        LAB.kind, v => { LAB.kind = v; labRender(box); }));
   let fields, get, set, key = null;
   const fmt = v => v == null ? '-'
@@ -63098,8 +63162,10 @@ function labRender(box) {
   if (LAB.kind === 'finish') {
     const keys = Object.keys(A.AERO_FINISH);
     if (!A.AERO_FINISH[LAB.key]) LAB.key = keys[0];
-    const kr = row('finish', 'the row being edited (* = deviates; ' +
-                   '\u2022 = on this aeroplane)');
+    const kr = row('  material', 'WHICH material the sliders below edit — ' +
+                   'picking one here does not change what the aeroplane is ' +
+                   'made of (that is the finish dropdown on each section ' +
+                   'below). * = edited, \u2022 = worn by this aeroplane');
     kr.appendChild(sel(keys.map(k => [k, A.AERO_FINISH[k].name +
                                           (used.fins.has(k) ? ' \u2022' : '') +
                                           (A.AERO_LAB.finish[k] ? ' *' : '')]),
@@ -63112,8 +63178,10 @@ function labRender(box) {
     const keys = Object.keys(D);
     if (!keys.length) { row('(the core is not loaded)', ''); return; }
     if (!D[LAB.gkey]) LAB.gkey = keys[0];
-    const kr = row('construction', 'the construction row (* = deviates; ' +
-                   '\u2022 = this build)');
+    const kr = row('  construction', 'WHICH construction the sliders below ' +
+                   'edit — picking one here does not change what the ' +
+                   'aeroplane is built of (that is Design & construction). ' +
+                   '* = edited, \u2022 = this build');
     kr.appendChild(sel(keys.map(k => [k, (D[k].name || k) +
                                          (used.grms.has(k) ? ' \u2022' : '') +
                                          (A.AERO_LAB.grammar[k] ? ' *' : '')]),
@@ -63792,11 +63860,9 @@ function buildMatPanel() {
     gr('glazing: clarity', 'opacity', 0.05, 1, 0.01,
        'how much of the pane you see THROUGH — the view alpha still wins ' +
        'when it is asking for less, because that is a way of looking');
-    gr('glazing: scratches', 'scratch', 0, 1, 0.02,
-       'fine crazing in two crossed families, in real millimetres on the pane');
-    gr('glazing: wiper arc', 'wipe', 0, 1, 0.02,
-       'the swept band a wiper leaves — placed from a pivot, not tiled, ' +
-       'which is what makes it an arc rather than curved texture');
+    gr('glazing: handling', 'touch', 0, 1, 0.02,
+       'the smear hands, cuffs and a cloth leave — a ROUGHNESS with no ' +
+       'relief at all, and the pane goes rougher toward its frame with it');
     gr('glazing: edge grime', 'grime', 0, 1, 0.02,
        'dirt gathering toward the frame, measured from the PANE own extent ' +
        'so it does not move when the camera does');
@@ -63906,7 +63972,7 @@ function buildMatPanel() {
       delete secTint[nm]; delete secFin[nm];
       delete secTile[nm]; delete secRough[nm]; delete secNrm[nm];
       delete secWear[nm]; delete secCc[nm]; delete secField[nm];
-      delete secMetal[nm];
+      delete secMetal[nm]; delete secFieldL[nm];
       aeroSavePrefs(); build();
     };
     // G215: METALLIC, and it is not a multiplier — 0 is plain paint, 1 is
@@ -63943,6 +64009,7 @@ function buildMatPanel() {
                                        // of the finish's own numbers
                                        ['sheen', secCc, 'sheen x'],
                                        ['field', secField, 'field x'],
+                                       ['fieldL', secFieldL, 'field length x'],
                                        // the part's own CONDITION (G114):
                                        // multiplies how much of the
                                        // aeroplane's one wear dial this
@@ -67498,17 +67565,21 @@ const AERO_FINISH = {
   // were, so a saved build carries no deviation it did not ask for; a
   // section still dialled from before this multiplies AGAIN and wants its
   // label double-clicked back to 1.
-  fabric:    { name: 'doped fabric', base: 0xd8d4c8, tile: 0.063,
-               rough: 1.00, metal: 0.0, nrm: 0.78, alb: 0.13,
+  fabric:    { name: 'doped fabric', base: 0xd8d4c8, tile: 0.0536,
+               rough: 0.90, metal: 0.0, nrm: 1.87, alb: 0.13,
                hs: 0.45, bs: 0.8, bake: 'weave', weave: 10,
-               cc: 0.74, ccR: 0.25, fld: 0.00045, fldL: 0.40, fldR: 0.3 },
+               cc: 1.00, ccR: 0.25, fld: 0.00056, fldL: 0.40, fldR: 0.3 },
   // alb 0.50 -> 0.80 with the scanned sheet (G125): the maple face's B span
   // is a quarter of the procedural stripes', so the compensation keeps the
   // ply's grain visible at all — same measurement as spruce's note below
-  ply:       { name: 'birch ply',    base: 0xc9a06a, tile: 0.35,
-               rough: 0.32, metal: 0.0, nrm: 0.30, alb: 0.80,
-               hs: 0.10, bs: 1.6, bake: 'grain', sheet: 'maple',
-               cc: 0.50, ccR: 0.18, fld: 0.0015, fldL: 0.60, fldR: 0.3 },
+  // THE USER'S OWN, off the lab (G217, "find the new defaults settings,
+  // update"): a wide 0.59 m sheet, nearly matte under a full clear coat, the
+  // grain carried almost entirely by COLOUR (hs 0 — no relief at all) and a
+  // long slow field. That is a varnished ply flank, and it is the row now.
+  ply:       { name: 'birch ply',    base: 0xc9a06a, tile: 0.59,
+               rough: 0.21, metal: 0.0, nrm: 0.32, alb: 0.67,
+               hs: 0.00, bs: 1.45, bake: 'grain', sheet: 'maple',
+               cc: 1.00, ccR: 0.12, fld: 0.00075, fldL: 0.93, fldR: 0.78 },
   alclad:    { name: '2024 alclad',  base: 0xd2d6da, tile: 0.70,
                rough: 0.28, metal: 0.0, nrm: 0.35, alb: 0.10,
                hs: 0.8, bs: 0.5, bake: 'sheet',
@@ -67971,6 +68042,7 @@ const AERO_PROP_FIN = ['ply', 'spruce', 'bareAlu', 'composite', 'composite',
 // tyre lives on the ground, and a spinner gets wiped every time somebody
 // walks past it with a rag.
 const AERO_WEAR_K = {
+  fabric: 0.9,                    // G217: the user's own `wear x` on the wing
   exhaust: 2.2, rubber: 1.6, castAlu: 1.3, bronze: 1.2, copper: 1.2,
   steelTube: 1.1, webbing: 1.0, leather: 0.8, plastic: 0.7, chrome: 0.5,
 };
@@ -68238,6 +68310,8 @@ function aeroSecResolve(sec, over, ctx) {
            // G206: the sheen and the field, same rule
            ccK: walk(over && over.cc, chain).v,
            fieldK: walk(over && over.field, chain).v,
+           // G217: and the field's WAVELENGTH — the cowl's own, mostly
+           fieldLK: walk(over && over.fieldL, chain).v,
            // G215: the metal flake in the paint
            metalK: walk(over && over.metal, chain).v };
 }
@@ -69331,6 +69405,20 @@ function aeroDecalsFor(THREE, D, opts) {
   return { list, aspect };
 }
 
+// THE GLAZING A SPEC ASKS FOR (G216). `finish.glass` holds DEVIATIONS from
+// the declared set, exactly as the sections and the decals do, so this is the
+// one place that turns a saved build into the dial set aeroGlass takes — and
+// the flight side calls it instead of guessing. Unknown keys (a dial a later
+// chantier retired) are ignored rather than passed on.
+function aeroGlassSpec(spec) {
+  const out = {};
+  for (const k in GLASS_DEF) out[k] = GLASS_DEF[k];
+  const s = spec && spec.finish && spec.finish.glass;
+  if (s && typeof s === 'object')
+    for (const k in GLASS_DEF) if (s[k] !== undefined) out[k] = s[k];
+  return out;
+}
+
 // THE FLIGHT SIDE'S ONE CALL. Takes a resolved spec and puts that aeroplane's
 // markings on it. A spec with no `finish` is not a mistake and is not skipped:
 // it is an aeroplane with a factory marking, which is what the defaults ARE.
@@ -69565,7 +69653,6 @@ uniform vec4  uGlass;      // x scratch  y wipe  z grime  w rainbow
 // that only roughened the base was invisible, measured, in two renders that
 // came back pixel-identical. A scratch is geometry: it perturbs the clear
 // coat normal, and that is what makes it catch the light.
-float aeroGSC = 0.0;
 float aeroGDirt = 0.0;
 vec3  aeroGRain = vec3(1.0);   // the rainbow, as a tint on the SPECULAR (G206)
 uniform vec4  uGlassE;     // the pane's own extent in field metres: lo.xy hi.xy
@@ -70425,7 +70512,7 @@ function aeroCabinHook(THREE, m, inside) {
 }
 // the aeroplane's coverage scales the darkness: an open cockpit still has a
 // combing and a floor, so it keeps some, and the lab's `cabin` sets the rest
-const AERO_CABIN_DEF = 0.55;
+const AERO_CABIN_DEF = 0.81;      // G217: the user's own
 const AERO_CABIN = { coverage: 1 };
 function aeroSetCabin(THREE, o) {
   if (o && o.coverage != null) AERO_CABIN.coverage = Math.max(0, Math.min(1, +o.coverage));
@@ -70508,16 +70595,25 @@ const GLASS_DEF = {
   // G206: 0.5 -> 0.2. Under the old model half the light was the only way
   // to see the pane at all; a tinted acrylic canopy actually stops 10-30 %
   opacity: 0.2,
-  scratch: 0.0,     // 0 factory-fresh .. 1 a thousand hours of cuffs
-  wipe: 0.0,        // the arc a wiper leaves; 0 on an aeroplane with none
+  // THE SCRATCHES AND THE WIPER ARC ARE GONE (G217, the user: "the window
+  // scratches is pretty bad. Let's get rid of that, including in the
+  // weathering slider, but let's add some roughness map like they have been
+  // touched, and maybe rougher around the edges"). They were two families of
+  // periodic stripes tilting the clear coat — corduroy, at any strength that
+  // showed. WHAT REPLACES THEM IS ROUGHNESS AND NOTHING ELSE: hands, cuffs
+  // and a cloth leave a broad soft smear with no relief at all, which is the
+  // whole difference between a wiped pane and a scratched one — and a pane is
+  // cleaned least where the frame holds it, so the edge goes rougher too.
+  touch: 0.35,      // 0 straight off the mould .. 1 a thousand hands
   grime: 0.0,       // dirt gathering toward the frame
   refl: 1.0,        // x envMapIntensity, on top of the mood's own scale
   rainbow: 0.0,     // thin-film interference, an EFFECT and not physics
   // ---- THE BASE NUMBERS (G206), the lab's rather than the builder's ----
-  rough: 0.02,      // the bulk: a polished pane, nearly a mirror
-  ccR: 0.03,        // the clear layer that carries the ripple and scratches
-  fresnel: 1.0,     // how far the limb closes to a mirror (0 = old flat pane)
-  diffuse: 0.6,     // what an OPAQUE pane shows of a lit body colour
+  // G217: the user's own, off the lab
+  rough: 0.12,      // the bulk
+  ccR: 0.13,        // the clear layer that carries the moulding ripple
+  fresnel: 1.18,    // how far the limb closes to a mirror (0 = old flat pane)
+  diffuse: 0.20,    // what an OPAQUE pane shows of a lit body colour
 };
 
 const AEROGLASS_HOOK = function (shader) {
@@ -70540,40 +70636,31 @@ const AEROGLASS_HOOK = function (shader) {
     // Metres on the pane, not tile units: a scratch is a real length and
     // must not resize when the tile does.
     vec2 mm = vSurf.xy * uFieldM;
-    // FINE SCRATCHES, in two crossed families so they read as random rather
-    // than as corduroy. aeroHash is the grammar's own value noise.
-    float sc = 0.0;
+    // A PANE THAT HAS BEEN TOUCHED (G217). Two reads of the same sheet at
+    // two large scales — a quarter of a metre and most of one — added as a
+    // ROUGHNESS and nothing else: no normal, no relief, no periodic family.
+    // That is what a smeared pane is, and it is why this replaces the
+    // scratches rather than joining them.
     if (uGlass.x > 0.0) {
-      vec2 a1 = vec2(mm.x * 0.83 + mm.y * 0.56, mm.y * 0.83 - mm.x * 0.56);
-      vec2 a2 = vec2(mm.x * 0.31 - mm.y * 0.95, mm.y * 0.31 + mm.x * 0.95);
-      float s1 = fract(a1.y * 190.0);
-      float s2 = fract(a2.y * 143.0);
-      s1 = smoothstep(0.955, 1.0, s1) * step(0.40, fract(a1.x * 3.1 + 0.37));
-      s2 = smoothstep(0.962, 1.0, s2) * step(0.48, fract(a2.x * 2.3 + 0.11));
-      sc = (s1 + s2) * uGlass.x;
+      float sm  = texture2D(tDetail, mm * 4.0).b - 0.80;
+      float sm2 = texture2D(tDetail, mm * 1.3 + vec2(0.37, 0.11)).b - 0.80;
+      roughnessFactor += (sm * 2.2 + sm2 * 3.2) * uGlass.x;
     }
-    // THE WIPER ARC, swept from a pivot at the pane's lower inboard corner.
-    // It is PLACED rather than tiled, which is the whole difference between
-    // an arc and a texture that happens to be curved.
-    if (uGlass.y > 0.0) {
-      vec2 d = mm - vec2(-0.25, -0.35);
-      float r = length(d);
-      float band = pow(sin(r * 26.0) * 0.5 + 0.5, 3.0);
-      float within = smoothstep(1.0, 0.30, abs(r - 0.62) / 0.34);
-      sc += band * within * uGlass.y * 1.1;
-    }
-    aeroGSC = sc;
-    roughnessFactor += sc * 0.55;
-    // GRIME GATHERS AT THE FRAME. uGlassE is the pane's own extent in field
-    // metres (min sL, min sC, max sL, max sC), measured off the drawn mesh —
-    // so "toward the edge" is a real distance on a real pane and not a
-    // screen-space edge detect, which would move when the camera did.
-    if (uGlass.z > 0.0 && uGlassE.z > uGlassE.x) {
+    // ...AND ROUGHER AROUND THE EDGES, where a pane is held, sealed and
+    // cleaned least. uGlassE is its own extent in field metres (min sL,
+    // min sC, max sL, max sC), measured off the drawn mesh — so "toward the
+    // edge" is a real distance on a real pane and not a screen-space edge
+    // detect, which would move when the camera did. The GRIME rides the same
+    // distance, closer in, and is the only one of the two that is a colour.
+    if (uGlassE.z > uGlassE.x) {
       vec2 lo = mm - uGlassE.xy, hi = uGlassE.zw - mm;
       float e = min(min(lo.x, lo.y), min(hi.x, hi.y));
-      float dirt = 1.0 - smoothstep(0.0, 0.075, max(e, 0.0));
-      aeroGDirt = dirt * uGlass.z;
-      roughnessFactor += aeroGDirt * 0.35;
+      roughnessFactor += (1.0 - smoothstep(0.0, 0.11, max(e, 0.0)))
+                       * (0.06 + 0.26 * uGlass.x);
+      if (uGlass.z > 0.0) {
+        aeroGDirt = (1.0 - smoothstep(0.0, 0.075, max(e, 0.0))) * uGlass.z;
+        roughnessFactor += aeroGDirt * 0.35;
+      }
     }
     roughnessFactor = clamp(roughnessFactor, 0.0, 1.0);
   }`)
@@ -70585,13 +70672,10 @@ const AEROGLASS_HOOK = function (shader) {
     aeroFrame(-vViewPosition, normal, g, faceDirection, T, B);
     vec3 cn = aeroUnpack(texture2D(tDetail, g), uDetail.x);
     clearcoatNormal = normalize(T * cn.x + B * cn.y + normal * cn.z);
-    // THE SCRATCHES ARE GEOMETRY ON THE CLEAR COAT. Their screen gradient is
-    // the tilt, which is what a hairline does to a reflection - and it is the
-    // only way they show at all on a pane this transmissive.
-    if (aeroGSC > 0.0) {
-      vec2 dg = vec2(dFdx(aeroGSC), dFdy(aeroGSC)) * 60.0;
-      clearcoatNormal = normalize(clearcoatNormal - T * dg.x - B * dg.y);
-    }
+    // NOTHING ELSE TILTS THE CLEAR COAT (G217). The scratches did, and that
+    // was right for a scratch — a hairline shows by what it does to a
+    // reflection — but a smear is not geometry, and the moulding ripple
+    // above is the only relief a pane has.
   }
   // DIRT AT THE FRAME IS A PALE FILM, not only a rough patch: grime scatters,
   // so it lightens what you see through it. Same reason the wear system
@@ -70849,7 +70933,14 @@ function aeroFinishU(THREE, m, U, row, o) {
   if (!U.uAlb) U.uAlb = { value: 0 };
   U.uAlb.value = row.alb;
   if (!U.uField) U.uField = { value: new THREE.Vector4() };
-  U.uField.value.set((row.fld || 0) * K('fieldK'), row.fldL || 0.5,
+  // A SHORT PART WANTS A SHORT FIELD (G217, the user: "there should be a
+  // special field slider for the cowl"). The amplitude was dialled per
+  // section since G206 and the WAVELENGTH was not, so a cowl — 700 mm of
+  // tightly curved sheet — carried the fuselage's 0.8 m undulation and read
+  // as flat. `fieldL x` multiplies the row's own wavelength; every section
+  // has it, and the cowl is the one that needed it.
+  U.uField.value.set((row.fld || 0) * K('fieldK'),
+                     (row.fldL || 0.5) * K('fieldLK'),
                      row.fldR || 0, 0);
   if (m) {
     m.roughness = Math.max(0, Math.min(1, row.rough * K('roughK')));
@@ -70906,6 +70997,7 @@ function aeroMaterial(THREE, o) {
                // G206: the sheen and the field dials, for the same reason
                'C' + (o.ccK != null ? o.ccK : 1),
                'F' + (o.fieldK != null ? o.fieldK : 1),
+               'L' + (o.fieldLK != null ? o.fieldLK : 1),
                'I' + (+o.inside || 0),
                'K' + (o.decals != null ? +o.decals : 1),
                'S' + (o.memF ? o.memF.join(',') : ''),
@@ -71012,13 +71104,29 @@ function aeroMaterial(THREE, o) {
   if (o.nrmK != null && o.nrmK !== 1) m.userData.aeroNrmK = o.nrmK;
   if (o.ribM > 0) m.userData.aeroRibM = o.ribM;
   if (o.detRot) m.userData.aeroDetRot = 1;
+  // G216: the BOX-MAPPED microsurface (G113.3) is a material fact too — the
+  // tail asks for it, and without a stamp it could not cross the join: the
+  // flown slabs fell back to the surface field and lost the mapping the
+  // editor drew them with.
+  if (o.boxDet) { m.userData.aeroBoxDet = 1;
+                  m.userData.aeroBoxPlane = +o.boxPlane || 0; }
   if (o.ccK != null && o.ccK !== 1) m.userData.aeroCcK = o.ccK;
   if (o.fieldK != null && o.fieldK !== 1) m.userData.aeroFieldK = o.fieldK;
+  if (o.fieldLK != null && o.fieldLK !== 1) m.userData.aeroFieldLK = o.fieldLK;
   // what the lab needs to re-derive the grammar uniforms on this material
   m.userData.aeroStruct = o.struct ? 1 : 0;
   if (o.inside) m.userData.aeroInside = 1;
   if (o.decals != null && !+o.decals) m.userData.aeroNoDec = 1;
   if (o.memF) m.userData.aeroMemF = o.memF.slice();
+  // THE FIELD'S OWN SCALE, REMEMBERED (G216). `aStruct` is in whatever unit
+  // the layer that built it works in — the cage's is CAGE_UNIT x planeScale,
+  // the wing's is metres, the tail's is its own — and `uFieldM` is what turns
+  // it into metres. The join has to carry it or the flown aeroplane measures
+  // its own skin in the wrong unit: on a 0.745-scale build the registration
+  // sat a third of a metre forward of where it was placed, and every metric
+  // pitch in the grammar was 34 % coarse. Stamped always, so the join reads
+  // one number rather than inferring it from the layer.
+  m.userData.aeroFieldM = o.fieldM != null ? +o.fieldM : 1;
   if (o.metalK != null && +o.metalK > 0) m.userData.aeroMetalK = +o.metalK;
   if (o.wearK != null) m.userData.aeroWearK = o.wearK;
   if (o.wearM != null && o.wearM !== 1) m.userData.aeroWearM = o.wearM;
@@ -71042,8 +71150,12 @@ function aeroGlass(THREE, o) {
   const wr = Math.max(0, Math.min(1, +o.wear || 0));
   const G = k => {
     const v = (o[k] != null ? +o[k] : GLASS_DEF[k]);
-    if (k === 'scratch') return Math.min(1, v + wr * 0.55);
-    if (k === 'grime')   return Math.min(1, v + wr * 0.70);
+    // G217: the years land on the HANDLING and the grime, and on nothing
+    // else — a pane that has been flown is smeared and dirty at its frame,
+    // not scored. Both ADD to the builder's own number rather than
+    // replacing it: the dials are the floor a pane leaves the factory with.
+    if (k === 'touch') return Math.min(1, v + wr * 0.55);
+    if (k === 'grime') return Math.min(1, v + wr * 0.70);
     return v;
   };
   const ext = o.ext || [0, 0, 0, 0];
@@ -71053,7 +71165,7 @@ function aeroGlass(THREE, o) {
   // those were the only two things a pane could differ by.)
   const key = 'glass|' + (o.tint != null ? o.tint : '') + 'L' +
               (o.tintLin != null ? o.tintLin : '') + '|' + G('opacity') +
-              '|' + G('scratch') + ',' + G('wipe') + ',' + G('grime') +
+              '|' + G('touch') + ',' + G('grime') +
               ',' + G('refl') + ',' + G('rainbow') +
               '|' + G('rough') + ',' + G('ccR') + ',' + G('fresnel') +
               ',' + G('diffuse') +
@@ -71068,7 +71180,8 @@ function aeroGlass(THREE, o) {
     uFieldM: { value: o.fieldM != null ? o.fieldM : 1 },
     uDetail: { value: new THREE.Vector2(0.14, 1) },
     uAlb:    { value: 0 },
-    uGlass:  { value: new THREE.Vector4(G('scratch'), G('wipe'),
+    // G217: x the handling smear, y spare, z the edge grime, w the rainbow
+    uGlass:  { value: new THREE.Vector4(G('touch'), 0,
                                         G('grime'), G('rainbow')) },
     uGlassE: { value: new THREE.Vector4(ext[0], ext[1], ext[2], ext[3]) },
     uGlassB: { value: new THREE.Vector4(G('fresnel'), G('diffuse'), 0, 0) },
@@ -71120,6 +71233,15 @@ function aeroGlass(THREE, o) {
   m.userData.aeroU = U;
   m.userData.aeroskin = 1;
   m.userData.aeroFinish = 'glass';
+  // G216: WHAT THIS PANE IS, for the join — the six builder dials, the
+  // pane's own extent and the field scale it was measured in. None of this
+  // crossed before: the flown glazing was built from a colour and an opacity
+  // (app.js's own call), so a scratched, dirty, tinted canopy flew clean.
+  m.userData.aeroGlassD = { opacity: G('opacity'), grime: G('grime'),
+                            refl: G('refl'), rainbow: G('rainbow'),
+                            touch: G('touch'), wear: wr };
+  m.userData.aeroGlassE = ext.slice();
+  m.userData.aeroFieldM = o.fieldM != null ? +o.fieldM : 1;
   m.userData.env0 = m.envMapIntensity;
   // ...scaled to the mood the room is ALREADY in, like every material —
   // see aeroSetEnv (G125.1). A same-day exemption for glass existed for a
@@ -71165,13 +71287,15 @@ const AERO_LAB_KEY = 'flydiy.aeroLab';
 // ~3, which is a set panel under a reflection and not a wave. The honest
 // amplitudes stay honest; the gain says how much the eye is helped, as the
 // tape's does. `w*` are the wing and tail's own set.
-const AERO_GAIN_DEF = { x: 4.0, y: 1.2, z: 15.0, wx: 4.0, wy: 1.2, wz: 15.0 };
+// G217: the user's own, off the lab — the body reads quieter than the
+// flying surfaces (a fuselage is stressed skin, a wing is fabric over ribs)
+const AERO_GAIN_DEF = { x: 3.0, y: 1.15, z: 8.5, wx: 4.3, wy: 2.2, wz: 15.0 };
 // field -> [min, max, step, label]
 const AERO_LAB_FIELDS = {
   tile:  [0.005, 3.0, 0.005, 'tile (m)'],
   rough: [0.02, 1.0, 0.01, 'roughness'],
   metal: [0, 1, 0.01, 'metalness'],
-  nrm:   [0, 1.5, 0.01, 'sheet normal'],
+  nrm:   [0, 3.0, 0.01, 'sheet normal'],
   alb:   [0, 1.5, 0.01, 'sheet albedo'],
   hs:    [0, 1.5, 0.01, 'sheet height (rebakes)'],
   bs:    [0, 2.0, 0.01, 'sheet roughness (rebakes)'],
@@ -71389,7 +71513,8 @@ function aeroLabRefresh(THREE, kind, key, field) {
       if (ud.aeroFinish !== key || !ud.aeroU) continue;
       aeroFinishU(THREE, m, ud.aeroU, row,
         { tileK: ud.aeroTileK, nrmK: ud.aeroNrmK, roughK: ud.aeroRoughK,
-          ccK: ud.aeroCcK, fieldK: ud.aeroFieldK, metalK: ud.aeroMetalK });
+          ccK: ud.aeroCcK, fieldK: ud.aeroFieldK, fieldLK: ud.aeroFieldLK,
+          metalK: ud.aeroMetalK });
       // A SWAPPED SAMPLER NEEDS A RECOMPILE (G206.3, measured): with a new
       // texture object in the uniform and nothing else changed, r128 drew
       // the fuselage BLACK and the wing white until needsUpdate — the
@@ -71456,6 +71581,7 @@ if (typeof window !== 'undefined')
                       AERO_GLASS, AERO_SKIN_ROLES, aeroFinishFor, aeroIsSkin,
                       aeroMaterial, aeroGlass,
                       aeroGlassTint, aeroGlassCompanion, GLASS_DEF,
+                      aeroGlassSpec,
                       aeroIsInside, aeroCabinHook, aeroSetCabin,
                       AERO_CABIN_DEF, aeroDecOk,
                       aeroSetEnv, aeroDispose, aeroLinear, AERO_TEX,
@@ -86511,10 +86637,22 @@ function editorInit(api) {
       if (data.cage && typeof AEROSKIN !== 'undefined' && m.fin) {
         const A = AEROSKIN;
         return matCache[mn] = (m.fin === 'glass')
-          ? A.aeroGlass(THREE, { tintLin: m.color, opacity: op, fieldM: 1 })
+          // G216: THE PANE AS THE BUILDER LEFT IT — the spec's own glazing
+          // dials (aeroGlassSpec), the pane's measured extent and the field
+          // scale it was measured in. This used to be a colour and an
+          // opacity, so a dirty tinted canopy flew clean and its edge grime
+          // had no extent to sit in.
+          ? A.aeroGlass(THREE, Object.assign(
+              A.aeroGlassSpec ? A.aeroGlassSpec(genSpec) : {},
+              { tintLin: m.color, opacity: op,
+                ext: m.gext, fieldM: m.fieldM || 1 }))
           : A.aeroMaterial(THREE, { finish: m.fin, tintLin: m.color,
               grm: m.grm || '', struct: m.grm ? 1 : 0,
-              opacity: op, fieldM: 1, surf: m.surf ? 1 : 0,
+              // G216: the field's own unit, as the editor measured it, and
+              // the box mapping the tail and the propeller were drawn with
+              opacity: op, fieldM: m.fieldM || 1, surf: m.surf ? 1 : 0,
+              boxDet: m.boxDet || 0, boxPlane: m.boxPlane || 0,
+              detRot: m.detRot || 0,
               // THE FLOWN AEROPLANE IS PAINTED LIKE THE EDITOR'S (G108). Two
               // arguments were missing and both mattered to the markings: the
               // surface CLASS, without which every flown surface was a
@@ -86530,6 +86668,7 @@ function editorInit(api) {
               // the factory numbers.
               tileK: m.tileK, roughK: m.roughK, nrmK: m.nrmK,
               ccK: m.ccK, fieldK: m.fieldK,          // G206
+              fieldLK: m.fieldLK,                     // G217
               inside: m.inside || 0,                  // G206.1
               decals: m.noDec ? 0 : 1,                // G207
               memF: m.memF || null,                   // G214
