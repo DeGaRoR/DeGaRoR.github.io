@@ -217,7 +217,10 @@ function stickerPlacements(THREE) {
         { title: M.title, emblem: M.emblem, date: c.when || '' });
     });
     g.restore();
-    stickerDilate(g, px, py, P, P, 3);
+    // the bleed scales with the page like the kit's (3 px at the 256 px
+    // reference page, 12 at today's 1024): a fixed 3 px on a 4096 atlas is a
+    // hairline the mip chain averages against black
+    stickerDilate(g, px, py, P, P, Math.max(3, Math.round(3 * P / 256)));
     t.needsUpdate = true;
   } catch (e) {
     console.error('stickers:', e);
