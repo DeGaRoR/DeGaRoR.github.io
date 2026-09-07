@@ -1183,7 +1183,11 @@ if (process.argv.includes('--selftest')) {
     let mm2;
     while ((mm2 = re.exec(SRC))) stamped.add(mm2[1]);
     const orphan = [...stamped].filter(k => !EXEMPT[k] &&
-      !new RegExp('\b(?:ud|kud)\.' + k + '\b').test(JOIN));
+      // SUBSTRINGS, NOT REGEXPS: the first cut built these patterns by
+      // escaping into a string and the escapes COLLAPSED, so every key
+      // read as present and the census could not fail. A test that
+      // cannot fail is not a test; indexOf cannot be got wrong.
+      JOIN.indexOf('ud.' + k) < 0 && JOIN.indexOf('kud.' + k) < 0);
     check(orphan.length === 0,
       'a material fact the factory stamps has no road through the join',
       orphan.join(' '));
@@ -1192,7 +1196,7 @@ if (process.argv.includes('--selftest')) {
     for (const k of ['fin', 'grm', 'surf', 'wing', 'tileK', 'roughK', 'nrmK',
                      'ccK', 'fieldK', 'metalK', 'memF', 'inside', 'noDec',
                      'ribM', 'wearK', 'wearM', 'fieldM', 'boxDet', 'detRot'])
-      check(new RegExp('m\.' + k + '\b').test(APPJ),
+      check(APPJ.indexOf('m.' + k) >= 0,
         'the flown aeroplane never reads a material fact the join carries', k);
   }
 

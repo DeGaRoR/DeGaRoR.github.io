@@ -34671,3 +34671,13 @@ cost is the reason the character-optimisation thread (a per-row texture
 budget, and now a vertex one) stays owed.
 Gates: JOIN, BUILD, VIEW, MASS, SAVE, UISMOKE, PARTS, MEDIA green.
 
+THE IDLE DOES NOT CROSS, AND THAT IS WHAT A SNAPSHOT IS (measured, the user
+asking whether it does): the flown crew is a BAKE — 0 skinned meshes in the
+flight model, 0.00000 vertex drift over 3 s — frozen at whatever phase the
+clip had reached at roll-out. The editor's animator is quiet in flight too
+(0 quaternion drift over 4.5 s across 18 bones, clip loaded and amps
+non-zero), so it costs nothing there. Animating a flown passenger would mean
+the characters crossing the join as LIVE skinned meshes instead of baked
+groups — the one exception to "the flying aeroplane is a snapshot" — and the
+motion it would buy is small (Sitting Idle deviates at most 4.7 deg).
+
