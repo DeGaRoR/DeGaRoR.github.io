@@ -3007,7 +3007,9 @@ function editorInit(api) {
       // transform chain comes for free.
       const def = layerDefault(ln.slice(10));
       child.traverse(o => {
-        if (!o.isMesh || (o.userData && o.userData.edHi)) return;
+        // a SKINNED mesh is never re-drawn: r128 would draw its geometry at
+        // the bind pose (G204.2) — its dummy's invisible shells stand for it
+        if (!o.isMesh || o.isSkinnedMesh || (o.userData && o.userData.edHi)) return;
         if (!keys.has(ownerOf(o, child, def))) return;
         if (only && instOf(o, child) !== only) return;
         if (wantFill) {

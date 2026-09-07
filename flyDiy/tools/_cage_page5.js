@@ -9,6 +9,12 @@
 // window.CAGE_UI, which only exists once _cage_ui.js has run — so each page
 // calls it in a trailing script.
 'use strict';
+// the crew models the select offers: the ATD first, then every registered
+// character (52_char_codec.js CHAR_REG; empty in a page without them)
+// (G204.1) 0 = 'mixed crew': the characters rotate through the seats, no
+// two alike while there are enough of them; 1 = the ATD; 2.. = one person
+const WHO_NAMES = ['mixed crew (rotate)', 'ATD-01 crash dummy'].concat(
+  typeof CHAR_REG !== 'undefined' ? CHAR_REG.order.map(k => CHAR_REG.chars[k].label) : []);
 // Jodel-ish defaults: near-semicircular top, full roundness, glass canopy.
 window.CAGE_PAGE = {
   defaultStep: 'crease',
@@ -130,6 +136,8 @@ window.CAGE_PAGE = {
     stickLen: 0.44, thrX: 0, thrY: 0, thrZ: 0, thrLen: 0.16, pedalZ: 0.9,
     pedalH: 0.18, pedalSpread: 0.15, pedalAngle: 25, dumOn: 1,
     dumSize: 1, dumElbows: 0.08, dumKnees: 0, dumRecline: 0, dumMarkers: 1,
+    pilotWho: 0, copWho: 0, dumFist: 0.5, dumIdle: 0.5,
+    paxFeetOn: 1, paxFeetZ: 0.55, paxFeetY: 0, paxFeetX: 0.14, paxIdle: 1,
     dumHandGrip: 0.075,
     // G180 — WHO IS ABOARD, per section, and the passengers' own seat and
     // pose. Full by default: that is what `dum2On 1` (retired, migrated in
@@ -454,8 +462,16 @@ window.CAGE_PAGE = {
       // retired and migrated in cageFromSpec.
       ['aboard', [
         ['dumOn',     'pilot dummy',    0, 1, 1],
+        // WHO FLIES (G204/G204.1): the pilot and the co-pilot each pick from
+        // the same list — mixed crew (the characters rotate through every
+        // seat aboard, the passengers included), the ATD-01, or one declared
+        // character (src/chars/, tools/chars_table.py order — the manifests
+        // load ahead of this page, so the list is read here, once)
+        ['pilotWho',  'pilot',          0, WHO_NAMES.length - 1, 1, WHO_NAMES],
         ['cabOcc',    'co-pilot seated', 0, 1, 1,
          { when: P => +P.crewOn && +P.seatLayout === 1 }],
+        ['copWho',    'co-pilot',       0, WHO_NAMES.length - 1, 1, WHO_NAMES,
+         { when: P => +P.crewOn && +P.seatLayout === 1 && +P.cabOcc }],
       ], 'open', { when: P => +P.crewOn }],
       ['pilot pose', [
         ['dumSize',   'stature',        0, 2, 1, ['5th %ile — 1.52 m',
@@ -465,6 +481,11 @@ window.CAGE_PAGE = {
         ['dumKnees',  'knees in/out',  -0.25, 0.25, 0.005],
         ['dumRecline','recline offset',-15, 25, 0.5],
         ['dumHandGrip','hand on grip',  0, 0.16, 0.005],
+        // G205: how far the fingers close (0 flat, 1 a fist; a character
+        // only), and the pilot's breathing/glancing amplitude off the
+        // sitting-idle clip (0 = a statue)
+        ['dumFist',   'fist closed',    0, 1, 0.05],
+        ['dumIdle',   'idle motion',    0, 1, 0.05],
         ['dumMarkers','eye point',      0, 1, 1],
       ], 'open', { when: P => +P.crewOn }],
       // one pose for every passenger (the user: "all the passenger and dummy
@@ -475,6 +496,17 @@ window.CAGE_PAGE = {
                                                   '50th %ile — 1.75 m',
                                                   '95th %ile — 1.88 m']],
         ['paxRecline','recline offset',-15, 25, 0.5],
+        // G205: the feet, placed without pedals — fore-aft from the seat
+        // back, height over the bay floor, half-spread (metres); and the
+        // upper-body idle clip's weight
+        ['paxFeetOn', 'feet placed',    0, 1, 1],
+        ['paxFeetZ',  'feet forward',   0.15, 0.95, 0.01,
+         { when: P => +P.crewOn && +P.paxCount > 0 && +P.paxFeetOn }],
+        ['paxFeetY',  'feet height',    0, 0.45, 0.01,
+         { when: P => +P.crewOn && +P.paxCount > 0 && +P.paxFeetOn }],
+        ['paxFeetX',  'feet apart',     0, 0.35, 0.005,
+         { when: P => +P.crewOn && +P.paxCount > 0 && +P.paxFeetOn }],
+        ['paxIdle',   'idle motion',    0, 1, 0.05],
       ], 'open', { when: P => +P.crewOn && +P.paxCount > 0 }],
     ], 'open'],
     ['5 · passengers', [

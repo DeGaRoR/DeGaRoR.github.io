@@ -67,7 +67,14 @@ function manifestFiles() {
   const models = fs.readdirSync(path.join(ROOT, 'src', 'models'))
     .filter(f => f.endsWith('_model.js'))
     .map(f => path.join(ROOT, 'src', 'models', f));
-  return v.concat(packs, models);
+  // the rigged characters (G204): every manifest on disk, the same
+  // catalogue-not-publish-list reasoning as the models above
+  const chars = fs.existsSync(path.join(ROOT, 'src', 'chars'))
+    ? fs.readdirSync(path.join(ROOT, 'src', 'chars'))
+      .filter(f => /_(?:char|anim)\.js$/.test(f))
+      .map(f => path.join(ROOT, 'src', 'chars', f))
+    : [];
+  return v.concat(packs, models, chars);
 }
 
 const REF_RE = /media\/[A-Za-z0-9_\-./]+?\.(?:jpg|png|bin)/g;

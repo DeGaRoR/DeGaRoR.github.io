@@ -1010,6 +1010,10 @@ function buildFloor(parent, A, P) {
 }
 
 // ---- THE DUMMY (mannequin_poser.html port) --------------------------------
+const PICK_MAT = new THREE.MeshBasicMaterial({ visible: false });
+// guarded: the node gates load this file under a THREE stub whose materials
+// carry no userData
+if (PICK_MAT.userData) PICK_MAT.userData.cageUni = 1;   // the editor's passes leave it be
 const BONES = [
   ['root',      null,       [0, 0, 0]],
   ['lumbar',    'root',     [0, 0.09, 0]],
@@ -1073,12 +1077,18 @@ const CHAINS = {
 // `suitM` is THIS dummy's own suit material (phase D) — the per-dummy
 // livery section resolved by the caller, null on the standalone bench.
 // Joints and hands/feet stay the shared hardware; only the SHELL dresses.
-function makeDummy(parent, suitM) {
+// `rig` (G204) swaps the bone table for a CHARACTER's own proportions
+// (_cage_char.js rig(): the same 19 joints, offsets read off the Mixamo
+// reference pose) so the IK lands the character's hands, not the ATD's, on
+// the grips; with a rig and `shells` false the amber shells are not built —
+// the skinned mesh dresses the skeleton instead (shells stay while the mesh
+// is still on the wire, so the seat is never empty).
+function makeDummy(parent, suitM, rig, shells) {
   const suit = suitM || M.shell;
   const fig = new THREE.Group();
   parent.add(fig);
   const bones = {};
-  BONES.forEach(([name, par, pos]) => {
+  (rig ? rig.bones : BONES).forEach(([name, par, pos]) => {
     const b = new THREE.Object3D();
     b.name = name;
     b.position.set(pos[0], pos[1], pos[2]);
@@ -1149,6 +1159,13 @@ function makeDummy(parent, suitM) {
                                M.dark);
     toe.position.set(0, -0.052, 0.185); att('ankle' + s, toe);
   }
+  // A DRESSED DUMMY KEEPS ITS SHELLS AS THE PICK PROXY (G204.2): drawn by an
+  // invisible material, so nothing shows and nothing shadows, but the
+  // raycast and the highlight (which re-draws a mesh's geometry as its own
+  // child) still find a body that FOLLOWS THE POSE. The skinned mesh itself
+  // is unpickable — r128 would test it at its bind pose under the floor.
+  if (rig && !shells)
+    fig.traverse(o => { if (o.isMesh) { o.material = PICK_MAT; o.userData.pick = 1; } });
   return { fig, bones };
 }
 
@@ -1440,9 +1457,27 @@ function seatPlaces(A, P) {
 
 // ---- THE BUILD HOOK -------------------------------------------------------
 let group = null;
+// characters on the wire (G204): one fetch per key, the build re-runs on
+// landing; a texture landing only needs a redraw (the bench draws on demand)
+const CHAR_WAIT = {};
+// several characters landing in one breath rebuild ONCE
+let charRebuildT = 0;
+const charRebuild = () => {
+  clearTimeout(charRebuildT);
+  charRebuildT = setTimeout(() => {
+    if (window.CAGE_UI && window.CAGE_UI.build) window.CAGE_UI.build();
+  }, 60);
+};
+if (typeof window !== 'undefined')
+  window.CHAR_TEX_LANDED = () => {
+    if (window.CAGE_UI && window.CAGE_UI.draw) window.CAGE_UI.draw();
+  };
 PAGE.post = ({ scene, spec, mesh, P, stat }) => {
+  if (window.CAGE_CHAR && window.CAGE_CHAR.clearAnims) window.CAGE_CHAR.clearAnims();
   if (group) {
-    group.traverse(c => { if (c.geometry) c.geometry.dispose(); });
+    // a character's skinned geometry is SHARED across builds (_cage_char.js
+    // uploads it once per page) — the crew's own bags go, the character stays
+    group.traverse(c => { if (c.geometry && !c.isSkinnedMesh) c.geometry.dispose(); });
     scene.remove(group);
     group = null;
   }
@@ -1551,9 +1586,80 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   // EVERY OCCUPANT IS POSED THE SAME WAY (user 2026-08-19): the second
   // dummy is not a passenger ornament — give it a station and it flies
   // from it, by the identical rules. Without one it rests its hands.
+  // WHO SITS WHERE (G204/G204.1). `pilotWho` and `copWho` read the same list:
+  // 0 = mixed crew, 1 = the ATD-01, 2.. = one declared character (tools/
+  // chars_table.py order). MIXED CREW ROTATES: every seat that says 'mixed'
+  // takes the next character off a cycle that starts at a hash of the
+  // aeroplane's registration (the user: 'alternate between characters on
+  // spawn, minimizing repetition') — so one aeroplane keeps its crew from
+  // build to build, two aeroplanes get different faces, and nobody is seated
+  // twice until the list runs out. Characters picked BY NAME for a seat are
+  // left out of the cycle. The rig comes from the manifest alone, so the
+  // proportions are right on the first build; each mesh is fetched once and
+  // the build re-runs when it lands (a stature of 1.75 m means 1.75 m in
+  // whichever body wears it).
+  const CH_LIST = window.CAGE_CHAR ? window.CAGE_CHAR.list() : [];
+  const whoOf = v => Math.round(+v || 0);
+  const named = new Set([P.pilotWho, P.cabOcc ? P.copWho : 0].map(whoOf)
+    .filter(v => v >= 2).map(v => v - 2));
+  const cycle = CH_LIST.map((c, i) => i).filter(i => !named.has(i));
+  const S0 = window.GARAGE_SPEC && window.GARAGE_SPEC.get && window.GARAGE_SPEC.get();
+  const regStr = String((S0 && (S0.reg || (S0.meta && S0.meta.reg))) || '');
+  let cyc = 0;
+  for (let i = 0; i < regStr.length; i++) cyc = (cyc * 31 + regStr.charCodeAt(i)) >>> 0;
+  const charAt = i => {
+    const C = window.CAGE_CHAR, c = CH_LIST[i];
+    if (!C || !c) return null;
+    let rig = null;
+    try { rig = C.rig(c.key); } catch (e) { console.warn(e.message); return null; }
+    const ready = !!C.ready(c.key);
+    if (!ready && !CHAR_WAIT[c.key]) {
+      CHAR_WAIT[c.key] = 1;
+      C.load(c.key).then(d => {
+        CHAR_WAIT[c.key] = 0;
+        if (d && window.CAGE_UI && window.CAGE_UI.build) charRebuild();
+      });
+    }
+    return { key: c.key, label: c.label, rig, ready };
+  };
+  // role: 'pilot' | 'cop' | 'pax' — the seat's own select, or the cycle
+  const charFor = role => {
+    const v = role === 'pilot' ? whoOf(P.pilotWho)
+            : role === 'cop' ? whoOf(P.copWho) : 0;
+    if (v === 1) return null;                          // the ATD, by name
+    if (v >= 2) return charAt(v - 2);                  // one person, by name
+    if (!cycle.length) return null;                    // mixed, nobody left: ATD
+    const i = cycle[cyc % cycle.length]; cyc++;
+    return charAt(i);
+  };
+  const dressed = (dum, CH, role, idx) => {
+    if (CH && CH.ready) {
+      const inst = window.CAGE_CHAR.instance(CH.key);
+      if (inst) {
+        window.CAGE_CHAR.dress(inst, dum,
+          { fist: P.dumFist == null ? 0.5 : +P.dumFist });
+        dum.char = inst;
+        // THE IDLE (G205): a passenger wears the sitting-idle clip on the
+        // upper body (seat, recline and feet stay ours); a pilot only its
+        // breathing and glances — the hands are the IK's. Phases differ per
+        // seat so a cabin never moves in unison.
+        const pax = role === 'pax';
+        const amp = pax ? (P.paxIdle == null ? 1 : +P.paxIdle)
+                        : (P.dumIdle == null ? 0.5 : +P.dumIdle);
+        if (window.CAGE_CHAR.animate && amp > 0)
+          window.CAGE_CHAR.animate(inst, { key: 'sitidle',
+            mode: pax ? 'body' : 'head', amp, phase: (idx || 1) * 1.7 });
+      }
+    }
+    return dum;
+  };
   const seatDummy = (seat, ST, idx, pose) => {
     const stick = ST && ST.stick, thr = ST && ST.thr, pedals = ST && ST.pedals;
-    const s = (pose || POSE_PILOT).s;
+    const role = idx === 1 ? 'pilot' : seat.section ? 'pax' : 'cop';
+    const CH = charFor(role);
+    // pose.s is stature / the ATD's 1.75; a character scales from ITS height
+    const s = CH ? (pose || POSE_PILOT).s * BASE_STATURE / CH.rig.height
+                 : (pose || POSE_PILOT).s;
     // the dummy's OWN suit (phase D): one colour of personality each, the
     // second following the first; ATD amber is the walk's last word. G180:
     // TWO suits, not one per body — the pilot's, and everyone else's (the
@@ -1562,17 +1668,32 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
       window.CAGE_SECMAT('dummy' + (idx === 1 ? 1 : 2),
         { surf: 0, fieldM: 1, side: THREE.FrontSide, tint0: 0xd6a11c }))
       || null;
-    const dum = makeDummy(group, suit);
+    const dum = makeDummy(group, suit, CH && CH.rig, CH && !CH.ready);
     dum.fig.name = 'edDum' + (idx || 1);
     dum.fig.scale.setScalar(s);
     const SP = seat.SP || sp1;
     const recline = clamp((SP.rake - 7) + (pose || POSE_PILOT).recline, -10, 55);
     applyPose(dum.bones,
               seatedPose(recline, !(stick || thr || pedals), SP.tilt));
-    dum.fig.position.set(seat.x, seat.panY + 0.03 + 0.105 * s,
+    dum.fig.position.set(seat.x,
+                         seat.panY + 0.03 + (0.085 + (CH ? CH.rig.hipDrop : 0.02)) * s,
                          seat.zBack + 0.095 * s + 0.02);
     dum.fig.updateMatrixWorld(true);
-    if (!stick && !thr && !pedals) return dum;
+    // FEET WITHOUT PEDALS (G205, the user: 'sliders for controlling the feet
+    // position of the passengers. Something like the pedals for the pilots,
+    // but without the actual pedals'): two fixed anchors on the floor of the
+    // bay, fore-aft / height / spread from the sliders, the legs IK'd onto
+    // them exactly as onto pedals — nothing is drawn.
+    const feet = (!pedals && seat.section && +P.paxFeetOn) ? (() => {
+      const g = new THREE.Group(); group.add(g);
+      const z = seat.zBack + (P.paxFeetZ == null ? 0.55 : +P.paxFeetZ);
+      const y = A.floorAt(z) + (+P.paxFeetY || 0) + 0.072 * s;   // ankle over sole
+      const hx = P.paxFeetX == null ? 0.14 : +P.paxFeetX;
+      return { objL: anchorAt(g, [seat.x + hx, y, z]),
+               objR: anchorAt(g, [seat.x - hx, y, z]) };
+    })() : null;
+    // (no early return any more: hands with nothing to hold REST ON THE
+    // KNEES by IK below, so every occupant goes through the solver)
     // HANDS FOLLOW THE GEOMETRY (user 2026-08-19: the dummy crossed its
     // arms when the console moved from beside the seat to between the
     // seats). Each control is asked WHICH SIDE OF THIS SEAT it actually
@@ -1603,6 +1724,9 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     if (pedals) {
       jobs.push({ chain: 'legL', a: pedals.objL, label: 'L→pedal' });
       jobs.push({ chain: 'legR', a: pedals.objR, label: 'R→pedal' });
+    } else if (feet) {
+      jobs.push({ chain: 'legL', a: feet.objL, label: 'L→foot' });
+      jobs.push({ chain: 'legR', a: feet.objR, label: 'R→foot' });
     }
     // debug record (the CAGE_DBG idiom): what went to which hand, and
     // where each grip actually sits relative to its own seat
@@ -1616,7 +1740,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     DBG.stations.push(rec);
     const pole = new THREE.Vector3();
     const base = seatedPose(recline, false, SP.tilt);
-    for (const j of jobs) {
+    const solveJob = j => {
       const c = CHAINS[j.chain];
       ikDefaultPole(dum, j.chain, pole);
       const side = /L$/.test(c.end) ? 1 : -1;
@@ -1644,6 +1768,19 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
           -(P.dumHandGrip != null ? P.dumHandGrip : 0.075) * s);
       }
       const gap = ikSolve(dum, j.chain, aw.p, pole, alignQ);
+      // A NATURAL WRIST (G205, the user: 'natural wrist orientation'): the
+      // grip basis above was solved from the SHOULDER's approach, which
+      // twists the hand against the forearm the IK then placed. Solve it
+      // again from the ELBOW, so the hand continues the forearm and wraps
+      // the grip from where the arm really arrives.
+      if (j.a.userData.grip && gap <= 0.12) {
+        dum.bones[c.mid].getWorldPosition(_gv);
+        const q2 = gripQuat(j.a, _gv, _gq);
+        const wb = dum.bones[c.end];
+        wb.parent.getWorldQuaternion(_qp).invert();
+        wb.quaternion.copy(_qp.multiply(q2));
+        wb.updateMatrixWorld(true);
+      }
       // where the WRIST ended up against the grip it holds: the gap
       // between them IS the palm offset, i.e. the proof the HAND and
       // not the joint is on the control
@@ -1661,8 +1798,32 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
                    + 'cm (' + j.label + ')');
       } else if (gap > 0.005)
         notes.push(c.label + ' SHORT ' + (gap * 100).toFixed(1) + 'cm');
+    };
+    for (const j of jobs) solveJob(j);
+    // HANDS ON THE KNEES (G205.2, the user: 'their hands are meant at
+    // resting on their knees [...] they go through as we have made the feet
+    // higher'). A hand with nothing to hold used to rest by FK, on a thigh
+    // that the feet sliders have since lifted. Now it is a GRIP JOB like
+    // any other, aimed at the knee the leg IK just placed: palm on the top
+    // of the thigh just behind the knee, thumb inward and a little forward,
+    // the wrist continuing the forearm — so the hands move with the knees
+    // whatever the feet do. Second pass because it reads the solved knees.
+    if (!stick && !thr) {
+      const g = new THREE.Group(); group.add(g);
+      group.updateWorldMatrix(true, false);
+      const kneeJobs = [];
+      for (const sd of ['L', 'R']) {
+        const kw = dum.bones['knee' + sd].getWorldPosition(new THREE.Vector3());
+        const kl = group.worldToLocal(kw);
+        kl.y += 0.05 * s; kl.z -= 0.03 * s;
+        const a = gripAt(g, [kl.x, kl.y, kl.z], [sd === 'L' ? -1 : 1, 0, 0.35]);
+        kneeJobs.push({ chain: 'arm' + sd, a, label: sd + '→knee' });
+      }
+      for (const j of kneeJobs) solveJob(j);
+      rec.jobs.push(...kneeJobs.map(j => ({ chain: j.chain, label: j.label,
+        get wrist() { return j.wrist; } })));
     }
-    return dum;
+    return dressed(dum, CH, role, idx);
   };
   // THE ANCHORS GO OUT WITH IT (G96). The lighting layer needs exactly what
   // this layer spent its life working out — where the floor is, where the
@@ -1727,7 +1888,13 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
       .applyQuaternion(head.getWorldQuaternion(new THREE.Quaternion()));
     if (typeof window !== 'undefined')
       window.CAGE_CREW_EYE = { p: eyeW.toArray(), fwd: fwdW.toArray(),
-                               heads: dums.map(d => d.bones.head) };
+                               // a character's head is part of ONE skinned
+                               // body (G204): while you look out of it the
+                               // whole body is what there is to hide — the
+                               // PILOT's only; the co-pilot stays in view
+                               heads: dums.flatMap((d, i) => d.char
+                                 ? (i === 0 ? d.char.meshes : [])
+                                 : [d.bones.head]) };
     if (P.dumMarkers) {
       const eye = group.worldToLocal(eyeW.clone());
       ballAt(group, M.marker, [eye.x, eye.y, eye.z], 0.015);

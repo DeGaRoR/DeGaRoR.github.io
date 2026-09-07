@@ -33302,3 +33302,248 @@ a retune of the AP's crosswind steering or a re-based 12 m bound. The
 remaining 3x to the real tube is the tube member class, owed since G199.3.
 The stab-roll row guards today's 3.1 deg at 3.5 — the pawnee rows read 80 —
 and its self-test doctors a 5 deg roll.
+
+## G204 — THE CREW MODEL: A MIXAMO CHARACTER WEARS THE DUMMY'S IK (2026-09-07,
+## the user: "I have new models from mixamo. Keep [the dummy] as an option,
+## but also load the attached one. If successful, I'll add more characters")
+
+The ATD-01 stays. Next to it the crew layer can now seat a RIGGED CHARACTER
+— a skinned mesh over Mixamo's 65-joint rig — and the character does not get
+its own posing code: the ATD skeleton is rebuilt with the character's
+proportions, the crew layer FK-poses and IK-solves it exactly as before, and
+the solved orientations are copied onto the Mixamo joints. One pose engine,
+two bodies. `dumModel` picks (0 = ATD-01, n = the n-th declared character;
+one model for everyone aboard); a checkbox with one character, a dropdown
+from the third name on (mkRow's own rule).
+
+**The pipeline (drop a file, one table row, run the baker):**
+- `tools/fbx_to_glb.py` — Blender 4.0 headless, `blender -b --python
+  tools/fbx_to_glb.py -- assets/chars/X.fbx assets/chars/x.glb`. Nothing in
+  the repo parses FBX 7.7 binary with skin clusters; Blender does, and the
+  embedded PNGs come out as the author's bytes. Animations dropped (the crew
+  layer poses the rig), mesh untouched (import-models-as-is).
+- `tools/chars_table.py` — THE DECLARED LIST (key, label, glb, credit).
+- `tools/char_prep.py` — GLB -> `media/geo/chars/<key>.<h8>.bin` (float32
+  positions/normals/uv, u8 joints, f32 weights, u16 indices, the inverse bind
+  matrices, per mesh at off/len) + `media/tex/chars/<key>/*.png` byte-exact +
+  `src/chars/<key>_char.js` (registerChar manifest: the WHOLE node tree
+  verbatim, the joint list, materials, texture paths) + `chars_index.json`
+  (build.js's `MANIFEST.chars`, MODELS slot). Owns both media dirs whole.
+- `src/core/52_char_codec.js` — `CHAR_REG`/`registerChar`/`charList`/
+  `decodeChar`, pure JS, node-exported. GATE MEDIA's manifestFiles reads
+  `src/chars/*_char.js`; GATE PARTS knows `dumModel` (Crew part, `aboard`).
+- `tools/_cage_char.js` (editor list, before `_cage_crew.js`; also on the
+  `_cage8.html` bench) — `rig(key)` from the MANIFEST ALONE: the node tree is
+  built, each upper arm swung by the shortest arc onto straight down (the
+  REFERENCE POSE = the ATD's identity), and the 19 ATD bone offsets are read
+  off the mapped joints' world positions (Hips/Spine/Spine1/Neck/Head,
+  Shoulder/Arm/ForeArm/Hand, UpLeg/Leg/Foot per side; Spine2, fingers, toes,
+  HeadTop_End unmapped). Also `height` (1.79 m for Ch42: stature scale =
+  chosen stature / height, so "50th %ile 1.75 m" means 1.75 m in any body),
+  `hipDrop`, `hipsOff`, and every node's reference world quaternion.
+  `load(key)` through ASSET_FETCH (plain fetch on the bench), `instance(key)`
+  = tree + Skeleton + SkinnedMesh per mesh, `dress(inst, dum)` = the transfer.
+
+**The transfer.** For each node, nearest mapped ancestor-or-self a:
+`node.worldQ = atd[a].worldQ * C * node.refQ`, in the fig's frame (a rotated
+mount is a no-op, as it is for the IK). C is the identity except on the two
+hands, where it is Ry(+90 deg): the ATD hand's +x is the grip axis (thumb),
+-y the fingers, +-z the palm (gripQuat), while the Mixamo hand brought down
+to hang has thumb +z and palm to the body. Unmapped joints ride rigidly.
+
+**Three traps, all found in the browser, none by a gate:**
+1. **The editor's understudy pass ate the material.** In the game, `_cage_ui`'s
+   extPass replaces every lit material without `userData.aeroskin` by a matte
+   MeshStandardMaterial — no `skinning`, no map: the character rendered as
+   flat grey at its BIND POSE. Skinned meshes are now exempt (`o.isSkinnedMesh`),
+   and the char materials carry `userData.charSkin`.
+2. **Bind with the IDENTITY, not the node's matrixWorld.** glTF: the skinned
+   node's transform MUST be ignored. Blender writes the skinned vertices in
+   scene space (bounding radius ~1 m, not 100 cm) and inverse bind matrices
+   that already carry the armature's 0.01 x Rx90. `bind(skeleton,
+   mesh.matrixWorld)` applied the armature twice: a centimetre-sized body
+   whose faces streaked to the armature origin under the floor — the user's
+   "only distorted polygons visible". `bind(skeleton, new Matrix4())`.
+3. **The interior view sat inside the face.** app.js hides `CAGE_CREW_EYE.
+   heads` while you look out of them; a character's head is part of ONE skinned
+   body, so for a character the PILOT's whole body goes on that list (the
+   co-pilot stays). Hands on the stick are lost in that view — owed: a neck
+   clipping plane on a per-pilot material clone.
+Plus the shared-geometry rule: `PAGE.post`'s disposal skips `isSkinnedMesh`
+(one GPU upload per character per page; instances share it).
+
+**Measured (Ch42, sbs, centre stick + wall throttle + pedals):** both cockpit
+bodies seated and textured (diffuse sRGB + normal; the spec/gloss maps are
+referenced, not used — a glossiness map is the inverse of roughness), no OUT
+OF REACH; wrist-to-grip 8.9 cm (stick), 9.5 cm (throttle) against the 7.3 cm
+palm offset — the hands stop ~2 cm short, the character's hand being longer
+than the ATD's. `eye +0.93 fl`, `head clr 0.14` (0.16 with the ATD: the
+character's neck-to-crown is longer). Textures: 53 MB of PNG as delivered
+(4k normal alone 23 MB) — as-is per the ruling; a loading cue is the answer
+if it drags, not a re-encode. GATE MEDIA 393->399 files, PARTS green.
+
+**Owed / next characters:** drop `ChNN_nonPBR.fbx` in `assets/chars/`,
+convert, add a row, `python tools/char_prep.py`, `node tools/build.js` (the
+`_cage8.html` bench list is hand-edited). Then: the hand-length-aware palm
+offset (read `LeftHand -> LeftHandMiddle1` off the rig), finger curl on a
+grip, the neck clip for the interior view, per-occupant model choice, and
+the thumbnail in the select. The Browser pane needs the rAF shim
+(`window.requestAnimationFrame = cb => setTimeout(cb, 33)`) to see the loop
+move — build() alone renders one frame.
+
+## G204.1 — FIVE PEOPLE, MIXED CREW, AND WHO SITS WHERE (2026-09-07, the user:
+## "Here's 4 more. By default, alternate between characters on spawn,
+## minimizing repetition. [...] We should be able to swap the pilot and the
+## co-pilot from a list of available people")
+
+Four more rows in `tools/chars_table.py` (ch02, remy, ch22, ch01 — all five
+convert and bake through the G204 pipeline unchanged; every rig carries the
+19 mapped joints, Remy has two extra). `dumModel` is gone before it shipped;
+in its place two rows in the Crew part's `aboard` group read ONE list:
+
+    pilotWho / copWho :  0 mixed crew (rotate) · 1 ATD-01 · 2.. one person
+
+- **MIXED CREW ROTATES.** Every seat that says "mixed" — the passengers
+  always do — takes the next character off a cycle that starts at a hash of
+  the aeroplane's REGISTRATION (`GARAGE_SPEC.get().reg`): one aeroplane keeps
+  its crew from build to build (no faces flicker under a slider drag), two
+  aeroplanes get different people, and nobody sits twice until the list runs
+  out. Characters chosen BY NAME for a seat are left out of the cycle.
+  Verified: F-PGAR seats ch22 / ch01 / ch42 / ch02 — four different bodies.
+- **BY NAME.** `pilot: Mixamo Remy` puts Remy in the left seat and the cycle
+  fills the rest around her. `copWho` shows only with a co-pilot seated.
+- Several characters landing in one breath rebuild ONCE (60 ms debounce).
+- **Remy's rig is authored at 2x** (3.72 m tall standing); the stature scale
+  (chosen stature / rig height) absorbs it — she is 1.75 m in the seat like
+  everyone else, with her own proportions (eye +0.86 fl, head clr 0.27).
+- The bench `_cage8.html` script list carries all five manifests by hand.
+
+**The store now holds 5 characters: 8.5 MB of geometry, 251 MB of PNG** —
+the delivered 4k diffuse/normal/gloss sets, byte-exact, per the standing
+ruling. The user has said these people will also dress the SCENERY later and
+that we should be ready to optimize them; the hooks are in place, not the
+optimization: geometry, materials and textures are shared per character across
+every instance on the page (one upload each), the baker has the props baker's
+`tex` budget column as its precedent (a per-row `tex` cap would be the one
+change), and the spec/gloss maps are referenced but never fetched. A loading
+cue for the ~50 MB a first seat pulls is the other owed piece.
+
+**Browser-pane note that cost an hour:** r128's WebGLRenderer sets `render`
+as an INSTANCE property, so patching the prototype counts nothing; the way
+to get the live renderer/scene/camera is `THREE.Object3D.prototype
+.onBeforeRender = function (r, s, c) { if (this.isScene) ... }` — then
+`renderer.render(scene, camera)` + `domElement.toDataURL()` POSTed to a
+node sink is a true frame, where the pane's own screenshot of the WebGL
+layer can lag reality. Battery: see the G204 line (run after G204.1 landed).
+
+## G204.2 — CH01'S FACE, AND A CLICK ON A PERSON (2026-09-07, the user: "one of
+## them is looking bad [...] The new crew should be selectable and lead to the
+## crew section. Right now I think it degenerates into the 4 little dots")
+
+- **Ch01 flags its whole body BLEND** (one texture set carries the eyelash
+  alpha). The G204 BLEND recipe turned depth writes off, and a double-sided
+  body that does not write depth shows its own back faces through the face
+  and the shirt — the mottled skin and the "checkered" shirt were one bug.
+  BLEND now = transparent + alphaTest 0.3 + depthWrite ON (cutout, sorted).
+- **A skinned mesh is not pickable and not re-drawn.** r128 raycasts a
+  SkinnedMesh at its BIND pose — a T-pose under the floor — so a click there
+  resolved to the crew (edDum name on the way up) and the highlight, which
+  re-draws a mesh's geometry as its own child with a plain material, drew
+  that ghost: the four dots were sneakers and hands poking through the slab.
+  Now `sm.raycast` is a no-op (_cage_char.js), editor.js's layer highlight
+  skips `isSkinnedMesh`, and a DRESSED DUMMY KEEPS ITS ATD SHELLS as the
+  pick proxy under an invisible material (`PICK_MAT`, `userData.pick`): the
+  shells follow the pose, so the click lands on the person you see and the
+  silhouette rims the seated body (a hair larger than the character — the
+  ATD's head and shoulders — which reads fine). Verified: a click on the
+  pilot opens the Crew part; the silhouette follows four seated bodies.
+- The render-to-sink check (G204.1 note) with a hand-placed camera is how the
+  face was judged — 0.9 m in front of the pilot's eyes, the orbit untouched.
+
+## G205 — FEET WITHOUT PEDALS, THE HALF FIST, THE NATURAL WRIST, AND THE IDLE
+## CLIP (2026-09-07, the user: "sliders for controlling the feet position of
+## the passengers [...] fix all fingers and wrist positions [...] close the
+## fist halfway [...] the idle passenger animation is good [...] we need to
+## keep being able to edit the position ourselves")
+
+- **Feet without pedals.** A passenger seat gets two fixed anchors on the
+  bay floor — `paxFeetZ` fore-aft from the seat back, `paxFeetY` over the
+  floor, `paxFeetX` half-spread, `paxFeetOn` — and the legs IK onto them
+  exactly as onto pedals (jobs `L→foot`/`R→foot`, `d` = the 4.4 cm ankle-
+  over-sole offset). Nothing is drawn.
+- **The fist.** `dumFist` (0 flat, 1 closed, default 0.5): every phalanx of a
+  character flexes about its own curl axis by its share of a closed fist
+  (fingers 70/90/60 deg about world z of the T-pose, thumbs 10/35/40 about
+  world x; axes pulled into each joint's frame from the T-pose quaternions
+  the rig now keeps). The next phalanx is a child, so the chain closes on
+  itself. ATD hands have no fingers; the row is a no-op there.
+- **The natural wrist.** The grip basis was solved from the SHOULDER's
+  approach, which twisted the hand against the forearm the IK then placed;
+  it is now solved again from the ELBOW, and the wrist bone re-aligned, so
+  the hand continues the forearm. ATD and characters alike.
+- **The clips.** `tools/chars_table.py ANIMS` (Sitting Idle, Piloting) ->
+  `fbx_to_glb.py --anim` (every frame sampled) -> `char_prep.py bake_anim`
+  (rotation channels only, resampled to 15 fps, f32 [frames][joints][4],
+  `src/chars/<key>_anim.js` + `media/geo/chars/anim_<key>.bin`, 70 KB / 150
+  KB) -> `registerCharAnim`/`decodeCharAnim` (52_char_codec) -> the animator
+  in `_cage_char.js`. Retarget is BY JOINT NAME (the standard rig's joint
+  frames are shared, which is what makes a Mixamo clip portable). Two ways
+  to wear one, both layered over the solved pose so every slider still
+  rules: `body` (passengers, `paxIdle`) slerps spine..hands..fingers from
+  the ATD pose to the clip — seat, recline, root and FEET stay ours; `head`
+  (pilots, `dumIdle`) applies the clip's deviation from its first frame to
+  Neck/Head (1), Spine2 (0.6), Spine1 (0.3) — breathing and glances, hands
+  on the controls. Phase per seat (idx x 1.7 s) so a cabin never moves in
+  unison. One rAF ticker while anything is live; `clearAnims` at every
+  post; the bench draws on demand, the game's loop renders anyway.
+  Piloting is baked and unused (the user: hand positions in it are wrong;
+  keep our own).
+- **Ch20**, the preview character of the clip downloads, is the sixth person
+  (the same FBX converts both ways).
+
+Measured (F-PGAR, Ch01 at the stick): right hand half-closed on the stick
+knob, wrist straight; passengers' feet on the floor (`d` 0.042-0.044); heads
+move between two samples 0.7 s apart. NEW FINDING: **Ch01's left hand is
+10.9 cm short of the wall throttle** — reach is character-dependent now (the
+rig's own arm lengths), where the ATD reached. A per-character reach note
+or a throttle within every rig's reach is the user's call.
+
+Owed: the fist should open a little around a real grip (the fingers curl
+into the stick knob at 0.5), Piloting's arm positions as a reference only,
+a texture budget for the 300 MB of PNG (six people), the neck clip for the
+interior view, palm offset from the rig's hand length.
+
+## G205.1 — HAIR THROUGH THE GLASS: BLEND IS A CUTOUT (2026-09-07, the user:
+## "Sometimes it is drawn behind the glass, sometimes in front depending on
+## the angle [...] all hair, but also the full head of ch01")
+
+three sorts transparent objects by OBJECT position, and a skinned mesh's
+position is its armature origin — a metre under the floor — so every
+transparent character material (all hair, Ch01's BLEND-flagged whole body)
+sorted against the canopy glass by a point nowhere near the head, and won or
+lost with the camera. Character BLEND/MASK materials are now OPAQUE CUTOUTS
+(`alphaTest 0.5`, no `transparent`): they depth-test like the rest of the
+body, the glass drawn after them composes correctly, and G204.2's depthWrite
+fix is subsumed. Hair edges are hard, which Mixamo's alpha maps mostly are
+anyway. Verified from the user's angle (front-left, above, through the
+canopy): six people, every head behind the glass.
+
+## G205.2 — HANDS ON THE KNEES, AND THE DEVIATION THAT WAS NOT ONE (2026-09-07,
+## the user: "their hands are meant at resting on their knees. Right now they
+## go through as we have made the feet higher")
+
+- **Hands with nothing to hold REST ON THE KNEES BY IK.** A second solve pass
+  after the legs: a grip anchor per knee (top of the thigh just behind the
+  knee joint, thumb inward and a little forward), the same grip machinery as
+  a stick — palm offset, wrist continuing the forearm. So the hands move with
+  the knees whatever the feet sliders do; the ATD too. No early return any
+  more for occupants without controls.
+- **The passenger idle is a DEVIATION, not the clip's absolute arms** (which
+  went through the lifted thighs), and the reference is each joint's MEAN
+  orientation over the clip, not frame 0. Sitting Idle's real motion is
+  small: at most 4.7 deg on a forearm, 0.5 deg on the head.
+- **The bug that hid inside:** `animSample` uses the module scratch `_qa`;
+  the caller had just stored the inverse reference in `_qa`, so the
+  "deviation" was the frame's rotation applied twice — the hands left their
+  knees for their cheeks (0.66 m off the ATD wrist with the idle on, 0.000
+  with it off: the measurement that found it). Own scratch `_qm` now.

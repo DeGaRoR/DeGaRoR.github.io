@@ -897,10 +897,11 @@ const CAGE_PARTS = [
     groups: [
       // G180: the cockpit's occupants and the two poses (a passenger bay's
       // occupancy is the bay's own row, see the Passenger bay part)
-      ['aboard', ['dumOn', 'cabOcc']],
+      ['aboard', ['dumOn', 'pilotWho', 'cabOcc', 'copWho']],
       ['pilot pose', ['dumSize', 'dumElbows', 'dumKnees', 'dumRecline',
-                      'dumHandGrip']],
-      ['passenger pose', ['paxSize', 'paxRecline']],
+                      'dumHandGrip', 'dumFist', 'dumIdle']],
+      ['passenger pose', ['paxSize', 'paxRecline', 'paxFeetOn', 'paxFeetZ',
+                          'paxFeetY', 'paxFeetX', 'paxIdle']],
       ['markers', ['dumMarkers']],
     ] },
 

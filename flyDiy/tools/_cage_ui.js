@@ -1928,8 +1928,11 @@ fillPresetSel();
         // It is skipped BY DESIGN, not as an exception: the uniform recipe
         // was declared at G38 as the baseline "until materials become a real
         // chantier (P9)", and this is that chantier.
+        // A SKINNED MESH KEEPS ITS OWN MATERIAL (G204): the understudy has
+        // no skinning and no map, so a rigged character under it would
+        // collapse to its bind pose in flat grey — and the mesh IS the skin.
         const nm = mats.map(m => (LIT.has(m.type) && !m.userData.cageUni
-          && !m.userData.aeroskin)
+          && !m.userData.aeroskin && !o.isSkinnedMesh)
           ? (touched = true, uniOf(m)) : m);
         if (touched)
           o.material = Array.isArray(o.material) ? nm : nm[0];

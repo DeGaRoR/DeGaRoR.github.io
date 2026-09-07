@@ -413,3 +413,24 @@ assets identically):
 
 Note: this repository has no top-level LICENSE file; the statements above
 apply to the PA-18, the C172, the hangar props and their derivatives only.
+
+## Rigged characters (the crew models, G204)
+
+- **What**: the skinned characters the crew layer can seat in place of the
+  ATD-01 dummy — `Ch42` so far (`tools/chars_table.py` is the declared list;
+  `src/chars/<key>_char.js` + `media/geo/chars/`, `media/tex/chars/`).
+- **Source**: Adobe Mixamo (mixamo.com) characters, downloaded as FBX
+  ("nonPBR" texture set: diffuse, normal, specular, glossiness).
+- **Licence**: the Mixamo terms — royalty-free use of the characters within a
+  project, including a published web page; the raw assets are NOT
+  redistributed as such (`assets/chars/` is gitignored; what ships is the
+  baked payload the game needs).
+- **Imported as-is**: Blender headless converts FBX to GLB
+  (`tools/fbx_to_glb.py`), `tools/char_prep.py` bakes every primitive, every
+  vertex (float32) and the author's PNG textures byte-exact. Nothing is
+  decimated or re-encoded; the spec/gloss maps ride along but are not used as
+  roughness (a glossiness map is the inverse of one).
+- **Clips (G205)**: "Sitting Idle" and "Piloting" animations by Adobe Mixamo
+  (mixamo.com), Mixamo licence; baked as sampled joint rotations
+  (`src/chars/*_anim.js`, `media/geo/chars/anim_*.bin`). Ch20 is the preview
+  character those downloads carry, imported like the others.

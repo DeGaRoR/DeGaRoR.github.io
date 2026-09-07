@@ -71,6 +71,7 @@ const MANIFEST = {
     '43_pilot.js',
     '50_model_codec.js',
     '51_prop_codec.js',
+    '52_char_codec.js',
     // GARAGE: procedural airframe generator (spec -> loft -> frame -> aero -> skin)
     '60_gen_spec.js',
     // the body's SHAPE, owned in one place: one C1 curve that both the truss
@@ -130,6 +131,12 @@ const MANIFEST = {
   // aeroplanes and behind 51_prop_codec.js, which defines registerPropPack().
   props: (() => { try { return JSON.parse(fs.readFileSync(
       path.join(ROOT, 'src', 'props', 'props_packs.json'), 'utf8')); }
+    catch (e) { return []; } })(),
+  // baked RIGGED CHARACTERS (tools/char_prep.py from tools/chars_table.py):
+  // one manifest per character, order written by the baker. They ride in the
+  // MODELS slot behind 52_char_codec.js, which defines registerChar().
+  chars: (() => { try { return JSON.parse(fs.readFileSync(
+      path.join(ROOT, 'src', 'chars', 'chars_index.json'), 'utf8')); }
     catch (e) { return []; } })(),
   viewer: {
     shell: 'shell.html',
@@ -251,7 +258,9 @@ const MANIFEST = {
     // tiles, archetypes, GATE DESIGN. Pure data too, and every table it
     // reads (GEN_*, ENG_PAGE) is reached lazily, so it sits with its sibling.
     '_cage_design.js',
-    '_cage_page5.js', '_cage_gen.js', '_cage_crew.js',
+    // THE CHARACTERS (G204): the rig/skin module the crew layer dresses its
+    // dummies with — reads CHAR_REG at call time, so only before the crew.
+    '_cage_page5.js', '_cage_gen.js', '_cage_char.js', '_cage_crew.js',
     '_gear_kit.js', '_gear_gen.js', '_gear_page.js',
     // THE FITTINGS (G81-G84), the reading and drawing halves. Pure modules
     // with no post hook, so they only have to be loaded before the layer.
@@ -361,6 +370,9 @@ function buildViewer(coreBody) {
   models.forEach((m, i) => syntaxCheck(MANIFEST.models[i], m));
   const props = MANIFEST.props.map(f => read(path.join(PROPS_DIR, f)));
   props.forEach((m, i) => syntaxCheck(MANIFEST.props[i], m));
+  const CHARS_DIR = path.join(ROOT, 'src', 'chars');
+  const chars = MANIFEST.chars.map(f => read(path.join(CHARS_DIR, f)));
+  chars.forEach((m, i) => syntaxCheck(MANIFEST.chars[i], m));
   const three = read(path.join(VENDOR_DIR, 'three.min.js'));
   // the lazy flag rides IN FRONT of the editor scripts, in both pages: with
   // it set, _cage_ui.js defines CAGE_UI_BOOT and returns instead of booting.
@@ -382,7 +394,8 @@ function buildViewer(coreBody) {
   // stopped being inlined on 2026-09-01 (the multi-file artifact) and the
   // committed .js files under src/models/ and src/props/ are served directly.
   const payloadRefs = MANIFEST.models.map(f => ref(MODELS_DIR, 'src/models', f))
-    .concat(MANIFEST.props.map(f => ref(PROPS_DIR, 'src/props', f))).join('\n');
+    .concat(MANIFEST.props.map(f => ref(PROPS_DIR, 'src/props', f)))
+    .concat(MANIFEST.chars.map(f => ref(CHARS_DIR, 'src/chars', f))).join('\n');
 
   // --- the served page: code inlined, payloads referenced ---
   let art = shell;
@@ -407,6 +420,11 @@ function buildViewer(coreBody) {
     }
   for (const f of MANIFEST.props)
     if (!art.includes(`src="src/props/${f}?v=`)) {
+      console.error(`POST-BUILD ASSERTION FAILED: artifact lost the ${f} ref`);
+      process.exit(1);
+    }
+  for (const f of MANIFEST.chars)
+    if (!art.includes(`src="src/chars/${f}?v=`)) {
       console.error(`POST-BUILD ASSERTION FAILED: artifact lost the ${f} ref`);
       process.exit(1);
     }
