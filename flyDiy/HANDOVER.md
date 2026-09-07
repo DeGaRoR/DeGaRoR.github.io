@@ -33937,3 +33937,27 @@ throughout (the only core edits publish two numbers the sheet already had).
   belts, off by default; not a yoke; not the panel rows). Click-to-select
   named it in one go — the instrument for "what is that thing" is the
   editor's own part picker, not a grep.
+
+## G212 — THE REGISTRATION IS A DISTANCE FIELD (2026-09-07, the user: "Let's
+## add the SDF text for the registration now")
+
+- **The page's alpha is a signed distance to the glyph edge**, 0.5 at the
+  edge, ramping over AERO_SDF_SPREAD (3 % of the page, 30 px at 1024) each
+  side. The shader thresholds it one screen pixel wide (`fwidth`, floored)
+  for decals flagged in `uDecE.x`, MIXED into the loop rather than
+  branched — so the edge is wherever the threshold falls, at any zoom, and
+  the texels behind it can be as coarse as they like. RGB stays the raster
+  colours (ink, outline), with a 2R-wide underlay stroke in the outline's
+  colour so every texel under the ramp already wears a colour (the mips
+  average it; the old dilation walk is not run on this page).
+- **The transform is Felzenszwalb & Huttenlocher's**, exact, separable,
+  O(n) per row, run to the inside and to the outside of the marking's own
+  coverage on a scratch canvas; the difference of the roots is the signed
+  distance. Float64 — the "infinite" seed has to survive adds of squares up
+  to a million. Proven in node on a 3x3 block: corner 4.243 = sqrt(18).
+- **One bake per marking, not per slider**: every decal slider re-applied
+  the list and re-drew the registration with it, which with a transform in
+  the loop would be a laggy slider. `AERO_TEXT_SIG` keys the page on text,
+  colours, font and page size; a hit returns the cached aspect and fit.
+- The kit layers and the image pages are unchanged (raster); the same flag
+  would carry them if a pattern drawer produced a field.

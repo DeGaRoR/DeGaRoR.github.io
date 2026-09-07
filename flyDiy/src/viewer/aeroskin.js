@@ -1187,9 +1187,67 @@ const AERO_DEC_FONTS = [
   { name: 'sans light', css: '400 96px "IBM Plex Sans", ui-sans-serif, sans-serif',
     track: 6 },
 ];
+// ---- THE DISTANCE FIELD (G212) ---------------------------------------------
+// Felzenszwalb & Huttenlocher's exact Euclidean distance transform, separable
+// and O(n) per row: squared distance from every pixel to the nearest SET
+// pixel of a mask. Run twice — to the inside and to the outside — the
+// difference of their roots is the signed distance to the glyph edge, which
+// is what the page's alpha carries and the shader thresholds. Float64: the
+// "infinite" seed must survive the adds of squares up to a million.
+function aeroEDT1(f, n, d, v, z) {
+  let k = 0; v[0] = 0; z[0] = -Infinity; z[1] = Infinity;
+  for (let q = 1; q < n; q++) {
+    let s = ((f[q] + q * q) - (f[v[k]] + v[k] * v[k])) / (2 * q - 2 * v[k]);
+    while (s <= z[k]) {
+      k--;
+      s = ((f[q] + q * q) - (f[v[k]] + v[k] * v[k])) / (2 * q - 2 * v[k]);
+    }
+    k++; v[k] = q; z[k] = s; z[k + 1] = Infinity;
+  }
+  k = 0;
+  for (let q = 0; q < n; q++) {
+    while (z[k + 1] < q) k++;
+    d[q] = (q - v[k]) * (q - v[k]) + f[v[k]];
+  }
+}
+function aeroEDT(set, w, h) {
+  const INF = 1e12, g = new Float64Array(w * h);
+  for (let i = 0; i < w * h; i++) g[i] = set[i] ? 0 : INF;
+  const n = Math.max(w, h);
+  const f = new Float64Array(n), d = new Float64Array(n);
+  const v = new Int32Array(n), z = new Float64Array(n + 1);
+  for (let x = 0; x < w; x++) {
+    for (let y = 0; y < h; y++) f[y] = g[y * w + x];
+    aeroEDT1(f, h, d, v, z);
+    for (let y = 0; y < h; y++) g[y * w + x] = d[y];
+  }
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) f[x] = g[y * w + x];
+    aeroEDT1(f, w, d, v, z);
+    for (let x = 0; x < w; x++) g[y * w + x] = d[x];
+  }
+  return g;
+}
+// the spread of the field either side of the edge, in page pixels — wide
+// enough that the coarsest mip still holds a slope, narrow enough that two
+// registrations' letters never share it
+const AERO_SDF_SPREAD = P => Math.max(4, Math.round(P * 0.03));
+// ONE BAKE PER MARKING, NOT PER SLIDER (G212): every decal slider re-applied
+// the whole list and re-drew the registration with it; with a distance
+// transform in the loop that would be a laggy slider. The page is redrawn
+// only when what is on it changes.
+const AERO_TEXT_SIG = {};
+const AERO_TEXT_ASPECT = {};
+
 function aeroDecalText(THREE, page, text, colHex, outHex, font) {
   const t = aeroAtlas(THREE), S = AERO_ATLAS_PX, N = AERO_ATLAS_N;
   const P = S / N, px = (page % N) * P, py = Math.floor(page / N) * P;
+  const sig = [text, colHex, outHex, font, P].join('|');
+  if (AERO_TEXT_SIG[page] === sig && AERO_TEXT_ASPECT[page]) {
+    AERO_TEXT_FIT = AERO_TEXT_ASPECT[page].fit;
+    return AERO_TEXT_ASPECT[page].aspect;
+  }
+  AERO_TEXT_SIG[page] = sig;
   const g = AERO_ATLAS_CV.getContext('2d');
   g.save();
   g.clearRect(px, py, P, P);
@@ -1214,18 +1272,65 @@ function aeroDecalText(THREE, page, text, colHex, outHex, font) {
   // height in metres is the GLYPHS' height (G207), not the page's
   AERO_TEXT_FIT = { w: (w * sc) / P, h: (fh * sc) / P };
   g.scale(sc, sc);
+  const hex = v => '#' + ((v == null ? 0x1b3a5c : v) >>> 0).toString(16)
+                          .padStart(6, '0');
+  const R = AERO_SDF_SPREAD(P);
+  // THE COLOUR UNDERLAY (G212): the field's alpha ramps R px OUTSIDE the
+  // glyph, and the texels there must already wear a colour — the shader
+  // reads RGB wherever the threshold lets it, and the mips average it. A
+  // stroke 2R wide in the outline's colour (the ink's when there is none)
+  // puts that colour under the whole ramp, where the old dilation walked.
+  g.lineJoin = 'round';
+  g.lineWidth = (2 * R + 14 * (P / AERO_PAGE_REF)) / sc;
+  g.strokeStyle = hex(outHex != null ? outHex : colHex);
+  g.strokeText(text || '', 0, 0);
   if (outHex != null) {
-    g.lineWidth = 14 * (P / AERO_PAGE_REF) / sc; g.lineJoin = 'round';
-    g.strokeStyle = '#' + (outHex >>> 0).toString(16).padStart(6, '0');
+    g.lineWidth = 14 * (P / AERO_PAGE_REF) / sc;
+    g.strokeStyle = hex(outHex);
     g.strokeText(text || '', 0, 0);
   }
-  g.fillStyle = '#' + ((colHex == null ? 0x1b3a5c : colHex) >>> 0)
-    .toString(16).padStart(6, '0');
+  g.fillStyle = hex(colHex);
   g.fillText(text || '', 0, 0);
   g.restore();
-  aeroDilate(g, px, py, P, P, Math.round(5 * P / AERO_PAGE_REF));
+  // THE FIELD: the marking's own coverage (fill + outline, no underlay) on a
+  // scratch page, a distance transform each way, and the signed result laid
+  // into the atlas page's alpha over the colours just drawn — 0.5 at the
+  // edge, 1 at R px inside, 0 at R px outside.
+  {
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = P;
+    const m = cv.getContext('2d');
+    m.translate(P / 2, P / 2);
+    m.textAlign = 'center'; m.textBaseline = 'middle';
+    m.font = F.css;
+    if ('letterSpacing' in m) m.letterSpacing = F.track + 'px';
+    m.scale(sc, sc);
+    m.fillStyle = '#fff'; m.strokeStyle = '#fff'; m.lineJoin = 'round';
+    if (outHex != null) {
+      m.lineWidth = 14 * (P / AERO_PAGE_REF) / sc;
+      m.strokeText(text || '', 0, 0);
+    }
+    m.fillText(text || '', 0, 0);
+    const cov = m.getImageData(0, 0, P, P).data;
+    const inside = new Uint8Array(P * P), outside = new Uint8Array(P * P);
+    for (let i = 0; i < P * P; i++) {
+      const on = cov[i * 4 + 3] > 127;
+      inside[i] = on ? 1 : 0; outside[i] = on ? 0 : 1;
+    }
+    const dIn = aeroEDT(outside, P, P);    // from an inside pixel to the edge
+    const dOut = aeroEDT(inside, P, P);    // from an outside pixel to the edge
+    const img = g.getImageData(px, py, P, P), d = img.data;
+    for (let i = 0; i < P * P; i++) {
+      const sd = Math.sqrt(dIn[i]) - Math.sqrt(dOut[i]);
+      const a = Math.max(0, Math.min(1, 0.5 + sd / (2 * R)));
+      d[i * 4 + 3] = Math.round(a * 255);
+    }
+    g.putImageData(img, px, py);
+  }
   t.needsUpdate = true;
-  return w / fh;                                    // glyph aspect, w:h
+  const aspect = w / fh;                            // glyph aspect, w:h
+  AERO_TEXT_ASPECT[page] = { aspect, fit: AERO_TEXT_FIT };
+  return aspect;
 }
 
 // draw an arbitrary image into a page — "project complex liveries from
@@ -1327,6 +1432,7 @@ function aeroSharedU0(THREE, z4) {
     // not a packed bitfield: three comparisons are exact and legible where
     // pow/mod bit tests in GLSL ES 1.0 are neither.
     uDecD:  { value: z4() },     // x mode, y onBody, z onWing, w onTail
+    uDecE:  { value: z4() },     // x sdf (G212): the page's alpha is a distance
     // WORLD -> CRAFT: metres, x lateral, y aft, z up. SHARED, because it is a
     // fact about the AEROPLANE and not about any one material — the same
     // reason the decal list is shared.
@@ -1783,7 +1889,7 @@ function aeroDecalsFor(THREE, D, opts) {
   const list = [];
   for (const L of aeroKitLayers(D)) { aeroKitDraw(THREE, L); list.push(L.place); }
   list.push({ page: 0, sL: D.regL, sC: D.regC, w: pw, h: ph,
-                  rot: D.regRot, rough: -0.06,
+                  rot: D.regRot, rough: -0.06, sdf: 1,
                   on: onOf(D.regTarget), mode: modeOf(D.regMode) });
   if (D.imgOn) list.push({ page: 1, sL: D.imgL, sC: D.imgC, w: D.imgW,
     h: D.imgH, rot: D.imgRot, rough: -0.04,
@@ -1849,6 +1955,7 @@ function aeroSetDecals(THREE, list) {
     const on = d.on || { body: 1 };
     U.uDecD.value[i].set(AERO_DEC_MODE[d.mode] || 0,
       on.body ? 1 : 0, on.wing ? 1 : 0, on.tail ? 1 : 0);
+    U.uDecE.value[i].set(d.sdf ? 1 : 0, 0, 0, 0);
   }
 }
 
@@ -1962,6 +2069,7 @@ uniform vec4 uDecA[AERO_MAXD];
 uniform vec4 uDecB[AERO_MAXD];
 uniform vec4 uDecC[AERO_MAXD];
 uniform vec4 uDecD[AERO_MAXD];
+uniform vec4 uDecE[AERO_MAXD];  // x: the page's alpha is a signed distance (G212)
 uniform float uInset;
 // THE THREE DISPLAY GAINS (G206) — shared; see aeroSharedU. x members and
 // tapes, y sag and dish, z the large-scale field. uGGain was one x4 over
@@ -2569,7 +2677,16 @@ const AERO_ALBEDO_FS = `
     // (No backticks in here: this whole block is a template literal, and a
     // stray one ends it mid-shader. It has cost two debugging rounds.)
     vec3 dc = sRGBToLinear(tx).rgb;
-    float a = tx.a * w;
+    // THE REGISTRATION IS A DISTANCE FIELD (G212, the user: "either we need
+    // higher resolution, or vectorial"). Its page's alpha is a signed
+    // distance to the glyph edge, 0.5 AT the edge, so the edge is wherever
+    // the threshold falls — at any zoom, one screen pixel wide (fwidth), and
+    // the texels behind it can be as coarse as they like. MIXED, not
+    // branched: the loop is uniform and fwidth wants every lane.
+    float aSdf = uDecE[di].x;
+    float aSw = max(fwidth(tx.a) * 0.75, 0.003);
+    float aCov = mix(tx.a, smoothstep(0.5 - aSw, 0.5 + aSw, tx.a), aSdf);
+    float a = aCov * w;
     diffuseColor.rgb = mix(diffuseColor.rgb, dc, a);
     aeroDecR += a * uDecC[di].y;
   }
