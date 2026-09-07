@@ -222,6 +222,93 @@ const GEN_MATERIALS = {
 };
 
 // ===========================================================================
+// GEN_SURF_MATERIALS (G213) — WHAT A WING OR A TAIL IS BUILT OF
+// ===========================================================================
+// The user, 2026-09-07: "In a plywood plane, the wing is wooden structure,
+// but cloth on top. Only the leading edge is made of plywood. That also means
+// that the list of materials for the wing is wrong; it should be carbon,
+// steel, aluminium or fabric. Fabric being the default when the fuselage is
+// either plywood or steel tubes ... The same goes for the fins and
+// stabilisers. These are fabric wrapped on top of either a wooden or tubular
+// structure."
+//
+// THE CONFUSION, AUDITED: a wing, a fin and a stab "as the aeroplane" took
+// the FUSELAGE'S construction row — so a wood aeroplane grew a PLYWOOD wing:
+// ply's finish and grammar (gimp pins, panel laps), ply's covering weight
+// (1.35 kg/m2 for a skin that is 0.42 of fabric), ply's cd0. And the polar
+// penalty (62_gen_aero) read the fuselage's row even when the wing had its
+// own. This table is the flying surfaces' OWN vocabulary; GEN_MATERIALS
+// stays the fuselage's, unchanged, because a fuselage of "fabric" is not a
+// thing (that is tube + fabric) and the gates that sweep GEN_MATERIALS build
+// fuselages from every row.
+//
+//   fabric  a wooden structure (spruce spars, built-up ribs, a ply D-box at
+//           the leading edge) under doped fabric — the Jodel's and the
+//           Cub's wing, and every wood or tube aeroplane's default
+//   steel   4130 tube spars and ribs under the same fabric
+//   alloy   the 2024 sheet wing, riveted — an alloy aeroplane's default
+//   carbon  the moulded wing — a composite aeroplane's default
+//
+// The structure columns (phys, lin, k, c) are SHARED with the fuselage row
+// they come from — a spruce spar flexes as spruce whether it is in a wing
+// or a fuselage — and only what the COVER is differs: fabric's 0.42 plus the
+// D-box's share of ply (about a third of the wetted skin, both faces) is
+// 0.80 kg/m2 against ply's 1.35 for the whole skin.
+const GEN_SURF_MATERIALS = {
+  // ...and it FLEXES MORE than a ply-covered one: the ply skin of the wood
+  // row's wing is a stressed shell and most of its torsional and a share of
+  // its bending stiffness; fabric carries neither. Two thirds of the ply
+  // wing's k (a judgement, not a measurement), the damping in proportion.
+  fabric: { name: 'wood + fabric', phys: GEN_MATERIALS.wood.phys,
+            lin: GEN_MATERIALS.wood.lin,
+            k: { fus: GEN_MATERIALS.wood.k.fus, wing: 2.1e6,
+                 gear: GEN_MATERIALS.wood.k.gear },
+            c: { fus: GEN_MATERIALS.wood.c.fus, wing: 980,
+                 gear: GEN_MATERIALS.wood.c.gear },
+            cover: 0.80, price: 50, cd0: 0.0022, clmaxK: 1.00, shop: 'wood' },
+  steel:  { name: 'steel tube + fabric', phys: GEN_MATERIALS.tubeFabric.phys,
+            lin: GEN_MATERIALS.tubeFabric.lin, k: GEN_MATERIALS.tubeFabric.k,
+            c: GEN_MATERIALS.tubeFabric.c,
+            cover: 0.42, price: 42, cd0: 0.0022, clmaxK: 1.00, shop: 'tube' },
+  alloy:  Object.assign({}, GEN_MATERIALS.alloy,  { shop: 'metal' }),
+  carbon: Object.assign({}, GEN_MATERIALS.carbon, { shop: 'composite' }),
+};
+// what a surface that says nothing is built of, by the fuselage it hangs on.
+// THE WING: fabric over a wooden structure on both a wood and a tube
+// aeroplane (the user's ruling; a Cub's spars are not its fuselage's tubes).
+// THE TAIL: "fabric wrapped on top of either a wooden or tubular structure"
+// — and the structure is the fuselage's: a tube aeroplane's fin post and
+// stab spars are welded tube, so its tail is `steel`, a wood aeroplane's
+// is `fabric`. Measured reason for the split (G213, the test-section
+// session): handing a tube aeroplane's tail the wooden row halved its
+// stiffness (k.fus 8.0e5 -> 4.15e5) and the stab rolled 3.7 deg against the
+// mains through a taxi, over GATE TAKEOFF's 3.5 deg bar set with the tube.
+const GEN_SURF_DEFAULT = { tubeFabric: 'fabric', wood: 'fabric',
+                           alloy: 'alloy', carbon: 'carbon' };
+const GEN_SURF_DEFAULT_TAIL = { tubeFabric: 'steel', wood: 'fabric',
+                                alloy: 'alloy', carbon: 'carbon' };
+// the tokens a saved spec may still carry from before G213, read as what
+// they always meant on a flying surface: a "wood" wing was fabric over
+// wood, a "tubeFabric" wing was fabric over tube
+const GEN_SURF_LEGACY = { wood: 'fabric', tubeFabric: 'steel' };
+// which: 'wing' (plane k) | 'fin' | 'stab'
+function genSurfKey(S, which, k) {
+  const w = which === 'wing' ? (S.wings && S.wings[k || 0]) : null;
+  const raw = which === 'wing' ? (w && w.material)
+            : which === 'fin' ? (S.tail && S.tail.finMaterial)
+            : (S.tail && S.tail.stabMaterial);
+  const key = raw == null ? null
+            : (GEN_SURF_MATERIALS[raw] ? raw : (GEN_SURF_LEGACY[raw] || null));
+  // a resolved spec carries `material`; a raw one only `fuselage.material`
+  const fus = S.material || (S.fuselage && S.fuselage.material);
+  const D = which === 'wing' ? GEN_SURF_DEFAULT : GEN_SURF_DEFAULT_TAIL;
+  return key || D[fus] || 'fabric';
+}
+function genSurfMaterial(S, which, k) {
+  return GEN_SURF_MATERIALS[genSurfKey(S, which, k)];
+}
+
+// ===========================================================================
 // GEN_BUILD_GRAMMAR (G68) — HOW EACH CONSTRUCTION SHOWS ITSELF
 // ===========================================================================
 // The four rows above already move physics and have always moved NOTHING you
@@ -283,6 +370,13 @@ const GEN_BUILD_GRAMMAR = {
   },
   // spruce + birch ply. Pinned and glued: the pins are a STIPPLE under dope,
   // not bright dots, and they follow every glue line.
+  // FABRIC OVER A STRUCTURE, the wing's and the tail's own (G213): the same
+  // grammar as tube + fabric — rib tapes and sag, no fasteners — because what
+  // prints through a fabric cover is the ribs under it, whatever they are
+  // made of. Two keys, one look; GEN_SURF_MATERIALS says what they weigh.
+  // Filled from tubeFabric's row below the table.
+  fabric: null,
+  steel: null,
   wood: {
     name: 'spruce + ply',
     framePitch: 0.38,
@@ -349,6 +443,12 @@ const GEN_BUILD_GRAMMAR = {
     rough: { member: 0, seam: 0.03 },
   },
 };
+// `alias` says these two are tube + fabric's grammar ON PURPOSE (GATE
+// SKINMAT's duplicate check is for copy errors and steps over declared ones)
+GEN_BUILD_GRAMMAR.fabric = Object.assign({}, GEN_BUILD_GRAMMAR.tubeFabric,
+                                         { name: 'wood + fabric', alias: 'tubeFabric' });
+GEN_BUILD_GRAMMAR.steel  = Object.assign({}, GEN_BUILD_GRAMMAR.tubeFabric,
+                                         { name: 'steel tube + fabric', alias: 'tubeFabric' });
 
 
 // ===========================================================================
@@ -2537,12 +2637,20 @@ function clampSpec(spec) {
   // move (nothing to branch on; genDefaults fills nothing). The one thing to
   // clamp is that a value names a real material — an unknown falls back to
   // absent rather than reaching GEN_MATERIALS as undefined.
-  if (S.wings && S.wings[0] && S.wings[0].material != null &&
-      !GEN_MATERIALS[S.wings[0].material]) delete S.wings[0].material;
-  if (S.tail && S.tail.finMaterial != null &&
-      !GEN_MATERIALS[S.tail.finMaterial]) delete S.tail.finMaterial;
-  if (S.tail && S.tail.stabMaterial != null &&
-      !GEN_MATERIALS[S.tail.stabMaterial]) delete S.tail.stabMaterial;
+  // G213: the flying surfaces have their OWN vocabulary (GEN_SURF_MATERIALS);
+  // a legacy fuselage token is read as what it meant on a wing, an unknown
+  // falls back to absent, and every plane of a biplane is checked
+  const surf = v => v == null ? null
+    : (GEN_SURF_MATERIALS[v] ? v : (GEN_SURF_LEGACY[v] || null));
+  if (S.wings) for (const w of S.wings) if (w && w.material != null) {
+    const m = surf(w.material);
+    if (m) w.material = m; else delete w.material;
+  }
+  if (S.tail) for (const f of ['finMaterial', 'stabMaterial'])
+    if (S.tail[f] != null) {
+      const m = surf(S.tail[f]);
+      if (m) S.tail[f] = m; else delete S.tail[f];
+    }
   // The cage rides through verbatim — its generator owns its own ranges, and
   // clamping a copy of them here would be the second home the field's own note
   // forbids. The one thing this level can enforce is the SWITCH'S TYPE, so a

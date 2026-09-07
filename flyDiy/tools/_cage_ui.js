@@ -3981,7 +3981,9 @@ function buildMatPanel() {
       d.className = 'r dial';
       d.dataset.sec = nm;
       const inp = document.createElement('input');
-      inp.type = 'range'; inp.min = '0.25'; inp.max = '4'; inp.step = '0.05';
+      // G214: the floor came down 0.25 -> 0.05 (the user, dialling a
+      // fabric wing: "all sliders need to go lower")
+      inp.type = 'range'; inp.min = '0.05'; inp.max = '4'; inp.step = '0.05';
       inp.value = String(store[nm] != null ? store[nm] : 1);
       const v = document.createElement('span');
       v.className = 'v';

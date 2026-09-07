@@ -37,9 +37,12 @@ function genLattice(S, gearX, track, kScale) {
   // from. See B()'s note for why G116's mass move made the k/c coupling
   // safe to take. A V-TAIL IS ONE SURFACE and takes the stab's material:
   // it IS the horizontal tail, raked; there is no fin to build.
+  // G213: the flying surfaces' OWN table — absent means the surface default
+  // for this fuselage (fabric over wood on a wood or tube aeroplane), never
+  // the fuselage's own row
   const MSEC = {
-    wings: GEN_MATERIALS[S.wing && S.wing.material] || M,
-    tail:  GEN_MATERIALS[S.tail && S.tail.stabMaterial] || M,
+    wings: genSurfMaterial(S, 'wing', 0),
+    tail:  genSurfMaterial(S, 'stab'),
   };
   let MB = M;                                   // what the open section BILLS
   const KS = kScale || 1;                       // structure sized for the mass
@@ -1056,7 +1059,7 @@ function genLattice(S, gearX, track, kScale) {
     // the panel between the booms ties them — the stab's own cover
     B(tl.T, tr.T, 'fus'); B(tl.I, tr.I, 'fus'); B(tl.T, tr.I, 'fus'); B(tr.T, tl.I, 'fus');
     cover(1.9 * t.Sh, [HTL, HTR, tl.I, tr.I]);
-    MB = GEN_MATERIALS[t.finMaterial] || M;
+    MB = genSurfMaterial(S, 'fin');            // G213
     const finTopB = y0 + rB + t.vHeight * 0.82;
     const xFin = x0 + len - 0.30 * t.vChord;
     FIN = N(xFin, finTopB, bx, 'FIN');
@@ -1081,7 +1084,7 @@ function genLattice(S, gearX, track, kScale) {
     // THE FIN'S OWN MATERIAL (G116): the stab was billed above under the
     // tail section's default; the fin bills its own from here — sec('gear')
     // below resets the marker, so nothing after can inherit it by accident
-    MB = GEN_MATERIALS[t.finMaterial] || M;
+    MB = genSurfMaterial(S, 'fin');            // G213
     // the fin's apex node follows the RAKE, so the truss leans with the fin the
     // skin draws instead of standing upright inside a swept one
     FIN = N(t.vX + Math.tan((t.vSweep || 0) * Math.PI / 180) * t.vHeight * 0.82,

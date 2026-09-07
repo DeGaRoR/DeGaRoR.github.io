@@ -4109,7 +4109,10 @@
   function startLoadTest() {
     if (!inGarage) return;
     rig = makeLoadTest(sim, def, { material: (genSpec && genSpec.fuselage &&
-                                              genSpec.fuselage.material) || undefined });
+                                              genSpec.fuselage.material) || undefined,
+                                   // G213: the wing's own row for the wing class
+                                   wingMaterial: (genSpec && typeof genSurfKey === 'function')
+                                     ? genSurfKey(genSpec, 'wing', 0) : undefined });
     if (!rig.state.ok) { rig = null; return; }        // no spar stations to load
     rigLift = rig.lift; applyEnv();                   // take the room up with it
     buildLoadViz(rig);

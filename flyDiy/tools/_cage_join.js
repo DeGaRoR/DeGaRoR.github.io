@@ -139,7 +139,7 @@ function cageJoinPlane2(P, T) {
       aileron: { span: +P.w2AilOn ? P.w2AilSpan : 0, chord: P.w2AilChord },
     },
     ...(Math.round(P.w2Cons) > 0
-      ? { material: ['carbon', 'tubeFabric', 'wood', 'alloy'][Math.round(P.w2Cons) - 1] } : {}),
+      ? { material: ['carbon', 'steel', 'fabric', 'alloy'][Math.round(P.w2Cons) - 1] } : {}),
   };
 }
 
@@ -177,8 +177,10 @@ function cageJoinSpec(P, M, T) {
       // THE WING'S OWN CONSTRUCTION (G116): 0 says nothing — absent means
       // the aeroplane's own material, which is what every build before this
       // field existed already meant. 1..4 in intCons's display order.
+      // G213: the wing's own vocabulary (GEN_SURF_MATERIALS), in the row's
+      // order — 'wood' and 'tubeFabric' never reach a wing again
       ...(Math.round(P.wgCons) > 0
-        ? { material: ['carbon', 'tubeFabric', 'wood',
+        ? { material: ['carbon', 'steel', 'fabric',
                        'alloy'][Math.round(P.wgCons) - 1] } : {}),
     }, ...(+P.w2On ? [cageJoinPlane2(P, T)] : [])],
     bracing: { type: Math.round(P.wgBrace) ? 'cantilever' : 'strut',
@@ -404,7 +406,7 @@ function cageJoinSpec(P, M, T) {
   // THE TAIL'S OWN CONSTRUCTIONS (G116), same contract as the wing's:
   // 0 says nothing, absent means the aeroplane's own material
   {
-    const CONS4 = ['carbon', 'tubeFabric', 'wood', 'alloy'];
+    const CONS4 = ['carbon', 'steel', 'fabric', 'alloy'];   // G213
     if (Math.round(P.finCons) > 0)
       tl.finMaterial = CONS4[Math.round(P.finCons) - 1];
     if (Math.round(P.stCons) > 0)

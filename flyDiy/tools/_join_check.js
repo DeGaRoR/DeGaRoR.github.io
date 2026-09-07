@@ -122,7 +122,7 @@ ok(s.bracing.cabane === undefined && s.wings[0].cabaneH === null,
   const sb = cageJoinSpec(Pb, M, T);
   ok(sb.wings.length === 2 && sb.wings[1].span === 8.7 && sb.wings[1].stagger === 0.41 &&
      sb.wings[1].position === 'low' && sb.wings[1].place.dy === -0.05 &&
-     sb.wings[1].controls.aileron.span === 0 && sb.wings[1].material === 'wood' &&
+     sb.wings[1].controls.aileron.span === 0 && sb.wings[1].material === 'fabric' &&
      sb.wings[1].tipX === 0.1 && sb.wings[1].naca === 2412,
      'G185: the second plane carries its own rows');
   ok(sb.bracing.interplane === 'I' && sb.bracing.interplaneAt === 0.55 &&

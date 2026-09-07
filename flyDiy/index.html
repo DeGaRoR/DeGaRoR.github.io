@@ -2618,6 +2618,208 @@ body.mode-fly #wsUI { display:none; }
   .ctlRow { grid-template-columns:1fr; }
   .ctlRow .bar { grid-column:1; }
 }
+
+/* ============================================================
+   THE ENGINEERING BENCH, CERTIFIED (G208) — the test section's own sheet.
+   The bench rows, the certificates and their seals, the advisor, the
+   run overlay that freezes the interface while a test runs, the award
+   card, and the plaque's new one-column sheet with its hover cards.
+   Palette: editor.css's --ed-* tokens; this file adds none.
+   ============================================================ */
+
+/* ---- the header: verdict + the seals ------------------------------- */
+#edInfo .bHead { flex-wrap:wrap; row-gap:8px; }
+#edInfo .bHead b.cert { color:var(--ed-acc); }
+#edInfo .bHead b.stale { color:var(--ed-warn); }
+#edInfo .bSeals { flex-basis:100%; display:flex; gap:8px; align-items:center;
+  margin-top:2px; }
+#edInfo .bSeals canvas { width:34px; height:34px; border-radius:50%;
+  background:transparent; }
+#edInfo .bSeals canvas.off { opacity:.22; filter:grayscale(1); }
+#edInfo .bSeals em { font:400 10px/1.3 'IBM Plex Sans'; font-style:normal;
+  letter-spacing:0; text-transform:none; color:var(--ed-faint);
+  margin-left:4px; }
+
+/* ---- a test row ------------------------------------------------------ */
+#edInfo .bT { position:relative; transition:border-color .3s; }
+#edInfo .bT.cert { border-color:rgba(230,219,201,.32); }
+#edInfo .bT.stale { border-style:dashed; }
+#edInfo .bT1 canvas.bSeal { width:26px; height:26px; flex:none;
+  border-radius:50%; margin-right:2px; }
+#edInfo .bT.stale .bT1 b, #edInfo .bT.stale .bT1 .bN { color:var(--ed-faint); }
+#edInfo .bT.stale .bT1 b s { text-decoration:line-through; opacity:.7; }
+#edInfo .bT.cert .bT1 b { color:var(--ed-acc); }
+#edInfo .bT .bT1 b i { font-style:normal; color:var(--ed-faint);
+  font-weight:400; margin-left:6px; }
+
+/* the advisor's line: the sentence, and the one control it offers */
+#edInfo .bAdv { display:flex; flex-wrap:wrap; gap:6px 10px; align-items:center;
+  margin-top:7px; padding:7px 9px; border-radius:6px;
+  background:var(--ed-acc-soft); color:var(--ed-dim);
+  font:400 10.5px/1.5 'IBM Plex Sans'; }
+#edInfo .bAdv:before { content:'advisor'; font:600 9px/1 'IBM Plex Sans';
+  letter-spacing:.16em; text-transform:uppercase; color:var(--ed-faint);
+  flex-basis:100%; }
+#edInfo .bAdv b { color:var(--ed-ink); font-weight:500; }
+#edInfo .bAdv label { display:flex; gap:5px; align-items:center;
+  color:var(--ed-ink); cursor:pointer; }
+#edInfo .bAdv input { margin:0; accent-color:var(--ed-acc); }
+
+/* the run button reads "again" on a certified row; a stale row says why */
+#edInfo .bWhy { color:var(--ed-warn); font:400 10.5px/1.5 'IBM Plex Sans';
+  margin-top:5px; }
+
+/* THE CARDS LIVE ON THE BODY, over the view, and editor.css declares its
+   palette on the workshop's own containers — so the tokens are redeclared
+   here for them (measured 2026-09-07: `--ed-plate` was '' on the body and
+   the award card drew with no ground). The values are editor.css's. */
+#bFreeze, #bRun, #bAward, #pqTip {
+  --ed-panel:#201d1a; --ed-board:#1a1815;
+  --ed-plate:rgba(32,29,26,.94);
+  --ed-ink:#f4efe6; --ed-dim:#c0b8ac; --ed-faint:#97907f;
+  --ed-acc:#e6dbc9; --ed-acc-ink:#221f1b;
+  --ed-acc-soft:rgba(230,219,201,.14);
+  --ed-hair:rgba(255,248,236,.09); --ed-border:rgba(255,248,236,.14);
+  --ed-btn-bg:rgba(255,255,255,.06); --ed-btn-bd:rgba(255,255,255,.18);
+  --ed-track:rgba(0,0,0,.3);
+  --ed-warn:#d8a07a; --ed-bad:#e08a5a; }
+
+/* ---- THE FREEZE: nothing else answers while a test runs -------------- */
+#bFreeze { position:fixed; inset:0; z-index:60; background:rgba(0,0,0,.18);
+  cursor:progress; }
+#bFreeze[hidden] { display:none; }
+body.benchBusy #edWrap, body.benchBusy #edInfo, body.benchBusy #edProps {
+  pointer-events:none; }
+body.benchBusy #edInfo { opacity:.72; }
+
+/* ---- THE RUN CARD: what is happening, as it happens ------------------ */
+#bRun { position:fixed; z-index:61; bottom:26px;
+  left:calc(var(--ws-left, 0px) + (100vw - var(--ws-left, 0px) - var(--ws-right, 0px)) / 2);
+  transform:translateX(-50%);
+  width:400px; max-width:calc(100vw - 40px); box-sizing:border-box;
+  background:var(--ed-plate); border:1px solid var(--ed-border);
+  border-radius:12px; padding:12px 14px 13px; color:var(--ed-ink);
+  box-shadow:0 12px 40px rgba(0,0,0,.45); font:400 11px/1.4 'IBM Plex Sans';
+  animation:bRunIn .25s ease-out; }
+#bRun[hidden] { display:none; }
+@keyframes bRunIn { from { opacity:0; transform:translateX(-50%) translateY(10px); }
+                    to { opacity:1; transform:translateX(-50%) translateY(0); } }
+#bRun .bRh { display:flex; gap:9px; align-items:baseline; }
+#bRun .bRk { font:600 9px/1 'IBM Plex Sans'; letter-spacing:.2em;
+  text-transform:uppercase; color:var(--ed-faint); }
+#bRun .bRn { font:500 13px/1 'IBM Plex Sans'; color:var(--ed-ink); }
+#bRun .bRt { margin-left:auto; font:500 11px/1 'IBM Plex Mono', monospace;
+  color:var(--ed-dim); }
+#bRun .bRx { flex:none; font:500 9px/1 'IBM Plex Sans'; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--ed-dim); background:transparent;
+  border:1px solid var(--ed-btn-bd); border-radius:6px; padding:5px 8px;
+  cursor:pointer; }
+#bRun .bRx:hover { color:var(--ed-ink); border-color:var(--ed-ink); }
+/* the phase strip: one cell per step, the current one lit, done ones ticked */
+#bRun .bRph { display:flex; gap:3px; margin:10px 0 0; }
+#bRun .bRph span { flex:1; font:500 8.5px/1 'IBM Plex Sans'; letter-spacing:.08em;
+  text-transform:uppercase; text-align:center; color:var(--ed-faint);
+  padding:5px 0 6px; border-bottom:2px solid var(--ed-hair); white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis; }
+#bRun .bRph span.done { color:var(--ed-dim); border-bottom-color:var(--ed-dim); }
+#bRun .bRph span.now { color:var(--ed-ink); border-bottom-color:var(--ed-acc);
+  animation:bPulse 1.2s ease-in-out infinite; }
+@keyframes bPulse { 0%,100% { opacity:1; } 50% { opacity:.55; } }
+#bRun .bRbar { height:4px; border-radius:2px; background:var(--ed-track);
+  margin:10px 0 8px; overflow:hidden; }
+#bRun .bRbar i { display:block; height:100%; width:0; background:var(--ed-acc);
+  transition:width .15s linear; }
+#bRun .bRbar i.ind { width:30%; animation:bInd 1.1s ease-in-out infinite alternate; }
+@keyframes bInd { from { margin-left:0; } to { margin-left:70%; } }
+#bRun .bRlive { display:flex; flex-wrap:wrap; gap:4px 14px; color:var(--ed-dim);
+  font:400 11px/1.4 'IBM Plex Sans'; min-height:16px; }
+#bRun .bRlive b { color:var(--ed-ink); font-weight:500;
+  font-family:'IBM Plex Mono', monospace; }
+#bRun canvas.bRtrace { display:block; width:100%; height:190px; margin-top:9px;
+  border-radius:7px; background:rgba(0,0,0,.28); }
+#bRun canvas.bRtrace[hidden] { display:none; }
+#bRun .bRnotes { margin-top:8px; color:var(--ed-warn);
+  font:400 10.5px/1.45 'IBM Plex Sans'; }
+#bRun .bRnotes:empty { display:none; }
+#bRun .bRnotes div:before { content:'▸ '; color:var(--ed-faint); }
+
+/* ---- THE AWARD: the stamp, and the sticker it earns ------------------ */
+#bAward { position:fixed; z-index:62; top:50%;
+  left:calc(var(--ws-left, 0px) + (100vw - var(--ws-left, 0px) - var(--ws-right, 0px)) / 2);
+  transform:translate(-50%,-50%);
+  width:340px; max-width:calc(100vw - 40px); box-sizing:border-box;
+  background:var(--ed-plate); border:1px solid var(--ed-border);
+  border-radius:14px; padding:22px 20px 18px; text-align:center;
+  color:var(--ed-ink); box-shadow:0 18px 60px rgba(0,0,0,.5); cursor:pointer;
+  font:400 11.5px/1.5 'IBM Plex Sans'; animation:bAwIn .3s ease-out; }
+#bAward[hidden] { display:none; }
+@keyframes bAwIn { from { opacity:0; transform:translate(-50%,-46%); }
+                   to { opacity:1; transform:translate(-50%,-50%); } }
+#bAward .bAk { font:600 9px/1 'IBM Plex Sans'; letter-spacing:.22em;
+  text-transform:uppercase; color:var(--ed-faint); }
+#bAward .bAn { font:500 14px/1.2 'IBM Plex Sans'; margin-top:6px; }
+#bAward canvas { display:block; width:150px; height:150px; margin:14px auto 6px;
+  animation:bSeal .55s cubic-bezier(.2,1.4,.4,1) both; animation-delay:.25s; }
+@keyframes bSeal { from { opacity:0; transform:scale(1.9) rotate(-14deg); }
+                   60% { opacity:1; }
+                   to { opacity:1; transform:scale(1) rotate(-6deg); } }
+#bAward .bAs { display:inline-block; margin-top:8px; padding:7px 14px;
+  border:2px solid var(--ed-acc); border-radius:6px; color:var(--ed-acc);
+  font:700 13px/1 'IBM Plex Sans'; letter-spacing:.24em; text-transform:uppercase;
+  transform:rotate(-4deg); animation:bStamp .4s cubic-bezier(.2,1.6,.4,1) both;
+  animation-delay:.5s; }
+#bAward.no .bAs { border-color:var(--ed-bad); color:var(--ed-bad); }
+@keyframes bStamp { from { opacity:0; transform:rotate(-4deg) scale(2.2); }
+                    to { opacity:1; transform:rotate(-4deg) scale(1); } }
+#bAward .bAv { margin-top:12px; color:var(--ed-dim); }
+#bAward .bAv b { color:var(--ed-ink); font-weight:500; }
+#bAward .bAf { margin-top:8px; color:var(--ed-warn); text-align:left; }
+#bAward .bAd { margin-top:12px; font:400 9.5px/1 'IBM Plex Sans';
+  letter-spacing:.1em; text-transform:uppercase; color:var(--ed-faint); }
+
+/* ---- THE PLAQUE'S SHEET: one column, every row explained -------------- */
+#edInfo #pqRows { display:block; }
+#edInfo #pqRows .ph { margin:16px 0 4px; }
+#edInfo #pqRows .ph span { display:block; font:600 10px/1 'IBM Plex Sans';
+  letter-spacing:.2em; text-transform:uppercase; color:var(--ed-faint); }
+#edInfo #pqRows .ph em { display:block; margin-top:4px; font:400 10px/1.4 'IBM Plex Sans';
+  font-style:normal; color:var(--ed-faint); opacity:.85; }
+#edInfo #pqRows .pr { display:flex; flex-wrap:wrap; justify-content:space-between;
+  align-items:baseline; gap:2px 10px; padding:6px 0 5px;
+  border-bottom:1px solid var(--ed-hair); }
+#edInfo #pqRows .pr.has { cursor:help; }
+#edInfo #pqRows .pr .pl { font:400 12px/1.25 'IBM Plex Sans'; color:var(--ed-dim);
+  flex:1 1 auto; min-width:0; overflow-wrap:anywhere; }
+#edInfo #pqRows .pr.has .pl { text-decoration:underline dotted rgba(255,248,236,.28);
+  text-underline-offset:3px; }
+#edInfo #pqRows .pr:hover .pl { color:var(--ed-ink); }
+#edInfo #pqRows .pr .pv { font:500 13px/1.25 'IBM Plex Sans'; color:var(--ed-ink);
+  flex:0 1 auto; text-align:right; overflow-wrap:anywhere; }
+#edInfo #pqRows .pr .pv i { font:400 11px/1 'IBM Plex Sans'; font-style:normal;
+  color:var(--ed-faint); margin-left:6px; white-space:nowrap; }
+#edInfo #pqRows .pr.warn .pv { color:var(--ed-warn); }
+#edInfo #pqRows .pr.bad .pv { color:var(--ed-bad); }
+/* the band bar: three zones and the marker */
+#edInfo #pqRows .pb { flex-basis:100%; position:relative; height:3px; margin:3px 0 2px;
+  border-radius:2px; overflow:visible;
+  background:linear-gradient(90deg, rgba(224,138,90,.55) 0 33.3%,
+    rgba(216,160,122,.45) 33.3% 66.6%, rgba(230,219,201,.35) 66.6% 100%); }
+#edInfo #pqRows .pb.down { background:linear-gradient(90deg, rgba(230,219,201,.35) 0 33.3%,
+    rgba(216,160,122,.45) 33.3% 66.6%, rgba(224,138,90,.55) 66.6% 100%); }
+#edInfo #pqRows .pb i { position:absolute; top:-3px; width:3px; height:9px;
+  margin-left:-1.5px; border-radius:2px; background:var(--ed-ink);
+  box-shadow:0 0 0 1px rgba(0,0,0,.5); }
+/* the pinned explanation, opened by a click */
+#edInfo #pqRows .pr .px { flex-basis:100%; margin:4px 0 2px; padding:7px 9px;
+  border-radius:6px; background:rgba(0,0,0,.22); color:var(--ed-dim);
+  font:400 10.5px/1.5 'IBM Plex Sans'; white-space:pre-line; cursor:default; }
+
+/* the hover card, one for the page */
+#pqTip { position:fixed; z-index:70; pointer-events:none; max-width:280px;
+  background:var(--ed-plate); border:1px solid var(--ed-border); border-radius:8px;
+  padding:9px 11px; color:var(--ed-dim); font:400 11px/1.5 'IBM Plex Sans';
+  white-space:pre-line; box-shadow:0 8px 30px rgba(0,0,0,.45); }
+#pqTip[hidden] { display:none; }
 </style>
 </head>
 <body>
@@ -6546,6 +6748,10 @@ function hangarWants(S) {
     else if (m === 'tubeFabric') want.add('tube');
     else if (m === 'alloy') want.add('metal');
     else if (m === 'carbon') want.add('composite');
+    // G213: the surfaces' own tokens — fabric over wood wants the wood shop,
+    // fabric over tube the tube shop
+    else if (m === 'fabric') want.add('wood');
+    else if (m === 'steel') want.add('tube');
   };
   if (S && S.fuselage) add(S.fuselage.material);
   if (S && S.wings) for (const w of [].concat(S.wings)) add(w && w.material);
@@ -9068,10 +9274,14 @@ function makeTestPilot(sim, def, world) {
   // capable aeroplane asked for real altitude is given the time to earn it
   // instead of a 'gave-up'. Call before the first update.
   let cardAcc = null;                    // { n, alt, V, saidV } while flying
+  // G208: THE TRIM ACCUMULATOR rides beside the card and does not need one —
+  // the elevator held on the settled cruise leg is the trim advisor's number,
+  // and a standard circuit (blank card) is where most builds first fly.
+  let trimAcc = { n: 0, de: 0 };
   ap.setCard = (card) => {
     if (!card || (!isFinite(card.alt) && !isFinite(card.V))) return;
     const c = { alt: null, V: null, altCmd: null, VCmd: null,
-                altFlown: null, VFlown: null };
+                altFlown: null, VFlown: null, deFlown: null };
     // THE ASK GOES ON THE REPORT AS IT WAS ASKED (G159). It used to be the
     // CLAMPED value that was recorded, which reads as the pilot having been
     // asked for something it was always going to do — and the clamp then has
@@ -9109,7 +9319,7 @@ function makeTestPilot(sim, def, world) {
       ap.VCruise = c.VCmd;
     }
     ap.report.card = c;
-    cardAcc = { n: 0, alt: 0, V: 0, saidV: false };
+    cardAcc = { n: 0, alt: 0, V: 0, de: 0, saidV: false };
   };
 
   ap.update = (dt) => {
@@ -9524,9 +9734,22 @@ function makeTestPilot(sim, def, world) {
         break;
       }
 
-      case 'LIFTOFF':
+      case 'LIFTOFF': {
         c.thr = 1;
-        holdPitch(Math.min(thLift0 + (A.liftoffRamp ?? 9) * phaseT, A.liftoffTh));
+        // G208.3: PAST THE SCREEN HEIGHT THE NOSE COMES DOWN FOR SPEED. The
+        // lift-off attitude was held for as long as LIFTOFF lasted, and on the
+        // default garage build (tube-and-fabric, 10 m high wing, 65 hp) that
+        // is for ever: airborne at 23 m/s, climbing 2 m/s at 9.6°, the speed
+        // sits 0.5 m/s UNDER VClimbMin and the exit below never fires — 1160 m
+        // up and still "taking off". Measured on f7fcf5f, HEAD and the shared
+        // tree alike (the user: "the last test gets stuck in take off mode,
+        // never gets into the next phases, despite the plane climbing"). Above
+        // hSafe the pitch is capped by CLIMB's own speed-seeking law, so a slow
+        // climber lowers its nose and picks up VClimb the way CLIMB would.
+        let thT = Math.min(thLift0 + (A.liftoffRamp ?? 9) * phaseT, A.liftoffTh);
+        if (agl > A.hSafe)
+          thT = Math.min(thT, clamp(A.climbThBase + A.climbThGain * (V - ap.VClimb), 0.02, A.thMax));
+        holdPitch(thT);
         airLateral(0.15);
         // TP: LIFTOFF is bounded too. Measured (rotax582 + 260 kg): airborne
         // at t=65, then HOVERING at half a metre in ground effect for the
@@ -9540,8 +9763,11 @@ function makeTestPilot(sim, def, world) {
           ap.phase = 'PUTDOWN'; phaseT = 0;
           break;
         }
-        if (agl > A.hSafe && V > A.VClimbMin) { ap.phase = 'CLIMB'; phaseT = 0; }
+        // ...and a climber that is clearly away — twice the screen height —
+        // goes to CLIMB whatever its speed; CLIMB's law finishes the job
+        if (agl > A.hSafe && (V > A.VClimbMin || agl > 2 * A.hSafe)) { ap.phase = 'CLIMB'; phaseT = 0; }
         break;
+      }
 
       // TP: the low-hover reject — throttle closed, a gentle nose-up mush
       // until the wheels touch, then the ABORT brakes take it. Outcome is a
@@ -9595,6 +9821,12 @@ function makeTestPilot(sim, def, world) {
         // means of height and speed, and a said-once verdict when full
         // throttle cannot hold the asked speed. The accumulators live in the
         // closure; only the flown numbers reach the report.
+        if (phaseT > 8) {
+          // G208: the elevator held on the settled leg (the slewed command,
+          // which is what a hand would hold), published as `report.trimDe`
+          trimAcc.n += dt; trimAcc.de += aDe * dt;
+          ap.report.trimDe = Math.round(trimAcc.de / trimAcc.n * 1000) / 1000;
+        }
         if (cardAcc && phaseT > 8) {
           cardAcc.n += dt;
           cardAcc.alt += (cg[1] - ap.altRef) * dt;
@@ -10952,7 +11184,14 @@ function makePilot(sim, def, world, opts) {
       }
 
       case 'LIFTOFF': {
-        engage('LOC', 'PITCH', 'FULL', { pitch: Math.min(thLift0 + (A.liftoffRamp ?? 9) * phaseT, A.liftoffTh), bank: 0.15 });
+        // G208.3: above the screen height the lift-off attitude is capped by
+        // CLIMB's speed-seeking law, so a slow climber lowers its nose for
+        // VClimb instead of climbing for ever 0.5 m/s under VClimbMin (the
+        // default garage build did exactly that; see 41_test_pilot.js)
+        let thT = Math.min(thLift0 + (A.liftoffRamp ?? 9) * phaseT, A.liftoffTh);
+        if (agl > A.hSafe)
+          thT = Math.min(thT, clamp(A.climbThBase + A.climbThGain * (V - ap.VClimb), 0.02, A.thMax));
+        engage('LOC', 'PITCH', 'FULL', { pitch: thT, bank: 0.15 });
         flapTgt = fTO;
         const left = runwayLeft();
         setStatus('climbing out of ground effect', [
@@ -10978,7 +11217,9 @@ function makePilot(sim, def, world, opts) {
           committedTO = true;
           say('committed-takeoff', 'airborne with ' + Math.round(left) + ' m of strip left, past the point of stopping — continuing');
         }
-        if (agl > A.hSafe && V > A.VClimbMin) { go('CLIMB'); climbMode = true; ceilT = 0; }
+        // ...and clearly away (twice the screen height) goes to CLIMB whatever
+        // its speed — CLIMB's law finishes the acceleration (G208.3)
+        if (agl > A.hSafe && (V > A.VClimbMin || agl > 2 * A.hSafe)) { go('CLIMB'); climbMode = true; ceilT = 0; }
         break;
       }
 
@@ -11892,6 +12133,93 @@ const GEN_MATERIALS = {
 };
 
 // ===========================================================================
+// GEN_SURF_MATERIALS (G213) — WHAT A WING OR A TAIL IS BUILT OF
+// ===========================================================================
+// The user, 2026-09-07: "In a plywood plane, the wing is wooden structure,
+// but cloth on top. Only the leading edge is made of plywood. That also means
+// that the list of materials for the wing is wrong; it should be carbon,
+// steel, aluminium or fabric. Fabric being the default when the fuselage is
+// either plywood or steel tubes ... The same goes for the fins and
+// stabilisers. These are fabric wrapped on top of either a wooden or tubular
+// structure."
+//
+// THE CONFUSION, AUDITED: a wing, a fin and a stab "as the aeroplane" took
+// the FUSELAGE'S construction row — so a wood aeroplane grew a PLYWOOD wing:
+// ply's finish and grammar (gimp pins, panel laps), ply's covering weight
+// (1.35 kg/m2 for a skin that is 0.42 of fabric), ply's cd0. And the polar
+// penalty (62_gen_aero) read the fuselage's row even when the wing had its
+// own. This table is the flying surfaces' OWN vocabulary; GEN_MATERIALS
+// stays the fuselage's, unchanged, because a fuselage of "fabric" is not a
+// thing (that is tube + fabric) and the gates that sweep GEN_MATERIALS build
+// fuselages from every row.
+//
+//   fabric  a wooden structure (spruce spars, built-up ribs, a ply D-box at
+//           the leading edge) under doped fabric — the Jodel's and the
+//           Cub's wing, and every wood or tube aeroplane's default
+//   steel   4130 tube spars and ribs under the same fabric
+//   alloy   the 2024 sheet wing, riveted — an alloy aeroplane's default
+//   carbon  the moulded wing — a composite aeroplane's default
+//
+// The structure columns (phys, lin, k, c) are SHARED with the fuselage row
+// they come from — a spruce spar flexes as spruce whether it is in a wing
+// or a fuselage — and only what the COVER is differs: fabric's 0.42 plus the
+// D-box's share of ply (about a third of the wetted skin, both faces) is
+// 0.80 kg/m2 against ply's 1.35 for the whole skin.
+const GEN_SURF_MATERIALS = {
+  // ...and it FLEXES MORE than a ply-covered one: the ply skin of the wood
+  // row's wing is a stressed shell and most of its torsional and a share of
+  // its bending stiffness; fabric carries neither. Two thirds of the ply
+  // wing's k (a judgement, not a measurement), the damping in proportion.
+  fabric: { name: 'wood + fabric', phys: GEN_MATERIALS.wood.phys,
+            lin: GEN_MATERIALS.wood.lin,
+            k: { fus: GEN_MATERIALS.wood.k.fus, wing: 2.1e6,
+                 gear: GEN_MATERIALS.wood.k.gear },
+            c: { fus: GEN_MATERIALS.wood.c.fus, wing: 980,
+                 gear: GEN_MATERIALS.wood.c.gear },
+            cover: 0.80, price: 50, cd0: 0.0022, clmaxK: 1.00, shop: 'wood' },
+  steel:  { name: 'steel tube + fabric', phys: GEN_MATERIALS.tubeFabric.phys,
+            lin: GEN_MATERIALS.tubeFabric.lin, k: GEN_MATERIALS.tubeFabric.k,
+            c: GEN_MATERIALS.tubeFabric.c,
+            cover: 0.42, price: 42, cd0: 0.0022, clmaxK: 1.00, shop: 'tube' },
+  alloy:  Object.assign({}, GEN_MATERIALS.alloy,  { shop: 'metal' }),
+  carbon: Object.assign({}, GEN_MATERIALS.carbon, { shop: 'composite' }),
+};
+// what a surface that says nothing is built of, by the fuselage it hangs on.
+// THE WING: fabric over a wooden structure on both a wood and a tube
+// aeroplane (the user's ruling; a Cub's spars are not its fuselage's tubes).
+// THE TAIL: "fabric wrapped on top of either a wooden or tubular structure"
+// — and the structure is the fuselage's: a tube aeroplane's fin post and
+// stab spars are welded tube, so its tail is `steel`, a wood aeroplane's
+// is `fabric`. Measured reason for the split (G213, the test-section
+// session): handing a tube aeroplane's tail the wooden row halved its
+// stiffness (k.fus 8.0e5 -> 4.15e5) and the stab rolled 3.7 deg against the
+// mains through a taxi, over GATE TAKEOFF's 3.5 deg bar set with the tube.
+const GEN_SURF_DEFAULT = { tubeFabric: 'fabric', wood: 'fabric',
+                           alloy: 'alloy', carbon: 'carbon' };
+const GEN_SURF_DEFAULT_TAIL = { tubeFabric: 'steel', wood: 'fabric',
+                                alloy: 'alloy', carbon: 'carbon' };
+// the tokens a saved spec may still carry from before G213, read as what
+// they always meant on a flying surface: a "wood" wing was fabric over
+// wood, a "tubeFabric" wing was fabric over tube
+const GEN_SURF_LEGACY = { wood: 'fabric', tubeFabric: 'steel' };
+// which: 'wing' (plane k) | 'fin' | 'stab'
+function genSurfKey(S, which, k) {
+  const w = which === 'wing' ? (S.wings && S.wings[k || 0]) : null;
+  const raw = which === 'wing' ? (w && w.material)
+            : which === 'fin' ? (S.tail && S.tail.finMaterial)
+            : (S.tail && S.tail.stabMaterial);
+  const key = raw == null ? null
+            : (GEN_SURF_MATERIALS[raw] ? raw : (GEN_SURF_LEGACY[raw] || null));
+  // a resolved spec carries `material`; a raw one only `fuselage.material`
+  const fus = S.material || (S.fuselage && S.fuselage.material);
+  const D = which === 'wing' ? GEN_SURF_DEFAULT : GEN_SURF_DEFAULT_TAIL;
+  return key || D[fus] || 'fabric';
+}
+function genSurfMaterial(S, which, k) {
+  return GEN_SURF_MATERIALS[genSurfKey(S, which, k)];
+}
+
+// ===========================================================================
 // GEN_BUILD_GRAMMAR (G68) — HOW EACH CONSTRUCTION SHOWS ITSELF
 // ===========================================================================
 // The four rows above already move physics and have always moved NOTHING you
@@ -11953,6 +12281,13 @@ const GEN_BUILD_GRAMMAR = {
   },
   // spruce + birch ply. Pinned and glued: the pins are a STIPPLE under dope,
   // not bright dots, and they follow every glue line.
+  // FABRIC OVER A STRUCTURE, the wing's and the tail's own (G213): the same
+  // grammar as tube + fabric — rib tapes and sag, no fasteners — because what
+  // prints through a fabric cover is the ribs under it, whatever they are
+  // made of. Two keys, one look; GEN_SURF_MATERIALS says what they weigh.
+  // Filled from tubeFabric's row below the table.
+  fabric: null,
+  steel: null,
   wood: {
     name: 'spruce + ply',
     framePitch: 0.38,
@@ -12019,6 +12354,12 @@ const GEN_BUILD_GRAMMAR = {
     rough: { member: 0, seam: 0.03 },
   },
 };
+// `alias` says these two are tube + fabric's grammar ON PURPOSE (GATE
+// SKINMAT's duplicate check is for copy errors and steps over declared ones)
+GEN_BUILD_GRAMMAR.fabric = Object.assign({}, GEN_BUILD_GRAMMAR.tubeFabric,
+                                         { name: 'wood + fabric', alias: 'tubeFabric' });
+GEN_BUILD_GRAMMAR.steel  = Object.assign({}, GEN_BUILD_GRAMMAR.tubeFabric,
+                                         { name: 'steel tube + fabric', alias: 'tubeFabric' });
 
 
 // ===========================================================================
@@ -14207,12 +14548,20 @@ function clampSpec(spec) {
   // move (nothing to branch on; genDefaults fills nothing). The one thing to
   // clamp is that a value names a real material — an unknown falls back to
   // absent rather than reaching GEN_MATERIALS as undefined.
-  if (S.wings && S.wings[0] && S.wings[0].material != null &&
-      !GEN_MATERIALS[S.wings[0].material]) delete S.wings[0].material;
-  if (S.tail && S.tail.finMaterial != null &&
-      !GEN_MATERIALS[S.tail.finMaterial]) delete S.tail.finMaterial;
-  if (S.tail && S.tail.stabMaterial != null &&
-      !GEN_MATERIALS[S.tail.stabMaterial]) delete S.tail.stabMaterial;
+  // G213: the flying surfaces have their OWN vocabulary (GEN_SURF_MATERIALS);
+  // a legacy fuselage token is read as what it meant on a wing, an unknown
+  // falls back to absent, and every plane of a biplane is checked
+  const surf = v => v == null ? null
+    : (GEN_SURF_MATERIALS[v] ? v : (GEN_SURF_LEGACY[v] || null));
+  if (S.wings) for (const w of S.wings) if (w && w.material != null) {
+    const m = surf(w.material);
+    if (m) w.material = m; else delete w.material;
+  }
+  if (S.tail) for (const f of ['finMaterial', 'stabMaterial'])
+    if (S.tail[f] != null) {
+      const m = surf(S.tail[f]);
+      if (m) S.tail[f] = m; else delete S.tail[f];
+    }
   // The cage rides through verbatim — its generator owns its own ranges, and
   // clamping a copy of them here would be the second home the field's own note
   // forbids. The one thing this level can enforce is the SWITCH'S TYPE, so a
@@ -16090,9 +16439,12 @@ function genLattice(S, gearX, track, kScale) {
   // from. See B()'s note for why G116's mass move made the k/c coupling
   // safe to take. A V-TAIL IS ONE SURFACE and takes the stab's material:
   // it IS the horizontal tail, raked; there is no fin to build.
+  // G213: the flying surfaces' OWN table — absent means the surface default
+  // for this fuselage (fabric over wood on a wood or tube aeroplane), never
+  // the fuselage's own row
   const MSEC = {
-    wings: GEN_MATERIALS[S.wing && S.wing.material] || M,
-    tail:  GEN_MATERIALS[S.tail && S.tail.stabMaterial] || M,
+    wings: genSurfMaterial(S, 'wing', 0),
+    tail:  genSurfMaterial(S, 'stab'),
   };
   let MB = M;                                   // what the open section BILLS
   const KS = kScale || 1;                       // structure sized for the mass
@@ -17109,7 +17461,7 @@ function genLattice(S, gearX, track, kScale) {
     // the panel between the booms ties them — the stab's own cover
     B(tl.T, tr.T, 'fus'); B(tl.I, tr.I, 'fus'); B(tl.T, tr.I, 'fus'); B(tr.T, tl.I, 'fus');
     cover(1.9 * t.Sh, [HTL, HTR, tl.I, tr.I]);
-    MB = GEN_MATERIALS[t.finMaterial] || M;
+    MB = genSurfMaterial(S, 'fin');            // G213
     const finTopB = y0 + rB + t.vHeight * 0.82;
     const xFin = x0 + len - 0.30 * t.vChord;
     FIN = N(xFin, finTopB, bx, 'FIN');
@@ -17134,7 +17486,7 @@ function genLattice(S, gearX, track, kScale) {
     // THE FIN'S OWN MATERIAL (G116): the stab was billed above under the
     // tail section's default; the fin bills its own from here — sec('gear')
     // below resets the marker, so nothing after can inherit it by accident
-    MB = GEN_MATERIALS[t.finMaterial] || M;
+    MB = genSurfMaterial(S, 'fin');            // G213
     // the fin's apex node follows the RAKE, so the truss leans with the fin the
     // skin draws instead of standing upright inside a swept one
     FIN = N(t.vX + Math.tan((t.vSweep || 0) * Math.PI / 180) * t.vHeight * 0.82,
@@ -18433,15 +18785,18 @@ function genParams(S, fr, strips) {
   // untouched: it is the plane's SELF term, and the mutual term between the
   // planes is the solver's kernel (G185.5), never a second factor here.
   const interplane = !!(S.bracing && S.bracing.interplane && S.bracing.interplane !== 'none');
+  // G213: the finish penalty is the SURFACE'S — a fabric wing on a ply
+  // fuselage flies as fabric, and a carbon wing on a tube fuselage as carbon
   const polarWings = S.wings.map((wk, k) => {
     const Gk = (G.planes && G.planes[k]) || G;
-    return genPolar(wk.naca, Gk.AR, (k === 0 && S.wing.strut) || interplane, M.cd0, M.clmaxK,
+    const MW = genSurfMaterial(S, 'wing', k);
+    return genPolar(wk.naca, Gk.AR, (k === 0 && S.wing.strut) || interplane, MW.cd0, MW.clmaxK,
                     wk.sweepEff != null ? wk.sweepEff : wk.sweep,
                     (GEN_TIPS[wk.tip] || GEN_TIPS.rounded).e);
   });
   const polarWing = polarWings[0];
   const hAR = S.tail.hSpan * S.tail.hSpan / S.tail.Sh;
-  const polarTail = genTailPolar(hAR, M.cd0);
+  const polarTail = genTailPolar(hAR, genSurfMaterial(S, 'stab').cd0);   // G213
   // G115 (the review's S4): the FIN flies on its OWN aspect ratio. It flew
   // the stabiliser's for its whole life — hAR 3.7 against a real vAR of 1.9 —
   // which overstated directional stiffness and rudder power by ~25% and made
@@ -18449,7 +18804,7 @@ function genParams(S, fr, strips) {
   // number, and it moves when the builder reshapes the fin. The fleet's
   // fiches never set polarFin, so the solver's fallback keeps them exact.
   const vAR = S.tail.vHeight * S.tail.vHeight / Math.max(1e-6, S.tail.Sv);
-  const polarFin = genTailPolar(vAR, M.cd0);
+  const polarFin = genTailPolar(vAR, genSurfMaterial(S, 'fin').cd0);      // G213
   const mass = fr.cg0[3];
   // G185: the aeroplane's CLmax is its planes' area-weighted one (a monoplane's
   // is exactly its own)
@@ -20071,7 +20426,7 @@ function genShakedown(def, opts) {
     planes: g.planes || null, liftSplit: g.liftSplit || null,
     xLEmac: g.xLEmac, span: g.span, stagger: g.stagger, decalage: g.decalage,
     braceDCdA: g.braceDCdA || 0,
-    cgX: cg[0], npX: cg[0] + npShift, staticMargin: npShift / cBar,
+    cgX: cg[0], npX: cg[0] + npShift, staticMargin: npShift / cBar, cBar,
     dEpsDa,                                   // G185.5: the tail's measured downwash slope
     // G115: the directional half of the balance story, measured the same way
     cnBeta: genYawStiff(sim, def, V),
@@ -20650,6 +21005,15 @@ function makeLoadTest(sim, def, cfg) {
   const SETTLE = (cfg.settleS == null ? 2.0 : cfg.settleS);
   const MAT = (typeof GEN_MATERIALS !== 'undefined' && cfg.material)
     ? GEN_MATERIALS[cfg.material] : null;
+  // THE WING IS JUDGED AS WHAT IT IS BUILT OF (G213). `cfg.wingMaterial` is a
+  // GEN_SURF_MATERIALS key (or row): the wing class's allowable is that
+  // row's section and yield, not the fuselage's. Measured before this: the
+  // stock tube aeroplane's spruce-spar fabric wing read 131 % "of yield"
+  // against STEEL's 0.62 kg/m section — a wooden spar judged as a tube.
+  const WM = cfg.wingMaterial == null ? null
+    : (typeof cfg.wingMaterial === 'string'
+        ? ((typeof GEN_SURF_MATERIALS !== 'undefined' && GEN_SURF_MATERIALS[cfg.wingMaterial]) || null)
+        : cfg.wingMaterial);
 
   const st = genLoadStations(def);
   const ok = st.length >= 2;
@@ -20721,9 +21085,10 @@ function makeLoadTest(sim, def, cfg) {
     if (!MAT || !MAT.phys) return null;
     let worst = null;
     for (const cls in peak) {
-      if (!MAT.lin[cls]) continue;
-      const A = MAT.lin[cls] / MAT.phys.rho;
-      const pct = 100 * peak[cls].F / (MAT.phys.sigY * A);
+      const R = (cls === 'wing' && WM && WM.phys && WM.lin) ? WM : MAT;
+      if (!R.lin[cls]) continue;
+      const A = R.lin[cls] / R.phys.rho;
+      const pct = 100 * peak[cls].F / (R.phys.sigY * A);
       if (!worst || pct > worst.pct) worst = { cls: cls, pct: pct, bi: peak[cls].bi };
     }
     return worst;
@@ -20977,20 +21342,20 @@ function playerShedDims(doc, id, site) {
   return { HW: d.HW || h.HW, HD: d.HD || h.HD, EAVE: d.EAVE || h.EAVE };
 }
 if (typeof module !== 'undefined')
-  module.exports = { AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, vortexKernel, makeAutopilot, makeTestPilot, makePilot, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims };
+  module.exports = { AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, vortexKernel, makeAutopilot, makeTestPilot, makePilot, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims };
 </script>
-<script src="src/models/pa18_model.js?v=1ab5ecde"></script>
-<script src="src/models/c172_model.js?v=267306e7"></script>
-<script src="src/models/d112_model.js?v=3be353d3"></script>
-<script src="src/models/pio200_model.js?v=981cd31e"></script>
-<script src="src/models/c195_model.js?v=8974dedd"></script>
-<script src="src/models/stemme_model.js?v=04fd92f7"></script>
-<script src="src/models/guepard_model.js?v=bf419178"></script>
-<script src="src/models/da40_model.js?v=82bf8782"></script>
-<script src="src/models/g115_model.js?v=87b45f7c"></script>
-<script src="src/models/yak18t_model.js?v=25ff8781"></script>
-<script src="src/models/eiii_model.js?v=623d6f2c"></script>
-<script src="src/models/pa28_model.js?v=a6c43592"></script>
+<script src="src/models/pa18_model.js?v=e58f49e1"></script>
+<script src="src/models/c172_model.js?v=c04a2c0b"></script>
+<script src="src/models/d112_model.js?v=1c93058a"></script>
+<script src="src/models/pio200_model.js?v=4cb51bac"></script>
+<script src="src/models/c195_model.js?v=c7959754"></script>
+<script src="src/models/stemme_model.js?v=c679a0e0"></script>
+<script src="src/models/guepard_model.js?v=ffd5e4f5"></script>
+<script src="src/models/da40_model.js?v=594e79b5"></script>
+<script src="src/models/g115_model.js?v=03a7e598"></script>
+<script src="src/models/yak18t_model.js?v=c29889d4"></script>
+<script src="src/models/eiii_model.js?v=8e83410f"></script>
+<script src="src/models/pa28_model.js?v=86470bea"></script>
 <script src="src/props/props_bench.js?v=7c6e64b4"></script>
 <script src="src/props/props_storage.js?v=e051184c"></script>
 <script src="src/props/props_machine.js?v=14f1da60"></script>
@@ -21000,15 +21365,15 @@ if (typeof module !== 'undefined')
 <script src="src/props/props_curio.js?v=8ca61851"></script>
 <script src="src/props/props_vehicle.js?v=cd02f7b8"></script>
 <script src="src/props/props_fixture.js?v=93362da1"></script>
-<script src="src/props/props_airframe.js?v=88d864cd"></script>
-<script src="src/chars/ch42_char.js?v=c440fbad"></script>
-<script src="src/chars/ch02_char.js?v=cf30202a"></script>
-<script src="src/chars/remy_char.js?v=01a16f6e"></script>
-<script src="src/chars/ch22_char.js?v=f61be819"></script>
-<script src="src/chars/ch01_char.js?v=854f26f4"></script>
-<script src="src/chars/ch20_char.js?v=97fe3427"></script>
-<script src="src/chars/sitidle_anim.js?v=46c92d21"></script>
-<script src="src/chars/piloting_anim.js?v=c915ae51"></script>
+<script src="src/props/props_airframe.js?v=f8726344"></script>
+<script src="src/chars/ch42_char.js?v=eefcfa0f"></script>
+<script src="src/chars/ch02_char.js?v=d3241b54"></script>
+<script src="src/chars/remy_char.js?v=71ee3d75"></script>
+<script src="src/chars/ch22_char.js?v=84232ae5"></script>
+<script src="src/chars/ch01_char.js?v=0ed66519"></script>
+<script src="src/chars/ch20_char.js?v=17c02a9a"></script>
+<script src="src/chars/sitidle_anim.js?v=63b3cbcb"></script>
+<script src="src/chars/piloting_anim.js?v=b0e439a1"></script>
 <script>window.CAGE_UI_LAZY = 1; window.CAGE_IN_GAME = 1;</script>
 <script>
 // CAGE PARTS (G76) — THE DECLARED ASSEMBLY OF THE AEROPLANE.
@@ -34433,7 +34798,13 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   // the console BOX only exists side-by-side (user): with one seat
   // across the cabin there is nowhere for it to stand, so single and
   // tandem get the throttle quadrant alone
-  const boxWanted = sbs && (P.consoleOn || thrMode === 2);
+  // THE BOX IS THE SWITCH'S ALONE (G211, the user, having clicked the
+  // horizontal bar across the cockpit: "the bar is the throttle console
+  // box, remove it"). It was forced on whenever the throttle was the
+  // console TYPE, so `centre console` off drew it anyway — a 0.26 m box
+  // through the pilot's lap. A console throttle without the box floats on
+  // its own small mount, which buildConsole has handled since 2026-08-19.
+  const boxWanted = sbs && !!(+P.consoleOn);
   let consoleThr = null;
   if (boxWanted || thrMode === 2) {
     // sbs: between the seats. Otherwise on the throttle-hand side —
@@ -46469,8 +46840,12 @@ const WING_ITEMS = [
   // (G116 mass + price, G117 stiffness + damping — "WYSIWYG is the rule"):
   // the join writes `wing.material` and the lattice builds the wing's
   // members from it, weight, cost, flex and all. See genLattice's note.
+  // G213: the WING'S vocabulary — carbon / steel tube / fabric on wood /
+  // aluminium (never plywood: a wooden wing is fabric-covered, the ply is the
+  // leading-edge D-box only); 'as the aeroplane' is fabric on a wood or tube
+  // fuselage, alloy on alloy, carbon on carbon (GEN_SURF_DEFAULT)
   ['wgCons', 'construction', 0, 4, 1,
-   ['as the aeroplane', 'composite', 'steel tube', 'plywood', 'aluminium'],
+   ['as the aeroplane', 'carbon', 'steel tube', 'fabric on wood', 'aluminium'],
    on],
   ['wgDx',     'fore / aft',       -1.5, 1.8, 0.05, on],
   ['wgDy',     'up / down',         -1.0, 1.0, 0.02, on],
@@ -46629,11 +47004,16 @@ function wingMat(cl, plane) {
   // the part's own construction wins over the aeroplane's (wgCons, G110);
   // the ailerons and flaps take the wing's because this one function
   // dresses every class
-  const CONS4 = ['carbon', 'tubeFabric', 'wood', 'alloy'];
+  // G213: the wing's own tokens in the row's order, and 'as the aeroplane'
+  // through GEN_SURF_DEFAULT (fabric on a wood or tube fuselage)
+  const CONS4 = ['carbon', 'steel', 'fabric', 'alloy'];
+  const FUS4 = ['carbon', 'tubeFabric', 'wood', 'alloy'];
+  const SD = (typeof GEN_SURF_DEFAULT !== 'undefined' && GEN_SURF_DEFAULT) ||
+    { tubeFabric: 'fabric', wood: 'fabric', alloy: 'alloy', carbon: 'carbon' };
   const kc = Math.round((plane ? P0.w2Cons : P0.wgCons) || 0);
   const cons = kc > 0 ? CONS4[kc - 1]
-    : CONS4[Math.max(0, Math.min(3, Math.round(P0.intCons || 0)))] ||
-      'tubeFabric';
+    : SD[FUS4[Math.max(0, Math.min(3, Math.round(P0.intCons || 0)))]] ||
+      'fabric';
   // the editor's per-part livery, when its UI is on the page; the direct
   // factory call below stays as the standalone bench's path
   if (window.CAGE_SECMAT) {
@@ -46705,6 +47085,7 @@ function pickParts(g, keep, toCage, classOf, field) {
   for (let i = 0; i < nv; i++) ok[i] = keep(i) ? 1 : 0;
   const out = {};                     // class -> {map,pos,idx,wpos,eseen}
   const bucket = cl => out[cl] || (out[cl] = {
+    cl,                               // G214: the field may depend on the class
     map: new Int32Array(nv).fill(-1), pos: [], idx: [],
     wpos: [], eseen: new Set(), fld: field ? [] : null });
   const raw = i => [g.pos[i*3], g.pos[i*3+1], g.pos[i*3+2]];
@@ -46714,7 +47095,7 @@ function pickParts(g, keep, toCage, classOf, field) {
       B2.map[i] = B2.pos.length / 3;
       B2.pos.push(p[0], p[1], p[2]);
       if (B2.fld) {
-        const a = field(i) || [0, 0, 0, 0];
+        const a = field(i, B2.cl) || [0, 0, 0, 0];
         B2.fld.push(a[0], a[1], a[2], a[3]);
       }
     }
@@ -47015,11 +47396,27 @@ PAGE.post = ctx => {
   const sparSpan = Math.max(1e-4, sparR - sparF);
   const wingField = g => {
     if (!g.uv) return null;
-    return i => {
+    return (i, cl) => {
       const cf = g.uv[i * 2];                        // chord fraction, 0 = LE
-      const az = Math.abs(toBody(
-        [g.pos[i*3], g.pos[i*3+1], g.pos[i*3+2]])[2]);
+      const zb = toBody([g.pos[i*3], g.pos[i*3+1], g.pos[i*3+2]])[2];
+      const az = Math.abs(zb);
       const chord = PT.chordAt ? PT.chordAt(az) : 1;
+      // THE CENTRE SECTION HAS ITS OWN SPAN COORDINATE (G214, the user: "the
+      // central part is not correctly mapped"). It is ONE loft bay between
+      // the two root rows, and both rows sit at |z| = zRoot — so a field
+      // built from |z| was 0 at both ends and CONSTANT across the metre
+      // between them (measured: sL 0.00..0.00, st -1..-1 on 182 vertices),
+      // and the detail sheet stretched into spanwise stripes. The class is
+      // known here (pickParts buckets per class and the root vertices are
+      // duplicated per bucket), so the centre takes the SIGNED z: 0 at the
+      // right root, continuous with that panel, -2 zRoot at the left — the
+      // one seam sits under the fuselage. The rib index runs at the first
+      // bay's pitch across it, which is what a carry-through has.
+      if (cl === 'centre') {
+        const s = zb - zRoot;
+        const bay = ribZ.length ? Math.max(1e-6, ribZ[0] - zRoot) : 1;
+        return [s, cf * chord, s / bay, (cf - sparF) / sparSpan];
+      }
       // st: which rib bay, and where inside it. Ribs are NOT evenly spaced
       // across the whole span — 61_gen_frame divides each panel separately —
       // so this walks the real list rather than dividing by a mean pitch.
@@ -49885,7 +50282,7 @@ const GROUP = ['8 · tail — fin (2D)', [
   // join): mass and price since G116, stiffness and damping since G117 —
   // WYSIWYG, see genLattice's note.
   ['finCons', 'construction',      0, 4, 1,
-   ['as the aeroplane', 'composite', 'steel tube', 'plywood', 'aluminium'],
+   ['as the aeroplane', 'carbon', 'steel tube', 'fabric on wood', 'aluminium'],
    { when: P => +P.finOn }],
   // THE CUT — the hinge slices between the doubleLoopV guards; the horn
   // line IS the mid row (max-creased under horn mode so it stays exactly
@@ -50024,11 +50421,17 @@ function tailMat(k, sec, boxPlane) {
   // borrows this function too, so WHICH part is read off the section the
   // caller already hands over — the one fact tailMat has that P does not.
   const pk = sec && sec.indexOf('stab') === 0 ? 'stCons' : 'finCons';
-  const CONS4 = ['carbon', 'tubeFabric', 'wood', 'alloy'];
+  // G213: the tail's own tokens (fabric over a wooden or tubular structure
+  // on a wood or tube aeroplane), 'as the aeroplane' through GEN_SURF_DEFAULT
+  const CONS4 = ['carbon', 'steel', 'fabric', 'alloy'];
+  const FUS4 = ['carbon', 'tubeFabric', 'wood', 'alloy'];
+  // the TAIL's default: the fabric over the fuselage's own structure
+  const SD = (typeof GEN_SURF_DEFAULT_TAIL !== 'undefined' && GEN_SURF_DEFAULT_TAIL) ||
+    { tubeFabric: 'steel', wood: 'fabric', alloy: 'alloy', carbon: 'carbon' };
   const kc = Math.round(P0[pk] || 0);
   const cons = kc > 0 ? CONS4[kc - 1]
-    : CONS4[Math.max(0, Math.min(3, Math.round(P0.intCons || 0)))] ||
-      'tubeFabric';
+    : SD[FUS4[Math.max(0, Math.min(3, Math.round(P0.intCons || 0)))]] ||
+      'fabric';
   // the editor's per-part livery, when its UI is on the page; the direct
   // factory call below stays as the standalone bench's path
   if (typeof window !== 'undefined' && window.CAGE_SECMAT) {
@@ -50484,7 +50887,7 @@ const GROUP = ['8b · tail — stab & elevator', [
   // G116, stiffness/damping since G117 (`tail.stabMaterial`; a V-tail
   // takes this one — it IS the stab).
   ['stCons', 'construction',     0, 4, 1,
-   ['as the aeroplane', 'composite', 'steel tube', 'plywood', 'aluminium'],
+   ['as the aeroplane', 'carbon', 'steel tube', 'fabric on wood', 'aluminium'],
    { when: P => +P.stOn }],
   ['position', [
     ['stMount', 'root sits', 0, 3, 1,
@@ -56114,7 +56517,7 @@ function cageJoinPlane2(P, T) {
       aileron: { span: +P.w2AilOn ? P.w2AilSpan : 0, chord: P.w2AilChord },
     },
     ...(Math.round(P.w2Cons) > 0
-      ? { material: ['carbon', 'tubeFabric', 'wood', 'alloy'][Math.round(P.w2Cons) - 1] } : {}),
+      ? { material: ['carbon', 'steel', 'fabric', 'alloy'][Math.round(P.w2Cons) - 1] } : {}),
   };
 }
 
@@ -56152,8 +56555,10 @@ function cageJoinSpec(P, M, T) {
       // THE WING'S OWN CONSTRUCTION (G116): 0 says nothing — absent means
       // the aeroplane's own material, which is what every build before this
       // field existed already meant. 1..4 in intCons's display order.
+      // G213: the wing's own vocabulary (GEN_SURF_MATERIALS), in the row's
+      // order — 'wood' and 'tubeFabric' never reach a wing again
       ...(Math.round(P.wgCons) > 0
-        ? { material: ['carbon', 'tubeFabric', 'wood',
+        ? { material: ['carbon', 'steel', 'fabric',
                        'alloy'][Math.round(P.wgCons) - 1] } : {}),
     }, ...(+P.w2On ? [cageJoinPlane2(P, T)] : [])],
     bracing: { type: Math.round(P.wgBrace) ? 'cantilever' : 'strut',
@@ -56379,7 +56784,7 @@ function cageJoinSpec(P, M, T) {
   // THE TAIL'S OWN CONSTRUCTIONS (G116), same contract as the wing's:
   // 0 says nothing, absent means the aeroplane's own material
   {
-    const CONS4 = ['carbon', 'tubeFabric', 'wood', 'alloy'];
+    const CONS4 = ['carbon', 'steel', 'fabric', 'alloy'];   // G213
     if (Math.round(P.finCons) > 0)
       tl.finMaterial = CONS4[Math.round(P.finCons) - 1];
     if (Math.round(P.stCons) > 0)
@@ -61535,6 +61940,21 @@ function buildDecPanel() {
   num('wing turn', 'wimRot', -0.6, 0.6, 0.01, 'radians');
   pick('wing projected as', 'wimMode', MODE_NAMES, MODE_HELP,
        (a, b) => decReframe(a, b, { l: 'wimL', c: 'wimC' }));
+  // THE CERTIFICATION STICKERS (G208.2, the user: "we should be able to
+  // choose where certification stickers are applied, and maybe move them
+  // manually a little (like the fuel tanks, default section + manual fine
+  // tuning)"). A place from stickers.js's own table, then metres of fine
+  // tuning off that place's station — the tank's bay-plus-offset grammar.
+  DECG.cur = 'stk';
+  const STK = (window.STICKERS && window.STICKERS.PLACES) || [];
+  flag('stickers shown', 'stkOn',
+       'the bench\'s certification roundels, one per passed test; off hides them');
+  pick('stickers go on', 'stkPlace', STK.map(p => p.name),
+       'the place the strip is worn — its own station and height; the two rows below fine-tune from there');
+  num('stickers along', 'stkL', -3.0, 3.0, 0.02, 'metres fore (-) or aft (+) of the place\'s own station', 'len');
+  num('stickers up', 'stkC', -1.0, 1.0, 0.02, 'metres below (-) or above (+) the place\'s own height', 'up');
+  num('sticker size', 'stkSize', 0.06, 0.30, 0.01, 'the roundel\'s diameter, metres (120 mm is a real placard)');
+  num('stickers turn', 'stkRot', -0.6, 0.6, 0.01, 'radians');
   bodyLock(); wingLock();
 
   // WHAT A SLIDER MAY REACH IS THE AEROPLANE'S OWN SIZE. The image width was
@@ -61804,7 +62224,9 @@ function buildMatPanel() {
       d.className = 'r dial';
       d.dataset.sec = nm;
       const inp = document.createElement('input');
-      inp.type = 'range'; inp.min = '0.25'; inp.max = '4'; inp.step = '0.05';
+      // G214: the floor came down 0.25 -> 0.05 (the user, dialling a
+      // fabric wing: "all sliders need to go lower")
+      inp.type = 'range'; inp.min = '0.05'; inp.max = '4'; inp.step = '0.05';
       inp.value = String(store[nm] != null ? store[nm] : 1);
       const v = document.createElement('span');
       v.className = 'v';
@@ -62003,6 +62425,10 @@ window.CAGE_UI = { P, build, draw, applyPreset, syncSliders,
   finishToSpec, finishFromSpec,
   // THE IMAGE PAGES (G190): out as {page: dataURL, aspect} for the save
   // envelope, in from one — the pixels a spec deliberately does not carry
+  // G208: the certification stickers ride the decal list through aeroskin's
+  // AERO_EXTRA_DECALS hook; when a certificate is awarded or withdrawn the
+  // bench asks for the list to be rebuilt, which is this call
+  redecal: () => { try { applyDecals(); draw(); } catch (e) {} },
   decalImages, decalImagesFrom };
 // THE ROWS EXIST NOW, and the game's editor can take them. It runs BEFORE the
 // first build(): the panel it builds is what the build's own applyRowVis pass
@@ -65328,10 +65754,23 @@ const AERO_FINISH = {
   // G206: the tile drops 0.14 -> 0.06 m (a 2 mm thread, not a 5 mm one) and
   // `hs` 0.5 -> 0.15 — under four coats of dope the weave is a roughness
   // speckle, not a relief; the clear layer and the low field do the rest
-  fabric:    { name: 'doped fabric', base: 0xd8d4c8, tile: 0.06,
-               rough: 0.42, metal: 0.0, nrm: 0.25, alb: 0.13,
-               hs: 0.15, bs: 0.8, bake: 'weave',
-               cc: 0.35, ccR: 0.25, fld: 0.0008, fldL: 0.40, fldR: 0.3 },
+  // THE CROSS HATCH IS THE LOOK (G214, the user: "I've lost the cross hatch
+  // pattern completely ... it was great, needed to be tweaked"). G206 had
+  // flattened it (hs 0.15, "a doped weave is a speckle") and the 3 cm tile
+  // with 30 threads a tile made a 1 mm thread — under a screen pixel, mipped
+  // to nothing. So: 10 threads on the 3 cm tile (a 3 mm hatch, which reads),
+  // the height back, and `weave` is a row field the lab can turn.
+  // ...AND THE USER'S DIALS ARE THE NEW 1.0 (G214, "update the defaults to
+  // screenshot"): on the wing skin, tile x2.10, roughness x4.00 (the ceiling
+  // — a fully matte pigment under the clear coat), normal x2.60, sheen x2.10,
+  // field x0.55, wear x1. Folded into the row exactly as the fireproof foil's
+  // were, so a saved build carries no deviation it did not ask for; a
+  // section still dialled from before this multiplies AGAIN and wants its
+  // label double-clicked back to 1.
+  fabric:    { name: 'doped fabric', base: 0xd8d4c8, tile: 0.063,
+               rough: 1.00, metal: 0.0, nrm: 0.78, alb: 0.13,
+               hs: 0.45, bs: 0.8, bake: 'weave', weave: 10,
+               cc: 0.74, ccR: 0.25, fld: 0.00045, fldL: 0.40, fldR: 0.3 },
   // alb 0.50 -> 0.80 with the scanned sheet (G125): the maple face's B span
   // is a quarter of the procedural stripes', so the compensation keeps the
   // ply's grain visible at all — same measurement as spruce's note below
@@ -65632,6 +66071,16 @@ const AERO_BY_CONS = {
                 bead: 'rubber', fire: 'fireFoil', edge: 'acrylicEdge' },
   carbon:     { skin: 'composite', rail: 'composite', pillar: 'composite',
                 struct: 'composite', panel: 'panelMetal', pad: 'leatherDark',
+                bead: 'rubber', fire: 'fireFoil', edge: 'acrylicEdge' },
+  // THE FLYING SURFACES' OWN CONSTRUCTIONS (G213): fabric over wood, fabric
+  // over steel tube — both wear doped fabric; what differs is the structure
+  // showing through where a section is left open. Reached only from the
+  // wing and tail layers (their cons tokens); a fuselage never says these.
+  fabric:     { skin: 'fabric', rail: 'fabric', pillar: 'fabric',
+                struct: 'spruce', panel: 'panelMetal', pad: 'leatherDark',
+                bead: 'rubber', fire: 'fireFoil', edge: 'acrylicEdge' },
+  steel:      { skin: 'fabric', rail: 'fabric', pillar: 'fabric',
+                struct: 'steelTube', panel: 'panelMetal', pad: 'leatherDark',
                 bead: 'rubber', fire: 'fireFoil', edge: 'acrylicEdge' },
 };
 const AERO_GLASS = new Set(['windshield', 'pilotWindow', 'pasengerWindow',
@@ -66100,7 +66549,7 @@ function aeroLinear(THREE, hex) {
 const AERO_TEX = 512;
 const AERO_TEX_CACHE = {};
 
-function aeroHeight(kind, S) {
+function aeroHeight(kind, S, row) {
   // a height field, sampled at S x S, tiling seamlessly (every term is
   // periodic in S) — the same technique garage.js's bump sheet uses, and the
   // reason a covered airframe reads as fabric at all: the shape is carried by
@@ -66125,7 +66574,7 @@ function aeroHeight(kind, S) {
         // coarse" the user saw was that blotch every 14 cm, not the threads.
         // A tiling sheet carries 8+ cycles per tile and nothing slower; the
         // slow undulation is aeroField's, in metres, and never repeats.
-        const n = 30;
+        const n = (row && row.weave > 0) ? row.weave : 30;   // threads a tile
         const warp = Math.abs(Math.sin(u * n));
         const weft = Math.abs(Math.sin(v * n));
         const over = Math.sin(u * n * 0.5) * Math.sin(v * n * 0.5) > 0;
@@ -66233,7 +66682,7 @@ function aeroDetailTex(THREE, key) {
     return (AERO_TEX_CACHE[key] = t);
   }
   const S = AERO_TEX;
-  const H = aeroHeight(row.bake, S);
+  const H = aeroHeight(row.bake, S, row);
   const cv = document.createElement('canvas');
   cv.width = cv.height = S;
   const ctx = cv.getContext('2d');
@@ -66308,7 +66757,7 @@ function aeroDetailTex(THREE, key) {
 // the two image channels. Every one of these is an unrolled iteration of a
 // texture fetch in the fragment shader, so the array is sized to what the
 // panel can actually turn on and not to a round number.
-const AERO_MAXD = 6;
+const AERO_MAXD = 7;             // G208: +1, the certification stickers' strip
 const AERO_ATLAS_N = 4;              // 4x4 pages
 // 1024 -> 4096 (G207, the user: "the current decals are too low resolution,
 // the pixels are clearly visible"). A page was 256 px, stretched over a
@@ -66404,9 +66853,67 @@ const AERO_DEC_FONTS = [
   { name: 'sans light', css: '400 96px "IBM Plex Sans", ui-sans-serif, sans-serif',
     track: 6 },
 ];
+// ---- THE DISTANCE FIELD (G212) ---------------------------------------------
+// Felzenszwalb & Huttenlocher's exact Euclidean distance transform, separable
+// and O(n) per row: squared distance from every pixel to the nearest SET
+// pixel of a mask. Run twice — to the inside and to the outside — the
+// difference of their roots is the signed distance to the glyph edge, which
+// is what the page's alpha carries and the shader thresholds. Float64: the
+// "infinite" seed must survive the adds of squares up to a million.
+function aeroEDT1(f, n, d, v, z) {
+  let k = 0; v[0] = 0; z[0] = -Infinity; z[1] = Infinity;
+  for (let q = 1; q < n; q++) {
+    let s = ((f[q] + q * q) - (f[v[k]] + v[k] * v[k])) / (2 * q - 2 * v[k]);
+    while (s <= z[k]) {
+      k--;
+      s = ((f[q] + q * q) - (f[v[k]] + v[k] * v[k])) / (2 * q - 2 * v[k]);
+    }
+    k++; v[k] = q; z[k] = s; z[k + 1] = Infinity;
+  }
+  k = 0;
+  for (let q = 0; q < n; q++) {
+    while (z[k + 1] < q) k++;
+    d[q] = (q - v[k]) * (q - v[k]) + f[v[k]];
+  }
+}
+function aeroEDT(set, w, h) {
+  const INF = 1e12, g = new Float64Array(w * h);
+  for (let i = 0; i < w * h; i++) g[i] = set[i] ? 0 : INF;
+  const n = Math.max(w, h);
+  const f = new Float64Array(n), d = new Float64Array(n);
+  const v = new Int32Array(n), z = new Float64Array(n + 1);
+  for (let x = 0; x < w; x++) {
+    for (let y = 0; y < h; y++) f[y] = g[y * w + x];
+    aeroEDT1(f, h, d, v, z);
+    for (let y = 0; y < h; y++) g[y * w + x] = d[y];
+  }
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) f[x] = g[y * w + x];
+    aeroEDT1(f, w, d, v, z);
+    for (let x = 0; x < w; x++) g[y * w + x] = d[x];
+  }
+  return g;
+}
+// the spread of the field either side of the edge, in page pixels — wide
+// enough that the coarsest mip still holds a slope, narrow enough that two
+// registrations' letters never share it
+const AERO_SDF_SPREAD = P => Math.max(4, Math.round(P * 0.03));
+// ONE BAKE PER MARKING, NOT PER SLIDER (G212): every decal slider re-applied
+// the whole list and re-drew the registration with it; with a distance
+// transform in the loop that would be a laggy slider. The page is redrawn
+// only when what is on it changes.
+const AERO_TEXT_SIG = {};
+const AERO_TEXT_ASPECT = {};
+
 function aeroDecalText(THREE, page, text, colHex, outHex, font) {
   const t = aeroAtlas(THREE), S = AERO_ATLAS_PX, N = AERO_ATLAS_N;
   const P = S / N, px = (page % N) * P, py = Math.floor(page / N) * P;
+  const sig = [text, colHex, outHex, font, P].join('|');
+  if (AERO_TEXT_SIG[page] === sig && AERO_TEXT_ASPECT[page]) {
+    AERO_TEXT_FIT = AERO_TEXT_ASPECT[page].fit;
+    return AERO_TEXT_ASPECT[page].aspect;
+  }
+  AERO_TEXT_SIG[page] = sig;
   const g = AERO_ATLAS_CV.getContext('2d');
   g.save();
   g.clearRect(px, py, P, P);
@@ -66431,18 +66938,65 @@ function aeroDecalText(THREE, page, text, colHex, outHex, font) {
   // height in metres is the GLYPHS' height (G207), not the page's
   AERO_TEXT_FIT = { w: (w * sc) / P, h: (fh * sc) / P };
   g.scale(sc, sc);
+  const hex = v => '#' + ((v == null ? 0x1b3a5c : v) >>> 0).toString(16)
+                          .padStart(6, '0');
+  const R = AERO_SDF_SPREAD(P);
+  // THE COLOUR UNDERLAY (G212): the field's alpha ramps R px OUTSIDE the
+  // glyph, and the texels there must already wear a colour — the shader
+  // reads RGB wherever the threshold lets it, and the mips average it. A
+  // stroke 2R wide in the outline's colour (the ink's when there is none)
+  // puts that colour under the whole ramp, where the old dilation walked.
+  g.lineJoin = 'round';
+  g.lineWidth = (2 * R + 14 * (P / AERO_PAGE_REF)) / sc;
+  g.strokeStyle = hex(outHex != null ? outHex : colHex);
+  g.strokeText(text || '', 0, 0);
   if (outHex != null) {
-    g.lineWidth = 14 * (P / AERO_PAGE_REF) / sc; g.lineJoin = 'round';
-    g.strokeStyle = '#' + (outHex >>> 0).toString(16).padStart(6, '0');
+    g.lineWidth = 14 * (P / AERO_PAGE_REF) / sc;
+    g.strokeStyle = hex(outHex);
     g.strokeText(text || '', 0, 0);
   }
-  g.fillStyle = '#' + ((colHex == null ? 0x1b3a5c : colHex) >>> 0)
-    .toString(16).padStart(6, '0');
+  g.fillStyle = hex(colHex);
   g.fillText(text || '', 0, 0);
   g.restore();
-  aeroDilate(g, px, py, P, P, Math.round(5 * P / AERO_PAGE_REF));
+  // THE FIELD: the marking's own coverage (fill + outline, no underlay) on a
+  // scratch page, a distance transform each way, and the signed result laid
+  // into the atlas page's alpha over the colours just drawn — 0.5 at the
+  // edge, 1 at R px inside, 0 at R px outside.
+  {
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = P;
+    const m = cv.getContext('2d');
+    m.translate(P / 2, P / 2);
+    m.textAlign = 'center'; m.textBaseline = 'middle';
+    m.font = F.css;
+    if ('letterSpacing' in m) m.letterSpacing = F.track + 'px';
+    m.scale(sc, sc);
+    m.fillStyle = '#fff'; m.strokeStyle = '#fff'; m.lineJoin = 'round';
+    if (outHex != null) {
+      m.lineWidth = 14 * (P / AERO_PAGE_REF) / sc;
+      m.strokeText(text || '', 0, 0);
+    }
+    m.fillText(text || '', 0, 0);
+    const cov = m.getImageData(0, 0, P, P).data;
+    const inside = new Uint8Array(P * P), outside = new Uint8Array(P * P);
+    for (let i = 0; i < P * P; i++) {
+      const on = cov[i * 4 + 3] > 127;
+      inside[i] = on ? 1 : 0; outside[i] = on ? 0 : 1;
+    }
+    const dIn = aeroEDT(outside, P, P);    // from an inside pixel to the edge
+    const dOut = aeroEDT(inside, P, P);    // from an outside pixel to the edge
+    const img = g.getImageData(px, py, P, P), d = img.data;
+    for (let i = 0; i < P * P; i++) {
+      const sd = Math.sqrt(dIn[i]) - Math.sqrt(dOut[i]);
+      const a = Math.max(0, Math.min(1, 0.5 + sd / (2 * R)));
+      d[i * 4 + 3] = Math.round(a * 255);
+    }
+    g.putImageData(img, px, py);
+  }
   t.needsUpdate = true;
-  return w / fh;                                    // glyph aspect, w:h
+  const aspect = w / fh;                            // glyph aspect, w:h
+  AERO_TEXT_ASPECT[page] = { aspect, fit: AERO_TEXT_FIT };
+  return aspect;
 }
 
 // draw an arbitrary image into a page — "project complex liveries from
@@ -66544,6 +67098,7 @@ function aeroSharedU0(THREE, z4) {
     // not a packed bitfield: three comparisons are exact and legible where
     // pow/mod bit tests in GLSL ES 1.0 are neither.
     uDecD:  { value: z4() },     // x mode, y onBody, z onWing, w onTail
+    uDecE:  { value: z4() },     // x sdf (G212): the page's alpha is a distance
     // WORLD -> CRAFT: metres, x lateral, y aft, z up. SHARED, because it is a
     // fact about the AEROPLANE and not about any one material — the same
     // reason the decal list is shared.
@@ -66696,6 +67251,13 @@ const AERO_DEC_DEF = {
   imgMode: 0, imgRot: 0, imgLock: 1,
   wimOn: 0, wimL: 0.0, wimC: 0.0, wimW: 2.0, wimH: 1.0,
   wimMode: 2, wimRot: 0, wimLock: 1,
+  // G208.2: WHERE THE CERTIFICATION STICKERS ARE WORN — a place (an index
+  // into stickers.js's STICKER_PLACES: the rear fuselage, the cabin side,
+  // the fin, the nose, the wing) plus fine tuning off that place's own
+  // station, the roundel's size and turn, and whether they show at all.
+  // In the decal block so they ride `finish.decals` like every marking —
+  // cosmetic, so moving them never withdraws the certificate they picture.
+  stkOn: 1, stkPlace: 0, stkL: 0, stkC: 0, stkSize: 0.12, stkRot: 0,
 };
 const AERO_DEC_ON = [
   { body: 1 },                        // 0 the fuselage
@@ -66993,7 +67555,7 @@ function aeroDecalsFor(THREE, D, opts) {
   const list = [];
   for (const L of aeroKitLayers(D)) { aeroKitDraw(THREE, L); list.push(L.place); }
   list.push({ page: 0, sL: D.regL, sC: D.regC, w: pw, h: ph,
-                  rot: D.regRot, rough: -0.06,
+                  rot: D.regRot, rough: -0.06, sdf: 1,
                   on: onOf(D.regTarget), mode: modeOf(D.regMode) });
   if (D.imgOn) list.push({ page: 1, sL: D.imgL, sC: D.imgC, w: D.imgW,
     h: D.imgH, rot: D.imgRot, rough: -0.04,
@@ -67003,6 +67565,15 @@ function aeroDecalsFor(THREE, D, opts) {
   if (D.wimOn) list.push({ page: 2, sL: D.wimL, sC: D.wimC, w: D.wimW,
     h: D.wimH, rot: D.wimRot, rough: -0.04,
     on: { wing: 1 }, mode: modeOf(D.wimMode) });
+  // G208: THE CERTIFICATION STICKERS — placements the bench's sticker module
+  // hands over (page 6, one strip of roundels under the cockpit); it draws
+  // its own page and returns nothing while the aeroplane holds no
+  // certificate. Through a window hook so this file knows no bench.
+  try {
+    const X = (typeof window !== 'undefined' && typeof window.AERO_EXTRA_DECALS === 'function')
+            ? window.AERO_EXTRA_DECALS(THREE, D) : null;
+    if (X) for (const p of X) list.push(p);
+  } catch (e) {}
   return { list, aspect };
 }
 
@@ -67050,6 +67621,7 @@ function aeroSetDecals(THREE, list) {
     const on = d.on || { body: 1 };
     U.uDecD.value[i].set(AERO_DEC_MODE[d.mode] || 0,
       on.body ? 1 : 0, on.wing ? 1 : 0, on.tail ? 1 : 0);
+    U.uDecE.value[i].set(d.sdf ? 1 : 0, 0, 0, 0);
   }
 }
 
@@ -67149,7 +67721,7 @@ function aeroFastTex(THREE, gk, G) {
 }
 
 const AERO_PARS_FS = `
-#define AERO_MAXD 6
+#define AERO_MAXD 7
 uniform sampler2D tDetail;
 uniform sampler2D tFast;
 uniform vec4 uG0;   // x framePitch  y stringerPitch  z panelAlong  w panelAround
@@ -67163,6 +67735,7 @@ uniform vec4 uDecA[AERO_MAXD];
 uniform vec4 uDecB[AERO_MAXD];
 uniform vec4 uDecC[AERO_MAXD];
 uniform vec4 uDecD[AERO_MAXD];
+uniform vec4 uDecE[AERO_MAXD];  // x: the page's alpha is a signed distance (G212)
 uniform float uInset;
 // THE THREE DISPLAY GAINS (G206) — shared; see aeroSharedU. x members and
 // tapes, y sag and dish, z the large-scale field. uGGain was one x4 over
@@ -67770,7 +68343,16 @@ const AERO_ALBEDO_FS = `
     // (No backticks in here: this whole block is a template literal, and a
     // stray one ends it mid-shader. It has cost two debugging rounds.)
     vec3 dc = sRGBToLinear(tx).rgb;
-    float a = tx.a * w;
+    // THE REGISTRATION IS A DISTANCE FIELD (G212, the user: "either we need
+    // higher resolution, or vectorial"). Its page's alpha is a signed
+    // distance to the glyph edge, 0.5 AT the edge, so the edge is wherever
+    // the threshold falls — at any zoom, one screen pixel wide (fwidth), and
+    // the texels behind it can be as coarse as they like. MIXED, not
+    // branched: the loop is uniform and fwidth wants every lane.
+    float aSdf = uDecE[di].x;
+    float aSw = max(fwidth(tx.a) * 0.75, 0.003);
+    float aCov = mix(tx.a, smoothstep(0.5 - aSw, 0.5 + aSw, tx.a), aSdf);
+    float a = aCov * w;
     diffuseColor.rgb = mix(diffuseColor.rgb, dc, a);
     aeroDecR += a * uDecC[di].y;
   }
@@ -68754,13 +69336,14 @@ const AERO_LAB_KEY = 'flydiy.aeroLab';
 const AERO_GAIN_DEF = { x: 4.0, y: 1.2, z: 15.0, wx: 4.0, wy: 1.2, wz: 15.0 };
 // field -> [min, max, step, label]
 const AERO_LAB_FIELDS = {
-  tile:  [0.03, 3.0, 0.01, 'tile (m)'],
+  tile:  [0.005, 3.0, 0.005, 'tile (m)'],
   rough: [0.02, 1.0, 0.01, 'roughness'],
   metal: [0, 1, 0.01, 'metalness'],
   nrm:   [0, 1.5, 0.01, 'sheet normal'],
   alb:   [0, 1.5, 0.01, 'sheet albedo'],
   hs:    [0, 1.5, 0.01, 'sheet height (rebakes)'],
   bs:    [0, 2.0, 0.01, 'sheet roughness (rebakes)'],
+  weave: [2, 60, 1, 'weave threads a tile (rebakes)'],
   cc:    [0, 1, 0.01, 'clear coat'],
   ccR:   [0, 1, 0.01, 'clear coat roughness'],
   fld:   [0, 0.003, 0.00005, 'field amplitude (m)'],
@@ -68967,7 +69550,7 @@ function aeroLabExport() {
 function aeroLabRefresh(THREE, kind, key, field) {
   if (kind === 'finish') {
     const row = AERO_FINISH[key];
-    const rebake = field === 'hs' || field === 'bs';
+    const rebake = field === 'hs' || field === 'bs' || field === 'weave';
     if (rebake) delete AERO_TEX_CACHE[key];
     for (const m of AERO_BUILT) {
       const ud = m.userData || {};
@@ -74583,7 +75166,831 @@ if (typeof module !== 'undefined' && module.exports)
 </script>
 <script>
 // ============================================================
+// THE PLAQUE'S SHEET (G208) — how a measured number is shown.
+//
+// The user, 2026-09-07: "Right now, there are titles cut with no tooltip,
+// I have no idea what they mean." The plaque was a two-column grid in
+// app.js; a label that did not fit its half took an ellipsis, and only the
+// rows that happened to have a WHY entry carried a native title. So:
+//
+//   ONE column. A label is never clipped; a long value wraps under it.
+//   EVERY row explains itself. `what` is mandatory here — a row app.js
+//     prints under a label this table does not know is a bug the gate
+//     catches (GATE BENCH), not a silent grey number.
+//   A HOVER CARD, not a native title: it opens at once, it wraps, and a
+//     click pins the explanation under the row for touch and for reading.
+//   A BAND BAR on every judged row: where the value sits between bad, warn
+//     and ok, so a number is read against its bound without arithmetic.
+//   EVERY section says what it groups, in one dim line under its heading.
+//
+// The thresholds are unchanged and still the code's own — this file only
+// moved them out of app.js so the plaque could be drawn by something that
+// is not also the game's main loop. app.js builds the sheet through
+// `PLAQUE.sheet()`; the colours, the bounds and the explanations live here.
+// ============================================================
+
+// WHY A ROW IS RED, AND WHAT TO TURN — keyed on the row's own label so the
+// pointers live in one place. `what` is shown always; `fix` only when the
+// row is warn or bad. Both name the CONTROLS a builder has.
+const PLAQUE_WHY = {
+  // weights
+  'empty': { what: 'the aeroplane with nothing and nobody aboard: structure, '
+      + 'covering, engine, propeller, undercarriage, tanks or cells, and every '
+      + 'fitting you switched on.' },
+  'payload': { what: 'what it carries as drawn — the crew you switched on, '
+      + 'the fuel you specified, and any baggage.' },
+  'all-up': { what: 'empty weight plus payload: the mass every other number '
+      + 'on this plaque was measured at.' },
+  'cost': { what: 'the bill, in the workshop’s own units, for the parts '
+      + 'and the covering as built. It buys nothing here; it is how two '
+      + 'builds compare.' },
+  // wing
+  'area': { what: 'the wing area — both wings of a biplane — that the loading '
+      + 'and the stall speed are computed on.' },
+  'loading': { what: 'all-up mass over wing area. A trainer sits near 40 '
+      + 'kg/m², an ultralight under 25, a fast tourer past 80; higher '
+      + 'means a faster stall and a longer field.' },
+  'aspect': { what: 'span squared over area. Long and narrow (high aspect) '
+      + 'glides better and climbs better for the same power; short and wide '
+      + 'rolls faster and is stronger for its weight.' },
+  'best L/D': { what: 'the glide ratio - metres forward per metre down, at '
+      + 'the speed it is best, which is printed with it. Real light '
+      + 'aeroplanes sit at 8-12, an open-frame ultralight nearer 6-8, a '
+      + 'glider 25 and up.',
+    fix: 'on a light aeroplane this is PARASITE drag first: cover the '
+      + 'fuselage, put spats on the wheels, fair the legs and the struts. '
+      + 'Span and a narrower chord help after that. Exposed engines, '
+      + 'radiators and an open truss are what an ultralight pays for.' },
+  'L/D at cruise': { what: 'lift over drag at the cruise speed the power '
+      + 'curve sets (65% of the thrust available). More power buys a '
+      + 'faster cruise, and a faster cruise sits further from the best '
+      + 'glide - so this number FALLS when you add an engine, and the '
+      + 'wing barely moves it.' },
+  // speeds & field
+  'stall': { what: 'the slowest it flies level at this mass, wings clean. '
+      + 'Approach is flown at about 1.3 times this; the landing run and the '
+      + 'field length both follow it.' },
+  'cruise': { what: 'the speed the power curve settles at with the engine at '
+      + 'about 65% of full throttle — what you would actually fly it at.' },
+  'climb': { what: 'best rate of climb at sea level, at full power.',
+    fix: 'this is power against weight: a bigger engine, a coarser propeller, '
+      + 'less structure, or more wing area. Check the empty weight first - '
+      + 'covering and fittings add up faster than they look.' },
+  'take-off run': { what: 'ground roll plus the climb to the 15 m screen.',
+    fix: 'more power or less weight shortens it; so does more wing area and a '
+      + 'flap that actually lifts (a plain flap does little). A fine-pitch '
+      + 'propeller helps here and costs you cruise speed.' },
+  // in thin air
+  'density altitude': { what: 'the height in the standard atmosphere whose '
+      + 'air is as thin as the hot mountain strip’s: the one number the '
+      + 'engine and the wing both feel.' },
+  'take-off there': { what: 'the same run at the hot-and-high field.',
+    fix: 'thin air takes power and lift together. A normally aspirated engine '
+      + 'loses roughly 3% per 300 m of density altitude, so the levers are '
+      + 'installed power and weight, in that order.' },
+  'climb there': { what: 'rate of climb at the hot-and-high field.',
+    fix: 'the same lever as climb but less forgiving - at density altitude '
+      + 'the margin is small, so weight comes off before power goes on.' },
+  'power there': { what: 'the fraction of sea-level power the engine still makes.',
+    fix: 'a normally aspirated engine cannot avoid this. A turbocharged or an '
+      + 'electric powerplant holds its output far better with height, and a '
+      + 'flat-rated turbine keeps its full rating to a density altitude.' },
+  'service ceiling': { what: 'the height at which climb falls to 0.5 m/s.',
+    fix: 'power against weight again, and wing area. A low ceiling and a poor '
+      + 'climb are the same problem read twice.' },
+  'absolute ceiling': { what: 'the height at which it stops climbing '
+      + 'altogether. "Above" means the model stopped looking, not that the '
+      + 'aeroplane kept going.' },
+  // on the test flight
+  'outcome': { what: 'whether the test pilot completed the circuit.',
+    fix: 'read the pilot notes below - the circuit stopped somewhere, and the '
+      + 'phase it stopped in names the problem.' },
+  'landing run': { what: 'roll from touchdown to a stop.',
+    fix: 'a lower stall speed is almost the whole of it - more wing area, or '
+      + 'a flap that lifts. The approach speed follows the stall.' },
+  'touchdown': { what: 'sink rate and speed at the moment the wheels arrive.',
+    fix: 'a firm arrival is usually approach speed or the flare. More wing '
+      + 'area lowers both; softer gear absorbs what is left.' },
+  'past the aim': { what: 'how far beyond the aiming point it touched down.',
+    fix: 'floating means too much speed on the approach for the drag '
+      + 'available; a flap that adds drag as well as lift settles it.' },
+  'crosswind limit': { what: 'the strongest crosswind in which the test '
+      + 'pilot keeps the take-off roll between the strip\'s edge lines; the '
+      + 'heading as the wheels leave is shown beside it.',
+    fix: 'a taildragger with its CG far behind the mains swings harder, and '
+      + 'a high thrust line lifts the tail before the rudder has the air to '
+      + 'hold it: mains further aft, a bigger fin, or a lower thrust line. '
+      + 'No pilot gain moves this number (HANDOVER G193.1).' },
+  'test card': { what: 'the height and speed the bench asked the pilot to '
+      + 'hold on the cruise leg. Blank fields mean the standard circuit.' },
+  'held': { what: 'what the pilot actually flew on the cruise leg, against '
+      + 'what the test card asked for.',
+    fix: 'the aeroplane could not hold the ask. Speed short is drag or power; '
+      + 'height short is climb.' },
+  'trim flown': { what: 'the elevator the pilot held on the settled cruise '
+      + 'leg, as trim clicks — the setting the advisor recommends for your '
+      + 'own hand.' },
+  'pilot notes': { what: 'bounded verdicts the test pilot recorded in flight.',
+    fix: 'each code names one thing it did not like - the newest is shown.' },
+  // powerplant
+  'full-throttle draw': { what: 'electrical power the motor pulls at full '
+      + 'throttle. Divide the pack into it for the full-power endurance.' },
+  'full-throttle burn': { what: 'fuel the engine burns at full throttle, by '
+      + 'mass and by volume. Cruise burns about two thirds of it.' },
+  'cooling duty': { what: 'the heat the engine sheds at full power and what '
+      + 'carries it away. A cowl has to swallow this.' },
+  // balance
+  'CG': { what: 'where the centre of gravity sits along the aeroplane, '
+      + 'measured from the datum, as drawn.' },
+  'neutral pt': { what: 'the point the CG must stay ahead of for the '
+      + 'aeroplane to return to trim on its own. Wing area, tail area and '
+      + 'tail arm set it.' },
+  'static margin': { what: 'how far the centre of gravity sits ahead of the '
+      + 'neutral point, as a fraction of the mean chord, with the aeroplane '
+      + 'loaded exactly as it stands. Positive means it returns to trim by '
+      + 'itself; the fleet sits near 0.20.',
+    fix: 'move mass FORWARD (the engine, the tanks, the seats) or move the '
+      + 'wing AFT. A longer tail arm carries the neutral point back and '
+      + 'helps both. Negative is unflyable, not merely twitchy.' },
+  'CG as loaded': { what: 'the CG as a fraction of the mean chord behind the '
+      + 'leading edge — the way a real weight-and-balance sheet quotes it. '
+      + 'Light aeroplanes publish ranges like 17 to 36 % MAC.' },
+  'weathervane': { what: 'directional stiffness (Cn_beta) - how hard the '
+      + 'aeroplane points itself back into the airflow. The Cub reads 0.11.',
+    fix: 'fin AREA and fin HEIGHT both move it, and so does a longer tail '
+      + 'arm. Under 0.03 it wanders; negative and it swaps ends.' },
+  // on the ground
+  'stands on': { what: 'what the aeroplane is actually resting on, measured '
+      + 'rather than assumed.',
+    fix: 'if it is not on its wheels the undercarriage geometry is wrong - '
+      + 'leg length, rake, and where the mains sit relative to the CG.' },
+  'deck angle': { what: 'the nose-up angle it sits at on its wheels. A '
+      + 'taildragger sits 8-12° and lifts its tail to see; a tricycle '
+      + 'sits near level.' },
+  'fuel': { what: 'the fuel it burns; the density sets what a litre weighs.' },
+  'cells': { what: 'the cell chemistry the pack is built from; it sets what a '
+      + 'kilowatt-hour weighs.' },
+  'fuel aboard': { what: 'the fuel mass at the fill you specified. It is '
+      + 'payload, and it burns off in flight.' },
+  'cell mass': { what: 'the pack’s cells. Unlike fuel they weigh the same '
+      + 'empty as full, so they count as empty weight.' },
+  'room needed': { what: 'the volume the fuel or the cells take, which the '
+      + 'bays below have to find.' },
+  'propeller pitch': { what: 'fine pitch climbs and takes off short, coarse '
+      + 'pitch cruises fast; "chosen for you" means the garage picked it for '
+      + 'this engine and this wing.' },
+  'prop clear': { what: 'propeller tip to the ground in the resting attitude.',
+    fix: 'longer undercarriage legs, a smaller propeller disc, or raise the '
+      + 'thrust line. Under 0.05 m it strikes on any soft field.' },
+  'nose-over': { what: 'the angle from the mains to the CG - how hard you can '
+      + 'brake before it goes on its nose.',
+    fix: 'move the main wheels FORWARD, or the CG aft. Under 15 degrees is a '
+      + 'taildragger that will not forgive a firm brake.' },
+  'power nose-over': { what: 'how close full power alone comes to lifting '
+      + 'the tail over the mains on a taildragger with a high thrust line; '
+      + 'at 1 it goes over with the brakes off.',
+    fix: 'lower the thrust line, move the mains forward, or hold less than '
+      + 'full throttle until the tail is up — the pilots already do.' },
+  'gear': { what: 'the undercarriage as built.',
+    fix: 'FOLDED means it collapsed under its own weight - the legs are too '
+      + 'soft, or the aeroplane is too heavy for them.' },
+};
+
+// a bay row's label is the BAY's own name, so app.js hands its explanation
+// over directly; this is the text it hands, kept beside the others
+const PLAQUE_WHY_BAY = {
+  what: 'what this vessel holds, against the room the bay actually has.',
+  fix: 'move it to a larger bay, split it across two, or ask for less '
+     + 'capacity. A wing bay grows with span and chord; a body bay '
+     + 'grows with the cabin length and the fuselage section.' };
+
+// the vessel row's label is the vessel's own name (a welded tank, a pack)
+const PLAQUE_WHY_VESSEL = {
+  what: 'the tank or the pack itself, as a thing you bought: its own mass, '
+     + 'which is empty weight, named by how it is made.' };
+
+// WHAT A SECTION GROUPS — one dim line under its heading. Keyed on the
+// heading's text before any parenthesis, so 'at reserves (18 L)' reads the
+// 'at reserves' entry.
+const PLAQUE_SECTIONS = {
+  'weights': 'what it weighs, empty and as loaded, and what it cost to build',
+  'wing': 'the wing as an aerofoil: how much of it there is and how well it glides',
+  'speeds & field': 'how slow it flies, how fast it cruises, and the field it needs at sea level',
+  'in thin air': 'the same take-off and climb out of a hot mountain strip, from the density-altitude test',
+  'on the test flight': 'what the test pilot found flying the circuit, from the test flight',
+  'powerplant': 'what the engine burns and the heat it sheds at full throttle',
+  'balance': 'where the centre of gravity sits against the neutral point, loaded as it stands',
+  'at reserves': 'the same aeroplane with 15% fuel — lighter, and with its CG moved by the burn-off',
+  'on the ground': 'how it sits on its wheels and what that allows',
+  'fuel and tank': 'the fuel aboard, the tank it sits in, and whether the bay can take it',
+  'the pack': 'the cells aboard, the pack they sit in, and whether the bay can take it',
+};
+
+// EVERY NUMBER SAYS WHAT IT IS JUDGED AGAINST (G179.4, the user: "all
+// numbers should give their acceptable bounds. I don't know what I'm
+// working against"). ONE table: the verdict colour, the printed bound and
+// the band bar all read it, so they cannot disagree, and a row with no
+// entry is information, not a judgement. `lo`/`hi` are the ok band's edges
+// (warn past them, or bad when `badAtLo` says the band's edge is the red
+// one); `badLo`/`badHi` the red edges; `text` is what the row prints.
+const PLAQUE_BOUNDS = {
+  'best L/D':        { lo: 6, text: '≥ 6' },
+  'climb':           { lo: 0.5, badAtLo: true, text: '≥ 0.5 m/s' },
+  'take-off run':    { hi: 500, badHi: 1100, text: '≤ 500 m' },
+  'take-off there':  { hi: 500, badHi: 1100, text: '≤ 500 m' },
+  'climb there':     { lo: 0.3, badAtLo: true, text: '≥ 0.3 m/s' },
+  'power there':     { lo: 75, text: '≥ 75%' },
+  'service ceiling': { lo: 500, text: '≥ 500 m' },
+  'static margin':   { lo: 0.05, badLo: 0, text: '≥ 0.05' },
+  'weathervane':     { lo: 0.03, badLo: 0, text: '≥ 0.03' },
+  'prop clear':      { lo: 0.12, badLo: 0.05, text: '≥ 0.12 m' },
+  'nose-over':       { lo: 15, text: '≥ 15°' },
+  'power nose-over': { hi: 0.75, badHi: 1, text: '< 0.75' },
+  'crosswind limit': { lo: 4, badLo: 2, text: '≥ 4 m/s' },
+  'landing run':     { hi: 500, text: '≤ 500 m' },
+  'touchdown':       { hi: 1.8, text: '≤ 1.8 m/s' },
+};
+
+function plaqueJudge(label, v) {
+  const b = PLAQUE_BOUNDS[label];
+  if (!b || v == null || !isFinite(v)) return '';
+  if (b.badLo != null && v < b.badLo) return 'bad';
+  if (b.badHi != null && v > b.badHi) return 'bad';
+  if (b.lo != null && v < b.lo) return b.badAtLo ? 'bad' : 'warn';
+  if (b.hi != null && v > b.hi) return 'warn';
+  return '';
+}
+
+// THE BAND BAR: three thirds — bad, warn, ok (or ok, warn, bad for a
+// row judged from above) — and the marker's place in them. A value inside a
+// third is placed linearly across it; the ok third runs on to twice the
+// bound (or half of it for a `hi` row) so a comfortable margin reads as
+// comfortable and a value just over the line reads as just over. Pure, so
+// GATE BENCH can prove the marker never leaves the bar.
+function plaqueBandPos(b, v) {
+  if (!b || v == null || !isFinite(v)) return null;
+  const cl = (x, a, c) => Math.max(a, Math.min(c, x));
+  if (b.lo != null) {
+    // from below: bad | warn | ok, left to right
+    const red = b.badAtLo ? null : (b.badLo != null ? b.badLo : null);
+    const lo = b.lo;
+    if (red == null) {
+      // two zones: bad (or warn) below lo, ok above — the bar splits in half
+      if (v < lo) return { pos: 0.5 * cl(v / lo, 0, 1) * 0.94, zone: b.badAtLo ? 'bad' : 'warn', order: 'up' };
+      return { pos: 0.5 + 0.5 * cl((v - lo) / lo, 0, 1), zone: 'ok', order: 'up' };
+    }
+    if (v < red) return { pos: (1 / 3) * cl(v / Math.max(1e-9, red), -1, 1) * 0.5 + 1 / 6, zone: 'bad', order: 'up' };
+    if (v < lo) return { pos: 1 / 3 + (1 / 3) * cl((v - red) / Math.max(1e-9, lo - red), 0, 1), zone: 'warn', order: 'up' };
+    return { pos: 2 / 3 + (1 / 3) * cl((v - lo) / Math.max(1e-9, lo), 0, 1), zone: 'ok', order: 'up' };
+  }
+  if (b.hi != null) {
+    // from above: ok | warn | bad, left to right
+    const hi = b.hi, red = b.badHi;
+    if (red == null) {
+      if (v > hi) return { pos: 0.5 + 0.5 * cl((v - hi) / hi, 0, 1), zone: 'warn', order: 'down' };
+      return { pos: 0.5 * cl(v / hi, 0, 1), zone: 'ok', order: 'down' };
+    }
+    if (v > red) return { pos: 2 / 3 + (1 / 3) * cl((v - red) / Math.max(1e-9, red), 0, 1), zone: 'bad', order: 'down' };
+    if (v > hi) return { pos: 1 / 3 + (1 / 3) * cl((v - hi) / Math.max(1e-9, red - hi), 0, 1), zone: 'warn', order: 'down' };
+    return { pos: (1 / 3) * cl(v / hi, 0, 1), zone: 'ok', order: 'down' };
+  }
+  return null;
+}
+
+const plaqueEsc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                                  .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+// ---- THE SHEET -------------------------------------------------------
+// app.js builds one per draw: H() opens a section, R() adds a row, mount()
+// writes the DOM and wires the hover cards. The explanations are looked up
+// here; a row app.js prints under a label nobody explained is recorded in
+// `missing`, which is what the gate reads.
+function plaqueSheet() {
+  const rows = [], missing = [];
+  let secN = 0;
+  const H = title => {
+    const key = String(title).replace(/\s*\(.*$/, '').trim();
+    const what = PLAQUE_SECTIONS[key] || '';
+    if (!what) missing.push('section ' + key);
+    rows.push({ h: true, title, what });
+    secN++;
+  };
+  // `why` may be a string, an object {what, fix}, or omitted (looked up)
+  const R = (label, val, cls, why) => {
+    const w = why !== undefined ? why : PLAQUE_WHY[label];
+    if (!w) missing.push(label);
+    const bnd = PLAQUE_BOUNDS[label];
+    rows.push({ label, val: String(val), cls: cls || '', why: w || null, bnd });
+  };
+  // the value a band bar reads: app.js hands the raw number through `v`
+  // when the printed value is a composite ('1.2 m/s · 82 km/h')
+  const RV = (label, val, v, why) => {
+    const cls = plaqueJudge(label, v);
+    R(label, val, cls, why);
+    rows[rows.length - 1].v = v;
+  };
+  function html() {
+    const out = [];
+    for (const r of rows) {
+      if (r.h) {
+        out.push('<div class="ph"><span>' + plaqueEsc(r.title) + '</span>' +
+          (r.what ? '<em>' + plaqueEsc(r.what) + '</em>' : '') + '</div>');
+        continue;
+      }
+      let tip = '';
+      if (r.why) tip = typeof r.why === 'string' ? r.why
+        : (r.why.what || '') + (r.cls && r.why.fix ? '\n→ ' + r.why.fix : '');
+      if (r.bnd) tip += (tip ? '\n' : '') + 'judged against ' + r.bnd.text;
+      const bp = r.bnd ? plaqueBandPos(r.bnd, r.v != null ? r.v : parseFloat(r.val)) : null;
+      out.push('<div class="pr' + (r.cls ? ' ' + r.cls : '') + (tip ? ' has' : '') + '"' +
+        (tip ? ' data-tip="' + plaqueEsc(tip) + '"' : '') + '>' +
+        '<span class="pl">' + plaqueEsc(r.label) + '</span>' +
+        '<b class="pv">' + r.val + (r.bnd ? ' <i>' + plaqueEsc(r.bnd.text) + '</i>' : '') + '</b>' +
+        (bp ? '<div class="pb ' + bp.order + '"><i style="left:' +
+              (bp.pos * 100).toFixed(1) + '%"></i></div>' : '') +
+        '</div>');
+    }
+    return out.join('');
+  }
+  function mount(host) {
+    if (!host) return;
+    host.innerHTML = html();
+    plaqueWireTips(host);
+  }
+  return { H, R, RV, judge: plaqueJudge, mount, html, rows, missing };
+}
+
+// ---- THE HOVER CARD ---------------------------------------------------
+// One element for the page, made on first use. Hover opens it beside the
+// row; a click pins the same text UNDER the row (touch has no hover, and a
+// pinned explanation can be read while the slider moves). Guarded for the
+// smoke test's stub DOM, where there is no layout to measure.
+let plaqueTipEl = null;
+function plaqueTip() {
+  if (plaqueTipEl) return plaqueTipEl;
+  try {
+    plaqueTipEl = document.createElement('div');
+    plaqueTipEl.id = 'pqTip';
+    plaqueTipEl.hidden = true;
+    document.body.appendChild(plaqueTipEl);
+  } catch (e) { plaqueTipEl = null; }
+  return plaqueTipEl;
+}
+function plaqueWireTips(host) {
+  let els;
+  try { els = host.querySelectorAll('.pr.has'); } catch (e) { return; }
+  if (!els || !els.length) return;
+  const tip = plaqueTip();
+  els.forEach(el => {
+    const text = el.dataset ? el.dataset.tip : el.getAttribute('data-tip');
+    el.onmouseenter = () => {
+      if (!tip) return;
+      tip.textContent = text;
+      tip.hidden = false;
+      try {
+        const r = el.getBoundingClientRect();
+        const W = window.innerWidth || 1200, Hh = window.innerHeight || 800;
+        // beside the panel, over the view: to the right of the row when the
+        // panel sits at the left edge (the information panel does), to the
+        // left when it sits at the right; under the row only when neither
+        // side has room. Over the view, not over the neighbouring rows.
+        tip.style.maxWidth = '280px';
+        const tw = Math.min(280, W * 0.4);
+        let x, y = r.top - 4;
+        if (r.right + tw + 14 < W - 8) x = r.right + 14;
+        else if (r.left - tw - 14 > 8) x = r.left - tw - 14;
+        else { x = Math.max(8, r.left); y = r.bottom + 6; }
+        if (y + 120 > Hh) y = Math.max(8, Hh - 130);
+        tip.style.left = x + 'px'; tip.style.top = y + 'px';
+      } catch (e) {}
+    };
+    el.onmouseleave = () => { if (tip) tip.hidden = true; };
+    el.onclick = () => {
+      let px = el.querySelector('.px');
+      if (px) { px.remove(); el.classList.remove('open'); return; }
+      px = document.createElement('div');
+      px.className = 'px';
+      px.textContent = text;
+      el.appendChild(px);
+      el.classList.add('open');
+    };
+  });
+}
+
+if (typeof window !== 'undefined')
+  window.PLAQUE = { sheet: plaqueSheet, judge: plaqueJudge, bandPos: plaqueBandPos,
+                    WHY: PLAQUE_WHY, WHY_BAY: PLAQUE_WHY_BAY, WHY_VESSEL: PLAQUE_WHY_VESSEL,
+                    SECTIONS: PLAQUE_SECTIONS, BOUNDS: PLAQUE_BOUNDS };
+if (typeof module !== 'undefined' && module.exports)
+  module.exports = { plaqueSheet, plaqueJudge, plaqueBandPos, PLAQUE_WHY,
+                     PLAQUE_WHY_BAY, PLAQUE_WHY_VESSEL, PLAQUE_SECTIONS, PLAQUE_BOUNDS };
+</script>
+<script>
+// ============================================================
+// THE CERTIFICATION STICKERS (G208) — what an approved aeroplane wears.
+//
+// The user, 2026-09-07: "We'll put a small circular sticker on approved
+// plane's fuselage, I let you design it ... possibly 1 small sticker per
+// passed test."
+//
+// ONE ROUNDEL PER CERTIFICATE, 120 mm, in a row under the cockpit's side
+// window on both flanks — where a real aeroplane wears its fuel grade, its
+// "experimental" placard and its inspection seals. Cream vinyl, a dark
+// navy rim carrying the test's name round the top and the certifying
+// bench round the bottom, an emblem for the test in the middle and the
+// date it was awarded under it. Four tests, four cells, in the bench's own
+// order; a cell whose certificate was never awarded, or was withdrawn, is
+// blank vinyl-less skin — so the strip reads left to right as the record.
+//
+// DRAWN, NOT STORED. The stickers are a picture of the certificate the
+// bench holds (BENCH_STATE().certs), never a field in the spec and never a
+// pixel in the save: a withdrawn certificate peels its sticker off by
+// itself, and a loaded build wears exactly what its envelope's certificate
+// says. They reach the skin through aeroskin's AERO_EXTRA_DECALS hook as
+// ONE decal — atlas page 6, a strip 0.57 m by 0.12 m in the field frame —
+// so the flown aeroplane and the one on the stand read the same list.
+//
+// THE PAGE IS DRAWN IN METRES. A page maps its full width to the decal's
+// width and its full height to the decal's height, independently, so a
+// circle in metres is an ellipse in page pixels; the canvas transform does
+// that arithmetic (setTransform P/w, P/h) and the roundel is written once,
+// in metres, for the atlas and for the panel's thumbnails alike.
+// ============================================================
+
+const STICKER_ORDER = ['shake', 'load', 'dalt', 'flight'];
+const STICKER_META = {
+  shake:  { title: 'BENCH CHECK',      emblem: 'balance' },
+  load:   { title: 'WING LOADING',     emblem: 'sandbags' },
+  dalt:   { title: 'DENSITY ALTITUDE', emblem: 'mountain' },
+  flight: { title: 'TEST FLIGHT',      emblem: 'circuit' },
+};
+const STICKER_INK = '#1f3552', STICKER_GROUND = '#f1e7d0', STICKER_RIM = '#d9c9a5';
+// the strip on the fuselage: field frame, metres aft of the firewall and
+// above the waist; `d` the roundel's diameter, `gap` between two.
+// AFT OF THE DOOR, UNDER THE REGISTRATION (measured 2026-09-07): the first
+// placement, under the cockpit's side window at 0.95 m, drew nothing — the
+// cut door is its own section and refuses the box projection (G207,
+// markings on paintwork only), and the flank forward of ~1.6 m on the
+// stock build is door. The rear fuselage under the registration's letters
+// takes it, which is also where a real aeroplane wears its placard line.
+const STICKER_PLACE = { sL: 1.70, sC: -0.16, d: 0.12, gap: 0.03 };
+const STICKER_PAGE = 6;          // 0 reg, 1-2 images, 3-5 the marking kit
+// THE PLACES (G208.2, the user: "we should be able to choose where
+// certification stickers are applied, and maybe move them manually a little
+// (like the fuel tanks, default section + manual fine tuning)"). A place is
+// a named default — station, height, which surfaces, which projection — and
+// the decal block's `stkL`/`stkC` fine-tune off it in metres, the way a tank
+// takes a bay and then an offset. The defaults are the stock build's; a
+// long fuselage or a tall fin is what the fine tuning is for. `sL` is the
+// strip's LEADING edge in the field frame (metres aft of the firewall; on
+// the wing, metres from the centreline in plan) and `sC` its centre height
+// (metres from the waist; on the wing, metres fore and aft in plan).
+//
+// THE FUSELAGE PLACES ARE IN THE FIELD FRAME (metres aft of the firewall,
+// above the waist — the frame a fuselage marking wraps in). THE FIN AND THE
+// WING ARE NOT: the field on a flying surface is that surface's own rib and
+// spar metres, so those two places use the BOX projections (`side`: along
+// and up in the craft frame; `plan`: lateral and along) and take their
+// station from LANDMARKS measured off the aeroplane on the stand — the fin's
+// top, the wing's upper surface near the root — so the default lands on the
+// surface for a long fuselage as much as for the stock one (measured
+// 2026-09-07: fixed stations put the fin's strip in the air). Without a
+// scene to measure (a core-only build) the stock build's numbers stand in.
+const STICKER_PLACES = [
+  { id: 'aft',  name: 'rear fuselage, under the registration',
+    sL: 1.70, sC: -0.16, on: { body: 1 }, mode: 'field' },
+  { id: 'cab',  name: 'cabin side, under the window',
+    sL: 0.95, sC: -0.13, on: { body: 1 }, mode: 'field' },
+  { id: 'nose', name: 'the nose, behind the cowl',
+    sL: 0.15, sC: 0.10, on: { body: 1 }, mode: 'field' },
+  { id: 'fin',  name: 'the fin',
+    land: 'fin', sL: 5.20, sC: 1.20, on: { tail: 1 }, mode: 'side' },
+  { id: 'wing', name: 'the wing, near the root',
+    land: 'wing', sL: 0.90, sC: 0.30, on: { wing: 1 }, mode: 'plan' },
+];
+const stickerStripW = d => { d = d || STICKER_PLACE.d;
+  return STICKER_ORDER.length * d + (STICKER_ORDER.length - 1) * d / 4; };
+
+// THE LANDMARKS, off the fielded skin mesh the editor's scene holds (the
+// same mesh decReframe reads), in the craft frame: along runs aft (-z), up
+// is y, lateral is x. Cached per mesh; a rebuild makes a new mesh.
+let stickerLandCache = null;
+function stickerLandmarks() {
+  try {
+    const S = (typeof window !== 'undefined') && window.CAGE_UI_SCENE;
+    const T3 = (typeof THREE !== 'undefined') ? THREE : (typeof window !== 'undefined' && window.THREE);
+    if (!S || !T3 || !T3.Matrix4) return null;
+    // EVERY fielded mesh — the skin is several (the fuselage, each wing, the
+    // tail), and the first one alone told the fin it stood 0.32 m tall
+    const meshes = [];
+    S.traverse(o => { if (o.isMesh && o.geometry && o.geometry.attributes
+                          && o.geometry.attributes.aStruct) meshes.push(o); });
+    if (!meshes.length) return null;
+    const key = meshes.map(m => m.uuid + ':' + m.geometry.attributes.position.count).join('|');
+    if (stickerLandCache && stickerLandCache.key === key) return stickerLandCache;
+    S.updateWorldMatrix(true, false);
+    const inv = new T3.Matrix4().copy(S.matrixWorld).invert();
+    const v = new T3.Vector3();
+    let n = 0;
+    for (const m of meshes) n += m.geometry.attributes.position.count;
+    const X = new Float32Array(n), Y = new Float32Array(n), A = new Float32Array(n);
+    let alongMax = -Infinity, k = 0;
+    for (const m of meshes) {
+      m.updateWorldMatrix(true, false);
+      const toCraft = new T3.Matrix4().copy(inv).multiply(m.matrixWorld);
+      const P = m.geometry.attributes.position;
+      for (let i = 0; i < P.count; i++, k++) {
+        v.fromBufferAttribute(P, i).applyMatrix4(toCraft);
+        X[k] = v.x; Y[k] = v.y; A[k] = -v.z;
+        if (A[k] > alongMax) alongMax = A[k];
+      }
+    }
+    // the fin: the highest point in the last 1.2 m of the aeroplane, and the
+    // fin's CHORD at the strip's own height (0.35 m under the top, ±0.08):
+    // the leading edge sweeps, so the top's station is the tip's leading
+    // corner and a strip hung off it sat in the air ahead of the fin
+    // (measured: strip 1.10-1.67 along, fin 1.81-2.53 at that height)
+    let finTop = -Infinity, finAlong = alongMax;
+    for (let i = 0; i < n; i++) if (A[i] > alongMax - 1.2 && Y[i] > finTop) { finTop = Y[i]; finAlong = A[i]; }
+    const yStrip = finTop - 0.35;
+    let fa = Infinity, fb = -Infinity;
+    for (let i = 0; i < n; i++)
+      if (A[i] > alongMax - 1.6 && Y[i] > finTop - 0.6 && Math.abs(Y[i] - yStrip) < 0.08) {
+        if (A[i] < fa) fa = A[i]; if (A[i] > fb) fb = A[i]; }
+    const finBand = (fb > fa) ? [fa, fb] : null;
+    // the wing: the upper surface where |lateral| is about 0.9 m — its
+    // height, and the mean station of that surface
+    let wingTop = -Infinity;
+    for (let i = 0; i < n; i++) if (Math.abs(Math.abs(X[i]) - 0.9) < 0.1 && Y[i] > wingTop) wingTop = Y[i];
+    let wa = 0, m = 0;
+    for (let i = 0; i < n; i++)
+      if (Math.abs(Math.abs(X[i]) - 0.9) < 0.1 && Y[i] > wingTop - 0.06) { wa += A[i]; m++; }
+    stickerLandCache = { key, alongMax, finTop, finAlong, finBand,
+                         wingTop, wingAlong: m ? wa / m : null };
+    return stickerLandCache;
+  } catch (e) { return null; }
+}
+
+// the placement the decal block asks for: the place's own station and
+// height (measured when a landmark is available), the fine tuning, the size,
+// the turn — resolved in one place so the editor's live DEC and the flown
+// spec's merged decals read the same
+function stickerResolve(D, L) {
+  D = D || {};
+  if (D.stkOn != null && !D.stkOn) return null;
+  const pi = Math.max(0, Math.min(STICKER_PLACES.length - 1, Math.round(+D.stkPlace || 0)));
+  const p = STICKER_PLACES[pi];
+  const d = Math.max(0.03, Math.min(0.5, +D.stkSize || STICKER_PLACE.d));
+  const w = stickerStripW(d);
+  let sL = p.sL, sC = p.sC;
+  if (p.land === 'fin' && L && isFinite(L.finTop)) {
+    // centred on the fin's chord at the strip's height, 0.35 m under the
+    // top; without a measured chord, hung 0.45 m short of the top's station
+    sC = L.finTop - 0.35;
+    sL = (L.finBand && L.finBand[1] > L.finBand[0])
+       ? (L.finBand[0] + L.finBand[1]) / 2 - w / 2
+       : L.finAlong - 0.45 - w;
+  } else if (p.land === 'wing' && L && L.wingAlong != null) {
+    // across the span from 0.9 m out, on the wing's chord station
+    sL = 0.90; sC = L.wingAlong;
+  }
+  return { d, w, h: d,
+           sL: sL + (+D.stkL || 0) + w / 2, sC: sC + (+D.stkC || 0),
+           rot: +D.stkRot || 0, on: p.on, mode: p.mode, place: p.id };
+}
+
+// ---- ONE ROUNDEL ------------------------------------------------------
+// g: a 2d context already transformed so that (cx, cy, r) are in the units
+// the caller wants (metres on the atlas, pixels on a thumbnail). `o.small`
+// drops the lettering, for a thumbnail too small to carry it. Everything
+// here is guarded for the smoke test's stub context (no measureText).
+function stickerRoundel(g, cx, cy, r, o) {
+  o = o || {};
+  const ink = o.ink || STICKER_INK, ground = o.ground || STICKER_GROUND;
+  g.save();
+  g.translate(cx, cy);
+  // the vinyl: cream disc with a soft rim shadow, a dark ring, a hairline
+  g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2);
+  g.fillStyle = ground; g.fill();
+  g.lineWidth = r * 0.035; g.strokeStyle = STICKER_RIM; g.stroke();
+  g.beginPath(); g.arc(0, 0, r * 0.90, 0, Math.PI * 2);
+  g.lineWidth = r * 0.09; g.strokeStyle = ink; g.stroke();
+  g.beginPath(); g.arc(0, 0, r * 0.64, 0, Math.PI * 2);
+  g.lineWidth = r * 0.02; g.strokeStyle = ink; g.stroke();
+  if (o.dim) { g.globalAlpha = 0.35; }
+  // the emblem, in a unit box of r * 0.48
+  g.save();
+  g.scale(r * 0.48, r * 0.48);
+  g.lineWidth = 0.09; g.strokeStyle = ink; g.fillStyle = ink;
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  stickerEmblem(g, o.emblem || 'balance');
+  g.restore();
+  if (!o.small) {
+    // lettering round the rim: the test round the top, the bench round the
+    // bottom, the date under the emblem
+    const fs = r * 0.155;
+    g.fillStyle = ink;
+    g.font = '700 ' + fs + 'px "IBM Plex Sans", sans-serif';
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    stickerArcText(g, String(o.title || ''), r * 0.77, -Math.PI / 2, fs, true);
+    g.font = '500 ' + (fs * 0.82) + 'px "IBM Plex Sans", sans-serif';
+    stickerArcText(g, 'FLYDIY · ENGINEERING BENCH', r * 0.77, Math.PI / 2, fs * 0.82, false);
+    if (o.date) {
+      g.font = '600 ' + (r * 0.13) + 'px "IBM Plex Mono", monospace';
+      g.fillText(String(o.date), 0, r * 0.50);
+    }
+  }
+  g.restore();
+}
+
+// text along an arc of radius R centred on angle `at` (radians, -PI/2 is
+// the top). `up` = the glyphs stand on the arc (read clockwise round the
+// top); false = they hang under it (read round the bottom, still upright).
+function stickerArcText(g, text, R, at, fs, up) {
+  let widths = [];
+  let total = 0;
+  for (const ch of text) {
+    let w = fs * 0.6;
+    try { const m = g.measureText(ch); if (m && isFinite(m.width)) w = m.width; } catch (e) {}
+    widths.push(w); total += w;
+  }
+  const gap = fs * 0.12;
+  total += gap * Math.max(0, text.length - 1);
+  // angle per unit length on the arc
+  const k = 1 / Math.max(1e-6, R);
+  let a = at - (up ? 1 : -1) * total * k / 2;
+  let i = 0;
+  for (const ch of text) {
+    const w = widths[i++];
+    const mid = a + (up ? 1 : -1) * w * k / 2;
+    // rotate to the glyph's bearing, step out to the arc, then turn the
+    // glyph upright: +90° when it stands on the arc (the top), -90° when it
+    // hangs under it (the bottom) — both read left to right on screen
+    g.save();
+    g.rotate(mid);
+    g.translate(R, 0);
+    g.rotate(up ? Math.PI / 2 : -Math.PI / 2);
+    g.fillText(ch, 0, 0);
+    g.restore();
+    a += (up ? 1 : -1) * (w + gap) * k;
+  }
+}
+
+// the emblems, each in a box from -1 to 1
+function stickerEmblem(g, kind) {
+  const P = () => g.beginPath();
+  if (kind === 'balance') {
+    // a beam on a fulcrum, two pans: the trim and the CG
+    P(); g.moveTo(-0.95, -0.15); g.lineTo(0.95, -0.15); g.stroke();
+    P(); g.moveTo(-0.22, 0.75); g.lineTo(0, -0.15); g.lineTo(0.22, 0.75); g.closePath(); g.fill();
+    P(); g.moveTo(-0.75, -0.15); g.lineTo(-0.9, 0.25); g.lineTo(-0.6, 0.25); g.closePath(); g.stroke();
+    P(); g.moveTo(0.75, -0.15); g.lineTo(0.6, 0.25); g.lineTo(0.9, 0.25); g.closePath(); g.stroke();
+    P(); g.arc(0, -0.15, 0.09, 0, Math.PI * 2); g.fill();
+  } else if (kind === 'sandbags') {
+    // an aerofoil with three bags on it: the wing under load
+    P(); g.moveTo(-0.95, 0.35); g.quadraticCurveTo(-0.3, -0.35, 0.95, 0.2);
+    g.quadraticCurveTo(0.2, 0.45, -0.95, 0.35); g.closePath(); g.stroke();
+    const bag = (x, y, w) => { P(); g.moveTo(x - w, y); g.quadraticCurveTo(x - w, y - 0.32, x, y - 0.34);
+      g.quadraticCurveTo(x + w, y - 0.32, x + w, y); g.closePath(); g.fill(); };
+    bag(-0.42, -0.02, 0.2); bag(0.02, -0.16, 0.2); bag(0.46, -0.06, 0.2);
+    // the arrow of the load
+    P(); g.moveTo(0, -0.95); g.lineTo(0, -0.6); g.stroke();
+    P(); g.moveTo(-0.14, -0.72); g.lineTo(0, -0.55); g.lineTo(0.14, -0.72); g.stroke();
+  } else if (kind === 'mountain') {
+    // two peaks and a sun: hot and high
+    P(); g.moveTo(-1, 0.75); g.lineTo(-0.35, -0.35); g.lineTo(0.0, 0.2);
+    g.lineTo(0.35, -0.6); g.lineTo(1, 0.75); g.closePath(); g.fill();
+    P(); g.arc(-0.55, -0.55, 0.2, 0, Math.PI * 2); g.stroke();
+    for (let i = 0; i < 8; i++) {
+      const a = i / 8 * Math.PI * 2;
+      P(); g.moveTo(-0.55 + Math.cos(a) * 0.3, -0.55 + Math.sin(a) * 0.3);
+      g.lineTo(-0.55 + Math.cos(a) * 0.42, -0.55 + Math.sin(a) * 0.42); g.stroke();
+    }
+  } else if (kind === 'circuit') {
+    // the rectangular pattern, flown clockwise, with the aeroplane on the
+    // downwind leg
+    const r = 0.18;
+    P(); g.moveTo(-0.85 + r, -0.55); g.lineTo(0.85 - r, -0.55); g.arcTo(0.85, -0.55, 0.85, -0.55 + r, r);
+    g.lineTo(0.85, 0.55 - r); g.arcTo(0.85, 0.55, 0.85 - r, 0.55, r);
+    g.lineTo(-0.85 + r, 0.55); g.arcTo(-0.85, 0.55, -0.85, 0.55 - r, r);
+    g.lineTo(-0.85, -0.55 + r); g.arcTo(-0.85, -0.55, -0.85 + r, -0.55, r);
+    g.closePath(); g.stroke();
+    // the runway on the bottom leg
+    g.lineWidth = 0.2; P(); g.moveTo(-0.45, 0.55); g.lineTo(0.45, 0.55); g.stroke();
+    g.lineWidth = 0.09;
+    // the arrow head on the top leg
+    P(); g.moveTo(0.1, -0.72); g.lineTo(0.32, -0.55); g.lineTo(0.1, -0.38); g.closePath(); g.fill();
+    // a small aeroplane in the middle: fuselage, wing, tail
+    P(); g.moveTo(0, -0.2); g.lineTo(0, 0.28); g.stroke();
+    P(); g.moveTo(-0.34, -0.02); g.lineTo(0.34, -0.02); g.stroke();
+    P(); g.moveTo(-0.13, 0.24); g.lineTo(0.13, 0.24); g.stroke();
+  }
+}
+
+// ---- THE STRIP ON THE ATLAS -------------------------------------------
+// `certs`: [{id, when}] awarded, in any order. Draws page 6 when the recipe
+// changed and returns the ONE placement, or [] when nothing is awarded.
+let stickerSig = null, stickerPlacement = null;
+// `D` is the decal block (the editor's live DEC, or the flown spec's merged
+// decals) — the place, the fine tuning, the size and the turn come from it
+function stickerPlacements(THREE, D) {
+  const A = (typeof window !== 'undefined') ? window.AEROSKIN : null;
+  const st = (typeof window !== 'undefined' && typeof window.BENCH_STATE === 'function')
+           ? window.BENCH_STATE() : null;
+  const certs = (st && st.certs) || [];
+  const by = {};
+  for (const c of certs) if (c && c.id) by[c.id] = c;
+  const cells = STICKER_ORDER.map(id => by[id] ? (id + '@' + (by[id].when || '')) : '-');
+  if (!cells.some(c => c !== '-')) { stickerSig = null; return []; }
+  const R = stickerResolve(D, stickerLandmarks());
+  if (!R) { stickerSig = null; return []; }
+  // the page's drawing depends on the cells and the size (drawn in metres);
+  // the placement is cheap and rebuilt every call
+  const sig = cells.join('|') + '|' + R.d;
+  const w = R.w, h = R.h;
+  const place = { page: STICKER_PAGE, sL: R.sL, sC: R.sC, w, h, rot: R.rot,
+                  rough: -0.08, on: R.on, mode: R.mode };
+  if (sig === stickerSig && stickerPlacement) { stickerPlacement = place; return [place]; }
+  if (!A || !A.aeroAtlas) return [];
+  try {
+    const t = A.aeroAtlas(THREE), cv = t.image;
+    const N = A.AERO_ATLAS_N || 4, PX = cv.width || 4096, P = PX / N;
+    const px = (STICKER_PAGE % N) * P, py = Math.floor(STICKER_PAGE / N) * P;
+    const g = cv.getContext('2d');
+    g.save();
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.clearRect(px, py, P, P);
+    g.beginPath(); g.rect(px, py, P, P); g.clip();
+    // metres on the page: x from 0 (left, forward) to w, y from 0 (top) to h
+    g.setTransform(P / w, 0, 0, P / h, px, py);
+    STICKER_ORDER.forEach((id, i) => {
+      const c = by[id];
+      if (!c) return;
+      const M = STICKER_META[id];
+      const cx = R.d / 2 + i * (R.d + R.d / 4);
+      stickerRoundel(g, cx, h / 2, R.d / 2 * 0.98,
+        { title: M.title, emblem: M.emblem, date: c.when || '' });
+    });
+    g.restore();
+    // the bleed scales with the page like the kit's (3 px at the 256 px
+    // reference page, 12 at today's 1024): a fixed 3 px on a 4096 atlas is a
+    // hairline the mip chain averages against black
+    stickerDilate(g, px, py, P, P, Math.max(3, Math.round(3 * P / 256)));
+    t.needsUpdate = true;
+  } catch (e) {
+    console.error('stickers:', e);
+    return [];
+  }
+  stickerSig = sig; stickerPlacement = place;
+  return [place];
+}
+
+// bleed the opaque pixels' colour into their transparent neighbours, so the
+// bilinear sample at a roundel's edge never mixes in the atlas's black
+function stickerDilate(g, x, y, w, h, rounds) {
+  let im;
+  try { im = g.getImageData(x, y, w, h); } catch (e) { return; }
+  const d = im.data, W = w;
+  for (let r = 0; r < rounds; r++) {
+    const src = new Uint8ClampedArray(d);
+    for (let j = 1; j < h - 1; j++) for (let i = 1; i < W - 1; i++) {
+      const o = (j * W + i) * 4;
+      if (src[o + 3] !== 0) continue;
+      for (const q of [o - 4, o + 4, o - W * 4, o + W * 4]) {
+        if (src[q + 3] !== 0) { d[o] = src[q]; d[o + 1] = src[q + 1]; d[o + 2] = src[q + 2]; break; }
+      }
+    }
+  }
+  g.putImageData(im, x, y);
+}
+
+// the bench calls this when a certificate is awarded or withdrawn: the strip
+// is rebuilt on the next decal pass, which the editor is asked for now
+function stickerRefresh() {
+  stickerSig = null;
+  try {
+    if (typeof window !== 'undefined' && window.CAGE_UI && window.CAGE_UI.redecal)
+      window.CAGE_UI.redecal();
+  } catch (e) {}
+}
+
+if (typeof window !== 'undefined') {
+  window.STICKERS = { ORDER: STICKER_ORDER, META: STICKER_META, PLACE: STICKER_PLACE,
+                      PLACES: STICKER_PLACES, PAGE: STICKER_PAGE, roundel: stickerRoundel,
+                      placements: stickerPlacements, resolve: stickerResolve,
+                      landmarks: stickerLandmarks,
+                      refresh: stickerRefresh, stripW: stickerStripW };
+  window.AERO_EXTRA_DECALS = (THREE, D) => stickerPlacements(THREE, D);
+}
+if (typeof module !== 'undefined' && module.exports)
+  module.exports = { STICKER_ORDER, STICKER_META, STICKER_PLACE, STICKER_PLACES,
+                     STICKER_PAGE, stickerRoundel, stickerArcText, stickerEmblem,
+                     stickerStripW, stickerResolve, stickerPlacements, stickerDilate };
+</script>
+<script>
+// ============================================================
 // THE ENGINEERING BENCH (G64) — where a build earns its numbers.
+// CERTIFIED (G208) — where it keeps them.
 //
 // The user's own framing, and the reason the plaque does not simply appear:
 // "let's have a test section. We could run the test to get the plaque numbers,
@@ -74591,32 +75998,54 @@ if (typeof module !== 'undefined' && module.exports)
 // you try and roll out. Once the tests are passed the data gets filled."
 //
 // So the plaque starts EMPTY. It is a certificate, and a certificate you get
-// for free is not one. Running a test fills it; touching a slider takes it
-// away again, which is the same ruling the load test has carried since it was
-// built ("a changed spec loses its certificate") applied to the whole bench.
+// for free is not one. Running a test fills it. And (G208, the user: "There
+// needs to be more decorum around the process of doing this tests,
+// certifications need to be awarded. The plane should keep its
+// certifications, unless something changes in there") a certificate is now
+// AWARDED, DATED, KEPT and WITHDRAWN:
 //
-// THE TESTS ARE A DECLARED LIST, not a pair of buttons — the section has to be
-// "ready for adding more tests if required", so a new test is a row in TESTS
-// below plus whatever it needs on the bridge, and the UI, the staleness, the
-// verdict line and the logbook entry all follow from the row. TEST FLIGHT (the
-// AP-flown circuit that would add a landing run to the plaque, which
-// genShakedown does not compute) is the next row and is declared here with no
-// `run` so that the shape of it is on the record.
+//   AWARDED   a test that passes awards its certificate in a card over the
+//             view — the stamp, the sticker it earns, the date. A test that
+//             fails says what it found and what to turn, and awards nothing.
+//   DATED     every result carries the day it was measured.
+//   KEPT      every result carries a FINGERPRINT of the aeroplane it was
+//             measured on — the join's spec with the cosmetic blocks (paint,
+//             finish, meta) removed. A rebuild compares fingerprints and only
+//             a build whose physics changed loses its certificates; a new
+//             colour, a decal or a name never does. Before G208 every slider
+//             pixel cleared the whole bench.
+//   WITHDRAWN a certificate the build outgrew stays on the row, struck
+//             through, with the reason, until the test is run again.
+//   WORN      the awarded certificates are the stickers on the fuselage
+//             (stickers.js reads BENCH_STATE().certs) — one roundel per
+//             passed test, on both flanks, on the stand and in flight.
 //
-// WHAT A TEST IS ALLOWED TO BE. Two kinds, because the two that exist differ
-// in that one way and nothing else:
+// AND THE TEST IS WATCHED. A live test freezes the interface (nothing else
+// answers while the sim is being stepped) and reports as it goes: the phase
+// strip, the clock, the live numbers, the circuit drawn in plan as it is
+// flown with height against time under it, the pilot's verdicts as they
+// arrive, and an abort. The user: "you may want to 'freeze' the interface
+// and report on progress, with as much feedback as possible."
+//
+// THE TESTS ARE A DECLARED LIST, not a pair of buttons — a new test is a row
+// in TESTS below plus whatever it needs on the bridge, and the UI, the
+// staleness, the verdict line, the logbook entry, the seal and the sticker
+// all follow from the row. Two kinds:
 //   instant  a computation. It returns its verdict from `run`.
 //   live     it steps the sim, so it starts, is polled, and ends. The bench
 //            shows the physical aeroplane while it runs, because watching the
 //            wing bend IS the test.
 // Neither kind may invent a threshold: the verdicts below are the generator's
-// own (`flyableCircuit`) and the rig's own (`state.verdict`).
+// own (`flyableCircuit`) and the rig's own (`state.verdict`). Nothing in this
+// file is physics; G208 changed how the tests are run, shown and kept.
 // ============================================================
 
 // ---------------------------------------------------------------------------
 // THE DECLARED TESTS.
 // `needs` names the bridge calls a row uses, so a row that outruns the bridge
-// says so instead of throwing halfway through a run.
+// says so instead of throwing halfway through a run. `steps` is the phase
+// strip the run card shows for a live test; `stepOf` maps the sim's own
+// phase name onto it.
 // ---------------------------------------------------------------------------
 const BENCH_TESTS = [
   {
@@ -74631,6 +76060,9 @@ const BENCH_TESTS = [
     run(api) {
       const s = api.shake();
       if (!s) return { verdict: 'not measurable', ok: false };
+      const why = [];
+      if ((s.climbRate || 0) < 0.3) why.push('it climbs ' + benchNum(s.climbRate, 2) + ' m/s');
+      if ((s.TORun || 0) > 1100) why.push('it needs ' + benchNum(s.TORun, 0) + ' m to take off');
       return {
         verdict: s.flyableCircuit ? 'FLIES A CIRCUIT' : 'WILL NOT FLY A CIRCUIT',
         ok: !!s.flyableCircuit,
@@ -74638,7 +76070,14 @@ const BENCH_TESTS = [
         note: benchNum(s.Vs * 3.6, 0) + ' km/h stall · ' +
               benchNum(s.climbRate, 2) + ' m/s climb · ' +
               benchNum(s.TORun, 0) + ' m take-off',
+        why: why.join('; '),
+        fix: s.flyableCircuit ? '' : 'power against weight: a bigger engine, a coarser '
+           + 'propeller, less structure, or more wing area. The plaque\'s rows say which.',
         fills: 'plaque',
+        // G208: THE TRIM ADVISOR's first reading — the tunnel's stabiliser
+        // setting, in degrees; the elevator is neutral at cruise by its
+        // construction (genTrim), so the advice is "start neutral"
+        stabDeg: (s.stabTrim != null && isFinite(s.stabTrim)) ? s.stabTrim * 180 / Math.PI : null,
       };
     },
   },
@@ -74648,6 +76087,7 @@ const BENCH_TESTS = [
     blurb: 'Sandbags to +3.8 g limit and +5.7 g ultimate, FAR 23 normal.',
     kind: 'live',
     needs: ['loadTest', 'loadTestState', 'endLoadTest'],
+    steps: ['on its back', 'settling', 'to +3.8 g limit', 'to +5.7 g ultimate', 'holding'],
     // The rig is src/core/65_gen_loadtest.js — the same object GATE LOAD ticks
     // headlessly, so the verdict on screen and the verdict in the battery are
     // one computation. Since G64 it puts the aeroplane ON ITS BACK, which is
@@ -74663,6 +76103,8 @@ const BENCH_TESTS = [
         running: st.phase === 'settle' ? 'settling on the trestles'
           : benchNum(st.n, 2) + ' g · tip ' + benchNum(st.tipPct, 2) + ' %',
         progress: pct,
+        step: st.phase === 'settle' ? 1 : st.phase === 'hold' ? 4 : (st.n < 3.8 ? 2 : 3),
+        live: { g: st.n, tipPct: st.tipPct, phase: st.phase, nTarget: st.nTarget },
       };
       return {
         done: true,
@@ -74673,6 +76115,8 @@ const BENCH_TESTS = [
           + (st.ultYield == null ? ''
              : ' · worst member ' + benchNum(st.ultYield, 0) + ' % of yield'
                + (st.worstCls ? ' (' + st.worstCls + ')' : '')),
+        fix: st.verdict === 'HELD' ? '' : 'the spar, the struts or the wires gave: a deeper '
+           + 'spar, a lift strut or a second bay of bracing carries the ultimate load.',
       };
     },
     stop(api) { api.endLoadTest(); },
@@ -74697,6 +76141,8 @@ const BENCH_TESTS = [
     // NOT PASSED on the whole bench because it is not a bush plane. An
     // advisory row still runs, still fills the plaque's thin-air sheet, and
     // still shows its own verdict; it just cannot withhold the certificate.
+    // It DOES award its own sticker when it passes: a bush rating is a
+    // rating.
     advisory: true,
     needs: ['densAlt'],
     run(api) {
@@ -74719,6 +76165,9 @@ const BENCH_TESTS = [
             + (d.serviceCeiling == null
                  ? 'above ' + benchNum(d.ceilingCap, 0) + ' m, which is as far as this model will claim'
                  : benchNum(d.serviceCeiling, 0) + ' m'),
+        fix: climbs ? '' : 'thin air takes power and lift together: weight off first, '
+           + 'then installed power; a turbocharged or electric powerplant holds its '
+           + 'output with height.',
         fills: 'plaque',
       };
     },
@@ -74736,6 +76185,7 @@ const BENCH_TESTS = [
     blurb: 'A full circuit on the test pilot — the landing run, and the pilot’s verdicts.',
     kind: 'live',
     offscreen: true,           // the circuit flies a second sim, not the stand
+    steps: ['taxi', 'take-off', 'climb', 'cruise', 'approach', 'landing', 'crosswind'],
     // THE TEST CARD (G107.1): the two setpoints the game imposes on the
     // flight. Blank = the standard circuit. The pilot clamps an unsafe ask
     // (never below its own approach speed or safe height) and SAYS so, and
@@ -74754,6 +76204,8 @@ const BENCH_TESTS = [
         done: false,
         running: r.phase + ' · t=' + benchNum(r.t, 0) + ' s',
         progress: r.frac,
+        step: benchFlightStep(r.phase),
+        live: r,
       };
       const rep = r.report, L = rep.landing;
       const eventful = rep.verdicts.length > 0;
@@ -74768,7 +76220,14 @@ const BENCH_TESTS = [
                  + ' m past the aim'
                  : 'no landing')
           + (eventful ? ' · ' + rep.verdicts.map(v => v.code).join(', ') : ''),
+        fix: rep.outcome === 'completed' ? ''
+           : 'the phase it stopped in names the problem: a rejected take-off is '
+           + 'power or field, a climb that never came is power against weight, '
+           + 'a broken circuit is control authority.',
         fills: 'plaque',
+        // G208: THE TRIM ADVISOR's measured reading — the elevator the pilot
+        // held on the settled cruise leg (41_test_pilot.js report.trimDe)
+        trim: (rep.trimDe != null && isFinite(rep.trimDe)) ? rep.trimDe : null,
       };
     },
     stop(api) { api.circuitEnd(); },
@@ -74776,6 +76235,58 @@ const BENCH_TESTS = [
 ];
 
 const benchNum = (v, d) => (v == null || !isFinite(v)) ? '—' : v.toFixed(d);
+// the trim the hand flies is clicks of TRIM_STEP (input.js, 0.02 of full
+// elevator per click); the advisor speaks in the same units
+const BENCH_TRIM_STEP = 0.02;
+const benchTrimWords = de => {
+  if (de == null || !isFinite(de)) return null;
+  const k = Math.round(de / BENCH_TRIM_STEP);
+  if (k === 0) return 'neutral';
+  return Math.abs(k) + (Math.abs(k) === 1 ? ' click ' : ' clicks ') + (k > 0 ? 'nose up' : 'nose down');
+};
+
+// the test pilot's phase names onto the run card's seven steps
+const BENCH_FLIGHT_STEPS = {
+  TAXI: 0, LINEUP: 1, ROLL: 1, LIFTOFF: 1, ABORT: 1, CLIMB: 2, DEPART: 3,
+  ENROUTE: 3, CRUISE: 3, HOLD: 3, TURNBACK: 3, INBOUND: 4, APPROACH: 4,
+  GOAROUND: 4, FLARE: 5, PUTDOWN: 5, ROLLOUT: 5, STOP: 5, STOPPED: 5,
+};
+function benchFlightStep(phase) {
+  if (!phase) return 0;
+  const p = String(phase).toUpperCase();
+  if (p.indexOf('CROSSWIND') === 0) return 6;
+  const k = BENCH_FLIGHT_STEPS[p];
+  return k == null ? 3 : k;
+}
+
+// ---------------------------------------------------------------------------
+// THE FINGERPRINT (G208). The join's spec with what does not fly removed.
+// `paint` is colour, `finish` is the material lab's look (sheen, tiling,
+// wear — the covering's MASS is a cage row and stays), `meta` is the name
+// and the registration. What is left is the aeroplane the tests measured.
+// FNV-1a over the JSON: short, stable, and enough to say "this build" —
+// a collision would keep a certificate on a different aeroplane, and at 32
+// bits over a builder's own handful of edits that is not a real risk.
+// ---------------------------------------------------------------------------
+const BENCH_COSMETIC = ['paint', 'finish', 'meta'];
+function benchStripCosmetic(spec) {
+  if (!spec || typeof spec !== 'object') return null;
+  const c = JSON.parse(JSON.stringify(spec));
+  for (const k of BENCH_COSMETIC) delete c[k];
+  return c;
+}
+function benchHash(str) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return ('0000000' + h.toString(16)).slice(-8);
+}
+function benchFingerprint(spec) {
+  const c = benchStripCosmetic(spec);
+  return c ? benchHash(JSON.stringify(c)) : null;
+}
 
 // ---------------------------------------------------------------------------
 // THE BENCH. `api` is the bridge app.js hands over — the same shape garage.js
@@ -74790,47 +76301,100 @@ function benchInit(api) {
   rows.id = 'bTests';
   host.insertBefore(rows, host.firstChild);
 
-  let results = {};        // id -> the last result of that test
+  let results = {};        // id -> the last result of that test (+when, fp)
   let live = null;         // { test, timer } while a live test runs
   let busy = false;        // suppress the dirty hook while WE are driving
   const cardVals = {};     // id -> { k: string } — the typed test card (G107.1);
                            // survives re-renders, deliberately NOT cleared by
                            // BENCH_DIRTY: the card is the ASK, not a result
+  let trimUse = true;      // the advisor's trim accepted as the roll-out default
+  let withdrawnNote = ''; // the header's line after a withdrawal
 
   const usable = t => !!(t.run || t.start) &&
     (t.needs || []).every(k => typeof api[k] === 'function');
+  const today = () => new Date().toISOString().slice(0, 10);
+
+  // ---- the fingerprint of the aeroplane on the stand ----------------------
+  // Off the join's export — the same spec the tests measure — with the
+  // cosmetic blocks removed. Null when there is no join (core-only build, or
+  // the editor not up yet), which every caller treats as "cannot say".
+  function fpNow() {
+    try {
+      const J = window.CAGE_JOIN;
+      if (!J || typeof J.export !== 'function') return null;
+      return benchFingerprint(J.export());
+    } catch (e) { return null; }
+  }
 
   // ---- the certificate ---------------------------------------------------
-  // Every editor rebuild invalidates it. `stale` is not a third state on top
-  // of the results — it IS the absence of results, so there is one place the
-  // question "has this aeroplane been tested" is answered.
+  // `stale` is a result the build outgrew: it stays on its row, struck
+  // through, with the reason, and counts for nothing. Withdrawal is the ONLY
+  // way a result leaves the bench short of running the test again.
   //
-  // AND IT PERSISTS (G107.3, ruling 4's last unpaid debt on this panel): the
-  // results — plus the two sheets only a test run can produce — ride in the
-  // save envelope through `GARAGE_SPEC.plaque(...)`, and come back through
-  // `BENCH_RESTORE` below. The one rule that makes this safe in a tree where
-  // loading a build FIRES THE DIRTY HOOK (applySpec, the join, the boot
-  // seed all rebuild): a dirty that arrives with NOTHING on the bench never
-  // touches the store. Withdrawal is only withdrawal when there was
-  // something to withdraw; the load path's own storms always arrive over an
-  // empty bench, so the certificate they carried survives them.
-  function clearResults() {
-    const had = Object.keys(results).length > 0;
-    results = {};
-    api.plaque(false);
-    if (had) try {
-      if (window.GARAGE_SPEC && window.GARAGE_SPEC.plaque)
-        window.GARAGE_SPEC.plaque(null);
-    } catch (e) {}
+  // AND IT PERSISTS (G107.3): the results — plus the two sheets only a test
+  // run can produce — ride in the save envelope through
+  // `GARAGE_SPEC.plaque(...)`, and come back through `BENCH_RESTORE` below.
+  // A restored result that predates the fingerprint (a save from before
+  // G208) is stamped with the loaded build's own, so it is kept exactly as
+  // long as a fresh one would be.
+  const settled = id => results[id] && !results[id].running && !results[id].stale;
+  const awarded = id => settled(id) && results[id].ok;
+  const anyRun = () => Object.keys(results).some(settled);
+  const anyStale = () => Object.keys(results).some(id => results[id] && results[id].stale);
+  // ADVISORY rows (dalt) do not gate the certificate — measured-but-not-a-
+  // bush-plane is information, not failure (G107).
+  const gating = () => BENCH_TESTS.filter(t => usable(t) && !t.advisory);
+  const passed = () => gating().every(t => awarded(t.id));
+  const certs = () => BENCH_TESTS.filter(t => awarded(t.id))
+    .map(t => ({ id: t.id, when: results[t.id].when || null }));
+  const plaqueOn = () => BENCH_TESTS.some(t => settled(t.id) && results[t.id].fills === 'plaque');
+
+  function withdraw(reason) {
+    let n = 0;
+    for (const id in results) {
+      const r = results[id];
+      if (!r || r.running || r.stale) continue;
+      results[id] = { stale: true, was: r.verdict || '', ok: false,
+                      when: r.when || null, why: reason };
+      n++;
+    }
+    if (!n) return;
+    withdrawnNote = reason;
+    api.plaque(plaqueOn());
+    persist();
+    stickersChanged();
     render();
   }
+  // THE DIRTY HOOK, on a fingerprint (G208). A rebuild used to clear the
+  // whole bench; now it asks whether the aeroplane changed. Debounced,
+  // because a slider drag rebuilds per pixel and the join's export is not
+  // free; a withdrawal 150 ms late is still a withdrawal. A dirty that
+  // arrives with nothing settled on the bench does nothing, which is also
+  // what keeps the load path's own storms off a restored certificate.
+  let dirtyT = null;
+  window.BENCH_DIRTY = () => {
+    if (busy || live) return;
+    if (!anyRun()) return;
+    if (dirtyT) clearTimeout(dirtyT);
+    dirtyT = setTimeout(() => {
+      dirtyT = null;
+      if (busy || live || !anyRun()) return;
+      const fp = fpNow();
+      if (fp == null) return;                       // cannot say: keep
+      const changed = Object.keys(results).some(id =>
+        settled(id) && results[id].fp && results[id].fp !== fp);
+      const unstamped = Object.keys(results).some(id => settled(id) && !results[id].fp);
+      if (changed || unstamped) withdraw('the build changed');
+    }, 150);
+  };
   // ...and the other direction: every SETTLED result mirrors the bench into
   // the store, so the envelope always says what the bench would say.
   function persist() {
     try {
       const G = window.GARAGE_SPEC;
-      if (!G || !G.plaque || !Object.keys(results).length) return;
-      G.plaque({ when: new Date().toISOString().slice(0, 10),
+      if (!G || !G.plaque) return;
+      if (!Object.keys(results).length) { G.plaque(null); return; }
+      G.plaque({ when: today(), trimUse,
                  results: JSON.parse(JSON.stringify(results)),
                  sheets: (typeof api.sheets === 'function') ? api.sheets()
                                                             : null });
@@ -74838,17 +76402,28 @@ function benchInit(api) {
   }
   // the load path calls this LAST, after its own dirty storm (garage.js
   // loadSpec; app.js boot). Restoring is not running: no logbook rows, no
-  // re-persist, and never over a live test.
+  // ceremony, and never over a live test.
   window.BENCH_RESTORE = pq => {
     if (live) return;
-    if (!pq || !pq.results || !Object.keys(pq.results).length) return;
+    if (dirtyT) { clearTimeout(dirtyT); dirtyT = null; }
+    if (!pq || !pq.results || !Object.keys(pq.results).length) {
+      results = {}; withdrawnNote = '';
+      api.plaque(false); stickersChanged(); render();
+      return;
+    }
     busy = true;
     results = JSON.parse(JSON.stringify(pq.results));
+    for (const id in results) if (results[id] && results[id].running) delete results[id];
+    trimUse = pq.trimUse !== false;
+    withdrawnNote = anyStale() ? 'the build changed' : '';
+    const fp = fpNow();
+    if (fp) for (const id in results)
+      if (results[id] && !results[id].stale && !results[id].fp) results[id].fp = fp;
     if (typeof api.restoreSheets === 'function')
       api.restoreSheets(pq.sheets || null);
-    api.plaque(Object.keys(results).some(id =>
-      results[id] && results[id].fills === 'plaque'));
+    api.plaque(plaqueOn());
     busy = false;
+    stickersChanged();
     render();
   };
   // app.js labels ROLL OUT off BENCH_STATE, so it has to be told when that
@@ -74856,17 +76431,21 @@ function benchInit(api) {
   const changed = () => {
     if (typeof window.BENCH_CHANGED === 'function') window.BENCH_CHANGED();
   };
-  window.BENCH_DIRTY = () => { if (!busy) clearResults(); };
+  const stickersChanged = () => {
+    try { if (window.STICKERS && window.STICKERS.refresh) window.STICKERS.refresh(); }
+    catch (e) {}
+  };
 
-  // ADVISORY rows (dalt) do not gate the certificate — measured-but-not-a-
-  // bush-plane is information, not failure (G107).
-  const passed = () => BENCH_TESTS.filter(t => usable(t) && !t.advisory)
-    .every(t => results[t.id] && results[t.id].ok);
-  const anyRun = () => Object.keys(results).length > 0;
-  // app.js asks this to label ROLL OUT. Never a lock — it is your aeroplane,
-  // and building it wrong and learning why is content, not error.
-  window.BENCH_STATE = () => ({ any: anyRun(), passed: passed(),
-                                results: results });
+  // app.js asks this to label ROLL OUT and to seed the hand's trim; the
+  // stickers read `certs`. Never a lock — it is your aeroplane, and building
+  // it wrong and learning why is content, not error.
+  window.BENCH_STATE = () => {
+    const f = results.flight;
+    return { any: anyRun(), passed: passed(), results, certs: certs(),
+             stale: anyStale(),
+             trim: (trimUse && f && !f.stale && !f.running && f.ok
+                    && f.trim != null && isFinite(f.trim)) ? f.trim : null };
+  };
 
   // ---- running -----------------------------------------------------------
   // A test measures the aeroplane the JOIN builds, never the editor's meshes,
@@ -74880,10 +76459,27 @@ function benchInit(api) {
   // the wing station and all eight tail rows silently absent.
   const sync = () => (typeof api.sync === 'function') ? api.sync() : [];
 
-  function runOne(t) {
-    if (live || !usable(t)) return;
+  // a result settles: stamped with the day and the aeroplane, noted in the
+  // logbook, persisted, and — when the test was run rather than restored —
+  // awarded in the card over the view. `after` runs when the card closes.
+  function settle(t, r, fp, after) {
+    r.when = today();
+    r.fp = fp;
+    results[t.id] = r;
+    if (r.fills === 'plaque' && r.ok !== undefined) api.plaque(plaqueOn());
+    if (!anyStale()) withdrawnNote = '';
+    note(t, r);
+    persist();
+    stickersChanged();
+    render();
+    award(t, r, after);
+  }
+
+  function runOne(t, after) {
+    if (live || !usable(t)) { if (after) after(); return; }
     busy = true;
     const errs = sync();
+    const fp = fpNow();
     busy = false;
     if (errs && errs.length) {
       // AND THE CERTIFICATE GOES WITH IT. Leaving the last run's plaque up
@@ -74891,41 +76487,45 @@ function benchInit(api) {
       // G60 fixed for aircraft switching — a plaque reading someone else's
       // certificate — and here it would be reading one for an aeroplane that
       // was never successfully built.
-      results[t.id] = { verdict: 'CANNOT MEASURE THIS BUILD', ok: false,
-                        note: errs.join(' · ') };
+      settle(t, { verdict: 'CANNOT MEASURE THIS BUILD', ok: false,
+                  note: errs.join(' · ') }, fp, after);
       api.plaque(false);
-      note(t, results[t.id]);
-      persist();
       return render();
     }
     if (t.kind === 'live') {
       if (!t.offscreen) api.showPhysical(true);   // the flight flies a 2nd sim
       t.start(api, cardVals[t.id] || {});
-      live = { test: t };
+      live = { test: t, after, fp, t0: performance.now() };
       results[t.id] = { running: 'starting', ok: false };
+      freeze(t);
       render();
       live.timer = setInterval(() => {
         let r;
         try { r = t.poll(api); }
         catch (e) { r = { done: true, verdict: 'threw: ' + e.message, ok: false }; }
         results[t.id] = r;
-        render();
         if (r.done) endLive(t, r);
+        else runCard(t, r);
       }, 120);
       return;
     }
-    let r;
-    try { r = t.run(api); }
-    catch (e) { r = { verdict: 'threw: ' + e.message, ok: false }; }
-    results[t.id] = r;
-    if (r.fills === 'plaque') api.plaque(true);
-    note(t, r);
-    persist();
+    // an instant test still takes a moment (the tunnel); the card shows
+    // first, then the measurement runs, then the award
+    freeze(t, true);
+    results[t.id] = { running: 'measuring', ok: false };
     render();
+    setTimeout(() => {
+      let r;
+      try { r = t.run(api); }
+      catch (e) { r = { verdict: 'threw: ' + e.message, ok: false }; }
+      unfreeze();
+      settle(t, r, fp, after);
+    }, 40);
   }
 
   function endLive(t, r) {
     clearInterval(live.timer);
+    const L = live;
     live = null;
     // the result is read BEFORE the rig is taken down, because taking it down
     // rebuilds the aeroplane back onto its wheels
@@ -74933,12 +76533,19 @@ function benchInit(api) {
     try { t.stop(api); } catch (e) {}
     if (!t.offscreen) api.showPhysical(false);
     busy = false;
-    // a live test can fill the plaque too (G107: the test flight's landing
-    // run) — the same honour runOne has always paid its instant rows
-    if (r && r.fills === 'plaque') api.plaque(true);
-    note(t, r);
-    persist();
-    render();
+    unfreeze();
+    if (r && r.aborted) {
+      delete results[t.id];
+      render();
+      if (L.after) L.after();
+      return;
+    }
+    settle(t, r, L.fp, L.after);
+  }
+
+  function abortLive() {
+    if (!live) return;
+    endLive(live.test, { aborted: true, ok: false, verdict: 'ABORTED' });
   }
 
   // the logbook stub (G63's envelope): what was tested, and what it said
@@ -74951,41 +76558,356 @@ function benchInit(api) {
   }
 
   function runAll() {
-    // sequentially, because a live test owns the sim while it runs
+    // sequentially, because a live test owns the sim while it runs, and
+    // each award card closes before the next test starts
     const queue = BENCH_TESTS.filter(usable);
     const next = () => {
       const t = queue.shift();
       if (!t) return;
-      runOne(t);
-      if (!live) return next();
-      const wait = setInterval(() => {
-        if (live) return;
-        clearInterval(wait); next();
-      }, 150);
+      runOne(t, next);
     };
     next();
   }
 
+  // ---- THE FREEZE AND THE RUN CARD (G208) --------------------------------
+  // Built once, on the body, so they sit over the view and not inside the
+  // scrolling panel. Guarded throughout: the smoke test's DOM is a stub.
+  let UI = null;
+  function ui() {
+    if (UI) return UI;
+    try {
+      const body = document.body;
+      if (!body || !body.appendChild) return null;
+      const mk = (tag, cls, html) => {
+        const e = document.createElement(tag);
+        if (cls) e.className = cls;
+        if (html != null) e.innerHTML = html;
+        return e;
+      };
+      const freezeEl = mk('div'); freezeEl.id = 'bFreeze'; freezeEl.hidden = true;
+      const run = mk('div'); run.id = 'bRun'; run.hidden = true;
+      run.innerHTML =
+        '<div class="bRh"><span class="bRk">testing</span><b class="bRn"></b>' +
+        '<span class="bRt"></span><button class="bRx">abort</button></div>' +
+        '<div class="bRph"></div><div class="bRbar"><i></i></div>' +
+        '<div class="bRlive"></div><canvas class="bRtrace" width="760" height="380"></canvas>' +
+        '<div class="bRnotes"></div>';
+      const aw = mk('div'); aw.id = 'bAward'; aw.hidden = true;
+      body.appendChild(freezeEl); body.appendChild(run); body.appendChild(aw);
+      const q = s => run.querySelector(s);
+      UI = { freeze: freezeEl, run, aw, name: q('.bRn'), clock: q('.bRt'),
+             abort: q('.bRx'), ph: q('.bRph'), bar: q('.bRbar i'),
+             liveEl: q('.bRlive'), trace: q('.bRtrace'), notes: q('.bRnotes') };
+      UI.abort.onclick = abortLive;
+      try {
+        window.addEventListener('keydown', e => {
+          if (e.key === 'Escape' && live) abortLive();
+        });
+      } catch (e) {}
+      return UI;
+    } catch (e) { return null; }
+  }
+  let trace = null;      // { pts, agl, t } for the flight's plan view
+  function freeze(t, instant) {
+    const U = ui();
+    try { document.body.classList.add('benchBusy'); } catch (e) {}
+    if (!U) return;
+    U.freeze.hidden = false;
+    U.run.hidden = false;
+    U.name.textContent = t.name;
+    U.clock.textContent = '';
+    U.abort.hidden = !!instant;
+    U.ph.innerHTML = (t.steps || []).map(s => '<span>' + s + '</span>').join('');
+    U.bar.className = instant ? 'ind' : '';
+    U.bar.style.width = instant ? '' : '0%';
+    U.liveEl.innerHTML = instant ? 'in the tunnel: the trim probe, the stance, the mass ledger'
+                                 : 'starting';
+    U.trace.hidden = t.id !== 'flight' && t.id !== 'load';
+    U.notes.innerHTML = '';
+    trace = { pts: [], agl: [], t: [], notes: 0 };
+    if (!U.trace.hidden) drawTrace(t, null);
+  }
+  function unfreeze() {
+    try { document.body.classList.remove('benchBusy'); } catch (e) {}
+    const U = ui();
+    if (!U) return;
+    U.freeze.hidden = true;
+    U.run.hidden = true;
+  }
+  function runCard(t, r) {
+    const U = ui();
+    if (!U || U.run.hidden) return;
+    const el = (r.t != null) ? r.t : (live ? (performance.now() - live.t0) / 1000 : 0);
+    U.clock.textContent = (r.live && r.live.t != null)
+      ? 't = ' + benchNum(r.live.t, 0) + ' s' : '';
+    const k = r.step == null ? -1 : r.step;
+    const spans = U.ph.children || [];
+    for (let i = 0; i < spans.length; i++)
+      spans[i].className = i < k ? 'done' : i === k ? 'now' : '';
+    if (r.progress != null) {
+      U.bar.className = '';
+      U.bar.style.width = (Math.max(0, Math.min(1, r.progress)) * 100).toFixed(1) + '%';
+    }
+    const L = r.live || {};
+    if (t.id === 'flight') {
+      const V = L.V, agl = L.agl;
+      U.liveEl.innerHTML =
+        '<span>phase <b>' + String(L.phase || '').toLowerCase() + '</b></span>' +
+        (V != null && isFinite(V) ? '<span>speed <b>' + benchNum(V * 3.6, 0) + '</b> km/h</span>' : '') +
+        (agl != null && isFinite(agl) ? '<span>height <b>' + benchNum(agl, 0) + '</b> m</span>' : '') +
+        (L.de != null && isFinite(L.de) ? '<span>elevator <b>' + benchNum(L.de * 100, 0) + '</b> %</span>' : '');
+      if (L.pos && trace) {
+        trace.pts.push([L.pos[0], L.pos[2]]);
+        trace.agl.push(agl != null && isFinite(agl) ? agl : 0);
+        trace.t.push(L.t || 0);
+        if (L.path) trace.path = L.path;
+      }
+      const notes = L.notes || [];
+      if (trace && notes.length > trace.notes) {
+        for (let i = trace.notes; i < notes.length; i++) {
+          const d = document.createElement('div');
+          d.textContent = 't=' + notes[i].t + ' s · ' + notes[i].code +
+            (notes[i].note ? ' — ' + notes[i].note : '');
+          U.notes.appendChild(d);
+        }
+        trace.notes = notes.length;
+      }
+    } else if (t.id === 'load') {
+      U.liveEl.innerHTML =
+        '<span>load <b>' + benchNum(L.g, 2) + '</b> g of ' + benchNum(L.nTarget, 1) + '</span>' +
+        '<span>tip <b>' + benchNum(L.tipPct, 2) + '</b> % of semispan</span>' +
+        '<span>' + (L.phase === 'settle' ? 'settling on the trestles'
+                   : L.phase === 'hold' ? 'holding at ultimate' : 'bags going on') + '</span>';
+    } else {
+      U.liveEl.textContent = r.running || '';
+    }
+    if (!U.trace.hidden) drawTrace(t, L);
+    void el;
+  }
+  // THE TRACE. Flight: the circuit in plan — the pattern the pilot laid out,
+  // the track flown over it, the aeroplane's dot — with height against time
+  // in a strip under it. Load: the g ramp with the limit and ultimate marks
+  // and the tip deflection beside it.
+  function drawTrace(t, L) {
+    const U = ui();
+    if (!U) return;
+    let g;
+    try { g = U.trace.getContext('2d'); } catch (e) { return; }
+    if (!g) return;
+    const W = U.trace.width, Hh = U.trace.height;
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.clearRect(0, 0, W, Hh);
+    g.font = '500 20px "IBM Plex Sans", sans-serif';
+    if (t.id === 'load') {
+      const gNow = (L && L.g) || 0, gT = (L && L.nTarget) || 5.7;
+      const x0 = 60, x1 = W - 60, y = Hh * 0.42;
+      const X = v => x0 + (x1 - x0) * Math.max(0, Math.min(1, v / gT));
+      g.fillStyle = 'rgba(255,248,236,.10)'; g.fillRect(x0, y - 14, x1 - x0, 28);
+      g.fillStyle = 'rgba(230,219,201,.75)'; g.fillRect(x0, y - 14, X(gNow) - x0, 28);
+      g.fillStyle = 'rgba(244,239,230,.9)';
+      for (const [v, lab] of [[1, '1 g'], [3.8, 'limit 3.8 g'], [5.7, 'ultimate 5.7 g']]) {
+        if (v > gT + 1e-6) continue;
+        g.fillRect(X(v) - 1.5, y - 24, 3, 48);
+        g.textAlign = v > 4 ? 'right' : 'center';
+        g.fillText(lab, X(v) + (v > 4 ? 6 : 0), y + 54);
+      }
+      g.textAlign = 'left'; g.font = '600 26px "IBM Plex Mono", monospace';
+      g.fillText(benchNum(gNow, 2) + ' g', x0, y - 40);
+      g.textAlign = 'right'; g.font = '500 20px "IBM Plex Sans", sans-serif';
+      g.fillText('tip ' + benchNum(L && L.tipPct, 2) + ' % of semispan', x1, y - 40);
+      // the deflection as a bent line: the semispan, bending by tip %
+      const s0 = 60, s1 = W - 60, yb = Hh * 0.82, tip = ((L && L.tipPct) || 0) / 100;
+      g.strokeStyle = 'rgba(151,144,127,.6)'; g.lineWidth = 2;
+      g.beginPath(); g.moveTo(s0, yb); g.lineTo(s1, yb); g.stroke();
+      g.strokeStyle = 'rgba(244,239,230,.95)'; g.lineWidth = 4;
+      g.beginPath(); g.moveTo(s0, yb);
+      for (let i = 1; i <= 24; i++) {
+        const f = i / 24;
+        g.lineTo(s0 + (s1 - s0) * f, yb - f * f * tip * (s1 - s0) * 0.5);
+      }
+      g.stroke();
+      return;
+    }
+    // the flight
+    const T = trace || { pts: [], agl: [], t: [] };
+    const pts = T.pts, path = T.path;
+    const planH = Hh * 0.68;
+    // bounds over the path and the track
+    let xa = Infinity, xb = -Infinity, za = Infinity, zb = -Infinity;
+    const take = p => { if (!p) return; const x = p[0], z = p[1];
+      if (!isFinite(x) || !isFinite(z)) return;
+      xa = Math.min(xa, x); xb = Math.max(xb, x); za = Math.min(za, z); zb = Math.max(zb, z); };
+    for (const p of pts) take(p);
+    if (path && path.length) for (const p of path) take(Array.isArray(p) ? p : [p.x, p.z]);
+    g.fillStyle = 'rgba(151,144,127,.9)'; g.textAlign = 'left';
+    if (!isFinite(xa)) { g.fillText('the circuit, as it is flown', 16, 30); return; }
+    // a square metre scale; at least 600 m across so a taxi does not zoom in
+    const cx = (xa + xb) / 2, cz = (za + zb) / 2;
+    const span = Math.max(600, xb - xa, zb - za) * 1.15;
+    const sc = Math.min(W - 24, planH - 24) / span;
+    const X = x => W / 2 + (x - cx) * sc, Z = z => planH / 2 - (z - cz) * sc;
+    // the pattern the pilot laid out
+    if (path && path.length > 1) {
+      g.strokeStyle = 'rgba(151,144,127,.55)'; g.lineWidth = 2; g.setLineDash([8, 8]);
+      g.beginPath();
+      path.forEach((p, i) => { const q = Array.isArray(p) ? p : [p.x, p.z];
+        if (i) g.lineTo(X(q[0]), Z(q[1])); else g.moveTo(X(q[0]), Z(q[1])); });
+      g.stroke(); g.setLineDash([]);
+    }
+    // the track
+    if (pts.length > 1) {
+      g.strokeStyle = 'rgba(244,239,230,.95)'; g.lineWidth = 3;
+      g.beginPath();
+      pts.forEach((p, i) => { if (i) g.lineTo(X(p[0]), Z(p[1])); else g.moveTo(X(p[0]), Z(p[1])); });
+      g.stroke();
+    }
+    if (pts.length) {
+      const p = pts[pts.length - 1];
+      g.fillStyle = '#e6dbc9';
+      g.beginPath(); g.arc(X(p[0]), Z(p[1]), 6, 0, Math.PI * 2); g.fill();
+      const p0 = pts[0];
+      g.strokeStyle = 'rgba(230,219,201,.8)'; g.lineWidth = 2;
+      g.beginPath(); g.arc(X(p0[0]), Z(p0[1]), 6, 0, Math.PI * 2); g.stroke();
+    }
+    g.fillStyle = 'rgba(151,144,127,.9)';
+    g.fillText(Math.round(span / 1.15) + ' m across', 16, planH - 12);
+    // the height strip
+    const y0 = planH + 14, y1 = Hh - 8;
+    g.fillStyle = 'rgba(255,248,236,.06)'; g.fillRect(12, y0, W - 24, y1 - y0);
+    const n = T.agl.length;
+    if (n > 1) {
+      const aglMax = Math.max(30, ...T.agl), tMax = Math.max(60, T.t[n - 1]);
+      g.strokeStyle = 'rgba(244,239,230,.9)'; g.lineWidth = 2;
+      g.beginPath();
+      for (let i = 0; i < n; i++) {
+        const x = 12 + (W - 24) * T.t[i] / tMax, y = y1 - (y1 - y0) * T.agl[i] / aglMax;
+        if (i) g.lineTo(x, y); else g.moveTo(x, y);
+      }
+      g.stroke();
+      g.fillStyle = 'rgba(151,144,127,.9)'; g.textAlign = 'right';
+      g.fillText('height ' + Math.round(T.agl[n - 1]) + ' m · ' + Math.round(T.t[n - 1]) + ' s', W - 16, y0 + 24);
+    }
+  }
+
+  // ---- THE AWARD (G208) ------------------------------------------------
+  // A passed test: the stamp, the roundel it earns, the date; it closes by
+  // itself after a moment or on a click. A failed test: what it found and
+  // what to turn, and it waits for the click (a fail is read, not glanced
+  // at). `after` runs when the card closes — the run-all queue rides it.
+  let awardT = null;
+  function award(t, r, after) {
+    const U = ui();
+    const done = () => {
+      if (awardT) { clearTimeout(awardT); awardT = null; }
+      if (U) { U.aw.hidden = true; U.aw.onclick = null; }
+      if (after) after();
+    };
+    if (!U || !r) { done(); return; }
+    const M = (window.STICKERS && window.STICKERS.META && window.STICKERS.META[t.id]) || null;
+    const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    U.aw.className = r.ok ? '' : 'no';
+    U.aw.innerHTML =
+      '<div class="bAk">' + (r.ok ? 'certificate awarded' : 'not awarded') + '</div>' +
+      '<div class="bAn">' + esc(t.name) + '</div>' +
+      (r.ok ? '<canvas width="300" height="300"></canvas>' : '') +
+      '<div class="bAs">' + (r.ok ? 'certified' : 'failed') + '</div>' +
+      '<div class="bAv"><b>' + esc(r.verdict) + '</b>' +
+      (r.note ? '<br>' + esc(r.note) : '') + '</div>' +
+      (!r.ok && (r.why || r.fix) ? '<div class="bAf">' +
+        (r.why ? esc(r.why) + '<br>' : '') + (r.fix ? '→ ' + esc(r.fix) : '') + '</div>' : '') +
+      '<div class="bAd">' + esc(r.when || today()) + (r.ok ? ' · the sticker is on the fuselage' : '') +
+      ' · click to close</div>';
+    U.aw.hidden = false;
+    if (r.ok && M && window.STICKERS && window.STICKERS.roundel) {
+      try {
+        const cv = U.aw.querySelector('canvas');
+        const g = cv.getContext('2d');
+        window.STICKERS.roundel(g, 150, 150, 142, { title: M.title, emblem: M.emblem, date: r.when || today() });
+      } catch (e) {}
+    }
+    U.aw.onclick = done;
+    awardT = setTimeout(done, r.ok ? 2800 : 9000);
+  }
+
   // ---- the panel ---------------------------------------------------------
+  function sealCanvas(id, on, size) {
+    const M = window.STICKERS && window.STICKERS.META && window.STICKERS.META[id];
+    return '<canvas class="' + (on ? '' : 'off') + '" data-seal="' + id + '" width="' + (size * 2) +
+           '" height="' + (size * 2) + '" title="' + (M ? M.title.toLowerCase() : id) +
+           (on ? ' · certified' : ' · not certified') + '"></canvas>';
+  }
+  function paintSeals() {
+    let cvs;
+    try { cvs = rows.querySelectorAll('canvas[data-seal]'); } catch (e) { return; }
+    if (!cvs || !cvs.length || !window.STICKERS) return;
+    cvs.forEach(cv => {
+      const id = cv.dataset ? cv.dataset.seal : cv.getAttribute('data-seal');
+      const M = window.STICKERS.META[id];
+      if (!M) return;
+      try {
+        const g = cv.getContext('2d');
+        const s = cv.width;
+        g.clearRect(0, 0, s, s);
+        window.STICKERS.roundel(g, s / 2, s / 2, s / 2 - 2,
+          { title: M.title, emblem: M.emblem, small: s < 120,
+            date: results[id] && results[id].when });
+      } catch (e) {}
+    });
+  }
   function render() {
     const bits = [];
-    const v = anyRun()
-      ? (passed() ? '<b class="ok">TESTED</b>'
+    const nCert = certs().length, nGate = gating().length;
+    const v = live ? '<b class="run">TESTING</b>'
+      : anyRun()
+      ? (passed() ? '<b class="cert">CERTIFIED</b>'
                   : '<b class="bad">NOT PASSED</b>')
+      : anyStale() ? '<b class="stale">WITHDRAWN</b>'
       : '<b class="dim">UNTESTED</b>';
     bits.push('<div class="bHead"><span>engineering bench</span>' + v +
-      '<button id="bRunAll">run the tests</button></div>');
+      '<button id="bRunAll">run the tests</button>' +
+      '<div class="bSeals">' +
+      BENCH_TESTS.map(t => sealCanvas(t.id, awarded(t.id), 34)).join('') +
+      '<em>' + (nCert ? nCert + ' of ' + BENCH_TESTS.length + ' certificates'
+                        + (passed() ? ' · airworthy' : nGate && !passed() ? '' : '')
+                      : withdrawnNote ? 'certificates withdrawn — ' + withdrawnNote
+                      : 'no certificate yet') + '</em>' +
+      '</div></div>');
     for (const t of BENCH_TESTS) {
       const r = results[t.id] || null;
       const can = usable(t);
       const cls = !can ? 'dim'
-        : r ? (r.running ? 'run' : (r.ok ? 'ok' : (t.advisory ? 'adv' : 'bad')))
-        : '';
-      const line = !can ? 'not built yet'
-        : r ? (r.running || r.verdict || '') : 'not run';
+        : !r ? ''
+        : r.running ? 'run'
+        : r.stale ? 'stale'
+        : r.ok ? 'cert'
+        : (t.advisory ? 'adv' : 'bad');
+      let line;
+      if (!can) line = 'not built yet';
+      else if (!r) line = 'not run';
+      else if (r.running) line = r.running;
+      else if (r.stale) line = '<s>' + (r.was || '') + '</s><i>withdrawn — ' + (r.why || 'the build changed') + '</i>';
+      else line = (r.verdict || '') + (r.when ? '<i>' + (r.ok ? 'certified ' : '') + r.when + '</i>' : '');
+      // the advisor's line (G208): after the bench check, the tunnel's trim;
+      // after the test flight, the trim the pilot held, and the offer to make
+      // it the roll-out default
+      let adv = '';
+      if (r && !r.running && !r.stale) {
+        if (t.id === 'shake' && r.stabDeg != null)
+          adv = 'the tunnel set the stabiliser to <b>' + benchNum(r.stabDeg, 1) +
+                '°</b> for cruise, elevator neutral — start with the trim at ' +
+                '<b>neutral</b>; the test flight measures what the pilot actually holds.';
+        if (t.id === 'flight' && r.ok && r.trim != null) {
+          const w = benchTrimWords(r.trim);
+          adv = 'on the cruise leg the pilot held <b>' + w + '</b> (elevator ' +
+                benchNum(r.trim * 100, 0) + ' %). ' +
+                '<label><input type="checkbox" id="bTrimUse"' + (trimUse ? ' checked' : '') +
+                '> set it as the roll-out trim</label>';
+        }
+      }
       bits.push('<div class="bT ' + cls + '">' +
-        '<div class="bT1"><span class="bN">' + t.name + '</span>' +
-        (can ? '<button data-t="' + t.id + '">run</button>' : '') +
+        '<div class="bT1">' + sealCanvas(t.id, awarded(t.id), 26) +
+        '<span class="bN">' + t.name + '</span>' +
+        (can ? '<button data-t="' + t.id + '">' + (r && !r.running && !r.stale ? 'run again' : 'run') + '</button>' : '') +
         '<b>' + line + '</b></div>' +
         '<div class="bB">' + t.blurb + '</div>' +
         // the test card's own fields (G107.1) — values live in cardVals so a
@@ -74995,10 +76917,14 @@ function benchInit(api) {
           '" value="' + ((cardVals[t.id] || {})[cfg.k] || '') +
           '" placeholder="' + (cfg.ph || '') + '" inputmode="decimal"> ' +
           cfg.unit + '</label>').join('') + '</div>' : '') +
-        (r && r.note ? '<div class="bW">' + r.note + '</div>' : '') +
+        (r && r.note && !r.stale ? '<div class="bW">' + r.note + '</div>' : '') +
+        (r && !r.ok && !r.stale && !r.running && (r.why || r.fix)
+          ? '<div class="bWhy">' + (r.why ? r.why + ' — ' : '') + (r.fix || '') + '</div>' : '') +
+        (adv ? '<div class="bAdv">' + adv + '</div>' : '') +
         '</div>');
     }
     rows.innerHTML = bits.join('');
+    paintSeals();
     const all = $('bRunAll');
     if (all) { all.disabled = !!live; all.onclick = runAll; }
     changed();
@@ -75016,9 +76942,15 @@ function benchInit(api) {
         (cardVals[id] || (cardVals[id] = {}))[k] = inp.value;
       };
     });
+    const tu = $('bTrimUse');
+    if (tu) tu.onchange = () => { trimUse = !!tu.checked; persist(); changed(); };
   }
   render();
 }
+
+if (typeof module !== 'undefined' && module.exports)
+  module.exports = { BENCH_TESTS, BENCH_COSMETIC, benchStripCosmetic, benchHash,
+                     benchFingerprint, benchFlightStep, benchTrimWords, benchNum };
 </script>
 <script>
 // refplane.js — THE REFERENCE PLANE (G89-G92, ROADMAP F1).
@@ -78965,7 +80897,7 @@ function editorInit(api) {
       // `data-dec` tag every row carries
       const dec = CU.DECBODY;
       if (dec) {
-        const by = { reg: [], kit: [], body: [], wing: [], other: [] };
+        const by = { reg: [], kit: [], body: [], wing: [], stk: [], other: [] };
         for (const el of Array.from(dec.children))
           (by[(el.dataset && el.dataset.dec) || 'other'] || by.other).push(el);
         emitEls(p0, 'registration', by.reg.concat(by.other),
@@ -78973,6 +80905,10 @@ function editorInit(api) {
         emitEls(p0, 'livery', by.kit, 'the marking kit — three layers');
         emitEls(p0, 'body image', by.body, 'a picture on the fuselage');
         emitEls(p0, 'wing image', by.wing, 'a picture on the wing');
+        // G208.2: the certification stickers' place and fine tuning
+        if (by.stk.length)
+          emitEls(p0, 'certification stickers', by.stk,
+                  'where the bench\'s roundels are worn — a place, then fine tuning');
       }
     }
     // THE GLAZING DIALS FOLLOW THE GLASS (2026-08-31, the user editing the
@@ -84797,7 +86733,13 @@ function editorInit(api) {
   let shakeFor = null, shakeVal = null;
   const shakeOf = () => {
     if (curKey !== 'gen') return null;
-    if (shakeFor !== def) { shakeFor = def; shakeVal = genShakedown(def); }
+    // G208: WITHOUT THE FOUR LOADING CORNERS (the user: "drop the four corner
+    // tests, looking for the CG margin. That one seems to fail a lot, while
+    // the underlying machines fly OK"). Four extra shakedowns per bench check
+    // went with them; the balance chart still draws its own corners, because
+    // a loading sheet is not a test.
+    if (shakeFor !== def) { shakeFor = def; shakeVal = genShakedown(def, { corners: false }); }
+
     return shakeVal;
   };
 
@@ -84865,8 +86807,17 @@ function editorInit(api) {
         }
       }
     }
-    if (!fin) return { phase: tf.ap.phase, t: tf.t,
-                       frac: Math.min(1, tf.t / 300) };
+    if (!fin) {
+      // G208: THE FLIGHT IS WATCHED. The bench draws the circuit as it is
+      // flown — the track in plan, height and speed against time — so the
+      // trace rides every poll: the CG, the pilot's own readouts, the pattern
+      // path once it exists, and the field frame the pilot flies in.
+      const cgN = tf.sim.cgPos(), d = tf.ap.dbg || {};
+      return { phase: tf.ap.phase, t: tf.t, frac: Math.min(1, tf.t / 300),
+               pos: [cgN[0], cgN[1], cgN[2]], V: d.V, agl: d.agl, de: d.e,
+               path: tf.ap.path || null, frame: tf.ap.frame || null,
+               notes: (tf.ap.report && tf.ap.report.verdicts) || [] };
+    }
     const rep = tf.ap.report || { verdicts: [], outcome: null, landing: null };
     if (fin.bad) rep.outcome = 'broke-up';
     else if (!rep.outcome) rep.outcome = 'gave-up';
@@ -84924,178 +86875,13 @@ function editorInit(api) {
     v.textContent = s.flyableCircuit
       ? 'FLIES A CIRCUIT'
       : 'WILL NOT FLY A CIRCUIT — ' + why.join('; ');
-    // rows: label, value, and a verdict class where the code has a rule
-    const rows = [];
-    const H = t => rows.push('<div class="h">' + t + '</div>');
-    // WHY A ROW IS RED, AND WHAT TO TURN. The user asked for it in these
-    // words: "every failure of the test should come accompanied with
-    // explanations and recommendations. A simple hover over the values should
-    // suffice, with pointers to what parameters to adjust."
-    //
-    // KEYED ON THE ROW'S OWN LABEL, so the pointers live in ONE place rather
-    // than threaded through twenty call sites — and a row that grows a verdict
-    // later gets its explanation simply by naming itself.
-    //
-    // `what` is shown ALWAYS, because a number you do not understand is not
-    // much better for being green. `fix` is appended only when the row is
-    // actually warn or bad: a clean row does not need telling how to recover.
-    // Both name the CONTROLS a builder has rather than the internals — a
-    // pointer to a variable nobody can see is not a recommendation.
-    const WHY = {
-      'best L/D': { what: 'the glide ratio - metres forward per metre down, at '
-           + 'the speed it is best, which is printed with it. Real light '
-           + 'aeroplanes sit at 8-12, an open-frame ultralight nearer 6-8, a '
-           + 'glider 25 and up.',
-        fix: 'on a light aeroplane this is PARASITE drag first: cover the '
-           + 'fuselage, put spats on the wheels, fair the legs and the struts. '
-           + 'Span and a narrower chord help after that. Exposed engines, '
-           + 'radiators and an open truss are what an ultralight pays for.' },
-      'L/D at cruise': { what: 'lift over drag at the cruise speed the power '
-           + 'curve sets (65% of the thrust available). More power buys a '
-           + 'faster cruise, and a faster cruise sits further from the best '
-           + 'glide - so this number FALLS when you add an engine, and the '
-           + 'wing barely moves it.' },
-      'climb': { what: 'best rate of climb at sea level, at full power.',
-        fix: 'this is power against weight: a bigger engine, a coarser propeller, '
-           + 'less structure, or more wing area. Check the empty weight first - '
-           + 'covering and fittings add up faster than they look.' },
-      'take-off run': { what: 'ground roll plus the climb to the 15 m screen.',
-        fix: 'more power or less weight shortens it; so does more wing area and a '
-           + 'flap that actually lifts (a plain flap does little). A fine-pitch '
-           + 'propeller helps here and costs you cruise speed.' },
-      'take-off there': { what: 'the same run at the hot-and-high field.',
-        fix: 'thin air takes power and lift together. A normally aspirated engine '
-           + 'loses roughly 3% per 300 m of density altitude, so the levers are '
-           + 'installed power and weight, in that order.' },
-      'climb there': { what: 'rate of climb at the hot-and-high field.',
-        fix: 'the same lever as climb but less forgiving - at density altitude '
-           + 'the margin is small, so weight comes off before power goes on.' },
-      'power there': { what: 'the fraction of sea-level power the engine still makes.',
-        fix: 'a normally aspirated engine cannot avoid this. A turbocharged or an '
-           + 'electric powerplant holds its output far better with height, and a '
-           + 'flat-rated turbine keeps its full rating to a density altitude.' },
-      'service ceiling': { what: 'the height at which climb falls to 0.5 m/s.',
-        fix: 'power against weight again, and wing area. A low ceiling and a poor '
-           + 'climb are the same problem read twice.' },
-      'static margin': { what: 'how far the centre of gravity sits ahead of the '
-           + 'neutral point, as a fraction of the mean chord, AT THE WORST OF '
-           + 'THE FOUR LOADING CORNERS (solo and full cabin, full fuel and '
-           + 'reserves). Positive means the aeroplane returns to trim by itself '
-           + 'however you load it; the fleet sits near 0.20.',
-        fix: 'move mass FORWARD (the engine, the tanks, the seats) or move the '
-           + 'wing AFT. A longer tail arm carries the neutral point back and '
-           + 'helps both. Negative is unflyable, not merely twitchy.' },
-      'as loaded': { what: 'the CG of the aeroplane exactly as it stands — the '
-           + 'dummies you have switched on, the fuel you specified — as a '
-           + 'fraction of the mean chord behind the leading edge, and its own '
-           + 'margin.' },
-      'forward corner': { what: 'the loading that puts the CG furthest forward, '
-           + 'and where. A published CG range for a real aeroplane is this '
-           + 'corner to the aft one.' },
-      'aft corner': { what: 'the loading that puts the CG furthest aft. This is '
-           + 'the corner the static margin is judged at.',
-        fix: 'the aft seat and the tail-end fuel are what move it. Bring the '
-           + 'seats forward, or the wing aft, or carry the fuel nearer the '
-           + 'wing.' },
-      'weathervane': { what: 'directional stiffness (Cn_beta) - how hard the '
-           + 'aeroplane points itself back into the airflow. The Cub reads 0.11.',
-        fix: 'fin AREA and fin HEIGHT both move it, and so does a longer tail '
-           + 'arm. Under 0.03 it wanders; negative and it swaps ends.' },
-      'stands on': { what: 'what the aeroplane is actually resting on, measured '
-           + 'rather than assumed.',
-        fix: 'if it is not on its wheels the undercarriage geometry is wrong - '
-           + 'leg length, rake, and where the mains sit relative to the CG.' },
-      'prop clear': { what: 'propeller tip to the ground in the resting attitude.',
-        fix: 'longer undercarriage legs, a smaller propeller disc, or raise the '
-           + 'thrust line. Under 0.05 m it strikes on any soft field.' },
-      'nose-over': { what: 'the angle from the mains to the CG - how hard you can '
-           + 'brake before it goes on its nose.',
-        fix: 'move the main wheels FORWARD, or the CG aft. Under 15 degrees is a '
-           + 'taildragger that will not forgive a firm brake.' },
-      'gear': { what: 'the undercarriage as built.',
-        fix: 'FOLDED means it collapsed under its own weight - the legs are too '
-           + 'soft, or the aeroplane is too heavy for them.' },
-      'outcome': { what: 'whether the test pilot completed the circuit.',
-        fix: 'read the pilot notes below - the circuit stopped somewhere, and the '
-           + 'phase it stopped in names the problem.' },
-      'landing run': { what: 'roll from touchdown to a stop.',
-        fix: 'a lower stall speed is almost the whole of it - more wing area, or '
-           + 'a flap that lifts. The approach speed follows the stall.' },
-      'touchdown': { what: 'sink rate and speed at the moment the wheels arrive.',
-        fix: 'a firm arrival is usually approach speed or the flare. More wing '
-           + 'area lowers both; softer gear absorbs what is left.' },
-      'past the aim': { what: 'how far beyond the aiming point it touched down.',
-        fix: 'floating means too much speed on the approach for the drag '
-           + 'available; a flap that adds drag as well as lift settles it.' },
-      'crosswind limit': { what: 'the strongest crosswind in which the test '
-           + 'pilot keeps the take-off roll between the strip\'s edge lines; the '
-           + 'heading as the wheels leave is shown beside it.',
-        fix: 'a taildragger with its CG far behind the mains swings harder, and '
-           + 'a high thrust line lifts the tail before the rudder has the air to '
-           + 'hold it: mains further aft, a bigger fin, or a lower thrust line. '
-           + 'No pilot gain moves this number (HANDOVER G193.1).' },
-      'held': { what: 'what the pilot actually flew on the cruise leg, against '
-           + 'what the test card asked for.',
-        fix: 'the aeroplane could not hold the ask. Speed short is drag or power; '
-           + 'height short is climb.' },
-      'pilot notes': { what: 'bounded verdicts the test pilot recorded in flight.',
-        fix: 'each code names one thing it did not like - the newest is shown.' },
-    };
-    const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;')
-                              .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    // EVERY NUMBER SAYS WHAT IT IS JUDGED AGAINST (G179.4, the user: "all
-    // numbers should give their acceptable bounds. I don't know what I'm
-    // working against"). ONE table: the verdict colour and the printed bound
-    // both read it, so they cannot disagree, and a row with no entry is
-    // information, not a judgement. `lo`/`hi` are the ok band's edges (warn
-    // past them, or bad when `badAtLo` says the band's edge is the red one);
-    // `badLo`/`badHi` the red edges; `text` is what the row prints.
-    const BOUNDS = {
-      'best L/D':        { lo: 6, text: '\u2265 6' },
-      'climb':           { lo: 0.5, badAtLo: true, text: '\u2265 0.5 m/s' },
-      'take-off run':    { hi: 500, badHi: 1100, text: '\u2264 500 m' },
-      'take-off there':  { hi: 500, badHi: 1100, text: '\u2264 500 m' },
-      'climb there':     { lo: 0.3, badAtLo: true, text: '\u2265 0.3 m/s' },
-      'power there':     { lo: 75, text: '\u2265 75%' },
-      'service ceiling': { lo: 500, text: '\u2265 500 m' },
-      'as loaded':       { text: 'margin \u2265 0.05' },
-      'static margin':   { lo: 0.05, badLo: 0, text: '\u2265 0.05' },
-      'weathervane':     { lo: 0.03, badLo: 0, text: '\u2265 0.03' },
-      'prop clear':      { lo: 0.12, badLo: 0.05, text: '\u2265 0.12 m' },
-      'nose-over':       { lo: 15, text: '\u2265 15\u00b0' },
-      'power nose-over': { hi: 0.75, badHi: 1, text: '< 0.75' },
-      'crosswind limit': { lo: 4, badLo: 2, text: '\u2265 4 m/s' },
-    };
-    const judge = (label, v) => {
-      const b = BOUNDS[label];
-      if (!b || v == null || !isFinite(v)) return '';
-      if (b.badLo != null && v < b.badLo) return 'bad';
-      if (b.badHi != null && v > b.badHi) return 'bad';
-      if (b.lo != null && v < b.lo) return b.badAtLo ? 'bad' : 'warn';
-      if (b.hi != null && v > b.hi) return 'warn';
-      return '';
-    };
-    const R = (label, val, cls, why) => {
-      const w = why !== undefined ? why : WHY[label];
-      const bnd = BOUNDS[label];
-      let t = '';
-      if (w) t = typeof w === 'string' ? w
-              : (w.what || '') + (cls && w.fix ? ' \u2014 ' + w.fix : '');
-      if (bnd) t += (t ? ' \u00b7 ' : '') + 'judged against ' + bnd.text;
-      if (bnd) val = val + ' <i>' + bnd.text + '</i>';
-      // A ROW THAT DOES NOT FIT HALF THE PLATE TAKES THE WHOLE PLATE
-      // (2026-09-03, the user: "the formatting of the plaque is
-      // unacceptable"). The sheet is a two-column grid and a value cell could
-      // not shrink, so '14.5 kg/h (20 L/h)' or 'coarse (cruise)' pushed its
-      // column past the panel edge and the clip took the number with it --
-      // '97 kr', '218', '5.2' -- and the burn-off line ran across its
-      // neighbour. The threshold is the widest value the half-width holds at
-      // this type size; anything past it spans, and its value may wrap.
-      const wide = String(val).length > 11 || String(label).length > 15;
-      rows.push('<div class="r' + (cls ? ' ' + cls : '') + (wide ? ' wide' : '') +
-        '"' + (t ? ' title="' + esc(t) + '"' : '') +
-        '><span>' + label + '</span><b>' + val + '</b></div>');
-    };
+    // THE SHEET IS plaque.js's (G208, the user: "there are titles cut with
+    // no tooltip, I have no idea what they mean"). The explanations, the
+    // bounds, the hover cards and the band bars live there; this function
+    // only says which numbers go under which heading. `judge` reads the same
+    // table the printed bound and the bar read, so they cannot disagree.
+    const PQ = window.PLAQUE.sheet();
+    const H = PQ.H, R = PQ.R, judge = PQ.judge;
     H('weights');
     R('empty', n1(s.empty, 0) + ' kg');
     R('payload', n1(s.payload, 0) + ' kg');
@@ -85140,10 +86926,9 @@ function editorInit(api) {
       R('outcome', rep.outcome || '—',
         rep.outcome === 'completed' ? '' : 'bad');
       if (L) {
-        R('landing run', n1(L.run, 0) + ' m',
-          (L.run || 0) > 500 ? 'warn' : '');
+        R('landing run', n1(L.run, 0) + ' m', judge('landing run', L.run || 0));
         R('touchdown', n1(L.sink, 2) + ' m/s · ' + n1(L.V * 3.6, 0) + ' km/h',
-          (L.sink || 0) > 1.8 ? 'warn' : '');
+          judge('touchdown', L.sink || 0));
         R('past the aim', n1(L.pastAim, 0) + ' m',
           Math.abs(L.pastAim || 0) > 150 ? 'warn' : '');
       }
@@ -85173,6 +86958,13 @@ function editorInit(api) {
                       cd.VFlown != null ? n1(cd.VFlown * 3.6, 0) + ' km/h' : null]
           .filter(Boolean).join(' · ');
         R('held', flew || '— never settled on the leg', short || !flew ? 'warn' : '');
+        // G208: the elevator the pilot held on the settled leg, as the trim
+        // clicks the hand would set (input.js TRIM_STEP 0.02 per click)
+      }
+      if (rep.trimDe != null && isFinite(rep.trimDe)) {
+        const k = Math.round(rep.trimDe / 0.02);
+        R('trim flown', k === 0 ? 'neutral'
+          : Math.abs(k) + (Math.abs(k) === 1 ? ' click ' : ' clicks ') + (k > 0 ? 'nose up' : 'nose down'));
       }
       if (rep.verdicts.length)
         R('pilot notes', rep.verdicts.length + ' — ' +
@@ -85198,24 +86990,17 @@ function editorInit(api) {
     H('balance');
     R('CG', n1(s.cgX, 2) + ' m');
     R('neutral pt', n1(s.npX, 2) + ' m');
-    // THE CG ENVELOPE (2026-09-03): the four loading corners, the margin at
-    // the worst of them. The as-drawn number is still shown, named for what
-    // it is, so a builder can see which corner they happen to be sitting in.
-    const E = s.envelope;
-    const pc = v => v == null ? '\u2014' : n1(v * 100, 0) + '% MAC';
+    // THE MARGIN AS LOADED (G208). The four loading corners and the margin at
+    // the worst of them left the plaque with the corner tests: the aeroplane
+    // is judged as it stands — the crew switched on, the fuel specified — and
+    // its CG is quoted the way a weight-and-balance sheet quotes it, in % MAC
+    // behind the leading edge, when the wing gives a datum. The fleet's own
+    // band: the Cub measures 0.22, the stock build 0.20. Under 0.05 is
+    // twitchy; negative is unflyable.
     const smCls = v => judge('static margin', v || 0);
-    if (E && E.aft && E.fwd) {
-      R('as loaded', pc(E.cgPct) + ' \u00b7 margin ' + n1(s.staticMargin, 2),
-        smCls(s.staticMargin));
-      R('forward corner', E.fwd.label + ' \u00b7 ' + pc(E.fwd.cgPct));
-      R('aft corner', E.aft.label + ' \u00b7 ' + pc(E.aft.cgPct));
-      R('static margin', n1(E.staticMarginAft, 2) + ' \u00b7 ' + E.worst.label,
-        smCls(E.staticMarginAft));
-    } else {
-      // the fleet's own band: the Cub measures 0.22, the stock build 0.20.
-      // Under 0.05 is twitchy; negative is unflyable.
-      R('static margin', n1(s.staticMargin, 2), smCls(s.staticMargin));
-    }
+    R('static margin', n1(s.staticMargin, 2), smCls(s.staticMargin));
+    if (s.cBar > 0 && typeof s.xLEmac === 'number' && isFinite(s.xLEmac))
+      R('CG as loaded', n1((s.cgX - s.xLEmac) / s.cBar * 100, 0) + '% MAC');
     // G115: the directional half, at last — the fin was the one surface with
     // no readout. Measured Cn_beta (weathervane stiffness): the stock build
     // reads 0.08, the Cub family 0.11; under 0.03 is a wanderer, negative
@@ -85232,9 +87017,8 @@ function editorInit(api) {
       R('stall', n1(s.reserve.Vs * 3.6, 0) + ' km/h');
       // the margin at reserves is one of the envelope's corners now and is
       // judged there; this sheet keeps the numbers that are only about fuel
-      if (!(E && E.aft))
-        R('static margin', n1(s.reserve.staticMargin, 2),
-          smCls(s.reserve.staticMargin));
+      R('static margin', n1(s.reserve.staticMargin, 2),
+        smCls(s.reserve.staticMargin));
       R('climb', n1(s.reserve.climbRate, 2) + ' m/s');
     }
     H('on the ground');
@@ -85247,7 +87031,9 @@ function editorInit(api) {
     if (s.energyKind) {
       H(s.energyKind === 'battery' ? 'the pack' : 'fuel and tank');
       R(s.energyKind === 'battery' ? 'cells' : 'fuel', s.energyMedium);
-      R(s.vesselName, n1(s.vesselKg, 1) + ' kg');
+      // the vessel row's label is the vessel's own name (G208: it hands its
+      // explanation over, like the bay rows below)
+      R(s.vesselName, n1(s.vesselKg, 1) + ' kg', '', window.PLAQUE.WHY_VESSEL);
       R(s.energyKind === 'battery' ? 'cell mass' : 'fuel aboard',
         n1(s.energyKg, 1) + ' kg' +
         (s.energyKind === 'battery' ? ' · empty weight' : ' · payload, and it burns off'));
@@ -85263,10 +87049,7 @@ function editorInit(api) {
           v.fits ? (v.fill > 0.85 ? 'warn' : '') : 'bad',
           // a bay row's label is the BAY's own name, so it cannot be keyed by
           // label like the rest - it hands its explanation over directly.
-          { what: 'what this vessel holds, against the room the bay actually has.',
-            fix: 'move it to a larger bay, split it across two, or ask for less '
-               + 'capacity. A wing bay grows with span and chord; a body bay '
-               + 'grows with the cabin length and the fuselage section.' });
+          window.PLAQUE.WHY_BAY);
     }
     if (s.propPitch)
       R('propeller pitch',
@@ -85281,7 +87064,11 @@ function editorInit(api) {
         (s.groundThrCap < 1 ? ' · pilots hold ' + n1(s.groundThrCap * 100, 0) + '% until the tail is up' : ''),
         judge('power nose-over', s.powerOver));
     if (s.gearFolded) R('gear', 'FOLDED', 'bad');
-    $('pqRows').innerHTML = rows.join('');
+    PQ.mount($('pqRows'));
+    if (PQ.missing.length && !drawPlaque.saidMissing) {
+      drawPlaque.saidMissing = true;
+      console.warn('plaque rows without an explanation:', PQ.missing.join(', '));
+    }
     $('pqNote').textContent = s.engineName + ' · ' + n1(s.hp, 0) + ' hp · ' +
       s.propName + ' · ' + s.gearType +
       (s.gearFairing ? ' (' + s.gearFairing + ')' : '') + ' · ' + s.bracing +
@@ -85615,7 +87402,10 @@ function editorInit(api) {
   function startLoadTest() {
     if (!inGarage) return;
     rig = makeLoadTest(sim, def, { material: (genSpec && genSpec.fuselage &&
-                                              genSpec.fuselage.material) || undefined });
+                                              genSpec.fuselage.material) || undefined,
+                                   // G213: the wing's own row for the wing class
+                                   wingMaterial: (genSpec && typeof genSurfKey === 'function')
+                                     ? genSurfKey(genSpec, 'wing', 0) : undefined });
     if (!rig.state.ok) { rig = null; return; }        // no spar stations to load
     rigLift = rig.lift; applyEnv();                   // take the room up with it
     buildLoadViz(rig);
@@ -85766,6 +87556,15 @@ function editorInit(api) {
     // G200: who flies is remembered; the hand starts from the reset ctl
     manual = !!INP && prefGet('flydiy.flManual', '0') === '1';
     if (INP) INP.seed(sim.ctl);
+    // G208: THE ADVISED TRIM. The bench's certificate can carry the trim the
+    // test pilot held on the cruise leg, and the builder can accept it as the
+    // roll-out default; the hand then starts from it instead of from the
+    // reset ctl's zero. Only for the garage's own aeroplane.
+    if (INP && INP.setTrim && curKey === 'gen'
+        && typeof window.BENCH_STATE === 'function') {
+      const st = window.BENCH_STATE();
+      if (st && st.trim != null && isFinite(st.trim)) INP.setTrim(st.trim);
+    }
     airborneSeen = wasAir = false; stillT = 0;
     $('bPause').textContent = 'Pause'; $('bPause').classList.remove('on');
     telClear(); telLast = null; telHover = -1;

@@ -332,9 +332,23 @@ const CORE = require(path.join(ROOT, 'tools', 'flight_core.js'));
 const GM = CORE.GEN_MATERIALS, BG = CORE.GEN_BUILD_GRAMMAR;
 check(!!BG, 'GEN_BUILD_GRAMMAR is not exported from the core');
 if (BG) {
-  const a = Object.keys(GM).sort().join(','), b = Object.keys(BG).sort().join(',');
-  check(a === b, 'GEN_MATERIALS and GEN_BUILD_GRAMMAR disagree on the ' +
-    'construction list', `${a}  vs  ${b}`);
+  // G213: the grammar serves the fuselage's rows AND the flying surfaces'
+  // (GEN_SURF_MATERIALS: fabric, steel, and alloy/carbon shared by name)
+  const SM = CORE.GEN_SURF_MATERIALS || {};
+  const a = [...new Set(Object.keys(GM).concat(Object.keys(SM)))].sort().join(',');
+  const b = Object.keys(BG).sort().join(',');
+  check(a === b, 'GEN_MATERIALS + GEN_SURF_MATERIALS and GEN_BUILD_GRAMMAR ' +
+    'disagree on the construction list', `${a}  vs  ${b}`);
+  check(!!SM.fabric && !!SM.steel && !!SM.alloy && !!SM.carbon,
+    'G213: the surfaces\' table is missing a row',
+    Object.keys(SM).join(','));
+  check(CORE.GEN_SURF_DEFAULT && CORE.GEN_SURF_DEFAULT.wood === 'fabric' &&
+        CORE.GEN_SURF_DEFAULT.tubeFabric === 'fabric',
+    'G213: a wood or tube aeroplane must default its surfaces to fabric');
+  // the finish walk knows the surfaces' tokens: a fabric wing wears fabric
+  check(A.aeroFinishFor('body', 'fabric') === 'fabric' &&
+        A.aeroFinishFor('body', 'steel') === 'fabric',
+    'G213: AERO_BY_CONS does not dress a fabric-covered surface as fabric');
 
   for (const k of Object.keys(BG)) {
     const g = BG[k];
@@ -413,7 +427,15 @@ if (BG) {
     return [g.framePitch, g.stringerPitch, f ? f.kind + f.pitch : 'none',
             g.tape.rise, g.sag.frac, g.dish || 0].join('/');
   };
-  const sigs = Object.keys(BG).map(sig);
+  // G213: a row that DECLARES itself an alias (the flying surfaces' fabric
+  // over wood / over tube are tube + fabric's grammar on purpose: what
+  // prints through fabric is the ribs, whatever they are made of) is not a
+  // copy error — it says so, and it must point at a row that exists
+  for (const k of Object.keys(BG)) if (BG[k].alias)
+    check(!!BG[BG[k].alias] && !BG[BG[k].alias].alias,
+      `${k}: aliases a grammar that does not exist or is itself an alias`);
+  const own = Object.keys(BG).filter(k => !BG[k].alias);
+  const sigs = own.map(sig);
   check(new Set(sigs).size === sigs.length,
     'two constructions share a structure grammar', sigs.join('  '));
 

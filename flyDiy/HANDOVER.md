@@ -34008,3 +34008,100 @@ throughout (the only core edits publish two numbers the sheet already had).
   colours, font and page size; a hit returns the cached aspect and fit.
 - The kit layers and the image pages are unchanged (raster); the same flag
   would carry them if a pattern drawer produced a field.
+
+## G213 — THE WING IS FABRIC OVER A STRUCTURE, NOT THE FUSELAGE'S SKIN
+## (2026-09-07, the user: "In a plywood plane, the wing is wooden structure,
+## but cloth on top. Only the leading edge is made of plywood. That also
+## means that the list of materials for the wing is wrong; it should be
+## carbon, steel, aluminium or fabric. Fabric being the default when the
+## fuselage is either plywood or steel tubes ... The same goes for the fins
+## and stabilisers")
+
+THE AUDIT. A wing, a fin and a stab "as the aeroplane" took the FUSELAGE'S
+construction row, so a wood aeroplane grew a PLYWOOD wing: ply's finish and
+grammar (gimp pins, panel laps) on the skin, ply's covering weight (1.35
+kg/m2 for what is 0.42 of fabric) in the ledger, ply's cd0 in the polar. The
+pinned rows offered the fuselage's list (composite / steel tube / plywood /
+aluminium) on every flying surface. And the polar penalty (62_gen_aero)
+read the fuselage's row even when the wing had its own material, so a
+carbon wing on a tube fuselage flew as fabric. The archetypes never pinned a
+surface, so every wood archetype (intCons 2) had ply wings and tails.
+
+WHAT LANDED:
+- **GEN_SURF_MATERIALS**, the flying surfaces' OWN vocabulary in
+  60_gen_spec.js: `fabric` (wood structure — spruce spars, built-up ribs, a
+  ply D-box at the leading edge — under doped fabric; cover 0.80 kg/m2 =
+  fabric 0.42 + the D-box's share of ply), `steel` (4130 tube structure
+  under fabric, cover 0.42), `alloy`, `carbon` (the fuselage rows, shared).
+  The structure columns (phys, lin, k, c) are shared with the fuselage row
+  they come from — a spruce spar flexes as spruce in a wing or a fuselage —
+  and only the cover, price and cd0 are the surface's. GEN_MATERIALS is
+  untouched: a fuselage of "fabric" is not a thing, and GATE FLEX / LOAD
+  build a fuselage from every row of it.
+- **GEN_SURF_DEFAULT** — tubeFabric -> fabric, wood -> fabric, alloy ->
+  alloy, carbon -> carbon — is what a surface that says nothing is built of.
+  `genSurfKey(S, 'wing'|'fin'|'stab', k)` / `genSurfMaterial` resolve it;
+  clampSpec reads a LEGACY token as what it always meant on a surface
+  (`wood` -> fabric, `tubeFabric` -> steel; GEN_SURF_LEGACY), an unknown as
+  absent, on every plane of a biplane. No GEN_SPEC_V bump: absent still
+  means "the default", and the default is the ruling.
+- 61_gen_frame's section rows (MSEC.wings, MSEC.tail, the fin's MB) and
+  62_gen_aero's three polars read the surface's row. 26_hangar_fit maps the
+  new tokens to the shops (fabric -> wood, steel -> tube).
+- The four editor rows (wgCons / w2Cons / finCons / stCons) read `carbon /
+  steel tube / fabric on wood / aluminium`, in the SAME index order, so a
+  saved 3 that meant "plywood" now means "fabric on wood" — the ruling. The
+  join writes the new tokens; the layers' `as the aeroplane` goes through
+  GEN_SURF_DEFAULT (window-global in the page, a literal fallback on the
+  bench).
+- AERO_BY_CONS gains `fabric` and `steel` (both wear doped fabric;
+  structure spruce / steelTube); GEN_BUILD_GRAMMAR gains the same two keys
+  as tube + fabric's row (what prints through a fabric cover is the ribs,
+  whatever they are made of). GATE SKINMAT's key check is the UNION of the
+  two material tables against the grammar, plus the default rule and the
+  finish walk on the new tokens; GATE BUILD's G116 test names the surface
+  default (and a legacy `wood` wing reads as it); GATE JOIN's biplane
+  expects `fabric`.
+- THE LEADING EDGE is not a separate material: the D-box is under the same
+  dope and paint, and the shader's LE band (smooth, no rib print, the
+  worn wash) has said so since G106. Nothing to draw differently.
+- MASS MOVES on every wood and tube aeroplane: the wing and tail cover
+  billed ply (1.35) or tube fabric (0.42) and bill 0.80 now on a wood
+  fuselage (fabric + D-box). GATE GEN's shakedown anchors are re-read off
+  its own line, as the ritual says.
+- **THE TAIL'S DEFAULT IS THE FUSELAGE'S STRUCTURE UNDER FABRIC** (the
+  test-section session, GATE TAKEOFF: the stab rolled 3.7 deg against the
+  mains through a taxi, over G199.5's 3.5 deg bar): handing a tube
+  aeroplane's tail the wooden row halved its stiffness (k.fus 8.0e5 ->
+  4.15e5). `GEN_SURF_DEFAULT_TAIL` = { tubeFabric: steel, wood: fabric,
+  alloy, carbon }; the wing keeps fabric over wood on both (the user's
+  explicit call). `steel` IS tubeFabric's numbers, so the stock tail is
+  bit-identical to before G213 and the bar stands unmeasured.
+- **THE LOAD RIG JUDGES THE WING AS WHAT IT IS BUILT OF** (the same
+  session: "HELD — over yield", 131 %): 65_gen_loadtest took every class's
+  allowable from the FUSELAGE's row, so a spruce spar was judged against
+  steel's 0.62 kg/m section. `cfg.wingMaterial` (app.js passes
+  genSurfKey(genSpec, 'wing'); test_load.js the surface default) judges the
+  wing class by its own row: stock 85 % HELD (77 % as a tube wing before).
+  A fabric-covered wooden wing also FLEXES MORE than a ply-covered one
+  (2/3 of the wood row's k.wing, a judgement): the ply skin was the shell.
+- The two fabric grammar rows declare `alias: 'tubeFabric'`; GATE SKINMAT's
+  duplicate check steps over declared aliases. GATE BUILD's G117 ratios
+  read the surfaces' table. GATE WINGSPLIT's baseline is re-blessed: the
+  mass model moved, which its header names as the honest case.
+- **THE WING'S CENTRE SECTION HAS ITS OWN SPAN COORDINATE** (the user: "the
+  central part is not correctly mapped"). It is ONE loft bay between the
+  two root rows, both at |z| = zRoot, so a field built from |z| was 0 at
+  both ends and CONSTANT across the metre between (measured: sL 0..0,
+  st -1..-1 on 182 vertices) — the sheet stretched into spanwise stripes.
+  pickParts hands the class to the field builder; the centre takes the
+  signed z (0 at the right root, -2 zRoot at the left, the seam under the
+  fuselage) and the rib index at the first bay's pitch.
+- **THE FABRIC ROW IS THE USER'S DIALS** ("update the defaults to
+  screenshot"): tile 0.063, roughness 1.0 (x4 hit the ceiling: matte
+  pigment under the coat), nrm 0.78, sheen 0.74, field 0.45 mm; and THE
+  CROSS HATCH IS BACK — G206 had flattened it and the 3 cm tile with 30
+  threads made a sub-pixel thread; `weave` (threads a tile, 10) is a row
+  field and a lab slider that rebakes. The lab's tile floor is 5 mm and
+  every per-section multiplier starts at 0.05 ("all sliders need to go
+  lower").

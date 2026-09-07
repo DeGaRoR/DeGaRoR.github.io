@@ -141,8 +141,12 @@ const WING_ITEMS = [
   // (G116 mass + price, G117 stiffness + damping — "WYSIWYG is the rule"):
   // the join writes `wing.material` and the lattice builds the wing's
   // members from it, weight, cost, flex and all. See genLattice's note.
+  // G213: the WING'S vocabulary — carbon / steel tube / fabric on wood /
+  // aluminium (never plywood: a wooden wing is fabric-covered, the ply is the
+  // leading-edge D-box only); 'as the aeroplane' is fabric on a wood or tube
+  // fuselage, alloy on alloy, carbon on carbon (GEN_SURF_DEFAULT)
   ['wgCons', 'construction', 0, 4, 1,
-   ['as the aeroplane', 'composite', 'steel tube', 'plywood', 'aluminium'],
+   ['as the aeroplane', 'carbon', 'steel tube', 'fabric on wood', 'aluminium'],
    on],
   ['wgDx',     'fore / aft',       -1.5, 1.8, 0.05, on],
   ['wgDy',     'up / down',         -1.0, 1.0, 0.02, on],
@@ -301,11 +305,16 @@ function wingMat(cl, plane) {
   // the part's own construction wins over the aeroplane's (wgCons, G110);
   // the ailerons and flaps take the wing's because this one function
   // dresses every class
-  const CONS4 = ['carbon', 'tubeFabric', 'wood', 'alloy'];
+  // G213: the wing's own tokens in the row's order, and 'as the aeroplane'
+  // through GEN_SURF_DEFAULT (fabric on a wood or tube fuselage)
+  const CONS4 = ['carbon', 'steel', 'fabric', 'alloy'];
+  const FUS4 = ['carbon', 'tubeFabric', 'wood', 'alloy'];
+  const SD = (typeof GEN_SURF_DEFAULT !== 'undefined' && GEN_SURF_DEFAULT) ||
+    { tubeFabric: 'fabric', wood: 'fabric', alloy: 'alloy', carbon: 'carbon' };
   const kc = Math.round((plane ? P0.w2Cons : P0.wgCons) || 0);
   const cons = kc > 0 ? CONS4[kc - 1]
-    : CONS4[Math.max(0, Math.min(3, Math.round(P0.intCons || 0)))] ||
-      'tubeFabric';
+    : SD[FUS4[Math.max(0, Math.min(3, Math.round(P0.intCons || 0)))]] ||
+      'fabric';
   // the editor's per-part livery, when its UI is on the page; the direct
   // factory call below stays as the standalone bench's path
   if (window.CAGE_SECMAT) {
@@ -377,6 +386,7 @@ function pickParts(g, keep, toCage, classOf, field) {
   for (let i = 0; i < nv; i++) ok[i] = keep(i) ? 1 : 0;
   const out = {};                     // class -> {map,pos,idx,wpos,eseen}
   const bucket = cl => out[cl] || (out[cl] = {
+    cl,                               // G214: the field may depend on the class
     map: new Int32Array(nv).fill(-1), pos: [], idx: [],
     wpos: [], eseen: new Set(), fld: field ? [] : null });
   const raw = i => [g.pos[i*3], g.pos[i*3+1], g.pos[i*3+2]];
@@ -386,7 +396,7 @@ function pickParts(g, keep, toCage, classOf, field) {
       B2.map[i] = B2.pos.length / 3;
       B2.pos.push(p[0], p[1], p[2]);
       if (B2.fld) {
-        const a = field(i) || [0, 0, 0, 0];
+        const a = field(i, B2.cl) || [0, 0, 0, 0];
         B2.fld.push(a[0], a[1], a[2], a[3]);
       }
     }
@@ -687,11 +697,27 @@ PAGE.post = ctx => {
   const sparSpan = Math.max(1e-4, sparR - sparF);
   const wingField = g => {
     if (!g.uv) return null;
-    return i => {
+    return (i, cl) => {
       const cf = g.uv[i * 2];                        // chord fraction, 0 = LE
-      const az = Math.abs(toBody(
-        [g.pos[i*3], g.pos[i*3+1], g.pos[i*3+2]])[2]);
+      const zb = toBody([g.pos[i*3], g.pos[i*3+1], g.pos[i*3+2]])[2];
+      const az = Math.abs(zb);
       const chord = PT.chordAt ? PT.chordAt(az) : 1;
+      // THE CENTRE SECTION HAS ITS OWN SPAN COORDINATE (G214, the user: "the
+      // central part is not correctly mapped"). It is ONE loft bay between
+      // the two root rows, and both rows sit at |z| = zRoot — so a field
+      // built from |z| was 0 at both ends and CONSTANT across the metre
+      // between them (measured: sL 0.00..0.00, st -1..-1 on 182 vertices),
+      // and the detail sheet stretched into spanwise stripes. The class is
+      // known here (pickParts buckets per class and the root vertices are
+      // duplicated per bucket), so the centre takes the SIGNED z: 0 at the
+      // right root, continuous with that panel, -2 zRoot at the left — the
+      // one seam sits under the fuselage. The rib index runs at the first
+      // bay's pitch across it, which is what a carry-through has.
+      if (cl === 'centre') {
+        const s = zb - zRoot;
+        const bay = ribZ.length ? Math.max(1e-6, ribZ[0] - zRoot) : 1;
+        return [s, cf * chord, s / bay, (cf - sparF) / sparSpan];
+      }
       // st: which rib bay, and where inside it. Ribs are NOT evenly spaced
       // across the whole span — 61_gen_frame divides each panel separately —
       // so this walks the real list rather than dividing by a mean pitch.

@@ -808,15 +808,18 @@ function genParams(S, fr, strips) {
   // untouched: it is the plane's SELF term, and the mutual term between the
   // planes is the solver's kernel (G185.5), never a second factor here.
   const interplane = !!(S.bracing && S.bracing.interplane && S.bracing.interplane !== 'none');
+  // G213: the finish penalty is the SURFACE'S — a fabric wing on a ply
+  // fuselage flies as fabric, and a carbon wing on a tube fuselage as carbon
   const polarWings = S.wings.map((wk, k) => {
     const Gk = (G.planes && G.planes[k]) || G;
-    return genPolar(wk.naca, Gk.AR, (k === 0 && S.wing.strut) || interplane, M.cd0, M.clmaxK,
+    const MW = genSurfMaterial(S, 'wing', k);
+    return genPolar(wk.naca, Gk.AR, (k === 0 && S.wing.strut) || interplane, MW.cd0, MW.clmaxK,
                     wk.sweepEff != null ? wk.sweepEff : wk.sweep,
                     (GEN_TIPS[wk.tip] || GEN_TIPS.rounded).e);
   });
   const polarWing = polarWings[0];
   const hAR = S.tail.hSpan * S.tail.hSpan / S.tail.Sh;
-  const polarTail = genTailPolar(hAR, M.cd0);
+  const polarTail = genTailPolar(hAR, genSurfMaterial(S, 'stab').cd0);   // G213
   // G115 (the review's S4): the FIN flies on its OWN aspect ratio. It flew
   // the stabiliser's for its whole life — hAR 3.7 against a real vAR of 1.9 —
   // which overstated directional stiffness and rudder power by ~25% and made
@@ -824,7 +827,7 @@ function genParams(S, fr, strips) {
   // number, and it moves when the builder reshapes the fin. The fleet's
   // fiches never set polarFin, so the solver's fallback keeps them exact.
   const vAR = S.tail.vHeight * S.tail.vHeight / Math.max(1e-6, S.tail.Sv);
-  const polarFin = genTailPolar(vAR, M.cd0);
+  const polarFin = genTailPolar(vAR, genSurfMaterial(S, 'fin').cd0);      // G213
   const mass = fr.cg0[3];
   // G185: the aeroplane's CLmax is its planes' area-weighted one (a monoplane's
   // is exactly its own)

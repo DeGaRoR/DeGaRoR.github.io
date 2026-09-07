@@ -659,6 +659,10 @@ function hangarWants(S) {
     else if (m === 'tubeFabric') want.add('tube');
     else if (m === 'alloy') want.add('metal');
     else if (m === 'carbon') want.add('composite');
+    // G213: the surfaces' own tokens — fabric over wood wants the wood shop,
+    // fabric over tube the tube shop
+    else if (m === 'fabric') want.add('wood');
+    else if (m === 'steel') want.add('tube');
   };
   if (S && S.fuselage) add(S.fuselage.material);
   if (S && S.wings) for (const w of [].concat(S.wings)) add(w && w.material);

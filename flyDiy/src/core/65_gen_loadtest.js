@@ -118,6 +118,15 @@ function makeLoadTest(sim, def, cfg) {
   const SETTLE = (cfg.settleS == null ? 2.0 : cfg.settleS);
   const MAT = (typeof GEN_MATERIALS !== 'undefined' && cfg.material)
     ? GEN_MATERIALS[cfg.material] : null;
+  // THE WING IS JUDGED AS WHAT IT IS BUILT OF (G213). `cfg.wingMaterial` is a
+  // GEN_SURF_MATERIALS key (or row): the wing class's allowable is that
+  // row's section and yield, not the fuselage's. Measured before this: the
+  // stock tube aeroplane's spruce-spar fabric wing read 131 % "of yield"
+  // against STEEL's 0.62 kg/m section — a wooden spar judged as a tube.
+  const WM = cfg.wingMaterial == null ? null
+    : (typeof cfg.wingMaterial === 'string'
+        ? ((typeof GEN_SURF_MATERIALS !== 'undefined' && GEN_SURF_MATERIALS[cfg.wingMaterial]) || null)
+        : cfg.wingMaterial);
 
   const st = genLoadStations(def);
   const ok = st.length >= 2;
@@ -189,9 +198,10 @@ function makeLoadTest(sim, def, cfg) {
     if (!MAT || !MAT.phys) return null;
     let worst = null;
     for (const cls in peak) {
-      if (!MAT.lin[cls]) continue;
-      const A = MAT.lin[cls] / MAT.phys.rho;
-      const pct = 100 * peak[cls].F / (MAT.phys.sigY * A);
+      const R = (cls === 'wing' && WM && WM.phys && WM.lin) ? WM : MAT;
+      if (!R.lin[cls]) continue;
+      const A = R.lin[cls] / R.phys.rho;
+      const pct = 100 * peak[cls].F / (R.phys.sigY * A);
       if (!worst || pct > worst.pct) worst = { cls: cls, pct: pct, bi: peak[cls].bi };
     }
     return worst;

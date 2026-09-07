@@ -111,10 +111,23 @@ const AERO_FINISH = {
   // G206: the tile drops 0.14 -> 0.06 m (a 2 mm thread, not a 5 mm one) and
   // `hs` 0.5 -> 0.15 — under four coats of dope the weave is a roughness
   // speckle, not a relief; the clear layer and the low field do the rest
-  fabric:    { name: 'doped fabric', base: 0xd8d4c8, tile: 0.06,
-               rough: 0.42, metal: 0.0, nrm: 0.25, alb: 0.13,
-               hs: 0.15, bs: 0.8, bake: 'weave',
-               cc: 0.35, ccR: 0.25, fld: 0.0008, fldL: 0.40, fldR: 0.3 },
+  // THE CROSS HATCH IS THE LOOK (G214, the user: "I've lost the cross hatch
+  // pattern completely ... it was great, needed to be tweaked"). G206 had
+  // flattened it (hs 0.15, "a doped weave is a speckle") and the 3 cm tile
+  // with 30 threads a tile made a 1 mm thread — under a screen pixel, mipped
+  // to nothing. So: 10 threads on the 3 cm tile (a 3 mm hatch, which reads),
+  // the height back, and `weave` is a row field the lab can turn.
+  // ...AND THE USER'S DIALS ARE THE NEW 1.0 (G214, "update the defaults to
+  // screenshot"): on the wing skin, tile x2.10, roughness x4.00 (the ceiling
+  // — a fully matte pigment under the clear coat), normal x2.60, sheen x2.10,
+  // field x0.55, wear x1. Folded into the row exactly as the fireproof foil's
+  // were, so a saved build carries no deviation it did not ask for; a
+  // section still dialled from before this multiplies AGAIN and wants its
+  // label double-clicked back to 1.
+  fabric:    { name: 'doped fabric', base: 0xd8d4c8, tile: 0.063,
+               rough: 1.00, metal: 0.0, nrm: 0.78, alb: 0.13,
+               hs: 0.45, bs: 0.8, bake: 'weave', weave: 10,
+               cc: 0.74, ccR: 0.25, fld: 0.00045, fldL: 0.40, fldR: 0.3 },
   // alb 0.50 -> 0.80 with the scanned sheet (G125): the maple face's B span
   // is a quarter of the procedural stripes', so the compensation keeps the
   // ply's grain visible at all — same measurement as spruce's note below
@@ -415,6 +428,16 @@ const AERO_BY_CONS = {
                 bead: 'rubber', fire: 'fireFoil', edge: 'acrylicEdge' },
   carbon:     { skin: 'composite', rail: 'composite', pillar: 'composite',
                 struct: 'composite', panel: 'panelMetal', pad: 'leatherDark',
+                bead: 'rubber', fire: 'fireFoil', edge: 'acrylicEdge' },
+  // THE FLYING SURFACES' OWN CONSTRUCTIONS (G213): fabric over wood, fabric
+  // over steel tube — both wear doped fabric; what differs is the structure
+  // showing through where a section is left open. Reached only from the
+  // wing and tail layers (their cons tokens); a fuselage never says these.
+  fabric:     { skin: 'fabric', rail: 'fabric', pillar: 'fabric',
+                struct: 'spruce', panel: 'panelMetal', pad: 'leatherDark',
+                bead: 'rubber', fire: 'fireFoil', edge: 'acrylicEdge' },
+  steel:      { skin: 'fabric', rail: 'fabric', pillar: 'fabric',
+                struct: 'steelTube', panel: 'panelMetal', pad: 'leatherDark',
                 bead: 'rubber', fire: 'fireFoil', edge: 'acrylicEdge' },
 };
 const AERO_GLASS = new Set(['windshield', 'pilotWindow', 'pasengerWindow',
@@ -883,7 +906,7 @@ function aeroLinear(THREE, hex) {
 const AERO_TEX = 512;
 const AERO_TEX_CACHE = {};
 
-function aeroHeight(kind, S) {
+function aeroHeight(kind, S, row) {
   // a height field, sampled at S x S, tiling seamlessly (every term is
   // periodic in S) — the same technique garage.js's bump sheet uses, and the
   // reason a covered airframe reads as fabric at all: the shape is carried by
@@ -908,7 +931,7 @@ function aeroHeight(kind, S) {
         // coarse" the user saw was that blotch every 14 cm, not the threads.
         // A tiling sheet carries 8+ cycles per tile and nothing slower; the
         // slow undulation is aeroField's, in metres, and never repeats.
-        const n = 30;
+        const n = (row && row.weave > 0) ? row.weave : 30;   // threads a tile
         const warp = Math.abs(Math.sin(u * n));
         const weft = Math.abs(Math.sin(v * n));
         const over = Math.sin(u * n * 0.5) * Math.sin(v * n * 0.5) > 0;
@@ -1016,7 +1039,7 @@ function aeroDetailTex(THREE, key) {
     return (AERO_TEX_CACHE[key] = t);
   }
   const S = AERO_TEX;
-  const H = aeroHeight(row.bake, S);
+  const H = aeroHeight(row.bake, S, row);
   const cv = document.createElement('canvas');
   cv.width = cv.height = S;
   const ctx = cv.getContext('2d');
@@ -3670,13 +3693,14 @@ const AERO_LAB_KEY = 'flydiy.aeroLab';
 const AERO_GAIN_DEF = { x: 4.0, y: 1.2, z: 15.0, wx: 4.0, wy: 1.2, wz: 15.0 };
 // field -> [min, max, step, label]
 const AERO_LAB_FIELDS = {
-  tile:  [0.03, 3.0, 0.01, 'tile (m)'],
+  tile:  [0.005, 3.0, 0.005, 'tile (m)'],
   rough: [0.02, 1.0, 0.01, 'roughness'],
   metal: [0, 1, 0.01, 'metalness'],
   nrm:   [0, 1.5, 0.01, 'sheet normal'],
   alb:   [0, 1.5, 0.01, 'sheet albedo'],
   hs:    [0, 1.5, 0.01, 'sheet height (rebakes)'],
   bs:    [0, 2.0, 0.01, 'sheet roughness (rebakes)'],
+  weave: [2, 60, 1, 'weave threads a tile (rebakes)'],
   cc:    [0, 1, 0.01, 'clear coat'],
   ccR:   [0, 1, 0.01, 'clear coat roughness'],
   fld:   [0, 0.003, 0.00005, 'field amplitude (m)'],
@@ -3883,7 +3907,7 @@ function aeroLabExport() {
 function aeroLabRefresh(THREE, kind, key, field) {
   if (kind === 'finish') {
     const row = AERO_FINISH[key];
-    const rebake = field === 'hs' || field === 'bs';
+    const rebake = field === 'hs' || field === 'bs' || field === 'weave';
     if (rebake) delete AERO_TEX_CACHE[key];
     for (const m of AERO_BUILT) {
       const ud = m.userData || {};

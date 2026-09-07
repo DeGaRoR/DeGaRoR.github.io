@@ -56,7 +56,7 @@ const GROUP = ['8 · tail — fin (2D)', [
   // join): mass and price since G116, stiffness and damping since G117 —
   // WYSIWYG, see genLattice's note.
   ['finCons', 'construction',      0, 4, 1,
-   ['as the aeroplane', 'composite', 'steel tube', 'plywood', 'aluminium'],
+   ['as the aeroplane', 'carbon', 'steel tube', 'fabric on wood', 'aluminium'],
    { when: P => +P.finOn }],
   // THE CUT — the hinge slices between the doubleLoopV guards; the horn
   // line IS the mid row (max-creased under horn mode so it stays exactly
@@ -195,11 +195,17 @@ function tailMat(k, sec, boxPlane) {
   // borrows this function too, so WHICH part is read off the section the
   // caller already hands over — the one fact tailMat has that P does not.
   const pk = sec && sec.indexOf('stab') === 0 ? 'stCons' : 'finCons';
-  const CONS4 = ['carbon', 'tubeFabric', 'wood', 'alloy'];
+  // G213: the tail's own tokens (fabric over a wooden or tubular structure
+  // on a wood or tube aeroplane), 'as the aeroplane' through GEN_SURF_DEFAULT
+  const CONS4 = ['carbon', 'steel', 'fabric', 'alloy'];
+  const FUS4 = ['carbon', 'tubeFabric', 'wood', 'alloy'];
+  // the TAIL's default: the fabric over the fuselage's own structure
+  const SD = (typeof GEN_SURF_DEFAULT_TAIL !== 'undefined' && GEN_SURF_DEFAULT_TAIL) ||
+    { tubeFabric: 'steel', wood: 'fabric', alloy: 'alloy', carbon: 'carbon' };
   const kc = Math.round(P0[pk] || 0);
   const cons = kc > 0 ? CONS4[kc - 1]
-    : CONS4[Math.max(0, Math.min(3, Math.round(P0.intCons || 0)))] ||
-      'tubeFabric';
+    : SD[FUS4[Math.max(0, Math.min(3, Math.round(P0.intCons || 0)))]] ||
+      'fabric';
   // the editor's per-part livery, when its UI is on the page; the direct
   // factory call below stays as the standalone bench's path
   if (typeof window !== 'undefined' && window.CAGE_SECMAT) {

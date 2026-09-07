@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: da758116bfb8f925
+// body-sha256: 89469fd04a034683
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -3383,6 +3383,10 @@ function hangarWants(S) {
     else if (m === 'tubeFabric') want.add('tube');
     else if (m === 'alloy') want.add('metal');
     else if (m === 'carbon') want.add('composite');
+    // G213: the surfaces' own tokens — fabric over wood wants the wood shop,
+    // fabric over tube the tube shop
+    else if (m === 'fabric') want.add('wood');
+    else if (m === 'steel') want.add('tube');
   };
   if (S && S.fuselage) add(S.fuselage.material);
   if (S && S.wings) for (const w of [].concat(S.wings)) add(w && w.material);
@@ -5905,10 +5909,14 @@ function makeTestPilot(sim, def, world) {
   // capable aeroplane asked for real altitude is given the time to earn it
   // instead of a 'gave-up'. Call before the first update.
   let cardAcc = null;                    // { n, alt, V, saidV } while flying
+  // G208: THE TRIM ACCUMULATOR rides beside the card and does not need one —
+  // the elevator held on the settled cruise leg is the trim advisor's number,
+  // and a standard circuit (blank card) is where most builds first fly.
+  let trimAcc = { n: 0, de: 0 };
   ap.setCard = (card) => {
     if (!card || (!isFinite(card.alt) && !isFinite(card.V))) return;
     const c = { alt: null, V: null, altCmd: null, VCmd: null,
-                altFlown: null, VFlown: null };
+                altFlown: null, VFlown: null, deFlown: null };
     // THE ASK GOES ON THE REPORT AS IT WAS ASKED (G159). It used to be the
     // CLAMPED value that was recorded, which reads as the pilot having been
     // asked for something it was always going to do — and the clamp then has
@@ -5946,7 +5954,7 @@ function makeTestPilot(sim, def, world) {
       ap.VCruise = c.VCmd;
     }
     ap.report.card = c;
-    cardAcc = { n: 0, alt: 0, V: 0, saidV: false };
+    cardAcc = { n: 0, alt: 0, V: 0, de: 0, saidV: false };
   };
 
   ap.update = (dt) => {
@@ -6361,9 +6369,22 @@ function makeTestPilot(sim, def, world) {
         break;
       }
 
-      case 'LIFTOFF':
+      case 'LIFTOFF': {
         c.thr = 1;
-        holdPitch(Math.min(thLift0 + (A.liftoffRamp ?? 9) * phaseT, A.liftoffTh));
+        // G208.3: PAST THE SCREEN HEIGHT THE NOSE COMES DOWN FOR SPEED. The
+        // lift-off attitude was held for as long as LIFTOFF lasted, and on the
+        // default garage build (tube-and-fabric, 10 m high wing, 65 hp) that
+        // is for ever: airborne at 23 m/s, climbing 2 m/s at 9.6°, the speed
+        // sits 0.5 m/s UNDER VClimbMin and the exit below never fires — 1160 m
+        // up and still "taking off". Measured on f7fcf5f, HEAD and the shared
+        // tree alike (the user: "the last test gets stuck in take off mode,
+        // never gets into the next phases, despite the plane climbing"). Above
+        // hSafe the pitch is capped by CLIMB's own speed-seeking law, so a slow
+        // climber lowers its nose and picks up VClimb the way CLIMB would.
+        let thT = Math.min(thLift0 + (A.liftoffRamp ?? 9) * phaseT, A.liftoffTh);
+        if (agl > A.hSafe)
+          thT = Math.min(thT, clamp(A.climbThBase + A.climbThGain * (V - ap.VClimb), 0.02, A.thMax));
+        holdPitch(thT);
         airLateral(0.15);
         // TP: LIFTOFF is bounded too. Measured (rotax582 + 260 kg): airborne
         // at t=65, then HOVERING at half a metre in ground effect for the
@@ -6377,8 +6398,11 @@ function makeTestPilot(sim, def, world) {
           ap.phase = 'PUTDOWN'; phaseT = 0;
           break;
         }
-        if (agl > A.hSafe && V > A.VClimbMin) { ap.phase = 'CLIMB'; phaseT = 0; }
+        // ...and a climber that is clearly away — twice the screen height —
+        // goes to CLIMB whatever its speed; CLIMB's law finishes the job
+        if (agl > A.hSafe && (V > A.VClimbMin || agl > 2 * A.hSafe)) { ap.phase = 'CLIMB'; phaseT = 0; }
         break;
+      }
 
       // TP: the low-hover reject — throttle closed, a gentle nose-up mush
       // until the wheels touch, then the ABORT brakes take it. Outcome is a
@@ -6432,6 +6456,12 @@ function makeTestPilot(sim, def, world) {
         // means of height and speed, and a said-once verdict when full
         // throttle cannot hold the asked speed. The accumulators live in the
         // closure; only the flown numbers reach the report.
+        if (phaseT > 8) {
+          // G208: the elevator held on the settled leg (the slewed command,
+          // which is what a hand would hold), published as `report.trimDe`
+          trimAcc.n += dt; trimAcc.de += aDe * dt;
+          ap.report.trimDe = Math.round(trimAcc.de / trimAcc.n * 1000) / 1000;
+        }
         if (cardAcc && phaseT > 8) {
           cardAcc.n += dt;
           cardAcc.alt += (cg[1] - ap.altRef) * dt;
@@ -7789,7 +7819,14 @@ function makePilot(sim, def, world, opts) {
       }
 
       case 'LIFTOFF': {
-        engage('LOC', 'PITCH', 'FULL', { pitch: Math.min(thLift0 + (A.liftoffRamp ?? 9) * phaseT, A.liftoffTh), bank: 0.15 });
+        // G208.3: above the screen height the lift-off attitude is capped by
+        // CLIMB's speed-seeking law, so a slow climber lowers its nose for
+        // VClimb instead of climbing for ever 0.5 m/s under VClimbMin (the
+        // default garage build did exactly that; see 41_test_pilot.js)
+        let thT = Math.min(thLift0 + (A.liftoffRamp ?? 9) * phaseT, A.liftoffTh);
+        if (agl > A.hSafe)
+          thT = Math.min(thT, clamp(A.climbThBase + A.climbThGain * (V - ap.VClimb), 0.02, A.thMax));
+        engage('LOC', 'PITCH', 'FULL', { pitch: thT, bank: 0.15 });
         flapTgt = fTO;
         const left = runwayLeft();
         setStatus('climbing out of ground effect', [
@@ -7815,7 +7852,9 @@ function makePilot(sim, def, world, opts) {
           committedTO = true;
           say('committed-takeoff', 'airborne with ' + Math.round(left) + ' m of strip left, past the point of stopping — continuing');
         }
-        if (agl > A.hSafe && V > A.VClimbMin) { go('CLIMB'); climbMode = true; ceilT = 0; }
+        // ...and clearly away (twice the screen height) goes to CLIMB whatever
+        // its speed — CLIMB's law finishes the acceleration (G208.3)
+        if (agl > A.hSafe && (V > A.VClimbMin || agl > 2 * A.hSafe)) { go('CLIMB'); climbMode = true; ceilT = 0; }
         break;
       }
 
@@ -8729,6 +8768,93 @@ const GEN_MATERIALS = {
 };
 
 // ===========================================================================
+// GEN_SURF_MATERIALS (G213) — WHAT A WING OR A TAIL IS BUILT OF
+// ===========================================================================
+// The user, 2026-09-07: "In a plywood plane, the wing is wooden structure,
+// but cloth on top. Only the leading edge is made of plywood. That also means
+// that the list of materials for the wing is wrong; it should be carbon,
+// steel, aluminium or fabric. Fabric being the default when the fuselage is
+// either plywood or steel tubes ... The same goes for the fins and
+// stabilisers. These are fabric wrapped on top of either a wooden or tubular
+// structure."
+//
+// THE CONFUSION, AUDITED: a wing, a fin and a stab "as the aeroplane" took
+// the FUSELAGE'S construction row — so a wood aeroplane grew a PLYWOOD wing:
+// ply's finish and grammar (gimp pins, panel laps), ply's covering weight
+// (1.35 kg/m2 for a skin that is 0.42 of fabric), ply's cd0. And the polar
+// penalty (62_gen_aero) read the fuselage's row even when the wing had its
+// own. This table is the flying surfaces' OWN vocabulary; GEN_MATERIALS
+// stays the fuselage's, unchanged, because a fuselage of "fabric" is not a
+// thing (that is tube + fabric) and the gates that sweep GEN_MATERIALS build
+// fuselages from every row.
+//
+//   fabric  a wooden structure (spruce spars, built-up ribs, a ply D-box at
+//           the leading edge) under doped fabric — the Jodel's and the
+//           Cub's wing, and every wood or tube aeroplane's default
+//   steel   4130 tube spars and ribs under the same fabric
+//   alloy   the 2024 sheet wing, riveted — an alloy aeroplane's default
+//   carbon  the moulded wing — a composite aeroplane's default
+//
+// The structure columns (phys, lin, k, c) are SHARED with the fuselage row
+// they come from — a spruce spar flexes as spruce whether it is in a wing
+// or a fuselage — and only what the COVER is differs: fabric's 0.42 plus the
+// D-box's share of ply (about a third of the wetted skin, both faces) is
+// 0.80 kg/m2 against ply's 1.35 for the whole skin.
+const GEN_SURF_MATERIALS = {
+  // ...and it FLEXES MORE than a ply-covered one: the ply skin of the wood
+  // row's wing is a stressed shell and most of its torsional and a share of
+  // its bending stiffness; fabric carries neither. Two thirds of the ply
+  // wing's k (a judgement, not a measurement), the damping in proportion.
+  fabric: { name: 'wood + fabric', phys: GEN_MATERIALS.wood.phys,
+            lin: GEN_MATERIALS.wood.lin,
+            k: { fus: GEN_MATERIALS.wood.k.fus, wing: 2.1e6,
+                 gear: GEN_MATERIALS.wood.k.gear },
+            c: { fus: GEN_MATERIALS.wood.c.fus, wing: 980,
+                 gear: GEN_MATERIALS.wood.c.gear },
+            cover: 0.80, price: 50, cd0: 0.0022, clmaxK: 1.00, shop: 'wood' },
+  steel:  { name: 'steel tube + fabric', phys: GEN_MATERIALS.tubeFabric.phys,
+            lin: GEN_MATERIALS.tubeFabric.lin, k: GEN_MATERIALS.tubeFabric.k,
+            c: GEN_MATERIALS.tubeFabric.c,
+            cover: 0.42, price: 42, cd0: 0.0022, clmaxK: 1.00, shop: 'tube' },
+  alloy:  Object.assign({}, GEN_MATERIALS.alloy,  { shop: 'metal' }),
+  carbon: Object.assign({}, GEN_MATERIALS.carbon, { shop: 'composite' }),
+};
+// what a surface that says nothing is built of, by the fuselage it hangs on.
+// THE WING: fabric over a wooden structure on both a wood and a tube
+// aeroplane (the user's ruling; a Cub's spars are not its fuselage's tubes).
+// THE TAIL: "fabric wrapped on top of either a wooden or tubular structure"
+// — and the structure is the fuselage's: a tube aeroplane's fin post and
+// stab spars are welded tube, so its tail is `steel`, a wood aeroplane's
+// is `fabric`. Measured reason for the split (G213, the test-section
+// session): handing a tube aeroplane's tail the wooden row halved its
+// stiffness (k.fus 8.0e5 -> 4.15e5) and the stab rolled 3.7 deg against the
+// mains through a taxi, over GATE TAKEOFF's 3.5 deg bar set with the tube.
+const GEN_SURF_DEFAULT = { tubeFabric: 'fabric', wood: 'fabric',
+                           alloy: 'alloy', carbon: 'carbon' };
+const GEN_SURF_DEFAULT_TAIL = { tubeFabric: 'steel', wood: 'fabric',
+                                alloy: 'alloy', carbon: 'carbon' };
+// the tokens a saved spec may still carry from before G213, read as what
+// they always meant on a flying surface: a "wood" wing was fabric over
+// wood, a "tubeFabric" wing was fabric over tube
+const GEN_SURF_LEGACY = { wood: 'fabric', tubeFabric: 'steel' };
+// which: 'wing' (plane k) | 'fin' | 'stab'
+function genSurfKey(S, which, k) {
+  const w = which === 'wing' ? (S.wings && S.wings[k || 0]) : null;
+  const raw = which === 'wing' ? (w && w.material)
+            : which === 'fin' ? (S.tail && S.tail.finMaterial)
+            : (S.tail && S.tail.stabMaterial);
+  const key = raw == null ? null
+            : (GEN_SURF_MATERIALS[raw] ? raw : (GEN_SURF_LEGACY[raw] || null));
+  // a resolved spec carries `material`; a raw one only `fuselage.material`
+  const fus = S.material || (S.fuselage && S.fuselage.material);
+  const D = which === 'wing' ? GEN_SURF_DEFAULT : GEN_SURF_DEFAULT_TAIL;
+  return key || D[fus] || 'fabric';
+}
+function genSurfMaterial(S, which, k) {
+  return GEN_SURF_MATERIALS[genSurfKey(S, which, k)];
+}
+
+// ===========================================================================
 // GEN_BUILD_GRAMMAR (G68) — HOW EACH CONSTRUCTION SHOWS ITSELF
 // ===========================================================================
 // The four rows above already move physics and have always moved NOTHING you
@@ -8790,6 +8916,13 @@ const GEN_BUILD_GRAMMAR = {
   },
   // spruce + birch ply. Pinned and glued: the pins are a STIPPLE under dope,
   // not bright dots, and they follow every glue line.
+  // FABRIC OVER A STRUCTURE, the wing's and the tail's own (G213): the same
+  // grammar as tube + fabric — rib tapes and sag, no fasteners — because what
+  // prints through a fabric cover is the ribs under it, whatever they are
+  // made of. Two keys, one look; GEN_SURF_MATERIALS says what they weigh.
+  // Filled from tubeFabric's row below the table.
+  fabric: null,
+  steel: null,
   wood: {
     name: 'spruce + ply',
     framePitch: 0.38,
@@ -8856,6 +8989,12 @@ const GEN_BUILD_GRAMMAR = {
     rough: { member: 0, seam: 0.03 },
   },
 };
+// `alias` says these two are tube + fabric's grammar ON PURPOSE (GATE
+// SKINMAT's duplicate check is for copy errors and steps over declared ones)
+GEN_BUILD_GRAMMAR.fabric = Object.assign({}, GEN_BUILD_GRAMMAR.tubeFabric,
+                                         { name: 'wood + fabric', alias: 'tubeFabric' });
+GEN_BUILD_GRAMMAR.steel  = Object.assign({}, GEN_BUILD_GRAMMAR.tubeFabric,
+                                         { name: 'steel tube + fabric', alias: 'tubeFabric' });
 
 
 // ===========================================================================
@@ -11044,12 +11183,20 @@ function clampSpec(spec) {
   // move (nothing to branch on; genDefaults fills nothing). The one thing to
   // clamp is that a value names a real material — an unknown falls back to
   // absent rather than reaching GEN_MATERIALS as undefined.
-  if (S.wings && S.wings[0] && S.wings[0].material != null &&
-      !GEN_MATERIALS[S.wings[0].material]) delete S.wings[0].material;
-  if (S.tail && S.tail.finMaterial != null &&
-      !GEN_MATERIALS[S.tail.finMaterial]) delete S.tail.finMaterial;
-  if (S.tail && S.tail.stabMaterial != null &&
-      !GEN_MATERIALS[S.tail.stabMaterial]) delete S.tail.stabMaterial;
+  // G213: the flying surfaces have their OWN vocabulary (GEN_SURF_MATERIALS);
+  // a legacy fuselage token is read as what it meant on a wing, an unknown
+  // falls back to absent, and every plane of a biplane is checked
+  const surf = v => v == null ? null
+    : (GEN_SURF_MATERIALS[v] ? v : (GEN_SURF_LEGACY[v] || null));
+  if (S.wings) for (const w of S.wings) if (w && w.material != null) {
+    const m = surf(w.material);
+    if (m) w.material = m; else delete w.material;
+  }
+  if (S.tail) for (const f of ['finMaterial', 'stabMaterial'])
+    if (S.tail[f] != null) {
+      const m = surf(S.tail[f]);
+      if (m) S.tail[f] = m; else delete S.tail[f];
+    }
   // The cage rides through verbatim — its generator owns its own ranges, and
   // clamping a copy of them here would be the second home the field's own note
   // forbids. The one thing this level can enforce is the SWITCH'S TYPE, so a
@@ -12927,9 +13074,12 @@ function genLattice(S, gearX, track, kScale) {
   // from. See B()'s note for why G116's mass move made the k/c coupling
   // safe to take. A V-TAIL IS ONE SURFACE and takes the stab's material:
   // it IS the horizontal tail, raked; there is no fin to build.
+  // G213: the flying surfaces' OWN table — absent means the surface default
+  // for this fuselage (fabric over wood on a wood or tube aeroplane), never
+  // the fuselage's own row
   const MSEC = {
-    wings: GEN_MATERIALS[S.wing && S.wing.material] || M,
-    tail:  GEN_MATERIALS[S.tail && S.tail.stabMaterial] || M,
+    wings: genSurfMaterial(S, 'wing', 0),
+    tail:  genSurfMaterial(S, 'stab'),
   };
   let MB = M;                                   // what the open section BILLS
   const KS = kScale || 1;                       // structure sized for the mass
@@ -13946,7 +14096,7 @@ function genLattice(S, gearX, track, kScale) {
     // the panel between the booms ties them — the stab's own cover
     B(tl.T, tr.T, 'fus'); B(tl.I, tr.I, 'fus'); B(tl.T, tr.I, 'fus'); B(tr.T, tl.I, 'fus');
     cover(1.9 * t.Sh, [HTL, HTR, tl.I, tr.I]);
-    MB = GEN_MATERIALS[t.finMaterial] || M;
+    MB = genSurfMaterial(S, 'fin');            // G213
     const finTopB = y0 + rB + t.vHeight * 0.82;
     const xFin = x0 + len - 0.30 * t.vChord;
     FIN = N(xFin, finTopB, bx, 'FIN');
@@ -13971,7 +14121,7 @@ function genLattice(S, gearX, track, kScale) {
     // THE FIN'S OWN MATERIAL (G116): the stab was billed above under the
     // tail section's default; the fin bills its own from here — sec('gear')
     // below resets the marker, so nothing after can inherit it by accident
-    MB = GEN_MATERIALS[t.finMaterial] || M;
+    MB = genSurfMaterial(S, 'fin');            // G213
     // the fin's apex node follows the RAKE, so the truss leans with the fin the
     // skin draws instead of standing upright inside a swept one
     FIN = N(t.vX + Math.tan((t.vSweep || 0) * Math.PI / 180) * t.vHeight * 0.82,
@@ -15270,15 +15420,18 @@ function genParams(S, fr, strips) {
   // untouched: it is the plane's SELF term, and the mutual term between the
   // planes is the solver's kernel (G185.5), never a second factor here.
   const interplane = !!(S.bracing && S.bracing.interplane && S.bracing.interplane !== 'none');
+  // G213: the finish penalty is the SURFACE'S — a fabric wing on a ply
+  // fuselage flies as fabric, and a carbon wing on a tube fuselage as carbon
   const polarWings = S.wings.map((wk, k) => {
     const Gk = (G.planes && G.planes[k]) || G;
-    return genPolar(wk.naca, Gk.AR, (k === 0 && S.wing.strut) || interplane, M.cd0, M.clmaxK,
+    const MW = genSurfMaterial(S, 'wing', k);
+    return genPolar(wk.naca, Gk.AR, (k === 0 && S.wing.strut) || interplane, MW.cd0, MW.clmaxK,
                     wk.sweepEff != null ? wk.sweepEff : wk.sweep,
                     (GEN_TIPS[wk.tip] || GEN_TIPS.rounded).e);
   });
   const polarWing = polarWings[0];
   const hAR = S.tail.hSpan * S.tail.hSpan / S.tail.Sh;
-  const polarTail = genTailPolar(hAR, M.cd0);
+  const polarTail = genTailPolar(hAR, genSurfMaterial(S, 'stab').cd0);   // G213
   // G115 (the review's S4): the FIN flies on its OWN aspect ratio. It flew
   // the stabiliser's for its whole life — hAR 3.7 against a real vAR of 1.9 —
   // which overstated directional stiffness and rudder power by ~25% and made
@@ -15286,7 +15439,7 @@ function genParams(S, fr, strips) {
   // number, and it moves when the builder reshapes the fin. The fleet's
   // fiches never set polarFin, so the solver's fallback keeps them exact.
   const vAR = S.tail.vHeight * S.tail.vHeight / Math.max(1e-6, S.tail.Sv);
-  const polarFin = genTailPolar(vAR, M.cd0);
+  const polarFin = genTailPolar(vAR, genSurfMaterial(S, 'fin').cd0);      // G213
   const mass = fr.cg0[3];
   // G185: the aeroplane's CLmax is its planes' area-weighted one (a monoplane's
   // is exactly its own)
@@ -16908,7 +17061,7 @@ function genShakedown(def, opts) {
     planes: g.planes || null, liftSplit: g.liftSplit || null,
     xLEmac: g.xLEmac, span: g.span, stagger: g.stagger, decalage: g.decalage,
     braceDCdA: g.braceDCdA || 0,
-    cgX: cg[0], npX: cg[0] + npShift, staticMargin: npShift / cBar,
+    cgX: cg[0], npX: cg[0] + npShift, staticMargin: npShift / cBar, cBar,
     dEpsDa,                                   // G185.5: the tail's measured downwash slope
     // G115: the directional half of the balance story, measured the same way
     cnBeta: genYawStiff(sim, def, V),
@@ -17487,6 +17640,15 @@ function makeLoadTest(sim, def, cfg) {
   const SETTLE = (cfg.settleS == null ? 2.0 : cfg.settleS);
   const MAT = (typeof GEN_MATERIALS !== 'undefined' && cfg.material)
     ? GEN_MATERIALS[cfg.material] : null;
+  // THE WING IS JUDGED AS WHAT IT IS BUILT OF (G213). `cfg.wingMaterial` is a
+  // GEN_SURF_MATERIALS key (or row): the wing class's allowable is that
+  // row's section and yield, not the fuselage's. Measured before this: the
+  // stock tube aeroplane's spruce-spar fabric wing read 131 % "of yield"
+  // against STEEL's 0.62 kg/m section — a wooden spar judged as a tube.
+  const WM = cfg.wingMaterial == null ? null
+    : (typeof cfg.wingMaterial === 'string'
+        ? ((typeof GEN_SURF_MATERIALS !== 'undefined' && GEN_SURF_MATERIALS[cfg.wingMaterial]) || null)
+        : cfg.wingMaterial);
 
   const st = genLoadStations(def);
   const ok = st.length >= 2;
@@ -17558,9 +17720,10 @@ function makeLoadTest(sim, def, cfg) {
     if (!MAT || !MAT.phys) return null;
     let worst = null;
     for (const cls in peak) {
-      if (!MAT.lin[cls]) continue;
-      const A = MAT.lin[cls] / MAT.phys.rho;
-      const pct = 100 * peak[cls].F / (MAT.phys.sigY * A);
+      const R = (cls === 'wing' && WM && WM.phys && WM.lin) ? WM : MAT;
+      if (!R.lin[cls]) continue;
+      const A = R.lin[cls] / R.phys.rho;
+      const pct = 100 * peak[cls].F / (R.phys.sigY * A);
       if (!worst || pct > worst.pct) worst = { cls: cls, pct: pct, bi: peak[cls].bi };
     }
     return worst;
@@ -17814,4 +17977,4 @@ function playerShedDims(doc, id, site) {
   return { HW: d.HW || h.HW, HD: d.HD || h.HD, EAVE: d.EAVE || h.EAVE };
 }
 if (typeof module !== 'undefined')
-  module.exports = { AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, vortexKernel, makeAutopilot, makeTestPilot, makePilot, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims };
+  module.exports = { AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, vortexKernel, makeAutopilot, makeTestPilot, makePilot, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims };

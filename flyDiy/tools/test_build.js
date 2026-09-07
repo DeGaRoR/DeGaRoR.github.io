@@ -733,11 +733,19 @@ function nullPaths(o, pre, out) {
   const base = clone(C.GEN_DEFAULT);
   const L0 = led(base);
   const glob = C.resolveSpec(clone(base)).spec.material;
-  // absent == the global said out loud: the field is a DEVIATION
+  // absent == the surface default said out loud (G213: a wing on a tube or
+  // wood aeroplane is fabric over wood, never the fuselage's own row)
+  const sdef = C.GEN_SURF_DEFAULT[glob];
   const expl = clone(base);
-  expl.wings[0].material = glob;
+  expl.wings[0].material = sdef;
   ok(eq(led(expl), L0),
-     'G116: naming the global material out loud changes nothing');
+     'G116/G213: naming the surface default out loud changes nothing');
+  // ...and a LEGACY token is read as what it meant on a wing: 'wood' is
+  // fabric over wood, i.e. the default on this aeroplane
+  const leg = clone(base);
+  leg.wings[0].material = 'wood';
+  ok(eq(led(leg), L0),
+     'G213: a saved "wood" wing reads as fabric over wood');
   // a carbon wing moves the wing's own mass and cost...
   const cw = clone(base);
   cw.wings[0].material = 'carbon';
@@ -773,7 +781,7 @@ function nullPaths(o, pre, out) {
   // aeroplane: the wing's cost moves the way carbon's price sits against
   // the global material's
   ok((LC.wings.cost > L0.wings.cost) ===
-     (C.GEN_MATERIALS.carbon.price > C.GEN_MATERIALS[glob].price),
+     (C.GEN_SURF_MATERIALS.carbon.price > C.GEN_SURF_MATERIALS[sdef].price),
      'G116: the price moves the way the material table says');
 
   // -------------------------------------------------------------------------
@@ -813,12 +821,13 @@ function nullPaths(o, pre, out) {
   ok(nOdd === 0 && nMat > nBrace,
      'G117: the wing members split into structure (material) and bracing ' +
      '(aeroplane) and nothing else — ' + nMat + '/' + nBrace + '/' + nOdd);
-  const kTab = C.GEN_MATERIALS.carbon.k.wing / C.GEN_MATERIALS[glob].k.wing;
+  // G213: the base wing is the SURFACE default's row, not the fuselage's
+  const kTab = C.GEN_SURF_MATERIALS.carbon.k.wing / C.GEN_SURF_MATERIALS[sdef].k.wing;
   ok(Math.abs(rw / rf / kTab - 1) < 1e-9,
      "G117: the wing k moves by exactly the material table's own ratio");
   const cRw = FC.beams.find(b2 => b2.cls === 'wing' && !b2.gear).c /
               F0.beams.find(b2 => b2.cls === 'wing' && !b2.gear).c;
-  const cTab = C.GEN_MATERIALS.carbon.c.wing / C.GEN_MATERIALS[glob].c.wing;
+  const cTab = C.GEN_SURF_MATERIALS.carbon.c.wing / C.GEN_SURF_MATERIALS[sdef].c.wing;
   ok(Math.abs(cRw / rf / cTab - 1) < 1e-9,
      'G117: the damping follows the same material');
   // absent still equals the global said out loud — MEMBER BY MEMBER, k and

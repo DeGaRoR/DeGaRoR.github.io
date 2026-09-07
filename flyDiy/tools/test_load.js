@@ -32,7 +32,7 @@
 // viewer — so an in-game verdict and a gate verdict can never disagree.
 const { buildGen, makeSim,
         makeLoadTest, GEN_LOAD_LIMIT, GEN_LOAD_ULT,
-        GEN_DEFAULT, GEN_MATERIALS } = require('./flight_core.js');
+        GEN_DEFAULT, GEN_MATERIALS, GEN_SURF_DEFAULT } = require('./flight_core.js');
 
 const say = s => console.log(s);
 const results = {};
@@ -103,6 +103,9 @@ function loadTest(def, n, matKey) {
   const sim = makeSim(def, null);
   sim.reset(0);
   const rig = makeLoadTest(sim, def, { limit: n, ult: n, material: matKey,
+                                       // G213: the wing class is judged as the
+                                       // surface this fuselage defaults to
+                                       wingMaterial: GEN_SURF_DEFAULT[matKey],
                                        rampS: 3.0, holdS: 2.0, settleS: 4.0 });
   if (!rig.state.ok) return null;
   const dt = 1 / 60;
