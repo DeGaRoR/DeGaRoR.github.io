@@ -33877,6 +33877,53 @@ throughout (the only core edits publish two numbers the sheet already had).
   extra fields, nothing removed. Old builds' first dirty stamps rather than
   withdraws. The characters session's working-tree HANDOVER carries a
   second `## G206.1` heading (THE PILOT ALONE) — not mine, not renumbered.
+
+## G208.2 — WHERE THE STICKERS ARE WORN: A PLACE, THEN FINE TUNING
+## (2026-09-07, the user: "we should be able to choose where certification
+## stickers are applied, and maybe move them manually a little (like the fuel
+## tanks, default section + manual fine tuning)")
+
+- **The tank's grammar, on the stickers.** A tank takes a BAY and then an
+  offset; the stickers take a PLACE and then metres. Six rows in the
+  markings panel under their own heading (`data-dec = 'stk'`, "certification
+  stickers" in the FINISH view): `stickers shown`, `stickers go on` (a
+  select over stickers.js's STICKER_PLACES), `stickers along` (±3 m off the
+  place's own station), `stickers up` (±1 m off its height), `sticker size`
+  (60-300 mm, 120 default), `stickers turn`. The keys are decal defaults
+  (`AERO_DEC_DEF.stk*`), so they ride `finish.decals` like every marking,
+  reach the flown aeroplane through aeroDecalMerge, and — being `finish` —
+  never touch the certificate's fingerprint: moving a sticker keeps it.
+- **Five places.** Rear fuselage under the registration (the default),
+  cabin side under the window, the nose behind the cowl (all three in the
+  FIELD frame: metres aft of the firewall, above the waist), the fin and
+  the wing near the root. THE LAST TWO ARE NOT IN THE FIELD FRAME: on a
+  flying surface the field is that surface's own rib-and-spar metres, so a
+  fuselage station means nothing there (measured: fixed stations put the
+  fin's strip in the air). They use the BOX projections — `side` (along
+  and up in the craft frame, the same coordinate decReframe reads: along
+  = -z, up = y) for the fin, `plan` (lateral, along) for the wing — and
+  take their station from LANDMARKS measured off the editor's own fielded
+  skin meshes (ALL of them: the first mesh alone told the fin it stood
+  0.32 m tall): the fin's top point in the last 1.2 m of the aeroplane and
+  the fin's CHORD 0.35 m under it (the leading edge sweeps — a strip hung
+  off the top's station sat in the air ahead of the fin; centred on the
+  chord it lies 1.89-2.46 along on the stock build's 1.81-2.53), the
+  wing's upper surface where |lateral| ≈ 0.9 m and its mean station.
+  Cached per mesh set, so a rebuild re-measures. Without a scene (a
+  core-only build) the stock numbers stand in. The stock build measures:
+  along -2.97 (nose) to 2.71 (tail), fin top 1.59 up at 2.12 along, wing
+  top 0.76 up at -1.67 along.
+- **`AERO_EXTRA_DECALS(THREE, D)`** — the hook now hands the merged decal
+  block through, so the stickers read their place from the same D the
+  registration reads its own from; `STICKERS.resolve(D, landmarks)` is
+  the one keeper of the arithmetic (GATE BENCH proves the default, the
+  fine-tuned fin, the measured fin, the measured wing, and `stickers
+  shown` off).
+- **Not seen in the pane:** the fin and wing places are proven by
+  arithmetic against the measured mesh (the strip's rectangle against the
+  fin's along/up extent and the wing's vertices), not by a screenshot —
+  the pane's 800 px frame cannot show a 120 mm roundel on the fin. A real
+  browser look at "the fin" and "the wing" is owed.
 ## G211 — THE BAR ACROSS THE COCKPIT WAS THE CONSOLE BOX (2026-09-07, the
 ## user, having clicked it: "the bar is the throttle console box, remove it")
 

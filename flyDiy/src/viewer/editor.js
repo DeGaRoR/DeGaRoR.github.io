@@ -888,7 +888,7 @@ function editorInit(api) {
       // `data-dec` tag every row carries
       const dec = CU.DECBODY;
       if (dec) {
-        const by = { reg: [], kit: [], body: [], wing: [], other: [] };
+        const by = { reg: [], kit: [], body: [], wing: [], stk: [], other: [] };
         for (const el of Array.from(dec.children))
           (by[(el.dataset && el.dataset.dec) || 'other'] || by.other).push(el);
         emitEls(p0, 'registration', by.reg.concat(by.other),
@@ -896,6 +896,10 @@ function editorInit(api) {
         emitEls(p0, 'livery', by.kit, 'the marking kit — three layers');
         emitEls(p0, 'body image', by.body, 'a picture on the fuselage');
         emitEls(p0, 'wing image', by.wing, 'a picture on the wing');
+        // G208.2: the certification stickers' place and fine tuning
+        if (by.stk.length)
+          emitEls(p0, 'certification stickers', by.stk,
+                  'where the bench\'s roundels are worn — a place, then fine tuning');
       }
     }
     // THE GLAZING DIALS FOLLOW THE GLASS (2026-08-31, the user editing the

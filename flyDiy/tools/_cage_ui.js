@@ -3697,6 +3697,21 @@ function buildDecPanel() {
   num('wing turn', 'wimRot', -0.6, 0.6, 0.01, 'radians');
   pick('wing projected as', 'wimMode', MODE_NAMES, MODE_HELP,
        (a, b) => decReframe(a, b, { l: 'wimL', c: 'wimC' }));
+  // THE CERTIFICATION STICKERS (G208.2, the user: "we should be able to
+  // choose where certification stickers are applied, and maybe move them
+  // manually a little (like the fuel tanks, default section + manual fine
+  // tuning)"). A place from stickers.js's own table, then metres of fine
+  // tuning off that place's station — the tank's bay-plus-offset grammar.
+  DECG.cur = 'stk';
+  const STK = (window.STICKERS && window.STICKERS.PLACES) || [];
+  flag('stickers shown', 'stkOn',
+       'the bench\'s certification roundels, one per passed test; off hides them');
+  pick('stickers go on', 'stkPlace', STK.map(p => p.name),
+       'the place the strip is worn — its own station and height; the two rows below fine-tune from there');
+  num('stickers along', 'stkL', -3.0, 3.0, 0.02, 'metres fore (-) or aft (+) of the place\'s own station', 'len');
+  num('stickers up', 'stkC', -1.0, 1.0, 0.02, 'metres below (-) or above (+) the place\'s own height', 'up');
+  num('sticker size', 'stkSize', 0.06, 0.30, 0.01, 'the roundel\'s diameter, metres (120 mm is a real placard)');
+  num('stickers turn', 'stkRot', -0.6, 0.6, 0.01, 'radians');
   bodyLock(); wingLock();
 
   // WHAT A SLIDER MAY REACH IS THE AEROPLANE'S OWN SIZE. The image width was

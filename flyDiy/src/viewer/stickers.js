@@ -47,8 +47,129 @@ const STICKER_INK = '#1f3552', STICKER_GROUND = '#f1e7d0', STICKER_RIM = '#d9c9a
 // takes it, which is also where a real aeroplane wears its placard line.
 const STICKER_PLACE = { sL: 1.70, sC: -0.16, d: 0.12, gap: 0.03 };
 const STICKER_PAGE = 6;          // 0 reg, 1-2 images, 3-5 the marking kit
-const stickerStripW = () => STICKER_ORDER.length * STICKER_PLACE.d
-                          + (STICKER_ORDER.length - 1) * STICKER_PLACE.gap;
+// THE PLACES (G208.2, the user: "we should be able to choose where
+// certification stickers are applied, and maybe move them manually a little
+// (like the fuel tanks, default section + manual fine tuning)"). A place is
+// a named default — station, height, which surfaces, which projection — and
+// the decal block's `stkL`/`stkC` fine-tune off it in metres, the way a tank
+// takes a bay and then an offset. The defaults are the stock build's; a
+// long fuselage or a tall fin is what the fine tuning is for. `sL` is the
+// strip's LEADING edge in the field frame (metres aft of the firewall; on
+// the wing, metres from the centreline in plan) and `sC` its centre height
+// (metres from the waist; on the wing, metres fore and aft in plan).
+//
+// THE FUSELAGE PLACES ARE IN THE FIELD FRAME (metres aft of the firewall,
+// above the waist — the frame a fuselage marking wraps in). THE FIN AND THE
+// WING ARE NOT: the field on a flying surface is that surface's own rib and
+// spar metres, so those two places use the BOX projections (`side`: along
+// and up in the craft frame; `plan`: lateral and along) and take their
+// station from LANDMARKS measured off the aeroplane on the stand — the fin's
+// top, the wing's upper surface near the root — so the default lands on the
+// surface for a long fuselage as much as for the stock one (measured
+// 2026-09-07: fixed stations put the fin's strip in the air). Without a
+// scene to measure (a core-only build) the stock build's numbers stand in.
+const STICKER_PLACES = [
+  { id: 'aft',  name: 'rear fuselage, under the registration',
+    sL: 1.70, sC: -0.16, on: { body: 1 }, mode: 'field' },
+  { id: 'cab',  name: 'cabin side, under the window',
+    sL: 0.95, sC: -0.13, on: { body: 1 }, mode: 'field' },
+  { id: 'nose', name: 'the nose, behind the cowl',
+    sL: 0.15, sC: 0.10, on: { body: 1 }, mode: 'field' },
+  { id: 'fin',  name: 'the fin',
+    land: 'fin', sL: 5.20, sC: 1.20, on: { tail: 1 }, mode: 'side' },
+  { id: 'wing', name: 'the wing, near the root',
+    land: 'wing', sL: 0.90, sC: 0.30, on: { wing: 1 }, mode: 'plan' },
+];
+const stickerStripW = d => { d = d || STICKER_PLACE.d;
+  return STICKER_ORDER.length * d + (STICKER_ORDER.length - 1) * d / 4; };
+
+// THE LANDMARKS, off the fielded skin mesh the editor's scene holds (the
+// same mesh decReframe reads), in the craft frame: along runs aft (-z), up
+// is y, lateral is x. Cached per mesh; a rebuild makes a new mesh.
+let stickerLandCache = null;
+function stickerLandmarks() {
+  try {
+    const S = (typeof window !== 'undefined') && window.CAGE_UI_SCENE;
+    const T3 = (typeof THREE !== 'undefined') ? THREE : (typeof window !== 'undefined' && window.THREE);
+    if (!S || !T3 || !T3.Matrix4) return null;
+    // EVERY fielded mesh — the skin is several (the fuselage, each wing, the
+    // tail), and the first one alone told the fin it stood 0.32 m tall
+    const meshes = [];
+    S.traverse(o => { if (o.isMesh && o.geometry && o.geometry.attributes
+                          && o.geometry.attributes.aStruct) meshes.push(o); });
+    if (!meshes.length) return null;
+    const key = meshes.map(m => m.uuid + ':' + m.geometry.attributes.position.count).join('|');
+    if (stickerLandCache && stickerLandCache.key === key) return stickerLandCache;
+    S.updateWorldMatrix(true, false);
+    const inv = new T3.Matrix4().copy(S.matrixWorld).invert();
+    const v = new T3.Vector3();
+    let n = 0;
+    for (const m of meshes) n += m.geometry.attributes.position.count;
+    const X = new Float32Array(n), Y = new Float32Array(n), A = new Float32Array(n);
+    let alongMax = -Infinity, k = 0;
+    for (const m of meshes) {
+      m.updateWorldMatrix(true, false);
+      const toCraft = new T3.Matrix4().copy(inv).multiply(m.matrixWorld);
+      const P = m.geometry.attributes.position;
+      for (let i = 0; i < P.count; i++, k++) {
+        v.fromBufferAttribute(P, i).applyMatrix4(toCraft);
+        X[k] = v.x; Y[k] = v.y; A[k] = -v.z;
+        if (A[k] > alongMax) alongMax = A[k];
+      }
+    }
+    // the fin: the highest point in the last 1.2 m of the aeroplane, and the
+    // fin's CHORD at the strip's own height (0.35 m under the top, ±0.08):
+    // the leading edge sweeps, so the top's station is the tip's leading
+    // corner and a strip hung off it sat in the air ahead of the fin
+    // (measured: strip 1.10-1.67 along, fin 1.81-2.53 at that height)
+    let finTop = -Infinity, finAlong = alongMax;
+    for (let i = 0; i < n; i++) if (A[i] > alongMax - 1.2 && Y[i] > finTop) { finTop = Y[i]; finAlong = A[i]; }
+    const yStrip = finTop - 0.35;
+    let fa = Infinity, fb = -Infinity;
+    for (let i = 0; i < n; i++)
+      if (A[i] > alongMax - 1.6 && Y[i] > finTop - 0.6 && Math.abs(Y[i] - yStrip) < 0.08) {
+        if (A[i] < fa) fa = A[i]; if (A[i] > fb) fb = A[i]; }
+    const finBand = (fb > fa) ? [fa, fb] : null;
+    // the wing: the upper surface where |lateral| is about 0.9 m — its
+    // height, and the mean station of that surface
+    let wingTop = -Infinity;
+    for (let i = 0; i < n; i++) if (Math.abs(Math.abs(X[i]) - 0.9) < 0.1 && Y[i] > wingTop) wingTop = Y[i];
+    let wa = 0, m = 0;
+    for (let i = 0; i < n; i++)
+      if (Math.abs(Math.abs(X[i]) - 0.9) < 0.1 && Y[i] > wingTop - 0.06) { wa += A[i]; m++; }
+    stickerLandCache = { key, alongMax, finTop, finAlong, finBand,
+                         wingTop, wingAlong: m ? wa / m : null };
+    return stickerLandCache;
+  } catch (e) { return null; }
+}
+
+// the placement the decal block asks for: the place's own station and
+// height (measured when a landmark is available), the fine tuning, the size,
+// the turn — resolved in one place so the editor's live DEC and the flown
+// spec's merged decals read the same
+function stickerResolve(D, L) {
+  D = D || {};
+  if (D.stkOn != null && !D.stkOn) return null;
+  const pi = Math.max(0, Math.min(STICKER_PLACES.length - 1, Math.round(+D.stkPlace || 0)));
+  const p = STICKER_PLACES[pi];
+  const d = Math.max(0.03, Math.min(0.5, +D.stkSize || STICKER_PLACE.d));
+  const w = stickerStripW(d);
+  let sL = p.sL, sC = p.sC;
+  if (p.land === 'fin' && L && isFinite(L.finTop)) {
+    // centred on the fin's chord at the strip's height, 0.35 m under the
+    // top; without a measured chord, hung 0.45 m short of the top's station
+    sC = L.finTop - 0.35;
+    sL = (L.finBand && L.finBand[1] > L.finBand[0])
+       ? (L.finBand[0] + L.finBand[1]) / 2 - w / 2
+       : L.finAlong - 0.45 - w;
+  } else if (p.land === 'wing' && L && L.wingAlong != null) {
+    // across the span from 0.9 m out, on the wing's chord station
+    sL = 0.90; sC = L.wingAlong;
+  }
+  return { d, w, h: d,
+           sL: sL + (+D.stkL || 0) + w / 2, sC: sC + (+D.stkC || 0),
+           rot: +D.stkRot || 0, on: p.on, mode: p.mode, place: p.id };
+}
 
 // ---- ONE ROUNDEL ------------------------------------------------------
 // g: a 2d context already transformed so that (cx, cy, r) are in the units
@@ -182,7 +303,9 @@ function stickerEmblem(g, kind) {
 // `certs`: [{id, when}] awarded, in any order. Draws page 6 when the recipe
 // changed and returns the ONE placement, or [] when nothing is awarded.
 let stickerSig = null, stickerPlacement = null;
-function stickerPlacements(THREE) {
+// `D` is the decal block (the editor's live DEC, or the flown spec's merged
+// decals) — the place, the fine tuning, the size and the turn come from it
+function stickerPlacements(THREE, D) {
   const A = (typeof window !== 'undefined') ? window.AEROSKIN : null;
   const st = (typeof window !== 'undefined' && typeof window.BENCH_STATE === 'function')
            ? window.BENCH_STATE() : null;
@@ -191,11 +314,15 @@ function stickerPlacements(THREE) {
   for (const c of certs) if (c && c.id) by[c.id] = c;
   const cells = STICKER_ORDER.map(id => by[id] ? (id + '@' + (by[id].when || '')) : '-');
   if (!cells.some(c => c !== '-')) { stickerSig = null; return []; }
-  const sig = cells.join('|');
-  const w = stickerStripW(), h = STICKER_PLACE.d;
-  const place = { page: STICKER_PAGE, sL: STICKER_PLACE.sL + w / 2, sC: STICKER_PLACE.sC,
-                  w, h, rot: 0, rough: -0.08, on: { body: 1 }, mode: 'field' };
-  if (sig === stickerSig && stickerPlacement) return [stickerPlacement];
+  const R = stickerResolve(D, stickerLandmarks());
+  if (!R) { stickerSig = null; return []; }
+  // the page's drawing depends on the cells and the size (drawn in metres);
+  // the placement is cheap and rebuilt every call
+  const sig = cells.join('|') + '|' + R.d;
+  const w = R.w, h = R.h;
+  const place = { page: STICKER_PAGE, sL: R.sL, sC: R.sC, w, h, rot: R.rot,
+                  rough: -0.08, on: R.on, mode: R.mode };
+  if (sig === stickerSig && stickerPlacement) { stickerPlacement = place; return [place]; }
   if (!A || !A.aeroAtlas) return [];
   try {
     const t = A.aeroAtlas(THREE), cv = t.image;
@@ -212,8 +339,8 @@ function stickerPlacements(THREE) {
       const c = by[id];
       if (!c) return;
       const M = STICKER_META[id];
-      const cx = STICKER_PLACE.d / 2 + i * (STICKER_PLACE.d + STICKER_PLACE.gap);
-      stickerRoundel(g, cx, h / 2, STICKER_PLACE.d / 2 * 0.98,
+      const cx = R.d / 2 + i * (R.d + R.d / 4);
+      stickerRoundel(g, cx, h / 2, R.d / 2 * 0.98,
         { title: M.title, emblem: M.emblem, date: c.when || '' });
     });
     g.restore();
@@ -261,12 +388,13 @@ function stickerRefresh() {
 
 if (typeof window !== 'undefined') {
   window.STICKERS = { ORDER: STICKER_ORDER, META: STICKER_META, PLACE: STICKER_PLACE,
-                      PAGE: STICKER_PAGE, roundel: stickerRoundel,
-                      placements: stickerPlacements, refresh: stickerRefresh,
-                      stripW: stickerStripW };
-  window.AERO_EXTRA_DECALS = THREE => stickerPlacements(THREE);
+                      PLACES: STICKER_PLACES, PAGE: STICKER_PAGE, roundel: stickerRoundel,
+                      placements: stickerPlacements, resolve: stickerResolve,
+                      landmarks: stickerLandmarks,
+                      refresh: stickerRefresh, stripW: stickerStripW };
+  window.AERO_EXTRA_DECALS = (THREE, D) => stickerPlacements(THREE, D);
 }
 if (typeof module !== 'undefined' && module.exports)
-  module.exports = { STICKER_ORDER, STICKER_META, STICKER_PLACE, STICKER_PAGE,
-                     stickerRoundel, stickerArcText, stickerEmblem, stickerStripW,
-                     stickerPlacements, stickerDilate };
+  module.exports = { STICKER_ORDER, STICKER_META, STICKER_PLACE, STICKER_PLACES,
+                     STICKER_PAGE, stickerRoundel, stickerArcText, stickerEmblem,
+                     stickerStripW, stickerResolve, stickerPlacements, stickerDilate };

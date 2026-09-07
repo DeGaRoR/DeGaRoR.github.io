@@ -1479,6 +1479,13 @@ const AERO_DEC_DEF = {
   imgMode: 0, imgRot: 0, imgLock: 1,
   wimOn: 0, wimL: 0.0, wimC: 0.0, wimW: 2.0, wimH: 1.0,
   wimMode: 2, wimRot: 0, wimLock: 1,
+  // G208.2: WHERE THE CERTIFICATION STICKERS ARE WORN — a place (an index
+  // into stickers.js's STICKER_PLACES: the rear fuselage, the cabin side,
+  // the fin, the nose, the wing) plus fine tuning off that place's own
+  // station, the roundel's size and turn, and whether they show at all.
+  // In the decal block so they ride `finish.decals` like every marking —
+  // cosmetic, so moving them never withdraws the certificate they picture.
+  stkOn: 1, stkPlace: 0, stkL: 0, stkC: 0, stkSize: 0.12, stkRot: 0,
 };
 const AERO_DEC_ON = [
   { body: 1 },                        // 0 the fuselage
@@ -1792,7 +1799,7 @@ function aeroDecalsFor(THREE, D, opts) {
   // certificate. Through a window hook so this file knows no bench.
   try {
     const X = (typeof window !== 'undefined' && typeof window.AERO_EXTRA_DECALS === 'function')
-            ? window.AERO_EXTRA_DECALS(THREE) : null;
+            ? window.AERO_EXTRA_DECALS(THREE, D) : null;
     if (X) for (const p of X) list.push(p);
   } catch (e) {}
   return { list, aspect };

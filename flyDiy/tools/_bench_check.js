@@ -171,9 +171,24 @@ console.log('THE STRIP');
   ok(calls.includes('arc') && calls.includes('fillText') && calls.includes('rotate'), 'a roundel is a disc with lettering round it');
   ok(ST.STICKER_ORDER.length === 4 && ST.STICKER_ORDER.every(id => BE.BENCH_TESTS.some(t => t.id === id)), 'one sticker per declared test');
   ok(Math.abs(ST.stickerStripW() - 0.57) < 1e-9 && ST.STICKER_PLACE.d === 0.12, 'four 120 mm roundels in a 0.57 m strip');
+  // G208.2: a place plus fine tuning, like a tank's bay plus offset
+  const R0 = ST.stickerResolve({}), Rf = ST.stickerResolve({ stkPlace: 3, stkL: 0.5, stkC: -0.2, stkSize: 0.08, stkRot: 0.1 });
+  ok(R0 && R0.place === 'aft' && Math.abs(R0.sL - (1.70 + 0.285)) < 1e-9 && R0.sC === -0.16 && R0.on.body === 1, 'no decal block = the rear fuselage under the registration');
+  ok(Rf && Rf.place === 'fin' && Rf.on.tail === 1 && Rf.mode === 'side' && Math.abs(Rf.d - 0.08) < 1e-9 && Math.abs(Rf.sL - (5.20 + 0.5 + ST.stickerStripW(0.08) / 2)) < 1e-9
+     && Math.abs(Rf.sC - 1.0) < 1e-9 && Rf.rot === 0.1, 'the fin place (box side frame), fine-tuned, smaller, turned');
+  const Rl = ST.stickerResolve({ stkPlace: 3 }, { finTop: 2.0, finAlong: 6.0, finBand: [5.0, 5.8], wingAlong: 1.4 });
+  ok(Rl && Math.abs(Rl.sL - 5.4) < 1e-9 && Math.abs(Rl.sC - 1.65) < 1e-9, 'with a measured fin, the strip is centred on its chord 0.35 m under the top');
+  const Rn = ST.stickerResolve({ stkPlace: 3 }, { finTop: 2.0, finAlong: 6.0, finBand: null, wingAlong: 1.4 });
+  ok(Rn && Math.abs(Rn.sL - (6.0 - 0.45 - 0.57 + 0.285)) < 1e-9, 'without a chord, hung short of the top\'s station');
+  const Rw = ST.stickerResolve({ stkPlace: 4 }, { finTop: 2.0, finAlong: 6.0, wingAlong: 1.4 });
+  ok(Rw && Rw.mode === 'plan' && Rw.on.wing === 1 && Math.abs(Rw.sL - (0.9 + 0.285)) < 1e-9 && Math.abs(Rw.sC - 1.4) < 1e-9, 'with a measured wing, the strip lies across the span on its chord station');
+  ok(ST.stickerResolve({ stkOn: 0 }) === null, 'stickers shown off = no strip');
+  ok(ST.STICKER_PLACES.length === 5 && ST.STICKER_PLACES.every(p => p.name && p.on && p.mode), 'five named places, each with surfaces and a projection');
+  ok(/stkOn: 1, stkPlace: 0, stkL: 0, stkC: 0, stkSize: 0.12, stkRot: 0,/.test(SKIN), 'the sticker keys are decal defaults, so they ride finish.decals');
+  ok(/DECG\.cur = 'stk'/.test(rd('tools/_cage_ui.js')) && /stk: \[\]/.test(rd('src/viewer/editor.js')), 'the panel has a stickers block and the finish view a heading for it');
   ok(ST.STICKER_PAGE === 6, 'the strip lives on atlas page 6 (0 reg, 1-2 images, 3-5 the kit)');
   ok(/const AERO_MAXD = 7/.test(SKIN) && /#define AERO_MAXD 7/.test(SKIN), 'the shader has the seventh decal slot');
-  ok(/window\.AERO_EXTRA_DECALS\(THREE\)/.test(SKIN), 'aeroDecalsFor takes the stickers through the hook');
+  ok(/window\.AERO_EXTRA_DECALS\(THREE, D\)/.test(SKIN), 'aeroDecalsFor takes the stickers through the hook, with the decal block');
   ok(/'plaque\.js', 'stickers\.js', 'bench\.js'/.test(BUILD) && /'bench\.css'/.test(BUILD), 'the manifest carries plaque.js, stickers.js and bench.css');
   ok(/redecal:/.test(rd('tools/_cage_ui.js')), 'the editor can be asked to rebuild its decal list');
   ok(/pos: \[cgN\[0\], cgN\[1\], cgN\[2\]\]/.test(APP), 'the circuit poll carries the trace');
