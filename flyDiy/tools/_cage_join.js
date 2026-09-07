@@ -1354,7 +1354,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
                               (kud.aeroTileK ? 'T' + kud.aeroTileK : '') +
                               (kud.aeroRoughK ? 'R' + kud.aeroRoughK : '') +
                               (kud.aeroNrmK ? 'N' + kud.aeroNrmK : '') +
-                              (kud.aeroWearM ? 'M' + kud.aeroWearM : '') : '') +
+                              (kud.aeroWearM ? 'M' + kud.aeroWearM : '') +
+                              (kud.aeroCcK ? 'C' + kud.aeroCcK : '') +
+                              (kud.aeroFieldK ? 'F' + kud.aeroFieldK : '') : '') +
             // G185: the second plane's materials are their own buckets — the
             // game binds each plane's skin to its own spar stations
             (kud.aeroPlane ? 'P' + kud.aeroPlane : '');
@@ -1397,6 +1399,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           ...(ud.aeroTileK ? { tileK: ud.aeroTileK } : {}),
           ...(ud.aeroRoughK ? { roughK: ud.aeroRoughK } : {}),
           ...(ud.aeroNrmK ? { nrmK: ud.aeroNrmK } : {}),
+          // G206: the sheen and the field dials cross the same way
+          ...(ud.aeroCcK ? { ccK: ud.aeroCcK } : {}),
+          ...(ud.aeroFieldK ? { fieldK: ud.aeroFieldK } : {}),
           ...(ud.aeroRibM ? { ribM: ud.aeroRibM } : {}),
           ...(ud.aeroWearK != null ? { wearK: ud.aeroWearK } : {}),
           ...(ud.aeroWearM != null ? { wearM: ud.aeroWearM } : {}),

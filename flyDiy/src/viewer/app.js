@@ -1354,6 +1354,7 @@
               // as in the editor. Without these a dialled section flew with
               // the factory numbers.
               tileK: m.tileK, roughK: m.roughK, nrmK: m.nrmK,
+              ccK: m.ccK, fieldK: m.fieldK,          // G206
               ribM: m.ribM, wearK: m.wearK, wearM: m.wearM,
               side: THREE.DoubleSide });
       }
@@ -1446,6 +1447,13 @@
       // — the same fact `castShadow` below already reads
       const clear = !!(mats[name] && mats[name].opacity < 1);
       mesh.renderOrder = (RENDER_ORDER[name] || 0) + (clear ? AERO_CLEAR : 0);
+      // THE GLASS COMPANION (G206): a pane is two draws — the multiply pass
+      // rides the same faces one renderOrder earlier. See aeroskin.js's
+      // glass family header; the editor's meshFrom does the same.
+      if (typeof AEROSKIN !== 'undefined' && AEROSKIN.aeroGlassCompanion)
+        AEROSKIN.aeroGlassCompanion(THREE, mesh, mesh.material,
+          m0 => AEROSKIN.aeroGlassTint(THREE,
+            { tintLin: m0.color.getHex(), opacity: m0.opacity }));
       if (isProp) { mesh.position.set(data.hub[0], data.hub[1], data.hub[2]); props.push(mesh); }
       if (name === 'skin' || isProp ||
           (data.cage && !(mats[name] && mats[name].opacity < 1)))
@@ -1513,6 +1521,10 @@
         for (const name in pt.groups) {
           const mesh = new THREE.Mesh(mkGeo(pt.groups[name]), matFor(name));
           mesh.castShadow = !(mats[name] && mats[name].opacity < 1);
+          if (typeof AEROSKIN !== 'undefined' && AEROSKIN.aeroGlassCompanion)
+            AEROSKIN.aeroGlassCompanion(THREE, mesh, mesh.material,
+              m0 => AEROSKIN.aeroGlassTint(THREE,
+                { tintLin: m0.color.getHex(), opacity: m0.opacity }));
           pg.add(mesh);
         }
         if (pt.kind === 'prop') {

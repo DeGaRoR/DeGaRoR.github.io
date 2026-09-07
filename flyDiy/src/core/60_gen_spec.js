@@ -255,17 +255,27 @@ const GEN_BUILD_GRAMMAR = {
   // why this row is all tape and sag and no heads.
   tubeFabric: {
     name: 'tube + fabric',
-    framePitch: 0.42,        // truss bays; the tape crosses at each
+    // THE FRAMES DO NOT PRINT (G206, the user: Cubs "seem very flat on the
+    // fuselage. You can see the internal structure slightly (especially the
+    // longitudinal beams of the boom)"). The covering touches only the
+    // STRINGERS — wooden battens laid fore-aft over the formers — and the
+    // truss bays behind them never touch it, so nothing prints at a frame
+    // pitch. framePitch 0.42 put a tape AND a sag at every bay, which with
+    // the stringers' own made a quilt. The real formers the generator knows
+    // about (the cage's rings, uG4.x) still take their faint line.
+    framePitch: 0,
     stringerPitch: 0.16,     // 12-20 stringers around a light fuselage
     panelAlong: 0, panelAround: 0,   // one envelope: no panels, no lines
-    // 50 mm (2 in) pinked-edge surface tape, doped, rising 0.3-0.8 mm with a
-    // soft shoulder. This ridge is most of what makes a covered airframe read
-    // as covered — garage.js's own comment, and it was right.
-    tape: { w: 0.050, rise: 0.00065 },
-    // fabric slack between members: 0.5-1.5 % of the pitch, FLAT-BOTTOMED.
-    // The exponent is what makes it read as a membrane under tension rather
+    // what prints is the STRINGER: a rounded batten under a tensioned
+    // membrane, a soft 18 mm ridge under a millimetre high. (The 50 mm doped
+    // rib TAPE is the wing's, where the wing grammar draws it per rib.)
+    tape: { w: 0.018, rise: 0.0009 },
+    // fabric slack between stringers: ~0.4 % of the pitch, FLAT-BOTTOMED,
+    // and ONE-DIRECTIONAL by construction now that framePitch is 0 — the
+    // shader sags along an axis only where that axis has a pitch. The
+    // exponent is what makes it read as a membrane under tension rather
     // than as a wave, and 1.4 is the value the old bump sheet used.
-    sag: { frac: 0.006, exp: 1.4 },
+    sag: { frac: 0.004, exp: 1.4 },
     dish: 0,
     fastener: null,
     seam: null,
@@ -280,8 +290,12 @@ const GEN_BUILD_GRAMMAR = {
     panelAlong: 2.0,         // a ply sheet is 1220 x 2440 and scarfs at a frame
     panelAround: 0.85,       // and will not wrap much past this
     tape: { w: 0.020, rise: 0.00012 },   // the frame under the skin, barely
-    sag: { frac: 0.0015, exp: 2.0 },     // ply dishes; it does not sag
-    dish: -0.0003,
+    // A STRESSED PLY SKIN IS FLAT (G206): glued to every longeron and frame,
+    // it neither sags nor dishes between them at 0.22 m — a Jodel's flank is
+    // dead flat with the members ghosting through and a scarf or two. The
+    // 0.3 mm dish per cell, quadrupled by the old single gain, was a quilt.
+    sag: { frac: 0, exp: 2.0 },
+    dish: 0,
     // gimp pins at 25 mm (Jodel plans), 1.6 mm heads standing 0.10-0.15 mm
     fastener: { kind: 'nail', pitch: 0.025, rowW: 0.020,
                 dia: 0.0016, rise: 0.00012 },
@@ -300,6 +314,9 @@ const GEN_BUILD_GRAMMAR = {
     sag: { frac: 0, exp: 1 },
     // OIL-CANNING, and it is what makes metal read as metal in raking light.
     // 0.5-2 mm, and it DISHES IN more than it bulges out — hence the sign.
+    // IRREGULAR since G206: the shader dishes one bay in two, each its own
+    // depth, bent again by the large-scale field — a dish in every cell at
+    // one sine was a waffle whatever this number said.
     dish: -0.0012,
     // AN470 universal: 4.8 mm across, 1.4 mm proud, 20-25 mm pitch (the 4D-6D
     // design rule). EDGE DISTANCE is 2D, so the row sits 5-8 mm INSIDE the

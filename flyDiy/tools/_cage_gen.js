@@ -2169,6 +2169,17 @@ function cageRims(m, S) {
     // was unfindable from the thing it controls.
     const r = kind === 'door' ? (W.doorRim > 0 ? W.doorRim : W.rim * 0.85)
                               : W.rim;
+    // THE STRIP STANDS ON THE SKIN (G206): the window's outline was traced
+    // on the pane, which cageCut has just recessed by paneInset — lift the
+    // path back by the same amount along the outline's own normals, or the
+    // strip sinks with the glass and the step it was cut for disappears.
+    if (kind !== 'door' && S.cut && S.cut.on && W.paneInset > 0) {
+      const li = W.paneInset;
+      pts = pts.map((p, i) => {
+        const n = ns[i] || [0, 0, 0];
+        return [p[0] + n[0] * li, p[1] + n[1] * li, p[2] + n[2] * li];
+      });
+    }
     // ROUND SHARP CORNERS of the sweep path (user: shading at the seal
     // elbows): corners sharper than ~35 deg are Chaikin-cut into two
     // points a small way down each arm — a physical seal rounds its
@@ -2376,7 +2387,16 @@ function cageRims(m, S) {
         // low strip straddling the seam, not a full round tube — the
         // in-surface half-width keeps r, the out-of-surface rise drops
         // to a fraction of it (n2 is the surface normal by construction)
-        const cb = Math.cos(a) * r, cn = Math.sin(a) * r * 0.38;
+        // ...AND A RETAINING STRIP ON A WINDOW (G206): the rise is the
+        // builder's `rimRise` (0.22 = 2.6 mm on the stock 12 mm), and the
+        // section is flat-topped — the sine is clipped so the crown is a
+        // face, not a ridge. A DOOR keeps the round-topped rubber at 0.38.
+        const rise = kind === 'door' ? 0.38
+                   : (W.rimRise != null ? W.rimRise : 0.38);
+        const sn = Math.sin(a);
+        const cb = Math.cos(a) * r;
+        const cn = (kind === 'door' ? sn
+                    : Math.max(-1, Math.min(1, sn * 1.5))) * r * rise;
         let qx = b[0]*cb + n2[0]*cn, qy = b[1]*cb + n2[1]*cn,
             qz = b[2]*cb + n2[2]*cn;
         if (mit) {
@@ -2582,7 +2602,7 @@ function cageCut(m, S) {
     }
     return [...z.values()];
   };
-  const cutZone = (fis, sill) => {
+  const cutZone = (fis, sill, inset) => {
     let keep = fis;
     if (sill > 0) {
       // ROW-STEPPED SILL (user correction: cut STRAIGHT along the rows
@@ -2668,6 +2688,15 @@ function cageCut(m, S) {
     const off = rl > 0.15 * nl
       ? [nx/rl*C.explode, ny/rl*C.explode, 0]
       : [nx/nl*C.explode, ny/nl*C.explode, nz/nl*C.explode];
+    // THE PANE STEPS DOWN (G206): a window part is recessed by `inset`
+    // (cage units) along its own mean normal — the full normal, not the radial
+    // one, because a raked screen recesses square to its glass. The strip
+    // (cageRims) lifts its path back up by the same amount, so the seal
+    // stands on the skin and the pane sits behind it. Doors pass 0.
+    if (inset > 0) {
+      off[0] -= nx / nl * inset; off[1] -= ny / nl * inset;
+      off[2] -= nz / nl * inset;
+    }
     const map = new Map();
     for (const fi of keep) {
       F[fi].v = F[fi].v.map(vi => {
@@ -2698,14 +2727,14 @@ function cageCut(m, S) {
       : dk && dk.lastIndexOf('pax', 0) === 0
         ? (W.doorSillPax != null ? W.doorSillPax : W.doorSill)
       : W.doorSill;
-    cutZone(z, Math.max(0, sill || 0));
+    cutZone(z, Math.max(0, sill || 0), 0);
   }
   // DOORS OWN THEIR WINDOWS (user ruling): glass already separated with
   // a door stays with it — only window faces OUTSIDE every cut door form
   // their own parts (a window straddling a door edge splits: the door
   // keeps its share, the rest becomes a fuselage-side window part).
   if (C.wins) for (const z of groups('win', fi => !F[fi].cutPart))
-    cutZone(z, 0);
+    cutZone(z, 0, W.paneInset || 0);
   // DOOR REMOVED (G26.4, user): define the door, then take it away —
   // the OPENING stays and everything around it (jambs, sills, broken
   // waist runs, frames) is built exactly as if the door were hung; the
@@ -6340,6 +6369,16 @@ const CAGE_PARAMS = {
   // while it waits.
   winFrameW: 0, winDepth: 0.015, winBlow: 0, crGlass: 3.0,
   rimW: 0.012, rimWin: 1, rimWs: 1, rimDoor: 1, rimSides: 8, rimArc: 3,
+  // THE JOINT IS A STRIP AND THE PANE STEPS DOWN INSIDE IT (G206, the user:
+  // "look at the window joints too, they might be important suspect in the
+  // windows looking bad" — they were). `rimRise` is the strip's rise as a
+  // fraction of its half-width: 0.38 was a low tube, 0.22 on the stock rimW
+  // (0.012 cage units, ~9 mm) is a 2 mm retaining strip, which is what holds a pane on
+  // a light aeroplane (a doped tape on fabric, an alloy strip on ply and
+  // metal). `paneInset` recesses the cut pane by that much (cage units,
+  // like rimW: 0.0025 is ~1.9 mm at the stock unit) behind the skin, so the strip stands proud of the glass and the pane reads as
+  // a solid set into a frame rather than a sticker with a line round it.
+  rimRise: 0.22, paneInset: 0.0025,
   doorOn: 1, doorPax: 0, doorDeep: 1, doorSill: 0.06, doorSillPax: 0.06,
   // THE DOOR'S OWN GAP and the REVEAL it sits in. `winFrameW` gates the whole
   // frame/recess pass (cageWinFrames returns immediately at 0), so `doorDepth`
@@ -6814,6 +6853,8 @@ function cageSpec(P) {
             crGlass: P.crGlass, door: P.doorOn ? 1 : 0,
             doorDepth: P.doorDepth, rim: P.rimW, doorRim: P.doorRim,
             rimSides: P.rimSides || 8, rimArc: P.rimArc || 1,
+            rimRise: P.rimRise != null ? +P.rimRise : 0.38,
+            paneInset: Math.max(0, +P.paneInset || 0),
             rimWin: P.rimWin ? 1 : 0, rimWs: P.rimWs ? 1 : 0,
             rimDoor: P.rimDoor ? 1 : 0,
             doorSill: Math.max(0, P.doorSill || 0),

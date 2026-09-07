@@ -149,6 +149,9 @@ const BASE_GROUPS = [
   ]],
   ['window joints', [
     ['rimW',      'rim size',     0.00, 0.04, 0.001],
+    // G206: the strip's rise (a fraction of rimW) and the pane's step down
+    ['rimRise',   'rim rise',     0.05, 1, 0.01],
+    ['paneInset', 'pane inset',   0, 0.01, 0.0005],
     ['rimSides',  'rim sides',    4, 10, 1],
     ['rimArc',    'corner sections', 1, 6, 1],
     ['rimWin',    'window rims',  0, 1, 1],
@@ -351,6 +354,8 @@ const secFin = {};
 // stays the authority on what a material IS. Absent means 1 and costs no
 // storage: only the sections somebody has actually dialled are written.
 const secTile = {}, secRough = {}, secNrm = {};
+// G206: the sheen (clear coat) and the large-scale field, same shape
+const secCc = {}, secField = {};
 // THE PART'S OWN CONDITION (G114, answering G70's "no per-part condition"):
 // a multiplier on the material's ageing rate, walked down the chains like
 // the dials — the one dial still sets the aeroplane, this says how much of
@@ -371,6 +376,8 @@ function aeroLoadPrefs() {
     Object.assign(secRough, j.rough || {});
     Object.assign(secNrm, j.nrm || {});
     Object.assign(secWear, j.wearM || {});
+    Object.assign(secCc, j.cc || {});
+    Object.assign(secField, j.field || {});
     Object.assign(WEAR, j.wear || {});
     aeroLoadGlass(j);
   } catch (e) {}
@@ -392,6 +399,7 @@ function aeroSavePrefs() {
     j.tint = secTint; j.finish = secFin; j.wear = WEAR;
     j.tile = secTile; j.rough = secRough; j.nrm = secNrm;
     j.wearM = secWear; j.glass = GLASS;
+    j.cc = secCc; j.field = secField;
     localStorage.setItem(AERO_PREF, JSON.stringify(j));
   } catch (e) {}
 }
@@ -693,6 +701,7 @@ const matOf = name => {
                 ':' + (secFin[name] || '') + ':' + consOf() +
                 ':' + (secTile[name] || 1) + ':' + (secRough[name] || 1) +
                 ':' + (secNrm[name] || 1) + ':' + (secWear[name] || 1) +
+                ':' + (secCc[name] || 1) + ':' + (secField[name] || 1) +
                 ':' + (WEAR.amount || 0) +
                 // THE GLAZING DIALS JOIN THE KEY (2026-08-31, the user:
                 // "none of the sliders do anything"). aeroGlass's own pool
@@ -728,6 +737,7 @@ const matOf = name => {
         tint, opacity: a, fieldM: fieldM(),
         // the three dials; absent is the finish's own number
         tileK: secTile[name], roughK: secRough[name], nrmK: secNrm[name],
+        ccK: secCc[name], fieldK: secField[name],
         wearM: secWear[name],
         // the field is per-SECTION and pure (see _surf_check): the mesh
         // publishes which groups carry it, and meshFrom passes it in
@@ -775,7 +785,8 @@ const SEC_LIVE = {};                    // section -> epoch it last drew in
 const SEC_CTX = {};                     // section -> the g it last drew with
 let SEC_EPOCH = 0;
 const SEC_OVER = { fin: secFin, tint: secTint, tile: secTile,
-                   rough: secRough, nrm: secNrm, wear: secWear };
+                   rough: secRough, nrm: secNrm, wear: secWear,
+                   cc: secCc, field: secField };
 function secMat(name, g) {
   if (!aeroOn()) return null;
   const A = AK();
@@ -820,6 +831,7 @@ function secMat(name, g) {
     // laminations on a blade, from the same sheet the fuselage lays fore-aft.
     tileK: (r.tileK != null ? r.tileK : 1) * ((g && g.tileK0) || 1),
     roughK: r.roughK, nrmK: r.nrmK, wearM: r.wearM,
+    ccK: r.ccK, fieldK: r.fieldK,                    // G206
     detRot: g && g.detRot ? 1 : 0,
   });
 }
@@ -840,7 +852,8 @@ const secResolveAuto = name => {
   const fin2 = Object.assign({}, secFin);
   delete fin2[name];
   return A.aeroSecResolve(name,
-    { fin: fin2, tint: secTint, tile: secTile, rough: secRough, nrm: secNrm },
+    { fin: fin2, tint: secTint, tile: secTile, rough: secRough, nrm: secNrm,
+      wear: secWear, cc: secCc, field: secField },
     { cons: g.cons || consOf(), fin: g.fin });
 };
 if (typeof window !== 'undefined') window.CAGE_SECMAT = secMat;
@@ -926,6 +939,17 @@ function meshFrom(m) {
   const mesh = new THREE.Mesh(g, mats.map(matOf));
   mesh.userData.surfMats = surfMats;
   mesh.userData.matNames = mats;
+  // THE GLASS COMPANION (G206): every pane is two draws — the multiply pass
+  // rides the same faces as a child mesh one renderOrder earlier. Inert when
+  // the panes are not AEROSKIN glass (the flat view), tagged so the join and
+  // the highlight walk past it. See aeroskin.js's glass family header.
+  {
+    const A0 = AK();
+    if (A0 && A0.aeroGlassCompanion)
+      A0.aeroGlassCompanion(THREE, mesh, mesh.material, m0 =>
+        A0.aeroGlassTint(THREE, { tintLin: m0.color.getHex(),
+                                  opacity: m0.opacity }));
+  }
   return mesh;
 }
 
@@ -2776,7 +2800,8 @@ function finishToSpec() {
   let n = 0;
   const names = new Set([].concat(
     Object.keys(secFin), Object.keys(secTint), Object.keys(secTile),
-    Object.keys(secRough), Object.keys(secNrm), Object.keys(secWear)));
+    Object.keys(secRough), Object.keys(secNrm), Object.keys(secWear),
+    Object.keys(secCc), Object.keys(secField)));
   for (const nm of names) {
     const o = {};
     if (secFin[nm]) o.fin = secFin[nm];
@@ -2785,6 +2810,8 @@ function finishToSpec() {
     if (secRough[nm] != null) o.rough = secRough[nm];
     if (secNrm[nm] != null) o.nrm = secNrm[nm];
     if (secWear[nm] != null) o.wearM = secWear[nm];
+    if (secCc[nm] != null) o.cc = secCc[nm];
+    if (secField[nm] != null) o.field = secField[nm];
     if (Object.keys(o).length) { sections[nm] = o; n++; }
   }
   // THE GLAZING, deviations only — the same rule the sections and the decals
@@ -2812,7 +2839,8 @@ function finishToSpec() {
 // the factory finish and is a complete instruction, not a missing one.
 function finishFromSpec(f) {
   decKitDefaults();
-  for (const m of [secFin, secTint, secTile, secRough, secNrm, secWear])
+  for (const m of [secFin, secTint, secTile, secRough, secNrm, secWear,
+                   secCc, secField])
     for (const k in m) delete m[k];
   // AND THE REGISTRATION IS CLEARED WITH THE REST (G160). This used to carry
   // DEC.reg across a load, on the reasoning that it belonged to meta.reg and
@@ -2835,6 +2863,8 @@ function finishFromSpec(f) {
       if (typeof r.rough === 'number') secRough[nm] = r.rough;
       if (typeof r.nrm === 'number') secNrm[nm] = r.nrm;
       if (typeof r.wearM === 'number') secWear[nm] = r.wearM;
+      if (typeof r.cc === 'number') secCc[nm] = r.cc;
+      if (typeof r.field === 'number') secField[nm] = r.field;
     }
     if (typeof o.wear === 'number') WEAR.amount = Math.max(0, Math.min(1, o.wear));
     if (o.decals && typeof o.decals === 'object')
@@ -3096,9 +3126,110 @@ function decReframe(fromMode, toMode, keys) {
 // machine are the same glass, cut twice. Per-section tint stays per-section
 // (that is `secTint`, which glass has always been able to take and never had
 // a well for); what is shared is the CONDITION of the glazing.
-const GLASS = { tint: null, opacity: 0.5, scratch: 0, wipe: 0, grime: 0,
+// G206: opacity 0.5 -> 0.2 with the hand blend — see aeroskin.js GLASS_DEF
+const GLASS = { tint: null, opacity: 0.2, scratch: 0, wipe: 0, grime: 0,
                 refl: 1, rainbow: 0 };
 const GLASS_DEFV = JSON.parse(JSON.stringify(GLASS));
+
+// THE MATERIAL LAB'S OWN DOM (G206). Re-rendered on its own whenever its
+// selection changes; the panel rebuild around it happens only when the
+// section list changes shape. Sliders write LIVE (uniforms and scalars, no
+// rebuild); `cc` rebuilds on release because a clear coat appearing on a row
+// changes the material class; the resets rebuild too.
+const LAB = { kind: 'finish', key: 'fabric', gkey: 'tubeFabric', open: false };
+function labRender(box) {
+  const A = AK();
+  if (!A || !A.aeroLabSet) return;
+  box.textContent = '';
+  const sel = (opts, val, on) => {
+    const s = document.createElement('select'); s.style.flex = '1';
+    for (const [v, t] of opts) {
+      const o = document.createElement('option');
+      o.value = v; o.textContent = t; s.appendChild(o);
+    }
+    s.value = val; s.onchange = () => on(s.value); return s;
+  };
+  const row = (label, title) => {
+    const r = document.createElement('div'); r.className = 'r dial';
+    const k = document.createElement('span');
+    k.className = 'k'; k.textContent = label; k.title = title || label;
+    r.appendChild(k); box.appendChild(r); return r;
+  };
+  const btn = (t, on) => {
+    const b = document.createElement('button'); b.textContent = t;
+    b.style.cssText = 'font:inherit;font-size:10px;padding:1px 6px;';
+    b.onclick = on; return b;
+  };
+  const head = row('table', 'which table this bench is over');
+  head.appendChild(sel([['finish', 'finish rows'],
+                        ['grammar', 'construction rows'],
+                        ['gain', 'display gains'],
+                        ['glass', 'glazing base']],
+                       LAB.kind, v => { LAB.kind = v; labRender(box); }));
+  let fields, get, set, key = null;
+  const fmt = v => v == null ? '-'
+    : (Math.abs(v) < 0.02 && v !== 0) ? (v * 1000).toFixed(2) + ' mm'
+    : (+v).toFixed(3);
+  if (LAB.kind === 'finish') {
+    const keys = Object.keys(A.AERO_FINISH);
+    if (!A.AERO_FINISH[LAB.key]) LAB.key = keys[0];
+    const kr = row('finish', 'the row being edited (* = deviates)');
+    kr.appendChild(sel(keys.map(k => [k, A.AERO_FINISH[k].name +
+                                          (A.AERO_LAB.finish[k] ? ' *' : '')]),
+                       LAB.key, v => { LAB.key = v; labRender(box); }));
+    key = LAB.key; fields = A.AERO_LAB_FIELDS;
+    get = f => A.aeroLabGet('finish', key, f);
+    set = (f, v) => A.aeroLabSet(THREE, 'finish', key, f, v);
+  } else if (LAB.kind === 'grammar') {
+    const D = A.aeroGramDef() || {};
+    const keys = Object.keys(D);
+    if (!keys.length) { row('(the core is not loaded)', ''); return; }
+    if (!D[LAB.gkey]) LAB.gkey = keys[0];
+    const kr = row('construction', 'the construction row (* = deviates)');
+    kr.appendChild(sel(keys.map(k => [k, (D[k].name || k) +
+                                         (A.AERO_LAB.grammar[k] ? ' *' : '')]),
+                       LAB.gkey, v => { LAB.gkey = v; labRender(box); }));
+    key = LAB.gkey; fields = A.AERO_LAB_GRAM;
+    get = f => A.aeroLabGet('grammar', key, f);
+    set = (f, v) => A.aeroLabSet(THREE, 'grammar', key, f, v);
+  } else if (LAB.kind === 'gain') {
+    fields = A.AERO_LAB_GAIN;
+    get = f => A.aeroLabGet('gain', f);
+    set = (f, v) => A.aeroLabSet(THREE, 'gain', f, f, v);
+  } else {
+    fields = A.AERO_LAB_GLASS;
+    get = f => A.aeroLabGet('glass', f);
+    set = (f, v) => A.aeroLabSet(THREE, 'glass', f, f, v);
+  }
+  for (const f in fields) {
+    const [lo, hi, st, label] = fields[f];
+    const v0 = get(f);
+    if (v0 == null) continue;          // a construction with no such row
+    const r = row('  ' + label, f);
+    const i = document.createElement('input');
+    i.type = 'range'; i.min = lo; i.max = hi; i.step = st;
+    i.value = v0; i.style.flex = '1';
+    const v = document.createElement('span');
+    v.className = 'v'; v.textContent = fmt(+v0);
+    i.oninput = () => { set(f, +i.value); v.textContent = fmt(+i.value); };
+    if (f === 'cc') i.onchange = () => build();
+    r.appendChild(i); r.appendChild(v);
+  }
+  const foot = row('', '');
+  foot.appendChild(btn('reset row', () => {
+    A.aeroLabReset(THREE, LAB.kind, key); build(); labRender(box); }));
+  foot.appendChild(btn('reset all', () => {
+    A.aeroLabReset(THREE); build(); labRender(box); }));
+  foot.appendChild(btn(LAB.open ? 'hide json' : 'export json', () => {
+    LAB.open = !LAB.open; labRender(box); }));
+  if (LAB.open) {
+    const ta = document.createElement('textarea'); ta.readOnly = true;
+    ta.style.cssText = 'flex:1 1 100%;height:110px;font:10px/1.3 monospace;';
+    ta.value = A.aeroLabExport(); box.appendChild(ta);
+    try { if (navigator.clipboard) navigator.clipboard.writeText(ta.value); }
+    catch (e) {}
+  }
+}
 // the pane's own extent in field metres, measured off the drawn mesh so
 // "toward the edge" is a real distance on a real pane
 const GLASS_EXT = {};
@@ -3650,6 +3781,26 @@ function buildMatPanel() {
        'thin-film flare at the limb. An EFFECT, not physics: r128 has no ' +
        'iridescence and this is a Fresnel-driven hue rather than a film');
   }
+  // ---- THE MATERIAL LAB (G206) --------------------------------------------
+  // The user: "it would be good to have an editor to these parameters (right
+  // now I can't access this layer)". ONE row element holding its own small
+  // panel, so the finish view carries it as one block (data-lab) without
+  // partitioning its innards. Everything in it writes the LIVE tables
+  // through AEROSKIN's lab and never the spec — aeroskin.js, THE MATERIAL
+  // LAB. The per-section dials below multiply whatever the lab says.
+  if (A.aeroLabSet) {
+    const d = mkRow2('material lab', 'the designer bench over the finish, ' +
+      'construction and glazing tables — live, kept as deviations in this ' +
+      'browser, exported as JSON to paste back into the table. Nothing ' +
+      'here is saved with the aeroplane; the per-section dials multiply it');
+    d.dataset.matHead = '1'; d.dataset.lab = '1';
+    d.style.flexWrap = 'wrap'; d.style.alignItems = 'flex-start';
+    const box = document.createElement('div');
+    box.style.cssText =
+      'flex:1 1 100%;display:flex;flex-direction:column;gap:2px;';
+    d.appendChild(box);
+    labRender(box);
+  }
   for (const nm of names.concat(live)) {
     const isGlass = A.AERO_GLASS.has(nm);
     // a LAYER section's auto is the walked chain, not the role table: the
@@ -3728,7 +3879,7 @@ function buildMatPanel() {
     row.firstChild.ondblclick = () => {
       delete secTint[nm]; delete secFin[nm];
       delete secTile[nm]; delete secRough[nm]; delete secNrm[nm];
-      delete secWear[nm];
+      delete secWear[nm]; delete secCc[nm]; delete secField[nm];
       aeroSavePrefs(); build();
     };
     // THE THREE DIALS, under the section they belong to. They MULTIPLY the
@@ -3738,6 +3889,11 @@ function buildMatPanel() {
     for (const [key, store, label] of [['tile', secTile, 'tile x'],
                                        ['rough', secRough, 'roughness x'],
                                        ['nrm', secNrm, 'normal x'],
+                                       // G206: the clear coat and the
+                                       // large-scale field, as multipliers
+                                       // of the finish's own numbers
+                                       ['sheen', secCc, 'sheen x'],
+                                       ['field', secField, 'field x'],
                                        // the part's own CONDITION (G114):
                                        // multiplies how much of the
                                        // aeroplane's one wear dial this

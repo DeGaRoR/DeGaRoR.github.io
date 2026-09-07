@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: c4871cab2d7ce33d
+// body-sha256: da758116bfb8f925
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -8416,6 +8416,95 @@ function propList(group) {
 
 if (typeof module !== 'undefined' && module.exports)
   module.exports = { decodeProp, decodePropPart, registerPropPack, propList, PROP_REG };
+// char_codec.js — decode baked RIGGED CHARACTER payloads (see tools/char_prep.py).
+// Pure JS, no three.js: the same code runs in the page and in the node gates.
+//
+// WHY A THIRD CODEC. 50_model_codec.js bakes an aeroplane (one quantised box,
+// no normals), 51_prop_codec.js a rigid prop (per-part quantisation, author's
+// normals). A character is neither: it is a SKINNED mesh — every vertex
+// carries four joint indices and four weights, and the payload has to carry
+// the joint tree and the inverse bind matrices the skin was authored against,
+// or the mesh cannot be posed at all. Positions ride as float32 exactly as the
+// exporter wrote them (import-models-as-is): a mannequin is 1.8 m tall and
+// quantising it buys nothing worth a second encoding.
+//
+// Layout (little-endian, sections 4-byte aligned; the manifest carries every
+// offset and count, nothing is discovered by reading ahead):
+//   ibm      f32[16 * nJoints]  inverse bind matrices, column-major, in the
+//                               order of manifest.joints (node indices)
+//   per mesh at manifest.meshes[i].off:
+//            f32 pos[3n] f32 nrm[3n] f32 uv[2n] u8 jt[4n] f32 wt[4n] u16 idx[3t]
+//
+// The manifest's `nodes` is the GLB's whole node tree verbatim ({n name,
+// p parent index or -1, t, r, s}) — joints AND the mesh nodes AND the armature
+// root, because a skin's bind pose is only right under the very tree it was
+// exported with. `scene` lists the roots. The consumer (tools/_cage_char.js)
+// rebuilds the tree as Object3Ds, binds each mesh to the skeleton and then
+// drives the joints from the crew layer's IK solution.
+
+const CHAR_REG = { chars: {}, order: [] };
+
+// A manifest registers itself at load (src/chars/<key>_char.js); table order
+// is load order is chars_index.json order. The ONE list the editor's "pilot
+// model" select, the crew layer and GATE MEDIA read.
+function registerChar(c) {
+  if (!CHAR_REG.chars[c.key]) CHAR_REG.order.push(c.key);
+  CHAR_REG.chars[c.key] = c;
+  return CHAR_REG;
+}
+function charList() { return CHAR_REG.order.map(k => CHAR_REG.chars[k]); }
+
+// bin -> { ibm: Float32Array(16*nJ), meshes: [{pos,nrm,uv,jt,wt,idx,mat,name,node}] }
+// Typed arrays are views over a 4-aligned copy when the incoming buffer is not
+// aligned (fetch gives a fresh ArrayBuffer at 0, fs may not).
+function decodeChar(c, bin) {
+  if (!bin) throw new Error('decodeChar: "' + c.key + '" needs its bin bytes');
+  let u8 = bin;
+  if (u8.byteOffset % 4) u8 = new Uint8Array(u8);
+  const B = u8.buffer, o0 = u8.byteOffset;
+  const nJ = c.joints.length;
+  const ibm = new Float32Array(B, o0, 16 * nJ);
+  const meshes = c.meshes.map(m => {
+    let o = o0 + m.off;
+    const n = m.nv, t = m.nt;
+    const pos = new Float32Array(B, o, 3 * n); o += 12 * n;
+    const nrm = new Float32Array(B, o, 3 * n); o += 12 * n;
+    const uv = new Float32Array(B, o, 2 * n); o += 8 * n;
+    const jt = new Uint8Array(B, o, 4 * n); o += 4 * n;
+    const wt = new Float32Array(B, o, 4 * n); o += 16 * n;
+    const idx = new Uint16Array(B, o, 3 * t); o += 6 * t;
+    if (o - (o0 + m.off) > m.len)
+      throw new Error('decodeChar: mesh "' + m.name + '" overruns its slice');
+    return { name: m.name, node: m.node, mat: m.mat, nv: n, nt: t,
+             pos, nrm, uv, jt, wt, idx };
+  });
+  return { ibm, meshes };
+}
+
+// ---- THE CLIPS (G205) -----------------------------------------------------
+// A clip is sampled joint rotations on a uniform grid: f32 [frames][joints]
+// [4], joints named by their Mixamo base name so the same clip drives every
+// character. decodeCharAnim hands back the flat array; the sampler lives
+// with THREE in tools/_cage_char.js.
+const CHAR_ANIMS = { anims: {}, order: [] };
+function registerCharAnim(a) {
+  if (!CHAR_ANIMS.anims[a.key]) CHAR_ANIMS.order.push(a.key);
+  CHAR_ANIMS.anims[a.key] = a;
+  return CHAR_ANIMS;
+}
+function decodeCharAnim(a, bin) {
+  if (!bin) throw new Error('decodeCharAnim: "' + a.key + '" needs its bin bytes');
+  let u8 = bin;
+  if (u8.byteOffset % 4) u8 = new Uint8Array(u8);
+  const n = a.frames * a.joints.length * 4;
+  if (u8.byteLength < n * 4)
+    throw new Error('decodeCharAnim: "' + a.key + '" bin is short');
+  return new Float32Array(u8.buffer, u8.byteOffset, n);
+}
+
+if (typeof module !== 'undefined' && module.exports)
+  module.exports = { decodeChar, registerChar, charList, CHAR_REG,
+                     decodeCharAnim, registerCharAnim, CHAR_ANIMS };
 // ============================================================
 // GARAGE 1/5 — the SPEC. Source of truth for a generated airframe.
 //
@@ -8673,17 +8762,27 @@ const GEN_BUILD_GRAMMAR = {
   // why this row is all tape and sag and no heads.
   tubeFabric: {
     name: 'tube + fabric',
-    framePitch: 0.42,        // truss bays; the tape crosses at each
+    // THE FRAMES DO NOT PRINT (G206, the user: Cubs "seem very flat on the
+    // fuselage. You can see the internal structure slightly (especially the
+    // longitudinal beams of the boom)"). The covering touches only the
+    // STRINGERS — wooden battens laid fore-aft over the formers — and the
+    // truss bays behind them never touch it, so nothing prints at a frame
+    // pitch. framePitch 0.42 put a tape AND a sag at every bay, which with
+    // the stringers' own made a quilt. The real formers the generator knows
+    // about (the cage's rings, uG4.x) still take their faint line.
+    framePitch: 0,
     stringerPitch: 0.16,     // 12-20 stringers around a light fuselage
     panelAlong: 0, panelAround: 0,   // one envelope: no panels, no lines
-    // 50 mm (2 in) pinked-edge surface tape, doped, rising 0.3-0.8 mm with a
-    // soft shoulder. This ridge is most of what makes a covered airframe read
-    // as covered — garage.js's own comment, and it was right.
-    tape: { w: 0.050, rise: 0.00065 },
-    // fabric slack between members: 0.5-1.5 % of the pitch, FLAT-BOTTOMED.
-    // The exponent is what makes it read as a membrane under tension rather
+    // what prints is the STRINGER: a rounded batten under a tensioned
+    // membrane, a soft 18 mm ridge under a millimetre high. (The 50 mm doped
+    // rib TAPE is the wing's, where the wing grammar draws it per rib.)
+    tape: { w: 0.018, rise: 0.0009 },
+    // fabric slack between stringers: ~0.4 % of the pitch, FLAT-BOTTOMED,
+    // and ONE-DIRECTIONAL by construction now that framePitch is 0 — the
+    // shader sags along an axis only where that axis has a pitch. The
+    // exponent is what makes it read as a membrane under tension rather
     // than as a wave, and 1.4 is the value the old bump sheet used.
-    sag: { frac: 0.006, exp: 1.4 },
+    sag: { frac: 0.004, exp: 1.4 },
     dish: 0,
     fastener: null,
     seam: null,
@@ -8698,8 +8797,12 @@ const GEN_BUILD_GRAMMAR = {
     panelAlong: 2.0,         // a ply sheet is 1220 x 2440 and scarfs at a frame
     panelAround: 0.85,       // and will not wrap much past this
     tape: { w: 0.020, rise: 0.00012 },   // the frame under the skin, barely
-    sag: { frac: 0.0015, exp: 2.0 },     // ply dishes; it does not sag
-    dish: -0.0003,
+    // A STRESSED PLY SKIN IS FLAT (G206): glued to every longeron and frame,
+    // it neither sags nor dishes between them at 0.22 m — a Jodel's flank is
+    // dead flat with the members ghosting through and a scarf or two. The
+    // 0.3 mm dish per cell, quadrupled by the old single gain, was a quilt.
+    sag: { frac: 0, exp: 2.0 },
+    dish: 0,
     // gimp pins at 25 mm (Jodel plans), 1.6 mm heads standing 0.10-0.15 mm
     fastener: { kind: 'nail', pitch: 0.025, rowW: 0.020,
                 dia: 0.0016, rise: 0.00012 },
@@ -8718,6 +8821,9 @@ const GEN_BUILD_GRAMMAR = {
     sag: { frac: 0, exp: 1 },
     // OIL-CANNING, and it is what makes metal read as metal in raking light.
     // 0.5-2 mm, and it DISHES IN more than it bulges out — hence the sign.
+    // IRREGULAR since G206: the shader dishes one bay in two, each its own
+    // depth, bent again by the large-scale field — a dish in every cell at
+    // one sine was a waffle whatever this number said.
     dish: -0.0012,
     // AN470 universal: 4.8 mm across, 1.4 mm proud, 20-25 mm pitch (the 4D-6D
     // design rule). EDGE DISTANCE is 2D, so the row sits 5-8 mm INSIDE the
@@ -9806,6 +9912,31 @@ const GEN_RULES = {
   // GATE MOUNT holds both, on every mount kind, with a negative control.
   mountK:      2.5,
   mountFoot:   true,
+  // A ROD BOOM IS A TUBE, AND THE TRUSS IS NOT (G199.5, 2026-09-07; the user:
+  // "the stabs are moving with the tail wheel, and getting a huge torsion,
+  // even when simply taxiing"). A rod-boom build flies the lofted default
+  // section — a 0.1 x 0.18 m lattice at the post — because measuring the
+  // tube's own section collapses the truss (G199.3), and that lattice is
+  // about 12x softer in torsion than the 113 mm tube it stands for: the
+  // tailwheel's steering side-load (0.3 m below the boom axis) rolls the
+  // whole tail against the mains at full rudder on the taxi. This multiplies
+  // k (and c by its root) on every 'fus' member aft of boxRear of a boom
+  // declared 'rod'. MEASURED on the user's ultralight (GATE TAKEOFF's
+  // fixture), the taxi at full rudder and the 2 m/s crosswind take-off roll:
+  //   rodBoomK   stab roll vs the mains   cross-track through the roll
+  //      1            3.09 deg                   11.2 m
+  //      2            2.48                       12.0
+  //      3            1.49                       12.5
+  //      4            1.29                       12.7
+  //      8            the integrator blows up on the spawn
+  // The twist goes down as it should; the crosswind wander goes UP, because
+  // the autopilot's tailwheel steering was tuned on the soft boom, and GATE
+  // TAKEOFF bounds that wander at 12 m. So the switch is landed at 1 — the
+  // aeroplane flies exactly what it flew — with the machinery and its gates
+  // in place. Turning it to 4 is the user's ruling, paired with either a
+  // retune of the AP's crosswind steering or a re-based 12 m bound; the
+  // remaining 3x to the real tube is the tube member class, owed.
+  rodBoomK:    1,
   // ...and WHERE the foot goes, as a fraction of the way from the engine to
   // the front spar: 1 = under the front spar. Measured on the twin (engines
   // 0.65 m ahead of the spar), foot at 0 / 0.5 / 0.75 / 1 / 1.25 / 1.5:
@@ -10374,6 +10505,13 @@ const GEN_DEFAULT = {
           covering: 'skin',
           tailArm: null, postGap: 0.67, tailBays: 4,
           tailW: 0.10, tailBot: 0.20, tailTop: 0.38,
+          // THE BOOM'S CONSTRUCTION (G199.5): 'rod' (one bare tube carries the
+          // tail), 'loft' (a lofted, trussed boom) or 'twin'; null = unsaid, and
+          // the frame treats it as a loft. Written by the join off the cage's
+          // boomStyle; the frame reads it to stiffen a rod's bays by GEN_RULES.
+          // rodBoomK — the truss has no tube class, and a rod boom flying the
+          // lofted default section is ~12x too soft in torsion (HANDOVER G199.5).
+          boom: null,
           // THE MEASURED BOOM PROFILE (G54.1): rows of {t, w, yb, yt} with t
           // normalised over boxRear..tailArm. When present, the aft stations
           // take their section from HERE (interpolated by t) instead of the
@@ -10514,12 +10652,7 @@ const GEN_DEFAULT = {
             // for a biplane's gap: the lower plane sits on the fuselage's own
             // longeron band, so the gap is a readout (S.geom.gap), never a key.
             cabaneH: null,
-            // G188: the root chord line's HEIGHT over the cabin keel, measured
-            // by the join off the drawn wing (null = the position's own rule:
-            // a standoff below the keel for a low wing, above the roof for a
-            // high one, half-way for mid). The frame used to seat a low wing
-            // 0.10 m below the keel whatever was drawn.
-            y: null,
+
             xLE: null, place: { dx: 0, dy: 0 } }],
   // Wing fixation, its own section because it is its own structure. Cantilever
   // gets a real four-chord spar box — rule 1 says a planar two-spar wing only
@@ -10842,10 +10975,7 @@ function clampWing(w, S, k) {
   // default. The envelope spans a wing rooted on the firewall to one rooted
   // well down the cabin; static margin is the honest consequence either way,
   // and the shakedown posts it.
-  // G188: a wing drawn under a long nose sits well AHEAD of the firewall
-  // (−1.12 m on the pod that found the old −0.20 floor); the frame's rings
-  // straddle a negative station like any other, so the envelope is geometric.
-  w.xLE = genClampN(w.xLE, -2.50, 3.00);
+  w.xLE = genClampN(w.xLE, -0.20, 3.00);
   if (!GEN_TIPS[w.tip]) w.tip = 'rounded';
   // CRANK: a second wing section, and only a second. `crankAt` is the break
   // station as a fraction of the semispan; 0 means a single straight panel.
@@ -10899,9 +11029,7 @@ function clampWing(w, S, k) {
   // These stop the geometry going degenerate, nothing more.
   w.place.dx = genClamp(w.place.dx, -1.2, 1.8);
   w.place.dy = genClamp(w.place.dy, -0.25, 0.60);
-  // G188: the measured root height, nullable like xLE; a wing on the belly
-  // to one on a tall cabane, nothing degenerate in between
-  w.y = genClampN(w.y, -0.60, 2.60);
+
 }
 
 function clampSpec(spec) {
@@ -11059,9 +11187,7 @@ function clampSpec(spec) {
     e.place.dx = genClamp(e.place.dx, -0.60, 0.45);
     e.place.dy = genClamp(e.place.dy, -0.30, 0.40);
     // the mount station (2026-09-04): an envelope, null kept for derivation
-    // G188: a nose engine drawn at the tip of a long nose is 2 m ahead of the
-    // firewall — the envelope is geometric, the balance is the plaque's
-    e.x = genClampN(e.x, -3.0, 8.0);
+    e.x = genClampN(e.x, -1.0, 8.0);
     e.y = genClampN(e.y, -1.0, 2.5);
     e.z = genClampN(e.z, 0, 6.0);
     e.pylon = genClampN(e.pylon, 0.05, 1.0);
@@ -11301,10 +11427,8 @@ function clampSpec(spec) {
   S.cargo.len = genClamp(S.cargo.len || 0, 0, 2.5);
   S.cargo.kg = genClamp(S.cargo.kg || 0, 0, 400);
   fu.tailBays = genClamp(fu.tailBays | 0, 3, 6);
-  // G188: the join measures this gap as the drawn tail cone's own length (the
-  // post to the skin's aft extreme) — 0.13 m on a pod; the old 0.35 floor
-  // stood the frame's post 0.22 m behind the drawn tail
-  fu.postGap = genClamp(fu.postGap, 0.08, 1.10);
+  fu.boom = (fu.boom === 'rod' || fu.boom === 'loft' || fu.boom === 'twin') ? fu.boom : null;
+  fu.postGap = genClamp(fu.postGap, 0.35, 1.10);
   fu.crownTop = genClamp(fu.crownTop, 0, 1);
   fu.crownSide = genClamp(fu.crownSide, 0, 0.6);
   // The TAIL-END SECTION. These were in the spec from the start but had no
@@ -11346,7 +11470,7 @@ function clampSpec(spec) {
   // respectively — again fractions, so a bigger propeller gets a bigger nose
   sn.len = genClamp(sn.len == null ? 2.2  : sn.len, 0.6,  4.0);
   sn.dia = genClamp(sn.dia == null ? 0.17 : sn.dia, 0.08, 0.32);
-  cb.noseGap = genClamp(cb.noseGap, 0.20, 1.10);   // G188: a short pilot bay measures short
+  cb.noseGap = genClamp(cb.noseGap, 0.40, 1.10);
   S.gear.stiffness = genClamp(S.gear.stiffness == null ? 1 : S.gear.stiffness, 0.35, 3.0);
   S.gear.place.dx = genClamp(S.gear.place.dx, -0.80, 1.20);
   S.gear.place.dtrack = genClamp(S.gear.place.dtrack, -0.80, 1.50);
@@ -11372,12 +11496,9 @@ function clampSpec(spec) {
     }
     fu.profile = P2.length >= 2 ? P2 : null;
   } else fu.profile = null;
-  // G188: a scaled-down pod measures a 0.24 m half-width and a 0.50 m cabin
-  // box (front pillar to the aft screen's base); the old floors (0.28 / 0.60)
-  // silently widened and lengthened the frame's box past the drawn one
-  cb.halfW = genClampN(cb.halfW, 0.18, 0.75);
+  cb.halfW = genClampN(cb.halfW, 0.28, 0.75);
   cb.h = genClampN(cb.h, 0.75, 1.45);
-  cb.len = genClampN(cb.len, 0.30, 2.60);
+  cb.len = genClampN(cb.len, 0.60, 2.60);
   fu.tailArm = genClampN(fu.tailArm, 2.00, 6.50);
   S.tail.hSpan = genClampN(S.tail.hSpan, 1.50, 4.50);
   S.tail.hChord = genClampN(S.tail.hChord, 0.40, 1.60);
@@ -11417,11 +11538,7 @@ function clampSpec(spec) {
   // the CG/rake placement rule — deliberately: the wheels go where the built
   // aeroplane's wheels are, and the shakedown's noseOver row posts the
   // consequence. The height (gear.y) stays the prop-clearance rule's.
-  // G188: mains drawn under a long nose sit well ahead of the firewall
-  // (−1.42 m on the pod that found the old −0.50 floor); the visual is
-  // calibrated wheels-to-axles, so a clamped station shifts the WHOLE drawn
-  // aeroplane by the clamp — 0.93 m of misfit on every row of the report
-  S.gear.x = genClampN(S.gear.x, -3.00, 3.00);
+  S.gear.x = genClampN(S.gear.x, -0.50, 3.00);
   // Camber, degrees, tops-outboard positive. Real aeroplanes run a few degrees
   // either way; the range is wide enough to be a look and not wide enough for
   // the wheel to lie on its side.
@@ -11677,12 +11794,7 @@ function resolveSpec(spec) {
   //    fuselage aft of the cabin, so the tail has to start behind it.
   S.fuse.boxRear = S.cab.noseGap + S.cab.len + S.fuse.cargoLen;
   put(S.fuse, 'tailArm', xAC + GEN_RULES.tailArmC * w.chord, 'fuse.tailArm');
-  // G188: the 0.9-chord floor is a DESIGN rule for the DERIVED arm, not a
-  // bound on a MEASURED one — it stretched a pod's measured 3.11 m boom to
-  // 4.05 m and stood the tail post 0.9 m behind the drawn tail. A built boom
-  // only has to leave a bay behind the box.
-  S.fuse.tailArm = Math.max(S.fuse.tailArm,
-    S.fuse.boxRear + (auto['fuse.tailArm'] ? 0.9 * w.chord : 0.30));
+  S.fuse.tailArm = Math.max(S.fuse.tailArm, S.fuse.boxRear + 0.9 * w.chord);
   const post = S.fuse.tailArm + S.fuse.postGap;
   S.fuse.postX = post;
 
@@ -11834,19 +11946,7 @@ function resolveSpec(spec) {
   S.engX = -Math.max(0.18 + 0.32 * propR,
                      (PP && PP.engine.length > 0 ? PP.engine.length + 0.10 : 0))
            + pl.engineDx;
-  // G188: A NOSE ENGINE THE JOIN MEASURED sits where it was drawn. The cowl-
-  // and-prop rule above is the derivation for a spec that says nothing; a
-  // drawn unit's station (engines[0].x/y, off the engine layer, firewall/keel
-  // datum) is the builder's — 1.56 m further forward on the long-nosed pod
-  // that found this, and the whole powerplant's mass with it. engX/engY stay
-  // the one nose station every reader (frame, cowl loft, nose gear) shares.
-  {
-    const e0 = S.engines[0];
-    if ((e0.mount || 'nose') === 'nose') {
-      if (e0.x != null) S.engX = e0.x + pl.engineDx;
-      if (e0.y != null) S.engY = e0.y + pl.engineDy;
-    }
-  }
+
   // WHERE EACH ENGINE ACTUALLY SITS (2026-09-04): engX/engY stay the NOSE
   // station (the cowl loft, the nose gear and the fleet read them); engAt is
   // the mount the frame builds and the wash blows from. A nose mount IS
@@ -11858,8 +11958,7 @@ function resolveSpec(spec) {
   S.engAt = S.engines.map((e, i) => {
     const m = e.mount || 'nose';
     const semi = 0.5 * w.span, zR = S.cab.halfW;
-    const wingY = S.wing.y != null ? S.wing.y            // G188: as drawn
-                : S.wing.position === 'low' ? 0.22 * S.cab.h
+    const wingY = S.wing.position === 'low' ? 0.22 * S.cab.h
                 : S.wing.position === 'mid' ? 0.55 * S.cab.h : S.cab.h + 0.01;
     const pylon = e.pylon != null ? e.pylon : 0.30;
     const d = m === 'pusher' ? { x: S.fuse.boxRear + 0.30, y: 0.45 * S.cab.h, z: 0 }
@@ -11873,9 +11972,8 @@ function resolveSpec(spec) {
              // (the frame builds NL from entry 0 and NR from entry 1)
              sense: (+e.sense === -1) ? -1 : 1,
              side: m === 'wing' ? (i === 0 ? -1 : 1) : 0,
-             // a nose mount IS engX/engY (a measured one already moved them)
-             x: e.x != null && m !== 'nose' ? e.x : d.x,
-             y: e.y != null && m !== 'nose' ? e.y : d.y,
+             x: e.x != null ? e.x : d.x,
+             y: e.y != null ? e.y : d.y,
              z: m === 'wing' ? Math.abs(e.z != null ? e.z : d.z) : 0,
              pylon,
              pushes: m === 'pusher' ? true : m === 'nose' ? false
@@ -12944,8 +13042,17 @@ function genLattice(S, gearX, track, kScale) {
     const steel = mnt || cls === 'cabane' || cls === 'interplane' || cls === 'wire';
     const MM = steel ? (GEN_MATERIALS.tubeFabric || MB) : MB;
     const mK = mnt ? (R.mountK == null ? 1 : R.mountK) : 1;
-    const bm = { a, b, k: MM.k[cls] * (isG ? kG : KS) * kGain * mK,
-                 c: MM.c[cls] * (isG ? cG : CS) * Math.sqrt(mK),
+    // G199.5: a ROD boom's bays are a tube, not a lattice — GEN_RULES.rodBoomK
+    // on every fuselage-class member aft of the cabin box (the post, the
+    // stab's and fin's truss included: they stand on the tube). Damping by
+    // the root, as the bearer's mountK does. Weightless: k only. The rule
+    // sits at 1 today (see it for the measured trade against the AP's
+    // crosswind roll), so this changes nothing until it is turned.
+    const bK = (S.fuse.boom === 'rod' && cls === 'fus' && !mnt &&
+                P[a][0] >= S.fuse.boxRear - 1e-6 && P[b][0] >= S.fuse.boxRear - 1e-6)
+      ? (R.rodBoomK == null ? 1 : R.rodBoomK) : 1;
+    const bm = { a, b, k: MM.k[cls] * (isG ? kG : KS) * kGain * mK * bK,
+                 c: MM.c[cls] * (isG ? cG : CS) * Math.sqrt(mK) * Math.sqrt(bK),
                  gear: isG, cls, ext: vis === 'inner' ? false : (!!ext || isG),
                  vis: vis || null, L };
     if (opt && opt.tens) bm.tens = true;
@@ -13109,15 +13216,7 @@ function genLattice(S, gearX, track, kScale) {
   // tail post: two centreline nodes. refs.tailMid points here, so rule 8
   // (attitude reference on RIGID structure) is satisfied by construction.
   const TPB = N(fu.postX, lastST.yb + 0.05, 0, 'TPB');
-  // A TAIL POST IS NEVER SHORTER THAN 0.15 m (G199.1, 2026-09-06). The two
-  // insets assume a fuselage section at the post; on a ROD boom the section
-  // there is the tube's (measured 0.11 m on the user's ultralight), so TPB and
-  // TPT came out 0.044 m apart and that stub carried the whole tail — 5.8 %
-  // strain with every other member under 2 %. The post on a rod is the socket
-  // fitting the fin stands in, and it stands above the tube. Inert on every
-  // build whose post section already clears 0.22 m, which is every loft.
-  const TPT = N(fu.postX, Math.max(lastST.yt - 0.02, lastST.yb + 0.05 + 0.15),
-                0, 'TPT');
+  const TPT = N(fu.postX, lastST.yt - 0.02, 0, 'TPT');
   B(TPB, TPT, 'fus');
   B(last.BL, TPB, 'fus'); B(last.BR, TPB, 'fus');
   B(last.TL, TPT, 'fus'); B(last.TR, TPT, 'fus');
@@ -13307,16 +13406,11 @@ function genLattice(S, gearX, track, kScale) {
   const POS = { high: 1, mid: 0.5, low: 0, parasol: 1 }[w.position] ?? 1;
   const wingY0 = cab.h * POS
     + (cabH > 0 ? cabH : R.wingStandoff * (POS >= 0.75 ? 1 : POS <= 0.25 ? -1 : 0));
-  // G188: THE DRAWN HEIGHT WINS. wingY0 is the position's rule; a wing the
-  // join measured (w.y, root chord line over the keel) sits where it was
-  // drawn — the rule put a low wing 0.10 m below the keel while the cage
-  // seated it 22 % up the section, 0.24-0.4 m apart on every low-wing build.
-  const wingYr = w.y != null ? w.y : wingY0;
   const attachHi = POS >= 0.5, attachTag = attachHi ? 'T' : 'B';
   const opposeTag = attachHi ? 'B' : 'T';
   // a strut is only a brace if its anchor is far enough from the wing — see
   // GEN_RULES.strutMinOffset. Otherwise build the box instead.
-  const strutOffset = Math.abs(wingYr - (attachHi ? 0 : cab.h));
+  const strutOffset = Math.abs(wingY0 - (attachHi ? 0 : cab.h));
   // G140: A CRANKED WING CAN BE STRUT-BRACED — WHEN THE STRUT LANDS ON THE
   // CRANK. The 2026-08-11 exclusion stays true for what it measured: a fan
   // reaching PAST the crank read 22.95 deg @200 N.m at 1.34x (the worst
@@ -13337,7 +13431,7 @@ function genLattice(S, gearX, track, kScale) {
   // straight line it always was.
   const dihOut = Math.tan((w.dihedralOut == null ? w.dihedral : w.dihedralOut) * D);
   const yF = z => {
-    const base = wingYr + S.place.wingDy;
+    const base = wingY0 + S.place.wingDy;
     if (zCrank <= 0 || z <= zCrank) return base + (z - zRoot) * dih;
     return base + (zCrank - zRoot) * dih + (z - zCrank) * dihOut;
   };
@@ -14027,18 +14121,6 @@ function genLattice(S, gearX, track, kScale) {
     // stands in Frame mode and still carries exactly the same load.
     B(TW, TPB, 'gear', false, 'leg');
     B(TW, last.BL, 'gear', false, 'wire'); B(TW, last.BR, 'gear', false, 'wire');
-    // A WHEEL THAT TRAILS THE POST (G199.1, 2026-09-06). The pyramid below
-    // assumes the wheel sits just AHEAD of the sternpost (the default twX is
-    // postX - 0.10), so its base — the last frame and the post — straddles
-    // the wheel. A rod-boom build roots its leaf spring at the tube's end and
-    // the wheel trails 0.3 m BEHIND the post: every anchor is then forward of
-    // the wheel, the fan spans 20 degrees, and the tail hunts on it (measured:
-    // 13 % strain, three-point pitch 13.4 deg against 9.2). A real spring is a
-    // cantilever the truss cannot carry, so the wheel takes a stay up to the
-    // fin's apex — the tallest lever the tail has — declared INTERNAL like the
-    // snap-blocker (under the covering it is not there). Measured: 1.7 %,
-    // 8.4 deg. A wheel ahead of the post builds exactly what it built.
-    if (FIN != null && twX > fu.postX + 0.02) B(TW, FIN, 'gear', false, 'inner');
     // rule 10: a near-axial chain LATCHES with every strain under 1%, and no
     // strain gate can see it. Both cures the Cub needed are mandatory here:
     // a snap-blocking near-vertical member, AND a wide lateral pyramid.
@@ -17732,4 +17814,4 @@ function playerShedDims(doc, id, site) {
   return { HW: d.HW || h.HW, HD: d.HD || h.HD, EAVE: d.EAVE || h.EAVE };
 }
 if (typeof module !== 'undefined')
-  module.exports = { AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, makeSim, vortexKernel, makeAutopilot, makeTestPilot, makePilot, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims };
+  module.exports = { AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, vortexKernel, makeAutopilot, makeTestPilot, makePilot, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims };

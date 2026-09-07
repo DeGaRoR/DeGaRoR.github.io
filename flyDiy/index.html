@@ -11579,6 +11579,95 @@ function propList(group) {
 
 if (typeof module !== 'undefined' && module.exports)
   module.exports = { decodeProp, decodePropPart, registerPropPack, propList, PROP_REG };
+// char_codec.js — decode baked RIGGED CHARACTER payloads (see tools/char_prep.py).
+// Pure JS, no three.js: the same code runs in the page and in the node gates.
+//
+// WHY A THIRD CODEC. 50_model_codec.js bakes an aeroplane (one quantised box,
+// no normals), 51_prop_codec.js a rigid prop (per-part quantisation, author's
+// normals). A character is neither: it is a SKINNED mesh — every vertex
+// carries four joint indices and four weights, and the payload has to carry
+// the joint tree and the inverse bind matrices the skin was authored against,
+// or the mesh cannot be posed at all. Positions ride as float32 exactly as the
+// exporter wrote them (import-models-as-is): a mannequin is 1.8 m tall and
+// quantising it buys nothing worth a second encoding.
+//
+// Layout (little-endian, sections 4-byte aligned; the manifest carries every
+// offset and count, nothing is discovered by reading ahead):
+//   ibm      f32[16 * nJoints]  inverse bind matrices, column-major, in the
+//                               order of manifest.joints (node indices)
+//   per mesh at manifest.meshes[i].off:
+//            f32 pos[3n] f32 nrm[3n] f32 uv[2n] u8 jt[4n] f32 wt[4n] u16 idx[3t]
+//
+// The manifest's `nodes` is the GLB's whole node tree verbatim ({n name,
+// p parent index or -1, t, r, s}) — joints AND the mesh nodes AND the armature
+// root, because a skin's bind pose is only right under the very tree it was
+// exported with. `scene` lists the roots. The consumer (tools/_cage_char.js)
+// rebuilds the tree as Object3Ds, binds each mesh to the skeleton and then
+// drives the joints from the crew layer's IK solution.
+
+const CHAR_REG = { chars: {}, order: [] };
+
+// A manifest registers itself at load (src/chars/<key>_char.js); table order
+// is load order is chars_index.json order. The ONE list the editor's "pilot
+// model" select, the crew layer and GATE MEDIA read.
+function registerChar(c) {
+  if (!CHAR_REG.chars[c.key]) CHAR_REG.order.push(c.key);
+  CHAR_REG.chars[c.key] = c;
+  return CHAR_REG;
+}
+function charList() { return CHAR_REG.order.map(k => CHAR_REG.chars[k]); }
+
+// bin -> { ibm: Float32Array(16*nJ), meshes: [{pos,nrm,uv,jt,wt,idx,mat,name,node}] }
+// Typed arrays are views over a 4-aligned copy when the incoming buffer is not
+// aligned (fetch gives a fresh ArrayBuffer at 0, fs may not).
+function decodeChar(c, bin) {
+  if (!bin) throw new Error('decodeChar: "' + c.key + '" needs its bin bytes');
+  let u8 = bin;
+  if (u8.byteOffset % 4) u8 = new Uint8Array(u8);
+  const B = u8.buffer, o0 = u8.byteOffset;
+  const nJ = c.joints.length;
+  const ibm = new Float32Array(B, o0, 16 * nJ);
+  const meshes = c.meshes.map(m => {
+    let o = o0 + m.off;
+    const n = m.nv, t = m.nt;
+    const pos = new Float32Array(B, o, 3 * n); o += 12 * n;
+    const nrm = new Float32Array(B, o, 3 * n); o += 12 * n;
+    const uv = new Float32Array(B, o, 2 * n); o += 8 * n;
+    const jt = new Uint8Array(B, o, 4 * n); o += 4 * n;
+    const wt = new Float32Array(B, o, 4 * n); o += 16 * n;
+    const idx = new Uint16Array(B, o, 3 * t); o += 6 * t;
+    if (o - (o0 + m.off) > m.len)
+      throw new Error('decodeChar: mesh "' + m.name + '" overruns its slice');
+    return { name: m.name, node: m.node, mat: m.mat, nv: n, nt: t,
+             pos, nrm, uv, jt, wt, idx };
+  });
+  return { ibm, meshes };
+}
+
+// ---- THE CLIPS (G205) -----------------------------------------------------
+// A clip is sampled joint rotations on a uniform grid: f32 [frames][joints]
+// [4], joints named by their Mixamo base name so the same clip drives every
+// character. decodeCharAnim hands back the flat array; the sampler lives
+// with THREE in tools/_cage_char.js.
+const CHAR_ANIMS = { anims: {}, order: [] };
+function registerCharAnim(a) {
+  if (!CHAR_ANIMS.anims[a.key]) CHAR_ANIMS.order.push(a.key);
+  CHAR_ANIMS.anims[a.key] = a;
+  return CHAR_ANIMS;
+}
+function decodeCharAnim(a, bin) {
+  if (!bin) throw new Error('decodeCharAnim: "' + a.key + '" needs its bin bytes');
+  let u8 = bin;
+  if (u8.byteOffset % 4) u8 = new Uint8Array(u8);
+  const n = a.frames * a.joints.length * 4;
+  if (u8.byteLength < n * 4)
+    throw new Error('decodeCharAnim: "' + a.key + '" bin is short');
+  return new Float32Array(u8.buffer, u8.byteOffset, n);
+}
+
+if (typeof module !== 'undefined' && module.exports)
+  module.exports = { decodeChar, registerChar, charList, CHAR_REG,
+                     decodeCharAnim, registerCharAnim, CHAR_ANIMS };
 // ============================================================
 // GARAGE 1/5 — the SPEC. Source of truth for a generated airframe.
 //
@@ -11836,17 +11925,27 @@ const GEN_BUILD_GRAMMAR = {
   // why this row is all tape and sag and no heads.
   tubeFabric: {
     name: 'tube + fabric',
-    framePitch: 0.42,        // truss bays; the tape crosses at each
+    // THE FRAMES DO NOT PRINT (G206, the user: Cubs "seem very flat on the
+    // fuselage. You can see the internal structure slightly (especially the
+    // longitudinal beams of the boom)"). The covering touches only the
+    // STRINGERS — wooden battens laid fore-aft over the formers — and the
+    // truss bays behind them never touch it, so nothing prints at a frame
+    // pitch. framePitch 0.42 put a tape AND a sag at every bay, which with
+    // the stringers' own made a quilt. The real formers the generator knows
+    // about (the cage's rings, uG4.x) still take their faint line.
+    framePitch: 0,
     stringerPitch: 0.16,     // 12-20 stringers around a light fuselage
     panelAlong: 0, panelAround: 0,   // one envelope: no panels, no lines
-    // 50 mm (2 in) pinked-edge surface tape, doped, rising 0.3-0.8 mm with a
-    // soft shoulder. This ridge is most of what makes a covered airframe read
-    // as covered — garage.js's own comment, and it was right.
-    tape: { w: 0.050, rise: 0.00065 },
-    // fabric slack between members: 0.5-1.5 % of the pitch, FLAT-BOTTOMED.
-    // The exponent is what makes it read as a membrane under tension rather
+    // what prints is the STRINGER: a rounded batten under a tensioned
+    // membrane, a soft 18 mm ridge under a millimetre high. (The 50 mm doped
+    // rib TAPE is the wing's, where the wing grammar draws it per rib.)
+    tape: { w: 0.018, rise: 0.0009 },
+    // fabric slack between stringers: ~0.4 % of the pitch, FLAT-BOTTOMED,
+    // and ONE-DIRECTIONAL by construction now that framePitch is 0 — the
+    // shader sags along an axis only where that axis has a pitch. The
+    // exponent is what makes it read as a membrane under tension rather
     // than as a wave, and 1.4 is the value the old bump sheet used.
-    sag: { frac: 0.006, exp: 1.4 },
+    sag: { frac: 0.004, exp: 1.4 },
     dish: 0,
     fastener: null,
     seam: null,
@@ -11861,8 +11960,12 @@ const GEN_BUILD_GRAMMAR = {
     panelAlong: 2.0,         // a ply sheet is 1220 x 2440 and scarfs at a frame
     panelAround: 0.85,       // and will not wrap much past this
     tape: { w: 0.020, rise: 0.00012 },   // the frame under the skin, barely
-    sag: { frac: 0.0015, exp: 2.0 },     // ply dishes; it does not sag
-    dish: -0.0003,
+    // A STRESSED PLY SKIN IS FLAT (G206): glued to every longeron and frame,
+    // it neither sags nor dishes between them at 0.22 m — a Jodel's flank is
+    // dead flat with the members ghosting through and a scarf or two. The
+    // 0.3 mm dish per cell, quadrupled by the old single gain, was a quilt.
+    sag: { frac: 0, exp: 2.0 },
+    dish: 0,
     // gimp pins at 25 mm (Jodel plans), 1.6 mm heads standing 0.10-0.15 mm
     fastener: { kind: 'nail', pitch: 0.025, rowW: 0.020,
                 dia: 0.0016, rise: 0.00012 },
@@ -11881,6 +11984,9 @@ const GEN_BUILD_GRAMMAR = {
     sag: { frac: 0, exp: 1 },
     // OIL-CANNING, and it is what makes metal read as metal in raking light.
     // 0.5-2 mm, and it DISHES IN more than it bulges out — hence the sign.
+    // IRREGULAR since G206: the shader dishes one bay in two, each its own
+    // depth, bent again by the large-scale field — a dish in every cell at
+    // one sine was a waffle whatever this number said.
     dish: -0.0012,
     // AN470 universal: 4.8 mm across, 1.4 mm proud, 20-25 mm pitch (the 4D-6D
     // design rule). EDGE DISTANCE is 2D, so the row sits 5-8 mm INSIDE the
@@ -12969,6 +13075,31 @@ const GEN_RULES = {
   // GATE MOUNT holds both, on every mount kind, with a negative control.
   mountK:      2.5,
   mountFoot:   true,
+  // A ROD BOOM IS A TUBE, AND THE TRUSS IS NOT (G199.5, 2026-09-07; the user:
+  // "the stabs are moving with the tail wheel, and getting a huge torsion,
+  // even when simply taxiing"). A rod-boom build flies the lofted default
+  // section — a 0.1 x 0.18 m lattice at the post — because measuring the
+  // tube's own section collapses the truss (G199.3), and that lattice is
+  // about 12x softer in torsion than the 113 mm tube it stands for: the
+  // tailwheel's steering side-load (0.3 m below the boom axis) rolls the
+  // whole tail against the mains at full rudder on the taxi. This multiplies
+  // k (and c by its root) on every 'fus' member aft of boxRear of a boom
+  // declared 'rod'. MEASURED on the user's ultralight (GATE TAKEOFF's
+  // fixture), the taxi at full rudder and the 2 m/s crosswind take-off roll:
+  //   rodBoomK   stab roll vs the mains   cross-track through the roll
+  //      1            3.09 deg                   11.2 m
+  //      2            2.48                       12.0
+  //      3            1.49                       12.5
+  //      4            1.29                       12.7
+  //      8            the integrator blows up on the spawn
+  // The twist goes down as it should; the crosswind wander goes UP, because
+  // the autopilot's tailwheel steering was tuned on the soft boom, and GATE
+  // TAKEOFF bounds that wander at 12 m. So the switch is landed at 1 — the
+  // aeroplane flies exactly what it flew — with the machinery and its gates
+  // in place. Turning it to 4 is the user's ruling, paired with either a
+  // retune of the AP's crosswind steering or a re-based 12 m bound; the
+  // remaining 3x to the real tube is the tube member class, owed.
+  rodBoomK:    1,
   // ...and WHERE the foot goes, as a fraction of the way from the engine to
   // the front spar: 1 = under the front spar. Measured on the twin (engines
   // 0.65 m ahead of the spar), foot at 0 / 0.5 / 0.75 / 1 / 1.25 / 1.5:
@@ -13537,6 +13668,13 @@ const GEN_DEFAULT = {
           covering: 'skin',
           tailArm: null, postGap: 0.67, tailBays: 4,
           tailW: 0.10, tailBot: 0.20, tailTop: 0.38,
+          // THE BOOM'S CONSTRUCTION (G199.5): 'rod' (one bare tube carries the
+          // tail), 'loft' (a lofted, trussed boom) or 'twin'; null = unsaid, and
+          // the frame treats it as a loft. Written by the join off the cage's
+          // boomStyle; the frame reads it to stiffen a rod's bays by GEN_RULES.
+          // rodBoomK — the truss has no tube class, and a rod boom flying the
+          // lofted default section is ~12x too soft in torsion (HANDOVER G199.5).
+          boom: null,
           // THE MEASURED BOOM PROFILE (G54.1): rows of {t, w, yb, yt} with t
           // normalised over boxRear..tailArm. When present, the aft stations
           // take their section from HERE (interpolated by t) instead of the
@@ -13677,12 +13815,7 @@ const GEN_DEFAULT = {
             // for a biplane's gap: the lower plane sits on the fuselage's own
             // longeron band, so the gap is a readout (S.geom.gap), never a key.
             cabaneH: null,
-            // G188: the root chord line's HEIGHT over the cabin keel, measured
-            // by the join off the drawn wing (null = the position's own rule:
-            // a standoff below the keel for a low wing, above the roof for a
-            // high one, half-way for mid). The frame used to seat a low wing
-            // 0.10 m below the keel whatever was drawn.
-            y: null,
+
             xLE: null, place: { dx: 0, dy: 0 } }],
   // Wing fixation, its own section because it is its own structure. Cantilever
   // gets a real four-chord spar box — rule 1 says a planar two-spar wing only
@@ -14005,10 +14138,7 @@ function clampWing(w, S, k) {
   // default. The envelope spans a wing rooted on the firewall to one rooted
   // well down the cabin; static margin is the honest consequence either way,
   // and the shakedown posts it.
-  // G188: a wing drawn under a long nose sits well AHEAD of the firewall
-  // (−1.12 m on the pod that found the old −0.20 floor); the frame's rings
-  // straddle a negative station like any other, so the envelope is geometric.
-  w.xLE = genClampN(w.xLE, -2.50, 3.00);
+  w.xLE = genClampN(w.xLE, -0.20, 3.00);
   if (!GEN_TIPS[w.tip]) w.tip = 'rounded';
   // CRANK: a second wing section, and only a second. `crankAt` is the break
   // station as a fraction of the semispan; 0 means a single straight panel.
@@ -14062,9 +14192,7 @@ function clampWing(w, S, k) {
   // These stop the geometry going degenerate, nothing more.
   w.place.dx = genClamp(w.place.dx, -1.2, 1.8);
   w.place.dy = genClamp(w.place.dy, -0.25, 0.60);
-  // G188: the measured root height, nullable like xLE; a wing on the belly
-  // to one on a tall cabane, nothing degenerate in between
-  w.y = genClampN(w.y, -0.60, 2.60);
+
 }
 
 function clampSpec(spec) {
@@ -14222,9 +14350,7 @@ function clampSpec(spec) {
     e.place.dx = genClamp(e.place.dx, -0.60, 0.45);
     e.place.dy = genClamp(e.place.dy, -0.30, 0.40);
     // the mount station (2026-09-04): an envelope, null kept for derivation
-    // G188: a nose engine drawn at the tip of a long nose is 2 m ahead of the
-    // firewall — the envelope is geometric, the balance is the plaque's
-    e.x = genClampN(e.x, -3.0, 8.0);
+    e.x = genClampN(e.x, -1.0, 8.0);
     e.y = genClampN(e.y, -1.0, 2.5);
     e.z = genClampN(e.z, 0, 6.0);
     e.pylon = genClampN(e.pylon, 0.05, 1.0);
@@ -14464,10 +14590,8 @@ function clampSpec(spec) {
   S.cargo.len = genClamp(S.cargo.len || 0, 0, 2.5);
   S.cargo.kg = genClamp(S.cargo.kg || 0, 0, 400);
   fu.tailBays = genClamp(fu.tailBays | 0, 3, 6);
-  // G188: the join measures this gap as the drawn tail cone's own length (the
-  // post to the skin's aft extreme) — 0.13 m on a pod; the old 0.35 floor
-  // stood the frame's post 0.22 m behind the drawn tail
-  fu.postGap = genClamp(fu.postGap, 0.08, 1.10);
+  fu.boom = (fu.boom === 'rod' || fu.boom === 'loft' || fu.boom === 'twin') ? fu.boom : null;
+  fu.postGap = genClamp(fu.postGap, 0.35, 1.10);
   fu.crownTop = genClamp(fu.crownTop, 0, 1);
   fu.crownSide = genClamp(fu.crownSide, 0, 0.6);
   // The TAIL-END SECTION. These were in the spec from the start but had no
@@ -14509,7 +14633,7 @@ function clampSpec(spec) {
   // respectively — again fractions, so a bigger propeller gets a bigger nose
   sn.len = genClamp(sn.len == null ? 2.2  : sn.len, 0.6,  4.0);
   sn.dia = genClamp(sn.dia == null ? 0.17 : sn.dia, 0.08, 0.32);
-  cb.noseGap = genClamp(cb.noseGap, 0.20, 1.10);   // G188: a short pilot bay measures short
+  cb.noseGap = genClamp(cb.noseGap, 0.40, 1.10);
   S.gear.stiffness = genClamp(S.gear.stiffness == null ? 1 : S.gear.stiffness, 0.35, 3.0);
   S.gear.place.dx = genClamp(S.gear.place.dx, -0.80, 1.20);
   S.gear.place.dtrack = genClamp(S.gear.place.dtrack, -0.80, 1.50);
@@ -14535,12 +14659,9 @@ function clampSpec(spec) {
     }
     fu.profile = P2.length >= 2 ? P2 : null;
   } else fu.profile = null;
-  // G188: a scaled-down pod measures a 0.24 m half-width and a 0.50 m cabin
-  // box (front pillar to the aft screen's base); the old floors (0.28 / 0.60)
-  // silently widened and lengthened the frame's box past the drawn one
-  cb.halfW = genClampN(cb.halfW, 0.18, 0.75);
+  cb.halfW = genClampN(cb.halfW, 0.28, 0.75);
   cb.h = genClampN(cb.h, 0.75, 1.45);
-  cb.len = genClampN(cb.len, 0.30, 2.60);
+  cb.len = genClampN(cb.len, 0.60, 2.60);
   fu.tailArm = genClampN(fu.tailArm, 2.00, 6.50);
   S.tail.hSpan = genClampN(S.tail.hSpan, 1.50, 4.50);
   S.tail.hChord = genClampN(S.tail.hChord, 0.40, 1.60);
@@ -14580,11 +14701,7 @@ function clampSpec(spec) {
   // the CG/rake placement rule — deliberately: the wheels go where the built
   // aeroplane's wheels are, and the shakedown's noseOver row posts the
   // consequence. The height (gear.y) stays the prop-clearance rule's.
-  // G188: mains drawn under a long nose sit well ahead of the firewall
-  // (−1.42 m on the pod that found the old −0.50 floor); the visual is
-  // calibrated wheels-to-axles, so a clamped station shifts the WHOLE drawn
-  // aeroplane by the clamp — 0.93 m of misfit on every row of the report
-  S.gear.x = genClampN(S.gear.x, -3.00, 3.00);
+  S.gear.x = genClampN(S.gear.x, -0.50, 3.00);
   // Camber, degrees, tops-outboard positive. Real aeroplanes run a few degrees
   // either way; the range is wide enough to be a look and not wide enough for
   // the wheel to lie on its side.
@@ -14840,12 +14957,7 @@ function resolveSpec(spec) {
   //    fuselage aft of the cabin, so the tail has to start behind it.
   S.fuse.boxRear = S.cab.noseGap + S.cab.len + S.fuse.cargoLen;
   put(S.fuse, 'tailArm', xAC + GEN_RULES.tailArmC * w.chord, 'fuse.tailArm');
-  // G188: the 0.9-chord floor is a DESIGN rule for the DERIVED arm, not a
-  // bound on a MEASURED one — it stretched a pod's measured 3.11 m boom to
-  // 4.05 m and stood the tail post 0.9 m behind the drawn tail. A built boom
-  // only has to leave a bay behind the box.
-  S.fuse.tailArm = Math.max(S.fuse.tailArm,
-    S.fuse.boxRear + (auto['fuse.tailArm'] ? 0.9 * w.chord : 0.30));
+  S.fuse.tailArm = Math.max(S.fuse.tailArm, S.fuse.boxRear + 0.9 * w.chord);
   const post = S.fuse.tailArm + S.fuse.postGap;
   S.fuse.postX = post;
 
@@ -14997,19 +15109,7 @@ function resolveSpec(spec) {
   S.engX = -Math.max(0.18 + 0.32 * propR,
                      (PP && PP.engine.length > 0 ? PP.engine.length + 0.10 : 0))
            + pl.engineDx;
-  // G188: A NOSE ENGINE THE JOIN MEASURED sits where it was drawn. The cowl-
-  // and-prop rule above is the derivation for a spec that says nothing; a
-  // drawn unit's station (engines[0].x/y, off the engine layer, firewall/keel
-  // datum) is the builder's — 1.56 m further forward on the long-nosed pod
-  // that found this, and the whole powerplant's mass with it. engX/engY stay
-  // the one nose station every reader (frame, cowl loft, nose gear) shares.
-  {
-    const e0 = S.engines[0];
-    if ((e0.mount || 'nose') === 'nose') {
-      if (e0.x != null) S.engX = e0.x + pl.engineDx;
-      if (e0.y != null) S.engY = e0.y + pl.engineDy;
-    }
-  }
+
   // WHERE EACH ENGINE ACTUALLY SITS (2026-09-04): engX/engY stay the NOSE
   // station (the cowl loft, the nose gear and the fleet read them); engAt is
   // the mount the frame builds and the wash blows from. A nose mount IS
@@ -15021,8 +15121,7 @@ function resolveSpec(spec) {
   S.engAt = S.engines.map((e, i) => {
     const m = e.mount || 'nose';
     const semi = 0.5 * w.span, zR = S.cab.halfW;
-    const wingY = S.wing.y != null ? S.wing.y            // G188: as drawn
-                : S.wing.position === 'low' ? 0.22 * S.cab.h
+    const wingY = S.wing.position === 'low' ? 0.22 * S.cab.h
                 : S.wing.position === 'mid' ? 0.55 * S.cab.h : S.cab.h + 0.01;
     const pylon = e.pylon != null ? e.pylon : 0.30;
     const d = m === 'pusher' ? { x: S.fuse.boxRear + 0.30, y: 0.45 * S.cab.h, z: 0 }
@@ -15036,9 +15135,8 @@ function resolveSpec(spec) {
              // (the frame builds NL from entry 0 and NR from entry 1)
              sense: (+e.sense === -1) ? -1 : 1,
              side: m === 'wing' ? (i === 0 ? -1 : 1) : 0,
-             // a nose mount IS engX/engY (a measured one already moved them)
-             x: e.x != null && m !== 'nose' ? e.x : d.x,
-             y: e.y != null && m !== 'nose' ? e.y : d.y,
+             x: e.x != null ? e.x : d.x,
+             y: e.y != null ? e.y : d.y,
              z: m === 'wing' ? Math.abs(e.z != null ? e.z : d.z) : 0,
              pylon,
              pushes: m === 'pusher' ? true : m === 'nose' ? false
@@ -16107,8 +16205,17 @@ function genLattice(S, gearX, track, kScale) {
     const steel = mnt || cls === 'cabane' || cls === 'interplane' || cls === 'wire';
     const MM = steel ? (GEN_MATERIALS.tubeFabric || MB) : MB;
     const mK = mnt ? (R.mountK == null ? 1 : R.mountK) : 1;
-    const bm = { a, b, k: MM.k[cls] * (isG ? kG : KS) * kGain * mK,
-                 c: MM.c[cls] * (isG ? cG : CS) * Math.sqrt(mK),
+    // G199.5: a ROD boom's bays are a tube, not a lattice — GEN_RULES.rodBoomK
+    // on every fuselage-class member aft of the cabin box (the post, the
+    // stab's and fin's truss included: they stand on the tube). Damping by
+    // the root, as the bearer's mountK does. Weightless: k only. The rule
+    // sits at 1 today (see it for the measured trade against the AP's
+    // crosswind roll), so this changes nothing until it is turned.
+    const bK = (S.fuse.boom === 'rod' && cls === 'fus' && !mnt &&
+                P[a][0] >= S.fuse.boxRear - 1e-6 && P[b][0] >= S.fuse.boxRear - 1e-6)
+      ? (R.rodBoomK == null ? 1 : R.rodBoomK) : 1;
+    const bm = { a, b, k: MM.k[cls] * (isG ? kG : KS) * kGain * mK * bK,
+                 c: MM.c[cls] * (isG ? cG : CS) * Math.sqrt(mK) * Math.sqrt(bK),
                  gear: isG, cls, ext: vis === 'inner' ? false : (!!ext || isG),
                  vis: vis || null, L };
     if (opt && opt.tens) bm.tens = true;
@@ -16272,15 +16379,7 @@ function genLattice(S, gearX, track, kScale) {
   // tail post: two centreline nodes. refs.tailMid points here, so rule 8
   // (attitude reference on RIGID structure) is satisfied by construction.
   const TPB = N(fu.postX, lastST.yb + 0.05, 0, 'TPB');
-  // A TAIL POST IS NEVER SHORTER THAN 0.15 m (G199.1, 2026-09-06). The two
-  // insets assume a fuselage section at the post; on a ROD boom the section
-  // there is the tube's (measured 0.11 m on the user's ultralight), so TPB and
-  // TPT came out 0.044 m apart and that stub carried the whole tail — 5.8 %
-  // strain with every other member under 2 %. The post on a rod is the socket
-  // fitting the fin stands in, and it stands above the tube. Inert on every
-  // build whose post section already clears 0.22 m, which is every loft.
-  const TPT = N(fu.postX, Math.max(lastST.yt - 0.02, lastST.yb + 0.05 + 0.15),
-                0, 'TPT');
+  const TPT = N(fu.postX, lastST.yt - 0.02, 0, 'TPT');
   B(TPB, TPT, 'fus');
   B(last.BL, TPB, 'fus'); B(last.BR, TPB, 'fus');
   B(last.TL, TPT, 'fus'); B(last.TR, TPT, 'fus');
@@ -16470,16 +16569,11 @@ function genLattice(S, gearX, track, kScale) {
   const POS = { high: 1, mid: 0.5, low: 0, parasol: 1 }[w.position] ?? 1;
   const wingY0 = cab.h * POS
     + (cabH > 0 ? cabH : R.wingStandoff * (POS >= 0.75 ? 1 : POS <= 0.25 ? -1 : 0));
-  // G188: THE DRAWN HEIGHT WINS. wingY0 is the position's rule; a wing the
-  // join measured (w.y, root chord line over the keel) sits where it was
-  // drawn — the rule put a low wing 0.10 m below the keel while the cage
-  // seated it 22 % up the section, 0.24-0.4 m apart on every low-wing build.
-  const wingYr = w.y != null ? w.y : wingY0;
   const attachHi = POS >= 0.5, attachTag = attachHi ? 'T' : 'B';
   const opposeTag = attachHi ? 'B' : 'T';
   // a strut is only a brace if its anchor is far enough from the wing — see
   // GEN_RULES.strutMinOffset. Otherwise build the box instead.
-  const strutOffset = Math.abs(wingYr - (attachHi ? 0 : cab.h));
+  const strutOffset = Math.abs(wingY0 - (attachHi ? 0 : cab.h));
   // G140: A CRANKED WING CAN BE STRUT-BRACED — WHEN THE STRUT LANDS ON THE
   // CRANK. The 2026-08-11 exclusion stays true for what it measured: a fan
   // reaching PAST the crank read 22.95 deg @200 N.m at 1.34x (the worst
@@ -16500,7 +16594,7 @@ function genLattice(S, gearX, track, kScale) {
   // straight line it always was.
   const dihOut = Math.tan((w.dihedralOut == null ? w.dihedral : w.dihedralOut) * D);
   const yF = z => {
-    const base = wingYr + S.place.wingDy;
+    const base = wingY0 + S.place.wingDy;
     if (zCrank <= 0 || z <= zCrank) return base + (z - zRoot) * dih;
     return base + (zCrank - zRoot) * dih + (z - zCrank) * dihOut;
   };
@@ -17190,18 +17284,6 @@ function genLattice(S, gearX, track, kScale) {
     // stands in Frame mode and still carries exactly the same load.
     B(TW, TPB, 'gear', false, 'leg');
     B(TW, last.BL, 'gear', false, 'wire'); B(TW, last.BR, 'gear', false, 'wire');
-    // A WHEEL THAT TRAILS THE POST (G199.1, 2026-09-06). The pyramid below
-    // assumes the wheel sits just AHEAD of the sternpost (the default twX is
-    // postX - 0.10), so its base — the last frame and the post — straddles
-    // the wheel. A rod-boom build roots its leaf spring at the tube's end and
-    // the wheel trails 0.3 m BEHIND the post: every anchor is then forward of
-    // the wheel, the fan spans 20 degrees, and the tail hunts on it (measured:
-    // 13 % strain, three-point pitch 13.4 deg against 9.2). A real spring is a
-    // cantilever the truss cannot carry, so the wheel takes a stay up to the
-    // fin's apex — the tallest lever the tail has — declared INTERNAL like the
-    // snap-blocker (under the covering it is not there). Measured: 1.7 %,
-    // 8.4 deg. A wheel ahead of the post builds exactly what it built.
-    if (FIN != null && twX > fu.postX + 0.02) B(TW, FIN, 'gear', false, 'inner');
     // rule 10: a near-axial chain LATCHES with every strain under 1%, and no
     // strain gate can see it. Both cures the Cub needed are mandatory here:
     // a snap-blocking near-vertical member, AND a wide lateral pyramid.
@@ -20895,7 +20977,7 @@ function playerShedDims(doc, id, site) {
   return { HW: d.HW || h.HW, HD: d.HD || h.HD, EAVE: d.EAVE || h.EAVE };
 }
 if (typeof module !== 'undefined')
-  module.exports = { AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, makeSim, vortexKernel, makeAutopilot, makeTestPilot, makePilot, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims };
+  module.exports = { AIRFIELD_SITE, AIRFIELD_SITES, siteOf, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteMarkers, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, ATMOS_ISA, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, makeSim, vortexKernel, makeAutopilot, makeTestPilot, makePilot, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, genEnginePrice, POLARS, PAR, RHO, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims };
 </script>
 <script src="src/models/pa18_model.js?v=1ab5ecde"></script>
 <script src="src/models/c172_model.js?v=267306e7"></script>
@@ -20919,6 +21001,14 @@ if (typeof module !== 'undefined')
 <script src="src/props/props_vehicle.js?v=cd02f7b8"></script>
 <script src="src/props/props_fixture.js?v=93362da1"></script>
 <script src="src/props/props_airframe.js?v=88d864cd"></script>
+<script src="src/chars/ch42_char.js?v=c440fbad"></script>
+<script src="src/chars/ch02_char.js?v=cf30202a"></script>
+<script src="src/chars/remy_char.js?v=01a16f6e"></script>
+<script src="src/chars/ch22_char.js?v=f61be819"></script>
+<script src="src/chars/ch01_char.js?v=854f26f4"></script>
+<script src="src/chars/ch20_char.js?v=97fe3427"></script>
+<script src="src/chars/sitidle_anim.js?v=46c92d21"></script>
+<script src="src/chars/piloting_anim.js?v=c915ae51"></script>
 <script>window.CAGE_UI_LAZY = 1; window.CAGE_IN_GAME = 1;</script>
 <script>
 // CAGE PARTS (G76) — THE DECLARED ASSEMBLY OF THE AEROPLANE.
@@ -21241,7 +21331,10 @@ const CAGE_PARTS = [
     sections: ['joint'],
     // the REVEAL is the windows' own: it is what `winFrameW` gates, and it
     // reaches every glazed zone rather than any one part
-    groups: [['seal', ['rimW']],
+    // G206: the strip's rise and the pane's step down inside it — the two
+    // numbers that make a pane a solid set into a frame rather than a
+    // sticker with a line drawn round it
+    groups: [['seal', ['rimW', 'rimRise', 'paneInset']],
              ['the reveal', ['winFrameW', 'winDepth']]] },
 
   // the mirrored pod's aft half. FOREVER-SPLIT (the user's ruling): these are
@@ -21820,10 +21913,11 @@ const CAGE_PARTS = [
     groups: [
       // G180: the cockpit's occupants and the two poses (a passenger bay's
       // occupancy is the bay's own row, see the Passenger bay part)
-      ['aboard', ['dumOn', 'cabOcc']],
+      ['aboard', ['dumOn', 'pilotWho', 'cabOcc', 'copWho']],
       ['pilot pose', ['dumSize', 'dumElbows', 'dumKnees', 'dumRecline',
-                      'dumHandGrip']],
-      ['passenger pose', ['paxSize', 'paxRecline']],
+                      'dumHandGrip', 'dumFist', 'dumIdle']],
+      ['passenger pose', ['paxSize', 'paxRecline', 'paxFeetOn', 'paxFeetZ',
+                          'paxFeetY', 'paxFeetX', 'paxIdle']],
       ['markers', ['dumMarkers']],
     ] },
 
@@ -23882,6 +23976,12 @@ if (typeof window !== 'undefined') window.CAGE_DESIGN = API;
 // window.CAGE_UI, which only exists once _cage_ui.js has run — so each page
 // calls it in a trailing script.
 'use strict';
+// the crew models the select offers: the ATD first, then every registered
+// character (52_char_codec.js CHAR_REG; empty in a page without them)
+// (G204.1) 0 = 'mixed crew': the characters rotate through the seats, no
+// two alike while there are enough of them; 1 = the ATD; 2.. = one person
+const WHO_NAMES = ['mixed crew (rotate)', 'ATD-01 crash dummy'].concat(
+  typeof CHAR_REG !== 'undefined' ? CHAR_REG.order.map(k => CHAR_REG.chars[k].label) : []);
 // Jodel-ish defaults: near-semicircular top, full roundness, glass canopy.
 window.CAGE_PAGE = {
   defaultStep: 'crease',
@@ -24003,6 +24103,8 @@ window.CAGE_PAGE = {
     stickLen: 0.44, thrX: 0, thrY: 0, thrZ: 0, thrLen: 0.16, pedalZ: 0.9,
     pedalH: 0.18, pedalSpread: 0.15, pedalAngle: 25, dumOn: 1,
     dumSize: 1, dumElbows: 0.08, dumKnees: 0, dumRecline: 0, dumMarkers: 1,
+    pilotWho: 0, copWho: 0, dumFist: 0.5, dumIdle: 0.5,
+    paxFeetOn: 1, paxFeetZ: 0.55, paxFeetY: 0, paxFeetX: 0.14, paxIdle: 1,
     dumHandGrip: 0.075,
     // G180 — WHO IS ABOARD, per section, and the passengers' own seat and
     // pose. Full by default: that is what `dum2On 1` (retired, migrated in
@@ -24174,6 +24276,9 @@ window.CAGE_PAGE = {
         ['bubW3',     'loop3 width',    0.8, 1.5, 0.01,
          { when: P => +P.canopy === 3 && +P.canLoops >= 3 }],
         ['rimW',      'joint size',     0.00, 0.04, 0.001, { dim: 'len' }],
+        // G206: the strip's rise (x rimW) and the pane's step down behind it
+        ['rimRise',   'rim rise',       0.05, 1, 0.01],
+        ['paneInset', 'pane inset',     0, 0.01, 0.0005, { dim: 'len' }],
         // THE REVEAL. `winFrameW` gates the whole frame/recess pass, so it and
         // `winDepth` were unreachable and `doorDepth` did nothing while it sat
         // at 0. At 0 the windows are flush, as they were before this row.
@@ -24327,8 +24432,16 @@ window.CAGE_PAGE = {
       // retired and migrated in cageFromSpec.
       ['aboard', [
         ['dumOn',     'pilot dummy',    0, 1, 1],
+        // WHO FLIES (G204/G204.1): the pilot and the co-pilot each pick from
+        // the same list — mixed crew (the characters rotate through every
+        // seat aboard, the passengers included), the ATD-01, or one declared
+        // character (src/chars/, tools/chars_table.py order — the manifests
+        // load ahead of this page, so the list is read here, once)
+        ['pilotWho',  'pilot',          0, WHO_NAMES.length - 1, 1, WHO_NAMES],
         ['cabOcc',    'co-pilot seated', 0, 1, 1,
          { when: P => +P.crewOn && +P.seatLayout === 1 }],
+        ['copWho',    'co-pilot',       0, WHO_NAMES.length - 1, 1, WHO_NAMES,
+         { when: P => +P.crewOn && +P.seatLayout === 1 && +P.cabOcc }],
       ], 'open', { when: P => +P.crewOn }],
       ['pilot pose', [
         ['dumSize',   'stature',        0, 2, 1, ['5th %ile — 1.52 m',
@@ -24338,6 +24451,11 @@ window.CAGE_PAGE = {
         ['dumKnees',  'knees in/out',  -0.25, 0.25, 0.005],
         ['dumRecline','recline offset',-15, 25, 0.5],
         ['dumHandGrip','hand on grip',  0, 0.16, 0.005],
+        // G205: how far the fingers close (0 flat, 1 a fist; a character
+        // only), and the pilot's breathing/glancing amplitude off the
+        // sitting-idle clip (0 = a statue)
+        ['dumFist',   'fist closed',    0, 1, 0.05],
+        ['dumIdle',   'idle motion',    0, 1, 0.05],
         ['dumMarkers','eye point',      0, 1, 1],
       ], 'open', { when: P => +P.crewOn }],
       // one pose for every passenger (the user: "all the passenger and dummy
@@ -24348,6 +24466,17 @@ window.CAGE_PAGE = {
                                                   '50th %ile — 1.75 m',
                                                   '95th %ile — 1.88 m']],
         ['paxRecline','recline offset',-15, 25, 0.5],
+        // G205: the feet, placed without pedals — fore-aft from the seat
+        // back, height over the bay floor, half-spread (metres); and the
+        // upper-body idle clip's weight
+        ['paxFeetOn', 'feet placed',    0, 1, 1],
+        ['paxFeetZ',  'feet forward',   0.15, 0.95, 0.01,
+         { when: P => +P.crewOn && +P.paxCount > 0 && +P.paxFeetOn }],
+        ['paxFeetY',  'feet height',    0, 0.45, 0.01,
+         { when: P => +P.crewOn && +P.paxCount > 0 && +P.paxFeetOn }],
+        ['paxFeetX',  'feet apart',     0, 0.35, 0.005,
+         { when: P => +P.crewOn && +P.paxCount > 0 && +P.paxFeetOn }],
+        ['paxIdle',   'idle motion',    0, 1, 0.05],
       ], 'open', { when: P => +P.crewOn && +P.paxCount > 0 }],
     ], 'open'],
     ['5 · passengers', [
@@ -25507,39 +25636,7 @@ function cageResolve(S) {
   // buildCage2 are the keepers; the seam they expose stays the contract
   // for whatever the bubble becomes.)
 
-  // G188: THE POD'S AFT ANATOMY, for the join. A mirrored pod has no pilPaxA
-  // and no tailPost ring — its aft half is the front half REFLECTED inside
-  // buildCage2 — so the two stations the join measures the boom between were
-  // never there, and the cabin length, every boom section and all eight tail
-  // rows fell through to whatever the spec carried from before (a 6.3 m stab
-  // station on a 3.1 m aeroplane). The aft end of the full section is the
-  // REFLECTED WINDSCREEN BASE — the aft screen's own base ring — placed by the
-  // same constant buildCage2 reflects with (CZ = zBm − pillarW + zBs,
-  // rz(z) = CZ − z), the source half being the aft override spec when there
-  // is one. Cage units, like the rings. The tail post has no ring either; the
-  // join reads it off the skin (aft extreme + the tail cone's length).
-  let pod = null;
-  if (MIR) {
-    const zOfR = (RR, nm) => {
-      const r = RR.rings.find(q => q.name === nm);
-      const l = r && r.lv && (r.lv.waist || r.lv.keel);
-      return l && isFinite(l.z) ? l.z : null;
-    };
-    const SA = CFG.mirrorAftSpec;
-    let zBs = mirrorZ + S.cabinPillarW / 2, zWsA = zOfR({ rings }, 'wsFront');
-    if (SA) {
-      try {
-        const RA = cageResolve(SA);
-        zBs = RA.mirrorZ + SA.cabinPillarW / 2;
-        const w2 = zOfR(RA, 'wsFront');
-        if (w2 != null) zWsA = w2;
-      } catch (e) { /* the front half's own numbers stand in */ }
-    }
-    const CZ = (mirrorZ + S.cabinPillarW / 2) - S.cabinPillarW + zBs;
-    pod = { zCabA: zWsA != null ? CZ - zWsA : null, zCabB: CZ - zBs };
-  }
-
-  return { rings, bays, chain, noseTwin, noseRing, mirrorZ, pod,
+  return { rings, bays, chain, noseTwin, noseRing, mirrorZ,
            rodSpan: ROD ? { zRoot: zPaxA, zTip: zCap, ring: rodRing } : null };
 }
 
@@ -26957,6 +27054,17 @@ function cageRims(m, S) {
     // was unfindable from the thing it controls.
     const r = kind === 'door' ? (W.doorRim > 0 ? W.doorRim : W.rim * 0.85)
                               : W.rim;
+    // THE STRIP STANDS ON THE SKIN (G206): the window's outline was traced
+    // on the pane, which cageCut has just recessed by paneInset — lift the
+    // path back by the same amount along the outline's own normals, or the
+    // strip sinks with the glass and the step it was cut for disappears.
+    if (kind !== 'door' && S.cut && S.cut.on && W.paneInset > 0) {
+      const li = W.paneInset;
+      pts = pts.map((p, i) => {
+        const n = ns[i] || [0, 0, 0];
+        return [p[0] + n[0] * li, p[1] + n[1] * li, p[2] + n[2] * li];
+      });
+    }
     // ROUND SHARP CORNERS of the sweep path (user: shading at the seal
     // elbows): corners sharper than ~35 deg are Chaikin-cut into two
     // points a small way down each arm — a physical seal rounds its
@@ -27164,7 +27272,16 @@ function cageRims(m, S) {
         // low strip straddling the seam, not a full round tube — the
         // in-surface half-width keeps r, the out-of-surface rise drops
         // to a fraction of it (n2 is the surface normal by construction)
-        const cb = Math.cos(a) * r, cn = Math.sin(a) * r * 0.38;
+        // ...AND A RETAINING STRIP ON A WINDOW (G206): the rise is the
+        // builder's `rimRise` (0.22 = 2.6 mm on the stock 12 mm), and the
+        // section is flat-topped — the sine is clipped so the crown is a
+        // face, not a ridge. A DOOR keeps the round-topped rubber at 0.38.
+        const rise = kind === 'door' ? 0.38
+                   : (W.rimRise != null ? W.rimRise : 0.38);
+        const sn = Math.sin(a);
+        const cb = Math.cos(a) * r;
+        const cn = (kind === 'door' ? sn
+                    : Math.max(-1, Math.min(1, sn * 1.5))) * r * rise;
         let qx = b[0]*cb + n2[0]*cn, qy = b[1]*cb + n2[1]*cn,
             qz = b[2]*cb + n2[2]*cn;
         if (mit) {
@@ -27370,7 +27487,7 @@ function cageCut(m, S) {
     }
     return [...z.values()];
   };
-  const cutZone = (fis, sill) => {
+  const cutZone = (fis, sill, inset) => {
     let keep = fis;
     if (sill > 0) {
       // ROW-STEPPED SILL (user correction: cut STRAIGHT along the rows
@@ -27456,6 +27573,15 @@ function cageCut(m, S) {
     const off = rl > 0.15 * nl
       ? [nx/rl*C.explode, ny/rl*C.explode, 0]
       : [nx/nl*C.explode, ny/nl*C.explode, nz/nl*C.explode];
+    // THE PANE STEPS DOWN (G206): a window part is recessed by `inset`
+    // (cage units) along its own mean normal — the full normal, not the radial
+    // one, because a raked screen recesses square to its glass. The strip
+    // (cageRims) lifts its path back up by the same amount, so the seal
+    // stands on the skin and the pane sits behind it. Doors pass 0.
+    if (inset > 0) {
+      off[0] -= nx / nl * inset; off[1] -= ny / nl * inset;
+      off[2] -= nz / nl * inset;
+    }
     const map = new Map();
     for (const fi of keep) {
       F[fi].v = F[fi].v.map(vi => {
@@ -27486,14 +27612,14 @@ function cageCut(m, S) {
       : dk && dk.lastIndexOf('pax', 0) === 0
         ? (W.doorSillPax != null ? W.doorSillPax : W.doorSill)
       : W.doorSill;
-    cutZone(z, Math.max(0, sill || 0));
+    cutZone(z, Math.max(0, sill || 0), 0);
   }
   // DOORS OWN THEIR WINDOWS (user ruling): glass already separated with
   // a door stays with it — only window faces OUTSIDE every cut door form
   // their own parts (a window straddling a door edge splits: the door
   // keeps its share, the rest becomes a fuselage-side window part).
   if (C.wins) for (const z of groups('win', fi => !F[fi].cutPart))
-    cutZone(z, 0);
+    cutZone(z, 0, W.paneInset || 0);
   // DOOR REMOVED (G26.4, user): define the door, then take it away —
   // the OPENING stays and everything around it (jambs, sills, broken
   // waist runs, frames) is built exactly as if the door were hung; the
@@ -31128,6 +31254,16 @@ const CAGE_PARAMS = {
   // while it waits.
   winFrameW: 0, winDepth: 0.015, winBlow: 0, crGlass: 3.0,
   rimW: 0.012, rimWin: 1, rimWs: 1, rimDoor: 1, rimSides: 8, rimArc: 3,
+  // THE JOINT IS A STRIP AND THE PANE STEPS DOWN INSIDE IT (G206, the user:
+  // "look at the window joints too, they might be important suspect in the
+  // windows looking bad" — they were). `rimRise` is the strip's rise as a
+  // fraction of its half-width: 0.38 was a low tube, 0.22 on the stock rimW
+  // (0.012 cage units, ~9 mm) is a 2 mm retaining strip, which is what holds a pane on
+  // a light aeroplane (a doped tape on fabric, an alloy strip on ply and
+  // metal). `paneInset` recesses the cut pane by that much (cage units,
+  // like rimW: 0.0025 is ~1.9 mm at the stock unit) behind the skin, so the strip stands proud of the glass and the pane reads as
+  // a solid set into a frame rather than a sticker with a line round it.
+  rimRise: 0.22, paneInset: 0.0025,
   doorOn: 1, doorPax: 0, doorDeep: 1, doorSill: 0.06, doorSillPax: 0.06,
   // THE DOOR'S OWN GAP and the REVEAL it sits in. `winFrameW` gates the whole
   // frame/recess pass (cageWinFrames returns immediately at 0), so `doorDepth`
@@ -31602,6 +31738,8 @@ function cageSpec(P) {
             crGlass: P.crGlass, door: P.doorOn ? 1 : 0,
             doorDepth: P.doorDepth, rim: P.rimW, doorRim: P.doorRim,
             rimSides: P.rimSides || 8, rimArc: P.rimArc || 1,
+            rimRise: P.rimRise != null ? +P.rimRise : 0.38,
+            paneInset: Math.max(0, +P.paneInset || 0),
             rimWin: P.rimWin ? 1 : 0, rimWs: P.rimWs ? 1 : 0,
             rimDoor: P.rimDoor ? 1 : 0,
             doorSill: Math.max(0, P.doorSill || 0),
@@ -32149,6 +32287,469 @@ if (typeof window !== 'undefined')
                    cageCanopy, cageBodyZones, cageZoneAt, CAGE_ZONE_RINGS,
                    cageDefaults, cageFromSpec, cageToSpec,
                    CAGE_VIEW_KEYS, CAGE_LVI_BASE, cageLvIndex };
+</script>
+<script>
+// CAGE CHAR — rigged characters for the crew layer (G204).
+//
+// The ATD-01 dummy in _cage_crew.js is a 21-bone skeleton with analytic IK
+// that finds the grips from the control positions. A Mixamo character is a
+// skinned mesh over a 65-joint rig. This module makes the second wear the
+// first's solution: the ATD skeleton is REBUILT WITH THE CHARACTER'S OWN
+// PROPORTIONS (joint offsets read off the rig's reference pose, so the hands
+// really land where the character's hands are), the crew layer poses and IK-
+// solves it exactly as before, and `dress` copies each solved bone's world
+// orientation onto the matching Mixamo joint — every unmapped joint (Spine2,
+// fingers, toes, the head top) rides rigidly with its nearest mapped
+// ancestor. The mesh follows through ordinary GPU skinning.
+//
+// Conventions that meet here:
+//   ATD    rest = identity everywhere, standing, arms hanging, +x the pilot's
+//          left, +y up, +z forward; a limb bone's local -y runs down the
+//          segment; a HAND's +x is the grip axis (thumb side), -y the fingers,
+//          +-z the palm (gripQuat in _cage_crew.js).
+//   Mixamo rest = T-pose (or A-pose) facing +z, left = +x, in centimetres
+//          under an armature root that scales to metres and turns y up. A
+//          hand's bone axis runs to the fingers, palm faces the body, thumb
+//          forward (+z world) when the arm is brought down to hang.
+// The REFERENCE POSE is the rig's rest with each upper arm rotated by the
+// shortest arc onto straight down — that pose IS the ATD identity, so the
+// transfer is: joint.worldQ = atdBone.worldQ * C * joint.refWorldQ, with C
+// the identity except on hands, where a fixed 90 deg about the hand's own
+// length turns "palm to the body" into "palm across the grip".
+//
+// Loads AFTER 52_char_codec.js (CHAR_REG, decodeChar) and the character
+// manifests, BEFORE _cage_crew.js. Node-free: THREE scenery only.
+'use strict';
+(() => {
+const D2R = Math.PI / 180;
+const REG = () => (typeof CHAR_REG !== 'undefined' ? CHAR_REG
+                   : (window.CHAR_REG || { chars: {}, order: [] }));
+
+// ATD bone -> Mixamo joint (base name; the "mixamorig:" prefix is stripped)
+const MAP = {
+  root: 'Hips', lumbar: 'Spine', thorax: 'Spine1', neck: 'Neck', head: 'Head',
+  clavicleL: 'LeftShoulder', shoulderL: 'LeftArm', elbowL: 'LeftForeArm',
+  wristL: 'LeftHand', clavicleR: 'RightShoulder', shoulderR: 'RightArm',
+  elbowR: 'RightForeArm', wristR: 'RightHand',
+  hipL: 'LeftUpLeg', kneeL: 'LeftLeg', ankleL: 'LeftFoot',
+  hipR: 'RightUpLeg', kneeR: 'RightLeg', ankleR: 'RightFoot',
+};
+// the ATD's own parent table (the order _cage_crew.js's BONES uses)
+const ATD_PARENT = {
+  root: null, lumbar: 'root', thorax: 'lumbar', neck: 'thorax', head: 'neck',
+  clavicleL: 'thorax', shoulderL: 'clavicleL', elbowL: 'shoulderL',
+  wristL: 'elbowL', clavicleR: 'thorax', shoulderR: 'clavicleR',
+  elbowR: 'shoulderR', wristR: 'elbowR', hipL: 'root', kneeL: 'hipL',
+  ankleL: 'kneeL', hipR: 'root', kneeR: 'hipR', ankleR: 'kneeR',
+};
+const ATD_ORDER = ['root', 'lumbar', 'thorax', 'neck', 'head', 'clavicleL',
+  'shoulderL', 'elbowL', 'wristL', 'clavicleR', 'shoulderR', 'elbowR',
+  'wristR', 'hipL', 'kneeL', 'ankleL', 'hipR', 'kneeR', 'ankleR'];
+const HAND_C = new THREE.Quaternion().setFromAxisAngle(
+  new THREE.Vector3(0, 1, 0), Math.PI / 2);
+const base = n => n.replace(/^.*:/, '');
+
+// ---- the node tree, verbatim from the manifest ---------------------------
+// joints become THREE.Bone (a Skeleton wants them), everything else Object3D.
+function buildTree(c) {
+  const isJoint = new Set(c.joints);
+  const objs = c.nodes.map((n, i) => {
+    const o = isJoint.has(i) ? new THREE.Bone() : new THREE.Object3D();
+    o.name = n.n;
+    o.position.fromArray(n.t);
+    o.quaternion.fromArray(n.r);
+    o.scale.fromArray(n.s);
+    return o;
+  });
+  c.nodes.forEach((n, i) => { if (n.p >= 0) objs[n.p].add(objs[i]); });
+  const root = new THREE.Group();
+  root.name = 'char:' + c.key;
+  for (const i of c.scene) root.add(objs[i]);
+  const byBase = {};
+  objs.forEach(o => { byBase[base(o.name)] = o; });
+  root.updateMatrixWorld(true);
+  return { root, objs, byBase };
+}
+
+// bring an upper arm from its rest (T/A-pose) onto straight down: the
+// shortest arc, applied in the tree's own frame; children inherit
+function hangArm(t, side) {
+  const arm = t.byBase[side + 'Arm'], fore = t.byBase[side + 'ForeArm'];
+  if (!arm || !fore) return;
+  const a = arm.getWorldPosition(new THREE.Vector3());
+  const f = fore.getWorldPosition(new THREE.Vector3());
+  const dir = f.sub(a).normalize();
+  const q = new THREE.Quaternion().setFromUnitVectors(dir, new THREE.Vector3(0, -1, 0));
+  const w = arm.getWorldQuaternion(new THREE.Quaternion());
+  const pw = arm.parent.getWorldQuaternion(new THREE.Quaternion()).invert();
+  arm.quaternion.copy(pw.multiply(q.multiply(w)));
+  t.root.updateMatrixWorld(true);
+}
+
+// ---- THE RIG: what the crew layer needs to build its ATD skeleton ---------
+// Computed from the manifest alone (no bin, no textures), so the dummy's
+// proportions are right from the first build even while the mesh is still on
+// the wire. Cached per key.
+const RIGS = {};
+function rig(key) {
+  if (RIGS[key]) return RIGS[key];
+  const c = REG().chars[key];
+  if (!c) return null;
+  const t = buildTree(c);
+  // the T-POSE world quaternions, before the arms come down: the frame the
+  // finger curl axes are known in (fingers along +-x, palms down, so a
+  // finger flexes about world z and a thumb about world x)
+  const restQ = t.objs.map(o => o.getWorldQuaternion(new THREE.Quaternion()));
+  const restLocal = t.objs.map(o => o.quaternion.clone());
+  const curl = [];
+  t.objs.forEach((o, i) => {
+    const m = /^(Left|Right)Hand(Thumb|Index|Middle|Ring|Pinky)([123])$/.exec(base(o.name));
+    if (!m) return;
+    const k = +m[3] - 1, thumb = m[2] === 'Thumb';
+    // degrees of flexion at a CLOSED fist, per phalanx
+    const ang = (thumb ? [10, 35, 40] : [70, 90, 60])[k] * D2R;
+    const sign = thumb ? 1 : (m[1] === 'Left' ? -1 : 1);
+    const axisW = thumb ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 0, 1);
+    const axis = axisW.applyQuaternion(restQ[i].clone().invert()).normalize();
+    curl.push({ i, axis, ang: ang * sign });
+  });
+  hangArm(t, 'Left'); hangArm(t, 'Right');
+  const wp = {};
+  for (const k in MAP) {
+    const o = t.byBase[MAP[k]];
+    if (!o) throw new Error('char ' + key + ': no joint for ' + k + ' (' + MAP[k] + ')');
+    wp[k] = o.getWorldPosition(new THREE.Vector3());
+  }
+  const bones = ATD_ORDER.map(k => {
+    const p = ATD_PARENT[k];
+    const d = p ? wp[k].clone().sub(wp[p]) : new THREE.Vector3();
+    return [k, p, [+d.x.toFixed(4), +d.y.toFixed(4), +d.z.toFixed(4)]];
+  });
+  // standing height: the highest joint (HeadTop_End) over the lowest (a toe)
+  let yMin = Infinity, yMax = -Infinity;
+  t.objs.forEach(o => { const y = o.getWorldPosition(new THREE.Vector3()).y;
+    if (y < yMin) yMin = y; if (y > yMax) yMax = y; });
+  // the reference world quaternion of EVERY node, in the tree's frame
+  const refQ = t.objs.map(o => o.getWorldQuaternion(new THREE.Quaternion()));
+  return (RIGS[key] = { key, bones, height: yMax - yMin,
+    hipsOff: wp.root.clone(),                 // Hips in the tree's frame
+    hipDrop: wp.root.y - wp.hipL.y,           // pelvis centre above hip joints
+    refQ, restLocal, curl,
+    byBase: (() => { const m = {}; t.objs.forEach((o, i) => { m[base(o.name)] = i; }); return m; })() });
+}
+
+// ---- LOAD: the bin through the page's one fetch ---------------------------
+const DEC = {}, LOADING = {};
+function ready(key) { return DEC[key] || null; }
+function load(key) {
+  if (DEC[key]) return Promise.resolve(DEC[key]);
+  const c = REG().chars[key];
+  if (!c) return Promise.resolve(null);
+  if (LOADING[key]) return LOADING[key];
+  const fetchBin = typeof window.ASSET_FETCH === 'function'
+    ? window.ASSET_FETCH(c.bin)
+    : fetch(c.bin).then(r => { if (!r.ok) throw new Error(c.bin + ' -> ' + r.status);
+                               return r.arrayBuffer(); }).then(b => new Uint8Array(b));
+  return (LOADING[key] = fetchBin.then(buf => (DEC[key] = decodeChar(c, buf)))
+    .catch(e => { console.warn('char ' + key + ' failed to load:', e && e.message);
+                  return null; }));
+}
+
+// ---- textures + materials -------------------------------------------------
+const TEX = {};
+function texture(c, id, srgb) {
+  const k = c.key + '/' + id + (srgb ? '/s' : '/l');
+  if (TEX[k]) return TEX[k];
+  const uri = c.texs[id];
+  if (!uri) return null;
+  const img = new Image();
+  const t = new THREE.Texture(img);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.flipY = false;                            // glTF uv origin is top-left
+  t.anisotropy = 4;
+  if (srgb) t.encoding = THREE.sRGBEncoding;
+  const ok = () => { t.needsUpdate = true; if (window.CHAR_TEX_LANDED) window.CHAR_TEX_LANDED(c.key); };
+  img.onload = ok;
+  img.src = uri;
+  return (TEX[k] = t);
+}
+const MATS = {};
+function material(c, mi) {
+  const k = c.key + '/' + mi;
+  if (MATS[k]) return MATS[k];
+  const m = c.mats[mi] || {};
+  // Mixamo's "nonPBR" set is diffuse + normal + spec/gloss; the gloss map is
+  // NOT a roughness map (it is its inverse), so roughness stays a scalar.
+  const o = {
+    color: new THREE.Color(m.col ? m.col[0] : 1, m.col ? m.col[1] : 1, m.col ? m.col[2] : 1),
+    roughness: 0.62, metalness: 0,
+    side: m.ds ? THREE.DoubleSide : THREE.FrontSide,
+    skinning: true,
+  };
+  if (m.map) o.map = texture(c, m.map, true);
+  if (m.nrm) o.normalMap = texture(c, m.nrm, false);
+  // BLEND IS A CUTOUT, NOT A TRANSPARENT (G205.1, the user: 'sometimes it is
+  // drawn behind the glass, sometimes in front depending on the angle').
+  // three sorts transparents by OBJECT position, and a skinned mesh's
+  // position is its armature origin — a metre under the floor — so hair
+  // (and Ch01's whole BLEND-flagged body) sorted against the canopy glass
+  // by a point that is nowhere near the head, and won or lost with the
+  // camera. Drawn opaque with an alpha test they depth-test like the rest of
+  // the body, and the glass, drawn after, composes over them correctly.
+  // (G204.2's depthWrite fix — back faces through the face — is subsumed.)
+  if (m.blend === 'BLEND' || m.blend === 'MASK') o.alphaTest = 0.5;
+  const mat = new THREE.MeshStandardMaterial(o);
+  mat.name = 'char:' + c.key + ':' + (m.name || mi);
+  mat.userData.charSkin = 1;                 // the editor's passes leave it be
+  return (MATS[k] = mat);
+}
+
+// ---- INSTANCE: a posable copy of the character ---------------------------
+// Geometry buffers are shared across instances (two pilots = one upload);
+// the tree, skeleton and skinned meshes are per instance.
+const GEOS = {};
+function geometries(c, dec) {
+  if (GEOS[c.key]) return GEOS[c.key];
+  return (GEOS[c.key] = dec.meshes.map(m => {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(m.pos, 3));
+    g.setAttribute('normal', new THREE.BufferAttribute(m.nrm, 3));
+    g.setAttribute('uv', new THREE.BufferAttribute(m.uv, 2));
+    g.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(Array.from(m.jt), 4));
+    g.setAttribute('skinWeight', new THREE.BufferAttribute(m.wt, 4));
+    g.setIndex(new THREE.BufferAttribute(m.idx, 1));
+    g.computeBoundingSphere();
+    return g;
+  }));
+}
+function instance(key) {
+  const c = REG().chars[key], dec = DEC[key];
+  if (!c || !dec) return null;
+  const t = buildTree(c);
+  const bones = c.joints.map(i => t.objs[i]);
+  const inv = [];
+  for (let i = 0; i < bones.length; i++)
+    inv.push(new THREE.Matrix4().fromArray(dec.ibm, 16 * i));
+  const skeleton = new THREE.Skeleton(bones, inv);
+  const geos = geometries(c, dec);
+  const meshes = dec.meshes.map((m, i) => {
+    const sm = new THREE.SkinnedMesh(geos[i], material(c, m.mat));
+    sm.name = 'char:' + c.key + ':' + m.name;
+    sm.frustumCulled = false;                 // the sphere is the rest pose's
+    // NOT PICKABLE (G204.2): r128 raycasts a SkinnedMesh at its BIND pose —
+    // a T-pose under the floor — so a click there selected the crew and the
+    // highlight drew that ghost ('the 4 little dots at the bottom'). The
+    // crew layer's invisible ATD shells, which follow the pose, take the
+    // clicks and the silhouette instead.
+    sm.raycast = () => {};
+    const node = t.objs[m.node];
+    node.add(sm);
+    // BIND WITH THE IDENTITY, NOT THE NODE'S WORLD MATRIX. glTF: 'the
+    // transform of the skinned mesh node MUST be ignored' — the vertices
+    // are in scene space (Blender writes them so; radius ~1 m, not 100 cm)
+    // and the inverse bind matrices already carry the armature's 0.01 x90deg.
+    // Binding with matrixWorld (= the armature) applied that transform
+    // twice: the body shrank to a centimetre and its faces streaked to the
+    // armature origin under the floor (the user's 'distorted polygons').
+    sm.bind(skeleton, new THREE.Matrix4());
+    return sm;
+  });
+  return { key, c, tree: t, skeleton, meshes, rig: rig(key) };
+}
+
+// ---- DRESS: the solved ATD skeleton -> the character's joints -------------
+// `dum` is _cage_crew.js's { fig, bones }; the instance root is parented under
+// fig (which carries the stature scale and no rotation) with the Hips on the
+// fig origin. Orientations are transferred in the FIG's frame, so a rotated
+// mount (the game's sit transform) is a no-op here as it is for the IK.
+const _fq = new THREE.Quaternion(), _q = new THREE.Quaternion(),
+      _p = new THREE.Quaternion();
+function dress(inst, dum, opts) {
+  const { tree: t, rig: R } = inst;
+  opts = opts || {};
+  if (t.root.parent !== dum.fig) {
+    dum.fig.add(t.root);
+    t.root.position.copy(R.hipsOff).negate();
+  }
+  dum.fig.updateWorldMatrix(true, false);
+  dum.fig.getWorldQuaternion(_fq).invert();
+  // ATD bone world -> fig frame, once per mapped bone
+  const atdQ = {};
+  for (const k in MAP) {
+    const b = dum.bones[k];
+    if (!b) continue;
+    atdQ[MAP[k]] = _fq.clone().multiply(b.getWorldQuaternion(new THREE.Quaternion()));
+  }
+  // depth-first from the tree root: each node takes its nearest mapped
+  // ancestor's delta; parent world quaternions accumulate in the fig frame
+  const visit = (o, parentQ, delta) => {
+    const i = t.objs.indexOf(o);
+    let d = delta;
+    if (i >= 0) {
+      const nm = base(o.name);
+      if (atdQ[nm]) {
+        d = atdQ[nm].clone();
+        if (nm === 'LeftHand' || nm === 'RightHand') d.multiply(HAND_C);
+      }
+      if (d) {
+        // target world (fig frame) = delta * refQ; local = parent^-1 * target
+        _q.copy(d).multiply(R.refQ[i]);
+        o.quaternion.copy(_p.copy(parentQ).invert().multiply(_q));
+      }
+    }
+    _q.copy(parentQ).multiply(o.quaternion);
+    const myQ = _q.clone();
+    for (const ch of o.children) if (!ch.isSkinnedMesh) visit(ch, myQ, d);
+  };
+  visit(t.root, new THREE.Quaternion(), null);
+  // THE FIST (G205, the user: 'close the fist halfway'): every phalanx flexes
+  // about its own curl axis by its share of a closed fist times `fist`; the
+  // next phalanx is a child, so the chain closes on itself for free.
+  const fist = opts.fist == null ? 0.5 : opts.fist;
+  for (const cu of R.curl) {
+    const o = t.objs[cu.i];
+    o.quaternion.copy(R.restLocal[cu.i])
+      .multiply(_q.setFromAxisAngle(cu.axis, cu.ang * fist));
+  }
+  t.root.updateMatrixWorld(true);
+  // the POSED locals: what the animator moves around (G205)
+  inst.baseQ = t.objs.map(o => o.quaternion.clone());
+}
+
+// dispose the per-instance objects (geometries and materials are shared and
+// stay for the page's life)
+function dispose(inst) {
+  if (inst && inst.tree.root.parent) inst.tree.root.parent.remove(inst.tree.root);
+}
+
+// ---- THE CLIPS (G205) -----------------------------------------------------
+// A Mixamo clip retargets by JOINT NAME: same rig, same joint frames, so a
+// sampled local rotation is the same rotation on every character. Two ways
+// to wear one, both layered OVER the solved pose (the ATD keeps the root,
+// the legs, and for a pilot the arms — the user: 'we need to keep being
+// able to edit the position ourselves'):
+//   'body'  the clip's DEVIATION from its own MEAN pose, scaled by `amp`,
+//           on the whole upper body (spine, neck, head, shoulders, arms,
+//           hands, fingers) — the passenger's idle as MOTION over the
+//           solved pose, so the hands the IK rested on the knees stay
+//           there and the recline slider still rules (G205.2; the first
+//           cut took the clip's arms absolutely, and they went through the
+//           thighs the moment the feet sliders lifted the knees);
+//   'head'  the clip's DEVIATION from its own MEAN pose, scaled by `amp`,
+//           on neck and head (full), Spine2 (0.6) and Spine1 (0.3) — a
+//           pilot who breathes and looks about while the hands stay on the
+//           controls the IK put them on.
+const ANIMS = () => (typeof CHAR_ANIMS !== 'undefined' ? CHAR_ANIMS
+                     : (window.CHAR_ANIMS || { anims: {}, order: [] }));
+const ADEC = {}, ALOAD = {};
+function animLoad(key) {
+  if (ADEC[key]) return Promise.resolve(ADEC[key]);
+  const a = ANIMS().anims[key];
+  if (!a) return Promise.resolve(null);
+  if (ALOAD[key]) return ALOAD[key];
+  const fetchBin = typeof window.ASSET_FETCH === 'function'
+    ? window.ASSET_FETCH(a.bin)
+    : fetch(a.bin).then(r => { if (!r.ok) throw new Error(a.bin + ' -> ' + r.status);
+                               return r.arrayBuffer(); }).then(b => new Uint8Array(b));
+  return (ALOAD[key] = fetchBin.then(buf => {
+    a._ji = {}; a.joints.forEach((n, i) => { a._ji[n] = i; });
+    const dec = decodeCharAnim(a, buf);
+    // THE REFERENCE IS THE MEAN, NOT FRAME 0 (G205.2): a clip's first frame
+    // is whatever the animator started from, and a deviation measured from
+    // it can be an arm's whole travel — the passengers' hands left their
+    // knees for their cheeks. The per-joint mean orientation over the clip
+    // is the pose the motion happens AROUND, so the deviation is the motion.
+    const nj = a.joints.length, mean = new Float32Array(nj * 4);
+    for (let ji = 0; ji < nj; ji++) {
+      let sx = 0, sy = 0, sz = 0, sw = 0;
+      const r = ji * 4;
+      for (let f = 0; f < a.frames; f++) {
+        const o = (f * nj + ji) * 4;
+        // hemisphere-align to the first sample before summing
+        const d = dec[o] * dec[r] + dec[o + 1] * dec[r + 1] + dec[o + 2] * dec[r + 2] + dec[o + 3] * dec[r + 3];
+        const sg = d < 0 ? -1 : 1;
+        sx += sg * dec[o]; sy += sg * dec[o + 1]; sz += sg * dec[o + 2]; sw += sg * dec[o + 3];
+      }
+      const n = Math.hypot(sx, sy, sz, sw) || 1;
+      mean[r] = sx / n; mean[r + 1] = sy / n; mean[r + 2] = sz / n; mean[r + 3] = sw / n;
+    }
+    a._mean = mean;
+    return (ADEC[key] = dec);
+  }).catch(e => { console.warn('clip ' + key + ' failed to load:', e && e.message);
+                  return null; }));
+}
+const _qa = new THREE.Quaternion(), _qb = new THREE.Quaternion(),
+      _qd = new THREE.Quaternion(), _qm = new THREE.Quaternion();
+// _qa/_qb are animSample's own scratch — the caller must not hold anything
+// in them across the call (the first cut did, and the 'deviation' became
+// the frame's rotation applied twice: hands 0.66 m off their knees)
+// the clip's local rotation of joint `ji` at time t (seconds, wrapped)
+function animSample(a, dec, ji, t, out) {
+  const nj = a.joints.length;
+  let f = (t % a.dur) * a.fps;
+  if (f < 0) f += (a.frames - 1);
+  const f0 = Math.floor(f), f1 = Math.min(f0 + 1, a.frames - 1), u = f - f0;
+  _qa.fromArray(dec, (f0 * nj + ji) * 4);
+  _qb.fromArray(dec, (f1 * nj + ji) * 4);
+  return out.copy(_qa).slerp(_qb, u);
+}
+const BODY_SET = ['Spine', 'Spine1', 'Spine2', 'Neck', 'Head',
+  'LeftShoulder', 'LeftArm', 'LeftForeArm', 'LeftHand',
+  'RightShoulder', 'RightArm', 'RightForeArm', 'RightHand'];
+const HEAD_SET = { Neck: 1, Head: 1, Spine2: 0.6, Spine1: 0.3 };
+const LIVE = new Set();
+let ticking = false;
+// spec = { key, mode: 'body'|'head', amp, phase }
+function animate(inst, spec) {
+  if (!spec || !spec.key || !(spec.amp > 0)) return;
+  inst.anim = spec;
+  LIVE.add(inst);
+  animLoad(spec.key);
+  if (!ticking) { ticking = true; requestAnimationFrame(tick); }
+}
+function clearAnims() { LIVE.clear(); }
+function tick() {
+  if (!LIVE.size) { ticking = false; return; }
+  requestAnimationFrame(tick);
+  const now = performance.now() / 1000;
+  let moved = false;
+  for (const inst of LIVE) {
+    const sp = inst.anim, a = ANIMS().anims[sp.key], dec = ADEC[sp.key];
+    if (!a || !dec || !inst.baseQ) continue;
+    const t = now + (sp.phase || 0);
+    const R = inst.rig, objs = inst.tree.objs;
+    if (sp.mode === 'body') {
+      const names = BODY_SET.concat(a.joints.filter(n => /Hand(Thumb|Index|Middle|Ring|Pinky)/.test(n)));
+      for (const n of names) {
+        const i = R.byBase[n], ji = a._ji[n];
+        if (i == null || ji == null) continue;
+        _qm.fromArray(a._mean, ji * 4).invert();
+        animSample(a, dec, ji, t, _qd).premultiply(_qm);
+        _qb.identity().slerp(_qd, sp.amp);
+        objs[i].quaternion.copy(inst.baseQ[i]).multiply(_qb);
+      }
+    } else {
+      for (const n in HEAD_SET) {
+        const i = R.byBase[n], ji = a._ji[n];
+        if (i == null || ji == null) continue;
+        // deviation from the clip's mean pose, in the joint's own frame
+        _qm.fromArray(a._mean, ji * 4).invert();
+        animSample(a, dec, ji, t, _qd).premultiply(_qm);
+        _qb.identity().slerp(_qd, sp.amp * HEAD_SET[n]);
+        objs[i].quaternion.copy(inst.baseQ[i]).multiply(_qb);
+      }
+    }
+    moved = true;
+  }
+  // the game's loop renders every frame; the standalone bench draws on demand
+  if (moved && !window.CAGE_IN_GAME && window.CAGE_UI && window.CAGE_UI.draw)
+    window.CAGE_UI.draw();
+}
+
+window.CAGE_CHAR = { MAP, list: () => REG().order.map(k => REG().chars[k]),
+  rig, load, ready, instance, dress, dispose,
+  animLoad, animate, clearAnims, anims: () => ANIMS().order.slice() };
+})();
 </script>
 <script>
 // CAGE CREW — the cockpit occupancy layer (G17; born on the _cage5 bench,
@@ -33163,6 +33764,10 @@ function buildFloor(parent, A, P) {
 }
 
 // ---- THE DUMMY (mannequin_poser.html port) --------------------------------
+const PICK_MAT = new THREE.MeshBasicMaterial({ visible: false });
+// guarded: the node gates load this file under a THREE stub whose materials
+// carry no userData
+if (PICK_MAT.userData) PICK_MAT.userData.cageUni = 1;   // the editor's passes leave it be
 const BONES = [
   ['root',      null,       [0, 0, 0]],
   ['lumbar',    'root',     [0, 0.09, 0]],
@@ -33226,12 +33831,18 @@ const CHAINS = {
 // `suitM` is THIS dummy's own suit material (phase D) — the per-dummy
 // livery section resolved by the caller, null on the standalone bench.
 // Joints and hands/feet stay the shared hardware; only the SHELL dresses.
-function makeDummy(parent, suitM) {
+// `rig` (G204) swaps the bone table for a CHARACTER's own proportions
+// (_cage_char.js rig(): the same 19 joints, offsets read off the Mixamo
+// reference pose) so the IK lands the character's hands, not the ATD's, on
+// the grips; with a rig and `shells` false the amber shells are not built —
+// the skinned mesh dresses the skeleton instead (shells stay while the mesh
+// is still on the wire, so the seat is never empty).
+function makeDummy(parent, suitM, rig, shells) {
   const suit = suitM || M.shell;
   const fig = new THREE.Group();
   parent.add(fig);
   const bones = {};
-  BONES.forEach(([name, par, pos]) => {
+  (rig ? rig.bones : BONES).forEach(([name, par, pos]) => {
     const b = new THREE.Object3D();
     b.name = name;
     b.position.set(pos[0], pos[1], pos[2]);
@@ -33302,6 +33913,13 @@ function makeDummy(parent, suitM) {
                                M.dark);
     toe.position.set(0, -0.052, 0.185); att('ankle' + s, toe);
   }
+  // A DRESSED DUMMY KEEPS ITS SHELLS AS THE PICK PROXY (G204.2): drawn by an
+  // invisible material, so nothing shows and nothing shadows, but the
+  // raycast and the highlight (which re-draws a mesh's geometry as its own
+  // child) still find a body that FOLLOWS THE POSE. The skinned mesh itself
+  // is unpickable — r128 would test it at its bind pose under the floor.
+  if (rig && !shells)
+    fig.traverse(o => { if (o.isMesh) { o.material = PICK_MAT; o.userData.pick = 1; } });
   return { fig, bones };
 }
 
@@ -33593,9 +34211,27 @@ function seatPlaces(A, P) {
 
 // ---- THE BUILD HOOK -------------------------------------------------------
 let group = null;
+// characters on the wire (G204): one fetch per key, the build re-runs on
+// landing; a texture landing only needs a redraw (the bench draws on demand)
+const CHAR_WAIT = {};
+// several characters landing in one breath rebuild ONCE
+let charRebuildT = 0;
+const charRebuild = () => {
+  clearTimeout(charRebuildT);
+  charRebuildT = setTimeout(() => {
+    if (window.CAGE_UI && window.CAGE_UI.build) window.CAGE_UI.build();
+  }, 60);
+};
+if (typeof window !== 'undefined')
+  window.CHAR_TEX_LANDED = () => {
+    if (window.CAGE_UI && window.CAGE_UI.draw) window.CAGE_UI.draw();
+  };
 PAGE.post = ({ scene, spec, mesh, P, stat }) => {
+  if (window.CAGE_CHAR && window.CAGE_CHAR.clearAnims) window.CAGE_CHAR.clearAnims();
   if (group) {
-    group.traverse(c => { if (c.geometry) c.geometry.dispose(); });
+    // a character's skinned geometry is SHARED across builds (_cage_char.js
+    // uploads it once per page) — the crew's own bags go, the character stays
+    group.traverse(c => { if (c.geometry && !c.isSkinnedMesh) c.geometry.dispose(); });
     scene.remove(group);
     group = null;
   }
@@ -33704,9 +34340,80 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   // EVERY OCCUPANT IS POSED THE SAME WAY (user 2026-08-19): the second
   // dummy is not a passenger ornament — give it a station and it flies
   // from it, by the identical rules. Without one it rests its hands.
+  // WHO SITS WHERE (G204/G204.1). `pilotWho` and `copWho` read the same list:
+  // 0 = mixed crew, 1 = the ATD-01, 2.. = one declared character (tools/
+  // chars_table.py order). MIXED CREW ROTATES: every seat that says 'mixed'
+  // takes the next character off a cycle that starts at a hash of the
+  // aeroplane's registration (the user: 'alternate between characters on
+  // spawn, minimizing repetition') — so one aeroplane keeps its crew from
+  // build to build, two aeroplanes get different faces, and nobody is seated
+  // twice until the list runs out. Characters picked BY NAME for a seat are
+  // left out of the cycle. The rig comes from the manifest alone, so the
+  // proportions are right on the first build; each mesh is fetched once and
+  // the build re-runs when it lands (a stature of 1.75 m means 1.75 m in
+  // whichever body wears it).
+  const CH_LIST = window.CAGE_CHAR ? window.CAGE_CHAR.list() : [];
+  const whoOf = v => Math.round(+v || 0);
+  const named = new Set([P.pilotWho, P.cabOcc ? P.copWho : 0].map(whoOf)
+    .filter(v => v >= 2).map(v => v - 2));
+  const cycle = CH_LIST.map((c, i) => i).filter(i => !named.has(i));
+  const S0 = window.GARAGE_SPEC && window.GARAGE_SPEC.get && window.GARAGE_SPEC.get();
+  const regStr = String((S0 && (S0.reg || (S0.meta && S0.meta.reg))) || '');
+  let cyc = 0;
+  for (let i = 0; i < regStr.length; i++) cyc = (cyc * 31 + regStr.charCodeAt(i)) >>> 0;
+  const charAt = i => {
+    const C = window.CAGE_CHAR, c = CH_LIST[i];
+    if (!C || !c) return null;
+    let rig = null;
+    try { rig = C.rig(c.key); } catch (e) { console.warn(e.message); return null; }
+    const ready = !!C.ready(c.key);
+    if (!ready && !CHAR_WAIT[c.key]) {
+      CHAR_WAIT[c.key] = 1;
+      C.load(c.key).then(d => {
+        CHAR_WAIT[c.key] = 0;
+        if (d && window.CAGE_UI && window.CAGE_UI.build) charRebuild();
+      });
+    }
+    return { key: c.key, label: c.label, rig, ready };
+  };
+  // role: 'pilot' | 'cop' | 'pax' — the seat's own select, or the cycle
+  const charFor = role => {
+    const v = role === 'pilot' ? whoOf(P.pilotWho)
+            : role === 'cop' ? whoOf(P.copWho) : 0;
+    if (v === 1) return null;                          // the ATD, by name
+    if (v >= 2) return charAt(v - 2);                  // one person, by name
+    if (!cycle.length) return null;                    // mixed, nobody left: ATD
+    const i = cycle[cyc % cycle.length]; cyc++;
+    return charAt(i);
+  };
+  const dressed = (dum, CH, role, idx) => {
+    if (CH && CH.ready) {
+      const inst = window.CAGE_CHAR.instance(CH.key);
+      if (inst) {
+        window.CAGE_CHAR.dress(inst, dum,
+          { fist: P.dumFist == null ? 0.5 : +P.dumFist });
+        dum.char = inst;
+        // THE IDLE (G205): a passenger wears the sitting-idle clip on the
+        // upper body (seat, recline and feet stay ours); a pilot only its
+        // breathing and glances — the hands are the IK's. Phases differ per
+        // seat so a cabin never moves in unison.
+        const pax = role === 'pax';
+        const amp = pax ? (P.paxIdle == null ? 1 : +P.paxIdle)
+                        : (P.dumIdle == null ? 0.5 : +P.dumIdle);
+        if (window.CAGE_CHAR.animate && amp > 0)
+          window.CAGE_CHAR.animate(inst, { key: 'sitidle',
+            mode: pax ? 'body' : 'head', amp, phase: (idx || 1) * 1.7 });
+      }
+    }
+    return dum;
+  };
   const seatDummy = (seat, ST, idx, pose) => {
     const stick = ST && ST.stick, thr = ST && ST.thr, pedals = ST && ST.pedals;
-    const s = (pose || POSE_PILOT).s;
+    const role = idx === 1 ? 'pilot' : seat.section ? 'pax' : 'cop';
+    const CH = charFor(role);
+    // pose.s is stature / the ATD's 1.75; a character scales from ITS height
+    const s = CH ? (pose || POSE_PILOT).s * BASE_STATURE / CH.rig.height
+                 : (pose || POSE_PILOT).s;
     // the dummy's OWN suit (phase D): one colour of personality each, the
     // second following the first; ATD amber is the walk's last word. G180:
     // TWO suits, not one per body — the pilot's, and everyone else's (the
@@ -33715,17 +34422,32 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
       window.CAGE_SECMAT('dummy' + (idx === 1 ? 1 : 2),
         { surf: 0, fieldM: 1, side: THREE.FrontSide, tint0: 0xd6a11c }))
       || null;
-    const dum = makeDummy(group, suit);
+    const dum = makeDummy(group, suit, CH && CH.rig, CH && !CH.ready);
     dum.fig.name = 'edDum' + (idx || 1);
     dum.fig.scale.setScalar(s);
     const SP = seat.SP || sp1;
     const recline = clamp((SP.rake - 7) + (pose || POSE_PILOT).recline, -10, 55);
     applyPose(dum.bones,
               seatedPose(recline, !(stick || thr || pedals), SP.tilt));
-    dum.fig.position.set(seat.x, seat.panY + 0.03 + 0.105 * s,
+    dum.fig.position.set(seat.x,
+                         seat.panY + 0.03 + (0.085 + (CH ? CH.rig.hipDrop : 0.02)) * s,
                          seat.zBack + 0.095 * s + 0.02);
     dum.fig.updateMatrixWorld(true);
-    if (!stick && !thr && !pedals) return dum;
+    // FEET WITHOUT PEDALS (G205, the user: 'sliders for controlling the feet
+    // position of the passengers. Something like the pedals for the pilots,
+    // but without the actual pedals'): two fixed anchors on the floor of the
+    // bay, fore-aft / height / spread from the sliders, the legs IK'd onto
+    // them exactly as onto pedals — nothing is drawn.
+    const feet = (!pedals && seat.section && +P.paxFeetOn) ? (() => {
+      const g = new THREE.Group(); group.add(g);
+      const z = seat.zBack + (P.paxFeetZ == null ? 0.55 : +P.paxFeetZ);
+      const y = A.floorAt(z) + (+P.paxFeetY || 0) + 0.072 * s;   // ankle over sole
+      const hx = P.paxFeetX == null ? 0.14 : +P.paxFeetX;
+      return { objL: anchorAt(g, [seat.x + hx, y, z]),
+               objR: anchorAt(g, [seat.x - hx, y, z]) };
+    })() : null;
+    // (no early return any more: hands with nothing to hold REST ON THE
+    // KNEES by IK below, so every occupant goes through the solver)
     // HANDS FOLLOW THE GEOMETRY (user 2026-08-19: the dummy crossed its
     // arms when the console moved from beside the seat to between the
     // seats). Each control is asked WHICH SIDE OF THIS SEAT it actually
@@ -33756,6 +34478,9 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     if (pedals) {
       jobs.push({ chain: 'legL', a: pedals.objL, label: 'L→pedal' });
       jobs.push({ chain: 'legR', a: pedals.objR, label: 'R→pedal' });
+    } else if (feet) {
+      jobs.push({ chain: 'legL', a: feet.objL, label: 'L→foot' });
+      jobs.push({ chain: 'legR', a: feet.objR, label: 'R→foot' });
     }
     // debug record (the CAGE_DBG idiom): what went to which hand, and
     // where each grip actually sits relative to its own seat
@@ -33769,7 +34494,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     DBG.stations.push(rec);
     const pole = new THREE.Vector3();
     const base = seatedPose(recline, false, SP.tilt);
-    for (const j of jobs) {
+    const solveJob = j => {
       const c = CHAINS[j.chain];
       ikDefaultPole(dum, j.chain, pole);
       const side = /L$/.test(c.end) ? 1 : -1;
@@ -33797,6 +34522,19 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
           -(P.dumHandGrip != null ? P.dumHandGrip : 0.075) * s);
       }
       const gap = ikSolve(dum, j.chain, aw.p, pole, alignQ);
+      // A NATURAL WRIST (G205, the user: 'natural wrist orientation'): the
+      // grip basis above was solved from the SHOULDER's approach, which
+      // twists the hand against the forearm the IK then placed. Solve it
+      // again from the ELBOW, so the hand continues the forearm and wraps
+      // the grip from where the arm really arrives.
+      if (j.a.userData.grip && gap <= 0.12) {
+        dum.bones[c.mid].getWorldPosition(_gv);
+        const q2 = gripQuat(j.a, _gv, _gq);
+        const wb = dum.bones[c.end];
+        wb.parent.getWorldQuaternion(_qp).invert();
+        wb.quaternion.copy(_qp.multiply(q2));
+        wb.updateMatrixWorld(true);
+      }
       // where the WRIST ended up against the grip it holds: the gap
       // between them IS the palm offset, i.e. the proof the HAND and
       // not the joint is on the control
@@ -33814,8 +34552,32 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
                    + 'cm (' + j.label + ')');
       } else if (gap > 0.005)
         notes.push(c.label + ' SHORT ' + (gap * 100).toFixed(1) + 'cm');
+    };
+    for (const j of jobs) solveJob(j);
+    // HANDS ON THE KNEES (G205.2, the user: 'their hands are meant at
+    // resting on their knees [...] they go through as we have made the feet
+    // higher'). A hand with nothing to hold used to rest by FK, on a thigh
+    // that the feet sliders have since lifted. Now it is a GRIP JOB like
+    // any other, aimed at the knee the leg IK just placed: palm on the top
+    // of the thigh just behind the knee, thumb inward and a little forward,
+    // the wrist continuing the forearm — so the hands move with the knees
+    // whatever the feet do. Second pass because it reads the solved knees.
+    if (!stick && !thr) {
+      const g = new THREE.Group(); group.add(g);
+      group.updateWorldMatrix(true, false);
+      const kneeJobs = [];
+      for (const sd of ['L', 'R']) {
+        const kw = dum.bones['knee' + sd].getWorldPosition(new THREE.Vector3());
+        const kl = group.worldToLocal(kw);
+        kl.y += 0.05 * s; kl.z -= 0.03 * s;
+        const a = gripAt(g, [kl.x, kl.y, kl.z], [sd === 'L' ? -1 : 1, 0, 0.35]);
+        kneeJobs.push({ chain: 'arm' + sd, a, label: sd + '→knee' });
+      }
+      for (const j of kneeJobs) solveJob(j);
+      rec.jobs.push(...kneeJobs.map(j => ({ chain: j.chain, label: j.label,
+        get wrist() { return j.wrist; } })));
     }
-    return dum;
+    return dressed(dum, CH, role, idx);
   };
   // THE ANCHORS GO OUT WITH IT (G96). The lighting layer needs exactly what
   // this layer spent its life working out — where the floor is, where the
@@ -33880,7 +34642,13 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
       .applyQuaternion(head.getWorldQuaternion(new THREE.Quaternion()));
     if (typeof window !== 'undefined')
       window.CAGE_CREW_EYE = { p: eyeW.toArray(), fwd: fwdW.toArray(),
-                               heads: dums.map(d => d.bones.head) };
+                               // a character's head is part of ONE skinned
+                               // body (G204): while you look out of it the
+                               // whole body is what there is to hide — the
+                               // PILOT's only; the co-pilot stays in view
+                               heads: dums.flatMap((d, i) => d.char
+                                 ? (i === 0 ? d.char.meshes : [])
+                                 : [d.bones.head]) };
     if (P.dumMarkers) {
       const eye = group.worldToLocal(eyeW.clone());
       ballAt(group, M.marker, [eye.x, eye.y, eye.z], 0.015);
@@ -43919,15 +44687,64 @@ const coolingOf = (arch, spec) => arch === 'turbine' ? 'air'
 // the SAME engine the screen shows. Two callers, one mapping: a drift here
 // was a drawn engine flying different numbers, which is the whole bug this
 // arc exists to close.
-// THE INSTALLATION GROUPS stay the builder's whatever the engine (the
-// user's picker ruling, 2026-09-05: "the engine mount parameters for
-// example should stay available, but not everything related to the engine
-// geometry itself"): where it is held, and what reaches it.
+// THE INSTALLATION STAYS THE BUILDER'S WHATEVER THE ENGINE (the user's
+// picker ruling, 2026-09-05: "the engine mount parameters for example
+// should stay available, but not everything related to the engine geometry
+// itself" — WIDENED 2026-09-06 to the line it was always reaching for:
+// "bring back the cylinder orientation for all engines … same for the
+// exhaust management, which is not part of the engine geometry … same for
+// the radiator positioning, and everything apart from the block design. Be
+// critical, and bring back what would be adjusted IRL without being an
+// engine manufacturer").
+//
+// THE LINE: you BUY an engine — its case, its cylinders, its bore and
+// stroke, its gearbox, its blower, its castings and covers. You BUILD the
+// installation — how it is clocked in the airframe, the exhaust system, the
+// air filter, the radiator and where it hangs, what is bolted to the
+// accessory pad, what stands in the bay, and what reaches the firewall.
+// Everything on the second list is a row on this panel under a catalogue
+// engine; everything on the first would make it a DIFFERENT engine and
+// stays the custom engine's.
+//
+// Three whole groups are installation...
 const INSTALL_GROUPS = new Set(['mount + firewall', 'services (entry points)',
-                                'radiator (liquid)']);
-const INSTALL_KEYS = new Set();
+                                'radiator (liquid)',
+                                // starter, oil filter, battery, ECU: a bay
+                                // is furnished by whoever builds it
+                                'engine bay']);
+// ...and these rows are installation while sitting in a group that is not.
+// A row here must be one NO ENGINE MAKER decides for you AND one engResolve
+// does not read — an install row rides over the preset's own geometry, so a
+// row that moved mass, power or the CG would silently make the certified
+// name a lie (GATE ENGID §11 asserts both halves).
+const INSTALL_ROWS = new Set([
+  // HOW IT IS CLOCKED. Only an inline or a V has a bank to turn (a boxer
+  // lies across its case, a radial is a circle), so the row is gated to
+  // those in ROW_WHEN below rather than shown where it does nothing.
+  'inlineAim',
+  // THE EXHAUST IS NOT THE ENGINE (the user's own words). Nobody sells you
+  // the pipe: stacks or a collector, how far it drops, one can or two, and
+  // where the outlet leaves are made FOR THE AIRFRAME, by the builder, and
+  // are the first thing changed on a real installation. A turboprop's
+  // stacks are the same choice, so `stackStyle` rides here with them.
+  'exStyle', 'exDrop', 'exOut', 'exAim', 'exOutX', 'exOutY', 'exOutZ',
+  'stackStyle',
+  // THE AIR FILTER, likewise a bolt-on: a canister airbox or a pair of
+  // cones, or none at all. (`injected` is NOT here — carburettor or
+  // injection is what the O in an O-320 means, and flipping it under a
+  // catalogue name would draw an engine that is not the one named.)
+  'airbox', 'airStyle',
+  // THE ACCESSORY PAD AND THE HARNESS: an alternator is an option on every
+  // engine in this list, electronic ignition in place of a magneto is the
+  // commonest modification there is, and the leads are routed by hand
+  // round whatever else the builder put there. The electric's `leads` row
+  // (phase cables) is the same key and comes back with them.
+  'genOn', 'mags', 'leads', 'leadR',
+]);
+const INSTALL_KEYS = new Set(INSTALL_ROWS);
 for (const [name, rows] of EP.GROUPS)
   if (INSTALL_GROUPS.has(name)) for (const r of rows) INSTALL_KEYS.add(r[0]);
+if (typeof window !== 'undefined') window.CAGE_ENG_INSTALL = INSTALL_KEYS;
 // the dial dict: every row off P (`onlyInstall` = only the installation
 // rows, over a base that is the preset's own geometry)
 const dialSpecOfP = (P, base, onlyInstall) => {
@@ -44190,6 +45007,15 @@ const SPINPROP_KEYS = ['g_spin', 'g_prop'].flatMap(id =>
 // the crank and the flange — its rows go with it
 const DEAD_SPIN = new Set(['shaftR', 'shaftLen']);
 
+// A ROW THAT ONLY MEANS SOMETHING ON SOME LAYOUTS SAYS SO (2026-09-06).
+// The aim row turns a BANK, and only an inline or a V has one to turn:
+// `flat.angles` is ±90 by construction and `radial.angles` is a circle, so
+// on those two the drop has always moved nothing — it was as silent under
+// the custom engine as it would now be under a catalogue one, and a row
+// that cannot change the aeroplane is not a row.
+const ROW_WHEN = {
+  inlineAim: P => archOf(P) === 'inline' || archOf(P) === 'vee',
+};
 // bench groups -> cage subgroups, every row, same labels + ranges
 const engRow = r => {
   const [k, label, m3, a, b, ] = r;
@@ -44220,12 +45046,23 @@ for (const g of EP.GROUPS) {
   if (name === 'radiator (liquid)')
     when = P => +P.engOn && archOf(P) !== 'electric' && archOf(P) !== 'turbine' &&
                 archOf(P) !== 'radial' && liquidOf(P);
-  // THE GEOMETRY IS THE CUSTOM ENGINE'S (2026-09-05, the picker ruling):
-  // every bench group that is not an installation group shows only when
-  // the engine row says custom
-  if (!INSTALL_GROUPS.has(name)) {
-    const w0 = when;
-    when = P => w0(P) && isCustomEng(P);
+  // THE GEOMETRY IS THE CUSTOM ENGINE'S, ROW BY ROW (2026-09-05's ruling,
+  // widened 2026-09-06): a catalogue engine keeps every installation row
+  // and hides only the ones that would make it a different engine.
+  //
+  // PER ROW AND NEVER PER GROUP, because three of these groups are MIXED —
+  // the exhaust sits beside the injection, the alternator beside the oil
+  // filler — and BOTH HOSTS hide a group's rows through the group's own
+  // `when`: the accordion by DOM containment, the game's inspector through
+  // the `inherited` rules it captures before it moves the rows out. A group
+  // rule would take the installation rows down with the geometry, which is
+  // exactly the bug this widening exists to fix.
+  for (const it of items) {
+    const k = it[0].slice(4);                    // the 'eng_' prefix back off
+    const own = ROW_WHEN[k] || null;
+    if (INSTALL_KEYS.has(k)) { if (own) it.push({ when: own }); continue; }
+    it.push(own ? { when: P => own(P) && isCustomEng(P) }
+                : { when: isCustomEng });
   }
   BENCH_SUBS.push([name === 'engine' ? 'engine geometry' : name,
                    items, { when }]);
@@ -55219,11 +56056,7 @@ function cageJoinSpec(P, M, T) {
       const one = i => ({
         type, mount: mk, place: { dx: 0, dy: 0 },
         ...(aim && mk !== 'nose' && mk !== 'pusher' ? { aim } : {}),
-        // G188: the NOSE engine too — the frame hung it 0.18 m + 0.16 D ahead
-        // of the firewall whatever the nose drawn in front of it, so a
-        // long-nosed pod flew its powerplant 1.56 m aft of the cowl it was in
-        ...(EU[i] ? { x: EU[i].x, y: EU[i].y,
-                      ...(mk === 'nose' ? {} : { z: Math.abs(EU[i].z) }) } : {}),
+        ...(mk !== 'nose' && EU[i] ? { x: EU[i].x, y: EU[i].y, z: Math.abs(EU[i].z) } : {}),
         ...(mk === 'wingTop' ? { pylon: Math.max(0.05, +P.engPylonH || 0.30) } : {}),
         // G134: THE DRAWN ENGINE IS THE PHYSICS' AUTHOR — the G132 prop rule,
         // applied to the engine itself. M.engineFacts is engResolve over the
@@ -55355,9 +56188,6 @@ function cageJoinSpec(P, M, T) {
   // G52: the wing's fore-aft station, from the wing layer's own anchor
   if (typeof M.wingXLE === 'number' && isFinite(M.wingXLE))
     spec.wings[0].xLE = M.wingXLE;
-  // G188: ...and its height (root chord line over the keel), same anchor
-  if (typeof M.wingY === 'number' && isFinite(M.wingY))
-    spec.wings[0].y = M.wingY;
   // G49: the tail-end section and the cowl deck ride with the tail arm —
   // clampSpec's envelope bounds them, and tailY stays 0 (it is the
   // editor's OFFSET knob; these are absolute measurements).
@@ -55368,6 +56198,12 @@ function cageJoinSpec(P, M, T) {
   // pricing a faired pod — a naked aeroplane that flew covered. The G121.1
   // rule: the drawn state IS the declaration. Absent = 'skin', the default.
   if (!(P.skinOn == null || +P.skinOn)) fus.covering = 'open';
+  // G199.5: THE BOOM'S CONSTRUCTION is the cage's own declaration — the frame
+  // keys a rod boom's stiffening on it (GEN_RULES.rodBoomK), because the
+  // lattice it flies is not the tube it draws. Written on every join: the
+  // cage IS the declaration, a save predating the field takes it on load.
+  fus.boom = (+P.boomTwin || Math.round(+P.boomStyle || 0) === 2) ? 'twin'
+           : Math.round(+P.boomStyle || 0) === 1 ? 'rod' : 'loft';
   if (M.tailArm > 0) fus.tailArm = M.tailArm;
   if (M.postGap > 0) fus.postGap = M.postGap;
   // G54: the boom's path between the measured endpoints. clampSpec
@@ -55556,33 +56392,8 @@ const VIEW_KEEP = {
     'after the skip, selected or not)',
 };
 
-// WHERE THE TAIL POST IS WHEN NO RING NAMES IT (G199, 2026-09-05/06). G188
-// put the post of a ring-less boom at the skin's aft extreme plus the tail
-// cone — "where the boom's tail cone begins, which is exactly where the
-// regular table puts its own (zCap = zPost - tail.len)". Written for the pod,
-// it is right for the ROD as well: the fin's hinge line sits at the tube's
-// end (measured on the user's ultralight: hinge z -1.896 against the rod's
-// end -1.903), and the frame's post has always been the skin's aft extreme
-// (postX = tailArm + postGap = zFw - AF.z0 on every loft).
-//
-// What that line broke on the rod was not the station — it was what the FRAME
-// did with it: the tailwheel roots at the tube's end and TRAILS the post by
-// 0.3 m, and the post section is the tube's 0.11 m, so the frame built a
-// tailwheel fan with every anchor ahead of the wheel on a 4 cm post (13 %
-// strain, the tail hunting), and the tail bounds walked the whole mount and
-// read the wing's trailing edge as stab. G199 (05) took the fallback back to
-// pods while that was found; G199.1 (06) fixed the frame (the trailing wheel's
-// stay to the fin apex, the 0.15 m post) and the bounds (the tail layers
-// only), and the fallback is G188's again, for every boom the ring table
-// does not name. Pure, so GATE JOIN can pin it, and one place, so the next
-// hand finds the whole story here.
-function cageJoinPostZ(zRing, z0, tailLen, FS) {
-  if (zRing != null && isFinite(zRing)) return zRing;
-  return z0 + Math.max(0, +tailLen || 0) * (FS || 1);
-}
-
 if (typeof module !== 'undefined' && module.exports)
-  module.exports = { cageJoinSpec, cageJoinPostZ, cageWingCuts, CAGE_JOIN_ENGINES, CAGE_JOIN_PROP_MATS,
+  module.exports = { cageJoinSpec, cageWingCuts, CAGE_JOIN_ENGINES, CAGE_JOIN_PROP_MATS,
                      VIEW_STATE, VIEW_KEEP };
 
 // ---- browser glue: measurements + the button (game bundle only) ----
@@ -55737,7 +56548,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // tail arm. The ws rings SLOPE (roof z is aft of keel z), so the
       // base is their WAIST/KEEL z, not their roof. Ring z is cage
       // units; AF is metres — × FS (CAGE_UNIT × planeScale) converts.
-      let zFw = AF.z1, fwOk = false, zPost = null, podCabA = null;
+      let zFw = AF.z1, fwOk = false, zPost = null;
       let zOf2 = () => null;               // named-ring z lookup, metres
       try {
         const C2 = window.CAGE2;
@@ -55753,19 +56564,6 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
                  : zOf2('aeroWsA') != null ? zOf2('aeroWsA') : zOf2('ring');
         if (fw != null) { zFw = fw; fwOk = true; }
         zPost = zOf2('tailPost');          // a ROD boom has no tail rings
-        // G188: NEITHER HAS A POD (a mirrored cabin: its boom is built by
-        // reflection, not from the ring table). Without a post ring the
-        // post is where the boom's tail cone begins — the skin's aft extreme
-        // plus the cone's length, which is exactly where the regular table
-        // puts its own (zCap = zPost − tail.len) — and the aft pillar is the
-        // reflected windscreen base cageResolve publishes. Before this the
-        // cabin length, every boom section and all eight tail rows were
-        // simply never measured on a pod, and the merge kept whatever the
-        // spec had from an earlier state of the same build.
-        // G199/G199.1: one place — see cageJoinPostZ for what this did to a
-        // rod boom and what the frame had to learn before it could be right.
-        zPost = cageJoinPostZ(zPost, AF.z0, +P.tailLen, FS);
-        if (R.pod && R.pod.zCabA != null) podCabA = R.pod.zCabA * FS;
       } catch (e) {
         // NOT SWALLOWED (G64). `fwOk` false skips the whole firewall-anchored
         // block below — the cabin's x-extent, the gear station and ride
@@ -55853,15 +56651,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // actually anchors the FRONT SPAR: the cage's `ring` station
       // (+ the panel's dx), minus sparFront x chord back to the LE.
       if (fwOk) {
-        const zCabF = zOf2('pilCabB');
-        const zCabA = zOf2('pilPaxA') != null ? zOf2('pilPaxA') : podCabA;
-        // G188: a measurement that cannot be taken is SAID (G64's rule), not
-        // left to the merge's "last good number" — which on a pod was a
-        // number from a different aeroplane.
-        if (zCabA == null)
-          ERRS.push('the aft cabin pillar could not be located (no pilPaxA '
-                    + 'ring, no pod anatomy): cabin length, boom profile and '
-                    + 'tail rows not measured');
+        const zCabF = zOf2('pilCabB'), zCabA = zOf2('pilPaxA');
         if (zCabF != null && zFw > zCabF) M.noseGap = zFw - zCabF;
         if (zCabF != null && zCabA != null && zCabF > zCabA)
           M.cabLen = zCabF - zCabA;
@@ -55904,13 +56694,6 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           M.wingXLE = (zFw - zRing - (P.wgDx || 0))
                     - sparF * (P.wgChord || 1.5);
         }
-        // G188: THE WING'S HEIGHT, off the same anchor. The frame seated a
-        // low wing 0.10 m BELOW the keel whatever the builder drew (the cage
-        // seats it 22 % up the section, plus the up/down row) — 0.24 m on the
-        // pod that found it, 0.4 m on a full-height cabin; mid and high had
-        // their own two formulas. The root chord line, over the keel.
-        if (W && W.anchor && isFinite(W.anchor.yAnchor))
-          M.wingY = W.anchor.yAnchor + (+P.wgDy || 0) - yD;
         // G54: the SHAPE FAMILY — the PATH of the boom between the
         // measured endpoints (user: "it starts diverging from the
         // passenger pillar onwards"). The lattice interpolates its
@@ -56411,7 +57194,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
                               (kud.aeroTileK ? 'T' + kud.aeroTileK : '') +
                               (kud.aeroRoughK ? 'R' + kud.aeroRoughK : '') +
                               (kud.aeroNrmK ? 'N' + kud.aeroNrmK : '') +
-                              (kud.aeroWearM ? 'M' + kud.aeroWearM : '') : '') +
+                              (kud.aeroWearM ? 'M' + kud.aeroWearM : '') +
+                              (kud.aeroCcK ? 'C' + kud.aeroCcK : '') +
+                              (kud.aeroFieldK ? 'F' + kud.aeroFieldK : '') : '') +
             // G185: the second plane's materials are their own buckets — the
             // game binds each plane's skin to its own spar stations
             (kud.aeroPlane ? 'P' + kud.aeroPlane : '');
@@ -56454,6 +57239,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           ...(ud.aeroTileK ? { tileK: ud.aeroTileK } : {}),
           ...(ud.aeroRoughK ? { roughK: ud.aeroRoughK } : {}),
           ...(ud.aeroNrmK ? { nrmK: ud.aeroNrmK } : {}),
+          // G206: the sheen and the field dials cross the same way
+          ...(ud.aeroCcK ? { ccK: ud.aeroCcK } : {}),
+          ...(ud.aeroFieldK ? { fieldK: ud.aeroFieldK } : {}),
           ...(ud.aeroRibM ? { ribM: ud.aeroRibM } : {}),
           ...(ud.aeroWearK != null ? { wearK: ud.aeroWearK } : {}),
           ...(ud.aeroWearM != null ? { wearM: ud.aeroWearM } : {}),
@@ -57057,6 +57845,9 @@ const BASE_GROUPS = [
   ]],
   ['window joints', [
     ['rimW',      'rim size',     0.00, 0.04, 0.001],
+    // G206: the strip's rise (a fraction of rimW) and the pane's step down
+    ['rimRise',   'rim rise',     0.05, 1, 0.01],
+    ['paneInset', 'pane inset',   0, 0.01, 0.0005],
     ['rimSides',  'rim sides',    4, 10, 1],
     ['rimArc',    'corner sections', 1, 6, 1],
     ['rimWin',    'window rims',  0, 1, 1],
@@ -57259,6 +58050,8 @@ const secFin = {};
 // stays the authority on what a material IS. Absent means 1 and costs no
 // storage: only the sections somebody has actually dialled are written.
 const secTile = {}, secRough = {}, secNrm = {};
+// G206: the sheen (clear coat) and the large-scale field, same shape
+const secCc = {}, secField = {};
 // THE PART'S OWN CONDITION (G114, answering G70's "no per-part condition"):
 // a multiplier on the material's ageing rate, walked down the chains like
 // the dials — the one dial still sets the aeroplane, this says how much of
@@ -57279,6 +58072,8 @@ function aeroLoadPrefs() {
     Object.assign(secRough, j.rough || {});
     Object.assign(secNrm, j.nrm || {});
     Object.assign(secWear, j.wearM || {});
+    Object.assign(secCc, j.cc || {});
+    Object.assign(secField, j.field || {});
     Object.assign(WEAR, j.wear || {});
     aeroLoadGlass(j);
   } catch (e) {}
@@ -57300,6 +58095,7 @@ function aeroSavePrefs() {
     j.tint = secTint; j.finish = secFin; j.wear = WEAR;
     j.tile = secTile; j.rough = secRough; j.nrm = secNrm;
     j.wearM = secWear; j.glass = GLASS;
+    j.cc = secCc; j.field = secField;
     localStorage.setItem(AERO_PREF, JSON.stringify(j));
   } catch (e) {}
 }
@@ -57601,6 +58397,7 @@ const matOf = name => {
                 ':' + (secFin[name] || '') + ':' + consOf() +
                 ':' + (secTile[name] || 1) + ':' + (secRough[name] || 1) +
                 ':' + (secNrm[name] || 1) + ':' + (secWear[name] || 1) +
+                ':' + (secCc[name] || 1) + ':' + (secField[name] || 1) +
                 ':' + (WEAR.amount || 0) +
                 // THE GLAZING DIALS JOIN THE KEY (2026-08-31, the user:
                 // "none of the sliders do anything"). aeroGlass's own pool
@@ -57636,6 +58433,7 @@ const matOf = name => {
         tint, opacity: a, fieldM: fieldM(),
         // the three dials; absent is the finish's own number
         tileK: secTile[name], roughK: secRough[name], nrmK: secNrm[name],
+        ccK: secCc[name], fieldK: secField[name],
         wearM: secWear[name],
         // the field is per-SECTION and pure (see _surf_check): the mesh
         // publishes which groups carry it, and meshFrom passes it in
@@ -57683,7 +58481,8 @@ const SEC_LIVE = {};                    // section -> epoch it last drew in
 const SEC_CTX = {};                     // section -> the g it last drew with
 let SEC_EPOCH = 0;
 const SEC_OVER = { fin: secFin, tint: secTint, tile: secTile,
-                   rough: secRough, nrm: secNrm, wear: secWear };
+                   rough: secRough, nrm: secNrm, wear: secWear,
+                   cc: secCc, field: secField };
 function secMat(name, g) {
   if (!aeroOn()) return null;
   const A = AK();
@@ -57728,6 +58527,7 @@ function secMat(name, g) {
     // laminations on a blade, from the same sheet the fuselage lays fore-aft.
     tileK: (r.tileK != null ? r.tileK : 1) * ((g && g.tileK0) || 1),
     roughK: r.roughK, nrmK: r.nrmK, wearM: r.wearM,
+    ccK: r.ccK, fieldK: r.fieldK,                    // G206
     detRot: g && g.detRot ? 1 : 0,
   });
 }
@@ -57748,7 +58548,8 @@ const secResolveAuto = name => {
   const fin2 = Object.assign({}, secFin);
   delete fin2[name];
   return A.aeroSecResolve(name,
-    { fin: fin2, tint: secTint, tile: secTile, rough: secRough, nrm: secNrm },
+    { fin: fin2, tint: secTint, tile: secTile, rough: secRough, nrm: secNrm,
+      wear: secWear, cc: secCc, field: secField },
     { cons: g.cons || consOf(), fin: g.fin });
 };
 if (typeof window !== 'undefined') window.CAGE_SECMAT = secMat;
@@ -57834,6 +58635,17 @@ function meshFrom(m) {
   const mesh = new THREE.Mesh(g, mats.map(matOf));
   mesh.userData.surfMats = surfMats;
   mesh.userData.matNames = mats;
+  // THE GLASS COMPANION (G206): every pane is two draws — the multiply pass
+  // rides the same faces as a child mesh one renderOrder earlier. Inert when
+  // the panes are not AEROSKIN glass (the flat view), tagged so the join and
+  // the highlight walk past it. See aeroskin.js's glass family header.
+  {
+    const A0 = AK();
+    if (A0 && A0.aeroGlassCompanion)
+      A0.aeroGlassCompanion(THREE, mesh, mesh.material, m0 =>
+        A0.aeroGlassTint(THREE, { tintLin: m0.color.getHex(),
+                                  opacity: m0.opacity }));
+  }
   return mesh;
 }
 
@@ -58836,8 +59648,11 @@ fillPresetSel();
         // It is skipped BY DESIGN, not as an exception: the uniform recipe
         // was declared at G38 as the baseline "until materials become a real
         // chantier (P9)", and this is that chantier.
+        // A SKINNED MESH KEEPS ITS OWN MATERIAL (G204): the understudy has
+        // no skinning and no map, so a rigged character under it would
+        // collapse to its bind pose in flat grey — and the mesh IS the skin.
         const nm = mats.map(m => (LIT.has(m.type) && !m.userData.cageUni
-          && !m.userData.aeroskin)
+          && !m.userData.aeroskin && !o.isSkinnedMesh)
           ? (touched = true, uniOf(m)) : m);
         if (touched)
           o.material = Array.isArray(o.material) ? nm : nm[0];
@@ -59681,7 +60496,8 @@ function finishToSpec() {
   let n = 0;
   const names = new Set([].concat(
     Object.keys(secFin), Object.keys(secTint), Object.keys(secTile),
-    Object.keys(secRough), Object.keys(secNrm), Object.keys(secWear)));
+    Object.keys(secRough), Object.keys(secNrm), Object.keys(secWear),
+    Object.keys(secCc), Object.keys(secField)));
   for (const nm of names) {
     const o = {};
     if (secFin[nm]) o.fin = secFin[nm];
@@ -59690,6 +60506,8 @@ function finishToSpec() {
     if (secRough[nm] != null) o.rough = secRough[nm];
     if (secNrm[nm] != null) o.nrm = secNrm[nm];
     if (secWear[nm] != null) o.wearM = secWear[nm];
+    if (secCc[nm] != null) o.cc = secCc[nm];
+    if (secField[nm] != null) o.field = secField[nm];
     if (Object.keys(o).length) { sections[nm] = o; n++; }
   }
   // THE GLAZING, deviations only — the same rule the sections and the decals
@@ -59717,7 +60535,8 @@ function finishToSpec() {
 // the factory finish and is a complete instruction, not a missing one.
 function finishFromSpec(f) {
   decKitDefaults();
-  for (const m of [secFin, secTint, secTile, secRough, secNrm, secWear])
+  for (const m of [secFin, secTint, secTile, secRough, secNrm, secWear,
+                   secCc, secField])
     for (const k in m) delete m[k];
   // AND THE REGISTRATION IS CLEARED WITH THE REST (G160). This used to carry
   // DEC.reg across a load, on the reasoning that it belonged to meta.reg and
@@ -59740,6 +60559,8 @@ function finishFromSpec(f) {
       if (typeof r.rough === 'number') secRough[nm] = r.rough;
       if (typeof r.nrm === 'number') secNrm[nm] = r.nrm;
       if (typeof r.wearM === 'number') secWear[nm] = r.wearM;
+      if (typeof r.cc === 'number') secCc[nm] = r.cc;
+      if (typeof r.field === 'number') secField[nm] = r.field;
     }
     if (typeof o.wear === 'number') WEAR.amount = Math.max(0, Math.min(1, o.wear));
     if (o.decals && typeof o.decals === 'object')
@@ -60001,9 +60822,110 @@ function decReframe(fromMode, toMode, keys) {
 // machine are the same glass, cut twice. Per-section tint stays per-section
 // (that is `secTint`, which glass has always been able to take and never had
 // a well for); what is shared is the CONDITION of the glazing.
-const GLASS = { tint: null, opacity: 0.5, scratch: 0, wipe: 0, grime: 0,
+// G206: opacity 0.5 -> 0.2 with the hand blend — see aeroskin.js GLASS_DEF
+const GLASS = { tint: null, opacity: 0.2, scratch: 0, wipe: 0, grime: 0,
                 refl: 1, rainbow: 0 };
 const GLASS_DEFV = JSON.parse(JSON.stringify(GLASS));
+
+// THE MATERIAL LAB'S OWN DOM (G206). Re-rendered on its own whenever its
+// selection changes; the panel rebuild around it happens only when the
+// section list changes shape. Sliders write LIVE (uniforms and scalars, no
+// rebuild); `cc` rebuilds on release because a clear coat appearing on a row
+// changes the material class; the resets rebuild too.
+const LAB = { kind: 'finish', key: 'fabric', gkey: 'tubeFabric', open: false };
+function labRender(box) {
+  const A = AK();
+  if (!A || !A.aeroLabSet) return;
+  box.textContent = '';
+  const sel = (opts, val, on) => {
+    const s = document.createElement('select'); s.style.flex = '1';
+    for (const [v, t] of opts) {
+      const o = document.createElement('option');
+      o.value = v; o.textContent = t; s.appendChild(o);
+    }
+    s.value = val; s.onchange = () => on(s.value); return s;
+  };
+  const row = (label, title) => {
+    const r = document.createElement('div'); r.className = 'r dial';
+    const k = document.createElement('span');
+    k.className = 'k'; k.textContent = label; k.title = title || label;
+    r.appendChild(k); box.appendChild(r); return r;
+  };
+  const btn = (t, on) => {
+    const b = document.createElement('button'); b.textContent = t;
+    b.style.cssText = 'font:inherit;font-size:10px;padding:1px 6px;';
+    b.onclick = on; return b;
+  };
+  const head = row('table', 'which table this bench is over');
+  head.appendChild(sel([['finish', 'finish rows'],
+                        ['grammar', 'construction rows'],
+                        ['gain', 'display gains'],
+                        ['glass', 'glazing base']],
+                       LAB.kind, v => { LAB.kind = v; labRender(box); }));
+  let fields, get, set, key = null;
+  const fmt = v => v == null ? '-'
+    : (Math.abs(v) < 0.02 && v !== 0) ? (v * 1000).toFixed(2) + ' mm'
+    : (+v).toFixed(3);
+  if (LAB.kind === 'finish') {
+    const keys = Object.keys(A.AERO_FINISH);
+    if (!A.AERO_FINISH[LAB.key]) LAB.key = keys[0];
+    const kr = row('finish', 'the row being edited (* = deviates)');
+    kr.appendChild(sel(keys.map(k => [k, A.AERO_FINISH[k].name +
+                                          (A.AERO_LAB.finish[k] ? ' *' : '')]),
+                       LAB.key, v => { LAB.key = v; labRender(box); }));
+    key = LAB.key; fields = A.AERO_LAB_FIELDS;
+    get = f => A.aeroLabGet('finish', key, f);
+    set = (f, v) => A.aeroLabSet(THREE, 'finish', key, f, v);
+  } else if (LAB.kind === 'grammar') {
+    const D = A.aeroGramDef() || {};
+    const keys = Object.keys(D);
+    if (!keys.length) { row('(the core is not loaded)', ''); return; }
+    if (!D[LAB.gkey]) LAB.gkey = keys[0];
+    const kr = row('construction', 'the construction row (* = deviates)');
+    kr.appendChild(sel(keys.map(k => [k, (D[k].name || k) +
+                                         (A.AERO_LAB.grammar[k] ? ' *' : '')]),
+                       LAB.gkey, v => { LAB.gkey = v; labRender(box); }));
+    key = LAB.gkey; fields = A.AERO_LAB_GRAM;
+    get = f => A.aeroLabGet('grammar', key, f);
+    set = (f, v) => A.aeroLabSet(THREE, 'grammar', key, f, v);
+  } else if (LAB.kind === 'gain') {
+    fields = A.AERO_LAB_GAIN;
+    get = f => A.aeroLabGet('gain', f);
+    set = (f, v) => A.aeroLabSet(THREE, 'gain', f, f, v);
+  } else {
+    fields = A.AERO_LAB_GLASS;
+    get = f => A.aeroLabGet('glass', f);
+    set = (f, v) => A.aeroLabSet(THREE, 'glass', f, f, v);
+  }
+  for (const f in fields) {
+    const [lo, hi, st, label] = fields[f];
+    const v0 = get(f);
+    if (v0 == null) continue;          // a construction with no such row
+    const r = row('  ' + label, f);
+    const i = document.createElement('input');
+    i.type = 'range'; i.min = lo; i.max = hi; i.step = st;
+    i.value = v0; i.style.flex = '1';
+    const v = document.createElement('span');
+    v.className = 'v'; v.textContent = fmt(+v0);
+    i.oninput = () => { set(f, +i.value); v.textContent = fmt(+i.value); };
+    if (f === 'cc') i.onchange = () => build();
+    r.appendChild(i); r.appendChild(v);
+  }
+  const foot = row('', '');
+  foot.appendChild(btn('reset row', () => {
+    A.aeroLabReset(THREE, LAB.kind, key); build(); labRender(box); }));
+  foot.appendChild(btn('reset all', () => {
+    A.aeroLabReset(THREE); build(); labRender(box); }));
+  foot.appendChild(btn(LAB.open ? 'hide json' : 'export json', () => {
+    LAB.open = !LAB.open; labRender(box); }));
+  if (LAB.open) {
+    const ta = document.createElement('textarea'); ta.readOnly = true;
+    ta.style.cssText = 'flex:1 1 100%;height:110px;font:10px/1.3 monospace;';
+    ta.value = A.aeroLabExport(); box.appendChild(ta);
+    try { if (navigator.clipboard) navigator.clipboard.writeText(ta.value); }
+    catch (e) {}
+  }
+}
 // the pane's own extent in field metres, measured off the drawn mesh so
 // "toward the edge" is a real distance on a real pane
 const GLASS_EXT = {};
@@ -60555,6 +61477,26 @@ function buildMatPanel() {
        'thin-film flare at the limb. An EFFECT, not physics: r128 has no ' +
        'iridescence and this is a Fresnel-driven hue rather than a film');
   }
+  // ---- THE MATERIAL LAB (G206) --------------------------------------------
+  // The user: "it would be good to have an editor to these parameters (right
+  // now I can't access this layer)". ONE row element holding its own small
+  // panel, so the finish view carries it as one block (data-lab) without
+  // partitioning its innards. Everything in it writes the LIVE tables
+  // through AEROSKIN's lab and never the spec — aeroskin.js, THE MATERIAL
+  // LAB. The per-section dials below multiply whatever the lab says.
+  if (A.aeroLabSet) {
+    const d = mkRow2('material lab', 'the designer bench over the finish, ' +
+      'construction and glazing tables — live, kept as deviations in this ' +
+      'browser, exported as JSON to paste back into the table. Nothing ' +
+      'here is saved with the aeroplane; the per-section dials multiply it');
+    d.dataset.matHead = '1'; d.dataset.lab = '1';
+    d.style.flexWrap = 'wrap'; d.style.alignItems = 'flex-start';
+    const box = document.createElement('div');
+    box.style.cssText =
+      'flex:1 1 100%;display:flex;flex-direction:column;gap:2px;';
+    d.appendChild(box);
+    labRender(box);
+  }
   for (const nm of names.concat(live)) {
     const isGlass = A.AERO_GLASS.has(nm);
     // a LAYER section's auto is the walked chain, not the role table: the
@@ -60633,7 +61575,7 @@ function buildMatPanel() {
     row.firstChild.ondblclick = () => {
       delete secTint[nm]; delete secFin[nm];
       delete secTile[nm]; delete secRough[nm]; delete secNrm[nm];
-      delete secWear[nm];
+      delete secWear[nm]; delete secCc[nm]; delete secField[nm];
       aeroSavePrefs(); build();
     };
     // THE THREE DIALS, under the section they belong to. They MULTIPLY the
@@ -60643,6 +61585,11 @@ function buildMatPanel() {
     for (const [key, store, label] of [['tile', secTile, 'tile x'],
                                        ['rough', secRough, 'roughness x'],
                                        ['nrm', secNrm, 'normal x'],
+                                       // G206: the clear coat and the
+                                       // large-scale field, as multipliers
+                                       // of the finish's own numbers
+                                       ['sheen', secCc, 'sheen x'],
+                                       ['field', secField, 'field x'],
                                        // the part's own CONDITION (G114):
                                        // multiplies how much of the
                                        // aeroplane's one wear dial this
@@ -64145,6 +65092,25 @@ const VESSEL_TEX_SETS = (typeof Image !== 'undefined') ? (() => {
 // above 1 for the hangar. METALNESS IS NOT SHININESS: paint over aluminium is
 // a dielectric and stays at 0 however glossy it looks. Only genuinely bare
 // metal goes high, or the livery turns grey and takes its colour from the sky.
+//
+// THE CLEAR LAYER (G206, the user: "more shiny when they have been painted
+// and varnished"). Paint and varnish are a CLEAR COAT over a pigment layer —
+// a broad soft sheen sitting on top of the body colour — and no roughness
+// number gives that: at roughness 0.3 a pigment reads as satin plastic, not
+// as a varnished ply. `cc` / `ccR` are MeshPhysicalMaterial's clearcoat and
+// its roughness; a row with `cc` > 0 builds Physical (which is still
+// isMeshStandardMaterial, so it receives scene.environment like the rest),
+// a row without stays Standard. Bare metal and cloth have no clear layer.
+//
+// THE LARGE-SCALE FIELD (G206, the user: "something like a musgrave texture
+// at large scale over the whole body ... mostly on metal sheets, medium on
+// wood and low on fabric"). `fld` is its amplitude in METRES, `fldL` its
+// wavelength in metres, `fldR` how much of it reaches the roughness. It is a
+// NON-REPEATING noise evaluated in metres in the shader (aeroField), never a
+// term in the tiling sheet — because a slow term inside a tile IS the visible
+// repeat, which is what the sheets carried until G206 (see aeroHeight).
+// Roughness re-baselined at the same time: a polished dope finish sits
+// about 0.4, varnished ply 0.3, polyurethane over alloy 0.28.
 const AERO_FINISH = {
   // DOPE FILLS THE WEAVE. Four coats of butyrate over Ceconite leaves a
   // surface you can only find the cloth in by looking for it — what you
@@ -64152,33 +65118,43 @@ const AERO_FINISH = {
   // are the grammar's job, not the sheet's. The first cut ran 22 threads
   // across a 0.30 m tile (13 mm each, at full normal strength) and the
   // fuselage came out as basket-weave upholstery.
-  fabric:    { name: 'doped fabric', base: 0xd8d4c8, tile: 0.14,
-               rough: 0.66, metal: 0.0, nrm: 0.32, alb: 0.13,
-               hs: 0.5, bs: 0.8, bake: 'weave' },
+  // G206: the tile drops 0.14 -> 0.06 m (a 2 mm thread, not a 5 mm one) and
+  // `hs` 0.5 -> 0.15 — under four coats of dope the weave is a roughness
+  // speckle, not a relief; the clear layer and the low field do the rest
+  fabric:    { name: 'doped fabric', base: 0xd8d4c8, tile: 0.06,
+               rough: 0.42, metal: 0.0, nrm: 0.25, alb: 0.13,
+               hs: 0.15, bs: 0.8, bake: 'weave',
+               cc: 0.35, ccR: 0.25, fld: 0.00025, fldL: 0.35, fldR: 0.3 },
   // alb 0.50 -> 0.80 with the scanned sheet (G125): the maple face's B span
   // is a quarter of the procedural stripes', so the compensation keeps the
   // ply's grain visible at all — same measurement as spruce's note below
   ply:       { name: 'birch ply',    base: 0xc9a06a, tile: 0.35,
-               rough: 0.44, metal: 0.0, nrm: 0.30, alb: 0.80,
-               hs: 0.10, bs: 1.6, bake: 'grain', sheet: 'maple' },
+               rough: 0.32, metal: 0.0, nrm: 0.30, alb: 0.80,
+               hs: 0.10, bs: 1.6, bake: 'grain', sheet: 'maple',
+               cc: 0.50, ccR: 0.18, fld: 0.0004, fldL: 0.5, fldR: 0.3 },
   alclad:    { name: '2024 alclad',  base: 0xd2d6da, tile: 0.70,
-               rough: 0.34, metal: 0.0, nrm: 0.45, alb: 0.10,
-               hs: 0.8, bs: 0.5, bake: 'sheet' },
+               rough: 0.28, metal: 0.0, nrm: 0.35, alb: 0.10,
+               hs: 0.8, bs: 0.5, bake: 'sheet',
+               cc: 0.45, ccR: 0.15, fld: 0.0015, fldL: 0.8, fldR: 0.35 },
   composite: { name: 'carbon/epoxy', base: 0x2b2e33, tile: 0.10,
                rough: 0.20, metal: 0.0, nrm: 0.30, alb: 0.22,
-               hs: 0.5, bs: 1.0, bake: 'twill' },
+               hs: 0.5, bs: 1.0, bake: 'twill',
+               cc: 0.60, ccR: 0.10, fld: 0.0003, fldL: 1.0, fldR: 0.2 },
   bareAlu:   { name: 'bare alloy',   base: 0xb6bcc3, tile: 0.45,
                rough: 0.26, metal: 0.90, nrm: 0.45, alb: 0.10,
-               hs: 0.8, bs: 0.6, bake: 'sheet' },
+               hs: 0.8, bs: 0.6, bake: 'sheet',
+               fld: 0.0015, fldL: 0.8, fldR: 0.4 },
   steelTube: { name: '4130 tube',    base: 0x6f7780, tile: 0.30,
                rough: 0.48, metal: 0.80, nrm: 0.50, alb: 0.16,
-               hs: 0.9, bs: 0.8, bake: 'sheet' },
+               hs: 0.9, bs: 0.8, bake: 'sheet',
+               fld: 0.0002, fldL: 0.3, fldR: 0.2 },
   // alb raised 0.55 -> 0.85 with the scanned sheet (G125): Wood091B's strip
   // boundaries are almost entirely COLOUR, and at 0.55 the laminations
   // vanished into the base — measured on the swatch strip, not guessed
   spruce:    { name: 'spruce',       base: 0xbb9560, tile: 0.30,
-               rough: 0.52, metal: 0.0, nrm: 0.30, alb: 0.85,
-               hs: 0.14, bs: 1.6, bake: 'grain', sheet: 'laminate' },
+               rough: 0.40, metal: 0.0, nrm: 0.30, alb: 0.85,
+               hs: 0.14, bs: 1.6, bake: 'grain', sheet: 'laminate',
+               cc: 0.40, ccR: 0.20, fld: 0.0003, fldL: 0.5, fldR: 0.2 },
 
   // ---- THE SCANNED WOODS (G125) -------------------------------------------
   // The first baked CC0 payloads, landing the promise the sheet loader has
@@ -64199,13 +65175,16 @@ const AERO_FINISH = {
   // a birch ply skin shows; a built-up spruce member is glued strips).
   maple:     { name: 'maple',          base: 0xe3d4b9, tile: 0.90,
                rough: 0.42, metal: 0.0, nrm: 0.30, alb: 0.90,
-               hs: 0.10, bs: 1.4, bake: 'grain', sheet: 'maple' },
+               hs: 0.10, bs: 1.4, bake: 'grain', sheet: 'maple',
+               cc: 0.30, ccR: 0.20, fld: 0.0002, fldL: 0.5, fldR: 0.2 },
   walnut:    { name: 'walnut',         base: 0xa98971, tile: 0.90,
                rough: 0.42, metal: 0.0, nrm: 0.30, alb: 1.10,
-               hs: 0.10, bs: 1.6, bake: 'grain', sheet: 'walnut' },
+               hs: 0.10, bs: 1.6, bake: 'grain', sheet: 'walnut',
+               cc: 0.30, ccR: 0.20, fld: 0.0002, fldL: 0.5, fldR: 0.2 },
   walnutFig: { name: 'figured walnut', base: 0x887e72, tile: 1.10,
                rough: 0.44, metal: 0.0, nrm: 0.30, alb: 1.30,
-               hs: 0.10, bs: 1.6, bake: 'grain', sheet: 'walnutfig' },
+               hs: 0.10, bs: 1.6, bake: 'grain', sheet: 'walnutfig',
+               cc: 0.30, ccR: 0.20, fld: 0.0002, fldL: 0.5, fldR: 0.2 },
   rubber:    { name: 'rubber',       base: 0x20222b, tile: 0.16,
                rough: 0.94, metal: 0.0, nrm: 0.55, alb: 0.20,
                hs: 0.7, bs: 0.9, bake: 'weave' },
@@ -64213,8 +65192,9 @@ const AERO_FINISH = {
                rough: 0.88, metal: 0.0, nrm: 0.55, alb: 0.30,
                hs: 0.7, bs: 1.0, bake: 'weave' },
   trim:      { name: 'painted trim', base: 0xd8dde4, tile: 0.40,
-               rough: 0.30, metal: 0.10, nrm: 0.25, alb: 0.08,
-               hs: 0.6, bs: 0.5, bake: 'sheet' },
+               rough: 0.28, metal: 0.10, nrm: 0.25, alb: 0.08,
+               hs: 0.6, bs: 0.5, bake: 'sheet',
+               cc: 0.40, ccR: 0.20, fld: 0.0005, fldL: 0.4, fldR: 0.3 },
   // THE FIREPROOF SHEET. A firewall is a structural bulkhead with a sheet of
   // stainless or aluminised foil on the ENGINE side of it, and the foil is
   // the only surface on the aeroplane whose whole appearance is a CRINKLE: it
@@ -64282,7 +65262,8 @@ const AERO_FINISH = {
   // warm brown, and a builder who wants it blacker has the dial.
   panelMetal: { name: 'metal panel',   base: 0xd0d4d8, tile: 0.60,
                 rough: 0.38, metal: 0.92, nrm: 0.35, alb: 0.20,
-                hs: 0.8, bs: 0.5, bake: 'sheet', sheet: 'panel' },
+                hs: 0.8, bs: 0.5, bake: 'sheet', sheet: 'panel',
+                fld: 0.0003, fldL: 0.4, fldR: 0.3 },
   leatherDark: { name: 'dark leather', base: 0x2a2622, tile: 0.30,
                  rough: 0.52, metal: 0.0, nrm: 0.55, alb: 0.60,
                  hs: 0.8, bs: 0.9, bake: 'hide', sheet: 'leather' },
@@ -64336,6 +65317,10 @@ const AERO_FINISH = {
                rough: 0.38, metal: 0.90, nrm: 0.30, alb: 0.12,
                hs: 0.5, bs: 0.7, bake: 'sheet' },
 };
+
+// THE TABLE AS WRITTEN (G206): the material lab edits AERO_FINISH in place
+// and this is what "reset" and "deviation" are measured against.
+const AERO_FINISH_DEF = JSON.parse(JSON.stringify(AERO_FINISH));
 
 // ---------------------------------------------------------------------------
 // THE ASSIGNMENT TABLE — construction x section ROLE -> finish
@@ -64795,7 +65780,10 @@ function aeroSecResolve(sec, over, ctx) {
            tileK: walk(over && over.tile, chain).v,
            roughK: walk(over && over.rough, chain).v,
            nrmK: walk(over && over.nrm, chain).v,
-           wearM: walk(over && over.wear, chain).v };
+           wearM: walk(over && over.wear, chain).v,
+           // G206: the sheen and the field, same rule
+           ccK: walk(over && over.cc, chain).v,
+           fieldK: walk(over && over.field, chain).v };
 }
 
 // ---------------------------------------------------------------------------
@@ -64872,11 +65860,16 @@ function aeroHeight(kind, S) {
         // "no visible weave" and "a subtle weave" are the same screenshot at
         // any distance. Warp and weft each ride over the other in
         // alternating cells, which is what a plain weave is.
+        // NO SLOW TERM (G206): this carried 0.12*sin(u*3+v*2), one swell per
+        // tile, and one swell per tile IS a visible repeat — the "tiling too
+        // coarse" the user saw was that blotch every 14 cm, not the threads.
+        // A tiling sheet carries 8+ cycles per tile and nothing slower; the
+        // slow undulation is aeroField's, in metres, and never repeats.
         const n = 30;
         const warp = Math.abs(Math.sin(u * n));
         const weft = Math.abs(Math.sin(v * n));
         const over = Math.sin(u * n * 0.5) * Math.sin(v * n * 0.5) > 0;
-        return 0.55 * (over ? warp : weft) + 0.12 * Math.sin(u * 3 + v * 2);
+        return 0.55 * (over ? warp : weft);
       }
       case 'twill': {
         // 2x2 carbon twill: the diagonal is what identifies it
@@ -64901,8 +65894,7 @@ function aeroHeight(kind, S) {
         // a product-of-sines lattice, each turned against the last so no two
         // share an axis and the tile does not read as a grid.
         const g = (a, b, k) => Math.sin(u * a + v * b) * Math.sin(u * -b + v * a) * k;
-        return g(37, 21, 0.34) + g(59, -43, 0.18) + g(97, 71, 0.09)
-             + 0.06 * Math.sin(u * 5 + v * 3);
+        return g(37, 21, 0.34) + g(59, -43, 0.18) + g(97, 71, 0.09);
       }
       case 'hide': {
         // LEATHER. The grain is a broad, soft PEBBLE with fine pores in it,
@@ -64923,9 +65915,13 @@ function aeroHeight(kind, S) {
         // corrugated iron rather than doped fabric"). Painted metal is smooth;
         // what stops it reading as plastic is a broad, very low undulation
         // and a mill grain you can only find by looking for it.
-        return 0.06 * Math.sin(u * 2.0 + v * 1.3)
-             + 0.03 * Math.sin(v * 3.7 - u * 1.1)
-             + 0.010 * Math.sin(v * 90.0 + Math.sin(u * 5.0) * 0.7);
+        // G206: the "broad, very low undulation" LEFT THE SHEET. At 0.06 over
+        // two cycles of a 0.70 m tile it was a 35 cm ripple repeating every
+        // 70 cm at hs 0.8 — the coarse repeat on every alloy fuselage. The
+        // undulation is aeroField's now (metric, non-repeating, per finish);
+        // what stays here is the mill grain and a fine isotropic breakup.
+        return 0.010 * Math.sin(v * 90.0 + Math.sin(u * 5.0) * 0.7)
+             + 0.008 * Math.sin(u * 23 + v * 17) * Math.sin(u * 19 - v * 29);
       }
     }
   };
@@ -65271,6 +66267,16 @@ function aeroSharedU(THREE) {
     uWearE: { value: new THREE.Vector4(0, 0, -1, 0) },   // exhaust streak
     uWearS: { value: new THREE.Vector4(0, 0, -1, 0) },   // gear splash
     //        x sL origin  y sC origin  z run (m, +aft; <0 = off)  w half-width
+    // THE DISPLAY GAINS (G206), and there are THREE because one was the
+    // waffle. uGGain was a single x4 over every gradient the grammar summed,
+    // justified for the TAPE (a 0.6 deg slope is invisible and a real tape
+    // has a pinked lip a Gaussian lacks) and applied, unjustified, to the
+    // SAG and the DISH, which were declared as real dimensions and then
+    // quadrupled — a 2.5 mm slack read as a 10 mm quilt. x = tape /
+    // members / fasteners / seams, y = sag and dish, z = the large-scale
+    // field. Shared, so the lab's one write reaches every material.
+    uGain:  { value: new THREE.Vector3(AERO_GAIN_DEF.x, AERO_GAIN_DEF.y,
+                                       AERO_GAIN_DEF.z) },
   });
 }
 const aeroDecUniforms = aeroSharedU;    // the name G69 wrote it under
@@ -65853,7 +66859,13 @@ uniform vec4 uDecB[AERO_MAXD];
 uniform vec4 uDecC[AERO_MAXD];
 uniform vec4 uDecD[AERO_MAXD];
 uniform float uInset;
-uniform float uGGain; // display gain over the PHYSICAL gradient - see below
+// THE THREE DISPLAY GAINS (G206) — shared; see aeroSharedU. x members and
+// tapes, y sag and dish, z the large-scale field. uGGain was one x4 over
+// everything, and that one number was most of the waffle.
+uniform vec3 uGain;
+// THE LARGE-SCALE FIELD (G206): x amplitude m, y wavelength m, z roughness
+// gain. Per material, off the finish row times the section's own dial.
+uniform vec4 uField;
 uniform vec4 uG4;   // x realRise  y realHalfW(m)  z lePolish(chord frac)  w realFast
 // uG5.w was a wing? FLAG and is a surface CLASS now (G108): 0 the body,
 // 1 the wing, 2 the tail. Everything that tested > 0.5 for "is this a
@@ -65896,7 +66908,11 @@ uniform vec4  uGlass;      // x scratch  y wipe  z grime  w rainbow
 // coat normal, and that is what makes it catch the light.
 float aeroGSC = 0.0;
 float aeroGDirt = 0.0;
+vec3  aeroGRain = vec3(1.0);   // the rainbow, as a tint on the SPECULAR (G206)
 uniform vec4  uGlassE;     // the pane's own extent in field metres: lo.xy hi.xy
+// THE GLAZING'S BASE NUMBERS (G206): x how far the Fresnel closes the pane
+// at the limb, y how much of a lit body colour an opaque pane shows
+uniform vec4  uGlassB;
 varying vec4 vSurf;
 varying vec3 vObjPos;
 varying vec3 vObjNrm;
@@ -65962,14 +66978,75 @@ float aeroStreak(vec2 m, vec4 s) {
   return exp(-d * d) * (1.0 - t) * smoothstep(0.0, 0.10, t);
 }
 
+// THE LARGE-SCALE FIELD (G206, the user: "something like a musgrave texture
+// at large scale over the whole body"). What every real skin has and no
+// tiling sheet can carry: the slow, NON-REPEATING undulation of rolled
+// sheet and set panels on metal (0.3-1.5 m, 0.5-2 mm), sanding and glue-line
+// ghosts on ply, the barely-there slack of fabric between its stringers.
+// Musgrave's hybrid multifractal is the classic generator because it is
+// HETEROGENEOUS — smooth in places, busy in others — which is what set
+// panels look like, where plain fBm is uniformly busy.
+//
+// EVALUATED IN METRES, off the surface field (or a craft-space plane on the
+// triplanar branch), so it never repeats and stays the same size on every
+// layer. The gradient is a fixed METRIC step, not fwidth: a slope must be the
+// same slope from every distance, or the undulation breathes with the zoom.
+// The sin-hash is the same value noise the grammar's oil-canning seeds on.
+float aeroHash(vec2 p) {
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+float aeroVNoise(vec2 p) {
+  vec2 i = floor(p), f = fract(p);
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(mix(aeroHash(i), aeroHash(i + vec2(1.0, 0.0)), u.x),
+             mix(aeroHash(i + vec2(0.0, 1.0)), aeroHash(i + vec2(1.0, 1.0)), u.x),
+             u.y);
+}
+float aeroMusgrave(vec2 p) {
+  float sum = 0.0, w = 1.0, amp = 1.0, f = 1.0;
+  for (int i = 0; i < 4; i++) {
+    float s = ((aeroVNoise(p * f) - 0.5) * 2.0 + 0.55) * amp;
+    sum += w * s;
+    w = clamp(sum, 0.0, 1.0);          // hybrid: the high ground gets busy
+    amp *= 0.5; f *= 2.07;
+  }
+  return sum * 0.55 - 0.45;            // about -1 .. 1
+}
+// adds the field's height gradient (m/m) to dF and its roughness to rgh;
+// returns the field's own value, which the oil-canning reads to vary the
+// dish depth. No fetch inside, so the early return is uniform-safe.
+float aeroField(vec2 m, inout vec2 dF, inout float rgh) {
+  if (uField.x <= 0.0 || uField.y <= 0.0) return 0.0;
+  float L = uField.y;
+  vec2 p = m / L;
+  float e = 0.02;
+  float h0 = aeroMusgrave(p);
+  float hx = aeroMusgrave(p + vec2(e, 0.0));
+  float hy = aeroMusgrave(p + vec2(0.0, e));
+  float k = uField.x / (e * L);
+  dF.x += (hx - h0) * k;
+  dF.y += (hy - h0) * k;
+  rgh += h0 * uField.z * 0.12;
+  return h0;
+}
+
 // THE GRAMMAR. Height GRADIENTS in metres per metre, which is what a
 // tangent-space normal is, so every amplitude below is a real dimension and
 // not a taste knob. Accumulated as dH and converted once at the end, because
 // summing gradients is what stacking surface features actually means.
+// THREE ACCUMULATORS SINCE G206, one per display gain: dH is what a member
+// prints (tape, telegraphing, fasteners, seams), dS is what the covering does
+// between members (sag, dish), dF is the large-scale field. They were one
+// sum under one x4, and the sag and dish quadrupled were the waffle.
 vec3 aeroStructure(vec2 m, inout float rgh) {
-  if (uGOn < 0.5) return vec3(0.0, 0.0, 1.0);
   vec2 dH = vec2(0.0);
+  vec2 dS = vec2(0.0);
+  vec2 dF = vec2(0.0);
   float fw = max(fwidth(m.x) + fwidth(m.y), 1e-6);   // ~metres per pixel
+  // the field applies to every skin that declares one, structure or not: a
+  // painted strut fairing has no frames and still has set panels
+  float fldV = aeroField(m, dF, rgh);
+  if (uGOn > 0.5) {
 
   // THE REAL MEMBERS (G68.1). The metric pitches below place the frames and
   // stringers a construction HAS; these place the ones the generator KNOWS
@@ -66026,7 +67103,7 @@ vec3 aeroStructure(vec2 m, inout float rgh) {
       // division and left the sag ~2.7x too shallow to see.
       const float PI2 = 3.14159265;
       float t = fract(vSurf.z), sg = sin(PI2 * t);
-      dH.x -= leK * uG1.z * uG1.w * pow(max(sg, 1e-4), uG1.w - 1.0)
+      dS.x -= leK * uG1.z * uG1.w * pow(max(sg, 1e-4), uG1.w - 1.0)
             * cos(PI2 * t) * PI2;
     }
     // fasteners along the real members: rib lacing, or the spar-cap rivets
@@ -66073,14 +67150,18 @@ vec3 aeroStructure(vec2 m, inout float rgh) {
   // number the old bump sheet used because it read right.
   if (uG1.z > 0.0) {
     const float PI = 3.14159265;
+    // ONE DIRECTION ON A FABRIC FUSELAGE (G206): a construction whose
+    // framePitch is 0 (tube + fabric, since the covering touches only the
+    // stringers) sags ACROSS the stringers and nowhere else — this is what
+    // makes a Cub read as flat with long lines rather than as a quilt.
     if (uG0.x > 0.0) {
       float t = fract(m.x / uG0.x), s = sin(PI * t);
-      dH.x -= uG1.z * uG0.x * uG1.w * pow(max(s, 1e-4), uG1.w - 1.0)
+      dS.x -= uG1.z * uG0.x * uG1.w * pow(max(s, 1e-4), uG1.w - 1.0)
             * cos(PI * t) * PI / uG0.x;
     }
     if (uG0.y > 0.0) {
       float t = fract(m.y / uG0.y), s = sin(PI * t);
-      dH.y -= uG1.z * uG0.y * uG1.w * pow(max(s, 1e-4), uG1.w - 1.0)
+      dS.y -= uG1.z * uG0.y * uG1.w * pow(max(s, 1e-4), uG1.w - 1.0)
             * cos(PI * t) * PI / uG0.y;
     }
   }
@@ -66089,14 +67170,20 @@ vec3 aeroStructure(vec2 m, inout float rgh) {
   // frame, and it DISHES IN more than it bulges — which is what an unloaded
   // metal panel actually does, and what makes metal read as metal in raking
   // light. Nothing else in this file is doing that job.
+  // ...AND IRREGULAR (G206). A dish in EVERY cell at a regular sin*sin is a
+  // waffle by construction, whatever the depth. Real oil-canning is one bay
+  // in two or three, each its own depth, and the large-scale field bends
+  // the depth again so no two neighbours read alike.
   if (abs(uG2.x) > 0.0 && uG0.x > 0.0 && uG0.y > 0.0) {
     const float PI = 3.14159265;
     vec2 cell = floor(vec2(m.x / uG0.x, m.y / uG0.y));
     float h = fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453);
-    float a = uG2.x * (0.55 + 0.9 * h);
+    float on = smoothstep(0.40, 0.60, h);
+    float a = uG2.x * (0.35 + 1.1 * h) * on
+            * (0.6 + 0.8 * clamp(fldV + 0.5, 0.0, 1.0));
     float tx = fract(m.x / uG0.x), ty = fract(m.y / uG0.y);
-    dH.x += a * PI / uG0.x * cos(PI * tx) * sin(PI * ty);
-    dH.y += a * PI / uG0.y * sin(PI * tx) * cos(PI * ty);
+    dS.x += a * PI / uG0.x * cos(PI * tx) * sin(PI * ty);
+    dS.y += a * PI / uG0.y * sin(PI * tx) * cos(PI * ty);
   }
 
   // PANEL LINES and LAPS. The boundary is a groove; on alloy it also carries
@@ -66193,7 +67280,15 @@ vec3 aeroStructure(vec2 m, inout float rgh) {
   // exaggeration lives HERE, in one uniform, where it is visible and tunable.
   // Same posture as garage.js's nrmScale, which was 0.9 over a normalised
   // field for the same reason.
-  return normalize(vec3(-dH.x * uGGain, dH.y * uGGain, 1.0));
+  //
+  // THREE GAINS (G206), not one: the tape's exaggeration was never the sag's
+  // to borrow. uGain.x exaggerates what a member prints, uGain.y what the
+  // covering does between members (near 1: those numbers were honest and
+  // were quadrupled), uGain.z the large-scale field. All three are the lab's.
+  }
+  return normalize(vec3(-(dH.x * uGain.x + dS.x * uGain.y + dF.x * uGain.z),
+                         (dH.y * uGain.x + dS.y * uGain.y + dF.y * uGain.z),
+                         1.0));
 }
 
 void aeroFrame(vec3 eye, vec3 N, vec2 st, float fd, out vec3 T, out vec3 B) {
@@ -66507,6 +67602,24 @@ const AERO_SURFACE_FS = `
   float aeroMet = aeroTX.a * aeroW.x + aeroTY.a * aeroW.y + aeroTZ.a * aeroW.z;
   roughnessFactor *= mix(1.0, aeroR / 0.85, uDetail.y);
   metalnessFactor *= aeroMet;
+  // THE FIELD ON A SURFACE WITH NO FIELD (G206): the cowl, the spats, the
+  // struts, the gear legs. A craft-space plane stands in for the metric
+  // field — the flank plane where the normal is sideways, the plan plane
+  // where it faces up — MIXED, never branched, so every fragment in a quad
+  // takes one path and the derivatives aeroFrame needs stay defined. The
+  // frames are y-up (the wear pass relies on the same fact).
+  {
+    float aeroUp = clamp(abs(normalize(vObjNrm).y), 0.0, 1.0);
+    vec2 aeroFC = mix(vCraftPos.yz, vCraftPos.xy, aeroUp * aeroUp);
+    vec2 aeroDF = vec2(0.0);
+    float aeroFR = 0.0;
+    aeroField(aeroFC, aeroDF, aeroFR);
+    vec3 aeroFT, aeroFB;
+    aeroFrame(-vViewPosition, normal, aeroFC, faceDirection, aeroFT, aeroFB);
+    vec3 aeroFN = normalize(vec3(-aeroDF.x * uGain.z, aeroDF.y * uGain.z, 1.0));
+    normal = normalize(aeroFT * aeroFN.x + aeroFB * aeroFN.y + normal * aeroFN.z);
+    roughnessFactor += aeroFR;
+  }
 #endif
 
 // THE OTHER HALF OF THE WEAR (G70), common to both branches because none of
@@ -66547,7 +67660,14 @@ const AEROSKIN_HOOK = function (shader) {
     .replace('#include <common>',
              AERO_NMAT_FS + AERO_PARS_FS + '\n#include <common>')
     .replace('#include <map_fragment>', AERO_ALBEDO_FS)
-    .replace('#include <normal_fragment_maps>', AERO_SURFACE_FS);
+    .replace('#include <normal_fragment_maps>', AERO_SURFACE_FS)
+    // THE CLEAR LAYER FOLLOWS THE RELIEF (G206). r128's own chunk puts the
+    // clearcoat on geometryNormal — the smooth mesh — so varnish over a rib
+    // tape would reflect the sky as if the tape were not there. A clear coat
+    // is brushed ONTO the tapes and the set panels; it takes the perturbed
+    // normal. Inert on a Standard material: the include is not in its shader.
+    .replace('#include <clearcoat_normal_fragment_begin>',
+             '#ifdef CLEARCOAT\n  vec3 clearcoatNormal = normal;\n#endif');
 };
 
 // ---------------------------------------------------------------------------
@@ -66596,14 +67716,45 @@ const AEROSKIN_HOOK = function (shader) {
 // A wiper arc and a field of fine scratches are cheap to describe and are
 // PLACED rather than tiled: the arc sweeps from a real pivot, which is what
 // makes it read as a wiper rather than as texture.
+//
+// THE BLEND, BY HAND (G206, the user: "I don't believe in our glass"). What
+// was wrong was not a number but the blend model. Under three's ordinary
+// alpha blend the whole outgoing light is scaled by alpha, so at clarity
+// 0.38 SIXTY PERCENT OF EVERY REFLECTION WAS THROWN AWAY — and the reflection
+// is the thing that IS glass. The pale `color` was a real Lambert diffuse at
+// half alpha, lit by the room and laid over the crew: a milky plastic film,
+// which is exactly what "cut paper" looks like. And alpha was constant over
+// the pane, where real glass is 4 % reflective head-on and a mirror at the
+// limb (Fresnel), so a flat pane at one alpha had no curvature to show.
+//
+// TWO DRAWS OF THE SAME PANE, each order-independent:
+//   1. aeroGlassTint — a MULTIPLY pass (blend ZERO, SRC_COLOR): what is
+//      behind the pane is darkened by the pane's transmission, tinted by
+//      its colour, and CLOSED at the limb by Fresnel. Multiplies commute, so
+//      two panes in line need no sorting.
+//   2. aeroGlass — an ADD pass (blend ONE, ONE): the specular at FULL
+//      strength whatever the clarity, plus a damped body colour scaled by
+//      how opaque the pane is. Adds commute too; and three draws every
+//      renderOrder -1 item before every renderOrder 0 item, so all the
+//      multiplies land before all the adds: dst * PI(T) + SUM(spec), exact.
+// r128's own `transmission` line was one alpha-restoration term trying to
+// do pass 2 alone, and it was measured dead in the game (below). This is the
+// same idea done where it can be seen.
 const GLASS_DEF = {
   tint: 0xaec9d8,   // the pale blue-green of thick acrylic seen edge-on
-  opacity: 0.5,
+  // G206: 0.5 -> 0.2. Under the old model half the light was the only way
+  // to see the pane at all; a tinted acrylic canopy actually stops 10-30 %
+  opacity: 0.2,
   scratch: 0.0,     // 0 factory-fresh .. 1 a thousand hours of cuffs
   wipe: 0.0,        // the arc a wiper leaves; 0 on an aeroplane with none
   grime: 0.0,       // dirt gathering toward the frame
   refl: 1.0,        // x envMapIntensity, on top of the mood's own scale
   rainbow: 0.0,     // thin-film interference, an EFFECT and not physics
+  // ---- THE BASE NUMBERS (G206), the lab's rather than the builder's ----
+  rough: 0.02,      // the bulk: a polished pane, nearly a mirror
+  ccR: 0.03,        // the clear layer that carries the ripple and scratches
+  fresnel: 1.0,     // how far the limb closes to a mirror (0 = old flat pane)
+  diffuse: 0.6,     // what an OPAQUE pane shows of a lit body colour
 };
 
 const AEROGLASS_HOOK = function (shader) {
@@ -66698,14 +67849,122 @@ const AEROGLASS_HOOK = function (shader) {
   // runs later, and the fragment shader would not compile. diffuseColor is
   // declared earlier and is still in scope, so this is the first point where
   // both are in hand.
+  // ...AND ON THE SPECULAR (G206): with the diffuse damped to what an opaque
+  // pane shows, a hue on the albedo would vanish; a coating flares in the
+  // REFLECTION, which is where it always was on the real thing.
   if (uGlass.w > 0.0) {
     float ct = clamp(1.0 - abs(dot(normalize(normal),
                      normalize(vViewPosition))), 0.0, 1.0);
     float f = pow(ct, 2.2);
     vec3 hue = 0.5 + 0.5 * cos(6.28318 * (vec3(0.0, 0.33, 0.67) + ct * 2.4));
-    diffuseColor.rgb = mix(diffuseColor.rgb, hue, f * uGlass.w * 0.55);
-  }`);
+    aeroGRain = mix(vec3(1.0), hue * 1.7, f * uGlass.w * 0.55);
+  }`)
+    // THE OUTPUT, BY HAND (G206) — see the family header. The specular adds
+    // at full strength; the body colour is scaled by how much of the pane is
+    // NOT transmission, Fresnel-closed at the limb exactly as the multiply
+    // pass closes it, so the two passes describe one pane. Alpha 1: the
+    // blend is ONE, ONE and reads no alpha; the premultiply chunk is inert.
+    .replace('gl_FragColor = vec4( outgoingLight, diffuseColor.a );', `
+  float aeroNV = clamp(dot(normalize(normal), normalize(vViewPosition)),
+                       0.0, 1.0);
+  float aeroFr = pow(1.0 - aeroNV, 5.0) * uGlassB.x;
+  float aeroT = (1.0 - diffuseColor.a) * (1.0 - aeroFr);
+  vec3 aeroSpec = (reflectedLight.directSpecular
+                 + reflectedLight.indirectSpecular) * aeroGRain;
+  vec3 aeroDiff = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse
+                + totalEmissiveRadiance;
+  gl_FragColor = vec4(aeroDiff * (1.0 - aeroT) * uGlassB.y + aeroSpec, 1.0);`);
 };
+
+// THE MULTIPLY PASS (G206): pass 1 of the glass, see the family header. A
+// ShaderMaterial on purpose — it needs no environment, no lights and no
+// chunk of three's, only the view normal for the Fresnel. Pooled like the
+// rest. What passes through: (1 - opacity), tinted toward the pane's colour
+// as the pane thickens, and closed toward zero at the limb by the same
+// Schlick term the add pass uses.
+const AERO_GTINT_VS = `
+varying vec3 vN; varying vec3 vV;
+void main() {
+  vec4 mv = modelViewMatrix * vec4(position, 1.0);
+  vN = normalize(normalMatrix * normal);
+  vV = -mv.xyz;
+  gl_Position = projectionMatrix * mv;
+}`;
+const AERO_GTINT_FS = `
+uniform vec3 uTint; uniform float uA; uniform float uFres;
+varying vec3 vN; varying vec3 vV;
+void main() {
+  float nv = clamp(dot(normalize(vN), normalize(vV)), 0.0, 1.0);
+  float fr = pow(1.0 - nv, 5.0) * uFres;
+  vec3 pass = mix(vec3(1.0), uTint, clamp(uA * 2.0, 0.0, 1.0));
+  gl_FragColor = vec4(pass * (1.0 - uA) * (1.0 - fr), 1.0);
+}`;
+function aeroGlassTint(THREE, o) {
+  const G = k => (o[k] != null ? +o[k] : GLASS_DEF[k]);
+  const key = 'gtint|' + (o.tint != null ? o.tint : '') + 'L' +
+              (o.tintLin != null ? o.tintLin : '') + '|' + G('opacity') +
+              '|' + G('fresnel');
+  const hit = AERO_POOL.get(key);
+  if (hit) return hit;
+  const col = o.tintLin != null ? new THREE.Color(o.tintLin)
+            : aeroLinear(THREE, o.tint != null ? o.tint : GLASS_DEF.tint);
+  const m = new THREE.ShaderMaterial({
+    uniforms: { uTint: { value: col }, uA: { value: G('opacity') },
+                uFres: { value: G('fresnel') } },
+    vertexShader: AERO_GTINT_VS,
+    fragmentShader: AERO_GTINT_FS,
+    transparent: true,
+    depthWrite: false,
+    side: THREE.FrontSide,
+    blending: THREE.CustomBlending,
+    blendEquation: THREE.AddEquation,
+    blendSrc: THREE.ZeroFactor,
+    blendDst: THREE.SrcColorFactor,
+  });
+  m.userData.aeroskin = 1;
+  m.userData.aeroFinish = 'glassTint';
+  m.userData.env0 = 0;
+  AERO_POOL.set(key, m);
+  AERO_BUILT.push(m);
+  return m;
+}
+// the invisible stand-in for every non-glass group of a companion mesh —
+// r128 skips a group whose material is not visible, so one shared object
+// costs nothing per pane
+let AERO_GNONE = null;
+function aeroGlassNone(THREE) {
+  if (!AERO_GNONE) {
+    AERO_GNONE = new THREE.MeshBasicMaterial({ visible: false });
+    AERO_GNONE.userData.aeroskin = 1;
+  }
+  return AERO_GNONE;
+}
+// THE COMPANION (G206): the multiply pass as a second mesh sharing the
+// pane's geometry, drawn one renderOrder EARLIER so every multiply lands
+// before every add. `mats` is the host's material list (an array, or one);
+// only the glass entries get the tint, the rest are invisible. Tagged
+// `aeroCompanion` so the join's snapshot walks past it — it is the same
+// faces the host already carries, not new skin.
+function aeroGlassCompanion(THREE, host, mats, tintOf) {
+  const list = Array.isArray(mats) ? mats : [mats];
+  let any = false;
+  const cm = list.map(m => {
+    if (m && m.userData && m.userData.aeroFinish === 'glass') {
+      any = true;
+      return tintOf(m);
+    }
+    return aeroGlassNone(THREE);
+  });
+  if (!any) return null;
+  const c = new THREE.Mesh(host.geometry, Array.isArray(mats) ? cm : cm[0]);
+  c.renderOrder = (host.renderOrder || 0) - 1;
+  c.castShadow = false; c.receiveShadow = false;
+  c.userData.aeroCompanion = 1;
+  c.userData.edHi = 1;             // and every other bake that skips overlays
+  c.matrixAutoUpdate = host.matrixAutoUpdate;
+  host.add(c);
+  return c;
+}
 
 // ---------------------------------------------------------------------------
 // THE FACTORY
@@ -66719,6 +67978,115 @@ const AEROGLASS_HOOK = function (shader) {
 const AERO_POOL = new Map();
 const AERO_BUILT = [];
 let AERO_ENV_F = 1;        // the last mood factor aeroSetEnv applied (G125.1)
+
+// THE GRAMMAR'S UNIFORMS, WRITTEN BY ONE FUNCTION (G206). The factory wrote
+// uG0..uG5 and tFast inline; the material lab needs to write them AGAIN on a
+// built material when a grammar row moves, so the mapping lives here and both
+// call it. `o` is what the factory was given, or what the material remembers
+// of it on userData (grm, struct, wing, ribM). Creates the uniform objects
+// on a fresh U, overwrites the values on an existing one — the uniform
+// OBJECTS are shared with the compiled program by reference, so writing
+// `.value` reaches the GPU without a recompile.
+function aeroGrammarU(THREE, U, o) {
+  aeroLabGramApply();          // the lab's deviations, once the core is here
+  const GR = (o.struct && o.grm && AERO_GRAMMAR()[o.grm]) || null;
+  const f = GR && GR.fastener;
+  const v4 = (k, x, y, z, w) => {
+    if (!U[k]) U[k] = { value: new THREE.Vector4() };
+    U[k].value.set(x, y, z, w);
+  };
+  const v1 = (k, x) => { if (!U[k]) U[k] = { value: 0 }; U[k].value = x; };
+  // the stamp's cache key carries the head's own numbers, so a lab edit to
+  // the fastener row bakes a new stamp rather than finding the old one
+  if (!U.tFast) U.tFast = { value: null };
+  U.tFast.value = aeroFastTex(THREE,
+    (o.grm || 'x') + (f ? f.kind : '-') +
+    (f ? '|' + [f.pitch, f.dia, f.rise].join(',') : ''), GR);
+  v4('uG0', GR ? GR.framePitch : 0, GR ? GR.stringerPitch : 0,
+             GR ? (GR.panelAlong || 0) : 0, GR ? (GR.panelAround || 0) : 0);
+  v4('uG1', GR ? GR.tape.w : 0, GR ? GR.tape.rise : 0,
+             GR ? GR.sag.frac : 0, GR ? GR.sag.exp : 1);
+  // uG2.w is the FASTENER's own gain, and it is small on purpose: a driven
+  // head is already a 1.4 mm dome on a 2.4 mm radius — a genuinely steep
+  // slope — so unlike the tape it does not need the display exaggeration,
+  // and at the tape's gain it read as a row of ball bearings.
+  v4('uG2', GR ? (GR.dish || 0) : 0, f ? f.pitch : 0, f ? f.rowW : 0,
+             f ? 0.35 : 0);
+  v4('uG3', GR && GR.seam ? GR.seam.width : 0,
+             GR && GR.seam ? GR.seam.step : 0,
+             GR ? (GR.partingAtWaist || 0) : 0,
+             GR && GR.rough ? GR.rough.seam : 0);
+  v1('uGOn', GR ? 1 : 0);
+  // THE WING'S MEMBERS ARE ITS OWN. On the fuselage the real rings take a
+  // light extra line over the metric frames; on the wing they ARE the
+  // structure, so the metric pitches are switched off entirely and the ribs
+  // and spars carry it — see aeroStructure.
+  v4('uG4', GR ? (o.wing ? 0.0011 : 0.0004) : 0,
+             o.wing ? 0.030 : 0.016,
+             o.wing ? 0.12 : 0,              // LE band, METRES aft of the edge
+             (GR && f) ? (o.wing ? 0.30 : 0.0) : 0);
+  // the surface CLASS rides uG5.w (G108) — 0 body, 1 wing, 2 tail — and is
+  // never flattened to a flag; the literal form below is what GATE SKINMAT
+  // reads for that promise
+  if (!U.uG5) Object.assign(U, {
+    uG5: { value: new THREE.Vector4(0.15, 0.50, 0.86, +o.wing || 0) } });
+  else U.uG5.value.set(0.15, 0.50, 0.86, +o.wing || 0);
+  if (o.wing && GR) {
+    // a wing has ribs and spars, not frames and stringers
+    U.uG0.value.set(0, 0, 0, 0);
+    // ---- AND A COARSE SURFACE CANNOT CARRY AN INDEX (G97) -----------------
+    // The index members (uG4.x) put a rib at every INTEGER STATION and a spar
+    // at every integer rail, reading `fract(vSurf.z)` and `fract(vSurf.w)`.
+    // That is exact on the WING, whose field is built from the real rib list
+    // and interpolates over many chordwise vertices. It is NOISE on the TAIL,
+    // whose mesh is far coarser.
+    //
+    // MEASURED on the fin: `lv` sweeps -0.81..2.05 across the chord while 91
+    // of its 224 triangles span more than half a rail — and one spans 2.08,
+    // a single triangle crossing two whole spars. `fract` of a value that
+    // coarse crosses an integer wherever the LINEAR INTERPOLATION happens to
+    // put it, so the lines wander with the triangulation and branch at its
+    // edges. That is the dendritic pattern reported on the fins and slabs,
+    // and no width tuning fixes it: the coordinate is not faithful there.
+    //
+    // A CALLER THAT KNOWS ITS OWN PITCH IN METRES SAYS SO. `ribM` puts the
+    // members back on the METRIC path (`aeroNear(m.x, pitch)`), which reads
+    // sL directly and is exact whatever the mesh does. The chordwise term
+    // stays OFF: what prints through a fabric tail is the RIB TAPES, and one
+    // spar does not telegraph as an evenly spaced pitch.
+    if (o.ribM > 0) {
+      U.uG0.value.x = o.ribM;
+      U.uG4.value.x = 0;
+    }
+  }
+  return U;
+}
+
+// THE FINISH'S OWN NUMBERS ON A MATERIAL (G206), factory and lab alike: the
+// row's tile / normal / albedo / field, each times the section's dial, and
+// the scalars three reads off the material itself. `o` carries the dials
+// (tileK, nrmK, roughK, ccK, fieldK); absent is 1.
+function aeroFinishU(THREE, m, U, row, o) {
+  const K = k => (o[k] != null ? o[k] : 1);
+  if (!U.uTileM) U.uTileM = { value: new THREE.Vector2() };
+  U.uTileM.value.set(row.tile * K('tileK'), row.tile * K('tileK'));
+  if (!U.uDetail) U.uDetail = { value: new THREE.Vector2(0, 1) };
+  U.uDetail.value.x = row.nrm * K('nrmK');
+  if (!U.uAlb) U.uAlb = { value: 0 };
+  U.uAlb.value = row.alb;
+  if (!U.uField) U.uField = { value: new THREE.Vector4() };
+  U.uField.value.set((row.fld || 0) * K('fieldK'), row.fldL || 0.5,
+                     row.fldR || 0, 0);
+  if (m) {
+    m.roughness = Math.max(0, Math.min(1, row.rough * K('roughK')));
+    m.metalness = row.metal;
+    if (m.isMeshPhysicalMaterial) {
+      m.clearcoat = Math.max(0, Math.min(1, (row.cc || 0) * K('ccK')));
+      m.clearcoatRoughness = row.ccR != null ? row.ccR : 0.2;
+    }
+  }
+  return U;
+}
 
 // TWO WAYS IN, AND THEY ARE NOT INTERCHANGEABLE. `tint` is an sRGB hex — a
 // colour a human picked — and gets converted. `tintLin` is a hex ALREADY IN
@@ -66756,19 +68124,18 @@ function aeroMaterial(THREE, o) {
                'R' + (o.roughK != null ? o.roughK : 1),
                'N' + (o.nrmK != null ? o.nrmK : 1),
                'B' + (o.ribM != null ? o.ribM : ''),
-               'D' + (o.detRot ? 1 : 0)].join('|');
+               'D' + (o.detRot ? 1 : 0),
+               // G206: the sheen and the field dials, for the same reason
+               'C' + (o.ccK != null ? o.ccK : 1),
+               'F' + (o.fieldK != null ? o.fieldK : 1)].join('|');
   const hit = AERO_POOL.get(key);
   if (hit) return hit;
   const row = AERO_FINISH[o.finish] || AERO_FINISH.fabric;
   const op = o.opacity != null ? o.opacity : 1;
   const U = {
     tDetail:  { value: aeroDetailTex(THREE, o.finish) },
-    uTileM:   { value: (t => new THREE.Vector2(t, t))(
-                  row.tile * (o.tileK != null ? o.tileK : 1)) },
     uFieldM:  { value: o.fieldM != null ? o.fieldM : 1 },
-    uDetail:  { value: new THREE.Vector2(
-                  row.nrm * (o.nrmK != null ? o.nrmK : 1), 1) },
-    uAlb:     { value: row.alb },
+    // uTileM, uDetail, uAlb, uField: aeroFinishU below, shared with the lab
     // per material, because how fast a thing ages is a property of what it
     // is made of — the dial itself is aeroplane-wide and shared by reference
     uWearK:   { value: (o.wearK != null ? o.wearK
@@ -66783,82 +68150,33 @@ function aeroMaterial(THREE, o) {
   // the interior liners and frames, the trim and the glass are surfaces that
   // nothing is riveted through, and giving them frames would be exactly the
   // decorative placement this is built to avoid. `grm` names the
-  // construction; `struct` says this section is skin.
-  const GR = (o.struct && o.grm && AERO_GRAMMAR()[o.grm]) || null;
-  const f = GR && GR.fastener;
+  // construction; `struct` says this section is skin. Written by
+  // aeroGrammarU (G206) so the lab can write it again on a live material.
   Object.assign(U, {
-    tFast: { value: aeroFastTex(THREE, (o.grm || 'x') + (f ? f.kind : '-'),
-                                GR) },
-    uG0: { value: new THREE.Vector4(GR ? GR.framePitch : 0,
-                                    GR ? GR.stringerPitch : 0,
-                                    GR ? (GR.panelAlong || 0) : 0,
-                                    GR ? (GR.panelAround || 0) : 0) },
-    uG1: { value: new THREE.Vector4(GR ? GR.tape.w : 0, GR ? GR.tape.rise : 0,
-                                    GR ? GR.sag.frac : 0,
-                                    GR ? GR.sag.exp : 1) },
-    // uG2.w is the FASTENER's own gain, and it is small on purpose: a driven
-    // head is already a 1.4 mm dome on a 2.4 mm radius — a genuinely steep
-    // slope — so unlike the tape it does not need the display exaggeration,
-    // and at uGGain it read as a row of ball bearings.
-    uG2: { value: new THREE.Vector4(GR ? (GR.dish || 0) : 0,
-                                    f ? f.pitch : 0, f ? f.rowW : 0,
-                                    f ? 0.35 : 0) },
-    uG3: { value: new THREE.Vector4(GR && GR.seam ? GR.seam.width : 0,
-                                    GR && GR.seam ? GR.seam.step : 0,
-                                    GR ? (GR.partingAtWaist || 0) : 0,
-                                    GR && GR.rough ? GR.rough.seam : 0) },
     uBoxDet:   { value: o.boxDet ? 1 : 0 },
     uBoxPlane: { value: +o.boxPlane || 0 },
     uDetRot:   { value: o.detRot ? 1 : 0 },
-    uGOn: { value: GR ? 1 : 0 },
-    uGGain: { value: 4.0 },
-    // THE WING'S MEMBERS ARE ITS OWN. On the fuselage the real rings take a
-    // light extra line over the metric frames; on the wing they ARE the
-    // structure, so the metric pitches are switched off entirely and the ribs
-    // and spars carry it — see aeroStructure.
-    uG4: { value: new THREE.Vector4(
-      GR ? (o.wing ? 0.0011 : 0.0004) : 0,
-      o.wing ? 0.030 : 0.016,
-      o.wing ? 0.12 : 0,              // LE band, METRES aft of the edge
-      (GR && f) ? (o.wing ? 0.30 : 0.0) : 0) },
-    uG5: { value: new THREE.Vector4(0.15, 0.50, 0.86, +o.wing || 0) },
   });
-  if (o.wing && GR) {
-    // a wing has ribs and spars, not frames and stringers
-    U.uG0.value.x = 0; U.uG0.value.y = 0;
-    U.uG0.value.z = 0; U.uG0.value.w = 0;
-    // ---- AND A COARSE SURFACE CANNOT CARRY AN INDEX (G97) -----------------
-    // The index members (uG4.x) put a rib at every INTEGER STATION and a spar
-    // at every integer rail, reading `fract(vSurf.z)` and `fract(vSurf.w)`.
-    // That is exact on the WING, whose field is built from the real rib list
-    // and interpolates over many chordwise vertices. It is NOISE on the TAIL,
-    // whose mesh is far coarser.
-    //
-    // MEASURED on the fin: `lv` sweeps -0.81..2.05 across the chord while 91
-    // of its 224 triangles span more than half a rail — and one spans 2.08,
-    // a single triangle crossing two whole spars. `fract` of a value that
-    // coarse crosses an integer wherever the LINEAR INTERPOLATION happens to
-    // put it, so the lines wander with the triangulation and branch at its
-    // edges. That is the dendritic pattern reported on the fins and slabs,
-    // and no width tuning fixes it: the coordinate is not faithful there.
-    //
-    // A CALLER THAT KNOWS ITS OWN PITCH IN METRES SAYS SO. `ribM` puts the
-    // members back on the METRIC path (`aeroNear(m.x, pitch)`), which reads
-    // sL directly and is exact whatever the mesh does. The chordwise term
-    // stays OFF: what prints through a fabric tail is the RIB TAPES, and one
-    // spar does not telegraph as an evenly spaced pitch.
-    if (o.ribM > 0) {
-      U.uG0.value.x = o.ribM;
-      U.uG4.value.x = 0;
-    }
-  }
+  aeroGrammarU(THREE, U, o);
+  aeroFinishU(THREE, null, U, row, o);
   // ALPHA-TESTED CUT-OUTS ARE DELIBERATELY ABSENT. r128's getDepthMaterial
   // copies neither `map` nor `alphaTest` onto the depth variants, so an
   // alpha-tested cut-out casts a SOLID shadow anyway — and a registration
   // decal is paint on an opaque panel that must cut nothing. Keeping
   // alphaTest at 0 also keeps ALPHATEST out of the program cache key and
   // early-Z alive, which is worth having under logarithmicDepthBuffer.
-  const m = new THREE.MeshStandardMaterial({
+  // THE CLEAR LAYER (G206): a finish with a clearcoat builds Physical, one
+  // without stays Standard. Physical IS isMeshStandardMaterial in r128, so
+  // scene.environment, envMapIntensity and the depth path all hold; what it
+  // adds is the second lobe, and the PHYSICAL define that switches it on —
+  // r128's meshphysical_frag turns CLEARCOAT on under `#ifdef PHYSICAL`, and
+  // the constructor's own defines are replaced below, so it is put back by
+  // hand. One more program per SURF value (the material type is in three's
+  // program key), which is four, not thirty.
+  const ccK = o.ccK != null ? o.ccK : 1;
+  const Phys = (row.cc || 0) * ccK > 0;
+  const m = new (Phys ? THREE.MeshPhysicalMaterial
+                      : THREE.MeshStandardMaterial)({
     // the section's pick, or the finish's own colour. sRGB in, linear out
     // (see THE COLOUR TRAP) — and this is also what the join snapshots.
     color: o.tintLin != null ? new THREE.Color(o.tintLin)
@@ -66873,6 +68191,12 @@ function aeroMaterial(THREE, o) {
     depthWrite: op >= 1,
   });
   m.defines = { AEROSKIN_SURF: o.surf ? 1 : 0 };
+  if (Phys) {
+    m.defines.STANDARD = ''; m.defines.PHYSICAL = '';
+    m.clearcoat = Math.max(0, Math.min(1, row.cc * ccK));
+    m.clearcoatRoughness = row.ccR != null ? row.ccR : 0.2;
+    m.transmission = 0;
+  }
   m.extensions = { derivatives: true };
   m.userData.aeroU = U;
   m.userData.aeroD = aeroDecUniforms(THREE);
@@ -66899,6 +68223,10 @@ function aeroMaterial(THREE, o) {
   if (o.nrmK != null && o.nrmK !== 1) m.userData.aeroNrmK = o.nrmK;
   if (o.ribM > 0) m.userData.aeroRibM = o.ribM;
   if (o.detRot) m.userData.aeroDetRot = 1;
+  if (o.ccK != null && o.ccK !== 1) m.userData.aeroCcK = o.ccK;
+  if (o.fieldK != null && o.fieldK !== 1) m.userData.aeroFieldK = o.fieldK;
+  // what the lab needs to re-derive the grammar uniforms on this material
+  m.userData.aeroStruct = o.struct ? 1 : 0;
   if (o.wearK != null) m.userData.aeroWearK = o.wearK;
   if (o.wearM != null && o.wearM !== 1) m.userData.aeroWearM = o.wearM;
   m.userData.env0 = m.envMapIntensity;
@@ -66934,6 +68262,8 @@ function aeroGlass(THREE, o) {
               (o.tintLin != null ? o.tintLin : '') + '|' + G('opacity') +
               '|' + G('scratch') + ',' + G('wipe') + ',' + G('grime') +
               ',' + G('refl') + ',' + G('rainbow') +
+              '|' + G('rough') + ',' + G('ccR') + ',' + G('fresnel') +
+              ',' + G('diffuse') +
               '|' + wr.toFixed(3) +
               '|' + ext.map(v => (+v).toFixed(3)).join(',') +
               '|' + (o.fieldM != null ? o.fieldM : 1);
@@ -66948,11 +68278,14 @@ function aeroGlass(THREE, o) {
     uGlass:  { value: new THREE.Vector4(G('scratch'), G('wipe'),
                                         G('grime'), G('rainbow')) },
     uGlassE: { value: new THREE.Vector4(ext[0], ext[1], ext[2], ext[3]) },
+    uGlassB: { value: new THREE.Vector4(G('fresnel'), G('diffuse'), 0, 0) },
   };
   const m = new THREE.MeshPhysicalMaterial({
     color: o.tintLin != null ? new THREE.Color(o.tintLin)
          : aeroLinear(THREE, o.tint != null ? o.tint : 0xaec9d8),
-    roughness: 0.045,
+    // G206: the bulk is nearly a mirror and the clear layer carries the
+    // ripple — two lobes with two jobs, not two copies of one highlight
+    roughness: G('rough'),
     metalness: 0.0,
     // NO TRANSMISSION (2026-08-31, MEASURED — the family header's whole
     // "feed the specular" theory did not survive the game renderer). Pixel
@@ -66967,10 +68300,18 @@ function aeroGlass(THREE, o) {
     // 1:1 onto what you see. The glint stays clearcoat + envMapIntensity.
     transmission: 0,
     transparent: true,
-    opacity: o.opacity != null ? o.opacity : 0.5,
+    opacity: o.opacity != null ? o.opacity : GLASS_DEF.opacity,
     reflectivity: 0.5,
     clearcoat: 1.0,
-    clearcoatRoughness: 0.03,
+    clearcoatRoughness: G('ccR'),
+    // THE ADD PASS (G206): ONE, ONE. The output block writes
+    // diffuse * (1 - T) + specular and alpha 1; nothing here reads alpha.
+    // `opacity` still carries the slab — the shader reads it as diffuseColor.a
+    // — it just no longer scales the reflection.
+    blending: THREE.CustomBlending,
+    blendEquation: THREE.AddEquation,
+    blendSrc: THREE.OneFactor,
+    blendDst: THREE.OneFactor,
     // THE MOOD STILL SCALES IT. aeroSetEnv multiplies every material by the
     // room's own factor off `userData.env0`, so the builder's dial has to be
     // folded into the BASE rather than written on top of it, or the two fight
@@ -66998,6 +68339,256 @@ function aeroGlass(THREE, o) {
   AERO_BUILT.push(m);
   return m;
 }
+
+// ---------------------------------------------------------------------------
+// THE MATERIAL LAB (G206) — the tables, live
+// ---------------------------------------------------------------------------
+// The user: "it would be good to have an editor to these parameters (right
+// now I can't access this layer)". Until G206 the builder had four per-
+// section multipliers and six glazing dials; every number that decides what
+// alclad or doped fabric IS — the finish rows, the grammar rows, the display
+// gain, the glass base — was a constant in a table. This is the designer's
+// bench over those tables.
+//
+// THE POSTURE: the lab edits the LIVE tables in place (AERO_FINISH,
+// GEN_BUILD_GRAMMAR, GLASS_DEF, the gains) and remembers DEVIATIONS from the
+// tables as written, in the person's own localStorage — never in the spec.
+// A tuned set is EXPORTED as JSON and pasted back into the table, which is
+// how "make it the new 1" has always landed here. The builder's per-section
+// dials multiply whatever the lab says the finish is.
+//
+// LIVE means live: nearly every number is a uniform or a material scalar and
+// is rewritten on every built material of that finish or construction (the
+// pool keeps them; aeroFinishU / aeroGrammarU are the writers the factory
+// itself uses). Two things need more than a write: `hs` / `bs` REBAKE the
+// detail sheet, and a clear coat added to a row that had none changes the
+// material CLASS, so the affected pooled materials are dropped and the next
+// build makes Physical ones.
+const AERO_LAB_KEY = 'flydiy.aeroLab';
+const AERO_GAIN_DEF = { x: 4.0, y: 1.2, z: 3.0 };
+// field -> [min, max, step, label]
+const AERO_LAB_FIELDS = {
+  tile:  [0.03, 3.0, 0.01, 'tile (m)'],
+  rough: [0.02, 1.0, 0.01, 'roughness'],
+  metal: [0, 1, 0.01, 'metalness'],
+  nrm:   [0, 1.5, 0.01, 'sheet normal'],
+  alb:   [0, 1.5, 0.01, 'sheet albedo'],
+  hs:    [0, 1.5, 0.01, 'sheet height (rebakes)'],
+  bs:    [0, 2.0, 0.01, 'sheet roughness (rebakes)'],
+  cc:    [0, 1, 0.01, 'clear coat'],
+  ccR:   [0, 1, 0.01, 'clear coat roughness'],
+  fld:   [0, 0.004, 0.00005, 'field amplitude (m)'],
+  fldL:  [0.1, 2.0, 0.01, 'field wavelength (m)'],
+  fldR:  [0, 1, 0.01, 'field -> roughness'],
+};
+// dotted paths into a GEN_BUILD_GRAMMAR row
+const AERO_LAB_GRAM = {
+  framePitch:      [0, 1.0, 0.005, 'frame pitch (m)'],
+  stringerPitch:   [0, 0.5, 0.005, 'stringer pitch (m)'],
+  panelAlong:      [0, 3.0, 0.01, 'panel along (m)'],
+  panelAround:     [0, 2.0, 0.01, 'panel around (m)'],
+  'tape.w':        [0, 0.10, 0.001, 'tape width (m)'],
+  'tape.rise':     [0, 0.002, 0.00001, 'tape rise (m)'],
+  'sag.frac':      [0, 0.02, 0.0001, 'sag (frac of bay)'],
+  'sag.exp':       [1, 3, 0.01, 'sag exponent'],
+  dish:            [-0.003, 0.003, 0.00005, 'dish (m, - in)'],
+  'seam.width':    [0, 0.05, 0.0005, 'lap width (m)'],
+  'seam.step':     [0, 0.002, 0.00001, 'lap step (m)'],
+  'fastener.pitch': [0.01, 0.10, 0.001, 'fastener pitch (m)'],
+  'fastener.rowW': [0, 0.05, 0.0005, 'fastener row width (m)'],
+  'fastener.dia':  [0.0005, 0.010, 0.0001, 'fastener head (m)'],
+  'fastener.rise': [0, 0.003, 0.00005, 'fastener rise (m)'],
+  partingAtWaist:  [0, 0.02, 0.0005, 'parting line (m)'],
+  'rough.seam':    [0, 0.2, 0.005, 'seam roughness'],
+};
+const AERO_LAB_GAIN = { x: [0, 8, 0.1, 'members & tapes x'],
+                        y: [0, 4, 0.05, 'sag & dish x'],
+                        z: [0, 8, 0.1, 'field x'] };
+const AERO_LAB_GLASS = { rough:   [0.0, 0.5, 0.005, 'bulk roughness'],
+                         ccR:     [0.0, 0.5, 0.005, 'coat roughness'],
+                         fresnel: [0, 1.5, 0.01, 'limb closes (fresnel)'],
+                         diffuse: [0, 1.5, 0.01, 'opaque body colour'] };
+const GLASS_LAB_DEF = JSON.parse(JSON.stringify(GLASS_DEF));
+// DEVIATIONS ONLY — the state that is saved and exported
+const AERO_LAB = { gain: {}, finish: {}, grammar: {}, glass: {} };
+let AERO_GRAM_DEF = null;
+const pathGet = (o, p) => p.split('.').reduce((a, k) => (a == null ? a : a[k]), o);
+const pathSet = (o, p, v) => {
+  const ks = p.split('.');
+  let a = o;
+  for (let i = 0; i < ks.length - 1; i++) {
+    if (a[ks[i]] == null || typeof a[ks[i]] !== 'object') a[ks[i]] = {};
+    a = a[ks[i]];
+  }
+  a[ks[ks.length - 1]] = v;
+};
+// the grammar table as written — frozen the first time it is seen, which is
+// before any deviation is laid on it (aeroLabGramApply runs after this)
+function aeroGramDef() {
+  if (!AERO_GRAM_DEF) {
+    const G = AERO_GRAMMAR();
+    if (!Object.keys(G).length) return null;    // the core is not loaded yet
+    AERO_GRAM_DEF = JSON.parse(JSON.stringify(G));
+  }
+  return AERO_GRAM_DEF;
+}
+let AERO_GRAM_APPLIED = false;
+function aeroLabGramApply() {
+  if (AERO_GRAM_APPLIED) return;
+  const D = aeroGramDef();
+  if (!D) return;
+  const G = AERO_GRAMMAR();
+  for (const c in AERO_LAB.grammar)
+    if (G[c]) for (const p in AERO_LAB.grammar[c])
+      pathSet(G[c], p, AERO_LAB.grammar[c][p]);
+  AERO_GRAM_APPLIED = true;
+}
+function aeroLabGet(kind, key, field) {
+  if (kind === 'gain') return AERO_LAB.gain[key] != null ? AERO_LAB.gain[key]
+                                                        : AERO_GAIN_DEF[key];
+  if (kind === 'finish') return AERO_FINISH[key] ? AERO_FINISH[key][field] : undefined;
+  if (kind === 'grammar') { aeroLabGramApply();
+    const G = AERO_GRAMMAR(); return G[key] ? pathGet(G[key], field) : undefined; }
+  if (kind === 'glass') return GLASS_DEF[key];
+  return undefined;
+}
+function aeroLabSave() {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem(AERO_LAB_KEY, JSON.stringify(AERO_LAB));
+  } catch (e) {}
+}
+function aeroLabLoad() {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    const j = JSON.parse(localStorage.getItem(AERO_LAB_KEY) || '{}');
+    for (const k of ['gain', 'finish', 'grammar', 'glass'])
+      if (j[k] && typeof j[k] === 'object') AERO_LAB[k] = j[k];
+  } catch (e) {}
+  // lay the deviations on the tables this file owns; the grammar's wait
+  // for the core (aeroLabGramApply, called from aeroGrammarU)
+  for (const k in AERO_LAB.finish)
+    if (AERO_FINISH[k]) Object.assign(AERO_FINISH[k], AERO_LAB.finish[k]);
+  for (const k in AERO_LAB.glass)
+    if (k in GLASS_LAB_DEF) GLASS_DEF[k] = AERO_LAB.glass[k];
+}
+// write one number: the table, the deviation record, every live material
+function aeroLabSet(THREE, kind, key, field, value) {
+  value = +value;
+  if (kind === 'gain') {
+    if (Math.abs(value - AERO_GAIN_DEF[key]) < 1e-9) delete AERO_LAB.gain[key];
+    else AERO_LAB.gain[key] = value;
+    const U = aeroSharedU(THREE);
+    U.uGain.value[key] = value;
+  } else if (kind === 'finish') {
+    const row = AERO_FINISH[key], def = AERO_FINISH_DEF[key];
+    if (!row) return;
+    const d = AERO_LAB.finish[key] || (AERO_LAB.finish[key] = {});
+    const dv = def[field] != null ? def[field] : 0;
+    if (Math.abs(value - dv) < 1e-9) delete d[field]; else d[field] = value;
+    if (!Object.keys(d).length) delete AERO_LAB.finish[key];
+    row[field] = value;
+    aeroLabRefresh(THREE, 'finish', key, field);
+  } else if (kind === 'grammar') {
+    aeroLabGramApply();
+    const G = AERO_GRAMMAR(), D = aeroGramDef();
+    if (!G[key] || !D) return;
+    const d = AERO_LAB.grammar[key] || (AERO_LAB.grammar[key] = {});
+    const dv = pathGet(D[key], field);
+    if (dv != null && Math.abs(value - dv) < 1e-9) delete d[field];
+    else d[field] = value;
+    if (!Object.keys(d).length) delete AERO_LAB.grammar[key];
+    pathSet(G[key], field, value);
+    aeroLabRefresh(THREE, 'grammar', key, field);
+  } else if (kind === 'glass') {
+    if (!(key in GLASS_LAB_DEF)) return;
+    if (Math.abs(value - GLASS_LAB_DEF[key]) < 1e-9) delete AERO_LAB.glass[key];
+    else AERO_LAB.glass[key] = value;
+    GLASS_DEF[key] = value;
+    aeroLabRefresh(THREE, 'glass', key, key);
+  }
+  aeroLabSave();
+}
+// back to the table as written: one kind + key, or everything
+function aeroLabReset(THREE, kind, key) {
+  const all = !kind;
+  if (all || kind === 'gain') {
+    AERO_LAB.gain = {};
+    const U = aeroSharedU(THREE);
+    U.uGain.value.set(AERO_GAIN_DEF.x, AERO_GAIN_DEF.y, AERO_GAIN_DEF.z);
+  }
+  if (all || kind === 'finish')
+    for (const k of (all || !key) ? Object.keys(AERO_LAB.finish) : [key]) {
+      delete AERO_LAB.finish[k];
+      if (AERO_FINISH[k]) {
+        for (const f in AERO_FINISH[k])
+          if (!(f in AERO_FINISH_DEF[k])) delete AERO_FINISH[k][f];
+        Object.assign(AERO_FINISH[k], AERO_FINISH_DEF[k]);
+        aeroLabRefresh(THREE, 'finish', k, 'hs');
+      }
+    }
+  if (all || kind === 'grammar') {
+    aeroLabGramApply();
+    const G = AERO_GRAMMAR(), D = aeroGramDef();
+    for (const k of (all || !key) ? Object.keys(AERO_LAB.grammar) : [key]) {
+      delete AERO_LAB.grammar[k];
+      if (G[k] && D && D[k]) {
+        for (const f in G[k]) delete G[k][f];
+        Object.assign(G[k], JSON.parse(JSON.stringify(D[k])));
+        aeroLabRefresh(THREE, 'grammar', k, '');
+      }
+    }
+  }
+  if (all || kind === 'glass') {
+    AERO_LAB.glass = {};
+    Object.assign(GLASS_DEF, GLASS_LAB_DEF);
+    aeroLabRefresh(THREE, 'glass', '', '');
+  }
+  aeroLabSave();
+}
+function aeroLabExport() {
+  return JSON.stringify(AERO_LAB, null, 2);
+}
+// the live materials learn the new number
+function aeroLabRefresh(THREE, kind, key, field) {
+  if (kind === 'finish') {
+    const row = AERO_FINISH[key];
+    const rebake = field === 'hs' || field === 'bs';
+    if (rebake) delete AERO_TEX_CACHE[key];
+    for (const m of AERO_BUILT) {
+      const ud = m.userData || {};
+      if (ud.aeroFinish !== key || !ud.aeroU) continue;
+      aeroFinishU(THREE, m, ud.aeroU, row,
+        { tileK: ud.aeroTileK, nrmK: ud.aeroNrmK, roughK: ud.aeroRoughK,
+          ccK: ud.aeroCcK, fieldK: ud.aeroFieldK });
+      if (rebake) ud.aeroU.tDetail.value = aeroDetailTex(THREE, key);
+      // THE CLASS CHANGED: a clear coat on a row that had none (or gone from
+      // one that had) — the material cannot become Physical in place, so it
+      // leaves the pool and the next build makes the right one
+      const wantPhys = (row.cc || 0) * (ud.aeroCcK != null ? ud.aeroCcK : 1) > 0;
+      if (wantPhys !== !!m.isMeshPhysicalMaterial)
+        for (const [k, v] of AERO_POOL) if (v === m) AERO_POOL.delete(k);
+    }
+  } else if (kind === 'grammar') {
+    for (const m of AERO_BUILT) {
+      const ud = m.userData || {};
+      if (ud.aeroGrm !== key || !ud.aeroStruct || !ud.aeroU) continue;
+      aeroGrammarU(THREE, ud.aeroU, { grm: ud.aeroGrm, struct: 1,
+                                       wing: ud.aeroWing, ribM: ud.aeroRibM });
+    }
+  } else if (kind === 'glass') {
+    for (const m of AERO_BUILT) {
+      const ud = m.userData || {};
+      if (ud.aeroFinish === 'glass' && ud.aeroU) {
+        m.roughness = GLASS_DEF.rough;
+        m.clearcoatRoughness = GLASS_DEF.ccR;
+        ud.aeroU.uGlassB.value.set(GLASS_DEF.fresnel, GLASS_DEF.diffuse, 0, 0);
+      } else if (ud.aeroFinish === 'glassTint' && m.uniforms)
+        m.uniforms.uFres.value = GLASS_DEF.fresnel;
+    }
+  }
+}
+aeroLabLoad();
 
 // THE MOODS REACH THE AEROPLANE (a gap found while building this: app.js set
 // envMapIntensity once at :779 and nothing ever touched it, so under DUSK the
@@ -67027,6 +68618,7 @@ if (typeof window !== 'undefined')
   window.AEROSKIN = { AERO_FINISH, AERO_ROLE, AERO_BY_CONS, AERO_LINER,
                       AERO_GLASS, AERO_SKIN_ROLES, aeroFinishFor, aeroIsSkin,
                       aeroMaterial, aeroGlass,
+                      aeroGlassTint, aeroGlassCompanion, GLASS_DEF,
                       aeroSetEnv, aeroDispose, aeroLinear, AERO_TEX,
                       aeroSetDecals, aeroSetCraft,
                       aeroDecalsFor, aeroApplySpecDecals, AERO_DEC_DEF,
@@ -67039,7 +68631,12 @@ if (typeof window !== 'undefined')
                       aeroKitKnob, aeroKitLayers, aeroKitDraw,
                       AERO_HARD, AERO_PROP_FIN, AERO_WEAR_K,
                       AERO_SEC, aeroSecResolve,
-                      aeroHardFinish, aeroHardMat, aeroHardOn, aeroSetWear };
+                      aeroHardFinish, aeroHardMat, aeroHardOn, aeroSetWear,
+                      // THE LAB (G206)
+                      AERO_LAB, AERO_LAB_FIELDS, AERO_LAB_GRAM, AERO_LAB_GAIN,
+                      AERO_LAB_GLASS, AERO_FINISH_DEF, AERO_GAIN_DEF,
+                      aeroGramDef, aeroLabGet, aeroLabSet, aeroLabReset,
+                      aeroLabExport };
 if (typeof module !== 'undefined')
   module.exports = { AERO_FINISH, AERO_ROLE, AERO_BY_CONS, AERO_LINER,
                      AERO_GLASS, AERO_SKIN_ROLES, aeroFinishFor, aeroIsSkin,
@@ -67058,7 +68655,9 @@ if (typeof module !== 'undefined')
                      AERO_KIT, AERO_KIT_LAYERS, AERO_KIT_PAGE0,
                      AERO_KIT_LDEF, AERO_KIT_FIELDS,
                      aeroKitKnob, aeroKitLayers,
-                     AERO_SEC, aeroSecResolve };
+                     AERO_SEC, aeroSecResolve,
+                     AERO_FINISH_DEF, AERO_LAB_FIELDS, AERO_LAB_GRAM,
+                     AERO_GAIN_DEF, GLASS_DEF };
 </script>
 <script>
 // ============================================================
@@ -76896,14 +78495,14 @@ function editorInit(api) {
     // the panel's rows, partitioned by the section they are about. Read off the
     // DOM each time rather than cached: buildMatPanel rebuilds the lot whenever
     // the section list changes shape, and CAGE_ON_MAT brings us back here.
-    const bySec = new Map(), head = [], glaze = [];
+    const bySec = new Map(), head = [], glaze = [], lab = [];
     for (const el of Array.from(body.children)) {
       const s = el.dataset && el.dataset.sec;
       if (s) { if (!bySec.has(s)) bySec.set(s, []); bySec.get(s).push(el); }
       // `derived` is the bench's read-out of the construction; the live row is
       // taken from the part table below and this would be its dead twin
       else if (el.dataset && el.dataset.matHead === '1')
-        (el.dataset.glaze ? glaze : head).push(el);
+        (el.dataset.lab ? lab : el.dataset.glaze ? glaze : head).push(el);
     }
     const shown = partsShown(sel);
     const p0 = PT.partByKey[sel];
@@ -76933,6 +78532,10 @@ function editorInit(api) {
       // than either alone.
       emitEls(p0, 'livery', head, 'the whole aeroplane');
       if (glaze.length) emitEls(p0, 'glazing', glaze, 'shared by every pane');
+      // THE MATERIAL LAB (G206): the tables themselves, live — the
+      // designer's bench, on the root beside the livery, never on a part
+      if (lab.length) emitEls(p0, 'material lab', lab,
+                              'the finish tables, live — not saved with the aeroplane');
       const dec = CU.DECBODY;
       if (dec) emitEls(p0, 'markings',
         Array.from(dec.children), 'registration and images');
@@ -79061,7 +80664,9 @@ function editorInit(api) {
       // transform chain comes for free.
       const def = layerDefault(ln.slice(10));
       child.traverse(o => {
-        if (!o.isMesh || (o.userData && o.userData.edHi)) return;
+        // a SKINNED mesh is never re-drawn: r128 would draw its geometry at
+        // the bind pose (G204.2) — its dummy's invisible shells stand for it
+        if (!o.isMesh || o.isSkinnedMesh || (o.userData && o.userData.edHi)) return;
         if (!keys.has(ownerOf(o, child, def))) return;
         if (only && instOf(o, child) !== only) return;
         if (wantFill) {
@@ -80671,6 +82276,7 @@ function editorInit(api) {
               // as in the editor. Without these a dialled section flew with
               // the factory numbers.
               tileK: m.tileK, roughK: m.roughK, nrmK: m.nrmK,
+              ccK: m.ccK, fieldK: m.fieldK,          // G206
               ribM: m.ribM, wearK: m.wearK, wearM: m.wearM,
               side: THREE.DoubleSide });
       }
@@ -80763,6 +82369,13 @@ function editorInit(api) {
       // — the same fact `castShadow` below already reads
       const clear = !!(mats[name] && mats[name].opacity < 1);
       mesh.renderOrder = (RENDER_ORDER[name] || 0) + (clear ? AERO_CLEAR : 0);
+      // THE GLASS COMPANION (G206): a pane is two draws — the multiply pass
+      // rides the same faces one renderOrder earlier. See aeroskin.js's
+      // glass family header; the editor's meshFrom does the same.
+      if (typeof AEROSKIN !== 'undefined' && AEROSKIN.aeroGlassCompanion)
+        AEROSKIN.aeroGlassCompanion(THREE, mesh, mesh.material,
+          m0 => AEROSKIN.aeroGlassTint(THREE,
+            { tintLin: m0.color.getHex(), opacity: m0.opacity }));
       if (isProp) { mesh.position.set(data.hub[0], data.hub[1], data.hub[2]); props.push(mesh); }
       if (name === 'skin' || isProp ||
           (data.cage && !(mats[name] && mats[name].opacity < 1)))
@@ -80830,6 +82443,10 @@ function editorInit(api) {
         for (const name in pt.groups) {
           const mesh = new THREE.Mesh(mkGeo(pt.groups[name]), matFor(name));
           mesh.castShadow = !(mats[name] && mats[name].opacity < 1);
+          if (typeof AEROSKIN !== 'undefined' && AEROSKIN.aeroGlassCompanion)
+            AEROSKIN.aeroGlassCompanion(THREE, mesh, mesh.material,
+              m0 => AEROSKIN.aeroGlassTint(THREE,
+                { tintLin: m0.color.getHex(), opacity: m0.opacity }));
           pg.add(mesh);
         }
         if (pt.kind === 'prop') {

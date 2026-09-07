@@ -842,14 +842,14 @@ function editorInit(api) {
     // the panel's rows, partitioned by the section they are about. Read off the
     // DOM each time rather than cached: buildMatPanel rebuilds the lot whenever
     // the section list changes shape, and CAGE_ON_MAT brings us back here.
-    const bySec = new Map(), head = [], glaze = [];
+    const bySec = new Map(), head = [], glaze = [], lab = [];
     for (const el of Array.from(body.children)) {
       const s = el.dataset && el.dataset.sec;
       if (s) { if (!bySec.has(s)) bySec.set(s, []); bySec.get(s).push(el); }
       // `derived` is the bench's read-out of the construction; the live row is
       // taken from the part table below and this would be its dead twin
       else if (el.dataset && el.dataset.matHead === '1')
-        (el.dataset.glaze ? glaze : head).push(el);
+        (el.dataset.lab ? lab : el.dataset.glaze ? glaze : head).push(el);
     }
     const shown = partsShown(sel);
     const p0 = PT.partByKey[sel];
@@ -879,6 +879,10 @@ function editorInit(api) {
       // than either alone.
       emitEls(p0, 'livery', head, 'the whole aeroplane');
       if (glaze.length) emitEls(p0, 'glazing', glaze, 'shared by every pane');
+      // THE MATERIAL LAB (G206): the tables themselves, live — the
+      // designer's bench, on the root beside the livery, never on a part
+      if (lab.length) emitEls(p0, 'material lab', lab,
+                              'the finish tables, live — not saved with the aeroplane');
       const dec = CU.DECBODY;
       if (dec) emitEls(p0, 'markings',
         Array.from(dec.children), 'registration and images');

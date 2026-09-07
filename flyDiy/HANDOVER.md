@@ -33547,3 +33547,87 @@ canopy): six people, every head behind the glass.
   "deviation" was the frame's rotation applied twice — the hands left their
   knees for their cheeks (0.66 m off the ATD wrist with the idle on, 0.000
   with it off: the measurement that found it). Own scratch `_qm` now.
+
+## G206 — THE MATERIALS PASS: THE GLASS BLEND, THE WAFFLE, THE FIELD, THE
+## CLEAR LAYER, THE STRIP, AND THE LAB (2026-09-07, the user: "I don't
+## believe in our glass ... the fuselages are not [fine]. The normals are far
+## too important, and the tiling of the texture is too coarse ... very flat
+## ... more shiny when they have been painted and varnished ... add something
+## like a musgrave texture at large scale over the whole body ... The current
+## 'waffle' look is wrong ... I keep finding the windows very flat, I feel
+## like this is cut paper ... look at the window joints too")
+
+The audit is `futureDesigns/MATERIALS-AUDIT-2026-09-07.md`; every root cause
+there was a NUMBER or a RECIPE, and the architecture (one material, the
+metric field, the analytic grammar, the mipped stamps) stands. What landed:
+
+- **THE GLASS COULD NOT BE GLASS UNDER THE BLEND IT HAD.** Three's ordinary
+  alpha blend scales the whole outgoing light by alpha, so at clarity 0.38
+  sixty percent of every REFLECTION was thrown away, the pale `color` was a
+  Lambert diffuse at half alpha laid over the crew (the milky film that reads
+  as cut paper), and alpha was constant over the pane (no Fresnel, no
+  curvature). Now TWO DRAWS, each order-independent: `aeroGlassTint`, a
+  MULTIPLY pass (ZERO, SRC_COLOR) carrying the transmission, the tint and
+  the Fresnel closing at the limb; and `aeroGlass`, an ADD pass (ONE, ONE)
+  writing `diffuse * (1 - T) * damp + specular` by hand at the output line,
+  so the specular lands at full strength whatever the clarity. The
+  companion mesh (`aeroGlassCompanion`) shares the pane's faces one
+  renderOrder earlier, tagged `aeroCompanion` + `edHi` so every bake walks
+  past it; both `meshFrom` (editor) and app.js (flown) build it. The
+  rainbow moved onto the specular. GLASS_DEF gains the lab's base numbers
+  (`rough`, `ccR`, `fresnel`, `diffuse`); the clarity default 0.5 -> 0.2.
+- **THE JOINT WAS A SUSPECT AND IT WAS GUILTY.** A pane cut coplanar with
+  the skin, one surface, and a 0.38-rise tube round it: a sticker with a
+  line drawn round it. `rimRise` (0.22 on the stock rimW, flat-topped: a
+  retaining strip) and `paneInset` (the pane recessed 0.0025 cage units
+  behind the skin, cageRims lifting its path back by the same amount so the
+  strip stands on the skin). Doors keep the round rubber. Both rows claimed
+  by `joints`, rendered on page 5 too (GATE PARTS reads the page's own
+  panel, not BASE_GROUPS).
+- **THE WAFFLE WAS THE GRAMMAR PRINTING MEMBERS THAT DO NOT PRINT.** Tape
+  and sag in BOTH directions on a frame x stringer grid, a sin*sin dish in
+  every cell, all x4. tubeFabric: `framePitch` 0 (the covering touches only
+  the stringers; the cage's real rings keep their faint line), the stringer
+  print as an 18 mm / 0.9 mm ridge, sag 0.4 % one-directional by
+  construction. wood: `sag` 0, `dish` 0 (a stressed ply skin is flat).
+  alloy: the dish is IRREGULAR — one bay in two, its own depth, bent by the
+  field. THREE GAINS, shared (`uGain`: members 4.0, sag & dish 1.2, field
+  3.0) where there was one x4 over everything.
+- **THE COARSE REPEAT WAS A SLOW TERM INSIDE A TILING SHEET.** weave
+  `0.12*sin(u*3+v*2)` at 0.14 m, sheet `0.06*sin(u*2+v*1.3)` at 0.70 m — one
+  swell per tile IS the visible repeat. Rule: a sheet carries 8+ cycles per
+  tile; anything slower is `aeroField`, a Musgrave hybrid multifractal
+  evaluated in METRES (the surface field; a craft-space plane mixed by the
+  normal's up-ness on the triplanar branch), gradient by a fixed metric
+  step, per finish `fld`/`fldL`/`fldR` (alclad 1.5 mm / 0.8 m, ply 0.4 /
+  0.5, fabric 0.25 / 0.35). The fabric weave: tile 0.06 m, `hs` 0.15.
+- **NOTHING HAD A CLEAR LAYER.** Painted and varnished rows (`cc` > 0)
+  build MeshPhysicalMaterial — still isMeshStandardMaterial, so
+  scene.environment holds — with `PHYSICAL` put back into `defines` by hand
+  (r128 switches CLEARCOAT on under it and the factory replaces the
+  constructor's defines). The clearcoat normal is the PERTURBED normal, not
+  geometryNormal: varnish is brushed onto the tapes. Roughness
+  re-baselined (dope 0.42, ply 0.32, alclad 0.28, trim 0.28).
+- **THE LAB.** `AEROSKIN.aeroLabSet/Get/Reset/Export`: the finish rows,
+  the grammar rows, the three gains and the glazing base, LIVE on every
+  built material (aeroFinishU / aeroGrammarU are the writers the factory
+  itself uses; `hs`/`bs` rebake the sheet; a clear coat crossing zero drops
+  the pooled materials so the next build makes the right class), kept as
+  DEVIATIONS in localStorage (`flydiy.aeroLab`), exported as JSON to paste
+  back into the table. In the editor: the `material lab` block on the root
+  of the FINISH view (`data-lab`), beside the livery; two more per-section
+  dials, `sheen x` and `field x` (ccK / fieldK: key, userData, join, spec
+  `cc` / `field`, app.js — the same seven doors the other dials have).
+
+TRAPS, this pass:
+- **GATE SKINMAT reads the uG5 LITERAL** (`uG5: { value: new
+  THREE.Vector4(... +o.wing || 0)`) as the promise that the surface class
+  is not a flag. A refactor into a helper must keep that literal form.
+- **GATE PARTS renders `_cage_page5.js`'s panel, not BASE_GROUPS**: a row
+  added to `_cage_ui.js`'s base list alone is "claimed but not rendered".
+- **`rimW` and `paneInset` are CAGE UNITS**, not metres (the mesh is scaled
+  by CAGE_UNIT x planeScale after the fact).
+- The shader's `aeroHash` was named in a comment for a year and did not
+  exist; it does now, and the glass scratches should be re-seeded from it
+  (owed, with the interior darkening and the pane's own edge strip — audit
+  §1.1.4, §1.2).

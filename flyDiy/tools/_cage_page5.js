@@ -309,6 +309,9 @@ window.CAGE_PAGE = {
         ['bubW3',     'loop3 width',    0.8, 1.5, 0.01,
          { when: P => +P.canopy === 3 && +P.canLoops >= 3 }],
         ['rimW',      'joint size',     0.00, 0.04, 0.001, { dim: 'len' }],
+        // G206: the strip's rise (x rimW) and the pane's step down behind it
+        ['rimRise',   'rim rise',       0.05, 1, 0.01],
+        ['paneInset', 'pane inset',     0, 0.01, 0.0005, { dim: 'len' }],
         // THE REVEAL. `winFrameW` gates the whole frame/recess pass, so it and
         // `winDepth` were unreachable and `doorDepth` did nothing while it sat
         // at 0. At 0 the windows are flush, as they were before this row.

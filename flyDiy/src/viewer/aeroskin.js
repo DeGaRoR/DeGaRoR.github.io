@@ -77,6 +77,25 @@
 // above 1 for the hangar. METALNESS IS NOT SHININESS: paint over aluminium is
 // a dielectric and stays at 0 however glossy it looks. Only genuinely bare
 // metal goes high, or the livery turns grey and takes its colour from the sky.
+//
+// THE CLEAR LAYER (G206, the user: "more shiny when they have been painted
+// and varnished"). Paint and varnish are a CLEAR COAT over a pigment layer —
+// a broad soft sheen sitting on top of the body colour — and no roughness
+// number gives that: at roughness 0.3 a pigment reads as satin plastic, not
+// as a varnished ply. `cc` / `ccR` are MeshPhysicalMaterial's clearcoat and
+// its roughness; a row with `cc` > 0 builds Physical (which is still
+// isMeshStandardMaterial, so it receives scene.environment like the rest),
+// a row without stays Standard. Bare metal and cloth have no clear layer.
+//
+// THE LARGE-SCALE FIELD (G206, the user: "something like a musgrave texture
+// at large scale over the whole body ... mostly on metal sheets, medium on
+// wood and low on fabric"). `fld` is its amplitude in METRES, `fldL` its
+// wavelength in metres, `fldR` how much of it reaches the roughness. It is a
+// NON-REPEATING noise evaluated in metres in the shader (aeroField), never a
+// term in the tiling sheet — because a slow term inside a tile IS the visible
+// repeat, which is what the sheets carried until G206 (see aeroHeight).
+// Roughness re-baselined at the same time: a polished dope finish sits
+// about 0.4, varnished ply 0.3, polyurethane over alloy 0.28.
 const AERO_FINISH = {
   // DOPE FILLS THE WEAVE. Four coats of butyrate over Ceconite leaves a
   // surface you can only find the cloth in by looking for it — what you
@@ -84,33 +103,43 @@ const AERO_FINISH = {
   // are the grammar's job, not the sheet's. The first cut ran 22 threads
   // across a 0.30 m tile (13 mm each, at full normal strength) and the
   // fuselage came out as basket-weave upholstery.
-  fabric:    { name: 'doped fabric', base: 0xd8d4c8, tile: 0.14,
-               rough: 0.66, metal: 0.0, nrm: 0.32, alb: 0.13,
-               hs: 0.5, bs: 0.8, bake: 'weave' },
+  // G206: the tile drops 0.14 -> 0.06 m (a 2 mm thread, not a 5 mm one) and
+  // `hs` 0.5 -> 0.15 — under four coats of dope the weave is a roughness
+  // speckle, not a relief; the clear layer and the low field do the rest
+  fabric:    { name: 'doped fabric', base: 0xd8d4c8, tile: 0.06,
+               rough: 0.42, metal: 0.0, nrm: 0.25, alb: 0.13,
+               hs: 0.15, bs: 0.8, bake: 'weave',
+               cc: 0.35, ccR: 0.25, fld: 0.00025, fldL: 0.35, fldR: 0.3 },
   // alb 0.50 -> 0.80 with the scanned sheet (G125): the maple face's B span
   // is a quarter of the procedural stripes', so the compensation keeps the
   // ply's grain visible at all — same measurement as spruce's note below
   ply:       { name: 'birch ply',    base: 0xc9a06a, tile: 0.35,
-               rough: 0.44, metal: 0.0, nrm: 0.30, alb: 0.80,
-               hs: 0.10, bs: 1.6, bake: 'grain', sheet: 'maple' },
+               rough: 0.32, metal: 0.0, nrm: 0.30, alb: 0.80,
+               hs: 0.10, bs: 1.6, bake: 'grain', sheet: 'maple',
+               cc: 0.50, ccR: 0.18, fld: 0.0004, fldL: 0.5, fldR: 0.3 },
   alclad:    { name: '2024 alclad',  base: 0xd2d6da, tile: 0.70,
-               rough: 0.34, metal: 0.0, nrm: 0.45, alb: 0.10,
-               hs: 0.8, bs: 0.5, bake: 'sheet' },
+               rough: 0.28, metal: 0.0, nrm: 0.35, alb: 0.10,
+               hs: 0.8, bs: 0.5, bake: 'sheet',
+               cc: 0.45, ccR: 0.15, fld: 0.0015, fldL: 0.8, fldR: 0.35 },
   composite: { name: 'carbon/epoxy', base: 0x2b2e33, tile: 0.10,
                rough: 0.20, metal: 0.0, nrm: 0.30, alb: 0.22,
-               hs: 0.5, bs: 1.0, bake: 'twill' },
+               hs: 0.5, bs: 1.0, bake: 'twill',
+               cc: 0.60, ccR: 0.10, fld: 0.0003, fldL: 1.0, fldR: 0.2 },
   bareAlu:   { name: 'bare alloy',   base: 0xb6bcc3, tile: 0.45,
                rough: 0.26, metal: 0.90, nrm: 0.45, alb: 0.10,
-               hs: 0.8, bs: 0.6, bake: 'sheet' },
+               hs: 0.8, bs: 0.6, bake: 'sheet',
+               fld: 0.0015, fldL: 0.8, fldR: 0.4 },
   steelTube: { name: '4130 tube',    base: 0x6f7780, tile: 0.30,
                rough: 0.48, metal: 0.80, nrm: 0.50, alb: 0.16,
-               hs: 0.9, bs: 0.8, bake: 'sheet' },
+               hs: 0.9, bs: 0.8, bake: 'sheet',
+               fld: 0.0002, fldL: 0.3, fldR: 0.2 },
   // alb raised 0.55 -> 0.85 with the scanned sheet (G125): Wood091B's strip
   // boundaries are almost entirely COLOUR, and at 0.55 the laminations
   // vanished into the base — measured on the swatch strip, not guessed
   spruce:    { name: 'spruce',       base: 0xbb9560, tile: 0.30,
-               rough: 0.52, metal: 0.0, nrm: 0.30, alb: 0.85,
-               hs: 0.14, bs: 1.6, bake: 'grain', sheet: 'laminate' },
+               rough: 0.40, metal: 0.0, nrm: 0.30, alb: 0.85,
+               hs: 0.14, bs: 1.6, bake: 'grain', sheet: 'laminate',
+               cc: 0.40, ccR: 0.20, fld: 0.0003, fldL: 0.5, fldR: 0.2 },
 
   // ---- THE SCANNED WOODS (G125) -------------------------------------------
   // The first baked CC0 payloads, landing the promise the sheet loader has
@@ -131,13 +160,16 @@ const AERO_FINISH = {
   // a birch ply skin shows; a built-up spruce member is glued strips).
   maple:     { name: 'maple',          base: 0xe3d4b9, tile: 0.90,
                rough: 0.42, metal: 0.0, nrm: 0.30, alb: 0.90,
-               hs: 0.10, bs: 1.4, bake: 'grain', sheet: 'maple' },
+               hs: 0.10, bs: 1.4, bake: 'grain', sheet: 'maple',
+               cc: 0.30, ccR: 0.20, fld: 0.0002, fldL: 0.5, fldR: 0.2 },
   walnut:    { name: 'walnut',         base: 0xa98971, tile: 0.90,
                rough: 0.42, metal: 0.0, nrm: 0.30, alb: 1.10,
-               hs: 0.10, bs: 1.6, bake: 'grain', sheet: 'walnut' },
+               hs: 0.10, bs: 1.6, bake: 'grain', sheet: 'walnut',
+               cc: 0.30, ccR: 0.20, fld: 0.0002, fldL: 0.5, fldR: 0.2 },
   walnutFig: { name: 'figured walnut', base: 0x887e72, tile: 1.10,
                rough: 0.44, metal: 0.0, nrm: 0.30, alb: 1.30,
-               hs: 0.10, bs: 1.6, bake: 'grain', sheet: 'walnutfig' },
+               hs: 0.10, bs: 1.6, bake: 'grain', sheet: 'walnutfig',
+               cc: 0.30, ccR: 0.20, fld: 0.0002, fldL: 0.5, fldR: 0.2 },
   rubber:    { name: 'rubber',       base: 0x20222b, tile: 0.16,
                rough: 0.94, metal: 0.0, nrm: 0.55, alb: 0.20,
                hs: 0.7, bs: 0.9, bake: 'weave' },
@@ -145,8 +177,9 @@ const AERO_FINISH = {
                rough: 0.88, metal: 0.0, nrm: 0.55, alb: 0.30,
                hs: 0.7, bs: 1.0, bake: 'weave' },
   trim:      { name: 'painted trim', base: 0xd8dde4, tile: 0.40,
-               rough: 0.30, metal: 0.10, nrm: 0.25, alb: 0.08,
-               hs: 0.6, bs: 0.5, bake: 'sheet' },
+               rough: 0.28, metal: 0.10, nrm: 0.25, alb: 0.08,
+               hs: 0.6, bs: 0.5, bake: 'sheet',
+               cc: 0.40, ccR: 0.20, fld: 0.0005, fldL: 0.4, fldR: 0.3 },
   // THE FIREPROOF SHEET. A firewall is a structural bulkhead with a sheet of
   // stainless or aluminised foil on the ENGINE side of it, and the foil is
   // the only surface on the aeroplane whose whole appearance is a CRINKLE: it
@@ -214,7 +247,8 @@ const AERO_FINISH = {
   // warm brown, and a builder who wants it blacker has the dial.
   panelMetal: { name: 'metal panel',   base: 0xd0d4d8, tile: 0.60,
                 rough: 0.38, metal: 0.92, nrm: 0.35, alb: 0.20,
-                hs: 0.8, bs: 0.5, bake: 'sheet', sheet: 'panel' },
+                hs: 0.8, bs: 0.5, bake: 'sheet', sheet: 'panel',
+                fld: 0.0003, fldL: 0.4, fldR: 0.3 },
   leatherDark: { name: 'dark leather', base: 0x2a2622, tile: 0.30,
                  rough: 0.52, metal: 0.0, nrm: 0.55, alb: 0.60,
                  hs: 0.8, bs: 0.9, bake: 'hide', sheet: 'leather' },
@@ -268,6 +302,10 @@ const AERO_FINISH = {
                rough: 0.38, metal: 0.90, nrm: 0.30, alb: 0.12,
                hs: 0.5, bs: 0.7, bake: 'sheet' },
 };
+
+// THE TABLE AS WRITTEN (G206): the material lab edits AERO_FINISH in place
+// and this is what "reset" and "deviation" are measured against.
+const AERO_FINISH_DEF = JSON.parse(JSON.stringify(AERO_FINISH));
 
 // ---------------------------------------------------------------------------
 // THE ASSIGNMENT TABLE — construction x section ROLE -> finish
@@ -727,7 +765,10 @@ function aeroSecResolve(sec, over, ctx) {
            tileK: walk(over && over.tile, chain).v,
            roughK: walk(over && over.rough, chain).v,
            nrmK: walk(over && over.nrm, chain).v,
-           wearM: walk(over && over.wear, chain).v };
+           wearM: walk(over && over.wear, chain).v,
+           // G206: the sheen and the field, same rule
+           ccK: walk(over && over.cc, chain).v,
+           fieldK: walk(over && over.field, chain).v };
 }
 
 // ---------------------------------------------------------------------------
@@ -804,11 +845,16 @@ function aeroHeight(kind, S) {
         // "no visible weave" and "a subtle weave" are the same screenshot at
         // any distance. Warp and weft each ride over the other in
         // alternating cells, which is what a plain weave is.
+        // NO SLOW TERM (G206): this carried 0.12*sin(u*3+v*2), one swell per
+        // tile, and one swell per tile IS a visible repeat — the "tiling too
+        // coarse" the user saw was that blotch every 14 cm, not the threads.
+        // A tiling sheet carries 8+ cycles per tile and nothing slower; the
+        // slow undulation is aeroField's, in metres, and never repeats.
         const n = 30;
         const warp = Math.abs(Math.sin(u * n));
         const weft = Math.abs(Math.sin(v * n));
         const over = Math.sin(u * n * 0.5) * Math.sin(v * n * 0.5) > 0;
-        return 0.55 * (over ? warp : weft) + 0.12 * Math.sin(u * 3 + v * 2);
+        return 0.55 * (over ? warp : weft);
       }
       case 'twill': {
         // 2x2 carbon twill: the diagonal is what identifies it
@@ -833,8 +879,7 @@ function aeroHeight(kind, S) {
         // a product-of-sines lattice, each turned against the last so no two
         // share an axis and the tile does not read as a grid.
         const g = (a, b, k) => Math.sin(u * a + v * b) * Math.sin(u * -b + v * a) * k;
-        return g(37, 21, 0.34) + g(59, -43, 0.18) + g(97, 71, 0.09)
-             + 0.06 * Math.sin(u * 5 + v * 3);
+        return g(37, 21, 0.34) + g(59, -43, 0.18) + g(97, 71, 0.09);
       }
       case 'hide': {
         // LEATHER. The grain is a broad, soft PEBBLE with fine pores in it,
@@ -855,9 +900,13 @@ function aeroHeight(kind, S) {
         // corrugated iron rather than doped fabric"). Painted metal is smooth;
         // what stops it reading as plastic is a broad, very low undulation
         // and a mill grain you can only find by looking for it.
-        return 0.06 * Math.sin(u * 2.0 + v * 1.3)
-             + 0.03 * Math.sin(v * 3.7 - u * 1.1)
-             + 0.010 * Math.sin(v * 90.0 + Math.sin(u * 5.0) * 0.7);
+        // G206: the "broad, very low undulation" LEFT THE SHEET. At 0.06 over
+        // two cycles of a 0.70 m tile it was a 35 cm ripple repeating every
+        // 70 cm at hs 0.8 — the coarse repeat on every alloy fuselage. The
+        // undulation is aeroField's now (metric, non-repeating, per finish);
+        // what stays here is the mill grain and a fine isotropic breakup.
+        return 0.010 * Math.sin(v * 90.0 + Math.sin(u * 5.0) * 0.7)
+             + 0.008 * Math.sin(u * 23 + v * 17) * Math.sin(u * 19 - v * 29);
       }
     }
   };
@@ -1203,6 +1252,16 @@ function aeroSharedU(THREE) {
     uWearE: { value: new THREE.Vector4(0, 0, -1, 0) },   // exhaust streak
     uWearS: { value: new THREE.Vector4(0, 0, -1, 0) },   // gear splash
     //        x sL origin  y sC origin  z run (m, +aft; <0 = off)  w half-width
+    // THE DISPLAY GAINS (G206), and there are THREE because one was the
+    // waffle. uGGain was a single x4 over every gradient the grammar summed,
+    // justified for the TAPE (a 0.6 deg slope is invisible and a real tape
+    // has a pinked lip a Gaussian lacks) and applied, unjustified, to the
+    // SAG and the DISH, which were declared as real dimensions and then
+    // quadrupled — a 2.5 mm slack read as a 10 mm quilt. x = tape /
+    // members / fasteners / seams, y = sag and dish, z = the large-scale
+    // field. Shared, so the lab's one write reaches every material.
+    uGain:  { value: new THREE.Vector3(AERO_GAIN_DEF.x, AERO_GAIN_DEF.y,
+                                       AERO_GAIN_DEF.z) },
   });
 }
 const aeroDecUniforms = aeroSharedU;    // the name G69 wrote it under
@@ -1785,7 +1844,13 @@ uniform vec4 uDecB[AERO_MAXD];
 uniform vec4 uDecC[AERO_MAXD];
 uniform vec4 uDecD[AERO_MAXD];
 uniform float uInset;
-uniform float uGGain; // display gain over the PHYSICAL gradient - see below
+// THE THREE DISPLAY GAINS (G206) — shared; see aeroSharedU. x members and
+// tapes, y sag and dish, z the large-scale field. uGGain was one x4 over
+// everything, and that one number was most of the waffle.
+uniform vec3 uGain;
+// THE LARGE-SCALE FIELD (G206): x amplitude m, y wavelength m, z roughness
+// gain. Per material, off the finish row times the section's own dial.
+uniform vec4 uField;
 uniform vec4 uG4;   // x realRise  y realHalfW(m)  z lePolish(chord frac)  w realFast
 // uG5.w was a wing? FLAG and is a surface CLASS now (G108): 0 the body,
 // 1 the wing, 2 the tail. Everything that tested > 0.5 for "is this a
@@ -1828,7 +1893,11 @@ uniform vec4  uGlass;      // x scratch  y wipe  z grime  w rainbow
 // coat normal, and that is what makes it catch the light.
 float aeroGSC = 0.0;
 float aeroGDirt = 0.0;
+vec3  aeroGRain = vec3(1.0);   // the rainbow, as a tint on the SPECULAR (G206)
 uniform vec4  uGlassE;     // the pane's own extent in field metres: lo.xy hi.xy
+// THE GLAZING'S BASE NUMBERS (G206): x how far the Fresnel closes the pane
+// at the limb, y how much of a lit body colour an opaque pane shows
+uniform vec4  uGlassB;
 varying vec4 vSurf;
 varying vec3 vObjPos;
 varying vec3 vObjNrm;
@@ -1894,14 +1963,75 @@ float aeroStreak(vec2 m, vec4 s) {
   return exp(-d * d) * (1.0 - t) * smoothstep(0.0, 0.10, t);
 }
 
+// THE LARGE-SCALE FIELD (G206, the user: "something like a musgrave texture
+// at large scale over the whole body"). What every real skin has and no
+// tiling sheet can carry: the slow, NON-REPEATING undulation of rolled
+// sheet and set panels on metal (0.3-1.5 m, 0.5-2 mm), sanding and glue-line
+// ghosts on ply, the barely-there slack of fabric between its stringers.
+// Musgrave's hybrid multifractal is the classic generator because it is
+// HETEROGENEOUS — smooth in places, busy in others — which is what set
+// panels look like, where plain fBm is uniformly busy.
+//
+// EVALUATED IN METRES, off the surface field (or a craft-space plane on the
+// triplanar branch), so it never repeats and stays the same size on every
+// layer. The gradient is a fixed METRIC step, not fwidth: a slope must be the
+// same slope from every distance, or the undulation breathes with the zoom.
+// The sin-hash is the same value noise the grammar's oil-canning seeds on.
+float aeroHash(vec2 p) {
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+float aeroVNoise(vec2 p) {
+  vec2 i = floor(p), f = fract(p);
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(mix(aeroHash(i), aeroHash(i + vec2(1.0, 0.0)), u.x),
+             mix(aeroHash(i + vec2(0.0, 1.0)), aeroHash(i + vec2(1.0, 1.0)), u.x),
+             u.y);
+}
+float aeroMusgrave(vec2 p) {
+  float sum = 0.0, w = 1.0, amp = 1.0, f = 1.0;
+  for (int i = 0; i < 4; i++) {
+    float s = ((aeroVNoise(p * f) - 0.5) * 2.0 + 0.55) * amp;
+    sum += w * s;
+    w = clamp(sum, 0.0, 1.0);          // hybrid: the high ground gets busy
+    amp *= 0.5; f *= 2.07;
+  }
+  return sum * 0.55 - 0.45;            // about -1 .. 1
+}
+// adds the field's height gradient (m/m) to dF and its roughness to rgh;
+// returns the field's own value, which the oil-canning reads to vary the
+// dish depth. No fetch inside, so the early return is uniform-safe.
+float aeroField(vec2 m, inout vec2 dF, inout float rgh) {
+  if (uField.x <= 0.0 || uField.y <= 0.0) return 0.0;
+  float L = uField.y;
+  vec2 p = m / L;
+  float e = 0.02;
+  float h0 = aeroMusgrave(p);
+  float hx = aeroMusgrave(p + vec2(e, 0.0));
+  float hy = aeroMusgrave(p + vec2(0.0, e));
+  float k = uField.x / (e * L);
+  dF.x += (hx - h0) * k;
+  dF.y += (hy - h0) * k;
+  rgh += h0 * uField.z * 0.12;
+  return h0;
+}
+
 // THE GRAMMAR. Height GRADIENTS in metres per metre, which is what a
 // tangent-space normal is, so every amplitude below is a real dimension and
 // not a taste knob. Accumulated as dH and converted once at the end, because
 // summing gradients is what stacking surface features actually means.
+// THREE ACCUMULATORS SINCE G206, one per display gain: dH is what a member
+// prints (tape, telegraphing, fasteners, seams), dS is what the covering does
+// between members (sag, dish), dF is the large-scale field. They were one
+// sum under one x4, and the sag and dish quadrupled were the waffle.
 vec3 aeroStructure(vec2 m, inout float rgh) {
-  if (uGOn < 0.5) return vec3(0.0, 0.0, 1.0);
   vec2 dH = vec2(0.0);
+  vec2 dS = vec2(0.0);
+  vec2 dF = vec2(0.0);
   float fw = max(fwidth(m.x) + fwidth(m.y), 1e-6);   // ~metres per pixel
+  // the field applies to every skin that declares one, structure or not: a
+  // painted strut fairing has no frames and still has set panels
+  float fldV = aeroField(m, dF, rgh);
+  if (uGOn > 0.5) {
 
   // THE REAL MEMBERS (G68.1). The metric pitches below place the frames and
   // stringers a construction HAS; these place the ones the generator KNOWS
@@ -1958,7 +2088,7 @@ vec3 aeroStructure(vec2 m, inout float rgh) {
       // division and left the sag ~2.7x too shallow to see.
       const float PI2 = 3.14159265;
       float t = fract(vSurf.z), sg = sin(PI2 * t);
-      dH.x -= leK * uG1.z * uG1.w * pow(max(sg, 1e-4), uG1.w - 1.0)
+      dS.x -= leK * uG1.z * uG1.w * pow(max(sg, 1e-4), uG1.w - 1.0)
             * cos(PI2 * t) * PI2;
     }
     // fasteners along the real members: rib lacing, or the spar-cap rivets
@@ -2005,14 +2135,18 @@ vec3 aeroStructure(vec2 m, inout float rgh) {
   // number the old bump sheet used because it read right.
   if (uG1.z > 0.0) {
     const float PI = 3.14159265;
+    // ONE DIRECTION ON A FABRIC FUSELAGE (G206): a construction whose
+    // framePitch is 0 (tube + fabric, since the covering touches only the
+    // stringers) sags ACROSS the stringers and nowhere else — this is what
+    // makes a Cub read as flat with long lines rather than as a quilt.
     if (uG0.x > 0.0) {
       float t = fract(m.x / uG0.x), s = sin(PI * t);
-      dH.x -= uG1.z * uG0.x * uG1.w * pow(max(s, 1e-4), uG1.w - 1.0)
+      dS.x -= uG1.z * uG0.x * uG1.w * pow(max(s, 1e-4), uG1.w - 1.0)
             * cos(PI * t) * PI / uG0.x;
     }
     if (uG0.y > 0.0) {
       float t = fract(m.y / uG0.y), s = sin(PI * t);
-      dH.y -= uG1.z * uG0.y * uG1.w * pow(max(s, 1e-4), uG1.w - 1.0)
+      dS.y -= uG1.z * uG0.y * uG1.w * pow(max(s, 1e-4), uG1.w - 1.0)
             * cos(PI * t) * PI / uG0.y;
     }
   }
@@ -2021,14 +2155,20 @@ vec3 aeroStructure(vec2 m, inout float rgh) {
   // frame, and it DISHES IN more than it bulges — which is what an unloaded
   // metal panel actually does, and what makes metal read as metal in raking
   // light. Nothing else in this file is doing that job.
+  // ...AND IRREGULAR (G206). A dish in EVERY cell at a regular sin*sin is a
+  // waffle by construction, whatever the depth. Real oil-canning is one bay
+  // in two or three, each its own depth, and the large-scale field bends
+  // the depth again so no two neighbours read alike.
   if (abs(uG2.x) > 0.0 && uG0.x > 0.0 && uG0.y > 0.0) {
     const float PI = 3.14159265;
     vec2 cell = floor(vec2(m.x / uG0.x, m.y / uG0.y));
     float h = fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453);
-    float a = uG2.x * (0.55 + 0.9 * h);
+    float on = smoothstep(0.40, 0.60, h);
+    float a = uG2.x * (0.35 + 1.1 * h) * on
+            * (0.6 + 0.8 * clamp(fldV + 0.5, 0.0, 1.0));
     float tx = fract(m.x / uG0.x), ty = fract(m.y / uG0.y);
-    dH.x += a * PI / uG0.x * cos(PI * tx) * sin(PI * ty);
-    dH.y += a * PI / uG0.y * sin(PI * tx) * cos(PI * ty);
+    dS.x += a * PI / uG0.x * cos(PI * tx) * sin(PI * ty);
+    dS.y += a * PI / uG0.y * sin(PI * tx) * cos(PI * ty);
   }
 
   // PANEL LINES and LAPS. The boundary is a groove; on alloy it also carries
@@ -2125,7 +2265,15 @@ vec3 aeroStructure(vec2 m, inout float rgh) {
   // exaggeration lives HERE, in one uniform, where it is visible and tunable.
   // Same posture as garage.js's nrmScale, which was 0.9 over a normalised
   // field for the same reason.
-  return normalize(vec3(-dH.x * uGGain, dH.y * uGGain, 1.0));
+  //
+  // THREE GAINS (G206), not one: the tape's exaggeration was never the sag's
+  // to borrow. uGain.x exaggerates what a member prints, uGain.y what the
+  // covering does between members (near 1: those numbers were honest and
+  // were quadrupled), uGain.z the large-scale field. All three are the lab's.
+  }
+  return normalize(vec3(-(dH.x * uGain.x + dS.x * uGain.y + dF.x * uGain.z),
+                         (dH.y * uGain.x + dS.y * uGain.y + dF.y * uGain.z),
+                         1.0));
 }
 
 void aeroFrame(vec3 eye, vec3 N, vec2 st, float fd, out vec3 T, out vec3 B) {
@@ -2439,6 +2587,24 @@ const AERO_SURFACE_FS = `
   float aeroMet = aeroTX.a * aeroW.x + aeroTY.a * aeroW.y + aeroTZ.a * aeroW.z;
   roughnessFactor *= mix(1.0, aeroR / 0.85, uDetail.y);
   metalnessFactor *= aeroMet;
+  // THE FIELD ON A SURFACE WITH NO FIELD (G206): the cowl, the spats, the
+  // struts, the gear legs. A craft-space plane stands in for the metric
+  // field — the flank plane where the normal is sideways, the plan plane
+  // where it faces up — MIXED, never branched, so every fragment in a quad
+  // takes one path and the derivatives aeroFrame needs stay defined. The
+  // frames are y-up (the wear pass relies on the same fact).
+  {
+    float aeroUp = clamp(abs(normalize(vObjNrm).y), 0.0, 1.0);
+    vec2 aeroFC = mix(vCraftPos.yz, vCraftPos.xy, aeroUp * aeroUp);
+    vec2 aeroDF = vec2(0.0);
+    float aeroFR = 0.0;
+    aeroField(aeroFC, aeroDF, aeroFR);
+    vec3 aeroFT, aeroFB;
+    aeroFrame(-vViewPosition, normal, aeroFC, faceDirection, aeroFT, aeroFB);
+    vec3 aeroFN = normalize(vec3(-aeroDF.x * uGain.z, aeroDF.y * uGain.z, 1.0));
+    normal = normalize(aeroFT * aeroFN.x + aeroFB * aeroFN.y + normal * aeroFN.z);
+    roughnessFactor += aeroFR;
+  }
 #endif
 
 // THE OTHER HALF OF THE WEAR (G70), common to both branches because none of
@@ -2479,7 +2645,14 @@ const AEROSKIN_HOOK = function (shader) {
     .replace('#include <common>',
              AERO_NMAT_FS + AERO_PARS_FS + '\n#include <common>')
     .replace('#include <map_fragment>', AERO_ALBEDO_FS)
-    .replace('#include <normal_fragment_maps>', AERO_SURFACE_FS);
+    .replace('#include <normal_fragment_maps>', AERO_SURFACE_FS)
+    // THE CLEAR LAYER FOLLOWS THE RELIEF (G206). r128's own chunk puts the
+    // clearcoat on geometryNormal — the smooth mesh — so varnish over a rib
+    // tape would reflect the sky as if the tape were not there. A clear coat
+    // is brushed ONTO the tapes and the set panels; it takes the perturbed
+    // normal. Inert on a Standard material: the include is not in its shader.
+    .replace('#include <clearcoat_normal_fragment_begin>',
+             '#ifdef CLEARCOAT\n  vec3 clearcoatNormal = normal;\n#endif');
 };
 
 // ---------------------------------------------------------------------------
@@ -2528,14 +2701,45 @@ const AEROSKIN_HOOK = function (shader) {
 // A wiper arc and a field of fine scratches are cheap to describe and are
 // PLACED rather than tiled: the arc sweeps from a real pivot, which is what
 // makes it read as a wiper rather than as texture.
+//
+// THE BLEND, BY HAND (G206, the user: "I don't believe in our glass"). What
+// was wrong was not a number but the blend model. Under three's ordinary
+// alpha blend the whole outgoing light is scaled by alpha, so at clarity
+// 0.38 SIXTY PERCENT OF EVERY REFLECTION WAS THROWN AWAY — and the reflection
+// is the thing that IS glass. The pale `color` was a real Lambert diffuse at
+// half alpha, lit by the room and laid over the crew: a milky plastic film,
+// which is exactly what "cut paper" looks like. And alpha was constant over
+// the pane, where real glass is 4 % reflective head-on and a mirror at the
+// limb (Fresnel), so a flat pane at one alpha had no curvature to show.
+//
+// TWO DRAWS OF THE SAME PANE, each order-independent:
+//   1. aeroGlassTint — a MULTIPLY pass (blend ZERO, SRC_COLOR): what is
+//      behind the pane is darkened by the pane's transmission, tinted by
+//      its colour, and CLOSED at the limb by Fresnel. Multiplies commute, so
+//      two panes in line need no sorting.
+//   2. aeroGlass — an ADD pass (blend ONE, ONE): the specular at FULL
+//      strength whatever the clarity, plus a damped body colour scaled by
+//      how opaque the pane is. Adds commute too; and three draws every
+//      renderOrder -1 item before every renderOrder 0 item, so all the
+//      multiplies land before all the adds: dst * PI(T) + SUM(spec), exact.
+// r128's own `transmission` line was one alpha-restoration term trying to
+// do pass 2 alone, and it was measured dead in the game (below). This is the
+// same idea done where it can be seen.
 const GLASS_DEF = {
   tint: 0xaec9d8,   // the pale blue-green of thick acrylic seen edge-on
-  opacity: 0.5,
+  // G206: 0.5 -> 0.2. Under the old model half the light was the only way
+  // to see the pane at all; a tinted acrylic canopy actually stops 10-30 %
+  opacity: 0.2,
   scratch: 0.0,     // 0 factory-fresh .. 1 a thousand hours of cuffs
   wipe: 0.0,        // the arc a wiper leaves; 0 on an aeroplane with none
   grime: 0.0,       // dirt gathering toward the frame
   refl: 1.0,        // x envMapIntensity, on top of the mood's own scale
   rainbow: 0.0,     // thin-film interference, an EFFECT and not physics
+  // ---- THE BASE NUMBERS (G206), the lab's rather than the builder's ----
+  rough: 0.02,      // the bulk: a polished pane, nearly a mirror
+  ccR: 0.03,        // the clear layer that carries the ripple and scratches
+  fresnel: 1.0,     // how far the limb closes to a mirror (0 = old flat pane)
+  diffuse: 0.6,     // what an OPAQUE pane shows of a lit body colour
 };
 
 const AEROGLASS_HOOK = function (shader) {
@@ -2630,14 +2834,122 @@ const AEROGLASS_HOOK = function (shader) {
   // runs later, and the fragment shader would not compile. diffuseColor is
   // declared earlier and is still in scope, so this is the first point where
   // both are in hand.
+  // ...AND ON THE SPECULAR (G206): with the diffuse damped to what an opaque
+  // pane shows, a hue on the albedo would vanish; a coating flares in the
+  // REFLECTION, which is where it always was on the real thing.
   if (uGlass.w > 0.0) {
     float ct = clamp(1.0 - abs(dot(normalize(normal),
                      normalize(vViewPosition))), 0.0, 1.0);
     float f = pow(ct, 2.2);
     vec3 hue = 0.5 + 0.5 * cos(6.28318 * (vec3(0.0, 0.33, 0.67) + ct * 2.4));
-    diffuseColor.rgb = mix(diffuseColor.rgb, hue, f * uGlass.w * 0.55);
-  }`);
+    aeroGRain = mix(vec3(1.0), hue * 1.7, f * uGlass.w * 0.55);
+  }`)
+    // THE OUTPUT, BY HAND (G206) — see the family header. The specular adds
+    // at full strength; the body colour is scaled by how much of the pane is
+    // NOT transmission, Fresnel-closed at the limb exactly as the multiply
+    // pass closes it, so the two passes describe one pane. Alpha 1: the
+    // blend is ONE, ONE and reads no alpha; the premultiply chunk is inert.
+    .replace('gl_FragColor = vec4( outgoingLight, diffuseColor.a );', `
+  float aeroNV = clamp(dot(normalize(normal), normalize(vViewPosition)),
+                       0.0, 1.0);
+  float aeroFr = pow(1.0 - aeroNV, 5.0) * uGlassB.x;
+  float aeroT = (1.0 - diffuseColor.a) * (1.0 - aeroFr);
+  vec3 aeroSpec = (reflectedLight.directSpecular
+                 + reflectedLight.indirectSpecular) * aeroGRain;
+  vec3 aeroDiff = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse
+                + totalEmissiveRadiance;
+  gl_FragColor = vec4(aeroDiff * (1.0 - aeroT) * uGlassB.y + aeroSpec, 1.0);`);
 };
+
+// THE MULTIPLY PASS (G206): pass 1 of the glass, see the family header. A
+// ShaderMaterial on purpose — it needs no environment, no lights and no
+// chunk of three's, only the view normal for the Fresnel. Pooled like the
+// rest. What passes through: (1 - opacity), tinted toward the pane's colour
+// as the pane thickens, and closed toward zero at the limb by the same
+// Schlick term the add pass uses.
+const AERO_GTINT_VS = `
+varying vec3 vN; varying vec3 vV;
+void main() {
+  vec4 mv = modelViewMatrix * vec4(position, 1.0);
+  vN = normalize(normalMatrix * normal);
+  vV = -mv.xyz;
+  gl_Position = projectionMatrix * mv;
+}`;
+const AERO_GTINT_FS = `
+uniform vec3 uTint; uniform float uA; uniform float uFres;
+varying vec3 vN; varying vec3 vV;
+void main() {
+  float nv = clamp(dot(normalize(vN), normalize(vV)), 0.0, 1.0);
+  float fr = pow(1.0 - nv, 5.0) * uFres;
+  vec3 pass = mix(vec3(1.0), uTint, clamp(uA * 2.0, 0.0, 1.0));
+  gl_FragColor = vec4(pass * (1.0 - uA) * (1.0 - fr), 1.0);
+}`;
+function aeroGlassTint(THREE, o) {
+  const G = k => (o[k] != null ? +o[k] : GLASS_DEF[k]);
+  const key = 'gtint|' + (o.tint != null ? o.tint : '') + 'L' +
+              (o.tintLin != null ? o.tintLin : '') + '|' + G('opacity') +
+              '|' + G('fresnel');
+  const hit = AERO_POOL.get(key);
+  if (hit) return hit;
+  const col = o.tintLin != null ? new THREE.Color(o.tintLin)
+            : aeroLinear(THREE, o.tint != null ? o.tint : GLASS_DEF.tint);
+  const m = new THREE.ShaderMaterial({
+    uniforms: { uTint: { value: col }, uA: { value: G('opacity') },
+                uFres: { value: G('fresnel') } },
+    vertexShader: AERO_GTINT_VS,
+    fragmentShader: AERO_GTINT_FS,
+    transparent: true,
+    depthWrite: false,
+    side: THREE.FrontSide,
+    blending: THREE.CustomBlending,
+    blendEquation: THREE.AddEquation,
+    blendSrc: THREE.ZeroFactor,
+    blendDst: THREE.SrcColorFactor,
+  });
+  m.userData.aeroskin = 1;
+  m.userData.aeroFinish = 'glassTint';
+  m.userData.env0 = 0;
+  AERO_POOL.set(key, m);
+  AERO_BUILT.push(m);
+  return m;
+}
+// the invisible stand-in for every non-glass group of a companion mesh —
+// r128 skips a group whose material is not visible, so one shared object
+// costs nothing per pane
+let AERO_GNONE = null;
+function aeroGlassNone(THREE) {
+  if (!AERO_GNONE) {
+    AERO_GNONE = new THREE.MeshBasicMaterial({ visible: false });
+    AERO_GNONE.userData.aeroskin = 1;
+  }
+  return AERO_GNONE;
+}
+// THE COMPANION (G206): the multiply pass as a second mesh sharing the
+// pane's geometry, drawn one renderOrder EARLIER so every multiply lands
+// before every add. `mats` is the host's material list (an array, or one);
+// only the glass entries get the tint, the rest are invisible. Tagged
+// `aeroCompanion` so the join's snapshot walks past it — it is the same
+// faces the host already carries, not new skin.
+function aeroGlassCompanion(THREE, host, mats, tintOf) {
+  const list = Array.isArray(mats) ? mats : [mats];
+  let any = false;
+  const cm = list.map(m => {
+    if (m && m.userData && m.userData.aeroFinish === 'glass') {
+      any = true;
+      return tintOf(m);
+    }
+    return aeroGlassNone(THREE);
+  });
+  if (!any) return null;
+  const c = new THREE.Mesh(host.geometry, Array.isArray(mats) ? cm : cm[0]);
+  c.renderOrder = (host.renderOrder || 0) - 1;
+  c.castShadow = false; c.receiveShadow = false;
+  c.userData.aeroCompanion = 1;
+  c.userData.edHi = 1;             // and every other bake that skips overlays
+  c.matrixAutoUpdate = host.matrixAutoUpdate;
+  host.add(c);
+  return c;
+}
 
 // ---------------------------------------------------------------------------
 // THE FACTORY
@@ -2651,6 +2963,115 @@ const AEROGLASS_HOOK = function (shader) {
 const AERO_POOL = new Map();
 const AERO_BUILT = [];
 let AERO_ENV_F = 1;        // the last mood factor aeroSetEnv applied (G125.1)
+
+// THE GRAMMAR'S UNIFORMS, WRITTEN BY ONE FUNCTION (G206). The factory wrote
+// uG0..uG5 and tFast inline; the material lab needs to write them AGAIN on a
+// built material when a grammar row moves, so the mapping lives here and both
+// call it. `o` is what the factory was given, or what the material remembers
+// of it on userData (grm, struct, wing, ribM). Creates the uniform objects
+// on a fresh U, overwrites the values on an existing one — the uniform
+// OBJECTS are shared with the compiled program by reference, so writing
+// `.value` reaches the GPU without a recompile.
+function aeroGrammarU(THREE, U, o) {
+  aeroLabGramApply();          // the lab's deviations, once the core is here
+  const GR = (o.struct && o.grm && AERO_GRAMMAR()[o.grm]) || null;
+  const f = GR && GR.fastener;
+  const v4 = (k, x, y, z, w) => {
+    if (!U[k]) U[k] = { value: new THREE.Vector4() };
+    U[k].value.set(x, y, z, w);
+  };
+  const v1 = (k, x) => { if (!U[k]) U[k] = { value: 0 }; U[k].value = x; };
+  // the stamp's cache key carries the head's own numbers, so a lab edit to
+  // the fastener row bakes a new stamp rather than finding the old one
+  if (!U.tFast) U.tFast = { value: null };
+  U.tFast.value = aeroFastTex(THREE,
+    (o.grm || 'x') + (f ? f.kind : '-') +
+    (f ? '|' + [f.pitch, f.dia, f.rise].join(',') : ''), GR);
+  v4('uG0', GR ? GR.framePitch : 0, GR ? GR.stringerPitch : 0,
+             GR ? (GR.panelAlong || 0) : 0, GR ? (GR.panelAround || 0) : 0);
+  v4('uG1', GR ? GR.tape.w : 0, GR ? GR.tape.rise : 0,
+             GR ? GR.sag.frac : 0, GR ? GR.sag.exp : 1);
+  // uG2.w is the FASTENER's own gain, and it is small on purpose: a driven
+  // head is already a 1.4 mm dome on a 2.4 mm radius — a genuinely steep
+  // slope — so unlike the tape it does not need the display exaggeration,
+  // and at the tape's gain it read as a row of ball bearings.
+  v4('uG2', GR ? (GR.dish || 0) : 0, f ? f.pitch : 0, f ? f.rowW : 0,
+             f ? 0.35 : 0);
+  v4('uG3', GR && GR.seam ? GR.seam.width : 0,
+             GR && GR.seam ? GR.seam.step : 0,
+             GR ? (GR.partingAtWaist || 0) : 0,
+             GR && GR.rough ? GR.rough.seam : 0);
+  v1('uGOn', GR ? 1 : 0);
+  // THE WING'S MEMBERS ARE ITS OWN. On the fuselage the real rings take a
+  // light extra line over the metric frames; on the wing they ARE the
+  // structure, so the metric pitches are switched off entirely and the ribs
+  // and spars carry it — see aeroStructure.
+  v4('uG4', GR ? (o.wing ? 0.0011 : 0.0004) : 0,
+             o.wing ? 0.030 : 0.016,
+             o.wing ? 0.12 : 0,              // LE band, METRES aft of the edge
+             (GR && f) ? (o.wing ? 0.30 : 0.0) : 0);
+  // the surface CLASS rides uG5.w (G108) — 0 body, 1 wing, 2 tail — and is
+  // never flattened to a flag; the literal form below is what GATE SKINMAT
+  // reads for that promise
+  if (!U.uG5) Object.assign(U, {
+    uG5: { value: new THREE.Vector4(0.15, 0.50, 0.86, +o.wing || 0) } });
+  else U.uG5.value.set(0.15, 0.50, 0.86, +o.wing || 0);
+  if (o.wing && GR) {
+    // a wing has ribs and spars, not frames and stringers
+    U.uG0.value.set(0, 0, 0, 0);
+    // ---- AND A COARSE SURFACE CANNOT CARRY AN INDEX (G97) -----------------
+    // The index members (uG4.x) put a rib at every INTEGER STATION and a spar
+    // at every integer rail, reading `fract(vSurf.z)` and `fract(vSurf.w)`.
+    // That is exact on the WING, whose field is built from the real rib list
+    // and interpolates over many chordwise vertices. It is NOISE on the TAIL,
+    // whose mesh is far coarser.
+    //
+    // MEASURED on the fin: `lv` sweeps -0.81..2.05 across the chord while 91
+    // of its 224 triangles span more than half a rail — and one spans 2.08,
+    // a single triangle crossing two whole spars. `fract` of a value that
+    // coarse crosses an integer wherever the LINEAR INTERPOLATION happens to
+    // put it, so the lines wander with the triangulation and branch at its
+    // edges. That is the dendritic pattern reported on the fins and slabs,
+    // and no width tuning fixes it: the coordinate is not faithful there.
+    //
+    // A CALLER THAT KNOWS ITS OWN PITCH IN METRES SAYS SO. `ribM` puts the
+    // members back on the METRIC path (`aeroNear(m.x, pitch)`), which reads
+    // sL directly and is exact whatever the mesh does. The chordwise term
+    // stays OFF: what prints through a fabric tail is the RIB TAPES, and one
+    // spar does not telegraph as an evenly spaced pitch.
+    if (o.ribM > 0) {
+      U.uG0.value.x = o.ribM;
+      U.uG4.value.x = 0;
+    }
+  }
+  return U;
+}
+
+// THE FINISH'S OWN NUMBERS ON A MATERIAL (G206), factory and lab alike: the
+// row's tile / normal / albedo / field, each times the section's dial, and
+// the scalars three reads off the material itself. `o` carries the dials
+// (tileK, nrmK, roughK, ccK, fieldK); absent is 1.
+function aeroFinishU(THREE, m, U, row, o) {
+  const K = k => (o[k] != null ? o[k] : 1);
+  if (!U.uTileM) U.uTileM = { value: new THREE.Vector2() };
+  U.uTileM.value.set(row.tile * K('tileK'), row.tile * K('tileK'));
+  if (!U.uDetail) U.uDetail = { value: new THREE.Vector2(0, 1) };
+  U.uDetail.value.x = row.nrm * K('nrmK');
+  if (!U.uAlb) U.uAlb = { value: 0 };
+  U.uAlb.value = row.alb;
+  if (!U.uField) U.uField = { value: new THREE.Vector4() };
+  U.uField.value.set((row.fld || 0) * K('fieldK'), row.fldL || 0.5,
+                     row.fldR || 0, 0);
+  if (m) {
+    m.roughness = Math.max(0, Math.min(1, row.rough * K('roughK')));
+    m.metalness = row.metal;
+    if (m.isMeshPhysicalMaterial) {
+      m.clearcoat = Math.max(0, Math.min(1, (row.cc || 0) * K('ccK')));
+      m.clearcoatRoughness = row.ccR != null ? row.ccR : 0.2;
+    }
+  }
+  return U;
+}
 
 // TWO WAYS IN, AND THEY ARE NOT INTERCHANGEABLE. `tint` is an sRGB hex — a
 // colour a human picked — and gets converted. `tintLin` is a hex ALREADY IN
@@ -2688,19 +3109,18 @@ function aeroMaterial(THREE, o) {
                'R' + (o.roughK != null ? o.roughK : 1),
                'N' + (o.nrmK != null ? o.nrmK : 1),
                'B' + (o.ribM != null ? o.ribM : ''),
-               'D' + (o.detRot ? 1 : 0)].join('|');
+               'D' + (o.detRot ? 1 : 0),
+               // G206: the sheen and the field dials, for the same reason
+               'C' + (o.ccK != null ? o.ccK : 1),
+               'F' + (o.fieldK != null ? o.fieldK : 1)].join('|');
   const hit = AERO_POOL.get(key);
   if (hit) return hit;
   const row = AERO_FINISH[o.finish] || AERO_FINISH.fabric;
   const op = o.opacity != null ? o.opacity : 1;
   const U = {
     tDetail:  { value: aeroDetailTex(THREE, o.finish) },
-    uTileM:   { value: (t => new THREE.Vector2(t, t))(
-                  row.tile * (o.tileK != null ? o.tileK : 1)) },
     uFieldM:  { value: o.fieldM != null ? o.fieldM : 1 },
-    uDetail:  { value: new THREE.Vector2(
-                  row.nrm * (o.nrmK != null ? o.nrmK : 1), 1) },
-    uAlb:     { value: row.alb },
+    // uTileM, uDetail, uAlb, uField: aeroFinishU below, shared with the lab
     // per material, because how fast a thing ages is a property of what it
     // is made of — the dial itself is aeroplane-wide and shared by reference
     uWearK:   { value: (o.wearK != null ? o.wearK
@@ -2715,82 +3135,33 @@ function aeroMaterial(THREE, o) {
   // the interior liners and frames, the trim and the glass are surfaces that
   // nothing is riveted through, and giving them frames would be exactly the
   // decorative placement this is built to avoid. `grm` names the
-  // construction; `struct` says this section is skin.
-  const GR = (o.struct && o.grm && AERO_GRAMMAR()[o.grm]) || null;
-  const f = GR && GR.fastener;
+  // construction; `struct` says this section is skin. Written by
+  // aeroGrammarU (G206) so the lab can write it again on a live material.
   Object.assign(U, {
-    tFast: { value: aeroFastTex(THREE, (o.grm || 'x') + (f ? f.kind : '-'),
-                                GR) },
-    uG0: { value: new THREE.Vector4(GR ? GR.framePitch : 0,
-                                    GR ? GR.stringerPitch : 0,
-                                    GR ? (GR.panelAlong || 0) : 0,
-                                    GR ? (GR.panelAround || 0) : 0) },
-    uG1: { value: new THREE.Vector4(GR ? GR.tape.w : 0, GR ? GR.tape.rise : 0,
-                                    GR ? GR.sag.frac : 0,
-                                    GR ? GR.sag.exp : 1) },
-    // uG2.w is the FASTENER's own gain, and it is small on purpose: a driven
-    // head is already a 1.4 mm dome on a 2.4 mm radius — a genuinely steep
-    // slope — so unlike the tape it does not need the display exaggeration,
-    // and at uGGain it read as a row of ball bearings.
-    uG2: { value: new THREE.Vector4(GR ? (GR.dish || 0) : 0,
-                                    f ? f.pitch : 0, f ? f.rowW : 0,
-                                    f ? 0.35 : 0) },
-    uG3: { value: new THREE.Vector4(GR && GR.seam ? GR.seam.width : 0,
-                                    GR && GR.seam ? GR.seam.step : 0,
-                                    GR ? (GR.partingAtWaist || 0) : 0,
-                                    GR && GR.rough ? GR.rough.seam : 0) },
     uBoxDet:   { value: o.boxDet ? 1 : 0 },
     uBoxPlane: { value: +o.boxPlane || 0 },
     uDetRot:   { value: o.detRot ? 1 : 0 },
-    uGOn: { value: GR ? 1 : 0 },
-    uGGain: { value: 4.0 },
-    // THE WING'S MEMBERS ARE ITS OWN. On the fuselage the real rings take a
-    // light extra line over the metric frames; on the wing they ARE the
-    // structure, so the metric pitches are switched off entirely and the ribs
-    // and spars carry it — see aeroStructure.
-    uG4: { value: new THREE.Vector4(
-      GR ? (o.wing ? 0.0011 : 0.0004) : 0,
-      o.wing ? 0.030 : 0.016,
-      o.wing ? 0.12 : 0,              // LE band, METRES aft of the edge
-      (GR && f) ? (o.wing ? 0.30 : 0.0) : 0) },
-    uG5: { value: new THREE.Vector4(0.15, 0.50, 0.86, +o.wing || 0) },
   });
-  if (o.wing && GR) {
-    // a wing has ribs and spars, not frames and stringers
-    U.uG0.value.x = 0; U.uG0.value.y = 0;
-    U.uG0.value.z = 0; U.uG0.value.w = 0;
-    // ---- AND A COARSE SURFACE CANNOT CARRY AN INDEX (G97) -----------------
-    // The index members (uG4.x) put a rib at every INTEGER STATION and a spar
-    // at every integer rail, reading `fract(vSurf.z)` and `fract(vSurf.w)`.
-    // That is exact on the WING, whose field is built from the real rib list
-    // and interpolates over many chordwise vertices. It is NOISE on the TAIL,
-    // whose mesh is far coarser.
-    //
-    // MEASURED on the fin: `lv` sweeps -0.81..2.05 across the chord while 91
-    // of its 224 triangles span more than half a rail — and one spans 2.08,
-    // a single triangle crossing two whole spars. `fract` of a value that
-    // coarse crosses an integer wherever the LINEAR INTERPOLATION happens to
-    // put it, so the lines wander with the triangulation and branch at its
-    // edges. That is the dendritic pattern reported on the fins and slabs,
-    // and no width tuning fixes it: the coordinate is not faithful there.
-    //
-    // A CALLER THAT KNOWS ITS OWN PITCH IN METRES SAYS SO. `ribM` puts the
-    // members back on the METRIC path (`aeroNear(m.x, pitch)`), which reads
-    // sL directly and is exact whatever the mesh does. The chordwise term
-    // stays OFF: what prints through a fabric tail is the RIB TAPES, and one
-    // spar does not telegraph as an evenly spaced pitch.
-    if (o.ribM > 0) {
-      U.uG0.value.x = o.ribM;
-      U.uG4.value.x = 0;
-    }
-  }
+  aeroGrammarU(THREE, U, o);
+  aeroFinishU(THREE, null, U, row, o);
   // ALPHA-TESTED CUT-OUTS ARE DELIBERATELY ABSENT. r128's getDepthMaterial
   // copies neither `map` nor `alphaTest` onto the depth variants, so an
   // alpha-tested cut-out casts a SOLID shadow anyway — and a registration
   // decal is paint on an opaque panel that must cut nothing. Keeping
   // alphaTest at 0 also keeps ALPHATEST out of the program cache key and
   // early-Z alive, which is worth having under logarithmicDepthBuffer.
-  const m = new THREE.MeshStandardMaterial({
+  // THE CLEAR LAYER (G206): a finish with a clearcoat builds Physical, one
+  // without stays Standard. Physical IS isMeshStandardMaterial in r128, so
+  // scene.environment, envMapIntensity and the depth path all hold; what it
+  // adds is the second lobe, and the PHYSICAL define that switches it on —
+  // r128's meshphysical_frag turns CLEARCOAT on under `#ifdef PHYSICAL`, and
+  // the constructor's own defines are replaced below, so it is put back by
+  // hand. One more program per SURF value (the material type is in three's
+  // program key), which is four, not thirty.
+  const ccK = o.ccK != null ? o.ccK : 1;
+  const Phys = (row.cc || 0) * ccK > 0;
+  const m = new (Phys ? THREE.MeshPhysicalMaterial
+                      : THREE.MeshStandardMaterial)({
     // the section's pick, or the finish's own colour. sRGB in, linear out
     // (see THE COLOUR TRAP) — and this is also what the join snapshots.
     color: o.tintLin != null ? new THREE.Color(o.tintLin)
@@ -2805,6 +3176,12 @@ function aeroMaterial(THREE, o) {
     depthWrite: op >= 1,
   });
   m.defines = { AEROSKIN_SURF: o.surf ? 1 : 0 };
+  if (Phys) {
+    m.defines.STANDARD = ''; m.defines.PHYSICAL = '';
+    m.clearcoat = Math.max(0, Math.min(1, row.cc * ccK));
+    m.clearcoatRoughness = row.ccR != null ? row.ccR : 0.2;
+    m.transmission = 0;
+  }
   m.extensions = { derivatives: true };
   m.userData.aeroU = U;
   m.userData.aeroD = aeroDecUniforms(THREE);
@@ -2831,6 +3208,10 @@ function aeroMaterial(THREE, o) {
   if (o.nrmK != null && o.nrmK !== 1) m.userData.aeroNrmK = o.nrmK;
   if (o.ribM > 0) m.userData.aeroRibM = o.ribM;
   if (o.detRot) m.userData.aeroDetRot = 1;
+  if (o.ccK != null && o.ccK !== 1) m.userData.aeroCcK = o.ccK;
+  if (o.fieldK != null && o.fieldK !== 1) m.userData.aeroFieldK = o.fieldK;
+  // what the lab needs to re-derive the grammar uniforms on this material
+  m.userData.aeroStruct = o.struct ? 1 : 0;
   if (o.wearK != null) m.userData.aeroWearK = o.wearK;
   if (o.wearM != null && o.wearM !== 1) m.userData.aeroWearM = o.wearM;
   m.userData.env0 = m.envMapIntensity;
@@ -2866,6 +3247,8 @@ function aeroGlass(THREE, o) {
               (o.tintLin != null ? o.tintLin : '') + '|' + G('opacity') +
               '|' + G('scratch') + ',' + G('wipe') + ',' + G('grime') +
               ',' + G('refl') + ',' + G('rainbow') +
+              '|' + G('rough') + ',' + G('ccR') + ',' + G('fresnel') +
+              ',' + G('diffuse') +
               '|' + wr.toFixed(3) +
               '|' + ext.map(v => (+v).toFixed(3)).join(',') +
               '|' + (o.fieldM != null ? o.fieldM : 1);
@@ -2880,11 +3263,14 @@ function aeroGlass(THREE, o) {
     uGlass:  { value: new THREE.Vector4(G('scratch'), G('wipe'),
                                         G('grime'), G('rainbow')) },
     uGlassE: { value: new THREE.Vector4(ext[0], ext[1], ext[2], ext[3]) },
+    uGlassB: { value: new THREE.Vector4(G('fresnel'), G('diffuse'), 0, 0) },
   };
   const m = new THREE.MeshPhysicalMaterial({
     color: o.tintLin != null ? new THREE.Color(o.tintLin)
          : aeroLinear(THREE, o.tint != null ? o.tint : 0xaec9d8),
-    roughness: 0.045,
+    // G206: the bulk is nearly a mirror and the clear layer carries the
+    // ripple — two lobes with two jobs, not two copies of one highlight
+    roughness: G('rough'),
     metalness: 0.0,
     // NO TRANSMISSION (2026-08-31, MEASURED — the family header's whole
     // "feed the specular" theory did not survive the game renderer). Pixel
@@ -2899,10 +3285,18 @@ function aeroGlass(THREE, o) {
     // 1:1 onto what you see. The glint stays clearcoat + envMapIntensity.
     transmission: 0,
     transparent: true,
-    opacity: o.opacity != null ? o.opacity : 0.5,
+    opacity: o.opacity != null ? o.opacity : GLASS_DEF.opacity,
     reflectivity: 0.5,
     clearcoat: 1.0,
-    clearcoatRoughness: 0.03,
+    clearcoatRoughness: G('ccR'),
+    // THE ADD PASS (G206): ONE, ONE. The output block writes
+    // diffuse * (1 - T) + specular and alpha 1; nothing here reads alpha.
+    // `opacity` still carries the slab — the shader reads it as diffuseColor.a
+    // — it just no longer scales the reflection.
+    blending: THREE.CustomBlending,
+    blendEquation: THREE.AddEquation,
+    blendSrc: THREE.OneFactor,
+    blendDst: THREE.OneFactor,
     // THE MOOD STILL SCALES IT. aeroSetEnv multiplies every material by the
     // room's own factor off `userData.env0`, so the builder's dial has to be
     // folded into the BASE rather than written on top of it, or the two fight
@@ -2930,6 +3324,256 @@ function aeroGlass(THREE, o) {
   AERO_BUILT.push(m);
   return m;
 }
+
+// ---------------------------------------------------------------------------
+// THE MATERIAL LAB (G206) — the tables, live
+// ---------------------------------------------------------------------------
+// The user: "it would be good to have an editor to these parameters (right
+// now I can't access this layer)". Until G206 the builder had four per-
+// section multipliers and six glazing dials; every number that decides what
+// alclad or doped fabric IS — the finish rows, the grammar rows, the display
+// gain, the glass base — was a constant in a table. This is the designer's
+// bench over those tables.
+//
+// THE POSTURE: the lab edits the LIVE tables in place (AERO_FINISH,
+// GEN_BUILD_GRAMMAR, GLASS_DEF, the gains) and remembers DEVIATIONS from the
+// tables as written, in the person's own localStorage — never in the spec.
+// A tuned set is EXPORTED as JSON and pasted back into the table, which is
+// how "make it the new 1" has always landed here. The builder's per-section
+// dials multiply whatever the lab says the finish is.
+//
+// LIVE means live: nearly every number is a uniform or a material scalar and
+// is rewritten on every built material of that finish or construction (the
+// pool keeps them; aeroFinishU / aeroGrammarU are the writers the factory
+// itself uses). Two things need more than a write: `hs` / `bs` REBAKE the
+// detail sheet, and a clear coat added to a row that had none changes the
+// material CLASS, so the affected pooled materials are dropped and the next
+// build makes Physical ones.
+const AERO_LAB_KEY = 'flydiy.aeroLab';
+const AERO_GAIN_DEF = { x: 4.0, y: 1.2, z: 3.0 };
+// field -> [min, max, step, label]
+const AERO_LAB_FIELDS = {
+  tile:  [0.03, 3.0, 0.01, 'tile (m)'],
+  rough: [0.02, 1.0, 0.01, 'roughness'],
+  metal: [0, 1, 0.01, 'metalness'],
+  nrm:   [0, 1.5, 0.01, 'sheet normal'],
+  alb:   [0, 1.5, 0.01, 'sheet albedo'],
+  hs:    [0, 1.5, 0.01, 'sheet height (rebakes)'],
+  bs:    [0, 2.0, 0.01, 'sheet roughness (rebakes)'],
+  cc:    [0, 1, 0.01, 'clear coat'],
+  ccR:   [0, 1, 0.01, 'clear coat roughness'],
+  fld:   [0, 0.004, 0.00005, 'field amplitude (m)'],
+  fldL:  [0.1, 2.0, 0.01, 'field wavelength (m)'],
+  fldR:  [0, 1, 0.01, 'field -> roughness'],
+};
+// dotted paths into a GEN_BUILD_GRAMMAR row
+const AERO_LAB_GRAM = {
+  framePitch:      [0, 1.0, 0.005, 'frame pitch (m)'],
+  stringerPitch:   [0, 0.5, 0.005, 'stringer pitch (m)'],
+  panelAlong:      [0, 3.0, 0.01, 'panel along (m)'],
+  panelAround:     [0, 2.0, 0.01, 'panel around (m)'],
+  'tape.w':        [0, 0.10, 0.001, 'tape width (m)'],
+  'tape.rise':     [0, 0.002, 0.00001, 'tape rise (m)'],
+  'sag.frac':      [0, 0.02, 0.0001, 'sag (frac of bay)'],
+  'sag.exp':       [1, 3, 0.01, 'sag exponent'],
+  dish:            [-0.003, 0.003, 0.00005, 'dish (m, - in)'],
+  'seam.width':    [0, 0.05, 0.0005, 'lap width (m)'],
+  'seam.step':     [0, 0.002, 0.00001, 'lap step (m)'],
+  'fastener.pitch': [0.01, 0.10, 0.001, 'fastener pitch (m)'],
+  'fastener.rowW': [0, 0.05, 0.0005, 'fastener row width (m)'],
+  'fastener.dia':  [0.0005, 0.010, 0.0001, 'fastener head (m)'],
+  'fastener.rise': [0, 0.003, 0.00005, 'fastener rise (m)'],
+  partingAtWaist:  [0, 0.02, 0.0005, 'parting line (m)'],
+  'rough.seam':    [0, 0.2, 0.005, 'seam roughness'],
+};
+const AERO_LAB_GAIN = { x: [0, 8, 0.1, 'members & tapes x'],
+                        y: [0, 4, 0.05, 'sag & dish x'],
+                        z: [0, 8, 0.1, 'field x'] };
+const AERO_LAB_GLASS = { rough:   [0.0, 0.5, 0.005, 'bulk roughness'],
+                         ccR:     [0.0, 0.5, 0.005, 'coat roughness'],
+                         fresnel: [0, 1.5, 0.01, 'limb closes (fresnel)'],
+                         diffuse: [0, 1.5, 0.01, 'opaque body colour'] };
+const GLASS_LAB_DEF = JSON.parse(JSON.stringify(GLASS_DEF));
+// DEVIATIONS ONLY — the state that is saved and exported
+const AERO_LAB = { gain: {}, finish: {}, grammar: {}, glass: {} };
+let AERO_GRAM_DEF = null;
+const pathGet = (o, p) => p.split('.').reduce((a, k) => (a == null ? a : a[k]), o);
+const pathSet = (o, p, v) => {
+  const ks = p.split('.');
+  let a = o;
+  for (let i = 0; i < ks.length - 1; i++) {
+    if (a[ks[i]] == null || typeof a[ks[i]] !== 'object') a[ks[i]] = {};
+    a = a[ks[i]];
+  }
+  a[ks[ks.length - 1]] = v;
+};
+// the grammar table as written — frozen the first time it is seen, which is
+// before any deviation is laid on it (aeroLabGramApply runs after this)
+function aeroGramDef() {
+  if (!AERO_GRAM_DEF) {
+    const G = AERO_GRAMMAR();
+    if (!Object.keys(G).length) return null;    // the core is not loaded yet
+    AERO_GRAM_DEF = JSON.parse(JSON.stringify(G));
+  }
+  return AERO_GRAM_DEF;
+}
+let AERO_GRAM_APPLIED = false;
+function aeroLabGramApply() {
+  if (AERO_GRAM_APPLIED) return;
+  const D = aeroGramDef();
+  if (!D) return;
+  const G = AERO_GRAMMAR();
+  for (const c in AERO_LAB.grammar)
+    if (G[c]) for (const p in AERO_LAB.grammar[c])
+      pathSet(G[c], p, AERO_LAB.grammar[c][p]);
+  AERO_GRAM_APPLIED = true;
+}
+function aeroLabGet(kind, key, field) {
+  if (kind === 'gain') return AERO_LAB.gain[key] != null ? AERO_LAB.gain[key]
+                                                        : AERO_GAIN_DEF[key];
+  if (kind === 'finish') return AERO_FINISH[key] ? AERO_FINISH[key][field] : undefined;
+  if (kind === 'grammar') { aeroLabGramApply();
+    const G = AERO_GRAMMAR(); return G[key] ? pathGet(G[key], field) : undefined; }
+  if (kind === 'glass') return GLASS_DEF[key];
+  return undefined;
+}
+function aeroLabSave() {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem(AERO_LAB_KEY, JSON.stringify(AERO_LAB));
+  } catch (e) {}
+}
+function aeroLabLoad() {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    const j = JSON.parse(localStorage.getItem(AERO_LAB_KEY) || '{}');
+    for (const k of ['gain', 'finish', 'grammar', 'glass'])
+      if (j[k] && typeof j[k] === 'object') AERO_LAB[k] = j[k];
+  } catch (e) {}
+  // lay the deviations on the tables this file owns; the grammar's wait
+  // for the core (aeroLabGramApply, called from aeroGrammarU)
+  for (const k in AERO_LAB.finish)
+    if (AERO_FINISH[k]) Object.assign(AERO_FINISH[k], AERO_LAB.finish[k]);
+  for (const k in AERO_LAB.glass)
+    if (k in GLASS_LAB_DEF) GLASS_DEF[k] = AERO_LAB.glass[k];
+}
+// write one number: the table, the deviation record, every live material
+function aeroLabSet(THREE, kind, key, field, value) {
+  value = +value;
+  if (kind === 'gain') {
+    if (Math.abs(value - AERO_GAIN_DEF[key]) < 1e-9) delete AERO_LAB.gain[key];
+    else AERO_LAB.gain[key] = value;
+    const U = aeroSharedU(THREE);
+    U.uGain.value[key] = value;
+  } else if (kind === 'finish') {
+    const row = AERO_FINISH[key], def = AERO_FINISH_DEF[key];
+    if (!row) return;
+    const d = AERO_LAB.finish[key] || (AERO_LAB.finish[key] = {});
+    const dv = def[field] != null ? def[field] : 0;
+    if (Math.abs(value - dv) < 1e-9) delete d[field]; else d[field] = value;
+    if (!Object.keys(d).length) delete AERO_LAB.finish[key];
+    row[field] = value;
+    aeroLabRefresh(THREE, 'finish', key, field);
+  } else if (kind === 'grammar') {
+    aeroLabGramApply();
+    const G = AERO_GRAMMAR(), D = aeroGramDef();
+    if (!G[key] || !D) return;
+    const d = AERO_LAB.grammar[key] || (AERO_LAB.grammar[key] = {});
+    const dv = pathGet(D[key], field);
+    if (dv != null && Math.abs(value - dv) < 1e-9) delete d[field];
+    else d[field] = value;
+    if (!Object.keys(d).length) delete AERO_LAB.grammar[key];
+    pathSet(G[key], field, value);
+    aeroLabRefresh(THREE, 'grammar', key, field);
+  } else if (kind === 'glass') {
+    if (!(key in GLASS_LAB_DEF)) return;
+    if (Math.abs(value - GLASS_LAB_DEF[key]) < 1e-9) delete AERO_LAB.glass[key];
+    else AERO_LAB.glass[key] = value;
+    GLASS_DEF[key] = value;
+    aeroLabRefresh(THREE, 'glass', key, key);
+  }
+  aeroLabSave();
+}
+// back to the table as written: one kind + key, or everything
+function aeroLabReset(THREE, kind, key) {
+  const all = !kind;
+  if (all || kind === 'gain') {
+    AERO_LAB.gain = {};
+    const U = aeroSharedU(THREE);
+    U.uGain.value.set(AERO_GAIN_DEF.x, AERO_GAIN_DEF.y, AERO_GAIN_DEF.z);
+  }
+  if (all || kind === 'finish')
+    for (const k of (all || !key) ? Object.keys(AERO_LAB.finish) : [key]) {
+      delete AERO_LAB.finish[k];
+      if (AERO_FINISH[k]) {
+        for (const f in AERO_FINISH[k])
+          if (!(f in AERO_FINISH_DEF[k])) delete AERO_FINISH[k][f];
+        Object.assign(AERO_FINISH[k], AERO_FINISH_DEF[k]);
+        aeroLabRefresh(THREE, 'finish', k, 'hs');
+      }
+    }
+  if (all || kind === 'grammar') {
+    aeroLabGramApply();
+    const G = AERO_GRAMMAR(), D = aeroGramDef();
+    for (const k of (all || !key) ? Object.keys(AERO_LAB.grammar) : [key]) {
+      delete AERO_LAB.grammar[k];
+      if (G[k] && D && D[k]) {
+        for (const f in G[k]) delete G[k][f];
+        Object.assign(G[k], JSON.parse(JSON.stringify(D[k])));
+        aeroLabRefresh(THREE, 'grammar', k, '');
+      }
+    }
+  }
+  if (all || kind === 'glass') {
+    AERO_LAB.glass = {};
+    Object.assign(GLASS_DEF, GLASS_LAB_DEF);
+    aeroLabRefresh(THREE, 'glass', '', '');
+  }
+  aeroLabSave();
+}
+function aeroLabExport() {
+  return JSON.stringify(AERO_LAB, null, 2);
+}
+// the live materials learn the new number
+function aeroLabRefresh(THREE, kind, key, field) {
+  if (kind === 'finish') {
+    const row = AERO_FINISH[key];
+    const rebake = field === 'hs' || field === 'bs';
+    if (rebake) delete AERO_TEX_CACHE[key];
+    for (const m of AERO_BUILT) {
+      const ud = m.userData || {};
+      if (ud.aeroFinish !== key || !ud.aeroU) continue;
+      aeroFinishU(THREE, m, ud.aeroU, row,
+        { tileK: ud.aeroTileK, nrmK: ud.aeroNrmK, roughK: ud.aeroRoughK,
+          ccK: ud.aeroCcK, fieldK: ud.aeroFieldK });
+      if (rebake) ud.aeroU.tDetail.value = aeroDetailTex(THREE, key);
+      // THE CLASS CHANGED: a clear coat on a row that had none (or gone from
+      // one that had) — the material cannot become Physical in place, so it
+      // leaves the pool and the next build makes the right one
+      const wantPhys = (row.cc || 0) * (ud.aeroCcK != null ? ud.aeroCcK : 1) > 0;
+      if (wantPhys !== !!m.isMeshPhysicalMaterial)
+        for (const [k, v] of AERO_POOL) if (v === m) AERO_POOL.delete(k);
+    }
+  } else if (kind === 'grammar') {
+    for (const m of AERO_BUILT) {
+      const ud = m.userData || {};
+      if (ud.aeroGrm !== key || !ud.aeroStruct || !ud.aeroU) continue;
+      aeroGrammarU(THREE, ud.aeroU, { grm: ud.aeroGrm, struct: 1,
+                                       wing: ud.aeroWing, ribM: ud.aeroRibM });
+    }
+  } else if (kind === 'glass') {
+    for (const m of AERO_BUILT) {
+      const ud = m.userData || {};
+      if (ud.aeroFinish === 'glass' && ud.aeroU) {
+        m.roughness = GLASS_DEF.rough;
+        m.clearcoatRoughness = GLASS_DEF.ccR;
+        ud.aeroU.uGlassB.value.set(GLASS_DEF.fresnel, GLASS_DEF.diffuse, 0, 0);
+      } else if (ud.aeroFinish === 'glassTint' && m.uniforms)
+        m.uniforms.uFres.value = GLASS_DEF.fresnel;
+    }
+  }
+}
+aeroLabLoad();
 
 // THE MOODS REACH THE AEROPLANE (a gap found while building this: app.js set
 // envMapIntensity once at :779 and nothing ever touched it, so under DUSK the
@@ -2959,6 +3603,7 @@ if (typeof window !== 'undefined')
   window.AEROSKIN = { AERO_FINISH, AERO_ROLE, AERO_BY_CONS, AERO_LINER,
                       AERO_GLASS, AERO_SKIN_ROLES, aeroFinishFor, aeroIsSkin,
                       aeroMaterial, aeroGlass,
+                      aeroGlassTint, aeroGlassCompanion, GLASS_DEF,
                       aeroSetEnv, aeroDispose, aeroLinear, AERO_TEX,
                       aeroSetDecals, aeroSetCraft,
                       aeroDecalsFor, aeroApplySpecDecals, AERO_DEC_DEF,
@@ -2971,7 +3616,12 @@ if (typeof window !== 'undefined')
                       aeroKitKnob, aeroKitLayers, aeroKitDraw,
                       AERO_HARD, AERO_PROP_FIN, AERO_WEAR_K,
                       AERO_SEC, aeroSecResolve,
-                      aeroHardFinish, aeroHardMat, aeroHardOn, aeroSetWear };
+                      aeroHardFinish, aeroHardMat, aeroHardOn, aeroSetWear,
+                      // THE LAB (G206)
+                      AERO_LAB, AERO_LAB_FIELDS, AERO_LAB_GRAM, AERO_LAB_GAIN,
+                      AERO_LAB_GLASS, AERO_FINISH_DEF, AERO_GAIN_DEF,
+                      aeroGramDef, aeroLabGet, aeroLabSet, aeroLabReset,
+                      aeroLabExport };
 if (typeof module !== 'undefined')
   module.exports = { AERO_FINISH, AERO_ROLE, AERO_BY_CONS, AERO_LINER,
                      AERO_GLASS, AERO_SKIN_ROLES, aeroFinishFor, aeroIsSkin,
@@ -2990,4 +3640,6 @@ if (typeof module !== 'undefined')
                      AERO_KIT, AERO_KIT_LAYERS, AERO_KIT_PAGE0,
                      AERO_KIT_LDEF, AERO_KIT_FIELDS,
                      aeroKitKnob, aeroKitLayers,
-                     AERO_SEC, aeroSecResolve };
+                     AERO_SEC, aeroSecResolve,
+                     AERO_FINISH_DEF, AERO_LAB_FIELDS, AERO_LAB_GRAM,
+                     AERO_GAIN_DEF, GLASS_DEF };
