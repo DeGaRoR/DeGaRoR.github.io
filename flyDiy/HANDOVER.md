@@ -34682,7 +34682,7 @@ groups — the one exception to "the flying aeroplane is a snapshot" — and the
 motion it would buy is small (Sitting Idle deviates at most 4.7 deg).
 
 
-## G216 - THE JOIN AUDIT: THE FLOWN AEROPLANE MEASURED ITS OWN SKIN IN THE
+## G220 - THE JOIN AUDIT: THE FLOWN AEROPLANE MEASURED ITS OWN SKIN IN THE
 ## WRONG UNIT, AND WAS PAINTED FROM THE ROOM'S ORIGIN (2026-09-08, the user:
 ## "the registration still fails through the join, and is placed and styled
 ## differently in flight. Same for the decal/livery ... do a large review of
@@ -34729,7 +34729,7 @@ they were found - each had a comment next to it asserting the opposite.
   `m.tileK` ended in a literal backspace), and every key read as present. A
   test that cannot fail is not a test; it is `indexOf` now.
 
-## G217 - THE USER'S OWN NUMBERS, THE PANE THAT WAS TOUCHED RATHER THAN
+## G221 - THE USER'S OWN NUMBERS, THE PANE THAT WAS TOUCHED RATHER THAN
 ## SCORED, AND WHAT THE LAB IS EDITING (2026-09-08)
 
 - **THE DEFAULTS ARE THE USER'S DIALS**, off the lab and the section rows:
@@ -34769,7 +34769,16 @@ nothing here, 0.024") with none of this session's work in the tree - proven
 by running it in a clean worktree at HEAD. It arrived with another session's
 tail/shader work.
 
-**ALSO OF RECORD:** the join half of G216 was written into the working tree
+**THE NUMBERS MOVED, AND THE CODE STILL SAYS THE OLD ONES.** These two
+landed as G216/G217 and are renumbered G220/G221 here: TAIL CHANTIER 2 took
+G214-G219 in the same hours and committed first, so three headings collided.
+The COMMENTS in the source (and the commit message e237506) still read G215,
+G216 and G217 for the metallic paint, the join audit and the material
+numbers — renaming them across a thousand lines would be a worse lie than
+one line saying so. Read a `G216` in aeroskin.js or _cage_join.js as this
+entry; read a `G215` on a metallic-paint comment as the same session's.
+
+**ALSO OF RECORD:** the join half of this work was written into the working tree
 and then swept into `9fe0bda` ("tail chantier, aircraft shader, mixamo
 integration") by a whole-tree commit from outside this session, along with
 every other session's work in flight at the time. Nothing was lost; the
