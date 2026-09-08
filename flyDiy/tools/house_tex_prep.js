@@ -114,8 +114,8 @@ const SETS = [
   ['stain', 'veneer', 'dark stained boards', 1.9, 512, 0.00, false, false, { tint: false }],
   ['bark', 'log', 'bark', 1.1, 512, 0.00, false, false],
   ['feverbark', 'log', 'fever tree bark', 1.1, 256, 0.00, false, false],
-  ['rough', 'plain', 'rough sawn timber', 1.0, 256, 0.00, false, false],
-  ['mossy', 'plain', 'mossy timber', 1.0, 256, 0.00, false, false],
+  ['rough', 'plain', 'rough sawn timber', 1.3, 512, 0.00, false, false],
+  ['mossy', 'plain', 'mossy timber', 1.3, 512, 0.00, false, false],
   ['concrete', 'stone', 'damaged concrete', 2.8, 1024, 0.00, false, false],
   ['concretec', 'stone', 'coarse dark concrete', 2.8, 1024, 0.00, false, false],
 ];

@@ -48,12 +48,23 @@ const lerp3 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t,
 // measures the very arrays the renderer would have been given.
 function Bag(name) {
   const pos = [], uv = [], idx = [], ao = [];
+  // SMOOTH SHADING, WHERE A SURFACE IS ACTUALLY CURVED (the user: "for the
+  // rounded pillars, you may want to use smooth shading"). Every face here
+  // gets its own vertices, so computeVertexNormals gives flat shading — right
+  // for a board, wrong for a pile, which is a nine-sided prism pretending to
+  // be a tree and reads as one. A caller that KNOWS the true normal (a
+  // cylinder does: it is the radial direction) hands it over per vertex and
+  // it overrides the computed one. Sparse on purpose: the override array is
+  // only touched by the few builders that have a curve.
+  const nOv = new Map();
   return {
     name: name || '',
-    v: (p, u) => { pos.push(p[0], p[1], p[2]);
-                   uv.push(u ? u[0] : 0, u ? u[1] : 0);
-                   ao.push(1);              // lit until the bake says otherwise
-                   return pos.length / 3 - 1; },
+    v: (p, u, n) => { pos.push(p[0], p[1], p[2]);
+                      uv.push(u ? u[0] : 0, u ? u[1] : 0);
+                      ao.push(1);           // lit until the bake says otherwise
+                      const i = pos.length / 3 - 1;
+                      if (n) nOv.set(i, n);
+                      return i; },
     quad: (a, b, c, d) => { idx.push(a, b, c, a, c, d); },
     tri: (a, b, c) => { idx.push(a, b, c); },
     get tris() { return idx.length / 3; },
@@ -71,6 +82,13 @@ function Bag(name) {
         new THREE.BufferAttribute(new Float32Array(ao), 1));
       g.setIndex(idx);
       g.computeVertexNormals();
+      if (nOv.size) {
+        const na = g.attributes.normal.array;
+        nOv.forEach((n, i) => {
+          na[i * 3] = n[0]; na[i * 3 + 1] = n[1]; na[i * 3 + 2] = n[2];
+        });
+        g.attributes.normal.needsUpdate = true;
+      }
       const m = new THREE.Mesh(g, mat);
       m.castShadow = true; m.receiveShadow = true;
       parent.add(m);
@@ -83,7 +101,7 @@ function Bag(name) {
 // pts: a planar convex ring. wantN: the direction it must face. uvf: point ->
 // [u,v] in metres; omitted means the caller has nothing meaningful to say and
 // the face gets (0,0) — never silently a wrong tiling.
-function face(bag, pts, wantN, uvf) {
+function face(bag, pts, wantN, uvf, nf) {
   // A quad whose two corners have collapsed onto one another is a TRIANGLE —
   // it happens at every hip apex and at every wedge under a sloping wall top,
   // and fanning it as written would emit a zero-area triangle each time. The
@@ -122,7 +140,7 @@ function face(bag, pts, wantN, uvf) {
     const U2 = nrm(ax), V2 = nrm(crs(n2, U2));
     uvfn = uvFrame(ring[0], U2, V2);
   }
-  const ids = ring.map(p => bag.v(p, uvfn(p)));
+  const ids = ring.map(p => bag.v(p, uvfn(p), nf ? nf(p) : null));
   for (let i = 1; i + 1 < ids.length; i++) bag.tri(ids[0], ids[i], ids[i + 1]);
 }
 
@@ -195,6 +213,33 @@ function beam(bag, a, b, hw, ht, up, ext, o) {
   const e = ext || 0;
   const A = off(a, X, -e), B = off(b, X, e);
   const c = (p, s, t) => add(add(p, mul(W, s * hw)), mul(U, t * ht));
+  // A VERY SMALL CHAMFER ON THE ARRISES (the user: "For the square pillars,
+  // you may want to do a very small bevel on the harsh corners. The finish
+  // could also use a small bevel to catch light better in the high poly
+  // version"). A sawn post has no mathematically sharp edge and neither does
+  // a milled casing; what the bevel buys is not the silhouette, it is the
+  // HIGHLIGHT — a 6 mm facet at 45 degrees catches the sky along the whole
+  // length of a member and draws its line, which is most of what makes timber
+  // read as timber under a raking sun. Eight faces instead of four, at lod 0
+  // only, and only where a caller asks.
+  const bv = Math.min((o && o.bevel) || 0, hw * 0.45, ht * 0.45);
+  if (bv > 0.0005) {
+    const sec = [[-(hw - bv), -ht], [hw - bv, -ht], [hw, -(ht - bv)],
+                 [hw, ht - bv], [hw - bv, ht], [-(hw - bv), ht],
+                 [-hw, ht - bv], [-hw, -(ht - bv)]];
+    const pA = sec.map(q => add(add(A, mul(W, q[0])), mul(U, q[1])));
+    const pB = sec.map(q => add(add(B, mul(W, q[0])), mul(U, q[1])));
+    for (let i = 0; i < sec.length; i++) {
+      const j = (i + 1) % sec.length;
+      const dv = nrm(sub(pA[j], pA[i]));
+      const nf2 = nrm(crs(dv, X));
+      face(bag, [pA[i], pB[i], pB[j], pA[j]],
+           dot(nf2, sub(pA[i], A)) > 0 ? nf2 : mul(nf2, -1), F(pA[i], X, dv));
+    }
+    face(bag, pB, X, uvFrame(pB[0], W, U, uvo));
+    face(bag, pA.slice().reverse(), mul(X, -1), uvFrame(pA[0], W, U, uvo));
+    return { X: X, U: U, W: W, A: A, B: B, L: L + 2 * e };
+  }
   const P = [c(A,-1,-1), c(A,1,-1), c(A,1,1), c(A,-1,1),
              c(B,-1,-1), c(B,1,-1), c(B,1,1), c(B,-1,1)];
   face(bag, [P[1],P[5],P[6],P[2]], W, F(P[1], X, U));          // +W
@@ -350,7 +395,14 @@ function troughSection(r, t, segs) {
 }
 
 // a cylinder — the stove pipe, and nothing else in this house
-function cyl(bag, base, dir, r, h, segs, cap) {
+// `o.uvSwap` puts u ALONG THE AXIS instead of round the circumference, which
+// is what makes a round pile agree with a square post (the user: "the rough
+// raw wood used for the pillars should be rotated 90degrees in all mappings").
+// beam() lays u along the stick; cyl() laid it round the stick; so one scan
+// could not be right on both, and the frame is drawn with both. A pipe still
+// wants the arc-length mapping — u follows the eye round it — so this is an
+// option and not a change.
+function cyl(bag, base, dir, r, h, segs, cap, o) {
   const X = nrm(dir);
   let U = Math.abs(X[1]) > 0.9 ? [1, 0, 0] : [0, 1, 0];
   U = nrm(sub(U, mul(X, dot(U, X))));
@@ -377,13 +429,24 @@ function cyl(bag, base, dir, r, h, segs, cap) {
     const eu = nrm(sub(r0[j], r0[i]));
     const u0 = uAcc;
     uAcc += len(sub(r0[j], r0[i]));
-    face(bag, [r0[i], r0[j], r1[j], r1[i]], n,
-         p => [u0 + dot(sub(p, r0[i]), eu), dot(sub(p, base), X)]);
+    const sw = !!(o && o.uvSwap);
+    const uo = (o && o.uv) || [0, 0];
+    // the TRUE normal of a cylinder is radial, and it is known exactly — no
+    // averaging, no smoothing groups, no welding: each vertex is handed the
+    // direction it actually faces
+    const rad = (o && o.smooth)
+      ? p => { const d2 = sub(p, base); return nrm(sub(d2, mul(X, dot(d2, X)))); }
+      : null;
+    face(bag, [r0[i], r0[j], r1[j], r1[i]], n, p => {
+      const a2 = u0 + dot(sub(p, r0[i]), eu), b2 = dot(sub(p, base), X);
+      return sw ? [b2 + uo[0], a2 + uo[1]] : [a2 + uo[0], b2 + uo[1]];
+    }, rad);
   }
   if (cap) {
     face(bag, r1, X, uvFrame(r1[0], U, W));
     face(bag, r0.slice().reverse(), mul(X, -1), uvFrame(r0[0], U, W));
   }
+  return { X: X, U: U, W: W };
 }
 
 // ---- THE N-GON: TOWERS, SPIRES AND ROUND POSTS ---------------------------

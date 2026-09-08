@@ -92,6 +92,29 @@ const BAGS = ['siding', 'trim', 'roof', 'rib', 'glass', 'deck', 'post',
 // is repeated here because the generator has to work with NO payload loaded
 // (headless, and the first frame of any page), and GATE HOUSE holds the two
 // against each other so they cannot drift.
+// EVERY ROUND PIECE OF TIMBER IS MAPPED LIKE A SQUARE ONE: u along its
+// length. Without this a pile and the post beside it wear the same scan turned
+// ninety degrees to each other, which is exactly the fault the frame scans
+// were turned to cure.
+const TIMBER = { uvSwap: true, smooth: true };
+
+// NO TWO POLES START AT THE SAME PLACE IN THE SCAN (the user: "ensure all the
+// poles have slightly shifted coordinates, so the repetition is less
+// obvious"). A row of nine piles under a house is nine copies of the same
+// metre of wood, in step, and the eye finds that instantly — it is the same
+// failure the world-space noise layer was added for, one scale down. The
+// offset is a hash of the member's OWN position, so it is deterministic (the
+// gate demands two identical builds), it costs nothing, and a pile that moves
+// when a slider moves gets a new one, which is right: it is a different pile.
+function jog(x, z, k) {
+  const h = Math.sin(x * 12.9898 + z * 78.233 + (k || 0) * 3.77) * 43758.5453;
+  const f = h - Math.floor(h);
+  const h2 = Math.sin(x * 39.3468 + z * 11.135 + (k || 0) * 1.21) * 24634.6345;
+  return [f * 4.3, (h2 - Math.floor(h2)) * 3.1];
+}
+const timberUV = (x, z, k) => ({ uvSwap: true, smooth: true,
+                                 uv: jog(x, z, k) });
+
 const SET_KIND = {
   boxprof: 'roof', corrworn: 'roof', corrrust: 'roof', shingle: 'roof',
   galv: 'roof', rust: 'roof',
@@ -754,6 +777,10 @@ const DEF = {
   cupCross: 0,
   // drainage
   gutter: 1, gutterR: 0.075, downpipe: 1, dpCorner: 1, dpR: 0.045, barrel: 1,
+  // HOW BIG THE CHAMFER ON AN ARRIS IS. Six millimetres: enough for a facet
+  // to catch the sky along a member and draw its line, small enough that the
+  // silhouette is unchanged (which is what lets the far mesh skip it).
+  bevel: 0.006,
   // finish: a set per part out of the scanned library, and a paint pot
   wallSet: 0, wallCol: 1, trimSet: SET_IDX('trim', 'veneer'), trimCol: 6,
   roofSet: 0, roofCol: 9,
@@ -951,6 +978,7 @@ const ROWS = [
      setNames('post')],
     ['postCol', 'post stain', 0, COLS.length - 1, 1, COL_NAMES],
     ['frameAge', 'frame weathering', 0, 1, 0.02],
+    ['bevel', 'chamfered arrises', 0, 0.02, 0.001],
     ['metalSet', 'gutters + pipe', 0, ROLE_SETS.metal.length - 1, 1,
      setNames('metal')],
     ['stoneSet', 'foundations', 0, ROLE_SETS.stone.length - 1, 1,
@@ -1465,12 +1493,16 @@ function dressOpening(bags, P, Q, W, h, y1) {
     const headOut = joint === 2 ? t * 1.15 : (joint === 0 ? t / 2 : 0);
     const jambTop = joint === 1 ? y1 + t : y1 + (joint === 0 ? -0.004 : 0.004);
     const headY = y1 + t / 2 - ov;
+    // the casing is milled stock and takes the same small chamfer the posts
+    // do — on a 100 mm board it is the arris that catches the light and tells
+    // you there is a board there at all
+    const bev = { bevel: P.bevel };
     beam(bags.trim, p(h.s0 - t / 2 + ov, h.y0 - t), p(h.s0 - t / 2 + ov, jambTop),
-         t / 2, th, N);
+         t / 2, th, N, 0, bev);
     beam(bags.trim, p(h.s1 + t / 2 - ov, h.y0 - t), p(h.s1 + t / 2 - ov, jambTop),
-         t / 2, th, N);
+         t / 2, th, N, 0, bev);
     beam(bags.trim, p(h.s0 - headOut, headY), p(h.s1 + headOut, headY),
-         th, t / 2, [0, 1, 0]);
+         th, t / 2, [0, 1, 0], 0, bev);
     if (h.kind === 'window') {
       // the sill: proud of the casing, and high enough to cap the reveal
       const sy = h.y0 + 0.030;
@@ -1575,7 +1607,8 @@ function buildVolume(bags, P, Q, V, R, plan, wallOpts) {
         const u = j / n;
         const x = A[0] + (B[0] - A[0]) * u, z = A[1] + (B[1] - A[1]) * u;
         beam(bags.post, [x, V.floorY - 0.10, z], [x, yH - 0.10, z],
-             t * 0.55, t * 0.55, [0, 0, 1], 0, { uv: [x, 0] });
+             t * 0.55, t * 0.55, [0, 0, 1], 0,
+             { uv: jog(x, z, 9), bevel: Q.lod === 0 ? P.bevel : 0 });
       }
       beam(bags.deck, [A[0], yH - 0.06, A[1]], [B[0], yH - 0.06, B[1]],
            t * 0.5, 0.11, [0, 1, 0]);
@@ -1647,7 +1680,8 @@ function buildVolume(bags, P, Q, V, R, plan, wallOpts) {
     if (P.trimW > 0.004 && Math.round(P.corner) === 0) {
       const cA = add(W.P(0.001, V.floorY - 0.10, 1), mul(W.N, 0.02));
       const top = R.underAt(A[0], A[1]);
-      beam(bags.trim, cA, [cA[0], top, cA[2]], P.trimW * 0.85, 0.030, W.N);
+      beam(bags.trim, cA, [cA[0], top, cA[2]], P.trimW * 0.85, 0.030, W.N, 0,
+           { bevel: Q.lod === 0 ? P.bevel : 0 });
     }
   }
   return { dropped: drop.reduce((a, b) => a + b, 0), openings: kept };
@@ -2593,7 +2627,8 @@ function buildStance(bags, P, Q, V, plan, g) {
       // a pile at eighty metres is a stick: four sides, and no caps on the
       // end that is buried and the end that is under the floor
       cyl(bags.post, [f[0], gy - 0.35, f[1]], [0, 1, 0], r,
-          (yBot + 0.02) - (gy - 0.35), Q.lod === 0 ? 9 : 4, Q.lod === 0);
+          (yBot + 0.02) - (gy - 0.35), Q.lod === 0 ? 9 : 4, Q.lod === 0,
+          timberUV(f[0], f[1], 1));
       if (P.pileBent) {
         // The battered outboard pile of the bent, and the cap it carries. The
         // RAKED LEG IS THE SILHOUETTE of a building standing in the water, so
@@ -2607,7 +2642,7 @@ function buildStance(bags, P, Q, V, plan, g) {
         cyl(bags.post, [bx, bgy - 0.35, bz],
             nrm([f[0] - bx, (yBot - 0.10) - (bgy - 0.35), f[1] - bz]), r * 0.85,
             len([f[0] - bx, (yBot - 0.10) - (bgy - 0.35), f[1] - bz]),
-            Q.lod === 0 ? 9 : 4, true);
+            Q.lod === 0 ? 9 : 4, true, timberUV(bx, bz, 2));
         if (Q.lod === 0)
           beam(bags.post, [bx, yBot - 0.06, bz],
                [f[0] - out[0] * 0.12, yBot - 0.06, f[1] - out[2] * 0.12],
@@ -2615,7 +2650,8 @@ function buildStance(bags, P, Q, V, plan, g) {
       }
     } else {
       beam(bags.post, [f[0], gy + padT, f[1]], [f[0], yBot + 0.02, f[1]],
-           sz, sz, [0, 0, 1], 0, { uv: [f[0] * 0.7 + f[1], 0] });
+           sz, sz, [0, 0, 1], 0,
+           { uv: jog(f[0], f[1], 7), bevel: Q.lod === 0 ? P.bevel : 0 });
     }
     marks.posts++;
     marks.freeMax = Math.max(marks.freeMax, yBot - gy);
@@ -2749,11 +2785,12 @@ function buildDeck(bags, P, Q, V, R, g) {
             [x + P.padSz / 2, gy + P.padSz * 0.25, zOut + P.padSz / 2]);
     if (Math.round(P.stance) === 3)
       cyl(bags.post, [x, gy - 0.35, zOut], [0, 1, 0], P.postSz * 0.62,
-          rimY - (gy - 0.35), Q.lod === 0 ? 9 : 5, true);
+          rimY - (gy - 0.35), Q.lod === 0 ? 9 : 5, true,
+          timberUV(x, zOut, 3));
     else
       beam(bags.post, [x, gy + (Q.lod === 0 ? P.padSz * 0.25 : 0), zOut],
            [x, rimY, zOut], P.postSz / 2, P.postSz / 2, [0, 0, 1], 0,
-           { uv: [x, 0] });
+           { uv: jog(x, zOut, 8), bevel: Q.lod === 0 ? P.bevel : 0 });
   }
 
   // ---- the stair: cut to the ground it lands on, not to a fixed run --------
@@ -2803,14 +2840,15 @@ function buildDeck(bags, P, Q, V, R, g) {
         for (const xx of [jx0 + 0.15, jx1 - 0.15]) {  // eslint-disable-line
           const sea = g(xx, zz);
           cyl(bags.post, [xx, sea - 0.4, zz], [0, 1, 0], P.postSz * 0.55,
-              rimJ - (sea - 0.4), Q.lod === 0 ? 8 : 4, Q.lod === 0);
+              rimJ - (sea - 0.4), Q.lod === 0 ? 8 : 4, Q.lod === 0,
+              timberUV(xx, zz, 4));
         }
       if (Q.lod === 0)                    // two bollards, leaning as they do
         for (const xx of [jx0 + 0.10, jx1 - 0.10]) {
           const sea = g(xx, jz1 - 0.10);
           cyl(bags.post, [xx, sea - 0.4, jz1 - 0.10],
               nrm([xx > sp.footX ? 0.06 : -0.06, 1, 0.04]), P.postSz * 0.5,
-              (landY + 0.62) - (sea - 0.4), 8, true);
+              (landY + 0.62) - (sea - 0.4), 8, true, timberUV(xx, jz1, 5));
         }
     }
     out.stair = { n: n, rise: sp.rise, run: run, w: P.stairW, x: sx,
@@ -2839,7 +2877,8 @@ function buildDeck(bags, P, Q, V, R, g) {
         const u = i / nP;
         const x = a[0] + (b[0] - a[0]) * u, z = a[1] + (b[1] - a[1]) * u;
         beam(bags.post, [x, yTop - 0.16, z], [x, yTop + P.railH, z],
-             0.045, 0.045, [0, 0, 1], 0, { uv: [x + z, 0] });
+             0.045, 0.045, [0, 0, 1], 0,
+             { uv: jog(x, z, 10), bevel: Q.lod === 0 ? P.bevel : 0 });
       }
       const rail = (y, hw, ht) => beam(bags.deck,
         [a[0], y, a[1]], [b[0], y, b[1]], hw, ht, [0, 1, 0]);
@@ -3199,7 +3238,8 @@ function buildStoop(bags, P, Q, V, g, side) {
     const gy = g(x, zOut);
     if (Math.round(P.stance) === 3)
       cyl(bags.post, [x, gy - 0.3, zOut], [0, 1, 0], P.postSz * 0.55,
-          rimY - (gy - 0.3), Q.lod === 0 ? 8 : 4, Q.lod === 0);
+          rimY - (gy - 0.3), Q.lod === 0 ? 8 : 4, Q.lod === 0,
+          timberUV(x, zOut, 6));
     else
       beam(bags.post, [x, gy, zOut], [x, rimY, zOut], P.postSz * 0.45,
            P.postSz * 0.45, [0, 0, 1]);

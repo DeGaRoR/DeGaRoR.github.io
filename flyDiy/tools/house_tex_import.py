@@ -115,8 +115,8 @@ SETS = [
     # point - a post is one stick, and a plank scan draws three joints across
     # it. They are also DARK and WEATHERED, which is what the frame under a
     # house actually is.
-    ('rough',     'rough_wood_1k.gltf.zip',               'ph',    'Poly Haven', 'CC0', 'rough_wood',               1.0, False),
-    ('mossy',     'moss_wood_1k.gltf.zip',                'ph',    'Poly Haven', 'CC0', 'moss_wood',                1.0, False),
+    ('rough',     'rough_wood_1k.gltf.zip',               'ph',    'Poly Haven', 'CC0', 'rough_wood',               1.3, False),
+    ('mossy',     'moss_wood_1k.gltf.zip',                'ph',    'Poly Haven', 'CC0', 'moss_wood',                1.3, False),
     ('feverbark', 'fever_tree_bark_1k.gltf.zip',          'ph',    'Poly Haven', 'CC0', 'fever_tree_bark',          1.1, False),
 ]
 
@@ -155,6 +155,40 @@ def rough_of(zf, shape):
         arm = Image.open(io.BytesIO(member(zf, '_arm_1k.jpg'))).convert('RGB')
         return arm.split()[1]
     return Image.open(io.BytesIO(member(zf, '_rough_1k.jpg'))).convert('L')
+
+
+# THE GRAIN HAS TO RUN UP THE POST (the user: "the rough raw wood used for
+# the pillars should be rotated 90degrees in all mappings").
+#
+# It is a mapping fact, not a taste. `beam()` lays u ALONG the stick and v
+# across it, so on a vertical post u is vertical; and these three scans were
+# photographed standing, with their grain down the image's v. Grain across a
+# post is the one thing that says "texture" instead of "timber", and it cannot
+# be fixed at the drawing end because the same set also dresses horizontal
+# bearers, braces and piles - which is exactly what "in all mappings" means.
+# So the SCAN is turned, once, here.
+#
+# TURNING A NORMAL MAP IS NOT TURNING AN IMAGE. Its pixels carry a VECTOR in
+# the surface's own uv frame, so the frame has to turn with them or every bump
+# is lit from the wrong side: rotating the uv plane by +90 sends (x, y) to
+# (-y, x), which in the encoding is newR = 255 - G, newG = R. Miss that and the
+# diffuse looks right while the relief is wrong, which is the worst kind of
+# wrong because nobody sees it until the light rakes.
+#
+# The roll a rotation leaves behind does not matter: these tile.
+# Every set the FRAME wears, which is every plain and every bark: measured on
+# the scans, all four run their grain down the image's v, and all four are worn
+# by things whose length runs along u.
+ROT90 = {'rough', 'mossy', 'bark', 'feverbark'}
+
+
+def turn(img, is_normal):
+    import numpy as np
+    a = np.asarray(img.convert('RGB'))
+    b = np.rot90(a, 1, axes=(0, 1)).copy()
+    if is_normal:
+        b = np.stack([255 - b[:, :, 1], b[:, :, 0], b[:, :, 2]], -1)
+    return Image.fromarray(b.astype('uint8'), 'RGB')
 
 
 def check_maps(key, nor, rough):
@@ -278,10 +312,16 @@ def main():
             diff = Image.open(io.BytesIO(member(zf, pick['diff']))).convert('RGB')
             nor = Image.open(io.BytesIO(member(zf, pick['nor']))).convert('RGB')
             rough = rough_of(zf, shape)
+        if key in ROT90:
+            diff = turn(diff, False)
+            nor = turn(nor, True)
+            rough = turn(rough.convert('RGB'), False).convert('L')
         n = save(diff, d, 'diff', px, 88)
         n += save(nor, d, 'nor_gl', px, 92)
         n += save(rough, d, 'rough', px, 88)
         conv, bad = check_maps(key, nor, rough)
+        if key in ROT90:
+            conv = 'turned 90 ' + conv
         if bad:
             problems.append('%s: %s' % (key, '; '.join(bad)))
         note = conv + ' '

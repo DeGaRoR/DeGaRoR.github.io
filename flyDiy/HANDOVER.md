@@ -35665,3 +35665,52 @@ something was being decided by a slider when the DATA already knew the answer.
   and MEDIA green; `--selftest` still says every rule is proven able to go red,
   and the four new ones were each driven red by hand (seams on shakes, a sheet
   with no seams, the front stoop removed, the bay's glass switched off).
+
+## G236.1 — THE FRAME'S SCANS ARE TURNED A QUARTER, AND A ROUND PILE IS
+## MAPPED LIKE A SQUARE POST (2026-09-08, the user: "the rough raw wood used
+## for the pillars should be rotated 90degrees in all mappings ... same for
+## mossy timber and bark")
+
+- Measured on the scans and it is the same on all four: `rough`, `mossy`,
+  `bark` and `feverbark` run their grain down the image's **v**, and every
+  member they dress runs its length along **u** — so the grain crossed the
+  post, which is the one thing that says "texture" rather than "timber".
+  Turned once, in the import, where the pixels are: `ROT90`.
+- **TURNING A NORMAL MAP IS NOT TURNING AN IMAGE.** Its pixels carry a vector
+  in the surface's own uv frame, so the frame turns with them: rotating uv by
+  +90 sends (x, y) to (-y, x), which in the encoding is newR = 255 - G,
+  newG = R. Miss it and the diffuse looks right while the relief is lit from
+  the wrong side — the worst kind of wrong, because nobody sees it until the
+  light rakes. The import's convention check still passes on all 27 sets after
+  the turn, which is what says the remap kept them tangent-space and centred.
+- **AND THE OTHER HALF OF "ALL MAPPINGS":** `beam()` lays u along the stick and
+  `cyl()` laid it ROUND the stick, so one scan could not be right on both — and
+  the frame is drawn with both (a square post beside a round pile, on the same
+  house, wearing the same set). `cyl` takes `uvSwap` now and every timber
+  cylinder passes it: piles, battered legs, jetty piles, bollards, the stoop's
+  round leg. A PIPE still wants the arc-length mapping, because the eye follows
+  a downpipe round it, so it is an option and not a change.
+- **AND THEN THE SHADING** (the user, same breath: "for the rounded pillars,
+  you may want to use smooth shading. For the square pillars, you may want to
+  do a very small bevel on the harsh corners. The finish could also use a small
+  bevel to catch light better in the high poly version ... ensure all the poles
+  have slightly shifted coordinates, so the repetition is less obvious"):
+  - SMOOTH ROUND TIMBER. Every face in this kit owns its vertices, so
+    `computeVertexNormals` gives flat shading — right for a board, wrong for a
+    pile, which is a nine-sided prism pretending to be a tree and read as one.
+    `Bag` takes a sparse per-vertex NORMAL OVERRIDE and `cyl` hands over the
+    exact radial direction; no welding, no smoothing groups, no averaging.
+  - A 6 mm CHAMFER on square posts, rail posts and window casings, at lod 0
+    only. What it buys is not the silhouette, it is the HIGHLIGHT: a facet at
+    45 degrees catches the sky down the whole length of a member and draws its
+    line, which is most of what makes timber read as timber under a raking sun.
+    Eight side faces instead of four, and only where a caller asks — the far
+    mesh asks for none and its silhouette is unchanged, which is what lets the
+    LOD rule stay where it is (13% at the shore cabin).
+  - A JOG PER POLE. A row of nine piles was nine copies of the same metre of
+    wood in step, and the eye finds that instantly. Each member now starts at
+    its own place in the scan, hashed from its OWN position — deterministic
+    (the gate demands two identical builds), free, and a pile that moves gets a
+    new one, which is right: it is a different pile. The plain timbers also go
+    from a 1.0 m repeat to 1.3 m.
+- Gates: HOUSE (with --selftest) and MEDIA green.
