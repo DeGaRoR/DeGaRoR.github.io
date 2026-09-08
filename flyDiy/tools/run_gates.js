@@ -142,6 +142,18 @@ const GATES = [
   // the tyre reading as a circle, and the leg mirroring vertex for vertex.
   // Runs headless on a THREE stub, which is the only reason it never existed.
   { id: 'GEAR', file: '_gear_check.js', tier: 'core' },
+  // THE WOODEN HOUSE (G229), the settlement's own generator: clean geometry
+  // (no NaN, no zero-area triangle, every vertex with a UV in metres), no
+  // wall standing through its own roof over four roof families x three
+  // pitches x hip x a steep site, nothing buried in the hillside, every kept
+  // opening clear of the roof line, and lod 1 a CONSTRUCTION rather than a
+  // decimation (far cheaper AND the same silhouette). Under a second, and
+  // negative-verified with --selftest. Since G232 it also holds the SECOND
+  // generator (_shed_gen.js, plank by plank), the mechanical no-stretched-UV
+  // rule (uv area over world area per triangle), the closed wall shell, and
+  // sixty FUZZED builds — forty random houses and twenty random sheds, which
+  // is where the buried-in-the-hillside sampler bugs came from.
+  { id: 'HOUSE', file: '_house_check.js', tier: 'core' },
   { id: 'BAY', file: '_bay_check.js', tier: 'core' },
   { id: 'BEACON', file: '_beacon_check.js', tier: 'core' },
   // THE PART TABLE (G76): the declared assembly against the editor's own row

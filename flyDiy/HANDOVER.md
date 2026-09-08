@@ -34784,7 +34784,41 @@ integration") by a whole-tree commit from outside this session, along with
 every other session's work in flight at the time. Nothing was lost; the
 history simply does not name it.
 
-## G222 — THE WOODEN HOUSE: A GENERATOR, TWO MESHES, AND A BENCH TO JUDGE IT
+## G222 - THE TAPE LINES AND THE FASTENER LINES ARE THE SAME LINES
+## (2026-09-08, the user: "I think I'd want the tape lines and the rivet
+## lines to coincide. Is that possible?")
+
+Yes, and the reason they did not is that an airframe here has TWO families of
+member and each drew its own line and carried its own fastener row:
+
+  the REAL rings and rails  integer stations and levels - the bulkheads, the
+                            pillars, the longerons the generator knows about
+                            (uG4, distances dSt / dLv)
+  the METRIC pitch          the frames and stringers a CONSTRUCTION has
+                            between them (uG0, distances df / ds)
+
+The grammar's own rivet rows rode the metric pitch only; G214's member screws
+rode the real members only. On the user's build that is exactly the picture
+they described: `tape.rise` is 0, so every line you can SEE is a real ring,
+and the rivet rows were sitting on the invisible metric frames.
+
+A skin is screwed to WHATEVER member is under it, so every fastener row now
+takes `aeroNearer(dSt, df)` and `aeroNearer(dLv, ds)` - the nearer member of
+either family, signed so the stamp still knows which side of the row it is
+on. A head lands on every line the grammar draws and nowhere else. 1e3 is
+"this family has none", so a construction with no metric pitch (or a mesh
+with no real rings) falls to the other by construction; a row is silenced
+only when NEITHER family has a member that way.
+
+MEASURED IN THE PAGE, not reasoned: with the wood row's metric frame pitch
+pushed to 1.6 m - so metric frames are rare - the flank still carries head
+rows at every real ring. Before this it would have carried none there.
+
+BOTH DISTANCE PAIRS NOW LIVE IN ONE SCOPE. They were computed in two (the
+real members inside the `uG4.x > 0` branch, the metric ones after it), which
+is the whole reason nothing could put a fastener on both.
+
+## G229 — THE WOODEN HOUSE: A GENERATOR, TWO MESHES, AND A BENCH TO JUDGE IT
 ## BY (2026-09-08, the user: "I'll need a good wooden house generator. One that
 ## can output high and low poly meshes, with an editor with sliders and all ...
 ## The theme is wooden houses of Alaska, bright painted colors, metal roof
@@ -34868,36 +34902,557 @@ model does not have and which is a chantier of its own — the lean-to exists
 because it tucks under the main eave and needs no valley); and the join into
 `render_world.js`, which is where the box-and-prism villages get replaced.
 
-## G222 - THE TAPE LINES AND THE FASTENER LINES ARE THE SAME LINES
-## (2026-09-08, the user: "I think I'd want the tape lines and the rivet
-## lines to coincide. Is that possible?")
+## G230 — THE HOUSE IS DRESSED: FIFTEEN SCANNED SETS, PAINT THAT IS A TINT ON A
+## NEUTRAL MAP, ONE TEXEL DENSITY, AND THE EAVE PUT RIGHT (2026-09-08, the user
+## delivered nineteen CC0 sets: "here's a material library ... There are a few
+## painted woods, and there might be a way to get some coloring by simply
+## tweaking the colors in there ... Be careful for a proper UV mapping, and all
+## the textures to have similar texel density in the end ... the junction
+## between the roof and the trim arouns the roof, and we may want to add a
+## little water drainage from the roof, with a pipe going down")
 
-Yes, and the reason they did not is that an airframe here has TWO families of
-member and each drew its own line and carried its own fastener row:
+G229 deferred materials on the user's own ruling (geometry first) and declared
+the seam it would cut on: one bag per material, UVs in metres. This is that cut,
+and the seam held — no builder changed to wear a texture.
 
-  the REAL rings and rails  integer stations and levels - the bulkheads, the
-                            pillars, the longerons the generator knows about
-                            (uG4, distances dSt / dLv)
-  the METRIC pitch          the frames and stringers a CONSTRUCTION has
-                            between them (uG0, distances df / ds)
+**THE LIBRARY.** `tools/house_tex_import.py` (nineteen zips in, fifteen sets
+out) + `tools/house_tex_prep.js` -> `src/viewer/house_tex.js` + 49 files,
+3.05 MB, under `media/tex/house/`. Same contract as the airfield and wood
+imports before it; two things are new:
 
-The grammar's own rivet rows rode the metric pitch only; G214's member screws
-rode the real members only. On the user's build that is exactly the picture
-they described: `tape.rise` is 0, so every line you can SEE is a real ring,
-and the rivet rows were sitting on the invisible metric frames.
+- **THE POLY HAVEN PACKING IS RESOLVED PER ZIP.** This delivery mixes plain
+  `_rough_1k` with roughness-in-arm's-green, and a declared shape column got it
+  wrong on grey_roof_01 the first time it ran. `ph` now means "either packing".
+- **PAINT IS A TINT ON A NEUTRAL MAP.** Multiplying a BLUE painted-plank scan
+  by a red `material.color` gives mud — the two hues fight and every tint comes
+  out dark and desaturated. A paintable set (`boxprof`, `paintwood`,
+  `greenwood`, `board`) leaves the import TWICE: as delivered, and with the hue
+  removed and the luminance re-based on 0.78 of white through a SOFT KNEE (a
+  pure gain blew 14% of blue_painted_planks past white, and a clipped highlight
+  tints to a white blob instead of to pale paint). `map * color` is then the
+  paint colour at any hue, and the palette in `_house_gen.js` names the colour
+  you GET — the 0.78 base is divided back out at the material.
 
-A skin is screwed to WHATEVER member is under it, so every fastener row now
-takes `aeroNearer(dSt, df)` and `aeroNearer(dLv, ds)` - the nearer member of
-either family, signed so the stamp still knows which side of the row it is
-on. A head lands on every line the grammar draws and nowhere else. 1e3 is
-"this family has none", so a construction with no metric pitch (or a mesh
-with no real rings) falls to the other by construction; a row is silenced
-only when NEITHER family has a member that way.
+**SIMILAR TEXEL DENSITY IS A DERIVED SIZE, NOT A CHOSEN ONE.** Every set
+declares `tile`, the metres of building one repeat covers (counted off the
+scan: the planks, the corrugations), and the payload size is the power of two
+nearest 320 px/m. A 1.2 m plank sheet and a 2 m shingle sheet therefore do NOT
+both land at 512. Achieved 256-427 px/m, spread 1.67:1, and GATE HOUSE holds it
+at 2:1. The generator's UVs were already in metres, so every consumer sets
+`repeat = 1/tile` and NOTHING is hand-scaled — that is the whole payoff of the
+kit's UV rule, and it arrived on the first run.
 
-MEASURED IN THE PAGE, not reasoned: with the wood row's metric frame pitch
-pushed to 1.6 m - so metric frames are rare - the flank still carries head
-rows at every real ring. Before this it would have carried none there.
+**THE MATERIAL KNOWS WHAT IT CONTAINS.** A corrugated or box-profile set
+declares `ribbed`, and the roof's drawn standing seams stand down when one is
+worn: seams in the geometry under corrugations in the map is two sets of ribs
+at two pitches, which reads as the mistake it is.
 
-BOTH DISTANCE PAIRS NOW LIVE IN ONE SCOPE. They were computed in two (the
-real members inside the `uG4.x > 0` branch, the metric ones after it), which
-is the whole reason nothing could put a fastener on both.
+**THE EAVE, WHICH IS WHAT THE USER WAS LOOKING AT.** The first cut centred the
+fascia and barge boards ON the edge line, so half of every board was buried in
+the roof slab and half hung off nothing, and the overhang had no soffit at all
+— you could see straight up between the rafters and the wall. Now: `faceBoard`
+puts a board in the vertical plane through an edge with its OUTER face proud of
+that edge, covering the slab's cut edge; and a SOFFIT closes the overhang back
+to the wall. Both only on a TRUE eave — `eaveTrue` on the facet — because a
+gambrel's break line is the bottom of the upper facet and no water leaves the
+roof there.
+
+**THE DRAINAGE.** A gutter on every true eave (half-round or box, swept from a
+2D profile by the kit's new `sweepProfile`, with stop ends and hanger straps),
+and one downpipe off a chosen corner: outlet, swan neck back to the wall face,
+the stack on straps, a shoe throwing the water clear. Two things it had to
+learn: the gutter runs to the end of the RAKE, half a metre past the building,
+so the stack is slid back along the run until it stands against the gable face
+(it hung in the air with its straps reaching for a wall that was not there);
+and the stack is cut to THE GROUND UNDER ITS OWN FOOT, like every post in the
+stance layer.
+
+**TWO KIT LESSONS, both of them things that go wrong silently:**
+- **Capping a shell is not a fan.** A gutter's section is a C; fanning it from
+  one corner lays triangles across the open trough and leaves two collinear
+  degenerates at the lips. `cap: 'shell'` pairs point i with point len-1-i —
+  the matching point on the other face of any two-sided section — and caps it
+  as a strip.
+- **`sweepProfile` winds the profile itself.** A half-round trough is naturally
+  written as an arc from lip to lip, which comes out clockwise and turns the
+  gutter inside out. The signed area says so; `face` cannot save it, because
+  the normal it is handed is derived from the ring's own direction.
+
+**GATE HOUSE grew three rules** (and its selftest with them): texel density in
+band and the spread under 2:1; the generator's role table and the baked
+manifest agree (every set a part is offered exists AND claims that part in its
+own `use` list — two files, one truth); and no UV runs off the building, since
+UVs are metres and a runaway projector shows as an untraceable smear. Plus the
+drainage: the gutter runs the true eaves to within 5 cm, and the downpipe
+reaches the ground it stands on. `applyFinish` is also proven to survive with
+NO payload — headless is exactly that case, and so is a page whose media has
+not landed.
+
+The bench got an **environment map** (64x32 of sky/horizon/ground through
+PMREM) for one reason: the galvanised set is metalness 0.85, and a metal with
+nothing to reflect renders BLACK — the roof, the gutter and the stove pipe
+would have looked like holes in the world and sent anyone judging them to the
+wrong conclusion.
+
+CREDITS.md carries all fifteen sets, and the four that were left out with the
+reason (figured walnut, two Mediterranean tile roofs, and the clean corrugated
+sheet that `boxprof` already covers).
+
+## G231 — THE HOUSE GROWS A DOOR, A BELFRY, DORMERS, PILINGS AND A WOODSHED
+## (2026-09-08, the user: "we also need an actual entrance door, right now it's
+## a void, and we need some more special detail. Maybe some octagonal pieces,
+## windows sticking out of the roof, and more complex pillar structure for
+## ability to build partly in the water. And also ability to generate small
+## sheds, not even habitation, more like storage and wood reserve")
+
+Five asks, and each one fell out of a layer that already existed — which is the
+report on G229's model rather than a compliment to it.
+
+**THE DOOR WAS A HOLE WITH A CASING ROUND IT.** Now a LEAF hangs in it: stiles
+and rails standing proud of the panels (a panelled door reads by its shadows),
+an optional light, three butt hinges, a knob, a threshold — and the whole leaf
+swings about its own hinge line, because `doorAjar` costs one rotated basis and
+a door standing open is worth its forty triangles on a house you walk up to.
+Nothing in it is placed by hand: the leaf is built in a frame rotated about the
+hinge and `beam` does the rest. GATE HOUSE has a rule that goes red if the door
+ever becomes a void again — it counts trim geometry inside the opening.
+
+**THE BELFRY, AND THE FIRST N-GON IN THE KIT.** `ringN` / `prismRings` /
+`apexTo`: an octagonal drum (4-12 sides), corner posts, louvres, a cornice, a
+spire and a finial — with a cross for the church in the photograph. THE BASE
+RING READS THE ROOF: each of its vertices takes its own y off the roof surface
+under it, so the curb sits DOWN on the slope instead of hovering with daylight
+under two of its eight sides. That is the same trick the walls use, and it is
+why an octagon on a ridge needed no new idea.
+
+**DORMERS, WHICH G229 DEFERRED FOR WANT OF A VALLEY.** On a side facet the main
+roof is LINEAR IN z, so every line a dormer needs is solvable rather than
+searched for: a shed dormer's own shallower plane meets the main roof at
+d = dormH/(k - kd) — the depth is not a parameter, it is where the two planes
+actually cross — and a gable dormer's valley is dist(x) = (yRidge - tan*|x-cx|
+- yf)/k, linear in x. THE HOLE IS CUT: `roofFacetHoles` emits the facet as
+columns with a per-column z band removed, top and underside, with a reveal
+round the opening; a dormer sitting on an unbroken roof is the giveaway of a
+kit. Two things it had to learn, both caught by looking rather than by
+reasoning:
+- **It has to FIT.** At a shallow pitch the crossing is past the ridge, and the
+  first cut drew a fold of roof laid back over itself and a hole into the far
+  side of the house. The wall height is clamped (`dormClamped`), and where even
+  a 28 cm dormer will not fit it is refused (`dormSkipped`) — the same rule as
+  an opening that will not fit its wall, said out loud rather than fudged.
+- **The opening needs a FLOOR.** Cut properly, you look through it into an empty
+  house and out at the inside of the far wall. The dormer stands on the attic
+  floor, so that is what closes it: the same polygon as the opening, one storey
+  plate down.
+
+**PILES ARE NOT POSTS** (the user: "more complex pillar structure for ability to
+build partly in the water"). Stance 3 stopped being a synonym for stance 2. A
+post stands on a pad on dry ground; a pile is DRIVEN — round, starting below the
+mud line, no footing — and it never stands alone: the outboard ones are
+BATTERED and tied back with a cap, and every bay is cross-braced once the legs
+are long. There is a water level now, the bench draws the tide, and the piles
+are cut to the seabed under each foot exactly like the posts were cut to the
+beach. THE RAKED LEG SURVIVES INTO lod 1 (four sides, no cap): it is the
+silhouette of a building standing in the water, and the LOD parity rule caught
+its absence before any eye did — 0.61 m of outline missing on the cannery.
+
+**BUILDINGS THAT ARE NOT HOUSES.** Three parameters, no new kind of building:
+`openFront` replaces one wall with a post line and a header (a woodshed is a
+roof, three walls and a post, because the whole point is throwing a load of
+rounds in from the truck); stance 4 is SKIDS — two sill beams blocked up off the
+wet, which is what a shed sits on and a house does not; and `firewood` stacks
+the cordwood that is the building's reason, four rows of rounds with the top
+course short because somebody has been burning it.
+
+**FOUR NEW PRESETS**, all of them the same generator: `village church` (white
+clapboard, rusted metal roof, octagonal belfry with a cross), `storage shed`
+(no windows, no deck, no gutter, on skids), `woodshed` (open front, cordwood,
+tin roof), `over the water` (Creek Street: two storeys on driven piles with
+battered bents, the tide at -0.70).
+
+GATE HOUSE grew the door rule, a dormer sweep over four families x three
+pitches x both kinds, a belfry-above-the-ridge check, and the two new stances
+over water and on skids; its selftest grew three negatives (an impossible
+dormer must be clamped OR refused, a too-tall one must be shortened, and no
+door may appear with the door switched off). All nine presets and the whole
+sweep are green, and the LOD ledger holds: 616 tris for the shed, 12 088 for
+the cannery, 5-21% of that in the far mesh.
+
+**ONE THING TO KNOW ABOUT THE CHECKER.** The rule "no wall stands through its
+roof" now reads `stats.wallVerts` — the mark the generator drops in the siding
+bag when the volume's walls are done. Everything after it (a dormer's cheeks, a
+belfry's drum) is siding that stands above the roof ON PURPOSE, and without the
+mark the rule fires on the church.
+
+**THE G-NUMBER RACE, AGAIN.** TAIL CHANTIER 2 renumbered itself into G223-G228
+and another session took G222 while this ran; the house entries moved to G229 /
+G230 / G231 and the code moved with them (these files are new, so unlike G221
+nothing is left pointing at the old numbers).
+
+**THE NUMBERS, SETTLED.** This chantier's phases are **G214-G219** and this
+entry is G233. They moved once and moved back: seeing G214/G216/G217 in other
+sessions' source comments they were renumbered into G223-G228 for an hour,
+which is what the house's note above records — then commit 5ec9b6f turned up,
+in which the join-audit session had already renumbered ITS entries to
+G220-G221 *for this arc* and said so, so the committed numbering was the
+agreed one and it went back. The stale source comments that started it are
+that session's own, named in its commit message. The house's G229-G231 and
+G222 are unaffected either way.
+
+## G232 — THE REVIEW ANSWERED: RIGOROUS UVs, CLOSED SHELLS, A VENEER FINISH, A
+## LIGHT RIG THAT CAN JUDGE PBR, AND A SECOND GENERATOR THAT BUILDS PLANK BY
+## PLANK (2026-09-08, the user's fourteen-point review of the G229-G231 house
+## plus three more CC0 sets)
+
+Every item, in the order it was raised. The two that were WRONG rather than
+merely unfinished are marked.
+
+**THE FINISH IS MILLED STOCK, NOT CLADDING.** "You should not take planks for
+finish, shoot for a veneer." A casing is one planed board; tiling a plank-wall
+scan onto a 100 mm casing puts three plank joints across a board that has none.
+The trim now leads with two VENEERS — and they are not a new import:
+`assets/wood/maple` and `walnutfig` are the aeroplane's own CC0 wood library
+(G125), copied into the house contract at a house scale. Three sets came in
+from the user's delivery too: `darkwood` (Planks025A), `stain` (Planks025C —
+near-featureless, which is what makes it the good paintable one) and `shakes`
+(WoodSiding010). Twenty sets, 3.97 MB, density still 256-427 px/m.
+
+**NO TWO DECK BOARDS ARE THE SAME BOARD.** Each board draws a deterministic UV
+offset from its index, so the knots stop lining up across the deck. `boxAB` and
+`beam` both take `uv` now.
+
+**IT WAS PBR ALREADY — THE VIEWER COULD NOT SHOW IT.** Three lamps and a 64x32
+gradient cannot light a material system. The bench now has: an equirectangular
+sky painted per frame with zenith, haze, horizon, ground AND A SUN DISC (the
+disc is what puts a highlight on the galvanising — without it the metal sets
+are grey paint), that sky through PMREM as the environment, the same sun as a
+shadow-casting light with its ortho frustum fitted to the building, ACES tone
+mapping with an exposure dial, and FOUR MOODS (afternoon / golden / overcast /
+blue hour). The ground wears the aerodrome's own grass set and takes the
+shadow.
+
+**A TILED ROOF HAS NO METAL RIDGE.** The cap is drawn only when the roof set's
+own metalness says it is sheet metal.
+
+**THE ROOF'S EDGE IS ONE CLOSED SOLID** (was: two boards butting at a corner
+neither mitred nor closed). `rimLoop` takes the polyline rake-eave-rake and
+builds a single solid round it — outer face, inner face, top and bottom caps,
+end caps — with the corner vertex SHARED and pushed along the bisector by
+1/cos(half-angle), which is a true mitre that cannot open when the pitch moves.
+
+**WRONG, AND FIXED: THE WALL SHELL HAD A NOTCH AT EVERY CORNER.** Four panels
+drawn on the plan rectangle's own centrelines leave a t/2 gap at each corner —
+which is exactly what the user found by changing a dimension. `wall()` takes
+`ext` now and each panel runs half a thickness past its corner. GATE HOUSE has
+a rule for it: a vertex must exist at each outer corner point.
+
+**WRONG, AND FIXED: FACES WERE PROJECTED UNDER AN ANGLE.** A window sill mapped
+with world-up gets ONE texel across the whole depth of the reveal; a 34-degree
+roof mapped from above is stretched by 1/cos(34). Every face in the kit now
+takes two IN-PLANE axes: jambs run (through the wall, up), sills and heads run
+(along, through), roof facets run (along the eave, UP THE SLOPE), a spire's
+triangles run up their own face, and `cyl` walks arc length instead of atan2 —
+the seam quad used to carry the whole circumference in u. `face()` derives an
+in-plane frame when a caller gives none, so a UV-less face is now impossible.
+**GATE HOUSE MEASURES THIS MECHANICALLY**: every triangle's uv area over its
+world area must land in [0.25, 4]. It found 128 bad triangles the hour it was
+written, all of them real.
+
+**THE GLASS SITS TOWARD THE OUTSIDE** (0.78 of the half-thickness, not 0.55),
+and the door leaf with it: the reveal belongs on the inside of the sash, which
+is what gives a window its shadow line.
+
+**THE FAR MESH KEEPS ITS FINISH.** A frame board round every opening and one
+OPAQUE panel in it — the transparent material is gone at lod 1, exactly as the
+user said it could be. Corner boards survive too. The stair is one sloping
+cuboid instead of an open wedge.
+
+**POLES ARE NOT MADE OF PLANKS.** `beam` takes `{swap}`, which runs u across
+the stick and v along it — the grain now runs up a post instead of banding it —
+and every face still starts its u at its own corner, so the seam lands on the
+arris.
+
+**DIRT FROM THE GROUND UP.** A shader patch on every house material: world y,
+a smooth ramp above the ground line, mixed toward a dust colour and roughened.
+No tiling can produce it because it is a function of height, not of surface.
+
+**PUNCHIER PAINT.** One saturation-and-contrast curve on the diffuse in the
+same patch, on a 0-1 dial (default 0.40). The neutral map times a tint is
+honest but flat; this gives back the boat-paint chroma without touching the
+library.
+
+**WRONG, AND FIXED: THE DORMERS.** The photograph showed letterbox slots. The
+cause: G231 clamped the dormer's HEIGHT when its roof would cross the main one
+past the ridge, and on a 26-degree roof that leaves 30 cm. A builder facing a
+shallow roof lays the dormer's roof FLATTER; he does not build a 30 cm dormer.
+So the pitch gives first (down to 5 degrees) and only then the height, and the
+count of each is published (`dormClamped` / `dormSkipped`).
+
+**MORE ARCHETYPES, AND A RANDOM ONE.** Twelve presets now (`fish shack`, `net
+loft`, `saltbox farmhouse` added), plus `randomHouse(seed)` — which samples the
+DECISIONS a builder makes in the order he makes them (the site decides the
+stance, the stance decides the stairs, the pitch decides whether a dormer is
+possible) rather than noise on every slider. It is also the cheapest coverage
+in the gate: **forty seeds are fuzzed through every rule**, and it found seven
+buried-in-the-hillside builds the first time it ran — the sampler was putting
+slabs on 16-degree beaches.
+
+**THE SHED IS ITS OWN GENERATOR** (`tools/_shed_gen.js`, and the bench has a
+model switch). The house is a SURFACE model — panels with holes, planes for a
+roof, boards as texture — and that is wrong for a woodshed, because a shed IS
+its members. Here every sill, block, post, stud, plate, rafter, purlin,
+cladding board, roof sheet, shake, door board and Z-brace is one `beam` with
+its own jitter, deterministic in `seed`, with `shake` as the single dial for
+how badly it was built. Four cladding kinds, three roof kinds, boards that go
+missing, a door hung slightly off its straps. It SHARES the house's material
+library, LOD contract and gate — a shed beside a house has to be made of the
+same wood. Five presets, `randomShed(seed)`, and twenty seeds fuzzed.
+
+GATE HOUSE now runs both generators: 12 house presets + 9 sweeps + 40 random
+houses + 5 shed presets + 20 random sheds, plus the two new rules (angle
+mapping, closed corners) and their negatives. Green, selftest green.
+
+## G232.1 — THE OCCLUSION IS BAKED, PER VERTEX, IN THE GENERATOR (2026-09-08,
+## the user: "Do you think we could bake some occlusion in there?")
+
+Yes — and a generated building is the one case where it is both cheap and
+honest, because the geometry is already in hand, in metres, and the occluders
+that matter are SHORT RANGE: under the eave, inside a reveal, between two deck
+boards, in the corner where two walls meet, under the floor between the piles,
+in the gaps of a stacked cord of wood. None of that needs a path tracer. It
+needs to know what is within half a metre.
+
+**HOW.** `bakeAO` in the kit voxelises the whole model into a coarse occupancy
+grid — PLUS THE GROUND, which is the largest occluder any of these buildings
+has — and marches twelve fixed hemisphere rays three cells out of every vertex.
+Fixed directions and a fixed grid mean it is DETERMINISTIC: the same house
+bakes the same shadows, which is what lets a gate hold it. Both generators call
+it; the shed is baked harder and shorter (0.92 over 0.42 m) because a shed is
+all crevice.
+
+**WHERE IT IS STORED.** Per VERTEX, in an `aHouseAO` attribute — not in a map.
+A procedural building has no second UV set and would need an atlas to get one;
+per-vertex costs one float and at this geometry density (a board is four
+vertices across) it is finer than a 512 lightmap would be. It leaves in the OBJ
+too, as `v x y z r g b`, which is the one vertex-colour extension every DCC
+tool reads.
+
+**HOW IT IS APPLIED.** The whole of it on the indirect term — which is where
+three itself applies an aoMap, so this is that, sourced from an attribute — and
+a THIRD of it on the albedo (`aoDirect`), which is a cheat and is also the only
+thing that puts a contact shadow under an eave when the sun is behind you.
+
+**IT WAS 380 ms AND IS NOW 31.** The first cut ran the fill and the march
+through closures with per-sample bounds helpers: 380 ms on a cabin, 700 on the
+cannery, which is not a thing you can leave in a live rebuild. Written flat —
+one reciprocal, three multiplies, one bounds test, no calls — with a coarser
+grid and twelve directions instead of sixteen, it is 31 ms and 63 ms. AND THE
+BENCH DOES NOT WAIT FOR IT ANYWAY: a slider drag builds with the bake off and
+the bake follows a quarter of a second after the hand stops, so the shape
+answers immediately and the light catches up.
+
+**WHAT THE GATE HOLDS** (and what it does NOT). Every vertex carries a finite
+occlusion in [0,1]; the bake is not a flat number; there is somewhere genuinely
+dark (the darkest is at least 0.22 below the mean); `ao: 0` leaves every vertex
+lit — a bake you cannot switch off is one you cannot debug; and the same
+parameters bake identical values twice. TWO STRUCTURAL RULES WERE WRITTEN AND
+WITHDRAWN, both because they were false rather than because they were awkward:
+"under the floor is darker than the open wall" is not true of a building on
+tall open piles (there is nothing down there to occlude anything), and "the
+inner face of a wall is darker than its outer face" is not true of a 50-degree
+gambrel wrapped in a deck and a lean-to, where the weather side is the one in
+permanent shade. There is no universal ordering; there is only range.
+
+**AND ONE REAL BUG FELL OUT OF TESTING IT.** `HOUSE_UI.P` was a CAPTURE of the
+parameter object, and G232's model switch re-points `P` on every preset and
+model change — so anything set through `HOUSE_UI.P` after that landed on a
+house nobody was drawing. It is a getter now. Every "the screenshot did not
+change" in this session traced back to it.
+
+## G232.2 — THE LIBRARY IS CATEGORISED AND THE MAPPING FOLLOWS FROM IT: PLANKS
+## ON WALLS, VENEER ON EVERY BOARD, THE FINISH OVER THE CUT, AND THE BAKE GIVEN
+## SOMEWHERE TO LAND (2026-09-08, the user's second review)
+
+**THE LIBRARY NOW SAYS WHAT EACH SET IS** — `kind: plank | veneer | roof |
+stone` — and the generator's roles are DERIVED from it rather than hand-listed
+(the user: "Finishes, beams and pillars takes veneer. Walls and floors take
+planks. Roofs take metal sheets or tiles."). It is not a preference, it is what
+the scans ARE: a plank set is several boards with joints between them, so on a
+100 mm casing or a 90 mm pillar it draws three joints across one piece of
+timber — which is what made every finish read as cladding. A veneer set is ONE
+piece. Two more veneers came out of the aeroplane's own wood library
+(`walnut`, `laminate`), giving five; `use[]` is retired because it said the
+same thing twice and the two could drift. GATE HOUSE holds the kind table
+against the payload AND every role against its kind.
+
+**THE MATERIAL SLOTS SPLIT ALONG THE SAME LINE.** `deck` is now BOARDS (the
+deck's members, the rail, the balusters) and takes a veneer; `floor` is
+SURFACES (the floor slab, the far mesh's deck) and takes planks. The shed's
+cladding is boards too, so it dresses the siding slot from the board role —
+which is the whole point of having built it plank by plank.
+
+**AND THE GRAIN RUNS ALONG THE STICK.** The `swap` that G232 put on posts and
+rails was fighting a plank texture on a pole; with a veneer the grain already
+runs along u and u is along the member, so it is gone.
+
+**THE FINISH COVERS THE CUT** (the user: "the finish below the window should be
+higher, so it hides the thickness of the wall ... they're meant at masking the
+'cut' part of the window opening"). Every casing board now LAPS 30 mm INTO the
+opening instead of stopping at its edge, and the sill's top sits 30 mm above
+the opening's bottom, which is what hides the one reveal you look straight down
+onto. The head and the sill also had their section the wrong way round — a
+`beam`'s hw runs along X x U, which for a horizontal board is the WALL NORMAL,
+so they were 110 mm thick and 56 mm tall. They are 28 x 110 now, like the jambs.
+
+**THE BAKE HAD NOWHERE TO LAND.** The user's screenshot showed the wall banded
+in columns and flat under the windows, and the cause was resolution, not the
+bake: occlusion is per VERTEX and a wall drawn as four big quads can only shade
+at its corners. `wall()` and `plate()` take a `sub` now and lay the OUTER faces
+out as a grid no coarser than the bake's own reach (0.47 m on walls, 1.1 m on
+roof facets); the inner face stays one quad because nobody sees it. The near
+mesh costs ~25% more triangles and the far mesh is untouched.
+
+**THE FOUR COLLISIONS THE USER LISTED:**
+- *The dormer roof through the window frame.* The opening now clears the roof
+  underside AND the head casing (`trimW/2 + 60 mm`), measured at the front face
+  where a shed dormer's roof is lowest.
+- *The porch roof landing inside a window.* `porchRoofPlan` is computed BEFORE
+  the openings and hands them a forbidden band; `buildDeck` draws from the same
+  function, so there is one answer instead of two that drift.
+- *The gutter's texture repeating per face.* `sweepProfile` accumulated no v:
+  every facet of the section restarted at zero. It carries arc length round the
+  profile now, like `cyl` already did after the last round.
+- *The far mesh's walls not double-sided.* lod 1 keeps its inner faces.
+
+**PBR, CONFIRMED MECHANICALLY** (the user: "Please confirm that all materials
+have full PBR support now"). The gate hands the generator a STUB library built
+from the manifest's own keys, applies the finish, and asks every material what
+it is wearing: **11 of 11 slots carry albedo + normal + roughness** (the two
+glass slots by design), every normal is actually pushed, and no material is
+mirror-smooth — for every set of every role, not just the defaults. The bench
+reports the same line. The planks were flat because `normalScale` was 1 on
+sawn timber at 1.2 m a tile; relief is now per slot (1.7 on siding, 1.6 on
+decks and floors, 1.0 on sheet metal, which is smooth between its ribs).
+
+**ON THE OCCLUSION QUESTION.** It IS a permanent bake and always was: it is
+computed at generation and stored in the mesh (`aHouseAO`, one float per
+vertex), so it ports to the engine with the geometry and needs no lightmap UV,
+no atlas and no per-instance texture. The sky, the sun and the four moods are
+the BENCH's viewer only — nothing in the generator depends on them.
+
+**STILL NOT DONE, DECLARED:** no LOG set exists in the library (there is no log
+scan in the delivery, and a log wall wants a different wall builder anyway, not
+just a different map).
+
+## G232.3 — EVERY ROOF EDGE FINISHED, EVERY DORMER GLAZED, THE ENTRANCE
+## SYNCHRONISED, A LANDING WHERE THE STAIRS MEET THE TIDE, AND A WEATHER DIAL
+## (2026-09-08, the user's third review — nine screenshots)
+
+**THE ROOF WAS FINISHED ONLY WHERE IT HAD AN EAVE.** The rim boarded the eave
+and the two rakes of a TRUE eave facet, which left three edges bare and reading
+as open geometry: the HIGH edge of a mono-pitch roof (screenshot 1), the rakes
+of a gambrel's upper facet, and the break where its two slopes meet
+(screenshot 7). Now an edge is finished unless another facet is already there —
+`facetShares` asks the roof itself — and the gambrel's break gets its CRANK
+board, which is a real piece of trim on a real barn because no sheet bends
+round that angle.
+
+**A RIDGE CAP IS FOLDED SHEET, NOT A BAR LAID ACROSS THE RIDGE** (the user:
+"the roof beams and their joins are very rough"). It is swept from a shallow
+inverted-V section whose fold angle comes from the roof's own pitch, so it sits
+ON both planes instead of hovering with its corners in the air, and it is cut
+square with the run instead of poking past the rake. Hips take the same section,
+narrower and flatter.
+
+**THE LEAN-TO AND THE DORMERS WERE BILLBOARDS.** `inner: false` on both meant
+you saw straight through them from the back (screenshots 2 and 3). Both carry
+inner faces now, and both are tessellated for the bake like every other wall.
+
+**A DORMER EXISTS FOR ITS WINDOW** (screenshot 4: three blind boxes on a roof).
+The old order was: size the dormer, then ask whether a window fits, then
+silently build a box when it did not. Now the WINDOW sets the floor — sill,
+smallest sash worth drawing, head casing, roof thickness — and a roof that
+cannot carry that much dormer gets NO dormer. GATE HOUSE holds
+`dormerWindows === dormers` across the whole extras sweep.
+
+**ONE ENTRANCE PLAN** (screenshots 5 and 9). `deckPlan` and `doorPosOf` are
+computed before anything is drawn: the front door is clamped ONTO the deck (with
+its casing clear of the deck's ends), the canopy is centred on the door as
+placed rather than on the raw parameter, and the openings are handed the
+canopy's own band to avoid. Three consumers, one answer.
+
+**THE BACK DOOR AND ITS STOOP.** A garden door is a door like any other — same
+leaf, same casing — on the back wall, with a small landing on two legs and two
+or three steps down. `backDoor` / `backDoorPos` / `backPorch`, and the random
+generator gives one to about half of its houses.
+
+**NO FLIGHT OF STEPS ENDS IN THE SEA** (screenshot 5). Over water the stair now
+lands on a LANDING a hand's breadth above the tide — a small jetty on its own
+four piles, with deck boards and a pair of leaning bollards to tie to. The
+stair's own iteration solves against that landing height instead of against the
+seabed, so the step count is right. GATE HOUSE checks it: if the foot would be
+below the water line there must be a landing, and it must sit between 0.1 and
+0.9 m above the tide.
+
+**WEATHERED OR FRESH, AS ONE DIAL** (the user: "I have seen you've temporarily
+obtained much brighter colors ... that looked newer, less weathered ... would be
+nice to have more weathered and more fresh looks blended"). `weather` (0..1)
+moves three things together: saturation and contrast on the paint, how far the
+ground dirt climbs and how hard it bites. The random generator now decides HOW
+LONG SINCE ANYONE PAINTED IT first, and everything else follows from that — a
+fresh house gets painted boards, a bright roof, white trim and little dirt; a
+weathered one gets grey planks, shakes or rusted iron, natural colours and the
+beach up its first half metre. A village comes out mixed instead of uniform.
+
+Green: 12 house presets, the sweeps, 40 random houses, 5 shed presets, 20
+random sheds, and the selftest.
+
+## G232.4 — SEVENTEEN ARCHETYPES THAT COVER THE SPACE, TILES SIZED FOR A
+## BUILDING RATHER THAN A SWATCH, A NOISE LAYER OVER THE WHOLE THING, BARK ON
+## THE PILES AND CONCRETE UNDER THE FLOOR (2026-09-08, the user's fourth pass)
+
+**THE PRESETS COVER THE SPACE NOW, AND THE GATE SAYS SO.** Five went in —
+`gambrel barn` (the only gambrel anywhere in the shipped set), `saltbox
+cottage` (shed dormers, cripple wall, bright paint), `hip cottage` (the first
+hipped roof and the first slab, with a solid-panel veranda rail), `chapel` (the
+church's other face: white, steep, a six-sided spire on the RIDGE rather than a
+belfry over the door, shakes instead of rusted sheet) and `bunkhouse` (long,
+low, corrugated, on bark piles, with a lean-to and a back door). Seventeen in
+all, and a new rule walks every shape-bearing option — four roof families, hip,
+five stances, water, lean-to, cupola, both dormer kinds, open front, cordwood,
+back door, three porch roofs, four skirts, three rail styles, masonry chimney,
+fresh AND weathered finishes, a bark pile — and NAMES anything no preset uses.
+It found one gap the moment it ran (nothing used a lattice skirt).
+
+**THE TILES ARE SIZED FOR A BUILDING.** A 1.2 m plank repeat is eighteen copies
+of the same knot across a 22 m cannery. Planks now tile at 1.9-2.2 m, the
+corrugated sheets at 3.2-4.8 (the user: "your corrugated rusty metal is tiled
+too small ... *4 easily, maybe *6"), and the three coarse sheet sets buy their
+resolution back with a 1024 — density is px/tile, so a coarser tile costs
+sharpness unless you pay for it. 213-394 px/m, spread 1.85:1, 6.9 MB.
+
+**AND ONE SOURCE OF TRUTH FOR THAT SIZE.** The import derives px from each
+set's own tile and now PUBLISHES it (`assets/house/_sizes.json`); the prep
+reads it instead of repeating the number in its own table. The two drifted the
+first time a tile moved — the prep asked for a 512 that had never been written
+— which is exactly the class of bug a repeated constant is.
+
+**A NOISE LAYER OVER THE WHOLE BUILDING** (the user's own suggestion). Tiling
+bigger helps; what kills the copy-paste read is a LOW-FREQUENCY field that does
+not tile with the texture. Two octaves of value noise in WORLD space, a few
+metres across, on albedo and roughness only — no normal, because the surface is
+not bumpy at that scale — so the variation drifts across the repeat and no two
+panels look alike. `noise` and `noiseS` are dials; the shader patch is the same
+one that carries the dirt, the punch and the occlusion.
+
+**BARK ON THE PILES.** The library gained its first `log` kind (ambientCG
+`Bark015`), and a role may now accept SEVERAL kinds — the post role takes
+veneer AND log, because a sawn post is a board and a driven pile is a tree with
+its skin still on. It is the default for piles, and the cannery reads like
+Creek Street for the first time.
+
+**AND A FOUNDATION IS CONCRETE.** The skirt was drawing its solid version in
+the deck's veneer — a wall panel where a foundation should be. There is a
+fourth skirt option now (`concrete`), it goes in the stone bag, it runs down
+below the lowest ground rather than following it, and lattice/boards keep their
+own materials (boards are cladding, so they take the wall's planks).

@@ -1,0 +1,864 @@
+#!/usr/bin/env node
+// GATE HOUSE — the wooden house's verdict (G229).
+//
+//   node tools/_house_check.js            -> "GATE HOUSE: PASS|FAIL"
+//   node tools/_house_check.js --selftest -> negative verification
+//   node tools/_house_check.js --table    -> the LOD ledger, per preset
+//
+// WHAT IT MEASURES, and why these five. The bench draws a house; the things
+// that can be WRONG about a generated house are not opinions:
+//
+//   1 CLEAN GEOMETRY  no NaN, no zero-area triangle, no vertex without a
+//     finite UV. The user's ruling for this chantier was geometry first, so
+//     this is the headline check rather than a footnote.
+//   2 THE WALL MEETS THE ROOF  no wall vertex inside the plan stands above
+//     the roof's own underside. A wall poking through its roof is THE bug of
+//     parametric buildings: it appears the moment somebody changes the pitch
+//     and nothing else notices.
+//   3 IT STANDS ON THE SITE  nothing is buried more than a footing's depth
+//     below the sloping ground, and every post foot lands on it. A house on a
+//     10-degree beach is the whole reason the stance layer exists.
+//   4 THE OPENINGS ARE HONEST  every hole is inside its wall and clear of the
+//     roof line. The generator DROPS a window it cannot fit; the count is
+//     published, and a build that drops them is saying something true.
+//   5 THE TWO MESHES ARE THE SAME HOUSE  lod 1 is a construction, not a
+//     decimation: it must be far cheaper AND share the silhouette. Both
+//     halves are checked, because either one alone is easy to satisfy by
+//     cheating (draw nothing / draw everything).
+//
+// NEGATIVE-VERIFIED: --selftest doctors the measured geometry (moves one
+// vertex, adds one degenerate triangle, buries one post, inflates lod 1) and
+// requires the matching check to go red. A check that cannot fail is not a
+// check.
+'use strict';
+const fs = require('fs');
+const path = require('path');
+const vm = require('vm');
+
+const TOOLS = __dirname;
+const SELFTEST = process.argv.includes('--selftest');
+const TABLE = process.argv.includes('--table');
+
+// ---------------------------------------------------------------------------
+// THE STUB. `_house_kit.js` touches THREE at exactly one point (bag.mesh), and
+// the generator's material table at module scope. Everything the checker looks
+// at is produced by the kit's plain arrays — so this measures the geometry the
+// bench draws, not a re-derivation of it.
+// ---------------------------------------------------------------------------
+function makeTHREE() {
+  function Col(c) { this.hex = c; }
+  Col.prototype.setHex = function (h) { this.hex = h; };
+  function Mat(o) {
+    Object.assign(this, { isMat: 1 }, o || {});
+    this.color = new Col((o && o.color) || 0);
+  }
+  class BufferAttribute { constructor(a, n) { this.array = a; this.itemSize = n; } }
+  class BufferGeometry {
+    constructor() { this.attributes = {}; this.index = null; }
+    setAttribute(k, a) { this.attributes[k] = a; }
+    setIndex(i) { this.index = i; }
+    computeVertexNormals() {}
+  }
+  class Mesh { constructor(g, m) { this.geometry = g; this.material = m; } }
+  class Vec2 { constructor(x, y) { this.x = x; this.y = y; }
+               set(x, y) { this.x = x; this.y = y; } }
+  class Texture {
+    constructor(img) { this.image = img; this.repeat = new Vec2(1, 1); }
+  }
+  return { BufferAttribute, BufferGeometry, Mesh, Texture, Vector2: Vec2,
+           Color: Col,
+           MeshLambertMaterial: Mat, MeshStandardMaterial: Mat,
+           MeshBasicMaterial: Mat, DoubleSide: 2, FrontSide: 0,
+           RepeatWrapping: 1000, sRGBEncoding: 3001 };
+}
+
+const win = {};
+let VMCTX = null;          // kept: the PBR check has to inject a stub library
+{
+  const ctx = { window: win, THREE: makeTHREE(), console, Math, JSON,
+                Float32Array, Object, Array, Set, Map, Number, String,
+                isFinite, parseInt, parseFloat };
+  ctx.globalThis = ctx;
+  VMCTX = ctx;
+  vm.createContext(ctx);
+  for (const f of ['_house_kit.js', '_house_gen.js', '_shed_gen.js'])
+    vm.runInContext(fs.readFileSync(path.join(TOOLS, f), 'utf8'), ctx,
+                    { filename: f });
+}
+const HG = win.HOUSE_GEN, HK = win.HOUSE_KIT, SG = win.SHED_GEN;
+
+// THE MATERIAL LIBRARY IS READ FROM THE BAKED MANIFEST, not imported: it is a
+// browser payload (it builds `new Image()`), so the gate parses the numbers it
+// promises out of the generated file. That is the point — the manifest is the
+// contract between house_tex_prep.js and the generator, and this is where the
+// two are held to it.
+function readLibrary() {
+  const f = path.join(TOOLS, '..', 'src', 'viewer', 'house_tex.js');
+  if (!fs.existsSync(f)) return null;
+  const src = fs.readFileSync(f, 'utf8');
+  const out = {};
+  const re = /(\w+): \{ kind: '(\w+)', name: '([^']*)', tile: ([\d.]+), px: (\d+), metal: ([\d.]+), ribbed: (true|false)/g;
+  let m;
+  while ((m = re.exec(src))) {
+    out[m[1]] = { kind: m[2], name: m[3], tile: +m[4], px: +m[5], metal: +m[6],
+                  ribbed: m[7] === 'true',
+                  paint: new RegExp(m[1] + '_paint_').test(src) };
+  }
+  return Object.keys(out).length ? out : null;
+}
+const LIB = readLibrary();
+
+const fail = [];
+const check = (ok, label, extra) => {
+  if (!ok) fail.push(label + (extra ? ' — ' + extra : ''));
+  return ok;
+};
+if (!check(!!HG && !!HK, 'the house modules did not load headlessly')) {
+  console.log('GATE HOUSE: FAIL');
+  process.exit(1);
+}
+
+// ---------------------------------------------------------------------------
+// MEASURE — one pass over the emitted arrays, per build
+// ---------------------------------------------------------------------------
+function measure(built) {
+  const m = { tris: 0, verts: 0, nan: 0, degen: 0, badUV: 0, wildUV: 0,
+              stretch: 0, stretchWorst: 0, stretchWhere: [], corner: 0,
+              aoBad: 0, aoSum: 0, aoN: 0, aoMissing: 0, aoMin: 1,
+              aoUnder: 0, aoUnderN: 0, aoOpen: 0, aoOpenN: 0,
+              above: 0, aboveWorst: 0, buried: 0, buriedWorst: 0,
+              bbox: { x0: 1e9, y0: 1e9, z0: 1e9, x1: -1e9, y1: -1e9, z1: -1e9 },
+              lowPost: 1e9, feet: [] };
+  const V = built.V, R = built.R, g = built.stats.ground;
+  const hasShell = !!R;              // the shed is members, not panels
+  for (const k of HG.BAGS) {
+    const d = built.bags[k].data();
+    m.tris += d.idx.length / 3;
+    m.verts += d.pos.length / 3;
+    for (let i = 0, j = 0; i < d.pos.length; i += 3, j += 2) {
+      const x = d.pos[i], y = d.pos[i + 1], z = d.pos[i + 2];
+      if (!isFinite(x) || !isFinite(y) || !isFinite(z)) { m.nan++; continue; }
+      if (!isFinite(d.uv[j]) || !isFinite(d.uv[j + 1])) m.badUV++;
+      // UVs ARE METRES: a value past a building's own size means a projector
+      // has run away, and it shows as a smear nobody can trace back
+      else if (Math.abs(d.uv[j]) > 400 || Math.abs(d.uv[j + 1]) > 400) m.wildUV++;
+      if (x < m.bbox.x0) m.bbox.x0 = x; if (x > m.bbox.x1) m.bbox.x1 = x;
+      if (y < m.bbox.y0) m.bbox.y0 = y; if (y > m.bbox.y1) m.bbox.y1 = y;
+      if (z < m.bbox.z0) m.bbox.z0 = z; if (z > m.bbox.z1) m.bbox.z1 = z;
+      // 2 — a wall standing through its own roof. Only the VOLUME's walls:
+      // the generator marks where they end in the siding bag, because a
+      // dormer's cheek and a belfry's drum are siding too and both of them
+      // stand above the roof on purpose.
+      // The wall's OWN thickness is inside the roof footprint — the outer face
+      // is the half that can be seen standing through the slab.
+      if (hasShell && k === 'siding' && i / 3 < (built.stats.wallVerts || 0) &&
+          Math.abs(x) <= V.L / 2 + V.wallT / 2 + 1e-3 &&
+          Math.abs(z) <= V.w / 2 + V.wallT / 2 + 1e-3) {
+        const over = y - R.underAt(x, z);
+        if (over > 0.01) { m.above++; m.aboveWorst = Math.max(m.aboveWorst, over); }
+      }
+      // 12 — THE BAKED OCCLUSION. Every vertex carries one, it is a fraction,
+      // and the two ends of the building must disagree: what is UNDER the
+      // floor (between the piles, behind the skirt, inside the deck frame) has
+      // to be darker than what is high on an open wall. A bake that returns a
+      // flat number would pass a range check and fail this one.
+      const av = d.ao ? d.ao[i / 3] : undefined;
+      if (av === undefined || !isFinite(av)) m.aoMissing++;
+      else {
+        if (av < -1e-6 || av > 1 + 1e-6) m.aoBad++;
+        m.aoSum += av; m.aoN++; if (av < m.aoMin) m.aoMin = av;
+        // THE TWO FACES OF THE SAME WALL. Two earlier cuts of this rule were
+        // wrong: "under the floor is darker" is false for a building on tall
+        // open piles, and "everything inside the plan is darker" picks up the
+        // stove pipe standing in the middle of a room three metres from
+        // anything, which is legitimately unoccluded. What cannot be argued
+        // with is a wall PANEL: its inner face looks into a closed box and its
+        // outer face looks at the weather.
+        const fy = built.stats.floorY, py = built.stats.plateY;
+        if (hasShell && k === 'siding' && i / 3 < (built.stats.wallVerts || 0) &&
+            y > fy + 0.15 && y < py - 0.15) {
+          const dz = Math.abs(z) - V.w / 2, dx = Math.abs(x) - V.L / 2;
+          const side = Math.abs(dz) > Math.abs(dx) ? dz : dx;
+          if (Math.abs(side) > V.wallT * 0.2) {
+            if (side < 0) { m.aoUnder += av; m.aoUnderN++; }
+            else { m.aoOpen += av; m.aoOpenN++; }
+          }
+        }
+      }
+      // 3 — buried in the hillside
+      const depth = g(x, z) - y;
+      if (depth > m.buriedWorst) m.buriedWorst = depth;
+      if (depth > 0.80) m.buried++;
+    }
+    for (let i = 0; i < d.idx.length; i += 3) {
+      const a = d.idx[i] * 3, b = d.idx[i + 1] * 3, c = d.idx[i + 2] * 3;
+      const u = [d.pos[b] - d.pos[a], d.pos[b + 1] - d.pos[a + 1],
+                 d.pos[b + 2] - d.pos[a + 2]];
+      const v = [d.pos[c] - d.pos[a], d.pos[c + 1] - d.pos[a + 1],
+                 d.pos[c + 2] - d.pos[a + 2]];
+      const n = HK.crs(u, v);
+      const area = HK.len(n) * 0.5;
+      if (area < 1e-9) { m.degen++; continue; }
+      // 10 — TEXEL DENSITY ON THE TRIANGLE ITSELF. Every UV in this generator
+      // is METRES on the surface, so uv area and world area must AGREE. A face
+      // projected under an angle (a sill mapped with world up, a roof mapped
+      // from above) collapses one axis and the texture smears — this is the
+      // rule that catches it mechanically instead of by looking at a plank.
+      const ua = d.uv[d.idx[i] * 2], va = d.uv[d.idx[i] * 2 + 1];
+      const ub = d.uv[d.idx[i + 1] * 2], vb = d.uv[d.idx[i + 1] * 2 + 1];
+      const uc = d.uv[d.idx[i + 2] * 2], vc = d.uv[d.idx[i + 2] * 2 + 1];
+      const uvA = Math.abs((ub - ua) * (vc - va) - (uc - ua) * (vb - va)) * 0.5;
+      if (area > 4e-4) {
+        const r = uvA / area;
+        if (r < 0.25 || r > 4.0) {
+          m.stretch++;
+          if (r < m.stretchWorst || m.stretchWorst === 0) m.stretchWorst = r;
+          if (m.stretchWhere.indexOf(k) < 0) m.stretchWhere.push(k);
+        }
+      }
+    }
+  }
+  // 11 — THE SHELL CLOSES AT ITS CORNERS. Four panels drawn on the plan
+  // rectangle's own centrelines leave a t/2 notch at every corner unless each
+  // one runs half a thickness past it; the outer corner point is where that
+  // shows. A vertex there means the panels overlap; none means a gap you find
+  // later by changing a dimension.
+  if (hasShell) {
+    const d = built.bags.siding.data();
+    const nW = built.stats.wallVerts || 0;
+    const hx = V.L / 2 + V.wallT / 2, hz = V.w / 2 + V.wallT / 2;
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      let hit = 0;
+      for (let i = 0; i < nW * 3 && i < d.pos.length; i += 3)
+        if (Math.abs(d.pos[i] - sx * hx) < 0.012 &&
+            Math.abs(d.pos[i + 2] - sz * hz) < 0.012) { hit = 1; break; }
+      if (!hit) m.corner++;
+    }
+  }
+  return m;
+}
+
+// the checks, as data, so --selftest can doctor a measurement and watch each
+// one go red instead of trusting that it would have
+const RULES = [
+  ['no NaN vertex', m => m.nan === 0, m => m.nan + ' vertices'],
+  ['no degenerate triangle', m => m.degen === 0, m => m.degen + ' triangles'],
+  ['every vertex has a finite UV', m => m.badUV === 0, m => m.badUV + ' bad'],
+  ['no UV runs off the building', m => m.wildUV === 0,
+   m => m.wildUV + ' vertices past 400 m'],
+  ['no wall stands through its roof', m => m.above === 0,
+   m => m.above + ' vertices, worst ' + m.aboveWorst.toFixed(3) + ' m'],
+  ['nothing is buried in the hillside', m => m.buried === 0,
+   m => m.buried + ' vertices, worst ' + m.buriedWorst.toFixed(2) + ' m'],
+  ['no face is mapped under an angle', m => m.stretch === 0,
+   m => m.stretch + ' triangles, worst ratio ' + m.stretchWorst.toFixed(3) +
+        ' in ' + m.stretchWhere.join('/')],
+  ['the wall shell closes at its corners', m => m.corner === 0,
+   m => m.corner + ' of 4 corners open'],
+  ['every vertex carries an occlusion', m => m.aoMissing === 0 && m.aoBad === 0,
+   m => m.aoMissing + ' missing, ' + m.aoBad + ' out of [0,1]'],
+  ['the bake is not a flat number',
+   m => m.aoN === 0 || (m.aoSum / m.aoN > 0.25 && m.aoSum / m.aoN < 0.985),
+   m => 'mean ' + (m.aoSum / Math.max(1, m.aoN)).toFixed(3)],
+  // THERE IS NO UNIVERSAL INSIDE/OUTSIDE ORDERING, and two cuts of this gate
+  // claimed there was. "Under the floor is darker" is false for a building on
+  // tall open piles; "the inner face of a wall is darker" is false for a
+  // 50-degree gambrel wrapped in a deck and a lean-to, where the WEATHER side
+  // is the one in permanent shade. What is always true is that a bake has
+  // range and a dark place in it — which is what is held below.
+  ['the bake has somewhere genuinely dark',
+   m => m.aoN < 50 || m.aoMin < m.aoSum / m.aoN - 0.22,
+   m => 'darkest ' + m.aoMin.toFixed(3) + ', mean ' +
+        (m.aoSum / Math.max(1, m.aoN)).toFixed(3)],
+];
+
+function runRules(tag, m) {
+  for (const r of RULES) check(r[1](m), tag + ': ' + r[0], r[2](m));
+}
+
+// ---------------------------------------------------------------------------
+// THE MATERIAL LIBRARY (G230)
+// ---------------------------------------------------------------------------
+// 6 SIMILAR TEXEL DENSITY, which is what the user asked for and what nobody
+//   notices is missing until one wall is crisp and the one beside it is soup.
+//   Density is px / tile_metres; the import derives px from tile for exactly
+//   this reason, and the spread across the whole library is held at 2:1.
+// 7 THE ROLE TABLE AND THE PAYLOAD AGREE: every set the generator offers for a
+//   part exists in the baked manifest AND declares that part in its own `use`
+//   list. Two files, one truth, and a rename in either goes red here.
+if (!check(!!LIB, 'the baked material library is missing — ' +
+           'run tools/house_tex_prep.js')) {
+  console.log('GATE HOUSE: FAIL');
+  process.exit(1);
+}
+{
+  const dens = [];
+  for (const k in LIB) {
+    const set = LIB[k];
+    const d = set.px / set.tile;
+    dens.push(d);
+    // 200 was the floor until the corrugated sheets were tiled at 3.6 and 4.8 m
+    // — a deliberately coarse covering buys its resolution back with a 1024,
+    // and 213 px/m is where that lands
+    check(d >= 190 && d <= 600, 'library: ' + k + ' texel density out of band',
+          d.toFixed(0) + ' px/m, want 190-600');
+    check(set.tile >= 0.5 && set.tile <= 6.5,
+          'library: ' + k + ' tile is not a building scale', set.tile + ' m');
+    check([256, 512, 1024].indexOf(set.px) >= 0,
+          'library: ' + k + ' payload is not a power of two', String(set.px));
+  }
+  const spread = Math.max.apply(null, dens) / Math.min.apply(null, dens);
+  check(spread <= 2.0, 'library: texel density spread too wide',
+        spread.toFixed(2) + ':1 across ' + dens.length + ' sets');
+  // 7 — THE KIND TABLE AND THE PAYLOAD AGREE, and every role offers only its
+  //   own kind. "Finishes, beams and pillars take veneer; walls and floors
+  //   take planks; roofs take sheets or tiles" is a rule the generator can be
+  //   held to mechanically, and this is where it is held.
+  for (const k in HG.SET_KIND) {
+    if (!check(!!LIB[k], 'kind table: ' + k + ' is not in the payload')) continue;
+    check(LIB[k].kind === HG.SET_KIND[k],
+          'kind table: ' + k + ' is ' + LIB[k].kind + ' in the payload but ' +
+          HG.SET_KIND[k] + ' in the generator');
+  }
+  for (const k in LIB)
+    check(!!HG.SET_KIND[k], 'the generator does not know the set ' + k);
+  for (const role in HG.ROLE_SETS)
+    for (const k of HG.ROLE_SETS[role]) {
+      if (!check(!!LIB[k], 'role table: ' + role + ' offers ' + k +
+                 ', which the payload does not have')) continue;
+      // a role may accept SEVERAL kinds (a pile is a log or a sawn post)
+      const want = HG.ROLE_KIND[role];
+      check(want.indexOf(LIB[k].kind) >= 0,
+            'role table: ' + role + ' wants ' + want.join('/') +
+            ' and is offered ' + k + ', which is a ' + LIB[k].kind);
+    }
+  // the paint pot only means anything if the paintable sets carry a neutral map
+  const painters = Object.keys(LIB).filter(k => LIB[k].paint);
+  check(painters.length >= 3, 'library: too few paintable sets',
+        painters.join(',') || 'none');
+  // and the finish must survive with no payload at all (headless is exactly
+  // that case, and so is a page whose media has not landed yet)
+  let threw = null;
+  try { HG.applyFinish(Object.assign({}, HG.DEF)); } catch (e) { threw = e; }
+  check(!threw, 'applyFinish throws without the payload',
+        threw && threw.message);
+
+  // 14 — FULL PBR ON EVERY SLOT (the user: "Please confirm that all materials
+  //   have full PBR support now"). The payload is images, which a gate has
+  //   none of — so a STUB library with the manifest's own keys and numbers is
+  //   handed to the generator, the finish is applied, and every material is
+  //   asked what it is wearing. Anything but glass must carry albedo, normal
+  //   AND roughness, and its normal must actually be pushed.
+  {
+    const fake = {};
+    for (const k in LIB) {
+      const img = { complete: true, naturalWidth: 4, addEventListener: () => {} };
+      fake[k] = Object.assign({}, LIB[k], { diff: img, nor: img, rough: img,
+                                            paint: LIB[k].paint ? img : null });
+    }
+    // ON THE CONTEXT, not on `window`: the generator reads the bare global
+    // `HOUSE_TEX_SETS`, which resolves against the vm's own global object
+    VMCTX.HOUSE_TEX_SETS = fake;
+    let threw2 = null;
+    try { HG.applyFinish(Object.assign({}, HG.DEF)); } catch (e) { threw2 = e; }
+    check(!threw2, 'applyFinish throws with a payload', threw2 && threw2.message);
+    for (const r of HG.finishReport()) {
+      if (r.glassy) continue;
+      check(r.full, 'PBR: ' + r.slot + ' is missing a map',
+            'albedo ' + r.map + ', normal ' + r.nor + ', roughness ' + r.rough);
+      check(r.nrmScale >= 0.9, 'PBR: ' + r.slot + ' has no normal relief',
+            String(r.nrmScale));
+      check(r.roughness > 0.05, 'PBR: ' + r.slot + ' is mirror smooth',
+            String(r.roughness));
+    }
+    // and every ROLE, not just the defaults: dress each slot from each of its
+    // own sets and confirm the maps land every time
+    for (const role in HG.ROLE_SETS)
+      for (let i = 0; i < HG.ROLE_SETS[role].length; i++) {
+        const P2 = Object.assign({}, HG.DEF);
+        P2[role + 'Set'] = i;
+        try { HG.applyFinish(P2); } catch (e) {
+          check(false, 'PBR: dressing ' + role + ' with ' +
+                HG.ROLE_SETS[role][i] + ' threw', e.message);
+        }
+      }
+    // 20 — EVERY PAINT BLEND DRESSES, and the glass stays opaque. The blend
+    //   is a shader path, so a gate cannot see its colours — but it CAN see
+    //   that each mode dresses the wall without throwing and leaves the
+    //   material's own colour white (or the tint would be applied twice), and
+    //   that the two glass slots are not transparent.
+    for (let bmode = 0; bmode <= HG.PAINT_BLENDS.length; bmode++) {
+      const P3 = Object.assign({}, HG.DEF, { paintBlend: bmode, wallCol: 1 });
+      let threw3 = null;
+      try { HG.applyFinish(P3); } catch (e) { threw3 = e; }
+      if (!check(!threw3, 'paint blend ' + bmode + ' throws',
+                 threw3 && threw3.message)) continue;
+      const sid = HG.MAT.siding;
+      const ud = sid.userData.paint;
+      check(!!ud, 'paint blend: the wall has no paint uniforms');
+      if (ud && bmode > 0)
+        check(sid.color.hex === 0xffffff || sid.color.getHex === undefined ||
+              sid.color.getHex() === 0xffffff,
+              'paint blend ' + bmode + ': the tint is applied twice');
+    }
+    HG.applyFinish(Object.assign({}, HG.DEF));
+    for (const g2 of ['glass', 'pane'])
+      check(!HG.MAT[g2].transparent,
+            'the ' + g2 + ' is still see-through');
+    delete VMCTX.HOUSE_TEX_SETS;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// THE BATTERY
+// ---------------------------------------------------------------------------
+const rows = [];
+for (const name of Object.keys(HG.PRESETS)) {
+  const P = Object.assign({}, HG.DEF, HG.PRESETS[name]);
+  const hi = HG.build(P, 0), lo = HG.build(P, 1);
+  const mh = measure(hi), ml = measure(lo);
+  runRules(name + ' hi', mh);
+  runRules(name + ' lo', ml);
+
+  // 5 — the two meshes are the same house
+  const ratio = ml.tris / Math.max(1, mh.tris);
+  check(mh.tris > 400, name + ': the near mesh is suspiciously thin',
+        mh.tris + ' tris');
+  // the RATIO is the rule for a building; a shed 3 m long has so little near
+  // detail that its far mesh is a third of it and still only 186 triangles,
+  // so an absolute floor stands beside the ratio
+  check(ratio < 0.30 || ml.tris < 260,
+        name + ': lod 1 is not a low-poly mesh',
+        'ratio ' + ratio.toFixed(2) + ', ' + ml.tris + ' tris');
+  check(ml.tris > 40, name + ': lod 1 collapsed to nothing',
+        ml.tris + ' tris');
+  const dB = ['x0','y0','z0','x1','y1','z1']
+    .map(k => Math.abs(mh.bbox[k] - ml.bbox[k]));
+  const worst = Math.max.apply(null, dB);
+  // the far mesh drops trim, seams and pads — all of which stand a few
+  // centimetres proud — so the silhouettes may differ by that much and no more
+  check(worst < 0.32, name + ': the two meshes are not the same silhouette',
+        'worst axis ' + worst.toFixed(3) + ' m');
+
+  // 4 — the openings are honest: everything the generator KEPT clears the roof
+  for (const o of hi.stats.openings || []) {
+    const lim = Math.min(o.underA, o.underB);
+    check(o.y1 <= lim + 1e-6,
+          name + ': a kept opening breaks the roof line',
+          o.kind + ' by ' + (o.y1 - lim).toFixed(3) + ' m');
+    check(o.s0 >= -1e-6 && o.s1 <= o.wallL + 1e-6,
+          name + ': an opening runs off the end of its wall');
+  }
+  // 8 THE DRAINAGE (G230). A gutter on every true eave, and a downpipe that
+  //   reaches the ground it stands on — cut to the slope like every post.
+  if (P.gutter) {
+    check(hi.stats.gutterLen > 1,
+          name + ': the gutter asked for was not built',
+          hi.stats.gutterLen.toFixed(2) + ' m');
+    const eaves = hi.R.facets.filter(f => f.eaveTrue)
+      .reduce((a, f) => a + Math.hypot(f.q[1][0] - f.q[0][0],
+                                       f.q[1][2] - f.q[0][2]), 0);
+    check(Math.abs(hi.stats.gutterLen - eaves) < 0.05,
+          name + ': the gutter does not run the true eaves',
+          hi.stats.gutterLen.toFixed(2) + ' vs ' + eaves.toFixed(2) + ' m');
+    if (P.downpipe) {
+      const d = hi.stats.downpipe;
+      if (check(!!d, name + ': no downpipe was built')) {
+        check(d.clear > 0.05 && d.clear < 0.60,
+              name + ': the downpipe does not meet the ground',
+              d.clear.toFixed(2) + ' m above it');
+        const drop = d.top[1] - d.foot[1];
+        check(drop > 0.5, name + ': the downpipe is a stub',
+              drop.toFixed(2) + ' m of fall');
+      }
+    }
+  }
+
+  // 9 THE DOOR IS NOT A VOID (G231). A leaf must actually stand in the door
+  //   opening: trim geometry inside the hole, at lod 0. This is the check
+  //   that goes red if the door ever goes back to being a hole with a casing.
+  if (P.door && !P.openFront) {
+    const d = hi.bags.trim.data();
+    const door = (hi.stats.openings || []).find(o => o.kind === 'door');
+    if (check(!!door, name + ': the door was dropped')) {
+      let inLeaf = 0;
+      const yLo = door.y0 + 0.2, yHi = Math.min(door.y1, door.underA) - 0.2;
+      for (let i = 0; i < d.pos.length; i += 3) {
+        const y = d.pos[i + 1];
+        if (y > yLo && y < yHi) inLeaf++;
+      }
+      check(inLeaf > 20, name + ': nothing hangs in the door opening',
+            inLeaf + ' trim vertices at leaf height');
+    }
+  }
+
+  // 13 — THE DIAL IS A DIAL. ao 0 must leave every vertex lit: a bake you
+  //   cannot switch off is a bake you cannot debug.
+  {
+    const off = HG.build(Object.assign({}, P, { ao: 0 }), 0);
+    let lit = true;
+    for (const k of HG.BAGS) {
+      const d = off.bags[k].data();
+      for (const a of d.ao) if (a < 0.999) { lit = false; break; }
+      if (!lit) break;
+    }
+    check(lit, name + ': ao 0 still darkened something');
+    check(off.stats.ao === null, name + ': ao 0 still reported a bake');
+    // and the same build twice must bake the same shadows
+    const a1 = hi.bags.siding.data().ao;
+    const a2 = HG.build(P, 0).bags.siding.data().ao;
+    let same = a1.length === a2.length;
+    if (same) for (let i = 0; i < a1.length; i++)
+      if (Math.abs(a1[i] - a2[i]) > 1e-9) { same = false; break; }
+    check(same, name + ': the bake is not deterministic');
+  }
+
+  // 16 — NO FLIGHT OF STEPS ENDS IN THE SEA. Over water the stair lands on a
+  //   LANDING a hand's breadth above the tide, on its own piles.
+  if (P.water && P.porch && P.stairs) {
+    const st = hi.stats.stair, jt = hi.stats.jetty;
+    if (st) {
+      const wet = P.waterY;
+      if (st.y0 < wet + 0.02)
+        check(!!jt, name + ': the stair walks into the water',
+              'foot at ' + st.y0.toFixed(2) + ', tide at ' + wet.toFixed(2));
+      if (jt) check(jt.y > wet + 0.1 && jt.y < wet + 0.9,
+                    name + ': the landing is not just above the tide',
+                    jt.y.toFixed(2) + ' vs ' + wet.toFixed(2));
+    }
+  }
+  // 17 — a back door that opens onto nothing is not a garden door
+  if (P.backDoor && P.backPorch)
+    check(!!hi.stats.stoop, name + ': the back door has no stoop');
+
+  // 19 — EVERY ROOF IS CLOSED WITH ITS FINISH (the user: "there are still
+  //   significant issues around the borders of the roofs, all types now ...
+  //   ensure that all roofs are properly closed with their finish"). Each
+  //   roof — main facet, dormer, lean-to, porch — reports the quad it drew and
+  //   which of its edges were free; every free edge must have trim within
+  //   reach of its midpoint. A roof that forgets its rim now says so here
+  //   rather than in a screenshot.
+  if (P.fascia > 0.005) {
+    const tr = hi.bags.trim.data();
+    const near = (px, py, pz, r) => {
+      for (let i = 0; i < tr.pos.length; i += 3) {
+        const dx = tr.pos[i] - px, dy = tr.pos[i + 1] - py,
+              dz = tr.pos[i + 2] - pz;
+        if (dx * dx + dy * dy + dz * dz < r * r) return true;
+      }
+      return false;
+    };
+    let bare = 0, tested = 0;
+    for (const rim of hi.stats.rims || [])
+      for (let i = 0; i < 4; i++) {
+        if (!rim.free[i]) continue;
+        const a = rim.q[i], b = rim.q[(i + 1) % 4];
+        const L2 = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+        if (L2 < 0.05) continue;
+        tested++;
+        // AT THE ENDS, not at the middle: a rim is one long quad and its
+        // vertices are at the polyline's corners, so the midpoint of a 7 m
+        // eave is 3.5 m from the nearest of them. Both ends carrying trim is
+        // what says the board was laid along that edge.
+        if (!near(a[0], a[1], a[2], 0.30) || !near(b[0], b[1], b[2], 0.30))
+          bare++;
+      }
+    check(bare === 0, name + ': a free roof edge has no finish on it',
+          bare + ' of ' + tested + ' edges');
+    check(tested > 2, name + ': no roof edge was finished at all',
+          String(tested));
+  }
+
+  // determinism: the same numbers twice
+  const again = HG.build(P, 0);
+  check(again.stats.tris === hi.stats.tris,
+        name + ': the build is not deterministic',
+        hi.stats.tris + ' then ' + again.stats.tris);
+
+  rows.push({ name, hi: mh.tris, lo: ml.tris, ratio,
+              ridge: hi.stats.ridgeY, drop: hi.stats.dropped,
+              posts: hi.stats.posts, sil: worst });
+}
+
+// 18 — THE PRESETS COVER THE SPACE (the user: "in the presets, you don't use
+//   saltbox much. Ensure you have a wide variety, covering most of our
+//   options"). A generator whose shipped examples exercise a third of its own
+//   parameters is a generator nobody will find the rest of. Every value of
+//   every SHAPE-BEARING option has to appear in at least one preset, and the
+//   gate names the ones that do not.
+{
+  const all = Object.keys(HG.PRESETS)
+    .map(n => Object.assign({}, HG.DEF, HG.PRESETS[n]));
+  const has = (label, fn) =>
+    check(all.some(fn), 'preset coverage: nothing uses ' + label);
+  for (let f = 0; f <= 3; f++)
+    has('roof family ' + HG.FAMS[f], P => Math.round(P.roofFam) === f);
+  has('a hipped roof', P => !!P.hip);
+  for (let st = 0; st <= 4; st++)
+    has('stance ' + HG.STANCES[st], P => Math.round(P.stance) === st);
+  has('standing in water', P => !!P.water);
+  has('a lean-to', P => !!P.lean);
+  has('a cupola', P => !!P.cupola);
+  has('shed dormers', P => P.dormers > 0 && Math.round(P.dormKind) === 0);
+  has('gable dormers', P => P.dormers > 0 && Math.round(P.dormKind) === 1);
+  has('an open front', P => !!P.openFront);
+  has('stacked cordwood', P => !!P.firewood);
+  has('a back door', P => !!P.backDoor);
+  for (let r = 0; r <= 2; r++)
+    has('porch roof ' + r, P => !!P.porch && Math.round(P.porchRoof) === r);
+  for (let k = 0; k <= 3; k++)
+    has('skirt ' + k, P => Math.round(P.skirt) === k && P.stance >= 1 &&
+                           P.stance <= 3);
+  for (let r = 1; r <= 3; r++)
+    has('rail style ' + r, P => !!P.porch && Math.round(P.railStyle) === r);
+  has('a masonry chimney', P => Math.round(P.chim) === 2);
+  has('a fresh finish', P => P.weather < 0.3);
+  has('a weathered finish', P => P.weather > 0.6);
+  has('a bark pile', P => HG.ROLE_SETS.post[Math.round(P.postSet)] === 'bark');
+}
+
+// THE ROOF EXTRAS AND THE STANCES (G231). Every dormer kind on every roof
+// family at three pitches, the belfry on four of them, the piles standing in
+// water on a steep beach, and the shed that is not a house. These are the
+// combinations where a dormer runs past the ridge, a cupola hangs off the
+// slope, or an open side leaves the roof carried by nothing.
+for (let fam = 0; fam <= 3; fam++)
+  for (const pitch of [10, 26, 44])
+    for (const kind of [0, 1]) {
+      const P = Object.assign({}, HG.DEF, {
+        roofFam: fam, pitch: pitch, storeys: 2, dormers: 2, dormKind: kind,
+        dormSide: 2, dormW: 1.8, dormH: 1.4, cupola: 1, cupCross: 1,
+        gutter: 1, downpipe: 1,
+      });
+      const tag = 'extras fam' + fam + ' p' + pitch +
+                  (kind ? ' gable-dormer' : ' shed-dormer');
+      const b = HG.build(P, 0);
+      runRules(tag, measure(b));
+      const lo = measure(HG.build(P, 1));
+      check(lo.tris < b.stats.tris * 0.35, tag + ': lod 1 out of budget',
+            lo.tris + ' vs ' + b.stats.tris);
+      // a dormer that had to be shortened says so rather than folding the roof
+      // either it built them, or it said out loud that the roof cannot carry
+      // one — never silently nothing
+      check(b.stats.dormers > 0 || b.stats.dormSkipped > 0,
+            tag + ': the dormers vanished without a word');
+      // 15 — A DORMER EXISTS FOR ITS WINDOW. A blind box on a roof is not a
+      //   dormer, and the user found three of them; the generator refuses the
+      //   dormer instead of building one that cannot be glazed.
+      check(b.stats.dormerWindows === b.stats.dormers,
+            tag + ': a dormer was built with no window',
+            b.stats.dormerWindows + ' of ' + b.stats.dormers);
+      const cup = b.stats.cupola;
+      check(!!cup && cup.top > b.stats.ridgeY,
+            tag + ': the belfry does not stand above the ridge');
+    }
+
+// OVER THE WATER, and on skids: the two stances G231 added.
+for (const slope of [8, 18])
+  for (const st of [2, 3, 4]) {
+    const P = Object.assign({}, HG.DEF, {
+      stance: st, slopeZ: slope, water: 1, waterY: -0.25, floorY: 2.0,
+      pileBent: 1, brace: 1, openFront: st === 4 ? 1 : 0,
+      firewood: st === 4 ? 1 : 0,
+      backDoor: 1, backPorch: 1, porch: 1, stairs: 1, porchD: 2.0,
+    });
+    const tag = 'stance ' + HG.STANCES[st] + ' s' + slope;
+    const b = HG.build(P, 0);
+    runRules(tag, measure(b));
+    if (st === 3)
+      check(b.stats.inWater > 0, tag + ': nothing is standing in the water');
+    if (st === 4) {
+      check(b.stats.posts === 0, tag + ': skids do not have posts',
+            String(b.stats.posts));
+      check(b.stats.firewood > 20, tag + ': the woodshed is empty',
+            String(b.stats.firewood));
+    }
+    const lo = measure(HG.build(P, 1));
+    check(lo.tris < b.stats.tris * 0.40, tag + ': lod 1 out of budget',
+          lo.tris + ' vs ' + b.stats.tris);
+  }
+
+// THE SWEEP. Presets prove the four photographs; the sweep proves the SPACE —
+// every roof family at both extremes of pitch, on a steep site, with the
+// windows deliberately too tall for the gable. This is where "a wall through
+// its roof" actually appears.
+for (let fam = 0; fam <= 3; fam++)
+  for (const pitch of [6, 26, 50])
+    for (const hip of (fam === 0 ? [0, 1] : [0]))
+      for (const slope of [0, 14]) {
+        const P = Object.assign({}, HG.DEF, {
+          roofFam: fam, pitch: pitch, hip: hip, slopeZ: slope,
+          winH: 1.9, storeys: fam === 3 ? 1 : 2, lean: 1, porchRoof: 2,
+          gableWin: 1, chim: fam % 2 ? 2 : 1,
+        });
+        const tag = 'sweep fam' + fam + ' p' + pitch + (hip ? ' hip' : '') +
+                    ' s' + slope;
+        const b = HG.build(P, 0);
+        runRules(tag, measure(b));
+        for (const o of b.stats.openings || [])
+          check(o.y1 <= Math.min(o.underA, o.underB) + 1e-6,
+                tag + ': a kept opening breaks the roof line');
+        const lo = measure(HG.build(P, 1));
+        check(lo.tris > 20 && lo.tris < b.stats.tris * 0.35,
+              tag + ': lod 1 out of budget',
+              lo.tris + ' vs ' + b.stats.tris);
+      }
+
+// THE RANDOM HOUSE, AS A FUZZER. `randomHouse` samples the decisions a builder
+// makes rather than the sliders, which makes it the cheapest coverage in this
+// gate: forty seeds walk combinations no preset has (a gambrel on piles in the
+// water with a lean-to and a belfry) and every rule above runs on each. A seed
+// that goes red is also a REPRODUCTION — `randomHouse(seed)` on the bench
+// rebuilds it exactly.
+for (let seed = 1; seed <= 40; seed++) {
+  const P = HG.randomHouse(seed);
+  const b = HG.build(P, 0);
+  runRules('random seed ' + seed, measure(b));
+  for (const o of b.stats.openings || [])
+    check(o.y1 <= Math.min(o.underA, o.underB) + 1e-6,
+          'random seed ' + seed + ': a kept opening breaks the roof line');
+  const lo = measure(HG.build(P, 1));
+  check(lo.tris < Math.max(300, b.stats.tris * 0.34),
+        'random seed ' + seed + ': lod 1 out of budget',
+        lo.tris + ' vs ' + b.stats.tris);
+}
+
+// ---------------------------------------------------------------------------
+// THE SHED (G232): the second generator, held to the same rules
+// ---------------------------------------------------------------------------
+// It shares the kit, the material library and the LOD contract, so it shares
+// the battery — clean geometry, honest UVs, nothing buried, a far mesh that is
+// cheaper and the same shape. What it does NOT share is the wall shell and the
+// roof planes: a shed is a pile of members, so those two rules stand down (and
+// `measure` says so by looking for the roof model rather than by being told).
+if (check(!!SG, 'the shed generator did not load headlessly')) {
+  for (const name of Object.keys(SG.PRESETS)) {
+    const P = Object.assign({}, SG.DEF, SG.PRESETS[name]);
+    const hi = SG.build(P, 0), lo = SG.build(P, 1);
+    const mh = measure(hi), ml = measure(lo);
+    runRules('shed ' + name + ' hi', mh);
+    runRules('shed ' + name + ' lo', ml);
+    check(hi.stats.members > 12, 'shed ' + name + ': too few members',
+          String(hi.stats.members));
+    check(hi.stats.boards > 20, 'shed ' + name + ': too few boards',
+          String(hi.stats.boards));
+    check(ml.tris < Math.max(300, mh.tris * 0.34),
+          'shed ' + name + ': lod 1 out of budget',
+          ml.tris + ' vs ' + mh.tris);
+    let worst = 0;
+    for (const k of ['x0', 'y0', 'z0', 'x1', 'y1', 'z1'])
+      worst = Math.max(worst, Math.abs(mh.bbox[k] - ml.bbox[k]));
+    check(worst < 0.45, 'shed ' + name + ': the two meshes differ in outline',
+          worst.toFixed(3) + ' m');
+    const again = SG.build(P, 0);
+    check(again.stats.tris === hi.stats.tris,
+          'shed ' + name + ': the build is not deterministic');
+  }
+  // and the same fuzz: twenty sheds nobody designed
+  for (let seed = 1; seed <= 20; seed++) {
+    const P = SG.randomShed(seed);
+    const b = SG.build(P, 0);
+    runRules('shed seed ' + seed, measure(b));
+    const lo = measure(SG.build(P, 1));
+    check(lo.tris < Math.max(300, b.stats.tris * 0.36),
+          'shed seed ' + seed + ': lod 1 out of budget',
+          lo.tris + ' vs ' + b.stats.tris);
+  }
+  // SHAKE 0 IS SQUARE JOINERY: the jitter must be a dial, not a constant
+  const still = SG.build(Object.assign({}, SG.DEF, { shake: 0 }), 0);
+  const shaky = SG.build(Object.assign({}, SG.DEF, { shake: 1.2 }), 0);
+  let moved = 0;
+  {
+    const a = still.bags.siding.data().pos, b2 = shaky.bags.siding.data().pos;
+    const n = Math.min(a.length, b2.length);
+    for (let i = 0; i < n; i++) if (Math.abs(a[i] - b2[i]) > 0.004) moved++;
+  }
+  check(moved > 40, 'the shed does not actually shake', moved + ' vertices');
+}
+
+// ---------------------------------------------------------------------------
+// NEGATIVE VERIFICATION
+// ---------------------------------------------------------------------------
+if (SELFTEST) {
+  const base = measure(HG.build(Object.assign({}, HG.DEF), 0));
+  const doctor = (mut, ruleIdx) => {
+    const m = JSON.parse(JSON.stringify(base));
+    mut(m);
+    return !RULES[ruleIdx][1](m);
+  };
+  const neg = [];
+  if (!doctor(m => { m.nan = 3; }, 0)) neg.push('the NaN rule cannot fail');
+  if (!doctor(m => { m.degen = 1; }, 1)) neg.push('the degenerate rule cannot fail');
+  if (!doctor(m => { m.badUV = 1; }, 2)) neg.push('the UV rule cannot fail');
+  if (!doctor(m => { m.above = 1; m.aboveWorst = 0.4; }, 4))
+    neg.push('the wall-through-roof rule cannot fail');
+  if (!doctor(m => { m.wildUV = 1; }, 3))
+    neg.push('the wild-UV rule cannot fail');
+  if (!doctor(m => { m.buried = 1; m.buriedWorst = 2; }, 5))
+    neg.push('the buried rule cannot fail');
+  if (!doctor(m => { m.stretch = 3; m.stretchWorst = 0.02;
+                     m.stretchWhere = ['siding']; }, 6))
+    neg.push('the stretched-UV rule cannot fail');
+  if (!doctor(m => { m.corner = 2; }, 7))
+    neg.push('the open-corner rule cannot fail');
+  if (!doctor(m => { m.aoMissing = 4; }, 8))
+    neg.push('the missing-occlusion rule cannot fail');
+  if (!doctor(m => { m.aoSum = m.aoN; }, 9))
+    neg.push('the flat-bake rule cannot fail');
+  if (!doctor(m => { m.aoMin = m.aoSum / m.aoN; }, 10))
+    neg.push('the somewhere-dark rule cannot fail');
+  // A DORMER MUST NOT RUN PAST THE RIDGE. At a shallow pitch its own roof
+  // crosses the main one beyond the ridge, and the generator must shorten the
+  // dormer rather than fold the roof back over itself — the count says so.
+  const flat = HG.build(Object.assign({}, HG.DEF, {
+    pitch: 9, dormers: 2, dormH: 2.0, dormKind: 0, storeys: 2 }), 0);
+  if (!(flat.stats.dormClamped + flat.stats.dormSkipped > 0))
+    neg.push('an impossible dormer was neither clamped nor refused');
+  if (flat.stats.dormers > 0 && flat.stats.dormClamped === 0)
+    neg.push('a dormer was built on a roof that cannot carry it');
+  // and the case that must CLAMP rather than refuse: room for a small one
+  const tall = HG.build(Object.assign({}, HG.DEF, {
+    pitch: 30, dormers: 2, dormH: 2.2, dormKind: 0, storeys: 2 }), 0);
+  if (!(tall.stats.dormClamped > 0))
+    neg.push('a too-tall dormer was not shortened to fit');
+  // and with no door there must be no leaf: the rule reads geometry, not a flag
+  const noDoor = HG.build(Object.assign({}, HG.DEF, { door: 0 }), 0);
+  if ((noDoor.stats.openings || []).some(o => o.kind === 'door'))
+    neg.push('a door appeared with the door switched off');
+
+  // and the two live ones, driven by real geometry rather than a doctored
+  // number: a roof pitched flat under a two-storey gable window MUST make the
+  // generator drop openings rather than cut them through the roof
+  const tight = HG.build(Object.assign({}, HG.DEF, {
+    storeys: 2, pitch: 5, winH: 2.2, gableWin: 1, nLeft: 3, nRight: 3 }), 0);
+  if (!(tight.stats.dropped > 0))
+    neg.push('an impossible window was not dropped');
+  for (const o of tight.stats.openings || [])
+    if (o.y1 > Math.min(o.underA, o.underB) + 1e-6)
+      neg.push('a dropped-window build still kept one through the roof');
+  // lod 1 must be a construction: switching it off must actually remove work
+  const a0 = HG.build(HG.DEF, 0).stats.tris, a1 = HG.build(HG.DEF, 1).stats.tris;
+  if (!(a1 < a0 * 0.3)) neg.push('lod 1 is not cheaper by construction');
+  for (const n of neg) fail.push('SELFTEST: ' + n);
+  console.log('selftest: ' + (neg.length ? neg.length + ' holes' :
+              'every rule proven able to go red'));
+}
+
+// ---------------------------------------------------------------------------
+if (TABLE || process.env.HOUSE_TABLE) {
+  console.log('  preset            hi tris   lo tris  ratio  ridge  posts  ' +
+              'dropped  silhouette');
+  for (const r of rows)
+    console.log('  ' + r.name.padEnd(16) + String(r.hi).padStart(8) +
+                String(r.lo).padStart(10) + r.ratio.toFixed(3).padStart(7) +
+                r.ridge.toFixed(2).padStart(7) + String(r.posts).padStart(7) +
+                String(r.drop).padStart(9) + r.sil.toFixed(3).padStart(12));
+}
+
+if (fail.length) {
+  for (const f of fail.slice(0, 24)) console.log('  ! ' + f);
+  if (fail.length > 24) console.log('  ... ' + (fail.length - 24) + ' more');
+  console.log('GATE HOUSE: FAIL (' + fail.length + ')');
+  process.exit(1);
+}
+console.log('GATE HOUSE: PASS');

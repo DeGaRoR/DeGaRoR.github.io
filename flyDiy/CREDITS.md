@@ -216,6 +216,68 @@ Modifications made:
 - **Geometry discarded.** The Poly Haven sets deliver glTF preview spheres;
   only the maps are imported.
 
+## House materials (`assets/house/`, baked and served from media/)
+
+Fifteen CC0 PBR sets for the WOODEN HOUSE library (G230) — the painted planks,
+the metal roofing and the weathered timber the generated Alaskan houses wear.
+The user delivered nineteen; four were left out with a reason (below).
+
+**Poly Haven, CC0** (https://polyhaven.com) — `box_profile_metal_sheet`
+(`boxprof`, the painted metal roof), `worn_corrugated_iron` (`corrworn`),
+`rusty_corrugated_iron` (`corrrust`), `grey_roof_01` (`shingle`),
+`rust_coarse_01` (`rust`), `blue_painted_planks` (`paintwood`),
+`green_rough_planks` (`greenwood`), `wood_cabinet_worn_long` (`board`, the
+trim), `wooden_rough_planks` (`roughwood`), `brown_planks_08` (`brownwood`),
+`weathered_planks` (`greywood`), `weathered_brown_planks` (`wornwood`),
+`wood_floor_deck` (`deckwood`), `concrete_floor_damaged_01` (`concrete`).
+
+**ambientCG, CC0** (https://ambientcg.com) — `Metal037` (`galv`, the
+galvanised sheet the gutters, the downpipe and the stove pipe are made of),
+and from the second delivery (G232): `Planks025A` (`darkwood`),
+`Planks025C` (`stain` — near-featureless dark boards, which is what makes it
+the paintable one), `WoodSiding010` (`shakes`, the weathered shake siding),
+and `Bark015` (`bark`, G232.4 — a driven pile is a tree with its skin still
+on, and it is the only `log`-kind set in the library).
+
+**The two VENEERS are not a new import.** `veneer` and `veneerdark` are
+`assets/wood/maple` and `assets/wood/walnutfig` — the aeroplane's own CC0
+wood library (Poly Haven `white_maple_veneer` and `natural_walnut_veneer`,
+credited under *Wood detail sheets* above) — copied into the house contract at
+a house scale. A casing, a corner board and a barge board are MILLED stock:
+tiling a plank-wall scan onto a 100 mm board puts three plank joints across a
+board that has none, which is what made the first cut's finish read as
+cladding rather than as trim.
+
+Neither licence requires attribution; recorded for the usual reason.
+
+**Not imported**, and the reason is the theme rather than the quality:
+`natural_walnut_veneer` (a cabinet veneer — it is already in `assets/wood/` as
+the aeroplane's `walnutFig`, and no Alaskan house is clad in figured walnut),
+`clay_roof_tiles` and `roof_3` (Mediterranean tile; southeast Alaska roofs are
+metal or shake), and clean `corrugated_iron` (`box_profile_metal_sheet` covers
+a new metal roof, and the two worn corrugated sets are the characterful ones).
+
+Modifications made:
+
+- **Normalised.** `tools/house_tex_import.py` writes the same
+  `diff` / `nor_gl` / `rough` contract as the airfield and wood sets. The two
+  Poly Haven packings (a plain `rough` map, or roughness in `arm`'s green) are
+  told apart by looking in the zip, because this delivery mixes them.
+- **Neutralised, for the ones the house paints.** `boxprof`, `paintwood`,
+  `greenwood` and `board` also leave as a `paint_*.jpg`: hue removed,
+  luminance re-based on 0.78 of white with a soft knee, so `map * color`
+  reproduces a bright paint colour at any hue instead of the mud a red tint on
+  a blue scan gives. The peeling, the knots and the plank shadows survive; only
+  the hue leaves.
+- **Resampled to a texel density, not to a budget.** Each set declares `tile`,
+  the metres of building one repeat covers, and the payload size is the power
+  of two nearest 320 px/m — so a 1.2 m plank sheet and a 2 m shingle sheet do
+  NOT both land at 512. Achieved: 256-427 px/m, a 1.67:1 spread across the
+  library, held by GATE HOUSE. 1k archives stay beside the payload, so
+  promoting a set is one number and a re-run.
+- **Geometry discarded.** The Poly Haven sets deliver glTF preview spheres;
+  only the maps are imported.
+
 ## Skin sheets (`assets/skin/`, baked and served from media/)
 
 The CC0 PBR sets the AEROSKIN material library wears that are not wood: the

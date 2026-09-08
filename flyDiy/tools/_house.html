@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<!--
+  HOUSE BENCH (G229) — the wooden-house designer. Serve from the repo root
+  (launch: flydiy-house) and open /flyDiy/tools/_house.html.
+
+  Alaska: bright painted board walls, a ribbed metal roof, and the whole thing
+  standing off a wet sloping beach on posts. The model is four independent
+  layers (see _house_gen.js) — VOLUME, ROOF, STANCE, FITTINGS — and the four
+  presets are the reference photographs expressed in them. There is no "house
+  type" anywhere: 'village house' and 'cannery shed' are the same generator.
+
+  THE BENCH DRAWS BOTH MESHES. Every rebuild produces the near mesh (lod 0)
+  and the far mesh (lod 1) from the same numbers, reports both tri counts and
+  the silhouette difference between them, and can show them side by side. That
+  is the deliverable the user asked for — high AND low poly — and it is only
+  honest if the low one is a construction rather than a decimation, which is
+  what GATE HOUSE (`node tools/_house_check.js`) holds.
+-->
+<meta charset="utf-8">
+<title>flyDiy — house bench</title>
+<style>
+  :root{--bg:#12151a;--fg:#dfe6ee;--dim:#7d8996;--acc:#5db3ff;--grid:#242a33}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--fg);
+    font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;overflow:hidden}
+  header{padding:8px 12px;border-bottom:1px solid var(--grid);display:flex;
+    gap:14px;align-items:center;flex-wrap:wrap}
+  h1{font-size:13px;margin:0}
+  label{color:var(--dim);display:inline-flex;gap:5px;align-items:center}
+  select,button{background:#1a1f27;color:var(--fg);border:1px solid var(--grid);
+    padding:3px 8px;border-radius:4px;font:inherit}
+  main{display:flex;height:calc(100vh - 40px)}
+  #view{position:relative;flex:1;min-width:0}
+  canvas{display:block;width:100%;height:100%}
+  aside{border-left:1px solid var(--grid);overflow-y:auto;overflow-x:hidden;
+    padding:10px;width:340px;flex:none;resize:horizontal;direction:rtl;
+    min-width:250px;max-width:70vw}
+  aside>*{direction:ltr}
+  .r{display:flex;gap:6px;align-items:center;margin:5px 0;min-width:0}
+  .r span.k{color:var(--dim);width:104px;flex:none;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
+  .r select{min-width:60px;flex:1}
+  input[type=range]{flex:1;min-width:30px;accent-color:var(--acc)}
+  .v{width:48px;flex:none;text-align:right;color:var(--acc)}
+  #stat{position:absolute;left:10px;top:8px;color:var(--dim);z-index:2}
+  #chk{position:absolute;left:10px;bottom:10px;z-index:2;
+    background:rgba(18,21,26,.84);border:1px solid var(--grid);
+    border-radius:5px;padding:7px 10px;pointer-events:none;line-height:1.55;
+    max-width:46ch}
+  #chk b{font-weight:600}
+  details{margin:8px 0;border:1px solid var(--grid);border-radius:5px;
+    padding:2px 8px}
+  summary{cursor:pointer;color:var(--dim);font-size:11px;
+    text-transform:uppercase;padding:4px 0}
+  .ok{color:#6fd08c} .warn{color:#e8c15a} .bad{color:#ff6b5a}
+  .hd{color:#7d8996;letter-spacing:.14em;font-size:9px;margin:6px 0 3px}
+</style>
+
+<header>
+  <h1>house bench</h1>
+  <label>model <select id="modelSel">
+    <option value="house">house</option>
+    <option value="shed">shed (plank by plank)</option>
+  </select></label>
+  <label>preset <select id="presetSel"></select></label>
+  <label>show <select id="lodSel">
+    <option value="0">high poly</option>
+    <option value="1">low poly</option>
+    <option value="2">both, side by side</option>
+  </select></label>
+  <label><input type="checkbox" id="ground" checked> site</label>
+  <label><input type="checkbox" id="wire"> wireframe</label>
+  <label>light <select id="moodSel">
+    <option value="0">afternoon</option>
+    <option value="1">golden</option>
+    <option value="2">overcast</option>
+    <option value="3">blue hour</option>
+  </select></label>
+  <label>sun <input type="range" id="sunAz" min="0" max="360" step="1"
+    value="140" style="width:64px"><input type="range" id="sunEl" min="3"
+    max="80" step="1" value="34" style="width:52px"></label>
+  <label>ev <input type="range" id="expo" min="0.4" max="2.2" step="0.02"
+    value="1.05" style="width:56px"></label>
+  <button id="resetBtn">reset</button>
+  <button id="rndBtn" title="a house nobody designed (the seed is beside it)">random</button>
+  <input id="seed" size="6" value="1" title="seed"
+    style="background:#1a1f27;color:#dfe6ee;border:1px solid #242a33;
+           border-radius:4px;padding:3px 6px;width:56px;font:inherit">
+  <button id="jsonBtn" title="download the config as JSON (also copied)">json</button>
+  <button id="impBtn" title="paste a config JSON">imp</button>
+  <button id="objBtn" title="download both meshes as OBJ">obj</button>
+</header>
+
+<main>
+  <div id="view"><span id="stat"></span><canvas id="c"></canvas><div id="chk"></div></div>
+  <aside id="ui"></aside>
+</main>
+
+<script src="../vendor/three.min.js"></script>
+<!-- the bench lives one directory below the page the payload was baked for -->
+<script>window.FLYDIY_ASSET_BASE = '../';</script>
+<script src="../src/viewer/house_tex.js"></script>
+<!-- the aerodrome's ground sets: the bench stands the house in real grass so
+     there is something for the sky to bounce off and the shadows to land on -->
+<script src="../src/viewer/site_tex.js"></script>
+<script src="_house_kit.js"></script>
+<script src="_house_gen.js"></script>
+<script src="_shed_gen.js"></script>
+<script>
+'use strict';
+(() => {
+const G = window.HOUSE_GEN;
+const SH = window.SHED_GEN;
+const $ = id => document.getElementById(id);
+const D2R = Math.PI / 180;
+// TWO GENERATORS, ONE BENCH. The shed is a different MODEL of a building — a
+// pile of members rather than a set of surfaces — so it is a different
+// generator with its own rows and its own presets, and the bench switches
+// between them. The materials, the light, the LOD ledger and the gate are
+// shared: a shed beside a house has to be made of the same wood.
+let GEN = G;
+let P = Object.assign({}, G.DEF);
+
+// ---- scene ----------------------------------------------------------------
+let yaw = -0.75, pitch = 0.30, ZOOM = 1, drag = null, panD = null;
+let centre = new THREE.Vector3(), centreOv = null, fitR = 12;
+const cv = $('c');
+const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true,
+                                           preserveDrawingBuffer: true });
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x12151a);
+
+// ---------------------------------------------------------------------------
+// THE LIGHT RIG (the user: "The current viewer has very little shading, can we
+// do better? It's hard to judge PBR textures without anything to reflect, to
+// shade and to light.")
+// ---------------------------------------------------------------------------
+// Three lamps and a 64x32 gradient could not answer that, and the reason is
+// physical: a PBR surface is only as legible as what is around it. A rough
+// plank needs a broad source to smear, a metal roof needs a SUN to catch, and
+// both need something dark on one side or the shape disappears. So:
+//
+//   A REAL SKY, painted as an equirectangle and run through PMREM — zenith,
+//   haze, horizon, ground bounce, AND A SUN DISC in the right place. The disc
+//   is what puts a highlight on the galvanising and a glint on the gutter;
+//   without it the metal sets are grey paint.
+//   THE SUN AS A SHADOW-CASTING LIGHT at the same azimuth and elevation, its
+//   ortho frustum fitted to the building. Contact shadow under the eaves and
+//   the deck is most of what makes a house read as solid.
+//   ACES TONE MAPPING and an exposure dial, because the sky is brighter than
+//   the paint and clipping it is what made everything look flat.
+//   FOUR MOODS off the game's own sky rows (afternoon, golden, overcast, blue
+//   hour): the same judgement call in four different lights, which is how you
+//   find out that a finish only works at noon.
+const MOODS = [
+  { name: 'afternoon', zen: [0.32, 0.50, 0.78], hor: [0.72, 0.80, 0.88],
+    gnd: [0.20, 0.22, 0.17], sun: [1.00, 0.94, 0.82], sunI: 3.0, disc: 26,
+    amb: 0.55, ev: 1.05 },
+  { name: 'golden',    zen: [0.22, 0.36, 0.62], hor: [0.95, 0.72, 0.44],
+    gnd: [0.22, 0.19, 0.13], sun: [1.00, 0.78, 0.48], sunI: 2.4, disc: 34,
+    amb: 0.50, ev: 1.15 },
+  { name: 'overcast',  zen: [0.62, 0.66, 0.72], hor: [0.78, 0.80, 0.83],
+    gnd: [0.26, 0.27, 0.24], sun: [0.90, 0.92, 0.95], sunI: 0.45, disc: 0,
+    amb: 1.05, ev: 1.00 },
+  { name: 'blue hour', zen: [0.10, 0.16, 0.34], hor: [0.40, 0.46, 0.66],
+    gnd: [0.10, 0.12, 0.14], sun: [0.72, 0.78, 1.00], sunI: 0.55, disc: 10,
+    amb: 0.45, ev: 1.35 },
+];
+const sun = new THREE.DirectionalLight(0xffffff, 2.4);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.bias = -0.0008;
+sun.shadow.normalBias = 0.02;
+scene.add(sun, sun.target);
+const fill = new THREE.HemisphereLight(0xbdd2ea, 0x4a4436, 0.5);
+scene.add(fill);
+const pmrem = new THREE.PMREMGenerator(renderer);
+pmrem.compileEquirectangularShader();
+let envRT = null;
+
+function sunDir() {
+  const az = (+$('sunAz').value) * D2R, el = (+$('sunEl').value) * D2R;
+  return new THREE.Vector3(Math.cos(el) * Math.sin(az), Math.sin(el),
+                           Math.cos(el) * Math.cos(az));
+}
+
+function buildSky() {
+  const M = MOODS[+$('moodSel').value];
+  const W = 256, H = 128;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const g = c.getContext('2d');
+  const img = g.createImageData(W, H);
+  const d = sunDir();
+  const px = (v, i) => Math.max(0, Math.min(255, Math.round(v * 255)));
+  for (let y = 0; y < H; y++) {
+    const theta = (y + 0.5) / H * Math.PI;           // 0 = zenith
+    const cy = Math.cos(theta), sy = Math.sin(theta);
+    for (let x = 0; x < W; x++) {
+      const phi = (x + 0.5) / W * Math.PI * 2 - Math.PI;
+      const dir = [sy * Math.sin(phi), cy, sy * Math.cos(phi)];
+      let col;
+      if (cy >= 0) {
+        const t = Math.pow(1 - cy, 2.2);             // horizon haze
+        col = [M.zen[0] + (M.hor[0] - M.zen[0]) * t,
+               M.zen[1] + (M.hor[1] - M.zen[1]) * t,
+               M.zen[2] + (M.hor[2] - M.zen[2]) * t];
+      } else {
+        const t = Math.min(1, -cy * 3);
+        col = [M.hor[0] * (1 - t) + M.gnd[0] * t,
+               M.hor[1] * (1 - t) + M.gnd[1] * t,
+               M.hor[2] * (1 - t) + M.gnd[2] * t];
+      }
+      if (M.disc > 0) {
+        const dot2 = dir[0] * d.x + dir[1] * d.y + dir[2] * d.z;
+        const ang = Math.acos(Math.max(-1, Math.min(1, dot2)));
+        const disc = Math.exp(-Math.pow(ang / 0.055, 2)) * M.disc;
+        const glow = Math.exp(-Math.pow(ang / 0.55, 2)) * M.disc * 0.10;
+        col = [col[0] + (disc + glow) * M.sun[0],
+               col[1] + (disc + glow) * M.sun[1],
+               col[2] + (disc + glow) * M.sun[2]];
+      }
+      const i = (y * W + x) * 4;
+      img.data[i] = px(col[0]); img.data[i + 1] = px(col[1]);
+      img.data[i + 2] = px(col[2]); img.data[i + 3] = 255;
+    }
+  }
+  g.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(c);
+  t.mapping = THREE.EquirectangularReflectionMapping;
+  t.encoding = THREE.sRGBEncoding;
+  if (envRT) envRT.dispose();
+  envRT = pmrem.fromEquirectangular(t);
+  scene.environment = envRT.texture;
+  scene.background = new THREE.Color(M.hor[0] * 0.45, M.hor[1] * 0.47,
+                                     M.hor[2] * 0.52);
+  t.dispose();
+  sun.color.setRGB(M.sun[0], M.sun[1], M.sun[2]);
+  sun.intensity = M.sunI;
+  fill.intensity = M.amb;
+  fill.color.setRGB(M.hor[0], M.hor[1], M.hor[2]);
+  fill.groundColor.setRGB(M.gnd[0], M.gnd[1], M.gnd[2]);
+  renderer.toneMappingExposure = (+$('expo').value) * M.ev;
+}
+const camera = new THREE.PerspectiveCamera(38, 1, 0.05, 600);
+let root = null;
+let BUILT = { hi: null, lo: null };
+
+// THE SITE, drawn from the generator's own ground function — one plane, so a
+// post that lands on it in the model lands on it on screen too.
+function siteMesh(g, R) {
+  const grp = new THREE.Group();
+  const N = 2;
+  const pos = [], idx = [];
+  const uv = [];
+  for (let i = 0; i <= N; i++) for (let j = 0; j <= N; j++) {
+    const x = -R + 2 * R * i / N, z = -R + 2 * R * j / N;
+    pos.push(x, g(x, z), z);
+    uv.push(x, z);                              // metres, like every other UV
+  }
+  for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
+    const a = i * (N + 1) + j;
+    idx.push(a, a + 1, a + N + 2, a, a + N + 2, a + N + 1);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position',
+    new THREE.BufferAttribute(new Float32Array(pos), 3));
+  geo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(uv), 2));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  const gm = new THREE.MeshStandardMaterial({
+    color: 0x87906f, roughness: 0.96, metalness: 0,
+    side: THREE.DoubleSide });
+  const SS = (typeof SITE_TEX_SETS !== 'undefined') && SITE_TEX_SETS;
+  if (SS && SS.grass005) {                     // the aerodrome's field grass
+    const mk = (img, srgb) => {
+      const t = new THREE.Texture(img);
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.anisotropy = 8;
+      if (srgb) t.encoding = THREE.sRGBEncoding;
+      t.repeat.set(1 / SS.grass005.tile, 1 / SS.grass005.tile);
+      const ok = () => { t.needsUpdate = true; draw(); };
+      if (img.complete && img.naturalWidth) t.needsUpdate = true;
+      else img.addEventListener('load', ok);
+      return t;
+    };
+    gm.map = mk(SS.grass005.diff, true);
+    gm.normalMap = mk(SS.grass005.nor, false);
+    gm.roughnessMap = mk(SS.grass005.rough, false);
+    gm.color.setHex(0xffffff);
+  }
+  const gmesh = new THREE.Mesh(geo, gm);
+  gmesh.receiveShadow = true;
+  grp.add(gmesh);
+  const grid = new THREE.GridHelper(2 * R, Math.round(R), 0x39424e, 0x2a313a);
+  grid.material.transparent = true; grid.material.opacity = 0.35;
+  grid.rotation.z = -P.slopeX * D2R;
+  grid.rotation.x = P.slopeZ * D2R;
+  grp.add(grid);
+  return grp;
+}
+
+function addBuild(parent, built, dx) {
+  const grp = new THREE.Group();
+  grp.position.x = dx || 0;
+  for (const k of GEN.BAGS) built.bags[k].mesh(grp, G.MAT[k]);
+  parent.add(grp);
+  return grp;
+}
+
+// THE BAKE IS 30-60 ms AND A SLIDER IS 60 A SECOND. So a drag builds WITHOUT
+// occlusion and the bake follows a quarter of a second after the hand stops:
+// the shape answers immediately, the light catches up. Everything that is not
+// a drag (a preset, a select, a dice roll) bakes straight away.
+let aoFast = false, aoTimer = null;
+function buildFast() {
+  aoFast = true;
+  build();
+  clearTimeout(aoTimer);
+  aoTimer = setTimeout(() => { aoFast = false; build(); }, 240);
+}
+
+function build() {
+  if (root) {
+    root.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+    scene.remove(root);
+  }
+  root = new THREE.Group();
+  scene.add(root);
+  GEN.applyFinish(P);
+  const t0 = performance.now();
+  const PB = aoFast ? Object.assign({}, P, { ao: 0 }) : P;
+  const hi = GEN.build(PB, 0);
+  const lo = GEN.build(PB, 1);
+  const ms = performance.now() - t0;
+  BUILT = { hi, lo };
+  const mode = +$('lodSel').value;
+  if (mode === 2) {
+    const gap = P.L + Math.max(6, P.w * 0.8);
+    addBuild(root, hi, -gap / 2);
+    addBuild(root, lo, gap / 2);
+  } else addBuild(root, mode === 1 ? lo : hi, 0);
+  if ($('ground').checked) {
+    const R2 = Math.max(18, P.L * 1.6);
+    root.add(siteMesh(hi.stats.ground, R2));
+    // the tide, when the building stands in it: one plane, and the piles are
+    // already cut to the seabed under them
+    if (P.water) {
+      const g2 = new THREE.PlaneGeometry(R2 * 2.2, R2 * 2.2);
+      g2.rotateX(-Math.PI / 2);
+      const m2 = new THREE.Mesh(g2, new THREE.MeshStandardMaterial({
+        color: 0x2b4a58, roughness: 0.12, metalness: 0.15,
+        transparent: true, opacity: 0.72, side: THREE.DoubleSide }));
+      m2.position.y = P.waterY;
+      m2.receiveShadow = true;
+      root.add(m2);
+    }
+  }
+
+  if ($('wire').checked)
+    root.traverse(o => { if (o.material && !o.material.wireframe) {
+      o.material = o.material.clone(); o.material.wireframe = true; } });
+
+  const box = new THREE.Box3().setFromObject(root);
+  box.getCenter(centre);
+  fitR = box.getSize(new THREE.Vector3()).length() * 0.55;
+  // the sun's frustum is fitted to what it has to shadow, or the map is spent
+  // on empty grass and the eaves get no contact shadow at all
+  const d = sunDir().multiplyScalar(Math.max(14, fitR * 2.4));
+  sun.position.copy(centre).add(d);
+  sun.target.position.copy(centre);
+  sun.target.updateMatrixWorld();
+  const S = Math.max(8, fitR * 1.5);
+  sun.shadow.camera.left = -S; sun.shadow.camera.right = S;
+  sun.shadow.camera.top = S; sun.shadow.camera.bottom = -S;
+  sun.shadow.camera.near = 0.5;
+  sun.shadow.camera.far = Math.max(40, fitR * 6);
+  sun.shadow.camera.updateProjectionMatrix();
+  $('stat').textContent =
+    'high ' + hi.stats.tris + ' tris / ' + hi.stats.verts + ' v   ·   ' +
+    'low ' + lo.stats.tris + ' tris / ' + lo.stats.verts + ' v   ·   ' +
+    (lo.stats.tris / hi.stats.tris * 100).toFixed(1) + '%   ·   ' +
+    ms.toFixed(1) + ' ms' + (aoFast ? '   ·   baking…' : '');
+  checks(hi, lo);
+  syncVis();
+  draw();
+}
+
+// ---- the checks that make this a bench, not a viewer ----------------------
+// Building geometry has known numbers too: a stair you can walk down, a rail
+// you cannot fall over, a pitch that sheds snow, headroom under the ridge, and
+// a crawl space that keeps timber out of the wet. Plus the two things only a
+// generator can get wrong — dropped openings, and a low mesh that is not the
+// same house as the high one.
+function checks(hi, lo) {
+  const S = hi.stats, rows = [];
+  if (GEN === SH) return shedChecks(hi, lo);
+  const row = (label, val, cls, note) =>
+    rows.push('<div><span style="color:#7d8996">' + label + '</span> ' +
+      '<b class="' + (cls || '') + '">' + val + '</b>' +
+      (note ? ' <span style="color:#4a525c">' + note + '</span>' : '') + '</div>');
+  const head = t => rows.push('<div class="hd">' + t + '</div>');
+
+  head('THE BUILDING');
+  row('footprint', S.footprint.toFixed(1) + ' m&sup2;', '',
+      S.area.toFixed(0) + ' m&sup2; over ' + P.storeys + ' storey' +
+      (P.storeys > 1 ? 's' : ''));
+  row('ridge height', S.ridgeY.toFixed(2) + ' m', '',
+      'eave ' + (S.eaveY - S.floorY).toFixed(2) + ' above floor');
+  const p12 = S.pitch12;
+  row('roof pitch', S.pitch.toFixed(1) + '&deg;',
+      p12 >= 4 ? 'ok' : (p12 >= 3 ? 'warn' : 'bad'),
+      p12.toFixed(1) + ':12 &mdash; snow wants 4:12+');
+  const ov = Math.min(P.eaveOver, P.hip ? P.eaveOver : P.rakeOver);
+  row('overhang', ov.toFixed(2) + ' m', ov >= 0.30 ? 'ok' : 'warn',
+      'rain off the walls: 0.30 m+');
+  const hr = S.headroom;
+  row('headroom at ridge', hr.toFixed(2) + ' m',
+      hr >= 2.1 ? 'ok' : (hr >= 1.5 ? 'warn' : 'bad'), 'top storey, want 2.1');
+
+  head('THE STANCE');
+  if (P.stance === 0) row('stands on', 'a slab', '', 'no posts');
+  else if (Math.round(P.stance) === 4)
+    row('stands on', 'skids', '', 'blocked up, no crawl space by design');
+  else {
+    row('posts', String(S.posts), '',
+        'longest free length ' + S.postFree.toFixed(2) + ' m');
+    const sl = S.postFree / Math.max(0.01, P.postSz);
+    row('slenderness', sl.toFixed(0), sl <= 20 ? 'ok' : (sl <= 28 ? 'warn' : 'bad'),
+        'free length / size, want &lt; 20');
+    const cl = S.clearance;
+    row('crawl space', cl.toFixed(2) + ' m',
+        cl >= 0.45 ? 'ok' : (cl >= 0.25 ? 'warn' : 'bad'),
+        'timber out of the wet: 0.45 m');
+  }
+  const gd = Math.abs(P.slopeZ) + Math.abs(P.slopeX);
+  row('site slope', P.slopeZ.toFixed(1) + '&deg; / ' + P.slopeX.toFixed(1) + '&deg;',
+      '', gd > 0.5 ? 'across / along the ridge' : 'flat');
+
+  if (P.porch) {
+    head('THE DECK');
+    row('deck', S.deckArea.toFixed(1) + ' m&sup2;', '',
+        P.porchD.toFixed(2) + ' m deep');
+    if (P.railStyle > 0)
+      row('rail height', S.railH.toFixed(2) + ' m',
+          S.railH >= 0.90 ? 'ok' : 'bad', 'guard: 0.90 m');
+    if (S.stair) {
+      const st = S.stair;
+      const twoRG = 2 * st.rise + st.run;
+      row('stair', st.n + ' &times; ' + (st.rise * 1000).toFixed(0) + ' mm', '',
+          'going ' + (st.run * 1000).toFixed(0) + ' mm');
+      row('2R + G', (twoRG * 1000).toFixed(0) + ' mm',
+          twoRG > 0.60 && twoRG < 0.66 ? 'ok' : 'warn', 'want 600-660');
+      row('rise', (st.rise * 1000).toFixed(0) + ' mm',
+          st.rise <= 0.200 ? 'ok' : 'bad', 'max 200 mm');
+    }
+  }
+
+  if (P.dormers || P.cupola || P.water || P.firewood || P.openFront) {
+    head('THE EXTRAS');
+    if (P.dormers)
+      row('dormers', S.dormers + ' built',
+          S.dormSkipped ? 'warn' : 'ok',
+          (S.dormClamped ? S.dormClamped + ' shortened to fit' : '') +
+          (S.dormSkipped ? (S.dormClamped ? ', ' : '') + S.dormSkipped +
+           ' refused: the roof is too shallow' : ''));
+    if (S.cupola)
+      row('belfry', S.cupola.sides + '-sided', '',
+          'apex ' + S.cupola.top.toFixed(2) + ' m, ' +
+          (S.cupola.top - S.ridgeY).toFixed(2) + ' above the ridge');
+    if (P.water)
+      row('in the water', S.inWater + ' of ' + S.posts + ' legs',
+          S.inWater ? 'ok' : 'warn', 'tide at ' + P.waterY.toFixed(2));
+    if (P.firewood) row('cordwood', String(S.firewood), '', 'rounds stacked');
+    if (P.openFront)
+      row('open side', ['-', 'front', 'right end', 'back', 'left end'][
+        Math.round(P.openFront)], '', 'posts and a header, no wall');
+  }
+
+  head('THE MATERIALS');
+  {
+    // WHAT EVERY SLOT IS ACTUALLY WEARING. Asked of the materials themselves,
+    // so "all materials have full PBR" is a reading rather than a claim.
+    const rep = G.finishReport();
+    const full = rep.filter(r => r.full).length;
+    const glassy = rep.filter(r => r.glassy).length;
+    row('PBR', full + ' of ' + rep.length + ' slots',
+        full === rep.length ? 'ok' : 'bad',
+        'albedo + normal + roughness (' + glassy + ' glass, no maps by design)');
+    const kinds = {};
+    for (const slot of ['wall', 'trim', 'deck', 'floor', 'post', 'roof'])
+      kinds[slot] = G.SET_KIND[G.setFor(P, slot)] || '-';
+    row('kinds', Object.keys(kinds).map(k => k + ':' + kinds[k]).join(' '), '',
+        'planks on walls and floors, veneer on boards, sheet on roofs');
+  }
+  const L = G.libSets();
+  if (!L) row('library', 'not loaded', 'warn', 'flat colours stand in');
+  else {
+    const dens = [];
+    for (const slot of ['wall', 'roof', 'trim', 'deck']) {
+      const k = S.sets[slot], set = L[k];
+      if (!set) continue;
+      dens.push(set.px / set.tile);
+      row(slot, set.name, '',
+          set.px + 'px / ' + set.tile + ' m = ' +
+          Math.round(set.px / set.tile) + ' px/m');
+    }
+    const sp = Math.max.apply(null, dens) / Math.min.apply(null, dens);
+    row('texel density', Math.round(Math.min.apply(null, dens)) + '-' +
+        Math.round(Math.max.apply(null, dens)) + ' px/m',
+        sp <= 2 ? 'ok' : 'warn', 'spread ' + sp.toFixed(2) + ':1 on this house');
+    if (S.ribbedRoof)
+      row('drawn seams', 'off', 'ok', 'the roof sheet is ribbed already');
+  }
+  if (P.gutter) {
+    row('gutter', S.gutterLen.toFixed(1) + ' m', '',
+        P.gutter === 1 ? 'half round' : 'box');
+    if (S.downpipe)
+      row('downpipe', S.downpipe.clear.toFixed(2) + ' m clear',
+          S.downpipe.clear > 0.05 && S.downpipe.clear < 0.6 ? 'ok' : 'bad',
+          'shoe above the ground');
+  }
+
+  head('THE GENERATOR');
+  if (S.ao)
+    row('baked occlusion', 'mean ' + (S.ao.mean * 100).toFixed(0) + '%', 'ok',
+        'darkest ' + (S.ao.min * 100).toFixed(0) + '%, ' +
+        S.ao.cell.toFixed(2) + ' m cells');
+  row('openings dropped', String(S.dropped),
+      S.dropped === 0 ? 'ok' : 'warn',
+      S.dropped ? 'no room under the roof line' : 'every one placed');
+  row('clean geometry',
+      (S.nan + S.degen) === 0 ? 'clean' : (S.nan + ' NaN, ' + S.degen + ' degenerate'),
+      (S.nan + S.degen) === 0 ? 'ok' : 'bad', 'GATE HOUSE holds this');
+  const ratio = lo.stats.tris / Math.max(1, hi.stats.tris);
+  row('low / high', (ratio * 100).toFixed(1) + '%',
+      ratio < 0.30 ? 'ok' : 'warn', lo.stats.tris + ' of ' + hi.stats.tris);
+  const A = hi.stats.bbox, B = lo.stats.bbox;
+  let worst = 0;
+  for (const k of ['x0','y0','z0','x1','y1','z1'])
+    worst = Math.max(worst, Math.abs(A[k] - B[k]));
+  row('silhouette delta', worst.toFixed(3) + ' m',
+      worst < 0.32 ? 'ok' : 'bad', 'same house, fewer boards');
+
+  $('chk').innerHTML = rows.join('');
+}
+
+// WHAT A PLANK-BY-PLANK SHED IS JUDGED BY: how many sticks are in it, how
+// many boards, how many are missing, and what all that costs.
+function shedChecks(hi, lo) {
+  const S = hi.stats, rows = [];
+  const row = (label, val, cls, note) =>
+    rows.push('<div><span style="color:#7d8996">' + label + '</span> ' +
+      '<b class="' + (cls || '') + '">' + val + '</b>' +
+      (note ? ' <span style="color:#4a525c">' + note + '</span>' : '') + '</div>');
+  const head = t => rows.push('<div class="hd">' + t + '</div>');
+  head('THE SHED');
+  row('footprint', S.footprint.toFixed(1) + ' m&sup2;', '',
+      P.L.toFixed(2) + ' x ' + P.w.toFixed(2) + ' m');
+  row('ridge', S.ridgeY.toFixed(2) + ' m', '',
+      'wall ' + P.wallH.toFixed(2) + ' m');
+  row('members', String(S.members), '', 'sticks of timber, each placed');
+  row('boards', String(S.boards), '',
+      S.missing + ' missing off the walls');
+  row('shake', (P.shake * 100).toFixed(0) + '%',
+      P.shake > 1.1 ? 'warn' : 'ok', 'jitter on every member');
+  head('THE MATERIALS');
+  {
+    const rep = G.finishReport();
+    const full = rep.filter(r => r.full).length;
+    row('PBR', full + ' of ' + rep.length + ' slots',
+        full === rep.length ? 'ok' : 'bad', 'albedo + normal + roughness');
+  }
+  const L2 = G.libSets();
+  if (!L2) row('library', 'not loaded', 'warn', 'flat colours stand in');
+  else {
+    for (const slot of ['wall', 'roof', 'trim']) {
+      const k = G.setFor(P, slot), set = L2[k];
+      if (!set) continue;
+      row(slot, set.name, '', set.px + 'px / ' + set.tile + ' m = ' +
+          Math.round(set.px / set.tile) + ' px/m');
+    }
+  }
+  head('THE GENERATOR');
+  row('clean geometry',
+      (S.nan + S.degen) === 0 ? 'clean'
+        : (S.nan + ' NaN, ' + S.degen + ' degenerate'),
+      (S.nan + S.degen) === 0 ? 'ok' : 'bad', 'GATE HOUSE holds this');
+  if (S.ao)
+    row('baked occlusion', 'mean ' + (S.ao.mean * 100).toFixed(0) + '%', 'ok',
+        'darkest ' + (S.ao.min * 100).toFixed(0) + '%');
+  const ratio = lo.stats.tris / Math.max(1, hi.stats.tris);
+  row('low / high', (ratio * 100).toFixed(1) + '%',
+      ratio < 0.35 ? 'ok' : 'warn', lo.stats.tris + ' of ' + hi.stats.tris);
+  const A = hi.stats.bbox, B = lo.stats.bbox;
+  let worst = 0;
+  for (const k of ['x0', 'y0', 'z0', 'x1', 'y1', 'z1'])
+    worst = Math.max(worst, Math.abs(A[k] - B[k]));
+  row('silhouette delta', worst.toFixed(3) + ' m',
+      worst < 0.35 ? 'ok' : 'bad', 'same shed, fewer sticks');
+  $('chk').innerHTML = rows.join('');
+}
+
+function draw() {
+  const r = cv.parentElement.getBoundingClientRect();
+  const dp = devicePixelRatio || 1;
+  renderer.setSize(r.width * dp, r.height * dp, false);
+  cv.style.width = r.width + 'px'; cv.style.height = r.height + 'px';
+  camera.aspect = r.width / r.height;
+  camera.updateProjectionMatrix();
+  const R = fitR / ZOOM, C = centreOv || centre;
+  camera.position.set(C.x + R * Math.sin(yaw) * Math.cos(pitch),
+                      C.y + R * Math.sin(pitch),
+                      C.z + R * Math.cos(yaw) * Math.cos(pitch));
+  camera.lookAt(C);
+  renderer.render(scene, camera);
+}
+
+// ---- panel ----------------------------------------------------------------
+// One row per parameter, grouped, with the family-dependent rows HIDDEN rather
+// than removed — a slider that vanishes and comes back keeps its drag, and the
+// panel never rebuilds under the mouse.
+const ui = $('ui');
+const rowEls = [];
+function mkRow(parent, spec) {
+  const k = spec[0], label = spec[1], lo = spec[2], hi = spec[3],
+        st = spec[4], names = spec[5], when = spec[6];
+  const d = document.createElement('div');
+  d.className = 'r';
+  if (names) {
+    d.innerHTML = '<span class="k">' + label + '</span><select style="flex:1">' +
+      names.map((n, i) => '<option value="' + i + '"' +
+        (Math.round(P[k]) === i ? ' selected' : '') + '>' + n + '</option>')
+        .join('') + '</select>';
+    parent.appendChild(d);
+    d.querySelector('select').onchange = e => { P[k] = +e.target.value; build(); };
+  } else {
+    d.innerHTML = '<span class="k">' + label + '</span>' +
+      '<input type="range" min="' + lo + '" max="' + hi + '" step="' + st +
+      '" value="' + P[k] + '"><span class="v">' + fmt(P[k], st) + '</span>';
+    parent.appendChild(d);
+    const inp = d.querySelector('input'), vv = d.querySelector('.v');
+    inp.oninput = e => { P[k] = +e.target.value; vv.textContent = fmt(P[k], st);
+                         buildFast(); };
+  }
+  rowEls.push({ el: d, key: k, when: when, spec: spec });
+}
+const fmt = (v, st) => st >= 1 ? String(Math.round(v))
+  : (st >= 0.05 ? (+v).toFixed(2) : (+v).toFixed(3));
+function syncVis() {
+  for (const r of rowEls) {
+    r.el.style.display = (!r.when || r.when(P)) ? '' : 'none';
+    const inp = r.el.querySelector('input');
+    if (inp) { inp.value = P[r.key];
+               r.el.querySelector('.v').textContent = fmt(P[r.key], r.spec[4]); }
+    const sel = r.el.querySelector('select');
+    if (sel) sel.value = String(Math.round(P[r.key]));
+  }
+}
+function buildPanel() {
+  ui.innerHTML = ''; rowEls.length = 0;
+  for (const grp of GEN.ROWS) {
+    const det = document.createElement('details');
+    det.open = ['plan', 'roof', 'stance', 'the shed', 'the cladding']
+      .indexOf(grp[0]) >= 0;
+    const sum = document.createElement('summary');
+    sum.textContent = grp[0];
+    det.appendChild(sum);
+    ui.appendChild(det);
+    for (const spec of grp[1]) mkRow(det, spec);
+  }
+}
+
+// ---- presets and export ---------------------------------------------------
+const psel = $('presetSel');
+function fillPresets() {
+  psel.innerHTML = '';
+  for (const n of Object.keys(GEN.PRESETS)) {
+    const o = document.createElement('option'); o.value = n; o.textContent = n;
+    psel.appendChild(o);
+  }
+}
+function applyPreset(n) {
+  P = Object.assign({}, GEN.DEF, GEN.PRESETS[n] || {});
+  buildPanel(); syncVis(); build();
+}
+$('modelSel').onchange = e => {
+  GEN = e.target.value === 'shed' ? SH : G;
+  fillPresets();
+  applyPreset(psel.value);
+};
+psel.onchange = e => applyPreset(e.target.value);
+const rollOne = sd => {
+  P = GEN === SH ? SH.randomShed(sd) : G.randomHouse(sd);
+  buildPanel(); syncVis(); build();
+  $('stat').textContent = 'random ' + (GEN === SH ? 'shed' : 'house') +
+    ', seed ' + sd;
+};
+$('rndBtn').onclick = () => {
+  const sd = (parseInt($('seed').value, 10) || 1);
+  rollOne(sd);
+  $('seed').value = String(sd + 1);            // the next one is one along
+};
+$('seed').onchange = () => rollOne(parseInt($('seed').value, 10) || 1);
+$('resetBtn').onclick = () => applyPreset(psel.value);
+for (const id of ['lodSel', 'ground', 'wire']) $(id).onchange = build;
+for (const id of ['moodSel', 'sunAz', 'sunEl', 'expo'])
+  $(id).oninput = $(id).onchange = () => { buildSky(); build(); };
+
+const configJSON = () => {
+  const d = {};
+  for (const k in P) if (P[k] !== GEN.DEF[k]) d[k] = P[k];
+  return JSON.stringify({ model: GEN === SH ? 'shed' : 'house', P: d }, null, 1);
+};
+const dl = (text, name, mime) => {
+  const el = document.createElement('a');
+  el.href = URL.createObjectURL(new Blob([text], { type: mime }));
+  el.download = name; el.click();
+};
+$('jsonBtn').onclick = () => {
+  const t = configJSON();
+  dl(t, 'house_config.json', 'application/json');
+  if (navigator.clipboard) navigator.clipboard.writeText(t);
+  $('stat').textContent = 'config downloaded + copied to clipboard';
+};
+$('impBtn').onclick = () => {
+  const t = prompt('paste config JSON ({P:{...}})');
+  if (!t) return;
+  try {
+    const cfg = JSON.parse(t);
+    if (cfg.P) Object.assign(P, cfg.P);
+    syncVis(); build();
+    $('stat').textContent = 'config imported';
+  } catch (e) { $('stat').textContent = 'import failed: ' + e.message; }
+};
+// OBJ, one file per tier, groups named by material — the meshes the game (or
+// Blender, when a build wants finishing by hand) actually consumes.
+function toOBJ(built, tag) {
+  const out = ['# flyDiy house bench (G229) — ' + tag,
+               '# ' + JSON.stringify(configJSON())];
+  let base = 1, vt = 1;
+  for (const k of GEN.BAGS) {
+    const d = built.bags[k].data();
+    if (!d.idx.length) continue;
+    out.push('g ' + k, 'usemtl ' + k);
+    // the baked occlusion leaves as a VERTEX COLOUR: `v x y z r g b` is the
+    // one extension every DCC tool reads, and it is the only way an OBJ can
+    // carry what was baked
+    for (let i = 0; i < d.pos.length; i += 3) {
+      const a = d.ao ? d.ao[i / 3] : 1;
+      out.push('v ' + d.pos[i].toFixed(4) + ' ' + d.pos[i + 1].toFixed(4) +
+               ' ' + d.pos[i + 2].toFixed(4) + ' ' + a.toFixed(3) + ' ' +
+               a.toFixed(3) + ' ' + a.toFixed(3));
+    }
+    for (let i = 0; i < d.uv.length; i += 2)
+      out.push('vt ' + d.uv[i].toFixed(4) + ' ' + d.uv[i + 1].toFixed(4));
+    for (let i = 0; i < d.idx.length; i += 3) {
+      const a = d.idx[i] + base, b = d.idx[i + 1] + base, c = d.idx[i + 2] + base;
+      const ta = d.idx[i] + vt, tb = d.idx[i + 1] + vt, tc = d.idx[i + 2] + vt;
+      out.push('f ' + a + '/' + ta + ' ' + b + '/' + tb + ' ' + c + '/' + tc);
+    }
+    base += d.pos.length / 3; vt += d.uv.length / 2;
+  }
+  return out.join('\n') + '\n';
+}
+$('objBtn').onclick = () => {
+  dl(toOBJ(BUILT.hi, 'lod 0 (near)'), 'house_hi.obj', 'text/plain');
+  dl(toOBJ(BUILT.lo, 'lod 1 (far)'), 'house_lo.obj', 'text/plain');
+  $('stat').textContent = 'house_hi.obj + house_lo.obj downloaded';
+};
+
+// ---- interaction ----------------------------------------------------------
+const viewEl = $('view');
+viewEl.addEventListener('mousedown', e => {
+  if (e.button === 1 || e.button === 2) {
+    panD = [e.clientX, e.clientY, (centreOv || centre).clone()];
+    e.preventDefault();
+  } else drag = [e.clientX, e.clientY, yaw, pitch];
+});
+viewEl.addEventListener('contextmenu', e => e.preventDefault());
+addEventListener('mouseup', () => { drag = null; panD = null; });
+addEventListener('mousemove', e => {
+  if (panD) {
+    const r = cv.getBoundingClientRect();
+    const wpp = 2 * (fitR / ZOOM) * Math.tan(camera.fov * Math.PI / 360) /
+                Math.max(1, r.height);
+    const e0 = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0);
+    const e1 = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1);
+    centreOv = panD[2].clone()
+      .addScaledVector(e0, -(e.clientX - panD[0]) * wpp)
+      .addScaledVector(e1, (e.clientY - panD[1]) * wpp);
+    draw(); return;
+  }
+  if (!drag) return;
+  yaw = drag[2] + (e.clientX - drag[0]) * 0.008;
+  pitch = Math.max(-0.6, Math.min(1.35, drag[3] + (e.clientY - drag[1]) * 0.006));
+  draw();
+});
+viewEl.addEventListener('wheel', e => {
+  e.preventDefault();
+  ZOOM = Math.max(0.2, Math.min(30, ZOOM * (e.deltaY < 0 ? 1.12 : 1 / 1.12)));
+  draw();
+}, { passive: false });
+viewEl.addEventListener('dblclick', () => { ZOOM = 1; centreOv = null; draw(); });
+addEventListener('resize', draw);
+if (typeof ResizeObserver !== 'undefined')
+  new ResizeObserver(() => draw()).observe(viewEl);
+
+// THE PAYLOAD ARRIVES AFTER THE FIRST FRAME. Every consumer in this repo
+// degrades by design and updates itself on load; the bench draws on demand
+// rather than on a clock, so it has to be told.
+(() => {
+  const L = G.libSets();
+  if (!L) return;
+  let pending = 0;
+  for (const k in L)
+    for (const m of ['diff', 'nor', 'rough', 'paint']) {
+      const img = L[k][m];
+      if (!img || (img.complete && img.naturalWidth)) continue;
+      pending++;
+      img.addEventListener('load', () => { if (--pending <= 0) draw(); draw(); });
+    }
+})();
+
+window.HOUSE_UI = {
+  // A GETTER, NOT A CAPTURE. `P` is re-pointed whenever the model or the
+  // preset changes, so exporting the object itself hands out a stale one —
+  // which is exactly what happened: parameters set through HOUSE_UI.P landed
+  // on a house nobody was drawing any more.
+  get P() { return P; },
+  set P(v) { P = v; },
+  get gen() { return GEN; },
+  build, draw, applyPreset,
+  get built() { return BUILT; },
+  get scene() { return scene; }, get root() { return root; },
+  get cam() { return camera; },
+  setView: (y, p, z, c) => { yaw = y; pitch = p; if (z) ZOOM = z;
+    centreOv = c ? new THREE.Vector3(c[0], c[1], c[2]) : null; draw(); } };
+fillPresets();
+buildPanel();
+buildSky();
+applyPreset(Object.keys(G.PRESETS)[0]);
+})();
+</script>
