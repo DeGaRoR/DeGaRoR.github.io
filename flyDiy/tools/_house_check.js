@@ -360,6 +360,15 @@ if (!check(!!LIB, 'the baked material library is missing — ' +
             'baked a paint map');
   }
 
+  // 26 — NO PRESET ASKS FOR A SET ITS ROLE DOES NOT OFFER (G236.2). SET_IDX
+  //   clamps a miss to zero so nothing can crash — and that clamp is how four
+  //   presets came to ask for a plank on their trim and quietly wear the first
+  //   veneer instead, for four G-numbers, with nothing anywhere saying so. The
+  //   generator remembers every miss at load; this is where it is read.
+  check((HG.SET_MISS || []).length === 0,
+        'a preset asks for a set its role does not offer',
+        (HG.SET_MISS || []).join(', '));
+
   // 25 — DRAWN STANDING SEAMS BELONG ON SHEET METAL, AND ON NOTHING ELSE (the
   //   user, of a shake roof carrying a full set of them: "the attached house
   //   has a significant issue with its roof"). SET_SEAM names the coverings

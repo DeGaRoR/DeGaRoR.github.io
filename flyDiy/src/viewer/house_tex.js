@@ -114,7 +114,7 @@ const HOUSE_TEX_SETS = (typeof Image !== 'undefined') ? (() => {
       nor: mk('media/tex/house/veneerpale_nor_gl_256.ea0d4b7d.jpg'),
       rough: mk('media/tex/house/veneerpale_rough_256.e3ec4a26.jpg'),
       paint: mk('media/tex/house/veneerpale_paint_256.45fea902.jpg') },
-    stain: { kind: 'veneer', name: 'dark stained boards', tile: 1.9, px: 512, metal: 0, ribbed: false, tint: false,
+    stain: { kind: 'plank', name: 'dark stained boards', tile: 1.9, px: 512, metal: 0, ribbed: false, tint: false,
       diff: mk('media/tex/house/stain_diff_512.bd4e8765.jpg'),
       nor: mk('media/tex/house/stain_nor_gl_512.a686a315.jpg'),
       rough: mk('media/tex/house/stain_rough_512.b4fecd9a.jpg'),

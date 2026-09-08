@@ -47,10 +47,10 @@ const DEF = {
   // board here is ONE board, so all of it — cladding included — takes a
   // VENEER. A plank scan on a 200 mm board draws joints across a board that
   // has none, which is the flat, repeated look the first cut had.
-  wallSet: HG.SET_IDX('deck', 'veneerwarm'), wallCol: 0,
-  trimSet: HG.SET_IDX('trim', 'stain'), trimCol: 0,
+  wallSet: HG.SET_IDX('deck', 'stain'), wallCol: 0,
+  trimSet: HG.SET_IDX('trim', 'veneerdark'), trimCol: 0,
   roofSet: HG.SET_IDX('roof', 'corrrust'), roofCol: 0,
-  deckSet: HG.SET_IDX('deck', 'veneerdark'), floorSet: HG.SET_IDX('floor', 'deckwood'),
+  deckSet: HG.SET_IDX('deck', 'darkwood'), floorSet: HG.SET_IDX('floor', 'deckwood'),
   postSet: HG.SET_IDX('post', 'veneerdark'),
   postCol: 0, deckCol: 0, metalSet: 0, metalCol: 0,
   dirt: 0.55, dirtH: 0.85, paintPunch: 0.35,
@@ -134,12 +134,12 @@ const PRESETS = {
   'trapper cabin': { L: 4.2, w: 3.2, wallH: 2.05, gable: 1, pitch: 32,
                      clad: 2, roofKind: 2, shake: 0.85, missing: 0.03,
                      pipe: 1, window: 1, stance: 1, floorY: 0.55,
-                     wallSet: HG.SET_IDX('deck', 'veneerwarm'),
+                     wallSet: HG.SET_IDX('deck', 'stain'),
                      roofSet: HG.SET_IDX('roof', 'shingle') },
   'net store': { L: 6.0, w: 3.0, wallH: 2.35, gable: 0, pitch: 12,
                  clad: 1, roofKind: 0, shake: 0.5, missing: 0.08,
                  stance: 1, floorY: 0.75, doorW: 1.3,
-                 wallSet: HG.SET_IDX('deck', 'veneerpale'),
+                 wallSet: HG.SET_IDX('deck', 'greywood'),
                  roofSet: HG.SET_IDX('roof', 'corrworn') },
   'lean-to': { L: 3.2, w: 1.9, wallH: 1.85, gable: 0, pitch: 22, clad: 3,
                openFront: 1, missing: 0.18, shake: 1.0, roofKind: 1,
@@ -620,8 +620,8 @@ function randomShed(seed) {
   P.firewood = P.openFront && rnd() < 0.7 ? 1 : 0;
   P.pipe = rnd() < 0.25 ? 1 : 0;
   P.doorAjar = rnd() < 0.2 ? rr(10, 60) : 0;
-  P.wallSet = HG.SET_IDX('deck', pick(['veneerwarm', 'veneer', 'veneerdark',
-                                      'stain', 'veneerpale']));
+  P.wallSet = HG.SET_IDX('deck', pick(['greywood', 'wornwood', 'roughwood',
+                                       'stain', 'darkwood']));
   P.roofSet = HG.SET_IDX('roof', pick(['corrworn', 'corrrust', 'shingle',
                                        'shakes', 'rust']));
   P.dirt = rr(0.3, 0.8);

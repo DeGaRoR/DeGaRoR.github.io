@@ -35879,3 +35879,47 @@ something was being decided by a slider when the DATA already knew the answer.
     new one, which is right: it is a different pile. The plain timbers also go
     from a 1.0 m repeat to 1.3 m.
 - Gates: HOUSE (with --selftest) and MEDIA green.
+
+## G236.2 — A DECK BOARD IS NOT FURNITURE, THE CHAMFER REACHES EVERY STICK,
+## AND FOUR PRESETS GET BACK WHAT THEY HAD BEEN ASKING FOR SINCE THEY WERE
+## WRITTEN (2026-09-08, the user: "what you call deck board + ... should be
+## constrained to using the different concrete, or very rough planks, but no
+## veneer ... not all finish is getting equally chamfered. The vertical
+## elements of the window frames and the pillars for the stairs do not for
+## example ... And maybe the stairs too, at least the ramps")
+
+- **THE DECK TAKES WHAT A DECK IS MADE OF.** G232.2 put it on veneer with a
+  real argument — a deck board is ONE board, and a plank scan draws three
+  joints across one board — but the argument proves too much: it is also one
+  board that has been rained on for twenty years, and a milled cabinet veneer
+  describes a kitchen, not a porch. The role now takes `plank | plain | stone`
+  and never a veneer: rough planks, plain timber, or concrete for a stoop that
+  was poured. The joints stay and read as the gaps between boards, which is
+  what they are.
+- **`stain` WAS ALWAYS A PLANK.** Planks025C was filed under veneer because it
+  is nearly featureless; the deck is what showed that up, because it is the one
+  set in the library the user could accept on a deck board and a role that will
+  not take planks could not offer it. Kind corrected in both tables; it leaves
+  the trim list, which is milled stock and stays veneer.
+- **THE CHAMFER IS ONE DECISION NOW, NOT TWENTY.** It had been applied stick by
+  stick at the call sites that came to mind, which is exactly how the sill,
+  BOTH SASH BARS, every stair rail post, every landing post, every stringer and
+  every deck rail got missed — the parts you stand closest to. `BEV(P, Q)` is
+  the whole answer: near mesh, the house's own number, and every beam of finish
+  or frame passes it. The stringers in particular are the longest arris on the
+  building and had none.
+- **AND THE RULE THAT SHOULD HAVE CAUGHT ALL OF IT.** `SET_IDX` clamps a miss
+  to zero so no preset can crash the generator — and that clamp is how SEVEN
+  presets came to ask for a set their role did not offer and quietly wear the
+  first one instead, for four G-numbers, with nothing anywhere saying so. It
+  remembers every miss now (`SET_MISS`) and GATE HOUSE reads the list. It fired
+  on its first run: four trim slots asking for planks, and three walls asking
+  for corrugated iron.
+- **A CANNERY IS CLAD IN THE SAME SHEET ITS ROOF IS.** Those three — the
+  cannery shed, the net loft and the bunkhouse — had asked for corrugated iron
+  on their walls since they were written and had been wearing plain planks. The
+  rule the user gave ("walls and floors take planks") stands for a HOUSE; a
+  working building on a dock is the exception the library already had the
+  material for, so `wall` takes `plank | roof` and the sheet sets join its
+  list. The material's own metalness comes with it.
+- Gates: HOUSE (with --selftest, and the new rule 26) and MEDIA green.

@@ -111,7 +111,7 @@ const SETS = [
   ['veneerdark', 'veneer', 'figured veneer', 0.9, 256, 0.00, true, false],
   ['veneerwarm', 'veneer', 'warm veneer', 0.9, 256, 0.00, true, false],
   ['veneerpale', 'veneer', 'pale laminate', 0.9, 256, 0.00, true, false],
-  ['stain', 'veneer', 'dark stained boards', 1.9, 512, 0.00, false, false, { tint: false }],
+  ['stain', 'plank', 'dark stained boards', 1.9, 512, 0.00, false, false, { tint: false }],
   ['bark', 'log', 'bark', 1.1, 512, 0.00, false, false],
   ['feverbark', 'log', 'fever tree bark', 1.1, 256, 0.00, false, false],
   ['rough', 'plain', 'rough sawn timber', 1.3, 512, 0.00, false, false],

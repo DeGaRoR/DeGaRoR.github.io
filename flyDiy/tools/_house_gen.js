@@ -98,6 +98,18 @@ const BAGS = ['siding', 'trim', 'roof', 'rib', 'glass', 'deck', 'post',
 // were turned to cure.
 const TIMBER = { uvSwap: true, smooth: true };
 
+// THE CHAMFER IS ONE DECISION, NOT TWENTY (the user: "not all finish is
+// getting equally chamfered. The vertical elements of the window frames and
+// the pillars for the stairs do not for example. They should. And maybe the
+// stairs too, at least the ramps"). It was applied stick by stick at the
+// eleven call sites that came to mind, which is exactly how a sill, two sash
+// bars, every stair post and every stringer got missed — the parts you stand
+// closest to. `BEV` is the whole answer now: near mesh, the house's own
+// number, and every beam of finish or frame passes it.
+const BEV = (P, Q) => (Q.lod === 0 ? { bevel: P.bevel } : null);
+const bevUV = (P, Q, uv) => (Q.lod === 0 ? { bevel: P.bevel, uv: uv }
+                                         : { uv: uv });
+
 // NO TWO POLES START AT THE SAME PLACE IN THE SCAN (the user: "ensure all the
 // poles have slightly shifted coordinates, so the repetition is less
 // obvious"). A row of nine piles under a house is nine copies of the same
@@ -122,7 +134,13 @@ const SET_KIND = {
   roughwood: 'plank', brownwood: 'plank', greywood: 'plank',
   wornwood: 'plank', deckwood: 'plank', darkwood: 'plank',
   veneer: 'veneer', veneerdark: 'veneer', veneerwarm: 'veneer',
-  veneerpale: 'veneer', stain: 'veneer',
+  veneerpale: 'veneer',
+  // `stain` is Planks025C and it always was a PLANK scan; it was filed under
+  // veneer because it is nearly featureless and reads as one piece. The deck
+  // is what showed that up (G236.2) — it is the only set in the library the
+  // user could accept on a deck board, and a role that will not take planks
+  // could not offer it.
+  stain: 'plank',
   bark: 'log', feverbark: 'log',
   rough: 'plain', mossy: 'plain',
   concrete: 'stone', concretec: 'stone',
@@ -172,19 +190,40 @@ const setTint = key => SET_TINT[key] || {};
 // painted and never will be, and putting a pale milled veneer on the legs
 // under a weathered house was the tell.
 const ROLE_KIND = {
-  wall: ['plank'], floor: ['plank'], roof: ['roof'], trim: ['veneer'],
-  deck: ['veneer'], post: ['plain', 'log', 'veneer'], metal: ['roof'],
+  // A CANNERY IS CLAD IN THE SAME SHEET ITS ROOF IS. Three presets — the
+  // cannery shed, the net loft and the bunkhouse — had asked for corrugated
+  // iron on their walls since they were written, and the role table refused it
+  // silently (SET_IDX clamps): they have been wearing plain planks and nobody
+  // knew. The rule the user gave was "walls and floors take planks", and it
+  // stands for a HOUSE; a working building on a dock is the exception that the
+  // library already had the material for.
+  wall: ['plank', 'roof'], floor: ['plank'], roof: ['roof'], trim: ['veneer'],
+  // A DECK BOARD IS NOT FURNITURE (the user: "what you call deck board + ...
+  // should be constrained to using the different concrete, or very rough
+  // planks, but no veneer. The only one currently available that fit is dark
+  // stained boards"). G232.2 put the deck on veneer with a real argument — a
+  // deck board is ONE board, and a plank scan draws three joints across one
+  // board — but the argument proves too much: it is also one board that has
+  // been rained on for twenty years, and a milled cabinet veneer is a
+  // description of a kitchen, not of a porch. So the deck takes what a deck is
+  // actually made of: rough planks, plain timber, or concrete for a stoop that
+  // was poured. Never a veneer. The joints stay, and on a weathered board they
+  // read as the gaps between boards, which is what they are.
+  deck: ['plank', 'plain', 'stone'],
+  post: ['plain', 'log', 'veneer'], metal: ['roof'],
   stone: ['stone'],
 };
 const ORDER = {
   wall: ['paintwood', 'greenwood', 'board', 'brownwood', 'roughwood',
-         'greywood', 'wornwood', 'shakes', 'darkwood', 'deckwood'],
+         'greywood', 'wornwood', 'shakes', 'darkwood', 'deckwood', 'stain',
+         'corrworn', 'corrrust', 'boxprof', 'galv'],
   floor: ['deckwood', 'brownwood', 'greywood', 'wornwood', 'roughwood',
           'darkwood', 'board'],
   roof: ['boxprof', 'corrworn', 'corrrust', 'shingle', 'galv', 'rust'],
-  trim: ['veneer', 'veneerpale', 'veneerwarm', 'veneerdark', 'stain'],
-  deck: ['veneerwarm', 'veneer', 'veneerpale', 'veneerdark', 'stain'],
-  post: ['rough', 'mossy', 'bark', 'feverbark', 'veneerdark', 'stain',
+  trim: ['veneer', 'veneerpale', 'veneerwarm', 'veneerdark'],
+  deck: ['stain', 'deckwood', 'greywood', 'wornwood', 'roughwood', 'darkwood',
+         'rough', 'mossy', 'concrete', 'concretec'],
+  post: ['rough', 'mossy', 'bark', 'feverbark', 'veneerdark',
          'veneerwarm', 'veneer', 'veneerpale'],
   metal: ['galv', 'rust'],
   // TWO FOUNDATIONS (the user: "They should be 2 of them; a fine grain light
@@ -207,7 +246,17 @@ const ROLE_SETS = (() => {
   }
   return out;
 })();
-const SET_IDX = (role, key) => Math.max(0, ROLE_SETS[role].indexOf(key));
+// A SET A ROLE DOES NOT OFFER IS A MISTAKE, NOT A SILENT ZERO. This clamps
+// so no preset can crash the generator — but it also REMEMBERS, because the
+// clamp is how four presets came to ask for a plank on their trim and quietly
+// get the first veneer instead, and nothing anywhere said so. GATE HOUSE reads
+// the list.
+const SET_MISS = [];
+const SET_IDX = (role, key) => {
+  const i = ROLE_SETS[role].indexOf(key);
+  if (i < 0) SET_MISS.push(role + ':' + key);
+  return Math.max(0, i);
+};
 
 // THE PAINT POT. Index 0 is 'natural' — the scan as delivered, no tint, which
 // is what a weathered plank or a rusted sheet wants. Everything after it is
@@ -784,7 +833,7 @@ const DEF = {
   // finish: a set per part out of the scanned library, and a paint pot
   wallSet: 0, wallCol: 1, trimSet: SET_IDX('trim', 'veneer'), trimCol: 6,
   roofSet: 0, roofCol: 9,
-  deckSet: SET_IDX('deck', 'veneerwarm'), deckCol: 0,
+  deckSet: SET_IDX('deck', 'stain'), deckCol: 0,
   floorSet: SET_IDX('floor', 'deckwood'),
   postSet: SET_IDX('post', 'rough'), postCol: 0,
   // HOW MUCH DARKER THE FRAME IS THAN THE HOUSE ON TOP OF IT (the user: "you
@@ -969,7 +1018,7 @@ const ROWS = [
     ['trimCol', 'trim paint', 0, COLS.length - 1, 1, COL_NAMES],
     ['roofSet', 'roof', 0, ROLE_SETS.roof.length - 1, 1, setNames('roof')],
     ['roofCol', 'roof paint', 0, COLS.length - 1, 1, COL_NAMES],
-    ['deckSet', 'deck boards + rail', 0, ROLE_SETS.deck.length - 1, 1,
+    ['deckSet', 'deck boards, rail + steps', 0, ROLE_SETS.deck.length - 1, 1,
      setNames('deck')],
     ['deckCol', 'deck stain', 0, COLS.length - 1, 1, COL_NAMES],
     ['floorSet', 'floors', 0, ROLE_SETS.floor.length - 1, 1,
@@ -1010,9 +1059,9 @@ const PRESETS = {
     // house that is not square
     bay: 1, bayWall: 1, bayPos: 0.55, bayW: 2.5, bayD: 0.7,
     wallSet: SET_IDX('wall', 'paintwood'), wallCol: 3,
-    trimSet: SET_IDX('trim', 'board'), trimCol: 6,
+    trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 6,
     roofSet: SET_IDX('roof', 'boxprof'), roofCol: 10,
-    deckSet: SET_IDX('deck', 'veneer'), postSet: SET_IDX('post', 'rough'),
+    deckSet: SET_IDX('deck', 'deckwood'), postSet: SET_IDX('post', 'rough'),
     L: 8.0, w: 6.4, storeys: 2, floorH: 2.45, pitch: 34, roofFam: 0,
     stance: 1, floorY: 0.75, slopeZ: 4, eaveOver: 0.35, rakeOver: 0.30,
     nFront: 3, nBack: 2, nLeft: 2, nRight: 2, winW: 0.85, winH: 1.35,
@@ -1023,9 +1072,9 @@ const PRESETS = {
   },
   'modern dark': {
     wallSet: SET_IDX('wall', 'board'), wallCol: 8,
-    trimSet: SET_IDX('trim', 'board'), trimCol: 8,
+    trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 8,
     roofSet: SET_IDX('roof', 'corrworn'), roofCol: 0,
-    deckSet: SET_IDX('deck', 'veneerpale'), postSet: SET_IDX('post', 'rough'),
+    deckSet: SET_IDX('deck', 'greywood'), postSet: SET_IDX('post', 'rough'),
     metalSet: SET_IDX('metal', 'galv'), metalCol: 8,
     L: 7.5, w: 6.0, storeys: 2, floorH: 2.55, roofFam: 1, pitch: 16,
     stance: 2, floorY: 0.85, slopeZ: 10, eaveOver: 0.7, rakeOver: 0.55,
@@ -1036,9 +1085,9 @@ const PRESETS = {
   'cannery shed': {
     corner: 2, stoneSet: SET_IDX('stone', 'concretec'),
     wallSet: SET_IDX('wall', 'corrworn'), wallCol: 0,
-    trimSet: SET_IDX('trim', 'board'), trimCol: 6,
+    trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 6,
     roofSet: SET_IDX('roof', 'galv'), roofCol: 0,
-    deckSet: SET_IDX('deck', 'veneer'), postSet: SET_IDX('post', 'mossy'),
+    deckSet: SET_IDX('deck', 'deckwood'), postSet: SET_IDX('post', 'mossy'),
     gutterR: 0.095, dpR: 0.055,
     L: 22.0, w: 11.0, storeys: 2, floorH: 3.1, pitch: 22, roofFam: 0,
     stance: 3, floorY: 2.2, slopeZ: 12, eaveOver: 0.45, rakeOver: 0.35,
@@ -1059,9 +1108,9 @@ const PRESETS = {
     cupola: 1, cupSides: 8, cupR: 0.60, cupH: 1.00, cupSpire: 1.35,
     cupXF: 0.66, cupCross: 1,
     wallSet: SET_IDX('wall', 'paintwood'), wallCol: 6,
-    trimSet: SET_IDX('trim', 'board'), trimCol: 6,
+    trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 6,
     roofSet: SET_IDX('roof', 'corrrust'), roofCol: 0,
-    deckSet: SET_IDX('deck', 'veneer'), postSet: SET_IDX('post', 'rough'),
+    deckSet: SET_IDX('deck', 'deckwood'), postSet: SET_IDX('post', 'rough'),
   },
   // NOT HABITATION (the user: "ability to generate small sheds, not even
   // habitation, more like storage"): no windows, no deck, no gutter, and it
@@ -1074,9 +1123,9 @@ const PRESETS = {
     porch: 0, chim: 0, gutter: 0, downpipe: 0, ribs: 0, fascia: 0.12,
     barge: 0.10,
     wallSet: SET_IDX('wall', 'greywood'), wallCol: 0,
-    trimSet: SET_IDX('trim', 'brownwood'), trimCol: 0,
+    trimSet: SET_IDX('trim', 'veneerwarm'), trimCol: 0,
     roofSet: SET_IDX('roof', 'shingle'), roofCol: 0,
-    deckSet: SET_IDX('deck', 'veneer'), postSet: SET_IDX('post', 'rough'),
+    deckSet: SET_IDX('deck', 'deckwood'), postSet: SET_IDX('post', 'rough'),
   },
   // THE WOOD RESERVE: three walls, a post line, a tin roof and four rows of
   // rounds. The open side is a parameter, not a preset's own geometry.
@@ -1087,9 +1136,9 @@ const PRESETS = {
     openFront: 1, firewood: 1, postSpc: 1.6, postSz: 0.14,
     porch: 0, chim: 0, gutter: 0, downpipe: 0, ribs: 1, brace: 0,
     wallSet: SET_IDX('wall', 'roughwood'), wallCol: 0,
-    trimSet: SET_IDX('trim', 'brownwood'), trimCol: 0,
+    trimSet: SET_IDX('trim', 'veneerwarm'), trimCol: 0,
     roofSet: SET_IDX('roof', 'corrworn'), roofCol: 0,
-    deckSet: SET_IDX('deck', 'veneerwarm'), postSet: SET_IDX('post', 'rough'),
+    deckSet: SET_IDX('deck', 'stain'), postSet: SET_IDX('post', 'rough'),
   },
   // CREEK STREET: half of it stands in the water on driven piles, with the
   // battered bents and the cross bracing that go with them.
@@ -1102,9 +1151,9 @@ const PRESETS = {
     porch: 1, porchD: 1.70, porchLenF: 1.0, railStyle: 1, stairs: 0,
     porchRoof: 0, chim: 1, skirt: 0, gutter: 1, downpipe: 1,
     wallSet: SET_IDX('wall', 'paintwood'), wallCol: 4,
-    trimSet: SET_IDX('trim', 'board'), trimCol: 6,
+    trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 6,
     roofSet: SET_IDX('roof', 'corrworn'), roofCol: 0,
-    deckSet: SET_IDX('deck', 'veneer'), postSet: SET_IDX('post', 'rough'),
+    deckSet: SET_IDX('deck', 'deckwood'), postSet: SET_IDX('post', 'rough'),
   },
   // A SHACK ON THE BEACH: one room, corrugated everything, standing in the
   // tide on four bents.
@@ -1117,9 +1166,9 @@ const PRESETS = {
     porch: 1, porchD: 1.20, porchLenF: 0.85, railStyle: 2, stairs: 0,
     chim: 1, chimR: 0.08, gutter: 0, downpipe: 0, skirt: 0, trimW: 0.07,
     wallSet: SET_IDX('wall', 'corrrust'), wallCol: 0,
-    trimSet: SET_IDX('trim', 'stain'), trimCol: 0,
+    trimSet: SET_IDX('trim', 'veneerdark'), trimCol: 0,
     roofSet: SET_IDX('roof', 'corrworn'), roofCol: 0,
-    deckSet: SET_IDX('deck', 'veneer'), postSet: SET_IDX('post', 'rough'),
+    deckSet: SET_IDX('deck', 'deckwood'), postSet: SET_IDX('post', 'rough'),
     dirt: 0.25,
   },
   // THE NET LOFT: long, low, blind on the water side, doors at both ends.
@@ -1135,7 +1184,7 @@ const PRESETS = {
     wallSet: SET_IDX('wall', 'greywood'), wallCol: 0,
     trimSet: SET_IDX('trim', 'veneerdark'), trimCol: 0,
     roofSet: SET_IDX('roof', 'corrworn'), roofCol: 0,
-    deckSet: SET_IDX('deck', 'veneer'), postSet: SET_IDX('post', 'mossy'),
+    deckSet: SET_IDX('deck', 'deckwood'), postSet: SET_IDX('post', 'mossy'),
     dirt: 0.15,
   },
   // A SALTBOX with the long slope to the weather, shakes, and a dormer pair.
@@ -1150,7 +1199,7 @@ const PRESETS = {
     wallSet: SET_IDX('wall', 'shakes'), wallCol: 0,
     trimSet: SET_IDX('trim', 'veneer'), trimCol: 6,
     roofSet: SET_IDX('roof', 'shingle'), roofCol: 0,
-    deckSet: SET_IDX('deck', 'veneerwarm'), postSet: SET_IDX('post', 'rough'),
+    deckSet: SET_IDX('deck', 'stain'), postSet: SET_IDX('post', 'rough'),
   },
   // A BARN: the gambrel nothing else in the list uses, on a concrete base,
   // with a cart door and no deck at all.
@@ -1166,7 +1215,7 @@ const PRESETS = {
     wallSet: SET_IDX('wall', 'roughwood'), wallCol: 10,
     trimSet: SET_IDX('trim', 'veneer'), trimCol: 6,
     roofSet: SET_IDX('roof', 'corrworn'), roofCol: 0,
-    deckSet: SET_IDX('deck', 'veneerwarm'), postSet: SET_IDX('post', 'bark'),
+    deckSet: SET_IDX('deck', 'stain'), postSet: SET_IDX('post', 'bark'),
   },
   // A SALTBOX the other way round from the farmhouse: small, cripple wall,
   // shed dormers, and the long slope to the weather.
@@ -1182,7 +1231,7 @@ const PRESETS = {
     wallSet: SET_IDX('wall', 'paintwood'), wallCol: 11,
     trimSet: SET_IDX('trim', 'veneer'), trimCol: 6,
     roofSet: SET_IDX('roof', 'shingle'), roofCol: 0,
-    deckSet: SET_IDX('deck', 'veneer'), postSet: SET_IDX('post', 'rough'),
+    deckSet: SET_IDX('deck', 'deckwood'), postSet: SET_IDX('post', 'rough'),
   },
   // A HIPPED cottage on a slab, with the veranda right round the front.
   'hip cottage': {
@@ -1195,7 +1244,7 @@ const PRESETS = {
     wallSet: SET_IDX('wall', 'board'), wallCol: 4,
     trimSet: SET_IDX('trim', 'veneer'), trimCol: 6,
     roofSet: SET_IDX('roof', 'galv'), roofCol: 0,
-    deckSet: SET_IDX('deck', 'veneerpale'), postSet: SET_IDX('post', 'veneer'),
+    deckSet: SET_IDX('deck', 'greywood'), postSet: SET_IDX('post', 'veneer'),
   },
   // THE CHAPEL: the church's other face — white, steep, a spire on the ridge
   // rather than a belfry over the door, and shakes instead of rusted sheet.
@@ -1210,7 +1259,7 @@ const PRESETS = {
     wallSet: SET_IDX('wall', 'board'), wallCol: 6,
     trimSet: SET_IDX('trim', 'veneer'), trimCol: 2,
     roofSet: SET_IDX('roof', 'shingle'), roofCol: 0,
-    deckSet: SET_IDX('deck', 'veneer'), postSet: SET_IDX('post', 'rough'),
+    deckSet: SET_IDX('deck', 'deckwood'), postSet: SET_IDX('post', 'rough'),
   },
   // A BUNKHOUSE: long, low, corrugated, on piles, with a solid rail and a
   // back door onto the boardwalk.
@@ -1223,15 +1272,15 @@ const PRESETS = {
     chim: 1, gutter: 1, downpipe: 1, backDoor: 1, backPorch: 1, lean: 1,
     leanD: 2.0, leanLF: 0.35, leanOff: 0.55, weather: 0.7,
     wallSet: SET_IDX('wall', 'corrworn'), wallCol: 0,
-    trimSet: SET_IDX('trim', 'stain'), trimCol: 0,
+    trimSet: SET_IDX('trim', 'veneerdark'), trimCol: 0,
     roofSet: SET_IDX('roof', 'corrrust'), roofCol: 0,
-    deckSet: SET_IDX('deck', 'veneerdark'), postSet: SET_IDX('post', 'bark'),
+    deckSet: SET_IDX('deck', 'darkwood'), postSet: SET_IDX('post', 'bark'),
   },
   'log cabin': {
     wallSet: SET_IDX('wall', 'roughwood'), wallCol: 0,
-    trimSet: SET_IDX('trim', 'board'), trimCol: 2,
+    trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 2,
     roofSet: SET_IDX('roof', 'shingle'), roofCol: 0,
-    deckSet: SET_IDX('deck', 'veneerwarm'), postSet: SET_IDX('post', 'rough'),
+    deckSet: SET_IDX('deck', 'stain'), postSet: SET_IDX('post', 'rough'),
     gutter: 0, downpipe: 0,
     L: 7.0, w: 5.2, storeys: 1, floorH: 2.35, pitch: 30, roofFam: 0,
     stance: 2, floorY: 0.65, slopeZ: 3, eaveOver: 0.75, rakeOver: 0.7,
@@ -1496,7 +1545,7 @@ function dressOpening(bags, P, Q, W, h, y1) {
     // the casing is milled stock and takes the same small chamfer the posts
     // do — on a 100 mm board it is the arris that catches the light and tells
     // you there is a board there at all
-    const bev = { bevel: P.bevel };
+    const bev = BEV(P, Q);
     beam(bags.trim, p(h.s0 - t / 2 + ov, h.y0 - t), p(h.s0 - t / 2 + ov, jambTop),
          t / 2, th, N, 0, bev);
     beam(bags.trim, p(h.s1 + t / 2 - ov, h.y0 - t), p(h.s1 + t / 2 - ov, jambTop),
@@ -1508,7 +1557,7 @@ function dressOpening(bags, P, Q, W, h, y1) {
       const sy = h.y0 + 0.030;
       beam(bags.trim, add(p(h.s0 - t * 1.3, sy), mul(N, 0.016)),
            add(p(h.s1 + t * 1.3, sy), mul(N, 0.016)), 0.034, t * 0.42,
-           [0, 1, 0]);
+           [0, 1, 0], 0, bev);
     }
   }
   if (h.kind === 'door') { buildDoor(bags, P, Q, W, h, y1); return; }
@@ -1526,10 +1575,13 @@ function dressOpening(bags, P, Q, W, h, y1) {
        uvFrame(g0, X, [0, 1, 0]));
   if (Q.lod === 0 && P.muntin) {
     const cS = (h.s0 + h.s1) / 2, cY = (h.y0 + y1) / 2;
+    // the sash bars: the vertical one is the piece of finish a face gets
+    // closest to, and it was the one with no arris on it at all
+    const mb = BEV(P, Q);
     beam(bags.trim, W.P(cS, h.y0 + 0.02, 0.86), W.P(cS, y1 - 0.02, 0.86),
-         0.018, 0.016, N);
+         0.018, 0.016, N, 0, mb);
     beam(bags.trim, W.P(h.s0 + 0.02, cY, 0.86), W.P(h.s1 - 0.02, cY, 0.86),
-         0.018, 0.016, N);
+         0.018, 0.016, N, 0, mb);
   }
 }
 
@@ -2538,7 +2590,8 @@ function buildStance(bags, P, Q, V, plan, g) {
   for (let i = 0; i < plan.length; i++) {
     const A = plan[i], B = plan[(i + 1) % plan.length];
     beam(bags.post, [A[0], (yTop + yBot) / 2, A[1]],
-         [B[0], (yTop + yBot) / 2, B[1]], half, beamH / 2, [0, 1, 0]);
+         [B[0], (yTop + yBot) / 2, B[1]], half, beamH / 2, [0, 1, 0], 0,
+         bevUV(P, Q, jog(A[0], A[1], 14)));
   }
   if (Q.lod === 0 && P.joists) {
     const x0 = plan[0][0], x1 = plan[1][0];
@@ -2881,7 +2934,7 @@ function buildDeck(bags, P, Q, V, R, g) {
              { uv: jog(x, z, 10), bevel: Q.lod === 0 ? P.bevel : 0 });
       }
       const rail = (y, hw, ht) => beam(bags.deck,
-        [a[0], y, a[1]], [b[0], y, b[1]], hw, ht, [0, 1, 0]);
+        [a[0], y, a[1]], [b[0], y, b[1]], hw, ht, [0, 1, 0], 0, BEV(P, Q));
       rail(yTop + P.railH, 0.035, 0.028);                 // top rail (cap)
       if (Q.lod === 0) {
         if (P.railStyle === 1) {
@@ -2891,7 +2944,7 @@ function buildDeck(bags, P, Q, V, R, g) {
             const u = i / nb;
             const x = a[0] + (b[0] - a[0]) * u, z = a[1] + (b[1] - a[1]) * u;
             beam(bags.deck, [x, yTop + 0.10, z], [x, yTop + P.railH, z],
-                 0.020, 0.020, [0, 0, 1]);
+                 0.020, 0.020, [0, 0, 1], 0, BEV(P, Q));
           }
         } else if (P.railStyle === 2) {
           const nr = 4;
@@ -3084,11 +3137,13 @@ function stepFlight(bags, P, Q, o) {
          [0, 1, 0]);
     return;
   }
-  for (const s2 of [-1, 1]) {                          // the stringers
+  // THE RAMPS. A stringer is a 300 mm board on edge running the whole flight
+  // and it is the longest arris on the building; it had none.
+  for (const s2 of [-1, 1]) {
     const a = at(0, o.yTop - 0.12), b = at(T, yBot - 0.02);
     beam(bags.post, [a[0] + px * s2 * hw, a[1], a[2] + pz * s2 * hw],
          [b[0] + px * s2 * hw, b[1], b[2] + pz * s2 * hw], 0.03, 0.14,
-         [0, 1, 0]);
+         [0, 1, 0], 0, bevUV(o.P, Q, jog(a[0] + s2, a[2], 12)));
   }
   // THE HANDRAIL, which is not decoration: a twelve-tread flight two metres
   // up with nothing to hold was in the user's own screenshot, and it is the
@@ -3106,15 +3161,17 @@ function stepFlight(bags, P, Q, o) {
         const c = at(t2, y);
         beam(bags.post, [c[0] + off2[0], y - 0.10, c[2] + off2[1]],
              [c[0] + off2[0], y + rh, c[2] + off2[1]], 0.032, 0.032,
-             [0, 0, 1], 0, { uv: [c[0] + c[2], 0] });
+             [0, 0, 1], 0, bevUV(o.P, Q, jog(c[0], c[2], 11)));
       }
       const a = at(0, o.yTop + rh - 0.02);
       const b = at(T, yBot + rh - 0.02);
+      const rb = BEV(o.P, Q);
       beam(bags.deck, [a[0] + off2[0], a[1], a[2] + off2[1]],
-           [b[0] + off2[0], b[1], b[2] + off2[1]], 0.036, 0.026, [0, 1, 0]);
+           [b[0] + off2[0], b[1], b[2] + off2[1]], 0.036, 0.026, [0, 1, 0],
+           0, rb);
       beam(bags.deck, [a[0] + off2[0], a[1] - rh * 0.52, a[2] + off2[1]],
            [b[0] + off2[0], b[1] - rh * 0.52, b[2] + off2[1]], 0.022, 0.018,
-           [0, 1, 0]);
+           [0, 1, 0], 0, rb);
     }
   }
   for (let i = 0; i < o.n; i++) {                      // a tread on each rise
@@ -3175,12 +3232,13 @@ function buildLanding(bags, P, Q, L, g) {
         const x = e.a[0] + (e.b[0] - e.a[0]) * u;
         const z = e.a[1] + (e.b[1] - e.a[1]) * u;
         beam(bags.post, [x, L.y - 0.12, z], [x, L.y + rh, z], 0.032, 0.032,
-             [0, 0, 1], 0, { uv: [x + z, 0] });
+             [0, 0, 1], 0, bevUV(P, Q, jog(x, z, 13)));
       }
+      const lb = BEV(P, Q);
       beam(bags.deck, [e.a[0], L.y + rh, e.a[1]], [e.b[0], L.y + rh, e.b[1]],
-           0.036, 0.026, [0, 1, 0]);
+           0.036, 0.026, [0, 1, 0], 0, lb);
       beam(bags.deck, [e.a[0], L.y + rh * 0.48, e.a[1]],
-           [e.b[0], L.y + rh * 0.48, e.b[1]], 0.022, 0.018, [0, 1, 0]);
+           [e.b[0], L.y + rh * 0.48, e.b[1]], 0.022, 0.018, [0, 1, 0], 0, lb);
     }
   }
 }
@@ -3189,7 +3247,8 @@ function buildSteps(bags, P, Q, sp, g) {
   for (const f of sp.flights)
     stepFlight(bags, P, Q, { x: f.x, z: f.z, ax: f.ax, n: f.n,
                              run: P.stairRun, rise: sp.rise, yTop: f.yTop,
-                             w: sp.w, rail: P.railStyle > 0 ? P.railH : 0 });
+                             w: sp.w, rail: P.railStyle > 0 ? P.railH : 0,
+                             P: P });
   for (const L of sp.lands)
     buildLanding(bags, P, Q,
                  Object.assign({ rail: P.railStyle > 0 ? P.railH : 0 }, L), g);
@@ -3809,7 +3868,8 @@ function randomHouse(seed) {
                  : ['greywood', 'wornwood', 'roughwood', 'shakes',
                     'darkwood']));
   P.wallCol = painted ? ri(1, COLS.length - 1) : 0;
-  P.trimSet = SET_IDX('trim', pick(['veneer', 'veneer', 'veneerdark', 'stain']));
+  P.trimSet = SET_IDX('trim', pick(['veneer', 'veneer', 'veneerdark',
+                                    'veneerpale']));
   P.trimCol = painted ? pick([6, 6, 7, 0, 8, 2]) : pick([0, 6, 8]);
   const metalRoof = odds(fresh ? 0.8 : 0.6);
   P.roofSet = SET_IDX('roof', metalRoof
@@ -3818,8 +3878,8 @@ function randomHouse(seed) {
   P.roofCol = metalRoof && odds(fresh ? 0.8 : 0.4)
     ? pick([1, 2, 8, 9, 10, 4]) : 0;
   P.trimCol = fresh ? pick([6, 6, 6, 7, 0]) : P.trimCol;
-  P.deckSet = SET_IDX('deck', pick(['veneerwarm', 'veneer', 'veneerpale',
-                                    'veneerdark']));
+  P.deckSet = SET_IDX('deck', pick(['stain', 'stain', 'deckwood', 'greywood',
+                                    'wornwood', 'darkwood']));
   P.floorSet = SET_IDX('floor', pick(['deckwood', 'brownwood', 'greywood',
                                       'wornwood']));
   // THE FRAME IS PLAIN TIMBER, always: sawn, or a tree with its bark on. The
@@ -3870,7 +3930,7 @@ function dressSlot(matKey, role, idx, col, flat) {
 
 window.HOUSE_GEN = {
   DEF, ROWS, PRESETS, MAT, BAGS, FAMS, STANCES, RAILS, SET_TINT, SHADE_U,
-  STAIR_MAX, SET_SEAM,
+  STAIR_MAX, SET_SEAM, SET_MISS,
   COLS, COL_NAMES, ROLE_SETS, SET_IDX, setNames, setFor, setRibbed,
   build, roofModel, wallSplits, groundFn, applyFinish, libSets, randomHouse,
   shadeGround,
