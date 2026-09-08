@@ -446,6 +446,15 @@
         "8355"
       ],
       "port": 8355
+    },
+    {
+      "name": "flydiy-trees",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8358"
+      ],
+      "port": 8358
     }
   ]
 }

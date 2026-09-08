@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<!--
+  TREE BENCH (W0a) — the candidates for the near asset, on a table and on a
+  distance ladder.
+
+  futureDesigns/WORLD-V2.md §8.3 is the section the user will not compromise
+  on, and its rung R1 asks for a real near tree: a trunk mesh plus alpha-tested
+  leaf cards, 2-8 k triangles, 3-5 species x 2-3 age classes. assets/treesRaw
+  holds eleven downloads that might be that. This page is where they are
+  looked at, because a poly count is not a look and neither is an opinion.
+
+  THIS PAGE DECIDES NOTHING. tools/tree_inspect.js reads each pack's node
+  GRAPH — which is the only place the truth lives — and writes the finished
+  grouping into _trees_index.json: what is a tree, what is a shrub, what is
+  already a billboard card, what is a rock, which glTF NODE INDICES belong to
+  each, and at which LOD. This page looks up nodes by index and draws them.
+  The first version derived the grouping here as well, by mesh name, and got
+  a different (wrong) answer from the inspector's — so now there is one.
+  Same rule as tools/props_table.py and _props.html.
+
+  FOUR VIEWS, AND THEY ANSWER DIFFERENT QUESTIONS.
+  SHELF puts every subject of one kind on a metre grid beside a 1.8 m figure —
+  the view that catches a wrong scale, a wrong origin, a blown-out alpha or a
+  species that is really a Christmas decoration. LADDER puts ONE subject at
+  25 / 50 / 100 / 250 / 500 / 1000 m on a shallow arc, which is the only view
+  that says whether an asset is worth its triangles: §1 of WORLD-V2 argues
+  that 1 m geometry stops mattering past ~500 m, and this is where that
+  argument is checked rather than asserted. The KIND selector switches between
+  trees, shrubs, the packs' own billboard cards and the rocks — the scatter
+  layer needs all four, and a forest floor with only trees is a lawn.
+
+  WHAT IS NOT DRAWN, AND WHY. The four Poly Haven .gltf.zip trees carry
+  1.5-17.2 M triangles each in a .bin of up to 900 MB. A browser is not going
+  to hold that, and it should not have to: they are OFFLINE-RENDER trees, and
+  their place in the ladder is as the bake source for the impostor atlas (R2)
+  and the canopy shell (R3), not as the near asset. They appear in the rail
+  with their numbers and are marked [offline].
+
+  TWO CONTROLS THAT EXIST BECAUSE OF WHAT WAS MEASURED.
+  `alpha` sets the cutout threshold and converts a pack's BLEND foliage to an
+  alpha test — blending needs back-to-front sorting and refuses a depth
+  prepass, so at forest density it is the wrong mode. But a material whose
+  texture carries NO ALPHA CHANNEL cannot cut at any threshold, and the
+  inspector reads that out of the PNG header, so the panel says which.
+  `true scale` draws an asset at its measured size; turning it off applies the
+  inspector's suggested factor, so a 739.6 m export can be judged beside a
+  31.8 m one without anybody pretending the file is fixed.
+
+  There is no GLTFLoader in vendor/ — the project bakes every shipped asset
+  through its own codec (50_model_codec, 51_prop_codec, 52_char_codec). This
+  page therefore carries a MINIMAL GLB reader, deliberately: POSITION /
+  NORMAL / TEXCOORD_0, indices, node transforms and base-colour textures. It
+  is a bench instrument, not a pipeline, and nothing it makes goes near media/.
+
+  Serve from repo root (launch: flydiy-trees) and open
+  /flyDiy/tools/_trees.html
+-->
+<meta charset="utf-8">
+<title>flyDiy — tree bench</title>
+<style>
+  :root{--bg:#12151a;--fg:#dfe6ee;--dim:#7d8996;--acc:#5db3ff;--warn:#ffb454;
+        --bad:#ff6b6b;--ok:#7ddc8e;--grid:#242a33}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--fg);
+    font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;overflow:hidden}
+  header{padding:8px 12px;border-bottom:1px solid var(--grid);display:flex;
+    gap:12px;align-items:center;flex-wrap:wrap}
+  h1{font-size:13px;margin:0;letter-spacing:.06em}
+  label{color:var(--dim);display:inline-flex;gap:5px;align-items:center}
+  select,button{background:#1a1f27;color:var(--fg);border:1px solid var(--grid);
+    padding:3px 8px;border-radius:4px;font:inherit;cursor:pointer}
+  button.on{border-color:var(--acc);color:var(--acc)}
+  input[type=range]{width:86px;accent-color:var(--acc)}
+  main{display:flex;height:calc(100vh - 41px)}
+  #view{position:relative;flex:1;min-width:0}
+  canvas{display:block;width:100%;height:100%}
+  aside{border-left:1px solid var(--grid);overflow-y:auto;padding:10px;
+    width:360px;flex:none}
+  #stat{position:absolute;left:10px;top:8px;color:var(--dim);z-index:2;
+    text-shadow:0 1px 3px #000;white-space:pre}
+  #hint{position:absolute;left:10px;bottom:8px;color:var(--dim);z-index:2;
+    text-shadow:0 1px 3px #000;font-size:10px}
+  .grp{color:var(--dim);letter-spacing:.14em;font-size:9px;margin:12px 0 4px}
+  .item{padding:3px 6px;border-radius:4px;cursor:pointer;display:flex;
+    justify-content:space-between;gap:8px;align-items:baseline}
+  .item:hover{background:#1a1f27}
+  .item.sel{background:#1d2b3a;color:var(--acc)}
+  .item i{color:var(--dim);font-style:normal;font-size:10px}
+  .item.off{opacity:.55}
+  h2{font-size:10px;color:var(--dim);margin:14px 0 5px;letter-spacing:.12em}
+  table{border-collapse:collapse;width:100%;font-size:11px}
+  td{padding:1px 4px;vertical-align:top} td.k{color:var(--dim);width:96px}
+  td.n{text-align:right;color:var(--acc)}
+  .tag{display:inline-block;padding:0 5px;margin:0 3px 3px 0;border-radius:3px;
+    background:#1a1f27;color:var(--dim);font-size:10px}
+  .tag.mask{background:#1c2f22;color:var(--ok)}
+  .tag.blend{background:#3a2a18;color:var(--warn)}
+  .tag.dead{background:#3a1c1c;color:var(--bad)}
+  .note{color:var(--dim);font-size:10px;line-height:1.55;margin-top:8px}
+  .warn{color:var(--warn)} .bad{color:var(--bad)} .ok{color:var(--ok)}
+  .rowsel{cursor:pointer} .rowsel:hover td{color:var(--acc)}
+  .rowsel.sel td{color:var(--acc)}
+</style>
+
+<header>
+  <h1>TREE BENCH</h1>
+  <button id="mShelf" class="on">shelf</button>
+  <button id="mLadder">ladder</button>
+  <label>kind <select id="kind">
+    <option value="trees">trees</option>
+    <option value="shrubs">shrubs</option>
+    <option value="cards">billboard cards</option>
+    <option value="props">rocks &amp; props</option>
+  </select></label>
+  <label>lod <select id="lod">
+    <option value="-1">as shipped</option>
+    <option value="0">LOD0</option><option value="1">LOD1</option>
+    <option value="2">LOD2</option><option value="3">LOD3 / billboard</option>
+  </select></label>
+  <label>alpha <input type="range" id="cut" min="0" max="0.9" step="0.05" value="0.4">
+    <span id="cutV" style="color:var(--acc)">0.40</span></label>
+  <button id="trueScale" class="on">true scale</button>
+  <button id="wire">wireframe</button>
+  <span id="msg" style="color:var(--dim)"></span>
+</header>
+
+<main>
+  <div id="view"><span id="stat"></span><span id="hint">drag orbit · wheel dolly · shift-drag pan · click a row to isolate it</span><canvas id="c"></canvas></div>
+  <aside id="ui"></aside>
+</main>
+
+<script src="../vendor/three.min.js"></script>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const RAW = '../assets/treesRaw/';
+
+// ---- scene ---------------------------------------------------------------
+const cv = $('c');
+const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true });
+renderer.outputEncoding = THREE.sRGBEncoding;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x12151a);
+scene.fog = new THREE.Fog(0x12151a, 400, 2600);
+const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 12000);
+
+// A tree read under a flat light is a silhouette; the point of the bench is
+// to see the crown break up, so the rig is one keyed sun plus a cool sky.
+scene.add(new THREE.HemisphereLight(0xbcd6f2, 0x2b2a26, 1.05));
+const sun = new THREE.DirectionalLight(0xfff2dc, 1.7);
+sun.position.set(-30, 60, 25); scene.add(sun);
+
+const ground = new THREE.Mesh(new THREE.PlaneBufferGeometry(8000, 8000),
+  new THREE.MeshStandardMaterial({ color: 0x2a3327, roughness: 1 }));
+ground.rotation.x = -Math.PI / 2; scene.add(ground);
+const grid = new THREE.GridHelper(400, 400, 0x39424e, 0x232a32);
+grid.material.transparent = true; grid.material.opacity = 0.45; scene.add(grid);
+
+// a 1.8 m figure: scale is the first thing that goes wrong on an import
+function figure() {
+  const g = new THREE.Group(), m = new THREE.MeshStandardMaterial({ color: 0xd05a3a, roughness: .8 });
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.20, 0.24, 1.35, 8), m);
+  body.position.y = 0.85; g.add(body);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), m);
+  head.position.y = 1.66; g.add(head);
+  return g;
+}
+const man = figure(); scene.add(man);
+
+// ---- orbit ---------------------------------------------------------------
+let yaw = 0.6, pitch = 0.22, dist = 40, drag = null;
+const target = new THREE.Vector3(0, 6, 0);
+function place() {
+  const cp = Math.cos(pitch);
+  camera.position.set(target.x + dist * cp * Math.sin(yaw), target.y + dist * Math.sin(pitch),
+                      target.z + dist * cp * Math.cos(yaw));
+  camera.lookAt(target);
+}
+cv.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, s: e.shiftKey }; cv.setPointerCapture(e.pointerId); });
+cv.addEventListener('pointerup', () => { drag = null; });
+cv.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  drag.x = e.clientX; drag.y = e.clientY;
+  if (drag.s) { target.x -= dx * dist * 0.0016; target.y += dy * dist * 0.0016; }
+  else { yaw -= dx * 0.006; pitch = Math.max(-0.4, Math.min(1.45, pitch + dy * 0.005)); }
+  place(); render();
+});
+cv.addEventListener('wheel', e => {
+  e.preventDefault();
+  dist = Math.max(1.5, Math.min(6000, dist * Math.exp(e.deltaY * 0.0012))); place(); render();
+}, { passive: false });
+
+// ==========================================================================
+// MINIMAL GLB READER — POSITION / NORMAL / TEXCOORD_0, indices, node
+// transforms, base-colour textures. Enough to LOOK at a tree; deliberately
+// not a pipeline. Extensions are ignored: KHR_materials_specular and
+// pbrSpecularGlossiness change the shading response, not the silhouette or
+// the triangle count, and those are what this page is for.
+// Every object records its glTF NODE INDEX, which is how the index's groups
+// are resolved to geometry.
+// ==========================================================================
+const COMP = { 5120: Int8Array, 5121: Uint8Array, 5122: Int16Array,
+               5123: Uint16Array, 5125: Uint32Array, 5126: Float32Array };
+const NUM = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4, MAT4: 16 };
+
+function parseGLB(ab) {
+  const dv = new DataView(ab);
+  if (dv.getUint32(0, true) !== 0x46546c67) throw new Error('not a GLB');
+  const total = dv.getUint32(8, true);
+  let off = 12, json = null, bin = null;
+  while (off + 8 <= total) {
+    const len = dv.getUint32(off, true), type = dv.getUint32(off + 4, true);
+    if (type === 0x4e4f534a) json = JSON.parse(new TextDecoder().decode(new Uint8Array(ab, off + 8, len)));
+    else if (type === 0x004e4942) bin = new Uint8Array(ab, off + 8, len);
+    off += 8 + len; off += (4 - (off % 4)) % 4;
+  }
+  return { json, bin };
+}
+
+function accessor(g, bin, i) {
+  const a = g.accessors[i];
+  const n = NUM[a.type], TA = COMP[a.componentType];
+  if (a.bufferView === undefined) return new TA(a.count * n);
+  const bv = g.bufferViews[a.bufferView];
+  const base = (bv.byteOffset || 0) + (a.byteOffset || 0);
+  const stride = bv.byteStride;
+  if (!stride || stride === n * TA.BYTES_PER_ELEMENT)
+    return new TA(bin.buffer, bin.byteOffset + base, a.count * n);
+  const out = new TA(a.count * n), src = new DataView(bin.buffer, bin.byteOffset);
+  for (let k = 0; k < a.count; k++) for (let c = 0; c < n; c++) {
+    const o = base + k * stride + c * TA.BYTES_PER_ELEMENT;
+    out[k * n + c] = a.componentType === 5126 ? src.getFloat32(o, true)
+      : a.componentType === 5123 ? src.getUint16(o, true)
+      : a.componentType === 5125 ? src.getUint32(o, true) : src.getInt16(o, true);
+  }
+  return out;
+}
+
+function imageTex(g, bin, idx, srgb) {
+  if (idx === undefined) return null;
+  const t = g.textures[idx]; if (!t || t.source === undefined) return null;
+  const im = g.images[t.source]; if (!im || im.bufferView === undefined) return null;
+  const bv = g.bufferViews[im.bufferView];
+  const blob = new Blob([new Uint8Array(bin.buffer, bin.byteOffset + (bv.byteOffset || 0), bv.byteLength)],
+                        { type: im.mimeType || 'image/png' });
+  const tex = new THREE.Texture();
+  tex.flipY = false;                      // glTF UV origin is top-left
+  if (srgb) tex.encoding = THREE.sRGBEncoding;
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  const img = new Image();
+  img.onload = () => { tex.image = img; tex.needsUpdate = true; render(); };
+  img.src = URL.createObjectURL(blob);
+  return tex;
+}
+
+let CUT = 0.4;
+function applyAlpha(mat) {
+  const mode = mat.userData.alphaMode;
+  if (mode === 'OPAQUE') return;
+  // One rule for both cutout modes, because BLEND is what a forest cannot
+  // afford: sorted, no depth prepass, overdraw unbounded. The pack's own MASK
+  // cutoff is kept as the floor; the slider is what makes a crown thin out or
+  // go solid in front of you.
+  mat.transparent = false; mat.depthWrite = true;
+  mat.alphaTest = mode === 'MASK' ? Math.max(CUT, mat.userData.cutoff || 0) : CUT;
+  mat.needsUpdate = true;
+}
+
+function material(g, bin, mi) {
+  if (mi === undefined) return new THREE.MeshStandardMaterial({ color: 0x8a9a7a, roughness: 1 });
+  const m = g.materials[mi] || {};
+  const pbr = m.pbrMetallicRoughness || {};
+  const mat = new THREE.MeshStandardMaterial({
+    color: new THREE.Color().fromArray((pbr.baseColorFactor || [1, 1, 1, 1]).slice(0, 3)),
+    roughness: pbr.roughnessFactor !== undefined ? pbr.roughnessFactor : 1,
+    metalness: pbr.metallicFactor !== undefined ? pbr.metallicFactor : 0,
+    side: m.doubleSided ? THREE.DoubleSide : THREE.FrontSide,
+  });
+  // Sketchfab still exports some packs on the retired
+  // KHR_materials_pbrSpecularGlossiness, where the base colour lives under
+  // `diffuseTexture` and pbrMetallicRoughness is empty. Without this fallback
+  // vegetation_set_pine draws as white shards, which reads as a broken asset
+  // when it is a missing branch in the reader.
+  const sg = (m.extensions || {}).KHR_materials_pbrSpecularGlossiness;
+  const baseTex = pbr.baseColorTexture || (sg && sg.diffuseTexture);
+  if (baseTex) mat.map = imageTex(g, bin, baseTex.index, true);
+  if (!pbr.baseColorFactor && sg && sg.diffuseFactor)
+    mat.color.fromArray(sg.diffuseFactor.slice(0, 3));
+  mat.userData.alphaMode = m.alphaMode || 'OPAQUE';
+  mat.userData.cutoff = m.alphaCutoff;
+  mat.userData.matName = m.name || '?';
+  applyAlpha(mat);
+  return mat;
+}
+
+function buildGLB(ab) {
+  const p = parseGLB(ab), g = p.json, bin = p.bin;
+  const geoms = (g.meshes || []).map(m => m.primitives.map(pr => {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(accessor(g, bin, pr.attributes.POSITION), 3));
+    if (pr.attributes.NORMAL !== undefined)
+      geo.setAttribute('normal', new THREE.BufferAttribute(accessor(g, bin, pr.attributes.NORMAL), 3));
+    if (pr.attributes.TEXCOORD_0 !== undefined)
+      geo.setAttribute('uv', new THREE.BufferAttribute(accessor(g, bin, pr.attributes.TEXCOORD_0), 2));
+    if (pr.indices !== undefined) geo.setIndex(new THREE.BufferAttribute(accessor(g, bin, pr.indices), 1));
+    if (pr.attributes.NORMAL === undefined) geo.computeVertexNormals();
+    return { geo, mat: material(g, bin, pr.material) };
+  }));
+
+  const byNode = new Map(), mats = [];
+  const nodeObj = i => {
+    const n = g.nodes[i], o = new THREE.Group();
+    o.name = n.name || ('node' + i);
+    o.userData.node = i;
+    if (n.matrix) o.applyMatrix4(new THREE.Matrix4().fromArray(n.matrix));
+    else {
+      if (n.translation) o.position.fromArray(n.translation);
+      if (n.rotation) o.quaternion.fromArray(n.rotation);
+      if (n.scale) o.scale.fromArray(n.scale);
+    }
+    if (n.mesh !== undefined) for (const pr of geoms[n.mesh]) {
+      const me = new THREE.Mesh(pr.geo, pr.mat);
+      me.name = g.meshes[n.mesh].name || '';
+      o.add(me);
+      if (mats.indexOf(pr.mat) < 0) mats.push(pr.mat);
+    }
+    for (const c of (n.children || [])) o.add(nodeObj(c));
+    byNode.set(i, o);
+    return o;
+  };
+  const root = new THREE.Group();
+  const sc = g.scenes[g.scene || 0];
+  for (const i of (sc.nodes || [])) root.add(nodeObj(i));
+  root.updateMatrixWorld(true);
+  return { root, byNode, mats, json: g };
+}
+
+// ==========================================================================
+// the rail, the shelf and the ladder — all driven by the INDEX's groups
+// ==========================================================================
+let INDEX = null, CUR = null, MODE = 'shelf', KIND = 'trees';
+let WIRE = false, LODSEL = -1, TRUE_SCALE = true, ISOLATE = null;
+const cache = {};
+const stage = new THREE.Group(); scene.add(stage);
+const LADDER = [25, 50, 100, 250, 500, 1000];
+
+// One group -> one Object3D standing on the origin. `els` are glTF node
+// indices from the inspector, each tagged with its LOD; the selector picks
+// among them and falls back to what the asset actually has.
+function buildGroup(built, G) {
+  const want = LODSEL < 0 ? null : LODSEL;
+  let els = G.els;
+  if (want !== null) {
+    const hit = G.els.filter(e => e.lod === want);
+    els = hit.length ? hit : null;
+  } else {
+    const lowest = G.els.reduce((m, e) => e.lod === null ? m : (m === null ? e.lod : Math.min(m, e.lod)), null);
+    els = lowest === null ? G.els : G.els.filter(e => e.lod === lowest);
+  }
+  if (!els) return null;                       // this asset has no such rung
+  const grp = new THREE.Group();
+  for (const e of els) {
+    const src = built.byNode.get(e.node);
+    if (!src) continue;
+    // clone(), then REPLACE the clone's transform with the source's world
+    // matrix. Applying matrixWorld on top of a clone that already carries its
+    // own local transform applies that local twice — and since Sketchfab's
+    // per-subject nodes carry the Z-up -> Y-up rotation, twice means the tree
+    // lies on its side (vegetation_set_pine measured 13.8 m tall by 29.4 m
+    // long until this was fixed; the inspector had it right at 29.42 m).
+    const c = src.clone(true);
+    c.position.set(0, 0, 0);
+    c.quaternion.set(0, 0, 0, 1);
+    c.scale.set(1, 1, 1);
+    c.applyMatrix4(src.matrixWorld);
+    grp.add(c);
+  }
+  if (!grp.children.length) return null;
+  const bb = new THREE.Box3().setFromObject(grp);
+  if (!isFinite(bb.min.x)) return null;
+  const size = bb.getSize(new THREE.Vector3()), ctr = bb.getCenter(new THREE.Vector3());
+  grp.position.set(-ctr.x, -bb.min.y, -ctr.z);
+  const holder = new THREE.Group();
+  holder.add(grp);
+  const k = TRUE_SCALE ? 1 : (CUR.scaleHint || 1);
+  if (k !== 1) holder.scale.setScalar(k);
+  holder.userData = { name: G.name, h: size.y * k, w: Math.max(size.x, size.z) * k, group: G };
+  return holder;
+}
+
+function groupsOf(a) { return (a && a[KIND]) || []; }
+
+function clearStage() { while (stage.children.length) stage.remove(stage.children[0]); }
+function applyWire() { stage.traverse(m => { if (m.isMesh) m.material.wireframe = WIRE; }); }
+
+function tally() {
+  let tris = 0, meshes = 0;
+  stage.traverse(m => {
+    if (!m.isMesh || m.userData.station) return;
+    meshes++;
+    const g = m.geometry;
+    tris += (g.index ? g.index.count : g.attributes.position.count) / 3;
+  });
+  return { tris: Math.round(tris), meshes };
+}
+
+function showShelf(built) {
+  clearStage();
+  let list = groupsOf(CUR);
+  if (ISOLATE) list = list.filter(G => G.name === ISOLATE);
+  const cols = [];
+  for (const G of list) { const h = buildGroup(built, G); if (h) cols.push(h); }
+  cols.sort((a, b) => b.userData.h - a.userData.h);
+  let x = 0, maxH = 0;
+  for (const c of cols) {
+    const w = Math.max(2.2, c.userData.w * 1.12);
+    x += w / 2; c.position.x = x; x += w / 2 + 0.7;
+    maxH = Math.max(maxH, c.userData.h);
+    stage.add(c);
+  }
+  man.position.set(-1.8, 0, 0); man.visible = true;
+  applyWire();
+  target.set(x / 2, maxH * 0.45, 0);
+  dist = Math.max(14, Math.max(x * 0.8, maxH * 1.9)); place();
+  const t = tally();
+  return { count: cols.length, tris: t.tris, meshes: t.meshes, maxH,
+           heights: cols.map(c => ({ name: c.userData.name, h: c.userData.h })) };
+}
+
+function showLadder(built) {
+  clearStage();
+  let list = groupsOf(CUR);
+  if (ISOLATE) list = list.filter(G => G.name === ISOLATE);
+  if (!list.length) return { count: 0, tris: 0, meshes: 0, maxH: 0, heights: [] };
+  // the tallest subject is the one worth judging at range, unless one is pinned
+  let best = null;
+  for (const G of list) {
+    const h = buildGroup(built, G);
+    if (h && (!best || h.userData.h > best.userData.h)) best = h;
+  }
+  if (!best) return { count: 0, tris: 0, meshes: 0, maxH: 0, heights: [] };
+
+  // A straight receding line hides every station behind the nearest subject,
+  // so the stations sit on a shallow ARC — a constant angular step, which is
+  // also the honest comparison: the same tree at the same bearing offset,
+  // and only the distance differs.
+  const A0 = 5 * Math.PI / 180, DA = 5.5 * Math.PI / 180;
+  LADDER.forEach((d, i) => {
+    const a = A0 + i * DA;
+    const h = best.clone(true);
+    h.position.set(d * Math.sin(a), 0, -d * Math.cos(a));
+    stage.add(h);
+    // a stake per station: without it the eye cannot tell 250 m from 500 m,
+    // which is the one judgement this view exists to support
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 4, 6),
+      new THREE.MeshBasicMaterial({ color: 0x5db3ff }));
+    post.position.set(d * Math.sin(a) + Math.max(1.5, d * 0.012), 2, -d * Math.cos(a));
+    post.userData.station = d;
+    stage.add(post);
+  });
+  man.position.set(LADDER[0] * Math.sin(A0) - 1.7, 0, -LADDER[0] * Math.cos(A0));
+  man.visible = true;
+  applyWire();
+  // the eye stands on the ground at the near end, as a pilot would meet the
+  // stand — not a helicopter view
+  const ac = A0 + 2.5 * DA;
+  target.set(150 * Math.sin(ac), 14, -150 * Math.cos(ac));
+  dist = 150;
+  yaw = Math.atan2(-target.x, -target.z);
+  pitch = Math.asin(Math.max(-0.39, (6 - target.y) / dist));
+  place();
+  const t = tally();
+  return { count: LADDER.length, tris: t.tris, meshes: t.meshes,
+           maxH: best.userData.h, ladderTree: best.userData.name,
+           heights: [{ name: best.userData.name, h: best.userData.h }] };
+}
+
+async function load(entry, keepIsolate) {
+  if (CUR !== entry) ISOLATE = null;
+  else if (!keepIsolate) ISOLATE = ISOLATE;
+  CUR = entry;
+  $('msg').textContent = 'loading ' + entry.name + '…';
+  paintRail();
+  if (!entry.renderable) { clearStage(); man.visible = false; $('msg').textContent = ''; paintFacts(null); render(); return; }
+  try {
+    if (!cache[entry.name]) {
+      const ab = await (await fetch(RAW + entry.name)).arrayBuffer();
+      cache[entry.name] = buildGLB(ab);
+    }
+    const built = cache[entry.name];
+    for (const m of built.mats) applyAlpha(m);
+    const stats = MODE === 'shelf' ? showShelf(built) : showLadder(built);
+    $('msg').textContent = '';
+    paintFacts(stats);
+    render();
+  } catch (e) {
+    $('msg').innerHTML = '<span class="bad">' + e.message + '</span>';
+    console.error(e);
+  }
+}
+
+// ---- rail + facts --------------------------------------------------------
+function paintRail() {
+  const ui = $('ui');
+  const rows = INDEX.assets.slice().sort((a, b) =>
+    (b.renderable ? 1 : 0) - (a.renderable ? 1 : 0) || b.trees.length - a.trees.length || b.tris - a.tris);
+  let h = '<div class="grp">CANDIDATES — near asset</div>', off = false;
+  for (const a of rows) {
+    if (!a.renderable && !off) { h += '<div class="grp">OFFLINE — bake source only</div>'; off = true; }
+    const sel = CUR && CUR.name === a.name ? ' sel' : '';
+    const n = a.trees.length + (a.shrubs ? a.shrubs.length : 0) + (a.cards ? a.cards.length : 0);
+    h += '<div class="item' + sel + (a.renderable ? '' : ' off') + '" data-n="' + a.name + '">' +
+         '<span>' + a.name.replace(/\.(glb|gltf\.zip)$/, '') + '</span>' +
+         '<i>' + n + ' subj · ' + (a.tris > 999999 ? (a.tris / 1e6).toFixed(1) + ' M' : a.tris.toLocaleString()) + '</i></div>';
+  }
+  h += '<div id="facts"></div>';
+  ui.innerHTML = h;
+  for (const el of ui.querySelectorAll('.item'))
+    el.onclick = () => load(INDEX.assets.find(a => a.name === el.dataset.n));
+}
+
+function paintFacts(stats) {
+  const a = CUR, f = $('facts');
+  if (!a || !f) return;
+  const num = n => n >= 1e6 ? (n / 1e6).toFixed(2) + ' M' : n.toLocaleString();
+  let h = '<h2>' + a.name + '</h2><table>';
+  h += '<tr><td class="k">file</td><td>' + a.fileMB + ' MB' +
+       (a.binMB ? ' <span style="color:var(--dim)">(' + a.binMB + ' MB geometry)</span>' : '') + '</td></tr>';
+  h += '<tr><td class="k">triangles</td><td class="' + (a.tris > 200000 ? 'bad' : a.tris > 40000 ? 'warn' : 'ok') + '">' + num(a.tris) + '</td></tr>';
+  h += '<tr><td class="k">textures</td><td>' + a.images + ' images, ' + a.texMB + ' MB</td></tr>';
+  h += '<tr><td class="k">subjects</td><td>' + a.trees.length + ' tree · ' + a.shrubs.length +
+       ' shrub · ' + a.cards.length + ' card · ' + a.props.length + ' prop</td></tr>';
+  h += '<tr><td class="k">tallest</td><td class="' + (a.scaleFlag ? 'bad' : '') + '">' +
+       (a.tallest ? a.tallest.toFixed(1) + ' m' : '—') + '</td></tr>';
+  h += '</table>';
+
+  if (a.scaleFlag)
+    h += '<div class="note bad">SCALE. The tallest subject measures ' + a.tallest.toFixed(1) +
+         ' m — about ' + (1 / a.scaleHint).toFixed(0) + 'x a real conifer. The export is in the wrong units. ' +
+         'Turn off "true scale" to view it at x' + a.scaleHint.toFixed(4) + '; the file is not changed.</div>';
+
+  h += '<h2>PROVENANCE</h2>';
+  if (a.credit) {
+    h += '<table><tr><td class="k">title</td><td>' + (a.credit.title || '?') + '</td></tr>' +
+         '<tr><td class="k">author</td><td>' + (a.credit.author || '?') + '</td></tr>' +
+         '<tr><td class="k">licence</td><td class="ok">' + (a.credit.license || '?') + '</td></tr>' +
+         (a.credit.source ? '<tr><td class="k">source</td><td style="word-break:break-all;font-size:10px">' + a.credit.source + '</td></tr>' : '') +
+         '</table>';
+  } else {
+    h += '<div class="note warn">No asset.extras block — the licence is not IN the file. Confirm it at the source before this asset ships, and record it in CREDITS.md.</div>';
+  }
+
+  h += '<h2>MATERIALS</h2>';
+  for (const m of a.materials) {
+    const cls = m.cannotCut ? 'dead' : m.alpha === 'MASK' ? 'mask' : m.alpha === 'BLEND' ? 'blend' : '';
+    h += '<span class="tag ' + cls + '">' + m.alpha +
+         (m.cutoff != null ? ' ' + (+m.cutoff).toFixed(2) : '') + '</span> ' +
+         '<span style="font-size:10px">' + m.name + '</span>' +
+         (m.cannotCut ? ' <span class="bad" style="font-size:10px">no alpha channel</span>' : '') + '<br>';
+  }
+  if (a.cannotCut)
+    h += '<div class="note bad">' + a.cannotCut + ' cutout material' + (a.cannotCut > 1 ? 's' : '') +
+         ' whose base-colour texture has NO ALPHA CHANNEL (read from the PNG/JPEG header). ' +
+         'It renders solid at every threshold — the slider cannot help, and neither can a bake. ' +
+         'That is why the branches look like slabs.</div>';
+  else if (a.alphaBlend)
+    h += '<div class="note warn">' + a.alphaBlend + ' material' + (a.alphaBlend > 1 ? 's' : '') +
+         ' in BLEND. Blending needs back-to-front sorting and refuses a depth prepass — the wrong mode at forest density. ' +
+         'The page draws them as alpha test at the slider\'s threshold, which is how they would ship.</div>';
+
+  const list = groupsOf(a);
+  h += '<h2>' + KIND.toUpperCase() + ' — ' + list.length + '</h2><table>';
+  for (const G of list.slice(0, 30)) {
+    const sel = ISOLATE === G.name ? ' sel' : '';
+    h += '<tr class="rowsel' + sel + '" data-g="' + G.name.replace(/"/g, '') + '">' +
+         '<td style="font-size:10px">' + G.name + (G.parts > 1 ? ' <span style="color:var(--dim)">' + G.parts + 'p</span>' : '') + '</td>' +
+         '<td class="n" style="font-size:10px">' + G.h.toFixed(1) + 'm</td>' +
+         '<td class="n" style="font-size:10px">' + G.lods.map(l => 'L' + l.lod + ' ' + l.tris.toLocaleString()).join(' · ') + '</td></tr>';
+  }
+  if (list.length > 30) h += '<tr><td colspan="3" style="color:var(--dim)">… ' + (list.length - 30) + ' more</td></tr>';
+  h += '</table>';
+  const chains = list.filter(G => G.lods.length > 1).length;
+  h += '<div class="note">' + (chains ? chains + ' of ' + list.length + ' carry a shipped LOD chain.'
+        : 'No LOD chain in this pack — the lod selector has nothing to switch to, and the ladder is drawn from LOD0 throughout.') + '</div>';
+
+  if (!a.renderable) {
+    h += '<div class="note bad">NOT DRAWN. ' + num(a.tris) + ' triangles in a ' + a.binMB +
+         ' MB buffer — an offline-render tree. Its place in §8.3\'s ladder is as the bake source for the impostor atlas and the canopy shell, and as the reference for what the near asset should look like. It is not a near asset.</div>';
+  } else if (stats) {
+    h += '<h2>ON SCREEN</h2><table>' +
+      '<tr><td class="k">view</td><td>' + MODE + (stats.ladderTree ? ' · ' + stats.ladderTree : '') + '</td></tr>' +
+      '<tr><td class="k">drawn</td><td>' + stats.tris.toLocaleString() + ' tris · ' + stats.meshes + ' meshes</td></tr>' +
+      '<tr><td class="k">tallest</td><td>' + stats.maxH.toFixed(1) + ' m</td></tr></table>';
+    const l0 = list[0] && list[0].lods[0] ? list[0].lods[0].tris : 0;
+    if (l0 && KIND === 'trees') {
+      const v = l0 >= 2000 && l0 <= 8000 ? ['ok', 'inside §8.3 R1\'s 2–8 k budget']
+        : l0 < 2000 ? ['warn', 'below §8.3 R1\'s 2 k floor — cheap, but is it a tree at 25 m?']
+        : ['warn', 'above §8.3 R1\'s 8 k ceiling for the biggest tree; the LOD chain is what answers this'];
+      h += '<div class="note ' + v[0] + '">largest LOD0 ' + l0.toLocaleString() + ' tris — ' + v[1] + '</div>';
+    }
+  }
+  f.innerHTML = h;
+  for (const r of f.querySelectorAll('.rowsel'))
+    r.onclick = () => { ISOLATE = ISOLATE === r.dataset.g ? null : r.dataset.g; load(CUR, true); };
+}
+
+// ---- controls ------------------------------------------------------------
+function setMode(m) {
+  MODE = m;
+  $('mShelf').classList.toggle('on', m === 'shelf');
+  $('mLadder').classList.toggle('on', m === 'ladder');
+  scene.fog.near = m === 'ladder' ? 900 : 400;
+  scene.fog.far = m === 'ladder' ? 4200 : 2600;
+  if (CUR) load(CUR, true);
+}
+$('mShelf').onclick = () => setMode('shelf');
+$('mLadder').onclick = () => setMode('ladder');
+$('kind').onchange = e => { KIND = e.target.value; ISOLATE = null; if (CUR) load(CUR, true); };
+$('lod').onchange = e => { LODSEL = +e.target.value; if (CUR) load(CUR, true); };
+$('wire').onclick = () => { WIRE = !WIRE; $('wire').classList.toggle('on', WIRE); applyWire(); render(); };
+$('trueScale').onclick = () => {
+  TRUE_SCALE = !TRUE_SCALE;
+  $('trueScale').classList.toggle('on', TRUE_SCALE);
+  if (CUR) load(CUR, true);
+};
+$('cut').oninput = e => {
+  CUT = +e.target.value;
+  $('cutV').textContent = CUT.toFixed(2);
+  for (const k in cache) for (const m of cache[k].mats) applyAlpha(m);
+  render();
+};
+
+// ---- render --------------------------------------------------------------
+let frames = 0, acc = 0;
+function render() {
+  const w = cv.clientWidth, h = cv.clientHeight;
+  if (cv.width !== w || cv.height !== h) {
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h; camera.updateProjectionMatrix();
+  }
+  const t0 = performance.now();
+  renderer.render(scene, camera);
+  const ms = performance.now() - t0;
+  acc += ms; frames++;
+  const info = renderer.info.render;
+  $('stat').textContent = info.calls + ' draw calls · ' + info.triangles.toLocaleString() + ' tris\n' +
+    ms.toFixed(2) + ' ms  (avg ' + (acc / frames).toFixed(2) + ')';
+}
+window.addEventListener('resize', render);
+// The bench is hand-pumped, not animated: every frame is a frame somebody
+// asked for, so the millisecond reading beside it is the cost of THIS view.
+setInterval(render, 120);
+
+(async function boot() {
+  try { INDEX = await (await fetch('_trees_index.json')).json(); }
+  catch (e) {
+    $('msg').innerHTML = '<span class="bad">no _trees_index.json — run: node tools/tree_inspect.js</span>';
+    return;
+  }
+  place(); paintRail();
+  const first = INDEX.assets.filter(a => a.renderable)
+    .sort((a, b) => b.trees.length - a.trees.length)[0];
+  if (first) load(first);
+})();
+</script>

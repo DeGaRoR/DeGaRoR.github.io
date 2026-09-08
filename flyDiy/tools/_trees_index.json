@@ -1,0 +1,3694 @@
+{
+ "generated": "2026-09-08T18:12:58.042Z",
+ "raw": "assets/treesRaw",
+ "assets": [
+  {
+   "name": "fir_sapling_medium_1k.gltf.zip",
+   "tris": 1533513,
+   "meshes": 3,
+   "materials": [
+    {
+     "name": "fir_sapling_medium_branches",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 1,
+     "cannotCut": false
+    },
+    {
+     "name": "fir_sapling_medium_twigs",
+     "alpha": "BLEND",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 4,
+     "cannotCut": true
+    },
+    {
+     "name": "fir_sapling_medium_branches_dead",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 1,
+     "cannotCut": false
+    }
+   ],
+   "alphaBlend": 1,
+   "alphaMask": 0,
+   "cannotCut": 1,
+   "images": 6,
+   "imageList": [
+    {
+     "i": 0,
+     "name": "fir_sapling_medium_branches_nor_gl",
+     "kb": 1111,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 1,
+     "name": "fir_sapling_medium_branches_diff",
+     "kb": 758,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 2,
+     "name": "fir_sapling_medium_branches_rough",
+     "kb": 771,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 3,
+     "name": "fir_sapling_medium_twigs_nor_gl",
+     "kb": 462,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 4,
+     "name": "fir_sapling_medium_twigs_diff-fir_sapling_medium_twigs_alpha",
+     "kb": 290,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 5,
+     "name": "fir_sapling_medium_twigs_rough",
+     "kb": 398,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    }
+   ],
+   "texMB": 3.7,
+   "generator": "Khronos glTF Blender I/O v4.4.56",
+   "credit": null,
+   "extensions": [
+    "KHR_materials_specular",
+    "KHR_materials_ior",
+    "KHR_texture_transform"
+   ],
+   "trees": [
+    {
+     "name": "fir_sapling_medium_a",
+     "kind": "tree",
+     "h": 8.83,
+     "tris": 685046,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 685046
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 0,
+       "lod": 0,
+       "tris": 685046,
+       "name": "fir_sapling_medium_a_LOD0"
+      }
+     ]
+    },
+    {
+     "name": "fir_sapling_medium_b",
+     "kind": "tree",
+     "h": 7.8,
+     "tris": 420822,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 420822
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 1,
+       "lod": 0,
+       "tris": 420822,
+       "name": "fir_sapling_medium_b_LOD0"
+      }
+     ]
+    },
+    {
+     "name": "fir_sapling_medium_c",
+     "kind": "tree",
+     "h": 5.91,
+     "tris": 427645,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 427645
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 2,
+       "lod": 0,
+       "tris": 427645,
+       "name": "fir_sapling_medium_c_LOD0"
+      }
+     ]
+    }
+   ],
+   "shrubs": [],
+   "props": [],
+   "cards": [],
+   "furniture": [],
+   "tallest": 8.83,
+   "scaleFlag": false,
+   "scaleHint": 1,
+   "kind": "gltf-in-zip",
+   "fileMB": 74.44,
+   "binMB": 70.72,
+   "renderable": false,
+   "gltfEntry": "fir_sapling_medium_1k.gltf"
+  },
+  {
+   "name": "fir_tree.glb",
+   "tris": 4455,
+   "meshes": 2,
+   "materials": [
+    {
+     "name": "Tree_0Mat",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 0,
+     "cannotCut": false
+    },
+    {
+     "name": "Tree_1Mat",
+     "alpha": "MASK",
+     "cutoff": 0.24582953917163994,
+     "doubleSided": true,
+     "img": 3,
+     "cannotCut": false
+    }
+   ],
+   "alphaBlend": 0,
+   "alphaMask": 1,
+   "cannotCut": 0,
+   "images": 6,
+   "imageList": [
+    {
+     "i": 0,
+     "name": "",
+     "kb": 2245,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 1,
+     "name": "",
+     "kb": 743,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 2,
+     "name": "",
+     "kb": 2292,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 3,
+     "name": "",
+     "kb": 1115,
+     "fmt": "png",
+     "hasAlpha": true
+    },
+    {
+     "i": 4,
+     "name": "",
+     "kb": 29,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 5,
+     "name": "",
+     "kb": 592,
+     "fmt": "png",
+     "hasAlpha": false
+    }
+   ],
+   "texMB": 6.85,
+   "generator": "Sketchfab-13.39.0",
+   "credit": {
+    "author": "evolveduk (https://sketchfab.com/evolveduk)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/fir-tree-3f39aa5485e94477a36b435f7a1a8b54",
+    "title": "Fir tree"
+   },
+   "extensions": [],
+   "trees": [
+    {
+     "name": "Tree_0",
+     "kind": "tree",
+     "h": 4.39,
+     "tris": 4455,
+     "parts": 2,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 4455
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 4,
+       "lod": null,
+       "tris": 1895,
+       "name": "Tree_0_Tree_0Mat_0"
+      },
+      {
+       "node": 5,
+       "lod": null,
+       "tris": 2560,
+       "name": "Tree_1"
+      }
+     ]
+    }
+   ],
+   "shrubs": [],
+   "props": [],
+   "cards": [],
+   "furniture": [],
+   "tallest": 4.39,
+   "scaleFlag": false,
+   "scaleHint": 1,
+   "kind": "glb",
+   "fileMB": 7.12,
+   "binMB": 7.11,
+   "renderable": true
+  },
+  {
+   "name": "fir_tree_01_1k.gltf.zip",
+   "tris": 6982937,
+   "meshes": 3,
+   "materials": [
+    {
+     "name": "fir_tree_01_bark",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 1,
+     "cannotCut": false
+    },
+    {
+     "name": "fir_tree_01_trunk_a",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 4,
+     "cannotCut": false
+    },
+    {
+     "name": "fir_tree_01_twig",
+     "alpha": "BLEND",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 7,
+     "cannotCut": true
+    },
+    {
+     "name": "fir_tree_01_dead_branches",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 1,
+     "cannotCut": false
+    },
+    {
+     "name": "fir_tree_01_trunk_b",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 10,
+     "cannotCut": false
+    },
+    {
+     "name": "fir_tree_01_trunk_c",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 1,
+     "cannotCut": false
+    }
+   ],
+   "alphaBlend": 1,
+   "alphaMask": 0,
+   "cannotCut": 1,
+   "images": 12,
+   "imageList": [
+    {
+     "i": 0,
+     "name": "fir_tree_01_bark_nor_gl",
+     "kb": 1111,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 1,
+     "name": "fir_tree_01_bark_diff",
+     "kb": 758,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 2,
+     "name": "fir_tree_01_bark_rough",
+     "kb": 771,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 3,
+     "name": "fir_tree_01_trunk_a_nor_gl",
+     "kb": 974,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 4,
+     "name": "fir_tree_01_trunk_a_diff",
+     "kb": 771,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 5,
+     "name": "fir_tree_01_trunk_a_rough",
+     "kb": 770,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 6,
+     "name": "fir_tree_01_twig_nor_gl",
+     "kb": 462,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 7,
+     "name": "fir_tree_01_twig_diff-fir_tree_01_twig_alpha",
+     "kb": 363,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 8,
+     "name": "fir_tree_01_twig_rough",
+     "kb": 398,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 9,
+     "name": "fir_tree_01_trunk_b_nor_gl",
+     "kb": 894,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 10,
+     "name": "fir_tree_01_trunk_b_diff",
+     "kb": 672,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 11,
+     "name": "fir_tree_01_trunk_b_rough",
+     "kb": 715,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    }
+   ],
+   "texMB": 8.46,
+   "generator": "Khronos glTF Blender I/O v4.4.56",
+   "credit": null,
+   "extensions": [
+    "KHR_materials_specular",
+    "KHR_materials_ior",
+    "KHR_texture_transform"
+   ],
+   "trees": [
+    {
+     "name": "fir_tree_01_a",
+     "kind": "tree",
+     "h": 18.93,
+     "tris": 4176819,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 4176819
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 0,
+       "lod": 0,
+       "tris": 4176819,
+       "name": "fir_tree_01_a_LOD0"
+      }
+     ]
+    },
+    {
+     "name": "fir_tree_01_c",
+     "kind": "tree",
+     "h": 14.52,
+     "tris": 505494,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 505494
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 2,
+       "lod": 0,
+       "tris": 505494,
+       "name": "fir_tree_01_c_LOD0"
+      }
+     ]
+    },
+    {
+     "name": "fir_tree_01_b",
+     "kind": "tree",
+     "h": 14.06,
+     "tris": 2300624,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 2300624
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 1,
+       "lod": 0,
+       "tris": 2300624,
+       "name": "fir_tree_01_b_LOD0"
+      }
+     ]
+    }
+   ],
+   "shrubs": [],
+   "props": [],
+   "cards": [],
+   "furniture": [],
+   "tallest": 18.93,
+   "scaleFlag": false,
+   "scaleHint": 1,
+   "kind": "gltf-in-zip",
+   "fileMB": 464.78,
+   "binMB": 456.3,
+   "renderable": false,
+   "gltfEntry": "fir_tree_01_1k.gltf"
+  },
+  {
+   "name": "low_poly_forest_tree_pack.glb",
+   "tris": 3747,
+   "meshes": 30,
+   "materials": [
+    {
+     "name": "Background_Tree_Atlas",
+     "alpha": "BLEND",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 0,
+     "cannotCut": false
+    },
+    {
+     "name": "Rocks",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 3,
+     "cannotCut": false
+    },
+    {
+     "name": "Tree_Branches_01",
+     "alpha": "BLEND",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 6,
+     "cannotCut": false
+    },
+    {
+     "name": "Tree_Branches_02",
+     "alpha": "BLEND",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 9,
+     "cannotCut": false
+    },
+    {
+     "name": "Tree_Trunk_01",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 11,
+     "cannotCut": false
+    },
+    {
+     "name": "Tree_Trunk_02",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 14,
+     "cannotCut": false
+    }
+   ],
+   "alphaBlend": 3,
+   "alphaMask": 0,
+   "cannotCut": 0,
+   "images": 17,
+   "imageList": [
+    {
+     "i": 0,
+     "name": "",
+     "kb": 1167,
+     "fmt": "png",
+     "hasAlpha": true
+    },
+    {
+     "i": 1,
+     "name": "",
+     "kb": 23,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 2,
+     "name": "",
+     "kb": 494,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 3,
+     "name": "",
+     "kb": 441,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 4,
+     "name": "",
+     "kb": 302,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 5,
+     "name": "",
+     "kb": 1618,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 6,
+     "name": "",
+     "kb": 295,
+     "fmt": "png",
+     "hasAlpha": true
+    },
+    {
+     "i": 7,
+     "name": "",
+     "kb": 1,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 8,
+     "name": "",
+     "kb": 1967,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 9,
+     "name": "",
+     "kb": 344,
+     "fmt": "png",
+     "hasAlpha": true
+    },
+    {
+     "i": 10,
+     "name": "",
+     "kb": 1968,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 11,
+     "name": "",
+     "kb": 284,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 12,
+     "name": "",
+     "kb": 91,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 13,
+     "name": "",
+     "kb": 316,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 14,
+     "name": "",
+     "kb": 70,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 15,
+     "name": "",
+     "kb": 6,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 16,
+     "name": "",
+     "kb": 65,
+     "fmt": "png",
+     "hasAlpha": false
+    }
+   ],
+   "texMB": 9.23,
+   "generator": "Sketchfab-17.15.0",
+   "credit": {
+    "author": "99.Miles (https://sketchfab.com/99.Miles)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/low-poly-forest-tree-pack-5ff5a51e74324845a4e4905f182dfb2b",
+    "title": "Low Poly Forest Tree Pack"
+   },
+   "extensions": [
+    "KHR_materials_specular"
+   ],
+   "trees": [
+    {
+     "name": "Tree_Branches_01",
+     "kind": "tree",
+     "h": 25.41,
+     "tris": 630,
+     "parts": 2,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 630
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 47,
+       "lod": null,
+       "tris": 366,
+       "name": "Tree_Branches_01"
+      },
+      {
+       "node": 57,
+       "lod": null,
+       "tris": 264,
+       "name": "Tree_Trunk_01.001"
+      }
+     ]
+    },
+    {
+     "name": "Tree_Trunk_01.002",
+     "kind": "tree",
+     "h": 18.46,
+     "tris": 624,
+     "parts": 2,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 624
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 51,
+       "lod": null,
+       "tris": 286,
+       "name": "Tree_Branches_01.002"
+      },
+      {
+       "node": 59,
+       "lod": null,
+       "tris": 338,
+       "name": "Tree_Trunk_01.002"
+      }
+     ]
+    },
+    {
+     "name": "Tree_Trunk_02",
+     "kind": "tree",
+     "h": 11.87,
+     "tris": 285,
+     "parts": 2,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 285
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 53,
+       "lod": null,
+       "tris": 156,
+       "name": "Tree_Branches_02"
+      },
+      {
+       "node": 61,
+       "lod": null,
+       "tris": 129,
+       "name": "Tree_Trunk_02"
+      }
+     ]
+    },
+    {
+     "name": "Tree_Trunk_01",
+     "kind": "tree",
+     "h": 10.34,
+     "tris": 624,
+     "parts": 2,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 624
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 49,
+       "lod": null,
+       "tris": 286,
+       "name": "Tree_Branches_01.001"
+      },
+      {
+       "node": 55,
+       "lod": null,
+       "tris": 338,
+       "name": "Tree_Trunk_01"
+      }
+     ]
+    }
+   ],
+   "shrubs": [],
+   "props": [
+    {
+     "name": "Rocks.001",
+     "kind": "prop",
+     "h": 1.07,
+     "tris": 127,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 127
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 31,
+       "lod": null,
+       "tris": 127,
+       "name": "Rocks.001"
+      }
+     ]
+    },
+    {
+     "name": "Rocks.006",
+     "kind": "prop",
+     "h": 0.91,
+     "tris": 99,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 99
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 41,
+       "lod": null,
+       "tris": 99,
+       "name": "Rocks.006"
+      }
+     ]
+    },
+    {
+     "name": "Rocks.005",
+     "kind": "prop",
+     "h": 0.57,
+     "tris": 97,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 97
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 39,
+       "lod": null,
+       "tris": 97,
+       "name": "Rocks.005"
+      }
+     ]
+    },
+    {
+     "name": "Rocks.002",
+     "kind": "prop",
+     "h": 0.85,
+     "tris": 63,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 63
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 33,
+       "lod": null,
+       "tris": 63,
+       "name": "Rocks.002"
+      }
+     ]
+    },
+    {
+     "name": "Rocks.007",
+     "kind": "prop",
+     "h": 0.61,
+     "tris": 51,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 51
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 43,
+       "lod": null,
+       "tris": 51,
+       "name": "Rocks.007"
+      }
+     ]
+    },
+    {
+     "name": "Rocks.008",
+     "kind": "prop",
+     "h": 0.44,
+     "tris": 46,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 46
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 45,
+       "lod": null,
+       "tris": 46,
+       "name": "Rocks.008"
+      }
+     ]
+    },
+    {
+     "name": "Rocks.004",
+     "kind": "prop",
+     "h": 0.63,
+     "tris": 34,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 34
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 37,
+       "lod": null,
+       "tris": 34,
+       "name": "Rocks.004"
+      }
+     ]
+    },
+    {
+     "name": "Rocks.003",
+     "kind": "prop",
+     "h": 0.39,
+     "tris": 26,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 26
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 35,
+       "lod": null,
+       "tris": 26,
+       "name": "Rocks.003"
+      }
+     ]
+    },
+    {
+     "name": "Rocks",
+     "kind": "prop",
+     "h": 0.38,
+     "tris": 18,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 18
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 29,
+       "lod": null,
+       "tris": 18,
+       "name": "Rocks"
+      }
+     ]
+    }
+   ],
+   "cards": [
+    {
+     "name": "Background_Tree_Atlas.005",
+     "kind": "card",
+     "h": 33.27,
+     "tris": 109,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 109
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 13,
+       "lod": null,
+       "tris": 109,
+       "name": "Background_Tree_Atlas.005"
+      }
+     ]
+    },
+    {
+     "name": "Background_Tree_Atlas.001",
+     "kind": "card",
+     "h": 29.26,
+     "tris": 101,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 101
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 5,
+       "lod": null,
+       "tris": 101,
+       "name": "Background_Tree_Atlas.001"
+      }
+     ]
+    },
+    {
+     "name": "Background_Tree_Atlas",
+     "kind": "card",
+     "h": 26.01,
+     "tris": 108,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 108
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 3,
+       "lod": null,
+       "tris": 108,
+       "name": "Background_Tree_Atlas"
+      }
+     ]
+    },
+    {
+     "name": "Background_Tree_Atlas.003",
+     "kind": "card",
+     "h": 26.01,
+     "tris": 109,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 109
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 9,
+       "lod": null,
+       "tris": 109,
+       "name": "Background_Tree_Atlas.003"
+      }
+     ]
+    },
+    {
+     "name": "Background_Tree_Atlas.007",
+     "kind": "card",
+     "h": 26.01,
+     "tris": 109,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 109
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 17,
+       "lod": null,
+       "tris": 109,
+       "name": "Background_Tree_Atlas.007"
+      }
+     ]
+    },
+    {
+     "name": "Background_Tree_Atlas.006",
+     "kind": "card",
+     "h": 25.78,
+     "tris": 113,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 113
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 15,
+       "lod": null,
+       "tris": 113,
+       "name": "Background_Tree_Atlas.006"
+      }
+     ]
+    },
+    {
+     "name": "Background_Tree_Atlas.004",
+     "kind": "card",
+     "h": 24.54,
+     "tris": 109,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 109
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 11,
+       "lod": null,
+       "tris": 109,
+       "name": "Background_Tree_Atlas.004"
+      }
+     ]
+    },
+    {
+     "name": "Background_Tree_Atlas.002",
+     "kind": "card",
+     "h": 18.22,
+     "tris": 36,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 36
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 7,
+       "lod": null,
+       "tris": 36,
+       "name": "Background_Tree_Atlas.002"
+      }
+     ]
+    },
+    {
+     "name": "Background_Tree_Atlas.009",
+     "kind": "card",
+     "h": 5.51,
+     "tris": 40,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 40
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 21,
+       "lod": null,
+       "tris": 40,
+       "name": "Background_Tree_Atlas.009"
+      }
+     ]
+    },
+    {
+     "name": "Background_Tree_Atlas.012",
+     "kind": "card",
+     "h": 2.58,
+     "tris": 67,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 67
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 27,
+       "lod": null,
+       "tris": 67,
+       "name": "Background_Tree_Atlas.012"
+      }
+     ]
+    },
+    {
+     "name": "Background_Tree_Atlas.010",
+     "kind": "card",
+     "h": 2.24,
+     "tris": 92,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 92
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 23,
+       "lod": null,
+       "tris": 92,
+       "name": "Background_Tree_Atlas.010"
+      }
+     ]
+    },
+    {
+     "name": "Background_Tree_Atlas.008",
+     "kind": "card",
+     "h": 2.21,
+     "tris": 6,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 6
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 19,
+       "lod": null,
+       "tris": 6,
+       "name": "Background_Tree_Atlas.008"
+      }
+     ]
+    },
+    {
+     "name": "Background_Tree_Atlas.011",
+     "kind": "card",
+     "h": 2.04,
+     "tris": 24,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 24
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 25,
+       "lod": null,
+       "tris": 24,
+       "name": "Background_Tree_Atlas.011"
+      }
+     ]
+    }
+   ],
+   "furniture": [],
+   "tallest": 25.41,
+   "scaleFlag": false,
+   "scaleHint": 1,
+   "kind": "glb",
+   "fileMB": 9.78,
+   "binMB": 9.73,
+   "renderable": true
+  },
+  {
+   "name": "pine_sapling_medium_1k.gltf.zip",
+   "tris": 6038139,
+   "meshes": 3,
+   "materials": [
+    {
+     "name": "pine_sapling_medium_bark",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 1,
+     "cannotCut": false
+    },
+    {
+     "name": "pine_sapling_medium_twig",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 4,
+     "cannotCut": false
+    },
+    {
+     "name": "pine_sapling_medium_dead_branches",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 1,
+     "cannotCut": false
+    }
+   ],
+   "alphaBlend": 0,
+   "alphaMask": 0,
+   "cannotCut": 0,
+   "images": 6,
+   "imageList": [
+    {
+     "i": 0,
+     "name": "pine_sapling_medium_bark_nor_gl",
+     "kb": 993,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 1,
+     "name": "pine_sapling_medium_bark_diff",
+     "kb": 708,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 2,
+     "name": "pine_sapling_medium_bark_rough",
+     "kb": 782,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 3,
+     "name": "pine_sapling_medium_twig_nor_gl",
+     "kb": 779,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 4,
+     "name": "pine_sapling_medium_twig_diff",
+     "kb": 499,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 5,
+     "name": "pine_sapling_medium_twig_rough",
+     "kb": 464,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    }
+   ],
+   "texMB": 4.13,
+   "generator": "Khronos glTF Blender I/O v4.4.56",
+   "credit": null,
+   "extensions": [
+    "KHR_materials_specular",
+    "KHR_materials_ior",
+    "KHR_texture_transform"
+   ],
+   "trees": [
+    {
+     "name": "pine_sapling_medium_a",
+     "kind": "tree",
+     "h": 11.49,
+     "tris": 2662894,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 2662894
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 0,
+       "lod": 0,
+       "tris": 2662894,
+       "name": "pine_sapling_medium_a_LOD0"
+      }
+     ]
+    },
+    {
+     "name": "pine_sapling_medium_b",
+     "kind": "tree",
+     "h": 9.12,
+     "tris": 1872357,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 1872357
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 1,
+       "lod": 0,
+       "tris": 1872357,
+       "name": "pine_sapling_medium_b_LOD0"
+      }
+     ]
+    },
+    {
+     "name": "pine_sapling_medium_c",
+     "kind": "tree",
+     "h": 7.01,
+     "tris": 1502888,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 1502888
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 2,
+       "lod": 0,
+       "tris": 1502888,
+       "name": "pine_sapling_medium_c_LOD0"
+      }
+     ]
+    }
+   ],
+   "shrubs": [],
+   "props": [],
+   "cards": [],
+   "furniture": [],
+   "tallest": 11.49,
+   "scaleFlag": false,
+   "scaleHint": 1,
+   "kind": "gltf-in-zip",
+   "fileMB": 255.42,
+   "binMB": 251.28,
+   "renderable": false,
+   "gltfEntry": "pine_sapling_medium_1k.gltf"
+  },
+  {
+   "name": "pine_tree.glb",
+   "tris": 5627,
+   "meshes": 2,
+   "materials": [
+    {
+     "name": "Tree_0Mat",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": false,
+     "img": 0,
+     "cannotCut": false
+    },
+    {
+     "name": "Tree_1Mat",
+     "alpha": "MASK",
+     "cutoff": 0.207986616724512,
+     "doubleSided": true,
+     "img": 3,
+     "cannotCut": false
+    }
+   ],
+   "alphaBlend": 0,
+   "alphaMask": 1,
+   "cannotCut": 0,
+   "images": 6,
+   "imageList": [
+    {
+     "i": 0,
+     "name": "",
+     "kb": 878,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 1,
+     "name": "",
+     "kb": 241,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 2,
+     "name": "",
+     "kb": 898,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 3,
+     "name": "",
+     "kb": 1116,
+     "fmt": "png",
+     "hasAlpha": true
+    },
+    {
+     "i": 4,
+     "name": "",
+     "kb": 282,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 5,
+     "name": "",
+     "kb": 1147,
+     "fmt": "png",
+     "hasAlpha": false
+    }
+   ],
+   "texMB": 4.46,
+   "generator": "Sketchfab-13.83.0",
+   "credit": {
+    "author": "evolveduk (https://sketchfab.com/evolveduk)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/pine-tree-d45218a3fab349e5b1de040f29e7b6f9",
+    "title": "Pine Tree"
+   },
+   "extensions": [],
+   "trees": [
+    {
+     "name": "Tree_0",
+     "kind": "tree",
+     "h": 5.32,
+     "tris": 5627,
+     "parts": 2,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 5627
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 4,
+       "lod": null,
+       "tris": 4539,
+       "name": "Tree_0_Tree_0Mat_0"
+      },
+      {
+       "node": 5,
+       "lod": null,
+       "tris": 1088,
+       "name": "Tree_1"
+      }
+     ]
+    }
+   ],
+   "shrubs": [],
+   "props": [],
+   "cards": [],
+   "furniture": [],
+   "tallest": 5.32,
+   "scaleFlag": false,
+   "scaleHint": 1,
+   "kind": "glb",
+   "fileMB": 4.71,
+   "binMB": 4.7,
+   "renderable": true
+  },
+  {
+   "name": "pine_tree_01_1k.gltf.zip",
+   "tris": 17182252,
+   "meshes": 3,
+   "materials": [
+    {
+     "name": "pine_tree_01_bark",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 1,
+     "cannotCut": false
+    },
+    {
+     "name": "pine_tree_01_trunk_a",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 4,
+     "cannotCut": false
+    },
+    {
+     "name": "pine_tree_01_twig",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 7,
+     "cannotCut": false
+    },
+    {
+     "name": "pine_tree_01_dead_branches",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 1,
+     "cannotCut": false
+    },
+    {
+     "name": "pine_tree_01_trunk_b",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 10,
+     "cannotCut": false
+    },
+    {
+     "name": "pine_tree_01_trunk_c",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 1,
+     "cannotCut": false
+    }
+   ],
+   "alphaBlend": 0,
+   "alphaMask": 0,
+   "cannotCut": 0,
+   "images": 12,
+   "imageList": [
+    {
+     "i": 0,
+     "name": "pine_tree_01_bark_nor_gl",
+     "kb": 993,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 1,
+     "name": "pine_tree_01_bark_diff",
+     "kb": 708,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 2,
+     "name": "pine_tree_01_bark_rough",
+     "kb": 782,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 3,
+     "name": "pine_tree_01_trunk_a_nor_gl",
+     "kb": 974,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 4,
+     "name": "pine_tree_01_trunk_a_diff",
+     "kb": 771,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 5,
+     "name": "pine_tree_01_trunk_a_rough",
+     "kb": 770,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 6,
+     "name": "pine_tree_01_twig_nor_gl",
+     "kb": 779,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 7,
+     "name": "pine_tree_01_twig_diff",
+     "kb": 499,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 8,
+     "name": "pine_tree_01_twig_rough",
+     "kb": 464,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 9,
+     "name": "pine_tree_01_trunk_b_nor_gl",
+     "kb": 894,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 10,
+     "name": "pine_tree_01_trunk_b_diff",
+     "kb": 672,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 11,
+     "name": "pine_tree_01_trunk_b_rough",
+     "kb": 715,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    }
+   ],
+   "texMB": 8.81,
+   "generator": "Khronos glTF Blender I/O v4.4.56",
+   "credit": null,
+   "extensions": [
+    "KHR_materials_specular",
+    "KHR_materials_ior",
+    "KHR_texture_transform"
+   ],
+   "trees": [
+    {
+     "name": "pine_tree_01_a",
+     "kind": "tree",
+     "h": 20.37,
+     "tris": 6951524,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 6951524
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 0,
+       "lod": 0,
+       "tris": 6951524,
+       "name": "pine_tree_01_a_LOD0"
+      }
+     ]
+    },
+    {
+     "name": "pine_tree_01_c",
+     "kind": "tree",
+     "h": 17.54,
+     "tris": 5996296,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 5996296
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 2,
+       "lod": 0,
+       "tris": 5996296,
+       "name": "pine_tree_01_c_LOD0"
+      }
+     ]
+    },
+    {
+     "name": "pine_tree_01_b",
+     "kind": "tree",
+     "h": 14.88,
+     "tris": 4234432,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 4234432
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 1,
+       "lod": 0,
+       "tris": 4234432,
+       "name": "pine_tree_01_b_LOD0"
+      }
+     ]
+    }
+   ],
+   "shrubs": [],
+   "props": [],
+   "cards": [],
+   "furniture": [],
+   "tallest": 20.37,
+   "scaleFlag": false,
+   "scaleHint": 1,
+   "kind": "gltf-in-zip",
+   "fileMB": 913.74,
+   "binMB": 904.89,
+   "renderable": false,
+   "gltfEntry": "pine_tree_01_1k.gltf"
+  },
+  {
+   "name": "pine_tree_low-poly.glb",
+   "tris": 282,
+   "meshes": 1,
+   "materials": [
+    {
+     "name": "Pine_s_1_Material",
+     "alpha": "BLEND",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 0,
+     "cannotCut": false
+    }
+   ],
+   "alphaBlend": 1,
+   "alphaMask": 0,
+   "cannotCut": 0,
+   "images": 1,
+   "imageList": [
+    {
+     "i": 0,
+     "name": "",
+     "kb": 1650,
+     "fmt": "png",
+     "hasAlpha": true
+    }
+   ],
+   "texMB": 1.61,
+   "generator": "Sketchfab-12.68.0",
+   "credit": {
+    "author": "Ricardo Sanchez (https://sketchfab.com/380660711785)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/pine-tree-low-poly-e72f2c31aac544e58b667c13ec718daf",
+    "title": "Pine tree low-poly"
+   },
+   "extensions": [],
+   "trees": [
+    {
+     "name": "Pine_s_1_",
+     "kind": "tree",
+     "h": 739.61,
+     "tris": 282,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 282
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 4,
+       "lod": null,
+       "tris": 282,
+       "name": "Pine_s_1__Pine_s_1_Material_0"
+      }
+     ]
+    }
+   ],
+   "shrubs": [],
+   "props": [],
+   "cards": [],
+   "furniture": [],
+   "tallest": 739.61,
+   "scaleFlag": true,
+   "scaleHint": 0.02975,
+   "kind": "glb",
+   "fileMB": 1.63,
+   "binMB": 1.63,
+   "renderable": true
+  },
+  {
+   "name": "pine_trees_pack_lowpoly_game_ready_lods.glb",
+   "tris": 127813,
+   "meshes": 107,
+   "materials": [
+    {
+     "name": "Checker_1m",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 0,
+     "cannotCut": false
+    },
+    {
+     "name": "Pine_big_1_Billboard_Mat",
+     "alpha": "BLEND",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 1,
+     "cannotCut": false
+    },
+    {
+     "name": "Bark_Mat",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 3,
+     "cannotCut": false
+    },
+    {
+     "name": "Clusters_Mat",
+     "alpha": "BLEND",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 6,
+     "cannotCut": false
+    },
+    {
+     "name": "Pine_big_2_Billboard_Mat",
+     "alpha": "BLEND",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 9,
+     "cannotCut": false
+    },
+    {
+     "name": "Pine_big_3_Billboard_Mat",
+     "alpha": "BLEND",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 11,
+     "cannotCut": false
+    },
+    {
+     "name": "Pine_large_1_Billboard_Mat",
+     "alpha": "BLEND",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 13,
+     "cannotCut": false
+    },
+    {
+     "name": "Pine_large_2_Billboard_Mat",
+     "alpha": "BLEND",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 15,
+     "cannotCut": false
+    },
+    {
+     "name": "Pine_large_3_Billboard_Mat",
+     "alpha": "BLEND",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 17,
+     "cannotCut": false
+    },
+    {
+     "name": "Pine_medium_1_Billboard_Mat",
+     "alpha": "BLEND",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 19,
+     "cannotCut": false
+    },
+    {
+     "name": "Pine_medium_2_Billboard_Mat",
+     "alpha": "BLEND",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 21,
+     "cannotCut": false
+    },
+    {
+     "name": "Pine_medium_3_Billboard_Mat",
+     "alpha": "BLEND",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 23,
+     "cannotCut": false
+    },
+    {
+     "name": "Pine_sapling_1_Billboard_Mat",
+     "alpha": "BLEND",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 25,
+     "cannotCut": false
+    },
+    {
+     "name": "Pine_sapling_2_Billboard_Mat",
+     "alpha": "BLEND",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 27,
+     "cannotCut": false
+    },
+    {
+     "name": "Pine_sapling_3_Billboard_Mat",
+     "alpha": "BLEND",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 29,
+     "cannotCut": false
+    },
+    {
+     "name": "Pine_small_1_Billboard_Mat",
+     "alpha": "BLEND",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 31,
+     "cannotCut": false
+    },
+    {
+     "name": "Pine_small_2_Billboard_Mat",
+     "alpha": "BLEND",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 33,
+     "cannotCut": false
+    },
+    {
+     "name": "Pine_small_3_Billboard_Mat",
+     "alpha": "BLEND",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 35,
+     "cannotCut": false
+    },
+    {
+     "name": "ref_plane",
+     "alpha": "BLEND",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 37,
+     "cannotCut": false
+    }
+   ],
+   "alphaBlend": 17,
+   "alphaMask": 0,
+   "cannotCut": 0,
+   "images": 38,
+   "imageList": [
+    {
+     "i": 0,
+     "name": "",
+     "kb": 9,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 1,
+     "name": "",
+     "kb": 611,
+     "fmt": "png",
+     "hasAlpha": true
+    },
+    {
+     "i": 2,
+     "name": "",
+     "kb": 663,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 3,
+     "name": "",
+     "kb": 852,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 4,
+     "name": "",
+     "kb": 735,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 5,
+     "name": "",
+     "kb": 1192,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 6,
+     "name": "",
+     "kb": 1574,
+     "fmt": "png",
+     "hasAlpha": true
+    },
+    {
+     "i": 7,
+     "name": "",
+     "kb": 788,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 8,
+     "name": "",
+     "kb": 1568,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 9,
+     "name": "",
+     "kb": 632,
+     "fmt": "png",
+     "hasAlpha": true
+    },
+    {
+     "i": 10,
+     "name": "",
+     "kb": 690,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 11,
+     "name": "",
+     "kb": 574,
+     "fmt": "png",
+     "hasAlpha": true
+    },
+    {
+     "i": 12,
+     "name": "",
+     "kb": 626,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 13,
+     "name": "",
+     "kb": 564,
+     "fmt": "png",
+     "hasAlpha": true
+    },
+    {
+     "i": 14,
+     "name": "",
+     "kb": 612,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 15,
+     "name": "",
+     "kb": 626,
+     "fmt": "png",
+     "hasAlpha": true
+    },
+    {
+     "i": 16,
+     "name": "",
+     "kb": 675,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 17,
+     "name": "",
+     "kb": 619,
+     "fmt": "png",
+     "hasAlpha": true
+    },
+    {
+     "i": 18,
+     "name": "",
+     "kb": 669,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 19,
+     "name": "",
+     "kb": 589,
+     "fmt": "png",
+     "hasAlpha": true
+    },
+    {
+     "i": 20,
+     "name": "",
+     "kb": 646,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 21,
+     "name": "",
+     "kb": 600,
+     "fmt": "png",
+     "hasAlpha": true
+    },
+    {
+     "i": 22,
+     "name": "",
+     "kb": 658,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 23,
+     "name": "",
+     "kb": 610,
+     "fmt": "png",
+     "hasAlpha": true
+    },
+    {
+     "i": 24,
+     "name": "",
+     "kb": 663,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 25,
+     "name": "",
+     "kb": 173,
+     "fmt": "png",
+     "hasAlpha": true
+    },
+    {
+     "i": 26,
+     "name": "",
+     "kb": 187,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 27,
+     "name": "",
+     "kb": 175,
+     "fmt": "png",
+     "hasAlpha": true
+    },
+    {
+     "i": 28,
+     "name": "",
+     "kb": 190,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 29,
+     "name": "",
+     "kb": 203,
+     "fmt": "png",
+     "hasAlpha": true
+    },
+    {
+     "i": 30,
+     "name": "",
+     "kb": 223,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 31,
+     "name": "",
+     "kb": 598,
+     "fmt": "png",
+     "hasAlpha": true
+    },
+    {
+     "i": 32,
+     "name": "",
+     "kb": 662,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 33,
+     "name": "",
+     "kb": 683,
+     "fmt": "png",
+     "hasAlpha": true
+    },
+    {
+     "i": 34,
+     "name": "",
+     "kb": 753,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 35,
+     "name": "",
+     "kb": 604,
+     "fmt": "png",
+     "hasAlpha": true
+    },
+    {
+     "i": 36,
+     "name": "",
+     "kb": 667,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 37,
+     "name": "",
+     "kb": 182,
+     "fmt": "png",
+     "hasAlpha": true
+    }
+   ],
+   "texMB": 22.8,
+   "generator": "Sketchfab-16.68.0",
+   "credit": {
+    "author": "LOLIPOP (https://sketchfab.com/lolipop_1707)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/pine-trees-pack-lowpoly-game-ready-lods-e1e9c07b8e2e445c943fec660beefba2",
+    "title": "Pine trees pack (lowpoly, game ready, LODs)"
+   },
+   "extensions": [
+    "KHR_texture_transform",
+    "KHR_materials_specular"
+   ],
+   "trees": [
+    {
+     "name": "Pine_large_1",
+     "kind": "tree",
+     "h": 31.81,
+     "tris": 21632,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 11844
+      },
+      {
+       "lod": 1,
+       "tris": 6596
+      },
+      {
+       "lod": 2,
+       "tris": 3176
+      },
+      {
+       "lod": 3,
+       "tris": 16
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 42,
+       "lod": 3,
+       "tris": 16,
+       "name": "Pine_large_1_Billboard_LOD3"
+      },
+      {
+       "node": 44,
+       "lod": 0,
+       "tris": 11844,
+       "name": "Pine_large_1_LOD0"
+      },
+      {
+       "node": 47,
+       "lod": 1,
+       "tris": 6596,
+       "name": "Pine_large_1_LOD1"
+      },
+      {
+       "node": 50,
+       "lod": 2,
+       "tris": 3176,
+       "name": "Pine_large_1_LOD2"
+      }
+     ]
+    },
+    {
+     "name": "Pine_large_2",
+     "kind": "tree",
+     "h": 31.59,
+     "tris": 21215,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 11710
+      },
+      {
+       "lod": 1,
+       "tris": 6447
+      },
+      {
+       "lod": 2,
+       "tris": 3042
+      },
+      {
+       "lod": 3,
+       "tris": 16
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 54,
+       "lod": 3,
+       "tris": 16,
+       "name": "Pine_large_2_Billboard_LOD3"
+      },
+      {
+       "node": 56,
+       "lod": 0,
+       "tris": 11710,
+       "name": "Pine_large_2_LOD0"
+      },
+      {
+       "node": 59,
+       "lod": 1,
+       "tris": 6447,
+       "name": "Pine_large_2_LOD1"
+      },
+      {
+       "node": 62,
+       "lod": 2,
+       "tris": 3042,
+       "name": "Pine_large_2_LOD2"
+      }
+     ]
+    },
+    {
+     "name": "Pine_large_3",
+     "kind": "tree",
+     "h": 30.08,
+     "tris": 18763,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 10142
+      },
+      {
+       "lod": 1,
+       "tris": 5787
+      },
+      {
+       "lod": 2,
+       "tris": 2818
+      },
+      {
+       "lod": 3,
+       "tris": 16
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 66,
+       "lod": 3,
+       "tris": 16,
+       "name": "Pine_large_3_Billboard_LOD3"
+      },
+      {
+       "node": 68,
+       "lod": 0,
+       "tris": 10142,
+       "name": "Pine_large_3_LOD0"
+      },
+      {
+       "node": 71,
+       "lod": 1,
+       "tris": 5787,
+       "name": "Pine_large_3_LOD1"
+      },
+      {
+       "node": 74,
+       "lod": 2,
+       "tris": 2818,
+       "name": "Pine_large_3_LOD2"
+      }
+     ]
+    },
+    {
+     "name": "Pine_big_3",
+     "kind": "tree",
+     "h": 19.62,
+     "tris": 10342,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 5485
+      },
+      {
+       "lod": 1,
+       "tris": 3148
+      },
+      {
+       "lod": 2,
+       "tris": 1693
+      },
+      {
+       "lod": 3,
+       "tris": 16
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 30,
+       "lod": 3,
+       "tris": 16,
+       "name": "Pine_big_3_Billboard_LOD3"
+      },
+      {
+       "node": 32,
+       "lod": 0,
+       "tris": 5485,
+       "name": "Pine_big_3_LOD0"
+      },
+      {
+       "node": 35,
+       "lod": 1,
+       "tris": 3148,
+       "name": "Pine_big_3_LOD1"
+      },
+      {
+       "node": 38,
+       "lod": 2,
+       "tris": 1693,
+       "name": "Pine_big_3_LOD2"
+      }
+     ]
+    },
+    {
+     "name": "Pine_big_1",
+     "kind": "tree",
+     "h": 16.89,
+     "tris": 8533,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 4502
+      },
+      {
+       "lod": 1,
+       "tris": 2626
+      },
+      {
+       "lod": 2,
+       "tris": 1389
+      },
+      {
+       "lod": 3,
+       "tris": 16
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 6,
+       "lod": 3,
+       "tris": 16,
+       "name": "Pine_big_1_Billboard_LOD3"
+      },
+      {
+       "node": 8,
+       "lod": 0,
+       "tris": 4502,
+       "name": "Pine_big_1_LOD0"
+      },
+      {
+       "node": 11,
+       "lod": 1,
+       "tris": 2626,
+       "name": "Pine_big_1_LOD1"
+      },
+      {
+       "node": 14,
+       "lod": 2,
+       "tris": 1389,
+       "name": "Pine_big_1_LOD2"
+      }
+     ]
+    },
+    {
+     "name": "Pine_big_2",
+     "kind": "tree",
+     "h": 16.19,
+     "tris": 8840,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 4793
+      },
+      {
+       "lod": 1,
+       "tris": 2640
+      },
+      {
+       "lod": 2,
+       "tris": 1391
+      },
+      {
+       "lod": 3,
+       "tris": 16
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 18,
+       "lod": 3,
+       "tris": 16,
+       "name": "Pine_big_2_Billboard_LOD3"
+      },
+      {
+       "node": 20,
+       "lod": 0,
+       "tris": 4793,
+       "name": "Pine_big_2_LOD0"
+      },
+      {
+       "node": 23,
+       "lod": 1,
+       "tris": 2640,
+       "name": "Pine_big_2_LOD1"
+      },
+      {
+       "node": 26,
+       "lod": 2,
+       "tris": 1391,
+       "name": "Pine_big_2_LOD2"
+      }
+     ]
+    },
+    {
+     "name": "Pine_medium_1",
+     "kind": "tree",
+     "h": 13.92,
+     "tris": 8049,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 4425
+      },
+      {
+       "lod": 1,
+       "tris": 2355
+      },
+      {
+       "lod": 2,
+       "tris": 1253
+      },
+      {
+       "lod": 3,
+       "tris": 16
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 78,
+       "lod": 3,
+       "tris": 16,
+       "name": "Pine_medium_1_Billboard_LOD3"
+      },
+      {
+       "node": 80,
+       "lod": 0,
+       "tris": 4425,
+       "name": "Pine_medium_1_LOD0"
+      },
+      {
+       "node": 83,
+       "lod": 1,
+       "tris": 2355,
+       "name": "Pine_medium_1_LOD1"
+      },
+      {
+       "node": 86,
+       "lod": 2,
+       "tris": 1253,
+       "name": "Pine_medium_1_LOD2"
+      }
+     ]
+    },
+    {
+     "name": "Pine_medium_2",
+     "kind": "tree",
+     "h": 12.91,
+     "tris": 7385,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 3967
+      },
+      {
+       "lod": 1,
+       "tris": 2232
+      },
+      {
+       "lod": 2,
+       "tris": 1170
+      },
+      {
+       "lod": 3,
+       "tris": 16
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 90,
+       "lod": 3,
+       "tris": 16,
+       "name": "Pine_medium_2_Billboard_LOD3"
+      },
+      {
+       "node": 92,
+       "lod": 0,
+       "tris": 3967,
+       "name": "Pine_medium_2_LOD0"
+      },
+      {
+       "node": 95,
+       "lod": 1,
+       "tris": 2232,
+       "name": "Pine_medium_2_LOD1"
+      },
+      {
+       "node": 98,
+       "lod": 2,
+       "tris": 1170,
+       "name": "Pine_medium_2_LOD2"
+      }
+     ]
+    },
+    {
+     "name": "Pine_medium_3",
+     "kind": "tree",
+     "h": 10.47,
+     "tris": 5634,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 2923
+      },
+      {
+       "lod": 1,
+       "tris": 1703
+      },
+      {
+       "lod": 2,
+       "tris": 992
+      },
+      {
+       "lod": 3,
+       "tris": 16
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 102,
+       "lod": 3,
+       "tris": 16,
+       "name": "Pine_medium_3_Billboard_LOD3"
+      },
+      {
+       "node": 104,
+       "lod": 0,
+       "tris": 2923,
+       "name": "Pine_medium_3_LOD0"
+      },
+      {
+       "node": 107,
+       "lod": 1,
+       "tris": 1703,
+       "name": "Pine_medium_3_LOD1"
+      },
+      {
+       "node": 110,
+       "lod": 2,
+       "tris": 992,
+       "name": "Pine_medium_3_LOD2"
+      }
+     ]
+    },
+    {
+     "name": "Pine_small_3",
+     "kind": "tree",
+     "h": 4.65,
+     "tris": 4777,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 2333
+      },
+      {
+       "lod": 1,
+       "tris": 1544
+      },
+      {
+       "lod": 2,
+       "tris": 884
+      },
+      {
+       "lod": 3,
+       "tris": 16
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 174,
+       "lod": 3,
+       "tris": 16,
+       "name": "Pine_small_3_Billboard_LOD3"
+      },
+      {
+       "node": 176,
+       "lod": 0,
+       "tris": 2333,
+       "name": "Pine_small_3_LOD0"
+      },
+      {
+       "node": 179,
+       "lod": 1,
+       "tris": 1544,
+       "name": "Pine_small_3_LOD1"
+      },
+      {
+       "node": 182,
+       "lod": 2,
+       "tris": 884,
+       "name": "Pine_small_3_LOD2"
+      }
+     ]
+    },
+    {
+     "name": "Pine_small_1",
+     "kind": "tree",
+     "h": 4.35,
+     "tris": 4484,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 2136
+      },
+      {
+       "lod": 1,
+       "tris": 1485
+      },
+      {
+       "lod": 2,
+       "tris": 847
+      },
+      {
+       "lod": 3,
+       "tris": 16
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 150,
+       "lod": 3,
+       "tris": 16,
+       "name": "Pine_small_1_Billboard_LOD3"
+      },
+      {
+       "node": 152,
+       "lod": 0,
+       "tris": 2136,
+       "name": "Pine_small_1_LOD0"
+      },
+      {
+       "node": 155,
+       "lod": 1,
+       "tris": 1485,
+       "name": "Pine_small_1_LOD1"
+      },
+      {
+       "node": 158,
+       "lod": 2,
+       "tris": 847,
+       "name": "Pine_small_1_LOD2"
+      }
+     ]
+    },
+    {
+     "name": "Pine_small_2",
+     "kind": "tree",
+     "h": 4.04,
+     "tris": 3980,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 1912
+      },
+      {
+       "lod": 1,
+       "tris": 1284
+      },
+      {
+       "lod": 2,
+       "tris": 768
+      },
+      {
+       "lod": 3,
+       "tris": 16
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 162,
+       "lod": 3,
+       "tris": 16,
+       "name": "Pine_small_2_Billboard_LOD3"
+      },
+      {
+       "node": 164,
+       "lod": 0,
+       "tris": 1912,
+       "name": "Pine_small_2_LOD0"
+      },
+      {
+       "node": 167,
+       "lod": 1,
+       "tris": 1284,
+       "name": "Pine_small_2_LOD1"
+      },
+      {
+       "node": 170,
+       "lod": 2,
+       "tris": 768,
+       "name": "Pine_small_2_LOD2"
+      }
+     ]
+    }
+   ],
+   "shrubs": [
+    {
+     "name": "Pine_sapling_2",
+     "kind": "shrub",
+     "h": 1.56,
+     "tris": 1420,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 646
+      },
+      {
+       "lod": 1,
+       "tris": 478
+      },
+      {
+       "lod": 2,
+       "tris": 280
+      },
+      {
+       "lod": 3,
+       "tris": 16
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 126,
+       "lod": 3,
+       "tris": 16,
+       "name": "Pine_sapling_2_Billboard_LOD3"
+      },
+      {
+       "node": 128,
+       "lod": 0,
+       "tris": 646,
+       "name": "Pine_sapling_2_LOD0"
+      },
+      {
+       "node": 131,
+       "lod": 1,
+       "tris": 478,
+       "name": "Pine_sapling_2_LOD1"
+      },
+      {
+       "node": 134,
+       "lod": 2,
+       "tris": 280,
+       "name": "Pine_sapling_2_LOD2"
+      }
+     ]
+    },
+    {
+     "name": "Pine_sapling_1",
+     "kind": "shrub",
+     "h": 1.54,
+     "tris": 1309,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 587
+      },
+      {
+       "lod": 1,
+       "tris": 436
+      },
+      {
+       "lod": 2,
+       "tris": 270
+      },
+      {
+       "lod": 3,
+       "tris": 16
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 114,
+       "lod": 3,
+       "tris": 16,
+       "name": "Pine_sapling_1_Billboard_LOD3"
+      },
+      {
+       "node": 116,
+       "lod": 0,
+       "tris": 587,
+       "name": "Pine_sapling_1_LOD0"
+      },
+      {
+       "node": 119,
+       "lod": 1,
+       "tris": 436,
+       "name": "Pine_sapling_1_LOD1"
+      },
+      {
+       "node": 122,
+       "lod": 2,
+       "tris": 270,
+       "name": "Pine_sapling_1_LOD2"
+      }
+     ]
+    },
+    {
+     "name": "Pine_sapling_3",
+     "kind": "shrub",
+     "h": 1.51,
+     "tris": 1412,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 638
+      },
+      {
+       "lod": 1,
+       "tris": 478
+      },
+      {
+       "lod": 2,
+       "tris": 280
+      },
+      {
+       "lod": 3,
+       "tris": 16
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 138,
+       "lod": 3,
+       "tris": 16,
+       "name": "Pine_sapling_3_Billboard_LOD3"
+      },
+      {
+       "node": 140,
+       "lod": 0,
+       "tris": 638,
+       "name": "Pine_sapling_3_LOD0"
+      },
+      {
+       "node": 143,
+       "lod": 1,
+       "tris": 478,
+       "name": "Pine_sapling_3_LOD1"
+      },
+      {
+       "node": 146,
+       "lod": 2,
+       "tris": 280,
+       "name": "Pine_sapling_3_LOD2"
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "cards": [],
+   "furniture": [
+    "Back",
+    "Ref_plane"
+   ],
+   "tallest": 31.81,
+   "scaleFlag": false,
+   "scaleHint": 1,
+   "kind": "glb",
+   "fileMB": 30.98,
+   "binMB": 30.83,
+   "renderable": true
+  },
+  {
+   "name": "realistic_fir_trees_pack_lods_gameready.glb",
+   "tris": 36973,
+   "meshes": 21,
+   "materials": [
+    {
+     "name": "Christmas_tree_Billboard_Mat",
+     "alpha": "MASK",
+     "cutoff": 0.21790542599748874,
+     "doubleSided": false,
+     "img": 0,
+     "cannotCut": false
+    },
+    {
+     "name": "Bark_Mat",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": 3,
+     "cannotCut": false
+    },
+    {
+     "name": "Brunches_Mat",
+     "alpha": "MASK",
+     "cutoff": 0.37638209945020784,
+     "doubleSided": true,
+     "img": 6,
+     "cannotCut": false
+    },
+    {
+     "name": "Christmas_tree_2_Billboard_Mat",
+     "alpha": "MASK",
+     "cutoff": 0.3032390193951067,
+     "doubleSided": false,
+     "img": 9,
+     "cannotCut": false
+    },
+    {
+     "name": "Christmas_tree_3_Billboard_Mat",
+     "alpha": "MASK",
+     "cutoff": 0.19352439931245502,
+     "doubleSided": false,
+     "img": 12,
+     "cannotCut": false
+    }
+   ],
+   "alphaBlend": 0,
+   "alphaMask": 4,
+   "cannotCut": 0,
+   "images": 15,
+   "imageList": [
+    {
+     "i": 0,
+     "name": "",
+     "kb": 1160,
+     "fmt": "png",
+     "hasAlpha": true
+    },
+    {
+     "i": 1,
+     "name": "",
+     "kb": 1,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 2,
+     "name": "",
+     "kb": 1287,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 3,
+     "name": "",
+     "kb": 747,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 4,
+     "name": "",
+     "kb": 0,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 5,
+     "name": "",
+     "kb": 1336,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 6,
+     "name": "",
+     "kb": 1658,
+     "fmt": "png",
+     "hasAlpha": true
+    },
+    {
+     "i": 7,
+     "name": "",
+     "kb": 262,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 8,
+     "name": "",
+     "kb": 1707,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 9,
+     "name": "",
+     "kb": 1225,
+     "fmt": "png",
+     "hasAlpha": true
+    },
+    {
+     "i": 10,
+     "name": "",
+     "kb": 1,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 11,
+     "name": "",
+     "kb": 1525,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 12,
+     "name": "",
+     "kb": 1022,
+     "fmt": "png",
+     "hasAlpha": true
+    },
+    {
+     "i": 13,
+     "name": "",
+     "kb": 1,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 14,
+     "name": "",
+     "kb": 1093,
+     "fmt": "png",
+     "hasAlpha": false
+    }
+   ],
+   "texMB": 12.72,
+   "generator": "Sketchfab-0.13.0",
+   "credit": {
+    "author": "LOLIPOP (https://sketchfab.com/lolipop_1707)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/realistic-fir-trees-pack-lods-gameready-f58e8b6d733e4b0586e5b7db847b89e7",
+    "title": "Realistic Fir Trees Pack (LODS, gameready)"
+   },
+   "extensions": [
+    "KHR_materials_specular"
+   ],
+   "trees": [
+    {
+     "name": "Christmas tree",
+     "kind": "tree",
+     "h": 9.32,
+     "tris": 22890,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 12969
+      },
+      {
+       "lod": 1,
+       "tris": 6633
+      },
+      {
+       "lod": 2,
+       "tris": 3268
+      },
+      {
+       "lod": 3,
+       "tris": 20
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 3,
+       "lod": 3,
+       "tris": 20,
+       "name": "Christmas tree_LOD3"
+      },
+      {
+       "node": 5,
+       "lod": 0,
+       "tris": 12969,
+       "name": "Christmas tree_LOD0"
+      },
+      {
+       "node": 8,
+       "lod": 1,
+       "tris": 6633,
+       "name": "Christmas tree_LOD1"
+      },
+      {
+       "node": 11,
+       "lod": 2,
+       "tris": 3268,
+       "name": "Christmas tree_LOD2"
+      }
+     ]
+    },
+    {
+     "name": "Christmas tree_2",
+     "kind": "tree",
+     "h": 4.16,
+     "tris": 12709,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 6813
+      },
+      {
+       "lod": 1,
+       "tris": 3598
+      },
+      {
+       "lod": 2,
+       "tris": 2278
+      },
+      {
+       "lod": 3,
+       "tris": 20
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 14,
+       "lod": 0,
+       "tris": 6813,
+       "name": "Christmas tree_2_LOD0"
+      },
+      {
+       "node": 17,
+       "lod": 1,
+       "tris": 3598,
+       "name": "Christmas tree_2_LOD1"
+      },
+      {
+       "node": 20,
+       "lod": 2,
+       "tris": 2278,
+       "name": "Christmas tree_2_LOD2"
+      },
+      {
+       "node": 23,
+       "lod": 3,
+       "tris": 20,
+       "name": "Christmas tree_2_LOD3"
+      }
+     ]
+    }
+   ],
+   "shrubs": [
+    {
+     "name": "Christmas tree_3",
+     "kind": "shrub",
+     "h": 1.59,
+     "tris": 1374,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 599
+      },
+      {
+       "lod": 1,
+       "tris": 437
+      },
+      {
+       "lod": 2,
+       "tris": 318
+      },
+      {
+       "lod": 3,
+       "tris": 20
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 25,
+       "lod": 0,
+       "tris": 599,
+       "name": "Christmas tree_3_LOD0"
+      },
+      {
+       "node": 28,
+       "lod": 1,
+       "tris": 437,
+       "name": "Christmas tree_3_LOD1"
+      },
+      {
+       "node": 31,
+       "lod": 2,
+       "tris": 318,
+       "name": "Christmas tree_3_LOD2"
+      },
+      {
+       "node": 34,
+       "lod": 3,
+       "tris": 20,
+       "name": "Christmas tree_3_LOD3"
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "cards": [],
+   "furniture": [],
+   "tallest": 9.32,
+   "scaleFlag": false,
+   "scaleHint": 1,
+   "kind": "glb",
+   "fileMB": 14.75,
+   "binMB": 14.72,
+   "renderable": true
+  },
+  {
+   "name": "vegetation_set_pine.glb",
+   "tris": 9107,
+   "meshes": 9,
+   "materials": [
+    {
+     "name": "waldboden",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": false,
+     "img": null,
+     "cannotCut": false
+    },
+    {
+     "name": "bark_pine",
+     "alpha": "OPAQUE",
+     "cutoff": null,
+     "doubleSided": false,
+     "img": null,
+     "cannotCut": false
+    },
+    {
+     "name": "ALL_VEGETATION",
+     "alpha": "BLEND",
+     "cutoff": null,
+     "doubleSided": true,
+     "img": null,
+     "cannotCut": false
+    }
+   ],
+   "alphaBlend": 1,
+   "alphaMask": 0,
+   "cannotCut": 0,
+   "images": 6,
+   "imageList": [
+    {
+     "i": 0,
+     "name": "",
+     "kb": 421,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 1,
+     "name": "",
+     "kb": 2099,
+     "fmt": "png",
+     "hasAlpha": true
+    },
+    {
+     "i": 2,
+     "name": "",
+     "kb": 452,
+     "fmt": "jpeg",
+     "hasAlpha": false
+    },
+    {
+     "i": 3,
+     "name": "",
+     "kb": 1526,
+     "fmt": "png",
+     "hasAlpha": true
+    },
+    {
+     "i": 4,
+     "name": "",
+     "kb": 374,
+     "fmt": "png",
+     "hasAlpha": true
+    },
+    {
+     "i": 5,
+     "name": "",
+     "kb": 270,
+     "fmt": "png",
+     "hasAlpha": false
+    }
+   ],
+   "texMB": 5.02,
+   "generator": "Sketchfab-17.15.0",
+   "credit": {
+    "author": "falk lochmann (https://sketchfab.com/falk)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/vegetation-set-pine-8b5c6203c4f64281a789e55546db64fc",
+    "title": "Vegetation Set Pine"
+   },
+   "extensions": [
+    "KHR_materials_pbrSpecularGlossiness"
+   ],
+   "trees": [
+    {
+     "name": "tree_pine_C",
+     "kind": "tree",
+     "h": 29.42,
+     "tris": 3783,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 3783
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 5,
+       "lod": null,
+       "tris": 3783,
+       "name": "tree_pine_C"
+      }
+     ]
+    },
+    {
+     "name": "tree_pine_D",
+     "kind": "tree",
+     "h": 26.5,
+     "tris": 1085,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 1085
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 2,
+       "lod": null,
+       "tris": 1085,
+       "name": "tree_pine_D"
+      }
+     ]
+    },
+    {
+     "name": "tree_pine_A",
+     "kind": "tree",
+     "h": 22.23,
+     "tris": 2596,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 2596
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 11,
+       "lod": null,
+       "tris": 2596,
+       "name": "tree_pine_A"
+      }
+     ]
+    },
+    {
+     "name": "tree_pine_B",
+     "kind": "tree",
+     "h": 17.19,
+     "tris": 1579,
+     "parts": 1,
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 1579
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 8,
+       "lod": null,
+       "tris": 1579,
+       "name": "tree_pine_B"
+      }
+     ]
+    }
+   ],
+   "shrubs": [],
+   "props": [],
+   "cards": [],
+   "furniture": [
+    "Plane"
+   ],
+   "tallest": 29.42,
+   "scaleFlag": false,
+   "scaleHint": 1,
+   "kind": "glb",
+   "fileMB": 5.57,
+   "binMB": 5.55,
+   "renderable": true
+  }
+ ]
+}

@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: d8b8afd700a297ec
+// body-sha256: bd07f0f193c64b6f
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -7368,10 +7368,21 @@ function makePilot(sim, def, world, opts) {
       c.de = clamp((A.pitchP ?? 1.2) * (thCA - th) - (A.pitchD ?? 1.8) * q + Ith, -0.30, 0.35);
     };
     const airLateral = (bl = bankLim) => {
-      if (Math.abs(o_.windX || 0) + Math.abs(o_.windZ || 0) > 0.5) {
-        if (Math.abs(eA) < 0.2) eTrim = clamp(eTrim + 0.15 * eA * dt, -0.10, 0.10);
-        else eTrim -= 0.8 * eTrim * dt;
-      }
+      // THE COURSE TRIM IS NOT ABOUT THE WIND (2026-09-08). It was gated on
+      // there BEING a wind, so in calm air a steady course error could not
+      // be trimmed out at all — and a steady course error does not need a
+      // wind: PROPWASH SWIRL yaws the aeroplane all the way down the
+      // approach, the beta damper below only damps it, and the aeroplane
+      // flies a heading that closes the centreline while TRACKING parallel
+      // to it. Measured on the V-tail card's own approach: 17 m off,
+      // holding, 1 deg of bank, two go-arounds and a give-up — in dead calm.
+      // The integrator is the same one, with the same bounds and the same
+      // wash-out through a turn; it simply runs whenever the error is small
+      // and steady, which is when a pilot would be holding a boot of rudder.
+      // An aeroplane that already tracks true keeps eTrim at 0 and is
+      // unchanged, wind or no wind.
+      if (Math.abs(eA) < 0.2) eTrim = clamp(eTrim + 0.15 * eA * dt, -0.10, 0.10);
+      else eTrim -= 0.8 * eTrim * dt;
       const phC = clamp((A.hdgP ?? 0.7) * eA + (A.hdgD ?? 0.9) * eAR + eTrim, -bl, bl);
       phCA += clamp(phC - phCA, -(A.bankSlew ?? 0.18) * dt, (A.bankSlew ?? 0.18) * dt);
       c.da = clamp((A.rollP ?? 2.0) * (phCA - ph) - (A.rollD ?? 2.0) * p, -0.30, 0.30);
@@ -10132,13 +10143,26 @@ const GEN_RULES = {
   // in place. Turning it to 4 is the user's ruling, paired with either a
   // retune of the AP's crosswind steering or a re-based 12 m bound; the
   // remaining 3x to the real tube is the tube member class, owed.
-  // TAIL CHANTIER 2 P6 (2026-09-08): the number need not be swept — set to
-  // 'computed' the frame derives it as GJ_tube / GJ_lattice on the mid-boom
-  // bay (61_gen_frame.js rodK says how, and prints it in the join's note);
-  // a number here still means that number, 1 the identity. Landed at 1
-  // until GATE TAKEOFF's crosswind roll is flown against the computed
-  // value (P6's own measurement).
-  rodBoomK:    1,
+  // TAIL CHANTIER 2 P6 (2026-09-08): LANDED, AND DERIVED. 'computed' asks
+  // the frame for GJ_tube / GJ_lattice on the mid-boom bay (61_gen_frame.js
+  // rodK derives both); a number here still means that number, and 1 is the
+  // identity. What unblocked it was not the boom at all: the 12 m
+  // crosswind bound that G199.5 could not get under belonged to a PILOT
+  // that flew a crosswind take-off with the wings level, and with
+  // into-wind aileron (43_pilot.js groundSteer) the roll holds 2.6 m
+  // whatever the boom does. Measured on the ultralight fixture, the taxi at
+  // full rudder:
+  //   rodBoomK      stab roll vs the mains     cross-track through the roll
+  //      1                 3.82 deg                    2.60 m
+  //      'computed' (1.56) 1.84                        2.55
+  //      4 (the old sweep) 1.79                        2.55
+  // — the derived factor lands where the hand sweep did, and the aeroplane
+  // the user complained about ("the stabs move with the tailwheel") now
+  // twists half of what it did before this chantier began (3.09 deg).
+  // The residual to a real tube is the `tube` ELEMENT TYPE (the solver has
+  // no rotational DOF, so a truss's axial springs stand in for a shear
+  // flow): in the debt register, owed, and honest about being owed.
+  rodBoomK:    'computed',
   rodWall:     1.2e-3, // the rod boom's tube wall, m (4130: 1.2 mm on a 113 mm tube)
   // ...and WHERE the foot goes, as a fraction of the way from the engine to
   // the front spar: 1 = under the front spar. Measured on the twin (engines
@@ -10368,7 +10392,11 @@ const GEN_MIGRATE_CAGE_DEFAULTS = { boomLen: 3.983966, taperLen: 0.6 };
 //   1  2026-09-07, TAIL CHANTIER 2: the measured tail (P1), the tail truss
 //      and its mass (P4), the vortex downwash on every build and the fin's
 //      end-plate (P5)
-const PHYSICS_V = 1;
+//   2  2026-09-08, G235: the tail's tips and the fin's apex are billed their
+//      tip bow (0.888 kg on the stock, its CG 8.8 mm aft) and the substep
+//      rule's dry floor stopped applying to nodes that carry no fuel, so the
+//      integrator runs a different step on every build
+const PHYSICS_V = 2;
 
 // { fromVersion: spec => spec } — each entry lifts a spec one version. May
 // mutate and return its argument. Runs BEFORE normalisation, on the raw shape
@@ -10447,9 +10475,11 @@ const GEN_MIGRATORS = {
     // is stiffening a TUBE and not a truss (GEN_RULES.rodBoomK) — was only
     // written by the join from G199.5 on. A save drawn before that carries
     // its rod in the CAGE (`boomStyle 1`) and nothing in the spec, so in
-    // node, where no join runs, it FLEW AS A LOFTED FUSELAGE: measured on
-    // GATE TAKEOFF's own ultralight fixture, which is the aeroplane the
-    // whole rod-boom arc was measured on and which read `fuse.boom null`.
+    // node, where no join runs, it resolves to `fuse.boom null` and flies as
+    // a LOFTED FUSELAGE: measured on the ultralight fixture, the aeroplane
+    // the whole rod-boom arc was measured on — GATE TAKEOFF had been
+    // patching the row into its own copy by hand, which is one gate's fix
+    // for every save's problem.
     // A field that changes HOME is what a migrator is for. The cage is the
     // drawing and the drawing wins; a save that already states its boom
     // keeps what it states.
@@ -13316,22 +13346,34 @@ function genLattice(S, gearX, track, kScale) {
   // GJ_tube = G · 2π r³ t (thin wall, G = E/2.6 from the material's phys, t
   // = GEN_RULES.rodWall). Their ratio, on the mid-boom bay, is the factor
   // every boom member's k takes — `GEN_RULES.rodBoomK` set to 'computed';
-  // a number there still means that number, 1 the identity. Measured on
-  // the stock rod (the mid bay 0.10 × 0.20 m, L 0.7 m, fus k 8.0e5 at KS):
-  // GJ_lattice ~11 kN·m², the 113 mm × 1.2 mm 4130 tube ~110 → ~10, the
-  // "12× softer" the audit measured. The remaining honesty gap is that a
-  // truss's axial springs stand in for a tube's shear: the `tube` element
-  // type, in the debt register.
+  // a number there still means that number, 1 the identity.
+  //
+  // MEASURED on the ultralight fixture (0.75 m bays, 4130 at E 205 GPa,
+  // its own drawn 113 mm x 1.2 mm tube): GJ_tube 108 kN·m², GJ_lattice
+  // 69 → the factor is 1.56, and the aeroplane's stab roll against the
+  // mains goes 3.82° → 1.84° with it, where G199.5's hand sweep needed 4
+  // for 1.79°. The lattice comes out STIFFER here than the ~12x-softer the
+  // audit estimated by hand, because this sums all four faces' diagonals
+  // at their own levers rather than one face — and it is still the same
+  // approximation underneath: axial springs standing in for a tube's shear
+  // flow. What would end the approximation is the `tube` ELEMENT TYPE (the
+  // solver has no rotational DOF at all), in the debt register, owed.
   let rodKv = null;
   const rodK = () => {
     if (rodKv != null) return rodKv;
     const r = R.rodBoomK;
     if (r !== 'computed') return (rodKv = (r == null ? 1 : +r));
+    // the tube's radius: the resolved rod record when the join measured one,
+    // else the DRAWING's own `rodD` (cage units x planeScale = metres) — a
+    // save from before the join wrote `fuse.rod` still knows what it drew
     const rod = S.fuse.rod, ph = M && M.phys;
-    if (!rod || !(rod.r > 0) || !ph || !(ph.E > 0)) return (rodKv = 1);
+    const cg = S.cage || {};
+    const rodR = (rod && rod.r > 0) ? rod.r
+      : (+cg.rodD > 0 ? 0.5 * (+cg.rodD) * (+cg.planeScale || 1) : 0);
+    if (!(rodR > 0) || !ph || !(ph.E > 0)) return (rodKv = 1);
     const t = R.rodWall == null ? 1.2e-3 : R.rodWall;
     const G = ph.E / 2.6;
-    const GJt = G * 2 * Math.PI * Math.pow(rod.r, 3) * t;
+    const GJt = G * 2 * Math.PI * Math.pow(rodR, 3) * t;
     // the mid-boom bay: its section off the station profile, its length
     // off the bay count, its diagonals as the bay loop lays them (one a
     // side, two on the top, two on the bottom)
@@ -14404,6 +14446,13 @@ function genLattice(S, gearX, track, kScale) {
     }
     const H = sd === 'L' ? HTL : HTR;                         // the tip, on the last section
     B(H, HF[sd][nH], 'tail'); B(H, HR[sd][nH], 'tail'); B(H, HB[sd][nH], 'tail');
+    // THE TIP BOW (G235): the outboard edge is a formed bow closing the two
+    // spars over an arc about 1.15 chords long, at the rib's own linear
+    // density — and it is the one rib the loop above never bills (it bills
+    // stations 1..n). Without it the tip carried its cover share alone,
+    // 0.26 kg, and the 0.13 m box chord hanging off a node that light set
+    // the timestep for the WHOLE aeroplane: omega 2200, 82 substeps.
+    pt(H, 1.15 * cTipH * 0.30);
     // THE BRACES (measured on the first cut): the tip's three members lie in
     // its own station's plane, a mechanism (GATE BIPLANE's rank read one
     // short), and a root pair a hand's width apart let the stab ROLL on the
@@ -14465,6 +14514,7 @@ function genLattice(S, gearX, track, kScale) {
     pt(VF[i + 1], 0.5 * ribV); pt(VR[i + 1], 0.5 * ribV);
   }
   for (const nd of [VF[nV], VR[nV], VX[nV], VX2[nV]]) B(FIN, nd, 'tail');   // the apex on the last section
+  pt(FIN, 1.15 * cTipV * 0.30);              // the apex's bow (G235), as the tips'
   B(FIN, VF[nV - 1], 'tail'); B(FIN, VR[nV - 1], 'tail');   // ...and out of its plane (the same mechanism)
   TAIL = { HF, HR, HB, VF, VR, VX, VX2, zsH, semiH, zRootH, chordH, hV, chordV, nV,
            sparFront: sparF, rearH: 1 - CT, rearV: 1 - CR };
@@ -15676,7 +15726,15 @@ function genSubsteps(nodes, beams) {
     // — sized at full, a long-range build was stable on departure and headed
     // for the recorded divergence neighbourhood at reserves. The dry floor
     // guards a node that is mostly fuel. No fuel on the node = the old line.
-    const dry = i => Math.max(0.5, nodes[i].m - (nodes[i].mFuel || 0));
+    // G235: the floor is now what that last sentence says. Applied to EVERY
+    // node it under-counted the tail: a 0.26 kg fin apex read 0.5 and the rule
+    // sized the step for a node twice its weight — measured omega*dt 0.565 on
+    // a wood build against the 0.50 bound. Honest, and with the tail's tip
+    // bows billed (61_gen_frame): tubeFabric 65->71 substeps (0.522->0.448),
+    // wood 66->79 (0.565->0.448), alloy 109 (0.448), carbon 152->156
+    // (0.470->0.448). The floor alone read 76/83/109/159 — past the 80 GATE
+    // MOUNT allows, which is why the bow lands with it and not after it.
+    const dry = i => (nodes[i].mFuel ? Math.max(0.5, nodes[i].m - nodes[i].mFuel) : nodes[i].m);
     const inv = 1 / dry(b.a) + 1 / dry(b.b);           // 1/reduced mass, dry
     wMax = Math.max(wMax, Math.sqrt(b.k * inv));
     cMax = Math.max(cMax, b.c * inv);
