@@ -109,6 +109,15 @@ SETS = [
     ('shakes',    'WoodSiding010_1K-JPG.zip',             'acg',   'ambientCG',  'CC0', 'WoodSiding010',            2.2, False),
     # G232.4: bark, for the piles - a driven pile is a tree with its skin on
     ('bark',      'Bark015_1K-JPG.zip',                   'acg',   'ambientCG',  'CC0', 'Bark015',                  1.1, False),
+    # G236, the frame: PLAIN timber (the user: "For the support pillars and the
+    # base structure, I have a few rough assets (you can categorize as such,
+    # plain (no planks))"). None of these has a joint in it, which is the whole
+    # point - a post is one stick, and a plank scan draws three joints across
+    # it. They are also DARK and WEATHERED, which is what the frame under a
+    # house actually is.
+    ('rough',     'rough_wood_1k.gltf.zip',               'ph',    'Poly Haven', 'CC0', 'rough_wood',               1.0, False),
+    ('mossy',     'moss_wood_1k.gltf.zip',                'ph',    'Poly Haven', 'CC0', 'moss_wood',                1.0, False),
+    ('feverbark', 'fever_tree_bark_1k.gltf.zip',          'ph',    'Poly Haven', 'CC0', 'fever_tree_bark',          1.1, False),
 ]
 
 # VENEER, AND WHY IT COMES FROM THE AEROPLANE'S OWN LIBRARY (the user: "You
@@ -146,6 +155,42 @@ def rough_of(zf, shape):
         arm = Image.open(io.BytesIO(member(zf, '_arm_1k.jpg'))).convert('RGB')
         return arm.split()[1]
     return Image.open(io.BytesIO(member(zf, '_rough_1k.jpg'))).convert('L')
+
+
+def check_maps(key, nor, rough):
+    """THE CONVENTIONS, CHECKED RATHER THAN TRUSTED (the user: "All PBR
+    obviously, and make sure you get the conversion right between the different
+    sources and conventions").
+
+    Three sources, three packings: Poly Haven ships either a plain
+    *_rough_1k.jpg or an ARM (ambient occlusion / roughness / metalness in R /
+    G / B - roughness is the GREEN channel and nothing else), ambientCG ships
+    _Roughness.jpg plus BOTH _NormalGL and _NormalDX, and the aeroplane's wood
+    library is already in this contract. The picks are made above; these are
+    the two measurements that say a pick was right, and they are cheap:
+
+      a TANGENT-SPACE normal map is mostly +Z, so its blue channel sits near 1
+      and red and green sit near 0.5. A colour map, an object-space map or a
+      height map dropped in that slot fails all three at once. (It cannot tell
+      GL from DX - that is a sign flip on green whose mean is 0.5 either way -
+      which is why the pick is by FILENAME and never by guess: _nor_gl for
+      Poly Haven, _NormalGL for ambientCG.)
+
+      a ROUGHNESS map is a single channel. If an ARM map is handed over whole,
+      its channels disagree wildly - that is the mistake this catches."""
+    import numpy as np
+    n = np.asarray(nor, dtype=np.float32) / 255.0
+    r, g, b = n[:, :, 0].mean(), n[:, :, 1].mean(), n[:, :, 2].mean()
+    bad = []
+    if b < 0.80:
+        bad.append('normal blue %.2f (not a tangent-space map?)' % b)
+    if abs(r - 0.5) > 0.10 or abs(g - 0.5) > 0.10:
+        bad.append('normal rg %.2f/%.2f (not centred)' % (r, g))
+    rr = np.asarray(rough.convert('RGB'), dtype=np.float32) / 255.0
+    spread = float(np.abs(rr[:, :, 0] - rr[:, :, 2]).mean())
+    if spread > 0.02:
+        bad.append('roughness is not one channel (arm handed over whole?)')
+    return ('nor %.2f/%.2f/%.2f' % (r, g, b), bad)
 
 
 def payload_px(tile):
@@ -213,6 +258,7 @@ def main():
     a = ap.parse_args()
     os.makedirs(OUT, exist_ok=True)
     total = 0
+    problems = []
     print('%-10s %-26s %5s %5s %6s  %-16s %s'
           % ('key', 'source', 'tile', 'px', 'px/m', 'base colour', 'notes'))
     for key, zname, shape, author, lic, slug, tile, paint in SETS:
@@ -235,7 +281,10 @@ def main():
         n = save(diff, d, 'diff', px, 88)
         n += save(nor, d, 'nor_gl', px, 92)
         n += save(rough, d, 'rough', px, 88)
-        note = ''
+        conv, bad = check_maps(key, nor, rough)
+        if bad:
+            problems.append('%s: %s' % (key, '; '.join(bad)))
+        note = conv + ' '
         if paint:
             neu, rolled, got = neutralise(diff)
             n += save(neu, d, 'paint', px, 88)
@@ -280,6 +329,12 @@ def main():
     print('\n%d sets, %.1f MB on disk under assets/house/ (untracked; the '
           'payload picks one size - tools/house_tex_prep.js)'
           % (len(SETS) + len(FROM_WOOD), total / 1048576))
+    if problems:
+        for p in problems:
+            print('  !! ' + p)
+        raise SystemExit('%d set(s) failed the convention check' % len(problems))
+    print('conventions: every normal map tangent-space and centred, every '
+          'roughness one channel')
 
 
 if __name__ == '__main__':

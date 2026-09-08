@@ -35566,3 +35566,102 @@ the DATA carry the limit instead of the slider.
   landing in it) and MEDIA green; `--selftest` still says every rule is proven
   able to go red, and the three new ones were each driven red by hand
   (untintable set made tintable, cap removed, the rise fudged by a tenth).
+
+## G236 — THE FRAME IS OLDER THAN THE HOUSE, THE GLASS TAKES THE LIGHT, EVERY
+## DOOR OPENS ONTO SOMETHING, AND ONE WALL IS NOT SQUARE (2026-09-08, the user:
+## "give this a little extra love ... add a little special detail in the
+## design. A strange angle, a large window ... you should color the beams
+## making the base structure always quite dark and weathered ... the attached
+## house has a significant issue with its roof ... all houses should have
+## stairs and entrance ... enhance the window material")
+
+Nine items off one review. Four of them were the same mistake in four places:
+something was being decided by a slider when the DATA already knew the answer.
+
+- **THE ROOF, AND THE ISSUE IN THE ATTACHED CONFIG**: a shake roof carrying a
+  full set of drawn standing STANDING SEAMS, fanning across a hip. A seam is
+  where two sheets of METAL are folded together and stood up; shingles, shakes
+  and tiles do not have one and cannot. `ribbed` already stood the geometry
+  down for a corrugated map (its corrugation is in the scan), but a shake roof
+  is not sheet at all and nothing said so. `SET_SEAM` names the coverings that
+  take seams — mirrored from the library like SET_KIND, because the generator
+  must be right with no payload loaded — and GATE HOUSE holds it BOTH ways:
+  every name in it is metal and unribbed, and no roof set outside it is, so the
+  next sheet added to the library cannot quietly lose its seams.
+
+- **PLAIN IS A KIND** (three sets the user delivered for it: `rough_wood`,
+  `moss_wood`, `fever_tree_bark`). A veneer is one piece of FINISHED wood — a
+  casing, a baluster, a milled board. A plain is one piece of UNFINISHED wood:
+  a sawn post, a bearer, a pile. Both are jointless, which is why neither can
+  be a plank; the difference is that a plain has never been painted and never
+  will be, and a pale milled veneer on the legs under a weathered house was the
+  tell. `post` now takes plain | log | veneer, in that order.
+
+- **THE FRAME IS ONE MATERIAL AND IT IS ALWAYS OLDER THAN THE HOUSE.** Every
+  beam BELOW the boards it carries — bearers, joists, skids, stringers, landing
+  and stoop rims — moved out of the deck bag into the post bag, because they
+  were wearing the deck's finish and reading NEWER than the wall above them,
+  which is the thing the user could not accept. Then `frameAge` (0.70 by
+  default): chroma out, value down, applied per material rather than globally,
+  on top of whatever weathering the rest of the house has and never below it.
+
+- **AND THE CONVERSIONS ARE CHECKED, NOT TRUSTED.** Three sources and three
+  packings: Poly Haven ships either a plain rough map or an ARM (roughness is
+  the GREEN channel and nothing else), ambientCG ships both a NormalGL and a
+  NormalDX. The picks are by FILENAME and never by guess; the import now also
+  MEASURES what it picked — a tangent-space normal map is mostly +Z (blue near
+  1, red and green near 0.5) and a roughness map is one channel — and refuses
+  to write a set that fails. All 27 pass.
+
+- **EVERY DOOR OPENS ONTO SOMETHING.** The back door has had a stoop since
+  G232.3; the front door had nothing at all unless the house happened to have
+  a deck — so the sampler and half the presets hung a door two metres up a
+  wall. `buildStoop` serves either wall now, a door forces the deck's stair,
+  and the model PUBLISHES, per door, the platform it found just outside the
+  leaf (deck, stoop, or the ground itself when the threshold is low enough to
+  step off). GATE HOUSE holds it: a door with no platform, or more than 0.45 m
+  above it, is a failure.
+
+- **THE BAY WINDOW — the strange angle.** Everything in this generator meets at
+  ninety degrees, so the exception is the detail: five angles in one (two at
+  45, three round the glass), a window three times the area of any other, and
+  its own little roof in the roofing material. Structurally it is nothing new —
+  the three faces are three WALLS handed to the same `wall()` the house is
+  built from, on a floor plate and under one sloped plate, and the main wall
+  gets a hole of kind `bay` that no casing dresses and no window may stand in.
+  The PLAN is solved before anything is drawn (`bayPlan`) because a bay that
+  cannot fit must not leave a hole behind it: it is refused outright if the
+  roof does not clear its own roof, if the door is there, or if the porch roof
+  lands on that wall. One house in five or six in the sampler.
+
+- **THE GLASS.** What was wrong was arithmetic: the roughness noise was ADDED,
+  so a 0.4 dial was 0.2 of average blur on top of the base and clamped near the
+  ceiling — no glare, no sky, no edge. The noise is CENTRED now (the dial buys
+  imperfection, not blur), plus the three things that make an opaque pane read
+  as glass: FRESNEL on both specular terms, so a wall of windows goes bright at
+  the edge of the building; part METALNESS, so the environment comes back
+  tinted rather than washed; and stretched vertical SMEARS on roughness, which
+  is the only thing on a flat pane for a reflection to break over.
+
+- **THE GROUND TAKES THE BUILDING.** The house bakes its own occlusion per
+  vertex, but the terrain is not the house's mesh, so the grass ran clean up to
+  the wall and every house read as a sticker. It needs no bake: what is under a
+  building is a rectangle, and the darkening is the signed box DISTANCE to it —
+  full underneath, falling off over a couple of metres. Two uniforms and a
+  radius, published as `stats.aoFoot` and applied with one call
+  (`HOUSE_GEN.shadeGround`), so it ports to the game on whatever the terrain
+  wears.
+
+- **AND THE EXTRA LOVE**: a HANDRAIL on every flight and round every landing
+  (posts, a raking cap and a mid rail — a twelve-tread flight two metres up
+  with nothing to hold was in the user's own screenshot, and a landing is a
+  balcony halfway down a stair, so it is railed on every edge a flight does not
+  arrive on, which is what the plan's `open` list was published for); and a
+  RAIN BARREL under the downpipe, placed off the drainage's own published shoe
+  so it can never be somewhere else.
+
+- Gates: HOUSE (four new rules — the seam list against the library both ways,
+  every door served, the bay carries real glass, and the frame's own ageing)
+  and MEDIA green; `--selftest` still says every rule is proven able to go red,
+  and the four new ones were each driven red by hand (seams on shakes, a sheet
+  with no seams, the front stoop removed, the bay's glass switched off).

@@ -360,6 +360,27 @@ if (!check(!!LIB, 'the baked material library is missing — ' +
             'baked a paint map');
   }
 
+  // 25 — DRAWN STANDING SEAMS BELONG ON SHEET METAL, AND ON NOTHING ELSE (the
+  //   user, of a shake roof carrying a full set of them: "the attached house
+  //   has a significant issue with its roof"). SET_SEAM names the coverings
+  //   that take them; this holds that list against what the payload says each
+  //   covering IS. Every name in it must be a roof set that is metal and not
+  //   already ribbed — and, the half that actually caught the bug, no roof set
+  //   OUTSIDE it may be metal and unribbed, or the next sheet added to the
+  //   library would quietly lose its seams.
+  for (const k in HG.SET_SEAM) {
+    check(!!LIB[k], 'seams: ' + k + ' is not in the library');
+    if (!LIB[k]) continue;
+    check(LIB[k].kind === 'roof', 'seams: ' + k + ' is not a roof set');
+    check(LIB[k].metal >= 0.3, 'seams: ' + k + ' is not sheet metal',
+          'metal ' + LIB[k].metal);
+    check(!LIB[k].ribbed, 'seams: ' + k + ' already has its own corrugation');
+  }
+  for (const k in LIB)
+    if (LIB[k].kind === 'roof' && LIB[k].metal >= 0.3 && !LIB[k].ribbed)
+      check(!!HG.SET_SEAM[k], 'seams: ' + k + ' is unribbed sheet metal and ' +
+            'gets no standing seams');
+
   // the paint pot only means anything if the paintable sets carry a neutral map
   const painters = Object.keys(LIB).filter(k => LIB[k].paint);
   check(painters.length >= 3, 'library: too few paintable sets',
@@ -585,6 +606,30 @@ for (const name of Object.keys(HG.PRESETS)) {
                     jt.y.toFixed(2) + ' vs ' + wet.toFixed(2));
     }
   }
+  // 23 — EVERY DOOR OPENS ONTO SOMETHING (the user: "all houses should have
+  //   stairs and entrance. The ones who don't have a door hanging several
+  //   meters high, not very practical"). The generator publishes, per door,
+  //   the platform it found just outside the leaf — deck, stoop, or the ground
+  //   when the threshold is low enough to step off. A door with none is a door
+  //   two metres up a wall, which is what the sampler was making whenever it
+  //   turned the porch off.
+  for (const dr of hi.stats.doors || []) {
+    check(dr.platform !== null, name + ': a door opens onto nothing',
+          'threshold ' + dr.y0.toFixed(2) + ', ground ' +
+          (dr.y0 - dr.drop).toFixed(2));
+    if (dr.platform !== null)
+      check(dr.drop < 0.45, name + ': a door is a step too high above its own ' +
+            'landing', dr.drop.toFixed(2) + ' m');
+  }
+
+  // 24 — THE BAY IS A BAY. It is the one detail that is allowed to be strange,
+  //   so it is held to being worth it: if the generator kept one, it carries
+  //   real glass, and it must not have been built where the roof cannot clear
+  //   it (bayPlan refuses instead, which is why this is a KEPT check).
+  if (P.bay && hi.stats.bay)
+    check(hi.stats.bay.area > 1.0, name + ': the bay carries no glass',
+          hi.stats.bay.area.toFixed(2) + ' m2');
+
   // 22 — A FLIGHT ARRIVES WHERE IT SAID IT WOULD, AND A LONG ONE TURNS (the
   //   user: "when the stairs are too long, do a 90° bend in the stairs, with
   //   a little 'palier'"). Two things, and the first is the one that bites:
@@ -913,6 +958,18 @@ if (SELFTEST) {
   for (const o of tight.stats.openings || [])
     if (o.y1 > Math.min(o.underA, o.underB) + 1e-6)
       neg.push('a dropped-window build still kept one through the roof');
+  // A DOOR WITH NO DECK UNDER IT (G236). The rule is only worth having if a
+  // build reaches it, and this is the build that used to fail it: a house with
+  // its porch switched off and its floor two metres up. It must now grow a
+  // stoop and a flight of its own.
+  const noPorch = HG.build(Object.assign({}, HG.DEF, {
+    porch: 0, door: 1, floorY: 2.0, stance: 2 }), 0);
+  const dr0 = (noPorch.stats.doors || [])[0];
+  if (!dr0) neg.push('a house with a door published no door report');
+  else if (dr0.platform === null)
+    neg.push('a door with no porch got no stoop');
+  if (!noPorch.stats.front) neg.push('the front stoop was not built');
+
   // A STAIR THAT HAS TO TURN (G234). The rule is only worth having if some
   // build actually reaches it, so this is the build that does: three metres of
   // floor over a fourteen-degree beach is twenty-odd treads, and the flight

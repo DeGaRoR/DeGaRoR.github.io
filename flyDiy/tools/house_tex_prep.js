@@ -68,7 +68,13 @@ const SUB = 'tex/house';
 // GATE HOUSE refuses a role that offers the wrong kind. `use` is gone: it said
 // the same thing twice and the two could drift.
 //
-// kind: 'plank' | 'veneer' | 'roof' | 'stone'
+// kind: 'plank' | 'veneer' | 'roof' | 'log' | 'plain' | 'stone'
+//
+// PLAIN is G236's kind and it is not a synonym for veneer: a veneer is one
+// piece of FINISHED wood (a casing, a baluster, a milled board) and a plain
+// is one piece of UNFINISHED wood - a sawn post, a bearer, a pile. Both are
+// jointless, which is why neither can be a plank; the difference is that a
+// plain has never been painted and never will be.
 //
 // AND TWO THINGS A SET CAN REFUSE (G234). A scan is not a blank surface with a
 // colour slot: some of them have already been finished, and the finish is the
@@ -107,6 +113,9 @@ const SETS = [
   ['veneerpale', 'veneer', 'pale laminate', 0.9, 256, 0.00, true, false],
   ['stain', 'veneer', 'dark stained boards', 1.9, 512, 0.00, false, false, { tint: false }],
   ['bark', 'log', 'bark', 1.1, 512, 0.00, false, false],
+  ['feverbark', 'log', 'fever tree bark', 1.1, 256, 0.00, false, false],
+  ['rough', 'plain', 'rough sawn timber', 1.0, 256, 0.00, false, false],
+  ['mossy', 'plain', 'mossy timber', 1.0, 256, 0.00, false, false],
   ['concrete', 'stone', 'damaged concrete', 2.8, 1024, 0.00, false, false],
   ['concretec', 'stone', 'coarse dark concrete', 2.8, 1024, 0.00, false, false],
 ];

@@ -100,7 +100,8 @@ const SET_KIND = {
   wornwood: 'plank', deckwood: 'plank', darkwood: 'plank',
   veneer: 'veneer', veneerdark: 'veneer', veneerwarm: 'veneer',
   veneerpale: 'veneer', stain: 'veneer',
-  bark: 'log',
+  bark: 'log', feverbark: 'log',
+  rough: 'plain', mossy: 'plain',
   concrete: 'stone', concretec: 'stone',
 };
 
@@ -138,9 +139,18 @@ const setTint = key => SET_TINT[key] || {};
 // A role may accept more than one kind: a PILE is a tree with its bark still
 // on (the user sent a bark scan for exactly this), while a sawn post is a
 // board — so the post role takes veneer AND log and the choice is the look.
+//
+// G236 ADDS `plain`, AND IT IS THE FRAME'S OWN KIND (the user: "For the
+// support pillars and the base structure, I have a few rough assets (you can
+// categorize as such, plain (no planks))"). A veneer is one piece of FINISHED
+// wood — a casing, a baluster, a milled board. A plain is one piece of
+// UNFINISHED wood: a sawn post, a bearer, a pile. Both are jointless, which is
+// why neither can be a plank; the difference is that a plain has never been
+// painted and never will be, and putting a pale milled veneer on the legs
+// under a weathered house was the tell.
 const ROLE_KIND = {
   wall: ['plank'], floor: ['plank'], roof: ['roof'], trim: ['veneer'],
-  deck: ['veneer'], post: ['veneer', 'log'], metal: ['roof'],
+  deck: ['veneer'], post: ['plain', 'log', 'veneer'], metal: ['roof'],
   stone: ['stone'],
 };
 const ORDER = {
@@ -151,7 +161,8 @@ const ORDER = {
   roof: ['boxprof', 'corrworn', 'corrrust', 'shingle', 'galv', 'rust'],
   trim: ['veneer', 'veneerpale', 'veneerwarm', 'veneerdark', 'stain'],
   deck: ['veneerwarm', 'veneer', 'veneerpale', 'veneerdark', 'stain'],
-  post: ['bark', 'veneerdark', 'stain', 'veneerwarm', 'veneer', 'veneerpale'],
+  post: ['rough', 'mossy', 'bark', 'feverbark', 'veneerdark', 'stain',
+         'veneerwarm', 'veneer', 'veneerpale'],
   metal: ['galv', 'rust'],
   // TWO FOUNDATIONS (the user: "They should be 2 of them; a fine grain light
   // one (the current setup is OK), and a coarse grain darker one"). Measured
@@ -341,7 +352,11 @@ function shadeHouse(m) {
   // wet a hundred times. One colour for both made the foundation look
   // bleached, which is how it came to look like it was not in the ramp at all.
   ud.dirt = { uDirtOwn: { value: new THREE.Color(0x6d6353) },
-              uDirtGain: { value: 1.0 } };
+              uDirtGain: { value: 1.0 },
+              // G236: and how OLD this material is on its own account —
+              // chroma out, value down. The frame under a house is never
+              // newer than the wall above it.
+              uAgeDesat: { value: 0.0 }, uAgeDark: { value: 0.0 } };
   if (!SHADE_U.uDirtCol.value) SHADE_U.uDirtCol.value = new THREE.Color(0x6d6353);
   m.onBeforeCompile = sh => {
     for (const k in SHADE_U) sh.uniforms[k] = SHADE_U[k];
@@ -357,7 +372,7 @@ function shadeHouse(m) {
       'varying float vHouseY;\nvarying float vHouseAO;\nvarying vec3 vHouseP;\n' +
       'uniform float uDirtTop, uDirtH, uDirtK, uSat, uCon, uAOd, uNoiseK, uNoiseS;\n' +
       'uniform vec3 uDirtCol, uDirtOwn, uPaintCol;\n' +
-      'uniform float uPaintMode, uDirtGain;\n' +
+      'uniform float uPaintMode, uDirtGain, uAgeDesat, uAgeDark;\n' +
       'float hHash(vec3 p) { return fract(sin(dot(floor(p), ' +
       'vec3(127.1, 311.7, 74.7))) * 43758.5453); }\n' +
       'float hNoise(vec3 p) {\n' +
@@ -403,6 +418,8 @@ function shadeHouse(m) {
         '    hc = mix(vec3(hl), hc, 1.0 + (uSat - 1.0) * hroom);\n' +
         '    hc = clamp((hc - 0.5) * (1.0 + (uCon - 1.0) * (0.35 + 0.65 * hroom))\n' +
         '               + 0.5, 0.0, 1.0);\n' +
+        '    hc = mix(hc, vec3(dot(hc, vec3(0.2126, 0.7152, 0.0722))),\n' +
+        '             uAgeDesat) * (1.0 - uAgeDark);\n' +
         '    float hd = clamp(pow(' + DIRT_EXPR + ', 1.7) * uDirtK * uDirtGain,\n' +
         '                     0.0, 0.95);\n' +
         '    diffuseColor.rgb = mix(hc, uDirtOwn, hd);\n' +
@@ -432,10 +449,30 @@ function shadeHouse(m) {
 const NRM = { siding: 1.7, trim: 1.3, deck: 1.6, post: 1.5, floor: 1.6,
               stone: 1.4, roof: 1.1, rib: 1.0, metal: 1.0 };
 
-// THE GLASS PATCH: a few octaves of the same value noise, sampled in world
-// space — its GRADIENT tilts the normal (the slow waviness of old float glass,
-// which is what makes a window read as glass rather than as a dark hole), and
-// a slower octave rides the roughness so the reflection is not uniform.
+// THE GLASS PATCH (the user: "enhance the window material. We don't need
+// transparency, but it has to take the light better. Glares, reflections,
+// possibly imperfections").
+//
+// WHAT WAS WRONG, and it was arithmetic rather than taste: the roughness noise
+// was ADDED (`rough + field * dial`), so the dial the user had set to 0.4 was
+// not adding variation, it was adding 0.2 of average blur on top of a 0.12
+// base and clamping near the 0.5 ceiling. A window at roughness 0.4 has no
+// glare, no sky in it and no edge — it is grey paint that happens to be dark.
+// The noise is CENTRED now: the mean stays where the material put it and the
+// dial buys imperfection, which is what it was asked for.
+//
+// Then three things that make an opaque pane read as glass:
+//   FRESNEL. Glass reflects a few percent head-on and nearly everything at a
+//   grazing angle, and that ramp is most of what the eye reads. Both specular
+//   terms are lifted by (1-cos)^5, so a wall of windows goes bright at the
+//   edge of the building and stays dark facing you.
+//   METALNESS. In a metal/rough workflow the cheapest honest dark mirror is a
+//   dark base colour at part metalness: the environment comes back tinted by
+//   the glass instead of washed white, and the sun is a hard little glint
+//   rather than a grey smear.
+//   SMEARS. A vertical, stretched noise on roughness — rain tracks. It is the
+//   only thing on a flat pane that gives the reflection something to break
+//   over, and it costs one more sample of the field already being computed.
 function shadeGlass(m) {
   const ud = m.userData || (m.userData = {});
   if (ud.glassShaded) return;
@@ -443,11 +480,13 @@ function shadeGlass(m) {
   m.onBeforeCompile = sh => {
     sh.uniforms.uGlassWave = GLASS_U.uGlassWave;
     sh.uniforms.uGlassRough = GLASS_U.uGlassRough;
+    sh.uniforms.uGlassFres = GLASS_U.uGlassFres;
     sh.vertexShader = 'varying vec3 vGlassP;\n' + sh.vertexShader.replace(
       '#include <begin_vertex>',
       '#include <begin_vertex>\n  vGlassP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
     sh.fragmentShader =
-      'varying vec3 vGlassP;\nuniform float uGlassWave, uGlassRough;\n' +
+      'varying vec3 vGlassP;\n' +
+      'uniform float uGlassWave, uGlassRough, uGlassFres;\n' +
       'float gHash(vec3 p) { return fract(sin(dot(floor(p), ' +
       'vec3(127.1, 311.7, 74.7))) * 43758.5453); }\n' +
       'float gNoise(vec3 p) {\n' +
@@ -462,8 +501,22 @@ function shadeGlass(m) {
       sh.fragmentShader
         .replace('#include <roughnessmap_fragment>',
           '#include <roughnessmap_fragment>\n' +
-          '  roughnessFactor = clamp(roughnessFactor + ' +
-          'gField(vGlassP * 0.9) * uGlassRough, 0.02, 0.5);')
+          '  {\n' +
+          '    float gs = gField(vec3(vGlassP.x * 2.6, vGlassP.y * 0.35,\n' +
+          '                           vGlassP.z * 2.6));\n' +
+          '    float gv = (gField(vGlassP * 0.9) - 0.5) * 0.75 + (gs - 0.5);\n' +
+          '    roughnessFactor = clamp(roughnessFactor + gv * uGlassRough,\n' +
+          '                            0.015, 0.45);\n' +
+          '  }')
+        .replace('#include <lights_fragment_end>',
+          '#include <lights_fragment_end>\n' +
+          '  {\n' +
+          '    float gf = pow(clamp(1.0 - abs(dot(geometry.normal,\n' +
+          '                     geometry.viewDir)), 0.0, 1.0), 5.0);\n' +
+          '    float gk = 1.0 + uGlassFres * gf;\n' +
+          '    reflectedLight.directSpecular *= gk;\n' +
+          '    reflectedLight.indirectSpecular *= gk;\n' +
+          '  }')
         .replace('#include <normal_fragment_maps>',
           '#include <normal_fragment_maps>\n' +
           '  {\n' +
@@ -483,7 +536,66 @@ function shadeGlass(m) {
 // normal far enough to break the reflection into facets, which reads as
 // hammered glass, not as glass. At 0.2 the field only bends what is already
 // reflected; the roughness at 0.4 is what stops the pane being a mirror.
-const GLASS_U = { uGlassWave: { value: 0.2 }, uGlassRough: { value: 0.4 } };
+const GLASS_U = { uGlassWave: { value: 0.2 }, uGlassRough: { value: 0.4 },
+                  uGlassFres: { value: 2.6 } };
+
+// ---------------------------------------------------------------------------
+// THE GROUND UNDER THE BUILDING (the user: "You should add some terrain
+// ambient occlusion too, as maybe a simple gradient from the terrain onwerds")
+// ---------------------------------------------------------------------------
+// The house bakes its own occlusion per vertex, but the TERRAIN is not the
+// house's mesh — it belongs to the site in the bench and to the world in the
+// game — so the one thing that ties a building to the ground it stands on was
+// missing: the ground stayed the same grass right up to the wall, and every
+// house read as a sticker.
+//
+// It does not need a bake. What is under a building is a rectangle, and the
+// darkening is a function of the DISTANCE TO THAT RECTANGLE: full underneath
+// (a crawl space is dark), falling off over a couple of metres outside it.
+// Signed box distance in the fragment shader, two uniforms and a radius —
+// which means it costs nothing, follows the building when a slider moves, and
+// ports to the game as one call on whatever material the terrain wears.
+const GROUND_U = {
+  uGCtr: { value: null }, uGHalf: { value: null },
+  uGR: { value: 2.6 }, uGK: { value: 0.55 },
+};
+function shadeGround(m, foot, o) {
+  if (!m) return;
+  const opt = o || {};
+  if (!GROUND_U.uGCtr.value) {
+    GROUND_U.uGCtr.value = new THREE.Vector2(0, 0);
+    GROUND_U.uGHalf.value = new THREE.Vector2(1, 1);
+  }
+  if (foot) {
+    GROUND_U.uGCtr.value.set(foot.cx, foot.cz);
+    GROUND_U.uGHalf.value.set(foot.hx, foot.hz);
+  }
+  GROUND_U.uGR.value = opt.reach === undefined ? 2.6 : opt.reach;
+  GROUND_U.uGK.value = opt.strength === undefined ? 0.55 : opt.strength;
+  const ud = m.userData || (m.userData = {});
+  if (ud.groundShaded) return;
+  ud.groundShaded = true;
+  m.onBeforeCompile = sh => {
+    for (const k in GROUND_U) sh.uniforms[k] = GROUND_U[k];
+    sh.vertexShader = 'varying vec3 vGrP;\n' + sh.vertexShader.replace(
+      '#include <begin_vertex>',
+      '#include <begin_vertex>\n  vGrP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    sh.fragmentShader =
+      'varying vec3 vGrP;\nuniform vec2 uGCtr, uGHalf;\n' +
+      'uniform float uGR, uGK;\n' + sh.fragmentShader.replace(
+      '#include <map_fragment>', '#include <map_fragment>\n' +
+      '  {\n' +
+      '    vec2 gd = abs(vGrP.xz - uGCtr) - uGHalf;\n' +
+      '    float gdist = length(max(gd, vec2(0.0))) +\n' +
+      '                  min(max(gd.x, gd.y), 0.0);\n' +
+      '    float gk = clamp(1.0 - max(gdist, 0.0) / max(uGR, 0.01), 0.0, 1.0);\n' +
+      '    gk = gk * gk * (3.0 - 2.0 * gk);\n' +
+      '    if (gdist < 0.0) gk = 1.0;\n' +
+      '    diffuseColor.rgb *= 1.0 - uGK * gk;\n' +
+      '  }');
+  };
+  m.needsUpdate = true;
+}
 
 function applyFinish(P) {
   for (const k of BAGS) if (k !== 'glass' && k !== 'pane' && MAT[k])
@@ -491,6 +603,7 @@ function applyFinish(P) {
   shadeGlass(MAT.glass); shadeGlass(MAT.pane);
   GLASS_U.uGlassWave.value = P.glassWave === undefined ? 0.2 : P.glassWave;
   GLASS_U.uGlassRough.value = P.glassRough === undefined ? 0.4 : P.glassRough;
+  GLASS_U.uGlassFres.value = P.glassFres === undefined ? 2.6 : P.glassFres;
   // the ground line under the middle of the building, and how far the dust
   // climbs; the punch is one dial from washed-out to boat paint
   const g = groundFn(P);
@@ -502,12 +615,20 @@ function applyFinish(P) {
   // dust; the concrete takes a darker, WETTER line and takes more of it,
   // because that is what a foundation looks like after one winter and it is
   // the reason the user could not see the ramp on it at all.
+  const age = clamp(P.frameAge === undefined ? 0.55 : P.frameAge, 0, 1);
   for (const k of BAGS) {
     const ud = MAT[k] && MAT[k].userData && MAT[k].userData.dirt;
     if (!ud) continue;
     const stone = k === 'stone';
-    ud.uDirtGain.value = stone ? 1.55 : 1.0;
+    ud.uDirtGain.value = stone ? 1.55 : (k === 'post' ? 1.35 : 1.0);
     ud.uDirtOwn.value.setHex(stone ? 0x453f36 : 0x6d6353);
+    // THE FRAME IS ALWAYS OLDER THAN THE HOUSE. Nobody paints a bearer, and
+    // nothing under a building stays the colour it was cut. `post` is the
+    // whole structural frame now — piles, posts, braces, bearers, joists,
+    // stringers — so one dial ages all of it together, and it is applied on
+    // TOP of whatever weathering the rest of the house has, never below it.
+    ud.uAgeDesat.value = k === 'post' ? age * 0.85 : 0;
+    ud.uAgeDark.value = k === 'post' ? age * 0.52 : 0;
   }
   // WEATHER IS THE OTHER HALF OF THE PAINT DIAL (the user: "that looked newer,
   // less weathered ... would be nice to have more weathered and more fresh
@@ -558,13 +679,15 @@ function applyFinish(P) {
   dressMat(MAT.metal, setFor(P, 'metal'), P.metalCol,
           { flat: 0xb4bcc2, nrm: NRM.metal, rough: 0.85 });
   MAT.pane.map = null; MAT.pane.normalMap = null; MAT.pane.roughnessMap = null;
-  MAT.pane.color.setHex(0x121a1e);
-  MAT.pane.roughness = 0.12; MAT.pane.metalness = 0.0;
+  // the far mesh's pane is the same glass one step duller: it is seen from far
+  // enough that a hard glint would twinkle as the camera moves
+  MAT.pane.color.setHex(0x141c22);
+  MAT.pane.roughness = 0.10; MAT.pane.metalness = 0.45;
   MAT.pane.needsUpdate = true;
-  MAT.glass.color.setHex(0x0e1417);
-  MAT.glass.roughness = 0.06; MAT.glass.metalness = 0.0;
+  MAT.glass.color.setHex(0x101a20);
+  MAT.glass.roughness = 0.06; MAT.glass.metalness = 0.62;
   if (MAT.glass.envMapIntensity !== undefined) {
-    MAT.glass.envMapIntensity = 1.5; MAT.pane.envMapIntensity = 1.3;
+    MAT.glass.envMapIntensity = 2.3; MAT.pane.envMapIntensity = 1.9;
   }
 }
 
@@ -619,6 +742,10 @@ const DEF = {
   openFront: 0, firewood: 0,
   // the door leaf
   doorAjar: 0, doorLight: 1,
+  // THE BAY (G236, the user: "add a little special detail in the design. A
+  // strange angle, a large window, somehting special here and there")
+  bay: 0, bayWall: 1, bayPos: 0.5, bayW: 2.4, bayD: 0.72, bayH: 1.55,
+  baySill: 0.52,
   // dormers
   dormers: 0, dormSide: 0, dormKind: 1, dormW: 1.5, dormH: 1.15,
   dormPitch: 20, dormSet: 0.60,
@@ -626,19 +753,26 @@ const DEF = {
   cupola: 0, cupSides: 8, cupR: 0.72, cupH: 1.10, cupSpire: 1.05, cupXF: 0,
   cupCross: 0,
   // drainage
-  gutter: 1, gutterR: 0.075, downpipe: 1, dpCorner: 1, dpR: 0.045,
+  gutter: 1, gutterR: 0.075, downpipe: 1, dpCorner: 1, dpR: 0.045, barrel: 1,
   // finish: a set per part out of the scanned library, and a paint pot
   wallSet: 0, wallCol: 1, trimSet: SET_IDX('trim', 'veneer'), trimCol: 6,
   roofSet: 0, roofCol: 9,
   deckSet: SET_IDX('deck', 'veneerwarm'), deckCol: 0,
   floorSet: SET_IDX('floor', 'deckwood'),
-  postSet: SET_IDX('post', 'bark'), postCol: 0,
+  postSet: SET_IDX('post', 'rough'), postCol: 0,
+  // HOW MUCH DARKER THE FRAME IS THAN THE HOUSE ON TOP OF IT (the user: "you
+  // should color the beams making the base structure always quite dark and
+  // weathered, as this does not make sense that these beams would have stayed
+  // cleaner than the planks of the walls"). It is not a colour, it is an
+  // AGEING: chroma out and value down, applied to the post material alone, so
+  // it lands on whatever set the frame is wearing and cannot be forgotten.
+  frameAge: 0.70,
   metalSet: 0, metalCol: 0, stoneSet: 0,
   // the two dials that are not a texture: the dust off the ground, and how
   // hard the paint is pushed
   dirt: 0.45, dirtH: 0.95, paintPunch: 0.25, weather: 0.5,
   noise: 0.16, noiseS: 3.7, paintBlend: 0,
-  glassWave: 0.2, glassRough: 0.4,
+  glassWave: 0.2, glassRough: 0.4, glassFres: 2.6,
   // the back door, and the stoop that makes it worth having
   backDoor: 0, backDoorPos: 0.5, backPorch: 1,
   // the baked occlusion: how dark it goes, how far it reaches, and how much of
@@ -650,6 +784,8 @@ const FAMS = ['gable', 'shed', 'saltbox', 'gambrel'];
 const STANCES = ['slab', 'cripple wall', 'posts', 'piles', 'skids'];
 const SKIRTS = ['open', 'lattice', 'boards', 'concrete'];
 const CORNERS = ['corner boards', 'crossed log ends', 'plain'];
+const BAYS = ['none', 'canted (45 deg)', 'square'];
+const WALLS4 = ['front', 'right end', 'back', 'left end'];
 const RAILS = ['none', 'balusters', 'horizontal', 'solid panel'];
 const PORCHROOFS = ['none', 'door canopy', 'over the deck'];
 const CHIMS = ['none', 'stove pipe', 'masonry'];
@@ -667,6 +803,13 @@ const ROWS = [
      P => Math.round(P.corner) === 1],
     ['logOut', 'ends project', 0.08, 0.55, 0.01, null,
      P => Math.round(P.corner) === 1],
+    ['bay', 'bay window', 0, 2, 1, BAYS],
+    ['bayWall', 'on which wall', 0, 3, 1, WALLS4, P => !!P.bay],
+    ['bayPos', 'along it', 0.1, 0.9, 0.01, null, P => !!P.bay],
+    ['bayW', 'bay width', 1.4, 4.5, 0.05, null, P => !!P.bay],
+    ['bayD', 'how far it stands out', 0.35, 1.4, 0.05, null, P => !!P.bay],
+    ['bayH', 'its glass', 0.9, 2.2, 0.05, null, P => !!P.bay],
+    ['baySill', 'its sill', 0.2, 1.2, 0.02, null, P => !!P.bay],
   ]],
   ['stance', [
     ['stance', 'stands on', 0, 3, 1, STANCES],
@@ -784,6 +927,7 @@ const ROWS = [
     ['gutter', 'gutter', 0, 2, 1, ['none', 'half round', 'box']],
     ['gutterR', 'gutter size', 0.045, 0.13, 0.005, null, P => !!P.gutter],
     ['downpipe', 'downpipe', 0, 1, 1, null, P => !!P.gutter],
+    ['barrel', 'rain barrel', 0, 1, 1, null, P => !!P.gutter && !!P.downpipe],
     ['dpCorner', 'which corner', 0, 7, 1, null,
      P => !!P.gutter && !!P.downpipe],
     ['dpR', 'pipe radius', 0.028, 0.075, 0.002, null,
@@ -806,6 +950,7 @@ const ROWS = [
     ['postSet', 'posts + beams', 0, ROLE_SETS.post.length - 1, 1,
      setNames('post')],
     ['postCol', 'post stain', 0, COLS.length - 1, 1, COL_NAMES],
+    ['frameAge', 'frame weathering', 0, 1, 0.02],
     ['metalSet', 'gutters + pipe', 0, ROLE_SETS.metal.length - 1, 1,
      setNames('metal')],
     ['stoneSet', 'foundations', 0, ROLE_SETS.stone.length - 1, 1,
@@ -814,7 +959,8 @@ const ROWS = [
     ['weather', 'weathered <-> fresh', 0, 1, 0.02],
     ['noise', 'breakup noise', 0, 0.5, 0.01],
     ['glassWave', 'glass waviness', 0, 5, 0.1],
-    ['glassRough', 'glass roughness', 0, 0.4, 0.01],
+    ['glassRough', 'glass imperfection', 0, 0.6, 0.01],
+    ['glassFres', 'glass glare', 0, 6, 0.1],
     ['noiseS', 'its scale', 1.0, 12.0, 0.1, null, P => P.noise > 0.005],
     ['paintPunch', 'paint punch', 0, 1, 0.02],
     ['dirt', 'ground dirt', 0, 1, 0.02],
@@ -832,10 +978,13 @@ const PRESETS = {
   // white trim, weathered posts on the beach
   'shore cabin': {},
   'village house': {
+    // the bay is on the gable end, over the garden: the one thing on this
+    // house that is not square
+    bay: 1, bayWall: 1, bayPos: 0.55, bayW: 2.5, bayD: 0.7,
     wallSet: SET_IDX('wall', 'paintwood'), wallCol: 3,
     trimSet: SET_IDX('trim', 'board'), trimCol: 6,
     roofSet: SET_IDX('roof', 'boxprof'), roofCol: 10,
-    deckSet: SET_IDX('deck', 'veneer'), postSet: SET_IDX('post', 'veneerdark'),
+    deckSet: SET_IDX('deck', 'veneer'), postSet: SET_IDX('post', 'rough'),
     L: 8.0, w: 6.4, storeys: 2, floorH: 2.45, pitch: 34, roofFam: 0,
     stance: 1, floorY: 0.75, slopeZ: 4, eaveOver: 0.35, rakeOver: 0.30,
     nFront: 3, nBack: 2, nLeft: 2, nRight: 2, winW: 0.85, winH: 1.35,
@@ -848,7 +997,7 @@ const PRESETS = {
     wallSet: SET_IDX('wall', 'board'), wallCol: 8,
     trimSet: SET_IDX('trim', 'board'), trimCol: 8,
     roofSet: SET_IDX('roof', 'corrworn'), roofCol: 0,
-    deckSet: SET_IDX('deck', 'veneerpale'), postSet: SET_IDX('post', 'veneerdark'),
+    deckSet: SET_IDX('deck', 'veneerpale'), postSet: SET_IDX('post', 'rough'),
     metalSet: SET_IDX('metal', 'galv'), metalCol: 8,
     L: 7.5, w: 6.0, storeys: 2, floorH: 2.55, roofFam: 1, pitch: 16,
     stance: 2, floorY: 0.85, slopeZ: 10, eaveOver: 0.7, rakeOver: 0.55,
@@ -861,7 +1010,7 @@ const PRESETS = {
     wallSet: SET_IDX('wall', 'corrworn'), wallCol: 0,
     trimSet: SET_IDX('trim', 'board'), trimCol: 6,
     roofSet: SET_IDX('roof', 'galv'), roofCol: 0,
-    deckSet: SET_IDX('deck', 'veneer'), postSet: SET_IDX('post', 'stain'),
+    deckSet: SET_IDX('deck', 'veneer'), postSet: SET_IDX('post', 'mossy'),
     gutterR: 0.095, dpR: 0.055,
     L: 22.0, w: 11.0, storeys: 2, floorH: 3.1, pitch: 22, roofFam: 0,
     stance: 3, floorY: 2.2, slopeZ: 12, eaveOver: 0.45, rakeOver: 0.35,
@@ -884,7 +1033,7 @@ const PRESETS = {
     wallSet: SET_IDX('wall', 'paintwood'), wallCol: 6,
     trimSet: SET_IDX('trim', 'board'), trimCol: 6,
     roofSet: SET_IDX('roof', 'corrrust'), roofCol: 0,
-    deckSet: SET_IDX('deck', 'veneer'), postSet: SET_IDX('post', 'veneerdark'),
+    deckSet: SET_IDX('deck', 'veneer'), postSet: SET_IDX('post', 'rough'),
   },
   // NOT HABITATION (the user: "ability to generate small sheds, not even
   // habitation, more like storage"): no windows, no deck, no gutter, and it
@@ -899,7 +1048,7 @@ const PRESETS = {
     wallSet: SET_IDX('wall', 'greywood'), wallCol: 0,
     trimSet: SET_IDX('trim', 'brownwood'), trimCol: 0,
     roofSet: SET_IDX('roof', 'shingle'), roofCol: 0,
-    deckSet: SET_IDX('deck', 'veneer'), postSet: SET_IDX('post', 'veneerdark'),
+    deckSet: SET_IDX('deck', 'veneer'), postSet: SET_IDX('post', 'rough'),
   },
   // THE WOOD RESERVE: three walls, a post line, a tin roof and four rows of
   // rounds. The open side is a parameter, not a preset's own geometry.
@@ -912,7 +1061,7 @@ const PRESETS = {
     wallSet: SET_IDX('wall', 'roughwood'), wallCol: 0,
     trimSet: SET_IDX('trim', 'brownwood'), trimCol: 0,
     roofSet: SET_IDX('roof', 'corrworn'), roofCol: 0,
-    deckSet: SET_IDX('deck', 'veneerwarm'), postSet: SET_IDX('post', 'veneerdark'),
+    deckSet: SET_IDX('deck', 'veneerwarm'), postSet: SET_IDX('post', 'rough'),
   },
   // CREEK STREET: half of it stands in the water on driven piles, with the
   // battered bents and the cross bracing that go with them.
@@ -927,7 +1076,7 @@ const PRESETS = {
     wallSet: SET_IDX('wall', 'paintwood'), wallCol: 4,
     trimSet: SET_IDX('trim', 'board'), trimCol: 6,
     roofSet: SET_IDX('roof', 'corrworn'), roofCol: 0,
-    deckSet: SET_IDX('deck', 'veneer'), postSet: SET_IDX('post', 'veneerdark'),
+    deckSet: SET_IDX('deck', 'veneer'), postSet: SET_IDX('post', 'rough'),
   },
   // A SHACK ON THE BEACH: one room, corrugated everything, standing in the
   // tide on four bents.
@@ -942,11 +1091,12 @@ const PRESETS = {
     wallSet: SET_IDX('wall', 'corrrust'), wallCol: 0,
     trimSet: SET_IDX('trim', 'stain'), trimCol: 0,
     roofSet: SET_IDX('roof', 'corrworn'), roofCol: 0,
-    deckSet: SET_IDX('deck', 'veneer'), postSet: SET_IDX('post', 'veneerdark'),
+    deckSet: SET_IDX('deck', 'veneer'), postSet: SET_IDX('post', 'rough'),
     dirt: 0.25,
   },
   // THE NET LOFT: long, low, blind on the water side, doors at both ends.
   'net loft': {
+    bay: 2, bayWall: 2, bayPos: 0.62, bayW: 2.8, bayD: 0.85, bayH: 1.7,
     L: 14.0, w: 6.0, storeys: 1, floorH: 3.00, pitch: 20, roofFam: 0,
     stance: 3, floorY: 2.10, slopeZ: 13, water: 1, waterY: -0.55,
     pileBent: 1, pileBatter: 1.05, postSpc: 2.2, postSz: 0.26, brace: 1,
@@ -957,7 +1107,7 @@ const PRESETS = {
     wallSet: SET_IDX('wall', 'greywood'), wallCol: 0,
     trimSet: SET_IDX('trim', 'veneerdark'), trimCol: 0,
     roofSet: SET_IDX('roof', 'corrworn'), roofCol: 0,
-    deckSet: SET_IDX('deck', 'veneer'), postSet: SET_IDX('post', 'stain'),
+    deckSet: SET_IDX('deck', 'veneer'), postSet: SET_IDX('post', 'mossy'),
     dirt: 0.15,
   },
   // A SALTBOX with the long slope to the weather, shakes, and a dormer pair.
@@ -972,7 +1122,7 @@ const PRESETS = {
     wallSet: SET_IDX('wall', 'shakes'), wallCol: 0,
     trimSet: SET_IDX('trim', 'veneer'), trimCol: 6,
     roofSet: SET_IDX('roof', 'shingle'), roofCol: 0,
-    deckSet: SET_IDX('deck', 'veneerwarm'), postSet: SET_IDX('post', 'veneerdark'),
+    deckSet: SET_IDX('deck', 'veneerwarm'), postSet: SET_IDX('post', 'rough'),
   },
   // A BARN: the gambrel nothing else in the list uses, on a concrete base,
   // with a cart door and no deck at all.
@@ -1004,7 +1154,7 @@ const PRESETS = {
     wallSet: SET_IDX('wall', 'paintwood'), wallCol: 11,
     trimSet: SET_IDX('trim', 'veneer'), trimCol: 6,
     roofSet: SET_IDX('roof', 'shingle'), roofCol: 0,
-    deckSet: SET_IDX('deck', 'veneer'), postSet: SET_IDX('post', 'veneerdark'),
+    deckSet: SET_IDX('deck', 'veneer'), postSet: SET_IDX('post', 'rough'),
   },
   // A HIPPED cottage on a slab, with the veranda right round the front.
   'hip cottage': {
@@ -1032,7 +1182,7 @@ const PRESETS = {
     wallSet: SET_IDX('wall', 'board'), wallCol: 6,
     trimSet: SET_IDX('trim', 'veneer'), trimCol: 2,
     roofSet: SET_IDX('roof', 'shingle'), roofCol: 0,
-    deckSet: SET_IDX('deck', 'veneer'), postSet: SET_IDX('post', 'veneerdark'),
+    deckSet: SET_IDX('deck', 'veneer'), postSet: SET_IDX('post', 'rough'),
   },
   // A BUNKHOUSE: long, low, corrugated, on piles, with a solid rail and a
   // back door onto the boardwalk.
@@ -1053,7 +1203,7 @@ const PRESETS = {
     wallSet: SET_IDX('wall', 'roughwood'), wallCol: 0,
     trimSet: SET_IDX('trim', 'board'), trimCol: 2,
     roofSet: SET_IDX('roof', 'shingle'), roofCol: 0,
-    deckSet: SET_IDX('deck', 'veneerwarm'), postSet: SET_IDX('post', 'veneerdark'),
+    deckSet: SET_IDX('deck', 'veneerwarm'), postSet: SET_IDX('post', 'rough'),
     gutter: 0, downpipe: 0,
     L: 7.0, w: 5.2, storeys: 1, floorH: 2.35, pitch: 30, roofFam: 0,
     stance: 2, floorY: 0.65, slopeZ: 3, eaveOver: 0.75, rakeOver: 0.7,
@@ -1235,6 +1385,15 @@ function openingsFor(P, V, R, side, A, B, opts) {
                 y1: V.floorY + P.doorH, kind: 'door' };
     if (fits(h.s0, h.s1, h.y1)) { holes.push(h); door = h; } else dropped++;
   }
+  // THE BAY'S OWN HOLE. It is not a window — nothing is glazed here and no
+  // casing goes round it; the bay's three walls stand in the gap and close it.
+  // It is pushed first so the window loop treats it the way it treats a door.
+  let bayH2 = null;
+  if (o.bay) {
+    bayH2 = { s0: o.bay.s0, s1: o.bay.s1, y0: o.bay.y0 + 0.04,
+              y1: o.bay.head, kind: 'bay' };
+    holes.push(bayH2);
+  }
   const n = Math.round(o.n || 0);
   for (let st = 0; st < P.storeys; st++) {
     const y0 = V.floorY + st * P.floorH + P.winSill;
@@ -1246,6 +1405,8 @@ function openingsFor(P, V, R, side, A, B, opts) {
       if (door && st === 0 && h.s1 > door.s0 - 0.22 && h.s0 < door.s1 + 0.22) {
         dropped++; continue;
       }
+      if (bayH2 && h.s1 > bayH2.s0 - 0.22 && h.s0 < bayH2.s1 + 0.22 &&
+          h.y0 < bayH2.y1 && h.y1 > bayH2.y0) { dropped++; continue; }
       if (!fits(h.s0, h.s1, h.y1)) { dropped++; continue; }
       // and it must not be where the porch roof lands on this wall
       if (o.band && h.s1 > o.band.s0 && h.s0 < o.band.s1 &&
@@ -1268,6 +1429,7 @@ function openingsFor(P, V, R, side, A, B, opts) {
 // projecting sill under it, and (lod 0) a sash bar or two. Drawn on the
 // EXTERIOR face only — nothing inside is ever seen through 55% glass.
 function dressOpening(bags, P, Q, W, h, y1) {
+  if (h.kind === 'bay') return;      // the bay's own walls are its finish
   const t = P.trimW, X = W.X, N = W.N;
   const pr = 0.022;                          // trim stands proud of the siding
   const p = (s, y) => add(W.P(s, y, 1), mul(N, pr));
@@ -1469,6 +1631,7 @@ function buildVolume(bags, P, Q, V, R, plan, wallOpts) {
       // triangles that read as a window from anywhere, and no transparency to
       // sort.
       for (const h of op.holes) {
+        if (h.kind === 'bay') continue;      // the bay is drawn, not glazed
         const y1 = h.y1, fr = 0.075;
         const cY = (h.y0 + y1) / 2;
         const a = W.P(h.s0 - fr, cY, 1), b = W.P(h.s1 + fr, cY, 1);
@@ -1602,6 +1765,22 @@ function roofRim(bag, q, free, drop, thick) {
   }
 }
 
+// WHICH ROOFS GET DRAWN STANDING SEAMS, and it is the covering that decides
+// (the user, of a shake roof carrying a full set of them: "the attached house
+// has a significant issue with its roof"). A standing seam is where two sheets
+// of METAL are folded together and stood up; shakes, shingles and tiles do not
+// have one and cannot. Two ways to get it wrong and both were live: a RIBBED
+// set already contains its corrugation in the map, so drawing seams over it is
+// two sets of ribs at two pitches; and a shake roof is not sheet at all.
+//
+// So the sets that take drawn seams are named, not guessed — mirrored from the
+// library the way SET_KIND is, because the generator has to be right with no
+// payload loaded, and GATE HOUSE holds the two against each other: every key
+// here must be a roof set that is metal and NOT ribbed, and no roof set
+// outside it may be.
+const SET_SEAM = { galv: 1, rust: 1 };
+const seamsOn = P => !!SET_SEAM[setFor(P, 'roof')];
+
 // horizontal, away from the ridge: the direction the eave sheds into
 function eaveOut(f) {
   const em = K.lerp3(f.q[0], f.q[1], 0.5), tm = K.lerp3(f.q[3], f.q[2], 0.5);
@@ -1610,9 +1789,6 @@ function eaveOut(f) {
 }
 
 function buildRoof(bags, P, Q, V, R, dorms) {
-  // A RIBBED SET CONTAINS ITS OWN CORRUGATION. Drawing standing seams under a
-  // corrugated-iron map is two sets of ribs at two pitches; the material knows
-  // what it already has, so the geometry stands down.
   const ribbed = setRibbed(setFor(P, 'roof'));
   for (const f of R.facets) {
     const q = f.q;
@@ -1623,7 +1799,7 @@ function buildRoof(bags, P, Q, V, R, dorms) {
                { sub: Q.lod === 0 ? 1.1 : 0 });
     if (Q.lod !== 0) continue;
     const e0 = q[0], e1 = q[1], t1 = q[2], t0 = q[3];
-    if (P.ribs && !ribbed && P.ribPitch > 0.05) {
+    if (P.ribs && seamsOn(P) && P.ribPitch > 0.05) {
       const runW = len(sub(e1, e0));
       const n = Math.max(1, Math.round(runW / P.ribPitch));
       const up = [0, 1, 0];
@@ -2327,7 +2503,7 @@ function buildStance(bags, P, Q, V, plan, g) {
   const yTop = floorBase, yBot = floorBase - beamH;
   for (let i = 0; i < plan.length; i++) {
     const A = plan[i], B = plan[(i + 1) % plan.length];
-    beam(bags.deck, [A[0], (yTop + yBot) / 2, A[1]],
+    beam(bags.post, [A[0], (yTop + yBot) / 2, A[1]],
          [B[0], (yTop + yBot) / 2, B[1]], half, beamH / 2, [0, 1, 0]);
   }
   if (Q.lod === 0 && P.joists) {
@@ -2337,7 +2513,7 @@ function buildStance(bags, P, Q, V, plan, g) {
     const n = Math.max(2, Math.round(Math.abs(x1 - x0) / 0.6));
     for (let i = 1; i < n; i++) {
       const x = Math.min(x0, x1) + Math.abs(x1 - x0) * i / n;
-      beam(bags.deck, [x, (yTop + yBot) / 2 - 0.01, z0],
+      beam(bags.post, [x, (yTop + yBot) / 2 - 0.01, z0],
            [x, (yTop + yBot) / 2 - 0.01, z1], 0.035, beamH / 2 - 0.02,
            [0, 1, 0]);
     }
@@ -2359,7 +2535,7 @@ function buildStance(bags, P, Q, V, plan, g) {
     for (const z of [zA, zB]) {
       const yA = g(fx0, z), yB2 = g(fx1, z);
       const y = Math.max(yA, yB2) + 0.10;
-      beam(bags.deck, [fx0 - 0.10, y, z], [fx1 + 0.10, y, z], 0.09, 0.09,
+      beam(bags.post, [fx0 - 0.10, y, z], [fx1 + 0.10, y, z], 0.09, 0.09,
            [0, 1, 0]);
       const n = Math.max(2, Math.round((fx1 - fx0) / 1.6));
       for (let i = 0; i <= n; i++) {
@@ -2535,14 +2711,14 @@ function buildDeck(bags, P, Q, V, R, g) {
 
   // structure: rim beams all round, joists across (lod 0), then the boards
   const rimY = yTop - rim / 2 - 0.02;
-  beam(bags.deck, [x0, rimY, zOut], [x1, rimY, zOut], 0.05, rim / 2, [0, 1, 0]);
+  beam(bags.post, [x0, rimY, zOut], [x1, rimY, zOut], 0.05, rim / 2, [0, 1, 0]);
   beam(bags.deck, [x0, rimY, zIn], [x0, rimY, zOut], 0.05, rim / 2, [0, 1, 0]);
   beam(bags.deck, [x1, rimY, zIn], [x1, rimY, zOut], 0.05, rim / 2, [0, 1, 0]);
   if (Q.lod === 0) {
     const n = Math.max(2, Math.round(dl / 0.55));
     for (let i = 1; i < n; i++) {
       const x = x0 + dl * i / n;
-      beam(bags.deck, [x, rimY, zIn], [x, rimY, zOut], 0.035, rim / 2 - 0.02,
+      beam(bags.post, [x, rimY, zIn], [x, rimY, zOut], 0.035, rim / 2 - 0.02,
            [0, 1, 0]);
     }
   }
@@ -2611,7 +2787,7 @@ function buildDeck(bags, P, Q, V, R, g) {
       const jx0 = sp.footX - jw / 2, jx1 = sp.footX + jw / 2;
       const rimJ = landY - 0.10;
       for (const zz of [jz0 + 0.12, jz1 - 0.12])
-        beam(bags.deck, [jx0, rimJ, zz], [jx1, rimJ, zz], 0.05, 0.09,
+        beam(bags.post, [jx0, rimJ, zz], [jx1, rimJ, zz], 0.05, 0.09,
              [0, 1, 0]);
       if (Q.lod === 0) {
         const bw = P.deckBoard, gp = 0.010;
@@ -2824,7 +3000,11 @@ function stairPlan(P, o, surf) {
     const each = Math.ceil(nB / parts);
     const yMid = yTop - nA * rise;
     const flights = [{ x: x, z: zTop, ax: [0, dir], n: nA, yTop: yTop }];
-    const lands = [{ x: x, z: zL, y: yMid, w: w, d: w }];   // the quarter turn
+    // `open` is the edges a FLIGHT attaches to, as outward normals: the
+    // incoming flight enters across -ax, the outgoing one leaves across +ax.
+    // Everything else is a drop, and gets a rail.
+    const lands = [{ x: x, z: zL, y: yMid, w: w, d: w,
+                     open: [[0, -dir], [sgn, 0]] }];      // the quarter turn
     let px = x + sgn * w / 2, pz = zL, py = yMid, s2 = sgn, left = nB;
     for (let k = 0; k < parts && left > 0; k++) {
       const nk = Math.min(each, left);
@@ -2834,7 +3014,7 @@ function stairPlan(P, o, surf) {
       py -= nk * rise;
       if (left > 0) {                                       // a half turn
         lands.push({ x: px + s2 * w / 2, z: pz + dir * w / 2, y: py,
-                     w: w, d: 2 * w });
+                     w: w, d: 2 * w, open: [[-s2, 0], [-s2, 0]] });
         px += s2 * w;
         pz += dir * w;
         s2 = -s2;
@@ -2867,9 +3047,36 @@ function stepFlight(bags, P, Q, o) {
   }
   for (const s2 of [-1, 1]) {                          // the stringers
     const a = at(0, o.yTop - 0.12), b = at(T, yBot - 0.02);
-    beam(bags.deck, [a[0] + px * s2 * hw, a[1], a[2] + pz * s2 * hw],
+    beam(bags.post, [a[0] + px * s2 * hw, a[1], a[2] + pz * s2 * hw],
          [b[0] + px * s2 * hw, b[1], b[2] + pz * s2 * hw], 0.03, 0.14,
          [0, 1, 0]);
+  }
+  // THE HANDRAIL, which is not decoration: a twelve-tread flight two metres
+  // up with nothing to hold was in the user's own screenshot, and it is the
+  // one part of a porch that is not optional anywhere anybody builds. Posts up
+  // the stringer line, a raking cap on top, and — because this is a bench for
+  // looking at things — a mid rail when the flight is long enough to want one.
+  if (o.rail && o.n >= 3 && T > 0.6) {
+    const rh = o.rail;
+    const np = Math.max(2, Math.round(T / 1.15));
+    for (const s2 of [-1, 1]) {
+      const off2 = [px * s2 * hw, pz * s2 * hw];
+      for (let i = 0; i <= np; i++) {
+        const t2 = T * i / np;
+        const y = o.yTop - (t2 / o.run) * o.rise - 0.02;
+        const c = at(t2, y);
+        beam(bags.post, [c[0] + off2[0], y - 0.10, c[2] + off2[1]],
+             [c[0] + off2[0], y + rh, c[2] + off2[1]], 0.032, 0.032,
+             [0, 0, 1], 0, { uv: [c[0] + c[2], 0] });
+      }
+      const a = at(0, o.yTop + rh - 0.02);
+      const b = at(T, yBot + rh - 0.02);
+      beam(bags.deck, [a[0] + off2[0], a[1], a[2] + off2[1]],
+           [b[0] + off2[0], b[1], b[2] + off2[1]], 0.036, 0.026, [0, 1, 0]);
+      beam(bags.deck, [a[0] + off2[0], a[1] - rh * 0.52, a[2] + off2[1]],
+           [b[0] + off2[0], b[1] - rh * 0.52, b[2] + off2[1]], 0.022, 0.018,
+           [0, 1, 0]);
+    }
   }
   for (let i = 0; i < o.n; i++) {                      // a tread on each rise
     const y = o.yTop - (i + 1) * o.rise;
@@ -2893,7 +3100,7 @@ function buildLanding(bags, P, Q, L, g) {
   const hx = L.w / 2, hz = (L.d || L.w) / 2, rim = L.y - 0.11;
   const x0 = L.x - hx, x1 = L.x + hx, z0 = L.z - hz, z1 = L.z + hz;
   for (const zz of [z0 + 0.07, z1 - 0.07])
-    beam(bags.deck, [x0, rim, zz], [x1, rim, zz], 0.05, 0.09, [0, 1, 0]);
+    beam(bags.post, [x0, rim, zz], [x1, rim, zz], 0.05, 0.09, [0, 1, 0]);
   if (Q.lod === 0) {
     const bw = P.deckBoard, gp = 0.010;
     const nb = Math.max(1, Math.floor((z1 - z0) / (bw + gp)));
@@ -2910,44 +3117,84 @@ function buildLanding(bags, P, Q, L, g) {
       beam(bags.post, [xx, gy - 0.05, zz], [xx, rim, zz], P.postSz * 0.42,
            P.postSz * 0.42, [0, 0, 1], 0, { uv: [xx + zz, 0] });
     }
+  // A LANDING IS A BALCONY halfway down a stair, so it is railed on every edge
+  // a flight does not arrive on — which is what `open` was published for.
+  if (Q.lod === 0 && L.rail && L.open) {
+    const rh = L.rail;
+    const edges = [
+      { n: [1, 0], a: [x1, z0], b: [x1, z1] },
+      { n: [-1, 0], a: [x0, z0], b: [x0, z1] },
+      { n: [0, 1], a: [x0, z1], b: [x1, z1] },
+      { n: [0, -1], a: [x0, z0], b: [x1, z0] },
+    ];
+    for (const e of edges) {
+      if (L.open.some(o2 => o2[0] === e.n[0] && o2[1] === e.n[1])) continue;
+      const len2 = Math.hypot(e.b[0] - e.a[0], e.b[1] - e.a[1]);
+      const np = Math.max(1, Math.round(len2 / 1.0));
+      for (let i = 0; i <= np; i++) {
+        const u = i / np;
+        const x = e.a[0] + (e.b[0] - e.a[0]) * u;
+        const z = e.a[1] + (e.b[1] - e.a[1]) * u;
+        beam(bags.post, [x, L.y - 0.12, z], [x, L.y + rh, z], 0.032, 0.032,
+             [0, 0, 1], 0, { uv: [x + z, 0] });
+      }
+      beam(bags.deck, [e.a[0], L.y + rh, e.a[1]], [e.b[0], L.y + rh, e.b[1]],
+           0.036, 0.026, [0, 1, 0]);
+      beam(bags.deck, [e.a[0], L.y + rh * 0.48, e.a[1]],
+           [e.b[0], L.y + rh * 0.48, e.b[1]], 0.022, 0.018, [0, 1, 0]);
+    }
+  }
 }
 
 function buildSteps(bags, P, Q, sp, g) {
   for (const f of sp.flights)
     stepFlight(bags, P, Q, { x: f.x, z: f.z, ax: f.ax, n: f.n,
                              run: P.stairRun, rise: sp.rise, yTop: f.yTop,
-                             w: sp.w });
-  for (const L of sp.lands) buildLanding(bags, P, Q, L, g);
+                             w: sp.w, rail: P.railStyle > 0 ? P.railH : 0 });
+  for (const L of sp.lands)
+    buildLanding(bags, P, Q,
+                 Object.assign({ rail: P.railStyle > 0 ? P.railH : 0 }, L), g);
   return sp.n;
 }
 
-// A SMALL BACK STOOP: a landing the width of the door, two or three steps, and
-// a rail if the drop asks for one. It is the deck builder's own parts at a
-// tenth of the size — a garden door onto nothing is not a door anybody uses.
-function buildStoop(bags, P, Q, V, g) {
-  if (!P.backDoor || !P.backPorch) return null;
-  if (leanCovers(P, V, backDoorX(P, V))) return null;   // it is inside the shed
+// A STOOP: a landing the width of the door, a few steps, and the legs to hold
+// it up. It is the deck builder's own parts at a tenth of the size — a door
+// onto nothing is not a door anybody uses.
+//
+// G236: IT SERVES EITHER WALL (the user: "all houses should have stairs and
+// entrance. The ones who don't have a door hanging several meters high, not
+// very practical"). The back door has had one since G232.3; the FRONT door had
+// nothing at all unless the house happened to have a deck, and a house without
+// a deck is most of the sheds and half the sampler — so a front door two
+// metres up opened onto the drop. `side` is +1 for the front (+z, the deck
+// side) and -1 for the back.
+function buildStoop(bags, P, Q, V, g, side) {
+  const back = (side || -1) < 0;
+  if (back && (!P.backDoor || !P.backPorch)) return null;
+  if (!back && (!P.door || P.porch)) return null;      // the deck serves it
+  if (back && leanCovers(P, V, backDoorX(P, V))) return null;  // inside the shed
   const half = V.wallT / 2;
-  const zIn = -(V.w / 2 - half);
-  const cx = backDoorX(P, V);
+  const zIn = (back ? -1 : 1) * (V.w / 2 - half);
+  const cx = back ? backDoorX(P, V) : (doorPosOf(P, V) - 0.5) * V.L;
   const wid = Math.max(1.0, P.doorW + 0.7), depth = 1.05;
-  const zOut = zIn - depth;
+  const zOut = zIn + (back ? -depth : depth);
   const yTop = V.floorY - 0.02;
   const x0 = cx - wid / 2, x1 = cx + wid / 2;
   const rimY = yTop - 0.12;
-  beam(bags.deck, [x0, rimY, zOut], [x1, rimY, zOut], 0.05, 0.10, [0, 1, 0]);
+  beam(bags.post, [x0, rimY, zOut], [x1, rimY, zOut], 0.05, 0.10, [0, 1, 0]);
   for (const x of [x0, x1])
-    beam(bags.deck, [x, rimY, zIn], [x, rimY, zOut], 0.05, 0.10, [0, 1, 0]);
+    beam(bags.post, [x, rimY, zIn], [x, rimY, zOut], 0.05, 0.10, [0, 1, 0]);
+  const zLo = Math.min(zIn, zOut), zHi = Math.max(zIn, zOut);
   if (Q.lod === 0) {
     const bw = P.deckBoard, gap = 0.008;
     const n = Math.max(1, Math.floor(depth / (bw + gap)));
     for (let i = 0; i < n; i++) {
-      const z = zOut + i * (bw + gap);
+      const z = zLo + i * (bw + gap);
       const j = (i * 2654435761) >>> 0;
       boxAB(bags.deck, [x0, yTop - 0.035, z], [x1, yTop, z + bw], null,
             [(j % 977) / 977 * 3.1, (j % 383) / 383 * 1.7]);
     }
-  } else boxAB(bags.deck, [x0, yTop - 0.05, zOut], [x1, yTop, zIn]);
+  } else boxAB(bags.deck, [x0, yTop - 0.05, zLo], [x1, yTop, zHi]);
   for (const x of [x0 + 0.08, x1 - 0.08]) {
     const gy = g(x, zOut);
     if (Math.round(P.stance) === 3)
@@ -2966,13 +3213,13 @@ function buildStoop(bags, P, Q, V, g) {
   // IF IT TURNS, IT TURNS AWAY FROM THE SHED. The lean-to is on this wall and
   // the door has already stepped clear of it; a landing that turned back
   // under it would put the whole point of that back.
-  const lsp = leanSpan(P, V);
+  const lsp = back ? leanSpan(P, V) : null;
   const turn = lsp ? (cx >= (lsp[0] + lsp[1]) / 2 ? 1 : -1) : 0;
-  const sp = stairPlan(P, { x: cx, w: sw, zTop: zOut, yTop: yTop, dir: -1,
-                            turn: turn }, surf);
+  const sp = stairPlan(P, { x: cx, w: sw, zTop: zOut, yTop: yTop,
+                            dir: back ? -1 : 1, turn: turn }, surf);
   buildSteps(bags, P, Q, sp, g);
-  return { x: cx, z: zOut, steps: sp.n, foot: sp.footZ,
-           turns: sp.lands.length };
+  return { x: cx, z: zOut, y: yTop, w: wid, depth: depth, side: back ? -1 : 1,
+           steps: sp.n, foot: sp.footZ, turns: sp.lands.length };
 }
 
 // ---------------------------------------------------------------------------
@@ -3028,7 +3275,7 @@ function buildLean(bags, P, Q, V, R, g) {
   if (Q.lod === 0)
     roofRim(bags.trim, ring, [true, true, false, true],
             roofT + P.fascia * 0.8, 0.030);
-  if (Q.lod === 0 && P.ribs) {
+  if (Q.lod === 0 && P.ribs && seamsOn(P)) {
     const n = Math.max(1, Math.round((x1 - x0 + 2 * ov) / P.ribPitch));
     for (let i = 0; i <= n; i++) {
       const x = x0 - ov + (x1 - x0 + 2 * ov) * i / n;
@@ -3085,6 +3332,189 @@ function buildChimney(bags, P, Q, V, R) {
   return { x, z, top, yRoof };
 }
 
+// WHAT EACH DOOR OPENS ONTO. `platforms` are rectangles in plan with a top
+// height; a door is SERVED when one of them is under the point just outside
+// its leaf and within a step of the threshold. The ground counts as a platform
+// when the threshold is low enough to walk off, which is what a slab-on-grade
+// shed actually has.
+function doorReport(P, V, dk, stoop, front, g, openings) {
+  const pads = [];
+  if (dk && dk.area > 0 && P.porch) {
+    const D = deckPlan(P, V);
+    pads.push({ x0: D.x0, x1: D.x1, z0: D.zIn, z1: D.zOut, y: V.floorY - 0.02 });
+  }
+  for (const sp of [stoop, front]) {
+    if (!sp) continue;
+    const zA = sp.z, zB = sp.z - sp.side * sp.depth;
+    pads.push({ x0: sp.x - sp.w / 2, x1: sp.x + sp.w / 2,
+                z0: Math.min(zA, zB), z1: Math.max(zA, zB), y: sp.y });
+  }
+  const out = [];
+  for (const o of openings || []) {
+    if (o.kind !== 'door') continue;
+    // the point just outside the leaf, in plan
+    const s = (o.s0 + o.s1) / 2;
+    const half = V.wallT / 2;
+    let x, z;
+    if (o.side === 0) { x = s - V.L / 2; z = V.w / 2 - half + 0.5; }
+    else if (o.side === 2) { x = V.L / 2 - s; z = -(V.w / 2 - half) - 0.5; }
+    else continue;                       // no door is put in a gable end
+    let best = null;
+    for (const q of pads)
+      if (x >= q.x0 - 0.15 && x <= q.x1 + 0.15 &&
+          z >= q.z0 - 0.15 && z <= q.z1 + 0.15)
+        if (best === null || Math.abs(q.y - o.y0) < Math.abs(best - o.y0))
+          best = q.y;
+    const gy = g(x, z);
+    if (best === null && o.y0 - gy < 0.45) best = gy;
+    out.push({ x: x, z: z, y0: o.y0, platform: best,
+               drop: best === null ? o.y0 - gy : o.y0 - best });
+  }
+  return out;
+}
+
+// A BARREL UNDER THE PIPE. Every roof on this coast drains into something,
+// and a downpipe that ends in a shoe over bare grass is the detail that says
+// nobody lives here. Six staves' worth of cylinder, two hoops and a lid — and
+// it goes exactly where the drainage already decided the pipe comes down, so
+// it can never be somewhere else.
+function buildBarrel(bags, P, Q, dr, g) {
+  if (!P.barrel || !dr || !dr.downpipe) return null;
+  const d = dr.downpipe;
+  const gy = d.ground;
+  const r = 0.30, h = 0.86;
+  // a step out from the wall, under the shoe's discharge
+  const away = nrm([d.shoe[0] - d.foot[0], 0, d.shoe[2] - d.foot[2]]);
+  const c = [d.foot[0] + away[0] * (r + 0.10), gy,
+             d.foot[2] + away[2] * (r + 0.10)];
+  const n = Q.lod === 0 ? 12 : 6;
+  cyl(bags.deck, c, [0, 1, 0], r, h, n, true);
+  if (Q.lod !== 0) return { x: c[0], z: c[2], r: r, y: gy + h };
+  for (const yy of [gy + 0.10, gy + h - 0.12])
+    cyl(bags.metal, [c[0], yy, c[2]], [0, 1, 0], r * 1.03, 0.045, n, false);
+  cyl(bags.deck, [c[0], gy + h, c[2]], [0, 1, 0], r * 0.94, 0.035, n, true);
+  return { x: c[0], z: c[2], r: r, y: gy + h };
+}
+
+// ---------------------------------------------------------------------------
+// THE BAY WINDOW — the one thing on the house that is not square (the user:
+// "add a little special detail in the design. A strange angle, a large window,
+// somehting special here and there")
+// ---------------------------------------------------------------------------
+// Everything in this generator meets at ninety degrees: the plan is a
+// rectangle, the roof is planes over it, the openings are holes in flat walls.
+// A bay is the exception that proves it — FIVE angles in one detail (two at
+// 45, three at the corners of the glass), a window three times the area of any
+// other, and its own little roof. It is also, structurally, nothing new: the
+// three faces are three WALLS, handed to the same wall() the house is built
+// from, standing on a floor plate and under one sloped plate. The plan is
+// solved first and separately, because the main wall needs a hole in it before
+// anything is drawn and a bay that cannot fit must not leave one.
+function bayPlan(P, V, R, plan, band, doorSide, doorPos) {
+  if (!P.bay) return null;
+  const i = clamp(Math.round(P.bayWall), 0, 3);
+  const A = plan[i], B = plan[(i + 1) % plan.length];
+  const L = Math.hypot(B[0] - A[0], B[1] - A[1]);
+  const w = clamp(P.bayW, 1.4, Math.min(4.6, L - 1.4));
+  if (w < 1.3) return null;
+  const d = clamp(P.bayD, 0.30, Math.min(1.4, w / 2 - 0.30));
+  const c = clamp(P.bayPos, 0.10, 0.90) * L;
+  const s0 = clamp(c - w / 2, 0.45, Math.max(0.45, L - w - 0.45));
+  const s1 = s0 + w;
+  const y0 = V.floorY - 0.05;
+  const sill = y0 + clamp(P.baySill, 0.20, 1.20);
+  const head = sill + clamp(P.bayH, 0.90, 2.20);
+  const top = head + 0.26;
+  // IT MUST CLEAR THE ROOF over its whole width, the same test every opening
+  // takes — and it takes it at the TOP OF ITS OWN ROOF, not at the head of its
+  // glass, because a bay is a little building
+  const uAt = t2 => R.underAt(A[0] + (B[0] - A[0]) * t2 / L,
+                              A[1] + (B[1] - A[1]) * t2 / L);
+  for (let k = 0; k <= 6; k++)
+    if (uAt(s0 + (s1 - s0) * k / 6) < top + 0.30 + d * 0.4) return null;
+  // and it may not stand where the door or the porch roof already is
+  if (i === doorSide) {
+    const dc = doorPos * L;
+    if (s1 > dc - P.doorW / 2 - 0.3 && s0 < dc + P.doorW / 2 + 0.3) return null;
+  }
+  if (i === 0 && band && s1 > band.s0 && s0 < band.s1 && top > band.y0)
+    return null;
+  return { side: i, A: A, B: B, L: L, s0: s0, s1: s1, w: w, d: d,
+           y0: y0, sill: sill, head: head, top: top };
+}
+
+function buildBay(bags, P, Q, V, R, B0) {
+  if (!B0) return null;
+  const A = B0.A, B = B0.B, L = B0.L, d = B0.d;
+  const U = nrm([B[0] - A[0], 0, B[1] - A[1]]);
+  const N = [-U[2], 0, U[0]];                       // outward, in plan
+  const at = (s2, o) => [A[0] + U[0] * s2 + N[0] * o,
+                         A[1] + U[2] * s2 + N[2] * o];
+  const sq = Math.round(P.bay) === 2;
+  const f0 = sq ? B0.s0 : B0.s0 + d, f1 = sq ? B0.s1 : B0.s1 - d;
+  const p0 = at(B0.s0, 0.01), p1 = at(f0, d), p2 = at(f1, d),
+        p3 = at(B0.s1, 0.01);
+  const t = Math.min(V.wallT, 0.13);
+  const y0 = B0.y0, top = B0.top;
+  const segs = [[p0, p1], [p1, p2], [p2, p3]];
+  let glazed = 0;                    // the glass ACTUALLY cut, not the plan's
+  for (let i = 0; i < 3; i++) {
+    const a = segs[i][0], b = segs[i][1];
+    const Lw = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (Lw < 0.14) continue;
+    const m = Math.min(0.16, Lw * 0.22);
+    const glass = Lw > 0.55 && B0.head - B0.sill > 0.4;
+    const holes = (Q.lod === 0 && glass)
+      ? [{ s0: m, s1: Lw - m, y0: B0.sill, y1: B0.head, kind: 'window' }] : [];
+    const W = wall(bags.siding, {
+      A: a, B: b, y0: y0, t: t,
+      ext: [i === 0 ? t / 2 : t / 2, i === 2 ? t / 2 : t / 2],
+      topAt: () => top, holes: holes, inner: true,
+      capTop: Q.lod === 0, capBot: Q.lod === 0, endCap: [false, false],
+      sub: Q.lod === 0 ? (P.aoRange || 0.55) * 0.85 : 0,
+    });
+    if (!W) continue;
+    if (Q.lod === 0) {
+      for (const h of holes) {
+        dressOpening(bags, P, Q, W, h, h.y1);
+        glazed += (h.s1 - h.s0) * (h.y1 - h.y0);
+      }
+    } else if (glass) {
+      glazed += (Lw - 2 * m) * (B0.head - B0.sill);
+      // the far mesh keeps the glass as one quad on the face, like every
+      // other opening out there
+      const p = (s2, y) => add(W.P(s2, y, 1), mul(W.N, 0.035));
+      face(bags.pane, [p(m, B0.sill), p(Lw - m, B0.sill),
+                       p(Lw - m, B0.head), p(m, B0.head)], W.N,
+           uvFrame(p(m, B0.sill), W.X, [0, 1, 0]));
+    }
+  }
+  // the floor it stands on, closed underneath: a house on posts is looked at
+  // from below more often than from above
+  const ring = [p0, p1, p2, p3];
+  const fl = ring.map(q => [q[0], y0, q[1]]);
+  face(bags.floor, fl, [0, -1, 0],
+       uvFrame(fl[0], [1, 0, 0], [0, 0, 1]));
+  face(bags.floor, fl.map(q => [q[0], y0 + 0.05, q[2]]), [0, 1, 0],
+       uvFrame(fl[0], [1, 0, 0], [0, 0, 1]));
+  // ITS OWN ROOF, in the roofing material like every other roof on the
+  // building, sloped back into the wall and boarded on its three free edges
+  const ov = 0.11, rise = 0.10 + d * 0.40;
+  const r0 = at(B0.s0 - ov, -0.02), r3 = at(B0.s1 + ov, -0.02);
+  const r1 = at(f0 - ov * (sq ? 1 : 0.4), d + ov);
+  const r2 = at(f1 + ov * (sq ? 1 : 0.4), d + ov);
+  const rr = [[r0[0], top + rise, r0[1]], [r1[0], top, r1[1]],
+              [r2[0], top, r2[1]], [r3[0], top + rise, r3[1]]];
+  plate(bags.roof, rr, Math.min(V.roofT, 0.09), [0, -1, 0],
+        uvFrame(rr[0], U, nrm(sub(rr[1], rr[0]))),
+        { sub: Q.lod === 0 ? 0.9 : 0 });
+  if (Q.lod === 0)
+    roofRim(bags.trim, rr, [true, true, true, false],
+            Math.min(V.roofT, 0.09) + 0.06, 0.024);
+  return { side: B0.side, s0: B0.s0, s1: B0.s1, d: d, top: top,
+           area: glazed };
+}
+
 // ---------------------------------------------------------------------------
 // BUILD
 // ---------------------------------------------------------------------------
@@ -3127,9 +3557,19 @@ function build(P0, lod) {
       doorPos: 1 - (backDoorX(P, V) / V.L + 0.5) },       // back, -z
     { n: P.nLeft, gable: V.fam !== 1 },         // left end, -x
   ];
+  // A DOOR IS A WAY IN, AND A WAY IN NEEDS A WAY DOWN (the user: "all houses
+  // should have stairs and entrance"). The stair switch is still a switch —
+  // for a shed with no door, for a building reached off another deck — but it
+  // cannot be the reason a front door opens onto a two-metre drop. Over water
+  // the flight lands on the jetty, which is the same answer arrived at by
+  // boat.
+  if (P.door && P.porch) P.stairs = 1;
+  const bay = bayPlan(P, V, R, plan, band, 0, doorPosOf(P, V));
+  if (bay) wallOpts[bay.side].bay = bay;
   const openIdx = Math.round(P.openFront) - 1;
   if (openIdx >= 0 && openIdx < 4) wallOpts[openIdx].open = true;
   const vol = buildVolume(bags, P, Q, V, R, plan, wallOpts);
+  const bayOut = buildBay(bags, P, Q, V, R, bay);
   if (Math.round(P.corner) === 1) buildLogCorners(bags, P, Q, V, R, plan);
   // WHERE THE WALLS END. Everything after this writes into the same siding bag
   // — a dormer's cheeks, a belfry's drum — and those legitimately stand ABOVE
@@ -3141,12 +3581,14 @@ function build(P0, lod) {
   for (const d of dorms) buildDormer(bags, P, Q, V, R, d);
   const cup = buildCupola(bags, P, Q, V, R);
   const wood = buildContents(bags, P, Q, V, R);
-  const stoop = buildStoop(bags, P, Q, V, g);
+  const stoop = buildStoop(bags, P, Q, V, g, -1);
   const st = buildStance(bags, P, Q, V, plan, g);
   const dk = buildDeck(bags, P, Q, V, R, g);
+  const front = buildStoop(bags, P, Q, V, g, 1);
   if (P.lean) buildLean(bags, P, Q, V, R, g);
   const ch = buildChimney(bags, P, Q, V, R);
   const dr = buildDrainage(bags, P, Q, V, R, g);
+  const barrel = buildBarrel(bags, P, Q, dr, g);
 
   // ---- and now the light that never gets in --------------------------------
   const aoInfo = K.bakeAO(BAGS.map(k => bags[k]),
@@ -3193,8 +3635,30 @@ function build(P0, lod) {
     headroom: R.ridgeY - V.roofT - (V.floorY + (P.storeys - 1) * P.floorH),
     chimney: ch, ground: g,
     gutterLen: dr.gutter, downpipe: dr.downpipe,
-    jetty: dk.jetty || null, stoop: stoop, rims: RIM_LOG,
+    jetty: dk.jetty || null, stoop: stoop, front: front, rims: RIM_LOG,
+    bay: bayOut, barrel: barrel,
+    // EVERY DOOR IS ASKED WHAT IT OPENS ONTO (the user: "all houses should
+    // have stairs and entrance. The ones who don't have a door hanging several
+    // meters high"). A platform is the deck, a stoop, or the ground itself if
+    // the threshold is close enough to step down to; the test is the point
+    // half a metre OUTSIDE the leaf, at the threshold's own height, and it is
+    // published rather than assumed so GATE HOUSE can hold it.
+    doors: doorReport(P, V, dk, stoop, front, g, vol.openings),
     dormers: dorms.length, cupola: cup, wallVerts: wallVerts, ao: aoInfo,
+    // WHAT THE GROUND IS SHADED AGAINST: the walls and the deck, as one
+    // rectangle. Not the model's bounding box — that includes the stair, and
+    // a flight of steps does not put a shadow the size of itself on the grass.
+    aoFoot: (() => {
+      let x0 = -V.L / 2, x1 = V.L / 2, z0 = -V.w / 2, z1 = V.w / 2;
+      const D = deckPlan(P, V);
+      if (D && P.porch) {
+        x0 = Math.min(x0, D.x0); x1 = Math.max(x1, D.x1);
+        z1 = Math.max(z1, D.zOut);
+      }
+      if (P.lean) { z0 = Math.min(z0, -V.w / 2 - P.leanD); }
+      return { cx: (x0 + x1) / 2, cz: (z0 + z1) / 2,
+               hx: (x1 - x0) / 2, hz: (z1 - z0) / 2 };
+    })(),
     dormerWindows: dorms.filter(d => d.hasWindow).length,
     dormClamped: dorms.reduce((a, d) => a + d.clamped, 0),
     dormSkipped: dorms.skipped || 0,
@@ -3278,7 +3742,7 @@ function randomHouse(seed) {
   P.porchD = rr(1.2, 3.0); P.porchLenF = rr(0.4, 1.0);
   P.porchOff = rr(-0.35, 0.35);
   P.railStyle = pick([1, 1, 2, 3]);
-  P.stairs = P.water && odds(0.6) ? 0 : 1;
+  P.stairs = 1;                       // see build(): a door needs a way down
   P.porchRoof = pick([0, 0, 1, 2]);
   P.lean = odds(0.22) ? 1 : 0; P.leanD = rr(1.6, 3.0);
   P.leanLF = rr(0.4, 0.8); P.leanOff = rr(-0.3, 0.3);
@@ -3318,7 +3782,22 @@ function randomHouse(seed) {
                                     'veneerdark']));
   P.floorSet = SET_IDX('floor', pick(['deckwood', 'brownwood', 'greywood',
                                       'wornwood']));
-  P.postSet = SET_IDX('post', pick(['veneerdark', 'stain', 'veneerwarm']));
+  // THE FRAME IS PLAIN TIMBER, always: sawn, or a tree with its bark on. The
+  // frameAge dial takes the rest — nothing under a house is newer than what is
+  // on top of it.
+  P.postSet = SET_IDX('post', P.stance === 3
+    ? pick(['bark', 'feverbark', 'rough'])
+    : pick(['rough', 'rough', 'mossy', 'bark']));
+  P.frameAge = rr(0.4, 0.8);
+  // THE SPECIAL DETAIL, and it is special because it is RARE: one house in
+  // five or six gets a bay, on a wall that has neither the door nor the porch
+  // roof on it, and the generator refuses it outright if the roof is too low
+  // over that wall.
+  P.bay = odds(0.18) ? pick([1, 1, 1, 2]) : 0;
+  P.bayWall = pick([1, 3, 1, 3, 2]);
+  P.bayPos = rr(0.25, 0.75);
+  P.bayW = rr(1.8, 3.2); P.bayD = rr(0.5, 1.0);
+  P.bayH = rr(1.2, 1.8); P.baySill = rr(0.35, 0.75);
   P.dirt = fresh ? rr(0.10, 0.35) : rr(0.35, 0.8);
   P.dirtH = rr(0.6, 1.4);
   // the punch is a smaller dial than it was (the user: "you should limit the
@@ -3351,9 +3830,10 @@ function dressSlot(matKey, role, idx, col, flat) {
 
 window.HOUSE_GEN = {
   DEF, ROWS, PRESETS, MAT, BAGS, FAMS, STANCES, RAILS, SET_TINT, SHADE_U,
-  STAIR_MAX,
+  STAIR_MAX, SET_SEAM,
   COLS, COL_NAMES, ROLE_SETS, SET_IDX, setNames, setFor, setRibbed,
   build, roofModel, wallSplits, groundFn, applyFinish, libSets, randomHouse,
+  shadeGround,
   dressSlot, SET_KIND, ROLE_KIND, finishReport, NRM, PAINT_BLENDS,
 };
 })();

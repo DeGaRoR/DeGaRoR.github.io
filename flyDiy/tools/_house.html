@@ -378,7 +378,7 @@ let BUILT = { hi: null, lo: null };
 
 // THE SITE, drawn from the generator's own ground function — one plane, so a
 // post that lands on it in the model lands on it on screen too.
-function siteMesh(g, R) {
+function siteMesh(g, R, foot) {
   const grp = new THREE.Group();
   const N = 2;
   const pos = [], idx = [];
@@ -419,6 +419,10 @@ function siteMesh(g, R) {
     gm.roughnessMap = mk(SS.grass005.rough, false);
     gm.color.setHex(0xffffff);
   }
+  // THE CONTACT SHADOW ON THE GRASS. The site is not the house's mesh, so it
+  // gets none of the baked occlusion; this is the generator's own ground
+  // patch, driven by the footprint it publishes.
+  if (foot) G.shadeGround(gm, foot);
   const gmesh = new THREE.Mesh(geo, gm);
   gmesh.receiveShadow = true;
   grp.add(gmesh);
@@ -476,7 +480,7 @@ function build() {
   } else addBuild(root, mode === 1 ? lo : hi, 0);
   if ($('ground').checked) {
     const R2 = Math.max(18, P.L * 1.6);
-    root.add(siteMesh(hi.stats.ground, R2));
+    root.add(siteMesh(hi.stats.ground, R2, hi.stats.aoFoot));
     // the tide, when the building stands in it: one plane, and the piles are
     // already cut to the seabed under them
     if (P.water) {
