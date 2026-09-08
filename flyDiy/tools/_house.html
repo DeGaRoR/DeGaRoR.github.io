@@ -69,12 +69,7 @@
   </select></label>
   <label><input type="checkbox" id="ground" checked> site</label>
   <label><input type="checkbox" id="wire"> wireframe</label>
-  <label>light <select id="moodSel">
-    <option value="0">afternoon</option>
-    <option value="1">golden</option>
-    <option value="2">overcast</option>
-    <option value="3">blue hour</option>
-  </select></label>
+  <label>light <select id="moodSel"></select></label>
   <label>sun <input type="range" id="sunAz" min="0" max="360" step="1"
     value="140" style="width:64px"><input type="range" id="sunEl" min="3"
     max="80" step="1" value="34" style="width:52px"></label>
@@ -170,6 +165,72 @@ const MOODS = [
     gnd: [0.10, 0.12, 0.14], sun: [0.72, 0.78, 1.00], sunI: 0.55, disc: 10,
     amb: 0.45, ev: 1.35 },
 ];
+// AND A CAPTURED ONE (the user: "give this an hdr for lighting and
+// reflections please"). The painted moods above are a gradient with a disc in
+// it, and there is a limit to what you can judge against them: a scanned
+// plank needs a source with STRUCTURE in it to smear, a metal roof needs
+// something worth reflecting, and the difference between a good normal map
+// and a bad one only shows when the light has edges. So the dome can also be
+// a photograph — src/viewer/house_tex.js's HOUSE_SKIES, baked from
+// assets/house_sky/*.hdr by tools/house_sky_prep.py.
+//
+// THREE THINGS COME OFF ONE FILE and they must agree or the model floats:
+// the ENVIRONMENT (the RGBE equirect, decoded to half floats and run through
+// PMREM — this is the ambient and every reflection), the BACKDROP (the
+// tone-mapped jpeg, so what you see behind the house is the same sky that is
+// lighting it), and the SUN, whose direction, colour and share of the total
+// were measured in the float data at bake time. The azimuth slider then yaws
+// the BUILDING rather than moving a lamp inside the photograph, because in a
+// photograph the sun is where it is: what is still yours to choose is which
+// way the house faces. The elevation slider does nothing here, for the same
+// reason.
+const SKIES = (typeof HOUSE_SKIES !== 'undefined' && HOUSE_SKIES) || {};
+const SKY_KEYS = Object.keys(SKIES);
+const skyOf = i => (i >= MOODS.length ? SKIES[SKY_KEYS[i - MOODS.length]] : null);
+{
+  const sel = $('moodSel');
+  MOODS.forEach((m, i) => sel.add(new Option(m.name, String(i))));
+  SKY_KEYS.forEach((k, i) => sel.add(
+    new Option(SKIES[k].name + ' (hdr)', String(MOODS.length + i))));
+  sel.value = SKY_KEYS.length ? String(MOODS.length) : '0';
+}
+
+// RGBE -> half float, once per sky. The image is four bytes a pixel: three
+// mantissas and a shared exponent, which is the whole of Radiance's format
+// and decodes in one exp2. Half float rather than float32 because linear
+// filtering of an RGBA16F texture is core in WebGL2 and of an RGBA32F one is
+// an extension — and PMREM samples this with LINEAR.
+const ENVC = new Map();
+function envTexture(sky) {
+  const img = sky.env;
+  if (!img.complete || !img.naturalWidth) return null;
+  if (ENVC.has(sky)) return ENVC.get(sky);
+  const w = img.naturalWidth, h = img.naturalHeight;
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const g2 = c.getContext('2d');
+  g2.drawImage(img, 0, 0);
+  const src = g2.getImageData(0, 0, w, h).data;
+  const half = THREE.DataUtils.toHalfFloat;
+  const out = new Uint16Array(w * h * 4);
+  for (let i = 0, n = w * h; i < n; i++) {
+    const e = src[i * 4 + 3];
+    const k = e ? Math.pow(2, e - 136) : 0;
+    out[i * 4] = half(src[i * 4] * k);
+    out[i * 4 + 1] = half(src[i * 4 + 1] * k);
+    out[i * 4 + 2] = half(src[i * 4 + 2] * k);
+    out[i * 4 + 3] = half(1);
+  }
+  const t = new THREE.DataTexture(out, w, h, THREE.RGBAFormat,
+                                  THREE.HalfFloatType);
+  t.mapping = THREE.EquirectangularReflectionMapping;
+  t.minFilter = t.magFilter = THREE.LinearFilter;
+  t.generateMipmaps = false;
+  t.needsUpdate = true;
+  ENVC.set(sky, t);
+  return t;
+}
+
 const sun = new THREE.DirectionalLight(0xffffff, 2.4);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
@@ -182,14 +243,79 @@ const pmrem = new THREE.PMREMGenerator(renderer);
 pmrem.compileEquirectangularShader();
 let envRT = null;
 
+const hdrDir = new THREE.Vector3(0.3, 0.5, 0.8);
 function sunDir() {
+  if (skyOf(+$('moodSel').value)) return hdrDir.clone();
   const az = (+$('sunAz').value) * D2R, el = (+$('sunEl').value) * D2R;
   return new THREE.Vector3(Math.cos(el) * Math.sin(az), Math.sin(el),
                            Math.cos(el) * Math.cos(az));
 }
 
+// the sky is rotated, not the sun: a photograph's sun is where it is
+let skyRot = 0;
+const BGC = new Map();
+function bgTexture(sky) {
+  const img = sky.bg;
+  if (!img.complete || !img.naturalWidth) return null;
+  if (!BGC.has(sky)) {
+    const t = new THREE.Texture(img);
+    t.mapping = THREE.EquirectangularReflectionMapping;
+    t.encoding = THREE.sRGBEncoding;
+    t.needsUpdate = true;
+    BGC.set(sky, t);
+  }
+  return BGC.get(sky);
+}
+
+function buildSkyHDR(sky) {
+  const t = envTexture(sky);
+  if (!t) {                       // still loading: paint one and come back
+    sky.env.addEventListener('load', () => buildSky(), { once: true });
+    return false;
+  }
+  // THE ROTATION TURNS THE BUILDING, NOT THE SKY. An equirect background and
+  // a PMREM cube both sample in world space with no offset to give, and
+  // re-rolling two images on every drag of a slider is silly when the whole
+  // model — house, site plane and tide — already hangs off one group. So the
+  // azimuth slider yaws that group: the sun stays where the photograph put
+  // it and the house faces a different way, which is the question anybody
+  // actually asks of a site.
+  const az = (+$('sunAz').value) * D2R;
+  skyRot = az;
+  if (envRT) envRT.dispose();
+  envRT = pmrem.fromEquirectangular(t);
+  scene.environment = envRT.texture;
+  const bg = bgTexture(sky);
+  if (bg) scene.background = bg;
+  else {
+    scene.background = new THREE.Color(sky.hor[0], sky.hor[1], sky.hor[2]);
+    sky.bg.addEventListener('load', () => buildSky(), { once: true });
+  }
+  // THE MEASURED SUN. `direct` is the share of the sphere's light that came
+  // from the disc; on this sunset it is 0.06, which is why the shadow is a
+  // soft one and should be. The floor keeps a shadow readable at all — a
+  // bench with no contact shadow cannot be judged — and the ceiling stops a
+  // hard noon sky from blowing out the dome that is already lighting it.
+  const d = sky.sun;
+  sun.color.setRGB(sky.sunCol[0], sky.sunCol[1], sky.sunCol[2]);
+  sun.intensity = Math.max(0.55, Math.min(3.0, sky.direct * 6.5 + 0.45));
+  fill.intensity = 0;             // the dome IS the fill here
+  // and the exposure this sky asks for, measured: EV_ANCHOR over the
+  // cosine-weighted upper hemisphere, which is the light that actually
+  // falls on a roof. A sunset normalised to the same sphere mean as a noon
+  // still delivers half the downward radiance, and reading a plank in it
+  // otherwise means chasing the exposure dial by hand.
+  renderer.toneMappingExposure = (+$('expo').value) * (sky.ev || 1);
+  hdrDir.set(d[0], d[1], d[2]).normalize();
+  return true;
+}
+
 function buildSky() {
-  const M = MOODS[+$('moodSel').value];
+  const mi = +$('moodSel').value;
+  const sky = skyOf(mi);
+  if (sky && buildSkyHDR(sky)) return;
+  skyRot = 0;
+  const M = MOODS[Math.min(mi, MOODS.length - 1)];
   const W = 256, H = 128;
   const c = document.createElement('canvas');
   c.width = W; c.height = H;
@@ -330,6 +456,10 @@ function build() {
     scene.remove(root);
   }
   root = new THREE.Group();
+  // under a captured sky the sun cannot be moved, so the building turns
+  // instead: one yaw on the group that carries the house, the site plane and
+  // the tide, so all three stay in register (see buildSkyHDR)
+  root.rotation.y = skyRot;
   scene.add(root);
   GEN.applyFinish(P);
   const t0 = performance.now();

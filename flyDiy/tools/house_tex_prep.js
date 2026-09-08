@@ -69,7 +69,21 @@ const SUB = 'tex/house';
 // the same thing twice and the two could drift.
 //
 // kind: 'plank' | 'veneer' | 'roof' | 'stone'
-// key, kind, label, tile, px, metal, paint, ribbed
+//
+// AND TWO THINGS A SET CAN REFUSE (G234). A scan is not a blank surface with a
+// colour slot: some of them have already been finished, and the finish is the
+// point of the scan.
+//   tint: false   the set is never recoloured, painted or tinted (the user:
+//                 "don't recolor dark strained boards. These one do not
+//                 tolerate a trim paint on top").
+//   punch: 0      the set caps the paint punch - the saturation and contrast
+//                 lift - at this value (the user: "You should really only use
+//                 longboard with paint punch = 0"). A long unbroken board
+//                 shows the punch across a metre of one colour, which is where
+//                 it stops reading as paint and starts reading as a filter.
+// The generator mirrors both in SET_TINT so it works with no payload loaded,
+// and GATE HOUSE holds the two tables against each other.
+// key, kind, label, tile, px, metal, paint, ribbed[, opts]
 const SETS = [
   ['boxprof', 'roof', 'box-profile metal sheet', 3.2, 1024, 0.55, true, true],
   ['corrworn', 'roof', 'worn corrugated iron', 3.6, 1024, 0.50, false, true],
@@ -80,7 +94,7 @@ const SETS = [
   ['shakes', 'plank', 'shake siding', 2.2, 512, 0.00, false, false],
   ['paintwood', 'plank', 'painted planks', 1.9, 512, 0.00, true, false],
   ['greenwood', 'plank', 'rough painted planks', 1.9, 512, 0.00, true, false],
-  ['board', 'plank', 'long boards', 1.9, 512, 0.00, true, false],
+  ['board', 'plank', 'long boards', 1.9, 512, 0.00, true, false, { punch: 0 }],
   ['roughwood', 'plank', 'rough sawn planks', 1.9, 512, 0.00, false, false],
   ['brownwood', 'plank', 'planed planks', 1.9, 512, 0.00, false, false],
   ['greywood', 'plank', 'weathered grey planks', 2.1, 512, 0.00, false, false],
@@ -91,9 +105,10 @@ const SETS = [
   ['veneerdark', 'veneer', 'figured veneer', 0.9, 256, 0.00, true, false],
   ['veneerwarm', 'veneer', 'warm veneer', 0.9, 256, 0.00, true, false],
   ['veneerpale', 'veneer', 'pale laminate', 0.9, 256, 0.00, true, false],
-  ['stain', 'veneer', 'dark stained boards', 1.9, 512, 0.00, true, false],
+  ['stain', 'veneer', 'dark stained boards', 1.9, 512, 0.00, false, false, { tint: false }],
   ['bark', 'log', 'bark', 1.1, 512, 0.00, false, false],
-  ['concrete', 'stone', 'damaged concrete', 2.8, 512, 0.00, false, false],
+  ['concrete', 'stone', 'damaged concrete', 2.8, 1024, 0.00, false, false],
+  ['concretec', 'stone', 'coarse dark concrete', 2.8, 1024, 0.00, false, false],
 ];
 
 // THE SIZE COMES FROM THE IMPORT, not from the table below: it derives px from
@@ -138,7 +153,7 @@ const report = [];
 const emitted = [];
 const sz = rel => fs.statSync(path.join(ROOT, rel)).size;
 let bytes = 0;
-for (const [k, kind, name, tile, pxWant, metal, paint, ribbed] of SETS) {
+for (const [k, kind, name, tile, pxWant, metal, paint, ribbed, opt] of SETS) {
   const px = SIZES[k] || pxWant;
   if (SIZES[k] && SIZES[k] !== pxWant)
     console.log('  note: ' + k + ' baked at ' + SIZES[k] + ' px (table said ' +
@@ -147,8 +162,10 @@ for (const [k, kind, name, tile, pxWant, metal, paint, ribbed] of SETS) {
         r = bake(k, 'rough', px);
   const p = paint ? bake(k, 'paint', px) : null;
   for (const rel of [d, n, r, p]) if (rel) { emitted.push(rel); bytes += sz(rel); }
+  const flags = (opt && opt.tint === false ? ', tint: false' : '') +
+    (opt && opt.punch !== undefined ? `, punch: ${opt.punch}` : '');
   body += `    ${k}: { kind: '${kind}', name: '${name}', tile: ${tile}, ` +
-    `px: ${px}, metal: ${metal}, ribbed: ${ribbed},\n` +
+    `px: ${px}, metal: ${metal}, ribbed: ${ribbed}${flags},\n` +
     `      diff: mk('${d}'),\n      nor: mk('${n}'),\n      rough: mk('${r}'),\n` +
     (p ? `      paint: mk('${p}') },\n` : `      paint: null },\n`);
   report.push(`${k} ${kind} ${px}px/${tile}m=${Math.round(px / tile)}`);
@@ -157,6 +174,59 @@ body += `  };
 })() : null;
 `;
 fs.writeFileSync(OUT, body);
+
+// ---------------------------------------------------------------------------
+// THE SKY (G234, the user: "give this an hdr for lighting and reflections
+// please"). tools/house_sky_prep.py turns each assets/house_sky/*.hdr into two
+// files and a measured rig; this only names them and copies the bytes.
+//   env  RGBE PNG, 512x256, LINEAR and unclipped: PMREM integrates it into the
+//        irradiance dome and the roughness chain, so it is the lighting and it
+//        is every reflection on the metal and the glass.
+//   bg   a tone-mapped JPEG: what you see behind the house.
+//   rig  where the sun is, its colour, and `direct` - the share of the light
+//        that arrives from it rather than from the whole dome. The bench aims
+//        its shadow-casting light down that vector, so the shadow on the grass
+//        and the highlight on the roof agree with the photograph behind them.
+// A repo with no assets/house_sky/ bakes no skies and the bench falls back to
+// its four painted moods, which is why this is soft-failing and the gate does
+// not require a sky.
+const SKYSRC = path.join(ROOT, 'assets', 'house_sky', 'out');
+let skies = {};
+try {
+  skies = JSON.parse(fs.readFileSync(path.join(SKYSRC, '_skies.json'), 'utf8'));
+} catch (e) { skies = {}; }
+let skyBody = '';
+for (const k of Object.keys(skies).sort()) {
+  const s = skies[k];
+  const env = writeMedia(SUB, `sky_${k}_env_${s.w}`, 'png',
+                         fs.readFileSync(path.join(SKYSRC, `${k}_env.png`)));
+  const bg = writeMedia(SUB, `sky_${k}_bg_2k`, 'jpg',
+                        fs.readFileSync(path.join(SKYSRC, `${k}_bg.jpg`)));
+  for (const rel of [env, bg]) { emitted.push(rel); bytes += sz(rel); }
+  const v3 = a => `[${a.map(x => +x).join(', ')}]`;
+  skyBody += `    ${k}: { name: '${s.name}', w: ${s.w}, h: ${s.h}, ` +
+    `sun: ${v3(s.sun)}, sunCol: ${v3(s.sunCol)}, direct: ${s.direct}, ` +
+    `ev: ${s.ev},\n` +
+    `      hor: ${v3(s.hor)}, gnd: ${v3(s.gnd)}, zen: ${v3(s.zen)},\n` +
+    `      env: mk('${env}'), bg: mk('${bg}') },\n`;
+  report.push(`sky:${k} ${s.w}x${s.h} direct=${s.direct} ev=${s.ev}`);
+}
+fs.appendFileSync(OUT, `
+// THE CAPTURED SKIES (G234). \`env\` is an RGBE equirectangle - four bytes a
+// pixel, mantissa and a shared exponent - so the consumer decodes it with a
+// canvas and one exp2 per pixel and hands the floats to PMREM. \`sun\` is a
+// unit vector in the same frame the equirect is sampled in
+// (dir = (sin0 sin0, cos0, sin0 cos0), u running -pi..pi), \`direct\` the share
+// of the sphere's light that arrives from the sun rather than from the dome,
+// and every colour is the measured mean of that part of the sphere.
+const HOUSE_SKIES = (typeof Image !== 'undefined') ? (() => {
+  ${BASE_DECL}
+  const mk = src => { const i = new Image(); i.src = B + src; return i; };
+  return {
+${skyBody}  };
+})() : null;
+`);
+
 const gone = pruneMedia(SUB, emitted);
 const dens = SETS.map(s => (SIZES[s[0]] || s[4]) / s[3]);
 console.log(`src/viewer/house_tex.js (${(body.length / 1024).toFixed(1)} KB) + ` +

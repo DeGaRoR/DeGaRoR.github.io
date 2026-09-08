@@ -35456,3 +35456,113 @@ the deck's veneer — a wall panel where a foundation should be. There is a
 fourth skirt option now (`concrete`), it goes in the stone bag, it runs down
 below the lowest ground rather than following it, and lattice/boards keep their
 own materials (boards are cladding, so they take the wall's planks).
+
+## G234 — THE HOUSE IS LIT BY A PHOTOGRAPH, THE LONG STAIR TURNS, THE CORNER
+## IS AN ARCHITECTURE, AND THE LIBRARY IS ALLOWED TO REFUSE (2026-09-08, the
+## user: "give this an hdr for lighting and reflections please ... when the
+## stairs are too long, do a 90° bend in the stairs, with a little 'palier' ...
+## you should limit the paint punch generally speaking, it oversaturates and
+## over contrasts ... When choosing the logs, you may want to have appropriate
+## architecture ... don't recolor dark strained boards")
+
+Eight items off one review. The through-line in most of them: a knob that was
+right in the middle of its range was wrong at the ends, and the fix was to let
+the DATA carry the limit instead of the slider.
+
+- **THE SKY IS A PHOTOGRAPH** (`tools/house_sky_prep.py`, new). Four painted
+  moods are enough to judge a silhouette by and not enough to judge a MATERIAL
+  by: a gradient has no cloud edges, so a rough plank gets a smear where it
+  should get structure and a metal roof reflects one flat colour. Each
+  `assets/house_sky/*.hdr` (untracked, like every raw asset) now bakes to THREE
+  things that have to agree or the model floats:
+  the ENVIRONMENT — a 512x256 RGBE PNG, linear and unclipped, four bytes a
+  pixel, decoded in the browser with a canvas and one `exp2` (no loader, no
+  vendored parser, no float upload) and handed to PMREM as half floats;
+  the BACKDROP — a tone-mapped 2k JPEG, curved ONCE here because the renderer
+  tone-maps again on the way to the screen and two shoulders read as fog
+  (sky_prep paid for that lesson already);
+  and a MEASURED RIG — the sun's direction, its colour, and `direct`, its share
+  of the sphere's light, integrated in the float data before any curve throws
+  it away. 0.061 for this sunset, which is why its shadow is soft and should
+  be. Two authored numbers, both anchors: `MEAN_TARGET` (the dome is normalised
+  to a fixed mean, since Poly Haven does not calibrate) and `EV_ANCHOR`, from
+  which the published `ev` is derived as the COSINE-WEIGHTED upper hemisphere —
+  the light that actually falls on a roof. The sphere mean cannot stand in for
+  it: a black ground and a snowfield give the same mean and light a house
+  completely differently.
+  In the bench the azimuth slider yaws the BUILDING, not the sky (an equirect
+  background and a PMREM cube both sample in world space and have no offset to
+  give, and the house, the site plane and the tide already hang off one group).
+  0.77 MB for the pair; `media/tex/house/` is 83 files, 8.47 MB.
+
+- **A LONG FLIGHT TURNS, AND THEN SWITCHES BACK.** The first turn is the one
+  that pays and the reason is the slope: walking on down the fall line the
+  ground runs away under you, and every tread buys less than a tread of height
+  (twelve degrees of beach against a stair's thirty-two) — so a three-metre
+  deck was 35 treads and fifteen metres of z, marching into the sea. Turn
+  across the contour and the ground stops falling: the rise is fixed at what it
+  is under the landing. That alone took the same stair to 30. After the turn
+  every flight is capped at `STAIR_MAX` (13 — measured on the STRAIGHT
+  solution, which a slope already inflates; at eight an ordinary shore cabin
+  bent its porch stair, which is fussy and is not what was asked for) and the
+  stair SWITCHES BACK, each
+  landing a half-turn one stair-width further out — which is what a hillside
+  stair is, and why it fits beside a house. `stairPlan` is separate from the
+  drawing for one reason: WHEN A FLIGHT TURNS THE FOOT MOVES, and the caller
+  has to know where before anything is drawn, because that is where the jetty
+  goes. The palier is built like the deck (rim beams, boards, legs cut to the
+  ground under each); a quarter turn is one width square, a half turn twice as
+  deep, because the two flights it joins run side by side. The back stoop uses
+  the same planner and turns AWAY from the lean-to.
+
+- **THE CORNER IS A CHOICE OF THREE** — corner boards, crossed log ends, plain.
+  The odd combination the user saw was a wall at LOG SCALE finished like a
+  boarded one: a milled strap covering a joint a log wall does not have. A log
+  wall cannot be mitred or strapped; it is stacked, and the two walls at a
+  corner take turns, one course standing out past the corner each way. That
+  alternation IS the corner. Drawn every other course in the far mesh, which
+  keeps the silhouette at half the cost. The sampler picks it for a chunky,
+  log-scale scan half the time and a corner board otherwise.
+
+- **THE PUNCH ROLLS OFF, AND THE LIBRARY CAN CAP IT.** A flat saturation gain
+  was written to rescue the chroma a neutral map takes out of a tint, and on a
+  washed-out grey plank it is right — but on paint already at 0.4 chroma it
+  walks off the end of the gamut, and on a long board there is no joint to
+  break up the result. So the lift is now scaled by the room the pixel still
+  has (full on a grey, nothing on a saturated red), the gains are halved
+  (0.65 -> 0.35 on saturation, 0.30 -> 0.16 on contrast), and the default is
+  0.25. On top of that a SET may cap it: `board` (long boards) caps at 0, and
+  because the punch is one pair of uniforms for the whole house the cap is
+  taken over every role that covers area.
+
+- **A SET MAY ALSO REFUSE THE TINT.** `stain` is no longer paintable and no
+  longer tintable: a neutral map is made by dividing the hue out and re-basing
+  the luminance, which on a 0.11-mean stain lifts it to 0.78 and is no longer a
+  stain, and a straight tint on the raw scan is mud. Declared in the payload
+  (`tint: false`, `punch: 0`) and mirrored in the generator's `SET_TINT` so it
+  is right with no payload loaded — the SET_KIND arrangement exactly, and GATE
+  HOUSE holds the two tables together AND checks the behaviour.
+
+- **TWO FOUNDATIONS, BOTH IN THE SPLASH.** `cracked_concrete_02` joins as the
+  coarse dark one (measured grain 0.036 against the first's 0.015, darker in
+  all three channels). And the dirt is now PER MATERIAL: the height is shared,
+  but the pale dust that belongs on painted cladding was bleaching the concrete
+  it stands on — which is why it looked like it was not in the ramp at all. The
+  stone takes a darker, wetter line and 1.55x as much of it.
+
+- **THE GLASS IS GLASS**: waviness 1.6 -> 0.2, roughness 0.10 -> 0.4, the
+  user's own numbers. 1.6 tilted the normal far enough to facet the reflection,
+  which reads as hammered glass.
+
+- **AN ANGLED BOARD IS MAPPED IN ITS OWN PLANE.** `rimLoop` and `faceBoard` put
+  v on a plumb line, which is a PROJECTION: on a 40-degree rake the grain ran
+  across the board and the texture was squashed by cos(40), so every barge
+  board disagreed with the fascia it met. v is now simply what is left of the
+  frame once u runs along the board. On a level fascia that IS the plumb line,
+  so nothing that was right changed.
+
+- Gates: HOUSE (with three new rules — the two tables agree AND the generator
+  obeys them; a flight arrives where it said it would and a long one has a
+  landing in it) and MEDIA green; `--selftest` still says every rule is proven
+  able to go red, and the three new ones were each driven red by hand
+  (untintable set made tintable, cap removed, the rise fudged by a tenth).

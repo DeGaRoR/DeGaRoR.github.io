@@ -101,8 +101,30 @@ const SET_KIND = {
   veneer: 'veneer', veneerdark: 'veneer', veneerwarm: 'veneer',
   veneerpale: 'veneer', stain: 'veneer',
   bark: 'log',
-  concrete: 'stone',
+  concrete: 'stone', concretec: 'stone',
 };
+
+// WHAT A SET REFUSES. Mirrored from src/viewer/house_tex.js the way SET_KIND
+// is, and for the same reason: the generator has to be right with no payload
+// loaded, and GATE HOUSE holds the two against each other.
+//
+//   tint: false   never recoloured (the user: "don't recolor dark strained
+//                 boards. These one do not tolerate a trim paint on top"). A
+//                 stain is a finish that SHOWS the wood; a tint over it is
+//                 mud, and a neutralised map of it is no longer a stain at
+//                 all. The colour index is simply ignored for these.
+//   punch: 0      caps the paint punch (the user: "You should really only use
+//                 longboard with paint punch = 0"). The punch is a saturation
+//                 and contrast lift, and a long unbroken board carries one
+//                 colour across a metre of wall: nothing interrupts the lift,
+//                 so it stops reading as paint and starts reading as a filter.
+//                 The cap is taken over EVERY set the house is wearing, not
+//                 just the wall's, because the uniform is one number.
+const SET_TINT = {
+  stain: { tint: false },
+  board: { punch: 0 },
+};
+const setTint = key => SET_TINT[key] || {};
 
 // THE RULE, in the user's own words: "Finishes, beams and pillars takes
 // veneer. Walls and floors take planks. Roofs take metal sheets or tiles."
@@ -131,7 +153,12 @@ const ORDER = {
   deck: ['veneerwarm', 'veneer', 'veneerpale', 'veneerdark', 'stain'],
   post: ['bark', 'veneerdark', 'stain', 'veneerwarm', 'veneer', 'veneerpale'],
   metal: ['galv', 'rust'],
-  stone: ['concrete'],
+  // TWO FOUNDATIONS (the user: "They should be 2 of them; a fine grain light
+  // one (the current setup is OK), and a coarse grain darker one"). Measured
+  // on the scans themselves: grain (the r.m.s. of the diffuse against its own
+  // sixteen-times blur) 0.015 for the first and 0.036 for the second, which is
+  // darker in all three channels as well.
+  stone: ['concrete', 'concretec'],
 };
 const ROLE_SETS = (() => {
   const out = {};
@@ -215,7 +242,9 @@ function dressMat(m, key, colIdx, o) {
   const S = libSets();
   const set = S && S[key];
   const ci = clamp(Math.round(colIdx || 0), 0, COLS.length - 1);
-  const natural = ci === 0;
+  // a set that refuses the tint is always worn as delivered, whatever the pot
+  // says — see SET_TINT
+  const natural = ci === 0 || setTint(key).tint === false;
   if (!set) {                         // no payload: the flat colour stands in
     m.color.setHex(natural ? (opt.flat || 0xb0aaa2) : COLS[ci][1]);
     return;
@@ -304,10 +333,20 @@ function shadeHouse(m) {
   // per-material, because only the wall is painted this way
   ud.paint = { uPaintCol: { value: new THREE.Color(1, 1, 1) },
                uPaintMode: { value: 0 } };
+  // THE DIRT IS PER MATERIAL, not one ramp for the whole house (the user:
+  // "All foundations need to be subject to the dirt gradient"). Height is
+  // shared — the splash line is the splash line — but what the splash DOES is
+  // not: on painted cladding it is pale dust off a dry track, and on the
+  // concrete it stands on it is the dark tide line of something that has been
+  // wet a hundred times. One colour for both made the foundation look
+  // bleached, which is how it came to look like it was not in the ramp at all.
+  ud.dirt = { uDirtOwn: { value: new THREE.Color(0x6d6353) },
+              uDirtGain: { value: 1.0 } };
   if (!SHADE_U.uDirtCol.value) SHADE_U.uDirtCol.value = new THREE.Color(0x6d6353);
   m.onBeforeCompile = sh => {
     for (const k in SHADE_U) sh.uniforms[k] = SHADE_U[k];
     for (const k in ud.paint) sh.uniforms[k] = ud.paint[k];
+    for (const k in ud.dirt) sh.uniforms[k] = ud.dirt[k];
     sh.vertexShader = 'varying float vHouseY;\nvarying float vHouseAO;\n' +
       'varying vec3 vHouseP;\nattribute float aHouseAO;\n' +
       sh.vertexShader.replace(
@@ -317,7 +356,8 @@ function shadeHouse(m) {
     sh.fragmentShader =
       'varying float vHouseY;\nvarying float vHouseAO;\nvarying vec3 vHouseP;\n' +
       'uniform float uDirtTop, uDirtH, uDirtK, uSat, uCon, uAOd, uNoiseK, uNoiseS;\n' +
-      'uniform vec3 uDirtCol, uPaintCol;\nuniform float uPaintMode;\n' +
+      'uniform vec3 uDirtCol, uDirtOwn, uPaintCol;\n' +
+      'uniform float uPaintMode, uDirtGain;\n' +
       'float hHash(vec3 p) { return fract(sin(dot(floor(p), ' +
       'vec3(127.1, 311.7, 74.7))) * 43758.5453); }\n' +
       'float hNoise(vec3 p) {\n' +
@@ -346,10 +386,26 @@ function shadeHouse(m) {
         '    }\n' +
         '    vec3 hc = diffuseColor.rgb;\n' +
         '    float hl = dot(hc, vec3(0.2126, 0.7152, 0.0722));\n' +
-        '    hc = mix(vec3(hl), hc, uSat);\n' +
-        '    hc = clamp((hc - 0.5) * uCon + 0.5, 0.0, 1.0);\n' +
-        '    float hd = pow(' + DIRT_EXPR + ', 1.7) * uDirtK;\n' +
-        '    diffuseColor.rgb = mix(hc, uDirtCol, hd);\n' +
+        // THE PUNCH ROLLS OFF ON A COLOUR THAT ALREADY HAS ONE (the user:
+        // "you should limit the paint punch generally speaking, it
+        // oversaturates and over contrasts, to unnatural looks, especially on
+        // long boards"). A flat gain is the wrong instrument: it was written
+        // to rescue the CHROMA the neutral map takes out of a tint, and on a
+        // washed-out grey plank that is exactly right — but applied to paint
+        // that is already at 0.4 chroma it walks straight off the end of the
+        // gamut, and on a long board there is no joint to break up the
+        // result. So the lift is scaled by the room the pixel still has:
+        // full on a grey, nothing on a saturated red. The contrast keeps a
+        // third of its gain everywhere, because some of it is doing honest
+        // work on the scan's own shading.
+        '    float hch = max(max(hc.r, hc.g), hc.b) - min(min(hc.r, hc.g), hc.b);\n' +
+        '    float hroom = 1.0 - clamp(hch * 2.6, 0.0, 1.0);\n' +
+        '    hc = mix(vec3(hl), hc, 1.0 + (uSat - 1.0) * hroom);\n' +
+        '    hc = clamp((hc - 0.5) * (1.0 + (uCon - 1.0) * (0.35 + 0.65 * hroom))\n' +
+        '               + 0.5, 0.0, 1.0);\n' +
+        '    float hd = clamp(pow(' + DIRT_EXPR + ', 1.7) * uDirtK * uDirtGain,\n' +
+        '                     0.0, 0.95);\n' +
+        '    diffuseColor.rgb = mix(hc, uDirtOwn, hd);\n' +
         '    diffuseColor.rgb *= mix(1.0, clamp(vHouseAO, 0.0, 1.0), uAOd);\n' +
         '    float hn = hNoise(vHouseP / uNoiseS) * 0.65 +\n' +
         '               hNoise(vHouseP / (uNoiseS * 0.37)) * 0.35;\n' +
@@ -363,7 +419,7 @@ function shadeHouse(m) {
         '#include <roughnessmap_fragment>\n' +
         '  roughnessFactor = clamp(roughnessFactor + (hNoise(vHouseP / ' +
         '(uNoiseS * 0.61)) - 0.5) * uNoiseK * 1.2 + pow(' + DIRT_EXPR +
-        ', 1.7) * uDirtK * 0.5, 0.04, 1.0);');
+        ', 1.7) * uDirtK * uDirtGain * 0.5, 0.04, 1.0);');
   };
   m.needsUpdate = true;
 }
@@ -420,14 +476,21 @@ function shadeGlass(m) {
   };
   m.needsUpdate = true;
 }
-const GLASS_U = { uGlassWave: { value: 1.6 }, uGlassRough: { value: 0.10 } };
+// THE GLASS THE USER ASKED FOR: "the windows should not really be see
+// through. A reflective surface, with a tiny bit of musgrave (field) as normal
+// and a little perlin noise as roughness ... You can lower the glass waviness
+// to 0,2 and the roughness to 0,4". 1.6 was a bottle bottom — it tilted the
+// normal far enough to break the reflection into facets, which reads as
+// hammered glass, not as glass. At 0.2 the field only bends what is already
+// reflected; the roughness at 0.4 is what stops the pane being a mirror.
+const GLASS_U = { uGlassWave: { value: 0.2 }, uGlassRough: { value: 0.4 } };
 
 function applyFinish(P) {
   for (const k of BAGS) if (k !== 'glass' && k !== 'pane' && MAT[k])
     shadeHouse(MAT[k]);
   shadeGlass(MAT.glass); shadeGlass(MAT.pane);
-  GLASS_U.uGlassWave.value = P.glassWave === undefined ? 1.6 : P.glassWave;
-  GLASS_U.uGlassRough.value = P.glassRough === undefined ? 0.10 : P.glassRough;
+  GLASS_U.uGlassWave.value = P.glassWave === undefined ? 0.2 : P.glassWave;
+  GLASS_U.uGlassRough.value = P.glassRough === undefined ? 0.4 : P.glassRough;
   // the ground line under the middle of the building, and how far the dust
   // climbs; the punch is one dial from washed-out to boat paint
   const g = groundFn(P);
@@ -435,6 +498,17 @@ function applyFinish(P) {
   SHADE_U.uDirtH.value = Math.max(0.05, P.dirtH || 0.9);
 
   SHADE_U.uAOd.value = P.aoDirect === undefined ? 0.35 : P.aoDirect;
+  // WHAT EACH MATERIAL DOES WITH THE SPLASH. Everything wooden takes the pale
+  // dust; the concrete takes a darker, WETTER line and takes more of it,
+  // because that is what a foundation looks like after one winter and it is
+  // the reason the user could not see the ramp on it at all.
+  for (const k of BAGS) {
+    const ud = MAT[k] && MAT[k].userData && MAT[k].userData.dirt;
+    if (!ud) continue;
+    const stone = k === 'stone';
+    ud.uDirtGain.value = stone ? 1.55 : 1.0;
+    ud.uDirtOwn.value.setHex(stone ? 0x453f36 : 0x6d6353);
+  }
   // WEATHER IS THE OTHER HALF OF THE PAINT DIAL (the user: "that looked newer,
   // less weathered ... would be nice to have more weathered and more fresh
   // looks blended in the different generated houses"). Fresh paint is
@@ -444,9 +518,22 @@ function applyFinish(P) {
   SHADE_U.uNoiseK.value = P.noise === undefined ? 0.16 : P.noise;
   SHADE_U.uNoiseS.value = P.noiseS || 3.7;
   const wthr = clamp(P.weather === undefined ? 0.5 : P.weather, 0, 1);
-  const punch = P.paintPunch === undefined ? 0.4 : P.paintPunch;
-  SHADE_U.uSat.value = Math.max(0.35, 1 + punch * 0.65 - wthr * 0.55);
-  SHADE_U.uCon.value = Math.max(0.75, 1 + punch * 0.30 - wthr * 0.18);
+  // THE CAP IS THE LIBRARY'S, NOT THE SLIDER'S. A set that says it cannot
+  // carry the punch (SET_TINT) caps it for the whole house, because the
+  // saturation and contrast lift is ONE pair of uniforms shared by every
+  // material — there is no way to punch the trim and spare the wall it is
+  // nailed to. The cap is taken over the roles that cover real area.
+  let punch = P.paintPunch === undefined ? 0.25 : P.paintPunch;
+  for (const role of ['wall', 'trim', 'deck', 'post', 'floor']) {
+    const cap = setTint(setFor(P, role)).punch;
+    if (cap !== undefined) punch = Math.min(punch, cap);
+  }
+  // and the gains themselves are halved from the first cut: 0.65 on the
+  // saturation was enough to take a mid red past the sRGB gamut before the
+  // rolloff was in the shader, and the two together were doing the same work
+  // twice
+  SHADE_U.uSat.value = Math.max(0.35, 1 + punch * 0.35 - wthr * 0.45);
+  SHADE_U.uCon.value = Math.max(0.80, 1 + punch * 0.16 - wthr * 0.14);
   SHADE_U.uDirtK.value = (P.dirt === undefined ? 0.45 : P.dirt) *
                          (0.35 + wthr * 1.1);
   dressMat(MAT.siding, setFor(P, 'wall'), P.wallCol,
@@ -466,7 +553,7 @@ function applyFinish(P) {
           { flat: 0x6d6154, nrm: NRM.floor });
   dressMat(MAT.post, setFor(P, 'post'), P.postCol,
           { flat: 0x4a4038, nrm: NRM.post });
-  dressMat(MAT.stone, 'concrete', 0,
+  dressMat(MAT.stone, setFor(P, 'stone'), 0,
           { flat: 0x8e8b85, nrm: NRM.stone });
   dressMat(MAT.metal, setFor(P, 'metal'), P.metalCol,
           { flat: 0xb4bcc2, nrm: NRM.metal, rough: 0.85 });
@@ -504,6 +591,8 @@ function finishReport() {
 const DEF = {
   // plan
   L: 11.0, w: 7.0, storeys: 1, floorH: 2.55, wallT: 0.16,
+  // how the two walls at a corner meet, and the log if they cross
+  corner: 0, logD: 0.24, logOut: 0.24,
   // stance
   stance: 2, floorY: 1.05, slopeX: 0, slopeZ: 7, postSpc: 2.4, postSz: 0.16,
   brace: 1, skirt: 0, padSz: 0.42,
@@ -544,12 +633,12 @@ const DEF = {
   deckSet: SET_IDX('deck', 'veneerwarm'), deckCol: 0,
   floorSet: SET_IDX('floor', 'deckwood'),
   postSet: SET_IDX('post', 'bark'), postCol: 0,
-  metalSet: 0, metalCol: 0,
+  metalSet: 0, metalCol: 0, stoneSet: 0,
   // the two dials that are not a texture: the dust off the ground, and how
   // hard the paint is pushed
-  dirt: 0.45, dirtH: 0.95, paintPunch: 0.40, weather: 0.5,
+  dirt: 0.45, dirtH: 0.95, paintPunch: 0.25, weather: 0.5,
   noise: 0.16, noiseS: 3.7, paintBlend: 0,
-  glassWave: 1.6, glassRough: 0.10,
+  glassWave: 0.2, glassRough: 0.4,
   // the back door, and the stoop that makes it worth having
   backDoor: 0, backDoorPos: 0.5, backPorch: 1,
   // the baked occlusion: how dark it goes, how far it reaches, and how much of
@@ -560,6 +649,7 @@ const DEF = {
 const FAMS = ['gable', 'shed', 'saltbox', 'gambrel'];
 const STANCES = ['slab', 'cripple wall', 'posts', 'piles', 'skids'];
 const SKIRTS = ['open', 'lattice', 'boards', 'concrete'];
+const CORNERS = ['corner boards', 'crossed log ends', 'plain'];
 const RAILS = ['none', 'balusters', 'horizontal', 'solid panel'];
 const PORCHROOFS = ['none', 'door canopy', 'over the deck'];
 const CHIMS = ['none', 'stove pipe', 'masonry'];
@@ -572,6 +662,11 @@ const ROWS = [
     ['storeys', 'storeys', 1, 3, 1],
     ['floorH', 'storey height', 2.1, 3.4, 0.01],
     ['wallT', 'wall thickness', 0.08, 0.40, 0.005],
+    ['corner', 'corners', 0, 2, 1, CORNERS],
+    ['logD', 'log course', 0.14, 0.40, 0.005, null,
+     P => Math.round(P.corner) === 1],
+    ['logOut', 'ends project', 0.08, 0.55, 0.01, null,
+     P => Math.round(P.corner) === 1],
   ]],
   ['stance', [
     ['stance', 'stands on', 0, 3, 1, STANCES],
@@ -713,6 +808,8 @@ const ROWS = [
     ['postCol', 'post stain', 0, COLS.length - 1, 1, COL_NAMES],
     ['metalSet', 'gutters + pipe', 0, ROLE_SETS.metal.length - 1, 1,
      setNames('metal')],
+    ['stoneSet', 'foundations', 0, ROLE_SETS.stone.length - 1, 1,
+     setNames('stone')],
     ['metalCol', 'metalwork paint', 0, COLS.length - 1, 1, COL_NAMES],
     ['weather', 'weathered <-> fresh', 0, 1, 0.02],
     ['noise', 'breakup noise', 0, 0.5, 0.01],
@@ -760,6 +857,7 @@ const PRESETS = {
     lean: 0, chim: 1, ribs: 1,
   },
   'cannery shed': {
+    corner: 2, stoneSet: SET_IDX('stone', 'concretec'),
     wallSet: SET_IDX('wall', 'corrworn'), wallCol: 0,
     trimSet: SET_IDX('trim', 'board'), trimCol: 6,
     roofSet: SET_IDX('roof', 'galv'), roofCol: 0,
@@ -879,6 +977,7 @@ const PRESETS = {
   // A BARN: the gambrel nothing else in the list uses, on a concrete base,
   // with a cart door and no deck at all.
   'gambrel barn': {
+    stoneSet: SET_IDX('stone', 'concretec'),
     L: 13.0, w: 9.0, storeys: 2, floorH: 2.85, roofFam: 3, pitch: 20,
     pitch2: 62, brkF: 0.58, stance: 2, floorY: 0.55, slopeZ: 3,
     eaveOver: 0.35, rakeOver: 0.28, roofT: 0.16,
@@ -961,6 +1060,10 @@ const PRESETS = {
     nFront: 2, nBack: 1, nLeft: 1, nRight: 1, winW: 0.85, winH: 1.0,
     wallT: 0.28, porchD: 1.8, skirt: 1,
     porchLenF: 1.0, porchRoof: 2, railStyle: 1, chim: 2, chimR: 0.32,
+    // the one preset that is actually stacked: the ends alternate and cross,
+    // and there is no corner board because a log wall has no joint to cover
+    corner: 1, logD: 0.28, logOut: 0.26, trimW: 0.09,
+    stoneSet: SET_IDX('stone', 'concretec'),
   },
 };
 
@@ -1378,13 +1481,59 @@ function buildVolume(bags, P, Q, V, R, plan, wallOpts) {
       }
     }
     // corner boards: the vertical straps that make a painted board house read
-    if (P.trimW > 0.004) {
+    if (P.trimW > 0.004 && Math.round(P.corner) === 0) {
       const cA = add(W.P(0.001, V.floorY - 0.10, 1), mul(W.N, 0.02));
       const top = R.underAt(A[0], A[1]);
       beam(bags.trim, cA, [cA[0], top, cA[2]], P.trimW * 0.85, 0.030, W.N);
     }
   }
   return { dropped: drop.reduce((a, b) => a + b, 0), openings: kept };
+}
+
+// ---------------------------------------------------------------------------
+// HOW THE WALLS MEET AT A CORNER (the user: "When choosing the logs, you may
+// want to have appropriate architecture; either logs on the sides, or log's
+// ends alternating and crossing. The current combination looks odd")
+// ---------------------------------------------------------------------------
+// The odd combination was a wall at LOG SCALE finished like a boarded one: a
+// milled corner strap, painted, covering a joint that a log wall does not
+// have. A log wall cannot be mitred and cannot be strapped — it is STACKED,
+// and the two walls that meet at a corner have to take turns. One course
+// belongs to the wall running one way and its sawn end stands out past the
+// corner; the next course belongs to the other wall and stands out the other
+// way. That alternation is the corner: it is what stops the two walls racking
+// apart, and it is what tells you at fifty metres that a building is logs.
+//
+// So the corner became a choice of three, and each is a whole architecture:
+//   corner boards      milled stock, a board house, the strap covers the joint
+//   crossed log ends   a log house — the ends alternate and cross
+//   plain              the claddings simply meet, which is a shed
+//
+// The ends are drawn every other course in the far mesh, which keeps the
+// outline (the gate holds both meshes to one silhouette) at half the cost.
+function buildLogCorners(bags, P, Q, V, R, plan) {
+  const c = clamp(P.logD === undefined ? 0.24 : P.logD, 0.12, 0.45);
+  const out = clamp(P.logOut === undefined ? 0.24 : P.logOut, 0.06, 0.60);
+  const y0 = V.floorY - 0.06;
+  const hw = Math.max(V.wallT, c) / 2;
+  const step = Q.lod === 0 ? 1 : 2;
+  for (let i = 0; i < plan.length; i++) {
+    const C = plan[i];
+    const A = plan[(i + plan.length - 1) % plan.length];
+    const B = plan[(i + 1) % plan.length];
+    const dA = nrm([C[0] - A[0], 0, C[1] - A[1]]);        // arrives at C
+    const dB = nrm([B[0] - C[0], 0, B[1] - C[1]]);        // leaves C
+    // the topmost course has to stay under the roof, like every other wall
+    const top = R.underAt(C[0], C[1]) - c * 0.6;
+    const n = Math.floor((top - y0) / c);
+    for (let k = 0; k < n; k += step) {
+      const y = y0 + (k + 0.5) * c;
+      const d = (k % 2 === 0) ? dA : mul(dB, -1);
+      beam(bags.siding, [C[0] - d[0] * hw, y, C[1] - d[2] * hw],
+           [C[0] + d[0] * out, y, C[1] + d[2] * out], hw, c * 0.46,
+           [0, 1, 0], 0, { uv: [(k * 0.37) % 1.7, y] });
+    }
+  }
 }
 
 // The roof itself: one plate per facet, then the metal on top of it. Standing
@@ -1402,8 +1551,13 @@ function faceBoard(bag, p0, p1, dropH, thick, out) {
   const o = mul(out, thick);
   const a = add(p0, o), b = add(p1, o);
   const ring = [a, b, [b[0], b[1] - dropH, b[2]], [a[0], a[1] - dropH, a[2]]];
-  plate(bag, ring, thick, mul(out, -1),
-        uvFrame(ring[3], nrm(sub(b, a)), [0, 1, 0]));
+  // mapped in the board's own plane, like every other rim board (G234): u
+  // along the run, v across it, so a raking board is not a squashed vertical
+  // projection of a level one
+  const eu = nrm(sub(b, a));
+  let dv = nrm(crs(eu, mul(out, -1)));
+  if (dv[1] < 0) dv = mul(dv, -1);
+  plate(bag, ring, thick, mul(out, -1), uvFrame(ring[3], eu, dv));
 }
 
 // ---------------------------------------------------------------------------
@@ -2439,24 +2593,22 @@ function buildDeck(bags, P, Q, V, R, g) {
     // is the one thing a beach house never has.
     const wet = P.water ? P.waterY : -1e9;
     const landY = P.water ? wet + 0.38 : null;
-    let n = 1, rise = 0, run = P.stairRun, zFoot = zOut;
-    for (let it = 0; it < 8; it++) {
-      const gAt = g(sx, zFoot);
-      const foot = (landY !== null && gAt < wet) ? landY : gAt;
-      const h = yTop - foot;
-      n = Math.max(1, Math.round(h / P.stairRise));
-      rise = h / n;
-      zFoot = zOut + n * run;
-    }
-    const gRaw = g(sx, zFoot);
+    const surf = (xx, zz) => {
+      const gAt = g(xx, zz);
+      return (landY !== null && gAt < wet) ? landY : gAt;
+    };
+    const sp = stairPlan(P, { x: sx, w: P.stairW, zTop: zOut, yTop: yTop,
+                              dir: 1 }, surf);
+    const zFoot = sp.footZ, run = P.stairRun, n = sp.n;
+    const gRaw = g(sp.footX, zFoot);
     const onWater = landY !== null && gRaw < wet;
     const gy = onWater ? landY : gRaw;
-    out.jetty = onWater ? { x: sx, z: zFoot, y: landY } : null;
+    out.jetty = onWater ? { x: sp.footX, z: zFoot, y: landY } : null;
     if (onWater) {
       // the landing itself: deck boards on four piles, and two posts to tie to
       const jw = Math.max(1.6, P.stairW + 0.9), jd = 1.5;
-      const jz0 = zFoot - 0.25, jz1 = jz0 + jd;
-      const jx0 = sx - jw / 2, jx1 = sx + jw / 2;
+      const jz0 = zFoot - (sp.lands.length ? jd / 2 : 0.25), jz1 = jz0 + jd;
+      const jx0 = sp.footX - jw / 2, jx1 = sp.footX + jw / 2;
       const rimJ = landY - 0.10;
       for (const zz of [jz0 + 0.12, jz1 - 0.12])
         beam(bags.deck, [jx0, rimJ, zz], [jx1, rimJ, zz], 0.05, 0.09,
@@ -2472,7 +2624,7 @@ function buildDeck(bags, P, Q, V, R, g) {
         }
       } else boxAB(bags.deck, [jx0, landY - 0.05, jz0], [jx1, landY, jz1]);
       for (const zz of [jz0 + 0.15, jz1 - 0.15])
-        for (const xx of [jx0 + 0.15, jx1 - 0.15]) {
+        for (const xx of [jx0 + 0.15, jx1 - 0.15]) {  // eslint-disable-line
           const sea = g(xx, zz);
           cyl(bags.post, [xx, sea - 0.4, zz], [0, 1, 0], P.postSz * 0.55,
               rimJ - (sea - 0.4), Q.lod === 0 ? 8 : 4, Q.lod === 0);
@@ -2481,18 +2633,14 @@ function buildDeck(bags, P, Q, V, R, g) {
         for (const xx of [jx0 + 0.10, jx1 - 0.10]) {
           const sea = g(xx, jz1 - 0.10);
           cyl(bags.post, [xx, sea - 0.4, jz1 - 0.10],
-              nrm([xx > sx ? 0.06 : -0.06, 1, 0.04]), P.postSz * 0.5,
+              nrm([xx > sp.footX ? 0.06 : -0.06, 1, 0.04]), P.postSz * 0.5,
               (landY + 0.62) - (sea - 0.4), 8, true);
         }
     }
-    out.stair = { n: n, rise: rise, run: run, w: P.stairW, x: sx,
-                  z0: zOut, z1: zFoot, y0: gy, y1: yTop };
+    out.stair = { n: n, rise: sp.rise, run: run, w: P.stairW, x: sx,
+                  z0: zOut, z1: zFoot, y0: gy, y1: yTop, turns: sp.lands.length };
     stairGap = [sx - P.stairW / 2 - 0.06, sx + P.stairW / 2 + 0.06];
-    // the same builder the back steps use: stringers and treads at lod 0, ONE
-    // SLOPING CUBOID at lod 1 (a wedge was cheaper still, but a flight reads
-    // as a raking box at any distance where the far mesh is on screen)
-    buildSteps(bags, P, Q, { x: sx, w: P.stairW, zTop: zOut, zFoot: zFoot,
-                             yTop: yTop, yFoot: gy, n: n });
+    buildSteps(bags, P, Q, sp, g);
   }
 
   // ---- the rail ------------------------------------------------------------
@@ -2617,33 +2765,160 @@ function backDoorX(P, V) {
   return clamp(x, -V.L / 2 + P.doorW / 2 + 0.35, V.L / 2 - P.doorW / 2 - 0.35);
 }
 
-// A FLIGHT OF STEPS, with the structure under it (the user: "The smaller
-// stairs at the back still need a full structure"). Two stringers cut to the
-// slope and a tread on every rise — the same thing the front stair has always
-// had, pulled out here so the back door gets it too instead of three treads
-// floating in the air.
-function buildSteps(bags, P, Q, o) {
-  const sx = o.x, sw = o.w / 2;
-  const zTop = o.zTop, zFoot = o.zFoot, yTop = o.yTop, yFoot = o.yFoot;
-  const n = Math.max(1, o.n), dir = Math.sign(zFoot - zTop) || 1;
-  const run = Math.abs(zFoot - zTop) / n, rise = (yTop - yFoot) / n;
-  if (Q.lod !== 0) {
-    beam(bags.deck, [sx, yTop - 0.06, zTop], [sx, yFoot + 0.05, zFoot],
-         sw, 0.12, [0, 1, 0]);
-    return n;
+// A FLIGHT OF STEPS — AND A TURN IF IT IS A LONG ONE (the user: "when the
+// stairs are too long, do a 90° bend in the stairs, with a little 'palier'";
+// and of the back one, "The smaller stairs at the back still need a full
+// structure").
+//
+// A house on piles over a falling beach can be three metres up, and three
+// metres in one straight run is sixteen treads and four and a half metres of
+// stair sticking out into the water — a fire escape, not a porch. Past eight
+// treads the flight is planned as TWO, with a landing between them and a
+// quarter turn on it. The landing is a real platform: rim beams, boards, and
+// its own legs cut to the ground under each one, because it carries what the
+// deck carries.
+//
+// THE PLAN IS SEPARATE FROM THE DRAWING for one reason: when a flight turns,
+// THE FOOT MOVES — and the caller has to know where it ended up before
+// anything is drawn, because that is where the jetty goes if it landed in the
+// water. `surf` is the height the stair may land on: the ground, or the tide
+// deck over it.
+// THIRTEEN TREADS, not eight. Two and a half metres of rise in one flight is
+// ordinary — every reference photograph of a porch has it — and the number is
+// measured on the STRAIGHT solution, which is already inflated on a slope
+// because the foot walks downhill away from the deck. At eight, an ordinary
+// shore cabin bent its porch stair, which looks fussy and is not what was
+// asked for. The bend is for the flight that is genuinely too long to be one:
+// a house on piles over a falling beach, where it is twenty-seven.
+const STAIR_MAX = 13;
+function stairPlan(P, o, surf) {
+  const dir = o.dir === undefined ? 1 : o.dir;          // +1 = +z, -1 = -z
+  const run = P.stairRun, w = o.w, x = o.x;
+  const zTop = o.zTop, yTop = o.yTop;
+  let n = 1, yFoot = yTop, zFoot = zTop;
+  for (let it = 0; it < 10; it++) {                     // the straight answer
+    yFoot = surf(x, zFoot);
+    n = Math.max(1, Math.round((yTop - yFoot) / P.stairRise));
+    zFoot = zTop + dir * n * run;
   }
-  for (const s2 of [-1, 1])                        // the stringers
-    beam(bags.deck, [sx + s2 * sw, yTop - 0.12, zTop],
-         [sx + s2 * sw, yFoot - 0.02, zFoot], 0.03, 0.14, [0, 1, 0]);
-  for (let i = 0; i < n; i++) {                    // and a tread on each rise
-    const z = zTop + dir * i * run;
-    const y = yTop - (i + 1) * rise;
-    const za = Math.min(z, z + dir * (run + 0.03));
-    const zb = Math.max(z, z + dir * (run + 0.03));
-    boxAB(bags.deck, [sx - sw, y - 0.045, za], [sx + sw, y, zb], null,
+  if (n <= STAIR_MAX || o.turn === 0)
+    return { n: n, rise: (yTop - yFoot) / n, w: w, lands: [],
+             flights: [{ x: x, z: zTop, ax: [0, dir], n: n, yTop: yTop }],
+             footX: x, footZ: zFoot, footY: yFoot };
+  // ACROSS THE SLOPE, AND BACK AGAIN. The first turn is the one that pays:
+  // walking on down the fall line, the ground runs away under you and every
+  // tread you add buys less than a tread of height (twelve degrees of beach
+  // against a stair's thirty-two), so the straight flight off a three-metre
+  // deck was thirty-five treads and fifteen metres of z. Turn across the
+  // contour and the ground stops falling: the rise is fixed at what it is
+  // under the landing, and the stair only has to be long enough for it.
+  // After that every flight is capped and the stair SWITCHES BACK, each
+  // landing a half-turn and one stair-width further out — which is what a
+  // hillside stair is, and why it is compact enough to stand beside a house.
+  const sgn = o.turn || (x >= 0 ? 1 : -1);
+  const nA = Math.min(STAIR_MAX, Math.max(2, Math.round(n / 2)));
+  const zL = zTop + dir * (nA * run + w / 2);
+  let nB = Math.max(1, n - nA), rise = (yTop - yFoot) / n, out = null;
+  for (let it = 0; it < 10; it++) {
+    const parts = Math.max(1, Math.ceil(nB / STAIR_MAX));
+    const each = Math.ceil(nB / parts);
+    const yMid = yTop - nA * rise;
+    const flights = [{ x: x, z: zTop, ax: [0, dir], n: nA, yTop: yTop }];
+    const lands = [{ x: x, z: zL, y: yMid, w: w, d: w }];   // the quarter turn
+    let px = x + sgn * w / 2, pz = zL, py = yMid, s2 = sgn, left = nB;
+    for (let k = 0; k < parts && left > 0; k++) {
+      const nk = Math.min(each, left);
+      left -= nk;
+      flights.push({ x: px, z: pz, ax: [s2, 0], n: nk, yTop: py });
+      px += s2 * nk * run;
+      py -= nk * rise;
+      if (left > 0) {                                       // a half turn
+        lands.push({ x: px + s2 * w / 2, z: pz + dir * w / 2, y: py,
+                     w: w, d: 2 * w });
+        px += s2 * w;
+        pz += dir * w;
+        s2 = -s2;
+      }
+    }
+    out = { flights: flights, lands: lands, footX: px, footZ: pz };
+    const yF = surf(px, pz);
+    const tot = Math.max(nA + 1, Math.round((yTop - yF) / P.stairRise));
+    rise = (yTop - yF) / tot;
+    nB = Math.max(1, tot - nA);
+    yFoot = yF;
+  }
+  return { n: nA + nB, rise: rise, w: w, lands: out.lands,
+           flights: out.flights, footX: out.footX, footZ: out.footZ,
+           footY: yFoot };
+}
+
+// one straight flight, along either axis: stringers and treads at lod 0, ONE
+// SLOPING CUBOID at lod 1 (a wedge was cheaper still, but a flight reads as a
+// raking box at any distance where the far mesh is on screen)
+function stepFlight(bags, P, Q, o) {
+  const ux = o.ax[0], uz = o.ax[1], px = -uz, pz = ux, hw = o.w / 2;
+  const yBot = o.yTop - o.n * o.rise;
+  const at = (t, y) => [o.x + ux * t, y, o.z + uz * t];
+  const T = o.n * o.run;
+  if (Q.lod !== 0) {
+    beam(bags.deck, at(0, o.yTop - 0.06), at(T, yBot + 0.05), hw, 0.12,
+         [0, 1, 0]);
+    return;
+  }
+  for (const s2 of [-1, 1]) {                          // the stringers
+    const a = at(0, o.yTop - 0.12), b = at(T, yBot - 0.02);
+    beam(bags.deck, [a[0] + px * s2 * hw, a[1], a[2] + pz * s2 * hw],
+         [b[0] + px * s2 * hw, b[1], b[2] + pz * s2 * hw], 0.03, 0.14,
+         [0, 1, 0]);
+  }
+  for (let i = 0; i < o.n; i++) {                      // a tread on each rise
+    const y = o.yTop - (i + 1) * o.rise;
+    const c0 = at(i * o.run, y), c1 = at(i * o.run + o.run + 0.03, y);
+    boxAB(bags.deck,
+          [Math.min(c0[0], c1[0]) - Math.abs(px) * hw, y - 0.045,
+           Math.min(c0[2], c1[2]) - Math.abs(pz) * hw],
+          [Math.max(c0[0], c1[0]) + Math.abs(px) * hw, y,
+           Math.max(c0[2], c1[2]) + Math.abs(pz) * hw], null,
           [(i * 31 % 17) * 0.37, (i * 13 % 11) * 0.29]);
   }
-  return n;
+}
+
+// THE PALIER. A rectangle of deck at the height the flight above it ends, on
+// four legs cut to the ground under each — the same parts the porch is made
+// of, at a quarter of the size, because a landing that is not built like the
+// deck is exactly the thing that reads as a floating box. A quarter turn is
+// one stair-width square; a half turn is twice as deep, because the two
+// flights it joins run side by side.
+function buildLanding(bags, P, Q, L, g) {
+  const hx = L.w / 2, hz = (L.d || L.w) / 2, rim = L.y - 0.11;
+  const x0 = L.x - hx, x1 = L.x + hx, z0 = L.z - hz, z1 = L.z + hz;
+  for (const zz of [z0 + 0.07, z1 - 0.07])
+    beam(bags.deck, [x0, rim, zz], [x1, rim, zz], 0.05, 0.09, [0, 1, 0]);
+  if (Q.lod === 0) {
+    const bw = P.deckBoard, gp = 0.010;
+    const nb = Math.max(1, Math.floor((z1 - z0) / (bw + gp)));
+    for (let i = 0; i < nb; i++) {
+      const z = z0 + i * (bw + gp);
+      boxAB(bags.deck, [x0, L.y - 0.035, z], [x1, L.y, z + bw], null,
+            [(i * 37 % 13) * 0.41, (i * 17 % 7) * 0.53]);
+    }
+  } else boxAB(bags.deck, [x0, L.y - 0.05, z0], [x1, L.y, z1]);
+  for (const xx of [x0 + 0.10, x1 - 0.10])
+    for (const zz of [z0 + 0.10, z1 - 0.10]) {
+      const gy = g(xx, zz);
+      if (rim - gy < 0.20) continue;
+      beam(bags.post, [xx, gy - 0.05, zz], [xx, rim, zz], P.postSz * 0.42,
+           P.postSz * 0.42, [0, 0, 1], 0, { uv: [xx + zz, 0] });
+    }
+}
+
+function buildSteps(bags, P, Q, sp, g) {
+  for (const f of sp.flights)
+    stepFlight(bags, P, Q, { x: f.x, z: f.z, ax: f.ax, n: f.n,
+                             run: P.stairRun, rise: sp.rise, yTop: f.yTop,
+                             w: sp.w });
+  for (const L of sp.lands) buildLanding(bags, P, Q, L, g);
+  return sp.n;
 }
 
 // A SMALL BACK STOOP: a landing the width of the door, two or three steps, and
@@ -2684,16 +2959,20 @@ function buildStoop(bags, P, Q, V, g) {
   }
   // the steps down to the garden, or onto the landing if this is over water
   const sw = Math.min(wid - 0.2, 1.1);
-  let n = 1, zFoot = zOut, yFoot = 0;
-  for (let it = 0; it < 6; it++) {
-    const gAt = g(cx, zFoot);
-    yFoot = (P.water && gAt < P.waterY) ? P.waterY + 0.38 : gAt;
-    n = Math.max(1, Math.round((yTop - yFoot) / P.stairRise));
-    zFoot = zOut - n * P.stairRun;
-  }
-  buildSteps(bags, P, Q, { x: cx, w: sw, zTop: zOut, zFoot: zFoot,
-                           yTop: yTop, yFoot: yFoot, n: n });
-  return { x: cx, z: zOut, steps: n, foot: zFoot };
+  const surf = (xx, zz) => {
+    const gAt = g(xx, zz);
+    return (P.water && gAt < P.waterY) ? P.waterY + 0.38 : gAt;
+  };
+  // IF IT TURNS, IT TURNS AWAY FROM THE SHED. The lean-to is on this wall and
+  // the door has already stepped clear of it; a landing that turned back
+  // under it would put the whole point of that back.
+  const lsp = leanSpan(P, V);
+  const turn = lsp ? (cx >= (lsp[0] + lsp[1]) / 2 ? 1 : -1) : 0;
+  const sp = stairPlan(P, { x: cx, w: sw, zTop: zOut, yTop: yTop, dir: -1,
+                            turn: turn }, surf);
+  buildSteps(bags, P, Q, sp, g);
+  return { x: cx, z: zOut, steps: sp.n, foot: sp.footZ,
+           turns: sp.lands.length };
 }
 
 // ---------------------------------------------------------------------------
@@ -2851,6 +3130,7 @@ function build(P0, lod) {
   const openIdx = Math.round(P.openFront) - 1;
   if (openIdx >= 0 && openIdx < 4) wallOpts[openIdx].open = true;
   const vol = buildVolume(bags, P, Q, V, R, plan, wallOpts);
+  if (Math.round(P.corner) === 1) buildLogCorners(bags, P, Q, V, R, plan);
   // WHERE THE WALLS END. Everything after this writes into the same siding bag
   // — a dormer's cheeks, a belfry's drum — and those legitimately stand ABOVE
   // the roof's underside, which is the one thing GATE HOUSE forbids a wall to
@@ -3041,7 +3321,19 @@ function randomHouse(seed) {
   P.postSet = SET_IDX('post', pick(['veneerdark', 'stain', 'veneerwarm']));
   P.dirt = fresh ? rr(0.10, 0.35) : rr(0.35, 0.8);
   P.dirtH = rr(0.6, 1.4);
-  P.paintPunch = fresh ? rr(0.55, 0.95) : rr(0.2, 0.6);
+  // the punch is a smaller dial than it was (the user: "you should limit the
+  // paint punch generally speaking, it oversaturates and over contrasts");
+  // the library caps it to zero over a long-board wall whatever is asked here
+  P.paintPunch = fresh ? rr(0.30, 0.65) : rr(0.10, 0.40);
+  // THE CORNER FOLLOWS THE WALL. A chunky scan at log scale takes a log
+  // corner — ends alternating and crossing — and a milled board wall takes a
+  // corner board; a shed just lets the two claddings meet.
+  const wk = ROLE_SETS.wall[Math.round(P.wallSet)];
+  const logLook = ['greenwood', 'roughwood', 'brownwood'].indexOf(wk) >= 0;
+  P.corner = (logLook && odds(0.5)) ? 1 : (odds(0.85) ? 0 : 2);
+  P.logD = rr(0.18, 0.32); P.logOut = rr(0.14, 0.34);
+  // two foundations, and half the village got the coarse dark one
+  P.stoneSet = odds(0.5) ? 1 : 0;
   P.backDoor = odds(0.55) ? 1 : 0;
   P.backDoorPos = rr(0.25, 0.75);
   P.backPorch = odds(0.75) ? 1 : 0;
@@ -3058,7 +3350,8 @@ function dressSlot(matKey, role, idx, col, flat) {
 }
 
 window.HOUSE_GEN = {
-  DEF, ROWS, PRESETS, MAT, BAGS, FAMS, STANCES, RAILS,
+  DEF, ROWS, PRESETS, MAT, BAGS, FAMS, STANCES, RAILS, SET_TINT, SHADE_U,
+  STAIR_MAX,
   COLS, COL_NAMES, ROLE_SETS, SET_IDX, setNames, setFor, setRibbed,
   build, roofModel, wallSplits, groundFn, applyFinish, libSets, randomHouse,
   dressSlot, SET_KIND, ROLE_KIND, finishReport, NRM, PAINT_BLENDS,

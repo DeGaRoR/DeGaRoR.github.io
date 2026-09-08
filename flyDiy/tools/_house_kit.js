@@ -627,9 +627,22 @@ function rimLoop(bag, pts, outs, drop, thick, closed) {
   const inT = pts.slice();
   const outT = pts.map((p, i) => off(p, dirAt(i), thick));
   const dn = v => [v[0], v[1] - drop, v[2]];
+  // THE BOARD IS MAPPED AT ITS OWN ANGLE (the user: "If possible, the angled
+  // roof finish should be mapped at their angle, not projected horizontally").
+  // v used to be a plumb line, which is a PROJECTION: on a 40 degree rake the
+  // grain ran across the board and the texture was squashed by cos(40), so
+  // every barge board disagreed with the fascia it met at the eave. In the
+  // board's own plane there is nothing to choose - v is simply what is left of
+  // the frame once u runs along the board: perpendicular to the run, pointing
+  // down the face. On a level fascia that IS the plumb line, so nothing that
+  // was right changes.
+  const downOf = (eu, oN) => {
+    const d = nrm(crs(eu, oN));
+    return d[1] > 0 ? mul(d, -1) : d;
+  };
   for (let i = 0; i + 1 < n; i++) {
     const j = i + 1, oN = outs[i];
-    const eu = nrm(sub(pts[j], pts[i])), dvv = [0, -1, 0];
+    const eu = nrm(sub(pts[j], pts[i])), dvv = downOf(eu, oN);
     face(bag, [outT[i], outT[j], dn(outT[j]), dn(outT[i])], oN,
          uvFrame(outT[i], eu, dvv));                       // the face you see
     face(bag, [dn(inT[i]), dn(inT[j]), inT[j], inT[i]], mul(oN, -1),
@@ -642,8 +655,9 @@ function rimLoop(bag, pts, outs, drop, thick, closed) {
   if (!closed) {
     const cap = (i, sgn) => {
       const eu = nrm(sub(pts[Math.min(i + 1, n - 1)], pts[Math.max(0, i - 1)]));
+      const oN = outs[Math.min(i, outs.length - 1)];
       face(bag, [inT[i], outT[i], dn(outT[i]), dn(inT[i])], mul(eu, sgn),
-           uvFrame(inT[i], outs[Math.min(i, outs.length - 1)], [0, -1, 0]));
+           uvFrame(inT[i], oN, downOf(oN, eu)));
     };
     cap(0, -1); cap(n - 1, 1);
   }

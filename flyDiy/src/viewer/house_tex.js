@@ -59,7 +59,7 @@ const HOUSE_TEX_SETS = (typeof Image !== 'undefined') ? (() => {
       nor: mk('media/tex/house/greenwood_nor_gl_512.6fa2f93b.jpg'),
       rough: mk('media/tex/house/greenwood_rough_512.2185d6ba.jpg'),
       paint: mk('media/tex/house/greenwood_paint_512.d30f740e.jpg') },
-    board: { kind: 'plank', name: 'long boards', tile: 1.9, px: 512, metal: 0, ribbed: false,
+    board: { kind: 'plank', name: 'long boards', tile: 1.9, px: 512, metal: 0, ribbed: false, punch: 0,
       diff: mk('media/tex/house/board_diff_512.3ce5558b.jpg'),
       nor: mk('media/tex/house/board_nor_gl_512.721e862f.jpg'),
       rough: mk('media/tex/house/board_rough_512.d1f73b37.jpg'),
@@ -114,11 +114,11 @@ const HOUSE_TEX_SETS = (typeof Image !== 'undefined') ? (() => {
       nor: mk('media/tex/house/veneerpale_nor_gl_256.ea0d4b7d.jpg'),
       rough: mk('media/tex/house/veneerpale_rough_256.e3ec4a26.jpg'),
       paint: mk('media/tex/house/veneerpale_paint_256.45fea902.jpg') },
-    stain: { kind: 'veneer', name: 'dark stained boards', tile: 1.9, px: 512, metal: 0, ribbed: false,
+    stain: { kind: 'veneer', name: 'dark stained boards', tile: 1.9, px: 512, metal: 0, ribbed: false, tint: false,
       diff: mk('media/tex/house/stain_diff_512.bd4e8765.jpg'),
       nor: mk('media/tex/house/stain_nor_gl_512.a686a315.jpg'),
       rough: mk('media/tex/house/stain_rough_512.b4fecd9a.jpg'),
-      paint: mk('media/tex/house/stain_paint_512.2f123096.jpg') },
+      paint: null },
     bark: { kind: 'log', name: 'bark', tile: 1.1, px: 256, metal: 0, ribbed: false,
       diff: mk('media/tex/house/bark_diff_256.f1032132.jpg'),
       nor: mk('media/tex/house/bark_nor_gl_256.09ef5b82.jpg'),
@@ -129,5 +129,27 @@ const HOUSE_TEX_SETS = (typeof Image !== 'undefined') ? (() => {
       nor: mk('media/tex/house/concrete_nor_gl_1k.cac3c527.jpg'),
       rough: mk('media/tex/house/concrete_rough_1k.89083eec.jpg'),
       paint: null },
+    concretec: { kind: 'stone', name: 'coarse dark concrete', tile: 2.8, px: 1024, metal: 0, ribbed: false,
+      diff: mk('media/tex/house/concretec_diff_1k.c88d00ba.jpg'),
+      nor: mk('media/tex/house/concretec_nor_gl_1k.9087b0b2.jpg'),
+      rough: mk('media/tex/house/concretec_rough_1k.78d2900a.jpg'),
+      paint: null },
+  };
+})() : null;
+
+// THE CAPTURED SKIES (G234). `env` is an RGBE equirectangle - four bytes a
+// pixel, mantissa and a shared exponent - so the consumer decodes it with a
+// canvas and one exp2 per pixel and hands the floats to PMREM. `sun` is a
+// unit vector in the same frame the equirect is sampled in
+// (dir = (sin0 sin0, cos0, sin0 cos0), u running -pi..pi), `direct` the share
+// of the sphere's light that arrives from the sun rather than from the dome,
+// and every colour is the measured mean of that part of the sphere.
+const HOUSE_SKIES = (typeof Image !== 'undefined') ? (() => {
+  const B = (typeof FLYDIY_ASSET_BASE !== 'undefined') ? FLYDIY_ASSET_BASE : '';
+  const mk = src => { const i = new Image(); i.src = B + src; return i; };
+  return {
+    grassland: { name: 'grassland sunset', w: 512, h: 256, sun: [0.5725, 0.1065, 0.813], sunCol: [1, 0.224, 0.048], direct: 0.061, ev: 1.854,
+      hor: [0.611, 0.325, 0.263], gnd: [0.066, 0.078, 0.046], zen: [0.321, 0.514, 0.788],
+      env: mk('media/tex/house/sky_grassland_env_512.f0699e25.png'), bg: mk('media/tex/house/sky_grassland_bg_2k.78e3d24a.jpg') },
   };
 })() : null;

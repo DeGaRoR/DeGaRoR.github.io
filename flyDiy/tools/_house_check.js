@@ -97,11 +97,16 @@ function readLibrary() {
   if (!fs.existsSync(f)) return null;
   const src = fs.readFileSync(f, 'utf8');
   const out = {};
-  const re = /(\w+): \{ kind: '(\w+)', name: '([^']*)', tile: ([\d.]+), px: (\d+), metal: ([\d.]+), ribbed: (true|false)/g;
+  const re = /(\w+): \{ kind: '(\w+)', name: '([^']*)', tile: ([\d.]+), px: (\d+), metal: ([\d.]+), ribbed: (true|false)([^\n]*)/g;
   let m;
   while ((m = re.exec(src))) {
+    // G234: and what the set REFUSES, which rides on the same line
+    const tail = m[8] || '';
+    const pn = /punch: ([\d.]+)/.exec(tail);
     out[m[1]] = { kind: m[2], name: m[3], tile: +m[4], px: +m[5], metal: +m[6],
                   ribbed: m[7] === 'true',
+                  tint: /tint: false/.test(tail) ? false : true,
+                  punch: pn ? +pn[1] : undefined,
                   paint: new RegExp(m[1] + '_paint_').test(src) };
   }
   return Object.keys(out).length ? out : null;
@@ -332,6 +337,29 @@ if (!check(!!LIB, 'the baked material library is missing — ' +
             'role table: ' + role + ' wants ' + want.join('/') +
             ' and is offered ' + k + ', which is a ' + LIB[k].kind);
     }
+  // 21 — WHAT A SET REFUSES IS SAID TWICE, AND THE TWO MUST AGREE (G234).
+  //   The payload declares it (tint / punch, from tools/house_tex_prep.js)
+  //   and the generator mirrors it in SET_TINT, because the generator has to
+  //   be right with no payload loaded. Exactly the SET_KIND situation, and it
+  //   drifts the same way: the day someone makes the stain paintable again in
+  //   one file only, this says so.
+  for (const k in LIB) {
+    const g = HG.SET_TINT[k] || {};
+    check((g.tint === false) === (LIB[k].tint === false),
+          'refusals: ' + k + ' disagrees about the tint',
+          'generator ' + (g.tint === false ? 'refuses' : 'allows') +
+          ', payload ' + (LIB[k].tint === false ? 'refuses' : 'allows'));
+    const a = g.punch === undefined ? -1 : g.punch;
+    const b = LIB[k].punch === undefined ? -1 : LIB[k].punch;
+    check(a === b, 'refusals: ' + k + ' disagrees about the punch cap',
+          'generator ' + a + ', payload ' + b);
+    // and a set that refuses the tint must not be carrying a neutral map
+    // either: the map IS the recolouring
+    if (LIB[k].tint === false)
+      check(!LIB[k].paint, 'refusals: ' + k + ' refuses the tint but was ' +
+            'baked a paint map');
+  }
+
   // the paint pot only means anything if the paintable sets carry a neutral map
   const painters = Object.keys(LIB).filter(k => LIB[k].paint);
   check(painters.length >= 3, 'library: too few paintable sets',
@@ -400,6 +428,36 @@ if (!check(!!LIB, 'the baked material library is missing — ' +
         check(sid.color.hex === 0xffffff || sid.color.getHex === undefined ||
               sid.color.getHex() === 0xffffff,
               'paint blend ' + bmode + ': the tint is applied twice');
+    }
+    // ...AND THE GENERATOR ACTUALLY OBEYS THEM. Two behaviours, not two
+    // tables: a set that refuses the tint comes out white whatever the pot
+    // says, and a set that caps the punch pulls the whole house's saturation
+    // uniform down below what an uncapped one gives at the same slider.
+    for (const role of ['trim', 'deck', 'post']) {
+      const i2 = HG.ROLE_SETS[role].indexOf('stain');
+      if (i2 < 0) continue;
+      const P4 = Object.assign({}, HG.DEF);
+      P4[role + 'Set'] = i2; P4[role + 'Col'] = 5;
+      HG.applyFinish(P4);
+      const m4 = HG.MAT[role];
+      check(!m4.color.getHex || m4.color.getHex() === 0xffffff,
+            'refusals: the stain was recoloured on the ' + role,
+            m4.color.getHex && m4.color.getHex().toString(16));
+    }
+    {
+      const capped = HG.ROLE_SETS.wall.indexOf('board');
+      const free = HG.ROLE_SETS.wall.findIndex(
+        (k2, i2) => i2 !== capped && !(HG.SET_TINT[k2] || {}).punch);
+      if (capped >= 0 && free >= 0) {
+        HG.applyFinish(Object.assign({}, HG.DEF,
+                                     { wallSet: capped, paintPunch: 1 }));
+        const a2 = HG.SHADE_U.uSat.value;
+        HG.applyFinish(Object.assign({}, HG.DEF,
+                                     { wallSet: free, paintPunch: 1 }));
+        const b2 = HG.SHADE_U.uSat.value;
+        check(a2 < b2 - 1e-6, 'refusals: the long boards did not cap the punch',
+              a2.toFixed(3) + ' vs ' + b2.toFixed(3));
+      }
     }
     HG.applyFinish(Object.assign({}, HG.DEF));
     for (const g2 of ['glass', 'pane'])
@@ -527,6 +585,25 @@ for (const name of Object.keys(HG.PRESETS)) {
                     jt.y.toFixed(2) + ' vs ' + wet.toFixed(2));
     }
   }
+  // 22 — A FLIGHT ARRIVES WHERE IT SAID IT WOULD, AND A LONG ONE TURNS (the
+  //   user: "when the stairs are too long, do a 90° bend in the stairs, with
+  //   a little 'palier'"). Two things, and the first is the one that bites:
+  //   the plan solves the foot against the ground it lands on, so the treads
+  //   times the rise MUST equal the drop from the deck to that foot — the
+  //   moment a turn moves the foot sideways onto ground at a different height
+  //   and nothing re-solves, the last tread is a step into the air or into
+  //   the hill. Then: past STAIR_MAX treads there has to be a landing.
+  for (const st of [hi.stats.stair, hi.stats.stoop]) {
+    if (!st || !st.n && !st.steps) continue;
+    const n2 = st.n || st.steps;
+    if (st.y1 !== undefined && st.rise !== undefined)
+      check(Math.abs((st.y1 - n2 * st.rise) - st.y0) < 0.06,
+            name + ': the stair does not reach its own foot',
+            'out by ' + ((st.y1 - n2 * st.rise) - st.y0).toFixed(3) + ' m');
+    check(n2 <= HG.STAIR_MAX || st.turns > 0,
+          name + ': a ' + n2 + '-tread flight with no landing in it');
+  }
+
   // 17 — a back door that opens onto nothing is not a garden door
   if (P.backDoor && P.backPorch)
     check(!!hi.stats.stoop, name + ': the back door has no stoop');
@@ -836,6 +913,22 @@ if (SELFTEST) {
   for (const o of tight.stats.openings || [])
     if (o.y1 > Math.min(o.underA, o.underB) + 1e-6)
       neg.push('a dropped-window build still kept one through the roof');
+  // A STAIR THAT HAS TO TURN (G234). The rule is only worth having if some
+  // build actually reaches it, so this is the build that does: three metres of
+  // floor over a fourteen-degree beach is twenty-odd treads, and the flight
+  // has to break and turn. Both halves are checked here — that it turned, and
+  // that after turning it still lands exactly on the ground it solved for,
+  // which is the arithmetic a bend is most likely to break.
+  const steep = HG.build(Object.assign({}, HG.DEF, {
+    stance: 3, floorY: 3.0, slopeZ: 14, porch: 1, stairs: 1 }), 0);
+  const sst = steep.stats.stair;
+  if (!sst || !(sst.n > HG.STAIR_MAX))
+    neg.push('no build reaches the long-stair rule');
+  else {
+    if (!(sst.turns > 0)) neg.push('a long stair was built with no landing');
+    if (Math.abs((sst.y1 - sst.n * sst.rise) - sst.y0) > 0.06)
+      neg.push('a turned stair does not reach its own foot');
+  }
   // lod 1 must be a construction: switching it off must actually remove work
   const a0 = HG.build(HG.DEF, 0).stats.tris, a1 = HG.build(HG.DEF, 1).stats.tris;
   if (!(a1 < a0 * 0.3)) neg.push('lod 1 is not cheaper by construction');

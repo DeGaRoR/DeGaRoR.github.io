@@ -218,7 +218,7 @@ Modifications made:
 
 ## House materials (`assets/house/`, baked and served from media/)
 
-Fifteen CC0 PBR sets for the WOODEN HOUSE library (G230) — the painted planks,
+Twenty-four CC0 PBR sets for the WOODEN HOUSE library (G230, G234) — the painted planks,
 the metal roofing and the weathered timber the generated Alaskan houses wear.
 The user delivered nineteen; four were left out with a reason (below).
 
@@ -229,13 +229,25 @@ The user delivered nineteen; four were left out with a reason (below).
 `green_rough_planks` (`greenwood`), `wood_cabinet_worn_long` (`board`, the
 trim), `wooden_rough_planks` (`roughwood`), `brown_planks_08` (`brownwood`),
 `weathered_planks` (`greywood`), `weathered_brown_planks` (`wornwood`),
-`wood_floor_deck` (`deckwood`), `concrete_floor_damaged_01` (`concrete`).
+`wood_floor_deck` (`deckwood`), `concrete_floor_damaged_01` (`concrete`), and
+from G234 `cracked_concrete_02` (`concretec`) — the SECOND foundation, coarser
+in the grain and darker in every channel than the first, because a footing and
+a stem wall are never poured the same day.
+
+**The sky the house is lit by** (G234) is Poly Haven's `grasslands_sunset`
+(CC0), delivered by the user as a 2k Radiance equirect. It is not shipped as
+the .hdr: `tools/house_sky_prep.py` writes a 512x256 RGBE PNG for the
+environment (lighting and every reflection, kept linear) and a tone-mapped 2k
+JPEG for the backdrop, both under `media/tex/house/`, plus the measured sun
+vector, its colour and its share of the sphere's light.
 
 **ambientCG, CC0** (https://ambientcg.com) — `Metal037` (`galv`, the
 galvanised sheet the gutters, the downpipe and the stove pipe are made of),
 and from the second delivery (G232): `Planks025A` (`darkwood`),
-`Planks025C` (`stain` — near-featureless dark boards, which is what makes it
-the paintable one), `WoodSiding010` (`shakes`, the weathered shake siding),
+`Planks025C` (`stain` — dark stained boards, and from G234 the one set in the
+library that is never recoloured: a stain is a finish that shows the wood, and
+neutralising it to take a tint is no longer a stain at all),
+`WoodSiding010` (`shakes`, the weathered shake siding),
 and `Bark015` (`bark`, G232.4 — a driven pile is a tree with its skin still
 on, and it is the only `log`-kind set in the library).
 

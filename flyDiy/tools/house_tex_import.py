@@ -88,9 +88,24 @@ SETS = [
     ('board',     'wood_cabinet_worn_long_1k.gltf.zip',   'ph',    'Poly Haven', 'CC0', 'wood_cabinet_worn_long',   1.9, True),
     # ground
     ('concrete',  'concrete_floor_damaged_01_1k.gltf.zip','ph',    'Poly Haven', 'CC0', 'concrete_floor_damaged_01',2.8, False),
+    # G234: the SECOND foundation (the user: "They should be 2 of them; a fine
+    # grain light one (the current setup is OK), and a coarse grain darker
+    # one"). Measured against the first: grain (the r.m.s. of the diffuse
+    # against its own 16x blur) 0.036 against 0.015, and darker in every
+    # channel. A footing and a stem wall are not poured the same day and never
+    # match; one concrete for every house was the tell.
+    ('concretec', 'cracked_concrete_02_1k.gltf.zip',      'ph',    'Poly Haven', 'CC0', 'cracked_concrete_02',      2.8, False),
     # G232: the dark end of the wood, and a shake siding
     ('darkwood',  'Planks025A_1K-JPG.zip',                'acg',   'ambientCG',  'CC0', 'Planks025A',               1.9, True),
-    ('stain',     'Planks025C_1K-JPG.zip',                'acg',   'ambientCG',  'CC0', 'Planks025C',               1.9, True),
+    # NOT paintable, and not tintable either (the user: "don't recolor dark
+    # strained boards. These one do not tolerate a trim paint on top"). A
+    # neutral map is made by dividing the hue out and re-basing the luminance,
+    # and on a dark stain that is a lie twice over: the re-base lifts a 0.11
+    # mean to 0.78, which is no longer a stain, and a straight tint on the
+    # unneutralised scan just muddies it. A stain is a FINISH THAT SHOWS THE
+    # WOOD; the only honest thing to do with it is leave it alone. The
+    # generator refuses the colour as well - see SET_TINT in _house_gen.js.
+    ('stain',     'Planks025C_1K-JPG.zip',                'acg',   'ambientCG',  'CC0', 'Planks025C',               1.9, False),
     ('shakes',    'WoodSiding010_1K-JPG.zip',             'acg',   'ambientCG',  'CC0', 'WoodSiding010',            2.2, False),
     # G232.4: bark, for the piles - a driven pile is a tree with its skin on
     ('bark',      'Bark015_1K-JPG.zip',                   'acg',   'ambientCG',  'CC0', 'Bark015',                  1.1, False),
