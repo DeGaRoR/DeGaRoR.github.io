@@ -34171,7 +34171,7 @@ Two instruments, then the fixes. The whole record, with the tables, is
   that spans `oilW` on the surface the door is drawn on.
 - Gates: COWL, PARTS, STARTER, SAVE, DESIGN, UISMOKE, LOAD green.
 
-## G214 — TAIL CHANTIER 2, P0: THE INSTRUMENT — THE LAYERS MEASURE THE DRAWN
+## G223 — TAIL CHANTIER 2, P0: THE INSTRUMENT — THE LAYERS MEASURE THE DRAWN
 ## TAIL, THE PAGE'S BUILD IS ONE FUNCTION, AND THE TAIL BUILDS WITHOUT A PAGE
 ## TO THE BIT (2026-09-07, the user: "tail chantier 2. There is a spec written
 ## in future designs. Open it, read it critically, suggest your own
@@ -34268,7 +34268,7 @@ with a drawn tail gates the load path, PHYSICS_V lands for the certificates.
   +120, `61`/`62`/`65` — G213's GEN_SURF_MATERIALS); both checkers require
   `flight_core.js` only. Not committed at the time of writing.
 
-## G215 — TAIL CHANTIER 2, P1: THE DRAWN TAIL IS THE FLOWN TAIL — THE JOIN
+## G224 — TAIL CHANTIER 2, P1: THE DRAWN TAIL IS THE FLOWN TAIL — THE JOIN
 ## READS THE LAYERS' MEASURE BY IDENTITY, WRITES THE AREAS AND THE MEAN
 ## CHORDS, THE CONTROL CHORDS ARE THE CUT'S, THE CLAMPS SPEAK, AND THE
 ## SURFACES HINGE ON THE DECLARED PLANE (2026-09-07)
@@ -34356,9 +34356,9 @@ the elevator notch: the stock's hChord read 1.28 m for a 0.75 m mean.
   Subset run after the live checks: HONEST, BIPLANE, UISMOKE, BUILD, FIN,
   JOIN, SAVE, BENCH, PARTS, DESIGN green; GEN killed at the runner's 1800 s
   cap again (as in the P0 battery, before any core edit — the machine is
-  shared by six sessions); re-run uncapped, see G216's line.
+  shared by six sessions); re-run uncapped, see G225's line.
 
-## G216 — TAIL CHANTIER 2, P2: THE CAGE'S OWN VERTICES ARE THE EXPERT TIER,
+## G225 — TAIL CHANTIER 2, P2: THE CAGE'S OWN VERTICES ARE THE EXPERT TIER,
 ## AND THE CONTROL CAGE FOLLOWS THE SWITCH (2026-09-07)
 
 - The fin's and the stab's seven shape groups each — tip, top-aft corner,
@@ -34378,7 +34378,7 @@ the elevator notch: the stock's hChord read 1.28 m for a 0.75 m mean.
   stab draws no cage (it never did; the fin's is the grammar's).
 - Gates: PARTS, DESIGN, FIN, UISMOKE green.
 
-## G217 — TAIL CHANTIER 2, P3: THE MACRO TIER — HEIGHT, CHORD, TIP CHORD,
+## G226 — TAIL CHANTIER 2, P3: THE MACRO TIER — HEIGHT, CHORD, TIP CHORD,
 ## SWEEP AND THE HINGE IN THE WING'S VOCABULARY, THE HINGE A LINE, THE CLAMPS
 ## SPEAK, AND A TAIL-OUTLINE STARTER WITH A FROZEN STRAIGHT FIN (2026-09-07)
 
@@ -34442,7 +34442,7 @@ the elevator notch: the stock's hChord read 1.28 m for a 0.75 m mean.
   UP"); nothing to add. Gates: FIN (§8f macro tier, §8g straight fin),
   JOIN, PARTS, DESIGN green standalone; the subset run — see the line below.
 
-## G218 — TAIL CHANTIER 2, P4: THE TAIL STRUCTURE IN THE WING'S IDIOM — TWO-
+## G227 — TAIL CHANTIER 2, P4: THE TAIL STRUCTURE IN THE WING'S IDIOM — TWO-
 ## SPAR PRISM TRUSSES ON THEIR OWN NODES, STRIPS ON THE BAYS OFF THE
 ## DEFORMED SPARS, THE TAIL CLASS, THE LOAD RIG LOADS THE STAB AND THE FIN
 ## (2026-09-07)
@@ -34531,7 +34531,7 @@ fabric — the structure was never there.
   ENERGYBASE, FLEX, TAKEOFF green; BIPLANE, GEN (uncapped) and ARCHETYPES —
   see the line below.
 
-## G219 — TAIL CHANTIER 2, P5: THE CONSOLIDATION — THE SEED SIZES EVERY DRAWN
+## G228 — TAIL CHANTIER 2, P5: THE CONSOLIDATION — THE SEED SIZES EVERY DRAWN
 ## TAIL OFF THE RULE AT BIRTH, EVERY BUILD FLIES THE VORTEX DOWNWASH WITH THE
 ## FIN END-PLATED, GATE ARCHETYPES FLIES THE DRAWN TAIL, CERTIFICATES CARRY
 ## THE PHYSICS, AND THE FLEET IS RE-BASELINED ONCE (2026-09-08)
@@ -34783,3 +34783,121 @@ and then swept into `9fe0bda` ("tail chantier, aircraft shader, mixamo
 integration") by a whole-tree commit from outside this session, along with
 every other session's work in flight at the time. Nothing was lost; the
 history simply does not name it.
+
+## G222 — THE WOODEN HOUSE: A GENERATOR, TWO MESHES, AND A BENCH TO JUDGE IT
+## BY (2026-09-08, the user: "I'll need a good wooden house generator. One that
+## can output high and low poly meshes, with an editor with sliders and all ...
+## The theme is wooden houses of Alaska, bright painted colors, metal roof
+## plate ... Let's concentrate on clean geometry first")
+
+The settlements the world already bakes (`23_world_settle.js` -> `roadNet.
+buildings`) are drawn by `render_world.js` as a BoxGeometry with a three-sided
+CylinderGeometry laid on top, tinted from a four-colour table. That is a
+placeholder, and it is the last one of that size left in the game. This is its
+replacement, built the way the aeroplane is built: a bench, a generator, a kit,
+and a gate.
+
+**FOUR INDEPENDENT LAYERS**, the gear bench's discipline, so the space stays
+small and there is no "house type" anywhere in the file:
+- **VOLUME** — plan L (along the ridge) x w (across), storeys, storey height,
+  wall thickness.
+- **ROOF** — a set of PLANES over that plan; the surface is `min(planes)`.
+  gable / shed / saltbox / gambrel differ only in WHICH planes, and a hip is
+  two more planes rather than a fifth family. Facets come out as quads given
+  as [eave edge, top edge] — a hip end is that quad with its two top corners
+  coincident — so ribs, fascia, barge and ridge caps are written once and work
+  on all of them.
+- **STANCE** — slab / cripple wall / posts / piles, over a SLOPING site. Every
+  post is cut to the ground under its own foot. This is the Alaskan layer: the
+  photographs are all of houses standing above a beach.
+- **FITTINGS** — openings with reveals, casing, sill, sash bars and glass; the
+  deck with joists, boards, rail (balusters / horizontal / solid) and a stair
+  cut to the ground it lands on; a stove pipe or a masonry stack; a door
+  canopy or a roof over the whole deck; a lean-to, which is simply a SECOND
+  volume through the same wall() and plate().
+
+**THE ROOF IS A HEIGHT FIELD AND THE WALLS READ IT.** `wall()` takes its top as
+a FUNCTION of (distance along, which face), and the generator hands it the
+roof's own underside. A gable end wall is therefore not a triangle somebody
+drew — it is the eave wall with a different top function, and the two agree at
+every pitch. Reading the top at the CENTRELINE instead is a real bug and was
+caught by the gate the hour it was written: under a 50-degree pitch a 40 cm
+wall stands 24 cm through its own roof.
+
+**TWO MESHES, ONE CONSTRUCTION** (the ask: high and low poly). `lod` is not a
+decimator and must never become one — BUILD, DON'T RECONSTRUCT. Each builder
+asks which tier it is drawing and emits the members that survive at that
+distance: at lod 1 there are no seams, casings, balusters, joists, pads or deck
+boards, windows become panes laid ON an unpierced wall, and the stair becomes
+the wedge it reads as from 80 m. Measured: 3.3k-8.8k tris near, 11-18% of that
+far, silhouettes within 0.15 m.
+
+- `tools/_house_kit.js` — the primitives. `beam` (any stick of timber between
+  two points), `wall` (a panel with rectangular openings, reveals and caps),
+  `plate` (a planar ring given a thickness), plus boxAB and cyl. TWO RULES it
+  enforces: every face goes through `face(bag, pts, wantN)`, which reverses the
+  ring if its own Newell normal disagrees — winding bugs are impossible rather
+  than unlikely; and EVERY VERTEX CARRIES A UV IN METRES on its surface's own
+  frame, because materials come later and retrofitting that means rewriting
+  every builder.
+- `tools/_house_gen.js` — the model: DEF, ROWS (with `when` predicates), four
+  PRESETS which are the four reference photographs ('shore cabin', 'village
+  house', 'modern dark', 'cannery shed', plus 'log cabin'), the roof planes,
+  the openings, and one bag per material.
+- `tools/_house.html` — the bench (launch: **flydiy-house**, port 8355). Both
+  meshes every rebuild, side-by-side comparison, wireframe, the site, JSON
+  in/out, and OBJ out for both tiers. The instrument panel carries the
+  building's own known numbers: 4:12 for snow, 0.30 m of overhang, 2.1 m of
+  headroom, 0.90 m of guard rail, 2R+G in 600-660, rise under 200 mm, 0.45 m
+  of crawl space, post slenderness under 20 — plus the two only a generator
+  can get wrong, openings DROPPED and the low/high ratio.
+- `tools/_house_check.js` — **GATE HOUSE** (core tier, 0.7 s, `--selftest`,
+  `--table`). Clean geometry; no wall through its roof; nothing buried in the
+  hillside; every KEPT opening clear of the roof line; lod 1 cheaper AND the
+  same silhouette. Run over the five presets and a sweep of 4 families x 3
+  pitches x hip x a 14-degree site, with the windows deliberately too tall.
+
+**AN OPENING THAT WILL NOT FIT IS DROPPED, NOT CLIPPED**, and the count is
+published (`stats.dropped`) and shown on the bench. A build that drops six is
+saying something true about its wall.
+
+**NOT DONE, AND DECLARED:** materials (the user's ruling — geometry first; the
+seam is ready: one bag per material name, metre UVs, one `applyPalette`); the
+L-plan ell and dormers (both need a real roof VALLEY, which the min-of-planes
+model does not have and which is a chantier of its own — the lean-to exists
+because it tucks under the main eave and needs no valley); and the join into
+`render_world.js`, which is where the box-and-prism villages get replaced.
+
+## G222 - THE TAPE LINES AND THE FASTENER LINES ARE THE SAME LINES
+## (2026-09-08, the user: "I think I'd want the tape lines and the rivet
+## lines to coincide. Is that possible?")
+
+Yes, and the reason they did not is that an airframe here has TWO families of
+member and each drew its own line and carried its own fastener row:
+
+  the REAL rings and rails  integer stations and levels - the bulkheads, the
+                            pillars, the longerons the generator knows about
+                            (uG4, distances dSt / dLv)
+  the METRIC pitch          the frames and stringers a CONSTRUCTION has
+                            between them (uG0, distances df / ds)
+
+The grammar's own rivet rows rode the metric pitch only; G214's member screws
+rode the real members only. On the user's build that is exactly the picture
+they described: `tape.rise` is 0, so every line you can SEE is a real ring,
+and the rivet rows were sitting on the invisible metric frames.
+
+A skin is screwed to WHATEVER member is under it, so every fastener row now
+takes `aeroNearer(dSt, df)` and `aeroNearer(dLv, ds)` - the nearer member of
+either family, signed so the stamp still knows which side of the row it is
+on. A head lands on every line the grammar draws and nowhere else. 1e3 is
+"this family has none", so a construction with no metric pitch (or a mesh
+with no real rings) falls to the other by construction; a row is silenced
+only when NEITHER family has a member that way.
+
+MEASURED IN THE PAGE, not reasoned: with the wood row's metric frame pitch
+pushed to 1.6 m - so metric frames are rare - the flank still carries head
+rows at every real ring. Before this it would have carried none there.
+
+BOTH DISTANCE PAIRS NOW LIVE IN ONE SCOPE. They were computed in two (the
+real members inside the `uG4.x > 0` branch, the metric ones after it), which
+is the whole reason nothing could put a fastener on both.

@@ -2263,6 +2263,21 @@ vec3 aeroUDN(vec3 a, vec3 b) {
 float aeroNear(float x, float p) {
   return (p > 0.0) ? (fract(x / p + 0.5) - 0.5) * p : 1e3;
 }
+// THE NEARER OF TWO MEMBERS (G222, the user: "I'd want the tape lines and the
+// rivet lines to coincide. Is that possible?"). An airframe has TWO families
+// of member and the grammar draws both: the REAL rings and rails the
+// generator knows about (integer stations and levels — the bulkheads, the
+// pillars, the longerons) and the METRIC pitch a construction has between
+// them. Each family telegraphed its own line and carried its own fastener
+// row, so heads landed on lines that were not there and lines ran with no
+// heads on them. A skin is screwed to WHATEVER member is under it, so every
+// fastener row now takes the nearer of the two — which puts a head on every
+// line the grammar draws, and nowhere else. Signed, because the stamp needs
+// which side of the row it is on. 1e3 is "this family has none", so the
+// other one wins by construction.
+float aeroNearer(float a, float b) {
+  return (abs(a) < abs(b)) ? a : b;
+}
 
 // A STREAK IS A SOURCE AND A RUN (G70), not a smudge somebody placed. The
 // second argument is the source in the surface field — where the exhaust actually exits, where
@@ -2393,11 +2408,17 @@ vec3 aeroStructure(vec2 m, inout float rgh) {
   // one ends it mid-shader. It has now cost three debugging rounds.
   float leK = (uG4.z > 0.0 && uG5.w > 0.5)
     ? smoothstep(uG4.z - fw, uG4.z + fw, max(m.y, 0.0)) : 1.0;
+  // BOTH FAMILIES' DISTANCES, IN ONE PLACE (G222). They were computed in two
+  // scopes — the real members inside the branch below, the metric ones after
+  // it — which is why nothing could put a fastener on both. 1e3 = absent.
+  float dSt = 1e3, dLv = 1e3;
+  float df = aeroNear(m.x, uG0.x);      // to the nearest metric frame
+  float ds = aeroNear(m.y, uG0.y);      // to the nearest metric stringer
   if (uG4.x > 0.0) {
     float mSt = clamp(fwidth(m.x) / max(fwidth(vSurf.z), 1e-5), 0.02, 4.0);
     float mLv = clamp(fwidth(m.y) / max(fwidth(vSurf.w), 1e-5), 0.02, 4.0);
-    float dSt = (fract(vSurf.z + 0.5) - 0.5) * mSt;   // metres to the rib
-    float dLv = (fract(vSurf.w + 0.5) - 0.5) * mLv;   // metres to the spar
+    dSt = (fract(vSurf.z + 0.5) - 0.5) * mSt;         // metres to the ring
+    dLv = (fract(vSurf.w + 0.5) - 0.5) * mLv;         // metres to the rail
     float w2 = max(uG4.y * uG4.y, 1e-8);
     dH.x += leK * uG4.x * (-2.0 * dSt / w2) * exp(-dSt * dSt / w2);
     dH.y += leK * uG4.x * (-2.0 * dLv / w2) * exp(-dLv * dLv / w2);
@@ -2420,10 +2441,12 @@ vec3 aeroStructure(vec2 m, inout float rgh) {
     // rail cross, the stronger head wins rather than summing to a lump.
     if (uG6.w > 0.0 && uG6.x > 0.0 && uG5.w < 0.5) {
       float p3 = uG6.x;
-      vec4 fs2 = texture2D(tFastM, vec2(m.y / p3, dSt / p3 + 0.5));
-      vec4 ff2 = texture2D(tFastM, vec2(m.x / p3, dLv / p3 + 0.5));
-      float ms2 = 1.0 - smoothstep(uG6.y - fw, uG6.y + fw, abs(dSt));
-      float mf2 = 1.0 - smoothstep(uG6.y - fw, uG6.y + fw, abs(dLv));
+      // G222: on the nearer member of either family, so a head lands on
+      // every line the grammar draws
+      vec4 fs2 = texture2D(tFastM, vec2(m.y / p3, aeroNearer(dSt, df) / p3 + 0.5));
+      vec4 ff2 = texture2D(tFastM, vec2(m.x / p3, aeroNearer(dLv, ds) / p3 + 0.5));
+      float ms2 = 1.0 - smoothstep(uG6.y - fw, uG6.y + fw, abs(aeroNearer(dSt, df)));
+      float mf2 = 1.0 - smoothstep(uG6.y - fw, uG6.y + fw, abs(aeroNearer(dLv, ds)));
       vec2 g2 = (fs2.rg * 2.0 - 1.0) * ms2;
       vec2 g3 = (ff2.rg * 2.0 - 1.0) * mf2;
       vec2 gg2 = (dot(g2, g2) > dot(g3, g3)) ? g2 : g3;
@@ -2457,8 +2480,10 @@ vec3 aeroStructure(vec2 m, inout float rgh) {
   if (uG4.z > 0.0 && uG5.w > 0.5)
     rgh -= (1.0 - smoothstep(0.0, uG4.z, max(m.y, 0.0))) * 0.30;
 
-  float df = aeroNear(m.x, uG0.x);      // to the nearest frame
-  float ds = aeroNear(m.y, uG0.y);      // to the nearest stringer
+  // ...and the ONE distance each way that every fastener row rides (G222):
+  // the nearer member, whichever family it belongs to
+  float dA = aeroNearer(dSt, df);       // to the nearest frame, either kind
+  float dB = aeroNearer(dLv, ds);       // to the nearest longeron, either kind
 
   // TAPE / TELEGRAPHING. On fabric this is the 50 mm surface tape doped over
   // every rib and former, and it is the single feature that makes a covered
@@ -2578,12 +2603,17 @@ vec3 aeroStructure(vec2 m, inout float rgh) {
     float p = uG2.y, rw = uG2.z;
     // along a stringer the row runs ALONG the body; along a frame it runs
     // AROUND the section. Same tile, two orientations.
-    vec4 fs = texture2D(tFast, vec2(m.x / p, ds / p + 0.5));
-    vec4 ff = texture2D(tFast, vec2(m.y / p, df / p + 0.5));
-    float ms = 1.0 - smoothstep(rw - fw, rw + fw, abs(ds));
-    float mf = 1.0 - smoothstep(rw - fw, rw + fw, abs(df));
-    if (uG0.y <= 0.0) ms = 0.0;
-    if (uG0.x <= 0.0) mf = 0.0;
+    // G222: the SAME two distances the tape and the member screws use — a
+    // rivet row that rode only the metric pitch put heads where the user's
+    // build (tape rise 0, the real rings carrying every visible line) drew
+    // no line at all.
+    vec4 fs = texture2D(tFast, vec2(m.x / p, dB / p + 0.5));
+    vec4 ff = texture2D(tFast, vec2(m.y / p, dA / p + 0.5));
+    float ms = 1.0 - smoothstep(rw - fw, rw + fw, abs(dB));
+    float mf = 1.0 - smoothstep(rw - fw, rw + fw, abs(dA));
+    // a row is silenced only when NEITHER family has a member that way
+    if (uG0.y <= 0.0 && uG4.x <= 0.0) ms = 0.0;
+    if (uG0.x <= 0.0 && uG4.x <= 0.0) mf = 0.0;
     vec2 gs = (fs.rg * 2.0 - 1.0) * ms;
     vec2 gf = (ff.rg * 2.0 - 1.0) * mf;
     // the two rows cross on a member intersection: take the stronger head

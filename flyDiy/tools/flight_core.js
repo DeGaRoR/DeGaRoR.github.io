@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: bc15469e39acba9c
+// body-sha256: d8b8afd700a297ec
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -7396,7 +7396,28 @@ function makePilot(sim, def, world, opts) {
         : 3.2;
       const kD = tailUp ? 3.0 : 1.2;
       c.dr = clamp(-kP * e - kD * eR, -drMax, drMax);
-      c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
+      // AILERON INTO THE WIND (2026-09-08) — the other half of a crosswind
+      // ground roll, and the pilot had only the first. This held the wings
+      // LEVEL, which is right in calm air and exactly wrong across the
+      // wind: a level wing lets the upwind main unload, the aeroplane
+      // drifts, and on a taildragger the drift becomes the weathercock the
+      // rudder then fights at its stop. TRACED on the ultralight fixture at
+      // 2 m/s across (TAIL CHANTIER 2 P5): the tail lightens at 17 m/s, the
+      // tailwheel's steering goes with it (30_solver: only it steers), the
+      // nose swings 34 deg with the rudder saturated for three seconds, and
+      // the aeroplane leaves the centreline by 18 m. A pilot holds aileron
+      // INTO the wind — most at low speed, easing as the ailerons bite — so
+      // the upwind wheel keeps its load. The command is a BANK BIAS, so the
+      // level-wing loop still flies it and nothing else changes; in calm
+      // air `wX` is 0 and this is the old law to the bit.
+      // `out.wind*` is the AIR'S VELOCITY, not the direction it comes from:
+      // air moving toward +z blows FROM the starboard side, so into-wind is
+      // the starboard wing DOWN, and the bias carries the same sign as the
+      // cross component. (Measured both ways on the fixture: with the sign
+      // reversed the wander grew to 29 m; with this one it is 2.6 m.)
+      const wX = -(o_.windX || 0) * F.uz + (o_.windZ || 0) * F.ux;
+      const phW = (A.xwBank ?? 0.06) * wX * clamp((A.VTailUp ?? 12) / Math.max(V, 6), 0.4, 1.6);
+      c.da = clamp(-2.0 * (ph - phW) - 1.0 * p, -0.30, 0.30);
       tailUpNow = tailUp;
     };
     const taxi = (Vtgt) => {
@@ -10420,6 +10441,21 @@ const GEN_MIGRATORS = {
       const bl = c.boomLen == null ? D.boomLen : +c.boomLen;
       const tl = c.taperLen == null ? D.taperLen : +c.taperLen;
       if (isFinite(bl) && isFinite(tl)) c.boomLen = +Math.min(6.0, bl + tl).toFixed(4);
+    }
+    // ...AND THE ROD ITSELF REACHES THE FLOWN SPEC (2026-09-08, TAIL
+    // CHANTIER 2 P6). `fuselage.boom` — the row the frame reads to know it
+    // is stiffening a TUBE and not a truss (GEN_RULES.rodBoomK) — was only
+    // written by the join from G199.5 on. A save drawn before that carries
+    // its rod in the CAGE (`boomStyle 1`) and nothing in the spec, so in
+    // node, where no join runs, it FLEW AS A LOFTED FUSELAGE: measured on
+    // GATE TAKEOFF's own ultralight fixture, which is the aeroplane the
+    // whole rod-boom arc was measured on and which read `fuse.boom null`.
+    // A field that changes HOME is what a migrator is for. The cage is the
+    // drawing and the drawing wins; a save that already states its boom
+    // keeps what it states.
+    if (+c.boomStyle === 1 && !+c.boomTwin) {
+      const fu = r.fuselage || (r.fuselage = {});
+      if (fu.boom == null) fu.boom = 'rod';
     }
     return r;
   },};
@@ -15843,13 +15879,23 @@ function genParams(S, fr, strips) {
   // does NOT have drop out of the gear reference delta above (its type reads
   // cantilever), which is the credit for not having them. Axial only, the
   // gear model's rule.
-  let braceDCdA = 0;
+  // ...AND SO DO THE TAIL'S BRACE WIRES (TAIL CHANTIER 2 P4): the stab is
+  // wire-braced to the fin post, and four exposed cables are real drag —
+  // but they are the TAIL's, not the wing bracing's, so they are counted
+  // apart. `braceDCdA` stays what its name says (the truss between the
+  // planes, which a monoplane has none of, GATE HONEST's row); both are
+  // paid into the same body drag area.
+  let braceDCdA = 0, tailBraceDCdA = 0;
+  const tailEnd = b => /^HT|^FIN/.test(fr.nodes[b.a].tag || '') || /^HT|^FIN/.test(fr.nodes[b.b].tag || '');
   for (const b of fr.beams) {
     if (!b.ext) continue;
     if (b.cls === 'interplane' || b.cls === 'cabane') braceDCdA += 0.10 * b.L * GEN_RULES.strutT;
-    else if (b.cls === 'wire') braceDCdA += 1.0 * b.L * GEN_RULES.wireD;
+    else if (b.cls === 'wire') {
+      if (tailEnd(b)) tailBraceDCdA += 1.0 * b.L * GEN_RULES.wireD;
+      else braceDCdA += 1.0 * b.L * GEN_RULES.wireD;
+    }
   }
-  cda.fusCdA[0] += braceDCdA;
+  cda.fusCdA[0] += braceDCdA + tailBraceDCdA;
   // Control effectiveness from surface chord. The reference pairs are the
   // fleet's own calibrated numbers at the default chord fractions, so a stock
   // aeroplane reproduces them exactly and theory only supplies the trend.
@@ -15922,7 +15968,7 @@ function genParams(S, fr, strips) {
     twSteer: S.gear.type === 'tricycle' ? -0.35 : 0.5,
     ap,
     gen: { Vs, ClMax3D, Sw: G.Sw, AR: G.AR, cBar: G.cBar, mass,
-           Sh: S.tail.Sh, Sv: S.tail.Sv, hAR, vAR, gearDCdA, braceDCdA, plant: pl,
+           Sh: S.tail.Sh, Sv: S.tail.Sv, hAR, vAR, gearDCdA, braceDCdA, tailBraceDCdA, plant: pl,
            // G185: the planes' own numbers beside the combined ones, the
            // combined MAC's leading edge (the % MAC datum on a biplane — a
            // monoplane keeps its wing's xLE), and the span the yaw instrument
