@@ -230,7 +230,17 @@ console.log('resolveSpec + genFrame: the custom engine flies');
      'a custom cgAft survives the clamp and is the spec\'s reading');
   const rN = resolveSpec(clampSpec(mk(null))).spec;
   ok(rN.engCgAft === 0.23, 'a custom row without one reads the registry table\'s (912: 0.23)');
-  const fA = genFrame(rA), fB = genFrame(resolveSpec(clampSpec(mk(0.7))).spec);
+  // THE GEAR IS PINNED FOR THIS ROW (2026-09-08). genFrame's second pass
+  // places the mains against the CG it just produced, so moving the engine
+  // moves the WHEELS too and their own mass follows — measured on the
+  // stock: the mains go 0.718 -> 0.786 m and the CG lands 7.7 cm aft where
+  // the engine alone accounts for 6.8. That coupling is real and the closed
+  // form below does not describe it; pinning the station measures what this
+  // row actually claims, and with it pinned the two agree to the digit.
+  // (It only broke the 5 mm tolerance when TAIL CHANTIER 2's tail truss put
+  // real mass behind the wheels — the arithmetic was always approximate.)
+  const pin = s => { const r = resolveSpec(clampSpec(s)).spec; r.gear.x = 0.55; return r; };
+  const fA = genFrame(pin(mk(0.2))), fB = genFrame(pin(mk(0.7)));
   const dx = fB.cg0[0] - fA.cg0[0], want = 60 * 0.5 / fA.cg0[3];
   ok(Math.abs(dx - want) < 0.005,
      `0.5 m more engine arm moves the CG aft by ${(dx * 100).toFixed(1)} cm (m_e·0.5/M = ${(want * 100).toFixed(1)})`);

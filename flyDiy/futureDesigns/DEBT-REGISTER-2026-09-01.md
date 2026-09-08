@@ -63,6 +63,16 @@ Nothing here is forgotten; not everything here is scheduled.
   model's · the flip stands for stability and the trim solver reads the
   constant for the flap increment. Until then GATE FLAPS holds the flaps
   by fiat for its servo row and says so. Numbers: HANDOVER G219.
+- **A VESSEL'S CAPACITY IS BOUNDED BY NOTHING (found 2026-09-08, TAIL
+  CHANTIER 2's own gate-selftest run; the ENERGY arc's).** `clampSpec` still
+  carried a fuel branch guarded on `spec.fuel.litres`, a field nothing has
+  DECLARED since fuel became vessels (G98) — so the clamp could not bite and
+  GATE ARCHETYPES' negative probe for it could not fail; both are retired,
+  with the reason in the file. What replaced neither: 900 litres declared in
+  a 0.06 m3 box resolves to `fuel.litres 900` and flies, i.e. a tank's
+  declared capacity is checked against its own drawn volume nowhere. The
+  fix belongs with whoever owns the vessels (a clamp at resolve, against the
+  vessel's own dims, with the join saying when it bites).
 - **Day-cycle adoption** — the graded-panorama prototype (G62.1/G62.2,
   1.66 MB for every hour) reads well for all but overcast; adopting it is
   still an open decision (F4).
@@ -340,6 +350,16 @@ detector is the code. Six stale entries were found in two days.
     ruddervator pair is one surface, raked; its own chantier).
   - the NOTES the join files (`CAGE_JOIN.notes()`: an uncut fin, a rod's
     fin height, a corner slider the drawing stopped) reach no card yet.
+  - THE TAIL NOW SETS THE TIMESTEP (G235, measured): the stiffest beam on
+    every stock material is a tail box chord, and the whole aeroplane's
+    substep count follows it - tubeFabric 71, wood 79, alloy 109, carbon
+    156, all at omega*dt 0.448. The mass is honest and the stiffness is the
+    surface material's own row at `tailK`, so nothing here is wrong; but a
+    0.13 m member is a short spring in an explicit integrator, and the price
+    of the prism is paid by every frame of every flight. If the fleet ever
+    wants its frames back, the lever is the box depth or an implicit step
+    for that class - not the floor, which is now honest, and not the bow,
+    which is real mass.
 
 ## VERIFIED PAID (so nobody re-opens them)
 

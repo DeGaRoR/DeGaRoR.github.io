@@ -50,9 +50,12 @@ const check = (ok, label, extra) => {
 
 function fixture() {
   const spec = JSON.parse(fs.readFileSync(FIX, 'utf8')).spec;
-  // G199.5: what the join writes for this cage (boomStyle 1, a rod boom); the
-  // file predates the field, and the game flies it with the row set
-  spec.fuselage.boom = 'rod';
+  // G199.5 set `spec.fuselage.boom = 'rod'` here by hand: the file predates
+  // the field and the game flies it with the row set. TAIL CHANTIER 2 P6
+  // put that where it belongs — GEN_MIGRATORS[7] reads the cage's own
+  // `boomStyle` into `fuselage.boom` for EVERY pre-G199.5 save, not just
+  // this gate's copy of one — so the hand-patch is gone and this gate now
+  // proves the migration as well as the aeroplane.
   return C.buildGen(C.genMigrateSpec(JSON.parse(JSON.stringify(spec))));
 }
 
@@ -79,7 +82,15 @@ function depart(def, opts) {
   // user: "the stabs are moving with the tail wheel ... even when simply
   // taxiing"). This fixture at full rudder on the lofted default lattice:
   // 3.1 deg; with rodBoomK 4: 1.3; with the pawnee rows (G199.3): 80. The
-  // bound below is a regression guard on today's number, not a target.
+  // bound below was a regression guard on today's number, not a target.
+  // TAIL CHANTIER 2 P6 (2026-09-08) MADE IT A TARGET, and it is met: the
+  // compensator is DERIVED from the drawn tube now (GEN_RULES.rodBoomK
+  // 'computed' = GJ_tube / GJ_lattice, 1.56 on this fixture) instead of
+  // landing off, and the tail — which since P4 has a truss of its own to
+  // flex, so this number is boom AND tail — rolls 1.84 deg where it read
+  // 3.82 with the switch off. The bound is 2.5 deg: under the 3.09 the
+  // user complained about, with room for the fleet's spread, and it will
+  // catch the boom quietly going soft again.
   const iH = def.nodes.findIndex(n => n.tag === 'HTL'), iH2 = def.nodes.findIndex(n => n.tag === 'HTR');
   const [iL, iR] = def.refs.mains;
   const stabRoll = () => {
@@ -132,7 +143,7 @@ function judge(name, r, opts) {
   if (opts.stand) {
     check(r.phases.some(p => p.phase === 'TAXI'), tag + 'taxied off the stand');
     check(r.maxXT < 2.5, tag + 'taxi cross-track under 2.5 m', r.maxXT.toFixed(2) + ' m');
-    check(r.maxStabRoll < 3.5, tag + 'the stab rolls under 3.5 deg against the mains through the taxi (G199.5)',
+    check(r.maxStabRoll < 2.5, tag + 'the stab rolls under 2.5 deg against the mains through the taxi (G199.5, P6)',
           r.maxStabRoll.toFixed(2) + ' deg');
     check(r.minPost > 2.0, tag + 'never within 2 m of a fence post', r.minPost.toFixed(1) + ' m');
     check(r.offStrip === 0, tag + 'never on the strip’s flanks outside its length', r.offStrip + ' frames');
@@ -223,8 +234,19 @@ if (!SELF) {
     check(wall < 60, tag + 'measured inside a minute of wall clock', wall.toFixed(1) + ' s');
     // declared knobs move it as declared: a 1 m band cannot be held even in
     // calm air; a 4 m/s cap with a 100 m band reports "> cap"
+    // A TIGHTER BAND READS A SMALLER LIMIT — the knob, not a magic number
+    // (2026-09-08). This asked for "a 1 m band reads under 1 m/s", which was
+    // true while the pilot took a crosswind roll with its wings level: it
+    // wandered a metre in almost any wind. With into-wind aileron
+    // (43_pilot.js groundSteer, TAIL CHANTIER 2 P5's own consequence) the
+    // roll holds 2.6 m at 2 m/s across where it held 18, so a 1 m band is
+    // now holdable at 1 m/s — the aeroplane got better and the row was
+    // reading the old pilot. What it means to test is that the declared
+    // band moves the answer, and it still does.
     const tight = C.genCrosswindLimit(def, { band: 1 });
-    check(tight.limit != null && tight.limit < 1, tag + 'a 1 m band reads under 1 m/s', String(tight.limit));
+    check(tight.limit != null && tight.limit < xw.limit,
+          tag + 'a 1 m band reads a lower limit than the strip\'s own',
+          tight.limit + ' < ' + xw.limit);
     const loose = C.genCrosswindLimit(def, { band: 100, cap: 4 });
     check(loose.limit == null && loose.cap === 4, tag + 'a 100 m band with a 4 m/s cap reads "> 4"', String(loose.limit));
     console.log('  crosswind limit ' + xw.limit + ' m/s (band ' + xw.band + ' m, roll ' + xw.roll +

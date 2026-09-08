@@ -724,7 +724,15 @@ function genSubsteps(nodes, beams) {
     // — sized at full, a long-range build was stable on departure and headed
     // for the recorded divergence neighbourhood at reserves. The dry floor
     // guards a node that is mostly fuel. No fuel on the node = the old line.
-    const dry = i => Math.max(0.5, nodes[i].m - (nodes[i].mFuel || 0));
+    // G235: the floor is now what that last sentence says. Applied to EVERY
+    // node it under-counted the tail: a 0.26 kg fin apex read 0.5 and the rule
+    // sized the step for a node twice its weight — measured omega*dt 0.565 on
+    // a wood build against the 0.50 bound. Honest, and with the tail's tip
+    // bows billed (61_gen_frame): tubeFabric 65->71 substeps (0.522->0.448),
+    // wood 66->79 (0.565->0.448), alloy 109 (0.448), carbon 152->156
+    // (0.470->0.448). The floor alone read 76/83/109/159 — past the 80 GATE
+    // MOUNT allows, which is why the bow lands with it and not after it.
+    const dry = i => (nodes[i].mFuel ? Math.max(0.5, nodes[i].m - nodes[i].mFuel) : nodes[i].m);
     const inv = 1 / dry(b.a) + 1 / dry(b.b);           // 1/reduced mass, dry
     wMax = Math.max(wMax, Math.sqrt(b.k * inv));
     cMax = Math.max(cMax, b.c * inv);
@@ -927,13 +935,23 @@ function genParams(S, fr, strips) {
   // does NOT have drop out of the gear reference delta above (its type reads
   // cantilever), which is the credit for not having them. Axial only, the
   // gear model's rule.
-  let braceDCdA = 0;
+  // ...AND SO DO THE TAIL'S BRACE WIRES (TAIL CHANTIER 2 P4): the stab is
+  // wire-braced to the fin post, and four exposed cables are real drag —
+  // but they are the TAIL's, not the wing bracing's, so they are counted
+  // apart. `braceDCdA` stays what its name says (the truss between the
+  // planes, which a monoplane has none of, GATE HONEST's row); both are
+  // paid into the same body drag area.
+  let braceDCdA = 0, tailBraceDCdA = 0;
+  const tailEnd = b => /^HT|^FIN/.test(fr.nodes[b.a].tag || '') || /^HT|^FIN/.test(fr.nodes[b.b].tag || '');
   for (const b of fr.beams) {
     if (!b.ext) continue;
     if (b.cls === 'interplane' || b.cls === 'cabane') braceDCdA += 0.10 * b.L * GEN_RULES.strutT;
-    else if (b.cls === 'wire') braceDCdA += 1.0 * b.L * GEN_RULES.wireD;
+    else if (b.cls === 'wire') {
+      if (tailEnd(b)) tailBraceDCdA += 1.0 * b.L * GEN_RULES.wireD;
+      else braceDCdA += 1.0 * b.L * GEN_RULES.wireD;
+    }
   }
-  cda.fusCdA[0] += braceDCdA;
+  cda.fusCdA[0] += braceDCdA + tailBraceDCdA;
   // Control effectiveness from surface chord. The reference pairs are the
   // fleet's own calibrated numbers at the default chord fractions, so a stock
   // aeroplane reproduces them exactly and theory only supplies the trend.
@@ -1006,7 +1024,7 @@ function genParams(S, fr, strips) {
     twSteer: S.gear.type === 'tricycle' ? -0.35 : 0.5,
     ap,
     gen: { Vs, ClMax3D, Sw: G.Sw, AR: G.AR, cBar: G.cBar, mass,
-           Sh: S.tail.Sh, Sv: S.tail.Sv, hAR, vAR, gearDCdA, braceDCdA, plant: pl,
+           Sh: S.tail.Sh, Sv: S.tail.Sv, hAR, vAR, gearDCdA, braceDCdA, tailBraceDCdA, plant: pl,
            // G185: the planes' own numbers beside the combined ones, the
            // combined MAC's leading edge (the % MAC datum on a biplane — a
            // monoplane keeps its wing's xLE), and the span the yaw instrument

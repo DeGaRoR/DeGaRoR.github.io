@@ -119,22 +119,34 @@ function genLattice(S, gearX, track, kScale) {
   // GJ_tube = G · 2π r³ t (thin wall, G = E/2.6 from the material's phys, t
   // = GEN_RULES.rodWall). Their ratio, on the mid-boom bay, is the factor
   // every boom member's k takes — `GEN_RULES.rodBoomK` set to 'computed';
-  // a number there still means that number, 1 the identity. Measured on
-  // the stock rod (the mid bay 0.10 × 0.20 m, L 0.7 m, fus k 8.0e5 at KS):
-  // GJ_lattice ~11 kN·m², the 113 mm × 1.2 mm 4130 tube ~110 → ~10, the
-  // "12× softer" the audit measured. The remaining honesty gap is that a
-  // truss's axial springs stand in for a tube's shear: the `tube` element
-  // type, in the debt register.
+  // a number there still means that number, 1 the identity.
+  //
+  // MEASURED on the ultralight fixture (0.75 m bays, 4130 at E 205 GPa,
+  // its own drawn 113 mm x 1.2 mm tube): GJ_tube 108 kN·m², GJ_lattice
+  // 69 → the factor is 1.56, and the aeroplane's stab roll against the
+  // mains goes 3.82° → 1.84° with it, where G199.5's hand sweep needed 4
+  // for 1.79°. The lattice comes out STIFFER here than the ~12x-softer the
+  // audit estimated by hand, because this sums all four faces' diagonals
+  // at their own levers rather than one face — and it is still the same
+  // approximation underneath: axial springs standing in for a tube's shear
+  // flow. What would end the approximation is the `tube` ELEMENT TYPE (the
+  // solver has no rotational DOF at all), in the debt register, owed.
   let rodKv = null;
   const rodK = () => {
     if (rodKv != null) return rodKv;
     const r = R.rodBoomK;
     if (r !== 'computed') return (rodKv = (r == null ? 1 : +r));
+    // the tube's radius: the resolved rod record when the join measured one,
+    // else the DRAWING's own `rodD` (cage units x planeScale = metres) — a
+    // save from before the join wrote `fuse.rod` still knows what it drew
     const rod = S.fuse.rod, ph = M && M.phys;
-    if (!rod || !(rod.r > 0) || !ph || !(ph.E > 0)) return (rodKv = 1);
+    const cg = S.cage || {};
+    const rodR = (rod && rod.r > 0) ? rod.r
+      : (+cg.rodD > 0 ? 0.5 * (+cg.rodD) * (+cg.planeScale || 1) : 0);
+    if (!(rodR > 0) || !ph || !(ph.E > 0)) return (rodKv = 1);
     const t = R.rodWall == null ? 1.2e-3 : R.rodWall;
     const G = ph.E / 2.6;
-    const GJt = G * 2 * Math.PI * Math.pow(rod.r, 3) * t;
+    const GJt = G * 2 * Math.PI * Math.pow(rodR, 3) * t;
     // the mid-boom bay: its section off the station profile, its length
     // off the bay count, its diagonals as the bay loop lays them (one a
     // side, two on the top, two on the bottom)
@@ -1207,6 +1219,13 @@ function genLattice(S, gearX, track, kScale) {
     }
     const H = sd === 'L' ? HTL : HTR;                         // the tip, on the last section
     B(H, HF[sd][nH], 'tail'); B(H, HR[sd][nH], 'tail'); B(H, HB[sd][nH], 'tail');
+    // THE TIP BOW (G235): the outboard edge is a formed bow closing the two
+    // spars over an arc about 1.15 chords long, at the rib's own linear
+    // density — and it is the one rib the loop above never bills (it bills
+    // stations 1..n). Without it the tip carried its cover share alone,
+    // 0.26 kg, and the 0.13 m box chord hanging off a node that light set
+    // the timestep for the WHOLE aeroplane: omega 2200, 82 substeps.
+    pt(H, 1.15 * cTipH * 0.30);
     // THE BRACES (measured on the first cut): the tip's three members lie in
     // its own station's plane, a mechanism (GATE BIPLANE's rank read one
     // short), and a root pair a hand's width apart let the stab ROLL on the
@@ -1268,6 +1287,7 @@ function genLattice(S, gearX, track, kScale) {
     pt(VF[i + 1], 0.5 * ribV); pt(VR[i + 1], 0.5 * ribV);
   }
   for (const nd of [VF[nV], VR[nV], VX[nV], VX2[nV]]) B(FIN, nd, 'tail');   // the apex on the last section
+  pt(FIN, 1.15 * cTipV * 0.30);              // the apex's bow (G235), as the tips'
   B(FIN, VF[nV - 1], 'tail'); B(FIN, VR[nV - 1], 'tail');   // ...and out of its plane (the same mechanism)
   TAIL = { HF, HR, HB, VF, VR, VX, VX2, zsH, semiH, zRootH, chordH, hV, chordV, nV,
            sparFront: sparF, rearH: 1 - CT, rearV: 1 - CR };

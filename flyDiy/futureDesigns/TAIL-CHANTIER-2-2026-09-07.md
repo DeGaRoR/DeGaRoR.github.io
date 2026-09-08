@@ -9,7 +9,7 @@ day where they disagree — `TAIL-ARCHETYPES-2026-09-07.md` (the editor),
 `CANARD-DELTA-2026-09-07.md` (the configurations, out of scope here),
 `TAIL-PHYSICS-AUDIT-2026-09-07.md` (the physics) — each of which carries an
 ERRATA pointer back here. Every number below is measured on this tree unless
-marked INFERRED. No G number is claimed: G213 is already taken in the tree by
+marked INFERRED. No G number is claimed here: G213 was already taken in the tree by
 another session, and the number is taken when a phase lands (SHARED-TREE §3).
 
 ---
@@ -573,7 +573,7 @@ the three-tier pattern in mind, do not touch it).
 
 ---
 
-## IMPLEMENTATION NOTES (2026-09-07, the corrected plan is the session's plan file; P0 landed as G214)
+## IMPLEMENTATION NOTES (2026-09-07/08, the corrected plan is the session's plan file; the phases landed as G214-G219 and P6 as G233; three headings collided in the same hours and the session that landed the join audit renumbered ITS entries to G220-G221 for this arc, saying so in commit 5ec9b6f — its source comments still read G216/G217, which is that session's own note, not this one's)
 
 Verified line by line against the tree before P0 (three read-only sweeps,
 ~160 claims). Corrections that CHANGE the work, so nobody re-derives them:
@@ -712,3 +712,51 @@ flapped approach was not foreseen here or in G197. The three answers are in
 DEBT-REGISTER §1 and HANDOVER G219; GATE FLAPS holds flaps by fiat for its
 servo row meanwhile, GATE GE's window is re-read to 25 % (the tail lifting
 in ground effect is the same kernel, and real).
+
+**P6 landed (G233, 2026-09-08) — and the chantier is closed.** The trace §5
+asked for found that the wander was never the boom's: GATE TAKEOFF's own
+ultralight fixture resolved to `fuse.boom null` (its cage says rod, its spec
+never got the row — `GEN_MIGRATORS[7]` carries it now), and the 12 m bound
+that blocked G199.5 belonged to a PILOT that flew a crosswind take-off with
+its wings level. With into-wind aileron (`43_pilot.js groundSteer`) the roll
+holds 2.6 m where it held 18.0, and the compensator can be turned on:
+`GEN_RULES.rodBoomK: 'computed'` = GJ_tube / GJ_lattice on the mid-boom bay
+(1.56 on the fixture), stab roll 3.82° → 1.84° — half of the 3.09° the user
+complained about. §5's second half is also paid: the AP steering did not
+need a retune, it needed the other half of crosswind technique. Separately,
+`airLateral`'s course trim was gated on there BEING a wind, so in calm air a
+propwash-swirl crab could never be trimmed out (the V-tail card sat 17 m off
+the centreline and gave up); ungated, it lands clean.
+
+**The acceptance criteria (§0), answered.** 1 the drawn tail is the flown
+tail, measured on every build that draws one, rod booms and pods included,
+pinned drawn → export → resolved → frame in GATE JOIN. 2 no macro row is
+silently clamped: the clamps speak in the join's ERRS and the layer's own
+`clamped` list. 3 the tail scales, is in the load test, carries its own load
+and mass, and reads its incidence off its own deformed nodes. 4 ONE
+re-baseline: the seed, the flip, the end-plate, the volumes and the tail's
+section all moved together in P5. 5 old builds load honestly — no version
+bump (ruled), the join re-measures on load, and a v8 drawn-tail fixture
+gates the path. 6 the boom is closed, not ruled away. 7 GATE ARCHETYPES
+flies the drawn tail and says so per card. What is NOT closed and is written
+down instead: the flapped approach under the vortex kernel (a ruling, DEBT
+§1), the `tube` element type, the AP yaw plant, `tailK` against a beam, the
+V-tail truss, and the fin's side-bending model (GATE LOAD reports it).
+
+**The truss's own bill, settled (G235, 2026-09-08).** The chantier's last red
+was not in the tail's aerodynamics or its rigging but in what P4's prism did
+to the integrator. `genSubsteps` floors a node's dry mass at 0.5 kg — written
+in G121 for a node that is mostly fuel, applied to every node — and the fin
+apex it now had to size (0.263 kg, on a 0.13 m box chord at 578 kN/m) is the
+stiffest beam in the aeroplane. The rule sized the step for a tail twice its
+weight, so the material row, which computes omega*dt from the TRUE masses,
+read 0.522 on tubeFabric and 0.565 on wood against its 0.50 bound. The floor
+now guards only a node carrying fuel, AND the tail's tips and the fin's apex
+are billed the tip bow the wing has had since G140 and the tail never had
+(0.30 kg/m over an arc 1.15 chords long: 0.278 kg a stab tip, the apex 0.263
+-> 0.579). Both together, because the floor alone lands GATE MOUNT's wing
+pair and twin on 82 substeps against the 80 its cost row allows. Fleet after:
+tubeFabric 71, wood 79, alloy 109, carbon 156, every omega*dt 0.448-0.449;
+the stock 462.181 -> 463.069 kg with its CG 8.8 mm aft; `_energy_base` and
+`_wing_split` re-blessed (no node changed place — the whole wing-split move
+is the rest frame's CG origin, checked node by node).

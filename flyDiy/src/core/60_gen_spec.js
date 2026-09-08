@@ -1552,13 +1552,26 @@ const GEN_RULES = {
   // in place. Turning it to 4 is the user's ruling, paired with either a
   // retune of the AP's crosswind steering or a re-based 12 m bound; the
   // remaining 3x to the real tube is the tube member class, owed.
-  // TAIL CHANTIER 2 P6 (2026-09-08): the number need not be swept — set to
-  // 'computed' the frame derives it as GJ_tube / GJ_lattice on the mid-boom
-  // bay (61_gen_frame.js rodK says how, and prints it in the join's note);
-  // a number here still means that number, 1 the identity. Landed at 1
-  // until GATE TAKEOFF's crosswind roll is flown against the computed
-  // value (P6's own measurement).
-  rodBoomK:    1,
+  // TAIL CHANTIER 2 P6 (2026-09-08): LANDED, AND DERIVED. 'computed' asks
+  // the frame for GJ_tube / GJ_lattice on the mid-boom bay (61_gen_frame.js
+  // rodK derives both); a number here still means that number, and 1 is the
+  // identity. What unblocked it was not the boom at all: the 12 m
+  // crosswind bound that G199.5 could not get under belonged to a PILOT
+  // that flew a crosswind take-off with the wings level, and with
+  // into-wind aileron (43_pilot.js groundSteer) the roll holds 2.6 m
+  // whatever the boom does. Measured on the ultralight fixture, the taxi at
+  // full rudder:
+  //   rodBoomK      stab roll vs the mains     cross-track through the roll
+  //      1                 3.82 deg                    2.60 m
+  //      'computed' (1.56) 1.84                        2.55
+  //      4 (the old sweep) 1.79                        2.55
+  // — the derived factor lands where the hand sweep did, and the aeroplane
+  // the user complained about ("the stabs move with the tailwheel") now
+  // twists half of what it did before this chantier began (3.09 deg).
+  // The residual to a real tube is the `tube` ELEMENT TYPE (the solver has
+  // no rotational DOF, so a truss's axial springs stand in for a shear
+  // flow): in the debt register, owed, and honest about being owed.
+  rodBoomK:    'computed',
   rodWall:     1.2e-3, // the rod boom's tube wall, m (4130: 1.2 mm on a 113 mm tube)
   // ...and WHERE the foot goes, as a fraction of the way from the engine to
   // the front spar: 1 = under the front spar. Measured on the twin (engines
@@ -1788,7 +1801,11 @@ const GEN_MIGRATE_CAGE_DEFAULTS = { boomLen: 3.983966, taperLen: 0.6 };
 //   1  2026-09-07, TAIL CHANTIER 2: the measured tail (P1), the tail truss
 //      and its mass (P4), the vortex downwash on every build and the fin's
 //      end-plate (P5)
-const PHYSICS_V = 1;
+//   2  2026-09-08, G235: the tail's tips and the fin's apex are billed their
+//      tip bow (0.888 kg on the stock, its CG 8.8 mm aft) and the substep
+//      rule's dry floor stopped applying to nodes that carry no fuel, so the
+//      integrator runs a different step on every build
+const PHYSICS_V = 2;
 
 // { fromVersion: spec => spec } — each entry lifts a spec one version. May
 // mutate and return its argument. Runs BEFORE normalisation, on the raw shape
@@ -1861,6 +1878,23 @@ const GEN_MIGRATORS = {
       const bl = c.boomLen == null ? D.boomLen : +c.boomLen;
       const tl = c.taperLen == null ? D.taperLen : +c.taperLen;
       if (isFinite(bl) && isFinite(tl)) c.boomLen = +Math.min(6.0, bl + tl).toFixed(4);
+    }
+    // ...AND THE ROD ITSELF REACHES THE FLOWN SPEC (2026-09-08, TAIL
+    // CHANTIER 2 P6). `fuselage.boom` — the row the frame reads to know it
+    // is stiffening a TUBE and not a truss (GEN_RULES.rodBoomK) — was only
+    // written by the join from G199.5 on. A save drawn before that carries
+    // its rod in the CAGE (`boomStyle 1`) and nothing in the spec, so in
+    // node, where no join runs, it resolves to `fuse.boom null` and flies as
+    // a LOFTED FUSELAGE: measured on the ultralight fixture, the aeroplane
+    // the whole rod-boom arc was measured on — GATE TAKEOFF had been
+    // patching the row into its own copy by hand, which is one gate's fix
+    // for every save's problem.
+    // A field that changes HOME is what a migrator is for. The cage is the
+    // drawing and the drawing wins; a save that already states its boom
+    // keeps what it states.
+    if (+c.boomStyle === 1 && !+c.boomTwin) {
+      const fu = r.fuselage || (r.fuselage = {});
+      if (fu.boom == null) fu.boom = 'rod';
     }
     return r;
   },};

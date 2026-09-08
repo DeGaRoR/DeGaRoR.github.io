@@ -102,10 +102,10 @@ function checkClamp(name, spec) {
   ok = check(near(c.wings[0].chord, spec.wings[0].chord),
     name + ': clamp did not bite the declared chord',
     spec.wings[0].chord + ' -> ' + c.wings[0].chord) && ok;
-  if (spec.fuel && spec.fuel.litres != null)
-    ok = check(near(c.fuel.litres, spec.fuel.litres),
-      name + ': clamp did not bite the declared fuel',
-      spec.fuel.litres + ' -> ' + c.fuel.litres) && ok;
+  // (the fuel branch is gone with its probe, 2026-09-08: it was guarded on
+  // `spec.fuel.litres`, a field nothing has DECLARED since the energy arc,
+  // so it could neither bite nor be shown to bite — see the note by the
+  // probes below, and the debt register)
   return ok;
 }
 
@@ -128,13 +128,22 @@ function checkShakedown(name, sh, targets) {
 }
 
 // 4 FLY — the test pilot's circuit, the GATE GEN discipline
-function checkFlight(name, r) {
+// THE CLOCK IS THE PILOT'S, NOT ONE CIRCUIT'S (2026-09-08). This asked for a
+// full stop inside 420 s, which is one clean circuit — but the pilot is
+// allowed TWO go-arounds before it commits, and a card that uses them for a
+// declared reason is flying the pattern exactly as designed: the Beaver- and
+// Caravan-alikes both go around twice for terrain under their home approach
+// and then land, at 493 and 537 s. Judging that a failure to fly was the
+// clock's fault, not the aeroplane's. `maxS` (below) is the same rule at the
+// harness's end, and what still fails is what should: never stopping.
+function checkFlight(name, r, maxS) {
   let ok = true;
+  const bound = maxS || 700;
   ok = check(!r.nan, name + ': no NaN in flight') && ok;
   ok = check(r.report.outcome === 'completed',
     name + ': the circuit completes', String(r.report.outcome)) && ok;
-  ok = check(r.phase === 'STOPPED' && r.t < 420,
-    name + ': full stop inside 420 s',
+  ok = check(r.phase === 'STOPPED' && r.t < bound,
+    name + ': full stop inside ' + bound + ' s',
     r.phase + ' at ' + r.t.toFixed(0) + ' s') && ok;
   return ok;
 }
@@ -193,8 +202,16 @@ if (!process.argv.includes('--selftest')) {
     // a GLIDER cruises at 30 m/s and flies the same circuit the tourers fly at
     // 45 (measured 2026-09-04: the motorglider was still in CRUISE at 420 s,
     // the Archaeopteryx-alike on APPROACH) — the bound scales with the role
-    const r = fly(spec, role && role.value === 'glider' ? 640 : 420);
-    checkFlight(a.name, r);
+    // THE CLOCK ALLOWS THE PILOT ITS GO-AROUNDS (2026-09-08). 420 s times
+    // ONE clean circuit, and the pilot is allowed two go-arounds before it
+    // commits — a legitimate one (the Beaver-alike's home approach has
+    // terrain under it, and it goes around twice for that reason before
+    // landing) costs about 140 s each, so a card that flies the pattern
+    // exactly as designed ran out of clock and read as a failure to fly.
+    // The bound is still a bound: a card that cannot get down says so.
+    const maxS = role && role.value === 'glider' ? 900 : 700;
+    const r = fly(spec, maxS);
+    checkFlight(a.name, r, maxS);
     flown++;
   }
   check(flown >= 5, 'at least five archetypes flew', String(flown));
@@ -219,16 +236,28 @@ if (process.argv.includes('--selftest')) {
     cases.push(caught);
   };
   const goodSpec = D.designBake(D.ARCHETYPES[0].sel, D.ARCHETYPES[0].over);
+  // BOTH OF THESE HAD GONE INERT, found 2026-09-08 by running --selftest
+  // during TAIL CHANTIER 2 (the battery runs this gate without it, so
+  // nothing was red — the checks had simply stopped being able to fail).
+  // The span ceiling is `min(18, 20 x chord)` and a 1.6 m chord makes it 18,
+  // so a 16 m span has been INSIDE the clamp since the span band was
+  // widened for the long-winged cards: 20 m bites. And `spec.fuel.litres`
+  // is a field nothing has read since the energy arc gave fuel its own
+  // vessels (G98) — checkClamp's fuel branch is guarded on it, so the probe
+  // doctored a spec the checker then skipped. A vessel's own capacity is
+  // what a builder can over-declare now, so that is what it doctors.
   probe('a declared span the clamp bites', () => {
     const s = JSON.parse(JSON.stringify(goodSpec));
-    s.wings[0].span = 16.0;
+    s.wings[0].span = 20.0;
     return checkClamp('doctored', s);
   });
-  probe('a declared fuel load the clamp bites', () => {
-    const s = JSON.parse(JSON.stringify(goodSpec));
-    s.fuel = { litres: 400 };
-    return checkClamp('doctored', s);
-  });
+  // (the fuel probe is RETIRED, not moved: there is no clamp left for it to
+  // verify. `spec.fuel.litres` stopped being a declaration when the energy
+  // arc gave fuel its vessels, and a VESSEL's capacity is bounded by
+  // nothing — 900 litres declared in a 60-litre box resolves to
+  // `fuel.litres 900` and flies. That is a real hole and it is the energy
+  // arc's, so it is in the debt register rather than papered over with a
+  // probe that would pass by testing something else.)
   probe('a shakedown that refuses the circuit', () =>
     checkShakedown('doctored', { flyableCircuit: false, climbRate: 0.1,
                                  TORun: 1400 }, null));

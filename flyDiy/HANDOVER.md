@@ -34171,7 +34171,7 @@ Two instruments, then the fixes. The whole record, with the tables, is
   that spans `oilW` on the surface the door is drawn on.
 - Gates: COWL, PARTS, STARTER, SAVE, DESIGN, UISMOKE, LOAD green.
 
-## G223 — TAIL CHANTIER 2, P0: THE INSTRUMENT — THE LAYERS MEASURE THE DRAWN
+## G214 — TAIL CHANTIER 2, P0: THE INSTRUMENT — THE LAYERS MEASURE THE DRAWN
 ## TAIL, THE PAGE'S BUILD IS ONE FUNCTION, AND THE TAIL BUILDS WITHOUT A PAGE
 ## TO THE BIT (2026-09-07, the user: "tail chantier 2. There is a spec written
 ## in future designs. Open it, read it critically, suggest your own
@@ -34268,7 +34268,7 @@ with a drawn tail gates the load path, PHYSICS_V lands for the certificates.
   +120, `61`/`62`/`65` — G213's GEN_SURF_MATERIALS); both checkers require
   `flight_core.js` only. Not committed at the time of writing.
 
-## G224 — TAIL CHANTIER 2, P1: THE DRAWN TAIL IS THE FLOWN TAIL — THE JOIN
+## G215 — TAIL CHANTIER 2, P1: THE DRAWN TAIL IS THE FLOWN TAIL — THE JOIN
 ## READS THE LAYERS' MEASURE BY IDENTITY, WRITES THE AREAS AND THE MEAN
 ## CHORDS, THE CONTROL CHORDS ARE THE CUT'S, THE CLAMPS SPEAK, AND THE
 ## SURFACES HINGE ON THE DECLARED PLANE (2026-09-07)
@@ -34356,9 +34356,9 @@ the elevator notch: the stock's hChord read 1.28 m for a 0.75 m mean.
   Subset run after the live checks: HONEST, BIPLANE, UISMOKE, BUILD, FIN,
   JOIN, SAVE, BENCH, PARTS, DESIGN green; GEN killed at the runner's 1800 s
   cap again (as in the P0 battery, before any core edit — the machine is
-  shared by six sessions); re-run uncapped, see G225's line.
+  shared by six sessions); re-run uncapped, see G216's line.
 
-## G225 — TAIL CHANTIER 2, P2: THE CAGE'S OWN VERTICES ARE THE EXPERT TIER,
+## G216 — TAIL CHANTIER 2, P2: THE CAGE'S OWN VERTICES ARE THE EXPERT TIER,
 ## AND THE CONTROL CAGE FOLLOWS THE SWITCH (2026-09-07)
 
 - The fin's and the stab's seven shape groups each — tip, top-aft corner,
@@ -34378,7 +34378,7 @@ the elevator notch: the stock's hChord read 1.28 m for a 0.75 m mean.
   stab draws no cage (it never did; the fin's is the grammar's).
 - Gates: PARTS, DESIGN, FIN, UISMOKE green.
 
-## G226 — TAIL CHANTIER 2, P3: THE MACRO TIER — HEIGHT, CHORD, TIP CHORD,
+## G217 — TAIL CHANTIER 2, P3: THE MACRO TIER — HEIGHT, CHORD, TIP CHORD,
 ## SWEEP AND THE HINGE IN THE WING'S VOCABULARY, THE HINGE A LINE, THE CLAMPS
 ## SPEAK, AND A TAIL-OUTLINE STARTER WITH A FROZEN STRAIGHT FIN (2026-09-07)
 
@@ -34442,7 +34442,7 @@ the elevator notch: the stock's hChord read 1.28 m for a 0.75 m mean.
   UP"); nothing to add. Gates: FIN (§8f macro tier, §8g straight fin),
   JOIN, PARTS, DESIGN green standalone; the subset run — see the line below.
 
-## G227 — TAIL CHANTIER 2, P4: THE TAIL STRUCTURE IN THE WING'S IDIOM — TWO-
+## G218 — TAIL CHANTIER 2, P4: THE TAIL STRUCTURE IN THE WING'S IDIOM — TWO-
 ## SPAR PRISM TRUSSES ON THEIR OWN NODES, STRIPS ON THE BAYS OFF THE
 ## DEFORMED SPARS, THE TAIL CLASS, THE LOAD RIG LOADS THE STAB AND THE FIN
 ## (2026-09-07)
@@ -34531,7 +34531,7 @@ fabric — the structure was never there.
   ENERGYBASE, FLEX, TAKEOFF green; BIPLANE, GEN (uncapped) and ARCHETYPES —
   see the line below.
 
-## G228 — TAIL CHANTIER 2, P5: THE CONSOLIDATION — THE SEED SIZES EVERY DRAWN
+## G219 — TAIL CHANTIER 2, P5: THE CONSOLIDATION — THE SEED SIZES EVERY DRAWN
 ## TAIL OFF THE RULE AT BIRTH, EVERY BUILD FLIES THE VORTEX DOWNWASH WITH THE
 ## FIN END-PLATED, GATE ARCHETYPES FLIES THE DRAWN TAIL, CERTIFICATES CARRY
 ## THE PHYSICS, AND THE FLEET IS RE-BASELINED ONCE (2026-09-08)
@@ -34784,40 +34784,6 @@ integration") by a whole-tree commit from outside this session, along with
 every other session's work in flight at the time. Nothing was lost; the
 history simply does not name it.
 
-## G222 - THE TAPE LINES AND THE FASTENER LINES ARE THE SAME LINES
-## (2026-09-08, the user: "I think I'd want the tape lines and the rivet
-## lines to coincide. Is that possible?")
-
-Yes, and the reason they did not is that an airframe here has TWO families of
-member and each drew its own line and carried its own fastener row:
-
-  the REAL rings and rails  integer stations and levels - the bulkheads, the
-                            pillars, the longerons the generator knows about
-                            (uG4, distances dSt / dLv)
-  the METRIC pitch          the frames and stringers a CONSTRUCTION has
-                            between them (uG0, distances df / ds)
-
-The grammar's own rivet rows rode the metric pitch only; G214's member screws
-rode the real members only. On the user's build that is exactly the picture
-they described: `tape.rise` is 0, so every line you can SEE is a real ring,
-and the rivet rows were sitting on the invisible metric frames.
-
-A skin is screwed to WHATEVER member is under it, so every fastener row now
-takes `aeroNearer(dSt, df)` and `aeroNearer(dLv, ds)` - the nearer member of
-either family, signed so the stamp still knows which side of the row it is
-on. A head lands on every line the grammar draws and nowhere else. 1e3 is
-"this family has none", so a construction with no metric pitch (or a mesh
-with no real rings) falls to the other by construction; a row is silenced
-only when NEITHER family has a member that way.
-
-MEASURED IN THE PAGE, not reasoned: with the wood row's metric frame pitch
-pushed to 1.6 m - so metric frames are rare - the flank still carries head
-rows at every real ring. Before this it would have carried none there.
-
-BOTH DISTANCE PAIRS NOW LIVE IN ONE SCOPE. They were computed in two (the
-real members inside the `uG4.x > 0` branch, the metric ones after it), which
-is the whole reason nothing could put a fastener on both.
-
 ## G229 — THE WOODEN HOUSE: A GENERATOR, TWO MESHES, AND A BENCH TO JUDGE IT
 ## BY (2026-09-08, the user: "I'll need a good wooden house generator. One that
 ## can output high and low poly meshes, with an editor with sliders and all ...
@@ -34901,6 +34867,40 @@ L-plan ell and dormers (both need a real roof VALLEY, which the min-of-planes
 model does not have and which is a chantier of its own — the lean-to exists
 because it tucks under the main eave and needs no valley); and the join into
 `render_world.js`, which is where the box-and-prism villages get replaced.
+
+## G222 - THE TAPE LINES AND THE FASTENER LINES ARE THE SAME LINES
+## (2026-09-08, the user: "I think I'd want the tape lines and the rivet
+## lines to coincide. Is that possible?")
+
+Yes, and the reason they did not is that an airframe here has TWO families of
+member and each drew its own line and carried its own fastener row:
+
+  the REAL rings and rails  integer stations and levels - the bulkheads, the
+                            pillars, the longerons the generator knows about
+                            (uG4, distances dSt / dLv)
+  the METRIC pitch          the frames and stringers a CONSTRUCTION has
+                            between them (uG0, distances df / ds)
+
+The grammar's own rivet rows rode the metric pitch only; G214's member screws
+rode the real members only. On the user's build that is exactly the picture
+they described: `tape.rise` is 0, so every line you can SEE is a real ring,
+and the rivet rows were sitting on the invisible metric frames.
+
+A skin is screwed to WHATEVER member is under it, so every fastener row now
+takes `aeroNearer(dSt, df)` and `aeroNearer(dLv, ds)` - the nearer member of
+either family, signed so the stamp still knows which side of the row it is
+on. A head lands on every line the grammar draws and nowhere else. 1e3 is
+"this family has none", so a construction with no metric pitch (or a mesh
+with no real rings) falls to the other by construction; a row is silenced
+only when NEITHER family has a member that way.
+
+MEASURED IN THE PAGE, not reasoned: with the wood row's metric frame pitch
+pushed to 1.6 m - so metric frames are rare - the flank still carries head
+rows at every real ring. Before this it would have carried none there.
+
+BOTH DISTANCE PAIRS NOW LIVE IN ONE SCOPE. They were computed in two (the
+real members inside the `uG4.x > 0` branch, the metric ones after it), which
+is the whole reason nothing could put a fastener on both.
 
 ## G230 — THE HOUSE IS DRESSED: FIFTEEN SCANNED SETS, PAINT THAT IS A TINT ON A
 ## NEUTRAL MAP, ONE TEXEL DENSITY, AND THE EAVE PUT RIGHT (2026-09-08, the user
@@ -35098,6 +35098,171 @@ G220-G221 *for this arc* and said so, so the committed numbering was the
 agreed one and it went back. The stale source comments that started it are
 that session's own, named in its commit message. The house's G229-G231 and
 G222 are unaffected either way.
+
+## G235 — THE TIMESTEP WAS SIZED FOR NODES TWICE THEIR WEIGHT, AND THE TAIL'S
+## TIPS CARRY NO BOW (TAIL CHANTIER 2, THE LAST RED — 2026-09-08)
+
+GATE GEN's material row is the one check in the battery that computes omega*dt
+from the TRUE node masses; `genSubsteps`, which picks the count that omega*dt
+is measured against, computes it from a FLOORED mass. The two disagreed the
+moment the tail became a truss (G218), and the disagreement is the whole of
+the red: uncapped, tubeFabric read 0.522 and wood 0.565 against the row's 0.50
+bound while the rule believed both were inside its own 0.45 target.
+
+- **The floor was not doing what its own comment says it does.** G121 put a
+  0.5 kg floor under the dry mass so a node that is mostly fuel could not be
+  sized at its empty weight, and the comment ends "No fuel on the node = the
+  old line." The line floored EVERY node. On a fabric fuselage the stiffest
+  beam in the aeroplane is a 0.13 m box chord of the fin's prism, k 578 kN/m,
+  between the apex at 0.263 kg and a side node at 0.296 — the rule read both
+  as 0.5 kg and sized the step for a tail twice its weight, which is exactly
+  the neighbourhood G121 was written to keep the fleet out of. The floor now
+  guards a node that carries fuel and nobody else.
+- **The tail's tips and the fin's apex carried no bow.** The station loop
+  bills a rib at stations 1..n; the tip is the one edge it never reaches, so
+  a tip node carried its share of the bay's covering and nothing else. A
+  surface's outboard edge is a formed bow closing the two spars over an arc
+  about 1.15 chords long — the wing has said so since G140 ("a light fairing
+  outboard of the spar box") and the tail simply never billed it. At the
+  tail's own rib density (0.30 kg/m) it is 0.278 kg on each stab tip and
+  0.316 on the apex, which reads 0.579 kg where it read 0.263.
+- **Both, not one.** The honest floor alone clears the physics but costs the
+  count: GATE MOUNT's wing pair and the twin fixture land on 82 substeps
+  against the 80 its COST row allows. The bow gives those two nodes the mass
+  the aeroplane they represent actually has, and the fin's apex chord drops
+  out of the top five stiff beams altogether.
+
+```
+                       substeps   omega*dt   c*dt
+  floored, no bow      tubeFabric   65        0.522   FAILS the row
+                       wood         66        0.565   FAILS the row
+                       alloy       109        0.448
+                       carbon      152        0.470
+  honest floor         tubeFabric   76        0.447
+                       wood         83        0.450   MOUNT: 82 on two cases
+                       alloy       109        0.448
+                       carbon      159        0.449
+  + the tip bow        tubeFabric   71        0.448   0.265
+                       wood         79        0.448   0.425
+                       alloy       109        0.449   0.266
+                       carbon      156        0.448   0.286
+```
+
+Re-anchored, each measured: `_energy_base --bless` (the stock 462.181 ->
+463.069 kg, CG 0.97940 -> 0.98817 — 0.888 kg over three nodes, 8.8 mm aft);
+`_wing_split --bless`, where every part of every case reported POSITIONS
+moved and NO NODE CHANGED PLACE — the whole move is the CG shift the rest
+frame is measured from, checked node by node (max body-frame move 8.7746 mm
+in x, 0.5746 in y, and 0.37 in z on the one node the gear law places off the
+CG). The swept fixture's frozen mass stands: the bow is 0.19 % against its
+1.5 % window. GATE MOUNT reads 71 / 71 / 71 / 77 / 77.
+
+`PHYSICS_V` goes to 2 with it: the bow is mass the plaque bills and the
+step is the answer the solver gives, so a certificate earned this morning
+loads WITHDRAWN rather than standing over numbers that have moved.
+
+**And with that the battery is green** — every gate, GEN among them, run
+after the fix: 74/74 checks uncapped (it is the runner's 1800 s clock it
+trips, not a check), 25 archetypes flown, and the fifty-odd others in
+three passes. The last two reds of TAIL CHANTIER 2 were both P4's truss
+presenting its bill: G233 the pilot that could not fly a crosswind, G235
+the integrator that could not weigh a tail.
+
+## G233 — TAIL CHANTIER 2, P6: THE ROD BOOM'S COMPENSATOR IS COMPUTED AND
+## LANDED ON — AND THE TWO THINGS THE PILOT WAS NOT DOING, WHICH IS WHY IT
+## COULD NOT BE (2026-09-08)
+
+P6 was written as "compute the compensator, trace the wander, then retune or
+re-base". The trace found the wander was never the boom's, and the retune
+was two missing pieces of airmanship. All three landed.
+
+- **A pre-G199.5 save's rod boom did not reach its flown spec.** The
+  ultralight fixture's cage says `boomStyle 1` (a rod) and `rodD 0.152`, but
+  `fuselage.boom` — the row the frame reads to know it is stiffening a TUBE
+  — was only written by the join from G199.5 on, so the file carries its rod
+  in the drawing and nothing in the spec, and resolves to `fuse.boom null`.
+  In the game the join re-runs on load and repairs it; in node nothing does,
+  and GATE TAKEOFF had been patching `spec.fuselage.boom = 'rod'` by hand in
+  its own fixture loader to compensate — one gate's copy of one aeroplane.
+  `GEN_MIGRATORS[7]` carries the declaration now, for every such save (the
+  cage is the drawing and the drawing wins; a save that already states its
+  boom keeps what it states), and the gate's hand-patch is gone — so it
+  proves the migration as well as the aeroplane.
+- **The compensator is computed** (`61_gen_frame.js rodK`, `GEN_RULES
+  .rodBoomK: 'computed'`): `GJ_tube / GJ_lattice` on the mid-boom bay —
+  the tube from its own drawn radius (`fuse.rod`, or the cage's `rodD` x
+  `planeScale` when a save predates the join's row) and `GEN_RULES.rodWall`,
+  the lattice from its bays' diagonals (`Σ n·k·(s/d)²·r²·L`, no rotational
+  DOF in the solver, so torsion is what the diagonals give it). A number in
+  the rule still means that number; 1 is the identity.
+- **What actually unblocked it**: G199.5 landed the switch OFF because
+  stiffening the boom pushed GATE TAKEOFF's crosswind roll past its 12 m
+  bound. That bound was never the boom's fault. The PILOT flew a crosswind
+  take-off **with its wings level** — it had the rudder half of crosswind
+  technique and not the aileron half — so the aeroplane drifted, and on a
+  taildragger the drift became a weathercock the rudder then fought at its
+  stop (traced: the tail lightens at 17 m/s, the tailwheel's steering goes
+  with it, the nose swings 34° with the rudder saturated for three seconds,
+  18 m off the centreline). `groundSteer` holds **aileron into the wind**
+  now — a bank bias the level-wing loop flies, most at low speed, easing as
+  the ailerons bite, zero in calm air to the bit. Measured on the fixture:
+  2 m/s across 18.0 m → **2.6 m**; 3 m/s quartering 12.1 → 4.7; calm and
+  headwind unchanged. `out.wind*` is the AIR'S VELOCITY, not the direction
+  it comes from — the sign was measured both ways (29 m the other way).
+- **...and the course trim was gated on the wind** (`airLateral`): in calm
+  air a steady course error could not be trimmed out at all. A steady error
+  does not need a wind — PROPWASH SWIRL yaws the aeroplane all the way down
+  an approach, the beta damper only damps it, and the aeroplane flies a
+  heading that closes the centreline while TRACKING parallel to it. The
+  V-tail card sat 17 m off, holding, with 1° of bank, went around twice and
+  gave up — in dead calm. The same integrator, the same bounds, the same
+  wash-out through a turn, now running whenever the error is small and
+  steady: the card lands at 264 s with no go-around, and an aeroplane that
+  already tracks true keeps its trim at zero and is unchanged.
+- **The boom, measured** (the fixture, taxi at full rudder): `rodBoomK` 1 →
+  3.82° of stab roll against the mains; 'computed' (1.56) → **1.84°**; the
+  old hand sweep at 4 → 1.79°. The derived factor lands where the sweep did,
+  the crosswind roll stays 2.55 m either way, and the aeroplane the user
+  complained about ("the stabs are moving with the tailwheel, even when
+  simply taxiing") now twists **half of what it did before this chantier
+  began** (3.09°). Substeps 58 → 88, on rod builds only. The residual to a
+  real tube is the `tube` ELEMENT TYPE, in the debt register, owed.
+- **Gate re-reads, each with its own measurement in the file**: GATE JOIN's
+  G199.5 row reads the factor off the members (the rule may be a word now);
+  GATE TAKEOFF's crosswind-limit row asks that a tighter band read a lower
+  limit rather than naming a metre (the pilot got better than the row's
+  number); GATE FLEX gives the climb 200 s (the alloy sheet, the fleet's
+  heaviest, reaches cruise at 121); GATE ENGINE pins the gear station for
+  its engine-arm row (the second pass moves the wheels and their mass
+  follows — measured: pinned, the closed form agrees to the digit); GATE
+  ARCHETYPES allows the pilot its two go-arounds (the Beaver-alike's home
+  approach has terrain under it and goes around twice by design); GATE
+  BIPLANE's rigging rows count the planes' wires, not the stab's brace
+  wires, and its downwash row reads "every build flies the vortex model";
+  GATE PILOT's flare row asks for the build's OWN landing flap; GATE GE's
+  lift-gain window is 25 % (the tail lifts 179 N in ground effect under the
+  kernel — the flare's nose-down, real). `_energy_base` and `_wing_split`
+  re-blessed, the swept fixture re-frozen, all diffs in their own notes.
+- **The brace drag is split**: the stab's four wires are the TAIL's drag,
+  not the wing bracing's (`tailBraceDCdA`, both paid into the body's area) —
+  a monoplane pays nothing in the truss bucket, which is what GATE HONEST's
+  row means.
+- **Two of GATE ARCHETYPES' own negative probes had gone inert**, found by
+  running its `--selftest` (the battery runs it without): a 16 m span has
+  been inside the clamp since the span band was widened for the long-winged
+  cards (the ceiling is `min(18, 20 x chord)`), so that probe now doctors
+  20 m; and the fuel probe doctored `spec.fuel.litres`, a field nothing has
+  declared since the energy arc gave fuel its vessels, which `checkClamp`'s
+  own fuel branch was guarded on — so neither could bite. The branch and the
+  probe are retired with the reason written where they were, and what they
+  were standing in front of is now in the debt register: a VESSEL's declared
+  capacity is bounded by nothing, and 900 litres in a 60-litre box reaches
+  `fuel.litres` and flies. That is the energy arc's to fix, not this one's.
+- **The fleet gate had a second clock** (`checkFlight`'s own 420 s beside
+  the harness's), so the Beaver- and Caravan-alikes — which go around twice
+  for terrain under their home approach and then land, at 493 and 537 s —
+  read as failures to fly. Both bounds are the pilot's now: 700 s, 900 for
+  a glider. All 25 cards fly, and 23 of them fly the DRAWN tail.
 
 ## G232 — THE REVIEW ANSWERED: RIGOROUS UVs, CLOSED SHELLS, A VENEER FINISH, A
 ## LIGHT RIG THAT CAN JUDGE PBR, AND A SECOND GENERATOR THAT BUILDS PLANK BY

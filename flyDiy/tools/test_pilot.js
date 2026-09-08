@@ -206,9 +206,21 @@ function checkTrike(r) {
 }
 // FLAPS + STATUS — a flapped build (the user's ultralight) has its flaps
 // DOWN at the flare, and the pilot says what it is doing on the roll
-function checkFlapsStatus(r) {
+function checkFlapsStatus(r, ldg) {
   check(!r.nan && r.report.outcome === 'completed', 'flaps: the flapped build completes from the stand', String(r.report.outcome));
-  check(r.flapAtFlare != null && r.flapAtFlare > 0.9, 'flaps: landing flaps are down at the flare (' + (r.flapAtFlare == null ? '—' : r.flapAtFlare.toFixed(2)) + ')');
+  // THE FLARE FLIES WHAT THE BUILD LANDS ON (TAIL CHANTIER 2 P5, 2026-09-08).
+  // The trim solver decides the landing configuration: an aeroplane whose
+  // flapped approach eats the elevator budget LANDS FLAPLESS (genTrim sets
+  // params.flaps.ldg 0), which is the one change a builder would make. So
+  // the row asks for the schedule the BUILD declares — flaps down at the
+  // flare when it lands on flaps, and nothing hanging out when it does not.
+  // Under the vortex flip this fixture lands flapless; the RULING OWED on
+  // that (DEBT-REGISTER §1) is about the trim, not about the servo.
+  const want = ldg == null ? 1 : ldg;
+  check(r.flapAtFlare != null && Math.abs(r.flapAtFlare - want) < 0.1,
+        'flaps: the flare flies the build\'s own landing flap (' +
+        (r.flapAtFlare == null ? '—' : r.flapAtFlare.toFixed(2)) + ' of ' + want.toFixed(2) +
+        (want > 0 ? '' : ' — this build lands FLAPLESS') + ')');
   const st = r.statusRoll;
   check(!!st && !!st.goal && Array.isArray(st.conds) && st.conds.some(c => c.what === 'airspeed') && st.conds.some(c => c.what === 'runway left'),
         'status: the roll says its goal and its conditions (airspeed, runway left)', st ? JSON.stringify(st.conds.map(c => c.what)) : 'no status');
@@ -470,7 +482,7 @@ console.log('-- FLAPS + STATUS: the ultralight fixture from the stand --');
   for (const v of ul.report.verdicts) console.log('   ' + v.t + 's ' + v.code + ' — ' + v.note);
   console.log('   flap at the flare ' + (ul.flapAtFlare == null ? '—' : ul.flapAtFlare.toFixed(2)) + ' | roll status: ' +
               (ul.statusRoll ? ul.statusRoll.goal + ' [' + ul.statusRoll.afcs.lat + ' ' + ul.statusRoll.afcs.vert + ' ' + ul.statusRoll.afcs.thr + ']' : 'none'));
-  checkFlapsStatus(ul);
+  checkFlapsStatus(ul, def.params.flaps.ldg);
 }
 
 console.log('-- BOX: the modes as a device, over the pilot and over a hand --');

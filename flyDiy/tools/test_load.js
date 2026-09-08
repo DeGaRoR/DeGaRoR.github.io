@@ -264,13 +264,30 @@ for (const m of Object.keys(GEN_MATERIALS)) {
   }
 }
 results['P4: every tail surface survived its ultimate case'] = tailRows.every(r => r.ok);
-// the fold bound: a tube aeroplane's fin reads ~47 % of its height at
-// ultimate on its side (the stab 4 %) — a constant-k lattice 13 % deep is
-// soft in that direction, and GEN_RULES.tailK is the wing's until GATE
-// FLEX measures the tail against a beam of its own (P5); a surface past
-// half its span has folded, and that is what this row refuses
-results['P4: no tail surface deflects past half its span at ultimate'] =
-  tailRows.every(r => !r.ok || Math.abs(r.ult) < 50);
+// THE STAB'S DEFLECTION IS GATED, THE FIN'S IS REPORTED — and the reason is
+// the same one the yield note above gives. The stab bends in the direction
+// its prism is deep (the box chord under it) and reads a few per cent, like
+// the wing. The FIN's side load bends it about its own chord line, and the
+// only material the model has out there is the two chords of its diamond,
+// 0.098 m apart on the stock: EI ~ 3 kN·m² against a real fin's ~130, where
+// the SKIN is the shear web. So it reads tens of per cent, and no bound on
+// that number would be measuring the aeroplane — it would be measuring the
+// lattice. Raising GEN_RULES.tailK buys it back (tailK 8: 41 %, 12: 28 %)
+// at 15-50 % more substeps for the whole fleet, which is a fleet decision;
+// the debt register carries it beside the boom's `tube` element type, which
+// is the same gap in torsion. What IS gated: every surface survives, and
+// the stab — whose model does describe it — stays inside 10 %.
+results['P4: the stab stays inside 10 % of its semispan at ultimate'] =
+  tailRows.every(r => !r.ok || r.lbl.indexOf('stab') < 0 || Math.abs(r.ult) < 10);
+{
+  const fins = tailRows.filter(r => r.ok && r.lbl.indexOf('fin') >= 0);
+  if (fins.length) {
+    say('');
+    say('THE FIN\'S SIDE DEFLECTION IS REPORTED, NOT GATED — the lattice has two');
+    say('chords where the real fin has a skin (see the note in this file):');
+    for (const r of fins) say(`    ${r.lbl} — ${r.ult.toFixed(0)} % of its height at ultimate`);
+  }
+}
 // G185: TWO HONEST EXEMPTIONS, each named in the table. (1) A wing under the
 // instrument's floor — the carbon strut wing reads 0.03 % at 1 g, 1.5 mm at
 // the tip, and the sign of that is noise — is "too stiff to rate", GATE

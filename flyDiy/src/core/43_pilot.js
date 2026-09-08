@@ -549,10 +549,21 @@ function makePilot(sim, def, world, opts) {
       c.de = clamp((A.pitchP ?? 1.2) * (thCA - th) - (A.pitchD ?? 1.8) * q + Ith, -0.30, 0.35);
     };
     const airLateral = (bl = bankLim) => {
-      if (Math.abs(o_.windX || 0) + Math.abs(o_.windZ || 0) > 0.5) {
-        if (Math.abs(eA) < 0.2) eTrim = clamp(eTrim + 0.15 * eA * dt, -0.10, 0.10);
-        else eTrim -= 0.8 * eTrim * dt;
-      }
+      // THE COURSE TRIM IS NOT ABOUT THE WIND (2026-09-08). It was gated on
+      // there BEING a wind, so in calm air a steady course error could not
+      // be trimmed out at all — and a steady course error does not need a
+      // wind: PROPWASH SWIRL yaws the aeroplane all the way down the
+      // approach, the beta damper below only damps it, and the aeroplane
+      // flies a heading that closes the centreline while TRACKING parallel
+      // to it. Measured on the V-tail card's own approach: 17 m off,
+      // holding, 1 deg of bank, two go-arounds and a give-up — in dead calm.
+      // The integrator is the same one, with the same bounds and the same
+      // wash-out through a turn; it simply runs whenever the error is small
+      // and steady, which is when a pilot would be holding a boot of rudder.
+      // An aeroplane that already tracks true keeps eTrim at 0 and is
+      // unchanged, wind or no wind.
+      if (Math.abs(eA) < 0.2) eTrim = clamp(eTrim + 0.15 * eA * dt, -0.10, 0.10);
+      else eTrim -= 0.8 * eTrim * dt;
       const phC = clamp((A.hdgP ?? 0.7) * eA + (A.hdgD ?? 0.9) * eAR + eTrim, -bl, bl);
       phCA += clamp(phC - phCA, -(A.bankSlew ?? 0.18) * dt, (A.bankSlew ?? 0.18) * dt);
       c.da = clamp((A.rollP ?? 2.0) * (phCA - ph) - (A.rollD ?? 2.0) * p, -0.30, 0.30);
@@ -577,7 +588,28 @@ function makePilot(sim, def, world, opts) {
         : 3.2;
       const kD = tailUp ? 3.0 : 1.2;
       c.dr = clamp(-kP * e - kD * eR, -drMax, drMax);
-      c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
+      // AILERON INTO THE WIND (2026-09-08) — the other half of a crosswind
+      // ground roll, and the pilot had only the first. This held the wings
+      // LEVEL, which is right in calm air and exactly wrong across the
+      // wind: a level wing lets the upwind main unload, the aeroplane
+      // drifts, and on a taildragger the drift becomes the weathercock the
+      // rudder then fights at its stop. TRACED on the ultralight fixture at
+      // 2 m/s across (TAIL CHANTIER 2 P5): the tail lightens at 17 m/s, the
+      // tailwheel's steering goes with it (30_solver: only it steers), the
+      // nose swings 34 deg with the rudder saturated for three seconds, and
+      // the aeroplane leaves the centreline by 18 m. A pilot holds aileron
+      // INTO the wind — most at low speed, easing as the ailerons bite — so
+      // the upwind wheel keeps its load. The command is a BANK BIAS, so the
+      // level-wing loop still flies it and nothing else changes; in calm
+      // air `wX` is 0 and this is the old law to the bit.
+      // `out.wind*` is the AIR'S VELOCITY, not the direction it comes from:
+      // air moving toward +z blows FROM the starboard side, so into-wind is
+      // the starboard wing DOWN, and the bias carries the same sign as the
+      // cross component. (Measured both ways on the fixture: with the sign
+      // reversed the wander grew to 29 m; with this one it is 2.6 m.)
+      const wX = -(o_.windX || 0) * F.uz + (o_.windZ || 0) * F.ux;
+      const phW = (A.xwBank ?? 0.06) * wX * clamp((A.VTailUp ?? 12) / Math.max(V, 6), 0.4, 1.6);
+      c.da = clamp(-2.0 * (ph - phW) - 1.0 * p, -0.30, 0.30);
       tailUpNow = tailUp;
     };
     const taxi = (Vtgt) => {

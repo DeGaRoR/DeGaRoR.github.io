@@ -651,17 +651,26 @@ try {
   const fR = genFrame(RR.spec), fL = genFrame(RL.spec);
   ok(fR.beams.length === fL.beams.length && fR.nodes.length === fL.nodes.length,
      'G199.5: the rod boom builds the same lattice (nodes and members)');
-  const xb = RL.spec.fuse.boxRear, KR = C.GEN_RULES.rodBoomK;
-  let boom = 0, other = 0, bad = 0;
+  // TAIL CHANTIER 2 P6: the rule may be a NUMBER or the word 'computed' —
+  // the frame then derives it from the tube's own GJ over the lattice's
+  // (61_gen_frame rodK). Either way it is ONE factor, the same on every
+  // boom member and nowhere else, so the row reads the factor off the
+  // members themselves and holds the rest of the aeroplane to 1.
+  const xb = RL.spec.fuse.boxRear;
+  let boom = 0, other = 0, bad = 0, KR = null;
   for (let i = 0; i < fL.beams.length; i++) {
     const b = fL.beams[i], r = fR.beams[i];
     const aft = fL.nodes[b.a].p[0] >= xb - 1e-6 && fL.nodes[b.b].p[0] >= xb - 1e-6;
     const ratio = r.k / b.k, cr = r.c / b.c;
-    if (b.cls === 'fus' && aft) { boom++; if (Math.abs(ratio - KR) > 1e-9 || Math.abs(cr - Math.sqrt(KR)) > 1e-9) bad++; }
-    else { other++; if (Math.abs(ratio - 1) > 1e-9 || Math.abs(cr - 1) > 1e-9) bad++; }
+    if (b.cls === 'fus' && aft) {
+      boom++;
+      if (KR === null) KR = ratio;
+      if (Math.abs(ratio - KR) > 1e-9 || Math.abs(cr - Math.sqrt(KR)) > 1e-9) bad++;
+    } else { other++; if (Math.abs(ratio - 1) > 1e-9 || Math.abs(cr - 1) > 1e-9) bad++; }
   }
   ok(KR >= 1 && boom > 20 && bad === 0,
-     'G199.5: every boom member carries rodBoomK (' + KR + ') on k and its root on c, nothing else moved (' +
+     'G199.5: every boom member carries ONE rodBoomK (' + (KR == null ? '—' : KR.toFixed(3)) +
+     ', the rule says ' + C.GEN_RULES.rodBoomK + ') on k and its root on c, nothing else moved (' +
      boom + ' boom, ' + other + ' other)');
   const mR = fR.nodes.reduce((s, n) => s + n.m, 0), mL = fL.nodes.reduce((s, n) => s + n.m, 0);
   ok(Math.abs(mR - mL) < 1e-9, 'G199.5: the stiffening weighs nothing');

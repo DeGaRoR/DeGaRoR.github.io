@@ -86,7 +86,7 @@ chantier touches them:
 *Make what already exists feel finished. Everything here is visible in the
 first ten minutes of play, and almost all of it is small.*
 
-> **2026-09-08 — TAIL CHANTIER 2 (G214–G219).** The drawn tail is the flown
+> **2026-09-08 — TAIL CHANTIER 2 (G214–G219, G233, G235).** The drawn tail is the flown
 > tail: the fin and stab layers measure their sheets, the join writes the
 > areas, the mean chords and the control chords (rod booms and pods
 > measure too), the surfaces hinge on the layer's declared line (the horn
@@ -95,8 +95,16 @@ first ten minutes of play, and almost all of it is small.*
 > the wing's words over an expert tier of corners, and every build flies
 > the vortex downwash with the fin end-plated. The fleet was re-baselined
 > ONCE (P5): which archetypes' seed tails moved is in the HANDOVER's G219.
-> Certificates carry PHYSICS_V. Left, said in the debt register: the rod
-> boom (P6), the tube element type, the AP yaw plant, tailK against a beam.
+> Certificates carry PHYSICS_V. The rod boom closed too (P6): its
+> compensator is DERIVED now, and what had blocked it since G199.5 was the
+> pilot, which flew a crosswind take-off with its wings level — with
+> into-wind aileron the roll holds 2.6 m where it held 18, and the stab
+> twists half of what it did before this chantier. Left, said in the debt
+> register: the flapped approach under the vortex kernel (a ruling), the
+> tube element type, the AP yaw plant, tailK against a beam. G235 paid
+> the truss's last bill: the substep rule was flooring every node at
+> 0.5 kg and the tail's tips carried no bow, so the integrator was
+> sizing its step for a tail twice its weight.
 
 1. ~~**The sweep-30 ruling, applied.**~~ **DONE — G150, 2026-09-01.** The one
    red in the battery, ruled and closed. It was a TIMEOUT, not a crash. Leaves

@@ -261,7 +261,12 @@ function flex(name, def, matKey) {
 
   const ap = makeAutopilot(sim, def);
   let t = 0;
-  while (ap.phase !== 'CRUISE' && t < 120) { ap.update(1/60); sim.step(1/60); t += 1/60; }
+  // 200 s to reach cruise, not 120 (2026-09-08): this gate measures FLEX at
+  // cruise and does not care how long the climb took, and the alloy sheet —
+  // the fleet's heaviest airframe — now reaches it at 121 s with the tail
+  // carrying its own structure (TAIL CHANTIER 2 P4). A build that truly
+  // cannot climb still says so, one second past the old window did not.
+  while (ap.phase !== 'CRUISE' && t < 200) { ap.update(1/60); sim.step(1/60); t += 1/60; }
   if (ap.phase !== 'CRUISE') { say(`  ${name}: never reached cruise`); return null; }
 
   // peak member load and strain, per class, over the whole measured run

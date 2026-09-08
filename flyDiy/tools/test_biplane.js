@@ -467,8 +467,13 @@ if (!process.argv.includes('--selftest')) {
     }
     const sim = makeSim(dB, null); sim.reset(0); sim.probe([-30, 0, 0]);
     check(C.resid(sim.out.gamResid), 'the probe\'s circulation converges (residual < 2 %)', sim.out.gamResid.toExponential(2));
-    check(dB.params.downwashModel === 'vortex' && buildGen().params.downwashModel === 'const',
-          'the biplane flies the vortex model, the monoplane keeps its constant');
+    // TAIL CHANTIER 2 P5 (RULED 2026-09-07): EVERY build flies the vortex
+    // model now — the monoplane's constant 0.40 was G197's own open item,
+    // and the flip landed with the fleet's one re-baseline. The row keeps
+    // its meaning: the biplane's downwash comes off the kernel, and so
+    // does the monoplane's.
+    check(dB.params.downwashModel === 'vortex' && buildGen().params.downwashModel === 'vortex',
+          'every build flies the vortex model (the monoplane\'s constant retired, P5)');
     const t0 = Date.now(); for (let i = 0; i < 3; i++) buildGen(); const tS = (Date.now() - t0) / 3;
     const t1 = Date.now(); for (let i = 0; i < 3; i++) buildGen(bipSpec()); const tB = (Date.now() - t1) / 3;
     say('PERF: buildGen stock ' + tS.toFixed(0) + ' ms, biplane ' + tB.toFixed(0) + ' ms');
