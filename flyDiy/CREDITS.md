@@ -513,78 +513,127 @@ apply to the PA-18, the C172, the hangar props and their derivatives only.
   (`src/chars/*_anim.js`, `media/geo/chars/anim_*.bin`). Ch20 is the preview
   character those downloads carry, imported like the others.
 
-## Trees, shrubs and rocks (`assets/treesRaw/`, W0a — candidates, nothing baked yet)
+## Trees, billboards and terrain (`assets/treesRaw/`, W0a — candidates)
 
-The tree ladder's near asset (`futureDesigns/WORLD-V2.md` §8.3 R1). These are
-CANDIDATES under evaluation on `tools/_trees.html`; none has been baked into
-`media/` and none ships yet. This section is written now rather than at the
+The tree ladder's near asset (`futureDesigns/WORLD-V2.md` §8.3 R1) and the
+layers around it. CANDIDATES under evaluation on `tools/_trees.html`; none has
+been baked into `media/` and none ships yet. Written now rather than at the
 bake, so a chosen asset arrives already attributed.
 
-`assets/*` is gitignored — these are LOCAL INPUTS, re-fetched from the listings
-below, exactly as the reference aeroplanes are. What ships is the baked payload.
+`assets/*` is gitignored — LOCAL INPUTS, re-fetched from the listings below.
+What ships is the baked payload. Assets set aside live in
+`assets/treesRaw/_dismissed/`; nothing was deleted.
 
-Every Sketchfab entry's author, licence and source URL below is **read from the
-GLB's own `asset.extras` block** by `tools/tree_inspect.js`, not transcribed by
-hand — the same provenance route the Cessna 172SP uses above. The subject counts
-are that tool's grouping of each pack's node graph (trees / shrubs / cards that
-are already billboards / rocks), not the file's mesh count.
+Author, licence and source are **read from each file's own `asset.extras`
+block** by `tools/tree_inspect.js`, never transcribed — the same provenance
+route the Cessna 172SP uses above. That tool also CLASSIFIES the licence: a
+file whose licence forbids redistribution is dismissed rather than kept.
 
-### Sketchfab — all CC-BY 4.0 (attribution required)
+FOUR KINDS: tree, shrub, billboard, terrain. A BILLBOARD is a tree too — one
+already drawn as a card — and the two coexist in the world; it keeps its own
+kind only so the ladder can tell which rung an asset already is. A ROCK is
+part of the GROUND, so the rock layer belongs to the terrain. TERRAIN is
+everything that is not a plant, and it is kept in its own coordinates because
+it is the surface the trees are scattered onto.
 
-- **Fir tree** — `fir_tree.glb`
-  - author: evolveduk (https://sketchfab.com/evolveduk)
+The `leaves H S L` figure is MEASURED, not judged: the alpha-weighted mean of
+every cutout texture a collection carries, over the pixels its alpha test
+keeps. `tools/_trees_tuning.json` holds those measurements and the correction
+that equalises them.
+
+
+### THE MIX (near and medium views, settled 2026-09-09)
+
+Six collections carry the near and medium stand. The rest stay on disk,
+measured and loadable, at `proportion: 0` — the scatter plants none of them
+until somebody raises the dial. `pine_trees_pack_lowpoly_game_ready_lods` is
+out of the near mix but is still the ONLY collection shipping a real LOD chain
+and billboards, so it remains the candidate for the far tier.
+
+| collection | hue | sat | light | bark | alpha | size | sink | share |
+|---|---|---|---|---|---|---|---|---|
+| `cedar_tree` | 0.03 | 1 | 0.59 | 1 | 0.4 | 1 | 2 m | **14%** |
+| `fir_tree_georgeous` | 0.06 | 1 | 0.43 | 1 | 0.4 | 1 | 1.5 m | **14%** |
+| `larch_tree` | 0.03 | 0.48 | 0.61 | 1 | 0.4 | 1 | 2 m | **14%** |
+| `spruce_tree` | -0.01 | 1.1 | 0.54 | 1 | 0.35 | 1.08 | 0.5 m | **14%** |
+| `mountain_trees` | -0.13 | 0.68 | 1.1 | 0.38 | 0.4 | 0.64 | 0 m | **1%** |
+| `realistic_fir_trees_pack_lods_gameready` | 0.08 | 0.47 | 1.3 | 1 | 0.4 | 1.7 | 0 m | **41%** |
+
+Every value is per COLLECTION and applies to its LEAF materials, except
+`bark` (trunk lightness only) and `size` / `sink` (geometry). The full set,
+with the measurements it was derived from, is `tools/_trees_tuning.json`.
+
+### Sketchfab — CC-BY 4.0 (attribution required, may ship)
+
+- **Cedar tree** — `cedar_tree.glb`
+  - author: Georgeous (https://sketchfab.com/intice184)
   - licence: CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
-  - source: https://sketchfab.com/3d-models/fir-tree-3f39aa5485e94477a36b435f7a1a8b54
-  - 1 tree · 4,455 tris · tallest 4.4 m
+  - source: https://sketchfab.com/3d-models/cedar-tree-adf5bdebd05340659dae92219a63f62d
+  - 1 tree · 20,695 tris · tallest 17.4 m · leaves **82° 17% 25%**
+
+- **Fir tree** — `fir_tree_georgeous.glb`
+  - author: Georgeous (https://sketchfab.com/intice184)
+  - licence: CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+  - source: https://sketchfab.com/3d-models/fir-tree-0965de5def1342cd8b8b1a0fa5643e27
+  - 1 tree · 7,784 tris · tallest 13.4 m · leaves **98° 11% 38%**
+
+- **Larch tree** — `larch_tree.glb`
+  - author: Georgeous (https://sketchfab.com/intice184)
+  - licence: CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+  - source: https://sketchfab.com/3d-models/larch-tree-d027dae8c92544d79b946edcea98deca
+  - 1 tree · 12,201 tris · tallest 19.2 m · leaves **79° 34% 30%**
 
 - **Low Poly Forest Tree Pack** — `low_poly_forest_tree_pack.glb`
   - author: 99.Miles (https://sketchfab.com/99.Miles)
   - licence: CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
   - source: https://sketchfab.com/3d-models/low-poly-forest-tree-pack-5ff5a51e74324845a4e4905f182dfb2b
-  - 4 trees, 13 billboard cards, 9 rocks · 3,747 tris · tallest 25.4 m
+  - 4 trees, 13 billboards, 9 terrain pieces · 3,747 tris · tallest 25.4 m · leaves **63° 21% 22%**
 
-- **Pine Tree** — `pine_tree.glb`
-  - author: evolveduk (https://sketchfab.com/evolveduk)
+- **Mountain Trees** — `mountain_trees.glb`
+  - author: Jagobo (https://sketchfab.com/Jagobo)
   - licence: CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
-  - source: https://sketchfab.com/3d-models/pine-tree-d45218a3fab349e5b1de040f29e7b6f9
-  - 1 tree · 5,627 tris · tallest 5.3 m
+  - source: https://sketchfab.com/3d-models/mountain-trees-b914384f931d4b3585bd4f0bf48f0da3
+  - 8 trees, 2 terrain pieces · 168,967 tris · tallest 53.8 m · leaves **66° 24% 39%**
 
-- **Pine tree low-poly** — `pine_tree_low-poly.glb`
-  - author: Ricardo Sanchez (https://sketchfab.com/380660711785)
+- **Pine tree** — `pine_tree_georgeous.glb`
+  - author: Georgeous (https://sketchfab.com/intice184)
   - licence: CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
-  - source: https://sketchfab.com/3d-models/pine-tree-low-poly-e72f2c31aac544e58b667c13ec718daf
-  - 1 tree · 282 tris · tallest 739.6 m
+  - source: https://sketchfab.com/3d-models/pine-tree-6c0ca146235e49529828136cd0cee63a
+  - 1 tree · 20,517 tris · tallest 14.3 m · leaves **56° 25% 25%**
 
 - **Pine trees pack (lowpoly, game ready, LODs)** — `pine_trees_pack_lowpoly_game_ready_lods.glb`
   - author: LOLIPOP (https://sketchfab.com/lolipop_1707)
   - licence: CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
   - source: https://sketchfab.com/3d-models/pine-trees-pack-lowpoly-game-ready-lods-e1e9c07b8e2e445c943fec660beefba2
-  - 12 trees, 3 shrubs · 127,813 tris · tallest 31.8 m · **12 shipped LOD chains**
+  - 12 trees, 3 shrubs, 4 terrain pieces · 127,813 tris · **12 shipped LOD chains** · tallest 31.8 m · leaves **75° 32% 35%**
 
 - **Realistic Fir Trees Pack (LODS, gameready)** — `realistic_fir_trees_pack_lods_gameready.glb`
   - author: LOLIPOP (https://sketchfab.com/lolipop_1707)
   - licence: CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
   - source: https://sketchfab.com/3d-models/realistic-fir-trees-pack-lods-gameready-f58e8b6d733e4b0586e5b7db847b89e7
-  - 2 trees, 1 shrub · 36,973 tris · tallest 9.3 m · **2 shipped LOD chains**
+  - 2 trees, 1 shrub · 36,973 tris · **2 shipped LOD chains** · tallest 9.3 m · leaves **91° 36% 23%**
 
-- **Vegetation Set Pine** — `vegetation_set_pine.glb`
-  - author: falk lochmann (https://sketchfab.com/falk)
+- **Spruce tree** — `spruce_tree.glb`
+  - author: Georgeous (https://sketchfab.com/intice184)
   - licence: CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
-  - source: https://sketchfab.com/3d-models/vegetation-set-pine-8b5c6203c4f64281a789e55546db64fc
-  - 4 trees · 9,107 tris · tallest 29.4 m
+  - source: https://sketchfab.com/3d-models/spruce-tree-7a5db417827244d98827459bce0cc944
+  - 1 tree · 10,387 tris · tallest 17.4 m · leaves **64° 10% 34%**
 
-### Poly Haven — CC0
+- **[UPDATE] Dirt Road Through Forest** — `update_dirt_road_through_forest.glb`
+  - author: 99.Miles (https://sketchfab.com/99.Miles)
+  - licence: CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+  - source: https://sketchfab.com/3d-models/update-dirt-road-through-forest-c4676cdf7715484382400ff63faffd45
+  - 2 trees, 1 billboard, 24 terrain pieces · 341,109 tris
+  - **welded by material** — 11,771 triangle islands across its tree meshes; a subject is one representative with its island count, because a scattered instance is randomly rotated and cannot be deduplicated
 
-Four scanned/offline-render trees, 1.5–17.2 M triangles each in a `.bin` of up
-to 900 MB. They are NOT near-asset candidates; their place in §8.3's ladder is
-as the bake source for the impostor atlas (R2) and the canopy shell (R3), and
-as the reference for what the near asset should look like.
+### Poly Haven — CC0 (may ship, no attribution required)
 
-**The licence is not in these files.** Their `.gltf` carries only a Blender
-exporter's `asset` block with no `extras`, so CC0 is claimed from Poly Haven's
-site-wide licence and not from the file — confirm at the listing before any of
-these is baked. Poly Haven asks for no attribution; the row is kept for
-provenance.
+Offline-render trees, 1.5–17.2 M triangles each in a `.bin` of up to 900 MB.
+NOT near-asset candidates; their place in §8.3's ladder is as the bake source
+for the impostor atlas (R2) and the canopy shell (R3), and as the reference
+for what the near asset should look like. **The licence is not in these
+files** — CC0 is claimed from Poly Haven's site-wide licence, not from the
+file. Confirm at the listing before any of these is baked.
 
 - `assets/treesRaw/fir_sapling_medium_1k.gltf.zip` — 3 trees, tallest 8.8 m, 1,533,513 tris, 74.44 MB (70.72 MB geometry). Poly Haven, CC0 (unconfirmed in-file).
 
@@ -594,10 +643,20 @@ provenance.
 
 - `assets/treesRaw/pine_tree_01_1k.gltf.zip` — 3 trees, tallest 20.4 m, 17,182,252 tris, 913.74 MB (904.89 MB geometry). Poly Haven, CC0 (unconfirmed in-file).
 
-**Modifications intended**, as CC-BY asks to be indicated: none to the geometry
-— the project's rule is IMPORT AS-IS, and where a pack ships an LOD chain that
-chain is used rather than replaced. The changes planned are material-side and
-transform-side only: foliage in `BLEND` converted to alpha test (`MASK`), a
-unit-scale correction for any export measured far from a real conifer's height
-(`pine_tree_low-poly` measures 739.6 m, about 34x), and textures transcoded by
-the bake, as every other `*_prep` tool in `tools/` already does.
+### Dismissed
+
+`assets/treesRaw/_dismissed/` — kept on disk, not inspected, never baked.
+On LICENCE grounds (SKETCHFAB Standard, which forbids redistribution):
+`the_landscape_is_a_forest_in_the_mountains.glb`, `grass.glb`.
+By the author's choice: `fir_tree.glb`, `pine_tree.glb`,
+`pine_tree_low-poly.glb`, `vegetation_set_pine.glb`, `low_poly_trees_free.glb`.
+
+**Modifications intended**, as CC-BY asks to be indicated: none to the
+geometry — the rule is IMPORT AS-IS, and where a pack ships an LOD chain that
+chain is used rather than replaced. The changes are material-side and
+transform-side only: foliage in `BLEND` converted to alpha test (`MASK`); a
+per-collection hue / saturation / lightness / alpha correction on the LEAF
+materials only, computed from measurement and recorded in
+`tools/_trees_tuning.json` (bark and ground untouched); a unit-scale
+correction for any export measured far from a real conifer's height; and
+textures transcoded by the bake, as every other `*_prep` tool already does.

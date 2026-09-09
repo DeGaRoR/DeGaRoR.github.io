@@ -99,36 +99,82 @@
   .warn{color:var(--warn)} .bad{color:var(--bad)} .ok{color:var(--ok)}
   .rowsel{cursor:pointer} .rowsel:hover td{color:var(--acc)}
   .rowsel.sel td{color:var(--acc)}
+  .tune{display:inline-flex;gap:10px;align-items:center;color:var(--dim);
+    border:1px solid var(--grid);border-radius:4px;padding:2px 8px}
+  .tune i{font-style:normal;color:var(--acc);min-width:30px;display:inline-block}
+  .sw{display:inline-block;width:12px;height:12px;border-radius:2px;margin:0 5px;
+      vertical-align:-2px;border:1px solid #0006}
+  .fRows input[type=range]{width:150px}
+  .fRows td{padding:0 2px}
+  #expoBox{position:absolute;inset:8% 6%;background:#0d1014;border:1px solid var(--acc);
+    border-radius:6px;padding:12px;z-index:9;display:none;flex-direction:column;gap:8px}
+  #expoBox textarea{flex:1;background:#12151a;color:var(--fg);border:1px solid var(--grid);
+    font:11px/1.4 ui-monospace,monospace;padding:8px;resize:none}
 </style>
 
 <header>
   <h1>TREE BENCH</h1>
   <button id="mShelf" class="on">shelf</button>
   <button id="mLadder">ladder</button>
+  <button id="mForest">forest</button>
+  <button id="mVar">variants</button>
   <label>kind <select id="kind">
     <option value="trees">trees</option>
     <option value="shrubs">shrubs</option>
-    <option value="cards">billboard cards</option>
-    <option value="props">rocks &amp; props</option>
+    <option value="billboards">billboards</option>
+    <option value="terrain">terrain (in place)</option>
   </select></label>
   <label>lod <select id="lod">
     <option value="-1">as shipped</option>
     <option value="0">LOD0</option><option value="1">LOD1</option>
     <option value="2">LOD2</option><option value="3">LOD3 / billboard</option>
   </select></label>
-  <label>alpha <input type="range" id="cut" min="0" max="0.9" step="0.05" value="0.4">
-    <span id="cutV" style="color:var(--acc)">0.40</span></label>
+  <span class="tune">master:
+    <label>hue <input type="range" id="hue" min="-0.25" max="0.25" step="0.005" value="0"><i id="hueV">0.00</i></label>
+    <label>sat <input type="range" id="sat" min="0" max="1.4" step="0.01" value="1"><i id="satV">1.00</i></label>
+    <label>light <input type="range" id="light" min="0.4" max="1.8" step="0.02" value="1"><i id="lightV">1.00</i></label>
+    <button id="tuneReset">reset</button>
+  </span>
+  <label>sky <select id="sky"></select></label>
+  <label>ev <input type="range" id="expo" min="0.35" max="2.4" step="0.05" value="1"><i id="expoV" style="font-style:normal;color:var(--acc)">1.00</i></label>
+  <button id="shadow" class="on">shadows</button>
+  <span class="tune">leaf:
+    <label>wrap <input type="range" id="wrap" min="0" max="1.2" step="0.02" value="0.5"><i id="wrapV">0.50</i></label>
+    <label>sss <input type="range" id="sss" min="0" max="2" step="0.02" value="0.55"><i id="sssV">0.55</i></label>
+    <button id="a2c" class="on">a2c</button>
+    <button id="mipfix" class="on">mips</button>
+    <label>crown h <input type="range" id="crown" min="1" max="2" step="0.05" value="1.3"><i id="crownV">1.30</i></label>
+    <label>crown w <input type="range" id="crownw" min="0.5" max="2.5" step="0.05" value="1"><i id="crownwV">1.00</i></label>
+    <label>ao bake <input type="range" id="aobake" min="0" max="5" step="0.1" value="2"><i id="aobakeV">2.0</i></label>
+    <label>trunk ao <input type="range" id="trunkao" min="0" max="1" step="0.05" value="0.55"><i id="trunkaoV">0.55</i></label>
+    <label>imp solid <input type="range" id="isolid" min="0" max="1" step="0.05" value="1"><i id="isolidV">1.00</i></label>
+    <label>sharp <input type="range" id="sharp" min="0" max="3" step="0.05" value="1"><i id="sharpV">1.00</i></label>
+  </span>
+  <span class="tune">ao:
+    <button id="ssao">ssao</button>
+    <label>r <input type="range" id="aoR" min="0.2" max="4" step="0.1" value="1.1"><i id="aoRV">1.1</i></label>
+    <label>i <input type="range" id="aoI" min="0" max="2" step="0.05" value="0.9"><i id="aoIV">0.90</i></label>
+  </span>
   <button id="trueScale" class="on">true scale</button>
   <button id="wire">wireframe</button>
+  <button id="expo">export json</button>
   <span id="msg" style="color:var(--dim)"></span>
 </header>
 
 <main>
-  <div id="view"><span id="stat"></span><span id="hint">drag orbit · wheel dolly · shift-drag pan · click a row to isolate it</span><canvas id="c"></canvas></div>
+  <div id="view"><div id="expoBox"><b>tools/_trees_tuning.json</b>
+      <textarea id="expoTxt" spellcheck="false"></textarea>
+      <div><button id="expoCopy">copy</button> <a id="expoDl" download="_trees_tuning.json"
+        style="color:var(--acc)">download</a> <button id="expoClose">close</button>
+        <span style="color:var(--dim)">save it as <code>flyDiy/tools/_trees_tuning.json</code> — the bench reads it at boot</span></div></div>
+    <span id="stat"></span><span id="hint">drag orbit · wheel dolly · right-drag or shift-drag to PAN · click a row to isolate it</span><canvas id="c"></canvas></div>
   <aside id="ui"></aside>
 </main>
 
 <script src="../vendor/three.min.js"></script>
+<script>window.FLYDIY_ASSET_BASE = '../';</script>
+<script src="../src/viewer/house_tex.js"></script>
+<script src="../src/viewer/hangar_sky.js"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -138,20 +184,379 @@ const RAW = '../assets/treesRaw/';
 const cv = $('c');
 const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true });
 renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x12151a);
 scene.fog = new THREE.Fog(0x12151a, 400, 2600);
 const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 12000);
 
-// A tree read under a flat light is a silhouette; the point of the bench is
-// to see the crown break up, so the rig is one keyed sun plus a cool sky.
-scene.add(new THREE.HemisphereLight(0xbcd6f2, 0x2b2a26, 1.05));
-const sun = new THREE.DirectionalLight(0xfff2dc, 1.7);
-sun.position.set(-30, 60, 25); scene.add(sun);
+// ==========================================================================
+// THE LIGHT RIG — lifted from tools/_house.html (G222's bench)
+//
+// The same argument applies here and for the same reason: foliage is a PBR
+// surface and a PBR surface is only as legible as what is around it. Three
+// lamps and a flat hemisphere gave every collection the same soft grey wash,
+// which is exactly the light in which a colour pass CANNOT be judged — no
+// edges to smear, no sun to catch a waxy needle, nothing dark on one side.
+//
+// So the house bench's rig verbatim: a sky run through PMREM as the ambient
+// and every reflection, a shadow-casting sun at the same azimuth, and ACES
+// tone mapping with an exposure dial because the sky is brighter than the
+// leaf and clipping it is what flattened everything.
+//
+// FIVE SKIES, and the choice matters more here than it does for a house.
+// Four are PAINTED gradients with a disc in them (afternoon / golden /
+// overcast / blue hour), and one is the CAPTURED grassland sunset from
+// src/viewer/house_tex.js — a real photograph, with structure to reflect.
+// The default is `overcast`, deliberately: its sun is 0.45 and its dome is
+// broad and neutral, which is the only light under which the measured hue
+// and saturation of a leaf texture mean what they say. Judge the MIX under
+// overcast; judge the LOOK under the hdr sunset, whose sun is [1, 0.22,
+// 0.05] and will make every collection agree by drowning them all in orange.
+// ==========================================================================
+const D2R = Math.PI / 180;
+const MOODS = [
+  { name: 'overcast',  zen: [0.62, 0.66, 0.72], hor: [0.78, 0.80, 0.83],
+    gnd: [0.26, 0.27, 0.24], sun: [0.90, 0.92, 0.95], sunI: 0.45, disc: 0,
+    amb: 1.05, ev: 1.00 },
+  { name: 'afternoon', zen: [0.32, 0.50, 0.78], hor: [0.72, 0.80, 0.88],
+    gnd: [0.20, 0.22, 0.17], sun: [1.00, 0.94, 0.82], sunI: 3.0, disc: 26,
+    amb: 0.55, ev: 1.05 },
+  { name: 'golden',    zen: [0.22, 0.36, 0.62], hor: [0.95, 0.72, 0.44],
+    gnd: [0.22, 0.19, 0.13], sun: [1.00, 0.78, 0.48], sunI: 2.4, disc: 34,
+    amb: 0.50, ev: 1.15 },
+  { name: 'blue hour', zen: [0.10, 0.16, 0.34], hor: [0.40, 0.46, 0.66],
+    gnd: [0.10, 0.12, 0.14], sun: [0.72, 0.78, 1.00], sunI: 0.55, disc: 10,
+    amb: 0.45, ev: 1.35 },
+];
+const SKIES = (typeof HOUSE_SKIES !== 'undefined' && HOUSE_SKIES) || {};
+const SKY_KEYS = Object.keys(SKIES);
+const skyOf = i => (i >= MOODS.length ? SKIES[SKY_KEYS[i - MOODS.length]] : null);
+
+
+// ---- THE GAME'S OWN SKY — alps_field, rebuilt from base + gain ------------
+// The hangar does not ship an RGBE file the way the house bench does. It
+// ships the DISPLAY picture and a per-channel log2 GAIN map, and puts the
+// float radiance back in the shader:
+//
+//     radiance = sRGBtoLinear(base) / k * exp2(gain * gmax)
+//
+// (src/viewer/hangar_sky.js, HANGAR_SKY_GRADE — one panorama graded into six
+// hours by a row of uniforms rather than six baked pictures.) That identity
+// is all this needs: run it once on the CPU and the result is an equirect of
+// real radiance, which is what PMREM wants.
+//
+// AT 2048x1024, NOT 8192x4096. The delivered pair is 33.5 M pixels;
+// reconstructing that in JS would cost a third of a gigabyte and several
+// seconds for an environment map that is about to be convolved down to a few
+// mips anyway. The cost of the shortcut is honest and worth stating: the sun
+// DISC is averaged down with everything else, so the dome it produces is very
+// slightly softer than the delivered sky. It does not matter, because the sun
+// is added separately below as a shadow-casting lamp using the row's own
+// measured colour and intensity — the disc in the dome was never doing that
+// job here.
+//
+// Only the AFTERNOON row (the ungraded panorama) is rebuilt. The other five
+// hours are that same radiance through fdSkyGrade's tint / saturation / glow
+// chain, which is a shader and belongs to hangar.js; porting it to get five
+// more lights for a tree bench is not worth the duplication.
+const ALPS = (typeof HANGAR_SKY_GRADE !== 'undefined' && HANGAR_SKY_GRADE) || null;
+const ALPS_ROW = (typeof HANGAR_SKIES !== 'undefined' && HANGAR_SKIES &&
+                  HANGAR_SKIES.find(r => r.key === 'alps')) || null;
+let alpsState = null;                  // null | 'loading' | 'ready' | 'failed'
+let alpsEnvTex = null, alpsBgTex = null;
+const alpsDir = new THREE.Vector3(0.4, 0.55, 0.73);
+
+function alpsBuild() {
+  if (!ALPS) { alpsState = 'failed'; return; }
+  alpsState = 'loading';
+  const W = 2048, H = 1024;
+  const imgs = { base: new Image(), gain: new Image() };
+  let left = 2;
+  const done = () => {
+    if (--left) return;
+    try {
+      const c = document.createElement('canvas');
+      c.width = W; c.height = H;
+      const g2 = c.getContext('2d', { willReadFrequently: true });
+      g2.drawImage(imgs.base, 0, 0, W, H);
+      const bd = g2.getImageData(0, 0, W, H).data;
+      g2.clearRect(0, 0, W, H);
+      g2.drawImage(imgs.gain, 0, 0, W, H);
+      const gd = g2.getImageData(0, 0, W, H).data;
+
+      const half = THREE.DataUtils.toHalfFloat;
+      const out = new Uint16Array(W * H * 4);
+      const invK = 1 / ALPS.k, gmax = ALPS.gmax;
+      const s2l = v => (v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
+      let best = -1, bestI = 0;
+      for (let i = 0, n = W * H; i < n; i++) {
+        let lum = 0;
+        for (let ch = 0; ch < 3; ch++) {
+          const lin = s2l(bd[i * 4 + ch] / 255) * invK;
+          const rad = lin * Math.pow(2, (gd[i * 4 + ch] / 255) * gmax);
+          out[i * 4 + ch] = half(rad);
+          lum += rad * (ch === 0 ? 0.2126 : ch === 1 ? 0.7152 : 0.0722);
+        }
+        out[i * 4 + 3] = half(1);
+        if (lum > best) { best = lum; bestI = i; }
+      }
+      const t = new THREE.DataTexture(out, W, H, THREE.RGBAFormat, THREE.HalfFloatType);
+      t.mapping = THREE.EquirectangularReflectionMapping;
+      t.minFilter = t.magFilter = THREE.LinearFilter;
+      t.generateMipmaps = false;
+      t.needsUpdate = true;
+      alpsEnvTex = t;
+
+      // THE SUN, FOUND RATHER THAN ASSUMED. The row carries a `sunUV`, but
+      // whose v-origin it uses is a convention this file would have to guess
+      // at. The brightest texel in the radiance IS the sun, and three.js's
+      // own equirect mapping inverts to a direction — with the one ambiguity
+      // (which way v runs) settled by the only physical fact available: the
+      // sun is above the horizon.
+      const u = ((bestI % W) + 0.5) / W, v = (Math.floor(bestI / W) + 0.5) / H;
+      const phi = (u - 0.5) * Math.PI * 2;
+      const cand = [v, 1 - v].map(vv => {
+        const y = Math.sin((vv - 0.5) * Math.PI);
+        const r = Math.sqrt(Math.max(0, 1 - y * y));
+        return new THREE.Vector3(r * Math.cos(phi), y, r * Math.sin(phi));
+      });
+      alpsDir.copy(cand[0].y >= cand[1].y ? cand[0] : cand[1]).normalize();
+
+      const bt = new THREE.Texture(imgs.base);
+      bt.mapping = THREE.EquirectangularReflectionMapping;
+      bt.encoding = THREE.sRGBEncoding;
+      bt.needsUpdate = true;
+      alpsBgTex = bt;
+      alpsState = 'ready';
+    } catch (e) { alpsState = 'failed'; }
+    buildSky();
+    render();
+  };
+  imgs.base.onload = done; imgs.gain.onload = done;
+  imgs.base.onerror = () => { alpsState = 'failed'; };
+  imgs.gain.onerror = () => { alpsState = 'failed'; };
+  imgs.base.src = ALPS.base; imgs.gain.src = ALPS.gain;
+}
+
+function buildSkyAlps() {
+  if (alpsState === 'ready') {
+    if (envRT) envRT.dispose();
+    envRT = pmrem.fromEquirectangular(alpsEnvTex);
+    scene.environment = envRT.texture;
+    scene.background = alpsBgTex;
+    const row = ALPS_ROW;
+    sun.color.setHex(row ? row.kc : 0xffdca8);
+    sun.intensity = row ? row.keyI : 2.8;
+    fill.intensity = 0;                     // the panorama IS the fill
+    renderer.toneMappingExposure = EXPO * (row ? row.ex : 0.92);
+    scene.fog.color.setHex(0x9fb0c4);
+    hdrDir.copy(alpsDir);
+    fitSun();
+    return true;
+  }
+  if (alpsState === null) alpsBuild();
+  return false;                              // paint a mood meanwhile
+}
+
+const sun = new THREE.DirectionalLight(0xffffff, 2.4);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.bias = -0.0008;
+sun.shadow.normalBias = 0.02;
+scene.add(sun, sun.target);
+const fill = new THREE.HemisphereLight(0xbdd2ea, 0x4a4436, 0.5);
+scene.add(fill);
+const pmrem = new THREE.PMREMGenerator(renderer);
+pmrem.compileEquirectangularShader();
+let envRT = null;
+const hdrDir = new THREE.Vector3(0.3, 0.5, 0.8);
+let SUN_AZ = 40, EXPO = 1.0, SHADOWS = true;
+
+function sunDir() {
+  const v = $('sky').value;
+  if (v === 'alps' || skyOf(+v)) return hdrDir.clone();
+  const az = SUN_AZ * D2R, el = 42 * D2R;
+  return new THREE.Vector3(Math.cos(el) * Math.sin(az), Math.sin(el),
+                           Math.cos(el) * Math.cos(az));
+}
+
+// RGBE -> half float, once per sky (the house bench's decode, verbatim): the
+// image is three mantissas and a shared exponent, which is all of Radiance's
+// format and comes back in one exp2. Half float because linear filtering of
+// an RGBA16F texture is core in WebGL2 and PMREM samples it with LINEAR.
+const ENVC = new Map();
+function envTexture(sky) {
+  const img = sky.env;
+  if (!img.complete || !img.naturalWidth) return null;
+  if (ENVC.has(sky)) return ENVC.get(sky);
+  const w = img.naturalWidth, h = img.naturalHeight;
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const g2 = c.getContext('2d');
+  g2.drawImage(img, 0, 0);
+  const src = g2.getImageData(0, 0, w, h).data;
+  const half = THREE.DataUtils.toHalfFloat;
+  const out = new Uint16Array(w * h * 4);
+  for (let i = 0, n = w * h; i < n; i++) {
+    const e = src[i * 4 + 3];
+    const k = e ? Math.pow(2, e - 136) : 0;
+    out[i * 4] = half(src[i * 4] * k);
+    out[i * 4 + 1] = half(src[i * 4 + 1] * k);
+    out[i * 4 + 2] = half(src[i * 4 + 2] * k);
+    out[i * 4 + 3] = half(1);
+  }
+  const t = new THREE.DataTexture(out, w, h, THREE.RGBAFormat, THREE.HalfFloatType);
+  t.mapping = THREE.EquirectangularReflectionMapping;
+  t.minFilter = t.magFilter = THREE.LinearFilter;
+  t.generateMipmaps = false;
+  t.needsUpdate = true;
+  ENVC.set(sky, t);
+  return t;
+}
+
+const BGC = new Map();
+function bgTexture(sky) {
+  const img = sky.bg;
+  if (!img.complete || !img.naturalWidth) return null;
+  if (!BGC.has(sky)) {
+    const t = new THREE.Texture(img);
+    t.mapping = THREE.EquirectangularReflectionMapping;
+    t.encoding = THREE.sRGBEncoding;
+    t.needsUpdate = true;
+    BGC.set(sky, t);
+  }
+  return BGC.get(sky);
+}
+
+function buildSkyHDR(sky) {
+  const t = envTexture(sky);
+  if (!t) { sky.env.addEventListener('load', () => buildSky(), { once: true }); return false; }
+  if (envRT) envRT.dispose();
+  envRT = pmrem.fromEquirectangular(t);
+  scene.environment = envRT.texture;
+  const bg = bgTexture(sky);
+  if (bg) scene.background = bg;
+  else {
+    scene.background = new THREE.Color(sky.hor[0], sky.hor[1], sky.hor[2]);
+    sky.bg.addEventListener('load', () => buildSky(), { once: true });
+  }
+  // the measured sun: direction, colour and its share of the sphere, all read
+  // out of the float data at bake time
+  const d = sky.sun;
+  sun.color.setRGB(sky.sunCol[0], sky.sunCol[1], sky.sunCol[2]);
+  sun.intensity = Math.max(0.55, Math.min(3.0, sky.direct * 6.5 + 0.45));
+  fill.intensity = 0;                       // the dome IS the fill here
+  renderer.toneMappingExposure = EXPO * (sky.ev || 1);
+  hdrDir.set(d[0], d[1], d[2]).normalize();
+  scene.fog.color.setRGB(sky.hor[0], sky.hor[1], sky.hor[2]);
+  return true;
+}
+
+function buildSky() {
+  const mi = $('sky').value;
+  if (mi === 'alps') { if (buildSkyAlps()) return; }
+  const sky = skyOf(+mi);
+  if (sky && buildSkyHDR(sky)) { fitSun(); return; }
+  const M = MOODS[Math.min(mi === 'alps' ? 0 : +mi, MOODS.length - 1)];
+  const W = 256, H = 128;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const g = c.getContext('2d');
+  const img = g.createImageData(W, H);
+  const d = sunDir();
+  const px = v => Math.max(0, Math.min(255, Math.round(v * 255)));
+  for (let y = 0; y < H; y++) {
+    const theta = (y + 0.5) / H * Math.PI;           // 0 = zenith
+    const cy = Math.cos(theta), sy = Math.sin(theta);
+    for (let x = 0; x < W; x++) {
+      const phi = (x + 0.5) / W * Math.PI * 2 - Math.PI;
+      const dir = [sy * Math.sin(phi), cy, sy * Math.cos(phi)];
+      let col;
+      if (cy >= 0) {
+        const t2 = Math.pow(1 - cy, 2.2);            // horizon haze
+        col = [M.zen[0] + (M.hor[0] - M.zen[0]) * t2,
+               M.zen[1] + (M.hor[1] - M.zen[1]) * t2,
+               M.zen[2] + (M.hor[2] - M.zen[2]) * t2];
+      } else {
+        const t2 = Math.min(1, -cy * 3);
+        col = [M.hor[0] * (1 - t2) + M.gnd[0] * t2,
+               M.hor[1] * (1 - t2) + M.gnd[1] * t2,
+               M.hor[2] * (1 - t2) + M.gnd[2] * t2];
+      }
+      if (M.disc > 0) {
+        const dot2 = dir[0] * d.x + dir[1] * d.y + dir[2] * d.z;
+        const ang = Math.acos(Math.max(-1, Math.min(1, dot2)));
+        const disc = Math.exp(-Math.pow(ang / 0.055, 2)) * M.disc;
+        const glow = Math.exp(-Math.pow(ang / 0.55, 2)) * M.disc * 0.10;
+        col = [col[0] + (disc + glow) * M.sun[0],
+               col[1] + (disc + glow) * M.sun[1],
+               col[2] + (disc + glow) * M.sun[2]];
+      }
+      const i = (y * W + x) * 4;
+      img.data[i] = px(col[0]); img.data[i + 1] = px(col[1]);
+      img.data[i + 2] = px(col[2]); img.data[i + 3] = 255;
+    }
+  }
+  g.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(c);
+  t.mapping = THREE.EquirectangularReflectionMapping;
+  t.encoding = THREE.sRGBEncoding;
+  if (envRT) envRT.dispose();
+  envRT = pmrem.fromEquirectangular(t);
+  scene.environment = envRT.texture;
+  scene.background = new THREE.Color(M.hor[0] * 0.55, M.hor[1] * 0.58, M.hor[2] * 0.64);
+  scene.fog.color.copy(scene.background);
+  t.dispose();
+  sun.color.setRGB(M.sun[0], M.sun[1], M.sun[2]);
+  sun.intensity = M.sunI;
+  fill.intensity = M.amb;
+  fill.color.setRGB(M.hor[0], M.hor[1], M.hor[2]);
+  fill.groundColor.setRGB(M.gnd[0], M.gnd[1], M.gnd[2]);
+  renderer.toneMappingExposure = EXPO * M.ev;
+  fitSun();
+}
+
+// The shadow frustum is fitted to WHAT IS ON THE STAGE, because a stand 220 m
+// across and a single tree 17 m tall cannot share one ortho box: size it for
+// the forest and the shelf gets no contact shadow at all.
+let STAGE_R = 20, STAGE_C = new THREE.Vector3();
+function fitSun() {
+  const d = sunDir().multiplyScalar(Math.max(30, STAGE_R * 2.2));
+  sun.position.copy(STAGE_C).add(d);
+  sun.target.position.copy(STAGE_C);
+  sun.target.updateMatrixWorld();
+  const S = Math.max(12, STAGE_R * 1.15);
+  sun.shadow.camera.left = -S; sun.shadow.camera.right = S;
+  sun.shadow.camera.top = S; sun.shadow.camera.bottom = -S;
+  sun.shadow.camera.near = 0.5;
+  sun.shadow.camera.far = Math.max(60, STAGE_R * 6);
+  sun.shadow.camera.updateProjectionMatrix();
+}
+
+// called at the end of every build: the stage has changed size
+function measureStage() {
+  const bb = new THREE.Box3().setFromObject(stage);
+  if (!isFinite(bb.min.x)) { STAGE_R = 20; STAGE_C.set(0, 0, 0); }
+  else {
+    bb.getCenter(STAGE_C);
+    STAGE_R = Math.max(6, bb.getSize(new THREE.Vector3()).length() * 0.5);
+  }
+  stage.traverse(o => {
+    if (!o.isMesh || o.userData.noShadow) return;
+    o.castShadow = SHADOWS;
+    o.receiveShadow = SHADOWS;
+  });
+  fitSun();
+}
+
 
 const ground = new THREE.Mesh(new THREE.PlaneBufferGeometry(8000, 8000),
   new THREE.MeshStandardMaterial({ color: 0x2a3327, roughness: 1 }));
-ground.rotation.x = -Math.PI / 2; scene.add(ground);
+ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
 const grid = new THREE.GridHelper(400, 400, 0x39424e, 0x232a32);
 grid.material.transparent = true; grid.material.opacity = 0.45; scene.add(grid);
 
@@ -162,6 +567,7 @@ function figure() {
   body.position.y = 0.85; g.add(body);
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), m);
   head.position.y = 1.66; g.add(head);
+  g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   return g;
 }
 const man = figure(); scene.add(man);
@@ -175,13 +581,25 @@ function place() {
                       target.z + dist * cp * Math.cos(yaw));
   camera.lookAt(target);
 }
-cv.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, s: e.shiftKey }; cv.setPointerCapture(e.pointerId); });
+// pan on the right or middle button as well as shift-drag: orbiting a grid
+// that is 100 m long is useless without it
+cv.addEventListener('contextmenu', e => e.preventDefault());
+cv.addEventListener('pointerdown', e => {
+  drag = { x: e.clientX, y: e.clientY, s: e.shiftKey || e.button === 1 || e.button === 2 };
+  cv.setPointerCapture(e.pointerId);
+});
 cv.addEventListener('pointerup', () => { drag = null; });
 cv.addEventListener('pointermove', e => {
   if (!drag) return;
   const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
   drag.x = e.clientX; drag.y = e.clientY;
-  if (drag.s) { target.x -= dx * dist * 0.0016; target.y += dy * dist * 0.0016; }
+  if (drag.s) {
+    // pan in the CAMERA's plane, so dragging moves what is under the cursor
+    const rt = new THREE.Vector3(), up = new THREE.Vector3();
+    camera.matrixWorld.extractBasis(rt, up, new THREE.Vector3());
+    const k = dist * 0.0016;
+    target.addScaledVector(rt, -dx * k).addScaledVector(up, dy * k);
+  }
   else { yaw -= dx * 0.006; pitch = Math.max(-0.4, Math.min(1.45, pitch + dy * 0.005)); }
   place(); render();
 });
@@ -248,21 +666,508 @@ function imageTex(g, bin, idx, srgb) {
   if (srgb) tex.encoding = THREE.sRGBEncoding;
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
   const img = new Image();
-  img.onload = () => { tex.image = img; tex.needsUpdate = true; render(); };
+  // A DECODE IS ASYNCHRONOUS AND THE IMPOSTOR BAKE READS THE RESULT. Baking
+  // before the image arrives writes a tile sheet with a tree-shaped RGB and a
+  // ZERO alpha channel — measured on fir_tree_georgeous: max alpha 0 over 0
+  // texels, against 255 over 215 184 for the same tree a second later. Every
+  // fragment then fails the impostor's alpha test and the billboard draws
+  // nothing at all. That is what the far band's missing trees were. So each
+  // decode is tracked and the views that bake wait for it.
+  TEX_PENDING.push(new Promise(res => {
+    img.onload = () => { tex.image = img; tex.needsUpdate = true; render(); res(); };
+    img.onerror = res;                     // a broken texture must not hang the bench
+  }));
   img.src = URL.createObjectURL(blob);
   return tex;
+}
+const TEX_PENDING = [];
+function texturesReady() {
+  const p = TEX_PENDING.slice();
+  TEX_PENDING.length = 0;
+  return Promise.all(p);
+}
+
+// ---- PER-COLLECTION TUNING ------------------------------------------------
+// Hue, lightness and the alpha threshold, stored per ASSET FILE and applied
+// to its cutout (leaf) materials only — bark and ground are left alone.
+// A hue rotation cannot be done with material.color, which only multiplies,
+// so it rides an onBeforeCompile hook on `map_fragment`: the project's own
+// idiom (aeroskin.js does the same to the aeroplane's skin). The matrix is
+// the standard YIQ rotation, which is three lines instead of an rgb->hsl
+// round trip and indistinguishable at these amounts.
+// ONE set of uniforms shared by every leaf material, because these are a
+// property of foliage rather than of a collection.
+const U_WRAP  = { value: 0.5 };   // how far light bends past the terminator
+const U_SSS   = { value: 0.55 };  // how much comes THROUGH the leaf
+const U_SSSP  = { value: 3.0 };   // how tightly that is aimed at the sun
+// SHARPEN — the companion alpha-to-coverage always needed and did not have.
+const U_SHARP = { value: 1.0 };
+let A2C = true;
+
+const NL = String.fromCharCode(10);   // written this way because an escaped
+                                      // newline does not survive this file's edits
+// `sink` is how far a collection is pushed INTO the ground, in metres.
+// Georgeous models part of the root flare, so his five conifers stand on
+// their roots rather than on the soil and need about half a metre.
+// `size` is an overall scale multiplier for the collection — a pack authored
+// at another scale is one asset's problem and not the stand's.
+// `proportion` is that species' SHARE OF THE FOREST: a relative weight used
+// when the scatter picks what to plant, so a stand can be four parts spruce
+// to one part larch. It is a weight rather than a percentage because the
+// percentages have to renormalise every time a collection is checked in or
+// out; the panel shows the resulting share beside the dial.
+// `bark` is the trunk's own lightness. The leaf dials deliberately skip
+// OPAQUE materials, because tinting a trunk with its crown is how a tree
+// stops looking like a tree — but a pack whose bark was photographed dark
+// still has to meet the others, so it gets one dial of its own.
+// `dead` is the fraction of that species planted as a STANDING SNAG: the
+// same tree with its foliage stripped and only the trunk left. A real stand
+// has them, they are most of what makes a wood look old rather than planted,
+// and some packs already ship one (mountain_trees' two unpaired `structure`
+// subjects are exactly that). This makes it available to every family.
+// `stick` is the base radius of the GENERATED stem, as a fraction of the
+// tree's narrower footprint. It belongs to the family and not to the bench: a
+// cedar's bole and a fir's are not the same fraction of their crown, and the
+// value is a judgement about how a trunk reads at distance rather than a
+// measurement of the model.
+const TUNE_DEFAULT = { hue: 0, sat: 1, light: 1, bark: 1, alpha: 0.4, sink: 0,
+                       size: 1, proportion: 1, dead: 0, stick: 0.045,
+                       impa: 6, implight: 1 };
+let TUNE = {};                      // { assetName: {hue, sat, light, alpha} }
+let REFNAME = 'realistic_fir_trees_pack_lods_gameready.glb';   // the colour others are brought to
+// EQUALISE, THEN TASTE. suggestTuning brings every collection to one place;
+// this rides on top of all of them at once, so "the whole stand is too green"
+// is one dial and not fourteen. Per-collection values stay where the
+// measurement put them.
+const MASTER = { hue: 0, sat: 1, light: 1 };
+const tuneOf = n => Object.assign({}, TUNE_DEFAULT, TUNE[n] || {});
+const TINT_GLSL = [
+  'float _a = uHue * 6.2831853;',
+  'float _c = cos(_a), _s = sin(_a);',
+  'mat3 _m = mat3(',
+  '  0.299 + 0.701*_c + 0.168*_s, 0.587 - 0.587*_c + 0.330*_s, 0.114 - 0.114*_c - 0.497*_s,',
+  '  0.299 - 0.299*_c - 0.328*_s, 0.587 + 0.413*_c + 0.035*_s, 0.114 - 0.114*_c + 0.292*_s,',
+  '  0.299 - 0.300*_c + 1.250*_s, 0.587 - 0.588*_c - 1.050*_s, 0.114 + 0.886*_c - 0.203*_s);',
+  'vec3 _rot = diffuseColor.rgb * _m;',
+  // SATURATION last, and toward luma rather than toward grey, so pulling a
+  // stand back does not also darken it. The user's rule: desaturate to meet,
+  // never saturate up — a texture that was never that colourful has no detail
+  // to recover, and pushing it only amplifies its compression noise.
+  'float _y = dot(_rot, vec3(0.2126, 0.7152, 0.0722));',
+  'diffuseColor.rgb = clamp(mix(vec3(_y), _rot, uSat) * uLight, 0.0, 1.0);',
+  // ---- and now the alpha ----
+  // ALPHA-TO-COVERAGE MAKES COVERAGE EQUAL ALPHA, which is a trap for a
+  // texture whose leaves are soft rather than binary. Larch measures a mean
+  // leaf alpha of 0.49 with 2% of its pixels fully opaque: under A2C every
+  // needle therefore renders about half see-through NO MATTER WHAT THE
+  // THRESHOLD IS, and raising the threshold only discards more of it — which
+  // is why pushing the dial to the maximum made it thinner, not solider.
+  //
+  // The fix is the standard companion to A2C: rescale alpha by its own screen
+  // -space rate of change, so coverage tracks the SILHOUETTE EDGE instead of
+  // the raw value. The interior goes fully covered, the edge keeps a real
+  // partial coverage for the samples to resolve, and the dial goes back to
+  // meaning where the silhouette sits rather than how solid the leaf is.
+  'if (uSharp > 0.0) {',
+  '  float _aw = max(fwidth(diffuseColor.a), 1e-5);',
+  '  diffuseColor.a = clamp((diffuseColor.a - uCut) / _aw * uSharp + 0.5, 0.0, 1.0);',
+  '}',
+  // THE BAKE'S OWN CUTOUT, and the reason the impostor needs one of its own.
+  //
+  // The sharpen above is what MAKES the cutout on screen: it is a step at uCut
+  // in all but name, and every collection's dial was set against it. It cannot
+  // run in the bake, because fwidth at a 128 px tile is enormous and every
+  // leaf texel lands on 0.5 - that was the far band coming back as bare trunks.
+  //
+  // What the bake did instead was apply a flat alpha test with a 0.15 floor,
+  // and that is an ABSOLUTE number laid over packs that live on completely
+  // different alpha scales. Cedar's leaves sit at 0.63 and survived it; the
+  // larch's sit at 0.08 and the whole canopy was thrown away, leaving 1-3%
+  // coverage against cedar's 15-24% - a trunk and a few specks. The dial the
+  // bench already has for exactly this was being ignored.
+  //
+  // So the bake takes the same step the screen takes, at the collection's own
+  // uCut, and writes a HARD mask: scale-free, no fwidth, and the atlas comes
+  // out binary, which is what the coverage mips and the union both want.
+  'if (uBakeCut > 0.5) {',
+  '  diffuseColor.a = diffuseColor.a >= uCut ? 1.0 : 0.0;',
+  '}',
+].join(NL);
+const U_BAKECUT = { value: 0 };
+
+// WHAT A LEAF DOES THAT A PLANK DOES NOT.
+// Two terms, and between them they are most of why foliage reads as foliage:
+//
+//   WRAP — a leaf is thin and its normal is a fiction, so the hard terminator
+//   a MeshStandardMaterial draws across a needle cluster is wrong. Wrapping
+//   the diffuse past 90 degrees softens it and is the cheap stand-in for the
+//   light bouncing around inside a canopy.
+//
+//   TRANSLUCENCY — the sun coming THROUGH the leaf toward the eye. This is
+//   the one that is missing when a backlit crown looks like cardboard: real
+//   foliage glows when you look into the light through it, and no amount of
+//   ambient will do it, because it depends on where the SUN is relative to
+//   the VIEW and not on where the surface faces.
+//
+// Both are gated by uLeaf so a trunk never gets them.
+const LEAF_GLSL = [
+  '#if NUM_DIR_LIGHTS > 0',
+  'if (uLeaf > 0.5) {',
+  '  vec3 _L = normalize(directionalLights[0].direction);',
+  '  vec3 _C = directionalLights[0].color;',
+  '  float _ndl = dot(geometry.normal, _L);',
+  '  float _w = max(0.0, (_ndl + uWrap) / (1.0 + uWrap)) - max(0.0, _ndl);',
+  '  reflectedLight.directDiffuse += diffuseColor.rgb * _C * _w;',
+  '  float _b = pow(max(0.0, dot(geometry.viewDir, -_L)), uSSSP);',
+  '  reflectedLight.directDiffuse += diffuseColor.rgb * _C * _b * uSSS;',
+  '}',
+  '#endif',
+].join(NL);
+
+// ==========================================================================
+// AMBIENT OCCLUSION, BAKED INTO THE TREE INSTEAD OF THE SCREEN
+//
+// The screen-space pass was reading depth and guessing: at the horizon, where
+// a pixel's neighbours are metres apart, the reconstructed normal is noise and
+// the result was a field of black specks. It also cannot be right in
+// principle here - it darkens by what happens to be in front of the camera,
+// so a tree's own interior shading changed as you flew past it.
+//
+// A tree's occlusion is a property of the TREE, so it is computed once, on the
+// vertices, and travels with the model - into the impostor bake as well, which
+// the screen pass could never do. The method is an occupancy grid: every
+// triangle centroid of the tree is dropped into a coarse voxel field, then
+// each vertex marches a few directions through that field and accumulates what
+// it runs into, nearer counting for more. It is not a ray trace and does not
+// pretend to be; what it captures is the thing that reads - the inside of a
+// canopy is dark, the outside of it is not, and the underside of a crown
+// shades the trunk beneath it.
+//
+// Stored on a `aoV` attribute rather than vertex colours, because the packs'
+// own materials are shared and switching them to vertexColors would change
+// every mesh that borrows one. EVERY geometry drawn with a hooked material
+// must carry the attribute - a missing one reads as zero, which is black.
+// ==========================================================================
+let AO_DONE = new WeakSet();
+let U_AOBAKE = { value: 2.0 };
+// A TRUNK IS THE DARKEST THING IN A WOOD. It stands at the bottom of the
+// canopy's own shadow, and the light that reaches it has come through
+// everything above. The occupancy AO catches some of that, but not enough at
+// the foot, so bark carries an explicit gradient: strongest at the base and
+// gone by the crown. Baked on the CPU rather than derived in the shader
+// because the packs do not agree on which local axis is up - the height has to
+// be measured in world space, which is the same lesson the crown cut taught.
+let TRUNK_DARK = 0.55;
+const trunkShade = f => 1 - TRUNK_DARK * Math.pow(Math.max(0, 1 - f), 1.6);
+
+function ensureAoAttr(geo, fill) {
+  if (geo.attributes.aoV) return geo.attributes.aoV;
+  const n = geo.attributes.position ? geo.attributes.position.count : 0;
+  const a = new Float32Array(n);
+  a.fill(fill === undefined ? 1 : fill);
+  const at = new THREE.BufferAttribute(a, 1);
+  geo.setAttribute('aoV', at);
+  return at;
+}
+
+function bakeAO(root) {
+  root.updateMatrixWorld(true);
+  const meshes = [];
+  root.traverse(o => { if (o.isMesh && o.geometry && o.geometry.attributes.position) meshes.push(o); });
+  if (!meshes.length) return;
+  const bb = new THREE.Box3().setFromObject(root);
+  if (!isFinite(bb.min.x)) return;
+  const size = bb.getSize(new THREE.Vector3());
+  const diag = Math.max(0.5, Math.hypot(size.x, size.y, size.z));
+  const N = 26;
+  const g0 = bb.min.clone().addScalar(-diag * 0.02);
+  const cell = new THREE.Vector3(
+    (size.x + diag * 0.04) / N, (size.y + diag * 0.04) / N, (size.z + diag * 0.04) / N);
+  cell.x = Math.max(cell.x, 1e-4); cell.y = Math.max(cell.y, 1e-4); cell.z = Math.max(cell.z, 1e-4);
+  const occ = new Float32Array(N * N * N);
+  const v = new THREE.Vector3();
+  const idxOf = (x, y, z) => (z * N + y) * N + x;
+
+  // drop every triangle centroid into the field
+  for (const o of meshes) {
+    const pos = o.geometry.attributes.position;
+    const id = o.geometry.index ? o.geometry.index.array : null;
+    const nTri = id ? id.length / 3 : pos.count / 3;
+    for (let t = 0; t < nTri; t++) {
+      let x = 0, y = 0, z = 0;
+      for (let k = 0; k < 3; k++) {
+        const i = id ? id[t * 3 + k] : t * 3 + k;
+        v.set(pos.getX(i), pos.getY(i), pos.getZ(i)).applyMatrix4(o.matrixWorld);
+        x += v.x; y += v.y; z += v.z;
+      }
+      const gx = Math.floor((x / 3 - g0.x) / cell.x), gy = Math.floor((y / 3 - g0.y) / cell.y),
+            gz = Math.floor((z / 3 - g0.z) / cell.z);
+      if (gx < 0 || gy < 0 || gz < 0 || gx >= N || gy >= N || gz >= N) continue;
+      occ[idxOf(gx, gy, gz)] += 1;
+    }
+  }
+  // a cell is "solid" on a soft curve, so one stray triangle is not a wall
+  let peak = 0;
+  for (let i = 0; i < occ.length; i++) if (occ[i] > peak) peak = occ[i];
+  const norm = 1 / Math.max(1, peak * 0.25);
+  for (let i = 0; i < occ.length; i++) occ[i] = Math.min(1, occ[i] * norm);
+
+  // six directions, weighted to the sky: what shades a leaf is mostly above it
+  const DIRS = [[0, 1, 0], [0.7, 0.7, 0], [-0.7, 0.7, 0], [0, 0.7, 0.7],
+                [0, 0.7, -0.7], [0, -1, 0]];
+  const W = [1.6, 1, 1, 1, 1, 0.5];
+  let wTot = 0; for (const w of W) wTot += w;
+  const STEPS = 8, reach = diag * 0.33;
+  for (const o of meshes) {
+    const geo = o.geometry;
+    const pos = geo.attributes.position;
+    const at = ensureAoAttr(geo, 1);
+    const arr = at.array;
+    const isBark = o.material && o.material.userData.alphaMode === 'OPAQUE';
+    for (let i = 0; i < pos.count; i++) {
+      v.set(pos.getX(i), pos.getY(i), pos.getZ(i)).applyMatrix4(o.matrixWorld);
+      let sum = 0;
+      for (let d = 0; d < DIRS.length; d++) {
+        let hit = 0;
+        for (let st = 1; st <= STEPS; st++) {
+          const f = st / STEPS, r = f * reach;
+          const gx = Math.floor((v.x + DIRS[d][0] * r - g0.x) / cell.x);
+          const gy = Math.floor((v.y + DIRS[d][1] * r - g0.y) / cell.y);
+          const gz = Math.floor((v.z + DIRS[d][2] * r - g0.z) / cell.z);
+          if (gx < 0 || gy < 0 || gz < 0 || gx >= N || gy >= N || gz >= N) break;
+          hit += occ[idxOf(gx, gy, gz)] * (1 - f);      // nearer counts for more
+        }
+        sum += W[d] * Math.min(1, hit / (STEPS * 0.35));
+      }
+      arr[i] = Math.max(0.18, 1 - 0.95 * (sum / wTot));
+      if (isBark) arr[i] *= trunkShade((v.y - bb.min.y) / Math.max(1e-3, size.y));
+    }
+    at.needsUpdate = true;
+  }
+}
+
+// one pass over a collection's subjects, once
+function aoFixAsset(name) {
+  const built = cache[name];
+  if (!built) return 0;
+  const a = INDEX.assets.find(x => x.name === name);
+  if (!a) return 0;
+  let n = 0;
+  for (const G of subjectsOf(a).concat(a.shrubs || [])) {
+    const h = buildGroup(built, G);
+    if (!h || AO_DONE.has(G)) continue;
+    AO_DONE.add(G);
+    bakeAO(h);
+    n++;
+  }
+  // anything the pass did not reach still needs the attribute, or it draws black
+  for (const G of (a.terrain || []).concat(a.billboards || [])) {
+    const h = buildGroup(built, G);
+    if (h) h.traverse(o => { if (o.isMesh && o.geometry) ensureAoAttr(o.geometry, 1); });
+  }
+  return n;
+}
+
+function hookTint(mat) {
+  if (mat.userData.tintHooked) return;
+  mat.userData.tintHooked = true;
+  mat.userData.uHue = { value: 0 };
+  mat.userData.uSat = { value: 1 };
+  mat.userData.uLight = { value: 1 };
+  mat.userData.uLeaf = { value: mat.userData.alphaMode === 'OPAQUE' ? 0 : 1 };
+  mat.userData.uCut = { value: 0.4 };
+  const prev = mat.onBeforeCompile;
+  mat.onBeforeCompile = sh => {
+    if (prev) prev(sh);
+    sh.uniforms.uHue = mat.userData.uHue;
+    sh.uniforms.uSat = mat.userData.uSat;
+    sh.uniforms.uLight = mat.userData.uLight;
+    sh.uniforms.uSharp = U_SHARP;
+    sh.uniforms.uCut = mat.userData.uCut;
+    sh.uniforms.uWrap = U_WRAP;
+    sh.uniforms.uSSS = U_SSS;
+    sh.uniforms.uSSSP = U_SSSP;
+    sh.uniforms.uLeaf = mat.userData.uLeaf;
+    sh.uniforms.uAoBake = U_AOBAKE;
+    sh.uniforms.uBakeCut = U_BAKECUT;
+    sh.vertexShader = ['attribute float aoV;', 'varying float vAoV;', ''].join(NL) +
+      sh.vertexShader.replace('#include <begin_vertex>',
+        ['#include <begin_vertex>', 'vAoV = aoV;'].join(NL));
+    sh.fragmentShader = ['uniform float uHue;', 'uniform float uSat;',
+      'uniform float uLight;', 'uniform float uWrap;', 'uniform float uSSS;',
+      'uniform float uSSSP;', 'uniform float uLeaf;', 'uniform float uSharp;',
+      'uniform float uCut;', 'uniform float uAoBake;', 'uniform float uBakeCut;',
+      'varying float vAoV;',
+      ''].join(NL) +
+      sh.fragmentShader
+        .replace('#include <map_fragment>', ['#include <map_fragment>', TINT_GLSL].join(NL))
+        // AO belongs on the AMBIENT term, not on the albedo: the sun does not
+        // stop reaching a leaf because there is another leaf beside it. It goes
+        // in at lights_fragment_end, beside the leaf wrap, because that is the
+        // hook this material is KNOWN to reach - <aomap_fragment> is in the
+        // stock shader but the injection there did nothing measurable.
+        .replace('#include <lights_fragment_end>',
+                 ['#include <lights_fragment_end>', LEAF_GLSL,
+                  // strength as an EXPONENT, not a lerp: pow keeps the factor
+                  // inside [0,1] whatever the dial does, where mix() went
+                  // negative past about 5 and blew the canopy white.
+                  'float _ao = pow(clamp(vAoV, 0.0, 1.0), uAoBake);',
+                  'reflectedLight.indirectDiffuse *= _ao;',
+                  // the sun is not stopped by a leaf being near another leaf,
+                  // so the direct term takes a much softer share of it
+                  'reflectedLight.directDiffuse *= pow(clamp(vAoV, 0.0, 1.0), uAoBake * 0.35);'
+                 ].join(NL));
+  };
+  mat.needsUpdate = true;
+}
+
+// WHICH DIAL REACHES WHICH MATERIAL. A cutout material is the foliage and
+// takes hue / saturation / lightness; an OPAQUE one is bark or ground and
+// takes only `bark`, its own lightness. Tinting a trunk with its crown is how
+// a tree stops looking like a tree, so the hue never crosses over.
+function applyTune(mat, t) {
+  hookTint(mat);
+  const leaf = mat.userData.alphaMode !== 'OPAQUE';
+  mat.userData.uHue.value = leaf ? t.hue + MASTER.hue : 0;
+  mat.userData.uSat.value = leaf ? t.sat * MASTER.sat : 1;
+  mat.userData.uLight.value = (leaf ? t.light : (t.bark === undefined ? 1 : t.bark))
+                              * MASTER.light;
+}
+
+
+// ==========================================================================
+// COVERAGE-PRESERVING MIPMAPS — why a canopy thins out with distance
+//
+// A leaf texture is mostly transparent. Averaging it down for the next mip
+// averages the ALPHA too, so a texel that was 1.0 with three transparent
+// neighbours becomes 0.25 — and at an alpha test of 0.4 it now fails. Every
+// mip level loses more of the leaf than the last, so a stand does not just
+// soften with distance, it DISSOLVES, and the far tier ends up reporting a
+// canopy cover it does not have.
+//
+// The fix (Castano, 2010) is to make each level carry the same COVERAGE — the
+// fraction of texels that survive the alpha test — as level 0 did. Alpha is
+// scaled per level by a factor found with a bisection, so the level looks
+// thinner but tests the same.
+//
+// It is done here on the CPU rather than in the shader because WebGL has no
+// textureQueryLod: there is no way to ask, in a fragment, which mip you are
+// on. Two details that matter:
+//   - the box filter is STRAIGHT, not premultiplied, and works off one
+//     getImageData rather than repeated canvas draws. A canvas stores
+//     premultiplied colour, so downsampling through it repeatedly bleeds the
+//     background into every leaf edge — the classic dark fringe.
+//   - only power-of-two textures are rebuilt, and only the cutout ones. Bark
+//     and ground have nothing to preserve.
+// ==========================================================================
+let MIPFIX = true;
+const MIPPED = new WeakSet();
+
+function isPow2(v) { return (v & (v - 1)) === 0 && v > 0; }
+
+function alphaCoverage(data, cutoff, scale) {
+  let n = 0;
+  for (let i = 3; i < data.length; i += 4)
+    if (Math.min(255, data[i] * scale) >= cutoff) n++;
+  return n / (data.length / 4);
+}
+
+// scale this level's alpha until it tests the same as level 0 did
+function rescaleToCoverage(data, target, cutoff) {
+  if (target <= 0) return;
+  let lo = 0.0, hi = 64.0, best = 1.0;
+  for (let it = 0; it < 12; it++) {
+    const mid = (lo + hi) * 0.5;
+    const c = alphaCoverage(data, cutoff, mid);
+    if (c < target) lo = mid; else { hi = mid; best = mid; }
+  }
+  if (Math.abs(best - 1) < 0.02) return;
+  for (let i = 3; i < data.length; i += 4)
+    data[i] = Math.min(255, data[i] * best);
+}
+
+function buildCoverageMips(tex, cutoff255) {
+  if (!tex || MIPPED.has(tex)) return false;
+  const img = tex.image;
+  if (!img || !img.naturalWidth) return false;
+  const w0 = img.naturalWidth, h0 = img.naturalHeight;
+  if (!isPow2(w0) || !isPow2(h0)) return false;
+  const c = document.createElement('canvas');
+  c.width = w0; c.height = h0;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  g.drawImage(img, 0, 0);
+  let cur = g.getImageData(0, 0, w0, h0);
+  const target = alphaCoverage(cur.data, cutoff255, 1);
+  const mips = [cur];
+  let w = w0, h = h0;
+  while (w > 1 || h > 1) {
+    const nw = Math.max(1, w >> 1), nh = Math.max(1, h >> 1);
+    const nd = new Uint8ClampedArray(nw * nh * 4);
+    const sd = cur.data;
+    for (let y = 0; y < nh; y++) {
+      const y0 = Math.min(h - 1, y * 2), y1 = Math.min(h - 1, y * 2 + 1);
+      for (let x = 0; x < nw; x++) {
+        const x0 = Math.min(w - 1, x * 2), x1 = Math.min(w - 1, x * 2 + 1);
+        const a = (y0 * w + x0) * 4, b = (y0 * w + x1) * 4,
+              d = (y1 * w + x0) * 4, e = (y1 * w + x1) * 4, o = (y * nw + x) * 4;
+        for (let k = 0; k < 4; k++)
+          nd[o + k] = (sd[a + k] + sd[b + k] + sd[d + k] + sd[e + k]) * 0.25;
+      }
+    }
+    rescaleToCoverage(nd, target, cutoff255);
+    cur = new ImageData(nd, nw, nh);
+    mips.push(cur);
+    w = nw; h = nh;
+  }
+  tex.mipmaps = mips;
+  tex.generateMipmaps = false;
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  tex.needsUpdate = true;
+  MIPPED.add(tex);
+  return true;
+}
+
+// run over one collection's LEAF materials, at the threshold they will be
+// tested against — the coverage target only means anything against a cutoff
+function mipFixAsset(name) {
+  const built = cache[name];
+  if (!built || !MIPFIX) return 0;
+  const t = tuneOf(name);
+  let n = 0;
+  for (const m of built.mats) {
+    if (m.userData.alphaMode === 'OPAQUE' || !m.map) continue;
+    const cut = 255 * (m.userData.alphaMode === 'MASK'
+      ? Math.max(t.alpha, m.userData.cutoff || 0) : t.alpha);
+    if (buildCoverageMips(m.map, cut)) n++;
+  }
+  return n;
 }
 
 let CUT = 0.4;
 function applyAlpha(mat) {
   const mode = mat.userData.alphaMode;
   if (mode === 'OPAQUE') return;
+  hookTint(mat);
   // One rule for both cutout modes, because BLEND is what a forest cannot
   // afford: sorted, no depth prepass, overdraw unbounded. The pack's own MASK
   // cutoff is kept as the floor; the slider is what makes a crown thin out or
   // go solid in front of you.
   mat.transparent = false; mat.depthWrite = true;
-  mat.alphaTest = mode === 'MASK' ? Math.max(CUT, mat.userData.cutoff || 0) : CUT;
+  const cut = mode === 'MASK' ? Math.max(CUT, mat.userData.cutoff || 0) : CUT;
+  // With sharpening on, the DIAL becomes the sharpen's cutoff and the hard
+  // alpha test drops to a floor that only kills the genuinely empty texels:
+  // discarding at the dial as well would throw away the ramp the sharpen has
+  // just built, and the leaf would go thin again.
+  if (mat.userData.uCut) mat.userData.uCut.value = cut;
+  mat.alphaTest = (U_SHARP.value > 0 && mode !== 'OPAQUE') ? 0.01 : cut;
+  // ALPHA TO COVERAGE — the actual reason a stand looks like gravel.
+  // MSAA runs the fragment shader ONCE per pixel, so `discard` kills every
+  // sample at once: a cutout edge gets no anti-aliasing at all, however many
+  // samples the buffer has. Alpha-to-coverage turns the alpha value into a
+  // coverage mask across those samples instead, which is the one fix that
+  // makes a million leaf edges resolve. r128 supports it as a material flag.
+  mat.alphaToCoverage = A2C;
   mat.needsUpdate = true;
 }
 
@@ -360,6 +1265,15 @@ function buildGroup(built, G) {
   if (!els) return null;                       // this asset has no such rung
   const grp = new THREE.Group();
   for (const e of els) {
+    if (e.clips && e.clips.length) {             // an island of a welded mesh
+      for (const cl of e.clips) {
+        const host = built.byNode.get(cl.node);
+        if (!host) continue;
+        const cut = clipObject(host, cl.local);
+        if (cut) grp.add(cut);
+      }
+      continue;
+    }
     const src = built.byNode.get(e.node);
     if (!src) continue;
     // clone(), then REPLACE the clone's transform with the source's world
@@ -379,16 +1293,73 @@ function buildGroup(built, G) {
   const bb = new THREE.Box3().setFromObject(grp);
   if (!isFinite(bb.min.x)) return null;
   const size = bb.getSize(new THREE.Vector3()), ctr = bb.getCenter(new THREE.Vector3());
-  grp.position.set(-ctr.x, -bb.min.y, -ctr.z);
+  // TERRAIN STAYS WHERE IT IS. Everything else is re-seated on the origin so
+  // it can stand on a shelf; the ground is the surface we will scatter onto,
+  // so moving it would throw away the only thing it is kept for.
+  // Sit it on zero first; the sink is applied to the HOLDER afterwards so it
+  // stays a distance in world metres and does not get multiplied by `size`.
+  if (!G.inPlace) grp.position.set(-ctr.x, -bb.min.y, -ctr.z);
   const holder = new THREE.Group();
   holder.add(grp);
-  const k = TRUE_SCALE ? 1 : (CUR.scaleHint || 1);
+  const t = CUR ? tuneOf(CUR.name) : TUNE_DEFAULT;
+  const k = (TRUE_SCALE ? 1 : (CUR.scaleHint || 1)) * (t.size || 1);
   if (k !== 1) holder.scale.setScalar(k);
-  holder.userData = { name: G.name, h: size.y * k, w: Math.max(size.x, size.z) * k, group: G };
+  // The sink rides in userData as well as in the transform. Placing a tree —
+  // in the stand or on the ladder — writes position.set(x, y, z), which
+  // silently discarded it: the dial rebuilt the forest and nothing moved.
+  holder.userData.sink = G.inPlace ? 0 : (t.sink || 0);
+  if (!G.inPlace) holder.position.y = -holder.userData.sink;
+  holder.userData = { name: G.name, h: size.y * k,
+                      w: Math.max(size.x, size.z) * k, group: G,
+                      sink: G.inPlace ? 0 : (t.sink || 0) };
   return holder;
 }
 
+// One island out of a welded mesh. The inspector gives a LOCAL box; keep the
+// triangles whose centroid falls inside it. That is how a single oak trunk is
+// shown out of a mesh holding 3,844 of them, without the page repeating the
+// split the inspector already did.
+function clipObject(src, box) {
+  const out = new THREE.Group();
+  src.updateWorldMatrix(true, false);
+  src.traverse(m => {
+    if (!m.isMesh) return;
+    const g = m.geometry, pos = g.attributes.position;
+    const idx = g.index ? g.index.array : null;
+    const n = idx ? idx.length : pos.count;
+    const keep = [];
+    for (let t = 0; t + 2 < n; t += 3) {
+      const a = idx ? idx[t] : t, b = idx ? idx[t + 1] : t + 1, c = idx ? idx[t + 2] : t + 2;
+      const cx = (pos.getX(a) + pos.getX(b) + pos.getX(c)) / 3;
+      const cy = (pos.getY(a) + pos.getY(b) + pos.getY(c)) / 3;
+      const cz = (pos.getZ(a) + pos.getZ(b) + pos.getZ(c)) / 3;
+      if (cx < box[0] || cx > box[3] || cy < box[1] || cy > box[4] || cz < box[2] || cz > box[5]) continue;
+      keep.push(a, b, c);
+    }
+    if (!keep.length) return;
+    const ng = new THREE.BufferGeometry();
+    for (const k of ['position', 'normal', 'uv']) if (g.attributes[k]) ng.setAttribute(k, g.attributes[k]);
+    ng.setIndex(keep);
+    const nm = new THREE.Mesh(ng, m.material);
+    nm.applyMatrix4(m.matrixWorld);
+    out.add(nm);
+  });
+  return out.children.length ? out : null;
+}
+
 function groupsOf(a) { return (a && a[KIND]) || []; }
+
+// A collection can declare that only some of its subjects are wanted:
+// mountain_trees ships eight and only its three tall ones are of interest.
+// `keepTop` in the tuning takes the N tallest; without it, everything.
+function subjectsOf(a) {
+  if (!a) return [];
+  const t = tuneOf(a.name);
+  const all = (a.trees || []).slice();
+  if (t.keepTop && t.keepTop < all.length)
+    return all.slice().sort((x, y) => y.h - x.h).slice(0, t.keepTop);
+  return all;
+}
 
 function clearStage() { while (stage.children.length) stage.remove(stage.children[0]); }
 function applyWire() { stage.traverse(m => { if (m.isMesh) m.material.wireframe = WIRE; }); }
@@ -406,22 +1377,37 @@ function tally() {
 
 function showShelf(built) {
   clearStage();
-  let list = groupsOf(CUR);
+  let list = KIND === 'trees' ? subjectsOf(CUR) : groupsOf(CUR);
   if (ISOLATE) list = list.filter(G => G.name === ISOLATE);
   const cols = [];
   for (const G of list) { const h = buildGroup(built, G); if (h) cols.push(h); }
   cols.sort((a, b) => b.userData.h - a.userData.h);
+  const inPlace = KIND === 'terrain';
   let x = 0, maxH = 0;
   for (const c of cols) {
-    const w = Math.max(2.2, c.userData.w * 1.12);
-    x += w / 2; c.position.x = x; x += w / 2 + 0.7;
+    if (!inPlace) {
+      const w = Math.max(2.2, c.userData.w * 1.12);
+      x += w / 2; c.position.x = x; x += w / 2 + 0.7;
+    }
     maxH = Math.max(maxH, c.userData.h);
     stage.add(c);
   }
-  man.position.set(-1.8, 0, 0); man.visible = true;
   applyWire();
-  target.set(x / 2, maxH * 0.45, 0);
-  dist = Math.max(14, Math.max(x * 0.8, maxH * 1.9)); place();
+  if (inPlace) {
+    // the ground drawn as one piece, framed whole — this is the scatter
+    // surface, and its own coordinates are what make it one
+    const bb = new THREE.Box3().setFromObject(stage);
+    const sz = bb.getSize(new THREE.Vector3()), ct = bb.getCenter(new THREE.Vector3());
+    man.position.set(ct.x, bb.min.y, ct.z); man.visible = true;
+    target.copy(ct);
+    dist = Math.max(20, Math.max(sz.x, sz.z) * 1.1);
+    yaw = 0.6; pitch = 0.42; place();
+  } else {
+    man.position.set(-1.8, 0, 0); man.visible = true;
+    target.set(x / 2, maxH * 0.45, 0);
+    dist = Math.max(14, Math.max(x * 0.8, maxH * 1.9)); place();
+  }
+  measureStage();
   const t = tally();
   return { count: cols.length, tris: t.tris, meshes: t.meshes, maxH,
            heights: cols.map(c => ({ name: c.userData.name, h: c.userData.h })) };
@@ -448,7 +1434,7 @@ function showLadder(built) {
   LADDER.forEach((d, i) => {
     const a = A0 + i * DA;
     const h = best.clone(true);
-    h.position.set(d * Math.sin(a), 0, -d * Math.cos(a));
+    h.position.set(d * Math.sin(a), -(h.userData.sink || 0), -d * Math.cos(a));
     stage.add(h);
     // a stake per station: without it the eye cannot tell 250 m from 500 m,
     // which is the one judgement this view exists to support
@@ -469,6 +1455,7 @@ function showLadder(built) {
   yaw = Math.atan2(-target.x, -target.z);
   pitch = Math.asin(Math.max(-0.39, (6 - target.y) / dist));
   place();
+  measureStage();
   const t = tally();
   return { count: LADDER.length, tris: t.tris, meshes: t.meshes,
            maxH: best.userData.h, ladderTree: best.userData.name,
@@ -476,6 +1463,7 @@ function showLadder(built) {
 }
 
 async function load(entry, keepIsolate) {
+  if (MODE === 'forest') return;         // the stand owns the stage
   if (CUR !== entry) ISOLATE = null;
   else if (!keepIsolate) ISOLATE = ISOLATE;
   CUR = entry;
@@ -488,8 +1476,10 @@ async function load(entry, keepIsolate) {
       cache[entry.name] = buildGLB(ab);
     }
     const built = cache[entry.name];
-    for (const m of built.mats) applyAlpha(m);
-    const stats = MODE === 'shelf' ? showShelf(built) : showLadder(built);
+    await texturesReady();                 // the bake reads these; see imageTex
+    retint(entry.name);
+    const stats = MODE === 'variants' ? showVariants(built)
+                : MODE === 'shelf' ? showShelf(built) : showLadder(built);
     $('msg').textContent = '';
     paintFacts(stats);
     render();
@@ -502,15 +1492,19 @@ async function load(entry, keepIsolate) {
 // ---- rail + facts --------------------------------------------------------
 function paintRail() {
   const ui = $('ui');
-  const rows = INDEX.assets.slice().sort((a, b) =>
+  const isTreeSource = a => a.trees.length && !a.trees.every(t => t.merged);
+  const rows = INDEX.assets.filter(a => isTreeSource(a) || !a.renderable).sort((a, b) =>
     (b.renderable ? 1 : 0) - (a.renderable ? 1 : 0) || b.trees.length - a.trees.length || b.tris - a.tris);
   let h = '<div class="grp">CANDIDATES — near asset</div>', off = false;
   for (const a of rows) {
     if (!a.renderable && !off) { h += '<div class="grp">OFFLINE — bake source only</div>'; off = true; }
     const sel = CUR && CUR.name === a.name ? ' sel' : '';
-    const n = a.trees.length + (a.shrubs ? a.shrubs.length : 0) + (a.cards ? a.cards.length : 0);
+    const n = a.trees.length + a.shrubs.length + a.billboards.length +
+              a.terrain.length;
+    const bad = a.licence && a.licence.ok === false;
     h += '<div class="item' + sel + (a.renderable ? '' : ' off') + '" data-n="' + a.name + '">' +
-         '<span>' + a.name.replace(/\.(glb|gltf\.zip)$/, '') + '</span>' +
+         '<span' + (bad ? ' class="bad"' : '') + '>' + (bad ? '⛔ ' : '') +
+         a.name.replace(/\.(glb|gltf\.zip)$/, '').slice(0, 30) + '</span>' +
          '<i>' + n + ' subj · ' + (a.tris > 999999 ? (a.tris / 1e6).toFixed(1) + ' M' : a.tris.toLocaleString()) + '</i></div>';
   }
   h += '<div id="facts"></div>';
@@ -529,7 +1523,8 @@ function paintFacts(stats) {
   h += '<tr><td class="k">triangles</td><td class="' + (a.tris > 200000 ? 'bad' : a.tris > 40000 ? 'warn' : 'ok') + '">' + num(a.tris) + '</td></tr>';
   h += '<tr><td class="k">textures</td><td>' + a.images + ' images, ' + a.texMB + ' MB</td></tr>';
   h += '<tr><td class="k">subjects</td><td>' + a.trees.length + ' tree · ' + a.shrubs.length +
-       ' shrub · ' + a.cards.length + ' card · ' + a.props.length + ' prop</td></tr>';
+       ' shrub · ' + a.billboards.length + ' billboard' +
+       (a.terrain.length ? ' · ' + a.terrain.length + ' terrain' : '') + '</td></tr>';
   h += '<tr><td class="k">tallest</td><td class="' + (a.scaleFlag ? 'bad' : '') + '">' +
        (a.tallest ? a.tallest.toFixed(1) + ' m' : '—') + '</td></tr>';
   h += '</table>';
@@ -539,7 +1534,29 @@ function paintFacts(stats) {
          ' m — about ' + (1 / a.scaleHint).toFixed(0) + 'x a real conifer. The export is in the wrong units. ' +
          'Turn off "true scale" to view it at x' + a.scaleHint.toFixed(4) + '; the file is not changed.</div>';
 
+  const anyMerged = [].concat(a.trees, a.shrubs, a.billboards, a.terrain)
+    .some(G => G.merged);
+  if (anyMerged) {
+    h += '<div class="note warn">WELDED BY MATERIAL. This export merges every instance of a ' +
+         'material into one mesh, so a subject here is ALL the oak trunks, ALL the grass — ' +
+         'not a separable tree. Its identity is the MATERIAL NAME (the node names are a ' +
+         'leftover from another pack by the same author) and its height is the extent of a ' +
+         'collection, not of a trunk. A ground-cover and road reference; not a near asset.</div>';
+  }
+  if (a.rawMeshes && a.rawMeshes > 30 && !anyMerged) {
+    const uniq = a.trees.length + a.shrubs.length + a.billboards.length + a.terrain.length;
+    h += '<div class="note">SCENE — ' + a.rawNodes + ' nodes, ' + a.rawMeshes +
+         ' meshes, <b>' + uniq + ' unique geometries</b>. The copies are counted, not drawn ' +
+         'separately: identical geometry is one subject wearing an instance count.</div>';
+  }
+
   h += '<h2>PROVENANCE</h2>';
+  if (a.licence && a.licence.ok === false) {
+    h += '<div class="note bad" style="border:1px solid var(--bad);padding:6px;border-radius:4px">' +
+         '<b>LICENCE: ' + a.licence.text + '</b><br>' + a.licence.why +
+         '<br>It may be looked at here and used as a test display. It must never reach <code>media/</code>, ' +
+         'a bake, or the published site — unlike every CC-BY and CC0 asset beside it.</div>';
+  }
   if (a.credit) {
     h += '<table><tr><td class="k">title</td><td>' + (a.credit.title || '?') + '</td></tr>' +
          '<tr><td class="k">author</td><td>' + (a.credit.author || '?') + '</td></tr>' +
@@ -568,12 +1585,33 @@ function paintFacts(stats) {
          ' in BLEND. Blending needs back-to-front sorting and refuses a depth prepass — the wrong mode at forest density. ' +
          'The page draws them as alpha test at the slider\'s threshold, which is how they would ship.</div>';
 
-  const list = groupsOf(a);
+  // THE SAME DIALS THE STAND HAS. A species is judged on its own screen and
+  // then in the mix, and having to switch modes to change its colour made the
+  // two readings drift apart.
+  const td = tuneOf(a.name);
+  h += '<h2>THIS COLLECTION</h2><table class="fRows">';
+  for (const dial of [['hue', -0.5, 0.5, 0.005], ['sat', 0, 1.4, 0.01],
+                      ['light', 0.4, 1.8, 0.01], ['bark', 0.3, 2, 0.02],
+                      ['alpha', 0, 0.9, 0.05], ['size', 0.2, 3, 0.02],
+                      ['sink', 0, 4, 0.05], ['proportion', 0, 3, 0.05],
+                      ['stick', 0.01, 0.3, 0.005], ['impa', 1, 20, 0.5],
+                      ['implight', 0.4, 2, 0.01], ['dead', 0, 0.6, 0.01]]) {
+    h += '<tr><td class="k" style="width:44px;font-size:10px">' + dial[0] + '</td><td>' +
+         '<input type="range" class="fDial" data-n="' + a.name + '" data-k="' + dial[0] +
+         '" min="' + dial[1] + '" max="' + dial[2] + '" step="' + dial[3] + '" value="' + td[dial[0]] +
+         '" style="width:150px"> <i style="color:var(--acc);font-size:10px">' +
+         (+td[dial[0]]).toFixed(dial[3] < 0.01 ? 3 : 2) + '</i></td></tr>';
+  }
+  h += '</table>';
+
+  const list = KIND === 'trees' ? subjectsOf(a) : groupsOf(a);
   h += '<h2>' + KIND.toUpperCase() + ' — ' + list.length + '</h2><table>';
   for (const G of list.slice(0, 30)) {
     const sel = ISOLATE === G.name ? ' sel' : '';
     h += '<tr class="rowsel' + sel + '" data-g="' + G.name.replace(/"/g, '') + '">' +
-         '<td style="font-size:10px">' + G.name + (G.parts > 1 ? ' <span style="color:var(--dim)">' + G.parts + 'p</span>' : '') + '</td>' +
+         '<td style="font-size:10px">' + G.name.slice(0, 26) +
+           (G.parts > 1 ? ' <span style="color:var(--dim)">' + G.parts + 'p</span>' : '') +
+           (G.copies > 1 ? ' <span style="color:var(--acc)">x' + G.copies + '</span>' : '') + '</td>' +
          '<td class="n" style="font-size:10px">' + G.h.toFixed(1) + 'm</td>' +
          '<td class="n" style="font-size:10px">' + G.lods.map(l => 'L' + l.lod + ' ' + l.tris.toLocaleString()).join(' · ') + '</td></tr>';
   }
@@ -586,7 +1624,22 @@ function paintFacts(stats) {
   if (!a.renderable) {
     h += '<div class="note bad">NOT DRAWN. ' + num(a.tris) + ' triangles in a ' + a.binMB +
          ' MB buffer — an offline-render tree. Its place in §8.3\'s ladder is as the bake source for the impostor atlas and the canopy shell, and as the reference for what the near asset should look like. It is not a near asset.</div>';
-  } else if (stats) {
+  } else if (stats && stats.cells !== undefined) {
+    h += '<h2>VARIANT GRID</h2><table>' +
+      '<tr><td class="k">cells</td><td>' + stats.cells + '</td></tr></table>' +
+      '<table class="fRows">';
+    const bySub = {};
+    for (const r of stats.stats) (bySub[r.subject] = bySub[r.subject] || []).push(r);
+    for (const sub in bySub) {
+      h += '<tr><td colspan="2" style="color:var(--fg);padding-top:6px">' + sub.slice(0, 26) + '</td></tr>';
+      const fullT = (bySub[sub].find(r => r.variant === 'full') || {}).tris || 1;
+      for (const r of bySub[sub])
+        h += '<tr><td class="k" style="font-size:10px">' + r.variant + '</td>' +
+             '<td class="n" style="font-size:10px">' + r.tris.toLocaleString() +
+             '  <span style="color:var(--dim)">' + (100 * r.tris / fullT).toFixed(0) + '%</span></td></tr>';
+    }
+    h += '</table>';
+  } else if (stats && stats.tris !== undefined) {
     h += '<h2>ON SCREEN</h2><table>' +
       '<tr><td class="k">view</td><td>' + MODE + (stats.ladderTree ? ' · ' + stats.ladderTree : '') + '</td></tr>' +
       '<tr><td class="k">drawn</td><td>' + stats.tris.toLocaleString() + ' tris · ' + stats.meshes + ' meshes</td></tr>' +
@@ -602,6 +1655,1735 @@ function paintFacts(stats) {
   f.innerHTML = h;
   for (const r of f.querySelectorAll('.rowsel'))
     r.onclick = () => { ISOLATE = ISOLATE === r.dataset.g ? null : r.dataset.g; load(CUR, true); };
+  for (const el of f.querySelectorAll('.fDial'))
+    el.oninput = () => {
+      const t = tuneOf(el.dataset.n);
+      t[el.dataset.k] = +el.value;
+      TUNE[el.dataset.n] = t;
+      saveTune();
+      el.nextElementSibling.textContent = (+el.value).toFixed(+el.step < 0.01 ? 3 : 2);
+      if (['sink', 'size', 'proportion', 'dead', 'stick', 'impa', 'implight'].indexOf(el.dataset.k) >= 0) { load(CUR, true); return; }
+      retint(el.dataset.n);
+      render();
+    };
+}
+
+
+// ==========================================================================
+// MEASURING THE LEAVES — the colour pass starts from numbers, not from taste
+//
+// Every collection was authored by somebody else under their own light, so a
+// mixed forest reads as a set of stickers unless the foliage is brought to
+// one place. The correction cannot be guessed: it is computed from what the
+// TEXTURES actually contain. For each collection, every cutout (leaf)
+// material's base texture is drawn to a small canvas and the pixels that
+// SURVIVE THE ALPHA TEST are averaged — the transparent surround of a leaf
+// card would otherwise drag every mean toward the background colour.
+//
+// The mean goes to HSL, and that is the collection's colour in one row.
+// ==========================================================================
+const MEAS = {};                       // assetName -> { h, s, l, px, mats }
+
+function rgb2hsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+  const l = (mx + mn) / 2;
+  let h = 0, sat = 0;
+  if (d > 1e-6) {
+    sat = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
+    if (mx === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+    else if (mx === g) h = ((b - r) / d + 2) / 6;
+    else h = ((r - g) / d + 4) / 6;
+  }
+  return { h: h, s: sat, l: l };
+}
+
+const _mcv = document.createElement('canvas');
+_mcv.width = _mcv.height = 64;
+const _mctx = _mcv.getContext('2d', { willReadFrequently: true });
+
+function measureAsset(name, built) {
+  let R = 0, G = 0, B = 0, n = 0, mats = 0, pending = 0;
+  for (const m of built.mats) {
+    if (m.userData.alphaMode === 'OPAQUE') continue;   // bark and ground: not leaves
+    if (!m.map || !m.map.image) { pending++; continue; }
+    mats++;
+    try {
+      _mctx.clearRect(0, 0, 64, 64);
+      _mctx.drawImage(m.map.image, 0, 0, 64, 64);
+      const d = _mctx.getImageData(0, 0, 64, 64).data;
+      for (let i = 0; i < d.length; i += 4) {
+        if (d[i + 3] < 128) continue;                  // only what the cutout keeps
+        R += d[i]; G += d[i + 1]; B += d[i + 2]; n++;
+      }
+    } catch (e) { /* a texture that will not decode is simply not measured */ }
+  }
+  if (!n) return pending ? null : { h: 0, s: 0, l: 0, px: 0, mats: 0 };
+  const hsl = rgb2hsl(R / n, G / n, B / n);
+  return { h: hsl.h, s: hsl.s, l: hsl.l, px: n, mats: mats,
+           rgb: [Math.round(R / n), Math.round(G / n), Math.round(B / n)] };
+}
+
+// ---- the standardisation, and where it stops -----------------------------
+// The tool proposes ONE number per collection per axis and no more. It reads
+// a REFERENCE collection's measured hue and lightness as the target, and
+// takes the target saturation as the LOWEST measured across the set — so
+// every correction is a desaturation and none pushes a texture past what it
+// holds. The author keeps the sliders; this only sets a sane starting point.
+function pct(arr, q) {
+  const a = arr.slice().sort((x, y) => x - y);
+  if (!a.length) return 0;
+  const i = (a.length - 1) * q, lo = Math.floor(i), hi = Math.ceil(i);
+  return lo === hi ? a[lo] : a[lo] + (a[hi] - a[lo]) * (i - lo);
+}
+
+function suggestTuning(refName) {
+  const names = Object.keys(MEAS).filter(n => MEAS[n] && MEAS[n].px);
+  if (!names.length) return 0;
+  const ref = MEAS[refName] || MEAS[names[0]];
+
+  // SATURATION target: the lower quartile, not the minimum. The minimum in
+  // this set is 10 % — one washed-out texture — and equalising to it would
+  // grey the whole forest to match the weakest member. The quartile pulls the
+  // loud ones down without flattening the set, and because the ratio is
+  // clamped at 1, a collection already below the target is left alone: that
+  // is what "desaturate to meet, never saturate up" means in practice.
+  const targetS = pct(names.map(n => MEAS[n].s), 0.25);
+  // LIGHTNESS target: the median, not the reference. Matching the reference
+  // here would drag everything to its 23 % and crush the stand dark.
+  const targetL = pct(names.map(n => MEAS[n].l), 0.5);
+
+  let done = 0;
+  for (const n of names) {
+    const m = MEAS[n];
+    let dh = ref.h - m.h;                 // shortest way round the wheel
+    if (dh > 0.5) dh -= 1;
+    if (dh < -0.5) dh += 1;
+    const t = tuneOf(n);
+    t.hue = +dh.toFixed(3);
+    t.sat = +Math.min(1, m.s > 1e-4 ? targetS / m.s : 1).toFixed(3);
+    t.light = +Math.min(1.8, Math.max(0.4, m.l > 1e-4 ? targetL / m.l : 1)).toFixed(3);
+    TUNE[n] = t;
+    done++;
+  }
+  saveTune();
+  return done;
+}
+function saveTune() {
+  try { localStorage.setItem('flydiy.trees.tuning', JSON.stringify(TUNE)); } catch (e) {}
+}
+function retint(name) {
+  const built = cache[name];
+  if (!built) return;
+  if (MIPFIX) mipFixAsset(name);
+  aoFixAsset(name);
+  const t = tuneOf(name);
+  for (const m of built.mats) { CUT = t.alpha; applyAlpha(m); applyTune(m, t); }
+}
+
+// ==========================================================================
+// THE FOREST — the only view that says whether a mix works
+//
+// A shelf shows one pack at a time and flatters all of them. A stand does
+// not: it is where a collection that is bluer, or lighter, or simply from
+// another author's light announces itself. So every ENABLED collection is
+// scattered together, near trees at their finest rung and far ones as the
+// billboard the pack already ships (§8.3's R1 and R2 side by side at the
+// distances they are meant for), on a flat plane or on a real terrain
+// reconstituted from one of the scene files.
+// ==========================================================================
+const FOREST = { count: 260, radius: 220, split: 60, ground: 'plane', seed: 7,
+                 scale: 1, spread: 0.2, impostor: false, glades: 6, edge: 12,
+                 mix: 0.5 };
+const PICK = {};                       // assetName -> included in the stand
+let forestGround = null;
+
+function rng(seed) {                   // deterministic: a stand you can re-judge
+  let x = seed >>> 0;
+  return function () {
+    x ^= x << 13; x ^= x >>> 17; x ^= x << 5; x >>>= 0;
+    return x / 4294967296;
+  };
+}
+
+async function ensureLoaded(name) {
+  if (cache[name]) return cache[name];
+  const a = INDEX.assets.find(x => x.name === name);
+  if (!a || !a.renderable) return null;
+  const ab = await (await fetch(RAW + encodeURIComponent(name))).arrayBuffer();
+  cache[name] = buildGLB(ab);
+  return cache[name];
+}
+
+// the two rungs a collection can offer a stand
+function protoOf(built, a, G, far) {
+  const saveL = LODSEL, saveC = CUR;
+  CUR = a;
+  LODSEL = far ? (G.lods.length > 1 ? G.lods[G.lods.length - 1].lod : -1) : -1;
+  const h = buildGroup(built, G);
+  LODSEL = saveL; CUR = saveC;
+  return h;
+}
+
+// A collection's `proportion` is its weight in the draw; its prototypes then
+// share that weight between them, so adding a fourth pine to a pack does not
+// quietly make pines three quarters of the wood.
+// the dial says what it does: the ratio range it actually produces
+function spreadLabel(v) {
+  return v <= 0 ? 'uniform'
+    : Math.exp(-v).toFixed(2) + '-' + Math.exp(v).toFixed(2) + 'x';
+}
+
+// A SNAG is the tree minus its cutout materials. The same split the tint
+// already relies on does the work: a cutout material is foliage, an opaque
+// one is bark. If nothing opaque remains — a billboard-only prototype is all
+// cutout — there is no snag to make and the caller plants the living tree.
+function stripFoliage(src) {
+  const c = src.clone(true);
+  const kill = [];
+  c.traverse(o => {
+    if (o.isMesh && o.material && o.material.userData.alphaMode !== 'OPAQUE') kill.push(o);
+  });
+  for (const o of kill) if (o.parent) o.parent.remove(o);
+  let any = false;
+  c.traverse(o => { if (o.isMesh) any = true; });
+  return any ? c : null;
+}
+
+function pickWeighted(pool, r) {
+  let total = 0;
+  for (const p of pool) total += (tuneOf(p.a.name).proportion || 0) / (p.a._nProto || 1);
+  if (total <= 0) return pool[Math.floor(r * pool.length)];
+  let acc = r * total;
+  for (const p of pool) {
+    acc -= (tuneOf(p.a.name).proportion || 0) / (p.a._nProto || 1);
+    if (acc <= 0) return p;
+  }
+  return pool[pool.length - 1];
+}
+
+
+// ==========================================================================
+// IMPOSTORS — ported from src/viewer/render_world.js (W17's bake)
+//
+// The game already does this and has since 2026-08-05; what it has never had
+// is a decent tree to bake FROM. So this is the same algorithm, not a new
+// one: a G x G grid of view directions folded over the upper hemisphere, each
+// rendered to a tile, and a quad that picks the three nearest views and
+// blends them barycentrically. A hard nearest-view pick makes the whole
+// forest flip at once when the aeroplane turns, which is why it is three taps
+// and not one.
+//
+// The hemi-octahedral fold puts the HORIZON RING on the edge of the square
+// and straight-down at the centre — the right distribution for an aeroplane,
+// which spends its life looking at trees from slightly above.
+//
+// Baked with the bench's own sun and environment, tone mapping off: the tile
+// holds linear shading and ACES is applied once, at the final draw, like
+// every other surface. Cleared to transparent BLACK and unpremultiplied at
+// sample time, because that is the form bilinear filtering and mipmaps are
+// correct on — anything else fringes dark at distance.
+// ==========================================================================
+const IMP_G = 8, IMP_TILE = 128;
+// A SNAG STANDS IN FROM THE FIRST RUNG, so its sheet is baked finer. Thinning
+// the branches off a bare trunk is not a cheaper bare trunk, it is a worse one
+// - there is no foliage left to spend - so a dead tree goes from its full mesh
+// straight to an impostor, and that impostor has to hold up closer than a
+// live tree's ever does.
+const IMP_TILE_HI = 224;
+const IMP_CACHE = new Map();
+
+const impDir = (i, j) => {
+  const a = i / (IMP_G - 1) * 2 - 1, b = j / (IMP_G - 1) * 2 - 1;
+  const px = (a + b) / 2, py = (a - b) / 2;
+  return new THREE.Vector3(px, 1 - Math.abs(px) - Math.abs(py), py).normalize();
+};
+
+// ==========================================================================
+// COVERAGE-PRESERVING MIPMAPS FOR THE ATLAS
+//
+// The leaf textures already get this (see buildCoverageMips); the tile sheet
+// did not, and it is the sheet that is minified hardest. A tile is a CUTOUT,
+// so averaging it down averages the alpha: a texel that was 1.0 beside three
+// empty ones becomes 0.25, fails the test, and the crown thins with every
+// level. A tree that is meant to hold its canopy at four kilometres instead
+// evaporates into its own trunk.
+//
+// Three things this has to get right that the single-texture version did not:
+//
+//   - COVERAGE IS PER TILE. The sheet holds 64 views and they are not equally
+//     dense: straight down through a fir is not the same silhouette as side
+//     on. One global alpha scale would thicken the sparse views and thin the
+//     solid ones, so each tile carries its own level-0 coverage as its target.
+//
+//   - THE BOX FILTER NEVER CROSSES A TILE. It does not have to be told not to:
+//     tiles are a power of two and aligned to it, so a 2x2 box stays inside
+//     one tile at every level until the tile is a single texel. Below that the
+//     grid is gone and the whole level is held to the mean target instead.
+//
+//   - THE SHEET IS PREMULTIPLIED and the shader divides by alpha to get the
+//     colour back. Scaling alpha alone would break that invariant and the
+//     canopy would DARKEN with distance instead of thinning. So the colour is
+//     carried by exactly the factor the alpha actually moved, per texel, and
+//     rgb/a comes back to the same colour it had at level 0.
+// ==========================================================================
+function covTile(buf, rowW, x0, y0, w, h, cutoff, scale) {
+  let n = 0;
+  for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++)
+    if (Math.min(255, buf[(y * rowW + x) * 4 + 3] * scale) >= cutoff) n++;
+  return n / (w * h);
+}
+
+function rescaleTile(buf, rowW, x0, y0, w, h, target, cutoff) {
+  if (target <= 0) return;
+  let lo = 0.0, hi = 64.0, best = 1.0;
+  for (let it = 0; it < 12; it++) {
+    const mid = (lo + hi) * 0.5;
+    if (covTile(buf, rowW, x0, y0, w, h, cutoff, mid) < target) lo = mid;
+    else { hi = mid; best = mid; }
+  }
+  if (Math.abs(best - 1) < 0.02) return;
+  for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) {
+    const i = (y * rowW + x) * 4;
+    const a0 = buf[i + 3];
+    if (!a0) continue;
+    const a1 = Math.min(255, a0 * best);
+    const f = a1 / a0;                   // the colour rides the alpha exactly
+    buf[i] = buf[i] * f; buf[i + 1] = buf[i + 1] * f; buf[i + 2] = buf[i + 2] * f;
+    buf[i + 3] = a1;
+  }
+}
+
+function buildAtlasMips(rt, N, G, tile0, cutoff) {
+  const raw = new Uint8Array(N * N * 4);
+  const pRT = renderer.getRenderTarget();
+  renderer.readRenderTargetPixels(rt, 0, 0, N, N, raw);
+  renderer.setRenderTarget(pRT);
+  // readRenderTargetPixels reads bottom-up and setViewport wrote the grid
+  // bottom-up, so the two already agree; the DataTexture keeps flipY false.
+  let cur = new Uint8ClampedArray(raw.buffer.slice(0));
+  const target = [];
+  for (let ty = 0; ty < G; ty++) for (let tx = 0; tx < G; tx++)
+    target.push(covTile(cur, N, tx * tile0, ty * tile0, tile0, tile0, cutoff, 1));
+  let mean = 0;
+  for (const v of target) mean += v;
+  mean /= Math.max(1, target.length);
+
+  const mips = [{ data: new Uint8Array(cur.buffer), width: N, height: N }];
+  let w = N, h = N, tile = tile0;
+  while (w > 1 || h > 1) {
+    const nw = Math.max(1, w >> 1), nh = Math.max(1, h >> 1);
+    const nd = new Uint8ClampedArray(nw * nh * 4);
+    for (let y = 0; y < nh; y++) {
+      const ya = Math.min(h - 1, y * 2), yb = Math.min(h - 1, y * 2 + 1);
+      for (let x = 0; x < nw; x++) {
+        const xa = Math.min(w - 1, x * 2), xb = Math.min(w - 1, x * 2 + 1);
+        const p0 = (ya * w + xa) * 4, p1 = (ya * w + xb) * 4,
+              p2 = (yb * w + xa) * 4, p3 = (yb * w + xb) * 4, o = (y * nw + x) * 4;
+        for (let k = 0; k < 4; k++)
+          nd[o + k] = (cur[p0 + k] + cur[p1 + k] + cur[p2 + k] + cur[p3 + k]) * 0.25;
+      }
+    }
+    tile = tile >> 1;
+    if (tile >= 1) {
+      for (let ty = 0; ty < G; ty++) for (let tx = 0; tx < G; tx++)
+        rescaleTile(nd, nw, tx * tile, ty * tile, tile, tile, target[ty * G + tx], cutoff);
+    } else {
+      rescaleTile(nd, nw, 0, 0, nw, nh, mean, cutoff);
+    }
+    mips.push({ data: new Uint8Array(nd.buffer), width: nw, height: nh });
+    cur = nd; w = nw; h = nh;
+  }
+  return mips;
+}
+
+function bakeImpostor(proto, tile) {
+  const TILE = tile || IMP_TILE;
+  const staged = proto.clone(true);
+  staged.position.set(0, 0, 0);
+  staged.updateMatrixWorld(true);
+  const bb = new THREE.Box3().setFromObject(staged);
+  if (!isFinite(bb.min.x)) return null;
+  const size = bb.getSize(new THREE.Vector3());
+  const cy = (bb.min.y + bb.max.y) * 0.5;
+  const R = Math.max(size.x, size.y, size.z) * 0.5;
+  const M = R * 1.12;                    // 12% gutter: mips bleed across tiles
+  const N = IMP_G * TILE;
+  const rt = new THREE.WebGLRenderTarget(N, N, {
+    minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter,
+    format: THREE.RGBAFormat, generateMipmaps: false,   // built on the CPU below
+  });
+  const sc = new THREE.Scene();
+  sc.add(staged);
+  sc.environment = scene.environment;
+  const dl = new THREE.DirectionalLight(sun.color.clone(), sun.intensity);
+  dl.position.copy(sun.position);
+  dl.target.position.set(0, cy, 0);
+  sc.add(dl, dl.target);
+  sc.add(new THREE.HemisphereLight(fill.color.clone(), fill.groundColor.clone(), fill.intensity));
+  // THE TILE MUST CARRY THE TREE'S OWN SHADOW. Baked without one, every
+  // impostor is lit flat on all sides while the geometry standing beside it
+  // has a shaded interior and a dark underside - so the billboard reads paler
+  // than its own model, which is the residual "a tad too light when lit".
+  // The light and the tree do not move across the 64 tiles, so the map is
+  // rendered once and held.
+  dl.castShadow = SHADOWS;
+  dl.shadow.mapSize.set(2048, 2048);
+  dl.shadow.bias = -0.0008;
+  dl.shadow.normalBias = 0.02;
+  const SC = R * 1.25;
+  const sd = dl.position.distanceTo(dl.target.position);
+  dl.shadow.camera.left = -SC; dl.shadow.camera.right = SC;
+  dl.shadow.camera.top = SC; dl.shadow.camera.bottom = -SC;
+  dl.shadow.camera.near = Math.max(0.5, sd - R * 4);
+  dl.shadow.camera.far = sd + R * 4;
+  dl.shadow.camera.updateProjectionMatrix();
+  staged.traverse(o => { if (o.isMesh) { o.castShadow = SHADOWS; o.receiveShadow = SHADOWS; } });
+
+  const cam = new THREE.OrthographicCamera(-M, M, M, -M, 0.1, R * 8);
+  const ctr = new THREE.Vector3(0, cy, 0);
+  const pRT = renderer.getRenderTarget(), pAC = renderer.autoClear;
+  const pTM = renderer.toneMapping, pSh = renderer.shadowMap.enabled;
+  const pCol = new THREE.Color(); renderer.getClearColor(pCol);
+  const pA = renderer.getClearAlpha();
+  renderer.toneMapping = THREE.NoToneMapping;   // ACES once, at the real draw
+  const pAU = renderer.shadowMap.autoUpdate;
+  renderer.shadowMap.enabled = SHADOWS;
+  renderer.shadowMap.autoUpdate = false;
+  renderer.shadowMap.needsUpdate = true;   // once, then held for all 64 tiles
+  // THE BAKE MUST NOT USE THE SCREEN'S CUTOUT PATH, and this is why the far
+  // band came back as bare trunks. Alpha-to-coverage needs MSAA samples to
+  // spread coverage across; a plain render target has none, so coverage
+  // collapses to one bit. And the sharpen divides by fwidth(alpha), which at
+  // a 128 px tile is enormous — every leaf texel lands near 0.5, that one bit
+  // rounds it away, and only the OPAQUE trunk survives. So the tile is
+  // rendered with a plain alpha test at the material's own cutoff: no
+  // coverage, no sharpen.
+  const bakeRestore = [];
+  for (const n in cache) for (const m of cache[n].mats) {
+    if (m.userData.alphaMode === 'OPAQUE') continue;
+    bakeRestore.push([m, m.alphaToCoverage, m.alphaTest]);
+    m.alphaToCoverage = false;
+    m.alphaTest = 0.5;                 // the mask is binary now; see uBakeCut
+    m.needsUpdate = true;
+  }
+  const prevSharp = U_SHARP.value, prevBakeCut = U_BAKECUT.value;
+  U_SHARP.value = 0;
+  U_BAKECUT.value = 1;
+  for (const [m] of bakeRestore) m.needsUpdate = true;
+  renderer.setRenderTarget(rt);
+  renderer.autoClear = false;
+  renderer.setClearColor(0x000000, 0);
+  renderer.clear(true, true, false);
+  // THE TILE RECT MUST LIVE ON THE RENDER TARGET, NOT ON THE RENDERER.
+  // renderer.setViewport() writes the GL viewport immediately, but any pass
+  // that re-binds a render target - the shadow map does, once - restores the
+  // viewport from the TARGET's own `viewport`, which is the whole sheet. Every
+  // tile after that one drew the tree at eight times the size, clipped to its
+  // tile, and the atlas came out as a canopy smeared across the middle: 100%
+  // coverage on a top-down tile whose geometry can only reach 30%. Setting the
+  // rect on the target and re-binding per tile is the form that survives it.
+  for (let j = 0; j < IMP_G; j++) for (let i = 0; i < IMP_G; i++) {
+    const d = impDir(i, j);
+    // THE BAKE'S BASIS MUST BE THE BILLBOARD'S BASIS, exactly, or the tile is
+    // sampled with the wrong ROLL and a near-vertical view smears into a pale
+    // slab. A world up is fine near the horizon and degenerate looking down —
+    // which is the one direction a flight sim cannot afford to get wrong. So
+    // the camera is given the same right/up the CPU billboard will build,
+    // pole fallback included, rather than a world up and a hope.
+    const rgt = Math.abs(d.y) > 0.999
+      ? new THREE.Vector3(1, 0, 0)
+      : new THREE.Vector3(d.z, 0, -d.x).normalize();
+    cam.up.copy(new THREE.Vector3().crossVectors(d, rgt));
+    cam.position.copy(ctr).addScaledVector(d, R * 4);
+    cam.lookAt(ctr);
+    cam.updateProjectionMatrix();
+    rt.viewport.set(i * TILE, j * TILE, TILE, TILE);
+    rt.scissor.set(i * TILE, j * TILE, TILE, TILE);
+    rt.scissorTest = true;
+    renderer.setRenderTarget(rt);        // re-asserts the tile rect every time
+    renderer.clearDepth();
+    renderer.render(sc, cam);
+  }
+  rt.scissorTest = false;
+  rt.viewport.set(0, 0, N, N);
+  rt.scissor.set(0, 0, N, N);
+  renderer.setViewport(0, 0, cv.width, cv.height);
+  renderer.setRenderTarget(pRT);
+  renderer.autoClear = pAC;
+  renderer.toneMapping = pTM;
+  renderer.shadowMap.enabled = pSh;
+  renderer.shadowMap.autoUpdate = pAU;
+  renderer.setClearColor(pCol, pA);
+  U_SHARP.value = prevSharp;
+  U_BAKECUT.value = prevBakeCut;
+  for (const [m, a2c, at] of bakeRestore) { m.alphaToCoverage = a2c; m.alphaTest = at; m.needsUpdate = true; }
+  // The sheet leaves the GPU here: a render target cannot carry a mip chain we
+  // built ourselves, and holding one per prototype costs 4 MB of VRAM apiece.
+  // The cutoff is U_ICUT, the point the impostor's alpha curve is centred on -
+  // a coverage target only means anything against the threshold it will be
+  // tested at.
+  const mips = buildAtlasMips(rt, N, IMP_G, TILE, Math.round(255 * U_ICUT.value));
+  const tex = new THREE.DataTexture(mips[0].data, N, N, THREE.RGBAFormat);
+  tex.mipmaps = mips;
+  tex.generateMipmaps = false;
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+  tex.flipY = false;
+  tex.needsUpdate = true;
+  rt.dispose();
+  return { tex: tex, cy: cy, diam: 2 * M, tile: TILE, mips: mips.length };
+}
+
+// ==========================================================================
+// THE IMPOSTOR FIELD — CPU billboarding, one draw call per prototype
+//
+// The first attempt built the quad in the VERTEX shader from modelMatrix, the
+// way src/viewer/render_world.js does for its InstancedMesh. It never drew:
+// the program linked, the quad submitted two triangles, and reading the
+// instance scale out of modelMatrix column 1 returned zero, which collapsed
+// every billboard to a horizontal line. Rather than keep probing a shader
+// that cannot be printf'd, the geometry is now built on the CPU in WORLD
+// SPACE and the mesh carries no transform at all — so there is no matrix to
+// read wrongly, and `project_vertex` does its ordinary job.
+//
+// What stays from the game's version is the part that is actually clever: the
+// HEMI-OCTAHEDRAL fold and the three-tap barycentric blend in the fragment
+// shader. The CPU writes a per-vertex view direction; the shader folds it,
+// picks the cell's three nearest baked views and blends them. A nearest-view
+// pick would make the whole forest flip at once when the aeroplane turns.
+//
+// AND THIS IS A FLIGHT SIM, so the fold's orientation is the point. The
+// hemi-octahedron puts STRAIGHT DOWN at the centre of the square and the
+// horizon ring on its edge — which is the right distribution for something
+// that spends its life looking down at trees from a few hundred metres, and
+// the wrong one for a first-person game. G is 8 here rather than the game's
+// 4: 64 baked views instead of 16, because a shallow overhead angle changes
+// a conifer's silhouette fast and that is exactly the angle we fly at.
+// ==========================================================================
+const IMP_FIELDS = [];
+
+// ==========================================================================
+// WHY AN IMPOSTOR NEEDS ITS ALPHA HARDENED BACK
+//
+// The atlas holds a CUTOUT: a tile is single-sampled, so every texel is either
+// leaf or not. The three-tap blend then mixes three of those binary masks, and
+// where the views disagree - which is most of a conifer's crown - it hands back
+// a FRACTION. Alpha-to-coverage reads that fraction as screen coverage and
+// draws the crown see-through, which is the ghost the bench was showing: turn
+// A2C off and the same tree fills in at once.
+//
+// So the blended alpha is put back through a contrast curve before anything
+// reads it as coverage. A gain rather than the screen-space sharpen the leaves
+// use, because fwidth is a function of how big the quad lands on screen and an
+// impostor's whole job is to be small: the sharpen collapses at exactly the
+// distance this has to work at, which is the same trap that turned the bake
+// into bare trunks. A gain is scale-free.
+// ==========================================================================
+// The gain belongs to the FAMILY, not to the bench. Measured against their own
+// geometry, the species do not want the same number: a dense cedar's impostor
+// came out covering twice the pixels of the model it stands for, while a larch
+// - thin needles, mostly air - was still thinner than its own tree. One global
+// number cannot be right for both, so `impa` sits on the collection's rail
+// beside `alpha` and `stick`.
+const U_ICUT   = { value: 0.40 };  // where the curve is centred
+const U_ISOLID = { value: 1.0 };   // 0 = averaged silhouette, 1 = the union
+
+// `light` trims the tile against the model it stands for. It is a TRIM and not
+// a correction of the physics: an orthographic bake of a sparse crown keeps the
+// outermost lit needles and drops the shaded interior the eye sees through the
+// real thing, so a thin species reads brighter than its own geometry and a
+// dense one, whose baked self-shadow is sharper than the stand's, reads darker.
+// Measured against the geometry at the same camera: larch 1.53x, realistic fir
+// 1.40x, spruce 1.30x too bright; georgeous fir 0.72x and cedar 0.74x too dark.
+// The atlas lookup, written once because two materials need it: the one that
+// draws the billboard and the one that casts its shadow.
+const IMP_SAMPLE = [
+  'vec3 dI = normalize(vImpDir);',
+  'vec2 pp = vec2(dI.x, dI.z) / (abs(dI.x) + abs(dI.z) + max(dI.y, 0.0) + 1e-5);',
+  'vec2 oc = clamp(vec2(pp.x + pp.y, pp.x - pp.y), -1.0, 1.0);',
+  'vec2 gp = (oc * 0.5 + 0.5) * (uG - 1.0);',
+  'vec2 g0 = min(floor(gp), uG - 2.0);',
+  'vec2 gf = gp - g0;',
+  'vec2 cB = vec2(1.0, 0.0), cC = vec2(0.0, 1.0), cA; vec3 wB;',
+  'if (gf.x + gf.y < 1.0) { cA = vec2(0.0); wB = vec3(1.0 - gf.x - gf.y, gf.x, gf.y); }',
+  'else { cA = vec2(1.0); wB = vec3(gf.x + gf.y - 1.0, 1.0 - gf.y, 1.0 - gf.x); }',
+  'vec2 qv = (vUv * (1.0 - 2.0 / float(IMP_TILE_JS)) + 1.0 / float(IMP_TILE_JS)) / uG;',
+  'vec4 t0 = texture2D(map, (g0 + cA) / uG + qv);',
+  'vec4 t1 = texture2D(map, (g0 + cB) / uG + qv);',
+  'vec4 t2 = texture2D(map, (g0 + cC) / uG + qv);',
+  'float aMix = dot(wB, vec3(t0.a, t1.a, t2.a));',
+  'vec3 rgbI = (t0.rgb * wB.x + t1.rgb * wB.y + t2.rgb * wB.z) / max(aMix, 1e-4);',
+  'float aSol = max(max(t0.a, t1.a), t2.a);',
+  'float aOut = clamp((mix(aMix, aSol, uISolid) - uICut) * uIGain + 0.5, 0.0, 1.0);',
+];
+
+// ==========================================================================
+// AN IMPOSTOR THAT CASTS ITS OWN SILHOUETTE
+//
+// The billboard faces the CAMERA, so the stock depth pass drew a quad edge-on
+// to the light and sampled the whole sheet: every tree laid a solid rectangle
+// on the ground, which is why the cast was switched off entirely and the far
+// band sat in a stand with no shade under it.
+//
+// The fix is a depth material of the impostor's own. In the shadow pass the
+// "camera" IS the light, so `cameraPosition` is the light's position - and the
+// quad can be rebuilt about its centre to face THAT instead, and the same
+// octahedral fold then picks the view of the tree the light actually sees.
+// The shadow is the tree's real silhouette from the sun's side, not a card
+// turned the wrong way. It costs two extra attributes, both static.
+// ==========================================================================
+// ==========================================================================
+// THE IMPOSTOR CASTS THROUGH THE ENGINE, NOT BESIDE IT
+//
+// The ground decal that came before this was the right shape and the wrong
+// everything else: a flat black quad at a fixed opacity, so it was paler and
+// softer than every other shadow in the stand, it could not fall on another
+// tree or up a slope, and it knew nothing about the light rig it was meant to
+// belong to.
+//
+// So the impostor goes back into the real shadow map, and the trick that makes
+// it work is a SECOND MESH on a LAYER OF ITS OWN. The billboard faces the
+// camera and would cast a rectangle turned the wrong way; this caster faces
+// the LIGHT, is built in world space on the CPU like the billboard is, and
+// sits on a layer the eye's camera does not render and the shadow camera does.
+// It is never drawn, only cast from.
+//
+// Everything else then comes for free, which is the point: the darkness is the
+// rig's, the softness is the shadow map's PCF, it falls on other trees and on
+// the terrain, and it rotates and stretches with the sun because the map does
+// the projecting. And it needs no custom attribute or custom depth shader -
+// three.js's own alpha-tested depth path handles a plain map + alphaTest, and
+// the fixed side view of the atlas is selected by baking the tile's offset
+// straight into the caster's UVs.
+// ==========================================================================
+// HOW THE CASTER STAYS INVISIBLE, and the trap that is not.
+//
+// The obvious way is a layer the eye's camera does not render. It does not
+// work: three.js tests a shadow caster against the VIEWING camera's layers,
+// not the shadow camera's - `renderObject( scene, camera, shadowCamera, ... )`
+// tests `object.layers.test( camera.layers )` - so putting the caster on its
+// own layer removes it from the shadow map as well, and the impostors go back
+// to casting nothing at all.
+//
+// So it stays on the default layer and writes nothing instead: colorWrite off,
+// depthWrite off. It costs one draw call that touches no pixel, and the shadow
+// pass - which builds its own depth material and copies map and alphaTest off
+// this one - is untouched by either flag.
+function impostorCasterMaterial(atlas) {
+  return new THREE.MeshBasicMaterial({
+    map: atlas.tex, alphaTest: 0.5, side: THREE.DoubleSide,
+    colorWrite: false, depthWrite: false,
+  });
+}
+
+// AND WHY IT NEEDS A DEPTH MATERIAL OF ITS OWN AFTER ALL. getDepthMaterial
+// copies `alphaTest` and `alphaMap` onto the depth material it builds, but NOT
+// `map` - and three.js's alphamap_fragment reads the GREEN channel, not alpha,
+// so handing it the tile sheet would cut the silhouette out of the foliage's
+// colour. So the atlas rides its own uniform, as it must anyway: a
+// MeshDepthMaterial's map is not refreshed by the renderer the way a lit
+// material's is.
+//
+// The projection is left ALONE. The caster's own `position` attribute already
+// holds the light-facing quad, built on the CPU beside the billboard's, so the
+// stock project_vertex is exactly right - and a plain attribute binds where a
+// custom one added for the depth program alone does not.
+function impostorCasterDepth(atlas) {
+  const m = new THREE.MeshDepthMaterial({
+    depthPacking: THREE.RGBADepthPacking, alphaTest: 0.5,
+  });
+  m.onBeforeCompile = sh => {
+    sh.uniforms.uAtlas = { value: atlas.tex };
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', ['#include <common>', 'varying vec2 vUvI;'].join(NL))
+      .replace('#include <begin_vertex>', ['#include <begin_vertex>', 'vUvI = uv;'].join(NL));
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>',
+        ['#include <common>', 'uniform sampler2D uAtlas;', 'varying vec2 vUvI;'].join(NL))
+      // the uv already points at the tile the SUN sees - see layShadows
+      .replace('#include <map_fragment>', 'diffuseColor.a *= texture2D(uAtlas, vUvI).a;');
+  };
+  return m;
+}
+
+function impostorMaterial(atlas, gain, light) {
+  const m = new THREE.MeshBasicMaterial({
+    map: atlas.tex, alphaTest: 0.28, side: THREE.DoubleSide, transparent: false,
+  });
+  m.alphaToCoverage = A2C;
+  // the gain is kept reachable so the dial can move it without a rebuild
+  m.userData.uIGain = { value: gain === undefined ? 6 : gain };
+  m.userData.uILight = { value: light === undefined ? 1 : light };
+  m.onBeforeCompile = sh => {
+    sh.uniforms.uG = { value: IMP_G };
+    sh.uniforms.uIGain = m.userData.uIGain;
+    sh.uniforms.uILight = m.userData.uILight;
+    sh.uniforms.uICut = U_ICUT;
+    sh.uniforms.uISolid = U_ISOLID;
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>',
+        ['#include <common>', 'attribute vec3 impDir;', 'varying vec3 vImpDir;'].join(NL))
+      .replace('#include <begin_vertex>',
+        ['#include <begin_vertex>', 'vImpDir = impDir;'].join(NL));
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>',
+        ['#include <common>', 'uniform float uG, uIGain, uICut, uISolid, uILight;',
+         'varying vec3 vImpDir;'].join(NL))
+      .replace('#include <map_fragment>',
+        IMP_SAMPLE.concat([
+          // A GAMMA, NOT A MULTIPLY. Every collection needed brightening after
+          // the bake went to a binary mask, and a flat multiply took the trunk
+          // with it - the larch's pale bark went white, as if it had lost its
+          // texture. A gamma lifts the dark end and leaves what is already
+          // bright where it is, which is the correction that was actually
+          // wanted: the foliage was dark, the bark was not.
+          'vec3 rgbT = pow(max(rgbI, vec3(0.0)), vec3(1.0 / max(uILight, 0.05)));',
+          'vec4 texelColor = vec4(rgbT, aOut);',
+          'diffuseColor *= texelColor;'])
+          .join(NL).replace(/IMP_TILE_JS/g, String(atlas.tile || IMP_TILE)));
+  };
+  return m;
+}
+
+// one field per prototype: every instance of that tree, in one buffer
+// `sink` is the collection's own dial - how far the model is pushed into the
+// ground to bury the roots it was authored with. The atlas is baked from the
+// tree as it stands, roots and all, so the billboard has to be buried by the
+// same amount or the flare sits proud of the ground where the geometry's does
+// not. It scales with the instance: a tree drawn 1.2x larger has roots 1.2x
+// deeper.
+function makeImpField(atlas, gain, light, sink) {
+  const F = { atlas: atlas, items: [], mesh: null, gain: gain, light: light,
+              sink: sink || 0 };
+  F.add = (x, y, z, s) => F.items.push(x, y, z, s);
+  F.build = () => {
+    const n = F.items.length / 4;
+    if (!n) return null;
+    const g = new THREE.BufferGeometry();
+    const pos = new Float32Array(n * 4 * 3);
+    const dir = new Float32Array(n * 4 * 3);
+    const uv = new Float32Array(n * 4 * 2);
+    const idx = new (n * 4 > 65535 ? Uint32Array : Uint16Array)(n * 6);
+    for (let i = 0; i < n; i++) {
+      uv.set([0, 0, 1, 0, 1, 1, 0, 1], i * 8);
+      const v = i * 4;
+      idx.set([v, v + 1, v + 2, v, v + 2, v + 3], i * 6);
+    }
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage));
+    g.setAttribute('impDir', new THREE.BufferAttribute(dir, 3).setUsage(THREE.DynamicDrawUsage));
+    g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    g.setIndex(new THREE.BufferAttribute(idx, 1));
+    g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e6);   // never culled
+    F.mesh = new THREE.Mesh(g, impostorMaterial(F.atlas, F.gain, F.light));
+    F.mesh.frustumCulled = false;
+    F.mesh.castShadow = false;
+    F.mesh.receiveShadow = false;
+    // applyShadows() re-enables castShadow on everything in the stage, and
+    // without a depth material of its own the billboard is back to laying a
+    // solid rectangle. The decal below IS its shadow; flag both out of the map.
+    F.mesh.userData.noShadow = true;
+    F.mesh.matrixAutoUpdate = false;      // the vertices ARE world space
+
+    // the caster's UVs are the fixed side tile, cell (0,0), inset by half a
+    // texel so the neighbouring views cannot bleed into the silhouette
+    const suv = new Float32Array(n * 4 * 2);
+    const sg = new THREE.BufferGeometry();
+    sg.setAttribute('position',
+      new THREE.BufferAttribute(new Float32Array(n * 4 * 3), 3).setUsage(THREE.DynamicDrawUsage));
+    sg.setAttribute('uv', new THREE.BufferAttribute(suv, 2).setUsage(THREE.DynamicDrawUsage));
+    sg.setIndex(new THREE.BufferAttribute(idx.slice(0), 1));
+    sg.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e6);
+    F.shadowMesh = new THREE.Mesh(sg, impostorCasterMaterial(F.atlas));
+    F.shadowMesh.customDepthMaterial = impostorCasterDepth(F.atlas);
+    F.shadowMesh.frustumCulled = false;
+    F.shadowMesh.matrixAutoUpdate = false;
+    F.shadowMesh.castShadow = true;
+    F.shadowMesh.receiveShadow = false;
+    F.shadowMesh.userData.noShadow = true;       // applyShadows must not touch it
+    F.mesh.add(F.shadowMesh);             // rides along wherever the field goes
+    F.layShadows();
+    return F.mesh;
+  };
+  // The casters do not depend on the eye at all, so they are laid once and only
+  // re-laid when the SUN moves. Same right/up convention as the bake and the
+  // billboard, so the tile is read with the roll it was drawn at.
+  F.layShadows = () => {
+    if (!F.shadowMesh) return;
+    let sx = sun.position.x - sun.target.position.x,
+        sy = sun.position.y - sun.target.position.y,
+        sz = sun.position.z - sun.target.position.z;
+    const sl = Math.hypot(sx, sy, sz) || 1; sx /= sl; sy /= sl; sz /= sl;
+    let rx, ry = 0, rz;
+    if (Math.abs(sy) > 0.999) { rx = 1; rz = 0; }
+    else { rx = sz; rz = -sx; const q = Math.hypot(rx, rz) || 1; rx /= q; rz /= q; }
+    const ux = ry * sz - rz * sy, uy = rz * sx - rx * sz, uz = rx * sy - ry * sx;
+    // WHICH VIEW THE SUN SEES. The atlas holds 64 of them; picking cell (0,0)
+    // always would give a side elevation whatever the sun's elevation, so a
+    // high sun would cast the tree's profile instead of its crown. The same
+    // hemi-octahedral fold the draw shader uses, run on the CPU against the
+    // LIGHT's direction, picks the nearest baked view - and because the caster
+    // is re-laid whenever the sun moves, the silhouette turns with it.
+    const den = Math.abs(sx) + Math.abs(sz) + Math.max(sy, 0) + 1e-5;
+    const ppx = sx / den, ppy = sz / den;
+    const ocx = Math.min(1, Math.max(-1, ppx + ppy));
+    const ocy = Math.min(1, Math.max(-1, ppx - ppy));
+    const gi = Math.round((ocx * 0.5 + 0.5) * (IMP_G - 1));
+    const gj = Math.round((ocy * 0.5 + 0.5) * (IMP_G - 1));
+    const TL = F.atlas.tile || IMP_TILE;
+    const u0 = (gi + 1 / TL) / IMP_G, u1 = (gi + 1 - 1 / TL) / IMP_G;
+    const v0 = (gj + 1 / TL) / IMP_G, v1 = (gj + 1 - 1 / TL) / IMP_G;
+    // V IS FLIPPED against the billboard's. The billboard is read from the
+    // near face of its quad and the caster from the far one - the shadow map
+    // looks at it from the light's side - so the tile's vertical axis comes
+    // out reversed, and the crown landed where the trunk should be.
+    const suvA = F.shadowMesh.geometry.attributes.uv;
+    for (let i = 0; i < F.items.length / 4; i++)
+      suvA.array.set([u0, v1, u1, v1, u1, v0, u0, v0], i * 8);
+    suvA.needsUpdate = true;
+
+    const arr = F.shadowMesh.geometry.attributes.position.array;
+    const half = F.atlas.diam * 0.5, cyOff = F.atlas.cy;
+    const n = F.items.length / 4;
+    const corners = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
+    for (let i = 0; i < n; i++) {
+      const x = F.items[i * 4], y = F.items[i * 4 + 1],
+            z = F.items[i * 4 + 2], sc = F.items[i * 4 + 3];
+      const ox = x, oy = y + cyOff * sc, oz = z;
+      const hs = half * sc, o = i * 12;
+      for (let c = 0; c < 4; c++) {
+        const a = corners[c][0] * hs, b = corners[c][1] * hs;
+        arr[o + c * 3]     = ox + rx * a + ux * b;
+        arr[o + c * 3 + 1] = oy + ry * a + uy * b;
+        arr[o + c * 3 + 2] = oz + rz * a + uz * b;
+      }
+    }
+    F.shadowMesh.geometry.attributes.position.needsUpdate = true;
+  };
+
+  // rebuilt whenever the eye moves: four corners and one direction per tree
+  F.update = cam => {
+    if (!F.mesh) return;
+    const n = F.items.length / 4;
+    const pos = F.mesh.geometry.attributes.position.array;
+    const dir = F.mesh.geometry.attributes.impDir.array;
+    const cx = cam.position.x, cy = cam.position.y, cz = cam.position.z;
+    const half = F.atlas.diam * 0.5, cyOff = F.atlas.cy;
+    for (let i = 0; i < n; i++) {
+      const x = F.items[i * 4], y = F.items[i * 4 + 1],
+            z = F.items[i * 4 + 2], s = F.items[i * 4 + 3];
+      const ox = x, oy = y + cyOff * s, oz = z;          // the tree's own centre
+      let dx = cx - ox, dy = cy - oy, dz = cz - oz;
+      const dl = Math.hypot(dx, dy, dz) || 1;
+      dx /= dl; dy /= dl; dz /= dl;
+      // right = up x dir, flattened; up = dir x right. At the pole the world
+      // up is useless, so fall back the same way the bake's camera does.
+      let rx, ry, rz;
+      if (Math.abs(dy) > 0.999) { rx = 1; ry = 0; rz = 0; }
+      else { rx = dz; ry = 0; rz = -dx; const rl = Math.hypot(rx, rz) || 1; rx /= rl; rz /= rl; }
+      // up = dir x right, NOT right x dir. The other order is the negative,
+      // which flips every billboard upside down.
+      const ux = dy * rz - dz * ry, uy = dz * rx - dx * rz, uz = dx * ry - dy * rx;
+      const hs = half * s;
+      const o = i * 12, d = i * 12;
+      const corners = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
+      for (let c = 0; c < 4; c++) {
+        const a = corners[c][0] * hs, b = corners[c][1] * hs;
+        pos[o + c * 3]     = ox + rx * a + ux * b;
+        pos[o + c * 3 + 1] = oy + ry * a + uy * b;
+        pos[o + c * 3 + 2] = oz + rz * a + uz * b;
+        dir[d + c * 3]     = dx;
+        dir[d + c * 3 + 1] = dy;
+        dir[d + c * 3 + 2] = dz;
+      }
+    }
+    F.mesh.geometry.attributes.position.needsUpdate = true;
+    F.mesh.geometry.attributes.impDir.needsUpdate = true;
+    if (F.shadowMesh) {
+      const k = (sun.position.x - sun.target.position.x).toFixed(1) + ',' +
+                (sun.position.y - sun.target.position.y).toFixed(1);
+      if (k !== F._sunKeyRaw) { F._sunKeyRaw = k; F.layShadows(); }
+    }
+  };
+  return F;
+}
+
+function updateImpFields() {
+  for (const F of IMP_FIELDS) F.update(camera);
+  for (const F of VAR_FIELDS) F.update(camera);
+}
+
+// One atlas per prototype — kept only while it is still TRUE.
+//
+// This cache is what kept the far band bare. The key was the tree's name and
+// nothing else, so the first atlas baked in a session outlived every fix made
+// after it: the one that mattered was the cutout guard below, and the stale
+// tile it had already stored carried a zero alpha channel. Every fragment then
+// failed the impostor's alpha test and the quad drew nothing at all, while a
+// fresh bake of the same tree, with the same code, was correct. Measured on
+// fir_tree_georgeous | Fir01_LOD0: cached max alpha 0 over 0 texels, fresh
+// max alpha 255 over 215 184.
+//
+// So the key now carries a SIGNATURE of everything the bake looks at — the
+// collection's own corrections, the mip rebuild, and the sky, exposure and
+// leaf shading the tile is lit by. An atlas whose signature has moved is
+// disposed, not drawn from. A cache that cannot say what it holds is a bug
+// with a hit rate.
+function impBakeSig(name) {
+  const t = tuneOf(name);
+  // How many maps have actually decoded is PART OF THE SIGNATURE, so an atlas
+  // baked while a texture was still in flight is superseded the moment it
+  // lands rather than outliving the session.
+  const built = cache[name];
+  let nMap = 0, nReady = 0;
+  if (built) for (const m of built.mats) if (m.map) { nMap++; if (m.map.image) nReady++; }
+  return [t.hue, t.sat, t.light, t.bark, t.alpha, t.sink, t.dead, t.stick,
+          MIPFIX ? 1 : 0, $('sky').value, EXPO, U_WRAP.value, U_SSS.value,
+          CROWN_STRETCH, CROWN_W, TRUNK_DARK, nMap, nReady].join(',');
+}
+function impostorFor(key, proto, name, tile) {
+  const sig = impBakeSig(name) + ',' + (tile || IMP_TILE);
+  const hit = IMP_CACHE.get(key);
+  if (hit && hit.sig === sig) return hit;
+  if (hit && hit.tex) hit.tex.dispose();    // 4 MB a tile-sheet; do not leak them
+  const at = bakeImpostor(proto, tile);
+  if (at) at.sig = sig;
+  IMP_CACHE.set(key, at);
+  return at;
+}
+
+async function showForest() {
+  clearStage();
+  man.visible = true;
+  const picked = INDEX.assets.filter(a => PICK[a.name] && a.renderable &&
+    a.trees.length && !a.trees.every(t => t.merged));
+  $('msg').textContent = 'building stand...';
+
+  // the ground first, because the trees are placed onto it
+  forestGround = null;
+  if (FOREST.ground !== 'plane') {
+    const gb = await ensureLoaded(FOREST.ground);
+    const ga = INDEX.assets.find(x => x.name === FOREST.ground);
+    if (gb && ga) {
+      retint(ga.name);
+      const holder = new THREE.Group();
+      const saveC = CUR; CUR = ga;
+      for (const G of ga.terrain) { const h = buildGroup(gb, G); if (h) holder.add(h); }
+      CUR = saveC;
+      if (holder.children.length) { stage.add(holder); forestGround = holder; }
+    }
+  }
+  ground.visible = !forestGround;
+  grid.visible = !forestGround;
+
+  const ray = new THREE.Raycaster();
+  const down = new THREE.Vector3(0, -1, 0);
+  const groundY = x0z => {
+    if (!forestGround) return 0;
+    ray.set(new THREE.Vector3(x0z[0], 1e4, x0z[1]), down);
+    const hit = ray.intersectObject(forestGround, true)[0];
+    return hit ? hit.point.y : null;
+  };
+  const groundY0 = () => groundY([0, 0]);
+
+  // THE EYE IS CHOSEN BEFORE THE TREES, because the rung a tree gets is a
+  // function of how far away it will actually be. Setting the camera at the
+  // end and banding from the origin would have put the finest rung on the far
+  // side of the stand.
+  const my0 = groundY0();
+  const base = my0 === null ? 0 : my0;
+  man.position.set(0, base, 0);
+  target.set(0, base + 14, 0);
+  dist = FOREST.radius * 0.9; yaw = 0.5; pitch = 0.16; place();
+  const eyeX = camera.position.x, eyeZ = camera.position.z;
+
+  // ==========================================================================
+  // THE LADDER, AND WHERE A TREE SITS ON IT
+  //
+  // Four rungs by distance from the eye, and TWO SERIES to choose between at
+  // each rung. Which series a tree gets is not random: it is how far the tree
+  // stands from an EDGE. A tree at the rim of a stand, or at the lip of a
+  // glade, is lit from the side and furnished to the ground - that is the
+  // specimen shape. A tree with neighbours all round it is shaded out below
+  // and carries only a stretched top third. Getting that wrong is what makes
+  // a game forest read as a field of identical christmas trees.
+  //
+  // The GLADES are what make the test worth running: scatter a few no-tree
+  // pockets through the stand and suddenly edges are everywhere, not just at
+  // the rim, so the two series interleave the way they would on real ground.
+  // ==========================================================================
+  const gRand = rng(FOREST.seed * 7919 + 13);
+  const glades = [];
+  for (let k = 0; k < FOREST.glades; k++) {
+    const ga = gRand() * Math.PI * 2;
+    const gr = (0.25 + 0.6 * gRand()) * FOREST.radius;
+    glades.push({ x: Math.cos(ga) * gr, z: Math.sin(ga) * gr,
+                  r: FOREST.radius * (0.06 + 0.10 * gRand()) });
+  }
+
+  // prototypes: the whole ladder, both series, per subject
+  const protos = [];
+  for (const a of picked) {
+    const built = await ensureLoaded(a.name);
+    if (!built) continue;
+    await texturesReady();                 // the bake reads these; see imageTex
+    retint(a.name);
+    if (!MEAS[a.name] || !MEAS[a.name].px) MEAS[a.name] = measureAsset(a.name, built);
+    for (const G of subjectsOf(a).slice(0, 6)) {
+      const near = protoOf(built, a, G, false);
+      if (!near) continue;
+      const pr = { a: a, G: G, near: near };
+      // rung 0-2 as meshes, rung 3 as a field; the specimen series first
+      pr.spec = [near,
+                 makeVariant(near, 'foliage', a, G),
+                 makeVariant(near, 'halfFoliage', a, G)];
+      pr.forest = [makeVariant(near, 'fFull', a, G),
+                   makeVariant(near, 'crownStick', a, G),
+                   makeVariant(near, 'crownHalf', a, G)];
+      for (let k = 0; k < 3; k++) {
+        if (!pr.spec[k]) pr.spec[k] = near;
+        if (!pr.forest[k]) pr.forest[k] = pr.spec[k];
+      }
+      if (FOREST.impostor) {
+        pr.atlasS = impostorFor(a.name + '|' + G.name, near, a.name);
+        pr.atlasF = impostorFor(a.name + '|' + G.name + '|forest', pr.forest[0], a.name);
+        if ((tuneOf(a.name).dead || 0) > 0) {
+          pr.snag = stripFoliage(near) || null;
+          if (pr.snag) pr.atlasD = impostorFor(a.name + '|' + G.name + '|snag',
+                                               pr.snag, a.name, IMP_TILE_HI);
+        }
+      }
+      protos.push(pr);
+    }
+    for (const G of a.billboards.slice(0, 2)) {
+      const b = protoOf(built, a, G, false);
+      if (b) protos.push({ a: a, G: G, near: b, spec: [b, b, b], forest: [b, b, b],
+                           billboardOnly: true });
+    }
+  }
+  for (const a of picked) a._nProto = protos.filter(p => p.a === a).length || 1;
+  if (!protos.length) { $('msg').textContent = 'nothing selected'; render(); return; }
+  const planted = {};
+
+  IMP_FIELDS.length = 0;
+  if (FOREST.impostor) for (const p of protos) {
+    const t = tuneOf(p.a.name);
+    if (p.atlasS) { p.fieldS = makeImpField(p.atlasS, t.impa, t.implight, t.sink); IMP_FIELDS.push(p.fieldS); }
+    if (p.atlasF) { p.fieldF = makeImpField(p.atlasF, t.impa, t.implight, t.sink); IMP_FIELDS.push(p.fieldF); }
+    if (p.atlasD) { p.fieldD = makeImpField(p.atlasD, t.impa, t.implight, t.sink); IMP_FIELDS.push(p.fieldD); }
+  }
+  const rand = rng(FOREST.seed);
+  // the three boundaries ride on ONE dial, so the whole ladder moves together
+  const b0 = FOREST.split, b1 = FOREST.split * 2.2, b2 = FOREST.split * 4.5;
+  const lodN = [0, 0, 0, 0], serN = [0, 0, 0];
+  let placedNear = 0, placedFar = 0, deadN = 0, rejected = 0, done = 0;
+
+  for (let tries = 0; done < FOREST.count && tries < FOREST.count * 8; tries++) {
+    const ang = rand() * Math.PI * 2;
+    const rr = Math.sqrt(rand()) * FOREST.radius;
+    const x = Math.cos(ang) * rr, z = Math.sin(ang) * rr;
+    // how far is this from the nearest edge - the rim, or the lip of a glade
+    let edge = FOREST.radius - rr, inGlade = false;
+    for (const g of glades) {
+      const d = Math.hypot(x - g.x, z - g.z);
+      if (d < g.r) { inGlade = true; break; }
+      if (d - g.r < edge) edge = d - g.r;
+    }
+    if (inGlade) { rejected++; continue; }
+    const y = groundY([x, z]);
+    if (y === null) { rejected++; continue; }
+    done++;
+
+    const p = pickWeighted(protos, rand());
+    const t = tuneOf(p.a.name);
+    // An edge tree is always the specimen shape. An INTERIOR one usually is
+    // not - but not never: a stand where every inside tree is a bare pole and
+    // a tuft reads empty at density, because a real one is uneven. Some trees
+    // got there first, or stand over a gap, and are furnished most of the way
+    // down. `furnished` is that fraction, and it is a look decision, not a
+    // measurement, so it sits on a dial.
+    const rim = edge < FOREST.edge;
+    const spec = rim || rand() < FOREST.mix;
+    const dEye = Math.hypot(x - eyeX, z - eyeZ);
+    let lod = dEye < b0 ? 0 : dEye < b1 ? 1 : dEye < b2 ? 2 : 3;
+    if (p.billboardOnly) lod = Math.min(lod, 2);
+
+    // A SNAG IS ITS OWN SERIES, and a two-rung one: the full mesh while it is
+    // close, then the impostor for everything else. The stick rungs the live
+    // series climbs make no sense here - there is no canopy to stand on a
+    // stick - and a sheet baked at IMP_TILE_HI reads better at L1 than a
+    // decimated trunk would.
+    let dead = !p.billboardOnly && rand() < (t.dead || 0);
+    if (dead && p.snag === undefined) p.snag = stripFoliage(p.near) || null;
+    if (dead && !p.snag) dead = false;
+    if (dead) deadN++;
+    const series = dead ? [p.snag, null, null] : spec ? p.spec : p.forest;
+    const field = dead ? p.fieldD : spec ? p.fieldS : p.fieldF;
+    serN[dead ? 2 : spec ? 0 : 1]++;
+
+    const vary = Math.exp((rand() * 2 - 1) * FOREST.spread);
+    // the live series turns into a billboard at L3; a snag does at L1
+    const wantField = lod === 3 || (dead && lod >= 1);
+    if (wantField && field) {
+      field.add(x, y - (t.sink || 0) * vary * FOREST.scale, z, vary * FOREST.scale);
+      planted[p.a.name] = (planted[p.a.name] || 0) + 1;
+      placedFar++; lodN[lod]++;
+      continue;
+    }
+    if (lod === 3) lod = 2;                            // no field: fall back a rung
+    const proto = series[Math.min(2, lod)] || series[0];
+    const inst = proto.clone(true);
+    inst.position.set(x, y - (inst.userData.sink || 0), z);
+    inst.rotation.y = rand() * Math.PI * 2;
+    // SIZE is one dial over the whole stand; SPREAD is how much the
+    // individuals differ from each other, and it is applied in the LOG so the
+    // variation is symmetric in RATIO rather than in metres: at spread s a
+    // tree is as likely to be e^s times the nominal as 1/e^s times it. A
+    // uniform +/- on the multiplier would make the big half of the range
+    // wider than the small half, which is the wrong shape for a stand — and
+    // the default 0.2 reproduces the 0.82-1.22x this used to do by fiat.
+    inst.scale.multiplyScalar(vary * FOREST.scale);
+    stage.add(inst);
+    planted[p.a.name] = (planted[p.a.name] || 0) + 1;
+    lodN[lod]++;
+    if (lod === 0) placedNear++; else placedFar++;
+  }
+
+  // the fields are filled by now: turn each into its one mesh
+  for (const F of IMP_FIELDS) {
+    const m = F.build();
+    if (m) { F.update(camera); stage.add(m); }
+  }
+  applyWire();
+  $('msg').textContent = '';
+  measureStage();
+  const t = tally();
+  const stats = { tris: t.tris, meshes: t.meshes, near: placedNear,
+                  far: placedFar, protos: protos.length, planted: planted, dead: deadN,
+                  lod: lodN, series: serN, glades: glades.length, rejected: rejected };
+  paintForestPanel(stats);
+  render();
+  // Textures decode asynchronously, so the first measurement of a freshly
+  // loaded collection reads nothing. Come back for it — a colour pass that
+  // silently reports "not measured" is worse than one that waits a second.
+  let tries = 0;
+  const chase = setInterval(() => {
+    let missing = 0;
+    for (const a of picked) {
+      if (MEAS[a.name] && MEAS[a.name].px) continue;
+      const b = cache[a.name];
+      if (b) { MEAS[a.name] = measureAsset(a.name, b); if (MIPFIX) mipFixAsset(a.name); }
+      if (!MEAS[a.name] || !MEAS[a.name].px) missing++;
+    }
+    if (!missing || ++tries > 12) { clearInterval(chase); paintForestPanel(stats); }
+    else paintForestPanel(stats);
+  }, 700);
+}
+
+
+
+// ==========================================================================
+// THE VARIANT GRID — which cuts are worth making, side by side
+//
+// The question this answers is not "does a cheaper tree exist" but "which
+// cut buys the most triangles for the least look". So every subject of a
+// collection is derived six ways and laid out on one shelf: SUBJECTS along X,
+// VARIANTS along Z, triangle count over each. A cut that costs nothing
+// visually and halves the count is the one to take; a cut that halves the
+// count and ruins the silhouette is not, and both are obvious in one view.
+//
+// The cuts are made on CONNECTED COMPONENTS of the foliage, not on triangles:
+// an island of the leaf mesh is a branch cluster, so dropping islands drops
+// whole branches and leaves the survivors at full resolution. Decimating
+// triangles instead would melt every leaf card into mush, which is the wrong
+// trade for alpha-tested foliage.
+// ==========================================================================
+// ==========================================================================
+// THE LADDER, AS TWO SERIES
+//
+// The analysis cuts did their job: the woody decomposition said that branch
+// structure is more than half of a tree and reads as almost nothing past the
+// first rung, so the real trunk and its branches are LOD0 and nothing else.
+// Every rung after it stands the canopy on a generated stick.
+//
+// Two series, because a tree at the edge of a stand and a tree inside one are
+// not the same shape. The FULL series is the specimen tree - the one at a
+// clearing's edge, furnished to the ground. The FOREST series is the tree in a
+// closed stand: only the top third carries foliage, it is stretched, and its
+// crown is widened, because that is what competition does to a conifer. Each
+// series ends in its own impostor, baked from its own shape - a forest tree
+// baked from the specimen would put branches where the stand has none.
+// ==========================================================================
+const VARIANTS = [
+  { key: 'full',        name: 'L0  full' },
+  { key: 'foliage',     name: 'L1  stick + foliage' },
+  { key: 'halfFoliage', name: 'L2  stick + half foliage' },
+  { key: 'impostor',    name: 'L3  impostor' },
+  { key: 'fFull',       name: 'forest L0  full' },
+  { key: 'crownStick',  name: 'forest L1  stick + crown' },
+  { key: 'crownHalf',   name: 'forest L2  stick + half crown' },
+  { key: 'fImpostor',   name: 'forest L3  impostor' },
+  { key: 'snag',        name: 'snag L0  full' },
+  { key: 'snagImpostor', name: 'snag L1-3  impostor' },
+];
+let CROWN_STRETCH = 1.3;
+let CROWN_W = 1.0;       // the crown grows sideways too, not only upward
+
+// islands of a geometry, as lists of triangle numbers
+function geoComponents(geo) {
+  const idx = geo.index ? geo.index.array : null;
+  const pos = geo.attributes.position;
+  const nTri = idx ? idx.length / 3 : pos.count / 3;
+  const nv = pos.count;
+  const parent = new Int32Array(nv);
+  for (let i = 0; i < nv; i++) parent[i] = i;
+  const find = x => { while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; } return x; };
+  const uni = (a, b) => { const ra = find(a), rb = find(b); if (ra !== rb) parent[rb] = ra; };
+  for (let t = 0; t < nTri; t++) {
+    const a = idx ? idx[t * 3] : t * 3, b = idx ? idx[t * 3 + 1] : t * 3 + 1,
+          c = idx ? idx[t * 3 + 2] : t * 3 + 2;
+    uni(a, b); uni(b, c);
+  }
+  const map = new Map();
+  for (let t = 0; t < nTri; t++) {
+    const a = idx ? idx[t * 3] : t * 3;
+    const r = find(a);
+    let G = map.get(r);
+    if (!G) { map.set(r, G = { tris: [], x: 0, y: 0, z: 0, n: 0 }); }
+    G.tris.push(t);
+    for (let k = 0; k < 3; k++) {
+      const v = idx ? idx[t * 3 + k] : t * 3 + k;
+      G.x += pos.getX(v); G.y += pos.getY(v); G.z += pos.getZ(v); G.n++;
+    }
+  }
+  const out = [...map.values()];
+  for (const G of out) { G.x /= G.n; G.y /= G.n; G.z /= G.n; }
+  return { comps: out, idx: idx, nTri: nTri };
+}
+
+// keep(componentCentroidY) -> bool, on the CUTOUT meshes only
+// THE CENTROID MUST BE IN WORLD SPACE, and this was the bug behind three of
+// the four symptoms. A Sketchfab export carries its Z-up -> Y-up conversion
+// in a WRAPPER MATRIX, not in the vertices: cedar's height runs along local Z
+// (its POSITION spans 136 000 units in Z), the LOLIPOP fir's along local -Y.
+// Filtering on raw geometry Y therefore cut a different axis in every pack —
+// the left half off one, everything off another.
+function cullFoliage(root, keep) {
+  root.updateMatrixWorld(true);
+  const v = new THREE.Vector3();
+  root.traverse(o => {
+    if (!o.isMesh || !o.material || o.material.userData.alphaMode === 'OPAQUE') return;
+    const geo = o.geometry;
+    if (!geo.attributes.position) return;
+    const info = geoComponents(geo);
+    const src = info.idx;
+    const out = [];
+    for (const C of info.comps) {
+      v.set(C.x, C.y, C.z).applyMatrix4(o.matrixWorld);
+      if (!keep(v.y)) continue;
+      for (const t of C.tris) {
+        for (let k = 0; k < 3; k++) out.push(src ? src[t * 3 + k] : t * 3 + k);
+      }
+    }
+    const ng = geo.clone();
+    ng.setIndex(out);
+    o.geometry = ng;
+  });
+}
+
+// cut the flared base off a trunk: exactly the part that gets buried
+function cullRoots(root, below) {
+  if (below <= 0) return;
+  root.updateMatrixWorld(true);
+  const v = new THREE.Vector3();
+  root.traverse(o => {
+    if (!o.isMesh || !o.material || o.material.userData.alphaMode !== 'OPAQUE') return;
+    const geo = o.geometry, pos = geo.attributes.position;
+    const idx = geo.index ? geo.index.array : null;
+    const nTri = idx ? idx.length / 3 : pos.count / 3;
+    const out = [];
+    for (let t = 0; t < nTri; t++) {
+      let y = 0;
+      for (let k = 0; k < 3; k++) {
+        const vi = idx ? idx[t * 3 + k] : t * 3 + k;
+        v.set(pos.getX(vi), pos.getY(vi), pos.getZ(vi)).applyMatrix4(o.matrixWorld);
+        y += v.y;
+      }
+      if (y / 3 < below) continue;
+      for (let k = 0; k < 3; k++) out.push(idx ? idx[t * 3 + k] : t * 3 + k);
+    }
+    const ng = geo.clone();
+    ng.setIndex(out);
+    o.geometry = ng;
+  });
+}
+
+// GROW THE CROWN SIDEWAYS. Stretching a forest tree upward alone leaves it a
+// spike; a conifer closing canopy with its neighbours spreads as well as
+// climbs. Only the CUTOUT meshes move - scaling the holder would fatten the
+// trunk with the crown, and a 2 m bole is not what competition produces. The
+// scale is taken about the tree's own vertical axis, in world space, because
+// the packs do not agree on which local axis is up.
+function growCrown(root, k) {
+  if (Math.abs(k - 1) < 1e-3) return;
+  root.updateMatrixWorld(true);
+  const bb = new THREE.Box3().setFromObject(root);
+  if (!isFinite(bb.min.x)) return;
+  const ax = (bb.min.x + bb.max.x) / 2, az = (bb.min.z + bb.max.z) / 2;
+  const v = new THREE.Vector3(), inv = new THREE.Matrix4();
+  root.traverse(o => {
+    if (!o.isMesh || !o.material || o.material.userData.alphaMode === 'OPAQUE') return;
+    const g = o.geometry.clone(), pos = g.attributes.position;
+    if (!pos) return;
+    inv.copy(o.matrixWorld).invert();
+    for (let i = 0; i < pos.count; i++) {
+      v.set(pos.getX(i), pos.getY(i), pos.getZ(i)).applyMatrix4(o.matrixWorld);
+      v.x = ax + (v.x - ax) * k;
+      v.z = az + (v.z - az) * k;
+      v.applyMatrix4(inv);
+      pos.setXYZ(i, v.x, v.y, v.z);
+    }
+    pos.needsUpdate = true;
+    o.geometry = g;
+  });
+}
+
+// Remove the woody mesh entirely - what a stick is going to stand in for.
+function stripBark(root) {
+  const kill = [];
+  root.traverse(o => {
+    if (o.isMesh && o.material && o.material.userData.alphaMode === 'OPAQUE') kill.push(o);
+  });
+  for (const o of kill) if (o.parent) o.parent.remove(o);
+}
+
+// The stand-in stem: a tapered cylinder wearing the pack's own bark material,
+// sized from the wood it replaces. `frac` is the collection's own `stick` dial.
+function stickFor(c, frac) {
+  const local = new THREE.Box3();
+  const sp = c.position.clone(), ss = c.scale.clone();
+  c.position.set(0, 0, 0); c.scale.set(1, 1, 1); c.updateMatrixWorld(true);
+  let bark = null;
+  c.traverse(o => {
+    if (!o.isMesh || !o.material) return;
+    if (o.material.userData.alphaMode !== 'OPAQUE') return;
+    bark = bark || o.material;
+    local.expandByObject(o);
+  });
+  c.position.copy(sp); c.scale.copy(ss); c.updateMatrixWorld(true);
+  if (!isFinite(local.min.x)) return null;
+  const hh = Math.max(0.5, local.max.y - local.min.y);
+  const rr = Math.max(0.02, Math.min(local.max.x - local.min.x,
+                                     local.max.z - local.min.z) * frac);
+  const stg = new THREE.CylinderGeometry(rr * 0.35, rr, hh, 7, 1, true);
+  {                                      // the same foot-to-crown gradient
+    const sp2 = stg.attributes.position, sa = new Float32Array(sp2.count);
+    for (let i = 0; i < sp2.count; i++) sa[i] = trunkShade((sp2.getY(i) + hh / 2) / hh);
+    stg.setAttribute('aoV', new THREE.BufferAttribute(sa, 1));
+  }
+  const st = new THREE.Mesh(stg,
+    bark || new THREE.MeshStandardMaterial({ color: 0x5b4636, roughness: 1 }));
+  st.position.set((local.min.x + local.max.x) / 2, local.min.y + hh / 2,
+                  (local.min.z + local.max.z) / 2);
+  return st;
+}
+
+// ==========================================================================
+// STEM OR BRANCH - told apart by MEASUREMENT, because no pack says which
+//
+// More than half a tree's triangles are in its branch structure, and at any
+// distance where an impostor is not yet acceptable that structure is the first
+// thing worth spending. But the packs give no handle on it: the woody geometry
+// arrives as one bark mesh, and material names disagree across authors
+// (LOLIPOP's `Branches_Mat` is wood, GEORGEOUS's `B_Branch_Mat` is leaf cards).
+//
+// So the split is geometric. The stem is the wood that stays near the tree's
+// vertical axis; a branch is wood that leaves it. Per height band the INNERMOST
+// tenth of the bark's radial spread is taken as the stem's own radius there -
+// a low percentile, because in the crown the branches outnumber the trunk and
+// any average would be dragged out to them - and anything past a margin of it
+// is a branch. The axis itself is read off the lowest band, where the trunk is
+// the only wood there is, rather than from a bounding box that a lopsided crown
+// would shift.
+//
+// It is a heuristic and it is meant to be looked at. A pack whose bark mesh is
+// only a trunk yields an EMPTY branch set, which is the honest answer.
+// ==========================================================================
+function barkSplit(root, keepStem) {
+  root.updateMatrixWorld(true);
+  const NB = 24;
+  const meshes = [];
+  let ymin = Infinity, ymax = -Infinity;
+  const v = new THREE.Vector3();
+  root.traverse(o => {
+    if (!o.isMesh || !o.material || o.material.userData.alphaMode !== 'OPAQUE') return;
+    const geo = o.geometry, pos = geo.attributes.position;
+    if (!pos) return;
+    const idx = geo.index ? geo.index.array : null;
+    const nTri = idx ? idx.length / 3 : pos.count / 3;
+    const cen = new Float32Array(nTri * 3);
+    for (let t = 0; t < nTri; t++) {
+      let x = 0, y = 0, z = 0;
+      for (let k = 0; k < 3; k++) {
+        const i = idx ? idx[t * 3 + k] : t * 3 + k;
+        v.set(pos.getX(i), pos.getY(i), pos.getZ(i)).applyMatrix4(o.matrixWorld);
+        x += v.x; y += v.y; z += v.z;
+      }
+      cen[t * 3] = x / 3; cen[t * 3 + 1] = y / 3; cen[t * 3 + 2] = z / 3;
+      if (cen[t * 3 + 1] < ymin) ymin = cen[t * 3 + 1];
+      if (cen[t * 3 + 1] > ymax) ymax = cen[t * 3 + 1];
+    }
+    meshes.push({ o: o, geo: geo, idx: idx, nTri: nTri, cen: cen });
+  });
+  if (!meshes.length) return;
+  const H = Math.max(1e-3, ymax - ymin);
+  const band = y => Math.max(0, Math.min(NB - 1, Math.floor((y - ymin) / H * NB)));
+
+  // the axis, from the lowest band only
+  let ax = 0, az = 0, n = 0;
+  for (const M of meshes) for (let t = 0; t < M.nTri; t++) {
+    if ((M.cen[t * 3 + 1] - ymin) / H > 0.08) continue;
+    ax += M.cen[t * 3]; az += M.cen[t * 3 + 2]; n++;
+  }
+  if (!n) for (const M of meshes) for (let t = 0; t < M.nTri; t++) {
+    ax += M.cen[t * 3]; az += M.cen[t * 3 + 2]; n++;
+  }
+  if (!n) return;
+  ax /= n; az /= n;
+
+  const rad = (M, t) => Math.hypot(M.cen[t * 3] - ax, M.cen[t * 3 + 2] - az);
+  const bins = [];
+  for (let b = 0; b < NB; b++) bins.push([]);
+  for (const M of meshes) for (let t = 0; t < M.nTri; t++)
+    bins[band(M.cen[t * 3 + 1])].push(rad(M, t));
+  const thr = new Float64Array(NB);
+  let last = H * 0.01;
+  for (let b = 0; b < NB; b++) {
+    const r = bins[b];
+    if (!r.length) { thr[b] = last; continue; }
+    r.sort((p, q) => p - q);
+    thr[b] = Math.max(r[Math.floor(r.length * 0.10)] * 1.8, H * 0.004);
+    last = thr[b];
+  }
+
+  for (const M of meshes) {
+    const out = [];
+    for (let t = 0; t < M.nTri; t++) {
+      if ((rad(M, t) <= thr[band(M.cen[t * 3 + 1])]) !== keepStem) continue;
+      for (let k = 0; k < 3; k++) out.push(M.idx ? M.idx[t * 3 + k] : t * 3 + k);
+    }
+    const ng = M.geo.clone();
+    ng.setIndex(out);
+    M.o.geometry = ng;
+  }
+}
+
+function triCount(o) {
+  let t = 0;
+  o.traverse(m => {
+    if (!m.isMesh) return;
+    const g = m.geometry;
+    t += (g.index ? g.index.count : g.attributes.position.count) / 3;
+  });
+  return Math.round(t);
+}
+
+// one derived model. `proto` is a holder from buildGroup, standing on zero.
+function makeVariant(proto, kind, a, G, at) {
+  if (kind === 'full') return proto.clone(true);
+  const t = tuneOf(a.name);
+  if (kind === 'snag') {
+    const sn = stripFoliage(proto);
+    return sn || null;
+  }
+  if (kind === 'impostor' || kind === 'fImpostor' || kind === 'snagImpostor') {
+    // each series bakes from its OWN shape
+    const forest = kind === 'fImpostor', snag = kind === 'snagImpostor';
+    const src = forest ? makeVariant(proto, 'fFull', a, G)
+              : snag ? stripFoliage(proto) : proto;
+    if (!src) return null;
+    const atl = impostorFor(a.name + '|' + G.name +
+                            (forest ? '|forest' : snag ? '|snag' : ''),
+                            src, a.name, snag ? IMP_TILE_HI : IMP_TILE);
+    if (!atl) return null;
+    const at = Object.assign({}, atl, { cellX: arguments[4] || 0, cellZ: arguments[5] || 0 });
+    const F = makeImpField(at, t.impa, t.implight, t.sink);
+    // WORLD SPACE: the field ignores any transform on its holder, so the
+    // cell's own position has to go into the instance itself.
+    F.add(at.cellX || 0, -(t.sink || 0), at.cellZ || 0, 1);
+    const m = F.build();
+    if (!m) return null;
+    F.update(camera);
+    // returned BARE, not wrapped: the field's vertices are world space, and
+    // nesting it under a holder was the difference between the stand (which
+    // adds the mesh straight to the stage, and draws) and this cell.
+    m.userData.field = F;               // re-aimed every frame like the stand
+    return m;
+  }
+  const c = proto.clone(true);
+  const bb = new THREE.Box3().setFromObject(c);
+  const y0 = bb.min.y, h = Math.max(0.01, bb.max.y - y0);
+  if (kind === 'wood' || kind === 'branch' || kind === 'stem') {
+    // THE WOODY DECOMPOSITION, and the reason it is here: more than half of a
+    // full tree's triangles are branch structure that reads as almost nothing
+    // at distance. `wood` is the whole bark mesh; `stem` and `branch` are its
+    // two halves, so the grid can price that structure on its own.
+    cullFoliage(c, () => false);
+    if (kind !== 'wood') barkSplit(c, kind === 'stem');
+    if (kind !== 'branch') cullRoots(c, y0 + (t.sink || 0));
+    return c;
+  }
+  if (kind === 'fFull') {
+    // the FOREST tree's LOD0: only the top third is furnished, and it is both
+    // stretched and widened - the shape a conifer takes in a closed stand
+    cullFoliage(c, y => (y - y0) / h > 0.62);
+    growCrown(c, CROWN_W);
+    c.scale.y *= CROWN_STRETCH;
+    return c;
+  }
+  // FOLIAGE ON A STICK, the whole rest of both ladders. The canopy is kept and
+  // every woody triangle is spent on one tapered cylinder; `crown*` furnishes
+  // only the top third, `half*` thins what is left. The top of the crown is
+  // never thinned - it is the silhouette, and it is what a distant viewer
+  // actually reads.
+  const crownOnly = kind === 'crownStick' || kind === 'crownHalf';
+  const half = kind === 'halfFoliage' || kind === 'crownHalf';
+  const st = stickFor(c, t.stick);       // measured BEFORE the wood goes
+  const rr = rng(0x9e37 + kind.length * 131);
+  cullFoliage(c, y => {
+    const f = (y - y0) / h;
+    if (crownOnly && f <= 0.62) return false;
+    if (half && f < 0.78 && rr() > 0.5) return false;
+    return true;
+  });
+  stripBark(c);
+  if (crownOnly) growCrown(c, CROWN_W);
+  if (st) c.add(st);
+  if (crownOnly) c.scale.y *= CROWN_STRETCH;
+  return c;
+}
+
+// ---- a caption over each cell -------------------------------------------
+function labelSprite(text, sub) {
+  const cv2 = document.createElement('canvas');
+  cv2.width = 256; cv2.height = 72;
+  const g = cv2.getContext('2d');
+  g.fillStyle = 'rgba(10,14,20,0.72)';
+  g.fillRect(0, 0, 256, 72);
+  g.textAlign = 'center';
+  g.fillStyle = '#5db3ff';
+  g.font = 'bold 34px ui-monospace, monospace';
+  g.fillText(text, 128, 34);
+  if (sub) {
+    g.fillStyle = '#9fb0c0';
+    g.font = '22px ui-monospace, monospace';
+    g.fillText(sub, 128, 62);
+  }
+  const t = new THREE.CanvasTexture(cv2);
+  t.encoding = THREE.sRGBEncoding;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, toneMapped: false, depthTest: false }));
+  sp.renderOrder = 999;
+  return sp;
+}
+
+// ---- the grid ------------------------------------------------------------
+function showVariants(built) {
+  clearStage();
+  VAR_FIELDS.length = 0;
+  const subjects = subjectsOf(CUR);
+  if (!subjects.length) { $('msg').textContent = 'no trees in this collection'; render(); return null; }
+
+  let x = 0, maxH = 0, maxZ = 0;
+  const stats = [];
+  for (const G of subjects) {
+    const base = buildGroup(built, G);
+    if (!base) continue;
+    const w = Math.max(6, base.userData.w * 1.5);
+    x += w / 2;
+    let z = 0;
+    for (let vi = 0; vi < VARIANTS.length; vi++) {
+      const V = VARIANTS[vi];
+      const m = makeVariant(base, V.key, CUR, G, x, -z);
+      if (!m) { z += w * 1.25; continue; }
+      if (!m.userData.field) m.position.set(x, 0, -z);
+      stage.add(m);
+      if (m.userData.field) VAR_FIELDS.push(m.userData.field);
+      const bb = new THREE.Box3().setFromObject(m);
+      const hh = isFinite(bb.max.y) ? bb.max.y : base.userData.h;
+      maxH = Math.max(maxH, hh);
+      const n = m.userData.field ? 2 : triCount(m);
+      const lab = labelSprite(n.toLocaleString() + ' t', V.name);
+      lab.position.set(x, hh + 2.6, -z);
+      lab.scale.set(w * 0.9, w * 0.25, 1);
+      stage.add(lab);
+      stats.push({ subject: G.name, variant: V.key, tris: n });
+      z += w * 1.25;
+      maxZ = Math.max(maxZ, z);
+    }
+    x += w / 2 + 2;
+  }
+  man.position.set(-2.5, 0, 0); man.visible = true;
+  applyWire();
+  measureStage();
+  target.set(x / 2, maxH * 0.4, -maxZ / 2);
+  dist = Math.max(40, Math.max(x, maxZ) * 0.85);
+  yaw = 0.62; pitch = 0.30; place();
+  return { cells: stats.length, stats: stats, maxH: maxH };
+}
+const VAR_FIELDS = [];
+
+// ---- the stand's own panel ----------------------------------------------
+// One row per collection: in or out of the mix, what its leaves MEASURE, and
+// the four dials that correct them. The measurement is shown beside the dials
+// deliberately — a correction you cannot see the reason for is a preference,
+// and this pass is meant to be answerable.
+function paintForestPanel(stats) {
+  const ui = $('ui');
+  const rows = INDEX.assets.filter(a => a.renderable && (a.trees.length || a.billboards.length));
+  const terr = INDEX.assets.filter(a => a.renderable && a.terrain.length);
+  let h = '<div class="grp">THE STAND</div><table>';
+  if (stats) {
+    h += '<tr><td class="k">drawn</td><td>' + stats.tris.toLocaleString() + ' tris · ' +
+         stats.meshes + ' meshes</td></tr>' +
+         '<tr><td class="k">ladder</td><td>' + (stats.lod || []).map((n, i) =>
+             'L' + i + ' ' + n).join(' · ') + '</td></tr>' +
+         '<tr><td class="k">series</td><td>' + (stats.series ? stats.series[0] : 0) +
+         ' furnished · ' + (stats.series ? stats.series[1] : 0) + ' stand-shaped · ' +
+         (stats.series ? stats.series[2] : 0) + ' snags' + '</td></tr>' +
+         '<tr><td class="k">prototypes</td><td>' + stats.protos +
+         (stats.glades ? ' · ' + stats.glades + ' glades, ' + stats.rejected + ' rejected' : '') +
+         '</td></tr>';
+  }
+  h += '<tr><td class="k">ground</td><td><select id="fGround"><option value="plane">flat plane</option>' +
+       terr.map(a => '<option value="' + a.name + '"' + (FOREST.ground === a.name ? ' selected' : '') +
+         '>' + a.name.replace(/\.glb$/, '') + ' (' + a.terrain.length + ')</option>').join('') +
+       '</select></td></tr>';
+  h += '<tr><td class="k">trees</td><td><input type="range" id="fCount" min="20" max="2000" step="20" value="' +
+       FOREST.count + '"> <i style="color:var(--acc)">' + FOREST.count + '</i></td></tr>';
+  h += '<tr><td class="k">size</td><td><input type="range" id="fScale" min="0.3" max="2.5" step="0.05" value="' +
+       FOREST.scale + '"> <i style="color:var(--acc)">x' + FOREST.scale.toFixed(2) + '</i></td></tr>';
+  h += '<tr><td class="k">spread</td><td><input type="range" id="fSpread" min="0" max="1" step="0.02" value="' +
+       FOREST.spread + '"> <i style="color:var(--acc)">' + spreadLabel(FOREST.spread) + '</i></td></tr>';
+  h += '<tr><td class="k">L0 band</td><td><input type="range" id="fSplit" min="10" max="200" step="5" value="' +
+       FOREST.split + '"> <i style="color:var(--acc)">' + FOREST.split + ' m · L1 ' +
+       Math.round(FOREST.split * 2.2) + ' · L2 ' + Math.round(FOREST.split * 4.5) + '</i></td></tr>';
+  h += '<tr><td class="k">glades</td><td><input type="range" id="fGlade" min="0" max="14" step="1" value="' +
+       FOREST.glades + '"> <i style="color:var(--acc)">' + FOREST.glades + '</i></td></tr>';
+  h += '<tr><td class="k">edge band</td><td><input type="range" id="fEdge" min="0" max="40" step="1" value="' +
+       FOREST.edge + '"> <i style="color:var(--acc)">' + FOREST.edge + ' m specimen</i></td></tr>';
+  h += '<tr><td class="k">furnished</td><td><input type="range" id="fMix" min="0" max="1" step="0.05" value="' +
+       FOREST.mix + '"> <i style="color:var(--acc)">' + Math.round(FOREST.mix * 100) +
+       '% of the interior</i></td></tr>';
+  h += '<tr><td class="k">radius</td><td><input type="range" id="fRad" min="60" max="600" step="20" value="' +
+       FOREST.radius + '"> <i style="color:var(--acc)">' + FOREST.radius + ' m</i></td></tr>';
+  h += '<tr><td class="k">far tier</td><td><button id="fImp"' + (FOREST.impostor ? ' class="on"' : '') +
+       '>' + (FOREST.impostor ? 'baked impostors' : 'shipped LOD / same mesh') + '</button>' +
+       (FOREST.impostor ? ' <i style="color:var(--dim)">' + IMP_CACHE.size + ' atlases, ' +
+         (IMP_G * IMP_G) + ' views each</i>' : '') + '</td></tr>';
+  h += '<tr><td class="k">seed</td><td><input type="range" id="fSeed" min="1" max="60" step="1" value="' +
+       FOREST.seed + '"> <i style="color:var(--acc)">' + FOREST.seed + '</i></td></tr>';
+  h += '</table>';
+
+  h += '<div class="grp">COLOUR — MEASURED, THEN CORRECTED</div>';
+  h += '<div style="margin-bottom:6px">reference <select id="fRef">' +
+       rows.map(a => '<option value="' + a.name + '"' + (REFNAME === a.name ? ' selected' : '') + '>' +
+         a.name.replace(/\.glb$/, '').slice(0, 26) + '</option>').join('') +
+       '</select> <button id="fSuggest">suggest</button> <button id="fClear">clear all</button></div>';
+  h += '<div class="note">Hue and lightness are matched to the reference; saturation is pulled ' +
+       'down to the LOWEST measured in the set, never up. These are starting values — the dials are yours.</div>';
+
+  // what each weight actually works out to, over the collections in the mix
+  let shareTot = 0;
+  for (const a of rows) if (PICK[a.name]) shareTot += tuneOf(a.name).proportion || 0;
+  h += '<table class="fRows">';
+  for (const a of rows) {
+    const t = tuneOf(a.name), m = MEAS[a.name];
+    const sw = m && m.rgb ? 'rgb(' + m.rgb.join(',') + ')' : '#333';
+    h += '<tr><td colspan="2" style="padding-top:7px;border-top:1px solid var(--grid)">' +
+         '<label style="color:var(--fg)"><input type="checkbox" class="fPick" data-n="' + a.name + '"' +
+         (PICK[a.name] ? ' checked' : '') + '> ' + a.name.replace(/\.glb$/, '').slice(0, 30) + '</label> ' +
+         '<span class="sw" style="background:' + sw + '"></span>' +
+         '<i style="color:var(--dim);font-size:10px">' +
+         (m && m.px ? 'H ' + (m.h * 360).toFixed(0) + '&deg; S ' + (m.s * 100).toFixed(0) +
+            '% L ' + (m.l * 100).toFixed(0) + '%' : 'not measured') + '</i></td></tr>';
+    for (const dial of [['hue', -0.5, 0.5, 0.005], ['sat', 0, 1.4, 0.01],
+                        ['light', 0.4, 1.8, 0.01], ['bark', 0.3, 2, 0.02],
+                        ['alpha', 0, 0.9, 0.05], ['size', 0.2, 3, 0.02],
+                        ['sink', 0, 4, 0.05], ['proportion', 0, 3, 0.05],
+                        ['stick', 0.01, 0.3, 0.005], ['impa', 1, 20, 0.5],
+                        ['implight', 0.4, 2, 0.01], ['dead', 0, 0.6, 0.01]]) {
+      h += '<tr><td class="k" style="width:44px;font-size:10px">' + dial[0] + '</td><td>' +
+           '<input type="range" class="fDial" data-n="' + a.name + '" data-k="' + dial[0] +
+           '" min="' + dial[1] + '" max="' + dial[2] + '" step="' + dial[3] + '" value="' + t[dial[0]] + '" ' +
+           'style="width:150px"> <i style="color:var(--acc);font-size:10px">' +
+           (+t[dial[0]]).toFixed(dial[3] < 0.01 ? 3 : 2) +
+           (dial[0] === 'proportion' && PICK[a.name] && shareTot > 0
+              ? ' <span style="color:var(--dim)">= ' +
+                (100 * (t.proportion || 0) / shareTot).toFixed(0) + '%' +
+                (stats && stats.planted ? ' · ' + (stats.planted[a.name] || 0) + ' planted' : '') +
+                '</span>' : '') +
+           '</i></td></tr>';
+    }
+  }
+  h += '</table>';
+  ui.innerHTML = h;
+
+  $('fGround').onchange = e => { FOREST.ground = e.target.value; showForest(); };
+  const live = (id, key, fmt) => {
+    $(id).oninput = e => {
+      FOREST[key] = +e.target.value;
+      e.target.nextElementSibling.textContent = fmt(FOREST[key]);
+    };
+    $(id).onchange = () => showForest();
+  };
+  live('fCount', 'count', v => v);
+  live('fScale', 'scale', v => 'x' + v.toFixed(2));
+  live('fSpread', 'spread', spreadLabel);
+  live('fSplit', 'split', v => v + ' m · L1 ' + Math.round(v * 2.2) + ' · L2 ' + Math.round(v * 4.5));
+  live('fGlade', 'glades', v => v);
+  live('fEdge', 'edge', v => v + ' m specimen');
+  live('fMix', 'mix', v => Math.round(v * 100) + '% of the interior');
+  live('fRad', 'radius', v => v + ' m');
+  live('fSeed', 'seed', v => v);
+
+  $('fImp').onclick = () => {
+    FOREST.impostor = !FOREST.impostor;
+    $('msg').textContent = FOREST.impostor ? 'baking impostors...' : '';
+    setTimeout(() => showForest(), 20);
+  };
+  $('fRef').onchange = e => { REFNAME = e.target.value; };
+  $('fSuggest').onclick = async () => {
+    // measure everything that is IN the mix before proposing anything
+    for (const a of rows) {
+      if (!PICK[a.name]) continue;
+      const b = await ensureLoaded(a.name);
+      if (b) MEAS[a.name] = measureAsset(a.name, b);
+    }
+    const n = suggestTuning(REFNAME);
+    $('msg').textContent = 'set ' + n + ' collections from measurement';
+    for (const k in cache) retint(k);
+    showForest();
+  };
+  $('fClear').onclick = () => { TUNE = {}; saveTune(); for (const k in cache) retint(k); showForest(); };
+
+  for (const el of ui.querySelectorAll('.fPick'))
+    el.onchange = () => { PICK[el.dataset.n] = el.checked; savePick(); showForest(); };
+  for (const el of ui.querySelectorAll('.fDial'))
+    el.oninput = () => {
+      const t = tuneOf(el.dataset.n);
+      t[el.dataset.k] = +el.value;
+      TUNE[el.dataset.n] = t;
+      saveTune();
+      el.nextElementSibling.textContent = (+el.value).toFixed(+el.step < 0.01 ? 3 : 2);
+      // these three move geometry rather than colour, so they rebuild
+      if (['sink', 'size', 'proportion', 'dead', 'stick', 'impa', 'implight'].indexOf(el.dataset.k) >= 0) { showForest(); return; }
+      retint(el.dataset.n);
+      render();
+    };
+}
+function savePick() {
+  try { localStorage.setItem('flydiy.trees.pick', JSON.stringify(PICK)); } catch (e) {}
 }
 
 // ---- controls ------------------------------------------------------------
@@ -609,11 +3391,113 @@ function setMode(m) {
   MODE = m;
   $('mShelf').classList.toggle('on', m === 'shelf');
   $('mLadder').classList.toggle('on', m === 'ladder');
+  $('mForest').classList.toggle('on', m === 'forest');
+  $('mVar').classList.toggle('on', m === 'variants');
+  if (m === 'forest') {
+    scene.fog.near = 220; scene.fog.far = 1400;
+    paintForestPanel(null);
+    showForest();
+    return;
+  }
   scene.fog.near = m === 'ladder' ? 900 : 400;
   scene.fog.far = m === 'ladder' ? 4200 : 2600;
   if (CUR) load(CUR, true);
 }
+{
+  const sel = $('sky');
+  MOODS.forEach((m, i) => sel.add(new Option(m.name, String(i))));
+  SKY_KEYS.forEach((k, i) => sel.add(new Option(SKIES[k].name + ' (hdr)', String(MOODS.length + i))));
+  if (ALPS) sel.add(new Option('alps field (game hdr)', 'alps'));
+  sel.value = '0';                       // overcast unless the file says otherwise
+  sel.onchange = () => { buildSky(); render(); };
+}
+$('expo').oninput = e => {
+  EXPO = +e.target.value;
+  $('expoV').textContent = EXPO.toFixed(2);
+  buildSky(); render();
+};
+$('wrap').oninput = e => {
+  U_WRAP.value = +e.target.value;
+  $('wrapV').textContent = U_WRAP.value.toFixed(2);
+  render();
+};
+$('sss').oninput = e => {
+  U_SSS.value = +e.target.value;
+  $('sssV').textContent = U_SSS.value.toFixed(2);
+  render();
+};
+$('crown').oninput = e => {
+  CROWN_STRETCH = +e.target.value;
+  $('crownV').textContent = CROWN_STRETCH.toFixed(2);
+  if (MODE === 'variants' && CUR) load(CUR, true);
+};
+$('trunkao').oninput = e => {
+  TRUNK_DARK = +e.target.value;
+  $('trunkaoV').textContent = TRUNK_DARK.toFixed(2);
+  AO_DONE = new WeakSet();               // it is BAKED, so it must be re-baked
+  IMP_CACHE.forEach(v => { if (v && v.tex) v.tex.dispose(); });
+  IMP_CACHE.clear();
+  if (MODE === 'forest') showForest(); else if (CUR) load(CUR, true);
+};
+$('aobake').oninput = e => {
+  U_AOBAKE.value = +e.target.value;
+  $('aobakeV').textContent = U_AOBAKE.value.toFixed(1);
+  render();
+};
+$('crownw').oninput = e => {
+  CROWN_W = +e.target.value;
+  $('crownwV').textContent = CROWN_W.toFixed(2);
+  if (MODE === 'variants' && CUR) load(CUR, true);
+};
+$('isolid').oninput = e => {
+  U_ISOLID.value = +e.target.value;
+  $('isolidV').textContent = U_ISOLID.value.toFixed(2);
+  render();
+};
+$('sharp').oninput = e => {
+  U_SHARP.value = +e.target.value;
+  $('sharpV').textContent = U_SHARP.value.toFixed(2);
+  for (const n in cache) retint(n);
+  render();
+};
+$('mipfix').onclick = () => {
+  MIPFIX = !MIPFIX;
+  $('mipfix').classList.toggle('on', MIPFIX);
+  if (MIPFIX) {
+    $('msg').textContent = 'rebuilding coverage mips...';
+    setTimeout(() => {
+      let n = 0;
+      for (const k in cache) n += mipFixAsset(k);
+      $('msg').textContent = n + ' leaf textures re-mipped';
+      render();
+    }, 30);
+  } else $('msg').textContent = 'reload to drop the rebuilt mips';
+  render();
+};
+$('a2c').onclick = () => {
+  A2C = !A2C;
+  $('a2c').classList.toggle('on', A2C);
+  $('sharp').value = U_SHARP.value; $('sharpV').textContent = U_SHARP.value.toFixed(2);
+  for (const n in cache) retint(n);
+  render();
+};
+$('ssao').onclick = () => {
+  SSAO_ON = !SSAO_ON;
+  $('ssao').classList.toggle('on', SSAO_ON);
+  render();
+};
+$('aoR').oninput = e => { SSAO_R = +e.target.value; $('aoRV').textContent = SSAO_R.toFixed(1); render(); };
+$('aoI').oninput = e => { SSAO_I = +e.target.value; $('aoIV').textContent = SSAO_I.toFixed(2); render(); };
+$('shadow').onclick = () => {
+  SHADOWS = !SHADOWS;
+  $('shadow').classList.toggle('on', SHADOWS);
+  renderer.shadowMap.enabled = SHADOWS;
+  stage.traverse(o => { if (o.isMesh && !o.userData.noShadow) { o.castShadow = SHADOWS; o.receiveShadow = SHADOWS; } });
+  render();
+};
 $('mShelf').onclick = () => setMode('shelf');
+$('mForest').onclick = () => setMode('forest');
+$('mVar').onclick = () => setMode('variants');
 $('mLadder').onclick = () => setMode('ladder');
 $('kind').onchange = e => { KIND = e.target.value; ISOLATE = null; if (CUR) load(CUR, true); };
 $('lod').onchange = e => { LODSEL = +e.target.value; if (CUR) load(CUR, true); };
@@ -623,12 +3507,202 @@ $('trueScale').onclick = () => {
   $('trueScale').classList.toggle('on', TRUE_SCALE);
   if (CUR) load(CUR, true);
 };
-$('cut').oninput = e => {
-  CUT = +e.target.value;
-  $('cutV').textContent = CUT.toFixed(2);
-  for (const k in cache) for (const m of cache[k].mats) applyAlpha(m);
+function syncTuneBar() {
+  $('hue').value = MASTER.hue; $('hueV').textContent = MASTER.hue.toFixed(2);
+  $('sat').value = MASTER.sat; $('satV').textContent = MASTER.sat.toFixed(2);
+  $('light').value = MASTER.light; $('lightV').textContent = MASTER.light.toFixed(2);
+}
+function setMaster(k, v) {
+  MASTER[k] = v;
+  syncTuneBar();
+  try { localStorage.setItem('flydiy.trees.master', JSON.stringify(MASTER)); } catch (e) {}
+  for (const n in cache) retint(n);
   render();
+}
+// A correction belongs to the COLLECTION, not to the session: it is written
+// as soon as it is made, kept in localStorage so a reload does not lose it,
+// and exported as the json the bench reads at boot.
+function setTune(k, v) {
+  if (!CUR) return;
+  const t = tuneOf(CUR.name);
+  t[k] = v;
+  TUNE[CUR.name] = t;
+  try { localStorage.setItem('flydiy.trees.tuning', JSON.stringify(TUNE)); } catch (e) {}
+  syncTuneBar(t);
+  CUT = t.alpha;
+  const built = cache[CUR.name];
+  if (built) for (const m of built.mats) { applyAlpha(m); applyTune(m, t); }
+  render();
+}
+$('hue').oninput = e => setMaster('hue', +e.target.value);
+$('sat').oninput = e => setMaster('sat', +e.target.value);
+$('light').oninput = e => setMaster('light', +e.target.value);
+$('tuneReset').onclick = () => { MASTER.hue = 0; MASTER.sat = 1; MASTER.light = 1; setMaster('hue', 0); };
+
+$('expo').onclick = () => {
+  const body = JSON.stringify({
+    note: 'flyDiy tree bench — per-collection leaf tuning (W0a). Save as flyDiy/tools/_trees_tuning.json.',
+    generated: new Date().toISOString(),
+    reference: REFNAME,
+    master: MASTER,
+    view: { sky: $('sky').value, ev: EXPO, shadows: SHADOWS, sharp: U_SHARP.value,
+            wrap: U_WRAP.value, sss: U_SSS.value, a2c: A2C, mips: MIPFIX,
+            ssao: SSAO_ON, aoR: SSAO_R, aoI: SSAO_I, trueScale: TRUE_SCALE },
+    included: Object.keys(PICK).filter(k => PICK[k]),
+    measured: MEAS,
+    tuning: TUNE,
+  }, null, 1);
+  $('expoTxt').value = body;
+  $('expoDl').href = URL.createObjectURL(new Blob([body], { type: 'application/json' }));
+  $('expoBox').style.display = 'flex';
 };
+$('expoClose').onclick = () => { $('expoBox').style.display = 'none'; };
+$('expoCopy').onclick = () => {
+  $('expoTxt').select();
+  try { document.execCommand('copy'); $('expoCopy').textContent = 'copied'; } catch (e) {}
+  setTimeout(() => { $('expoCopy').textContent = 'copy'; }, 1200);
+};
+
+
+// ==========================================================================
+// SSAO — and the one thing that dictates how it had to be built
+//
+// The obvious way is to render the scene into a render target and post-process
+// it. That cannot be done here: a plain render target is NOT multisampled, and
+// alpha-to-coverage — the fix that actually made the canopy legible — needs
+// MSAA to have samples to spread coverage across. Routing the stand through an
+// RT would buy occlusion and hand back the aliasing, which is a bad trade.
+//
+// So the scene is drawn TWICE. Once into a depth-only target, which gives the
+// AO pass something to read; once to the canvas as before, with its MSAA and
+// its coverage intact. The AO is then laid over the finished picture as a
+// full-screen MULTIPLY, so it only ever darkens what is already there.
+// Two scene renders for a hand-pumped bench is affordable; it would not be in
+// the game, and W0e's frame-time gate would say so.
+//
+// The normals are reconstructed from depth derivatives rather than rendered,
+// because a normal pass would need every cutout material's alpha test
+// duplicated into it, and depth already carries the cutout for free.
+// ==========================================================================
+let SSAO_ON = false, SSAO_R = 1.1, SSAO_I = 0.9;
+let VIEW_SKY = null;                   // the committed sky, chosen at boot
+let aoRT = null, aoQuad = null, aoScene = null, aoCam = null;
+
+function aoEnsure(w, h) {
+  if (aoRT && aoRT.width === w && aoRT.height === h) return;
+  if (aoRT) { aoRT.depthTexture.dispose(); aoRT.dispose(); }
+  const dt = new THREE.DepthTexture(w, h);
+  dt.type = THREE.UnsignedIntType;
+  dt.minFilter = dt.magFilter = THREE.NearestFilter;
+  aoRT = new THREE.WebGLRenderTarget(w, h, {
+    minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter,
+    depthTexture: dt, depthBuffer: true, stencilBuffer: false,
+  });
+  if (aoQuad) aoQuad.material.uniforms.tDepth.value = dt;
+}
+
+function aoBuild() {
+  if (aoQuad) return;
+  aoCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  aoScene = new THREE.Scene();
+  const frag = [
+    'varying vec2 vUv;',
+    'uniform sampler2D tDepth;',
+    'uniform vec2 uRes;',
+    'uniform float uNear, uFar, uRadius, uIntensity, uTanY, uAspect;',
+    'float viewZ(vec2 uv) {',
+    '  float z = texture2D(tDepth, uv).x;',
+    '  return -(2.0 * uNear * uFar) / (uFar + uNear - (2.0 * z - 1.0) * (uFar - uNear));',
+    '}',
+    'vec3 viewPos(vec2 uv, float vz) {',
+    '  vec2 ndc = uv * 2.0 - 1.0;',
+    '  return vec3(ndc.x * uTanY * uAspect, ndc.y * uTanY, -1.0) * (-vz);',
+    '}',
+    'float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }',
+    'void main() {',
+    '  float vz = viewZ(vUv);',
+    // the sky has no depth and must not be darkened
+    '  if (-vz >= uFar * 0.999) { gl_FragColor = vec4(1.0); return; }',
+    '  vec3 P = viewPos(vUv, vz);',
+    '  vec3 N = normalize(cross(dFdx(P), dFdy(P)));',
+    '  float ang = hash(gl_FragCoord.xy) * 6.2831853;',
+    '  float ca = cos(ang), sa = sin(ang);',
+    '  float occ = 0.0;',
+    '  const int K = 20;',
+    '  for (int i = 0; i < K; i++) {',
+    '    float fi = (float(i) + 0.5) / float(K);',
+    '    float a = fi * 6.2831853 * 3.0 + ang;',
+    '    float r = uRadius * sqrt(fi);',
+    // a hemisphere sample, flipped to the side the surface faces
+    '    vec3 d = vec3(cos(a), sin(a), hash(vec2(fi, ang)) * 0.9 + 0.1);',
+    '    if (dot(d, N) < 0.0) d = -d;',
+    '    vec3 S = P + d * r;',
+    '    vec4 cl = vec4(S, 1.0);',
+    '    vec2 su = vec2(cl.x / (uTanY * uAspect), cl.y / uTanY) / (-cl.z);',
+    '    su = su * 0.5 + 0.5;',
+    '    if (su.x < 0.0 || su.x > 1.0 || su.y < 0.0 || su.y > 1.0) continue;',
+    '    float sz = viewZ(su);',
+    // occluded only when something sits in FRONT of the sample, and only
+    // within the radius: without the range check a distant trunk shadows the
+    // whole crown behind it
+    '    float diff = sz - S.z;',
+    '    float range = smoothstep(0.0, 1.0, uRadius / max(1e-4, abs(sz - P.z)));',
+    '    occ += (diff > 0.02 ? 1.0 : 0.0) * range;',
+    '  }',
+    // beyond a few dozen metres a pixel's neighbours are metres apart, the
+    // reconstructed normal is noise, and the pass returns a field of black
+    // specks. So it fades out with distance rather than guessing.
+    '  float far = 1.0 - smoothstep(60.0, 160.0, -vz);',
+    '  float ao = 1.0 - uIntensity * far * (occ / float(K));',
+    '  gl_FragColor = vec4(vec3(clamp(ao, 0.0, 1.0)), 1.0);',
+    '}',
+  ].join(NL);
+  const mat = new THREE.ShaderMaterial({
+    uniforms: {
+      tDepth: { value: aoRT ? aoRT.depthTexture : null },
+      uRes: { value: new THREE.Vector2(1, 1) },
+      uNear: { value: 0.1 }, uFar: { value: 1000 },
+      uRadius: { value: SSAO_R }, uIntensity: { value: SSAO_I },
+      uTanY: { value: 0.5 }, uAspect: { value: 1 },
+    },
+    vertexShader: ['varying vec2 vUv;', 'void main() {', '  vUv = uv;',
+                   '  gl_Position = vec4(position.xy, 0.0, 1.0);', '}'].join(NL),
+    fragmentShader: frag,
+    depthTest: false, depthWrite: false,
+    blending: THREE.MultiplyBlending,     // it may only ever darken
+    extensions: { derivatives: true },
+  });
+  aoQuad = new THREE.Mesh(new THREE.PlaneBufferGeometry(2, 2), mat);
+  aoQuad.frustumCulled = false;
+  aoScene.add(aoQuad);
+}
+
+// laid over the finished frame, after the scene has been drawn to the canvas
+function aoPass() {
+  if (!SSAO_ON) return;
+  const w = cv.width, h = cv.height;
+  if (!w || !h) return;
+  aoEnsure(w, h);
+  aoBuild();
+  const u = aoQuad.material.uniforms;
+  u.tDepth.value = aoRT.depthTexture;
+  u.uRes.value.set(w, h);
+  u.uNear.value = camera.near; u.uFar.value = camera.far;
+  u.uRadius.value = SSAO_R; u.uIntensity.value = SSAO_I;
+  u.uTanY.value = Math.tan(camera.fov * Math.PI / 360);
+  u.uAspect.value = camera.aspect;
+  const prevBg = scene.background;
+  scene.background = null;               // depth only; the sky writes none
+  renderer.setRenderTarget(aoRT);
+  renderer.clear(true, true, false);
+  renderer.render(scene, camera);
+  renderer.setRenderTarget(null);
+  scene.background = prevBg;
+  const prevAuto = renderer.autoClear;
+  renderer.autoClear = false;
+  renderer.render(aoScene, aoCam);
+  renderer.autoClear = prevAuto;
+}
 
 // ---- render --------------------------------------------------------------
 let frames = 0, acc = 0;
@@ -638,8 +3712,10 @@ function render() {
     renderer.setSize(w, h, false);
     camera.aspect = w / h; camera.updateProjectionMatrix();
   }
+  updateImpFields();
   const t0 = performance.now();
   renderer.render(scene, camera);
+  aoPass();
   const ms = performance.now() - t0;
   acc += ms; frames++;
   const info = renderer.info.render;
@@ -652,11 +3728,96 @@ window.addEventListener('resize', render);
 setInterval(render, 120);
 
 (async function boot() {
+  // the committed corrections first, then anything edited since on this machine
+  let COMMITTED = null;
+  try {
+    const f = await fetch('_trees_tuning.json');
+    if (f.ok) {
+      COMMITTED = await f.json();
+      TUNE = COMMITTED.tuning || {};
+      if (COMMITTED.master) Object.assign(MASTER, COMMITTED.master);
+      if (COMMITTED.reference) REFNAME = COMMITTED.reference;
+      // THE VIEW is committed too. The light, the leaf terms and the AO are
+      // as much a part of a judgement as the colour is — opening the bench in
+      // a different light than the one the mix was tuned under would make
+      // every stored value read wrong.
+      const V = COMMITTED.view;
+      if (V) {
+        if (V.ev !== undefined) EXPO = V.ev;
+        if (V.wrap !== undefined) U_WRAP.value = V.wrap;
+        if (V.sss !== undefined) U_SSS.value = V.sss;
+        if (V.a2c !== undefined) A2C = !!V.a2c;
+        if (V.sharp !== undefined) U_SHARP.value = V.sharp;
+        if (V.mips !== undefined) MIPFIX = !!V.mips;
+        if (V.shadows !== undefined) SHADOWS = !!V.shadows;
+        // the baked AO replaces it; the button still turns it on to compare
+        SSAO_ON = false;
+        if (V.aoR !== undefined) SSAO_R = V.aoR;
+        if (V.aoI !== undefined) SSAO_I = V.aoI;
+        if (V.trueScale !== undefined) TRUE_SCALE = !!V.trueScale;
+        VIEW_SKY = V.sky;
+      }
+    }
+  } catch (e) {}
+  try {
+    // MERGE PER COLLECTION, not per file. Assigning the whole object replaced
+    // the committed entry wholesale, so a field the bench never edits —
+    // keepTop, say — was silently dropped the moment anything was tuned.
+    const loc = localStorage.getItem('flydiy.trees.tuning');
+    if (loc) {
+      const L = JSON.parse(loc);
+      for (const k in L) TUNE[k] = Object.assign({}, TUNE[k] || {}, L[k]);
+    }
+  } catch (e) {}
+  try {
+    const pk = localStorage.getItem('flydiy.trees.pick');
+    if (pk) Object.assign(PICK, JSON.parse(pk));
+  } catch (e) {}
+  try {
+    const ms = localStorage.getItem('flydiy.trees.master');
+    if (ms) Object.assign(MASTER, JSON.parse(ms));
+  } catch (e) {}
   try { INDEX = await (await fetch('_trees_index.json')).json(); }
   catch (e) {
     $('msg').innerHTML = '<span class="bad">no _trees_index.json — run: node tools/tree_inspect.js</span>';
     return;
   }
+  INDEX.assets = INDEX.assets.filter(a => a.kind !== 'error');
+  for (const a of INDEX.assets)
+    for (const k of ['trees', 'shrubs', 'billboards', 'terrain'])
+      if (!a[k]) a[k] = [];
+
+  // THE COMMITTED MIX is the default: _trees_tuning.json's `included` is the
+  // curated near/medium set, and the collections outside it are still loaded
+  // and still measured — they carry proportion 0, so the scatter simply
+  // plants none of them until somebody raises the dial.
+  if (!Object.keys(PICK).length) {
+    if (COMMITTED && COMMITTED.included && COMMITTED.included.length)
+      for (const n of COMMITTED.included) PICK[n] = true;
+    else
+      for (const a of INDEX.assets)
+        if (a.renderable && a.trees.length && !a.trees.some(t => t.merged)) PICK[a.name] = true;
+  }
+
+  // the chrome has to agree with the state it was given
+  if (VIEW_SKY !== undefined && VIEW_SKY !== null) {
+    const sel = $('sky');
+    if ([...sel.options].some(o => o.value === String(VIEW_SKY))) sel.value = String(VIEW_SKY);
+  }
+  $('expo').value = EXPO; $('expoV').textContent = EXPO.toFixed(2);
+  $('wrap').value = U_WRAP.value; $('wrapV').textContent = U_WRAP.value.toFixed(2);
+  $('sss').value = U_SSS.value; $('sssV').textContent = U_SSS.value.toFixed(2);
+  $('aoR').value = SSAO_R; $('aoRV').textContent = SSAO_R.toFixed(1);
+  $('aoI').value = SSAO_I; $('aoIV').textContent = SSAO_I.toFixed(2);
+  $('a2c').classList.toggle('on', A2C);
+  $('mipfix').classList.toggle('on', MIPFIX);
+  $('shadow').classList.toggle('on', SHADOWS);
+  $('ssao').classList.toggle('on', SSAO_ON);
+  $('trueScale').classList.toggle('on', TRUE_SCALE);
+  renderer.shadowMap.enabled = SHADOWS;
+
+  syncTuneBar();
+  buildSky();
   place(); paintRail();
   const first = INDEX.assets.filter(a => a.renderable)
     .sort((a, b) => b.trees.length - a.trees.length)[0];
