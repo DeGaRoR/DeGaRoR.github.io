@@ -73,6 +73,12 @@ const GATES = [
   { id: 'WORLDRENDER', file: 'test_world_render.js', tier: 'core' },
   // the hangar prop library: baked payload vs the declared table
   { id: 'PROPS', file: '_prop_check.js', tier: 'core' },
+  // THE TREE PAYLOAD (W0b). Not "does the file exist" — every fault this
+  // pipeline met in the bench presented as "the tree is missing or wrong"
+  // and was something else entirely, so this asserts what comes back OUT is
+  // a tree: standing on y = 0, inside its own box and filling it, with an AO
+  // channel that carries information and rungs that share one frame.
+  { id: 'TREES', file: '_tree_check.js', tier: 'core' },
   // the external asset store (2026-09-01): referenced == present both ways,
   // no base64 creep, and index.html's size budget — mechanical at last
   { id: 'MEDIA', file: '_media_check.js', tier: 'core' },
