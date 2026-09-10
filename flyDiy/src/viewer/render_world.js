@@ -717,27 +717,18 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // The curated set is all conifer, so the broadleaf slot is filled by a
     // conifer too. That is a CONTENT gap, not a pipeline one: the moment a
     // broadleaf collection is curated it drops into the same slot.
-    let PROTO = null;
-    if (typeof treeReady === 'function' && treeReady() && typeof treeBuild === 'function') {
-      try {
-        const all = treeList();
-        const pick = re => (all.find(e => re.test(e.key)) || all[0]).key;
-        PROTO = {
-          conif: treeBuild(THREE, pick(/Fir01/), 0),
-          broad: treeBuild(THREE, pick(/Christmas tree\|?$|Christmas tree$/), 0),
-        };
-      } catch (e) { PROTO = null; }
-    }
-    const protoParts = P => P.parts.map(q => q.geo);
-    [trunkGeo, coneGeo, blobGeo].forEach(g => chunkBounds(g, CHW));
-    if (PROTO) {
-      // the chunk sphere trick applies to a real tree exactly as to a cone —
-      // and chunkBounds is also what stashes userData.shape, which the
-      // impostor bake reads for its ortho extent
-      protoParts(PROTO.conif).concat(protoParts(PROTO.broad))
-        .forEach(g => chunkBounds(g, CHW));
-    }
-
+    // AND THE PAYLOAD ARRIVES AFTER THE WORLD IS BUILT. buildWorldScene is
+    // synchronous and app.js calls it during its own script evaluation, so
+    // there is no moment at which a fetch could have landed first. Waiting for
+    // one would mean making the whole boot async, which is a far larger change
+    // than this earns. So the woodland is PLANTED TWICE: once from whatever is
+    // to hand (the cone, at boot) and again when the bytes arrive — the shape
+    // hangar.js already uses for its props, and the one every other asset in
+    // this project degrades through. The second plant costs what the first did,
+    // once, off the critical path.
+    // THE IMPOSTOR MACHINERY IS SHARED with the streamed fill below, which
+    // bakes and dresses its own atlases from it, so it lives outside the
+    // replant too. None of it depends on which tree was picked.
     // ================= W17: the LOD ladder ==============================
     // near (< NEAR_R): the 3D canopy + trunk below, unchanged, shadow-casting.
     // mid  (NEAR_R..FAR): OCTAHEDRAL IMPOSTORS — 2 triangles per tree.
@@ -924,8 +915,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       };
       return m;
     }
-    // 3D tier: collapse every instance past NEAR_R. View-space length IS the
-    // camera distance, so this costs one compare and needs no extra uniform.
+    // The streamed fill below dresses its own material with this too, so it
+    // lives outside the replant, with the registers.
     const nearOnly = mat => {
       mat.onBeforeCompile = sh => {
         sh.uniforms.uNearB = uNear;
@@ -936,6 +927,62 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       };
       return mat;
     };
+
+    // the scratch objects the streamed fill borrows as well
+    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0),
+          pv = new THREE.Vector3(), sv = new THREE.Vector3(), c3 = new THREE.Color();
+    // SHARED WITH THE STREAMED FILL BELOW, so they live outside the replant:
+    // that layer pushes its own chunks into these same two registers and reads
+    // the same ramp, and a replant that rebuilt them would orphan every chunk
+    // the streamer had added.
+    const nearChunks = [], impChunks = [];  // distance-culled: see lodUpdate
+    // per-species colour ramps (stage 2): spruce, pine, oak, birch, willow
+    const SPC = [
+      [C(0x2e4620), C(0x486327)],
+      [C(0x4c6a2f), C(0x6f8038)],
+      [C(0x5b7333), C(0x84813c)],
+      [C(0x7c8f3f), C(0xa39f55)],
+      [C(0x6d874d), C(0x8fa05e)],
+    ];
+    let PROTO = null;
+    let planted = [];                 // meshes this layer put in the scene
+    let plantedKit = [];              // and what it made for them: atlas, mats
+    const protoParts = P => P.parts.map(q => q.geo);
+    [trunkGeo, coneGeo, blobGeo].forEach(g => chunkBounds(g, CHW));
+
+    function plantWoodland() {
+      // Undo the previous plant. The InstancedMeshes and the impostor atlas are
+      // OURS and go; the geometry and materials of a real tree are NOT — they
+      // belong to trees.js's build cache and are shared with anything else that
+      // asks for that subject.
+      for (const m of planted) { scene.remove(m); if (m.dispose) m.dispose(); }
+      for (const k of plantedKit) if (k && k.dispose) k.dispose();
+      planted = []; plantedKit = [];
+      // and the registers, OURS only - the streamer's entries stay
+      for (const list of [nearChunks, impChunks])
+        for (let i = list.length - 1; i >= 0; i--) if (list[i].own) list.splice(i, 1);
+
+      PROTO = null;
+      if (typeof treeReady === 'function' && treeReady() && typeof treeBuild === 'function') {
+        try {
+          const all = treeList();
+          const pick = re => (all.find(e => re.test(e.key)) || all[0]).key;
+          PROTO = {
+            conif: treeBuild(THREE, pick(/Fir01/), 0),
+            broad: treeBuild(THREE, pick(/Christmas tree\|?$|Christmas tree$/), 0),
+          };
+        } catch (e) { PROTO = null; }
+      }
+      if (PROTO) {
+        // the chunk sphere trick applies to a real tree exactly as to a cone —
+        // and chunkBounds is also what stashes userData.shape, which the
+        // impostor bake reads for its ortho extent
+        protoParts(PROTO.conif).concat(protoParts(PROTO.broad))
+          .forEach(g => chunkBounds(g, CHW));
+      }
+
+    // 3D tier: collapse every instance past NEAR_R. View-space length IS the
+    // camera distance, so this costs one compare and needs no extra uniform.
     // The shadow pass renders through its OWN depth material, so the collapse
     // above never reaches it — that is why the near forest was measured being
     // submitted twice. Same radius, measured from the CG because the sun's
@@ -951,8 +998,6 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           'if (distance(wPd.xyz, uCG) > uNearB) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);');
     };
 
-    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0),
-          pv = new THREE.Vector3(), sv = new THREE.Vector3(), c3 = new THREE.Color();
     const cells = new Map();
     for (const T of P) {
       const cx = Math.floor(T.x / CHW), cz = Math.floor(T.z / CHW);
@@ -970,15 +1015,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     const impBlob = bakeImpostorAtlas(PROTO ? PROTO.broad.parts : blobGeo);
     const impQuadW = impQuad(CHW);
     const impConeMatW = impostorMat(impCone, FAR_WOOD), impBlobMatW = impostorMat(impBlob, FAR_WOOD);
-    const nearChunks = [], impChunks = [];  // distance-culled: see lodUpdate
-    // per-species colour ramps (stage 2): spruce, pine, oak, birch, willow
-    const SPC = [
-      [C(0x2e4620), C(0x486327)],
-      [C(0x4c6a2f), C(0x6f8038)],
-      [C(0x5b7333), C(0x84813c)],
-      [C(0x7c8f3f), C(0xa39f55)],
-      [C(0x6d874d), C(0x8fa05e)],
-    ];
+    plantedKit.push(impCone.tex, impBlob.tex, impConeMatW, impBlobMatW, trunkMat, canopyMat);
     for (const cell of cells.values()) {
       const ox = (cell.cx + 0.5) * CHW, oz = (cell.cz + 0.5) * CHW;
       const conif = cell.list.filter(t => t.sp < 2), broad = cell.list.filter(t => t.sp >= 2);
@@ -1030,6 +1067,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         m.instanceMatrix.needsUpdate = true;
         if (m.instanceColor) m.instanceColor.needsUpdate = true;
         scene.add(m);
+        planted.push(m);
       }
       // the fallback's canopy needs the shared cutout depth material; a real
       // tree's parts carry their own alphaTest and three.js derives it
@@ -1039,9 +1077,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // instances, and an off chunk costs nothing at all — not even the
       // vertex shader, and not the shadow pass either.
       const hd = CHW * Math.SQRT1_2;        // chunk half-diagonal
-      nearChunks.push({ m: [trunks].concat(cMesh, bMesh), x: ox, z: oz, r: NEAR_R + hd });
-      impChunks.push({ m: [cImp, bImp], x: ox, z: oz, r: FAR_WOOD + hd });
+      nearChunks.push({ m: [trunks].concat(cMesh, bMesh), x: ox, z: oz, r: NEAR_R + hd, own: true });
+      impChunks.push({ m: [cImp, bImp], x: ox, z: oz, r: FAR_WOOD + hd, own: true });
     }
+    }                                     // ---- end plantWoodland
+
     lodUpdate = cg => {
       for (const list of [nearChunks, impChunks]) for (const t of list) {
         const dx = t.x - cg[0], dz = t.z - cg[2];
@@ -1049,6 +1089,16 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         for (const m of t.m) if (m) m.visible = on;
       }
     };
+    plantWoodland();
+    // ONE CALL, AND IT WAS THE WHOLE OF W0c'S LAST MILE. Everything else was
+    // written and gated: the payload, the codec, the loader, the switch above.
+    // Nothing fetched the bytes, so treeReady() was false at every boot and the
+    // world drew the 14-triangle cone it has drawn since W17. A rejection is
+    // the asset-absent path and already handled — the cone stays.
+    if (typeof treeWarm === 'function' && typeof treeReady === 'function'
+        && !treeReady()) {
+      treeWarm().then(() => { plantWoodland(); }).catch(() => {});
+    }
 
     // ---- W13 dense fill: the collidable set is a 64 m stage-2 grid, so
     // stands render sparse even with the clump layer. This plants
