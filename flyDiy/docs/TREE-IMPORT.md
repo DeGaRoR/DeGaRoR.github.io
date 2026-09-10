@@ -92,10 +92,32 @@ the stand, or the lip of a procedural glade — with a `furnished` fraction mixe
 through the interior, because a stand where every inside tree is a bare pole
 reads empty at density.
 
-## 6. The impostor bake, and the five things that will bite
+## 6. The impostor bake, and the six things that will bite
 
-All five were met and fixed in W0a. They are listed because each one presents
+All six were met and fixed in W0a. They are listed because each one presents
 as "the impostor is missing / wrong" and none of them looks like its cause.
+
+0. **BAKE A G-BUFFER, NOT A PHOTOGRAPH.** This is the one that matters and the
+   one that was got wrong first. A sheet of final shaded RGB is 64 pictures of
+   the tree taken under one sun: nothing can re-light a picture, so the far band
+   does not answer to sunset, to night, to a moved light or to a shadow, and
+   beside geometry that does it reads as cardboard. The atlas holds **albedo +
+   opacity** in one sheet and the tree's **world normal** in a second, baked in
+   the same loop over the same 64 camera bases so the two agree texel for texel;
+   the billboard is then an ordinary `MeshStandardMaterial` whose `normal` comes
+   out of the second sheet, and sun, hemisphere, environment and shadow map all
+   reach it through the code path they reach the geometry through. This is what
+   Epic's octahedral impostor baker writes and why SpeedTree ships a normal map
+   beside every billboard diffuse. Two consequences worth writing down:
+   - the **AO** has to go into the albedo, because there is no third channel for
+     it — but the geometry SPLITS its occlusion (full exponent on the ambient,
+     0.35 of it on the sun), and one albedo cannot. The sheet takes the middle,
+     `pow(ao, aoBake * 0.5)`; with the full exponent the far band measured 0.82x
+     the geometry's brightness.
+   - the bake signature gets SHORTER, not longer. Sky, exposure and the leaf
+     terms no longer reach the sheet, so they must stop invalidating it — a
+     change of light used to cost fifteen rebakes. What does reach it now (and
+     did not before) is the AO dial.
 
 1. **Cache the SIGNATURE, not the name.** An atlas keyed on the tree's name
    outlives every fix made after it. Measured: cached max alpha 0 over 0 texels
@@ -120,6 +142,10 @@ multiply, so lifting dark foliage does not blow a pale trunk white.
 
 Fit `implight` by measuring the impostor against its own geometry at the same
 camera and **bisecting** — the Newton step oscillates. All six land within 2 %.
+Refit it after ANY change to what the sheet holds: going from shaded RGB to
+albedo moved every family (1.17-1.22 -> 0.42 / 1.57 / 1.60 / 1.73 / 1.73 / 1.85),
+and a trim fitted against the old sheet is not a smaller error, it is a wrong
+number that looks like a tuned one.
 
 ## 7. Bake it (W0b)
 

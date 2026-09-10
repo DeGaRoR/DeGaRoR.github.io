@@ -19,7 +19,12 @@
   "ssao": false,
   "aoR": 2.6,
   "aoI": 0.95,
-  "trueScale": true
+  "trueScale": true,
+  "aobake": 2.0,
+  "trunkao": 0.55,
+  "isolid": 1.0,
+  "icut": 0.4,
+  "isph": 0.35
  },
  "included": [
   "fir_tree_georgeous.glb",
@@ -41,7 +46,7 @@
    "dead": 0.12,
    "stick": 0.045,
    "impa": 6,
-   "implight": 1.17
+   "implight": 0.42
   },
   "fir_tree_georgeous.glb": {
    "hue": 0.06,
@@ -55,7 +60,7 @@
    "dead": 0.08,
    "stick": 0.045,
    "impa": 6,
-   "implight": 1.21
+   "implight": 1.57
   },
   "larch_tree.glb": {
    "hue": 0.03,
@@ -69,7 +74,7 @@
    "dead": 0.09,
    "stick": 0.045,
    "impa": 6.5,
-   "implight": 1.19
+   "implight": 1.6
   },
   "mountain_trees.glb": {
    "hue": -0.13,
@@ -84,7 +89,7 @@
    "keepTop": 3,
    "stick": 0.045,
    "impa": 6,
-   "implight": 1.22
+   "implight": 1.85
   },
   "realistic_fir_trees_pack_lods_gameready.glb": {
    "hue": 0.08,
@@ -98,7 +103,7 @@
    "dead": 0.08,
    "stick": 0.045,
    "impa": 6,
-   "implight": 1.19
+   "implight": 1.73
   },
   "spruce_tree.glb": {
    "hue": -0.01,
@@ -112,7 +117,7 @@
    "dead": 0.08,
    "stick": 0.045,
    "impa": 6,
-   "implight": 1.22
+   "implight": 1.73
   },
   "low_poly_forest_tree_pack.glb": {
    "hue": 0.076,

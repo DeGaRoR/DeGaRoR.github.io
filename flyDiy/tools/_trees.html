@@ -148,6 +148,7 @@
     <label>ao bake <input type="range" id="aobake" min="0" max="5" step="0.1" value="2"><i id="aobakeV">2.0</i></label>
     <label>trunk ao <input type="range" id="trunkao" min="0" max="1" step="0.05" value="0.55"><i id="trunkaoV">0.55</i></label>
     <label>imp solid <input type="range" id="isolid" min="0" max="1" step="0.05" value="1"><i id="isolidV">1.00</i></label>
+    <label>imp round <input type="range" id="isph" min="0" max="1" step="0.05" value="0.35"><i id="isphV">0.35</i></label>
     <label>sharp <input type="range" id="sharp" min="0" max="3" step="0.05" value="1"><i id="sharpV">1.00</i></label>
   </span>
   <span class="tune">ao:
@@ -794,6 +795,29 @@ const TINT_GLSL = [
   '}',
 ].join(NL);
 const U_BAKECUT = { value: 0 };
+// AN IMPOSTOR MUST BAKE A G-BUFFER, NOT A PHOTOGRAPH.
+//
+// The sheet used to hold FINAL SHADED RGB: 64 pictures of the tree taken under
+// whatever sun was in the rig at bake time. Nothing can re-light a picture, so
+// the billboards did not react to the sun at all - move it to sunset, drop it
+// below the horizon, and the far band stayed exactly as bright as it was baked,
+// standing in a stand of geometry that had gone orange and then dark. That is
+// not a trim you can dial out; it is the wrong thing in the texture.
+//
+// This is settled ground and we take the settled answer. Epic's octahedral
+// impostor baker - the same fold this bench uses - writes a small G-BUFFER per
+// view: base colour + opacity, world normal, depth; the billboard is then lit
+// at draw by the ordinary shading path. SpeedTree ships its billboards with a
+// normal map beside the diffuse for the identical reason.
+//
+// So the bake runs TWICE over the same 64 camera basis: once for ALBEDO (this
+// flag - surface colour and baked AO, no lights) and once for the tree's own
+// WORLD NORMAL. The draw material is then an ordinary MeshStandardMaterial
+// whose normal comes out of the second sheet, which means sun direction, sun
+// colour, hemisphere fill, the environment and the shadow map all reach the
+// impostor through the SAME code path they reach the geometry through. Night
+// works because nothing special makes it work.
+const U_BAKEALB = { value: 0 };
 
 // WHAT A LEAF DOES THAT A PLANK DOES NOT.
 // Two terms, and between them they are most of why foliage reads as foliage:
@@ -990,6 +1014,7 @@ function hookTint(mat) {
     sh.uniforms.uLeaf = mat.userData.uLeaf;
     sh.uniforms.uAoBake = U_AOBAKE;
     sh.uniforms.uBakeCut = U_BAKECUT;
+    sh.uniforms.uBakeAlb = U_BAKEALB;
     sh.vertexShader = ['attribute float aoV;', 'varying float vAoV;', ''].join(NL) +
       sh.vertexShader.replace('#include <begin_vertex>',
         ['#include <begin_vertex>', 'vAoV = aoV;'].join(NL));
@@ -997,7 +1022,7 @@ function hookTint(mat) {
       'uniform float uLight;', 'uniform float uWrap;', 'uniform float uSSS;',
       'uniform float uSSSP;', 'uniform float uLeaf;', 'uniform float uSharp;',
       'uniform float uCut;', 'uniform float uAoBake;', 'uniform float uBakeCut;',
-      'varying float vAoV;',
+      'uniform float uBakeAlb;', 'varying float vAoV;',
       ''].join(NL) +
       sh.fragmentShader
         .replace('#include <map_fragment>', ['#include <map_fragment>', TINT_GLSL].join(NL))
@@ -1012,10 +1037,31 @@ function hookTint(mat) {
                   // inside [0,1] whatever the dial does, where mix() went
                   // negative past about 5 and blew the canopy white.
                   'float _ao = pow(clamp(vAoV, 0.0, 1.0), uAoBake);',
+                  // THE ALBEDO PASS. Everything the lights put in is thrown
+                  // away and the surface colour written in its place - but the
+                  // AO stays, because occlusion is a property of the TREE and
+                  // travels with it. The bark gradient rides in the same way.
+                  // AND AT WHICH STRENGTH. The geometry SPLITS its occlusion:
+                  // the ambient takes the full exponent, the sun only 0.35 of
+                  // it, because a leaf is not shaded from the sun by having a
+                  // neighbour. A billboard has ONE albedo and cannot split, so
+                  // it takes the middle. Measured with the full exponent the
+                  // far band came out at 0.82x the geometry's brightness -
+                  // dark cardboard behind a lit stand. What is left after this
+                  // is the family's own `implight` gamma, which exists for
+                  // exactly that kind of trim.
+                  'if (uBakeAlb > 0.5) {',
+                  '  float _aoA = pow(clamp(vAoV, 0.0, 1.0), uAoBake * 0.5);',
+                  '  reflectedLight.directDiffuse = diffuseColor.rgb * _aoA;',
+                  '  reflectedLight.indirectDiffuse = vec3(0.0);',
+                  '  reflectedLight.directSpecular = vec3(0.0);',
+                  '  reflectedLight.indirectSpecular = vec3(0.0);',
+                  '} else {',
                   'reflectedLight.indirectDiffuse *= _ao;',
                   // the sun is not stopped by a leaf being near another leaf,
                   // so the direct term takes a much softer share of it
-                  'reflectedLight.directDiffuse *= pow(clamp(vAoV, 0.0, 1.0), uAoBake * 0.35);'
+                  'reflectedLight.directDiffuse *= pow(clamp(vAoV, 0.0, 1.0), uAoBake * 0.35);',
+                  '}'
                  ].join(NL));
   };
   mat.needsUpdate = true;
@@ -1954,7 +2000,7 @@ function rescaleTile(buf, rowW, x0, y0, w, h, target, cutoff) {
   }
 }
 
-function buildAtlasMips(rt, N, G, tile0, cutoff) {
+function buildAtlasMips(rt, N, G, tile0, cutoff, plain) {
   const raw = new Uint8Array(N * N * 4);
   const pRT = renderer.getRenderTarget();
   renderer.readRenderTargetPixels(rt, 0, 0, N, N, raw);
@@ -1985,7 +2031,8 @@ function buildAtlasMips(rt, N, G, tile0, cutoff) {
       }
     }
     tile = tile >> 1;
-    if (tile >= 1) {
+    if (plain) { /* a normal sheet keeps its straight average - see mkTex */ }
+    else if (tile >= 1) {
       for (let ty = 0; ty < G; ty++) for (let tx = 0; tx < G; tx++)
         rescaleTile(nd, nw, tx * tile, ty * tile, tile, tile, target[ty * G + tx], cutoff);
     } else {
@@ -1995,6 +2042,49 @@ function buildAtlasMips(rt, N, G, tile0, cutoff) {
     cur = nd; w = nw; h = nh;
   }
   return mips;
+}
+
+// THE SECOND HALF OF THE G-BUFFER. One material per source material, cut out
+// by the same map and the same threshold the albedo pass uses, so the two
+// sheets agree texel for texel and a normal is never read where there is no
+// leaf. World space rather than view space: the tile is looked up from a
+// DIRECTION, not from a camera, and a view-space normal would have to be
+// un-rotated by a matrix the draw does not have.
+function normalMatFor(src) {
+  let m = src.userData.nrmMat;
+  if (!m) {
+    m = new THREE.ShaderMaterial({
+      uniforms: { map: { value: null }, uCut: { value: 0.5 }, uHasMap: { value: 0 } },
+      vertexShader: [
+        'varying vec3 vWN;', 'varying vec2 vUvN;',
+        'void main() {',
+        '  vWN = normalize(mat3(modelMatrix) * normal);',
+        '  vUvN = uv;',
+        '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);',
+        '}',
+      ].join(NL),
+      fragmentShader: [
+        'uniform sampler2D map;', 'uniform float uCut, uHasMap;',
+        'varying vec3 vWN;', 'varying vec2 vUvN;',
+        'void main() {',
+        '  if (uHasMap > 0.5 && texture2D(map, vUvN).a < uCut) discard;',
+        // a leaf card is DoubleSide and its far face's normal points away from
+        // the light that is meant to be reaching it
+        '  vec3 n = normalize(vWN);',
+        '  if (!gl_FrontFacing) n = -n;',
+        '  gl_FragColor = vec4(n * 0.5 + 0.5, 1.0);',
+        '}',
+      ].join(NL),
+    });
+    src.userData.nrmMat = m;
+  }
+  // refreshed every bake: the dials move uCut, and a map can decode late
+  const cutout = src.userData.alphaMode !== 'OPAQUE';
+  m.uniforms.map.value = src.map || null;
+  m.uniforms.uCut.value = src.userData.uCut ? src.userData.uCut.value : (src.alphaTest || 0.5);
+  m.uniforms.uHasMap.value = (cutout && src.map && src.map.image) ? 1 : 0;
+  m.side = src.side;
+  return m;
 }
 
 function bakeImpostor(proto, tile) {
@@ -2009,10 +2099,11 @@ function bakeImpostor(proto, tile) {
   const R = Math.max(size.x, size.y, size.z) * 0.5;
   const M = R * 1.12;                    // 12% gutter: mips bleed across tiles
   const N = IMP_G * TILE;
-  const rt = new THREE.WebGLRenderTarget(N, N, {
+  const mkRT = () => new THREE.WebGLRenderTarget(N, N, {
     minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter,
     format: THREE.RGBAFormat, generateMipmaps: false,   // built on the CPU below
   });
+  const rt = mkRT(), rtN = mkRT();       // albedo+coverage, and world normal
   const sc = new THREE.Scene();
   sc.add(staged);
   sc.environment = scene.environment;
@@ -2021,13 +2112,12 @@ function bakeImpostor(proto, tile) {
   dl.target.position.set(0, cy, 0);
   sc.add(dl, dl.target);
   sc.add(new THREE.HemisphereLight(fill.color.clone(), fill.groundColor.clone(), fill.intensity));
-  // THE TILE MUST CARRY THE TREE'S OWN SHADOW. Baked without one, every
-  // impostor is lit flat on all sides while the geometry standing beside it
-  // has a shaded interior and a dark underside - so the billboard reads paler
-  // than its own model, which is the residual "a tad too light when lit".
-  // The light and the tree do not move across the 64 tiles, so the map is
-  // rendered once and held.
-  dl.castShadow = SHADOWS;
+  // THE TILE NO LONGER CARRIES A SHADOW, and that is the point of the change
+  // above: a baked shadow is a baked SUN, and this sheet has to work under any.
+  // What is left of the tree's own interior darkening is the AO, which IS a
+  // property of the tree and travels with it into the albedo pass. So the
+  // shadow map is off here; it would cost 64 tiles' worth of nothing.
+  dl.castShadow = false;
   dl.shadow.mapSize.set(2048, 2048);
   dl.shadow.bias = -0.0008;
   dl.shadow.normalBias = 0.02;
@@ -2083,7 +2173,16 @@ function bakeImpostor(proto, tile) {
   // tile, and the atlas came out as a canopy smeared across the middle: 100%
   // coverage on a top-down tile whose geometry can only reach 30%. Setting the
   // rect on the target and re-binding per tile is the form that survives it.
-  for (let j = 0; j < IMP_G; j++) for (let i = 0; i < IMP_G; i++) {
+  // ONE CAMERA BASIS, TWO SHEETS. The fold, the roll and the tile rect are
+  // computed once and used by both passes, so albedo texel (x,y) and normal
+  // texel (x,y) are the same point on the same tree - which is the whole
+  // reason the draw is allowed to light one with the other.
+  const drawAll = target => {
+   renderer.setRenderTarget(target);
+   renderer.autoClear = false;
+   renderer.setClearColor(0x000000, 0);
+   renderer.clear(true, true, false);
+   for (let j = 0; j < IMP_G; j++) for (let i = 0; i < IMP_G; i++) {
     const d = impDir(i, j);
     // THE BAKE'S BASIS MUST BE THE BILLBOARD'S BASIS, exactly, or the tile is
     // sampled with the wrong ROLL and a near-vertical view smears into a pale
@@ -2098,16 +2197,29 @@ function bakeImpostor(proto, tile) {
     cam.position.copy(ctr).addScaledVector(d, R * 4);
     cam.lookAt(ctr);
     cam.updateProjectionMatrix();
-    rt.viewport.set(i * TILE, j * TILE, TILE, TILE);
-    rt.scissor.set(i * TILE, j * TILE, TILE, TILE);
-    rt.scissorTest = true;
-    renderer.setRenderTarget(rt);        // re-asserts the tile rect every time
+    target.viewport.set(i * TILE, j * TILE, TILE, TILE);
+    target.scissor.set(i * TILE, j * TILE, TILE, TILE);
+    target.scissorTest = true;
+    renderer.setRenderTarget(target);    // re-asserts the tile rect every time
     renderer.clearDepth();
     renderer.render(sc, cam);
-  }
-  rt.scissorTest = false;
-  rt.viewport.set(0, 0, N, N);
-  rt.scissor.set(0, 0, N, N);
+   }
+   target.scissorTest = false;
+   target.viewport.set(0, 0, N, N);
+   target.scissor.set(0, 0, N, N);
+  };
+
+  U_BAKEALB.value = 1;                   // pass 1 - surface colour, no lights
+  drawAll(rt);
+  U_BAKEALB.value = 0;
+  const swap = [];                       // pass 2 - the tree's own normals
+  staged.traverse(o => {
+    if (!o.isMesh || !o.material || o.material.isShaderMaterial) return;
+    swap.push([o, o.material]);
+    o.material = normalMatFor(o.material);
+  });
+  drawAll(rtN);
+  for (const [o, mm] of swap) o.material = mm;
   renderer.setViewport(0, 0, cv.width, cv.height);
   renderer.setRenderTarget(pRT);
   renderer.autoClear = pAC;
@@ -2123,17 +2235,26 @@ function bakeImpostor(proto, tile) {
   // The cutoff is U_ICUT, the point the impostor's alpha curve is centred on -
   // a coverage target only means anything against the threshold it will be
   // tested at.
+  const mkTex = ms => {
+    const t = new THREE.DataTexture(ms[0].data, N, N, THREE.RGBAFormat);
+    t.mipmaps = ms;
+    t.generateMipmaps = false;
+    t.minFilter = THREE.LinearMipmapLinearFilter;
+    t.magFilter = THREE.LinearFilter;
+    t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+    t.flipY = false;
+    t.needsUpdate = true;
+    return t;
+  };
   const mips = buildAtlasMips(rt, N, IMP_G, TILE, Math.round(255 * U_ICUT.value));
-  const tex = new THREE.DataTexture(mips[0].data, N, N, THREE.RGBAFormat);
-  tex.mipmaps = mips;
-  tex.generateMipmaps = false;
-  tex.minFilter = THREE.LinearMipmapLinearFilter;
-  tex.magFilter = THREE.LinearFilter;
-  tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
-  tex.flipY = false;
-  tex.needsUpdate = true;
-  rt.dispose();
-  return { tex: tex, cy: cy, diam: 2 * M, tile: TILE, mips: mips.length };
+  // The NORMAL sheet takes a STRAIGHT chain. Coverage preservation is an alpha
+  // correction fitted to keep a cutout's silhouette alive as it shrinks; a
+  // normal has no silhouette to keep, and rescaling its alpha would only make
+  // the two sheets disagree about where the tree is.
+  const mipsN = buildAtlasMips(rtN, N, IMP_G, TILE, Math.round(255 * U_ICUT.value), true);
+  const tex = mkTex(mips), nrm = mkTex(mipsN);
+  rt.dispose(); rtN.dispose();
+  return { tex: tex, nrm: nrm, cy: cy, diam: 2 * M, tile: TILE, mips: mips.length };
 }
 
 // ==========================================================================
@@ -2189,6 +2310,18 @@ const IMP_FIELDS = [];
 // beside `alpha` and `stick`.
 const U_ICUT   = { value: 0.40 };  // where the curve is centred
 const U_ISOLID = { value: 1.0 };   // 0 = averaged silhouette, 1 = the union
+// HOW ROUND A BILLBOARD'S CROWN IS ALLOWED TO BE.
+//
+// The baked normal is honest but it is the normal of a LEAF CARD, and in most
+// of these packs those cards are authored flat and roughly face-on to the
+// crown's surface. Averaged over a tile that reads close to "faces the bake
+// camera", which means a crown shaded almost uniformly - right in direction,
+// thin in relief. The standard remedy, and the one SpeedTree's billboards use,
+// is to blend toward a HEMISPHERE normal built from the quad's own uv: the
+// crown then picks up a lit side and a shaded side the way a ball does. It
+// follows the camera, so too much of it and the stand shades as you turn; this
+// is a dial for that reason and not a constant.
+const U_ISPH = { value: 0.35 };
 
 // `light` trims the tile against the model it stands for. It is a TRIM and not
 // a correction of the physics: an orthographic bake of a sparse crown keeps the
@@ -2210,9 +2343,13 @@ const IMP_SAMPLE = [
   'if (gf.x + gf.y < 1.0) { cA = vec2(0.0); wB = vec3(1.0 - gf.x - gf.y, gf.x, gf.y); }',
   'else { cA = vec2(1.0); wB = vec3(gf.x + gf.y - 1.0, 1.0 - gf.y, 1.0 - gf.x); }',
   'vec2 qv = (vUv * (1.0 - 2.0 / float(IMP_TILE_JS)) + 1.0 / float(IMP_TILE_JS)) / uG;',
-  'vec4 t0 = texture2D(map, (g0 + cA) / uG + qv);',
-  'vec4 t1 = texture2D(map, (g0 + cB) / uG + qv);',
-  'vec4 t2 = texture2D(map, (g0 + cC) / uG + qv);',
+  // hoisted: the normal sheet is sampled at exactly these three points
+  'vec2 uvA = (g0 + cA) / uG + qv;',
+  'vec2 uvB = (g0 + cB) / uG + qv;',
+  'vec2 uvC = (g0 + cC) / uG + qv;',
+  'vec4 t0 = texture2D(map, uvA);',
+  'vec4 t1 = texture2D(map, uvB);',
+  'vec4 t2 = texture2D(map, uvC);',
   'float aMix = dot(wB, vec3(t0.a, t1.a, t2.a));',
   'vec3 rgbI = (t0.rgb * wB.x + t1.rgb * wB.y + t2.rgb * wB.z) / max(aMix, 1e-4);',
   'float aSol = max(max(t0.a, t1.a), t2.a);',
@@ -2308,9 +2445,31 @@ function impostorCasterDepth(atlas) {
   return m;
 }
 
+// AN IMPOSTOR IS AN ORDINARY SURFACE WITH A BAKED NORMAL.
+//
+// Everything before this tried to fix the shading at the draw and could not,
+// because the fault was in the texture: the sheet held a photograph taken under
+// one sun, and a photograph cannot be re-lit. A MeshBasicMaterial made that
+// visible (no lights at all); a MeshLambertMaterial with the shadow mask patched
+// over its output made it slightly less visible on the shaded face and still did
+// nothing at sunset or at night. The sheet is a G-BUFFER now - see U_BAKEALB -
+// so the right material is the plain one:
+//
+//   MeshStandardMaterial, roughness 1, metalness 0, with `normal` replaced by
+//   the baked world normal. That single substitution buys the whole lighting
+//   rig at once, because it is the SAME rig: sun direction and colour through
+//   `lights_fragment_begin`, the hemisphere fill and the environment through
+//   `lights_fragment_maps`, the shadow map through the per-light shadow term,
+//   and the leaf wrap and translucency through the very same LEAF_GLSL the
+//   geometry foliage is shaded with. Nothing here knows what time of day it is.
+//
+// The albedo is decoded from sRGB by hand because the stock <map_fragment> is
+// replaced wholesale by the atlas fold, and the sheet was written through the
+// renderer's own output encoding.
 function impostorMaterial(atlas, gain, light) {
-  const m = new THREE.MeshBasicMaterial({
+  const m = new THREE.MeshStandardMaterial({
     map: atlas.tex, alphaTest: 0.28, side: THREE.DoubleSide, transparent: false,
+    roughness: 1, metalness: 0,
   });
   m.alphaToCoverage = A2C;
   // the gain is kept reachable so the dial can move it without a rebuild
@@ -2322,6 +2481,15 @@ function impostorMaterial(atlas, gain, light) {
     sh.uniforms.uILight = m.userData.uILight;
     sh.uniforms.uICut = U_ICUT;
     sh.uniforms.uISolid = U_ISOLID;
+    sh.uniforms.uISph = U_ISPH;
+    sh.uniforms.uNrm = { value: atlas.nrm };
+    sh.uniforms.uWrap = U_WRAP;
+    sh.uniforms.uSSS = U_SSS;
+    sh.uniforms.uSSSP = U_SSSP;
+    // the whole billboard takes the leaf terms. A trunk is a few percent of an
+    // impostor's pixels at the range one is drawn at, and a separate leafness
+    // mask would cost a third sheet to save something nobody can see.
+    sh.uniforms.uLeaf = { value: 1 };
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>',
         ['#include <common>', 'attribute vec3 impDir;', 'varying vec3 vImpDir;'].join(NL))
@@ -2329,8 +2497,17 @@ function impostorMaterial(atlas, gain, light) {
         ['#include <begin_vertex>', 'vImpDir = impDir;'].join(NL));
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>',
-        ['#include <common>', 'uniform float uG, uIGain, uICut, uISolid, uILight;',
-         'varying vec3 vImpDir;'].join(NL))
+        ['#include <common>',
+         'uniform float uG, uIGain, uICut, uISolid, uILight, uISph;',
+         'uniform sampler2D uNrm;', 'varying vec3 vImpDir;',
+         // LEAF_GLSL's own dials, which hookTint declares for the geometry
+         'uniform float uWrap, uSSS, uSSSP, uLeaf;',
+         // written out rather than borrowed: <map_fragment> and its
+         // mapTexelToLinear are replaced below, so the decode has to be here
+         'vec3 impSRGB(vec3 c) {',
+         '  return mix(pow((c + 0.055) / 1.055, vec3(2.4)), c / 12.92,',
+         '             step(c, vec3(0.04045)));',
+         '}'].join(NL))
       .replace('#include <map_fragment>',
         IMP_SAMPLE.concat([
           // A GAMMA, NOT A MULTIPLY. Every collection needed brightening after
@@ -2339,10 +2516,39 @@ function impostorMaterial(atlas, gain, light) {
           // texture. A gamma lifts the dark end and leaves what is already
           // bright where it is, which is the correction that was actually
           // wanted: the foliage was dark, the bark was not.
-          'vec3 rgbT = pow(max(rgbI, vec3(0.0)), vec3(1.0 / max(uILight, 0.05)));',
-          'vec4 texelColor = vec4(rgbT, aOut);',
-          'diffuseColor *= texelColor;'])
-          .join(NL).replace(/IMP_TILE_JS/g, String(atlas.tile || IMP_TILE)));
+          'vec3 rgbT = pow(clamp(rgbI, 0.0, 1.0), vec3(1.0 / max(uILight, 0.05)));',
+          'diffuseColor *= vec4(impSRGB(rgbT), aOut);',
+          // ---- and now the other half of the G-buffer ----
+          // The same three taps, un-premultiplied by the normal sheet's OWN
+          // alpha: its mips are a straight average, so an empty texel pulls a
+          // normal toward (-1,-1,-1) unless it is divided back out.
+          'vec4 n0 = texture2D(uNrm, uvA);',
+          'vec4 n1 = texture2D(uNrm, uvB);',
+          'vec4 n2 = texture2D(uNrm, uvC);',
+          'float nW = dot(wB, vec3(n0.a, n1.a, n2.a));',
+          'vec3 nEnc = (n0.rgb * wB.x + n1.rgb * wB.y + n2.rgb * wB.z) / max(nW, 1e-4);',
+          'vec3 nBake = nEnc * 2.0 - 1.0;',
+          'if (dot(nBake, nBake) < 1e-4) nBake = dI;',   // no leaf: face the eye
+          // the hemisphere, in the billboard's own basis - same right/up the
+          // bake camera and the CPU quad are built with, pole fallback included
+          'vec3 rgtW = abs(dI.y) > 0.999 ? vec3(1.0, 0.0, 0.0)',
+          '                              : normalize(vec3(dI.z, 0.0, -dI.x));',
+          'vec3 upW = cross(dI, rgtW);',
+          'vec2 spN = vUv * 2.0 - 1.0;',
+          'vec3 nSph = normalize(rgtW * spN.x + upW * spN.y',
+          '                      + dI * sqrt(clamp(1.0 - dot(spN, spN), 0.0, 1.0)));',
+          'vec3 nImpW = normalize(mix(normalize(nBake), nSph, uISph));',
+          // the lighting chain works in VIEW space
+          'vec3 nImpV = normalize((viewMatrix * vec4(nImpW, 0.0)).xyz);'])
+          .join(NL).replace(/IMP_TILE_JS/g, String(atlas.tile || IMP_TILE)))
+      // the substitution that buys the rig: both of them, because
+      // lights_fragment_maps reads geometryNormal for the environment
+      .replace('#include <normal_fragment_maps>',
+        ['#include <normal_fragment_maps>', 'normal = nImpV;',
+         'geometryNormal = nImpV;'].join(NL))
+      // and the leaf terms, verbatim from the geometry foliage
+      .replace('#include <lights_fragment_end>',
+        ['#include <lights_fragment_end>', LEAF_GLSL].join(NL));
   };
   return m;
 }
@@ -2379,7 +2585,7 @@ function makeImpField(atlas, gain, light, sink) {
     F.mesh = new THREE.Mesh(g, impostorMaterial(F.atlas, F.gain, F.light));
     F.mesh.frustumCulled = false;
     F.mesh.castShadow = false;
-    F.mesh.receiveShadow = false;
+    F.mesh.receiveShadow = true;     // it takes the map now; see impostorMaterial
     // applyShadows() re-enables castShadow on everything in the stage, and
     // without a depth material of its own the billboard is back to laying a
     // solid rectangle. The decal below IS its shadow; flag both out of the map.
@@ -2538,8 +2744,14 @@ function impBakeSig(name) {
   const built = cache[name];
   let nMap = 0, nReady = 0;
   if (built) for (const m of built.mats) if (m.map) { nMap++; if (m.map.image) nReady++; }
+  // AND WHAT NO LONGER BELONGS HERE. The sheet used to hold shaded RGB, so
+  // the sky, the exposure and the leaf terms were all baked into it and every
+  // one of them had to invalidate the atlas - changing the light meant fifteen
+  // rebakes. It holds ALBEDO and NORMALS now: none of those reach it, and the
+  // ones that do are the ones that change the tree itself. The AO is new to
+  // the list for the same reason - it is IN the albedo now.
   return [t.hue, t.sat, t.light, t.bark, t.alpha, t.sink, t.dead, t.stick,
-          MIPFIX ? 1 : 0, $('sky').value, EXPO, U_WRAP.value, U_SSS.value,
+          MIPFIX ? 1 : 0, U_AOBAKE.value,
           CROWN_STRETCH, CROWN_W, TRUNK_DARK, nMap, nReady].join(',');
 }
 function impostorFor(key, proto, name, tile) {
@@ -2547,6 +2759,7 @@ function impostorFor(key, proto, name, tile) {
   const hit = IMP_CACHE.get(key);
   if (hit && hit.sig === sig) return hit;
   if (hit && hit.tex) hit.tex.dispose();    // 4 MB a tile-sheet; do not leak them
+  if (hit && hit.nrm) hit.nrm.dispose();    // and the normal sheet is a second
   const at = bakeImpostor(proto, tile);
   if (at) at.sig = sig;
   IMP_CACHE.set(key, at);
@@ -3435,19 +3648,34 @@ $('trunkao').oninput = e => {
   TRUNK_DARK = +e.target.value;
   $('trunkaoV').textContent = TRUNK_DARK.toFixed(2);
   AO_DONE = new WeakSet();               // it is BAKED, so it must be re-baked
-  IMP_CACHE.forEach(v => { if (v && v.tex) v.tex.dispose(); });
+  IMP_CACHE.forEach(v => {
+    if (v && v.tex) v.tex.dispose();
+    if (v && v.nrm) v.nrm.dispose();
+  });
   IMP_CACHE.clear();
   if (MODE === 'forest') showForest(); else if (CUR) load(CUR, true);
 };
 $('aobake').oninput = e => {
   U_AOBAKE.value = +e.target.value;
   $('aobakeV').textContent = U_AOBAKE.value.toFixed(1);
-  render();
+  // the impostor carries its occlusion IN the sheet now, so moving this dial
+  // has to rebake - otherwise the far band silently keeps the old value
+  IMP_CACHE.forEach(v => {
+    if (v && v.tex) v.tex.dispose();
+    if (v && v.nrm) v.nrm.dispose();
+  });
+  IMP_CACHE.clear();
+  if (MODE === 'forest') showForest(); else render();
 };
 $('crownw').oninput = e => {
   CROWN_W = +e.target.value;
   $('crownwV').textContent = CROWN_W.toFixed(2);
   if (MODE === 'variants' && CUR) load(CUR, true);
+};
+$('isph').oninput = e => {
+  U_ISPH.value = +e.target.value;
+  $('isphV').textContent = U_ISPH.value.toFixed(2);
+  render();
 };
 $('isolid').oninput = e => {
   U_ISOLID.value = +e.target.value;
@@ -3547,7 +3775,9 @@ $('expo').onclick = () => {
     master: MASTER,
     view: { sky: $('sky').value, ev: EXPO, shadows: SHADOWS, sharp: U_SHARP.value,
             wrap: U_WRAP.value, sss: U_SSS.value, a2c: A2C, mips: MIPFIX,
-            ssao: SSAO_ON, aoR: SSAO_R, aoI: SSAO_I, trueScale: TRUE_SCALE },
+            ssao: SSAO_ON, aoR: SSAO_R, aoI: SSAO_I, trueScale: TRUE_SCALE,
+            aobake: U_AOBAKE.value, trunkao: TRUNK_DARK, isolid: U_ISOLID.value,
+            icut: U_ICUT.value, isph: U_ISPH.value },
     included: Object.keys(PICK).filter(k => PICK[k]),
     measured: MEAS,
     tuning: TUNE,
@@ -3754,6 +3984,11 @@ setInterval(render, 120);
         SSAO_ON = false;
         if (V.aoR !== undefined) SSAO_R = V.aoR;
         if (V.aoI !== undefined) SSAO_I = V.aoI;
+        if (V.aobake !== undefined) U_AOBAKE.value = V.aobake;
+        if (V.trunkao !== undefined) TRUNK_DARK = V.trunkao;
+        if (V.isolid !== undefined) U_ISOLID.value = V.isolid;
+        if (V.icut !== undefined) U_ICUT.value = V.icut;
+        if (V.isph !== undefined) U_ISPH.value = V.isph;
         if (V.trueScale !== undefined) TRUE_SCALE = !!V.trueScale;
         VIEW_SKY = V.sky;
       }
@@ -3809,6 +4044,10 @@ setInterval(render, 120);
   $('sss').value = U_SSS.value; $('sssV').textContent = U_SSS.value.toFixed(2);
   $('aoR').value = SSAO_R; $('aoRV').textContent = SSAO_R.toFixed(1);
   $('aoI').value = SSAO_I; $('aoIV').textContent = SSAO_I.toFixed(2);
+  $('aobake').value = U_AOBAKE.value; $('aobakeV').textContent = U_AOBAKE.value.toFixed(1);
+  $('trunkao').value = TRUNK_DARK; $('trunkaoV').textContent = TRUNK_DARK.toFixed(2);
+  $('isolid').value = U_ISOLID.value; $('isolidV').textContent = U_ISOLID.value.toFixed(2);
+  $('isph').value = U_ISPH.value; $('isphV').textContent = U_ISPH.value.toFixed(2);
   $('a2c').classList.toggle('on', A2C);
   $('mipfix').classList.toggle('on', MIPFIX);
   $('shadow').classList.toggle('on', SHADOWS);
