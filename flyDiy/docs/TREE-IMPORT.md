@@ -118,6 +118,35 @@ as "the impostor is missing / wrong" and none of them looks like its cause.
      terms no longer reach the sheet, so they must stop invalidating it — a
      change of light used to cost fifteen rebakes. What does reach it now (and
      did not before) is the AO dial.
+   - **the sheet is written in the TARGET's encoding, not the renderer's.**
+     r128 picks it as `null !== target ? target.texture.encoding :
+     renderer.outputEncoding`, and a `WebGLRenderTarget`'s texture is
+     `LinearEncoding` by default. So an albedo pass under `outputEncoding =
+     sRGBEncoding` lands LINEAR, and a draw that decodes it as sRGB is a flat
+     2.2x too dark over the whole far band — which is exactly what the first
+     G-buffer build shipped. Set `rt.texture.encoding = THREE.sRGBEncoding` on
+     the albedo target, and keep sRGB rather than dropping the decode: eight
+     bits of LINEAR is the wrong container for foliage, where an albedo near
+     0.03–0.15 is eight to thirty-eight levels. The NORMAL target stays linear.
+
+   Two dials come out of this and neither is a fudge. **`imp lit`** is the
+   tier's own gain on everything the lights put in — and it must scale all FOUR
+   reflected terms, because at roughness 1 the physical model's multiscatter
+   term rides on the sky irradiance rather than on the albedo and measured 39.7
+   of the band's 55.6 luminance; scaling only the diffuse left a floor that ate
+   the dial. **`imp round`** blends the baked normal toward a hemisphere built
+   from the quad's own uv; measured at MATCHED brightness it LOSES relief
+   (sd 22.4 at 0 against 20.7 at 1, the geometry's being 26.4), so the default
+   is 0 — the sheet's normals carry real per-card variation and smoothing them
+   is a loss, whatever one expects of leaf cards. With the albedo right, every
+   family's `implight` gamma goes back to 1.0 and ONE tier gain of 0.6 holds the
+   far band within 7 % of the geometry across five skies.
+
+   And a snag is not a crown. The alpha curve is centred on 0.40, which is right
+   for a leaf texel only one of three views carries; a bare trunk's branch is
+   one texel wide and arrives at 0.2–0.3 along its whole length, so it survives
+   in places and is discarded in others and the branch comes and goes every few
+   pixels. The snag series gets its own centre (0.10).
 
 1. **Cache the SIGNATURE, not the name.** An atlas keyed on the tree's name
    outlives every fix made after it. Measured: cached max alpha 0 over 0 texels
@@ -142,10 +171,14 @@ multiply, so lifting dark foliage does not blow a pale trunk white.
 
 Fit `implight` by measuring the impostor against its own geometry at the same
 camera and **bisecting** — the Newton step oscillates. All six land within 2 %.
-Refit it after ANY change to what the sheet holds: going from shaded RGB to
-albedo moved every family (1.17-1.22 -> 0.42 / 1.57 / 1.60 / 1.73 / 1.73 / 1.85),
-and a trim fitted against the old sheet is not a smaller error, it is a wrong
-number that looks like a tuned one.
+Refit it after ANY change to what the sheet holds — a trim fitted against an
+older sheet is not a smaller error, it is a wrong number that looks like a tuned
+one. That said, the better outcome is not needing it: under a correct G-buffer
+the impostor's albedo IS the tree's albedo, and once the sheet's ENCODING was
+right (§6 trap 0) every family came back to `implight` 1.0 with one global tier
+gain carrying the difference. A big per-family spread is a smell — the first
+refit produced 0.42 to 1.85 and every one of those numbers was compensating for
+the same 2.2x encoding bug.
 
 ## 7. Bake it (W0b)
 

@@ -148,7 +148,8 @@
     <label>ao bake <input type="range" id="aobake" min="0" max="5" step="0.1" value="2"><i id="aobakeV">2.0</i></label>
     <label>trunk ao <input type="range" id="trunkao" min="0" max="1" step="0.05" value="0.55"><i id="trunkaoV">0.55</i></label>
     <label>imp solid <input type="range" id="isolid" min="0" max="1" step="0.05" value="1"><i id="isolidV">1.00</i></label>
-    <label>imp round <input type="range" id="isph" min="0" max="1" step="0.05" value="0.35"><i id="isphV">0.35</i></label>
+    <label>imp round <input type="range" id="isph" min="0" max="1" step="0.05" value="0"><i id="isphV">0.00</i></label>
+    <label>imp lit <input type="range" id="ilit" min="0.2" max="3" step="0.05" value="0.6"><i id="ilitV">0.60</i></label>
     <label>sharp <input type="range" id="sharp" min="0" max="3" step="0.05" value="1"><i id="sharpV">1.00</i></label>
   </span>
   <span class="tune">ao:
@@ -2104,6 +2105,19 @@ function bakeImpostor(proto, tile) {
     format: THREE.RGBAFormat, generateMipmaps: false,   // built on the CPU below
   });
   const rt = mkRT(), rtN = mkRT();       // albedo+coverage, and world normal
+  // THE SHEET IS WRITTEN IN THE TARGET'S ENCODING, NOT THE RENDERER'S. r128
+  // picks it as `null !== target ? target.texture.encoding : renderer.output-
+  // Encoding`, and a WebGLRenderTarget's texture is LinearEncoding by default -
+  // so the albedo was landing linear while the draw decoded it as sRGB, which
+  // is a flat 2.2x too dark across the whole far band. That was the "much too
+  // dark" the stand showed, and no amount of gain is the right answer to it.
+  //
+  // sRGB rather than "drop the decode", because eight bits of LINEAR is the
+  // wrong container for foliage: a leaf's albedo sits near 0.03-0.15, which is
+  // eight to thirty-eight levels. sRGB spends its precision where the tree is.
+  // The NORMAL sheet stays linear - it is not a colour, and its material writes
+  // gl_FragColor raw, with no encodings_fragment to apply one anyway.
+  rt.texture.encoding = THREE.sRGBEncoding;
   const sc = new THREE.Scene();
   sc.add(staged);
   sc.environment = scene.environment;
@@ -2310,18 +2324,41 @@ const IMP_FIELDS = [];
 // beside `alpha` and `stick`.
 const U_ICUT   = { value: 0.40 };  // where the curve is centred
 const U_ISOLID = { value: 1.0 };   // 0 = averaged silhouette, 1 = the union
-// HOW ROUND A BILLBOARD'S CROWN IS ALLOWED TO BE.
+// HOW ROUND A BILLBOARD'S CROWN IS ALLOWED TO BE, and why it needs to be round
+// at all when there is a real baked normal to hand.
 //
-// The baked normal is honest but it is the normal of a LEAF CARD, and in most
-// of these packs those cards are authored flat and roughly face-on to the
-// crown's surface. Averaged over a tile that reads close to "faces the bake
-// camera", which means a crown shaded almost uniformly - right in direction,
-// thin in relief. The standard remedy, and the one SpeedTree's billboards use,
-// is to blend toward a HEMISPHERE normal built from the quad's own uv: the
-// crown then picks up a lit side and a shaded side the way a ball does. It
-// follows the camera, so too much of it and the stand shades as you turn; this
-// is a dial for that reason and not a constant.
-const U_ISPH = { value: 0.35 };
+// MEASURED: the normal sheet's average vector keeps a length of 0.78-1.0 all
+// the way down its mip chain. That is not a mip problem, it is the answer to
+// the question - the leaf cards in these packs very nearly AGREE, and what they
+// agree on is facing the bake camera. So the baked normal of a whole crown is
+// one direction, pointing at the eye. Two consequences, and they are exactly
+// the two faults the far band showed:
+//
+//   NO RELIEF. One normal over the crown means one N.L over the crown, so the
+//   billboard lights up as a flat cutout where the geometry beside it has a lit
+//   flank and a shaded one.
+//
+//   TOO DARK. A normal pointing at the EYE is the worst case for a sun that is
+//   anywhere else. Every low sun in the rig lands near the terminator of every
+//   billboard at once.
+//
+// The remedy is the one SpeedTree's billboards use: a HEMISPHERE normal built
+// from the quad's own uv, in the billboard's own basis - a genuine outward
+// normal of a sphere the size of the crown, so the left of the crown faces
+// left and the top faces up, and the sun finds a side of it. It follows the
+// camera, which is inherent to a billboard and the reason this is a dial.
+const U_ISPH = { value: 0 };   // MEASURED: 0 keeps the most relief, see below
+// AND ONE DIAL FOR THE WHOLE FAR BAND. `implight` is a per-family gamma on the
+// ALBEDO and it is fitted, not tasted; this multiplies what the tier finally
+// emits, after the sun and the ambient have had it. Two different jobs and they
+// do not substitute for each other: a gamma changes the relationship between a
+// tree's dark and light parts, this changes how much of the stand's light the
+// billboards keep. When the far band reads dark against the geometry, this is
+// the dial to reach for first.
+const U_ILIT = { value: 0.6 };
+// where a snag's alpha curve is centred instead of the crown's 0.40 - see
+// impostorMaterial
+const SNAG_CUT = 0.10;
 
 // `light` trims the tile against the model it stands for. It is a TRIM and not
 // a correction of the physics: an orthographic bake of a sparse crown keeps the
@@ -2466,7 +2503,23 @@ function impostorCasterDepth(atlas) {
 // The albedo is decoded from sRGB by hand because the stock <map_fragment> is
 // replaced wholesale by the atlas fold, and the sheet was written through the
 // renderer's own output encoding.
-function impostorMaterial(atlas, gain, light) {
+// A BARE TRUNK IS NOT A CROWN AND MUST NOT BE TREATED LIKE ONE.
+//
+// MEASURED, by dumping the sheet: the snag's albedo tile is a clean tan
+// skeleton. What shredded it into a string of detached dots was the DRAW. The
+// alpha curve is centred on uICut = 0.40, which is right for foliage - a leaf
+// texel that only one of the three views carries should not be drawn solid. A
+// snag's branch is one texel wide and mip-softened, so it arrives at 0.2-0.3
+// along its whole length: above the curve's centre it survives, below it is
+// discarded, and the branch comes and goes every few pixels. Alpha-to-coverage
+// then dithers what is left.
+//
+// So the curve's CENTRE rides on the material. A snag's is low: anything the
+// sheet says is there at all is drawn, and the branch is continuous and very
+// slightly thick - which is the same trade the coverage-preserving mips make,
+// and for the same reason. A thing that is too thin to resolve should read as
+// present, not as flickering.
+function impostorMaterial(atlas, gain, light, solid, cut) {
   const m = new THREE.MeshStandardMaterial({
     map: atlas.tex, alphaTest: 0.28, side: THREE.DoubleSide, transparent: false,
     roughness: 1, metalness: 0,
@@ -2475,13 +2528,16 @@ function impostorMaterial(atlas, gain, light) {
   // the gain is kept reachable so the dial can move it without a rebuild
   m.userData.uIGain = { value: gain === undefined ? 6 : gain };
   m.userData.uILight = { value: light === undefined ? 1 : light };
+  m.userData.uISolid = (solid === undefined) ? U_ISOLID : { value: solid };
+  m.userData.uICut = (cut === undefined) ? U_ICUT : { value: cut };
   m.onBeforeCompile = sh => {
     sh.uniforms.uG = { value: IMP_G };
     sh.uniforms.uIGain = m.userData.uIGain;
     sh.uniforms.uILight = m.userData.uILight;
-    sh.uniforms.uICut = U_ICUT;
-    sh.uniforms.uISolid = U_ISOLID;
+    sh.uniforms.uICut = m.userData.uICut;
+    sh.uniforms.uISolid = m.userData.uISolid;
     sh.uniforms.uISph = U_ISPH;
+    sh.uniforms.uILit = U_ILIT;
     sh.uniforms.uNrm = { value: atlas.nrm };
     sh.uniforms.uWrap = U_WRAP;
     sh.uniforms.uSSS = U_SSS;
@@ -2498,7 +2554,7 @@ function impostorMaterial(atlas, gain, light) {
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>',
         ['#include <common>',
-         'uniform float uG, uIGain, uICut, uISolid, uILight, uISph;',
+         'uniform float uG, uIGain, uICut, uISolid, uILight, uISph, uILit;',
          'uniform sampler2D uNrm;', 'varying vec3 vImpDir;',
          // LEAF_GLSL's own dials, which hookTint declares for the geometry
          'uniform float uWrap, uSSS, uSSSP, uLeaf;',
@@ -2548,7 +2604,17 @@ function impostorMaterial(atlas, gain, light) {
          'geometryNormal = nImpV;'].join(NL))
       // and the leaf terms, verbatim from the geometry foliage
       .replace('#include <lights_fragment_end>',
-        ['#include <lights_fragment_end>', LEAF_GLSL].join(NL));
+        ['#include <lights_fragment_end>', LEAF_GLSL,
+         // THE TIER'S OWN GAIN, on everything the lights put in - see U_ILIT.
+         // All four terms, and the specular ones are not an afterthought: at
+         // roughness 1 the physical model's MULTISCATTER term rides on the sky
+         // irradiance and not on the albedo, and it measured 39.7 of the far
+         // band's 55.6 luminance. Scaling only the diffuse left a floor that
+         // ate the dial - twelve times the gain moved the stand by 36%.
+         'reflectedLight.directDiffuse *= uILit;',
+         'reflectedLight.indirectDiffuse *= uILit;',
+         'reflectedLight.directSpecular *= uILit;',
+         'reflectedLight.indirectSpecular *= uILit;'].join(NL));
   };
   return m;
 }
@@ -2560,9 +2626,9 @@ function impostorMaterial(atlas, gain, light) {
 // same amount or the flare sits proud of the ground where the geometry's does
 // not. It scales with the instance: a tree drawn 1.2x larger has roots 1.2x
 // deeper.
-function makeImpField(atlas, gain, light, sink) {
+function makeImpField(atlas, gain, light, sink, solid, cut) {
   const F = { atlas: atlas, items: [], mesh: null, gain: gain, light: light,
-              sink: sink || 0 };
+              sink: sink || 0, solid: solid, cut: cut };
   F.add = (x, y, z, s) => F.items.push(x, y, z, s);
   F.build = () => {
     const n = F.items.length / 4;
@@ -2582,7 +2648,7 @@ function makeImpField(atlas, gain, light, sink) {
     g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
     g.setIndex(new THREE.BufferAttribute(idx, 1));
     g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e6);   // never culled
-    F.mesh = new THREE.Mesh(g, impostorMaterial(F.atlas, F.gain, F.light));
+    F.mesh = new THREE.Mesh(g, impostorMaterial(F.atlas, F.gain, F.light, F.solid, F.cut));
     F.mesh.frustumCulled = false;
     F.mesh.castShadow = false;
     F.mesh.receiveShadow = true;     // it takes the map now; see impostorMaterial
@@ -2884,7 +2950,9 @@ async function showForest() {
     const t = tuneOf(p.a.name);
     if (p.atlasS) { p.fieldS = makeImpField(p.atlasS, t.impa, t.implight, t.sink); IMP_FIELDS.push(p.fieldS); }
     if (p.atlasF) { p.fieldF = makeImpField(p.atlasF, t.impa, t.implight, t.sink); IMP_FIELDS.push(p.fieldF); }
-    if (p.atlasD) { p.fieldD = makeImpField(p.atlasD, t.impa, t.implight, t.sink); IMP_FIELDS.push(p.fieldD); }
+    // the snag: its own silhouette rule, see impostorMaterial
+    // the snag: its own alpha curve, see impostorMaterial
+    if (p.atlasD) { p.fieldD = makeImpField(p.atlasD, t.impa, t.implight, t.sink, 1, SNAG_CUT); IMP_FIELDS.push(p.fieldD); }
   }
   const rand = rng(FOREST.seed);
   // the three boundaries ride on ONE dial, so the whole ladder moves together
@@ -3321,7 +3389,8 @@ function makeVariant(proto, kind, a, G, at) {
                             src, a.name, snag ? IMP_TILE_HI : IMP_TILE);
     if (!atl) return null;
     const at = Object.assign({}, atl, { cellX: arguments[4] || 0, cellZ: arguments[5] || 0 });
-    const F = makeImpField(at, t.impa, t.implight, t.sink);
+    const F = makeImpField(at, t.impa, t.implight, t.sink,
+                           snag ? 1 : undefined, snag ? SNAG_CUT : undefined);
     // WORLD SPACE: the field ignores any transform on its holder, so the
     // cell's own position has to go into the instance itself.
     F.add(at.cellX || 0, -(t.sink || 0), at.cellZ || 0, 1);
@@ -3677,6 +3746,11 @@ $('isph').oninput = e => {
   $('isphV').textContent = U_ISPH.value.toFixed(2);
   render();
 };
+$('ilit').oninput = e => {
+  U_ILIT.value = +e.target.value;
+  $('ilitV').textContent = U_ILIT.value.toFixed(2);
+  render();
+};
 $('isolid').oninput = e => {
   U_ISOLID.value = +e.target.value;
   $('isolidV').textContent = U_ISOLID.value.toFixed(2);
@@ -3777,7 +3851,7 @@ $('expo').onclick = () => {
             wrap: U_WRAP.value, sss: U_SSS.value, a2c: A2C, mips: MIPFIX,
             ssao: SSAO_ON, aoR: SSAO_R, aoI: SSAO_I, trueScale: TRUE_SCALE,
             aobake: U_AOBAKE.value, trunkao: TRUNK_DARK, isolid: U_ISOLID.value,
-            icut: U_ICUT.value, isph: U_ISPH.value },
+            icut: U_ICUT.value, isph: U_ISPH.value, ilit: U_ILIT.value },
     included: Object.keys(PICK).filter(k => PICK[k]),
     measured: MEAS,
     tuning: TUNE,
@@ -3989,6 +4063,7 @@ setInterval(render, 120);
         if (V.isolid !== undefined) U_ISOLID.value = V.isolid;
         if (V.icut !== undefined) U_ICUT.value = V.icut;
         if (V.isph !== undefined) U_ISPH.value = V.isph;
+        if (V.ilit !== undefined) U_ILIT.value = V.ilit;
         if (V.trueScale !== undefined) TRUE_SCALE = !!V.trueScale;
         VIEW_SKY = V.sky;
       }
@@ -4048,6 +4123,7 @@ setInterval(render, 120);
   $('trunkao').value = TRUNK_DARK; $('trunkaoV').textContent = TRUNK_DARK.toFixed(2);
   $('isolid').value = U_ISOLID.value; $('isolidV').textContent = U_ISOLID.value.toFixed(2);
   $('isph').value = U_ISPH.value; $('isphV').textContent = U_ISPH.value.toFixed(2);
+  $('ilit').value = U_ILIT.value; $('ilitV').textContent = U_ILIT.value.toFixed(2);
   $('a2c').classList.toggle('on', A2C);
   $('mipfix').classList.toggle('on', MIPFIX);
   $('shadow').classList.toggle('on', SHADOWS);
