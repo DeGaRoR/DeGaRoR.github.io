@@ -1839,8 +1839,13 @@ function retint(name) {
 // distances they are meant for), on a flat plane or on a real terrain
 // reconstituted from one of the scene files.
 // ==========================================================================
+// THE FAR TIER IS ON BY DEFAULT. The stand this bench exists to judge is the
+// one the game will draw, and that one has impostors in it - a forest opened
+// with the far tier off is a picture of a configuration nobody ships. It costs
+// the first build a bake of one atlas per prototype; the signature cache means
+// it is paid once.
 const FOREST = { count: 260, radius: 220, split: 60, ground: 'plane', seed: 7,
-                 scale: 1, spread: 0.2, impostor: false, glades: 6, edge: 12,
+                 scale: 1, spread: 0.2, impostor: true, glades: 6, edge: 12,
                  mix: 0.5 };
 const PICK = {};                       // assetName -> included in the stand
 let forestGround = null;
@@ -2356,8 +2361,23 @@ const U_ISPH = { value: 0 };   // MEASURED: 0 keeps the most relief, see below
 // billboards keep. When the far band reads dark against the geometry, this is
 // the dial to reach for first.
 const U_ILIT = { value: 0.6 };
-// where a snag's alpha curve is centred instead of the crown's 0.40 - see
-// impostorMaterial
+// WHERE EACH SERIES' ALPHA CURVE IS CENTRED, instead of the crown's 0.40.
+//
+// MEASURED by isolating the three series against black: the pale, speckled
+// trees the stand was showing are the STAND series, not the snag - three fixes
+// aimed at the snag changed the picture not at all, which is what a wrong
+// suspect looks like. A stand tree is a crown on a GENERATED STICK, and that
+// stick is 0.045 of the crown's footprint: one or two texels wide in the tile.
+// The curve at 0.40 is right for a leaf texel only one of three views carries,
+// but a stick arrives at 0.2-0.3 along its whole length, so it clears the
+// threshold in places and fails it in others and the pole comes and goes every
+// few pixels - then alpha-to-coverage dithers what survives into flecks.
+//
+// Lower centre, same gain: anything the sheet says is there is promoted to
+// solid, so the stick is continuous and A2C has nothing fractional to scatter.
+// A crown edge is barely touched - it is a slightly fatter silhouette, which is
+// the trade the coverage-preserving mips already make and for the same reason.
+const STAND_CUT = 0.15;
 const SNAG_CUT = 0.10;
 
 // `light` trims the tile against the model it stands for. It is a TRIM and not
@@ -2519,12 +2539,20 @@ function impostorCasterDepth(atlas) {
 // slightly thick - which is the same trade the coverage-preserving mips make,
 // and for the same reason. A thing that is too thin to resolve should read as
 // present, not as flickering.
-function impostorMaterial(atlas, gain, light, solid, cut) {
+// AND ALPHA-TO-COVERAGE IS THE OTHER HALF OF IT. A2C turns a fragment's alpha
+// into an MSAA COVERAGE MASK: alpha 0.5 writes half the samples, in a dither
+// pattern. That is exactly right for a crown edge, where the pattern lands on a
+// leaf silhouette the eye already reads as broken. On a branch one pixel wide it
+// is the whole branch - the regular grid of detached tan dots the snags were
+// showing IS the dither, magnified by there being nothing else in the pixel. A
+// hard cutout is the right rule for a thin solid thing: drawn or not, no
+// half-samples to scatter.
+function impostorMaterial(atlas, gain, light, solid, cut, a2c) {
   const m = new THREE.MeshStandardMaterial({
     map: atlas.tex, alphaTest: 0.28, side: THREE.DoubleSide, transparent: false,
     roughness: 1, metalness: 0,
   });
-  m.alphaToCoverage = A2C;
+  m.alphaToCoverage = (a2c === false) ? false : A2C;
   // the gain is kept reachable so the dial can move it without a rebuild
   m.userData.uIGain = { value: gain === undefined ? 6 : gain };
   m.userData.uILight = { value: light === undefined ? 1 : light };
@@ -2626,9 +2654,9 @@ function impostorMaterial(atlas, gain, light, solid, cut) {
 // same amount or the flare sits proud of the ground where the geometry's does
 // not. It scales with the instance: a tree drawn 1.2x larger has roots 1.2x
 // deeper.
-function makeImpField(atlas, gain, light, sink, solid, cut) {
+function makeImpField(atlas, gain, light, sink, solid, cut, a2c) {
   const F = { atlas: atlas, items: [], mesh: null, gain: gain, light: light,
-              sink: sink || 0, solid: solid, cut: cut };
+              sink: sink || 0, solid: solid, cut: cut, a2c: a2c };
   F.add = (x, y, z, s) => F.items.push(x, y, z, s);
   F.build = () => {
     const n = F.items.length / 4;
@@ -2648,7 +2676,8 @@ function makeImpField(atlas, gain, light, sink, solid, cut) {
     g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
     g.setIndex(new THREE.BufferAttribute(idx, 1));
     g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e6);   // never culled
-    F.mesh = new THREE.Mesh(g, impostorMaterial(F.atlas, F.gain, F.light, F.solid, F.cut));
+    F.mesh = new THREE.Mesh(g, impostorMaterial(F.atlas, F.gain, F.light, F.solid,
+                                                F.cut, F.a2c));
     F.mesh.frustumCulled = false;
     F.mesh.castShadow = false;
     F.mesh.receiveShadow = true;     // it takes the map now; see impostorMaterial
@@ -2948,11 +2977,19 @@ async function showForest() {
   IMP_FIELDS.length = 0;
   if (FOREST.impostor) for (const p of protos) {
     const t = tuneOf(p.a.name);
-    if (p.atlasS) { p.fieldS = makeImpField(p.atlasS, t.impa, t.implight, t.sink); IMP_FIELDS.push(p.fieldS); }
-    if (p.atlasF) { p.fieldF = makeImpField(p.atlasF, t.impa, t.implight, t.sink); IMP_FIELDS.push(p.fieldF); }
-    // the snag: its own silhouette rule, see impostorMaterial
-    // the snag: its own alpha curve, see impostorMaterial
-    if (p.atlasD) { p.fieldD = makeImpField(p.atlasD, t.impa, t.implight, t.sink, 1, SNAG_CUT); IMP_FIELDS.push(p.fieldD); }
+    // the three series, TAGGED - a field that cannot say which series it is
+    // cannot be isolated, and an artefact blamed on the wrong one costs three
+    // fixes that change nothing
+    if (p.atlasS) { p.fieldS = makeImpField(p.atlasS, t.impa, t.implight, t.sink);
+                    p.fieldS.kind = 'specimen'; IMP_FIELDS.push(p.fieldS); }
+    // the stand tree stands on a stick; see STAND_CUT
+    if (p.atlasF) { p.fieldF = makeImpField(p.atlasF, t.impa, t.implight, t.sink,
+                                            undefined, STAND_CUT);
+                    p.fieldF.kind = 'stand'; IMP_FIELDS.push(p.fieldF); }
+    // the snag: its own alpha curve and no coverage dither, see impostorMaterial
+    if (p.atlasD) { p.fieldD = makeImpField(p.atlasD, t.impa, t.implight, t.sink, 1,
+                                            SNAG_CUT, false);
+                    p.fieldD.kind = 'snag'; IMP_FIELDS.push(p.fieldD); }
   }
   const rand = rng(FOREST.seed);
   // the three boundaries ride on ONE dial, so the whole ladder moves together
@@ -3390,7 +3427,9 @@ function makeVariant(proto, kind, a, G, at) {
     if (!atl) return null;
     const at = Object.assign({}, atl, { cellX: arguments[4] || 0, cellZ: arguments[5] || 0 });
     const F = makeImpField(at, t.impa, t.implight, t.sink,
-                           snag ? 1 : undefined, snag ? SNAG_CUT : undefined);
+                           snag ? 1 : undefined,
+                           snag ? SNAG_CUT : forest ? STAND_CUT : undefined,
+                           snag ? false : undefined);
     // WORLD SPACE: the field ignores any transform on its holder, so the
     // cell's own position has to go into the instance itself.
     F.add(at.cellX || 0, -(t.sink || 0), at.cellZ || 0, 1);
