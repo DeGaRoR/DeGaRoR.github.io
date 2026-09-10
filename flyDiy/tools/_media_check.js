@@ -75,7 +75,10 @@ function manifestFiles() {
       .filter(f => /_(?:char|anim)\.js$/.test(f))
       .map(f => path.join(ROOT, 'src', 'chars', f))
     : [];
-  return v.concat(packs, models, chars);
+  // the baked trees (W0b): one manifest, listing one bin per collection
+  const trees = fs.existsSync(path.join(ROOT, 'src', 'core', 'trees_pack.json'))
+    ? [path.join(ROOT, 'src', 'core', 'trees_pack.json')] : [];
+  return v.concat(packs, models, chars, trees);
 }
 
 const REF_RE = /media\/[A-Za-z0-9_\-./]+?\.(?:jpg|png|bin)/g;
