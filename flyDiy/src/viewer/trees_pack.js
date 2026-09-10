@@ -1,0 +1,678 @@
+// trees_pack.js - BAKED by tools/tree_prep.py, do not edit.
+// The tree payload manifest: one collection per curated pack,
+// its subjects, their rungs, and the maps their materials wear.
+const B = (typeof FLYDIY_ASSET_BASE !== 'undefined') ? FLYDIY_ASSET_BASE : '';
+const TREE_PACK = {
+ "note": "baked by tools/tree_prep.py \u2014 see docs/TREE-IMPORT.md",
+ "collections": [
+  {
+   "name": "fir_tree_georgeous.glb",
+   "bin": "" + B + "media/geo/trees/fir_tree_georgeous.ff5be74d.bin",
+   "bytes": 152400,
+   "credit": {
+    "author": "Georgeous (https://sketchfab.com/intice184)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/fir-tree-0965de5def1342cd8b8b1a0fa5643e27",
+    "title": "Fir tree"
+   },
+   "licence": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+   "licenceOk": true,
+   "place": {
+    "size": 1,
+    "proportion": 1,
+    "sink": 1.5,
+    "dead": 0.08
+   },
+   "tint": {
+    "hue": 0.06,
+    "sat": 1,
+    "light": 0.43,
+    "bark": 1,
+    "alpha": 0.1
+   },
+   "materials": {
+    "M_Branch.007": {
+     "mode": "MASK",
+     "cutoff": 0.608,
+     "coverageMips": true,
+     "base": "" + B + "media/tex/trees/fir_tree_georgeous_m_branch_007_base.4742577f.png",
+     "baseSize": [
+      1024,
+      1024
+     ],
+     "nor": "" + B + "media/tex/trees/fir_tree_georgeous_m_branch_007_nor.e8688e34.jpg"
+    },
+    "M_Bark.007": {
+     "mode": "OPAQUE",
+     "base": "" + B + "media/tex/trees/fir_tree_georgeous_m_bark_007_base.4dc7a894.jpg",
+     "baseSize": [
+      256,
+      1024
+     ],
+     "nor": "" + B + "media/tex/trees/fir_tree_georgeous_m_bark_007_nor.beac0ead.jpg"
+    }
+   },
+   "subjects": [
+    {
+     "name": "Fir01_LOD0",
+     "h": 13.42,
+     "tris": 7784,
+     "bb": [
+      -4.3414,
+      0.0,
+      -4.0741,
+      4.3414,
+      13.4179,
+      4.0741
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 7784,
+       "parts": [
+        {
+         "mat": "M_Branch.007",
+         "mode": "MASK",
+         "cutoff": 0.608,
+         "uvMin": [
+          0.045048,
+          0.0
+         ],
+         "uvScl": [
+          0.926313,
+          1.0
+         ],
+         "off": 0,
+         "len": 79724
+        },
+        {
+         "mat": "M_Bark.007",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.999265,
+          -0.985275
+         ],
+         "uvScl": [
+          3.843961,
+          6.180435
+         ],
+         "off": 79724,
+         "len": 72676
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "larch_tree.glb",
+   "bin": "" + B + "media/geo/trees/larch_tree.795158fd.bin",
+   "bytes": 228784,
+   "credit": {
+    "author": "Georgeous (https://sketchfab.com/intice184)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/larch-tree-d027dae8c92544d79b946edcea98deca",
+    "title": "Larch tree"
+   },
+   "licence": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+   "licenceOk": true,
+   "place": {
+    "size": 1,
+    "proportion": 1,
+    "sink": 2,
+    "dead": 0.09
+   },
+   "tint": {
+    "hue": 0.03,
+    "sat": 0.48,
+    "light": 0.68,
+    "bark": 1,
+    "alpha": 0
+   },
+   "materials": {
+    "M_Bark": {
+     "mode": "OPAQUE",
+     "base": "" + B + "media/tex/trees/larch_tree_m_bark_base.3057dd84.jpg",
+     "baseSize": [
+      256,
+      1024
+     ],
+     "nor": "" + B + "media/tex/trees/larch_tree_m_bark_nor.24e88780.jpg"
+    },
+    "M_Branch": {
+     "mode": "MASK",
+     "cutoff": 0.0777,
+     "coverageMips": true,
+     "base": "" + B + "media/tex/trees/larch_tree_m_branch_base.8e0f34a9.png",
+     "baseSize": [
+      1024,
+      1024
+     ],
+     "nor": "" + B + "media/tex/trees/larch_tree_m_branch_nor.de257583.jpg"
+    }
+   },
+   "subjects": [
+    {
+     "name": "Larch_LOD0",
+     "h": 19.2,
+     "tris": 12201,
+     "bb": [
+      -5.2387,
+      0.0,
+      -5.3227,
+      5.2387,
+      19.1929,
+      5.3227
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 12201,
+       "parts": [
+        {
+         "mat": "M_Bark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.991051,
+          -1.0157
+         ],
+         "uvScl": [
+          3.835747,
+          8.146577
+         ],
+         "off": 0,
+         "len": 82204
+        },
+        {
+         "mat": "M_Branch",
+         "mode": "MASK",
+         "cutoff": 0.0777,
+         "uvMin": [
+          0.073034,
+          0.0
+         ],
+         "uvScl": [
+          0.853422,
+          1.0
+         ],
+         "off": 82204,
+         "len": 146580
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "realistic_fir_trees_pack_lods_gameready.glb",
+   "bin": "" + B + "media/geo/trees/realistic_fir_trees_pack_lods_gameready.43e12d10.bin",
+   "bytes": 674796,
+   "credit": {
+    "author": "LOLIPOP (https://sketchfab.com/lolipop_1707)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/realistic-fir-trees-pack-lods-gameready-f58e8b6d733e4b0586e5b7db847b89e7",
+    "title": "Realistic Fir Trees Pack (LODS, gameready)"
+   },
+   "licence": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+   "licenceOk": true,
+   "place": {
+    "size": 2.1,
+    "proportion": 2.85,
+    "sink": 0,
+    "dead": 0.08
+   },
+   "tint": {
+    "hue": 0.08,
+    "sat": 0.47,
+    "light": 1.3,
+    "bark": 1,
+    "alpha": 0.1
+   },
+   "materials": {
+    "Christmas_tree_Billboard_Mat": {
+     "mode": "MASK",
+     "cutoff": 0.2179,
+     "coverageMips": true,
+     "base": "" + B + "media/tex/trees/realistic_fir_trees_pack_lods_gameready_christmas_tree_billboard_mat_base.89644786.png",
+     "baseSize": [
+      1024,
+      1024
+     ],
+     "nor": "" + B + "media/tex/trees/realistic_fir_trees_pack_lods_gameready_christmas_tree_billboard_mat_nor.10e2c45b.jpg"
+    },
+    "Bark_Mat": {
+     "mode": "OPAQUE",
+     "base": "" + B + "media/tex/trees/realistic_fir_trees_pack_lods_gameready_bark_mat_base.14a749d2.jpg",
+     "baseSize": [
+      512,
+      1024
+     ],
+     "nor": "" + B + "media/tex/trees/realistic_fir_trees_pack_lods_gameready_bark_mat_nor.c153a8b2.jpg"
+    },
+    "Brunches_Mat": {
+     "mode": "MASK",
+     "cutoff": 0.3764,
+     "coverageMips": true,
+     "base": "" + B + "media/tex/trees/realistic_fir_trees_pack_lods_gameready_brunches_mat_base.96c367ea.png",
+     "baseSize": [
+      1024,
+      1024
+     ],
+     "nor": "" + B + "media/tex/trees/realistic_fir_trees_pack_lods_gameready_brunches_mat_nor.b86b2b72.jpg"
+    },
+    "Christmas_tree_2_Billboard_Mat": {
+     "mode": "MASK",
+     "cutoff": 0.3032,
+     "coverageMips": true,
+     "base": "" + B + "media/tex/trees/realistic_fir_trees_pack_lods_gameready_christmas_tree_2_billboard_mat_base.89806b3f.png",
+     "baseSize": [
+      1024,
+      1024
+     ],
+     "nor": "" + B + "media/tex/trees/realistic_fir_trees_pack_lods_gameready_christmas_tree_2_billboard_mat_nor.f1362e7e.jpg"
+    }
+   },
+   "subjects": [
+    {
+     "name": "Christmas tree",
+     "h": 9.29,
+     "tris": 22890,
+     "bb": [
+      -2.6433,
+      0.0,
+      -2.5178,
+      2.6433,
+      9.3243,
+      2.5178
+     ],
+     "shipped": true,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 12969,
+       "parts": [
+        {
+         "mat": "Brunches_Mat",
+         "mode": "MASK",
+         "cutoff": 0.3764,
+         "uvMin": [
+          0.017154,
+          0.0
+         ],
+         "uvScl": [
+          0.97667,
+          0.991093
+         ],
+         "off": 0,
+         "len": 121988
+        },
+        {
+         "mat": "Bark_Mat",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.962198,
+          -0.997988
+         ],
+         "uvScl": [
+          4.235118,
+          28.290287
+         ],
+         "off": 121988,
+         "len": 120686
+        }
+       ]
+      },
+      {
+       "lod": 1,
+       "tris": 6633,
+       "parts": [
+        {
+         "mat": "Brunches_Mat",
+         "mode": "MASK",
+         "cutoff": 0.3764,
+         "uvMin": [
+          0.017154,
+          0.0
+         ],
+         "uvScl": [
+          0.97667,
+          0.991093
+         ],
+         "off": 242674,
+         "len": 82988
+        },
+        {
+         "mat": "Bark_Mat",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.962198,
+          -0.9816
+         ],
+         "uvScl": [
+          4.219678,
+          28.273899
+         ],
+         "off": 325662,
+         "len": 41030
+        }
+       ]
+      },
+      {
+       "lod": 2,
+       "tris": 3268,
+       "parts": [
+        {
+         "mat": "Brunches_Mat",
+         "mode": "MASK",
+         "cutoff": 0.3764,
+         "uvMin": [
+          0.017154,
+          0.0
+         ],
+         "uvScl": [
+          0.97667,
+          0.991093
+         ],
+         "off": 366692,
+         "len": 51388
+        },
+        {
+         "mat": "Bark_Mat",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.813232,
+          -0.311359
+         ],
+         "uvScl": [
+          4.070712,
+          27.603658
+         ],
+         "off": 418080,
+         "len": 10202
+        }
+       ]
+      },
+      {
+       "lod": 3,
+       "tris": 20,
+       "parts": [
+        {
+         "mat": "Christmas_tree_Billboard_Mat",
+         "mode": "MASK",
+         "cutoff": 0.2179,
+         "uvMin": [
+          0.002441,
+          0.002441
+         ],
+         "uvScl": [
+          0.815999,
+          0.990166
+         ],
+         "off": 428282,
+         "len": 552
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "name": "Christmas tree_2",
+     "h": 4.16,
+     "tris": 12709,
+     "bb": [
+      -1.3584,
+      0.0,
+      -1.3636,
+      1.3584,
+      4.1583,
+      1.3636
+     ],
+     "shipped": true,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 6813,
+       "parts": [
+        {
+         "mat": "Brunches_Mat",
+         "mode": "MASK",
+         "cutoff": 0.3764,
+         "uvMin": [
+          0.017154,
+          0.0
+         ],
+         "uvScl": [
+          0.97667,
+          0.991093
+         ],
+         "off": 428834,
+         "len": 66788
+        },
+        {
+         "mat": "Bark_Mat",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.968788,
+          -0.984434
+         ],
+         "uvScl": [
+          4.222178,
+          41.036432
+         ],
+         "off": 495622,
+         "len": 63294
+        }
+       ]
+      },
+      {
+       "lod": 1,
+       "tris": 3598,
+       "parts": [
+        {
+         "mat": "Brunches_Mat",
+         "mode": "MASK",
+         "cutoff": 0.3764,
+         "uvMin": [
+          0.017154,
+          0.0
+         ],
+         "uvScl": [
+          0.97667,
+          0.991093
+         ],
+         "off": 558916,
+         "len": 54388
+        },
+        {
+         "mat": "Bark_Mat",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.820142,
+          -0.984711
+         ],
+         "uvScl": [
+          4.073532,
+          41.036709
+         ],
+         "off": 613304,
+         "len": 15748
+        }
+       ]
+      },
+      {
+       "lod": 2,
+       "tris": 2278,
+       "parts": [
+        {
+         "mat": "Brunches_Mat",
+         "mode": "MASK",
+         "cutoff": 0.3764,
+         "uvMin": [
+          0.017154,
+          0.0
+         ],
+         "uvScl": [
+          0.97667,
+          0.991093
+         ],
+         "off": 629052,
+         "len": 43388
+        },
+        {
+         "mat": "Bark_Mat",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.923394,
+          0.301554
+         ],
+         "uvScl": [
+          2.329996,
+          39.750444
+         ],
+         "off": 672440,
+         "len": 1804
+        }
+       ]
+      },
+      {
+       "lod": 3,
+       "tris": 20,
+       "parts": [
+        {
+         "mat": "Christmas_tree_2_Billboard_Mat",
+         "mode": "MASK",
+         "cutoff": 0.3032,
+         "uvMin": [
+          0.002441,
+          0.002441
+         ],
+         "uvScl": [
+          0.973151,
+          0.990166
+         ],
+         "off": 674244,
+         "len": 552
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "spruce_tree.glb",
+   "bin": "" + B + "media/geo/trees/spruce_tree.b3569444.bin",
+   "bytes": 196116,
+   "credit": {
+    "author": "Georgeous (https://sketchfab.com/intice184)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/spruce-tree-7a5db417827244d98827459bce0cc944",
+    "title": "Spruce tree"
+   },
+   "licence": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+   "licenceOk": true,
+   "place": {
+    "size": 1.08,
+    "proportion": 1,
+    "sink": 0.5,
+    "dead": 0.08
+   },
+   "tint": {
+    "hue": -0.01,
+    "sat": 1.1,
+    "light": 0.54,
+    "bark": 1,
+    "alpha": 0.2
+   },
+   "materials": {
+    "M_Bark.001": {
+     "mode": "OPAQUE",
+     "base": "" + B + "media/tex/trees/spruce_tree_m_bark_001_base.b686d5b2.jpg",
+     "baseSize": [
+      256,
+      1024
+     ],
+     "nor": "" + B + "media/tex/trees/spruce_tree_m_bark_001_nor.26e3e887.jpg"
+    },
+    "M_Branch.001": {
+     "mode": "MASK",
+     "cutoff": 0.2971,
+     "coverageMips": true,
+     "base": "" + B + "media/tex/trees/spruce_tree_m_branch_001_base.f76f96b7.png",
+     "baseSize": [
+      1024,
+      1024
+     ],
+     "nor": "" + B + "media/tex/trees/spruce_tree_m_branch_001_nor.d03d0d8d.jpg"
+    }
+   },
+   "subjects": [
+    {
+     "name": "Spruce_LOD0",
+     "h": 17.43,
+     "tris": 10387,
+     "bb": [
+      -4.0477,
+      0.0,
+      -4.2117,
+      4.0477,
+      17.4215,
+      4.2117
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 10387,
+       "parts": [
+        {
+         "mat": "M_Bark.001",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.938993,
+          -0.991626
+         ],
+         "uvScl": [
+          2.873005,
+          9.755025
+         ],
+         "off": 0,
+         "len": 76056
+        },
+        {
+         "mat": "M_Branch.001",
+         "mode": "MASK",
+         "cutoff": 0.2971,
+         "uvMin": [
+          0.060496,
+          0.0
+         ],
+         "uvScl": [
+          0.840352,
+          1.0
+         ],
+         "off": 76056,
+         "len": 120060
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+};
+if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;

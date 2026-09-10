@@ -47,7 +47,7 @@ array so L1/L2 drop in beside it without a format change.
 """
 import hashlib, io as _io, json, math, os, struct, sys
 
-from media_lib import write_media, prune_media_stems
+from media_lib import write_media, prune_media_stems, BASE_DECL
 
 from PIL import Image
 
@@ -56,6 +56,12 @@ RAW = os.path.join(ROOT, 'assets', 'treesRaw')
 IDX = os.path.join(ROOT, 'tools', '_trees_index.json')
 TUNE = os.path.join(ROOT, 'tools', '_trees_tuning.json')
 OUT = os.path.join(ROOT, 'src', 'core', 'trees_pack.json')
+# TWO ARTIFACTS, ONE BAKE. The gates read the JSON with fs; the page cannot -
+# index.html is built as one file and has no src/ to fetch from - so the same
+# dict is also emitted as a script that publishes TREE_PACK, with the media
+# paths prefixed by FLYDIY_ASSET_BASE at its own eval like every other payload
+# here. Written in the same call from the same object, so they cannot drift.
+OUTJS = os.path.join(ROOT, 'src', 'viewer', 'trees_pack.js')
 
 CT = {5120: ('b', 1), 5121: ('B', 1), 5122: ('h', 2),
       5123: ('H', 2), 5125: ('I', 4), 5126: ('f', 4)}
@@ -537,8 +543,21 @@ def main():
     with open(OUT, 'w', encoding='utf-8', newline='\n') as f:
         json.dump(pack, f, indent=1)
         f.write('\n')
-    print('\nwrote %s  (%d collections, %.2f MB)' % (
-        os.path.relpath(OUT, ROOT), len(pack['collections']), total / 1e6))
+    body = json.dumps(pack, indent=1)
+    # every 'media/...' literal becomes B + 'media/...' so the built page
+    # resolves it against FLYDIY_ASSET_BASE
+    body = body.replace('"media/', '"" + B + "media/')
+    with open(OUTJS, 'w', encoding='utf-8', newline='\n') as f:
+        f.write('// trees_pack.js - BAKED by tools/tree_prep.py, do not edit.\n')
+        f.write('// The tree payload manifest: one collection per curated pack,\n')
+        f.write('// its subjects, their rungs, and the maps their materials wear.\n')
+        f.write(BASE_DECL + '\n')
+        f.write('const TREE_PACK = ' + body + ';\n')
+        f.write("if (typeof module !== 'undefined' && module.exports) "
+                'module.exports = TREE_PACK;\n')
+    print('\nwrote %s + %s  (%d collections, %.2f MB)' % (
+        os.path.relpath(OUT, ROOT), os.path.relpath(OUTJS, ROOT),
+        len(pack['collections']), total / 1e6))
     return 0
 
 

@@ -72,6 +72,9 @@ const MANIFEST = {
     '50_model_codec.js',
     '51_prop_codec.js',
     '52_char_codec.js',
+    // the baked trees (W0b): decode only, no three.js — the same file the
+    // node gate requires, so the payload has ONE reader
+    '53_tree_codec.js',
     // GARAGE: procedural airframe generator (spec -> loft -> frame -> aero -> skin)
     '60_gen_spec.js',
     // the body's SHAPE, owned in one place: one C1 curve that both the truss
@@ -214,8 +217,13 @@ const MANIFEST = {
     // assets.js FIRST: it only publishes window.ASSET_FETCH at eval — the one
     // fetch+cache for external media/geo binaries — and everything after it
     // (props.js's propWarm, app.js's MODEL_LOAD) may ask for it at runtime.
+    // trees_pack.js before trees.js before render_world.js (W0c): the
+    // manifest is a plain assignment, the loader reads it at eval and publishes
+    // treeWarm/treeBuild, and the world asks whether the payload is ready
+    // before it decides between a real tree and the cone it drew for a year.
     scripts: ['assets.js', 'aa_resolve.js',
-              'light_rig.js', 'site_tex.js', 'site_ground.js', 'render_world.js',
+              'light_rig.js', 'site_tex.js', 'site_ground.js',
+              'trees_pack.js', 'trees.js', 'render_world.js',
               'hangar_floor.js', 'hangar_walls.js',
               'hangar_sky.js', 'props.js', 'wood_tex.js', 'skin_tex.js',
               'vessel_tex.js',

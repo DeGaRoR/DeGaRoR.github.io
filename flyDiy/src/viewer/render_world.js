@@ -707,7 +707,36 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       geo.boundingSphere.radius = Math.hypot(half * Math.SQRT1_2, VSPAN) + 12;
       geo.userData.chunkTree = true;        // marks what GATE WORLDRENDER checks
     };
+    // ================= W0c: the real trees ==============================
+    // The cone and the icosahedron above are the FALLBACK now, not the tree.
+    // They stay because this file must build a world with no payload at all:
+    // the node gates have no fetch, and a missing asset degrades here the way
+    // every other asset degrades in this project — the thing is absent, the
+    // page is not broken.
+    //
+    // The curated set is all conifer, so the broadleaf slot is filled by a
+    // conifer too. That is a CONTENT gap, not a pipeline one: the moment a
+    // broadleaf collection is curated it drops into the same slot.
+    let PROTO = null;
+    if (typeof treeReady === 'function' && treeReady() && typeof treeBuild === 'function') {
+      try {
+        const all = treeList();
+        const pick = re => (all.find(e => re.test(e.key)) || all[0]).key;
+        PROTO = {
+          conif: treeBuild(THREE, pick(/Fir01/), 0),
+          broad: treeBuild(THREE, pick(/Christmas tree\|?$|Christmas tree$/), 0),
+        };
+      } catch (e) { PROTO = null; }
+    }
+    const protoParts = P => P.parts.map(q => q.geo);
     [trunkGeo, coneGeo, blobGeo].forEach(g => chunkBounds(g, CHW));
+    if (PROTO) {
+      // the chunk sphere trick applies to a real tree exactly as to a cone —
+      // and chunkBounds is also what stashes userData.shape, which the
+      // impostor bake reads for its ortho extent
+      protoParts(PROTO.conif).concat(protoParts(PROTO.broad))
+        .forEach(g => chunkBounds(g, CHW));
+    }
 
     // ================= W17: the LOD ladder ==============================
     // near (< NEAR_R): the 3D canopy + trunk below, unchanged, shadow-casting.
@@ -733,7 +762,15 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // Headless gates run against a THREE stub with no GL: fall back to a
     // texture-less atlas so the whole tree field still builds and can be checked.
     const canBake = !!(THREE.WebGLRenderTarget && renderer && renderer.setRenderTarget);
-    function bakeImpostorAtlas(srcGeo) {
+    // `src` is a geometry (the cone path) or a built subject's parts (W0c).
+    // A REAL TREE MUST BAKE THROUGH ITS OWN MATERIALS: its foliage is a cutout,
+    // and a white opaque mesh would bake the convex blob the alpha test exists
+    // to carve away. The species tint is then already in the texture, so the
+    // instance colour is left white for these — bake it tinted AND tint it at
+    // draw and every tree in the forest is the same green twice over.
+    function bakeImpostorAtlas(src) {
+      const parts = Array.isArray(src) ? src : null;
+      const srcGeo = parts ? parts[0].geo : src;
       const bs = srcGeo.userData.shape;     // stashed by chunkBounds, see above
       // ortho half-extent carries a 12% gutter: mipmaps of a tile-packed atlas
       // bleed across tile borders, and the gutter is what keeps that off the tree
@@ -749,9 +786,19 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // vertexColors does on the near tier — bake it tinted and every tree in the
       // forest is the same green. Tone mapping and sRGB are applied once, at the
       // final draw, like every other surface in the scene.
-      const bMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
-      bMat.toneMapped = false;
-      sc.add(new THREE.Mesh(srcGeo, bMat));
+      if (parts) {
+        for (const q of parts) {
+          const m = q.mat.clone();
+          m.onBeforeCompile = q.mat.onBeforeCompile;
+          m.userData = q.mat.userData;
+          m.toneMapped = false;
+          sc.add(new THREE.Mesh(q.geo, m));
+        }
+      } else {
+        const bMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+        bMat.toneMapped = false;
+        sc.add(new THREE.Mesh(srcGeo, bMat));
+      }
       // the SAME rig the world runs, from the same object — see RIG
       sc.add(hemiLight());
       const dl = new THREE.DirectionalLight(C(SUNC), RIG.sun);
@@ -919,7 +966,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // Impostors carry NO trunk: 1.9 m tall and 0.4 m wide is a fifth of a pixel
     // at 450 m, which is the same argument that already switched trunks off at
     // 900 m — and a brown trunk cannot ride a per-species tint anyway.
-    const impCone = bakeImpostorAtlas(coneGeo), impBlob = bakeImpostorAtlas(blobGeo);
+    const impCone = bakeImpostorAtlas(PROTO ? PROTO.conif.parts : coneGeo);
+    const impBlob = bakeImpostorAtlas(PROTO ? PROTO.broad.parts : blobGeo);
     const impQuadW = impQuad(CHW);
     const impConeMatW = impostorMat(impCone, FAR_WOOD), impBlobMatW = impostorMat(impBlob, FAR_WOOD);
     const nearChunks = [], impChunks = [];  // distance-culled: see lodUpdate
@@ -941,9 +989,15 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         if (shadow) { m.castShadow = true; m.receiveShadow = true; }
         return m;
       };
-      const trunks = mk(trunkGeo, trunkMat, cell.list.length, false);
-      const cMesh = mk(coneGeo, canopyMat, conif.length, true);
-      const bMesh = mk(blobGeo, canopyMat, broad.length, true);
+      // a real tree carries its own trunk as a PART, so the shared trunk
+      // cylinder is only built for the fallback
+      const trunks = PROTO ? null : mk(trunkGeo, trunkMat, cell.list.length, false);
+      const cMesh = PROTO
+        ? PROTO.conif.parts.map(q => mk(q.geo, q.mat, conif.length, true))
+        : [mk(coneGeo, canopyMat, conif.length, true)];
+      const bMesh = PROTO
+        ? PROTO.broad.parts.map(q => mk(q.geo, q.mat, broad.length, true))
+        : [mk(blobGeo, canopyMat, broad.length, true)];
       const cImp = mk(impQuadW, impConeMatW, conif.length, false);
       const bImp = mk(impQuadW, impBlobMatW, broad.length, false);
       let ci = 0, bi = 0;
@@ -956,28 +1010,36 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         else if (sp === 3) sv.multiplyScalar(0.82);                        // birch: slighter
         else if (sp === 4) { sv.y *= 0.72; sv.x *= 1.18; sv.z *= 1.18; }   // willow: low, wide
         m4.compose(pv, q, sv);
-        trunks.setMatrixAt(i, m4);
-        c3.copy(SPC[sp][0]).lerp(SPC[sp][1], w);
+        if (trunks) trunks.setMatrixAt(i, m4);
+        // a baked tree wears its own colour; tinting it again would paint one
+        // green over the whole stand
+        if (PROTO) c3.setRGB(1, 1, 1);
+        else c3.copy(SPC[sp][0]).lerp(SPC[sp][1], w);
         // the impostor shares the instance matrix and the species colour: the
         // atlas is white, so this IS what keeps the mid band the same forest
-        if (sp < 2) { cMesh.setMatrixAt(ci, m4); cMesh.setColorAt(ci, c3);
-                      cImp.setMatrixAt(ci, m4); cImp.setColorAt(ci, c3); ci++; }
-        else { bMesh.setMatrixAt(bi, m4); bMesh.setColorAt(bi, c3);
-               bImp.setMatrixAt(bi, m4); bImp.setColorAt(bi, c3); bi++; }
+        if (sp < 2) {
+          for (const m of cMesh) if (m) { m.setMatrixAt(ci, m4); m.setColorAt(ci, c3); }
+          cImp.setMatrixAt(ci, m4); cImp.setColorAt(ci, c3); ci++;
+        } else {
+          for (const m of bMesh) if (m) { m.setMatrixAt(bi, m4); m.setColorAt(bi, c3); }
+          bImp.setMatrixAt(bi, m4); bImp.setColorAt(bi, c3); bi++;
+        }
       });
-      for (const m of [trunks, cMesh, bMesh, cImp, bImp]) {
+      for (const m of [trunks].concat(cMesh, bMesh, [cImp, bImp])) {
         if (!m) continue;
         m.instanceMatrix.needsUpdate = true;
         if (m.instanceColor) m.instanceColor.needsUpdate = true;
         scene.add(m);
       }
-      for (const m of [cMesh, bMesh]) if (m) m.customDepthMaterial = treeDepth;
+      // the fallback's canopy needs the shared cutout depth material; a real
+      // tree's parts carry their own alphaTest and three.js derives it
+      if (!PROTO) for (const m of cMesh.concat(bMesh)) if (m) m.customDepthMaterial = treeDepth;
       // Chunk-level visibility on top of the per-instance collapse: a 3D chunk
       // whose NEAREST corner is past NEAR_R holds nothing but collapsed
       // instances, and an off chunk costs nothing at all — not even the
       // vertex shader, and not the shadow pass either.
       const hd = CHW * Math.SQRT1_2;        // chunk half-diagonal
-      nearChunks.push({ m: [trunks, cMesh, bMesh], x: ox, z: oz, r: NEAR_R + hd });
+      nearChunks.push({ m: [trunks].concat(cMesh, bMesh), x: ox, z: oz, r: NEAR_R + hd });
       impChunks.push({ m: [cImp, bImp], x: ox, z: oz, r: FAR_WOOD + hd });
     }
     lodUpdate = cg => {
