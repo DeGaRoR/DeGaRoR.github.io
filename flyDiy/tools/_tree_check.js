@@ -34,6 +34,34 @@ function check() {
     // is one nobody can ship
     if (!C.licence) fail.push(C.name + ': no licence in the manifest');
 
+    // ---- the maps ------------------------------------------------------
+    // A CUTOUT MAP THAT LOST ITS ALPHA IS A SOLID GREEN BOX and nothing else
+    // says so: the geometry is fine, the manifest is fine, and the tree draws
+    // as a slab. So the PNG header is read and the colour type checked — 6 is
+    // RGBA, 4 is grey+alpha, anything else means the channel is gone.
+    const mats = C.materials || {};
+    for (const [name, M] of Object.entries(mats)) {
+      for (const k of ['base', 'nor']) {
+        if (!M[k]) continue;
+        const fp = path.join(ROOT, ...M[k].split('/'));
+        if (!fs.existsSync(fp)) { fail.push(name + ': missing ' + M[k]); continue; }
+        if (k === 'base' && M.mode !== 'OPAQUE') {
+          const h = fs.readFileSync(fp);
+          if (h.slice(1, 4).toString() !== 'PNG')
+            fail.push(name + ': cutout map is not a PNG — JPEG cannot carry alpha');
+          else if (![4, 6].includes(h[25]))
+            fail.push(name + ': cutout map has PNG colour type ' + h[25] + ' — no alpha channel');
+        }
+      }
+      if (M.mode !== 'OPAQUE') {
+        if (!(M.cutoff > 0 && M.cutoff < 1))
+          fail.push(name + ': cutout with no usable alphaCutoff (' + M.cutoff + ')');
+        // the renderer cannot know the threshold coverage must be preserved
+        // against unless the material carries it
+        if (!M.coverageMips) fail.push(name + ': cutout not flagged for coverage mips');
+      }
+    }
+
     for (const S of C.subjects) {
       nSub++;
       const [x0, y0, z0, x1, y1, z1] = S.bb;
@@ -71,6 +99,8 @@ function check() {
           }
           if (!['OPAQUE', 'MASK', 'BLEND'].includes(d.mode))
             fail.push(S.name + ' ' + P.mat + ': odd alphaMode ' + d.mode);
+          if (!mats[P.mat]) fail.push(S.name + ': part material "' + P.mat +
+            '" is not in the collection materials - its maps were not baked');
         }
         // inside its own box, and actually filling it: a wrong frame or a
         // wrong bb both show up here and nowhere else
@@ -106,8 +136,19 @@ function check() {
       }
     }
   }
+  let nMat = 0, texBytes = 0;
+  for (const C of pack.collections)
+    for (const M of Object.values(C.materials || {})) {
+      nMat++;
+      for (const k of ['base', 'nor']) {
+        if (!M[k]) continue;
+        const fp = path.join(ROOT, ...M[k].split('/'));
+        if (fs.existsSync(fp)) texBytes += fs.statSync(fp).size;
+      }
+    }
   note(pack.collections.length + ' collections · ' + nSub + ' subjects · ' + nRung +
-       ' rungs · ' + nPart + ' parts');
+       ' rungs · ' + nPart + ' parts · ' + nMat + ' materials');
+  note('maps ' + (texBytes / 1e6).toFixed(2) + ' MB');
   note(nVert.toLocaleString() + ' vertices · ' + nTri.toLocaleString() + ' triangles · ' +
        (bytes / 1e6).toFixed(2) + ' MB');
 }

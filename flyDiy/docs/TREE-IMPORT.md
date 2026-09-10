@@ -5,8 +5,8 @@ next one consistent with the last. Written after W0a, from the six collections
 that went through it.
 
 The bench is `tools/_trees.html` (port 8358, `.claude/launch.json` entry
-`flydiy-trees`). The inspector is `tools/tree_inspect.js`. Nothing here touches
-the game yet — see §7.
+`flydiy-trees`). The inspector is `tools/tree_inspect.js`. The payload the game
+will read is baked by `tools/tree_prep.py` — see §7 and §8.
 
 ---
 
@@ -121,9 +121,50 @@ multiply, so lifting dark foliage does not blow a pale trunk white.
 Fit `implight` by measuring the impostor against its own geometry at the same
 camera and **bisecting** — the Newton step oscillates. All six land within 2 %.
 
-## 7. What is NOT done here
+## 7. Bake it (W0b)
 
-The bench is a bench. `render_world.js` still draws a cone and an icosahedron.
-Nothing in `tools/_trees.html` is wired into the game, no asset has been baked
-into `media/`, and `tools/tree_prep.py` does not exist yet. See
-`futureDesigns/WORLD-V2.md` §8.3 and the W0b–W0e rows of the staging plan.
+    python tools/tree_prep.py            # the collections _trees_tuning.json includes
+    python tools/tree_prep.py --report   # inventory only, writes nothing
+    node   tools/_tree_check.js          # GATE TREES
+
+Writes `media/geo/trees/<collection>.<h8>.bin` (one binary per collection),
+`media/tex/trees/*` (the maps) and `src/core/trees_pack.json` (the manifest).
+Decoded by `src/core/53_tree_codec.js`, pure JS, no three.js.
+
+**Geometry.** Positions int16 over the subject's box, normals int8, uvs uint16
+over the part's own range, indices uint16 (uint32 where a subject passes 65 536
+verts, which a tree does and a prop never did) — plus **one AO byte per
+vertex**, with a foot-to-crown gradient on bark.
+
+Every rung of a subject quantises over ONE box, and that box is the **union of
+all of them**: a coarser rung is not a subset of the finest, and LOD1 overflowed
+the int16 when the finest rung's box was used alone.
+
+**Maps.** Base colour at the resolution the author shipped — a leaf map's ALPHA
+IS THE TREE, and resizing a cutout thins its coverage. Normals at half. Metal /
+roughness dropped: two collections ship none and the two that do ship a palette
+or a bilevel image. Cutout maps are PNG because JPEG cannot carry alpha at all.
+
+**The dials are not baked in.** `size`, `proportion`, `sink`, `dead` and the
+colour corrections ride in the manifest as data, so a world editor moves them
+without a re-bake.
+
+**One thing the renderer still owes.** Every cutout material carries
+`coverageMips: true` and its own `cutoff`. The viewer must build
+coverage-preserving mips for those maps at load, or the canopy thins with every
+level and the stand dissolves at distance — exactly as it did in the bench
+before §6.5. The flag is in the manifest because only the material knows the
+threshold the coverage has to be preserved against.
+
+## 8. What is NOT done here
+
+`render_world.js` still draws a cone and an icosahedron: the payload exists, and
+nothing reads it yet. That is W0c, and it is now unblocked. The impostor tier
+needs no new art — `bakeImpostorAtlas` already bakes from whatever near geometry
+it is handed, which is the whole reason this payload ships no atlas.
+
+Also outstanding: the larch impostor is thinner than its geometry (0.47x the
+covered pixels, and the gain saturates — that one wants tile resolution), and
+the stand's LOD rungs are assigned at build time rather than per frame, which
+is fine for a bench and not for flight. See `futureDesigns/WORLD-V2.md` §8.3 and
+the W0c–W0e rows of the staging plan.

@@ -26,6 +26,28 @@
     "bark": 1,
     "alpha": 0.1
    },
+   "materials": {
+    "M_Branch.007": {
+     "mode": "MASK",
+     "cutoff": 0.608,
+     "coverageMips": true,
+     "base": "media/tex/trees/fir_tree_georgeous_m_branch_007_base.4742577f.png",
+     "baseSize": [
+      1024,
+      1024
+     ],
+     "nor": "media/tex/trees/fir_tree_georgeous_m_branch_007_nor.e8688e34.jpg"
+    },
+    "M_Bark.007": {
+     "mode": "OPAQUE",
+     "base": "media/tex/trees/fir_tree_georgeous_m_bark_007_base.4dc7a894.jpg",
+     "baseSize": [
+      256,
+      1024
+     ],
+     "nor": "media/tex/trees/fir_tree_georgeous_m_bark_007_nor.beac0ead.jpg"
+    }
+   },
    "subjects": [
     {
      "name": "Fir01_LOD0",
@@ -106,6 +128,28 @@
     "bark": 1,
     "alpha": 0
    },
+   "materials": {
+    "M_Bark": {
+     "mode": "OPAQUE",
+     "base": "media/tex/trees/larch_tree_m_bark_base.3057dd84.jpg",
+     "baseSize": [
+      256,
+      1024
+     ],
+     "nor": "media/tex/trees/larch_tree_m_bark_nor.24e88780.jpg"
+    },
+    "M_Branch": {
+     "mode": "MASK",
+     "cutoff": 0.0777,
+     "coverageMips": true,
+     "base": "media/tex/trees/larch_tree_m_branch_base.8e0f34a9.png",
+     "baseSize": [
+      1024,
+      1024
+     ],
+     "nor": "media/tex/trees/larch_tree_m_branch_nor.de257583.jpg"
+    }
+   },
    "subjects": [
     {
      "name": "Larch_LOD0",
@@ -185,6 +229,50 @@
     "light": 1.3,
     "bark": 1,
     "alpha": 0.1
+   },
+   "materials": {
+    "Christmas_tree_Billboard_Mat": {
+     "mode": "MASK",
+     "cutoff": 0.2179,
+     "coverageMips": true,
+     "base": "media/tex/trees/realistic_fir_trees_pack_lods_gameready_christmas_tree_billboard_mat_base.89644786.png",
+     "baseSize": [
+      1024,
+      1024
+     ],
+     "nor": "media/tex/trees/realistic_fir_trees_pack_lods_gameready_christmas_tree_billboard_mat_nor.10e2c45b.jpg"
+    },
+    "Bark_Mat": {
+     "mode": "OPAQUE",
+     "base": "media/tex/trees/realistic_fir_trees_pack_lods_gameready_bark_mat_base.14a749d2.jpg",
+     "baseSize": [
+      512,
+      1024
+     ],
+     "nor": "media/tex/trees/realistic_fir_trees_pack_lods_gameready_bark_mat_nor.c153a8b2.jpg"
+    },
+    "Brunches_Mat": {
+     "mode": "MASK",
+     "cutoff": 0.3764,
+     "coverageMips": true,
+     "base": "media/tex/trees/realistic_fir_trees_pack_lods_gameready_brunches_mat_base.96c367ea.png",
+     "baseSize": [
+      1024,
+      1024
+     ],
+     "nor": "media/tex/trees/realistic_fir_trees_pack_lods_gameready_brunches_mat_nor.b86b2b72.jpg"
+    },
+    "Christmas_tree_2_Billboard_Mat": {
+     "mode": "MASK",
+     "cutoff": 0.3032,
+     "coverageMips": true,
+     "base": "media/tex/trees/realistic_fir_trees_pack_lods_gameready_christmas_tree_2_billboard_mat_base.89806b3f.png",
+     "baseSize": [
+      1024,
+      1024
+     ],
+     "nor": "media/tex/trees/realistic_fir_trees_pack_lods_gameready_christmas_tree_2_billboard_mat_nor.f1362e7e.jpg"
+    }
    },
    "subjects": [
     {
@@ -503,6 +591,28 @@
     "light": 0.54,
     "bark": 1,
     "alpha": 0.2
+   },
+   "materials": {
+    "M_Bark.001": {
+     "mode": "OPAQUE",
+     "base": "media/tex/trees/spruce_tree_m_bark_001_base.b686d5b2.jpg",
+     "baseSize": [
+      256,
+      1024
+     ],
+     "nor": "media/tex/trees/spruce_tree_m_bark_001_nor.26e3e887.jpg"
+    },
+    "M_Branch.001": {
+     "mode": "MASK",
+     "cutoff": 0.2971,
+     "coverageMips": true,
+     "base": "media/tex/trees/spruce_tree_m_branch_001_base.f76f96b7.png",
+     "baseSize": [
+      1024,
+      1024
+     ],
+     "nor": "media/tex/trees/spruce_tree_m_branch_001_nor.d03d0d8d.jpg"
+    }
    },
    "subjects": [
     {

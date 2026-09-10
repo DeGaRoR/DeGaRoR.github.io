@@ -45,9 +45,11 @@ that is what unblocks `render_world.js`, whose impostor tier already bakes
 itself from whatever near geometry it is handed. The record carries a `rungs`
 array so L1/L2 drop in beside it without a format change.
 """
-import hashlib, json, math, os, struct, sys
+import hashlib, io as _io, json, math, os, struct, sys
 
 from media_lib import write_media, prune_media_stems
+
+from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RAW = os.path.join(ROOT, 'assets', 'treesRaw')
@@ -271,6 +273,7 @@ def build_subject(g, bin_, els):
             mat = g.get('materials', [])[mi] if mi is not None else {}
             mode = mat.get('alphaMode', 'OPAQUE')
             parts.append({
+                'mi': mi,
                 'pos': wp, 'nrm': wn,
                 'uv': uv if uv else [0.0] * (nv * 2),
                 'idx': idx, 'nv': nv,
@@ -348,6 +351,81 @@ def pack_part(P, bb):
                       'uvScl': [round(uS, 6), round(vS, 6)]}
 
 
+# ---- the maps ------------------------------------------------------------
+# WHAT IS SHIPPED, AND WHAT IS NOT
+#   base colour  ALWAYS, at the resolution the author shipped. A leaf map's
+#                ALPHA IS THE TREE: it is the cutout, and every collection sits
+#                on its own alpha scale (cedar's leaves at 0.63, larch's at
+#                0.08). It is never resized, because resizing a cutout thins
+#                its coverage - the same failure that made the bench's canopy
+#                dissolve - and the rescale that corrects for it needs the
+#                cutoff, which belongs to the material and not to the image.
+#   normal       at half resolution. Foliage barely reads it at any distance a
+#                tree is drawn from; bark does, up close, and half is enough.
+#   metal/rough  DROPPED. Two of the four collections ship none, and the two
+#                that do ship a palette or a bilevel image - there is no
+#                per-texel metalness on a conifer to lose.
+#
+# Alpha maps are PNG because JPEG cannot carry alpha at all. Everything else is
+# JPEG: bark at q90 is a fraction of the PNG and nothing reads the difference.
+def safe(n):
+    return ''.join(c if (c.isalnum() or c == '_') else '_' for c in n).strip('_').lower()
+
+
+def load_image(g, bin_, src):
+    im = g['images'][src]
+    bv = g['bufferViews'][im['bufferView']]
+    off = bv.get('byteOffset', 0)
+    return Image.open(_io.BytesIO(bin_[off:off + bv['byteLength']]))
+
+
+def bake_textures(g, bin_, used, stem):
+    """One record per material the baked geometry actually uses."""
+    out, wrote = {}, []
+    for mi in sorted(used):
+        m = g['materials'][mi]
+        pbr = m.get('pbrMetallicRoughness', {})
+        name = m.get('name', 'mat%d' % mi)
+        mode = m.get('alphaMode', 'OPAQUE')
+        rec = {'mode': mode}
+        if mode != 'OPAQUE':
+            rec['cutoff'] = round(m.get('alphaCutoff', 0.5), 4)
+            # the renderer must build COVERAGE-PRESERVING mips for this map, or
+            # the canopy thins with every level and the stand dissolves at
+            # distance. Flagged here because only the material knows the cutoff
+            # the coverage has to be preserved AGAINST.
+            rec['coverageMips'] = True
+        bc = pbr.get('baseColorTexture', {}).get('index')
+        if bc is not None:
+            img = load_image(g, bin_, g['textures'][bc]['source'])
+            if img.mode in ('P', '1', 'L', 'LA'):
+                img = img.convert('RGBA' if mode != 'OPAQUE' else 'RGB')
+            if mode != 'OPAQUE' and img.mode == 'RGBA':
+                buf = _io.BytesIO()
+                img.save(buf, 'PNG', optimize=True)
+                rec['base'] = write_media('tex/trees', stem + '_' + safe(name) + '_base',
+                                          'png', buf.getvalue())
+            else:
+                buf = _io.BytesIO()
+                img.convert('RGB').save(buf, 'JPEG', quality=90)
+                rec['base'] = write_media('tex/trees', stem + '_' + safe(name) + '_base',
+                                          'jpg', buf.getvalue())
+            rec['baseSize'] = list(img.size)
+            wrote.append(rec['base'])
+        nr = m.get('normalTexture', {}).get('index')
+        if nr is not None:
+            img = load_image(g, bin_, g['textures'][nr]['source']).convert('RGB')
+            img = img.resize((max(1, img.width // 2), max(1, img.height // 2)),
+                             Image.LANCZOS)
+            buf = _io.BytesIO()
+            img.save(buf, 'JPEG', quality=90)
+            rec['nor'] = write_media('tex/trees', stem + '_' + safe(name) + '_nor',
+                                     'jpg', buf.getvalue())
+            wrote.append(rec['nor'])
+        out[name] = rec
+    return out, wrote
+
+
 def main():
     report = '--report' in sys.argv
     every = '--all' in sys.argv
@@ -365,7 +443,7 @@ def main():
 
     pack = {'note': 'baked by tools/tree_prep.py — see docs/TREE-IMPORT.md',
             'collections': []}
-    stems, total = [], 0
+    stems, total, texAll = [], 0, []
     for a in picked:
         path = os.path.join(RAW, a['name'])
         if not os.path.exists(path):
@@ -373,7 +451,7 @@ def main():
         g, bin_ = read_glb(path)
         t = tuning.get(a['name'], {})
         stem = a['name'].replace('.glb', '').replace('.', '_')
-        blob, subjects = bytearray(), []
+        blob, subjects, used = bytearray(), [], set()
         for S in a['trees']:
             if S.get('merged'):
                 continue
@@ -412,6 +490,7 @@ def main():
                 bake_ao(parts, bb)
                 recs = []
                 for P in parts:
+                    used.add(P['mi'])
                     raw, meta = pack_part(P, bb)
                     meta['off'] = len(blob); meta['len'] = len(raw)
                     blob += raw
@@ -428,6 +507,8 @@ def main():
             continue
         rel = 'media/geo/trees/%s.bin' % stem if report else \
             write_media('geo/trees', stem, 'bin', bytes(blob))
+        mats, texRel = ({}, []) if report else bake_textures(g, bin_, used, stem)
+        texAll.extend(texRel)
         stems.append(stem); total += len(blob)
         pack['collections'].append({
             'name': a['name'], 'bin': rel, 'bytes': len(blob),
@@ -441,6 +522,7 @@ def main():
                       if k in t},
             'tint': {k: t.get(k) for k in ('hue', 'sat', 'light', 'bark', 'alpha')
                      if k in t},
+            'materials': mats,
             'subjects': subjects,
         })
         print('  %-46s %8.2f MB  %d subjects' % (a['name'], len(blob) / 1e6, len(subjects)))
@@ -450,6 +532,7 @@ def main():
               % (len(pack['collections']), total / 1e6))
         return 0
     prune_media_stems('geo/trees', stems, [c['bin'] for c in pack['collections']])
+    prune_media_stems('tex/trees', stems, texAll)
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, 'w', encoding='utf-8', newline='\n') as f:
         json.dump(pack, f, indent=1)
