@@ -225,6 +225,10 @@ const GATES = [
   // actually fits. Every way it can be wrong is silent and reads as a slightly
   // roomier aeroplane, so every one of them has a check
   { id: 'ENERGY', file: '_energy_check.js', tier: 'core' },
+  // THE PANEL ARC, session 1 (2026-09-11): the sources the instruments read
+  // — the shaft speed against the J-3's real numbers, the burn against the
+  // thermo sheet, nz at rest and in free fall, the key and the starter
+  { id: 'RPM', file: '_rpm_check.js', tier: 'core' },
   // world contract (appended: keeps the battery log prefix diffable)
   { id: 'WORLD', file: 'test_world.js', tier: 'core' },
   { id: 'HYDRO', file: 'test_hydro.js', tier: 'core' },

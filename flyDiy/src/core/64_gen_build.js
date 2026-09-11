@@ -421,6 +421,9 @@ function genShakedown(def, opts) {
   // geometry rather than derived — the derivation has to guess the attitude.
   const st = makeSim(def, null);
   st.reset(0);
+  // parked, engine stopped (the panel arc: the burn runs in every sim, and
+  // a stance is measured on an aeroplane that is not running)
+  if (st.setEngine) for (let i = 0; i < st.eng.length; i++) st.setEngine(i, { key: 'off' });
   for (let i = 0; i < 150; i++) st.step(1/60);
   const idOf = t => def.nodes.findIndex(n => n.tag === t);
   const iAx = idOf('AXLER'), iTw = def.refs.tw;

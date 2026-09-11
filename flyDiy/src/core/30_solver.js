@@ -127,6 +127,144 @@ function makeSim(def, world) {
   let totalM = 0;
   for (const nd of def.nodes) totalM += nd.m;
 
+  // ---- THE PANEL ARC, session 1 (2026-09-11): WHAT THE INSTRUMENTS READ ----
+  // Three sources that did not exist — a shaft speed, a burn, a load factor
+  // — and an engine that can be OFF. Everything here defaults to the
+  // aeroplane that flew before it existed (every engine running, tanks as
+  // built, nz 1) so a gate that never touches it flies the same numbers,
+  // except for the burn, which the user ruled runs EVERYWHERE (the P4
+  // remainder; the mass gates were re-anchored once, --bless).
+  const nE0 = P_.nEngines || 1;
+  // per engine: running, the key position (off | l | r | both | start), the
+  // cranking timer. `setEngine` below is the ONE writer; the pilots write the
+  // same thing the cockpit key writes.
+  const eng = [];
+  for (let i = 0; i < nE0; i++) eng.push({ running: true, key: 'both', crank: 0 });
+  // the burn: the thermo sheet's rated figure (kg/h of fuel, or kW of pack
+  // draw), scaled by the effective throttle and the altitude power ratio
+  const THERMO = (typeof genEngineThermo === 'function') ? genEngineThermo(EN) : null;
+  const ENERGY = P_.energy || { kind: 'fuel', kgL: 0.72 };
+  // which kilos are fuel (G121's records on the def's own nodes) — drained
+  // in proportion across every tank, the way the reserve sheet drains them
+  const FUEL_IDX = [], FUEL0 = [], DRY0 = [];
+  for (let i = 0; i < n; i++) if (def.nodes[i].mFuel > 0) {
+    FUEL_IDX.push(i); FUEL0.push(def.nodes[i].mFuel);
+    DRY0.push(Math.max(0.5, def.nodes[i].m - def.nodes[i].mFuel));
+  }
+  const fuelKg0 = FUEL0.reduce((a, b) => a + b, 0);
+  const kgL = ENERGY.kgL > 0 ? ENERGY.kgL : 0.72;
+  const fuel = { kind: ENERGY.kind || 'fuel', kg0: fuelKg0, kg: fuelKg0,
+                 litres0: fuelKg0 / kgL, litres: fuelKg0 / kgL, frac: 1,
+                 kWh: ENERGY.kWh || 0, soc: 1, burnKgH: 0, drawKW: 0,
+                 // per vessel, in the order the spec lists them: litres now
+                 vessels: (ENERGY.vessels || []).map(v => ({ bay: v.bay,
+                   litres0: v.litres || 0, litres: v.litres || 0 })) };
+  // the load factor and the rates: finite differences over one frame,
+  // filtered (a node-beam sim's raw acceleration is the truss ringing)
+  let vPrev = null, hdgPrev = null;
+  out.nz = 1; out.nzMax = 1; out.nzMin = 1; out.r = 0; out.beta = 0;
+  out.pitch = 0; out.roll = 0; out.hdg = 0; out.rpm = []; out.rpmEng = [];
+  function resetPanel() {
+    for (const e of eng) { e.running = true; e.key = 'both'; e.crank = 0; }
+    fuel.frac = 1; fuel.kg = fuel.kg0; fuel.litres = fuel.litres0; fuel.soc = 1;
+    fuel.burnKgH = 0; fuel.drawKW = 0;
+    for (const vs of fuel.vessels) vs.litres = vs.litres0;
+    vPrev = null; hdgPrev = null;
+    out.nz = 1; out.nzMax = 1; out.nzMin = 1; out.r = 0;
+  }
+  // the key, the starter and the hand on the prop. `start: true` cranks
+  // (1.5 s, the viewer's `starterOk` deciding whether the bus can), `swing:
+  // true` is a hand-prop; both need a live magneto position and fuel. A key
+  // turned to 'off' stops the engine. Nothing here touches the throttle.
+  function setEngine(i, patch) {
+    const e = eng[i]; if (!e || !patch) return;
+    if (patch.key !== undefined) {
+      e.key = ['off', 'l', 'r', 'both', 'start'].includes(patch.key) ? patch.key : 'both';
+      if (e.key === 'off') { e.running = false; e.crank = 0; }
+    }
+    const canRun = e.key !== 'off' && (fuel.kind === 'battery' ? fuel.soc > 0 : fuel.frac > 0);
+    if (patch.running !== undefined) e.running = !!patch.running && canRun;
+    if (patch.swing && canRun) e.running = true;
+    if (patch.start && canRun && !e.running) {
+      const ok = typeof sim.starterOk === 'function' ? sim.starterOk(i) : true;
+      if (ok) e.crank = 1.5;
+    }
+  }
+  // per engine, the effective torque demand the burn and the shaft speed
+  // share: idle floor + throttle, zero when the engine is not running
+  const IDLE_T = (() => {
+    const sh = (typeof GEN_SHAFT !== 'undefined') ? GEN_SHAFT : { staticK: 0.92, idleK: 0.28 };
+    return Math.pow(sh.idleK / sh.staticK, 2);
+  })();
+  function thrEffOf(i) {
+    const e = eng[i]; if (!e || !e.running) return 0;
+    const le = ctl.eng && ctl.eng[i];
+    const t = Math.max(0, Math.min(1, ctl.thr * (le ? (le.on ? +le.thr : 0) : 1)));
+    return IDLE_T + (1 - IDLE_T) * t;
+  }
+  // the burn, once per substep: the sheet's rated figure times the mean
+  // effective throttle across the engines, times the altitude power ratio
+  function burn(dt) {
+    if (!THERMO) return;
+    let tSum = 0;
+    for (let i = 0; i < nE0; i++) {
+      const e = eng[i];
+      if (e.crank > 0) { e.crank -= dt; if (e.crank <= 0) { e.crank = 0; e.running = true; } }
+      tSum += thrEffOf(i);
+    }
+    const pk = out.powerK >= 0 ? out.powerK : 1;
+    if (fuel.kind === 'battery') {
+      fuel.drawKW = THERMO.drawKW * tSum * pk;
+      if (fuel.kWh > 0 && fuel.drawKW > 0) {
+        fuel.soc = Math.max(0, fuel.soc - fuel.drawKW * dt / 3600 / fuel.kWh);
+        if (fuel.soc <= 0) for (const e of eng) e.running = false;
+      }
+      return;
+    }
+    fuel.burnKgH = THERMO.burnKgH * tSum * pk;
+    if (!(fuel.kg0 > 0) || !(fuel.burnKgH > 0)) return;
+    const f2 = Math.max(0, fuel.frac - fuel.burnKgH * dt / 3600 / fuel.kg0);
+    if (f2 === fuel.frac) return;
+    fuel.frac = f2;
+    fuel.kg = fuel.kg0 * f2; fuel.litres = fuel.litres0 * f2;
+    for (const vs of fuel.vessels) vs.litres = vs.litres0 * f2;
+    for (let k = 0; k < FUEL_IDX.length; k++)
+      setNodeMass(FUEL_IDX[k], DRY0[k] + FUEL0[k] * f2);
+    if (f2 <= 0) for (const e of eng) e.running = false;   // tanks dry
+  }
+  // the readings that need a frame, not a substep: nz off the CG's own
+  // acceleration against the body up, the yaw rate off the heading, the
+  // attitude the viewer used to derive itself (43_pilot's formulas)
+  function readPanel(dtFrame) {
+    bodyAxes();
+    const cv = cgVel();
+    if (vPrev && dtFrame > 0) {
+      const ax = (cv[0] - vPrev[0]) / dtFrame, ay = (cv[1] - vPrev[1]) / dtFrame,
+            az = (cv[2] - vPrev[2]) / dtFrame;
+      const nzRaw = (ax * yUp[0] + ay * yUp[1] + az * yUp[2] + 9.81 * yUp[1]) / 9.81;
+      const kf = Math.min(1, dtFrame / 0.15);
+      out.nz += (nzRaw - out.nz) * kf;
+      if (out.nz > out.nzMax) out.nzMax = out.nz;
+      if (out.nz < out.nzMin) out.nzMin = out.nz;
+    }
+    vPrev = cv;
+    out.pitch = Math.asin(Math.max(-1, Math.min(1, -xAft[1])));
+    out.roll = Math.atan2(-zRt[1], yUp[1]);
+    // the heading in the NAV's own convention (38_nav.js: 0 = +x, toward +z)
+    const hdg = Math.atan2(-xAft[2], -xAft[0]);
+    if (hdgPrev != null && dtFrame > 0) {
+      let dh = hdg - hdgPrev;
+      while (dh > Math.PI) dh -= 2 * Math.PI;
+      while (dh < -Math.PI) dh += 2 * Math.PI;
+      out.r += (dh / dtFrame - out.r) * Math.min(1, dtFrame / 0.2);
+    }
+    hdgPrev = hdg; out.hdg = hdg;
+    // sideslip: the air-relative velocity against the right axis
+    const ax = cv[0] - (out.windX || 0), ay = cv[1] - (out.windY || 0), az = cv[2] - (out.windZ || 0);
+    const Vt = Math.hypot(ax, ay, az);
+    out.beta = Vt > 1 ? Math.asin(Math.max(-1, Math.min(1, (ax * zRt[0] + ay * zRt[1] + az * zRt[2]) / Vt))) : 0;
+  }
+
   // wingspan datum for ground effect: outermost wing-strip node |z| in def
   // coordinates. Derived, not a fiche param — works for every aircraft.
   // G185: PER PLANE — a sesquiplane's lower wing reads its own span, not the
@@ -317,6 +455,7 @@ function makeSim(def, world) {
   function reset(drop = 0) {
     if (NP) { Gam.fill(0); GamPrev.fill(0); aicHash = NaN; }   // G185.5
     totalM = 0;                    // G121: masses may have changed (setNodeMass)
+    resetPanel();                  // the panel arc: tanks as built, engines running
     for (let i = 0; i < n; i++) {
       const nd = def.nodes[i];
       p[i*3] = nd.p[0]; p[i*3+1] = nd.p[1]; p[i*3+2] = nd.p[2];
@@ -507,7 +646,19 @@ function makeSim(def, world) {
       for (const k of EO) if (k < nE) cnt[k]++;
       const Ti = out.thrustPer; Ti.length = nE;
       T = 0;
-      for (let i = 0; i < nE; i++) { Ti[i] = ctl.thr * lev(i) * Tcap; T += Ti[i]; }
+      for (let i = 0; i < nE; i++) {
+        // the panel arc: a stopped engine pulls nothing (every engine runs
+        // unless the key or the tanks say otherwise — bit-identical before)
+        const run = !eng[i] || eng[i].running;
+        Ti[i] = run ? ctl.thr * lev(i) * Tcap : 0; T += Ti[i];
+        // and the shaft speed the tacho reads: prop rpm, then through the
+        // reduction unit (00_registry.js genShaftRpm, the one law)
+        if (typeof genShaftRpm === 'function') {
+          const thrE = run ? Math.max(0, Math.min(1, ctl.thr * lev(i))) : 0;
+          const rp = genShaftRpm(EN, PR, thrE, Vfwd, sig, PS.power, run);
+          out.rpm[i] = rp; out.rpmEng[i] = genEngineRpm(EN, rp);
+        }
+      }
       // propwash is ONE disc's — the tail flies in the wake of the prop ahead
       // of it, not in the sum of the aeroplane's engines (the mean disc now)
       wash = Math.sqrt(Vfwd * Vfwd + 2 * (T / nE) / (rho * PROPA)) - Vfwd;
@@ -908,7 +1059,8 @@ function makeSim(def, world) {
 
   function step(dtFrame, sub = P_.substeps ?? 24) {
     const dt = dtFrame / sub;
-    for (let s = 0; s < sub; s++) { substep(dt); simT += dt; }
+    for (let s = 0; s < sub; s++) { substep(dt); simT += dt; burn(dt); }
+    readPanel(dtFrame);
   }
 
   // ONE THRUST MODEL, TWO READERS. 64_gen_build's design-time numbers — the
@@ -1011,13 +1163,16 @@ function makeSim(def, world) {
   // setNodeMass would have been invisible to every external reader (the
   // autopilot's taxi feedforward, the shakedown's weights). Same number as
   // ever for anything that never changes mass; nothing writes it.
-  return { p, v, m, r, beams, n, ctl, out, get totalM() { return totalM; },
+  const sim = { p, v, m, r, beams, n, ctl, out, get totalM() { return totalM; },
            setNodeMass,
+           // the panel arc: the tanks, the engines and their one writer
+           fuel, eng, setEngine, thrEffOf,
            reset, stance, step, probe, stats, impulse, wheelsOnGround, cgPos, cgVel, axes,
            // G197: the kernel's sources, readable (the gate asserts the weights' normalisation)
            induction: () => ({ WS: WS.slice(), plane: Array.from(PLANE), bHalf: Array.from(bHalf), Ez: Array.from(Ez), Dz: Array.from(Dz), Gam: Array.from(Gam), Wg: Array.from(Wg), zA: WS.map(j => sA[j*3+2]), zB: WS.map(j => sB[j*3+2]), A: WS.map(j => [sA[j*3], sA[j*3+1], sA[j*3+2]]), B: WS.map(j => [sB[j*3], sB[j*3+1], sB[j*3+2]]), d: sD.slice(), cpt: Array.from(cpt), pairs: pairs.length, loading: LOADING }),
            bodyOrigin,
            setAtmos, setGroundRef, atmos: airOf, thrustAt, probeAir };
+  return sim;
 }
 
 

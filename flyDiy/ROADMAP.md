@@ -395,6 +395,12 @@ machinery mostly exists — departure/destination selects, multi-leg chaining
    nothing burns fuel (`mFuel` is a mass, not a rate). Contact arrays refresh
    ~1 Hz, not per substep. Range, endurance and cruise-at-weight join the
    plaque with it.
+   THE BURN LANDED 2026-09-11 (the panel arc, session 1 — HANDOVER's entry,
+   futureDesigns/PANEL-2026-09-11.md): every liquid tank drains through
+   `setNodeMass` at the thermo sheet's rate, a pack discharges its state of
+   charge, a dry tank stops the engine, in every sim and every gate. Still
+   owed here: the arrival card's `fuel used` row and the plaque's range and
+   endurance (session 4-5 of that arc).
 3. **Vne and a sink-rate limit** [M, G141]. Declared nowhere, so only the
    stall colours a readout today. The two PFD warns were left OWED rather
    than faked; this is where they are paid.
@@ -522,6 +528,11 @@ trigger is you asking for it.*
    LANDED 2026-09-05 as G200 (keyboard + HOTAS + the mapping panel on both
    screens); TrackIR and the instruments are written as plans in
    futureDesigns/MANUAL-CONTROLS-2026-09-05.md, not executed.
+   THE INSTRUMENTS ARE AN ARC NOW — futureDesigns/PANEL-2026-09-11.md, six
+   sessions: sources (LANDED 2026-09-11: shaft speed, burn, nz, the key),
+   catalogue + spec + ledger, the bench + the panel layer, live in flight
+   (join, readings, lamps, the electrical bus), exterior diagnostics + the
+   radio, then the GPS / glass design.
 2. **Fleet and discovery** [L, old P6]. The rack (forty aeroplanes — the one
    sheet UI-MODEL still reserves), hours, wear, the found aircraft as
    measuring sticks, the envelope card on the plaque.

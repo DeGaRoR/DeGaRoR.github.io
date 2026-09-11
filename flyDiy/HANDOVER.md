@@ -36003,3 +36003,122 @@ Four findings, three of them measured before they were believed.
   teleports the paused aeroplane anywhere for a distance shot; find the shed
   in a downscaled whole frame BEFORE cropping — four blind crops cost more
   than one full look.
+
+## G248 — THE PANEL ARC, SESSION 1: THE INSTRUMENTS GET SOMETHING TO READ —
+## A SHAFT SPEED, A BURN, A LOAD FACTOR AND AN ENGINE THAT CAN BE OFF
+## (2026-09-11)
+
+*The arc: `futureDesigns/PANEL-2026-09-11.md` (six sessions, the user's
+rulings on the record there). This session is "the sources": everything a
+needle will read must exist honestly before a needle exists. Number taken
+off the last heading at landing (G246/G247 were taken by other sessions the
+same day).*
+
+**THE SHAFT SPEED (00_registry.js `genShaftRpm`, `GEN_SHAFT`).** The model
+had no propeller rpm (60_gen_spec names the missing rpm limit as a defect)
+and the tacho on the dash was a hash-frozen needle. The user's ruling: a
+DERIVED law in core, one function, so F0 (torque, swirl) inherits it and a
+gate can test it. Every POWERPLANTS row now carries `rpm` (the rated ENGINE
+speed — the tacho's number, from the bench's REF table and the makers'
+sheets), `gear` where a reduction unit sits between crank and prop (912
+2.27, 582 2.62, 503/277 2.58, 915 2.54, Twin Wasp 16:9, M-14P 1.52, R3600
+2.0, HM 508 1.5), and `cs: true` on the four turbines (a governed
+propeller: the gauge that moves is torque). The custom row clamps `gear`
+1..5 and the engine bench publishes it (`_cage_eng.js` facts).
+- The law, fixed-pitch: engine torque flat with speed at a throttle
+  setting; propeller torque falling with advance ratio in the SAME quadratic
+  shape as the model's own thrust law. Equating the two:
+  `n = sqrt(thrEff · (powerK/σ) · nS² + (V/(D·J1))²)`, `nS = 0.92·nR`
+  (`GEN_SHAFT.staticK` — the A-65/74CK turns 2150 tied down against 2300,
+  the O-200 2400 against 2750: the 0.87-0.94 band of every cruise prop),
+  `J1 = V0/(nR·D)` — torque runs out where the synthesis's own thrust runs
+  out (`V0 = sqrt(Tstatic/kV2)`). ONE new constant. `thrEff = idle + (1 −
+  idle)·thr`, `idle = (0.28·nR/nS)²` (the A-65 idles at 650).
+- **Measured against the J-3** (V0 = 78.7 m/s): static 2116 · climb 24 m/s
+  2229 · cruise 33 m/s 2325 — real 2150 / 2200-2250 / 2300; idle 644. A
+  dead engine windmills at `V/(D·J1)` (877 at 30 m/s), which is what the
+  second term IS. Thin air lowers static rpm (`powerK/σ`). Electric rows use
+  the same law (flat torque at a command); a `cs` row returns nR while it
+  runs. `genEngineRpm` puts the reduction back for the gauge.
+- Published per engine in the thrust pass: `sim.out.rpm[i]` (prop) and
+  `sim.out.rpmEng[i]` (tacho).
+
+**THE BURN (30_solver.js, the P4 remainder; ROADMAP Phase 5 item 2).** The
+user's ruling: EVERYWHERE, gates included. Per substep, `kgH = burnKgH ·
+Σ thrEff · powerK` off the thermo sheet's rated figure (`genEngineThermo`,
+SFC flat with power, the idle floor through thrEff); every node that G121
+recorded `mFuel` on is drained in proportion through `setNodeMass` (the one
+door — `DRY0 + FUEL0·frac`, so the dry kilos never move). `sim.fuel = {kg,
+kg0, litres, litres0, frac, burnKgH, vessels[] (per tank, spec order, from
+`params.energy.vessels` — the frame's own billing), kind, kWh, soc,
+drawKW}`. A pack discharges `soc` at `drawKW·thrEff` and weighs the same. A
+dry tank or an empty pack STOPS THE ENGINE and it will not restart.
+`reset()` refills. Measured on the stock build: 3 s at idle burns 0.003 kg
+and `totalM` moves by exactly that; full throttle against the brakes burns
+the sheet's 14.55 kg/h; a 0.4 L tank runs dry in 71 s (the sheet says 71).
+- `params.energy` (62_gen_aero genParams) carries `{kind, kgL, vessels}` or
+  `{kind:'battery', kWh}` — the solver never re-looks-up the catalogue.
+- The design-time probes (`genTORunAt`, `genClimbAt`) fly through `step`
+  and therefore burn a few grams during a take-off roll now; the shakedown
+  anchors moved by that (re-read off GATE GEN's own line, per the ritual).
+  In fact NOTHING on the sheet moved: the take-off roll is an analytic
+  integration over probes (genTORunAt), the climb reads thrustAt, and the
+  only stepped sim in the shakedown is the STANCE, which now runs with the
+  engine stopped (a parked aeroplane; see below). GEN's SHAKEDOWN line,
+  ENERGYBASE and WINGSPLIT are bit-identical — no bless was needed. Only
+  the circuits burn, and a circuit is not a frozen number.
+
+**THE LOAD FACTOR, THE RATES, THE ATTITUDE (30_solver.js `readPanel`, once
+per `step`).** `out.nz` = the CG's own acceleration against the body up
+(`(a·yUp + 9.81·yUp_y)/9.81`, one previous CG velocity kept, filtered τ
+0.15 s — a raw frame difference on a node-beam sim is the truss ringing),
+`out.nzMax/nzMin` since reset; `out.r` the yaw rate (heading difference,
+τ 0.2 s, + = a right turn); `out.hdg` in the NAV's convention (38_nav: 0 =
++x, toward +z); `out.pitch`, `out.roll` (43_pilot's own formulas, so the
+viewer stops re-deriving them); `out.beta` (the G200 `flDbg` formula).
+Measured: 1.00 at rest, < 0.35 within 20 frames of a 400 m free fall.
+
+**THE KEY (30_solver.js `sim.eng[i]`, `sim.setEngine(i, patch)`).** Per
+engine `{running, key: off|l|r|both|start, crank}`. `key:'off'` stops it; a
+live magneto position plus either `swing: true` (a hand on the prop) or
+`start: true` (the starter: 1.5 s of crank, then it catches — unless
+`sim.starterOk(i)`, which the viewer's bus will set, says no) starts it;
+nothing starts without fuel. A stopped engine pulls nothing and its prop
+windmills. Everything defaults RUNNING with the key on `both`, so no gate
+changed a number here; the pilot's DEPART phase runs the checklist (mags
+on, running) — writing exactly what the cockpit key will write, so a key the
+hand turned off comes back when the pilot takes over.
+
+**Rigs run with the engine stopped:** `makeLoadTest` turns the key off on
+its sim (a sandbag test happens in a hangar, and a running engine would
+lighten the aeroplane under the bags — the linearity check reads that as a
+bent rig), and the shakedown's stance settle does the same. GATE LOAD and
+GATE GEN's stance numbers are therefore unchanged.
+
+**GATE RPM (`tools/_rpm_check.js`, core, ~13 s).** The census (every
+row a rated rpm, gear 1..5, `cs` on turbines and nowhere else); the law's
+three J-3 anchors within 3 %, the idle, monotone in throttle and airspeed,
+windmill below idle, thin air, the governed turbine, the 912's reduction;
+the sim: 1 g and no yaw rate at rest, idle burns grams and `totalM` follows
+through the door, full throttle burns the sheet, the static anchor against
+the brakes, key off / mags on / hand-prop / starter / no bus, reset, free
+fall, a 0.4 L tank dry at the sheet's rate and no restart, a pack's SOC
+without a mass change. `--selftest`: a drifted `staticK` and a row with no
+rpm are both caught.
+
+**Gates** (on a PRIVATE COPY of the tree — `cp -r src tools vendor docs` to
+the scratchpad, `node tools/build.js` there, `run_gates.js --no-build
+--only=…` — because the shared machine was running three batteries and GATE
+GEN hit its 1800 s timeout twice, on the pre-edit baseline as well; a
+timeout is not a verdict): RPM, INPUT, PILOT, BUILD, WINGSPLIT, ENERGYBASE,
+ENERGY, LOAD, ATMOS, FLAPS, STRESS, UISMOKE, JOIN, ENGID, PARTS, DESIGN
+green; GEN run direct (`node tools/test_gen.js`, 74/74, PASS, ~70 min at
+430 steps/s — the machine, not the change: the old and new cores step the
+stock build at 431 vs 423 steps/s). Pre-existing reds in the shared tree
+that are NOT this session's: SKINMAT (cowl `inner` with no finish — the
+cowl session) and BENCH (the sticker keys — the stickers session).
+
+**Owed from this session:** the viewer reads none of it yet (session 4 —
+HUD, needles, the arrival card's `fuel used`, the plaque's range and
+endurance); the F0 chantier's torque should be `Qe` from this law; oil P/T,
+mixture and a QNH knob are declared out of the arc.

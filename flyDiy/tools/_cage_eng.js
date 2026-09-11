@@ -257,6 +257,9 @@ window.CAGE_ENG_FACTS = (P) => {
   const elec = R.arch === 'electric', turb = R.arch === 'turbine';
   const facts = {
     mass: R.mass, powerW: R.powerW, rpm: R.rpm,
+    // the panel arc: the reduction ratio the tacho law needs (prop = rpm/gear)
+    gear: R.gearRatio > 1 ? +R.gearRatio.toFixed(3)
+        : (spec.geared ? (+spec.gearRatio || 1) : 1),
     torque: R.torque != null ? R.torque
       : R.powerW / (2 * Math.PI * Math.max(1, R.rpm) / 60),
     aspiration: elec ? 'electric' : turb ? 'turbine' : (R.aspiration || 'na'),

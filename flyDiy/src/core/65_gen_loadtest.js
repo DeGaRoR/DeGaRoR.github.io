@@ -141,6 +141,12 @@ function makeLoadTest(sim, def, cfg) {
   const SETTLE = (cfg.settleS == null ? 2.0 : cfg.settleS);
   const MAT = (typeof GEN_MATERIALS !== 'undefined' && cfg.material)
     ? GEN_MATERIALS[cfg.material] : null;
+  // THE ENGINE IS STOPPED ON THE RIG (the panel arc, session 1): a sandbag
+  // test happens in a hangar, and since the burn drains every tank in every
+  // sim, a running engine would lighten the aeroplane under the bags —
+  // and the linearity check reads that as a bent rig.
+  if (sim.setEngine && sim.eng)
+    for (let i = 0; i < sim.eng.length; i++) sim.setEngine(i, { key: 'off' });
   // THE WING IS JUDGED AS WHAT IT IS BUILT OF (G213). `cfg.wingMaterial` is a
   // GEN_SURF_MATERIALS key (or row): the wing class's allowable is that
   // row's section and yield, not the fuselage's. Measured before this: the

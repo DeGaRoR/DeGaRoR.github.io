@@ -2947,6 +2947,9 @@ function clampSpec(spec) {
       cu.mass = genClamp(cu.mass, 0.05, 900);
       cu.powerW = genClamp(cu.powerW, 100, 1000000);
       cu.rpm = genClamp(cu.rpm == null ? 2300 : cu.rpm, 400, 14000);
+      // the panel arc: a reduction unit between crank and prop (prop = rpm /
+      // gear); 1 = direct drive. Read by genShaftRpm, never by the thrust law.
+      cu.gear = genClamp(cu.gear == null ? 1 : cu.gear, 1, 5);
       cu.torque = genClampN(cu.torque, 0, 5000);
       cu.aspiration = ['electric', 'turbine', 'turbo', 'super']
         .includes(cu.aspiration) ? cu.aspiration : 'na';

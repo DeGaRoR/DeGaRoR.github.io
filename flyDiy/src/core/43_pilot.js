@@ -828,6 +828,11 @@ function makePilot(sim, def, world, opts) {
     if (BX.on) boxFly(); else
     switch (ap.phase) {
       case 'DEPART': {
+        // the panel arc: the pilot runs the checklist — mags on, engine
+        // running — writing exactly what the cockpit key writes, so a key
+        // the hand turned off comes back on when the pilot takes over
+        if (sim.setEngine && sim.eng)
+          for (let i = 0; i < sim.eng.length; i++) sim.setEngine(i, { key: 'both', running: true });
         const next = planDeparture(cg, nose);
         engage('NONE', 'DE', 'SET', { de: A.taxiDe ?? 0.30, thr: 0 });
         go(next === 'STOP' ? (Vg < 0.3 ? 'HOLD' : 'STOP') : 'TAXI');

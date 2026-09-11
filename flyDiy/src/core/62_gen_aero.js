@@ -998,6 +998,16 @@ function genParams(S, fr, strips) {
     // over POWERPLANTS[powerplant].prop when it is present, and a fiche never
     // sets it — so the fleet reads the registry exactly as before.
     prop: { D: S.prop.D, Tstatic: S.prop.Tstatic, kV2: S.prop.kV2 },
+    // THE PANEL ARC (session 1): what the burn drains and the fuel gauge
+    // reads in. A liquid aeroplane's litres come out of the drained `mFuel`
+    // through its fuel's density; a pack has a capacity and a state of
+    // charge instead (nothing drains — cells weigh the same empty).
+    energy: (S.energy && S.energy.kind === 'battery')
+      ? { kind: 'battery', kWh: +S.energy.kWh || 0 }
+      : { kind: 'fuel', kgL: (GEN_FUELS[S.energy && S.energy.fuel] || GEN_FUELS.avgas100LL).kgL,
+          // per tank, in spec order, what the frame billed (the fuel gauges)
+          vessels: ((S.energy && S.energy.vessels) || []).map(v => ({
+            bay: v.bay, litres: v._res ? +v._res.litres || 0 : 0 })) },
     substeps: genSubsteps(fr.nodes, fr.beams),
     polarWing, polarTail, polarFin,
     // G185: one polar PER PLANE (polarWing stays the alias of plane 0's —

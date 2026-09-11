@@ -58,7 +58,7 @@ const RHO = 1.225;
 const POWERPLANTS = {
   a65_sensenich74: {
     price: 9000,
-    engine: { name: 'Continental A-65', mass: 80, powerW: 48500, aspiration: 'na', family: 'four', cooling: 'air' },
+    engine: { name: 'Continental A-65', mass: 80, powerW: 48500, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2300 },
     // G158: 1202 N / 0.1941, the generator's own synthesis at standard pitch
     // (figure of merit 0.477 on a 1.88 m disc absorbing 48.5 kW) and inside
     // the published 250-280 lbf band for this combination. The old 900 / 0.26
@@ -72,17 +72,17 @@ const POWERPLANTS = {
     price: 65000,
     // 'super' since the blower model (2026-09-05): rated to 1 500 m, the
     // -92's 4 900 ft low-blower critical altitude
-    engine: { name: 'P&W R-1830 Twin Wasp', mass: 750, powerW: 895000, aspiration: 'super', critAlt: 1500, family: 'four', cooling: 'air' },
+    engine: { name: 'P&W R-1830 Twin Wasp', mass: 750, powerW: 895000, aspiration: 'super', critAlt: 1500, family: 'four', cooling: 'air', rpm: 2700, gear: 1.78 },
     prop:   { name: 'Hamilton Standard 23E50', D: 3.4, Tstatic: 11000, kV2: 0.543 },
   },
   io360_mccauley: {
     price: 38000,
-    engine: { name: 'Lycoming IO-360-L2A', mass: 138, powerW: 134000, aspiration: 'na', family: 'four', cooling: 'air' },
+    engine: { name: 'Lycoming IO-360-L2A', mass: 138, powerW: 134000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2700 },
     prop:   { name: 'McCauley 1C235 fixed-pitch', D: 1.93, Tstatic: 2290, kV2: 0.136 },
   },
   rotax277_pusher: {
     price: 3500,
-    engine: { name: 'Rotax 277 (pusher)', mass: 30, powerW: 21000, aspiration: 'na', family: 'two', cooling: 'air' },
+    engine: { name: 'Rotax 277 (pusher)', mass: 30, powerW: 21000, aspiration: 'na', family: 'two', cooling: 'air', rpm: 6250, gear: 2.58 },
     prop:   { name: '2-pale bois 1.42 m', D: 1.42, Tstatic: 800, kV2: 0.545 },
   },
   // THE MIDDLE OF THE MARKET. The six entries above skip from a 3 500 cr
@@ -112,27 +112,27 @@ const POWERPLANTS = {
   // engine + gearbox + radiator + coolant.
   vw2180_wood: {
     price: 6000,
-    engine: { name: 'VW 2180 conversion', mass: 66, powerW: 44000, aspiration: 'na', family: 'four', cooling: 'air' },
+    engine: { name: 'VW 2180 conversion', mass: 66, powerW: 44000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 3200 },
     prop:   { name: '2-pale bois 1.60 m', D: 1.60, Tstatic: 1012, kV2: 0.1406 },
   },
   rotax582_ivo: {
     price: 5500,
-    engine: { name: 'Rotax 582 + 2.62 red.', mass: 43, powerW: 48000, aspiration: 'na', family: 'two', cooling: 'liquid' },
+    engine: { name: 'Rotax 582 + 2.62 red.', mass: 43, powerW: 48000, aspiration: 'na', family: 'two', cooling: 'liquid', rpm: 6500, gear: 2.62 },
     prop:   { name: 'IVO 3-pale 1.68 m', D: 1.68, Tstatic: 1168, kV2: 0.182 },
   },
   jabiru2200_std: {
     price: 15000,
-    engine: { name: 'Jabiru 2200A', mass: 60, powerW: 63000, aspiration: 'na', family: 'four', cooling: 'air' },
+    engine: { name: 'Jabiru 2200A', mass: 60, powerW: 63000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 3300 },
     prop:   { name: '2-pale bois 1.52 m', D: 1.52, Tstatic: 1242, kV2: 0.1269 },
   },
   rotax912_warp: {
     price: 18000,
-    engine: { name: 'Rotax 912 UL', mass: 58, powerW: 59600, aspiration: 'na', family: 'four', cooling: 'liquid' },
+    engine: { name: 'Rotax 912 UL', mass: 58, powerW: 59600, aspiration: 'na', family: 'four', cooling: 'liquid', rpm: 5800, gear: 2.27 },
     prop:   { name: 'Warp Drive 3-pale 1.73 m', D: 1.73, Tstatic: 1376, kV2: 0.193 },
   },
   o200_eprops: {
     price: 24000,
-    engine: { name: 'Continental O-200-A', mass: 85, powerW: 74600, aspiration: 'na', family: 'four', cooling: 'air' },
+    engine: { name: 'Continental O-200-A', mass: 85, powerW: 74600, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2750 },
     prop:   { name: 'E-Props Durandal carbone', D: 1.73, Tstatic: 1700, kV2: 0.177 },
   },
   // THE AMATEUR RADIALS (G157, the user: "More radial engines and inline for
@@ -154,17 +154,17 @@ const POWERPLANTS = {
   // standard pitch — the Hamilton Standard 2B20 the Beaver swings.
   r985_hs2b20: {
     price: 48000,
-    engine: { name: 'P&W R-985 Wasp Junior', mass: 290, powerW: 336000, aspiration: 'super', critAlt: 1500, family: 'four', cooling: 'air' },
+    engine: { name: 'P&W R-985 Wasp Junior', mass: 290, powerW: 336000, aspiration: 'super', critAlt: 1500, family: 'four', cooling: 'air', rpm: 2300 },
     prop:   { name: 'Hamilton Standard 2B20', D: 2.59, Tstatic: 5408, kV2: 0.368 },
   },
   verner7u_wood: {
     price: 22000,
-    engine: { name: 'Verner Scarlett 7U', mass: 78, powerW: 78000, aspiration: 'na', family: 'four', cooling: 'air' },
+    engine: { name: 'Verner Scarlett 7U', mass: 78, powerW: 78000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2400 },
     prop:   { name: '2-pale bois 1.80 m', D: 1.80, Tstatic: 1400, kV2: 0.250 },
   },
   rotec3600_std: {
     price: 30000,
-    engine: { name: 'Rotec R3600', mass: 102, powerW: 112000, aspiration: 'na', family: 'four', cooling: 'air' },
+    engine: { name: 'Rotec R3600', mass: 102, powerW: 112000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 3600, gear: 2 },
     prop:   { name: '2-pale 1.95 m', D: 1.95, Tstatic: 1950, kV2: 0.240 },
   },
   // THE AMATEUR IN-LINES (G165, the other half of the user's "more radial
@@ -187,12 +187,12 @@ const POWERPLANTS = {
   // how I know I ran the right formula.
   mikron3_wood: {
     price: 16000,
-    engine: { name: 'Walter Mikron III', mass: 74, powerW: 48000, aspiration: 'na', family: 'four', cooling: 'air' },
+    engine: { name: 'Walter Mikron III', mass: 74, powerW: 48000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2600 },
     prop:   { name: '2-pale bois 1.65 m', D: 1.65, Tstatic: 1094, kV2: 0.1495 },
   },
   gipsymajor1_wood: {
     price: 26000,
-    engine: { name: 'DH Gipsy Major 1', mass: 139, powerW: 97000, aspiration: 'na', family: 'four', cooling: 'air' },
+    engine: { name: 'DH Gipsy Major 1', mass: 139, powerW: 97000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2350 },
     prop:   { name: '2-pale bois 1.98 m', D: 1.98, Tstatic: 1975, kV2: 0.2153 },
   },
   // THE AERO Vs (2026-09-05, the V test — the user: "test the V configs,
@@ -206,12 +206,12 @@ const POWERPLANTS = {
   // 2.40 m at standard pitch; the prices are the bent four-stroke law's.
   hirth508_wood: {
     price: 40000,
-    engine: { name: 'Hirth HM 508D', mass: 186, powerW: 209000, aspiration: 'na', family: 'four', cooling: 'air' },
+    engine: { name: 'Hirth HM 508D', mass: 186, powerW: 209000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 3000, gear: 1.5 },
     prop:   { name: '2-pale bois 2.30 m', D: 2.30, Tstatic: 3641, kV2: 0.2905 },
   },
   argus10c_wood: {
     price: 38000,
-    engine: { name: 'Argus As 10C', mass: 213, powerW: 176000, aspiration: 'na', family: 'four', cooling: 'air' },
+    engine: { name: 'Argus As 10C', mass: 213, powerW: 176000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2000 },
     prop:   { name: '2-pale bois 2.40 m', D: 2.40, Tstatic: 3340, kV2: 0.3163 },
   },
   // THE COVERAGE FILL (2026-09-05, the engine-coverage study — the user:
@@ -227,77 +227,77 @@ const POWERPLANTS = {
   // THE FLATS: 100 -> 150 -> 180 -> 235 -> 310 -> 400 hp
   o320_mccauley: {
     price: 28000,
-    engine: { name: 'Lycoming O-320-E2D', mass: 122, powerW: 112000, aspiration: 'na', family: 'four', cooling: 'air' },
+    engine: { name: 'Lycoming O-320-E2D', mass: 122, powerW: 112000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2700 },
     prop:   { name: '2-blade alloy 1.93 m', D: 1.93, Tstatic: 2137, kV2: 0.2046 },
   },
   o540_hartzell: {
     price: 38000,
-    engine: { name: 'Lycoming O-540-B2C5', mass: 176, powerW: 175000, aspiration: 'na', family: 'four', cooling: 'air' },
+    engine: { name: 'Lycoming O-540-B2C5', mass: 176, powerW: 175000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2575 },
     prop:   { name: '2-blade alloy 2.13 m', D: 2.13, Tstatic: 3073, kV2: 0.2492 },
   },
   io550_hartzell3: {
     price: 42000,
-    engine: { name: 'Continental IO-550-N', mass: 195, powerW: 231000, aspiration: 'na', family: 'four', cooling: 'air' },
+    engine: { name: 'Continental IO-550-N', mass: 195, powerW: 231000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2700 },
     prop:   { name: '3-blade alloy 1.98 m', D: 1.98, Tstatic: 3716, kV2: 0.2528 },
   },
   io720_hartzell3: {
     price: 45000,
-    engine: { name: 'Lycoming IO-720-A1A', mass: 257, powerW: 298000, aspiration: 'na', family: 'four', cooling: 'air' },
+    engine: { name: 'Lycoming IO-720-A1A', mass: 257, powerW: 298000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2650 },
     prop:   { name: '3-blade alloy 2.03 m', D: 2.03, Tstatic: 4477, kV2: 0.2658 },
   },
   // the amateur turbo (the 912's blown sibling): 'turbo', held to 4 600 m
   rotax915_carbon: {
     price: 34000,
-    engine: { name: 'Rotax 915 iS', mass: 84, powerW: 105000, aspiration: 'turbo', critAlt: 4600, family: 'four', cooling: 'liquid' },
+    engine: { name: 'Rotax 915 iS', mass: 84, powerW: 105000, aspiration: 'turbo', critAlt: 4600, family: 'four', cooling: 'liquid', rpm: 5800, gear: 2.54 },
     prop:   { name: '3-blade carbon 1.80 m', D: 1.80, Tstatic: 2061, kV2: 0.2090 },
   },
   // THE IN-LINE'S CEILING: the inverted six of the PT-19 trainer
   ranger440_wood: {
     price: 35000,
-    engine: { name: 'Ranger L-440-5', mass: 170, powerW: 149000, aspiration: 'na', family: 'four', cooling: 'air' },
+    engine: { name: 'Ranger L-440-5', mass: 170, powerW: 149000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2450 },
     prop:   { name: '2-blade wood 2.20 m', D: 2.20, Tstatic: 2821, kV2: 0.2658 },
   },
   // THE CLASSIC RADIALS: 150 -> 220 -> 300 -> 360 -> 450 -> 600 hp
   w670_hs2b: {
     price: 36000,
-    engine: { name: 'Continental W-670-6A', mass: 211, powerW: 164000, aspiration: 'na', family: 'four', cooling: 'air' },
+    engine: { name: 'Continental W-670-6A', mass: 211, powerW: 164000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2075 },
     prop:   { name: '2-blade alloy 2.59 m', D: 2.59, Tstatic: 3352, kV2: 0.3684 },
   },
   r755_hs2b: {
     price: 41000,
-    engine: { name: 'Jacobs R-755-A2', mass: 230, powerW: 224000, aspiration: 'na', family: 'four', cooling: 'air' },
+    engine: { name: 'Jacobs R-755-A2', mass: 230, powerW: 224000, aspiration: 'na', family: 'four', cooling: 'air', rpm: 2200 },
     prop:   { name: '2-blade alloy 2.59 m', D: 2.59, Tstatic: 4127, kV2: 0.3684 },
   },
   // the aerobatic radial of today (Yak-52, Sukhoi): supercharged, and
   // nearly ground-boosted — rated to 500 m
   m14p_v530: {
     price: 43000,
-    engine: { name: 'Vedeneyev M-14P', mass: 214, powerW: 268000, aspiration: 'super', critAlt: 500, family: 'four', cooling: 'air' },
+    engine: { name: 'Vedeneyev M-14P', mass: 214, powerW: 268000, aspiration: 'super', critAlt: 500, family: 'four', cooling: 'air', rpm: 2900, gear: 1.52 },
     prop:   { name: '2-blade alloy 2.40 m', D: 2.40, Tstatic: 4421, kV2: 0.3163 },
   },
   // the Wasp (Harvard, Otter, Ag Cat): ground-boosted — 600 hp at the
   // strip, 550 at 5 000 ft, so its ceiling is nearly the NA law
   r1340_hs12d40: {
     price: 52000,
-    engine: { name: 'P&W R-1340-AN-1 Wasp', mass: 400, powerW: 447000, aspiration: 'super', critAlt: 300, family: 'four', cooling: 'air' },
+    engine: { name: 'P&W R-1340-AN-1 Wasp', mass: 400, powerW: 447000, aspiration: 'super', critAlt: 300, family: 'four', cooling: 'air', rpm: 2250 },
     prop:   { name: '2-blade alloy 2.74 m', D: 2.74, Tstatic: 6792, kV2: 0.4123 },
   },
   // the two-stroke's 50 hp rung (mass with its gearbox, the 582's convention)
   rotax503_wood: {
     price: 4000,
-    engine: { name: 'Rotax 503 UL + B red.', mass: 38, powerW: 37000, aspiration: 'na', family: 'two', cooling: 'air' },
+    engine: { name: 'Rotax 503 UL + B red.', mass: 38, powerW: 37000, aspiration: 'na', family: 'two', cooling: 'air', rpm: 6800, gear: 2.58 },
     prop:   { name: '2-blade wood 1.60 m', D: 1.60, Tstatic: 901, kV2: 0.1406 },
   },
   // the electric ladder's missing rung: the 268 was one of the five motors
   // the electric mass law was fitted on and had no row of its own
   emrax268_carbon: {
     price: 32000,
-    engine: { name: 'EMRAX 268 / 107 kW', mass: 20.3, powerW: 107000, aspiration: 'electric', family: 'electric', cooling: 'air' },
+    engine: { name: 'EMRAX 268 / 107 kW', mass: 20.3, powerW: 107000, aspiration: 'electric', family: 'electric', cooling: 'air', rpm: 2400 },
     prop:   { name: '3-blade carbon 1.90 m', D: 1.90, Tstatic: 2164, kV2: 0.2328 },
   },
   outrunner2212_9x47: {
     price: 25,
-    engine: { name: '2212 outrunner 1000KV / 3S', mass: 0.10, powerW: 180, aspiration: 'electric', family: 'electric', cooling: 'air' },
+    engine: { name: '2212 outrunner 1000KV / 3S', mass: 0.10, powerW: 180, aspiration: 'electric', family: 'electric', cooling: 'air', rpm: 9000 },
     prop:   { name: 'GWS 9x4.7 SlowFly', D: 0.229, Tstatic: 8.0, kV2: 0.0155 },
   },
   // THE ELECTRIC LADDER (G25). One 180 W park-flyer can was the whole
@@ -324,37 +324,37 @@ const POWERPLANTS = {
   // them at G158 when that constant moved.
   outrunner3548_12x6: {
     price: 55,
-    engine: { name: '3548 outrunner 900KV / 4S', mass: 0.35, powerW: 800, aspiration: 'electric', family: 'electric', cooling: 'air' },
+    engine: { name: '3548 outrunner 900KV / 4S', mass: 0.35, powerW: 800, aspiration: 'electric', family: 'electric', cooling: 'air', rpm: 11000 },
     prop:   { name: 'APC 12x6E', D: 0.305, Tstatic: 23.2, kV2: 0.0051 },
   },
   outrunner6374_18x10: {
     price: 130,
-    engine: { name: '6374 outrunner 170KV / 12S', mass: 0.75, powerW: 2200, aspiration: 'electric', family: 'electric', cooling: 'air' },
+    engine: { name: '6374 outrunner 170KV / 12S', mass: 0.75, powerW: 2200, aspiration: 'electric', family: 'electric', cooling: 'air', rpm: 6300 },
     prop:   { name: 'carbone 18x10', D: 0.457, Tstatic: 59.5, kV2: 0.0115 },
   },
   eppg_direct_130: {
     price: 3800,
-    engine: { name: 'e-PPG 12 kW direct drive', mass: 7.0, powerW: 12000, aspiration: 'electric', family: 'electric', cooling: 'air' },
+    engine: { name: 'e-PPG 12 kW direct drive', mass: 7.0, powerW: 12000, aspiration: 'electric', family: 'electric', cooling: 'air', rpm: 2500 },
     prop:   { name: '2-pale carbone 1.30 m', D: 1.30, Tstatic: 370, kV2: 0.0928 },
   },
   fes_folding_100: {
     price: 9500,
-    engine: { name: 'FES sustainer 22 kW', mass: 9.0, powerW: 22000, aspiration: 'electric', family: 'electric', cooling: 'air' },
+    engine: { name: 'FES sustainer 22 kW', mass: 9.0, powerW: 22000, aspiration: 'electric', family: 'electric', cooling: 'air', rpm: 4500 },
     prop:   { name: 'lames repliables 1.00 m', D: 1.00, Tstatic: 466, kV2: 0.0549 },
   },
   emrax228_3blade: {
     price: 11000,
-    engine: { name: 'EMRAX 228 / 55 kW', mass: 19.5, powerW: 55000, aspiration: 'electric', family: 'electric', cooling: 'air' },
+    engine: { name: 'EMRAX 228 / 55 kW', mass: 19.5, powerW: 55000, aspiration: 'electric', family: 'electric', cooling: 'air', rpm: 2400 },
     prop:   { name: '3-pale composite 1.65 m', D: 1.65, Tstatic: 1264, kV2: 0.1756 },
   },
   e811_velis: {
     price: 28000,
-    engine: { name: 'Pipistrel E-811 (certified)', mass: 30.0, powerW: 57600, aspiration: 'electric', family: 'electric', cooling: 'air' },
+    engine: { name: 'Pipistrel E-811 (certified)', mass: 30.0, powerW: 57600, aspiration: 'electric', family: 'electric', cooling: 'air', rpm: 2500 },
     prop:   { name: 'composite fixe 1.64 m', D: 1.64, Tstatic: 1231, kV2: 0.1477 },
   },
   sp260d_class: {
     price: 90000,
-    engine: { name: 'SP260D-class 260 kW', mass: 68.0, powerW: 260000, aspiration: 'electric', family: 'electric', cooling: 'air' },
+    engine: { name: 'SP260D-class 260 kW', mass: 68.0, powerW: 260000, aspiration: 'electric', family: 'electric', cooling: 'air', rpm: 2500 },
     prop:   { name: 'MT 3-pale 2.20 m', D: 2.20, Tstatic: 4313, kV2: 0.3121 },
   },
   // THE TURBOPROPS (2026-09-05, futureDesigns/TURBOPROP-2026-09-05.md §4) —
@@ -368,12 +368,12 @@ const POWERPLANTS = {
   // published band. Prices are the second-hand market's: 5-7x an R-985.
   pt6a114a_hartzell3: {
     price: 240000,
-    engine: { name: 'P&W PT6A-114A', mass: 160, powerW: 503000, aspiration: 'turbine', family: 'turbine', cooling: 'air', flatK: 1.26, length: 1.60 },
+    engine: { name: 'P&W PT6A-114A', mass: 160, powerW: 503000, aspiration: 'turbine', family: 'turbine', cooling: 'air', flatK: 1.26, length: 1.60, rpm: 1900, cs: true },
     prop:   { name: 'Hartzell 3-blade 2.69 m', D: 2.69, Tstatic: 7657, kV2: 0.4667 },
   },
   pt6a34_hartzell4: {
     price: 265000,
-    engine: { name: 'P&W PT6A-34', mass: 150, powerW: 560000, aspiration: 'turbine', family: 'turbine', cooling: 'air', flatK: 1.33, length: 1.57 },
+    engine: { name: 'P&W PT6A-34', mass: 150, powerW: 560000, aspiration: 'turbine', family: 'turbine', cooling: 'air', flatK: 1.33, length: 1.57, rpm: 2200, cs: true },
     prop:   { name: 'Hartzell 4-blade 2.44 m', D: 2.44, Tstatic: 8109, kV2: 0.4472 },
   },
   // THE MEDIUM PT6s (2026-09-05, the coverage fill — inside the study's
@@ -382,12 +382,12 @@ const POWERPLANTS = {
   // genPropSynth's output at each installation's four-blade diameter.
   pt6a42_hartzell4: {
     price: 300000,
-    engine: { name: 'P&W PT6A-42', mass: 183, powerW: 634000, aspiration: 'turbine', family: 'turbine', cooling: 'air', flatK: 1.24, length: 1.70 },
+    engine: { name: 'P&W PT6A-42', mass: 183, powerW: 634000, aspiration: 'turbine', family: 'turbine', cooling: 'air', flatK: 1.24, length: 1.70, rpm: 2000, cs: true },
     prop:   { name: 'Hartzell 4-blade 2.36 m', D: 2.36, Tstatic: 8615, kV2: 0.4183 },
   },
   pt6a60a_hartzell4: {
     price: 380000,
-    engine: { name: 'P&W PT6A-60A', mass: 218, powerW: 783000, aspiration: 'turbine', family: 'turbine', cooling: 'air', flatK: 1.20, length: 1.85 },
+    engine: { name: 'P&W PT6A-60A', mass: 218, powerW: 783000, aspiration: 'turbine', family: 'turbine', cooling: 'air', flatK: 1.20, length: 1.85, rpm: 1700, cs: true },
     prop:   { name: 'Hartzell 4-blade 2.67 m', D: 2.67, Tstatic: 10767, kV2: 0.5355 },
   },
 };
@@ -446,6 +446,70 @@ function genEngineThermo(engine) {
     burnKgH: T.sfcKgKWh * kW,
     drawKW: T.eta ? kW / T.eta : 0,
   };
+}
+
+// THE SHAFT SPEED (the panel arc, session 1, 2026-09-11). Until this date the
+// model had NO PROPELLER RPM in it (60_gen_spec.js says so, and names the
+// missing rpm limit as a defect) and the tachometer on the dash was a
+// decoration. The user's ruling: a DERIVED rpm law in core, one function,
+// so the F0 chantier (torque, swirl) inherits it and the gates can test it.
+//
+// Every row now carries `rpm` — the RATED ENGINE speed, the number on the
+// tacho — and, where a reduction unit sits between the crank and the prop,
+// `gear` (prop = rpm / gear; the 912's 2.27, the 582's 2.62, the Twin Wasp's
+// 16:9). A turbine row carries `cs: true`: its propeller is governed to a
+// constant speed and the gauge that moves is torque, so `rpm` is Np at 100 %.
+//
+// THE LAW, for a fixed-pitch propeller. Engine torque is flat with speed at
+// a throttle setting (true within a few per cent over the 60-100 % band of
+// every aero piston); propeller torque falls with advance ratio with the
+// SAME quadratic shape the model's own thrust law already has:
+//     Qe = thrEff · powerK · Qr                    Qr = Pr / omegaR
+//     Qp = Cq0 · rho · D^5 · (n^2 - (V / (D J1))^2)   Cq(J) = Cq0 (1 - (J/J1)^2)
+// and equating the two gives the closed form
+//     n = sqrt( thrEff · (powerK / sigma) · nS^2 + (V / (D J1))^2 )
+// with nS = staticK · nR, the full-throttle STATIC speed as a fraction of
+// rated (0.92: the A-65/74CK turns 2150 tied down against 2300 rated, the
+// O-200 2400 against 2750 — the 0.87-0.94 band of every cruise prop), and
+// J1 = V0 / (nR D): the torque runs out where the model's thrust runs out
+// (V0 = sqrt(Tstatic / kV2), the synthesis's own zero-thrust speed). ONE new
+// constant, and the anchors it reproduces on the A-65 (V0 = 78.7 m/s):
+//     static 2116 · climb 24 m/s 2225 · cruise 33 m/s 2325
+// against the J-3's real 2150 / 2200-2250 / 2300. A dead engine windmills
+// at n = V / (D J1), which is what the second term is. Electric rows use the
+// same law (a motor's torque is flat with speed at a command). A `cs` row
+// returns nR whenever the engine is running.
+//
+// `thrEff` carries the IDLE: a running piston never turns slower than
+// ~0.28 nR (the A-65 idles at 650), so the throttle maps to torque as
+// idle + (1 - idle) thr with idle = (0.28 nR / nS)^2.
+const GEN_SHAFT = {
+  staticK: 0.92,     // static full-throttle rpm / rated, fixed-pitch cruise prop
+  idleK: 0.28,       // idle rpm / rated
+};
+// PROPELLER shaft speed in rpm. `eng` is the engine dict (rpm, gear, cs),
+// `pr` the prop record (D, Tstatic, kV2), `thr` 0..1, V the TRUE airspeed
+// into the disc (m/s), `sigma` the density ratio and `powerK` the
+// powerplant's own altitude ratio (05_atmos). `running` false = windmilling.
+function genShaftRpm(eng, pr, thr, V, sigma, powerK, running) {
+  const e = eng || {}, p = pr || {};
+  const gear = e.gear > 0 ? e.gear : 1;
+  const nR = (e.rpm > 0 ? e.rpm : 2300) / gear;
+  const D = p.D > 0 ? p.D : 1.8;
+  if (e.cs) return running === false ? 0 : nR;
+  const V0 = (p.Tstatic > 0 && p.kV2 > 0) ? Math.sqrt(p.Tstatic / p.kV2) : 60;
+  const J1 = V0 / (nR * D);
+  const wind = Math.max(0, V) / (D * J1);
+  const nS = GEN_SHAFT.staticK * nR;
+  const idle = Math.pow(GEN_SHAFT.idleK * nR / nS, 2);
+  const t = running === false ? 0
+          : idle + (1 - idle) * Math.max(0, Math.min(1, thr || 0));
+  const sig = sigma > 0 ? sigma : 1, pk = powerK >= 0 ? powerK : 1;
+  return Math.sqrt(t * (pk / sig) * nS * nS + wind * wind);
+}
+// the number on the tacho: engine speed, through the reduction unit
+function genEngineRpm(eng, propRpm) {
+  return propRpm * ((eng && eng.gear > 0) ? eng.gear : 1);
 }
 
 // A CUSTOM ENGINE'S PRICE (G134) — the market curve the registry's own rows
