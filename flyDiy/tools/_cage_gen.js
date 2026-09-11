@@ -1913,19 +1913,25 @@ function cageRims(m, S) {
   // door encompasses the window), so the two kinds are grouped in
   // independent passes. A door zone spans all its marked bands but only
   // within one bay side, so union-find merges only faces sharing an edge.
+  // DRAWN WINDOWS (G245, _knife_gen.js): a knife pass leaves the zone's
+  // skin as triangles and n-gons round a HOLE. The zone is still one zone —
+  // a door with a drawn window in it is one door — so faces of any size
+  // count, and the hole's own edges are not zone boundary: they are the
+  // pane's, and the pane's loop is swept as its own job below.
+  const HOLE = m.knifeHole || null, HOLE_LEN = m.knifeHoleLen || [];
   const groupZones = flag => {
     const marked = [];
     F.forEach((f, i) => {
-      if (f.v.length === 4 && f[flag]) marked.push({ i });
+      if (f.v.length >= 3 && f[flag]) marked.push({ i });
     });
     const byIdx = new Map(marked.map((r, k) => [r.i, k]));
     const parent = marked.map((_, k) => k);
     const find = k => parent[k] === k ? k : (parent[k] = find(parent[k]));
     const eOwner = new Map();
     for (const r of marked) {
-      const f = F[r.i];
-      for (let e = 0; e < 4; e++) {
-        const key = cageEdgeKey(f.v[e], f.v[(e + 1) % 4]);
+      const f = F[r.i], nV = f.v.length;
+      for (let e = 0; e < nV; e++) {
+        const key = cageEdgeKey(f.v[e], f.v[(e + 1) % nV]);
         if (eOwner.has(key))
           parent[find(byIdx.get(r.i))] = find(byIdx.get(eOwner.get(key)));
         else eOwner.set(key, r.i);
@@ -1942,45 +1948,72 @@ function cageRims(m, S) {
   const jobs = [];
   for (const z of groupZones('win')) jobs.push({ kind: 'win', faceIdxs: z });
   for (const z of groupZones('door')) jobs.push({ kind: 'door', faceIdxs: z });
+  // the drawn windows' loops: recorded ON THE SKIN by the knife, already
+  // ordered, with the skin's own normals — no zone to trace
+  for (const lp of (m.knifeLoops || []))
+    jobs.push({ kind: 'win', faceIdxs: [], loop: lp });
 
   m.outlines = [];
   const add = [];
-  for (const { kind, faceIdxs } of jobs) {
+  for (const { kind, faceIdxs, loop } of jobs) {
     const zoneFaces = faceIdxs.map(i => F[i]);
-    const dir = new Map();
-    for (const f of zoneFaces)
-      for (let e = 0; e < 4; e++) {
-        const a = f.v[e], b = f.v[(e + 1) % 4], k = cageEdgeKey(a, b);
-        if (dir.has(k)) dir.delete(k); else dir.set(k, [a, b]);
+    let ring = null;
+    if (!loop) {
+      // a hole WHOLLY inside this zone is not its boundary; a hole the
+      // zone's edge runs through is — the outline follows the cut there
+      const holeIn = new Map();
+      if (HOLE) for (const f of zoneFaces) {
+        const nV = f.v.length;
+        for (let e = 0; e < nV; e++) {
+          const id = HOLE.get(cageEdgeKey(f.v[e], f.v[(e + 1) % nV]));
+          if (id != null) holeIn.set(id, (holeIn.get(id) || 0) + 1);
+        }
       }
-    const nxt = new Map();
-    for (const [, [a, b]] of dir) nxt.set(a, b);
-    // subdivided zones have interior vertices — only the boundary cycle
-    // matters; the walk must close over exactly the boundary edges
-    const start = nxt.keys().next().value;
-    const ring = [start];
-    for (let v = nxt.get(start); v !== start && ring.length <= nxt.size;
-         v = nxt.get(v)) ring.push(v);
-    if (ring.length !== nxt.size) continue;
+      const dir = new Map();
+      for (const f of zoneFaces) {
+        const nV = f.v.length;
+        for (let e = 0; e < nV; e++) {
+          const a = f.v[e], b = f.v[(e + 1) % nV], k = cageEdgeKey(a, b);
+          const id = HOLE ? HOLE.get(k) : null;
+          if (id != null && holeIn.get(id) === HOLE_LEN[id]) continue;
+          if (dir.has(k)) dir.delete(k); else dir.set(k, [a, b]);
+        }
+      }
+      const nxt = new Map();
+      for (const [, [a, b]] of dir) nxt.set(a, b);
+      // subdivided zones have interior vertices — only the boundary cycle
+      // matters; the walk must close over exactly the boundary edges
+      const start = nxt.keys().next().value;
+      ring = [start];
+      for (let v = nxt.get(start); v !== start && ring.length <= nxt.size;
+           v = nxt.get(v)) ring.push(v);
+      if (ring.length !== nxt.size) continue;
+    }
 
     const vN = new Map();
     for (const f of zoneFaces) {
-      const p = f.v.map(i => V[i]);
-      const n = cross(sub(p[1], p[0]), sub(p[3], p[0]));
+      // Newell: the zone may hold triangles and n-gons now (knife)
+      const nV = f.v.length, n = [0, 0, 0];
+      for (let i = 0; i < nV; i++) {
+        const a = V[f.v[i]], b = V[f.v[(i + 1) % nV]];
+        n[0] += (a[1]-b[1]) * (a[2]+b[2]); n[1] += (a[2]-b[2]) * (a[0]+b[0]);
+        n[2] += (a[0]-b[0]) * (a[1]+b[1]);
+      }
       for (const vi of f.v) {
         const s = vN.get(vi) || [0, 0, 0];
         vN.set(vi, [s[0]+n[0], s[1]+n[1], s[2]+n[2]]);
       }
     }
 
-    const zMat = F[faceIdxs[0]].m;
-    let pts = ring.map(v => limitPos(v));
-    let ns = ring.map(v => nrm(vN.get(v)));
-    let ids = ring.slice();
+    const zMat = loop ? (loop.mat || 'pasengerWindow') : F[faceIdxs[0]].m;
+    let pts = loop ? loop.pts.map(p => p.slice()) : ring.map(v => limitPos(v));
+    let ns = loop ? loop.ns.map(n => n.slice()) : ring.map(v => nrm(vN.get(v)));
+    let ids = loop ? loop.pts.map(() => -1) : ring.slice();
 
     // per-door sill: the pilot door reads doorSill, pax doors doorSillPax;
     // spec.win.sills = {pilot: v, pax0: v, ...} overrides any single door
-    const doorKey = F[faceIdxs[0]].doorKey || null;
+    const doorKey = loop ? (loop.doorKey || null)
+                         : (F[faceIdxs[0]].doorKey || null);
     const sill = kind !== 'door' ? 0
       : W.sills && doorKey && W.sills[doorKey] != null ? W.sills[doorKey]
       : doorKey && doorKey.lastIndexOf('pax', 0) === 0
@@ -2178,7 +2211,9 @@ function cageRims(m, S) {
     // strip sinks with the glass and the step it was cut for disappears.
     // (a PROUD pane — negative inset — keeps the strip at the pane's own
     // level: a retainer over a proud pane rests on the pane)
-    if (S.cut && S.cut.on &&
+    // (a knife loop was recorded on the SKIN, before its pane recessed —
+    // it needs no lift)
+    if (!loop && S.cut && S.cut.on &&
         (kind === 'door' ? W.doorDepth > 0 : W.paneInset > 0)) {
       const li = kind === 'door' ? W.doorDepth : W.paneInset;
       pts = pts.map((p, i) => {
@@ -6372,6 +6407,15 @@ const CAGE_PARAMS = {
   // glass sill: extend the pilot/pax glass DOWN the door, row-stepped;
   // 0 = template extent, ~0.9 = the whole door is window
   winSillPilot: 0, winSillPax: 0,
+  // DRAWN WINDOWS (G245, _knife_gen.js): paxWinN > 0 replaces the pax glass
+  // BAND with windows drawn in the side view and knife-cut into the
+  // displayed skin — first station (ABSOLUTE, cage z; user ruling: a window
+  // stays where it was drawn), pitch, centre height, width, height, corner
+  // radius (rounded rectangle) or an oval, and the reveal's depth. 0 keeps
+  // the band, so every existing build is unchanged.
+  paxWinN: 0, paxWinShape: 0, paxWinZ: 0.45, paxWinPitch: 0.75,
+  paxWinY: 0.50, paxWinW: 0.52, paxWinH: 0.40, paxWinR: 0.08,
+  paxWinDepth: 0.006,
   // pillar crease defaults to MAX (user ruling): the pillar bands render
   // at their drawn width — width itself is adjusted via pillarW below,
   // never via the crease.
@@ -6762,6 +6806,20 @@ function cageSpec(P) {
   S.top = { round: P.topRound, angCeil: P.topAngCeil, angRoof: P.topAngRoof,
             comp: P.topComp, bubble: P.bubble ? 1 : 0,
             botRound: P.botRound };
+  // the drawn windows (G245): absolute stations, both flanks mirrored.
+  // The outline's sample step follows the bead: a point every ~bead width
+  // is what the sweep's corner logic expects of a curved run
+  S.windows = [];
+  {
+    const n = Math.max(0, Math.min(4, Math.round(+P.paxWinN || 0)));
+    const rim = +P.rimW > 0 ? +P.rimW : 0.012;
+    for (let i = 0; i < n; i++)
+      S.windows.push({ shape: +P.paxWinShape ? 'ellipse' : 'rect',
+                       z: +P.paxWinZ + i * +P.paxWinPitch, y: +P.paxWinY,
+                       w: +P.paxWinW, h: +P.paxWinH, r: +P.paxWinR,
+                       depth: Math.max(0, +P.paxWinDepth || 0),
+                       step: Math.max(0.006, rim * 1.1) });
+  }
   S.glaze = { sky: P.skylight == null || P.skylight ? 1 : 0,
               ext: Math.max(0, Math.round(P.skyExt != null ? P.skyExt : 5)),
               sillPilot: Math.max(0, P.winSillPilot || 0),
@@ -7586,6 +7644,19 @@ function cageSheet(P, opts) {
   const m = buildCage2(spec, step);
   let s = m;
   for (let i = 0; i < L; i++) s = cageSubdivide(s);
+  // DRAWN WINDOWS (G245): with any drawn, the pax glass BAND is skin again —
+  // before the sill and the cut see it, so neither extends nor separates a
+  // window that no longer exists. The knife itself runs after cageCut: a
+  // window drawn over a door is cut into the door's own (separated, moved)
+  // faces and keeps its tags, so the door owns its pane.
+  const KG = (typeof KNIFE_GEN !== 'undefined') ? KNIFE_GEN
+    : (typeof require === 'function' ? require('./_knife_gen.js') : null);
+  const drawn = step === 'crease' && KG && spec.windows && spec.windows.length;
+  if (drawn)
+    s = Object.assign({}, s, { F: s.F.map(f => {
+      if (f.m !== 'pasengerWindow') return f;
+      const g = Object.assign({}, f, { m: 'body' }); delete g.win; return g;
+    }) });
   if (step === 'crease') {
     // glass sill first: rows under the pilot/pax glass reassign to glass
     // so the cut and the joints see the extended windows; G14: doors and
@@ -7596,6 +7667,15 @@ function cageSheet(P, opts) {
     // (G13). Rim joints sweep the boundary AT THIS level.
     s = cageGlassSill(s, spec);
     s = cageCut(s, spec);
+    if (drawn) {
+      // the skin's normals are fixed HERE, on the welded surface, and
+      // every pass after this carries them: the hole must not change how
+      // the surface round it shades (see _knife_gen.js)
+      s.N = KG.knifeNormals(s);
+      for (const w of spec.windows) for (const side of [1, -1])
+        s = KG.knifeCut(s, w, { side, depth: w.depth,
+                                paneMat: 'pasengerWindow', wallMat: 'reveal' });
+    }
     s = cageCanopy(s, spec);
     s = cageRims(s, spec);
     s = cageInterior(s, spec);

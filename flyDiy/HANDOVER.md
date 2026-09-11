@@ -36122,3 +36122,85 @@ cowl session) and BENCH (the sticker keys — the stickers session).
 HUD, needles, the arrival card's `fuel used`, the plaque's range and
 endurance); the F0 chantier's torque should be `Qe` from this law; oil P/T,
 mixture and a QNH knob are declared out of the arc.
+
+## G245 — DRAWN WINDOWS: A WINDOW IS CUT WHERE IT IS DRAWN (2026-09-11, the
+## user: "passenger windows: I'd like to modulate their shapes; could we
+## properly inset/cut so I can manipulate width, height, z station, etc? Even
+## maybe some round windows? Need to be super clean, no shading issues, proper
+## joint. Do a test first" — then "ok integrate it, absolute stations, doors
+## own their panes")
+
+The band windows (G12.3) are MATERIAL ZONES between the sill and ceil rails:
+a bay long, a band tall, square — their shape is the lattice's, and the
+cage-inset detour that tried to draw a frame INTO the cage was ruled out on
+three counts (a creased loop is still a smooth curve; crease lines must not
+cross; corner-pinned vertices stand proud of the converging surface).
+
+`tools/_knife_gen.js` is the other thing: a window DRAWN in the side view
+(station, centre height, width, height, corner radius — or an oval) and
+KNIFE-PROJECTED through the SUBDIVIDED skin, the G14 idiom ("step through the
+available geometry, no fighting the subsurf") taken from faces to a curve. The
+file's header carries the method; what was bought:
+
+- **The outline is CONVEX and that is load-bearing.** Per face the pane's
+  share is a Sutherland-Hodgman clip against the outline lines that touch it;
+  the outside is walked as a simple polygon (the face boundary from where the
+  pane leaves it to where it rejoins, then the arc back) and ear-clipped —
+  including the annulus (a window inside one face, bridged). The first walk
+  went end-to-start and produced overlapping triangles that LOOKED like
+  windows from most angles; the edge-count identity below is what caught it.
+- **Created points are keyed by their two CARRIERS** (an original edge, an
+  outline line), never by the sub-edge they were found on — a clip by a line
+  whose segment ends inside the face also crosses the boundary beyond it, and
+  chaining keys through that spurious point gave the same true crossing two
+  names from two faces (a crack). Only points that end in a pane polygon are
+  `used`; the T-junction repair then inserts every used point on an original
+  edge into EVERY polygon riding that edge — untouched neighbours, the far
+  flank, the crown line, and a previous window's triangles (the pass takes
+  faces of any size, which is what makes two windows on one lattice column
+  compose).
+- **NO SHADING ISSUE, by construction:** cageSheet fixes the skin's normals
+  on the welded surface (`s.N = knifeNormals(s)`) BEFORE the cut and every
+  pass after carries them; created points lerp normal + surface field from
+  the split edge's ends; the pane is pushed in along that same normal and
+  keeps it. `meshFrom` honours `m.N` now (fan over n-gons, face-averaged
+  normals only for vertices no pass described) — computeVertexNormals on a
+  cut skin seams along every hole, because the hole's edge vertices see one
+  side only.
+- **THE WATERTIGHT IDENTITY is the test:** the hole's skin boundary edges ==
+  the pane's boundary edges == the loop's points, zero over-shared. It held at
+  L2/L3 for rounded rects, sharp rects, three round windows, a window to the
+  crown, one on the belly, 1.1 x 0.85 m, 80 x 60 mm inside one face, two on
+  one column. It does NOT hold for OVERLAPPING windows (the second outline
+  crosses the first reveal) — the row must refuse pitch < width + frame; not
+  enforced yet.
+- **Rows:** `paxWinN` (0 = the band, so every existing build is unchanged),
+  `paxWinShape`, `paxWinZ` (ABSOLUTE cage station, user ruling: a drawn
+  window stays where it was drawn when the cabin moves), `paxWinPitch`,
+  `paxWinY/W/H/R`, `paxWinDepth`; group "drawn windows" on the Passenger bay;
+  `winSillPax` hides while windows are drawn. spec.windows is the list.
+- **THE SLOT:** with windows drawn the pax band goes back to `body` right
+  after subdivision (before the sill and cageCut see it); the knife runs AFTER
+  cageCut, so a window over a door is cut into the door's own separated,
+  moved faces and keeps its tags — **doors own their panes** (G14 v2). A cut
+  part is drawn in its OWN frame (side-view coordinates taken with `cutOff`
+  removed): the first version cut in world space and an exploded door got its
+  window 19 mm low. `cageRims` gained the "sweep this recorded loop" entrance
+  (`m.knifeLoops` → jobs of kind 'win', no zone to trace, no paneInset lift),
+  zones accept n-gons, and a hole WHOLLY inside a zone is not its boundary
+  (`m.knifeHole` maps edge → loop) while a window across the door's edge is —
+  the door's outline follows the cut there.
+- The reveal wall is section `reveal`, role `struct` (unfielded; it follows
+  the construction like a bulkhead). The bead is the joint's own alloy strip.
+- **Bench:** `tools/_win.html` (launch `flydiy-win`) — the standalone test:
+  paint / sections / normals views, wire, the watertight verdict live.
+  Design note: futureDesigns/WINDOW-KNIFE-2026-09-11.md.
+- **Open:** cageInterior's liners do not know about the holes (its passes walk
+  past n-gons); a per-window station list (today: first + pitch); the overlap
+  refusal; sky windows drawn the same way.
+- Also today, not this chantier: the tree impostor bake (render_world.js
+  bakeImpostor) set a 128 px tile viewport on the shared renderer and never
+  put it back, and r128 re-applies the renderer's viewport to the CANVAS on
+  the next setRenderTarget(null) — the whole editor drew in a small square in
+  the middle of the screen (the user's "viewport cropped to a really small
+  area"). Saved and restored around the bake.

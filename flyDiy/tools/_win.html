@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<!--
+  WINDOW KNIFE BENCH — the test for drawn, cut windows (see _knife_gen.js).
+
+  The fuselage is the game's own cage (CAGE2.cageSpec / buildCage2 /
+  cageSubdivide at the chosen level), the passenger glass BAND is turned back
+  into skin, and the windows are drawn in the side view — station, height,
+  width, corner radius or an ellipse — and knife-cut into the displayed
+  surface with a reveal, a recessed pane and a bead. Both flanks, mirrored.
+
+  What to judge here, and the controls that judge it:
+    - the cut edge under a GRAZING light (light az/el): a halo along the hole
+      is a normal discontinuity, and there must be none — the skin keeps its
+      pre-cut normals and the pane carries the same ones.
+    - the NORMALS view paints direction as colour: the pane must be the same
+      colour as the skin around it, the reveal a different one.
+    - the WIRE view shows the pieces: the cut follows the outline, not the
+      lattice, and no vertex sits in the middle of another face's edge.
+    - the stat line: watertight = the hole's skin edges, the pane's boundary
+      edges and the loop's points are the same count.
+
+  Serve from the repo root (launch: flydiy-win) and open /flyDiy/tools/_win.html.
+-->
+<meta charset="utf-8">
+<title>flyDiy — window knife</title>
+<style>
+  :root{--bg:#12151a;--fg:#dfe6ee;--dim:#7d8996;--acc:#5db3ff;--grid:#242a33}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--fg);
+    font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;overflow:hidden}
+  header{padding:8px 12px;border-bottom:1px solid var(--grid);display:flex;
+    gap:14px;align-items:center;flex-wrap:wrap}
+  h1{font-size:13px;margin:0}
+  label{color:var(--dim);display:inline-flex;gap:5px;align-items:center}
+  select,button{background:#1a1f27;color:var(--fg);border:1px solid var(--grid);
+    padding:3px 8px;border-radius:4px;font:inherit}
+  main{display:flex;height:calc(100vh - 40px)}
+  #view{position:relative;flex:1;min-width:0}
+  canvas{display:block;width:100%;height:100%}
+  aside{border-left:1px solid var(--grid);overflow-y:auto;overflow-x:hidden;
+    padding:10px;width:330px;flex:none}
+  .r{display:flex;gap:6px;align-items:center;margin:5px 0;min-width:0}
+  .r span.k{color:var(--dim);width:96px;flex:none;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
+  .r select{min-width:60px;flex:1}
+  input[type=range]{flex:1;min-width:30px;accent-color:var(--acc)}
+  .v{width:52px;flex:none;text-align:right;color:var(--acc)}
+  #stat{position:absolute;left:10px;top:8px;color:var(--dim);z-index:2;
+    white-space:pre;line-height:1.5}
+  h2{font-size:11px;color:var(--dim);margin:14px 0 4px;text-transform:uppercase}
+  .ok{color:#6fd08c} .bad{color:#ff6b5a}
+</style>
+
+<header>
+  <h1>window knife</h1>
+  <label>subsurf <select id="lvl">
+    <option>1</option><option selected>2</option><option>3</option>
+  </select></label>
+  <label>view <select id="view">
+    <option value="paint" selected>paint</option>
+    <option value="sections">sections</option>
+    <option value="normals">normals</option>
+  </select></label>
+  <label><input type="checkbox" id="wire"> wire</label>
+  <label><input type="checkbox" id="rims" checked> cage rims</label>
+  <label><input type="checkbox" id="knifeOn" checked> knife</label>
+  <button id="sideBtn">side view</button>
+  <button id="closeBtn">close-up</button>
+</header>
+
+<main>
+  <div id="view"><span id="stat"></span><canvas id="c"></canvas></div>
+  <aside id="ui"></aside>
+</main>
+
+<script src="../vendor/three.min.js"></script>
+<script src="_cage_gen.js"></script>
+<script src="_knife_gen.js"></script>
+<script>
+'use strict';
+(() => {
+const G = window.CAGE2, K = window.KNIFE_GEN;
+const $ = id => document.getElementById(id);
+const D2R = Math.PI / 180;
+
+// ---- the windows, as the user draws them --------------------------------
+// cage units = metres here (CAGE_UNIT 1, planeScale 1). z is the station
+// (forward +), y the height; the pax bay on the stock cage runs z 0.07..1.82,
+// the old glass band y 0.18..0.83.
+const P = {
+  count: 2, z0: 0.45, pitch: 0.75, y: 0.50, w: 0.52, h: 0.40, r: 0.08,
+  shape: 'rect', depth: 0.006, bead: 0.010, step: 0.010, sides: 'both',
+  lightAz: 35, lightEl: 22,
+};
+const ROWS = [
+  ['count', 'windows', 1, 4, 1],
+  ['z0', 'first z', -1.0, 2.0, 0.01],
+  ['pitch', 'pitch', 0.2, 1.5, 0.01],
+  ['y', 'height y', -0.3, 1.0, 0.01],
+  ['w', 'width', 0.05, 1.2, 0.01],
+  ['h', 'height', 0.05, 0.9, 0.01],
+  ['r', 'corner r', 0, 0.45, 0.005],
+  ['depth', 'reveal depth', 0, 0.03, 0.001],
+  ['bead', 'bead r', 0, 0.02, 0.001],
+  ['step', 'outline step', 0.004, 0.04, 0.001],
+  ['lightAz', 'light az', -180, 180, 1],
+  ['lightEl', 'light el', 2, 80, 1],
+];
+const ui = $('ui');
+const row = (k, lab, lo, hi, st) => {
+  const d = document.createElement('div'); d.className = 'r';
+  const s = document.createElement('input');
+  s.type = 'range'; s.min = lo; s.max = hi; s.step = st; s.value = P[k];
+  const v = document.createElement('span'); v.className = 'v';
+  const fmt = () => v.textContent = (+P[k]).toFixed(st < 0.01 ? 3 : st < 1 ? 2 : 0);
+  fmt();
+  s.oninput = () => { P[k] = +s.value; fmt();
+    if (k.startsWith('light')) light(); else build(); };
+  d.innerHTML = `<span class="k">${lab}</span>`;
+  d.append(s, v); ui.append(d);
+};
+const sel = (k, lab, opts) => {
+  const d = document.createElement('div'); d.className = 'r';
+  d.innerHTML = `<span class="k">${lab}</span>`;
+  const s = document.createElement('select');
+  for (const o of opts) s.add(new Option(o, o));
+  s.value = P[k]; s.onchange = () => { P[k] = s.value; build(); };
+  d.append(s); ui.append(d);
+};
+{
+  const h = document.createElement('h2'); h.textContent = 'drawn windows'; ui.append(h);
+  sel('shape', 'shape', ['rect', 'ellipse']);
+  sel('sides', 'sides', ['both', 'port', 'stbd']);
+  for (const r of ROWS.slice(0, 7)) row(...r);
+  const h2 = document.createElement('h2'); h2.textContent = 'joint'; ui.append(h2);
+  for (const r of ROWS.slice(7, 10)) row(...r);
+  const h3 = document.createElement('h2'); h3.textContent = 'light'; ui.append(h3);
+  for (const r of ROWS.slice(10)) row(...r);
+  const note = document.createElement('p');
+  note.style.color = 'var(--dim)';
+  note.textContent = 'drag: orbit · wheel: zoom · right-drag: pan. ' +
+    'Judge the cut edge with the light low (el 5-15) and swept across it.';
+  ui.append(note);
+}
+
+// ---- scene ------------------------------------------------------------------
+const cv = $('c');
+const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true,
+                                           preserveDrawingBuffer: true });
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.85;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x12151a);
+const camera = new THREE.PerspectiveCamera(32, 1, 0.02, 200);
+const sun = new THREE.DirectionalLight(0xfff2e0, 1.5);
+scene.add(sun, sun.target);
+const hemi = new THREE.HemisphereLight(0xbfd3ea, 0x3a3630, 0.35);
+scene.add(hemi);
+// a painted sky through PMREM: a PBR paint needs something to reflect, or
+// the specular that shows a normal seam is not there to show it
+{
+  const W = 256, H = 128, c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const g = c.getContext('2d'), img = g.createImageData(W, H);
+  for (let y = 0; y < H; y++) {
+    const t = y / (H - 1);
+    const top = [0.35, 0.52, 0.80], hor = [0.78, 0.82, 0.86], gnd = [0.22, 0.21, 0.18];
+    for (let x = 0; x < W; x++) {
+      const i = (y * W + x) * 4;
+      const col = t < 0.5 ? top.map((a, k) => a + (hor[k] - a) * (t / 0.5))
+                          : hor.map((a, k) => a + (gnd[k] - a) * ((t - 0.5) / 0.5));
+      img.data[i] = col[0] * 255; img.data[i+1] = col[1] * 255;
+      img.data[i+2] = col[2] * 255; img.data[i+3] = 255;
+    }
+  }
+  g.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(c);
+  t.mapping = THREE.EquirectangularReflectionMapping;
+  t.encoding = THREE.sRGBEncoding;
+  const pm = new THREE.PMREMGenerator(renderer);
+  scene.environment = pm.fromEquirectangular(t).texture;
+}
+function light() {
+  const az = P.lightAz * D2R, el = P.lightEl * D2R;
+  sun.position.set(Math.cos(el) * Math.sin(az), Math.sin(el), Math.cos(el) * Math.cos(az))
+     .multiplyScalar(20);
+  sun.target.position.set(0, 0, 0);
+  draw();
+}
+
+// ---- materials --------------------------------------------------------------
+const PAINT = 0xd9d2c4;
+const MATS = {};
+const SECT = {};
+const secCol = name => {
+  if (!SECT[name]) {
+    let h = 0; for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    SECT[name] = new THREE.Color().setHSL((h % 360) / 360, 0.45, 0.55);
+  }
+  return SECT[name];
+};
+const GLASS = new Set(['pasengerWindow', 'pilotWindow', 'windshield', 'skyWindows']);
+function matOf(name, view) {
+  const key = name + '|' + view;
+  if (MATS[key]) return MATS[key];
+  let m;
+  if (view === 'normals') m = new THREE.MeshNormalMaterial();
+  else if (GLASS.has(name))
+    m = new THREE.MeshPhysicalMaterial({ color: 0x8fb4c8, roughness: 0.04,
+      metalness: 0, transparent: true, opacity: 0.45, envMapIntensity: 1.2,
+      side: THREE.DoubleSide });
+  else if (name === 'joint' || name === 'doorSeal')
+    m = new THREE.MeshStandardMaterial({ color: 0x15161a, roughness: 0.85, metalness: 0 });
+  else if (name === 'reveal')
+    m = new THREE.MeshStandardMaterial({ color: view === 'sections' ? 0xff5a3c : 0x6d675e,
+      roughness: 0.6, metalness: 0.05 });
+  else
+    m = new THREE.MeshStandardMaterial({
+      color: view === 'sections' ? secCol(name) : PAINT,
+      roughness: 0.38, metalness: 0.08, envMapIntensity: 0.9 });
+  MATS[key] = m;
+  return m;
+}
+
+// ---- geometry: n-gons fanned, explicit normals, per-material groups --------
+function geomFrom(m, view) {
+  const pos = new Float32Array(m.V.length * 3), nor = new Float32Array(m.V.length * 3);
+  m.V.forEach((v, i) => { pos[i*3] = v[0]; pos[i*3+1] = v[1]; pos[i*3+2] = v[2]; });
+  // normals for vertices the passes did not describe (the cage rims): from
+  // the faces that use them, welded by index
+  const N = m.N ? m.N.slice() : [];
+  const need = [];
+  for (let i = 0; i < m.V.length; i++) if (!N[i]) { N[i] = [0, 0, 0]; need.push(i); }
+  if (need.length) {
+    const nd = new Set(need);
+    for (const f of m.F) {
+      if (!f.v.some(i => nd.has(i))) continue;
+      const n = [0, 0, 0], k = f.v.length;
+      for (let i = 0; i < k; i++) {
+        const a = m.V[f.v[i]], b = m.V[f.v[(i + 1) % k]];
+        n[0] += (a[1]-b[1]) * (a[2]+b[2]); n[1] += (a[2]-b[2]) * (a[0]+b[0]);
+        n[2] += (a[0]-b[0]) * (a[1]+b[1]);
+      }
+      for (const vi of f.v) if (nd.has(vi)) { N[vi][0] += n[0]; N[vi][1] += n[1]; N[vi][2] += n[2]; }
+    }
+  }
+  N.forEach((n, i) => {
+    const l = Math.hypot(n[0], n[1], n[2]) || 1;
+    nor[i*3] = n[0] / l; nor[i*3+1] = n[1] / l; nor[i*3+2] = n[2] / l;
+  });
+  const byMat = new Map();
+  for (const f of m.F) {
+    if (!byMat.has(f.m)) byMat.set(f.m, []);
+    const t = byMat.get(f.m);
+    for (let i = 1; i + 1 < f.v.length; i++) t.push(f.v[0], f.v[i], f.v[i + 1]);
+  }
+  const idx = [], mats = [];
+  const g = new THREE.BufferGeometry();
+  for (const [name, tris] of byMat) {
+    g.addGroup(idx.length, tris.length, mats.length);
+    for (const i of tris) idx.push(i);
+    mats.push(matOf(name, view));
+  }
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+  g.setIndex(idx);
+  return new THREE.Mesh(g, mats);
+}
+function wireFrom(m) {
+  const pos = [];
+  for (const f of m.F) {
+    if (f.m === 'joint' || f.m === 'doorSeal') continue;
+    for (let i = 0; i < f.v.length; i++) {
+      const a = m.V[f.v[i]], b = m.V[f.v[(i + 1) % f.v.length]];
+      pos.push(a[0], a[1], a[2], b[0], b[1], b[2]);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
+  const l = new THREE.LineSegments(g, new THREE.LineBasicMaterial({
+    color: 0xffbe5a, transparent: true, opacity: 0.55 }));
+  l.renderOrder = 3;
+  return l;
+}
+
+// ---- build ------------------------------------------------------------------
+let obj = null, wireObj = null;
+let centre = new THREE.Vector3(0, 0.3, 1.0), fitR = 3.2;
+function windows() {
+  const out = [];
+  for (let i = 0; i < P.count; i++)
+    out.push({ shape: P.shape, z: P.z0 + i * P.pitch, y: P.y, w: P.w, h: P.h,
+               r: P.r, step: P.step });
+  return out;
+}
+function build() {
+  const L = +$('lvl').value;
+  const CP = JSON.parse(JSON.stringify(G.CAGE_PARAMS));
+  const spec = G.cageSpec({ ...CP });
+  const cage = G.buildCage2(spec, 'crease');
+  let s = cage;
+  for (let i = 0; i < L; i++) s = G.cageSubdivide(s);
+  s = G.cageGlassSill(s, spec);
+  const t0 = performance.now();
+  let stats = null, water = null;
+  if ($('knifeOn').checked) {
+    // the pax glass band goes back to skin: the drawn windows replace it
+    s = Object.assign({}, s, { F: s.F.map(f => {
+      if (f.m !== 'pasengerWindow') return f;
+      const g = Object.assign({}, f, { m: 'body' }); delete g.win; return g; }) });
+    const sides = P.sides === 'both' ? [1, -1] : P.sides === 'port' ? [1] : [-1];
+    s.N = K.knifeNormals(s);
+    for (const w of windows()) for (const side of sides)
+      s = K.knifeCut(s, w, { side, depth: P.depth });
+    stats = s.knifeStats;
+    // WATERTIGHT? the hole's skin edges, the pane's boundary edges and the
+    // loops' points must agree
+    const bnd = pred => {
+      const own = new Map();
+      for (const f of s.F) {
+        if (!pred(f)) continue;
+        for (let i = 0; i < f.v.length; i++) {
+          const a = f.v[i], b = f.v[(i + 1) % f.v.length];
+          const k = a < b ? a + '_' + b : b + '_' + a;
+          own.set(k, (own.get(k) || 0) + 1);
+        }
+      }
+      let b1 = 0, b3 = 0;
+      for (const n of own.values()) { if (n === 1) b1++; else if (n > 2) b3++; }
+      return [b1, b3];
+    };
+    const skin = bnd(f => f.m !== 'joint' && f.m !== 'doorSeal' && f.m !== 'reveal'
+                          && f.m !== 'pasengerWindow');
+    const pane = bnd(f => f.m === 'pasengerWindow');
+    const lp = (s.knifeLoops || []).reduce((a, l) => a + l.pts.length, 0);
+    water = { skin: skin[0], pane: pane[0], loop: lp, over: skin[1] + pane[1] };
+  }
+  if ($('rims').checked) s = G.cageRims(s, spec);
+  if (s.knifeLoops && P.bead > 0) {
+    s = Object.assign({}, s, { V: s.V.slice(), F: s.F.slice(), N: (s.N || []).slice(),
+                               A: s.A ? s.A.slice() : null });
+    for (const lp of s.knifeLoops) K.knifeBead(s, lp, P.bead, 'joint', 8);
+  }
+  const ms = performance.now() - t0;
+  if (obj) { scene.remove(obj); obj.geometry.dispose(); }
+  if (wireObj) { scene.remove(wireObj); wireObj.geometry.dispose(); wireObj = null; }
+  obj = geomFrom(s, $('view').value);
+  scene.add(obj);
+  if ($('wire').checked) { wireObj = wireFrom(s); scene.add(wireObj); }
+  let line = `L${L}: ${s.V.length} v / ${s.F.length} f   knife ${ms.toFixed(0)} ms`;
+  if (stats) {
+    const tot = stats.reduce((a, x) => ({ faces: a.faces + x.faces, cut: a.cut + x.cut,
+      pane: a.pane + x.pane, skipped: a.skipped + x.skipped, loops: a.loops + x.loops,
+      open: a.open + x.open }), { faces: 0, cut: 0, pane: 0, skipped: 0, loops: 0, open: 0 });
+    line += `\nfaces met ${tot.faces}  cut ${tot.cut}  whole panes ${tot.pane}` +
+            `  skipped ${tot.skipped}  loops ${tot.loops}${tot.open ? '  OPEN ' + tot.open : ''}`;
+    const ok = water.skin === water.pane && water.pane === water.loop && !water.over && !tot.open;
+    line += `\nwatertight: skin ${water.skin} / pane ${water.pane} / loop ${water.loop}` +
+            `  over-shared ${water.over}  → ` + (ok ? 'OK' : 'FAIL');
+    $('stat').innerHTML = line.replace(/OK$/, '<span class="ok">OK</span>')
+                              .replace(/FAIL$/, '<span class="bad">FAIL</span>');
+  } else $('stat').textContent = line;
+  draw();
+}
+
+// ---- camera -----------------------------------------------------------------
+let yaw = 1.35, pitch = 0.12, zoom = 1, drag = null;
+function draw() {
+  const w = cv.clientWidth, h = cv.clientHeight;
+  if (cv.width !== w || cv.height !== h) {
+    renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+  }
+  const d = fitR * zoom;
+  camera.position.set(centre.x + d * Math.cos(pitch) * Math.sin(yaw),
+                      centre.y + d * Math.sin(pitch),
+                      centre.z + d * Math.cos(pitch) * Math.cos(yaw));
+  camera.lookAt(centre);
+  renderer.render(scene, camera);
+}
+cv.addEventListener('pointerdown', e => {
+  drag = { x: e.clientX, y: e.clientY, b: e.button }; cv.setPointerCapture(e.pointerId);
+});
+cv.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  drag.x = e.clientX; drag.y = e.clientY;
+  if (drag.b === 2) {
+    const s = fitR * zoom * 0.0015;
+    const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+    centre.addScaledVector(right, -dx * s); centre.y += dy * s;
+  } else { yaw -= dx * 0.006; pitch = Math.max(-1.5, Math.min(1.5, pitch + dy * 0.006)); }
+  draw();
+});
+cv.addEventListener('pointerup', () => { drag = null; });
+cv.addEventListener('contextmenu', e => e.preventDefault());
+cv.addEventListener('wheel', e => {
+  zoom *= Math.exp(e.deltaY * 0.001); zoom = Math.max(0.05, Math.min(6, zoom)); draw();
+}, { passive: true });
+$('sideBtn').onclick = () => { yaw = Math.PI / 2; pitch = 0.05; zoom = 1;
+  centre.set(0, 0.3, 1.0); draw(); };
+$("closeBtn").onclick = () => { yaw = 1.25; pitch = 0.18; zoom = 0.5;
+  centre.set(0.45, 0.5, P.z0 + (P.count - 1) * P.pitch / 2); draw(); };
+window.addEventListener('resize', draw);
+for (const id of ['lvl', 'view', 'wire', 'rims', 'knifeOn'])
+  $(id).addEventListener('change', build);
+// the pane pumps no rAF (HANDOVER: the Browser pane); every change draws
+window.WIN_BENCH = { build, draw, light, P };
+light();
+build();
+})();
+</script>

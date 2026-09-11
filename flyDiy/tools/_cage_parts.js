@@ -363,6 +363,10 @@ const CAGE_PARTS = [
       ['aboard', ['paxOcc1', 'paxOcc2', 'paxOcc3', 'paxOcc4']],
       ['aft bulkhead', ['leanPaxDeg']],
       ['glazing', ['winSillPax']],
+      // G245: the drawn windows — the band's replacement, same group
+      ['drawn windows', ['paxWinN', 'paxWinShape', 'paxWinZ', 'paxWinPitch',
+                         'paxWinY', 'paxWinW', 'paxWinH', 'paxWinR',
+                         'paxWinDepth']],
       ['doors', ['doorPax', 'doorSillPax']],
       ['pillars', ['paxPillarW'], EXPERT],
     ] },

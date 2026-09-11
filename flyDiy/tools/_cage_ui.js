@@ -926,7 +926,9 @@ function meshFrom(m) {
   m.F.forEach(f => {
     if (!byMat.has(f.m)) byMat.set(f.m, []);
     const t = byMat.get(f.m);
-    t.push(f.v[0], f.v[1], f.v[2], f.v[0], f.v[2], f.v[3]);
+    // a FAN: quads as before; the knife's triangles and n-gons (G245) are
+    // convex pieces of one flat-ish face, so the fan is exact for them
+    for (let i = 1; i + 1 < f.v.length; i++) t.push(f.v[0], f.v[i], f.v[i + 1]);
   });
   const idx = [], mats = [], groups = [];
   for (const [name, tris] of byMat) {
@@ -939,7 +941,41 @@ function meshFrom(m) {
   g.setAttribute('aStruct', surfAttr(m));
   g.setIndex(idx);
   for (const [start, count, mi] of groups) g.addGroup(start, count, mi);
-  g.computeVertexNormals();
+  // THE NORMALS ARE THE MESH'S OWN when it carries them (G245): a cut skin
+  // computed from its faces would seam along every hole — the vertices on
+  // the hole's edge see only one side. The knife fixes the skin's normals on
+  // the welded surface before it cuts and lerps the new points from them;
+  // vertices that no pass described (the rims, the interior, everything
+  // added after) get the face average, which is what computeVertexNormals
+  // would have given them.
+  if (m.N && m.N.length) {
+    const nor = new Float32Array(m.V.length * 3);
+    const acc = new Float32Array(m.V.length * 3);
+    const known = new Uint8Array(m.V.length);
+    for (let i = 0; i < m.N.length; i++) {
+      const n = m.N[i];
+      if (!n || (n[0] === 0 && n[1] === 0 && n[2] === 0)) continue;
+      known[i] = 1; nor[i*3] = n[0]; nor[i*3+1] = n[1]; nor[i*3+2] = n[2];
+    }
+    for (const f of m.F) {
+      if (!f.v.some(i => !known[i])) continue;
+      const k = f.v.length, n = [0, 0, 0];
+      for (let i = 0; i < k; i++) {
+        const a = m.V[f.v[i]], b = m.V[f.v[(i + 1) % k]];
+        n[0] += (a[1]-b[1]) * (a[2]+b[2]); n[1] += (a[2]-b[2]) * (a[0]+b[0]);
+        n[2] += (a[0]-b[0]) * (a[1]+b[1]);
+      }
+      for (const vi of f.v) if (!known[vi]) {
+        acc[vi*3] += n[0]; acc[vi*3+1] += n[1]; acc[vi*3+2] += n[2];
+      }
+    }
+    for (let i = 0; i < m.V.length; i++) {
+      if (known[i]) continue;
+      const l = Math.hypot(acc[i*3], acc[i*3+1], acc[i*3+2]) || 1;
+      nor[i*3] = acc[i*3] / l; nor[i*3+1] = acc[i*3+1] / l; nor[i*3+2] = acc[i*3+2] / l;
+    }
+    g.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+  } else g.computeVertexNormals();
   // which draw group is on which shader branch — the material factory reads
   // it instead of re-deriving it, so there is ONE description of the split.
   // ONE INDEX PER GROUP is enough, and deliberately so: _surf_check asserts

@@ -275,7 +275,10 @@ const MANIFEST = {
     '_cage_design.js',
     // THE CHARACTERS (G204): the rig/skin module the crew layer dresses its
     // dummies with — reads CHAR_REG at call time, so only before the crew.
-    '_cage_page5.js', '_cage_gen.js', '_cage_char.js', '_cage_crew.js',
+    // THE KNIFE (G245): the drawn-window cut, pure, reached by cageSheet at
+    // call time through the KNIFE_GEN global — before the generator.
+    '_cage_page5.js', '_knife_gen.js', '_cage_gen.js', '_cage_char.js',
+    '_cage_crew.js',
     '_gear_kit.js', '_gear_gen.js', '_gear_page.js',
     // THE FITTINGS (G81-G84), the reading and drawing halves. Pure modules
     // with no post hook, so they only have to be loaded before the layer.

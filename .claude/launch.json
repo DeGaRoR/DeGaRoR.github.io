@@ -455,6 +455,15 @@
         "8358"
       ],
       "port": 8358
+    },
+    {
+      "name": "flydiy-win",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8367"
+      ],
+      "port": 8367
     }
   ]
 }

@@ -366,6 +366,10 @@ const AERO_ROLE = {
   joint: 'bead',
   doorSeal: 'seal',
   paneEdge: 'edge',        // G206.2: the acrylic's own edge, whatever the build
+  // G245: the REVEAL of a drawn window — the return between the skin and
+  // the recessed pane. Structure: it is the frame's own lip, so it follows
+  // the construction like a bulkhead does (unfielded, the post-pass branch)
+  reveal: 'struct',
   // THE FIREWALL IS TWO SURFACES AND A SEAL. `firewall` is the panel itself —
   // structure, so it follows the construction like every other bulkhead — and
   // `fireProof` is the sheet on its ENGINE side, which follows nothing: a
