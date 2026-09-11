@@ -48,6 +48,11 @@ const TABLE = process.argv.includes('--table');
 function makeTHREE() {
   function Col(c) { this.hex = c; }
   Col.prototype.setHex = function (h) { this.hex = h; };
+  Col.prototype.multiplyScalar = function (k) {
+    const c = this.hex, f = v => Math.round(v * k);
+    this.hex = (f((c >> 16) & 255) << 16) | (f((c >> 8) & 255) << 8) | f(c & 255);
+    return this;
+  };
   function Mat(o) {
     Object.assign(this, { isMat: 1 }, o || {});
     this.color = new Col((o && o.color) || 0);

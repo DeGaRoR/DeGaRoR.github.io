@@ -74,6 +74,11 @@ const MAT = {
   glass:  std(0x0e1417, { roughness: 0.06, metalness: 0.0 }),
   deck:   std(0x9c8a6f),
   post:   std(0x4a4038),
+  // THE PIER'S PILES CARRIED DOWN TO THE SEABED (G259): the frame's own set,
+  // but a slot of its own, because they have to meet the kit's scanned piles
+  // end-on and those are darker than any bearer - and darkening `post` would
+  // darken every post, brace and joist in the house with them.
+  pile:   std(0x3a3430),
   stone:  std(0x8e8b85),
   metal:  std(0xb4bcc2, { roughness: 0.45, metalness: 0.75 }),
   floor:  std(0x6d6154),
@@ -89,7 +94,7 @@ const MAT = {
   pane:   std(0x2c3a42, { roughness: 0.28, metalness: 0.10 }),
 };
 const BAGS = ['siding', 'trim', 'roof', 'rib', 'glass', 'deck', 'post',
-              'stone', 'metal', 'floor', 'pane'];
+              'stone', 'metal', 'floor', 'pane', 'pile'];
 // AND THE ONE BAG THAT IS NOT THE HOUSE (G254): the chimney smoke is a few
 // soft crossed quads with no surface to them - no occlusion to bake, no
 // texel density to hold, no silhouette to keep - so it stands outside the
@@ -588,7 +593,7 @@ function shadeHouse(m) {
 // smooth between its ribs, and the ribs are in the geometry or in the map's
 // own profile, so it stays near 1.
 const NRM = { siding: 1.7, trim: 1.3, deck: 1.6, post: 1.5, floor: 1.6,
-              stone: 1.4, roof: 1.1, rib: 1.0, metal: 1.0 };
+              stone: 1.4, roof: 1.1, rib: 1.0, metal: 1.0, pile: 1.5 };
 
 // THE GLASS PATCH (the user: "enhance the window material. We don't need
 // transparency, but it has to take the light better. Glares, reflections,
@@ -857,15 +862,18 @@ function applyFinish(P) {
     const ud = MAT[k] && MAT[k].userData && MAT[k].userData.dirt;
     if (!ud) continue;
     const stone = k === 'stone';
-    ud.uDirtGain.value = stone ? 1.55 : (k === 'post' ? 1.35 : 1.0);
+    ud.uDirtGain.value = stone ? 1.55 : (k === 'post' || k === 'pile' ? 1.35 : 1.0);
     ud.uDirtOwn.value.setHex(stone ? 0x453f36 : 0x6d6353);
     // THE FRAME IS ALWAYS OLDER THAN THE HOUSE. Nobody paints a bearer, and
     // nothing under a building stays the colour it was cut. `post` is the
     // whole structural frame now — piles, posts, braces, bearers, joists,
     // stringers — so one dial ages all of it together, and it is applied on
     // TOP of whatever weathering the rest of the house has, never below it.
-    ud.uAgeDesat.value = k === 'post' ? age * 0.85 : 0;
-    ud.uAgeDark.value = k === 'post' ? age * 0.52 : 0;
+    // ... and the piles under the pier are older than the frame by a tide
+    ud.uAgeDesat.value = k === 'post' ? age * 0.85
+                       : (k === 'pile' ? Math.min(1, age * 0.85 + 0.10) : 0);
+    ud.uAgeDark.value = k === 'post' ? age * 0.52
+                      : (k === 'pile' ? Math.min(0.85, age * 0.52 + 0.18) : 0);
   }
   // WEATHER IS THE OTHER HALF OF THE PAINT DIAL (the user: "that looked newer,
   // less weathered ... would be nice to have more weathered and more fresh
@@ -911,6 +919,11 @@ function applyFinish(P) {
           { flat: 0x6d6154, nrm: NRM.floor });
   dressMat(MAT.post, setFor(P, 'post'), P.postCol,
           { flat: 0x4a4038, nrm: NRM.post });
+  // the piles wear what the frame wears, natural, and then a shade darker
+  // (the user: "darken them a bit so they match better - just for these
+  // meshes, not for the other material users")
+  dressMat(MAT.pile, setFor(P, 'post'), 0, { flat: 0x3a3430, nrm: NRM.post });
+  MAT.pile.color.multiplyScalar(0.78);
   dressMat(MAT.stone, setFor(P, 'stone'), 0,
           { flat: 0x8e8b85, nrm: NRM.stone });
   dressMat(MAT.metal, setFor(P, 'metal'), P.metalCol,
@@ -3910,8 +3923,11 @@ function buildPierPiles(bags, P, Q, plan, g) {
       const foot = m.y + pl[3];
       const bed = g(wx, wz);
       if (bed > foot - 0.05) continue;              // the author's cut reaches
-      cyl(bags.post, [wx, bed - 0.35, wz], [0, 1, 0], pl[2] * 0.98,
-          foot + 0.03 - (bed - 0.35), Q.lod === 0 ? 8 : 4, false,
+      // in its own bag (MAT.pile), and CAPPED: the foot is in the mud, but
+      // the bench looks under the water with the tide switched off, and an
+      // open tube reads as a pipe (G259)
+      cyl(bags.pile, [wx, bed - 0.35, wz], [0, 1, 0], pl[2] * 0.98,
+          foot + 0.03 - (bed - 0.35), Q.lod === 0 ? 8 : 4, true,
           timberUV(wx, wz, 21));
       n++;
     }

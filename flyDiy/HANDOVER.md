@@ -37928,3 +37928,27 @@ the band's bottom whatever the dials leave above it.
   slot per material, and a roughness the graph did not carry either. The two
   men: albedo to base colour, no normal, roughness 0.78 (0.85 on the notes).
 - Gates: HOUSE (with --selftest) green.
+
+## G259 — THE PILE EXTENSIONS ARE CLOSED, AND A SHADE DARKER, IN A SLOT OF
+## THEIR OWN (2026-09-12, the user: "Close the tips of your pillars, and darken
+## them a bit so they match better (just for these meshes, not for the other
+## material users)")
+
+- **CAPPED.** `buildPierPiles` drew its extensions as open tubes: the foot is
+  in the mud and the top is inside the kit's own pile, so nothing should ever
+  have seen an end — but the bench looks under the water with the tide as a
+  transparent plane, and an open tube reads as a pipe. `cap: true`, both ends,
+  twelve more triangles a pile.
+- **A SLOT OF THEIR OWN.** They wore `MAT.post` — the whole frame's material,
+  aged by `frameAge` — and came out a step lighter than the scanned piles they
+  meet end-on, which are black with a tide's worth of winters. Darkening `post`
+  would have darkened every post, brace and joist in the house, so `pile` is a
+  bag in BAGS now (occlusion baked, texel density held, the OBJ carries it as
+  its own group), dressed with the frame's set, natural, and then taken a shade
+  down: the material's own colour at 0.78 and the frame's desaturation and
+  darkening carried a little further (`+0.10`, `+0.18`) in `applyFinish`. No
+  other material moves.
+- The gate's colour stub learned `multiplyScalar` (the bench's
+  `THREE.Color` already knew). GATE HOUSE with --selftest green. GATE MEDIA red
+  at HEAD on the trees session's four orphan fir-tree textures (W0c.10), not
+  this arc's — relayed.
