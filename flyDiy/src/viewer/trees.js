@@ -154,23 +154,75 @@
   // the subjects first - that is what requests the maps - then wait on this.
   function treeMapsReady() { return Promise.all(PENDING.slice()); }
 
-  // AO rides a custom attribute; nothing in three.js knows about it, so the
-  // shader is told. Applied to the albedo rather than the ambient term because
-  // the world's canopy is Lambert and has no separate indirect to modulate —
-  // cruder than the bench's split, and the right cost here.
-  function hookAO(mat) {
-    mat.userData.uAo = { value: 1 };
+  // ================= THE LEAF SHADING, ported from the bench ==============
+  //
+  // WHY. The game's tree materials were MeshLambertMaterial with the AO folded
+  // into the albedo: cheap, and wrong in exactly the place a forest is looked
+  // at. A leaf card facing away from a 10-degree sun got nothing but a weak
+  // hemisphere, and a closed canopy is MOSTLY cards facing away - the dense
+  // stand at 4.6 m read as a wall of black silhouettes against the sky. The
+  // bench never had that problem, because its foliage carries two terms a
+  // plank does not (tools/_trees.html, LEAF_GLSL):
+  //
+  //   WRAP - a leaf is thin and its normal is a fiction, so the diffuse is
+  //   wrapped past the terminator: the cheap stand-in for light bouncing
+  //   around inside a canopy.
+  //   TRANSLUCENCY - the sun coming THROUGH the leaf toward the eye. Real
+  //   foliage glows when you look into the light through it, and no amount of
+  //   ambient can do it, because it depends on where the SUN is relative to
+  //   the VIEW and not on where the surface faces.
+  //
+  // Both need the lights per FRAGMENT, which Lambert does not have (it lights
+  // per vertex), so the material is MeshStandardMaterial at roughness 1 - and
+  // that buys the third thing the dark side was missing, irradiance from the
+  // world's own environment map, which Standard reads and Lambert does not.
+  //
+  // THE AO is split the way the bench splits it: the full exponent on the
+  // ambient, 0.35 of it on the sun, because a leaf is not shaded from the sun
+  // by having a neighbour. The dials are the bench's committed view, and live
+  // on window.TREE_LEAF so a stand can be judged in the game as it was judged
+  // in the bench.
+  const LEAF = { wrap: 0.76, sss: 0.72, sssp: 3.0, ao: 2.0 };
+  const U_WRAP = { value: LEAF.wrap }, U_SSS = { value: LEAF.sss },
+        U_SSSP = { value: LEAF.sssp }, U_AO = { value: LEAF.ao };
+  const LEAF_GLSL = [
+    '#if NUM_DIR_LIGHTS > 0',
+    'if (uLeaf > 0.5) {',
+    '  vec3 _L = normalize(directionalLights[0].direction);',
+    '  vec3 _C = directionalLights[0].color;',
+    '  float _ndl = dot(geometry.normal, _L);',
+    '  float _w = max(0.0, (_ndl + uWrap) / (1.0 + uWrap)) - max(0.0, _ndl);',
+    '  reflectedLight.directDiffuse += diffuseColor.rgb * _C * _w;',
+    '  float _b = pow(max(0.0, dot(geometry.viewDir, -_L)), uSSSP);',
+    '  reflectedLight.directDiffuse += diffuseColor.rgb * _C * _b * uSSS;',
+    '}',
+    '#endif',
+    // the AO, on the lighting and not on the albedo
+    'float _ao = pow(clamp(vAoV, 0.0, 1.0), uAoBake);',
+    'reflectedLight.indirectDiffuse *= _ao;',
+    'reflectedLight.directDiffuse *= pow(clamp(vAoV, 0.0, 1.0), uAoBake * 0.35);',
+  ].join('\n');
+  function hookLeaf(mat, isLeaf) {
+    mat.userData.uLeaf = { value: isLeaf ? 1 : 0 };
     mat.onBeforeCompile = sh => {
-      sh.uniforms.uAo = mat.userData.uAo;
+      sh.uniforms.uLeaf = mat.userData.uLeaf;
+      sh.uniforms.uWrap = U_WRAP; sh.uniforms.uSSS = U_SSS;
+      sh.uniforms.uSSSP = U_SSSP; sh.uniforms.uAoBake = U_AO;
       sh.vertexShader = 'attribute float aoV;\nvarying float vAoV;\n' +
         sh.vertexShader.replace('#include <begin_vertex>',
           '#include <begin_vertex>\nvAoV = aoV;');
-      sh.fragmentShader = 'uniform float uAo;\nvarying float vAoV;\n' +
-        sh.fragmentShader.replace('#include <map_fragment>',
-          '#include <map_fragment>\ndiffuseColor.rgb *= mix(1.0, clamp(vAoV, 0.0, 1.0), uAo);');
+      sh.fragmentShader = 'uniform float uLeaf, uWrap, uSSS, uSSSP, uAoBake;\nvarying float vAoV;\n' +
+        sh.fragmentShader.replace('#include <lights_fragment_end>',
+          '#include <lights_fragment_end>\n' + LEAF_GLSL);
     };
     return mat;
   }
+  const treeLeaf = {
+    get: () => Object.assign({}, LEAF),
+    set: o => { for (const k of ['wrap', 'sss', 'sssp', 'ao']) if (o[k] !== undefined) LEAF[k] = +o[k];
+      U_WRAP.value = LEAF.wrap; U_SSS.value = LEAF.sss; U_SSSP.value = LEAF.sssp; U_AO.value = LEAF.ao;
+      return Object.assign({}, LEAF); },
+  };
 
   // Build one subject's rung, ONCE. Later calls hand out the same buffers:
   // a forest of six hundred firs uploads one fir.
@@ -201,13 +253,13 @@
       g.setIndex(new THREE.BufferAttribute(d.idx, 1));
       const M = (found.col.materials || {})[d.mat] || {};
       const cutout = M.mode && M.mode !== 'OPAQUE';
-      const mat = hookAO(new THREE.MeshLambertMaterial({
+      const mat = hookLeaf(new THREE.MeshStandardMaterial({
         map: M.base ? texture(THREE, M.base, true,
           cutout && M.coverageMips ? Math.round(255 * (M.cutoff || 0.5)) : null) : null,
         side: cutout ? THREE.DoubleSide : THREE.FrontSide,
         alphaTest: cutout ? (M.cutoff || 0.5) : 0,
-        transparent: false,
-      }));
+        transparent: false, roughness: 1, metalness: 0,
+      }), !!cutout);
       mat.name = d.mat;
       parts.push({ geo: g, mat: mat, cutout: !!cutout });
     }
@@ -227,5 +279,6 @@
     window.treeList = treeList;
     window.treeBuild = treeBuild;
     window.treeMapsReady = treeMapsReady;
+    window.TREE_LEAF = treeLeaf;
   }
 })();

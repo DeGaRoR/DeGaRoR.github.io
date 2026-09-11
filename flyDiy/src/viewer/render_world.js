@@ -1122,7 +1122,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           const withLadder = key => {
             const S = treeList().find(e => e.key === key).sub;
             const col = treeList().find(e => e.key === key).col;
-            const out = { series: [], dead: (col.place && col.place.dead) || 0 };
+            const out = { series: [], dead: (col.place && col.place.dead) || 0,
+                          sink: (col.place && col.place.sink) || 0 };
             for (const ser of SERIES) {
               const list = (S[ser] && S[ser].length) ? S[ser] : S.rungs;
               const n = Math.min(list.length, LOD_R.length);
@@ -1244,7 +1245,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           mi.userData.ser = si;
           imps.push(mi);
         });
-        return { n, meshes, imps, rec, ser, cnt, scaleY: P.series.map(S => S.scaleY) };
+        return { n, meshes, imps, rec, ser, cnt, scaleY: P.series.map(S => S.scaleY), sink: P.sink };
       };
       const C = side(conif, PROTO && PROTO.conif, impConeMatW, coneGeo);
       const B = side(broad, PROTO && PROTO.broad, impBlobMatW, blobGeo);
@@ -1255,8 +1256,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         list.forEach((T, i) => {
           const w = T.r, sp = T.sp;
           q.setFromAxisAngle(up, w * 6.283);
-          pv.set(T.x - ox, T.h - 0.05, T.z - oz);        // chunk-local
           sv.set(T.s * (0.86 + w * 0.28), T.s * (0.9 + w * 0.3), T.s * (0.86 + w * 0.28));
+          // BURIED BY THE COLLECTION'S OWN `sink`: the packs model the root
+          // flare, and a tree standing on its roots reads as fallen over. The
+          // bench's dial, scaled with the instance as the bench scales it.
+          pv.set(T.x - ox, T.h - 0.05 - (H.sink || 0) * sv.y, T.z - oz);   // chunk-local
           if (sp === 1) { sv.x *= 0.78; sv.z *= 0.78; sv.y *= 1.15; }        // pine: tall, narrow
           else if (sp === 3) sv.multiplyScalar(0.82);                        // birch: slighter
           else if (sp === 4) { sv.y *= 0.72; sv.x *= 1.18; sv.z *= 1.18; }   // willow: low, wide
@@ -1439,6 +1443,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             const forKey = key => {
               const col = treeList().find(e => e.key === key).col;
               return { dead: (col.place && col.place.dead) || 0, white: true,
+                       sink: (col.place && col.place.sink) || 0,
                        series: SERIES.map(ser => { const B = cheapest(key, ser);
                          return { parts: B.parts, scaleY: B.scaleY || 1, imp: null }; }) };
             };
@@ -1520,9 +1525,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             const si = ser[i], P = perSer[si], S = SH.series[si];
             q.setFromAxisAngle(up, w * 6.283);
             const s = [1.15, 1.0, 1.1, 0.9, 0.85][sp] * (0.62 + w * 0.55);
-            pv.set(r[o] - ox, r[o + 1] - 0.05, r[o + 2] - oz);
             // the stand series is drawn stretched - the dial, not the bake
             sv.set(s, s * (0.9 + w * 0.25) * S.scaleY, s);
+            pv.set(r[o] - ox, r[o + 1] - 0.05 - (SH.sink || 0) * sv.y, r[o + 2] - oz);
             m4.compose(pv, q, sv);
             // a baked tree wears its own colour (see the woodland layer)
             if (SH.white) c3.setRGB(1, 1, 1);
