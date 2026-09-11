@@ -71,7 +71,8 @@
     root.appendChild(slider('L0 to (m)', 20, 600, 10, () => lod().get()[0], v => setLod(0, v), v => v + ' m'));
     root.appendChild(slider('L1 to (m)', 20, 600, 10, () => lod().get()[1], v => setLod(1, v), v => v + ' m'));
     root.appendChild(slider('L2 to (m)', 20, 800, 10, () => lod().get()[2], v => setLod(2, v), v => v + ' m'));
-    root.appendChild(note('impostors beyond L2; L0 = L1 = L2 is "L0 then impostor"'));
+    root.appendChild(slider('fade window', 0, 100, 2, () => lod().fade(), v => lod().fade(v), v => v + ' m'));
+    root.appendChild(note('impostors beyond L2; L0 = L1 = L2 is "L0 then impostor"; the window dithers one rung into the next'));
     root.appendChild(slider('imp lit', 0, 3, 0.05, () => world().treeLod.lit.value, v => { world().treeLod.lit.value = v; }));
     root.appendChild(slider('furnished', 0, 1, 0.05, () => W.TREE_MIX.furnished, v => { W.TREE_MIX.furnished = v; }));
     root.appendChild(slider('size spread', 0, 0.6, 0.02, () => W.TREE_MIX.spread, v => { W.TREE_MIX.spread = v; }));

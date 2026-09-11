@@ -38,6 +38,17 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // the two inner edges of the ladder, shared by every rung material the
   // same way uNear is - a dial can move them and every band follows
   const LOD_U = [{ value: 150 }, { value: 300 }], U0 = { value: 0 };
+  // THE TRANSITION WINDOW (W0c.13): over uFadeW metres about every edge BOTH
+  // rungs are drawn, each through a screen-door dither with complementary
+  // thresholds from the same noise, so every pixel is covered exactly once
+  // and the mix slides from one rung to the next as the eye moves. This is
+  // Unreal's "dithered LOD transition" and what SpeedTree ships; no blend,
+  // no sort, no pop. The window is also what closes the GAP: a tree that
+  // crossed an edge between two partition refreshes was collapsed by its
+  // old rung's band before its new rung had it, and for a few frames it was
+  // not drawn at all. The partition deals a tree to every rung whose window
+  // holds it, and refreshes more often than the window is wide.
+  const uFadeW = { value: 30 };
   const uILit = { value: 1.0 };        // the impostor tier's own gain (the bench's `imp lit`)
   // THE BAKE SWITCHES THE BANDS OFF. A rung's material collapses every
   // instance outside its band, and the impostor bake draws the same material
@@ -940,6 +951,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         sh.uniforms.uNearB = uNear;
         sh.uniforms.uFarB = { value: far };
         sh.uniforms.uFadeB = { value: FAR_FADE };
+        sh.uniforms.uFadeW = uFadeW;
         sh.uniforms.uCy = { value: atlas.cy };
         sh.uniforms.uDiam = { value: atlas.diam };
         sh.uniforms.uG = { value: IMP_G };
@@ -951,8 +963,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         sh.uniforms.uSSSP = LEAF ? LEAF.uniforms.uSSSP : { value: 3 };
         sh.vertexShader = sh.vertexShader
           .replace('#include <common>', '#include <common>\n' +
-            'uniform vec3 uCam;\nuniform float uNearB, uFarB, uFadeB, uCy, uDiam;\n' +
-            'varying vec3 vImpDir;')
+            'uniform vec3 uCam;\nuniform float uNearB, uFarB, uFadeB, uFadeW, uCy, uDiam;\n' +
+            'varying vec3 vImpDir;\nvarying float vImpD;')
           // The quad is built around the instance's own axes, NOT the screen's.
           // Instances carry a random yaw for the 3D tier; impostors ignore it
           // and read only position and scale out of the instance matrix. Scale
@@ -978,12 +990,14 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             'vec3 wp = ctr + vec3(off.x * sX, off.y * sY, off.z * sX);',
             'vec4 mvPosition = modelViewMatrix * vec4(wp, 1.0);',
             'gl_Position = projectionMatrix * mvPosition;',
-            // inside the near band the 3D tier draws these trees for real
-            'if (dCam < uNearB || fade <= 0.0) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);',
+            // inside the near band the 3D tier draws these trees for real;
+            // the window before it is shared with the last rung (dithered)
+            'vImpD = dCam;',
+            'if (dCam < uNearB - uFadeW * 0.5 || fade <= 0.0) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);',
           ].join('\n'));
         sh.fragmentShader = sh.fragmentShader
           .replace('#include <common>', '#include <common>\n' +
-            'uniform float uG, uILit, uLeaf, uWrap, uSSS, uSSSP;\nuniform sampler2D uNrm;\nvarying vec3 vImpDir;\n' +
+            'uniform float uG, uILit, uLeaf, uWrap, uSSS, uSSSP, uNearB, uFadeW;\nuniform sampler2D uNrm;\nvarying vec3 vImpDir;\nvarying float vImpD;\n' +
             // the decode, written out: <map_fragment> and its mapTexelToLinear
             // are replaced below, and the sheet was written sRGB
             'vec3 impSRGB(vec3 c) { return mix(pow((c + 0.055) / 1.055, vec3(2.4)), c / 12.92, step(c, vec3(0.04045))); }')
@@ -1006,6 +1020,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             'vec2 uvA = (g0 + cA) / uG + qv, uvB = (g0 + cB) / uG + qv, uvC = (g0 + cC) / uG + qv;',
             'vec4 texelColor = texture2D(map, uvA) * wB.x + texture2D(map, uvB) * wB.y + texture2D(map, uvC) * wB.z;',
             'texelColor.rgb = impSRGB(clamp(texelColor.rgb / max(texelColor.a, 1e-4), 0.0, 1.0));',   // premultiplied sheet
+            // the incoming half of the last rung's window: keep n >= 1 - t
+            '{ float _n = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));',
+            '  float _fi = clamp((vImpD - (uNearB - uFadeW * 0.5)) / uFadeW, 0.0, 1.0);',
+            '  if (_n < 1.0 - _fi) discard; }',
             'diffuseColor *= texelColor;',
             // the other half of the G-buffer, un-premultiplied by ITS alpha
             'vec4 n0 = texture2D(uNrm, uvA), n1 = texture2D(uNrm, uvB), n2 = texture2D(uNrm, uvC);',
@@ -1052,6 +1070,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // and forces a re-partition. [150, 150, 150] is "L0 then impostor".
     let lodAt = null;                       // the partition's last CG (see lodUpdate)
     const treeLod = {
+      fade: v => { if (v !== undefined) { uFadeW.value = Math.max(0, +v); lodAt = null; } return uFadeW.value; },
       get: () => [LOD_U[0].value, LOD_U[1].value, uNear.value],
       set: a => {
         const l0 = Math.max(10, +a[0] || LOD_U[0].value), l1 = Math.max(l0, +a[1] || LOD_U[1].value);
@@ -1094,7 +1113,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // carries ONLY the instances in its band, sorted in here on a cadence as
     // the aircraft moves, and `count` is set to what was written. The band in
     // the shader stays as the seam guard between refreshes.
-    const LOD_TICK = 10, LOD_MOVE = 25;     // refresh every 10 frames or 25 m
+    const LOD_TICK = 6, LOD_MOVE = 10;      // refresh every 6 frames or 10 m - inside the window's half-width
     // rec.rungs[si][r] holds the meshes of rung r of series si, rec.buf[si][r]
     // its scratch, and the rung TABLE - the far edge of each rung - is read
     // live from the ladder's edges, so the dial that moves the bands moves
@@ -1107,15 +1126,19 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const n = rec.n, pos = rec.pos, mats = rec.mats, ser = rec.ser;
       const k = rec.rungs.map(L => L.map(() => 0));
       const spans = rec.rungs.map(L => spanFor(L.length));
+      const hw = uFadeW.value * 0.5;
       for (let i = 0; i < n; i++) {
         const dx = pos[i * 3] - cg[0], dy = pos[i * 3 + 1] - cg[1], dz = pos[i * 3 + 2] - cg[2];
         const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
         const si = ser[i], R = spans[si];
-        let b = -1;
-        for (let j = 0; j < R.length; j++) if (d < R[j]) { b = j; break; }
-        if (b < 0) continue;
-        rec.buf[si][b].set(mats.subarray(i * 16, i * 16 + 16), k[si][b] * 16);
-        k[si][b]++;
+        // every rung whose window [near - hw, far + hw) holds the tree: at
+        // most two, and each rung's buffer is sized for the whole series
+        for (let j = 0; j < R.length; j++) {
+          if (d >= R[j] + hw) continue;
+          if (j && d < R[j - 1] - hw) break;
+          rec.buf[si][j].set(mats.subarray(i * 16, i * 16 + 16), k[si][j] * 16);
+          k[si][j]++;
+        }
       }
       for (let si = 0; si < rec.rungs.length; si++)
         for (let b = 0; b < rec.rungs[si].length; b++) for (const m of rec.rungs[si][b]) {
@@ -1149,8 +1172,26 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       '#else',
       'float bandD = distance((modelMatrix * vec4(transformed, 1.0)).xyz, uCam);',
       '#endif'].join('\n');
-    const BAND_GLSL = (originExpr) => originExpr + '\n' +
-      'if (uNoBand < 0.5 && (bandD < uNearB || bandD >= uFarB)) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);';
+    const BAND_GLSL = (originExpr) => originExpr + '\n' + [
+      'vBandD = bandD;',
+      'float _hw = uFadeW * 0.5;',
+      'float _lo = uNearB > 0.5 ? uNearB - _hw : -1.0;',    // rung 0 has no near edge
+      'if (uNoBand < 0.5 && (bandD < _lo || bandD >= uFarB + _hw)) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);',
+    ].join('\n');
+    // the fragment half: interleaved gradient noise against this rung's own
+    // weight at each edge. Out at the far edge keeps n < 1 - t, in at the
+    // near edge keeps n >= 1 - t: the same t, the same n, complementary.
+    const DITHER_GLSL = [
+      'if (uNoBand < 0.5) {',
+      '  float _n = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));',
+      '  float _hw = uFadeW * 0.5;',
+      '  float _fo = 1.0 - clamp((vBandD - (uFarB - _hw)) / uFadeW, 0.0, 1.0);',
+      '  float _fi = uNearB > 0.5 ? clamp((vBandD - (uNearB - _hw)) / uFadeW, 0.0, 1.0) : 1.0;',
+      '  if (_n >= _fo || _n < 1.0 - _fi) discard;',
+      '}',
+    ].join('\n');
+    const BAND_DECL_V = '#include <common>\nuniform float uNearB, uFarB, uNoBand, uFadeW;\nvarying float vBandD;';
+    const BAND_DECL_F = '#include <common>\nuniform float uNearB, uFarB, uNoBand, uFadeW;\nvarying float vBandD;';
     // the draw material: chained onto whatever the part already carries
     // (trees.js's AO hook), never overwriting it
     // A CLONE, NOT THE CACHED MATERIAL. treeBuild hands out ONE material per
@@ -1171,10 +1212,14 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         sh.uniforms.uNearB = E.near;
         sh.uniforms.uFarB = E.far;
         sh.uniforms.uNoBand = uNoBand;
+        sh.uniforms.uFadeW = uFadeW;
         sh.vertexShader = sh.vertexShader
-          .replace('#include <common>', '#include <common>\nuniform float uNearB, uFarB, uNoBand;')
+          .replace('#include <common>', BAND_DECL_V)
           .replace('#include <project_vertex>', '#include <project_vertex>\n' +
             BAND_GLSL(BAND_ORIGIN_VIEW));
+        sh.fragmentShader = sh.fragmentShader
+          .replace('#include <common>', BAND_DECL_F)
+          .replace('#include <alphatest_fragment>', DITHER_GLSL + '\n#include <alphatest_fragment>');
       };
       return m;
     };
@@ -1191,10 +1236,15 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         sh.uniforms.uFarB = E.far;
         sh.uniforms.uCam = uCam;
         sh.uniforms.uNoBand = uNoBand;
+        sh.uniforms.uFadeW = uFadeW;
         sh.vertexShader = sh.vertexShader
-          .replace('#include <common>', '#include <common>\nuniform float uNearB, uFarB, uNoBand;\nuniform vec3 uCam;')
+          .replace('#include <common>', BAND_DECL_V + '\nuniform vec3 uCam;')
           .replace('#include <project_vertex>', '#include <project_vertex>\n' +
             BAND_GLSL(BAND_ORIGIN_CAM));
+        // the shadow dithers too, or the window would cast twice
+        sh.fragmentShader = sh.fragmentShader
+          .replace('#include <common>', BAND_DECL_F)
+          .replace('#include <alphatest_fragment>', DITHER_GLSL + '\n#include <alphatest_fragment>');
       };
       return d;
     };
