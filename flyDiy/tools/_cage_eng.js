@@ -81,6 +81,7 @@ for (const [, rows] of EP.GROUPS)
     } else if (m3 === 'check') defaults['eng_' + k] = ED[k] ? 1 : 0;
     else defaults['eng_' + k] = ED[k];
   }
+defaults.spinMat = 0;                 // G244: the cone follows the blades
 PAGE.defaults = Object.assign(defaults, PAGE.defaults || {});
 
 // the effective architecture, for the group `show` predicates and the spec
@@ -528,7 +529,12 @@ const ENG_ITEMS = [
    { when: P => +P.engOn, dim: 'm' }],
   ...BENCH_SUBS,
   ['propOn',    'propeller',     0, 1, 1, { when: P => +P.engOn }],
-  ['nose cone', grpItems('g_spin'), { when: P => +P.engOn }],
+  ['nose cone', grpItems('g_spin').concat([
+    // G244: its own material, or the blades' (0). Same table, same index
+    // meaning, one entry longer at the front.
+    ['spinMat', 'cone material', 0, (CW.MATERIALS || []).length, 1,
+     ['as the blades'].concat((CW.MATERIALS || []).map(m => m.name))],
+  ]), { when: P => +P.engOn }],
   ['propeller', grpItems('g_prop'),
    { when: P => +P.engOn && +P.propOn }],
 ];
@@ -599,9 +605,23 @@ const propM = new THREE.MeshStandardMaterial({
 // MATERIALS table, whose index also drives the blade's DENSITY — so it maps
 // by index (AERO_PROP_FIN). A laminated wooden blade and a carbon one differ
 // in more than colour, and this is where that finally shows.
+// G244: THE NOSE CONE IS NOT ALWAYS MADE OF WHAT THE BLADES ARE (the user:
+// "the nose cone should be able to set its material independently from the
+// blades"). A spun alloy spinner on a wooden propeller is the commonest
+// combination there is, and `cw_material` decided both. `spinMat` is 0 for
+// "as the blades" — the behaviour every saved aeroplane has — and otherwise
+// an index into the SAME table, so the cone gets the finish, the tint, the
+// tile and the grain turn of a real material rather than a tint on a blade.
+const propMatIdx = sec => {
+  if (sec === 'spinner') {
+    const n = Math.round(+PCUR.spinMat || 0);
+    if (n > 0) return Math.min(CW.MATERIALS.length - 1, n - 1);
+  }
+  return Math.round(CW.P.material);
+};
+let PCUR = {};                       // the build's params, for propMatIdx
 const propMat = (sec) => {
-  const i = Math.max(0, Math.min(CW.MATERIALS.length - 1,
-    Math.round(CW.P.material)));
+  const i = Math.max(0, Math.min(CW.MATERIALS.length - 1, propMatIdx(sec)));
   const M = CW.MATERIALS[i];
   const A = AKM();
   // the livery section (phase C): cw_material keeps deciding what the blade
@@ -859,6 +879,7 @@ PAGE.post = ctx => {
   for (const k of SPINPROP_KEYS)
     if (P['cw_' + k] !== undefined && CW.P[k] !== undefined)
       CW.P[k] = P['cw_' + k];
+  PCUR = P;                          // G244: propMat reads `spinMat` off it
   const ax = CW.axisXY();
   const nOff = CW.P.noseOff || 0;
   // ONE ENGINE PER FACE (2026-09-04). The same engine mesh, spinner and
@@ -886,6 +907,47 @@ PAGE.post = ctx => {
         idx.push(i * SA + j, i * SA + j2, (i + 1) * SA + j2,
                  i * SA + j, (i + 1) * SA + j2, (i + 1) * SA + j);
       }
+    // G244: THE SHAFT, AND NO GAP (the user: "the nose cone should generate
+    // its own shaft to the engine, or the engine to the nose cone, but there
+    // should be no gap"). G32 retired the cowl tool's own shaft because "the
+    // engine provides the crank and the flange" — which is true, and which
+    // left the cone standing `noseOff` clear of that flange with nothing
+    // between them. The cone now grows its own: a backplate at exactly its
+    // base radius (so there is no step to see) necking to a hub that runs
+    // back to the flange. Drawn in the CONE's frame, where the flange is at
+    // -noseOff, so it is right for every offset and disappears at zero.
+    // WHERE THE ENGINE ACTUALLY IS. The flange is the unit's z = 0 by
+    // construction, but the drawn BLOCK does not always reach it — an
+    // electric unit's case, a turbine's, or any engine whose nose sits aft
+    // of its mounting face would leave the shaft ending in mid-air. So the
+    // shaft runs back to whichever is further aft: the flange, or the block's
+    // own forward-most vertex.
+    let blkFwd = -Infinity;
+    for (const v of (M && M.V) || []) if (v[2] > blkFwd) blkFwd = v[2];
+    if (!isFinite(blkFwd)) blkFwd = 0;
+    const shaftTo = Math.min(0, blkFwd - 0.004);
+    const gap = nOff - shaftTo;
+    if (gap > 0.001) {
+      const rB = CW.P.spinR, rH = Math.max(0.012, rB * 0.34);
+      const prof = [[rB, 0], [rB, -gap * 0.12], [rH, -gap * 0.34],
+                    [rH, shaftTo - nOff]];
+      const row0 = pos.length / 3;
+      for (const [r3, z3] of prof)
+        for (let j = 0; j < SA; j++) {
+          const th = j / SA * Math.PI * 2;
+          pos.push(Math.cos(th) * r3, Math.sin(th) * r3, z3);
+        }
+      for (let i = 0; i < prof.length - 1; i++)
+        for (let j = 0; j < SA; j++) {
+          const j2 = (j + 1) % SA, a = row0 + i * SA, b = row0 + (i + 1) * SA;
+          idx.push(a + j, b + j2, a + j2, a + j, b + j, b + j2);
+        }
+      const cap = pos.length / 3;              // the aft face, on the flange
+      pos.push(0, 0, shaftTo - nOff);
+      for (let j = 0; j < SA; j++)
+        idx.push(cap, row0 + (prof.length - 1) * SA + j,
+                 row0 + (prof.length - 1) * SA + (j + 1) % SA);
+    }
     const base = pos.length / 3;
     pos.push(0, 0, 0);                       // base cap fan
     for (let j = 0; j < SA; j++) {

@@ -36655,3 +36655,215 @@ stop. The measurement above is the evidence for whoever does it.
   `stkPlace: 0` and the fin default moved it to 3. The rule pins 3 now, which
   is the rule doing its job; BENCH was not on the list I proved before landing
   and should have been (the metallic-paint session caught it).
+
+
+## G237-G241 — THE CONTROL SURFACES GET SOMETHING TO HANG ON: A ROUND NOSE IN
+## A REAL COVE, A DECLARED TRAVEL, HINGES, HORNS, PUSHRODS AND CABLES, A
+## FOWLER THAT LEAVES THE WING, AND A COCKPIT THAT ANSWERS (2026-09-10, the
+## user: "flydiy hinges and actuators: audit the model to check what hinges
+## and actuators are modelled visually. We will need high quality ones,
+## animated and coherent with the control surfaces, proper materials and
+## geometry, options in the sliders for size and positioning (at least
+## positioning), aerodynamic covers optional, ability to be affected by
+## liveries, etc. It's a narrow scope, let's do it thoroughly")
+
+The audit is `futureDesigns/HINGES-ACTUATORS-2026-09-10.md` and it is the
+record of what was there before: **nothing**. Not "thin" — the aeroplane had
+no hinge and no actuator geometry anywhere on a flying surface. The only drawn
+hinge on the whole machine was the one on the cowl's oil door. The user's five
+rulings on the audit ("fixed table for travel, radiused nose, Fowler in,
+cockpit in, no tabs") are what this arc is.
+
+- **G237 — THE HINGE IS A CYLINDER, AND THAT IS THE WHOLE FIX.** The fixed
+  skin was cut off square at the hinge fraction and the surface began at the
+  same fraction with a square nose: "sampling BOTH at the same parameter makes
+  the cove and the surface's leading edge the same points by construction",
+  which is true, and which means the two parts SHARE A PLANE. Measured before:
+  **19.5 mm of aileron inside the wing at 25 degrees**, and exactly half the
+  nose thickness times sin(theta) at every angle — 38 mm at the deflection the
+  game actually drew. Now the surface's leading edge is a circular ARC of
+  radius r about the hinge axis (r = the local half-thickness) and the fixed
+  structure's cove is the same arc opened by the rigging gap, with its skins
+  cut back to where they meet it (`genAfHinge`, `genAfSegNose`, `genAfSegCove`
+  in 63_gen_wing.js). **A rotation does not change a radius**, so the
+  clearance is a property of the construction and not of the angle: measured
+  3.92 mm at 0, 25, 40 and 57 degrees alike. Every fixed row carries the same
+  point count whether or not a surface lives at its station (the arc collapses
+  to coincident points where there is none), so the loft is one longer in the
+  ring and unchanged in shape. GATE WINGSPLIT re-blessed — the diff IS the
+  record, which is what `--bless` is for.
+- **AND THE TRAVEL IS DECLARED.** `ang = sgn * k * ctl` with k = 1 meant full
+  stick turned an aileron ONE RADIAN. Nothing said otherwise because nothing
+  had to: the physics reads the control CHORD (genTauAt) and never the angle.
+  Both halves of that stopped being true in the same chantier — a cove has to
+  be sized for a travel and a drawn hinge has to survive it. `GEN_TRAVEL`
+  (60_gen_spec.js) is the table, per the user's ruling: aileron 25, elevator
+  28, rudder 27, flap 40 with the type's own number where it has one. Read by
+  the generator (`genWing`), published by the join per surface, and read in
+  app.js with the old pair as the fallback so a payload baked before the table
+  still flies at the deflection it was baked with. **Symmetric on purpose**: a
+  differential aileron would mean a second scale factor in three files and a
+  sign branch in the hot loop for a few degrees nothing measures.
+- **G238 — THE DECLARED TABLE, THE SHAPES, AND THE LAYER.** GEN_ACCESS's own
+  three-file split, applied to the one part of the aeroplane that had no
+  hardware: `GEN_HINGE_KIT` says what each surface needs and **what each thing
+  serves**; `tools/_hinge_gen.js` draws it over GEAR_KIT (sweeps and revolves,
+  never a box with a rotation); `tools/_cage_hinge.js` finds the surfaces and
+  hangs it on them. Family by CONSTRUCTION — a fabric surface hangs on bent
+  steel straps, a metal one on a piano hinge — count from the span (one bay
+  every 0.9 m, two to six), stations inset at both ends.
+- **WHICH BAG A TRIANGLE GOES IN IS THE WHOLE ANIMATION.** The layer keeps one
+  set of bags for what stays with the airframe and one PER SURFACE for what
+  turns with it; the moving mesh is handed to the surface's own drawn object
+  with `Object3D.attach`, which keeps its world placement and works out the
+  local transform — so it survives the fin group's scale, the boom offset and
+  the explode slider at once, and the join then bakes it into the surface's
+  own part. **A horn is animated by construction, with no new code in the
+  flown model.**
+- **WHAT A STRAP HINGE ACTUALLY IS**, since the first cut got it wrong: the
+  eye is on the axis, at mid-thickness, INSIDE the aeroplane; the two tails
+  come out through the gap and lie on the OUTSIDE of the two skins. The fixed
+  tail runs forward, the moving one aft, and **the two are offset along the
+  hinge line so they pass each other rather than through each other** — which
+  is what a piano hinge's alternating knuckles are doing too, and why both
+  families are one drawing at two pitches. The first cut also had the strap
+  55 mm wide over a 75 mm reach, which is square and reads as a patch riveted
+  to the wing; 30 x 90 reads as a hinge.
+- **G239 — THE LINK IS A TWO-END MEMBER, AND THE CONTRACT ALREADY EXISTED.** A
+  pushrod has one end on a bellcrank inside the wing and the other on a horn
+  that swings: neither group can carry it. G179.2's `members` — "a line
+  between two points ... the bar does not deform, it just follows the 2
+  points", which already flies every lift strut and bracing wire — takes it
+  with ONE new idea: the far end rides a HINGE instead of a physics node. The
+  join copies the surface's pivot, axis, drive, sign, travel and slide onto
+  the link (second pass, because a rod can be reached before the aileron it
+  pulls), and app.js re-solves the rod from the same numbers the surface turns
+  by, so the two can never disagree. Structural flex is deliberately not in
+  it: the horn moves by tens of centimetres and the spar by millimetres.
+- **AND A FOWLER LEAVES THE WING.** `GEN_FLAPS` was a physics table — dCl, cd,
+  rate — and the loft read only `dCl > 0`, so a Fowler was drawn as a plain
+  flap and the choice was invisible. It carries `slide`/`drop` now (fractions
+  of the surface's own chord), the generator publishes the translation as a
+  vector in the emitted frame, and both pose paths add it in proportion to the
+  command. Measured on a stock wing: 241 mm of run-out, with the track and its
+  carriage drawn — the track stays with the wing, the carriage goes with the
+  flap, so they draw themselves apart exactly as it extends.
+- **G240 — THE COCKPIT ANSWERS.** The stick, the yoke and the pedals were
+  drawn and dead — the pilot's end of the same control run. Each moving piece
+  is now a named group on its own pivot (`edCtl_*`), published by the crew
+  layer with what drives it, baked by the join as a rigid part and turned in
+  app.js by the same linkage that turns the surfaces. A stick takes TWO drives
+  at once (one part, not two nested groups: the join bakes each part into its
+  own flat rebased mesh and the outer of a nested pair would have no
+  geometry); a yoke SLIDES for pitch and spins for roll; a pedal swings on the
+  floor and its partner swings the other way.
+  **THE DECLARED GAP, and it is visible: a seated dummy's hand does not follow
+  the stick.** The crew is posed by IK at BUILD time against the grip where it
+  then was, and the flown model has no skeleton. In cruise that is
+  millimetres; at full deflection it is not. The cure is the crew's own
+  chantier — bake the forearm and hand as their own part off the skin weights,
+  and ride it on the stick — and it is named here rather than worked around.
+- **LIVERY.** Two sections, and the split is the one AERO_SEC already uses:
+  `ctlHinge` is steel whatever the aeroplane is painted (`parent: null`, a
+  pinned `steelTube` finish — a hinge is not painted), `ctlFair` is a painted
+  strip on a painted surface and takes `wears: 'parent'` (G207's rule, written
+  for exactly this case). `AERO_HARD.hinge` carries the family.
+- **SLIDERS.** One part, `Control hardware`, under the trunk's own headings
+  (fitted / type + count / position / size), plus linkage and fairing
+  switches and a detail multiplier. Eleven rows for the whole aeroplane rather
+  than four rows on each of seven surfaces, which is the fittings part's own
+  argument: the TABLE decides what each surface gets.
+- **MASS AND PRICE DO NOT MOVE, deliberately.** `GEN_OUTFIT.ctlKgM` already
+  bills "sticks, torque tube, pedals, cables, pulleys, bellcranks and horns"
+  by reach. Drawing them must not bill them twice — the G84 lesson, stated in
+  the code.
+- **G241 — GATE HINGE**, core tier, negative-verified (--selftest). Six wings
+  across the aerofoils, control chords, taper and flap types: the nose lies
+  within its own radius of the axis and the cove outside it by the gap
+  (**station by station** — a tapered wing's nose shrinks along the hinge
+  line, and comparing the widest nose anywhere against the tightest cove
+  anywhere reads a 2:1 taper as a 4 mm foul that is not there; the binning
+  also catches a CRANKED panel, where the real hinge locus bends away from the
+  straight axis the surface turns about); the travel is the table's; a Fowler
+  translates and a plain flap does not; the hinge table's counts and stations
+  stay in bounds over every span the generator can build; every form in
+  _hinge_gen draws.
+- Verified live, headless Chrome on dev.html: 5 surfaces hung on the stock
+  build (7 with flaps), 3 hinges each, 6 links (2 pushrods, 4 cables), 8 with
+  flaps; every piece of hardware measured INSIDE its own surface's box; the
+  join publishes 6 ctlLink parts with members and hinges, 6 ctlMove parts with
+  pivots and drives, and the declared travel on all seven surfaces
+  (ail 0.436 rad, rud 0.471, elev 0.489, fowler flap 0.611 + 241 mm of slide).
+
+
+## G244 — A TRAILING EDGE WITH A BEVEL ON IT, A NOSE CONE THAT REACHES ITS
+## ENGINE AND IS ALLOWED TO BE MADE OF SOMETHING ELSE, AND AN INSPECTION RING
+## ON THE FLATTEST LINE THERE IS (2026-09-11, the user, three in one message:
+## "the nose cone should generate its own shaft to the engine, or the engine
+## to the nose cone, but there should be no gap. Also, the nose cone should be
+## able to set its material independently from the blades. The inspection trap
+## on the left side usually falls wrong. Try and shoot for a flat surface,
+## maybe the bottom of the plane? Or the middle of the door? Or somewhere on
+## the straight part of the boom? We need a proper bevel on the wing and
+## control surfaces trailing edges. Right now it feels like a single vertex.
+## The curb should stay real small (maybe 1 cm, maybe a little less), but
+## still feature a proper bevel with at least 3 faces")
+
+- **THE TRAILING EDGE IS A CURB, AND IT HAS THREE FACES.** It was not quite a
+  single vertex — a NACA section closes at a real thickness, 4.0 mm on the
+  stock 1.6 m chord — but the loft wrapped it in ONE face, so the edge caught
+  one shading value and read as a crease. `GEN_EDGE` declares the curb as a
+  MINIMUM IN METRES (7 mm) and a face count (3): a trailing edge is the same
+  few millimetres of alloy on a Cub and on a twin, so on a short chord it is a
+  bigger fraction of the section and on a long one a smaller — the same
+  reasoning the hinge gap already used. `genAfTeCut` walks forward from the
+  trailing edge to where the section is that thick and `genTeFace` lays the
+  flat across it. Measured after: 7.0 mm and 4 points (3 faces) on every wing,
+  every aileron and every flap of the gate's six wings, at every chord and
+  aerofoil.
+- **AND THE ONE PLACE IT CANNOT HOLD, ON PURPOSE.** At the rounded tip the
+  bow's chord runs down to a few centimetres, where a 7 mm curb would be a
+  tenth of the section. The cut spends `GEN_EDGE.maxCut` (8 % of chord) and
+  stops, taking the thickest edge it can buy — 2 mm rather than the
+  aerofoil's own 0.2 mm point, which is the one place a sharp edge is most
+  visible. GATE HINGE measures the curb off the emitted vertices and knows not
+  to look for it in the outer 8 % of the span, and the comment says why.
+- **THE CARRY-THROUGH GAINED A TRAILING EDGE IT NEVER HAD.** The centre
+  section lofted `genAirfoil` — an OPEN contour — with `close` false, so its
+  trailing edge over the cabin was a 4 mm SLIT rather than a face. It takes
+  the same closed segment sampler as the panels now: the curb, the face, and
+  the same walk order the `open` centre slices on.
+- **THE NOSE CONE GROWS ITS OWN SHAFT.** G32 retired the cowl tool's shaft
+  because "the engine provides the crank and the flange" — true, and it left
+  the cone standing `noseOff` clear of that flange with nothing between them.
+  The cone now draws a backplate at EXACTLY its base radius (no step to see)
+  necking to a hub that runs aft to the flange — and further, to the block's
+  own forward-most vertex where that sits behind the mounting face, so an
+  engine whose case does not reach its flange does not leave the shaft ending
+  in mid-air. Drawn in the cone's own frame, so it is right at every offset
+  and disappears at zero: the stock build (noseOff −0.04, the cone already
+  inside the case) draws none. Measured: at noseOff 0.16 the spinner's
+  geometry reaches z = 0.000 exactly, 641 → 802 vertices.
+- **AND IT CAN BE MADE OF SOMETHING ELSE.** `cw_material` decided the blades
+  AND the cone; a spun alloy spinner on a wooden propeller is the commonest
+  combination there is. `spinMat` is 0 for "as the blades" — what every saved
+  aeroplane has — and otherwise an index into the same table, so the cone gets
+  a real material's finish, tint, tile and grain turn rather than a tint on a
+  blade's. One row under the propeller's `nose cone` group, claimed there.
+- **THE TAIL INSPECTION RING MOVED TO THE KEEL.** It used to put one EACH SIDE
+  on a full section, at lv 1.7 — the lower flank, the one part of a tapering
+  boom that is curved in both directions at once, so a flat 130 mm ring sat on
+  it like a coin on a ball. One ring, underneath, on the straight part of the
+  boom: the keel is the flattest line on any fuselage this generator builds,
+  and it is where you would actually cut the panel — which is what the
+  slim-boom case had been doing correctly all along. 0.62 of the tail arm
+  rather than 0.86, because 0.86 is the tailpost, where the tailwheel leg, the
+  castor and the tie-down already are (G84's pixel pass found the tie-down
+  buried inside the tailwheel there).
+- **GATE UISMOKE CAUGHT THE ONE REAL MISTAKE OF THE DAY** and it was G240's:
+  two quaternions constructed at app.js's module scope, which the smoke stub
+  has no `Quaternion` for. The stub gained one — it models what app.js needs,
+  and a quaternion is as fundamental as the Matrix4 beside it.
+- Gates: HINGE (with --selftest, and the new trailing-edge rule), WINGSPLIT
+  (re-blessed — the wing's own edge moved), FIT, PARTS, ENGMESH, COWL, ENGINE,
+  SAVE, DESIGN, UISMOKE all green.

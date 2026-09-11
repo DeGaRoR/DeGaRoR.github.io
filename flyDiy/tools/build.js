@@ -283,6 +283,9 @@ const MANIFEST = {
     // THE FITTINGS (G81-G84), the reading and drawing halves. Pure modules
     // with no post hook, so they only have to be loaded before the layer.
     '_fit_site.js', '_fit_gen.js',
+    // THE HINGE SHAPES (G238): the same table/placer/shapes split, over
+    // GEAR_KIT. Pure module, no post hook — only has to be before the layer.
+    '_hinge_gen.js',
     '_eng_gen.js', '_eng_mesh.js', '_eng_page.js',
     '_cowl_gen.js', '_cowl_rows.js', '_cage_cowl.js', '_cage_eng.js',
     '_strut_gen.js', '_cage_wing.js',
@@ -313,6 +316,12 @@ const MANIFEST = {
     // window.FIT_SITE at load, so it sits after _fit_site; the layer reads the
     // crew and the wing in its post hook, so it sits after both.
     '_bay_site.js', '_vessel_gen.js', '_vessel_mesh.js', '_cage_energy.js',
+    // THE CONTROL HARDWARE (G238) IS LAST OF THE DRAWING LAYERS, and for the
+    // access layer's reason turned round: it reads the WING's, the FIN's and
+    // the STAB's published hinge lines and ATTACHES its moving halves to the
+    // `edSurf_*` objects those layers drew. Anything after it would traverse
+    // a scene with hardware already hanging on the surfaces.
+    '_cage_hinge.js',
     '_cage_join.js',        // the physics-bearing table (G45)
     '_cage_ui.js',
   ],

@@ -106,6 +106,36 @@ first ten minutes of play, and almost all of it is small.*
 > 0.5 kg and the tail's tips carried no bow, so the integrator was
 > sizing its step for a tail twice its weight.
 
+> **2026-09-10 — HINGES AND ACTUATORS (G237–G241).** The audit
+> (`futureDesigns/HINGES-ACTUATORS-2026-09-10.md`) found that the aeroplane
+> had no hinge and no actuator geometry anywhere: every control surface was a
+> slab turning about an invisible line, the wing's surfaces turned THROUGH the
+> wing (19.5 mm of aileron inside the wing at 25°, and half the nose thickness
+> times sin θ at every angle), full stick drew 57.3° because no travel was
+> declared, a Fowler was drawn as a plain flap, and two fittings had been
+> covering mechanisms that were never built. Closed: the nose is a CYLINDER
+> about the hinge and the cove is the same cylinder plus the rigging gap, so
+> the clearance is 3.9 mm at every deflection by construction; `GEN_TRAVEL` is
+> a declared table and `k` is read from it everywhere; `GEN_HINGE_KIT` says
+> what each surface needs and what each thing serves; `_hinge_gen.js` draws
+> strap and piano hinges, horns, pushrods, cables, bellcranks, fairings and a
+> Fowler's track and carriage; the moving halves ride the surfaces they are
+> bolted to and the LINKS are two-end members that re-solve every frame; the
+> stick, the yoke and the pedals answer the same linkage. GATE HINGE, core
+> tier, negative-verified. The declared gap: a seated dummy's hand does not
+> follow the stick (the crew is posed by IK at build time and the flown model
+> has no skeleton) — the crew's own chantier.
+
+> **2026-09-11 — THE EDGES (G244).** Three from one message, all the same
+> kind of thing: a trailing edge that was one face wide now carries a 7 mm
+> curb with three faces across it (and the carry-through gained a trailing
+> edge it never had — it was an open slit); the nose cone draws its own shaft
+> back to the engine's flange, or to the block's own nose where that sits
+> behind it, so there is no gap at any offset; the cone takes its own material
+> instead of the blades'; and the tail inspection ring moved from the lower
+> flank — the one doubly-curved place on a tapering boom — to the keel, on the
+> straight part, clear of the tailwheel cluster.
+
 1. ~~**The sweep-30 ruling, applied.**~~ **DONE — G150, 2026-09-01.** The one
    red in the battery, ruled and closed. It was a TIMEOUT, not a crash. Leaves
    ONE item owed, promoted into Phase 2 below: the **balance advisory**.

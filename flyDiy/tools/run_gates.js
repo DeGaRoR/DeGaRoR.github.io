@@ -102,6 +102,13 @@ const GATES = [
   // five SPECIFICATIONS, because the shapes alone never build an IFR
   // wing-tank aeroplane and that is where the collisions were.
   { id: 'FIT', file: '_fit_check.js', tier: 'core' },
+  // THE CONTROL HARDWARE (G241): every control surface's nose turns INSIDE
+  // its cove instead of through the wing — measured off the emitted vertices,
+  // station by station, which is the clearance at every deflection because a
+  // rotation does not change a radius — plus the declared travel, the
+  // Fowler's own translation, the hinge table's bounds and that every shape
+  // in _hinge_gen draws. Sub-second. Negative-verified (--selftest).
+  { id: 'HINGE', file: '_hinge_check.js', tier: 'core' },
   // THE WING'S SHAPE (G67.1): thirteen wings frozen as digests over every
   // position, uv and binding weight, so the wing could leave 63_gen_skin.js
   // without changing by a millimetre. Sub-second, and it stays in the battery

@@ -637,6 +637,29 @@ const CAGE_PARTS = [
     ] },
 
   // =========================================================================
+  // CONTROL HARDWARE (G238) — the hinges, horns, pushrods and cables that
+  // hang every control surface and move it. Its own assembly rather than a
+  // row under each surface, for the reason the fittings are one part: the
+  // TABLE decides what each surface gets (GEN_HINGE_KIT), so what a builder
+  // chooses is one family, one count and one size for the aeroplane, not
+  // seven copies of the same four rows.
+  // =========================================================================
+  { key: 'ctlhw', name: 'Control hardware', parent: null, layer: 'hinge',
+    when: P => +P.hgOn, gate: 'hgOn',
+    sections: ['ctlHinge', 'ctlFair'],
+    place: { on: 'hgOn', type: 'hgFamily', count: 'hgCount', out: 'hgOut',
+             len: 'hgHornLen', wide: 'hgSize', at: 'on every hinge line' },
+    groups: [
+      ['fitted', ['hgOn']],
+      ['type', ['hgFamily', 'hgCount']],
+      ['position', ['hgOut', 'hgHornAt']],
+      ['size', ['hgHornLen', 'hgSize']],
+      ['linkage', ['hgHorn', 'hgLink']],
+      ['fairings', ['hgFair']],
+      ['detail', ['hgDetail']],
+    ] },
+
+  // =========================================================================
   // POWERPLANT — the dressed engine (G24/G25), the shell drawn around it
   // (G26/G29) and the propeller. Nose-mount only; pushers and wing nacelles
   // are ROADMAP P7.
@@ -765,7 +788,7 @@ const CAGE_PARTS = [
     groups: [
       ['fitted', ['propOn']],
       ['nose cone', ['cw_noseOff', 'cw_spinR', 'cw_spinLen',
-                     'cw_spinRound', 'cw_bladeStation']],
+                     'cw_spinRound', 'cw_bladeStation', 'spinMat']],
       ['blades', ['cw_bladeN', 'cw_propD', 'cw_material', 'cw_rootChord',
                   'cw_tipChord', 'cw_chordBulge', 'cw_sweep',
                   'cw_thickRoot', 'cw_thickTip', 'cw_camb', 'cw_tipRound',

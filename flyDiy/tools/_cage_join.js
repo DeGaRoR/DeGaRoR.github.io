@@ -1452,6 +1452,21 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
                         'elevR', 'elevL', 'ailR2', 'ailL2', 'flapR2', 'flapL2'])
         PARTS.others.push({ src: 'edSurf_' + nm, kind: 'surf_' + nm,
           surf: nm, groups: {} });
+      // G239: THE CONTROL LINKS. A pushrod or a cable has one end on the
+      // airframe and one on a control surface's horn, so it is neither a
+      // fixed part nor a moving one: it is a two-end MEMBER, the contract
+      // G179.2 built for the lift struts, with the surface that carries its
+      // far end named on it. The hinge layer publishes what it drew.
+      for (const L of ((window.CAGE_HINGE && window.CAGE_HINGE.links) || []))
+        PARTS.others.push({ src: 'edLink_' + L.key, kind: 'ctlLink',
+          link: L, stretch: true, axleC: L.tip, groups: {} });
+      // G240: THE CONTROLS IN THE COCKPIT. The crew layer names each moving
+      // group and says what drives it; its pivot and axes are read off the
+      // object's own world matrix below, because they were authored deep in
+      // the crew's own frame (a station shift inside a seat inside the layer)
+      // and re-deriving that chain here would be a second description of it.
+      for (const m of ((window.CAGE_CREW && window.CAGE_CREW.moving) || []))
+        PARTS.others.push({ src: m.name, kind: 'ctlMove', ctl: m, groups: {} });
       if (GB.units && GB.units.castor)
         PARTS.others.push({ src: 'edCastorT', kind: 'castorT',
           topC: GB.units.castor.top, axC: GB.units.castor.ax,
@@ -1549,8 +1564,37 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           }
           if (a.name && (a.name.lastIndexOf('edLeg', 0) === 0 ||
                          a.name.lastIndexOf('edSurf_', 0) === 0 ||
+                         a.name.lastIndexOf('edLink_', 0) === 0 ||
+                         a.name.lastIndexOf('edCtl_', 0) === 0 ||
                          a.name === 'edCastorT')) {
             part = PARTS.others.find(u => u.src === a.name) || null;
+            // G240: a cockpit control's pivot and axes, IN THE CAGE'S FRAME,
+            // taken off the group the crew layer put them on — the crew
+            // authors them three frames deep (a station shift inside a seat
+            // inside the layer) and re-deriving that chain here would be a
+            // second description of it. They go into MODEL axes below, with
+            // the rest of the parts: `rotP` is declared with the second
+            // traversal and reading it from this one is a temporal dead zone,
+            // not a value (measured: it threw on the first build).
+            if (part && part.kind === 'ctlMove' && !part.axleC) {
+              const M4 = new THREE.Matrix4().multiplyMatrices(inv, a.matrixWorld);
+              const q = new THREE.Vector3().setFromMatrixPosition(M4);
+              part.axleC = [q.x, q.y, q.z];          // the pivot, cage metres
+              const dirOf = d => {
+                const u = new THREE.Vector3(d[0], d[1], d[2])
+                  .transformDirection(M4).normalize();
+                return [u.x, u.y, u.z];
+              };
+              part.axC = { ax: dirOf(part.ctl.axis) };
+              if (part.ctl.axis2) part.axC.ax2 = dirOf(part.ctl.axis2);
+              if (part.ctl.slide) {
+                const sv = new THREE.Vector3(part.ctl.slide[0], part.ctl.slide[1],
+                  part.ctl.slide[2]);
+                const L2 = sv.length();
+                sv.transformDirection(M4).multiplyScalar(L2);
+                part.axC.slide = [sv.x, sv.y, sv.z];
+              }
+            }
             break;
           }
           // G179.2: the struts and the engine units (the prop and spinner
@@ -1978,13 +2022,72 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         out2.axis = hinge.axis;
         out2.drive = hinge.drive; out2.sgn = hinge.sgn;
         if (hinge.drive2) { out2.drive2 = hinge.drive2; out2.sgn2 = hinge.sgn2; }
+        // G237: THE TRAVEL, DECLARED (GEN_TRAVEL). `k` scales the linkage's
+        // [-1, 1] to radians of surface, and it was 1 — 57.3 degrees at full
+        // stick, on every cage build since G59. It is the table's number now,
+        // and the flap's is its TYPE's (a Fowler runs out further than it
+        // turns down). The travel is what the cove is sized against and what
+        // the drawn hinges and horns have to survive, so one table owns it.
+        // G239: a Fowler's translation, published by the wing layer in cage
+        // metres, into the model's axes — a direction, so the same linear map
+        // the points take and no origin.
+        const WGs = (window.CAGE_WING && window.CAGE_WING.surfs) || [];
+        const wRec = WGs.find(w => w.name === pt.surf);
+        if (wRec && wRec.slide)
+          out2.slide = rotP(-wRec.slide[2], wRec.slide[1], wRec.slide[0]);
+        if (typeof genTravel === 'function') {
+          const S2k = pt.surf.replace(/2$/, '');
+          const which = S2k.lastIndexOf('ail', 0) === 0 ? 'aileron'
+                      : S2k.lastIndexOf('flap', 0) === 0 ? 'flap'
+                      : S2k.lastIndexOf('rud', 0) === 0 ? 'rudder' : 'elevator';
+          const ft = spec && spec.controls && spec.controls.flap
+                     && spec.controls.flap.type;
+          out2.k = genTravel(which, ft);
+        }
       }
       if (pt.kind === 'castorT') {
         const axm = rotP(-pt.axC[2], pt.axC[1], pt.axC[0]);
         out2.axis = axm;                     // swivel axis, model frame
         out2.axle = rotP(-pt.axleC[2], pt.axleC[1], pt.axleC[0]);
       }
+      if (pt.kind === 'ctlMove' && pt.ctl && pt.axC) {
+        const c = pt.ctl, A = pt.axC;
+        const dirM = d => rotP(-d[2], d[1], d[0]);
+        out2.ctl = { ax: dirM(A.ax), drive: c.drive, sgn: c.sgn, k: c.k || 1 };
+        if (A.ax2) Object.assign(out2.ctl,
+          { ax2: dirM(A.ax2), drive2: c.drive2, sgn2: c.sgn2, k2: c.k2 || 1 });
+        if (A.slide) Object.assign(out2.ctl,
+          { slide: dirM(A.slide), slideDrive: c.slideDrive,
+            slideSgn: c.slideSgn == null ? 1 : c.slideSgn });
+      }
+      if (pt.kind === 'ctlLink' && pt.link) {
+        // the two ends, in the model's axes, and WHICH SURFACE moves the far
+        // one. The hinge itself is filled in below, once every surface part
+        // has been measured — a link can be built before its own surface.
+        out2.members = [{ pin: rotP(-pt.link.pin[2], pt.link.pin[1], pt.link.pin[0]),
+                          tip: rotP(-pt.link.tip[2], pt.link.tip[1], pt.link.tip[0]) }];
+        out2.linkSurf = pt.link.surf;
+        out2.linkKind = pt.link.kind;
+      }
       parts.push(out2);
+    }
+    // G239: THE LINK'S FAR END RIDES A SURFACE'S HINGE. Second pass, because
+    // the parts are built in the order they were found and a pushrod can be
+    // reached before the aileron it pulls. Everything the viewer needs to
+    // move that end is copied here — pivot, axis, drive, sign, travel and a
+    // Fowler's slide — so app.js re-solves the rod from the same numbers the
+    // surface itself turns by, and the two can never disagree.
+    {
+      const bySurf = {};
+      for (const q of parts) if (q.surf) bySurf[q.surf] = q;
+      for (const q of parts) {
+        if (q.kind !== 'ctlLink' || !q.linkSurf) continue;
+        const h = bySurf[q.linkSurf];
+        if (!h) continue;
+        q.hinge = { p: h.pivot, ax: h.axis, drive: h.drive, sgn: h.sgn,
+                    k: h.k || 1, drive2: h.drive2 || null, sgn2: h.sgn2 || 0,
+                    slide: h.slide || null };
+      }
     }
     return { cage: true, groups, mats, off, pitch: beta, parts,
              zRoot: 0, surfaces: null };

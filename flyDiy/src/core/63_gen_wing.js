@@ -219,6 +219,195 @@ function genAfSeg(naca, a, b, n) {
   return pts;
 }
 
+// ---------------------------------------------------------------------------
+// THE TRAILING EDGE IS A CURB (G244)
+// ---------------------------------------------------------------------------
+// genAfTeCut(naca, curbC) -> the chord fraction where the section is `curbC`
+// thick (a chord fraction), searching FORWARD from the trailing edge, or 1 if
+// it is already that thick there. GEN_EDGE.maxCut bounds how far forward it
+// will look, so a very thick curb on a very thin aerofoil gives up and takes
+// the section's own edge rather than eating the last tenth of the chord.
+function genAfTeCut(naca, curbC) {
+  const E = genAfEval(naca);
+  const th = x => { const u = E.up(x), l = E.lo(x);
+                    return Math.hypot(u[0] - l[0], u[1] - l[1]); };
+  if (th(1) >= curbC) return 1;
+  const back = 1 - (GEN_EDGE ? GEN_EDGE.maxCut : 0.08);
+  // OUT OF CHORD TO SPEND. At the rounded tip the bow's chord runs down to a
+  // few centimetres, where a 7 mm curb would be a tenth of the section — so
+  // the cut stops at the budget and takes the THICKEST edge it can buy rather
+  // than giving up and leaving the aerofoil's own 0.2 mm point, which is the
+  // one place a sharp edge is most visible.
+  if (th(back) < curbC) return back;
+  let lo = back, hi = 1;
+  for (let i = 0; i < 28; i++) {
+    const m = 0.5 * (lo + hi);
+    if (th(m) > curbC) lo = m; else hi = m;
+  }
+  return 0.5 * (lo + hi);
+}
+
+// the flat across the trailing edge: `n - 1` NEW points from the lower edge
+// to the upper one, so the wrap closes `n` faces across it instead of one.
+// Straight, because a trailing edge is a straight curb; the arris each side
+// comes for free from the two skins meeting it at an angle.
+function genTeFace(lo, up, n) {
+  const out = [];
+  for (let i = 1; i < n; i++) {
+    const t = i / n;
+    out.push([lo[0] + (up[0] - lo[0]) * t, lo[1] + (up[1] - lo[1]) * t]);
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// THE HINGE IS A CYLINDER (G237)
+// ---------------------------------------------------------------------------
+// Until this the fixed skin was cut off square at the hinge fraction and the
+// control surface began at the same fraction with a square nose of its own —
+// "sampling BOTH at the same parameter makes the cove and the surface's
+// leading edge the same points by construction", which is true, and which
+// means the two parts SHARE A PLANE and the surface's nose sweeps straight
+// through the wing the moment it deflects. Measured before the fix, on the
+// stock 1.6 m chord: 19.5 mm of aileron inside the wing at 25 degrees, and
+// exactly half the nose thickness times sin(theta) at every angle, which is
+// what a square nose on a mid-thickness hinge must do.
+//
+// The cure is the one every real aeroplane uses. The surface's leading edge
+// is a CIRCULAR ARC of radius r about the hinge axis, where r is the local
+// half-thickness at the hinge station; the fixed structure's cove is the SAME
+// ARC opened by the rigging gap, and its skins are cut back to where they
+// meet it. Then the nose turns inside the cove with a constant clearance and
+// no deflection can foul — the clearance is a property of the construction,
+// not of the angle, which is why it needs no per-angle check anywhere.
+//
+// genAfHinge(naca, h, gapC) measures that geometry once per station:
+//   c     the hinge point — mid-thickness at fraction h, and the pivot
+//   r     the nose radius, R the cove radius (r + the gap, in chord)
+//   xUp   where the upper skin meets the cove, xLo where the lower does
+// `ok` false means the section is too thin to hold a cove of that radius at
+// that station (a hinge far aft on a very thin aerofoil): the caller falls
+// back to the square cut it always drew, so a wing is never broken by it.
+function genAfHinge(naca, h, gapC) {
+  const E = genAfEval(naca);
+  const u = E.up(h), l = E.lo(h);
+  const c = [0.5 * (u[0] + l[0]), 0.5 * (u[1] + l[1])];
+  const r = 0.5 * Math.hypot(u[0] - l[0], u[1] - l[1]);
+  const R = r + Math.max(0, gapC);
+  const dist = (x, up) => {
+    const p = up ? E.up(x) : E.lo(x);
+    return Math.hypot(p[0] - c[0], p[1] - c[1]);
+  };
+  // walk FORWARD from the hinge until the skin is R from the hinge point.
+  // Bracketed rather than solved: the contour is smooth and monotone in the
+  // 25 % of chord ahead of any hinge this generator can place.
+  const back = Math.max(0.02, h - 0.25);
+  const solve = up => {
+    if (dist(back, up) < R) return null;      // too thin to hold the cove
+    let lo = back, hi = h;
+    for (let i = 0; i < 32; i++) {
+      const m = 0.5 * (lo + hi);
+      if (dist(m, up) > R) lo = m; else hi = m;
+    }
+    return 0.5 * (lo + hi);
+  };
+  const xUp = solve(true), xLo = solve(false);
+  return { c, r, R, xUp, xLo, ok: r > 1e-5 && xUp != null && xLo != null };
+}
+
+// an arc of `n` NEW points from p0 to p1 about centre c, radius rr, taking
+// the way round that passes FORWARD of the centre (the nose and the cove are
+// both the front half of a circle). Endpoints are the caller's own and are
+// not repeated.
+function genArcFwd(c, rr, p0, p1, n) {
+  let a0 = Math.atan2(p0[1] - c[1], p0[0] - c[0]);
+  let a1 = Math.atan2(p1[1] - c[1], p1[0] - c[0]);
+  // the short way round from a0 to a1, then flipped if it does not pass the
+  // forward direction (angle pi, where x is least)
+  let d = a1 - a0;
+  while (d > Math.PI) d -= 2 * Math.PI;
+  while (d <= -Math.PI) d += 2 * Math.PI;
+  // ...and if the OTHER way round runs further forward, take that instead.
+  // The nose's two ends are exactly opposite about the hinge point, so the
+  // two candidates are both half turns and only this test separates them.
+  const midX = dd => Math.cos(a0 + dd * 0.5);
+  const alt = d >= 0 ? d - 2 * Math.PI : d + 2 * Math.PI;
+  if (midX(alt) < midX(d)) d = alt;
+  const out = [];
+  for (let i = 1; i < n; i++) {
+    const a = a0 + d * i / n;
+    out.push([c[0] + Math.cos(a) * rr, c[1] + Math.sin(a) * rr]);
+  }
+  return out;
+}
+
+// THE CONTROL SURFACE'S SECTION: the contour from the hinge back to the
+// trailing edge, with its nose closed by the arc. genAfSeg's order is
+// upper(b)..upper(a) then lower(a)..lower(b), so the nose arc goes in the
+// MIDDLE — between the two halves — and the trailing edge still closes by
+// the loop. Always the same point count (arcN - 1 extra), so a surface with
+// no room for an arc still lofts against one that has.
+function genAfSegNose(naca, h, n, arcN, gapC, curbC) {
+  const E = genAfEval(naca);
+  const H = genAfHinge(naca, h, gapC);
+  // G244: the surface ends on a CURB, not on a point
+  const teN = Math.max(1, (GEN_EDGE ? GEN_EDGE.faces : 3) | 0);
+  const xTe = curbC > 0 ? genAfTeCut(naca, curbC) : 1;
+  const xs = i => h + (xTe - h) * 0.5 * (1 - Math.cos(Math.PI * i / n));
+  const up = [], lo = [];
+  for (let i = n; i >= 0; i--) up.push(E.up(xs(i)));
+  for (let i = 0; i <= n; i++) lo.push(E.lo(xs(i)));
+  const u0 = up[up.length - 1], l0 = lo[0];
+  const arc = H.ok ? genArcFwd(H.c, H.r, u0, l0, arcN)
+                   : new Array(arcN - 1).fill(0).map(() => [u0[0], u0[1]]);
+  const te = genTeFace(lo[lo.length - 1], up[0], teN);
+  return up.concat(arc, lo, te);
+}
+
+// THE FIXED SKIN'S SECTION, with the cove socket cut into its aft face. The
+// socket is the closing run of the loop — where the square wall used to be —
+// so it goes at the END of the list. `h` of 1 means no surface at this
+// station: the section is exactly what it always was, plus arcN-1 points
+// piled on the trailing edge so the row length never changes. Those are
+// degenerate on purpose, the same device the band-end walls use: a zero-area
+// face contributes no normal.
+function genAfSegCove(naca, h, n, arcN, gapC, curbC) {
+  const E = genAfEval(naca);
+  // G244: TWO tails on every ring, so a station with a trailing edge and one
+  // with a cove socket are the same length and loft against each other — the
+  // set that does not apply collapses onto its neighbour and contributes no
+  // face. The same device the band-end walls use.
+  const teN = Math.max(1, (GEN_EDGE ? GEN_EDGE.faces : 3) | 0);
+  const pad = (pts, k) => { const q = pts[pts.length - 1];
+                            for (let i = 1; i < k; i++) pts.push([q[0], q[1]]); };
+  if (!(h < 1 - 1e-9)) {
+    const xTe = curbC > 0 ? genAfTeCut(naca, curbC) : 1;
+    const xs = i => xTe * 0.5 * (1 - Math.cos(Math.PI * i / n));
+    const pts = [];
+    for (let i = n; i >= 0; i--) pts.push(E.up(xs(i)));
+    for (let i = 0; i <= n; i++) pts.push(E.lo(xs(i)));
+    for (const p of genTeFace(pts[pts.length - 1], pts[0], teN)) pts.push(p);
+    pad(pts, arcN);                            // no socket at this station
+    return pts;
+  }
+  const H = genAfHinge(naca, h, gapC);
+  if (!H.ok) {                                 // no room: the square cut
+    const pts = genAfSeg(naca, 0, h, n);
+    pad(pts, teN); pad(pts, arcN);
+    return pts;
+  }
+  const xsU = i => H.xUp * 0.5 * (1 - Math.cos(Math.PI * i / n));
+  const xsL = i => H.xLo * 0.5 * (1 - Math.cos(Math.PI * i / n));
+  const pts = [];
+  for (let i = n; i >= 0; i--) pts.push(E.up(xsU(i)));
+  for (let i = 0; i <= n; i++) pts.push(E.lo(xsL(i)));
+  pad(pts, teN);                               // no trailing edge here
+  // the socket, from the lower cut point forward round to the upper one
+  const a = pts[pts.length - 1], b = pts[0];
+  for (const p of genArcFwd(H.c, H.R, a, b, arcN)) pts.push(p);
+  return pts;
+}
+
 // Station cross-section: an asymmetric SUPERELLIPSE, thin wrapper over
 // genSuper (60b_gen_loft.js). theta 0 = top, +pi/2 = +z side, pi = bottom.
 // crownT applies at the top and fades to crownS by the sides.
@@ -643,12 +832,30 @@ function genWingInto(def, out) {
                wF: [[F0, 1-t], [F1, t]], wR: [[R0, 1-t], [R1, t]],
                chord: PP.chordAt(z) };
     };
-    const secAt = (z, a, b, n) => {
+    const secAt = (z, a, b, n, pts) => {
       const f = frameAt(z);
-      const row = wingSectionAt(f.pF, f.pR, f.wF, f.wR, f.chord, genAfSeg(W.naca, a, b, n));
+      const row = wingSectionAt(f.pF, f.pR, f.wF, f.wR, f.chord,
+                                pts || genAfSeg(W.naca, a, b, n));
       row.z0 = z;          // rows get duplicated at band ends, so carry the station
       return row;
     };
+    // G237: THE TWO SECTIONS THE HINGE MADE. The rigging gap is millimetres
+    // of real clearance, so as a CHORD FRACTION it is wider where the chord
+    // is short — a tapered wing's cove opens up towards the tip, which is
+    // what a rigged aeroplane does. Every fixed row carries the same point
+    // count whether or not a surface lives at its station (genAfSegCove), so
+    // the loft is unchanged in shape and one longer in the ring.
+    const ARCN = Math.max(2, (GEN_HINGE && GEN_HINGE.arcN) | 0 || 6);
+    const gapAt = z => (GEN_HINGE ? GEN_HINGE.gap : 0.004)
+                       / Math.max(0.05, PP.chordAt(z));
+    // G244: the trailing-edge curb is millimetres of real edge, so as a chord
+    // fraction it is bigger on a short chord — the same reasoning as the gap
+    const curbAt = z => (GEN_EDGE ? GEN_EDGE.curb : 0.007)
+                        / Math.max(0.05, PP.chordAt(z));
+    const fixSec = (z, h) =>
+      secAt(z, 0, h, NAF, genAfSegCove(W.naca, h, NAF, ARCN, gapAt(z), curbAt(z)));
+    const surfSec = (z, hf) =>
+      secAt(z, hf, 1, NSURF, genAfSegNose(W.naca, hf, NSURF, ARCN, gapAt(z), curbAt(z)));
     // ---- station list: spar stations + surface edges, then subdivided ----
     const brk = zAll.slice();
     for (const zb of [fEnd, aStart, zAilEnd])
@@ -705,14 +912,14 @@ function genWingInto(def, out) {
       // own vertices; the strip between the pair has zero area and so
       // contributes no normal at all.
       if (starts) {
-        fixRows.push(secAt(z, 0, hOf(zs2[i-1]), NAF));
-        fixRows.push(secAt(z, 0, hOf(zs2[i-1]), NAF));
+        fixRows.push(fixSec(z, hOf(zs2[i-1])));
+        fixRows.push(fixSec(z, hOf(zs2[i-1])));
       }
-      fixRows.push(secAt(z, 0, h, NAF));
-      if (starts || ends) fixRows.push(secAt(z, 0, h, NAF));
+      fixRows.push(fixSec(z, h));
+      if (starts || ends) fixRows.push(fixSec(z, h));
       if (ends) {
-        fixRows.push(secAt(z, 0, hOf(zs2[i+1]), NAF));
-        fixRows.push(secAt(z, 0, hOf(zs2[i+1]), NAF));
+        fixRows.push(fixSec(z, hOf(zs2[i+1])));
+        fixRows.push(fixSec(z, hOf(zs2[i+1])));
       }
     }
     if (TIP.fin > 0) {
@@ -734,14 +941,19 @@ function genWingInto(def, out) {
       // wing's alpha). Signs re-measured after the cut became real: while the
       // "surface" was still a full-chord copy its centroid sat FORWARD of the
       // hinge, so every sign came out inverted and calibrated to the wrong body.
-      ['ail',  'ail' + sd + GSFX,  'da', -1, 1.0, null, 0],
-      ['flap', 'flap' + sd + GSFX, 'flap', -side, 0.70, null, 0],
+      // G237: `k` IS THE TRAVEL, and it is declared (GEN_TRAVEL). It was 1
+      // radian on an aileron and 0.70 on a flap — 57 degrees of stick, which
+      // no hinge and no horn could survive and which the cove is now sized
+      // against.
+      ['ail',  'ail' + sd + GSFX,  'da', -1, genTravel('aileron'), null, 0],
+      ['flap', 'flap' + sd + GSFX, 'flap', -side,
+       genTravel('flap', CTL.flap && CTL.flap.type), null, 0],
     ]) {
       const zz = zs2.filter(z => { const b = bandAt(z); return b && b.n === nm; });
       if (zz.length < 2) continue;
       const hf = nm === 'ail' ? AIL_HINGE : FLAP_HINGE;
       const M = genMesh();
-      const rows = zz.map(z => secAt(z, hf, 1, NSURF));
+      const rows = zz.map(z => surfSec(z, hf));
       const sIds = emitLoft(rows, M, r => spanV(zz[r]), flip, true);
       capLoft([sIds[0], sIds[sIds.length-1]], M, flip);
       // pivot on the hinge line at mid band, axis along it
@@ -755,9 +967,52 @@ function genWingInto(def, out) {
                          genV3.mul(nr, yq * f.chord));
       };
       const pA = hp(zz[0]), pB = hp(zz[zz.length-1]);
+      // G239: A FOWLER LEAVES THE WING. The type's own `slide`/`drop` are
+      // fractions of the SURFACE's chord — aft along the local chord line and
+      // down along its normal — at full deflection. Published as a vector in
+      // the emitted frame, so the viewer adds it to the hinge rotation and
+      // nothing else has to know what a Fowler is. Every other flap and every
+      // aileron leaves it null, which is what makes them plain hinges.
+      let slide = null;
+      if (nm === 'flap') {
+        const FT = GEN_FLAPS[(CTL.flap && CTL.flap.type) || 'none'] || {};
+        if (FT.slide > 0 || FT.drop > 0) {
+          const f = frameAt(zm);
+          const ch = genV3.norm(genV3.sub(f.pR, f.pF));
+          let nr = genV3.norm(genV3.cross(ch, [0, 0, 1]));
+          if (nr[1] < 0) nr = genV3.mul(nr, -1);
+          const sc = (1 - hf) * f.chord;             // the surface's own chord
+          const p0 = hp(zm);
+          const p1 = genV3.add(p0, genV3.add(genV3.mul(ch, (FT.slide || 0) * sc),
+                                             genV3.mul(nr, -(FT.drop || 0) * sc)));
+          const a = B(p0), b2 = B(p1);
+          slide = [b2[0] - a[0], b2[1] - a[1], b2[2] - a[2]];
+        }
+      }
+      // G238: WHAT THE HARDWARE NEEDS TO KNOW, published with the surface.
+      // The hinge is a LINE, not a point — a tapered or swept panel's hinge
+      // rakes — and a bracket has to stand in the section's own plane, so the
+      // two frame directions go with it. `r` is the nose radius the cove was
+      // built to (metres): a hinge pin sits on the axis and a bracket has to
+      // clear that cylinder. Nothing here is read by the flown model; it is
+      // the drawing's own contract, and it lives with the geometry that
+      // decided it rather than being measured back off the mesh.
+      const fm = frameAt(zm);
+      const chM = genV3.norm(genV3.sub(fm.pR, fm.pF));
+      let nrM = genV3.norm(genV3.cross(chM, [0, 0, 1]));
+      if (nrM[1] < 0) nrM = genV3.mul(nrM, -1);
+      const o0 = hp(zm);
+      const dirB = d => {
+        const a = B(o0), b2 = B(genV3.add(o0, d));
+        return genV3.norm([b2[0] - a[0], b2[1] - a[1], b2[2] - a[2]]);
+      };
+      const HG = genAfHinge(W.naca, hf, gapAt(zm));
       CTRL_MESH.push({ group: gname, mesh: M, pivot: B(hp(zm)),
         axis: genV3.norm(genV3.sub(B(pB), B(pA))),
-        drive, sgn: sgnA, k: kA, drive2, sgn2,
+        drive, sgn: sgnA, k: kA, drive2, sgn2, slide,
+        line: [B(pA), B(pB)], aft: dirB(chM), up: dirB(nrM),
+        r: (HG.ok ? HG.r : 0) * fm.chord,
+        chord: (1 - hf) * fm.chord, side,
         infl: frameAt(zm).wF });
     }
   }
@@ -773,20 +1028,30 @@ function genWingInto(def, out) {
     // G185: 'cutout' — the centre section's trailing edge cut back to 62 %
     // chord over the cockpit, as a CLOSED section so the aft wall is the
     // flat rib face the hinge walls already use (emitLoft's `close`)
-    const cutPts = CTR === 'cutout' ? genAfSeg(W.naca, 0, 0.62, GEN_AF) : null;
-    let rows = cutPts
-      ? [ wingSectionAt(N[PP.wf.L.F[0]].p, N[PP.wf.L.R[0]].p, [[PP.wf.L.F[0], 1]], [[PP.wf.L.R[0], 1]], W.chord, cutPts),
-          wingSectionAt(N[PP.wf.R.F[0]].p, N[PP.wf.R.R[0]].p, [[PP.wf.R.F[0], 1]], [[PP.wf.R.R[0], 1]], W.chord, cutPts) ]
-      : [
-      wingSection(PP.wf.L.F[0], PP.wf.L.R[0], W.chord, 0),
-      wingSection(PP.wf.R.F[0], PP.wf.R.R[0], W.chord, 0),
+    // G244: THE CARRY-THROUGH ENDS ON THE SAME CURB THE PANELS DO, and it
+    // gains a trailing edge it never had: the centre used to loft `genAirfoil`
+    // — an OPEN contour — with `close` false, so its trailing edge was a 4 mm
+    // SLIT over the cabin roof rather than a face. The closed segment sampler
+    // gives it the curb, the face and the same walk order (upper first, which
+    // is what the `open` centre slices on).
+    const ctrPts = CTR === 'cutout'
+      ? genAfSeg(W.naca, 0, 0.62, GEN_AF)
+      : genAfSegCove(W.naca, 1, GEN_AF, 2, 0,
+          (GEN_EDGE ? GEN_EDGE.curb : 0.007) / Math.max(0.05, W.chord));
+    let rows = [
+      wingSectionAt(N[PP.wf.L.F[0]].p, N[PP.wf.L.R[0]].p, [[PP.wf.L.F[0], 1]], [[PP.wf.L.R[0], 1]], W.chord, ctrPts),
+      wingSectionAt(N[PP.wf.R.F[0]].p, N[PP.wf.R.R[0]].p, [[PP.wf.R.F[0], 1]], [[PP.wf.R.R[0], 1]], W.chord, ctrPts),
     ];
+    const cutPts = CTR === 'cutout' ? ctrPts : null;
     // the carry-through IS the root: both rows sit at span fraction 0. Row
     // index put the tip band on one side of it and the wing walk on the other.
     // the aerofoil contour runs TE -> upper -> LE -> lower -> TE, so its first
     // half IS the upper surface and the cut needs no new sampling
     if (CTR === 'open') rows = rows.map(r => r.slice(0, Math.ceil(r.length / 2)));
-    emitLoft(rows, CTR === 'glass' ? canopy : skin, () => 0.02, false, !!cutPts);
+    // closed BOTH ways now: a cut centre closes on its rib face, an uncut one
+    // on its trailing-edge curb
+    emitLoft(rows, CTR === 'glass' ? canopy : skin, () => 0.02, false,
+             CTR !== 'open');
   }
 
   return { aStart, fEnd, FLAP_ON, FLAP_HINGE, AIL_HINGE, sparF };
@@ -846,7 +1111,9 @@ function genWing(def) {
     put(c.group, c.mesh);
     if (!groups[c.group]) continue;
     moving.push({ group: c.group, p: c.pivot, ax: c.axis, infl: c.infl,
-                  drive: c.drive, sgn: c.sgn, k: c.k,
+                  drive: c.drive, sgn: c.sgn, k: c.k, slide: c.slide || null,
+                  line: c.line || null, aft: c.aft || null, up: c.up || null,
+                  r: c.r || 0, chord: c.chord || 0, side: c.side || 1,
                   drive2: c.drive2 || null, sgn2: c.sgn2 || 0 });
   }
   return {

@@ -667,19 +667,29 @@ const GEN_ACCESS = {
   // -------------------------------------------------------------------------
   inspTail: {
     name: 'Tail inspection ring',
-    serves: 'the elevator and rudder cable runs at the tailpost',
-    // ONE ON A SLIM BOOM, ONE EACH SIDE ON A FULL SECTION, and that is what a
-    // real aeroplane does rather than a concession: a pod-and-boom tail is a
-    // tube a few hundred millimetres across, and two 130 mm rings on it would
-    // meet round the back. Measured: on the rod build the port and starboard
-    // rings landed 112 mm apart and needed 150. The narrow case puts its one
-    // ring underneath, which is where you would actually cut it.
+    serves: 'the elevator and rudder cable runs along the boom',
+    // ONE, UNDERNEATH, ON THE STRAIGHT PART OF THE BOOM (G244, the user: "the
+    // inspection trap on the left side usually falls wrong. Try and shoot for
+    // a flat surface, maybe the bottom of the plane? ... Or somewhere on the
+    // straight part of the boom?").
+    //
+    // It used to put one EACH SIDE on a full section, at lv 1.7 — the lower
+    // flank, which is the one part of a tapering boom that is curved in both
+    // directions at once, so a flat 130 mm ring sat on it like a coin on a
+    // ball. The keel is the flattest line on any fuselage this generator
+    // builds and it is where you would actually cut the panel, which is what
+    // the slim-boom case had been doing correctly all along.
+    //
+    // 0.62 OF THE TAIL ARM, not 0.86: the cable runs go the whole length, so
+    // any station along them serves; 0.86 is the tailpost, where the tailwheel
+    // leg, the castor and the tie-down already are (the G84 pixel pass found
+    // the tie-down buried inside the tailwheel there). Forward of that cluster
+    // the boom keel is straight and empty.
     // ...AND NONE AT ALL ON A ROD (G189): a bare tube has no fabric to lace
     // a ring into and nothing inside it to inspect — the cables run outside.
-    need: R => (R.material === 'carbon' || R.rod) ? 0 : (R.tailHalfW < 0.16 ? 1 : 2),
-    at: R => ({ sL: R.tailArm * 0.86,
-                lv: R.tailHalfW < 0.16 ? 'keel' : 1.7 }),
-    snap: 'bay', side: R => R.tailHalfW < 0.16 ? 'centre' : 'both',
+    need: R => (R.material === 'carbon' || R.rod) ? 0 : 1,
+    at: R => ({ sL: R.tailArm * 0.62, lv: 'keel' }),
+    snap: 'bay', side: 'centre',
     form: R => R.material === 'tubeFabric' ? 'ringLace' : 'plateOval',
     size: { w: 0.130, h: 0.130 },
   },
@@ -1103,8 +1113,182 @@ const GEN_FLAPS = {
   none:    { name: 'None',         dCl: 0,    cd: 0,     rate: 0.20 },
   plain:   { name: 'Plain flap',   dCl: 0.95, cd: 0.055, rate: 0.25 },
   slotted: { name: 'Slotted flap', dCl: 1.60, cd: 0.070, rate: 0.20 },
-  fowler:  { name: 'Fowler flap',  dCl: 2.05, cd: 0.095, rate: 0.14 },
+  // G239: `slide` is the FOWLER'S OWN MOTION — the fraction of the surface's
+  // own chord it translates AFT as it goes down, and the fraction it drops
+  // while doing it. A Fowler is a flap that leaves the wing; drawn as a plain
+  // flap it is the same picture as `plain` and the choice is invisible. Zero
+  // on every other row, which is what makes them plain hinges.
+  fowler:  { name: 'Fowler flap',  dCl: 2.05, cd: 0.095, rate: 0.14,
+             slide: 0.62, drop: 0.10 },
 };
+
+// ===========================================================================
+// GEN_TRAVEL (G237) — HOW FAR A CONTROL SURFACE ACTUALLY MOVES
+// ===========================================================================
+// The drawn deflection has always been `ang = sgn * k * ctl` with ctl in
+// [-1, 1] and k = 1, so full stick turned an aileron ONE RADIAN — 57.3
+// degrees. Nothing in the spec said otherwise, because until now nothing had
+// to: the physics reads the control CHORD (genTauAt) and never the angle, and
+// a surface with no hardware on it can bury its nose in the wing without
+// anybody seeing it do so.
+//
+// Both of those stopped being true in the same chantier. The nose is radiused
+// about the hinge now, so the travel decides how big the cove has to be; the
+// hinges and horns are drawn, so the travel decides whether they collide. So
+// the travel is DECLARED, once, here — a fixed table, per the user's ruling
+// ("fixed table for travel"), not a slider: it is what the stops in the
+// cockpit are set to, and a builder does not tune it per aeroplane.
+//
+// SYMMETRIC ON PURPOSE. Real ailerons are differential (more up than down)
+// and a real elevator is not symmetric either; carrying that would mean a
+// second scale factor in three files and a sign branch in the hot loop, for a
+// difference of a few degrees that nothing measures. The value below is the
+// LARGER of the two travels, so nothing is drawn short of where it can go.
+//
+// VISUAL ONLY. `k` has always been a display scale (50_model_codec applyHinges,
+// app.js surfParts) and it stays one — no aerodynamic coefficient reads it.
+const GEN_TRAVEL = {                       // degrees, each way
+  aileron:  25,
+  elevator: 28,
+  rudder:   27,
+  flap:     40,                            // 0 -> full, one way only
+};
+// the flap's own travel is the type's, where the type has an opinion: a
+// Fowler runs out further than it turns down, and a split flap goes further
+// than either. Absent = the table's own number.
+const GEN_FLAP_TRAVEL = { fowler: 35, slotted: 40, plain: 40 };
+
+// travel in RADIANS for one surface key, which is what every caller wants
+function genTravel(which, flapType) {
+  if (which === 'flap') {
+    const t = (flapType && GEN_FLAP_TRAVEL[flapType]) || GEN_TRAVEL.flap;
+    return t * Math.PI / 180;
+  }
+  return (GEN_TRAVEL[which] || 25) * Math.PI / 180;
+}
+
+// ===========================================================================
+// GEN_HINGE (G237/G238) — THE HINGE ITSELF, AND WHAT MOVES IT
+// ===========================================================================
+// The geometry constants first (this table's other half — the declared
+// requirements each surface has — is GEN_HINGE_KIT below, next to the access
+// table it is built the same way as).
+//
+// `gap` is the clearance between the control surface's radiused nose and the
+// fixed structure's cove. It is a real number on a real aeroplane: 3 to 6 mm,
+// set by the rigging, and the reason a control surface does not bind. It is
+// what the cove is built from, so it is here and not in a layer.
+const GEN_HINGE = {
+  gap: 0.004,            // m, nose-to-cove clearance, at every deflection
+  arcN: 6,               // points across the nose arc and the cove socket
+  pitchMax: 0.90,        // m — the widest a hinge bay may be
+  nMin: 2, nMax: 6,      // hinges per surface
+  endInset: 0.06,        // fraction of the surface's span, each end
+  // the hardware's own sizes, as fractions of the surface's local nose
+  // radius unless the unit says otherwise — a hinge on a big wing is a big
+  // hinge, and a builder should not have to scale one
+  // A HINGE STRAP IS NARROW AND LONG, and the first cut had it 55 mm wide
+  // over a 75 mm reach — square, which reads as a patch riveted to the wing
+  // rather than as a hinge. Measured off the real thing: ~30 mm of strap, a
+  // hand's width of tail.
+  strapW: 0.030,         // m, strap width across the hinge
+  strapT: 0.0022,        // m, strap gauge
+  strapReach: 0.090,     // m, how far the strap runs onto each skin
+  pinR: 0.0045,          // m, the hinge pin
+  hornT: 0.0032,         // m, the horn plate
+  hornReach: 0.085,      // m, eye centre from the hinge axis
+  linkR: 0.0075,         // m, pushrod tube
+  cableR: 0.0018,        // m, a 3/32 cable and its swage
+  fairT: 0.0012,         // m, the fairing strip's gauge
+};
+
+// ===========================================================================
+// GEN_EDGE (G244) — THE TRAILING EDGE IS NOT A LINE
+// ===========================================================================
+// The user: "We need a proper bevel on the wing and control surfaces trailing
+// edges. Right now it feels like a single vertex. The curb should stay real
+// small (maybe 1 cm, maybe a little less), but still feature a proper bevel
+// with at least 3 faces."
+//
+// It was not QUITE a single vertex — a NACA section closes at a real
+// thickness (2412 measures 4 mm on a 1.6 m chord) — but the loft wrapped it
+// in ONE face, so the edge caught one shading value and read as a crease.
+// A real trailing edge is a rolled or riveted CURB: a few millimetres of flat
+// with an arris each side, and it is what tells the eye which way the section
+// is thinning.
+//
+// `curb` is a MINIMUM in metres, not a fraction: a trailing edge is the same
+// few millimetres of aluminium on a Cub and on a twin, so on a short chord it
+// is a bigger part of the section and on a long one a smaller. Where the
+// aerofoil is already thicker than the curb at its own trailing edge, nothing
+// is cut — the section keeps its shape and only gains faces.
+const GEN_EDGE = {
+  curb: 0.007,           // m — the flat at the trailing edge, minimum
+  faces: 3,              // faces across it (the user's floor)
+  maxCut: 0.08,          // of chord — never eat more than this to find it
+};
+
+// ===========================================================================
+// GEN_HINGE_KIT (G238) — WHAT EACH CONTROL SURFACE NEEDS HUNG ON IT
+// ===========================================================================
+// The GEN_ACCESS shape, applied to the one part of the aeroplane that had no
+// hardware at all: a declared requirement per surface, saying what holds it
+// on, what moves it, and — the acceptance test this table exists to make
+// passable — WHAT EACH THING SERVES. Two of the fittings table's own rows
+// have been advertising this hardware since G83: "the aileron bellcrank and
+// its cable ends", "the elevator and rudder cable runs at the tailpost".
+// They cover it now.
+//
+//   family  how it hangs. 'strap' is the bent steel strap with its eye on the
+//           hinge line and its two tails riveted to the skins each side of
+//           the gap — a fabric aeroplane's hinge, and the one you can see.
+//           'piano' is the continuous alloy knuckle run of a metal wing.
+//           Decided by the surface's CONSTRUCTION, not by taste.
+//   horn    which face the control horn stands on ('lower', 'both' for a
+//           rudder, which is symmetric and gets one each side).
+//   link    what reaches the horn: a 'pushrod' from a bellcrank inside the
+//           wing, a 'cable' pair from the fuselage, a 'rod' from a torque
+//           tube at the wing root.
+//   faces   how many faces the hinge straps wrap (a rudder's show both sides)
+const GEN_HINGE_KIT = {
+  ail:  { name: 'Aileron hinges', serves: 'the ailerons and their pushrods',
+          horn: 'lower', link: 'pushrod', faces: 1, hornAt: 0.30 },
+  flap: { name: 'Flap hinges', serves: 'the flaps and the flap torque tube',
+          horn: 'lower', link: 'rod', faces: 1, hornAt: 0.08 },
+  rud:  { name: 'Rudder hinges', serves: 'the rudder and its cable ends',
+          horn: 'both', link: 'cable', faces: 2, hornAt: 0.10 },
+  elev: { name: 'Elevator hinges', serves: 'the elevators and their cables',
+          horn: 'lower', link: 'cable', faces: 1, hornAt: 0.12 },
+};
+
+// A FABRIC SURFACE HANGS ON STRAPS, A METAL ONE ON A PIANO HINGE. The surface
+// material vocabulary is GEN_SURF_MATERIALS' (G213), and a surface can be
+// made of something the aeroplane is not — so this reads the SURFACE's own
+// construction and never the fuselage's.
+function genHingeFamily(surfMat) {
+  const m = String(surfMat || 'fabric');
+  return (m === 'alloy' || m === 'carbon' || m === 'composite') ? 'piano' : 'strap';
+}
+
+// HOW MANY, from the span it has to hold: one bay every pitchMax, never
+// fewer than two (one hinge is a bearing, not a hinge) and never more than
+// the table's limit, which is what keeps a 12 m flap from growing fourteen.
+function genHingeCount(spanM) {
+  const n = Math.ceil(Math.max(0.01, spanM) / GEN_HINGE.pitchMax) + 1;
+  return Math.max(GEN_HINGE.nMin, Math.min(GEN_HINGE.nMax, n));
+}
+
+// the hinge stations along a surface, as fractions of its span: inset from
+// both ends (a hinge sits on a rib, and the end rib is the tip), evenly
+// spaced between.
+function genHingeStations(spanM, nOver) {
+  const n = nOver ? Math.max(GEN_HINGE.nMin, Math.min(GEN_HINGE.nMax, Math.round(nOver)))
+                  : genHingeCount(spanM);
+  const a = GEN_HINGE.endInset, b = 1 - GEN_HINGE.endInset;
+  const out = [];
+  for (let i = 0; i < n; i++) out.push(a + (b - a) * (n === 1 ? 0.5 : i / (n - 1)));
+  return out;
+}
 
 // Fuel tank station. Where the fuel sits moves the CG and the roll inertia, and
 // those are the two things a builder gets wrong. Mass only — burn is not

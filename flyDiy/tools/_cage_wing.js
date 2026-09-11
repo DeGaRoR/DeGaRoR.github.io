@@ -1614,7 +1614,36 @@ PAGE.post = ctx => {
   planes.forEach((pl, i) => { if (pl.rootY < planes[lowest].rootY) lowest = i;
                               if (pl.rootY > planes[upper].rootY) upper = i; });
 
-  window.CAGE_WING = { def, semi: def.spec.geom && def.spec.geom.semi,
+  // G238: THE SURFACES, WITH WHAT IT TAKES TO HANG HARDWARE ON THEM. The
+  // generator knows the hinge line, the nose radius the cove was built to and
+  // the section's own two directions (63_gen_wing publishes them with each
+  // moving group); this maps them into the cage's metres, which is the frame
+  // every other layer's hardware is drawn in. Measuring these back off the
+  // baked mesh would be a second opinion about a number that is not in doubt.
+  const surfs = [];
+  for (const mv of (pay.moving || [])) {
+    if (!mv.line || !mv.aft || !mv.up) continue;
+    const dirC = d => {
+      const a = toCage(mv.p);
+      const b = toCage([mv.p[0] + d[0], mv.p[1] + d[1], mv.p[2] + d[2]]);
+      const v = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+      const L = Math.hypot(v[0], v[1], v[2]) || 1;
+      return [v[0] / L, v[1] / L, v[2] / L];
+    };
+    surfs.push({ name: mv.group, kind: mv.group.lastIndexOf('ail', 0) === 0 ? 'ail' : 'flap',
+                 line: [toCage(mv.line[0]), toCage(mv.line[1])],
+                 aft: dirC(mv.aft), up: dirC(mv.up),
+                 r: mv.r, chord: mv.chord, side: mv.side,
+                 plane: /2$/.test(mv.group) ? 2 : 1,
+                 slide: mv.slide ? (() => {
+                   const a = toCage(mv.p);
+                   const b = toCage([mv.p[0] + mv.slide[0], mv.p[1] + mv.slide[1],
+                                     mv.p[2] + mv.slide[2]]);
+                   return [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+                 })() : null });
+  }
+  window.CAGE_WING = { surfs,
+                       def, semi: def.spec.geom && def.spec.geom.semi,
                        skinFaces: faces, anchor: { zCab, yAnchor }, group,
                        underAt, overAt, leAt, teAt, box: wbox,
                        // G185: what the BRACE layer needs to put a fitting on

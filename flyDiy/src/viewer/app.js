@@ -1548,7 +1548,8 @@
     // at its AXLE and ridden on its axle NODE at pose time — suspension
     // travel is the physics showing through, not an animation. The prop
     // parts join `props` and spin with the existing throttle law.
-    const wheelParts = [], stretchRigs = [], surfParts = [];
+    const wheelParts = [], stretchRigs = [], surfParts = [], linkRigs = [];
+    const ctlMoves = [];                                            // G240
     const engRigs = [], strutRigs = [];                              // G179.2
     let castorRig = null;
     if (data.cage && Array.isArray(data.parts)) {
@@ -1848,8 +1849,63 @@
               // published since 2026-09-04 and this path never read — a
               // cage V-tail answered the elevator and ignored the rudder
               drive2: pt.drive2 || null, sgn2: pt.sgn2 || 0,
-              k: pt.drive === 'flap' ? 0.70 : 1,   // G200: a flap fraction is not radians
+              // G237: the travel comes from the join, which reads GEN_TRAVEL.
+              // The fallback is the old pair — a payload baked before the
+              // table existed still flies, at the deflection it was baked
+              // with. (G200: a flap fraction is not radians.)
+              k: pt.k > 0 ? pt.k : (pt.drive === 'flap' ? 0.70 : 1),
+              // G239: a FOWLER LEAVES THE WING. `slide` is its translation at
+              // full deflection, in the model frame, published by the wing
+              // layer through the join; absent on every plain hinge.
+              slide: pt.slide || null,
+
               plane: pt.plane || 1 });      // G185: which plane's box binds it
+          });
+        }
+        else if (pt.kind === 'ctlMove' && pt.ctl) {
+          // G240: THE STICK, THE YOKE AND THE PEDALS. A rigid group on its own
+          // pivot, which is the cheapest part in the model: one quaternion,
+          // and for a yoke one translation as well (its pitch is the column
+          // sliding, not a swing). The verts came in rebased about the pivot,
+          // so the group's transform IS the motion.
+          if (pg.position && pg.position.set)
+            pg.position.set(pt.pivot[0], pt.pivot[1], pt.pivot[2]);
+          grp.add(pg);
+          ctlMoves.push({ obj: pg, c: pt.ctl, home: pt.pivot });
+        }
+        else if (pt.kind === 'ctlLink' && pt.members && pt.members.length &&
+                 pt.hinge) {
+          // G239: THE PUSHROD AND THE CABLE. One end is bolted to the
+          // airframe, the other to a horn that swings with its surface — so
+          // this is the lift strut's own contract (G179.2, "a line between
+          // two points ... the bar does not deform, it just follows the 2
+          // points") with the far end driven by a HINGE instead of by a
+          // physics node. Every vertex takes its projection t along the
+          // member and moves by t times the tip's travel: straight by
+          // construction, at every deflection, with no length to get wrong.
+          //
+          // Structural flex is deliberately not in it. The horn moves by
+          // tens of centimetres and the spar it hangs off by millimetres,
+          // and adding the node deform here would mean binding a rod that
+          // spans two bodies to one of them.
+          grp.add(pg);
+          const M0 = pt.members[0];
+          pg.traverse(o => {
+            if (!o.isMesh || !o.geometry) return;
+            const pa = o.geometry.attributes.position;
+            if (!pa || !pa.array) return;
+            const base = pa.array.slice();
+            const W = new Float32Array(pa.count);
+            const dx = M0.tip[0] - M0.pin[0], dy = M0.tip[1] - M0.pin[1],
+                  dz = M0.tip[2] - M0.pin[2];
+            const L2 = dx * dx + dy * dy + dz * dz || 1;
+            for (let i = 0; i < pa.count; i++) {
+              const t = ((base[i*3] - M0.pin[0]) * dx + (base[i*3+1] - M0.pin[1]) * dy
+                       + (base[i*3+2] - M0.pin[2]) * dz) / L2;
+              W[i] = Math.max(0, Math.min(1, t));
+            }
+            linkRigs.push({ posAttr: pa, base, w: W, hinge: pt.hinge,
+                            tip: M0.tip });
           });
         }
         else if (pt.kind === 'castorT') {
@@ -2088,12 +2144,15 @@
                         strutRigs: strutRigs.length ? strutRigs : null, // G179.2
                         stretchRigs: stretchRigs.length ? stretchRigs : null,
                         surfParts: surfParts.length ? surfParts : null,
+                        linkRigs: linkRigs.length ? linkRigs : null,   // G239
+                        ctlMoves: ctlMoves.length ? ctlMoves : null,   // G240
                         castorRig,
                         surfaces: data.surfaces,
                         link: makeLinkage(LINK_TAU) });  // visual linkage lag (SKIN-PROC)
     if (key !== 'gen') modelCache[key] = m;   // gen is never cached
     return m;
   }
+  const qA = new THREE.Quaternion(), qB = new THREE.Quaternion();   // G240
   const mBasis = new THREE.Matrix4(), vX = new THREE.Vector3(),
         vY = new THREE.Vector3(), vZ = new THREE.Vector3(),
         vSpin = new THREE.Vector3();          // G59.1 prop shaft axis
@@ -2225,13 +2284,17 @@
         const ax = c.ax[0], ay = c.ax[1], az = c.ax[2];
         // Rodrigues about the hinge, which is a unit axis through the pivot
         const ca = Math.cos(ang), sa = Math.sin(ang), C1 = 1 - ca;
+        // G239: the Fowler's own translation, in proportion to the command
+        const sl = c.slide, st = sl ? Math.abs(link[c.drive] || 0) : 0;
+        const tx = sl ? sl[0] * st : 0, ty = sl ? sl[1] * st : 0,
+              tz = sl ? sl[2] * st : 0;
         for (let v = 0; v < nv; v++) {
           const o = v * 3;
           const x = base[o] - px, y = base[o+1] - py, z = base[o+2] - pz;
           const d = ax * x + ay * y + az * z;
-          pos[o]   = px + x * ca + (ay * z - az * y) * sa + ax * d * C1;
-          pos[o+1] = py + y * ca + (az * x - ax * z) * sa + ay * d * C1;
-          pos[o+2] = pz + z * ca + (ax * y - ay * x) * sa + az * d * C1;
+          pos[o]   = px + x * ca + (ay * z - az * y) * sa + ax * d * C1 + tx;
+          pos[o+1] = py + y * ca + (az * x - ax * z) * sa + ay * d * C1 + ty;
+          pos[o+2] = pz + z * ca + (ax * y - ay * x) * sa + az * d * C1 + tz;
         }
         poseSkinGen(mv.g, model.rest, model.nodeBody, base, pos, gain, mv.hinged);
         mv.posAttr.needsUpdate = true;
@@ -2361,14 +2424,21 @@
         + (s.drive2 ? (s.sgn2 || 1) * (link[s.drive2] || 0) : 0);   // G209
       const b = s.base, out = s.posAttr.array;
       const ax = s.axis, ca = Math.cos(ang), sa = Math.sin(ang), C1 = 1 - ca;
+      // G239: a FOWLER TRANSLATES as well as turning — aft along the chord
+      // and down, the amount its own type declares, in proportion to the
+      // command. `slide` is that travel at full deflection; null on every
+      // plain hinge, so this costs one test on every other surface.
+      const sl = s.slide, st = sl ? Math.abs(link[s.drive] || 0) : 0;
+      const tx = sl ? sl[0] * st : 0, ty = sl ? sl[1] * st : 0,
+            tz = sl ? sl[2] * st : 0;
       // Rodrigues about the hinge, which passes through the group's own
       // origin because the snapshot rebased these verts about the pivot
       for (let i = 0; i < b.length; i += 3) {
         const x = b[i], y = b[i + 1], z = b[i + 2];
         const d = ax[0] * x + ax[1] * y + ax[2] * z;
-        out[i]     = x * ca + (ax[1] * z - ax[2] * y) * sa + ax[0] * d * C1;
-        out[i + 1] = y * ca + (ax[2] * x - ax[0] * z) * sa + ax[1] * d * C1;
-        out[i + 2] = z * ca + (ax[0] * y - ax[1] * x) * sa + ax[2] * d * C1;
+        out[i]     = x * ca + (ax[1] * z - ax[2] * y) * sa + ax[0] * d * C1 + tx;
+        out[i + 1] = y * ca + (ax[2] * x - ax[0] * z) * sa + ax[1] * d * C1 + ty;
+        out[i + 2] = z * ca + (ax[0] * y - ax[1] * x) * sa + ax[2] * d * C1 + tz;
       }
       // ...then the wing's own flex, ADDED on top of the deflected verts
       if (s.bind && s.bind.bound.length)
@@ -2376,6 +2446,54 @@
                         skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0],
                         s.hinged);
       s.posAttr.needsUpdate = true;
+    }
+    // G239: ...AND THE RODS AND CABLES FOLLOW THE HORNS THEY ARE BOLTED TO.
+    // The same angle the surface turned by, applied to the member's far end,
+    // and every vertex moves by its own share of that travel.
+    if (model.linkRigs) for (const r of model.linkRigs) {
+      if (!r.posAttr || !r.posAttr.array) continue;
+      const h = r.hinge;
+      const ang = h.sgn * (h.k || 1) * (link[h.drive] || 0)
+        + (h.drive2 ? (h.sgn2 || 1) * (link[h.drive2] || 0) : 0);
+      const ax = h.ax, p = h.p, t0 = r.tip;
+      const ca = Math.cos(ang), sa = Math.sin(ang), C1 = 1 - ca;
+      const x = t0[0] - p[0], y = t0[1] - p[1], z = t0[2] - p[2];
+      const d = ax[0] * x + ax[1] * y + ax[2] * z;
+      const st = h.slide ? Math.abs(link[h.drive] || 0) : 0;
+      const tx = p[0] + x * ca + (ax[1] * z - ax[2] * y) * sa + ax[0] * d * C1
+                 + (h.slide ? h.slide[0] * st : 0) - t0[0];
+      const ty = p[1] + y * ca + (ax[2] * x - ax[0] * z) * sa + ax[1] * d * C1
+                 + (h.slide ? h.slide[1] * st : 0) - t0[1];
+      const tz = p[2] + z * ca + (ax[0] * y - ax[1] * x) * sa + ax[2] * d * C1
+                 + (h.slide ? h.slide[2] * st : 0) - t0[2];
+      const b = r.base, out = r.posAttr.array, W = r.w;
+      for (let i = 0; i < W.length; i++) {
+        out[i*3]     = b[i*3]     + W[i] * tx;
+        out[i*3 + 1] = b[i*3 + 1] + W[i] * ty;
+        out[i*3 + 2] = b[i*3 + 2] + W[i] * tz;
+      }
+      r.posAttr.needsUpdate = true;
+    }
+    // G240: AND THE CONTROLS IN THE COCKPIT MOVE WITH THEM. The same linkage,
+    // at the pilot's end of the run: a stick turns about two axes at once, a
+    // yoke spins and slides, a pedal swings on the floor.
+    if (model.ctlMoves) for (const m of model.ctlMoves) {
+      const c = m.c, o = m.obj;
+      if (!o.quaternion) continue;
+      vY.set(c.ax[0], c.ax[1], c.ax[2]);
+      qA.setFromAxisAngle(vY, c.sgn * (c.k || 1) * (link[c.drive] || 0));
+      if (c.ax2) {
+        vZ.set(c.ax2[0], c.ax2[1], c.ax2[2]);
+        qB.setFromAxisAngle(vZ, c.sgn2 * (c.k2 || 1) * (link[c.drive2] || 0));
+        qA.multiply(qB);
+      }
+      o.quaternion.copy(qA);
+      if (c.slide && o.position && o.position.set) {
+        const t = (c.slideSgn || 1) * (link[c.slideDrive] || 0);
+        o.position.set(m.home[0] + c.slide[0] * t,
+                       m.home[1] + c.slide[1] * t,
+                       m.home[2] + c.slide[2] * t);
+      }
     }
     // the CASTOR rides the tailwheel node (rigid offset axle→swivel) and
     // YAWS about its own raked axis with the rudder linkage — ground

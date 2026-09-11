@@ -584,6 +584,37 @@ function ctlShift(g, P, kx, ky, kz) {
   g.add(s);
   return s;
 }
+// G240: A CONTROL THAT ANSWERS. The stick, the yoke and the pedals were
+// drawn and dead — the one part of the control run at the pilot's end, and
+// the only one a player looks straight at. Each moving piece goes into its
+// own named sub-group with its PIVOT as the group's origin, so the join can
+// publish it as a rigid part and the game can turn it by the same linkage
+// that turns the surfaces at the other end of the cable.
+//
+// THE DECLARED GAP, stated here because it is visible: a seated dummy's hand
+// is posed by IK at BUILD time against the grip where it then was, and the
+// flown model has no skeleton — so the hand does not follow the stick. In
+// cruise that is millimetres; at full deflection it is not. The cure is the
+// crew's own chantier (bake the forearm as its own part off the skin
+// weights), and it is named in HANDOVER rather than worked around here.
+let CTL_MOVING = [];
+function movingAt(parent, name, pivot, axis, drive, sgn, k, x2) {
+  // TWO SEATS MEAN TWO STICKS, so the name carries an index when it has to.
+  // The join matches parts BY NAME, and a duplicate would put both sticks on
+  // one part record and leave the second unable to move.
+  let nm = name, i = 1;
+  while (CTL_MOVING.some(m => m.name === nm)) nm = name + '#' + (++i);
+  const g = new THREE.Group();
+  g.position.set(pivot[0], pivot[1], pivot[2]);
+  g.name = nm;
+  parent.add(g);
+  CTL_MOVING.push(Object.assign({ name: nm, pivot, axis, drive, sgn, k }, x2 || {}));
+  return g;
+}
+// ...and a point in the parent's frame, seen from inside a moving group
+const inG = (g, p) => [p[0] - g.position.x, p[1] - g.position.y,
+                       p[2] - g.position.z];
+
 function anchorAt(parent, p, rx, ry) {
   const o = new THREE.Object3D();
   o.position.set(p[0], p[1], p[2]);
@@ -627,13 +658,23 @@ function buildStickCenter(g0, A, P, sx, seat) {
   const y0 = A.floorAt(zPiv) + 0.03;
   const rk = 8 * D2R, L = P.stickLen != null ? P.stickLen : 0.44;
   const top = [sx, y0 + L * Math.cos(rk), zPiv - L * Math.sin(rk)];
-  ballAt(g, M.dark, [sx, y0, zPiv], 0.030);
-  tube(g, M.metal, [sx, y0, zPiv], top, 0.014);
-  tube(g, M.knob, [sx, top[1] - 0.005, top[2]],
-       [sx, top[1] + 0.075, top[2] + 0.012], 0.020);
-  ballAt(g, M.knob, [sx, top[1] + 0.085, top[2] + 0.014], 0.023);
+  ballAt(g, M.dark, [sx, y0, zPiv], 0.030);       // the universal, and it stays
+  // G240: EVERYTHING ABOVE THE BALL MOVES, and it moves in TWO AXES at once:
+  // pitch about the lateral one (stick aft = nose up) and roll about the
+  // fore-aft one. ONE part, two drives — not two nested groups, because the
+  // join bakes each part into its own flat rebased mesh and a nested pair
+  // would leave the outer one with no geometry and no motion. The
+  // ruddervator's `drive2` is the same idea, one file over.
+  const gP = movingAt(g, 'edCtl_stick', [sx, y0, zPiv],
+                      [1, 0, 0], 'de', -0.34, 1,
+                      { axis2: [0, 0, 1], drive2: 'da', sgn2: -0.32, k2: 1 });
+  const T = inG(gP, top);
+  tube(gP, M.metal, [T[0], T[1] - L * Math.cos(rk), T[2] + L * Math.sin(rk)], T, 0.014);
+  tube(gP, M.knob, [T[0], T[1] - 0.005, T[2]],
+       [T[0], T[1] + 0.075, T[2] + 0.012], 0.020);
+  ballAt(gP, M.knob, [T[0], T[1] + 0.085, T[2] + 0.014], 0.023);
   // the grip is the vertical-ish shaft top: axis along the stick
-  return { obj: gripAt(g, [sx, top[1] + 0.035, top[2] + 0.006],
+  return { obj: gripAt(gP, [T[0], T[1] + 0.035, T[2] + 0.006],
                        [0, Math.cos(rk), Math.sin(rk)]),
            label: 'stick' };
 }
@@ -642,15 +683,22 @@ function buildYoke(g0, A, P, sx) {
   const yY = A.waistY - 0.04;
   const zHub = A.zBack + 0.54;
   tube(g, M.ctrl, [sx, yY, A.zDash + 0.05], [sx, yY, zHub], 0.018);
-  boxAt(g, M.ctrl, [sx, yY, zHub + 0.02], [0.075, 0.05, 0.05]);
+  // G240: A YOKE DOES NOT SWING, IT SLIDES AND SPINS. Pitch is the column
+  // running in and out of the panel — a translation, which a rigid part can
+  // carry as easily as a rotation once the contract allows one — and roll is
+  // the wheel turning about that same column. One part, one axis, one slide.
+  const gY = movingAt(g, 'edCtl_yoke', [sx, yY, zHub],
+                      [0, 0, 1], 'da', -0.85, 1,
+                      { slide: [0, 0, 0.055], slideDrive: 'de', slideSgn: -1 });
+  const H = [0, 0, 0];
+  boxAt(gY, M.ctrl, [H[0], H[1], H[2] + 0.02], [0.075, 0.05, 0.05]);
   const grips = {};
   for (const sd of [-1, 1]) {
-    tube(g, M.ctrl, [sx, yY, zHub + 0.02],
-         [sx + sd * 0.105, yY + 0.015, zHub + 0.025], 0.013);
-    tube(g, M.knob, [sx + sd * 0.105, yY + 0.015, zHub + 0.025],
-         [sx + sd * 0.150, yY + 0.095, zHub + 0.035], 0.016);
+    tube(gY, M.ctrl, [0, 0, 0.02], [sd * 0.105, 0.015, 0.025], 0.013);
+    tube(gY, M.knob, [sd * 0.105, 0.015, 0.025],
+         [sd * 0.150, 0.095, 0.035], 0.016);
     // the horn IS the grip axis (out and up from the hub)
-    grips[sd] = gripAt(g, [sx + sd * 0.132, yY + 0.062, zHub + 0.030],
+    grips[sd] = gripAt(gY, [sd * 0.132, 0.062, 0.030],
                        [sd * 0.045, 0.080, 0.010]);
   }
   return { objL: grips[1], objR: grips[-1], label: 'yoke' };
@@ -665,10 +713,15 @@ function buildStickSide(g0, A, P, sx, seat) {
   // slider, at the third a forearm-rest stick actually stands
   const sl = (P.stickLen != null ? P.stickLen : 0.44) * 0.33;
   boxAt(g, M.console, [xs, y0 - 0.05, z0], [0.11, 0.10, 0.24]);
-  tube(g, M.metal, [xs, y0, z0], [xs, y0 + sl, z0 - sl * 0.15], 0.012);
-  tube(g, M.knob, [xs, y0 + sl - 0.005, z0 - sl * 0.15],
-       [xs, y0 + sl + 0.055, z0 - sl * 0.15 - 0.010], 0.018);
-  return { obj: gripAt(g, [xs, y0 + sl + 0.025, z0 - sl * 0.15 - 0.004],
+  // G240: a side stick moves the same two ways a centre stick does, over a
+  // third of the travel — it is a short lever and the wrist does the work
+  const gS = movingAt(g, 'edCtl_sideStick', [xs, y0, z0],
+                      [1, 0, 0], 'de', -0.26, 1,
+                      { axis2: [0, 0, 1], drive2: 'da', sgn2: -0.24, k2: 1 });
+  tube(gS, M.metal, [0, 0, 0], [0, sl, -sl * 0.15], 0.012);
+  tube(gS, M.knob, [0, sl - 0.005, -sl * 0.15],
+       [0, sl + 0.055, -sl * 0.15 - 0.010], 0.018);
+  return { obj: gripAt(gS, [0, sl + 0.025, -sl * 0.15 - 0.004],
                        [0, 0.99, -0.15]),
            label: 'side stick' };
 }
@@ -688,16 +741,24 @@ function buildPedals(g, A, P, sx) {
   const c = Math.cos(PED_RAMP), s = Math.sin(PED_RAMP);
   for (const sd of [-1, 1]) {
     const xp = sx + sd * sp;
-    boxAt(g, M.metal, [xp, yP, zP], [0.095, 0.014, 0.19], -PED_RAMP);
+    // G240: A PEDAL SWINGS ON THE FLOOR. Both plates hang off one bar, so
+    // pushing one sends the other back — which is why the two take the same
+    // drive with opposite signs. `dr > 0` is nose LEFT (30_solver's own
+    // convention), and the pilot's left foot is at +x (the cage's +x is the
+    // pilot's left, _cage_crew: "pilot's right = -x").
+    const pv = [xp, yP - 0.085, zP];
+    const gp = movingAt(g, 'edCtl_pedal' + (sd > 0 ? 'L' : 'R'), pv,
+                        [1, 0, 0], 'dr', sd > 0 ? -0.30 : 0.30, 1);
+    boxAt(gp, M.metal, [0, yP - pv[1], 0], [0.095, 0.014, 0.19], -PED_RAMP);
     // THE SOLE SITS ON THE PLATE: the ankle is placed so that the
     // mid-sole (0.06 forward of the ankle, 0.0725 below it in bone
     // space) lands on the plate's centre once the foot is ramped.
     // (+ half the plate and a hair of clearance along its normal, or the
     // shoe sinks into the plate)
     const sy = -0.0725, sz = 0.06, cl = 0.010;
-    out[sd] = anchorAt(g, [xp,
-      yP - (sy * c - sz * (-s)) + cl * c,
-      zP - (sy * (-s) + sz * c) - cl * s], -PED_RAMP);
+    out[sd] = anchorAt(gp, [0,
+      yP - pv[1] - (sy * c - sz * (-s)) + cl * c,
+      -(sy * (-s) + sz * c) - cl * s], -PED_RAMP);
   }
   return { objL: out[1], objR: out[-1], label: 'pedals' };
 }
@@ -1473,6 +1534,7 @@ if (typeof window !== 'undefined')
     if (window.CAGE_UI && window.CAGE_UI.draw) window.CAGE_UI.draw();
   };
 PAGE.post = ({ scene, spec, mesh, P, stat }) => {
+  CTL_MOVING = [];                     // G240: this build's moving controls
   if (window.CAGE_CHAR && window.CAGE_CHAR.clearAnims) window.CAGE_CHAR.clearAnims();
   if (group) {
     // a character's skinned geometry is SHARED across builds (_cage_char.js
@@ -1836,6 +1898,10 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   // coaming lip is, how wide the cabin is at a station — and re-deriving them
   // over there would be a second description of the cabin.
   const DBG = window.CAGE_CREW = { stations: [], panel, floorN, A,
+    // G240: the controls that ANSWER — name, pivot, axis, drive and travel,
+    // for the join. Filled as they are drawn, so a station without a stick
+    // publishes nothing rather than a part with no geometry.
+    moving: CTL_MOVING,
     // G180: `section` (0 the cockpit, n the n-th bay behind it) and `filled`
     // ride out with each seat — the join reads the capacity, the occupancy
     // and the loading numbers off this one list

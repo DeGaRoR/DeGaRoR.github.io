@@ -70,7 +70,8 @@ function mkObj() {
   const o = {
     position: vec(), rotation: vec(), scale: vec(), children: [],
     // control surfaces turn as rigid meshes (G4.4), so a mesh needs one
-    quaternion: { setFromAxisAngle() { return this; } },
+    quaternion: { setFromAxisAngle() { return this; }, copy() { return this; },
+                  multiply() { return this; } },
     matrix: { copy: () => {}, },
     visible: true, frustumCulled: true, matrixAutoUpdate: true,
     add(c) { this.children.push(c); return this; },
@@ -118,6 +119,13 @@ const THREE = {
   PerspectiveCamera: class { constructor(){ this.position = vec(); this.up = vec(0, 1, 0);
     this.fov = 46; } lookAt(){} updateProjectionMatrix(){} },
   Vector3: function(...a) { return vec(...a); },
+  // A QUATERNION, because the cockpit's controls turn about two axes at once
+  // (G240) and app.js composes them at module scope. As honest as the rest of
+  // this stub: it constructs and chains, and claims nothing about the maths.
+  Quaternion: class { constructor(){ this.x = 0; this.y = 0; this.z = 0; this.w = 1; }
+                      setFromAxisAngle(){ return this; } multiply(){ return this; }
+                      copy(){ return this; } setFromRotationMatrix(){ return this; }
+                      setFromUnitVectors(){ return this; } invert(){ return this; } },
   Matrix4: class { makeBasis(){ return this; } setPosition(){ return this; }
                    makeScale(){ return this; } copy(){ return this; } },
   PlaneGeometry: class extends BufferGeometry {

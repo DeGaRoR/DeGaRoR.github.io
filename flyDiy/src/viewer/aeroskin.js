@@ -522,6 +522,12 @@ const AERO_HARD = {
   // beacon lens really is a moulded polycarbonate, so the honest row is also
   // the working one.
   access: { paint: 'trim', metal: 'bareAlu', lens: 'plastic' },
+  // ---- the control hardware (_cage_hinge.js) ------------------------------
+  // Hinge straps, pins, horns, bellcranks and rod ends are STEEL — cadmium
+  // plated, and the one place on a light aeroplane where nobody uses alloy,
+  // because a hinge carries a fatigue load in bending. A fairing is painted.
+  hinge: { metal: 'steelTube', fair: 'trim' },
+  // ---- the undercarriage (_gear_gen.js MAT) -------------------------------
   // ---- the undercarriage (_gear_gen.js MAT) -------------------------------
   gear: {
     tyre: 'rubber', hub: 'castAlu', brake: 'castAlu', brakefix: 'castAlu',
@@ -734,6 +740,18 @@ const AERO_SEC = {
   // its pinned finish's base. The user: "the maintenance access on the side
   // should be colored like the fuselage"; a strut, a spat and a cowl are
   // painted with the fuselage on a light aeroplane, the fittings with it.
+  // G238: THE CONTROL HARDWARE. A hinge, a horn, a pushrod and a cable are
+  // STEEL, and steel is what they stay whatever the aeroplane is painted —
+  // the pinned-finish rule, the same one that keeps a gear leg from turning
+  // into plywood on a wooden aeroplane. `parent: null`: a hinge borrows
+  // nobody's colour, because a hinge is not painted.
+  // The FAIRING is the other case entirely and is why it is a second row: a
+  // gap seal is a painted strip on a painted surface, so it follows the
+  // aeroplane and wears what its parent wears (G207).
+  ctlHinge: { parent: null,   fin: 'steelTube', label: 'the hinges & horns',
+              layer: 'hinge' },
+  ctlFair:  { parent: 'body', fin: 'trim',      label: 'the hinge fairings',
+              layer: 'hinge', wears: 'parent' },
   strut:    { parent: 'body', fin: 'trim',      label: 'the lift struts',
               layer: 'wing', wears: 'parent' },
   // G185: the truss follows the lift struts (paint, the fuselage's colour)
