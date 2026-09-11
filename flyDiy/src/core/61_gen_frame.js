@@ -1520,14 +1520,44 @@ function genLattice(S, gearX, track, kScale) {
   // this is no exception: a tank on the centreline is billed half to each side
   // so the aeroplane does not fly one wing low, which is the same rule
   // GATE GEN's mirror check has enforced since G1.
+  // WEIGHED WHERE IT IS DRAWN (2026-09-11). `bodyRing` used to snap a vessel
+  // to the NEAREST ring, so a tank slid anywhere inside its bay weighed the
+  // same: on the user's pusher the rings stand at 0, 1.1, 1.7 m and `along`
+  // from -0.4 to +0.4 moved the CG by exactly nothing, while the seats a
+  // metre away were already split between their two rings by lever arm
+  // (`billAt`). A vessel now takes the same rule: its station straddled, the
+  // mass shared between the two ring pairs so the mass centre lands at the
+  // drawn station. `lv` still picks top or bottom pair. A station ON a ring
+  // (the migrated `nose -> along 0` of GEN_MIGRATORS[6]) lands entirely on
+  // that ring, exactly as before — GATE ENERGYBASE holds the Cub's twelve
+  // gallons where they were.
+  // AHEAD OF THE FIREWALL there is no ring to share with: a nose-engine
+  // build has its mount pair out there, a pusher has nothing but the
+  // nosewheel. A nose-bay tank (the bay runs the cowl deck, forward of ring
+  // 0) therefore gets a light node pair of its own at its station, held to
+  // the firewall ring's four corners by weightless locating members — the
+  // engine's own CGE idiom (2026-09-05) — so the tank weighs where it is
+  // drawn instead of on the firewall.
+  const noseNodes = (xWant, lvWant) => {
+    const rg = F[0], yL = (lvWant >= 0.5) ? P[rg.TL][1] : P[rg.BL][1];
+    const [nl, nr] = NM(xWant, yL, Math.abs(P[rg.BL][2]), 'VSN');
+    const farN = (a, b) => Math.hypot(P[a][0] - P[b][0], P[a][1] - P[b][1],
+                                      P[a][2] - P[b][2]) > 0.05;
+    for (const n2 of [nl, nr])
+      for (const q of [rg.TL, rg.TR, rg.BL, rg.BR])
+        if (farN(n2, q)) B(n2, q, 'fus', false, 'inner', true, { noMass: true });
+    B(nl, nr, 'fus', false, 'inner', true, { noMass: true });
+    return [[nl, 0.5], [nr, 0.5]];
+  };
   const bodyRing = (xWant, lvWant) => {
-    let best = 0, bd = Infinity;
-    for (let i2 = 0; i2 < F.length; i2++) {
-      const d2 = Math.abs((ST[i2] ? ST[i2].x : 0) - xWant);
-      if (d2 < bd) { bd = d2; best = i2; }
-    }
-    const rg = F[best];
-    return (lvWant >= 0.5) ? [rg.TL, rg.TR] : [rg.BL, rg.BR];
+    const pick = rg => (lvWant >= 0.5) ? [rg.TL, rg.TR] : [rg.BL, rg.BR];
+    if (xWant < ST[0].x - 0.05) return noseNodes(xWant, lvWant);
+    const [f, a] = straddle(xWant);
+    if (f === a || !F[a] || !F[f]) { const [n0, n1] = pick(F[f] || F[0]); return [[n0, 0.5], [n1, 0.5]]; }
+    const x0 = ST[f].x, x1 = ST[a].x;
+    const wa = Math.max(0, Math.min(1, (xWant - x0) / Math.max(1e-6, x1 - x0)));
+    const [f0, f1] = pick(F[f]), [a0, a1] = pick(F[a]);
+    return [[f0, 0.5 * (1 - wa)], [f1, 0.5 * (1 - wa)], [a0, 0.5 * wa], [a1, 0.5 * wa]];
   };
   const wingPair = (frac, plane) => {
     const W2 = (planes[plane | 0] || planes[0]).wf;        // G185: per plane
@@ -1540,26 +1570,29 @@ function genLattice(S, gearX, track, kScale) {
   let fuelTotalM = 0;
   const VES = (S.energy && S.energy.vessels) || [];
   for (const v of VES) {
-    const B = GEN_BAYS[v.bay] || GEN_BAYS.nose;
+    const BAY = GEN_BAYS[v.bay] || GEN_BAYS.nose;   // (not `B`: that is the member builder)
     const bay = genBayResolve(S, GEN_BAYS[v.bay] ? v.bay : 'nose', ST);
     const r = genVesselResolve(
       S.energy.kind === 'battery' ? 'battery' : 'fuel',
       v.capacity, S.energy.vessel || (S.energy.kind === 'battery' ? 'packCase' : 'alu'),
       S.energy.kind === 'battery' ? S.energy.cell : S.energy.fuel);
     let pair;
-    if (B.on === 'wing') {
+    if (BAY.on === 'wing') {
       // the old 'wing' station was the ROOT spar node and 'panel' the next one
       // out; a null `along` reproduces that rather than picking a midpoint.
       const frac = v.along != null ? v.along
                  : (v.bay === 'wingPanel' ? 0.34 : 0);
-      pair = wingPair(frac, B.plane || 0);
+      const [wl, wr] = wingPair(frac, BAY.plane || 0);
+      pair = [[wl, 0.5], [wr, 0.5]];
     } else {
       const xW = v.along != null ? v.along : bay.xMid;
       const lvW = v.lv != null ? v.lv
-                : 0.5 * ((B.lv || [0, 1])[0] + (B.lv || [0, 1])[1]);
+                : 0.5 * ((BAY.lv || [0, 1])[0] + (BAY.lv || [0, 1])[1]);
       pair = bodyRing(xW, lvW);
     }
-    if (r.emptyKg > 0) { pt(pair[0], 0.5 * r.emptyKg); pt(pair[1], 0.5 * r.emptyKg);
+    // `pair` is a weighted node list [[node, share], ...] — two entries for a
+    // wing tank, four for a body tank between rings, sharing to 1.
+    if (r.emptyKg > 0) { for (const [n2, w2] of pair) if (w2 > 0) pt(n2, w2 * r.emptyKg);
                          spend(r.price); }
     v._pair = pair; v._res = r;
     fuelTotalM += r.payloadKg;
@@ -1569,17 +1602,20 @@ function genLattice(S, gearX, track, kScale) {
   for (const v of VES) {
     const m = v._res ? v._res.payloadKg : 0;
     if (m <= 0) continue;
-    const [a2, b2] = v._pair;
-    pt(a2, 0.5 * m); pt(b2, 0.5 * m);
     // G121: WHICH KILOS ARE FUEL, recorded on the node itself — the burn
     // chantier drains these through the solver's setNodeMass door, and
     // genSubsteps sizes the integrator at DRY mass off the same records (a
     // beam is stiffest, per unit mass, when its tank is empty: sized at full
-    // it is stable on departure and divergent at reserves).
+    // it is stable on departure and divergent at reserves). The burn drains
+    // every fuel node by the same fraction, so a tank shared between two
+    // rings drains in place.
     // A PACK RECORDS NOTHING HERE, and that is not an omission: `mFuel` is
     // what the burn model drains, and cells do not drain.
-    nodes[a2].mFuel = (nodes[a2].mFuel || 0) + 0.5 * m;
-    nodes[b2].mFuel = (nodes[b2].mFuel || 0) + 0.5 * m;
+    for (const [n2, w2] of v._pair) {
+      if (w2 <= 0) continue;
+      pt(n2, w2 * m);
+      nodes[n2].mFuel = (nodes[n2].mFuel || 0) + w2 * m;
+    }
   }
   // ---- THE FIT, ITEMISED (the panel arc, session 2) ------------------------
   // One lump on the firewall top pair used to stand for the whole fit. Now

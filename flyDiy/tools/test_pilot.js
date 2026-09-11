@@ -78,18 +78,26 @@ function fly(spec, maxS, card, opts) {
   if (card) ap.setCard(card);              // SI here — the UI converts, not us
   const leg = (ap) => {
     const rec = { aglMax: 0, tEnd: maxS, nan: false, liftRun: null, flapAtFlare: null,
-                  statusRoll: null, landDir: null, phases: [] };
-    let last = null, sRoll = null;
+                  statusRoll: null, landDir: null, phases: [],
+                  // the roll's own instruments (TRIKE-XWIND, 2026-09-11)
+                  rollMaxE: 0, rollMaxBank: 0, rollDrFlips: 0, liftXT: null };
+    let last = null, sRoll = null, drSign = 0;
     for (let s = 0; s < maxS * 60; s++) {
       ap.update(1 / 60); sim.step(1 / 60);
       if (ap.phase !== last) { rec.phases.push(ap.phase); last = ap.phase; }
       if (ap.phase === 'ROLL') {
         if (sRoll == null) sRoll = ap.dbg.s;
+        rec.rollMaxE = Math.max(rec.rollMaxE, Math.abs(ap.dbg.e || 0) * 57.3);
+        if (sim.wheelsOnGround() > 0) rec.rollMaxBank = Math.max(rec.rollMaxBank, Math.abs(ap.dbg.ph || 0) * 57.3);
+        // a REVERSAL is the rudder crossing zero with authority on both sides
+        const dr = sim.ctl.dr, sg = dr > 0.2 ? 1 : dr < -0.2 ? -1 : 0;
+        if (sg && drSign && sg !== drSign) rec.rollDrFlips++;
+        if (sg) drSign = sg;
         // five metres into the roll: the status is written at the end of a
         // phase's own frame, so the first ROLL frame still carries the hold's
         if (!rec.statusRoll && Math.abs(ap.dbg.s - sRoll) > 5) rec.statusRoll = JSON.parse(JSON.stringify(ap.status || null));
       }
-      if (ap.phase === 'LIFTOFF' && rec.liftRun == null && sRoll != null) rec.liftRun = Math.abs(ap.dbg.s - sRoll);
+      if (ap.phase === 'LIFTOFF' && rec.liftRun == null && sRoll != null) { rec.liftRun = Math.abs(ap.dbg.s - sRoll); rec.liftXT = ap.dbg.z; }
       if (ap.phase === 'FLARE' && rec.flapAtFlare == null) { rec.flapAtFlare = sim.ctl.flap; rec.landDir = [ap.frame.ux, ap.frame.uz]; }
       if (sim.stats().bad) { rec.nan = true; rec.tEnd = s / 60; break; }
       rec.aglMax = Math.max(rec.aglMax, ap.dbg.agl || 0);
@@ -203,6 +211,27 @@ function checkTrike(r) {
         'trike: lifts off inside 1.5x the sheet run (' + (r.liftRun == null ? '—' : r.liftRun.toFixed(0)) + ' of ' + A.TORun + ' m)');
   const L = r.report.landing;
   check(!!L && L.sink > 0 && L.sink < 3, 'trike: a landing, not an arrival (' + (L ? L.sink + ' m/s' : '—') + ')');
+}
+// TRIKE-XWIND (2026-09-11) — the user's pusher (tricycle, rod boom, Rotax
+// 582 on a pod) across 2 m/s of wind. Before: the nosewheel-steering loop
+// ran FIXED gains down the strip and crossed the rate estimate's lag at
+// 12 m/s — a 1.25 Hz weave, pursuit error 20 deg, the rudder on its stop 27
+// times, 4 m either side of the centreline in CALM air; and the crosswind
+// bank bias, clamped on the trike's VTailUp of 99, sat at its 1.6x cap and
+// rolled the aeroplane 13 deg onto one main before rotation, 9.5 m off the
+// centreline at liftoff and 28 m by CLIMB in the game's "wind 4 + gusts".
+// After (genAP VSteer + the trike steer schedule + the three-wheel bias
+// cap): 9 deg, 2.8 deg of bank, 3.4 m. The bounds sit outside today's
+// numbers and far inside the disease.
+function checkTrikeXwind(r) {
+  check(!r.nan && r.report.outcome === 'completed', 'trike-xwind: the pusher completes its circuit across the wind', String(r.report.outcome));
+  check(r.rollMaxE < 12, 'trike-xwind: the roll holds its pursuit line (' + r.rollMaxE.toFixed(1) + ' deg, bound 12)');
+  check(r.rollDrFlips < 4, 'trike-xwind: no rudder limit cycle on the roll (' + r.rollDrFlips + ' reversals past 0.2, bound 4)');
+  check(r.rollMaxBank < 5, 'trike-xwind: wings level on three wheels (' + r.rollMaxBank.toFixed(1) + ' deg of bank on the ground, bound 5)');
+  check(r.liftXT != null && Math.abs(r.liftXT) < 5, 'trike-xwind: lifts off near the centreline (' + (r.liftXT == null ? '—' : r.liftXT.toFixed(1)) + ' m, bound 5)');
+  const A = r.def.params.ap;
+  check(r.liftRun != null && r.liftRun < 1.6 * A.TORun,
+        'trike-xwind: rotates, not floats (' + (r.liftRun == null ? '—' : r.liftRun.toFixed(0)) + ' of ' + A.TORun + ' m sheet, bound 1.6x)');
 }
 // FLAPS + STATUS — a flapped build (the user's ultralight) has its flaps
 // DOWN at the flare, and the pilot says what it is doing on the roll
@@ -333,6 +362,10 @@ if (process.argv.includes('--selftest')) {
      (r => { r.landDir = [-1, 0]; return r; })(goodish())],
     ['trike floated off late', checkTrike,
      (r => { r.def = { params: { ap: { TORun: 150 } } }; r.liftRun = 400; return r; })(goodish())],
+    ['trike-xwind weaved down the strip', checkTrikeXwind,
+     (r => { r.def = { params: { ap: { TORun: 150 } } }; r.rollMaxE = 19; r.rollDrFlips = 27; r.rollMaxBank = 1; r.liftXT = 1; r.liftRun = 200; return r; })(goodish())],
+    ['trike-xwind rolled onto one main', checkTrikeXwind,
+     (r => { r.def = { params: { ap: { TORun: 150 } } }; r.rollMaxE = 3; r.rollDrFlips = 0; r.rollMaxBank = 13; r.liftXT = 9.5; r.liftRun = 200; return r; })(goodish())],
     ['flaps stayed up at the flare', checkFlapsStatus,
      (r => { r.flapAtFlare = 0; r.statusRoll = { goal: 'x', conds: [{ what: 'airspeed' }, { what: 'runway left' }], afcs: { lat: 'RWY', vert: 'DE', thr: 'SET' } }; return r; })(goodish())],
     ['status said nothing on the roll', checkFlapsStatus,
@@ -472,6 +505,19 @@ const trike = fly({ gear: { type: 'tricycle' } }, 340);
 for (const v of trike.report.verdicts) console.log('   ' + v.t + 's ' + v.code + ' — ' + v.note);
 console.log('   lift-off run ' + (trike.liftRun == null ? '—' : trike.liftRun.toFixed(0)) + ' m of a ' + trike.def.params.ap.TORun + ' m sheet');
 checkTrike(trike);
+
+console.log("-- TRIKE-XWIND: the user's pusher across 2 m/s --");
+{
+  const FIX = path.join(__dirname, 'fixtures', 'build_v8_pusher_2026-09-11.json');
+  const spec = JSON.parse(fs.readFileSync(FIX, 'utf8')).spec;
+  const def = buildGen(genMigrateSpec(JSON.parse(JSON.stringify(spec))));
+  const px = fly(null, 400, null, { def, wind: [0, 2] });
+  for (const v of px.report.verdicts) console.log('   ' + v.t + 's ' + v.code + ' — ' + v.note);
+  console.log('   roll: pursuit ' + px.rollMaxE.toFixed(1) + ' deg, ' + px.rollDrFlips + ' rudder reversals, bank ' + px.rollMaxBank.toFixed(1) +
+              ' deg on the ground, lift-off ' + (px.liftXT == null ? '—' : px.liftXT.toFixed(1)) + ' m off the centreline after ' +
+              (px.liftRun == null ? '—' : px.liftRun.toFixed(0)) + ' m of a ' + def.params.ap.TORun + ' m sheet');
+  checkTrikeXwind(px);
+}
 
 console.log('-- FLAPS + STATUS: the ultralight fixture from the stand --');
 {

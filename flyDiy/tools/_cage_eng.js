@@ -525,7 +525,11 @@ const ENG_ITEMS = [
    { when: P => +P.engOn && Math.round(P.engMount) >= 2, dim: 'm' }],
   ['engPylonH', 'pylon height', 0.05, 1.0, 0.01,
    { when: P => +P.engOn && Math.round(P.engMount) === 2, dim: 'm' }],
-  ['engY',      'up / down', -0.5, 0.5, 0.005,
+  // G250: the label says what the row is — the THRUST LINE. It moves the
+  // engine vertically, so the CG line in the room does not move (the user
+  // read "the engine stand barely moves the CG" off exactly this slider);
+  // fore-aft on a pod is `eng_mountGap`, on a block `engBlockZ`.
+  ['engY',      'up / down (thrust line)', -0.5, 0.5, 0.005,
    { when: P => +P.engOn, dim: 'm' }],
   ...BENCH_SUBS,
   ['propOn',    'propeller',     0, 1, 1, { when: P => +P.engOn }],

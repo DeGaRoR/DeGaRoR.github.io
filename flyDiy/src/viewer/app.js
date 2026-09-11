@@ -2262,6 +2262,12 @@
     return m;
   }
   const qA = new THREE.Quaternion(), qB = new THREE.Quaternion();   // G240
+  // G250.1: the cockpit controls' own axis temporaries. G240 span the stick
+  // about `vY`/`vZ` — the BODY BASIS below, which nodeLocal and the castor
+  // read AFTER that block — so the tailwheel's z was projected onto the
+  // stick's second axis and the drawn castor stood on the runway 3.7 m
+  // from its node (the user: "my tail wheel went flying meters away").
+  const vCtl = new THREE.Vector3(), vCtl2 = new THREE.Vector3();
   const mBasis = new THREE.Matrix4(), vX = new THREE.Vector3(),
         vY = new THREE.Vector3(), vZ = new THREE.Vector3(),
         vSpin = new THREE.Vector3();          // G59.1 prop shaft axis
@@ -2589,11 +2595,11 @@
     if (model.ctlMoves) for (const m of model.ctlMoves) {
       const c = m.c, o = m.obj;
       if (!o.quaternion) continue;
-      vY.set(c.ax[0], c.ax[1], c.ax[2]);
-      qA.setFromAxisAngle(vY, c.sgn * (c.k || 1) * (link[c.drive] || 0));
+      vCtl.set(c.ax[0], c.ax[1], c.ax[2]);
+      qA.setFromAxisAngle(vCtl, c.sgn * (c.k || 1) * (link[c.drive] || 0));
       if (c.ax2) {
-        vZ.set(c.ax2[0], c.ax2[1], c.ax2[2]);
-        qB.setFromAxisAngle(vZ, c.sgn2 * (c.k2 || 1) * (link[c.drive2] || 0));
+        vCtl2.set(c.ax2[0], c.ax2[1], c.ax2[2]);
+        qB.setFromAxisAngle(vCtl2, c.sgn2 * (c.k2 || 1) * (link[c.drive2] || 0));
         qA.multiply(qB);
       }
       o.quaternion.copy(qA);
@@ -4128,23 +4134,53 @@
   // a word floated above each marker. Canvas -> sprite, because a line drawing
   // cannot say which post is which and the two are only 0.3 m apart on a stable
   // aeroplane. sizeAttenuation off keeps them legible at any zoom.
-  function makeLabel(text, rgb) {
+  // `sub` (2026-09-11): a second, smaller line under the word — the number
+  // the post stands for (CG in % MAC, the static margin), so the reading is
+  // on the line the user reads and not only on the plaque.
+  function makeLabel(text, rgb, sub) {
     const c = document.createElement('canvas');
-    c.width = 128; c.height = 64;
+    c.width = 256; c.height = 64;
     const g = c.getContext('2d');
     const hx = v => Math.round(255 * Math.pow(Math.min(1, Math.max(0, v)), 1 / 2.2));
     g.fillStyle = `rgba(${hx(rgb[0])},${hx(rgb[1])},${hx(rgb[2])},1)`;
-    g.font = '600 40px "IBM Plex Mono", monospace';
     g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillText(text, 64, 32);
+    if (sub) {
+      g.font = '600 34px "IBM Plex Mono", monospace';
+      g.fillText(text, 128, 18);
+      g.font = '500 24px "IBM Plex Mono", monospace';
+      g.fillText(sub, 128, 48);
+    } else {
+      g.font = '600 40px "IBM Plex Mono", monospace';
+      g.fillText(text, 128, 32);
+    }
     const tex = new THREE.CanvasTexture(c);
     tex.encoding = THREE.sRGBEncoding;
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({
       map: tex, transparent: true, depthTest: false, sizeAttenuation: false }));
-    sp.scale.set(0.055, 0.028, 1);
+    sp.scale.set(0.110, 0.028, 1);
     sp.renderOrder = 999;
     return sp;
   }
+  // THE POSTS FOLLOW THE SLIDER (2026-09-11). The CG and NP posts were built
+  // from the ROLLED-OUT `sim` and rebuilt only on entering the garage and on
+  // roll-out, so a boom, pod or tank moved in the editor moved nothing in the
+  // room — the user read "the CG barely moves" off exactly this line. The
+  // energy layer now runs a slim balance job (buildGen + one aero solve, in
+  // its worker) on every commit of the join and hands the answer here:
+  // {cgX, npX, staticMargin, cBar, xLEmac, gearX} in the DESIGN frame, where
+  // gearX is the mains' axle station. The posts stand at
+  // mains + (cgX - gearX) along the body axis — measured from the one
+  // landmark both aeroplanes agree on, the same one `standOffset` uses — so
+  // they are right even while `sim` is the previous roll-out. Cleared when
+  // `def` is rebuilt; until the next answer the posts fall back to `sim`.
+  let LAST_BAL = null;
+  function refreshIndicators(b) {
+    if (!b || !isFinite(b.cgX) || !isFinite(b.npX) || !isFinite(b.gearX)) return;
+    LAST_BAL = b;
+    if (inGarage && curKey === 'gen') buildIndicators();
+  }
+  window.BALANCE_LISTENERS = window.BALANCE_LISTENERS || [];
+  window.BALANCE_LISTENERS.push(refreshIndicators);
   // THE INSTRUMENTS GO ON THE AEROPLANE YOU CAN SEE (G65.1). They are built
   // from `sim.p` — the physics lattice — and they used to be the only thing in
   // the room drawn in that frame, because the mesh beside them is posed onto
@@ -4202,8 +4238,29 @@
     for (const l of gLabels) { gGrp.remove(l); l.material.map.dispose(); l.material.dispose(); }
     gLabels = [];
     if (!inGarage || curKey !== 'gen') return;
-    const s = shakeOf(), P = def.parts;
-    const [xA] = sim.axes(), cg = sim.cgPos();
+    const P = def.parts;
+    const [xA] = sim.axes();
+    // the live answer when there is one (see refreshIndicators), else the sim
+    let cg, d, smTxt = null, cgTxt = null, smBad = false;
+    const b = LAST_BAL;
+    if (b && P.GAL != null && P.GAR != null) {
+      const a = P.GAL * 3, c2 = P.GAR * 3;
+      const mx = 0.5 * (sim.p[a] + sim.p[c2]), my = 0.5 * (sim.p[a + 1] + sim.p[c2 + 1]),
+            mz = 0.5 * (sim.p[a + 2] + sim.p[c2 + 2]);
+      const k = b.cgX - b.gearX;
+      cg = [mx + k * xA[0], my + k * xA[1], mz + k * xA[2]];
+      d = b.npX - b.cgX;
+      if (b.staticMargin != null) { smTxt = 'SM ' + (b.staticMargin * 100).toFixed(0) + '%'; smBad = b.staticMargin < 0.05; }
+      if (b.cBar > 0 && typeof b.xLEmac === 'number' && isFinite(b.xLEmac))
+        cgTxt = ((b.cgX - b.xLEmac) / b.cBar * 100).toFixed(0) + '% MAC';
+    } else {
+      const s = shakeOf();
+      cg = sim.cgPos();
+      d = s.npX - s.cgX;
+      if (s.staticMargin != null) { smTxt = 'SM ' + (s.staticMargin * 100).toFixed(0) + '%'; smBad = s.staticMargin < 0.05; }
+      if (s.cBar > 0 && typeof s.xLEmac === 'number' && isFinite(s.xLEmac))
+        cgTxt = ((s.cgX - s.xLEmac) / s.cBar * 100).toFixed(0) + '% MAC';
+    }
     const V = [], C = [];
     const seg = (a, b, col) => {
       V.push(a[0], a[1], a[2], b[0], b[1], b[2]);
@@ -4215,11 +4272,11 @@
     // two markers stop being tellable apart.
     const lin = h => [(h >> 16 & 255) / 255, (h >> 8 & 255) / 255, (h & 255) / 255]
       .map(v => (v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)));
-    const AMBER = lin(0xffb257), CYAN = lin(0x63d3cc), PALE = lin(0xd3c3ae);
+    const AMBER = lin(0xffb257), CYAN = lin(0x63d3cc), PALE = lin(0xd3c3ae), RED = lin(0xff7b6b);
     // an upright post from the ground to well above the aeroplane, so the two
     // are comparable at a glance from any angle
-    const label = (px, py, pz, text, col) => {
-      const sp = makeLabel(text, col);
+    const label = (px, py, pz, text, col, sub) => {
+      const sp = makeLabel(text, col, sub);
       sp.position.set(px, py + 0.42, pz);
       gGrp.add(sp); gLabels.push(sp);
     };
@@ -4228,8 +4285,9 @@
       for (const [dx, dz] of [[0.45, 0], [0, 0.45]])
         seg([px - dx, h, pz - dz], [px + dx, h, pz + dz], col);
     };
-    post(cg[0], cg[2], AMBER, 3.2);
-    const d = s.npX - s.cgX;                       // body-x offset, aft positive
+    post(cg[0], cg[2], smBad ? RED : AMBER, 3.2);
+    // d: body-x offset NP - CG, aft positive; negative = the CG is BEHIND the
+    // neutral point and the aeroplane is statically unstable (the post reds)
     const npx = cg[0] + d * xA[0], npz = cg[2] + d * xA[2];
     post(npx, npz, CYAN, 2.8);
     // NEUTRAL POINT, not centre of lift. It is where the pitching moment stops
@@ -4237,8 +4295,8 @@
     // gap between the two posts IS the static margin. The centre of lift is a
     // different thing and moves with alpha; labelling it that way would say
     // something false about what the gap means.
-    label(npx, 2.8, npz, 'NP', CYAN);
-    label(cg[0], 3.2, cg[2], 'CG', AMBER);
+    label(npx, 2.8, npz, 'NP', CYAN, smTxt);
+    label(cg[0], 3.2, cg[2], 'CG', smBad ? RED : AMBER, cgTxt);
     // and the margin itself, as a bar on the ground between the two posts
     seg([cg[0], 0.05, cg[2]], [cg[0] + d * xA[0], 0.05, cg[2] + d * xA[2]], CYAN);
     // ground contacts: where it actually touches, wheel by wheel
@@ -6517,7 +6575,7 @@
     defaults: () => JSON.parse(JSON.stringify(GEN_DEFAULT)),
     // a changed spec is a DIFFERENT AEROPLANE, and editing one puts it back on
     // the stand: the solver stops, so a slider drag costs you nothing
-    apply(spec) { genSpec = spec; $('selAc').value = 'gen'; setAircraft('gen'); enterGarage(); },
+    apply(spec) { genSpec = spec; LAST_BAL = null; $('selAc').value = 'gen'; setAircraft('gen'); enterGarage(); },
     resolved: () => (curKey === 'gen' ? def.spec : null),
     shake: () => shakeOf(),
     isGen: () => curKey === 'gen',

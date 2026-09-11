@@ -37202,3 +37202,391 @@ narrow key cell.
     its side along z.
 - Gates: HOUSE (with --selftest; 29 rules, the fuzzer on all of them) and
   MEDIA green.
+
+## G250 — THE PUSHER'S TAKEOFF WEAVE, AND THE CG LINE THAT DID NOT MOVE
+## (2026-09-11, the user: "during take off, it will start shaking a lot, then
+## the autopilot will loose it ... I moved the engine stand, the boom length
+## and the position of fuel tanks, and I have barely seen the CG moving")
+
+The user's `pusherLight` (now `tools/fixtures/build_v8_pusher_2026-09-11.json`:
+single-seat ULM, Rotax 582 pusher on a pod at x 1.77 / y 1.05, rod boom,
+tricycle, 18 L nose tank). Both complaints reproduced headlessly on the file
+before a line was changed (the numbers below are pre-G251's ledger, ~10 kg
+lighter than today's; the conclusions do not move); the scratch runners are described at the end.
+
+### The shake: the pilot's nosewheel-steering loop (the AP, as the user guessed)
+
+Calm air, from the runway, the file as saved: a yaw limit cycle from 12 to
+26 m/s — pursuit error ±19°, the rudder on its ±0.45 stop 21-27 times, ±4 m
+of weave. Two one-line ablations located it: `twSteer = 0` (no nosewheel
+steering) gave 0.3° and zero reversals; `rateFilt 0.15 → 0.5` gave 2.5°.
+The boom's stiffness, the pod height, substeps and the servo slew changed
+nothing. Mechanism (`43_pilot.js groundSteer`): the tricycle branch ran
+FIXED `kP 3.2 / kD 1.2` down the whole strip — the speed schedule
+`(VTailUp/V)²` was the taildragger's, and genAP sets `VTailUp = 99` on a
+trike — while the one rudder command drives the aero rudder (V², in full
+propwash on a pusher) AND the nosewheel (`twSteer -0.35`). The loop gain
+grows with V until it crosses the 0.13 s lag of the pursuit-angle
+differencer. **Fix:** `genAP` gives a trike `VSteer = 0.6·VRot`; the trike
+branch of `groundSteer` schedules `kP = 3.2·clamp((VSteer/V)², steerMin
+0.30, 1)`, `kD = 1.2·√(same)`. Taildraggers bit-identical. Measured: 1.9°,
+0.1 m, one damped wobble at 12 m/s.
+
+### "Loses it": the crosswind bank bias pinned at its cap on a trike
+
+`phW = xwBank·wX·clamp(VTailUp/V, 0.4, 1.6)` — with `VTailUp = 99` the
+clamp sat at 1.6 for the entire roll, asking ~8° of into-wind bank at
+2 m/s. In the game's "Standard · wind 4 + gusts": aileron saturated from the
+first metre, two wheels from 15 m/s, **13° of bank on the ground, 9.5 m off
+the centreline at liftoff, 28 m and 22° off by CLIMB** — the wingtip near
+the grass that the user reads as the AP losing it. **Fix:** the trike's
+reference is `VSteer`, and on three wheels the bias is capped at
+`xwBankGround` 0.035 rad — a tricycle takes off wings-level and crabbed;
+the wing-low bias belongs after the nosewheel is off. Measured: 2.8° of
+bank, 3.4 m at liftoff, 4.8 m at CLIMB.
+
+### The float-off: a LIFTING tail, and a pilot that would not pull
+
+Rotation was commanded at VRot 18.3 and the aeroplane floated off at
+33 m/s after 25 s. Instrumented: the stab carried +350..+440 N UP the
+whole roll — `stabTrim = +0.141 rad`, the stab rigged 8° leading-edge up
+because with the CG at 71 % MAC (NP 56 %, **static margin −14.6 %**) a
+lifting tail is the only cruise trim the solver can find — and the thrust
+line 1.4 m above the wheel contact adds ~1400 N·m nose-down. The pilot
+pulled `de 0.19` at most: holdPitch's integrator winds at `pitchI 0.05`
+(0.0075 rad/s) and is capped at 0.15. With the wing 0.4 m aft (SM +6.6 %)
+it still floated at 32 m/s. **Fix:** while ROLL asks for rotation with the
+wheels down, the integrator's cap opens to `rotateIMax` 0.30 and its gain to
+`rotateI` 0.8 — a pilot on the ground past Vr pulls until the nose comes up
+— and both close at a rate (0.10/s), never in a step, once airborne.
+Measured: nosewheel off at 22 m/s, airborne at 26 (1.42 VRot; was 1.9).
+The design advice stands: this aeroplane is statically unstable (wing aft
+~0.4 m or the pod forward AND lower), and `engY` is the lever on the roll.
+
+### The CG line: the ledger was right about the engine and the boom; the
+### tank was quantised to a ring; the posts never followed a slider
+
+One mass model (`61_gen_frame genLattice`, CG = Σm·p/Σm) feeds sim, plaque
+and chart alike. Measured on the file: `engines[0].x ±0.3 → CG ±4.5 cm`
+(the pod IS weighed where it is); `tailArm +0.5 → +8 cm`; **`engY` moves
+the pod vertically — no longitudinal CG change by construction** (that was
+"the engine stand"); `vessels[0].along −0.4..+0.4 → identical to the
+millimetre**: `bodyRing()` snapped a vessel to the NEAREST ring (rings at
+0, 1.1, 1.7 …), so the whole nose bay weighed at one point while the seats
+a metre away were already split between their rings by lever (`billAt`).
+
+- **`61_gen_frame.js`:** a body-bay vessel is now split between its two
+  straddling ring pairs by lever arm (`_pair` is a weighted node list,
+  `[[node, share]…]`; the fuel's `mFuel` follows the same shares, so a tank
+  between rings drains in place). AHEAD of the firewall — where a pusher
+  has no node at all — a `VSN` node pair is born at the tank's station and
+  held to the firewall ring's four corners by weightless locating members
+  (the engine's CGE idiom). A station ON a ring lands entirely on it, so the
+  migrated `nose → along 0` of GEN_MIGRATORS[6] is unmoved: **GATE
+  ENERGYBASE green with no bless.** Measured: −0.40/0/+0.40/+0.80 → 1.378 /
+  1.396 / 1.413 / 1.431 m (16.7 kg·Δx/382 kg, exactly).
+- **The readout was one edit behind, always** (`_cage_energy.js`): it fired
+  300 ms after a BUILD and read `GARAGE_SPEC.get()` — a shelf the join only
+  reaches through `garage.js commit()` 900 ms after the same build, and
+  nothing re-requested it. `commit()` now has listeners (`GARAGE_SPEC.
+  onCommit`), `touch()` is 400 ms (the export is 8-16 ms), a build only marks
+  the readouts stale, and the commit is what requests them.
+- **The amber CG post and the cyan NP post are LIVE** (`app.js
+  refreshIndicators`, `_cage_energy.js balanceCompute`): a slim job —
+  buildGen + ONE aero solve, ~0.7 s in the readout worker, coalesced to one
+  in flight — runs on every commit (and after the energy panel's own
+  `G.update`, and once on load) and returns `{cgX, npX, staticMargin, cBar,
+  xLEmac, gearX}`; the posts stand at `mainsAxle + (cgX − gearX)·x̂`,
+  measured from the gear layer's own axles exactly as `standOffset` does, so
+  they are right while `sim` is still the previous roll-out. The labels
+  carry the number: `CG · 70% MAC`, `NP · SM −14%`, the CG post RED when
+  the margin is under 0.05. `LAST_BAL` clears on `api.apply`; until the next
+  answer the posts fall back to `sim`. `CAGE_ENERGY.balance()` /
+  `.balanceRequest()` expose the job for probes.
+
+Verified in dev.html on the file: boom +0.5 m → the amber post +51 mm,
+back → restored; tank −0.34 m → −14 mm; `engY` 0 / 0.355 → the post does
+not move (the negative control); `eng_mountGap` 1.57 → 0.5 → −12 mm. Each
+answer 0.65-0.77 s after the 400 ms pause. THE PANE WAS HIDDEN throughout
+(`document.hidden`): timers throttle to 1 Hz and a 4-request burst at boot
+queued seconds of stale answers — hence the coalescing.
+
+### GATE PILOT: TRIKE-XWIND
+
+The pusher fixture from the runway across 2 m/s: pursuit < 12°, rudder
+reversals past 0.2 < 4, bank on three wheels < 5°, lift-off < 5 m off the
+centreline, unstick < 1.6× the sheet run. Two selftest probes (the weave,
+the roll onto one main), both caught. GATE TAKEOFF's taildragger bounds
+untouched.
+
+### Scratch instruments (scratchpad, not the repo)
+
+`pl_cg.js` (CG vs engines[].x/y, tailArm, vessel.along), `pl_to.js` (the
+roll from the runway with ablations), `pl_stand.js` (the game's own stand
+departure, `--cond=light|mod|fresh` = the dropdown's weather), `pl_pin.js`
+(per-2 m/s: wing/stab lift, thrust, nosewheel penetration — the one that
+found the lifting tail), `pl_sm.js` (SM vs wing/engine station).
+
+## G251 — THE PANEL ARC, SESSION 2: THE FIT IS A LIST — THREE CATALOGUES
+## WITH REAL PRICES, THE TIERS AS PRESETS, ONE RESOLVER, AN ITEMISED LEDGER
+## AND THE INSTRUMENTS PART (2026-09-11)
+
+*Session 2 of `futureDesigns/PANEL-2026-09-11.md`. G248 gave the needles
+something to read; this gives the aeroplane something to buy. The user's
+rulings applied: NEW list prices documented per row; units PER BUILD.*
+
+**THE CATALOGUES (60_gen_spec.js, beside the retired lump).** `GEN_INSTR`
+(17 rows: asi, alt, vsi, ai, aiE, dg, turn, tacho, gmeter, oilP, oilT,
+fuel + a sender per tank, fuelSight, volts, clock, hobbs, compass — each
+with its cut-out `d`, kg, price, `power` none|elec|vac, amps, a source in
+`note`); `GEN_ELEC` (battery none|lead 7 kg 16 Ah|lithium 2.3 kg 13 Ah;
+alternator none|gen20|alt60; starter; suction none|venturi|pump; the
+harness once any bus exists, + 0.15 kg per powered item); `GEN_AVIONICS`
+(COM compact, Mode-S transponder, and `later:true` rows for VOR, portable /
+panel GPS and the glass PFD/MFD so the ledger's schema is final). Prices
+are 2025-26 dollar list prices at parity, rounded; the AI at 1900 is what a
+vacuum attitude indicator costs and it dominates every basic bill — that is
+the honest number, not a tuning.
+
+**THE TIERS ARE PRESETS.** `GEN_SYSTEMS` keeps its name and becomes
+`{items, elec, avionics}` per tier: minimal (day VFR, NO electrics —
+hand-propped, a sight gauge, 2.1 kg / 1800 cr), basic (the user's minimum
+set — asi, alt, ai, vsi, compass, clock, tacho, oil P/T, fuel, volts — with
+a lead battery, a 20 A generator, a starter, a venturi and a COM: 22.6 kg /
+7950 cr), ifr (the six-pack with an electric AI, alt60, a pump, COM + Mode-S
++ a VOR receiver: 28.8 kg / 16 660 cr), custom (everything from the spec).
+
+**THE SPEC GREW, NOTHING MOVED HOME.** `spec.systems = { fit, units
+aviation|metric, items null|[keys], elec {battery, alternator, starter,
+vac}, avionics {com, xpdr, nav, gps}, side pilot|centre }` — every new field
+null = the tier's answer (genDefaults keeps nulls), so a v8 save with `fit`
+alone resolves to the tier exactly (gated) and GEN_SPEC_V stays 8. clampSpec
+cleans a wild section (unknown keys → null, a list to real keys once each, a
+custom fit with no list handed the basic one). **PHYSICS_V 3**: an unchanged
+spec bills a different mass now.
+
+**ONE RESOLVER, `genSystemsResolve(S)`.** Tier + edits → `items` (deduped,
+FED: an electric dial with no battery, a gyro with no suction, a radio with
+no bus are DROPPED and named with their reason — a dead instrument is not a
+cheaper one), `elec`, `avionics`, `rows[]` (key, group panel|elec|avionics,
+name, kg, price, amps), `bill.{panel,elec,avionics}`, `kg`, `price`,
+`loads[]`, `hasBus`, `battAh`, `altA`, `starter`, `vac`. The ledger, the
+dash, the aerials, the column and (session 4) the bus read this and nothing
+else.
+
+**THE LEDGER (61_gen_frame.js).** `sec('systems')`'s lump is three
+sections billed row by row where the thing sits: `panel` on the firewall
+ring's top pair (where the lump was); `elec` — the battery on the firewall's
+LOWER pair (a Cub's box is on the firewall at the floor), the alternator,
+the starter and a vacuum pump on the engine nodes (the accessory case; the
+firewall's lower pair when the engine is not on the nose), the harness on
+the top pair; `avionics` on the top pair with the panel. Stock basic Cub:
+463.1 → 473.5 kg, CG 0.988 → 0.957 (24-36 mm forward — the battery), SM
+14.9 → 17.2 %. `GEN_PRICES.instruments` retired.
+
+**THE AERIALS READ THE RADIOS.** `GEN_ACCESS` comm / nav / transponder
+rows' `need` reads `R.avionics.{com,nav,xpdr}` (genAccessNeeds resolves
+them; the cage side gets them from `_cage_access.js` through the same
+resolver; a bench with no game spec takes the tier's own answer) — so a
+custom minimal with a Mode-S grows its blade, and one without a battery
+does not (the transponder is dropped first). GATE FIT's reach probe learned
+the field (its `ifr` spread carries the three).
+
+**THE INSTRUMENTS PART (`_cage_parts.js` under Cabin fit, `panel:
+'CAGE_PANEL'`; `tools/_cage_panel.js`, the layer's first file).** The energy
+part's door: a global that owns its column whole. Rows: fit (tier),
+units, side; DIALS · n fitted (a toggle per catalogue row with its price
+and mass; a dropped one reads "dead — no battery"); ELECTRICS (four
+selects); RADIOS (four selects, `later` rows say "declared, not drawn
+yet"); THE BILL (per group, per row, the dropped list, the bus load against
+the alternator's amps and the battery's Ah). Any edit makes the fit
+`custom` with every field explicit; a tier pick puts them back to derived.
+Commit = `GARAGE_SPEC.update({systems})` + `CAGE_UI.build()` — the crew
+layer draws the resolved list (`panelItems`, reading the game's spec or,
+on the bench, this layer's own answer), so the dash redraws its dials on
+the spot: basic 11 → ifr 13 → minimal 6, the plate's all-up following
+(487 → 466 kg on the user's working build). The join carries `M.systems`
+out through its export (a null inside survives garage.js's merge); applySpec
+seeds `fromSpec`. In the three lists (`_cage8.html`, build.js
+MANIFEST.editor, `_parts_check.js`) after the crew. Session 3 gives it
+geometry.
+
+**GATE PANEL (`tools/_panel_check.js`, core, ~10 s, --selftest).** Every
+row weighs, costs and declares its power; every tier names real keys;
+minimal has no bus and drops nothing; the tiers order by mass and price;
+basic carries the minimum set; a minimal + gyros fits only the asi and the
+dropped say why and bill nothing; a battery + venturi feed them and bring
+the harness; a radio with no bus is dropped; two tanks, two senders;
+dedupe; units per build; the default derives; a v8-shaped save resolves to
+its tier exactly; a custom with no list gets basic; clampSpec cleans a wild
+section; the ledger's panel + elec + avionics equal the resolver's bill on
+all three tiers, the lump is gone, the fit is empty weight; the battery's
+kilos land on S0BL/S0BR and the harness alone on the top pair; PHYSICS_V
+≥ 3; the aerials follow the radios on five fixtures; the part's door and
+the three lists. Selftest: a free clock and a ghost dial are both caught.
+
+**RE-ANCHORED, the designed path.** `_wing_split.json` and
+`_energy_base.json` blessed (the wing is emitted about the CG; the fit is
+10 kg heavier and 3 cm further forward — GATE WINGSPLIT's own header says
+this is the right answer); the v5 and v8 vintage fixtures re-frozen (513.69
+→ 525.00 kg and 475.45 → 486.71, notes prepended — Sw, cBar, AR, xAC
+unchanged to the digit, the invariant those fixtures are for).
+
+**Gates:** on the private copy — INPUT, PILOT, UISMOKE, BUILD, SKINMAT,
+LIGHT, FIT, WINGSPLIT, JOIN, PARTS, DESIGN, ENERGYBASE, ENERGY, PANEL, LOAD
+green, GEN run direct (74/74 — the SHAKEDOWN line is now `474 kg · w/l
+30.6`, re-read per the ritual); BENCH red as before this arc (the sticker
+keys, the stickers session). The COMMIT proved in a clean worktree of its
+own tree: ATMOS, UISMOKE, BUILD, SKINMAT, LIGHT, FIT, WINGSPLIT, JOIN,
+ENGID, PARTS, DESIGN, ENERGYBASE, ENERGY, RPM, PANEL — 15 green; the
+goldens and the fixtures' cg0 were blessed / re-frozen IN that worktree, off
+the commit's own core, not the working copy's (the two differ by other
+sessions' hunks: the v8 fixture's CG x reads 0.9871 at HEAD and 0.9755 on
+the working copy, the same 486.71 kg).
+
+**Owed:** the plaque prints no ledger sections (never did) — the bill lives
+in the Instruments column; a `panel`/`elec`/`avionics` line on the sheet is
+session 3's with the drawn dials. The battery's station is the firewall on
+every build — a PA-18 carries its aft for balance; a bay choice like the
+vessels' is a later row. The bill's row labels truncate in the column's
+narrow key cell.
+
+## G252 — THE JETTY GROWS INTO A PIER: A MODULAR KIT AND FIVE BOATS, BAKED AS
+## PROPS, PLANNED HEADLESS, HELD BY THE GATE (2026-09-11, the user: "build more
+## pier structure in front of the houses. I have added a few assets ... A
+## modular wooden pier system, please try and understand it well, and a few
+## boats. Please sanitize all of it, and make it game ready, then incorporate to
+## the house system. When they touch water, they get extended pier modules and
+## small boats")
+
+- **THE KIT, READ OFF THE FILE.** Poly Haven's `modular_wooden_pier` is SEVEN
+  nodes in one glTF sharing two materials, laid end to end down -z as the
+  author's showcase. Measured: four RUNS ~2.5 m wide and 2.9-3.5 m long whose
+  decks sit 2.6-2.7 m above their own pile bottoms and abut at their z ends
+  with the planks continuous (which is the whole meaning of "modular"); a
+  HEAD (section_01, the wide landing with a lower step toward the water); a
+  GATE (section_05 — two 7 m poles and a crossbar, stood across the 02/03
+  joint in the showcase); a cluster of bare PILES; a bare deck PLATE. So a
+  module is selected by NODE, not by material, and PLACED BY ITS DECK.
+- **IT IS THE HANGAR PROPS' PIPELINE, POINTED AT A SECOND TABLE.** Same baker
+  (`tools/prop_prep.py`), same as-is rule, same one material, same codec and
+  factory (`51_prop_codec.js`, `props.js`) — but its own table
+  (`tools/pier_table.py`), packs (`src/pier/`), media (`media/geo/pier`,
+  `media/tex/pier`) and gate, because the hangar's registry is claimed row by
+  row by its kits (GATE HANGAR rule 4) and a pier is not in the hangar.
+  `prop_prep.main(argv, cfg)` takes the config now; the module-level names are
+  the hangar's defaults. The baker learned three things for it:
+  - `nodes`: select WHOLE NODES by name (still no mesh is ever cut);
+  - a SKINNED MESH IS BAKED AT REST — glTF places a skinned primitive by its
+    joints and not by its own node, so the old walk put every skinned part in
+    the wrong place; each vertex now goes through jointWorld × inverseBind for
+    its four joints at the bind pose (the Grady-White's propellers and wheel
+    ride on bones for an animation the game never plays);
+  - `deck` / `float`: a row names the material its walking surface is made of
+    and the baker publishes `deckY` (where its top sits above the origin); a
+    boat declares the fraction of its height under water, since no exporter
+    records a waterline.
+- **THE BOATS arrive every way an FBX can** — centimetres (old_boat), a 38th
+  of size (boat.glb), along x (wooden_boat), spec-gloss (the scanned tirola),
+  skinned (the Grady-White). Every one is a RIGID correction declared in the
+  table or a conversion the baker already knew. Five hulls: skiff 5.1 m, old
+  clinker 6.0 m with oars, small rowing 3.9 m, scanned 4.8 m, and the 10.1 m
+  sport fisher — 370k triangles, baked as-is by the rule, and for that reason
+  the BIG boat: off by default, a long pier and rarely in the sampler.
+  All CC-BY-4.0: attribution is in CREDITS.md and must stay visible.
+- **THE PLAN IS HEADLESS.** `pierPlan` lays the pier out and publishes
+  `stats.pier` — key, position, yaw per module and boat — and the bench (and
+  the game) instance them through `propPlace`. It starts where the JETTY ends
+  (the jetty now publishes its extent), at the jetty's own deck height, an
+  optional gate across the start, N runs picked by seed, the head always at
+  the end turned to face the water, a dolphin of bare piles off the head, and
+  boats alongside — alternating sides, at the middle of a run, only in water
+  deep enough for their own draft, the big one at the head. Every module is
+  placed at `deck − deckY` so the walking surface lands on the jetty's level
+  and the piles go wherever the seabed is. `PIER_KIT` mirrors the packs'
+  metres in the generator (the SET_KIND arrangement).
+- **GATE HOUSE holds it three ways**: rule 27, the declared table = the baked
+  packs = the mirror, in keys and in metres (a deckY the baker did not measure
+  fails), and every bin is on disk and decodes to its own triangle count; rule
+  28, every module over water, the run CONTINUOUS (each starts where the one
+  before ends, within a centimetre), the head at the end, every boat afloat in
+  0.35 m plus its draft, at its waterline, clear of the pier and of each
+  other; and the selftest builds a jettied house and demands a pier, the same
+  house with `pier: 0` and demands none, and the same plan twice. All four
+  placement rules were driven red by hand (a stale deckY, no head, a boat in
+  the pier, a 10 cm gap).
+- GATE MEDIA lists the pier packs as manifests (607 references, 607 files).
+  `pier_deck` is baked and unused by the plan — a filler the game may want.
+- Gates: HOUSE (with --selftest) and MEDIA green. PROPS untouched: the
+  hangar's registry does not see the pier.
+
+### G250.1 — the tailwheel left standing on the runway (2026-09-11, 21:30; G240's, fixed here)
+
+The user's Cub (`Downloads/NewCub.json`) rolled out with its tailwheel unit
+standing on the strip metres behind the aeroplane. Bisected on the probe
+page (`tools/make_probe.js`, `__pump`, castor world position vs the TW node
+after roll-out): `0f55be6~1` 0.11 m (correct); **`0f55be6` (G237-G241 +
+G244, the hinges/actuators landing) 3.84 m; HEAD 4.0 m** — with this
+session's edits AND with the tank on the ring (no `VSN` nodes), the same
+number. The physics node stays within 4 cm of its rest through a whole
+departure on three builds; it is the DRAWN castor (`app.js castorRig`,
+`pivot + L − rest0`) that no longer lands on it. FIXED HERE AS G250.1: G240's cockpit-controls block in
+`poseModel` span the stick about the shared temporaries `vY`/`vZ` — the
+BODY BASIS that `nodeLocal` and the castor read AFTER it — so the
+tailwheel's z was projected onto the stick's second axis. The block has
+its own `vCtl`/`vCtl2` now; castor → node 0.114 m again, the wheel 0.05.
+
+## G253 — THE HOUSE LIGHTS UP: A GLOW PER VERTEX, A LAMP BY THE DOOR, A STRING
+## OF BULBS ON THE STAIR RAIL — AND THE FUZZER RUNS THE WHOLE BATTERY
+## (2026-09-11, the user: "Let's also generate lights. We could turn on
+## independently (or linked) interior lights (only the window textures to
+## become emissive), light lighting the porch and the front terrace, and little
+## lights along the ramps of the stairs, more like christmas lights wrapped
+## around the ramps (where one holds with its hand)")
+
+- **A GLOW IS A PER-VERTEX CHANNEL** beside the baked occlusion: `aHouseLit`,
+  0 for everything and, on the few faces that are a light SOURCE, an index into
+  the glass shader's small palette (1 warm interior, 2 red, 3 green, 4 blue, 5
+  amber). Per vertex rather than per material because a lit window and a dark
+  one are the same glass on the same wall, and a string of bulbs is one draw
+  call that wants five colours. `bag.setGlow(k)` before a face, `setGlow(0)`
+  after — which is how the door light, the dormer, the bay and the far mesh's
+  panes all came out right without a change of their own. In the shader a lit
+  pane adds emissive through the same slow field (a curtain, a lamp nearer one
+  side — twelve windows are not twelve identical rectangles) and loses most of
+  its reflection: a lit pane is a light, not a mirror.
+- **WHICH WINDOWS** (`winLink`): one switch, or each its own — hashed from the
+  window's OWN place on its wall and `lightSeed`, so the same house lights the
+  same rooms every build and the seed walks through the neighbours' habits.
+  `winLit` is a probability, not a count.
+- **NO LIGHT WITHOUT EMITTING GEOMETRY** (the aeroplane's rule, G96, kept). The
+  lamp is a bulkhead lantern on the wall beside the door — bracket, four corner
+  posts, cap and base in metal, four glass sides glowing warm — and it
+  PUBLISHES itself (`stats.lit.lights`: position, outward normal, colour,
+  reach); the bench stands a real point light in its glass, the game will too.
+  It lights the door, the deck and the wall it hangs on.
+- **THE STRING OF BULBS** along every flight's handrail cap and every landing's
+  rail: a bulb every quarter metre, each one a third of a turn round the rail
+  from the last so the string reads as a cord WOUND on the cap and not a row
+  of dots on top, the cord itself the thinnest beam in the kit. Warm white or
+  the four Christmas colours (`stringCol`).
+- **GATE HOUSE rule 29**: with the lights off, no glowing vertex, no lamp, no
+  bulb; on one switch, every pane; every published light has glowing glass
+  within 0.3 m of it; a railed stair has bulbs. And the selftest builds the
+  same house twice with only the switch between them.
+- **THE FUZZER RUNS THE WHOLE BATTERY NOW.** Rules 16-29 — the jetty, the
+  doors, the roof rims, the pier, the lights — lived inline in the preset loop,
+  so the forty random houses only ever met the measured-geometry rules, and a
+  lamp with no glass in it PASSED because no preset switches its lights on.
+  `battery(name, P)` is a function and the fuzzer calls it. It found three
+  real faults on its first run:
+  - a back door with no stoop two metres up (the sampler's `backPorch` was a
+    coin) — a back door forces its stoop now, like the front door its stair;
+  - THE LEAN-TO HAD NO FLOOR — walls, roof, legs and nothing to stand on,
+    see-through from below, and a door that opened into it opened onto air. It
+    has a slab at the house's floor line now and counts as a platform;
+  - two boats overlapping on one side of the pier: hulls are longer than runs,
+    so "a different run" was not "clear". A boat checks the boats already on
+    its side along z.
+- Gates: HOUSE (with --selftest; 29 rules, the fuzzer on all of them) and
+  MEDIA green.

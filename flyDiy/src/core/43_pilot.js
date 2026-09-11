@@ -219,6 +219,18 @@ function makePilot(sim, def, world, opts) {
   let aDe = 0, aDa = 0, aDr = 0, phCA = 0;
   let Ith = 0, thcI = 0.06, It = 0, thrC = 0.6;
   let thFlare0 = 0, thLift0 = 0, brakeRamp = 0, holdActive = false, holdWas = false;
+  // ROTATION AUTHORITY (2026-09-11). holdPitch's integrator is capped at
+  // 0.15 for the air; on the ground a high thrust line (a pusher pod 0.6 m
+  // above the CG) holds the nose down harder than P + 0.15 can lift it — the
+  // user's pusher was asked to rotate at 18 m/s and floated off at 33 after
+  // 25 s. While ROLL is asking for rotation and the wheels are down the cap
+  // opens to `rotateIMax` (the servo's own de limit is 0.35); it closes
+  // again at a rate, never in a step, so liftoff sees no jolt.
+  // ...and the integrator WINDS FASTER there (`rotateI`): pitchI is 0.05,
+  // 0.0075 rad/s at a 0.15 rad error — a pilot on the ground past Vr pulls
+  // until the nose comes up, and unwinds as it does. Off the ground both go
+  // back to the air's numbers.
+  let IthMax = 0.15, IthMaxT = 0.15, IthGain = null;
   let taxiI = 0, taxiLastT = -1e9;
   let thRest = null, thrRoll = 0, taxiXT = 0, taxiSRem = 0, tailUpNow = false;
   let eAP = 0, eAR = 0, eARslow = 0;
@@ -503,7 +515,7 @@ function makePilot(sim, def, world, opts) {
       eP = e; eR = eRslow = 0; eAP = eA; eAR = eARslow = 0;
       vsF = vcg[1]; thCA = thRaw; phCA = 0;
       aDe = sim.ctl.de; aDa = sim.ctl.da; aDr = sim.ctl.dr;
-      Ith = 0; It = 0; thcI = 0.06; thrC = A.thrCruise ?? 0.6;
+      Ith = 0; It = 0; thcI = 0.06; thrC = A.thrCruise ?? 0.6; IthMax = IthMaxT = 0.15; IthGain = null;
       eTrim = 0; brakeRamp = 0; holdWas = holdActive = false;
       ap.budget = Math.max(ap.budget, ap.t + 400);
     }
@@ -545,7 +557,8 @@ function makePilot(sim, def, world, opts) {
       holdActive = true;
       const sl = (A.pitchCmdSlew ?? 99) * dt;
       thCA += clamp(thC - thCA, -sl, sl);
-      Ith = clamp(Ith + (A.pitchI ?? 0.05) * (thCA - th) * dt, -0.15, 0.15);
+      IthMax += clamp(IthMaxT - IthMax, -0.10 * dt, 0.10 * dt);
+      Ith = clamp(Ith + (IthGain ?? (A.pitchI ?? 0.05)) * (thCA - th) * dt, -IthMax, IthMax);
       c.de = clamp((A.pitchP ?? 1.2) * (thCA - th) - (A.pitchD ?? 1.8) * q + Ith, -0.30, 0.35);
     };
     const airLateral = (bl = bankLim) => {
@@ -583,10 +596,19 @@ function makePilot(sim, def, world, opts) {
     const groundSteer = () => {
       const tailUp = rotateTD && onG <= 2 && thRest !== null && (thRest - th) > 0.04;
       const drMax = tailUp ? 0.95 : 0.45;
+      // A TRICYCLE'S STEER GAINS EASE WITH SPEED (2026-09-11). The taildragger
+      // branch below already schedules on (VTailUp/V)^2 once the tail is up;
+      // the trike ran the fixed 3.2 / 1.2 down the whole strip, and with the
+      // rudder's authority growing as V^2 (in the propwash on a pusher) on
+      // top of the nosewheel's, the loop crossed the rate estimate's lag at
+      // ~12 m/s: a 1.25 Hz weave, rudder on its stop, on the user's pusher.
+      // Same form, the trike's own reference speed (genAP VSteer, 0.6 VRot),
+      // and a floor measured on that build. Taildraggers: bit-identical.
+      const kS = trike ? clamp(((A.VSteer ?? 12) / Math.max(V, 5)) ** 2, A.steerMin ?? 0.30, 1.0) : 1;
       const kP = tailUp
         ? 3.2 * 1.4 * clamp(((A.VTailUp ?? 12) / Math.max(V, 5)) ** 2, 0.6, 2.0)
-        : 3.2;
-      const kD = tailUp ? 3.0 : 1.2;
+        : 3.2 * kS;
+      const kD = tailUp ? 3.0 : 1.2 * Math.sqrt(kS);
       c.dr = clamp(-kP * e - kD * eR, -drMax, drMax);
       // AILERON INTO THE WIND (2026-09-08) — the other half of a crosswind
       // ground roll, and the pilot had only the first. This held the wings
@@ -608,7 +630,15 @@ function makePilot(sim, def, world, opts) {
       // cross component. (Measured both ways on the fixture: with the sign
       // reversed the wander grew to 29 m; with this one it is 2.6 m.)
       const wX = -(o_.windX || 0) * F.uz + (o_.windZ || 0) * F.ux;
-      const phW = (A.xwBank ?? 0.06) * wX * clamp((A.VTailUp ?? 12) / Math.max(V, 6), 0.4, 1.6);
+      // On a tricycle the reference is VSteer, not VTailUp (99, which pinned
+      // the clamp at 1.6 and asked 8 deg of bank at 2 m/s — the aeroplane ran
+      // on one main from 15 m/s and left the strip 10 m off in the game's
+      // "wind 4 + gusts"). And on three wheels the bias is a token: a trike
+      // takes off wings-level and crabbed, the tyres hold it; the full
+      // wing-low bias belongs after the nosewheel is off.
+      const vRef = trike ? (A.VSteer ?? 12) : (A.VTailUp ?? 12);
+      let phW = (A.xwBank ?? 0.06) * wX * clamp(vRef / Math.max(V, 6), 0.4, 1.6);
+      if (trike && onG >= 3) phW = clamp(phW, -(A.xwBankGround ?? 0.035), A.xwBankGround ?? 0.035);
       c.da = clamp(-2.0 * (ph - phW) - 1.0 * p, -0.30, 0.30);
       tailUpNow = tailUp;
     };
@@ -1025,13 +1055,17 @@ function makePilot(sim, def, world, opts) {
                 : (threePoint || V < (A.VTailUp ?? 0)) ? (threePoint ? Math.min(thRest, A.liftoffTh) : (A.thTailUp ?? 0.02))
                 : (A.thTailUp ?? 0.02);
         } else if (V > vr) { vert = 'PITCH'; pitch = A.thRotate ?? A.liftoffTh; }
+        const rotating = vert === 'PITCH' && V > vr && onG > 0;
+        IthMaxT = rotating ? (A.rotateIMax ?? 0.30) : 0.15;
+        IthGain = rotating ? (A.rotateI ?? 0.8) : null;
         engage('RWY', vert, 'SET', { pitch, de: A.rollDe, thr: ap.t > 0.5 ? thrRoll : 0 });
         c.brake = 0;
-        if (onG === 0 && V > vr) { go('LIFTOFF'); thLift0 = th; }
+        if (onG === 0 && V > vr) { go('LIFTOFF'); thLift0 = th; IthMaxT = 0.15; IthGain = null; }
         break;
       }
 
       case 'ABORT': {
+        IthMaxT = 0.15; IthGain = null;
         engage('RWY', 'DE', 'SET', { thr: 0, de: trike ? 0.15 : (V > (A.VTailDown ?? A.VTailUp) ? -0.05 : 0.35) });
         brakeRamp = Math.min(brakeRamp + A.brakeRampRate * dt, A.brakeMax);
         c.brake = brakeRamp * Math.min(1, Math.max(0, (Vg - A.VBrakeRelease) / 2.0));

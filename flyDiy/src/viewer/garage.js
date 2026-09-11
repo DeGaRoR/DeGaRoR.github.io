@@ -808,27 +808,41 @@ function garageInit(api) {
   // down, nothing else. What FLIES, and what the visual is, still change only
   // when you roll out — exactly as before.
   let committing = false;
+  // WHO WANTS TO KNOW THE AEROPLANE CHANGED (2026-09-11). The balance
+  // readouts used to fire 300 ms after a BUILD and read this shelf — which
+  // the join only reaches through `commit` 900 ms after the same build — so
+  // the CG the panel showed was the previous edit's, and the amber post in
+  // the room moved only on roll-out. The readouts now hang off the commit
+  // itself: the spec as MERGED is the one thing worth computing on.
+  const onCommitFns = [];
+  function onCommit(fn) { if (typeof fn === 'function') onCommitFns.push(fn); }
   function commit() {
     if (committing) return false;
     const J = join();
     if (!J || !ed()) return false;
     committing = true;
+    let ok = false;
     try {
       spec = merge(spec, JSON.parse(JSON.stringify(J.export())));
       writeWip();
-      return true;
-    } catch (e) { return false; }
+      ok = true;
+    } catch (e) { ok = false; }
     finally { committing = false; }
+    if (ok) for (const fn of onCommitFns) { try { fn(); } catch (e) {} }
+    return ok;
   }
   // THE AUTOSAVE FOLLOWS THE SLIDER, AT A DISTANCE. A commit runs the whole
   // join, so it cannot ride every pixel of a drag — it rides the pause after
   // one. Without it a page reload still lost the polish, which is the same
   // bug wearing the WIP's clothes.
+  // 900 -> 400 ms (2026-09-11): the export is 8-16 ms measured, and the
+  // instruments the commit now feeds want the pause after a drag, not a
+  // second's grace on top of it.
   let touchT = null;
   function touch() {
     if (committing || !LS || typeof setTimeout !== 'function') return;
     if (touchT && typeof clearTimeout === 'function') clearTimeout(touchT);
-    touchT = setTimeout(() => { touchT = null; commit(); }, 900);
+    touchT = setTimeout(() => { touchT = null; commit(); }, 400);
   }
 
   // ---- the shelf --------------------------------------------------------
@@ -1265,7 +1279,7 @@ function garageInit(api) {
       // the editor's own doors into the shelf (2026-09-03): `touch` is the
       // debounced autosave a slider fires, `commit` the immediate one every
       // persist takes. See the note on `commit` above.
-      touch, commit, exportFile,
+      touch, commit, onCommit, exportFile,
       load: n => { const t = lsGet(SLOT + n); if (!t) return;
                    const g = unwrap(t); loadSpec(g.spec, n, g.plaque, g.log); },
     };

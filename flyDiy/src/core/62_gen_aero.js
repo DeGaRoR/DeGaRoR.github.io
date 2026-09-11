@@ -410,9 +410,17 @@ function genAP(S, Vs, mass) {
   // so the AP de-rotates onto the nosewheel instead of pinning a tailwheel.
   // VTailUp 99 disables the taildragger's tail-up logic outright (C172 fiche).
   const trike = S.gear.type === 'tricycle';
+  // VSteer (2026-09-11): the speed the nosewheel-steering loop is sized at.
+  // The taildragger's ground steer eases its gains as (VTailUp/V)^2 once the
+  // tail is up; a tricycle had VTailUp 99 and so ran FIXED gains down the
+  // whole strip while the rudder (V^2, in the propwash) and the nosewheel
+  // both answered the one command — a 1.25 Hz yaw limit cycle from 12 m/s
+  // on the user's pusher, rudder on its stop 27 times. The same crosswind
+  // bank bias, clamped on VTailUp/V, sat at its 1.6x cap and asked 8 deg of
+  // bank at 2 m/s. The pilot reads VSteer for both on a tricycle.
   const trikeAP = trike ? {
     rolloutMode: 'trike', VDerotate: Math.round(0.58 * GEN_VRATIO.VCruise * Vs),
-    rolloutTh: 0.035, VTailUp: 99,
+    rolloutTh: 0.035, VTailUp: 99, VSteer: Math.round(0.6 * V('VRot')),
   } : {};
   return Object.assign({
     VRot: V('VRot'), VClimbMin: V('VClimbMin'), VClimb: V('VClimb'),

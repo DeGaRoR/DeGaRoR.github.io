@@ -482,6 +482,15 @@
         "8367"
       ],
       "port": 8367
+    },
+    {
+      "name": "flydiy-cgpost",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8379"
+      ],
+      "port": 8379
     }
   ]
 }

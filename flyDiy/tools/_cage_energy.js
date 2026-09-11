@@ -978,6 +978,7 @@ PAGE.post = ctx => {
     if (!seeded && !loadPrefs()) fromSpec(null);
   }
   LAST.ctx = ctx;
+  hookCommit();
   // a new body: every bay is swept afresh. The same body: nothing is.
   const sig = bodySig(ctx);
   if (sig == null || sig !== BODY_SIG) { BAY_CACHES = {}; FIELD_L = {}; BODY_SIG = sig; }
@@ -1025,6 +1026,10 @@ function commit() {
     G.update(patch);
   } catch (e) { console.error('energy:', e); }
   scheduleReadouts(250);
+  // `update` rebuilds the aeroplane rather than committing the join, so the
+  // posts would fall back to the fresh sim's own CG — a second instrument
+  // for the same line, ~7 mm off the worker's. One source: ask the job.
+  balanceRequest();
 }
 
 // THE NUMBERS ARE READ WHEN THEY CAN BE SEEN (2026-09-04). balanceReadout is
@@ -1044,6 +1049,10 @@ function readoutsVisible() { return !!(panel && panel.open && readSeen); }
 function scheduleReadouts(ms) {
   readStale = true;
   if (!inGame() || !balEl) return;
+  // a BUILD (no ms) only marks the readouts stale once the commit is hooked:
+  // the commit re-schedules with 0 on the spec as merged. Explicit delays —
+  // the panel's own commit, the fill row — still run as asked.
+  if (ms == null && commitHooked) return;
   if (readT) clearTimeout(readT);
   readT = setTimeout(() => {
     readT = null;
@@ -1105,6 +1114,60 @@ function readoutCompute(job, core, BAL) {
   }
   return out;
 }
+// THE SLIM BALANCE JOB (2026-09-11): buildGen + ONE aero solve, on every
+// commit of the join, panel or no panel — it feeds the CG and NP posts in
+// the room (app.js refreshIndicators) and is what makes the amber line
+// follow a slider. `gearX` is the mains' axle station in the design frame,
+// the landmark the posts are placed from. Self-contained: it is stringified
+// into the worker beside readoutCompute.
+function balanceCompute(job, core) {
+  const t0 = Date.now();
+  const def = core.buildGen(job.spec);
+  const sh = core.genShakedown(def, { slim: true });
+  const P = def.parts || {};
+  let gearX = null;
+  if (P.GAL != null && P.GAR != null && def.nodes[P.GAL] && def.nodes[P.GAR])
+    gearX = 0.5 * (def.nodes[P.GAL].p[0] + def.nodes[P.GAR].p[0]);
+  return { kind: 'balance', cgX: sh.cgX, npX: sh.npX, staticMargin: sh.staticMargin,
+           cBar: sh.cBar, xLEmac: sh.xLEmac, mass: sh.mass, gearX, ms: Date.now() - t0 };
+}
+// ONE JOB IN FLIGHT (2026-09-11): a job is ~1 s in the worker and boot
+// commits three or four times, so posting every request queued seconds of
+// stale answers behind the one that mattered. A request while one is out
+// only marks `balPending`; the answer's arrival posts the newest spec.
+let balSeq = 0, balSeen = 0, balErr = null, balBusy = false, balPending = false, LAST_BAL = null;
+function balanceApply(r) {
+  if (!r || r.gearX == null) return;
+  LAST_BAL = r;
+  for (const fn of (window.BALANCE_LISTENERS || [])) { try { fn(r); } catch (e) {} }
+}
+function balanceDone() {
+  balBusy = false;
+  if (balPending) { balPending = false; balanceRequest(); }
+}
+function balanceRequest() {
+  if (!inGame() || !window.GARAGE_SPEC || !window.GARAGE_SPEC.get) return;
+  if (balBusy) { balPending = true; return; }
+  const job = { kind: 'balance', spec: window.GARAGE_SPEC.get(), seq: ++balSeq };
+  const w = readoutWorker();
+  if (w) { try { balBusy = true; w.postMessage(job); return; } catch (e) { balBusy = false; } }
+  if (typeof buildGen !== 'function' || typeof genShakedown !== 'function') return;
+  try { balanceApply(balanceCompute(job, { buildGen, genShakedown })); } catch (e) {}
+}
+// THE COMMIT IS THE TRIGGER (2026-09-11). Readouts used to fire 300 ms after
+// a build off a shelf the join reaches 900 ms after the same build — one
+// edit behind, always. `GARAGE_SPEC.onCommit` fires when the join's answer
+// is merged; both jobs run on that, and a build only marks the readouts
+// stale (see scheduleReadouts).
+let commitHooked = false;
+function hookCommit() {
+  if (commitHooked || !inGame()) return;
+  const G = window.GARAGE_SPEC;
+  if (!G || typeof G.onCommit !== 'function') return;
+  commitHooked = true;
+  G.onCommit(() => { balanceRequest(); scheduleReadouts(0); });
+  balanceRequest();   // a freshly loaded build gets its posts from the same source
+}
 function readoutWorker() {
   if (readWorker || readWorkerDead) return readWorker;
   try {
@@ -1117,16 +1180,24 @@ function readoutWorker() {
       'importScripts(' + JSON.stringify(base + 'tools/flight_core.js') + ');\n' +
       'const CORE = { buildGen, genShakedown, genSpecAtFuel };\n' +
       'const compute = ' + readoutCompute.toString() + ';\n' +
-      'self.onmessage = e => { const job = e.data; try { const r = compute(job, CORE, BAL); r.seq = job.seq; postMessage(r); }' +
-      ' catch (err) { postMessage({ seq: job.seq, error: String(err && err.stack || err) }); } };\n';
+      'const computeBal = ' + balanceCompute.toString() + ';\n' +
+      'self.onmessage = e => { const job = e.data; try { const r = job.kind === \'balance\' ? computeBal(job, CORE) : compute(job, CORE, BAL); r.seq = job.seq; postMessage(r); }' +
+      ' catch (err) { postMessage({ kind: job.kind, seq: job.seq, error: String(err && err.stack || err) }); } };\n';
     const url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
     const w = new Worker(url);
     w.onmessage = e => {
       const r = e.data;
+      if (r && r.kind === 'balance') {
+        balSeen++;
+        if (r.error) { balErr = r.error; console.warn('balance job: the worker could not compute —', r.error); }
+        else if (r.seq === balSeq) balanceApply(r);
+        balanceDone();
+        return;
+      }
       if (!r || r.seq !== readSeq) return;        // an older aeroplane's answer
       if (r.error) {
         console.warn('energy readouts: the worker could not compute, reading on the page instead —', r.error);
-        readWorkerDead = true; readWorker = null;
+        readWorkerDead = true; readWorker = null; balBusy = false;
         try { w.terminate(); } catch (e2) {}
         readoutsNow();
         return;
@@ -1135,7 +1206,7 @@ function readoutWorker() {
     };
     w.onerror = err => {
       console.warn('energy readouts: the worker failed, reading on the page instead —', err && err.message);
-      readWorkerDead = true; readWorker = null;
+      readWorkerDead = true; readWorker = null; balBusy = false;
       try { w.terminate(); } catch (e2) {}
       readoutsNow();
     };
@@ -1787,6 +1858,10 @@ window.CAGE_ENERGY = {
   panelFinish: lookElement,
   results: () => LAST.results, bays: () => BAYS,
   chart: () => LAST_CHART, view: VIEW,
+  // the slim balance job's state, for the probe page and the gates
+  balance: () => ({ last: LAST_BAL, seq: balSeq, seen: balSeen, err: balErr, hooked: commitHooked,
+                    worker: !!readWorker, workerDead: readWorkerDead }),
+  balanceRequest,
   // the part tree's two doors: the column asks for the panel, a viewport
   // click asks for one vessel of the list
   panel: panelElement,
