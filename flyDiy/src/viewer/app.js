@@ -1211,6 +1211,111 @@
   // band rather than flattened.
   const AERO_CLEAR = 1000;
   let TYRE_TEX = null;            // the tyre sheet does not depend on the spec
+  // THE LIVE CREW (2026-09-11, the user: "at least the pilot should remain an
+  // in-game skeleton, controllable"). Whoever holds a moving control crosses
+  // the join as a `people` record instead of a bake (G210.2's declared
+  // exception): here the character is INSTANCED again under the aeroplane,
+  // on the crew layer's own bare skeleton at the editor's solved pose, and
+  // every frame the SAME solver (CAGE_CREW.ik.solveGripJob) re-aims each
+  // hand and foot at its grip — which is a child of the stick, pedal or
+  // throttle group this loop already turns — then `dress` transfers the pose
+  // and the idle clip breathes over it. One pose engine, both sides of the
+  // join. Geometry, materials and textures are the editor's (shared per
+  // character key), so a live pilot costs the mesh's own vertices, skinned on
+  // the GPU, against ~5x that baked. Everything here is guarded on the
+  // record and on the crew layer being present: the smoke test's stub THREE
+  // has no Skeleton, and never needs one.
+  //
+  // THE SOLVE RUNS IN THE AEROPLANE'S OWN FRAME, NOT THE SCENE'S. Measured on
+  // the default build: `model.grp.matrix` is SHEARED by 3.7 deg (poseModel's
+  // basis is the body axis and the structure's up, and they are not
+  // perpendicular), which every drawn vertex wears invisibly — but a two-bone
+  // solve composes quaternions DECOMPOSED from world matrices, a shear has no
+  // quaternion, and the knee landed a centimetre off the editor's answer. So
+  // the skeleton that is solved is a DETACHED twin in grp-local space (its
+  // root has no parent, so three's world IS the aeroplane's frame), fed the
+  // controls' grp-local transforms through shadow groups; the drawn skeleton
+  // under grp takes the solved joint locals, and is what `dress` reads.
+  function buildPeople(data, grp, ctlMoves) {
+    const recs = data && data.cage && data.people;
+    const CC = window.CAGE_CHAR, CW = window.CAGE_CREW;
+    if (!recs || !recs.length || !data.cageM || !CC || !CW || !CW.ik) return null;
+    const mkFrame = parent => {          // the bake's cage -> model map
+      const f = new THREE.Group();
+      f.name = 'crewFrame';
+      f.matrixAutoUpdate = false;
+      f.matrix.set(...data.cageM);
+      parent.add(f);
+      return f;
+    };
+    const solverRoot = new THREE.Group();          // detached: grp-local space
+    const frame = mkFrame(grp), sFrame = mkFrame(solverRoot);
+    const out = [];
+    for (const r of recs) {
+      const rig = CC.rig(r.key);
+      if (!rig) continue;
+      const mkDum = (parent, nm) => {
+        const d = CW.ik.bareDummy(parent, rig);
+        d.fig.name = nm + r.idx;
+        new THREE.Matrix4().fromArray(r.figM)
+          .decompose(d.fig.position, d.fig.quaternion, d.fig.scale);
+        for (const bn in r.bones)
+          if (d.bones[bn]) d.bones[bn].quaternion.fromArray(r.bones[bn]);
+        d.fig.updateMatrixWorld(true);
+        return d;
+      };
+      const dum = mkDum(frame, 'flDum'), sDum = mkDum(sFrame, 'flSolve');
+      const jobs = [];
+      for (const j of r.jobs) {
+        const cm = (ctlMoves || []).find(m => m.c && m.c.name === j.ctl);
+        if (!cm) continue;
+        // the anchor, in the moving part's flown frame (the join measured
+        // it), under a SHADOW of the part that follows it in grp-local space
+        const sh = new THREE.Group();
+        solverRoot.add(sh);
+        const a = new THREE.Object3D();
+        a.position.fromArray(j.p); a.quaternion.fromArray(j.q);
+        if (j.grip) a.userData.grip = new THREE.Vector3().fromArray(j.grip);
+        sh.add(a);
+        jobs.push({ chain: j.chain, label: j.label, a, sh, part: cm.obj,
+                    ctx: { s: r.s, palm: r.palm, base: null, notes: null,
+                           poleFig: new THREE.Vector3().fromArray(j.poleFig) } });
+      }
+      const P = { key: r.key, dum, sDum, jobs, inst: null, fist: r.fist,
+                  anim: (r.anim && r.anim.amp > 0) ? r.anim : null };
+      out.push(P);
+      const go = () => {
+        if (P.dead) return;
+        const inst = CC.instance(r.key);
+        if (!inst) return;
+        CC.dress(inst, dum, { fist: r.fist, from: sDum });
+        P.inst = inst;
+        if (P.anim && CC.animLoad) CC.animLoad(P.anim.key);
+      };
+      // the pilot's bin is the editor's, already decoded: instance NOW, so
+      // the first flown frame has a pilot; a cold key lands when it lands
+      if (CC.ready(r.key)) go();
+      else CC.load(r.key).then(d => { if (d) go(); });
+    }
+    return out;
+  }
+  // ...and every frame, after the cockpit controls have moved
+  function stepPeople(model, now) {
+    const CC = window.CAGE_CHAR, CW = window.CAGE_CREW;
+    if (!model.people || !CC || !CW || !CW.ik) return;
+    for (const P of model.people) {
+      if (!P.inst) continue;
+      for (const j of P.jobs) {             // the parts, as they stand now
+        j.sh.position.copy(j.part.position);
+        j.sh.quaternion.copy(j.part.quaternion);
+        CW.ik.solveGripJob(P.sDum, j, j.ctx);
+      }
+      for (const bn in P.sDum.bones)        // solved locals -> the drawn twin
+        P.dum.bones[bn].quaternion.copy(P.sDum.bones[bn].quaternion);
+      CC.dress(P.inst, P.dum, { fist: P.fist, from: P.sDum });
+      if (P.anim && CC.animStep) CC.animStep(P.inst, now, P.anim);
+    }
+  }
   // curDef is only read on the GARAGE path: the generated payload is a function
   // of the very fiche the sim is running, so it must be that object and not a
   // second call to the builder.
@@ -2127,7 +2232,8 @@
     // station structure is a property of the fiche, so one delta buffer serves all
     const nz = rigs[0].bind.zs.length;
     const deltas = { P: new Float32Array(nz * 3), N: new Float32Array(nz * 3) };
-    const m = Object.assign(entry, { grp, props, rigs, deltas,
+    const people = buildPeople(data, grp, ctlMoves);   // live crew
+    const m = Object.assign(entry, { grp, props, rigs, deltas, people,
                         off: cfg.off,
                         // G179: the design CG in the rest body frame — what
                         // poseModel adds to land the CG-authored mesh on the
@@ -2495,6 +2601,8 @@
                        m.home[2] + c.slide[2] * t);
       }
     }
+    // ...and the live crew's hands and feet go where the controls went
+    if (model.people) stepPeople(model, performance.now() / 1000);
     // the CASTOR rides the tailwheel node (rigid offset axle→swivel) and
     // YAWS about its own raked axis with the rudder linkage — ground
     // manoeuvring, everything but the spring (user's spec). If it steers
@@ -2735,7 +2843,14 @@
       craft.remove(model.grp);
       // the generated model is rebuilt per spec change and never cached, so it
       // owns its GPU buffers and must give them back
-      if (model.gen) model.grp.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+      // (a live character's skinned geometry is SHARED with the editor's
+      // instance — the crew layer's own rule at PAGE.post — and stays)
+      if (model.gen) model.grp.traverse(o => {
+        if (o.geometry && !o.isSkinnedMesh) o.geometry.dispose(); });
+      if (model.people) for (const P of model.people) {
+        P.dead = true;
+        if (P.inst && window.CAGE_CHAR) window.CAGE_CHAR.dispose(P.inst);
+      }
     }
     model = buildModel(key, def);
     if (model) craft.add(model.grp);

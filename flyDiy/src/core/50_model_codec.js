@@ -257,11 +257,15 @@ function applyHinges(hb, surfaces, base, pos, ctl) {
 // The HUD keeps showing raw sim.ctl; physics is untouched.
 // ---------------------------------------------------------------------------
 function makeLinkage(tau) {
-  const s1 = { de: 0, da: 0, dr: 0, flap: 0 }, s2 = { de: 0, da: 0, dr: 0, flap: 0 };
+  // `thr` rides too (live crew): the throttle lever in the cockpit, and the
+  // hand on it, lag the way the stick does
+  const s1 = { de: 0, da: 0, dr: 0, flap: 0, thr: 0 },
+        s2 = { de: 0, da: 0, dr: 0, flap: 0, thr: 0 };
   return {
     step(ctl, dt) {
       const a = Math.min(1, dt / tau);
-      for (const k of ['de', 'da', 'dr', 'flap']) {
+      for (const k of ['de', 'da', 'dr', 'flap', 'thr']) {
+
         s1[k] += a * ((ctl[k] || 0) - s1[k]);
         s2[k] += a * (s1[k] - s2[k]);
       }

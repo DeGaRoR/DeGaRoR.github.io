@@ -1523,6 +1523,11 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // OBJECT and never the material, and MeshBasicMaterial's default colour
       // is white. Six white mannequins flew inside six people.
       if (matList.every(m => m && m.visible === false)) return;
+      // A LIVE OCCUPANT IS NOT BAKED (live crew, 2026-09-11): the crew layer
+      // stamps the skinned meshes of whoever flies as a skeleton, and they
+      // cross below as a `people` record instead — the one declared
+      // exception to the snapshot (G210.2 named it).
+      if (o.isSkinnedMesh && o.userData && o.userData.live) return;
       const geo = o.geometry, idx = geo.index;
       const p = geo.attributes.position, na = geo.attributes.normal;
       // A CHARACTER BAKES POSED (G210.2): its attributes are the bind pose,
@@ -2053,7 +2058,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       if (pt.kind === 'ctlMove' && pt.ctl && pt.axC) {
         const c = pt.ctl, A = pt.axC;
         const dirM = d => rotP(-d[2], d[1], d[0]);
-        out2.ctl = { ax: dirM(A.ax), drive: c.drive, sgn: c.sgn, k: c.k || 1 };
+        out2.ctl = { name: c.name,      // live crew: the anchors find it by name
+                     ax: dirM(A.ax), drive: c.drive, sgn: c.sgn, k: c.k || 1 };
         if (A.ax2) Object.assign(out2.ctl,
           { ax2: dirM(A.ax2), drive2: c.drive2, sgn2: c.sgn2, k2: c.k2 || 1 });
         if (A.slide) Object.assign(out2.ctl,
@@ -2089,8 +2095,49 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
                     slide: h.slide || null };
       }
     }
+    // THE LIVE CREW (2026-09-11): whoever the crew layer marked flies as a
+    // SKELETON. Everything the flown solve needs, in the frames app.js has:
+    // `cageM` is the bake's own cage -> model map as one matrix, `figM` the
+    // fig in the mount's frame, the solved ATD locals, and per job the grip
+    // anchor in its MOVING PART's flown frame (the part group sits at its
+    // pivot with the model's axes, so: the anchor in model axes, less the
+    // pivot) with the pole the editor chose, in the fig's frame.
+    // (row-major, Matrix4.set's order; figM is toArray's column-major)
+    const cageM = [0, -sB, -cB, 0,  0, cB, -sB, 0,  1, 0, 0, 0,  0, 0, 0, 1];
+    const people = [];
+    try {
+      const LIVE = (window.CAGE_CREW && window.CAGE_CREW.live) || [];
+      const MC = new THREE.Matrix4().set(...cageM).multiply(inv);
+      const A4 = new THREE.Matrix4(), G4 = new THREE.Matrix4(),
+            pa = new THREE.Vector3(), pg = new THREE.Vector3(),
+            qa = new THREE.Quaternion(), sa = new THREE.Vector3();
+      for (const dum of LIVE) {
+        const L = dum.live;
+        if (!L || !dum.fig || !dum.char) continue;
+        dum.fig.updateWorldMatrix(true, true);
+        const figM = new THREE.Matrix4().multiplyMatrices(inv, dum.fig.matrixWorld)
+          .toArray();
+        const bones = {};
+        for (const bn in dum.bones) bones[bn] = dum.bones[bn].quaternion.toArray();
+        const jobs = [];
+        for (const j of L.jobs) {
+          if (!j.ctl || !j.ctlObj || !j.poleFig) continue;
+          j.a.updateWorldMatrix(true, false);
+          A4.multiplyMatrices(MC, j.a.matrixWorld);
+          G4.multiplyMatrices(MC, j.ctlObj.matrixWorld);
+          A4.decompose(pa, qa, sa); pg.setFromMatrixPosition(G4);
+          jobs.push({ chain: j.chain, label: j.label, ctl: j.ctl,
+                      p: [pa.x - pg.x, pa.y - pg.y, pa.z - pg.z],
+                      q: qa.toArray(),
+                      grip: j.a.userData.grip ? j.a.userData.grip.toArray() : null,
+                      poleFig: j.poleFig.toArray() });
+        }
+        people.push({ key: L.key, role: L.role, idx: L.idx, s: L.s, palm: L.palm,
+                      fist: L.fist, anim: L.anim, figM, bones, jobs });
+      }
+    } catch (e) { console.warn('live crew:', e); }
     return { cage: true, groups, mats, off, pitch: beta, parts,
-             zRoot: 0, surfaces: null };
+             zRoot: 0, surfaces: null, cageM, people };
   };
   // ...and the view comes back, on the way out or on the way to a throw.
   const snapshot = spec => {

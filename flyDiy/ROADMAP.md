@@ -124,7 +124,10 @@ first ten minutes of play, and almost all of it is small.*
 > stick, the yoke and the pedals answer the same linkage. GATE HINGE, core
 > tier, negative-verified. The declared gap: a seated dummy's hand does not
 > follow the stick (the crew is posed by IK at build time and the flown model
-> has no skeleton) — the crew's own chantier.
+> has no skeleton) — the crew's own chantier. **CLOSED 2026-09-11 (G246):**
+> the pilot flies as a live skeleton and the hands follow the stick, the
+> throttle (a moving part now) and the pedals; see LIVE-CREW-2026-09-11.md
+> for the phases still open (figurants, passengers live, climbing out).
 
 > **2026-09-11 — THE EDGES (G244).** Three from one message, all the same
 > kind of thing: a trailing edge that was one face wide now carries a 7 mm

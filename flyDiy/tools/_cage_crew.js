@@ -591,13 +591,18 @@ function ctlShift(g, P, kx, ky, kz) {
 // publish it as a rigid part and the game can turn it by the same linkage
 // that turns the surfaces at the other end of the cable.
 //
-// THE DECLARED GAP, stated here because it is visible: a seated dummy's hand
-// is posed by IK at BUILD time against the grip where it then was, and the
-// flown model has no skeleton — so the hand does not follow the stick. In
-// cruise that is millimetres; at full deflection it is not. The cure is the
-// crew's own chantier (bake the forearm as its own part off the skin
-// weights), and it is named in HANDOVER rather than worked around here.
-let CTL_MOVING = [];
+// THE HAND FOLLOWS THE STICK (live crew, 2026-09-11): a seated dummy's hand
+// is posed by IK at BUILD time against the grip where it then is — and the
+// grip is a CHILD of the moving group, so in flight the pilot crosses the
+// join as a SKELETON (markLive / CAGE_CREW.live), app.js turns the same
+// group and re-runs solveGripJob against the grip where it now is. What
+// stays baked (passengers, an ATD) keeps G210.2's frozen pose.
+let CTL_MOVING = [], LIVE_CREW = [];
+// a throttle lever's full travel (rad, forward from the drawn idle) and a
+// push-pull rod's, as a fraction of its length
+// (the wall and quadrant levers are DRAWN leaning ~45 deg forward already,
+// so 25 deg more is a lever near flat at full — 35 was past it, measured)
+const THR_ARC = 25 * D2R, THR_PUSH = 0.45;
 function movingAt(parent, name, pivot, axis, drive, sgn, k, x2) {
   // TWO SEATS MEAN TWO STICKS, so the name carries an index when it has to.
   // The join matches parts BY NAME, and a duplicate would put both sticks on
@@ -775,10 +780,15 @@ function buildThrottleWall(g0, A, P, sx) {
   const LT = P.thrLen != null ? P.thrLen : 0.16;
   const ld = _nrm3([inb * 0.025, 0.11, 0.105]);
   const kn = _off3(piv, ld, LT);
-  tube(g, M.metal, piv, kn, 0.009);
-  ballAt(g, M.knob, kn, 0.026);
+  // THE THROTTLE ANSWERS TOO (live crew): the lever swings forward about
+  // its lateral pivot, drawn at idle, THR_ARC at full — and the grip rides
+  // inside the moving group, so the live pilot's hand goes with it
+  const gT = movingAt(g, 'edCtl_throttle', piv, [1, 0, 0], 'thr', 1, THR_ARC);
+  const K = inG(gT, kn);
+  tube(gT, M.metal, [0, 0, 0], K, 0.009);
+  ballAt(gT, M.knob, K, 0.026);
   // the lever is the grip axis
-  return { obj: gripAt(g, kn, [kn[0] - piv[0], kn[1] - piv[1], kn[2] - piv[2]]),
+  return { obj: gripAt(gT, K, [kn[0] - piv[0], kn[1] - piv[1], kn[2] - piv[2]]),
            label: 'throttle (wall)' };
 }
 function buildThrottleDash(g0, A, P, sx) {
@@ -790,13 +800,21 @@ function buildThrottleDash(g0, A, P, sx) {
   m.position.set(xT, yT, z0 - 0.006); m.rotation.x = Math.PI / 2;
   g.add(m);
   const LT = P.thrLen != null ? P.thrLen : 0.16;
-  tube(g, M.metal, [xT, yT, z0], [xT, yT, z0 - LT * 0.60], 0.007);
+  // a push-pull rod SLIDES (live crew): drawn pulled out at idle, it runs
+  // into the panel by THR_PUSH x its length at full — a slide-only part,
+  // the yoke's contract with a zero swing
+  const kp = [xT, yT, z0 - LT * 0.72];
+  const gT = movingAt(g, 'edCtl_throttle', kp, [0, 0, 1], 'thr', 0, 0,
+                      { slide: [0, 0, LT * THR_PUSH], slideDrive: 'thr',
+                        slideSgn: 1 });
+  tube(gT, M.metal, inG(gT, [xT, yT, z0]), inG(gT, [xT, yT, z0 - LT * 0.60]),
+       0.007);
   const k = new THREE.Mesh(
     new THREE.CylinderGeometry(0.026, 0.026, 0.030, 14), M.knob);
-  k.position.set(xT, yT, z0 - LT * 0.72); k.rotation.x = Math.PI / 2;
-  g.add(k);
+  k.rotation.x = Math.PI / 2;
+  gT.add(k);
   // a push-pull rod: the hand closes round the knob, axis along the rod
-  return { obj: gripAt(g, [xT, yT, z0 - LT * 0.72], [0, 0, 1]),
+  return { obj: gripAt(gT, [0, 0, 0], [0, 0, 1]),
            label: 'throttle (push-pull)' };
 }
 // THE CONSOLE BOX IS A SIDE-BY-SIDE FITTING (user 2026-08-19): with one
@@ -823,9 +841,12 @@ function buildConsole(g0, A, P, cx, withQuadrant, box) {
   const LT = P.thrLen != null ? P.thrLen : 0.16;
   const piv = [cx, yQ + 0.02, zQ - 0.02];
   const kn = _off3(piv, _nrm3([0, 0.17, 0.07]), LT);
-  tube(g, M.metal, piv, kn, 0.008);
-  ballAt(g, M.knob, kn, 0.024);
-  return { obj: gripAt(g, kn, [kn[0]-piv[0], kn[1]-piv[1], kn[2]-piv[2]]),
+  // the quadrant lever swings like the wall one (live crew)
+  const gT = movingAt(g, 'edCtl_throttle', piv, [1, 0, 0], 'thr', 1, THR_ARC);
+  const K = inG(gT, kn);
+  tube(gT, M.metal, [0, 0, 0], K, 0.008);
+  ballAt(gT, M.knob, K, 0.024);
+  return { obj: gripAt(gT, K, [kn[0]-piv[0], kn[1]-piv[1], kn[2]-piv[2]]),
            label: 'throttle (quadrant)' };
 }
 
@@ -1144,8 +1165,11 @@ const CHAINS = {
 // the grips; with a rig and `shells` false the amber shells are not built —
 // the skinned mesh dresses the skeleton instead (shells stay while the mesh
 // is still on the wire, so the seat is never empty).
-function makeDummy(parent, suitM, rig, shells) {
-  const suit = suitM || M.shell;
+// THE BARE SKELETON (LIVE CREW): the fig and its bone tree, nothing drawn.
+// makeDummy hangs the shells on it; the flown pilot (app.js) re-solves its
+// arms on one of these every frame, from the same rig offsets — the ONE pose
+// engine of G204, on both sides of the join.
+function bareDummy(parent, rig) {
   const fig = new THREE.Group();
   parent.add(fig);
   const bones = {};
@@ -1156,6 +1180,11 @@ function makeDummy(parent, suitM, rig, shells) {
     (par ? bones[par] : fig).add(b);
     bones[name] = b;
   });
+  return { fig, bones };
+}
+function makeDummy(parent, suitM, rig, shells) {
+  const suit = suitM || M.shell;
+  const { fig, bones } = bareDummy(parent, rig);
   const att = (bn, mesh) => { bones[bn].add(mesh); return mesh; };
   const jball = (bn, r) =>
     att(bn, new THREE.Mesh(new THREE.SphereGeometry(r, 14, 10), M.joint));
@@ -1348,6 +1377,87 @@ function anchorWorld(o) {
   return { p: o.getWorldPosition(new THREE.Vector3()),
            q: o.getWorldQuaternion(new THREE.Quaternion()) };
 }
+// ONE GRIP JOB, SOLVED (module scope since the live crew: seatDummy solves
+// it once at build, the flown pilot solves it again every frame against the
+// grip where the stick now IS). `j` = { chain, a (the anchor), label };
+// `ctx` = { s (stature scale), palm (m, already x s), elbows, knees (the
+// pole sliders), base (the FK fallback pose, or null), notes (or null),
+// poleFig (a frozen pole in the fig's frame, or null: derive it from the
+// current bend as the editor does) }. Returns the reach gap.
+const _pole = new THREE.Vector3();
+function solveGripJob(dum, j, ctx) {
+  const c = CHAINS[j.chain], s = ctx.s;
+  const pole = _pole;
+  if (ctx.poleFig) {
+    // the fig's world matrix is REFRESHED first: on a flying aeroplane it is
+    // a frame stale here (the renderer updates the tree after the pose), and
+    // a pole 33 cm behind the elbow bent the knee a centimetre off (measured)
+    dum.fig.updateWorldMatrix(true, false);
+    dum.fig.localToWorld(pole.copy(ctx.poleFig));
+  } else {
+    ikDefaultPole(dum, j.chain, pole);
+    const side = /L$/.test(c.end) ? 1 : -1;
+    if (c.arm) {                    // elbows: down + in/out slider
+      pole.y -= 0.22 * s;
+      pole.x += side * (0.03 + (ctx.elbows || 0)) * s;
+    } else {                        // knees: up-forward + in/out slider
+      pole.y += 0.10 * s; pole.z += 0.10 * s;
+      pole.x += side * (ctx.knees || 0) * s;
+    }
+    // the pole the editor chose, in the fig's frame: what the join carries
+    // so the flown solve bends the same elbow the same way
+    j.poleFig = dum.fig.worldToLocal(pole.clone());
+  }
+  const aw = anchorWorld(j.a);
+  // a GRIP solves its own hand orientation from the arm's approach;
+  // a fixed anchor (the feet) uses the orientation as authored
+  let alignQ = aw.q;
+  if (j.a.userData.grip) {
+    dum.bones[c.root].getWorldPosition(_gv);
+    alignQ = gripQuat(j.a, _gv, _gq);
+    // THE HAND HOLDS IT, NOT THE WRIST (user 2026-08-19): the IK end
+    // effector is the wrist JOINT, so a grip placed there put the
+    // control halfway up the forearm. Back the wrist off along the
+    // hand's own axis (its -y) by the palm offset, scaled with
+    // stature so a small dummy does not over-reach.
+    _hv.set(0, -1, 0).applyQuaternion(alignQ);
+    aw.p.addScaledVector(_hv, -ctx.palm);
+  }
+  const gap = ikSolve(dum, j.chain, aw.p, pole, alignQ);
+  // A NATURAL WRIST (G205, the user: 'natural wrist orientation'): the
+  // grip basis above was solved from the SHOULDER's approach, which
+  // twists the hand against the forearm the IK then placed. Solve it
+  // again from the ELBOW, so the hand continues the forearm and wraps
+  // the grip from where the arm really arrives.
+  if (j.a.userData.grip && gap <= 0.12) {
+    dum.bones[c.mid].getWorldPosition(_gv);
+    const q2 = gripQuat(j.a, _gv, _gq);
+    const wb = dum.bones[c.end];
+    wb.parent.getWorldQuaternion(_qp).invert();
+    wb.quaternion.copy(_qp.multiply(q2));
+    wb.updateMatrixWorld(true);
+  }
+  if (!ctx.notes) return gap;
+  // where the WRIST ended up against the grip it holds: the gap
+  // between them IS the palm offset, i.e. the proof the HAND and
+  // not the joint is on the control
+  { const w = new THREE.Vector3();
+    dum.bones[c.end].getWorldPosition(w);
+    j.wrist = [+w.x.toFixed(3), +w.y.toFixed(3), +w.z.toFixed(3)]; }
+  if (gap > 0.12) {
+    // hopeless stretch reads as a defect — fall back to the rest
+    // pose and let the readout carry the finding instead
+    if (ctx.base) for (const bn of [c.root, c.mid, c.end]) if (ctx.base[bn])
+      dum.bones[bn].rotation.set(ctx.base[bn][0] * D2R,
+        ctx.base[bn][1] * D2R, ctx.base[bn][2] * D2R);
+    dum.fig.updateMatrixWorld(true);
+    ctx.notes.push(c.label + ' OUT OF REACH ' + (gap * 100).toFixed(0)
+                   + 'cm (' + j.label + ')');
+  } else if (gap > 0.005)
+    ctx.notes.push(c.label + ' SHORT ' + (gap * 100).toFixed(1) + 'cm');
+  return gap;
+}
+
 
 // ---- LAYOUT ---------------------------------------------------------------
 // Everything the crew stands ON or reaches FOR comes from the resolved
@@ -1535,6 +1645,7 @@ if (typeof window !== 'undefined')
   };
 PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   CTL_MOVING = [];                     // G240: this build's moving controls
+  LIVE_CREW = [];                      // live crew: this build's skeletons
   if (window.CAGE_CHAR && window.CAGE_CHAR.clearAnims) window.CAGE_CHAR.clearAnims();
   if (group) {
     // a character's skinned geometry is SHARED across builds (_cage_char.js
@@ -1714,11 +1825,31 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
         const pax = role === 'pax';
         const amp = pax ? (P.paxIdle == null ? 1 : +P.paxIdle)
                         : (P.dumIdle == null ? 0.5 : +P.dumIdle);
+        // the clip spec is kept on the dummy: a LIVE occupant wears the same
+        // one in flight, stepped by the game loop instead of the ticker
+        dum.animSpec = { key: 'sitidle', mode: pax ? 'body' : 'head', amp,
+                         phase: (idx || 1) * 1.7 };
         if (window.CAGE_CHAR.animate && amp > 0)
-          window.CAGE_CHAR.animate(inst, { key: 'sitidle',
-            mode: pax ? 'body' : 'head', amp, phase: (idx || 1) * 1.7 });
+          window.CAGE_CHAR.animate(inst, dum.animSpec);
       }
     }
+    return dum;
+  };
+  // THE LIVE CREW: who crosses the join as a SKELETON instead of a bake.
+  // Policy 'controls' (the default): whoever holds a moving control — the
+  // pilot, a co-pilot with dual controls. 'all': everyone with a character.
+  // 'none': the G210.2 bake for all. A dev flag, not a design row.
+  const LIVE_POLICY = (typeof window !== 'undefined' && window.FLYDIY_CREW_LIVE)
+    || 'controls';
+  const markLive = (dum, CH, role, idx, s, jobs, ctx) => {
+    if (!dum.char || LIVE_POLICY === 'none') return dum;
+    if (LIVE_POLICY !== 'all' && !jobs.some(j => j.ctl)) return dum;
+    for (const m of dum.char.meshes) m.userData.live = true;
+    dum.live = { key: CH.key, role, idx: idx || 1, s, palm: ctx.palm,
+                 fist: P.dumFist == null ? 0.5 : +P.dumFist,
+                 anim: dum.animSpec || null,
+                 jobs: jobs.filter(j => j.ctl) };
+    LIVE_CREW.push(dum);
     return dum;
   };
   const seatDummy = (seat, ST, idx, pose) => {
@@ -1806,66 +1937,18 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
                grip: [+w.x.toFixed(3), +w.y.toFixed(3), +w.z.toFixed(3)] };
     }) };
     DBG.stations.push(rec);
-    const pole = new THREE.Vector3();
     const base = seatedPose(recline, false, SP.tilt);
+    const ctx = { s, palm: (P.dumHandGrip != null ? P.dumHandGrip : 0.075) * s,
+                  elbows: +P.dumElbows || 0, knees: +P.dumKnees || 0,
+                  base, notes, poleFig: null };
     const solveJob = j => {
-      const c = CHAINS[j.chain];
-      ikDefaultPole(dum, j.chain, pole);
-      const side = /L$/.test(c.end) ? 1 : -1;
-      if (c.arm) {                    // elbows: down + in/out slider
-        pole.y -= 0.22 * s;
-        pole.x += side * (0.03 + P.dumElbows) * s;
-      } else {                        // knees: up-forward + in/out slider
-        pole.y += 0.10 * s; pole.z += 0.10 * s;
-        pole.x += side * P.dumKnees * s;
-      }
-      const aw = anchorWorld(j.a);
-      // a GRIP solves its own hand orientation from the arm's approach;
-      // a fixed anchor (the feet) uses the orientation as authored
-      let alignQ = aw.q;
-      if (j.a.userData.grip) {
-        dum.bones[c.root].getWorldPosition(_gv);
-        alignQ = gripQuat(j.a, _gv, _gq);
-        // THE HAND HOLDS IT, NOT THE WRIST (user 2026-08-19): the IK end
-        // effector is the wrist JOINT, so a grip placed there put the
-        // control halfway up the forearm. Back the wrist off along the
-        // hand's own axis (its -y) by the palm offset, scaled with
-        // stature so a small dummy does not over-reach.
-        _hv.set(0, -1, 0).applyQuaternion(alignQ);
-        aw.p.addScaledVector(_hv,
-          -(P.dumHandGrip != null ? P.dumHandGrip : 0.075) * s);
-      }
-      const gap = ikSolve(dum, j.chain, aw.p, pole, alignQ);
-      // A NATURAL WRIST (G205, the user: 'natural wrist orientation'): the
-      // grip basis above was solved from the SHOULDER's approach, which
-      // twists the hand against the forearm the IK then placed. Solve it
-      // again from the ELBOW, so the hand continues the forearm and wraps
-      // the grip from where the arm really arrives.
-      if (j.a.userData.grip && gap <= 0.12) {
-        dum.bones[c.mid].getWorldPosition(_gv);
-        const q2 = gripQuat(j.a, _gv, _gq);
-        const wb = dum.bones[c.end];
-        wb.parent.getWorldQuaternion(_qp).invert();
-        wb.quaternion.copy(_qp.multiply(q2));
-        wb.updateMatrixWorld(true);
-      }
-      // where the WRIST ended up against the grip it holds: the gap
-      // between them IS the palm offset, i.e. the proof the HAND and
-      // not the joint is on the control
-      { const w = new THREE.Vector3();
-        dum.bones[CHAINS[j.chain].end].getWorldPosition(w);
-        j.wrist = [+w.x.toFixed(3), +w.y.toFixed(3), +w.z.toFixed(3)]; }
-      if (gap > 0.12) {
-        // hopeless stretch reads as a defect — fall back to the rest
-        // pose and let the readout carry the finding instead
-        for (const bn of [c.root, c.mid, c.end]) if (base[bn])
-          dum.bones[bn].rotation.set(base[bn][0] * D2R,
-            base[bn][1] * D2R, base[bn][2] * D2R);
-        dum.fig.updateMatrixWorld(true);
-        notes.push(c.label + ' OUT OF REACH ' + (gap * 100).toFixed(0)
-                   + 'cm (' + j.label + ')');
-      } else if (gap > 0.005)
-        notes.push(c.label + ' SHORT ' + (gap * 100).toFixed(1) + 'cm');
+      // WHICH MOVING PART HOLDS THE ANCHOR (live crew): the grip is authored
+      // inside the control's own moving group (G240), so the first ancestor
+      // the join knows as a ctlMove is the frame the flown hand follows
+      let o = j.a.parent;
+      while (o && !CTL_MOVING.some(m => m.name === o.name)) o = o.parent;
+      j.ctl = o ? o.name : null; j.ctlObj = o || null;
+      return solveGripJob(dum, j, ctx);
     };
     for (const j of jobs) solveJob(j);
     // HANDS ON THE KNEES (G205.2, the user: 'their hands are meant at
@@ -1891,7 +1974,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
       rec.jobs.push(...kneeJobs.map(j => ({ chain: j.chain, label: j.label,
         get wrist() { return j.wrist; } })));
     }
-    return dressed(dum, CH, role, idx);
+    return markLive(dressed(dum, CH, role, idx), CH, role, idx, s, jobs, ctx);
   };
   // THE ANCHORS GO OUT WITH IT (G96). The lighting layer needs exactly what
   // this layer spent its life working out — where the floor is, where the
@@ -1902,6 +1985,10 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     // for the join. Filled as they are drawn, so a station without a stick
     // publishes nothing rather than a part with no geometry.
     moving: CTL_MOVING,
+    // LIVE CREW: the dummies that fly as skeletons (see markLive), and the
+    // solver the flown side runs on them — the editor's own, not a copy
+    live: LIVE_CREW,
+    ik: { bareDummy, solveGripJob, anchorWorld, CHAINS },
     // G180: `section` (0 the cockpit, n the n-th bay behind it) and `filled`
     // ride out with each seat — the join reads the capacity, the occupancy
     // and the loading numbers off this one list

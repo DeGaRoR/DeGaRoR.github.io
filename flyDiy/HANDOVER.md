@@ -36867,3 +36867,74 @@ cockpit in, no tabs") are what this arc is.
 - Gates: HINGE (with --selftest, and the new trailing-edge rule), WINGSPLIT
   (re-blessed — the wing's own edge moved), FIT, PARTS, ENGMESH, COWL, ENGINE,
   SAVE, DESIGN, UISMOKE all green.
+
+## G246 — THE PILOT FLIES AS A SKELETON: THE HAND FOLLOWS THE STICK, THE
+## THROTTLE AND THE PEDALS (2026-09-11, the user: "at least the pilot should
+## remain an in-game skeleton, controllable [...] we should be able to
+## generalize the use of rigged humans")
+
+The study first (futureDesigns/LIVE-CREW-2026-09-11.md has the whole of it),
+because one fact turned the question over: the editor and the flight page are
+ONE bundle, so the character instancer, `dress`, the animator and the
+analytic two-bone `ikSolve` were already on the flight page — nothing to
+port. And the grip anchor is authored as a CHILD of the control's moving
+group (G240), so a mirror of that group turned in flight moves the job's
+target with it. What was missing was a join contract and a per-frame call.
+
+- **ONE POSE ENGINE, BOTH SIDES OF THE JOIN.** `_cage_crew.js` factors the
+  bone tree out of `makeDummy` (`bareDummy`) and the job closure out of
+  `seatDummy` (`solveGripJob`, module scope, the editor calls it exactly as
+  before), records per job its enclosing moving part (`j.ctl`) and the pole
+  it chose in the fig's frame (`j.poleFig`, frozen), marks who is LIVE
+  (`markLive`: policy `window.FLYDIY_CREW_LIVE`, default `'controls'` —
+  whoever holds a moving control; `'all'` / `'none'` — a dev flag, not a
+  row), and publishes `CAGE_CREW.live` and `CAGE_CREW.ik`. The join skips
+  the live skinned meshes and emits `people[]` + `cageM` (the bake's own
+  cage→model map as one matrix) — plain data, no THREE at module scope.
+  app.js `buildPeople` instances the character again on a bare skeleton at
+  the editor's solved pose, hangs a grip anchor per job on the moving part,
+  and `stepPeople` (after the ctlMoves block in poseModel) re-solves,
+  dresses and breathes it every frame. `makeLinkage` carries `thr`.
+- **THE THROTTLE ANSWERS TOO**: `edCtl_throttle` in all three builders — the
+  wall and quadrant levers swing 25° forward about their lateral pivot (35°
+  put a lever drawn 45° forward nearly flat, measured), the push-pull rod
+  slides 0.45 of its length into the panel (the yoke's slide contract with a
+  zero swing).
+- **THE SOLVE RUNS IN THE AEROPLANE'S FRAME, NOT THE SCENE'S** — the finding.
+  Measured on the default build: `model.grp.matrix` is SHEARED by 3.7°
+  (`sim.axes()` is the body axis and the structure's up, xA·yU = 0.065).
+  Every drawn vertex wears it invisibly; a two-bone solve composes
+  quaternions DECOMPOSED from world matrices, a shear has no quaternion, and
+  the knee landed a centimetre off the editor's answer. The solved skeleton
+  is a DETACHED twin in grp-local space (root without a parent: three's
+  world IS the aeroplane's frame) fed the parts' grp-local transforms through
+  shadow groups; the drawn twin under `model.grp` takes the locals, and
+  `dress(inst, dum, {from: twin})` reads orientations off the orthonormal
+  one. The Mixamo hand then sits on the ATD wrist to 0.1 mm at every
+  deflection, and the flown neutral reproduces the editor's solve to the
+  readout's rounding. THE SHEAR ITSELF is poseModel's (G54.2) and is left as
+  found — whether the visual should ride an orthonormalised basis is a
+  ruling for the flight side.
+- **Measured** (probe page, default build, Ch20): stick full aft moves the
+  knob 15 cm aft / 5.5 cm down, wrist→grip 0.0923 → 0.0859 m (palm 0.0742:
+  the same 1–2 cm reach margin the editor has for this rig); full left 15 cm
+  lateral, 0.0901; rudder moves each pedal 3.5 cm and the feet follow;
+  throttle full, the hand follows the lever. Neutral, idle off: 4e-11 drift
+  over 2 s; idle on: Neck/Head/Spine2/Spine1 move as in the editor. The step
+  costs under 0.2 ms a frame (solve ×4 0.02, dress 0.08, skeleton 0.05);
+  draw calls unchanged; the pilot's ~100 k baked vertices are 27 k skinned.
+  Verified in rendered frames through the side window: neutral, full aft,
+  throttle idle and full.
+- **Gates**: core battery green (JOIN, BUILD, VIEW, SAVE, PARTS, UISMOKE,
+  SKINMAT, MEDIA among them); index.html 5.54 MiB of the 6 MiB budget.
+- **Open** (the design doc's phases): figurants on the same instancer in the
+  world frame (`people.js`; the TEXTURE BUDGET ruling comes first — ~55 MB of
+  PNG and ~170 MB of GPU per new character key), passengers live (the flag),
+  climbing out (door state + egress path + a transition no Mixamo clip
+  provides; its own doc). Owed and now visible: the neck clip for the
+  interior view, `dress`'s ~150 allocations a frame before a cabin goes live.
+- **Traps**: the game loop never ran in the hidden Browser pane once the rAF
+  shim was installed AFTER boot (the pending real rAF never fires) — use
+  `tools/make_probe.js` and `__pump`; the AP owns `sim.ctl` in flight, so a
+  control sweep is a patch on `ap.update`; `worldToLocal` through the sheared
+  grp is exact (an inverse), decomposition is not.

@@ -308,12 +308,18 @@ function dress(inst, dum, opts) {
     dum.fig.add(t.root);
     t.root.position.copy(R.hipsOff).negate();
   }
-  dum.fig.updateWorldMatrix(true, false);
-  dum.fig.getWorldQuaternion(_fq).invert();
+  // WHOSE ORIENTATIONS (live crew): `opts.from` is a skeleton with the same
+  // bones in the same fig frame to READ from — the flown pilot's solver twin,
+  // which lives in an orthonormal frame where the aeroplane's drawn group is
+  // sheared (app.js buildPeople), so the world quaternions decomposed here
+  // are exact. The tree stays under `dum.fig`, where it is drawn.
+  const src = opts.from || dum;
+  src.fig.updateWorldMatrix(true, false);
+  src.fig.getWorldQuaternion(_fq).invert();
   // ATD bone world -> fig frame, once per mapped bone
   const atdQ = {};
   for (const k in MAP) {
-    const b = dum.bones[k];
+    const b = src.bones[k];
     if (!b) continue;
     atdQ[MAP[k]] = _fq.clone().multiply(b.getWorldQuaternion(new THREE.Quaternion()));
   }
@@ -444,39 +450,47 @@ function animate(inst, spec) {
   if (!ticking) { ticking = true; requestAnimationFrame(tick); }
 }
 function clearAnims() { LIVE.clear(); }
+// ONE INSTANCE, ONE MOMENT (live crew): the clip's deviation from its mean,
+// layered over `baseQ` — what `tick` does for the editor's LIVE set on rAF,
+// and what the flown pilot's loop calls synchronously AFTER its IK and
+// dress, so the order (solve, transfer, breathe) is the loop's and not the
+// scheduler's. `spec` overrides inst.anim; returns whether anything moved.
+function animStep(inst, now, spec) {
+  const sp = spec || inst.anim;
+  if (!sp) return false;
+  const a = ANIMS().anims[sp.key], dec = ADEC[sp.key];
+  if (!a || !dec || !inst.baseQ) { if (a && !dec) animLoad(sp.key); return false; }
+  const t = now + (sp.phase || 0);
+  const R = inst.rig, objs = inst.tree.objs;
+  if (sp.mode === 'body') {
+    const names = BODY_SET.concat(a.joints.filter(n => /Hand(Thumb|Index|Middle|Ring|Pinky)/.test(n)));
+    for (const n of names) {
+      const i = R.byBase[n], ji = a._ji[n];
+      if (i == null || ji == null) continue;
+      _qm.fromArray(a._mean, ji * 4).invert();
+      animSample(a, dec, ji, t, _qd).premultiply(_qm);
+      _qb.identity().slerp(_qd, sp.amp);
+      objs[i].quaternion.copy(inst.baseQ[i]).multiply(_qb);
+    }
+  } else {
+    for (const n in HEAD_SET) {
+      const i = R.byBase[n], ji = a._ji[n];
+      if (i == null || ji == null) continue;
+      // deviation from the clip's mean pose, in the joint's own frame
+      _qm.fromArray(a._mean, ji * 4).invert();
+      animSample(a, dec, ji, t, _qd).premultiply(_qm);
+      _qb.identity().slerp(_qd, sp.amp * HEAD_SET[n]);
+      objs[i].quaternion.copy(inst.baseQ[i]).multiply(_qb);
+    }
+  }
+  return true;
+}
 function tick() {
   if (!LIVE.size) { ticking = false; return; }
   requestAnimationFrame(tick);
   const now = performance.now() / 1000;
   let moved = false;
-  for (const inst of LIVE) {
-    const sp = inst.anim, a = ANIMS().anims[sp.key], dec = ADEC[sp.key];
-    if (!a || !dec || !inst.baseQ) continue;
-    const t = now + (sp.phase || 0);
-    const R = inst.rig, objs = inst.tree.objs;
-    if (sp.mode === 'body') {
-      const names = BODY_SET.concat(a.joints.filter(n => /Hand(Thumb|Index|Middle|Ring|Pinky)/.test(n)));
-      for (const n of names) {
-        const i = R.byBase[n], ji = a._ji[n];
-        if (i == null || ji == null) continue;
-        _qm.fromArray(a._mean, ji * 4).invert();
-        animSample(a, dec, ji, t, _qd).premultiply(_qm);
-        _qb.identity().slerp(_qd, sp.amp);
-        objs[i].quaternion.copy(inst.baseQ[i]).multiply(_qb);
-      }
-    } else {
-      for (const n in HEAD_SET) {
-        const i = R.byBase[n], ji = a._ji[n];
-        if (i == null || ji == null) continue;
-        // deviation from the clip's mean pose, in the joint's own frame
-        _qm.fromArray(a._mean, ji * 4).invert();
-        animSample(a, dec, ji, t, _qd).premultiply(_qm);
-        _qb.identity().slerp(_qd, sp.amp * HEAD_SET[n]);
-        objs[i].quaternion.copy(inst.baseQ[i]).multiply(_qb);
-      }
-    }
-    moved = true;
-  }
+  for (const inst of LIVE) if (animStep(inst, now)) moved = true;
   // the game's loop renders every frame; the standalone bench draws on demand
   if (moved && !window.CAGE_IN_GAME && window.CAGE_UI && window.CAGE_UI.draw)
     window.CAGE_UI.draw();
@@ -501,5 +515,5 @@ function flatMaterial(key, mi) {
 
 window.CAGE_CHAR = { MAP, list: () => REG().order.map(k => REG().chars[k]),
   rig, load, ready, instance, dress, dispose, flatMaterial,
-  animLoad, animate, clearAnims, anims: () => ANIMS().order.slice() };
+  animLoad, animate, animStep, clearAnims, anims: () => ANIMS().order.slice() };
 })();
