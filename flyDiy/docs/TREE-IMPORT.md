@@ -248,10 +248,33 @@ the W0e question. The ladder still matters where density goes up by the
 order of magnitude Ursoy wants, and it is already what lets the fill draw a
 real tree at all.
 
+**The mix and the density (W0c.5).** Every tree — woodland and fill — is dealt
+a series by the bench's rule: `place.dead` of them snags, and of the living
+`TREE_MIX.furnished` specimen and the rest stand-shaped. `furnished` is **1.0**
+on the user's ruling (only full-foliage trees show); the stand series is baked,
+planted and waiting behind that one number. Each series has its own impostor
+atlas per side, so a dead tree at 500 m is a dead tree. The fill's near meshes
+are partitioned on the CPU like the woodland's — at a 3.2 m grid the shader
+band alone was 90 ms, the partition 54. Density is `window.TREE_FILL.set(ng)`,
+grid points per 1024 m chunk, re-gridded live:
+
+| NG | spacing | frame (RTX 3080, 1920×1080, densest stand) | near fill instances |
+|---|---|---|---|
+| 112 | 9.1 m | 25 ms | 5 200 |
+| **160** | **6.4 m** | **31 ms** | 10 800 |
+| 224 | 4.6 m | 36 ms | 21 400 |
+| 320 | 3.2 m | 54 ms | 43 600 |
+
+The strip, with no near tree at all, is 17–21 ms: the trees are a third of the
+frame at 224 and half at 320. What the dense stand exposes is not the count but
+the **shading**: looking into the low sun a Lambert leaf card with no wrap and
+no translucency is black, and a closed canopy is mostly backlit cards. The
+bench's `LEAF_GLSL` (wrap + SSS on a Standard material with the environment) is
+the answer and is not in the game's `trees.js` yet.
+
 **Not done.** `render_world.js`'s own impostor bake is still the baked-photograph
 kind the bench replaced (§6 trap 0) — harmless while its `SUN` is a constant,
-wrong the day there is a time of day. The snag series is baked and not yet
-planted (`place.dead` is the dial for it). The larch impostor is thinner than
+wrong the day there is a time of day. The leaf shading above. The larch impostor is thinner than
 its geometry (0.47x the covered pixels, and the gain saturates — that one wants
 tile resolution). Bushes and grass are the next kinds through this same door.
 See `futureDesigns/WORLD-V2.md` §8.3 and the W0c–W0e rows of the staging plan.

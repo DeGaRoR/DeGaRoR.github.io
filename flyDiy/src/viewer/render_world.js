@@ -942,6 +942,16 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // wearing the part's map and cutoff and the rung's band - measured from the
     // CG, because the sun's shadow camera follows the aircraft, not the eye.
     const LOD_R = [150, 300, NEAR_R];
+    // ================= W0c.5: THE MIX ======================================
+    // Which SERIES a tree is drawn as. The bench's rule, ported: a fraction is
+    // dead (the collection's own `place.dead`), and of the living, `furnished`
+    // are the specimen tree and the rest the stand-shaped one. Set to 1.0 for
+    // now on the user's ruling - only full-foliage trees show - and left as a
+    // dial because the stand series is baked, planted and waiting.
+    const TREE_MIX = { furnished: 1.0 };
+    if (typeof window !== 'undefined') window.TREE_MIX = TREE_MIX;
+    const SERIES = ['rungs', 'stand', 'snag'];        // index = series id
+    const seriesOf = (r, dead) => r < dead ? 2 : (r - dead) / Math.max(1e-6, 1 - dead) < TREE_MIX.furnished ? 0 : 1;
     // reachable from the console so the bands can be tuned and A/B'd live:
     // TREE_LOD_R[0] = 450 puts every near tree on L0, which is the "before"
     if (typeof window !== 'undefined') window.TREE_LOD_R = LOD_R;
@@ -955,22 +965,30 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // the shader stays as the seam guard between refreshes.
     const LOD_TICK = 10, LOD_MOVE = 25;     // refresh every 10 frames or 25 m
     function partitionChunk(rec, cg) {
-      const n = rec.n, pos = rec.pos, mats = rec.mats;
-      const k = [0, 0, 0];
+      const n = rec.n, pos = rec.pos, mats = rec.mats, ser = rec.ser;
+      const R = rec.bands || LOD_R, nb = R.length;
+      const k = rec.rungs.map(() => R.map(() => 0));
       for (let i = 0; i < n; i++) {
         const dx = pos[i * 3] - cg[0], dy = pos[i * 3 + 1] - cg[1], dz = pos[i * 3 + 2] - cg[2];
         const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
-        const b = d < LOD_R[0] ? 0 : d < LOD_R[1] ? 1 : d < LOD_R[2] ? 2 : -1;
+        let b = -1;
+        for (let j = 0; j < nb; j++) if (d < R[j]) { b = j; break; }
         if (b < 0) continue;
-        rec.buf[b].set(mats.subarray(i * 16, i * 16 + 16), k[b] * 16);
-        k[b]++;
+        const si = ser[i];
+        rec.buf[si][b].set(mats.subarray(i * 16, i * 16 + 16), k[si][b] * 16);
+        k[si][b]++;
       }
-      for (let b = 0; b < 3; b++) for (const m of rec.rungs[b]) {
-        if (k[b]) m.instanceMatrix.array.set(rec.buf[b].subarray(0, k[b] * 16));
-        m.count = k[b];
-        m.instanceMatrix.needsUpdate = true;
-      }
+      for (let si = 0; si < rec.rungs.length; si++)
+        for (let b = 0; b < nb; b++) for (const m of rec.rungs[si][b]) {
+          const c = k[si][b];
+          if (c) m.instanceMatrix.array.set(rec.buf[si][b].subarray(0, c * 16));
+          m.count = c; m.visible = c > 0;
+          m.instanceMatrix.needsUpdate = true;
+        }
     }
+    const parkChunk = rec => {
+      for (const S of rec.rungs) for (const b of S) for (const m of b) { m.count = 0; m.visible = false; }
+    };
     const BAND_GLSL = (edgeExpr) =>
       'if (' + edgeExpr + ' < uNearB || ' + edgeExpr + ' >= uFarB) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);';
     // the draw material: chained onto whatever the part already carries
@@ -1064,7 +1082,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       if (typeof treeWarm !== 'function' || typeof treeMapsReady !== 'function')
         return (treeSettled = Promise.reject(new Error('no tree loader')));
       treeSettled = treeWarm().then(() => {
-        for (const ser of ['rungs', 'stand'])
+        for (const ser of SERIES)
           for (const re of [PICK_CONIF, PICK_BROAD]) {
             const k = treePick(re), S = treeList().find(e => e.key === k).sub;
             const n = (S[ser] && S[ser].length) ? S[ser].length : S.rungs.length;
@@ -1087,7 +1105,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // and the registers, OURS only - the streamer's entries stay
       for (const list of [nearChunks, impChunks])
         for (let i = list.length - 1; i >= 0; i--) if (list[i].own) list.splice(i, 1);
-      ladderChunks.length = 0;
+      // the fill's records live in the same register: leave them
+      for (let i = ladderChunks.length - 1; i >= 0; i--) if (ladderChunks[i].own) ladderChunks.splice(i, 1);
 
       PROTO = null;
       if (typeof treeReady === 'function' && treeReady() && typeof treeBuild === 'function') {
@@ -1096,17 +1115,28 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           // rung the payload has for the specimen series, dressed with its
           // band - a pack that ships a deeper chain keeps its extra rungs in
           // the last band
+          // ONE LADDER PER SERIES. The specimen and the stand have three
+          // rungs in the payload's bands; the snag has one, spanning the whole
+          // near tier. Each series also keeps its L0 parts for its own
+          // impostor bake - a snag seen from 500 m is a snag, not a fir.
           const withLadder = key => {
             const S = treeList().find(e => e.key === key).sub;
-            const n = Math.min(S.rungs.length, LOD_R.length);
-            const ladder = [];
-            for (let r = 0; r < n; r++) {
-              const B = treeBuild(THREE, key, r, 'rungs');
-              const near = r ? LOD_R[r - 1] : 0, far = (r === n - 1) ? NEAR_R : LOD_R[r];
-              ladder.push({ near, far, parts: B.parts.map(q => ({
-                geo: q.geo, mat: bandMat(q.mat, near, far), depth: bandDepth(q.mat, near, far) })) });
+            const col = treeList().find(e => e.key === key).col;
+            const out = { series: [], dead: (col.place && col.place.dead) || 0 };
+            for (const ser of SERIES) {
+              const list = (S[ser] && S[ser].length) ? S[ser] : S.rungs;
+              const n = Math.min(list.length, LOD_R.length);
+              const ladder = [];
+              for (let r = 0; r < n; r++) {
+                const B = treeBuild(THREE, key, r, ser);
+                const near = r ? LOD_R[r - 1] : 0, far = (r === n - 1) ? NEAR_R : LOD_R[r];
+                ladder.push({ near, far, parts: B.parts.map(q => ({
+                  geo: q.geo, mat: bandMat(q.mat, near, far), depth: bandDepth(q.mat, near, far) })) });
+              }
+              const B0 = treeBuild(THREE, key, 0, ser);
+              out.series.push({ name: ser, ladder, parts: B0.parts, scaleY: B0.scaleY || 1 });
             }
-            return Object.assign({ ladder }, treeBuild(THREE, key, 0, 'rungs'));
+            return Object.assign(out, { parts: out.series[0].parts });
           };
           PROTO = { conif: withLadder(treePick(PICK_CONIF)),
                     broad: withLadder(treePick(PICK_BROAD)) };
@@ -1116,10 +1146,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         // the chunk sphere trick applies to a real tree exactly as to a cone —
         // and chunkBounds is also what stashes userData.shape, which the
         // impostor bake reads for its ortho extent
-        for (const P of [PROTO.conif, PROTO.broad])
-          for (const R of P.ladder) for (const q of R.parts) chunkBounds(q.geo, CHW);
-        for (const P of [PROTO.conif, PROTO.broad])
-          for (const R of P.ladder) for (const q of R.parts) plantedKit.push(q.depth);
+        for (const P of [PROTO.conif, PROTO.broad]) for (const S of P.series)
+          for (const R of S.ladder) for (const q of R.parts) { chunkBounds(q.geo, CHW); plantedKit.push(q.depth); }
       }
 
     // 3D tier: collapse every instance past NEAR_R. View-space length IS the
@@ -1152,11 +1180,19 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // Impostors carry NO trunk: 1.9 m tall and 0.4 m wide is a fifth of a pixel
     // at 450 m, which is the same argument that already switched trunks off at
     // 900 m — and a brown trunk cannot ride a per-species tint anyway.
-    const impCone = bakeImpostorAtlas(PROTO ? PROTO.conif.parts : coneGeo);
-    const impBlob = bakeImpostorAtlas(PROTO ? PROTO.broad.parts : blobGeo);
     const impQuadW = impQuad(CHW);
-    const impConeMatW = impostorMat(impCone, FAR_WOOD), impBlobMatW = impostorMat(impBlob, FAR_WOOD);
-    plantedKit.push(impCone.tex, impBlob.tex, impConeMatW, impBlobMatW, trunkMat, canopyMat);
+    // one atlas per SERIES per side: the far band of a dead tree is a dead tree
+    const impMats = side => {
+      const P = PROTO ? PROTO[side] : null;
+      const srcs = P ? P.series.map(S => S.parts) : [side === 'conif' ? coneGeo : blobGeo];
+      return srcs.map(src => {
+        const at = bakeImpostorAtlas(src), m = impostorMat(at, FAR_WOOD);
+        plantedKit.push(at.tex, m);
+        return m;
+      });
+    };
+    const impConeMatW = impMats('conif'), impBlobMatW = impMats('broad');
+    plantedKit.push(trunkMat, canopyMat);
     for (const cell of cells.values()) {
       const ox = (cell.cx + 0.5) * CHW, oz = (cell.cz + 0.5) * CHW;
       const conif = cell.list.filter(t => t.sp < 2), broad = cell.list.filter(t => t.sp >= 2);
@@ -1167,103 +1203,107 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         if (shadow) { m.castShadow = true; m.receiveShadow = true; }
         return m;
       };
+      const hd = CHW * Math.SQRT1_2;        // chunk half-diagonal
       // a real tree carries its own trunk as a PART, so the shared trunk
       // cylinder is only built for the fallback
       const trunks = PROTO ? null : mk(trunkGeo, trunkMat, cell.list.length, false);
-      // every rung of the ladder, one InstancedMesh per part, each carrying
-      // the SAME instances - the band in the material picks which rung draws
-      const rungMeshes = (P, n) => {
-        const out = [];
-        for (const R of P.ladder) for (const q of R.parts) {
-          const m = mk(q.geo, q.mat, n, true);
-          if (!m) continue;
-          m.customDepthMaterial = q.depth;
-          m.userData.far = R.far;
-          out.push(m);
-        }
-        return out;
-      };
-      const cMesh = PROTO ? rungMeshes(PROTO.conif, conif.length)
-                          : [mk(coneGeo, canopyMat, conif.length, true)];
-      const bMesh = PROTO ? rungMeshes(PROTO.broad, broad.length)
-                          : [mk(blobGeo, canopyMat, broad.length, true)];
-      // the partition records: every instance's matrix and world position,
-      // and the three buckets it can land in
-      const mkRec = (list, meshes) => {
+
+      // ONE SIDE OF THE CHUNK: conifer or broadleaf. Every series gets its own
+      // rung meshes and its own impostor mesh, all at capacity n - which series
+      // an instance is drawn as is decided once, by the mix, and the rung by the
+      // partition as the aircraft moves. A series nobody was assigned to costs
+      // one empty mesh per part and is never submitted.
+      const side = (list, P, impM, fallbackGeo) => {
         const n = list.length;
-        const rec = { n, mats: new Float32Array(n * 16), pos: new Float32Array(n * 3),
-                      buf: [0, 1, 2].map(() => new Float32Array(n * 16)),
-                      rungs: [[], [], []], x: ox, z: oz };
-        for (const m of meshes) if (m) rec.rungs[LOD_R.indexOf(m.userData.far)].push(m);
-        return rec;
-      };
-      const cRec = PROTO && conif.length ? mkRec(conif, cMesh) : null;
-      const bRec = PROTO && broad.length ? mkRec(broad, bMesh) : null;
-      const cImp = mk(impQuadW, impConeMatW, conif.length, false);
-      const bImp = mk(impQuadW, impBlobMatW, broad.length, false);
-      let ci = 0, bi = 0;
-      cell.list.forEach((T, i) => {
-        const w = T.r, sp = T.sp;
-        q.setFromAxisAngle(up, w * 6.283);
-        pv.set(T.x - ox, T.h - 0.05, T.z - oz);        // chunk-local
-        sv.set(T.s * (0.86 + w * 0.28), T.s * (0.9 + w * 0.3), T.s * (0.86 + w * 0.28));
-        if (sp === 1) { sv.x *= 0.78; sv.z *= 0.78; sv.y *= 1.15; }        // pine: tall, narrow
-        else if (sp === 3) sv.multiplyScalar(0.82);                        // birch: slighter
-        else if (sp === 4) { sv.y *= 0.72; sv.x *= 1.18; sv.z *= 1.18; }   // willow: low, wide
-        m4.compose(pv, q, sv);
-        if (trunks) trunks.setMatrixAt(i, m4);
-        // a baked tree wears its own colour; tinting it again would paint one
-        // green over the whole stand
-        if (PROTO) c3.setRGB(1, 1, 1);
-        else c3.copy(SPC[sp][0]).lerp(SPC[sp][1], w);
-        // the impostor shares the instance matrix and the species colour: the
-        // atlas is white, so this IS what keeps the mid band the same forest
-        if (sp < 2) {
-          for (const m of cMesh) if (m) { m.setMatrixAt(ci, m4); m.setColorAt(ci, c3); }
-          if (cRec) { m4.toArray(cRec.mats, ci * 16); cRec.pos.set([T.x, T.h, T.z], ci * 3); }
-          cImp.setMatrixAt(ci, m4); cImp.setColorAt(ci, c3); ci++;
-        } else {
-          for (const m of bMesh) if (m) { m.setMatrixAt(bi, m4); m.setColorAt(bi, c3); }
-          if (bRec) { m4.toArray(bRec.mats, bi * 16); bRec.pos.set([T.x, T.h, T.z], bi * 3); }
-          bImp.setMatrixAt(bi, m4); bImp.setColorAt(bi, c3); bi++;
+        if (!n) return null;
+        if (!P) {                                            // the cone
+          const m = mk(fallbackGeo, canopyMat, n, true);
+          m.customDepthMaterial = treeDepth;
+          const mi = mk(impQuadW, impM[0], n, false);
+          return { n, meshes: [m], imps: [mi], rec: null, ser: null };
         }
-      });
-      for (const m of [trunks].concat(cMesh, bMesh, [cImp, bImp])) {
+        const ser = new Uint8Array(n);
+        const cnt = [0, 0, 0];
+        list.forEach((T, i) => { ser[i] = seriesOf(T.r, P.dead); cnt[ser[i]]++; });
+        const rec = { n, mats: new Float32Array(n * 16), pos: new Float32Array(n * 3), ser,
+                      buf: [], rungs: [], x: ox, z: oz, own: true };
+        const meshes = [], imps = [];
+        P.series.forEach((S, si) => {
+          rec.buf.push([0, 1, 2].map(() => new Float32Array(cnt[si] * 16)));
+          rec.rungs.push([[], [], []]);
+          if (!cnt[si]) { imps.push(null); return; }
+          for (const R of S.ladder) for (const q of R.parts) {
+            const m = mk(q.geo, q.mat, cnt[si], true);
+            m.customDepthMaterial = q.depth;
+            m.count = 0; m.visible = false;
+            m.userData.ser = si;              // which series, for the probes
+            rec.rungs[si][LOD_R.indexOf(R.far)].push(m);
+            meshes.push(m);
+          }
+          const mi = mk(impQuadW, impM[si], cnt[si], false);
+          mi.userData.ser = si;
+          imps.push(mi);
+        });
+        return { n, meshes, imps, rec, ser, cnt, scaleY: P.series.map(S => S.scaleY) };
+      };
+      const C = side(conif, PROTO && PROTO.conif, impConeMatW, coneGeo);
+      const B = side(broad, PROTO && PROTO.broad, impBlobMatW, blobGeo);
+
+      const fill = (H, list) => {
+        if (!H) return;
+        const at = [0, 0, 0];                              // per-series write index
+        list.forEach((T, i) => {
+          const w = T.r, sp = T.sp;
+          q.setFromAxisAngle(up, w * 6.283);
+          pv.set(T.x - ox, T.h - 0.05, T.z - oz);        // chunk-local
+          sv.set(T.s * (0.86 + w * 0.28), T.s * (0.9 + w * 0.3), T.s * (0.86 + w * 0.28));
+          if (sp === 1) { sv.x *= 0.78; sv.z *= 0.78; sv.y *= 1.15; }        // pine: tall, narrow
+          else if (sp === 3) sv.multiplyScalar(0.82);                        // birch: slighter
+          else if (sp === 4) { sv.y *= 0.72; sv.x *= 1.18; sv.z *= 1.18; }   // willow: low, wide
+          const si = H.ser ? H.ser[i] : 0;
+          // the stand series is drawn stretched - the dial, not the bake
+          if (H.scaleY) sv.y *= H.scaleY[si];
+          m4.compose(pv, q, sv);
+          if (trunks) trunks.setMatrixAt(i, m4);
+          // a baked tree wears its own colour; tinting it again would paint one
+          // green over the whole stand
+          if (PROTO) c3.setRGB(1, 1, 1);
+          else c3.copy(SPC[sp][0]).lerp(SPC[sp][1], w);
+          if (H.rec) {
+            // the partition record, indexed as the SERIES sees it
+            m4.toArray(H.rec.mats, i * 16);
+            H.rec.pos.set([T.x, T.h, T.z], i * 3);
+            const j = at[si]++;
+            const mi = H.imps[si];
+            mi.setMatrixAt(j, m4); mi.setColorAt(j, c3);
+            for (const band of H.rec.rungs[si]) for (const m of band) m.setColorAt(j, c3);
+          } else {
+            for (const m of H.meshes) { m.setMatrixAt(i, m4); m.setColorAt(i, c3); }
+            H.imps[0].setMatrixAt(i, m4); H.imps[0].setColorAt(i, c3);
+          }
+        });
+      };
+      fill(C, conif); fill(B, broad);
+
+      const all = [trunks];
+      for (const H of [C, B]) if (H) all.push(...H.meshes, ...H.imps);
+      for (const m of all) {
         if (!m) continue;
         m.instanceMatrix.needsUpdate = true;
         if (m.instanceColor) m.instanceColor.needsUpdate = true;
         scene.add(m);
         planted.push(m);
       }
-      // the fallback's canopy needs the shared cutout depth material; a real
-      // tree's parts carry their own alphaTest and three.js derives it
-      if (!PROTO) for (const m of cMesh.concat(bMesh)) if (m) m.customDepthMaterial = treeDepth;
-      // Chunk-level visibility on top of the per-instance collapse: a 3D chunk
-      // whose NEAREST corner is past NEAR_R holds nothing but collapsed
-      // instances, and an off chunk costs nothing at all — not even the
-      // vertex shader, and not the shadow pass either.
-      const hd = CHW * Math.SQRT1_2;        // chunk half-diagonal
-      // a rung is only SUBMITTED for chunks that can hold a live instance of
-      // it: the fine rungs' vertex work stays with the chunks under the eye
+      // the partitioned meshes are managed by the partition alone (visibility
+      // included); the fallback and the impostors ride the chunk registers
       if (PROTO) {
-        for (const rec of [cRec, bRec]) if (rec) {
-          // nothing is drawn until the first partition places it; the seam
-          // guard in the shader makes a stale bucket harmless, not a wrong one
-          for (const b of rec.rungs) for (const m of b) m.count = 0;
-          ladderChunks.push(rec);
-        }
-        const byFar = new Map();
-        for (const m of cMesh.concat(bMesh)) {
-          const f = m.userData.far;
-          if (!byFar.has(f)) byFar.set(f, []);
-          byFar.get(f).push(m);
-        }
-        for (const [f, ms] of byFar)
-          nearChunks.push({ m: ms, x: ox, z: oz, r: f + hd, own: true });
+        for (const H of [C, B]) if (H && H.rec) ladderChunks.push(H.rec);
       } else {
-        nearChunks.push({ m: [trunks].concat(cMesh, bMesh), x: ox, z: oz, r: NEAR_R + hd, own: true });
+        nearChunks.push({ m: [trunks].concat(C ? C.meshes : [], B ? B.meshes : []),
+                          x: ox, z: oz, r: NEAR_R + hd, own: true });
       }
-      impChunks.push({ m: [cImp, bImp], x: ox, z: oz, r: FAR_WOOD + hd, own: true });
+      impChunks.push({ m: (C ? C.imps : []).concat(B ? B.imps : []).filter(Boolean),
+                       x: ox, z: oz, r: FAR_WOOD + hd, own: true });
     }
     }                                     // ---- end plantWoodland
 
@@ -1282,10 +1322,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         const reach = NEAR_R + CHW * Math.SQRT1_2;
         for (const rec of ladderChunks) {
           const dx = rec.x - cg[0], dz = rec.z - cg[2];
-          if (dx * dx + dz * dz > reach * reach) {
-            for (const b of rec.rungs) for (const m of b) m.count = 0;
-            continue;
-          }
+          if (dx * dx + dz * dz > reach * reach) { parkChunk(rec); continue; }
           partitionChunk(rec, cg);
         }
       }
@@ -1316,7 +1353,20 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // hitch (~3 -> 12 ms); at 2x it lands near 6 ms, which the burst budget
     // below still hides.
     {
-      const CH = 1024, NG = 112, SP2 = CH / NG, R_ACT = FAR_FILL + 100, R_DROP = FAR_FILL + 800;
+      // DENSITY IS A DIAL. NG is the fill grid per 1024 m chunk: 112 is the
+      // W17 number (9.1 m spacing, ~11 000/km² before dropout), and a closed
+      // conifer stand is 30-60 000/km². window.TREE_FILL.set(ng) re-grids
+      // live - every chunk is evicted and regenerates - so the density the
+      // machine can carry is measured, not guessed. The per-chunk cost is per
+      // grid POINT, so the streamer's budget below is what hides a bigger NG.
+      const CH = 1024, R_ACT = FAR_FILL + 100, R_DROP = FAR_FILL + 800;
+      // 160 (6.4 m, ~21 000/km² before dropout): MEASURED on the RTX 3080 at
+      // 1920x1080 in the densest stand, the frame with the specimen L2 in the
+      // fill runs 25 ms at 112, 31 at 160, 36 at 224, 54 at 320 - against 17-21
+      // at the strip with no near tree at all. 160 is where dense reads as
+      // dense and the frame is still the game's; the dial is there to push it.
+      const FILL = { ng: 160 };
+      let NG = FILL.ng, SP2 = CH / NG;
       const bins = new Map();              // collidable trees in 128 m bins:
       world.trees.forEach((T, i) => {      // prefilter + species inheritance
         const k = Math.floor(T.x / 128) * 4096 + Math.floor(T.z / 128);
@@ -1364,10 +1414,14 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // as the woodland: the shapes live in a holder `gen` reads, the cone is
       // what it holds at boot, and when the payload lands the holder is
       // rebuilt and every live chunk evicted so it regenerates with the tree.
+      // W0c.5: one shape per SERIES per side, the same mix as the woodland -
+      // the fill's near band draws the CHEAPEST rung of whichever series the
+      // instance was dealt, and its far band that series' own atlas
       const SHAPE = { conif: null, broad: null, kit: [] };
-      const shapeFallback = (geo, tint) => ({
-        parts: [{ geo, mat: matF }], imp: impostorMat(bakeImpostorAtlas(geo), FAR_FILL),
-        white: false, scaleY: 1,
+      const shapeFallback = geo => ({
+        dead: 0, series: [{ parts: [{ geo, mat: matF }],
+                            imp: impostorMat(bakeImpostorAtlas(geo), FAR_FILL), scaleY: 1 }],
+        white: false,
       });
       function setShapes() {
         for (const k of SHAPE.kit) if (k && k.dispose) k.dispose();
@@ -1375,28 +1429,35 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         let real = null;
         if (typeof treeReady === 'function' && treeReady() && typeof treeBuild === 'function') {
           try {
-            // the cheapest stand rung each subject has - a pack that ships a
-            // deeper chain would hand a coarser one, and that is the point
-            const cheapest = key => {
+            // the cheapest rung each series has - a pack that ships a deeper
+            // chain hands a coarser one, and that is the point
+            const cheapest = (key, ser) => {
               const S = treeList().find(e => e.key === key).sub;
-              const n = (S.stand && S.stand.length) ? S.stand.length : S.rungs.length;
-              return treeBuild(THREE, key, n - 1, 'stand');
+              const list = (S[ser] && S[ser].length) ? S[ser] : S.rungs;
+              return treeBuild(THREE, key, list.length - 1, ser);
             };
-            real = { conif: cheapest(treePick(PICK_CONIF)),
-                     broad: cheapest(treePick(PICK_BROAD)) };
+            const forKey = key => {
+              const col = treeList().find(e => e.key === key).col;
+              return { dead: (col.place && col.place.dead) || 0, white: true,
+                       series: SERIES.map(ser => { const B = cheapest(key, ser);
+                         return { parts: B.parts, scaleY: B.scaleY || 1, imp: null }; }) };
+            };
+            real = { conif: forKey(treePick(PICK_CONIF)), broad: forKey(treePick(PICK_BROAD)) };
           } catch (e) { real = null; }
         }
         for (const side of ['conif', 'broad']) {
           if (real) {
-            const B = real[side];
-            B.parts.forEach(q => chunkBounds(q.geo, CH));
-            const imp = impostorMat(bakeImpostorAtlas(B.parts), FAR_FILL);
-            SHAPE[side] = { parts: B.parts, imp, white: true, scaleY: B.scaleY || 1 };
-            SHAPE.kit.push(imp);
+            const H = real[side];
+            for (const S of H.series) {
+              S.parts.forEach(q => chunkBounds(q.geo, CH));
+              S.imp = impostorMat(bakeImpostorAtlas(S.parts), FAR_FILL);
+              SHAPE.kit.push(S.imp);
+            }
+            SHAPE[side] = H;
           } else {
             const sh = shapeFallback(side === 'conif' ? coneF : blobF);
             SHAPE[side] = sh;
-            SHAPE.kit.push(sh.imp);
+            SHAPE.kit.push(sh.series[0].imp);
           }
         }
         return !!real;
@@ -1424,47 +1485,77 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
                                                 : (hsh(ix + 9, iz + 1) * 5) | 0;
           recs[sp < 2 ? 0 : 1].push(x, h, z, sp, hsh(ix + 2, iz + 8));
         }
-        const meshes = [], near = [], imp = [];
+        const meshes = [], near = [], imp = [], recsOut = [];
         const ox = (cx + 0.5) * CH, oz = (cz + 0.5) * CH;
         recs.forEach((r, broadish) => {
           const n = r.length / 5;
           if (!n) return;
           const SH = broadish ? SHAPE.broad : SHAPE.conif;
-          // one InstancedMesh per PART: a real tree is a bark part and a leaf
-          // part with their own materials, where the cone was one geometry
-          const ms = SH.parts.map(pq => new THREE.InstancedMesh(pq.geo, pq.mat, n));
-          const mi = new THREE.InstancedMesh(impQuadF, SH.imp, n);
-          for (const mm of ms) mm.position.set(ox, 0, oz);
-          mi.position.set(ox, 0, oz);
+          // deal every instance its series first, so each series' meshes are
+          // sized to what they will hold and nothing empty is submitted
+          const ser = new Uint8Array(n), cnt = SH.series.map(() => 0);
+          for (let i = 0; i < n; i++) {
+            ser[i] = SH.series.length > 1 ? seriesOf(r[i * 5 + 4], SH.dead) : 0;
+            cnt[ser[i]]++;
+          }
+          // one InstancedMesh per PART per series: a real tree is a bark part
+          // and a leaf part with their own materials, where the cone was one.
+          // THE NEAR MESHES ARE PARTITIONED ON THE CPU like the woodland's:
+          // measured at 1 060 000 fill instances a collapsed instance still
+          // costs its vertex shader, and that was 90 ms a frame. So the record
+          // below holds every instance and the near mesh carries only the ones
+          // inside NEAR_R, re-sorted on the cadence; the impostor mesh carries
+          // them all, because it is the band beyond.
+          const perSer = SH.series.map((S, si) => cnt[si] ? {
+            ms: S.parts.map(pq => { const m = new THREE.InstancedMesh(pq.geo, pq.mat, cnt[si]);
+                                    m.count = 0; m.visible = false; return m; }),
+            mi: new THREE.InstancedMesh(impQuadF, S.imp, cnt[si]), at: 0 } : null);
+          const rec = { n, mats: new Float32Array(n * 16), pos: new Float32Array(n * 3), ser,
+                        bands: [NEAR_R], buf: SH.series.map((S, si) => [new Float32Array(cnt[si] * 16)]),
+                        rungs: SH.series.map((S, si) => [perSer[si] ? perSer[si].ms : []]), x: ox, z: oz };
+          perSer.forEach((P, si) => { if (P) for (const mm of P.ms.concat([P.mi])) {
+            mm.position.set(ox, 0, oz); mm.userData.ser = si; mm.userData.fill = true; } });
           for (let i = 0; i < n; i++) {
             const o = i * 5, sp = r[o + 3], w = r[o + 4];
+            const si = ser[i], P = perSer[si], S = SH.series[si];
             q.setFromAxisAngle(up, w * 6.283);
             const s = [1.15, 1.0, 1.1, 0.9, 0.85][sp] * (0.62 + w * 0.55);
             pv.set(r[o] - ox, r[o + 1] - 0.05, r[o + 2] - oz);
             // the stand series is drawn stretched - the dial, not the bake
-            sv.set(s, s * (0.9 + w * 0.25) * SH.scaleY, s);
+            sv.set(s, s * (0.9 + w * 0.25) * S.scaleY, s);
             m4.compose(pv, q, sv);
             // a baked tree wears its own colour (see the woodland layer)
             if (SH.white) c3.setRGB(1, 1, 1);
             else c3.copy(SPC[sp][0]).lerp(SPC[sp][1], w * 0.85);
-            for (const mm of ms) { mm.setMatrixAt(i, m4); mm.setColorAt(i, c3); }
-            mi.setMatrixAt(i, m4); mi.setColorAt(i, c3);
+            const j = P.at++;
+            m4.toArray(rec.mats, i * 16);
+            rec.pos.set([r[o], r[o + 1], r[o + 2]], i * 3);
+            // the matrix is written here too, although the partition will
+            // overwrite it: the capacity slot then holds a real tree, which is
+            // what GATE WORLDRENDER's cull-sphere check reads
+            for (const mm of P.ms) { mm.setMatrixAt(j, m4); mm.setColorAt(j, c3); }
+            P.mi.setMatrixAt(j, m4); P.mi.setColorAt(j, c3);
           }
-          for (const mm of ms.concat([mi])) {
-            mm.instanceMatrix.needsUpdate = true;
-            if (mm.instanceColor) mm.instanceColor.needsUpdate = true;
-            scene.add(mm); meshes.push(mm);
+          recsOut.push(rec);
+          for (const P of perSer) if (P) {
+            for (const mm of P.ms.concat([P.mi])) {
+              mm.instanceMatrix.needsUpdate = true;
+              if (mm.instanceColor) mm.instanceColor.needsUpdate = true;
+              scene.add(mm); meshes.push(mm);
+            }
+            for (const mm of P.ms) near.push(mm);
+            imp.push(P.mi);
           }
-          for (const mm of ms) near.push(mm);
-          imp.push(mi);
         });
         // both tiers are built once, per chunk, from the same records; which one
         // you see is the per-instance band in the shader, and which one is even
         // SUBMITTED is these two registrations (dropped again on eviction)
-        const reg = [{ m: near, x: ox, z: oz, r: NEAR_R + hdF },
-                     { m: imp, x: ox, z: oz, r: FAR_FILL + hdF }];
-        nearChunks.push(reg[0]); impChunks.push(reg[1]);
-        return { meshes, reg };
+        // the near meshes are the partition's (visibility included); only
+        // the impostors ride the chunk register
+        const reg = [{ m: imp, x: ox, z: oz, r: FAR_FILL + hdF }];
+        impChunks.push(reg[0]);
+        for (const rec of recsOut) ladderChunks.push(rec);
+        return { meshes, reg, recs: recsOut };
       }
       // when the payload lands: new shapes, and every live chunk regenerates
       // through the streamer's own eviction path rather than a second one
@@ -1476,6 +1567,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
               let i = nearChunks.indexOf(r2); if (i >= 0) nearChunks.splice(i, 1);
               i = impChunks.indexOf(r2); if (i >= 0) impChunks.splice(i, 1);
             }
+            for (const rec of (c2.meshes.recs || [])) {
+              const i = ladderChunks.indexOf(rec); if (i >= 0) ladderChunks.splice(i, 1);
+            }
           }
           chunks.delete(k);
         }
@@ -1483,6 +1577,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       };
       if (typeof treeReady === 'function' && !treeReady())
         treeSettle().then(() => { if (setShapes()) evictAll(); }).catch(() => {});
+      if (typeof window !== 'undefined')
+        window.TREE_FILL = { get: () => FILL.ng,
+          set: ng => { FILL.ng = NG = Math.max(16, Math.min(320, ng | 0)); SP2 = CH / NG; evictAll(); return NG; } };
       let tick = 0;
       fillUpdate = cg => {
         if (tick++ % 12) return;           // ~0.2 s cadence
@@ -1523,6 +1620,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             for (const r of c2.meshes.reg) {   // or lodUpdate keeps poking dead meshes
               let i = nearChunks.indexOf(r); if (i >= 0) nearChunks.splice(i, 1);
               i = impChunks.indexOf(r); if (i >= 0) impChunks.splice(i, 1);
+            }
+            for (const rec of (c2.meshes.recs || [])) {
+              const i = ladderChunks.indexOf(rec); if (i >= 0) ladderChunks.splice(i, 1);
             }
           }
           chunks.delete(k);

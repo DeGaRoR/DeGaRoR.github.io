@@ -86,8 +86,12 @@ const PMREM = { n: 0, args: null, disposed: false };
 class InstancedMesh extends Obj3 {
   constructor(geometry, material, count) {
     super(); this.isInstancedMesh = true; this.geometry = geometry; this.material = material;
-    this.count = count; this.mats = new Array(count).fill(null);
-    this.instanceMatrix = { needsUpdate: false }; this.instanceColor = { needsUpdate: false };
+    // `count` is the LIVE count and the CPU partition moves it every few
+    // frames (W0c.4/5); `capacity` is what was planted, and it is capacity the
+    // two-tier invariants below are about
+    this.count = count; this.capacity = count; this.mats = new Array(count).fill(null);
+    this.instanceMatrix = { needsUpdate: false, array: new Float32Array(count * 16) };
+    this.instanceColor = { needsUpdate: false };
     CREATED.push(this);
   }
   setMatrixAt(i, m) { this.mats[i] = [m.elements[12], m.elements[13], m.elements[14]]; }
@@ -97,6 +101,8 @@ class InstancedMesh extends Obj3 {
 class Mat4 {
   constructor() { this.elements = new Array(16).fill(0); }
   compose(p) { this.elements[12] = p.x; this.elements[13] = p.y; this.elements[14] = p.z; return this; }
+  // the CPU partition keeps every instance's matrix in a flat record
+  toArray(a, o) { for (let i = 0; i < 16; i++) a[(o || 0) + i] = this.elements[i]; return a; }
   makeRotationY() { return this; } identity() { return this; }
 }
 class Col {
@@ -126,6 +132,12 @@ const ctx2d = () => new Proxy({}, {
 global.document = { createElement: () => ({ width: 0, height: 0, getContext: ctx2d }) };
 const THREE = {
   Vector3: V3, Matrix4: Mat4, Color: Col, Quaternion: class { setFromAxisAngle() { return this; } },
+  // the impostor bake saves and restores the renderer's viewport and scissor
+  // through these (a tile viewport left behind is what drew the whole game in
+  // a 128 px square), so the stub carries them
+  Vector4: class { constructor(x, y, z, w) { this.x = x || 0; this.y = y || 0; this.z = z || 0; this.w = w || 0; }
+                   set(x, y, z, w) { this.x = x; this.y = y; this.z = z; this.w = w; return this; }
+                   copy(v) { return this.set(v.x, v.y, v.z, v.w); } },
   Group: Obj3, Mesh: class extends Obj3 { constructor(g, m) { super(); this.isMesh = true;
     this.geometry = g; this.material = m; CREATED.push(this); } },
   InstancedMesh, Points: class extends Obj3 {}, Fog: class {},
@@ -212,7 +224,10 @@ const renderer = {
   getRenderTarget: () => null, setRenderTarget() {},
   getClearAlpha: () => 1, getClearColor: () => null, setClearColor() {},
   clear() {}, clearDepth() { GLCALLS.clearDepth++; },
-  setScissorTest() {}, setScissor() {}, setViewport() { GLCALLS.viewport++; },
+  // a TILE viewport is four numbers; the restore at the end of a bake hands
+  // back the saved Vector4 and is not a tile
+  setScissorTest() {}, setScissor() {}, setViewport(a) { if (typeof a === 'number') GLCALLS.viewport++; },
+  getViewport: v => v.set(0, 0, 1920, 1080), getScissor: v => v.set(0, 0, 1920, 1080),
   render() { GLCALLS.render++; },
 };
 let WF;
@@ -248,7 +263,7 @@ for (let i = 0; i < 60; i++) WF.worldUpdate([0, 120, 0]);
 const trees = CREATED.filter(o => o.isInstancedMesh &&
                                   o.geometry.userData && o.geometry.userData.chunkTree);
 const byTag = t => trees.filter(o => o.geometry.tag === t);
-const inst = list => list.reduce((a, m) => a + m.count, 0);
+const inst = list => list.reduce((a, m) => a + m.capacity, 0);
 console.log(`tree meshes: ${trees.length} chunks | trunks ${inst(byTag('trunk'))} ` +
             `cones ${inst(byTag('cone'))} blobs ${inst(byTag('blob'))}`);
 chk(trees.length > 20, `only ${trees.length} tree chunks — is the field still one world-sized mesh?`);
@@ -265,7 +280,7 @@ for (const m of trees) {
   const bs = m.geometry.boundingSphere;
   if (!bs) { noSphere++; console.log(`  NO SPHERE: tag=${m.geometry.tag} count=${m.count} ` +
     `pos=${m.position.x.toFixed(0)},${m.position.z.toFixed(0)}`); continue; }
-  for (let i = 0; i < m.count; i++) {
+  for (let i = 0; i < m.capacity; i++) {
     const t = m.mats[i];
     if (!t) continue;
     checked++;
