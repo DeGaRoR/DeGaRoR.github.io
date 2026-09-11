@@ -1789,8 +1789,20 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const coarse = new THREE.Group();
       {
         const D = shed.dims, MT = shed.mats;
+        // THE COARSE SKIN IS FRONT-SIDED (2026-09-11, user: "the hangar
+        // disappears far too quickly"). MT.wallOut is authored BackSide,
+        // because the shell's wall pieces are 6 cm boxes and the far face of
+        // a 6 cm box IS its outside. On a 25 m box the same material drew
+        // the far INTERIOR faces with their normals flipped — the wall
+        // facing the sun rendered as the dark inside of the wall facing
+        // away. Measured at 342 m: the light-grey shed snapped to a dark
+        // slab the colour of the treeline, and read as gone. A front-sided
+        // clone keeps the building the same building across the switch;
+        // the box's 0..1 uv is the same grammar the sheeting bands wear
+        // (wallOutAlb repeats 4 x 1 per piece), so nothing else changes.
+        const skin = MT.wallOut.clone(); skin.side = THREE.FrontSide;
         const body = new THREE.Mesh(
-          new THREE.BoxGeometry(2 * D.HD, D.EAVE, 2 * D.HW), MT.wallOut);
+          new THREE.BoxGeometry(2 * D.HD, D.EAVE, 2 * D.HW), skin);
         body.position.y = D.EAVE / 2;
         // THE GABLE, WRITTEN OUT. The obvious move is a three-sided
         // CylinderGeometry like the box buildings use, but a triangular prism
@@ -1805,12 +1817,23 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           -D.HD, D.EAVE, -HWo, D.HD, D.EAVE, -HWo,    // 2,3 eave -z
           -D.HD, D.EAVE,  HWo, D.HD, D.EAVE,  HWo,    // 4,5 eave +z
         ], 3));
+        // WOUND OUTWARD (2026-09-11). Every face of this prism was wound the
+        // other way — (0,2,3) on the -z slope has its normal pointing down
+        // and INTO the shed — and roofOut is FrontSide, so from anywhere
+        // outside the whole roof was back-face culled: past 320 m the shed
+        // had no roof at all, just a flat-topped box. Checked per face with
+        // the cross product, ridge -> eave -> eave.
         rgeo.setIndex([
-          0, 2, 3, 0, 3, 1,      // the -z slope
-          0, 1, 5, 0, 5, 4,      // the +z slope
-          0, 4, 2,               // the gable ends
-          1, 3, 5,
+          0, 3, 2, 0, 1, 3,      // the -z slope
+          0, 5, 1, 0, 4, 5,      // the +z slope
+          0, 2, 4,               // the gable ends
+          1, 5, 3,
         ]);
+        // ...and it carries uv, which it did not: a mapped material on a
+        // geometry with no uv attribute samples texel (0,0) everywhere. The
+        // deck's own grammar is uvScale 6 (hangar.js quad), so the same here.
+        rgeo.setAttribute('uv', new THREE.Float32BufferAttribute([
+          0, 0, 6, 0, 0, 6, 6, 6, 0, 6, 6, 6], 2));
         rgeo.computeVertexNormals();
         const roof = new THREE.Mesh(rgeo, MT.roofOut);
         coarse.add(body, roof);

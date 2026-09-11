@@ -164,11 +164,56 @@
     setNear(CAM_NEAR);
     distT = dist = 12; azT = az = -2.5; elT = el = 0.25;
   }
+  // ---- THE EYE STAYS OUT OF THE SHED, OUTSIDE TOO (2026-09-11) ------------
+  // The user: "when going out for a flight, the initial camera is positioned
+  // inside the hangar, so the first thing we see is a wall". The orbit camera
+  // carries the garage's azimuth into the world, and the stand is 9.5 m from
+  // the door line: any azimuth that put the eye on the shed's side of the
+  // aeroplane at the editor's 12 m radius put it INSIDE the world's shed —
+  // whose doors are shut, so the first frame was the inside of a door. The
+  // G55 clamp keeps the eye inside the room; this is its mirror: the world's
+  // shed is a box the eye may not be in, and may not look at the aeroplane
+  // THROUGH. The segment aeroplane -> eye is clipped to the box grown by the
+  // near plane, exactly as the room clamp derives its margin, so it slides
+  // along the sheeting rather than colliding. Cockpit is exempt (the eye is
+  // in the aeroplane, and the aeroplane may well be in the shed), and so is
+  // an aeroplane that is itself inside the box.
+  let flShedBox = null;          // {x0,x1,z0,z1,y1}, set on roll-out
+  function worldShedBox() {
+    if (typeof siteOf !== 'function' || typeof siteHangarBox !== 'function') return null;
+    const site = siteOf('HOME'), H = site && site.hangar;
+    if (!H) return null;
+    const d = (typeof playerShedDims === 'function')
+      ? playerShedDims(playerLoad(), 'HOME', site) : H;
+    const b = siteHangarBox({ x: H.x, z: H.z, HW: d.HW || H.HW, HD: d.HD || H.HD });
+    b.y1 = (d.EAVE || H.EAVE || 7) + 2.6;      // hangar.js's own ridge rule
+    return b;
+  }
+  function keepOutOfShed(x, y, z) {
+    const B = flShedBox, m = camera.near + 0.35;
+    const dx = x - target.x, dy = y - target.y, dz = z - target.z;
+    let t0 = 0, t1 = 1;
+    const slab = (p, d, lo, hi) => {
+      if (Math.abs(d) < 1e-9) return p >= lo && p <= hi;
+      let a = (lo - p) / d, b = (hi - p) / d;
+      if (a > b) { const w = a; a = b; b = w; }
+      t0 = Math.max(t0, a); t1 = Math.min(t1, b);
+      return t0 <= t1;
+    };
+    if (!(slab(target.x, dx, B.x0 - m, B.x1 + m) && slab(target.y, dy, -1, B.y1 + m)
+          && slab(target.z, dz, B.z0 - m, B.z1 + m))) return null;
+    if (t0 <= 0.02) return null;                // the aeroplane is in the shed
+    return [target.x + dx * t0, target.y + dy * t0, target.z + dz * t0];
+  }
   function placeCamera() {
     let x = target.x + dist * Math.cos(el) * Math.cos(az),
         y = Math.max(0.4, target.y + dist * Math.sin(el)),
         z = target.z + dist * Math.cos(el) * Math.sin(az);
     if (edEye || flyEye) { camera.position.set(x, y, z); camera.lookAt(target); return; }
+    if (!inGarage && flShedBox) {
+      const q = keepOutOfShed(x, y, z);
+      if (q) { x = q[0]; y = q[1]; z = q[2]; }
+    }
     const room = inGarage && garageIsHangar() && hangar && hangar.dims;
     if (room) {
       // THE MARGIN IS THE NEAR PLANE, not a number (G62.5, user: "I often see
@@ -2644,6 +2689,7 @@
   const edPan = new THREE.Vector3();
   let panD = null;
   canvas.addEventListener('pointerdown', e => {
+    flReveal = 0;                      // a hand on it ends the roll-out shot
     if (edSit.visible && (e.button === 1 || e.button === 2)) {
       panD = { x: e.clientX, y: e.clientY, base: edPan.clone() };
       e.preventDefault();
@@ -3221,7 +3267,12 @@
   // WHAT (rigs, parts, bindings) instead of reasoning about a screenshot
   window.FLIGHT_PROBE = { ap: () => ap, endFlight, model: () => model, sim: () => sim, def: () => def,
                           setManual, manual: () => manual, input: () => INP,     // G200
-                          nav: () => flNav };                                       // G202.1
+                          nav: () => flNav,                                         // G202.1
+                          // 2026-09-11: the orbit's state, and a jump to where it
+                          // is easing to — the roll-out shot takes 360 frames,
+                          // which a swiftshader capture rig cannot wait out
+                          cam: () => ({ az, el, dist, azT, elT, distT, reveal: flReveal }),
+                          camSettle: () => { az = azT; el = elT; dist = distT; flReveal = 0; } };
   // ---- MANUAL CONTROLS (G200): who is flying, and the ending when it is you
   // The toggle is a KEY (apToggle) and a pill in the `controls` flyout;
   // both land here. Hand → AP re-latches every integrator (ap.reEngage, W14)
@@ -4234,6 +4285,7 @@
     buildIndicators();                 // clears them
     $('bGo').textContent = 'Fly the circuit';
     fullReset();
+    flRevealStart();                   // the aeroplane is on the stand now
   }
 
   $('bGo').onclick = () => {
@@ -5800,6 +5852,7 @@
   let flHdg0 = 0, flYawRate = 0, flEyeLoc = null, flEyeSrc = null;
   function flCamMode(m) {
     cam.mode = m; flSave('Cam', cam);
+    flReveal = 0;                      // a framing pick is the player's
     if (m !== 'cockpit' && flyEye) { flyEye = null; setNear(CAM_NEAR); }
     if (m === 'orbit') { distT = def.params.viewDist; elT = 0.25; }
     flApplyFov();
@@ -5853,6 +5906,56 @@
     const f = flEyeLoc.f.clone().applyMatrix3(nm).normalize();
     return { p, f };
   }
+  // ---- THE FIRST VIEW (2026-09-11, user: "this first view should be
+  // beautiful and cinematic") ---------------------------------------------
+  // Rolling out used to hand the world whatever azimuth the editor's orbit
+  // was left at, at the editor's radius. Now it is a SHOT: a low rear
+  // three-quarter of the aeroplane on the stand, from the side away from the
+  // shed, looking past it over the apron to the field, the strip and the
+  // sky — and the camera arrives there, from further out, higher and swung
+  // round toward the wing, over a couple of seconds instead of being there.
+  // It writes the same az/el/dist the mouse writes; what makes it a shot is
+  // the START pose and a slow ease for as long as it takes to settle (or
+  // six seconds), after which the frame loop's own 0.28 is back. `orbit` is
+  // handed the framing as its target; chase and wing keep writing their own
+  // every frame, so the same approach lands on THEIR pose and nothing snaps
+  // when the reveal ends. Cockpit and tower are the player's own eye and
+  // are left alone. A drag or a framing pick ends it at once — a camera
+  // that keeps moving under a hand is the G39 judder with a reason.
+  let flReveal = 0;
+  const FL_REVEAL_K = 0.022, FL_REVEAL_FRAMES = 360;
+  function flRevealStart() {
+    flShedBox = worldShedBox();
+    flReveal = 0;
+    if (cam.mode === 'cockpit' || cam.mode === 'tower') return;
+    const xA = sim.axes()[0], cg = sim.cgPos();
+    const hdg = Math.atan2(xA[2], xA[0]);     // xAft: the tail's direction
+    const D = def.params.viewDist || 12;
+    const astern = hdg;                        // the eye at hdg is behind
+    // which side: the eye that stands further from the shed's centre
+    const far = a => {
+      if (!flShedBox) return 0;
+      const ex = cg[0] + D * Math.cos(a), ez = cg[2] + D * Math.sin(a);
+      return Math.hypot(ex - (flShedBox.x0 + flShedBox.x1) / 2,
+                        ez - (flShedBox.z0 + flShedBox.z1) / 2);
+    };
+    const s = far(astern + 0.55) >= far(astern - 0.55) ? 1 : -1;
+    const tgt = cam.mode === 'wing' ? hdg - Math.PI / 2
+              : astern + (cam.mode === 'orbit' ? s * 0.55 : 0);
+    if (cam.mode === 'orbit') { azT = tgt; elT = 0.09; distT = D * 1.05; }
+    else azT = tgt;                    // flCamera overwrites next frame, same base
+    az = tgt + s * 0.45; el = 0.16; dist = D * 1.7;
+    flHdg0 = hdg; flYawRate = 0;       // no phantom yaw-rate lead on frame one
+    flReveal = FL_REVEAL_FRAMES;
+  }
+  // the slow ease, until it settles or the frames run out
+  function flRevealK() {
+    if (flReveal <= 0) return 0.28;
+    if (--flReveal === 0) return 0.28;
+    if (Math.abs(azT - az) < 0.01 && Math.abs(elT - el) < 0.01
+        && Math.abs(distT - dist) < 0.05) { flReveal = 0; return 0.28; }
+    return FL_REVEAL_K;
+  }
   const flUp = new THREE.Vector3();
   function flCamera() {
     if (!FL.ready) return;
@@ -5894,7 +5997,13 @@
       if (flyEye) { flyEye = null; setNear(CAM_NEAR); }
     } else if (flyEye) { flyEye = null; setNear(CAM_NEAR); }
     if (cam.mode === 'chase') {
-      azT = hdg + Math.PI + cam.lead * flYawRate * 0.55;
+      // `hdg` is the direction of the TAIL — sim.axes()[0] is xAft, the
+      // solver's body axis runs firewall -> tail post — and the eye sits on
+      // the aeroplane at az, so a chase camera stands AT hdg. It stood at
+      // hdg + PI until 2026-09-11: dead ahead, looking back down the
+      // propeller, which is a head-on and not a chase (measured on the stand:
+      // the eye 7 m in front of the spinner).
+      azT = hdg + cam.lead * flYawRate * 0.55;
       elT = 0.15; distT = D * 0.62;
     } else if (cam.mode === 'wing') {
       azT = hdg - Math.PI / 2 + cam.lead * flYawRate * 0.35;
@@ -6279,9 +6388,10 @@
     flCamera();
     // ease the orbit toward its targets (see the G39 note at the top);
     // snap the last hair so it settles instead of drizzling
-    az += (azT - az) * 0.28; if (Math.abs(azT - az) < 1e-4) az = azT;
-    el += (elT - el) * 0.28; if (Math.abs(elT - el) < 1e-4) el = elT;
-    dist += (distT - dist) * 0.28;
+    const kE = flRevealK();          // 0.28, or the roll-out shot's slow ease
+    az += (azT - az) * kE; if (Math.abs(azT - az) < 1e-4) az = azT;
+    el += (elT - el) * kE; if (Math.abs(elT - el) < 1e-4) el = elT;
+    dist += (distT - dist) * kE;
     if (Math.abs(distT - dist) < 1e-3) dist = distT;
     placeCamera();
     // (The part callout used to be re-projected here every other frame. It is

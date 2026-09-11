@@ -35923,3 +35923,83 @@ something was being decided by a slider when the DATA already knew the answer.
   material for, so `wall` takes `plank | roof` and the sheet sets join its
   list. The material's own metalness comes with it.
 - Gates: HOUSE (with --selftest, and the new rule 26) and MEDIA green.
+
+## G247 — ROLLING OUT IS A SHOT, THE SHARED IMAGES STOP UNHOOKING EACH OTHER,
+## AND THE FAR SHED GETS ITS ROOF (2026-09-11, the user: "the initial camera
+## is positioned inside the hangar, so the first thing we see is a wall [...]
+## this first view should be beautiful and cinematic. Also, there are issues
+## with the PBR materials. Sometimes the detailed runway texture shows,
+## sometimes not, mostly not. When it shows, it's faulty, it becomes real
+## blue under some angles. The floor of the hangar does the same. The hangar
+## disappears far too quickly too")
+
+Four findings, three of them measured before they were believed.
+
+- **THE RUNWAY WAS A MIRROR BECAUSE ITS ROUGHNESS MAP NEVER UPLOADED.**
+  `SITE_TEX_SETS` and `HANGAR_FLOOR_IMG` are ONE `Image` per map, shared by
+  every consumer — the world's runway base (grass004), pad (grass005), apron
+  and taxiway, the garage's own field through the door, the world's exterior
+  shed AND the garage room (floor diff/rough/nor). Every consumer wrote
+  `img.onload = ok`, and an onload PROPERTY holds one function: the second
+  consumer silently unhooked the first. Instrumented with a setter hook on
+  `HTMLImageElement.prototype.onload` in a headless boot: NINE handlers lost
+  (floor ×3 — the world's shed built at t=9.3 s, the room at 11.4 s; grass004
+  ×3 and grass005 ×3 — buildWorldScene at 9.0 s, the garage's `gmat` at
+  11.4 s). A texture that never gets `needsUpdate` never uploads; r128 binds
+  an incomplete unit, which samples BLACK — black albedo, and a black
+  roughness map is roughness 0 under `scene.environment`: a mirror of the sky,
+  blue at grazing angles. Which map lost was decided per boot by which image
+  landed before the second consumer was built — "sometimes shows, mostly
+  not". Fix: `addEventListener('load', ok, {once:true})` in siteGroundTex,
+  hangar.js floorTex/partTex, props.js. Verified: every shared-image texture
+  in the scene at `version 1` after boot; grazing shot down the strip toward
+  the sun shows grass, not sky.
+- **THE FIRST FRAME OF A FLIGHT IS A SHOT** (app.js `flRevealStart`, on
+  rollOut after fullReset). The orbit camera used to carry the editor's
+  azimuth into the world at the editor's radius; the stand is 9.5 m from the
+  door line, so an azimuth on the shed's side put the eye INSIDE the closed
+  exterior shed — the wall. Now: a low rear three-quarter (el 0.09, 1.05 ×
+  viewDist), from the side whose eye stands further from the shed, arrived at
+  from further out, higher and swung toward the wing (0.16, 1.7 ×, +0.45
+  rad) under a slow ease (`FL_REVEAL_K` 0.022/frame until settled or 360
+  frames) — the frame loop's own 0.28 is back after. `orbit` gets the framing
+  as its target; chase/wing keep writing theirs each frame so the same
+  approach lands on THEIR pose with nothing to snap; cockpit/tower are left
+  alone; a pointerdown or a framing pick ends it. `FLIGHT_PROBE.cam()` /
+  `camSettle()` read and jump the orbit for a capture rig that runs at 0.3
+  fps under swiftshader.
+- **THE EYE STAYS OUT OF THE WORLD'S SHED** (`keepOutOfShed` in placeCamera,
+  the G55 room clamp's mirror): the segment aeroplane -> eye is clipped to the
+  site's hangar box (player's dims, ridge = EAVE + 2.6) grown by the near
+  plane; it slides along the sheeting and never looks at the aeroplane
+  THROUGH the building. Exempt: cockpit, and an aeroplane that is itself in
+  the box. Verified by dragging the orbit onto the shed's side: the eye stops
+  at the door line, close on the tail, no wall.
+- **CHASE STOOD IN FRONT OF THE PROPELLER.** `sim.axes()[0]` is `xAft` — the
+  body axis runs firewall -> tail post — so `hdg` in flCamera is the TAIL's
+  direction and a chase eye stands AT hdg, not hdg + PI. It has been a
+  head-on since G141 (measured on the stand: eye 7 m ahead of the spinner).
+  Fixed; `wing` unchanged (a side is a side).
+- **THE FAR SHED HAD NO ROOF AND AN INSIDE-OUT WALL.** The 320 m coarse LOD
+  (render_world.js standShed) wore `MT.wallOut`, which is authored BackSide
+  for the shell's 6 cm wall boxes; on a 25 m box that draws the far interior
+  faces with flipped normals — the sun-facing wall rendered as the dark inside
+  of the wall facing away. And every face of the roof prism was wound INWARD
+  under a FrontSide material (checked per face with the cross product), so
+  from outside it was culled entirely; it also carried no uv, which samples
+  texel (0,0). Measured at 342 m: the light shed snapped to a dark
+  flat-topped slab the colour of the treeline — "disappears". Now a
+  FrontSide clone, outward winding, uvScale 6 like the deck. Verified at
+  292 / 342 / 642 m: same mass, same colour, a roof.
+- **Gates**: UISMOKE, WORLDRENDER, SITE, HANGAR, PROPS, MEDIA, BUILD green.
+- **Open**: the shadowed apron reads blue-grey (42,49,61) — that is the
+  golden-hour hemi sky, not the mirror; a tuning question if it still reads
+  as "blue". The world's exterior shed still builds a floor material it never
+  draws. The 320 m switch itself is unchanged.
+- **Rig** (scratchpad shots.js): headless Chrome + CDP; `PRELOAD=` a script
+  via `Page.addScriptToEvaluateOnNewDocument` (the onload hook; a
+  `flydiy.flCam` localStorage seed to pick the mode before boot);
+  `placeAtStand(sim, HOME, {x,z,hdg})` after `sim.reset(0); sim.stance()`
+  teleports the paused aeroplane anywhere for a distance shot; find the shed
+  in a downscaled whole frame BEFORE cropping — four blind crops cost more
+  than one full look.

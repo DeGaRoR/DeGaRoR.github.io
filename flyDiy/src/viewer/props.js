@@ -49,7 +49,8 @@ function propTexture(THREE, id, srgb) {
   t.flipY = false;                            // glTF uv origin is top-left
   if (srgb) t.encoding = THREE.sRGBEncoding;
   const ok = () => { t.needsUpdate = true; };
-  if (img.complete && img.naturalWidth) ok(); else img.onload = ok;
+  if (img.complete && img.naturalWidth) ok();
+  else img.addEventListener('load', ok, { once: true });
   img.src = uri;
   cache.set(id, t);
   return t;

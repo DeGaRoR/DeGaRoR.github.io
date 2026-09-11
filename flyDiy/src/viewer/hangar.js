@@ -719,8 +719,12 @@ const floorTex = (img, srgb) => {
   // the floor plane carries METRIC uvs since G41 — one tile = tile metres
   const tile = (typeof HANGAR_FLOOR_TILE_M === 'number') ? HANGAR_FLOOR_TILE_M : 5;
   t.repeat.set(1 / tile, 1 / tile);
+  // a listener, not `img.onload = ok`: the world's exterior shed builds this
+  // same material off the same Image, and whichever build came second used
+  // to unhook the first (see siteGroundTex for the full account)
   const ok = () => { t.needsUpdate = true; roomTexLanded(); };
-  if (img.complete && img.naturalWidth) ok(); else img.onload = ok;
+  if (img.complete && img.naturalWidth) ok();
+  else img.addEventListener('load', ok, { once: true });
   return t;
 };
 
@@ -3264,7 +3268,8 @@ const partTex = (img, srgb) => {
   if (srgb) t.encoding = THREE.sRGBEncoding;
   // roomTexLanded: external media can land after the env bake — see floorTex
   const ok = () => { t.needsUpdate = true; roomTexLanded(); };
-  if (img.complete && img.naturalWidth) ok(); else img.onload = ok;
+  if (img.complete && img.naturalWidth) ok();
+  else img.addEventListener('load', ok, { once: true });   // shared Image — see siteGroundTex
   return t;
 };
 const setPart = (key, st) => {

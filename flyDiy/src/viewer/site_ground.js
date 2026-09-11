@@ -29,8 +29,20 @@ function siteGroundTex(THREE, img, srgb, tile, aniso) {
   t.anisotropy = aniso || 8;
   if (srgb) t.encoding = THREE.sRGBEncoding;
   t.repeat.set(1 / tile, 1 / tile);
+  // A LISTENER, NOT `img.onload = ok`. These Images are SHARED — the world's
+  // runway base and pad, the garage's field, the hangar's own floor all
+  // build textures off the one SITE_TEX_SETS / HANGAR_FLOOR_IMG object —
+  // and an onload PROPERTY holds one function: every consumer after the
+  // first silently unhooked the one before it, so whichever texture was
+  // built first (the world's, at boot) never got its needsUpdate. A texture
+  // that never uploads samples an unbound unit, which is BLACK: black
+  // albedo, and a black roughness map is roughness 0 — a mirror of the sky.
+  // That was the runway (and the floor) "sometimes not textured, and blue
+  // under some angles": the race between the image landing and the second
+  // consumer being built decided it, per map, per boot.
   const ok = () => { t.needsUpdate = true; };
-  if (img.complete && img.naturalWidth) ok(); else img.onload = ok;
+  if (img.complete && img.naturalWidth) ok();
+  else img.addEventListener('load', ok, { once: true });
   return t;
 }
 
