@@ -36651,3 +36651,7 @@ stop. The measurement above is the evidence for whoever does it.
   pusher's opposed engine and boom, the fin stickers), 0 failures, 0 skipped.
   UISMOKE stays red on another session's in-flight line (`app.js:2110`,
   G240), not on anything here.
+- G242.2: GATE BENCH was red at 7d7d1c1 on its own source rule — it pinned
+  `stkPlace: 0` and the fin default moved it to 3. The rule pins 3 now, which
+  is the rule doing its job; BENCH was not on the list I proved before landing
+  and should have been (the metallic-paint session caught it).
