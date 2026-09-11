@@ -121,6 +121,15 @@
     return true;
   }
 
+  // THE MAPS LAND AFTER THE BYTES, and anything that BAKES from a tree has to
+  // wait for both. treeWarm resolves on the geometry fetch; the textures load
+  // here, one Image each, on their own wall-clock timers. An impostor atlas
+  // baked between the two renders leaf cards with no map: no alpha cutout,
+  // every card solid, and the far tier is a black silhouette of the whole card
+  // cloud - the round black blobs the game showed on every hillside. This is
+  // TREE-IMPORT.md §6 trap 2, met in the bench and fixed there with
+  // texturesReady(); this is the same promise for the game.
+  const PENDING = [];
   function texture(THREE, url, srgb, cut255) {
     let t = TEX.get(url);
     if (t) return t;
@@ -129,14 +138,21 @@
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
     t.flipY = false;                       // glTF uv origin is top-left
     const img = new Image();
-    img.onload = () => {
-      t.image = img;
-      if (cut255 === null || !coverageMips(THREE, t, img, cut255)) t.needsUpdate = true;
-    };
+    PENDING.push(new Promise(res => {
+      img.onload = () => {
+        t.image = img;
+        if (cut255 === null || !coverageMips(THREE, t, img, cut255)) t.needsUpdate = true;
+        res(true);
+      };
+      img.onerror = () => res(false);      // a missing map is not a hung boot
+    }));
     img.src = url;
     TEX.set(url, t);
     return t;
   }
+  // resolves when every map requested SO FAR has decoded (or failed). Build
+  // the subjects first - that is what requests the maps - then wait on this.
+  function treeMapsReady() { return Promise.all(PENDING.slice()); }
 
   // AO rides a custom attribute; nothing in three.js knows about it, so the
   // shader is told. Applied to the albedo rather than the ambient term because
@@ -210,5 +226,6 @@
     window.treeReady = treeReady;
     window.treeList = treeList;
     window.treeBuild = treeBuild;
+    window.treeMapsReady = treeMapsReady;
   }
 })();

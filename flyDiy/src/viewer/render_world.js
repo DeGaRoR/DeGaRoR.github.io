@@ -950,6 +950,36 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     const protoParts = P => P.parts.map(q => q.geo);
     [trunkGeo, coneGeo, blobGeo].forEach(g => chunkBounds(g, CHW));
 
+    // WHICH SUBJECT STANDS IN FOR WHICH SLOT, once, for both layers. The
+    // curated set is all conifer, so the broadleaf slot is filled by a conifer
+    // too - a CONTENT gap, not a pipeline one.
+    const treePick = re => { const all = treeList();
+      return (all.find(e => re.test(e.key)) || all[0]).key; };
+    const PICK_CONIF = /Fir01/, PICK_BROAD = /Christmas tree\|?$|Christmas tree$/;
+    // AND THE MAPS MUST HAVE LANDED BEFORE ANYTHING BAKES. treeWarm resolves on
+    // the bytes; the leaf textures load after, on their own timers, and an
+    // impostor atlas baked in between renders every card solid - the round
+    // black blobs on every far hillside (TREE-IMPORT.md §6 trap 2, again).
+    // So: warm, BUILD the subjects (which is what requests the maps), wait for
+    // the maps, and only then plant. Both layers go through this one promise.
+    let treeSettled = null;
+    const treeSettle = () => {
+      if (treeSettled) return treeSettled;
+      if (typeof treeWarm !== 'function' || typeof treeMapsReady !== 'function')
+        return (treeSettled = Promise.reject(new Error('no tree loader')));
+      treeSettled = treeWarm().then(() => {
+        for (const ser of ['rungs', 'stand'])
+          for (const re of [PICK_CONIF, PICK_BROAD]) {
+            const k = treePick(re), S = treeList().find(e => e.key === k).sub;
+            const n = (S[ser] && S[ser].length) ? S[ser].length : S.rungs.length;
+            treeBuild(THREE, k, 0, ser);
+            treeBuild(THREE, k, n - 1, ser);
+          }
+        return treeMapsReady();
+      });
+      return treeSettled;
+    };
+
     function plantWoodland() {
       // Undo the previous plant. The InstancedMeshes and the impostor atlas are
       // OURS and go; the geometry and materials of a real tree are NOT — they
@@ -965,11 +995,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       PROTO = null;
       if (typeof treeReady === 'function' && treeReady() && typeof treeBuild === 'function') {
         try {
-          const all = treeList();
-          const pick = re => (all.find(e => re.test(e.key)) || all[0]).key;
           PROTO = {
-            conif: treeBuild(THREE, pick(/Fir01/), 0),
-            broad: treeBuild(THREE, pick(/Christmas tree\|?$|Christmas tree$/), 0),
+            conif: treeBuild(THREE, treePick(PICK_CONIF), 0),
+            broad: treeBuild(THREE, treePick(PICK_BROAD), 0),
           };
         } catch (e) { PROTO = null; }
       }
@@ -1095,10 +1123,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // Nothing fetched the bytes, so treeReady() was false at every boot and the
     // world drew the 14-triangle cone it has drawn since W17. A rejection is
     // the asset-absent path and already handled — the cone stays.
-    if (typeof treeWarm === 'function' && typeof treeReady === 'function'
-        && !treeReady()) {
-      treeWarm().then(() => { plantWoodland(); }).catch(() => {});
-    }
+    if (typeof treeReady === 'function' && !treeReady())
+      treeSettle().then(() => { plantWoodland(); }).catch(() => {});
 
     // ---- W13 dense fill: the collidable set is a 64 m stage-2 grid, so
     // stands render sparse even with the clump layer. This plants
@@ -1176,17 +1202,15 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         let real = null;
         if (typeof treeReady === 'function' && treeReady() && typeof treeBuild === 'function') {
           try {
-            const all = treeList();
-            const pick = re => (all.find(e => re.test(e.key)) || all[0]).key;
             // the cheapest stand rung each subject has - a pack that ships a
             // deeper chain would hand a coarser one, and that is the point
             const cheapest = key => {
-              const S = all.find(e => e.key === key).sub;
+              const S = treeList().find(e => e.key === key).sub;
               const n = (S.stand && S.stand.length) ? S.stand.length : S.rungs.length;
               return treeBuild(THREE, key, n - 1, 'stand');
             };
-            real = { conif: cheapest(pick(/Fir01/)),
-                     broad: cheapest(pick(/Christmas tree\|?$|Christmas tree$/)) };
+            real = { conif: cheapest(treePick(PICK_CONIF)),
+                     broad: cheapest(treePick(PICK_BROAD)) };
           } catch (e) { real = null; }
         }
         for (const side of ['conif', 'broad']) {
@@ -1284,10 +1308,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         }
         queue.length = 0;
       };
-      if (typeof treeWarm === 'function' && typeof treeReady === 'function'
-          && !treeReady()) {
-        treeWarm().then(() => { if (setShapes()) evictAll(); }).catch(() => {});
-      }
+      if (typeof treeReady === 'function' && !treeReady())
+        treeSettle().then(() => { if (setShapes()) evictAll(); }).catch(() => {});
       let tick = 0;
       fillUpdate = cg => {
         if (tick++ % 12) return;           // ~0.2 s cadence
