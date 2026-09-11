@@ -448,6 +448,15 @@
       "port": 8355
     },
     {
+      "name": "flydiy-cowl",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8364"
+      ],
+      "port": 8364
+    },
+    {
       "name": "flydiy-trees",
       "runtimeExecutable": "node",
       "runtimeArgs": [

@@ -238,7 +238,7 @@ ok('  ...and reports that it already fits', big.fits);
     Mesh: function (geo, mat) { built.push({ geo, mat }); this.geometry = geo; },
   };
   const group = { add: () => {} };
-  const mats = { skin: 'skin', steel: 'steel', dark: 'dark' };
+  const mats = { skin: 'skin', steel: 'steel', dark: 'dark', inner: 'inner' };
 
   const doorOf = () => {
     built.length = 0;
@@ -342,6 +342,256 @@ ok('  ...and reports that it already fits', big.fits);
     ok('outline at roundness 1 is a rectangle to within 2%',
        outlineFill(1) > 0.98, f(outlineFill(1)) + ' vs 1.000');
   }
+
+  // -------------------------------------------------------------------------
+  // THE FIREWALL LIP — the folded aft edge (2026-09-10)
+  // -------------------------------------------------------------------------
+  // This edge is a hand's breadth from the windscreen, so the things that go
+  // wrong with it are not subtle-but-invisible, they are the first thing seen:
+  // a crack where the band leaves the skin, geometry pushed aft THROUGH the
+  // firewall into the fuselage, or a return whose normal faces out and lights
+  // the inside of the cowl like the outside. All three are measurable here.
+  {
+    // cowlLen explicitly: the engine sweep above leaves whatever the last
+    // fixture needed, and the lip's dimensions are capped against it
+    Object.assign(C.P, { fastOn: 0, partOn: 0, oilOn: 0, cowlLen: 0.365,
+                         fwLipOn: 1, fwLipR: 0.004, fwLipRise: 0.003,
+                         fwLipIn: 0.025 });
+    // THE LIP IS TWO MESHES NOW (2026-09-11): the painted band and the dark
+    // interior, split one fold-step past the aft-most ring. Taking the LAST
+    // mesh silently tested the inner band alone — which is why this reads
+    // every mesh the call emits and walks their union.
+    const meshOf = fn => { built.length = 0; C.prepareLid(); C.prepareMesh();
+                           fn();
+                           if (!built.length) return null;
+                           const a = [], n = [], mats = [];
+                           for (const m of built) {
+                             const pa = m.geo.attributes.position.array;
+                             const na = m.geo.attributes.normal
+                                      ? m.geo.attributes.normal.array : pa;
+                             for (let i = 0; i < pa.length; i++) { a.push(pa[i]); n.push(na[i]); }
+                             mats.push(m.mat);
+                           }
+                           return { a, n, mats, parts: built.length,
+                                    tris: a.length / 9 }; };
+    const lip = meshOf(() => C.buildFirewallLip(group, mats));
+    ok('the firewall lip is built at all', !!lip && lip.tris > 0,
+       lip ? lip.tris + ' tris in ' + lip.parts + ' mesh(es)' : 'nothing emitted');
+    // THE INSIDE IS NOT THE OUTSIDE. The fold's return wore the skin material
+    // and beamed like a painted topside seen from the wrong side (the user,
+    // 2026-09-11: "make the interior of the cowl very dark"). Two meshes, two
+    // materials, and the interior one is NOT the skin.
+    ok('the band is painted skin and dark interior, not one material',
+       !!lip && lip.parts === 2 && lip.mats[0] === 'skin' &&
+       lip.mats[1] === 'inner' && lip.mats[0] !== lip.mats[1],
+       lip ? lip.mats.join(' + ') : '');
+
+    if (lip) {
+      let zMin = 1e9, zMax = -1e9, dMin = 1e9, dMax = -1e9;
+      for (let i = 0; i < lip.a.length; i += 3) {
+        zMin = Math.min(zMin, lip.a[i + 2]); zMax = Math.max(zMax, lip.a[i + 2]);
+      }
+      // THE FIREWALL IS z = 0 AND THE COWL STOPS THERE. The fold is the reason
+      // the skin no longer starts at zero: it occupies that last few mm. If
+      // this ever goes negative the cowl is growing into the fuselage, which
+      // no amount of shading recovers from.
+      ok('nothing is aft of the firewall plane', zMin >= -1e-9, 'z min ' + zMin.toExponential(2));
+      ok('...and the fold reaches it exactly', Math.abs(zMin) < 1e-9,
+         'z min ' + zMin.toExponential(2));
+      // the return starts at the fold's own tangent station (z = r), not at
+      // the lap's, so the depth you can see in past the fold is r + fwLipIn
+      const deep = C.P.fwLipR + C.P.fwLipIn;
+      ok('the lip spans the lap, the fold and the return',
+         Math.abs(zMax - deep) < 1e-6,
+         'z max ' + f(zMax, 4) + ' vs ' + f(deep, 4));
+      ok('...and you can see a couple of centimetres in past the fold',
+         deep > 0.02 && deep < 0.05, f(deep * 1000, 0) + ' mm');
+
+      // IT WELDS TO THE SKIN. The band's first ring is built from the same
+      // surfPoint at the same station with zero offset, so the skin's aft row
+      // and the lip's outer edge are the SAME points -- not near ones. A crack
+      // here is a lit sliver right in front of the pilot.
+      const z0 = C.aftStart();
+      const prof = C.fwLipProfile();
+      ok('the lip starts where the skin now stops',
+         Math.abs(prof[0].z - z0) < 1e-12 && Math.abs(prof[0].d) < 1e-12,
+         'first ring at z ' + f(prof[0].z, 4) + ', offset ' + f(prof[0].d, 5));
+      let worst = 0;
+      for (let k = 0; k < 24; k++) {
+        const th = k / 24 * C.TAU;
+        const s = C.surfPoint(th, z0);
+        const nn = C.sectNormal2(th, z0);
+        worst = Math.max(worst, Math.hypot(nn[0] * prof[0].d, nn[1] * prof[0].d));
+      }
+      ok('...with no offset anywhere round it', worst < 1e-12);
+
+      // REAL THICKNESS, and it is the fold's own: the return sits 2r inboard
+      // of the lap, which is what a hem IS.
+      const last = prof[prof.length - 1];
+      ok('the return is a fold thickness inboard of the lap',
+         Math.abs((C.P.fwLipRise - last.d) - 2 * C.P.fwLipR) < 1e-9,
+         f(C.P.fwLipRise - last.d, 4) + ' m of wall');
+      ok('...and it faces INBOARD (the DoubleSide trap)',
+         last.nd < -0.99 && Math.abs(last.nz) < 1e-9);
+      ok('the lap faces OUTBOARD and forward', prof[0].nd > 0.9 && prof[0].nz >= 0);
+      ok('every profile normal is a unit vector',
+         prof.every(q => Math.abs(Math.hypot(q.nd, q.nz) - 1) < 1e-9));
+
+      // THE MESH NORMALS AGREE WITH THE WINDING, which is the whole reason the
+      // band is wound quad by quad: half of it is turned inside out relative
+      // to the other half.
+      // SLIVERS ARE EXEMPT AND COUNTED. A section with a tight corner puts an
+      // occasional quad edge-on to its own profile; its cross product is
+      // rounding noise, its area is a millionth of a square millimetre, and
+      // which way it faces is not a question the renderer will ever ask. The
+      // ones with area are the claim.
+      let flipped = 0, sliver = 0, tiny = 0;
+      for (let t = 0; t < lip.a.length; t += 9) {
+        const ux = lip.a[t + 3] - lip.a[t], uy = lip.a[t + 4] - lip.a[t + 1],
+              uz = lip.a[t + 5] - lip.a[t + 2];
+        const vx = lip.a[t + 6] - lip.a[t], vy = lip.a[t + 7] - lip.a[t + 1],
+              vz = lip.a[t + 8] - lip.a[t + 2];
+        const gx = uy * vz - uz * vy, gy = uz * vx - ux * vz, gz = ux * vy - uy * vx;
+        const area = 0.5 * Math.hypot(gx, gy, gz);
+        const mx = lip.n[t] + lip.n[t + 3] + lip.n[t + 6],
+              my = lip.n[t + 1] + lip.n[t + 4] + lip.n[t + 7],
+              mz = lip.n[t + 2] + lip.n[t + 5] + lip.n[t + 8];
+        if (gx * mx + gy * my + gz * mz < 0) {
+          if (area < 1e-9) { sliver++; tiny = Math.max(tiny, area); }
+          else flipped++;
+        }
+      }
+      ok('no triangle with area is wound against its own shading normals', flipped === 0,
+         flipped + ' of ' + lip.tris + (sliver ? ', ' + sliver +
+           ' sliver(s) exempt, worst ' + tiny.toExponential(1) + ' m2' : ''));
+      ok('  ...and the slivers are a handful, not a pattern',
+         sliver <= lip.tris * 0.01, sliver + ' of ' + lip.tris);
+
+      // NOT INERT. Three rows, three different meshes.
+      const hash = m => { let h = 0; for (let i = 0; i < m.a.length; i++)
+                            h = (h * 31 + Math.round(m.a[i] * 1e6)) | 0; return h; };
+      const base = hash(lip);
+      const moved = k => { const was = C.P[k];
+        C.P[k] = k === 'fwLipIn' ? 0.05 : was * 2;
+        const h = hash(meshOf(() => C.buildFirewallLip(group, mats)));
+        C.P[k] = was; return h !== base; };
+      for (const k of ['fwLipR', 'fwLipRise', 'fwLipIn'])
+        ok('  ...' + k + ' moves the lip', moved(k));
+
+      // THE DEFAULT LIP CANNOT REACH OUTSIDE THE COWL. With no lap the whole
+      // band lives inside the skin's own envelope, which is the property that
+      // keeps it out of the fuselage: the cage's nose skin round the firewall
+      // comes FORWARD of the flat cap the cowl is fitted to and overhangs it
+      // by a couple of millimetres, so anything proud of the barrel there is
+      // two surfaces in the same place. Measured, not assumed.
+      {
+        const was = C.P.fwLipRise;
+        C.P.fwLipRise = 0;
+        const q = C.fwLipProfile();
+        ok('with no lap nothing stands proud of the barrel',
+           q.every(v => v.d <= 1e-12),
+           'max offset ' + q.reduce((m, v) => Math.max(m, v.d), 0).toExponential(1));
+        ok('...and the fold starts on the skin, one radius forward',
+           Math.abs(C.aftStart() - C.P.fwLipR) < 1e-12,
+           f(C.aftStart() * 1000, 1) + ' mm of barrel given to the fold');
+        C.P.fwLipRise = was;
+      }
+
+      // THE LIP MAY NOT EAT THE BARREL. A 14 mm fold with a 16 mm lap is 62 mm
+      // of edge; on a 50 mm cowl that is more edge than panel and the surface
+      // is left with no stations at all. Everything scales into a quarter of
+      // the cowl, and it is still a fold when it gets there.
+      {
+        const keep = { cowlLen: C.P.cowlLen, fwLipR: C.P.fwLipR,
+                       fwLipRise: C.P.fwLipRise };
+        Object.assign(C.P, { cowlLen: 0.05, fwLipR: 0.014, fwLipRise: 0.016 });
+        const g = C.fwGeom(), q = C.fwLipProfile();
+        ok('a lip too big for a short cowl is scaled, not clamped flat',
+           Math.abs(C.aftStart() - 0.05 * 0.25) < 1e-9 && g.r > 0.002,
+           'fold ' + f(g.r * 1000, 1) + ' mm, lap ' + f(g.p * 1000, 1) +
+           ' mm in ' + f(0.05 * 250, 0) + ' mm of barrel');
+        ok('  ...and it still reaches the firewall plane exactly',
+           Math.abs(q.reduce((m, v) => Math.min(m, v.z), 1)) < 1e-9);
+        Object.assign(C.P, keep);
+      }
+
+      // AND IT SWITCHES OFF CLEANLY: no band, and the skin runs to the
+      // firewall plane again, exactly as every cowl before this did.
+      C.P.fwLipOn = 0;
+      built.length = 0; C.prepareLid(); C.prepareMesh();
+      C.buildFirewallLip(group, mats);
+      ok('off means no lip, and the skin starts at the firewall again',
+         built.length === 0 && C.aftStart() === 0);
+      C.P.fwLipOn = 1;
+    }
+    Object.assign(C.P, { fastOn: 1, partOn: 1, oilOn: 1 });
+
+    // -----------------------------------------------------------------------
+    // THE SKIN IS ONE-SIDED, SO ITS WINDING IS LOAD-BEARING (G243.1)
+    // -----------------------------------------------------------------------
+    // The inside of the shell is drawn by a BackSide twin in the interior's
+    // material and the skin went FrontSide — which is only safe because every
+    // skin mesh is wound OUTWARD. three.js decides front/back by winding, so
+    // an inward loft would not be dark, it would be a HOLE. loftRings winds
+    // uniformly per mesh, so the sign of the outward flux of one mesh is the
+    // sign of every triangle in it; the barrel and the fold carry explicit
+    // normals and are held triangle by triangle. Every preset, every skin
+    // mesh, including the nacelle's tail cone — which marched AFT and was
+    // wound inside out until this check existed.
+    {
+      const ref = () => { const z = C.P.cowlLen * 0.5; return [0, C.spineY(z), z]; };
+      let worst = null, meshes = 0, presets = 0;
+      for (const name of Object.keys(C.PRESETS)) {
+        Object.assign(C.P, C.PRESETS[name].p, { fwLipOn: 1, fwLipRise: 0,
+                                                aftMode: 1, pylon: 0 });
+        built.length = 0; C.prepareLid(); C.prepareMesh();
+        const aps = C.apertureList();
+        C.buildSurface(group, mats, aps);
+        C.buildFirewallLip(group, mats);
+        C.buildLips(group, mats, aps);
+        C.buildScoop(group, mats);
+        C.buildAft(group, mats);
+        const R = ref();
+        built.forEach((b, mi) => {
+          if (b.mat !== 'skin') return;
+          meshes++;
+          const pa = b.geo.attributes.position.array, idx = b.geo.index;
+          const na = b.geo.attributes.normal ? b.geo.attributes.normal.array : null;
+          const P = k => [pa[3 * k], pa[3 * k + 1], pa[3 * k + 2]];
+          const nT = idx ? idx.length / 3 : pa.length / 9;
+          let flux = 0, pos = 0, disagree = 0;
+          for (let t = 0; t < nT; t++) {
+            const i0 = idx ? idx[3 * t] : 3 * t, i1 = idx ? idx[3 * t + 1] : 3 * t + 1,
+                  i2 = idx ? idx[3 * t + 2] : 3 * t + 2;
+            const A = P(i0), B = P(i1), Cq = P(i2);
+            const ux = B[0] - A[0], uy = B[1] - A[1], uz = B[2] - A[2];
+            const vx = Cq[0] - A[0], vy = Cq[1] - A[1], vz = Cq[2] - A[2];
+            const gx = uy * vz - uz * vy, gy = uz * vx - ux * vz, gz = ux * vy - uy * vx;
+            const cx = (A[0] + B[0] + Cq[0]) / 3 - R[0], cy = (A[1] + B[1] + Cq[1]) / 3 - R[1],
+                  cz = (A[2] + B[2] + Cq[2]) / 3 - R[2];
+            const d = gx * cx + gy * cy + gz * cz;
+            flux += d; if (d > 0) pos++;
+            if (na) {
+              const mx = na[3 * i0] + na[3 * i1] + na[3 * i2],
+                    my = na[3 * i0 + 1] + na[3 * i1 + 1] + na[3 * i2 + 1],
+                    mz = na[3 * i0 + 2] + na[3 * i1 + 2] + na[3 * i2 + 2];
+              if (gx * mx + gy * my + gz * mz < 0 && Math.hypot(gx, gy, gz) > 2e-9) disagree++;
+            }
+          }
+          const bad = flux <= 0 || disagree > 0;
+          if (bad && !worst) worst = { name, mi, flux, pos, nT, disagree };
+        });
+        presets++;
+      }
+      ok('every skin mesh of every preset is wound outward — the one-sided ' +
+         'skin has no holes', !worst,
+         worst ? worst.name + ' mesh ' + worst.mi + ': flux ' + worst.flux.toExponential(2) +
+                 ', ' + worst.pos + '/' + worst.nT + ' outward, ' + worst.disagree +
+                 ' against their normals'
+               : meshes + ' skin meshes over ' + presets + ' presets');
+      Object.assign(C.P, C.PRESETS['Working default'].p, { aftMode: 0, pylon: 1 });
+    }
+  }
   delete global.THREE;
 }
 
@@ -364,6 +614,47 @@ ok('  ...and reports that it already fits', big.fits);
   new Function('window', 'document', layer)(win, { getElementById: () => null });
   const FOR = win.CAGE_COWL_FOR_ENGINE;
   ok('the cowl layer publishes its engine rule', typeof FOR === 'function');
+
+  // THE COWL SEATS ON THE SKIN, NOT IN IT (2026-09-10) ----------------------
+  // The firewall is a flat bulkhead and `face.z` is its plane; the fuselage
+  // skin round the aperture domes FORWARD of it, and that is what the cowl's
+  // aft edge actually meets. Measured on the cage's own nose the skin comes
+  // 4-5 mm past the cap, which is exactly the length of the new folded edge —
+  // so without this correction the whole fold is inside the fuselage.
+  // The fixture is a cap ring at z = 1.000 plus a skin ring a fifth further
+  // out, domed 6 mm forward. Nothing here needs the cage.
+  {
+    const NF = win.CAGE_COWL_NOSE_FACE;
+    ok('the cowl layer publishes the nose face', typeof NF === 'function');
+    if (typeof NF === 'function') {
+      const V = [], F = [], W = 0.5, H = 0.3, DOME = 0.006, N = 32;
+      for (let k = 0; k < N; k++) {
+        const t = k / N * C.TAU, p = C.superPt(t, W, H, 4);
+        V.push([p[0], p[1], 1.000]);                     // the flat cap
+        V.push([p[0] * 1.2, p[1] * 1.2, 1.000 + DOME]);  // the skin round it
+      }
+      for (let k = 0; k < N; k++)
+        F.push({ capFace: 1, m: 'cap', v: [2 * k, 2 * ((k + 1) % N)] });
+      const face = NF({ V, F }, 1, 'nose');
+      ok('a nose face is found on the fixture', !!face);
+      if (face) {
+        ok('  ...at the cap plane, not the dome', Math.abs(face.z - 1.000) < 1e-6,
+           'z ' + f(face.z, 4));
+        ok('  ...sized by the cap', Math.abs(face.halfW - W) < 1e-6 &&
+           Math.abs(face.halfH - H) < 1e-6);
+        ok('THE SEAT IS THE DOME, LESS THE TUCK',
+           Math.abs(face.seat - (DOME - 0.0015)) < 1e-9,
+           f(face.seat * 1000, 2) + ' mm forward');
+        ok('  ...and it clears the fold it exists for',
+           face.seat > C.P.fwLipR * 0.5,
+           f(face.seat * 1000, 1) + ' mm vs a ' + f(C.P.fwLipR * 1000, 1) + ' mm fold');
+      }
+      // A FLAT NOSE ASKS FOR NOTHING: the correction must not invent a
+      // stand-off on a fuselage that does not need one.
+      const flat = NF({ V: V.map(p => [p[0], p[1], 1.000]), F }, 1, 'nose');
+      ok('a flat nose gets no seat', !!flat && flat.seat === 0);
+    }
+  }
 
   if (typeof FOR === 'function') {
     // A SMALL radial for the fitting case and a BIG one for the comparison,

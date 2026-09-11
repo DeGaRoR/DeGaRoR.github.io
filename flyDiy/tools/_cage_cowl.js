@@ -199,6 +199,9 @@ function cowlMats(cA) {
   const A = AKC(), base = mats(), out = {};
   for (const nm of Object.keys(base)) {
     const b = base[nm];
+    // the interior is DERIVED from the built skin below, not resolved as a
+    // section of its own — it has no finish, no livery and no decals
+    if (nm === 'inner') continue;
     // A COWL AGES FASTER THAN WHAT IT IS BOLTED TO. It is the panel that
     // catches the exhaust, the oil weep and every hand that has ever opened
     // it, and — since the streaks live in the surface field and the cowl has
@@ -207,15 +210,19 @@ function cowlMats(cA) {
     // the cowl SKIN is the builder's to paint (phase C): its own livery
     // section, alclad by default, borrowing the fuselage's colour; the
     // faster ageing rides along. host/dark/steel stay hardware.
+    // THE SKIN IS ONE-SIDED NOW (G243.1): its back face is drawn by the
+    // interior twin below, in the interior's material. DoubleSide here would
+    // put the painted back face and the dark one at the same depth.
+    const side = nm === 'skin' ? THREE.FrontSide : THREE.DoubleSide;
     if (nm === 'skin' && typeof window !== 'undefined' && window.CAGE_SECMAT) {
       const ms = window.CAGE_SECMAT('cowlSkin',
-        { surf: 0, fieldM: 1, side: THREE.DoubleSide, opacity: cA,
+        { surf: 0, fieldM: 1, side, opacity: cA,
           wearK: 1.5, tint0: b.color.getHex() });
       if (ms) { out[nm] = ms; continue; }
     }
     const m = (A && A.aeroHardMat)
       ? A.aeroHardMat(THREE, 'cowl', nm, b.color.getHex(),
-                      { side: THREE.DoubleSide, opacity: cA,
+                      { side, opacity: cA,
                         wearK: nm === 'skin' ? 1.5 : undefined })
       : null;
     if (m) { out[nm] = m; continue; }
@@ -226,16 +233,57 @@ function cowlMats(cA) {
     }
     out[nm] = b;
   }
+  // ---- THE INTERIOR (2026-09-11, the user: "make the interior of the cowl
+  // very dark ... paint it same shade as the cowl, but much, much darker,
+  // almost black") -----------------------------------------------------
+  // Every inward-facing surface of this shell — the firewall fold's return,
+  // the inlet throats and ducts — wore the SKIN material, so it caught the
+  // sky and read as painted topside seen from the wrong side. A cowl's inside
+  // is bare primer under a shell nothing lights; until there is an occlusion
+  // pass, a dark albedo is what stands in for the light that never gets in.
+  //
+  // IT IS THE COWL'S OWN COLOUR, not a constant, and that is the whole point
+  // of taking it off the built material rather than writing a hex here: the
+  // livery decides `cowlSkin`, so a red cowl gets a dark red inside and an
+  // alclad one a dark grey, with nothing to keep in step by hand.
+  out.inner = innerOf(out.skin, cA);
+  out.innerBack = innerOf(out.skin, cA, true);
   return out;
+}
+// Pooled on the colour and the alpha, like every other material here: the
+// cowl rebuilds on every slider drag and a fresh material per drag is a leak
+// with a shader compile attached. Never disposed — `dispose` above takes
+// geometries only.
+const INNER_POOL = new Map();
+const INNER_K = 0.06;              // of the skin's own albedo — see GATE COWL
+function innerOf(skin, cA, back) {
+  const c = (skin && skin.color) ? skin.color.clone().multiplyScalar(INNER_K)
+                                 : new THREE.Color(0x0d0b09);
+  const op = cA != null ? cA : 1;
+  const key = c.getHexString() + '|' + op.toFixed(3) + (back ? '|B' : '');
+  const hit = INNER_POOL.get(key);
+  if (hit) return hit;
+  // MATTE AND NOT METAL, whatever the outside is: a polished alclad cowl is
+  // still primer on the inside, and a metalness that high on an albedo this
+  // low reflects the sky straight back and undoes the darkening.
+  const m = new THREE.MeshStandardMaterial({
+    color: c, metalness: 0.0, roughness: 0.95,
+    side: back ? THREE.BackSide : THREE.DoubleSide,
+    transparent: op < 1, opacity: op, depthWrite: op >= 1 });
+  INNER_POOL.set(key, m);
+  return m;
 }
 let MATS = null;
 function mats() {
   if (MATS) return MATS;
   const D = THREE.DoubleSide;
   MATS = {
-    skin:  new THREE.MeshStandardMaterial({ color: 0xdfe3e7, metalness: 0.55, roughness: 0.36, side: D }),
+    skin:  new THREE.MeshStandardMaterial({ color: 0xdfe3e7, metalness: 0.55, roughness: 0.36, side: THREE.FrontSide }),
     host:  new THREE.MeshStandardMaterial({ color: 0x99a3ad, metalness: 0.40, roughness: 0.55, side: D }),
     dark:  new THREE.MeshStandardMaterial({ color: 0x15181b, metalness: 0.10, roughness: 0.92, side: D }),
+    // the fallback interior: the fallback SKIN taken down by INNER_K, so the
+    // two paths say the same thing when AEROSKIN is off
+    inner: new THREE.MeshStandardMaterial({ color: 0x0d0e0f, metalness: 0.0, roughness: 0.95, side: D }),
     steel: new THREE.MeshStandardMaterial({ color: 0x6d737a, metalness: 0.90, roughness: 0.35, side: D }),
     prop:  new THREE.MeshStandardMaterial({ color: 0xc79a63, metalness: 0.0, roughness: 0.62, side: D }),
   };
@@ -303,7 +351,36 @@ function noseFace(mesh, FS, end) {
     }
   }
   if (!cn) return null;
-  return { z, halfW: cx, halfH: (cy1 - cy0) / 2, yc: (cy0 + cy1) / 2 };
+  const halfW = cx, halfH = (cy1 - cy0) / 2, yc = (cy0 + cy1) / 2;
+
+  // HOW FAR THE SKIN COMES PAST THE CAP (2026-09-10). The firewall is a FLAT
+  // bulkhead and `z` is its plane — but the fuselage skin round the aperture
+  // is not flat, it domes FORWARD of it, and it is the SKIN, not the bulkhead,
+  // that the cowl's aft edge butts against. Measured on the cage's own nose
+  // (rays cast onto the top and bottom of the joint): the skin reaches 4-5 mm
+  // past the cap and stands 2-6 mm proud of the cowl fitted to it. So the last
+  // 5 mm of every cowl has always been inside the fuselage — invisible while
+  // the aft edge was a cut in a zero-thickness surface, and fatal to a FOLDED
+  // edge, which is 4 mm long and would be buried whole.
+  //
+  // The measurement is the mesh's own vertices, not a ray: everything in a
+  // band just outside the aperture's outline and within 50 mm forward of it.
+  // Structure is inboard (normalised radius < 1) and the coaming is well aft,
+  // so the band sees the skin and nothing else.
+  let over = 0;
+  for (const p of mesh.V) {
+    const d = sg * (p[2] * FS) - sg * z;
+    if (d <= 1e-4 || d > 0.05) continue;
+    const nr = Math.max(Math.abs(p[0] * FS) / Math.max(halfW, 1e-4),
+                        Math.abs(p[1] * FS - yc) / Math.max(halfH, 1e-4));
+    if (nr < 0.95 || nr > 1.45) continue;
+    if (d > over) over = d;
+  }
+  // and TUCK, by a millimetre and a half: seated exactly on the skin's edge a
+  // rounding either way is a hairline into the engine bay, and the last of the
+  // roll is already curling inward where nothing can see it.
+  const seat = Math.max(0, over - 0.0015);
+  return { z, halfW, halfH, yc, seat };
 }
 
 // THE ENGINE FACES (2026-09-04): one description of where every engine
@@ -582,6 +659,10 @@ const COWL_PROPS = {
 // to write and a NOTE when the firewall cannot be made to clear the engine —
 // which is a real outcome (a 1.2 m radial on a 0.6 m nose) and is reported
 // rather than silently drawn with the cylinders through the shell.
+// PUBLISHED FOR THE GATE (2026-09-10): `seat` moves every cowl on the
+// aeroplane and is a number nobody types, so GATE COWL measures it on a mesh
+// it builds itself rather than trusting the comment above it.
+window.CAGE_COWL_NOSE_FACE = noseFace;
 window.CAGE_COWL_FOR_ENGINE = function (arch, env, face) {
   const base = COWL_BY_ARCH[arch];
   if (!base || !env || !face || !(env.radius > 0)) return null;
@@ -793,6 +874,13 @@ PAGE.post = ctx => {
     syncFitted();
   }
 
+  // THE FIREWALL LIP GOES WHERE THERE IS A FIREWALL. On a synthetic face
+  // closed by the bench's tail cone (a nacelle, `aftMode` 1) the shell does
+  // not end at z = 0 at all — it carries on aft — so a folded edge there
+  // would be a rolled hem in the middle of a continuous surface, and the
+  // skin's aft row would stand off the cone by the lip's own lap.
+  const nacelle = station.synthetic && Math.round(CW.P.aftMode) === 1;
+  if (CW.P.fwLipOn !== undefined) CW.P.fwLipOn = nacelle ? 0 : CW.P.fwLipOn;
   CW.prepareLid();
   CW.prepareMesh();
   // COWL ALPHA (G29, user): see the engine through the shell. The view panel
@@ -819,12 +907,38 @@ PAGE.post = ctx => {
   group.userData.xray = XRAY ? 1 : 0;
   const cowl = new THREE.Group();
   CW.buildSurface(cowl, M, aps);
+  // the folded aft edge and its inner return — guarded like buildDetail is,
+  // because the cowl module is shared with a bench that may predate it
+  if (CW.buildFirewallLip) CW.buildFirewallLip(cowl, M);
   CW.buildLips(cowl, M, aps);
   CW.buildScoop(cowl, M);
   // G94: the fasteners, the parting line and the oil door — the three things
   // that say this panel comes off. Guarded, because the cowl module is shared
   // with a bench that may predate them.
   if (CW.buildDetail) CW.buildDetail(cowl, M);
+  // THE INSIDE OF THE SHELL (G243.1, the user, with the back faces of the
+  // barrel ringed on a screenshot: "I meant the inside faces of the cowl").
+  // Every skin mesh gets a TWIN on the same geometry in the interior's
+  // material, BackSide — so through any gap, aperture or stand-off the inside
+  // of the shell is the same near-black the fold's return and the throats
+  // are, instead of the livery lit from the wrong side. Same geometry object,
+  // one extra draw call per skin mesh, no extra memory; the skin itself went
+  // FrontSide in cowlMats so the two never share a depth.
+  //
+  // WHY THIS AND NOT A FLAG IN THE SHADER: three.js's back-face test is the
+  // WINDING, so it is only as good as the winding is consistent — and it was
+  // measured, on every preset: the barrel agrees with its outward normals on
+  // every triangle, the lips face forward, the lofts face out. That is what
+  // makes a one-sided skin safe here and would make it a hole anywhere else.
+  {
+    const twins = [];
+    cowl.traverse(o => { if (o.isMesh && o.material === M.skin) twins.push(o); });
+    for (const o of twins) {
+      const t = new THREE.Mesh(o.geometry, M.innerBack);
+      t.name = o.name; t.userData.innerTwin = 1;
+      o.parent.add(t);
+    }
+  }
   // THE NACELLE TAIL CONE (2026-09-04): on a face that is not the body's,
   // `aftMode` 1 closes the shell on the bench's own tail cone — the pylon
   // scenery off, the cone in the cowl's skin
@@ -864,8 +978,10 @@ PAGE.post = ctx => {
     ug.name = 'cageLayer:cowl'; ug.userData.xray = XRAY ? 1 : 0;
     ug.add(c);
     if (u.aft) ug.rotation.y = Math.PI;
+    // ON THE SKIN, NOT IN IT: `seat` is how far the fuselage skin domes past
+    // the flat firewall cap (noseFace). The builder's stand-off adds to it.
     ug.position.set(f.x || 0, f.yc,
-                    f.z + (u.aft ? -1 : 1) * (P.cowlGap || 0));
+                    f.z + (u.aft ? -1 : 1) * ((P.cowlGap || 0) + (f.seat || 0)));
     // THE COWL SHELL EXPLODES WITH THE AIRFRAME (G28, user), forward off
     // the face, scaled like the cage parts (explodeD is cage units, this
     // group is metres, so × FS); the engine layer stages the cone and the
@@ -877,11 +993,13 @@ PAGE.post = ctx => {
 
   applyRowStates(mode);
   window.CAGE_COWL = { face, len: CW.zEnd(), aps: aps.length, mode,
+                       seat: face.seat || 0,
                        units: units.map(u => ({ kind: u.kind, aft: u.aft })) };
   if (stat) {
     stat.textContent += `  ·  cowl: face ${(face.halfW * 2).toFixed(2)}×` +
       `${(face.halfH * 2).toFixed(2)} at z ${face.z.toFixed(2)} · ` +
-      `${(CW.zEnd() * 1000).toFixed(0)} mm long`;
+      `${(CW.zEnd() * 1000).toFixed(0)} mm long` +
+      (face.seat ? ` · seat +${(face.seat * 1000).toFixed(1)} mm` : '');
   }
 };
 // THE AERO AFT, CUT 1 (2026-09-04, TWIN-BOOM spec §1.2; the user: "an 'aero

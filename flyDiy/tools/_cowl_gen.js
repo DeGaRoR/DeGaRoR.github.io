@@ -22,6 +22,15 @@ const TAU=Math.PI*2, DEG=Math.PI/180, M2IN=39.3701;
 const P={
   // body — straight/tapered barrel, firewall at z = 0
   cowlLen:0.365, aftW:0.425, aftH:0.3, taperW:0.82, taperH:0.78,
+  // THE FIREWALL LIP — the aft edge, which is the piece of the cowl you look
+  // straight at from the cockpit. Real dimensions: a 4 mm fold, a 3 mm lap
+  // over the fuselage skin, 25 mm of inner return.
+  // THE LAP IS OFF BY DEFAULT: a cowl that stands proud of the fuselage needs
+  // clearance the joint may not have — on the cage's own nose the skin round
+  // the firewall reaches FORWARD of the flat cap the cowl is fitted to and
+  // overhangs it by a couple of millimetres, and a 3 mm lap into that is two
+  // surfaces fighting. Turn it up on a cowl stood off the face.
+  fwLipOn:1, fwLipR:0.004, fwLipRise:0, fwLipIn:0.025,
   // section control points: width, plus independent top and bottom apex + squareness
   sqAftTop:0.82, sqAftBot:0.82, sqFrontTop:0.54, sqFrontBot:0.48,
   // FASTENERS, PARTING LINE, OIL DOOR (G94). 110 mm is the camloc pitch a
@@ -200,6 +209,30 @@ function angDiff(a,b){let d=(a-b)%TAU; if(d>Math.PI)d-=TAU; if(d<-Math.PI)d+=TAU
 const SEG=112;
 const zEnd=()=>P.cowlLen+P.lidLen;
 function lidRadius(){ return P.lidMode===1 ? P.spinR+P.lidGap : P.lidR; }
+/* THE FIREWALL EDGE IS NOT AT z = 0 WHEN IT IS A LIP. The aft plane of the
+   cowl is still z = 0 — that is the firewall, and the cowl must not grow into
+   the fuselage — so the LIP occupies the last few millimetres of it and the
+   barrel's skin starts where the lip's lap begins. `aftStart` is that station,
+   and every consumer that used to walk the barrel from zero reads it: the mesh
+   stations, the parting line, the aft row of camlocs. */
+// ONE PLACE DECIDES THE LIP'S DIMENSIONS, because `aftStart` and the profile
+// have to agree exactly or the band leaves a crack at the skin's aft row.
+// NO LAP, NO RAMP: at rise 0 the flare is a zero-height strip coincident with
+// the skin, so it is not built at all and the fold's tangent station IS the
+// skin's aft row.
+// AND THE LIP MAY NOT EAT THE BARREL: on a 50 mm cowl a 14 mm fold with a
+// 16 mm lap is 62 mm of edge on a 50 mm panel, which leaves the surface with
+// no stations at all. Quarter of the cowl is the cap, and the fold, the lap
+// and the return scale together into it so the shape stays a fold.
+function fwGeom(){
+  const cl=Math.max(P.cowlLen,1e-3);
+  let r=Math.max(0.0015,P.fwLipR), p=Math.max(0,P.fwLipRise);
+  let sr=p>0?Math.max(0.005,p*3):0;
+  const cap=cl*0.25;
+  if(r+sr>cap){ const k=cap/(r+sr); r*=k; p*=k; sr*=k; }
+  return {r, p, sr, L:Math.min(Math.max(0.004,P.fwLipIn), cl*0.5)};
+}
+function aftStart(){ if(!P.fwLipOn) return 0; const g=fwGeom(); return g.r+g.sr; }
 /* No spine curvature. The barrel is a straight ruled surface from the firewall
    loop to the lid loop; the lid axis then runs straight to the face, which can
    be lifted independently of the barrel-end offset. */
@@ -416,6 +449,11 @@ function prepareMesh(){
   }
   ZS.sort((p,q)=>p-q);
   for(let i=ZS.length-1;i>0;i--) if(ZS[i]-ZS[i-1]<1e-6) ZS.splice(i,1);
+  // the barrel's skin stops where the lip's lap begins; the lip band draws the
+  // rest, and its first ring IS this row (same azimuths, zero offset), so the
+  // two meshes share an edge rather than meet at one
+  const z0=aftStart();
+  if(z0>0){ ZS=ZS.filter(z=>z>z0+1e-5); ZS.unshift(z0); }
   NDISC=Math.max(3,Math.round(4*d));
 }
 
@@ -534,6 +572,164 @@ function buildSurface(group,mats,aps){
   group.add(new THREE.Mesh(g,mats.skin));
 }
 
+/* ======================== THE FIREWALL LIP ========================
+   THE ONE EDGE OF THE COWL YOU LOOK STRAIGHT AT. Everything else on this shell
+   is seen from outside and from some way off; the aft edge is a hand's breadth
+   from the windscreen, and it was a cut in a zero-thickness surface — a razor
+   with the inside of the same skin showing through it, because the material is
+   DoubleSide. No amount of shading fixes that: what is missing is not light,
+   it is the edge itself.
+
+   SO IT IS BUILT THE WAY THE PART IS. A cowl skin does not stop at a firewall,
+   it laps over the fuselage and its edge is FOLDED — rolled back on itself so
+   there is no cut aluminium anywhere a hand goes. The profile here is that
+   fold, in three pieces, working aft along the skin and then forward again
+   inside it:
+
+     LAP    a smoothstep flare three times its own height long, standing the
+            skin `fwLipRise` proud so it laps the fuselage instead of butting
+            it. This is what gives the joint a highlight and a shadow; a flush
+            edge has neither. OFF by default — see `fwLipRise` in P.
+     FOLD   a half-round of radius `fwLipR` whose aft-most point sits exactly
+            on z = 0. The fold is the whole reason the plane is z = 0 and not
+            the skin's own end: the cowl may not grow into the firewall.
+     RETURN `fwLipIn` of INNER skin running forward, 2 r inboard of the outer
+            surface. This is the "couple of centimetres inside" — enough that
+            the eye reads depth and darkness behind the fold, and no more.
+            A full inner shell is not modelled and is not wanted: nothing can
+            see it, and it would double the cowl's triangles.
+
+   The band's first ring is the skin's own aft row — same azimuths, zero
+   offset, same `surfPoint` — so there is no seam to crack open when the
+   section, the taper or a cheek moves. Normals are ANALYTIC (the profile knows
+   its own tangent), not averaged off the grid: an averaged fold of this radius
+   smears into a chamfer, and the tight highlight along the roll is the entire
+   effect. */
+/* THE INSIDE OF THE COWL IS NOT THE OUTSIDE OF IT (2026-09-11, the user: "make
+   the interior of the cowl very dark ... same shade as the cowl, but much,
+   much darker, almost black"). Every inward-facing surface here was wearing
+   the SKIN material, so the fold's return and the inlet throats caught the sky
+   and beamed like painted topsides. A real cowl's inside is bare primer or
+   zinc chromate gone sooty — and until there is an occlusion pass, a dark
+   albedo is what stands in for the light that never reaches in there.
+   `mats.inner` is the cowl's own colour taken down to near-black (built in
+   _cage_cowl.js so it follows the livery); the fallbacks keep this module
+   loadable by a bench that predates it. */
+// EVERY interior takes it, not just the fold: the inlet duct's closing disc
+// and the chin scoop's throat were on the neutral `dark`, which under a warm
+// cowl reads faintly blue. One colour for the inside of one part.
+const innerMat=mats=>mats.inner||mats.dark||mats.skin;
+function fwLipProfile(){
+  const d=clamp(P.detail,0.35,2);
+  const g=fwGeom(), r=g.r, p=g.p, sr=g.sr, zA=g.r, L=g.L;
+  const prof=[];
+  // 1. the lap. Its outward normal tilts FORWARD, like any surface whose
+  //    radius grows aft — which is what puts the light on it from the cockpit.
+  if(sr>0){
+    const NR=Math.max(2,Math.round(4*d));
+    for(let k=0;k<=NR;k++){
+      const u=k/NR, sp=6*u*(1-u);                  // d/du of smooth()
+      const nzc=p*sp, ndc=sr, L1=Math.hypot(nzc,ndc)||1;
+      prof.push({d:p*smooth(u), z:zA+sr*(1-u), nd:ndc/L1, nz:nzc/L1});
+    }
+  }else prof.push({d:0, z:zA, nd:1, nz:0});        // the skin's aft row itself
+  // 2. the fold, centred at (d = p - r, z = zA): tangent to the lap at phi 0,
+  //    aft-most exactly on z = 0 at phi = pi/2, inner surface at phi = pi
+  // EVEN, so one sample lands exactly on phi = pi/2 and the fold's aft-most
+  // ring is exactly the firewall plane. Odd counts left it 0.06 mm forward of
+  // z = 0, which is not a shape anybody would see but is a plane the whole
+  // cowl is measured from.
+  const NF=2*Math.max(3,Math.round(4*d));
+  for(let k=1;k<=NF;k++){
+    const ph=k/NF*Math.PI;
+    prof.push({d:(p-r)+r*Math.cos(ph), z:zA-r*Math.sin(ph),
+               nd:Math.cos(ph), nz:-Math.sin(ph)});
+  }
+  // 3. the return, facing inboard
+  // ONE ROW: it is a straight strip of constant normal, so subdividing it
+  // adds triangles to the one part of the cowl nothing can see closely.
+  prof.push({d:p-2*r, z:zA+L, nd:-1, nz:0});
+  return prof;
+}
+/* the section's own outward normal in the z plane — the direction the lip is
+   offset along. NOT `cowlNormalAt`, which carries the taper's axial tilt: the
+   fold is a 2D profile swept round the section, so its offsets must stay in
+   the plane or the band leans and the fold stops being circular. */
+function sectNormal2(th,z){
+  const e=0.004;
+  const a=surfPoint(th-e,z), b=surfPoint(th+e,z);
+  let nx=b[1]-a[1], ny=-(b[0]-a[0]);
+  const L=Math.hypot(nx,ny)||1; nx/=L; ny/=L;
+  const q=surfPoint(th,z);
+  if(nx*q[0]+ny*(q[1]-spineY(z))<0){ nx=-nx; ny=-ny; }
+  return [nx,ny];
+}
+/* WHERE THE PAINT STOPS. The outer band is lofted in the skin, the inner one
+   in `inner`, and they share a row so there is no crack. The break is ONE
+   fold-step past the aft-most ring — the paint wraps over the edge and stops
+   just inside it, which is where it stops on a real folded panel and is the
+   one place on the profile where a material change cannot be seen, because
+   the surface has already turned away from anything outside. */
+function fwLipSplit(prof){
+  let k=0, zBack=Infinity;
+  for(let i=0;i<prof.length;i++) if(prof[i].z<zBack){ zBack=prof[i].z; k=i; }
+  return Math.min(k+1,prof.length-2);
+}
+function buildFirewallLip(group,mats){
+  if(!P.fwLipOn) return;
+  if(!LID) prepareLid();
+  if(!AZ.length) prepareMesh();
+  const prof=fwLipProfile(), S=AZ.length, R=prof.length;
+  const cutA=P.cutSpan*DEG, cutC=P.cutAz*DEG;
+  const V=[];
+  for(let i=0;i<R;i++){
+    const s=prof[i], z=Math.max(s.z,0), row=[];
+    for(let j=0;j<S;j++){
+      const th=AZ[j], b=surfPoint(th,z), n2=sectNormal2(th,z);
+      row.push([b[0]+n2[0]*s.d, b[1]+n2[1]*s.d, s.z,
+                n2[0]*s.nd, n2[1]*s.nd, s.nz]);
+    }
+    V.push(row);
+  }
+  const kS=fwLipSplit(prof);
+  const OUT={pos:[],nor:[]}, IN={pos:[],nor:[]};
+  let cur=OUT;
+  const push=(...vs)=>{ for(const v of vs){ cur.pos.push(v[0],v[1],v[2]);
+                                            cur.nor.push(v[3],v[4],v[5]); } };
+  // WOUND PER TRIANGLE, against the mean of its own three shading normals.
+  // The profile turns through 180 degrees at the fold, so one fixed winding
+  // has the return facing the wrong way — and on a DoubleSide material that is
+  // not a hole, it is a back face whose normal three.js flips, which lights
+  // the inside of the cowl as if it were the outside. Per TRIANGLE rather than
+  // per quad because the quads are warped: 300 mm round the section and one
+  // millimetre along the profile on a wide short cowl, where a quad's normal
+  // and its two triangles' normals are not the same vector.
+  const tri=(A,B,C)=>{
+    const ux=B[0]-A[0], uy=B[1]-A[1], uz=B[2]-A[2];
+    const vx=C[0]-A[0], vy=C[1]-A[1], vz=C[2]-A[2];
+    const gx=uy*vz-uz*vy, gy=uz*vx-ux*vz, gz=ux*vy-uy*vx;
+    const mx=A[3]+B[3]+C[3], my=A[4]+B[4]+C[4], mz=A[5]+B[5]+C[5];
+    if(gx*mx+gy*my+gz*mz >= 0) push(A,B,C); else push(A,C,B);
+  };
+  for(let i=0;i<R-1;i++){
+    cur = i<kS ? OUT : IN;
+    for(let j=0;j<S;j++){
+      if(cutA>0 && Math.abs(angDiff(AZ[j]+angDiff(AZ[(j+1)%S],AZ[j])/2,cutC))<cutA/2) continue;
+      const j2=(j+1)%S;
+      const A=V[i][j], B=V[i][j2], C=V[i+1][j2], D=V[i+1][j];
+      tri(A,B,C); tri(A,C,D);
+    }
+  }
+  const emit=(b,m)=>{
+    if(!b.pos.length) return;
+    const g=new THREE.BufferGeometry();
+    g.setAttribute('position',new THREE.Float32BufferAttribute(b.pos,3));
+    g.setAttribute('normal',new THREE.Float32BufferAttribute(b.nor,3));
+    group.add(new THREE.Mesh(g,m));
+  };
+  emit(OUT,mats.skin); emit(IN,innerMat(mats));
+}
+
 /* ============================ LIP ============================ */
 function lipProfile(){
   const prof=[], t=Math.max(0.004,P.lipThick);
@@ -580,10 +776,20 @@ function buildLips(group,mats,aps){
       return ring;
     });
     const skip=cutA>0?(i,j)=>Math.abs(angDiff((j+0.5)/SO*TAU,cutC))<cutA/2:null;
-    group.add(new THREE.Mesh(loftRings(rings,skip),mats.skin));
+    // PAINT TO THE CREST, PRIMER BEYOND IT. The whole lip — the rolled edge
+    // AND the throat and duct behind it — was one skin loft, so looking into
+    // the inlets you saw the cowl's own topside colour lit like topsides,
+    // which is the same fault as the fold's return. The break is the crest
+    // (the profile's furthest-forward ring): outside it is the lip you see
+    // from in front, inside it is duct.
+    let kC=0; for(let k=1;k<prof.length;k++) if(prof[k].dz>prof[kC].dz) kC=k;
+    kC=Math.min(Math.max(kC,1),rings.length-2);
+    group.add(new THREE.Mesh(loftRings(rings.slice(0,kC+1),skip),mats.skin));
+    group.add(new THREE.Mesh(loftRings(rings.slice(kC),
+      skip?(i,j)=>skip(i+kC,j):null),innerMat(mats)));
     const last=rings[rings.length-1];
     const zc=last.reduce((s,v)=>s+v.z,0)/last.length;
-    group.add(new THREE.Mesh(fan(last,new THREE.Vector3(o.cx,o.cy,zc),false,skip?j=>skip(0,j):null),mats.dark));
+    group.add(new THREE.Mesh(fan(last,new THREE.Vector3(o.cx,o.cy,zc),false,skip?j=>skip(0,j):null),innerMat(mats)));
   }
 }
 function loftRings(rings,skip){
@@ -667,10 +873,10 @@ function buildScoop(group,mats){
     inP.push({d:th0+inset*Math.pow(u,1.4), dz:-dep*u});}
   inP.push({d:th0+inset, dz:-dep-Math.max(0.005,P.scoopDuct)});
   const innerR=inP.map(s=>off(s.d,s.dz));
-  group.add(new THREE.Mesh(loftRings(innerR,null),mats.dark));
+  group.add(new THREE.Mesh(loftRings(innerR,null),innerMat(mats)));
   const last=innerR[innerR.length-1];
   const zc=last.reduce((s,v)=>s+v.z,0)/last.length;
-  group.add(new THREE.Mesh(fan(last,new THREE.Vector3(0,cyF,zc),false,null),mats.dark));
+  group.add(new THREE.Mesh(fan(last,new THREE.Vector3(0,cyF,zc),false,null),innerMat(mats)));
 }
 
 /* ==================== FASTENERS, PARTING LINE, OIL DOOR ====================
@@ -749,10 +955,15 @@ function buildDetail(group,mats){
   if(P.partOn){
     const th0=P.partY*Math.PI*0.5;                 // 0 = the waist, +-1 = pole
     const NZ=Math.max(6,Math.round(22*d)), w=Math.max(0.0015,P.partW);
+    // ...and it starts on the SKIN, not in the lip's fold: `surfPoint` still
+    // answers below `aftStart`, but the surface down there is the lip, which
+    // is up to `fwLipRise` proud of it — so a strip laid on the bare section
+    // would sink into the lap it is supposed to run over.
+    const zL=aftStart();
     for(const sgn of [1,-1]){
       const rings=[];
       for(let i=0;i<=NZ;i++){
-        const z=zP*i/NZ;
+        const z=lerp(zL,zP,i/NZ);
         const row=[];
         for(const o of [-w,w]){
           const th=sgn>0?(th0+o):(Math.PI-th0-o);
@@ -782,7 +993,8 @@ function buildDetail(group,mats){
     const pos=[],idx=[], r=Math.max(0.004,P.fastD*0.5), pitch=Math.max(0.04,P.fastPitch);
     // the aft edge: pitch measured round the section's own girth
     {
-      const zA=Math.min(ze*0.06,0.02);
+      // clear of the lip: a camloc half-buried in the fold reads as a dent
+      const zA=Math.max(Math.min(ze*0.06,0.02),aftStart()+r*1.2);
       let girth=0; const NG=64;
       let prev=surfPoint(0,zA);
       for(let k=1;k<=NG;k++){
@@ -970,7 +1182,10 @@ function buildAft(group,mats){
       }
       rings.push(ring);
     }
-    group.add(new THREE.Mesh(loftRings(rings,null),mats.host));
+    // WOUND OUTWARD (G243.1): these rings march AFT, which turns loftRings'
+    // fixed winding inside out relative to every forward loft on the cowl.
+    // Harmless while every material was DoubleSide; the skin is one-sided now.
+    group.add(new THREE.Mesh(loftRings(rings.slice().reverse(),null),mats.host));
   }else{
     const NS=22,rings=[];
     for(let i=0;i<NS;i++){
@@ -984,7 +1199,7 @@ function buildAft(group,mats){
       }
       rings.push(ring);
     }
-    group.add(new THREE.Mesh(loftRings(rings,null),mats.skin));
+    group.add(new THREE.Mesh(loftRings(rings.slice().reverse(),null),mats.skin));
     if(P.pylon){
       const w=s0.a*0.42,h=s0.bT*1.5;
       const m=new THREE.Mesh(new THREE.BoxGeometry(w*2,h,P.tailLen*0.75),mats.host);
@@ -1193,6 +1408,6 @@ function cowlSizeToEngine(env, opt) {
   return r;
 }
 
-const COWL_API = { TAU, P, MATERIALS, PRESETS, lerp, clamp, smooth, sqExp, superPt, angDiff, SEG, zEnd, lidRadius, spineY, bez, mkCurve, eSqAftTop, eSqAftBot, eDeckH, eKeelH, eWaist, prepareLid, seamInset, sectionAtZ, sectPt, lobeAt, surfPoint, sectF, pierceZ, equalise, prepareMesh, apertureList, fitAperture, apG, buildSurface, lipProfile, buildLips, buildDetail, cowlNormalAt, loftRings, fan, buildScoop, buildAft, spinProfile, coneBaseZ, axisXY, bladePlaneZ, coneRadiusAtBlade, buildNose, naca, airfoilLoop, propGeometry, cowlFitEngine, cowlApplyEngine, cowlSizeToEngine };
+const COWL_API = { TAU, P, MATERIALS, PRESETS, lerp, clamp, smooth, sqExp, superPt, angDiff, SEG, zEnd, lidRadius, spineY, bez, mkCurve, eSqAftTop, eSqAftBot, eDeckH, eKeelH, eWaist, prepareLid, seamInset, sectionAtZ, sectPt, lobeAt, surfPoint, sectF, pierceZ, equalise, prepareMesh, apertureList, fitAperture, apG, buildSurface, aftStart, fwGeom, fwLipProfile, sectNormal2, buildFirewallLip, lipProfile, buildLips, buildDetail, cowlNormalAt, loftRings, fan, buildScoop, buildAft, spinProfile, coneBaseZ, axisXY, bladePlaneZ, coneRadiusAtBlade, buildNose, naca, airfoilLoop, propGeometry, cowlFitEngine, cowlApplyEngine, cowlSizeToEngine };
 if (typeof module !== 'undefined') module.exports = COWL_API;
 if (typeof window !== 'undefined') window.COWL_GEN = COWL_API;

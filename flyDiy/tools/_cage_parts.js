@@ -708,13 +708,16 @@ const CAGE_PARTS = [
     sections: ['cowlSkin'],
     // THE GROUPS ARE THE COWL'S ANATOMY (G213), aft to forward — the same
     // table _cowl_rows.js declares, and the vocabulary its head comment
-    // defines: firewall, barrel, nose bowl, nose ring; the section at each
+    // defines: firewall (and its folded LIP), barrel, nose bowl, nose ring;
+    // the section at each
     // of the three stations; cheeks; inlets and their lip; the chin scoop;
     // the panel joint, the split line, the camlocs, the oil door; and the
     // nacelle tail cone for a cowl standing off the body.
     groups: [
       // `cowlLoops/Ease/Bulge` -> `nose`: they loft the CAGE's nose cap, not this layer
       ['fitted', ['cowlOn', 'fitNose', 'cowlGap']],
+      ['firewall lip', ['cw_fwLipOn', 'cw_fwLipR', 'cw_fwLipRise',
+                        'cw_fwLipIn']],
       ['barrel', ['cw_cowlLen', 'cw_aftW', 'cw_aftH', 'cw_taperW',
                   'cw_taperH', 'cw_lidRise']],
       ['nose bowl', ['cw_lidLen', 'cw_lidShoulder', 'cw_lidRound',

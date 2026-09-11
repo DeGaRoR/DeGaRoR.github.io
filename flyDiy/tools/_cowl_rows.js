@@ -20,7 +20,10 @@
 // groupings"). A cowl, from the back forward:
 //
 //   FIREWALL      the aft edge — the fuselage's engine face. Its size is the
-//                 fuselage's whenever the cowl is fitted or sealed to it.
+//                 fuselage's whenever the cowl is fitted or sealed to it, and
+//                 the edge itself is a FOLD: the skin rolls back on itself and
+//                 returns a couple of centimetres inside, because this is the
+//                 one edge of the cowl a pilot looks straight at.
 //   BARREL        the straight, tapering panel from the firewall forward.
 //   NOSE BOWL     the curved forward piece that closes the barrel down onto
 //                 the NOSE RING — the opening the spinner sits in.
@@ -45,6 +48,17 @@
 // values still live in COWL_GEN.P for the bench's own use.
 'use strict';
 const COWL_ROWS = [
+  // ---- Firewall lip ----
+  // Aft to forward, the anatomy starts at the FIREWALL, and its own edge is
+  // the first thing on the list. Millimetre ranges on purpose: this is a
+  // folded sheet-metal edge a hand's breadth from the windscreen, not a
+  // styling curve, and every value here is a dimension a real cowl has.
+  { id: 'g_fire', name: 'Firewall lip', rows: [
+    { k: 'fwLipOn', label: 'folded edge at the firewall', lo: 0, hi: 1, step: 1 },
+    { k: 'fwLipR', label: 'fold radius', lo: 0.0015, hi: 0.014, step: 0.0005, when: 'P.fwLipOn>0' },
+    { k: 'fwLipRise', label: 'lap over the fuselage skin', lo: 0, hi: 0.016, step: 0.0005, when: 'P.fwLipOn>0' },
+    { k: 'fwLipIn', label: 'inner return (how deep you see)', lo: 0.004, hi: 0.08, step: 0.002, when: 'P.fwLipOn>0' },
+  ] },
   // ---- Barrel ----
   { id: 'g_barrel', name: 'Barrel', rows: [
     { k: 'cowlLen', label: 'length, firewall → barrel end', lo: 0.05, hi: 2, step: 0.005 },

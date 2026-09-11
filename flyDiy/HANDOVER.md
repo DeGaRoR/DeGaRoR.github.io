@@ -36242,3 +36242,120 @@ BUILD green. In the SHARED tree SKINMAT is red on the cowl's `inner` material
 (the firewall-lip session's uncommitted G243.1) and BENCH on the sticker
 defaults (`stkPlace: 3`, the livery session's uncommitted G242.1) — neither
 is this commit's.
+
+## G243 — THE COWL'S AFT EDGE IS A FOLD, AND THE COWL SITS ON THE SKIN INSTEAD
+## OF 5 mm INSIDE IT (2026-09-10, the user: "we need a proper lip on the nose
+## cone at the firewall. That's a visible part from the cockpit, so needs to be
+## high quality. We just need the lip and a couple of centimetres inside, but
+## we don't need a full thickness of the part")
+
+- **THE EDGE IS BUILT THE WAY THE PART IS.** The cowl's aft rim was a cut in a
+  zero-thickness surface — a razor with the inside of the same skin showing
+  through it, because the material is DoubleSide. `buildFirewallLip`
+  (`_cowl_gen.js`) replaces the last few millimetres of the barrel with the
+  three pieces a real cowl edge has: a LAP (`fwLipRise`, a smoothstep flare
+  that stands the skin proud to overlap the fuselage), a FOLD (`fwLipR`, a
+  half-round whose aft-most ring is EXACTLY the firewall plane — the cowl may
+  not grow into the fuselage), and a RETURN (`fwLipIn`, 25 mm of inner skin
+  running forward, two fold radii inboard). No inner shell: nothing can see one
+  and it would double the cowl's triangles. 1560 tris at detail 1, ~500 at 0.35.
+- **`aftStart()` IS THE NEW ZERO.** The barrel's mesh stations, the parting line
+  and the aft row of camlocs all used to walk from z = 0; they read it now, so
+  the strip does not sink into the lap it runs over and a camloc is not half
+  buried in the fold. The lip's first ring IS the skin's aft row — same
+  azimuths, same `surfPoint`, zero offset — so there is no seam to crack open
+  when the section, the taper or a cheek moves.
+- **NORMALS ARE ANALYTIC AND THE WINDING IS CHECKED PER QUAD.** The profile
+  knows its own tangent; an averaged fold of this radius smears into a chamfer
+  and the tight highlight along the roll is the whole effect. And the profile
+  turns through 180 degrees, so one fixed winding leaves the return facing the
+  wrong way — which on a DoubleSide material is not a hole, it is a back face
+  whose normal three.js flips, lighting the inside of the cowl like the
+  outside. Each quad is wound against its own analytic normal instead.
+- **AND THE COWL HAD ALWAYS BEEN SEATED 5 mm INSIDE THE FUSELAGE.** The
+  firewall is a FLAT bulkhead and `noseFace` returns its plane — but the
+  fuselage skin round the aperture DOMES FORWARD of it, and it is the skin, not
+  the bulkhead, that the cowl's aft edge meets. Measured with rays onto the top
+  and bottom of the joint: the skin comes 4-5 mm past the cap on the jodel and
+  the cub, standing 2-6 mm proud of the cowl fitted to it. Invisible while the
+  edge was a razor; fatal to a 4 mm fold, which was buried whole. `noseFace`
+  now measures the dome off the mesh's own vertices (everything in a band just
+  outside the aperture outline and within 50 mm forward of it) and publishes
+  `face.seat`; the shell is placed on it, tucked 1.5 mm so a rounding either
+  way is not a hairline into the engine bay. The ENGINE does not move — it
+  bolts to the bulkhead, which is where it was.
+- **THE LAP IS OFF BY DEFAULT** (`fwLipRise` 0). A cowl proud of the fuselage
+  needs clearance the joint may not have, and at 3 mm into a skin that overhangs
+  by 2.3 mm the two surfaces fight — measured, and visible as black wedges
+  alternating along the joint. With no lap the whole band lives inside the
+  barrel's own envelope, which is the property that keeps it out of the
+  fuselage; GATE COWL asserts it. Turn it up on a cowl stood off the face.
+- Rows: a `Firewall lip` group, first in `_cowl_rows.js` (the anatomy runs aft
+  to forward and the firewall's own edge is the first thing on it), mirrored in
+  the parts table. Millimetre ranges: this is folded sheet metal, not a styling
+  curve. `_cage_cowl.js` switches the lip off on a nacelle closed by the
+  bench's tail cone — there the shell does not end at z = 0 at all.
+- GATE COWL grew fourteen checks: nothing aft of the firewall plane and the
+  fold reaching it exactly, the weld to the skin, the wall being two fold radii,
+  the return facing inboard, no triangle wound against its own normal, all three
+  rows moving the mesh, the no-lap envelope, and the seat measured on a fixture
+  (a cap ring plus a skin ring domed 6 mm forward) — including that a FLAT nose
+  gets no seat at all.
+- Verified on pixels (headless Chrome + CDP over the cage bench, the rig in the
+  session scratchpad): before/after at the joint, the lip alone against nothing,
+  and the interference hunt that found the dome. Gates: COWL, PARTS green.
+
+### G243.1 — THE INSIDE OF THE COWL IS NOT THE OUTSIDE OF IT (2026-09-11, the
+### user: "make the interior of the cowl very dark? It beams here ... paint it
+### same shade as the cowl, but much, much darker, almost black")
+
+- Every inward-facing surface of the shell was wearing the SKIN material, so it
+  caught the sky and read as a painted topside seen from the wrong side: the
+  fold's RETURN (new, and the one that showed it up), and — the same fault,
+  there since the port — the INLET THROATS, whose whole lip including the duct
+  behind the crest was one skin loft. `mats.inner` is the cowl's own colour
+  taken to 6 % of its albedo (`INNER_K` in `_cage_cowl.js`), matte and not
+  metal, pooled on colour and alpha.
+- **IT IS THE COWL'S OWN COLOUR, not a constant**, and taking it off the BUILT
+  material rather than writing a hex is the whole point: the livery decides
+  `cowlSkin`, so a red cowl gets a dark red inside and an alclad one a dark
+  grey, with nothing to keep in step by hand. (Measured in the bench: skin
+  945924 linear, interior 080502.)
+- **WHERE THE PAINT STOPS.** The firewall band splits ONE fold-step past the
+  aft-most ring — the paint wraps over the edge and stops just inside it, which
+  is where it stops on a real folded panel and the one place on the profile
+  where a material change cannot be seen, because the surface has already
+  turned away from anything outside. The inlet lip splits at its CREST: outside
+  it is the lip you see from in front, inside it is duct. Both share a row, so
+  neither split is a crack.
+- The inlet duct's closing disc and the chin scoop's throat moved off the
+  neutral `dark` (0x15181b, faintly blue under a warm cowl) onto the same
+  tinted interior. The parting line and the oil-door gap stay `dark` — they are
+  shadow strips on the OUTSIDE, not interior.
+- **AND THEN THE BARREL ITSELF** (the user, with the back faces of the shell
+  ringed on a screenshot: "I meant the inside faces of the cowl"). The skin was
+  DoubleSide, so through any gap, aperture or stand-off its back face was the
+  livery lit from the wrong side. The skin is FRONT-SIDE now and every skin
+  mesh gets a TWIN on the same geometry, BackSide, in the interior material
+  (`innerBack`, pooled like `inner`): one extra draw call per skin mesh, no
+  extra memory, and the whole inside of the shell is the one near-black.
+- **WHY A TWIN AND NOT THE SHADER'S OWN `uInside.y`.** AEROSKIN already darkens
+  a back face by the cabin dial (G206.1), but that is 0.81 × coverage, a shared
+  dial, and "almost black" is not a cabin. More to the point, three.js's
+  back-face test is the WINDING — so either route is only as good as the
+  winding is consistent. MEASURED, on every preset: the barrel agrees with its
+  outward normals on every triangle (4196/4196 on the default), the inlet
+  rolls face forward, the scoop lofts face out — and the nacelle's TAIL CONE
+  did not: its rings march aft and loftRings' fixed winding turned it inside
+  out. Harmless while everything was DoubleSide; a hole the moment the skin
+  went one-sided. Both aft lofts are reversed now, and GATE COWL holds the
+  outward flux of every skin mesh of every preset (57 meshes, proven able to
+  go red by un-reversing the cone: 0/2520 outward).
+- This is a stand-in for occlusion, and the user said so ("I guess eventually
+  some SSAO will help"). When there is an AO pass the albedo can come back up.
+- GATE COWL: the lip is TWO meshes now, so `meshOf` walks the union of
+  everything a build emits — taking the last mesh silently tested the inner
+  band alone, and the "fold reaches the firewall plane" check went red on a
+  z-min of 0.3 mm that was just the band it happened to grab. Plus a new check
+  that the band really is skin + inner and not one material.
+
