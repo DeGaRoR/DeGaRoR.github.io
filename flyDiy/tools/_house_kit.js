@@ -57,11 +57,25 @@ function Bag(name) {
   // it overrides the computed one. Sparse on purpose: the override array is
   // only touched by the few builders that have a curve.
   const nOv = new Map();
+  // WHAT GLOWS (G253, the user: "Let's also generate lights"). A second
+  // per-vertex channel beside the occlusion: 0 for everything, and for the
+  // few faces that are a light SOURCE — a lit window, a lamp's glass, a bulb —
+  // an index into the shader's small palette (1 warm interior, 2 red, 3 green,
+  // 4 blue, 5 amber). Per vertex rather than per material because a lit
+  // window and a dark one are the same glass on the same wall, and a string
+  // of bulbs is one draw call that wants five colours. The builder sets the
+  // glow before it draws a face and clears it after; nothing else ever has to
+  // know about it, which is how the door light, the dormer, the bay and the
+  // far mesh's panes all came out right without a change of their own.
+  const lit = [];
+  let glow = 0;
   return {
     name: name || '',
+    setGlow: g => { glow = g || 0; },
     v: (p, u, n) => { pos.push(p[0], p[1], p[2]);
                       uv.push(u ? u[0] : 0, u ? u[1] : 0);
                       ao.push(1);           // lit until the bake says otherwise
+                      lit.push(glow);
                       const i = pos.length / 3 - 1;
                       if (n) nOv.set(i, n);
                       return i; },
@@ -69,7 +83,7 @@ function Bag(name) {
     tri: (a, b, c) => { idx.push(a, b, c); },
     get tris() { return idx.length / 3; },
     get verts() { return pos.length / 3; },
-    data: () => ({ pos, uv, idx, ao }),
+    data: () => ({ pos, uv, idx, ao, lit }),
     mesh: (parent, mat) => {
       if (!idx.length) return null;
       const g = new THREE.BufferGeometry();
@@ -80,6 +94,8 @@ function Bag(name) {
       // building has no lightmap UV set and does not want one
       g.setAttribute('aHouseAO',
         new THREE.BufferAttribute(new Float32Array(ao), 1));
+      g.setAttribute('aHouseLit',
+        new THREE.BufferAttribute(new Float32Array(lit), 1));
       g.setIndex(idx);
       g.computeVertexNormals();
       if (nOv.size) {
@@ -661,7 +677,7 @@ function wall(bag, o) {
   if (endCap[1])
     face(bag, [P(L,y0,1), P(L,y0,-1), P(L,topAt(L,-1),-1), P(L,topAt(L,1),1)],
          X, uvFrame(P(L,y0,-1), N, [0,1,0]));
-  return { X: X, N: N, L: L, ext: ex,
+  return { X: X, N: N, L: L, ext: ex, A: A,
            P: (s, y, side) => P(s + ex[0], y, side) };
 }
 

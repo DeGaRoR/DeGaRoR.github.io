@@ -509,6 +509,17 @@ function build() {
   // are still on the wire arrives as an empty group and fills itself; the
   // redraw is hooked on PROP_LANDED below.
   if (hi.stats.pier && mode !== 1) addPier(root, hi.stats.pier, 0);
+  // THE LAMPS ARE REAL LIGHTS (G253): the generator drew the fixture and
+  // published where its glass is; the bench stands a point light in it. No
+  // light without emitting geometry — the aeroplane's rule, kept.
+  if (hi.stats.lit)
+    for (const L of hi.stats.lit.lights) {
+      const pl = new THREE.PointLight(
+        new THREE.Color(L.col[0], L.col[1], L.col[2]),
+        L.k * (P.lightK || 2.2) * 2.4, L.range, 2);
+      pl.position.set(L.x + L.nx * 0.16, L.y - 0.04, L.z + L.nz * 0.16);
+      root.add(pl);
+    }
   if ($('ground').checked) {
     const R2 = Math.max(18, P.L * 1.6 + (hi.stats.pier ? hi.stats.pier.z1 * 0.6 : 0));
     root.add(siteMesh(hi.stats.ground, R2, hi.stats.aoFoot));
@@ -625,6 +636,12 @@ function checks(hi, lo) {
     }
   }
 
+  if (P.lights && S.lit) {
+    row('lights', S.lit.windows + ' windows lit, ' + S.lit.lights.length +
+        ' lamp' + (S.lit.lights.length === 1 ? '' : 's'),
+        S.lit.windows + S.lit.lights.length ? 'ok' : 'warn',
+        S.lit.bulbs + ' bulbs on the rails');
+  }
   if (S.pier) {
     const pr = S.pier;
     row('pier', pr.modules.length + ' modules, ' + (pr.z1 - pr.z0).toFixed(1) +

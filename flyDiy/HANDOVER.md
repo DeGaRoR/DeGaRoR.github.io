@@ -37147,3 +37147,58 @@ session 3's with the drawn dials. The battery's station is the firewall on
 every build — a PA-18 carries its aft for balance; a bay choice like the
 vessels' is a later row. The bill's row labels truncate in the column's
 narrow key cell.
+
+## G253 — THE HOUSE LIGHTS UP: A GLOW PER VERTEX, A LAMP BY THE DOOR, A STRING
+## OF BULBS ON THE STAIR RAIL — AND THE FUZZER RUNS THE WHOLE BATTERY
+## (2026-09-11, the user: "Let's also generate lights. We could turn on
+## independently (or linked) interior lights (only the window textures to
+## become emissive), light lighting the porch and the front terrace, and little
+## lights along the ramps of the stairs, more like christmas lights wrapped
+## around the ramps (where one holds with its hand)")
+
+- **A GLOW IS A PER-VERTEX CHANNEL** beside the baked occlusion: `aHouseLit`,
+  0 for everything and, on the few faces that are a light SOURCE, an index into
+  the glass shader's small palette (1 warm interior, 2 red, 3 green, 4 blue, 5
+  amber). Per vertex rather than per material because a lit window and a dark
+  one are the same glass on the same wall, and a string of bulbs is one draw
+  call that wants five colours. `bag.setGlow(k)` before a face, `setGlow(0)`
+  after — which is how the door light, the dormer, the bay and the far mesh's
+  panes all came out right without a change of their own. In the shader a lit
+  pane adds emissive through the same slow field (a curtain, a lamp nearer one
+  side — twelve windows are not twelve identical rectangles) and loses most of
+  its reflection: a lit pane is a light, not a mirror.
+- **WHICH WINDOWS** (`winLink`): one switch, or each its own — hashed from the
+  window's OWN place on its wall and `lightSeed`, so the same house lights the
+  same rooms every build and the seed walks through the neighbours' habits.
+  `winLit` is a probability, not a count.
+- **NO LIGHT WITHOUT EMITTING GEOMETRY** (the aeroplane's rule, G96, kept). The
+  lamp is a bulkhead lantern on the wall beside the door — bracket, four corner
+  posts, cap and base in metal, four glass sides glowing warm — and it
+  PUBLISHES itself (`stats.lit.lights`: position, outward normal, colour,
+  reach); the bench stands a real point light in its glass, the game will too.
+  It lights the door, the deck and the wall it hangs on.
+- **THE STRING OF BULBS** along every flight's handrail cap and every landing's
+  rail: a bulb every quarter metre, each one a third of a turn round the rail
+  from the last so the string reads as a cord WOUND on the cap and not a row
+  of dots on top, the cord itself the thinnest beam in the kit. Warm white or
+  the four Christmas colours (`stringCol`).
+- **GATE HOUSE rule 29**: with the lights off, no glowing vertex, no lamp, no
+  bulb; on one switch, every pane; every published light has glowing glass
+  within 0.3 m of it; a railed stair has bulbs. And the selftest builds the
+  same house twice with only the switch between them.
+- **THE FUZZER RUNS THE WHOLE BATTERY NOW.** Rules 16-29 — the jetty, the
+  doors, the roof rims, the pier, the lights — lived inline in the preset loop,
+  so the forty random houses only ever met the measured-geometry rules, and a
+  lamp with no glass in it PASSED because no preset switches its lights on.
+  `battery(name, P)` is a function and the fuzzer calls it. It found three
+  real faults on its first run:
+  - a back door with no stoop two metres up (the sampler's `backPorch` was a
+    coin) — a back door forces its stoop now, like the front door its stair;
+  - THE LEAN-TO HAD NO FLOOR — walls, roof, legs and nothing to stand on,
+    see-through from below, and a door that opened into it opened onto air. It
+    has a slab at the house's floor line now and counts as a platform;
+  - two boats overlapping on one side of the pier: hulls are longer than runs,
+    so "a different run" was not "clear". A boat checks the boats already on
+    its side along z.
+- Gates: HOUSE (with --selftest; 29 rules, the fuzzer on all of them) and
+  MEDIA green.

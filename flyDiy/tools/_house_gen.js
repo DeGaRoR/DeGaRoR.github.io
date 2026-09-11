@@ -582,12 +582,23 @@ function shadeGlass(m) {
     sh.uniforms.uGlassWave = GLASS_U.uGlassWave;
     sh.uniforms.uGlassRough = GLASS_U.uGlassRough;
     sh.uniforms.uGlassFres = GLASS_U.uGlassFres;
-    sh.vertexShader = 'varying vec3 vGlassP;\n' + sh.vertexShader.replace(
+    sh.uniforms.uLitK = GLASS_U.uLitK;
+    sh.vertexShader = 'varying vec3 vGlassP;\nvarying float vHouseLit;\n' +
+      'attribute float aHouseLit;\n' + sh.vertexShader.replace(
       '#include <begin_vertex>',
-      '#include <begin_vertex>\n  vGlassP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      '#include <begin_vertex>\n  vGlassP = (modelMatrix * vec4(transformed, 1.0)).xyz;' +
+      '\n  vHouseLit = aHouseLit;');
     sh.fragmentShader =
-      'varying vec3 vGlassP;\n' +
-      'uniform float uGlassWave, uGlassRough, uGlassFres;\n' +
+      'varying vec3 vGlassP;\nvarying float vHouseLit;\n' +
+      'uniform float uGlassWave, uGlassRough, uGlassFres, uLitK;\n' +
+      // THE PALETTE OF WHAT GLOWS: the warm of a room with a lamp on, and the
+      // four colours of a string of Christmas bulbs
+      'vec3 gLitCol(float k) {\n' +
+      '  if (k < 1.5) return vec3(1.00, 0.72, 0.40);\n' +
+      '  if (k < 2.5) return vec3(1.00, 0.10, 0.06);\n' +
+      '  if (k < 3.5) return vec3(0.12, 1.00, 0.22);\n' +
+      '  if (k < 4.5) return vec3(0.22, 0.42, 1.00);\n' +
+      '  return vec3(1.00, 0.70, 0.16);\n}\n' +
       'float gHash(vec3 p) { return fract(sin(dot(floor(p), ' +
       'vec3(127.1, 311.7, 74.7))) * 43758.5453); }\n' +
       'float gNoise(vec3 p) {\n' +
@@ -615,8 +626,21 @@ function shadeGlass(m) {
           '    float gf = pow(clamp(1.0 - abs(dot(geometry.normal,\n' +
           '                     geometry.viewDir)), 0.0, 1.0), 5.0);\n' +
           '    float gk = 1.0 + uGlassFres * gf;\n' +
+          // a lit pane is a light, not a mirror: the room behind it drowns
+          // most of what the glass was reflecting
+          '    float glit = step(0.5, vHouseLit);\n' +
+          '    gk *= 1.0 - 0.6 * glit;\n' +
           '    reflectedLight.directSpecular *= gk;\n' +
           '    reflectedLight.indirectSpecular *= gk;\n' +
+          '  }')
+        .replace('#include <emissivemap_fragment>',
+          '#include <emissivemap_fragment>\n' +
+          '  if (vHouseLit > 0.5) {\n' +
+          // the slow field puts a little unevenness across a lit pane — a
+          // curtain, a lamp nearer one side — so twelve windows are not
+          // twelve identical rectangles
+          '    float gu = 0.80 + 0.35 * gField(vGlassP * 0.7);\n' +
+          '    totalEmissiveRadiance += gLitCol(vHouseLit) * uLitK * gu;\n' +
           '  }')
         .replace('#include <normal_fragment_maps>',
           '#include <normal_fragment_maps>\n' +
@@ -638,7 +662,7 @@ function shadeGlass(m) {
 // hammered glass, not as glass. At 0.2 the field only bends what is already
 // reflected; the roughness at 0.4 is what stops the pane being a mirror.
 const GLASS_U = { uGlassWave: { value: 0.2 }, uGlassRough: { value: 0.4 },
-                  uGlassFres: { value: 2.6 } };
+                  uGlassFres: { value: 2.6 }, uLitK: { value: 2.2 } };
 
 // ---------------------------------------------------------------------------
 // THE GROUND UNDER THE BUILDING (the user: "You should add some terrain
@@ -705,6 +729,7 @@ function applyFinish(P) {
   GLASS_U.uGlassWave.value = P.glassWave === undefined ? 0.2 : P.glassWave;
   GLASS_U.uGlassRough.value = P.glassRough === undefined ? 0.4 : P.glassRough;
   GLASS_U.uGlassFres.value = P.glassFres === undefined ? 2.6 : P.glassFres;
+  GLASS_U.uLitK.value = P.lightK === undefined ? 2.2 : P.lightK;
   // the ground line under the middle of the building, and how far the dust
   // climbs; the punch is one dial from washed-out to boat paint
   const g = groundFn(P);
@@ -845,6 +870,11 @@ const DEF = {
   openFront: 0, firewood: 0,
   // the door leaf
   doorAjar: 0, doorLight: 1,
+  // THE LIGHTS (G253): the master, which windows are lit and whether they are
+  // one switch or many, the lamp by the door, and the string of bulbs along
+  // the stair rails
+  lights: 0, winLit: 0.6, winLink: 0, porchLamp: 1, stairLights: 1,
+  stringCol: 1, lightSeed: 1, lightK: 2.2,
   // THE BAY (G236, the user: "add a little special detail in the design. A
   // strange angle, a large window, somehting special here and there")
   bay: 0, bayWall: 1, bayPos: 0.5, bayW: 2.4, bayD: 0.72, bayH: 1.55,
@@ -976,6 +1006,20 @@ const ROWS = [
     ['backDoorPos', 'its position', 0.1, 0.9, 0.01, null, P => !!P.backDoor],
     ['backPorch', 'back stoop', 0, 1, 1, null, P => !!P.backDoor],
     ['doorLight', 'door light', 0, 1, 1, null, P => !!P.door],
+  ]],
+  ['lights', [
+    ['lights', 'lights on', 0, 1, 1],
+    ['winLink', 'windows', 0, 1, 1, ['each its own', 'one switch'],
+     P => !!P.lights],
+    ['winLit', 'share of windows lit', 0, 1, 0.05, null,
+     P => !!P.lights && !P.winLink],
+    ['porchLamp', 'lamp by the door', 0, 1, 1, null, P => !!P.lights],
+    ['stairLights', 'bulbs on the stair rails', 0, 1, 1, null, P => !!P.lights],
+    ['stringCol', 'the bulbs', 0, 1, 1, ['warm white', 'christmas'],
+     P => !!P.lights && !!P.stairLights],
+    ['lightK', 'how bright', 0.5, 6, 0.1, null, P => !!P.lights],
+    ['lightSeed', 'which windows', 1, 99, 1, null,
+     P => !!P.lights && !P.winLink],
     ['doorAjar', 'door ajar', 0, 85, 1, null, P => !!P.door],
     ['doorPos', 'door position', 0.05, 0.95, 0.01, null, P => !!P.door],
     ['doorW', 'door width', 0.7, 1.6, 0.01, null, P => !!P.door],
@@ -1543,6 +1587,22 @@ function openingsFor(P, V, R, side, A, B, opts) {
 // The joinery that makes an opening read as one: casing on three sides, a
 // projecting sill under it, and (lod 0) a sash bar or two. Drawn on the
 // EXTERIOR face only — nothing inside is ever seen through 55% glass.
+// WHICH WINDOWS ARE LIT (the user: "interior lights, only the window textures
+// to become emissive ... turn on independently (or linked)"). One switch, or
+// each window its own: hashed from the window's OWN place on its wall and the
+// seed, so the same house lights the same rooms every build and a slider on
+// the seed walks through the neighbours' habits. The share is a probability,
+// not a count — a house with one window lit at 0.6 is a house whose one
+// occupant is in.
+function litFor(P, W, h) {
+  if (!P.lights) return 0;
+  if (P.winLink) return 1;
+  const a = W.A || [0, 0];
+  const hh = Math.sin(a[0] * 12.9898 + a[1] * 78.233 + h.s0 * 3.71 +
+                      h.y0 * 5.13 + (P.lightSeed | 0) * 0.77) * 43758.5453;
+  return (hh - Math.floor(hh)) < (P.winLit === undefined ? 0.6 : P.winLit) ? 1 : 0;
+}
+
 function dressOpening(bags, P, Q, W, h, y1) {
   if (h.kind === 'bay') return;      // the bay's own walls are its finish
   const t = P.trimW, X = W.X, N = W.N;
@@ -1598,7 +1658,12 @@ function dressOpening(bags, P, Q, W, h, y1) {
            [0, 1, 0], 0, bev);
     }
   }
-  if (h.kind === 'door') { buildDoor(bags, P, Q, W, h, y1); return; }
+  if (h.kind === 'door') {
+    buildDoor(bags, P, Q, W, h, y1);
+    // the lamp goes on the side of the door with wall to spare
+    buildLamp(bags, P, Q, W, h, h.s0 > W.L - h.s1 ? -1 : 1);
+    return;
+  }
   // the glass: one pane in the reveal, plus sash bars
   // A SASH IS SET NEAR THE FACE OF THE WALL, not halfway through it: the
   // reveal is on the INSIDE of the glass, which is what gives a window its
@@ -1609,8 +1674,13 @@ function dressOpening(bags, P, Q, W, h, y1) {
   const g1 = W.P(h.s1 - 0.03, h.y0 + 0.03, gd);
   const g2 = W.P(h.s1 - 0.03, y1 - 0.03, gd);
   const g3 = W.P(h.s0 + 0.03, y1 - 0.03, gd);
+  const lit = litFor(P, W, h);
+  bags.glass.setGlow(lit);
   face(bags.glass, [g0, g1, g2, g3], N,
        uvFrame(g0, X, [0, 1, 0]));
+  bags.glass.setGlow(0);
+  LIT_LOG.panes++;
+  if (lit) LIT_LOG.windows++;
   if (Q.lod === 0 && P.muntin) {
     const cS = (h.s0 + h.s1) / 2, cY = (h.y0 + y1) / 2;
     // the sash bars: the vertical one is the piece of finish a face gets
@@ -1761,9 +1831,11 @@ function buildVolume(bags, P, Q, V, R, plan, wallOpts) {
         beam(bags.trim, add(a, mul(W.N, 0.010)), add(b, mul(W.N, 0.010)),
              0.026, (y1 - h.y0) / 2 + fr, [0, 1, 0]);
         const p = (s, y) => add(W.P(s, y, 1), mul(W.N, 0.040));
+        if (h.kind !== 'door') bags.pane.setGlow(litFor(P, W, h));
         face(h.kind === 'door' ? bags.trim : bags.pane,
              [p(h.s0, h.y0), p(h.s1, h.y0), p(h.s1, y1), p(h.s0, y1)], W.N,
              uvFrame(p(h.s0, h.y0), W.X, [0, 1, 0]));
+        bags.pane.setGlow(0);
       }
     }
     // corner boards: the vertical straps that make a painted board house read
@@ -2234,9 +2306,11 @@ function buildDoor(bags, P, Q, W, h, y1) {
     if (gy1 > gy0 + 0.12) {
       const g0 = off(off(a, Xd, sw + 0.03), Nd, t / 2 + 0.003);
       const g1 = off(off(a, Xd, wLeaf - sw - 0.03), Nd, t / 2 + 0.003);
+      bags.glass.setGlow(litFor(P, W, h));
       face(bags.glass, [[g0[0], gy0, g0[2]], [g1[0], gy0, g1[2]],
                         [g1[0], gy1, g1[2]], [g0[0], gy1, g0[2]]], Nd,
            uvFrame([g0[0], gy0, g0[2]], Xd, up));
+      bags.glass.setGlow(0);
     }
   }
   // hardware: three butt hinges and a knob
@@ -3210,6 +3284,9 @@ function stepFlight(bags, P, Q, o) {
       beam(bags.deck, [a[0] + off2[0], a[1], a[2] + off2[1]],
            [b[0] + off2[0], b[1], b[2] + off2[1]], 0.036, 0.026, [0, 1, 0],
            0, rb);
+      // and the string of bulbs wound on the cap, where the hand goes
+      stringLights(bags, o.P, Q, [a[0] + off2[0], a[1] + 0.013, a[2] + off2[1]],
+                   [b[0] + off2[0], b[1] + 0.013, b[2] + off2[1]], s2);
       beam(bags.deck, [a[0] + off2[0], a[1] - rh * 0.52, a[2] + off2[1]],
            [b[0] + off2[0], b[1] - rh * 0.52, b[2] + off2[1]], 0.022, 0.018,
            [0, 1, 0], 0, rb);
@@ -3278,6 +3355,8 @@ function buildLanding(bags, P, Q, L, g) {
       const lb = BEV(P, Q);
       beam(bags.deck, [e.a[0], L.y + rh, e.a[1]], [e.b[0], L.y + rh, e.b[1]],
            0.036, 0.026, [0, 1, 0], 0, lb);
+      stringLights(bags, P, Q, [e.a[0], L.y + rh + 0.013, e.a[1]],
+                   [e.b[0], L.y + rh + 0.013, e.b[1]], e.n[0] + e.n[1]);
       beam(bags.deck, [e.a[0], L.y + rh * 0.48, e.a[1]],
            [e.b[0], L.y + rh * 0.48, e.b[1]], 0.022, 0.018, [0, 1, 0], 0, lb);
     }
@@ -3385,6 +3464,10 @@ function buildLean(bags, P, Q, V, R, g) {
   const LR = { underAt: under, planes: [{ a: 0, b: k, c: planeC }],
                topAt: (x, z) => planeC + k * z };
   const plan = [[x0, zWall], [x0, zOut], [x1, zOut], [x1, zWall]];
+  // ITS FLOOR (G253): the shed had walls, a roof and legs and nothing to stand
+  // on — see-through from below, and a back door that opened into it opened
+  // onto air. A slab at the house's own floor line, like the house's.
+  boxAB(bags.floor, [x0, V.floorY - 0.10, zOut], [x1, V.floorY - 0.05, zWall]);
   // three walls only: the fourth is the house
   for (let i = 0; i < 3; i++) {
     const A = plan[i], B = plan[i + 1];
@@ -3488,6 +3571,11 @@ function doorReport(P, V, dk, stoop, front, g, openings) {
     const zA = sp.z, zB = sp.z - sp.side * sp.depth;
     pads.push({ x0: sp.x - sp.w / 2, x1: sp.x + sp.w / 2,
                 z0: Math.min(zA, zB), z1: Math.max(zA, zB), y: sp.y });
+  }
+  if (P.lean) {
+    const dl = V.L * P.leanLF, cx = P.leanOff * V.L / 2;
+    pads.push({ x0: cx - dl / 2, x1: cx + dl / 2, z0: -V.w / 2 - P.leanD,
+                z1: -V.w / 2, y: V.floorY - 0.05 });
   }
   const out = [];
   for (const o of openings || []) {
@@ -3596,6 +3684,13 @@ function pierPlan(P, V, g, jetty) {
     const bz = m.z + (rnd() - 0.5) * Math.max(0, m.z1 - m.z0 - K.L) * 0.5;
     const depth = wet - g(bx, bz);
     if (depth < 0.35 + K.float * K.H) return false;
+    // and not on top of a boat already lying on this side: hulls are longer
+    // than runs, so "a different run" is not "clear"
+    for (const b of boats) {
+      const KB = PIER_KIT[b.key];
+      if (b.side === sd && Math.abs(b.z - bz) < (K.L + KB.L) / 2 + 0.4)
+        return false;
+    }
     boats.push({ key: key, x: bx, y: wet - K.float * K.H, z: bz,
                  ry: (rnd() - 0.5) * 0.16 + (rnd() < 0.5 ? Math.PI : 0),
                  side: sd, run: m.key, depth: depth });
@@ -3624,6 +3719,92 @@ const PIER_TRIS = {
   pier_gate: 13010, pier_piles: 2460, pier_deck: 5512, boat_skiff: 37348,
   boat_old: 8358, boat_row: 11215, boat_tirola: 18742, boat_grady: 369673,
 };
+
+// ---------------------------------------------------------------------------
+// THE LIGHTS (G253, the user: "light lighting the porch and the front terrace,
+// and little lights along the ramps of the stairs, more like christmas lights
+// wrapped around the ramps (where one holds with its hand)")
+// ---------------------------------------------------------------------------
+// The aeroplane's rule holds here too: NO LIGHT WITHOUT EMITTING GEOMETRY. A
+// lamp is a fixture you can see in daylight — bracket, housing, glass — whose
+// glass glows at night, and it PUBLISHES itself (position, colour, reach) so
+// the bench and the game can stand a real light source where the glass is. A
+// string of bulbs is bulbs. Nothing here is a bare point light in space.
+let LIT_LOG = null;
+
+// THE LAMP: a bulkhead lantern on the wall beside the door, high enough to
+// clear a head and low enough to light the step, throwing forward over the
+// deck. Housing in the metal bag, glass in the glass bag with the warm glow.
+function buildLamp(bags, P, Q, W, h, side) {
+  if (!P.lights || !P.porchLamp || Q.lod !== 0) return null;
+  const X = W.X, N = W.N;
+  const s = side > 0 ? h.s1 + 0.42 : h.s0 - 0.42;
+  const y = h.y0 + 2.05;
+  const c = add(W.P(s, y, 1), mul(N, 0.02));
+  // the bracket, a stub off the wall
+  beam(bags.metal, c, add(c, mul(N, 0.13)), 0.014, 0.014, [0, 1, 0]);
+  // the housing: a cap over, a base under, four thin corner posts
+  const o = add(c, mul(N, 0.13));
+  const hw = 0.085, hh = 0.12, hd = 0.075;
+  const corner = (sx, sz) => add(add(o, mul(X, sx * hw)), mul(N, sz * hd));
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    const q = corner(sx, sz);
+    beam(bags.metal, [q[0], y - hh, q[2]], [q[0], y + hh, q[2]], 0.008, 0.008,
+         [0, 1, 0]);
+  }
+  const cap = (yy, up2, hgt) => {
+    const r = [corner(-1, -1), corner(1, -1), corner(1, 1), corner(-1, 1)]
+      .map(q => [q[0], yy, q[2]]);
+    plate(bags.metal, r, hgt, up2, uvFrame(r[0], X, N));
+  };
+  cap(y + hh + 0.04, [0, 1, 0], 0.04);
+  cap(y - hh, [0, -1, 0], 0.03);
+  // the glass, four sides, glowing
+  bags.glass.setGlow(1);
+  const sides = [[-1, -1, 1, -1], [1, -1, 1, 1], [1, 1, -1, 1], [-1, 1, -1, -1]];
+  for (const sd of sides) {
+    const a = corner(sd[0], sd[1]), b = corner(sd[2], sd[3]);
+    const nrm2 = nrm(crs(sub(b, a), [0, 1, 0]));
+    face(bags.glass, [[a[0], y - hh + 0.02, a[2]], [b[0], y - hh + 0.02, b[2]],
+                      [b[0], y + hh - 0.02, b[2]], [a[0], y + hh - 0.02, a[2]]],
+         nrm2, uvFrame(a, nrm(sub(b, a)), [0, 1, 0]));
+  }
+  bags.glass.setGlow(0);
+  const L = { kind: 'lamp', x: o[0], y: y, z: o[2], nx: N[0], nz: N[2],
+              col: [1.0, 0.76, 0.46], k: 1.0, range: 8.0 };
+  LIT_LOG.lights.push(L);
+  return L;
+}
+
+// THE STRING OF BULBS along a rail: every quarter metre a bulb, and it is
+// WRAPPED — each one steps a third of a turn round the rail from the last, so
+// the string reads as a cord wound on the cap and not a row of dots on top.
+// The cord itself is the thinnest beam in the kit, running the rail's length.
+function stringLights(bags, P, Q, a, b, side) {
+  if (!P.lights || !P.stairLights || Q.lod !== 0) return 0;
+  const d = sub(b, a), L = len(d);
+  if (L < 0.4) return 0;
+  const X = nrm(d);
+  let U = [0, 1, 0];
+  U = nrm(sub(U, mul(X, dot(U, X))));
+  const V = nrm(crs(X, U));
+  const n = Math.max(2, Math.round(L / 0.24));
+  const pal = P.stringCol ? [2, 3, 4, 5] : [5, 5, 5, 5];
+  // the cord
+  beam(bags.metal, add(a, mul(U, 0.035)), add(b, mul(U, 0.035)), 0.004, 0.004,
+       [0, 1, 0]);
+  for (let i = 0; i < n; i++) {
+    const t = (i + 0.5) / n;
+    const ang = i * 2.094 + (side || 0) * 0.7;              // a third of a turn
+    const c = add(add(a, mul(d, t)),
+                  add(mul(U, Math.cos(ang) * 0.045), mul(V, Math.sin(ang) * 0.045)));
+    bags.glass.setGlow(pal[i % 4]);
+    cyl(bags.glass, add(c, mul(U, -0.018)), U, 0.014, 0.036, 5, true);
+    bags.glass.setGlow(0);
+    LIT_LOG.bulbs++;
+  }
+  return n;
+}
 
 // A BARREL UNDER THE PIPE. Every roof on this coast drains into something,
 // and a downpipe that ends in a shoe over bare grass is the detail that says
@@ -3779,6 +3960,7 @@ function build(P0, lod) {
   for (const k of BAGS) bags[k] = Bag(k);
   const g = groundFn(P);
   RIM_LOG = [];
+  LIT_LOG = { windows: 0, panes: 0, bulbs: 0, lights: [] };
 
   const V = {
     L: P.L, w: P.w, wallT: P.wallT, floorY: P.floorY,
@@ -3816,6 +3998,7 @@ function build(P0, lod) {
   // the flight lands on the jetty, which is the same answer arrived at by
   // boat.
   if (P.door && P.porch) P.stairs = 1;
+  if (P.backDoor && !leanCovers(P, V, backDoorX(P, V))) P.backPorch = 1;
   const bay = bayPlan(P, V, R, plan, band, 0, doorPosOf(P, V));
   if (bay) wallOpts[bay.side].bay = bay;
   const openIdx = Math.round(P.openFront) - 1;
@@ -3890,6 +4073,11 @@ function build(P0, lod) {
     gutterLen: dr.gutter, downpipe: dr.downpipe,
     jetty: dk.jetty || null, stoop: stoop, front: front, rims: RIM_LOG,
     bay: bayOut, barrel: barrel, pier: pier,
+    backInLean: !!(P.backDoor && leanCovers(P, V, backDoorX(P, V))),
+    // THE LIGHTS, published: how many windows glow, how many bulbs, and every
+    // lamp with its position, colour and reach — the bench stands a real light
+    // at each, the game will too, and GATE HOUSE holds that each has glass
+    lit: LIT_LOG,
     // EVERY DOOR IS ASKED WHAT IT OPENS ONTO (the user: "all houses should
     // have stairs and entrance. The ones who don't have a door hanging several
     // meters high"). A platform is the deck, a stoop, or the ground itself if
@@ -3998,6 +4186,12 @@ function randomHouse(seed) {
   P.stairs = 1;                       // see build(): a door needs a way down
   // and off the jetty, a pier: every house on the water gets one, of a length
   // that fits the site, with a boat or two and the big one only now and then
+  // half the village has its lights on, and in it every habit: one switch
+  // or many, a lamp or none, bulbs on the rails for the season
+  P.lights = odds(0.5) ? 1 : 0; P.winLink = odds(0.3) ? 1 : 0;
+  P.winLit = rr(0.3, 0.9); P.porchLamp = odds(0.8) ? 1 : 0;
+  P.stairLights = odds(0.6) ? 1 : 0; P.stringCol = odds(0.5) ? 1 : 0;
+  P.lightSeed = ri(1, 99);
   P.pier = 1; P.pierLen = ri(1, 4); P.pierGate = odds(0.4) ? 1 : 0;
   P.boats = ri(0, 3); P.bigBoat = odds(0.15) ? 1 : 0; P.pierSeed = ri(1, 99);
   P.porchRoof = pick([0, 0, 1, 2]);

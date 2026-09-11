@@ -571,8 +571,13 @@ if (!check(!!LIB, 'the baked material library is missing — ' +
 // THE BATTERY
 // ---------------------------------------------------------------------------
 const rows = [];
-for (const name of Object.keys(HG.PRESETS)) {
-  const P = Object.assign({}, HG.DEF, HG.PRESETS[name]);
+// ONE BATTERY, EVERY HOUSE (G253). Rules 16-29 — the jetty, the doors, the
+// roof rims, the pier, the lights — lived inline in the preset loop, so the
+// forty random houses only ever met the measured-geometry rules and a lamp
+// with no glass in it passed because no preset switches its lights on. The
+// battery is a function now and the fuzzer runs it too; a preset's row for
+// the table is what it returns.
+function battery(name, P) {
   const hi = HG.build(P, 0), lo = HG.build(P, 1);
   const mh = measure(hi), ml = measure(lo);
   runRules(name + ' hi', mh);
@@ -776,8 +781,49 @@ for (const name of Object.keys(HG.PRESETS)) {
     }
   }
 
+  // 29 — NO LIGHT WITHOUT EMITTING GEOMETRY, AND NO GLOW WITHOUT THE SWITCH
+  //   (G253, the user: "Let's also generate lights"). The aeroplane's rule
+  //   (G96): a published light source has to have glass that glows within
+  //   reach of it, or it is a bare point light in space. And the switch is a
+  //   switch: with the lights off there is no glowing vertex on the house, no
+  //   lamp and no bulb; with the windows on one switch every pane glows.
+  {
+    const lit = hi.stats.lit || { windows: 0, panes: 0, bulbs: 0, lights: [] };
+    const gd = hi.bags.glass.data();
+    let glowing = 0;
+    for (let i = 0; i < gd.lit.length; i++) if (gd.lit[i] > 0.5) glowing++;
+    if (!P.lights) {
+      check(glowing === 0 && lit.windows === 0 && lit.bulbs === 0 &&
+            lit.lights.length === 0,
+            name + ': something glows with the lights off',
+            glowing + ' vertices, ' + lit.lights.length + ' lamps');
+    } else {
+      if (P.winLink)
+        check(lit.windows === lit.panes,
+              name + ': one switch, but not every window is lit',
+              lit.windows + ' of ' + lit.panes);
+      if (P.porchLamp && P.door)
+        check(lit.lights.length >= 1, name + ': the lamp by the door is missing');
+      for (const L of lit.lights) {
+        let near = 0;
+        for (let i = 0; i < gd.lit.length; i++) {
+          if (gd.lit[i] < 0.5) continue;
+          const dx = gd.pos[i * 3] - L.x, dy = gd.pos[i * 3 + 1] - L.y,
+                dz = gd.pos[i * 3 + 2] - L.z;
+          if (dx * dx + dy * dy + dz * dz < 0.3 * 0.3) near++;
+        }
+        check(near >= 4, name + ': a published light has no glass that glows',
+              L.kind + ' at ' + L.x.toFixed(2) + ',' + L.z.toFixed(2));
+      }
+      if (P.stairLights && hi.stats.stair && P.railStyle > 0)
+        check(lit.bulbs > 0, name + ': the stair rail has no bulbs on it');
+    }
+  }
+
   // 17 — a back door that opens onto nothing is not a garden door
-  if (P.backDoor && P.backPorch)
+  // (a back door inside the lean-to's span opens INTO the shed, onto its
+  // floor, and gets no stoop by design - rule 23 holds that it has a platform)
+  if (P.backDoor && P.backPorch && !hi.stats.backInLean)
     check(!!hi.stats.stoop, name + ': the back door has no stoop');
 
   // 19 — EVERY ROOF IS CLOSED WITH ITS FINISH (the user: "there are still
@@ -824,10 +870,12 @@ for (const name of Object.keys(HG.PRESETS)) {
         name + ': the build is not deterministic',
         hi.stats.tris + ' then ' + again.stats.tris);
 
-  rows.push({ name, hi: mh.tris, lo: ml.tris, ratio,
-              ridge: hi.stats.ridgeY, drop: hi.stats.dropped,
-              posts: hi.stats.posts, sil: worst });
+  return { name, hi: mh.tris, lo: ml.tris, ratio,
+           ridge: hi.stats.ridgeY, drop: hi.stats.dropped,
+           posts: hi.stats.posts, sil: worst };
 }
+for (const name of Object.keys(HG.PRESETS))
+  rows.push(battery(name, Object.assign({}, HG.DEF, HG.PRESETS[name])));
 
 // 18 — THE PRESETS COVER THE SPACE (the user: "in the presets, you don't use
 //   saltbox much. Ensure you have a wide variety, covering most of our
@@ -959,18 +1007,8 @@ for (let fam = 0; fam <= 3; fam++)
 // water with a lean-to and a belfry) and every rule above runs on each. A seed
 // that goes red is also a REPRODUCTION — `randomHouse(seed)` on the bench
 // rebuilds it exactly.
-for (let seed = 1; seed <= 40; seed++) {
-  const P = HG.randomHouse(seed);
-  const b = HG.build(P, 0);
-  runRules('random seed ' + seed, measure(b));
-  for (const o of b.stats.openings || [])
-    check(o.y1 <= Math.min(o.underA, o.underB) + 1e-6,
-          'random seed ' + seed + ': a kept opening breaks the roof line');
-  const lo = measure(HG.build(P, 1));
-  check(lo.tris < Math.max(300, b.stats.tris * 0.34),
-        'random seed ' + seed + ': lod 1 out of budget',
-        lo.tris + ' vs ' + b.stats.tris);
-}
+for (let seed = 1; seed <= 40; seed++)
+  battery('random seed ' + seed, HG.randomHouse(seed));
 
 // ---------------------------------------------------------------------------
 // THE SHED (G232): the second generator, held to the same rules
@@ -1096,6 +1134,20 @@ if (SELFTEST) {
   else if (dr0.platform === null)
     neg.push('a door with no porch got no stoop');
   if (!noPorch.stats.front) neg.push('the front stoop was not built');
+
+  // THE LIGHTS (G253): on one switch every window glows and the lamp is
+  // there; off, nothing on the house glows at all. Two builds of the same
+  // house, and the only thing between them is the switch.
+  const onH = HG.build(Object.assign({}, HG.DEF, { lights: 1, winLink: 1 }), 0);
+  const offH = HG.build(Object.assign({}, HG.DEF, { lights: 0 }), 0);
+  const gl = onH.bags.glass.data().lit.filter(v => v > 0.5).length;
+  if (!(onH.stats.lit.panes > 0 && onH.stats.lit.windows === onH.stats.lit.panes))
+    neg.push('one switch did not light every window');
+  if (!(gl > 0)) neg.push('lit windows put no glow on the glass');
+  if (!(onH.stats.lit.lights.length === 1)) neg.push('the door lamp did not appear');
+  if (!(onH.stats.lit.bulbs > 20)) neg.push('the stair rail got ' + onH.stats.lit.bulbs + ' bulbs');
+  if (offH.bags.glass.data().lit.some(v => v > 0.5) || offH.stats.lit.lights.length)
+    neg.push('the house glows with the lights off');
 
   // THE PIER (G252): a house on the water whose stair lands on a jetty grows
   // a pier; the same house with the pier switched off grows none; and the
