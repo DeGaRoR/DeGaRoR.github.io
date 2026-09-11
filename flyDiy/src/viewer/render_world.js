@@ -948,7 +948,18 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // are the specimen tree and the rest the stand-shaped one. Set to 1.0 for
     // now on the user's ruling - only full-foliage trees show - and left as a
     // dial because the stand series is baked, planted and waiting.
-    const TREE_MIX = { furnished: 1.0 };
+    // AND THE SIZE. The world's `T.s` (0.65-1.75, a species factor times a
+    // noise) and the cone-era multipliers on top of it - 0.86-1.14 for the
+    // stand, 0.55-1.25 for the clump neighbours, 0.62-1.17 for the fill -
+    // were how a 7 m cone stood in for trees of different heights. A REAL tree
+    // carries its own height, and multiplying it by all of that made a stand
+    // of 6 m saplings with a few 28 m giants in it where the bench, which
+    // sizes every tree at the collection's `size` times a narrow spread, had
+    // them all alike. So the size is the bench's rule now: `place.size` times
+    // 1 + spread*(2w - 0.9), which at spread 0.2 is 0.82-1.22 - the bench's
+    // committed spread - and nothing else. `T.s` stays the physics' number.
+    const TREE_MIX = { furnished: 1.0, spread: 0.2 };
+    const sizeOf = (base, w) => (base || 1) * (1 + TREE_MIX.spread * (2 * w - 0.9));
     if (typeof window !== 'undefined') window.TREE_MIX = TREE_MIX;
     const SERIES = ['rungs', 'stand', 'snag'];        // index = series id
     const seriesOf = (r, dead) => r < dead ? 2 : (r - dead) / Math.max(1e-6, 1 - dead) < TREE_MIX.furnished ? 0 : 1;
@@ -1123,7 +1134,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             const S = treeList().find(e => e.key === key).sub;
             const col = treeList().find(e => e.key === key).col;
             const out = { series: [], dead: (col.place && col.place.dead) || 0,
-                          sink: (col.place && col.place.sink) || 0 };
+                          sink: (col.place && col.place.sink) || 0,
+                          size: (col.place && col.place.size) || 1 };
             for (const ser of SERIES) {
               const list = (S[ser] && S[ser].length) ? S[ser] : S.rungs;
               const n = Math.min(list.length, LOD_R.length);
@@ -1236,6 +1248,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           for (const R of S.ladder) for (const q of R.parts) {
             const m = mk(q.geo, q.mat, cnt[si], true);
             m.customDepthMaterial = q.depth;
+            // THE COLOUR BUFFER IS ALLOCATED AT CAPACITY, HERE, before the
+            // count is parked at 0: r128's setColorAt sizes it from the live
+            // count on first use, and a mesh parked first got an EMPTY buffer
+            // - every colour write landed nowhere and the shader read zero.
+            // The whole near tier was black through two rounds of shading
+            // work aimed at the lights. (r128 has no setColorAt on capacity.)
+            m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cnt[si] * 3).fill(1), 3);
             m.count = 0; m.visible = false;
             m.userData.ser = si;              // which series, for the probes
             rec.rungs[si][LOD_R.indexOf(R.far)].push(m);
@@ -1245,7 +1264,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           mi.userData.ser = si;
           imps.push(mi);
         });
-        return { n, meshes, imps, rec, ser, cnt, scaleY: P.series.map(S => S.scaleY), sink: P.sink };
+        return { n, meshes, imps, rec, ser, cnt, scaleY: P.series.map(S => S.scaleY), sink: P.sink, size: P.size };
       };
       const C = side(conif, PROTO && PROTO.conif, impConeMatW, coneGeo);
       const B = side(broad, PROTO && PROTO.broad, impBlobMatW, blobGeo);
@@ -1256,14 +1275,18 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         list.forEach((T, i) => {
           const w = T.r, sp = T.sp;
           q.setFromAxisAngle(up, w * 6.283);
-          sv.set(T.s * (0.86 + w * 0.28), T.s * (0.9 + w * 0.3), T.s * (0.86 + w * 0.28));
+          if (PROTO) { const s = sizeOf(H.size, w); sv.set(s, s, s); }
+          else sv.set(T.s * (0.86 + w * 0.28), T.s * (0.9 + w * 0.3), T.s * (0.86 + w * 0.28));
           // BURIED BY THE COLLECTION'S OWN `sink`: the packs model the root
           // flare, and a tree standing on its roots reads as fallen over. The
           // bench's dial, scaled with the instance as the bench scales it.
           pv.set(T.x - ox, T.h - 0.05 - (H.sink || 0) * sv.y, T.z - oz);   // chunk-local
-          if (sp === 1) { sv.x *= 0.78; sv.z *= 0.78; sv.y *= 1.15; }        // pine: tall, narrow
-          else if (sp === 3) sv.multiplyScalar(0.82);                        // birch: slighter
-          else if (sp === 4) { sv.y *= 0.72; sv.x *= 1.18; sv.z *= 1.18; }   // willow: low, wide
+          // the species shapes are the CONE's - a real tree has its own
+          if (!PROTO) {
+            if (sp === 1) { sv.x *= 0.78; sv.z *= 0.78; sv.y *= 1.15; }        // pine: tall, narrow
+            else if (sp === 3) sv.multiplyScalar(0.82);                        // birch: slighter
+            else if (sp === 4) { sv.y *= 0.72; sv.x *= 1.18; sv.z *= 1.18; }   // willow: low, wide
+          }
           const si = H.ser ? H.ser[i] : 0;
           // the stand series is drawn stretched - the dial, not the bake
           if (H.scaleY) sv.y *= H.scaleY[si];
@@ -1444,6 +1467,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
               const col = treeList().find(e => e.key === key).col;
               return { dead: (col.place && col.place.dead) || 0, white: true,
                        sink: (col.place && col.place.sink) || 0,
+                       size: (col.place && col.place.size) || 1,
                        series: SERIES.map(ser => { const B = cheapest(key, ser);
                          return { parts: B.parts, scaleY: B.scaleY || 1, imp: null }; }) };
             };
@@ -1513,6 +1537,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           // them all, because it is the band beyond.
           const perSer = SH.series.map((S, si) => cnt[si] ? {
             ms: S.parts.map(pq => { const m = new THREE.InstancedMesh(pq.geo, pq.mat, cnt[si]);
+                                    // colour buffer at capacity BEFORE parking - see the woodland
+                                    m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cnt[si] * 3).fill(1), 3);
                                     m.count = 0; m.visible = false; return m; }),
             mi: new THREE.InstancedMesh(impQuadF, S.imp, cnt[si]), at: 0 } : null);
           const rec = { n, mats: new Float32Array(n * 16), pos: new Float32Array(n * 3), ser,
@@ -1524,9 +1550,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             const o = i * 5, sp = r[o + 3], w = r[o + 4];
             const si = ser[i], P = perSer[si], S = SH.series[si];
             q.setFromAxisAngle(up, w * 6.283);
-            const s = [1.15, 1.0, 1.1, 0.9, 0.85][sp] * (0.62 + w * 0.55);
+            const s = SH.white ? sizeOf(SH.size, w)
+                               : [1.15, 1.0, 1.1, 0.9, 0.85][sp] * (0.62 + w * 0.55);
             // the stand series is drawn stretched - the dial, not the bake
-            sv.set(s, s * (0.9 + w * 0.25) * S.scaleY, s);
+            sv.set(s, s * (SH.white ? 1 : 0.9 + w * 0.25) * S.scaleY, s);
             pv.set(r[o] - ox, r[o + 1] - 0.05 - (SH.sink || 0) * sv.y, r[o + 2] - oz);
             m4.compose(pv, q, sv);
             // a baked tree wears its own colour (see the woodland layer)

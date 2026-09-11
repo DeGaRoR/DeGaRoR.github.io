@@ -141,6 +141,8 @@ const THREE = {
   Group: Obj3, Mesh: class extends Obj3 { constructor(g, m) { super(); this.isMesh = true;
     this.geometry = g; this.material = m; CREATED.push(this); } },
   InstancedMesh, Points: class extends Obj3 {}, Fog: class {},
+  // the partitioned meshes allocate their colour buffer at capacity themselves
+  InstancedBufferAttribute: class { constructor(a, n) { this.array = a; this.itemSize = n; this.count = a.length / n; this.needsUpdate = false; } },
   BufferGeometry: class extends Geo {},
   PlaneGeometry: class extends Geo {
     constructor(w = 1, h = 1, ws = 1, hs = 1) {

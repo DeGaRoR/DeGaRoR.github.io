@@ -15,6 +15,7 @@
   // `rigLift` lives up here with groundY because applyEnv() reads it, and that
   // runs long before the load-test block further down is reached.
   let groundY = 0, rigLift = 0;
+  let DEVCAM_ACTIVE = false;              // DEVCAM: the free camera has the eye this frame
   const $ = id => document.getElementById(id);
 
   const canvas = $('c');
@@ -206,6 +207,7 @@
     return [target.x + dx * t0, target.y + dy * t0, target.z + dz * t0];
   }
   function placeCamera() {
+    if (DEVCAM_ACTIVE) return;                          // DEVCAM placed it already
     let x = target.x + dist * Math.cos(el) * Math.cos(az),
         y = Math.max(0.4, target.y + dist * Math.sin(el)),
         z = target.z + dist * Math.cos(el) * Math.sin(az);
@@ -285,6 +287,7 @@
     Object.assign({ shell: shedHome().shell },
       playerShedDims(playerLoad(), 'HOME',
         (typeof siteOf === 'function') ? siteOf('HOME') : null)));
+  if (typeof window !== 'undefined') window.WORLD = WF;   // DEVCAM: the inspector's handle on the world
 
   // ================= THE GARAGE'S OWN SCENE =================
   // The editor and the simulation are two different places, and this is what
@@ -6105,9 +6108,82 @@
   // nothing — it is exactly today's free orbit, and it is what a drag drops
   // you back into.
   const FL_CAM = [{ k: 'chase' }, { k: 'orbit' }, { k: 'cockpit' },
-                  { k: 'wing' }, { k: 'tower' }];
+                  { k: 'wing' }, { k: 'tower' }, { k: 'free' }];   // DEVCAM: free
+
+  // ---- DEVCAM: THE DEVELOPER'S FREE CAMERA (W0c.7) ------------------------
+  // The only camera this file had was an orbit of the aeroplane, and a forest
+  // cannot be inspected from an aeroplane that is taxiing on the strip. This
+  // is the eye let off the leash: click the world to take the mouse (pointer
+  // lock, Esc gives it back), move with the physical WASD block - which is
+  // ZQSD on an AZERTY keyboard, because the keys are read by POSITION
+  // (`e.code`), not by the letter printed on them - Space up, C down, Shift
+  // for five times the speed, the wheel to scale it. While it has the keys the
+  // flight input does not see them: the listeners run in the capture phase
+  // and stop the event there. The aeroplane keeps flying (or sitting) on
+  // whatever it was doing; this is a camera, not a pause.
+  const devCam = { pos: new THREE.Vector3(), yaw: 0, pitch: 0, keys: new Set(),
+                   speed: 25, last: 0, fwd: new THREE.Vector3(), rgt: new THREE.Vector3(),
+                   look: new THREE.Vector3() };
+  const devCamOn = () => FL.ready && !inGarage && cam.mode === 'free';
+  devCam.enter = () => {                 // seed the pose from wherever the eye is
+    devCam.pos.copy(camera.position);
+    camera.getWorldDirection(devCam.fwd);
+    devCam.pitch = Math.asin(Math.max(-1, Math.min(1, devCam.fwd.y)));
+    devCam.yaw = Math.atan2(devCam.fwd.x, -devCam.fwd.z);
+    devCam.last = performance.now();
+    devCam.keys.clear();
+  };
+  devCam.update = () => {
+    const now = performance.now();
+    const dt = Math.min(0.1, Math.max(0, (now - devCam.last) / 1000));
+    devCam.last = now;
+    const cp = Math.cos(devCam.pitch), sp = Math.sin(devCam.pitch);
+    devCam.fwd.set(Math.sin(devCam.yaw) * cp, sp, -Math.cos(devCam.yaw) * cp);
+    devCam.rgt.set(Math.cos(devCam.yaw), 0, Math.sin(devCam.yaw));
+    const K = devCam.keys, v = devCam.speed * (K.has('ShiftLeft') || K.has('ShiftRight') ? 5 : 1) * dt;
+    if (K.has('KeyW')) devCam.pos.addScaledVector(devCam.fwd, v);
+    if (K.has('KeyS')) devCam.pos.addScaledVector(devCam.fwd, -v);
+    if (K.has('KeyD')) devCam.pos.addScaledVector(devCam.rgt, v);
+    if (K.has('KeyA')) devCam.pos.addScaledVector(devCam.rgt, -v);
+    if (K.has('Space')) devCam.pos.y += v;
+    if (K.has('KeyC')) devCam.pos.y -= v;
+    camera.up.set(0, 1, 0);
+    camera.position.copy(devCam.pos);
+    camera.lookAt(devCam.look.copy(devCam.pos).add(devCam.fwd));
+  };
+  const DEVCAM_KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'KeyC',
+                               'ShiftLeft', 'ShiftRight']);
+  window.addEventListener('keydown', e => {
+    if (!devCamOn() || !DEVCAM_KEYS.has(e.code)) return;
+    devCam.keys.add(e.code); e.preventDefault(); e.stopImmediatePropagation();
+  }, true);
+  window.addEventListener('keyup', e => {
+    if (!DEVCAM_KEYS.has(e.code)) return;
+    devCam.keys.delete(e.code);
+    if (devCamOn()) { e.preventDefault(); e.stopImmediatePropagation(); }
+  }, true);
+  window.addEventListener('blur', () => devCam.keys.clear());
+  $('c').addEventListener('pointerdown', e => {
+    if (!devCamOn() || e.button !== 0) return;
+    if (document.pointerLockElement !== $('c') && $('c').requestPointerLock) $('c').requestPointerLock();
+  });
+  document.addEventListener('mousemove', e => {
+    if (!devCamOn() || document.pointerLockElement !== $('c')) return;
+    devCam.yaw += e.movementX * 0.0025;
+    devCam.pitch = Math.max(-1.5, Math.min(1.5, devCam.pitch - e.movementY * 0.0025));
+  });
+  $('c').addEventListener('wheel', e => {
+    if (!devCamOn()) return;
+    devCam.speed = Math.max(1, Math.min(400, devCam.speed * Math.pow(1.15, -Math.sign(e.deltaY))));
+    e.preventDefault();
+  }, { passive: false });
+  if (typeof window !== 'undefined') window.DEV_CAM = devCam;
+  // ---- end DEVCAM ----------------------------------------------------------
   let flHdg0 = 0, flYawRate = 0, flEyeLoc = null, flEyeSrc = null;
   function flCamMode(m) {
+    if (m === 'free' && cam.mode !== 'free') devCam.enter();          // DEVCAM
+    else if (m !== 'free' && document.pointerLockElement === $('c') && document.exitPointerLock)
+      document.exitPointerLock();                                      // DEVCAM
     cam.mode = m; flSave('Cam', cam);
     flReveal = 0;                      // a framing pick is the player's
     if (m !== 'cockpit' && flyEye) { flyEye = null; setNear(CAM_NEAR); }
@@ -6219,6 +6295,14 @@
     if (inGarage) {                       // the shed has the editor's camera
       if (flyEye) { flyEye = null; setNear(CAM_NEAR); }
       camera.up.set(0, 1, 0);
+      DEVCAM_ACTIVE = false;              // DEVCAM
+      return;
+    }
+    DEVCAM_ACTIVE = cam.mode === 'free';  // DEVCAM: the eye is its own, see placeCamera
+    if (DEVCAM_ACTIVE) {
+      if (flyEye) { flyEye = null; setNear(CAM_NEAR); }
+      flApplyFov();
+      devCam.update();
       return;
     }
     flApplyFov();
@@ -6283,7 +6367,7 @@
   // the worst of both; the rail says which framing you are in, and taking hold
   // of it says you want your own.
   $('c').addEventListener('pointerdown', () => {
-    if (!inGarage && cam.mode !== 'orbit' && cam.mode !== 'cockpit') {
+    if (!inGarage && cam.mode !== 'orbit' && cam.mode !== 'cockpit' && cam.mode !== 'free') {  // DEVCAM
       flCamMode('orbit');
       if (flyOpen === 'camera') flyOpenSet('camera');
     }
@@ -6628,7 +6712,13 @@
     // updated: no terrain paging, no sky, no weather, no LOD churn. That is
     // most of what the garage used to spend its frame on for scenery nobody
     // could see anyway.
-    if (!inGarage) WF.worldUpdate(cg);
+    // DEVCAM: the world streams, partitions its LOD and aims its shadow at
+    // the point it is told is the eye. Under the free camera that point is the
+    // camera, not the aeroplane - otherwise the inspector flies out to a stand
+    // and finds impostors, because the near tier is measured from a CG that is
+    // still on the strip.
+    if (!inGarage) WF.worldUpdate(DEVCAM_ACTIVE
+      ? [camera.position.x, camera.position.y, camera.position.z] : cg);
     else if (hangar && garageIsHangar()) hangar.faceShafts(camera);
     // the orbit centre: the EDITOR'S build when it is open (G39 — the
     // per-frame cg overwrite silently un-centred it), the craft otherwise;
