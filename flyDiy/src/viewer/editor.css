@@ -1091,6 +1091,24 @@ body.mode-ws #ui { visibility:hidden; pointer-events:none; }
 
 body.mode-fly #wsUI { display:none; }
 
+/* ---- SCREENSHOT MODE (G255) --------------------------------------------
+   The render alone. Both interface layers off the way the mode rules take
+   them off (visibility, not display — the canvases keep their boxes), the
+   panels' inset released so the canvas fills the window, and one faint way
+   back top right; app.js's shotSet owns the switch and the Esc key. */
+body.shot { --ws-left:0px; --ws-right:0px; }
+body.mode-ws.shot, body.mode-ws.shot.info-off { --ws-left:0px; --ws-right:0px; }
+body.shot #ui, body.shot #wsUI, body.shot #ctlPanel {
+  visibility:hidden !important; pointer-events:none !important; }
+body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
+#shotBack { position:fixed; top:14px; right:14px; z-index:9999;
+  font:500 12px/1 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  color:#fff; background:rgba(0,0,0,.18); border:1px solid rgba(255,255,255,.35);
+  border-radius:999px; padding:7px 12px; opacity:.35; cursor:pointer;
+  backdrop-filter:blur(2px); transition:opacity .15s ease; }
+#shotBack:hover { opacity:1; }
+#shotBack[hidden] { display:none; }
+
 #wsUI[hidden] { display:none; }
 
 @media (prefers-reduced-motion:reduce) {
@@ -1267,6 +1285,18 @@ body.mode-fly #wsUI { display:none; }
   font:400 10.5px/1.6 'IBM Plex Sans' !important; color:var(--ed-dim); }
 
 .edCam { display:flex; flex-wrap:wrap; gap:6px; margin:2px 0 4px; }
+/* G255: the legend's rows — a swatch, a heading, plain words */
+.edLegend { display:grid; grid-template-columns:14px 1fr; gap:4px 8px;
+  margin:6px 0 8px; font:400 11px/1.45 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  color:var(--ed-dim, #c0b8ac); }
+.edLegend b { font-weight:600; color:var(--ed-ink, #f4efe6); }
+.edLegend span { grid-column:2; opacity:.85; }
+.edLegend .sw { grid-row:1 / span 2; width:10px; height:26px; border-radius:2px; margin-top:2px; }
+.edLegend .sw.amber { background:#ffb257; }
+.edLegend .sw.cyan { background:#63d3cc; }
+.edLegend .sw.bar { height:3px; margin-top:8px; background:#63d3cc; }
+.edLegend .sw.pale { background:#d3c3ae; height:10px; margin-top:8px; }
+.edLegend .sw.none { background:none; }
 
 /* a preset the aeroplane cannot offer says so and stays put — it carries its
    reason in its `title` */

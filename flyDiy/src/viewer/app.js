@@ -16,6 +16,7 @@
   // runs long before the load-test block further down is reached.
   let groundY = 0, rigLift = 0;
   let DEVCAM_ACTIVE = false;              // DEVCAM: the free camera has the eye this frame
+  const SHOT = { on: false };             // G255: screenshot mode (see shotSet)
   const $ = id => document.getElementById(id);
 
   const canvas = $('c');
@@ -4139,25 +4140,25 @@
   // on the line the user reads and not only on the plaque.
   function makeLabel(text, rgb, sub) {
     const c = document.createElement('canvas');
-    c.width = 256; c.height = 64;
+    c.width = 512; c.height = 64;
     const g = c.getContext('2d');
     const hx = v => Math.round(255 * Math.pow(Math.min(1, Math.max(0, v)), 1 / 2.2));
     g.fillStyle = `rgba(${hx(rgb[0])},${hx(rgb[1])},${hx(rgb[2])},1)`;
     g.textAlign = 'center'; g.textBaseline = 'middle';
     if (sub) {
-      g.font = '600 34px "IBM Plex Mono", monospace';
-      g.fillText(text, 128, 18);
-      g.font = '500 24px "IBM Plex Mono", monospace';
-      g.fillText(sub, 128, 48);
+      g.font = '600 30px "IBM Plex Mono", monospace';
+      g.fillText(text, 256, 18);
+      g.font = '500 22px "IBM Plex Mono", monospace';
+      g.fillText(sub, 256, 48);
     } else {
       g.font = '600 40px "IBM Plex Mono", monospace';
-      g.fillText(text, 128, 32);
+      g.fillText(text, 256, 32);
     }
     const tex = new THREE.CanvasTexture(c);
     tex.encoding = THREE.sRGBEncoding;
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({
       map: tex, transparent: true, depthTest: false, sizeAttenuation: false }));
-    sp.scale.set(0.110, 0.028, 1);
+    sp.scale.set(0.220, 0.028, 1);
     sp.renderOrder = 999;
     return sp;
   }
@@ -4230,7 +4231,7 @@
   }
   function placeIndicators() {
     const d = standOffset();
-    gGrp.visible = !!d;
+    gGrp.visible = !!d && !SHOT.on;          // G255: a screenshot has no marks
     if (d) gGrp.position.set(d[0], d[1], d[2]);
   }
   function buildIndicators() {
@@ -4250,16 +4251,16 @@
       const k = b.cgX - b.gearX;
       cg = [mx + k * xA[0], my + k * xA[1], mz + k * xA[2]];
       d = b.npX - b.cgX;
-      if (b.staticMargin != null) { smTxt = 'SM ' + (b.staticMargin * 100).toFixed(0) + '%'; smBad = b.staticMargin < 0.05; }
+      if (b.staticMargin != null) { smTxt = 'stability margin ' + (b.staticMargin * 100).toFixed(0) + ' %'; smBad = b.staticMargin < 0.05; }
       if (b.cBar > 0 && typeof b.xLEmac === 'number' && isFinite(b.xLEmac))
-        cgTxt = ((b.cgX - b.xLEmac) / b.cBar * 100).toFixed(0) + '% MAC';
+        cgTxt = ((b.cgX - b.xLEmac) / b.cBar * 100).toFixed(0) + ' % of the wing chord';
     } else {
       const s = shakeOf();
       cg = sim.cgPos();
       d = s.npX - s.cgX;
-      if (s.staticMargin != null) { smTxt = 'SM ' + (s.staticMargin * 100).toFixed(0) + '%'; smBad = s.staticMargin < 0.05; }
+      if (s.staticMargin != null) { smTxt = 'stability margin ' + (s.staticMargin * 100).toFixed(0) + ' %'; smBad = s.staticMargin < 0.05; }
       if (s.cBar > 0 && typeof s.xLEmac === 'number' && isFinite(s.xLEmac))
-        cgTxt = ((s.cgX - s.xLEmac) / s.cBar * 100).toFixed(0) + '% MAC';
+        cgTxt = ((s.cgX - s.xLEmac) / s.cBar * 100).toFixed(0) + ' % of the wing chord';
     }
     const V = [], C = [];
     const seg = (a, b, col) => {
@@ -4295,8 +4296,10 @@
     // gap between the two posts IS the static margin. The centre of lift is a
     // different thing and moves with alpha; labelling it that way would say
     // something false about what the gap means.
-    label(npx, 2.8, npz, 'NP', CYAN, smTxt);
-    label(cg[0], 3.2, cg[2], 'CG', smBad ? RED : AMBER, cgTxt);
+    // G255: WORDS, NOT INITIALS (the user: "CG, MAC, NP don't mean anything
+    // to me apart from CG"). The rail's `legend` flyout says the rest.
+    label(npx, 2.8, npz, 'neutral point', CYAN, smTxt);
+    label(cg[0], 3.2, cg[2], 'centre of gravity', smBad ? RED : AMBER, cgTxt);
     // and the margin itself, as a bar on the ground between the two posts
     seg([cg[0], 0.05, cg[2]], [cg[0] + d * xA[0], 0.05, cg[2] + d * xA[2]], CYAN);
     // ground contacts: where it actually touches, wheel by wheel
@@ -5637,6 +5640,35 @@
     }
   }
 
+  // ---- SCREENSHOT MODE (G255) ---------------------------------------------
+  // The render alone: both interface layers off (`body.shot`, editor.css),
+  // the panels' inset released so the canvas fills the window, the CG/NP
+  // posts and wheel crosses hidden. One way back that is not chrome: a
+  // faint button top right, and the Esc key. Reached from the camera flyout
+  // on both screens; the shed's pill lives in editor.js and calls this.
+  const shotBack = document.createElement('button');
+  shotBack.id = 'shotBack'; shotBack.type = 'button'; shotBack.hidden = true;
+  shotBack.textContent = '↩ back · esc';
+  shotBack.title = 'Bring the interface back (Esc)';
+  document.body.appendChild(shotBack);
+  function shotSet(on) {
+    on = !!on;
+    if (SHOT.on === on) return;
+    SHOT.on = on;
+    document.body.classList.toggle('shot', on);
+    shotBack.hidden = !on;
+    if (on) { try { flyOpenSet(null); } catch (e) {} }
+    if (typeof placeIndicators === 'function') placeIndicators();
+    // the canvas re-insets through its CSS transition; measure at both ends
+    setTimeout(resize, 0); setTimeout(resize, 220);
+  }
+  shotBack.onclick = () => shotSet(false);
+  window.addEventListener('keydown', e => {
+    if (SHOT.on && e.key === 'Escape') { shotSet(false); e.preventDefault(); e.stopImmediatePropagation(); }
+  }, true);
+  window.SHOT_MODE = { enter: () => shotSet(true), exit: () => shotSet(false),
+                       get on() { return SHOT.on; } };
+
   const FL_BUILD = {
     // -------- the four brief slots --------------------------------------
     slot_ac(body) {
@@ -5708,6 +5740,9 @@
       }
       flNote(body, 'Cockpit is the pilot eye the editor already flies — one ' +
                    'control, both screens.');
+      // G255: the render alone — see shotSet
+      flPills(body, [{ label: 'screenshot', value: 'shot' }], () => false,
+              () => shotSet(true));
     },
     instruments(body) {
       flToggle(body, 'small', () => panels.pfdSmall, v => flPfdSmall(v));

@@ -1540,6 +1540,13 @@ function editorInit(api) {
     // as it does `camera`.
     { k: 'controls', label: 'controls', title: 'How you fly it',
       icon: 'M9 10.6V4.2|M9 4.2a1.3 1.3 0 1 0 0-.1|M5 15.4h8a1.4 1.4 0 0 0 1.4-1.4V12a1.4 1.4 0 0 0-1.4-1.4H5A1.4 1.4 0 0 0 3.6 12v2a1.4 1.4 0 0 0 1.4 1.4Z' },
+    // G255: THE LEGEND — what the marks standing in the room mean (the
+    // amber and cyan posts, the bar between them, the wheel crosses), where
+    // the balance point should sit and how to move it. On demand, the user's
+    // ruling ("let's not pollute our interface too much"). A question-mark
+    // glyph. LITERAL FIELDS ONLY (GATE VIEW reads this table in a vm).
+    { k: 'legend', label: 'legend', title: 'What the marks in the room mean',
+      icon: 'M9 15.4A6.4 6.4 0 1 0 9 2.6a6.4 6.4 0 0 0 0 12.8Z|M6.9 7.2a2.1 2.1 0 1 1 3 1.9c-.6.3-.9.7-.9 1.4v.4|M9 13.1v.1' },
   ];
   let flyOpen = null;
 
@@ -1901,6 +1908,7 @@ function editorInit(api) {
     head.textContent = t.title;
     if (t.k === 'camera') buildCamera(body);
     if (t.k === 'controls') buildControls(body);
+    if (t.k === 'legend') buildLegend(body);
     const idx = labelIndex();
     for (const label of (t.rows || [])) {
       const r = idx.get(label);
@@ -1992,6 +2000,54 @@ function editorInit(api) {
       wrap2.appendChild(b);
     }
     body.appendChild(wrap2);
+    // G255: SCREENSHOT MODE — every panel, rail and mark off the screen, the
+    // render alone; one transparent way back (top right) and the Esc key.
+    // app.js owns the switch (window.SHOT_MODE) because both screens use it.
+    if (window.SHOT_MODE) {
+      const w3 = document.createElement('div');
+      w3.className = 'edCam';
+      const b = document.createElement('button');
+      b.className = 'pill';
+      b.textContent = 'screenshot';
+      b.title = 'Hide every panel and mark — the render alone. Esc, or the ' +
+                'faint button top right, brings the interface back.';
+      b.onclick = () => { openFly(null); window.SHOT_MODE.enter(); };
+      w3.appendChild(b);
+      body.appendChild(w3);
+    }
+  }
+
+  // G255: THE LEGEND. The two posts the room draws are the one instrument
+  // the user reads for balance ("when I talk about CG, I talk mostly about
+  // the editor representation, the vertical line"), and their labels were
+  // initials. Plain words, on demand; the numbers stay on the posts.
+  function buildLegend(body) {
+    const item = (swatch, head, txt) => {
+      const r = document.createElement('div'); r.className = 'edLegend';
+      const s = document.createElement('i'); s.className = 'sw ' + swatch;
+      const k = document.createElement('b'); k.textContent = head;
+      const v = document.createElement('span'); v.textContent = txt;
+      r.appendChild(s); r.appendChild(k); r.appendChild(v); body.appendChild(r);
+    };
+    item('amber', 'centre of gravity (CG) — the amber post',
+         'where the aeroplane balances. Quoted as a percentage of the wing ' +
+         'chord, measured back from the leading edge (“% MAC”: per ' +
+         'cent of the mean aerodynamic chord, the wing’s average chord). ' +
+         'It moves live: the engine fore-aft, the boom, the tanks, the seats.');
+    item('cyan', 'neutral point (NP) — the cyan post',
+         'the point the CG must stay AHEAD of. Behind it the nose runs away ' +
+         'in pitch and no pilot can hold it. It moves with the wing and the ' +
+         'tail, not with the weights.');
+    item('bar', 'stability margin (SM) — the bar between them',
+         'the gap, as a percentage of the chord. Comfortable: 10 to 25 %. ' +
+         'Under 5 % is twitchy (the post turns red); negative is unflyable.');
+    item('none', 'where it should sit',
+         'for most aeroplanes 25 to 35 % of the chord, well ahead of the ' +
+         'neutral point. Too far forward and the elevator cannot lift the ' +
+         'nose to land; too far back and it will not settle. Move the wing ' +
+         'aft to gain margin, forward to lose it; move weight the other way.');
+    item('pale', 'the pale crosses',
+         'where each wheel touches the ground.');
   }
 
   // ---- the loan ------------------------------------------------------------

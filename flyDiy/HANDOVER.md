@@ -37652,3 +37652,39 @@ its own `vCtl`/`vCtl2` now; castor → node 0.114 m again, the wheel 0.05.
   planks' length; the overhang slots in. Rule 28's continuity is on the deck
   extents; the boat box test on the boxes.
 - Gates: HOUSE (with --selftest) and MEDIA green.
+
+## G255 — THE MARKS IN THE ROOM SAY WHAT THEY ARE, A LEGEND ON DEMAND, AND
+## A SCREENSHOT MODE (2026-09-11, the user: "the labels CG, MAC, NP don't
+## mean anything to me apart from CG ... a legend, on demand though, let's
+## not pollute our interface ... a quick screenshot mode in the camera
+## options hiding all interface and UI elements")
+
+- **Words on the posts** (`app.js buildIndicators`): the amber post reads
+  `centre of gravity` / `70 % of the wing chord`, the cyan one `neutral
+  point` / `stability margin −14 %` (red under 0.05, as before). The label
+  canvas is 512 px wide now (`makeLabel`, scale 0.22).
+- **A `legend` entry on the shed's rail** (`editor.js RAIL`, a question-mark
+  glyph; `buildLegend`): five plain rows — the amber post (what the CG is,
+  what "% of the wing chord" / % MAC means, what moves it), the cyan post
+  (the point the CG must stay AHEAD of), the bar between them (the margin,
+  10-25 % comfortable, under 5 % twitchy, negative unflyable), where it
+  should sit (25-35 % of the chord; wing aft for margin, weight the other
+  way), the pale crosses (where the wheels touch). Literal RAIL fields only;
+  GATE VIEW reads the table in a vm and stays green. `.edLegend` rows in
+  editor.css.
+- **Screenshot mode** (`app.js shotSet`, `window.SHOT_MODE`; `body.shot` in
+  editor.css): both interface layers off the way the mode rules take them
+  off (visibility, so the canvases keep their boxes), `#ctlPanel` too, the
+  panels' inset released (`margin-left:0 / width:100% !important` on `#c`
+  — the right inset is an INLINE `--ws-right` from the panel's own
+  `panelWidth` report and a stylesheet variable cannot override it), the
+  CG/NP posts and wheel crosses hidden (`placeIndicators`). One way back
+  that is not chrome: a faint `↩ back · esc` pill top right (`#shotBack`,
+  appended to body by app.js, 0.35 opacity until hovered) and the Esc key
+  in the capture phase. Reached from the camera flyout on BOTH screens: a
+  `screenshot` pill after the framing presets in the shed (`editor.js
+  buildCamera`, closes the flyout first) and after the smoothing pills in
+  flight (`FL_BUILD.camera`). Verified on dev.html: shed and flight, both
+  exits, the render full width.
+
+Gates: VIEW, UISMOKE, BENCH green on the working copy.
