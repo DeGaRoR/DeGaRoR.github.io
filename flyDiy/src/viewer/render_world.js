@@ -1128,8 +1128,29 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     const parkChunk = rec => {
       for (const S of rec.rungs) for (const b of S) for (const m of b) { m.count = 0; m.visible = false; }
     };
-    const BAND_GLSL = (edgeExpr) =>
-      'if (uNoBand < 0.5 && (' + edgeExpr + ' < uNearB || ' + edgeExpr + ' >= uFarB)) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);';
+    // A TREE IS BANDED WHOLE, BY ITS INSTANCE ORIGIN. The first cut measured
+    // every VERTEX's own distance, so a tree straddling a band edge had the
+    // vertices on one side collapsed to the clip point and the rest drawn:
+    // the tree was sliced down the middle, and every triangle that crossed
+    // the cut stretched from the tree to the clip point at the centre of the
+    // screen - the slivers the user saw "rendered in front of everything" as
+    // the camera closed on a stand. The instance's origin is one number for
+    // the whole tree, so a tree swaps as one mesh, at one moment, exactly
+    // where the CPU partition put it.
+    const BAND_ORIGIN_VIEW = [
+      '#ifdef USE_INSTANCING',
+      'float bandD = length((modelViewMatrix * vec4(instanceMatrix[3].xyz, 1.0)).xyz);',
+      '#else',
+      'float bandD = length(mvPosition.xyz);',
+      '#endif'].join('\n');
+    const BAND_ORIGIN_CAM = [
+      '#ifdef USE_INSTANCING',
+      'float bandD = distance((modelMatrix * vec4(instanceMatrix[3].xyz, 1.0)).xyz, uCam);',
+      '#else',
+      'float bandD = distance((modelMatrix * vec4(transformed, 1.0)).xyz, uCam);',
+      '#endif'].join('\n');
+    const BAND_GLSL = (originExpr) => originExpr + '\n' +
+      'if (uNoBand < 0.5 && (bandD < uNearB || bandD >= uFarB)) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);';
     // the draw material: chained onto whatever the part already carries
     // (trees.js's AO hook), never overwriting it
     // A CLONE, NOT THE CACHED MATERIAL. treeBuild hands out ONE material per
@@ -1153,7 +1174,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         sh.vertexShader = sh.vertexShader
           .replace('#include <common>', '#include <common>\nuniform float uNearB, uFarB, uNoBand;')
           .replace('#include <project_vertex>', '#include <project_vertex>\n' +
-            BAND_GLSL('length(mvPosition.xyz)'));
+            BAND_GLSL(BAND_ORIGIN_VIEW));
       };
       return m;
     };
@@ -1168,13 +1189,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       d.onBeforeCompile = sh => {
         sh.uniforms.uNearB = E.near;
         sh.uniforms.uFarB = E.far;
-        sh.uniforms.uCG = uCG;
+        sh.uniforms.uCam = uCam;
         sh.uniforms.uNoBand = uNoBand;
         sh.vertexShader = sh.vertexShader
-          .replace('#include <common>', '#include <common>\nuniform float uNearB, uFarB, uNoBand;\nuniform vec3 uCG;')
+          .replace('#include <common>', '#include <common>\nuniform float uNearB, uFarB, uNoBand;\nuniform vec3 uCam;')
           .replace('#include <project_vertex>', '#include <project_vertex>\n' +
-            'vec4 wPd = modelMatrix * instanceMatrix * vec4(transformed, 1.0);\n' +
-            BAND_GLSL('distance(wPd.xyz, uCG)'));
+            BAND_GLSL(BAND_ORIGIN_CAM));
       };
       return d;
     };
@@ -1205,7 +1225,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         sh.vertexShader = sh.vertexShader
           .replace('#include <common>', '#include <common>\nuniform float uNearB;')
           .replace('#include <project_vertex>', '#include <project_vertex>\n' +
-            'if (length(mvPosition.xyz) > uNearB) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);');
+            BAND_ORIGIN_VIEW + '\nif (bandD > uNearB) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);');
       };
       return mat;
     };
@@ -1316,12 +1336,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     const treeDepth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
     treeDepth.onBeforeCompile = sh => {
       sh.uniforms.uNearB = uNear;
-      sh.uniforms.uCG = uCG;
+      sh.uniforms.uCam = uCam;
       sh.vertexShader = sh.vertexShader
-        .replace('#include <common>', '#include <common>\nuniform float uNearB;\nuniform vec3 uCG;')
+        .replace('#include <common>', '#include <common>\nuniform float uNearB;\nuniform vec3 uCam;')
         .replace('#include <project_vertex>', '#include <project_vertex>\n' +
-          'vec4 wPd = modelMatrix * instanceMatrix * vec4(transformed, 1.0);\n' +
-          'if (distance(wPd.xyz, uCG) > uNearB) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);');
+          BAND_ORIGIN_CAM + '\nif (bandD > uNearB) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);');
     };
 
     const cells = new Map();
@@ -1487,14 +1506,20 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       }
       // the ladder partition, on its cadence - and only for chunks that can
       // hold a live instance of any rung at all
-      const moved = !lodAt || Math.hypot(cg[0] - lodAt[0], cg[2] - lodAt[2]) > LOD_MOVE;
+      // FROM THE EYE, like the shader band. The partition measured from the
+      // CG and the band from the camera; with the chase camera 30 m behind
+      // the aircraft, a tree in between was dealt to one rung by the
+      // partition and collapsed by that rung's band - a gap that moved with
+      // the aeroplane, on top of the slicing.
+      const eye = [uCam.value.x, uCam.value.y, uCam.value.z];
+      const moved = !lodAt || Math.hypot(eye[0] - lodAt[0], eye[2] - lodAt[2]) > LOD_MOVE;
       if (lodTick++ % LOD_TICK === 0 || moved) {
-        lodAt = [cg[0], cg[1], cg[2]];
-        const reach = NEAR_R + CHW * Math.SQRT1_2;
+        lodAt = eye;
+        const reach = uNear.value + CHW * Math.SQRT1_2;
         for (const rec of ladderChunks) {
-          const dx = rec.x - cg[0], dz = rec.z - cg[2];
+          const dx = rec.x - eye[0], dz = rec.z - eye[2];
           if (dx * dx + dz * dz > reach * reach) { parkChunk(rec); continue; }
-          partitionChunk(rec, cg);
+          partitionChunk(rec, eye);
         }
       }
     };
