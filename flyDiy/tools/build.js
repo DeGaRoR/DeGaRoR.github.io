@@ -253,7 +253,10 @@ const MANIFEST = {
     // mapping panel over it, opened from both rails; DOM-lazy, built on the
     // first open, so its position only has to precede the two callers.
               'design_flow.js', 'balance.js', 'pattern_vis.js',
-              'input.js', 'input_panel.js', 'editor.js', 'app.js'],
+    // dev_panel.js (W0c.11): the developer's dials, DOM-lazy, over handles
+    // the world publishes at runtime (TREE_*, WORLD_RIG, DEV_CAM) - it only
+    // has to be in the page; F8 builds it.
+              'input.js', 'input_panel.js', 'editor.js', 'app.js', 'dev_panel.js'],
   },
   // THE EDITOR (G35): the cage bench, embedded — the game's editor since the
   // old garage panel retired. The list and its ORDER are tools/_cage8.html's

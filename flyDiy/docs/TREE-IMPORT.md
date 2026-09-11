@@ -291,6 +291,17 @@ rung first); and `vertexColors: true` on a quad with no `color` attribute
 multiplied every impostor by an unbound (0,0,0) — the tint rides on
 `USE_INSTANCING_COLOR` alone.
 
+**The dials in the game (W0c.11).** F8 opens the developer panel
+(`src/viewer/dev_panel.js`): fill density, the three band edges (`TREE_LOD`,
+shared uniforms, so `[150, 150, 150]` is "L0 then impostor" live), `imp lit`,
+the leaf terms and master tint, and the RIG AS DATA (`WORLD_RIG`): sun
+elevation / azimuth / strength / warmth, hemisphere, exposure, the dome's
+palette, shadow reach and map, and the environment — the boot dome or the
+alps panorama rebuilt from the hangar's base + gain pair the way the bench
+does it, invisible, PMREM'd. Two rows: `sunset` (the world's, snapshotted at
+boot) and `alps` (the bench's afternoon: keyI 2.8 `ffdca8` at 33°, hemi 0.274,
+ex 0.92). Under `alps` the game's stand reads as the bench's.
+
 **Not done.** The larch impostor is thinner than
 its geometry (0.47x the covered pixels, and the gain saturates — that one wants
 tile resolution). Bushes and grass are the next kinds through this same door.

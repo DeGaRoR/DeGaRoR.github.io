@@ -35,6 +35,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // that 1.3 km back cost almost nothing.
   const NEAR_R = 450, FAR_WOOD = 5400, FAR_FILL = 4000, FAR_FADE = 500;
   const uNear = { value: NEAR_R };     // live: every tree material reads it
+  // the two inner edges of the ladder, shared by every rung material the
+  // same way uNear is - a dial can move them and every band follows
+  const LOD_U = [{ value: 150 }, { value: 300 }], U0 = { value: 0 };
   const uILit = { value: 1.0 };        // the impostor tier's own gain (the bench's `imp lit`)
   // THE BAKE SWITCHES THE BANDS OFF. A rung's material collapses every
   // instance outside its band, and the impostor bake draws the same material
@@ -152,7 +155,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // longer exists — silently, and for ever, because nothing downstream can
   // tell you. Two literals that must agree are a bug waiting for its first
   // edit, so there is one.
-  const RIG = { skyCol: 0xbcd8f0, gndCol: 0x6a5a3c, hemi: 0.50, sun: 2.75 };
+  const RIG = { skyCol: 0xbcd8f0, gndCol: 0x6a5a3c, hemi: 0.50, sun: 2.75, shadowMin: 105 };
   const hemiLight = () => {
     const h = new THREE.HemisphereLight(C(RIG.skyCol), C(RIG.gndCol), RIG.hemi);
     h.groundColor.multiplyScalar(gb);      // occluded, like every bounce here
@@ -1043,7 +1046,22 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // three trees deep. So each rung's parts get a depth material of their own,
     // wearing the part's map and cutoff and the rung's band - measured from the
     // CG, because the sun's shadow camera follows the aircraft, not the eye.
-    const LOD_R = [150, 300, NEAR_R];
+    const LOD_R = [LOD_U[0].value, LOD_U[1].value, NEAR_R];
+    // THE BANDS ARE A DIAL: TREE_LOD.set([l0, l1, near]) moves the shader
+    // edges, the partition's table and the impostor's inner edge together,
+    // and forces a re-partition. [150, 150, 150] is "L0 then impostor".
+    let lodAt = null;                       // the partition's last CG (see lodUpdate)
+    const treeLod = {
+      get: () => [LOD_U[0].value, LOD_U[1].value, uNear.value],
+      set: a => {
+        const l0 = Math.max(10, +a[0] || LOD_U[0].value), l1 = Math.max(l0, +a[1] || LOD_U[1].value);
+        const nr = Math.max(l1, +a[2] || uNear.value);
+        LOD_U[0].value = LOD_R[0] = l0; LOD_U[1].value = LOD_R[1] = l1; uNear.value = LOD_R[2] = nr;
+        lodAt = null;
+        return treeLod.get();
+      },
+    };
+    if (typeof window !== 'undefined') window.TREE_LOD = treeLod;
     // ================= W0c.5: THE MIX ======================================
     // Which SERIES a tree is drawn as. The bench's rule, ported: a fraction is
     // dead (the collection's own `place.dead`), and of the living, `furnished`
@@ -1077,18 +1095,22 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // the aircraft moves, and `count` is set to what was written. The band in
     // the shader stays as the seam guard between refreshes.
     const LOD_TICK = 10, LOD_MOVE = 25;     // refresh every 10 frames or 25 m
-    // rec.spans[si] is the series' own rung table (the far edge of each
-    // rung); rec.rungs[si][r] the meshes of rung r; rec.buf[si][r] its
-    // scratch. A one-rung series (the snag) has spans [NEAR_R] and every
-    // instance inside the tier lands on it - under one shared band table it
-    // was dealt to the empty lists of the bands its rung did not own.
+    // rec.rungs[si][r] holds the meshes of rung r of series si, rec.buf[si][r]
+    // its scratch, and the rung TABLE - the far edge of each rung - is read
+    // live from the ladder's edges, so the dial that moves the bands moves
+    // the partition with them. A one-rung series (the snag) spans the whole
+    // near tier and every instance inside it lands on that rung; under one
+    // shared band table it was dealt to the empty lists of the bands its
+    // rung did not own.
+    const spanFor = n => n <= 1 ? [uNear.value] : LOD_U.slice(0, n - 1).map(u => u.value).concat([uNear.value]);
     function partitionChunk(rec, cg) {
       const n = rec.n, pos = rec.pos, mats = rec.mats, ser = rec.ser;
       const k = rec.rungs.map(L => L.map(() => 0));
+      const spans = rec.rungs.map(L => spanFor(L.length));
       for (let i = 0; i < n; i++) {
         const dx = pos[i * 3] - cg[0], dy = pos[i * 3 + 1] - cg[1], dz = pos[i * 3 + 2] - cg[2];
         const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
-        const si = ser[i], R = rec.spans[si];
+        const si = ser[i], R = spans[si];
         let b = -1;
         for (let j = 0; j < R.length; j++) if (d < R[j]) { b = j; break; }
         if (b < 0) continue;
@@ -1116,14 +1138,17 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // 300-450 m band on it, and every fill fir vanished inside 300 m. The
     // clone shares userData by reference, which is where the tint and cutoff
     // uniforms live, so the dials keep reaching it.
-    const bandMat = (mat, near, far) => {
+    // (r, n): rung r of a ladder n rungs long; the edges are the shared
+    // uniforms, so TREE_LOD.set moves every band at once
+    const bandEdges = (r, n) => ({ near: r ? LOD_U[r - 1] : U0, far: (r === n - 1) ? uNear : LOD_U[r] });
+    const bandMat = (mat, r, n) => {
       const m = mat.clone();
       m.userData = mat.userData;
-      const prev = mat.onBeforeCompile;
+      const prev = mat.onBeforeCompile, E = bandEdges(r, n);
       m.onBeforeCompile = sh => {
         if (prev) prev(sh);
-        sh.uniforms.uNearB = { value: near };
-        sh.uniforms.uFarB = { value: far };
+        sh.uniforms.uNearB = E.near;
+        sh.uniforms.uFarB = E.far;
         sh.uniforms.uNoBand = uNoBand;
         sh.vertexShader = sh.vertexShader
           .replace('#include <common>', '#include <common>\nuniform float uNearB, uFarB, uNoBand;')
@@ -1132,7 +1157,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       };
       return m;
     };
-    const bandDepth = (mat, near, far) => {
+    const bandDepth = (mat, r, n) => {
+      const E = bandEdges(r, n);
       const d = new THREE.MeshDepthMaterial({
         depthPacking: THREE.RGBADepthPacking,
         // the cutout, which the derived depth material never had
@@ -1140,8 +1166,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         alphaTest: (mat.userData && mat.userData.uCut) ? mat.userData.uCut.value : (mat.alphaTest || 0),
       });
       d.onBeforeCompile = sh => {
-        sh.uniforms.uNearB = { value: near };
-        sh.uniforms.uFarB = { value: far };
+        sh.uniforms.uNearB = E.near;
+        sh.uniforms.uFarB = E.far;
         sh.uniforms.uCG = uCG;
         sh.uniforms.uNoBand = uNoBand;
         sh.vertexShader = sh.vertexShader
@@ -1165,9 +1191,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const ladder = [];
       for (let r = 0; r < n; r++) {
         const B = treeBuild(THREE, key, r, ser);
-        const near = r ? LOD_R[r - 1] : 0, far = (r === n - 1) ? NEAR_R : LOD_R[r];
-        ladder.push({ near, far, parts: B.parts.map(q => ({
-          geo: q.geo, mat: bandMat(q.mat, near, far), depth: bandDepth(q.mat, near, far) })) });
+        ladder.push({ r, n, parts: B.parts.map(q => ({
+          geo: q.geo, mat: bandMat(q.mat, r, n), depth: bandDepth(q.mat, r, n) })) });
       }
       const B0 = treeBuild(THREE, key, 0, ser);
       return { name: ser, ladder, parts: B0.parts, scaleY: B0.scaleY || 1 };
@@ -1358,12 +1383,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         const cnt = [0, 0, 0];
         list.forEach((T, i) => { ser[i] = seriesOf(T.r, P.dead); cnt[ser[i]]++; });
         const rec = { n, mats: new Float32Array(n * 16), pos: new Float32Array(n * 3), ser,
-                      buf: [], rungs: [], spans: [], x: ox, z: oz, own: true };
+                      buf: [], rungs: [], x: ox, z: oz, own: true };
         const meshes = [], imps = [];
         P.series.forEach((S, si) => {
           rec.buf.push(S.ladder.map(() => new Float32Array(cnt[si] * 16)));
           rec.rungs.push(S.ladder.map(() => []));
-          rec.spans.push(S.ladder.map(R => R.far));
           if (!cnt[si]) { imps.push(null); return; }
           S.ladder.forEach((R, ri) => { for (const q of R.parts) {
             const m = mk(q.geo, q.mat, cnt[si], true);
@@ -1454,7 +1478,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     }
     }                                     // ---- end plantWoodland
 
-    let lodTick = 0, lodAt = null;
+    let lodTick = 0;
     lodUpdate = cg => {
       for (const list of [nearChunks, impChunks]) for (const t of list) {
         const dx = t.x - cg[0], dz = t.z - cg[2];
@@ -1512,7 +1536,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // fill runs 25 ms at 112, 31 at 160, 36 at 224, 54 at 320 - against 17-21
       // at the strip with no near tree at all. 160 is where dense reads as
       // dense and the frame is still the game's; the dial is there to push it.
-      const FILL = { ng: 160 };
+      const FILL = { ng: 128 };         // 8 m; 160 (6.4 m) was 72 ms on the full ladder
       let NG = FILL.ng, SP2 = CH / NG;
       const bins = new Map();              // collidable trees in 128 m bins:
       world.trees.forEach((T, i) => {      // prefilter + species inheritance
@@ -1664,11 +1688,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
               m.count = 0; m.visible = false; return m; })),
             mi: new THREE.InstancedMesh(impQuadF, S.imp, cnt[si]), at: 0 } : null);
           for (const P of perSer) if (P) P.ms = [].concat(...P.byRung);
-          const spansOf = S => S.ladder ? S.ladder.map(R => R.far) : [NEAR_R];
+          const nrOf = S => S.ladder ? S.ladder.length : 1;
           const rec = { n, mats: new Float32Array(n * 16), pos: new Float32Array(n * 3), ser,
-                        spans: SH.series.map(spansOf),
-                        buf: SH.series.map((S, si) => spansOf(S).map(() => new Float32Array(cnt[si] * 16))),
-                        rungs: SH.series.map((S, si) => perSer[si] ? perSer[si].byRung : spansOf(S).map(() => [])), x: ox, z: oz };
+                        buf: SH.series.map((S, si) => Array.from({ length: nrOf(S) }, () => new Float32Array(cnt[si] * 16))),
+                        rungs: SH.series.map((S, si) => perSer[si] ? perSer[si].byRung : Array.from({ length: nrOf(S) }, () => [])), x: ox, z: oz };
           perSer.forEach((P, si) => { if (P) for (const mm of P.ms.concat([P.mi])) {
             mm.position.set(ox, 0, oz); mm.userData.ser = si; mm.userData.fill = true; } });
           for (let i = 0; i < n; i++) {
@@ -2428,7 +2451,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     const tx = cg[0] - SUN.x * reach * 0.5, tz = cg[2] - SUN.z * reach * 0.5;
     sun.target.position.set(tx, gy, tz);
     sun.position.set(tx + SUN.x * 700, gy + SUN.y * 700, tz + SUN.z * 700);
-    const half = Math.max(105, Math.min(540, 105 + reach * 0.55));
+    const half = Math.max(RIG.shadowMin, Math.min(540, 105 + reach * 0.55));
     if (Math.abs(half - shadowHalf) > shadowHalf * 0.12 + 4) {
       shadowHalf = half;
       const c = sun.shadow.camera;
@@ -2438,10 +2461,118 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     clouds.position.x += 0.05;
   }
 
+  // ================= THE RIG AS DATA (W0c.11) ==============================
+  // Every number the light is made of - the sun's direction, colour and
+  // strength, the hemisphere, the exposure, the dome's palette, the
+  // environment and the shadow's reach - in one row, with a setter, so a
+  // developer can move any of them from a slider and A/B the forest under
+  // the rig it was tuned in. Two rows: `sunset`, which is what this file has
+  // always drawn (snapshotted at boot, so it stays exactly that), and `alps`,
+  // the bench's afternoon row (hangar.js MOODS: keyI 2.8, ffdca8, hemi
+  // 0.274, ex 0.92) with the alps panorama as an INVISIBLE environment -
+  // rebuilt from the hangar's base + gain pair the way the bench does it,
+  // at 2048 x 1024, and PMREM'd. The visible sky stays the dome.
+  const rigRows = {};
+  const hexOf = (c, d) => (c && c.getHex) ? c.getHex() : d;   // the gate's stub has no Color
+  const rigSnapshot = () => ({
+    elev: Math.asin(SUN.y) * 180 / Math.PI, azim: Math.atan2(SUN.x, SUN.z) * 180 / Math.PI,
+    sunI: RIG.sun, sunCol: hexOf(sun.color, SUNC), hemi: RIG.hemi,
+    hemiSky: hexOf(hemi.color, RIG.skyCol), hemiGnd: RIG.gndCol,
+    exposure: (renderer && renderer.toneMappingExposure) || 1,
+    env: 'dome', shadowMin: RIG.shadowMin,
+    shadowMap: (sun.shadow && sun.shadow.mapSize) ? sun.shadow.mapSize.x : 1024,
+    dome: (worldSky && worldSky.material.uniforms) ? {
+      top: hexOf(worldSky.material.uniforms.uTop.value, 0x3f7fbe),
+      mid: hexOf(worldSky.material.uniforms.uMid.value, 0x9dc4dd),
+      haze: hexOf(worldSky.material.uniforms.uHaze.value, HAZE),
+      sunCol: hexOf(worldSky.material.uniforms.uSunCol.value, SUNC) } : null,
+  });
+  rigRows.sunset = rigSnapshot();
+  rigRows.alps = Object.assign({}, rigRows.sunset, {
+    elev: 33.4, azim: 28.7, sunI: 2.8, sunCol: 0xffdca8, hemi: 0.274, hemiSky: 0xc5d9ff,
+    hemiGnd: 0x343422, exposure: 0.92, env: 'alps', shadowMin: 250, shadowMap: 2048,
+    dome: { top: 0x3f7fbe, mid: 0xa9c8e0, haze: 0xcfd9e3, sunCol: 0xfff1dc },
+  });
+  const rigCur = Object.assign({}, rigRows.sunset);
+  let alpsEnv = null, alpsState = null;
+  // the alps radiance, once: sRGB base / k * exp2(gain * gmax), the identity
+  // hangar_sky.js's grade shader uses, run on the CPU into a half-float
+  // equirect (see tools/_trees.html alpsBuild for the argument)
+  const buildAlpsEnv = done => {
+    // a bundle-scope const (hangar_sky.js, later in the bundle): reachable by
+    // name at call time, never as a window property
+    const G = (typeof HANGAR_SKY_GRADE !== 'undefined') ? HANGAR_SKY_GRADE
+            : ((typeof window !== 'undefined') && window.HANGAR_SKY_GRADE);
+    if (!G || !THREE.DataUtils || !THREE.PMREMGenerator) { alpsState = 'failed'; return; }
+    alpsState = 'loading';
+    const W = 2048, H = 1024, imgs = { base: new Image(), gain: new Image() };
+    let left = 2;
+    const go = () => {
+      if (--left) return;
+      try {
+        const c = document.createElement('canvas'); c.width = W; c.height = H;
+        const g2 = c.getContext('2d', { willReadFrequently: true });
+        g2.drawImage(imgs.base, 0, 0, W, H); const bd = g2.getImageData(0, 0, W, H).data;
+        g2.clearRect(0, 0, W, H);
+        g2.drawImage(imgs.gain, 0, 0, W, H); const gd = g2.getImageData(0, 0, W, H).data;
+        const half = THREE.DataUtils.toHalfFloat, out = new Uint16Array(W * H * 4);
+        const invK = 1 / G.k, gmax = G.gmax;
+        const s2l = v => (v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
+        for (let i = 0, n = W * H; i < n; i++) {
+          for (let ch = 0; ch < 3; ch++)
+            out[i * 4 + ch] = half(s2l(bd[i * 4 + ch] / 255) * invK * Math.pow(2, (gd[i * 4 + ch] / 255) * gmax));
+          out[i * 4 + 3] = half(1);
+        }
+        const t = new THREE.DataTexture(out, W, H, THREE.RGBAFormat, THREE.HalfFloatType);
+        t.mapping = THREE.EquirectangularReflectionMapping;
+        t.minFilter = t.magFilter = THREE.LinearFilter; t.generateMipmaps = false; t.needsUpdate = true;
+        const pm = new THREE.PMREMGenerator(renderer);
+        alpsEnv = pm.fromEquirectangular(t).texture;
+        pm.dispose(); t.dispose();
+        alpsState = 'ready';
+      } catch (e) { alpsState = 'failed'; }
+      if (done) done();
+    };
+    imgs.base.onload = go; imgs.gain.onload = go;
+    imgs.base.onerror = imgs.gain.onerror = () => { alpsState = 'failed'; };
+    imgs.base.src = G.base; imgs.gain.src = G.gain;
+  };
+  const rigApply = () => {
+    const R = rigCur, el = R.elev * Math.PI / 180, az = R.azim * Math.PI / 180;
+    SUN.set(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)).normalize();
+    sun.intensity = RIG.sun = R.sunI; if (sun.color && sun.color.setHex) sun.color.setHex(R.sunCol);
+    hemi.intensity = RIG.hemi = R.hemi;
+    if (hemi.color && hemi.color.setHex) { hemi.color.setHex(R.hemiSky); hemi.groundColor.setHex(R.hemiGnd).multiplyScalar(gb); }
+    if (renderer) renderer.toneMappingExposure = R.exposure;
+    RIG.shadowMin = R.shadowMin;
+    if (sun.shadow && sun.shadow.mapSize && sun.shadow.mapSize.x !== R.shadowMap) {
+      sun.shadow.mapSize.set(R.shadowMap, R.shadowMap);
+      if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
+    }
+    if (worldSky && R.dome && worldSky.material.uniforms) {
+      const u = worldSky.material.uniforms;
+      u.uTop.value.setHex(R.dome.top); u.uMid.value.setHex(R.dome.mid);
+      u.uHaze.value.setHex(R.dome.haze); u.uSunCol.value.setHex(R.dome.sunCol);
+      if (scene.fog) scene.fog.color.setHex(R.dome.haze);
+    }
+    if (R.env === 'alps') {
+      if (alpsState === 'ready') scene.environment = alpsEnv;
+      else if (alpsState === null) buildAlpsEnv(() => { if (rigCur.env === 'alps' && alpsEnv) scene.environment = alpsEnv; });
+    } else scene.environment = envMap;
+  };
+  const worldRig = {
+    rows: () => Object.keys(rigRows),
+    get: () => Object.assign({}, rigCur, { dome: Object.assign({}, rigCur.dome) }),
+    row: name => { if (rigRows[name]) { Object.assign(rigCur, rigRows[name], { dome: Object.assign({}, rigRows[name].dome) }); rigApply(); } return worldRig.get(); },
+    set: o => { for (const k in o) if (k === 'dome') Object.assign(rigCur.dome, o.dome); else if (k in rigCur) rigCur[k] = o[k]; rigApply(); return worldRig.get(); },
+    envState: () => alpsState,
+  };
+  if (typeof window !== 'undefined') window.WORLD_RIG = worldRig;
+
   // treeLod is exposed for tuning, not for the viewer: setting near to 0 makes
   // the whole forest impostors, which is how the mid tier's fidelity gets
   // compared against the geometry it stands in for (tools/make_probe.js).
-  return { worldUpdate, SUN, sun, hemi, minimap: miniCanvas, setWindVis, envMap,
+  return { worldUpdate, SUN, sun, hemi, minimap: miniCanvas, setWindVis, envMap, rig: worldRig,
            setShedDims: d => setShedDims(d),
            treeLod: { near: uNear, cam: uCam, lit: uILit }, renderer,
            // the world's own light panel — the same shape the shed exposes, so
