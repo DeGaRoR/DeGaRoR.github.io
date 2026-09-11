@@ -1153,9 +1153,58 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // impostor's size and centre height come straight off the source
       // geometry's bounding sphere, and a borrowed atlas would sit 1.2 m high
       const impQuadF = impQuad(CH), hdF = CH * Math.SQRT1_2;
-      const impConeMatF = impostorMat(bakeImpostorAtlas(coneF), FAR_FILL);
-      const impBlobMatF = impostorMat(bakeImpostorAtlas(blobF), FAR_FILL);
       const chunks = new Map(), queue = [];
+
+      // ================= W0c.2: the fill draws the STAND rung ============
+      // This layer plants a tree every 9 m, and inside the near band that is
+      // thousands of them: a real LOD0 here is millions of triangles and the
+      // layer simply could not use the payload. What it CAN use is the stand
+      // series' L2 — the tree inside a wood, top third of the crown on a
+      // stick, ~400-1600 triangles against 7 784-12 969 — which tree_prep.py
+      // now generates by the bench's own rules. Same replant-on-arrival shape
+      // as the woodland: the shapes live in a holder `gen` reads, the cone is
+      // what it holds at boot, and when the payload lands the holder is
+      // rebuilt and every live chunk evicted so it regenerates with the tree.
+      const SHAPE = { conif: null, broad: null, kit: [] };
+      const shapeFallback = (geo, tint) => ({
+        parts: [{ geo, mat: matF }], imp: impostorMat(bakeImpostorAtlas(geo), FAR_FILL),
+        white: false, scaleY: 1,
+      });
+      function setShapes() {
+        for (const k of SHAPE.kit) if (k && k.dispose) k.dispose();
+        SHAPE.kit = [];
+        let real = null;
+        if (typeof treeReady === 'function' && treeReady() && typeof treeBuild === 'function') {
+          try {
+            const all = treeList();
+            const pick = re => (all.find(e => re.test(e.key)) || all[0]).key;
+            // the cheapest stand rung each subject has - a pack that ships a
+            // deeper chain would hand a coarser one, and that is the point
+            const cheapest = key => {
+              const S = all.find(e => e.key === key).sub;
+              const n = (S.stand && S.stand.length) ? S.stand.length : S.rungs.length;
+              return treeBuild(THREE, key, n - 1, 'stand');
+            };
+            real = { conif: cheapest(pick(/Fir01/)),
+                     broad: cheapest(pick(/Christmas tree\|?$|Christmas tree$/)) };
+          } catch (e) { real = null; }
+        }
+        for (const side of ['conif', 'broad']) {
+          if (real) {
+            const B = real[side];
+            B.parts.forEach(q => chunkBounds(q.geo, CH));
+            const imp = impostorMat(bakeImpostorAtlas(B.parts), FAR_FILL);
+            SHAPE[side] = { parts: B.parts, imp, white: true, scaleY: B.scaleY || 1 };
+            SHAPE.kit.push(imp);
+          } else {
+            const sh = shapeFallback(side === 'conif' ? coneF : blobF);
+            SHAPE[side] = sh;
+            SHAPE.kit.push(sh.imp);
+          }
+        }
+        return !!real;
+      }
+      setShapes();
       function gen(cx, cz) {
         const recs = [[], []];             // conifer / broadleaf
         for (let gz = 0; gz < NG; gz++) for (let gx = 0; gx < NG; gx++) {
@@ -1183,27 +1232,34 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         recs.forEach((r, broadish) => {
           const n = r.length / 5;
           if (!n) return;
-          const m = new THREE.InstancedMesh(broadish ? blobF : coneF, matF, n);
-          const mi = new THREE.InstancedMesh(impQuadF,
-            broadish ? impBlobMatF : impConeMatF, n);
-          m.position.set(ox, 0, oz); mi.position.set(ox, 0, oz);
+          const SH = broadish ? SHAPE.broad : SHAPE.conif;
+          // one InstancedMesh per PART: a real tree is a bark part and a leaf
+          // part with their own materials, where the cone was one geometry
+          const ms = SH.parts.map(pq => new THREE.InstancedMesh(pq.geo, pq.mat, n));
+          const mi = new THREE.InstancedMesh(impQuadF, SH.imp, n);
+          for (const mm of ms) mm.position.set(ox, 0, oz);
+          mi.position.set(ox, 0, oz);
           for (let i = 0; i < n; i++) {
             const o = i * 5, sp = r[o + 3], w = r[o + 4];
             q.setFromAxisAngle(up, w * 6.283);
             const s = [1.15, 1.0, 1.1, 0.9, 0.85][sp] * (0.62 + w * 0.55);
             pv.set(r[o] - ox, r[o + 1] - 0.05, r[o + 2] - oz);
-            sv.set(s, s * (0.9 + w * 0.25), s);
+            // the stand series is drawn stretched - the dial, not the bake
+            sv.set(s, s * (0.9 + w * 0.25) * SH.scaleY, s);
             m4.compose(pv, q, sv);
-            c3.copy(SPC[sp][0]).lerp(SPC[sp][1], w * 0.85);
-            m.setMatrixAt(i, m4); m.setColorAt(i, c3);
+            // a baked tree wears its own colour (see the woodland layer)
+            if (SH.white) c3.setRGB(1, 1, 1);
+            else c3.copy(SPC[sp][0]).lerp(SPC[sp][1], w * 0.85);
+            for (const mm of ms) { mm.setMatrixAt(i, m4); mm.setColorAt(i, c3); }
             mi.setMatrixAt(i, m4); mi.setColorAt(i, c3);
           }
-          for (const mm of [m, mi]) {
+          for (const mm of ms.concat([mi])) {
             mm.instanceMatrix.needsUpdate = true;
             if (mm.instanceColor) mm.instanceColor.needsUpdate = true;
             scene.add(mm); meshes.push(mm);
           }
-          near.push(m); imp.push(mi);
+          for (const mm of ms) near.push(mm);
+          imp.push(mi);
         });
         // both tiers are built once, per chunk, from the same records; which one
         // you see is the per-instance band in the shader, and which one is even
@@ -1212,6 +1268,25 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
                      { m: imp, x: ox, z: oz, r: FAR_FILL + hdF }];
         nearChunks.push(reg[0]); impChunks.push(reg[1]);
         return { meshes, reg };
+      }
+      // when the payload lands: new shapes, and every live chunk regenerates
+      // through the streamer's own eviction path rather than a second one
+      const evictAll = () => {
+        for (const [k, c2] of chunks) {
+          if (c2.meshes) {
+            for (const m of c2.meshes.meshes) { scene.remove(m); if (m.dispose) m.dispose(); }
+            for (const r2 of c2.meshes.reg) {
+              let i = nearChunks.indexOf(r2); if (i >= 0) nearChunks.splice(i, 1);
+              i = impChunks.indexOf(r2); if (i >= 0) impChunks.splice(i, 1);
+            }
+          }
+          chunks.delete(k);
+        }
+        queue.length = 0;
+      };
+      if (typeof treeWarm === 'function' && typeof treeReady === 'function'
+          && !treeReady()) {
+        treeWarm().then(() => { if (setShapes()) evictAll(); }).catch(() => {});
       }
       let tick = 0;
       fillUpdate = cg => {

@@ -69,8 +69,22 @@ function check() {
       if (!(span[0] > 0 && span[1] > 0 && span[2] > 0)) fail.push(S.name + ': degenerate bb');
       if (Math.abs(y0) > 1e-3) fail.push(S.name + ': base is at y=' + y0 + ', not 0');
 
+      // THREE SERIES SHARE ONE FRAME AND ONE BOX. `rungs` is the specimen
+      // ladder, `stand` the tree inside a wood, `snag` the standing dead one;
+      // every rung of every series is decoded, bounded and AO-checked alike,
+      // and every one of them has to sit inside the subject's single bb.
       const centres = [];
-      for (const R of S.rungs) {
+      const series = [['rungs', S.rungs || []], ['stand', S.stand || []], ['snag', S.snag || []]];
+      if (!(S.stand && S.stand.length)) fail.push(S.name + ': no stand series');
+      if (!(S.snag && S.snag.length)) fail.push(S.name + ': no snag series');
+      // a generated ladder has to be a LADDER: each rung cheaper than the last
+      for (const [sname, list] of series)
+        for (let i = 1; i < list.length; i++)
+          if (list[i].tris >= list[i - 1].tris)
+            fail.push(S.name + ' ' + sname + ': L' + list[i].lod + ' (' + list[i].tris +
+                      ' tris) is not cheaper than L' + list[i - 1].lod + ' (' + list[i - 1].tris + ')');
+      for (const [sname, list] of series) for (const R of list) {
+        const tag = ' ' + sname + ' L' + R.lod;
         nRung++;
         let lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
         let aoMin = 2, aoMax = -1, aoSum = 0, aoN = 0;
@@ -78,7 +92,7 @@ function check() {
           nPart++;
           let d;
           try { d = decodeTreePart(S.bb, P, bin); }
-          catch (e) { fail.push(S.name + ' L' + R.lod + ' ' + P.mat + ': ' + e.message); continue; }
+          catch (e) { fail.push(S.name + tag + ' ' + P.mat + ': ' + e.message); continue; }
           const nv = d.pos.length / 3;
           nVert += nv; nTri += d.idx.length / 3;
           if (d.idx.length % 3) fail.push(S.name + ': index count not a multiple of 3');
@@ -106,9 +120,9 @@ function check() {
         // wrong bb both show up here and nowhere else
         for (let k = 0; k < 3; k++) {
           if (lo[k] < S.bb[k] - 1e-3 || hi[k] > S.bb[k + 3] + 1e-3)
-            fail.push(S.name + ' L' + R.lod + ': geometry outside its bb on axis ' + k);
+            fail.push(S.name + tag + ': geometry outside its bb on axis ' + k);
         }
-        if (R.lod === S.rungs[0].lod) {
+        if (sname === 'rungs' && R.lod === S.rungs[0].lod) {
           for (let k = 0; k < 3; k++) {
             if ((hi[k] - lo[k]) < span[k] * 0.9)
               fail.push(S.name + ': finest rung fills only ' +
@@ -121,9 +135,9 @@ function check() {
         // not a missing bake.
         if (aoN && R.tris > 200) {
           if (aoMax > 1.0001 || aoMin < -1e-6) fail.push(S.name + ': AO outside [0,1]');
-          if (aoMax - aoMin < 0.05) fail.push(S.name + ' L' + R.lod + ': AO is flat (' +
+          if (aoMax - aoMin < 0.05) fail.push(S.name + tag + ': AO is flat (' +
             aoMin.toFixed(3) + '..' + aoMax.toFixed(3) + ') — not baked');
-          if (aoSum / aoN > 0.995) fail.push(S.name + ' L' + R.lod + ': AO mean is 1 — not baked');
+          if (aoSum / aoN > 0.995) fail.push(S.name + tag + ': AO mean is 1 — not baked');
         }
         centres.push([(lo[0] + hi[0]) / 2, (lo[2] + hi[2]) / 2]);
       }

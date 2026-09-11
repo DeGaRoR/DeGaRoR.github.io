@@ -7,8 +7,8 @@ const TREE_PACK = {
  "collections": [
   {
    "name": "fir_tree_georgeous.glb",
-   "bin": "" + B + "media/geo/trees/fir_tree_georgeous.ff5be74d.bin",
-   "bytes": 152400,
+   "bin": "" + B + "media/geo/trees/fir_tree_georgeous.a57e0115.bin",
+   "bytes": 457952,
    "credit": {
     "author": "Georgeous (https://sketchfab.com/intice184)",
     "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
@@ -21,7 +21,8 @@ const TREE_PACK = {
     "size": 1,
     "proportion": 1,
     "sink": 1.5,
-    "dead": 0.08
+    "dead": 0.08,
+    "crownH": 1.3
    },
    "tint": {
     "hue": 0.06,
@@ -102,6 +103,211 @@ const TREE_PACK = {
          "len": 72676
         }
        ]
+      },
+      {
+       "lod": 1,
+       "tris": 3406,
+       "parts": [
+        {
+         "mat": "M_Branch.007",
+         "mode": "MASK",
+         "cutoff": 0.608,
+         "uvMin": [
+          0.045048,
+          0.0
+         ],
+         "uvScl": [
+          0.926313,
+          1.0
+         ],
+         "off": 152400,
+         "len": 79724
+        },
+        {
+         "mat": "M_Bark.007",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 232124,
+         "len": 320
+        }
+       ]
+      },
+      {
+       "lod": 2,
+       "tris": 1798,
+       "parts": [
+        {
+         "mat": "M_Branch.007",
+         "mode": "MASK",
+         "cutoff": 0.608,
+         "uvMin": [
+          0.045048,
+          0.0
+         ],
+         "uvScl": [
+          0.926313,
+          1.0
+         ],
+         "off": 232444,
+         "len": 41936
+        },
+        {
+         "mat": "M_Bark.007",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 274380,
+         "len": 320
+        }
+       ]
+      }
+     ],
+     "stand": [
+      {
+       "lod": 0,
+       "tris": 4992,
+       "parts": [
+        {
+         "mat": "M_Branch.007",
+         "mode": "MASK",
+         "cutoff": 0.608,
+         "uvMin": [
+          0.045048,
+          0.0
+         ],
+         "uvScl": [
+          0.926313,
+          1.0
+         ],
+         "off": 274700,
+         "len": 14112
+        },
+        {
+         "mat": "M_Bark.007",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.999265,
+          -0.985275
+         ],
+         "uvScl": [
+          3.843961,
+          6.180435
+         ],
+         "off": 288812,
+         "len": 72676
+        }
+       ]
+      },
+      {
+       "lod": 1,
+       "tris": 614,
+       "parts": [
+        {
+         "mat": "M_Branch.007",
+         "mode": "MASK",
+         "cutoff": 0.608,
+         "uvMin": [
+          0.045048,
+          0.0
+         ],
+         "uvScl": [
+          0.926313,
+          1.0
+         ],
+         "off": 361488,
+         "len": 14112
+        },
+        {
+         "mat": "M_Bark.007",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 375600,
+         "len": 320
+        }
+       ]
+      },
+      {
+       "lod": 2,
+       "tris": 398,
+       "parts": [
+        {
+         "mat": "M_Branch.007",
+         "mode": "MASK",
+         "cutoff": 0.608,
+         "uvMin": [
+          0.045048,
+          0.0
+         ],
+         "uvScl": [
+          0.926313,
+          1.0
+         ],
+         "off": 375920,
+         "len": 9036
+        },
+        {
+         "mat": "M_Bark.007",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 384956,
+         "len": 320
+        }
+       ]
+      }
+     ],
+     "snag": [
+      {
+       "lod": 0,
+       "tris": 4392,
+       "parts": [
+        {
+         "mat": "M_Bark.007",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.999265,
+          -0.985275
+         ],
+         "uvScl": [
+          3.843961,
+          6.180435
+         ],
+         "off": 385276,
+         "len": 72676
+        }
+       ]
       }
      ]
     }
@@ -109,8 +315,8 @@ const TREE_PACK = {
   },
   {
    "name": "larch_tree.glb",
-   "bin": "" + B + "media/geo/trees/larch_tree.795158fd.bin",
-   "bytes": 228784,
+   "bin": "" + B + "media/geo/trees/larch_tree.9c836604.bin",
+   "bytes": 761868,
    "credit": {
     "author": "Georgeous (https://sketchfab.com/intice184)",
     "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
@@ -123,7 +329,8 @@ const TREE_PACK = {
     "size": 1,
     "proportion": 1,
     "sink": 2,
-    "dead": 0.09
+    "dead": 0.09,
+    "crownH": 1.3
    },
    "tint": {
     "hue": 0.03,
@@ -204,6 +411,211 @@ const TREE_PACK = {
          "len": 146580
         }
        ]
+      },
+      {
+       "lod": 1,
+       "tris": 6725,
+       "parts": [
+        {
+         "mat": "M_Branch",
+         "mode": "MASK",
+         "cutoff": 0.0777,
+         "uvMin": [
+          0.073034,
+          0.0
+         ],
+         "uvScl": [
+          0.853422,
+          1.0
+         ],
+         "off": 228784,
+         "len": 146580
+        },
+        {
+         "mat": "M_Bark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 375364,
+         "len": 320
+        }
+       ]
+      },
+      {
+       "lod": 2,
+       "tris": 3613,
+       "parts": [
+        {
+         "mat": "M_Branch",
+         "mode": "MASK",
+         "cutoff": 0.0777,
+         "uvMin": [
+          0.073034,
+          0.0
+         ],
+         "uvScl": [
+          0.853422,
+          1.0
+         ],
+         "off": 375684,
+         "len": 78656
+        },
+        {
+         "mat": "M_Bark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 454340,
+         "len": 320
+        }
+       ]
+      }
+     ],
+     "stand": [
+      {
+       "lod": 0,
+       "tris": 7964,
+       "parts": [
+        {
+         "mat": "M_Bark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.991051,
+          -1.0157
+         ],
+         "uvScl": [
+          3.835747,
+          8.146577
+         ],
+         "off": 454660,
+         "len": 82204
+        },
+        {
+         "mat": "M_Branch",
+         "mode": "MASK",
+         "cutoff": 0.0777,
+         "uvMin": [
+          0.073034,
+          0.0
+         ],
+         "uvScl": [
+          0.853422,
+          1.0
+         ],
+         "off": 536864,
+         "len": 54000
+        }
+       ]
+      },
+      {
+       "lod": 1,
+       "tris": 2488,
+       "parts": [
+        {
+         "mat": "M_Branch",
+         "mode": "MASK",
+         "cutoff": 0.0777,
+         "uvMin": [
+          0.073034,
+          0.0
+         ],
+         "uvScl": [
+          0.853422,
+          1.0
+         ],
+         "off": 590864,
+         "len": 54000
+        },
+        {
+         "mat": "M_Bark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 644864,
+         "len": 320
+        }
+       ]
+      },
+      {
+       "lod": 2,
+       "tris": 1580,
+       "parts": [
+        {
+         "mat": "M_Branch",
+         "mode": "MASK",
+         "cutoff": 0.0777,
+         "uvMin": [
+          0.073034,
+          0.0
+         ],
+         "uvScl": [
+          0.853422,
+          1.0
+         ],
+         "off": 645184,
+         "len": 34160
+        },
+        {
+         "mat": "M_Bark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 679344,
+         "len": 320
+        }
+       ]
+      }
+     ],
+     "snag": [
+      {
+       "lod": 0,
+       "tris": 5490,
+       "parts": [
+        {
+         "mat": "M_Bark",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.991051,
+          -1.0157
+         ],
+         "uvScl": [
+          3.835747,
+          8.146577
+         ],
+         "off": 679664,
+         "len": 82204
+        }
+       ]
       }
      ]
     }
@@ -211,8 +623,8 @@ const TREE_PACK = {
   },
   {
    "name": "realistic_fir_trees_pack_lods_gameready.glb",
-   "bin": "" + B + "media/geo/trees/realistic_fir_trees_pack_lods_gameready.43e12d10.bin",
-   "bytes": 674796,
+   "bin": "" + B + "media/geo/trees/realistic_fir_trees_pack_lods_gameready.556e60d8.bin",
+   "bytes": 1170964,
    "credit": {
     "author": "LOLIPOP (https://sketchfab.com/lolipop_1707)",
     "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
@@ -225,7 +637,8 @@ const TREE_PACK = {
     "size": 2.1,
     "proportion": 2.85,
     "sink": 0,
-    "dead": 0.08
+    "dead": 0.08,
+    "crownH": 1.3
    },
    "tint": {
     "hue": 0.08,
@@ -422,6 +835,139 @@ const TREE_PACK = {
         }
        ]
       }
+     ],
+     "stand": [
+      {
+       "lod": 0,
+       "tris": 8389,
+       "parts": [
+        {
+         "mat": "Brunches_Mat",
+         "mode": "MASK",
+         "cutoff": 0.3764,
+         "uvMin": [
+          0.017154,
+          0.0
+         ],
+         "uvScl": [
+          0.97667,
+          0.991093
+         ],
+         "off": 428834,
+         "len": 30388
+        },
+        {
+         "mat": "Bark_Mat",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.962198,
+          -0.997988
+         ],
+         "uvScl": [
+          4.235118,
+          28.290287
+         ],
+         "off": 459222,
+         "len": 120686
+        }
+       ]
+      },
+      {
+       "lod": 1,
+       "tris": 1530,
+       "parts": [
+        {
+         "mat": "Brunches_Mat",
+         "mode": "MASK",
+         "cutoff": 0.3764,
+         "uvMin": [
+          0.017154,
+          0.0
+         ],
+         "uvScl": [
+          0.97667,
+          0.991093
+         ],
+         "off": 579908,
+         "len": 30388
+        },
+        {
+         "mat": "Bark_Mat",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 610296,
+         "len": 320
+        }
+       ]
+      },
+      {
+       "lod": 2,
+       "tris": 980,
+       "parts": [
+        {
+         "mat": "Brunches_Mat",
+         "mode": "MASK",
+         "cutoff": 0.3764,
+         "uvMin": [
+          0.017154,
+          0.0
+         ],
+         "uvScl": [
+          0.97667,
+          0.991093
+         ],
+         "off": 610616,
+         "len": 19388
+        },
+        {
+         "mat": "Bark_Mat",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 630004,
+         "len": 320
+        }
+       ]
+      }
+     ],
+     "snag": [
+      {
+       "lod": 0,
+       "tris": 6873,
+       "parts": [
+        {
+         "mat": "Bark_Mat",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.962198,
+          -0.997988
+         ],
+         "uvScl": [
+          4.235118,
+          28.290287
+         ],
+         "off": 630324,
+         "len": 120686
+        }
+       ]
+      }
      ]
     },
     {
@@ -454,7 +1000,7 @@ const TREE_PACK = {
           0.97667,
           0.991093
          ],
-         "off": 428834,
+         "off": 751010,
          "len": 66788
         },
         {
@@ -469,7 +1015,7 @@ const TREE_PACK = {
           4.222178,
           41.036432
          ],
-         "off": 495622,
+         "off": 817798,
          "len": 63294
         }
        ]
@@ -490,7 +1036,7 @@ const TREE_PACK = {
           0.97667,
           0.991093
          ],
-         "off": 558916,
+         "off": 881092,
          "len": 54388
         },
         {
@@ -505,7 +1051,7 @@ const TREE_PACK = {
           4.073532,
           41.036709
          ],
-         "off": 613304,
+         "off": 935480,
          "len": 15748
         }
        ]
@@ -526,7 +1072,7 @@ const TREE_PACK = {
           0.97667,
           0.991093
          ],
-         "off": 629052,
+         "off": 951228,
          "len": 43388
         },
         {
@@ -541,7 +1087,7 @@ const TREE_PACK = {
           2.329996,
           39.750444
          ],
-         "off": 672440,
+         "off": 994616,
          "len": 1804
         }
        ]
@@ -562,8 +1108,141 @@ const TREE_PACK = {
           0.973151,
           0.990166
          ],
-         "off": 674244,
+         "off": 996420,
          "len": 552
+        }
+       ]
+      }
+     ],
+     "stand": [
+      {
+       "lod": 0,
+       "tris": 4373,
+       "parts": [
+        {
+         "mat": "Brunches_Mat",
+         "mode": "MASK",
+         "cutoff": 0.3764,
+         "uvMin": [
+          0.017154,
+          0.0
+         ],
+         "uvScl": [
+          0.97667,
+          0.991093
+         ],
+         "off": 996972,
+         "len": 17988
+        },
+        {
+         "mat": "Bark_Mat",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.968788,
+          -0.984434
+         ],
+         "uvScl": [
+          4.222178,
+          41.036432
+         ],
+         "off": 1014960,
+         "len": 63294
+        }
+       ]
+      },
+      {
+       "lod": 1,
+       "tris": 910,
+       "parts": [
+        {
+         "mat": "Brunches_Mat",
+         "mode": "MASK",
+         "cutoff": 0.3764,
+         "uvMin": [
+          0.017154,
+          0.0
+         ],
+         "uvScl": [
+          0.97667,
+          0.991093
+         ],
+         "off": 1078254,
+         "len": 17988
+        },
+        {
+         "mat": "Bark_Mat",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 1096242,
+         "len": 320
+        }
+       ]
+      },
+      {
+       "lod": 2,
+       "tris": 550,
+       "parts": [
+        {
+         "mat": "Brunches_Mat",
+         "mode": "MASK",
+         "cutoff": 0.3764,
+         "uvMin": [
+          0.017154,
+          0.0
+         ],
+         "uvScl": [
+          0.97667,
+          0.991093
+         ],
+         "off": 1096562,
+         "len": 10788
+        },
+        {
+         "mat": "Bark_Mat",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 1107350,
+         "len": 320
+        }
+       ]
+      }
+     ],
+     "snag": [
+      {
+       "lod": 0,
+       "tris": 3477,
+       "parts": [
+        {
+         "mat": "Bark_Mat",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.968788,
+          -0.984434
+         ],
+         "uvScl": [
+          4.222178,
+          41.036432
+         ],
+         "off": 1107670,
+         "len": 63294
         }
        ]
       }
@@ -573,8 +1252,8 @@ const TREE_PACK = {
   },
   {
    "name": "spruce_tree.glb",
-   "bin": "" + B + "media/geo/trees/spruce_tree.b3569444.bin",
-   "bytes": 196116,
+   "bin": "" + B + "media/geo/trees/spruce_tree.e8a3ee71.bin",
+   "bytes": 582900,
    "credit": {
     "author": "Georgeous (https://sketchfab.com/intice184)",
     "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
@@ -587,7 +1266,8 @@ const TREE_PACK = {
     "size": 1.08,
     "proportion": 1,
     "sink": 0.5,
-    "dead": 0.08
+    "dead": 0.08,
+    "crownH": 1.3
    },
    "tint": {
     "hue": -0.01,
@@ -666,6 +1346,211 @@ const TREE_PACK = {
          ],
          "off": 76056,
          "len": 120060
+        }
+       ]
+      },
+      {
+       "lod": 1,
+       "tris": 5616,
+       "parts": [
+        {
+         "mat": "M_Branch.001",
+         "mode": "MASK",
+         "cutoff": 0.2971,
+         "uvMin": [
+          0.060496,
+          0.0
+         ],
+         "uvScl": [
+          0.840352,
+          1.0
+         ],
+         "off": 196116,
+         "len": 120060
+        },
+        {
+         "mat": "M_Bark.001",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 316176,
+         "len": 320
+        }
+       ]
+      },
+      {
+       "lod": 2,
+       "tris": 3004,
+       "parts": [
+        {
+         "mat": "M_Branch.001",
+         "mode": "MASK",
+         "cutoff": 0.2971,
+         "uvMin": [
+          0.060496,
+          0.0
+         ],
+         "uvScl": [
+          0.840352,
+          1.0
+         ],
+         "off": 316496,
+         "len": 64068
+        },
+        {
+         "mat": "M_Bark.001",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 380564,
+         "len": 320
+        }
+       ]
+      }
+     ],
+     "stand": [
+      {
+       "lod": 0,
+       "tris": 5618,
+       "parts": [
+        {
+         "mat": "M_Bark.001",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.938993,
+          -0.991626
+         ],
+         "uvScl": [
+          2.873005,
+          9.755025
+         ],
+         "off": 380884,
+         "len": 76056
+        },
+        {
+         "mat": "M_Branch.001",
+         "mode": "MASK",
+         "cutoff": 0.2971,
+         "uvMin": [
+          0.060496,
+          0.0
+         ],
+         "uvScl": [
+          0.840352,
+          1.0
+         ],
+         "off": 456940,
+         "len": 17848
+        }
+       ]
+      },
+      {
+       "lod": 1,
+       "tris": 847,
+       "parts": [
+        {
+         "mat": "M_Branch.001",
+         "mode": "MASK",
+         "cutoff": 0.2971,
+         "uvMin": [
+          0.060496,
+          0.0
+         ],
+         "uvScl": [
+          0.840352,
+          1.0
+         ],
+         "off": 474788,
+         "len": 17848
+        },
+        {
+         "mat": "M_Bark.001",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 492636,
+         "len": 320
+        }
+       ]
+      },
+      {
+       "lod": 2,
+       "tris": 647,
+       "parts": [
+        {
+         "mat": "M_Branch.001",
+         "mode": "MASK",
+         "cutoff": 0.2971,
+         "uvMin": [
+          0.060496,
+          0.0
+         ],
+         "uvScl": [
+          0.840352,
+          1.0
+         ],
+         "off": 492956,
+         "len": 13568
+        },
+        {
+         "mat": "M_Bark.001",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 506524,
+         "len": 320
+        }
+       ]
+      }
+     ],
+     "snag": [
+      {
+       "lod": 0,
+       "tris": 4785,
+       "parts": [
+        {
+         "mat": "M_Bark.001",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -0.938993,
+          -0.991626
+         ],
+         "uvScl": [
+          2.873005,
+          9.755025
+         ],
+         "off": 506844,
+         "len": 76056
         }
        ]
       }

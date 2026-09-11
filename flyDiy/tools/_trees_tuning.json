@@ -25,7 +25,9 @@
   "isolid": 1.0,
   "icut": 0.4,
   "isph": 0,
-  "ilit": 0.6
+  "ilit": 0.6,
+  "crownH": 1.3,
+  "crownW": 1.0
  },
  "included": [
   "fir_tree_georgeous.glb",

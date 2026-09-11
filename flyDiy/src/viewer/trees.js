@@ -158,15 +158,22 @@
 
   // Build one subject's rung, ONCE. Later calls hand out the same buffers:
   // a forest of six hundred firs uploads one fir.
-  function treeBuild(THREE, k, lod) {
-    const cacheKey = k + '#' + (lod || 0);
+  //
+  // `series` picks the ladder: 'rungs' (the specimen, furnished to the ground -
+  // the default), 'stand' (the tree inside a wood: top third only, on a stick)
+  // or 'snag' (the standing dead one). A series the payload does not carry
+  // falls back to the specimen, so an older payload still builds.
+  function treeBuild(THREE, k, lod, series) {
+    const ser = series || 'rungs';
+    const cacheKey = k + '#' + ser + '#' + (lod || 0);
     let built = BUILT.get(cacheKey);
     if (built) return built;
     const found = treeList().find(e => e.key === k);
     if (!found) throw new Error('trees: unknown subject ' + k);
     const bin = BINS.get(found.col.name);
     if (!bin) throw new Error('trees: ' + found.col.name + ' not warmed');
-    const rung = found.sub.rungs[Math.min(lod || 0, found.sub.rungs.length - 1)];
+    const ladder = (found.sub[ser] && found.sub[ser].length) ? found.sub[ser] : found.sub.rungs;
+    const rung = ladder[Math.min(lod || 0, ladder.length - 1)];
     const parts = [];
     for (const p of rung.parts) {
       const d = decodeTreePart(found.sub.bb, p, bin);
@@ -189,7 +196,10 @@
       parts.push({ geo: g, mat: mat, cutout: !!cutout });
     }
     built = { parts: parts, bb: found.sub.bb, h: found.sub.h,
-              tris: rung.tris, col: found.col, sub: found.sub };
+              tris: rung.tris, col: found.col, sub: found.sub, series: ser, lod: rung.lod,
+              // the stand series is drawn STRETCHED - a dial, not geometry; see
+              // tree_prep.py's gen_rung on why it cannot be baked
+              scaleY: (ser === 'stand' && found.col.place && found.col.place.crownH) || 1 };
     BUILT.set(cacheKey, built);
     return built;
   }

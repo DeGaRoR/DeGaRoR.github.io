@@ -3890,6 +3890,9 @@ $('expo').onclick = () => {
             wrap: U_WRAP.value, sss: U_SSS.value, a2c: A2C, mips: MIPFIX,
             ssao: SSAO_ON, aoR: SSAO_R, aoI: SSAO_I, trueScale: TRUE_SCALE,
             aobake: U_AOBAKE.value, trunkao: TRUNK_DARK, isolid: U_ISOLID.value,
+            // the stand series' shape - tree_prep.py generates the payload's
+            // `stand` rungs at these, so they have to be committed, not typed
+            crownH: CROWN_STRETCH, crownW: CROWN_W,
             icut: U_ICUT.value, isph: U_ISPH.value, ilit: U_ILIT.value },
     included: Object.keys(PICK).filter(k => PICK[k]),
     measured: MEAS,
@@ -4097,6 +4100,8 @@ setInterval(render, 120);
         SSAO_ON = false;
         if (V.aoR !== undefined) SSAO_R = V.aoR;
         if (V.aoI !== undefined) SSAO_I = V.aoI;
+        if (V.crownH !== undefined) CROWN_STRETCH = V.crownH;
+        if (V.crownW !== undefined) CROWN_W = V.crownW;
         if (V.aobake !== undefined) U_AOBAKE.value = V.aobake;
         if (V.trunkao !== undefined) TRUNK_DARK = V.trunkao;
         if (V.isolid !== undefined) U_ISOLID.value = V.isolid;
@@ -4158,6 +4163,8 @@ setInterval(render, 120);
   $('sss').value = U_SSS.value; $('sssV').textContent = U_SSS.value.toFixed(2);
   $('aoR').value = SSAO_R; $('aoRV').textContent = SSAO_R.toFixed(1);
   $('aoI').value = SSAO_I; $('aoIV').textContent = SSAO_I.toFixed(2);
+  $('crown').value = CROWN_STRETCH; $('crownV').textContent = CROWN_STRETCH.toFixed(2);
+  $('crownw').value = CROWN_W; $('crownwV').textContent = CROWN_W.toFixed(2);
   $('aobake').value = U_AOBAKE.value; $('aobakeV').textContent = U_AOBAKE.value.toFixed(1);
   $('trunkao').value = TRUNK_DARK; $('trunkaoV').textContent = TRUNK_DARK.toFixed(2);
   $('isolid').value = U_ISOLID.value; $('isolidV').textContent = U_ISOLID.value.toFixed(2);

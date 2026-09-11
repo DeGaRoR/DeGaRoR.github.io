@@ -40,10 +40,25 @@ WHAT IS AND IS NOT DONE TO THE ASSET
   (or a world editor) can move them without a re-bake. The colour corrections
   are not baked either, for the same reason: they are one uniform each.
 
-THE LADDER is not here yet. This bakes rung 0 — the tree as shipped — because
-that is what unblocks `render_world.js`, whose impostor tier already bakes
-itself from whatever near geometry it is handed. The record carries a `rungs`
-array so L1/L2 drop in beside it without a format change.
+THE LADDER, in three series. A pack that ships its own rungs keeps them; for
+everything else the rungs are GENERATED here, by the same rules the bench uses
+and for the same reason it uses them — the woody decomposition measured that
+branch structure is more than half of a tree and reads as almost nothing past
+the first rung, so every rung below L0 stands its canopy on one tapered stick.
+
+  rungs   the SPECIMEN ladder: the tree at a clearing's edge, furnished to the
+          ground.  L0 as shipped · L1 stick + foliage · L2 stick + half foliage
+  stand   the tree INSIDE a wood: only the top third is furnished, and that
+          crown is stretched and widened, which is the shape a conifer takes in
+          a closed stand.  L0 · L1 stick + crown · L2 stick + half crown
+  snag    the standing dead tree: bark only, no ladder. Thinning branches off a
+          bare trunk gives a worse bare trunk, not a cheaper one.
+
+WHY IT MATTERS MORE THAN IT LOOKS. The world's dense fill plants a tree every
+9 m; at LOD0 that is millions of triangles inside the near band and the layer
+simply cannot use a real tree. `stand` L2 measures ~350 triangles against the
+same subject's 7 784, which is the difference between a payload the fill can
+draw and one it cannot.
 """
 import hashlib, io as _io, json, math, os, struct, sys
 
@@ -231,6 +246,239 @@ def bake_ao(parts, bb, trunk_dark=0.55):
                 v *= 1 - trunk_dark * pow(max(0.0, 1 - f), 1.6)
             ao[i] = int(round(max(0.0, min(1.0, v)) * 255))
         P['ao'] = ao
+
+
+# ---- the generated rungs -------------------------------------------------
+# Ported from the bench (tools/_trees.html), which is where every one of these
+# rules was argued and looked at. The one thing that does NOT have to be ported
+# is the bench's hard-won world-space centroid: build_subject has already put
+# every vertex in the subject's own frame, base on y = 0, so a raw y IS a
+# height above the ground here.
+
+def part_clone(P):
+    return {'mi': P['mi'], 'pos': list(P['pos']), 'nrm': list(P['nrm']),
+            'uv': list(P['uv']), 'idx': list(P['idx']), 'nv': P['nv'],
+            'mat': P['mat'], 'mode': P['mode'], 'cutoff': P['cutoff'],
+            'opaque': P['opaque']}
+
+
+def parts_clone(parts):
+    return [part_clone(P) for P in parts]
+
+
+def components(P):
+    """Connected components of a part, as triangle lists with their centroid.
+
+    THE CUT IS MADE ON ISLANDS, NOT ON TRIANGLES. An island of a leaf mesh is a
+    branch cluster, so dropping islands drops whole branches and leaves the
+    survivors at full resolution. Decimating triangles instead melts every leaf
+    card into mush, which is the wrong trade for alpha-tested foliage.
+    """
+    idx, pos = P['idx'], P['pos']
+    parent = list(range(P['nv']))
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    for t in range(0, len(idx), 3):
+        a, b, c = idx[t], idx[t + 1], idx[t + 2]
+        ra, rb, rc = find(a), find(b), find(c)
+        if ra != rb:
+            parent[rb] = ra
+        rc = find(c)
+        ra = find(a)
+        if ra != rc:
+            parent[rc] = ra
+    out = {}
+    for t in range(0, len(idx), 3):
+        r = find(idx[t])
+        G = out.get(r)
+        if G is None:
+            G = out[r] = {'tris': [], 'y': 0.0, 'n': 0}
+        G['tris'].append(t)
+        for e in range(3):
+            G['y'] += pos[idx[t + e] * 3 + 1]
+            G['n'] += 1
+    for G in out.values():
+        G['y'] /= G['n']
+    return list(out.values())
+
+
+def compact(P, keep_tris):
+    """Rebuild a part from a triangle subset, dropping the vertices nobody uses.
+
+    The bench leaves them - it is throwing the geometry away every frame anyway.
+    A payload cannot: pack_part writes every vertex it is given, so an uncompacted
+    L2 would carry the whole tree's vertex table behind a hundred triangles.
+    """
+    remap = {}
+    pos, nrm, uv = [], [], []
+    idx = []
+    for t in keep_tris:
+        for e in range(3):
+            v = P['idx'][t + e]
+            j = remap.get(v)
+            if j is None:
+                j = remap[v] = len(pos) // 3
+                pos.extend(P['pos'][v * 3:v * 3 + 3])
+                nrm.extend(P['nrm'][v * 3:v * 3 + 3] if P['nrm'] else (0.0, 1.0, 0.0))
+                uv.extend(P['uv'][v * 2:v * 2 + 2] if P['uv'] else (0.0, 0.0))
+            idx.append(j)
+    P['pos'], P['nrm'], P['uv'], P['idx'] = pos, nrm, uv, idx
+    P['nv'] = len(pos) // 3
+    return P
+
+
+def cull_foliage(parts, keep):
+    """keep(componentCentroidY) -> bool, on the CUTOUT parts only."""
+    out = []
+    for P in parts:
+        if P['opaque']:
+            out.append(P)
+            continue
+        tris = []
+        for i, G in enumerate(components(P)):
+            if keep(G['y'], i):
+                tris.extend(G['tris'])
+        if not tris:
+            continue
+        out.append(compact(P, tris))
+    return out
+
+
+def strip_bark(parts):
+    """Remove the woody mesh entirely - what a stick stands in for."""
+    return [P for P in parts if not P['opaque']]
+
+
+def strip_foliage(parts):
+    """The snag: the bark, and nothing else."""
+    return [P for P in parts if P['opaque']]
+
+
+def bbox_of(parts, opaque_only=False):
+    lo = [1e30, 1e30, 1e30]
+    hi = [-1e30, -1e30, -1e30]
+    for P in parts:
+        if opaque_only and not P['opaque']:
+            continue
+        q = P['pos']
+        for i in range(0, len(q), 3):
+            for k in range(3):
+                v = q[i + k]
+                if v < lo[k]:
+                    lo[k] = v
+                if v > hi[k]:
+                    hi[k] = v
+    return (lo, hi) if lo[0] < 1e29 else (None, None)
+
+
+def grow_crown(parts, k):
+    """The stand tree's crown is WIDER as well as taller: a conifer in a closed
+    wood loses its lower branches and spreads what is left."""
+    if abs(k - 1.0) < 1e-3:
+        return parts
+    lo, hi = bbox_of(parts)
+    if lo is None:
+        return parts
+    ax, az = (lo[0] + hi[0]) / 2, (lo[2] + hi[2]) / 2
+    for P in parts:
+        if P['opaque']:
+            continue
+        q = P['pos']
+        for i in range(0, len(q), 3):
+            q[i] = ax + (q[i] - ax) * k
+            q[i + 2] = az + (q[i + 2] - az) * k
+    return parts
+
+
+def stick_for(parts, frac, src_parts):
+    """The stand-in stem: a tapered cylinder wearing the pack's own bark
+    material, sized from the WOOD IT REPLACES - so it is measured on the source
+    parts, before strip_bark has taken them away."""
+    lo, hi = bbox_of(src_parts, opaque_only=True)
+    if lo is None:
+        return None
+    bark = next((P for P in src_parts if P['opaque']), None)
+    if bark is None:
+        return None
+    hh = max(0.5, hi[1] - lo[1])
+    rr = max(0.02, min(hi[0] - lo[0], hi[2] - lo[2]) * (frac or 0.045))
+    cx, cz = (lo[0] + hi[0]) / 2, (lo[2] + hi[2]) / 2
+    y0, r0, r1 = lo[1], rr, rr * 0.35        # fat at the foot, thin at the top
+    SEG = 7
+    pos, nrm, uv, idx = [], [], [], []
+    for row in (0, 1):
+        yy = y0 + hh * row
+        rad = r0 if row == 0 else r1
+        for i in range(SEG + 1):             # the seam column is duplicated,
+            a = 2 * math.pi * i / SEG        # because its uv is not
+            sx, sz = math.sin(a), math.cos(a)
+            pos.extend((cx + sx * rad, yy, cz + sz * rad))
+            nrm.extend((sx, 0.0, sz))
+            uv.extend((i / SEG, row))
+    for i in range(SEG):
+        a, b = i, i + 1
+        c, d = i + SEG + 1, i + SEG + 2
+        idx.extend((a, c, d, a, d, b))
+    return {'mi': bark['mi'], 'pos': pos, 'nrm': nrm, 'uv': uv, 'idx': idx,
+            'nv': len(pos) // 3, 'mat': bark['mat'], 'mode': bark['mode'],
+            'cutoff': bark['cutoff'], 'opaque': True}
+
+
+def hash01(i, salt):
+    """A deterministic 0..1 - the thinning must be the same on every machine and
+    in every re-bake, or two builds of the same asset differ."""
+    h = (i * 374761393 + salt * 668265263 + 1013904223) & 0xffffffff
+    h = (h ^ (h >> 13)) * 1274126177 & 0xffffffff
+    return ((h ^ (h >> 16)) & 0xffffffff) / 4294967296.0
+
+
+def gen_rung(src, kind, stick, crown_w, crown_stretch):
+    """One generated rung, by the bench's own rules.
+
+    `crownOnly` furnishes the top third and nothing below it; `half` thins what
+    is left. THE TOP OF THE CROWN IS NEVER THINNED - it is the silhouette, and
+    the silhouette is what a distant viewer actually reads.
+    """
+    lo, hi = bbox_of(src)
+    if lo is None:
+        return None
+    y0, h = lo[1], max(0.01, hi[1] - lo[1])
+    crown_only = kind in ('crownStick', 'crownHalf')
+    half = kind in ('halfFoliage', 'crownHalf')
+    salt = 0x9e37 + len(kind) * 131
+
+    def keep(y, i):
+        f = (y - y0) / h
+        if crown_only and f <= 0.62:
+            return False
+        if half and f < 0.78 and hash01(i, salt) > 0.5:
+            return False
+        return True
+
+    # THE VERTICAL STRETCH IS NOT BAKED. The bench applies it as a scale on the
+    # holder, and that is what it should stay: a placement dial the world can
+    # move without a re-bake, like `size` and `sink`. Baking it would also make
+    # the stand series 1.3x TALLER than the tree it came from, and every series
+    # of a subject quantises over ONE box - so the specimen L0 would fill 77% of
+    # a box stretched to fit a rung it has nothing to do with, which is exactly
+    # what GATE TREES' fill check exists to catch. It rides in `place.crownH`.
+    if kind == 'fFull':
+        parts = cull_foliage(parts_clone(src), lambda y, i: (y - y0) / h > 0.62)
+        return grow_crown(parts, crown_w)
+
+    st = stick_for(None, stick, src)          # measured BEFORE the wood goes
+    parts = cull_foliage(parts_clone(src), keep)
+    parts = strip_bark(parts)
+    if crown_only:
+        parts = grow_crown(parts, crown_w)
+    if st:
+        parts.append(st)
+    return parts if parts else None
 
 
 # ---- one subject ---------------------------------------------------------
@@ -439,6 +687,11 @@ def main():
     tune = json.load(open(TUNE, encoding='utf-8'))
     inc = set(tune.get('included', []))
     tuning = tune.get('tuning', {})
+    # the crown dials are the BENCH's, committed in its view block - the stand
+    # series has to be generated at the numbers the mix was judged at
+    view = tune.get('view', {}) or {}
+    view_crown_w = view.get('crownW', 1.0)
+    view_crown_h = view.get('crownH', 1.3)
 
     picked = [a for a in index['assets']
               if a.get('renderable') and a.get('trees')
@@ -486,29 +739,81 @@ def main():
                 if L != lods[0]:
                     recentre(built[0], built[1], finest[1])
                 made.append((L, built[0], built[1]))
+            # ---- the generated rungs, and the two other series -----------
+            # A PACK THAT SHIPS A CHAIN KEEPS IT (the import rule), so the
+            # specimen ladder is only generated where there is nothing to keep.
+            # The STAND and SNAG series are always generated: no pack ships the
+            # tree-inside-a-wood or the standing dead one, and both are shapes
+            # the world plants by the thousand.
+            stick = t.get('stick', 0.045)
+            cw, cs = view_crown_w, view_crown_h
+            gen = []
+            if len(made) == 1:
+                for lodN, kind in ((1, 'foliage'), (2, 'halfFoliage')):
+                    q = gen_rung(finest[0], kind, stick, cw, cs)
+                    if q:
+                        gen.append((lodN, q, None))
+            made_all = made + gen
+            stand, snag = [], []
+            fstand = gen_rung(finest[0], 'fFull', stick, cw, cs)
+            if fstand:
+                stand.append((0, fstand, None))
+                for lodN, kind in ((1, 'crownStick'), (2, 'crownHalf')):
+                    q = gen_rung(finest[0], kind, stick, cw, cs)
+                    if q:
+                        stand.append((lodN, q, None))
+            sn = strip_foliage(parts_clone(finest[0]))
+            if sn:
+                snag.append((0, sn, None))
+
+            # ONE BOX FOR EVERY SERIES OF A SUBJECT. The codec carries a single
+            # bb per subject and the quantiser has to fit inside it, so the
+            # union has to include the stand series - whose crown is stretched
+            # 1.3x and widened, and which therefore stands TALLER than the tree
+            # it came from. Fitting the box to L0 alone is how LOD1 overflowed
+            # the int16 the first time.
             bb = list(finest[1])
             for _, parts, b in made:
+                if not b:
+                    continue
                 for k in range(3):
                     bb[k] = min(bb[k], b[k])
                     bb[k + 3] = max(bb[k + 3], b[k + 3])
-            rungs, shown = [], []
-            for L, parts, _b in made:
-                bake_ao(parts, bb)
-                recs = []
-                for P in parts:
-                    used.add(P['mi'])
-                    raw, meta = pack_part(P, bb)
-                    meta['off'] = len(blob); meta['len'] = len(raw)
-                    blob += raw
-                    recs.append(meta)
-                rungs.append({'lod': L, 'tris': sum(len(P['idx']) // 3 for P in parts),
-                              'parts': recs})
-                shown.append('%d:%d' % (L, rungs[-1]['tris']))
+            for _, parts, _b in gen + stand + snag:
+                lo, hi = bbox_of(parts)
+                if lo is None:
+                    continue
+                for k in range(3):
+                    bb[k] = min(bb[k], lo[k])
+                    bb[k + 3] = max(bb[k + 3], hi[k])
+
+            def bake_series(series):
+                out, tags = [], []
+                for L, parts, _b in series:
+                    bake_ao(parts, bb)
+                    recs = []
+                    for P in parts:
+                        used.add(P['mi'])
+                        raw, meta = pack_part(P, bb)
+                        meta['off'] = len(blob); meta['len'] = len(raw)
+                        blob.extend(raw)
+                        recs.append(meta)
+                    out.append({'lod': L,
+                                'tris': sum(len(P['idx']) // 3 for P in parts),
+                                'parts': recs})
+                    tags.append('%d:%d' % (L, out[-1]['tris']))
+                return out, tags
+
+            rungs, shown = bake_series(made_all)
+            standR, shownS = bake_series(stand)
+            snagR, shownD = bake_series(snag)
             subjects.append({'name': S['name'], 'h': S.get('h'),
                              'tris': S.get('tris'), 'bb': [round(v, 4) for v in bb],
-                             'shipped': len(rungs) > 1, 'rungs': rungs})
-            print('    %-22s %6d tris  rungs %s' % (S['name'], S.get('tris', 0),
-                                                    ' '.join(shown)))
+                             'shipped': len(made) > 1, 'rungs': rungs,
+                             'stand': standR, 'snag': snagR})
+            print('    %-22s %6d tris  rungs %s | stand %s | snag %s'
+                  % (S['name'], S.get('tris', 0), ' '.join(shown),
+                     ' '.join(shownS) or '-', ' '.join(shownD) or '-'))
         if not subjects:
             continue
         rel = 'media/geo/trees/%s.bin' % stem if report else \
@@ -524,8 +829,11 @@ def main():
             'licence': (a.get('licence') or {}).get('text'),
             'licenceOk': (a.get('licence') or {}).get('ok'),
             # placement dials stay DATA: the world moves them without a re-bake
-            'place': {k: t.get(k) for k in ('size', 'proportion', 'sink', 'dead')
-                      if k in t},
+            'place': dict({k: t.get(k) for k in ('size', 'proportion', 'sink', 'dead')
+                           if k in t},
+                          # the stand series is drawn with its crown stretched;
+                          # see gen_rung on why that is a dial and not geometry
+                          crownH=view_crown_h),
             'tint': {k: t.get(k) for k in ('hue', 'sat', 'light', 'bark', 'alpha')
                      if k in t},
             'materials': mats,

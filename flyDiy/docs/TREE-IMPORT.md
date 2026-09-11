@@ -215,15 +215,26 @@ level and the stand dissolves at distance — exactly as it did in the bench
 before §6.5. The flag is in the manifest because only the material knows the
 threshold the coverage has to be preserved against.
 
-## 8. What is NOT done here
+## 8. What is done in the game, and what is not
 
-`render_world.js` still draws a cone and an icosahedron: the payload exists, and
-nothing reads it yet. That is W0c, and it is now unblocked. The impostor tier
-needs no new art — `bakeImpostorAtlas` already bakes from whatever near geometry
-it is handed, which is the whole reason this payload ships no atlas.
+**Done (W0c, W0c.1, W0c.2).** `render_world.js` fetches the payload
+(`treeWarm`), plants the woodland from the cone at boot and again from the
+real tree when the bytes land, and the dense fill draws the **stand series'
+cheapest rung** — the tree inside a wood, ~400–1 600 triangles against
+7 784–12 969 for LOD0, which is the only reason a layer that plants a tree
+every 9 m can use the payload at all. `tree_prep.py` generates the rungs by the
+bench's own rules (§5), in three series per subject — `rungs`, `stand`, `snag` —
+all quantised over one box; GATE TREES decodes every rung of every series and
+requires each ladder to descend. The crown stretch is a **dial** (`place.crownH`)
+and not geometry: baking it made the stand series taller than the tree it came
+from, and the specimen L0 then filled 77 % of a box stretched to fit a rung it
+had nothing to do with.
 
-Also outstanding: the larch impostor is thinner than its geometry (0.47x the
-covered pixels, and the gain saturates — that one wants tile resolution), and
-the stand's LOD rungs are assigned at build time rather than per frame, which
-is fine for a bench and not for flight. See `futureDesigns/WORLD-V2.md` §8.3 and
-the W0c–W0e rows of the staging plan.
+**Not done.** `render_world.js`'s own impostor bake is still the baked-photograph
+kind the bench replaced (§6 trap 0) — harmless while its `SUN` is a constant,
+wrong the day there is a time of day. The woodland's near tier is LOD0 only; its
+L1/L2 are in the payload now and not yet wired. The snag series is baked and not
+yet planted (`place.dead` is the dial for it). The larch impostor is thinner than
+its geometry (0.47x the covered pixels, and the gain saturates — that one wants
+tile resolution). Bushes and grass are the next kinds through this same door.
+See `futureDesigns/WORLD-V2.md` §8.3 and the W0c–W0e rows of the staging plan.
