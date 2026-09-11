@@ -202,7 +202,11 @@ console.log('THE STRIP');
   ok(Rw && Rw.mode === 'plan' && Rw.on.wing === 1 && Math.abs(Rw.sL - (0.9 + 0.285)) < 1e-9 && Math.abs(Rw.sC - 1.4) < 1e-9, 'with a measured wing, the strip lies across the span on its chord station');
   ok(ST.stickerResolve({ stkOn: 0 }) === null, 'stickers shown off = no strip');
   ok(ST.STICKER_PLACES.length === 5 && ST.STICKER_PLACES.every(p => p.name && p.on && p.mode), 'five named places, each with surfaces and a projection');
-  ok(/stkOn: 1, stkPlace: 0, stkL: 0, stkC: 0, stkSize: 0.12, stkRot: 0,/.test(SKIN), 'the sticker keys are decal defaults, so they ride finish.decals');
+  // stkPlace 3 = THE FIN (G242.1, the user: "stick them on the fin, that's
+  // about the only part all planes share") — a rule that pinned the rear
+  // fuselage went red on the change it was there to notice, which is the
+  // job; it now pins the place that was chosen, so the next move is noticed too
+  ok(/stkOn: 1, stkPlace: 3, stkL: 0, stkC: 0, stkSize: 0.12, stkRot: 0,/.test(SKIN), 'the sticker keys are decal defaults, so they ride finish.decals — and the default place is the fin');
   ok(/DECG\.cur = 'stk'/.test(rd('tools/_cage_ui.js')) && /stk: \[\]/.test(rd('src/viewer/editor.js')), 'the panel has a stickers block and the finish view a heading for it');
   ok(ST.STICKER_PAGE === 6, 'the strip lives on atlas page 6 (0 reg, 1-2 images, 3-5 the kit)');
   ok(/const AERO_MAXD = 7/.test(SKIN) && /#define AERO_MAXD 7/.test(SKIN), 'the shader has the seventh decal slot');
