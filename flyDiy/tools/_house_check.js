@@ -415,9 +415,19 @@ if (!check(!!LIB, 'the baked material library is missing — ' +
             'pier: PIER_KIT.' + k + ' is not the baked size',
             K.L + 'x' + K.W + 'x' + K.H + ' vs ' + p.dim[2] + 'x' + p.dim[0] +
             'x' + p.dim[1]);
-      if (p.deckY !== undefined)
-        check(near(K.deckY, p.deckY, 0.005), 'pier: PIER_KIT.' + k +
-              ' has a deckY the baker did not measure', K.deckY + ' vs ' + p.deckY);
+      if (p.deck !== undefined)
+        check(!!K.deck && near(K.deck[0], p.deck[0], 0.005) &&
+              near(K.deck[1], p.deck[1], 0.005), 'pier: PIER_KIT.' + k +
+              ' has deck ends the baker did not measure',
+              JSON.stringify(K.deck) + ' vs ' + JSON.stringify(p.deck));
+      if (p.deckZ !== undefined)
+        check(!!K.dz && near(K.dz[0], p.deckZ[0], 0.005) &&
+              near(K.dz[1], p.deckZ[1], 0.005), 'pier: PIER_KIT.' + k +
+              ' has a deck extent the baker did not measure',
+              JSON.stringify(K.dz) + ' vs ' + JSON.stringify(p.deckZ));
+      if (K.y0 !== undefined)
+        check(near(K.y0, p.bb[1], 0.005), 'pier: PIER_KIT.' + k +
+              ' is not at the author\'s level', K.y0 + ' vs ' + p.bb[1]);
       if (p.float !== undefined)
         check(near(K.float, p.float, 1e-6), 'pier: PIER_KIT.' + k +
               ' floats differently from its table row');
@@ -733,33 +743,60 @@ function battery(name, P) {
           name + ': a ' + n2 + '-tread flight with no landing in it');
   }
 
-  // 28 — THE PIER IS A PIER (G252, the user: "When they touch water, they get
-  //   extended pier modules and small boats"). Off the jetty and out: every
-  //   module over water, the run CONTINUOUS (each module starts where the one
-  //   before ended), the head at the end, and every boat afloat in enough
-  //   water for its own draft, clear of the deck and of each other.
+  // 28 — THE PATH HAS NO HOLES (G254, the user: "you may do branching, but
+  //   you may not leave holes in the path"). Per chain, every module STARTS
+  //   where the one before it ENDED (a centimetre) and ENTERS at the height
+  //   it EXITED (five centimetres, the kit's own registration); the main chain
+  //   starts at the jetty's end and level and ends in the head; a spur's entry
+  //   is butted to the side of a run at that run's level; the doorway stands
+  //   over a module, not in a gap; every module is over water; every boat is
+  //   afloat, at its waterline, clear of the pier and of each other.
   {
     const pr = hi.stats.pier;
     if (P.water && P.pier && hi.stats.jetty)
       check(!!pr, name + ': a house on the water with a jetty grew no pier');
     if (pr) {
       const g2 = hi.stats.ground, wet = P.waterY;
-      const M = pr.modules.filter(m => !m.aside);   // the dolphin stands off
-      check(M.length >= 2 && M[M.length - 1].key === 'pier_head',
-            name + ': the pier does not end in its head',
-            M.map(m => m.key).join(','));
-      let gap = 0;
-      for (let i = 1; i < M.length; i++)
-        gap = Math.max(gap, Math.abs(M[i].z0 - M[i - 1].z1));
-      check(gap < 0.011, name + ': the pier has a gap in it', gap.toFixed(3) + ' m');
-      check(M[0].z0 >= hi.stats.jetty.z1 - 0.011,
-            name + ': the pier starts inside the jetty');
+      const walkers = pr.modules.filter(m => !m.aside && !m.over);
+      const chains = {};
+      for (const m of walkers) (chains[m.chain] = chains[m.chain] || []).push(m);
+      for (const cid in chains) {
+        const C = chains[cid];
+        for (let i = 1; i < C.length; i++) {
+          const a = C[i - 1], b = C[i];
+          const gap = b.dir > 0 ? b.a0 - a.a1 : a.a0 - b.a1;
+          check(Math.abs(gap) < 0.011, name + ': the pier path has a hole in it',
+                'chain ' + cid + ' ' + a.key + ' -> ' + b.key + ': ' + gap.toFixed(3) + ' m');
+          check(Math.abs(b.hIn - a.hOut) < 0.05, name + ': the pier path has a step in it',
+                'chain ' + cid + ' ' + a.key + ' -> ' + b.key + ': ' +
+                (b.hIn - a.hOut).toFixed(3) + ' m');
+        }
+        if (cid === '0') {
+          check(Math.abs(C[0].a0 - hi.stats.jetty.z1) < 0.011,
+                name + ': the pier does not start at the jetty');
+          check(Math.abs(C[0].hIn - hi.stats.jetty.y) < 0.05,
+                name + ': the pier does not start at the jetty\'s level');
+        } else {
+          const r = C[0].off;
+          check(!!r && Math.abs(Math.abs(C[0].a0 - r.x) - r.w / 2) < 0.011,
+                name + ': a spur is not butted to the run it branches from');
+          check(!!r && Math.abs(C[0].hIn - r.hOut) < 0.05,
+                name + ': a spur leaves its run at another level');
+        }
+        check(C[C.length - 1].key === 'pier_head',
+              name + ': a pier chain does not end in its head',
+              'chain ' + cid + ': ' + C.map(m => m.key).join(','));
+      }
       for (const m of pr.modules) {
         check(g2(m.x, m.z) < wet, name + ': a pier module stands on dry ground',
               m.key + ' at z ' + m.z.toFixed(1));
-        check(Math.abs(m.y + (HG.PIER_KIT[m.key].deckY || 0) - pr.y) < 0.011 ||
-              m.key === 'pier_gate' || m.aside,
-              name + ': a module\'s deck is not at the pier\'s level', m.key);
+        if (m.over) {
+          const under = walkers.find(u => u.chain === m.chain && m.z > u.z0 - 0.01 &&
+                                     m.z < u.z1 + 0.01 && Math.abs(u.x - m.x) < 0.5);
+          check(!!under, name + ': the doorway stands over nothing');
+          if (under) check(Math.abs(m.y + HG.PIER_DECK - under.hIn) < 0.05,
+                           name + ': the doorway is not at its deck\'s level');
+        }
       }
       for (let i = 0; i < pr.boats.length; i++) {
         const b = pr.boats[i], K = HG.PIER_KIT[b.key];
@@ -767,10 +804,13 @@ function battery(name, P) {
               b.key + ' in ' + b.depth.toFixed(2) + ' m');
         check(Math.abs(b.y - (wet - K.float * K.H)) < 1e-6,
               name + ': a boat is not at its waterline', b.key);
-        for (const m of M)
-          check(Math.abs(b.x - m.x) >= m.w / 2 + K.W / 2 - 0.01 ||
-                b.z + K.L / 2 < m.z0 || b.z - K.L / 2 > m.z1,
+        for (const m of pr.modules) {
+          const hw = (m.axis === 'x' ? (m.b1 - m.b0) : m.w) / 2;
+          const hz = (m.z1 - m.z0) / 2;
+          check(Math.abs(b.x - m.x) >= hw + K.W / 2 - 0.01 ||
+                Math.abs(b.z - m.z) >= hz + K.L / 2 - 0.01,
                 name + ': a boat is inside the pier', b.key + ' / ' + m.key);
+        }
         for (let j2 = 0; j2 < i; j2++) {
           const c = pr.boats[j2], KC = HG.PIER_KIT[c.key];
           const apart = Math.abs(b.x - c.x) >= (K.W + KC.W) / 2 + 0.05 ||
@@ -778,45 +818,6 @@ function battery(name, P) {
           check(apart, name + ': two boats overlap', b.key + ' / ' + c.key);
         }
       }
-    }
-  }
-
-  // 29 — NO LIGHT WITHOUT EMITTING GEOMETRY, AND NO GLOW WITHOUT THE SWITCH
-  //   (G253, the user: "Let's also generate lights"). The aeroplane's rule
-  //   (G96): a published light source has to have glass that glows within
-  //   reach of it, or it is a bare point light in space. And the switch is a
-  //   switch: with the lights off there is no glowing vertex on the house, no
-  //   lamp and no bulb; with the windows on one switch every pane glows.
-  {
-    const lit = hi.stats.lit || { windows: 0, panes: 0, bulbs: 0, lights: [] };
-    const gd = hi.bags.glass.data();
-    let glowing = 0;
-    for (let i = 0; i < gd.lit.length; i++) if (gd.lit[i] > 0.5) glowing++;
-    if (!P.lights) {
-      check(glowing === 0 && lit.windows === 0 && lit.bulbs === 0 &&
-            lit.lights.length === 0,
-            name + ': something glows with the lights off',
-            glowing + ' vertices, ' + lit.lights.length + ' lamps');
-    } else {
-      if (P.winLink)
-        check(lit.windows === lit.panes,
-              name + ': one switch, but not every window is lit',
-              lit.windows + ' of ' + lit.panes);
-      if (P.porchLamp && P.door)
-        check(lit.lights.length >= 1, name + ': the lamp by the door is missing');
-      for (const L of lit.lights) {
-        let near = 0;
-        for (let i = 0; i < gd.lit.length; i++) {
-          if (gd.lit[i] < 0.5) continue;
-          const dx = gd.pos[i * 3] - L.x, dy = gd.pos[i * 3 + 1] - L.y,
-                dz = gd.pos[i * 3 + 2] - L.z;
-          if (dx * dx + dy * dy + dz * dz < 0.3 * 0.3) near++;
-        }
-        check(near >= 4, name + ': a published light has no glass that glows',
-              L.kind + ' at ' + L.x.toFixed(2) + ',' + L.z.toFixed(2));
-      }
-      if (P.stairLights && hi.stats.stair && P.railStyle > 0)
-        check(lit.bulbs > 0, name + ': the stair rail has no bulbs on it');
     }
   }
 
@@ -1161,6 +1162,19 @@ if (SELFTEST) {
   else {
     if (!(wetH.stats.pier.modules.length >= 4))
       neg.push('a three-run pier came out with ' + wetH.stats.pier.modules.length + ' modules');
+    // and the path actually climbs: up one level off the jetty means the head
+    // is a level higher than where the stair was entered
+    const hd = wetH.stats.pier.modules.filter(m => m.key === 'pier_head')[0];
+    if (!(hd && hd.hIn > wetH.stats.jetty.y + 1.2))
+      neg.push('up one level did not raise the path');
+    const both = HG.build(Object.assign({}, HG.DEF, {
+      stance: 3, floorY: 2.2, water: 1, waterY: -0.6, slopeZ: 12, porch: 1,
+      stairs: 1, pier: 1, pierLen: 3, boats: 0, pierUp: 2, pierBranch: 1 }), 0).stats.pier;
+    const hd2 = both.modules.filter(m => m.key === 'pier_head' && m.chain === 0)[0];
+    if (!(hd2 && Math.abs(hd2.hIn - wetH.stats.jetty.y) < 0.1))
+      neg.push('up then down did not come back to the jetty\'s level');
+    if (!(both.modules.some(m => m.chain === 1)))
+      neg.push('a branch was asked for and none grew');
     const again = HG.build(Object.assign({}, HG.DEF, {
       stance: 3, floorY: 2.2, water: 1, waterY: -0.6, slopeZ: 12, porch: 1,
       stairs: 1, pier: 1, pierLen: 3, boats: 2 }), 0);

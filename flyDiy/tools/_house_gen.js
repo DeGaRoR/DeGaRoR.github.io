@@ -77,12 +77,24 @@ const MAT = {
   stone:  std(0x8e8b85),
   metal:  std(0xb4bcc2, { roughness: 0.45, metalness: 0.75 }),
   floor:  std(0x6d6154),
+  // THE SMOKE (G254, the user: "Do you think we could have cheap chimney
+  // smoke too?"): a basic material - it is not lit, it is a haze - drawn
+  // transparent and never into the depth buffer, and everything it looks like
+  // is in the shader patch below (shadeSmoke)
+  smoke: new THREE.MeshBasicMaterial({ color: 0xb9b5ae, transparent: true,
+                                       opacity: 1.0, depthWrite: false,
+                                       side: THREE.DoubleSide }),
   // the FAR window: opaque, because at eighty metres a pane is a dark
   // rectangle with a frame round it and transparency buys nothing but sorting
   pane:   std(0x2c3a42, { roughness: 0.28, metalness: 0.10 }),
 };
 const BAGS = ['siding', 'trim', 'roof', 'rib', 'glass', 'deck', 'post',
               'stone', 'metal', 'floor', 'pane'];
+// AND THE ONE BAG THAT IS NOT THE HOUSE (G254): the chimney smoke is a few
+// soft crossed quads with no surface to them - no occlusion to bake, no
+// texel density to hold, no silhouette to keep - so it stands outside the
+// ledger. The bench draws it; the gate reads it on its own terms.
+const EXTRA = ['smoke'];
 
 // WHICH SETS A PART MAY WEAR. The library says what each set is FOR (its `use`
 // list); this is the order they are offered in, per role, and it is what the
@@ -180,20 +192,30 @@ const SET_TINT = {
 //          a module is placed by its DECK, and the piles go where they go
 //   float  fraction of the hull's height under water (boats)
 const PIER_KIT = {
-  pier_run:   { L: 3.39, W: 2.51, H: 3.84, deckY: 3.6032 },
-  pier_ledge: { L: 3.39, W: 2.51, H: 3.84, deckY: 3.3366 },
-  pier_step:  { L: 3.16, W: 2.46, H: 4.16, deckY: 3.6411 },
-  pier_head:  { L: 3.52, W: 2.49, H: 4.27, deckY: 3.5572 },
-  pier_gate:  { L: 0.46, W: 3.10, H: 7.00, deckY: 6.7764 },
-  pier_piles: { L: 3.08, W: 2.21, H: 3.85 },
-  pier_deck:  { L: 2.20, W: 2.52, H: 0.08, deckY: 0.0798 },
+  // the modules keep the author's level: y0 is where each one's piles bottom
+  // out in that frame, deck[0]/deck[1] the walking level at its z-/z+ end
+  // dz is the DECK's extent along z in the module's own frame (G254.1): the
+  // box is not the module - a run's bearer and piles stand 0.46 m past its
+  // last plank, to go UNDER the first bay of the next run - so a path is laid
+  // at the deck's pitch and the overhang slots in
+  pier_run:   { L: 3.39, W: 2.51, H: 3.84, y0: -0.94, deck: [2.65, 2.64], dz: [-1.687, 1.235] },
+  pier_ledge: { L: 3.39, W: 2.51, H: 3.84, y0: -0.67, deck: [2.65, 2.64], dz: [-1.685, 1.246] },
+  pier_step:  { L: 3.16, W: 2.46, H: 4.16, y0: -0.99, deck: [1.24, 2.61], dz: [-1.579, 1.466] },
+  pier_head:  { L: 3.52, W: 2.49, H: 4.27, y0: -0.57, deck: [2.65, 2.80], dz: [-1.759, 1.718] },
+  pier_gate:  { L: 0.46, W: 3.10, H: 7.00, y0: -0.48 },
+  pier_piles: { L: 3.08, W: 2.21, H: 3.85, y0: -0.70 },
+  pier_deck:  { L: 2.20, W: 2.52, H: 0.08, y0: 2.59, deck: [2.66, 2.64], dz: [-1.101, 1.101] },
   boat_skiff:  { L: 5.09, W: 1.77, H: 1.01, float: 0.28 },
   boat_old:    { L: 6.04, W: 2.36, H: 1.29, float: 0.30 },
   boat_row:    { L: 3.93, W: 1.57, H: 1.11, float: 0.32 },
   boat_tirola: { L: 4.78, W: 1.56, H: 1.54, float: 0.30 },
   boat_grady:  { L: 10.14, W: 3.76, H: 3.99, float: 0.22 },
 };
-const PIER_RUNS = ['pier_run', 'pier_run', 'pier_ledge', 'pier_step'];
+// THE KIT'S TWO LEVELS, in the author's frame: every run's deck, and the
+// stair module's low landing. The path is on one or the other; the stair is
+// the only module that has an end on each.
+const PIER_DECK = 2.64, PIER_LOW = 1.24;
+const PIER_RUNS = ['pier_run', 'pier_run', 'pier_ledge'];
 const SMALL_BOATS = ['boat_skiff', 'boat_old', 'boat_row', 'boat_tirola'];
 const setTint = key => SET_TINT[key] || {};
 
@@ -722,7 +744,78 @@ function shadeGround(m, foot, o) {
   m.needsUpdate = true;
 }
 
+// ---------------------------------------------------------------------------
+// CHEAP CHIMNEY SMOKE (G254). Nine puffs of two crossed quads each, rising
+// from the chimney's own top, widening and thinning as they go and leaning a
+// little downwind. What makes it read is all in the fragment: a soft disc in
+// each quad (its uvs are metres from the puff's centre, so the disc is a
+// radius), a value noise that the bench scrolls UPWARD with time so the column
+// seems to rise without a vertex ever moving, and a fade with age so the top
+// dissolves. Thirty-six triangles for the near mesh, sixteen for the far one,
+// and no light touches it.
+const SMOKE_U = { uTime: { value: 0 }, uSmokeK: { value: 0.55 } };
+const SMOKE_R0 = 0.18, SMOKE_R1 = 1.15;   // a puff's radius: R0 + age * R1
+function shadeSmoke(m) {
+  const ud = m.userData || (m.userData = {});
+  if (ud.smokeShaded) return;
+  ud.smokeShaded = true;
+  m.onBeforeCompile = sh => {
+    sh.uniforms.uTime = SMOKE_U.uTime;
+    sh.uniforms.uSmokeK = SMOKE_U.uSmokeK;
+    sh.vertexShader = 'attribute float aHouseLit;\nvarying float vAge;\n' +
+      'varying vec2 vSm;\n' + sh.vertexShader
+      .replace('#include <begin_vertex>',
+               '#include <begin_vertex>\n  vAge = aHouseLit;\n  vSm = uv;');
+    sh.fragmentShader = 'varying float vAge;\nvarying vec2 vSm;\n' +
+      'uniform float uTime, uSmokeK;\n' +
+      'float sHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }\n' +
+      'float sNoise(vec2 p) {\n' +
+      '  vec2 i = floor(p), f = fract(p);\n' +
+      '  f = f * f * (3.0 - 2.0 * f);\n' +
+      '  return mix(mix(sHash(i), sHash(i + vec2(1, 0)), f.x),\n' +
+      '             mix(sHash(i + vec2(0, 1)), sHash(i + vec2(1, 1)), f.x), f.y);\n}\n' +
+      sh.fragmentShader.replace('#include <color_fragment>',
+        '#include <color_fragment>\n' +
+        '  {\n' +
+        '    float r = ' + SMOKE_R0.toFixed(3) + ' + vAge * ' + SMOKE_R1.toFixed(3) + ';\n' +
+        '    float d = length(vSm) / r;\n' +
+        '    vec2 q = vSm / r * 2.2 + vec2(0.0, -uTime * 0.35) + vAge * 3.1;\n' +
+        '    float n = sNoise(q) * 0.6 + sNoise(q * 2.3 + 7.0) * 0.4;\n' +
+        '    float a = smoothstep(1.0, 0.25, d) * (0.35 + 0.65 * n) *\n' +
+        '              pow(1.0 - vAge, 1.4) * uSmokeK;\n' +
+        '    a *= smoothstep(0.0, 0.08, vAge + 0.02);\n' +
+        '    diffuseColor.a *= a;\n' +
+        '    diffuseColor.rgb *= 0.85 + 0.25 * n;\n' +
+        '  }');
+  };
+  m.needsUpdate = true;
+}
+
+function buildSmoke(bags, P, Q, ch) {
+  if (!P.smoke || !ch) return null;
+  const n = Q.lod === 0 ? 9 : 4;
+  const rise = 3.2, lean = clamp(P.smokeLean === undefined ? 0.35 : P.smokeLean, -1, 1);
+  const bag = bags.smoke;
+  for (let i = 0; i < n; i++) {
+    const age = n > 1 ? i / (n - 1) : 0;
+    const r = SMOKE_R0 + age * SMOKE_R1;
+    const c = [ch.x + lean * age * age * 1.6, ch.top + 0.15 + age * rise,
+               ch.z + lean * age * age * 0.5];
+    bag.setGlow(age);
+    for (const ax of [[1, 0, 0], [0, 0, 1]]) {
+      const up = [0, 1, 0];
+      const q = [add(add(c, mul(ax, -r)), mul(up, -r)), add(add(c, mul(ax, r)), mul(up, -r)),
+                 add(add(c, mul(ax, r)), mul(up, r)), add(add(c, mul(ax, -r)), mul(up, r))];
+      face(bag, q, crs(ax, up), uvFrame(c, ax, up));
+    }
+    bag.setGlow(0);
+  }
+  return { x: ch.x, z: ch.z, y0: ch.top, y1: ch.top + 0.15 + rise, puffs: n };
+}
+
 function applyFinish(P) {
+  shadeSmoke(MAT.smoke);
+  SMOKE_U.uSmokeK.value = P.smokeK === undefined ? 0.55 : P.smokeK;
   for (const k of BAGS) if (k !== 'glass' && k !== 'pane' && MAT[k])
     shadeHouse(MAT[k]);
   shadeGlass(MAT.glass); shadeGlass(MAT.pane);
@@ -858,14 +951,16 @@ const DEF = {
   porch: 1, porchD: 2.40, porchLenF: 0.78, porchOff: 0, porchRoof: 0,
   railStyle: 1, railH: 1.02, balSpc: 0.13, deckBoard: 0.14,
   joists: 1, stairs: 1, stairW: 1.15, stairRise: 0.18, stairRun: 0.28,
-  // chimney
+  // chimney, and what comes out of it
   chim: 1, chimXF: -0.45, chimZF: 0.30, chimR: 0.10, chimUp: 0.95,
+  smoke: 1, smokeK: 0.55, smokeLean: 0.35,
   // lean-to
   lean: 0, leanD: 2.30, leanLF: 0.55, leanOff: 0.20, leanPitch: 14,
   // over the water, and what holds it up there
   water: 0, waterY: -0.60, pileBent: 1, pileBatter: 0.85,
   // and out INTO it: the pier that the jetty grows into, and what ties up
-  pier: 1, pierLen: 3, pierGate: 1, boats: 2, bigBoat: 0, pierSeed: 3,
+  pier: 1, pierLen: 3, pierGate: 1, pierUp: 1, pierBranch: 0, boats: 2,
+  bigBoat: 0, pierSeed: 3,
   // a building that is not a house
   openFront: 0, firewood: 0,
   // the door leaf
@@ -965,7 +1060,11 @@ const ROWS = [
      P => Math.round(P.stance) === 3 && !!P.pileBent],
     ['pier', 'pier off the jetty', 0, 1, 1, null, P => !!P.water],
     ['pierLen', 'pier runs', 1, 6, 1, null, P => !!P.water && !!P.pier],
-    ['pierGate', 'gate arch', 0, 1, 1, null, P => !!P.water && !!P.pier],
+    ['pierUp', 'the levels', 0, 2, 1, ['stays low', 'up one level',
+     'up, then down to a landing'], P => !!P.water && !!P.pier],
+    ['pierGate', 'the doorway', 0, 1, 1, null, P => !!P.water && !!P.pier],
+    ['pierBranch', 'a branch', 0, 1, 1, null,
+     P => !!P.water && !!P.pier && P.pierLen >= 2],
     ['boats', 'boats alongside', 0, 3, 1, null, P => !!P.water && !!P.pier],
     ['bigBoat', 'the sport fisher', 0, 1, 1, null,
      P => !!P.water && !!P.pier && P.pierLen >= 3],
@@ -1008,6 +1107,9 @@ const ROWS = [
     ['doorLight', 'door light', 0, 1, 1, null, P => !!P.door],
   ]],
   ['lights', [
+    ['smoke', 'chimney smoke', 0, 1, 1, null, P => !!P.chim],
+    ['smokeK', 'how thick', 0.1, 1, 0.02, null, P => !!P.chim && !!P.smoke],
+    ['smokeLean', 'downwind lean', -1, 1, 0.05, null, P => !!P.chim && !!P.smoke],
     ['lights', 'lights on', 0, 1, 1],
     ['winLink', 'windows', 0, 1, 1, ['each its own', 'one switch'],
      P => !!P.lights],
@@ -3622,94 +3724,140 @@ function doorReport(P, V, dk, stoop, front, g, openings) {
 // Nothing here is a slider on a module: a module is a whole prop, placed by
 // its DECK (PIER_KIT.deckY) so the walking surface lands on the jetty's level
 // and the piles go wherever the seabed is. That is what "modular" bought.
+// THE PATH GRAMMAR (G254, the user: "There are different pieces, for
+// straight path, go up one level, with a little doorway ... You may do
+// branching, but you may not leave holes in the path"). Read off the kit:
+//   RUN    a flat module; the path stays on its level
+//   STAIR  one end on the high level and one on the low: the path goes up or
+//          down 1.40 m by walking it, and which way is which end you enter
+//   GATE   the doorway, 0.46 m deep and no deck of its own - it stands OVER a
+//          joint, astride the first half-metre of the next run, exactly as the
+//          author stood it astride the 02/03 seam. It advances nothing.
+//   HEAD   the landing with the ladder at its far end: where a chain stops
+//   SPUR   a branch: a run turned a quarter, its entry end butted to the side
+//          of a run on the main chain, at that run's level, ending in a head
+// A path is a chain of these where every module ENTERS at the height the one
+// before it EXITED and starts where it ended - the same arithmetic as a flight
+// of stairs meeting its landing - and the gate holds both, per chain, to the
+// centimetre. Everything else is a seed.
 function pierPlan(P, V, g, jetty) {
   if (!P.water || !P.pier || !jetty) return null;
   let st = ((P.pierSeed | 0) || 1) * 2654435761 >>> 0;
   const rnd = () => (st = (st * 1664525 + 1013904223) >>> 0) / 4294967296;
   const pick = a => a[Math.min(a.length - 1, Math.floor(rnd() * a.length))];
-  const deck = jetty.y, wet = P.waterY;
-  const x = jetty.x;
+  const wet = P.waterY;
   const mods = [], boats = [];
-  let z = jetty.z1;
-  const n = clamp(Math.round(P.pierLen), 1, 6);
-  // THE GATE stands across the pier where it leaves the jetty: its bar is at
-  // deckY above its own pile bottoms like everything else, and it is placed so
-  // its piles bottom out with the first run's
-  const lay = (key, zc, yy, ry) => {
+  // the frontier of a chain: where it is, how high, which way it runs
+  const walk = (chain, x, z, h, ax) => ({ chain, x, z, h, ax });
+  // place one module at a chain's frontier and advance it. `ax` is the
+  // direction the chain runs in plan (+z out from the jetty for the main
+  // chain, +-x for a spur); `flip` enters the module by its z+ end.
+  const place = (w, key, flip) => {
     const K = PIER_KIT[key];
-    mods.push({ key: key, x: x, y: yy, z: zc, ry: ry || 0,
-                z0: zc - K.L / 2, z1: zc + K.L / 2, w: K.W });
+    const dIn = flip ? K.deck[1] : K.deck[0], dOut = flip ? K.deck[0] : K.deck[1];
+    const y = w.h - dIn;
+    // THE PITCH IS THE DECK'S, NOT THE BOX'S: the module's planks start at the
+    // frontier and the frontier moves on by the planks' length; whatever the
+    // module has past its last plank (a run's bearer and piles, 0.46 m) goes
+    // under the next one, which is what it was cut for. Flipped, the deck's
+    // extent mirrors.
+    const p0 = flip ? -K.dz[1] : K.dz[0], p1 = flip ? -K.dz[0] : K.dz[1];
+    const dl = p1 - p0, d = w.ax[0] || w.ax[1];
+    const cx = w.x - w.ax[0] * p0, cz = w.z - w.ax[1] * p0;    // box centre
+    // yaw: the module's local +z along the chain's axis (+pi if entered flipped)
+    let ry = Math.atan2(w.ax[0], w.ax[1]);
+    if (flip) ry += Math.PI;
+    const a0 = w.ax[0] ? w.x : w.z;
+    const m = { key, x: cx, y, z: cz, ry, chain: w.chain,
+                axis: w.ax[0] ? 'x' : 'z', dir: d,
+                a0: Math.min(a0, a0 + d * dl), a1: Math.max(a0, a0 + d * dl),
+                w: K.W, hIn: w.h, hOut: y + dOut,
+                z0: cz - (w.ax[1] ? K.L : K.W) / 2, z1: cz + (w.ax[1] ? K.L : K.W) / 2,
+                b0: (w.ax[0] ? cx : cz) - K.L / 2, b1: (w.ax[0] ? cx : cz) + K.L / 2 };
+    mods.push(m);
+    w.x += w.ax[0] * dl; w.z += w.ax[1] * dl; w.h = m.hOut;
+    return m;
   };
-  if (P.pierGate) {
-    const K = PIER_KIT.pier_gate, R0 = PIER_KIT[PIER_RUNS[0]];
-    lay('pier_gate', z + K.L / 2, deck - R0.deckY, 0);
-    z += K.L;
-  }
-  for (let i = 0; i < n; i++) {
-    const key = pick(PIER_RUNS);
-    const K = PIER_KIT[key];
-    lay(key, z + K.L / 2, deck - K.deckY, 0);
-    z += K.L;
-  }
-  {                                    // the head, always, at the end
-    const K = PIER_KIT.pier_head;
-    // the head's lower step faces the water: the module was authored with
-    // its step at -z, so it is turned to point out
-    lay('pier_head', z + K.L / 2, deck - K.deckY, Math.PI);
-    z += K.L;
-  }
-  const z1 = z;
-  // A DOLPHIN off the head: the kit's cluster of bare piles, stood a boat's
-  // width out from the end on the side the big boat is not, to tie up to
-  {
-    const K = PIER_KIT.pier_piles, HK = PIER_KIT.pier_head;
+  const gate = w => {
+    const K = PIER_KIT.pier_gate;
+    mods.push({ key: 'pier_gate', x: w.x + w.ax[0] * K.L / 2, y: w.h - PIER_DECK,
+                z: w.z + w.ax[1] * K.L / 2, ry: Math.atan2(w.ax[0], w.ax[1]),
+                chain: w.chain, over: true, w: K.W,
+                z0: w.z - K.W / 2, z1: w.z + K.W / 2 });
+  };
+  const main = walk(0, jetty.x, jetty.z1, jetty.y, [0, 1]);
+  const up = clamp(Math.round(P.pierUp), 0, 2);
+  // UP ONE LEVEL off the jetty: the stair entered by its low landing
+  if (up) place(main, 'pier_step', false);
+  if (P.pierGate) gate(main);
+  const n = clamp(Math.round(P.pierLen), 1, 6);
+  const runs = [];
+  for (let i = 0; i < n; i++) runs.push(place(main, pick(PIER_RUNS), false));
+  // A BRANCH: a spur off the side of one run, at its level, ending in a head
+  let spur = null;
+  if (P.pierBranch && n >= 2) {
+    const r = runs[Math.floor(rnd() * runs.length)];
     const sd = rnd() < 0.5 ? 1 : -1;
-    const dx = x + sd * (HK.W / 2 + K.W / 2 + 1.6), dz = z1 - K.L / 2 + 0.6;
+    const w2 = walk(1, r.x + sd * r.w / 2, r.z, r.hOut, [sd, 0]);
+    const s1 = place(w2, pick(PIER_RUNS), false);
+    s1.off = r; r.spur = sd;
+    place(w2, 'pier_head', false);
+    spur = w2;
+  }
+  // AND DOWN AGAIN at the end, to a low landing by the water, or straight to
+  // the head on the level the path is on
+  if (up === 2) {
+    place(main, 'pier_step', true);            // entered by its high end
+    place(main, 'pier_run', false);
+  }
+  const head = place(main, 'pier_head', false);
+  const z1 = main.z;
+  // a dolphin off the head, one boat's width out on the side the spur is not
+  {
+    const K = PIER_KIT.pier_piles;
+    const sd = spur ? -spur.ax[0] || (rnd() < 0.5 ? 1 : -1) : (rnd() < 0.5 ? 1 : -1);
+    const dx = head.x + sd * (head.w / 2 + K.W / 2 + 1.6), dz = z1 - K.L / 2 + 0.6;
     if (g(dx, dz) < wet - 0.8)
-      mods.push({ key: 'pier_piles', x: dx, y: deck - HK.deckY, z: dz, ry: 0,
+      mods.push({ key: 'pier_piles', x: dx, y: head.y, z: dz, ry: 0,
                   z0: dz - K.L / 2, z1: dz + K.L / 2, w: K.W, aside: true });
   }
-  // THE BOATS. Alongside, alternating sides, each at the middle of a run and
-  // never two on the same side of the same run; a boat needs water under it
-  // (a third of a metre at the least) or it is beached, and the run it lies
-  // beside must be a run and not the gate. The big boat wants a long pier and
-  // lies at the head.
+  // THE BOATS, alongside main-chain modules (not the gate, not under a spur),
+  // alternating sides, at the middle of a run, in water deep enough for their
+  // own draft, clear of every boat already on that side
   const nb = clamp(Math.round(P.boats), 0, 3);
-  const runs = mods.filter(m => m.key !== 'pier_gate' && !m.aside);
-  const used = new Set();
+  const quays = mods.filter(m => m.chain === 0 && !m.over && !m.aside);
   let side = rnd() < 0.5 ? 1 : -1;
   const moor = (key, m, sd) => {
+    if (m.spur === sd) return false;
     const K = PIER_KIT[key];
-    const bx = x + sd * (m.w / 2 + K.W / 2 + 0.35);
+    const bx = m.x + sd * (m.w / 2 + K.W / 2 + 0.35);
     const bz = m.z + (rnd() - 0.5) * Math.max(0, m.z1 - m.z0 - K.L) * 0.5;
     const depth = wet - g(bx, bz);
     if (depth < 0.35 + K.float * K.H) return false;
-    // and not on top of a boat already lying on this side: hulls are longer
-    // than runs, so "a different run" is not "clear"
+    // clear of EVERY module - the spur, the dolphin, the doorway's kerb - and
+    // not only the one it lies beside: the same box test the gate makes
+    for (const q of mods) {
+      const hw = (q.axis === 'x' ? (q.b1 - q.b0) : q.w) / 2, hz = (q.z1 - q.z0) / 2;
+      if (Math.abs(bx - q.x) < hw + K.W / 2 && Math.abs(bz - q.z) < hz + K.L / 2)
+        return false;
+    }
     for (const b of boats) {
       const KB = PIER_KIT[b.key];
       if (b.side === sd && Math.abs(b.z - bz) < (K.L + KB.L) / 2 + 0.4)
         return false;
     }
-    boats.push({ key: key, x: bx, y: wet - K.float * K.H, z: bz,
+    boats.push({ key, x: bx, y: wet - K.float * K.H, z: bz,
                  ry: (rnd() - 0.5) * 0.16 + (rnd() < 0.5 ? Math.PI : 0),
-                 side: sd, run: m.key, depth: depth });
+                 side: sd, run: m.key, depth });
     return true;
   };
-  if (P.bigBoat && n >= 3) {
-    const head = runs[runs.length - 1];
-    if (moor('boat_grady', head, side)) { used.add(head.key + side); side = -side; }
+  if (P.bigBoat && n >= 3 && moor('boat_grady', head, side)) side = -side;
+  for (let k = 0, tries = 0; k < nb && tries < 14; tries++) {
+    if (moor(pick(SMALL_BOATS), pick(quays), side)) k++;
+    side = -side;
   }
-  for (let k = 0, tries = 0; k < nb && tries < 12; tries++) {
-    const m = pick(runs);
-    if (used.has(m.key + m.z + side)) { side = -side; continue; }
-    if (moor(pick(SMALL_BOATS), m, side)) {
-      used.add(m.key + m.z + side);
-      k++;
-      side = -side;
-    }
-  }
-  return { x: x, y: deck, z0: jetty.z1, z1: z1, modules: mods, boats: boats,
+  return { x: jetty.x, y: jetty.y, z0: jetty.z1, z1, up, branch: !!spur,
+           modules: mods, boats,
            tris: mods.concat(boats).reduce((a, o) => a + (PIER_TRIS[o.key] || 0), 0) };
 }
 // the near-mesh cost of what the plan instances, for the bench's ledger and
@@ -3957,7 +4105,7 @@ function build(P0, lod) {
   const P = Object.assign({}, DEF, P0 || {});
   const Q = { lod: lod | 0 };
   const bags = {};
-  for (const k of BAGS) bags[k] = Bag(k);
+  for (const k of BAGS.concat(EXTRA)) bags[k] = Bag(k);
   const g = groundFn(P);
   RIM_LOG = [];
   LIT_LOG = { windows: 0, panes: 0, bulbs: 0, lights: [] };
@@ -4022,6 +4170,7 @@ function build(P0, lod) {
   const front = buildStoop(bags, P, Q, V, g, 1);
   if (P.lean) buildLean(bags, P, Q, V, R, g);
   const ch = buildChimney(bags, P, Q, V, R);
+  const smoke = buildSmoke(bags, P, Q, ch);
   const dr = buildDrainage(bags, P, Q, V, R, g);
   const barrel = buildBarrel(bags, P, Q, dr, g);
   const pier = pierPlan(P, V, g, dk.jetty);
@@ -4072,7 +4221,7 @@ function build(P0, lod) {
     chimney: ch, ground: g,
     gutterLen: dr.gutter, downpipe: dr.downpipe,
     jetty: dk.jetty || null, stoop: stoop, front: front, rims: RIM_LOG,
-    bay: bayOut, barrel: barrel, pier: pier,
+    bay: bayOut, barrel: barrel, pier: pier, smoke: smoke,
     backInLean: !!(P.backDoor && leanCovers(P, V, backDoorX(P, V))),
     // THE LIGHTS, published: how many windows glow, how many bulbs, and every
     // lamp with its position, colour and reach — the bench stands a real light
@@ -4193,6 +4342,7 @@ function randomHouse(seed) {
   P.stairLights = odds(0.6) ? 1 : 0; P.stringCol = odds(0.5) ? 1 : 0;
   P.lightSeed = ri(1, 99);
   P.pier = 1; P.pierLen = ri(1, 4); P.pierGate = odds(0.4) ? 1 : 0;
+  P.pierUp = pick([0, 1, 1, 2]); P.pierBranch = odds(0.3) ? 1 : 0;
   P.boats = ri(0, 3); P.bigBoat = odds(0.15) ? 1 : 0; P.pierSeed = ri(1, 99);
   P.porchRoof = pick([0, 0, 1, 2]);
   P.lean = odds(0.22) ? 1 : 0; P.leanD = rr(1.6, 3.0);
@@ -4281,8 +4431,8 @@ function dressSlot(matKey, role, idx, col, flat) {
 }
 
 window.HOUSE_GEN = {
-  DEF, ROWS, PRESETS, MAT, BAGS, FAMS, STANCES, RAILS, SET_TINT, SHADE_U,
-  STAIR_MAX, SET_SEAM, SET_MISS, PIER_KIT, PIER_TRIS,
+  DEF, ROWS, PRESETS, MAT, BAGS, EXTRA, SMOKE_U, FAMS, STANCES, RAILS, SET_TINT, SHADE_U,
+  STAIR_MAX, SET_SEAM, SET_MISS, PIER_KIT, PIER_TRIS, PIER_DECK, PIER_LOW,
   COLS, COL_NAMES, ROLE_SETS, SET_IDX, setNames, setFor, setRibbed,
   build, roofModel, wallSplits, groundFn, applyFinish, libSets, randomHouse,
   shadeGround,

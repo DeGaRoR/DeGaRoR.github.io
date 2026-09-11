@@ -593,6 +593,13 @@ def bake(row, bank, log):
     # site ever has to know that an author exported four metres off centre.
     if row['place'] in ('floor', 'surface'):
         off = (-(lo[0] + hi[0]) / 2, -lo[1], -(lo[2] + hi[2]) / 2)
+    elif row['place'] == 'level':
+        # THE AUTHOR'S OWN LEVEL IS KEPT (G254, the pier kit): the modules were
+        # registered to one deck in the delivered file — a run's planks and a
+        # stair's top tread at the same y, each on piles of its own length —
+        # and dropping every module's pile bottoms to zero threw that away.
+        # Centre in plan, leave y alone, and the kit still fits itself.
+        off = (-(lo[0] + hi[0]) / 2, 0.0, -(lo[2] + hi[2]) / 2)
     else:
         off = (0.0, 0.0, 0.0)
     lo = [lo[k] + off[k] for k in range(3)]
@@ -662,12 +669,36 @@ def bake(row, bank, log):
     # fraction of the hull's height that sits under water and the placer does
     # the subtraction.
     if row.get('deck'):
-        ys = [v[1] for name, P, N, uv, idx in posed if name == row['deck']
-              for v in P]
-        if not ys:
+        pts = [v for name, P, N, uv, idx in posed if name == row['deck']
+               for v in P]
+        if not pts:
             raise SystemExit('%s: deck material %s owns no vertices'
                              % (row['key'], row['deck']))
-        rec['deckY'] = round(max(ys) + off[1], 4)
+        # THE WALKING LEVEL AT EACH END, not the highest plank: a module joins
+        # the path at its ends, and a stair module's two ends are 1.4 m apart.
+        # The level is the MODE of the top surface within 0.15 m of the end
+        # (a rail cap or a kerb is a few vertices; the deck is thousands).
+        zs = [v[2] for v in pts]
+        z0, z1 = min(zs), max(zs)
+
+        def level(sel):
+            ys = sorted(round(v[1], 2) for v in sel)
+            top = ys[int(len(ys) * 0.6):]
+            best, n = None, 0
+            for y in set(top):
+                c = top.count(y)
+                if c > n:
+                    best, n = y, c
+            return best
+        rec['deck'] = [round(level([v for v in pts if v[2] < z0 + 0.15]) + off[1], 3),
+                       round(level([v for v in pts if v[2] > z1 - 0.15]) + off[1], 3)]
+        # AND HOW FAR THE DECK RUNS (G254.1, the user: "there seem to be a
+        # little part reserved for overlapping each model cleanly"). The box
+        # is not the module: a run's bearer and piles stand 0.46 m past its
+        # last plank, to go UNDER the first bay of the next run. So the pitch
+        # a path is laid at is the DECK's length, and the deck's extent in the
+        # module's own frame is published beside its levels.
+        rec['deckZ'] = [round(z0 + off[2], 3), round(z1 + off[2], 3)]
     if row.get('float') is not None:
         rec['float'] = row['float']
     return rec

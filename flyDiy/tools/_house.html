@@ -446,6 +446,11 @@ function addBuild(parent, built, dx) {
   const grp = new THREE.Group();
   grp.position.x = dx || 0;
   for (const k of GEN.BAGS) built.bags[k].mesh(grp, G.MAT[k]);
+  // the smoke, drawn last and never into depth (its material says so)
+  if (built.bags.smoke) {
+    const sm = built.bags.smoke.mesh(grp, G.MAT.smoke);
+    if (sm) { sm.renderOrder = 10; sm.castShadow = false; sm.receiveShadow = false; }
+  }
   parent.add(grp);
   return grp;
 }
@@ -564,6 +569,23 @@ function build() {
   checks(hi, lo);
   syncVis();
   draw();
+  smokeLoop();
+}
+
+// THE SMOKE MOVES. The bench draws on demand; a column of smoke wants a clock.
+// One requestAnimationFrame loop, alive only while there is smoke to move,
+// scrolling the shader's noise upward at a third of a metre a second.
+let smokeRAF = 0;
+function smokeLoop() {
+  if (smokeRAF) return;
+  const tick = () => {
+    smokeRAF = 0;
+    if (!BUILT || !BUILT.hi.stats.smoke) return;
+    G.SMOKE_U.uTime.value = performance.now() / 1000;
+    draw();
+    smokeRAF = requestAnimationFrame(tick);
+  };
+  smokeRAF = requestAnimationFrame(tick);
 }
 
 // ---- the checks that make this a bench, not a viewer ----------------------

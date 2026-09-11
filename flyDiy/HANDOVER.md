@@ -37590,3 +37590,65 @@ its own `vCtl`/`vCtl2` now; castor → node 0.114 m again, the wheel 0.05.
     its side along z.
 - Gates: HOUSE (with --selftest; 29 rules, the fuzzer on all of them) and
   MEDIA green.
+
+## G254 — THE PIER IS A PATH: TWO LEVELS, A STAIR BETWEEN THEM, A DOORWAY OVER
+## A JOINT, BRANCHES, AND NO HOLES — AND CHEAP CHIMNEY SMOKE (2026-09-11, the
+## user: "I think you missed the point of the pier modular system. There are
+## different pieces, for straight path, go up one level, with a little
+## doorway ... You may do branching, but you may not leave holes in the path
+## ... Do you think we could have cheap chimney smoke too?")
+
+- **THE KIT, READ AGAIN, PROPERLY.** G252 had every module's deck at one
+  height and the stair module filed as "a run whose deck steps down". Measured
+  at the ENDS this time (the mode of the top surface within 0.15 m of each z
+  end): every run's deck is at 2.64 in the author's frame and the stair
+  module's low landing is at 1.24 — the kit has TWO LEVELS, 1.40 m apart, and
+  the stair is the only module with an end on each. The doorway has no deck of
+  its own: the author stood it OVER the 02/03 seam, astride the first
+  half-metre of the next run. And the head joins at its z− end, the ladder at
+  its z+ end facing the water — G252 had it turned round.
+- **THE AUTHOR'S LEVEL IS KEPT.** `place: 'level'` in the baker centres a
+  module in plan and leaves its y alone, so the kit still fits itself the way
+  it was registered: one deck, piles of their own lengths. `deck` publishes
+  the walking level at each end (`[z−, z+]`), and PIER_KIT mirrors `y0` and
+  both ends; rule 27 holds all three against the packs.
+- **THE GRAMMAR** (`pierPlan`): a chain has a frontier — where it is, how high,
+  which way it runs — and `place()` enters a module by one end at the
+  frontier's height and advances by its length and its exit height. RUN keeps
+  the level; STAIR changes it by walking (entered by its low landing it climbs,
+  by its high end it descends); GATE stands over the next joint and advances
+  nothing; HEAD ends a chain; a SPUR is a run turned a quarter with its entry
+  butted to the side of a main-chain run at that run's level, ending in a head.
+  `pierUp` is stays-low / up one level off the jetty / up then down to a low
+  landing by the water; `pierBranch` grows the spur. Same arithmetic as a
+  flight of stairs meeting its landing.
+- **RULE 28 IS "NO HOLES"**: per chain, every module starts where the one
+  before ended (a centimetre) and enters at the height it exited (five, the
+  kit's own registration); the main chain starts at the jetty's end and level
+  and ends in the head; a spur's entry is butted to its run's side at that
+  run's level; the doorway stands over a module and at its deck; every module
+  over water; every boat afloat, at its waterline, clear of every module (the
+  spur and the dolphin included — the fuzzer found a boat inside the dolphin
+  the moment the grammar grew) and of each other. The selftest walks up one
+  level and checks the head is a level higher; walks up and down and checks it
+  came back to the jetty's level; asks for a branch and checks one grew.
+- **CHEAP CHIMNEY SMOKE**: nine puffs of two crossed quads (thirty-six
+  triangles; sixteen in the far mesh), rising from the chimney's own top,
+  widening and thinning and leaning a little downwind. What makes it read is
+  all in the fragment: a soft disc per quad (the uvs are metres from the
+  puff's centre, so the disc is a radius), a value noise the bench scrolls
+  UPWARD with time so the column seems to rise without a vertex moving, a fade
+  with age so the top dissolves. `MeshBasicMaterial`, transparent, never into
+  depth; the bench runs one rAF loop while there is smoke. It lives in
+  `EXTRA`, outside `BAGS`: no occlusion to bake, no texel density to hold, no
+  silhouette to keep.
+- **THE PITCH IS THE DECK'S, NOT THE BOX'S** (the user, with a plan view of
+  the gaps: "there seem to be a little part reserved for overlapping each
+  model cleanly ... I'd say 20 cm"). Measured: a run's bearer and piles stand
+  **0.46 m** past its last plank at its z+ end (the stair's 0.11, the head's
+  0.04), to go UNDER the first bay of the next module. The baker publishes the
+  deck's extent in the module's frame (`deckZ`), PIER_KIT mirrors it (`dz`),
+  and `place()` starts a module's planks at the frontier and advances by the
+  planks' length; the overhang slots in. Rule 28's continuity is on the deck
+  extents; the boat box test on the boxes.
+- Gates: HOUSE (with --selftest) and MEDIA green.

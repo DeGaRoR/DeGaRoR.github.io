@@ -90,28 +90,36 @@ def P(key, group, label, src, note, mats=None, nodes=None, place='floor',
 
 
 PLANKS = 'modular_wooden_pier_planks'
-PIER = dict(src='pier', deck=PLANKS, tex=1024)
+# EVERY MODULE KEEPS THE AUTHOR'S LEVEL (`place='level'`): the kit was
+# registered to one deck at y 2.64 in the delivered file, with the stair
+# module's low end at 1.24 - the two levels the path can be on - and each
+# module's piles as long as its author cut them. `deck` publishes the walking
+# level at each z end, which is what the planner joins.
+PIER = dict(src='pier', deck=PLANKS, tex=1024, place='level')
 
 PROPS = [
     # ---- the pier, module by module ------------------------------------------
     P('pier_run', 'pier', 'plain run',
       note='2.92 m of plain deck on four piles: the module most of a pier is',
       nodes=['modular_wooden_pier_section_02'], **PIER),
-    P('pier_ledge', 'pier', 'run with a ledge',
-      note='2.93 m run with a lower ledge on one side - a place to sit and gut fish',
+    P('pier_ledge', 'pier', 'run with a ladder',
+      note='2.93 m run with a ladder down to the water across its z- end',
       nodes=['modular_wooden_pier_section_03'], **PIER),
-    P('pier_step', 'pier', 'stepped run',
-      note='3.04 m run whose deck steps down along its length',
+    P('pier_step', 'pier', 'stair',
+      note='3.05 m of stair: the deck at 2.62 at its z+ end and a landing at 1.24 at '
+           'its z- end - the module that takes the path UP OR DOWN one level',
       nodes=['modular_wooden_pier_section_04'], **PIER),
     P('pier_head', 'pier', 'pier head',
-      note='3.48 m landing with a lower step toward the water: the END of a pier',
+      note='3.48 m landing with a ladder down at its z+ end and a tall post: the END '
+           'of a pier, joined at its z- end',
       nodes=['modular_wooden_pier_section_01'], **PIER),
     P('pier_gate', 'pier', 'gate arch',
-      note='two 7 m poles and a crossbar, stood across the pier where it leaves the shore',
-      nodes=['modular_wooden_pier_section_05'], **PIER),
+      note='two 7 m poles, a crossbar and a low kerb either side: the doorway, stood '
+           'OVER a joint on the deck (the showcase has it astride the 02/03 seam)',
+      nodes=['modular_wooden_pier_section_05'], src='pier', tex=1024, place='level'),
     P('pier_piles', 'pier', 'mooring piles',
       note='a cluster of bare piles: a dolphin to tie a boat to',
-      nodes=['modular_wooden_pier_poles'], src='pier', tex=1024),
+      nodes=['modular_wooden_pier_poles'], src='pier', tex=1024, place='level'),
     P('pier_deck', 'pier', 'deck plate',
       note='2.2 m of bare deck: a filler between two runs',
       nodes=['modular_wooden_pier_planks'], **PIER),
