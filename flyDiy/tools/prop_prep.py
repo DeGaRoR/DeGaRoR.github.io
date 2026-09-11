@@ -638,16 +638,43 @@ def bake(row, bank, log):
         if not tris:
             log.append('  material %s - EMPTY, skipped' % name)
             continue
-        if len(verts) > 65536:
-            raise SystemExit('%s/%s: %d verts exceeds the uint16 index range'
-                             % (row['key'], name, len(verts)))
-        log.append('  material %s - %d verts, %d tris' % (name, len(verts), len(tris)))
         mi = next(i for i, m in enumerate(j['materials'])
                   if m.get('name', 'mat%d' % i) == name)
         mats[name] = bake_material(j, bufs, base, j['materials'][mi], bank, row['tex'], log)
-        parts.append(pack_part(name, verts, tris, (lo, hi)))
-        nv_tot += len(verts)
-        nt_tot += len(tris)
+        # A PART IS AT MOST 65 536 VERTICES - the codec's indices are uint16
+        # and nothing downstream wants that to change for one scanned person.
+        # A material that owns more is cut into as many parts as it takes,
+        # triangle by triangle, each part re-indexing the vertices it uses:
+        # the decoder makes a mesh per part and looks the material up by name,
+        # so parts may share a name and nothing else has to know (G255, the
+        # 355k-triangle Andrew; the Grady-White's 72k-triangle hull was one
+        # part short of this already).
+        chunks = []
+        if len(verts) <= 65536:
+            chunks.append((verts, tris))
+        else:
+            cv, ct, cmap = [], [], {}
+            for tri in tris:
+                if len(cv) > 65536 - 3:
+                    chunks.append((cv, ct))
+                    cv, ct, cmap = [], [], {}
+                nt = []
+                for vi in tri:
+                    ci = cmap.get(vi)
+                    if ci is None:
+                        ci = cmap[vi] = len(cv)
+                        cv.append(verts[vi])
+                    nt.append(ci)
+                ct.append(tuple(nt))
+            if ct:
+                chunks.append((cv, ct))
+            log.append('  material %s - cut into %d parts (uint16 indices)'
+                       % (name, len(chunks)))
+        for cverts, ctris in chunks:
+            log.append('  material %s - %d verts, %d tris' % (name, len(cverts), len(ctris)))
+            parts.append(pack_part(name, cverts, ctris, (lo, hi)))
+            nv_tot += len(cverts)
+            nt_tot += len(ctris)
 
     title, author, lic, url = TABLE.SOURCES[row['src']]
     rec = {

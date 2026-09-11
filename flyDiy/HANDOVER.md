@@ -37868,3 +37868,30 @@ roll/pitch signs and the card's `−hdg` settle there; the pilot hidden in
 the cockpit view (today the flown cockpit looks out of the pilot's skull).
 Cosmetic: the ladder digits on the ball are small; the switch row sits at
 the band's bottom whatever the dials leave above it.
+
+## G255 — TWO PEOPLE FOR SCALE, AND WHAT THEY SAY ABOUT THE PIER (2026-09-12,
+## the user: "I have a doubt on the size of the pier now ... polyhaven tends to
+## be accurate, but here it looks 50% too big compared to your structures ...
+## get this guy and throw him on the porch so we have an idea ... one on the
+## porch, and one on the piers")
+
+- `person_andrew` and `person_john`, the user's static BlenderKit export
+  (`assets/blendkitPeople/`), baked through the pier pipeline as a third group
+  at their delivered height — 1.82 and 1.84 m, checked and right for a man in
+  boots — 355k and 310k triangles as-is by the rule. The codec's uint16 indices
+  cap a part at 65 536 vertices; a material that owns more is now CUT INTO
+  PARTS in the baker, triangle by triangle, each re-indexing what it uses (the
+  decoder makes a mesh per part and finds the material by name, so parts may
+  share one). Andrew is six parts.
+- `peoplePlan`: Andrew on the porch by the door (or the front stoop), John on
+  a run of the pier, both placed by their feet on a level the plan already
+  knows; rule 30 holds each to it within a centimetre.
+- WHAT THEY SAY: the house is right — the door (2.05 m) a head over Andrew, the
+  rail at his hip. The pier is METRIC AS DELIVERED (scale 1, Poly Haven): a
+  2.5 m wide deck, 20-25 cm planks, 28 cm piles — a working pier, heavier
+  than the house's 14 cm deck boards and 16-26 cm posts beside it, which is
+  the whole of the "50% too big". The 7 m gate is the one piece that reads
+  outsized against a man. A ruling is the user's: scale the kit down (a rigid
+  `scale` in the table, allowed) or leave a real pier next to a light deck.
+- Gates: HOUSE (with --selftest) green; MEDIA red at HEAD on the trees
+  session's four orphan textures (W0c.10), not on anything here.

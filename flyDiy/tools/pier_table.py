@@ -51,6 +51,12 @@ Each row is props_table.py's P() plus:
 GROUPS = [
     ('pier', 'pier modules'),
     ('boat', 'boats'),
+    # THE SCALE REFERENCE (G255, the user: "throw him on the porch so we have
+    # an idea"). Two static people from the user's own BlenderKit export, at
+    # their delivered height (1.82 and 1.84 m - checked, and right for a man in
+    # boots). They are the metre stick every doubt about a deck's width or a
+    # pier's planks is settled against.
+    ('people', 'people'),
 ]
 
 # `lic` drives what CREDITS.md must carry. Every boat is CC-BY-4.0 and needs
@@ -68,6 +74,12 @@ SOURCES = {
                'https://sketchfab.com/3d-models/docked-venetian-boat-low-poly-from-scan-free-53af885edaf044ac8d375b29305fe9ac'),
     'grady': ('Freedom 325 Grady White', 'BoatUS Foundation', 'CC-BY-4.0',
               'https://sketchfab.com/3d-models/freedom-325-grady-white-71ca8a73f97d44a98f92dd785e151b93'),
+    # the user's own export from BlenderKit's people; the licence is the one
+    # BlenderKit granted for the pack, which this table cannot read
+    'andrew': ('Andrew (static)', 'BlenderKit, via blendkitPeople.blend', 'BlenderKit licence',
+               'https://www.blenderkit.com/'),
+    'john':   ('John (static)', 'BlenderKit, via blendkitPeople.blend', 'BlenderKit licence',
+               'https://www.blenderkit.com/'),
 }
 
 # the delivered files, under assets/woodenPierBoats/
@@ -78,6 +90,8 @@ FILES = {
     'row':    'wooden_boat.glb',
     'tirola': 'docked_venetian_boat_-_low_poly_from_scan_-_free.glb',
     'grady':  'freedom_325_grady_white.glb',
+    'andrew': 'andrew.glb',
+    'john':   'john.glb',
 }
 
 
@@ -85,7 +99,8 @@ def P(key, group, label, src, note, mats=None, nodes=None, place='floor',
       scale=1.0, rot=(0, 0, 0), tex=512, deck=None, float=None, piles=None,
       pilesCut=1.9):
     return dict(key=key, group=group, label=label, src=src, file=FILES[src],
-                dir='pier' if src == 'pier' else '',
+                dir=('pier' if src == 'pier' else
+                     '../blendkitPeople' if src in ('andrew', 'john') else ''),
                 mats=mats, nodes=nodes, place=place, scale=scale, rot=rot,
                 tex=tex, note=note, deck=deck, float=float, piles=piles,
                 pilesCut=pilesCut)
@@ -160,4 +175,11 @@ PROPS = [
       note='9.8 m twin-outboard sport fisher, skinned to bones for propellers and wheel - '
            'baked at rest. 370k triangles: the big boat, for a long pier and rarely',
       scale=1.0, float=0.22, tex=512),
+
+    # ---- the people ---------------------------------------------------------
+    P('person_andrew', 'people', 'Andrew, on his phone', 'andrew',
+      note='1.82 m, standing, looking at his phone; 355k triangles as delivered',
+      tex=1024),
+    P('person_john', 'people', 'John, with his notes', 'john',
+      note='1.84 m, standing, reading; 310k triangles as delivered', tex=1024),
 ]

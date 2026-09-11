@@ -225,6 +225,9 @@ const PIER_KIT = {
   boat_runabout: { L: 4.35, W: 1.74, H: 1.23, float: 0.30, motor: true },
   boat_tirola:   { L: 4.78, W: 1.56, H: 1.54, float: 0.30 },
   boat_grady:    { L: 10.14, W: 3.76, H: 3.99, float: 0.22 },
+  // the two people, at their delivered height, placed by their feet
+  person_andrew: { L: 0.48, W: 0.61, H: 1.82 },
+  person_john:   { L: 0.75, W: 0.64, H: 1.84 },
 };
 // THE KIT'S TWO LEVELS, in the author's frame: every run's deck, and the
 // stair module's low landing. The path is on one or the other; the stair is
@@ -980,6 +983,8 @@ const DEF = {
   openFront: 0, firewood: 0,
   // the door leaf
   doorAjar: 0, doorLight: 1,
+  // the two people for scale (G255)
+  people: 1,
   // THE LIGHTS (G253): the master, which windows are lit and whether they are
   // one switch or many, the lamp by the door, and the string of bulbs along
   // the stair rails
@@ -1120,6 +1125,7 @@ const ROWS = [
     ['backDoorPos', 'its position', 0.1, 0.9, 0.01, null, P => !!P.backDoor],
     ['backPorch', 'back stoop', 0, 1, 1, null, P => !!P.backDoor],
     ['doorLight', 'door light', 0, 1, 1, null, P => !!P.door],
+    ['people', 'people for scale', 0, 1, 1],
   ]],
   ['lights', [
     ['smoke', 'chimney smoke', 0, 1, 1, null, P => !!P.chim],
@@ -3905,6 +3911,36 @@ function buildPierPiles(bags, P, Q, plan, g) {
   return n;
 }
 
+// THE PEOPLE (G255, the user: "throw him on the porch so we have an idea ...
+// one on the porch, and one on the piers"). Two static figures at their
+// delivered height, which is the one measure every doubt about a deck or a
+// pier gets settled against. Andrew stands on the porch by the door, John out
+// on the pier; both are placed by their feet on a walking level the plan
+// already knows, and the gate holds them to it.
+function peoplePlan(P, V, dk, front, pier) {
+  if (!P.people) return [];
+  const out = [];
+  const D = deckPlan(P, V);
+  if (D && P.porch) {
+    const dx = (doorPosOf(P, V) - 0.5) * V.L + P.doorW / 2 + 0.75;
+    out.push({ key: 'person_andrew', x: clamp(dx, D.x0 + 0.5, D.x1 - 0.5),
+               y: D.yTop, z: D.zIn + Math.min(1.1, P.porchD * 0.5),
+               ry: Math.PI * 0.85, on: 'deck' });
+  } else if (front) {
+    out.push({ key: 'person_andrew', x: front.x + 0.35, y: front.y,
+               z: front.z - front.side * front.depth * 0.5, ry: Math.PI * 0.9,
+               on: 'stoop' });
+  }
+  if (pier) {
+    const runs = pier.modules.filter(m => m.chain === 0 && !m.over && !m.aside &&
+                                          m.key !== 'pier_step');
+    const m = runs[Math.min(runs.length - 1, Math.max(0, runs.length - 2))];
+    if (m) out.push({ key: 'person_john', x: m.x + 0.55, y: m.hOut, z: m.z,
+                      ry: -Math.PI / 2 + 0.3, on: m.key });
+  }
+  return out;
+}
+
 // THE OUTBOARD (G254.2, the user: "did you import the motor? It looks empty at
 // the back"). The runabout was delivered without one - a windscreen, a flat
 // transom and nothing on it - so the generator hangs one there: a cowling on
@@ -3950,6 +3986,7 @@ const PIER_TRIS = {
   pier_run: 11758, pier_ledge: 14162, pier_step: 14598, pier_head: 23280,
   pier_gate: 13010, pier_piles: 2460, pier_deck: 5512, boat_painted: 37348,
   boat_clinker: 8358, boat_runabout: 11215, boat_tirola: 18742, boat_grady: 369673,
+  person_andrew: 354510, person_john: 310334,
 };
 
 // ---------------------------------------------------------------------------
@@ -4262,6 +4299,7 @@ function build(P0, lod) {
     pier.pilesDown = buildPierPiles(bags, P, Q, pier, g);
     pier.motors = pier.boats.reduce((a, b) => a + buildOutboard(bags, P, Q, b), 0);
   }
+  const people = peoplePlan(P, V, dk, front, pier);
 
   // ---- and now the light that never gets in --------------------------------
   const aoInfo = K.bakeAO(BAGS.map(k => bags[k]),
@@ -4309,7 +4347,7 @@ function build(P0, lod) {
     chimney: ch, ground: g,
     gutterLen: dr.gutter, downpipe: dr.downpipe,
     jetty: dk.jetty || null, stoop: stoop, front: front, rims: RIM_LOG,
-    bay: bayOut, barrel: barrel, pier: pier, smoke: smoke,
+    bay: bayOut, barrel: barrel, pier: pier, smoke: smoke, people: people,
     backInLean: !!(P.backDoor && leanCovers(P, V, backDoorX(P, V))),
     // THE LIGHTS, published: how many windows glow, how many bulbs, and every
     // lamp with its position, colour and reach — the bench stands a real light

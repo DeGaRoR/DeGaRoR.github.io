@@ -102,6 +102,7 @@
 <script src="../src/viewer/props.js"></script>
 <script src="../src/pier/pier_pier.js"></script>
 <script src="../src/pier/pier_boat.js"></script>
+<script src="../src/pier/pier_people.js"></script>
 <!-- the aerodrome's ground sets: the bench stands the house in real grass so
      there is something for the sky to bounce off and the shadows to land on -->
 <script src="../src/viewer/site_tex.js"></script>
@@ -514,6 +515,11 @@ function build() {
   // are still on the wire arrives as an empty group and fills itself; the
   // redraw is hooked on PROP_LANDED below.
   if (hi.stats.pier && mode !== 1) addPier(root, hi.stats.pier, 0);
+  // and the two people for scale (G255), placed by their feet where the plan
+  // put them - the same factory, the same late-landing fetch
+  if (hi.stats.people && mode !== 1)
+    for (const q of hi.stats.people)
+      if (PROP_REG.props[q.key]) root.add(propPlace(THREE, q.key, q.x, q.z, q.ry, q.y));
   // THE LAMPS ARE REAL LIGHTS (G253): the generator drew the fixture and
   // published where its glass is; the bench stands a point light in it. No
   // light without emitting geometry — the aeroplane's rule, kept.

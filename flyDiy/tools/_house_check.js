@@ -844,6 +844,24 @@ function battery(name, P) {
     }
   }
 
+  // 30 — THE PEOPLE STAND ON SOMETHING (G255): each one's feet are on a
+  //   walking level the plan knows - the deck's top, the stoop, or a pier
+  //   module's own deck - to the centimetre. A figure a hand's breadth into
+  //   the boards or floating over them is the wrong metre stick.
+  for (const q of hi.stats.people || []) {
+    let want = null;
+    if (q.on === 'deck') want = hi.stats.floorY - 0.02;
+    else if (q.on === 'stoop') want = hi.stats.front && hi.stats.front.y;
+    else if (hi.stats.pier) {
+      const m = hi.stats.pier.modules.find(u => u.key === q.on &&
+        Math.abs(u.z - q.z) < 0.01);
+      want = m ? m.hOut : null;
+    }
+    check(want !== null && Math.abs(q.y - want) < 0.011,
+          name + ': a person is not standing on the ' + q.on,
+          q.key + ' at ' + q.y.toFixed(3) + (want === null ? '' : ' vs ' + want.toFixed(3)));
+  }
+
   // 17 — a back door that opens onto nothing is not a garden door
   // (a back door inside the lean-to's span opens INTO the shed, onto its
   // floor, and gets no stoop by design - rule 23 holds that it has a platform)

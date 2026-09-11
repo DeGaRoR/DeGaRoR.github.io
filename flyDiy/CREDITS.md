@@ -511,6 +511,12 @@ wherever these are shown:
 - `boat_grady` — **"Freedom 325 Grady White"** by BoatUS Foundation
   (https://sketchfab.com/3d-models/freedom-325-grady-white-71ca8a73f97d44a98f92dd785e151b93)
 
+**The two people** (`person_andrew`, `person_john`, G255) are the user's own
+static export from `assets/blendkitPeople/blendkitPeople.blend` — BlenderKit
+figures, under whatever licence BlenderKit granted for that pack (this file
+cannot read it; confirm before shipping them beyond the bench). They stand in
+the bench as the scale reference: 1.82 m and 1.84 m as delivered.
+
 ## Design-tile silhouettes (the birth flow)
 
 - **What**: the inline SVG silhouettes and glyphs on the macro-row tiles
