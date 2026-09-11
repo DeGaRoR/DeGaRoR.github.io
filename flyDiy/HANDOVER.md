@@ -36954,3 +36954,72 @@ target with it. What was missing was a join contract and a per-frame call.
   `tools/make_probe.js` and `__pump`; the AP owns `sim.ctl` in flight, so a
   control sweep is a patch on `ap.update`; `worldToLocal` through the sheared
   grp is exact (an inverse), decomposition is not.
+
+## G252 — THE JETTY GROWS INTO A PIER: A MODULAR KIT AND FIVE BOATS, BAKED AS
+## PROPS, PLANNED HEADLESS, HELD BY THE GATE (2026-09-11, the user: "build more
+## pier structure in front of the houses. I have added a few assets ... A
+## modular wooden pier system, please try and understand it well, and a few
+## boats. Please sanitize all of it, and make it game ready, then incorporate to
+## the house system. When they touch water, they get extended pier modules and
+## small boats")
+
+- **THE KIT, READ OFF THE FILE.** Poly Haven's `modular_wooden_pier` is SEVEN
+  nodes in one glTF sharing two materials, laid end to end down -z as the
+  author's showcase. Measured: four RUNS ~2.5 m wide and 2.9-3.5 m long whose
+  decks sit 2.6-2.7 m above their own pile bottoms and abut at their z ends
+  with the planks continuous (which is the whole meaning of "modular"); a
+  HEAD (section_01, the wide landing with a lower step toward the water); a
+  GATE (section_05 — two 7 m poles and a crossbar, stood across the 02/03
+  joint in the showcase); a cluster of bare PILES; a bare deck PLATE. So a
+  module is selected by NODE, not by material, and PLACED BY ITS DECK.
+- **IT IS THE HANGAR PROPS' PIPELINE, POINTED AT A SECOND TABLE.** Same baker
+  (`tools/prop_prep.py`), same as-is rule, same one material, same codec and
+  factory (`51_prop_codec.js`, `props.js`) — but its own table
+  (`tools/pier_table.py`), packs (`src/pier/`), media (`media/geo/pier`,
+  `media/tex/pier`) and gate, because the hangar's registry is claimed row by
+  row by its kits (GATE HANGAR rule 4) and a pier is not in the hangar.
+  `prop_prep.main(argv, cfg)` takes the config now; the module-level names are
+  the hangar's defaults. The baker learned three things for it:
+  - `nodes`: select WHOLE NODES by name (still no mesh is ever cut);
+  - a SKINNED MESH IS BAKED AT REST — glTF places a skinned primitive by its
+    joints and not by its own node, so the old walk put every skinned part in
+    the wrong place; each vertex now goes through jointWorld × inverseBind for
+    its four joints at the bind pose (the Grady-White's propellers and wheel
+    ride on bones for an animation the game never plays);
+  - `deck` / `float`: a row names the material its walking surface is made of
+    and the baker publishes `deckY` (where its top sits above the origin); a
+    boat declares the fraction of its height under water, since no exporter
+    records a waterline.
+- **THE BOATS arrive every way an FBX can** — centimetres (old_boat), a 38th
+  of size (boat.glb), along x (wooden_boat), spec-gloss (the scanned tirola),
+  skinned (the Grady-White). Every one is a RIGID correction declared in the
+  table or a conversion the baker already knew. Five hulls: skiff 5.1 m, old
+  clinker 6.0 m with oars, small rowing 3.9 m, scanned 4.8 m, and the 10.1 m
+  sport fisher — 370k triangles, baked as-is by the rule, and for that reason
+  the BIG boat: off by default, a long pier and rarely in the sampler.
+  All CC-BY-4.0: attribution is in CREDITS.md and must stay visible.
+- **THE PLAN IS HEADLESS.** `pierPlan` lays the pier out and publishes
+  `stats.pier` — key, position, yaw per module and boat — and the bench (and
+  the game) instance them through `propPlace`. It starts where the JETTY ends
+  (the jetty now publishes its extent), at the jetty's own deck height, an
+  optional gate across the start, N runs picked by seed, the head always at
+  the end turned to face the water, a dolphin of bare piles off the head, and
+  boats alongside — alternating sides, at the middle of a run, only in water
+  deep enough for their own draft, the big one at the head. Every module is
+  placed at `deck − deckY` so the walking surface lands on the jetty's level
+  and the piles go wherever the seabed is. `PIER_KIT` mirrors the packs'
+  metres in the generator (the SET_KIND arrangement).
+- **GATE HOUSE holds it three ways**: rule 27, the declared table = the baked
+  packs = the mirror, in keys and in metres (a deckY the baker did not measure
+  fails), and every bin is on disk and decodes to its own triangle count; rule
+  28, every module over water, the run CONTINUOUS (each starts where the one
+  before ends, within a centimetre), the head at the end, every boat afloat in
+  0.35 m plus its draft, at its waterline, clear of the pier and of each
+  other; and the selftest builds a jettied house and demands a pier, the same
+  house with `pier: 0` and demands none, and the same plan twice. All four
+  placement rules were driven red by hand (a stale deckY, no head, a boat in
+  the pier, a 10 cm gap).
+- GATE MEDIA lists the pier packs as manifests (607 references, 607 files).
+  `pier_deck` is baked and unused by the plan — a filler the game may want.
+- Gates: HOUSE (with --selftest) and MEDIA green. PROPS untouched: the
+  hangar's registry does not see the pier.

@@ -244,16 +244,17 @@ class TexBank:
     and by_hash holds the page-relative path instead of a data URI. Report
     runs write nothing (write=False computes the same names)."""
 
-    def __init__(self, write=True):
+    def __init__(self, write=True, sub='tex/props'):
         self.by_hash, self.order, self.bytes = {}, [], 0
         self.write = write
+        self.sub = sub                  # a second table prunes its own dir
 
     def add(self, raw, mime):
         h = hashlib.sha256(raw).hexdigest()[:12]
         if h not in self.by_hash:
             name = '%s.%s' % (h, 'png' if mime == 'image/png' else 'jpg')
-            self.by_hash[h] = (write_media_named('tex/props', name, raw)
-                               if self.write else 'media/tex/props/' + name)
+            self.by_hash[h] = (write_media_named(self.sub, name, raw)
+                               if self.write else 'media/' + self.sub + '/' + name)
             self.order.append(h)
             self.bytes += len(raw)
         return h
@@ -296,9 +297,50 @@ def is_identity_normal(img):
 # ---------------------------------------------------------------------------
 # The bake
 # ---------------------------------------------------------------------------
-def gather(j, bufs, want_mats):
-    """[(material name, positions, normals, uvs, indices)] in world space."""
+def node_worlds(j):
+    """world matrix of every node in the default scene, by index"""
+    W = {}
+    scene = j.get('scenes', [{}])[j.get('scene', 0)]
+    I = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+    stack = [(i, I) for i in scene.get('nodes', [])]
+    while stack:
+        ni, par = stack.pop()
+        m = mat_mul(par, trs_matrix(j['nodes'][ni]))
+        W[ni] = m
+        for c in j['nodes'][ni].get('children', []):
+            stack.append((c, m))
+    return W
+
+
+def skin_matrices(j, bufs, si, W):
+    """per joint: jointWorld * inverseBind — the matrix a skinned vertex is
+    actually drawn with when nothing is animating"""
+    sk = j['skins'][si]
+    ibm = accessor(j, bufs, sk['inverseBindMatrices']) if 'inverseBindMatrices' in sk else None
     out = []
+    for k, jn in enumerate(sk['joints']):
+        ib = list(ibm[k]) if ibm else [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+        out.append(mat_mul(W[jn], ib))
+    return out
+
+
+def gather(j, bufs, want_mats, want_nodes=None):
+    """[(material name, positions, normals, uvs, indices)] in world space.
+
+    `want_nodes` selects WHOLE NODES by name — a modular kit ships every module
+    in one file sharing two materials, so material is not the axis that
+    separates them (G252, the pier). Still no mesh is ever cut: a node's
+    primitives come whole or not at all.
+
+    A SKINNED MESH IS BAKED AT REST. glTF says a skinned primitive's vertices
+    are placed by its joints and NOT by its own node's transform, so the walk
+    below would put every skinned part in the wrong place; instead each vertex
+    is blended through jointWorld * inverseBind for its four joints with the
+    bind pose as the pose. The Grady-White's propellers and wheel arrive on
+    bones for an animation the game never plays; at rest they are simply where
+    the author left them."""
+    out = []
+    W = node_worlds(j)
     scene = j.get('scenes', [{}])[j.get('scene', 0)]
     I = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
     stack = [(i, I) for i in reversed(scene.get('nodes', []))]
@@ -306,8 +348,9 @@ def gather(j, bufs, want_mats):
         ni, par = stack.pop()
         n = j['nodes'][ni]
         m = mat_mul(par, trs_matrix(n))
-        if 'mesh' in n:
+        if 'mesh' in n and (not want_nodes or n.get('name') in want_nodes):
             nm = normal_matrix(m)
+            skin = skin_matrices(j, bufs, n['skin'], W) if 'skin' in n else None
             for p in j['meshes'][n['mesh']].get('primitives', []):
                 if p.get('mode', 4) != 4:
                     continue
@@ -316,9 +359,32 @@ def gather(j, bufs, want_mats):
                 if want_mats and name not in want_mats:
                     continue
                 A = p['attributes']
-                pos = [xf_point(m, v) for v in accessor(j, bufs, A['POSITION'])]
-                nrm = ([xf_normal(nm, v) for v in accessor(j, bufs, A['NORMAL'])]
-                       if 'NORMAL' in A else [(0.0, 1.0, 0.0)] * len(pos))
+                if skin and 'JOINTS_0' in A and 'WEIGHTS_0' in A:
+                    P0 = accessor(j, bufs, A['POSITION'])
+                    N0 = (accessor(j, bufs, A['NORMAL']) if 'NORMAL' in A
+                          else [(0.0, 1.0, 0.0)] * len(P0))
+                    JJ = accessor(j, bufs, A['JOINTS_0'])
+                    WW = accessor(j, bufs, A['WEIGHTS_0'])
+                    pos, nrm = [], []
+                    for v, nv, jj, ww in zip(P0, N0, JJ, WW):
+                        acc = [0.0] * 16
+                        tw = 0.0
+                        for k in range(4):
+                            w = ww[k]
+                            if w <= 0.0:
+                                continue
+                            mk = skin[int(jj[k])]
+                            for q in range(16):
+                                acc[q] += mk[q] * w
+                            tw += w
+                        if tw <= 0.0:
+                            acc = list(I)
+                        pos.append(xf_point(acc, v))
+                        nrm.append(xf_normal(normal_matrix(acc), nv))
+                else:
+                    pos = [xf_point(m, v) for v in accessor(j, bufs, A['POSITION'])]
+                    nrm = ([xf_normal(nm, v) for v in accessor(j, bufs, A['NORMAL'])]
+                           if 'NORMAL' in A else [(0.0, 1.0, 0.0)] * len(pos))
                 uv = ([(v[0], v[1]) for v in accessor(j, bufs, A['TEXCOORD_0'])]
                       if 'TEXCOORD_0' in A else [(0.0, 0.0)] * len(pos))
                 idx = ([int(v[0]) for v in accessor(j, bufs, p['indices'])]
@@ -500,9 +566,12 @@ def pack_part(name, verts, tris, bb):
 
 
 def bake(row, bank, log):
-    path = os.path.join(SRC_DIR, row['src'], row['file'])
+    # `dir` lets a table keep `src` as the PROVENANCE key while the files sit
+    # somewhere else under SRC_DIR (the pier kit: six sources in one folder)
+    path = os.path.join(SRC_DIR, row.get('dir', row['src']), row['file'])
     j, bufs, base = load_gltf(path)
-    prims = gather(j, bufs, set(row['mats']) if row['mats'] else None)
+    prims = gather(j, bufs, set(row['mats']) if row['mats'] else None,
+                   set(row['nodes']) if row.get('nodes') else None)
     if not prims:
         raise SystemExit('%s: no primitive matched mats=%s' % (row['key'], row['mats']))
 
@@ -574,7 +643,7 @@ def bake(row, bank, log):
         nt_tot += len(tris)
 
     title, author, lic, url = TABLE.SOURCES[row['src']]
-    return {
+    rec = {
         'key': row['key'], 'group': row['group'], 'label': row['label'],
         'place': row['place'], 'note': row['note'],
         'bb': [round(v, 5) for v in lo + hi],
@@ -584,9 +653,46 @@ def bake(row, bank, log):
                 'lic': lic, 'url': url},
         'mats': mats, 'parts': parts,
     }
+    # WHAT A PLACER NEEDS TO KNOW BEYOND THE BOX (G252). A pier module is
+    # placed by its DECK, not by its bounding box: the piles under it go
+    # wherever the seabed is and the deck has to land at the water. So a row
+    # may name the material its walking surface is made of, and the baker
+    # measures where the top of that material sits above the origin. A boat is
+    # placed by its WATERLINE, which no exporter records; the row declares the
+    # fraction of the hull's height that sits under water and the placer does
+    # the subtraction.
+    if row.get('deck'):
+        ys = [v[1] for name, P, N, uv, idx in posed if name == row['deck']
+              for v in P]
+        if not ys:
+            raise SystemExit('%s: deck material %s owns no vertices'
+                             % (row['key'], row['deck']))
+        rec['deckY'] = round(max(ys) + off[1], 4)
+    if row.get('float') is not None:
+        rec['float'] = row['float']
+    return rec
 
 
-def main(argv):
+# THE RUNNER TAKES ITS TABLE (G252). The hangar props and the pier kit are
+# the same pipeline — declared table, as-is geometry, the one material — but
+# they are not the same LIBRARY: the pier's packs must not be swept into the
+# hangar's registry (GATE HANGAR requires every hangar prop claimed by a kit),
+# and its media must prune its own directories and nobody else's. So the
+# module-level names are the hangar's defaults and run() takes a config.
+PROPS_CFG = dict(table=None, src_dir=None, out_dir=None, geo='geo/props',
+                 tex='tex/props', prefix='props_', packs='props_packs.json',
+                 origin='assets/props/, per the declared table in tools/props_table.py')
+
+
+def main(argv, cfg=None):
+    global TABLE, SRC_DIR, OUT_DIR
+    cfg = dict(PROPS_CFG, **(cfg or {}))
+    if cfg['table'] is not None:
+        TABLE = cfg['table']
+    if cfg['src_dir'] is not None:
+        SRC_DIR = cfg['src_dir']
+    if cfg['out_dir'] is not None:
+        OUT_DIR = cfg['out_dir']
     only = [a for a in argv if not a.startswith('--')]
     report = '--report' in argv
     rows = [r for r in TABLE.PROPS if not only or r['key'] in only]
@@ -602,7 +708,8 @@ def main(argv):
     total_geo = 0
     for row in rows:
         bank_key = row['group']
-        bank = groups.setdefault(bank_key, {'bank': TexBank(write=not report),
+        bank = groups.setdefault(bank_key, {'bank': TexBank(write=not report,
+                                                                 sub=cfg['tex']),
                                             'props': {}, 'order': []})['bank']
         log = []
         p = bake(row, bank, log)
@@ -630,9 +737,9 @@ def main(argv):
                 part['off'] = len(buf)
                 part['len'] = len(raw)
                 buf += raw
-            p['bin'] = write_media('geo/props', pkey, 'bin', bytes(buf))
+            p['bin'] = write_media(cfg['geo'], pkey, 'bin', bytes(buf))
             bin_rels.append(p['bin'])
-    prune_media('geo/props', bin_rels)
+    prune_media(cfg['geo'], bin_rels)
 
     files, tex_bytes = [], 0
     for gid, gname in TABLE.GROUPS:
@@ -642,12 +749,12 @@ def main(argv):
         pack = {'v': 2, 'groups': [[gid, gname]], 'order': g['order'],
                 'texs': {h: g['bank'].by_hash[h] for h in g['bank'].order},
                 'props': g['props']}
-        name = 'props_%s.js' % gid
+        name = '%s%s.js' % (cfg['prefix'], gid)
         body = ('// GENERATED FILE - DO NOT EDIT. Built by tools/prop_prep.py from\n'
-                '// assets/props/, per the declared table in tools/props_table.py.\n'
+                '// %s.\n'
                 '// Group: %s. Decoded by src/core/51_prop_codec.js; geometry in\n'
-                '// media/geo/props/ (per-prop bin, parts carry off/len), textures\n'
-                '// in media/tex/props/. B re-roots the media paths for pages that\n'
+                '// media/%s/ (per-prop bin, parts carry off/len), textures\n'
+                '// in media/%s/. B re-roots the media paths for pages that\n'
                 '// do not live at flyDiy/ (see tools/_media_lib.js).\n'
                 'registerPropPack((p => {\n'
                 '  %s\n'
@@ -656,7 +763,8 @@ def main(argv):
                 'p.props[k].bin = B + p.props[k].bin;\n'
                 '  return p;\n'
                 '})(%s));\n'
-                % (gname, BASE_DECL, json.dumps(pack, separators=(',', ':'))))
+                % (cfg['origin'], gname, cfg['geo'], cfg['tex'], BASE_DECL,
+                   json.dumps(pack, separators=(',', ':'))))
         open(os.path.join(OUT_DIR, name), 'w', encoding='utf8').write(body)
         files.append(name)
         tex_bytes += g['bank'].bytes
@@ -667,7 +775,7 @@ def main(argv):
     # the build — index.html shrank by 2 MB and GATE PROPS caught it, which is
     # the only reason it was noticed. Anything already listed that is still on
     # disk and is not ours stays, in its existing position.
-    mf = os.path.join(OUT_DIR, 'props_packs.json')
+    mf = os.path.join(OUT_DIR, cfg['packs'])
     try:
         prev = json.load(open(mf))
     except Exception:
@@ -679,11 +787,11 @@ def main(argv):
         print('kept %d pack(s) from another baker: %s' % (len(foreign), ', '.join(foreign)))
     # a full bake is the whole texture story for media/tex/props/ — anything
     # this run did not emit is a stale map from a superseded encode
-    gone = prune_media('tex/props',
+    gone = prune_media(cfg['tex'],
                        [g['bank'].by_hash[h] for g in groups.values()
                         for h in g['bank'].order])
     if gone:
-        print('pruned %d stale map(s) from media/tex/props/' % len(gone))
+        print('pruned %d stale map(s) from media/%s/' % (len(gone), cfg['tex']))
     print('---\n%d props, %d packs — geometry %.2f MB, textures %.2f MB'
           % (len(rows), len(files), total_geo / 1048576, tex_bytes / 1048576))
 

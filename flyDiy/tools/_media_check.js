@@ -59,6 +59,13 @@ function manifestFiles() {
   const packs = JSON.parse(fs.readFileSync(
     path.join(ROOT, 'src', 'props', 'props_packs.json'), 'utf8'))
     .map(f => path.join(ROOT, 'src', 'props', f));
+  // the pier kit (G252): the hangar baker's second table, its own packs and
+  // its own media directories (media/geo/pier, media/tex/pier)
+  const pierMf = path.join(ROOT, 'src', 'pier', 'pier_packs.json');
+  const pier = fs.existsSync(pierMf)
+    ? JSON.parse(fs.readFileSync(pierMf, 'utf8'))
+        .map(f => path.join(ROOT, 'src', 'pier', f))
+    : [];
   // EVERY payload on disk, not build.js's publish list: the table is the
   // CATALOGUE and MANIFEST.models the published subset (GATE REF's own
   // distinction). draco is baked-but-unpublished — no spec holds its scale —
@@ -78,7 +85,7 @@ function manifestFiles() {
   // the baked trees (W0b): one manifest, listing one bin per collection
   const trees = fs.existsSync(path.join(ROOT, 'src', 'core', 'trees_pack.json'))
     ? [path.join(ROOT, 'src', 'core', 'trees_pack.json')] : [];
-  return v.concat(packs, models, chars, trees);
+  return v.concat(packs, pier, models, chars, trees);
 }
 
 const REF_RE = /media\/[A-Za-z0-9_\-./]+?\.(?:jpg|png|bin)/g;

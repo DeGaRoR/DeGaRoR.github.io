@@ -166,6 +166,35 @@ const SET_TINT = {
   stain: { tint: false },
   board: { punch: 0 },
 };
+
+// THE PIER KIT, AS THE GENERATOR KNOWS IT (G252). The modules and the boats
+// are baked props (tools/pier_table.py -> tools/pier_prep.py -> src/pier/),
+// and a prop is a browser payload; the generator lays the pier out headless,
+// so it carries the four numbers a placer needs per key — the SET_KIND
+// arrangement, and GATE HOUSE holds this table against the baked packs so it
+// cannot drift.
+//   L      length along z (the axis a pier runs and a boat lies along)
+//   W      width across
+//   H      height of the whole prop, pile bottoms to the top
+//   deckY  where the walking surface sits above the pile bottoms (modules);
+//          a module is placed by its DECK, and the piles go where they go
+//   float  fraction of the hull's height under water (boats)
+const PIER_KIT = {
+  pier_run:   { L: 3.39, W: 2.51, H: 3.84, deckY: 3.6032 },
+  pier_ledge: { L: 3.39, W: 2.51, H: 3.84, deckY: 3.3366 },
+  pier_step:  { L: 3.16, W: 2.46, H: 4.16, deckY: 3.6411 },
+  pier_head:  { L: 3.52, W: 2.49, H: 4.27, deckY: 3.5572 },
+  pier_gate:  { L: 0.46, W: 3.10, H: 7.00, deckY: 6.7764 },
+  pier_piles: { L: 3.08, W: 2.21, H: 3.85 },
+  pier_deck:  { L: 2.20, W: 2.52, H: 0.08, deckY: 0.0798 },
+  boat_skiff:  { L: 5.09, W: 1.77, H: 1.01, float: 0.28 },
+  boat_old:    { L: 6.04, W: 2.36, H: 1.29, float: 0.30 },
+  boat_row:    { L: 3.93, W: 1.57, H: 1.11, float: 0.32 },
+  boat_tirola: { L: 4.78, W: 1.56, H: 1.54, float: 0.30 },
+  boat_grady:  { L: 10.14, W: 3.76, H: 3.99, float: 0.22 },
+};
+const PIER_RUNS = ['pier_run', 'pier_run', 'pier_ledge', 'pier_step'];
+const SMALL_BOATS = ['boat_skiff', 'boat_old', 'boat_row', 'boat_tirola'];
 const setTint = key => SET_TINT[key] || {};
 
 // THE RULE, in the user's own words: "Finishes, beams and pillars takes
@@ -810,6 +839,8 @@ const DEF = {
   lean: 0, leanD: 2.30, leanLF: 0.55, leanOff: 0.20, leanPitch: 14,
   // over the water, and what holds it up there
   water: 0, waterY: -0.60, pileBent: 1, pileBatter: 0.85,
+  // and out INTO it: the pier that the jetty grows into, and what ties up
+  pier: 1, pierLen: 3, pierGate: 1, boats: 2, bigBoat: 0, pierSeed: 3,
   // a building that is not a house
   openFront: 0, firewood: 0,
   // the door leaf
@@ -902,6 +933,13 @@ const ROWS = [
     ['pileBent', 'battered bents', 0, 1, 1, null, P => Math.round(P.stance) === 3],
     ['pileBatter', 'how far they lean', 0.3, 1.8, 0.05, null,
      P => Math.round(P.stance) === 3 && !!P.pileBent],
+    ['pier', 'pier off the jetty', 0, 1, 1, null, P => !!P.water],
+    ['pierLen', 'pier runs', 1, 6, 1, null, P => !!P.water && !!P.pier],
+    ['pierGate', 'gate arch', 0, 1, 1, null, P => !!P.water && !!P.pier],
+    ['boats', 'boats alongside', 0, 3, 1, null, P => !!P.water && !!P.pier],
+    ['bigBoat', 'the sport fisher', 0, 1, 1, null,
+     P => !!P.water && !!P.pier && P.pierLen >= 3],
+    ['pierSeed', 'which boats', 1, 99, 1, null, P => !!P.water && !!P.pier],
   ]],
   ['roof', [
     ['roofFam', 'family', 0, 3, 1, FAMS],
@@ -2870,11 +2908,14 @@ function buildDeck(bags, P, Q, V, R, g) {
     const onWater = landY !== null && gRaw < wet;
     const gy = onWater ? landY : gRaw;
     out.jetty = onWater ? { x: sp.footX, z: zFoot, y: landY } : null;
+    let jetty = out.jetty;
     if (onWater) {
       // the landing itself: deck boards on four piles, and two posts to tie to
       const jw = Math.max(1.6, P.stairW + 0.9), jd = 1.5;
       const jz0 = zFoot - (sp.lands.length ? jd / 2 : 0.25), jz1 = jz0 + jd;
       const jx0 = sp.footX - jw / 2, jx1 = sp.footX + jw / 2;
+      // the pier (G252) starts where the jetty ends, so the jetty says where
+      jetty.z0 = jz0; jetty.z1 = jz1; jetty.w = jw;
       const rimJ = landY - 0.10;
       for (const zz of [jz0 + 0.12, jz1 - 0.12])
         beam(bags.post, [jx0, rimJ, zz], [jx1, rimJ, zz], 0.05, 0.09,
@@ -3472,6 +3513,118 @@ function doorReport(P, V, dk, stoop, front, g, openings) {
   return out;
 }
 
+// ---------------------------------------------------------------------------
+// THE PIER (G252, the user: "build more pier structure in front of the houses
+// ... When they touch water, they get extended pier modules and small boats")
+// ---------------------------------------------------------------------------
+// A house that touches the water already has a JETTY: the stair off the deck
+// lands on a small platform a hand's breadth over the tide (G232.3), because a
+// flight of steps into the sea is the one thing a beach house never has. The
+// pier is what that jetty grows into — a run of the kit's modules laid end to
+// end at the jetty's own deck height, out into deeper water, ending in the
+// kit's head, with boats tied alongside.
+//
+// It is a PLAN, not geometry: the modules and the boats are baked props (the
+// bench and the game instance them through props.js), so what the generator
+// owns is where each one goes — key, position, yaw — and it publishes exactly
+// that. Headless and deterministic, which is what lets GATE HOUSE hold it: every
+// module over water, the run continuous, the head at the end, every boat afloat
+// in enough water and clear of the deck and of each other.
+//
+// Nothing here is a slider on a module: a module is a whole prop, placed by
+// its DECK (PIER_KIT.deckY) so the walking surface lands on the jetty's level
+// and the piles go wherever the seabed is. That is what "modular" bought.
+function pierPlan(P, V, g, jetty) {
+  if (!P.water || !P.pier || !jetty) return null;
+  let st = ((P.pierSeed | 0) || 1) * 2654435761 >>> 0;
+  const rnd = () => (st = (st * 1664525 + 1013904223) >>> 0) / 4294967296;
+  const pick = a => a[Math.min(a.length - 1, Math.floor(rnd() * a.length))];
+  const deck = jetty.y, wet = P.waterY;
+  const x = jetty.x;
+  const mods = [], boats = [];
+  let z = jetty.z1;
+  const n = clamp(Math.round(P.pierLen), 1, 6);
+  // THE GATE stands across the pier where it leaves the jetty: its bar is at
+  // deckY above its own pile bottoms like everything else, and it is placed so
+  // its piles bottom out with the first run's
+  const lay = (key, zc, yy, ry) => {
+    const K = PIER_KIT[key];
+    mods.push({ key: key, x: x, y: yy, z: zc, ry: ry || 0,
+                z0: zc - K.L / 2, z1: zc + K.L / 2, w: K.W });
+  };
+  if (P.pierGate) {
+    const K = PIER_KIT.pier_gate, R0 = PIER_KIT[PIER_RUNS[0]];
+    lay('pier_gate', z + K.L / 2, deck - R0.deckY, 0);
+    z += K.L;
+  }
+  for (let i = 0; i < n; i++) {
+    const key = pick(PIER_RUNS);
+    const K = PIER_KIT[key];
+    lay(key, z + K.L / 2, deck - K.deckY, 0);
+    z += K.L;
+  }
+  {                                    // the head, always, at the end
+    const K = PIER_KIT.pier_head;
+    // the head's lower step faces the water: the module was authored with
+    // its step at -z, so it is turned to point out
+    lay('pier_head', z + K.L / 2, deck - K.deckY, Math.PI);
+    z += K.L;
+  }
+  const z1 = z;
+  // A DOLPHIN off the head: the kit's cluster of bare piles, stood a boat's
+  // width out from the end on the side the big boat is not, to tie up to
+  {
+    const K = PIER_KIT.pier_piles, HK = PIER_KIT.pier_head;
+    const sd = rnd() < 0.5 ? 1 : -1;
+    const dx = x + sd * (HK.W / 2 + K.W / 2 + 1.6), dz = z1 - K.L / 2 + 0.6;
+    if (g(dx, dz) < wet - 0.8)
+      mods.push({ key: 'pier_piles', x: dx, y: deck - HK.deckY, z: dz, ry: 0,
+                  z0: dz - K.L / 2, z1: dz + K.L / 2, w: K.W, aside: true });
+  }
+  // THE BOATS. Alongside, alternating sides, each at the middle of a run and
+  // never two on the same side of the same run; a boat needs water under it
+  // (a third of a metre at the least) or it is beached, and the run it lies
+  // beside must be a run and not the gate. The big boat wants a long pier and
+  // lies at the head.
+  const nb = clamp(Math.round(P.boats), 0, 3);
+  const runs = mods.filter(m => m.key !== 'pier_gate' && !m.aside);
+  const used = new Set();
+  let side = rnd() < 0.5 ? 1 : -1;
+  const moor = (key, m, sd) => {
+    const K = PIER_KIT[key];
+    const bx = x + sd * (m.w / 2 + K.W / 2 + 0.35);
+    const bz = m.z + (rnd() - 0.5) * Math.max(0, m.z1 - m.z0 - K.L) * 0.5;
+    const depth = wet - g(bx, bz);
+    if (depth < 0.35 + K.float * K.H) return false;
+    boats.push({ key: key, x: bx, y: wet - K.float * K.H, z: bz,
+                 ry: (rnd() - 0.5) * 0.16 + (rnd() < 0.5 ? Math.PI : 0),
+                 side: sd, run: m.key, depth: depth });
+    return true;
+  };
+  if (P.bigBoat && n >= 3) {
+    const head = runs[runs.length - 1];
+    if (moor('boat_grady', head, side)) { used.add(head.key + side); side = -side; }
+  }
+  for (let k = 0, tries = 0; k < nb && tries < 12; tries++) {
+    const m = pick(runs);
+    if (used.has(m.key + m.z + side)) { side = -side; continue; }
+    if (moor(pick(SMALL_BOATS), m, side)) {
+      used.add(m.key + m.z + side);
+      k++;
+      side = -side;
+    }
+  }
+  return { x: x, y: deck, z0: jetty.z1, z1: z1, modules: mods, boats: boats,
+           tris: mods.concat(boats).reduce((a, o) => a + (PIER_TRIS[o.key] || 0), 0) };
+}
+// the near-mesh cost of what the plan instances, for the bench's ledger and
+// for the gate's sanity: the sport fisher alone is 370k
+const PIER_TRIS = {
+  pier_run: 11758, pier_ledge: 14162, pier_step: 14598, pier_head: 23280,
+  pier_gate: 13010, pier_piles: 2460, pier_deck: 5512, boat_skiff: 37348,
+  boat_old: 8358, boat_row: 11215, boat_tirola: 18742, boat_grady: 369673,
+};
+
 // A BARREL UNDER THE PIPE. Every roof on this coast drains into something,
 // and a downpipe that ends in a shoe over bare grass is the detail that says
 // nobody lives here. Six staves' worth of cylinder, two hoops and a lid — and
@@ -3688,6 +3841,7 @@ function build(P0, lod) {
   const ch = buildChimney(bags, P, Q, V, R);
   const dr = buildDrainage(bags, P, Q, V, R, g);
   const barrel = buildBarrel(bags, P, Q, dr, g);
+  const pier = pierPlan(P, V, g, dk.jetty);
 
   // ---- and now the light that never gets in --------------------------------
   const aoInfo = K.bakeAO(BAGS.map(k => bags[k]),
@@ -3735,7 +3889,7 @@ function build(P0, lod) {
     chimney: ch, ground: g,
     gutterLen: dr.gutter, downpipe: dr.downpipe,
     jetty: dk.jetty || null, stoop: stoop, front: front, rims: RIM_LOG,
-    bay: bayOut, barrel: barrel,
+    bay: bayOut, barrel: barrel, pier: pier,
     // EVERY DOOR IS ASKED WHAT IT OPENS ONTO (the user: "all houses should
     // have stairs and entrance. The ones who don't have a door hanging several
     // meters high"). A platform is the deck, a stoop, or the ground itself if
@@ -3842,6 +3996,10 @@ function randomHouse(seed) {
   P.porchOff = rr(-0.35, 0.35);
   P.railStyle = pick([1, 1, 2, 3]);
   P.stairs = 1;                       // see build(): a door needs a way down
+  // and off the jetty, a pier: every house on the water gets one, of a length
+  // that fits the site, with a boat or two and the big one only now and then
+  P.pier = 1; P.pierLen = ri(1, 4); P.pierGate = odds(0.4) ? 1 : 0;
+  P.boats = ri(0, 3); P.bigBoat = odds(0.15) ? 1 : 0; P.pierSeed = ri(1, 99);
   P.porchRoof = pick([0, 0, 1, 2]);
   P.lean = odds(0.22) ? 1 : 0; P.leanD = rr(1.6, 3.0);
   P.leanLF = rr(0.4, 0.8); P.leanOff = rr(-0.3, 0.3);
@@ -3930,7 +4088,7 @@ function dressSlot(matKey, role, idx, col, flat) {
 
 window.HOUSE_GEN = {
   DEF, ROWS, PRESETS, MAT, BAGS, FAMS, STANCES, RAILS, SET_TINT, SHADE_U,
-  STAIR_MAX, SET_SEAM, SET_MISS,
+  STAIR_MAX, SET_SEAM, SET_MISS, PIER_KIT, PIER_TRIS,
   COLS, COL_NAMES, ROLE_SETS, SET_IDX, setNames, setFor, setRibbed,
   build, roofModel, wallSplits, groundFn, applyFinish, libSets, randomHouse,
   shadeGround,

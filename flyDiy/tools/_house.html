@@ -94,6 +94,14 @@
 <!-- the bench lives one directory below the page the payload was baked for -->
 <script>window.FLYDIY_ASSET_BASE = '../';</script>
 <script src="../src/viewer/house_tex.js"></script>
+<!-- THE PIER KIT (G252): baked props, the hangar's own codec and factory, and
+     the two packs tools/pier_prep.py writes. The generator publishes WHERE
+     each module and boat goes; these are what stands there. -->
+<script src="../src/core/51_prop_codec.js"></script>
+<script src="../src/viewer/assets.js"></script>
+<script src="../src/viewer/props.js"></script>
+<script src="../src/pier/pier_pier.js"></script>
+<script src="../src/pier/pier_boat.js"></script>
 <!-- the aerodrome's ground sets: the bench stands the house in real grass so
      there is something for the sky to bounce off and the shadows to land on -->
 <script src="../src/viewer/site_tex.js"></script>
@@ -454,6 +462,24 @@ function buildFast() {
   aoTimer = setTimeout(() => { aoFast = false; build(); }, 240);
 }
 
+// the pier kit is a set of baked props (src/pier/*.js): stand each one the
+// plan names, where it names it. Every instance shares one upload per prop.
+function addPier(grp, plan, dx) {
+  const PIER = new THREE.Group();
+  PIER.name = 'pier';
+  for (const m of plan.modules.concat(plan.boats)) {
+    if (!PROP_REG.props[m.key]) {
+      console.warn('pier: no baked prop ' + m.key);
+      continue;
+    }
+    PIER.add(propPlace(THREE, m.key, m.x + dx, m.z, m.ry, m.y));
+  }
+  grp.add(PIER);
+  return PIER;
+}
+if (typeof window !== 'undefined')
+  window.PROP_LANDED = () => { draw(); };
+
 function build() {
   if (root) {
     root.traverse(o => { if (o.geometry) o.geometry.dispose(); });
@@ -478,8 +504,13 @@ function build() {
     addBuild(root, hi, -gap / 2);
     addBuild(root, lo, gap / 2);
   } else addBuild(root, mode === 1 ? lo : hi, 0);
+  // THE PIER AND ITS BOATS: instanced off the plan the generator published,
+  // through the same factory the hangar uses (props.js). A prop whose bytes
+  // are still on the wire arrives as an empty group and fills itself; the
+  // redraw is hooked on PROP_LANDED below.
+  if (hi.stats.pier && mode !== 1) addPier(root, hi.stats.pier, 0);
   if ($('ground').checked) {
-    const R2 = Math.max(18, P.L * 1.6);
+    const R2 = Math.max(18, P.L * 1.6 + (hi.stats.pier ? hi.stats.pier.z1 * 0.6 : 0));
     root.add(siteMesh(hi.stats.ground, R2, hi.stats.aoFoot));
     // the tide, when the building stands in it: one plane, and the piles are
     // already cut to the seabed under them
@@ -594,6 +625,15 @@ function checks(hi, lo) {
     }
   }
 
+  if (S.pier) {
+    const pr = S.pier;
+    row('pier', pr.modules.length + ' modules, ' + (pr.z1 - pr.z0).toFixed(1) +
+        ' m', 'ok', 'deck at ' + pr.y.toFixed(2) + ', ' + pr.tris + ' tris');
+    row('boats', pr.boats.length ? pr.boats.map(b => b.key.slice(5)).join(', ')
+        : 'none', pr.boats.length ? 'ok' : 'warn',
+        pr.boats.length ? pr.boats.map(b => b.depth.toFixed(1) + ' m').join(', ')
+                        + ' of water' : (P.boats ? 'none afloat here' : ''));
+  }
   if (P.dormers || P.cupola || P.water || P.firewood || P.openFront) {
     head('THE EXTRAS');
     if (P.dormers)

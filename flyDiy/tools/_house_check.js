@@ -113,6 +113,27 @@ function readLibrary() {
 }
 const LIB = readLibrary();
 
+// THE PIER KIT (G252): the generator carries PIER_KIT — a mirror of the four
+// numbers a placer needs per baked prop — and this reads the packs the way the
+// bench does (through the hangar's own codec) and the table the baker read,
+// so the three cannot drift: table = packs = mirror, in keys and in metres.
+function readPierKit() {
+  const dir = path.join(TOOLS, '..', 'src', 'pier');
+  const mf = path.join(dir, 'pier_packs.json');
+  if (!fs.existsSync(mf)) return null;
+  const CORE = require('./flight_core.js');
+  const sb = { registerPropPack: CORE.registerPropPack, console };
+  vm.createContext(sb);
+  for (const f of JSON.parse(fs.readFileSync(mf, 'utf8')))
+    vm.runInContext(fs.readFileSync(path.join(dir, f), 'utf8'), sb, { filename: f });
+  const tab = fs.readFileSync(path.join(TOOLS, 'pier_table.py'), 'utf8');
+  const declared = [];
+  for (const m of tab.matchAll(/^\s{4}P\('([a-z0-9_]+)',\s*'([a-z]+)'/gm))
+    declared.push(m[1]);
+  return { reg: CORE.PROP_REG, declared };
+}
+const PIERK = readPierKit();
+
 const fail = [];
 const check = (ok, label, extra) => {
   if (!ok) fail.push(label + (extra ? ' — ' + extra : ''));
@@ -368,6 +389,55 @@ if (!check(!!LIB, 'the baked material library is missing — ' +
   check((HG.SET_MISS || []).length === 0,
         'a preset asks for a set its role does not offer',
         (HG.SET_MISS || []).join(', '));
+
+  // 27 — THE PIER KIT IS ONE THING SAID THREE TIMES (G252): the declared
+  //   table (tools/pier_table.py), the baked packs (src/pier/), and the
+  //   generator's headless mirror (PIER_KIT) must agree on every key, and the
+  //   mirror's metres must be the packs' metres — a module placed by a deckY
+  //   the baker did not measure is a module floating or drowned.
+  if (!PIERK) check(false, 'pier: no baked packs under src/pier/ (run tools/pier_prep.py)');
+  else {
+    const baked = PIERK.reg.order;
+    check(JSON.stringify(baked) === JSON.stringify(PIERK.declared),
+          'pier: the baked packs are not the declared table',
+          'baked ' + baked.join(',') + ' / declared ' + PIERK.declared.join(','));
+    const mirror = Object.keys(HG.PIER_KIT);
+    check(mirror.length === baked.length && mirror.every(k => baked.includes(k)),
+          'pier: PIER_KIT does not mirror the packs',
+          mirror.filter(k => !baked.includes(k)).concat(
+            baked.filter(k => !mirror.includes(k))).join(','));
+    for (const k of baked) {
+      const p = PIERK.reg.props[k], K = HG.PIER_KIT[k];
+      if (!K) continue;
+      const near = (a, b, t) => Math.abs(a - b) <= t;
+      check(near(K.L, p.dim[2], 0.02) && near(K.W, p.dim[0], 0.02) &&
+            near(K.H, p.dim[1], 0.02),
+            'pier: PIER_KIT.' + k + ' is not the baked size',
+            K.L + 'x' + K.W + 'x' + K.H + ' vs ' + p.dim[2] + 'x' + p.dim[0] +
+            'x' + p.dim[1]);
+      if (p.deckY !== undefined)
+        check(near(K.deckY, p.deckY, 0.005), 'pier: PIER_KIT.' + k +
+              ' has a deckY the baker did not measure', K.deckY + ' vs ' + p.deckY);
+      if (p.float !== undefined)
+        check(near(K.float, p.float, 1e-6), 'pier: PIER_KIT.' + k +
+              ' floats differently from its table row');
+      check(HG.PIER_TRIS[k] === p.nt, 'pier: PIER_TRIS.' + k + ' is stale',
+            HG.PIER_TRIS[k] + ' vs ' + p.nt);
+      // and the bytes are there and decode: the bench will fetch exactly this
+      const bin = path.join(TOOLS, '..', p.bin);
+      check(fs.existsSync(bin), 'pier: ' + k + ' names a bin that is not on disk', p.bin);
+      if (fs.existsSync(bin)) {
+        let thr = null;
+        try {
+          const CORE = require('./flight_core.js');
+          const d = CORE.decodeProp(p, new Uint8Array(fs.readFileSync(bin)));
+          const nt = d.parts.reduce((a, q) => a + q.idx.length / 3, 0);
+          check(nt === p.nt, 'pier: ' + k + ' decodes to a different triangle count');
+        } catch (e) { thr = e; }
+        check(!thr, 'pier: ' + k + ' does not decode', thr && thr.message);
+      }
+    }
+  }
 
   // 25 — DRAWN STANDING SEAMS BELONG ON SHEET METAL, AND ON NOTHING ELSE (the
   //   user, of a shake roof carrying a full set of them: "the attached house
@@ -656,6 +726,54 @@ for (const name of Object.keys(HG.PRESETS)) {
             'out by ' + ((st.y1 - n2 * st.rise) - st.y0).toFixed(3) + ' m');
     check(n2 <= HG.STAIR_MAX || st.turns > 0,
           name + ': a ' + n2 + '-tread flight with no landing in it');
+  }
+
+  // 28 — THE PIER IS A PIER (G252, the user: "When they touch water, they get
+  //   extended pier modules and small boats"). Off the jetty and out: every
+  //   module over water, the run CONTINUOUS (each module starts where the one
+  //   before ended), the head at the end, and every boat afloat in enough
+  //   water for its own draft, clear of the deck and of each other.
+  {
+    const pr = hi.stats.pier;
+    if (P.water && P.pier && hi.stats.jetty)
+      check(!!pr, name + ': a house on the water with a jetty grew no pier');
+    if (pr) {
+      const g2 = hi.stats.ground, wet = P.waterY;
+      const M = pr.modules.filter(m => !m.aside);   // the dolphin stands off
+      check(M.length >= 2 && M[M.length - 1].key === 'pier_head',
+            name + ': the pier does not end in its head',
+            M.map(m => m.key).join(','));
+      let gap = 0;
+      for (let i = 1; i < M.length; i++)
+        gap = Math.max(gap, Math.abs(M[i].z0 - M[i - 1].z1));
+      check(gap < 0.011, name + ': the pier has a gap in it', gap.toFixed(3) + ' m');
+      check(M[0].z0 >= hi.stats.jetty.z1 - 0.011,
+            name + ': the pier starts inside the jetty');
+      for (const m of pr.modules) {
+        check(g2(m.x, m.z) < wet, name + ': a pier module stands on dry ground',
+              m.key + ' at z ' + m.z.toFixed(1));
+        check(Math.abs(m.y + (HG.PIER_KIT[m.key].deckY || 0) - pr.y) < 0.011 ||
+              m.key === 'pier_gate' || m.aside,
+              name + ': a module\'s deck is not at the pier\'s level', m.key);
+      }
+      for (let i = 0; i < pr.boats.length; i++) {
+        const b = pr.boats[i], K = HG.PIER_KIT[b.key];
+        check(b.depth >= 0.35 + K.float * K.H, name + ': a boat is beached',
+              b.key + ' in ' + b.depth.toFixed(2) + ' m');
+        check(Math.abs(b.y - (wet - K.float * K.H)) < 1e-6,
+              name + ': a boat is not at its waterline', b.key);
+        for (const m of M)
+          check(Math.abs(b.x - m.x) >= m.w / 2 + K.W / 2 - 0.01 ||
+                b.z + K.L / 2 < m.z0 || b.z - K.L / 2 > m.z1,
+                name + ': a boat is inside the pier', b.key + ' / ' + m.key);
+        for (let j2 = 0; j2 < i; j2++) {
+          const c = pr.boats[j2], KC = HG.PIER_KIT[c.key];
+          const apart = Math.abs(b.x - c.x) >= (K.W + KC.W) / 2 + 0.05 ||
+                        Math.abs(b.z - c.z) >= (K.L + KC.L) / 2 + 0.05;
+          check(apart, name + ': two boats overlap', b.key + ' / ' + c.key);
+        }
+      }
+    }
   }
 
   // 17 — a back door that opens onto nothing is not a garden door
@@ -978,6 +1096,28 @@ if (SELFTEST) {
   else if (dr0.platform === null)
     neg.push('a door with no porch got no stoop');
   if (!noPorch.stats.front) neg.push('the front stoop was not built');
+
+  // THE PIER (G252): a house on the water whose stair lands on a jetty grows
+  // a pier; the same house with the pier switched off grows none; and the
+  // plan is the same plan twice, because the bench and the game will both
+  // build from it.
+  const wetH = HG.build(Object.assign({}, HG.DEF, {
+    stance: 3, floorY: 2.2, water: 1, waterY: -0.6, slopeZ: 12, porch: 1,
+    stairs: 1, pier: 1, pierLen: 3, boats: 2 }), 0);
+  if (!wetH.stats.jetty) neg.push('the pier selftest house has no jetty');
+  else if (!wetH.stats.pier) neg.push('a jettied house grew no pier');
+  else {
+    if (!(wetH.stats.pier.modules.length >= 4))
+      neg.push('a three-run pier came out with ' + wetH.stats.pier.modules.length + ' modules');
+    const again = HG.build(Object.assign({}, HG.DEF, {
+      stance: 3, floorY: 2.2, water: 1, waterY: -0.6, slopeZ: 12, porch: 1,
+      stairs: 1, pier: 1, pierLen: 3, boats: 2 }), 0);
+    if (JSON.stringify(again.stats.pier) !== JSON.stringify(wetH.stats.pier))
+      neg.push('the pier plan is not deterministic');
+  }
+  const dryH = HG.build(Object.assign({}, HG.DEF, {
+    stance: 3, floorY: 2.2, water: 1, waterY: -0.6, slopeZ: 12, pier: 0 }), 0);
+  if (dryH.stats.pier) neg.push('a pier grew with the pier switched off');
 
   // A STAIR THAT HAS TO TURN (G234). The rule is only worth having if some
   // build actually reaches it, so this is the build that does: three metres of

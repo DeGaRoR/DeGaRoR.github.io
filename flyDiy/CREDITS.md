@@ -480,6 +480,37 @@ assets identically):
   `assets/props/`, so the quality comes back by re-running the baker with a
   larger budget.
 
+## Pier kit and boats (`assets/woodenPierBoats/`, baked and served from media/)
+
+The modular pier the houses on the water grow off their jetties, and the boats
+that tie up to it (G252). Declared in `tools/pier_table.py`, baked by
+`tools/pier_prep.py` (the hangar prop baker's own runner pointed at this
+table) into `src/pier/` + `media/geo/pier/` + `media/tex/pier/`. Geometry is
+imported AS-IS — every triangle the author shipped, the author's normals and
+uvs; the only transforms are the rigid ones the table declares (a scale for an
+export in centimetres, a quarter turn to lie along z) and two conversions the
+baker already knew (spec-gloss to metal-rough; a skinned mesh baked at its bind
+pose). Textures are re-encoded to the table's budget.
+
+**Poly Haven, CC0** (https://polyhaven.com) — `modular_wooden_pier`, seven
+modules in one file (`pier_run`, `pier_ledge`, `pier_step`, `pier_head`,
+`pier_gate`, `pier_piles`, `pier_deck`).
+
+**Sketchfab, CC-BY-4.0** (https://creativecommons.org/licenses/by/4.0/) — the
+boats. Attribution is a condition of the licence and must stay visible
+wherever these are shown:
+
+- `boat_skiff` — **"boat"** by rohithbunty
+  (https://sketchfab.com/3d-models/boat-4af3074fb1224751b0758be164a66f9b)
+- `boat_old` — **"Old Boat"** by donnichols
+  (https://sketchfab.com/3d-models/old-boat-a9ce4ca0cac14f448c72bb94ad193437)
+- `boat_row` — **"Wooden Boat"** by usedm
+  (https://sketchfab.com/3d-models/wooden-boat-e5ee1cfb648549b78b374ae706bfc121)
+- `boat_tirola` — **"Docked venetian boat - low poly from scan - free"** by boat_dfk
+  (https://sketchfab.com/3d-models/docked-venetian-boat-low-poly-from-scan-free-53af885edaf044ac8d375b29305fe9ac)
+- `boat_grady` — **"Freedom 325 Grady White"** by BoatUS Foundation
+  (https://sketchfab.com/3d-models/freedom-325-grady-white-71ca8a73f97d44a98f92dd785e151b93)
+
 ## Design-tile silhouettes (the birth flow)
 
 - **What**: the inline SVG silhouettes and glyphs on the macro-row tiles
