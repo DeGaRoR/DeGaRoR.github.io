@@ -36365,6 +36365,22 @@ is this commit's.
   from the built skin by `innerOf` on both paths — so it left the table. The
   first commit passed COWL and PARTS in the working copy and was still wrong;
   the worktree is the verdict, exactly as SHARED-TREE-PRACTICES §2.4 says.
+- **G243.3 — THE TWIN MOVES INSIDE THE SKIN; THE NOSE FLEW BLACK** (the user:
+  "the nose of the plane shows black in game. It's fine in the editor").
+  G243.1's twin shared the skin's geometry and asked the skin to be FrontSide
+  — which it never was: `aeroMaterial` builds `o.side || DoubleSide` and
+  THREE.FrontSide is ZERO, so the request was silently DoubleSide, the twin
+  fought a painted back face at the same depth (the bench happened to draw
+  the twin last), and the GAME, which rebuilds every payload material
+  DoubleSide, drew the twin over the nose. The twin has its own position
+  buffer now, offset `INNER_OFF` 1.5 mm inward along the skin's normals:
+  behind the skin from outside, in front of it from inside, whatever side
+  anything is built with. Verified head-on in flight mode. Deliberately NOT
+  fixed: the `||` in aeroMaterial — every hardware material has always been
+  DoubleSide through it, the crew's explicit FrontSide requests would flip
+  with it, and that is the live-crew session's call; and the join does not
+  carry `side` (unnecessary with the offset, and it would flip the panes'
+  and vessels' flown sidedness unverified).
 
 ## G242 — THE PROJECTOR FOLLOWS WHAT YOU ARE LOOKING AT, THE PAINT REACHES THE
 ## LEGS, A LEAF SPRING IS A STACK, THE NOSE LEG'S FAIRING FINDS ITS WHEEL, A

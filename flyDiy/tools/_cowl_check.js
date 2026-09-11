@@ -527,7 +527,7 @@ ok('  ...and reports that it already fits', big.fits);
     Object.assign(C.P, { fastOn: 1, partOn: 1, oilOn: 1 });
 
     // -----------------------------------------------------------------------
-    // THE SKIN IS ONE-SIDED, SO ITS WINDING IS LOAD-BEARING (G243.1)
+    // THE INTERIOR TWIN IS BackSide, SO THE WINDING IS LOAD-BEARING (G243.1/.3)
     // -----------------------------------------------------------------------
     // The inside of the shell is drawn by a BackSide twin in the interior's
     // material and the skin went FrontSide — which is only safe because every
@@ -583,8 +583,8 @@ ok('  ...and reports that it already fits', big.fits);
         });
         presets++;
       }
-      ok('every skin mesh of every preset is wound outward — the one-sided ' +
-         'skin has no holes', !worst,
+      ok('every skin mesh of every preset is wound outward — the BackSide ' +
+         'interior twin has no holes', !worst,
          worst ? worst.name + ' mesh ' + worst.mi + ': flux ' + worst.flux.toExponential(2) +
                  ', ' + worst.pos + '/' + worst.nT + ' outward, ' + worst.disagree +
                  ' against their normals'

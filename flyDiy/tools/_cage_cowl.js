@@ -207,10 +207,15 @@ function cowlMats(cA) {
     // the cowl SKIN is the builder's to paint (phase C): its own livery
     // section, alclad by default, borrowing the fuselage's colour; the
     // faster ageing rides along. host/dark/steel stay hardware.
-    // THE SKIN IS ONE-SIDED NOW (G243.1): its back face is drawn by the
-    // interior twin below, in the interior's material. DoubleSide here would
-    // put the painted back face and the dark one at the same depth.
-    const side = nm === 'skin' ? THREE.FrontSide : THREE.DoubleSide;
+    // THE SKIN STAYS TWO-SIDED (G243.3). G243.1 asked for FrontSide so the
+    // interior twin could own the back face — but aeroMaterial builds
+    // `o.side || DoubleSide`, and THREE.FrontSide is ZERO, so the request
+    // was silently DoubleSide all along, the twin was fighting a painted back
+    // face on the same depth, and in the GAME (which rebuilds every payload
+    // material DoubleSide) the twin covered the nose: black from outside.
+    // The twin now sits a millimetre and a half INSIDE the skin instead
+    // (see the twins below), which needs nothing from any material's side.
+    const side = THREE.DoubleSide;
     if (nm === 'skin' && typeof window !== 'undefined' && window.CAGE_SECMAT) {
       const ms = window.CAGE_SECMAT('cowlSkin',
         { surf: 0, fieldM: 1, side, opacity: cA,
@@ -253,6 +258,7 @@ function cowlMats(cA) {
 // geometries only.
 const INNER_POOL = new Map();
 const INNER_K = 0.06;              // of the skin's own albedo — see GATE COWL
+const INNER_OFF = 0.0015;          // m, the twin's stand-in inside the skin (G243.3)
 function innerOf(skin, cA, back) {
   const c = (skin && skin.color) ? skin.color.clone().multiplyScalar(INNER_K)
                                  : new THREE.Color(0x0d0b09);
@@ -275,7 +281,7 @@ function mats() {
   if (MATS) return MATS;
   const D = THREE.DoubleSide;
   MATS = {
-    skin:  new THREE.MeshStandardMaterial({ color: 0xdfe3e7, metalness: 0.55, roughness: 0.36, side: THREE.FrontSide }),
+    skin:  new THREE.MeshStandardMaterial({ color: 0xdfe3e7, metalness: 0.55, roughness: 0.36, side: D }),
     host:  new THREE.MeshStandardMaterial({ color: 0x99a3ad, metalness: 0.40, roughness: 0.55, side: D }),
     dark:  new THREE.MeshStandardMaterial({ color: 0x15181b, metalness: 0.10, roughness: 0.92, side: D }),
     // (no `inner` here: the interior is DERIVED from the built skin by
@@ -915,23 +921,40 @@ PAGE.post = ctx => {
   if (CW.buildDetail) CW.buildDetail(cowl, M);
   // THE INSIDE OF THE SHELL (G243.1, the user, with the back faces of the
   // barrel ringed on a screenshot: "I meant the inside faces of the cowl").
-  // Every skin mesh gets a TWIN on the same geometry in the interior's
-  // material, BackSide — so through any gap, aperture or stand-off the inside
-  // of the shell is the same near-black the fold's return and the throats
-  // are, instead of the livery lit from the wrong side. Same geometry object,
-  // one extra draw call per skin mesh, no extra memory; the skin itself went
-  // FrontSide in cowlMats so the two never share a depth.
+  // Every skin mesh gets a TWIN in the interior's material, BackSide, so
+  // through any gap, aperture or stand-off the inside of the shell is the
+  // same near-black the fold's return and the throats are, instead of the
+  // livery lit from the wrong side.
   //
-  // WHY THIS AND NOT A FLAG IN THE SHADER: three.js's back-face test is the
-  // WINDING, so it is only as good as the winding is consistent — and it was
-  // measured, on every preset: the barrel agrees with its outward normals on
-  // every triangle, the lips face forward, the lofts face out. That is what
-  // makes a one-sided skin safe here and would make it a hole anywhere else.
+  // A MILLIMETRE AND A HALF INSIDE THE SKIN, NOT ON IT (G243.3, the user:
+  // "the nose of the plane shows black in game. It's fine in the editor").
+  // The first cut shared the skin's geometry and relied on the skin being
+  // FrontSide; it never was (see cowlMats), and the game rebuilds every
+  // payload material DoubleSide anyway, so the twin's outward face sat at
+  // the skin's depth and won the nose. Offset inward along the skin's own
+  // normals the twin is BEHIND the skin from outside and IN FRONT of it from
+  // inside, whatever side either material is built with, in the editor and
+  // in flight alike. Its own position buffer; everything else shared.
+  //
+  // WHY BackSide AND NOT A FLAG IN THE SHADER: three.js's back-face test is
+  // the WINDING, so it is only as good as the winding is consistent — and it
+  // was measured, on every preset: the barrel agrees with its outward normals
+  // on every triangle, the lips face forward, the lofts face out (GATE COWL
+  // holds it). An inward-wound loft would not be dark, it would be missing.
   {
     const twins = [];
     cowl.traverse(o => { if (o.isMesh && o.material === M.skin) twins.push(o); });
     for (const o of twins) {
-      const t = new THREE.Mesh(o.geometry, M.innerBack);
+      const g = o.geometry.clone();
+      const pa = g.attributes.position, na = o.geometry.attributes.normal;
+      if (na && pa.count === na.count) {
+        for (let i = 0; i < pa.count; i++)
+          pa.setXYZ(i, pa.getX(i) - na.getX(i) * INNER_OFF,
+                       pa.getY(i) - na.getY(i) * INNER_OFF,
+                       pa.getZ(i) - na.getZ(i) * INNER_OFF);
+        pa.needsUpdate = true;
+      }
+      const t = new THREE.Mesh(g, M.innerBack);
       t.name = o.name; t.userData.innerTwin = 1;
       o.parent.add(t);
     }
