@@ -565,7 +565,9 @@ trigger is you asking for it.*
    sessions: sources (LANDED 2026-09-11 G248: shaft speed, burn, nz, the key),
    catalogue + spec + ledger (LANDED 2026-09-11 G251: GEN_INSTR / GEN_ELEC /
    GEN_AVIONICS with list prices, the tiers as presets, genSystemsResolve,
-   the Instruments part), the bench + the panel layer, live in flight
+   the Instruments part), the bench + the panel layer (LANDED 2026-09-11
+   G256: painted faces on one atlas, hands on one law, the standard T, the
+   switch row, tools/_panel.html), live in flight
    (join, readings, lamps, the electrical bus), exterior diagnostics + the
    radio, then the GPS / glass design.
 2. **Fleet and discovery** [L, old P6]. The rack (forty aeroplanes — the one

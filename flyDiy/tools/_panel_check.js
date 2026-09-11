@@ -181,6 +181,104 @@ function run() {
       fs.readFileSync(path.join(__dirname, f), 'utf8').includes('_cage_panel.js'));
     check(lists.every(Boolean), 'the layer is in the three lists', lists.join());
   }
+
+  // ---- 7. SESSION 3: THE FACES, THE LAWS, THE LAYOUT, THE MIRROR RULE -----
+  // _panel_gen.js is pure and loads here; what it says a needle does and
+  // where a dial sits is what the layer draws and what session 4 turns.
+  {
+    const G = require(path.join(__dirname, '_panel_gen.js'));
+    const facts = { Vs0: 15, Vs1: 17.5, Vh: 45, Vfe: 27, Vne: 56, rpm: 2300 };
+    for (const units of ['aviation', 'metric']) {
+      for (const [k, F] of Object.entries(G.FACES)) {
+        const S = G.scaleOf(k, units, facts);
+        check(S.max > S.min && S.sweep > 0 && S.sweep <= 360, 'face ' + k + ' has a scale', units);
+        for (const H of F.hands) {
+          if (H.law === 'lin') {
+            const lo = S.dead != null ? S.dead : S.min;
+            const aLo = G.angleOf(k, H, lo / S.k, units, facts), aHi = G.angleOf(k, H, S.max / S.k, units, facts);
+            check(Math.abs(aHi - (S.a0 + S.sweep)) < 1e-6, 'law ' + k + '.' + H.name + ': the max sits at the end of the sweep', units + ' ' + aHi);
+            check(aHi > aLo, 'law ' + k + '.' + H.name + ': clockwise with the reading', units);
+            let prev = -1e9, mono = true;
+            for (let i = 0; i <= 20; i++) { const a = G.angleOf(k, H, (S.min + (S.max - S.min) * i / 20) / S.k, units, facts); if (a < prev - 1e-9) mono = false; prev = a; }
+            check(mono, 'law ' + k + '.' + H.name + ': monotone', units);
+            check(G.angleOf(k, H, (S.max / S.k) * 1.5, units, facts) <= S.a0 + S.sweep * 1.02 + 1e-9, 'law ' + k + '.' + H.name + ': a reading past the scale stops at the peg', units);
+          }
+          if (H.law === 'turn') {
+            check(Math.abs(G.angleOf(k, H, 0, units, facts)) < 1e-9, 'law ' + k + '.' + H.name + ': zero at 12 o\'clock', units);
+            check(Math.abs(G.angleOf(k, H, (H.per / S.k) * 0.25, units, facts) - 90) < 1e-6, 'law ' + k + '.' + H.name + ': a quarter period is 3 o\'clock', units);
+            check(Math.abs(G.angleOf(k, H, (H.per / S.k) * 1.25, units, facts) - 90) < 1e-6, 'law ' + k + '.' + H.name + ': and wraps', units);
+          }
+          check(!H.drive || typeof H.drive === 'string', 'hand ' + k + '.' + H.name + ' names its drive');
+        }
+      }
+    }
+    // the ASI: the arcs sit where the aeroplane's numbers are, in order
+    const Sa = G.scaleOf('asi', 'aviation', facts);
+    check(Sa.arcs.length === 4, 'asi: white, green, yellow arcs and the red line', Sa.arcs.length);
+    check(Math.abs(Sa.arcs[1].from - facts.Vs1 * Sa.k) < 1e-9 && Math.abs(Sa.arcs[1].to - facts.Vh * Sa.k) < 1e-9, 'asi: the green arc is Vs1..Vh');
+    check(Sa.max >= facts.Vne * Sa.k * 1.05, 'asi: the scale runs past Vne', Sa.max);
+    // the tacho's red line is the rated speed
+    const St = G.scaleOf('tacho', 'aviation', facts);
+    check(St.arcs.some(a => a.col === '#e8332a' && a.from < 2300 && a.to > 2300), 'tacho: the red line straddles the rated rpm');
+    // the mirror rule: the pilot's LEFT (cage +x) is the LEFT of the picture
+    // (small u); up is up (large v)
+    const uL = G.faceUV(0, 0.02, 0, 0, 0, 0.08)[0], uR = G.faceUV(0, -0.02, 0, 0, 0, 0.08)[0];
+    check(uL < uR, 'mirror rule: cage +x (port, the pilot\'s left) reads at small u', uL + ' vs ' + uR);
+    const vUp = G.faceUV(0, 0, 0.02, 0, 0, 0.08)[1], vDn = G.faceUV(0, 0, -0.02, 0, 0, 0.08)[1];
+    check(vUp > vDn, 'mirror rule: up is up');
+    // the layout: the standard T on three cabins, nothing overlapping, all
+    // inside, the compass on the coaming, the switches along the bottom
+    const A = (halfW, top, lip) => ({ dashTop: top, dashLip: lip, dashAftZ: 2.0, zDash: 2.0, halfW, floorAt: () => 0 });
+    const full = ['asi', 'alt', 'vsi', 'aiE', 'turn', 'dg', 'compass', 'clock', 'tacho', 'oilP', 'oilT', 'fuel', 'volts', 'hobbs'];
+    for (const [nm, a, px] of [['cub', A(0.55, 0.86, 0.52), 0], ['wide', A(0.75, 0.90, 0.50), 0.30], ['narrow', A(0.40, 0.80, 0.60), 0]]) {
+      const L = G.layout(a, { items: full, side: 'pilot', pilotX: px, radios: ['com', 'xpdr'],
+        elec: { hasBus: true, altA: 20 }, extLights: ['taxi', 'beacon', 'land', 'nav'], intLights: ['flood', 'instr', 'panel', 'pedal', 'pax'] });
+      const D = L.dials, by = {}; for (const d of D) by[d.k] = d;
+      let overlap = null;
+      for (let i = 0; i < D.length; i++) for (let j = i + 1; j < D.length; j++) {
+        const p = D[i], q = D[j];
+        if (Math.hypot(p.cx - q.cx, p.cy - q.cy) < p.r + q.r - 1e-6) overlap = p.k + '/' + q.k;
+      }
+      check(!overlap, 'layout ' + nm + ': no two dials overlap', overlap);
+      check(D.every(d => Math.abs(d.cx) + d.r <= L.xLim + 1e-6), 'layout ' + nm + ': every dial inside the panel');
+      check(D.filter(d => !d.coaming).every(d => d.cy + d.r <= a.dashTop + 1e-6 && d.cy - d.r >= a.dashLip - 1e-6), 'layout ' + nm + ': every dial inside the band');
+      if (by.asi && by.aiE && by.alt) check(by.asi.cx > by.aiE.cx && by.aiE.cx > by.alt.cx && Math.abs(by.asi.cy - by.alt.cy) < 1e-9,
+        'layout ' + nm + ': the T — ASI at the pilot\'s left of the AI, the altimeter at its right, one row');
+      if (by.dg && by.aiE) check(Math.abs(by.dg.cx - by.aiE.cx) < 1e-9 && by.dg.cy < by.aiE.cy, 'layout ' + nm + ': the DG under the AI');
+      if (by.vsi && by.alt) check(Math.abs(by.vsi.cx - by.alt.cx) < 1e-9 && by.vsi.cy < by.alt.cy, 'layout ' + nm + ': the VSI under the altimeter');
+      if (by.compass) check(by.compass.coaming && by.compass.cy > a.dashTop, 'layout ' + nm + ': the compass on the coaming');
+      check(L.switches.length === 12 && L.switches[0].k === 'key' && L.switches.every(s => Math.abs(s.x) <= L.xLim), 'layout ' + nm + ': the switch row, key first, inside', L.switches.length);
+      check(L.switches.every(s => s.y < Math.min(...D.filter(d => !d.coaming).map(d => d.cy - d.r)) + 1e-9), 'layout ' + nm + ': the switches under the dials');
+      check(D.length + L.overflow.length >= full.length - 1, 'layout ' + nm + ': every dial placed or reported (' + L.overflow.join(',') + ')');
+    }
+    // the painters write only: a no-op context (UISMOKE's) must not throw
+    const noop = new Proxy({}, { get: () => () => noop, set: () => true });
+    let threw = null;
+    try {
+      G.paintAtlas(noop, Object.keys(G.PAINT).map((p, i) => ({ key: p, slot: i, painter: p, wide: p === 'compassStrip' ? 4 : 1 })), 'aviation', facts);
+    } catch (e) { threw = e; }
+    check(!threw, 'painters run against a no-op context (the UISMOKE contract)', threw && threw.message);
+    // the layer's material table matches aeroskin's hardware row both ways
+    const fs = require('fs');
+    const layer = fs.readFileSync(path.join(__dirname, '_cage_panel.js'), 'utf8');
+    const skin = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'aeroskin.js'), 'utf8');
+    const mat = (layer.match(/const MAT = \{([\s\S]*?)\n\};/) || [])[1] || '';
+    const names = [...mat.matchAll(/^\s{2}([a-z]+):/gm)].map(m => m[1]);
+    const hard = (skin.match(/\n  panel: \{([\s\S]*?)\},/) || [])[1] || '';
+    check(names.length >= 10 && names.every(n => new RegExp('\\b' + n + ':').test(hard)), 'every panel material has an AERO_HARD.panel row', names.filter(n => !new RegExp('\\b' + n + ':').test(hard)).join(','));
+    check(/face: null/.test(hard), 'the atlas face takes no finish');
+    // the crew delegates, the light layer leaves the switches, the editor
+    // maps the names, the instrument light is real
+    const crew = fs.readFileSync(path.join(__dirname, '_cage_crew.js'), 'utf8');
+    check(/window\.CAGE_PANEL\.build\(group, A, P, pilot\.x\)/.test(crew), 'the crew layer delegates the panel to CAGE_PANEL.build');
+    const light = fs.readFileSync(path.join(__dirname, '_cage_light.js'), 'utf8');
+    check(/CAGE_PANEL\.switches\)\) buildSwitches/.test(light), 'the light layer leaves the switch row to the panel');
+    check(/instr: \{[^}]*byPanel: true/.test(light) && !/instr: \{[^}]*later: true/.test(light), 'the instrument light is real (byPanel), not deferred');
+    const ed = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'editor.js'), 'utf8');
+    check(/\^edGauge\|\^edPanel\/, 'instruments'/.test(ed), 'the editor maps edGauge_* to the Instruments part');
+    check(/edGauge_' \+ d\.k \+ '_' \+ H\.name/.test(layer) && /'edGauge_sw_' \+ key/.test(layer) && /'edGauge_key'/.test(layer),
+      'every hand, switch and the key is a named edGauge_* group');
+  }
   return fail.length === 0;
 }
 

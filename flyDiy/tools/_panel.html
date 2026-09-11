@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<!--
+  THE INSTRUMENT BENCH — the panel arc, session 3 (2026-09-11).
+
+  The panel _cage_panel.js draws on the dash, drawn here on a flat slab with
+  the crew's anchor record faked, so a face can be judged at 1:1 and a hand
+  swept through its scale without rolling an aeroplane out. What to judge:
+    - each face: numerals upright and readable, the arcs where the aeroplane's
+      own numbers put them, nothing mirrored (the mirror rule: cage +x is the
+      pilot's LEFT — the ASI sits to the left of the AI when you look at it)
+    - a hand at the sweep slider's value points at the printed number: the
+      painter's ticks and the needle's law are one function (angleOf)
+    - the backlight dimmer lights the printing and nothing else
+    - the switch row: key, master, alt, four throws, five knobs
+  Rows: the fit (a tier), the units, which gauge to sweep and the value, the
+  dimmer, the light. "atlas" shows the painted sheet itself.
+
+  Serve from the repo root (launch: flydiy-panel) and open /flyDiy/tools/_panel.html.
+-->
+<meta charset="utf-8">
+<title>flyDiy — instrument panel</title>
+<style>
+  :root{--bg:#12151a;--fg:#dfe6ee;--dim:#7d8996;--acc:#5db3ff;--grid:#242a33}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--fg);
+    font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;overflow:hidden}
+  header{padding:8px 12px;border-bottom:1px solid var(--grid);display:flex;
+    gap:14px;align-items:center;flex-wrap:wrap}
+  h1{font-size:13px;margin:0}
+  label{color:var(--dim);display:inline-flex;gap:5px;align-items:center}
+  select,button{background:#1a1f27;color:var(--fg);border:1px solid var(--grid);
+    padding:3px 8px;border-radius:4px;font:inherit}
+  main{display:flex;height:calc(100vh - 40px)}
+  #view{position:relative;flex:1;min-width:0}
+  canvas{display:block;width:100%;height:100%}
+  #atlasImg{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:contain;
+    background:#000;display:none}
+  aside{border-left:1px solid var(--grid);overflow-y:auto;overflow-x:hidden;
+    padding:10px;width:330px;flex:none}
+  .r{display:flex;gap:6px;align-items:center;margin:5px 0;min-width:0}
+  .r span.k{color:var(--dim);width:96px;flex:none;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
+  .r select{min-width:60px;flex:1}
+  input[type=range]{flex:1;min-width:30px;accent-color:var(--acc)}
+  .v{width:64px;flex:none;text-align:right;color:var(--acc)}
+  #stat{position:absolute;left:10px;top:8px;color:var(--dim);z-index:2;
+    white-space:pre;line-height:1.5}
+  h2{font-size:11px;color:var(--dim);margin:14px 0 4px;text-transform:uppercase}
+</style>
+
+<header>
+  <h1>instrument panel</h1>
+  <label>fit <select id="fit">
+    <option>minimal</option><option selected>basic</option><option>ifr</option>
+  </select></label>
+  <label>units <select id="units">
+    <option selected>aviation</option><option>metric</option>
+  </select></label>
+  <label>side <select id="side"><option selected>pilot</option><option>centre</option></select></label>
+  <label><input type="checkbox" id="atlasOn"> atlas</label>
+  <button id="faceBtn">face on</button>
+  <button id="wholeBtn">whole panel</button>
+</header>
+
+<main>
+  <div id="view"><span id="stat"></span><canvas id="c"></canvas><img id="atlasImg"></div>
+  <aside id="ui"></aside>
+</main>
+
+<script>
+window.FLYDIY_ASSET_BASE = '../';
+</script>
+<script src="../vendor/three.min.js"></script>
+<script src="../src/core/00_registry.js"></script>
+<script src="../src/core/60_gen_spec.js"></script>
+<script src="../src/core/60b_gen_loft.js"></script>
+<script src="../src/core/60c_gen_energy.js"></script>
+<script src="../src/viewer/vessel_tex.js"></script>
+<script src="../src/viewer/aeroskin.js"></script>
+<script src="_gear_kit.js"></script>
+<script src="_panel_gen.js"></script>
+<script src="_cage_panel.js"></script>
+<script>
+'use strict';
+(() => {
+const $ = id => document.getElementById(id);
+const D2R = Math.PI / 180;
+const G = window.PANEL_GEN, PL = window.CAGE_PANEL;
+
+// ---- a dash to hang the panel on: the crew's anchor record, faked ---------
+// a Cub-ish cabin: the face at z 2.15, the band 0.55..0.85, half a metre wide
+const A = { dashTop: 0.86, dashLip: 0.52, dashAftZ: 2.15, zDash: 2.16, halfW: 0.60,
+            floorAt: () => 0, roofY: 1.2, waistY: 0.1, zBack: 1.2 };
+// the light rows as the light layer keeps them
+const P = { lightOn: 1, lightSw: 1, li_taxi: 0, li_beacon: 1, li_land: 0, li_nav: 1,
+            li_flood: 0.3, li_instr: 0.0, li_panel: 0.5, li_pedal: 0, li_pax: 0 };
+const B = { gauge: 'asi', value: 0.5, lightAz: 20, lightEl: 30, pilotX: 0 };
+
+// ---- scene ------------------------------------------------------------------
+const cv = $('c');
+const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, preserveDrawingBuffer: true });
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.9;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x12151a);
+const camera = new THREE.PerspectiveCamera(30, 1, 0.01, 50);
+const sun = new THREE.DirectionalLight(0xfff2e0, 1.2);
+scene.add(sun, sun.target);
+scene.add(new THREE.HemisphereLight(0xbfd3ea, 0x3a3630, 0.45));
+{
+  const W = 256, H = 128, c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const g = c.getContext('2d'), img = g.createImageData(W, H);
+  for (let y = 0; y < H; y++) {
+    const t = y / (H - 1);
+    const top = [0.35, 0.52, 0.80], hor = [0.78, 0.82, 0.86], gnd = [0.22, 0.21, 0.18];
+    for (let x = 0; x < W; x++) {
+      const i = (y * W + x) * 4;
+      const col = t < 0.5 ? top.map((a, k) => a + (hor[k] - a) * (t / 0.5))
+                          : hor.map((a, k) => a + (gnd[k] - a) * ((t - 0.5) / 0.5));
+      img.data[i] = col[0] * 255; img.data[i + 1] = col[1] * 255; img.data[i + 2] = col[2] * 255; img.data[i + 3] = 255;
+    }
+  }
+  g.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(c);
+  t.mapping = THREE.EquirectangularReflectionMapping; t.encoding = THREE.sRGBEncoding;
+  scene.environment = new THREE.PMREMGenerator(renderer).fromEquirectangular(t).texture;
+}
+function light() {
+  const az = B.lightAz * D2R, el = B.lightEl * D2R;
+  // the light comes from the pilot's side (−z) and above
+  sun.position.set(Math.cos(el) * Math.sin(az), 1.0 + Math.sin(el), A.dashAftZ - 1.5 * Math.cos(el) * Math.cos(az));
+  sun.target.position.set(0, (A.dashTop + A.dashLip) / 2, A.dashAftZ);
+  draw();
+}
+
+// ---- the dash slab and the panel ------------------------------------------
+let host = null, dashMesh = null;
+function build() {
+  if (host) { scene.remove(host); host.traverse(o => { if (o.geometry) o.geometry.dispose(); }); }
+  host = new THREE.Group(); scene.add(host);
+  // the slab: a box whose aft face is the dash face (normal −z), padded top
+  const h = A.dashTop - A.dashLip + 0.12, w = 2 * A.halfW;
+  dashMesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.30),
+    new THREE.MeshStandardMaterial({ color: 0x3a3d43, roughness: 0.75, metalness: 0.15 }));
+  dashMesh.position.set(0, A.dashLip + h / 2 - 0.06, A.dashAftZ + 0.15);
+  host.add(dashMesh);
+  // the coaming: a rounded roll along the top, where the compass stands
+  const roll = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, w, 20),
+    new THREE.MeshStandardMaterial({ color: 0x2a2626, roughness: 0.9 }));
+  roll.rotation.z = Math.PI / 2; roll.position.set(0, A.dashTop + 0.02, A.dashAftZ + 0.01);
+  host.add(roll);
+  const rec = PL.build(host, A, P, B.pilotX);
+  poseSweep();
+  const L = PL.last();
+  $('stat').textContent = rec ? `fit ${rec.fit} · ${rec.n} dials · ${rec.overflow} did not fit · ${L.layout.switches.length} switches · units ${L.units}` +
+    (L.facts && L.facts.Vh ? `\nVs0 ${L.facts.Vs0.toFixed(1)} Vs1 ${L.facts.Vs1.toFixed(1)} Vh ${L.facts.Vh.toFixed(1)} Vne ${L.facts.Vne.toFixed(1)} m/s` : '\n(no plaque here: the ASI carries no arcs; roll a build out to see them)') : 'no panel';
+  if ($('atlasOn').checked) $('atlasImg').src = PL.atlas().toDataURL();
+  draw();
+  fillGauges();
+}
+// sweep one gauge's hands through their law
+function poseSweep() {
+  if (!host) return;
+  const L = PL.last(); if (!L) return;
+  const k = B.gauge, F = G.FACES[k];
+  if (!F) return;
+  const facts = L.facts, units = L.units;
+  const S = G.scaleOf(k, units, facts);
+  for (const m of PL.moving) {
+    if (m.gauge !== k) continue;
+    const H = F.hands.find(h => h.name === m.hand); if (!H) continue;
+    // the value: the slider spans the scale (SI = display / k), a turning
+    // hand spans one turn of its longest period
+    let v;
+    if (H.law === 'turn') v = B.value * (F.hands.reduce((a, h) => Math.max(a, h.per || 0), 0) / S.k);
+    else v = (S.min + B.value * (S.max - S.min)) / S.k;
+    const g = host.getObjectByName(m.name);
+    if (g) g.rotation.z = G.angleOf(k, H, v, units, facts) * D2R;
+    $('sweepV').textContent = H.law === 'turn' ? (v * S.k).toFixed(0) + ' ' + S.unit
+      : (v * S.k).toFixed(1) + ' ' + S.unit;
+  }
+}
+
+// ---- rows -------------------------------------------------------------------
+const ui = $('ui');
+const row = (k, lab, lo, hi, st, obj, on) => {
+  const d = document.createElement('div'); d.className = 'r';
+  const s = document.createElement('input');
+  s.type = 'range'; s.min = lo; s.max = hi; s.step = st; s.value = obj[k];
+  const v = document.createElement('span'); v.className = 'v';
+  const fmt = () => v.textContent = (+obj[k]).toFixed(st < 0.01 ? 3 : st < 1 ? 2 : 0);
+  fmt();
+  s.oninput = () => { obj[k] = +s.value; fmt(); on(); };
+  d.innerHTML = `<span class="k">${lab}</span>`;
+  d.append(s, v); ui.append(d);
+  return v;
+};
+{
+  const h = document.createElement('h2'); h.textContent = 'the sweep'; ui.append(h);
+  const d = document.createElement('div'); d.className = 'r';
+  d.innerHTML = '<span class="k">gauge</span>';
+  const s = document.createElement('select'); s.id = 'gauge'; d.append(s);
+  const vv = document.createElement('span'); vv.className = 'v'; vv.id = 'sweepV'; d.append(vv);
+  ui.append(d);
+  s.onchange = () => { B.gauge = s.value; poseSweep(); draw(); };
+  row('value', 'value', 0, 1, 0.005, B, () => { poseSweep(); draw(); });
+  const h2 = document.createElement('h2'); h2.textContent = 'the light'; ui.append(h2);
+  row('li_instr', 'instrument dimmer', 0, 1, 0.05, P, () => { const m = PL.material('faces'); m.emissiveIntensity = PL.faceDim(P) * 1.6; draw(); });
+  row('lightAz', 'light az', -80, 80, 1, B, light);
+  row('lightEl', 'light el', 5, 80, 1, B, light);
+  const h3 = document.createElement('h2'); h3.textContent = 'the dash'; ui.append(h3);
+  row('pilotX', 'pilot x', -0.4, 0.4, 0.01, B, build);
+  row('halfW', 'cabin half-width', 0.35, 0.8, 0.01, A, build);
+  row('dashTop', 'dash top', 0.7, 1.0, 0.01, A, build);
+  row('dashLip', 'dash lip', 0.4, 0.75, 0.01, A, build);
+}
+function fillGauges() {
+  const s = $('gauge'); const L = PL.last(); if (!L) return;
+  const cur = s.value;
+  s.innerHTML = '';
+  for (const d of L.layout.dials) if (G.FACES[d.k] && G.FACES[d.k].hands.some(h => !h.kind || h.kind === 'needle'))
+    s.add(new Option(d.k, d.k));
+  if ([...s.options].some(o => o.value === (cur || B.gauge))) s.value = cur || B.gauge;
+  B.gauge = s.value;
+}
+$('fit').onchange = () => { PL.fromSpec({ fit: $('fit').value, units: $('units').value, side: $('side').value }); build(); };
+$('units').onchange = $('fit').onchange;
+$('side').onchange = $('fit').onchange;
+$('atlasOn').onchange = () => { $('atlasImg').style.display = $('atlasOn').checked ? 'block' : 'none';
+  if ($('atlasOn').checked) $('atlasImg').src = PL.atlas().toDataURL(); };
+
+// ---- camera -----------------------------------------------------------------
+const centre = new THREE.Vector3(0, (A.dashTop + A.dashLip) / 2, A.dashAftZ);
+let yaw = Math.PI, pitch = 0.05, dist = 0.9, drag = null;
+function draw() {
+  const w = cv.clientWidth, h = cv.clientHeight;
+  if (cv.width !== w || cv.height !== h) { renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+  camera.position.set(centre.x + dist * Math.cos(pitch) * Math.sin(yaw), centre.y + dist * Math.sin(pitch),
+                      centre.z + dist * Math.cos(pitch) * Math.cos(yaw));
+  camera.lookAt(centre);
+  renderer.render(scene, camera);
+}
+cv.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, b: e.button }; cv.setPointerCapture(e.pointerId); });
+cv.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.x = e.clientX; drag.y = e.clientY;
+  if (drag.b === 2) { const s = dist * 0.0012; centre.x += dx * s * Math.cos(yaw); centre.y += dy * s; }
+  else { yaw += dx * 0.006; pitch = Math.max(-1.2, Math.min(1.2, pitch + dy * 0.006)); }
+  draw();
+});
+cv.addEventListener('pointerup', () => { drag = null; });
+cv.addEventListener('contextmenu', e => e.preventDefault());
+cv.addEventListener('wheel', e => { dist *= Math.exp(e.deltaY * 0.001); dist = Math.max(0.08, Math.min(5, dist)); draw(); }, { passive: true });
+$('faceBtn').onclick = () => {              // one face at 1:1-ish: the swept gauge
+  const L = PL.last(); const d = L && L.layout.dials.find(q => q.k === B.gauge);
+  if (d) { centre.set(d.cx, d.cy, A.dashAftZ); dist = 0.22; yaw = Math.PI; pitch = 0; draw(); }
+};
+$('wholeBtn').onclick = () => { centre.set(B.pilotX, (A.dashTop + A.dashLip) / 2, A.dashAftZ); dist = 0.9; yaw = Math.PI; pitch = 0.05; draw(); };
+window.addEventListener('resize', draw);
+// the pane pumps no rAF (HANDOVER: the Browser pane); every change draws
+window.PANEL_BENCH = { build, draw, light, A, P, B, poseSweep,
+  // a probe: look at a point on the face from d metres, square on
+  look: (x, y, d) => { centre.set(x, y, A.dashAftZ); dist = d; yaw = Math.PI; pitch = 0; draw(); } };
+light();
+build();
+})();
+</script>

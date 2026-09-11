@@ -37736,3 +37736,135 @@ Gates: VIEW, UISMOKE, BENCH green on the working copy.
   the boat's yaw. Hung on every hull the kit marks `motor: true`; rule 28
   counts the bare hulls and holds the motors drawn equal.
 - Gates: HOUSE (with --selftest) and MEDIA green.
+
+## G256 — THE PANEL ARC, SESSION 3: THE DIALS ARE REAL — PAINTED FACES ON ONE
+## ATLAS, HANDS THAT TURN BY ONE LAW, THE STANDARD T, THE SWITCH ROW, AND A
+## BENCH TO JUDGE THEM ON (2026-09-11)
+
+*Session 3 of `futureDesigns/PANEL-2026-09-11.md`. The fit is a list (G251);
+now every item on it is a real instrument on the dash. Nothing flies yet —
+the hands are poses in the editor and the join carries nothing of them (that
+is session 4); what changed is what the dash IS.*
+
+**`tools/_panel_gen.js` — PURE, node-loadable, no THREE, no DOM.** Four
+things, and one rule between them:
+- `scaleOf(key, units, facts)`: what each face is printed with, per unit
+  system (`aviation` kt / ft / ×100 fpm / psi, `metric` km/h / m / m/s /
+  bar — the user's per-build ruling): min, max, the first angle `a0` and the
+  `sweep` in CLOCK degrees (clockwise from 12 as the pilot sees it), tick
+  steps, the arcs. The ASI's arcs come from the aeroplane's own numbers
+  (white Vs0→Vfe, green Vs1→Vh, yellow Vh→Vne, the red line), its scale runs
+  past Vne, and its low end is dead to the first mark as a real one's is;
+  the tacho's red line is the rated rpm and its scale 1.25× that; the VSI's
+  zero is at 9 o'clock; the fuel reads E ½ F.
+- `FACES[key]`: the painter and the HANDS — each with its READINGS drive
+  (`ias`, `alt`, `vs`, `rpmEng`, `nz`, `fuelFrac`, `hdg`, `roll`/`pitch` …
+  the names session 1 published) and its law: `lin` through the scale,
+  `turn` (one revolution per `per` display units — the altimeter's three
+  hands per 1 000 / 10 000 / 100 000, the clock's per 12 / 60 / 60), `ball`
+  and `card` (geometry that turns). The g-meter carries its two max hands.
+- **`angleOf(key, hand, v, units, facts)` is the ONLY function that turns a
+  reading into an angle, and the painters' tick marks call it too** — so
+  the printed scale and the needle cannot disagree. Measured on the bench:
+  the tacho's needle at 2300 sits on the red line to the pixel.
+- `layout(A, opts)`: the standard T on the dash face — ASI · AI · ALT over
+  TC · DG · VSI, fixed positions so a gyro not bought leaves its hole; the
+  clock left of the ASI; the engine group to the pilot's right (tacho and
+  g-meter, then the 57 mm oil / fuel / volts in pairs, the other side when
+  it does not fit); the radios past it; the compass on the coaming (lifted
+  1.2 r so its bowl clears the AI's bezel); the switch row along the bottom
+  — key, master, alt, four throws, five knobs — centred under the T. Every
+  dial inside `xLim` and the band, the rest reported in `overflow`.
+- The PAINTERS, one per face, 512 px a slot on a 4096 × 2048 atlas (the
+  compass card's 360° strip takes four slots in a row; the AI ball its own
+  strip, ±90° of pitch over the height so 180° of drum shows ±30° in the
+  window; the DG's rose a disc). They WRITE ONLY: UISMOKE's context is a
+  Proxy of no-ops and GATE PANEL runs every painter against one.
+- **THE MIRROR RULE** lives in one place, `faceUV`: cage +x is PORT — the
+  pilot's LEFT — so a face quad's u runs against x, `u = 0.5 − (x−cx)/d`.
+  Gate-asserted; the first drum was mirrored until the rule reached it.
+
+**`tools/_cage_panel.js` — the geometry.** `build(parent, A, P, pilotX)`
+draws INTO the crew layer's group (the crew calls it where its own
+`buildPanel` ran, with the anchors it measured, and keeps `buildPanel` as
+the headless fallback) and returns the record the crew always published
+(`fit, n, overflow, ext, yMid, zFace, xLim` + `dials`, `switches`), so the
+light layer's coaming lamps read the same `panel.ext`. Every moving piece
+is a named group on the crew's `movingAt` contract, `edGauge_<key>_<hand>`
+/ `edGauge_sw_<light>` / `edGauge_key`, with {pivot, axis, drive, law, per,
+units, k, sgn} in `CAGE_PANEL.moving` — 27 on a basic Cub — for the join
+to lift (session 4). Pieces: a revolved bezel with a lip; the face disc
+carrying its atlas slot (the AI's is a RING, the ball shows through); a
+tapered needle with a counterweight per hand, stacked a millimetre apart;
+the attitude ball as a DRUM about the lateral axis (1.6 r radius, 1.3 r
+wide, seated 4 mm behind the ring so its corners stay inside the dash at
+any roll) in a group that carries roll about the view axis and pitch about
+its own — one part, two drives; the compass as a bowl (a base cup, a cap,
+the aft half-band) with the card a vertical drum inside, the current
+heading facing the pilot through the open front; the DG's card a flat
+rose under a fixed orange aeroplane; the turn coordinator's aeroplane a
+symbol on its own pivot with the ball on its tube; toggles that lean up
+for on, dimmer knobs with a pointer over 270°, master/alt rockers, a lock
+barrel with a brass key at OFF / L / R / BOTH / START.
+- THE FACES ARE ONE MATERIAL, `CAGE_PANEL.material('faces')`: a
+  MeshStandardMaterial over the atlas CanvasTexture, emissive over the SAME
+  map so the instrument light backlights the printing and nothing else —
+  `LIGHTS.instr` lost its `later` (it is `byPanel` now: the faces are its
+  emitting geometry, the panel declares `ac_instr` on the switchboard, the
+  `li_instr` dimmer row renders under the lights part). `userData.panelSet`
+  is the join's bucket key to come; `userData.aeroskin` keeps the grey
+  understudy off it. Painted once per (fit, units, facts) signature, again
+  when `document.fonts.ready` lands (the vendored Plex loads after the first
+  build), never per frame.
+- The hardware takes its finishes through `aeroHardMat(THREE, 'panel',
+  name)`: a new `AERO_HARD.panel` row in aeroskin.js (painted bezel and
+  needle, moulded hub / plate / knob / rocker / bowl / ball, bare-metal bat,
+  barrel and key, `face: null`), and `['panel', '_cage_panel.js', 'const
+  MAT = {']` in GATE SKINMAT's layer list.
+- The light layer leaves the switch row to the panel (`CAGE_PANEL.switches`);
+  the editor maps `edGauge_*` / `edPanel` to the Instruments part.
+- The scales read the aeroplane: the plaque's Vs / VsFlap / VCruise (Vh)
+  when the game has one, the engine's rated rpm from the resolved spec;
+  Vfe = 1.8 Vs0 and Vne = 1.25 Vh as the study declares (GEN_RULES rows to
+  come when the certificate prints them). A bench with no plaque paints no
+  arcs and says so.
+
+**`tools/_panel.html` — the instrument bench** (launch `flydiy-panel`,
+port 8376): the panel on a flat dash with the crew's anchors faked; fit /
+units / side; a gauge picker and a value slider that SWEEPS its hands
+through the law (the readout says what the needle should point at); the
+instrument dimmer; the light; the dash's width and band; "face on" for
+one dial at 1:1, "atlas" to see the painted sheet. Every change draws (no
+rAF, the Browser pane's rule). Judged there: the T, every face upright and
+unmirrored, the AI's ball and roll scale, the compass card reading N at
+the lubber line with 33 to its left and 3 to its right, the switch row.
+
+**GATE PANEL grew a section 7:** for both unit systems every face has a
+scale, every `lin` hand ends its sweep at the max, turns clockwise with
+the reading, is monotone and pegs past the scale; every `turn` hand is at
+12 at zero, at 3 at a quarter period and wraps; the ASI carries its four
+arcs with the green one Vs1..Vh and runs past Vne; the tacho's red line
+straddles the rated rpm; the mirror rule (+x reads at small u, up is up);
+the layout on three cabins (no two dials overlap, all inside the panel and
+the band, the T, the DG under the AI, the VSI under the altimeter, the
+compass on the coaming, twelve switches key-first under the dials, every
+dial placed or reported); the painters against a no-op context; every
+panel material with an AERO_HARD row and `face: null`; the crew's
+delegation, the light layer's stand-down, the instrument light real, the
+editor's mapping, the named groups. Selftests unchanged.
+
+**Gates (private copy of the tree, build + `--no-build --only`):** PANEL,
+PARTS, SKINMAT, UISMOKE, JOIN, BUILD, DESIGN, FIT, ENGID, BENCH green.
+GATE LIGHT red on the working copy for `render_world.js`'s impostor bake
+("no longer uses the world's own hemisphere factory") — red at HEAD since
+W0c.10 (6334dd5, the trees session), not this arc's. The COMMIT proved in
+a clean worktree of its tree: PANEL, PARTS, SKINMAT, UISMOKE, JOIN, BUILD,
+DESIGN, FIT, ENGID, BENCH, RPM, ENERGYBASE, WINGSPLIT green, LIGHT red for
+that reason alone.
+
+**Owed to session 4 (as planned):** the join lifts `edGauge_*` and buckets
+the faces by `panelSet`; app.js turns the hands from READINGS; the AI's
+roll/pitch signs and the card's `−hdg` settle there; the pilot hidden in
+the cockpit view (today the flown cockpit looks out of the pilot's skull).
+Cosmetic: the ladder digits on the ball are small; the switch row sits at
+the band's bottom whatever the dials leave above it.

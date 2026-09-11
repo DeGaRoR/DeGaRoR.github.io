@@ -577,6 +577,7 @@ const LAYERS = [
   ['eng', '_eng_page.js', 'const COL = {'],
   ['cowl', '_cage_cowl.js', 'MATS = {'],
   ['crew', '_cage_crew.js', 'const MFALL = {'],
+  ['panel', '_cage_panel.js', 'const MAT = {'],
 ];
 for (const [layer, file, anchor] of LAYERS) {
   const names = objKeys(layerSrc(file), anchor);

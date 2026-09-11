@@ -55,10 +55,14 @@ const LIGHTS = {
   // ---- INSIDE, dimmable ---------------------------------------------------
   flood: { name: 'flood (overhead)', grp: 'int', ctl: 'dim', order: 0,
            col: 0xffd9a0, w: 0.075 },
+  // THE INSTRUMENT LIGHT IS REAL (the panel arc, session 3): the dial faces
+  // are painted surfaces on one emissive material (_cage_panel.js
+  // `material('faces')`) and this dimmer is what lights the printing. No
+  // lamp of its own: the faces ARE the emitting geometry, declared on the
+  // switchboard by the panel layer. `byPanel` keeps this layer from
+  // drawing or declaring anything for it.
   instr: { name: 'instrument', grp: 'int', ctl: 'dim', order: 1,
-           col: 0xff9a4a, w: 0.030, later: true,
-           note: 'declared and not drawn — the instruments light themselves ' +
-                 'and that wants the faces to be lit surfaces first' },
+           col: 0xff9a4a, w: 0.030, byPanel: true },
   panel: { name: 'panel', grp: 'int', ctl: 'dim', order: 2,
            col: 0xffb060, w: 0.010 },
   pedal: { name: 'pedalier', grp: 'int', ctl: 'dim', order: 3,
@@ -1266,7 +1270,9 @@ PAGE.post = (ctx) => {
   }
 
   // ---- THE SWITCHES, ON THE DASH ------------------------------------------
-  if (+P.lightSw) buildSwitches(group, P);
+  // the panel layer owns the switch row since session 3 of the panel arc —
+  // levers, knobs, the key and the rockers as moving parts on the dash
+  if (+P.lightSw && !(window.CAGE_PANEL && window.CAGE_PANEL.switches)) buildSwitches(group, P);
 
   window.CAGE_LIGHT = { LIGHTS, EXT, INT, sites: S, drawn,
                         lit: lit.map(x => x[0]) };

@@ -577,6 +577,14 @@ const AERO_HARD = {
   // rubber seal. The LENS is neither — it is the emitter, it carries its own
   // material, and it must never take a finish that could dim it.
   light: { lodge: 'bareAlu', seal: 'rubber' },
+  // ---- the instrument panel (_cage_panel.js MAT, the panel arc s3) -----
+  // bezels and needles are painted alloy; the hub, the switch plates and
+  // the knobs moulded; a toggle's bat, the lock barrel and the key are
+  // bare metal; the FACE is the atlas material and takes no finish
+  panel: { bezel: 'trim', needle: 'trim', hub: 'plastic', symbol: 'trim',
+           ball: 'plastic', plate: 'plastic', lever: 'bareAlu', knob: 'plastic',
+           rocker: 'plastic', key: 'bareAlu', barrel: 'bareAlu', bowl: 'plastic',
+           face: null },
   // ---- the cabin (_cage_crew.js M) ----------------------------------------
   crew: {
     shell: 'composite', shellC: 'composite',

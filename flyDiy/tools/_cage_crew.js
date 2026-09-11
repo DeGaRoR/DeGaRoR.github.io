@@ -1771,7 +1771,15 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   // bought. They are drawn after the controls so the throttle's own rod
   // reaches through the panel rather than being buried behind it.
   const floorN = buildFloor(group, A, P);
-  const panel = buildPanel(group, A, P, pilot.x);
+  // THE PANEL LAYER DRAWS THE DIALS NOW (the panel arc, session 3): real
+  // faces, hands on the moving contract, the switch row — into this group,
+  // off these anchors, returning the record this layer always published.
+  // buildPanel below stays as the fallback (a headless load, no layer).
+  let panel = null;
+  if (window.CAGE_PANEL && window.CAGE_PANEL.build)
+    try { panel = window.CAGE_PANEL.build(group, A, P, pilot.x); }
+    catch (e) { console.error('panel:', e); panel = null; }
+  if (!panel) panel = buildPanel(group, A, P, pilot.x);
 
   // ---- dummies ----
   // TWO POSES, NOT ONE PER BODY (G180, the user: "all the passenger and dummy

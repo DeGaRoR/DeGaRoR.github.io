@@ -971,7 +971,7 @@ const CAGE_PARTS = [
     groups: [
       ['fitted', ['lightOn', 'lightSw']],
       ['outside (switches)', ['li_taxi', 'li_beacon', 'li_land', 'li_nav']],
-      ['inside (dimmers)', ['li_flood', 'li_panel', 'li_pedal', 'li_pax']],
+      ['inside (dimmers)', ['li_flood', 'li_instr', 'li_panel', 'li_pedal', 'li_pax']],
       // the wing bay is the lights' own geometry: where it is cut, how big it
       // is, how deep the box behind it goes, and how big the lamp in it is
       ['the wing bay', ['li_plane', 'li_bayFrac', 'li_bayHalf', 'li_bayChord',

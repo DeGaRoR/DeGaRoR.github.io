@@ -2119,6 +2119,7 @@ function editorInit(api) {
     // bones stay as the fallback for anything struck inside a figure.
     [/^edSeat/, 'seats'],
     [/^edCtl|^edConsole/, 'controls'],
+    [/^edGauge|^edPanel/, 'instruments'],   // the panel arc: the dials and the switch row
     [/^edDum/, 'crew'],
     [/^(root|lumbar|thorax|neck|head|clavicle|shoulder|elbow|wrist|hip|knee|ankle)/,
      'crew'],
