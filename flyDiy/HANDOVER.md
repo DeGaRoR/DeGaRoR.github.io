@@ -37911,3 +37911,20 @@ the band's bottom whatever the dials leave above it.
   read the spur's LOW end as its entry, which is wrong for a spur running -x.
   It reads the entry end now.
 - Gates: HOUSE (with --selftest) green.
+
+## G258 — THE PEOPLE GET THEIR TEXTURES BACK: THE EXPORT HAD WIRED THE SLOTS
+## WRONG (2026-09-12, the user: "These guys are all metallic now. Didn't they
+## come with their materials/textures?")
+
+- They did, wired wrong: in both GLBs the material's `normalTexture` points at
+  the ALBEDO and its `baseColorTexture` at the SUBSURFACE map — Blender's
+  exporter reading a subsurface shader graph — so the albedo was bending every
+  normal toward the colour of the paint and a near-uniform pink was the base
+  colour. That is exactly what "hammered metal" looks like.
+- Two things in the baker: it now REFUSES a normal map that is not
+  tangent-space (blue mean under 0.8, red or green off centre — the house
+  import's own check, brought over), loudly, so this class of export cannot
+  pass quietly again; and a row may declare `slots` — which image feeds which
+  slot per material, and a roughness the graph did not carry either. The two
+  men: albedo to base colour, no normal, roughness 0.78 (0.85 on the notes).
+- Gates: HOUSE (with --selftest) green.

@@ -395,10 +395,41 @@ def gather(j, bufs, want_mats, want_nodes=None):
     return out
 
 
-def bake_material(j, bufs, base, mdef, bank, budget, log):
-    """glTF material -> the flat record the viewer's one factory reads."""
-    pbr = mdef.get('pbrMetallicRoughness', {})
+def is_tangent_normal(img):
+    """A tangent-space normal map is mostly +Z: blue near 1, red and green
+    near 0.5. An albedo in that slot fails all three at once."""
+    st = channel_stats(img)
+    return st[2][2] >= 0.80 and abs(st[0][2] - 0.5) < 0.12 and abs(st[1][2] - 0.5) < 0.12
+
+
+def bake_material(j, bufs, base, mdef, bank, budget, log, row=None):
+    """glTF material -> the flat record the viewer's one factory reads.
+
+    `row['slots']` (G258) lets a table row say which IMAGE feeds a slot when
+    the exporter wired them wrong: {material name: {'bc': image name,
+    'nor': image name or None}}. The BlenderKit people arrived with the ALBEDO
+    in the normal slot and the subsurface map as base colour - a shader graph
+    the exporter could not read - and rendered as hammered metal."""
+    pbr = dict(mdef.get('pbrMetallicRoughness', {}))
     ext = mdef.get('extensions', {}) or {}
+    mdef = dict(mdef)
+    fix = ((row or {}).get('slots') or {}).get(mdef.get('name'))
+    if fix:
+        def tex_named(nm):
+            for ti, t in enumerate(j['textures']):
+                if j['images'][tex_source(j, ti)].get('name') == nm:
+                    return {'index': ti}
+            raise SystemExit('slots: no image named %s in %s' % (nm, row['key']))
+        if 'bc' in fix:
+            pbr['baseColorTexture'] = tex_named(fix['bc'])
+        if 'rough' in fix:               # the graph's roughness did not survive either
+            pbr['roughnessFactor'] = fix['rough']
+        if 'nor' in fix:
+            if fix['nor'] is None:
+                mdef.pop('normalTexture', None)
+            else:
+                mdef['normalTexture'] = tex_named(fix['nor'])
+        log.append('    slots rewired from the table: %s' % json.dumps(fix))
     # SPEC-GLOSS. Older Sketchfab exports ship KHR_materials_pbrSpecularGlossiness
     # and no metallic-roughness block at all. Rather than teach the viewer a
     # second lighting model, it is converted here into the one recipe: diffuse
@@ -511,7 +542,15 @@ def bake_material(j, bufs, base, mdef, bank, budget, log):
 
     if 'normalTexture' in mdef:
         img, name = img_of(mdef['normalTexture'])
-        if is_identity_normal(img):
+        if not is_tangent_normal(img):
+            # AN ALBEDO IN THE NORMAL SLOT is not a normal map, whatever the
+            # exporter says, and used as one it bends every normal on the mesh
+            # toward the colour of the paint: a face that renders as beaten
+            # metal. Refused, loudly; the row's `slots` says what it really is.
+            log.append('    ! normalTexture %s is not a tangent-space normal map '
+                       '(rgb means %s) - DROPPED; declare `slots` on the row'
+                       % (name, ', '.join('%.2f' % c[2] for c in channel_stats(img))))
+        elif is_identity_normal(img):
             log.append('    nor  %-38s DROPPED (identity)' % name)
         else:
             tid, w, h, nb = bank.encode(img, budget, 'nor')
@@ -640,7 +679,7 @@ def bake(row, bank, log):
             continue
         mi = next(i for i, m in enumerate(j['materials'])
                   if m.get('name', 'mat%d' % i) == name)
-        mats[name] = bake_material(j, bufs, base, j['materials'][mi], bank, row['tex'], log)
+        mats[name] = bake_material(j, bufs, base, j['materials'][mi], bank, row['tex'], log, row)
         # A PART IS AT MOST 65 536 VERTICES - the codec's indices are uint16
         # and nothing downstream wants that to change for one scanned person.
         # A material that owns more is cut into as many parts as it takes,

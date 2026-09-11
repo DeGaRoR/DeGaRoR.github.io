@@ -97,13 +97,13 @@ FILES = {
 
 def P(key, group, label, src, note, mats=None, nodes=None, place='floor',
       scale=1.0, rot=(0, 0, 0), tex=512, deck=None, float=None, piles=None,
-      pilesCut=1.9):
+      pilesCut=1.9, slots=None):
     return dict(key=key, group=group, label=label, src=src, file=FILES[src],
                 dir=('pier' if src == 'pier' else
                      '../blendkitPeople' if src in ('andrew', 'john') else ''),
                 mats=mats, nodes=nodes, place=place, scale=scale, rot=rot,
                 tex=tex, note=note, deck=deck, float=float, piles=piles,
-                pilesCut=pilesCut)
+                pilesCut=pilesCut, slots=slots)
 
 
 PLANKS = 'modular_wooden_pier_planks'
@@ -177,9 +177,16 @@ PROPS = [
       scale=1.0, float=0.22, tex=512),
 
     # ---- the people ---------------------------------------------------------
+    # THE EXPORT WIRED THEIR SLOTS WRONG (G258): the albedo landed in the
+    # normal slot and the subsurface map in base colour - Blender's exporter
+    # reading a subsurface shader graph - and both men rendered as beaten
+    # metal. `slots` says which image is what; the baker refuses the false
+    # normal on its own anyway (it is not tangent-space).
     P('person_andrew', 'people', 'Andrew, on his phone', 'andrew',
       note='1.82 m, standing, looking at his phone; 355k triangles as delivered',
-      tex=1024),
+      tex=1024, slots={'Andrew': {'bc': 'andrew_albedo', 'nor': None, 'rough': 0.78}}),
     P('person_john', 'people', 'John, with his notes', 'john',
-      note='1.84 m, standing, reading; 310k triangles as delivered', tex=1024),
+      note='1.84 m, standing, reading; 310k triangles as delivered', tex=1024,
+      slots={'John': {'bc': 'John_albedo', 'nor': None, 'rough': 0.78},
+             'notes': {'bc': 'notes_albedo', 'nor': None, 'rough': 0.85}}),
 ]
