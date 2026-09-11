@@ -703,15 +703,23 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // (GATE WORLDRENDER asserts every instance is inside its own sphere).
     const CHW = 2048, VSPAN = 320;
     const chunkBounds = (geo, half) => {
-      geo.computeBoundingSphere();
+      geo.userData = geo.userData || {};
       // stash the SHAPE's real sphere before the chunk sphere buries it: the
       // impostor bake needs it, and by then this geometry's boundingSphere is a
       // 1.5 km chunk ball. (Recomputing it later would silently undo the
       // inflation and put the tree field back to being culled per-tree.)
-      geo.userData = geo.userData || {};
+      // ONCE, and the chunk sphere only ever GROWS: a rung's geometry is
+      // shared by the woodland (2 km chunks) and the fill (1 km), and the
+      // last caller's smaller ball would cull the other's chunk edges.
+      const r = Math.hypot(half * Math.SQRT1_2, VSPAN) + 12;
+      if (geo.userData.chunkTree) {
+        geo.boundingSphere.radius = Math.max(geo.boundingSphere.radius, r);
+        return;
+      }
+      geo.computeBoundingSphere();
       geo.userData.shape = { cy: geo.boundingSphere.center.y, r: geo.boundingSphere.radius };
       geo.boundingSphere.center.set(0, 4, 0);
-      geo.boundingSphere.radius = Math.hypot(half * Math.SQRT1_2, VSPAN) + 12;
+      geo.boundingSphere.radius = r;
       geo.userData.chunkTree = true;        // marks what GATE WORLDRENDER checks
     };
     // ================= W0c: the real trees ==============================
@@ -1069,22 +1077,26 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // the aircraft moves, and `count` is set to what was written. The band in
     // the shader stays as the seam guard between refreshes.
     const LOD_TICK = 10, LOD_MOVE = 25;     // refresh every 10 frames or 25 m
+    // rec.spans[si] is the series' own rung table (the far edge of each
+    // rung); rec.rungs[si][r] the meshes of rung r; rec.buf[si][r] its
+    // scratch. A one-rung series (the snag) has spans [NEAR_R] and every
+    // instance inside the tier lands on it - under one shared band table it
+    // was dealt to the empty lists of the bands its rung did not own.
     function partitionChunk(rec, cg) {
       const n = rec.n, pos = rec.pos, mats = rec.mats, ser = rec.ser;
-      const R = rec.bands || LOD_R, nb = R.length;
-      const k = rec.rungs.map(() => R.map(() => 0));
+      const k = rec.rungs.map(L => L.map(() => 0));
       for (let i = 0; i < n; i++) {
         const dx = pos[i * 3] - cg[0], dy = pos[i * 3 + 1] - cg[1], dz = pos[i * 3 + 2] - cg[2];
         const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        const si = ser[i], R = rec.spans[si];
         let b = -1;
-        for (let j = 0; j < nb; j++) if (d < R[j]) { b = j; break; }
+        for (let j = 0; j < R.length; j++) if (d < R[j]) { b = j; break; }
         if (b < 0) continue;
-        const si = ser[i];
         rec.buf[si][b].set(mats.subarray(i * 16, i * 16 + 16), k[si][b] * 16);
         k[si][b]++;
       }
       for (let si = 0; si < rec.rungs.length; si++)
-        for (let b = 0; b < nb; b++) for (const m of rec.rungs[si][b]) {
+        for (let b = 0; b < rec.rungs[si].length; b++) for (const m of rec.rungs[si][b]) {
           const c = k[si][b];
           if (c) m.instanceMatrix.array.set(rec.buf[si][b].subarray(0, c * 16));
           m.count = c; m.visible = c > 0;
@@ -1098,9 +1110,17 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       'if (uNoBand < 0.5 && (' + edgeExpr + ' < uNearB || ' + edgeExpr + ' >= uFarB)) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);';
     // the draw material: chained onto whatever the part already carries
     // (trees.js's AO hook), never overwriting it
+    // A CLONE, NOT THE CACHED MATERIAL. treeBuild hands out ONE material per
+    // rung, and dressing it in place gave that band to every mesh that
+    // borrowed the rung: the fill drew the fir's L2 with the woodland's
+    // 300-450 m band on it, and every fill fir vanished inside 300 m. The
+    // clone shares userData by reference, which is where the tint and cutoff
+    // uniforms live, so the dials keep reaching it.
     const bandMat = (mat, near, far) => {
+      const m = mat.clone();
+      m.userData = mat.userData;
       const prev = mat.onBeforeCompile;
-      mat.onBeforeCompile = sh => {
+      m.onBeforeCompile = sh => {
         if (prev) prev(sh);
         sh.uniforms.uNearB = { value: near };
         sh.uniforms.uFarB = { value: far };
@@ -1110,8 +1130,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           .replace('#include <project_vertex>', '#include <project_vertex>\n' +
             BAND_GLSL('length(mvPosition.xyz)'));
       };
-      mat.needsUpdate = true;
-      return mat;
+      return m;
     };
     const bandDepth = (mat, near, far) => {
       const d = new THREE.MeshDepthMaterial({
@@ -1134,6 +1153,25 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       return d;
     };
 
+    // ONE LADDER PER SERIES, for whoever plants it: every rung the payload
+    // has for the series (three since the ladder is generated for every
+    // pack), each dressed with its band, and the L0 parts kept for the
+    // series' own impostor bake - a snag seen from 500 m is a snag, not a
+    // fir. The snag has one rung and it spans the whole near tier.
+    const ladderFor = (key, ser) => {
+      const S = treeList().find(e => e.key === key).sub;
+      const list = (S[ser] && S[ser].length) ? S[ser] : S.rungs;
+      const n = Math.min(list.length, LOD_R.length);
+      const ladder = [];
+      for (let r = 0; r < n; r++) {
+        const B = treeBuild(THREE, key, r, ser);
+        const near = r ? LOD_R[r - 1] : 0, far = (r === n - 1) ? NEAR_R : LOD_R[r];
+        ladder.push({ near, far, parts: B.parts.map(q => ({
+          geo: q.geo, mat: bandMat(q.mat, near, far), depth: bandDepth(q.mat, near, far) })) });
+      }
+      const B0 = treeBuild(THREE, key, 0, ser);
+      return { name: ser, ladder, parts: B0.parts, scaleY: B0.scaleY || 1 };
+    };
     // The streamed fill below dresses its own material with this too, so it
     // lives outside the replant, with the registers.
     const nearOnly = mat => {
@@ -1223,32 +1261,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       if (typeof treeReady === 'function' && treeReady() && typeof treeBuild === 'function') {
         try {
           // `parts` is L0 (what the impostor bakes from); `ladder` is every
-          // rung the payload has for the specimen series, dressed with its
-          // band - a pack that ships a deeper chain keeps its extra rungs in
-          // the last band
-          // ONE LADDER PER SERIES. The specimen and the stand have three
-          // rungs in the payload's bands; the snag has one, spanning the whole
-          // near tier. Each series also keeps its L0 parts for its own
-          // impostor bake - a snag seen from 500 m is a snag, not a fir.
+          // rung of the series, dressed with its band - see ladderFor
           const withLadder = key => {
-            const S = treeList().find(e => e.key === key).sub;
             const col = treeList().find(e => e.key === key).col;
-            const out = { series: [], dead: (col.place && col.place.dead) || 0,
+            const out = { series: SERIES.map(ser => ladderFor(key, ser)),
+                          dead: (col.place && col.place.dead) || 0,
                           sink: (col.place && col.place.sink) || 0,
                           size: (col.place && col.place.size) || 1 };
-            for (const ser of SERIES) {
-              const list = (S[ser] && S[ser].length) ? S[ser] : S.rungs;
-              const n = Math.min(list.length, LOD_R.length);
-              const ladder = [];
-              for (let r = 0; r < n; r++) {
-                const B = treeBuild(THREE, key, r, ser);
-                const near = r ? LOD_R[r - 1] : 0, far = (r === n - 1) ? NEAR_R : LOD_R[r];
-                ladder.push({ near, far, parts: B.parts.map(q => ({
-                  geo: q.geo, mat: bandMat(q.mat, near, far), depth: bandDepth(q.mat, near, far) })) });
-              }
-              const B0 = treeBuild(THREE, key, 0, ser);
-              out.series.push({ name: ser, ladder, parts: B0.parts, scaleY: B0.scaleY || 1 });
-            }
             return Object.assign(out, { parts: out.series[0].parts });
           };
           PROTO = { conif: withLadder(treePick(PICK_CONIF)),
@@ -1260,7 +1279,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         // and chunkBounds is also what stashes userData.shape, which the
         // impostor bake reads for its ortho extent
         for (const P of [PROTO.conif, PROTO.broad]) for (const S of P.series)
-          for (const R of S.ladder) for (const q of R.parts) { chunkBounds(q.geo, CHW); plantedKit.push(q.depth); }
+          for (const R of S.ladder) for (const q of R.parts) { chunkBounds(q.geo, CHW); plantedKit.push(q.depth, q.mat); }
       }
 
     // 3D tier: collapse every instance past NEAR_R. View-space length IS the
@@ -1339,13 +1358,14 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         const cnt = [0, 0, 0];
         list.forEach((T, i) => { ser[i] = seriesOf(T.r, P.dead); cnt[ser[i]]++; });
         const rec = { n, mats: new Float32Array(n * 16), pos: new Float32Array(n * 3), ser,
-                      buf: [], rungs: [], x: ox, z: oz, own: true };
+                      buf: [], rungs: [], spans: [], x: ox, z: oz, own: true };
         const meshes = [], imps = [];
         P.series.forEach((S, si) => {
-          rec.buf.push([0, 1, 2].map(() => new Float32Array(cnt[si] * 16)));
-          rec.rungs.push([[], [], []]);
+          rec.buf.push(S.ladder.map(() => new Float32Array(cnt[si] * 16)));
+          rec.rungs.push(S.ladder.map(() => []));
+          rec.spans.push(S.ladder.map(R => R.far));
           if (!cnt[si]) { imps.push(null); return; }
-          for (const R of S.ladder) for (const q of R.parts) {
+          S.ladder.forEach((R, ri) => { for (const q of R.parts) {
             const m = mk(q.geo, q.mat, cnt[si], true);
             m.customDepthMaterial = q.depth;
             // THE COLOUR BUFFER IS ALLOCATED AT CAPACITY, HERE, before the
@@ -1357,9 +1377,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cnt[si] * 3).fill(1), 3);
             m.count = 0; m.visible = false;
             m.userData.ser = si;              // which series, for the probes
-            rec.rungs[si][LOD_R.indexOf(R.far)].push(m);
+            rec.rungs[si][ri].push(m);
             meshes.push(m);
-          }
+          } });
           const mi = mk(impQuadW, impM[si], cnt[si], false);
           mi.userData.ser = si;
           imps.push(mi);
@@ -1556,20 +1576,17 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         let real = null;
         if (typeof treeReady === 'function' && treeReady() && typeof treeBuild === 'function') {
           try {
-            // the cheapest rung each series has - a pack that ships a deeper
-            // chain hands a coarser one, and that is the point
-            const cheapest = (key, ser) => {
-              const S = treeList().find(e => e.key === key).sub;
-              const list = (S[ser] && S[ser].length) ? S[ser] : S.rungs;
-              return treeBuild(THREE, key, list.length - 1, ser);
-            };
+            // THE FILL CLIMBS THE SAME LADDER AS THE WOODLAND. It used to
+            // draw one rung - the cheapest the series had - across the whole
+            // 450 m near tier, and for a pack whose chain ended in a crossed
+            // billboard that card was the fill, by the ten thousand, at any
+            // distance. Three bands, the generated rungs, one rule.
             const forKey = key => {
               const col = treeList().find(e => e.key === key).col;
               return { dead: (col.place && col.place.dead) || 0, white: true,
                        sink: (col.place && col.place.sink) || 0,
                        size: (col.place && col.place.size) || 1,
-                       series: SERIES.map(ser => { const B = cheapest(key, ser);
-                         return { parts: B.parts, scaleY: B.scaleY || 1, imp: null }; }) };
+                       series: SERIES.map(ser => Object.assign(ladderFor(key, ser), { imp: null })) };
             };
             real = { conif: forKey(treePick(PICK_CONIF)), broad: forKey(treePick(PICK_BROAD)) };
           } catch (e) { real = null; }
@@ -1578,7 +1595,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           if (real) {
             const H = real[side];
             for (const S of H.series) {
-              S.parts.forEach(q => chunkBounds(q.geo, CH));
+              for (const R of S.ladder) for (const q of R.parts) { chunkBounds(q.geo, CH); SHAPE.kit.push(q.mat, q.depth); }
               const at = bakeImpostorAtlas(S.parts);
               S.imp = impostorMat(at, FAR_FILL);
               SHAPE.kit.push(S.imp, at.tex, at.nrm);
@@ -1636,15 +1653,22 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           // below holds every instance and the near mesh carries only the ones
           // inside NEAR_R, re-sorted on the cadence; the impostor mesh carries
           // them all, because it is the band beyond.
+          // every rung of the ladder gets its meshes (the cone fallback is a
+          // one-rung ladder); the partition deals each instance to ONE of them
+          const rungsOf = S => S.ladder || [{ parts: S.parts }];
           const perSer = SH.series.map((S, si) => cnt[si] ? {
-            ms: S.parts.map(pq => { const m = new THREE.InstancedMesh(pq.geo, pq.mat, cnt[si]);
-                                    // colour buffer at capacity BEFORE parking - see the woodland
-                                    m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cnt[si] * 3).fill(1), 3);
-                                    m.count = 0; m.visible = false; return m; }),
+            byRung: rungsOf(S).map(R => R.parts.map(pq => {
+              const m = new THREE.InstancedMesh(pq.geo, pq.mat, cnt[si]);
+              // colour buffer at capacity BEFORE parking - see the woodland
+              m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cnt[si] * 3).fill(1), 3);
+              m.count = 0; m.visible = false; return m; })),
             mi: new THREE.InstancedMesh(impQuadF, S.imp, cnt[si]), at: 0 } : null);
+          for (const P of perSer) if (P) P.ms = [].concat(...P.byRung);
+          const spansOf = S => S.ladder ? S.ladder.map(R => R.far) : [NEAR_R];
           const rec = { n, mats: new Float32Array(n * 16), pos: new Float32Array(n * 3), ser,
-                        bands: [NEAR_R], buf: SH.series.map((S, si) => [new Float32Array(cnt[si] * 16)]),
-                        rungs: SH.series.map((S, si) => [perSer[si] ? perSer[si].ms : []]), x: ox, z: oz };
+                        spans: SH.series.map(spansOf),
+                        buf: SH.series.map((S, si) => spansOf(S).map(() => new Float32Array(cnt[si] * 16))),
+                        rungs: SH.series.map((S, si) => perSer[si] ? perSer[si].byRung : spansOf(S).map(() => [])), x: ox, z: oz };
           perSer.forEach((P, si) => { if (P) for (const mm of P.ms.concat([P.mi])) {
             mm.position.set(ox, 0, oz); mm.userData.ser = si; mm.userData.fill = true; } });
           for (let i = 0; i < n; i++) {

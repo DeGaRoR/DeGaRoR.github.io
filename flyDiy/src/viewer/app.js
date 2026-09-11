@@ -6265,10 +6265,14 @@
   $('c').addEventListener('pointerdown', e => {
     if (!devCamOn() || e.button !== 0) return;
     devDrag = { x: e.clientX, y: e.clientY };
-    if (document.pointerLockElement !== $('c') && $('c').requestPointerLock) {
-      try { const p = $('c').requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (err) {}
+    // asked ONCE: a document that refuses the lock refuses it for good, and
+    // Chrome logs every refusal to the console whether it is caught or not
+    if (!devCam.noLock && document.pointerLockElement !== $('c') && $('c').requestPointerLock) {
+      try { const p = $('c').requestPointerLock(); if (p && p.catch) p.catch(() => { devCam.noLock = true; }); }
+      catch (err) { devCam.noLock = true; }
     }
   });
+  document.addEventListener('pointerlockerror', () => { devCam.noLock = true; });
   const devTurn = (dx, dy) => {
     devCam.yaw += dx * 0.0025;
     devCam.pitch = Math.max(-1.5, Math.min(1.5, devCam.pitch - dy * 0.0025));

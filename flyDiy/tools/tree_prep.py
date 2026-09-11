@@ -40,9 +40,9 @@ WHAT IS AND IS NOT DONE TO THE ASSET
   (or a world editor) can move them without a re-bake. The colour corrections
   are not baked either, for the same reason: they are one uniform each.
 
-THE LADDER, in three series. A pack that ships its own rungs keeps them; for
-everything else the rungs are GENERATED here, by the same rules the bench uses
-and for the same reason it uses them — the woody decomposition measured that
+THE LADDER, in three series, GENERATED here for every pack by the same rules
+the bench uses and for the same reason it uses them — the woody decomposition
+measured that
 branch structure is more than half of a tree and reads as almost nothing past
 the first rung, so every rung below L0 stands its canopy on one tapered stick.
 
@@ -714,10 +714,12 @@ def main():
         for S in a['trees']:
             if S.get('merged'):
                 continue
-            # A PACK THAT SHIPS ITS OWN LOD CHAIN KEEPS IT. The import rule is
-            # to use the author's rungs, not to build a second ladder beside
-            # them — LOLIPOP ships 12969 / 6633 / 3268 / 20 and every one of
-            # those is better than anything generated from the first.
+            # THE FINEST SHIPPED RUNG IS L0, AND ONLY THAT. A pack's own chain
+            # is not used: the bench's forest (the thing that was judged)
+            # builds its own ladder for every pack, and LOLIPOP's shipped
+            # chain ends in a 20-triangle crossed billboard that the game
+            # then drew by the ten thousand as its fill. The import rule -
+            # never decimate, never re-encode - still holds for L0.
             by_lod = {}
             for el in S.get('els', []):
                 by_lod.setdefault(el.get('lod') if el.get('lod') is not None else 0,
@@ -731,28 +733,18 @@ def main():
             # UNION, because a coarser rung is not a subset: LOLIPOP's LOD1
             # stands a few centimetres wider than its LOD0 and overflowed the
             # int16 when the finest rung's box was used alone.
-            made = []
-            for L in lods:
-                built = finest if L == lods[0] else build_subject(g, bin_, by_lod[L])
-                if not built:
-                    continue
-                if L != lods[0]:
-                    recentre(built[0], built[1], finest[1])
-                made.append((L, built[0], built[1]))
+            made = [(lods[0], finest[0], finest[1])]
             # ---- the generated rungs, and the two other series -----------
-            # A PACK THAT SHIPS A CHAIN KEEPS IT (the import rule), so the
-            # specimen ladder is only generated where there is nothing to keep.
-            # The STAND and SNAG series are always generated: no pack ships the
-            # tree-inside-a-wood or the standing dead one, and both are shapes
-            # the world plants by the thousand.
+            # The specimen ladder, the STAND and the SNAG are all generated
+            # from L0: no pack ships the tree-inside-a-wood or the standing
+            # dead one, and both are shapes the world plants by the thousand.
             stick = t.get('stick', 0.045)
             cw, cs = view_crown_w, view_crown_h
             gen = []
-            if len(made) == 1:
-                for lodN, kind in ((1, 'foliage'), (2, 'halfFoliage')):
-                    q = gen_rung(finest[0], kind, stick, cw, cs)
-                    if q:
-                        gen.append((lodN, q, None))
+            for lodN, kind in ((1, 'foliage'), (2, 'halfFoliage')):
+                q = gen_rung(finest[0], kind, stick, cw, cs)
+                if q:
+                    gen.append((lodN, q, None))
             made_all = made + gen
             stand, snag = [], []
             fstand = gen_rung(finest[0], 'fFull', stick, cw, cs)
@@ -809,7 +801,7 @@ def main():
             snagR, shownD = bake_series(snag)
             subjects.append({'name': S['name'], 'h': S.get('h'),
                              'tris': S.get('tris'), 'bb': [round(v, 4) for v in bb],
-                             'shipped': len(made) > 1, 'rungs': rungs,
+                             'shipped': len(lods) > 1, 'rungs': rungs,
                              'stand': standR, 'snag': snagR})
             print('    %-22s %6d tris  rungs %s | stand %s | snag %s'
                   % (S['name'], S.get('tris', 0), ' '.join(shown),

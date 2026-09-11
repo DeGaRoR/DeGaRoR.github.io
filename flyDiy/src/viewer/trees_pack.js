@@ -623,8 +623,8 @@ const TREE_PACK = {
   },
   {
    "name": "realistic_fir_trees_pack_lods_gameready.glb",
-   "bin": "" + B + "media/geo/trees/realistic_fir_trees_pack_lods_gameready.556e60d8.bin",
-   "bytes": 1170964,
+   "bin": "" + B + "media/geo/trees/realistic_fir_trees_pack_lods_gameready.28e93c73.bin",
+   "bytes": 1157756,
    "credit": {
     "author": "LOLIPOP (https://sketchfab.com/lolipop_1707)",
     "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
@@ -648,17 +648,6 @@ const TREE_PACK = {
     "alpha": 0.1
    },
    "materials": {
-    "Christmas_tree_Billboard_Mat": {
-     "mode": "MASK",
-     "cutoff": 0.2179,
-     "coverageMips": true,
-     "base": "" + B + "media/tex/trees/realistic_fir_trees_pack_lods_gameready_christmas_tree_billboard_mat_base.89644786.png",
-     "baseSize": [
-      1024,
-      1024
-     ],
-     "nor": "" + B + "media/tex/trees/realistic_fir_trees_pack_lods_gameready_christmas_tree_billboard_mat_nor.10e2c45b.jpg"
-    },
     "Bark_Mat": {
      "mode": "OPAQUE",
      "base": "" + B + "media/tex/trees/realistic_fir_trees_pack_lods_gameready_bark_mat_base.14a749d2.jpg",
@@ -678,17 +667,6 @@ const TREE_PACK = {
       1024
      ],
      "nor": "" + B + "media/tex/trees/realistic_fir_trees_pack_lods_gameready_brunches_mat_nor.b86b2b72.jpg"
-    },
-    "Christmas_tree_2_Billboard_Mat": {
-     "mode": "MASK",
-     "cutoff": 0.3032,
-     "coverageMips": true,
-     "base": "" + B + "media/tex/trees/realistic_fir_trees_pack_lods_gameready_christmas_tree_2_billboard_mat_base.89806b3f.png",
-     "baseSize": [
-      1024,
-      1024
-     ],
-     "nor": "" + B + "media/tex/trees/realistic_fir_trees_pack_lods_gameready_christmas_tree_2_billboard_mat_nor.f1362e7e.jpg"
     }
    },
    "subjects": [
@@ -701,7 +679,7 @@ const TREE_PACK = {
       0.0,
       -2.5178,
       2.6433,
-      9.3243,
+      9.293,
       2.5178
      ],
      "shipped": true,
@@ -744,7 +722,7 @@ const TREE_PACK = {
       },
       {
        "lod": 1,
-       "tris": 6633,
+       "tris": 6110,
        "parts": [
         {
          "mat": "Brunches_Mat",
@@ -759,28 +737,28 @@ const TREE_PACK = {
           0.991093
          ],
          "off": 242674,
-         "len": 82988
+         "len": 121988
         },
         {
          "mat": "Bark_Mat",
          "mode": "OPAQUE",
          "cutoff": 0.0,
          "uvMin": [
-          -0.962198,
-          -0.9816
+          0.0,
+          0
          ],
          "uvScl": [
-          4.219678,
-          28.273899
+          1.0,
+          1
          ],
-         "off": 325662,
-         "len": 41030
+         "off": 364662,
+         "len": 320
         }
        ]
       },
       {
        "lod": 2,
-       "tris": 3268,
+       "tris": 3190,
        "parts": [
         {
          "mat": "Brunches_Mat",
@@ -794,44 +772,23 @@ const TREE_PACK = {
           0.97667,
           0.991093
          ],
-         "off": 366692,
-         "len": 51388
+         "off": 364982,
+         "len": 63588
         },
         {
          "mat": "Bark_Mat",
          "mode": "OPAQUE",
          "cutoff": 0.0,
          "uvMin": [
-          -0.813232,
-          -0.311359
+          0.0,
+          0
          ],
          "uvScl": [
-          4.070712,
-          27.603658
+          1.0,
+          1
          ],
-         "off": 418080,
-         "len": 10202
-        }
-       ]
-      },
-      {
-       "lod": 3,
-       "tris": 20,
-       "parts": [
-        {
-         "mat": "Christmas_tree_Billboard_Mat",
-         "mode": "MASK",
-         "cutoff": 0.2179,
-         "uvMin": [
-          0.002441,
-          0.002441
-         ],
-         "uvScl": [
-          0.815999,
-          0.990166
-         ],
-         "off": 428282,
-         "len": 552
+         "off": 428570,
+         "len": 320
         }
        ]
       }
@@ -853,7 +810,7 @@ const TREE_PACK = {
           0.97667,
           0.991093
          ],
-         "off": 428834,
+         "off": 428890,
          "len": 30388
         },
         {
@@ -868,7 +825,7 @@ const TREE_PACK = {
           4.235118,
           28.290287
          ],
-         "off": 459222,
+         "off": 459278,
          "len": 120686
         }
        ]
@@ -889,7 +846,7 @@ const TREE_PACK = {
           0.97667,
           0.991093
          ],
-         "off": 579908,
+         "off": 579964,
          "len": 30388
         },
         {
@@ -904,7 +861,7 @@ const TREE_PACK = {
           1.0,
           1
          ],
-         "off": 610296,
+         "off": 610352,
          "len": 320
         }
        ]
@@ -925,7 +882,7 @@ const TREE_PACK = {
           0.97667,
           0.991093
          ],
-         "off": 610616,
+         "off": 610672,
          "len": 19388
         },
         {
@@ -940,7 +897,7 @@ const TREE_PACK = {
           1.0,
           1
          ],
-         "off": 630004,
+         "off": 630060,
          "len": 320
         }
        ]
@@ -963,7 +920,7 @@ const TREE_PACK = {
           4.235118,
           28.290287
          ],
-         "off": 630324,
+         "off": 630380,
          "len": 120686
         }
        ]
@@ -1000,7 +957,7 @@ const TREE_PACK = {
           0.97667,
           0.991093
          ],
-         "off": 751010,
+         "off": 751066,
          "len": 66788
         },
         {
@@ -1015,14 +972,14 @@ const TREE_PACK = {
           4.222178,
           41.036432
          ],
-         "off": 817798,
+         "off": 817854,
          "len": 63294
         }
        ]
       },
       {
        "lod": 1,
-       "tris": 3598,
+       "tris": 3350,
        "parts": [
         {
          "mat": "Brunches_Mat",
@@ -1036,29 +993,29 @@ const TREE_PACK = {
           0.97667,
           0.991093
          ],
-         "off": 881092,
-         "len": 54388
+         "off": 881148,
+         "len": 66788
         },
         {
          "mat": "Bark_Mat",
          "mode": "OPAQUE",
          "cutoff": 0.0,
          "uvMin": [
-          -0.820142,
-          -0.984711
+          0.0,
+          0
          ],
          "uvScl": [
-          4.073532,
-          41.036709
+          1.0,
+          1
          ],
-         "off": 935480,
-         "len": 15748
+         "off": 947936,
+         "len": 320
         }
        ]
       },
       {
        "lod": 2,
-       "tris": 2278,
+       "tris": 1770,
        "parts": [
         {
          "mat": "Brunches_Mat",
@@ -1072,44 +1029,23 @@ const TREE_PACK = {
           0.97667,
           0.991093
          ],
-         "off": 951228,
-         "len": 43388
+         "off": 948256,
+         "len": 35188
         },
         {
          "mat": "Bark_Mat",
          "mode": "OPAQUE",
          "cutoff": 0.0,
          "uvMin": [
-          0.923394,
-          0.301554
+          0.0,
+          0
          ],
          "uvScl": [
-          2.329996,
-          39.750444
+          1.0,
+          1
          ],
-         "off": 994616,
-         "len": 1804
-        }
-       ]
-      },
-      {
-       "lod": 3,
-       "tris": 20,
-       "parts": [
-        {
-         "mat": "Christmas_tree_2_Billboard_Mat",
-         "mode": "MASK",
-         "cutoff": 0.3032,
-         "uvMin": [
-          0.002441,
-          0.002441
-         ],
-         "uvScl": [
-          0.973151,
-          0.990166
-         ],
-         "off": 996420,
-         "len": 552
+         "off": 983444,
+         "len": 320
         }
        ]
       }
@@ -1131,7 +1067,7 @@ const TREE_PACK = {
           0.97667,
           0.991093
          ],
-         "off": 996972,
+         "off": 983764,
          "len": 17988
         },
         {
@@ -1146,7 +1082,7 @@ const TREE_PACK = {
           4.222178,
           41.036432
          ],
-         "off": 1014960,
+         "off": 1001752,
          "len": 63294
         }
        ]
@@ -1167,7 +1103,7 @@ const TREE_PACK = {
           0.97667,
           0.991093
          ],
-         "off": 1078254,
+         "off": 1065046,
          "len": 17988
         },
         {
@@ -1182,7 +1118,7 @@ const TREE_PACK = {
           1.0,
           1
          ],
-         "off": 1096242,
+         "off": 1083034,
          "len": 320
         }
        ]
@@ -1203,7 +1139,7 @@ const TREE_PACK = {
           0.97667,
           0.991093
          ],
-         "off": 1096562,
+         "off": 1083354,
          "len": 10788
         },
         {
@@ -1218,7 +1154,7 @@ const TREE_PACK = {
           1.0,
           1
          ],
-         "off": 1107350,
+         "off": 1094142,
          "len": 320
         }
        ]
@@ -1241,7 +1177,7 @@ const TREE_PACK = {
           4.222178,
           41.036432
          ],
-         "off": 1107670,
+         "off": 1094462,
          "len": 63294
         }
        ]

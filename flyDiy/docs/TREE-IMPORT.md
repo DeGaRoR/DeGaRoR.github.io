@@ -47,10 +47,14 @@ Nothing is imported until that table exists.
 
 ## 3. Import as-is
 
-Never decimate or re-encode an import. Several packs ship their own LOD chain —
-use theirs. The triangle budget is a **selection** criterion, not permission to
-decimate a scan. Every rung below LOD0 is *generated* by the bench (§5), from
-the asset as shipped.
+Never decimate or re-encode an import. The triangle budget is a **selection**
+criterion, not permission to decimate a scan. Every rung below LOD0 is
+*generated* by the bench (§5), from the finest rung as shipped — **a pack's own
+LOD chain is not used**, in the bench or in the payload. W0c.2 had kept the
+shipped chains ("the author's rungs are better than anything generated"), and
+LOLIPOP's chain ends in a 20-triangle crossed billboard that the game then
+drew by the ten thousand as its fill; the forest the user judged was the
+bench's, which builds its own ladder for every pack. Undone in W0c.10.
 
 ## 4. Curate in the bench, then tune
 
@@ -219,10 +223,10 @@ threshold the coverage has to be preserved against.
 
 **Done (W0c, W0c.1, W0c.2).** `render_world.js` fetches the payload
 (`treeWarm`), plants the woodland from the cone at boot and again from the
-real tree when the bytes land, and the dense fill draws the **stand series'
-cheapest rung** — the tree inside a wood, ~400–1 600 triangles against
-7 784–12 969 for LOD0, which is the only reason a layer that plants a tree
-every 9 m can use the payload at all. `tree_prep.py` generates the rungs by the
+real tree when the bytes land, and the dense fill climbs **the same
+three-band ladder as the woodland** (W0c.10; before that it drew one rung —
+the series' cheapest — across the whole near tier, and a pack's shipped
+billboard where it had one). `tree_prep.py` generates the rungs by the
 bench's own rules (§5), in three series per subject — `rungs`, `stand`, `snag` —
 all quantised over one box; GATE TREES decodes every rung of every series and
 requires each ladder to descend. The crown stretch is a **dial** (`place.crownH`)
