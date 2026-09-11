@@ -270,11 +270,24 @@ frame at 224 and half at 320. What the dense stand exposes is not the count but
 the **shading**: looking into the low sun a Lambert leaf card with no wrap and
 no translucency is black, and a closed canopy is mostly backlit cards. The
 bench's `LEAF_GLSL` (wrap + SSS on a Standard material with the environment) is
-the answer and is not in the game's `trees.js` yet.
+the answer, and is in the game's `trees.js` now (W0c.6): `window.TREE_LEAF`
+carries the same four dials.
 
-**Not done.** `render_world.js`'s own impostor bake is still the baked-photograph
-kind the bench replaced (§6 trap 0) — harmless while its `SUN` is a constant,
-wrong the day there is a time of day. The leaf shading above. The larch impostor is thinner than
+**The G-buffer impostor (W0c.8).** The game's bake is the bench's now: two
+sheets from one camera basis — albedo × baked AO with a BINARY mask (the tree's
+own material with `TREE_LEAF.bake` at 1, into an sRGB target) and world normals
+(a ShaderMaterial into a linear one) — and the impostor is a `MeshStandardMaterial`
+whose `normal` is the second sheet, lit by the world's rig with the leaf terms,
+scaled by `WORLD.treeLod.lit` (the bench's `imp lit`, 1.0 here). Three traps
+the port met, each measured by reading the targets back
+(`WORLD.renderer.readRenderTargetPixels(atlas.rt, …)`): the band guard collapsed
+an L2 rung baked from thirty metres (`uNoBand` lifts it for the bake); a map first
+requested after `treeMapsReady()` was never awaited (`treeSettle` builds EVERY
+rung first); and `vertexColors: true` on a quad with no `color` attribute
+multiplied every impostor by an unbound (0,0,0) — the tint rides on
+`USE_INSTANCING_COLOR` alone.
+
+**Not done.** The larch impostor is thinner than
 its geometry (0.47x the covered pixels, and the gain saturates — that one wants
 tile resolution). Bushes and grass are the next kinds through this same door.
 See `futureDesigns/WORLD-V2.md` §8.3 and the W0c–W0e rows of the staging plan.

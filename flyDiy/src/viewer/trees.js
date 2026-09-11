@@ -185,7 +185,16 @@
   const LEAF = { wrap: 0.76, sss: 0.72, sssp: 3.0, ao: 2.0 };
   const U_WRAP = { value: LEAF.wrap }, U_SSS = { value: LEAF.sss },
         U_SSSP = { value: LEAF.sssp }, U_AO = { value: LEAF.ao };
-  const LEAF_GLSL = [
+  // THE ALBEDO PASS. An impostor must bake a G-BUFFER, not a photograph (the
+  // bench's W0a.1, TREE-IMPORT.md §6 trap 0): with this at 1 the material
+  // writes its surface colour and its baked AO and nothing the lights put in,
+  // so the sheet can be lit at draw under any sun. The AO goes in at half the
+  // exponent: the geometry splits its occlusion between ambient (full) and
+  // sun (0.35) and one albedo cannot, so it takes the middle.
+  const U_BAKEALB = { value: 0 };
+  // the two leaf terms alone, shared with the impostor material, which lights
+  // its sheet through the same words
+  const LEAF_TERMS = [
     '#if NUM_DIR_LIGHTS > 0',
     'if (uLeaf > 0.5) {',
     '  vec3 _L = normalize(directionalLights[0].direction);',
@@ -197,10 +206,24 @@
     '  reflectedLight.directDiffuse += diffuseColor.rgb * _C * _b * uSSS;',
     '}',
     '#endif',
+  ].join('\n');
+  const LEAF_GLSL = [
+    LEAF_TERMS,
     // the AO, on the lighting and not on the albedo
     'float _ao = pow(clamp(vAoV, 0.0, 1.0), uAoBake);',
-    'reflectedLight.indirectDiffuse *= _ao;',
-    'reflectedLight.directDiffuse *= pow(clamp(vAoV, 0.0, 1.0), uAoBake * 0.35);',
+    'if (uBakeAlb > 0.5) {',
+    // the mask is BINARY: the fragment passed its cutoff, so the sheet says it
+    // is there in full. Written at the map's own alpha the sheet capped at
+    // 0.53 and the draw's own cutoff threw half the tree away.
+    '  diffuseColor.a = 1.0;',
+    '  reflectedLight.directDiffuse = diffuseColor.rgb * pow(clamp(vAoV, 0.0, 1.0), uAoBake * 0.5);',
+    '  reflectedLight.indirectDiffuse = vec3(0.0);',
+    '  reflectedLight.directSpecular = vec3(0.0);',
+    '  reflectedLight.indirectSpecular = vec3(0.0);',
+    '} else {',
+    '  reflectedLight.indirectDiffuse *= _ao;',
+    '  reflectedLight.directDiffuse *= pow(clamp(vAoV, 0.0, 1.0), uAoBake * 0.35);',
+    '}',
   ].join('\n');
   function hookLeaf(mat, isLeaf) {
     mat.userData.uLeaf = { value: isLeaf ? 1 : 0 };
@@ -208,16 +231,21 @@
       sh.uniforms.uLeaf = mat.userData.uLeaf;
       sh.uniforms.uWrap = U_WRAP; sh.uniforms.uSSS = U_SSS;
       sh.uniforms.uSSSP = U_SSSP; sh.uniforms.uAoBake = U_AO;
+      sh.uniforms.uBakeAlb = U_BAKEALB;
       sh.vertexShader = 'attribute float aoV;\nvarying float vAoV;\n' +
         sh.vertexShader.replace('#include <begin_vertex>',
           '#include <begin_vertex>\nvAoV = aoV;');
-      sh.fragmentShader = 'uniform float uLeaf, uWrap, uSSS, uSSSP, uAoBake;\nvarying float vAoV;\n' +
+      sh.fragmentShader = 'uniform float uLeaf, uWrap, uSSS, uSSSP, uAoBake, uBakeAlb;\nvarying float vAoV;\n' +
         sh.fragmentShader.replace('#include <lights_fragment_end>',
           '#include <lights_fragment_end>\n' + LEAF_GLSL);
     };
     return mat;
   }
   const treeLeaf = {
+    // the impostor material lights its sheet with the same terms and dials
+    uniforms: { uWrap: U_WRAP, uSSS: U_SSS, uSSSP: U_SSSP, uAoBake: U_AO },
+    terms: LEAF_TERMS,
+    bake: U_BAKEALB,
     get: () => Object.assign({}, LEAF),
     set: o => { for (const k of ['wrap', 'sss', 'sssp', 'ao']) if (o[k] !== undefined) LEAF[k] = +o[k];
       U_WRAP.value = LEAF.wrap; U_SSS.value = LEAF.sss; U_SSSP.value = LEAF.sssp; U_AO.value = LEAF.ao;

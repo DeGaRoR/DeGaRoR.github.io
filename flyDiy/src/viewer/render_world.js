@@ -35,6 +35,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // that 1.3 km back cost almost nothing.
   const NEAR_R = 450, FAR_WOOD = 5400, FAR_FILL = 4000, FAR_FADE = 500;
   const uNear = { value: NEAR_R };     // live: every tree material reads it
+  const uILit = { value: 1.0 };        // the impostor tier's own gain (the bench's `imp lit`)
+  // THE BAKE SWITCHES THE BANDS OFF. A rung's material collapses every
+  // instance outside its band, and the impostor bake draws the same material
+  // from thirty metres: an L2 whose band starts at 300 m baked an EMPTY sheet,
+  // and the far band of the fill was black. Measured by reading the albedo
+  // target back: 0 texels covered where the normal pass had 40 514.
+  const uNoBand = { value: 0 };
   // the sky dome, held so the switchboard further down can reach it: it is
   // parented to the CAMERA, so it is not findable by walking the scene
   let worldSky = null;
@@ -759,43 +766,84 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // to carve away. The species tint is then already in the texture, so the
     // instance colour is left white for these — bake it tinted AND tint it at
     // draw and every tree in the forest is the same green twice over.
+    // ================= W0c.8: THE IMPOSTOR IS A G-BUFFER =================
+    // Ported from the bench (tools/_trees.html, W0a.1): a sheet of final shaded
+    // RGB is a photograph taken under one sun, and nothing can re-light a
+    // photograph - the far band came out black into the sun while the near
+    // tier glowed through. So the bake runs TWICE over the same 16 camera
+    // bases: once for ALBEDO + coverage (the tree materials with their albedo
+    // switch on, or a white unlit cone) and once for the tree's own WORLD
+    // NORMAL, cut by the same mask. The draw is then an ordinary
+    // MeshStandardMaterial whose `normal` comes off the second sheet, and the
+    // sun, the hemisphere, the environment and the leaf terms reach the
+    // billboard through the code path they reach the geometry through.
+    //
+    // THE SHEET IS WRITTEN IN THE TARGET'S ENCODING, not the renderer's -
+    // r128 picks `target.texture.encoding` - so the albedo target declares
+    // sRGB (eight bits of linear is the wrong container for foliage) and the
+    // draw decodes it by hand, because <map_fragment> is replaced wholesale.
+    // The normal target stays linear; its material writes gl_FragColor raw.
+    const NRM_CACHE = new WeakMap();
+    function normalMatFor(src) {
+      let m = NRM_CACHE.get(src);
+      if (!m) {
+        m = new THREE.ShaderMaterial({
+          uniforms: { map: { value: null }, uCut: { value: 0.5 }, uHasMap: { value: 0 } },
+          vertexShader: [
+            'varying vec3 vWN;', 'varying vec2 vUvN;',
+            'void main() {',
+            '  vWN = normalize(mat3(modelMatrix) * normal);',
+            '  vUvN = uv;',
+            '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);',
+            '}'].join('\n'),
+          fragmentShader: [
+            'uniform sampler2D map;', 'uniform float uCut, uHasMap;',
+            'varying vec3 vWN;', 'varying vec2 vUvN;',
+            'void main() {',
+            '  if (uHasMap > 0.5 && texture2D(map, vUvN).a < uCut) discard;',
+            '  vec3 n = normalize(vWN);',
+            '  if (!gl_FrontFacing) n = -n;',
+            '  gl_FragColor = vec4(n * 0.5 + 0.5, 1.0);',
+            '}'].join('\n'),
+        });
+        NRM_CACHE.set(src, m);
+      }
+      m.uniforms.map.value = src.map || null;
+      m.uniforms.uCut.value = src.alphaTest || 0.5;
+      m.uniforms.uHasMap.value = (src.map && src.map.image && src.alphaTest > 0) ? 1 : 0;
+      m.side = src.side;
+      return m;
+    }
     function bakeImpostorAtlas(src) {
       const parts = Array.isArray(src) ? src : null;
       const srcGeo = parts ? parts[0].geo : src;
       const bs = srcGeo.userData.shape;     // stashed by chunkBounds, see above
       // ortho half-extent carries a 12% gutter: mipmaps of a tile-packed atlas
       // bleed across tile borders, and the gutter is what keeps that off the tree
-      const M = bs.r * 1.12, cy = bs.cy, atlas = { cy, diam: 2 * M, tex: null };
+      const M = bs.r * 1.12, cy = bs.cy, atlas = { cy, diam: 2 * M, tex: null, nrm: null };
       if (!canBake) return atlas;
       const N = IMP_G * IMP_TILE;
-      const rt = new THREE.WebGLRenderTarget(N, N, {
+      const mkRT = () => new THREE.WebGLRenderTarget(N, N, {
         minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter,
         format: THREE.RGBAFormat, generateMipmaps: true });
+      const rt = mkRT(), rtN = mkRT();
+      rt.texture.encoding = THREE.sRGBEncoding;
       const sc = new THREE.Scene();
-      // WHITE mesh, tone mapping off. The tile holds pure linear shading and the
-      // per-instance species colour multiplies it at draw time, exactly as
-      // vertexColors does on the near tier — bake it tinted and every tree in the
-      // forest is the same green. Tone mapping and sRGB are applied once, at the
-      // final draw, like every other surface in the scene.
+      const meshes = [];
       if (parts) {
         for (const q of parts) {
+          // the tree's own material, albedo switch on (see trees.js U_BAKEALB)
           const m = q.mat.clone();
           m.onBeforeCompile = q.mat.onBeforeCompile;
           m.userData = q.mat.userData;
           m.toneMapped = false;
-          sc.add(new THREE.Mesh(q.geo, m));
+          meshes.push(new THREE.Mesh(q.geo, m));
         }
       } else {
-        const bMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
-        bMat.toneMapped = false;
-        sc.add(new THREE.Mesh(srcGeo, bMat));
+        // the cone: unlit white, tinted per instance at draw as before
+        meshes.push(new THREE.Mesh(srcGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })));
       }
-      // the SAME rig the world runs, from the same object — see RIG
-      sc.add(hemiLight());
-      const dl = new THREE.DirectionalLight(C(SUNC), RIG.sun);
-      dl.position.copy(SUN).multiplyScalar(400);
-      dl.target.position.set(0, cy, 0);
-      sc.add(dl); sc.add(dl.target);
+      for (const mm of meshes) sc.add(mm);
       const cam = new THREE.OrthographicCamera(-M, M, M, -M, 0.1, bs.r * 8);
       const ctr = new THREE.Vector3(0, cy, 0);
       const pRT = renderer.getRenderTarget(), pAC = renderer.autoClear;
@@ -807,48 +855,72 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const pVP = renderer.getViewport(new THREE.Vector4());
       const pSC = renderer.getScissor(new THREE.Vector4());
       { const gc = renderer.getClearColor(pCol); if (gc && gc !== pCol) pCol.copy(gc); }
-      renderer.setRenderTarget(rt);
-      renderer.autoClear = false;
-      // Clear to transparent BLACK, and unpremultiply in the shader: the canvas
-      // is premultiplied, so a white transparent clear would come back as black
-      // anyway. Premultiplied texels are the ones bilinear filtering and mipmaps
-      // are correct on — divide by alpha at sample time and the silhouette has
-      // no dark fringe at any distance.
-      renderer.setClearColor(0x000000, 0);
-      renderer.clear(true, true, false);
-      renderer.setScissorTest(true);
-      for (let j = 0; j < IMP_G; j++) for (let i = 0; i < IMP_G; i++) {
-        const d = impDir(i, j);
-        // the light stays put in world space while the camera walks the
-        // hemisphere: every tile is lit for the sun the world actually has, so
-        // impostors need no lighting at draw time and the lit side is the same
-        // side across the whole forest (which is why they carry no yaw).
-        cam.up.set(0, 1, 0);
-        if (Math.abs(d.y) > 0.999) cam.up.set(0, 0, 1);   // pole: same rule as the shader
-        cam.position.copy(ctr).addScaledVector(d, bs.r * 4);
-        cam.lookAt(ctr);
-        cam.updateProjectionMatrix();
-        renderer.setViewport(i * IMP_TILE, j * IMP_TILE, IMP_TILE, IMP_TILE);
-        renderer.setScissor(i * IMP_TILE, j * IMP_TILE, IMP_TILE, IMP_TILE);
-        renderer.clearDepth();
-        renderer.render(sc, cam);
-      }
-      renderer.setScissorTest(false);
+      const pTM = renderer.toneMapping;
+      renderer.toneMapping = THREE.NoToneMapping;   // once, at the real draw
+      // ONE CAMERA BASIS, TWO SHEETS: albedo texel (x,y) and normal texel (x,y)
+      // are the same point on the same tree, which is what lets the draw light
+      // one with the other. Clear to transparent BLACK and unpremultiply at
+      // sample time, so the mip chain is the correct one.
+      const drawAll = target => {
+        renderer.setRenderTarget(target);
+        renderer.autoClear = false;
+        renderer.setClearColor(0x000000, 0);
+        renderer.clear(true, true, false);
+        renderer.setScissorTest(true);
+        for (let j = 0; j < IMP_G; j++) for (let i = 0; i < IMP_G; i++) {
+          const d = impDir(i, j);
+          cam.up.set(0, 1, 0);
+          if (Math.abs(d.y) > 0.999) cam.up.set(0, 0, 1);   // pole: same rule as the shader
+          cam.position.copy(ctr).addScaledVector(d, bs.r * 4);
+          cam.lookAt(ctr);
+          cam.updateProjectionMatrix();
+          renderer.setViewport(i * IMP_TILE, j * IMP_TILE, IMP_TILE, IMP_TILE);
+          renderer.setScissor(i * IMP_TILE, j * IMP_TILE, IMP_TILE, IMP_TILE);
+          renderer.clearDepth();
+          renderer.render(sc, cam);
+        }
+        renderer.setScissorTest(false);
+      };
+      const BAKE = (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.bake) || { value: 0 };
+      uNoBand.value = 1;                     // the bake sees every rung whole
+      BAKE.value = 1;                        // pass 1: albedo + coverage
+      drawAll(rt);
+      BAKE.value = 0;
+      const swap = [];                       // pass 2: the tree's own normals
+      for (const mm of meshes) { swap.push([mm, mm.material]); mm.material = normalMatFor(mm.material); }
+      drawAll(rtN);
+      for (const [mm, m] of swap) mm.material = m;
+      uNoBand.value = 0;
+      renderer.toneMapping = pTM;
       renderer.setViewport(pVP);
       renderer.setScissor(pSC);
       renderer.setRenderTarget(pRT);
       renderer.autoClear = pAC;
       renderer.setClearColor(pCol, pA);
       atlas.tex = rt.texture;
+      atlas.nrm = rtN.texture;
+      atlas.rt = rt; atlas.rtN = rtN;        // readable by the inspector
       return atlas;
     }
     // One quad geometry per CHUNK SIZE (the cull sphere lives on the geometry —
     // see chunkBounds), one material per source shape.
     const impQuad = half => { const g = new THREE.PlaneGeometry(1, 1); chunkBounds(g, half); return g; };
     function impostorMat(atlas, far) {
-      const m = new THREE.MeshBasicMaterial({ map: atlas.tex, vertexColors: true,
-        alphaTest: 0.45, side: THREE.DoubleSide });
+      // AN IMPOSTOR IS AN ORDINARY SURFACE WITH A BAKED NORMAL. Standard at
+      // roughness 1, `normal` replaced from the second sheet: that single
+      // substitution buys the whole rig - sun, hemisphere, environment, and the
+      // leaf wrap and translucency through trees.js's own terms.
+      // NO `vertexColors`. The per-instance tint rides on USE_INSTANCING_COLOR,
+      // which r128 defines from the mesh's instanceColor alone; `vertexColors`
+      // would ALSO define USE_COLOR, and multiply vColor by a `color`
+      // attribute the quad does not carry - an unbound attribute reads
+      // (0,0,0), and every impostor drew black under a healthy atlas. The old
+      // photograph impostor was a ShaderMaterial and never met this.
+      const m = new THREE.MeshStandardMaterial({ map: atlas.tex,
+        alphaTest: 0.45, side: THREE.DoubleSide, roughness: 1, metalness: 0 });
+      (m.userData = m.userData || {}).atlas = atlas;
       if (!atlas.tex) return m;              // headless: no GL, no atlas, no shader
+      const LEAF = (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.uniforms) ? TREE_LEAF : null;
       m.onBeforeCompile = sh => {
         sh.uniforms.uCam = uCam;
         sh.uniforms.uNearB = uNear;
@@ -857,20 +929,22 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         sh.uniforms.uCy = { value: atlas.cy };
         sh.uniforms.uDiam = { value: atlas.diam };
         sh.uniforms.uG = { value: IMP_G };
+        sh.uniforms.uNrm = { value: atlas.nrm };
+        sh.uniforms.uILit = uILit;
+        sh.uniforms.uLeaf = { value: 1 };
+        sh.uniforms.uWrap = LEAF ? LEAF.uniforms.uWrap : { value: 0.76 };
+        sh.uniforms.uSSS = LEAF ? LEAF.uniforms.uSSS : { value: 0.72 };
+        sh.uniforms.uSSSP = LEAF ? LEAF.uniforms.uSSSP : { value: 3 };
         sh.vertexShader = sh.vertexShader
           .replace('#include <common>', '#include <common>\n' +
             'uniform vec3 uCam;\nuniform float uNearB, uFarB, uFadeB, uCy, uDiam;\n' +
             'varying vec3 vImpDir;')
           // The quad is built around the instance's own axes, NOT the screen's.
-          // Instances carry a random yaw for the 3D tier; impostors deliberately
-          // ignore it (the baked lighting is world-fixed, so a yawed impostor
-          // would be lit from the wrong side) and read only position and scale
-          // out of the instance matrix. Scale is non-uniform (pines narrow,
-          // willows squat): the exact trick is to do everything in the UNSCALED
-          // shape's space — pick the view with the direction divided by the
-          // scale, lay the quad out there, then scale the offsets back. The
-          // orthographic silhouette of an affinely scaled object is the affine
-          // image of the unscaled silhouette, so this is exact, not a fudge.
+          // Instances carry a random yaw for the 3D tier; impostors ignore it
+          // and read only position and scale out of the instance matrix. Scale
+          // is non-uniform: the exact trick is to do everything in the
+          // UNSCALED shape's space — pick the view with the direction divided
+          // by the scale, lay the quad out there, then scale the offsets back.
           .replace('#include <project_vertex>', [
             'vec3 iPos = instanceMatrix[3].xyz;',
             'float sX = length(instanceMatrix[0].xyz), sY = length(instanceMatrix[1].xyz);',
@@ -883,10 +957,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             'vec3 rgt = normalize(cross(upRef, vImpDir));',
             'vec3 upv = cross(vImpDir, rgt);',
             // Shrink to nothing over the last uFadeB metres instead of clipping
-            // hard. An alpha fade would need blending (and sorting); at the far
-            // edge a tree is about two pixels tall, so shrinking it away is
-            // indistinguishable from dissolving it — and it lets the terrain's
-            // canopy texture come up underneath without a visible tide line.
+            // hard: at the far edge a tree is about two pixels tall, so
+            // shrinking it away is indistinguishable from dissolving it
             'float fade = 1.0 - clamp((dCam - (uFarB - uFadeB)) / uFadeB, 0.0, 1.0);',
             'vec3 off = (rgt * position.x + upv * position.y) * (uDiam * fade);',
             'vec3 wp = ctr + vec3(off.x * sX, off.y * sY, off.z * sX);',
@@ -897,7 +969,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           ].join('\n'));
         sh.fragmentShader = sh.fragmentShader
           .replace('#include <common>', '#include <common>\n' +
-            'uniform float uG;\nvarying vec3 vImpDir;')
+            'uniform float uG, uILit, uLeaf, uWrap, uSSS, uSSSP;\nuniform sampler2D uNrm;\nvarying vec3 vImpDir;\n' +
+            // the decode, written out: <map_fragment> and its mapTexelToLinear
+            // are replaced below, and the sheet was written sRGB
+            'vec3 impSRGB(vec3 c) { return mix(pow((c + 0.055) / 1.055, vec3(2.4)), c / 12.92, step(c, vec3(0.04045))); }')
           .replace('#include <map_fragment>', [
             // hemi-octahedral fold: the upper hemisphere onto [-1,1]^2, so a
             // regular grid of tiles is a near-uniform spread of view directions
@@ -914,12 +989,28 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             'if (gf.x + gf.y < 1.0) { cA = vec2(0.0); wB = vec3(1.0 - gf.x - gf.y, gf.x, gf.y); }',
             'else { cA = vec2(1.0); wB = vec3(gf.x + gf.y - 1.0, 1.0 - gf.y, 1.0 - gf.x); }',
             'vec2 qv = vUv / uG;',
-            'vec4 texelColor = texture2D(map, (g0 + cA) / uG + qv) * wB.x',
-            '                + texture2D(map, (g0 + cB) / uG + qv) * wB.y',
-            '                + texture2D(map, (g0 + cC) / uG + qv) * wB.z;',
-            'texelColor.rgb /= max(texelColor.a, 1e-4);',   // atlas is premultiplied
+            'vec2 uvA = (g0 + cA) / uG + qv, uvB = (g0 + cB) / uG + qv, uvC = (g0 + cC) / uG + qv;',
+            'vec4 texelColor = texture2D(map, uvA) * wB.x + texture2D(map, uvB) * wB.y + texture2D(map, uvC) * wB.z;',
+            'texelColor.rgb = impSRGB(clamp(texelColor.rgb / max(texelColor.a, 1e-4), 0.0, 1.0));',   // premultiplied sheet
             'diffuseColor *= texelColor;',
-          ].join('\n'));
+            // the other half of the G-buffer, un-premultiplied by ITS alpha
+            'vec4 n0 = texture2D(uNrm, uvA), n1 = texture2D(uNrm, uvB), n2 = texture2D(uNrm, uvC);',
+            'float nW = dot(wB, vec3(n0.a, n1.a, n2.a));',
+            'vec3 nBake = (n0.rgb * wB.x + n1.rgb * wB.y + n2.rgb * wB.z) / max(nW, 1e-4) * 2.0 - 1.0;',
+            'if (dot(nBake, nBake) < 1e-4) nBake = dI;',
+            'vec3 nImpV = normalize((viewMatrix * vec4(normalize(nBake), 0.0)).xyz);',
+          ].join('\n'))
+          // the substitution that buys the rig; both, because the environment
+          // reads geometryNormal
+          .replace('#include <normal_fragment_maps>',
+            '#include <normal_fragment_maps>\nnormal = nImpV;\ngeometryNormal = nImpV;')
+          .replace('#include <lights_fragment_end>',
+            '#include <lights_fragment_end>\n' + (LEAF ? LEAF.terms : '') + '\n' +
+            // the tier gain, on all four terms - the multiscatter one rides on
+            // the sky and not the albedo, and scaling the diffuse alone leaves
+            // a floor that eats the dial (the bench's W0a.2)
+            'reflectedLight.directDiffuse *= uILit;\nreflectedLight.indirectDiffuse *= uILit;\n' +
+            'reflectedLight.directSpecular *= uILit;\nreflectedLight.indirectSpecular *= uILit;');
       };
       return m;
     }
@@ -1001,7 +1092,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       for (const S of rec.rungs) for (const b of S) for (const m of b) { m.count = 0; m.visible = false; }
     };
     const BAND_GLSL = (edgeExpr) =>
-      'if (' + edgeExpr + ' < uNearB || ' + edgeExpr + ' >= uFarB) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);';
+      'if (uNoBand < 0.5 && (' + edgeExpr + ' < uNearB || ' + edgeExpr + ' >= uFarB)) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);';
     // the draw material: chained onto whatever the part already carries
     // (trees.js's AO hook), never overwriting it
     const bandMat = (mat, near, far) => {
@@ -1010,8 +1101,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         if (prev) prev(sh);
         sh.uniforms.uNearB = { value: near };
         sh.uniforms.uFarB = { value: far };
+        sh.uniforms.uNoBand = uNoBand;
         sh.vertexShader = sh.vertexShader
-          .replace('#include <common>', '#include <common>\nuniform float uNearB, uFarB;')
+          .replace('#include <common>', '#include <common>\nuniform float uNearB, uFarB, uNoBand;')
           .replace('#include <project_vertex>', '#include <project_vertex>\n' +
             BAND_GLSL('length(mvPosition.xyz)'));
       };
@@ -1028,8 +1120,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         sh.uniforms.uNearB = { value: near };
         sh.uniforms.uFarB = { value: far };
         sh.uniforms.uCG = uCG;
+        sh.uniforms.uNoBand = uNoBand;
         sh.vertexShader = sh.vertexShader
-          .replace('#include <common>', '#include <common>\nuniform float uNearB, uFarB;\nuniform vec3 uCG;')
+          .replace('#include <common>', '#include <common>\nuniform float uNearB, uFarB, uNoBand;\nuniform vec3 uCG;')
           .replace('#include <project_vertex>', '#include <project_vertex>\n' +
             'vec4 wPd = modelMatrix * instanceMatrix * vec4(transformed, 1.0);\n' +
             BAND_GLSL('distance(wPd.xyz, uCG)'));
@@ -1093,12 +1186,15 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       if (typeof treeWarm !== 'function' || typeof treeMapsReady !== 'function')
         return (treeSettled = Promise.reject(new Error('no tree loader')));
       treeSettled = treeWarm().then(() => {
+        // EVERY rung of every series, because a pack's coarse rung can wear a
+        // map of its own (LOLIPOP's L3 is a card with its own texture), and a
+        // map first requested after this promise is a map the bake never waits
+        // for - measured as a normal sheet of solid cards over an empty albedo
         for (const ser of SERIES)
           for (const re of [PICK_CONIF, PICK_BROAD]) {
             const k = treePick(re), S = treeList().find(e => e.key === k).sub;
-            const n = (S[ser] && S[ser].length) ? S[ser].length : S.rungs.length;
-            treeBuild(THREE, k, 0, ser);
-            treeBuild(THREE, k, n - 1, ser);
+            const list = (S[ser] && S[ser].length) ? S[ser] : S.rungs;
+            for (let r = 0; r < list.length; r++) treeBuild(THREE, k, r, ser);
           }
         return treeMapsReady();
       });
@@ -1200,7 +1296,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const srcs = P ? P.series.map(S => S.parts) : [side === 'conif' ? coneGeo : blobGeo];
       return srcs.map(src => {
         const at = bakeImpostorAtlas(src), m = impostorMat(at, FAR_WOOD);
-        plantedKit.push(at.tex, m);
+        plantedKit.push(at.tex, at.nrm, m);
         return m;
       });
     };
@@ -1445,11 +1541,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // the fill's near band draws the CHEAPEST rung of whichever series the
       // instance was dealt, and its far band that series' own atlas
       const SHAPE = { conif: null, broad: null, kit: [] };
-      const shapeFallback = geo => ({
+      const shapeFallback = geo => { const at = bakeImpostorAtlas(geo); return {
         dead: 0, series: [{ parts: [{ geo, mat: matF }],
-                            imp: impostorMat(bakeImpostorAtlas(geo), FAR_FILL), scaleY: 1 }],
+                            imp: impostorMat(at, FAR_FILL), scaleY: 1, atlas: at }],
         white: false,
-      });
+      }; };
       function setShapes() {
         for (const k of SHAPE.kit) if (k && k.dispose) k.dispose();
         SHAPE.kit = [];
@@ -1479,14 +1575,15 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             const H = real[side];
             for (const S of H.series) {
               S.parts.forEach(q => chunkBounds(q.geo, CH));
-              S.imp = impostorMat(bakeImpostorAtlas(S.parts), FAR_FILL);
-              SHAPE.kit.push(S.imp);
+              const at = bakeImpostorAtlas(S.parts);
+              S.imp = impostorMat(at, FAR_FILL);
+              SHAPE.kit.push(S.imp, at.tex, at.nrm);
             }
             SHAPE[side] = H;
           } else {
             const sh = shapeFallback(side === 'conif' ? coneF : blobF);
             SHAPE[side] = sh;
-            SHAPE.kit.push(sh.series[0].imp);
+            SHAPE.kit.push(sh.series[0].imp, sh.series[0].atlas.tex, sh.series[0].atlas.nrm);
           }
         }
         return !!real;
@@ -2318,7 +2415,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // compared against the geometry it stands in for (tools/make_probe.js).
   return { worldUpdate, SUN, sun, hemi, minimap: miniCanvas, setWindVis, envMap,
            setShedDims: d => setShedDims(d),
-           treeLod: { near: uNear, cam: uCam },
+           treeLod: { near: uNear, cam: uCam, lit: uILit }, renderer,
            // the world's own light panel — the same shape the shed exposes, so
            // one piece of UI can drive either room
            lightSwitches: worldSwitch ? worldSwitch.list() : [],
