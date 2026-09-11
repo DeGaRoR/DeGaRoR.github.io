@@ -37710,3 +37710,29 @@ Gates: VIEW, UISMOKE, BENCH green on the working copy.
   at its z+ end - the overhanging bearer rides on the NEXT module's piles,
   which is the slot-in design again.
 - Gates: HOUSE (with --selftest) and MEDIA green.
+
+## G254.2 — THE BOATS ARE WHAT THEY ARE: SIZED BY WHAT THE HULL IS, AND THE
+## RUNABOUT GETS ITS OUTBOARD (2026-09-11, the user: "You may want to resize the
+## boats, that seems off. Most of them are small wooden boats ... an enormous
+## row boat next to a quite small motorboat (did you import the motor? It
+## looks empty at the back...). So please understand what model is what")
+
+- LOOKED AT rather than read off their titles: "boat" (rohithbunty) is a
+  PAINTED OPEN ROWING BOAT with thwarts; "Old Boat" (donnichols) a CLINKER
+  rowing boat with its oars shipped, and its export is in no known unit (six
+  metres at a hundredth, 2.4 m of beam); "Wooden Boat" (usedm) is the one with
+  a windscreen and a flat transom — a small OUTBOARD RUNABOUT, delivered
+  without its motor. Keys renamed to say so (`boat_painted`, `boat_clinker`,
+  `boat_runabout`); the packs are new this week and nothing else referenced
+  them.
+- SIZED BY WHAT THE HULL IS: the clinker boat by its oars (2.75 m -> a 4.2 m
+  boat, scale 0.007 not 0.01), the painted one to 4.0 m (a 30th, not a 38th),
+  the runabout up to 4.35 m (a 105th). Measured on every hull: the WIDE end is
+  at z- — the transom — and the bow at +z, which is what the outboard needed
+  to know.
+- THE OUTBOARD (`buildOutboard`): a cowling on a bracket astride the transom,
+  a leg down through the waterline, a gearcase and a two-blade prop — drawn in
+  the metal bag, so it wears the gutters' galvanised sheet or rust, turned with
+  the boat's yaw. Hung on every hull the kit marks `motor: true`; rule 28
+  counts the bare hulls and holds the motors drawn equal.
+- Gates: HOUSE (with --selftest) and MEDIA green.

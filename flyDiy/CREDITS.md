@@ -500,11 +500,11 @@ modules in one file (`pier_run`, `pier_ledge`, `pier_step`, `pier_head`,
 boats. Attribution is a condition of the licence and must stay visible
 wherever these are shown:
 
-- `boat_skiff` — **"boat"** by rohithbunty
+- `boat_painted` — **"boat"** by rohithbunty
   (https://sketchfab.com/3d-models/boat-4af3074fb1224751b0758be164a66f9b)
-- `boat_old` — **"Old Boat"** by donnichols
+- `boat_clinker` — **"Old Boat"** by donnichols
   (https://sketchfab.com/3d-models/old-boat-a9ce4ca0cac14f448c72bb94ad193437)
-- `boat_row` — **"Wooden Boat"** by usedm
+- `boat_runabout` — **"Wooden Boat"** by usedm
   (https://sketchfab.com/3d-models/wooden-boat-e5ee1cfb648549b78b374ae706bfc121)
 - `boat_tirola` — **"Docked venetian boat - low poly from scan - free"** by boat_dfk
   (https://sketchfab.com/3d-models/docked-venetian-boat-low-poly-from-scan-free-53af885edaf044ac8d375b29305fe9ac)

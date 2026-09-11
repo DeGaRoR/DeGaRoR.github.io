@@ -218,18 +218,20 @@ const PIER_KIT = {
                         [0.976, 1.423, 0.139, -0.675]] },
   pier_deck:  { L: 2.20, W: 2.52, H: 0.08, y0: 2.59, deck: [2.66, 2.64], dz: [-1.101, 1.101],
                 piles: [] },
-  boat_skiff:  { L: 5.09, W: 1.77, H: 1.01, float: 0.28 },
-  boat_old:    { L: 6.04, W: 2.36, H: 1.29, float: 0.30 },
-  boat_row:    { L: 3.93, W: 1.57, H: 1.11, float: 0.32 },
-  boat_tirola: { L: 4.78, W: 1.56, H: 1.54, float: 0.30 },
-  boat_grady:  { L: 10.14, W: 3.76, H: 3.99, float: 0.22 },
+  // every hull lies along z, bow to +z, transom at z- (measured: the wide
+  // end); `motor` marks a hull delivered without its outboard
+  boat_painted:  { L: 4.02, W: 1.40, H: 0.80, float: 0.28 },
+  boat_clinker:  { L: 4.22, W: 1.65, H: 0.90, float: 0.30 },
+  boat_runabout: { L: 4.35, W: 1.74, H: 1.23, float: 0.30, motor: true },
+  boat_tirola:   { L: 4.78, W: 1.56, H: 1.54, float: 0.30 },
+  boat_grady:    { L: 10.14, W: 3.76, H: 3.99, float: 0.22 },
 };
 // THE KIT'S TWO LEVELS, in the author's frame: every run's deck, and the
 // stair module's low landing. The path is on one or the other; the stair is
 // the only module that has an end on each.
 const PIER_DECK = 2.64, PIER_LOW = 1.24;
 const PIER_RUNS = ['pier_run', 'pier_run', 'pier_ledge'];
-const SMALL_BOATS = ['boat_skiff', 'boat_old', 'boat_row', 'boat_tirola'];
+const SMALL_BOATS = ['boat_painted', 'boat_clinker', 'boat_runabout', 'boat_tirola'];
 const setTint = key => SET_TINT[key] || {};
 
 // THE RULE, in the user's own words: "Finishes, beams and pillars takes
@@ -3903,12 +3905,51 @@ function buildPierPiles(bags, P, Q, plan, g) {
   return n;
 }
 
+// THE OUTBOARD (G254.2, the user: "did you import the motor? It looks empty at
+// the back"). The runabout was delivered without one - a windscreen, a flat
+// transom and nothing on it - so the generator hangs one there: a cowling on
+// a bracket over the transom, a leg down through the waterline, a skeg and a
+// two-blade prop. Metal bag, so it wears the galvanised sheet or the rust
+// like the gutters, tinted with them. Bow is +z on every hull; the transom is
+// at -L/2, turned with the boat's yaw.
+function buildOutboard(bags, P, Q, b) {
+  const K = PIER_KIT[b.key];
+  if (!K || !K.motor) return 0;
+  const c = Math.cos(b.ry), sn = Math.sin(b.ry);
+  const at = (lx, ly, lz) => [b.x + lx * c + lz * sn, b.y + ly, b.z - lx * sn + lz * c];
+  const zt = -K.L / 2 + 0.02;                  // the transom, just inside the hull
+  const yt = K.H * 0.46;                       // the transom's top edge
+  const back = [-sn, 0, -c];                   // local -z in the world
+  // the cowling: a rounded block astride the transom top, leaning aft a touch
+  const cw = 0.19, ch = 0.20, cd = 0.22;
+  const cc = at(0, yt + ch * 0.55, zt - cd * 0.45);
+  beam(bags.metal, add(cc, mul(back, -cd / 2)), add(cc, mul(back, cd / 2)),
+       cw, ch / 2, [0, 1, 0], 0, Q.lod === 0 ? { bevel: 0.03 } : null);
+  if (Q.lod !== 0) return 1;
+  // the bracket over the transom and the leg down to the water
+  const bk = at(0, yt - 0.06, zt - 0.02);
+  beam(bags.metal, add(bk, mul(back, -0.06)), add(bk, mul(back, 0.18)),
+       0.05, 0.07, [0, 1, 0]);
+  const lt = at(0, yt - 0.08, zt - 0.16), lb = at(0, -K.float * K.H - 0.02, zt - 0.16);
+  beam(bags.metal, lb, lt, 0.026, 0.055, back, 0, { bevel: 0.006 });
+  // the gearcase and the prop, under the surface
+  const gc = add(lb, [0, 0.04, 0]);
+  cyl(bags.metal, add(gc, mul(back, -0.10)), mul(back, 1), 0.045, 0.24, 8, true);
+  for (const a of [0, Math.PI / 2]) {
+    const ax = [Math.cos(a) * c, Math.sin(a), -Math.cos(a) * sn];
+    const pc = add(gc, mul(back, 0.16));
+    beam(bags.metal, add(pc, mul(ax, -0.09)), add(pc, mul(ax, 0.09)), 0.035, 0.006,
+         back);
+  }
+  return 1;
+}
+
 // the near-mesh cost of what the plan instances, for the bench's ledger and
 // for the gate's sanity: the sport fisher alone is 370k
 const PIER_TRIS = {
   pier_run: 11758, pier_ledge: 14162, pier_step: 14598, pier_head: 23280,
-  pier_gate: 13010, pier_piles: 2460, pier_deck: 5512, boat_skiff: 37348,
-  boat_old: 8358, boat_row: 11215, boat_tirola: 18742, boat_grady: 369673,
+  pier_gate: 13010, pier_piles: 2460, pier_deck: 5512, boat_painted: 37348,
+  boat_clinker: 8358, boat_runabout: 11215, boat_tirola: 18742, boat_grady: 369673,
 };
 
 // ---------------------------------------------------------------------------
@@ -4217,7 +4258,10 @@ function build(P0, lod) {
   const dr = buildDrainage(bags, P, Q, V, R, g);
   const barrel = buildBarrel(bags, P, Q, dr, g);
   const pier = pierPlan(P, V, g, dk.jetty);
-  if (pier) pier.pilesDown = buildPierPiles(bags, P, Q, pier, g);
+  if (pier) {
+    pier.pilesDown = buildPierPiles(bags, P, Q, pier, g);
+    pier.motors = pier.boats.reduce((a, b) => a + buildOutboard(bags, P, Q, b), 0);
+  }
 
   // ---- and now the light that never gets in --------------------------------
   const aoInfo = K.bakeAO(BAGS.map(k => bags[k]),

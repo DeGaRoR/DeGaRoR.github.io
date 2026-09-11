@@ -806,6 +806,10 @@ function battery(name, P) {
       }
       check(pr.pilesDown === need, name + ': a pier pile hangs above the seabed',
             pr.pilesDown + ' carried down of ' + need + ' that hang');
+      // and a hull delivered without its motor gets one
+      const bare = pr.boats.filter(b => HG.PIER_KIT[b.key].motor).length;
+      check(pr.motors === bare, name + ': a runabout has no outboard on it',
+            pr.motors + ' of ' + bare);
       for (const m of pr.modules) {
         check(g2(m.x, m.z) < wet, name + ': a pier module stands on dry ground',
               m.key + ' at z ' + m.z.toFixed(1));

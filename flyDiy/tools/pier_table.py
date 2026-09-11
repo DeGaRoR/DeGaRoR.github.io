@@ -134,15 +134,25 @@ PROPS = [
       nodes=['modular_wooden_pier_planks'], **PIER),
 
     # ---- the boats ------------------------------------------------------------
-    P('boat_skiff', 'boat', 'open skiff', 'skiff',
-      note='5 m open skiff, delivered at a 38th of size; two materials, both PBR',
-      scale=38.0, float=0.28, tex=1024),
-    P('boat_old', 'boat', 'old rowing boat', 'old',
-      note='6 m clinker rowing boat with its oars shipped, delivered in centimetres',
-      scale=0.01, float=0.30, tex=1024),
-    P('boat_row', 'boat', 'small wooden boat', 'row',
-      note='4 m wooden rowing boat, delivered along x at a hundredth: turned to lie along z',
-      scale=95.0, rot=(0, 90, 0), float=0.32, tex=512),
+    # WHAT EACH ONE IS, looked at rather than read off its title (G254.2, the
+    # user: "please understand what model is what, and resize accordingly").
+    # "boat" is a painted open rowing boat with thwarts; "Old Boat" a clinker
+    # rowing boat with its oars shipped; "Wooden Boat" is the one with a
+    # windscreen and a flat transom - a small outboard runabout, delivered
+    # WITHOUT its motor (the generator hangs one on it). Sizes are set from
+    # what the hull is: a rowing boat is four metres, a runabout a bit more.
+    P('boat_painted', 'boat', 'painted rowing boat', 'skiff',
+      note='4.0 m open rowing boat with thwarts, painted; delivered at a 30th of size',
+      scale=30.0, float=0.28, tex=1024),
+    P('boat_clinker', 'boat', 'clinker rowing boat', 'old',
+      note='4.2 m clinker rowing boat with its oars shipped; the export is in no '
+           'known unit (6 m at a hundredth) - sized by its oars, 2.75 m',
+      scale=0.007, float=0.30, tex=1024),
+    P('boat_runabout', 'boat', 'outboard runabout', 'row',
+      note='4.3 m runabout with a windscreen and a flat transom, delivered along x; '
+           'turned to lie along z, bow to +z. No motor in the model: buildOutboard '
+           'hangs one on the transom',
+      scale=105.0, rot=(0, 90, 0), float=0.30, tex=512),
     P('boat_tirola', 'boat', 'scanned wooden boat', 'tirola',
       note='4.8 m boat from a photogrammetry scan; spec-gloss, converted by the baker',
       scale=1.0, float=0.30, tex=1024),
