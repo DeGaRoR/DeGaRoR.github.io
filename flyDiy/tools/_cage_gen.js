@@ -3689,6 +3689,17 @@ function cageInterior(m, S) {
     // wood width (w/3) so the visual weight stays comparable.
     // sized down a tad (user: the tubing poked the skin here and there)
     const TUBE_R = 0.010, TUBE_RP = 0.018;
+    // WHAT A TUBE HAS TO CLEAR, ONCE (2026-09-10, the user: "there is still
+    // poking through of the tube frame through the fuselage ... you can add
+    // 5 mm further space to this particular type of build"). Every hoop,
+    // pillar mid-ring and boom longeron below is inset by the big tube's
+    // radius PLUS this, so the member's own outer surface stands that far
+    // inside the covering. It was 5 mm and 5 mm is not enough on a skin the
+    // shader then displaces by a tape and a sag: it is the one number to
+    // argue with rather than three copies of a literal, and the wooden boom's
+    // own inset is NOT this — a former is glued to the ply's inner face and
+    // reads its thickness (see plyT below).
+    const TUBE_CLR = 0.010;
     const tubeSeg = (A, B, r) => {
       memb(A, B, r, 'tube');
       if (typeof globalThis !== 'undefined' && globalThis.CAGE_DBG)
@@ -4058,7 +4069,7 @@ function cageInterior(m, S) {
       // the hoop line — so members intersect the pillar hoops. Wood
       // keeps the band-edge anchors (beams end at the post faces).
       const eA = mkEnds(aftC), eF2 = mkEnds(fwdC);
-      const HIN2 = TUBE_RP + 0.005;
+      const HIN2 = TUBE_RP + TUBE_CLR;
       const midOf = k2 => {
         const A2 = eA[k2], B2 = eF2[k2];
         if (!A2 || A2.id == null || !B2 || B2.id == null) return null;
@@ -4100,7 +4111,7 @@ function cageInterior(m, S) {
       // in the section plane. Per-segment section gate,
       // so a mixed map drops exactly the hoop arcs that changed.
       (() => {
-        const HIN = TUBE_RP + 0.005;
+        const HIN = TUBE_RP + TUBE_CLR;
         const ringP = [];
         for (const v of aftC) {
           let bp = v, bd = 1e9;
@@ -4655,7 +4666,7 @@ function cageInterior(m, S) {
       // the boom nodes carry the THICK longerons now — the inset must
       // track the big radius (it was TUBE_R-sized, which is exactly why
       // the waist longeron poked through the boom skin, user screenshot)
-      const BOOM_IN = TUBE_RP + 0.005;
+      const BOOM_IN = TUBE_RP + TUBE_CLR;
       // WHAT THE WOODEN STRUCTURE HAS TO CLEAR is the plywood skin,
       // and it is the SAME NUMBER the lining is extruded by (the
       // liner calls above): a former or a longeron is glued to the

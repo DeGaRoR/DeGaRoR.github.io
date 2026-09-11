@@ -36366,3 +36366,288 @@ is this commit's.
   first commit passed COWL and PARTS in the working copy and was still wrong;
   the worktree is the verdict, exactly as SHARED-TREE-PRACTICES §2.4 says.
 
+## G242 — THE PROJECTOR FOLLOWS WHAT YOU ARE LOOKING AT, THE PAINT REACHES THE
+## LEGS, A LEAF SPRING IS A STACK, THE NOSE LEG'S FAIRING FINDS ITS WHEEL, A
+## CUB'S FLANK GOES FLAT — AND THE AUTO GENERATOR STOPS BUILDING THE SAME
+## AEROPLANE (2026-09-11, the user's ten-item list: "The liveries still have
+## different coordinates in game and in the editor ... the base color misses
+## the rudder and possibly elements of suspension such as the blades ... the
+## blade count does not draw blades for tailwheels ... there is still poking
+## through of the tube frame ... the tricycle front wheel's suspension gets a
+## faulty fairing ... set frame pitch and stringer pitch both to zero for
+## tubes + fabric ... always choose aero nose with several rings when the
+## engine is not nose-mounted ... you underestimate systematically the
+## required cabin width by about 50 cm ... use the taper and boom narrowing
+## more often ... you keep the tail and stabs almost exactly the same in all
+## circumstances")
+
+- **THE LIVERY MOVED BETWEEN THE GARAGE AND THE RUNWAY BECAUSE TWO WRITERS
+  SHARED ONE UNIFORM.** G216 gave the editor the mount's frame and that was
+  right; what it could not know is that `poseModel` runs AFTERWARDS, EVERY
+  FRAME, IN THE GARAGE TOO — the flown model is posed at the stand whether or
+  not it is drawn — so the editor's `aeroSetCraft` survived exactly until the
+  next frame and a side- or plan-projected marking previewed in the FLOWN
+  aeroplane's frame on the CAGE's geometry. Measured on the Cub-alike, over
+  the same 236 meshes: **2.79 m along and 0.42 m up between the two frames**,
+  plus the design-pose tilt. There is ONE projector uniform, so there has to
+  be one writer per frame, and the right one is the root of whatever is being
+  LOOKED at: app.js picks `CAGE_JOIN.mount()` while `showCage`, `model.grp`
+  otherwise. The two describe the same physical axes (the join bakes the
+  payload cage->model as x aft, y up, z left), so this is a change of ROOT and
+  nothing else. After: the garage writes only the editor frame (`fl` count 0),
+  and the same physical points — the wing tip and the tailpost — land at
+  4.899 / 3.467 in the garage and 4.899 / 3.476 in flight. **9 mm, from
+  2.79 m.**
+
+- **A GEAR LEG IS PAINTED WITH THE AEROPLANE.** `gearLeg` stood at
+  `parent: null` on the crankcase's ruling — an engine's grey is not the
+  airframe's paint — and for a bending blade, a leaf spring and a bungee V
+  that ruling is simply wrong. `parent: 'body'` + `wears: 'parent'` with the
+  steel pin kept, exactly as a spat is painted trim: the base-colour pick now
+  reaches the mains, the nose leg and the tailwheel's castor and spring
+  (measured: `edLegT` and `edCastorT` go from `505c6a` to the picked colour),
+  and the row is still there for a builder who wants bare steel. THE RUDDER
+  WAS NOT MISSING IT — measured on the Cub-alike and the C172-alike, `finSkin`
+  and `finRud` both take the pick through the chain; the report's other half
+  is the suspension, and that is what moved.
+
+- **THE LEAVES WERE ALL DRAWN IN THE SAME MILLIMETRE OF SPACE.** `twLeaves`
+  changed the mass and the clamp block and nothing you could see, because the
+  loop that was meant to stack them (`seg[k] = seg[k]`) assigned each point to
+  itself. THE OFFSET IS THE SWEEP'S OWN THICKNESS AXIS, per point, not "down":
+  a leaf spring bows through 30-40 degrees between root and tip, so a fixed
+  axis fans the stack open at one end and buries it at the other. The sign is
+  chosen once at the root so a stack cannot flip halfway. Measured in a slab
+  at the root: the stack is 11.5 / 19.4 / 27.3 / 35.2 mm deep at 1 / 2 / 3 / 4
+  leaves — 7.9 mm a leaf, which is `twSpringT` through the local tilt.
+
+- **THE TUBE TRUSS'S CLEARANCE IS ONE NUMBER NOW** (`TUBE_CLR`, 5 mm -> 10 mm),
+  used by all three sites that had a copy of the literal — the pillar hoops,
+  the mid-ring anchors and the boom longerons. The wooden boom's inset is NOT
+  this and stays what it was: a former is glued to the ply's inner face and
+  reads its thickness.
+  AND IT IS NOT THE WHOLE POKE. A clearance sweep on the Cub-alike after the
+  change (nearest skin vertex to each tube vertex, in the slab, 5740 tube
+  points) still finds **13 tube vertices within 4 mm of the covering, the
+  closest at 0.7 mm**, clustered near the TOP of the boom around
+  (x -0.03, y 0.16, z -2.58) — i.e. on the centreline, high, which is neither
+  a hoop nor a longeron. Some other member family up there is not taking the
+  inset. The three sites the report names are fixed and measured; that one is
+  the next thread to pull, and the sweep (`scratchpad/poke.js` idiom: group by
+  `matNames`, compare `tube` against `body`) is the instrument for it.
+
+- **THE TRICYCLE'S NOSE LEG CARRIES NO WHEEL, AND ITS FAIRING DID NOT KNOW.**
+  The leg ends at the castor's swivel top; the wheel hangs a `twLegDrop` below
+  it on a fork that turns. Three faults fell out of that one fact:
+  - trimmed against THIS leg's axle plus a tyre radius, the shroud stopped
+    **146 mm above the swivel it is bolted to** and hovered in mid-air with
+    the whole castor bare beneath it. `fairStopY` gives a steered centre leg
+    the swivel HOUSING instead (`CASTOR_HOUSE`, the profile `castorUnit`
+    revolves) — a fixed fairing must not enclose a turning fork, and the
+    housing's height is exactly where the turning part begins;
+  - the chord is solved from what the fairing has to SWALLOW (cylinder plus
+    scissor throw), which is the right question on a long main leg and the
+    wrong one on a short nose strut: **317 mm of chord over a 195 mm strut**,
+    a plank one and a half times wider than it was tall. `legShroud` caps it
+    against its own run. Measured after: chord 216 mm, run 210 mm, bottom edge
+    60 mm above the swivel — i.e. on it;
+  - ...and THE STRUT IS THE LONG PART. The keel-to-axle height was split
+    0.22 / 0.175 between the leg and the castor — a 100 mm oleo carrying a
+    175 mm fork, the wrong way round for every tricycle ever built and why its
+    fairing had nothing to fair. 0.30 / 0.09, sum kept within 5 mm, so the
+    aeroplane sits where it sat (wheel bottom -1.160 against -1.165).
+
+- **A CUB'S FLANK IS FLAT.** `stringerPitch` joins `framePitch` at zero for
+  tube + fabric. G206 took the frames out and left twenty fore-aft ridges down
+  each flank; the user has now asked twice. It is also the right answer: a
+  light steel-tube fuselage is fabric on a TRUSS, and there are no stringers
+  between the longerons to print. Both pitches at zero switch the tape and the
+  sag off by construction (each rides `aeroNear(m, pitch)`, which answers 1e3
+  at pitch 0); the REAL rings and rails the generator knows about still take
+  their faint line, so nothing that is there vanishes. The tape and sag rows
+  are KEPT — they are the fabric's numbers, not the pitch's, and the material
+  lab still dials both pitches back up over them.
+
+### THE AUTO GENERATOR (the last four items, and they are one complaint)
+
+- **BOTH ENDS ARE FAIRED WHEN NOTHING IS BOLTED TO THEM.** The loft has had
+  `aeroNose` since G19 and `aeroAftOn` since G26 and the birth flow asked for
+  NEITHER — so every aeroplane the shed ever built for itself wore a firewall
+  face on the nose whether or not an engine stood behind it, and a pod that
+  stopped dead at its bulkhead. The mount row and the count row decide it now:
+  pusher, over-the-wing and a wing pair get the aero nose (`ring / aeroWsA /
+  aeroWsB / noseMid / noseTip` — the windscreen becomes a material zone on
+  continuous full rings and the front runs out to a point) plus two cowl loft
+  loops; a nose engine gets neither, and the aft fairing instead. The count's
+  write reads the mount it has just chosen, and its nose-mounted branch is an
+  IDENTITY: a discriminator may decide what exists, never undo a loft the
+  builder dialled. **AND `aeroNose` GETS A ROW**, in `3 · nose` and claimed by
+  the nose part — a starter must never set what the panel cannot unset, and
+  this one had no row at all: the loft read it, nothing wrote it, no builder
+  could see it.
+
+- **THE CABIN WIDTHS WERE CAGE UNITS PRETENDING TO BE METRES.** The class
+  seeds and the panel's seating starters were both written as though `halfW`
+  were metres — the starter's own comment says so out loud ("Cub-class 0.66 m
+  for single/tandem, ~1.05 m side-by-side") — and it is not: metres are
+  `halfW x CAGE_UNIT x planeScale`, and the page's aeroplane is authored at
+  **planeScale 0.745**. So 0.33 was not 0.66 m across, it was 0.49 m; 0.525
+  was not 1.05 m, it was 0.78 m. EVERY birth cabin came out a quarter narrower
+  than the number being reasoned about, and nothing said so because the
+  sliders print metres and nobody reads a seed. Corrected in both homes and
+  widened to what the drawn occupants need: 0.70 single, 0.78 tandem, 1.27
+  side-by-side, 1.37 four-seat — +0.16 to +0.49 m, and the classes people fly
+  two-up gain the ~0.5 m the report names.
+
+- **THE BODY NARROWS ON THE WAY AFT.** Two mechanisms the loft has had for
+  chantiers and the birth flow never asked for: the TAPER SECTION (the
+  tightening bay between the aft cabin pillar and the boom, `taperW` pulling
+  its aft ring in) reached only three archetypes out of twenty-five, and the
+  MID-BOOM RING — the cintre — reached none. A lofted boom is one C1 span and
+  therefore cannot waist: it runs straight, which is what a Cub-alike's flank
+  looked like from above. Both ride the CLASS SEED (`SHAPE_SEED`), not a
+  tile's live writes: a seed is one-shot, so this reaches every aeroplane the
+  shed builds for itself and never overwrites a taper somebody has dialled.
+  The taper is ADDITIVE — the aeroplane grows by `taperLen` (0.55 cage units,
+  0.41 m at the page's scale) — which is why the number is modest and stated
+  in one place rather than hidden in six copies.
+
+- **A TAIL STEREOTYPE IS AN OUTLINE PLUS A SIZE.** Twenty-five archetypes and
+  every one of them wore the PAGE'S OWN TAIL: `finArch` was live, gated and
+  selected by not one card, and the macro rows (height, chord, tip chord,
+  sweep, and the same four laid flat for the tailplane — TAIL CHANTIER 2 P3)
+  were written by nothing at all. So the outline was the Jodel's and the size
+  was the Jodel's, on a Stearman and on a motorglider alike. No new mechanism
+  was needed: two frozen corner dicts crossed with the macro tier give FIVE
+  recognisable tails — rounded, straight taper, swept, broad slab, tall &
+  slender — and they live on the row that already existed, so the builder gets
+  them as tiles and not only the birth flow. Every option writes the WHOLE set
+  (a starter that left the last pick's height behind would build a tall Cub
+  tail on the second press), and every archetype names one.
+
+- Gates: DESIGN, PARTS, SKINMAT, GEAR, FIN, JOIN, CAGEFIT green. GATE
+  ARCHETYPES (the 13-minute tier) was still running against two other
+  sessions' concurrent suites when this was written — **it is the one to read
+  before trusting the new tails, the wider cabins and the added taper length
+  in flight**, because all three move real areas and a real tail arm.
+
+- OWED, and named here so it is not lost: `tubeFabric` and `carbon` now differ
+  only by the parting line and their finishes' own sheets, because with both
+  pitches at zero neither draws a tape, a sag or a fastener. GATE SKINMAT's
+  "two constructions share a structure grammar" rule still passes on the
+  TABLE (tape.rise and sag.frac differ) but no longer on the PICTURE. If that
+  reads wrong in daylight, the answer is a fabric-specific term that does not
+  need a pitch — a weave under tension between LONGERONS, which is where a
+  Cub's covering actually pulls.
+
+## G242.1 — THE NOSE CHOICE MOVES TO THE NOSE AND SAYS WHAT IT MEANS, THE
+## STICKERS GO ON THE FIN (ONE SIDE, ONE BOOM), A SUSPENSION IS A LEG AND NOT
+## A SHOCK, A PUSHER'S ENGINE AND BOOM SIT ON OPPOSITE SIDES OF THE DATUM —
+## AND THE UNIT AUDIT THE CABIN ASKED FOR (2026-09-11, the user's reply to
+## G242: "the aeronose option you found is a deprecated one I did not even
+## know existed ... it should be associated to the nose section, and should
+## rather say firewall or aerodynamic nose ... disable draw gap by default ...
+## stick them on the fin ... Did you audit for measurement errors like the
+## cabin width? ... For pusher configurations, engine and boom should be
+## opposite ... YOU tend to use complex suspensions a lot. Most little planes
+## have simple beams")
+
+- **I WIRED THE WRONG SWITCH, AND THE RIGHT ONE WAS UNFINDABLE.** `aeroNose`
+  (G19) replaces the whole front: the windscreen stops being a FOLD and
+  becomes a material zone on a cone of full rings. That is a sailplane's
+  front, not a pusher pod's, and the user had never seen it because nothing
+  writes it. `noseFinish` is the one that matters — it keeps the aeroplane's
+  own windscreen and changes only what the front ENDS in, firewall face or
+  domed cap — and it was written by ONE derived `<select>` injected under
+  `2 · engine`, labelled "engine nose-mounted / aero nose": a nose question
+  filed under the engine and named after the engine. It is a ROW in `3 · nose`
+  now, saying `firewall | aerodynamic`, claimed by the nose part, saved like
+  any other; the select is gone (its other two writes were both no-ops), and
+  the cap's loft (`cowlLoops / cowlEase / cowlBulge`) moved with it, where
+  `_cage_parts` had already filed it. `cowlLoops` runs to 5: "several rings"
+  and two was not several. My `aeroNose` rows are withdrawn.
+
+- **AND THE SHAPE COMES WITH THE CHOICE.** A bare `noseFinish` on a nose sized
+  for a firewall is a blunt bullet, so `NOSE_AERO` is the user's own recipe as
+  one constant — length 0.95, four rings, tip collapse at the clamp's own
+  maximum 0.98, droop 0.10, ease 0.62, bulge 1.06 — written by the pusher, the
+  over-the-wing mount and the wing pair. MEASURED on the pod: the tip lands at
+  y −0.043 m against a body spanning −0.686 to +0.622, i.e. **1 cm off the
+  body's own centre line** — which is what "the tip is in line with the
+  fuselage" asks for. (The droop that achieves it is a constant, not a
+  derivation: on a much deeper body it would want re-measuring.)
+
+- **THE STICKERS GO ON THE FIN, ON ONE FACE OF ONE BOOM.** `stkPlace` defaults
+  to the fin (place 3) instead of the rear fuselage — the one panel a pod, a
+  rod boom or a twin boom may not have. ONE SIDE needed a new gate, because a
+  box projection paints THROUGH the aeroplane: a marking aimed at the fin
+  lands on both its faces, and on a twin boom on all four. Two tests, and it
+  takes both — **the POSITION picks the fin** (x < 0 is the other boom) and
+  **the NORMAL picks the face** (x < 0 is the far side of this one) — so the
+  shader gained `vCraftNrm`, the craft-frame normal beside the craft-frame
+  position, because position alone cannot separate two faces 60 mm apart.
+  `one: 1` on a decal turns it on; everything else is unaffected.
+  PROVEN BY EVALUATING THE GATE ITSELF over the fin geometry, which is the
+  only way to be sure on a shape a screenshot cannot frame whole: on the
+  P-38-alike's FOUR fin faces (two booms, two sides each) exactly one passes —
+  **starboard fin / outer face 1498 of 1498, the other three 0 of 1498**. On
+  the single-finned Cub-alike, 2075 of 2075 on the starboard face and 0 of
+  2078 on the port; the only leakage is 29 vertices out of 4292, on the
+  wrap-around at the leading and trailing edges, where the flat gives out —
+  and the strip sits in the middle of the flat.
+
+- **A SUSPENSION IS A LEG.** This is the whole of "YOU tend to use complex
+  suspensions a lot": the row wrote `s1_shockKind` — the shock on a swinging
+  link — and never `s1Leg`, so whatever the card said, **every archetype in
+  the shed was drawn on the LINK V**: a pivoted arm, a V strut, a panel and a
+  coil-over, twenty-five times. The join has read the leg KIND as the
+  suspension since G133 ("a beam leg IS a spring-steel blade"); the row simply
+  never wrote it. Three options, three leg families, and five more archetypes
+  moved to the blade on top of that — the shed now builds 13 simple beams, 4
+  bungee Vs and 8 oleos instead of 25 Vs.
+
+- **A PUSHER'S ENGINE AND BOOM ARE ON OPPOSITE SIDES OF THE DATUM.** Both sat
+  at 0, so the prop disc swept the boom's own height — the one place a
+  pusher's boom cannot be. `rodY` is DERIVED from `engY` so the rule survives
+  the other choice: whichever side of the datum the engine is on, the boom is
+  on the other, clear by its own 80 mm. Engine +0.26, boom −0.34; the pod in
+  the reference photograph.
+
+- **`rimDoor` 0.** G214 drew the door gap on every build because the door was
+  invisible without it; it has a real recess and a seal now, and the painted
+  line read as a decal. The row stays under Cabin fit > doors.
+
+### THE UNIT AUDIT (the user's question, answered by measurement)
+
+Every length in the panel is in one of TWO systems and only one of them ever
+said so. Measured on the Jodel-alike, in the mount frame — which is METRES
+(`wgSpan` 9.8 draws 9.798):
+
+| row | system | proof |
+|---|---|---|
+| `halfW` | CAGE units (× CAGE_UNIT × planeScale = 0.745) | 0.52 → 0.775 m, 0.70 → 1.043, 1.00 → 1.490 across |
+| `s1R` and the whole undercarriage | **METRES** | 0.20 → a wheel 0.400 m across; 0.30 → 0.600 |
+| `cw_propD`, `cw_spinR/Len` and the cowl | **METRES** | 1.91 → a disc 1.910 m; 0.101 → 0.202 |
+| `wgSpan`, `wgChord` | METRES, and they DECLARE it (`dim: 'm'`) | — |
+
+So the cabin slip was not an isolated typo: it is what happens when a row
+carries a number in a system it does not name. The cage rows declare
+`dim: 'len'` and print `value × 0.745`; the wing rows declare `dim: 'm'` and
+print themselves; **the gear and the cowl declared neither and therefore
+printed nothing at all** — no cue, in the one place where the cue is the
+difference between a 15-inch wheel and an 11-inch one. Every gear length row
+now declares `dim: 'm'` and the panel tells the truth about it.
+
+OWED, and named rather than half-done: the COWL's rows are metres and still
+say nothing. They live in a second row schema (`_cowl_rows.js`'s
+`{k, label, lo, hi, step}`) whose adapter does not carry `dim`, so declaring
+them is a plumbing job, not an edit — and guessing which of its fifty rows are
+lengths and which are ratios is exactly the kind of guess this audit exists to
+stop. The measurement above is the evidence for whoever does it.
+
+- Gates (G242.1): DESIGN, PARTS, GEAR, SKINMAT, GEN, BUILD, HONEST green, and
+  **GATE ARCHETYPES green twice** — 25 of 25 flown on the G242 build (tails,
+  cabins, taper) and again on this one (beam legs, the aerodynamic nose, the
+  pusher's opposed engine and boom, the fin stickers), 0 failures, 0 skipped.
+  UISMOKE stays red on another session's in-flight line (`app.js:2110`,
+  G240), not on anything here.

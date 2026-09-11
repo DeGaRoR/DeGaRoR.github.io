@@ -227,12 +227,16 @@ const CAGE_PARTS = [
       ['shape', ['noseLen', 'noseW', 'noseH', 'noseDroop', 'noseCrown',
                  'wsBaseLift', 'crSillNose']],
       ['tip', ['noseTip', 'crNoseCap', 'crFrontCap']],
+      // WHAT THE FRONT IS (2026-09-11, the user: the aero-nose choice
+      // "should be associated to the nose section"). `noseFinish` was reached
+      // by one derived selector under the ENGINE group and by nothing else;
+      // it is the nose's own row now, beside the loft that closes it.
       // THE CAGE'S OWN NOSE CAP (S.config.cowl in _cage_gen.js): how many loops
       // the loft closes with, how it eases and bulges. It exists whether or not
       // the cowl LAYER is fitted, and it lofts THIS part. Filed under Cowl until
       // 2026-09-03, it was the strangest row in the audit: a cage shape control
       // sitting in a layer that can be switched off.
-      ['cowling loft', ['cowlLoops', 'cowlEase', 'cowlBulge']],
+      ['front', ['noseFinish', 'cowlLoops', 'cowlEase', 'cowlBulge']],
       // THE NOSE'S OWN RINGS. `ringNoseTop` lifts the deck at the nose/
       // aperture pair, `ringNoseBot` drops its keel and floor, and the two
       // cowl widths pull that pair in or out — every one of them moves a ring

@@ -111,6 +111,15 @@ const BASE_GROUPS = [
     ['noseLen',   'nose len',      0.20, 2.50, 0.01],
     ['noseW',     'nose w ×',      0.50, 1.50, 0.01],
     ['pfW',       'front pillar ×',0.30, 3.00, 0.01],
+    // WHAT THE FRONT OF THE NOSE IS (2026-09-11): firewall (the twin ring and
+    // the flat-ish cap the cowl assembly bolts to) or aerodynamic (no
+    // aperture band, a small drooped ring and a domed cap). It was written by
+    // a derived select filed under the ENGINE and nowhere else; the page's
+    // own list carries it now, with the loft that closes it.
+    ['noseFinish', 'nose front',  0, 1, 1, ['firewall', 'aerodynamic']],
+    ['cowlLoops', 'front rings',  0, 5, 1],
+    ['cowlEase',  'ring ease',    0.00, 1.00, 0.01],
+    ['cowlBulge', 'ring bulge',   0.85, 1.30, 0.005],
   ]],
   ['creases', [
     ['crPillar',  'pillars',       0, 3, 0.05],

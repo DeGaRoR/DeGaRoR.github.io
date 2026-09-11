@@ -45,7 +45,11 @@ window.CAGE_PAGE = {
     noseCrown: 0.16, noseH: 1.07, wsBaseLift: 0.05, cowlEase: 0.29,
     cowlBulge: 0.99, noseTip: 0.25, ringCowl2W: -0.02, ringScrBot: -0.015,
     // G214: the door gap is DRAWN by default (the user asked for it twice)
-    rimDoor: 1, intOn: 1, intCons: 2, dashCrease: 3, cutParts: 1,
+    // rimDoor 0 (2026-09-11, the user: "disable draw gap by default"). G214
+    // turned it on because the door was invisible without it; the door has a
+    // real recess and a seal now, and a painted-on gap line on every build
+    // read as a decal. The row is still there, under Cabin fit > doors.
+    rimDoor: 0, intOn: 1, intCons: 2, dashCrease: 3, cutParts: 1,
     // ---- TAIL — stabilizer & elevator (_cage_stab.js) ----
     // stY is measured FROM THE BOOM/ROD UNDERSIDE (G26.5) — 0.408 here
     // reproduces the old absolute 0.33 over the jodel's -0.078 keel
@@ -239,11 +243,12 @@ window.CAGE_PAGE = {
       ]],
     ], 'open'],
     ['2 · engine', [
-      // configuration select injected below (nose / aero nose); the
-      // cowl-curve rows live inline now (G28: less nesting)
-      ['cowlLoops', 'cowl loops',      0, 2, 1],
-      ['cowlEase',  'cowl ease',       0.00, 1.00, 0.01],
-      ['cowlBulge', 'cowl bulge',      0.85, 1.30, 0.005],
+      // THE NOSE'S OWN ROWS MOVED TO THE NOSE (2026-09-11). The front finish
+      // and the three loft curves shape the CAGE's nose cap — they exist
+      // whether or not an engine is bolted to it, and _cage_parts has filed
+      // them under the nose PART since 2026-09-03 while the panel kept them
+      // here. The derived `configuration` select that used to be injected at
+      // the top of this group went with them.
     ]],
     ['3 · nose', [
       ['noseLen',   'length',          0.20, 2.50, 0.01, { dim: 'len' }],
@@ -261,6 +266,27 @@ window.CAGE_PAGE = {
       ['noseTip',   'tip collapse',   0.00, 0.98, 0.01],
       ['crNoseCap', 'tip sharpness',  0, 3, 0.05],
       ['crFrontCap','front cap crease', 0, 3, 0.05],
+      // WHAT THE FRONT OF THE NOSE IS (2026-09-11, the user: "it should be
+      // associated to the nose section, and should rather say firewall or
+      // aerodynamic nose"). `noseFinish` was written by ONE derived selector
+      // buried under `2 - engine` and labelled "engine nose-mounted / aero
+      // nose" — a nose question filed under the engine, named after the
+      // engine. It is a row here now, in the words the shape is in:
+      //   firewall      the twin ring, the pillarFront band and the flat-ish
+      //                 cap the game's cowl assembly bolts to
+      //   aerodynamic   no aperture band; the loft ends in a small drooped
+      //                 ring and a domed cap — the FINAL nose
+      // The loft forces `aerodynamic` anyway wherever the engine is not on
+      // the nose (cageSpec), so this row says what a nose-mounted build is
+      // and gets out of the way of the ones that have no choice.
+      ['noseFinish', 'nose front',    0, 1, 1, ['firewall', 'aerodynamic']],
+      // THE CAP'S LOFT, moved out of `2 - engine` with it: how many rings the
+      // front closes with, how they ease into the last one and how far they
+      // bulge on the way. `cowlLoops` runs to 5 now — an aerodynamic nose is
+      // SEVERAL rings and two was not several.
+      ['cowlLoops', 'front rings',    0, 5, 1],
+      ['cowlEase',  'ring ease',      0.00, 1.00, 0.01],
+      ['cowlBulge', 'ring bulge',     0.85, 1.30, 0.005],
     ]],
     ['4 · cabin', [
       ['dimensions', [
@@ -927,18 +953,13 @@ window.CAGE_PAGE_SETUP = () => {
       apply(e.target.value); CU.syncSliders(); CU.build();
     };
   };
-  // NOSE CONFIGURATION (user ruling 2026-08-18: two REAL options —
-  // pusher / wing engines were hypothetical and are dropped). The
-  // choice derives noseFinish + rear aperture + cap crease.
-  mkSel($g('2 · engine'), 'configuration',
-    ['engine nose-mounted', 'aero nose'], v => {
-      if (v === 'engine nose-mounted') {
-        P.noseFinish = 0; P.rearAperture = 0; P.crCap = 2;
-      }
-      if (v === 'aero nose') {
-        P.noseFinish = 1; P.rearAperture = 0; P.crCap = 2;
-      }
-    });
+  // (THE NOSE CONFIGURATION SELECT IS GONE, 2026-09-11. It was the only
+  // writer of `noseFinish`, it lived under `2 - engine` because its two
+  // options were named after the engine, and the user could not find it:
+  // "the aeronose option you found is a deprecated one I did not even know
+  // existed". `noseFinish` is a row in `3 - nose` now, saying firewall or
+  // aerodynamic. The other two things the select set were both no-ops —
+  // `rearAperture` 0 and `crCap` 2 are the defaults on both branches.)
   // SEATING STARTERS: template application — writes section values ONCE,
   // everything stays editable after (plays with the save system).
   // DECOUPLED from the crew layout (user 2026-08-19): the starter sizes
@@ -948,14 +969,25 @@ window.CAGE_PAGE_SETUP = () => {
   // template (0.45 halfW = a 0.90 m cabin for a single-seater). These
   // are real light-aircraft cabins measured across the seats — Cub-class
   // 0.66 m for single/tandem, ~1.05 m side-by-side.
+  //
+  // ...AND THEY WERE NOT (2026-09-11, the user: "you underestimate
+  // systematically the required cabin width by about 50 cm"). The paragraph
+  // above is the bug written down: `halfW` is a CAGE length and metres are
+  // halfW x CAGE_UNIT x planeScale, and the page's aeroplane is authored at
+  // planeScale 0.745 — so 0.33 was not "0.66 m across", it was 0.49 m, and
+  // 0.525 was not 1.05 m but 0.78 m. Every starter, and the birth flow's
+  // class seeds that were copied from them, built a cabin a quarter narrower
+  // than the number being reasoned about. Corrected AND widened to what the
+  // drawn occupants need, in metres across the waist: 0.70 single, 0.78
+  // tandem, 1.27 side-by-side, 1.37 for the four-seater.
   const START = {
-    'single':         { halfW: 0.33, roofHalfW: 0.26, pilotLen: 0.42,
+    'single':         { halfW: 0.47, roofHalfW: 0.38, pilotLen: 0.42,
                         paxCount: 0 },
-    'tandem 2':       { halfW: 0.34, roofHalfW: 0.27, pilotLen: 0.42,
+    'tandem 2':       { halfW: 0.52, roofHalfW: 0.42, pilotLen: 0.42,
                         paxCount: 1, paxLen: 0.85 },
-    'side-by-side 2': { halfW: 0.525, roofHalfW: 0.41,
+    'side-by-side 2': { halfW: 0.85, roofHalfW: 0.71,
                         pilotLen: 0.42, paxCount: 1, paxLen: 0.91 },
-    'passenger':      { halfW: 0.55, roofHalfW: 0.43, pilotLen: 0.45,
+    'passenger':      { halfW: 0.92, roofHalfW: 0.77, pilotLen: 0.45,
                         paxCount: 3, paxLen: 0.95, boomLen: 4.6 },
   };
   mkSel($g('4 · cabin/dimensions'), 'starter',

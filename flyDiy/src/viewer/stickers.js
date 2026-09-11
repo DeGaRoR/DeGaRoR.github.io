@@ -320,8 +320,12 @@ function stickerPlacements(THREE, D) {
   // the placement is cheap and rebuilt every call
   const sig = cells.join('|') + '|' + R.d;
   const w = R.w, h = R.h;
+  // ONE SIDE, AND ONE BOOM (2026-09-11): a certification strip is a vinyl
+  // applied once, not a projection through the aeroplane. `one` is the
+  // shader's own gate (position picks the boom, normal picks the face) and
+  // costs nothing on a place that is already single-sided by geometry.
   const place = { page: STICKER_PAGE, sL: R.sL, sC: R.sC, w, h, rot: R.rot,
-                  rough: -0.08, on: R.on, mode: R.mode };
+                  rough: -0.08, on: R.on, mode: R.mode, one: 1 };
   if (sig === stickerSig && stickerPlacement) { stickerPlacement = place; return [place]; }
   if (!A || !A.aeroAtlas) return [];
   try {

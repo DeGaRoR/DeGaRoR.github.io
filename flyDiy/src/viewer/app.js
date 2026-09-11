@@ -2140,12 +2140,36 @@
     // FIELD MODE DOES NOT CARE, and that is why this stayed invisible: the
     // registration defaults to `field`, which rides the surface field baked
     // into aStruct and never touches vCraftPos. Only `side` and `plan` read it.
+    // ...AND IT FOLLOWS WHICHEVER AEROPLANE IS ON SCREEN (2026-09-11, the
+    // user: "the liveries still have different coordinates in game and in the
+    // editor"). G216 gave the editor the mount's frame and it was right; what
+    // it could not know is that THIS runs afterwards, every frame, in the
+    // garage too — the flown model is posed at the stand whether or not it is
+    // drawn — so the editor's frame survived exactly until the next frame and
+    // the marking previewed in the FLOWN aeroplane's frame on the CAGE's
+    // geometry. Measured on the Cub-alike, on the same vertices: 2.79 m along
+    // and 0.42 m up between the two, plus the design-pose tilt. There is one
+    // projector uniform, so there has to be one writer per frame, and the
+    // right one is the root of whatever is being LOOKED at.
+    //
+    // The two frames describe the same physical axes (the join bakes the
+    // payload cage -> model as x aft, y up, z left), so this is a change of
+    // ROOT and nothing else — which is why the flight branch is untouched.
     if (window.AEROSKIN && window.AEROSKIN.aeroSetCraft) {
-      model.grp.updateWorldMatrix(true, false);
-      window.AEROSKIN.aeroSetCraft(THREE, model.grp.matrixWorld,
-        // model.grp's own basis, as built two lines above: local x is the
-        // solver's along-axis, local y is up, local z is the cross (left).
-        { lateral: 'z', along: 'x', up: 'y', aft: false });
+      const mnt = (showCage && window.CAGE_JOIN && window.CAGE_JOIN.mount)
+        ? window.CAGE_JOIN.mount() : null;
+      if (mnt) {
+        mnt.updateWorldMatrix(true, false);
+        // the cage's own axes: x lateral, z forward, y up (`aft` flips along)
+        window.AEROSKIN.aeroSetCraft(THREE, mnt.matrixWorld,
+          { lateral: 'x', along: 'z', up: 'y', aft: true });
+      } else {
+        model.grp.updateWorldMatrix(true, false);
+        window.AEROSKIN.aeroSetCraft(THREE, model.grp.matrixWorld,
+          // model.grp's own basis, as built two lines above: local x is the
+          // solver's along-axis, local y is up, local z is the cross (left).
+          { lateral: 'z', along: 'x', up: 'y', aft: false });
+      }
     }
     if (running)                                 // a paused world holds its prop
       for (const p of model.props) {

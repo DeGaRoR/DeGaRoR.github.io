@@ -755,8 +755,20 @@ const AERO_SEC = {
               layer: 'wing2' },
   spat:     { parent: 'body', fin: 'trim',      label: 'the wheel fairings',
               layer: 'gear', wears: 'parent' },
-  gearLeg:  { parent: null,   fin: 'steelTube', label: 'the gear legs',
-              layer: 'gear' },
+  // THE LEGS ARE PAINTED WITH THE AEROPLANE (2026-09-10, the user: "the base
+  // colour misses ... elements of suspension such as the blades"). They stood
+  // at `parent: null` on the same ruling as the crankcase — an engine's grey
+  // is not the airframe's paint — and for a gear leg that ruling is simply
+  // wrong: a bending blade, a leaf spring and a bungee V are SHEET AND TUBE
+  // BOLTED TO THE FUSELAGE, and every light aeroplane in the reference folder
+  // wears them in the fuselage's colour. The pin keeps the MATERIAL steel (a
+  // leg is a leg whatever the fuselage is made of, exactly as a spat is
+  // painted trim) and `wears: 'parent'` gives it the colour the fuselage
+  // actually wears — so the base-colour pick reaches the mains, the nose leg
+  // and the tailwheel's castor and spring at last, and a builder who wants
+  // bare steel back still has the row.
+  gearLeg:  { parent: 'body', fin: 'steelTube', label: 'the gear legs',
+              layer: 'gear', wears: 'parent' },
   prop:     { parent: null,                     label: 'the propeller',
               layer: 'eng' },
   spinner:  { parent: 'prop',                   label: 'the spinner',
@@ -1643,7 +1655,11 @@ const AERO_DEC_DEF = {
   // station, the roundel's size and turn, and whether they show at all.
   // In the decal block so they ride `finish.decals` like every marking —
   // cosmetic, so moving them never withdraws the certificate they picture.
-  stkOn: 1, stkPlace: 0, stkL: 0, stkC: 0, stkSize: 0.12, stkRot: 0,
+  // THE FIN IS WHERE THEY GO (2026-09-11, the user: "stick them on the fin,
+  // that's about the only part all planes share, and it's nice, flat and
+  // visible"). Place 3 in STICKER_PLACES; the rear fuselage (0) was the first
+  // cut and it is the one panel a pod, a rod boom or a twin boom may not have.
+  stkOn: 1, stkPlace: 3, stkL: 0, stkC: 0, stkSize: 0.12, stkRot: 0,
 };
 const AERO_DEC_ON = [
   { body: 1 },                        // 0 the fuselage
@@ -2027,7 +2043,8 @@ function aeroSetDecals(THREE, list) {
     U.uDecD.value[i].set(AERO_DEC_MODE[d.mode] || 0,
       on.body ? 1 : 0, on.wing ? 1 : 0, on.tail ? 1 : 0);
     U.uDecE.value[i].set(d.sdf ? 1 : 0,
-      Math.max(0, Math.min(1, +d.metal || 0)), 0, 0);   // y: metallic (G215)
+      Math.max(0, Math.min(1, +d.metal || 0)),
+      d.one ? 1 : 0, 0);      // y: metallic (G215)  z: one side only
   }
 }
 
@@ -2038,6 +2055,7 @@ varying vec4 vSurf;
 varying vec3 vObjPos;
 varying vec3 vObjNrm;
 varying vec3 vCraftPos;
+varying vec3 vCraftNrm;
 `;
 
 // beginnormal_vertex runs BEFORE begin_vertex, so objectNormal and transformed
@@ -2047,6 +2065,14 @@ const AERO_MAIN_VS = `
   vObjPos = transformed;
   vObjNrm = objectNormal;
   vCraftPos = (uCraftInv * modelMatrix * vec4(transformed, 1.0)).xyz;
+  // ...AND WHICH WAY THE SURFACE FACES, IN THE SAME FRAME (2026-09-11). A
+  // marking that must land on ONE SIDE of a thin surface cannot be decided
+  // from the position: both faces of a centreline fin are the same 30 mm from
+  // the craft's own plane, and both faces of a twin boom's fin are the same
+  // 1.2 m out. The NORMAL is what separates them. Rotation only (uCraftInv is
+  // orthonormal and the craft has no shear), so mat3 of the pair is enough —
+  // this is a SIGN test, not a lighting normal.
+  vCraftNrm = mat3(uCraftInv) * mat3(modelMatrix) * objectNormal;
 `;
 
 // ---------------------------------------------------------------------------
@@ -2231,6 +2257,7 @@ varying vec3 vObjNrm;
 // and the crew are in metres, the fin and stab in cage units at 0.745 m each)
 // so a projector built on it changes scale at every layer boundary it crosses.
 varying vec3 vCraftPos;
+varying vec3 vCraftNrm;
 
 // WHERE THE DETAIL SHEET IS READ FROM. The field on a fuselage, a flat plane
 // through the craft on a tail surface - and a mix rather than a branch, so
@@ -2798,7 +2825,22 @@ const AERO_ALBEDO_FS = `
     dd = vec2(dd.x * cr - dd.y * sr, dd.x * sr + dd.y * cr);
     vec2 q = dd / uDecA[di].zw * 0.5 + 0.5;
     vec2 ib = step(vec2(0.0), q) * step(q, vec2(1.0));
-    float w = ib.x * ib.y * uDecC[di].z * onMe * uDecOk;
+    // ONE SIDE, AND ONE BOOM (2026-09-11, the user, of the certification
+    // stickers: "Only on 1 side, and only on 1 boom for the twin boom
+    // configs"). A box projection paints THROUGH the aeroplane, so a marking
+    // aimed at the fin lands on both of its faces — and on a twin boom, on
+    // both fins' four faces. Two tests, and it takes BOTH:
+    //   the POSITION picks the fin      (x < 0 is the other boom)
+    //   the NORMAL picks the face       (x < 0 is the far side of this one)
+    // On a centreline fin the first is nearly free (its faces straddle x = 0
+    // by the skin's own half thickness) and the second does the work; on a
+    // twin boom the first is what keeps the port boom bare. The -0.02 slack
+    // is the centreline fin's own half thickness, so a fin ON the centreline
+    // is not cut in half by a rounding error.
+    float aOne = uDecE[di].z;
+    float aSide = step(-0.02, aeroA.x) * step(0.0, vCraftNrm.x);
+    float w = ib.x * ib.y * uDecC[di].z * onMe * uDecOk
+            * mix(1.0, aSide, step(0.5, aOne));
     // INSET against mip bleed: at low mip a page averages into its
     // neighbours, and a gutter costs a page of atlas where an inset costs
     // nothing. Sampling always happens — w is what decides, not a branch.

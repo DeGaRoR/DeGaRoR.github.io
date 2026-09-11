@@ -1014,10 +1014,41 @@ function trimAbove(path, yStop) {
 }
 function legShroud(bag, path, yStop, chord, thick) {
   const sh = trimAbove(path, yStop);
-  if (sh.length >= 2)
-    sweep(bag, sh, t => secTear(chord * (1 - 0.16 * t), thick), true,
-          [0, 0, 1]);
+  if (sh.length < 2) return;
+  // A FAIRING IS NOT WIDER THAN THE RUN IT FAIRS (2026-09-11, the user: "the
+  // tricycle front wheel's suspension gets a faulty fairing ... probably
+  // wrong shape"). The oleo's chord is solved from what it has to SWALLOW —
+  // the cylinder plus the torque scissor's throw — and on a long main leg
+  // that is the right question. On a short nose strut it is not: measured on
+  // the C172-alike the chord came out 317 mm over a strut 195 mm long, i.e.
+  // a plank one and a half times wider than it was tall, floating clear of
+  // everything. Nothing about the scissor formula is wrong; it just cannot
+  // be the ONLY constraint. The run is the other one, and where the two
+  // fight the fairing stays a fairing and the scissor shows.
+  const run = len(sub(sh[0], sh[sh.length - 1]));
+  const c = Math.max(thick * 2.4, Math.min(chord, run * 1.05));
+  sweep(bag, sh, t => secTear(c * (1 - 0.16 * t), thick), true,
+        [0, 0, 1]);
 }
+
+// WHERE A LEG'S OWN FAIRING STOPS. Two different answers, and using the wrong
+// one is the second half of the same report ("it is wrongly placed"):
+//
+//   an ORDINARY leg carries its wheel on its own axle, so the shroud stops
+//   clear of the tyre and the wheel (or its spat) stays the wheel's own;
+//
+//   a STEERED CENTRE leg — the tricycle nose — carries NO wheel. It ends at
+//   the castor's swivel top and the wheel hangs a `twLegDrop` below that, on
+//   a fork that turns. Trimmed against this leg's axle plus a tyre radius the
+//   fairing stopped 146 mm ABOVE the swivel it is bolted to, which is how it
+//   came to hover in mid-air with the whole castor bare beneath it. It stops
+//   at the swivel HOUSING instead — a fixed fairing must not enclose a
+//   turning fork, and the housing's own height is exactly where the turning
+//   part begins (CASTOR_HOUSE, the profile castorUnit revolves).
+const CASTOR_HOUSE = 0.062;
+const fairStopY = (st, axleY) =>
+  (st.steer > 0 && st.x <= 0.01) ? axleY + CASTOR_HOUSE
+                                 : axleY + st.R * 1.04;
 
 // the STUB AXLE: from where the leg ends, out through the hub and a
 // little past it — the piece that was missing when legs ran to the
@@ -1067,7 +1098,7 @@ function legBeam(bags, AF, P, st, sgn) {
         true, F.side);
   // G133: the trouser (st.fair 2) or the leg-fairing row shrouds the blade
   if (st.legFair || st.fair === 2)
-    legShroud(bags.fair, path, axle[1] + st.R * 1.04,
+    legShroud(bags.fair, path, fairStopY(st, axle[1]),
               Math.max(st.R * 0.95, P.beamW * 2.1),
               Math.max(P.beamW * 1.30, st.R * 0.34));
   padOn(bags, AF, st, st.z, aS * P.beamAng * D2R,
@@ -1259,8 +1290,8 @@ function legLink(bags, AF, P, st, sgn) {
     const tT = Math.max(R * 2.7, cT * 0.34);
     for (const [p] of feet)
       legShroud(bags.fair, resample([p, axleIn], 8),
-                axY + st.R * 1.04, cT, tT);
-    legShroud(bags.fair, resample([top, foot], 8), axY + st.R * 1.02,
+                fairStopY(st, axY), cT, tT);
+    legShroud(bags.fair, resample([top, foot], 8), fairStopY(st, axY),
               Math.max(0.15, cT * 0.9), Math.max(0.055, tT * 0.9));
   }
   return { axle, axis, root: FF.p, travel: nrm(crs(pax, sub(axle, pivot))) };
@@ -1330,7 +1361,7 @@ function legOleo(bags, AF, P, st, sgn) {
   // elliptic nose still swallows the torque scissor's knee at full offset.
   if (st.legFair || st.fair === 2)
     legShroud(bags.fair, resample([trunn, axleIn], 10),
-              axle[1] + st.R * 1.04,
+              fairStopY(st, axle[1]),
               Math.max(st.R * 0.95,
                        (Rc + Math.max(0, P.oleoScissor) + 0.03) / 0.35),
               Math.max(P.oleoDia * 1.5, st.R * 0.30));
@@ -1359,7 +1390,8 @@ function castorUnit(bags, P, top, sgn, R, steer, showLink) {
   const F = v => rot(v, ax, yaw);            // steered frame
   // the housing on the swivel axis
   revolve(bags.alloy, top, ax,
-          [[0.026, -0.010], [0.030, 0.004], [0.030, 0.052], [0.022, 0.062]],
+          [[0.026, -0.010], [0.030, 0.004], [0.030, CASTOR_HOUSE - 0.010],
+           [0.022, CASTOR_HOUSE]],
           18, true);
   revolve(bags.bronze, off(top, ax, 0.060), ax,
           [[0.016, 0], [0.016, 0.020]], 14, true);
@@ -1457,23 +1489,47 @@ function legTailwheel(bags, AF, P, st) {
                 lerp3(root, tip, 0.55)[2]];
   const path = resample(bez(root, ctrl, tip, 12), 16);
   // A LEAF SPRING IS LAMINATED: 3 leaves, each shorter than the one above
+  //
+  // ...AND EACH ONE SITS UNDER THE LAST (2026-09-10, the user: "the blade
+  // count does not draw blades for tailwheels"). The stack was drawn on ONE
+  // path, so every leaf occupied the same millimetre of space: the count
+  // changed the mass and the clamp block and nothing you could see, and the
+  // coincident faces z-fought. The line that was meant to do the offsetting
+  // (`seg[k] = seg[k]`) assigned each point to itself.
+  //
+  // THE OFFSET IS THE SWEEP'S OWN THICKNESS AXIS, not "down". `sweep` builds
+  // its frame from the tangent and the upHint [1,0,0], so a section's
+  // thickness runs along B = T x N — and a leaf spring bows through 30-40
+  // degrees between its root and its tip, so an offset along a fixed axis
+  // would leave the stack fanning open at one end and biting into itself at
+  // the other. Taken per point, the leaves stay a laminate the whole way
+  // down. The sign is chosen once, at the root, so a stack cannot flip
+  // halfway: the sense that carries the leaves AWAY from the fuselage (F.n's
+  // side) is the one a real spring stacks on, the main leaf uppermost.
   const leaves = Math.max(1, Math.round(P.twLeaves));
+  const nAt = k => {                        // the section's thickness axis
+    const a = path[Math.max(0, k - 1)], b = path[Math.min(path.length - 1, k + 1)];
+    const t = nrm(sub(b, a));
+    return nrm(crs(t, [1, 0, 0]));          // T x N, N = the upHint
+  };
+  const sgnStack = dot(nAt(0), F.n) >= 0 ? 1 : -1;
   for (let i = 0; i < leaves; i++) {
     const frac = 1 - i * 0.26;
-    const seg = path.slice(0, Math.max(3, Math.round(path.length * frac)));
+    const n0 = Math.max(3, Math.round(path.length * frac));
+    const d = sgnStack * i * P.twSpringT;
+    const seg = [];
+    for (let k = 0; k < n0; k++) seg.push(add(path[k], mul(nAt(k), d)));
     sweep(bags.steel, seg,
           t => secBlade(P.twSpringW * (1 - 0.22 * t), P.twSpringT),
           true, [1, 0, 0]);
-    // each leaf sits under the last
-    for (let k = 0; k < seg.length; k++) seg[k] = seg[k];
   }
   padOn(bags, AF, st, st.z, 0, P.twSpringW * 2.2, P.twSpringW * 1.6,
         { thick: 0.008 });
-  boxIn(bags.alloy, off(root, F.n, P.twSpringT * leaves * 0.5 + 0.006),
+  boxIn(bags.alloy, off(root, F.n, P.twSpringT * (leaves - 0.5) + 0.006),
         [P.twSpringW * 0.62, 0.010, 0.030], [1, 0, 0], F.n, F.fore);
   for (const s of [-1, 1])
     bolt(bags.alloy, off(add(root, mul(F.fore, s * 0.022)), F.n,
-                         P.twSpringT * leaves * 0.5 + 0.016),
+                         P.twSpringT * (leaves - 0.5) + 0.016),
          mul(F.n, -1), 0.009, 0.024);
   // G58.3: a caller that wants the castor assembly separable (the cage
   // join yaws it for ground manoeuvring) passes `bags.castorBags`; the

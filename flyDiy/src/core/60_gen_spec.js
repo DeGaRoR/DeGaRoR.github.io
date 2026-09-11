@@ -353,18 +353,27 @@ const GEN_BUILD_GRAMMAR = {
     // pitch. framePitch 0.42 put a tape AND a sag at every bay, which with
     // the stringers' own made a quilt. The real formers the generator knows
     // about (the cage's rings, uG4.x) still take their faint line.
+    // ...AND NEITHER DO THE STRINGERS (2026-09-10, the user: "set frame pitch
+    // and stringer pitch both to zero for tubes + fabric — the cub settings").
+    // G206 took the frames out and left a 0.16 m stringer pitch behind, so a
+    // Cub still wore twenty fore-aft ridges down each flank. It is the user's
+    // own ruling twice over and it is also the right one: a light steel-tube
+    // fuselage is fabric on a TRUSS, and there are no stringers between the
+    // longerons to print at all — the flank is a flat panel with the four
+    // longerons at its edges, which is exactly what a Cub's flank is. The
+    // REAL members the generator knows about (the cage's own rings and rails,
+    // uG4.x) still take their faint line, so nothing that IS there vanishes.
+    // Both pitches at zero also switch the tape and the sag off by
+    // construction — each rides `aeroNear(m, pitch)`, which answers 1e3 at
+    // pitch 0 — and that is the flatness the ruling asks for.
     framePitch: 0,
-    stringerPitch: 0.16,     // 12-20 stringers around a light fuselage
+    stringerPitch: 0,
     panelAlong: 0, panelAround: 0,   // one envelope: no panels, no lines
-    // what prints is the STRINGER: a rounded batten under a tensioned
-    // membrane, a soft 18 mm ridge under a millimetre high. (The 50 mm doped
-    // rib TAPE is the wing's, where the wing grammar draws it per rib.)
+    // KEPT, THOUGH NOTHING NOW DRAWS THEM at these pitches: the tape width
+    // and the sag fraction are the FABRIC's numbers, not the pitch's, and the
+    // material lab still dials both pitches back up over them. Zeroing the
+    // rows as well would lose the measurement and gain nothing.
     tape: { w: 0.018, rise: 0.0009 },
-    // fabric slack between stringers: ~0.4 % of the pitch, FLAT-BOTTOMED,
-    // and ONE-DIRECTIONAL by construction now that framePitch is 0 — the
-    // shader sags along an axis only where that axis has a pitch. The
-    // exponent is what makes it read as a membrane under tension rather
-    // than as a wave, and 1.4 is the value the old bump sheet used.
     sag: { frac: 0.004, exp: 1.4 },
     dish: 0,
     fastener: null,

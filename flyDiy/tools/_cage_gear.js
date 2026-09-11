@@ -90,6 +90,18 @@ const legRows = i => {
   return out;
 };
 const sOn = i => ({ when: P => +P['s' + i + 'On'] });
+// ...AND THE UNDERCARRIAGE IS IN METRES (2026-09-11, the audit the user asked
+// for after the cabin-width slip: "Did you audit for measurement errors like
+// the cabin width?"). It is, and the gear is the other half of the same trap.
+// The panel has TWO length systems — `dim: 'len'` is CAGE units and prints
+// value x CAGE_UNIT x planeScale, `dim: 'm'` is metres and prints itself —
+// and this layer works in the AIRFRAME's metre frame: measured on the
+// Jodel-alike, `s1R` 0.20 draws a wheel 0.400 m across and 0.30 draws 0.600,
+// exactly, while `halfW` 0.52 draws a cabin 0.775 m wide (x 0.745). Not one
+// gear row declared either, so every one of them printed NO metre readout at
+// all — no cue, in the one place where the cue is the difference between a
+// 15-inch wheel and an 11-inch one. `sOnM` is `sOn` that says so.
+const sOnM = i => ({ when: P => +P['s' + i + 'On'], dim: 'm' });
 const fairOn = i => ({ when: P => +P['s' + i + 'On']
                              && Math.round(P['s' + i + 'Fair'] || 0) > 0 });
 // any fairing anywhere — the build-material row prices the whole set
@@ -101,15 +113,16 @@ const station = (i, name) => [name, [
   // s<i>Z is the FITTING (see the defaults note); the wheel's own station
   // is the fitting plus the family's law plus s<i>AxZ (2026-09-04)
   ['s' + i + 'Z',     'fitting fore / aft',
-                                     -4, 4, 0.01, sOn(i)],
-  ['s' + i + 'X',     'in / out (half track)',   0, 1.6, 0.01, sOn(i)],
+                                     -4, 4, 0.01, sOnM(i)],
+  ['s' + i + 'X',     'in / out (half track)',   0, 1.6, 0.01, sOnM(i)],
   ['s' + i + 'Leg',   'leg',          0, 3, 1, GP.LEGS, sOn(i)],
-  ['s' + i + 'R',     i === 2 ? 'third wheel radius' : 'main wheel radius', 0.05, 0.40, 0.005, sOn(i)],
-  ['s' + i + 'Drop',  'up / down (leg drop)',     0.05, 1.00, 0.01, sOn(i)],
+  ['s' + i + 'R',     i === 2 ? 'third wheel radius' : 'main wheel radius', 0.05, 0.40, 0.005, sOnM(i)],
+  ['s' + i + 'Drop',  'up / down (leg drop)',     0.05, 1.00, 0.01, sOnM(i)],
   // the wheel's fore/aft FROM the fitting — the leg's rake, on every family;
   // hidden on a tailwheel, whose spring length already is that knob
   ['s' + i + 'AxZ',   'wheel fore / aft (from fitting)', -1.2, 1.2, 0.01,
-   { when: P => +P['s' + i + 'On'] && Math.round(P['s' + i + 'Leg']) !== 3 }],
+   { when: P => +P['s' + i + 'On'] && Math.round(P['s' + i + 'Leg']) !== 3,
+     dim: 'm' }],
   ['s' + i + 'Brake', 'brake',        0, 1, 1, sOn(i)],
   ['s' + i + 'Steer', 'steering',     0, 2, 1, GP.STEERS, sOn(i)],
   // G133: the castor exclusion is GONE — legTailwheel draws its own shell
@@ -119,7 +132,8 @@ const station = (i, name) => [name, [
   // ...and the shape is an instrument (G133): skirt around the mode's own
   // base, tail run-out to a droplet, rake for a taildragger's flying
   // attitude, width for a fat tyre. Rows exist only where a shell does.
-  ['s' + i + 'FairSkirt', 'skirt depth +', -0.12, 0.30, 0.01, fairOn(i)],
+  ['s' + i + 'FairSkirt', 'skirt depth +', -0.12, 0.30, 0.01,
+   Object.assign({ dim: 'm' }, fairOn(i))],
   ['s' + i + 'FairTail', 'tail droplet ×', 0.70, 1.60, 0.01, fairOn(i)],
   ['s' + i + 'FairRake', 'fairing rake °', -25, 25, 1, fairOn(i)],
   ['s' + i + 'FairW',   'fairing width ×', 0.80, 1.50, 0.01, fairOn(i)],
@@ -147,10 +161,10 @@ const GROUP = ['9 · undercarriage', [
   // cage port; tundra + smooth tread = the bush slick)
   ['wheel', GP.WHEEL_ROWS.map(r => r.slice()), { when: P => +P.gearOn }],
   ['balance + prop', [
-    ['cgZ',   'CG station z', -2, 4, 0.01],
-    ['cgY',   'CG height y',  -1, 1, 0.01],
-    ['propR', 'prop radius',  0.20, 2.00, 0.005],
-    ['propZ', 'prop plane z', -1, 5, 0.01],
+    ['cgZ',   'CG station z', -2, 4, 0.01, { dim: 'm' }],
+    ['cgY',   'CG height y',  -1, 1, 0.01, { dim: 'm' }],
+    ['propR', 'prop radius',  0.20, 2.00, 0.005, { dim: 'm' }],
+    ['propZ', 'prop plane z', -1, 5, 0.01, { dim: 'm' }],
   ], { when: P => +P.gearOn }],
 ]];
 // a page that curated its own tree replaced the base panel outright, so an
