@@ -36358,4 +36358,11 @@ is this commit's.
   band alone, and the "fold reaches the firewall plane" check went red on a
   z-min of 0.3 mm that was just the band it happened to grab. Plus a new check
   that the band really is skin + inner and not one material.
+- **G243.2 — `inner` IS NOT HARDWARE.** The proof worktree went red on
+  SKINMAT: the fallback `MATS` table in `_cage_cowl.js` had grown an `inner`
+  row, and that table is the gate's list of the cowl's HARDWARE materials,
+  each of which must name a finish. The interior has none — it is derived
+  from the built skin by `innerOf` on both paths — so it left the table. The
+  first commit passed COWL and PARTS in the working copy and was still wrong;
+  the worktree is the verdict, exactly as SHARED-TREE-PRACTICES §2.4 says.
 

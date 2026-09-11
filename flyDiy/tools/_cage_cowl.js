@@ -199,9 +199,6 @@ function cowlMats(cA) {
   const A = AKC(), base = mats(), out = {};
   for (const nm of Object.keys(base)) {
     const b = base[nm];
-    // the interior is DERIVED from the built skin below, not resolved as a
-    // section of its own — it has no finish, no livery and no decals
-    if (nm === 'inner') continue;
     // A COWL AGES FASTER THAN WHAT IT IS BOLTED TO. It is the panel that
     // catches the exhaust, the oil weep and every hand that has ever opened
     // it, and — since the streaks live in the surface field and the cowl has
@@ -281,9 +278,9 @@ function mats() {
     skin:  new THREE.MeshStandardMaterial({ color: 0xdfe3e7, metalness: 0.55, roughness: 0.36, side: THREE.FrontSide }),
     host:  new THREE.MeshStandardMaterial({ color: 0x99a3ad, metalness: 0.40, roughness: 0.55, side: D }),
     dark:  new THREE.MeshStandardMaterial({ color: 0x15181b, metalness: 0.10, roughness: 0.92, side: D }),
-    // the fallback interior: the fallback SKIN taken down by INNER_K, so the
-    // two paths say the same thing when AEROSKIN is off
-    inner: new THREE.MeshStandardMaterial({ color: 0x0d0e0f, metalness: 0.0, roughness: 0.95, side: D }),
+    // (no `inner` here: the interior is DERIVED from the built skin by
+    // innerOf, on both paths — it is not hardware and has no finish of its
+    // own, and GATE SKINMAT reads this table as the list of what does)
     steel: new THREE.MeshStandardMaterial({ color: 0x6d737a, metalness: 0.90, roughness: 0.35, side: D }),
     prop:  new THREE.MeshStandardMaterial({ color: 0xc79a63, metalness: 0.0, roughness: 0.62, side: D }),
   };
