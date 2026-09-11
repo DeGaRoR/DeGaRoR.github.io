@@ -37895,3 +37895,19 @@ the band's bottom whatever the dials leave above it.
   `scale` in the table, allowed) or leave a real pier next to a light deck.
 - Gates: HOUSE (with --selftest) green; MEDIA red at HEAD on the trees
   session's four orphan textures (W0c.10), not on anything here.
+
+## G257 — THE SKIRT IS OPEN (2026-09-12, the user: "For the houses, prefer
+## open skirt in almost all cases, but for large multi story houses")
+
+- One predicate, `SKIRT_OK` = two storeys and a footprint of 60 m2 or more.
+  The sampler obeys it (and its old skirt line ran BEFORE the stance and the
+  storeys were chosen, so it was rolling a die on the defaults - moved to
+  where the house is known); rule 31 holds every house in the battery, preset
+  or random, to it. Five presets that had closed a cabin's or a chapel's skirt
+  are open now; the farmhouse keeps a lattice, the barn its concrete, and the
+  cannery - two storeys on 242 m2 - is boarded in, so every skirt the editor
+  offers still has a preset that shows it.
+- And a gate bug the wider fuzzing turned up: the spur-butted-to-its-run check
+  read the spur's LOW end as its entry, which is wrong for a spur running -x.
+  It reads the entry end now.
+- Gates: HOUSE (with --selftest) green.

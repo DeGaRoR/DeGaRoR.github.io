@@ -782,7 +782,9 @@ function battery(name, P) {
                 name + ': the pier does not start at the jetty\'s level');
         } else {
           const r = C[0].off;
-          check(!!r && Math.abs(Math.abs(C[0].a0 - r.x) - r.w / 2) < 0.011,
+          // the spur's ENTRY end: a0 when it runs +x, a1 when it runs -x
+          const ent = C[0].dir > 0 ? C[0].a0 : C[0].a1;
+          check(!!r && Math.abs(Math.abs(ent - r.x) - r.w / 2) < 0.011,
                 name + ': a spur is not butted to the run it branches from');
           check(!!r && Math.abs(C[0].hIn - r.hOut) < 0.05,
                 name + ': a spur leaves its run at another level');
@@ -861,6 +863,13 @@ function battery(name, P) {
           name + ': a person is not standing on the ' + q.on,
           q.key + ' at ' + q.y.toFixed(3) + (want === null ? '' : ' vs ' + want.toFixed(3)));
   }
+
+  // 31 — THE SKIRT IS OPEN unless the house is big and two storeys (G257, the
+  //   user: "prefer open skirt in almost all cases, but for large multi story
+  //   houses"). One predicate, SKIRT_OK, for the sampler and for this.
+  if (Math.round(P.skirt) > 0)
+    check(HG.SKIRT_OK(P), name + ': a small or single-storey house has closed its skirt',
+          P.storeys + ' storey, ' + (P.L * P.w).toFixed(0) + ' m2');
 
   // 17 — a back door that opens onto nothing is not a garden door
   // (a back door inside the lean-to's span opens INTO the shed, onto its

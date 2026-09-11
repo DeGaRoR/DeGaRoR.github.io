@@ -955,6 +955,9 @@ const DEF = {
   corner: 0, logD: 0.24, logOut: 0.24,
   // stance
   stance: 2, floorY: 1.05, slopeX: 0, slopeZ: 7, postSpc: 2.4, postSz: 0.16,
+  // THE SKIRT IS OPEN (G257, the user: "prefer open skirt in almost all cases,
+  // but for large multi story houses"). A house on posts shows its posts;
+  // only a big two-storey house closes the crawl space in - see SKIRT_OK
   brace: 1, skirt: 0, padSz: 0.42,
   // roof
   roofFam: 0, pitch: 26, pitch2: 38, ridgeF: 0.35, brkF: 0.55, hip: 0,
@@ -1035,6 +1038,10 @@ const DEF = {
 const FAMS = ['gable', 'shed', 'saltbox', 'gambrel'];
 const STANCES = ['slab', 'cripple wall', 'posts', 'piles', 'skids'];
 const SKIRTS = ['open', 'lattice', 'boards', 'concrete'];
+// which houses may close their skirt at all: two storeys and a big footprint.
+// The sampler obeys it and GATE HOUSE holds every house, preset or random, to
+// it - a closed skirt on a cabin is the thing the user does not want to see.
+const SKIRT_OK = P => Math.round(P.storeys) >= 2 && P.L * P.w >= 60;
 const CORNERS = ['corner boards', 'crossed log ends', 'plain'];
 const BAYS = ['none', 'canted (45 deg)', 'square'];
 const WALLS4 = ['front', 'right end', 'back', 'left end'];
@@ -1273,7 +1280,7 @@ const PRESETS = {
     winSill: 0.85,
     porchD: 1.5, porchLenF: 0.45, porchOff: -0.22, porchRoof: 1,
     gableWin: 1, chimXF: 0.1,
-    skirt: 2, stairW: 1.0,
+    skirt: 0, stairW: 1.0,
   },
   'modern dark': {
     wallSet: SET_IDX('wall', 'board'), wallCol: 8,
@@ -1289,6 +1296,7 @@ const PRESETS = {
   },
   'cannery shed': {
     corner: 2, stoneSet: SET_IDX('stone', 'concretec'),
+    skirt: 2,          // boarded in under the floor: two storeys on 242 m2
     wallSet: SET_IDX('wall', 'corrworn'), wallCol: 0,
     trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 6,
     roofSet: SET_IDX('roof', 'galv'), roofCol: 0,
@@ -1309,7 +1317,7 @@ const PRESETS = {
     nFront: 3, nBack: 3, nLeft: 1, nRight: 0,
     winW: 0.70, winH: 1.75, winSill: 1.05, gableWin: 1,
     doorPos: 0.5, doorW: 1.10, doorH: 2.15, doorLight: 0,
-    porch: 0, chim: 0, gutter: 0, downpipe: 0, skirt: 2, ribs: 0,
+    porch: 0, chim: 0, gutter: 0, downpipe: 0, skirt: 0, ribs: 0,
     cupola: 1, cupSides: 8, cupR: 0.60, cupH: 1.00, cupSpire: 1.35,
     cupXF: 0.66, cupCross: 1,
     wallSet: SET_IDX('wall', 'paintwood'), wallCol: 6,
@@ -1400,7 +1408,7 @@ const PRESETS = {
     winW: 0.85, winH: 1.30, winSill: 0.85, gableWin: 1,
     dormers: 2, dormKind: 1, dormW: 1.5, dormH: 0.95, dormSide: 0,
     porch: 1, porchD: 1.8, porchLenF: 0.55, porchOff: -0.15, porchRoof: 1,
-    railStyle: 1, skirt: 2, chim: 2, chimR: 0.30, chimXF: 0.0,
+    railStyle: 1, skirt: 1, chim: 2, chimR: 0.30, chimXF: 0.0,
     wallSet: SET_IDX('wall', 'shakes'), wallCol: 0,
     trimSet: SET_IDX('trim', 'veneer'), trimCol: 6,
     roofSet: SET_IDX('roof', 'shingle'), roofCol: 0,
@@ -1431,7 +1439,7 @@ const PRESETS = {
     winW: 0.90, winH: 1.20, winSill: 0.90,
     dormers: 2, dormKind: 0, dormW: 1.6, dormH: 0.95, dormSide: 0,
     porch: 1, porchD: 1.7, porchLenF: 0.6, porchOff: 0.1, porchRoof: 1,
-    railStyle: 1, skirt: 2, chim: 2, chimR: 0.26, backDoor: 1,
+    railStyle: 1, skirt: 0, chim: 2, chimR: 0.26, backDoor: 1,
     weather: 0.25, paintPunch: 0.75,
     wallSet: SET_IDX('wall', 'paintwood'), wallCol: 11,
     trimSet: SET_IDX('trim', 'veneer'), trimCol: 6,
@@ -1458,7 +1466,7 @@ const PRESETS = {
     stance: 0, floorY: 0.45, slopeZ: 2, eaveOver: 0.30, rakeOver: 0.26,
     nFront: 2, nBack: 2, nLeft: 1, nRight: 0, winW: 0.65, winH: 1.65,
     winSill: 1.15, gableWin: 1, doorW: 1.05, doorH: 2.15, doorLight: 0,
-    porch: 0, chim: 0, gutter: 0, downpipe: 0, skirt: 3, ribs: 0,
+    porch: 0, chim: 0, gutter: 0, downpipe: 0, skirt: 0, ribs: 0,
     cupola: 1, cupSides: 6, cupR: 0.48, cupH: 0.85, cupSpire: 1.9, cupXF: 0,
     cupCross: 1, backDoor: 1, backPorch: 1, weather: 0.15, paintPunch: 0.85,
     wallSet: SET_IDX('wall', 'board'), wallCol: 6,
@@ -1490,7 +1498,7 @@ const PRESETS = {
     L: 7.0, w: 5.2, storeys: 1, floorH: 2.35, pitch: 30, roofFam: 0,
     stance: 2, floorY: 0.65, slopeZ: 3, eaveOver: 0.75, rakeOver: 0.7,
     nFront: 2, nBack: 1, nLeft: 1, nRight: 1, winW: 0.85, winH: 1.0,
-    wallT: 0.28, porchD: 1.8, skirt: 1,
+    wallT: 0.28, porchD: 1.8, skirt: 0,
     porchLenF: 1.0, porchRoof: 2, railStyle: 1, chim: 2, chimR: 0.32,
     // the one preset that is actually stacked: the ends alternate and cross,
     // and there is no corner board because a log wall has no joint to cover
@@ -4413,7 +4421,6 @@ function randomHouse(seed) {
   P.waterY = -rr(0.3, 1.1);
   P.pileBent = 1; P.pileBatter = rr(0.6, 1.2);
   P.postSpc = rr(1.8, 3.0); P.postSz = rr(0.14, 0.26);
-  P.skirt = P.stance === 1 ? pick([0, 1, 2, 2]) : (odds(0.25) ? 1 : 0);
 
   // THE PLAN
   P.L = rr(5.0, 15.0);
@@ -4430,6 +4437,10 @@ function randomHouse(seed) {
   P.floorY = P.water ? Math.max(rise + 0.4, rr(1.6, 2.6))
     : rise + (P.stance === 0 ? rr(0.20, 0.40) : rr(0.45, 1.20));
   P.storeys = P.L > 8.5 && odds(0.55) ? 2 : 1;
+  // the skirt, decided once the house is big enough to have one (the old
+  // line ran before the stance and the storeys were even chosen)
+  P.skirt = (SKIRT_OK(P) && P.stance >= 1 && P.stance <= 3 && odds(0.7))
+    ? pick([1, 2, 2, 3]) : 0;
   P.floorH = rr(2.25, 2.95);
   P.wallT = rr(0.13, 0.22);
 
@@ -4558,7 +4569,7 @@ function dressSlot(matKey, role, idx, col, flat) {
 
 window.HOUSE_GEN = {
   DEF, ROWS, PRESETS, MAT, BAGS, EXTRA, SMOKE_U, FAMS, STANCES, RAILS, SET_TINT, SHADE_U,
-  STAIR_MAX, SET_SEAM, SET_MISS, PIER_KIT, PIER_TRIS, PIER_DECK, PIER_LOW,
+  STAIR_MAX, SET_SEAM, SET_MISS, PIER_KIT, PIER_TRIS, PIER_DECK, PIER_LOW, SKIRT_OK,
   COLS, COL_NAMES, ROLE_SETS, SET_IDX, setNames, setFor, setRibbed,
   build, roofModel, wallSplits, groundFn, applyFinish, libSets, randomHouse,
   shadeGround,
