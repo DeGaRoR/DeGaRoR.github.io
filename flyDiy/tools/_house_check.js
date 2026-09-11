@@ -431,6 +431,10 @@ if (!check(!!LIB, 'the baked material library is missing — ' +
       if (p.float !== undefined)
         check(near(K.float, p.float, 1e-6), 'pier: PIER_KIT.' + k +
               ' floats differently from its table row');
+      if (p.piles !== undefined)
+        check(JSON.stringify(K.piles) === JSON.stringify(p.piles),
+              'pier: PIER_KIT.' + k + ' has piles the baker did not find',
+              JSON.stringify(K.piles) + ' vs ' + JSON.stringify(p.piles));
       check(HG.PIER_TRIS[k] === p.nt, 'pier: PIER_TRIS.' + k + ' is stale',
             HG.PIER_TRIS[k] + ' vs ' + p.nt);
       // and the bytes are there and decode: the bench will fetch exactly this
@@ -787,6 +791,21 @@ function battery(name, P) {
               name + ': a pier chain does not end in its head',
               'chain ' + cid + ': ' + C.map(m => m.key).join(','));
       }
+      // EVERY PILE REACHES THE BOTTOM: for each module, each pile whose
+      // author-cut foot hangs above the seabed under it must have been carried
+      // down, and the generator says how many it drew
+      let need = 0;
+      for (const m of pr.modules) {
+        const K = HG.PIER_KIT[m.key];
+        if (!K || !K.piles) continue;
+        const c = Math.cos(m.ry), sn = Math.sin(m.ry);
+        for (const pl of K.piles) {
+          const wx = m.x + pl[0] * c + pl[1] * sn, wz = m.z - pl[0] * sn + pl[1] * c;
+          if (g2(wx, wz) <= m.y + pl[3] - 0.05) need++;
+        }
+      }
+      check(pr.pilesDown === need, name + ': a pier pile hangs above the seabed',
+            pr.pilesDown + ' carried down of ' + need + ' that hang');
       for (const m of pr.modules) {
         check(g2(m.x, m.z) < wet, name + ': a pier module stands on dry ground',
               m.key + ' at z ' + m.z.toFixed(1));

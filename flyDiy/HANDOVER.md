@@ -37688,3 +37688,25 @@ its own `vCtl`/`vCtl2` now; castor → node 0.114 m again, the wheel 0.05.
   exits, the render full width.
 
 Gates: VIEW, UISMOKE, BENCH green on the working copy.
+
+## G254.1 — THE PIER'S PILES REACH THE BOTTOM (2026-09-11, the user: "Could
+## you properly extend the pillars of the pier so they reach the bottom? you
+## may use the texture you use for logs and support, it looks good")
+
+- The author cut every pile to the showcase's seabed, about a metre under the
+  deck; a module placed over three metres of water stood on nothing (the user's
+  screenshot). The baker now FINDS THE FEET: the piles material's vertices
+  below a cut height, clustered in plan (a pile is vertical, so its plan
+  position is one point; a bearer is wide and is dropped), each cluster's
+  lowest y its foot - `piles: [x, z, r, foot]` per module, PIER_KIT mirrors
+  them, rule 27 holds the two equal.
+- `buildPierPiles` carries each pile on down from the foot the author left to
+  the seabed it is actually over and a third of a metre into it: a plain
+  cylinder in the FRAME's own material (the bark or rough timber, aged, smooth,
+  grain along it, its own start in the scan), turned with the module's yaw.
+  Only piles whose foot hangs above the bed get one; the generator says how
+  many it drew and rule 28 recomputes how many had to be and holds them equal.
+  Measured on the kit: a run has two long piles at its z- end and only stubs
+  at its z+ end - the overhanging bearer rides on the NEXT module's piles,
+  which is the slot-in design again.
+- Gates: HOUSE (with --selftest) and MEDIA green.

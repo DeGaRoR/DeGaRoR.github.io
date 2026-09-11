@@ -82,11 +82,13 @@ FILES = {
 
 
 def P(key, group, label, src, note, mats=None, nodes=None, place='floor',
-      scale=1.0, rot=(0, 0, 0), tex=512, deck=None, float=None):
+      scale=1.0, rot=(0, 0, 0), tex=512, deck=None, float=None, piles=None,
+      pilesCut=1.9):
     return dict(key=key, group=group, label=label, src=src, file=FILES[src],
                 dir='pier' if src == 'pier' else '',
                 mats=mats, nodes=nodes, place=place, scale=scale, rot=rot,
-                tex=tex, note=note, deck=deck, float=float)
+                tex=tex, note=note, deck=deck, float=float, piles=piles,
+                pilesCut=pilesCut)
 
 
 PLANKS = 'modular_wooden_pier_planks'
@@ -95,7 +97,12 @@ PLANKS = 'modular_wooden_pier_planks'
 # module's low end at 1.24 - the two levels the path can be on - and each
 # module's piles as long as its author cut them. `deck` publishes the walking
 # level at each z end, which is what the planner joins.
-PIER = dict(src='pier', deck=PLANKS, tex=1024, place='level')
+POLES = 'modular_wooden_pier_poles'
+# `piles` names the material the piles are made of; the baker finds each
+# pile's foot so the generator can carry it on down to the seabed it stands
+# over (`pilesCut` is the height below which a pole vertex is a pile and not a
+# bearer - lower for the stair, whose deck is lower)
+PIER = dict(src='pier', deck=PLANKS, tex=1024, place='level', piles=POLES)
 
 PROPS = [
     # ---- the pier, module by module ------------------------------------------
@@ -108,7 +115,7 @@ PROPS = [
     P('pier_step', 'pier', 'stair',
       note='3.05 m of stair: the deck at 2.62 at its z+ end and a landing at 1.24 at '
            'its z- end - the module that takes the path UP OR DOWN one level',
-      nodes=['modular_wooden_pier_section_04'], **PIER),
+      nodes=['modular_wooden_pier_section_04'], **dict(PIER, pilesCut=0.6)),
     P('pier_head', 'pier', 'pier head',
       note='3.48 m landing with a ladder down at its z+ end and a tall post: the END '
            'of a pier, joined at its z- end',
@@ -116,10 +123,12 @@ PROPS = [
     P('pier_gate', 'pier', 'gate arch',
       note='two 7 m poles, a crossbar and a low kerb either side: the doorway, stood '
            'OVER a joint on the deck (the showcase has it astride the 02/03 seam)',
-      nodes=['modular_wooden_pier_section_05'], src='pier', tex=1024, place='level'),
+      nodes=['modular_wooden_pier_section_05'], src='pier', tex=1024, place='level',
+      piles=POLES, pilesCut=0.6),
     P('pier_piles', 'pier', 'mooring piles',
       note='a cluster of bare piles: a dolphin to tie a boat to',
-      nodes=['modular_wooden_pier_poles'], src='pier', tex=1024, place='level'),
+      nodes=['modular_wooden_pier_poles'], src='pier', tex=1024, place='level',
+      piles=POLES),
     P('pier_deck', 'pier', 'deck plate',
       note='2.2 m of bare deck: a filler between two runs',
       nodes=['modular_wooden_pier_planks'], **PIER),

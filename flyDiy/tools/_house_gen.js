@@ -198,13 +198,26 @@ const PIER_KIT = {
   // box is not the module - a run's bearer and piles stand 0.46 m past its
   // last plank, to go UNDER the first bay of the next run - so a path is laid
   // at the deck's pitch and the overhang slots in
-  pier_run:   { L: 3.39, W: 2.51, H: 3.84, y0: -0.94, deck: [2.65, 2.64], dz: [-1.687, 1.235] },
-  pier_ledge: { L: 3.39, W: 2.51, H: 3.84, y0: -0.67, deck: [2.65, 2.64], dz: [-1.685, 1.246] },
-  pier_step:  { L: 3.16, W: 2.46, H: 4.16, y0: -0.99, deck: [1.24, 2.61], dz: [-1.579, 1.466] },
-  pier_head:  { L: 3.52, W: 2.49, H: 4.27, y0: -0.57, deck: [2.65, 2.80], dz: [-1.759, 1.718] },
-  pier_gate:  { L: 0.46, W: 3.10, H: 7.00, y0: -0.48 },
-  pier_piles: { L: 3.08, W: 2.21, H: 3.85, y0: -0.70 },
-  pier_deck:  { L: 2.20, W: 2.52, H: 0.08, y0: 2.59, deck: [2.66, 2.64], dz: [-1.101, 1.101] },
+  // piles: [x, z, r, foot] per pile in the module's frame - the author cut
+  // each to the showcase's seabed; the generator carries it on down to the
+  // seabed it is actually over (buildPierPiles)
+  pier_run:   { L: 3.39, W: 2.51, H: 3.84, y0: -0.94, deck: [2.65, 2.64], dz: [-1.687, 1.235],
+                piles: [[-0.994, -1.381, 0.139, -0.434], [0.986, -1.363, 0.148, -0.938]] },
+  pier_ledge: { L: 3.39, W: 2.51, H: 3.84, y0: -0.67, deck: [2.65, 2.64], dz: [-1.685, 1.246],
+                piles: [[-0.994, -1.363, 0.133, -0.442], [0.981, -1.354, 0.135, -0.671]] },
+  pier_step:  { L: 3.16, W: 2.46, H: 4.16, y0: -0.99, deck: [1.24, 2.61], dz: [-1.579, 1.466],
+                piles: [[-0.96, 1.41, 0.102, -0.64], [-0.936, -1.297, 0.134, -0.761],
+                        [1.014, -1.266, 0.11, -0.994], [1.016, 1.421, 0.123, -0.597]] },
+  pier_head:  { L: 3.52, W: 2.49, H: 4.27, y0: -0.57, deck: [2.65, 2.80], dz: [-1.759, 1.718],
+                piles: [[-1.04, -1.467, 0.124, -0.563], [-1.011, 1.51, 0.107, -0.556],
+                        [0.923, -1.475, 0.13, -0.567], [1.008, 1.502, 0.174, -0.38]] },
+  pier_gate:  { L: 0.46, W: 3.10, H: 7.00, y0: -0.48,
+                piles: [[-1.205, 0.04, 0.113, -0.441], [1.196, 0.036, 0.128, -0.48]] },
+  pier_piles: { L: 3.08, W: 2.21, H: 3.85, y0: -0.70,
+                piles: [[-0.981, 1.406, 0.148, -0.689], [-0.914, -1.452, 0.091, -0.701],
+                        [0.976, 1.423, 0.139, -0.675]] },
+  pier_deck:  { L: 2.20, W: 2.52, H: 0.08, y0: 2.59, deck: [2.66, 2.64], dz: [-1.101, 1.101],
+                piles: [] },
   boat_skiff:  { L: 5.09, W: 1.77, H: 1.01, float: 0.28 },
   boat_old:    { L: 6.04, W: 2.36, H: 1.29, float: 0.30 },
   boat_row:    { L: 3.93, W: 1.57, H: 1.11, float: 0.32 },
@@ -3860,6 +3873,36 @@ function pierPlan(P, V, g, jetty) {
            modules: mods, boats,
            tris: mods.concat(boats).reduce((a, o) => a + (PIER_TRIS[o.key] || 0), 0) };
 }
+// THE PILES REACH THE BOTTOM (G254.2, the user: "properly extend the pillars
+// of the pier so they reach the bottom ... you may use the texture you use
+// for logs and support"). The author cut every pile to the showcase's seabed,
+// a metre under the deck; a module placed over three metres of water stood
+// on nothing. So every pile the baker found is carried on down, from the foot
+// the author left to the seabed it is actually over and a third of a metre
+// into it - a plain cylinder in the frame's own material, smooth, the grain
+// along it, its own start in the scan, exactly like the house's own piles.
+function buildPierPiles(bags, P, Q, plan, g) {
+  if (!plan) return 0;
+  let n = 0;
+  for (const m of plan.modules) {
+    const K = PIER_KIT[m.key];
+    if (!K || !K.piles) continue;
+    const c = Math.cos(m.ry), sn = Math.sin(m.ry);
+    for (const pl of K.piles) {
+      // the module's frame turned by its yaw (about y: local +z -> world by ry)
+      const wx = m.x + pl[0] * c + pl[1] * sn, wz = m.z - pl[0] * sn + pl[1] * c;
+      const foot = m.y + pl[3];
+      const bed = g(wx, wz);
+      if (bed > foot - 0.05) continue;              // the author's cut reaches
+      cyl(bags.post, [wx, bed - 0.35, wz], [0, 1, 0], pl[2] * 0.98,
+          foot + 0.03 - (bed - 0.35), Q.lod === 0 ? 8 : 4, false,
+          timberUV(wx, wz, 21));
+      n++;
+    }
+  }
+  return n;
+}
+
 // the near-mesh cost of what the plan instances, for the bench's ledger and
 // for the gate's sanity: the sport fisher alone is 370k
 const PIER_TRIS = {
@@ -4174,6 +4217,7 @@ function build(P0, lod) {
   const dr = buildDrainage(bags, P, Q, V, R, g);
   const barrel = buildBarrel(bags, P, Q, dr, g);
   const pier = pierPlan(P, V, g, dk.jetty);
+  if (pier) pier.pilesDown = buildPierPiles(bags, P, Q, pier, g);
 
   // ---- and now the light that never gets in --------------------------------
   const aoInfo = K.bakeAO(BAGS.map(k => bags[k]),

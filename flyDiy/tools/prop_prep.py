@@ -699,6 +699,39 @@ def bake(row, bank, log):
         # a path is laid at is the DECK's length, and the deck's extent in the
         # module's own frame is published beside its levels.
         rec['deckZ'] = [round(z0 + off[2], 3), round(z1 + off[2], 3)]
+    # WHERE THE PILES ARE, AND HOW FAR DOWN EACH ONE GOES (G254.2, the user:
+    # "extend the pillars of the pier so they reach the bottom"). The author
+    # cut every pile to the showcase's seabed; a placed module stands over a
+    # seabed of its own, so the generator draws each pile on down from the
+    # foot the author left to the bottom it is actually over. The feet are
+    # found here: the piles material's vertices below `pilesCut`, clustered in
+    # plan (a pile is vertical, so its plan position is one point; a bearer
+    # is not, and is dropped for being wide), each cluster's lowest y its foot.
+    if row.get('piles'):
+        cut = row.get('pilesCut', 1.9)
+        pts = [v for name, P, N, uv, idx in posed if name == row['piles']
+               for v in P if v[1] + off[1] < cut]
+        clusters = []
+        for v in pts:
+            x, z = v[0] + off[0], v[2] + off[2]
+            for c in clusters:
+                if math.hypot(c['x'] - x, c['z'] - z) < 0.22:
+                    c['p'].append((x, z, v[1] + off[1]))
+                    c['x'] = sum(q[0] for q in c['p']) / len(c['p'])
+                    c['z'] = sum(q[1] for q in c['p']) / len(c['p'])
+                    break
+            else:
+                clusters.append({'x': x, 'z': z, 'p': [(x, z, v[1] + off[1])]})
+        piles = []
+        for c in clusters:
+            if len(c['p']) < 12:
+                continue
+            ext = max(math.hypot(q[0] - c['x'], q[1] - c['z']) for q in c['p'])
+            if ext > 0.2:
+                continue
+            piles.append([round(c['x'], 3), round(c['z'], 3), round(ext, 3),
+                          round(min(q[2] for q in c['p']), 3)])
+        rec['piles'] = sorted(piles)
     if row.get('float') is not None:
         rec['float'] = row['float']
     return rec
