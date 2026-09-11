@@ -230,11 +230,28 @@ and not geometry: baking it made the stand series taller than the tree it came
 from, and the specimen L0 then filled 77 % of a box stretched to fit a rung it
 had nothing to do with.
 
+**The ladder in the near tier (W0c.4).** Three rungs of the specimen series,
+bands 150 / 300 / 450 m (`window.TREE_LOD_R`, live). The partition is on the
+**CPU**: each rung's InstancedMesh carries only the instances in its band,
+re-sorted every ten frames or 25 m, `count` set to what was written. The shader
+band alone measured 32 ms — a collapsed instance still runs the vertex shader,
+and a 2 km chunk is on for every rung at once. Each rung's parts also get a
+depth material of their own, wearing the part's map and cutoff: r128's shadow
+pass copies neither, so the leaf cards had been casting solid-card shadows.
+
+**Measured in a dense stand, unthrottled, 1920×1080:** all-L0 21.4 ms ·
+150/300/450 21.2 · 80/200/450 21.0 · all-L2 20.5. **The near tier's triangles
+are not the wall** — 800 trees at 7 784 triangles cost under a millisecond
+more than the same 800 at 1 798. The frame goes elsewhere (the streamed fill's
+thousands of instances, the shadow pass, the terrain, the sim), and that is
+the W0e question. The ladder still matters where density goes up by the
+order of magnitude Ursoy wants, and it is already what lets the fill draw a
+real tree at all.
+
 **Not done.** `render_world.js`'s own impostor bake is still the baked-photograph
 kind the bench replaced (§6 trap 0) — harmless while its `SUN` is a constant,
-wrong the day there is a time of day. The woodland's near tier is LOD0 only; its
-L1/L2 are in the payload now and not yet wired. The snag series is baked and not
-yet planted (`place.dead` is the dial for it). The larch impostor is thinner than
+wrong the day there is a time of day. The snag series is baked and not yet
+planted (`place.dead` is the dial for it). The larch impostor is thinner than
 its geometry (0.47x the covered pixels, and the gain saturates — that one wants
 tile resolution). Bushes and grass are the next kinds through this same door.
 See `futureDesigns/WORLD-V2.md` §8.3 and the W0c–W0e rows of the staging plan.

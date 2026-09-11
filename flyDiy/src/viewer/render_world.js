@@ -800,6 +800,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const ctr = new THREE.Vector3(0, cy, 0);
       const pRT = renderer.getRenderTarget(), pAC = renderer.autoClear;
       const pCol = new THREE.Color(), pA = renderer.getClearAlpha();
+      // THE VIEWPORT IS RENDERER STATE, NOT TARGET STATE (2026-09-11): the
+      // tile viewport set below is what r128 re-applies to the CANVAS on the
+      // next setRenderTarget(null) — the whole game then drew in a 128 px
+      // square in the middle of the screen. Save it, put it back.
+      const pVP = renderer.getViewport(new THREE.Vector4());
+      const pSC = renderer.getScissor(new THREE.Vector4());
       { const gc = renderer.getClearColor(pCol); if (gc && gc !== pCol) pCol.copy(gc); }
       renderer.setRenderTarget(rt);
       renderer.autoClear = false;
@@ -828,6 +834,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         renderer.render(sc, cam);
       }
       renderer.setScissorTest(false);
+      renderer.setViewport(pVP);
+      renderer.setScissor(pSC);
       renderer.setRenderTarget(pRT);
       renderer.autoClear = pAC;
       renderer.setClearColor(pCol, pA);
@@ -915,6 +923,91 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       };
       return m;
     }
+    // ================= W0c.4: THE LADDER IN THE NEAR TIER ==================
+    // Three rungs of the specimen series, each drawn in its own distance BAND:
+    // L0 to LOD_R[0], L1 to LOD_R[1], L2 to NEAR_R, the impostor beyond. The
+    // band is the same per-instance collapse `nearOnly` does, with a near edge
+    // as well as a far one, so a tree is drawn by exactly one rung at any
+    // distance. It is done in the shader rather than by moving instances
+    // between meshes per frame because that is this file's idiom and it costs
+    // nothing on the CPU; what it does cost is vertex work for the collapsed
+    // instances, which the per-rung chunk RADIUS below keeps to the chunks
+    // that can hold a live instance of that rung at all.
+    //
+    // AND THE SHADOW PASS GETS THE SAME BANDS. Two reasons, both measured
+    // before: r128's shadow map builds its own depth material and copies
+    // neither `map` nor `alphaTest` (so a real tree's leaf cards were casting
+    // SOLID-CARD shadows), and without the band every rung would cast at once,
+    // three trees deep. So each rung's parts get a depth material of their own,
+    // wearing the part's map and cutoff and the rung's band - measured from the
+    // CG, because the sun's shadow camera follows the aircraft, not the eye.
+    const LOD_R = [150, 300, NEAR_R];
+    // reachable from the console so the bands can be tuned and A/B'd live:
+    // TREE_LOD_R[0] = 450 puts every near tree on L0, which is the "before"
+    if (typeof window !== 'undefined') window.TREE_LOD_R = LOD_R;
+    // THE PARTITION IS DONE ON THE CPU, and this is the whole of why the
+    // ladder is affordable. The shader band alone was measured at 32 ms a
+    // frame: a collapsed instance still runs the vertex shader, every rung
+    // carried every instance, and a 2 km chunk is on for every rung at once -
+    // some 175 million vertex invocations for 4 500 trees. So each rung mesh
+    // carries ONLY the instances in its band, sorted in here on a cadence as
+    // the aircraft moves, and `count` is set to what was written. The band in
+    // the shader stays as the seam guard between refreshes.
+    const LOD_TICK = 10, LOD_MOVE = 25;     // refresh every 10 frames or 25 m
+    function partitionChunk(rec, cg) {
+      const n = rec.n, pos = rec.pos, mats = rec.mats;
+      const k = [0, 0, 0];
+      for (let i = 0; i < n; i++) {
+        const dx = pos[i * 3] - cg[0], dy = pos[i * 3 + 1] - cg[1], dz = pos[i * 3 + 2] - cg[2];
+        const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        const b = d < LOD_R[0] ? 0 : d < LOD_R[1] ? 1 : d < LOD_R[2] ? 2 : -1;
+        if (b < 0) continue;
+        rec.buf[b].set(mats.subarray(i * 16, i * 16 + 16), k[b] * 16);
+        k[b]++;
+      }
+      for (let b = 0; b < 3; b++) for (const m of rec.rungs[b]) {
+        if (k[b]) m.instanceMatrix.array.set(rec.buf[b].subarray(0, k[b] * 16));
+        m.count = k[b];
+        m.instanceMatrix.needsUpdate = true;
+      }
+    }
+    const BAND_GLSL = (edgeExpr) =>
+      'if (' + edgeExpr + ' < uNearB || ' + edgeExpr + ' >= uFarB) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);';
+    // the draw material: chained onto whatever the part already carries
+    // (trees.js's AO hook), never overwriting it
+    const bandMat = (mat, near, far) => {
+      const prev = mat.onBeforeCompile;
+      mat.onBeforeCompile = sh => {
+        if (prev) prev(sh);
+        sh.uniforms.uNearB = { value: near };
+        sh.uniforms.uFarB = { value: far };
+        sh.vertexShader = sh.vertexShader
+          .replace('#include <common>', '#include <common>\nuniform float uNearB, uFarB;')
+          .replace('#include <project_vertex>', '#include <project_vertex>\n' +
+            BAND_GLSL('length(mvPosition.xyz)'));
+      };
+      mat.needsUpdate = true;
+      return mat;
+    };
+    const bandDepth = (mat, near, far) => {
+      const d = new THREE.MeshDepthMaterial({
+        depthPacking: THREE.RGBADepthPacking,
+        // the cutout, which the derived depth material never had
+        map: mat.map || null, alphaTest: mat.alphaTest || 0, side: mat.side,
+      });
+      d.onBeforeCompile = sh => {
+        sh.uniforms.uNearB = { value: near };
+        sh.uniforms.uFarB = { value: far };
+        sh.uniforms.uCG = uCG;
+        sh.vertexShader = sh.vertexShader
+          .replace('#include <common>', '#include <common>\nuniform float uNearB, uFarB;\nuniform vec3 uCG;')
+          .replace('#include <project_vertex>', '#include <project_vertex>\n' +
+            'vec4 wPd = modelMatrix * instanceMatrix * vec4(transformed, 1.0);\n' +
+            BAND_GLSL('distance(wPd.xyz, uCG)'));
+      };
+      return d;
+    };
+
     // The streamed fill below dresses its own material with this too, so it
     // lives outside the replant, with the registers.
     const nearOnly = mat => {
@@ -936,6 +1029,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // the same ramp, and a replant that rebuilt them would orphan every chunk
     // the streamer had added.
     const nearChunks = [], impChunks = [];  // distance-culled: see lodUpdate
+    // W0c.4: chunks whose rung meshes are PARTITIONED on the CPU - see
+    // partitionChunk; cleared and refilled by each plant
+    const ladderChunks = [];
     // per-species colour ramps (stage 2): spruce, pine, oak, birch, willow
     const SPC = [
       [C(0x2e4620), C(0x486327)],
@@ -991,22 +1087,39 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // and the registers, OURS only - the streamer's entries stay
       for (const list of [nearChunks, impChunks])
         for (let i = list.length - 1; i >= 0; i--) if (list[i].own) list.splice(i, 1);
+      ladderChunks.length = 0;
 
       PROTO = null;
       if (typeof treeReady === 'function' && treeReady() && typeof treeBuild === 'function') {
         try {
-          PROTO = {
-            conif: treeBuild(THREE, treePick(PICK_CONIF), 0),
-            broad: treeBuild(THREE, treePick(PICK_BROAD), 0),
+          // `parts` is L0 (what the impostor bakes from); `ladder` is every
+          // rung the payload has for the specimen series, dressed with its
+          // band - a pack that ships a deeper chain keeps its extra rungs in
+          // the last band
+          const withLadder = key => {
+            const S = treeList().find(e => e.key === key).sub;
+            const n = Math.min(S.rungs.length, LOD_R.length);
+            const ladder = [];
+            for (let r = 0; r < n; r++) {
+              const B = treeBuild(THREE, key, r, 'rungs');
+              const near = r ? LOD_R[r - 1] : 0, far = (r === n - 1) ? NEAR_R : LOD_R[r];
+              ladder.push({ near, far, parts: B.parts.map(q => ({
+                geo: q.geo, mat: bandMat(q.mat, near, far), depth: bandDepth(q.mat, near, far) })) });
+            }
+            return Object.assign({ ladder }, treeBuild(THREE, key, 0, 'rungs'));
           };
+          PROTO = { conif: withLadder(treePick(PICK_CONIF)),
+                    broad: withLadder(treePick(PICK_BROAD)) };
         } catch (e) { PROTO = null; }
       }
       if (PROTO) {
         // the chunk sphere trick applies to a real tree exactly as to a cone —
         // and chunkBounds is also what stashes userData.shape, which the
         // impostor bake reads for its ortho extent
-        protoParts(PROTO.conif).concat(protoParts(PROTO.broad))
-          .forEach(g => chunkBounds(g, CHW));
+        for (const P of [PROTO.conif, PROTO.broad])
+          for (const R of P.ladder) for (const q of R.parts) chunkBounds(q.geo, CHW);
+        for (const P of [PROTO.conif, PROTO.broad])
+          for (const R of P.ladder) for (const q of R.parts) plantedKit.push(q.depth);
       }
 
     // 3D tier: collapse every instance past NEAR_R. View-space length IS the
@@ -1057,12 +1170,35 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // a real tree carries its own trunk as a PART, so the shared trunk
       // cylinder is only built for the fallback
       const trunks = PROTO ? null : mk(trunkGeo, trunkMat, cell.list.length, false);
-      const cMesh = PROTO
-        ? PROTO.conif.parts.map(q => mk(q.geo, q.mat, conif.length, true))
-        : [mk(coneGeo, canopyMat, conif.length, true)];
-      const bMesh = PROTO
-        ? PROTO.broad.parts.map(q => mk(q.geo, q.mat, broad.length, true))
-        : [mk(blobGeo, canopyMat, broad.length, true)];
+      // every rung of the ladder, one InstancedMesh per part, each carrying
+      // the SAME instances - the band in the material picks which rung draws
+      const rungMeshes = (P, n) => {
+        const out = [];
+        for (const R of P.ladder) for (const q of R.parts) {
+          const m = mk(q.geo, q.mat, n, true);
+          if (!m) continue;
+          m.customDepthMaterial = q.depth;
+          m.userData.far = R.far;
+          out.push(m);
+        }
+        return out;
+      };
+      const cMesh = PROTO ? rungMeshes(PROTO.conif, conif.length)
+                          : [mk(coneGeo, canopyMat, conif.length, true)];
+      const bMesh = PROTO ? rungMeshes(PROTO.broad, broad.length)
+                          : [mk(blobGeo, canopyMat, broad.length, true)];
+      // the partition records: every instance's matrix and world position,
+      // and the three buckets it can land in
+      const mkRec = (list, meshes) => {
+        const n = list.length;
+        const rec = { n, mats: new Float32Array(n * 16), pos: new Float32Array(n * 3),
+                      buf: [0, 1, 2].map(() => new Float32Array(n * 16)),
+                      rungs: [[], [], []], x: ox, z: oz };
+        for (const m of meshes) if (m) rec.rungs[LOD_R.indexOf(m.userData.far)].push(m);
+        return rec;
+      };
+      const cRec = PROTO && conif.length ? mkRec(conif, cMesh) : null;
+      const bRec = PROTO && broad.length ? mkRec(broad, bMesh) : null;
       const cImp = mk(impQuadW, impConeMatW, conif.length, false);
       const bImp = mk(impQuadW, impBlobMatW, broad.length, false);
       let ci = 0, bi = 0;
@@ -1084,9 +1220,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         // atlas is white, so this IS what keeps the mid band the same forest
         if (sp < 2) {
           for (const m of cMesh) if (m) { m.setMatrixAt(ci, m4); m.setColorAt(ci, c3); }
+          if (cRec) { m4.toArray(cRec.mats, ci * 16); cRec.pos.set([T.x, T.h, T.z], ci * 3); }
           cImp.setMatrixAt(ci, m4); cImp.setColorAt(ci, c3); ci++;
         } else {
           for (const m of bMesh) if (m) { m.setMatrixAt(bi, m4); m.setColorAt(bi, c3); }
+          if (bRec) { m4.toArray(bRec.mats, bi * 16); bRec.pos.set([T.x, T.h, T.z], bi * 3); }
           bImp.setMatrixAt(bi, m4); bImp.setColorAt(bi, c3); bi++;
         }
       });
@@ -1105,16 +1243,51 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // instances, and an off chunk costs nothing at all — not even the
       // vertex shader, and not the shadow pass either.
       const hd = CHW * Math.SQRT1_2;        // chunk half-diagonal
-      nearChunks.push({ m: [trunks].concat(cMesh, bMesh), x: ox, z: oz, r: NEAR_R + hd, own: true });
+      // a rung is only SUBMITTED for chunks that can hold a live instance of
+      // it: the fine rungs' vertex work stays with the chunks under the eye
+      if (PROTO) {
+        for (const rec of [cRec, bRec]) if (rec) {
+          // nothing is drawn until the first partition places it; the seam
+          // guard in the shader makes a stale bucket harmless, not a wrong one
+          for (const b of rec.rungs) for (const m of b) m.count = 0;
+          ladderChunks.push(rec);
+        }
+        const byFar = new Map();
+        for (const m of cMesh.concat(bMesh)) {
+          const f = m.userData.far;
+          if (!byFar.has(f)) byFar.set(f, []);
+          byFar.get(f).push(m);
+        }
+        for (const [f, ms] of byFar)
+          nearChunks.push({ m: ms, x: ox, z: oz, r: f + hd, own: true });
+      } else {
+        nearChunks.push({ m: [trunks].concat(cMesh, bMesh), x: ox, z: oz, r: NEAR_R + hd, own: true });
+      }
       impChunks.push({ m: [cImp, bImp], x: ox, z: oz, r: FAR_WOOD + hd, own: true });
     }
     }                                     // ---- end plantWoodland
 
+    let lodTick = 0, lodAt = null;
     lodUpdate = cg => {
       for (const list of [nearChunks, impChunks]) for (const t of list) {
         const dx = t.x - cg[0], dz = t.z - cg[2];
         const on = dx * dx + dz * dz < t.r * t.r;
         for (const m of t.m) if (m) m.visible = on;
+      }
+      // the ladder partition, on its cadence - and only for chunks that can
+      // hold a live instance of any rung at all
+      const moved = !lodAt || Math.hypot(cg[0] - lodAt[0], cg[2] - lodAt[2]) > LOD_MOVE;
+      if (lodTick++ % LOD_TICK === 0 || moved) {
+        lodAt = [cg[0], cg[1], cg[2]];
+        const reach = NEAR_R + CHW * Math.SQRT1_2;
+        for (const rec of ladderChunks) {
+          const dx = rec.x - cg[0], dz = rec.z - cg[2];
+          if (dx * dx + dz * dz > reach * reach) {
+            for (const b of rec.rungs) for (const m of b) m.count = 0;
+            continue;
+          }
+          partitionChunk(rec, cg);
+        }
       }
     };
     plantWoodland();
