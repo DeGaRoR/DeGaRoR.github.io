@@ -225,21 +225,83 @@
     '  reflectedLight.directDiffuse *= pow(clamp(vAoV, 0.0, 1.0), uAoBake * 0.35);',
     '}',
   ].join('\n');
-  function hookLeaf(mat, isLeaf) {
+  // ================= THE TINT AND THE EDGE, ported from the bench ==========
+  //
+  // The packs were photographed under different suns and sit on different
+  // alpha scales, and the bench's whole W0a was bringing them to ONE place:
+  // a hue / saturation / lightness per collection on the foliage (the bark
+  // takes only its own lightness - tinting a trunk with its crown is how a
+  // tree stops looking like a tree), measured against a reference pack and
+  // committed in the payload as `tint`. The game drew the raw maps: the fir
+  // pack at 1.3 of its lightness in the bench was at 1.0 here, the spruce
+  // at 0.54 was at 1.0, and the stand was a different colour from the one
+  // that had been judged. MASTER rides over all of them at once.
+  const MASTER = { hue: 0, sat: 1, light: 1 };
+  const TINT_GLSL = [
+    'float _a = uHue * 6.2831853;',
+    'float _c = cos(_a), _s = sin(_a);',
+    'mat3 _m = mat3(',
+    '  0.299 + 0.701*_c + 0.168*_s, 0.587 - 0.587*_c + 0.330*_s, 0.114 - 0.114*_c - 0.497*_s,',
+    '  0.299 - 0.299*_c - 0.328*_s, 0.587 + 0.413*_c + 0.035*_s, 0.114 - 0.114*_c + 0.292*_s,',
+    '  0.299 - 0.300*_c + 1.250*_s, 0.587 - 0.588*_c - 1.050*_s, 0.114 + 0.886*_c - 0.203*_s);',
+    'vec3 _rot = diffuseColor.rgb * _m;',
+    // saturation toward luma, so pulling a stand back does not darken it
+    'float _y = dot(_rot, vec3(0.2126, 0.7152, 0.0722));',
+    'diffuseColor.rgb = clamp(mix(vec3(_y), _rot, uSat) * uLight, 0.0, 1.0);',
+  ].join('\n');
+  // THE EDGE. Alpha-to-coverage makes coverage equal alpha, and a soft leaf
+  // texture then renders every needle half see-through whatever the cutoff;
+  // the bench's answer is to rescale alpha by its own screen-space rate of
+  // change so coverage tracks the SILHOUETTE, and to drop the hard test to a
+  // floor that kills only the empty texels. The game has the eight-sample
+  // buffer this needs (the G144 resolve pass). The bake cannot sharpen -
+  // fwidth at a 128 px tile puts every texel on 0.5 - so it takes the same
+  // step as a HARD mask at the collection's own cutoff.
+  const U_SHARP = { value: 1.0 };
+  const EDGE_GLSL = [
+    'if (uBakeAlb > 0.5) {',
+    '  diffuseColor.a = diffuseColor.a >= uCut ? 1.0 : 0.0;',
+    '} else if (uSharp > 0.0) {',
+    '  float _aw = max(fwidth(diffuseColor.a), 1e-5);',
+    '  diffuseColor.a = clamp((diffuseColor.a - uCut) / _aw * uSharp + 0.5, 0.0, 1.0);',
+    '}',
+  ].join('\n');
+  const HOOKED = [];
+  // `tint` is the collection's row; `cut` the part's own cutoff (foliage only)
+  function hookLeaf(mat, isLeaf, tint, cut) {
     mat.userData.uLeaf = { value: isLeaf ? 1 : 0 };
+    mat.userData.tint = tint || {};
+    mat.userData.uHue = { value: 0 }; mat.userData.uSat = { value: 1 }; mat.userData.uLight = { value: 1 };
+    mat.userData.uCut = { value: isLeaf ? (cut || 0.5) : 0 };
+    retint(mat);
+    HOOKED.push(mat);
     mat.onBeforeCompile = sh => {
       sh.uniforms.uLeaf = mat.userData.uLeaf;
       sh.uniforms.uWrap = U_WRAP; sh.uniforms.uSSS = U_SSS;
       sh.uniforms.uSSSP = U_SSSP; sh.uniforms.uAoBake = U_AO;
       sh.uniforms.uBakeAlb = U_BAKEALB;
+      sh.uniforms.uHue = mat.userData.uHue; sh.uniforms.uSat = mat.userData.uSat;
+      sh.uniforms.uLight = mat.userData.uLight;
+      sh.uniforms.uCut = mat.userData.uCut; sh.uniforms.uSharp = U_SHARP;
       sh.vertexShader = 'attribute float aoV;\nvarying float vAoV;\n' +
         sh.vertexShader.replace('#include <begin_vertex>',
           '#include <begin_vertex>\nvAoV = aoV;');
-      sh.fragmentShader = 'uniform float uLeaf, uWrap, uSSS, uSSSP, uAoBake, uBakeAlb;\nvarying float vAoV;\n' +
-        sh.fragmentShader.replace('#include <lights_fragment_end>',
-          '#include <lights_fragment_end>\n' + LEAF_GLSL);
+      sh.fragmentShader = 'uniform float uLeaf, uWrap, uSSS, uSSSP, uAoBake, uBakeAlb;\n' +
+        'uniform float uHue, uSat, uLight, uCut, uSharp;\nvarying float vAoV;\n' +
+        sh.fragmentShader
+          .replace('#include <map_fragment>',
+            '#include <map_fragment>\n' + TINT_GLSL + (isLeaf ? '\n' + EDGE_GLSL : ''))
+          .replace('#include <lights_fragment_end>',
+            '#include <lights_fragment_end>\n' + LEAF_GLSL);
     };
     return mat;
+  }
+  function retint(mat) {
+    const t = mat.userData.tint, leaf = mat.userData.uLeaf.value > 0.5;
+    mat.userData.uHue.value = leaf ? (t.hue || 0) + MASTER.hue : 0;
+    mat.userData.uSat.value = leaf ? (t.sat === undefined ? 1 : t.sat) * MASTER.sat : 1;
+    mat.userData.uLight.value = (leaf ? (t.light === undefined ? 1 : t.light)
+                                      : (t.bark === undefined ? 1 : t.bark)) * MASTER.light;
   }
   const treeLeaf = {
     // the impostor material lights its sheet with the same terms and dials
@@ -250,6 +312,12 @@
     set: o => { for (const k of ['wrap', 'sss', 'sssp', 'ao']) if (o[k] !== undefined) LEAF[k] = +o[k];
       U_WRAP.value = LEAF.wrap; U_SSS.value = LEAF.sss; U_SSSP.value = LEAF.sssp; U_AO.value = LEAF.ao;
       return Object.assign({}, LEAF); },
+    // the master tint over every collection, and the edge sharpen:
+    // TREE_LEAF.tint({ light: 1.2 }), TREE_LEAF.sharp(0) for the plain cutoff
+    master: () => Object.assign({}, MASTER),
+    tint: o => { for (const k of ['hue', 'sat', 'light']) if (o[k] !== undefined) MASTER[k] = +o[k];
+      for (const m of HOOKED) retint(m); return Object.assign({}, MASTER); },
+    sharp: v => { if (v !== undefined) U_SHARP.value = +v; return U_SHARP.value; },
   };
 
   // Build one subject's rung, ONCE. Later calls hand out the same buffers:
@@ -281,13 +349,19 @@
       g.setIndex(new THREE.BufferAttribute(d.idx, 1));
       const M = (found.col.materials || {})[d.mat] || {};
       const cutout = M.mode && M.mode !== 'OPAQUE';
+      // the bench's rule: the pack's own MASK cutoff is the floor, the
+      // collection's `alpha` dial can only raise it
+      const T = found.col.tint || {};
+      const cut = cutout ? (Math.max(M.cutoff || 0, T.alpha || 0) || 0.5) : 0;
       const mat = hookLeaf(new THREE.MeshStandardMaterial({
         map: M.base ? texture(THREE, M.base, true,
-          cutout && M.coverageMips ? Math.round(255 * (M.cutoff || 0.5)) : null) : null,
+          cutout && M.coverageMips ? Math.round(255 * cut) : null) : null,
         side: cutout ? THREE.DoubleSide : THREE.FrontSide,
-        alphaTest: cutout ? (M.cutoff || 0.5) : 0,
+        // the sharpen owns the cutout (uCut); the hard test only kills the
+        // empty texels, and the eight-sample buffer resolves the edge
+        alphaTest: cutout ? 0.01 : 0, alphaToCoverage: !!cutout,
         transparent: false, roughness: 1, metalness: 0,
-      }), !!cutout);
+      }), !!cutout, T, cut);
       mat.name = d.mat;
       parts.push({ geo: g, mat: mat, cutout: !!cutout });
     }

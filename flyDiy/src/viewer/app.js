@@ -6203,14 +6203,14 @@
     if (K.has('KeyS')) devCam.pos.addScaledVector(devCam.fwd, -v);
     if (K.has('KeyD')) devCam.pos.addScaledVector(devCam.rgt, v);
     if (K.has('KeyA')) devCam.pos.addScaledVector(devCam.rgt, -v);
-    if (K.has('Space')) devCam.pos.y += v;
-    if (K.has('KeyC')) devCam.pos.y -= v;
+    if (K.has('Space') || K.has('KeyR')) devCam.pos.y += v;   // DEVCAM: R/F too
+    if (K.has('KeyC') || K.has('KeyF')) devCam.pos.y -= v;
     camera.up.set(0, 1, 0);
     camera.position.copy(devCam.pos);
     camera.lookAt(devCam.look.copy(devCam.pos).add(devCam.fwd));
   };
   const DEVCAM_KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'KeyC',
-                               'ShiftLeft', 'ShiftRight']);
+                               'KeyR', 'KeyF', 'ShiftLeft', 'ShiftRight']);
   window.addEventListener('keydown', e => {
     if (!devCamOn() || !DEVCAM_KEYS.has(e.code)) return;
     devCam.keys.add(e.code); e.preventDefault(); e.stopImmediatePropagation();
@@ -6221,15 +6221,31 @@
     if (devCamOn()) { e.preventDefault(); e.stopImmediatePropagation(); }
   }, true);
   window.addEventListener('blur', () => devCam.keys.clear());
+  // THE GIMBAL: a left DRAG turns the eye, always. Pointer lock is asked for
+  // on top of it - when it is granted the mouse is free and the button can be
+  // let go - but the drag never depends on it: the lock is refused in an
+  // embedded pane and behind some capture states, and the first cut of this
+  // camera read only the locked deltas, so the mouse did nothing at all.
+  let devDrag = null;                                                   // DEVCAM
   $('c').addEventListener('pointerdown', e => {
     if (!devCamOn() || e.button !== 0) return;
-    if (document.pointerLockElement !== $('c') && $('c').requestPointerLock) $('c').requestPointerLock();
+    devDrag = { x: e.clientX, y: e.clientY };
+    if (document.pointerLockElement !== $('c') && $('c').requestPointerLock) {
+      try { const p = $('c').requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (err) {}
+    }
   });
-  document.addEventListener('mousemove', e => {
-    if (!devCamOn() || document.pointerLockElement !== $('c')) return;
-    devCam.yaw += e.movementX * 0.0025;
-    devCam.pitch = Math.max(-1.5, Math.min(1.5, devCam.pitch - e.movementY * 0.0025));
+  const devTurn = (dx, dy) => {
+    devCam.yaw += dx * 0.0025;
+    devCam.pitch = Math.max(-1.5, Math.min(1.5, devCam.pitch - dy * 0.0025));
+  };
+  window.addEventListener('pointermove', e => {
+    if (!devCamOn()) return;
+    if (document.pointerLockElement === $('c')) { devTurn(e.movementX, e.movementY); return; }
+    if (!devDrag || !(e.buttons & 1)) return;
+    devTurn(e.clientX - devDrag.x, e.clientY - devDrag.y);
+    devDrag = { x: e.clientX, y: e.clientY };
   });
+  window.addEventListener('pointerup', () => { devDrag = null; });
   $('c').addEventListener('wheel', e => {
     if (!devCamOn()) return;
     devCam.speed = Math.max(1, Math.min(400, devCam.speed * Math.pow(1.15, -Math.sign(e.deltaY))));

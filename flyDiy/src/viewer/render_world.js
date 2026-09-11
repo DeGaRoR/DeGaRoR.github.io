@@ -808,9 +808,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         });
         NRM_CACHE.set(src, m);
       }
+      // the cutout is the material's own uCut (trees.js: the sharpen owns it
+      // and alphaTest sits at a 0.01 floor), the plain alphaTest otherwise
+      const cut = (src.userData && src.userData.uCut) ? src.userData.uCut.value : (src.alphaTest || 0);
       m.uniforms.map.value = src.map || null;
-      m.uniforms.uCut.value = src.alphaTest || 0.5;
-      m.uniforms.uHasMap.value = (src.map && src.map.image && src.alphaTest > 0) ? 1 : 0;
+      m.uniforms.uCut.value = cut || 0.5;
+      m.uniforms.uHasMap.value = (src.map && src.map.image && cut > 0) ? 1 : 0;
       m.side = src.side;
       return m;
     }
@@ -1114,7 +1117,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const d = new THREE.MeshDepthMaterial({
         depthPacking: THREE.RGBADepthPacking,
         // the cutout, which the derived depth material never had
-        map: mat.map || null, alphaTest: mat.alphaTest || 0, side: mat.side,
+        map: mat.map || null, side: mat.side,
+        alphaTest: (mat.userData && mat.userData.uCut) ? mat.userData.uCut.value : (mat.alphaTest || 0),
       });
       d.onBeforeCompile = sh => {
         sh.uniforms.uNearB = { value: near };
