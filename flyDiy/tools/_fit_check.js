@@ -629,7 +629,10 @@ function runReach(mode) {
   const base = AC.genAccessNeedsCage({}, {});
   const SPREAD = [
     {}, { tank: 'wing' }, { tank: 'panel' }, { tank: null, fuelL: 0 },
-    { systems: 'minimal' }, { systems: 'ifr' },
+    // the panel arc, session 2: the aerials read the RADIOS the fit carries,
+    // not the tier's name — so the ifr probe carries its three
+    { systems: 'minimal', avionics: { com: false, nav: false, xpdr: false } },
+    { systems: 'ifr', avionics: { com: true, nav: true, xpdr: true } },
     { material: 'alloy' }, { material: 'wood' }, { material: 'carbon' },
     { cargo: 1.2 }, { sillH: 0.9 }, { wing: false }, { engine: false },
     { tailHalfW: 0.30 },

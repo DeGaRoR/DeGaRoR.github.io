@@ -236,6 +236,9 @@ const GATES = [
   // — the shaft speed against the J-3's real numbers, the burn against the
   // thermo sheet, nz at rest and in free fall, the key and the starter
   { id: 'RPM', file: '_rpm_check.js', tier: 'core' },
+  // ...and session 2: the fit as a list — catalogues, tiers, the resolver,
+  // the ledger billing exactly its rows, the aerials reading the radios
+  { id: 'PANEL', file: '_panel_check.js', tier: 'core' },
   // world contract (appended: keeps the battery log prefix diffable)
   { id: 'WORLD', file: 'test_world.js', tier: 'core' },
   { id: 'HYDRO', file: 'test_hydro.js', tier: 'core' },

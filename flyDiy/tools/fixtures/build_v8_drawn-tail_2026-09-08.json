@@ -276,11 +276,11 @@
   "xAC": 0.8677499999999997,
   "semi": 5,
   "cg0": [
-   1.0118066,
-   0.6370259,
+   0.9870922,
+   0.623324,
    0,
-   475.4506581
+   486.7095378
   ],
-  "note": "captured 2026-09-08 at TAIL CHANTIER 2 P5 on PHYSICS_V 1: the drawn tail (Sh 2.2937, Sv 1.2478, not auto) with the prism truss (tailSection 0.25), the vortex downwash and the fin end-plate"
+  "note": "cg0 RE-FROZEN 2026-09-11 at the PANEL ARC session 2 (the instrument fit itemised — the basic tier is 22.6 kg of dials, battery, generator, starter, venturi, harness and COM where one 12 kg lump was): 475.45 -> 486.71 kg (+2.4 %), the centre of gravity 36 mm FORWARD (the battery on the firewall). THE GEOMETRY DID NOT MOVE: Sw, cBar, AR, xAC unchanged. Before that: captured 2026-09-08 at TAIL CHANTIER 2 P5 on PHYSICS_V 1: the drawn tail (Sh 2.2937, Sv 1.2478, not auto) with the prism truss (tailSection 0.25), the vortex downwash and the fin end-plate"
  }
 }

@@ -482,6 +482,9 @@ function cageJoinSpec(P, M, T) {
   // paint", so a build that had a tint could never go back to plain.
   if (M.finish !== undefined) spec.finish = M.finish;
   if (M.energy !== undefined) spec.energy = M.energy;
+  // the panel arc, session 2: the fit, the same way (a null inside it is
+  // 'the tier's answer' and must survive — garage.js's merge keeps nulls)
+  if (M.systems !== undefined) spec.systems = M.systems;
   return spec;
 }
 
@@ -1293,6 +1296,12 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     if (window.CAGE_ENERGY && window.CAGE_ENERGY.toSpec)
       try { M.energy = window.CAGE_ENERGY.toSpec(); }
       catch (e) { ERRS.push('the tanks could not be written to the build: '
+                            + e.message); }
+    // ...AND THE FIT (the panel arc, session 2), through the same door: the
+    // Instruments column's complete answer — tier, list, electrics, radios.
+    if (window.CAGE_PANEL && window.CAGE_PANEL.toSpec)
+      try { M.systems = window.CAGE_PANEL.toSpec(); }
+      catch (e) { ERRS.push('the instruments could not be written to the build: '
                             + e.message); }
     // G134: the drawn engine, resolved — null when the dials still ARE the
     // applied preset, so the registry row keeps flying under its own name.

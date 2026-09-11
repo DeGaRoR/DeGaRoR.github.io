@@ -883,6 +883,11 @@ const INSTR = {
   oilT:  { name: 'oil temperature', d: 0.0572 },
   fuel:  { name: 'fuel',            d: 0.0572 },
   volts: { name: 'volts',           d: 0.0572 },
+  // the panel arc, session 2: the catalogue's other dials (GEN_INSTR keys;
+  // items with no dial — the sight gauge, the hour meter — are not drawn here)
+  aiE:    { name: 'attitude (electric)', d: 0.0794 },
+  gmeter: { name: 'accelerometer',  d: 0.0794 },
+  clock:  { name: 'clock',          d: 0.0572 },
   // THE COMPASS IS NOT ON THE PANEL. It sits on the coaming, away from the
   // iron in everything else — which is also why it is the one instrument a
   // minimal panel cannot leave out.
@@ -908,6 +913,23 @@ function panelFit() {
     if (f && PANEL_FIT[f]) return f;
   } catch (e) {}
   return 'basic';
+}
+// THE FIT IS A LIST NOW (the panel arc, session 2): the core's one reader
+// resolves the tier, the player's edits and what the electrics can feed
+// (genSystemsResolve, 60_gen_spec.js). The bench with no game spec — or a
+// headless load with no core — keeps PANEL_FIT's tier lists.
+function panelItems() {
+  try {
+    if (typeof genSystemsResolve === 'function') {
+      // the game's spec, else the bench panel's own answer (_cage_panel.js)
+      const S = (window.GARAGE_SPEC && window.GARAGE_SPEC.get) ? window.GARAGE_SPEC.get()
+              : (window.CAGE_PANEL && window.CAGE_PANEL.toSpec) ? { systems: window.CAGE_PANEL.toSpec() } : {};
+      const r = genSystemsResolve(S || {});
+      return { fit: r.tier, want: r.items.slice() };
+    }
+  } catch (e) {}
+  const fit = panelFit();
+  return { fit, want: (PANEL_FIT[fit] || PANEL_FIT.basic).slice() };
 }
 
 // a flat disc and an annular rim, into a bag. The panel faces AFT (-z), which
@@ -944,8 +966,7 @@ function rimInto(bag, cx, cy, cz, rIn, rOut, depth, seg) {
 // the dash is, and the instruments are cut INTO the dash rather than hung
 // under it.
 function buildPanel(parent, A, P, pilotX) {
-  const fit = panelFit();
-  const want = PANEL_FIT[fit] || PANEL_FIT.basic;
+  const { fit, want } = panelItems();
   // ON THE DASH'S AFT FACE, a few millimetres proud of it toward the seats.
   // `A.zDash` is the station the THROTTLE mounts through — a datum inside the
   // shell — and it stays that, untouched, because the pedal lights and the

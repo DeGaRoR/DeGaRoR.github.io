@@ -37023,3 +37023,127 @@ target with it. What was missing was a join contract and a per-frame call.
   `pier_deck` is baked and unused by the plan — a filler the game may want.
 - Gates: HOUSE (with --selftest) and MEDIA green. PROPS untouched: the
   hangar's registry does not see the pier.
+
+## G251 — THE PANEL ARC, SESSION 2: THE FIT IS A LIST — THREE CATALOGUES
+## WITH REAL PRICES, THE TIERS AS PRESETS, ONE RESOLVER, AN ITEMISED LEDGER
+## AND THE INSTRUMENTS PART (2026-09-11)
+
+*Session 2 of `futureDesigns/PANEL-2026-09-11.md`. G248 gave the needles
+something to read; this gives the aeroplane something to buy. The user's
+rulings applied: NEW list prices documented per row; units PER BUILD.*
+
+**THE CATALOGUES (60_gen_spec.js, beside the retired lump).** `GEN_INSTR`
+(17 rows: asi, alt, vsi, ai, aiE, dg, turn, tacho, gmeter, oilP, oilT,
+fuel + a sender per tank, fuelSight, volts, clock, hobbs, compass — each
+with its cut-out `d`, kg, price, `power` none|elec|vac, amps, a source in
+`note`); `GEN_ELEC` (battery none|lead 7 kg 16 Ah|lithium 2.3 kg 13 Ah;
+alternator none|gen20|alt60; starter; suction none|venturi|pump; the
+harness once any bus exists, + 0.15 kg per powered item); `GEN_AVIONICS`
+(COM compact, Mode-S transponder, and `later:true` rows for VOR, portable /
+panel GPS and the glass PFD/MFD so the ledger's schema is final). Prices
+are 2025-26 dollar list prices at parity, rounded; the AI at 1900 is what a
+vacuum attitude indicator costs and it dominates every basic bill — that is
+the honest number, not a tuning.
+
+**THE TIERS ARE PRESETS.** `GEN_SYSTEMS` keeps its name and becomes
+`{items, elec, avionics}` per tier: minimal (day VFR, NO electrics —
+hand-propped, a sight gauge, 2.1 kg / 1800 cr), basic (the user's minimum
+set — asi, alt, ai, vsi, compass, clock, tacho, oil P/T, fuel, volts — with
+a lead battery, a 20 A generator, a starter, a venturi and a COM: 22.6 kg /
+7950 cr), ifr (the six-pack with an electric AI, alt60, a pump, COM + Mode-S
++ a VOR receiver: 28.8 kg / 16 660 cr), custom (everything from the spec).
+
+**THE SPEC GREW, NOTHING MOVED HOME.** `spec.systems = { fit, units
+aviation|metric, items null|[keys], elec {battery, alternator, starter,
+vac}, avionics {com, xpdr, nav, gps}, side pilot|centre }` — every new field
+null = the tier's answer (genDefaults keeps nulls), so a v8 save with `fit`
+alone resolves to the tier exactly (gated) and GEN_SPEC_V stays 8. clampSpec
+cleans a wild section (unknown keys → null, a list to real keys once each, a
+custom fit with no list handed the basic one). **PHYSICS_V 3**: an unchanged
+spec bills a different mass now.
+
+**ONE RESOLVER, `genSystemsResolve(S)`.** Tier + edits → `items` (deduped,
+FED: an electric dial with no battery, a gyro with no suction, a radio with
+no bus are DROPPED and named with their reason — a dead instrument is not a
+cheaper one), `elec`, `avionics`, `rows[]` (key, group panel|elec|avionics,
+name, kg, price, amps), `bill.{panel,elec,avionics}`, `kg`, `price`,
+`loads[]`, `hasBus`, `battAh`, `altA`, `starter`, `vac`. The ledger, the
+dash, the aerials, the column and (session 4) the bus read this and nothing
+else.
+
+**THE LEDGER (61_gen_frame.js).** `sec('systems')`'s lump is three
+sections billed row by row where the thing sits: `panel` on the firewall
+ring's top pair (where the lump was); `elec` — the battery on the firewall's
+LOWER pair (a Cub's box is on the firewall at the floor), the alternator,
+the starter and a vacuum pump on the engine nodes (the accessory case; the
+firewall's lower pair when the engine is not on the nose), the harness on
+the top pair; `avionics` on the top pair with the panel. Stock basic Cub:
+463.1 → 473.5 kg, CG 0.988 → 0.957 (24-36 mm forward — the battery), SM
+14.9 → 17.2 %. `GEN_PRICES.instruments` retired.
+
+**THE AERIALS READ THE RADIOS.** `GEN_ACCESS` comm / nav / transponder
+rows' `need` reads `R.avionics.{com,nav,xpdr}` (genAccessNeeds resolves
+them; the cage side gets them from `_cage_access.js` through the same
+resolver; a bench with no game spec takes the tier's own answer) — so a
+custom minimal with a Mode-S grows its blade, and one without a battery
+does not (the transponder is dropped first). GATE FIT's reach probe learned
+the field (its `ifr` spread carries the three).
+
+**THE INSTRUMENTS PART (`_cage_parts.js` under Cabin fit, `panel:
+'CAGE_PANEL'`; `tools/_cage_panel.js`, the layer's first file).** The energy
+part's door: a global that owns its column whole. Rows: fit (tier),
+units, side; DIALS · n fitted (a toggle per catalogue row with its price
+and mass; a dropped one reads "dead — no battery"); ELECTRICS (four
+selects); RADIOS (four selects, `later` rows say "declared, not drawn
+yet"); THE BILL (per group, per row, the dropped list, the bus load against
+the alternator's amps and the battery's Ah). Any edit makes the fit
+`custom` with every field explicit; a tier pick puts them back to derived.
+Commit = `GARAGE_SPEC.update({systems})` + `CAGE_UI.build()` — the crew
+layer draws the resolved list (`panelItems`, reading the game's spec or,
+on the bench, this layer's own answer), so the dash redraws its dials on
+the spot: basic 11 → ifr 13 → minimal 6, the plate's all-up following
+(487 → 466 kg on the user's working build). The join carries `M.systems`
+out through its export (a null inside survives garage.js's merge); applySpec
+seeds `fromSpec`. In the three lists (`_cage8.html`, build.js
+MANIFEST.editor, `_parts_check.js`) after the crew. Session 3 gives it
+geometry.
+
+**GATE PANEL (`tools/_panel_check.js`, core, ~10 s, --selftest).** Every
+row weighs, costs and declares its power; every tier names real keys;
+minimal has no bus and drops nothing; the tiers order by mass and price;
+basic carries the minimum set; a minimal + gyros fits only the asi and the
+dropped say why and bill nothing; a battery + venturi feed them and bring
+the harness; a radio with no bus is dropped; two tanks, two senders;
+dedupe; units per build; the default derives; a v8-shaped save resolves to
+its tier exactly; a custom with no list gets basic; clampSpec cleans a wild
+section; the ledger's panel + elec + avionics equal the resolver's bill on
+all three tiers, the lump is gone, the fit is empty weight; the battery's
+kilos land on S0BL/S0BR and the harness alone on the top pair; PHYSICS_V
+≥ 3; the aerials follow the radios on five fixtures; the part's door and
+the three lists. Selftest: a free clock and a ghost dial are both caught.
+
+**RE-ANCHORED, the designed path.** `_wing_split.json` and
+`_energy_base.json` blessed (the wing is emitted about the CG; the fit is
+10 kg heavier and 3 cm further forward — GATE WINGSPLIT's own header says
+this is the right answer); the v5 and v8 vintage fixtures re-frozen (513.69
+→ 525.00 kg and 475.45 → 486.71, notes prepended — Sw, cBar, AR, xAC
+unchanged to the digit, the invariant those fixtures are for).
+
+**Gates:** on the private copy — INPUT, PILOT, UISMOKE, BUILD, SKINMAT,
+LIGHT, FIT, WINGSPLIT, JOIN, PARTS, DESIGN, ENERGYBASE, ENERGY, PANEL, LOAD
+green, GEN run direct (74/74 — the SHAKEDOWN line is now `474 kg · w/l
+30.6`, re-read per the ritual); BENCH red as before this arc (the sticker
+keys, the stickers session). The COMMIT proved in a clean worktree of its
+own tree: ATMOS, UISMOKE, BUILD, SKINMAT, LIGHT, FIT, WINGSPLIT, JOIN,
+ENGID, PARTS, DESIGN, ENERGYBASE, ENERGY, RPM, PANEL — 15 green; the
+goldens and the fixtures' cg0 were blessed / re-frozen IN that worktree, off
+the commit's own core, not the working copy's (the two differ by other
+sessions' hunks: the v8 fixture's CG x reads 0.9871 at HEAD and 0.9755 on
+the working copy, the same 486.71 kg).
+
+**Owed:** the plaque prints no ledger sections (never did) — the bill lives
+in the Instruments column; a `panel`/`elec`/`avionics` line on the sheet is
+session 3's with the drawn dials. The battery's station is the firewall on
+every build — a PA-18 carries its aft for balance; a bay choice like the
+vessels' is a later row. The bill's row labels truncate in the column's
+narrow key cell.

@@ -981,6 +981,17 @@ const CAGE_PARTS = [
       ['the beacon', ['li_beaconRpm', 'li_beaconSink']],
     ] },
 
+  // THE INSTRUMENTS (the panel arc, session 2). A LIST, not a set of
+  // sliders — the tier, the units, which dials, the electrics, the radios,
+  // and the bill they add up to — so it takes the energy part's door: a
+  // global that owns its column whole (`panel: 'CAGE_PANEL'`, tools/
+  // _cage_panel.js) and writes `spec.systems` through GARAGE_SPEC. No
+  // `when`, no `groups`, no sections: GATE PARTS' parameter rules are
+  // untouched and its section 8 checks the door. Session 3 gives the
+  // layer its geometry (the dials themselves, `edGauge_*`).
+  { key: 'instruments', name: 'Instruments', parent: 'fit', layer: 'panel',
+    panel: 'CAGE_PANEL' },
+
   // =========================================================================
   // BUILD — what is true of the aeroplane rather than of one of its parts.
   // Scale is here and not on the fuselage because it is the recalibration

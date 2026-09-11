@@ -98,7 +98,7 @@ function loadPanel() {
   // the game bundle's editor list, in order (tools/build.js MANIFEST.editor),
   // minus _cage_ui.js which is the only one that needs a document
   for (const f of ['_cage_parts.js', '_cage_page5.js', '_cage_gen.js',
-    '_cage_crew.js', '_gear_kit.js', '_gear_gen.js', '_gear_page.js',
+    '_cage_crew.js', '_cage_panel.js', '_gear_kit.js', '_gear_gen.js', '_gear_page.js',
     '_cage_gear.js', '_fit_site.js', '_fit_gen.js', '_hinge_gen.js',
     '_eng_gen.js', '_eng_mesh.js', '_eng_page.js',
     '_cowl_gen.js', '_cowl_rows.js', '_cage_cowl.js', '_cage_eng.js',

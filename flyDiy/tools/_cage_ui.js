@@ -1812,6 +1812,10 @@ function applySpec(spec, what) {
   if (window.CAGE_ENERGY && window.CAGE_ENERGY.fromSpec)
     try { window.CAGE_ENERGY.fromSpec(spec && spec.energy); }
     catch (e) { console.error('energy from spec:', e); }
+  // THE FIT COMES WITH THE AEROPLANE too (the panel arc, session 2)
+  if (window.CAGE_PANEL && window.CAGE_PANEL.fromSpec)
+    try { window.CAGE_PANEL.fromSpec(spec && spec.systems); }
+    catch (e) { console.error('instruments from spec:', e); }
   anchorSize();                            // the loaded design is now x1.000
   syncSliders(); build();
   if (what && $('stat')) $('stat').textContent = what;

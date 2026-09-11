@@ -358,6 +358,12 @@ PAGE.post = ctx => {
       tank: GS.fuel && GS.fuel.litres > 0 ? (GS.fuel.tank || 'nose') : null,
       fuelL: (GS.fuel && GS.fuel.litres),
       systems: GS.systems && GS.systems.fit,
+      // the panel arc, session 2: the radios the fit carries (the aerials'
+      // `need`s read these); resolved by the core's one reader
+      avionics: (typeof genSystemsResolve === 'function')
+        ? (r => ({ com: r.avionics.com !== 'none', nav: r.avionics.nav !== 'none',
+                   xpdr: r.avionics.xpdr !== 'none' }))(genSystemsResolve(GS))
+        : undefined,
       material: GS.fuselage && GS.fuselage.material,
       cargo: GS.cargo && GS.cargo.len,
     };

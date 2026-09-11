@@ -793,7 +793,9 @@ const GEN_ACCESS = {
   commAerial: {
     name: 'Comm aerial',
     serves: 'the VHF radio',
-    need: R => R.systems === 'minimal' ? 0 : 1,
+    // the panel arc, session 2: fitted when the fit carries a COM (the tier's
+    // answer or the player's), not by the tier's name
+    need: R => (R.avionics && R.avionics.com) ? 1 : 0,
     at: R => ({ sL: R.cabinAft + 0.45, lv: 'crown' }),
     snap: 'ring', side: 'centre',
     form: 'bladeAerial', size: { h: 0.230, c: 0.090, t: 0.010 },
@@ -801,7 +803,7 @@ const GEN_ACCESS = {
   navAerial: {
     name: 'Nav aerial',
     serves: 'the VOR receiver',
-    need: R => R.systems === 'ifr' ? 1 : 0,
+    need: R => (R.avionics && R.avionics.nav) ? 1 : 0,
     // ON A ROD (G189) it is clamped to the tube's crown, a third of the way
     // down it — `on` picks the surface per aeroplane, and the rod placer
     // puts a split collar under whatever form the row draws
@@ -827,7 +829,7 @@ const GEN_ACCESS = {
     // on any IFR aeroplane with wing tanks. Measured aft from the back of the
     // cabin instead, it is clear of the drain on every fuselage, and it is
     // also where a real one is: under the baggage bay, behind the spar.
-    need: R => R.systems === 'ifr' ? 1 : 0,
+    need: R => (R.avionics && R.avionics.xpdr) ? 1 : 0,
     on: R => R.rod ? 'rod' : 'body',          // G189: clamped under the tube
     at: R => R.rod ? { sL: R.rod.from + R.rod.len * 0.18, lv: 'keel' }
                    : { sL: R.cabinAft + (R.tailArm - R.cabinAft) * 0.18,
@@ -944,6 +946,11 @@ function genAccessNeeds(S) {
     tank:      (S.fuel && S.fuel.litres > 0) ? (S.fuel.tank || 'nose') : null,
     fuelL:     (S.fuel && S.fuel.litres) || 0,
     systems:   (S.systems && S.systems.fit) || 'basic',
+    // the panel arc, session 2: which radios the fit actually carries — the
+    // aerials' `need`s read these, so a custom fit with a COM grows its blade
+    avionics:  (() => { const r = genSystemsResolve(S);
+                        return { com: r.avionics.com !== 'none', nav: r.avionics.nav !== 'none',
+                                 xpdr: r.avionics.xpdr !== 'none' }; })(),
     material:  f.material || 'tubeFabric',
     cargo:     (S.cargo && S.cargo.len) || 0,
     engine:    !!((S.engines && S.engines.length) || S.engine),
@@ -1009,6 +1016,12 @@ function genAccessNeedsCage(P, extra) {
     tank:      E.tank !== undefined ? E.tank : 'nose',
     fuelL:     E.fuelL !== undefined ? E.fuelL : 50,
     systems:   E.systems || 'basic',
+    // the panel arc, session 2: the editor hands the resolved radios over
+    // (E.avionics); a bench with no game spec takes the tier's own answer
+    avionics:  E.avionics || (() => {
+      const T = GEN_SYSTEMS[E.systems] || GEN_SYSTEMS.basic;
+      return { com: T.avionics.com !== 'none', nav: T.avionics.nav !== 'none',
+               xpdr: T.avionics.xpdr !== 'none' }; })(),
     material:  E.material || 'tubeFabric',
     cargo:     E.cargo || 0,
     engine:    !!(P.engOn == null ? 1 : +P.engOn),
@@ -1358,12 +1371,239 @@ const GEN_OUTFIT = {
   ctlKgM: 0.62, ctlDualKg: 3.4,
 };
 
-// Instrument fit. Mass is the TOTAL for the aeroplane.
-const GEN_SYSTEMS = {
-  minimal: { name: 'Minimal (day VFR)', mass: 6,  price: 700 },
-  basic:   { name: 'Basic VFR',         mass: 12, price: 2400 },
-  ifr:     { name: 'IFR panel + radios', mass: 26, price: 9500 },
+// ===========================================================================
+// THE PANEL ARC, SESSION 2 (2026-09-11) — THE INSTRUMENT FIT, ITEMISED.
+// ===========================================================================
+// Until this date the fit was three lumps (6 / 12 / 26 kg, 700 / 2400 / 9500
+// cr) and nothing on the dash knew what it was made of. The user's ruling:
+// NEW LIST PRICES, documented per row, weights with them; the fit is a LIST
+// the tiers preset and the player can edit; units are per build.
+//
+// Three catalogues, one table of tiers, one resolver. `spec.systems` keeps
+// its name and its `fit` (the tier — no field changed home, no migration;
+// a v8 save reads exactly as it did), and grows: `units`, `items` (null =
+// the tier's list; a list = the player's), `elec` and `avionics` (each
+// value null = the tier's answer), `side`. The dash draws what
+// genSystemsResolve says and the ledger bills the same record — one keeper.
+//
+// PRICES: what the part costs NEW, in credits at parity with the dollar list
+// prices of 2025-26 (the sources per row), rounded; mass is the unit with
+// its mount and connector. The panel BOARD itself is GEN_OUTFIT.panelKgM2's
+// (unchanged), the aerials are GEN_ACCESS's (they read `avionics` now), the
+// wiring is the harness row below.
+//
+// POWER: 'none' (a pitot line, a cable, a fluid) / 'elec' (needs a bus: a
+// battery, and draws `amps`) / 'vac' (needs suction: a venturi or an
+// engine-driven pump). The resolver DROPS an item its build cannot feed and
+// says so (`dropped`) — a turn coordinator on a Cub with no battery is not a
+// cheaper instrument, it is a dead one.
+//   d       dial cut-out, m (3-1/8 in = 79.4 mm, 2-1/4 in = 57.2 mm; 0 = no dial)
+//   coaming the compass sits on the coaming, not the panel (iron)
+//   perTank a sender per tank, billed with the gauge
+const GEN_INSTR = {
+  asi:     { name: 'airspeed indicator',   d: 0.0794, kg: 0.40, price: 350,
+             power: 'none', note: 'UMA / Falcon 3-1/8 in; a TSO\'d United is ~700' },
+  alt:     { name: 'altimeter',            d: 0.0794, kg: 0.50, price: 600,
+             power: 'none', note: 'sensitive three-pointer; Falcon ~450, United 5934 ~1200' },
+  vsi:     { name: 'vertical speed',       d: 0.0794, kg: 0.40, price: 320,
+             power: 'none', note: 'UMA / Falcon' },
+  ai:      { name: 'attitude, vacuum',     d: 0.0794, kg: 1.10, price: 1900,
+             power: 'vac',  note: 'RC Allen RCA22 class' },
+  aiE:     { name: 'attitude, electric',   d: 0.0794, kg: 1.00, price: 2800,
+             power: 'elec', amps: 1.0, note: 'RC Allen RCA26 class' },
+  dg:      { name: 'directional gyro',     d: 0.0794, kg: 1.20, price: 1600,
+             power: 'vac',  note: 'RC Allen RCA11A class' },
+  turn:    { name: 'turn coordinator',     d: 0.0794, kg: 0.70, price: 800,
+             power: 'elec', amps: 0.3, note: 'Mid-Continent 1394T class' },
+  tacho:   { name: 'tachometer',           d: 0.0794, kg: 0.45, price: 260,
+             power: 'none', note: 'mechanical, cable-driven' },
+  gmeter:  { name: 'accelerometer',        d: 0.0794, kg: 0.45, price: 500,
+             power: 'none', note: 'three-needle, with the max hands' },
+  oilP:    { name: 'oil pressure',         d: 0.0572, kg: 0.20, price: 130,
+             power: 'none', note: 'mechanical, capillary line' },
+  oilT:    { name: 'oil temperature',      d: 0.0572, kg: 0.20, price: 130,
+             power: 'none', note: 'bulb and capillary' },
+  fuel:    { name: 'fuel quantity',        d: 0.0572, kg: 0.25, price: 180,
+             power: 'elec', amps: 0.1, perTank: { kg: 0.30, price: 90 },
+             note: 'one gauge, a float sender per tank' },
+  fuelSight: { name: 'fuel sight gauge',   d: 0,      kg: 0.05, price: 30,
+             power: 'none', note: 'a cork on a wire through the cap (J-3); a nose tank only' },
+  volts:   { name: 'volt / ammeter',       d: 0.0572, kg: 0.15, price: 120,
+             power: 'elec', amps: 0.02 },
+  clock:   { name: '8-day clock',          d: 0.0572, kg: 0.25, price: 240,
+             power: 'none', note: 'mechanical; a digital one is ~150' },
+  hobbs:   { name: 'hour meter',           d: 0,      kg: 0.10, price: 110,
+             power: 'elec', amps: 0.02 },
+  compass: { name: 'magnetic compass',     d: 0.0700, kg: 0.30, price: 300,
+             power: 'none', coaming: true, note: 'Airpath C2300 class' },
 };
+// THE ELECTRICAL SYSTEM. A Cub-class aeroplane has NONE (hand-propped, a
+// venturi or nothing for its gyros) and that is a legal, cheaper build. The
+// harness is billed once any bus exists: master switch, breakers, wire,
+// plus a little per powered item. Amps at 12 V; the bus is 31_elec.js's
+// (session 4), which reads `Ah` and `A` from here.
+const GEN_ELEC = {
+  battery: {
+    none:    { name: 'no battery',            kg: 0,   price: 0,   Ah: 0 },
+    lead:    { name: 'lead-acid 12 V, 16 Ah', kg: 7.0, price: 180, Ah: 16,
+               note: 'Odyssey PC680 class' },
+    lithium: { name: 'lithium 12 V, 13 Ah',   kg: 2.3, price: 520, Ah: 13,
+               note: 'EarthX ETX900 class' },
+  },
+  alternator: {
+    none:  { name: 'no alternator',   kg: 0,   price: 0,   A: 0 },
+    gen20: { name: '20 A generator',  kg: 4.0, price: 450, A: 20,
+             note: 'the small Continentals\' belt generator; cuts in above idle' },
+    alt60: { name: '60 A alternator', kg: 4.5, price: 800, A: 60,
+             note: 'Plane-Power class, with its regulator' },
+  },
+  starter: {
+    none: { name: 'hand-propped',      kg: 0,   price: 0,   amps: 0 },
+    yes:  { name: 'electric starter',  kg: 4.0, price: 700, amps: 150,
+            note: 'Sky-Tec class; 150 A while cranking' },
+  },
+  vac: {
+    none:    { name: 'no suction',            kg: 0,   price: 0,   minV: 0 },
+    venturi: { name: 'venturi',               kg: 0.4, price: 150, minV: 20,
+               note: 'on the strut; makes suction above ~40 kt' },
+    pump:    { name: 'engine-driven vacuum pump', kg: 1.2, price: 600, minV: 0,
+               note: 'dry pump on the accessory pad; suction whenever the engine turns' },
+  },
+  // the harness: master + breakers + the wire, once, plus a little per item
+  harness: { kg: 1.2, kgPerItem: 0.15, price: 250 },
+};
+// THE AVIONICS. The radios need a bus; the aerials that carry them are
+// GEN_ACCESS rows (comm / nav / transponder) and read this through
+// genAccessNeeds. `later` rows are declared so the ledger's schema is final
+// — priced and weighed when fitted, nothing drawn yet (a receiver in the
+// stack, no needle).
+const GEN_AVIONICS = {
+  com: {
+    none:    { name: 'no radio',           kg: 0,   price: 0,    amps: 0 },
+    compact: { name: 'VHF COM, compact',   kg: 1.0, price: 1600, amps: 0.5, ampsTx: 2.0,
+               note: 'Trig TY91 class with its controller; a Garmin GTR 200 is ~1800' },
+  },
+  xpdr: {
+    none:  { name: 'no transponder',      kg: 0,   price: 0,    amps: 0 },
+    modeS: { name: 'Mode-S transponder',  kg: 0.7, price: 2300, amps: 0.7,
+             note: 'Trig TT21 class; an ADS-B-out GTX 335 is ~3300' },
+  },
+  nav: {
+    none: { name: 'no nav receiver',      kg: 0,   price: 0,    amps: 0 },
+    vor:  { name: 'VOR receiver + CDI',   kg: 1.6, price: 2200, amps: 0.5, later: true,
+            note: 'a second-hand KX 155 + KI 208; navaids are a world item' },
+  },
+  gps: {
+    none:     { name: 'no GPS',             kg: 0,   price: 0,    amps: 0 },
+    portable: { name: 'portable GPS',       kg: 0.7, price: 900,  amps: 0.5, later: true,
+                note: 'aera 660 class on a yoke mount' },
+    panel:    { name: 'panel GPS navigator', kg: 1.5, price: 4500, amps: 1.0, later: true,
+                note: 'GPS 175 class' },
+    glass:    { name: 'glass PFD/MFD',       kg: 3.5, price: 6500, amps: 2.5, later: true,
+                note: 'G3X Touch / HDX class with ADAHRS and magnetometer' },
+  },
+};
+// THE TIERS: what each fit buys. Day VFR is what an engine and an airframe
+// need to be flown; basic is the user's minimum set (speed, altitude,
+// attitude, climb, compass, clock, rpm, fuel) with the electrics that feed a
+// fuel gauge and a starter; IFR is the six-pack with radios behind an
+// alternator. `custom` takes everything from the spec.
+const GEN_SYSTEMS = {
+  minimal: { name: 'Minimal (day VFR)',
+             items: ['asi', 'alt', 'tacho', 'oilP', 'oilT', 'compass', 'fuelSight'],
+             elec: { battery: 'none', alternator: 'none', starter: 'none', vac: 'none' },
+             avionics: { com: 'none', xpdr: 'none', nav: 'none', gps: 'none' } },
+  basic:   { name: 'Basic VFR',
+             items: ['asi', 'alt', 'ai', 'vsi', 'compass', 'clock', 'tacho',
+                     'oilP', 'oilT', 'fuel', 'volts'],
+             elec: { battery: 'lead', alternator: 'gen20', starter: 'yes', vac: 'venturi' },
+             avionics: { com: 'compact', xpdr: 'none', nav: 'none', gps: 'none' } },
+  ifr:     { name: 'IFR panel + radios',
+             items: ['aiE', 'asi', 'alt', 'turn', 'dg', 'vsi', 'compass', 'clock',
+                     'tacho', 'oilP', 'oilT', 'fuel', 'volts', 'hobbs'],
+             elec: { battery: 'lead', alternator: 'alt60', starter: 'yes', vac: 'pump' },
+             avionics: { com: 'compact', xpdr: 'modeS', nav: 'vor', gps: 'none' } },
+  custom:  { name: 'Custom fit', items: null,
+             elec: { battery: 'lead', alternator: 'gen20', starter: 'yes', vac: 'venturi' },
+             avionics: { com: 'compact', xpdr: 'none', nav: 'none', gps: 'none' } },
+};
+const GEN_SYSTEMS_UNITS = { aviation: 'kt / ft / fpm', metric: 'km/h / m / m/s' };
+const GEN_SYSTEMS_SIDES = ['pilot', 'centre'];
+// THE ONE READER. The ledger, the dash, the plaque, the aerials and the bus
+// all read this record, so they cannot disagree about what the aeroplane
+// carries. Takes a spec (resolved or not: it needs only `systems` and the
+// vessel count) and returns:
+//   tier, units, side, items[] (keys, deduped, fed), elec{}, avionics{}
+//   (keys), dropped[] ({key, why}), rows[] ({key, group, name, kg, price,
+//   amps}), bill.panel/elec/avionics {kg, price}, kg, price, loads[] ({key,
+//   amps}), hasBus, battAh, altA, starter (bool), vac (key)
+function genSystemsResolve(S) {
+  const sy = (S && S.systems) || {};
+  const tier = GEN_SYSTEMS[sy.fit] ? sy.fit : 'basic';
+  const T = GEN_SYSTEMS[tier];
+  const pick = (tab, v, d) => (v != null && tab[v]) ? v : d;
+  const elec = {}, avionics = {};
+  for (const k of ['battery', 'alternator', 'starter', 'vac'])
+    elec[k] = pick(GEN_ELEC[k], sy.elec && sy.elec[k], T.elec[k]);
+  for (const k of ['com', 'xpdr', 'nav', 'gps'])
+    avionics[k] = pick(GEN_AVIONICS[k], sy.avionics && sy.avionics[k], T.avionics[k]);
+  const src = Array.isArray(sy.items) ? sy.items
+            : (T.items || GEN_SYSTEMS.basic.items);
+  const seen = new Set(), items = [], dropped = [];
+  const hasBus = elec.battery !== 'none';
+  const vacOn = elec.vac !== 'none';
+  for (const k of src) {
+    const r = GEN_INSTR[k];
+    if (!r || seen.has(k)) continue;
+    seen.add(k);
+    if (r.power === 'elec' && !hasBus) { dropped.push({ key: k, why: 'no battery' }); continue; }
+    if (r.power === 'vac' && !vacOn) { dropped.push({ key: k, why: 'no suction' }); continue; }
+    items.push(k);
+  }
+  for (const k of ['com', 'xpdr', 'nav', 'gps'])
+    if (avionics[k] !== 'none' && !hasBus) { dropped.push({ key: k, why: 'no battery' }); avionics[k] = 'none'; }
+  // the bill, row by row
+  const rows = [], loads = [];
+  const nTanks = Math.max(1, ((S && S.energy && S.energy.vessels) || []).length || 1);
+  let nPowered = 0;
+  for (const k of items) {
+    const r = GEN_INSTR[k];
+    let kg = r.kg, price = r.price;
+    if (r.perTank) { kg += r.perTank.kg * nTanks; price += r.perTank.price * nTanks; }
+    rows.push({ key: k, group: 'panel', name: r.name, kg, price, amps: r.amps || 0 });
+    if (r.power === 'elec') { nPowered++; loads.push({ key: k, amps: r.amps || 0 }); }
+  }
+  for (const k of ['battery', 'alternator', 'starter', 'vac']) {
+    const r = GEN_ELEC[k][elec[k]];
+    if (r.kg > 0 || r.price > 0)
+      rows.push({ key: k + ':' + elec[k], group: 'elec', name: r.name, kg: r.kg, price: r.price, amps: 0 });
+  }
+  for (const k of ['com', 'xpdr', 'nav', 'gps']) {
+    const r = GEN_AVIONICS[k][avionics[k]];
+    if (r.kg > 0 || r.price > 0) {
+      rows.push({ key: k + ':' + avionics[k], group: 'avionics', name: r.name, kg: r.kg, price: r.price, amps: r.amps || 0 });
+      nPowered++; loads.push({ key: k, amps: r.amps || 0 });
+    }
+  }
+  if (hasBus) {
+    const H = GEN_ELEC.harness;
+    rows.push({ key: 'harness', group: 'elec', name: 'master, breakers and harness',
+                kg: +(H.kg + H.kgPerItem * nPowered).toFixed(3), price: H.price, amps: 0 });
+  }
+  const sum = g => rows.filter(r => r.group === g)
+    .reduce((a, r) => ({ kg: a.kg + r.kg, price: a.price + r.price }), { kg: 0, price: 0 });
+  const panel = sum('panel'), el = sum('elec'), av = sum('avionics');
+  return {
+    tier, units: GEN_SYSTEMS_UNITS[sy.units] ? sy.units : 'aviation',
+    side: GEN_SYSTEMS_SIDES.includes(sy.side) ? sy.side : 'pilot',
+    items, elec, avionics, dropped, rows,
+    bill: { panel, elec: el, avionics: av },
+    kg: panel.kg + el.kg + av.kg, price: panel.price + el.price + av.price,
+    loads, hasBus, battAh: GEN_ELEC.battery[elec.battery].Ah,
+    altA: GEN_ELEC.alternator[elec.alternator].A,
+    starter: elec.starter === 'yes', vac: elec.vac,
+  };
+}
 
 // Undercarriage springing. The multipliers are relative to the Cub's bungee
 // cord, read off the fleet's own gear constants normalised by mass:
@@ -1559,7 +1799,7 @@ const GEN_INTAKES = {
 const GEN_PRICES = {
   wheel: 320,          // each: wheel, tyre, brake
   thirdWheel: 260,     // tailwheel or nosewheel assembly
-  instruments: 2400,   // basic VFR panel
+  // `instruments` retired (the panel arc, session 2): GEN_INSTR prices the fit
   paintJob: 1800,
   seat: 380,
   // G133 fairings — glassfibre datum, per piece; GEN_FAIR_MATS scales
@@ -1998,7 +2238,11 @@ const GEN_MIGRATE_CAGE_DEFAULTS = { boomLen: 3.983966, taperLen: 0.6 };
 //      tip bow (0.888 kg on the stock, its CG 8.8 mm aft) and the substep
 //      rule's dry floor stopped applying to nodes that carry no fuel, so the
 //      integrator runs a different step on every build
-const PHYSICS_V = 2;
+//   3  2026-09-11, the panel arc session 2: the instrument fit is ITEMISED
+//      (GEN_INSTR / GEN_ELEC / GEN_AVIONICS) — the panel, the electrics and
+//      the radios bill their own masses on the firewall ring where one
+//      lump did, so every plaque's empty weight moved by a few kilos
+const PHYSICS_V = 3;
 
 // { fromVersion: spec => spec } — each entry lifts a spec one version. May
 // mutate and return its argument. Runs BEFORE normalisation, on the raw shape
@@ -2371,7 +2615,14 @@ const GEN_DEFAULT = {
             // `clampSpec` builds the list from whatever capacity the spec DOES
             // name, and an explicit list always wins over it.
             vessels: null },
-  systems: { fit: 'basic' },
+  // THE FIT (the panel arc, session 2): the tier, the units on the faces,
+  // the list (null = the tier's), the electrics and the avionics (null = the
+  // tier's answer), and which side of the dash the T is built on. See
+  // GEN_INSTR / GEN_ELEC / GEN_AVIONICS / genSystemsResolve.
+  systems: { fit: 'basic', units: 'aviation', items: null,
+             elec: { battery: null, alternator: null, starter: null, vac: null },
+             avionics: { com: null, xpdr: null, nav: null, gps: null },
+             side: 'pilot' },
   // WHAT YOU SIT IN (G159). A choice, like the instrument fit beside it, and
   // it weighs: four kilos a seat between a Cub's sling and a certified
   // energy-absorbing one, times however many people are aboard.
@@ -2997,6 +3248,26 @@ function clampSpec(spec) {
     S.finish = null;
   if (!GEN_TANKS[S.fuel.tank]) S.fuel.tank = 'nose';
   if (!GEN_SYSTEMS[S.systems.fit]) S.systems.fit = 'basic';
+  {
+    // the panel arc, session 2: the fit's new fields. A list holds only
+    // catalogue keys, once each; a custom fit with no list is handed the
+    // basic one to edit; a tier's list stays null (derived). Unknown
+    // electrics / avionics keys fall back to null (the tier's answer).
+    const sy = S.systems;
+    if (!GEN_SYSTEMS_UNITS[sy.units]) sy.units = 'aviation';
+    if (!GEN_SYSTEMS_SIDES.includes(sy.side)) sy.side = 'pilot';
+    if (Array.isArray(sy.items)) {
+      const seen = new Set();
+      sy.items = sy.items.filter(k => GEN_INSTR[k] && !seen.has(k) && seen.add(k));
+    } else sy.items = null;
+    if (sy.fit === 'custom' && !sy.items) sy.items = GEN_SYSTEMS.basic.items.slice();
+    if (!sy.elec || typeof sy.elec !== 'object') sy.elec = {};
+    for (const k of ['battery', 'alternator', 'starter', 'vac'])
+      if (sy.elec[k] != null && !GEN_ELEC[k][sy.elec[k]]) sy.elec[k] = null;
+    if (!sy.avionics || typeof sy.avionics !== 'object') sy.avionics = {};
+    for (const k of ['com', 'xpdr', 'nav', 'gps'])
+      if (sy.avionics[k] != null && !GEN_AVIONICS[k][sy.avionics[k]]) sy.avionics[k] = null;
+  }
   const ct = S.controls;
   clampControls(ct);
   ct.elevator.chord = genClamp(ct.elevator.chord, ...GEN_TAIL_ENVELOPE.elevChord);

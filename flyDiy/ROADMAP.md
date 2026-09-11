@@ -562,8 +562,10 @@ trigger is you asking for it.*
    screens); TrackIR and the instruments are written as plans in
    futureDesigns/MANUAL-CONTROLS-2026-09-05.md, not executed.
    THE INSTRUMENTS ARE AN ARC NOW — futureDesigns/PANEL-2026-09-11.md, six
-   sessions: sources (LANDED 2026-09-11: shaft speed, burn, nz, the key),
-   catalogue + spec + ledger, the bench + the panel layer, live in flight
+   sessions: sources (LANDED 2026-09-11 G248: shaft speed, burn, nz, the key),
+   catalogue + spec + ledger (LANDED 2026-09-11 G251: GEN_INSTR / GEN_ELEC /
+   GEN_AVIONICS with list prices, the tiers as presets, genSystemsResolve,
+   the Instruments part), the bench + the panel layer, live in flight
    (join, readings, lamps, the electrical bus), exterior diagnostics + the
    radio, then the GPS / glass design.
 2. **Fleet and discovery** [L, old P6]. The rack (forty aeroplanes — the one

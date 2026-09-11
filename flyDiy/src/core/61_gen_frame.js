@@ -1581,10 +1581,38 @@ function genLattice(S, gearX, track, kScale) {
     nodes[a2].mFuel = (nodes[a2].mFuel || 0) + 0.5 * m;
     nodes[b2].mFuel = (nodes[b2].mFuel || 0) + 0.5 * m;
   }
-  sec('systems');
-  const SYS = GEN_SYSTEMS[S.systems.fit] || GEN_SYSTEMS.basic;
-  spend(SYS.price);
-  pt(F[0].TL, 0.5 * SYS.mass); pt(F[0].TR, 0.5 * SYS.mass);   // panel + systems
+  // ---- THE FIT, ITEMISED (the panel arc, session 2) ------------------------
+  // One lump on the firewall top pair used to stand for the whole fit. Now
+  // genSystemsResolve's own rows are billed, each where the thing sits:
+  //   panel     the instruments, on the firewall ring's top pair (the dash
+  //             hangs off it) — where the lump was, so a build that changes
+  //             nothing else keeps its CG within the fit's own few kilos
+  //   elec      the battery low on the firewall (a Cub's box is on the
+  //             firewall's cabin side, at the floor); the alternator, the
+  //             starter and a vacuum pump on the engine's accessory case —
+  //             the engine nodes when the engine is on the nose, the
+  //             firewall's lower pair otherwise; the harness on the top pair
+  //   avionics  the radios in the stack, on the top pair with the panel
+  // Three sections, so the plaque can show each and a future row cannot
+  // hide inside `outfit`. Dropped items (an electric instrument on a build
+  // with no battery) bill nothing: they are not fitted.
+  const SYS = genSystemsResolve(S);
+  const halfOn = (a, b, kg) => { if (kg > 0) { pt(a, 0.5 * kg); pt(b, 0.5 * kg); } };
+  const engPair = (EL >= 0 && ER >= 0) ? [EL, ER] : [F[0].BL, F[0].BR];
+  sec('panel');
+  spend(SYS.bill.panel.price);
+  halfOn(F[0].TL, F[0].TR, SYS.bill.panel.kg);
+  sec('elec');
+  for (const r of SYS.rows) {
+    if (r.group !== 'elec') continue;
+    spend(r.price);
+    if (r.key.startsWith('battery:')) halfOn(F[0].BL, F[0].BR, r.kg);
+    else if (r.key === 'harness') halfOn(F[0].TL, F[0].TR, r.kg);
+    else halfOn(engPair[0], engPair[1], r.kg);
+  }
+  sec('avionics');
+  spend(SYS.bill.avionics.price);
+  halfOn(F[0].TL, F[0].TR, SYS.bill.avionics.kg);
   // ---- THE OUTFIT (G159) ------------------------------------------------
   // Everything a real aeroplane carries between its structure and its payload.
   // Each item hangs off a CHOICE or a MEASUREMENT of this aeroplane, never a
