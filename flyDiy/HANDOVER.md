@@ -36204,3 +36204,41 @@ file's header carries the method; what was bought:
   the next setRenderTarget(null) — the whole editor drew in a small square in
   the middle of the screen (the user's "viewport cropped to a really small
   area"). Saved and restored around the bake.
+
+## G249 — THE METALLIC DIAL REACHES THE PAINT (2026-09-11, the user: "the
+## metallic option does not seem to work on the paint material (only on the
+## decals) ... none of the individual components show change when moving the
+## metallic slider")
+
+**What was wrong.** G215's plumbing was complete end to end — `secMetal` ->
+`metalK` -> the pool key -> `uFlake` -> `userData.aeroMetalK` for the join —
+except the one number the eye reads. `aeroMaterial` calls
+`aeroFinishU(THREE, null, U, row, o)` BEFORE the material exists, and the
+metalness rise (`row.metal + (0.85 - row.metal) * metalK`) sits inside
+`aeroFinishU`'s `if (m)` block; the constructor then pinned
+`metalness: row.metal`. So a painted section got the flake's roughness
+breakup (a 0.6-weighted mix — a faint sparkle) and no metal at all. A decal
+worked because the shader lifts `metalnessFactor` toward 0.85 from
+`aeroDecM` directly, bypassing the material scalar; the lab's `metalness`
+row worked because its refresh path passes `m`.
+
+**The fix** (`src/viewer/aeroskin.js`, `aeroMaterial`): the constructor
+builds the metalness in with the same formula `aeroFinishU` uses. One hunk;
+the base row, the 40 per-section rows and the flown aeroplane (app.js passes
+`metalK` into the same call) all go through this door.
+
+**Measured, in the page** (dev.html, `AEROSKIN.aeroMaterial({finish:
+'paintGloss', metalK})`): metalness 0 / 0.425 / 0.85 for a dial of 0 / 0.5 /
+1 — it had been 0 for all three. On screen, base metallic 0 -> 1 turns the
+flat tan fuselage into a darker flank with a hard specular band along the
+cabin side and the cowl.
+
+**The trap, stated once:** a "shared with the lab" uniform builder that also
+writes MATERIAL scalars must be handed the material, or the constructor must
+carry the same law. Two writers of one number is how this hid for a month.
+
+**Gates** (worktree, HEAD + this commit only): SKINMAT, BENCH, UISMOKE, JOIN,
+BUILD green. In the SHARED tree SKINMAT is red on the cowl's `inner` material
+(the firewall-lip session's uncommitted G243.1) and BENCH on the sticker
+defaults (`stkPlace: 3`, the livery session's uncommitted G242.1) — neither
+is this commit's.

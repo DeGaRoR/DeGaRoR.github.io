@@ -3657,7 +3657,15 @@ function aeroMaterial(THREE, o) {
          : aeroLinear(THREE, o.tint != null ? o.tint : row.base),
     roughness: Math.max(0, Math.min(1,
       row.rough * (o.roughK != null ? o.roughK : 1))),
-    metalness: row.metal,
+    // G249: THE FLAKE'S METALNESS WAS NEVER BUILT IN (the user: "the
+    // metallic option does not seem to work on the paint material, only on
+    // the decals"). aeroFinishU raises the metalness with the dial, but the
+    // call above hands it no material, and this constructor pinned the row's
+    // own number — so a painted section got the flake's roughness breakup
+    // and none of the metal. A decal worked because the shader lifts
+    // metalnessFactor from aeroDecM directly. Same formula as aeroFinishU.
+    metalness: row.metal + (0.85 - row.metal) *
+      Math.max(0, Math.min(1, +(o.metalK || 0))),
     envMapIntensity: 1.0,
     side: o.side || THREE.DoubleSide,
     transparent: op < 1,
