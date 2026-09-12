@@ -38676,3 +38676,28 @@ realistically stick").
 
 GATE SKINMAT (every finish's tile a real size; the sheets claimed both
 ways), PANEL, PARTS, JOIN, UISMOKE green on the commit's worktree.
+
+## G270 — THE SHED'S INTERIOR IS THE SAME HEAD, AND A SPEC ROW NO LONGER
+## RESETS THE CAMERA (2026-09-12, the user: "the editor interior view should
+## behave like the interior view in flight … any change to the dashboard
+## settings leads to camera reinitialization … same issue with the tanks")
+
+**One head for both views.** `headCam.update(P, F, M)` takes the eye's
+rest, its forward and the frame that maps them into the world: in flight
+the flown model's (flyEyeAt's rest, `model.grp.matrixWorld`), in the shed
+the crew layer's published eye in the world itself (`CAGE_CREW_EYE`,
+identity). The editor's `interior` preset seats the head (`enterInterior`
+→ `headCam.enter`), every frame in it runs the head (`HEADCAM_ACTIVE`, so
+`placeCamera` stands aside), and the same right-drag / wheel / ZQSD+RF
+work there; the pan (middle / right drag) stands down while the interior
+is on. A rebuild (`refreshInterior`) re-reads the eye and hides the new
+head — and leaves the head's yaw, pitch and lean where they were.
+
+**The reset.** Every spec row — a panel row, a tank row — reaches
+`GARAGE_SPEC.apply` → `setAircraft('gen')`, which SNAPPED the orbit to
+`viewDist` ("aircraft change SNAPS, no glide"): right for a different
+aeroplane picked from the list, wrong for the same aeroplane still being
+built. The snap is skipped while the shed's cage build is up, so the
+camera — orbit or interior — stays put through any row.
+
+GATE UISMOKE green.

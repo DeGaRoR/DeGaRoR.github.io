@@ -160,13 +160,14 @@
     for (const h of edHidHeads) h.visible = false;
     return true;
   }
-  function enterInterior() { applyInterior(true); }
+  function enterInterior() { applyInterior(true); headCam.enter(); }
   // the build changed under the camera: the eyes moved and the head that was
   // hidden was thrown away with the rest of the layer
   function refreshInterior() { if (edEye) applyInterior(false); }
   function exitInterior() {
     if (!edEye) return;
     edEye = null;
+    HEADCAM_ACTIVE = false;
     showHeads(true);
     setNear(CAM_NEAR);
     distT = dist = 12; azT = az = -2.5; elT = el = 0.25;
@@ -3183,7 +3184,12 @@
       }
     }
     applySkinVis();
-    dist = distT = def.params.viewDist;   // aircraft change SNAPS, no glide
+    // aircraft change SNAPS, no glide — except in the shed, where a changed
+    // spec (a panel row, a tank row) is the same aeroplane still being
+    // built, and the camera is the builder's own (session 4g, the user:
+    // "any change to the dashboard settings leads to camera
+    // reinitialization, that's annoying. Same issue with the tanks")
+    if (!(inGarage && showCage)) dist = distT = def.params.viewDist;
     const PP = POWERPLANTS[def.params.powerplant];
     let half = 0;                          // wingspan from the wing strips, like the solver
     for (const st of def.strips) if (st.kind === 'wing')
@@ -3248,7 +3254,7 @@
   let panD = null;
   canvas.addEventListener('pointerdown', e => {
     flReveal = 0;                      // a hand on it ends the roll-out shot
-    if (edSit.visible && (e.button === 1 || e.button === 2)) {
+    if (edSit.visible && !edEye && (e.button === 1 || e.button === 2)) {
       panD = { x: e.clientX, y: e.clientY, base: edPan.clone() };
       e.preventDefault();
       return;
@@ -6616,12 +6622,16 @@
                     p: new THREE.Vector3(), f: new THREE.Vector3(), r: new THREE.Vector3(),
                     u: new THREE.Vector3(), look: new THREE.Vector3(),
                     q: new THREE.Quaternion(), q2: new THREE.Quaternion(), qP: new THREE.Quaternion(),
-                    tmp: new THREE.Vector3(), nm: new THREE.Matrix3() };
+                    tmp: new THREE.Vector3(), nm: new THREE.Matrix3(),
+                    eP: new THREE.Vector3(), eF: new THREE.Vector3() };
   const HEAD_LEVEL_K = 0.10;                                 // the head's tenth toward level
   const HEAD_BOX = { fwd: 0.28, aft: 0.14, up: 0.10, dn: 0.08, side: 0.22 };
   const HEAD_SPEED = 0.45;                                    // m/s, a head leaning
   const HEADCAM_KEYS = new Set(['KeyZ', 'KeyW', 'KeyS', 'KeyQ', 'KeyD', 'KeyR', 'KeyF']);
-  const headCamOn = () => FL.ready && !inGarage && cam.mode === 'cockpit' && !!flEyeLoc;
+  // in flight in the cockpit view, or in the shed's interior preset
+  const headCamOn = () => FL.ready && ((!inGarage && cam.mode === 'cockpit' && !!flEyeLoc) ||
+                                       (inGarage && !!edEye && edSit.visible));
+  const HEAD_I = new THREE.Matrix4();
   let HEADCAM_ACTIVE = false;
   headCam.enter = () => {                 // back to the pilot's own eye, looking ahead
     headCam.off.set(0, 0, 0); headCam.yaw = 0; headCam.pitch = 0;
@@ -6629,18 +6639,23 @@
   };
   // the eye's basis in the model frame: forward as published, up the
   // model's, right = forward x up (the pilot's right is -z, port being +z)
-  headCam.basis = () => {
-    headCam.f.copy(flEyeLoc.f); headCam.f.y = 0;
+  headCam.basis = F => {
+    headCam.f.copy(F); headCam.f.y = 0;
     if (headCam.f.lengthSq() < 1e-9) headCam.f.set(-1, 0, 0);
     headCam.f.normalize();
     headCam.u.set(0, 1, 0);
     headCam.r.crossVectors(headCam.f, headCam.u).normalize();
   };
-  headCam.update = () => {
+  // P, F: the eye's rest and its forward in the frame M maps into the world
+  // — the flown model's (flyEyeAt's rest, model.grp.matrixWorld) or, in the
+  // shed, the crew layer's published eye in the world itself (identity).
+  // ONE head for both views (session 4g, the user: "the editor interior
+  // view should behave like the interior view in flight").
+  headCam.update = (P, F, M) => {
     const now = performance.now();
     const dt = Math.min(0.1, Math.max(0, (now - headCam.last) / 1000));
     headCam.last = now;
-    headCam.basis();
+    headCam.basis(F);
     const K = headCam.keys, v = HEAD_SPEED * dt, o = headCam.off;
     if (K.has('KeyZ') || K.has('KeyW')) o.addScaledVector(headCam.f, v);
     if (K.has('KeyS')) o.addScaledVector(headCam.f, -v);
@@ -6663,10 +6678,8 @@
     headCam.q2.setFromAxisAngle(headCam.r, headCam.pitch);
     headCam.look.applyQuaternion(headCam.q2);
     // into the world
-    model.grp.updateMatrixWorld(true);
-    const M = model.grp.matrixWorld;
     headCam.nm.setFromMatrix4(M);
-    headCam.p.copy(flEyeLoc.p).add(o).applyMatrix4(M);
+    headCam.p.copy(P).add(o).applyMatrix4(M);
     headCam.look.applyMatrix3(headCam.nm).normalize();
     // THE HEAD RIDES THE AEROPLANE (4c, the user: "mostly locked to the
     // plane with 10% influence to tilt the head up straight"): the frame
@@ -6894,7 +6907,8 @@
         // `flyEye` still says the eye is inside (the near plane, the wheel
         // and drag bounds of the shed's own interior read it).
         HEADCAM_ACTIVE = true;
-        flyEye = headCam.update();
+        model.grp.updateMatrixWorld(true);
+        flyEye = headCam.update(flEyeLoc.p, flEyeLoc.f, model.grp.matrixWorld);
         target.copy(flyEye);
         setNear(EYE_NEAR);
         return;
@@ -7317,7 +7331,17 @@
     // the editor's pan offset rides on top (G41)
     if (edSit.visible) target.copy(edTarget).add(edPan);
     else target.set(cg[0], cg[1], cg[2]);
-    if (edEye) { if (edSit.visible) target.copy(edEye); else exitInterior(); }
+    if (edEye) {
+      if (!edSit.visible) exitInterior();
+      else {
+        target.copy(edEye);
+        const E = window.CAGE_CREW_EYE;
+        if (E && E.p) {
+          HEADCAM_ACTIVE = true;
+          headCam.update(headCam.eP.fromArray(E.p), headCam.eF.fromArray(E.fwd || [0, 0, 1]), HEAD_I);
+        }
+      }
+    }
     // THE FLIGHT CAMERA (the flight rebaseline). It writes the SAME azT/elT/
     // distT the mouse writes, every frame, so a chase eases exactly the way a
     // drag eases and `orbit` is simply the mode that writes nothing. Cockpit
