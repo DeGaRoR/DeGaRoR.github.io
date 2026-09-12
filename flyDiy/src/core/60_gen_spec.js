@@ -4057,7 +4057,13 @@ function resolveSpec(spec) {
   put(w, 'dihedralOut', w.crankAt > 0 ? Math.min(20, w.dihedral + 11) : w.dihedral,
       'wing.dihedralOut' + (k ? k : ''));
   const semi = 0.5 * w.span;
-  const zR0 = S.cab.halfW;
+  // G315: the centre section's own width when set (G274's centreW — the
+  // frame's root pair stands there), else the cabin's; and what its
+  // construction leaves of its skin (a half cut 62 %, removed none) comes
+  // off the area — the strips and the cover already read it (G274), the
+  // plaque's S, AR and the tail volumes did not
+  const zR0 = w.centreW > 0 ? 0.5 * w.centreW : S.cab.halfW;
+  const ctrK = typeof genCentreSkin === 'function' ? genCentreSkin(w.centre) : 1;
   // G140: the one planform law — legacy fields reproduce the pre-G140
   // expressions verbatim inside it, stations make it piecewise.
   const LAW = genPlanLaw(w, zR0, semi);
@@ -4127,12 +4133,12 @@ function resolveSpec(spec) {
   // The bow still comes off: it removes a quarter of the rectangle it replaces
   // on each tip (half-ellipse of span Rb and chord tipC).
   const Sw = !LAW.explicit
-    ? 2 * zR0 * w.chord
+    ? 2 * zR0 * w.chord * ctrK
       + (semi - zR0) * w.chord * (1 + w.taper)
       - 2 * w.tipC * Rb * (1 - Math.PI / 4)
     // explicit stations: the same rectangle + trapezoids + bow, panel by
     // panel — reduces to the line above when the crank chord is unset
-    : 2 * zR0 * w.chord
+    : 2 * zR0 * w.chord * ctrK
       + (LAW.zC > 0
           ? (LAW.zC - zR0) * (LAW.cAt(zR0) + LAW.cAt(LAW.zC))
             + (semi - LAW.zC) * (LAW.cAt(LAW.zC) + LAW.cAt(semi))

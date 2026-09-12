@@ -133,7 +133,9 @@ const defaults = { lightOn: 1, lightSw: 1,
   // the fitted top line, so half the fairing is inside the fin and its inner
   // faces render through the surface (measured: 619 of 633 beacon vertices
   // inside the fin's own 44 mm slab, buried up to 221 mm). 0 sits it on top.
-  li_beaconSink: 0.16,
+  // G315: 0.04 — ON TOP (the user: "not being positioned on top of it, as it
+  // should, but inside it"): the fairing's foot seats on the edge, no more.
+  li_beaconSink: 0.04,
   // THE WINGTIP NAV, which was five inline literals and no rows at all.
   li_navSpan: 0.02, li_navChord: 0.10, li_navRise: 0.0,
   // G185: on a biplane, which plane carries the bay and the tip lights
@@ -669,7 +671,7 @@ function sites(scene, group, P) {
     const v = +P[k];
     return Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d;
   };
-  const beaconSink = num('li_beaconSink', 0.16, 0, 0.5);
+  const beaconSink = num('li_beaconSink', 0.04, 0, 0.5);
   const navSpan = num('li_navSpan', 0.02, 0, 0.30);
   const navChord = num('li_navChord', 0.10, 0, 0.40);
   const navRise = num('li_navRise', 0, -1, 1);

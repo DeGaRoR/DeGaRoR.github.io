@@ -40746,3 +40746,33 @@ calibrations unnecessary — the clusters are the honest stand-in until then.
 GATE JOIN's G199.5 row (rodBoomK turned to 4 multiplies every boom
 member) exercises the switch with the tube OFF — the factor is the
 lattice's lever, and with the cluster on the members carry none.
+
+## G315 — THE PLAQUE'S S READS THE CENTRE SECTION, THE BEACON ON TOP, AND
+## THREE OWED ITEMS MEASURED OR CLOSED (2026-09-12, the user: "keep going")
+
+- **The plaque's S with a cut centre** (owed since G274): `geom.Sw` takes
+  the centre section's own width (`centreW`) and what its construction
+  leaves of the skin (a half cut 62 %, removed none) — AR and the auto tail
+  volumes follow. Stock: solid Sw 15.45 / AR 6.47 / Vs 18.21; aft cut
+  15.01 / 6.66 / 18.45; removed 14.30 / 6.99 / 18.87. The strips and the
+  cover had read it since G274; the sheet now agrees with the wing it flies.
+- **The fin-top beacon ON TOP**: `li_beaconSink` default 0.16 → 0.04 (the
+  fairing's foot seats on the edge, no more); a save that set the row keeps
+  its number.
+- **`topFuselage` needs no cage cut** — closed as owed: nothing in the cage
+  or the frame cuts the fuselage for a mid or low wing (the cabin is
+  already whole), so lofting the lower skin alone IS the representation;
+  the §5 note's "rings cut by the wing" was wrong.
+- **The twin boom's torsion, measured** (owed by G314): on the user's
+  fixture the fin's apex under 297 N side load moves 69.5 mm with the boom
+  rigid (the P4 fin truss's own), 92.5 at 600 rad/s, 144.6 at the bending
+  calibration's 305 — the boom cluster twists 4.3 deg where the tube's GJ
+  says 0.3: the projection's torsional hold on a three-node prism is an
+  order below its bending hold. Bending is what the tail arm flies on and
+  is calibrated; the fin's side load is the case the `tube` element with a
+  rotational DOF is owed for (the fin truss itself, at 70 mm, is the larger
+  half of that number). The G266 lattice read 337 mm on the same rig.
+- **The tail-gap gauge's 48 mm on the user's WIP** is the honest residue:
+  the physics tail sags under gravity on the ground (dy ~24) and the rest
+  pitch calibration's x (mainsDx −18) — the drawn tail follows the nodes
+  either way. Left.
