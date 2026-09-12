@@ -39701,3 +39701,20 @@ from 40° off-axis: the dome fills the window, no can.
   the default seed have one.
 - Gates: HOUSE, VILLAGE (both --selftest) green; MEDIA green but for the
   trees orphans and the index.html budget (both pre-existing).
+
+## G291 — THE PEDALIER LAMP IS ON THE DASH'S UNDERSIDE, AND THE KEYWAY
+## TURNS WITH THE KEY (2026-09-12, the user: "there is a lamp floating in
+## the middle, what is it? … if the key is slotted 45°, the keyslot should
+## also be rotated 45°")
+
+- The floating lamp was the PEDALIER light (`li_pedal`, the footwell
+  lamp): its site was a fixed 0.30 m over the floor at the dash's station,
+  8 cm below the dash box on the stock cabin. It mounts on the box's
+  underside now (`dashLip`, the box's lowest vertex, 8 cm forward of the
+  aft face), aimed down at the pedals.
+- The lock's plug — a 4.4 mm disc inside the ridge — and the keyway across
+  it are in the key's own group: they wear the 45° and turn through the
+  law's steps with the key. The escutcheon's face inside the ridge is a
+  1 mm well the plug sits in.
+- The interior-lighting audit the user asked for is a study:
+  futureDesigns/INTERIOR-LIGHTING-2026-09-12.md.

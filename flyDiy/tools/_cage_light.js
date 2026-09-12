@@ -1008,8 +1008,17 @@ function sites(scene, group, P) {
                     ax: [0, -1, 0], onCeiling: !!cl };
     }
     if (pilot) {
-      // the pedalier lights are under the coaming, aimed into the footwell
-      out.pedal = { p: [pilot.x, A.floorAt(A.zDash) + 0.30, A.zDash - 0.02],
+      // THE PEDALIER LAMP IS ON THE DASH'S UNDERSIDE (G291, the user: "there
+      // is a lamp floating in the middle, what is it?"): it stood at a fixed
+      // 0.30 m over the floor at the dash's station — 8 cm below the dash
+      // box on the stock cabin, in mid-air between the pedals. The box's
+      // lowest vertex is `dashLip` (the crew layer measures it), so the
+      // fitting's flange sits against it there, 8 cm forward of the aft
+      // face, aimed down at the pedals; a cabin without a measured dash
+      // keeps the old station.
+      const under = A.dashLip != null && A.dashAftZ != null;
+      out.pedal = { p: under ? [pilot.x, A.dashLip - 0.020, A.dashAftZ + 0.08]
+                             : [pilot.x, A.floorAt(A.zDash) + 0.30, A.zDash - 0.02],
                     ax: [0, -1, 0] };
     }
     // the passenger lights are over every seat that is not the pilot's

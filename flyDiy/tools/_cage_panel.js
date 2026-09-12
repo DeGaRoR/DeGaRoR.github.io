@@ -966,11 +966,8 @@ function keyAt(parent, x, y, z, pos) {
     // the key's blade fills (session 4d: "slightly bigger so it can slot in
     // the full key")
     K.revolve(lock, [x, y, z + 0.0005], [0, 0, -1],
-      [[0.0125, 0], [0.0125, 0.0020], [0.0112, 0.0032], [0.0072, 0.0032], [0.0066, 0.0044], [0.0052, 0.0044], [0.0046, 0.0032], [0, 0.0032]], 48, false);
+      [[0.0125, 0], [0.0125, 0.0020], [0.0112, 0.0032], [0.0072, 0.0032], [0.0066, 0.0044], [0.0052, 0.0044], [0.0046, 0.0032], [0.0046, 0.0022], [0, 0.0022]], 48, false);
     lock.mesh(parent, matFor('barrel'));
-    const way = K.Bag();
-    K.boxIn(way, [x, y, z - 0.0034], [0.0011, 0.0048, 0.0004], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
-    way.mesh(parent, matFor('hub'));
     // OFF sits at half past seven (session 4e, the user: "rotate it 45°"):
     // a wrapper turned 45° clockwise carries the key's group, so the law's
     // 30° steps run OFF 7:30 → L → R → BOTH 10:30 → START 11:30, the way an
@@ -981,6 +978,17 @@ function keyAt(parent, x, y, z, pos) {
     parent.add(wrap);
     const g = gaugeAt(wrap, 'edGauge_key', [0, 0, 0], [0, 0, 1], 'key', 'key',
       { k: Math.PI / 6, sgn: 1, steps: ['off', 'l', 'r', 'both', 'start'] });
+    // THE ROTOR TURNS WITH THE KEY (G291, the user: "if the key is slotted
+    // 45°, the keyslot should also be rotated 45°"): the barrel's plug — a
+    // 4.4 mm disc inside the ridge — and the keyway across it live in the
+    // key's own group, so they wear the 45° and turn through the law's
+    // steps with it; the escutcheon and the ridge stay put
+    {
+      const rotor = K.Bag(), way = K.Bag();
+      K.revolve(rotor, [0, 0, 0.0016], [0, 0, -1], [[0.0044, 0], [0.0044, 0.0012], [0, 0.0012]], 32, false);
+      K.boxIn(way, [0, 0, 0.0002], [0.0011, 0.0040, 0.0005], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+      rotor.mesh(g, matFor('barrel')); way.mesh(g, matFor('hub'));
+    }
     // the key lies flat in its own x-y plane in the bake, blade toward +x,
     // bow at −x, 1.5 mm thick along z. In the lock: the blade INTO the lock
     // (pack +x → local +z), the blade's width up the keyway (pack y → local
