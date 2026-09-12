@@ -405,6 +405,13 @@ trees had a copy at the ORIGIN — a phantom forest over the airfield, at the
 heights of their real, hilly chunks, casting from 160 m up. Found by
 unprojecting the cascade's texels: casters at (506, 163, 503) with no instance
 within 70 m. The proxies take the source mesh's position every pass.
+Cost: the map is a white MASK with mipmaps and the terrain takes ONE tap two
+levels down (5.5 m texels) — sixteen taps of packed depth were +12 ms on the
+supersampled tier; the mask is +1–5. `tree_perf` W0c.23: Off 25 · Smooth 39 ·
+Smoothest 48 ms. A caveat on the benchmark itself: with other sessions' Chrome
+instances holding 7.5 of the card's 10 GB, one run in four of the Smoothest
+tier came back at 160 ms; a run is trustworthy only when its three tiers sit
+in their usual ratio, and the JSON in `tools/perf/` is such a run.
 
 **Not done.** The `impa` / `implight` per-collection numbers are not in the
 payload (6 / 6.5 and 1 in the tuning: one gain, one lit, for all). The boot rig

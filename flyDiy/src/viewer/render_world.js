@@ -263,8 +263,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     COVER.at = [eye.x, eye.z];
     if (!COVER.rt) {
       COVER.cam = new THREE.OrthographicCamera(-COVER.half, COVER.half, COVER.half, -COVER.half, 1, 6000);
-      COVER.rt = new THREE.WebGLRenderTarget(COVER.size, COVER.size, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter,
-                                                                      format: THREE.RGBAFormat, generateMipmaps: false });
+      // a MASK, not a depth: white where a crown is, mipmapped, so the
+      // terrain's blur is one tap at a coarser level rather than sixteen
+      // taps of packed depth (which were +12 ms on the supersampled tier)
+      COVER.rt = new THREE.WebGLRenderTarget(COVER.size, COVER.size, { minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter,
+                                                                      format: THREE.RGBAFormat, generateMipmaps: true });
       COVER.map.value = COVER.rt.texture;
     }
     // the eye's ground point, snapped to the map's own grid (a vertical map
@@ -290,7 +293,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     const pCol = new THREE.Color(), pA = renderer.getClearAlpha();
     { const gc = renderer.getClearColor(pCol); if (gc && gc !== pCol) pCol.copy(gc); }
     renderer.setRenderTarget(COVER.rt);
-    renderer.setClearColor(0xffffff, 1);
+    renderer.setClearColor(0x000000, 1);
     renderer.autoClear = true;
     renderer.render(FAR.scene, COVER.cam);
     renderer.setRenderTarget(pRT);
@@ -708,10 +711,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           '  if (cp.x > 0.0 && cp.x < 1.0 && cp.y > 0.0 && cp.y < 1.0) {\n' +
           // sixteen taps over ±6 m: the shade reaches half a crown past the
           // crown, which is what anchors a stand's edge and darkens a gap
-          '    float ct = 3.0 / 2048.0, cov = 0.0;\n' +
-          '    for (int j = 0; j < 4; j++) for (int i = 0; i < 4; i++)\n' +
-          '      cov += step(unpackRGBAToDepth(texture2D(uCovMap, cp + vec2(float(i) - 1.5, float(j) - 1.5) * ct)), 0.99);\n' +
-          '    diffuseColor.rgb *= mix(1.0, uFloor, cov / 16.0 * (1.0 - fFar));\n' +
+          // one tap two mip levels down (5.5 m texels): the blur that
+          // carries a crown's shade half a crown past its edge
+          '    float cov = texture2D(uCovMap, cp, 2.5).r;\n' +
+          '    diffuseColor.rgb *= mix(1.0, uFloor, cov * (1.0 - fFar));\n' +
           '  }\n' +
           '}');
     };
@@ -1232,6 +1235,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           .replace('#include <common>', '#include <common>\nuniform sampler2D uAtlas;\n' +
             'uniform float uG, uTile, uIGain, uISolid, uICut;\nvarying vec3 vImpDir;\nvarying vec2 vUvI;')
           .replace('#include <map_fragment>', IMP_FOLD_GLSL);
+        // the canopy map is a mask: white where the crown is, after the cut
+        if (cover) sh.fragmentShader = sh.fragmentShader.replace('packDepthToRGBA( fragCoordZ )', 'vec4( 1.0 )');
       };
       return d;
     }
