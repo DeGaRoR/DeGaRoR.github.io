@@ -39448,3 +39448,60 @@ controls move with the aeroplane.
   tail tag (HT/TP) is never drawn by the brace layer on any build. The
   physics keeps its wires. Drawing a braced stab's wires from the DRAWN
   tips to the DRAWN post, as a tail-layer option, is owed.
+
+## W0c — THE TREES ARE IN THE GAME (2026-09-08 → 2026-09-12; the tree chantier
+## closes: the user: "let's get the trees in game, draw conclusions on the
+## performance, then come back and design the bushes and grass" / "ok, close
+## clean then, do what you suggest, we'll take the grass later on")
+
+The canonical record is `docs/TREE-IMPORT.md` §6–§8 (every trap, every
+measurement); this entry is the pointer and the verdict. Twenty-six commits
+`W0c` … `W0c.26`, all through the temporary index, each proven from a clean
+worktree with GATE WORLDRENDER + GATE TREES.
+
+- **What is in the game.** Four CC-BY collections (Georgeous fir, larch,
+  spruce; LOLIPOP's two firs) baked by `tools/tree_prep.py` into
+  `media/geo/trees/` with a ladder GENERATED for every pack (L0 as shipped,
+  L1 stick + foliage, L2 stick + half foliage — a pack's own LOD chain is
+  not used: LOLIPOP's ended in a 20-triangle card the game drew by the ten
+  thousand), a stand series and a snag series, baked AO with a trunk
+  gradient. Planted as a weighted pool of every subject (the bench's
+  `proportion`), in two layers: the woodland (the world's collidable stems)
+  and the streamed fill (`TREE_FILL`, NG 112 = 9.1 m). Near tier on the CPU
+  partition with dithered LOD transitions (Unreal's, complementary noise,
+  a window of 30 m, refresh every 6 frames / 10 m — no tree is ever undrawn),
+  the band read at the instance origin (per-vertex sliced trees in half),
+  from the eye (the CG left a moving gap in chase view). Far tier: G-buffer
+  impostors (albedo×AO + world normal, 64 views, the bench's alpha curve,
+  gutter, draw-time tint) lit by the rig with the same leaf terms.
+- **The leaf surface is the bench's**: per-collection tint (live on both
+  tiers, `TREE_LEAF.tintOf`), fwidth sharpen + alpha-to-coverage on the
+  G144 8× buffer, wrap + translucency, AO split ambient/sun.
+- **Shadows.** Every tree within ~1.4 km casts on the ground; near trees
+  cast on each other: the sun's map (fill included, 4-tap PCF forced in the
+  tree materials — PCF-soft on every leaf was 117 ms against 54), impostor
+  casters through their own sun-facing depth material, a far cascade of the
+  impostor quads for the terrain, and a canopy map (the same quads seen
+  from above) for the floor under the crowns. Both cascades snap to their
+  texel grid (the swim), one caster per tree at a hard edge (the jitter),
+  proxies take their source's position per pass (the phantom forest over
+  the airfield), and ONE predicate `forestHere()` says where a forest is,
+  for the planter, the colour bake and the far mask alike (the ghost
+  patches).
+- **The rig is data** (`WORLD_RIG`): `sunset` (the world's, at boot) and
+  `alps` (the bench's afternoon, with the panorama as an invisible
+  environment) — every number a dial. F8 opens `src/viewer/dev_panel.js`,
+  the developer's list of every dial. The free camera (`CAMERA → free`,
+  WASD/ZQSD, R/F, drag to look) is W0c.7.
+- **THE VERDICT (W0e's question).** `node tools/tree_perf.js` — settled,
+  warm-up pass, gl.finish-timed — RTX 3080, 1080p, densest stand, alps:
+  the raw scene is under 5 ms at 33 M triangles; the frame is the AA tier's
+  — Off 25 · Smooth 39 · Smoothest 48 ms at NG 128. The wall is fill-rate
+  through the AA pass, not draw calls, not CPU, not triangles: the same
+  wall a native engine hits, so the platform is not the constraint. The
+  W0c.26 matrix (NG × bands) in TREE-IMPORT.md §8 set the defaults.
+- **Not done, on purpose:** cedar (tuned, not in `included` — the user's
+  call), the boot rig (still `sunset`; `alps` is where the trees were
+  judged), `impa/implight` per collection in the payload, the forest card
+  in the rail and the GRAPHICS SETTINGS menu (`futureDesigns/GRAPHICS-
+  SETTINGS-2026-09-12.md`, the spec), bushes and grass.

@@ -121,6 +121,11 @@
     root.appendChild(select('shadow map', [['1024', '1024'], ['2048', '2048'], ['4096', '4096']],
       () => rig().get().shadowMap, v => rig().set({ shadowMap: +v })));
 
+    root.appendChild($('h4', { text: 'frame' }));
+    root.appendChild(select('AA tier', [['full', 'smoothest (8x MSAA + 1.25x)'], ['msaa', 'smooth (8x MSAA)'], ['off', 'off (4x MSAA)']],
+      () => (W.FLYDIY_AA && W.FLYDIY_AA.tier) ? W.FLYDIY_AA.tier() : 'full', v => { if (W.FLYDIY_AA) W.FLYDIY_AA.setTier(v); }));
+    root.appendChild(note('measured (tree_perf, densest stand, bands 60/132/270, NG 112): smooth ~24 ms, smoothest ~29; with geometry to 450 m: 32 / 38'));
+
     root.appendChild($('h4', { text: 'camera' }));
     root.appendChild(slider('free cam speed', 1, 400, 1, () => W.DEV_CAM.speed, v => { W.DEV_CAM.speed = v; }, v => v + ' m/s'));
     root.appendChild(note('CAMERA → free: WASD/ZQSD, R/F up-down, Shift x5, drag to look'));

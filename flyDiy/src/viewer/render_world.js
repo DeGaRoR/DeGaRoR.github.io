@@ -33,11 +33,18 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // the last impostor shrinks away, so the far tier only has to carry the band
   // where nothing is legible anyway — and impostors are 2 triangles, so buying
   // that 1.3 km back cost almost nothing.
-  const NEAR_R = 450, FAR_WOOD = 5400, FAR_FILL = 4000, FAR_FADE = 500;
+  // THE BANDS ARE THE BENCH'S (W0c.26): 60 / 132 / 270. Measured
+  // (tools/tree_perf.js, NG x bands, Smooth tier, densest stand): with
+  // geometry to 450 m the frame is 25 / 31 / 39 ms at NG 96 / 112 / 128;
+  // with the bench's bands it is 24 / 24 / 23 - all but independent of
+  // density, because the impostor is one quad and the near tier's
+  // fragments are the whole cost. So the near tier ends at 270 m, as the
+  // bench had it, and density is a look choice rather than a frame one.
+  const NEAR_R = 270, FAR_WOOD = 5400, FAR_FILL = 4000, FAR_FADE = 500;
   const uNear = { value: NEAR_R };     // live: every tree material reads it
   // the two inner edges of the ladder, shared by every rung material the
   // same way uNear is - a dial can move them and every band follows
-  const LOD_U = [{ value: 150 }, { value: 300 }], U0 = { value: 0 };
+  const LOD_U = [{ value: 60 }, { value: 132 }], U0 = { value: 0 };
   // THE TRANSITION WINDOW (W0c.13): over uFadeW metres about every edge BOTH
   // rungs are drawn, each through a screen-door dither with complementary
   // thresholds from the same noise, so every pixel is covered exactly once
@@ -2038,7 +2045,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // fill runs 25 ms at 112, 31 at 160, 36 at 224, 54 at 320 - against 17-21
       // at the strip with no near tree at all. 160 is where dense reads as
       // dense and the frame is still the game's; the dial is there to push it.
-      const FILL = { ng: 128 };         // 8 m; 160 (6.4 m) was 72 ms on the full ladder
+      const FILL = { ng: 112 };         // 9.1 m: "still generous" at 128, by the user's eye (W0c.26)
       let NG = FILL.ng, SP2 = CH / NG;
       // nearTree / the exclusions / the corridor live in forestHere now,
       // shared with the terrain's colour bake and the far canopy mask

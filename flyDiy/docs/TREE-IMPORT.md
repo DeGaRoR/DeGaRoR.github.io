@@ -425,6 +425,21 @@ meadow of sunset streaks: the frame-to-frame change in the shadow region is
 1.1 % of pixels with shadows on and 1.3 % with every shadow off — the shadows
 add nothing above the parallax floor.
 
+**The defaults, from the matrix (W0c.26).** `tree_perf`, densest stand, RTX 3080,
+1080p, alps, median ms:
+
+| fill NG | bands 150/300/450 Smooth · Smoothest | bands 60/132/270 Smooth · Smoothest |
+|---|---|---|
+| 96 (10.7 m) | 25.5 · 31.1 | 23.9 · 25.7 |
+| 112 (9.1 m) | 31.5 · 37.9 | 23.8 · 28.5 |
+| 128 (8.0 m) | 38.9 · 51.4 | 22.8 · 26.0 |
+
+With the bench's bands the frame is all but independent of density — the
+impostor is one quad, the near tier's fragments are the whole cost — so the
+defaults are **bands 60 / 132 / 270 m** (the bench's, as judged) and **NG 112**
+(the user's eye: 128 "still generous"). The graphics menu
+(`futureDesigns/GRAPHICS-SETTINGS-2026-09-12.md`) will make both a preset.
+
 **Not done.** The `impa` / `implight` per-collection numbers are not in the
 payload (6 / 6.5 and 1 in the tuning: one gain, one lit, for all). The boot rig
 is still `sunset`; `alps` is two clicks on the panel and is the row the trees
