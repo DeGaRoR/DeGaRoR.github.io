@@ -537,6 +537,17 @@ function aoDiscInto(ao, cx, cy, z, R, up) {
   if (up) ao.quad(ids[0], ids[1], ids[2], ids[3]);       // facing +y
   else ao.quad(ids[0], ids[3], ids[2], ids[1]);          // facing the pilot (−z)
 }
+// ...and as a RING for an instrument the plate is cut open behind (G279):
+// a full disc would lie over the hole and shade the ball
+function aoRingInto(ao, cx, cy, z, R, rIn) {
+  const seg = 24, inner = [], outer = [];
+  for (let i = 0; i < seg; i++) {
+    const a = 2 * Math.PI * i / seg, c = Math.cos(a), s2 = Math.sin(a);
+    inner.push(ao.v([cx + rIn * c, cy + rIn * s2, z - 0.0003], [0.5 + 0.5 * (rIn / R) * c, 0.5 + 0.5 * (rIn / R) * s2]));
+    outer.push(ao.v([cx + R * c, cy + R * s2, z - 0.0003], [0.5 + 0.5 * c, 0.5 + 0.5 * s2]));
+  }
+  for (let i = 0; i < seg; i++) { const j = (i + 1) % seg; ao.quad(inner[i], outer[i], outer[j], inner[j]); }
+}
 function screwsAt(bag, slot, ao, cx, cy, z, r) {
   // (4f: a tenth further in and a fifth bigger, with a shadow disc each)
   const K = KIT(), d = r * 0.98, R0 = 0.0028;
@@ -592,16 +603,20 @@ function hubAt(bag, cx, cy, z, r) {
 // bezel's back to its own depth, so nothing of a hand's hub, a drum or a
 // card shows from any side but the face — the plate is recessed and the
 // dash is a box 0.35 m deep, so the can lives inside it.
-const AI_DRUM_K = 1.2;             // the drum's radius over the bezel's
+// THE BALL IS A BALL, BEHIND A HOLE (G279, the user: "the band of the
+// attitude indicator still sticks out ... it's unacceptable to have dozens
+// of centimetres of extra visible geometry"). Every earlier cut — the 1.6 r
+// drum, the 1.2 r drum, the stadium patch, the 12 mm stand, the 7 mm proud
+// front — was a way of keeping a drum in FRONT of a solid plate while
+// hiding its rim, and each seat found a new angle to see the rim from. The
+// plate is now cut open behind the AI (aeroskin.js AERO_HOLE_FS, fed from
+// this layer's `holes`), and the ball is a sphere of AI_BALL r, its front
+// pole at the window's plane, inside a closed can behind the plate: seen
+// through the window, hidden by the plate everywhere else, nothing proud.
+const AI_BALL = 0.90;              // the sphere's radius over the bezel's
 const AI_WINDOW = 0.58;            // the face ring's hole, over the bezel's radius
-const AI_PROUD = 0.007;            // the drum's front, proud of the plate: its plane cuts the drum at 0.62 r, outside the window
-// the AI's bezel and ring stand this much further out than the others' —
-// far enough (session 4d) that the RING is in front of the drum's front
-// everywhere, so nothing of the drum shows but through the window; the
-// window is then a well 9 mm deep, and the patch is wider than it (below)
-// to fill the well's view from any seat
-const AI_STAND = 0.012;
-const AI_PATCH = 0.74;             // the drum patch's half-width over the bezel's radius
+const AI_HOLE = 0.56;              // the plate's cut-out, under the ring's inner edge
+const AI_WIN_Z = 0.003;            // the window's plane, in front of the plate (the ring is at 4.5 mm)
 function canAt(bag, cx, cy, z, r, depth, from) {
   // open at the front (the face is there; the AI's window looks into it),
   // closed at the back by the profile itself
@@ -622,25 +637,27 @@ function canAt(bag, cx, cy, z, r, depth, from) {
 // ±34° of drum (the pitch the window shows) then narrowing to nothing by
 // ±65°. Anything wider stood in front of the plate beside the bezel once
 // the drum was seated proud enough for the window to clear the plate.
-function drumInto(bag, slot, r, zFace) {
-  const G = PG(), Rd = AI_DRUM_K * r, w = 1.3 * r, rw = AI_PATCH * r;
-  const rows = 29, cols = 9, span = 74 * Math.PI / 180, flat = 38 * Math.PI / 180;
-  const zc = zFace + Rd;                          // the axis, into the dash
+// the sphere, parametrised about the LATERAL axis so the pitch drive is a
+// pure shift of the strip: beta is the pitch round +x (the strip's v, 1:1
+// over 180°), alpha the swing off the dial's vertical plane (the strip's u
+// against x — the mirror rule). The front hemisphere only (alpha ±80°): the
+// window can see no further round, and the can is closed behind.
+function ballInto(bag, slot, r, zWin) {
+  const G = PG(), Rb = AI_BALL * r, w = 1.3 * r;
+  const rows = 37, cols = 17, spanB = Math.PI / 2, spanA = 80 * Math.PI / 180;
+  const zc = zWin + Rb;                           // the centre, into the dash
+  const R = G.slotRect(slot);
   const grid = [];
   for (let i = 0; i < rows; i++) {
-    const phi = -span + 2 * span * i / (rows - 1);   // pitch on the drum, −70..+70
-    const over = Math.max(0, Math.abs(phi) - flat);
-    const yw = Rd * Math.sin(over);
-    const hw = rw * Math.sqrt(Math.max(0, 1 - (yw / rw) * (yw / rw)));   // the patch's half-width here
+    const beta = -spanB + 2 * spanB * i / (rows - 1);
     const row = [];
     for (let j = 0; j < cols; j++) {
-      const x = -hw + 2 * hw * j / (cols - 1);
-      const y = Rd * Math.sin(phi), z = zc - Rd * Math.cos(phi);
-      // the strip: u across the drum's width against x (the mirror rule),
-      // v up the pitch
-      const R = G.slotRect(slot);
+      const alpha = -spanA + 2 * spanA * j / (cols - 1);
+      const x = Rb * Math.sin(alpha);
+      const y = Rb * Math.cos(alpha) * Math.sin(beta);
+      const z = zc - Rb * Math.cos(alpha) * Math.cos(beta);
       const u = (R.x + (0.5 - x / w) * R.w) / G.ATLAS_W;
-      const v = 1 - (R.y + (0.5 - phi / Math.PI) * R.h) / G.ATLAS_H;
+      const v = 1 - (R.y + (0.5 - beta / Math.PI) * R.h) / G.ATLAS_H;
       row.push(bag.v([x, y, z], [u, v]));
     }
     grid.push(row);
@@ -954,7 +971,19 @@ function keyAt(parent, x, y, z, pos) {
 const EXT_LIGHTS = ['taxi', 'beacon', 'land', 'nav'];
 const INT_LIGHTS = ['flood', 'instr', 'pedal', 'pax'];
 let LAST = null, fontsWaited = false;
+// THE HOLES (G279): [{ g (the dial's group), r }] as built, resolved by
+// `holesIn(parent)` to centres in the parent's frame once the tree stands
+let HOLES = [];
+function holesIn(parent) {
+  parent.updateWorldMatrix(true, true);
+  const v = new THREE.Vector3();
+  return HOLES.slice(0, 2).map(h => {
+    h.g.getWorldPosition(v); parent.worldToLocal(v);
+    return { x: +v.x.toFixed(4), y: +v.y.toFixed(4), z: +v.z.toFixed(4), r: +h.r.toFixed(4) };
+  });
+}
 function build(parent, A, P, pilotX) {
+  HOLES = [];
   const G = PG(), K = KIT();
   if (!G || !K) return null;
   MOVING = [];
@@ -1126,24 +1155,28 @@ function build(parent, A, P, pilotX) {
       continue;
     }
     const seg = r > 0.035 ? 40 : 28;
-    // THE AI STANDS PROUD (session 4b): its drum's front must clear the
-    // solid plate (no hole is cut for it), and everything of the drum
-    // outside the window must then hide behind the face ring — so the
-    // whole instrument, bezel and ring, sits AI_STAND further out than its
-    // neighbours, as a real AI's case does, and its can starts at the plate
+    // THE AI SEATS LIKE THE OTHERS (G279): the plate is cut open behind it
+    // (the hole, below) and the ball lives in the can, so nothing stands
+    // proud any more — the 4b/4d stand and the proud drum are gone
     const isAI = d.k === 'ai' || d.k === 'aiE';
-    const zB = isAI ? zF - AI_STAND : zF;
-    bezelAt(bez, cx, cy, zB, r, isAI ? AI_STAND : 0);
+    const zB = zF;
+    bezelAt(bez, cx, cy, zB, r, 0);
     // the mounting flange: a thin annulus on the plate round the bezel (the
     // AI's wide enough to mask its drum wherever the plate's own curvature
     // would otherwise let a corner of the patch through)
     K.revolve(plate, [cx, cy, zF], [0, 0, 1],
       [[r * 0.95, -0.0010], [r * 1.04, -0.0010], [r * 1.04, 0.0015], [r * 0.95, 0.0015]], 48, false);
-    aoDiscInto(aoBag, cx, cy, zF, r * 1.34);              // the instrument's own shadow, round the flange
+    // the instrument's own shadow, round the flange (a ring over a hole)
+    if (isAI) aoRingInto(aoBag, cx, cy, zF, r * 1.34, r * (AI_HOLE + 0.04));
+    else aoDiscInto(aoBag, cx, cy, zF, r * 1.34);
     screwsAt(screw, slotB, aoBag, cx, cy, zF, r);
-    // the can behind: the AI's holds its drum, the rest a hand's depth
-    canAt(can, cx, cy, zF, isAI ? AI_DRUM_K * r + 0.004 : r * 0.92,
-          isAI ? 2 * AI_DRUM_K * r + 0.012 : (r > 0.035 ? 0.055 : 0.042), isAI ? 0.001 : null);
+    // the can behind: the AI's holds its ball, the rest a hand's depth
+    canAt(can, cx, cy, zF, isAI ? r * 0.95 : r * 0.92,
+          isAI ? 2 * AI_BALL * r + 0.012 : (r > 0.035 ? 0.055 : 0.042), isAI ? 0.001 : null);
+    // THE HOLE (G279): the facia's shader cuts this disc out behind the AI;
+    // published in the layer's frame, the crew layer hands it to AEROSKIN
+    // (and the join to the flown aeroplane) in craft space
+    if (isAI && dg) HOLES.push({ g: dg, r: r * AI_HOLE });
     const F = G.FACES[d.k];
     const meshDial = () => {
       bez.mesh(dg, matFor('bezel')); hub.mesh(dg, matFor('hub')); sym.mesh(dg, matFor('symbol'));
@@ -1169,15 +1202,12 @@ function build(parent, A, P, pilotX) {
     if (d.k === 'ai' || d.k === 'aiE') {
       // the ball first (deep), the fixed face over it with its window cut by
       // the painter being dark there, the symbol on top
-      const g = gaugeAt(dg, 'edGauge_' + d.k + '_ball', [cx, cy, zF - 0.004], [0, 0, 1], 'roll', 'ball',
+      const g = gaugeAt(dg, 'edGauge_' + d.k + '_ball', [cx, cy, zF - AI_WIN_Z], [0, 0, 1], 'roll', 'ball',
         { sgn: 1, k: 1, axis2: [1, 0, 0], drive2: 'pitch', sgn2: 1, k2: 1 });
       const db = UVBag(fm);
-      // the drum's front PROUD of the plate (the plate is solid — no hole is
-      // cut for an instrument — so the window must look at a drum that
-      // stands in front of it: at 7 mm the plate's plane cuts a 1.2 r drum
-      // at 0.62 r, outside the 0.58 r window, and the patch's edge sits
-      // 2.5 mm in front of the ring's, hidden from any seat)
-      drumInto(db, slotOf[d.k + ':ball'], r, 0.004 - AI_PROUD);
+      // the ball: its front pole at the window's plane, the rest behind
+      // the plate in the can (G279)
+      ballInto(db, slotOf[d.k + ':ball'], r, 0);
       db.mesh(g);
       // the face over it: a ring, not a disc — the window is open
       const fb2 = faceBag;
@@ -1273,6 +1303,7 @@ window.CAGE_PANEL = {
   // `material('faces')`
   build, get moving() { return MOVING; }, MAT,
   material: k => (k === 'faces' ? facesMaterial() : k === 'ao' ? aoMaterial() : matFor(k)),
+  holes: holesIn,                              // G279: the plate's cut-outs, in a parent's frame
   atlas: () => atlasCv, last: () => LAST, faceDim,
   switches: true,                // the light layer leaves the switch row to us
 };

@@ -1609,6 +1609,11 @@ function aeroSharedU0(THREE, z4) {
     // of the lip on the floor. See AERO_CABIN_FS.
     uFootA: { value: new THREE.Vector4(0, 0, 0, 0) },
     uFootB: { value: new THREE.Vector4(0, AERO_FOOT.fade, AERO_FOOT.runTop, AERO_FOOT.runFloor) },
+    // THE HOLES IN THE PLATE (G279): up to two discs cut out of the
+    // instrument facia in the shader — xyz the centre in craft space, w the
+    // radius (0 = none). A material with uHoleOk (the facia's) discards
+    // inside them; the attitude ball sits behind, in its can. See aeroSetHoles.
+    uHole: { value: [new THREE.Vector4(0, 0, 0, 0), new THREE.Vector4(0, 0, 0, 0)] },
   });
 }
 const aeroDecUniforms = aeroSharedU;    // the name G69 wrote it under
@@ -2282,6 +2287,8 @@ uniform vec4 uCabin;
 uniform vec2 uInside;
 uniform vec4 uFootA;     // THE FOOTWELL (G272), see aeroSharedU0
 uniform vec4 uFootB;
+uniform vec4 uHole[2];   // THE HOLES IN THE PLATE (G279), see aeroSharedU0
+uniform float uHoleOk;   // 1 on the instrument facia only
 // MARKINGS LAND ON PAINTWORK ONLY (G207, the user: "the box projection
 // should exclude the engine, the prop, the landing gears, the interior, the
 // fuel tanks and the truss"). 1 on the exterior skin, the flying surfaces,
@@ -2796,6 +2803,25 @@ void aeroFrame(vec3 eye, vec3 N, vec2 st, float fd, out vec3 T, out vec3 B) {
 // It round-trips exactly, because r128 feeds `color` to the shader as linear
 // and takes it back out the same way — so the value the join carries is the
 // value the game re-applies.
+// THE HOLE IN THE PLATE (G279, the user: "the band of the attitude
+// indicator still sticks out ... it's unacceptable to have dozens of
+// centimetres of extra visible geometry"). A real panel has a round cut-out
+// per instrument and the case sits BEHIND it; this plate is one solid
+// cage face, so the attitude ball had been stood in front of it, its drum
+// oversize to fill the window from every seat, and the drum's rim showed
+// above the bezel. Now the facia's own shader discards a disc round each
+// AI (in craft space — the same frame the footwell and the box projector
+// read), and the ball is an ordinary sphere in a closed can behind the
+// plate, seen only through the window. Nothing stands proud, nothing can
+// poke out: what is not in the hole is behind an opaque plate.
+const AERO_HOLE_FS = `
+  if (uHoleOk > 0.5) {
+    for (int i = 0; i < 2; i++) {
+      vec3 aeroHd = vCraftPos - uHole[i].xyz;
+      if (uHole[i].w > 0.0 && dot(aeroHd, aeroHd) < uHole[i].w * uHole[i].w) discard;
+    }
+  }
+`;
 const AERO_ALBEDO_FS = `
   // declared HERE, and used again in the surface pass below: map_fragment
   // runs before normal_fragment_maps, so this is the earlier of the two and
@@ -3177,7 +3203,7 @@ const AEROSKIN_HOOK = function (shader) {
   shader.fragmentShader = shader.fragmentShader
     .replace('#include <common>',
              AERO_NMAT_FS + AERO_PARS_FS + '\n#include <common>')
-    .replace('#include <map_fragment>', AERO_ALBEDO_FS)
+    .replace('#include <map_fragment>', AERO_HOLE_FS + AERO_ALBEDO_FS)
     .replace('#include <normal_fragment_maps>', AERO_SURFACE_FS)
     // THE CLEAR LAYER FOLLOWS THE RELIEF (G206). r128's own chunk puts the
     // clearcoat on geometryNormal — the smooth mesh — so varnish over a rib
@@ -3268,6 +3294,16 @@ const AERO_FOOT = { strength: 0.78, fade: 0.05, runTop: 0.15, runFloor: 0.90 };
 // { xHalf, yLip, zTop, zFloor, strength? } in CRAFT space — x lateral, y aft,
 // z up, metres — the frame aeroSetCraft hands the shader; the crew layer
 // publishes it off its anchors and the join carries it into the payload.
+// THE HOLES (G279): [{ x, y, z, r }] in craft space, at most two (an
+// aeroplane with both a vacuum and an electric AI); [] or null clears
+function aeroSetHoles(THREE, list) {
+  const U = aeroSharedU(THREE);
+  for (let i = 0; i < 2; i++) {
+    const h = list && list[i];
+    if (h && h.r > 0) U.uHole.value[i].set(+h.x, +h.y, +h.z, +h.r);
+    else U.uHole.value[i].set(0, 0, 0, 0);
+  }
+}
 function aeroSetFootwell(THREE, fw) {
   const U = aeroSharedU(THREE);
   if (!fw || !(fw.zTop > fw.zFloor)) { U.uFootB.value.x = 0; return; }
@@ -3758,6 +3794,7 @@ function aeroMaterial(THREE, o) {
                // G206: the sheen and the field dials, for the same reason
                'C' + (o.ccK != null ? o.ccK : 1),
                'F' + (o.fieldK != null ? o.fieldK : 1),
+               'H' + (o.hole ? 1 : 0),                 // G279: the facia takes the holes
                'L' + (o.fieldLK != null ? o.fieldLK : 1),
                'I' + (+o.inside || 0),
                'K' + (o.decals != null ? +o.decals : 1),
@@ -3796,6 +3833,8 @@ function aeroMaterial(THREE, o) {
                                           (!o.inside && o.struct) ? 1 : 0) },
     // G207: absent means yes, which is what every caller before G207 meant
     uDecOk:    { value: o.decals != null ? +o.decals : 1 },
+    // G279: only the instrument facia is cut round the attitude ball
+    uHoleOk:   { value: o.hole ? 1 : 0 },
     // G215: the metal flake in the paint, 0 for every paint before it
     uFlake:    { value: Math.max(0, Math.min(1, +o.metalK || 0)) },
   });
@@ -4351,7 +4390,7 @@ if (typeof window !== 'undefined')
                       aeroMaterial, aeroGlass,
                       aeroGlassTint, aeroGlassCompanion, GLASS_DEF,
                       aeroGlassSpec,
-                      aeroIsInside, aeroCabinHook, aeroSetCabin, aeroSetFootwell,
+                      aeroIsInside, aeroCabinHook, aeroSetCabin, aeroSetFootwell, aeroSetHoles,
                       AERO_CABIN_DEF, aeroDecOk,
                       aeroSetEnv, aeroDispose, aeroLinear, AERO_TEX,
                       aeroSetDecals, aeroSetCraft,

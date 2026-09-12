@@ -39211,3 +39211,71 @@ profile the physics should also read; a twin boom carries THREE beacons
 (the light layer's on each fin plus the access row's on the boom — the
 conventional's pair, one more) — a ruling on which is the real one is owed;
 the tail navigation light's home on a twin boom has not been checked.
+
+## G279 — THE FIST CLOSES ON THE GRIP, AND THE BALL IS A BALL BEHIND A
+## HOLE (2026-09-12, the user: "recalibrate the hand position of the pilot.
+## It does not hold the stick right anymore, and the crooked position of
+## its wrist on the throttle (both push-pull and lever) are wrong … the band
+## of the attitude indicator still sticks out … it's unacceptable to have
+## dozens of centimetres of extra visible geometry")
+
+**The hands — three causes, all fixed:**
+
+- **The stick's anchor was 35 mm above the grip's head.** Session 4e's
+  moulded grip runs from L − 0.10 to L + 0.012 along the shaft; the anchor
+  had stayed where the old knob was (T + 0.035), so the palm closed on air.
+  It is at the grip's MIDDLE now (T − 0.046 along the shaft), axis = the
+  shaft.
+- **Both throttles wrapped the wrong axis.** The wall lever's grip axis was
+  the LEVER's, the push-pull's the ROD's — which laid the hand's width along
+  the control and its length across it: a chop from above with the palm to
+  the wall, fingers hanging beside the knob. A ball on a quadrant lever is
+  held from above and behind, a vernier knob taken in the fist: the axis
+  the hand wraps is the PIVOT's (lateral) on the wall lever and the console
+  quadrant, and lateral on the push-pull; the wrist then continues the
+  forearm with no twist (the G205 second solve from the elbow). Anchors:
+  the ball's centre + 12 mm up, the knob's own centre.
+- **The rig's fist was not where the ATD's palm was.** The grip solve aims
+  the ATD's wrist `palm` short of the grip; the drawn hand is the
+  character's, whose fingers close where ITS arm and hand lengths put them
+  — measured on the stock pilot: 5 cm up the stick from the palm point on
+  the right hand, 4 cm past it on both. `fitFists` (crew layer): after the
+  rig is dressed, each grip job reads where the fist actually closed
+  (`CAGE_CHAR.fistAt` = the centroid of the four middle phalanges), takes
+  the error in the hand's frame, and solves again with the target moved
+  by it (`j.fixH`; two passes, 6–9 mm residual). The correction rides the
+  job through the join (`fixH`) so the flown solve — the same function,
+  every frame — lands the same fist as the stick moves. A hand that could
+  not reach (> 15 cm) is left to the IK's own finding.
+- Also found: `sideOf` compared the anchor's WORLD x with the seat's
+  layer-local x — equal on a bench with the layer at the origin, 2.5 m
+  apart in the game's shed. Every control read "right of the seat", so a
+  centre console went to the LEFT hand across the pilot's lap. In the
+  layer's frame now: a centre console takes the right hand, the stick the
+  left (a Cessna's hands).
+- Verified from a free eye in the shed (the pilot un-hidden) on the stick,
+  the wall lever, the push-pull and the console quadrant; `dumHandGrip`
+  (the palm slider) is now a starting point the fit absorbs on a dressed
+  character.
+
+**The attitude indicator — a hole in the plate:**
+
+Every earlier cut (the 1.6 r drum, 1.2 r, the stadium patch, the 12 mm
+stand, the 7 mm proud front) kept a drum IN FRONT of a solid plate and
+hid its rim; each seat found a new angle. A real panel has a round cut-out
+per instrument. So: the facia's own shader (`AERO_HOLE_FS` in aeroskin.js,
+`hole: 1` on the `dashFace` material in both hosts) discards a disc of
+0.56 r round each AI in craft space (`uHole[2]`, shared; `aeroSetHoles`),
+and the ball is an ordinary sphere of 0.90 r (`ballInto`, parametrised
+about the lateral axis so pitch is a pure shift of the strip), its front
+pole at the window's plane 3 mm in front of the plate, in a closed can
+behind it. Seen through the window, hidden by the plate everywhere else;
+nothing stands proud (AI_STAND / AI_PROUD / the drum constants are gone),
+the AO under it is a ring. The holes are published by the panel layer
+(`CAGE_PANEL.holes(parent)`), converted by the crew layer with the
+footwell, carried by the join (`data.holes` through `vtx`) and set by
+app.js at build. Verified from the seat at three angles: no band.
+
+Not done: the fist fit runs on the pilot and co-pilot only when a
+character is dressed (an ATD-only dummy keeps the palm rule); a bench with
+skeleton control (the user's offer) was not needed.

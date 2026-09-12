@@ -756,10 +756,16 @@ function buildStickCenter(g0, A, P, sx, seat) {
     tube(gP, M.knob, [T[0], T[1] - 0.005, T[2]], [T[0], T[1] + 0.075, T[2] + 0.012], 0.020);
     ballAt(gP, M.knob, [T[0], T[1] + 0.085, T[2] + 0.014], 0.023);
   }
-  // the grip is the vertical-ish shaft top: axis along the stick
-  return { obj: gripAt(gP, [T[0], T[1] + 0.035, T[2] + 0.006],
-                       [0, Math.cos(rk), Math.sin(rk)]),
-           label: 'stick' };
+  // THE HAND IS ON THE GRIP (G279, the user: "it does not hold the stick
+  // right anymore"): session 4e's moulded grip runs from L - 0.10 to
+  // L + 0.012 along the shaft, and the anchor had stayed where the old
+  // knob was — 35 mm ABOVE the shaft's top, so the palm closed on air over
+  // the head. The fist closes round the grip's MIDDLE (fitFists puts the
+  // hollow of the fingers on this point), the head and its button above
+  // it under the thumb; the axis IS the shaft.
+  const gc = K2 ? [T[0] - up[0] * 0.046, T[1] - up[1] * 0.046, T[2] - up[2] * 0.046]
+                : [T[0], T[1] + 0.035, T[2] + 0.006];
+  return { obj: gripAt(gP, gc, up), label: 'stick' };
 }
 function buildYoke(g0, A, P, sx) {
   const g = ctlShift(g0, P, 'stickX', 'stickY', 'stickZ');
@@ -942,8 +948,16 @@ function buildThrottleWall(g0, A, P, sx) {
     KW.revolve(kb, K, _nrm3([kn[0] - piv[0], kn[1] - piv[1], kn[2] - piv[2]]), ballProf(0.026, 0.012), 36, true);
     lev.mesh(gT, M.frame); boss.mesh(gT, M.plated); kb.mesh(gT, M.ball);
   } else { tube(gT, M.metal, [0, 0, 0], K, 0.009); ballAt(gT, M.knob, K, 0.026); }
-  // the lever is the grip axis
-  return { obj: gripAt(gT, K, [kn[0] - piv[0], kn[1] - piv[1], kn[2] - piv[2]]),
+  // THE HAND RESTS ON THE BALL (G279, the user: "the crooked position of
+  // its wrist on the throttle"): the grip axis was the LEVER's, which laid
+  // the hand's width along the lever and left its length to point down
+  // the lever's far side — a chop from above, the palm facing the wall. A
+  // ball knob on a quadrant lever is held from above and behind: the
+  // fingers curl over it fore-and-aft, the thumb inboard, so the axis the
+  // hand wraps is the PIVOT's (lateral), and the wrist then continues the
+  // forearm with no twist. The anchor rides a little above the ball's
+  // centre, where the palm actually lands.
+  return { obj: gripAt(gT, [K[0], K[1] + 0.012, K[2] - 0.006], [inb, 0, 0]),
            label: 'throttle (wall)' };
 }
 function buildThrottleDash(g0, A, P, sx) {
@@ -998,8 +1012,13 @@ function buildThrottleDash(g0, A, P, sx) {
     k.rotation.x = Math.PI / 2;
     gT.add(k);
   }
-  // a push-pull rod: the hand closes round the knob, axis along the rod
-  return { obj: gripAt(gT, [0, 0, 0], [0, 0, 1]),
+  // THE KNOB IS IN THE FIST (G279): the axis was the ROD's, which put the
+  // hand's width along it and the fingers hanging down beside the knob,
+  // palm to the side. A push-pull knob is taken from behind with the
+  // fingers curled over its top and the thumb round its side — the axis
+  // the hand wraps is lateral, the wrist continues the forearm, and the
+  // knob's own centre (the head runs z +0.008 .. -0.026) sits in the palm.
+  return { obj: gripAt(gT, [0, 0.004, -0.008], [1, 0, 0]),
            label: 'throttle (push-pull)' };
 }
 // THE CONSOLE BOX IS A SIDE-BY-SIDE FITTING (user 2026-08-19): with one
@@ -1062,7 +1081,8 @@ function buildConsole(g0, A, P, cx, withQuadrant, box) {
     KQ.revolve(kb, K, _nrm3([kn[0] - piv[0], kn[1] - piv[1], kn[2] - piv[2]]), ballProf(0.024, 0.011), 36, true);
     lev.mesh(gT, M.frame); boss.mesh(gT, M.plated); kb.mesh(gT, M.ball);
   } else { tube(gT, M.metal, [0, 0, 0], K, 0.008); ballAt(gT, M.knob, K, 0.024); }
-  return { obj: gripAt(gT, K, [kn[0]-piv[0], kn[1]-piv[1], kn[2]-piv[2]]),
+  // held from above like the wall lever's ball (G279): the pivot's axis
+  return { obj: gripAt(gT, [K[0], K[1] + 0.012, K[2] - 0.006], [1, 0, 0]),
            label: 'throttle (quadrant)' };
 }
 
@@ -1630,6 +1650,12 @@ function solveGripJob(dum, j, ctx) {
     // stature so a small dummy does not over-reach.
     _hv.set(0, -1, 0).applyQuaternion(alignQ);
     aw.p.addScaledVector(_hv, -ctx.palm);
+    // THE FIST CLOSES ON THE GRIP (G279): `fixH` is where the dressed rig's
+    // fist actually closed relative to the grip, in the hand's own frame,
+    // measured by fitFists() below and carried into flight by the join —
+    // the target moves by its negative, so the hollow of the fingers lands
+    // on the grip whatever the rig's own hand and arm proportions are
+    if (j.fixH) aw.p.add(_hv.copy(j.fixH).applyQuaternion(alignQ));
   }
   const gap = ikSolve(dum, j.chain, aw.p, pole, alignQ);
   // A NATURAL WRIST (G205, the user: 'natural wrist orientation'): the
@@ -1984,6 +2010,21 @@ function footwellSet(fw) {
   if (typeof window !== 'undefined' && window.AEROSKIN && window.AEROSKIN.aeroSetFootwell)
     window.AEROSKIN.aeroSetFootwell(THREE, fw);
 }
+// THE HOLES IN THE PLATE (G279): the panel layer's cut-outs behind the
+// attitude indicators, in this layer's frame, re-expressed in craft space
+// like the footwell and handed to the facia's shader
+let HOLES = [];
+function holesOf(group) {
+  const PN = typeof window !== 'undefined' && window.CAGE_PANEL;
+  if (!group || !PN || !PN.holes) return [];
+  try {
+    return PN.holes(group).map(h => ({ x: h.x, y: +(-h.z).toFixed(4), z: h.y, r: h.r }));
+  } catch (e) { return []; }
+}
+function holesSet(list) {
+  if (typeof window !== 'undefined' && window.AEROSKIN && window.AEROSKIN.aeroSetHoles)
+    window.AEROSKIN.aeroSetHoles(THREE, list);
+}
 
 PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   CTL_MOVING = [];                     // G240: this build's moving controls
@@ -1999,6 +2040,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   if (!P.crewOn) {
     if (typeof window !== 'undefined') window.CAGE_CREW_EYE = null;
     footwellSet(null);
+    HOLES = []; holesSet(null);
     return;
   }
   group = new THREE.Group();
@@ -2106,8 +2148,9 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   // off these anchors, returning the record this layer always published.
   // buildPanel below stays as the fallback (a headless load, no layer).
   let panel = null;
+  HOLES = [];
   if (window.CAGE_PANEL && window.CAGE_PANEL.build)
-    try { panel = window.CAGE_PANEL.build(group, A, P, pilot.x); }
+    try { panel = window.CAGE_PANEL.build(group, A, P, pilot.x); HOLES = holesOf(group); }
     catch (e) { console.error('panel:', e); panel = null; }
   if (!panel) panel = buildPanel(group, A, P, pilot.x);
 
@@ -2200,6 +2243,43 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   // 'none': the G210.2 bake for all. A dev flag, not a design row.
   const LIVE_POLICY = (typeof window !== 'undefined' && window.FLYDIY_CREW_LIVE)
     || 'controls';
+  // THE FIST CLOSES ON THE GRIP (G279, the user: "it does not hold the
+  // stick right anymore ... the crooked position of its wrist on the
+  // throttle"). The grip solve aims the ATD's WRIST at a point `palm` short
+  // of the grip along the hand — and the drawn hand is the character's,
+  // whose fingers close where ITS arm and hand lengths put them: measured
+  // on the stock pilot, 5 cm up the stick from the palm point on the right
+  // hand and 4 cm past it on both. So after the rig is dressed, each grip
+  // job reads where the fist actually closed (CAGE_CHAR.fistAt), takes the
+  // error in the hand's frame, and solves again with the target moved by
+  // it; twice, since the arm's new angles shift the rig's wrist a little.
+  // The correction rides the job (`fixH`) through the join, so the flown
+  // solve — the same function, every frame — lands the same fist on the
+  // same grip as the stick moves.
+  const fitFists = (dum, CH, jobs, solveJob) => {
+    if (!dum.char || !window.CAGE_CHAR.fistAt) return;
+    const grips = jobs.filter(j => j.a.userData.grip && CHAINS[j.chain].arm);
+    if (!grips.length) return;
+    const fp = new THREE.Vector3(), e = new THREE.Vector3(), q = new THREE.Quaternion();
+    for (let it = 0; it < 2; it++) {
+      let moved = false;
+      for (const j of grips) {
+        const side = /L$/.test(CHAINS[j.chain].end) ? 'L' : 'R';
+        if (!window.CAGE_CHAR.fistAt(dum.char, side, fp)) continue;
+        const aw = anchorWorld(j.a);
+        dum.bones[CHAINS[j.chain].end].getWorldQuaternion(q).invert();
+        e.copy(fp).sub(aw.p).applyQuaternion(q);       // fist - grip, hand frame
+        // a hand that could not reach is the IK's finding, not the fit's
+        if (e.lengthSq() < 1e-6 || e.length() > 0.15) continue;
+        j.fixH = (j.fixH || new THREE.Vector3()).sub(e);
+        solveJob(j);
+        moved = true;
+      }
+      if (!moved) break;
+      window.CAGE_CHAR.dress(dum.char, dum,
+        { fist: P.dumFist == null ? 0.5 : +P.dumFist });
+    }
+  };
   const markLive = (dum, CH, role, idx, s, jobs, ctx) => {
     if (!dum.char || LIVE_POLICY === 'none') return dum;
     if (LIVE_POLICY !== 'all' && !jobs.some(j => j.ctl)) return dum;
@@ -2260,7 +2340,13 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     // whichever hand is left over. Nothing is hard-coded to a style.
     const sideOf = o => {
       if (!o) return null;
-      const dx = anchorWorld(o).p.x - seat.x;
+      // IN THE LAYER'S FRAME (G279): this compared the anchor's WORLD x with
+      // the seat's layer-local x — the same number on a bench with the
+      // layer at the origin, and 2.5 m apart in the game's shed, where the
+      // mount sits off to one side. Every control then read as "right of
+      // the seat", and a centre console was handed to the LEFT hand across
+      // the pilot's lap — out of reach, and the fist fit blew up on it.
+      const dx = group.worldToLocal(anchorWorld(o).p).x - seat.x;
       return dx > 0.06 ? 'L' : dx < -0.06 ? 'R' : null;
     };
     const other = h => h === 'L' ? 'R' : 'L';
@@ -2332,8 +2418,11 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
       for (const j of kneeJobs) solveJob(j);
       rec.jobs.push(...kneeJobs.map(j => ({ chain: j.chain, label: j.label,
         get wrist() { return j.wrist; } })));
+      jobs.push(...kneeJobs);
     }
-    return markLive(dressed(dum, CH, role, idx), CH, role, idx, s, jobs, ctx);
+    dressed(dum, CH, role, idx);
+    fitFists(dum, CH, jobs, solveJob);
+    return markLive(dum, CH, role, idx, s, jobs, ctx);
   };
   // THE ANCHORS GO OUT WITH IT (G96). The lighting layer needs exactly what
   // this layer spent its life working out — where the floor is, where the
@@ -2342,6 +2431,8 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   const DBG = window.CAGE_CREW = { stations: [], panel, floorN, A,
     // G272: the dark under the dash, for the join (craft space, see footwellOf)
     footwell: FOOTWELL,
+    // G279: the plate's cut-outs behind the attitude indicators (craft space)
+    holes: HOLES,
     // G240: the controls that ANSWER — name, pivot, axis, drive and travel,
     // for the join. Filled as they are drawn, so a station without a stick
     // publishes nothing rather than a part with no geometry.

@@ -762,6 +762,7 @@ const matOf = name => {
         // only exterior skin carries it
         grm: consOf(), struct: A.aeroIsSkin(name) ? 1 : 0,
         tint, opacity: a, fieldM: fieldM(),
+        hole: name === 'dashFace' ? 1 : 0,            // G279: cut behind the AI
         // the three dials; absent is the finish's own number
         tileK: secTile[name], roughK: secRough[name], nrmK: secNrm[name],
         ccK: secCc[name], fieldK: secField[name],

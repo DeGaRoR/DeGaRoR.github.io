@@ -1289,6 +1289,8 @@
         if (j.grip) a.userData.grip = new THREE.Vector3().fromArray(j.grip);
         sh.add(a);
         jobs.push({ chain: j.chain, label: j.label, a, sh, part: cm.obj,
+                    // G279: the editor's measured fist correction, hand frame
+                    fixH: j.fixH ? new THREE.Vector3().fromArray(j.fixH) : null,
                     ctx: { s: r.s, palm: r.palm, base: null, notes: null,
                            poleFig: new THREE.Vector3().fromArray(j.poleFig) } });
       }
@@ -1513,6 +1515,8 @@
               opacity: op, fieldM: m.fieldM || 1, surf: m.surf ? 1 : 0,
               boxDet: m.boxDet || 0, boxPlane: m.boxPlane || 0,
               detRot: m.detRot || 0,
+              // G279: the instrument facia is cut open behind the AI
+              hole: m.sec === 'dashFace' ? 1 : 0,
               // THE FLOWN AEROPLANE IS PAINTED LIKE THE EDITOR'S (G108). Two
               // arguments were missing and both mattered to the markings: the
               // surface CLASS, without which every flown surface was a
@@ -1698,6 +1702,9 @@
     // (or a payload from before it) has none
     if (typeof AEROSKIN !== 'undefined' && AEROSKIN.aeroSetFootwell)
       AEROSKIN.aeroSetFootwell(THREE, data.footwell || null);
+    // ...and the plate's cut-outs behind the attitude indicators (G279)
+    if (typeof AEROSKIN !== 'undefined' && AEROSKIN.aeroSetHoles)
+      AEROSKIN.aeroSetHoles(THREE, data.holes || null);
     // G55 MOVING PARTS (cage visual): each wheel is its own group pivoted
     // at its AXLE and ridden on its axle NODE at pose time — suspension
     // travel is the physics showing through, not an animation. The prop

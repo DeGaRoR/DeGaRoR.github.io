@@ -359,6 +359,26 @@ function dress(inst, dum, opts) {
   inst.baseQ = t.objs.map(o => o.quaternion.clone());
 }
 
+// WHERE THE FIST CLOSES (G279): the world centroid of the four fingers'
+// middle phalanges — the hollow a grip sits in once the fingers curl. The
+// crew layer aims its grips at THIS, not at the wrist: the rig's hand is
+// its own length, offset from the ATD's wrist by its own arm's proportions,
+// and the two differed by 5 cm along the stick on one hand and by nothing
+// on the other. Read after dress().
+const _fp = new THREE.Vector3();
+function fistAt(inst, side, out) {
+  const t = inst.tree, S = side === 'L' ? 'Left' : 'Right';
+  out = out || new THREE.Vector3();
+  out.set(0, 0, 0);
+  let n = 0;
+  for (const f of ['Index', 'Middle', 'Ring', 'Pinky']) {
+    const o = t.byBase[S + 'Hand' + f + '2'];
+    if (!o) continue;
+    out.add(o.getWorldPosition(_fp)); n++;
+  }
+  return n ? out.multiplyScalar(1 / n) : null;
+}
+
 // dispose the per-instance objects (geometries and materials are shared and
 // stay for the page's life)
 function dispose(inst) {
@@ -514,6 +534,6 @@ function flatMaterial(key, mi) {
 }
 
 window.CAGE_CHAR = { MAP, list: () => REG().order.map(k => REG().chars[k]),
-  rig, load, ready, instance, dress, dispose, flatMaterial,
+  rig, load, ready, instance, dress, dispose, flatMaterial, fistAt,
   animLoad, animate, animStep, clearAnims, anims: () => ANIMS().order.slice() };
 })();

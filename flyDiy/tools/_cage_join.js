@@ -2325,7 +2325,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
                       p: [pa.x - pg.x, pa.y - pg.y, pa.z - pg.z],
                       q: qa.toArray(),
                       grip: j.a.userData.grip ? j.a.userData.grip.toArray() : null,
-                      poleFig: j.poleFig.toArray() });
+                      poleFig: j.poleFig.toArray(),
+                      // G279: where this rig's fist closes, in the hand's frame
+                      fixH: j.fixH ? j.fixH.toArray() : null });
         }
         people.push({ key: L.key, role: L.role, idx: L.idx, s: L.s, palm: L.palm,
                       fist: L.fist, anim: L.anim, figM, bones, jobs });
@@ -2371,8 +2373,13 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     // = z), and between the two sits the bake's pitch — so the two corners
     // that fix it go through `vtx` like every other baked point, and the
     // box stays axis-aligned in the frame it is read in.
-    let footwell = null;
+    let footwell = null, holes = [];
     try {
+      // G279: the plate's cut-outs, each centre through the same map
+      for (const h of (window.CAGE_CREW && window.CAGE_CREW.holes) || []) {
+        const c = vtx(h.x, h.z, -h.y);
+        holes.push({ x: +c[2].toFixed(4), y: +c[0].toFixed(4), z: +c[1].toFixed(4), r: h.r });
+      }
       const fw = window.CAGE_CREW && window.CAGE_CREW.footwell;
       if (fw) {
         const top = vtx(0, fw.zTop, -fw.yLip), flo = vtx(0, fw.zFloor, -fw.yLip);
@@ -2381,7 +2388,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       }
     } catch (e) {}
     return { cage: true, groups, mats, off, pitch: beta, parts,
-             zRoot: 0, surfaces: null, cageM, people, lights, tailRef, mainsRef, footwell };
+             zRoot: 0, surfaces: null, cageM, people, lights, tailRef, mainsRef, footwell, holes };
   };
   // ...and the view comes back, on the way out or on the way to a throw.
   const snapshot = spec => {
