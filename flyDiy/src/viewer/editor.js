@@ -1545,6 +1545,11 @@ function editorInit(api) {
     // the balance point should sit and how to move it. On demand, the user's
     // ruling ("let's not pollute our interface too much"). A question-mark
     // glyph. LITERAL FIELDS ONLY (GATE VIEW reads this table in a vm).
+    // G286: GRAPHICS - the same settings menu the flight rail opens (the
+    // user: "in the editor and in flight"). LITERAL FIELDS ONLY (GATE VIEW
+    // reads this table in a vm); openFly builds it by name. (GFX)
+    { k: 'graphics', label: 'graphics', title: 'How much the card draws',
+      icon: 'M3 5.2h12|M3 9h12|M3 12.8h12|M6.4 5.2a1.3 1.3 0 1 0 0-.1|M11.2 9a1.3 1.3 0 1 0 0-.1|M7.6 12.8a1.3 1.3 0 1 0 0-.1' },
     { k: 'legend', label: 'legend', title: 'What the marks in the room mean',
       icon: 'M9 15.4A6.4 6.4 0 1 0 9 2.6a6.4 6.4 0 0 0 0 12.8Z|M6.9 7.2a2.1 2.1 0 1 1 3 1.9c-.6.3-.9.7-.9 1.4v.4|M9 13.1v.1' },
   ];
@@ -1908,6 +1913,7 @@ function editorInit(api) {
     head.textContent = t.title;
     if (t.k === 'camera') buildCamera(body);
     if (t.k === 'controls') buildControls(body);
+    if (t.k === 'graphics') buildGraphics(body);   // GFX
     if (t.k === 'legend') buildLegend(body);
     const idx = labelIndex();
     for (const label of (t.rows || [])) {
@@ -1938,6 +1944,32 @@ function editorInit(api) {
   // this file holds none of it. On the stand a hand on a bound control moves
   // the surfaces (app.js's control-check sweep yields to it), so a mapping
   // can be checked without rolling out.
+  // G286: GRAPHICS - gfx_settings.js's menu in this rail's own rows and
+  // pills; a pick rebuilds the flyout so the pills show the new state (GFX)
+  function buildGraphics(body) {
+    if (!window.GFX) return;
+    const row = (host, label) => {
+      const r = document.createElement('div'); r.className = 'r';
+      const k = document.createElement('span'); k.className = 'k'; k.textContent = label;
+      r.appendChild(k); host.appendChild(r); return r;
+    };
+    const pills = (host, list, isOn, pick) => {
+      const w = document.createElement('div'); w.className = 'edCam';
+      for (const o of list) {
+        const b = document.createElement('button');
+        b.className = 'pill' + (isOn(o) ? ' on' : '');
+        b.textContent = o.label; if (o.title) b.title = o.title;
+        if (o.why) b.disabled = true; else b.onclick = () => pick(o);
+        w.appendChild(b);
+      }
+      host.appendChild(w); return w;
+    };
+    const note = (host, txt) => {
+      const n = document.createElement('div'); n.className = 'note'; n.textContent = txt;
+      host.appendChild(n); return n;
+    };
+    window.GFX.mount(body, { row, pills, note, refresh: () => openFly('graphics') });
+  }
   function buildControls(body) {
     const inp = (typeof window !== 'undefined' && window.FLYDIY_INPUT) || null;
     const row = (label, txt) => {

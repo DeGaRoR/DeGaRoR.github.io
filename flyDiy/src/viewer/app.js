@@ -296,6 +296,9 @@
       playerShedDims(playerLoad(), 'HOME',
         (typeof siteOf === 'function') ? siteOf('HOME') : null)));
   if (typeof window !== 'undefined') window.WORLD = WF;   // DEVCAM: the inspector's handle on the world
+  // GFX (G286): the saved graphics settings are applied the moment the
+  // world exists - before its first chunk of forest is planted
+  if (typeof window !== 'undefined' && window.GFX) window.GFX.onWorld();
 
   // ================= THE GARAGE'S OWN SCENE =================
   // The editor and the simulation are two different places, and this is what
@@ -5790,6 +5793,11 @@
     // G200: THE CONTROLS — who is flying, and with what. A stick on its box.
     { k: 'controls', label: 'controls', title: 'Who is flying, and with what',
       icon: 'M9 10.6V4.2|M9 4.2a1.3 1.3 0 1 0 0-.1|M5 15.4h8a1.4 1.4 0 0 0 1.4-1.4V12a1.4 1.4 0 0 0-1.4-1.4H5A1.4 1.4 0 0 0 3.6 12v2a1.4 1.4 0 0 0 1.4 1.4Z' },
+    // G286: GRAPHICS - the menu a PC game has: a preset and six named
+    // options over handles the world publishes, saved and applied at boot.
+    // The panel is gfx_settings.js's; both rails host it. A sliders glyph. (GFX)
+    { k: 'graphics', label: 'graphics', title: 'How much the card draws',
+      icon: 'M3 5.2h12|M3 9h12|M3 12.8h12|M6.4 5.2a1.3 1.3 0 1 0 0-.1|M11.2 9a1.3 1.3 0 1 0 0-.1|M7.6 12.8a1.3 1.3 0 1 0 0-.1' },
   ];
   const FL_SLOTS = {
     ac:    { title: 'Which aeroplane' },
@@ -6120,6 +6128,15 @@
                    'keyboard: arrows fly it, PageUp/PageDown the throttle, F/G ' +
                    'the flaps, B the brakes, numpad 1/7 the trim, A hands it ' +
                    'over either way, C walks the views.');
+    },
+    // G286: GRAPHICS - the settings menu, in this rail's own rows and pills (GFX)
+    graphics(body) {
+      if (!window.GFX) { flNote(body, 'This build has no graphics settings.'); return; }
+      window.GFX.mount(body, {
+        row: (h, label) => flRow(h, label),
+        pills: (h, list, isOn, pick) => flPills(h, list, isOn, pick),
+        note: (h, txt) => { flNote(h, txt); return h.lastChild; },
+      });
     },
     engines(body) {
       if (!sim) { flNote(body, 'No aeroplane on the field yet.'); return; }

@@ -39538,3 +39538,44 @@ worktree with GATE WORLDRENDER + GATE TREES.
   white maps. A row-level `metalCap` in `prop_prep.py` caps every material
   of a prop; the Buick's is 0.12.
 - Gates: HOUSE, VILLAGE (both --selftest) green.
+
+## G286 — GRAPHICS SETTINGS: THE MENU A PC GAME HAS (2026-09-12, the user:
+## "several settings… macro controls, exposed from a new global settings menu
+## (in the editor and in flight)… but not as complex as the F8 menu, a typical
+## graphics settings from a PC game" / "do the settings menu, and state what
+## requires a restart")
+
+- **What it is.** `src/viewer/gfx_settings.js` (`window.GFX`): a PRESET
+  (low / medium / high / ultra, `custom` when any option leaves the preset)
+  and six NAMED-STEP options — anti-aliasing (off / smooth / smoothest =
+  the G144 tiers), forest density (96 / 112 / 128 / 160 grid points a km),
+  forest detail (real trees to 270 m or to 450 m), shadows (off / near 1024
+  / full 2048 + the far cascade / ultra 4096), forest floor (off / on),
+  lighting (sunset / afternoon = the two `WORLD_RIG` rows). Every step is a
+  measured number from `tools/tree_perf.js` (the W0c.26 matrix); the spec
+  and the preset table are `futureDesigns/GRAPHICS-SETTINGS-2026-09-12.md`.
+- **It owns a saved choice** — `localStorage` `flydiy.gfx` — and applies it
+  the moment the world exists (`GFX.onWorld()` from app.js, right after
+  `window.WORLD`), before the first chunk of forest is planted, so a machine
+  that cannot afford the forest never draws it dense. No pref, or a corrupt
+  one, is medium. It owns nothing else: every option is a live handle the
+  world already publishes (`FLYDIY_AA`, `TREE_FILL`, `TREE_LOD`,
+  `WORLD_RIG`, `WORLD.sun`), so the menu, the F8 panel and a console move
+  the same value.
+- **Hosted by both rails**, in each screen's own rows and pills: a
+  `GRAPHICS` entry on the flight rail (`FL_RAIL` / `FL_BUILD.graphics`) and
+  on the shed rail (`RAIL` / `buildGraphics` — literal fields only, GATE
+  VIEW reads the table in a vm). A rolling readout of the last 120 frames
+  (median, fps, p90) while the menu is open.
+- **WHAT NEEDS A RESTART: nothing.** Every option is live. Three cost a
+  moment, and the note under the menu says so: the AA tier reallocates the
+  frame's target (one frame); a new density re-streams the forest around
+  the aircraft (~10 s of chunks arriving); shadows off / on recompiles the
+  lit materials (a short hitch — it is `sun.castShadow`, because
+  `shadowMap.enabled` alone leaves every material sampling a stale map).
+  `GFX.restart()` states it per option.
+- **GATE GFX** (`tools/_gfx_check.js`, core): the presets are complete, the
+  pref round-trips and is applied at the next boot, a preset puts its values
+  on every stub handle, one change makes `custom`, a preset picked again
+  rewrites every option, a lighting row change re-asserts the shadow choice
+  over the row's own, an unchanged density never re-grids, no pref = medium.

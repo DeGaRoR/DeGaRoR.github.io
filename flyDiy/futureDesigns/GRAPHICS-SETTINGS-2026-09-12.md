@@ -1,7 +1,8 @@
 # GRAPHICS SETTINGS — the menu a PC game has (spec, 2026-09-12)
 
-STATUS: specification, unimplemented. Written at the close of the tree
-chantier (W0c, HANDOVER W0c), from the user's brief: "macro controls, exposed
+STATUS: IMPLEMENTED as G286 (2026-09-12): `src/viewer/gfx_settings.js`, hosted by
+both rails, `flydiy.gfx`, GATE GFX. Written at the close of the tree chantier
+(W0c, HANDOVER W0c), from the user's brief: "macro controls, exposed
 from a new global settings menu (in the editor and in flight), where the
 graphics options can be set up, with the macro controls, but also a few
 options for setting it up yourself — not as complex as the F8 menu, a typical
@@ -47,7 +48,15 @@ Changing one option under a preset flips the preset label to "Custom"; picking
 a preset rewrites every option. The W0c.26 matrix in TREE-IMPORT.md §8 is the
 measured basis for the Medium / High rows.
 
-## 4. Persistence and boot order
+## 4. Persistence and boot order — and what needs a restart
+
+**Nothing.** Every option takes effect live. Three cost a moment: the AA tier
+reallocates the frame's target (one frame), a new density re-streams the forest
+around the aircraft (~10 s of chunks arriving), shadows off/on recompiles the lit
+materials (a short hitch — it is `sun.castShadow`, because `shadowMap.enabled`
+alone leaves the materials sampling a stale map). The note under the menu says
+so; `GFX.restart()` states it per option.
+
 
 - One pref key, `flydiy.gfx`, JSON `{ preset, aa, density, bands, shadows,
   canopy, lighting }`, through app.js's `prefGet/prefSet` like the camera

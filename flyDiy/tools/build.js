@@ -267,7 +267,9 @@ const MANIFEST = {
     // dev_panel.js (W0c.11): the developer's dials, DOM-lazy, over handles
     // the world publishes at runtime (TREE_*, WORLD_RIG, DEV_CAM) - it only
     // has to be in the page; F8 builds it.
-              'input.js', 'input_panel.js', 'editor.js',
+    // gfx_settings.js (G286) before editor.js and app.js: both rails host its
+    // menu and app.js applies its saved choice the moment the world exists
+              'input.js', 'input_panel.js', 'gfx_settings.js', 'editor.js',
               // THE COCKPIT IN FLIGHT (the panel arc, session 4): readings,
               // switches, the bus, the lamps — app.js calls in; RENDER slot
               'cockpit.js', 'app.js', 'dev_panel.js'],

@@ -79,6 +79,8 @@ const GATES = [
   // a tree: standing on y = 0, inside its own box and filling it, with an AO
   // channel that carries information and rungs that share one frame.
   { id: 'TREES', file: '_tree_check.js', tier: 'core' },
+  // G286: the graphics settings menu - presets, the pref, the handles
+  { id: 'GFX', file: '_gfx_check.js', tier: 'core' },
   // the external asset store (2026-09-01): referenced == present both ways,
   // no base64 creep, and index.html's size budget — mechanical at last
   { id: 'MEDIA', file: '_media_check.js', tier: 'core' },
