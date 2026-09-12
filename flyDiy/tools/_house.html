@@ -516,6 +516,18 @@ function addPier(grp, plan, dx) {
 }
 if (typeof window !== 'undefined')
   window.PROP_LANDED = () => { draw(); };
+// the dust on the props (G283): dark at the foot, clean above - see props.js
+{
+  const D = { barrel_plastic: [0.3, 0.7], drum_steel: [0.3, 0.7], bin_metal: [0.3, 0.7],
+              bin_metal_rust: [0.3, 0.75], bottle_propane: [0.2, 0.6], bottle_lpg: [0.22, 0.6],
+              compressor: [0.35, 0.7], stove_barrel: [0.3, 0.7], crate_wood_a: [0.15, 0.6],
+              crate_wood_b: [0.2, 0.6], crate_wood_c: [0.15, 0.6], tyre: [0.1, 0.6], work_trestle: [0.3, 0.6],
+              handtruck: [0.3, 0.6], box_cardboard: [0.12, 0.5], jerrycan: [0.12, 0.6], jerrycan_green: [0.15, 0.6],
+              bags_stack: [0.1, 0.5], bags_lean: [0.2, 0.55], bags_flat: [0.08, 0.5], bags_stand: [0.25, 0.55],
+              bag_compost: [0.15, 0.5], planter: [0.25, 0.6], stepladder: [0.3, 0.6], stool_wood: [0.15, 0.5],
+              chair_lounge: [0.2, 0.5], table_wood: [0.2, 0.5] };
+  for (const k in D) propDust(k, D[k][0], D[k][1]);
+}
 
 function build() {
   if (root) {

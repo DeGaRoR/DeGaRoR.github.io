@@ -169,6 +169,24 @@ function battery(name, vil) {
   }
   if (water >= 3) check(jetties >= Math.ceil(water * 0.5), name + ': too few waterfront houses reach the water',
                         jetties + ' of ' + water);
+  // 5b — NO HOLES (G283): every edge of every plot but the shore is fenced,
+  //   by this plot or the neighbour it shares the edge with, and the front
+  //   fence has its gate. And a waterfront house has its back entrance.
+  {
+    const key = (a, b) => [a, b].map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).sort().join('|');
+    const have = new Set();
+    for (const p of vil.plots) for (const f of p.fences || []) have.add(key(f.a, f.b));
+    for (const p of vil.plots) {
+      const edges = [[p.poly[1], p.poly[2], 'side'], [p.poly[3], p.poly[0], 'side'], [p.poly[0], p.poly[1], 'front']];
+      if (p.side === 'land') edges.push([p.poly[2], p.poly[3], 'back']);
+      if (vil.V.fenceOdds >= 1)
+        for (const [a, b, kind] of edges)
+          check(have.has(key(a, b)), name + ': plot ' + p.id + ' has a hole in its ' + kind + ' fence');
+      check((p.fences || []).some(f => f.kind === 'front' && f.gap), name + ': plot ' + p.id + ' has no gate');
+      if (p.side === 'water' && p.house !== undefined)
+        check(!!vil.houses[p.house].built.stats.stoop, name + ': a waterfront house on plot ' + p.id + ' has no back entrance');
+    }
+  }
   // 5 — the fences
   for (const plot of vil.plots) {
     const h = plot.house !== undefined ? vil.houses[plot.house] : null;
@@ -266,6 +284,8 @@ if (SELFTEST) {
   if (!probe(vil => { const p = vil.plots.find(q => q.house !== undefined); p.path = []; })) neg.push('a plot with no path passed');
   if (!probe(vil => { const p = vil.plots.find(q => q.car); if (p) p.car.x = p.house !== undefined ? vil.houses[p.house].x : p.car.x; if (p) p.car.z = vil.houses[p.house].z; }))
     neg.push('a car in the house passed');
+  if (!probe(vil => { const p = vil.plots.find(q => (q.fences || []).some(f => f.kind === 'side')); p.fences = p.fences.filter(f => f.kind !== 'side'); }))
+    neg.push('a hole in a side fence passed');
   if (!probe(vil => { const p = vil.plots.find(q => (q.fences || []).some(f => f.kind === 'front'));
                       const f = p.fences.find(f => f.kind === 'front'); f.gap = null; })) neg.push('a front fence with no gate passed');
   for (const n of neg) fail.push('SELFTEST: ' + n);

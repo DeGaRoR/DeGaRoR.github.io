@@ -144,7 +144,44 @@ function propBuild(THREE, key) {
   }
   built = { prop, geos, mats };
   PROP_BUILT.set(key, built);
+  const dust = PROP_DUST.get(key);
+  if (dust) for (const m of mats) dustMaterial(m, dust);
   return built;
+}
+
+// THE DUST GRADIENT (G283, the user: "Apply a hard layer of dust gradient to
+// the white fence, black to transparent vertically, black at the bottom ...
+// You could do that with nearly everything, it's also faking AO"). A prop
+// stood on the ground is dark at its foot and clean at `h` metres up; the
+// darkening is in the prop's OWN frame (its origin is on the ground, its y is
+// up), so it goes wherever the prop is stood. Registered per prop key -
+// `propDust(key, h, k)` - before or after the prop is built; every instance
+// of the key wears it, which is the point of a shared material.
+const PROP_DUST = new Map();            // prop key -> { h, k }
+function dustMaterial(m, d) {
+  const ud = m.userData || (m.userData = {});
+  ud.dust = { uDustH: { value: d.h }, uDustK: { value: d.k } };
+  if (ud.dusted) return;
+  ud.dusted = true;
+  const prev = m.onBeforeCompile;
+  const NL = String.fromCharCode(10);
+  m.onBeforeCompile = sh => {
+    if (prev) prev(sh);
+    sh.uniforms.uDustH = ud.dust.uDustH;
+    sh.uniforms.uDustK = ud.dust.uDustK;
+    sh.vertexShader = 'varying float vDustY;' + NL + sh.vertexShader
+      .replace('#include <begin_vertex>', '#include <begin_vertex>' + NL + '  vDustY = transformed.y;');
+    sh.fragmentShader = 'varying float vDustY;' + NL + 'uniform float uDustH, uDustK;' + NL + sh.fragmentShader
+      .replace('#include <color_fragment>', '#include <color_fragment>' + NL +
+        '  diffuseColor.rgb *= mix(1.0 - uDustK, 1.0, smoothstep(0.0, uDustH, vDustY));');
+  };
+  m.needsUpdate = true;
+}
+function propDust(key, h, k) {
+  const d = { h: h || 0.4, k: k === undefined ? 0.85 : k };
+  PROP_DUST.set(key, d);
+  const b = PROP_BUILT.get(key);
+  if (b) for (const m of b.mats) dustMaterial(m, d);
 }
 
 // A placeable instance. Transparent parts go last in the group so a gauge glass
@@ -221,4 +258,4 @@ function propDispose(key) {
 
 if (typeof module !== 'undefined' && module.exports)
   module.exports = { propMesh, propPlace, propBuild, propMaterial, propTexture,
-                     propSetEnv, propEnv, propDispose, propWarm, propReady };
+                     propSetEnv, propEnv, propDispose, propWarm, propReady, propDust };

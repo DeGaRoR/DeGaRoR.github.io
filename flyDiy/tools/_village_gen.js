@@ -74,7 +74,7 @@ const VDEF = {
   plotDepth: 30,          // inland plots, metres off the road
   riparian: 16,           // a waterfront plot runs this far past the shore
   gapOdds: 0.18,          // a frontage left empty
-  fenceOdds: 0.72,        // an edge fenced
+  fenceOdds: 1.0,         // an edge fenced (the front always is, with its gate)
   oldFenceOdds: 0.25,     // a plot fenced with the scanned fence instead
   carOdds: 0.45,          // a plot with an abandoned car in the backyard
   boatOdds: 0.3,          // a plot with the trailered boat on the ground
@@ -244,6 +244,11 @@ function placeHouse(T, V, plot, seed, rnd) {
     c = cl(d);
     P.water = 1; P.stance = 3;
     P.porch = 1; P.stairs = 1; P.pier = 1;
+    // TWO FACADES (G283, the user: "All houses touching the water should
+    // have a decent entrance at the back, because that's where people get
+    // in from the street"): a back door with its stoop and steps, and no
+    // lean-to across it
+    P.backDoor = 1; P.backPorch = 1; P.lean = 0;
   } else {
     d = 8 + rnd() * 4;
     c = cl(d);
@@ -292,7 +297,15 @@ function placeHouse(T, V, plot, seed, rnd) {
 // a gate-width gap where the path crosses; the back of a land plot too, some
 // of the time. A water plot's frontage is on the road as well (its back is
 // the shore, never fenced).
-function planFences(V, plot, house, rnd) {
+// EVERY EDGE (G283, the user: "Please fully delimit the lots with fences, no
+// holes. And have an entrance door to the lot, appropriately placed"): the
+// two sides, the front and, on a land plot, the back - the shore is a water
+// plot's back and needs none. A side shared with the neighbour is fenced
+// ONCE (the village remembers, by its endpoints). The front has the GATE:
+// a bay of its own, 1.3 m, where the path crosses, with a leaf hung on its
+// first post. `fenceOdds` below 1 leaves the odd side open again.
+const edgeKey = (a, b) => [a, b].map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).sort().join('|');
+function planFences(V, plot, house, rnd, fenced) {
   const out = [];
   const old = rnd() < V.oldFenceOdds;
   const edges = [
@@ -302,10 +315,13 @@ function planFences(V, plot, house, rnd) {
   ];
   if (plot.side === 'land') edges.push({ a: plot.poly[2], b: plot.poly[3], kind: 'back' });
   for (const e of edges) {
-    if (rnd() > V.fenceOdds) continue;
+    const k = edgeKey(e.a, e.b);
+    if (fenced && fenced.has(k)) continue;         // the neighbour's fence is this fence
+    if (e.kind !== 'front' && rnd() > V.fenceOdds) continue;
+    if (fenced) fenced.add(k);
     const seg = { a: e.a, b: e.b, kind: e.kind, style: old ? 'old' : (e.kind === 'front' ? 'picket' : 'rail'),
                   gap: null };
-    if (e.kind === 'front') seg.gap = [house.gateT - 0.75, house.gateT + 0.75];
+    if (e.kind === 'front') seg.gap = [house.gateT - 0.65, house.gateT + 0.65];
     out.push(seg);
   }
   return out;
@@ -315,14 +331,9 @@ function planFences(V, plot, house, rnd) {
 // stair foot when the stair faces the road, to the wall nearest the road
 // when it does not; and, on a water plot, the house's own stair path goes
 // to the water (the house draws that one itself)
-function planPath(plot, house, built) {
+function planPath(plot, house, built, road) {
   const st = built.stats.stair;
   const front = built.stats.front;
-  // the gate sits on the frontage where the house's centre projects onto it
-  const dx = house.x - plot.front[0], dz = house.z - plot.front[1];
-  const along = dx * plot.tg[0] + dz * plot.tg[1];
-  house.gateT = clamp(along, 2, plot.w - 2);
-  const gate = [plot.poly[0][0] + plot.tg[0] * house.gateT, plot.poly[0][1] + plot.tg[1] * house.gateT];
   let target;
   if (plot.side === 'land' && st) {
     const w = house.toWorld(st.x, st.z1);
@@ -337,10 +348,28 @@ function planPath(plot, house, built) {
     const w = bk ? house.toWorld(bk.x, bk.z - bk.side * bk.depth) : house.toWorld(0, -house.P.w / 2 - 1.0);
     target = [w[0], w[1]];
   }
+  // THE GATE SITS WHERE THE PATH ARRIVES (G283): the entrance projected
+  // onto the frontage, inside the frontage by a post and a half
+  const dx = target[0] - plot.poly[0][0], dz = target[1] - plot.poly[0][1];
+  house.gateT = clamp(dx * plot.tg[0] + dz * plot.tg[1], 1.6, plot.w - 1.6);
+  const gate = [plot.poly[0][0] + plot.tg[0] * house.gateT, plot.poly[0][1] + plot.tg[1] * house.gateT];
   // a bend two thirds of the way, so it is not a survey line
   const mid = [gate[0] + (target[0] - gate[0]) * 0.55 + plot.tg[0] * 1.2,
                gate[1] + (target[1] - gate[1]) * 0.55 + plot.tg[1] * 1.2];
-  const roadEdge = [gate[0] - plot.n[0] * 2.0, gate[1] - plot.n[1] * 2.0];
+  // the road's edge nearest the gate - found on the road's own line, since
+  // the frontage is a chord of its curve and can sit a metre or two off it
+  let best = null, bd = 1e9;
+  for (let i = 1; i < road.pts.length; i++) {
+    const A = road.pts[i - 1], B = road.pts[i];
+    const dx2 = B[0] - A[0], dz2 = B[1] - A[1];
+    const t = clamp(((gate[0] - A[0]) * dx2 + (gate[1] - A[1]) * dz2) / Math.max(1e-9, dx2 * dx2 + dz2 * dz2), 0, 1);
+    const q = [A[0] + dx2 * t, A[1] + dz2 * t];
+    const d = Math.hypot(gate[0] - q[0], gate[1] - q[1]);
+    if (d < bd) { bd = d; best = q; }
+  }
+  const toGate = [gate[0] - best[0], gate[1] - best[1]];
+  const tl = Math.hypot(toGate[0], toGate[1]) || 1;
+  const roadEdge = [best[0] + toGate[0] / tl * (road.w / 2 + 0.2), best[1] + toGate[1] / tl * (road.w / 2 + 0.2)];
   return [[roadEdge, gate], [gate, mid], [mid, target]];
 }
 
@@ -453,8 +482,9 @@ function planCar(vil, plot, house, built, rnd, thing) {
 // and the car
 function finishPlot(vil, plot, house, built) {
   const rnd = vil.rnd;
-  plot.path = planPath(plot, house, built);
-  plot.fences = planFences(vil.V, plot, house, rnd);
+  plot.path = planPath(plot, house, built, vil.road);
+  vil.fenced = vil.fenced || new Set();
+  plot.fences = planFences(vil.V, plot, house, rnd, vil.fenced);
   plot.car = planCar(vil, plot, house, built, rnd, 'car');
   plot.boat = planCar(vil, plot, house, built, rnd, 'boat');
   if (plot.car && plot.boat && Math.hypot(plot.car.x - plot.boat.x, plot.car.z - plot.boat.z) < 5.5) plot.boat = null;
@@ -469,6 +499,52 @@ function finishPlot(vil, plot, house, built) {
 // picket here and there is short or gone, a rail dips at mid-bay. Into two
 // bags: `post` (the posts, the frame's timber) and `deck` (rails and pickets,
 // the cladding's). A gap is a bay with nothing in it but its two posts.
+// THE GATE LEAF (G283): a frame - two stiles, two rails, a brace - and
+// pickets, hung on the gate's first post and standing a third open into the
+// plot, which is how a garden gate is found. Drawn into the same bags.
+function gateLeaf(bags, T, a, tg, t0, t1, H, hand, j, style) {
+  const W = t1 - t0 - 0.10, open = 0.45 + 0.3 * j(t0, 9);      // radians, into the plot
+  const hx = a[0] + tg[0] * (t0 + 0.05), hz = a[1] + tg[1] * (t0 + 0.05);
+  const gy = T.h(hx, hz);
+  // the leaf's own direction: the fence's, swung by `open` toward -n (into the plot: the
+  // plot lies on the fence's left when walking a -> b, which is [-tg[1], tg[0]])
+  const c = Math.cos(open), s = Math.sin(open);
+  const d = [tg[0] * c + (-tg[1]) * s, tg[1] * c + tg[0] * s];
+  const at = (u, y) => [hx + d[0] * u, gy + y, hz + d[1] * u];
+  const gh = Math.min(H, 1.05);
+  const up = [0, 1, 0];
+  let n = 0;
+  // the stiles
+  for (const u of [0.05, W - 0.05]) {
+    K.beam(bags.deck, at(u, 0.12), at(u, gh), 0.035, 0.035, [d[1], 0, -d[0]], 0, { bevel: 0.003 });
+    n++;
+  }
+  // the rails and the brace
+  for (const y of [0.30, gh - 0.18]) {
+    K.beam(bags.deck, at(0.05, y), at(W - 0.05, y), 0.02, 0.045, up, 0, { bevel: 0.003 });
+    n++;
+  }
+  K.beam(bags.deck, at(0.06, 0.32), at(W - 0.06, gh - 0.2), 0.02, 0.04, up, 0, { bevel: 0.003 });
+  n++;
+  // the pickets, on the road side of the frame
+  const np = Math.max(3, Math.round(W / 0.14));
+  for (let q = 0; q < np; q++) {
+    const u = 0.07 + (W - 0.14) * (q + 0.5) / np;
+    const top = gh + 0.02 + j(t0 + q, 6) * 0.03 * hand;
+    K.beam(bags.deck, [at(u, 0.16)[0] - d[1] * 0.035, gy + 0.16, at(u, 0.16)[2] + d[0] * 0.035],
+           [at(u, top)[0] - d[1] * 0.035, gy + top, at(u, top)[2] + d[0] * 0.035],
+           0.04, 0.01, [d[1], 0, -d[0]], 0, { bevel: 0.002, uv: [u, q * 0.3] });
+    n++;
+  }
+  // the hinge post and the latch post stand taller than the run
+  for (const t of [t0, t1]) {
+    const x = a[0] + tg[0] * t, z = a[1] + tg[1] * t, y = T.h(x, z);
+    K.beam(bags.post, [x, y - 0.25, z], [x, y + H + 0.18, z], 0.065, 0.065, [tg[0], 0, tg[1]], 0, { bevel: 0.006, uv: [t, x + z] });
+    n++;
+  }
+  return n;
+}
+
 // a fence stops at the water: the segment is cut where the ground goes under
 function clipToLand(T, seg) {
   const a = seg.a, b = seg.b;
@@ -498,8 +574,6 @@ function buildFence(bags, T, seg0, hand, k0) {
   if (L < 1.0) return 0;
   const tg = [(b[0] - a[0]) / L, (b[1] - a[1]) / L];
   const H = seg.style === 'picket' ? 1.05 : 1.15;
-  const nb = Math.max(1, Math.round(L / 2.4));
-  const pitch = L / nb;
   const j = (i, k) => { const h = Math.sin((a[0] + i * 3.7) * 12.9898 + (a[1] + k) * 78.233 + k0) * 43758.5453; return (h - Math.floor(h)) * 2 - 1; };
   const gy = (x, z) => T.h(x, z);
   const postAt = t => {
@@ -513,12 +587,28 @@ function buildFence(bags, T, seg0, hand, k0) {
     return { x, z, y };
   };
   let n = 0;
-  const posts = [];
-  for (let i = 0; i <= nb; i++) posts.push(postAt(i * pitch));
+  // THE POSTS: every 2.4 m along each stretch, and where there is a gate the
+  // stretch breaks at the gate's two posts, so the gate is its own bay -
+  // 1.3 m, not a whole fence bay - and its leaf hangs on the first of them
+  const gap = seg.gap && seg.gap[1] > 0.3 && seg.gap[0] < L - 0.3
+    ? [Math.max(0.3, seg.gap[0]), Math.min(L - 0.3, seg.gap[1])] : null;
+  const ts = [];
+  const stretch = (u0, u1) => {
+    const nb = Math.max(1, Math.round((u1 - u0) / 2.4));
+    for (let i = 0; i <= nb; i++) ts.push(u0 + (u1 - u0) * i / nb);
+  };
+  if (gap) { stretch(0, gap[0]); stretch(gap[1], L); } else stretch(0, L);
+  const posts = ts.map(postAt);
   if (seg0.feet) for (const p of posts) seg0.feet.push([p.x, p.z]);
-  for (let i = 0; i < nb; i++) {
-    const t0 = i * pitch, t1 = (i + 1) * pitch;
-    if (seg.gap && t1 > seg.gap[0] && t0 < seg.gap[1]) continue;   // the gate's bay
+  const bays = [];
+  for (let i = 0; i + 1 < ts.length; i++) {
+    const t0 = ts[i], t1 = ts[i + 1];
+    if (gap && Math.abs(t0 - gap[0]) < 1e-6 && Math.abs(t1 - gap[1]) < 1e-6) continue;
+    bays.push([i, t0, t1]);
+  }
+  if (gap) n += gateLeaf(bags, T, a, tg, gap[0], gap[1], H, hand, j, seg.style);
+  for (const [i, t0, t1] of bays) {
+    const pitch = t1 - t0;
     const p0 = posts[i], p1 = posts[i + 1];
     for (const rh of seg.style === 'picket' ? [0.28, 0.82] : [0.42, 0.98]) {
       const sag = 0.012 * hand * (1 + j(t0, 4));
@@ -527,7 +617,8 @@ function buildFence(bags, T, seg0, hand, k0) {
       K.beam(bags.deck, A, B, 0.018, 0.045, [0, 1, 0], 0, { bevel: 0.003, uv: [t0 * 0.9, rh] });
       n++;
     }
-    if (seg.style === 'picket') {
+    if (seg.style === 'picket' || seg.style === 'old') {
+      if (seg.style === 'old') continue;            // the scanned stretch is the pickets
       const np = Math.max(2, Math.round(pitch / 0.16));
       for (let q = 0; q < np; q++) {
         const u = (q + 0.5) / np;
@@ -546,5 +637,5 @@ function buildFence(bags, T, seg0, hand, k0) {
 }
 
 window.VILLAGE_GEN = { VDEF, makeTerrain, makeRoad, makePlots, makeVillage, finishPlot,
-                       buildFence, clipToLand, inPoly, shoreZ, fbm };
+                       buildFence, gateLeaf, clipToLand, inPoly, shoreZ, fbm };
 })();

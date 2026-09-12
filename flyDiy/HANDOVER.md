@@ -39391,3 +39391,38 @@ skeleton control (the user's offer) was not needed.
 
 Next (the user): check that the pilot moves with the inputs and the
 controls move with the aeroplane.
+
+## G283 — THE LOTS ARE CLOSED: EVERY EDGE FENCED, A GATE WHERE THE PATH
+## COMES IN, A BACK ENTRANCE ON EVERY WATERFRONT HOUSE; AND THE PROPS WEAR
+## THE DUST (2026-09-12, the user: "Apply a hard layer of dust gradient to the
+## white fence, black to transparent vertically, black at the bottom ... You
+## could do that with nearly everything, it's also faking AO" / "Please fully
+## delimit the lots with fences, no holes. And have an entrance door to the
+## lot, appropriately placed. All houses touching the water should have a
+## decent entrance at the back")
+
+- **THE DUST ON THE PROPS** (`propDust(key, h, k)` in `src/viewer/props.js`):
+  registered per prop key, worn by every instance through the shared
+  material — dark at the foot (`k`), clean at `h` metres up, in the prop's
+  OWN frame (its origin is on the ground), so it goes wherever the prop is
+  stood. The scanned fence to half its height at 0.9; the cars to their
+  sills; every yard prop, the trailer boat, the doorway's poles and the
+  dolphin. Both benches register the table.
+- **EVERY EDGE FENCED** (`planFences`): sides, front and, on a land plot,
+  the back — the shore is a water plot's back. A side shared with the
+  neighbour is fenced once (`vil.fenced`, by endpoints). `fenceOdds` is
+  1 by default; the front is always fenced.
+- **THE GATE WHERE THE PATH COMES IN**: `planPath` finds the entrance first
+  (the stair foot, the front stoop, or the back of a waterfront house) and
+  puts the gate at its projection on the frontage; the road end of the path
+  is found on the road's own line, since the frontage is a chord of the
+  road's curve. `buildFence` breaks its post run at the gate's two posts
+  (a 1.3 m bay of its own, taller posts) and hangs a LEAF on the first —
+  stiles, rails, a brace, pickets — swung a third open into the plot. The
+  scanned-fence frontages get the same leaf between their stretches.
+- **TWO FACADES**: a waterfront house has a back door, a back stoop with
+  its steps, and no lean-to across it; the path from the road reaches it.
+- **GATE VILLAGE rule 5b**: no plot edge but the shore without a fence (its
+  own or the neighbour's), a gate on every front, a back entrance on every
+  waterfront house; selftest opens a hole.
+- Gates: HOUSE, VILLAGE (both --selftest) green.

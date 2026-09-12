@@ -428,15 +428,24 @@ function placeFences(parent, vil) {
       const nseg = Math.max(1, Math.round(L / W));
       const pitch = L / nseg;
       const ry = Math.atan2(tg[0], tg[1]) - Math.PI / 2;
-      for (let i = 0; i < nseg; i++) {
-        const t0 = i * pitch, t1 = t0 + pitch;
-        if (seg.gap && t1 > seg.gap[0] && t0 < seg.gap[1]) continue;
-        const tm = (t0 + t1) / 2;
-        const x = seg.a[0] + tg[0] * tm, z = seg.a[1] + tg[1] * tm;
-        const o = propPlace(THREE, 'fence_old', x, z, ry, vil.T.h(x, z) - 0.03);
-        o.scale.x = pitch / W;
-        parent.add(o);
-        old++;
+      // the scanned stretches either side of the gate, each scaled to its
+      // own share; the gate itself is the drawn leaf (G283)
+      const parts = seg.gap ? [[0, Math.max(0, seg.gap[0])], [Math.min(L, seg.gap[1]), L]] : [[0, L]];
+      for (const [u0, u1] of parts) {
+        if (u1 - u0 < 0.8) continue;
+        const ns = Math.max(1, Math.round((u1 - u0) / W)), pw = (u1 - u0) / ns;
+        for (let i = 0; i < ns; i++) {
+          const tm = u0 + pw * (i + 0.5);
+          const x = seg.a[0] + tg[0] * tm, z = seg.a[1] + tg[1] * tm;
+          const o = propPlace(THREE, 'fence_old', x, z, ry, vil.T.h(x, z) - 0.03);
+          o.scale.x = pw / W;
+          parent.add(o);
+          old++;
+        }
+      }
+      if (seg.gap) {
+        const jj = (i, k) => 0.3;
+        n += VG.gateLeaf(bags, vil.T, seg.a, tg, Math.max(0.3, seg.gap[0]), Math.min(L - 0.3, seg.gap[1]), 1.15, P.hand, jj, 'old');
       }
     } else {
       seg.feet = FENCE_POSTS;
@@ -607,6 +616,22 @@ addEventListener('resize', draw);
 $('rebuild').onclick = () => build();
 $('rndBtn').onclick = () => { V.seed = 1 + Math.floor(Math.random() * 99); ui.querySelector('input').value = V.seed; ui.querySelector('.v').textContent = V.seed; build(); };
 if (typeof window !== 'undefined') window.PROP_LANDED = () => draw();
+// THE DUST ON THE PROPS (G283): everything that stands on the ground is dark
+// at its foot - the fence to half its height, a car to its sills, a bin to
+// a third of it. Registered by key; the material factory wears it.
+{
+  const D = { fence_old: [0.55, 0.9], barrel_plastic: [0.3, 0.7], drum_steel: [0.3, 0.7],
+              bin_metal: [0.3, 0.7], bin_metal_rust: [0.3, 0.75], bottle_propane: [0.2, 0.6],
+              bottle_lpg: [0.22, 0.6], compressor: [0.35, 0.7], stove_barrel: [0.3, 0.7],
+              crate_wood_a: [0.15, 0.6], crate_wood_b: [0.2, 0.6], crate_wood_c: [0.15, 0.6],
+              tyre: [0.1, 0.6], work_trestle: [0.3, 0.6], handtruck: [0.3, 0.6], box_cardboard: [0.12, 0.5],
+              jerrycan: [0.12, 0.6], jerrycan_green: [0.15, 0.6], bags_stack: [0.1, 0.5], bags_lean: [0.2, 0.55],
+              bags_flat: [0.08, 0.5], bags_stand: [0.25, 0.55], bag_compost: [0.15, 0.5], planter: [0.25, 0.6],
+              stepladder: [0.3, 0.6], stool_wood: [0.15, 0.5], chair_lounge: [0.2, 0.5], table_wood: [0.2, 0.5],
+              boat_tirola: [0.3, 0.7], pier_gate: [0.5, 0.6], pier_piles: [0.6, 0.6] };
+  for (const k of (G.CAR_KEYS || [])) D[k] = [0.45, 0.8];
+  for (const k in D) propDust(k, D[k][0], D[k][1]);
+}
 (() => {
   const L = G.libSets();
   if (L) for (const k in L) for (const m of ['diff', 'nor', 'rough', 'paint'])
