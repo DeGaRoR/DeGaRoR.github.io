@@ -2031,6 +2031,32 @@ const PRESETS = {
     roofSet: SET_IDX('roof', 'corrrust'), roofCol: 0,
     deckSet: SET_IDX('deck', 'darkwood'), postSet: SET_IDX('post', 'bark'),
   },
+  // THE MINE'S HOUSES (G321, Kennecott's lower buildings): the same red as
+  // the mill, the wear turned up - dirty, faded, a stove pipe, a lean-to
+  'mine bunkhouse': {
+    L: 18.0, w: 6.0, storeys: 2, floorH: 2.5, roofFam: 0, pitch: 30,
+    stance: 1, floorY: 0.55, slopeZ: 3, eaveOver: 0.5, rakeOver: 0.35,
+    nFront: 7, nBack: 6, nLeft: 2, nRight: 2, winW: 0.85, winH: 1.15, winSill: 0.95,
+    doorPos: 0.5, doorW: 1.0, porch: 1, porchD: 1.6, porchLenF: 0.35, porchRoof: 1, railStyle: 1, stairs: 1,
+    dormers: 3, chim: 1, chimR: 0.12, gutter: 0, downpipe: 0, backDoor: 1, backPorch: 1, lean: 1, leanD: 2.2,
+    weather: 0.85, dirt: 0.75, dirtH: 1.5, paintPunch: 0.5, yard: 1, woodpile: 1, boat: 0, people: 1,
+    wallSet: SET_IDX('wall', 'paintwood'), wallCol: 10,
+    trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 6,
+    roofSet: SET_IDX('roof', 'corrrust'), roofCol: 0,
+    deckSet: SET_IDX('deck', 'greywood'), postSet: SET_IDX('post', 'rough'),
+  },
+  'mine cottage': {
+    L: 8.5, w: 6.2, storeys: 1, floorH: 2.6, roofFam: 0, pitch: 36, gableWin: 1,
+    stance: 1, floorY: 0.5, slopeZ: 3, eaveOver: 0.4, rakeOver: 0.3,
+    nFront: 3, nBack: 2, nLeft: 1, nRight: 1, winW: 0.85, winH: 1.2, winSill: 0.9,
+    doorPos: 0.3, porch: 1, porchD: 1.5, porchLenF: 0.6, porchRoof: 2, railStyle: 2, stairs: 1,
+    dormers: 2, chim: 1, chimR: 0.1, gutter: 0, downpipe: 0, backDoor: 1, backPorch: 0,
+    weather: 0.8, dirt: 0.7, dirtH: 1.3, paintPunch: 0.55, boat: 0,
+    wallSet: SET_IDX('wall', 'paintwood'), wallCol: 10,
+    trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 6,
+    roofSet: SET_IDX('roof', 'corrworn'), roofCol: 0,
+    deckSet: SET_IDX('deck', 'greywood'), postSet: SET_IDX('post', 'rough'),
+  },
   'log cabin': {
     wallSet: SET_IDX('wall', 'roughwood'), wallCol: 0,
     trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 2,

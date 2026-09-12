@@ -41044,3 +41044,80 @@ lattice's lever, and with the cluster on the members carry none.
   proud of the plate at renderOrder 3). One sheet for every tape — the
   switch row's, the registration's blank, the controls' — so the bottom
   row softened with it. Sheet `labels_512x160.044eddc6.png`.
+
+## G321 — THE MILL IS A FAMILY OF HOUSES; THE MINE IS A THEME ON ITS OWN HILL
+## (2026-09-13, the user: "we need to do better here. First of all, it's a
+## family of houses ... a big part only in beams, with different roofs at
+## different heights ... different orientation and different types ... The
+## finishes are raw wood. The planks are old wood, pale but bright red ...
+## small side structures only made out of wood beams ... the large conveyor
+## ... its rusty texture ... more detail ... Some smaller tubing. The rest of
+## the houses are more typical. One gets the road going through ... extra
+## effort on weathering ... slightly collapsed roof. Some collapsed planks ...
+## the chimneys ... a little more detail ... do the whole mining village.
+## Also think of a way of packaging these things ... 'themes'")
+
+- **THE MILL, RECOMPOSED** (`buildMill`, `tools/_big_gen.js`): a LIST of
+  tiers (`millTiers`), each its own house — `roof` 'x' (a gable along the
+  contour), 'z' (across it: the big gable end facing down the hill),
+  'mono' (one plane), or 'frame' (NO walls: the crusher floor is a grid of
+  posts, plates at every storey, braces in every bay, a board floor, a
+  roof on top — "the big part only in beams"); `storeys` per tier;
+  `naked` a lean-to of bare beams on the +x end (posts, rafters, purlins,
+  braces, nothing on it); `head` the small closed head house on the
+  frame. The Kennecott preset: x / mono / z / x+naked / x 3 storeys /
+  z+naked / frame+head. A tier's floor is a rise over the one below and
+  never in the hill (the ground under its back can climb faster than the
+  rise). The interior floors are drawn as dark planes seen through the
+  glass. Raw timber is a new bag `beam` (the house library's post sets:
+  rough, mossy, bark), aged and darkened by the finish; the boards wear
+  the house's PAINT map tinted (`dress` picks `paint` over `diff` for a
+  tinted house set — the natural scan made every red a brown), pale
+  bright red 0xd4452c, the dirt turned up.
+- **DERELICT** (`derelict` 0..1, half the tiers by default): the middle
+  panel of one roof side dropped at the ridge and tilted in, its rafters
+  bare; narrow gaps through the cladding where a run of boards has gone
+  (through to the dark inside); loose boards leaning at the foot.
+- **THE TRAMWAY** in rusted steel now (the `metal` bag on the rust set):
+  chords, verticals, diagonals, cross ties top and bottom, a sheet hood
+  over it, two PIPES along it on hangers, trestle legs where it is high.
+- **THE STACKS**: bands every 3 m, a crown, a concrete base, three guy
+  wires to their anchor blocks (never through the power house), a
+  ladder up the back of the first.
+- **THE ROAD GOES THROUGH** (`rollersBack`): the roller openings mirrored
+  on the back wall, no leaf — the `tram shed` preset (16 × 9, one 5.6 m
+  opening each end, a strip of windows) stands ON the road. `mine shop`
+  (the workshop in the mine's red with two stacks); the house generator
+  gains `mine bunkhouse` (18 m, two storeys, three dormers, a lean-to,
+  weather 0.85, dirt 0.75) and `mine cottage` (dormers, a stoop) — the
+  typical ones, dirty and faded.
+- **THE THEME** (`THEMES` in `tools/_village_gen.js`, `placeSite`): a
+  site is a plan in the ROAD'S OWN FRAME — the anchor a point on the road
+  (`V.site = 'kennecott'`, `V.siteT` metres along it, 0 = the middle), x
+  arclength along the road, z inland along the normal THERE — so a bend
+  bends the site and a shed on the road is on the road. It names the
+  hill (`back`, `h`, `r`: a smooth bump folded into the terrain AFTER the
+  road is laid, zero at the road), the span of road that gets no land
+  plots (and no water plot across from the shed), and the items:
+  generator, preset, x, z, yaw (0 = facing the road), overrides. The
+  village builds them as `vil.siteHouses` (no plot, no fence, their own
+  ground skirt), the trees keep off `vil.siteKeepOut`, the billboards
+  and poles keep off the span. The game invokes one by name and gets
+  the hill, the buildings and the keep-out from one record — the
+  packaging asked for; a second theme is another entry.
+- **KENNECOTT**: the hill 62 m behind the road, 34 m high, radius 58; the
+  mill at 24 m up the slope facing the road, the tram shed 26 m along the
+  road astride it, the mine shop, two bunkhouses, two cottages, a shed.
+  The bench's `site` select; two of GATE VILLAGE's seeds carry it.
+- **GATE VILLAGE 15**: the hill is there, every item built on the terrain
+  with its floor above the ground under it, none on a plot, none in the
+  water, every mill tier above the hill under it, the tram shed astride
+  the road along it with a way through, no land plot on the span. Rule
+  12 mirrors the generator's civic conditions (a site can eat the land
+  plots). GATE HOUSE's big battery holds the mill's reach (the guy
+  anchors) and its climb.
+- Seen: the mill on its hill in the village — red tiers, the collapsed
+  panel with its rafters, the lattice, the naked lean-tos, the banded
+  stacks with their guys, the power house, the wood parted around it; the
+  tram shed with the dirt road running into its opening.
+- Gates: HOUSE, VILLAGE green.

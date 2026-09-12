@@ -91,6 +91,7 @@ function buildVillage(V) {
     VG.finishPlot(vil, plot, h, h.built);
     if (plot.out) plot.out.built = HG.build(plot.out.P, 0);
   }
+  for (const h of vil.siteHouses || []) h.built = (h.gen === 'big' ? BGN : HG).build(h.P, 0);
   VG.planBillboards(vil, ['air_taxi', 'bear_tours', 'north_motel']);
   // the trees, on a stub pool shaped like the bench's (tall and small)
   VG.planTrees(vil, [{ key: 'cedar|Cedar', size: 1, sink: 2, proportion: 1, h: 17 },
@@ -269,8 +270,13 @@ function battery(name, vil) {
   if (vil.plots.length >= 6) {
     const civ = vil.houses.filter(h => h.P.civic);
     const hall = civ.find(h => h.P.preset === 'town hall'), church = civ.find(h => h.P.preset === 'church');
-    check(!!hall, name + ': no town hall');
-    check(!!church, name + ': no church');
+    // the generator's own conditions: two land plots for the hall, one of
+    // the rest two or more plots away for the church (a site can eat the
+    // land plots, G321)
+    const land = vil.plots.filter(p => p.side === 'land').sort((a, b) => b.w - a.w);
+    const wantHall = land.length >= 2, wantChurch = wantHall && land.slice(1).some(p => Math.abs(p.id - land[0].id) >= 2);
+    check(!!hall === wantHall, name + ': ' + (wantHall ? 'no town hall' : 'a town hall with no plot for it'));
+    check(!!church === wantChurch, name + ': ' + (wantChurch ? 'no church' : 'a church with no plot for it'));
     if (hall && church) {
       check(hall.plot !== church.plot && Math.abs(hall.plot - church.plot) >= 2, name + ': the town hall and the church share a block');
       for (const h of [hall, church]) {
@@ -318,6 +324,46 @@ function battery(name, vil) {
       for (let j = i + 1; j < bb.length; j++) check(Math.hypot(bb[j].x - b.x, bb[j].z - b.z) > 25, name + ': two billboards crowd each other');
       check(Math.abs(b.y - T.h(b.x, b.z)) < 0.01, name + ': a billboard floats');
     }
+  }
+  // 15 — THE SITE (G321): with a theme named, the hill is there (the ground
+  //   at its centre well above the road's), every item built on the real
+  //   terrain with its floor above the ground under its corners, none on a
+  //   plot, none in the water, the mill's tiers each above the hill under
+  //   them, the tram shed astride the road with the road through it (the
+  //   road's line crosses its footprint between its two openings), and no
+  //   plot on the site's span of the land side
+  if (vil.site) {
+    const S = vil.site, th = S.theme;
+    check(T.h(S.hill[0], S.hill[1]) > T.h(S.at.p[0], S.at.p[1]) + th.hill.h * 0.7, name + ': no hill behind the road');
+    const items = vil.siteHouses || [];
+    check(items.length === th.items.length, name + ': the site built ' + items.length + ' of ' + th.items.length);
+    for (const h of items) {
+      const st = h.built.stats;
+      check(st.tris > 300 && isFinite(st.tris), name + ': ' + h.P.preset + ' did not build');
+      for (const p of vil.plots) check(!VG.inPoly(p.poly, h.x, h.z), name + ': ' + h.P.preset + ' stands on plot ' + p.id);
+      check(T.h(h.x, h.z) > T.waterY + 0.3, name + ': ' + h.P.preset + ' stands in the water');
+      if (h.P.mill) {
+        for (const tier of st.mill.tiers) {
+          let gU = -1e9;
+          for (const x of [tier.x0, tier.x1]) for (const z of [tier.zF, tier.zB]) gU = Math.max(gU, h.ground(x, z));
+          check(tier.fy > gU + 0.1, name + ': mill tier ' + tier.i + ' is in the hill', tier.fy.toFixed(2) + ' vs ' + gU.toFixed(2));
+        }
+      } else {
+        const L = h.P.L, w = h.P.w;
+        let gU = -1e9;
+        for (const sx of [-1, 1]) for (const sz of [-1, 1]) gU = Math.max(gU, h.ground(sx * L / 2, sz * w / 2));
+        check(h.P.floorY > gU, name + ': ' + h.P.preset + ' has its floor in the ground');
+      }
+      if (h.item.onRoad) {
+        check(distToRoad(road, [h.x, h.z]) < 1.5, name + ': the tram shed is not on the road', distToRoad(road, [h.x, h.z]).toFixed(2));
+        check(h.P.rollersBack === 1 && h.P.rollers >= 1 && st.rollers.length >= 1, name + ': the tram shed has no way through');
+        // the road's direction is the shed's local z (the openings are on +z and -z)
+        const a = road.at(S.t + th.shedT), lz = [Math.sin(h.yaw), Math.cos(h.yaw)];
+        check(Math.abs(a.tg[0] * lz[0] + a.tg[1] * lz[1]) > 0.9, name + ': the tram shed does not stand along the road');
+      }
+    }
+    for (const p of vil.plots)
+      check(!(p.side === 'land' && p.s1 > S.t - th.span[0] && p.s0 < S.t + th.span[1]), name + ': a plot on the span of road the mine owns');
   }
   // 8 — THE POLES (G285): a known pole, on the ground, on the road's verge
   //   (a metre or two off the road's line), on no plot
@@ -444,9 +490,10 @@ function battery(name, vil) {
 }
 
 // ---------------------------------------------------------------------------
+// THE SITE (G321): two of the seeds carry the mine on its hill
 const SEEDS = [3, 11, 27, 5, 8, 20, 44, 61];
 for (const seed of SEEDS) {
-  const V = Object.assign({}, VG.VDEF, { seed });
+  const V = Object.assign({}, VG.VDEF, { seed, site: (seed === 3 || seed === 20) ? 'kennecott' : '' });
   const vil = buildVillage(V);
   check(vil.plots.length >= 6, 'seed ' + seed + ': only ' + vil.plots.length + ' plots');
   check(vil.houses.length === vil.plots.length, 'seed ' + seed + ': a plot has no house');

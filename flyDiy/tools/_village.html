@@ -46,6 +46,7 @@
   <label>exposure <input id="expo" type="range" min="0.3" max="2.5" step="0.05" value="1.05"></label>
   <label>face <input id="sunAz" type="range" min="-180" max="180" step="1" value="0"></label>
   <label><input id="lightsOn" type="checkbox"> lights on</label>
+  <label>site <select id="siteSel"><option value="">none</option><option value="kennecott" selected>Kennecott - the mine</option></select></label>
   <label>levels <select id="peopleLod">
     <option value="-1">by distance</option>
     <option value="0">full</option>
@@ -105,7 +106,7 @@ const G = window.HOUSE_GEN, VG = window.VILLAGE_GEN;
 const D2R = Math.PI / 180;
 
 // ---- the village's own dials ------------------------------------------------
-const V = Object.assign({}, VG.VDEF);
+const V = Object.assign({}, VG.VDEF, { site: 'kennecott' });
 const ROWS = [
   ['seed', 'seed', 1, 99, 1],
   ['size', 'site size m', 120, 360, 10],
@@ -741,6 +742,25 @@ function build() {
     if (plot.side === 'water') water++;
     h.built = built;
   }
+  // THE SITE (G321): the theme's buildings on the hill, each through its
+  // own generator - no plot, no fence, its ground skirt drawn (there is no
+  // lot patch under it to carry the darkening)
+  let siteTris = 0;
+  for (const h of vil.siteHouses || []) {
+    const GEN = h.gen === 'big' ? window.BIG_GEN : G;
+    const F = GEN.makeFinish();
+    GEN.applyFinish(h.P, F);
+    const built = GEN.build(h.P, 0, F);
+    built.BAGS = GEN.BAGS;
+    h.built = built;
+    const grp = placeBuilt(root, h, built, F);
+    if (built.bags.aoskirt) {
+      const sk = built.bags.aoskirt.mesh(grp, G.MAT.aoskirt);
+      if (sk) { sk.renderOrder = 5; sk.castShadow = false; sk.receiveShadow = false; }
+    }
+    FINISHES.push(F);
+    siteTris += built.stats.tris;
+  }
   const fe = placeFences(root, vil);
   // THE TREES (G306): planned after every plot is finished (they keep off
   // the cars, the paths and the outbuildings), drawn once the payload is in
@@ -822,7 +842,7 @@ function build() {
     (tris + fe.tris).toLocaleString() + ' tris · ' + ms.toFixed(0) + ' ms';
   rep.push('<b>' + vil.plots.length + '</b> plots along <b>' + vil.road.length.toFixed(0) + ' m</b> of road');
   rep.push('<b>' + houses + '</b> houses, <b>' + water + '</b> waterfront, <b>' + piers + '</b> piers, <b>' + outs + '</b> outbuildings');
-  rep.push('fences: <b>' + fe.members + '</b> drawn members, <b>' + fe.old + '</b> scanned stretches; <b>' + cars + '</b> cars; <b>' + (vil.poles || []).length + '</b> poles; lot ground <b>' + lotVerts.toLocaleString() + '</b> vertices; <b>' + (vil.trees || []).length + '</b> trees' + (TREES_WARM ? ' (' + treeTris.toLocaleString() + ' tris at rung 0)' : ' (payload loading)'));
+  rep.push('fences: <b>' + fe.members + '</b> drawn members, <b>' + fe.old + '</b> scanned stretches; <b>' + cars + '</b> cars; <b>' + (vil.poles || []).length + '</b> poles; lot ground <b>' + lotVerts.toLocaleString() + '</b> vertices; <b>' + (vil.trees || []).length + '</b> trees' + (TREES_WARM ? ' (' + treeTris.toLocaleString() + ' tris at rung 0)' : ' (payload loading)') + (vil.site ? '; site <b>' + vil.site.theme.name + '</b> ' + (vil.siteHouses || []).length + ' buildings, ' + siteTris.toLocaleString() + ' tris' : ''));
   // the spread, reported: how many of each key the village used
   rep.push('<span style="color:#7d8996">' + Object.keys(vil.spread.used).filter(k => vil.spread.used[k]).map(k => k.replace(/^(person_|boat_|car_)/, '') + ' ' + vil.spread.used[k]).join(' · ') + '</span>');
   rep.push('<span class="' + (checks(vil) ? 'ok' : 'bad') + '">' + (checks(vil) ? 'plots checked: no overlap, every house in its plot' : 'CHECK FAILED - see console') + '</span>');
@@ -912,6 +932,7 @@ viewEl.addEventListener('dblclick', () => { ZOOM = 1; centreOv = null; draw(); }
 addEventListener('resize', draw);
 $('rebuild').onclick = () => build();
 $('lightsOn').onchange = () => build();
+$('siteSel').onchange = () => { V.site = $('siteSel').value; build(); };
 $('peopleLod').onchange = () => { window.PROP_LOD_FORCE = +$('peopleLod').value; build(); };
 $('rndBtn').onclick = () => { V.seed = 1 + Math.floor(Math.random() * 99); ui.querySelector('input').value = V.seed; ui.querySelector('.v').textContent = V.seed; build(); };
 if (typeof window !== 'undefined') window.PROP_LANDED = () => draw();

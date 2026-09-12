@@ -80,6 +80,8 @@ const VDEF = {
   carOdds: 0.45,          // a plot with an abandoned car in the backyard
   boatOdds: 0.3,          // a plot with the trailered boat on the ground
   nHouses: 0,             // 0 = every plot
+  site: '',               // a theme by name (THEMES), on a hill behind the road; '' for none
+  siteT: 0,               // where along the road, metres; 0 = the middle
 };
 
 function makeTerrain(V) {
@@ -148,7 +150,7 @@ function makeRoad(T, V) {
 // ---------------------------------------------------------------------------
 // THE PLOTS
 // ---------------------------------------------------------------------------
-function makePlots(T, V, road, rnd) {
+function makePlots(T, V, road, rnd, site) {
   const plots = [];
   const total = road.length;
   let t = 6 + rnd() * 8;
@@ -158,6 +160,9 @@ function makePlots(T, V, road, rnd) {
     if (t + w > total - 6) break;
     for (const side of ['water', 'land']) {
       if (rnd() < V.gapOdds) continue;
+      // the site's span of the road: no plots on the land side, nor on
+      // the water side across from the tram shed (G321)
+      if (site && t + w > site.t - site.theme.span[0] && t < site.t + site.theme.span[1] && (side === 'land' || Math.abs(t + w / 2 - site.t - site.theme.shedT) < 14)) continue;
       const a = road.at(t), b = road.at(t + w);
       const sgn = side === 'water' ? 1 : -1;      // along the water normal, or against it
       const off = road.w / 2 + 1.0;
@@ -436,9 +441,22 @@ function makeVillage(V0) {
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
-  const T = makeTerrain(V);
+  let T = makeTerrain(V);
   const road = makeRoad(T, V);
-  const plots = makePlots(T, V, road, rnd);
+  // THE SITE (G321): a theme on a hill behind the road. The road is laid on
+  // the base terrain (it follows the shore), then the hill is folded into
+  // the terrain behind it - zero at the road, its full height a way up -
+  // and the plots along the site's span of road are not made
+  let site = null;
+  if (V.site && THEMES[V.site]) {
+    const th = THEMES[V.site];
+    const tS = V.siteT > 0 ? V.siteT : road.length / 2;
+    const a = road.at(tS);
+    const hillC = [a.p[0] - a.n[0] * th.hill.back, a.p[1] - a.n[1] * th.hill.back];     // -n: inland
+    T = withHill(T, hillC, th.hill.h, th.hill.r);
+    site = { name: V.site, t: tS, at: a, hill: hillC, theme: th };
+  }
+  const plots = makePlots(T, V, road, rnd, site);
   const houses = [];
   const nMax = V.nHouses > 0 ? V.nHouses : plots.length;
   // ONE SPREAD FOR THE VILLAGE (G285): every house's boats, people, bins,
@@ -481,8 +499,108 @@ function makeVillage(V0) {
     plot.house = houses.length;
     houses.push(h);
   }
-  const poles = planPoles(T, V, road, rnd, spread, plots);
-  return { V, T, road, plots, houses, rnd, spread, poles };
+  const poles = planPoles(T, V, road, rnd, spread, plots).filter(q => !site || Math.abs(q.t - site.t - site.theme.shedT) > 12);
+  const vil = { V, T, road, plots, houses, rnd, spread, poles, site };
+  if (site) placeSite(vil);
+  return vil;
+}
+
+// ---------------------------------------------------------------------------
+// THE THEMES (G321, the user: "do the whole mining village. Also think of a
+// way of packaging these things so we can get them easily in game later
+// on, maybe by invoking presets, or 'themes'").
+// ---------------------------------------------------------------------------
+// A THEME is a plan in its own frame: the anchor is a point on the road,
+// x runs along the road, z runs inland (up the hill), and every item names
+// a generator, a preset, where it stands and which way it faces - so the
+// game invokes one by name (`V.site = 'kennecott'`) and gets the hill, the
+// buildings and the keep-out for its woodland from one record. `placeSite`
+// turns the items into house records (the village's own shape: P, x, z,
+// yaw, toWorld, ground) on the real terrain, each with the terrain under
+// it as its ground.
+//   hill    { back, h, r }   the bump's centre this far behind the road, its height, its radius
+//   span    [before, after]  metres of road either side of the anchor that get no plots
+//   shedT   where along the span the road runs through a building
+//   items   { gen: 'big'|'house', preset, x, z, yaw (0 = facing the road), P: overrides }
+const THEMES = {
+  kennecott: {
+    name: 'Kennecott - the mine',
+    hill: { back: 62, h: 34, r: 58 },
+    span: [42, 48], shedT: 26,
+    items: [
+      { gen: 'big', preset: 'kennecott mill', x: -4, z: 24, yaw: 0 },
+      { gen: 'big', preset: 'tram shed', x: 26, z: 0, yaw: Math.PI / 2, onRoad: true },
+      { gen: 'big', preset: 'mine shop', x: -34, z: 12, yaw: 0 },
+      { gen: 'house', preset: 'mine bunkhouse', x: 34, z: 14, yaw: 0 },
+      { gen: 'house', preset: 'mine bunkhouse', x: 34, z: 26, yaw: 0.15 },
+      { gen: 'house', preset: 'mine cottage', x: 8, z: 9, yaw: -0.1 },
+      { gen: 'house', preset: 'mine cottage', x: -22, z: 5, yaw: 0.2 },
+      { gen: 'house', preset: 'storage shed', x: 16, z: 8, yaw: 0.4 },
+    ],
+  },
+};
+
+// the base terrain with a hill folded in: a smooth bump, zero at r
+function withHill(T, c, h, r) {
+  const base = T.h;
+  const hh = (x, z) => {
+    const d = Math.hypot(x - c[0], z - c[1]) / r;
+    if (d >= 1) return base(x, z);
+    const k = 1 - d * d;                        // 1 at the centre, 0 at r, flat both ends
+    return base(x, z) + h * k * k;
+  };
+  return { h: hh, size: T.size, waterY: T.waterY };
+}
+
+function placeSite(vil) {
+  const S = vil.site, th = S.theme, T = vil.T, road = vil.road;
+  const out = [], keepOut = [];
+  for (const it of th.items) {
+    // THE ROAD'S OWN FRAME: x is arclength along the road from the anchor,
+    // z is inland along the road's normal THERE - so a bend in the road
+    // bends the site with it and a shed on the road is on the road
+    const a = road.at(S.t + it.x);
+    const up = [-a.n[0], -a.n[1]];
+    const c = [a.p[0] + up[0] * it.z, a.p[1] + up[1] * it.z];
+    // facing the road: local +z toward -up; the item's yaw turns from there
+    const yaw = Math.atan2(-up[0], -up[1]) + (it.yaw || 0);
+    const cy = Math.cos(yaw), sy = Math.sin(yaw);
+    const toWorld = (lx, lz) => [c[0] + lx * cy + lz * sy, c[1] - lx * sy + lz * cy];
+    const oy = T.h(c[0], c[1]);
+    const ground = (lx, lz) => { const w = toWorld(lx, lz); return T.h(w[0], w[1]) - oy; };
+    let P;
+    if (it.gen === 'big') {
+      const B = BG();
+      P = Object.assign({}, B.DEF, B.PRESETS[it.preset] || {}, it.P || {});
+      P.preset = it.preset; P.big = 1; P.slopeX = 0; P.slopeZ = 0;
+      P.ground = ground;
+      if (!P.mill) {
+        let hiC = -1e9;
+        for (const sx of [-1, 1]) for (const sz of [-1, 1]) hiC = Math.max(hiC, ground(sx * P.L / 2, sz * P.w / 2));
+        // a shed the road runs through sits on the road: no plinth, its slab a hand over the ground
+        P.floorY = hiC + (it.onRoad ? 0.06 : Math.max(0.3, P.floorY));
+        if (it.onRoad) P.plinth = 0;
+      } else P.floorY = Math.max(ground(-P.tierL0 / 2, P.tierW / 2), ground(P.tierL0 / 2, P.tierW / 2)) + 0.6;
+    } else {
+      P = Object.assign({}, HG.DEF, HG.PRESETS[it.preset] || {}, it.P || {});
+      P.preset = it.preset; P.slopeX = 0; P.slopeZ = 0; P.water = 0; P.pier = 0;
+      P.ground = ground; P.waterY = T.waterY - oy;
+      let hiC = -1e9;
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) hiC = Math.max(hiC, ground(sx * P.L / 2, sz * P.w / 2));
+      P.floorY = hiC + (P.stance === 0 ? 0.3 : 0.55);
+      P.spread = vil.spread;
+    }
+    P.site = S.name;
+    const rec = { P, x: c[0], z: c[1], y: oy, yaw, toWorld, ground, seed: 500 + out.length, gen: it.gen, site: true, item: it };
+    out.push(rec);
+    // the keep-out for the trees: the footprint and a margin, in the world
+    const L = P.mill ? P.tierL0 + 16 : P.L, w = P.mill ? P.tierW / 2 + (Math.round(P.tiers) - 1) * P.tierStep + P.tierW : P.w;
+    const zc = P.mill ? -(w / 2 - P.tierW / 2) : 0;
+    keepOut.push([[-L / 2 - 3, zc + w / 2 + 3], [L / 2 + 3, zc + w / 2 + 3], [L / 2 + 3, zc - w / 2 - 3], [-L / 2 - 3, zc - w / 2 - 3]].map(q => toWorld(q[0], q[1])));
+  }
+  vil.siteHouses = out;
+  vil.siteKeepOut = keepOut;
+  return out;
 }
 
 // THE CAR IN THE BACKYARD (G276, the user: "I would like these to be placed
@@ -1073,11 +1191,12 @@ function planTrees(vil, pool) {
     if (T.h(px, pz) < V.waterY + 0.6) continue;
     if (roadNear(px, pz) < 5) continue;
     if (vil.plots.some(p => nearPoly(p.poly, px, pz, 0) < 1.5)) continue;
+    if ((vil.siteKeepOut || []).some(poly => inPoly(poly, px, pz))) continue;      // the mine's ground (G321)
     if (!clearOf(px, pz, gap ? 2.8 : 3.2)) continue;
     put(px, pz, draw(tall));
     if (gap) {   // denser: a second tree in the same cell where it fits
       const qx = px + (rnd() - 0.5) * 4, qz = pz + (rnd() - 0.5) * 4;
-      if (T.h(qx, qz) > V.waterY + 0.6 && roadNear(qx, qz) >= 5 && !vil.plots.some(p => nearPoly(p.poly, qx, qz, 0) < 1.5) && clearOf(qx, qz, 2.6))
+      if (T.h(qx, qz) > V.waterY + 0.6 && roadNear(qx, qz) >= 5 && !vil.plots.some(p => nearPoly(p.poly, qx, qz, 0) < 1.5) && !(vil.siteKeepOut || []).some(poly => inPoly(poly, qx, qz)) && clearOf(qx, qz, 2.6))
         put(qx, qz, draw(rnd() < 0.7 ? tall : small));
     }
   }
@@ -1147,7 +1266,8 @@ function planBillboards(vil, keys) {
     // not across a building's frontage (a sign in front of the store hides
     // the store's own): an empty frontage or a gap between plots first,
     // any verge after eight tries
-    const busy = (vil.plots || []).some(p => p.side === 'land' && p.house !== undefined && t > p.s0 - 1 && t < p.s1 + 1);
+    const busy = (vil.plots || []).some(p => p.side === 'land' && p.house !== undefined && t > p.s0 - 1 && t < p.s1 + 1)
+      || (vil.site && t > vil.site.t - vil.site.theme.span[0] && t < vil.site.t + vil.site.theme.span[1]);
     if (!onPlot && !nearPole && T.h(x, z) > V.waterY + 0.5 && (!busy || skipped >= 8)) {
       // facing the road: +z toward the road, i.e. along +n
       out.push({ key: keys[k % keys.length], x, z, y: T.h(x, z), ry: Math.atan2(a.n[0], a.n[1]), t });
@@ -1171,6 +1291,6 @@ function planBillboards(vil, keys) {
   return out;
 }
 
-window.VILLAGE_GEN = { VDEF, makeTerrain, makeRoad, makePlots, makeVillage, finishPlot, planTrees, planBillboards,
+window.VILLAGE_GEN = { VDEF, makeTerrain, makeRoad, makePlots, makeVillage, finishPlot, planTrees, planBillboards, THEMES, placeSite, withHill,
                        buildFence, gateLeaf, clipToLand, inPoly, shoreZ, fbm, lotGround, edgeKey };
 })();
