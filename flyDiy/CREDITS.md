@@ -535,6 +535,13 @@ file: `bags_stack`, `bags_lean`, `bags_flat`, `bags_stand`), `compost_bag_02`
 trestle, hand truck, tyre, hose reel and barrel stove the yard also uses are
 the hangar's own props, credited above.
 
+**The old fence** (`fence_old`, G275) — **"Old fence"** by Yury Misiyuk
+(https://sketchfab.com/3d-models/old-fence-3a98eabc0aa9475db5fcf7fab235751b),
+**Sketchfab, CC-BY-4.0**: attribution is a condition of the licence and must
+stay visible wherever it is shown. One 4.6 m stretch of green pickets on
+leaning posts, delivered in centimetres; the village lays it end to end on
+some plots and draws its own fence on the rest.
+
 **The two people** (`person_andrew`, `person_john`, G255) are the user's own
 static export from `assets/blendkitPeople/blendkitPeople.blend` — BlenderKit
 figures, under whatever licence BlenderKit granted for that pack (this file

@@ -38954,3 +38954,82 @@ plaque's `S` with a cut centre; the design-tab archetypes do not set
 `wgCentreW`. (A clean-worktree proof must run `node tools/build.js` first:
 the committed flight_core.js is stale by design, and GATE BUILD reads it —
 G271's note blamed another session for five reds that were only that.)
+
+## G275 — THE VILLAGE: A NOISE TERRAIN WITH A SHORE, A ROAD ALONG IT, PLOTS
+## OFF BOTH SIDES, A HOUSE ON EVERY PLOT STANDING ON THE GROUND UNDER IT,
+## FENCES ON THE PLOT LINES AND A PATH TO EVERY DOOR — AND A FINISH IS AN
+## OBJECT (2026-09-12, the user: "I think it's time to do the plots too. And
+## start thinking about how we will divide an area into plots. You may
+## generate a simple noise terrain, with some water, and we will generate
+## procedurally a little village on the border of the water. For that, we
+## will need fences")
+
+- **THE TERRAIN** (`tools/_village_gen.js`, `makeTerrain`) is analytic: a
+  slope up from the water plus two octaves of value noise, the seabed
+  falling away faster than the beach climbs. Any point can be asked at any
+  resolution, so the bench's mesh, every house's ground and the gate all
+  sample one function. Water is y = 0.
+- **THE ROAD** is the shore smoothed over forty metres and pushed inland
+  (`roadOff`, 26 m): a polyline with arclength, tangent and the water-side
+  normal at any t.
+- **THE PLOTS** come off the road by arclength — frontages of 20–34 m with
+  the odd empty one — as quads: two corners a verge off the road's edge,
+  two at depth along the road's normal. An inland plot is 30 m deep; a
+  WATERFRONT plot runs to the shore and 16 m past it (`riparian`), so the
+  stilt house and its pier stand on their own plot. A quad the road bends
+  into a fold is not a plot.
+- **THE HOUSES** are the sampler's (`randomHouse`), made to fit the plot
+  (shrunk along the frontage, then in depth, then stepped back, until all
+  four corners are on it), faced by the plot — a waterfront house faces the
+  water, an inland one the road — and STOOD ON THE TERRAIN: `P.ground` is
+  the terrain in the house's own frame (`groundFn` honours a function), the
+  floor clears the high corner, the stance rises where the ground does. A
+  waterfront house is put at the WATERLINE on piles — back wall on the
+  beach, front half over the shallows — because on a 5 % beach a house a
+  step above the tide has its stair foot on dry sand; at the waterline the
+  stair lands in the water and the pier grows off it (5–6 of 6 on the
+  default seed).
+- **A FINISH IS AN OBJECT** (`makeFinish()` in `_house_gen.js`): the
+  material table and the uniform sets (`SHADE_U`, `GLASS_U`, `SMOKE_U`) are
+  made by factories; `applyFinish(P, F)` dresses a given finish, `build(P,
+  lod, F)` writes its sag into it, the shaders take their uniform set. The
+  module's own MAT/SHADE_U/... are the DEFAULT finish, unchanged for the
+  house bench and GATE HOUSE. Twenty houses, twenty finishes.
+- **THE FENCES** (`buildFence`): posts every 2.4 m, two rails, pickets on the
+  road frontage, from the house kit's own beams in a `post` and a `deck`
+  bag with the frame's rough timber and grey boards; the hand on them — a
+  post that leans, a picket short or gone, a rail that dips. Each edge
+  fenced at odds; the front fence has a GATE bay where the path crosses; a
+  fence stops at the water (`clipToLand`). A quarter of the plots use the
+  scanned green fence instead (`fence_old`, Sketchfab CC-BY, baked into the
+  yard group, 4.6 m a stretch laid end to end, scaled to the bay).
+- **THE PATHS** (`planPath`): road verge → gate → a bend → the stair foot (or
+  the front stoop, or the back of a waterfront house). The bench paints
+  road and paths into a WEAR canvas the terrain shader reads in the site's
+  metres; the beach is bare below a step above the tide.
+- **THE BENCH** (`tools/_village.html`, same server as the house bench):
+  the HDR skies, the terrain mesh at a metre, the water, every house through
+  `build(P, 0, F)` with its props, pier, people and lamps placed by the
+  house's own plan, the fences, dials for everything above, a report per
+  plot.
+- **GATE VILLAGE** (`tools/_village_check.js`, in run_gates as VILLAGE):
+  eight seeds; deterministic; no plot inside another and both frontage
+  corners a verge off the road; every house's four corners on its plot, its
+  floor above the ground under each, off the road, built clean, on piles if
+  on the water, with a way down, and at least half the waterfront houses
+  reaching the water; every fence on its plot line, out of the water, not
+  through its house, with the gate where the path crosses; every path from
+  the road's verge to the house. Selftest: a house off its plot, two plots
+  on one ground, a floor in the ground, a fence off the line, a plot with no
+  path, a front fence with no gate — each red.
+- The user's set of wood planks (`set_of_wood_planks.glb`, 7k triangles)
+  is NOT used yet: the ask was to decimate it and reproject its textures,
+  which is a tool this repo does not have and which the as-is import rule
+  argues against; the fences are drawn from beams instead, with the scanned
+  fence for variety. Ruling owed on whether to build that tool.
+- A random-source note: the village's rnd is mulberry32, not the LCG the
+  house uses for small choices — one seed threw nine empty frontages in
+  twelve at odds of one in five, which is what an LCG's consecutive draws
+  do.
+- Gates: HOUSE (with --selftest), VILLAGE (with --selftest) green; MEDIA
+  green but for the trees session's four orphans.

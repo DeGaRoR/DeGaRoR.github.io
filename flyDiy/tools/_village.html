@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<!--
+  VILLAGE BENCH (G275) — a noise terrain with a shore, a road along it, plots
+  off both sides, a house on every plot, fences and paths. Serve from the repo
+  root (launch: flydiy-house) and open /flyDiy/tools/_village.html.
+
+  Every house is the house generator's own build (tools/_house_gen.js) with
+  the terrain handed to it as its ground and a FINISH of its own; the props,
+  the pier, the people and the lamps come through the same prop factory the
+  house bench uses. What this bench adds is the site: the terrain mesh with
+  the road and the paths worn into it, the water, and the fences drawn from
+  the plan (tools/_village_gen.js).
+-->
+<meta charset="utf-8">
+<title>flyDiy — village bench</title>
+<style>
+  :root{--bg:#12151a;--fg:#dfe6ee;--dim:#7d8996;--acc:#5db3ff;--grid:#242a33}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--fg);
+    font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;overflow:hidden}
+  header{padding:8px 12px;border-bottom:1px solid var(--grid);display:flex;
+    gap:14px;align-items:center;flex-wrap:wrap}
+  h1{font-size:13px;margin:0}
+  label{color:var(--dim);display:inline-flex;gap:5px;align-items:center}
+  select,button,input[type=number]{background:#1a1f27;color:var(--fg);border:1px solid var(--grid);
+    padding:3px 8px;border-radius:4px;font:inherit}
+  input[type=number]{width:60px}
+  main{display:flex;height:calc(100vh - 40px)}
+  #view{position:relative;flex:1;min-width:0}
+  canvas{display:block;width:100%;height:100%}
+  aside{border-left:1px solid var(--grid);overflow-y:auto;padding:10px;width:320px;flex:none}
+  .r{display:flex;gap:6px;align-items:center;margin:5px 0}
+  .r span.k{color:var(--dim);width:120px;flex:none}
+  input[type=range]{flex:1;accent-color:var(--acc)}
+  .v{width:48px;flex:none;text-align:right;color:var(--acc)}
+  #stat{position:absolute;left:10px;top:8px;color:var(--dim);z-index:2}
+  #chk{position:absolute;left:10px;bottom:10px;z-index:2;background:rgba(18,21,26,.84);
+    border:1px solid var(--grid);border-radius:5px;padding:7px 10px;pointer-events:none;
+    line-height:1.55;max-width:52ch}
+  .ok{color:#6fd08c} .warn{color:#e8c15a} .bad{color:#ff6b5a}
+  .hd{color:#7d8996;letter-spacing:.14em;font-size:9px;margin:10px 0 3px}
+</style>
+
+<header>
+  <h1>village bench</h1>
+  <label>sky <select id="moodSel"></select></label>
+  <label>exposure <input id="expo" type="range" min="0.3" max="2.5" step="0.05" value="1.05"></label>
+  <label>face <input id="sunAz" type="range" min="-180" max="180" step="1" value="0"></label>
+  <button id="rebuild">rebuild</button>
+  <button id="rndBtn" title="another seed">random</button>
+  <span id="seedLbl"></span>
+</header>
+
+<main>
+  <div id="view"><span id="stat"></span><canvas id="c"></canvas><div id="chk"></div></div>
+  <aside id="ui"></aside>
+</main>
+
+<script src="../vendor/three.min.js"></script>
+<script>window.FLYDIY_ASSET_BASE = '../';</script>
+<script src="../src/viewer/house_tex.js"></script>
+<script src="../src/core/51_prop_codec.js"></script>
+<script src="../src/viewer/assets.js"></script>
+<script src="../src/viewer/props.js"></script>
+<script src="../src/pier/pier_pier.js"></script>
+<script src="../src/pier/pier_boat.js"></script>
+<script src="../src/pier/pier_people.js"></script>
+<script src="../src/pier/pier_yard.js"></script>
+<script src="../src/props/props_vessel.js"></script>
+<script src="../src/props/props_handling.js"></script>
+<script src="../src/props/props_storage.js"></script>
+<script src="../src/props/props_machine.js"></script>
+<script src="../src/props/props_fixture.js"></script>
+<script src="../src/props/props_vehicle.js"></script>
+<script src="../src/viewer/site_tex.js"></script>
+<script src="_house_kit.js"></script>
+<script src="_house_gen.js"></script>
+<script src="_village_gen.js"></script>
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+const G = window.HOUSE_GEN, VG = window.VILLAGE_GEN;
+const D2R = Math.PI / 180;
+
+// ---- the village's own dials ------------------------------------------------
+const V = Object.assign({}, VG.VDEF);
+const ROWS = [
+  ['seed', 'seed', 1, 99, 1],
+  ['size', 'site size m', 120, 360, 10],
+  ['slope', 'land slope', 0.02, 0.12, 0.005],
+  ['relief', 'relief m', 0, 5, 0.1],
+  ['detail', 'detail m', 0, 1, 0.05],
+  ['roadOff', 'road off the shore', 14, 45, 1],
+  ['plotMin', 'plot min m', 14, 30, 1],
+  ['plotMax', 'plot max m', 20, 45, 1],
+  ['plotDepth', 'inland depth m', 18, 45, 1],
+  ['gapOdds', 'empty frontages', 0, 0.6, 0.02],
+  ['fenceOdds', 'fenced edges', 0, 1, 0.05],
+  ['oldFenceOdds', 'scanned fence', 0, 1, 0.05],
+  ['riparian', 'plot into the water m', 0, 30, 1],
+  ['nHouses', 'houses (0 = all)', 0, 30, 1],
+];
+const ui = $('ui');
+for (const r of ROWS) {
+  const d = document.createElement('div');
+  d.className = 'r';
+  d.innerHTML = '<span class="k">' + r[1] + '</span><input type="range" min="' + r[2] +
+    '" max="' + r[3] + '" step="' + r[4] + '" value="' + V[r[0]] + '"><span class="v">' + V[r[0]] + '</span>';
+  ui.appendChild(d);
+  const inp = d.querySelector('input'), val = d.querySelector('.v');
+  inp.oninput = () => { V[r[0]] = +inp.value; val.textContent = inp.value; };
+  inp.onchange = () => build();
+}
+const hd = document.createElement('div'); hd.className = 'hd'; hd.textContent = 'THE VILLAGE'; ui.appendChild(hd);
+const report = document.createElement('div'); ui.appendChild(report);
+
+// ---- scene -------------------------------------------------------------------
+let yaw = -0.6, pitch = 0.42, ZOOM = 1, drag = null, panD = null;
+let centre = new THREE.Vector3(), centreOv = null, fitR = 150;
+const cv = $('c');
+const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, preserveDrawingBuffer: true });
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x12151a);
+const camera = new THREE.PerspectiveCamera(38, 1, 0.5, 2000);
+const sun = new THREE.DirectionalLight(0xffffff, 2.4);
+sun.castShadow = true;
+sun.shadow.mapSize.set(4096, 4096);
+sun.shadow.bias = -0.0006;
+sun.shadow.normalBias = 0.04;
+scene.add(sun, sun.target);
+const fill = new THREE.HemisphereLight(0xbdd2ea, 0x4a4436, 0.5);
+scene.add(fill);
+const pmrem = new THREE.PMREMGenerator(renderer);
+pmrem.compileEquirectangularShader();
+
+// THE SKY: the house bench's HDR moods, the same three things off one file
+const SKIES = (typeof HOUSE_SKIES !== 'undefined' && HOUSE_SKIES) || {};
+const SKY_KEYS = Object.keys(SKIES);
+{
+  const sel = $('moodSel');
+  sel.add(new Option('painted', 'p'));
+  SKY_KEYS.forEach(k => sel.add(new Option(SKIES[k].name + ' (hdr)', k)));
+  sel.value = SKY_KEYS.length ? SKY_KEYS[0] : 'p';
+  sel.onchange = () => buildSky();
+}
+const ENVC = new Map(), BGC = new Map();
+let envRT = null, skyRot = 0;
+const hdrDir = new THREE.Vector3(0.3, 0.5, 0.8);
+function envTexture(sky) {
+  const img = sky.env;
+  if (!img.complete || !img.naturalWidth) return null;
+  if (ENVC.has(sky)) return ENVC.get(sky);
+  const w = img.naturalWidth, h = img.naturalHeight;
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const g2 = c.getContext('2d');
+  g2.drawImage(img, 0, 0);
+  const src = g2.getImageData(0, 0, w, h).data;
+  const half = THREE.DataUtils.toHalfFloat;
+  const out = new Uint16Array(w * h * 4);
+  for (let i = 0, n = w * h; i < n; i++) {
+    const e = src[i * 4 + 3];
+    const k = e ? Math.pow(2, e - 136) : 0;
+    out[i * 4] = half(src[i * 4] * k);
+    out[i * 4 + 1] = half(src[i * 4 + 1] * k);
+    out[i * 4 + 2] = half(src[i * 4 + 2] * k);
+    out[i * 4 + 3] = half(1);
+  }
+  const t = new THREE.DataTexture(out, w, h, THREE.RGBAFormat, THREE.HalfFloatType);
+  t.mapping = THREE.EquirectangularReflectionMapping;
+  t.minFilter = t.magFilter = THREE.LinearFilter;
+  t.generateMipmaps = false;
+  t.needsUpdate = true;
+  ENVC.set(sky, t);
+  return t;
+}
+function bgTexture(sky) {
+  const img = sky.bg;
+  if (!img.complete || !img.naturalWidth) return null;
+  if (!BGC.has(sky)) {
+    const t = new THREE.Texture(img);
+    t.mapping = THREE.EquirectangularReflectionMapping;
+    t.encoding = THREE.sRGBEncoding;
+    t.needsUpdate = true;
+    BGC.set(sky, t);
+  }
+  return BGC.get(sky);
+}
+function buildSky() {
+  const k = $('moodSel').value;
+  const sky = SKIES[k];
+  if (sky) {
+    const t = envTexture(sky);
+    if (!t) { sky.env.addEventListener('load', () => buildSky(), { once: true }); return; }
+    skyRot = (+$('sunAz').value) * D2R;
+    if (envRT) envRT.dispose();
+    envRT = pmrem.fromEquirectangular(t);
+    scene.environment = envRT.texture;
+    const bg = bgTexture(sky);
+    if (bg) scene.background = bg;
+    else sky.bg.addEventListener('load', () => buildSky(), { once: true });
+    const d = sky.sun;
+    sun.color.setRGB(sky.sunCol[0], sky.sunCol[1], sky.sunCol[2]);
+    sun.intensity = Math.max(0.55, Math.min(3.0, sky.direct * 6.5 + 0.45));
+    fill.intensity = 0;
+    renderer.toneMappingExposure = (+$('expo').value) * (sky.ev || 1);
+    hdrDir.set(d[0], d[1], d[2]).normalize();
+  } else {
+    skyRot = 0;
+    scene.environment = null;
+    scene.background = new THREE.Color(0x9fb6cf);
+    sun.color.setHex(0xfff2dc); sun.intensity = 2.2; fill.intensity = 0.6;
+    hdrDir.set(0.4, 0.6, 0.7).normalize();
+    renderer.toneMappingExposure = +$('expo').value;
+  }
+  if (root) root.rotation.y = skyRot;
+  aimSun();
+  draw();
+}
+$('expo').oninput = () => buildSky();
+$('sunAz').oninput = () => buildSky();
+function aimSun() {
+  const d = hdrDir.clone().multiplyScalar(Math.max(60, V.size * 0.9));
+  sun.position.copy(centre).add(d);
+  sun.target.position.copy(centre);
+  const S = V.size * 0.6;
+  sun.shadow.camera.left = -S; sun.shadow.camera.right = S;
+  sun.shadow.camera.top = S; sun.shadow.camera.bottom = -S;
+  sun.shadow.camera.near = 1; sun.shadow.camera.far = V.size * 3;
+  sun.shadow.camera.updateProjectionMatrix();
+}
+
+// ---- the terrain mesh --------------------------------------------------------
+// one metre cells; grass from the aerodrome's library; the ROAD and the
+// PATHS painted into a wear canvas the ground shader reads in the site's own
+// metres, worn to earth where the wear is
+let WEAR = null;
+function wearCanvas(vil) {
+  const px = 1024, sz = vil.T.size;
+  const c = document.createElement('canvas');
+  c.width = px; c.height = px;
+  const g = c.getContext('2d');
+  g.fillStyle = '#000'; g.fillRect(0, 0, px, px);
+  const X = x => (x / sz + 0.5) * px, Z = z => (z / sz + 0.5) * px;
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  const stroke = (pts, w, a) => {
+    g.strokeStyle = 'rgba(255,255,255,' + a + ')';
+    g.lineWidth = w / sz * px;
+    g.beginPath();
+    pts.forEach((p, i) => i ? g.lineTo(X(p[0]), Z(p[1])) : g.moveTo(X(p[0]), Z(p[1])));
+    g.stroke();
+  };
+  // the road: a soft verge, then the metalled width
+  stroke(vil.road.pts, vil.road.w + 2.0, 0.45);
+  stroke(vil.road.pts, vil.road.w, 0.95);
+  for (const p of vil.plots) for (const sg of p.path || []) {
+    stroke([sg[0], sg[1]], 1.3, 0.35); stroke([sg[0], sg[1]], 0.7, 0.8);
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.flipY = false;
+  t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+  return t;
+}
+function terrainMesh(vil) {
+  const T = vil.T, sz = T.size, N = Math.round(sz / 1.0);
+  const pos = new Float32Array((N + 1) * (N + 1) * 3), uv = new Float32Array((N + 1) * (N + 1) * 2);
+  const idx = [];
+  let k = 0, u = 0;
+  for (let i = 0; i <= N; i++) for (let j = 0; j <= N; j++) {
+    const x = -sz / 2 + sz * i / N, z = -sz / 2 + sz * j / N;
+    pos[k++] = x; pos[k++] = T.h(x, z); pos[k++] = z;
+    uv[u++] = x; uv[u++] = z;
+  }
+  for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
+    const a = i * (N + 1) + j;
+    idx.push(a, a + 1, a + N + 2, a, a + N + 2, a + N + 1);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  const gm = new THREE.MeshStandardMaterial({ color: 0x87906f, roughness: 0.96, metalness: 0 });
+  const SS = (typeof SITE_TEX_SETS !== 'undefined') && SITE_TEX_SETS;
+  if (SS && SS.grass005) {
+    const mk = (img, srgb) => {
+      const t = new THREE.Texture(img);
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.anisotropy = 8;
+      if (srgb) t.encoding = THREE.sRGBEncoding;
+      t.repeat.set(1 / SS.grass005.tile, 1 / SS.grass005.tile);
+      const ok = () => { t.needsUpdate = true; draw(); };
+      if (img.complete && img.naturalWidth) t.needsUpdate = true;
+      else img.addEventListener('load', ok);
+      return t;
+    };
+    gm.map = mk(SS.grass005.diff, true);
+    gm.normalMap = mk(SS.grass005.nor, false);
+    gm.roughnessMap = mk(SS.grass005.rough, false);
+    gm.color.setHex(0xffffff);
+  }
+  WEAR = wearCanvas(vil);
+  gm.onBeforeCompile = sh => {
+    sh.uniforms.uWear = { value: WEAR };
+    sh.uniforms.uSize = { value: sz };
+    sh.uniforms.uWaterY = { value: T.waterY };
+    sh.vertexShader = 'varying vec3 vTP;\n' + sh.vertexShader.replace('#include <begin_vertex>',
+      '#include <begin_vertex>\n  vTP = transformed;');
+    sh.fragmentShader = 'varying vec3 vTP;\nuniform sampler2D uWear;\nuniform float uSize, uWaterY;\n' +
+      'float tHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }\n' +
+      'float tNoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);\n' +
+      '  return mix(mix(tHash(i), tHash(i + vec2(1, 0)), f.x), mix(tHash(i + vec2(0, 1)), tHash(i + vec2(1, 1)), f.x), f.y); }\n' +
+      sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n' +
+      '  {\n' +
+      '    float wr = texture2D(uWear, vTP.xz / uSize + 0.5).r;\n' +
+      '    float n = tNoise(vTP.xz * 3.1) * 0.6 + tNoise(vTP.xz * 9.7) * 0.4;\n' +
+      '    float wear = smoothstep(0.15, 0.75, wr * (0.75 + 0.5 * n));\n' +
+      '    vec3 earth = vec3(0.31, 0.26, 0.19) * (0.8 + 0.4 * tNoise(vTP.xz * 13.0));\n' +
+      '    diffuseColor.rgb = mix(diffuseColor.rgb, earth, wear * 0.9);\n' +
+      // the beach: bare, greyer, below a step above the tide
+      '    float beach = 1.0 - smoothstep(uWaterY + 0.25, uWaterY + 1.1, vTP.y);\n' +
+      '    vec3 sand = vec3(0.42, 0.39, 0.33) * (0.85 + 0.3 * tNoise(vTP.xz * 5.0));\n' +
+      '    diffuseColor.rgb = mix(diffuseColor.rgb, sand, beach * 0.85);\n' +
+      '  }');
+  };
+  const m = new THREE.Mesh(geo, gm);
+  m.receiveShadow = true; m.castShadow = false;
+  return m;
+}
+function waterMesh(vil) {
+  const sz = vil.T.size;
+  const g2 = new THREE.PlaneGeometry(sz * 1.6, sz * 1.6);
+  g2.rotateX(-Math.PI / 2);
+  const m2 = new THREE.Mesh(g2, new THREE.MeshStandardMaterial({
+    color: 0x2b4a58, roughness: 0.12, metalness: 0.15, transparent: true, opacity: 0.8 }));
+  m2.position.y = vil.T.waterY;
+  m2.receiveShadow = true;
+  return m2;
+}
+
+// ---- the houses ---------------------------------------------------------------
+let root = null, VIL = null, FINISHES = [], LIGHTS = [];
+function tiltToGround(o, g, x, z, ry) {
+  const e = 0.12;
+  const gx = (g(x + e, z) - g(x - e, z)) / (2 * e);
+  const gz = (g(x, z + e) - g(x, z - e)) / (2 * e);
+  const n = new THREE.Vector3(-gx, 1, -gz).normalize();
+  const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), n);
+  const yw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), ry || 0);
+  o.quaternion.copy(q.multiply(yw));
+}
+function placeBuilt(parent, house, built, F) {
+  const grp = new THREE.Group();
+  grp.position.set(house.x, house.y, house.z);
+  grp.rotation.y = house.yaw;
+  for (const k of G.BAGS) built.bags[k].mesh(grp, F.MAT[k]);
+  if (built.bags.smoke) {
+    const sm = built.bags.smoke.mesh(grp, F.MAT.smoke);
+    if (sm) { sm.renderOrder = 10; sm.castShadow = false; sm.receiveShadow = false; }
+  }
+  const st = built.stats;
+  const g = st.ground;
+  if (st.pier) for (const m of st.pier.modules.concat(st.pier.boats))
+    if (PROP_REG.props[m.key]) grp.add(propPlace(THREE, m.key, m.x, m.z, m.ry, m.y));
+  for (const q of st.people || []) if (PROP_REG.props[q.key]) grp.add(propPlace(THREE, q.key, q.x, q.z, q.ry, q.y));
+  for (const q of st.yard || []) {
+    if (!PROP_REG.props[q.key]) continue;
+    const o = propPlace(THREE, q.key, q.x, q.z, q.ry, q.y);
+    if (q.on === 'ground') tiltToGround(o, g, q.x, q.z, q.ry);
+    grp.add(o);
+  }
+  if (st.lit) for (const L of st.lit.lights) {
+    if (L.prop && PROP_REG.props[L.prop]) grp.add(propPlace(THREE, L.prop, L.mx, L.mz, L.ry, L.my));
+    if (house.P.lights) {
+      const pl = new THREE.PointLight(new THREE.Color(L.col[0], L.col[1], L.col[2]), L.k * 2.2 * 1.1, L.range, 2);
+      pl.position.set(L.x, L.y, L.z);
+      grp.add(pl);
+      LIGHTS.push(pl);
+    }
+  }
+  parent.add(grp);
+  return grp;
+}
+
+// ---- the fences ------------------------------------------------------------
+function placeFences(parent, vil) {
+  const F = G.makeFinish();
+  const P = Object.assign({}, G.DEF, { postSet: G.SET_IDX('post', 'rough'), deckSet: G.SET_IDX('deck', 'greywood'),
+                                       frameAge: 0.7, hand: 0.6 });
+  G.applyFinish(P, F);
+  const bags = { post: window.HOUSE_KIT.Bag('post'), deck: window.HOUSE_KIT.Bag('deck') };
+  let n = 0, old = 0;
+  for (const plot of vil.plots) for (const seg0 of plot.fences || []) {
+    const seg = VG.clipToLand(vil.T, seg0);
+    if (!seg) continue;
+    if (seg.style === 'old') {
+      // the scanned stretch, 4.6 m at a time along the edge, each on the
+      // ground under its own middle, the gate's bay left out
+      const L = Math.hypot(seg.b[0] - seg.a[0], seg.b[1] - seg.a[1]);
+      const tg = [(seg.b[0] - seg.a[0]) / L, (seg.b[1] - seg.a[1]) / L];
+      const W = G.YARD_KIT.fence_old.W;
+      const nseg = Math.max(1, Math.round(L / W));
+      const pitch = L / nseg;
+      const ry = Math.atan2(tg[0], tg[1]) - Math.PI / 2;
+      for (let i = 0; i < nseg; i++) {
+        const t0 = i * pitch, t1 = t0 + pitch;
+        if (seg.gap && t1 > seg.gap[0] && t0 < seg.gap[1]) continue;
+        const tm = (t0 + t1) / 2;
+        const x = seg.a[0] + tg[0] * tm, z = seg.a[1] + tg[1] * tm;
+        const o = propPlace(THREE, 'fence_old', x, z, ry, vil.T.h(x, z) - 0.03);
+        o.scale.x = pitch / W;
+        parent.add(o);
+        old++;
+      }
+    } else n += VG.buildFence(bags, vil.T, seg, P.hand, plot.id * 7 + 1);
+  }
+  const grp = new THREE.Group();
+  for (const k in bags) bags[k].mesh(grp, F.MAT[k]);
+  parent.add(grp);
+  FINISHES.push(F);
+  return { members: n, old, tris: bags.post.tris + bags.deck.tris };
+}
+
+// ---- build ---------------------------------------------------------------------
+let BUSY = false;
+function build() {
+  if (BUSY) return;
+  BUSY = true;
+  const t0 = performance.now();
+  if (root) { root.traverse(o => { if (o.geometry) o.geometry.dispose(); }); scene.remove(root); }
+  root = new THREE.Group();
+  root.rotation.y = skyRot;
+  scene.add(root);
+  FINISHES = []; LIGHTS = [];
+  const vil = VG.makeVillage(V);
+  VIL = vil;
+  $('seedLbl').textContent = 'seed ' + V.seed + ' · ' + vil.plots.length + ' plots';
+  let tris = 0, houses = 0, piers = 0, water = 0;
+  const rep = [];
+  for (const h of vil.houses) {
+    const plot = vil.plots[h.plot];
+    const F = G.makeFinish();
+    G.applyFinish(h.P, F);
+    const built = G.build(h.P, 0, F);
+    VG.finishPlot(vil, plot, h, built);
+    placeBuilt(root, h, built, F);
+    FINISHES.push(F);
+    tris += built.stats.tris;
+    houses++;
+    if (built.stats.pier) piers++;
+    if (plot.side === 'water') water++;
+    h.built = built;
+  }
+  const fe = placeFences(root, vil);
+  root.add(terrainMesh(vil));
+  root.add(waterMesh(vil));
+  // the road, as a thin dark strip is already in the wear map; the shore is
+  // the water plane meeting the terrain
+  centre.set(0, vil.T.waterY + 4, vil.road.pts[Math.floor(vil.road.pts.length / 2)][1] - 10);
+  fitR = V.size * 0.55;
+  aimSun();
+  const ms = performance.now() - t0;
+  $('stat').textContent = houses + ' houses (' + water + ' on the water, ' + piers + ' piers) · ' +
+    vil.plots.length + ' plots · fences ' + fe.members + ' members + ' + fe.old + ' scanned · ' +
+    (tris + fe.tris).toLocaleString() + ' tris · ' + ms.toFixed(0) + ' ms';
+  rep.push('<b>' + vil.plots.length + '</b> plots along <b>' + vil.road.length.toFixed(0) + ' m</b> of road');
+  rep.push('<b>' + houses + '</b> houses, <b>' + water + '</b> waterfront, <b>' + piers + '</b> piers');
+  rep.push('fences: <b>' + fe.members + '</b> drawn members, <b>' + fe.old + '</b> scanned stretches');
+  rep.push('<span class="' + (checks(vil) ? 'ok' : 'bad') + '">' + (checks(vil) ? 'plots checked: no overlap, every house in its plot' : 'CHECK FAILED - see console') + '</span>');
+  $('chk').innerHTML = rep.join('<br>');
+  report.innerHTML = vil.plots.map(p => 'plot ' + p.id + ' ' + p.side + ' ' + p.w.toFixed(0) + ' m × ' + p.depth.toFixed(0) +
+    ' m' + (p.house !== undefined ? ' — house ' + vil.houses[p.house].P.L.toFixed(1) + '×' + vil.houses[p.house].P.w.toFixed(1) : ' — empty')).join('<br>');
+  BUSY = false;
+  draw();
+  smokeLoop();
+}
+// the bench's own quick checks (the gate does these headless and more)
+function checks(vil) {
+  let ok = true;
+  const polys = vil.plots.map(p => p.poly);
+  for (let i = 0; i < polys.length; i++) for (let j = 0; j < i; j++) {
+    const c = polyCentre(polys[i]);
+    if (VG.inPoly(polys[j], c[0], c[1])) { console.warn('plots overlap', i, j); ok = false; }
+  }
+  for (const h of vil.houses) {
+    const plot = vil.plots[h.plot];
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      const w = h.toWorld(sx * h.P.L / 2, sz * h.P.w / 2);
+      if (!VG.inPoly(plot.poly, w[0], w[1])) { console.warn('house out of its plot', h.plot, w); ok = false; }
+    }
+  }
+  return ok;
+}
+const polyCentre = p => [p.reduce((a, q) => a + q[0], 0) / p.length, p.reduce((a, q) => a + q[1], 0) / p.length];
+
+let smokeRAF = 0;
+function smokeLoop() {
+  if (smokeRAF) return;
+  const tick = () => {
+    smokeRAF = 0;
+    if (!FINISHES.length) return;
+    const t = performance.now() / 1000;
+    for (const F of FINISHES) F.SMOKE_U.uTime.value = t;
+    draw();
+    smokeRAF = requestAnimationFrame(tick);
+  };
+  smokeRAF = requestAnimationFrame(tick);
+}
+
+function draw() {
+  const r = cv.parentElement.getBoundingClientRect();
+  const dp = devicePixelRatio || 1;
+  renderer.setSize(r.width * dp, r.height * dp, false);
+  cv.style.width = r.width + 'px'; cv.style.height = r.height + 'px';
+  camera.aspect = r.width / r.height;
+  camera.updateProjectionMatrix();
+  const R = fitR / ZOOM, C = centreOv || centre;
+  camera.position.set(C.x + R * Math.sin(yaw) * Math.cos(pitch), C.y + R * Math.sin(pitch),
+                      C.z + R * Math.cos(yaw) * Math.cos(pitch));
+  camera.lookAt(C);
+  renderer.render(scene, camera);
+}
+
+// ---- interaction -------------------------------------------------------------
+const viewEl = $('view');
+viewEl.addEventListener('mousedown', e => {
+  if (e.button === 1 || e.button === 2) { panD = [e.clientX, e.clientY, (centreOv || centre).clone()]; e.preventDefault(); }
+  else drag = [e.clientX, e.clientY, yaw, pitch];
+});
+viewEl.addEventListener('contextmenu', e => e.preventDefault());
+addEventListener('mouseup', () => { drag = null; panD = null; });
+addEventListener('mousemove', e => {
+  if (panD) {
+    const r = cv.getBoundingClientRect();
+    const wpp = 2 * (fitR / ZOOM) * Math.tan(camera.fov * Math.PI / 360) / Math.max(1, r.height);
+    const e0 = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0);
+    const e1 = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1);
+    centreOv = panD[2].clone().addScaledVector(e0, -(e.clientX - panD[0]) * wpp)
+      .addScaledVector(e1, (e.clientY - panD[1]) * wpp);
+    draw(); return;
+  }
+  if (!drag) return;
+  yaw = drag[2] + (e.clientX - drag[0]) * 0.008;
+  pitch = Math.max(-0.2, Math.min(1.45, drag[3] + (e.clientY - drag[1]) * 0.006));
+  draw();
+});
+viewEl.addEventListener('wheel', e => {
+  e.preventDefault();
+  ZOOM = Math.max(0.2, Math.min(60, ZOOM * (e.deltaY < 0 ? 1.12 : 1 / 1.12)));
+  draw();
+}, { passive: false });
+viewEl.addEventListener('dblclick', () => { ZOOM = 1; centreOv = null; draw(); });
+addEventListener('resize', draw);
+$('rebuild').onclick = () => build();
+$('rndBtn').onclick = () => { V.seed = 1 + Math.floor(Math.random() * 99); ui.querySelector('input').value = V.seed; ui.querySelector('.v').textContent = V.seed; build(); };
+if (typeof window !== 'undefined') window.PROP_LANDED = () => draw();
+(() => {
+  const L = G.libSets();
+  if (L) for (const k in L) for (const m of ['diff', 'nor', 'rough', 'paint'])
+    if (L[k][m] && !L[k][m].complete) L[k][m].addEventListener('load', () => draw());
+})();
+
+window.VILLAGE_UI = { get V() { return V; }, get vil() { return VIL; }, build, draw,
+  setView: (y, p, z, c) => { yaw = y; pitch = p; if (z) ZOOM = z; centreOv = c ? new THREE.Vector3(c[0], c[1], c[2]) : null; draw(); },
+  get root() { return root; }, get cam() { return camera; } };
+buildSky();
+build();
+})();
+</script>

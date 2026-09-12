@@ -167,6 +167,12 @@ const GATES = [
   // sixty FUZZED builds — forty random houses and twenty random sheds, which
   // is where the buried-in-the-hillside sampler bugs came from.
   { id: 'HOUSE', file: '_house_check.js', tier: 'core' },
+  // THE VILLAGE (G275): the terrain, the road, the plots off it, a house on
+  // every plot built by the house generator on the terrain under it, the
+  // fences on the plot lines and the paths to the road - eight seeds, every
+  // plot checked for overlap and frontage, every house for standing on its
+  // plot and on the ground, every fence for the line and the water.
+  { id: 'VILLAGE', file: '_village_check.js', tier: 'core' },
   { id: 'BAY', file: '_bay_check.js', tier: 'core' },
   { id: 'BEACON', file: '_beacon_check.js', tier: 'core' },
   // THE PART TABLE (G76): the declared assembly against the editor's own row

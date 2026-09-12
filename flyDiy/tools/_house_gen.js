@@ -62,7 +62,13 @@ const D2R = Math.PI / 180;
 //   and every other consumer in this repo degrades.
 const std = (c, o) => new THREE.MeshStandardMaterial(
   Object.assign({ color: c, roughness: 0.92, metalness: 0 }, o || {}));
-const MAT = {
+// A FINISH IS AN OBJECT (G275): the materials and the uniform sets they read
+// are made by factories, so a village can dress every house its own way -
+// its own sets, its own paint, its own dirt line, its own sag. The module's
+// MAT / SHADE_U / GLASS_U / SMOKE_U are the DEFAULT finish, which is what the
+// house bench and GATE HOUSE use; `makeFinish()` hands out another.
+function makeMats() {
+ return {
   siding: std(0xa8302a),
   trim:   std(0xe8e6df),
   roof:   std(0x9aa3aa, { roughness: 0.55, metalness: 0.5 }),
@@ -98,6 +104,8 @@ const MAT = {
   // rectangle with a frame round it and transparency buys nothing but sorting
   pane:   std(0x2c3a42, { roughness: 0.28, metalness: 0.10 }),
 };
+}
+const MAT = makeMats();
 const BAGS = ['siding', 'trim', 'roof', 'rib', 'glass', 'deck', 'post',
               'stone', 'metal', 'floor', 'pane', 'pile', 'log', 'logend'];
 // AND THE ONE BAG THAT IS NOT THE HOUSE (G254): the chimney smoke is a few
@@ -279,6 +287,7 @@ const YARD_KIT = {
   bag_compost:    { L: 0.47, W: 0.539, H: 0.434 },
   jerrycan_green: { L: 0.171, W: 0.36, H: 0.5 },
   planter:        { L: 0.655, W: 0.914, H: 0.855 },
+  fence_old:      { L: 0.204, W: 4.602, H: 1.44 },     // the village's (G275)
 };
 
 const PIER_KIT = {
@@ -539,7 +548,8 @@ function dressMat(m, key, colIdx, o) {
 //
 // ONE patch, applied to every material in the table, so nothing can drift
 // between the wall and the trim beside it.
-const SHADE_U = {
+function makeShadeU() {
+ return {
   // THE RIDGE SAGS (G273, the assessment: "Old Alaskan roofs almost all sag
   // a few cm in the middle; the ridge and eave lines are straight lines
   // today"). One smooth field in the house's own frame, applied in the
@@ -565,6 +575,8 @@ const SHADE_U = {
   // only: no normal, because the surface is not actually bumpy at that scale.
   uNoiseK: { value: 0.16 }, uNoiseS: { value: 3.7 },
 };
+}
+const SHADE_U = makeShadeU();
 const DIRT_EXPR =
   'clamp((uDirtTop - vHouseY) / max(0.01, uDirtH), 0.0, 1.0)';
 
@@ -577,7 +589,8 @@ const DIRT_EXPR =
 // VALUE (the cleanest, newest-looking paint), and screen is limewash.
 const PAINT_BLENDS = ['multiply', 'overlay', 'soft light', 'tint', 'limewash'];
 
-function shadeHouse(m) {
+function shadeHouse(m, U) {
+  const SU = U || SHADE_U;
   const ud = m.userData || (m.userData = {});   // a stub may not have one
   if (ud.houseShaded) return;
   ud.houseShaded = true;
@@ -603,9 +616,9 @@ function shadeHouse(m) {
               // corner. The siding only; metres; the hand's dial times a
               // centimetre.
               uWander: { value: 0.0 } };
-  if (!SHADE_U.uDirtCol.value) SHADE_U.uDirtCol.value = new THREE.Color(0x6d6353);
+  if (!SU.uDirtCol.value) SU.uDirtCol.value = new THREE.Color(0x6d6353);
   m.onBeforeCompile = sh => {
-    for (const k in SHADE_U) sh.uniforms[k] = SHADE_U[k];
+    for (const k in SU) sh.uniforms[k] = SU[k];
     for (const k in ud.paint) sh.uniforms[k] = ud.paint[k];
     for (const k in ud.dirt) sh.uniforms[k] = ud.dirt[k];
     // the wander: one shifted uv for the whole fragment, so the map, the
@@ -737,16 +750,17 @@ const NRM = { siding: 1.7, trim: 1.3, deck: 1.6, post: 1.5, floor: 1.6,
 //   SMEARS. A vertical, stretched noise on roughness — rain tracks. It is the
 //   only thing on a flat pane that gives the reflection something to break
 //   over, and it costs one more sample of the field already being computed.
-function shadeGlass(m) {
+function shadeGlass(m, GU0, SU0) {
+  const GU = GU0 || GLASS_U, SU = SU0 || SHADE_U;
   const ud = m.userData || (m.userData = {});
   if (ud.glassShaded) return;
   ud.glassShaded = true;
   m.onBeforeCompile = sh => {
-    sh.uniforms.uGlassWave = GLASS_U.uGlassWave;
-    sh.uniforms.uGlassRough = GLASS_U.uGlassRough;
-    sh.uniforms.uGlassFres = GLASS_U.uGlassFres;
-    sh.uniforms.uLitK = GLASS_U.uLitK;
-    for (const k of ['uSag', 'uSagL', 'uSagY0', 'uSagY1']) sh.uniforms[k] = SHADE_U[k];
+    sh.uniforms.uGlassWave = GU.uGlassWave;
+    sh.uniforms.uGlassRough = GU.uGlassRough;
+    sh.uniforms.uGlassFres = GU.uGlassFres;
+    sh.uniforms.uLitK = GU.uLitK;
+    for (const k of ['uSag', 'uSagL', 'uSagY0', 'uSagY1']) sh.uniforms[k] = SU[k];
     sh.vertexShader = 'varying vec3 vGlassP;\nvarying float vHouseLit;\n' +
       'attribute float aHouseLit;\nattribute vec3 aHouseWin;\n' +
       'varying vec3 vWin;\nvarying vec2 vWinUV;\n' +
@@ -881,8 +895,9 @@ function shadeGlass(m) {
 // normal far enough to break the reflection into facets, which reads as
 // hammered glass, not as glass. At 0.2 the field only bends what is already
 // reflected; the roughness at 0.4 is what stops the pane being a mirror.
-const GLASS_U = { uGlassWave: { value: 0.2 }, uGlassRough: { value: 0.4 },
-                  uGlassFres: { value: 2.6 }, uLitK: { value: 2.2 } };
+const makeGlassU = () => ({ uGlassWave: { value: 0.2 }, uGlassRough: { value: 0.4 },
+                            uGlassFres: { value: 2.6 }, uLitK: { value: 2.2 } });
+const GLASS_U = makeGlassU();
 
 // ---------------------------------------------------------------------------
 // THE GROUND UNDER THE BUILDING (the user: "You should add some terrain
@@ -995,15 +1010,20 @@ function shadeGround(m, foot, o) {
 // seems to rise without a vertex ever moving, and a fade with age so the top
 // dissolves. Thirty-six triangles for the near mesh, sixteen for the far one,
 // and no light touches it.
-const SMOKE_U = { uTime: { value: 0 }, uSmokeK: { value: 0.55 } };
+const makeSmokeU = () => ({ uTime: { value: 0 }, uSmokeK: { value: 0.55 } });
+const SMOKE_U = makeSmokeU();
+const makeFinish = () => ({ MAT: makeMats(), SHADE_U: makeShadeU(),
+                            GLASS_U: makeGlassU(), SMOKE_U: makeSmokeU() });
+const DEFAULT_FINISH = { MAT, SHADE_U, GLASS_U, SMOKE_U };
 const SMOKE_R0 = 0.18, SMOKE_R1 = 1.15;   // a puff's radius: R0 + age * R1
-function shadeSmoke(m) {
+function shadeSmoke(m, MU0) {
+  const MU = MU0 || SMOKE_U;
   const ud = m.userData || (m.userData = {});
   if (ud.smokeShaded) return;
   ud.smokeShaded = true;
   m.onBeforeCompile = sh => {
-    sh.uniforms.uTime = SMOKE_U.uTime;
-    sh.uniforms.uSmokeK = SMOKE_U.uSmokeK;
+    sh.uniforms.uTime = MU.uTime;
+    sh.uniforms.uSmokeK = MU.uSmokeK;
     sh.vertexShader = 'attribute float aHouseLit;\nvarying float vAge;\n' +
       'varying vec2 vSm;\n' + sh.vertexShader
       .replace('#include <begin_vertex>',
@@ -1055,12 +1075,16 @@ function buildSmoke(bags, P, Q, ch) {
   return { x: ch.x, z: ch.z, y0: ch.top, y1: ch.top + 0.15 + rise, puffs: n };
 }
 
-function applyFinish(P) {
-  shadeSmoke(MAT.smoke);
+function applyFinish(P, F) {
+  const MAT = F ? F.MAT : DEFAULT_FINISH.MAT;
+  const SHADE_U = F ? F.SHADE_U : DEFAULT_FINISH.SHADE_U;
+  const GLASS_U = F ? F.GLASS_U : DEFAULT_FINISH.GLASS_U;
+  const SMOKE_U = F ? F.SMOKE_U : DEFAULT_FINISH.SMOKE_U;
+  shadeSmoke(MAT.smoke, SMOKE_U);
   SMOKE_U.uSmokeK.value = P.smokeK === undefined ? 0.55 : P.smokeK;
   for (const k of BAGS) if (k !== 'glass' && k !== 'pane' && MAT[k])
-    shadeHouse(MAT[k]);
-  shadeGlass(MAT.glass); shadeGlass(MAT.pane);
+    shadeHouse(MAT[k], SHADE_U);
+  shadeGlass(MAT.glass, GLASS_U, SHADE_U); shadeGlass(MAT.pane, GLASS_U, SHADE_U);
   GLASS_U.uGlassWave.value = P.glassWave === undefined ? 0.2 : P.glassWave;
   GLASS_U.uGlassRough.value = P.glassRough === undefined ? 0.4 : P.glassRough;
   GLASS_U.uGlassFres.value = P.glassFres === undefined ? 2.6 : P.glassFres;
@@ -1779,8 +1803,8 @@ const PRESETS = {
 // subtraction against this — which is the whole reason the stance layer
 // exists, and the reason a house on a beach does not look like a house on a
 // prairie.
-const groundFn = P => (x, z) =>
-  -Math.tan(P.slopeX * D2R) * x - Math.tan(P.slopeZ * D2R) * z;
+const groundFn = P => (typeof P.ground === 'function' ? P.ground : (x, z) =>
+  -Math.tan(P.slopeX * D2R) * x - Math.tan(P.slopeZ * D2R) * z);
 
 // ---------------------------------------------------------------------------
 // THE ROOF, AS PLANES
@@ -4995,8 +5019,9 @@ function pathPlan(P, V, dk, stoop, front, pier, g) {
   return out;
 }
 
-function build(P0, lod) {
+function build(P0, lod, F) {
   const P = Object.assign({}, DEF, P0 || {});
+  const SU = F ? F.SHADE_U : SHADE_U;             // the finish the sag goes to
   const Q = { lod: lod | 0 };
   const bags = {};
   for (const k of BAGS.concat(EXTRA)) bags[k] = Bag(k);
@@ -5068,14 +5093,14 @@ function build(P0, lod) {
   // THE SAG FIELD (G273): the uniforms the shaders bow the roof by, from
   // this build's own ridge and eave; the chimney's top is told so the smoke
   // starts where the stack actually ends
-  SHADE_U.uSag.value = clamp(P.sag === undefined ? 0.04 : P.sag, 0, 0.15);
-  SHADE_U.uSagL.value = Math.max(1, V.L / 2);
-  SHADE_U.uSagY0.value = R.eaveY;
-  SHADE_U.uSagY1.value = Math.max(R.eaveY + 0.3, R.ridgeY);
+  SU.uSag.value = clamp(P.sag === undefined ? 0.04 : P.sag, 0, 0.15);
+  SU.uSagL.value = Math.max(1, V.L / 2);
+  SU.uSagY0.value = R.eaveY;
+  SU.uSagY1.value = Math.max(R.eaveY + 0.3, R.ridgeY);
   if (ch) {
-    const bx = Math.max(0, 1 - (ch.x * ch.x) / Math.max(0.01, SHADE_U.uSagL.value ** 2));
-    const ky = clamp((ch.top - R.eaveY) / Math.max(0.01, SHADE_U.uSagY1.value - R.eaveY), 0, 1);
-    ch.sag = SHADE_U.uSag.value * bx * ky * ky;
+    const bx = Math.max(0, 1 - (ch.x * ch.x) / Math.max(0.01, SU.uSagL.value ** 2));
+    const ky = clamp((ch.top - R.eaveY) / Math.max(0.01, SU.uSagY1.value - R.eaveY), 0, 1);
+    ch.sag = SU.uSag.value * bx * ky * ky;
   }
   const smoke = buildSmoke(bags, P, Q, ch);
   const dr = buildDrainage(bags, P, Q, V, R, g);
@@ -5370,6 +5395,7 @@ window.HOUSE_GEN = {
   STAIR_MAX, SET_SEAM, SET_MISS, PIER_KIT, PIER_TRIS, PIER_DECK, PIER_LOW, SKIRT_OK,
   COLS, COL_NAMES, ROLE_SETS, SET_IDX, setNames, setFor, setRibbed,
   build, roofModel, wallSplits, groundFn, applyFinish, libSets, randomHouse,
+  makeFinish, shadeGround,
   shadeGround,
   dressSlot, SET_KIND, ROLE_KIND, finishReport, NRM, PAINT_BLENDS,
 };

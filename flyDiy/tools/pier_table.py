@@ -93,6 +93,9 @@ SOURCES = {
     'bag02':    ('Compost Bag 02', 'Poly Haven', 'CC0', 'https://polyhaven.com/a/compost_bag_02'),
     'jerrygreen': ('Metal Jerrycan Green', 'Poly Haven', 'CC0', 'https://polyhaven.com/a/metal_jerrycan_green'),
     'planter':  ('Planter Box 03', 'Poly Haven', 'CC0', 'https://polyhaven.com/a/planter_box_03'),
+    # the village's scanned fence (G275), CC-BY: attribution must stay visible
+    'oldfence': ('Old fence', 'Yury Misiyuk', 'CC-BY-4.0',
+                 'https://sketchfab.com/3d-models/old-fence-3a98eabc0aa9475db5fcf7fab235751b'),
 }
 
 # the delivered files, under assets/woodenPierBoats/
@@ -110,6 +113,7 @@ FILES = {
     'bag02':    'compost_bag_02_1k.gltf',
     'jerrygreen': 'metal_jerrycan_green_1k.gltf',
     'planter':  'planter_box_03_1k.gltf',
+    'oldfence': 'old_fence.glb',
 }
 # where each source's file lives, relative to assets/woodenPierBoats/
 DIRS = {
@@ -118,6 +122,7 @@ DIRS = {
     'bags': '../propsHouse/compost_bags', 'bag02': '../propsHouse/compost_bag_02',
     'jerrygreen': '../propsHouse/metal_jerrycan_green',
     'planter': '../propsHouse/planter_box_03',
+    'oldfence': '../propsHouse',
 }
 
 
@@ -238,4 +243,12 @@ PROPS = [
       note='20 l steel jerrycan, all five parts', tex=256),
     P('planter', 'yard', 'planter box', 'planter',
       note='0.9 m wooden planter box with a shrub in it'),
+    # THE OLD FENCE (G275, the user: "I have added 1 model in the asset folder,
+    # propsHouses. It's green. I think it's only one of those you should
+    # use"): one 4.6 m stretch of leaning green pickets, delivered in
+    # centimetres along x; the village lays it end to end on some plots and
+    # draws its own fence on the others
+    P('fence_old', 'yard', 'old picket fence, 4.6 m', 'oldfence',
+      note='4.6 m run of green pickets on leaning posts, Sketchfab CC-BY; along x, the '
+           'origin at its centre on the ground', scale=0.01, tex=512),
 ]
