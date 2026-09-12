@@ -903,9 +903,10 @@ function buildPedals(g, A, P, sx) {
 }
 function buildThrottleWall(g0, A, P, sx) {
   const g = ctlShift(g0, P, 'thrX', 'thrY', 'thrZ');
-  const wx = (sx >= 0 ? 1 : -1) * Math.max(0.2, A.halfW * 0.90);
   const zT = A.zBack + 0.40;
   const yT = A.floorAt(zT) + 0.42;
+  // on the wall itself (G318: 0.9 x halfW was 4 cm inboard of the door's skin)
+  const wx = A.wallAt ? A.wallAt(sx >= 0 ? 1 : -1, yT, zT) : (sx >= 0 ? 1 : -1) * Math.max(0.2, A.halfW * 0.90);
   const inb = wx > 0 ? -1 : 1;               // inboard direction
   const piv = [wx + inb * 0.03, yT - 0.01, zT - 0.04];
   // THE QUADRANT (session 4e): a cast plate on the wall with the lever's
@@ -1084,6 +1085,165 @@ function buildConsole(g0, A, P, cx, withQuadrant, box) {
   // held from above like the wall lever's ball (G279): the pivot's axis
   return { obj: gripAt(gT, [K[0], K[1] + 0.012, K[2] - 0.006], [1, 0, 0]),
            label: 'throttle (quadrant)' };
+}
+
+// ---------------------------------------------------------------------------
+// FOUR MORE CONTROLS (G318, the user: "go ahead with the flap lever, brake
+// and fuel selector and trim wheel. The trim wheel can be placed on the left
+// side. Take references of a simple one, like on the piper cub"). Each is a
+// moving part on the crew's `movingAt` contract, so the join carries it and
+// the flight poses it off the linkage: the flap lever on `flap` (the input's
+// notches), the brake on `brake` (a pull, so a slide), the fuel selector on
+// `fuel` (the cockpit's own state, 0 OFF / 1 R / 2 L / 3 BOTH, the tape's
+// order), the trim wheel on `trim` (the input's bias, -0.5 .. 0.5). The
+// tapes the user drew for the flaps and the selector are stuck beside them
+// through the panel layer's `tape` (CAGE_PANEL.tape), on the surface each
+// stands on.
+// ---------------------------------------------------------------------------
+const tapeOn = (parent, name, w, p, ry) => {
+  const PN = window.CAGE_PANEL;
+  if (!PN || !PN.tape) return null;
+  const m = PN.tape(name, w);
+  if (!m) return null;
+  m.position.set(p[0], p[1], p[2]);
+  m.rotation.y = ry || 0;
+  parent.add(m);
+  return m;
+};
+// THE FLAP LEVER: a cast quadrant on the floor with a toothed arc, and a
+// tube lever with a moulded grip and a release button on its head. Between
+// the seats side by side, on the pilot's right otherwise; forward-and-up
+// at flaps up, pulled aft as they come down.
+function buildFlapLever(g0, A, P, sx, seat, sbs) {
+  const K = window.GEAR_KIT;
+  if (!K) return null;
+  const x = sbs ? 0 : sx - Math.sign(sx || 1) * 0.30;
+  const z = (seat ? seat.szc : A.zBack + 0.20) + 0.30;
+  const y0 = A.floorAt(z) + 0.004;
+  const piv = [x, y0 + 0.040, z];
+  const cheek = K.Bag(), teeth = K.Bag();
+  // the base plate and two cheeks, the arc cut as a row of teeth on the
+  // pilot's side
+  K.sweep(cheek, [[x, y0, z], [x, y0 + 0.006, z]],
+    () => [[-0.045, -0.055], [0.045, -0.055], [0.045, 0.045], [-0.045, 0.045]], true, [0, 0, 1]);
+  for (const sd of [-1, 1])
+    K.sweep(cheek, [[x + sd * 0.014, y0, z], [x + sd * 0.019, y0, z]],
+      () => [[0, -0.045], [0.062, -0.045], [0.078, 0.010], [0.062, 0.045], [0, 0.045]], true, [0, 1, 0]);   // (u up, v fore-aft)
+  for (let i = 0; i < 4; i++) {
+    const a = (-38 + i * 25) * D2R;
+    const p = [x + Math.sign(sx || 1) * 0.021, piv[1] + 0.062 * Math.cos(a), piv[2] + 0.062 * Math.sin(a)];
+    K.boxIn(teeth, p, [0.003, 0.004, 0.004], [1, 0, 0], [0, Math.cos(a), Math.sin(a)], [0, -Math.sin(a), Math.cos(a)]);
+  }
+  cheek.mesh(g0, M.cast); teeth.mesh(g0, M.plated);
+  // the lever swings about the lateral pin: flaps up = up-and-forward
+  const gL = movingAt(g0, 'edCtl_flap', piv, [1, 0, 0], 'flap', -1, 1.05);
+  const lev = K.Bag(), grip = K.Bag(), btn = K.Bag(), pin = K.Bag();
+  const up = _nrm3([0, Math.cos(38 * D2R), Math.sin(38 * D2R)]);
+  K.revolve(pin, [-0.020, 0, 0], [1, 0, 0], [[0.006, 0], [0.006, 0.040], [0, 0.040]], 12, true);
+  K.revolve(lev, [0, 0, 0], up, [[0.0055, 0], [0.0055, 0.26]], 14, true);
+  K.revolve(grip, _off3([0, 0, 0], up, 0.25), up,
+    [[0.0055, 0], [0.012, 0.006], [0.013, 0.030], [0.012, 0.060], [0.009, 0.072], [0, 0.076]], 20, false);
+  K.revolve(btn, _off3([0, 0, 0], up, 0.322), up, [[0.005, 0], [0.005, 0.005], [0, 0.007]], 12, false);
+  pin.mesh(gL, M.plated); lev.mesh(gL, M.frame); grip.mesh(gL, M.grip); btn.mesh(gL, M.ptt);
+  // the tape on the cheek that faces the pilot
+  const sd = Math.sign(sx || 1);
+  tapeOn(g0, 'Flaps', 0.040, [x + sd * 0.0205, y0 + 0.030, z - 0.010], sd > 0 ? -Math.PI / 2 : Math.PI / 2);
+  return { obj: gL, label: 'flap lever' };
+}
+// THE BRAKE: a pull knob under the dash on the pilot's left — a bracket
+// hanging off the box, a bushing, the rod and a T handle; it slides aft.
+function buildBrakeKnob(g0, A, P, sx) {
+  const K = window.GEAR_KIT;
+  if (!K || A.dashLip == null || A.dashAftZ == null) return null;
+  const sd = Math.sign(sx || 1);
+  const x = sx + sd * 0.19, zB = A.dashAftZ + 0.030;
+  // the dash's bottom, over a wider net than the lamps' (its vertices are
+  // sparse across x: a 4 cm net at the pilot's x found only the roll's
+  // underside, and hung the knob at the ASI's height)
+  const yU = A.dashBotAt ? A.dashBotAt(x, 0.06, zB - 0.03, zB + 0.03) : A.dashLip;
+  const y = yU - 0.030;
+  const brk = K.Bag();
+  K.sweep(brk, [[x, yU + 0.001, zB], [x, yU - 0.004, zB]],
+    () => [[-0.024, -0.020], [0.024, -0.020], [0.024, 0.020], [-0.024, 0.020]], true, [0, 0, 1]);   // the foot, into the box
+  K.sweep(brk, [[x, yU, zB - 0.017], [x, yU, zB - 0.023]],
+    () => [[0, -0.024], [0, 0.024], [-0.052, 0.024], [-0.052, -0.024]], true, [0, 1, 0]);          // the hanging plate (u up, v lateral)
+  K.revolve(brk, [x, y, zB - 0.023], [0, 0, -1], [[0.009, 0], [0.009, 0.006], [0.006, 0.008], [0, 0.008]], 16, false);   // the bushing
+  brk.mesh(g0, M.cast);
+  const gB = movingAt(g0, 'edCtl_brake', [x, y, zB - 0.023], [0, 0, 1], 'brake', 0, 0,
+                      { slide: [0, 0, -0.035], slideDrive: 'brake', slideSgn: 1 });
+  const rod = K.Bag(), tee = K.Bag();
+  K.revolve(rod, [0, 0, 0.010], [0, 0, -1], [[0.004, 0], [0.004, 0.050]], 12, true);
+  K.revolve(tee, [-0.020, 0, -0.040], [1, 0, 0], [[0.006, 0], [0.007, 0.003], [0.007, 0.037], [0.006, 0.040], [0, 0.040]], 14, true);
+  rod.mesh(gB, M.plated); tee.mesh(gB, M.knob);
+  return { obj: gB, label: 'brake' };
+}
+// THE FUEL SELECTOR: a round plate on the left wall ahead of the seat, four
+// positions round it, a flat pointer handle on a hub — OFF aft, then R, L,
+// BOTH forward, the order the user's tape reads.
+function buildFuelSelector(g0, A, P, sx, seat) {
+  const K = window.GEAR_KIT;
+  if (!K) return null;
+  const sd = Math.sign(sx || 1), inb = -sd;
+  let z = (seat ? seat.zBack : A.zBack) + 0.62, y = A.floorAt(z) + 0.26;
+  // ...aft of the door's jamb (the plate and its tape want 8 cm), and
+  // clear of the frame's tubes: step aft until both hold
+  const jamb = A.doorFwdAt ? A.doorFwdAt(sd, y) : Infinity;
+  if (isFinite(jamb) && z > jamb - 0.09) { z = jamb - 0.09; y = A.floorAt(z) + 0.26; }
+  const wxAt = () => (A.wallAt ? A.wallAt(sd, y, z) : sd * Math.max(0.2, A.halfW * 0.90));
+  let wx = wxAt();
+  if (A.tubeDist) for (let i = 0; i < 6; i++) {
+    if (Math.min(A.tubeDist([wx, y, z]), A.tubeDist([wx, y + 0.06, z])) > 0.05) break;
+    z -= 0.06; y = A.floorAt(z) + 0.26; wx = wxAt();
+  }
+  const c = [wx + inb * 0.010, y, z];
+  const pl = K.Bag(), dots = K.Bag();
+  K.revolve(pl, [wx + inb * 0.002, y, z], [inb, 0, 0], [[0.036, 0], [0.036, 0.006], [0.030, 0.008], [0, 0.008]], 32, false);
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 3) * Math.PI;                              // OFF aft → BOTH forward
+    K.bolt(dots, [wx + inb * 0.009, y + 0.028 * Math.sin(a), z - 0.028 * Math.cos(a)], [inb, 0, 0], 0.002, 0.002);
+  }
+  pl.mesh(g0, M.plateAl); dots.mesh(g0, M.knob);
+  const gF = movingAt(g0, 'edCtl_fuel', c, [1, 0, 0], 'fuel', 1, Math.PI / 3);   // aft → up → forward, either wall
+  const hub = K.Bag(), hand = K.Bag();
+  K.revolve(hub, [0, 0, 0], [inb, 0, 0], [[0.009, 0], [0.009, 0.009], [0.006, 0.011], [0, 0.011]], 16, false);
+  // the handle points AFT at rest (OFF), a flat bar with a rounded end
+  K.sweep(hand, [[inb * 0.006, 0, 0], [inb * 0.006, 0, -0.046]],
+    () => [[-0.006, -0.0025], [0.006, -0.0025], [0.006, 0.0025], [-0.006, 0.0025]], true, [0, 1, 0]);
+  K.revolve(hand, [inb * 0.006, 0, -0.046], [inb, 0, 0], [[0.006, -0.0025], [0.006, 0.0025], [0, 0.0025]], 12, true);
+  hub.mesh(gF, M.plated); hand.mesh(gF, M.knob);
+  tapeOn(g0, 'OFF/R/L/BOTH', 0.060, [wx + inb * 0.004, y + 0.052, z], sd > 0 ? Math.PI / 2 : -Math.PI / 2);
+  return { obj: gF, label: 'fuel selector' };
+}
+// THE TRIM WHEEL, a Cub's: a wheel on a stub axle off a bracket on the
+// left wall by the pilot's hip, its rim knurled, a white mark on the rim
+// and a fixed pointer over it; forward for nose down.
+function buildTrimWheel(g0, A, P, sx, seat) {
+  const K = window.GEAR_KIT;
+  if (!K) return null;
+  const sd = Math.sign(sx || 1), inb = -sd;
+  let z = (seat ? seat.zBack : A.zBack) + 0.34;
+  const y = (seat ? seat.panY : A.floorAt(z) + 0.08) + 0.13;
+  const R = 0.046;
+  const wxAt = () => (A.wallAt ? A.wallAt(sd, y, z) : sd * Math.max(0.2, A.halfW * 0.90));
+  let wx = wxAt();
+  if (A.tubeDist) for (let i = 0; i < 4 && A.tubeDist([wx, y, z]) < R + 0.02; i++) { z -= 0.06; wx = wxAt(); }   // off the frame
+  const br = K.Bag();
+  K.sweep(br, [[wx, y, z], [wx + inb * 0.006, y, z]],
+    () => [[-0.040, -0.030], [0.040, -0.030], [0.040, 0.060], [-0.040, 0.060]], true, [0, 1, 0]);          // the wall plate
+  K.revolve(br, [wx + inb * 0.006, y, z], [inb, 0, 0], [[0.006, 0], [0.006, 0.026]], 12, true);        // the stub axle
+  K.boxIn(br, [wx + inb * 0.024, y + R + 0.006, z], [0.0015, 0.010, 0.0012], [1, 0, 0], [0, 1, 0], [0, 0, 1]);   // the pointer
+  br.mesh(g0, M.cast);
+  const gT = movingAt(g0, 'edCtl_trim', [wx + inb * 0.024, y, z], [1, 0, 0], 'trim', -1, 2.2);   // nose up = the top rolls aft
+  const wh = K.Bag(), mark = K.Bag(), kn = K.Bag();
+  K.revolve(wh, [-inb * 0.007, 0, 0], [inb, 0, 0],
+    [[0.008, 0], [0.020, 0.001], [0.020, 0.003], [R - 0.010, 0.003], [R, 0.005], [R, 0.009], [R - 0.010, 0.011], [0.020, 0.011], [0.020, 0.013], [0.008, 0.014], [0, 0.014]], 40, false);
+  for (let i = 0; i < 28; i++) {
+    const a = 2 * Math.PI * i / 28;
+    K.bolt(kn, [0, R * Math.cos(a), R * Math.sin(a)], [0, Math.cos(a), Math.sin(a)], 0.0015, 0.0012);
+  }
+  K.boxIn(mark, [0, R - 0.004, 0], [0.0075, 0.004, 0.0012], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+  wh.mesh(gT, M.knob); kn.mesh(gT, M.grip); mark.mesh(gT, M.needle);
+  return { obj: gT, label: 'trim wheel' };
 }
 
 // ---------------------------------------------------------------------------
@@ -1912,12 +2072,60 @@ function anchors(spec, P, mesh) {
   };
   // ...and the box's UNDERSIDE at a place (G296: the pedalier lamp hangs
   // from it): the lowest dash vertex in the same window, or dashLip
+  // ...and the dash's AFT face in a height band (G318: the registration
+  // tape sits on the roll above the plate): the aft-most dash vertex there
+  const dashAftAt = (x, dx, y0, y1) => {
+    let z = 1e9;
+    for (const q of dashPts) if (Math.abs(q[0] - x) <= dx && q[1] >= y0 && q[1] <= y1 && q[2] < z) z = q[2];
+    return z < 1e8 ? z : dashAftZ;
+  };
   const dashBotAt = (x, dx, z0, z1) => {
     let y = 1e9;
     for (const q of dashPts) if (Math.abs(q[0] - x) <= dx && q[2] >= z0 && q[2] <= z1 && q[1] < y) y = q[1];
     return y < 1e8 ? y : dashLip;
   };
-  return { k, dashLip, dashTop, dashAftZ, face, dashTopAt, dashBotAt, floorAt, halfW: spec.cabin.halfW * k,
+  // THE FRAME'S TUBES (G318): the interior pass publishes every member it
+  // draws (mesh.members, cage units); a control on the wall asks how far
+  // the nearest tube's surface is from a point, and steps off it
+  const MB = ((mesh && mesh.members) || []).map(m => ({ a: m.a.map(v => v * k), b: m.b.map(v => v * k), r: (m.r || 0) * k }));
+  const tubeDist = p => {
+    let best = Infinity;
+    for (const m of MB) {
+      const dx = m.b[0] - m.a[0], dy = m.b[1] - m.a[1], dz = m.b[2] - m.a[2];
+      const L2 = dx * dx + dy * dy + dz * dz; if (L2 < 1e-9) continue;
+      const t = Math.max(0, Math.min(1, ((p[0] - m.a[0]) * dx + (p[1] - m.a[1]) * dy + (p[2] - m.a[2]) * dz) / L2));
+      const d = Math.hypot(p[0] - m.a[0] - dx * t, p[1] - m.a[1] - dy * t, p[2] - m.a[2] - dz * t) - m.r;
+      if (d < best) best = d;
+    }
+    return best;
+  };
+  // THE WALL ITSELF (G318): a wall-mounted control sat at 0.9 x halfW,
+  // which on this cabin is 4 cm inboard of the door's skin — a plate in
+  // the air. The cage's own vertices say where the side is at a height
+  // and a station: the outermost skin there, and the innermost surface
+  // within 5 cm of it (a lined pillar's liner, else the skin itself).
+  // Signed by side. And the door's forward edge at a height (the jamb),
+  // so nothing is hung across it.
+  const sidePts = [];
+  if (mesh && mesh.F && mesh.V)
+    for (const f of mesh.F) for (const vi of f.v) {
+      const v = mesh.V[vi];
+      if (Math.abs(v[0]) * k > 0.15) sidePts.push([v[0] * k, v[1] * k, v[2] * k, f.door ? 1 : 0]);
+    }
+  const wallAt = (sd, y, z) => {
+    let xMax = 0;
+    for (const q of sidePts) if (q[0] * sd > xMax && Math.abs(q[1] - y) < 0.08 && Math.abs(q[2] - z) < 0.10) xMax = q[0] * sd;
+    if (!(xMax > 0)) return sd * spec.cabin.halfW * k * 0.90;
+    let xIn = xMax;
+    for (const q of sidePts) { const x = q[0] * sd; if (x > xMax - 0.05 && x < xIn && Math.abs(q[1] - y) < 0.08 && Math.abs(q[2] - z) < 0.10) xIn = x; }
+    return sd * xIn;
+  };
+  const doorFwdAt = (sd, y) => {
+    let zM = -Infinity;
+    for (const q of sidePts) if (q[3] && q[0] * sd > 0 && Math.abs(q[1] - y) < 0.06 && q[2] > zM) zM = q[2];
+    return zM;
+  };
+  return { k, dashLip, dashTop, dashAftZ, face, dashTopAt, dashBotAt, dashAftAt, floorAt, tubeDist, wallAt, doorFwdAt, halfW: spec.cabin.halfW * k,
            roofY: spec.cabin.roofY * k, waistY: spec.waistY * k,
            zBack, zDash, zWin: win ? win.lv.waist.z * k : 0,
            // G180: the resolved rings, so a passenger bay's seat row can be
@@ -2137,6 +2345,14 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   if (thrMode === 2) thr = consoleThr;
   st1.thr = thr;
   let pedals = st1.pedals;
+  // G318: the flap lever, the brake, the fuel selector and the trim wheel —
+  // the pilot's, drawn with the controls so the join carries them
+  try {
+    buildFlapLever(tg, A, P, pilot.x, pilot, sbs);
+    buildBrakeKnob(tg, A, P, pilot.x);
+    buildFuelSelector(tg, A, P, pilot.x, pilot);
+    buildTrimWheel(tg, A, P, pilot.x, pilot);
+  } catch (e) { console.warn('controls (G318):', e); }
 
   // ---- THE PANEL AND THE FLOOR (G94) --------------------------------------
   // Both are DERIVED and neither is a choice: the floor is where `floorAt`

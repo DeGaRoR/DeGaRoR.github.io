@@ -254,7 +254,8 @@ function run() {
       if (by.dg && by.aiE) check(Math.abs(by.dg.cx - by.aiE.cx) < 1e-9 && by.dg.cy < by.aiE.cy, 'layout ' + nm + ': the DG under the AI');
       if (by.vsi && by.alt) check(Math.abs(by.vsi.cx - by.alt.cx) < 1e-9 && by.vsi.cy < by.alt.cy, 'layout ' + nm + ': the VSI under the altimeter');
       if (by.compass) check(by.compass.coaming && by.compass.cy > a.dashTop, 'layout ' + nm + ': the compass on the coaming');
-      check(L.switches.length === 11 && L.switches[0].k === 'key' && L.switches.every(s => Math.abs(s.x) <= L.xLim), 'layout ' + nm + ': the switch row, key first, inside', L.switches.length);
+      // 12 since G318: key, master, alt, AVIONICS (a radio is fitted on every fixture), four throws, four dimmers
+      check(L.switches.length === 12 && L.switches[0].k === 'key' && L.switches[3].k === 'avionics' && L.switches.every(s => Math.abs(s.x) <= L.xLim), 'layout ' + nm + ': the switch row, key first, the avionics master fourth, inside', L.switches.length);
       check(L.switches.every(s => s.y < Math.min(...D.filter(d => !d.coaming).map(d => d.cy - d.r)) + 1e-9), 'layout ' + nm + ': the switches under the dials');
       check(D.length + L.overflow.length >= full.length - 1, 'layout ' + nm + ': every dial placed or reported (' + L.overflow.join(',') + ')');
     }

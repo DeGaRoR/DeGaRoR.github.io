@@ -1714,7 +1714,7 @@
     // travel is the physics showing through, not an animation. The prop
     // parts join `props` and spin with the existing throttle law.
     const wheelParts = [], stretchRigs = [], surfParts = [], linkRigs = [];
-    const ctlMoves = [], gauges = [], picks = [];                    // G240; the panel arc; G317
+    const ctlMoves = [], gauges = [], picks = [];                    // G240; the panel arc; G318
     const engRigs = [], strutRigs = [];                              // G179.2
     const anchorRigs = [];                    // G267.2: the tail assembly, rigid on its anchor
     let castorRig = null;
@@ -2114,7 +2114,7 @@
             pg.position.set(pt.pivot[0], pt.pivot[1], pt.pivot[2]);
           grp.add(pg);
           ctlMoves.push({ obj: pg, c: pt.ctl, home: pt.pivot });
-          // G317: the four controls the cockpit's click reaches, with an
+          // G318: the four controls the cockpit's click reaches, with an
           // unseen pad each (the switches' idiom, cockpit.js padSwitches)
           const mp = /^edCtl_(flap|brake|fuel|trim)(#|$)/.exec(pt.ctl.name || '');
           if (mp) {
@@ -2492,7 +2492,7 @@
                         surfParts: surfParts.length ? surfParts : null,
                         linkRigs: linkRigs.length ? linkRigs : null,   // G239
                         ctlMoves: ctlMoves.length ? ctlMoves : null,   // G240
-                        picks: picks.length ? picks : null,            // G317
+                        picks: picks.length ? picks : null,            // G318
                         castorRig,
                         surfaces: data.surfaces,
                         link: makeLinkage(LINK_TAU) });  // visual linkage lag (SKIN-PROC)

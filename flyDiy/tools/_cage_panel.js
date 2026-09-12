@@ -482,7 +482,8 @@ const nrm3 = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / 
 // tape is a quad a hair off the plate, alpha-tested (ragged tape edges,
 // no sorting); which tape a switch wears is LABEL_OF.
 const LABEL_OF = { pax: 'Cabin', flood: 'Dash', instr: 'Instr', pedal: 'Feet',
-                   beacon: 'beac', nav: 'pos', land: 'land', taxi: 'cruise' };
+                   beacon: 'beac', nav: 'pos', land: 'land', taxi: 'cruise',
+                   master: 'Bat.', alt: 'Alt.', avionics: 'Avionics' };       // G318: the second sheet
 let labelMat = null;
 function labelSheet() {
   const S = (typeof PANEL_TEX_SHEETS !== 'undefined') ? PANEL_TEX_SHEETS
@@ -517,6 +518,77 @@ function labelInto(bag, i, n, cx, cy, z, w, h) {
   const a = bag.v([cx + w / 2, cy - h / 2, z], [0, v0]), b = bag.v([cx - w / 2, cy - h / 2, z], [1, v0]);
   const c = bag.v([cx - w / 2, cy + h / 2, z], [1, v1]), d = bag.v([cx + w / 2, cy + h / 2, z], [0, v1]);
   bag.quad(a, b, c, d);                                  // facing the pilot (-z)
+}
+// A TAPE FOR ANY SURFACE (G318): a quad of the named tile in the label
+// material, `w` wide, centred on its own origin and facing -z; the caller
+// places and turns it (the crew layer sticks 'Flaps' on the lever's cheek
+// and 'OFF/R/L/BOTH' over the fuel selector on the wall)
+function tape(name, w) {
+  const sheet = labelSheet(), li = sheet ? sheet.names.indexOf(name) : -1;
+  if (li < 0) return null;
+  const lb = UVBag(labelMaterial());
+  labelInto(lb, li, sheet.n, 0, 0, 0, w, w * sheet.h / sheet.w);
+  const g = new THREE.Group();
+  const m = lb.mesh(g, 'edGauge_label'); if (m) m.renderOrder = 3;
+  return g;
+}
+// THE REGISTRATION ON A BLANK TAPE (G318, the user: "one is empty, I'd like
+// it in the middle on top of the dials, with the identifier of the
+// aircraft, filled live based on the livery settings"): its own 512 x 160
+// canvas — the sheet's blank tile drawn first, the registration written
+// across it in the marker's hand — on ONE material (`panelSet: 'reg'`)
+// the join buckets and app.js rebuilds; `setReg(text)` repaints it in the
+// shed (the finish panel's registration) and in flight (the spec's).
+let regMat = null, regCv = null, regTex = null, regText = '';
+function regMaterial() {
+  if (regMat) return regMat;
+  regCv = HAS_DOM ? document.createElement('canvas') : null;
+  if (regCv) { regCv.width = 512; regCv.height = 160; }
+  regTex = regCv ? new THREE.CanvasTexture(regCv) : null;
+  if (regTex) { regTex.encoding = THREE.sRGBEncoding; regTex.anisotropy = 8; }
+  regMat = new THREE.MeshStandardMaterial({ map: regTex, color: 0xffffff, roughness: 0.92, metalness: 0,
+    alphaTest: 0.5, side: THREE.FrontSide });
+  regMat.userData.aeroskin = 1;
+  regMat.userData.panelSet = 'reg';
+  regMat.userData.inside = 1;
+  const sh = labelSheet();
+  if (sh && sh.img && !(sh.img.complete && sh.img.naturalWidth))
+    sh.img.addEventListener('load', () => paintReg());
+  return regMat;
+}
+function paintReg() {
+  if (!regCv) return;
+  const g = regCv.getContext('2d'), sh = labelSheet();
+  if (!g || !g.clearRect) return;
+  g.clearRect(0, 0, 512, 160);
+  const bi = sh ? sh.names.indexOf('blank') : -1;
+  if (sh && sh.img && sh.img.complete && sh.img.naturalWidth && bi >= 0)
+    g.drawImage(sh.img, 0, bi * sh.h, sh.w, sh.h, 0, 0, 512, 160);
+  else { g.fillStyle = '#e6e1d5'; g.fillRect(24, 30, 464, 100); }
+  g.fillStyle = '#1b1b1d';
+  g.font = `700 76px ${FONT_REG}`;
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.save(); g.translate(256, 84); g.rotate(-0.02);
+  g.fillText(regText || '', 0, 0);
+  g.restore();
+  if (regTex) regTex.needsUpdate = true;
+}
+const FONT_REG = '"IBM Plex Sans", "Segoe UI", system-ui, sans-serif';
+function setReg(text) {
+  const t = String(text == null ? '' : text).trim();
+  if (t === regText && regTex) return;
+  regText = t;
+  regMaterial();
+  paintReg();
+}
+// the registration the shed knows: the finish panel's, else the spec's
+function shedReg() {
+  try {
+    const U = window.CAGE_UI;
+    if (U && typeof U.reg === 'function') { const r = U.reg(); if (r) return r; }
+    const S = window.GARAGE_SPEC && window.GARAGE_SPEC.get && window.GARAGE_SPEC.get();
+    return (S && ((S.meta && S.meta.reg) || S.reg)) || '';
+  } catch (e) { return ''; }
 }
 // THE SCREWS' SHADOW (session 4f, the user: "have them cast some AO onto
 // the dash, even if you need to fake it with a plane and some
@@ -1415,7 +1487,7 @@ function build(parent, A, P, pilotX) {
       const m = sb.mesh(sg, 'edGauge_ao'); if (m) m.renderOrder = 2;
     }
     if (s.kind === 'key') keyAt(sg, 0, 0, 0, 'both');
-    else if (s.kind === 'rocker') rockerAt(sg, 0, 0, 0, s.k, +P[s.k === 'alt' ? 'swAlt' : 'swMaster'] > 0.5);
+    else if (s.kind === 'rocker') rockerAt(sg, 0, 0, 0, s.k, +P[{ alt: 'swAlt', avionics: 'swAvionics' }[s.k] || 'swMaster'] > 0.5);
     else if (s.kind === 'toggle') toggleAt(sg, 0, 0, 0, s.k, +P['li_' + s.k] > 0.5);
     else if (s.kind === 'knob') {
       knobAt(sg, 0, 0, 0, s.k, Math.max(0, Math.min(1, +P['li_' + s.k] || 0)));
@@ -1448,6 +1520,22 @@ function build(parent, A, P, pilotX) {
     }
   }
   bowl.mesh(grp, matFor('bowl')); symC.mesh(grp, matFor('needle'));   // pale: the card is black now (G311)
+  // THE REGISTRATION TAPE (G318): on the dash's roll above the plate, at
+  // the centre — the band between the plate's top and the glareshield —
+  // stuck on the roll's aft face there, facing the seats
+  if (A.dashAftAt && A.face && A.dashTop != null && HAS_DOM) {
+    const y0 = A.face.yTop, y1 = A.dashTop;
+    if (y1 - y0 > 0.012) {
+      const yR = (y0 + y1) / 2, zR = A.dashAftAt(0, 0.06, y0 + 0.002, y1 - 0.002) - 0.0012;
+      const w = Math.min(0.11, (y1 - y0) * 512 / 160 * 0.9), h = w * 160 / 512;
+      const rb = UVBag(regMaterial());
+      const a = rb.v([w / 2, yR - h / 2, zR], [0, 0]), b = rb.v([-w / 2, yR - h / 2, zR], [1, 0]);
+      const c = rb.v([-w / 2, yR + h / 2, zR], [1, 1]), d = rb.v([w / 2, yR + h / 2, zR], [0, 1]);
+      rb.quad(a, b, c, d);
+      const m = rb.mesh(grp, 'edGauge_reg'); if (m) m.renderOrder = 3;
+      setReg(shedReg());
+    }
+  }
   // the instrument light on the switchboard, as every emitter is (GATE LIGHT's
   // census), declared once per build against the material that glows
   try {
@@ -1481,8 +1569,10 @@ window.CAGE_PANEL = {
   // `material('faces')`
   build, get moving() { return MOVING; }, MAT,
   material: k => (k === 'faces' ? facesMaterial() : k === 'ao' ? aoMaterial()
-                  : k === 'label' ? labelMaterial() : k === 'needle' ? needleMaterial() : matFor(k)),
+                  : k === 'label' ? labelMaterial() : k === 'needle' ? needleMaterial()
+                  : k === 'reg' ? regMaterial() : matFor(k)),
   holes: holesIn,                              // G279: the plate's cut-outs, in a parent's frame
+  tape, setReg,                                // G318: a tape for any surface; the registration
   atlas: () => atlasCv, last: () => LAST, faceDim,
   switches: true,                // the light layer leaves the switch row to us
 };

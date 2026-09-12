@@ -259,12 +259,16 @@ function applyHinges(hb, surfaces, base, pos, ctl) {
 function makeLinkage(tau) {
   // `thr` rides too (live crew): the throttle lever in the cockpit, and the
   // hand on it, lag the way the stick does
-  const s1 = { de: 0, da: 0, dr: 0, flap: 0, thr: 0 },
-        s2 = { de: 0, da: 0, dr: 0, flap: 0, thr: 0 };
+  // G318: the brake (a pull), the trim wheel and the fuel selector ride too —
+  // `trim` and `fuel` are the cockpit's own numbers on ctl, which the solver
+  // never reads; the linkage carries them to the parts like any drive
+  const KEYS = ['de', 'da', 'dr', 'flap', 'thr', 'brake', 'trim', 'fuel'];
+  const s1 = {}, s2 = {};
+  for (const k of KEYS) { s1[k] = 0; s2[k] = 0; }
   return {
     step(ctl, dt) {
       const a = Math.min(1, dt / tau);
-      for (const k of ['de', 'da', 'dr', 'flap', 'thr']) {
+      for (const k of KEYS) {
 
         s1[k] += a * ((ctl[k] || 0) - s1[k]);
         s2[k] += a * (s1[k] - s2[k]);

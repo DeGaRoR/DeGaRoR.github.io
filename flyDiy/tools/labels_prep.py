@@ -3,8 +3,8 @@
 for labeling the switches ... stick them at 45 deg on top of their
 respective controls").
 
-Input: one sheet of hand-written tape labels on a transparent background
-(assets/interior/labels.png, the user's ChatGPT render), any layout. Each
+Input: sheets of hand-written tape labels on a transparent background
+(assets/interior/labels*.png, the user's renders; SHEETS below), any layout. Each
 tape is found as a connected blob of alpha, read in ROWS (top to bottom, then
 left to right), cleaned (the render leaves semi-transparent fuzz round every
 tape: only the blob itself keeps its alpha) and laid into ONE column sheet,
@@ -17,15 +17,22 @@ viewer, the editor and GATE MEDIA read. The ORDER on the sheet is the
 contract: LABELS below names tile i, and the panel layer maps a switch key to
 a name. Re-run after editing the sheet.
 
-  python tools/labels_prep.py [--src assets/interior/labels.png]
+  python tools/labels_prep.py [--dir assets/interior]
 """
 import argparse, hashlib, io, os, sys
 import numpy as np
 from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# the sheet's reading order -> the label's name (what is written on it)
-LABELS = ['Cabin', 'Dash', 'Instr', 'Feet', 'beac', 'pos', 'land', 'cruise']
+# each sheet's reading order -> the label's name (what is written on it);
+# the sheets are read in this order and their tiles stacked (G318: a second
+# sheet — the buttons, the fuel selector, the avionics, the flaps, and one
+# BLANK tape the panel writes the registration on)
+SHEETS = [
+    ('labels.png',  ['Cabin', 'Dash', 'Instr', 'Feet', 'beac', 'pos', 'land', 'cruise']),
+    ('labels2.png', ['Bat.', 'Alt.', 'OFF/R/L/BOTH', 'Avionics', 'Flaps', 'blank']),
+]
+LABELS = [n for _, names in SHEETS for n in names]
 TILE_W, TILE_H = 512, 160          # one tile; a tape is ~3.4:1, kept whole
 
 
@@ -62,23 +69,25 @@ def blobs(alpha, thr=128, min_px=4000):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--src', default=os.path.join('assets', 'interior', 'labels.png'))
+    ap.add_argument('--dir', default=os.path.join('assets', 'interior'))
     a = ap.parse_args()
-    src = os.path.join(ROOT, a.src)
-    im = Image.open(src).convert('RGBA')
-    arr = np.array(im)
-    alpha = arr[..., 3]
-    bl = blobs(alpha)
-    if len(bl) < len(LABELS):
-        sys.exit('found %d tapes, expected %d' % (len(bl), len(LABELS)))
-    # the largest N, then in reading order: rows by the blob's centre y
-    # (a row is anything within half a tape height), left to right within
-    bl.sort(key=lambda b: -(b[1] - b[0]) * (b[3] - b[2]))
-    bl = bl[:len(LABELS)]
-    hmed = float(np.median([b[1] - b[0] for b in bl]))
-    bl.sort(key=lambda b: ((b[0] + b[1]) / 2 // (hmed * 0.8), (b[2] + b[3]) / 2))
+    tiles = []            # (name, arr, blob)
+    for fname, names in SHEETS:
+        im = Image.open(os.path.join(ROOT, a.dir, fname)).convert('RGBA')
+        arr = np.array(im)
+        bl = blobs(arr[..., 3])
+        if len(bl) < len(names):
+            sys.exit('%s: found %d tapes, expected %d' % (fname, len(bl), len(names)))
+        # the largest N, then in reading order: rows by the blob's centre y
+        # (a row is anything within half a tape height), left to right within
+        bl.sort(key=lambda b: -(b[1] - b[0]) * (b[3] - b[2]))
+        bl = bl[:len(names)]
+        hmed = float(np.median([b[1] - b[0] for b in bl]))
+        bl.sort(key=lambda b: ((b[0] + b[1]) / 2 // (hmed * 0.8), (b[2] + b[3]) / 2))
+        for n, b in zip(names, bl):
+            tiles.append((n, arr, b))
     sheet = Image.new('RGBA', (TILE_W, TILE_H * len(LABELS)), (0, 0, 0, 0))
-    for i, (y0, y1, x0, x1, mask) in enumerate(bl):
+    for i, (name, arr, (y0, y1, x0, x1, mask)) in enumerate(tiles):
         tile = arr[y0:y1, x0:x1].copy()
         m = mask[y0:y1, x0:x1]
         # the fuzz goes: alpha survives only on the blob itself, softened at
@@ -91,7 +100,7 @@ def main():
         ox = (TILE_W - t.width) // 2
         oy = i * TILE_H + (TILE_H - t.height) // 2
         sheet.paste(t, (ox, oy), t)
-        print('  %-7s %4dx%-4d -> tile %d' % (LABELS[i], x1 - x0, y1 - y0, i))
+        print('  %-12s %4dx%-4d -> tile %d' % (name, x1 - x0, y1 - y0, i))
     buf = io.BytesIO()
     sheet.save(buf, 'PNG', optimize=True)
     data = buf.getvalue()

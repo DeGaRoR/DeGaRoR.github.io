@@ -365,6 +365,9 @@ function layout(A, o) {
   if (o.elec && o.elec.hasBus) {
     sw.push({ k: 'key', kind: 'key' }, { k: 'master', kind: 'rocker' });
     if (o.elec.altA) sw.push({ k: 'alt', kind: 'rocker' });
+    // G318: an avionics master when a radio is fitted — the user drew the
+    // tape; the bus gates the radios' loads on it
+    if ((o.radios || []).some(k => k === 'com' || k === 'xpdr')) sw.push({ k: 'avionics', kind: 'rocker' });
   }
   for (const k of (o.extLights || [])) sw.push({ k, kind: 'toggle', light: true });
   for (const k of (o.intLights || [])) sw.push({ k, kind: 'knob', light: true });

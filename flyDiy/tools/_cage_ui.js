@@ -3485,7 +3485,7 @@ function buildDecPanel() {
     // the whole cage for every letter of a registration.
     i.oninput = () => { DEC.reg = i.value.toUpperCase(); i.value = DEC.reg;
       decSavePrefs(); applyDecals();
-      // G317: the tape on the dash follows every keystroke (a repaint, not a rebuild)
+      // G318: the tape on the dash follows every keystroke (a repaint, not a rebuild)
       if (window.CAGE_PANEL && window.CAGE_PANEL.setReg) window.CAGE_PANEL.setReg(DEC.reg);
       draw(); };
     i.onchange = () => {
@@ -4357,7 +4357,7 @@ if (typeof ResizeObserver !== 'undefined')
 if (PAGE.defaultStep && $('step')) $('step').value = PAGE.defaultStep;
 anchorSize();                              // the page opens at its ×1
 syncSliders();
-window.CAGE_UI = { P, build, draw, applyPreset, syncSliders, reg: () => decReg(),   // G317: the tape reads it
+window.CAGE_UI = { P, build, draw, applyPreset, syncSliders, reg: () => decReg(),   // G318: the tape reads it
   // THE TWO HALVES OF A LOAD (G63). `applySpec` puts a build into the editor;
   // `toSpec` takes the editor's whole parameter set out as the spec's `cage`
   // fragment — layer keys included, view keys excluded. Every shelf load,

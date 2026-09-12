@@ -306,6 +306,9 @@
     let brakeRamp = 0;
     let padsNow = [], keysNow = [], rawNow = {};
     let firedNow = [];
+    // G318: a step fired by the cockpit's own click (the flap lever), consumed
+    // by the next update exactly as a bound key's edge is
+    const fireQ = [];
 
     const rebind = () => {
       boundCodes = {};
@@ -594,6 +597,7 @@
           }
         }
       }
+      while (fireQ.length) { const id = fireQ.shift(); if (ACTIONS.some(a => a.id === id)) { firedNow.push(id); touchedAt = t; } }
       // the steps this module consumes itself
       for (const id of firedNow) {
         if (id === 'trimUp') trim = clamp(trim + TRIM_STEP, -TRIM_MAX, TRIM_MAX);
@@ -656,6 +660,7 @@
       setProfile, resetDefaults, exportJSON, importJSON,
       devices, state, active: () => t - touchedAt < ACTIVE_FOR,
       trim: () => trim, setTrim: v => { trim = clamp(fin(v, 0), -TRIM_MAX, TRIM_MAX); },
+      fire: id => { fireQ.push(String(id)); },       // G318
       onChange: f => { onChange = typeof f === 'function' ? f : null; },
       keyLabel,
     };

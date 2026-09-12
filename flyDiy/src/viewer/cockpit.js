@@ -73,6 +73,14 @@ function make(THREE) {
     CK.lightOn = L.on !== false;
     for (const k of Object.keys(LIGHT_AMPS)) CK.sw['sw_' + k] = L[k] != null ? +L[k] : 0;
     CK.sw.sw_master = 1; CK.sw.sw_alt = 1; CK.key = 'both'; CK.sw.key = 3;
+    // G318: the avionics master on, the fuel selector on BOTH, the brake off
+    CK.sw.sw_avionics = 1; CK.sw.fuel = 3; CK.park = false;
+    // the registration on the dash's blank tape, from the spec
+    try {
+      const W1 = typeof window !== 'undefined' ? window : {};
+      const reg = spec && ((spec.meta && spec.meta.reg) || spec.reg);
+      if (W1.CAGE_PANEL && W1.CAGE_PANEL.setReg) W1.CAGE_PANEL.setReg(reg || '');
+    } catch (e) {}
     CK.qnh = opts.fieldElev || 0;
     CK.pilotKey = opts.pilotKey || null;
     // the bus from the fit
@@ -160,6 +168,8 @@ function make(THREE) {
     // the switches reach the bus and the key reaches the engine
     if (bus) {
       bus.master = !!CK.sw.sw_master; bus.alt = !!CK.sw.sw_alt;
+      // G318: the avionics master gates the radios' loads
+      bus.on.com = !!CK.sw.sw_avionics; bus.on.xpdr = !!CK.sw.sw_avionics;
       for (const k of Object.keys(LIGHT_AMPS)) {
         const v = CK.lightOn ? +CK.sw['sw_' + k] || 0 : 0;
         bus.setLoad('sw_' + k, LIGHT_AMPS[k] * (k === 'beacon' ? 0.5 : 1) * (v > 0 ? (v > 1 ? 1 : v) : 0));
@@ -168,6 +178,21 @@ function make(THREE) {
       bus.step(dt, rpmProp, E.crank > 0);
     }
     const busOk = bus ? bus.ok : true;
+    // G318: THE NEW CONTROLS' NUMBERS ON THE LINKAGE. The parking brake holds
+    // the wheels through ctl.brake after the hand's write; the trim wheel
+    // shows the input's bias; the fuel selector its position. OFF stops the
+    // engine (the fuel valve), and it stays stopped until the key starts it.
+    if (sim.ctl) {
+      if (CK.park) sim.ctl.brake = 1;
+      const W2 = typeof window !== 'undefined' ? window : {};
+      const INP2 = W2.FLYDIY_INPUT;
+      sim.ctl.trim = INP2 && typeof INP2.trim === 'function' ? INP2.trim() : 0;
+      sim.ctl.fuel = +CK.sw.fuel || 0;
+    }
+    if ((+CK.sw.fuel || 0) === 0 && E.running && sim.setEngine) {
+      const n = sim.eng ? sim.eng.length : 1;
+      for (let e = 0; e < n; e++) sim.setEngine(e, { running: false });
+    }
     // the key springs back from START once the engine has caught (or the
     // crank has been let go)
     if (CK.key === 'start' && E.crank <= 0) { CK.key = 'both'; CK.sw.key = 3; }
@@ -335,6 +360,9 @@ function make(THREE) {
       while (a && a !== model.grp) {
         const g = model.gauges.find(q => q.obj === a);
         if (g) return g;
+        // G318: the flap lever, the brake, the fuel selector, the trim wheel
+        const pk = model.picks && model.picks.find(q => q.obj === a);
+        if (pk) return { pick: pk.key, obj: pk.obj, c: { law: 'pick:' + pk.key, drive: pk.key } };
         a = a.parent;
       }
       // glass and its companion pass are see-through: the ray goes on; the
@@ -350,6 +378,24 @@ function make(THREE) {
     if (!g || !g.c) return false;
     const c = g.c, drv = c.drive;
     let did = false;
+    // G318: the four controls. The right button is the head's (4c), so a
+    // click has ONE direction and the drag has both (below): the flap lever
+    // steps a notch further (and back to up from the last, the knobs'
+    // cycle); the brake knob toggles the parking brake; the fuel selector
+    // steps OFF / R / L / BOTH round; the trim wheel a nose-up step.
+    if (g.pick) {
+      const W3 = typeof window !== 'undefined' ? window : {};
+      const INP3 = W3.FLYDIY_INPUT;
+      if (g.pick === 'flap' && INP3 && INP3.fire) {
+        const st = INP3.state ? INP3.state() : null, n = st && st.notches ? st.notches.length : 2, i = st ? st.flapI : 0;
+        if (i >= n - 1) for (let k = 0; k < i; k++) INP3.fire('flapUp'); else INP3.fire('flapDown');
+        did = true;
+      }
+      else if (g.pick === 'brake') { CK.park = !CK.park; did = true; }
+      else if (g.pick === 'fuel') { const i = clamp(Math.round(+CK.sw.fuel || 0), 0, 3); CK.sw.fuel = (i + 1) % 4; did = true; }
+      else if (g.pick === 'trim' && INP3 && INP3.setTrim) { INP3.setTrim((INP3.trim() || 0) + 0.05); did = true; }
+      return did;
+    }
     if (c.law === 'switch') { CK.sw[drv] = +CK.sw[drv] > 0.5 ? 0 : 1; did = true; }
     else if (c.law === 'knob') { const v = +CK.sw[drv] || 0; CK.sw[drv] = button === 2 ? (v <= 0 ? 1 : Math.max(0, v - 0.25)) : (v >= 1 ? 0 : Math.min(1, v + 0.25)); did = true; }
     else if (c.law === 'key') {
@@ -370,7 +416,19 @@ function make(THREE) {
   // the other way; a press let go without moving is the old click.
   CK.grab = null;
   CK.dragStart = (g, y) => {
-    if (!g || !g.c || !/^(knob|key)$/.test(g.c.law)) return false;
+    if (!g || !g.c) return false;
+    // G318: the trim wheel, the fuel selector and the flap lever move under
+    // the mouse too (the 4e idiom: up is clockwise / a notch up / lever up)
+    if (g.pick === 'trim' || g.pick === 'fuel' || g.pick === 'flap') {
+      const W4 = typeof window !== 'undefined' ? window : {};
+      const INP4 = W4.FLYDIY_INPUT;
+      const v0 = g.pick === 'trim' ? (INP4 && INP4.trim ? INP4.trim() : 0)
+               : g.pick === 'fuel' ? clamp(Math.round(+CK.sw.fuel || 0), 0, 3)
+               : (INP4 && INP4.state ? INP4.state().flapI : 0);
+      CK.grab = { g, y0: y, v0, moved: false };
+      return true;
+    }
+    if (!/^(knob|key)$/.test(g.c.law)) return false;
     CK.grab = { g, y0: y, v0: g.c.law === 'key' ? clamp(Math.round(+CK.sw.key || 0), 0, 4) : (+CK.sw[g.c.drive] || 0), moved: false };
     return true;
   };
@@ -379,7 +437,21 @@ function make(THREE) {
     const dy = G.y0 - y;                               // up is positive
     if (Math.abs(dy) > 3) G.moved = true;
     if (!G.moved) return true;
-    if (G.g.c.law === 'knob') { CK.sw[G.g.c.drive] = clamp(G.v0 + dy * 0.005, 0, 1); CK.glow(0); }
+    if (G.g.pick === 'trim') {                          // G318: the wheel rolls under the mouse
+      const W5 = typeof window !== 'undefined' ? window : {};
+      if (W5.FLYDIY_INPUT && W5.FLYDIY_INPUT.setTrim) W5.FLYDIY_INPUT.setTrim(G.v0 + dy * 0.004);
+    }
+    else if (G.g.pick === 'fuel') CK.sw.fuel = clamp(Math.round(G.v0 + dy / 28), 0, 3);
+    else if (G.g.pick === 'flap') {                     // the lever pulled up is a notch of flap
+      const W6 = typeof window !== 'undefined' ? window : {};
+      const I6 = W6.FLYDIY_INPUT, st = I6 && I6.state ? I6.state() : null;
+      if (st && I6.fire) {
+        const want = clamp(Math.round(G.v0 + dy / 36), 0, (st.notches || [0]).length - 1);
+        for (let k = st.flapI; k < want; k++) I6.fire('flapDown');
+        for (let k = st.flapI; k > want; k--) I6.fire('flapUp');
+      }
+    }
+    else if (G.g.c.law === 'knob') { CK.sw[G.g.c.drive] = clamp(G.v0 + dy * 0.005, 0, 1); CK.glow(0); }
     else {
       const st = clamp(Math.round(G.v0 + dy / 28), 0, 4);
       if (st !== clamp(Math.round(+CK.sw.key || 0), 0, 4)) CK.setKey(KEY_STEPS[st]);

@@ -40936,3 +40936,95 @@ lattice's lever, and with the cluster on the members carry none.
 - Screenshots (bench, headless Chrome): the belly head-on before/after, the
   quarter view under the gear, the hinges, the rod saddles, the doors, the
   twin tail — sent with the study.
+
+## G318 — THE FLAP LEVER, THE BRAKE, THE FUEL SELECTOR AND THE TRIM WHEEL,
+## THE SECOND STICKER SHEET, AND THE REGISTRATION ON THE DASH (2026-09-12,
+## the user: "go ahead with the flap lever, brake and fuel selector and trim
+## wheel. The trim wheel can be placed on the left side. Take references of a
+## simple one, like on the piper cub. I have generated new stickers. One is
+## empty, I'd like it in the middle on top of the dials, with the identifier
+## of the aircraft, filled live based on the livery settings")
+
+- **Four controls in the crew layer** (`_cage_crew.js`, pilot's station
+  only), each a `movingAt` part the join carries as `kind:'ctlMove'` so
+  flight poses them off the linkage like the stick:
+  - `buildFlapLever` — a cast quadrant on the floor with a toothed arc,
+    a tube lever with a moulded grip and a release button; between the
+    seats side by side, on the pilot's right otherwise; `drive:'flap'`,
+    forward-and-up at flaps up, pulled aft as they come down; the user's
+    'Flaps' tape on its cheek.
+  - `buildBrakeKnob` — a J-3 pull: a bracket hung from the dash's bottom
+    (its foot sunk into the box), a bushing, a rod with a T handle;
+    `drive:'brake'` as a SLIDE (`slide:[0,0,-0.035]`), out when set. The
+    dash's bottom is read over a 6 cm net: its vertices are sparse across
+    x and a 4 cm net at the pilot's x found only the roll's underside.
+  - `buildFuelSelector` — a round plate on the left wall, four dots
+    (OFF aft, R, L, BOTH forward — the order the user's tape reads), a
+    hub and a flat pointer handle; `drive:'fuel'`, `k = π/3` per position;
+    the 'OFF/R/L/BOTH' tape above it.
+  - `buildTrimWheel` — a Cub's: a wall plate by the pilot's hip, a stub
+    axle, a knurled wheel (28 bolts round the rim) with a white mark and a
+    fixed pointer; `drive:'trim'`, `k = 2.2`, nose up rolls the top aft.
+- **The wall is where the cage says it is.** The wall throttle, the
+  selector and the trim wheel sat at 0.9 × halfW — on this cabin 4 cm
+  inboard of the door's skin, plates in the air. The anchors read the
+  cage's own vertices: `A.wallAt(side, y, z)` (the outermost skin there,
+  then the innermost surface within 5 cm of it — a lined pillar's liner,
+  else the skin), `A.doorFwdAt(side, y)` (the door's jamb at a height, off
+  the door-flagged faces) so the selector hangs AFT of it, and
+  `A.tubeDist(p)` (the interior pass's published members) so nothing is
+  drawn through a frame tube. `A.dashAftAt(x, dx, y0, y1)` for the tape.
+- **The linkage carries `brake`, `trim`, `fuel`** (`50_model_codec.js`
+  KEYS): `trim` and `fuel` are the cockpit's own numbers on `ctl`, which
+  the solver never reads. `input.js` gains `fire(id)`: a step the cockpit
+  fires (the lever's notch), consumed by the next update as a bound key's
+  edge is.
+- **cockpit.js**: `model.picks` (app.js: `edCtl_(flap|brake|fuel|trim)`
+  with an unseen pad sphere each, the switches' idiom) reach `CK.pick` →
+  `{pick, obj}`. The right button is the head's (G264), so a CLICK has one
+  direction and the DRAG both (the 4e idiom, up = clockwise / a notch up /
+  the lever up): the flap lever steps a notch further (round to up from
+  the last), the brake toggles the parking brake, the selector steps
+  OFF/R/L/BOTH round, the wheel a nose-up step. `CK.frame` writes
+  `sim.ctl.brake = 1` while parked (after the hand's write), `ctl.trim =
+  INP.trim()`, `ctl.fuel = CK.sw.fuel`; **fuel OFF stops the engine**
+  (`sim.setEngine(e, {running:false})`) and it stays stopped until the key
+  starts it. Bind sets avionics on, fuel BOTH, park off. Note the flap
+  lever writes the INPUT's notches: under the autopilot the AP owns
+  `ctl.flap` (as the F key does); by hand it is yours.
+- **The second sticker sheet** (`assets/interior/labels2.png`, gitignored
+  like the first): `tools/labels_prep.py` is multi-sheet (`SHEETS`, the
+  order is the contract) — one 14-tile column
+  `media/tex/panel/labels_512x160.c6220ab0.png` (the old 8-tile sheet
+  removed); `panel_tex.js` names them. `LABEL_OF` gains master → 'Bat.',
+  alt → 'Alt.', avionics → 'Avionics'; `CAGE_PANEL.tape(name, w)` is a tape
+  for any surface (the crew layer's `tapeOn`).
+- **An avionics master** (`_panel_gen.js`) when a COM or XPDR is fitted —
+  the twelfth switch, fourth in the row; the bus gates the radios' loads on
+  it (`bus.on.com / xpdr`); the shed's `swAvionics` state. GATE PANEL's
+  row check is 12 with the avionics fourth.
+- **The registration on the blank tape** (`_cage_panel.js`): its own
+  512 × 160 canvas — the sheet's blank tile drawn first, the registration
+  written across it (Plex Sans 700, a hair of tilt) — on ONE material
+  (`panelSet:'reg'`, `CAGE_PANEL.material('reg')`) the join buckets and
+  app.js rebuilds; a quad `edGauge_reg` centred on the dash's roll between
+  the plate's top and the glareshield, on the roll's aft face
+  (`dashAftAt`). `CAGE_PANEL.setReg(text)` repaints (never rebuilds): the
+  finish panel's registration input calls it on every keystroke
+  (`CAGE_UI.reg()` publishes it; the shed reads that, else the spec's), and
+  `CK.bind` writes the flying spec's `meta.reg`.
+- **Verified** in the Browser pane (dev.html, the pump copy): shed
+  interior — the four controls on the wall/floor, the tapes, "B-ITES" on
+  the roll; flight, cockpit view, paused on the stand — a click on the
+  brake sets `CK.park` and `ctl.brake` 1, the selector click steps BOTH →
+  OFF and the engine stops (rpm 756 → 0), key START brings it back at BOTH,
+  the wheel's click +0.05 and a drag to the 0.5 stop, the lever's click a
+  notch and a drag back to up; the brake rod slides 35 mm aft, the wheel
+  turns 61° at 0.5, the handle reads 180° at BOTH.
+- **Owed**: the shed's interior click works the light switches (G305)
+  but not these four (flight only — they need the bus/input behind
+  them); the selector's L/R still drains all tanks (core); no tapes for
+  the brake and the trim; mixture / carb heat / primer not modelled; the
+  'taxi' sticker still reads 'cruise'; the door's jamb liner still
+  overlaps the selector from the pilot's own eye at a grazing angle (it
+  is on the wall now, 9 cm aft of the jamb).
