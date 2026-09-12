@@ -38701,3 +38701,15 @@ built. The snap is skipped while the shed's cage build is up, so the
 camera — orbit or interior — stays put through any row.
 
 GATE UISMOKE green.
+
+## G271 — EVERYTHING ON THE DASH CASTS ITS SHADOW (2026-09-12, the user:
+## "use the screws AO trick on everything that goes onto the dashboard")
+
+`aoDiscInto` in the panel layer: one quad of the G266.1 radial-gradient
+material a hair proud of the plate, under every instrument (1.34 r, so the
+dark ring shows round the flange and fades out), under every switch, knob,
+rocker and the key (by kind: 11 / 15 / 18 / 20 mm), and — laid flat on the
+glareshield — under the compass's base plate; the crew layer's push-pull
+throttle collar takes the same material through `CAGE_PANEL.material('ao')`
+on a plane. All of it rides the one `panelSet: 'ao'` bucket into flight.
+GATE PANEL green.

@@ -525,6 +525,18 @@ function bezelAt(bag, cx, cy, z, r, skirt) {
 // on a 3.44" square, a 2-1/4"'s on 2.44" — 1.09 r either way — and the
 // pan heads sit on the plate at those corners. Each head: a domed revolve
 // 4.6 mm across with a cross slot, plated steel.
+// A SOFT SHADOW UNDER ANYTHING ON THE DASH (session 4h, the user: "use the
+// screws AO trick on everything that goes onto the dashboard"): one quad on
+// the plate, a hair proud, carrying the radial gradient; `up` lays it in
+// the x-z plane instead (the compass on the glareshield)
+function aoDiscInto(ao, cx, cy, z, R, up) {
+  const q = up ? [[cx - R, z - R], [cx + R, z - R], [cx + R, z + R], [cx - R, z + R]]
+               : [[cx - R, cy - R], [cx + R, cy - R], [cx + R, cy + R], [cx - R, cy + R]];
+  const uv = [[0, 0], [1, 0], [1, 1], [0, 1]];
+  const ids = q.map(([a, b], i) => ao.v(up ? [a, cy, b] : [a, b, z - 0.0003], uv[i]));
+  if (up) ao.quad(ids[0], ids[1], ids[2], ids[3]);       // facing +y
+  else ao.quad(ids[0], ids[3], ids[2], ids[1]);          // facing the pilot (−z)
+}
 function screwsAt(bag, slot, ao, cx, cy, z, r) {
   // (4f: a tenth further in and a fifth bigger, with a shadow disc each)
   const K = KIT(), d = r * 0.98, R0 = 0.0028;
@@ -1100,6 +1112,11 @@ function build(parent, A, P, pilotX) {
         K.sweep(mount, [[cx - r, y0, zc], [cx - r, y1, zc]], () => K.secRound(0.0016, 10), true);
       }
       mount.mesh(grp, matFor('barrel'));
+      {
+        const sb = UVBag(aoMaterial());
+        aoDiscInto(sb, cx, yB - 0.003 + 0.0004, zc, r * 1.35, true);
+        const m = sb.mesh(grp, 'edGauge_ao'); if (m) m.renderOrder = 2;
+      }
       const g = gaugeAt(grp, 'edGauge_compass_card', [cx, cy, zc], [0, 1, 0], 'hdg', 'card', { sgn: -1, k: 1 });
       const cb = UVBag(fm);
       cardDrumInto(cb, slotOf['compass:strip'], r * 0.62, r * 0.5);
@@ -1122,6 +1139,7 @@ function build(parent, A, P, pilotX) {
     // would otherwise let a corner of the patch through)
     K.revolve(plate, [cx, cy, zF], [0, 0, 1],
       [[r * 0.95, -0.0010], [r * 1.04, -0.0010], [r * 1.04, 0.0015], [r * 0.95, 0.0015]], 48, false);
+    aoDiscInto(aoBag, cx, cy, zF, r * 1.34);              // the instrument's own shadow, round the flange
     screwsAt(screw, slotB, aoBag, cx, cy, zF, r);
     // the can behind: the AI's holds its drum, the rest a hand's depth
     canAt(can, cx, cy, zF, isAI ? AI_DRUM_K * r + 0.004 : r * 0.92,
@@ -1211,6 +1229,11 @@ function build(parent, A, P, pilotX) {
   // ---- the switch row, each on the plate under it
   for (const s of L.switches) {
     const sg = standOn(s.x, s.y, 0.012);
+    {
+      const sb = UVBag(aoMaterial());
+      aoDiscInto(sb, 0, 0, 0, { key: 0.020, rocker: 0.018, toggle: 0.011, knob: 0.015 }[s.kind] || 0.012);
+      const m = sb.mesh(sg, 'edGauge_ao'); if (m) m.renderOrder = 2;
+    }
     if (s.kind === 'key') keyAt(sg, 0, 0, 0, 'both');
     else if (s.kind === 'rocker') rockerAt(sg, 0, 0, 0, s.k, true);
     else if (s.kind === 'toggle') toggleAt(sg, 0, 0, 0, s.k, +P['li_' + s.k] > 0.5);

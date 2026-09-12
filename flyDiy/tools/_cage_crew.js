@@ -963,6 +963,12 @@ function buildThrottleDash(g0, A, P, sx) {
     KD.revolve(col, [xT, yT, z0], [0, 0, -1], [[0.020, 0], [0.020, 0.003], [0.011, 0.005], [0.011, 0.016], [0.0085, 0.017], [0, 0.017]], 24, false);
     KD.sweep(col, [[xT, yT, z0 - 0.005], [xT, yT, z0 - 0.011]], () => { const o = []; for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; o.push([0.0135 * Math.cos(a), 0.0135 * Math.sin(a)]); } return o; }, true, [0, 1, 0]);
     col.mesh(g, M.plated);
+    // its shadow on the plate (session 4h): the panel layer's soft disc
+    if (window.CAGE_PANEL && window.CAGE_PANEL.material) {
+      const ao = new THREE.Mesh(new THREE.PlaneGeometry(0.058, 0.058), window.CAGE_PANEL.material('ao'));
+      ao.position.set(xT, yT, z0 - 0.0003); ao.rotation.y = Math.PI; ao.renderOrder = 2;
+      g.add(ao);
+    }
   } else {
     const m = new THREE.Mesh(
       new THREE.CylinderGeometry(0.020, 0.020, 0.012, 12), M.metal);
