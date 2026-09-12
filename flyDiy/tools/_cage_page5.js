@@ -148,6 +148,7 @@ window.CAGE_PAGE = {
     pedalH: 0.18, pedalSpread: 0.10, pedalAngle: 25, dumOn: 1,
     dumSize: 1, dumElbows: 0.08, dumKnees: 0, dumRecline: 0, dumMarkers: 1,
     pilotWho: WHO_DEFAULT, copWho: 0, dumFist: 0.5, dumIdle: 0.5,
+    swMaster: 0, swAlt: 0,                     // G311: the shed's button states (off, unlit)
     paxFeetOn: 1, paxFeetZ: 0.55, paxFeetY: 0, paxFeetX: 0.14, paxIdle: 1,
     dumHandGrip: 0.075,
     // G180 — WHO IS ABOARD, per section, and the passengers' own seat and

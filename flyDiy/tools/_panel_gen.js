@@ -602,10 +602,15 @@ const PAINT = {
   },
   // the magnetic compass CARD as a strip: 360° across u, letters upright;
   // wrapped on a vertical drum, read through the bowl's window
+  // WHITE ON BLACK (G311, the user: "invert the colours of the dash mounted
+  // compass. It is actually very bright when lit, it will be better on
+  // dark background. Not the case, only the graduated part"): the card
+  // takes the faces' own black and ink, so the posts light its marks the
+  // way they light every other scale
   compassStrip(g, R) {
     const { x, y, w, h } = R;
-    g.fillStyle = '#e9e4d6'; g.fillRect(x, y, w, h);
-    g.fillStyle = '#111'; g.strokeStyle = '#111';
+    g.fillStyle = FACE; g.fillRect(x, y, w, h);
+    g.fillStyle = INK; g.strokeStyle = INK;
     g.textAlign = 'center'; g.textBaseline = 'middle';
     for (let d = 0; d < 360; d += 5) {
       const xx = x + (d / 360) * w;

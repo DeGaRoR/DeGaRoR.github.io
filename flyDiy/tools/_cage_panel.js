@@ -979,13 +979,18 @@ function knobAt(parent, x, y, z, key, v) {
 }
 // the button's cap: the light layer's cup material (an emissive the flight
 // drives per switch through its lamp records), keyed by the switch
+// (G311, the user: "the lit buttons should only be lit in the on position,
+// and unlit in the off position": the cache was per key alone, so the first
+// call's `on` stuck for the page's life — it is per key AND state now, and
+// the shed keeps a state per button, `swMaster` / `swAlt`, off by default)
 const litCaps = {};
 function litCapMat(key, on) {
-  if (litCaps[key]) return litCaps[key];
+  const id = key + (on ? ':on' : ':off');
+  if (litCaps[id]) return litCaps[id];
   const L = window.CAGE_LIGHT;
   let m = L && L.cupMat ? L.cupMat(on ? 0.6 : 0, 0xf2ead6, true, key) : null;
   if (!m) { m = matFor('rocker'); return m; }
-  return (litCaps[key] = m);
+  return (litCaps[id] = m);
 }
 // a rocker (master, alternator): a bezel let into the dash and a pale
 // chamfered cap that tips about a lateral pivot — on = the top pressed in
@@ -1410,7 +1415,7 @@ function build(parent, A, P, pilotX) {
       const m = sb.mesh(sg, 'edGauge_ao'); if (m) m.renderOrder = 2;
     }
     if (s.kind === 'key') keyAt(sg, 0, 0, 0, 'both');
-    else if (s.kind === 'rocker') rockerAt(sg, 0, 0, 0, s.k, true);
+    else if (s.kind === 'rocker') rockerAt(sg, 0, 0, 0, s.k, +P[s.k === 'alt' ? 'swAlt' : 'swMaster'] > 0.5);
     else if (s.kind === 'toggle') toggleAt(sg, 0, 0, 0, s.k, +P['li_' + s.k] > 0.5);
     else if (s.kind === 'knob') {
       knobAt(sg, 0, 0, 0, s.k, Math.max(0, Math.min(1, +P['li_' + s.k] || 0)));
@@ -1442,7 +1447,7 @@ function build(parent, A, P, pilotX) {
       const m = lb.mesh(lg, 'edGauge_label'); if (m) m.renderOrder = 3;
     }
   }
-  bowl.mesh(grp, matFor('bowl')); symC.mesh(grp, matFor('symbol'));
+  bowl.mesh(grp, matFor('bowl')); symC.mesh(grp, matFor('needle'));   // pale: the card is black now (G311)
   // the instrument light on the switchboard, as every emitter is (GATE LIGHT's
   // census), declared once per build against the material that glows
   try {

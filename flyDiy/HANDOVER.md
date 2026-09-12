@@ -40590,3 +40590,16 @@ reads the canvas in the same task, a node sink on 8368 saves the JPEG.)
   under the registration.
 - Not done, on purpose: the swing (a door as an `edSurf_`-style part with
   a pivot) — the ruling was shut.
+
+## G311 — THE COMPASS CARD IS WHITE ON BLACK, AND THE LIT BUTTONS ARE LIT
+## ONLY WHEN ON (2026-09-12, the user: "invert the colours of the dash
+## mounted compass … only the graduated part. Also the lit buttons should
+## only be lit in the on position")
+
+- The compass card takes the faces' own black and ink; its lubber line is
+  the pale needle material so it reads on the dark card.
+- The master and alternator push buttons: `litCapMat` cached per key
+  alone, so the first call's "on" stuck for the page's life. Per key AND
+  state now; the shed keeps a state per button (`swMaster`, `swAlt`, off
+  and unlit by default) and the interior click toggles them like the
+  other switches. In flight they were already the bus's (lit when on).
