@@ -191,6 +191,67 @@ function surfaceList(scene, P, FS) {
   return out;
 }
 
+// WHERE THE SKIN IS, MEASURED (G304, the fitment study P2). A strap's tail
+// lies on the skin, and the skin is the DRAWN surface — not a cylinder of
+// the nose radius (the wing thickens forward of the hinge; the fin's rim is
+// not centred on the post). One ray per sample: from well above the hinge
+// frame's face, down F.y, against the FIXED side's skin for the airframe
+// half (the wing lofts; the fin skin and fillet; the stab half) and against
+// the surface's own object for the moving half. Returns the height along
+// F.y from the hinge axis at chordwise `a`, or null when nothing is hit
+// (the kit then falls back to its cylinder).
+function skinProbe(scene, s) {
+  if (!THREE.Raycaster) return null;
+  const fixed = [], moving = [];
+  const wingSkin = o => o.isMesh && !o.name && o.parent && o.parent.name === 'cageLayer:wing';
+  const finOf = s.host ? s.host : 'edFinSkin';
+  const fillOf = finOf.replace('Skin', 'Fillet');
+  scene.traverse(o => {
+    if (!o.isMesh) return;
+    const pn = (o.parent && o.parent.name) || '';
+    if (s.kind === 'rud' && (pn === finOf || pn === fillOf || o.name === fillOf)) fixed.push(o);
+    else if (s.kind === 'elev' && pn === s.host) fixed.push(o);
+    else if ((s.kind === 'ail' || s.kind === 'flap') && wingSkin(o)) fixed.push(o);
+  });
+  if (s.obj) s.obj.traverse(o => { if (o.isMesh && !/^edHinge_/.test(o.name || '')) moving.push(o); });
+  if (!fixed.length && !moving.length) return null;
+  const rc = new THREE.Raycaster();
+  const org = new THREE.Vector3(), dirV = new THREE.Vector3();
+  const probe = (F, a, zOff, dir) => {
+    const list = dir < 0 ? fixed : moving;
+    if (!list.length) return null;
+    const H = 0.6;
+    const p = [F.p[0] + F.x[0] * a + F.y[0] * H + F.z[0] * zOff,
+               F.p[1] + F.x[1] * a + F.y[1] * H + F.z[1] * zOff,
+               F.p[2] + F.x[2] * a + F.y[2] * H + F.z[2] * zOff];
+    org.set(p[0], p[1], p[2]); dirV.set(-F.y[0], -F.y[1], -F.y[2]);
+    rc.set(org, dirV); rc.near = 0; rc.far = H + 0.3;
+    const hits = rc.intersectObjects(list, false);
+    if (!hits.length) return null;
+    // the FIRST hit is the face the hardware shows on; a height below the
+    // axis (the ray went through a hole to the far skin) is refused
+    const h = H - hits[0].distance;
+    return h > 0.002 ? h : null;
+  };
+  // WHERE THE FIXED SIDE ENDS (G304): a fin has no cove — its trailing edge
+  // is a square end a gap ahead of the hinge, and a strap has to wrap that
+  // end, not dive through it. A ray from the axis, along the chord away
+  // from the moving side at a little under half the nose radius, meets the
+  // end face (a fin's slot wall, a wing's cove wall) at `dist`; null when
+  // nothing is there within the tail's reach.
+  probe.edge = (F, zOff, dir, r, hFrac) => {
+    const list = dir < 0 ? fixed : moving;
+    if (!list.length) return null;
+    const h0 = r * (hFrac || 0.45);
+    const p = [F.p[0] + F.y[0] * h0 + F.z[0] * zOff, F.p[1] + F.y[1] * h0 + F.z[1] * zOff, F.p[2] + F.y[2] * h0 + F.z[2] * zOff];
+    org.set(p[0], p[1], p[2]); dirV.set(F.x[0] * dir, F.x[1] * dir, F.x[2] * dir);
+    rc.set(org, dirV); rc.near = 0; rc.far = r * 3;
+    const hits = rc.intersectObjects(list, false);
+    return hits.length ? hits[0].distance : null;
+  };
+  return probe;
+}
+
 // an orthonormal frame on the hinge: z along the axis, x aft, y out through
 // the face the hardware shows on. Built so z = x × y, which is what
 // _hinge_gen's lug calls assume (GEAR_KIT's tang follows the binormal).
@@ -261,6 +322,7 @@ PAGE.post = ctx => {
     return;
   }
 
+  scene.updateMatrixWorld(true);               // G304: the probes ray-cast the drawn skins
   const surfs = surfaceList(scene, P, FS);
   const sz = Math.max(0.4, +P.hgSize || 1);
   const detail = Math.max(0.35, +P.hgDetail || 1);
@@ -315,6 +377,13 @@ PAGE.post = ctx => {
     const axis = V.sub(s.B, s.A);
     const S = Object.assign({}, S0, { r: s.r });
     const bm = bagM(s.key);
+    // G304: the skin as drawn, per station (the probe is per surface; the
+    // frame changes per station, so the kit's callback carries it)
+    const probe = skinProbe(scene, s);
+    let Fcur = null;
+    S.skin = probe ? (a, zOff, dir) => Fcur ? probe(Fcur, a, zOff, dir) : null : null;
+    S.edge = probe ? (zOff, dir, hFrac) => Fcur ? probe.edge(Fcur, zOff, dir, s.r, hFrac) : null : null;
+    if (window.CAGE_HINGE_TRACE) S.trace = o => window.CAGE_HINGE_TRACE(s.key, Fcur, o);
     const bagsF = bagsFor(s.host);
     // GATE CLIP reads the fixed halves per surface out of the airframe bags
     const tF0 = {}; for (const k of HG_BAGS_F) tF0[k] = bagsF[k].tris;
@@ -325,6 +394,7 @@ PAGE.post = ctx => {
       const p = V.lerp(s.A, s.B, t);
       for (let f = 0; f < faces; f++) {
         const F = frameOn(p, axis, s.aft, f ? V.mul(s.face, -1) : s.face);
+        Fcur = F;
         if (fam === 'piano')
           HG.pianoHinge(bagsF.metal, bm.metal, F, S,
                         span * (1 - 2 * inset) / Math.max(1, ts.length));

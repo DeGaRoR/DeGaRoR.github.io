@@ -74,26 +74,103 @@ const flipF = F => ({ p: F.p, x: F.x, y: mul(F.y, -1), z: mul(F.z, -1) });
 // aft of the hinge the section is thinning, so the far end sits a little
 // closer in — 0.86 r, measured off the aerofoils this generator draws and
 // close enough that a 75 mm tail lies down on all of them.
+// THE TAIL LIES ON THE SKIN AS DRAWN, NOT ON A CYLINDER (G304, the fitment
+// study P2). `lie` assumed the skin sits at the nose radius `r` all the way
+// out to the tail's end, and the section is not a cylinder: forward of the
+// hinge the wing THICKENS, so at 130 mm the fixed tail sat 8-11 mm INSIDE
+// the wing (GATE CLIP), and 3-6 mm inside the fin and stab, whose rounded
+// rims are not centred on the hinge either. `S.skin(a, zOff, dir)` is the
+// layer's measurement of the skin's own height along F.y at chordwise `a`
+// (a ray through the drawn surface); with it, each point of the tail sits
+// at the measured skin plus the gauge. Without it (the headless gate, a
+// page without the meshes), the cylinder stands in as before.
 function strapHalf(bag, F, S, dir, zOff) {
   const r = S.r, t = S.t, w = S.w, reach = S.reach;
   const lie = r + t * 0.5 + 0.0008;             // the skin, plus the gauge
-  const far = dir > 0 ? lie * 0.86 : lie;       // aft thins, forward does not
-  const path = fillet([
-    at(F, dir * (r * 0.90 + reach), far, zOff),
-    at(F, dir * (r * 0.62), lie, zOff),
-    at(F, dir * (r * 0.20), r * 0.52, zOff),
-    at(F, 0, 0, zOff),
-  ], Math.max(0.004, r * 0.35), 4);
+  const far0 = dir > 0 ? lie * 0.86 : lie;      // aft thins, forward does not
+  // ...and the strap is FLAT ACROSS its width, so on a skin that curves
+  // along the hinge (a fin's rounded rim, a tapering stab) it sits at the
+  // highest of its two edges; and it follows the skin ALONG the tail with
+  // intermediate samples, or the straight run between two points on a
+  // convex aerofoil lies inside it by the sagitta (measured: 2-3 mm)
+  const hAt = (a, fb) => {
+    if (!S.skin) return fb;
+    let h = null;
+    for (const dz of [-w * 0.5, -w * 0.25, 0, w * 0.25, w * 0.5]) {
+      const q = S.skin(a, zOff + dz, dir);
+      if (q != null && (h == null || q > h)) h = q;
+    }
+    return h == null ? fb : h + t * 0.5 + 0.0008;
+  };
+  const aFar = dir * (r * 0.90 + reach), aLie = dir * (r * 0.62);
+  const far = hAt(aFar, far0), lie2 = hAt(aLie, lie);
+  // dense along the tail: the wing's cove LIP is a ridge between the wall
+  // and the skin, and a chord from either side of it passes inside it
+  // (measured 9 mm with three samples; ~12 mm apart it stays on the skin)
+  const pts = [at(F, aFar, far, zOff)];
+  if (S.skin) {
+    const nS = Math.max(3, Math.round(Math.abs(aFar - aLie) / 0.012));
+    for (let i = nS - 1; i >= 1; i--) {
+      const f = i / nS, a = aLie + (aFar - aLie) * f;
+      pts.push(at(F, a, hAt(a, lie2 + (far - lie2) * f), zOff));
+    }
+  }
+  pts.push(at(F, aLie, lie2, zOff));
+  // THE KNEE GOES ROUND THE FIXED SIDE'S END, NOT THROUGH IT (G304). The
+  // old knee at (0.2 r, 0.52 r) assumed a cove open all the way to the
+  // axis; a FIN has no cove — its trailing edge is a square end a gap ahead
+  // of the hinge (the strap sat 2.9 mm inside it) — and a WING's cove is
+  // shrouded below by a lip that runs aft under the nose to a knife edge
+  // (the strap went 9 mm through the lip). Two probes tell them apart:
+  // `S.edge` (a ray from the axis along the chord at 0.45 r) meets a slot
+  // wall within half a radius and a cove wall only near the nose radius;
+  // and the skin scan from `aLie` toward the axis finds where the lip's
+  // outer skin STOPS. The tail then either comes down the wall — a point at
+  // its top and one at its foot — or runs to the lip's edge, and turns in
+  // to the eye from there. Those corners are SHARP: filleting a short arm
+  // cuts the corner by half its inset, which on a slot wall is 2.5 mm into
+  // the fin; the outer tail keeps its fillets.
+  const dEdge = S.edge ? S.edge(zOff, dir) : null;
+  const wallEnd = dEdge != null && dEdge > t * 2 && dEdge < r * 0.5;
+  let inner = null;
+  if (wallEnd) {
+    // on the GAP side of the wall: the slot is between the wall and the axis
+    const aW = dir * (dEdge - t * 0.6);
+    pts.push(at(F, aW, Math.max(hAt(aW, lie2), r * 0.45 + t), zOff));
+    inner = [at(F, aW, r * 0.45, zOff)];
+  } else if (S.skin) {
+    // the lip's edge: the last chordwise station, walking in from aLie,
+    // where the skin below still answers
+    let aE = aLie, hE = lie2, found = false;
+    for (let a = Math.abs(aLie) - 0.003; a > t; a -= 0.003) {
+      const h = hAt(dir * a, null);
+      if (h == null) { found = true; break; }
+      aE = dir * a; hE = h;
+    }
+    if (found && Math.abs(aE) < Math.abs(aLie)) pts.push(at(F, aE, hE, zOff));
+    else pts.push(at(F, dir * (r * 0.20), r * 0.52, zOff));
+  } else {
+    pts.push(at(F, dir * (r * 0.20), r * 0.52, zOff));
+  }
+  const eye = at(F, 0, 0, zOff);
+  if (S.trace) S.trace({ dir, zOff, pts, dEdge, wallEnd, lie2, far });
+  const path = fillet(pts, Math.max(0.004, r * 0.35), 4).concat(inner || [], [eye]);
   sweep(bag, path, () => secBlade(w, t), true, F.z);
-  // the eye: a turned boss round the pin, and the pin's own head
+  // the eye: a turned boss round the pin, and the pin's own head. THE EYE
+  // FITS THE SLOT (G304): on a fin the slot wall is `dEdge` ahead of the
+  // axis and a boss of 0.42 w punched through it (5.7 mm on the twin's
+  // 45 mm fin); the boss is no wider than the gap allows, and never under
+  // the pin's own collar.
+  const rEye = wallEnd ? Math.max(S.pinR * 1.3, Math.min(w * 0.42, dEdge - t * 0.6)) : w * 0.42;
   revolve(bag, at(F, 0, 0, zOff - w * 0.5), F.z,
-    [[S.pinR * 1.05, 0], [w * 0.42, 0], [w * 0.42, w], [S.pinR * 1.05, w]], 14, false);
+    [[S.pinR * 1.05, 0], [rEye, 0], [rEye, w], [S.pinR * 1.05, w]], 14, false);
   // two rivets down the tail, which is what says "riveted on" at 2 m. A DOME,
   // not GEAR_KIT's `bolt`: a hex head and a shank on a 4 mm rivet is 200
   // triangles nobody can resolve, and a hinge carries six of them.
   for (const f of [0.62, 0.92]) {
     const rr = Math.max(0.0022, w * 0.09);
-    revolve(bag, at(F, dir * (r * 0.90 + reach) * f, far + t * 0.45, zOff),
+    const aR = dir * (r * 0.90 + reach) * f;
+    revolve(bag, at(F, aR, hAt(aR, far) + t * 0.45, zOff),
       F.y, [[rr, 0], [rr * 0.86, rr * 0.5], [rr * 0.45, rr * 0.78], [0, rr * 0.86]],
       8, false);
   }
@@ -140,10 +217,25 @@ function pianoHinge(bF, bM, F, S, len) {
     revolve(bag, at(F, 0, 0, zc - pitch * 0.40), F.z,
       [[S.pinR * 1.02, 0], [S.pinR * 2.1, 0], [S.pinR * 2.1, pitch * 0.80],
        [S.pinR * 1.02, pitch * 0.80]], 8, false);
-    // and its leaf, flat on the skin
-    const path = [at(F, 0, S.pinR * 1.2, zc),
-                  at(F, dir * (r * 0.5), lie, zc),
-                  at(F, dir * (r * 0.9 + S.reach * 0.7), lie * (dir > 0 ? 0.88 : 1), zc)];
+    // and its leaf, flat on the skin — the MEASURED skin where the layer
+    // offers it (G304; see strapHalf)
+    const hAt = (a, fb) => {
+      if (!S.skin) return fb;
+      let h = null;
+      for (const dz of [-pitch * 0.4, 0, pitch * 0.4]) {
+        const q = S.skin(a, zc + dz, dir);
+        if (q != null && (h == null || q > h)) h = q;
+      }
+      return h == null ? fb : h + t * 0.5 + 0.0008;
+    };
+    const a1 = dir * (r * 0.5), a2 = dir * (r * 0.9 + S.reach * 0.7);
+    const h1 = hAt(a1, lie), h2 = hAt(a2, lie * (dir > 0 ? 0.88 : 1));
+    const path = [at(F, 0, S.pinR * 1.2, zc), at(F, a1, h1, zc)];
+    if (S.skin) for (const f of [0.33, 0.67]) {
+      const a = a1 + (a2 - a1) * f;
+      path.push(at(F, a, hAt(a, h1 + (h2 - h1) * f), zc));
+    }
+    path.push(at(F, a2, h2, zc));
     sweep(bag, fillet(path, r * 0.3, 2), () => secBlade(pitch * 0.86, t, 2), true, F.z);
   }
   tube(bF, at(F, 0, 0, -len * 0.52), at(F, 0, 0, len * 0.52), S.pinR, 10);

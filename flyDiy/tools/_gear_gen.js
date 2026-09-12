@@ -796,8 +796,34 @@ function fitFrame(AF, z, ang) {
 // less than a shape. On anything with a body under it this changes nothing (a
 // 100 mm plate on a 300 mm half-width spans 0.33 rad).
 const PAD_ARC = 2.0;
-const padArc = (AF, z, W) =>
-  Math.min(PAD_ARC, W / Math.max(0.05, AF.halfWAt(z)));
+// ...AND THE ARC IS WALKED, NOT DIVIDED (G304, the fitment study P2). W over
+// the half-WIDTH is the angle only on a round section about its own centre;
+// the contract's angle is about the section CENTRE `cy`, and on a tall,
+// narrow tail cone (106 mm wide, 580 mm tall) a ray 45 degrees off the keel
+// meets the flank 235 mm UP the side — the tailwheel's doubler, asked for
+// 83 mm of arc, wrapped from the keel to a quarter of the way up both
+// flanks (GATE CLIP: 18 mm inside the cone). The arc is integrated along
+// the ring from `ang` until half the width is used, both ways, capped as
+// before. Callers that pass no `ang` get the flank (the old meaning).
+const padArc = (AF, z, W, ang) => {
+  if (typeof AF.surf !== 'function')           // a bare width contract: the old rule
+    return Math.min(PAD_ARC, W / Math.max(0.05, AF.halfWAt(z)));
+  const a0 = ang == null ? Math.PI / 2 : ang;
+  const half = W * 0.5, step = 0.02;
+  let tot = 0;
+  for (const s of [1, -1]) {
+    let a = a0, L = 0, p = AF.surf(z, a);
+    while (a * s - a0 * s < PAD_ARC * 0.5 && L < half) {
+      const q = AF.surf(z, a + s * step);
+      const d = Math.hypot(q[0] - p[0], q[1] - p[1], q[2] - p[2]);
+      if (!(d > 1e-6)) break;
+      const take = Math.min(step, step * (half - L) / d);
+      L += d * (take / step); a += s * take; p = q;
+    }
+    tot += Math.abs(a - a0);
+  }
+  return Math.min(PAD_ARC, tot);
+};
 function fitPad(bags, AF, z, ang, L, W, opt) {
   opt = opt || {};
   const NL = 7, NW = 5;
@@ -807,7 +833,7 @@ function fitPad(bags, AF, z, ang, L, W, opt) {
     const zz = z + L * (i / NL - 0.5);
     const ri = [], ro = [];
     for (let k = 0; k <= NW; k++) {
-      const aa = ang + padArc(AF, zz, W) * (k / NW - 0.5);
+      const aa = ang + padArc(AF, zz, W, ang) * (k / NW - 0.5);
       const p = AF.surf(zz, aa), n = AF.nrmAt(zz, aa);
       // rounded corners: pull the plate in at the ends
       const fi = Math.min(1, 2.6 * Math.min(i / NL, 1 - i / NL) + 0.35);
@@ -831,7 +857,7 @@ function fitPad(bags, AF, z, ang, L, W, opt) {
     bag.quad(rows[NL][k], rows[NL][k + 1], out[NL][k + 1], out[NL][k]);
   }
   if (opt.bolts !== false) {
-    const bw = padArc(AF, z, W) * 0.34;
+    const bw = padArc(AF, z, W, ang) * 0.34;
     for (const dz of [-L * 0.38, L * 0.38])
       for (const da of [-bw, bw]) {
         const p = AF.surf(z + dz, ang + da), n = AF.nrmAt(z + dz, ang + da);
@@ -1068,6 +1094,47 @@ function axleStub(bags, from, axis, reach) {
 // (a) BENDING BEAM — the leg IS the spring: a tapered blade bolted to a
 // belly saddle, bowing out and down to the axle. Cessna spring steel,
 // Wittman rod, composite blade.
+// THE DRAWN SKIN AS A CONTRACT, ONCE PER AIRFRAME (G304): `strutSkin` over
+// the whole body, memoised ON the airframe object (the gear layer rebuilds
+// AF on every cage build, so the key cannot go stale). The gear's legs and
+// the access layer's plates share the one build; a page without the strut
+// module keeps the table.
+function exactAirframe(AF) {
+  if (!AF) return AF;
+  if (AF.__exact) return AF.__exact;
+  const SG = (typeof window !== 'undefined') && window.STRUT_GEN;
+  if (!SG || !SG.strutSkin || !AF.mesh) return AF;
+  const X = SG.strutSkin(AF, AF.z0, AF.z1) || AF;
+  AF.__exact = X;
+  return X;
+}
+
+// A LEG DOES NOT PASS THROUGH THE BODY IT HANGS FROM (G304, the fitment
+// study P2). A spring blade's bow is a bezier whose control point sits
+// inboard of the axle (`beamBow`), and from a flank root that curve cut
+// through the lower flank/belly corner — 35 mm inside the skin over a tenth
+// of the blade (GATE CLIP). Every point of the path is held outside the
+// section it passes: at its own station, the point's angle about the
+// section centre gives the skin's radius there, and a point inside it is
+// moved out radially to the skin plus the blade's own half-thickness and a
+// clearance. The blade then hugs the belly where it would have cut it.
+function clearBody(AF, path, clr) {
+  if (!AF || typeof AF.surf !== 'function' || typeof AF.cyAt !== 'function') return path;
+  return path.map(p => {
+    const cy = AF.cyAt(p[2]);
+    const dx = p[0], dy = p[1] - cy;
+    const rp = Math.hypot(dx, dy);
+    if (rp < 1e-6) return p;
+    const a = Math.atan2(dx, -dy);
+    const s = AF.surf(p[2], a);
+    if (!s || !isFinite(s[0])) return p;
+    const rs = Math.hypot(s[0], s[1] - cy);
+    if (rp >= rs + clr) return p;
+    const k = (rs + clr) / rp;
+    return [dx * k, cy + dy * k, p[2]];
+  });
+}
+
 function legBeam(bags, AF, P, st, sgn) {
   // A LEG STOPS AT THE WHEEL, and a stub axle carries on to the hub — the
   // blade used to run to the axle CENTRE and so passed through the tyre.
@@ -1090,7 +1157,8 @@ function legBeam(bags, AF, P, st, sgn) {
   // gives a spring leg its arc and its track gain under load
   const ctrl = [sgn * half * P.beamBow, root[1] - drop * 0.62,
                 lerp3(root, axle, 0.5)[2]];
-  const path = resample(bez(root, ctrl, axleIn, 14), 18);
+  const path = clearBody(AF, resample(bez(root, ctrl, axleIn, 14), 18),
+                         P.beamT * 0.5 + 0.004);
   const w0 = P.beamW, w1 = P.beamW * P.beamTaper;
   const t0 = P.beamT, t1 = P.beamT * (0.62 + 0.38 * P.beamTaper);
   sweep(bags.steel, path,
@@ -1380,7 +1448,7 @@ function legOleo(bags, AF, P, st, sgn) {
 // makes the wheel follow and self-centre. Steering springs and chains run
 // from the steering arm to the rudder horn; past `breakout` degrees the
 // unit unlocks and free-castors.
-function castorUnit(bags, P, top, sgn, R, steer, showLink) {
+function castorUnit(bags, P, top, sgn, R, steer, showLink, hornClamp) {
   const rake = P.twRake * D2R;
   // swivel axis: down, tilted top-forward (+z is the nose)
   const ax = nrm([0, -Math.cos(rake), Math.sin(rake)]);
@@ -1417,7 +1485,14 @@ function castorUnit(bags, P, top, sgn, R, steer, showLink) {
               add(add(off(top, ax, 0.030), mul(F(fwd), -0.010)),
                   mul(F(side), s * 0.052))], 4),
             () => secBlade(0.020, 0.008), true, ax);
-    const horn = [0, top[1] + P.twHornY, top[2] + P.twHornZ];
+    // THE HORN IS OUTSIDE THE AEROPLANE (G304, the fitment study P2): its
+    // two sliders are offsets from the castor's top, and on a slender tail
+    // cone they put the horn, its box and two chains INSIDE the cone (18 mm,
+    // GATE CLIP). The caller that knows the body hands a clamp — the horn
+    // is held under the keel at its own station — so the chains run under
+    // the cone to a horn a rudder could carry.
+    const horn0 = [0, top[1] + P.twHornY, top[2] + P.twHornZ];
+    const horn = hornClamp ? hornClamp(horn0) : horn0;
     // THE TWO RUNS MUST NOT CROSS (user). The steering arm swings with
     // the wheel so its ends use the STEERED frame, but the rudder horn is
     // bolted to the fin and must use the UNSTEERED one — mixing them put
@@ -1535,7 +1610,8 @@ function legTailwheel(bags, AF, P, st) {
   // join yaws it for ground manoeuvring) passes `bags.castorBags`; the
   // bench and every other caller fall through unchanged.
   const u = castorUnit(bags.castorBags || bags, P, tip, 1, st.R,
-                       P.twSteer, true);
+                       P.twSteer, true,
+                       h => [h[0], Math.min(h[1], AF.keelAt(h[2]) - 0.018), h[2]]);
   wheel(bags, u.hub, u.axis, st.R, { brake: false, P });
   // G133: THE SMALL WHEEL GETS ITS SPAT — and it goes into the castor's own
   // bags, so a steered tailwheel steers its fairing with the fork. `full`
@@ -1559,7 +1635,7 @@ function legTailwheel(bags, AF, P, st) {
 
 window.GEAR_GEN = { MAT, gearMat, stubAirframe, drawStub, objAirframe, drawBody,
                     meshAirframe, cageAirframe, CAGE_MATS, airframeClose,
-                    padArc, PAD_ARC,
+                    exactAirframe, padArc, PAD_ARC,
                     wheel, spat, fitFrame, memberFrame, pivotOn, padFlat,
                     fitPad, legBeam, legLink, legOleo, castorUnit,
                     legTailwheel, Bag };

@@ -190,6 +190,14 @@ PAGE.post = ctx => {
   const FS = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
   const AF = GG.cageAirframe(mesh, FS);
   if (!AF) { if (stat) stat.textContent += '  ·  gear: no skin to stand on'; return; }
+  // THE LEGS STAND ON THE DRAWN SKIN (G304, the fitment study P2): the
+  // table the contract interpolates is ±3.5 mm off across a crease (the
+  // strut foot's lesson, _strut_gen.js §3), and a doubler draped over the
+  // floor-loop corner sat 6-8 mm inside it (GATE CLIP). `strutSkin` over
+  // the whole body — the same contract with an exact radius — is what the
+  // leg builders draw against; the table is still what is PUBLISHED
+  // (CAGE_GEAR.AF: solidAt, open, the fitting sites every other layer asks).
+  const AFx = GG.exactAirframe ? GG.exactAirframe(AF) : AF;
 
   group = new THREE.Group();
   // NAMED for the editor (G76/G77): the part table says which layer a
@@ -385,14 +393,14 @@ PAGE.post = ctx => {
         // with its trouser shroud — stays in the leg unit
         const cb = allBags();
         const proxy = Object.assign({}, lb, wu.wb, { castorBags: cb });
-        r = GG.legTailwheel(proxy, AF, st.P, st);
+        r = GG.legTailwheel(proxy, AFx, st.P, st);
         if (r.castor)
           castorUnitOut = { bags: cb, top: r.castor.top, ax: r.castor.ax,
                             axle: r.axle };
       } else {
-        if (st.leg === 0) r = GG.legBeam(lb, AF, st.P, st, sgn);
-        else if (st.leg === 1) r = GG.legLink(lb, AF, st.P, st, sgn);
-        else r = GG.legOleo(lb, AF, st.P, st, sgn);
+        if (st.leg === 0) r = GG.legBeam(lb, AFx, st.P, st, sgn);
+        else if (st.leg === 1) r = GG.legLink(lb, AFx, st.P, st, sgn);
+        else r = GG.legOleo(lb, AFx, st.P, st, sgn);
         // G133: spats ride their UNITS now, not the static shared bags —
         // a nose spat sits on its fork, a main spat on its own leg, so
         // the flown aeroplane carries them with the moving parts

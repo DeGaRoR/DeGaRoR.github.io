@@ -801,6 +801,22 @@ for (const f of fail) console.log('  FAIL ' + f);
     GG.padArc(thin, 0, 0.30).toFixed(2) + ' rad');
   check(Math.abs(GG.padArc({ halfWAt: () => 0.30 }, 0, 0.10) - 1 / 3) < 1e-9,
     'the bound changed the plate on an ordinary body');
+  // G304: THE ARC IS WALKED along the ring, so a tall narrow section gives
+  // the plate its own width and not a quarter of the flank. A round body of
+  // radius 0.30 still answers W / r; a 0.05-wide, 0.30-tall ellipse asked
+  // for 83 mm at the keel answers far less than 83 / 50 = 1.66 rad, and the
+  // walked arc really is 83 mm long.
+  const round = { halfWAt: () => 0.30, surf: (z, a) => [Math.sin(a) * 0.30, -Math.cos(a) * 0.30, z] };
+  check(Math.abs(GG.padArc(round, 0, 0.10, 0) - 1 / 3) < 0.02,
+    'the walked arc on a round body is not W / r', GG.padArc(round, 0, 0.10, 0).toFixed(3));
+  const tall = { halfWAt: () => 0.05, surf: (z, a) => {       // a ray from the centre through an ellipse
+    const dx = Math.sin(a), dy = -Math.cos(a), k = 1 / Math.sqrt((dx / 0.05) ** 2 + (dy / 0.30) ** 2);
+    return [dx * k, dy * k, z]; } };
+  const at = GG.padArc(tall, 0, 0.083, 0);
+  let arcLen = 0; for (let a = -at / 2; a < at / 2 - 1e-9; a += 0.005) {
+    const p = tall.surf(0, a), q = tall.surf(0, Math.min(at / 2, a + 0.005)); arcLen += Math.hypot(q[0] - p[0], q[1] - p[1]); }
+  check(at < 1.66 * 0.6 && Math.abs(arcLen - 0.083) < 0.006,
+    'a doubler at the keel of a tall narrow section wraps up its flanks', at.toFixed(2) + ' rad, ' + (arcLen * 1000).toFixed(0) + ' mm of arc');
 }
 
 // ---------------------------------------------------------------------------

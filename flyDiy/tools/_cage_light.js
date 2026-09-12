@@ -748,7 +748,16 @@ function sites(scene, group, P) {
     const slope = m2 >= 2 && Math.abs(den) > 1e-9 ? (m2 * szy - sz * sy) / den : 0;
     const zMid = (z0 + z1) / 2;
     const yMid = m2 ? (sy - slope * sz) / m2 + slope * zMid : yTop;
-    return { y: yTop, yMid, slope, zMid, x0, x1, z0, z1, n };
+    // ...and how far the edge RISES above the fitted line (G304): a swept
+    // tip's top is a curve, and a pod seated on the line's midpoint sat
+    // 1-3 mm deeper into the crown than its declared sink (GATE CLIP)
+    let rise = 0;
+    for (let k = 0; k < NB; k++) {
+      if (hi[k] < -1e8) continue;
+      const d = hi[k] - (yMid + slope * (zc[k] - zMid));
+      if (d > rise) rise = d;
+    }
+    return { y: yTop, yMid, slope, zMid, x0, x1, z0, z1, n, rise };
   };
   // G185: on a biplane the tip lights sit on the plane the row chose (the
   // landing-light bay stays the first plane's — it is cut there)
@@ -862,14 +871,13 @@ function sites(scene, group, P) {
       if (pR) out.wingLampR = pR;
       if (pL) out.wingLampL = pL;
     } else {
-      // no bay cut (the lamps are switched off, so the wing did not cut one):
-      // fall back to the leading edge measured off the wing skin alone
-      const inb = (span / 2) * ((window.CAGE_LIGHT_BAY || {}).frac || 0.24);
-      const inR = slice(inb, 0.18), inL = slice(-inb, 0.18);
-      if (inR) out.wingLampR = { p: [inb, inR.y, inR.zLE - 0.010],
-                                 ax: [0, -0.12, 1] };
-      if (inL) out.wingLampL = { p: [-inb, inL.y, inL.zLE - 0.010],
-                                 ax: [0, -0.12, 1] };
+      // NO BAY, NO LAMP (G304, the fitment study P2). The fallback put a
+      // proud housing 10 mm BEHIND the leading edge, inside the D-nose —
+      // 42 mm into the wing on the twin-boom build (GATE CLIP), a lamp
+      // nobody could see and a skin nothing could pass through. The G296
+      // rule for the cabin holds here too: a lamp goes on something the
+      // wing offers, and a wing that cut no bay offers nothing.
+      out.wingLampNone = 'no bay cut';
     }
   }
   // THE BEACON IS ON TOP OF THE FIN, so it is placed at the top of the fin's
@@ -922,7 +930,7 @@ function sites(scene, group, P) {
       // the loop overwrote one record per fin group: on twin booms the one
       // beacon hung in mid-air on the centreline. The top slice knows the
       // fin's x; the second fin is `beacon2`.
-      const site = { p: [0.5 * (t.x0 + t.x1), t.yMid, t.zMid], ax: [0, 1 / k, -m / k],
+      const site = { p: [0.5 * (t.x0 + t.x1), t.yMid + (t.rise || 0), t.zMid], ax: [0, 1 / k, -m / k],
                      chord: [0, -m / k, -1 / k], sink: beaconSink,
                      len: (t.z1 - t.z0) * k, thick: t.x1 - t.x0, pod: true,
                      partOf: host !== ch ? host.name : null };
@@ -1288,9 +1296,7 @@ PAGE.post = (ctx) => {
       // its axis and there is no surface to stand on.
       const sink = site.sink == null ? 0.5 : site.sink;
       const lift = high * (0.5 - sink);
-      // what GATE CLIP allows below the skin: the pod's sunk share of its
-      // own extent (a tip pod stands half INTO the tip along its axis)
-      site.buried = Math.max(high, wide, len) * sink;
+      site.buried = high * sink;               // what GATE CLIP allows below the skin
       const P0 = [site.p[0] + site.ax[0] * lift,
                   site.p[1] + site.ax[1] * lift,
                   site.p[2] + site.ax[2] * lift];

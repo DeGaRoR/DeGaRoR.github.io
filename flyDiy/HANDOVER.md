@@ -40197,3 +40197,78 @@ top; measured on the user's build the rotor's base is 2 mm under the top.
   the van, the bands along the fences, the pole's foot; the lawn and the
   beach read as grass and pebbles; the white siding white but textured.
 - Gates: HOUSE, VILLAGE, MEDIA, PROPS green.
+
+## G304 — THE REST-POSE CLIPPING WORKED DOWN: 268 KNOWN LINES TO 44 (2026-09-12,
+## the fitment study P2; the user: "I want no clipping")
+
+GATE CLIP's baseline is the work list, and this is the first pass over it —
+every fix measured against the drawn triangles, the baseline `--rebase`d after.
+
+- **Hinge tails lie on the measured skin** (`_hinge_gen.js` strapHalf /
+  pianoHinge, `_cage_hinge.js` skinProbe): `lie = r + t/2` assumed the skin
+  sits at the nose radius out to the tail's end; the wing thickens forward
+  of the hinge (8-11 mm inside), the fin's rim is not centred on the post
+  (3-6 mm). The layer hands the kit `S.skin(a, zOff, dir)` — a ray down the
+  frame's face through the fixed side's drawn skin (the wing lofts; the fin
+  skin and fillet; the stab half) or the surface's own object — and the
+  tail is sampled every 12 mm along its run and across its full width (a
+  fin's rim, a root fillet), the highest of the five across deciding, and
+  `S.edge` finds where the fixed side ENDS: a fin's slot wall within half a
+  radius (the tail comes down the wall's gap side, corners SHARP — a fillet
+  on a short arm cut 2.5 mm into the fin), a wing's shrouded cove by the
+  scan for where the lower skin stops (the tail turns in at the lip's
+  knife edge; through the lip it was 9 mm inside). The eye boss fits the
+  slot (`rEye`: 0.42 w punched 5.7 mm through the twin's 45 mm fin).
+  Headless without the meshes the cylinder stands in, as before.
+- **The aileron cover walks off the cut** (`_cage_access.js`): the wing's
+  field runs to lv 1.7 whether or not the skin is there, and lv 1.25 at
+  0.66 semispan is ON the cove's lip (17-21 mm inside, and the aileron swept
+  it at ±full). A wing site within a surface's span and aft of its cove
+  moves forward 0.1 lv a step until the whole plate clears.
+- **The plates ask the drawn skin**, and only once a build: `GEAR_GEN
+  .exactAirframe(AF)` memoises `strutSkin` over the whole body ON the
+  airframe object; the access layer's conforming `surf` and the gear's four
+  leg builders draw against it (the table is still what CAGE_GEAR publishes).
+  The plate's arc is BOUNDED (the G196 debt: `u / halfW` clamped to ±1 rad).
+- **The sagitta lift**: a form that does not conform (a tie-down's ring, a
+  cap's flange, an aerial's base, the beacon dome) is built on the tangent
+  plane; where the skin rises above it inside the footprint (a concave
+  patch, a pillar band's step, an upright aerial on a sloping deck — the
+  comm aerial's root chord 6.5 mm in) the frame is lifted by the highest
+  rise (25 samples of `surf`). A conforming plate under it is unmoved.
+- **`padArc` walks the ring** (`_gear_gen.js`): W over the half-WIDTH is
+  the angle only on a round section about its own centre; on the 106 mm
+  wide, 580 mm tall tail cone a 45-degree ray from `cy` meets the flank
+  235 mm up, and the tailwheel's 83 mm doubler wrapped a quarter of the way
+  up both flanks (18 mm inside). The arc is integrated along the section
+  until half the width is used, each way, capped as before (GATE GEAR
+  probes the round and the tall case). Bare width contracts keep the rule.
+- **The tailwheel's steering horn** is held under the keel at its station
+  (`castorUnit`'s `hornClamp`): its two offsets put the horn, its box and
+  the chains inside the tail cone.
+- **The booms' fittings clear the fins** (`boomFinBands`): each boom's fin
+  band read off the scene; a boom station inside it moves forward of the
+  fin with the fitting's reach (the comm aerial and the tail ring were in
+  the fin's root, 22 mm).
+- **No bay, no wing lamp** (`_cage_light.js`): the bay-less fallback put a
+  proud housing 10 mm behind the leading edge (42 mm inside the twin's
+  wing); the G296 rule holds — a wing that cut no bay offers nothing. The
+  beacon seats on the top edge's RISE above its fitted line (`topSlice
+  .rise`, 1-3 mm on a swept tip); `site.buried` is `high * sink`, honestly.
+- **CLIP**: the fin's root fillet is not a skin (a thin double-sided strip
+  the farthest-vertex rule cannot orient; it read a strap 3 mm outside it
+  as inside). Baseline 44 lines.
+- **What is left, and why it is not code** (rulings owed): the Cub's
+  CROSSED shock struts run from one flank's fitting across a ROUND belly
+  to the far arm — a straight rod through the belly corner, 35 mm, on
+  every stock build (`linkX`, `shockAng`; a real Cub's belly is flat between
+  the longerons); the twin trike's nose leg roots inside the nose COWL
+  (313 mm — the gear knows the fuselage, not the cowl; a cut-out or a
+  station aft of the cowl face); the twin's flap at full down comes onto
+  the wing-mounted leg (31 mm; the mains' station vs the flap span); the
+  IFR nav aerial in the dorsal (5.9 mm — a peer's `finBand` skip is in
+  the tree); the wing-mount pad 1.7 mm into the wing loft (0.2 over).
+- GATE JOIN was red on the working tree during this chantier for
+  `G199.5: turned to 4, every boom member is 4x` — a peer's uncommitted
+  frame/spec hunks (rodBoomK), not this arc's; green at HEAD in the
+  worktree proof.

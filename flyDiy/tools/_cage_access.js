@@ -313,16 +313,55 @@ function rodSite(row, P, needs, atSL, atLV, bags) {
 // 33 mm at a ±40 mm anchor throw). Each site names its boom (`host`, the
 // join's part name `edBoomR` / `edBoomL`, the wing layer's own naming), the
 // collar goes into that host's bags, and the layer tags the mesh `partOf`.
+// WHERE THE FINS STAND ON THE BOOMS (G304, the fitment study P2): the fin
+// layer roots one fin on each boom, over a band of stations the boom rows
+// know nothing about — the comm aerial and the tail inspection ring were
+// placed INSIDE the fin's root (22 mm, GATE CLIP). Each boom's fin band, in
+// scene metres, read once a build off the scene's own fin groups (the ones
+// off the centreline; the centreline fin is the crown rows' `finBand`).
+let boomFins = null;
+function boomFinBands(scene) {
+  const out = { 1: null, '-1': null };
+  if (!scene || !scene.children || !THREE.Matrix4) return out;
+  scene.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(scene.matrixWorld).invert();
+  const v = new THREE.Vector3();
+  for (const ch of scene.children) {
+    if ((ch.name || '').indexOf('cageLayer:fin') !== 0) continue;
+    if (Math.abs(ch.position.x) <= 0.2) continue;            // the centreline fin
+    let z0 = Infinity, z1 = -Infinity, xs = 0, n = 0;
+    ch.traverse(o => {
+      if (!o.isMesh || !o.geometry || /^edSurf_/.test(o.name || '')) return;
+      const pos = o.geometry.getAttribute('position');
+      for (let i = 0; i < pos.count; i++) {
+        v.set(pos.getX(i), pos.getY(i), pos.getZ(i)).applyMatrix4(o.matrixWorld).applyMatrix4(inv);
+        if (v.z < z0) z0 = v.z; if (v.z > z1) z1 = v.z; xs += v.x; n++;
+      }
+    });
+    if (!n || !(z1 > z0)) continue;
+    out[xs / n > 0 ? 1 : '-1'] = { z0, z1 };
+  }
+  return out;
+}
+
 function boomSites(row, P, needs, atSL, atLV, bagsFor, want) {
   const TB = (typeof window !== 'undefined') && window.CAGE_BOOMS;
   if (!TB || !needs || !needs.booms) return [];
   const from = needs.booms.from || 0;
   const zRaw = TB.zRoot - (atSL - from);
-  const z = Math.max(TB.zTip + 0.06, Math.min(TB.zRoot - 0.06, zRaw));
-  const yA = TB.yAx(z), h = TB.hAt(z), r = TB.rAt(z);
   const sides = want === 'both' ? [1, -1] : want === 'port' ? [-1] : [1];
   const out = [];
   for (const s of sides) {
+    let z = Math.max(TB.zTip + 0.06, Math.min(TB.zRoot - 0.06, zRaw));
+    // ...and not under the fin: a station inside this boom's fin band moves
+    // FORWARD of the fin (toward the wing), with the fitting's own reach
+    const fb = boomFins && boomFins[s > 0 ? 1 : '-1'];
+    if (fb) {
+      const reach = Math.max(+(row.size && row.size.w) || 0, +(row.size && row.size.d) || 0, 0.06) * 0.5 + 0.03;
+      if (z > fb.z0 - reach && z < fb.z1 + reach)
+        z = Math.min(TB.zRoot - 0.06, fb.z1 + reach);
+    }
+    const yA = TB.yAx(z), h = TB.hAt(z), r = TB.rAt(z);
     let p, n;
     const host = 'edBoom' + (s > 0 ? 'R' : 'L');
     const bags = bagsFor ? bagsFor(host) : null;
@@ -342,6 +381,14 @@ function boomSites(row, P, needs, atSL, atLV, bagsFor, want) {
                side: s > 0 ? 'star' : 'port', host });
   }
   return out;
+}
+
+// THE DRAWN SKIN AS A CONTRACT (G304): `strutSkin` over the whole body, once
+// per airframe object (the layer rebuilds AF on every cage build, so the key
+// cannot go stale). The strut's own band call afterwards is its own.
+function exactSkin(AF) {
+  const GGm = (typeof window !== 'undefined') && window.GEAR_GEN;
+  return (GGm && GGm.exactAirframe) ? GGm.exactAirframe(AF) : AF;
 }
 
 // ---- build ----------------------------------------------------------------
@@ -390,6 +437,7 @@ PAGE.post = ctx => {
   if (!mesh || !mesh.A) return;
 
   const FS = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
+  boomFins = boomFinBands(scene);              // G304: the booms' fin bands, once
 
   // THE FACTS THE CAGE HAS NO KNOB FOR — the tank, the instrument fit, the
   // covering — live in the game spec and reach the editor through
@@ -512,19 +560,45 @@ PAGE.post = ctx => {
     } else if (row.on === 'boom') {
       const want = typeof row.side === 'function' ? row.side(R) : row.side;
       sites = boomSites(row, P, R, atSL, atLV, bagsFor, want || 'both');
-    } else if (row.on === 'wing') {
-      if (!wingTried) { wingTried = true; wingF = wingField(scene); }
-      sites = wingF ? SITE.accessSites(wingF, {
-        sL: atSL, lv: atLV, sC: row.at.sC,
-        snap: row.snap, side: row.side, allow: ['wing'],
-      }) : [];
-    } else if (row.on === 'wing2') {
+    } else if (row.on === 'wing' || row.on === 'wing2') {
       // G185: the second plane's fittings land on the second plane's field
-      if (!wing2Tried) { wing2Tried = true; wingF2 = wingField(scene, 1); }
-      sites = wingF2 ? SITE.accessSites(wingF2, {
-        sL: atSL, lv: atLV, sC: row.at.sC,
-        snap: row.snap, side: row.side, allow: ['wing2'],
-      }) : [];
+      const pl = row.on === 'wing2' ? 1 : 0;
+      if (pl) { if (!wing2Tried) { wing2Tried = true; wingF2 = wingField(scene, 1); } }
+      else if (!wingTried) { wingTried = true; wingF = wingField(scene); }
+      const WF = pl ? wingF2 : wingF;
+      // NOT ON THE CUT (G304, the fitment study P2). The wing's field runs
+      // to the trailing edge (lv 1.7) whether or not the skin is still there:
+      // at an aileron's station the loft is cut away behind the cove, and a
+      // cover asked for at lv 1.25 landed ON the cove's lip — its forward
+      // half inside the section, its aft half swept by the aileron at full
+      // travel (GATE CLIP: 17-21 mm, 5 mm). A wing site that lies within a
+      // surface's span and aft of its cove is walked FORWARD along the
+      // chord (lv down by 0.1 a step) until the whole plate clears the cut.
+      const half = Math.max(+(row.size && row.size.h) || 0, +(row.size && row.size.w) || 0) * 0.5 + 0.03;
+      const inCut = s => {
+        const WG = window.CAGE_WING, list = (WG && WG.surfs) || [];
+        for (const sf of list) {
+          if ((sf.plane || 1) !== pl + 1) continue;
+          const x0 = Math.min(sf.line[0][0], sf.line[1][0]) - 0.02, x1 = Math.max(sf.line[0][0], sf.line[1][0]) + 0.02;
+          if (s.p[0] < x0 || s.p[0] > x1) continue;
+          // the cove's forward edge: the hinge line's z at this station plus
+          // the nose radius, the gap and the plate's own reach
+          const t = (s.p[0] - sf.line[0][0]) / ((sf.line[1][0] - sf.line[0][0]) || 1e-9);
+          const zH = sf.line[0][2] + (sf.line[1][2] - sf.line[0][2]) * Math.max(0, Math.min(1, t));
+          if (s.p[2] < zH + sf.r + 0.004 + half) return true;
+        }
+        return false;
+      };
+      sites = [];
+      if (WF) {
+        let lv = atLV;
+        for (let step = 0; step < 8; step++) {
+          const got = SITE.accessSites(WF, { sL: atSL, lv, sC: row.at.sC, snap: row.snap, side: row.side, allow: [row.on] });
+          if (!got.length) break;
+          if (typeof lv !== 'number' || !got.some(inCut)) { sites = got; break; }
+          lv -= 0.1;
+        }
+      }
     } else {
       // `lv` is a RAIL INDEX and is not a length, so it is not scaled; sL is
       // metres and is. See UNITS at the top of this file.
@@ -624,7 +698,7 @@ PAGE.post = ctx => {
       // the skin — the base sits on the skin, the fitting points up (or down
       // under the keel); every other form keeps the surface's own normal.
       const upright = (atLV === 'crown' || atLV === 'keel') && /Aerial|Beacon/.test(String(row.form));
-      const F = frameAt(pm, upright ? [0, atLV === 'keel' ? -1 : 1, 0] : s.n);
+      let F = frameAt(pm, upright ? [0, atLV === 'keel' ? -1 : 1, 0] : s.n);
       // the conforming surface: ask the contract where the skin is a little
       // way off in each direction, so a big plate follows the section instead
       // of standing off at its corners
@@ -632,19 +706,44 @@ PAGE.post = ctx => {
       // the airframe contract describes the FUSELAGE and nothing else, so a
       // wing or cowl plate lies on its own tangent plane instead
       if (row.on === 'body' && AF && AF.surf && AF.nrmAt) {
-        const base = SITE.siteToAF(AF, { p: pm });
+        // THE SKIN, EXACTLY (G304, the fitment study P2): the airframe
+        // TABLE is ±3.5 mm off across a crease (the strut foot's lesson,
+        // _strut_gen.js §3) against the 0.6 mm a plate stands proud by, so a
+        // conforming plate asks the DRAWN mesh — `strutSkin`, the same
+        // instrument, over the whole body once a build — and falls back to
+        // the table on a page without the strut module. And a plate's arc
+        // is BOUNDED (the G196 debt): u / halfW is an angle, and on a section
+        // narrower than the plate it wrapped the plate round the aeroplane.
+        const XS = exactSkin(AF);
+        const base = SITE.siteToAF(XS, { p: pm });
+        const angAt = (dz, u) => base.ang + Math.max(-1, Math.min(1, u / Math.max(0.05, XS.halfWAt(base.z + dz))));
         surf = (u, v) => {
           const dz = -v;                       // fore is aft, and z runs fwd
-          const r = Math.max(0.05, AF.halfWAt(base.z + dz));
-          const q = AF.surf(base.z + dz, base.ang + u / r);
+          const q = XS.surf(base.z + dz, angAt(dz, u));
           return (q && isFinite(q[0])) ? q : FG.at(F, u, v, 0);
         };
         surf.n = (u, v) => {
           const dz = -v;
-          const r = Math.max(0.05, AF.halfWAt(base.z + dz));
-          const q = AF.nrmAt(base.z + dz, base.ang + u / r);
+          const q = XS.nrmAt(base.z + dz, angAt(dz, u));
           return (q && isFinite(q[0])) ? q : F.n;
         };
+        // THE SAGITTA (G304): a form that does NOT conform — a tie-down's
+        // ring, a cap's flange, an aerial's base, the beacon's dome — is
+        // built on the site's tangent plane, and where the skin rises above
+        // that plane inside the fitting's footprint (a concave patch, a
+        // pillar band's step, an upright aerial's base on a sloping deck) its
+        // rim was inside the skin (2-6.5 mm, GATE CLIP). The frame is lifted
+        // along its normal by the highest such rise; a conforming plate under
+        // it follows `surf` and is unmoved.
+        const sz = row.size || {};
+        const foot = Math.max(+sz.w || 0, +sz.h || 0, +sz.d || 0, (+sz.r || 0) * 2, 0.04);
+        let lift = 0;
+        for (let i = -2; i <= 2; i++) for (let j = -2; j <= 2; j++) {
+          const q = surf(i * foot * 0.25, j * foot * 0.25);
+          const d = (q[0] - pm[0]) * F.n[0] + (q[1] - pm[1]) * F.n[1] + (q[2] - pm[2]) * F.n[2];
+          if (d > lift) lift = d;
+        }
+        if (lift > 0.0003) F = frameAt([pm[0] + F.n[0] * lift, pm[1] + F.n[1] * lift, pm[2] + F.n[2] * lift], F.n);
       }
       // GATE CLIP reads each fitting's own triangles back out of the
       // merged bags, so the range every form wrote is recorded with the site

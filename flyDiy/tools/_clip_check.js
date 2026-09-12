@@ -97,8 +97,12 @@ function skinOf(o) {
   if (o.name.startsWith('edHinge_') || o.name.startsWith('edLamp_')) return null;
   if (o.chain.some(a => a.startsWith('edSurf_'))) return 'surf';
   if (o.chain.some(a => a.startsWith('edBoom'))) return 'boom';
+  // (not the root FILLET: a thin double-sided strip over the fin-body
+  // junction, wound either way — the farthest-vertex rule cannot orient it
+  // and it read a strap 3 mm OUTSIDE it as inside; a fitting inside the
+  // fillet is inside the fin or the body it covers)
   for (const a of o.chain)
-    if (/^(edFinSkin|edFinVentral|edFinFillet|edStabSkin)/.test(a)) return 'tail';
+    if (/^(edFinSkin|edFinVentral|edStabSkin)/.test(a)) return 'tail';
   return null;
 }
 function fittingOf(o) {
