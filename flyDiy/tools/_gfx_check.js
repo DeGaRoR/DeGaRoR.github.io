@@ -30,7 +30,7 @@ function makeWindow(store) {
     },
     requestAnimationFrame: () => 1,
     FLYDIY_AA: { _tier: 'full', setTier(t) { this._tier = t; log.push(['aa', t]); }, tier() { return this._tier; } },
-    TREE_FILL: { _ng: 112, get() { return this._ng; }, set(ng) { this._ng = ng; log.push(['fill', ng]); return ng; } },
+    TREE_FILL: { _ng: 100, get() { return this._ng; }, set(ng) { this._ng = ng; log.push(['fill', ng]); return ng; } },
     TREE_LOD: { _b: [60, 132, 270], get() { return this._b.slice(); }, set(b) { this._b = b.slice(); log.push(['bands', b.join('/')]); } },
     WORLD_RIG: { get: () => Object.assign({}, rig),
                  set(o) { Object.assign(rig, o); log.push(['rig', JSON.stringify(o)]); },
@@ -65,7 +65,7 @@ console.log('GATE GFX');
   const w2 = boot({ 'flydiy.gfx': '{not json' });
   ok(w2.GFX.get().preset === 'medium', 'a corrupt pref boots on medium');
   const w3 = boot({ 'flydiy.gfx': JSON.stringify({ preset: 'low', aa: 'nope', density: 5 }) });
-  ok(w3.GFX.get().aa === 'msaa' && w3.GFX.get().density === 112, 'unknown steps in the pref fall back to medium’s');
+  ok(w3.GFX.get().aa === 'msaa' && w3.GFX.get().density === 100, 'unknown steps in the pref fall back to medium’s');
 }
 // 3 + 4. applying, and custom
 {
@@ -78,9 +78,9 @@ console.log('GATE GFX');
   const nBefore = w.log.filter(e => e[0] === 'fill').length;
   ok(nBefore === 0, 'the boot did not re-grid a fill already at medium’s density (' + nBefore + ' re-grids)');
   G.set('preset', 'low');
-  ok(w.FLYDIY_AA.tier() === 'off' && w.TREE_FILL.get() === 96 && w.TREE_LOD.get().join('/') === '60/132/270' &&
+  ok(w.FLYDIY_AA.tier() === 'off' && w.TREE_FILL.get() === 80 && w.TREE_LOD.get().join('/') === '60/132/270' &&
      w.rig.shadowMap === 1024 && w.rig.farShadow === false && w.rig.floor === 1.0 && w.WORLD.sun.castShadow === true,
-     'low: off, 96, near bands, 1024 map, no cascade, floor off, sun still casts');
+     'low: off, 80, near bands, 1024 map, no cascade, floor off, sun still casts');
   G.set('shadows', 'off');
   ok(G.get().preset === 'custom', 'one option changed under a preset makes it custom');
   ok(w.WORLD.sun.castShadow === false && w.rig.farShadow === false, 'shadows off: the sun stops casting and the cascade is off');

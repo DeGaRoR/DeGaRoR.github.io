@@ -25,7 +25,7 @@ persistence and the preset table — not rendering.
 | option | values | handle | note |
 |---|---|---|---|
 | anti-aliasing | Off (4× MSAA) · Smooth (8×) · Smoothest (8× + 1.25×) | `FLYDIY_AA.setTier` | the frame's multiplier: 25 / 39 / 48 ms in the densest stand |
-| forest density | Sparse 96 · Normal 112 · Dense 128 · Very dense 160 | `TREE_FILL.set(ng)` | grid points per km; 10.7 / 9.1 / 8 / 6.4 m |
+| forest density | Sparse 80 · Normal 100 · Dense 128 · Very dense 160 | `TREE_FILL.set(ng)` | grid points per km; 12.8 / 10.2 / 8 / 6.4 m (W0c.31: 100 "quite OK and balanced" — was 96 / 112) |
 | forest detail distance | Near 60/132/270 m · Far 150/300/450 m | `TREE_LOD.set([l0,l1,near])` | where geometry hands over to impostors |
 | shadows | Off · Near (1024) · Full (2048 + far cascade) · Ultra (4096 + far cascade) | `WORLD_RIG.set({shadowMap, farShadow})` + `renderer.shadowMap.enabled` | the near map follows the aircraft; the far cascade is the impostor stand's |
 | canopy shading | Off · On | `WORLD_RIG.set({floor})` (1.0 = off, 0.30 = on) | the floor under the crowns |
@@ -39,8 +39,8 @@ preset is a proxy for a tier of machines, not a target for this one.
 
 | preset | AA | density | detail distance | shadows | canopy | intended for |
 |---|---|---|---|---|---|---|
-| Low | Off | Sparse 96 | Near | Near 1024 | Off | integrated / old GPUs |
-| Medium | Smooth | Normal 112 | Near | Full 2048 | On | mid-range |
+| Low | Off | Sparse 80 | Near | Near 1024 | Off | integrated / old GPUs |
+| Medium | Smooth | Normal 100 | Near | Full 2048 | On | mid-range |
 | High | Smooth | Dense 128 | Far | Full 2048 | On | this machine at ~30 fps in the worst stand |
 | Ultra | Smoothest | Very dense 160 | Far | Ultra 4096 | On | when the card allows |
 
@@ -87,7 +87,7 @@ so; `GFX.restart()` states it per option.
   every preset resolves to a value of every option; applying a preset then
   reading the handles back returns the preset's values; `Custom` is set on
   any single change; boot with no pref = Medium.
-- GATE WORLDRENDER: a boot with `flydiy.gfx` = Low plants NG 96 before the
+- GATE WORLDRENDER: a boot with `flydiy.gfx` = Low plants NG 80 before the
   first chunk.
 
 ## 7. Out of scope

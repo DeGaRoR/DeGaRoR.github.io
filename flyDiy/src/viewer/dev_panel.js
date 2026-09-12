@@ -80,9 +80,10 @@
     root.appendChild(slider('imp lit', 0, 3, 0.05, () => world().treeLod.lit.value, v => { world().treeLod.lit.value = v; }));
     root.appendChild(slider('imp gain', 1, 12, 0.25, () => lod().imp().gain, v => lod().imp({ gain: v })));
     root.appendChild(slider('imp solid', 0, 1, 0.05, () => lod().imp().solid, v => lod().imp({ solid: v })));
-    root.appendChild(slider('furnished', 0, 1, 0.05, () => W.TREE_MIX.furnished, v => { W.TREE_MIX.furnished = v; }));
-    root.appendChild(slider('size spread', 0, 0.6, 0.02, () => W.TREE_MIX.spread, v => { W.TREE_MIX.spread = v; }));
-    root.appendChild(note('furnished / spread take effect on the next fill re-grid (move the density)'));
+    const mix = k => v => { W.TREE_MIX[k] = v; if (W.TREE_MIX.apply) W.TREE_MIX.apply(); };
+    root.appendChild(slider('furnished', 0, 1, 0.05, () => W.TREE_MIX.furnished, mix('furnished')));
+    root.appendChild(slider('size spread', 0, 0.6, 0.02, () => W.TREE_MIX.spread, mix('spread')));
+    root.appendChild(note('furnished = share of living trees drawn as the specimen (the rest as the stand shape); both replant on release'));
 
     root.appendChild($('h4', { text: 'leaf' }));
     root.appendChild(slider('wrap', 0, 1, 0.02, () => leaf().get().wrap, v => leaf().set({ wrap: v })));
@@ -91,7 +92,7 @@
     root.appendChild(slider('ao bake', 0, 4, 0.1, () => leaf().get().ao, v => leaf().set({ ao: v })));
     root.appendChild(slider('sharp', 0, 3, 0.05, () => leaf().sharp(), v => leaf().sharp(v)));
     root.appendChild(slider('master hue', -0.2, 0.2, 0.005, () => leaf().master().hue, v => leaf().tint({ hue: v }), v => v.toFixed(3)));
-    root.appendChild(slider('master sat', 0, 1.5, 0.02, () => leaf().master().sat, v => leaf().tint({ sat: v })));
+    root.appendChild(slider('master sat', 0, 2, 0.02, () => leaf().master().sat, v => leaf().tint({ sat: v })));
     root.appendChild(slider('master light', 0.2, 2, 0.02, () => leaf().master().light, v => leaf().tint({ light: v })));
 
     root.appendChild($('h4', { text: 'collections' }));
@@ -118,6 +119,8 @@
       () => rig().get().env, v => rig().set({ env: v })));
     root.appendChild(slider('shadow reach', 105, 540, 5, () => rig().get().shadowMin, v => rig().set({ shadowMin: v }), v => '±' + v + ' m'));
     root.appendChild(slider('forest floor', 0, 1, 0.02, () => rig().get().floor, v => rig().set({ floor: v })));
+    root.appendChild(slider('floor blur', 2, 7, 0.25, () => rig().get().floorBlur, v => rig().set({ floorBlur: v }), v => v.toFixed(2) + ' (' + Math.round(1.37 * Math.pow(2, v)) + ' m)'));
+    root.appendChild(slider('floor edge', 0.08, 0.8, 0.02, () => rig().get().floorEdge, v => rig().set({ floorEdge: v })));
     root.appendChild(select('shadow snap', [['1', 'texel-snapped (still)'], ['0', 'free (swims)']],
       () => (rig().get().snap === false ? '0' : '1'), v => rig().set({ snap: v === '1' })));
     root.appendChild(select('far shadows', [['1', 'on (impostor cascade)'], ['0', 'off']],

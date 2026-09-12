@@ -562,6 +562,49 @@ unless `treeReady()`); and a roll-out that never happened wrote a table of
 zeros (refused). The settle reads the streamer's own `busy` flag now — the
 sliced walk keeps every frame under the 8 ms the first cut listened for.
 
+**The user's pass over the dials (W0c.31, closing).** Read off two F8
+screenshots and the user's notes, and made the defaults:
+
+- **Leaf:** wrap 0.80, sss 1.12, sss power 5.75, ao bake 4.0, sharp 0.90;
+  master tint hue −0.045, sat 1.58 (the panel's sat slider runs to 2 now),
+  light 1.12 (`trees.js` LEAF / MASTER / U_SHARP; the tuning's `master` and
+  `view` say the same, so the bench opens on the game's look).
+- **Bark per collection** (the tuning, re-baked into the manifest — geometry
+  untouched): cedar 0.34, Georgeous fir 0.42, larch 0.84, LOLIPOP 0.64,
+  spruce 0.42. (The screenshot also showed cedar at hue 0.005 / light 0.82
+  against the tuning's 0.03 / 0.59; only the bark was asked for — the two
+  cedar numbers are a note, not a change.)
+- **Fill density 100** (10.2 m; "quite OK and balanced") — `FILL.ng`, and
+  the graphics menu's *normal* step; *sparse* is 80.
+- **Shadow reach at the dial's maximum, ±540 m** in both rig rows ("I'd
+  rather drop density than shadow fidelity"). Measured against 250 in the
+  same build: −0.9 / +0.6 / −0.1 ms — noise. The sun map's fidelity is the
+  map size (2048 on Medium and above), not the reach.
+- **The forest floor blurred** ("too detailed... blurred, extend further,
+  a smoother transition"): the canopy map is read at mip 5.5 (~62 m texels;
+  was 3.5, ~11 m — every crown drew its own disc) and the coverage ramp's
+  knee at 0.26 (was 0.35), so a stand's apron reaches further and fades;
+  both on the rig as `floorBlur` / `floorEdge`, and on the panel.
+- **Furnished works:** the dial had moved a number nothing re-read — the
+  series is dealt at plant time. `TREE_MIX.apply()` replants both layers;
+  the panel calls it on release (furnished and size spread). At 0.3 the
+  stand series shows: the bench's stretched form, bare trunks with the crown
+  at the top.
+
+Baseline `tools/perf/tree_perf.json` at these defaults (NG 100, reach 540,
+alps): **Off 10.2 · Smooth 19.9 · Smoothest 27.9 ms**.
+
+**Bench parity, answered.** Every dial of `tools/_trees.html`'s view is in
+the game or in its bake: sky/ev (the rig rows and exposure), shadows, sharp,
+wrap, sss, a2c, mips (`coverageMips` on the mask materials), aobake, trunkao
+(baked into the payload's AO by `tree_prep.py`), isolid / icut / ilit
+(+ igain per collection), crownH / crownW (the bake's view), trueScale (the
+size rule), the per-collection tint and the master. Two are not, on purpose:
+**SSAO** (the bench's screen-space pass; off in the committed view, never part
+of a judged look — the floor and the baked AO do that job in the game) and
+**imp round** (`isph`, the sphere-normal blend for the impostor; measured 0
+on the bench and superseded by the G-buffer's real normal sheet).
+
 **Not done.** The boot rig is still `sunset`; `alps` is two clicks on the
 panel and is the row the trees were judged in — a world decision. Bushes and
 grass are the next kinds through this same door.

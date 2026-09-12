@@ -1,8 +1,8 @@
 {
- "date": "2026-09-12T18:42:34.329Z",
+ "date": "2026-09-12T19:39:22.374Z",
  "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
  "rig": "alps",
- "ng": 112,
+ "ng": 100,
  "stand": [
   1663,
   -1361
@@ -11,44 +11,44 @@
  "rows": [
   {
    "tier": "full",
-   "median": 24.1,
-   "p90": 26.5,
-   "world": 0.7,
-   "render": 22.6,
+   "median": 27.9,
+   "p90": 31.1,
+   "world": 0.8,
+   "render": 26.3,
    "calls": 1,
    "tris": 2,
-   "near": 4962,
-   "impostors": 127252
+   "near": 3967,
+   "impostors": 109423
   },
   {
    "tier": "msaa",
-   "median": 19.1,
-   "p90": 21.3,
-   "world": 0.7,
-   "render": 17.5,
+   "median": 19.9,
+   "p90": 23.5,
+   "world": 0.8,
+   "render": 18.2,
    "calls": 1,
    "tris": 2,
-   "near": 4962,
-   "impostors": 127252
+   "near": 3967,
+   "impostors": 109423
   },
   {
    "tier": "off",
-   "median": 8.8,
-   "p90": 11,
-   "world": 0.6,
-   "render": 7.7,
-   "calls": 946,
-   "tris": 11486768,
-   "near": 4962,
-   "impostors": 127252
+   "median": 10.2,
+   "p90": 13.3,
+   "world": 0.8,
+   "render": 9.1,
+   "calls": 981,
+   "tris": 9517276,
+   "near": 3967,
+   "impostors": 109423
   }
  ],
  "gen": {
-  "chunks": 102,
-  "walkMs": 16.2,
-  "buildMs": 1.8,
-  "worstMs": 73.8,
-  "frameMaxMs": 17.6,
-  "trees": 219518
+  "chunks": 67,
+  "walkMs": 11.8,
+  "buildMs": 5.1,
+  "worstMs": 70.4,
+  "frameMaxMs": 25.8,
+  "trees": 102427
  }
 }

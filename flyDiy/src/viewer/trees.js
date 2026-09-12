@@ -182,7 +182,9 @@
   // by having a neighbour. The dials are the bench's committed view, and live
   // on window.TREE_LEAF so a stand can be judged in the game as it was judged
   // in the bench.
-  const LEAF = { wrap: 0.76, sss: 0.72, sssp: 3.0, ao: 2.0 };
+  // W0c.31: the user's dials, read off the F8 panel after the alps tuning
+  // (were 0.76 / 0.72 / 3.0 / 2.0, the bench's committed view)
+  const LEAF = { wrap: 0.80, sss: 1.12, sssp: 5.75, ao: 4.0 };
   const U_WRAP = { value: LEAF.wrap }, U_SSS = { value: LEAF.sss },
         U_SSSP = { value: LEAF.sssp }, U_AO = { value: LEAF.ao };
   // THE ALBEDO PASS. An impostor must bake a G-BUFFER, not a photograph (the
@@ -236,7 +238,7 @@
   // pack at 1.3 of its lightness in the bench was at 1.0 here, the spruce
   // at 0.54 was at 1.0, and the stand was a different colour from the one
   // that had been judged. MASTER rides over all of them at once.
-  const MASTER = { hue: 0, sat: 1, light: 1 };
+  const MASTER = { hue: -0.045, sat: 1.58, light: 1.12 };   // W0c.31: the user's master tint
   const TINT_GLSL = [
     'float _a = uHue * 6.2831853;',
     'float _c = cos(_a), _s = sin(_a);',
@@ -265,7 +267,7 @@
   // buffer this needs (the G144 resolve pass). The bake cannot sharpen -
   // fwidth at a 128 px tile puts every texel on 0.5 - so it takes the same
   // step as a HARD mask at the collection's own cutoff.
-  const U_SHARP = { value: 1.0 };
+  const U_SHARP = { value: 0.9 };   // W0c.31: 0.9 by the user's eye
   const EDGE_GLSL = [
     'if (uBakeAlb > 0.5) {',
     '  diffuseColor.a = diffuseColor.a >= uCut ? 1.0 : 0.0;',

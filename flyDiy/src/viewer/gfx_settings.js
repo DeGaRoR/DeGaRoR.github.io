@@ -37,8 +37,8 @@
         { v: 'msaa', label: 'smooth', why: '8x MSAA' },
         { v: 'full', label: 'smoothest', why: '8x MSAA and a 1.25x supersample - the dearest frame' } ] },
     { k: 'density', label: 'forest density', steps: [
-        { v: 96,  label: 'sparse', why: 'a tree every 10.7 m' },
-        { v: 112, label: 'normal', why: 'a tree every 9.1 m' },
+        { v: 80,  label: 'sparse', why: 'a tree every 12.8 m' },
+        { v: 100, label: 'normal', why: 'a tree every 10.2 m' },
         { v: 128, label: 'dense', why: 'a tree every 8 m' },
         { v: 160, label: 'very dense', why: 'a tree every 6.4 m' } ] },
     { k: 'bands', label: 'forest detail', steps: [
@@ -62,8 +62,8 @@
 
   // ---- the presets: measured on the reference machine (tools/tree_perf.js) --
   const PRESETS = {
-    low:    { aa: 'off',  density: 96,  bands: 'near', shadows: 'near', canopy: 'off', lighting: 'sunset' },
-    medium: { aa: 'msaa', density: 112, bands: 'near', shadows: 'full', canopy: 'on',  lighting: 'sunset' },
+    low:    { aa: 'off',  density: 80,  bands: 'near', shadows: 'near', canopy: 'off', lighting: 'sunset' },
+    medium: { aa: 'msaa', density: 100, bands: 'near', shadows: 'full', canopy: 'on',  lighting: 'sunset' },
     high:   { aa: 'msaa', density: 128, bands: 'far',  shadows: 'full', canopy: 'on',  lighting: 'sunset' },
     ultra:  { aa: 'full', density: 160, bands: 'far',  shadows: 'ultra', canopy: 'on', lighting: 'sunset' },
   };

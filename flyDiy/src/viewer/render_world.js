@@ -182,7 +182,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // longer exists — silently, and for ever, because nothing downstream can
   // tell you. Two literals that must agree are a bug waiting for its first
   // edit, so there is one.
-  const RIG = { skyCol: 0xbcd8f0, gndCol: 0x6a5a3c, hemi: 0.50, sun: 2.75, shadowMin: 105 };
+  // shadowMin 540 = the reach dial's maximum (W0c.31, the user: "I'd rather
+  // drop density than shadow fidelity"): the sun map always covers ±540 m,
+  // so nothing inside it pops from shadow to none as the aircraft climbs
+  const RIG = { skyCol: 0xbcd8f0, gndCol: 0x6a5a3c, hemi: 0.50, sun: 2.75, shadowMin: 540 };
   // THE FOREST FLOOR (W0c.17): the ground under a canopy gets a fraction of
   // the sky, and a terrain painted as if it stood in the open is what makes
   // a stand float on it. The far tier already darkens the ground it stands
@@ -191,6 +194,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // shade a few tens of metres wide. Not a shadow (the sun's shadow map does
   // that inside its reach): an occlusion, which is why it does not move.
   const uFloor = { value: 0.30 };          // 0.3 by the user's word (W0c.23)
+  // THE BLUR (W0c.31, the user: "the forest floor is now too detailed...
+  // blurred, extend further, with a smoother transition"): the canopy map
+  // is read at one mip level - 3.5 was ~11 m texels and every crown drew
+  // its own disc on the ground; 5.5 is ~62 m, a stand's shade and not its
+  // trees' - and the coverage ramp's knee sets how far the apron reaches
+  // past the last crown. Both dials on the rig (floorBlur, floorEdge).
+  const uFloorLod = { value: 5.5 }, uFloorEdge = { value: 0.26 };
   // THE CANOPY MAP (W0c.23). The floor term above darkened wherever the
   // BIOME CLASSIFIER said forest floor - the domain mask, 47 m a texel - and
   // the planter then rejects trees on the airfield corridor, the exclusion
@@ -708,7 +718,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     const canopyHook = sh => {
       sh.uniforms.uFMask = { value: forestMask };
       sh.uniforms.uCanopy = { value: cnpTex };
-      sh.uniforms.uFloor = uFloor;
+      sh.uniforms.uFloor = uFloor; sh.uniforms.uFloorLod = uFloorLod; sh.uniforms.uFloorEdge = uFloorEdge;
       sh.uniforms.uFarOn = FAR.on; sh.uniforms.uFarMap = FAR.map; sh.uniforms.uFarVP = FAR.vp;
       sh.uniforms.uCovOn = COVER.on; sh.uniforms.uCovMap = COVER.map; sh.uniforms.uCovVP = COVER.vp;
       sh.vertexShader = sh.vertexShader
@@ -717,7 +727,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           'vWP = (modelMatrix * vec4(position, 1.0)).xyz;\nvCD = -mvPosition.z;');
       sh.fragmentShader = sh.fragmentShader
         .replace('#include <common>', '#include <common>\nuniform sampler2D uFMask;\n' +
-          'uniform sampler2D uCanopy;\nuniform float uFloor;\nvarying vec3 vWP;\nvarying float vCD;\n' +
+          'uniform sampler2D uCanopy;\nuniform float uFloor, uFloorLod, uFloorEdge;\nvarying vec3 vWP;\nvarying float vCD;\n' +
           'uniform float uFarOn;\nuniform sampler2D uFarMap;\nuniform mat4 uFarVP;\n' +
           'uniform float uCovOn;\nuniform sampler2D uCovMap;\nuniform mat4 uCovVP;')
         // the far cascade, on the direct term only: four taps of packed depth
@@ -769,7 +779,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           // dial's darkening must reach ALL of it under any canopy - so a
           // cover of a third is already full shade, and the edge's ramp is
           // what remains of the blur
-          '    float cov = smoothstep(0.04, 0.35, texture2D(uCovMap, cp, 3.5).r);\n' +
+          '    float cov = smoothstep(0.03, uFloorEdge, texture2D(uCovMap, cp, uFloorLod).r);\n' +
           '    diffuseColor.rgb *= mix(1.0, uFloor, cov * (1.0 - fFar));\n' +
           '  }\n' +
           '}');
@@ -2160,7 +2170,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // fill runs 25 ms at 112, 31 at 160, 36 at 224, 54 at 320 - against 17-21
       // at the strip with no near tree at all. 160 is where dense reads as
       // dense and the frame is still the game's; the dial is there to push it.
-      const FILL = { ng: 112 };         // 9.1 m: "still generous" at 128, by the user's eye (W0c.26)
+      const FILL = { ng: 100 };         // 10.2 m: "quite OK and balanced" by the user's eye (W0c.31; 112 at W0c.26)
       let NG = FILL.ng, SP2 = CH / NG;
       // nearTree / the exclusions / the corridor live in forestHere now,
       // shared with the terrain's colour bake and the far canopy mask
@@ -2380,6 +2390,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // through the streamer's own eviction path rather than a second one
       // the chunk under generation: its records, the next row, its clock
       let cur = null;
+      // the mix dials (furnished, spread) are dealt at plant time: applying
+      // them is a replant of both layers (W0c.31 - "furnished does not seem
+      // to work": the dial moved a number nothing re-read)
+      TREE_MIX.apply = () => { plantWoodland(); evictAll(); };
       const evictAll = () => {
         cur = null;                        // whatever was being walked is gone with the rest
         for (const [k, c2] of chunks) {
@@ -3151,7 +3165,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     sunI: RIG.sun, sunCol: hexOf(sun.color, SUNC), hemi: RIG.hemi,
     hemiSky: hexOf(hemi.color, RIG.skyCol), hemiGnd: RIG.gndCol,
     exposure: (renderer && renderer.toneMappingExposure) || 1,
-    env: 'dome', shadowMin: RIG.shadowMin, floor: uFloor.value, farShadow: true, snap: true,
+    env: 'dome', shadowMin: RIG.shadowMin, floor: uFloor.value, floorBlur: uFloorLod.value, floorEdge: uFloorEdge.value,
+    farShadow: true, snap: true,
     shadowMap: (sun.shadow && sun.shadow.mapSize) ? sun.shadow.mapSize.x : 1024,
     dome: (worldSky && worldSky.material.uniforms) ? {
       top: hexOf(worldSky.material.uniforms.uTop.value, 0x3f7fbe),
@@ -3162,7 +3177,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   rigRows.sunset = rigSnapshot();
   rigRows.alps = Object.assign({}, rigRows.sunset, {
     elev: 33.4, azim: 28.7, sunI: 2.8, sunCol: 0xffdca8, hemi: 0.274, hemiSky: 0xc5d9ff,
-    hemiGnd: 0x343422, exposure: 0.92, env: 'alps', shadowMin: 250, shadowMap: 2048,
+    hemiGnd: 0x343422, exposure: 0.92, env: 'alps', shadowMin: 540, shadowMap: 2048,
     dome: { top: 0x3f7fbe, mid: 0xa9c8e0, haze: 0xcfd9e3, sunCol: 0xfff1dc },
   });
   const rigCur = Object.assign({}, rigRows.sunset);
@@ -3218,6 +3233,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     if (renderer) renderer.toneMappingExposure = R.exposure;
     RIG.shadowMin = R.shadowMin;
     if (R.floor !== undefined) uFloor.value = R.floor;
+    if (R.floorBlur !== undefined) uFloorLod.value = R.floorBlur;
+    if (R.floorEdge !== undefined) uFloorEdge.value = R.floorEdge;
     if (R.farShadow !== undefined) FAR.enabled = !!R.farShadow;
     if (R.snap !== undefined) SNAP.on = !!R.snap;
     if (sun.shadow && sun.shadow.mapSize && sun.shadow.mapSize.x !== R.shadowMap) {

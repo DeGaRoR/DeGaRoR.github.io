@@ -39530,6 +39530,16 @@ worktree with GATE WORLDRENDER + GATE TREES.
   F8 readout keep the clock. W0c.29's ground bonus could never fire (a
   forest point is never SAND/SCREE) — it is wet / steep now. Baseline
   `tools/perf/tree_perf.json`: Off 8.8 · Smooth 19.1 · Smoothest 24.1 ms.
+- **W0c.31, the user's dials (2026-09-12, the close):** leaf wrap 0.80 /
+  sss 1.12 / power 5.75 / ao 4.0 / sharp 0.90, master tint −0.045 / 1.58 /
+  1.12, bark per collection re-baked (0.34 / 0.42 / 0.84 / 0.64 / 0.42),
+  fill density 100 (menu: sparse 80, normal 100), shadow reach ±540 m in
+  both rows (measured free), the forest floor read at mip 5.5 with a
+  softer knee (floorBlur / floorEdge on the rig), and `furnished` replants
+  (`TREE_MIX.apply`). Bench parity: every dial is in the game or its bake
+  except SSAO (off in the committed view) and `isph` (measured 0,
+  superseded by the normal sheet) — TREE-IMPORT.md §8. Baseline: Off 10.2 ·
+  Smooth 19.9 · Smoothest 27.9 ms at NG 100, alps.
 - **Not done, on purpose:** the boot rig (still `sunset`; `alps` is where
   the trees were judged), the forest card in the rail and the GRAPHICS
   SETTINGS menu (`futureDesigns/GRAPHICS-SETTINGS-2026-09-12.md`, the
