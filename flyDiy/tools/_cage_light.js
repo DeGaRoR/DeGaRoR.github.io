@@ -1434,6 +1434,15 @@ PAGE.post = (ctx) => {
     l.castShadow = false;
     group.add(l); lit.push(['flood', l]);
   }
+  // ...and the pedalier (G308): the flight has had it since G296; the shed
+  // is where the user tests the switches from the seat, so it lights the
+  // footwell here too — the same numbers as cockpit.js's
+  if (S.pedal && level(P, 'pedal') > 0) {
+    const l = new THREE.PointLight(LIGHTS.pedal.col, level(P, 'pedal') * 0.35, 1.2, 1.6);
+    l.position.set(...S.pedal.p);
+    l.castShadow = false;
+    group.add(l); lit.push(['pedal', l]);
+  }
 
   // ---- THE SWITCHBOARD ----------------------------------------------------
   // Declared on the room's own board (G-LIGHT's contract) so the CENSUS stays

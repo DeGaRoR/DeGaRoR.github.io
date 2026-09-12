@@ -40483,3 +40483,18 @@ every fix measured against the drawn triangles, the baseline `--rebase`d after.
   rod, the fin standing on the forward one's plate, the aft one carrying
   the fin's post, the tailwheel spring under it and the stab on its
   pedestal above.
+
+## G308 — THE PEDALIER IS A LIGHT IN THE SHED TOO (2026-09-12, the user:
+## "a series of screenshots in the night environment showing the interior
+## lights working … based on the click in the interface")
+
+The series was shot from the seat in the NIGHT mood with the shop lamps
+off, every state set by a mouse click on a dimmer (G305): all off → the
+dials lit from their posts → the flood lighting the cabin from the
+canopy's arch → the pedalier lighting the footwell → all three. The one
+gap it showed: the pedalier had been a real PointLight in flight since
+G296 but only a glowing dome in the shed, where the switches are tested —
+it lights the footwell there now with the same numbers. (Shots in the
+session's scratchpad; the way to take them: the pump page's
+`__pump(n)` drives frames on demand in a hidden pane, `__afterFrame`
+reads the canvas in the same task, a node sink on 8368 saves the JPEG.)
