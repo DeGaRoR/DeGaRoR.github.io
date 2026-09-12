@@ -409,6 +409,43 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     worldSwitch.apply();
   }
 
+  // ================= WHERE THE FOREST IS (W0c.25) =========================
+  // ONE predicate, shared by everything that asks. The biome classifier's
+  // FOREST_FLOOR is where a forest MAY be; the planter then keeps only the
+  // points near a stand tree, off the airfield corridor, outside the
+  // aerodromes' exclusion discs, on land above 1.5 m and not under water.
+  // The terrain's colour bake and the far canopy mask had asked the
+  // classifier alone, so every field classified forest and never planted
+  // wore the forest floor's olive - the patches the user kept finding near
+  // the strip, "where forest was originally distributed". Now they ask this.
+  const treeBins = new Map();               // collidable trees in 128 m bins
+  world.trees.forEach((T, i) => {
+    const k = Math.floor(T.x / 128) * 4096 + Math.floor(T.z / 128);
+    const a = treeBins.get(k); a ? a.push(i) : treeBins.set(k, [i]);
+  });
+  const nearTree = (x, z) => {              // stands always hold a grid tree < 90 m
+    const bx = Math.floor(x / 128), bz = Math.floor(z / 128);
+    let best = -1, bd = 8100;
+    for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
+      const a = treeBins.get((bx + dx) * 4096 + (bz + dz));
+      if (a) for (const ti of a) {
+        const T = world.trees[ti];
+        const d = (T.x - x) * (T.x - x) + (T.z - z) * (T.z - z);
+        if (d < bd) { bd = d; best = ti; }
+      }
+    }
+    return best;
+  };
+  const treeEx = world.aerodromes.map(a => ({ x: a.x, z: a.z, r2: (a.len / 2 + 70) ** 2 }));
+  const forestHere = (x, z) => {
+    if (world.surface(x, z) !== world.SURFACE.FOREST_FLOOR) return false;
+    if (Math.abs(z) < 90 && x < 200 && x > -3400) return false;   // the corridor
+    for (const e of treeEx) if ((x - e.x) * (x - e.x) + (z - e.z) * (z - e.z) < e.r2) return false;
+    const h = world.terrainH(x, z);
+    if (h < 1.5 || world.waterH(x, z) > h) return false;
+    return nearTree(x, z) >= 0;
+  };
+
   { // terrain (24 km domain, W6): two-ring mesh — 17.6 m polys over the
     // home ±4500 so river carves resolve, coarse ~100 m strips out to
     // ±12000 (fog caps visibility ~5 km: the far ring only needs
@@ -459,8 +496,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // stage-2 biome tint + stage-3 road band (wider than the 3.5 m
       // GRAVEL truth so coarse texels catch it)
       const sc = world.surface(x, z);
-      _for = sc === world.SURFACE.FOREST_FLOOR ? 1 : 0;   // W17 far-canopy mask
-      if (sc === world.SURFACE.FOREST_FLOOR) c.lerp(c2.setHex(0x51602f), 0.42);
+      // the forest floor's own colour, and the far tier's mask, only where
+      // a forest IS (forestHere): the classifier alone painted the corridor
+      _for = (sc === world.SURFACE.FOREST_FLOOR && forestHere(x, z)) ? 1 : 0;
+      if (_for) c.lerp(c2.setHex(0x51602f), 0.42);
       else if (sc === world.SURFACE.SAND) c.lerp(c2.setHex(0xcfbe8a), 0.80);
       else if (sc === world.SURFACE.SCREE) c.lerp(c2.setHex(0x8f8570), 0.65);
       if (world.roadNet.roadNear(x, z) < 9) c.lerp(c2.setHex(0xa38b5c), 0.7);
@@ -711,9 +750,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           '  if (cp.x > 0.0 && cp.x < 1.0 && cp.y > 0.0 && cp.y < 1.0) {\n' +
           // sixteen taps over ±6 m: the shade reaches half a crown past the
           // crown, which is what anchors a stand's edge and darkens a gap
-          // one tap two mip levels down (5.5 m texels): the blur that
-          // carries a crown's shade half a crown past its edge
-          '    float cov = texture2D(uCovMap, cp, 2.5).r;\n' +
+          // one tap three and a half levels down (~11 m texels): the blur
+          // that carries a stand's shade a crown past its edge, so the
+          // floor reads as a floor from the air and not as a rim
+          '    float cov = texture2D(uCovMap, cp, 3.5).r;\n' +
           '    diffuseColor.rgb *= mix(1.0, uFloor, cov * (1.0 - fFar));\n' +
           '  }\n' +
           '}');
@@ -2000,26 +2040,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // dense and the frame is still the game's; the dial is there to push it.
       const FILL = { ng: 128 };         // 8 m; 160 (6.4 m) was 72 ms on the full ladder
       let NG = FILL.ng, SP2 = CH / NG;
-      const bins = new Map();              // collidable trees in 128 m bins:
-      world.trees.forEach((T, i) => {      // prefilter + species inheritance
-        const k = Math.floor(T.x / 128) * 4096 + Math.floor(T.z / 128);
-        const a = bins.get(k); a ? a.push(i) : bins.set(k, [i]);
-      });
-      const nearTree = (x, z) => {         // stands always hold a grid tree < 90 m
-        const bx = Math.floor(x / 128), bz = Math.floor(z / 128);
-        let best = -1, bd = 8100;
-        for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
-          const a = bins.get((bx + dx) * 4096 + (bz + dz));
-          if (a) for (const ti of a) {
-            const T = world.trees[ti];
-            const d = (T.x - x) * (T.x - x) + (T.z - z) * (T.z - z);
-            if (d < bd) { bd = d; best = ti; }
-          }
-        }
-        return best;
-      };
-      const ex = world.aerodromes.map(a => ({ x: a.x, z: a.z,
-        r2: (a.len / 2 + 70) ** 2 }));
+      // nearTree / the exclusions / the corridor live in forestHere now,
+      // shared with the terrain's colour bake and the far canopy mask
       const coneF = new THREE.ConeGeometry(1.55, 5.0, 5, 1, true);
       coneF.translate(0, 2.75, 0);
       const blobF = new THREE.IcosahedronGeometry(1.9, 0);
@@ -2110,17 +2132,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           if (hsh(ix, iz + 31) < 0.1) continue;
           const x = cx * CH + (gx + 0.5) * SP2 + (hsh(ix + 7, iz) - 0.5) * SP2 * 1.6;
           const z = cz * CH + (gz + 0.5) * SP2 + (hsh(ix, iz + 7) - 0.5) * SP2 * 1.6;
-          if (Math.abs(z) < 90 && x < 200 && x > -3400) continue;  // corridor
+          if (!forestHere(x, z)) continue;  // ONE rule, the bake's too
           const ti = nearTree(x, z);
-          if (ti < 0) continue;            // no stand tree near: not forest
-          let inEx = false;
-          for (const e of ex)
-            if ((x - e.x) * (x - e.x) + (z - e.z) * (z - e.z) < e.r2) { inEx = true; break; }
-          if (inEx) continue;
           const h = world.terrainH(x, z);
-          if (h < 1.5) continue;
-          if (world.waterH(x, z) > h) continue;
-          if (world.surface(x, z) !== world.SURFACE.FOREST_FLOOR) continue;
           const sp = hsh(ix + 3, iz + 5) < 0.88 ? world.trees[ti].sp
                                                 : (hsh(ix + 9, iz + 1) * 5) | 0;
           const gi = SHAPE.real ? poolPick(SHAPE.list, hsh(ix + 11, iz + 17)) : (sp < 2 ? 0 : 1);
