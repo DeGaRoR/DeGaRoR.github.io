@@ -38805,3 +38805,87 @@ fragments only):
 Not done: the pedals themselves are not lit by anything (they sit in the
 dark, which is right); a footwell LAMP (`li_pedal`) is darkened with the
 rest — the cabin's own darkness already did that to it.
+
+## G273 — THE YARD: WHAT PEOPLE LEAVE AROUND A HOUSE — BAKED PROPS PLACED BY
+## THE PLAN, A CORDWOOD STACK IN A RACK WITH REAL LOG ENDS, A WORN PATH, THE
+## WALL LAMP AS THE PORCH LIGHT, CURTAINS AND BLINDS BEHIND THE GLASS, AND THE
+## BUILDING SETTLING — THE RIDGE SAGS, THE COURSES WANDER (2026-09-12, the
+## user: "do the 3 things you've suggested, plus use the existing appropriate
+## objects we have for the hangar here ... I have added new assets in the
+## asset/propHouse folder. There's also an outdoor lamp that could work as the
+## porch lamp ... For the firewood stack, be careful to use proper textures
+## for the end of the logs, ambient occlusion between the logs and against
+## the wall they're resting on is of paramount importance, and you can do a
+## little structure for holding the wood, a bit derelict and imperfect")
+
+- **THE YARD KIT.** Five new Poly Haven props from `assets/propsHouse/` join
+  the pier table under a `yard` group (`tools/pier_table.py`, baked to
+  `src/pier/pier_yard.js`): the industrial wall lamp (`lamp_wall`, mounted
+  by its plate, +z off the wall, the author's emissive on its glass), the
+  compost bags in their four arrangements (one file, four nodes), the slumped
+  compost bag, the green jerrycan, the planter box. And the hangar's own
+  props that work round a house are used as they are — bins, gas bottles,
+  drums, crates, the stepladder, the compressor, the trestle, the hand truck,
+  the tyre, the hose reel, the barrel stove — so the bench loads six of the
+  hangar packs beside the pier's. `YARD_KIT` mirrors every key's metres the
+  way PIER_KIT mirrors the pier's; rule 27 holds both mirrors against the
+  packs (the gate reads `src/props/` too now).
+- **THE PLACER** (`yardPlan`): BLOCKERS (house, deck, every flight and
+  landing of every stair, the stoops, the lean-to, the jetty, the barrel, the
+  people, the woodpile), ZONES (beside the stair foot; against a gable;
+  along the back wall; under the deck; on the deck by the door), and a menu
+  in the order a yard fills up — bins first, then the gas under the kitchen
+  wall, the junk, the deck, the bags, the ladder, the hose reel, the stove.
+  A thing against a wall stands its own half-depth off it; a thing on the
+  ground is refused inside anything it does not clear, in the tide, or on
+  another thing. `yard`, `yardK`, `yardSeed` are the dials; the sampler
+  always has a yard. The bench tilts each ground prop to the ground's own
+  normal. **Rule 34**: every placement is a known key, on the ground / the
+  deck / a wall it claims, out of the house, off the stairs and stoops, and
+  no two overlap; `yard` 0 places nothing.
+- **THE WOODPILE** (`buildWoodpile`): 400 mm rounds, ends out, courses
+  following the ground, in a RACK — two sleepers, end posts, and free-
+  standing a back rail — of the frame's own weathered timber with the hand
+  at twice the dial. Each round its own radius, place and lean. The bark is
+  the `bark` set on a `log` bag; the ENDS are a new `logend` bag wearing
+  **`endgrain`, a generated set** (`tools/house_endgrain_gen.py`: nine log
+  ends per 1.25 m tile — rings on a wandering spacing, drying checks, a
+  greyed rim, a bark ring; normal from height, roughness high) mapped with
+  the pith on a cell's centre by a hash of the round (`logEndUV`), because a
+  ring scan tiled onto a disc puts the pith anywhere but the middle. Both
+  bags are in BAGS, so the occlusion bake sees every round: between the
+  rounds, under the rack, against the wall. Along a gable or along the back
+  wall, whichever is flattest and touches a wall; free-standing a step out
+  when the wall does not come down to the ground. **Rule 35**: on the
+  ground, rounds in it, out of the house and the tide, off the stair; off,
+  none. Its own kind, `end`, so no role is ever offered it; density 410 px/m
+  inside the library's band (spread 1.92:1).
+- **THE WORN PATH** (`pathPlan` -> `stats.path`): from the stair's foot to
+  the site's edge (or the beach walk to the jetty), and from the back stoop;
+  the bench's ground shader (`shadeGround`, `uPath[8]`) wears the grass to
+  earth along it with a noisy edge. Nothing is drawn.
+- **THE PORCH LAMP IS THE BAKED FIXTURE** (`lampKind` 1, default): mounted
+  beside the door under the eave, published with its prop, its mount and
+  the bulb's position; the drawn lantern stays as `lampKind` 0. **Rule 29
+  was found MISSING** — the G254 patch anchored on the rule below it had
+  swallowed the whole block, and the lights have been ungated since — and
+  is back, with a prop lamp's emissive map counting as its glass.
+- **CURTAINS AND BLINDS** (`curtains`, default 0.7): each pane carries its
+  window's width, height and a dressing code (`aHouseWin`, a third
+  per-vertex channel in the kit) hashed from the window's own place and the
+  light seed: curtains both sides, a curtain one side, a blind part way
+  down, or bare; four fabric colours. The glass shader hangs them at the
+  pane's own edge with an uneven hem and countable folds; a dressed pane
+  loses most of its metalness (a curtain-backed window is not a mirror) and
+  a lit room glows through the cloth in the cloth's colour.
+- **THE BUILDING SETTLES.** `sag` (default 4 cm): one smooth field in the
+  house's frame applied in the vertex shader of every house material — zero
+  at the eave, full at the ridge, a bow along x that is zero at the gables —
+  so the roof, the gable above the eave, the stack, the dormers and the
+  belfry go down together and nothing opens; the smoke starts where the
+  stack's top actually is. `wander` (default 10 mm × the hand): the siding's
+  texture rows slid by a slow noise along the wall, so a run of boards is not
+  a ruled line. Both are drawn, not measured: the gate's geometry is
+  untouched.
+- Gates: HOUSE (with --selftest; rules 27b, 29, 34, 35) green; MEDIA green
+  but for the trees session's four orphans.

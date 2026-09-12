@@ -149,6 +149,11 @@ const HOUSE_TEX_SETS = (typeof Image !== 'undefined') ? (() => {
       nor: mk('media/tex/house/concretec_nor_gl_1k.9087b0b2.jpg'),
       rough: mk('media/tex/house/concretec_rough_1k.78d2900a.jpg'),
       paint: null },
+    endgrain: { kind: 'end', name: 'log ends', tile: 1.25, px: 512, metal: 0, ribbed: false,
+      diff: mk('media/tex/house/endgrain_diff_512.1480e59c.jpg'),
+      nor: mk('media/tex/house/endgrain_nor_gl_512.cf642e59.jpg'),
+      rough: mk('media/tex/house/endgrain_rough_512.9a7921ef.jpg'),
+      paint: null },
   };
 })() : null;
 

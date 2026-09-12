@@ -57,6 +57,13 @@ GROUPS = [
     # boots). They are the metre stick every doubt about a deck's width or a
     # pier's planks is settled against.
     ('people', 'people'),
+    # THE YARD (G273, the user: "I have added new assets in the asset/propHouse
+    # folder. There's also an outdoor lamp that could work as the porch lamp"):
+    # what stands around a house rather than in a hangar - a wall lamp by the
+    # door, compost bags against the wall, a planter on the deck, a jerrycan.
+    # Same baker, same one material; their own group so the generator's yard
+    # planner can read them as a set.
+    ('yard', 'around the house'),
 ]
 
 # `lic` drives what CREDITS.md must carry. Every boat is CC-BY-4.0 and needs
@@ -80,6 +87,12 @@ SOURCES = {
                'https://www.blenderkit.com/'),
     'john':   ('John (static)', 'BlenderKit, via blendkitPeople.blend', 'BlenderKit licence',
                'https://www.blenderkit.com/'),
+    # the yard, all Poly Haven CC0, delivered under assets/propsHouse/
+    'walllamp': ('Industrial Wall Lamp', 'Poly Haven', 'CC0', 'https://polyhaven.com/a/industrial_wall_lamp'),
+    'bags':     ('Compost Bags', 'Poly Haven', 'CC0', 'https://polyhaven.com/a/compost_bags'),
+    'bag02':    ('Compost Bag 02', 'Poly Haven', 'CC0', 'https://polyhaven.com/a/compost_bag_02'),
+    'jerrygreen': ('Metal Jerrycan Green', 'Poly Haven', 'CC0', 'https://polyhaven.com/a/metal_jerrycan_green'),
+    'planter':  ('Planter Box 03', 'Poly Haven', 'CC0', 'https://polyhaven.com/a/planter_box_03'),
 }
 
 # the delivered files, under assets/woodenPierBoats/
@@ -92,6 +105,19 @@ FILES = {
     'grady':  'freedom_325_grady_white.glb',
     'andrew': 'andrew.glb',
     'john':   'john.glb',
+    'walllamp': 'industrial_wall_lamp_1k.gltf',
+    'bags':     'compost_bags_1k.gltf',
+    'bag02':    'compost_bag_02_1k.gltf',
+    'jerrygreen': 'metal_jerrycan_green_1k.gltf',
+    'planter':  'planter_box_03_1k.gltf',
+}
+# where each source's file lives, relative to assets/woodenPierBoats/
+DIRS = {
+    'pier': 'pier', 'andrew': '../blendkitPeople', 'john': '../blendkitPeople',
+    'walllamp': '../propsHouse/industrial_wall_lamp',
+    'bags': '../propsHouse/compost_bags', 'bag02': '../propsHouse/compost_bag_02',
+    'jerrygreen': '../propsHouse/metal_jerrycan_green',
+    'planter': '../propsHouse/planter_box_03',
 }
 
 
@@ -99,8 +125,7 @@ def P(key, group, label, src, note, mats=None, nodes=None, place='floor',
       scale=1.0, rot=(0, 0, 0), tex=512, deck=None, float=None, piles=None,
       pilesCut=1.9, slots=None):
     return dict(key=key, group=group, label=label, src=src, file=FILES[src],
-                dir=('pier' if src == 'pier' else
-                     '../blendkitPeople' if src in ('andrew', 'john') else ''),
+                dir=DIRS.get(src, ''),
                 mats=mats, nodes=nodes, place=place, scale=scale, rot=rot,
                 tex=tex, note=note, deck=deck, float=float, piles=piles,
                 pilesCut=pilesCut, slots=slots)
@@ -189,4 +214,28 @@ PROPS = [
       note='1.84 m, standing, reading; 310k triangles as delivered', tex=1024,
       slots={'John': {'bc': 'John_albedo', 'nor': None, 'rough': 0.78},
              'notes': {'bc': 'notes_albedo', 'nor': None, 'rough': 0.85}}),
+
+    # ---- the yard (G273) ----------------------------------------------------
+    # THE WALL LAMP is the porch light now: its origin is the mount plate
+    # (place 'wall', left as delivered), the fixture stands 0.14 m off the wall
+    # along +z and the glass carries the author's emissive; the generator
+    # publishes the bulb's position and the bench stands a real light in it.
+    P('lamp_wall', 'yard', 'wall lamp', 'walllamp', place='wall',
+      note='cast industrial wall lamp, 0.27 x 0.43 m, emissive glass; +z is off the wall'),
+    P('bags_stack', 'yard', 'compost bags, stacked', 'bags',
+      note='three bags stacked flat: the pile by the shed door',
+      nodes=['compost_bags_floorstacked']),
+    P('bags_lean', 'yard', 'compost bags, leaning', 'bags',
+      note='two bags leaning against a wall (their back is at -z)',
+      nodes=['compost_bags_leaning']),
+    P('bags_flat', 'yard', 'compost bag, dropped', 'bags',
+      note='one bag dropped flat', nodes=['compost_bags_floor']),
+    P('bags_stand', 'yard', 'compost bag, standing', 'bags',
+      note='one bag stood on end', nodes=['compost_bags_standing']),
+    P('bag_compost', 'yard', 'compost bag', 'bag02',
+      note='a half-empty bag slumped on the ground'),
+    P('jerrycan_green', 'yard', 'green jerrycan', 'jerrygreen',
+      note='20 l steel jerrycan, all five parts', tex=256),
+    P('planter', 'yard', 'planter box', 'planter',
+      note='0.9 m wooden planter box with a shrub in it'),
 ]

@@ -135,7 +135,20 @@ function readPierKit() {
   const declared = [];
   for (const m of tab.matchAll(/^\s{4}P\('([a-z0-9_]+)',\s*'([a-z]+)'/gm))
     declared.push(m[1]);
-  return { reg: CORE.PROP_REG, declared };
+  // AND THE HANGAR'S OWN PROPS (G273): the yard borrows the bins, the gas
+  // bottles, the ladder, the compressor from src/props/, so their packs are
+  // read the same way into a second registry, for YARD_KIT to be held against
+  const hangar = { props: {}, order: [] };
+  const hd = path.join(TOOLS, '..', 'src', 'props');
+  const hm = path.join(hd, 'props_packs.json');
+  if (fs.existsSync(hm)) {
+    const sb2 = { registerPropPack: p => { for (const k of p.order || Object.keys(p.props)) {
+                    hangar.props[k] = p.props[k]; hangar.order.push(k); } }, console };
+    vm.createContext(sb2);
+    for (const f of JSON.parse(fs.readFileSync(hm, 'utf8')))
+      vm.runInContext(fs.readFileSync(path.join(hd, f), 'utf8'), sb2, { filename: f });
+  }
+  return { reg: CORE.PROP_REG, declared, hangar };
 }
 const PIERK = readPierKit();
 
@@ -406,11 +419,26 @@ if (!check(!!LIB, 'the baked material library is missing — ' +
     check(JSON.stringify(baked) === JSON.stringify(PIERK.declared),
           'pier: the baked packs are not the declared table',
           'baked ' + baked.join(',') + ' / declared ' + PIERK.declared.join(','));
-    const mirror = Object.keys(HG.PIER_KIT);
-    check(mirror.length === baked.length && mirror.every(k => baked.includes(k)),
-          'pier: PIER_KIT does not mirror the packs',
-          mirror.filter(k => !baked.includes(k)).concat(
+    // the pier's modules, boats and people mirror in PIER_KIT; the yard
+    // group mirrors in YARD_KIT (G273) - between them, every baked key
+    const mirror = Object.keys(HG.PIER_KIT).concat(Object.keys(HG.YARD_KIT));
+    check(baked.every(k => mirror.includes(k)) &&
+          Object.keys(HG.PIER_KIT).every(k => baked.includes(k)),
+          'pier: PIER_KIT + YARD_KIT do not mirror the packs',
+          Object.keys(HG.PIER_KIT).filter(k => !baked.includes(k)).concat(
             baked.filter(k => !mirror.includes(k))).join(','));
+    // 27b - YARD_KIT's metres are the packs' metres, pier packs or hangar packs
+    for (const k in HG.YARD_KIT) {
+      const p = PIERK.reg.props[k] || PIERK.hangar.props[k], K = HG.YARD_KIT[k];
+      if (!check(!!p, 'yard: YARD_KIT.' + k + ' is baked nowhere')) continue;
+      const near = (a, b, t) => Math.abs(a - b) <= t;
+      check(near(K.L, p.dim[2], 0.02) && near(K.W, p.dim[0], 0.02) &&
+            near(K.H, p.dim[1], 0.02),
+            'yard: YARD_KIT.' + k + ' is not the baked size',
+            K.L + 'x' + K.W + 'x' + K.H + ' vs ' + p.dim[2] + 'x' + p.dim[0] + 'x' + p.dim[1]);
+      check(!!K.wall === (p.place === 'wall'),
+            'yard: YARD_KIT.' + k + ' disagrees with the packs on being a wall mount');
+    }
     for (const k of baked) {
       const p = PIERK.reg.props[k], K = HG.PIER_KIT[k];
       if (!K) continue;
@@ -851,6 +879,58 @@ function battery(name, P) {
     }
   }
 
+  // 29 — NO LIGHT WITHOUT EMITTING GEOMETRY, AND NO GLOW WITHOUT THE SWITCH
+  //   (G253, the user: "Let's also generate lights"). The aeroplane's rule
+  //   (G96): a published light source has to have glass that glows within
+  //   reach of it, or it is a bare point light in space. And the switch is a
+  //   switch: with the lights off there is no glowing vertex on the house, no
+  //   lamp and no bulb; with the windows on one switch every pane glows.
+  //   (This block was lost between G253 and G254 - a patch anchored on the
+  //   rule below swallowed it - and put back in G273. A lamp that is a baked
+  //   PROP (G273) emits through the prop's own emissive map, which the packs
+  //   record; that is its glass.)
+  {
+    const lit = hi.stats.lit || { windows: 0, panes: 0, bulbs: 0, lights: [] };
+    const gd = hi.bags.glass.data();
+    let glowing = 0;
+    for (let i = 0; i < gd.lit.length; i++) if (gd.lit[i] > 0.5) glowing++;
+    if (!P.lights) {
+      check(glowing === 0 && lit.windows === 0 && lit.bulbs === 0 &&
+            lit.lights.length === 0,
+            name + ': something glows with the lights off',
+            glowing + ' vertices, ' + lit.lights.length + ' lamps');
+    } else {
+      if (P.winLink)
+        check(lit.windows === lit.panes,
+              name + ': one switch, but not every window is lit',
+              lit.windows + ' of ' + lit.panes);
+      if (P.porchLamp && P.door)
+        check(lit.lights.length >= 1, name + ': the lamp by the door is missing');
+      for (const L of lit.lights) {
+        if (L.prop) {
+          const pk = PIERK && PIERK.reg.props[L.prop];
+          const emits = !!pk && Object.keys(pk.mats || {}).some(m => pk.mats[m].emis);
+          check(emits, name + ': a prop lamp has no emissive in its bake', L.prop);
+          // and the bulb the light is stood in is inside the fixture, off the wall
+          check(Math.hypot(L.x - L.mx, L.z - L.mz) < (HG.YARD_KIT[L.prop] || { L: 0.2 }).L + 0.01,
+                name + ': a prop lamp has its bulb outside the fixture');
+          continue;
+        }
+        let near = 0;
+        for (let i = 0; i < gd.lit.length; i++) {
+          if (gd.lit[i] < 0.5) continue;
+          const dx = gd.pos[i * 3] - L.x, dy = gd.pos[i * 3 + 1] - L.y,
+                dz = gd.pos[i * 3 + 2] - L.z;
+          if (dx * dx + dy * dy + dz * dz < 0.3 * 0.3) near++;
+        }
+        check(near >= 4, name + ': a published light has no glass that glows',
+              L.kind + ' at ' + L.x.toFixed(2) + ',' + L.z.toFixed(2));
+      }
+      if (P.stairLights && hi.stats.stair && P.railStyle > 0)
+        check(lit.bulbs > 0, name + ': the stair rail has no bulbs on it');
+    }
+  }
+
   // 30 — THE PEOPLE STAND ON SOMETHING (G255): each one's feet are on a
   //   walking level the plan knows - the deck's top, the stoop, or a pier
   //   module's own deck - to the centimetre. A figure a hand's breadth into
@@ -900,6 +980,92 @@ function battery(name, P) {
   if (!P.openFront)
     check(!!hi.stats.chimney, name + ': no chimney',
           'chim ' + Math.round(P.chim));
+
+  // 34 — THE YARD STANDS WHERE IT SAYS (G273, the user: "use the existing
+  //   appropriate objects we have for the hangar here"). Every placed prop is
+  //   a key the kit knows; on the ground it is ON the ground (to two
+  //   centimetres) and above the tide; on the deck it is at the deck's level
+  //   and inside the deck; on a wall it is on a wall's plane. None is inside
+  //   the house unless the floor clears it, none on a stair or a stoop, and
+  //   no two overlap in plan. `yard` 0 places nothing.
+  {
+    const Y = hi.stats.yard || [];
+    const g2 = hi.stats.ground;
+    const half = P.wallT / 2;
+    if (!P.yard) check(Y.length === 0, name + ': yard 0 still placed ' + Y.length);
+    const D = P.porch && hi.stats.deckArea > 0
+      ? { x0: -P.L * P.porchLenF / 2 + P.porchOff * P.L / 2, x1: P.L * P.porchLenF / 2 + P.porchOff * P.L / 2,
+          zIn: P.w / 2 - half, zOut: P.w / 2 - half + P.porchD } : null;
+    const st = hi.stats.stair, fr = hi.stats.front, bk = hi.stats.stoop;
+    const R = k => { const K = HG.YARD_KIT[k]; return K ? Math.max(K.L, K.W) / 2 : 0; };
+    for (let i = 0; i < Y.length; i++) {
+      const q = Y[i], K = HG.YARD_KIT[q.key];
+      if (!check(!!K, name + ': the yard placed an unknown prop', q.key)) continue;
+      const gy = g2(q.x, q.z);
+      if (q.on === 'ground') {
+        check(Math.abs(q.y - gy) < 0.02, name + ': a yard prop is not on the ground',
+              q.key + ' ' + q.y.toFixed(2) + ' vs ' + gy.toFixed(2));
+        if (P.water) check(gy > P.waterY + 0.1, name + ': a yard prop stands in the tide', q.key);
+        const inHouse = Math.abs(q.x) < P.L / 2 + half + R(q.key) * 0.5 &&
+                        Math.abs(q.z) < P.w / 2 + half + R(q.key) * 0.5;
+        if (inHouse) check(P.floorY - 0.12 > gy + K.H + 0.05,
+                           name + ': a yard prop is inside the house', q.key);
+        if (D && q.x > D.x0 && q.x < D.x1 && q.z > D.zIn && q.z < D.zOut)
+          check(P.floorY - 0.16 > gy + K.H + 0.05, name + ': a yard prop is inside the deck', q.key);
+        if (st) check(Math.abs(q.x - st.x) > P.stairW / 2 + R(q.key) * 0.6 ||
+                      q.z < Math.min(st.z0, st.z1) - 0.2 || q.z > Math.max(st.z0, st.z1) + 0.2,
+                      name + ': a yard prop stands on the stair', q.key);
+        for (const sp of [fr, bk]) if (sp)
+          check(Math.abs(q.x - sp.x) > sp.w / 2 + R(q.key) * 0.6 ||
+                q.z < Math.min(sp.z, sp.z - sp.side * sp.depth) - 0.05 ||
+                q.z > Math.max(sp.z, sp.z - sp.side * sp.depth) + 0.05,
+                name + ': a yard prop stands on a stoop', q.key);
+      } else if (q.on === 'deck') {
+        check(!!D && Math.abs(q.y - (hi.stats.floorY - 0.02)) < 0.011,
+              name + ': a deck prop is not at deck level', q.key);
+        if (D) check(q.x > D.x0 && q.x < D.x1 && q.z > D.zIn && q.z < D.zOut,
+                     name + ': a deck prop is off the deck', q.key);
+      } else if (q.on === 'wall') {
+        const onX = Math.abs(Math.abs(q.x) - (P.L / 2 + half)) < 0.03;
+        const onZ = Math.abs(Math.abs(q.z) - (P.w / 2 + half)) < 0.03;
+        check(K.wall && (onX || onZ), name + ': a wall prop is not on a wall', q.key);
+      } else check(false, name + ': a yard prop stands on nothing known', q.key + ' ' + q.on);
+      for (let j = 0; j < i; j++) {
+        const o = Y[j];
+        if (o.on === 'wall' || q.on === 'wall') continue;
+        check(Math.hypot(q.x - o.x, q.z - o.z) >= (R(q.key) + R(o.key)) * 0.6,
+              name + ': two yard props overlap', q.key + ' / ' + o.key);
+      }
+    }
+  }
+
+  // 35 — THE WOODPILE IS A PILE (G273): on the ground, out of the house, out
+  //   of the tide, with rounds in it (the far mesh has the block); off the
+  //   deck's stair; and its rack is the frame's timber. Off, there is none.
+  {
+    const W = hi.stats.woodpile;
+    if (!P.woodpile) check(!W, name + ': woodpile 0 still stacked one');
+    else if (W) {
+      const g2 = hi.stats.ground;
+      const gmin = g2(W.x, W.z);
+      check(Math.abs(W.y - gmin) < 0.02, name + ': the woodpile floats');
+      check(hi.stats.lod !== 0 || W.logs >= 6, name + ': the woodpile has ' + W.logs + ' rounds');
+      const hx = Math.abs(W.ax[0]) * W.len / 2 + Math.abs(W.out[0]) * W.w / 2;
+      const hz = Math.abs(W.ax[1]) * W.len / 2 + Math.abs(W.out[1]) * W.w / 2;
+      check(Math.abs(W.x) > P.L / 2 + P.wallT / 2 + hx - 0.02 ||
+            Math.abs(W.z) > P.w / 2 + P.wallT / 2 + hz - 0.02,
+            name + ': the woodpile is inside the house');
+      if (P.water) check(gmin > P.waterY + 0.1, name + ': the woodpile is in the tide');
+      const st = hi.stats.stair;
+      if (st) check(Math.abs(W.x - st.x) > P.stairW / 2 + hx ||
+                    W.z - hz > Math.max(st.z0, st.z1) || W.z + hz < Math.min(st.z0, st.z1),
+                    name + ': the woodpile is on the stair');
+      for (const q of hi.stats.yard || [])
+        if (q.on === 'ground')
+          check(Math.abs(q.x - W.x) > hx + 0.1 || Math.abs(q.z - W.z) > hz + 0.1,
+                name + ': a yard prop is in the woodpile', q.key);
+    }
+  }
 
   // 17 — a back door that opens onto nothing is not a garden door
   // (a back door inside the lean-to's span opens INTO the shed, onto its
@@ -1299,6 +1465,23 @@ if (SELFTEST) {
   for (const nm in HG.PRESETS)
     if (!HG.PRESETS[nm].openFront && Math.round(HG.PRESETS[nm].chim === undefined ? HG.DEF.chim : HG.PRESETS[nm].chim) === 0)
       neg.push('preset ' + nm + ' has no chimney');
+  // THE YARD (G273): the default house grows props and a woodpile with
+  // rounds in it; with the dials off it grows neither; the same seed twice is
+  // the same yard; and the lamp by the door is the baked fixture, published
+  // with its prop and its mount.
+  const yd = HG.build(Object.assign({}, HG.DEF, { yard: 1, yardK: 1, woodpile: 1 }), 0);
+  if (!(yd.stats.yard.length >= 3)) neg.push('the yard placed only ' + yd.stats.yard.length + ' props');
+  if (!(yd.stats.woodpile && yd.stats.woodpile.logs > 20)) neg.push('the woodpile is thin');
+  if (!(yd.bags.logend.tris > 40 && yd.bags.log.tris > 100)) neg.push('the rounds went into the wrong bags');
+  const yd0 = HG.build(Object.assign({}, HG.DEF, { yard: 0, woodpile: 0 }), 0);
+  if (yd0.stats.yard.length || yd0.stats.woodpile) neg.push('yard 0 still placed things');
+  if (JSON.stringify(HG.build(Object.assign({}, HG.DEF, { yard: 1, yardK: 1, woodpile: 1 }), 0).stats.yard) !==
+      JSON.stringify(yd.stats.yard)) neg.push('the yard is not deterministic');
+  const lampP = HG.build(Object.assign({}, HG.DEF, { lights: 1, lampKind: 1 }), 0).stats.lit.lights[0];
+  if (!(lampP && lampP.prop === 'lamp_wall' && lampP.mx !== undefined)) neg.push('the wall lamp did not mount');
+  const lampD = HG.build(Object.assign({}, HG.DEF, { lights: 1, lampKind: 0 }), 0).stats.lit.lights[0];
+  if (!(lampD && !lampD.prop)) neg.push('the drawn lantern is gone');
+  if (!(yd.stats.path && yd.stats.path.length >= 1)) neg.push('no path from the stair');
   // lod 1 must be a construction: switching it off must actually remove work
   const a0 = HG.build(HG.DEF, 0).stats.tris, a1 = HG.build(HG.DEF, 1).stats.tris;
   if (!(a1 < a0 * 0.3)) neg.push('lod 1 is not cheaper by construction');

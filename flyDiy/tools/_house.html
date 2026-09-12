@@ -103,6 +103,16 @@
 <script src="../src/pier/pier_pier.js"></script>
 <script src="../src/pier/pier_boat.js"></script>
 <script src="../src/pier/pier_people.js"></script>
+<!-- THE YARD (G273): the house's own props, and the hangar's that work
+     around a house - bins, gas bottles, drums, crates, the ladder, the
+     compressor, the barrel stove -->
+<script src="../src/pier/pier_yard.js"></script>
+<script src="../src/props/props_vessel.js"></script>
+<script src="../src/props/props_handling.js"></script>
+<script src="../src/props/props_storage.js"></script>
+<script src="../src/props/props_machine.js"></script>
+<script src="../src/props/props_fixture.js"></script>
+<script src="../src/props/props_vehicle.js"></script>
 <!-- the aerodrome's ground sets: the bench stands the house in real grass so
      there is something for the sky to bounce off and the shadows to land on -->
 <script src="../src/viewer/site_tex.js"></script>
@@ -387,6 +397,7 @@ let BUILT = { hi: null, lo: null };
 
 // THE SITE, drawn from the generator's own ground function — one plane, so a
 // post that lands on it in the model lands on it on screen too.
+let PATH = null;                         // the worn path, from the build
 function siteMesh(g, R, foot) {
   const grp = new THREE.Group();
   const N = 2;
@@ -431,7 +442,7 @@ function siteMesh(g, R, foot) {
   // THE CONTACT SHADOW ON THE GRASS. The site is not the house's mesh, so it
   // gets none of the baked occlusion; this is the generator's own ground
   // patch, driven by the footprint it publishes.
-  if (foot) G.shadeGround(gm, foot);
+  if (foot) G.shadeGround(gm, foot, { path: PATH || [] });
   const gmesh = new THREE.Mesh(geo, gm);
   gmesh.receiveShadow = true;
   grp.add(gmesh);
@@ -466,6 +477,18 @@ function buildFast() {
   build();
   clearTimeout(aoTimer);
   aoTimer = setTimeout(() => { aoFast = false; build(); }, 240);
+}
+
+// a prop on the ground stands on the ground's own normal, so a bin on a
+// twelve-degree beach leans with the beach and not into it
+function tiltToGround(o, g, x, z, ry) {
+  const e = 0.12;
+  const gx = (g(x + e, z) - g(x - e, z)) / (2 * e);
+  const gz = (g(x, z + e) - g(x, z - e)) / (2 * e);
+  const n = new THREE.Vector3(-gx, 1, -gz).normalize();
+  const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), n);
+  const yaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), ry || 0);
+  o.quaternion.copy(q.multiply(yaw));
 }
 
 // the pier kit is a set of baked props (src/pier/*.js): stand each one the
@@ -520,6 +543,22 @@ function build() {
   if (hi.stats.people && mode !== 1)
     for (const q of hi.stats.people)
       if (PROP_REG.props[q.key]) root.add(propPlace(THREE, q.key, q.x, q.z, q.ry, q.y));
+  // THE YARD (G273): every prop the plan placed, stood where it stands - a
+  // thing on the ground is tilted to the ground under it, a thing on a wall
+  // is turned to face off it
+  PATH = hi.stats.path || [];
+  if (hi.stats.yard && mode !== 1)
+    for (const q of hi.stats.yard) {
+      if (!PROP_REG.props[q.key]) { console.warn('yard: no baked prop ' + q.key); continue; }
+      const o = propPlace(THREE, q.key, q.x, q.z, q.ry, q.y);
+      if (q.on === 'ground') tiltToGround(o, hi.stats.ground, q.x, q.z, q.ry);
+      root.add(o);
+    }
+  // and the wall lamp, when the lamp is the baked fixture (mount at its plate)
+  if (hi.stats.lit && mode !== 1)
+    for (const L of hi.stats.lit.lights)
+      if (L.prop && PROP_REG.props[L.prop])
+        root.add(propPlace(THREE, L.prop, L.mx, L.mz, L.ry, L.my));
   // THE LAMPS ARE REAL LIGHTS (G253): the generator drew the fixture and
   // published where its glass is; the bench stands a point light in it. No
   // light without emitting geometry — the aeroplane's rule, kept.

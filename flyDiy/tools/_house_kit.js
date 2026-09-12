@@ -69,13 +69,21 @@ function Bag(name) {
   // far mesh's panes all came out right without a change of their own.
   const lit = [];
   let glow = 0;
+  // WHAT IS BEHIND THE GLASS (G273): a pane carries its own window's width
+  // and height and a dressing code - curtains, a blind, nothing - so the
+  // glass shader can hang a curtain at the pane's OWN edge rather than at a
+  // tile's. Three floats, zero everywhere but on a window's pane.
+  const win = [];
+  let dress = [0, 0, 0];
   return {
     name: name || '',
     setGlow: g => { glow = g || 0; },
+    setWin: (w, h, k) => { dress = w ? [w, h, k || 0] : [0, 0, 0]; },
     v: (p, u, n) => { pos.push(p[0], p[1], p[2]);
                       uv.push(u ? u[0] : 0, u ? u[1] : 0);
                       ao.push(1);           // lit until the bake says otherwise
                       lit.push(glow);
+                      win.push(dress[0], dress[1], dress[2]);
                       const i = pos.length / 3 - 1;
                       if (n) nOv.set(i, n);
                       return i; },
@@ -83,7 +91,7 @@ function Bag(name) {
     tri: (a, b, c) => { idx.push(a, b, c); },
     get tris() { return idx.length / 3; },
     get verts() { return pos.length / 3; },
-    data: () => ({ pos, uv, idx, ao, lit }),
+    data: () => ({ pos, uv, idx, ao, lit, win }),
     mesh: (parent, mat) => {
       if (!idx.length) return null;
       const g = new THREE.BufferGeometry();
@@ -96,6 +104,8 @@ function Bag(name) {
         new THREE.BufferAttribute(new Float32Array(ao), 1));
       g.setAttribute('aHouseLit',
         new THREE.BufferAttribute(new Float32Array(lit), 1));
+      g.setAttribute('aHouseWin',
+        new THREE.BufferAttribute(new Float32Array(win), 3));
       g.setIndex(idx);
       g.computeVertexNormals();
       if (nOv.size) {

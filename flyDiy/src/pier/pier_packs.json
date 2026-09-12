@@ -1,5 +1,6 @@
 [
  "pier_pier.js",
  "pier_boat.js",
- "pier_people.js"
+ "pier_people.js",
+ "pier_yard.js"
 ]

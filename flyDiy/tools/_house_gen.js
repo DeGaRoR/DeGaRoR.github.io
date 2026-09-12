@@ -79,6 +79,11 @@ const MAT = {
   // end-on and those are darker than any bearer - and darkening `post` would
   // darken every post, brace and joist in the house with them.
   pile:   std(0x3a3430),
+  // FIREWOOD (G273): a round is bark on the outside and rings on the end,
+  // and those are two scans, so two slots - `log` wears the bark set, `logend`
+  // the generated end grain, mapped pith-centred by logEndUV
+  log:    std(0x4a3d33),
+  logend: std(0xb9a583),
   stone:  std(0x8e8b85),
   metal:  std(0xb4bcc2, { roughness: 0.45, metalness: 0.75 }),
   floor:  std(0x6d6154),
@@ -94,7 +99,7 @@ const MAT = {
   pane:   std(0x2c3a42, { roughness: 0.28, metalness: 0.10 }),
 };
 const BAGS = ['siding', 'trim', 'roof', 'rib', 'glass', 'deck', 'post',
-              'stone', 'metal', 'floor', 'pane', 'pile'];
+              'stone', 'metal', 'floor', 'pane', 'pile', 'log', 'logend'];
 // AND THE ONE BAG THAT IS NOT THE HOUSE (G254): the chimney smoke is a few
 // soft crossed quads with no surface to them - no occlusion to bake, no
 // texel density to hold, no silhouette to keep - so it stands outside the
@@ -200,6 +205,8 @@ const SET_KIND = {
   // user could accept on a deck board, and a role that will not take planks
   // could not offer it.
   stain: 'plank',
+  // the end of a log (G273): a kind no role offers - it is a cap, not a covering
+  endgrain: 'end',
   bark: 'log', feverbark: 'log',
   rough: 'plain', mossy: 'plain',
   concrete: 'stone', concretec: 'stone',
@@ -238,6 +245,42 @@ const SET_TINT = {
 //   deckY  where the walking surface sits above the pile bottoms (modules);
 //          a module is placed by its DECK, and the piles go where they go
 //   float  fraction of the hull's height under water (boats)
+// THE YARD KIT (G273, the user: "use the existing appropriate objects we have
+// for the hangar here ... The ladders, the metal bins, the compressor, the
+// barrel stove and the propane tanks for example"). The hangar's own baked
+// props (src/props/) and the new house props (src/pier/pier_yard.js), mirrored
+// the way PIER_KIT mirrors the pier: the three numbers a placer needs, in
+// metres, held against the packs by GATE HOUSE rule 27. L is along z, W along
+// x, H up; `wall` props mount by their origin with +z off the wall.
+const YARD_KIT = {
+  stepladder:     { L: 0.5, W: 0.959, H: 1.335 },
+  bin_metal:      { L: 0.556, W: 0.778, H: 0.906 },
+  bin_metal_rust: { L: 0.549, W: 0.773, H: 0.906 },
+  compressor:     { L: 1.675, W: 0.598, H: 1.179 },
+  stove_barrel:   { L: 0.593, W: 0.593, H: 0.856 },
+  bottle_propane: { L: 0.337, W: 0.337, H: 0.554 },
+  bottle_lpg:     { L: 0.409, W: 0.41, H: 0.642 },
+  jerrycan:       { L: 0.341, W: 0.268, H: 0.318 },
+  drum_steel:     { L: 0.639, W: 0.634, H: 0.93 },
+  barrel_plastic: { L: 0.485, W: 0.488, H: 0.88 },
+  crate_wood_a:   { L: 0.424, W: 0.409, H: 0.413 },
+  crate_wood_b:   { L: 0.423, W: 0.409, H: 0.822 },
+  crate_wood_c:   { L: 0.424, W: 1.009, H: 0.413 },
+  tyre:           { L: 0.6, W: 0.6, H: 0.165 },
+  work_trestle:   { L: 0.854, W: 0.508, H: 0.827 },
+  handtruck:      { L: 0.693, W: 0.593, H: 1.403 },
+  box_cardboard:  { L: 0.516, W: 0.387, H: 0.342 },
+  hosereel_wall:  { L: 0.25, W: 0.467, H: 0.557, wall: true },
+  lamp_wall:      { L: 0.14, W: 0.274, H: 0.43, wall: true },
+  bags_stack:     { L: 0.887, W: 0.683, H: 0.179 },
+  bags_lean:      { L: 0.791, W: 0.697, H: 0.477 },
+  bags_flat:      { L: 0.853, W: 0.634, H: 0.144 },
+  bags_stand:     { L: 0.388, W: 0.691, H: 0.707 },
+  bag_compost:    { L: 0.47, W: 0.539, H: 0.434 },
+  jerrycan_green: { L: 0.171, W: 0.36, H: 0.5 },
+  planter:        { L: 0.655, W: 0.914, H: 0.855 },
+};
+
 const PIER_KIT = {
   // the modules keep the author's level: y0 is where each one's piles bottom
   // out in that frame, deck[0]/deck[1] the walking level at its z-/z+ end
@@ -497,6 +540,15 @@ function dressMat(m, key, colIdx, o) {
 // ONE patch, applied to every material in the table, so nothing can drift
 // between the wall and the trim beside it.
 const SHADE_U = {
+  // THE RIDGE SAGS (G273, the assessment: "Old Alaskan roofs almost all sag
+  // a few cm in the middle; the ridge and eave lines are straight lines
+  // today"). One smooth field in the house's own frame, applied in the
+  // vertex shader of every material the house wears: nothing at the eave,
+  // the full sag at the ridge, a bow along x that is zero at the gables. The
+  // roof, the gable wall above the eave, the chimney's stack, the dormers
+  // and the belfry all go down together, so nothing opens. The measured
+  // geometry is untouched: this is the building settling, drawn.
+  uSag: { value: 0.0 }, uSagL: { value: 5.0 }, uSagY0: { value: 3.0 }, uSagY1: { value: 5.0 },
   uDirtTop: { value: 0.6 }, uDirtH: { value: 0.9 }, uDirtK: { value: 0.45 },
   uDirtCol: { value: null }, uSat: { value: 1.0 }, uCon: { value: 1.0 },
   // how much of the BAKED occlusion is allowed to touch DIRECT light. All of
@@ -544,23 +596,45 @@ function shadeHouse(m) {
               // G236: and how OLD this material is on its own account —
               // chroma out, value down. The frame under a house is never
               // newer than the wall above it.
-              uAgeDesat: { value: 0.0 }, uAgeDark: { value: 0.0 } };
+              uAgeDesat: { value: 0.0 }, uAgeDark: { value: 0.0 },
+              // THE COURSES WANDER (G273): the cladding's texture rows are
+              // slid up and down a few millimetres by a slow noise along the
+              // wall, so a run of boards is not a ruled line from corner to
+              // corner. The siding only; metres; the hand's dial times a
+              // centimetre.
+              uWander: { value: 0.0 } };
   if (!SHADE_U.uDirtCol.value) SHADE_U.uDirtCol.value = new THREE.Color(0x6d6353);
   m.onBeforeCompile = sh => {
     for (const k in SHADE_U) sh.uniforms[k] = SHADE_U[k];
     for (const k in ud.paint) sh.uniforms[k] = ud.paint[k];
     for (const k in ud.dirt) sh.uniforms[k] = ud.dirt[k];
+    // the wander: one shifted uv for the whole fragment, so the map, the
+    // normal map and the roughness map all slide together
+    const wanderUV = fs => {
+      const i = fs.indexOf('void main() {');
+      if (i < 0) return fs;
+      const head = fs.slice(0, i), body = fs.slice(i);
+      return head + body.replace(/\bvUv\b/g, 'hUv').replace('void main() {',
+        'void main() {\n  vec2 hUv = vUv + vec2(0.0, uWander * (hNoise(vec3(vHouseP.x * 0.45, vHouseP.z * 0.45, vHouseP.y * 0.2 + 1.7)) * 2.0 - 1.0)\n' +
+        '                    + uWander * 0.35 * (hNoise(vec3(vHouseP.x * 2.1, vHouseP.z * 2.1, 3.3)) * 2.0 - 1.0));');
+    };
     sh.vertexShader = 'varying float vHouseY;\nvarying float vHouseAO;\n' +
       'varying vec3 vHouseP;\nattribute float aHouseAO;\n' +
+      'uniform float uSag, uSagL, uSagY0, uSagY1;\n' +
+      'float hSag(vec3 p) {\n' +
+      '  float bx = max(0.0, 1.0 - (p.x * p.x) / max(uSagL * uSagL, 0.01));\n' +
+      '  float ky = clamp((p.y - uSagY0) / max(uSagY1 - uSagY0, 0.01), 0.0, 1.0);\n' +
+      '  return uSag * bx * ky * ky;\n}\n' +
       sh.vertexShader.replace(
       '#include <begin_vertex>',
-      '#include <begin_vertex>\n  vHouseP = (modelMatrix * vec4(transformed, 1.0)).xyz;' +
+      '#include <begin_vertex>\n  transformed.y -= hSag(transformed);\n' +
+      '  vHouseP = (modelMatrix * vec4(transformed, 1.0)).xyz;' +
       '\n  vHouseY = vHouseP.y;\n  vHouseAO = aHouseAO;');
     sh.fragmentShader =
       'varying float vHouseY;\nvarying float vHouseAO;\nvarying vec3 vHouseP;\n' +
       'uniform float uDirtTop, uDirtH, uDirtK, uSat, uCon, uAOd, uNoiseK, uNoiseS;\n' +
       'uniform vec3 uDirtCol, uDirtOwn, uPaintCol;\n' +
-      'uniform float uPaintMode, uDirtGain, uAgeDesat, uAgeDark;\n' +
+      'uniform float uPaintMode, uDirtGain, uAgeDesat, uAgeDark, uWander;\n' +
       'float hHash(vec3 p) { return fract(sin(dot(floor(p), ' +
       'vec3(127.1, 311.7, 74.7))) * 43758.5453); }\n' +
       'float hNoise(vec3 p) {\n' +
@@ -625,6 +699,7 @@ function shadeHouse(m) {
         '  roughnessFactor = clamp(roughnessFactor + (hNoise(vHouseP / ' +
         '(uNoiseS * 0.61)) - 0.5) * uNoiseK * 1.2 + pow(' + DIRT_EXPR +
         ', 1.7) * uDirtK * uDirtGain * 0.5, 0.04, 1.0);');
+    sh.fragmentShader = wanderUV(sh.fragmentShader);
   };
   m.needsUpdate = true;
 }
@@ -635,7 +710,8 @@ function shadeHouse(m) {
 // smooth between its ribs, and the ribs are in the geometry or in the map's
 // own profile, so it stays near 1.
 const NRM = { siding: 1.7, trim: 1.3, deck: 1.6, post: 1.5, floor: 1.6,
-              stone: 1.4, roof: 1.1, rib: 1.0, metal: 1.0, pile: 1.5 };
+              stone: 1.4, roof: 1.1, rib: 1.0, metal: 1.0, pile: 1.5,
+              log: 1.4, logend: 1.2 };
 
 // THE GLASS PATCH (the user: "enhance the window material. We don't need
 // transparency, but it has to take the light better. Glares, reflections,
@@ -670,14 +746,53 @@ function shadeGlass(m) {
     sh.uniforms.uGlassRough = GLASS_U.uGlassRough;
     sh.uniforms.uGlassFres = GLASS_U.uGlassFres;
     sh.uniforms.uLitK = GLASS_U.uLitK;
+    for (const k of ['uSag', 'uSagL', 'uSagY0', 'uSagY1']) sh.uniforms[k] = SHADE_U[k];
     sh.vertexShader = 'varying vec3 vGlassP;\nvarying float vHouseLit;\n' +
-      'attribute float aHouseLit;\n' + sh.vertexShader.replace(
+      'attribute float aHouseLit;\nattribute vec3 aHouseWin;\n' +
+      'varying vec3 vWin;\nvarying vec2 vWinUV;\n' +
+      'uniform float uSag, uSagL, uSagY0, uSagY1;\n' +
+      'float hSag(vec3 p) {\n' +
+      '  float bx = max(0.0, 1.0 - (p.x * p.x) / max(uSagL * uSagL, 0.01));\n' +
+      '  float ky = clamp((p.y - uSagY0) / max(uSagY1 - uSagY0, 0.01), 0.0, 1.0);\n' +
+      '  return uSag * bx * ky * ky;\n}\n' +
+      sh.vertexShader.replace(
       '#include <begin_vertex>',
-      '#include <begin_vertex>\n  vGlassP = (modelMatrix * vec4(transformed, 1.0)).xyz;' +
-      '\n  vHouseLit = aHouseLit;');
+      '#include <begin_vertex>\n  transformed.y -= hSag(transformed);\n' +
+      '  vGlassP = (modelMatrix * vec4(transformed, 1.0)).xyz;' +
+      '\n  vHouseLit = aHouseLit;\n  vWin = aHouseWin;\n  vWinUV = uv;');
     sh.fragmentShader =
       'varying vec3 vGlassP;\nvarying float vHouseLit;\n' +
+      'varying vec3 vWin;\nvarying vec2 vWinUV;\n' +
       'uniform float uGlassWave, uGlassRough, uGlassFres, uLitK;\n' +
+      // WHAT HANGS BEHIND THE GLASS (G273): from the pane's own width and
+      // height (vWin.xy) and its dressing code (vWin.z), how much fabric is
+      // behind this fragment and what colour it is. A curtain hangs from the
+      // pane's edge with a hem that is not straight and folds you can count;
+      // a blind is slats down to where somebody left it.
+      'float gDress(out vec3 fab) {\n' +
+      '  fab = vec3(1.0);\n' +
+      '  if (vWin.x < 0.01) return 0.0;\n' +
+      '  float nu = clamp(vWinUV.x / vWin.x, 0.0, 1.0);\n' +
+      '  float nv = clamp(vWinUV.y / vWin.y, 0.0, 1.0);\n' +
+      '  float st = mod(vWin.z, 8.0), ci = floor(vWin.z / 8.0 + 0.01);\n' +
+      '  vec3 col = ci < 0.5 ? vec3(0.86, 0.82, 0.72) : ci < 1.5 ? vec3(0.60, 0.26, 0.22)\n' +
+      '           : ci < 2.5 ? vec3(0.40, 0.48, 0.56) : vec3(0.72, 0.64, 0.40);\n' +
+      '  float cov = 0.0;\n' +
+      '  if (st > 0.5 && st < 2.5) {\n' +
+      '    float cw = 0.20 + 0.16 * fract(vWin.z * 0.37);\n' +
+      '    float eL = cw * (1.0 + 0.22 * sin(nv * 9.0 + vWin.z));\n' +
+      '    float eR = cw * (1.0 + 0.22 * cos(nv * 7.0 + vWin.z * 1.3));\n' +
+      '    cov = smoothstep(eL + 0.015, eL - 0.015, nu);\n' +
+      '    if (st < 1.5) cov = max(cov, smoothstep(1.0 - eR - 0.015, 1.0 - eR + 0.015, nu));\n' +
+      '    float folds = 0.74 + 0.26 * sin(vWinUV.x * 52.0 + sin(vWinUV.y * 5.0) * 1.5);\n' +
+      '    fab = col * folds;\n' +
+      '  } else if (st > 2.5 && st < 3.5) {\n' +
+      '    float down = 0.30 + 0.60 * fract(vWin.z * 0.61);\n' +
+      '    cov = smoothstep(1.0 - down - 0.012, 1.0 - down + 0.012, nv);\n' +
+      '    float slats = 0.78 + 0.22 * smoothstep(0.30, 0.60, fract(vWinUV.y * 38.0));\n' +
+      '    fab = vec3(0.82, 0.79, 0.70) * slats;\n' +
+      '  }\n' +
+      '  return cov;\n}\n' +
       // THE PALETTE OF WHAT GLOWS: the warm of a room with a lamp on, and the
       // four colours of a string of Christmas bulbs
       'vec3 gLitCol(float k) {\n' +
@@ -698,6 +813,20 @@ function shadeGlass(m) {
       'float gField(vec3 p) { return gNoise(p) * 0.6 + gNoise(p * 2.3) * 0.3 +\n' +
       '                              gNoise(p * 5.1) * 0.1; }\n' +
       sh.fragmentShader
+        // the fabric shows through as the pane's own colour, and a pane with
+        // fabric behind it is a window, not a mirror: its metalness goes
+        .replace('#include <color_fragment>',
+          '#include <color_fragment>\n' +
+          '  {\n' +
+          '    vec3 gfab; float gcov = gDress(gfab);\n' +
+          '    diffuseColor.rgb = mix(diffuseColor.rgb, gfab * 0.62, gcov);\n' +
+          '  }')
+        .replace('#include <metalnessmap_fragment>',
+          '#include <metalnessmap_fragment>\n' +
+          '  {\n' +
+          '    vec3 gfab2; float gcov2 = gDress(gfab2);\n' +
+          '    metalnessFactor *= 1.0 - 0.85 * gcov2;\n' +
+          '  }')
         .replace('#include <roughnessmap_fragment>',
           '#include <roughnessmap_fragment>\n' +
           '  {\n' +
@@ -727,7 +856,11 @@ function shadeGlass(m) {
           // curtain, a lamp nearer one side — so twelve windows are not
           // twelve identical rectangles
           '    float gu = 0.80 + 0.35 * gField(vGlassP * 0.7);\n' +
-          '    totalEmissiveRadiance += gLitCol(vHouseLit) * uLitK * gu;\n' +
+          // a lit room behind a curtain glows through the cloth: softer,
+          // and the cloth's colour
+          '    vec3 gfab3; float gcov3 = gDress(gfab3);\n' +
+          '    totalEmissiveRadiance += gLitCol(vHouseLit) * uLitK * gu *\n' +
+          '                             mix(vec3(1.0), gfab3 * 0.75, gcov3);\n' +
           '  }')
         .replace('#include <normal_fragment_maps>',
           '#include <normal_fragment_maps>\n' +
@@ -767,7 +900,12 @@ const GLASS_U = { uGlassWave: { value: 0.2 }, uGlassRough: { value: 0.4 },
 // Signed box distance in the fragment shader, two uniforms and a radius —
 // which means it costs nothing, follows the building when a slider moves, and
 // ports to the game as one call on whatever material the terrain wears.
+// THE WORN PATH (G273): up to eight segments in the house's own metres, and
+// a width; the grass is worn to earth along them, noisy at the edges
+const PATH_MAX = 8;
 const GROUND_U = {
+  uPathN: { value: 0 }, uPathW: { value: 0.55 },
+  uPath: { value: null },
   uGCtr: { value: null }, uGHalf: { value: null },
   uGR: { value: 2.6 }, uGK: { value: 0.55 },
 };
@@ -784,17 +922,37 @@ function shadeGround(m, foot, o) {
   }
   GROUND_U.uGR.value = opt.reach === undefined ? 2.6 : opt.reach;
   GROUND_U.uGK.value = opt.strength === undefined ? 0.55 : opt.strength;
+  if (!GROUND_U.uPath.value) {
+    GROUND_U.uPath.value = [];
+    for (let i = 0; i < PATH_MAX; i++) GROUND_U.uPath.value.push(new THREE.Vector4(0, 0, 0, 0));
+  }
+  const segs = opt.path || [];
+  GROUND_U.uPathN.value = Math.min(PATH_MAX, segs.length);
+  for (let i = 0; i < PATH_MAX; i++) {
+    const sg = segs[i];
+    if (sg) GROUND_U.uPath.value[i].set(sg[0][0], sg[0][1], sg[1][0], sg[1][1]);
+  }
+  GROUND_U.uPathW.value = opt.pathW === undefined ? 0.55 : opt.pathW;
   const ud = m.userData || (m.userData = {});
   if (ud.groundShaded) return;
   ud.groundShaded = true;
   m.onBeforeCompile = sh => {
     for (const k in GROUND_U) sh.uniforms[k] = GROUND_U[k];
-    sh.vertexShader = 'varying vec3 vGrP;\n' + sh.vertexShader.replace(
+    sh.vertexShader = 'varying vec3 vGrP;\nvarying vec3 vGrM;\n' + sh.vertexShader.replace(
       '#include <begin_vertex>',
-      '#include <begin_vertex>\n  vGrP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      '#include <begin_vertex>\n  vGrP = (modelMatrix * vec4(transformed, 1.0)).xyz;\n' +
+      '  vGrM = transformed;');
     sh.fragmentShader =
-      'varying vec3 vGrP;\nuniform vec2 uGCtr, uGHalf;\n' +
-      'uniform float uGR, uGK;\n' + sh.fragmentShader.replace(
+      'varying vec3 vGrP;\nvarying vec3 vGrM;\nuniform vec2 uGCtr, uGHalf;\n' +
+      'uniform float uGR, uGK, uPathW;\nuniform int uPathN;\n' +
+      'uniform vec4 uPath[' + PATH_MAX + '];\n' +
+      'float pHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }\n' +
+      'float pNoise(vec2 p) {\n' +
+      '  vec2 i = floor(p), f = fract(p);\n' +
+      '  f = f * f * (3.0 - 2.0 * f);\n' +
+      '  return mix(mix(pHash(i), pHash(i + vec2(1, 0)), f.x),\n' +
+      '             mix(pHash(i + vec2(0, 1)), pHash(i + vec2(1, 1)), f.x), f.y);\n}\n' +
+      sh.fragmentShader.replace(
       '#include <map_fragment>', '#include <map_fragment>\n' +
       '  {\n' +
       '    vec2 gd = abs(vGrP.xz - uGCtr) - uGHalf;\n' +
@@ -804,6 +962,25 @@ function shadeGround(m, foot, o) {
       '    gk = gk * gk * (3.0 - 2.0 * gk);\n' +
       '    if (gdist < 0.0) gk = 1.0;\n' +
       '    diffuseColor.rgb *= 1.0 - uGK * gk;\n' +
+      // THE WORN PATH: distance to the nearest segment, in the house's
+      // metres; worn to bare earth down the middle, thinning grass at the
+      // edge, the edge itself pushed about by a noise so it is never a
+      // stripe. The wear is a colour and a darkening, nothing more.
+      '    float pd = 1e9;\n' +
+      '    for (int i = 0; i < ' + PATH_MAX + '; i++) {\n' +
+      '      if (i >= uPathN) break;\n' +
+      '      vec2 a = uPath[i].xy, b = uPath[i].zw, q = vGrM.xz;\n' +
+      '      vec2 ab = b - a; float t = clamp(dot(q - a, ab) / max(dot(ab, ab), 1e-6), 0.0, 1.0);\n' +
+      '      pd = min(pd, length(q - (a + ab * t)));\n' +
+      '    }\n' +
+      '    if (uPathN > 0) {\n' +
+      '      float pn = pNoise(vGrM.xz * 2.3) * 0.6 + pNoise(vGrM.xz * 7.1) * 0.4;\n' +
+      '      float pw = uPathW * (0.7 + 0.6 * pn);\n' +
+      '      float wear = 1.0 - smoothstep(pw * 0.35, pw, pd);\n' +
+      '      wear *= 0.55 + 0.45 * pNoise(vGrM.xz * 4.7 + 3.0);\n' +
+      '      vec3 earth = vec3(0.30, 0.25, 0.18) * (0.8 + 0.4 * pNoise(vGrM.xz * 11.0));\n' +
+      '      diffuseColor.rgb = mix(diffuseColor.rgb, earth, wear * 0.85);\n' +
+      '    }\n' +
       '  }');
   };
   m.needsUpdate = true;
@@ -864,7 +1041,7 @@ function buildSmoke(bags, P, Q, ch) {
   for (let i = 0; i < n; i++) {
     const age = n > 1 ? i / (n - 1) : 0;
     const r = SMOKE_R0 + age * SMOKE_R1;
-    const c = [ch.x + lean * age * age * 1.6, ch.top + 0.15 + age * rise,
+    const c = [ch.x + lean * age * age * 1.6, ch.top - (ch.sag || 0) + 0.15 + age * rise,
                ch.z + lean * age * age * 0.5];
     bag.setGlow(age);
     for (const ax of [[1, 0, 0], [0, 0, 1]]) {
@@ -904,7 +1081,8 @@ function applyFinish(P) {
     const ud = MAT[k] && MAT[k].userData && MAT[k].userData.dirt;
     if (!ud) continue;
     const stone = k === 'stone';
-    ud.uDirtGain.value = stone ? 1.55 : (k === 'post' || k === 'pile' ? 1.35 : 1.0);
+    ud.uDirtGain.value = stone ? 1.55 : (k === 'post' || k === 'pile' ? 1.35
+                       : (k === 'log' || k === 'logend' ? 0.35 : 1.0));
     ud.uDirtOwn.value.setHex(stone ? 0x453f36 : 0x6d6353);
     // THE FRAME IS ALWAYS OLDER THAN THE HOUSE. Nobody paints a bearer, and
     // nothing under a building stays the colour it was cut. `post` is the
@@ -916,6 +1094,7 @@ function applyFinish(P) {
                        : (k === 'pile' ? Math.min(1, age * 0.85 + 0.10) : 0);
     ud.uAgeDark.value = k === 'post' ? age * 0.52
                       : (k === 'pile' ? Math.min(0.85, age * 0.52 + 0.18) : 0);
+    ud.uWander.value = k === 'siding' ? HAND(P) * (P.wander === undefined ? 0.010 : P.wander) : 0;
   }
   // WEATHER IS THE OTHER HALF OF THE PAINT DIAL (the user: "that looked newer,
   // less weathered ... would be nice to have more weathered and more fresh
@@ -965,6 +1144,8 @@ function applyFinish(P) {
   // (the user: "darken them a bit so they match better - just for these
   // meshes, not for the other material users")
   dressMat(MAT.pile, setFor(P, 'post'), 0, { flat: 0x3a3430, nrm: NRM.post });
+  dressMat(MAT.log, 'bark', 0, { flat: 0x4a3d33, nrm: 1.4 });
+  dressMat(MAT.logend, 'endgrain', 0, { flat: 0xb9a583, nrm: 1.2 });
   MAT.pile.color.multiplyScalar(0.78);
   dressMat(MAT.stone, setFor(P, 'stone'), 0,
           { flat: 0x8e8b85, nrm: NRM.stone });
@@ -1030,6 +1211,12 @@ const DEF = {
   // chimney, and what comes out of it
   chim: 1, chimXF: -0.45, chimZF: 0.30, chimR: 0.10, chimUp: 0.95,
   smoke: 1, smokeK: 0.55, smokeLean: 0.35,
+  // the yard (G273): props round the house, the woodpile, the lamp
+  yard: 1, yardK: 0.6, yardSeed: 7, woodpile: 1, woodLen: 2.2, woodH: 1.25,
+  lampKind: 1, curtains: 0.7,
+  // the settling (G273): the ridge's sag in metres, the siding's course
+  // wander in metres (times the hand)
+  sag: 0.04, wander: 0.010,
   // lean-to
   lean: 0, leanD: 2.30, leanLF: 0.55, leanOff: 0.20, leanPitch: 14,
   // over the water, and what holds it up there
@@ -1198,6 +1385,8 @@ const ROWS = [
     ['smokeK', 'how thick', 0.1, 1, 0.02, null, P => !!P.chim && !!P.smoke],
     ['smokeLean', 'downwind lean', -1, 1, 0.05, null, P => !!P.chim && !!P.smoke],
     ['lights', 'lights on', 0, 1, 1],
+    ['lampKind', 'porch lamp', 0, 1, 1, ['drawn lantern', 'wall lamp'], P => !!P.lights && !!P.porchLamp],
+    ['curtains', 'curtains + blinds', 0, 1, 0.05],
     ['winLink', 'windows', 0, 1, 1, ['each its own', 'one switch'],
      P => !!P.lights],
     ['winLit', 'share of windows lit', 0, 1, 0.05, null,
@@ -1245,6 +1434,14 @@ const ROWS = [
     ['leanLF', 'length', 0.20, 1.0, 0.01, null, P => !!P.lean],
     ['leanOff', 'offset along', -0.6, 0.6, 0.01, null, P => !!P.lean],
     ['leanPitch', 'pitch', 5, 35, 0.5, null, P => !!P.lean],
+  ]],
+  ['the yard', [
+    ['yard', 'things around the house', 0, 1, 1],
+    ['yardK', 'how much', 0, 1, 0.05, null, P => !!P.yard],
+    ['yardSeed', 'whose yard', 1, 99, 1, null, P => !!P.yard],
+    ['woodpile', 'firewood stack', 0, 1, 1],
+    ['woodLen', 'stack length', 1.0, 4.0, 0.1, null, P => !!P.woodpile],
+    ['woodH', 'stack height', 0.5, 1.8, 0.05, null, P => !!P.woodpile],
   ]],
   ['chimney', [
     ['chim', 'chimney', 0, 2, 1, CHIMS],
@@ -1300,6 +1497,8 @@ const ROWS = [
     ['frameAge', 'frame weathering', 0, 1, 0.02],
     ['bevel', 'chamfered arrises', 0, 0.02, 0.001],
     ['hand', 'hand-built', 0, 1, 0.05],
+    ['sag', 'ridge sag', 0, 0.15, 0.005],
+    ['wander', 'course wander', 0, 0.03, 0.001, null, P => P.hand > 0],
     ['metalSet', 'gutters + pipe', 0, ROLE_SETS.metal.length - 1, 1,
      setNames('metal')],
     ['stoneSet', 'foundations', 0, ROLE_SETS.stone.length - 1, 1,
@@ -1791,6 +1990,18 @@ function openingsFor(P, V, R, side, A, B, opts) {
 // the seed walks through the neighbours' habits. The share is a probability,
 // not a count — a house with one window lit at 0.6 is a house whose one
 // occupant is in.
+// the dressing code: style (1 curtains, 2 one curtain, 3 blind, 0 bare)
+// + 8 * colour (0 cream, 1 faded red, 2 blue-grey, 3 mustard)
+function dressFor(P, W, h) {
+  const k = clamp(P.curtains === undefined ? 0.7 : P.curtains, 0, 1);
+  const j = jog(W.P(h.s0, h.y0, 0)[0] * 1.7 + (h.s0 + h.s1), h.y0 * 3.1 + W.P(h.s1, h.y0, 0)[2],
+                (P.lightSeed || 1) * 5 + 23);
+  const u = j[0] / 4.3, v = j[1] / 3.1;
+  if (u > k) return 0;
+  const style = u < k * 0.45 ? 1 : (u < k * 0.65 ? 2 : 3);
+  return style + 8 * Math.floor(v * 4);
+}
+
 function litFor(P, W, h) {
   if (!P.lights) return 0;
   if (P.winLink) return 1;
@@ -1873,8 +2084,15 @@ function dressOpening(bags, P, Q, W, h, y1) {
   const g3 = W.P(h.s0 + 0.03, y1 - 0.03, gd);
   const lit = litFor(P, W, h);
   bags.glass.setGlow(lit);
+  // WHAT HANGS BEHIND IT (G273, the assessment: "every window is the same
+  // blank pane"): curtains both sides, a curtain one side, a blind part way
+  // down, or nothing - hashed from the window's own place on its wall and
+  // the light seed, like the lights, so the same house dresses the same
+  // rooms every build; the fabric's colour from the same hash
+  bags.glass.setWin(h.s1 - h.s0 - 0.06, y1 - h.y0 - 0.06, dressFor(P, W, h));
   face(bags.glass, [g0, g1, g2, g3], N,
        uvFrame(g0, X, [0, 1, 0]));
+  bags.glass.setWin(0);
   bags.glass.setGlow(0);
   LIT_LOG.panes++;
   if (lit) LIT_LOG.windows++;
@@ -3221,6 +3439,7 @@ function buildDeck(bags, P, Q, V, R, g) {
     }
     out.stair = { n: n, rise: sp.rise, run: run, w: P.stairW, x: sx,
                   z0: zOut, z1: zFoot, y0: gy, y1: yTop, turns: sp.lands.length };
+    out.stairPlan = sp;                       // the yard keeps off it (G273)
     stairGap = [sx - P.stairW / 2 - 0.06, sx + P.stairW / 2 + 0.06];
     buildSteps(bags, P, Q, sp, g);
   }
@@ -3656,7 +3875,7 @@ function buildStoop(bags, P, Q, V, g, side) {
                             dir: back ? -1 : 1, turn: turn }, surf);
   buildSteps(bags, P, Q, sp, g);
   return { x: cx, z: zOut, y: yTop, w: wid, depth: depth, side: back ? -1 : 1,
-           steps: sp.n, foot: sp.footZ, turns: sp.lands.length };
+           steps: sp.n, foot: sp.footZ, turns: sp.lands.length, plan: sp };
 }
 
 // ---------------------------------------------------------------------------
@@ -4107,6 +4326,23 @@ function buildLamp(bags, P, Q, W, h, side) {
   const X = W.X, N = W.N;
   const s = side > 0 ? h.s1 + 0.42 : h.s0 - 0.42;
   const y = h.y0 + 2.05;
+  // THE CAST WALL LAMP (G273, the user: "There's also an outdoor lamp that
+  // could work as the porch lamp I think"): a baked prop mounted on the wall
+  // by its plate, +z off the wall, its glass carrying the author's emissive.
+  // Published like the drawn lantern - position, colour, reach - with the
+  // bulb where the fixture's glass actually is, and the prop's key so the
+  // bench and the game stand the fixture there. Rule 29 reads `prop` as its
+  // emitting geometry.
+  if (Math.round(P.lampKind === undefined ? 1 : P.lampKind) === 1) {
+    const m = add(W.P(s, y - 0.08, 1), mul(N, 0.005));
+    const K = YARD_KIT.lamp_wall;
+    const b = add(m, mul(N, K.L * 0.55));
+    const L = { kind: 'lamp', prop: 'lamp_wall', x: b[0], y: y - 0.12, z: b[2],
+                mx: m[0], my: m[1], mz: m[2], ry: Math.atan2(N[0], N[2]),
+                nx: N[0], nz: N[2], col: [1.0, 0.80, 0.52], k: 1.0, range: 8.0 };
+    LIT_LOG.lights.push(L);
+    return L;
+  }
   const c = add(W.P(s, y, 1), mul(N, 0.02));
   // the bracket, a stub off the wall
   beam(bags.metal, c, add(c, mul(N, 0.13)), 0.014, 0.014, [0, 1, 0]);
@@ -4320,6 +4556,445 @@ function buildBay(bags, P, Q, V, R, B0) {
 // ---------------------------------------------------------------------------
 // lod 0 = the near mesh, lod 1 = the far mesh. Same parameters, same
 // construction, different membership.
+
+// ---------------------------------------------------------------------------
+// THE YARD (G273, the user: "think of what we're currently missing that could
+// add some life in there ... use the existing appropriate objects we have for
+// the hangar here ... a firewood stack against the wall and a worn path from
+// the stair foot")
+// ---------------------------------------------------------------------------
+// What stands around a house is what the people who live in it put down and
+// never picked up: the bins by the stair, the gas bottles under the kitchen
+// wall, the compressor and the drums and the old tyres under the deck, a
+// ladder somebody meant to put away, bags of compost slumped by the back door,
+// a planter by the front one. None of it is drawn here - every piece is a
+// baked prop (the hangar's or the yard's) - but WHERE it stands is the
+// generator's business, because only the generator knows where the walls,
+// the stair, the stoops, the piles and the lean-to are. So: a set of
+// BLOCKERS (everything already standing), a set of ZONES (where a thing of
+// each sort belongs), and a placer that tries a zone's spots in order and
+// takes the first one clear of everything. Every placement is published
+// (`stats.yard`) with what it stands on, and GATE HOUSE rule 34 holds each
+// one to the ground or the deck it claims, out of the house, and off every
+// other thing.
+
+// a rectangle in plan, and a test against it
+const rectOf = (x0, z0, x1, z1) => ({ x0: Math.min(x0, x1), z0: Math.min(z0, z1),
+                                      x1: Math.max(x0, x1), z1: Math.max(z0, z1) });
+const rectHit = (r, x, z, m) => x > r.x0 - m && x < r.x1 + m && z > r.z0 - m && z < r.z1 + m;
+
+// EVERYTHING ALREADY STANDING, as rectangles: the house, the deck, every
+// flight and landing of every stair, the stoops, the lean-to, the jetty, the
+// barrel, and the people. `under` says how high the thing is off the ground -
+// a prop can stand under a floor it clears.
+function yardBlockers(P, V, dk, stoop, front, barrel, people, g) {
+  const B = [];
+  const half = V.wallT / 2;
+  B.push({ r: rectOf(-V.L / 2 - half, -V.w / 2 - half, V.L / 2 + half, V.w / 2 + half),
+           under: V.floorY - 0.12, what: 'house' });
+  if (dk && dk.area > 0 && P.porch) {
+    const D = deckPlan(P, V);
+    B.push({ r: rectOf(D.x0 - 0.06, D.zIn, D.x1 + 0.06, D.zOut + 0.06),
+             under: D.yTop - 0.14, what: 'deck' });
+  }
+  const stairs = (sp, y) => {
+    if (!sp) return;
+    for (const f of sp.flights) {
+      const T = f.n * P.stairRun, hw = sp.w / 2 + 0.05;
+      const x1 = f.x + f.ax[0] * T, z1 = f.z + f.ax[1] * T;
+      B.push({ r: rectOf(Math.min(f.x, x1) - (f.ax[0] ? 0 : hw), Math.min(f.z, z1) - (f.ax[1] ? 0 : hw),
+                         Math.max(f.x, x1) + (f.ax[0] ? 0 : hw), Math.max(f.z, z1) + (f.ax[1] ? 0 : hw)),
+               under: -1e9, what: 'stair' });
+    }
+    for (const L of sp.lands)
+      B.push({ r: rectOf(L.x - L.w / 2 - 0.05, L.z - (L.d || L.w) / 2 - 0.05,
+                         L.x + L.w / 2 + 0.05, L.z + (L.d || L.w) / 2 + 0.05),
+               under: -1e9, what: 'landing' });
+  };
+  if (dk && dk.stairPlan) stairs(dk.stairPlan);
+  for (const sp of [stoop, front]) {
+    if (!sp) continue;
+    B.push({ r: rectOf(sp.x - sp.w / 2 - 0.05, sp.z, sp.x + sp.w / 2 + 0.05,
+                       sp.z - sp.side * sp.depth), under: -1e9, what: 'stoop' });
+    stairs(sp.plan);
+  }
+  const ls = leanSpan(P, V);
+  if (ls) B.push({ r: rectOf(ls[0], -V.w / 2 - P.leanD - 0.2, ls[1], -V.w / 2),
+                   under: -1e9, what: 'lean' });
+  if (dk && dk.jetty)
+    B.push({ r: rectOf(dk.jetty.x - dk.jetty.w / 2, dk.jetty.z0 - 0.3,
+                       dk.jetty.x + dk.jetty.w / 2, dk.jetty.z1 + 0.3),
+             under: -1e9, what: 'jetty' });
+  if (barrel) B.push({ r: rectOf(barrel.x - barrel.r, barrel.z - barrel.r,
+                                 barrel.x + barrel.r, barrel.z + barrel.r),
+                       under: -1e9, what: 'barrel' });
+  for (const q of people || [])
+    B.push({ r: rectOf(q.x - 0.45, q.z - 0.45, q.x + 0.45, q.z + 0.45),
+             under: -1e9, what: 'person' });
+  return B;
+}
+
+// a prop's footprint radius in plan - a circle, because the props turn
+const yardR = key => { const K = YARD_KIT[key]; return Math.max(K.L, K.W) * 0.5; };
+
+// is there room for a thing of radius r and height H at x,z on the ground?
+function yardFree(B, placed, x, z, r, H, g, P) {
+  const gy = g(x, z);
+  if (P.water && gy < P.waterY + 0.12) return false;          // not in the tide
+  for (const b of B) {
+    if (!rectHit(b.r, x, z, r)) continue;
+    if (b.under > gy + H + 0.10) continue;                     // clears the floor
+    return false;
+  }
+  for (const q of placed)
+    if (Math.hypot(q.x - x, q.z - z) < (q.r + r) * 0.92) return false;
+  return true;
+}
+
+// THE ZONES: each yields candidate spots in order. All in the house frame:
+// +z is the deck side, -z the back, +-x the gables.
+function yardZones(P, V, dk, stoop, front, ch, dr, g) {
+  const half = V.wallT / 2, lowWall = V.floorY - g(0, -V.w / 2) < 0.65;
+  const Z = {};
+  // beside the stair foot, on the ground, either side of the flight
+  Z.stairFoot = [];
+  const feet = [];
+  if (dk && dk.stairPlan) feet.push({ x: dk.stairPlan.footX, z: dk.stairPlan.footZ, ax: [0, 1] });
+  for (const sp of [front, stoop]) if (sp && sp.plan)
+    feet.push({ x: sp.plan.footX, z: sp.plan.footZ, ax: [0, sp.side] });
+  for (const f of feet)
+    for (const sx of [1, -1]) for (const k of [0, 1, 2])
+      Z.stairFoot.push({ x: f.x + sx * (P.stairW / 2 + 0.55 + k * 0.62),
+                         z: f.z - f.ax[1] * 0.35, ry: -sx * 0.4 });
+  // against a gable wall, on the ground: the kitchen side is the chimney's
+  Z.gable = [];
+  const gx = ch ? (ch.x > 0 ? 1 : -1) : 1;
+  for (const s2 of [gx, -gx]) {
+    const wx = s2 * (V.L / 2 + half);
+    const n = Math.max(2, Math.round(V.w / 0.9));
+    for (let i = 0; i < n; i++) {
+      const z = -V.w / 2 + 0.55 + (V.w - 1.1) * i / Math.max(1, n - 1);
+      Z.gable.push({ x: wx + s2 * 0.32, z, ry: s2 > 0 ? -Math.PI / 2 : Math.PI / 2,
+                     wallX: wx, side: s2, out: [s2, 0] });
+    }
+  }
+  // against the back wall, on the ground, out from under the lean-to
+  Z.back = [];
+  {
+    const wz = -V.w / 2 - half, ls = leanSpan(P, V);
+    const n = Math.max(3, Math.round(V.L / 0.9));
+    for (let i = 0; i < n; i++) {
+      const x = -V.L / 2 + 0.55 + (V.L - 1.1) * i / Math.max(1, n - 1);
+      if (ls && x > ls[0] - 0.5 && x < ls[1] + 0.5) continue;
+      Z.back.push({ x, z: wz - 0.32, ry: Math.PI, wallZ: wz, out: [0, -1] });
+    }
+  }
+  // under the deck, back from the rim, between the posts
+  Z.underDeck = [];
+  if (dk && dk.area > 0 && P.porch) {
+    const D = deckPlan(P, V);
+    const n = Math.max(2, Math.round(D.dl / 1.2));
+    for (let i = 0; i < n; i++) {
+      const x = D.x0 + 0.6 + (D.dl - 1.2) * i / Math.max(1, n - 1);
+      Z.underDeck.push({ x, z: D.zIn + P.porchD * 0.5, ry: 0.3 * ((i % 3) - 1) });
+    }
+  }
+  // on the deck, beside the door and along the wall
+  Z.deck = [];
+  if (dk && dk.area > 0 && P.porch) {
+    const D = deckPlan(P, V);
+    const dx = (doorPosOf(P, V) - 0.5) * V.L, dw = P.doorW / 2 + 0.55;
+    for (const s2 of [-1, 1]) for (const k of [0, 1, 2]) {
+      const x = dx + s2 * (dw + 0.45 + k * 0.85);
+      if (x < D.x0 + 0.5 || x > D.x1 - 0.5) continue;
+      Z.deck.push({ x, z: D.zIn + 0.42, ry: 0.15 * s2, y: D.yTop });
+    }
+  }
+  Z.lowWall = lowWall;
+  return Z;
+}
+
+function yardPlan(P, V, dk, stoop, front, barrel, people, ch, dr, g) {
+  if (!P.yard) return [];
+  const B = yardBlockers(P, V, dk, stoop, front, barrel, people, g);
+  const Z = yardZones(P, V, dk, stoop, front, ch, dr, g);
+  const placed = [];
+  let seed = (Math.round(P.yardSeed || 7) * 2654435761 + 12345) >>> 0;
+  const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
+  const pick = a => a[Math.floor(rnd() * a.length) % a.length];
+  const dens = clamp(P.yardK === undefined ? 0.6 : P.yardK, 0, 1);
+  // try a zone's spots in order; `on` is what the thing stands on
+  const put = (key, zone, on, o) => {
+    const K = YARD_KIT[key];
+    if (!K) return null;
+    const r = yardR(key);
+    const spots = Z[zone] || [];
+    const start = Math.floor(rnd() * Math.max(1, spots.length));
+    for (let i = 0; i < spots.length; i++) {
+      const sp = spots[(start + i) % spots.length];
+      let x = sp.x, z = sp.z;
+      // a thing against a wall stands its own half-depth off it
+      if (sp.wallX !== undefined) x = sp.wallX + sp.side * (K.L / 2 + 0.06);
+      if (sp.wallZ !== undefined) z = sp.wallZ - (K.L / 2 + 0.06);
+      const y = on === 'deck' ? sp.y : g(x, z);
+      if (on === 'deck') {
+        const D = deckPlan(P, V);
+        if (x - r < D.x0 || x + r > D.x1 || z - r < D.zIn || z + r > D.zOut) continue;
+        let ok = true;
+        for (const q of placed) if (Math.hypot(q.x - x, q.z - z) < (q.r + r) * 0.92) ok = false;
+        for (const q of people || []) if (Math.hypot(q.x - x, q.z - z) < 0.5 + r) ok = false;
+        if (!ok) continue;
+      } else if (!yardFree(B, placed, x, z, r, K.H, g, P)) continue;
+      const ry = sp.ry + (rnd() - 0.5) * (o && o.turn !== undefined ? o.turn : 0.5);
+      const q = { key, x, z, y, ry, on, r };
+      placed.push(q);
+      return q;
+    }
+    return null;
+  };
+  // THE MENU, in the order a yard fills up: the things everybody has first
+  const want = [
+    ['bins', 1.0], ['gas', 0.9], ['junk', 0.8], ['deck', 0.7], ['bags', 0.6],
+    ['junk2', 0.5], ['ladder', 0.45], ['hose', 0.4], ['stove', 0.3],
+  ];
+  for (const [what, base] of want) {
+    if (rnd() > base * (0.35 + 0.65 * dens) + 0.15) continue;
+    if (what === 'bins') {
+      put(pick(['bin_metal', 'bin_metal_rust']), 'stairFoot', 'ground');
+      if (rnd() < 0.5) put(pick(['bin_metal', 'bin_metal_rust']), 'stairFoot', 'ground');
+    } else if (what === 'gas') {
+      if (rnd() < 0.55) {
+        const a = put('bottle_propane', Z.lowWall ? 'gable' : 'underDeck', 'ground', { turn: 2 });
+        if (a) put('bottle_propane', Z.lowWall ? 'gable' : 'underDeck', 'ground', { turn: 2 });
+      } else put('bottle_lpg', Z.lowWall ? 'gable' : 'underDeck', 'ground', { turn: 2 });
+    } else if (what === 'junk' || what === 'junk2') {
+      const menu = ['drum_steel', 'barrel_plastic', 'crate_wood_a', 'crate_wood_b',
+                    'crate_wood_c', 'tyre', 'work_trestle', 'handtruck', 'box_cardboard',
+                    'compressor', 'jerrycan'];
+      const n = 1 + Math.floor(rnd() * 2.5);
+      for (let i = 0; i < n; i++) {
+        const key = pick(menu);
+        const zone = Z.underDeck.length && rnd() < 0.6 ? 'underDeck' : (rnd() < 0.5 ? 'back' : 'gable');
+        put(key, zone, 'ground', { turn: 1.2 });
+      }
+    } else if (what === 'deck') {
+      if (rnd() < 0.7) put('planter', 'deck', 'deck', { turn: 0.2 });
+      if (rnd() < 0.6) put(pick(['jerrycan_green', 'jerrycan', 'crate_wood_a']), 'deck', 'deck', { turn: 1.5 });
+    } else if (what === 'bags') {
+      put(pick(['bags_lean', 'bags_stack', 'bags_stand']), Z.lowWall ? 'back' : 'gable', 'ground', { turn: 0.25 });
+      if (rnd() < 0.5) put(pick(['bag_compost', 'bags_flat']), 'back', 'ground', { turn: 2 });
+    } else if (what === 'ladder') {
+      put('stepladder', Z.lowWall ? 'gable' : 'underDeck', 'ground', { turn: 0.6 });
+    } else if (what === 'hose') {
+      // on the wall, by the barrel's corner if there is one
+      if (Z.lowWall && Z.gable.length) {
+        const sp = Z.gable[Math.floor(rnd() * Z.gable.length)];
+        placed.push({ key: 'hosereel_wall', x: sp.wallX, z: sp.z, y: g(sp.wallX, sp.z) + 1.05,
+                      ry: Math.atan2(sp.out[0], sp.out[1]), on: 'wall', r: 0.05,
+                      nx: sp.out[0], nz: sp.out[1] });
+      }
+    } else if (what === 'stove') {
+      put('stove_barrel', Z.lowWall ? 'gable' : 'back', 'ground', { turn: 1.0 });
+    }
+  }
+  return placed.map(q => ({ key: q.key, x: q.x, z: q.z, y: q.y, ry: q.ry, on: q.on,
+                            nx: q.nx, nz: q.nz }));
+}
+
+// ---------------------------------------------------------------------------
+// THE WOODPILE (G273, the user: "For the firewood stack, be careful to use
+// proper textures for the end of the logs, ambient occlusion between the logs
+// and against the wall they're resting on is of paramount importance, and you
+// can do a little structure for holding the wood, a bit derelict and
+// imperfect, with old weathered wood textures")
+// ---------------------------------------------------------------------------
+// Cordwood, 400 mm rounds, ends out, stacked in a RACK: two sleepers on the
+// ground to keep it off the mud, a post at each end and, when it does not
+// stand against a wall, two posts and a rail behind. The rack is the frame's
+// own weathered timber and it has the hand on it at twice the house's dial -
+// a post that leans out, a sleeper that has settled - because a rack is the
+// one thing on the lot nobody ever squared. Every round is its own radius,
+// its own place in the row, its own turn about its axis; the bark is the
+// bark set on the sides and the END is the generated end grain, mapped so the
+// pith sits on one of nine log ends by a hash of the round. The rounds are
+// in BAGS, so the occlusion bake sees every one of them - between the rounds,
+// under the rack, against the wall - which is what makes a pile read as
+// solid wood and not a texture of one.
+function logEndUV(c, W, U, k) {
+  // the cell: nine per 1.25 m tile, 0.4167 m each; pith on the cell's centre
+  const j = jog(c[0] + c[2] * 0.7, c[1], k);
+  const ci = Math.floor(j[0] / 4.3 * 3) % 3, cj = Math.floor(j[1] / 3.1 * 3) % 3;
+  const cu = (ci + 0.5) * (1.25 / 3), cv = (cj + 0.5) * (1.25 / 3);
+  return p => [cu + dot(sub(p, c), W), cv + dot(sub(p, c), U)];
+}
+// one round: bark round the side (its own bag), end grain on both ends
+function logRound(bags, c, X, r, h, segs, k) {
+  const U0 = Math.abs(X[1]) > 0.9 ? [1, 0, 0] : [0, 1, 0];
+  const U = nrm(sub(U0, mul(X, dot(U0, X)))), W = nrm(crs(X, U));
+  const base = add(c, mul(X, -h / 2));
+  cyl(bags.log, base, X, r, h, segs, false, { uvSwap: true, smooth: true, uv: jog(c[0], c[2], k) });
+  const ring = t => {
+    const out = [];
+    for (let i = 0; i < segs; i++) {
+      const a = 2 * Math.PI * i / segs;
+      out.push(add(add(base, mul(X, h * t)), add(mul(U, Math.cos(a) * r), mul(W, Math.sin(a) * r))));
+    }
+    return out;
+  };
+  const r1 = ring(1), r0 = ring(0);
+  face(bags.logend, r1, X, logEndUV(add(base, mul(X, h)), W, U, k));
+  face(bags.logend, r0.slice().reverse(), mul(X, -1), logEndUV(base, W, U, k + 3));
+}
+
+function buildWoodpile(bags, P, Q, V, dk, B, g) {
+  if (!P.woodpile) return null;
+  const half = V.wallT / 2;
+  const len = clamp(P.woodLen === undefined ? 2.2 : P.woodLen, 1.0, 4.0);
+  const depth = 0.42, hgt = clamp(P.woodH === undefined ? 1.25 : P.woodH, 0.5, 1.8);
+  // WHERE: along a gable (the pile runs on z, ends out on x) or along the
+  // back wall (runs on x, ends out on -z); against the wall where the wall
+  // comes down to the ground, a step out with its own back where it does
+  // not. A is along the pile, E the way the ends face (out from the house).
+  const spots = [];
+  for (const s2 of [1, -1]) {
+    const wx = s2 * (V.L / 2 + half), low = V.floorY - g(wx, 0) < 0.65;
+    const n = Math.max(1, Math.round((V.w - len) / 0.7) + 1);
+    for (let i = 0; i < n; i++) {
+      const z = -V.w / 2 + len / 2 + (V.w - len) * (n > 1 ? i / (n - 1) : 0.5);
+      spots.push({ x: wx + s2 * (depth / 2 + (low ? 0.05 : 0.9)), z, wall: low,
+                   A: [0, 1], E: [s2, 0] });
+    }
+  }
+  {
+    const wz = -V.w / 2 - half, low = V.floorY - g(0, wz) < 0.65, ls = leanSpan(P, V);
+    const n = Math.max(1, Math.round((V.L - len) / 0.7) + 1);
+    for (let i = 0; i < n; i++) {
+      const x = -V.L / 2 + len / 2 + (V.L - len) * (n > 1 ? i / (n - 1) : 0.5);
+      if (ls && x + len / 2 > ls[0] - 0.3 && x - len / 2 < ls[1] + 0.3) continue;
+      spots.push({ x, z: wz - (depth / 2 + (low ? 0.05 : 0.9)), wall: low,
+                   A: [1, 0], E: [0, -1] });
+    }
+  }
+  // the flattest wall-touching spot first, then the flattest of the rest
+  const drop = sp => Math.abs(g(sp.x - sp.A[0] * len / 2, sp.z - sp.A[1] * len / 2) -
+                              g(sp.x + sp.A[0] * len / 2, sp.z + sp.A[1] * len / 2));
+  spots.sort((a, b) => (b.wall - a.wall) || (drop(a) - drop(b)));
+  const rectAt = (sp, m) => {
+    const hx = Math.abs(sp.A[0]) * len / 2 + Math.abs(sp.E[0]) * depth / 2 + m;
+    const hz = Math.abs(sp.A[1]) * len / 2 + Math.abs(sp.E[1]) * depth / 2 + m;
+    return rectOf(sp.x - hx, sp.z - hz, sp.x + hx, sp.z + hz);
+  };
+  let at = null;
+  for (const sp of spots) {
+    let ok = !(P.water && g(sp.x, sp.z) < P.waterY + 0.15) && drop(sp) <= 0.40;
+    if (ok) {
+      const r = rectAt(sp, 0.02);
+      for (const b of B) {
+        const hit = !(r.x1 < b.r.x0 || r.x0 > b.r.x1 || r.z1 < b.r.z0 || r.z0 > b.r.z1);
+        if (hit && b.under < g(sp.x, sp.z) + hgt + 0.2) { ok = false; break; }
+      }
+    }
+    if (ok) { at = sp; break; }
+  }
+  if (!at) return null;
+  const A = at.A, E = at.E, cx = at.x, cz = at.z;
+  const gy = g(cx, cz);
+  const out = { x: cx, z: cz, y: gy, w: depth, len, h: hgt, wall: at.wall, logs: 0,
+                ax: A, out: E };
+  B.push({ r: rectAt(at, 0.1), under: -1e9, what: 'woodpile' });
+  const at3 = (a, e, y) => [cx + A[0] * a + E[0] * e, y, cz + A[1] * a + E[1] * e];
+  const gAt = (a, e) => g(cx + A[0] * a + E[0] * e, cz + A[1] * a + E[1] * e);
+  if (Q.lod !== 0) {
+    const r = rectAt(at, 0);
+    boxAB(bags.log, [r.x0, Math.min(gAt(-len / 2, 0), gAt(len / 2, 0)), r.z0],
+          [r.x1, gy + hgt, r.z1]);
+    return out;
+  }
+  // THE RACK. Two sleepers along the pile, on the ground, following it; a
+  // post at each end on the open side and, free-standing, at each end on the
+  // back with a rail between. The hand at twice the dial: the derelict bit.
+  const P2 = Object.assign({}, P, { hand: Math.min(1, HAND(P) * 2) });
+  const sl = 0.05;
+  for (const se of [-1, 1]) {
+    const e = se * (depth / 2 - 0.08);
+    const a = handOff(P2, at3(-len / 2 - 0.06, e, gAt(-len / 2, e) + sl), cx + e, cz - len, 31, 0.03);
+    const b = handOff(P2, at3(len / 2 + 0.06, e, gAt(len / 2, e) + sl), cx + e, cz + len, 32, 0.03);
+    beam(bags.post, a, b, sl, sl, [0, 1, 0], 0, bevUV(P, Q, jog(a[0], a[2], 33)));
+  }
+  const postH = hgt + 0.18, pw = 0.045;
+  const posts = [[-len / 2 - 0.02, depth / 2 + 0.02], [len / 2 + 0.02, depth / 2 + 0.02]];
+  if (!at.wall) posts.push([-len / 2 - 0.02, -depth / 2 - 0.02], [len / 2 + 0.02, -depth / 2 - 0.02]);
+  for (const [a, e] of posts) {
+    const gp = gAt(a, e), q = at3(a, e, gp);
+    beam(bags.post, [q[0], gp - 0.08, q[2]],
+         handOff(P2, [q[0], gp + postH, q[2]], q[0], q[2], 34, 0.04), pw, pw,
+         handUp(P2, q[0], q[2], 35), 0, bevUV(P, Q, jog(q[0], q[2], 36)));
+  }
+  if (!at.wall) {                              // the back rail, a bit low
+    const e = -depth / 2 - 0.02, ry = hgt * 0.62;
+    const a = at3(-len / 2 - 0.02, e, gAt(-len / 2, e) + ry);
+    const b = at3(len / 2 + 0.02, e, gAt(len / 2, e) + ry + 0.02);
+    beam(bags.post, handOff(P2, a, a[0], a[2], 37, 0.02), handOff(P2, b, b[0], b[2], 38, 0.02),
+         0.03, 0.06, [E[0], 0, E[1]], 0, bevUV(P, Q, jog(a[0], a[2], 39)));
+  }
+  // THE ROUNDS: courses of 400 mm cordwood, ends out, each its own radius
+  // and place; the courses follow the ground under them; the top course is
+  // short where somebody has been burning it
+  let seed = (Math.round(P.yardSeed || 7) * 40503 + 99991) >>> 0;
+  const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
+  const r = 0.072, pitch = r * 2 + 0.008, rowH = pitch * 0.88;
+  const rows = Math.max(1, Math.floor((hgt - sl * 2) / rowH));
+  let n = 0;
+  for (let j = 0; j < rows; j++) {
+    const last = j === rows - 1;
+    const cols = Math.floor((len - 0.04) / pitch);
+    const use = last ? Math.max(2, Math.round(cols * (0.3 + 0.5 * rnd()))) : cols;
+    const off = (j % 2) * r * 0.9;
+    for (let i = 0; i < use; i++) {
+      const a = -len / 2 + 0.02 + r + off + i * pitch + (rnd() - 0.5) * 0.012;
+      if (a + r > len / 2 + 0.03) continue;
+      const rr = r * (0.78 + 0.4 * rnd());
+      const L2 = depth * (0.90 + 0.10 * rnd());
+      const e = (rnd() - 0.5) * 0.05 + 0.02;
+      const y = gAt(a, 0) + sl * 2 + r + j * rowH + (rr - r) * 0.5;
+      // a round is never quite square to the pile: a few degrees in plan and
+      // in pitch, the hand's doing
+      const X = nrm([E[0] + A[0] * (rnd() - 0.5) * 0.14 * HAND(P),
+                     (rnd() - 0.5) * 0.10 * HAND(P),
+                     E[1] + A[1] * (rnd() - 0.5) * 0.14 * HAND(P)]);
+      logRound(bags, at3(a, e, y), X, rr, L2, 8, 41 + i + j * 7);
+      n++;
+    }
+  }
+  out.logs = n;
+  return out;
+}
+
+// THE WORN PATH (G273): from the stair's foot to where people go - the pier's
+// jetty when there is one, the site's edge on the deck side when not - and
+// from the back stoop off the back. Published as a polyline in metres; the
+// bench's ground shader wears the grass along it. Nothing is drawn.
+function pathPlan(P, V, dk, stoop, front, pier, g) {
+  const out = [];
+  const foot = dk && dk.stairPlan ? { x: dk.stairPlan.footX, z: dk.stairPlan.footZ }
+    : (front && front.plan ? { x: front.plan.footX, z: front.plan.footZ } : null);
+  if (foot) {
+    if (dk && dk.jetty) {
+      // the stair lands on the jetty itself: the path is the beach walk to it
+      out.push([[foot.x, foot.z - 1.2], [foot.x + 0.6, foot.z - 4.5]]);
+    } else {
+      const far = Math.max(V.w, 7) + 2;
+      const bend = { x: foot.x + (foot.x >= 0 ? 1.6 : -1.6), z: foot.z + 1.8 };
+      out.push([[foot.x, foot.z - 0.2], [bend.x, bend.z]]);
+      out.push([[bend.x, bend.z], [bend.x + (foot.x >= 0 ? 1.2 : -1.2), foot.z + far]]);
+    }
+  }
+  if (stoop && stoop.plan)
+    out.push([[stoop.plan.footX, stoop.plan.footZ + 0.2],
+              [stoop.plan.footX - 0.8, stoop.plan.footZ - 3.5]]);
+  return out;
+}
+
 function build(P0, lod) {
   const P = Object.assign({}, DEF, P0 || {});
   const Q = { lod: lod | 0 };
@@ -4390,6 +5065,18 @@ function build(P0, lod) {
   const front = buildStoop(bags, P, Q, V, g, 1);
   if (P.lean) buildLean(bags, P, Q, V, R, g);
   const ch = buildChimney(bags, P, Q, V, R);
+  // THE SAG FIELD (G273): the uniforms the shaders bow the roof by, from
+  // this build's own ridge and eave; the chimney's top is told so the smoke
+  // starts where the stack actually ends
+  SHADE_U.uSag.value = clamp(P.sag === undefined ? 0.04 : P.sag, 0, 0.15);
+  SHADE_U.uSagL.value = Math.max(1, V.L / 2);
+  SHADE_U.uSagY0.value = R.eaveY;
+  SHADE_U.uSagY1.value = Math.max(R.eaveY + 0.3, R.ridgeY);
+  if (ch) {
+    const bx = Math.max(0, 1 - (ch.x * ch.x) / Math.max(0.01, SHADE_U.uSagL.value ** 2));
+    const ky = clamp((ch.top - R.eaveY) / Math.max(0.01, SHADE_U.uSagY1.value - R.eaveY), 0, 1);
+    ch.sag = SHADE_U.uSag.value * bx * ky * ky;
+  }
   const smoke = buildSmoke(bags, P, Q, ch);
   const dr = buildDrainage(bags, P, Q, V, R, g);
   const barrel = buildBarrel(bags, P, Q, dr, g);
@@ -4399,6 +5086,19 @@ function build(P0, lod) {
     pier.motors = pier.boats.reduce((a, b) => a + buildOutboard(bags, P, Q, b), 0);
   }
   const people = peoplePlan(P, V, dk, front, pier);
+  // THE YARD (G273): the woodpile first, because it is drawn and baked and
+  // the props keep off it; then the props; then the path
+  const blockers = yardBlockers(P, V, dk, stoop, front, barrel, people, g);
+  const woodpile = buildWoodpile(bags, P, Q, V, dk, blockers, g);
+  const yard = yardPlan(P, V, dk, stoop, front, barrel, people, ch, dr, g);
+  if (woodpile) for (const q of yard) {           // never through the pile
+    const hx = Math.abs(woodpile.ax[0]) * woodpile.len / 2 + Math.abs(woodpile.out[0]) * woodpile.w / 2;
+    const hz = Math.abs(woodpile.ax[1]) * woodpile.len / 2 + Math.abs(woodpile.out[1]) * woodpile.w / 2;
+    if (Math.abs(q.x - woodpile.x) < hx + yardR(q.key) + 0.1 &&
+        Math.abs(q.z - woodpile.z) < hz + yardR(q.key) + 0.1) q.drop = true;
+  }
+  const yardOut = yard.filter(q => !q.drop);
+  const path = pathPlan(P, V, dk, stoop, front, pier, g);
 
   // ---- and now the light that never gets in --------------------------------
   const aoInfo = K.bakeAO(BAGS.map(k => bags[k]),
@@ -4447,7 +5147,7 @@ function build(P0, lod) {
     gutterLen: dr.gutter, downpipe: dr.downpipe,
     jetty: dk.jetty || null, stoop: stoop, front: front, rims: RIM_LOG,
     bay: bayOut, barrel: barrel, pier: pier, smoke: smoke, people: people,
-    hand: HAND_LOG,
+    hand: HAND_LOG, yard: yardOut, woodpile: woodpile, path: path,
     backInLean: !!(P.backDoor && leanCovers(P, V, backDoorX(P, V))),
     // THE LIGHTS, published: how many windows glow, how many bulbs, and every
     // lamp with its position, colour and reach — the bench stands a real light
@@ -4580,6 +5280,8 @@ function randomHouse(seed) {
   // often as masonry, never none - it is Alaska, and a roof with no smoke
   // coming out of it is a roof nobody lives under
   P.chim = pick([1, 1, 2]);
+  P.yard = 1; P.yardK = rr(0.3, 1.0); P.yardSeed = ri(1, 99);
+  P.woodpile = odds(0.85) ? 1 : 0; P.woodLen = rr(1.4, 3.2); P.woodH = rr(0.9, 1.5);
   P.chimXF = rr(-0.7, 0.7); P.chimZF = rr(-0.5, 0.5);
   P.gutter = odds(0.6) ? pick([1, 1, 2]) : 0;
   P.downpipe = P.gutter ? 1 : 0; P.dpCorner = ri(0, 7);
@@ -4664,7 +5366,7 @@ function dressSlot(matKey, role, idx, col, flat) {
 
 window.HOUSE_GEN = {
   DEF, ROWS, PRESETS, MAT, BAGS, EXTRA, SMOKE_U, FAMS, STANCES, RAILS, SET_TINT, SHADE_U,
-  HAND_LEAN, HAND_TWIST,
+  HAND_LEAN, HAND_TWIST, YARD_KIT,
   STAIR_MAX, SET_SEAM, SET_MISS, PIER_KIT, PIER_TRIS, PIER_DECK, PIER_LOW, SKIRT_OK,
   COLS, COL_NAMES, ROLE_SETS, SET_IDX, setNames, setFor, setRibbed,
   build, roofModel, wallSplits, groundFn, applyFinish, libSets, randomHouse,

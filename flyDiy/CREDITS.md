@@ -293,6 +293,11 @@ Modifications made:
   promoting a set is one number and a re-run.
 - **Geometry discarded.** The Poly Haven sets deliver glTF preview spheres;
   only the maps are imported.
+- **One set is generated, not scanned** (G273): `endgrain`, the end of a log,
+  drawn by `tools/house_endgrain_gen.py` — nine log ends per 1.25 m tile,
+  rings, drying checks, a greyed rim — because no library on hand had one and
+  a ring scan tiled onto a disc puts the pith anywhere but the middle. No
+  licence to carry.
 
 ## Skin sheets (`assets/skin/`, baked and served from media/)
 
@@ -519,6 +524,16 @@ wherever these are shown:
   (https://sketchfab.com/3d-models/docked-venetian-boat-low-poly-from-scan-free-53af885edaf044ac8d375b29305fe9ac)
 - `boat_grady` — **"Freedom 325 Grady White"** by BoatUS Foundation
   (https://sketchfab.com/3d-models/freedom-325-grady-white-71ca8a73f97d44a98f92dd785e151b93)
+
+**The yard** (`assets/propsHouse/`, G273) — what stands around a house,
+declared in the same table under the `yard` group and baked into
+`src/pier/pier_yard.js`. All **Poly Haven, CC0**: `industrial_wall_lamp`
+(`lamp_wall`, the porch light), `compost_bags` (four arrangements in one
+file: `bags_stack`, `bags_lean`, `bags_flat`, `bags_stand`), `compost_bag_02`
+(`bag_compost`), `metal_jerrycan_green` (`jerrycan_green`), `planter_box_03`
+(`planter`). The bins, gas bottles, drums, crates, ladder, compressor,
+trestle, hand truck, tyre, hose reel and barrel stove the yard also uses are
+the hangar's own props, credited above.
 
 **The two people** (`person_andrew`, `person_john`, G255) are the user's own
 static export from `assets/blendkitPeople/blendkitPeople.blend` — BlenderKit
