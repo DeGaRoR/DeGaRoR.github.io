@@ -183,7 +183,23 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // bilinear at 47 m a texel, so a stand's edge carries a soft apron of
   // shade a few tens of metres wide. Not a shadow (the sun's shadow map does
   // that inside its reach): an occlusion, which is why it does not move.
-  const uFloor = { value: 0.70 };
+  const uFloor = { value: 0.30 };          // 0.3 by the user's word (W0c.23)
+  // THE CANOPY MAP (W0c.23). The floor term above darkened wherever the
+  // BIOME CLASSIFIER said forest floor - the domain mask, 47 m a texel - and
+  // the planter then rejects trees on the airfield corridor, the exclusion
+  // zones, near water and wherever no stand tree is near: fields classified
+  // forest and never planted were darkened, and at 0.3 those blobs read as
+  // the shadows of ghosts ("you compute stuff based on the untrimmed
+  // distribution" - exactly). The occlusion must come from the trees that
+  // ARE there. So: a straight-down pass of the real tree quads - the same
+  // proxies as the far cascade, their depth material told to face UP, which
+  // makes the octahedral fold pick the crown's top view - over ±1400 m about
+  // the eye into a 2048² map, re-rendered on 20 m of movement or when a
+  // chunk lands, and the terrain darkens by the blurred coverage. Nothing
+  // classified, nothing guessed: a texel is dark because a crown is over it.
+  const COVER = { on: { value: 0 }, map: { value: null }, vp: { value: new THREE.Matrix4() },
+                  rt: null, cam: null, at: null, dirty: true, half: 1400, size: 2048 };
+  const U_UP = { value: new THREE.Vector3(0, 1, 0) }, U_NONEAR = { value: -1e6 };
   // THE FAR CASCADE (W0c.19). The sun's shadow map reaches ±105-540 m around
   // the aircraft, and the impostor band starts at 450 m: whatever the
   // impostor's own depth material does, the map cannot see it, and the far
@@ -237,6 +253,52 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     p.userData.src = mi;
     FAR.scene.add(p);
     FAR.proxies.set(mi, p);
+    COVER.dirty = true;
+  };
+  const coverRender = eye => {
+    if (!FAR.scene || !renderer || !renderer.setRenderTarget) return;
+    const moved = !COVER.at || Math.hypot(eye.x - COVER.at[0], eye.z - COVER.at[1]) > 20;
+    if (!moved && !COVER.dirty) return;
+    COVER.dirty = false;
+    COVER.at = [eye.x, eye.z];
+    if (!COVER.rt) {
+      COVER.cam = new THREE.OrthographicCamera(-COVER.half, COVER.half, COVER.half, -COVER.half, 1, 6000);
+      COVER.rt = new THREE.WebGLRenderTarget(COVER.size, COVER.size, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter,
+                                                                      format: THREE.RGBAFormat, generateMipmaps: false });
+      COVER.map.value = COVER.rt.texture;
+    }
+    // the eye's ground point, snapped to the map's own grid (a vertical map
+    // has the world's x/z for axes)
+    const texel = 2 * COVER.half / COVER.size;
+    const cx = Math.round(eye.x / texel) * texel, cz = Math.round(eye.z / texel) * texel;
+    const gy = world.terrainH(cx, cz);
+    COVER.cam.position.set(cx, gy + 3000, cz);
+    COVER.cam.up.set(0, 0, 1);
+    COVER.cam.lookAt(cx, gy, cz);
+    COVER.cam.updateMatrixWorld(true);
+    COVER.cam.updateProjectionMatrix();
+    let dead = null;
+    for (const [mi, p] of FAR.proxies) {
+      if (!mi.parent) { (dead = dead || []).push(mi); continue; }
+      p.position.copy(mi.position);
+      p.count = mi.count; p.visible = mi.visible && mi.count > 0;
+      p.userData.farMat = p.material;
+      p.material = (p.material.userData && p.material.userData.cover) || p.material;
+    }
+    if (dead) for (const mi of dead) { FAR.scene.remove(FAR.proxies.get(mi)); FAR.proxies.delete(mi); }
+    const pRT = renderer.getRenderTarget(), pAC = renderer.autoClear;
+    const pCol = new THREE.Color(), pA = renderer.getClearAlpha();
+    { const gc = renderer.getClearColor(pCol); if (gc && gc !== pCol) pCol.copy(gc); }
+    renderer.setRenderTarget(COVER.rt);
+    renderer.setClearColor(0xffffff, 1);
+    renderer.autoClear = true;
+    renderer.render(FAR.scene, COVER.cam);
+    renderer.setRenderTarget(pRT);
+    renderer.setClearColor(pCol, pA);
+    renderer.autoClear = pAC;
+    for (const [, p] of FAR.proxies) if (p.userData.farMat) { p.material = p.userData.farMat; p.userData.farMat = null; }
+    COVER.vp.value.multiplyMatrices(COVER.cam.projectionMatrix, COVER.cam.matrixWorldInverse);
+    COVER.on.value = 1;
   };
   const farRender = eye => {
     if (!FAR.scene || !renderer || !renderer.setRenderTarget) return;
@@ -246,6 +308,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     FAR.at = [eye.x, eye.z];
     for (const [mi, p] of FAR.proxies) {
       if (!mi.parent) { FAR.scene.remove(p); FAR.proxies.delete(mi); continue; }
+      // THE POSITION IS COPIED PER PASS, NOT AT REGISTRATION (W0c.23): the
+      // fill registers its impostor mesh before the chunk offset is set on
+      // it, and a proxy that copied (0,0,0) put a copy of every fill chunk's
+      // trees at the ORIGIN - a phantom forest over the airfield, its trees
+      // at the heights of their real, hilly chunks, casting from 160 m up.
+      p.position.copy(mi.position);
       p.count = mi.count; p.visible = mi.visible && mi.count > 0;
     }
     const gy = world.terrainH(eye.x, eye.z);
@@ -271,6 +339,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     renderer.autoClear = pAC;
     FAR.vp.value.multiplyMatrices(FAR.cam.projectionMatrix, FAR.cam.matrixWorldInverse);
     FAR.on.value = 1;
+    coverRender(eye);
   };
   const hemiLight = () => {
     const h = new THREE.HemisphereLight(C(RIG.skyCol), C(RIG.gndCol), RIG.hemi);
@@ -587,6 +656,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       sh.uniforms.uCanopy = { value: cnpTex };
       sh.uniforms.uFloor = uFloor;
       sh.uniforms.uFarOn = FAR.on; sh.uniforms.uFarMap = FAR.map; sh.uniforms.uFarVP = FAR.vp;
+      sh.uniforms.uCovOn = COVER.on; sh.uniforms.uCovMap = COVER.map; sh.uniforms.uCovVP = COVER.vp;
       sh.vertexShader = sh.vertexShader
         .replace('#include <common>', '#include <common>\nvarying vec3 vWP;\nvarying float vCD;')
         .replace('#include <project_vertex>', '#include <project_vertex>\n' +
@@ -594,7 +664,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       sh.fragmentShader = sh.fragmentShader
         .replace('#include <common>', '#include <common>\nuniform sampler2D uFMask;\n' +
           'uniform sampler2D uCanopy;\nuniform float uFloor;\nvarying vec3 vWP;\nvarying float vCD;\n' +
-          'uniform float uFarOn;\nuniform sampler2D uFarMap;\nuniform mat4 uFarVP;')
+          'uniform float uFarOn;\nuniform sampler2D uFarMap;\nuniform mat4 uFarVP;\n' +
+          'uniform float uCovOn;\nuniform sampler2D uCovMap;\nuniform mat4 uCovVP;')
         // the far cascade, on the direct term only: four taps of packed depth
         .replace('reflectedLight.directDiffuse *= BRDF_Diffuse_Lambert( diffuseColor.rgb ) * getShadowMask();',
           'reflectedLight.directDiffuse *= BRDF_Diffuse_Lambert( diffuseColor.rgb ) * getShadowMask();\n' +
@@ -627,7 +698,22 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           // pasture next to the geometry they replaced.
           'diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * cC * 1.45, fFar);\n' +
           // the floor under the near canopy, handing over to the far tier
-          'diffuseColor.rgb *= mix(1.0, uFloor, fM * (1.0 - fFar));');
+          // the floor under the crowns that ARE there: the canopy map's
+          // coverage, nine taps two texels apart, so the edge of a crown's
+          // shade is a couple of metres wide. Nothing outside its range: a
+          // classified-but-unplanted field must never darken again.
+          'if (uCovOn > 0.5) {\n' +
+          '  vec4 cc = uCovVP * vec4(vWP, 1.0);\n' +
+          '  vec2 cp = cc.xy / cc.w * 0.5 + 0.5;\n' +
+          '  if (cp.x > 0.0 && cp.x < 1.0 && cp.y > 0.0 && cp.y < 1.0) {\n' +
+          // sixteen taps over ±6 m: the shade reaches half a crown past the
+          // crown, which is what anchors a stand's edge and darkens a gap
+          '    float ct = 3.0 / 2048.0, cov = 0.0;\n' +
+          '    for (int j = 0; j < 4; j++) for (int i = 0; i < 4; i++)\n' +
+          '      cov += step(unpackRGBAToDepth(texture2D(uCovMap, cp + vec2(float(i) - 1.5, float(j) - 1.5) * ct)), 0.99);\n' +
+          '    diffuseColor.rgb *= mix(1.0, uFloor, cov / 16.0 * (1.0 - fFar));\n' +
+          '  }\n' +
+          '}');
     };
     // shared close-range grain hook (W13.2): uvScale sets tiles/uv-unit so
     // materials with different uv extents get the same on-ground density
@@ -1111,9 +1197,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     function impostorDepth(atlas, si, farPass) {
       const d = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, alphaTest: 0.5, side: THREE.DoubleSide });
       if (!atlas.tex) return d;
+      const cover = farPass === 'cover';
       d.onBeforeCompile = sh => {
-        sh.uniforms.uCam = uCam; sh.uniforms.uSunDir = { value: SUN };
-        sh.uniforms.uNearB = uNear; sh.uniforms.uFadeW = uFadeW; sh.uniforms.uShadowR = farPass ? U_FARR : uShadowR;
+        sh.uniforms.uCam = uCam; sh.uniforms.uSunDir = cover ? U_UP : { value: SUN };
+        sh.uniforms.uNearB = cover ? U_NONEAR : uNear; sh.uniforms.uFadeW = uFadeW;
+        sh.uniforms.uShadowR = farPass ? U_FARR : uShadowR;
         sh.uniforms.uCy = { value: atlas.cy }; sh.uniforms.uDiam = { value: atlas.diam };
         sh.uniforms.uG = { value: IMP_G }; sh.uniforms.uTile = { value: IMP_TILE };
         sh.uniforms.uAtlas = { value: atlas.tex };
@@ -1687,6 +1775,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         const at = bakeImpostorAtlas(src), m = impostorMat(at, FAR_WOOD, si, P ? tintUniformsOf(src) : null);
         m.userData.depth = impostorDepth(at, si);
         m.userData.farDepth = impostorDepth(at, si, true);
+        (m.userData.farDepth.userData = m.userData.farDepth.userData || {}).cover = impostorDepth(at, si, 'cover');
         plantedKit.push(m, m.userData.depth, m.userData.farDepth);   // the atlas is the cache's
         return m;
       });
@@ -1983,6 +2072,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
               S.imp = impostorMat(at, FAR_FILL, si, tintUniformsOf(S.parts));
               S.imp.userData.depth = impostorDepth(at, si);
               S.imp.userData.farDepth = impostorDepth(at, si, true);
+              (S.imp.userData.farDepth.userData = S.imp.userData.farDepth.userData || {}).cover = impostorDepth(at, si, 'cover');
               SHAPE.kit.push(S.imp, S.imp.userData.depth, S.imp.userData.farDepth);   // the atlas is the cache's
             });
             SHAPE.list.push(H);

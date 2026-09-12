@@ -388,6 +388,24 @@ target creeping 0.37 m a frame through a canopy close-up: unsnapped, 0.71 % of
 pixels change by more than 60/765 each frame (mean 1.55); snapped, **0.00 %**.
 `snap` on the rig row and the panel, for the A/B.
 
+**The canopy map, and the phantom forest (W0c.23).** Two faults the user
+caught in one screenshot. The floor term darkened wherever the biome
+CLASSIFIER said forest floor — the domain mask — and the planter then rejects
+trees on the airfield corridor, the exclusion zones, near water and where no
+stand tree is near, so classified-but-unplanted fields darkened ("you compute
+stuff based on the untrimmed distribution"). The floor is now the CANOPY MAP: a
+straight-down pass of the real tree quads (the far cascade's proxies, their
+depth material told to face up so the fold picks the crown's top view) over
+±1400 m into a 2048² map, re-rendered on 20 m of movement or when a chunk lands,
+and the terrain darkens (`floor` 0.30, the user's number) by sixteen taps of
+coverage over ±6 m. Nothing classified: a texel is dark because a crown is over
+it. And the "ghost patches that cast shadows": the fill registered its impostor
+mesh for the cascade BEFORE its chunk offset was set, so every fill chunk's
+trees had a copy at the ORIGIN — a phantom forest over the airfield, at the
+heights of their real, hilly chunks, casting from 160 m up. Found by
+unprojecting the cascade's texels: casters at (506, 163, 503) with no instance
+within 70 m. The proxies take the source mesh's position every pass.
+
 **Not done.** The `impa` / `implight` per-collection numbers are not in the
 payload (6 / 6.5 and 1 in the tuning: one gain, one lit, for all). The boot rig
 is still `sunset`; `alps` is two clicks on the panel and is the row the trees
