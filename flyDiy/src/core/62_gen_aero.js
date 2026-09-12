@@ -206,20 +206,9 @@ function genStrips(S, fr) {
     }
     return strips;
   }
-  // TWIN BOOMS (2026-09-04): the stab hangs on the boom tails (its HT nodes
-  // and the tails' bottom nodes), and there are two fins, one a boom
-  if (P.BOOMS && P.FIN2 != null) {
-    for (const [H, Bn, Bo, side] of [[P.HTL, P.HTBL, P.HTBR, -1], [P.HTR, P.HTBR, P.HTBL, 1]]) {
-      strips.push({ kind: 'stab', side, area: 0.565 * S.tail.Sh / 2, chord: hc,
-        wash: tailWash * R.stabWash, w: [[H, .50], [Bn, .30], [Bo, .20]] });
-      strips.push({ kind: 'stab', side, area: 0.435 * S.tail.Sh / 2, chord: hc,
-        wash: tailWash * R.stabWash, w: [[H, .25], [Bn, .45], [Bo, .30]] });
-    }
-    for (const [Fn, H, Bn] of [[P.FIN, P.HTR, P.HTBR], [P.FIN2, P.HTL, P.HTBL]])
-      strips.push({ kind: 'fin', area: S.tail.Sv / 2, chord: S.tail.vChord,
-        wash: tailWash * R.finWash, w: [[Fn, .40], [H, .35], [Bn, .25]] });
-    return strips;
-  }
+  // (G268: the twin boom's tail rides the P4 truss below like the
+  // conventional's — two fins in `T.fins`; cut 2's four-node stab and
+  // one-node fins are gone)
   // THE TAIL'S STRIPS RIDE ITS BAYS (TAIL CHANTIER 2 P4): with the truss
   // built (P.TAIL), the stab is two half-bay strips a bay a side on its own
   // spar nodes — `fIn/fOut/rIn/rOut` so the solver takes the chord and the
@@ -230,7 +219,7 @@ function genStrips(S, fr) {
   // between the spars as the wing's does. Before this, 60 % of the stab's
   // load went to the post pair and the tail's incidence was the body's.
   const T = P.TAIL;
-  if (T && T.HF && T.VF) {
+  if (T && T.HF && (T.fins || T.VF)) {
     const cfH = (T.rearH - 0.25) / (T.rearH - T.sparFront), crH = 1 - cfH;
     for (const [side, sd] of [[-1, 'L'], [1, 'R']]) {
       const F = T.HF[sd], Rr = T.HR[sd], zA = T.zsH;
@@ -248,22 +237,27 @@ function genStrips(S, fr) {
       }
     }
     // the carry-through, one strip on the four root nodes (side +1: fIn is
-    // the port root, fOut the starboard — the span runs +z, as a wing's)
-    strips.push({ kind: 'stab', side: 1, t: 0.5, chord: T.chordH(0),
+    // the port root, fOut the starboard — the span runs +z, as a wing's).
+    // G268: a twin boom's bridge has no root pair — one node set at z 0,
+    // no width, no strip
+    if (T.zRootH > 0) strips.push({ kind: 'stab', side: 1, t: 0.5, chord: T.chordH(0),
       area: 2 * T.zRootH * 0.5 * (T.chordH(0) + T.chordH(T.zRootH)),
       fIn: T.HF.L[0], fOut: T.HF.R[0], rIn: T.HR.L[0], rOut: T.HR.R[0],
       w: [[T.HF.L[0], cfH * 0.5], [T.HF.R[0], cfH * 0.5],
           [T.HR.L[0], crH * 0.5], [T.HR.R[0], crH * 0.5]],
       wash: tailWash * R.stabWash });
     const cfV = (T.rearV - 0.25) / (T.rearV - T.sparFront), crV = 1 - cfV;
-    for (let b = 0; b < T.nV; b++) {
-      const u0 = b / T.nV, u1 = (b + 1) / T.nV;
-      strips.push({ kind: 'fin', side: 1, t: 0.5, chord: T.chordV(0.5 * (u0 + u1)),
-        area: (T.hV / T.nV) * 0.5 * (T.chordV(u0) + T.chordV(u1)),
-        fIn: T.VF[b], fOut: T.VF[b + 1], rIn: T.VR[b], rOut: T.VR[b + 1],
-        w: [[T.VF[b], cfV * 0.5], [T.VF[b + 1], cfV * 0.5],
-            [T.VR[b], crV * 0.5], [T.VR[b + 1], crV * 0.5]],
-        wash: tailWash * R.finWash });
+    // G268: every fin the truss built — one on a post, one a boom on a twin
+    for (const fn of (T.fins || [T])) {
+      for (let b = 0; b < fn.nV; b++) {
+        const u0 = b / fn.nV, u1 = (b + 1) / fn.nV;
+        strips.push({ kind: 'fin', side: 1, t: 0.5, chord: fn.chordV(0.5 * (u0 + u1)),
+          area: (fn.hV / fn.nV) * 0.5 * (fn.chordV(u0) + fn.chordV(u1)),
+          fIn: fn.VF[b], fOut: fn.VF[b + 1], rIn: fn.VR[b], rOut: fn.VR[b + 1],
+          w: [[fn.VF[b], cfV * 0.5], [fn.VF[b + 1], cfV * 0.5],
+              [fn.VR[b], crV * 0.5], [fn.VR[b + 1], crV * 0.5]],
+          wash: tailWash * R.finWash });
+      }
     }
     return strips;
   }

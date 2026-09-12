@@ -38530,3 +38530,66 @@ from the seat. GATE PANEL green.
 ## G267 — THE TWIN BOOM'S OWN LOFT, ITS OWN PART AND ITS OWN PAINT; THE
 
 ### G267.1 / G267.2 — THE BOOM'S INCLINATION, ITS COLLAR AND ITS PAINT; THE
+
+## G268 — THE TAIL CHANTIER REACHES THE TWIN BOOMS: THE STAB IS A BRIDGE, THE
+## FINS STAND ON THE BOOMS, BOTH IN THE LOAD RIG (2026-09-12, the user:
+## "Regarding physics, there has been a major tail chantier recently, did we
+## apply all that to the twin booms?" — no; then "agree with your
+## suggestions, go", with the ventral fins ruled AREA)
+
+**What stood before.** Cut 2's tail (G181): the stab was FOUR NODES — the
+two boom tails' tops and bottoms — with two strips a side hung on them, each
+fin ONE NODE with one strip, no spars, no control chord, and GATE LOAD's rig
+could not find either (no HF/HR, no VF/VR). G266 made the booms hold; the
+tail on them was the old approximation.
+
+**What stands now (61_gen_frame's twin-boom block, after the booms).**
+- **The stab is the P4 two-spar truss as a BRIDGE from boom to boom**: the
+  front spar at `tailSparFront`, the rear at the elevator's drawn chord, the
+  HB chord under each station at the box depth, stations at the wing's pitch
+  from the centre out to a station EXACTLY ON EACH BOOM, and one bay outboard
+  when the drawn stab runs past the boom (`semiH` = the drawn half-span, the
+  boom at least). The station on the boom is a PYRAMID on the boom's tail
+  triangle: its three spar nodes and the tagged HT node each tie to T, I, O
+  and to the bay before (out of the triangle's plane) — the boom is the post.
+- **ONE TRUSS ACROSS, NO JOINT AT THE CENTRE.** The first cut built the
+  conventional's two halves meeting through a 0.12 m carry-through. On a
+  fuselage that joint sits on the post; between two booms it is a HINGE (its
+  moment arm is the box depth, 5 cm): ±50 N antisymmetric on the stab and
+  the bridge folded at the centre — the halves hung from the booms, the fins
+  rolled a metre inward, the stab centre dropped 1.25 m, and the rigidity
+  rank had said "rigid" (a snap-through, not a mechanism). The centre station
+  is one node set shared by both sides' arrays (`zRootH` 0), so every bay runs
+  continuous through it and 62's per-side walk holds; the carry-through
+  strip is skipped at zero width.
+- **The tagged tail nodes are the stab's own** (`HTL`/`HTR`, mid-chord at the
+  drawn stab station on each boom, made first): what the tail-arm rig loads,
+  the gauge reads and the game's tail assembly anchors on. G266.2 had raised
+  the boom's own tail top to the stab's height and tagged it HT — a 0.6 m
+  mast on a 0.12 m triangle, and the first thing to snap; the boom's top is
+  back on its crown with its own tag.
+- **Each fin is the P4 truss up from its boom's tail** (VF/VR and the VX
+  pair per station, the apex the drawn fin's top with the rake the drawn
+  apex has over the stab station), the roots on T, I, O and the bay before;
+  `TAIL.fins` carries both, and the conventional publishes its one fin the
+  same way. 62_gen_aero's `P.TAIL` branch walks `T.fins`; cut 2's branch is
+  gone. GATE JOIN's twin assertions hold (two booms, HTR at +boomX, FIN2 at
+  −boomX).
+- **The ventral fins are AREA** (the user's ruling): the join adds the two
+  swept plates (root chord x 0.675 x height, cage units squared) to `Sv`.
+
+**Measured on the user's build** (the tail-arm rig, drawn rows):
+sag 28 mm, rise 1.1 % of the arm under the 1 g share, roll 2.2 deg under the
+antisymmetric half (2.1 on the four-node panel; linear: ±50 N -> ±8 mm).
+**GATE LOAD** gained the twin's two rows on the matrix build: the stab
+−1.8 % at 1 g / −7.1 % at ultimate (the centre sags against the held boom,
+27 % of yield) inside the 10 % bound; the fin −100 % at ultimate — folded to
+the boom — reported not gated, as the conventional's −72 % is: the P4 fin is
+two chords where the real fin has a skin, and on a boom its base is the
+tube's own width. Substeps on the user's build 108 -> 127 (the truss's
+nodes).
+
+**Owed:** the fin's side stiffness on a boom (the lattice's, plus the
+prism's torsion over 2 m bays — the `tube` element again); the game's tail
+anchor still reads HTL/HTR (the same tags, now the stab's own nodes — the
+anchor rigs pick them up unchanged).

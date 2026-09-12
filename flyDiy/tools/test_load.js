@@ -263,6 +263,27 @@ for (const m of Object.keys(GEN_MATERIALS)) {
         `   ${!ok ? '*** DID NOT SURVIVE' : 'ok'}`);
   }
 }
+// G268: THE TWIN BOOM'S TAIL ON THE SAME RIG. Its stab is a bridge between the
+// booms (the rig's root is the centre station, its tip the boom's — the
+// centre SAGS relative to the held boom, so the reading is negative), its
+// fins stand on the boom tails; both must survive and the stab stays inside
+// the same 10 %.
+{
+  const build = () => { const sp = JSON.parse(JSON.stringify(GEN_DEFAULT));
+    sp.tail.type = 'twinBoom'; sp.tail.boomX = 1.25; sp.tail.boomLen = 3.5; return buildGen(sp); };
+  for (const surf of ['stab', 'fin']) {
+    const m = 'tubeFabric';
+    const r1 = loadTest(build(), 1.0, m, surf), rl = loadTest(build(), LIMIT, m, surf), ru = loadTest(build(), ULT, m, surf);
+    if (!r1 || !rl || !ru) { say(`  TWIN BOOM ${m.padEnd(16)} ${surf.padEnd(6)} not measurable`); tailRows.push({ ok: false, lbl: 'twin ' + surf }); continue; }
+    const ok = !r1.bad && !rl.bad && !ru.bad;
+    const yp = ru.worst ? ru.worst.pct : null;
+    tailRows.push({ ok, lbl: `twin ${surf}`, ult: ru.tip });
+    say(`  TWIN BOOM ${m.padEnd(16)} ${surf.padEnd(6)} ${r1.tip.toFixed(2).padStart(6)} % ${rl.tip.toFixed(2).padStart(9)} %` +
+        ` ${ru.tip.toFixed(2).padStart(11)} %   ` +
+        (yp === null ? '        n/a' : `${yp.toFixed(0).padStart(4)}% of yield (${ru.worst.cls})`) +
+        `   ${!ok ? '*** DID NOT SURVIVE' : 'ok'}`);
+  }
+}
 results['P4: every tail surface survived its ultimate case'] = tailRows.every(r => r.ok);
 // THE STAB'S DEFLECTION IS GATED, THE FIN'S IS REPORTED — and the reason is
 // the same one the yield note above gives. The stab bends in the direction
