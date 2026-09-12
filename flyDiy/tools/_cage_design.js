@@ -2151,6 +2151,15 @@ function designBake(sel, over) {
   // ...and so is an open frame (G172's joined row)
   if (!(full.skinOn == null || +full.skinOn))
     designMerge(out, { fuselage: { covering: 'open' } });
+  // G328: ...AND THE TWIN BOOMS. tail.type 'twinBoom' is what the JOIN writes
+  // when it measures the drawn booms (M.boomX); the headless path runs no
+  // join, so the Skymaster-alike and the P-38-alike flew GATE ARCHETYPES
+  // with a conventional tail on a pod that has none. The card's own rows
+  // — the track and the length in metres, as the join would read them —
+  // go on the pre-join spec; the join's measured rows replace them later.
+  if (+full.boomTwin)
+    designMerge(out, { tail: { type: 'twinBoom', boomX: +full.boomX || 1.2,
+                               boomLen: +full.boomLen || 3.0 } });
   designMerge(out, spec);
   if (over) designMerge(out, over.spec || over);
   // THE SEED (TAIL CHANTIER 2 P5; RULED 2026-09-07: lands with the vortex

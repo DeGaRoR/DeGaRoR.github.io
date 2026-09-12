@@ -41313,3 +41313,17 @@ cluster is projected by both, a substep's fraction each — the pulls add,
 nothing fights.
 (The `finTube` rule itself rode into G314 with the rod rules beside it —
 adjacent lines are one diff hunk; nothing read it until this landed.)
+
+## G328 — THE TWIN-BOOM CARDS FLY TWIN BOOMS HEADLESS (2026-09-12, "keep
+## going")
+
+`tail.type = 'twinBoom'` was only ever written by the join measuring the
+drawn booms (`M.boomX`), and the headless path — GATE ARCHETYPES, the
+design check, the series runner — runs no join: the Skymaster-alike and
+the P-38-alike flew with a CONVENTIONAL tail on a pod that has none, and
+the frame's twin-boom block, its clusters and its tail truss were never
+exercised by a card. `designBake` now puts the card's own twin tail on the
+pre-join spec (type, the track and the length in metres, as the join reads
+them); the join's measured rows replace them the moment the page runs.
+Headless now: the Skymaster twin booms and two fins (clusters at 474 /
+631 rad/s, 90 substeps), the P-38 at 530 / 665, 94.
