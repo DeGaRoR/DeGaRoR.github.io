@@ -39546,10 +39546,28 @@ worktree with GATE WORLDRENDER + GATE TREES.
   half-foliage L2 kept in the payload behind the dial; menu near
   60/270/270, far 150/450/450. A/B under a loaded machine: no difference
   (Off 16.9 vs 16.9, Smoothest 23.8 vs 23.5); a quiet re-measure is owed.
+- **W0c.33 + D0 (2026-09-13, the close):** GATE LIGHT had been red since
+  W0c.8 (its check asked for the W17 lit bake's second `hemiLight()`; it
+  asserts the G-buffer bake + the Standard impostor now). The full battery
+  for `12272c7`: 63 PASS, LIGHT (fixed), GEN timed out at the runner's cap
+  under two peer batteries and PASSED alone (73 min) — a timeout is not a
+  verdict. D0 (`f506a71`) reconciled ROADMAP Phase 3 / Phase 7 / the
+  WORLD-PATH RULING to WORLD-V2 §11 (DECIDED: Admiralty → URSOY; W0
+  landed; **next is W0.5a, the three.js upgrade r128 → current on
+  WebGLRenderer, before any new shader work** — RENDERER-DECISION §4b,
+  whose text is UNCOMMITTED in the shared tree as of this close). The
+  briefing for the next world session is
+  `futureDesigns/WORLD-QUEST-BRIEFING-2026-09-13.md`.
+- **THE THREAD IS CLOSED.** W0c.6 → W0c.33 + G286 + D0, thirty-odd
+  commits, all through the temporary index, generated artifacts
+  uncommitted, nothing pushed. Owed (written in the briefing): the boot
+  rig decision, a quiet-machine re-measure of the no-L2 ladder, the forest
+  card/editor with persistence, bushes and grass, S1/S2 of the sky (pure
+  data, can start now), and — not the trees' — the ~7 ms of `sim.step` +
+  instruments the paused benchmark exposed.
 - **Not done, on purpose:** the boot rig (still `sunset`; `alps` is where
-  the trees were judged), the forest card in the rail and the GRAPHICS
-  SETTINGS menu (`futureDesigns/GRAPHICS-SETTINGS-2026-09-12.md`, the
-  spec — see G286), bushes and grass.
+  the trees were judged), the forest card in the rail, bushes and grass.
+  (The GRAPHICS SETTINGS menu is done — G286.)
 
 ## G285 — THE OUTDOOR FURNITURE THAT HAD NOT BEEN BROUGHT IN, THE SOFA OUT,
 ## THE PROPS SPREAD ACROSS THE VILLAGE, POLES ALONG THE ROAD, AND THE BUICK
