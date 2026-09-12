@@ -175,6 +175,14 @@ failed check to point at. A timeout is not a verdict. If timing itself is the
 question, A/B the two cores on the same machine minutes apart (`git show
 HEAD:flyDiy/tools/flight_core.js`, swap, `--only=<gate> --no-build`, swap back)
 — an absolute number from a previous session proves nothing.
+GATE CLIP (G299, ~9 s) is the NO-CLIPPING instrument: every drawing layer run
+headless over four builds, every fitting vertex measured SIGNED against the
+drawn skin triangles — at rest, at full control travel both ways, under a
+wing-flex envelope and (twin booms) a tail-anchor throw — plus a fitting inside
+another layer's solid. `fixtures/clip_baseline.json` makes it a ratchet: red
+only for a NEW or deeper finding; `--rebase` after a chantier clears some;
+`--report` lists every fitting's worst depth. See
+futureDesigns/FITMENT-STUDY-2026-09-12.md.
 GATE GEN (after STRESS) audits a GENERATED airframe rather than a fixed one:
 symmetry (nodes, beams AND masses — an asymmetric mass flies a wing low),
 orphans/duplicates, a full RIGIDITY test (rank 3n-6, which is the real form of
@@ -39944,3 +39952,62 @@ top; measured on the user's build the rotor's base is 2 mm under the top.
   beside the 139 mm half-width strip (6 cm clear of the glass);
   convertible → header; open → coaming.
 - L3 (the dials lit from posts through an irradiance map) is next.
+
+## G299 — GATE CLIP: NO FITTING INSIDE THE SKIN, AT REST OR POSED (2026-09-12,
+## the fitment study, P0; the user: "some fitment clip through the fuselage,
+## some move because they're attached to the wrong physics model part ... I
+## want no clipping" — the study: futureDesigns/FITMENT-STUDY-2026-09-12.md)
+
+- **What it measures**: every drawing layer run HEADLESS over four builds
+  (stock, rod boom, the twin-boom fixture, stock + IFR wing tank) —
+  `_scene_headless.js` runs `build.js`'s `MANIFEST.editor` under node with
+  the real r128 three.js and a six-line document, the page's own
+  `cageSheet` + `PAGE.post` chain, 0.6-0.9 s a build. Every fitting vertex
+  (access, lights, hinge hardware and links, gear legs and castor, struts,
+  the pitot) is asked its SIGNED distance to the nearest DRAWN skin
+  (`_mesh_query.js`: AABB tree, angle-weighted pseudonormals; a rim never
+  votes beyond itself, so an open loft and a fuselage minus its door answer
+  sensibly). Not the airframe table: that is ±3.5 mm by measurement and a
+  fitting stands 0.4-0.8 mm proud. Allowance 1.5 mm; the static port's
+  recess, a lamp's `site.buried`, the links and the hinge kit's `inner`
+  bag (bellcrank, torque-tube pivot) are the declared exceptions.
+- **Posed as the flown model would pose it** (`_pose_headless.js`): the
+  join's membership by ancestor name (`_cage_join.js:1694`), every surface
+  at full declared travel both ways about the hinge the join bakes
+  (`cageSurfLine`/`cageSurfPlane` lifted out of `snapshotAt` and exported
+  beside `cageSurfHinge`), a synthetic wing-flex parabola over the
+  viewer's binding box with the strut's two-end follow, and on twin booms a
+  ±40 mm tail-anchor throw over the parts the join anchors. A
+  `userData.partOf` tag is honoured — the contract P1 will teach the join.
+- **Cross-layer**: signed distance into the non-skin solids, accepted only
+  inside the nearest triangle's own component box (one kit part wound
+  wrong claimed a static port 520 mm away).
+- **The ratchet**: `fixtures/clip_baseline.json` — 230 known lines
+  (build | pose | fitting | skin → mm); red only for a NEW or deeper
+  (> 0.5 mm) finding; CLEARED lines printed; `--rebase` after a chantier.
+  Twin-boom `tail±` lines are a DECLARED GAP until P1. `--report` lists
+  every fitting's worst depth; `--selftest` breaks it seven ways.
+- **Found on day one, all real, each probed** (the study's §1): the strut
+  doubler's bolts pointing INWARD (`strutSkin.nrmAt` flipped any normal
+  with +y — fixed here: outward is away from the section centre); a spring
+  leg's bow through the belly corner (35 mm); the tailwheel root in the
+  tail cone (18 mm); the aileron inspection cover sited ON the aileron cut
+  (17-21 mm, and the aileron sweeps into it); strap hinges laid at hinge
+  radius on a section that thickens forward (8-11 mm wing, 3-6 mm tail);
+  the bay-less wing lamp's proud housing inside the LE (42 mm, twin); boom
+  aerials inside the fin root (22 mm, twin — a peer's `finBand` skip is in
+  the tree); the upright comm aerial's root chord in the deck (6.5 mm);
+  the castor under the rudder at full travel (11 mm); the flap on the
+  wing-mounted leg (30 mm, twin); the trike's nose leg inside the nose cowl
+  (298 mm, twin); and on the twin every static tail fitting parting from
+  its fin/stab/boom under the anchor throw (6-33 mm).
+- **Traps**: the most-negative distance over all skins is wrong (an open
+  patch folded at its rim reads a fitting 2 m away as inside) — the
+  NEAREST skin decides; ray parity is wrong on open lofts and overlapping
+  closed parts; the layers dispose their previous groups on every post, so
+  a scene handle from an earlier build is empty; `GEN_INFL` was not among
+  the core's node exports and `_cage_wing.js` fell back to 4 headless,
+  picking no wing skin — exported; `_strut_gen.js` is CRLF.
+- Order in the plan: P1 the part tag (flips the tail gap to enforced), P2
+  the rest-pose list above (`--rebase` down), P3 saddles on the rod, P4
+  door hinges + handle, shut.

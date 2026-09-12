@@ -312,11 +312,18 @@ function strutSkin(AF, zLo, zHi) {
   // FACETED, and a two-millimetre difference reads one quad's plane rather
   // than the shape the quad belongs to — which would tilt every bolt by the
   // subdivision's own noise.
+  // OUTWARD IS AWAY FROM THE SECTION CENTRE, not "downward". The first rule
+  // flipped any normal with a positive y, which is right at the keel and
+  // wrong on a near-vertical flank: there the true outward normal carries a
+  // few millimetres of +y and was turned INWARD, so the doubler's four bolts
+  // pointed into the fuselage with their shanks 17 mm inside the skin
+  // (GATE CLIP, 2026-09-12, on the stock strut foot at ang 0.8).
   const nrmAt = (z, ang) => {
     const p = surf(z, ang);
     const n = nrm3(crs3(sub3(surf(z, ang + 0.02), surf(z, ang - 0.02)),
                         sub3(surf(z + 0.05, ang), p)));
-    return n[1] > 0 ? [-n[0], -n[1], -n[2]] : n;   // outward (downward at the keel)
+    const out = [p[0], p[1] - AF.cyAt(z), 0];
+    return (n[0] * out[0] + n[1] * out[1]) < 0 ? [-n[0], -n[1], -n[2]] : n;
   };
   const halfWAt = z => Math.abs(surf(z, Math.PI / 2)[0]);
   const S = Object.assign({}, AF, { surf, nrmAt, halfWAt, exact: true });

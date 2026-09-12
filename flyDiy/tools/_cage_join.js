@@ -683,6 +683,41 @@ const VIEW_KEEP = {
 // fallback for a surface that declares no plane (the wing's), and for a
 // declared plane that catches no vertices (a stale layer). `hingeFrom` says
 // which was used.
+// THE DECLARED HINGE LINE, in cage metres (P1/P3, lifted out of snapshotAt
+// for GATE CLIP): the fin's `measure.hinge.line` (root point -> top point,
+// fin space [y, z]) and the stab's laid through its own finToStab (side,
+// rootX, stabY, sRef, zOff, cant — the lay the layer built with). Null for
+// a surface that declares none (the wing's).
+function cageSurfLine(surf, L) {
+  const S2h = surf.replace(/2$/, '');
+  const FNh = L && L.FIN, SBh = L && L.STAB, FIN2 = L && L.FIN_GEN;
+  if (S2h === 'rud' && FNh && FNh.measure && FNh.measure.hinge && FNh.measure.hinge.line) {
+    const FS = FNh.measure.FS;
+    return FNh.measure.hinge.line.map(p => [0, p[0] * FS, p[1] * FS]);
+  }
+  if ((S2h === 'elevR' || S2h === 'elevL') && SBh && SBh.measure &&
+      SBh.measure.hinge && SBh.measure.hinge.line && SBh.lay && FIN2) {
+    const FS = SBh.measure.FS;
+    const side = S2h === 'elevR' ? 1 : -1;     // 'R' is the cage's +x
+    const laid = FIN2.finToStab({ V: SBh.measure.hinge.line.map(p => [0, p[0], p[1]]), F: [] },
+                                Object.assign({}, SBh.lay, { side })).V;
+    return laid.map(p => [p[0] * FS, p[1] * FS, p[2] * FS]);
+  }
+  return null;
+}
+// the band plane through that line whose normal lies along the chord:
+// n = x̂ − (x̂·d̂)d̂, d = n·p0 — in whatever frame `toModel` maps the two
+// points into (the join's body axes; the poser's cage axes)
+function cageSurfPlane(cagePts, toModel) {
+  const p0 = toModel(cagePts[0]), p1 = toModel(cagePts[1]);
+  const d = [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]];
+  const L = Math.hypot(d[0], d[1], d[2]) || 1;
+  const dh = [d[0] / L, d[1] / L, d[2] / L];
+  const n = [1 - dh[0] * dh[0], -dh[0] * dh[1], -dh[0] * dh[2]];
+  const nL = Math.hypot(n[0], n[1], n[2]) || 1;
+  const nh = [n[0] / nL, n[1] / nL, n[2] / nL];
+  return { n: nh, d: nh[0] * p0[0] + nh[1] * p0[1] + nh[2] * p0[2] };
+}
 function cageSurfHinge(pts, surf, opts) {
   const S2 = surf.replace(/2$/, '');
   const H = opts && opts.hinge && opts.hinge.n ? opts.hinge : null;
@@ -738,7 +773,11 @@ function cageSurfHinge(pts, surf, opts) {
 
 if (typeof module !== 'undefined' && module.exports)
   module.exports = { cageJoinSpec, cageWingCuts, CAGE_JOIN_ENGINES, CAGE_JOIN_PROP_MATS,
-                     VIEW_STATE, VIEW_KEEP, cageSurfHinge };
+                     VIEW_STATE, VIEW_KEEP, cageSurfHinge, cageSurfLine, cageSurfPlane };
+// the pure hinge trio for a page that loads the layer without a mount (the
+// headless poser reads them off the window in the browser bench)
+if (typeof window !== 'undefined')
+  window.CAGE_JOIN_PURE = { cageSurfHinge, cageSurfLine, cageSurfPlane };
 
 // ---- browser glue: measurements + the button (game bundle only) ----
 if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
@@ -2129,35 +2168,15 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         // through the vertex map — cage (x, y, z) → (−z·FS, y·FS, x·FS),
         // then the pitch — and the band plane is the one through the line
         // whose normal lies along the chord: n = x̂ − (x̂·d̂)d̂, d = n·p0.
-        const S2h = pt.surf.replace(/2$/, '');
-        const FIN2 = window.FIN_GEN;
-        let hplane = null;
+        // (GATE CLIP, P0: the line and the plane are module-scope pure
+        // functions now — cageSurfLine / cageSurfPlane — so the headless
+        // poser turns a surface about the same hinge the flight does)
         const toModel = c => {                       // cage → body axes
           const px = -c[2], py = c[1];
           return [px * cB - py * sB, px * sB + py * cB, c[0]];
         };
-        let cagePts = null;                          // [p0, p1] in cage units × FS
-        if (S2h === 'rud' && FNh && FNh.measure && FNh.measure.hinge && FNh.measure.hinge.line) {
-          const FS = FNh.measure.FS;
-          cagePts = FNh.measure.hinge.line.map(p => [0, p[0] * FS, p[1] * FS]);
-        } else if ((S2h === 'elevR' || S2h === 'elevL') && SBh && SBh.measure &&
-                   SBh.measure.hinge && SBh.measure.hinge.line && SBh.lay && FIN2) {
-          const FS = SBh.measure.FS;
-          const side = S2h === 'elevR' ? 1 : -1;     // 'R' is the cage's +x
-          const laid = FIN2.finToStab({ V: SBh.measure.hinge.line.map(p => [0, p[0], p[1]]), F: [] },
-                                      Object.assign({}, SBh.lay, { side })).V;
-          cagePts = laid.map(p => [p[0] * FS, p[1] * FS, p[2] * FS]);
-        }
-        if (cagePts) {
-          const p0 = toModel(cagePts[0]), p1 = toModel(cagePts[1]);
-          const d = [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]];
-          const L = Math.hypot(d[0], d[1], d[2]) || 1;
-          const dh = [d[0] / L, d[1] / L, d[2] / L];
-          const n = [1 - dh[0] * dh[0], -dh[0] * dh[1], -dh[0] * dh[2]];
-          const nL = Math.hypot(n[0], n[1], n[2]) || 1;
-          const nh = [n[0] / nL, n[1] / nL, n[2] / nL];
-          hplane = { n: nh, d: nh[0] * p0[0] + nh[1] * p0[1] + nh[2] * p0[2] };
-        }
+        const cagePts = cageSurfLine(pt.surf, { FIN: FNh, STAB: SBh, FIN_GEN: window.FIN_GEN });
+        const hplane = cagePts ? cageSurfPlane(cagePts, toModel) : null;
         hinge = cageSurfHinge(pts, pt.surf, { cant: SBh ? SBh.cant : 0, hinge: hplane });
         if (!hinge) continue;
         if (hplane && hinge.hingeFrom !== 'declared')

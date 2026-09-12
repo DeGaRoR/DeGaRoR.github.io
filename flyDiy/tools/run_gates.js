@@ -111,6 +111,14 @@ const GATES = [
   // Fowler's own translation, the hinge table's bounds and that every shape
   // in _hinge_gen draws. Sub-second. Negative-verified (--selftest).
   { id: 'HINGE', file: '_hinge_check.js', tier: 'core' },
+  // NO CLIPPING (the fitment study, P0, 2026-09-12): every drawing layer run
+  // headless over four builds, every fitting vertex measured SIGNED against
+  // the drawn skin triangles — at rest, at full control travel both ways,
+  // under a wing-flex envelope and (twin booms) a tail-anchor throw — plus a
+  // fitting inside another layer's solid. A baseline of known reds
+  // (fixtures/clip_baseline.json) makes it a ratchet: red only for a NEW or
+  // deeper finding; `--rebase` after a chantier clears some. ~9 s.
+  { id: 'CLIP', file: '_clip_check.js', tier: 'core' },
   // THE WING'S SHAPE (G67.1): thirteen wings frozen as digests over every
   // position, uv and binding weight, so the wing could leave 63_gen_skin.js
   // without changing by a millimetre. Sub-second, and it stays in the battery

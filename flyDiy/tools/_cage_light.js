@@ -1271,6 +1271,9 @@ PAGE.post = (ctx) => {
       // its axis and there is no surface to stand on.
       const sink = site.sink == null ? 0.5 : site.sink;
       const lift = high * (0.5 - sink);
+      // what GATE CLIP allows below the skin: the pod's sunk share of its
+      // own extent (a tip pod stands half INTO the tip along its axis)
+      site.buried = Math.max(high, wide, len) * sink;
       const P0 = [site.p[0] + site.ax[0] * lift,
                   site.p[1] + site.ax[1] * lift,
                   site.p[2] + site.ax[2] * lift];
@@ -1329,8 +1332,10 @@ PAGE.post = (ctx) => {
                          site.p[2] - site.ax[2] * r * 0.60],
                   site.ax, PROF.gasket, 16, r);
     }
-    lodge.mesh(group); seal.mesh(group); cup.mesh(group);
+    for (const m of [lodge.mesh(group), seal.mesh(group), cup.mesh(group)])
+      if (m) m.userData.lampKey = key;         // GATE CLIP's identity per lamp
     const o = lens.mesh(group);
+    if (o) o.userData.lampKey = key;
     // THE MIRROR THAT MAKES IT FLASH. It is a child GROUP so that it can turn
     // while the housing and the dome stand still, and it is REAL GEOMETRY
     // aimed sideways — the user's rule again: no light without something to be

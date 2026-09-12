@@ -254,7 +254,11 @@ PAGE.post = ctx => {
     detail,
   };
 
-  const bagsF = { metal: K.Bag(), fair: K.Bag() };
+  // `inner` is the hardware that lives INSIDE the wing by design — the
+  // bellcrank and the flap's torque-tube pivot — meshed as metal but kept
+  // apart so GATE CLIP can allow it where a strap on the skin is not allowed
+  const bagsF = { metal: K.Bag(), fair: K.Bag(), inner: K.Bag() };
+  const HG_BAGS_F = HG.HINGE_BAGS.concat(['inner']);
   const perSurf = {};                  // key -> { metal, fair }
   const bagM = key => (perSurf[key] || (perSurf[key] = { metal: K.Bag(), fair: K.Bag() }));
 
@@ -288,6 +292,8 @@ PAGE.post = ctx => {
     const axis = V.sub(s.B, s.A);
     const S = Object.assign({}, S0, { r: s.r });
     const bm = bagM(s.key);
+    // GATE CLIP reads the fixed halves per surface out of the airframe bags
+    const tF0 = {}; for (const k of HG_BAGS_F) tF0[k] = bagsF[k].tris;
 
     // ---- the hinges ------------------------------------------------------
     const faces = row.faces || 1;
@@ -334,13 +340,13 @@ PAGE.post = ctx => {
           // — the rod ran nearly parallel to the lower skin and read as a
           // stick lying on the wing rather than as a rod coming out of it.
           const bc = HG.at(F, -0.13, -S.r * 0.25, 0);
-          HG.bellcrank(bagsF.metal, frameOn(bc, axis, s.aft, s.face), S,
+          HG.bellcrank(bagsF.inner, frameOn(bc, axis, s.aft, s.face), S,
                        V.mul(V.nrm(V.sub(eye, bc)), 0.075),
                        V.mul(F.x, -0.075));
           pin = V.add(bc, V.mul(V.nrm(V.sub(eye, bc)), 0.075));
         } else if (row.link === 'rod') {
           pin = HG.at(F, -0.24, S.r * 1.05, 0);
-          revolve(bagsF.metal, pin, F.z,
+          revolve(bagsF.inner, pin, F.z,
             [[S.linkR * 1.4, 0], [S.linkR * 1.4, S.w * 0.5]], 10, true);
         } else {
           pin = HG.at(F, -Math.max(0.35, s.chord * 2.0), S.hornReach, 0);
@@ -366,8 +372,9 @@ PAGE.post = ctx => {
         HG.fowlerCarriage(bm.metal, F, S);
       }
     }
+    const trisF = {}; for (const k of HG_BAGS_F) trisF[k] = [tF0[k], bagsF[k].tris];
     placed.push({ key: s.key, kind: s.kind, family: fam, n: ts.length,
-                  span, r: s.r, serves: row.serves });
+                  span, r: s.r, serves: row.serves, trisF });
   }
 
   // ---- into the scene --------------------------------------------------
@@ -377,10 +384,11 @@ PAGE.post = ctx => {
   // A ROW IS ONLY REAL IF THE BUILD DREW IT (the fittings arc's own rule):
   // `matFor` CLAIMS a livery section, so calling it for an empty bag would put
   // "the hinge fairings" in the material panel of an aeroplane that has none.
-  for (const k of HG.HINGE_BAGS) {
+  for (const k of HG_BAGS_F) {
     if (!bagsF[k].tris) continue;
     tris += bagsF[k].tris;
-    bagsF[k].mesh(group, matFor(k));
+    const mF = bagsF[k].mesh(group, matFor(k === 'inner' ? 'metal' : k));
+    if (mF) mF.userData.hingeBag = k;          // which bag: GATE CLIP's key
   }
   // THE LINKS ARE THEIR OWN OBJECTS, named and carrying their two ends and
   // the surface that moves the far one, so the join can publish each as a

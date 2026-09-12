@@ -633,16 +633,20 @@ PAGE.post = ctx => {
           return (q && isFinite(q[0])) ? q : F.n;
         };
       }
+      // GATE CLIP reads each fitting's own triangles back out of the
+      // merged bags, so the range every form wrote is recorded with the site
+      const t0 = {}; for (const k of FG.FIT_BAGS) t0[k] = bags[k].tris;
       try { form(bags, F, row.size || {}, { surf, pitch }); }
       catch (e) { unplaced.push(row); continue; }
       nFit++;
+      const tris = {}; for (const k of FG.FIT_BAGS) tris[k] = [t0[k], bags[k].tris];
       // THE NORMAL RIDES ALONG in the record. It is what a diagnostic has to
       // look down to see whether a fitting is there at all — the first pixel
       // pass without it fell back to "up" for everything and reported seven
       // perfectly good fittings as invisible.
       placed.push({ key: row.key, name: row.name, serves: row.serves,
                     on: row.on, side: s.side, p: pm, n: F.n,
-                    st: s.st, lv: s.lv, mat: s.mat });
+                    st: s.st, lv: s.lv, mat: s.mat, tris });
     }
   }
 
@@ -652,7 +656,10 @@ PAGE.post = ctx => {
   group.name = 'cageLayer:access';
   // NOT SCALED. The fittings were built in metres; scaling here would apply
   // planeScale twice and grow a 75 mm filler cap with the aeroplane.
-  for (const k of FG.FIT_BAGS) bags[k].mesh(group, matFor(k));
+  for (const k of FG.FIT_BAGS) {
+    const m = bags[k].mesh(group, matFor(k));
+    if (m) m.userData.fitBag = k;              // which bag: GATE CLIP's key
+  }
   scene.add(group);
 
   const tris = FG.FIT_BAGS.reduce((s, k) => s + bags[k].tris, 0);
