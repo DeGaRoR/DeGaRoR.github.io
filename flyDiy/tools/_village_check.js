@@ -170,6 +170,50 @@ function battery(name, vil) {
   }
   if (water >= 3) check(jetties >= Math.ceil(water * 0.5), name + ': too few waterfront houses reach the water',
                         jetties + ' of ' + water);
+  // 10 — THE LOT'S GROUND (G290): every vertex of the patch two centimetres
+  //   over the terrain (it owns its surface, never its height), every weight
+  //   in range, alpha 1 inside the plot and 0 at the margin's edge; under
+  //   the house the ground is dry, on the path it is dirt, a stride inside
+  //   a fenced edge the grass is dense, and at the seafront it is pebbles.
+  for (const plot of vil.plots) {
+    if (plot.house === undefined) continue;
+    const h = vil.houses[plot.house];
+    const L = VG.lotGround(vil, plot, h, h.built, []);
+    check(L.verts > 100 && L.idx.length > 0, name + ': plot ' + plot.id + ' has no ground patch');
+    let off = 0, bad = 0;
+    for (let i = 0; i < L.verts; i++) {
+      if (Math.abs(L.pos[i * 3 + 1] - (T.h(L.pos[i * 3], L.pos[i * 3 + 2]) + 0.02)) > 0.002) off++;
+      for (let k = 0; k < 4; k++) { const v = L.splat[i * 4 + k]; if (!(v >= 0 && v <= 1)) bad++; }
+      for (let k = 0; k < 2; k++) { const v = L.tone[i * 2 + k]; if (!(v >= 0 && v <= 1)) bad++; }
+      const a = L.alpha[i]; if (!(a >= 0 && a <= 1)) bad++;
+    }
+    check(off === 0, name + ': the ground patch on plot ' + plot.id + ' is not on the terrain', off + ' vertices');
+    check(bad === 0, name + ': the ground patch on plot ' + plot.id + ' has a weight out of range');
+    // the nearest vertex to a point, and its weights
+    const at = (x, z) => {
+      let bi = 0, bd = 1e9;
+      for (let i = 0; i < L.verts; i++) { const d = Math.hypot(L.pos[i * 3] - x, L.pos[i * 3 + 2] - z); if (d < bd) { bd = d; bi = i; } }
+      return { dry: L.splat[bi * 4 + 1], dirt: L.splat[bi * 4 + 2], peb: L.splat[bi * 4 + 3], lush: L.tone[bi * 2 + 1], alpha: L.alpha[bi], d: bd };
+    };
+    const c = at(h.x, h.z);
+    check(c.dry > 0.9 && c.alpha > 0.99, name + ': plot ' + plot.id + ' is not dry under its house', c.dry.toFixed(2));
+    const sg = (plot.path || [])[1];
+    if (sg) { const m = at((sg[0][0] + sg[1][0]) / 2, (sg[0][1] + sg[1][1]) / 2); check(m.dirt > 0.85, name + ': plot ' + plot.id + ' has no dirt on its path', m.dirt.toFixed(2)); }
+    const fr = (plot.fences || []).find(f => f.kind === 'side');
+    if (fr) {
+      const mid = [(fr.a[0] + fr.b[0]) / 2, (fr.a[1] + fr.b[1]) / 2];
+      const cen = centreOf(plot.poly);
+      const dir = [cen[0] - mid[0], cen[1] - mid[1]], dl = Math.hypot(dir[0], dir[1]) || 1;
+      const q = at(mid[0] + dir[0] / dl * 0.5, mid[1] + dir[1] / dl * 0.5);
+      if (T.h(mid[0], mid[1]) > T.waterY + 0.5) check(q.lush > 0.5, name + ': plot ' + plot.id + ' has no dense grass by its fence', q.lush.toFixed(2));
+    }
+    if (plot.side === 'water') {
+      // a point just above the tide inside the plot, if the patch reaches one
+      let found = null;
+      for (let i = 0; i < L.verts && !found; i++) { const y = L.pos[i * 3 + 1] - 0.02; if (y > T.waterY + 0.15 && y < T.waterY + 0.3 && L.alpha[i] > 0.99) found = i; }
+      if (found !== null) check(L.splat[found * 4 + 3] > 0.9, name + ': plot ' + plot.id + ' has no pebbles at its seafront');
+    }
+  }
   // 8 — THE POLES (G285): a known pole, on the ground, on the road's verge
   //   (a metre or two off the road's line), on no plot
   for (const q of vil.poles || []) {
@@ -241,11 +285,14 @@ function battery(name, vil) {
       }
       if (o.built) check(o.built.stats.nan === 0 && o.built.stats.degen === 0 && o.built.stats.tris > 100,
                          name + ': the ' + o.kind + ' on plot ' + plot.id + ' did not build clean');
-      if (o.kind === 'garage' && plot.car) {
+      if (o.kind === 'garage' && plot.car && plot.car.garage) {
         const c = plot.car, cy2 = Math.cos(o.yaw), sy2 = Math.sin(o.yaw);
         const x = c.x - o.x, z = c.z - o.z, lx = x * cy2 - z * sy2, lz = x * sy2 + z * cy2;
-        check(Math.abs(lx) < 0.6 && Math.abs(lz - Q.w / 2) < 1.2, name + ': the car on plot ' + plot.id + ' is not in the garage door',
-              lx.toFixed(2) + ',' + lz.toFixed(2) + ' vs w/2 ' + (Q.w / 2).toFixed(2));
+        // in FRONT of the door (G290): its own half-length and a step past the wall
+        const KC = HG.YARD_KIT[c.key];
+        check(Math.abs(lx) < 0.6 && Math.abs(lz - (Q.w / 2 + KC.L / 2 + 1.2)) < 0.3,
+              name + ': the car on plot ' + plot.id + ' is not in front of the garage door',
+              lx.toFixed(2) + ',' + lz.toFixed(2) + ' vs ' + (Q.w / 2 + KC.L / 2 + 1.2).toFixed(2));
       }
     }
     // 7 — the car (G276): a known car, on its plot a half-length inside the
@@ -329,6 +376,8 @@ if (SELFTEST) {
   if (!probe(vil => { const p = vil.plots.find(q => q.house !== undefined); p.path = []; })) neg.push('a plot with no path passed');
   if (!probe(vil => { const p = vil.plots.find(q => q.car); if (p) p.car.x = p.house !== undefined ? vil.houses[p.house].x : p.car.x; if (p) p.car.z = vil.houses[p.house].z; }))
     neg.push('a car in the house passed');
+  if (!probe(vil => { const p = vil.plots.find(q => q.house !== undefined); vil.T = Object.assign({}, vil.T, { h: (x, z) => vil.houses[0].y + 5 }); }))
+    neg.push('a ground patch off the terrain passed');
   if (!probe(vil => { const p = vil.plots.find(q => q.out); if (p) { p.out.x = vil.houses[p.house].x; p.out.z = vil.houses[p.house].z; } }))
     neg.push('an outbuilding in the house passed');
   if (!probe(vil => { if (vil.poles.length) { const q = vil.poles[0]; q.x = vil.houses[0].x; q.z = vil.houses[0].z; } }))

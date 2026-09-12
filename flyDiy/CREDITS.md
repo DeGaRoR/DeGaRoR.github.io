@@ -299,6 +299,16 @@ Modifications made:
   a ring scan tiled onto a disc puts the pith anywhere but the middle. No
   licence to carry.
 
+## The lot's ground (`assets/groundTextures/` → `assets/lot/`, baked and served from media/)
+
+The five ground scans the village's lots are splatted with (G290): all
+**ambientCG, CC0** (https://ambientcg.com) — `Grass001` (`lush`, the dense
+grass by the fences), `Grass004` (`grass`), `Gravel022` (`pebble`, the
+seafront), `Ground081` (`dry`, under the buildings), `Ground110` (`dirt`, the
+paths). Normalised by `tools/lot_tex_import.py` to diff / nor_gl / rough (1k
+archive + 512 working copy), baked by `tools/lot_tex_prep.js` into
+`src/viewer/lot_tex.js` + `media/tex/lot/`.
+
 ## Skin sheets (`assets/skin/`, baked and served from media/)
 
 The CC0 PBR sets the AEROSKIN material library wears that are not wood: the

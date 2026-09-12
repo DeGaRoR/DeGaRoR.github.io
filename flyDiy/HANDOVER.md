@@ -39655,3 +39655,49 @@ from 40° off-axis: the dome fills the window, no can.
   ALTERNATOR switches (lit when on). Stickers still wanted: master (or
   batt), alt, taxi (to replace "cruise"); optionally a round placard for
   the key (OFF · L · R · BOTH · START) and "throttle" for the push-pull.
+
+## G290 — THE LOT OWNS ITS GROUND: A PATCH ON THE TERRAIN SPLATTED FROM THE
+## PLAN; THE OUTBUILDINGS AT THE CORNERS; A PATH TO THEM; THE CAR IN FRONT OF
+## THE GARAGE (2026-09-12, the user: "I have provided 5 ground textures ... mix
+## up the different textures on the basis of a perlin noise mask ... a layer
+## of simple color tinting the grass. The grass should be more dense/lush
+## close to the fences, not growing under the houses ... the seafront uses
+## pebbles ... stick them close to the corners and the bottom of the
+## properties, not so close to the house ... the different paths expected
+## from the house to there ... if you half stick the cars in the garage, you
+## need to have the garage door open ... Maybe not worth it")
+
+- **THE FIVE SETS** (`tools/lot_tex_import.py` → `assets/lot/`,
+  `tools/lot_tex_prep.js` → `src/viewer/lot_tex.js` + `media/tex/lot/`, in
+  GATE MEDIA's manifests, credited): `lush` Grass001, `grass` Grass004,
+  `pebble` Gravel022, `dry` Ground081, `dirt` Ground110.
+- **THE PATCH** (`lotGround` in `_village_gen.js`): a 0.45 m grid over the
+  plot's polygon and a 1.8 m margin, every vertex put ON the terrain by the
+  height sampler plus two centimetres — the lot owns its surface, never its
+  height — carrying the plan's splat: `aSplat` = (the yellower grass on a
+  slow noise, dry under the house / deck / outbuilding, dirt along every
+  path incl. the house's own stair path, pebbles by height above the tide),
+  `aTone` = (dark from the same occluders the skirt reads — house,
+  outbuilding, car, boat, fence posts — and lush within a stride of a
+  fenced edge), `aAlpha` 1 inside the line fading to 0 across the margin.
+- **THE SHADER** (the bench's `lotMaterial`): the two grasses mixed on the
+  plan's noise and a finer one, the fences pulling the dense grass in and
+  darkening it; a slow hue/value tint over the lawn so no two lots match;
+  dry, pebbles and dirt each blended over with a noisy edge; the darkening
+  folded in; alpha from the margin. Matte (the scan's roughness map had the
+  grass at 0.4: a lake of glare under a low sun), and the terrain now wears
+  the same `grass` set, matte, so a lot's fade is a fade and not a seam.
+- **GATE VILLAGE rule 10**: every patch vertex two centimetres over the
+  terrain, every weight in range; dry under the house, dirt on the path,
+  dense grass a stride inside a fenced edge, pebbles at the seafront.
+- **THE OUTBUILDINGS AT THE CORNERS AND THE BOTTOM** (`planOutbuilding`):
+  the back corners first (inset by their own half-size and a fence's room),
+  then along the back edge, then up the sides from the back; never within
+  three metres of the house; facing the house, the garage too (its door
+  opens onto the lot, the car parks in front of it, nose to the door — the
+  half-in car is gone, as agreed). A PATH from the house's back door (or
+  the wall that faces it) to the outbuilding's door (`plot.outPath`), worn
+  into the lot's dirt and the bench's wear map. Eight of eleven plots on
+  the default seed have one.
+- Gates: HOUSE, VILLAGE (both --selftest) green; MEDIA green but for the
+  trees orphans and the index.html budget (both pre-existing).

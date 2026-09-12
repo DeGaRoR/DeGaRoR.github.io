@@ -74,6 +74,7 @@
 <script src="../src/props/props_fixture.js"></script>
 <script src="../src/props/props_vehicle.js"></script>
 <script src="../src/viewer/site_tex.js"></script>
+<script src="../src/viewer/lot_tex.js"></script>
 <script src="_house_kit.js"></script>
 <script src="_house_gen.js"></script>
 <script src="_village_gen.js"></script>
@@ -261,7 +262,7 @@ function wearCanvas(vil) {
   // the road: a soft verge, then the metalled width
   stroke(vil.road.pts, vil.road.w + 2.0, 0.45);
   stroke(vil.road.pts, vil.road.w, 0.95);
-  for (const p of vil.plots) for (const sg of p.path || []) {
+  for (const p of vil.plots) for (const sg of (p.path || []).concat(p.outPath || [])) {
     stroke([sg[0], sg[1]], 1.3, 0.35); stroke([sg[0], sg[1]], 0.7, 0.8);
   }
   const t = new THREE.CanvasTexture(c);
@@ -289,22 +290,29 @@ function terrainMesh(vil) {
   geo.setIndex(idx);
   geo.computeVertexNormals();
   const gm = new THREE.MeshStandardMaterial({ color: 0x87906f, roughness: 0.96, metalness: 0 });
+  // THE TERRAIN WEARS THE LOT'S OWN GRASS (G290): the same set the lot
+  // patches use as their base, so the ground outside a lot and inside it are
+  // one grass and the patch's fade is a fade, not a seam; the aerodrome's
+  // field grass stands in when the lot library is not loaded
   const SS = (typeof SITE_TEX_SETS !== 'undefined') && SITE_TEX_SETS;
-  if (SS && SS.grass005) {
+  const GS = LOT ? LOT.grass : (SS && SS.grass005);
+  if (GS) {
     const mk = (img, srgb) => {
       const t = new THREE.Texture(img);
       t.wrapS = t.wrapT = THREE.RepeatWrapping;
       t.anisotropy = 8;
       if (srgb) t.encoding = THREE.sRGBEncoding;
-      t.repeat.set(1 / SS.grass005.tile, 1 / SS.grass005.tile);
+      t.repeat.set(1 / GS.tile, 1 / GS.tile);
       const ok = () => { t.needsUpdate = true; draw(); };
       if (img.complete && img.naturalWidth) t.needsUpdate = true;
       else img.addEventListener('load', ok);
       return t;
     };
-    gm.map = mk(SS.grass005.diff, true);
-    gm.normalMap = mk(SS.grass005.nor, false);
-    gm.roughnessMap = mk(SS.grass005.rough, false);
+    gm.map = mk(GS.diff, true);
+    gm.normalMap = mk(GS.nor, false);
+    // MATTE: the scan's roughness map has the grass at 0.4 in places, and
+    // under a low sun that is a lake of glare; grass is not glossy
+    gm.roughness = 0.98;
     gm.color.setHex(0xffffff);
   }
   WEAR = wearCanvas(vil);
@@ -344,6 +352,115 @@ function waterMesh(vil) {
   m2.position.y = vil.T.waterY;
   m2.receiveShadow = true;
   return m2;
+}
+
+// ---- THE LOT'S GROUND (G290) ---------------------------------------------------
+// One patch per lot from the plan's own splat (tools/_village_gen.js
+// lotGround): five sets in world metres, the two grasses mixed on the slow
+// noise the plan carried and a finer one here, the dense grass pulled in by
+// the fences, dry ground under the buildings, dirt on the paths, pebbles at
+// the seafront, a slow colour tint over the grass so no two lawns match, the
+// skirt's darkening folded in, and an alpha that fades the patch into the
+// terrain across the margin.
+const LOT = (typeof LOT_TEX_SETS !== 'undefined' && LOT_TEX_SETS) || null;
+const LOT_TEX = {};
+function lotTex(k, m, srgb) {
+  const ck = k + '|' + m;
+  if (LOT_TEX[ck]) return LOT_TEX[ck];
+  const img = LOT[k][m];
+  const t = new THREE.Texture(img);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.anisotropy = 8;
+  if (srgb) t.encoding = THREE.sRGBEncoding;
+  const ok = () => { t.needsUpdate = true; draw(); };
+  if (img.complete && img.naturalWidth) t.needsUpdate = true;
+  else img.addEventListener('load', ok);
+  LOT_TEX[ck] = t;
+  return t;
+}
+let LOT_MAT = null;
+function lotMaterial() {
+  if (LOT_MAT) return LOT_MAT;
+  const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, metalness: 0,
+    transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
+  if (LOT) {
+    m.map = lotTex('grass', 'diff', true);
+    m.normalMap = lotTex('grass', 'nor', false);
+    m.normalScale = new THREE.Vector2(0.8, 0.8);
+    m.roughness = 0.98;                        // matte, like the terrain
+  }
+  const U = {
+    uLush: { value: LOT ? lotTex('lush', 'diff', true) : null },
+    uDry: { value: LOT ? lotTex('dry', 'diff', true) : null },
+    uDirt: { value: LOT ? lotTex('dirt', 'diff', true) : null },
+    uPeb: { value: LOT ? lotTex('pebble', 'diff', true) : null },
+    uTiles: { value: new THREE.Vector4(LOT ? LOT.lush.tile : 2.4, LOT ? LOT.dry.tile : 2.2, LOT ? LOT.dirt.tile : 1.8, LOT ? LOT.pebble.tile : 1.6) },
+    uGrassTile: { value: LOT ? LOT.grass.tile : 2.4 },
+  };
+  m.onBeforeCompile = sh => {
+    for (const k in U) sh.uniforms[k] = U[k];
+    sh.vertexShader = 'attribute vec4 aSplat;\nattribute vec2 aTone;\nattribute float aAlpha;\n' +
+      'varying vec4 vSplat;\nvarying vec2 vTone;\nvarying float vAlpha;\nvarying vec3 vLotP;\n' +
+      sh.vertexShader.replace('#include <begin_vertex>',
+        '#include <begin_vertex>\n  vSplat = aSplat; vTone = aTone; vAlpha = aAlpha; vLotP = transformed;')
+      .replace('#include <uv_vertex>', '#include <uv_vertex>\n  vUv = position.xz / ' + (LOT ? LOT.grass.tile : 2.4).toFixed(3) + ';');
+    sh.fragmentShader = 'varying vec4 vSplat;\nvarying vec2 vTone;\nvarying float vAlpha;\nvarying vec3 vLotP;\n' +
+      'uniform sampler2D uLush, uDry, uDirt, uPeb;\nuniform vec4 uTiles;\n' +
+      'float lHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }\n' +
+      'float lNoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);\n' +
+      '  return mix(mix(lHash(i), lHash(i + vec2(1, 0)), f.x), mix(lHash(i + vec2(0, 1)), lHash(i + vec2(1, 1)), f.x), f.y); }\n' +
+      'float lFbm(vec2 p) { return lNoise(p) * 0.5 + lNoise(p * 2.1 + 3.7) * 0.3 + lNoise(p * 4.3 + 9.1) * 0.2; }\n' +
+      sh.fragmentShader.replace('#include <map_fragment>',
+        '  {\n' +
+        '    vec2 w = vLotP.xz;\n' +
+        '    vec4 cGrass = texture2D(map, vUv);\n' +
+        '    vec4 cLush = texture2D(uLush, w / uTiles.x);\n' +
+        '    vec4 cDry = texture2D(uDry, w / uTiles.y);\n' +
+        '    vec4 cDirt = texture2D(uDirt, w / uTiles.z);\n' +
+        '    vec4 cPeb = texture2D(uPeb, w / uTiles.w);\n' +
+        '    float n1 = lFbm(w * 0.35), n2 = lFbm(w * 1.7 + 5.0);\n' +
+        // THE TWO GRASSES on a noise: the plan's slow mask, a finer one here,
+        // and the fences pulling the dense grass in
+        '    float gm = smoothstep(0.35, 0.65, vSplat.x * 0.6 + n1 * 0.4);\n' +
+        '    gm = max(gm, vTone.y * (0.7 + 0.3 * n2));\n' +
+        '    vec3 col = mix(cGrass.rgb, cLush.rgb, gm);\n' +
+        // the tint: a slow drift of hue and value over the lawn
+        '    float t1 = lFbm(w * 0.06 + 20.0), t2 = lFbm(w * 0.11 + 40.0);\n' +
+        '    col *= mix(vec3(1.06, 0.98, 0.86), vec3(0.88, 1.0, 0.92), t1) * (0.82 + 0.36 * t2);\n' +
+        // dense grass by the fence is also a shade darker and greener
+        '    col *= mix(vec3(1.0), vec3(0.86, 0.94, 0.84), vTone.y);\n' +
+        // dry under the buildings, pebbles at the seafront, dirt on the paths -
+        // each edge broken by the finer noise
+        '    float wd = smoothstep(0.25, 0.75, vSplat.y + (n2 - 0.5) * 0.35);\n' +
+        '    col = mix(col, cDry.rgb, wd);\n' +
+        '    float wp = smoothstep(0.3, 0.7, vSplat.w + (n2 - 0.5) * 0.3);\n' +
+        '    col = mix(col, cPeb.rgb, wp);\n' +
+        '    float wt = smoothstep(0.3, 0.75, vSplat.z + (n2 - 0.5) * 0.3);\n' +
+        '    col = mix(col, cDirt.rgb, wt);\n' +
+        // the skirt's darkening, folded in
+        '    col *= 1.0 - vTone.x * 0.8;\n' +
+        '    diffuseColor = vec4(col, vAlpha);\n' +
+        '  }');
+  };
+  LOT_MAT = m;
+  return m;
+}
+function lotMesh(parent, vil, plot, house, built, occ) {
+  const L = VG.lotGround(vil, plot, house, built, occ);
+  if (!L.idx.length) return null;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(L.pos), 3));
+  geo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(L.uv), 2));
+  geo.setAttribute('aSplat', new THREE.BufferAttribute(new Float32Array(L.splat), 4));
+  geo.setAttribute('aTone', new THREE.BufferAttribute(new Float32Array(L.tone), 2));
+  geo.setAttribute('aAlpha', new THREE.BufferAttribute(new Float32Array(L.alpha), 1));
+  geo.setIndex(L.idx);
+  geo.computeVertexNormals();
+  const m = new THREE.Mesh(geo, lotMaterial());
+  m.renderOrder = 3;
+  m.receiveShadow = true; m.castShadow = false;
+  parent.add(m);
+  return L;
 }
 
 // ---- the houses ---------------------------------------------------------------
@@ -504,6 +621,30 @@ function build() {
     h.built = built;
   }
   const fe = placeFences(root, vil);
+  // THE LOT PATCHES (G290): after the fences, the cars and the outbuildings
+  // are known, since the patch's splat reads them all
+  let lotVerts = 0;
+  for (const plot of vil.plots) {
+    if (plot.house === undefined) continue;
+    const h = vil.houses[plot.house];
+    const occ = [];
+    // the house's own occluders, in the world; the outbuilding's; the car; the boat; the fence posts
+    const toW = (hh, o) => {
+      const w = hh.toWorld(o.x, o.z);
+      return Object.assign({}, o, { x: w[0], z: w[1], ry: (o.ry || 0) + hh.yaw });
+    };
+    for (const o of h.built.stats.groundAO || []) occ.push(toW(h, o));
+    if (plot.out && plot.out.built) for (const o of plot.out.built.stats.groundAO || []) occ.push(toW(plot.out, o));
+    for (const c of [plot.car, plot.boat]) if (c) {
+      const K = plot.car === c ? G.YARD_KIT[c.key] : G.PIER_KIT[c.key];
+      occ.push({ x: c.x, z: c.z, hx: K.W / 2, hz: K.L / 2, ry: c.ry, k: 0.5, soft: 0.5 });
+    }
+    for (const f of fe.posts) if (VG.inPoly(plot.poly, f[0], f[1]) || true) {
+      if (Math.abs(f[0] - h.x) < 40 && Math.abs(f[1] - h.z) < 40) occ.push({ x: f[0], z: f[1], r: 0.07, k: 0.35, soft: 0.25 });
+    }
+    const L = lotMesh(root, vil, plot, h, h.built, occ);
+    if (L) lotVerts += L.verts;
+  }
   // THE CARS (G276): on the ground of the backyard, tilted to it
   let cars = 0;
   // and the village's own ground skirt: under the cars, the boats and every
@@ -545,7 +686,7 @@ function build() {
     (tris + fe.tris).toLocaleString() + ' tris · ' + ms.toFixed(0) + ' ms';
   rep.push('<b>' + vil.plots.length + '</b> plots along <b>' + vil.road.length.toFixed(0) + ' m</b> of road');
   rep.push('<b>' + houses + '</b> houses, <b>' + water + '</b> waterfront, <b>' + piers + '</b> piers, <b>' + outs + '</b> outbuildings');
-  rep.push('fences: <b>' + fe.members + '</b> drawn members, <b>' + fe.old + '</b> scanned stretches; <b>' + cars + '</b> cars; <b>' + (vil.poles || []).length + '</b> poles');
+  rep.push('fences: <b>' + fe.members + '</b> drawn members, <b>' + fe.old + '</b> scanned stretches; <b>' + cars + '</b> cars; <b>' + (vil.poles || []).length + '</b> poles; lot ground <b>' + lotVerts.toLocaleString() + '</b> vertices');
   // the spread, reported: how many of each key the village used
   rep.push('<span style="color:#7d8996">' + Object.keys(vil.spread.used).filter(k => vil.spread.used[k]).map(k => k.replace(/^(person_|boat_|car_)/, '') + ' ' + vil.spread.used[k]).join(' · ') + '</span>');
   rep.push('<span class="' + (checks(vil) ? 'ok' : 'bad') + '">' + (checks(vil) ? 'plots checked: no overlap, every house in its plot' : 'CHECK FAILED - see console') + '</span>');

@@ -452,12 +452,15 @@ function planCar(vil, plot, house, built, rnd, thing) {
   // THE CAR IN THE GARAGE DOOR (G287, the user: "We could put the old car in
   // the barns/garage, or sticking halfway through"): when the plot has a
   // garage, the car stands in its doorway, nose in, half of it inside
+  // IN FRONT OF THE GARAGE, NOSE TO THE DOOR (G290 - the user: half inside
+  // would want the door open and a dark interior, "maybe not worth it")
   if (!isBoat && plot.out && plot.out.kind === 'garage') {
     const o = plot.out;
     const cy = Math.cos(o.yaw), sy = Math.sin(o.yaw);
-    const lz = o.P.w / 2 + 0.35 - K.L * 0.1;
+    const lz = o.P.w / 2 + K.L / 2 + 1.2;
     const x = o.x + lz * sy, z = o.z + lz * cy;
-    return { key, x, z, ry: o.yaw + Math.PI, y: T.h(x, z), garage: true };
+    if (inPoly(plot.poly, x, z) && T.h(x, z) > T.waterY + 0.3)
+      return { key, x, z, ry: o.yaw + Math.PI + (rnd() - 0.5) * 0.2, y: T.h(x, z), garage: true };
   }
   const clear = c => spotClear(vil, plot, house, built, c, half);
   for (const c of cands) if (clear(c)) return { key, x: c.x, z: c.z, ry: c.ry, y: T.h(c.x, c.z) };
@@ -526,18 +529,47 @@ function planOutbuilding(vil, plot, house, built, rnd) {
     people: 0, pier: 0, smoke: 0, chim: 0, barrel: 0, water: 0, slopeX: 0, slopeZ: 0, stairs: 1 });
   const n = plot.n, tg = plot.tg;
   const back = plot.side === 'water' ? [-n[0], -n[1]] : [n[0], n[1]];
-  // it faces the house - or the road, for a garage
-  const faceHouse = kind !== 'garage';
-  const fd = faceHouse ? [-back[0], -back[1]] : [-n[0], -n[1]];
+  // it faces the house (the garage too: at the back corner its door opens
+  // onto the lot, and the car parks in front of it, on the lot)
+  const fd = [-back[0], -back[1]];
   const yaw0 = Math.atan2(fd[0], fd[1]);
   const half = Math.max(Q.L, Q.w) / 2;
+  // AT THE CORNERS AND THE BOTTOM (G290, the user: "I'd rather stick them
+  // close to the corners and the bottom of the properties, not so close to
+  // the house"): the two back corners first, inset by the building's own
+  // half-size and a fence's breathing room, then along the back edge, then
+  // up the sides - and never within three metres of the house
   const cands = [];
-  for (let d = P.w / 2 + 2.0 + Q.w / 2; d < plot.depth; d += 1.2)
-    for (const s of [0, 1, -1, 2, -2])
-      cands.push({ x: house.x + back[0] * d + tg[0] * s * 3.0, z: house.z + back[1] * d + tg[1] * s * 3.0,
-                   ry: yaw0 + (rnd() - 0.5) * 0.25 });
+  // the back edge's two corners: bkL on the -along side, bkR on +along
+  // (the polygon runs frontage 0 -> 1 along +tg, then 2 and 3 back)
+  const bkL = plot.side === 'water' ? plot.poly[0] : plot.poly[3];
+  const bkR = plot.side === 'water' ? plot.poly[1] : plot.poly[2];
+  const ins = half + 1.4;
+  const along = [tg[0], tg[1]];
+  const inward = [-back[0], -back[1]];                    // from the back edge toward the house
+  const corner = (c, sgn, d) => ({ x: c[0] + along[0] * sgn * ins + inward[0] * (ins + d),
+                                   z: c[1] + along[1] * sgn * ins + inward[1] * (ins + d), ry: yaw0 + (rnd() - 0.5) * 0.25 });
+  const first = rnd() < 0.5 ? 1 : -1;
+  for (const d of [0, 1.5, 3]) {
+    cands.push(first > 0 ? corner(bkL, 1, d) : corner(bkR, -1, d));
+    cands.push(first > 0 ? corner(bkR, -1, d) : corner(bkL, 1, d));
+  }
+  // along the back edge, in from the left corner
+  const bl = Math.hypot(bkR[0] - bkL[0], bkR[1] - bkL[1]);
+  for (let u = ins + 2.5; u < bl - ins; u += 2.5)
+    cands.push({ x: bkL[0] + along[0] * u + inward[0] * ins, z: bkL[1] + along[1] * u + inward[1] * ins, ry: yaw0 + (rnd() - 0.5) * 0.25 });
+  // up the sides, from the back
+  for (let d = ins + 2.5; d < plot.depth * 0.6; d += 2.5) for (const sgn of [1, -1]) {
+    const c = sgn > 0 ? bkR : bkL;
+    cands.push({ x: c[0] - along[0] * sgn * ins + inward[0] * d, z: c[1] - along[1] * sgn * ins + inward[1] * d, ry: yaw0 + (rnd() - 0.5) * 0.25 });
+  }
+  const farFromHouse = c => {
+    const cy0 = Math.cos(house.yaw), sy0 = Math.sin(house.yaw);
+    const x = c.x - house.x, z = c.z - house.z, lx = x * cy0 - z * sy0, lz = x * sy0 + z * cy0;
+    return Math.abs(lx) > P.L / 2 + half + 3.0 || Math.abs(lz) > P.w / 2 + (P.porch ? P.porchD : 0) + half + 3.0;
+  };
   let spot = null;
-  for (const c of cands) if (spotClear(vil, plot, house, built, c, half + 0.5)) { spot = c; break; }
+  for (const c of cands) if (farFromHouse(c) && spotClear(vil, plot, house, built, c, half + 0.5)) { spot = c; break; }
   if (!spot) return null;
   const c = [spot.x, spot.z], yaw = spot.ry;
   const cy = Math.cos(yaw), sy = Math.sin(yaw);
@@ -572,6 +604,125 @@ function planPoles(T, V, road, rnd, spread, plots) {
   return out;
 }
 
+// ---------------------------------------------------------------------------
+// THE LOT'S GROUND (G290, the user: "the whole lot should be projected, and
+// possibly not relying on the terrain generation. It could hold its own
+// vegetation, and its own projected ground texture, this one using its own
+// small alpha splatting for grass and dirt")
+// ---------------------------------------------------------------------------
+// One patch per lot: a grid over the plot's own polygon and a margin, every
+// vertex put ON the terrain by the height sampler - the lot owns its surface,
+// never its height - and carrying the SPLAT the plan gives it:
+//   aSplat.x  the yellower grass, on a slow noise, so a lawn is not one scan
+//   aSplat.y  dry ground: under the house, the deck, the outbuilding
+//   aSplat.z  dirt: along every path
+//   aSplat.w  pebbles: the seafront, by height above the tide
+//   aTone.x   dark: the same occluders the skirt reads (posts, props, cars,
+//             fence posts, the buildings' footprints)
+//   aTone.y   lush: within a stride of a fence, where nobody walks
+//   aAlpha    1 inside the plot line, fading to 0 across the margin, so the
+//             patch meets the terrain with no seam
+// The shader (the bench's, tools/_village.html) splats the five sets on these
+// with a finer noise at every edge and a slow colour tint over the grass. The
+// game hands the same function its own height sampler.
+function lotGround(vil, plot, house, built, occ) {
+  const T = vil.T, cell = 0.45, M = 1.8;
+  const poly = plot.poly;
+  let x0 = 1e9, z0 = 1e9, x1 = -1e9, z1 = -1e9;
+  for (const p of poly) { x0 = Math.min(x0, p[0]); z0 = Math.min(z0, p[1]); x1 = Math.max(x1, p[0]); z1 = Math.max(z1, p[1]); }
+  x0 -= M; z0 -= M; x1 += M; z1 += M;
+  const nx = Math.ceil((x1 - x0) / cell), nz = Math.ceil((z1 - z0) / cell);
+  const edgeDist = (x, z) => {
+    let d = 1e9;
+    for (let i = 0; i < 4; i++) {
+      const a = poly[i], b = poly[(i + 1) % 4];
+      const dx = b[0] - a[0], dz = b[1] - a[1];
+      const t = clamp(((x - a[0]) * dx + (z - a[1]) * dz) / Math.max(1e-9, dx * dx + dz * dz), 0, 1);
+      d = Math.min(d, Math.hypot(x - (a[0] + dx * t), z - (a[1] + dz * t)));
+    }
+    return d;
+  };
+  // the rectangles that make the ground dry: the house (with its deck), the outbuilding
+  const rects = [];
+  const P = house.P;
+  rects.push({ x: house.x, z: house.z, yaw: house.yaw, hx: P.L / 2, hz0: -P.w / 2, hz1: P.w / 2 + (P.porch ? P.porchD : 0) });
+  if (plot.out) rects.push({ x: plot.out.x, z: plot.out.z, yaw: plot.out.yaw, hx: plot.out.P.L / 2, hz0: -plot.out.P.w / 2, hz1: plot.out.P.w / 2 });
+  const dryAt = (x, z) => {
+    let w = 0;
+    for (const r of rects) {
+      const c = Math.cos(r.yaw), s = Math.sin(r.yaw);
+      const dx = x - r.x, dz = z - r.z, lx = dx * c - dz * s, lz = dx * s + dz * c;
+      const ox = Math.max(0, Math.abs(lx) - r.hx);
+      const oz = lz < r.hz0 ? r.hz0 - lz : (lz > r.hz1 ? lz - r.hz1 : 0);
+      const o = Math.hypot(ox, oz);
+      w = Math.max(w, 1 - clamp(o / 1.2, 0, 1));
+    }
+    return w;
+  };
+  // the paths: the plot's own (road, gate, outbuilding) and the house's (its stair to the water)
+  const segs = (plot.path || []).concat(plot.outPath || []).map(sg => [sg[0], sg[1]]);
+  for (const sg of built.stats.path || []) segs.push([house.toWorld(sg[0][0], sg[0][1]), house.toWorld(sg[1][0], sg[1][1])]);
+  const dirtAt = (x, z) => {
+    let d = 1e9;
+    for (const sg of segs) {
+      const dx = sg[1][0] - sg[0][0], dz = sg[1][1] - sg[0][1];
+      const t = clamp(((x - sg[0][0]) * dx + (z - sg[0][1]) * dz) / Math.max(1e-9, dx * dx + dz * dz), 0, 1);
+      d = Math.min(d, Math.hypot(x - (sg[0][0] + dx * t), z - (sg[0][1] + dz * t)));
+    }
+    return 1 - clamp((d - 0.35) / 0.55, 0, 1);
+  };
+  // the fences: every edge of the plot that is fenced, its own or the neighbour's
+  const fenced = [];
+  for (let i = 0; i < 4; i++) {
+    const a = poly[i], b = poly[(i + 1) % 4];
+    if (vil.fenced && vil.fenced.has(edgeKey(a, b))) fenced.push([a, b]);
+  }
+  const lushAt = (x, z) => {
+    let d = 1e9;
+    for (const sg of fenced) {
+      const dx = sg[1][0] - sg[0][0], dz = sg[1][1] - sg[0][1];
+      const t = clamp(((x - sg[0][0]) * dx + (z - sg[0][1]) * dz) / Math.max(1e-9, dx * dx + dz * dz), 0, 1);
+      d = Math.min(d, Math.hypot(x - (sg[0][0] + dx * t), z - (sg[0][1] + dz * t)));
+    }
+    return 1 - clamp((d - 0.3) / 1.4, 0, 1);
+  };
+  const darkAt = (x, z) => {
+    let w = 0;
+    for (const o of occ) {
+      const c = Math.cos(o.ry || 0), s = Math.sin(o.ry || 0);
+      const dx = x - o.x, dz = z - o.z, lx = dx * c - dz * s, lz = dx * s + dz * c;
+      let out;
+      if (o.hx !== undefined) out = Math.hypot(Math.max(0, Math.abs(lx) - o.hx), Math.max(0, Math.abs(lz) - o.hz));
+      else out = Math.max(0, Math.hypot(lx, lz) - o.r);
+      const soft = o.soft === undefined ? 0.5 : o.soft;
+      w = Math.max(w, (o.k === undefined ? 0.4 : o.k) * (1 - clamp(out / Math.max(0.05, soft), 0, 1)));
+    }
+    return w;
+  };
+  const pos = [], uv = [], splat = [], tone = [], alpha = [], idx = [];
+  const id = new Int32Array((nx + 1) * (nz + 1)).fill(-1);
+  for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) {
+    const x = x0 + i * cell, z = z0 + j * cell;
+    const inside = inPoly(poly, x, z);
+    const d = edgeDist(x, z);
+    if (!inside && d > M) continue;
+    const y = T.h(x, z);
+    id[j * (nx + 1) + i] = pos.length / 3;
+    pos.push(x, y + 0.02, z);
+    uv.push(x, z);
+    const peb = 1 - clamp((y - T.waterY - 0.35) / 0.85, 0, 1);
+    splat.push(fbm(x * 0.09 + 11.3, z * 0.09 + 4.1, vil.V.seed + 21, 3), dryAt(x, z), dirtAt(x, z), peb);
+    tone.push(darkAt(x, z), lushAt(x, z));
+    alpha.push(inside ? 1 : 1 - d / M);
+  }
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+    const a = id[j * (nx + 1) + i], b = id[j * (nx + 1) + i + 1], c = id[(j + 1) * (nx + 1) + i + 1], d = id[(j + 1) * (nx + 1) + i];
+    if (a < 0 || b < 0 || c < 0 || d < 0) continue;
+    idx.push(a, d, c, a, c, b);
+  }
+  return { pos, uv, splat, tone, alpha, idx, verts: pos.length / 3 };
+}
+
 // the parts that need a BUILT house (the stair, the stoops): the bench and
 // the gate build each house, then call this to lay the paths, the fences
 // and the car
@@ -581,6 +732,17 @@ function finishPlot(vil, plot, house, built) {
   vil.fenced = vil.fenced || new Set();
   plot.fences = planFences(vil.V, plot, house, rnd, vil.fenced);
   plot.out = planOutbuilding(vil, plot, house, built, rnd);
+  // THE PATH TO IT (G290): from the house's back door (or the middle of the
+  // wall that faces it) to the outbuilding's door, with a bend
+  if (plot.out) {
+    const o = plot.out;
+    const door = o.toWorld(0, o.P.w / 2 + 0.7);
+    const bk = built.stats.stoop;
+    const from = bk ? house.toWorld(bk.x, bk.z - bk.side * (bk.depth + 0.5))
+                    : house.toWorld(0, (plot.side === 'water' ? -1 : 1) * (house.P.w / 2 + (plot.side === 'water' ? 1.0 : (house.P.porch ? house.P.porchD : 0) + 1.0)));
+    const mid = [from[0] + (door[0] - from[0]) * 0.5 + plot.tg[0] * 0.9, from[1] + (door[1] - from[1]) * 0.5 + plot.tg[1] * 0.9];
+    plot.outPath = [[from, mid], [mid, door]];
+  }
   plot.car = planCar(vil, plot, house, built, rnd, 'car');
   plot.boat = planCar(vil, plot, house, built, rnd, 'boat');
   if (plot.car && plot.boat && Math.hypot(plot.car.x - plot.boat.x, plot.car.z - plot.boat.z) < 5.5) plot.boat = null;
@@ -733,5 +895,5 @@ function buildFence(bags, T, seg0, hand, k0) {
 }
 
 window.VILLAGE_GEN = { VDEF, makeTerrain, makeRoad, makePlots, makeVillage, finishPlot,
-                       buildFence, gateLeaf, clipToLand, inPoly, shoreZ, fbm };
+                       buildFence, gateLeaf, clipToLand, inPoly, shoreZ, fbm, lotGround, edgeKey };
 })();
