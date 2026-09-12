@@ -302,7 +302,28 @@ does it, invisible, PMREM'd. Two rows: `sunset` (the world's, snapshotted at
 boot) and `alps` (the bench's afternoon: keyI 2.8 `ffdca8` at 33°, hemi 0.274,
 ex 0.92). Under `alps` the game's stand reads as the bench's.
 
-**Not done.** The larch impostor is thinner than
-its geometry (0.47x the covered pixels, and the gain saturates — that one wants
-tile resolution). Bushes and grass are the next kinds through this same door.
+**The ladder, whole and soft (W0c.12, W0c.13).** The shader band reads the
+INSTANCE ORIGIN, not the vertex — a tree straddling an edge was sliced down the
+middle with its cut's slivers stretched to the clip point — and the partition
+measures from the eye as the band does (it measured from the CG; in chase view
+the 30 m between the two was a moving gap). Transitions are Unreal's dithered
+LOD transition: over `TREE_LOD.fade` metres (30) about every edge both rungs
+are drawn through interleaved-gradient-noise dithers with complementary
+thresholds, the partition deals a tree to every rung whose window holds it,
+and it refreshes every 6 frames / 10 m — inside the half-window — so the next
+rung is resident before the fade needs it. The shadow materials dither too.
+
+**The pool (W0c.14).** Every subject of every collection is planted, weighted
+the bench's way (`proportion` per collection, split over its subjects; LOLIPOP
+2.85 : 1 : 1 : 1). Cedar is tuned and excluded pending the user's word.
+
+**The impostor, complete (W0c.15).** 64 views, the bench's alpha curve (gain
+6, cut 0.40 / 0.15 / 0.10 by series, `solid`), the one-texel gutter,
+alpha-to-coverage — and ONE atlas per subject and series shared by both
+layers (the woodland and the fill had each baked and disposed their own).
+
+**Not done.** Impostors cast no shadow (the bench's own depth material for the
+quad; matters only when the bands are pulled inside the shadow reach). The
+`impa` / `implight` per-collection numbers are not in the payload (one gain,
+one lit, for all). Bushes and grass are the next kinds through this same door.
 See `futureDesigns/WORLD-V2.md` §8.3 and the W0c–W0e rows of the staging plan.
