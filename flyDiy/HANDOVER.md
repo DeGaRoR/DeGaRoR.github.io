@@ -38593,3 +38593,39 @@ nodes).
 prism's torsion over 2 m bays — the `tube` element again); the game's tail
 anchor still reads HTL/HTR (the same tags, now the stab's own nodes — the
 anchor rigs pick them up unchanged).
+
+## G268.1 — THE TWIN-BOOM LOFT WAS INSIDE OUT: no outline, the wrong colour
+## (2026-09-12, the user, the third time: "I still can't select the booms, no
+## outline appears, clicking on them brings me to fuselage. They don't
+## highlight, and they still have a different color than the rest of the
+## plane ... Anything preventing it?")
+
+Two root causes, both measured, neither the selection itself — a click on a
+boom DID resolve to Twin booms since G267 (a synthetic click at a projected
+boom vertex put "FUSELAGE › Twin booms" in the header). What the user saw
+was the consequence of the two below: no rim appeared, so the click looked
+dead, and the second click on the same part is the editor's STEP-OUT to the
+parent — Fuselage. "Clicking on them brings me to fuselage" is that.
+
+- **The loft was wound INWARD.** `boomClosed` (G267) proved every cap x cap
+  x section x collar a closed manifold — and a manifold turned inside out is
+  exactly as closed. Measured on `boomMesh`: outward faces 0, inward 2072.
+  `computeVertexNormals` therefore pointed every normal into the tube; the
+  silhouette highlight is a stencil mask plus a shell displaced ALONG THE
+  NORMALS (`hiSilShell`), so the shell grew inside the mask and no rim was
+  ever drawn; and the paint was lit on the back of every face (DoubleSide
+  hid the hole, not the shading). `_boom_gen.js` turns every triangle over
+  once at the end of `boomMesh`, `boomOutward` (every wall normal away from
+  the axis) sits beside `boomClosed`, and GATE PARTS runs both over the 72
+  combos — closure alone cannot see a global flip.
+- **The rod-style twin boom fell to grey.** `_cage_wing.js` asked
+  `CAGE_SECMAT('boomTube')` for the rod style: a CAGE face material, not a
+  row of AERO_SEC, so the layer factory returned null and the fallback
+  `MeshStandardMaterial` (grey, metalness 0.6) drew them. Both styles wear
+  `boomSkin` now — the style shapes the loft, the section is the twin booms'
+  own either way. Verified in the pane: base colour to red, `edBoomL`'s
+  material.color = the wing's (#860a06), back to white the same.
+
+**Verified** on the user's WIP build in dev.html: one click on a boom →
+"FUSELAGE › Twin booms", both booms wearing the cyan rim; PARTS / JOIN /
+SKIN / UISMOKE green.

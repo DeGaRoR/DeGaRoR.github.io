@@ -967,6 +967,27 @@ if (process.argv.includes('--selftest')) {
   check(bad === 0, `${bad} rule(s) cannot be broken — those checks are inert`);
 }
 
+// G268.1: THE TWIN-BOOM LOFT IS CLOSED AND FACES OUT, every cap x cap x section
+// x collar. It was closed and inside out — normals into the tube — so the
+// silhouette highlight's shell grew INWARD and no outline ever showed on a
+// boom, and the paint was lit on the back of every face (the user, three
+// times: "I still can't select the booms, no outline appears ... they still
+// have a different color"). Closure alone cannot see a global flip.
+{
+  const BG = require(path.join(__dirname, '_boom_gen.js'));
+  let bad = [], n = 0;
+  for (const nc of BG.BOOM_CAPS) for (const tc of BG.BOOM_CAPS)
+    for (const sq of [0, 1]) for (const col of [0, 0.5]) {
+      const m = BG.boomMesh({ len: 3.98, wF: 0.16, hF: 0.24, wA: 0.112, hA: 0.168, square: sq,
+        collar: col, nose: { len: 0.3, k: 0.7, cap: nc }, tail: { len: 0.4, k: 0.7, cap: tc } });
+      n++;
+      if (!BG.boomClosed(m)) bad.push('open ' + nc + '/' + tc + '/' + sq + '/' + col);
+      else if (!BG.boomOutward(m)) bad.push('inward ' + nc + '/' + tc + '/' + sq + '/' + col);
+    }
+  check(bad.length === 0, 'the twin-boom loft is a closed, OUTWARD manifold (' + n + ' combos)',
+    bad.slice(0, 4).join(', '));
+}
+
 // ---------------------------------------------------------------------------
 const nParts = PARTS.CAGE_PARTS.filter(p => !p.root && p.parent !== null).length;
 const nAsm = PARTS.CAGE_PARTS.filter(p => p.parent === null && !p.root).length;

@@ -191,6 +191,13 @@ function boomMesh(o) {
   const first = rows[0], last = rows[rows.length - 1];
   if (first.disc != null) for (let j = 0; j < seg; j++) idx.push(first.disc, first.base + j, first.base + (j + 1) % seg);
   if (last.disc != null) for (let j = 0; j < seg; j++) idx.push(last.disc, last.base + (j + 1) % seg, last.base + j);
+  // OUTWARD (G268.1): the walls were wound with their normals pointing INTO the
+  // tube — consistent (closed) and inside out. The editor's silhouette rim
+  // grows a shell along the normals, so it grew inward and no outline ever
+  // showed on a boom; the paint was lit on the wrong side of every face, so
+  // the booms never matched the fuselage's colour; DoubleSide hid it. Every
+  // triangle turned over here, once, and the check below holds the sign.
+  for (let i = 0; i + 2 < idx.length; i += 3) { const t = idx[i + 1]; idx[i + 1] = idx[i + 2]; idx[i + 2] = t; }
   return { pos: Float32Array.from(pos), idx: Uint32Array.from(idx), uv: Float32Array.from(uv),
            u0: st[0].u, u1: st[st.length - 1].u, stations: st };
 }
@@ -213,7 +220,21 @@ function boomClosed(m) {
   return true;
 }
 
-const API = { boomMesh, boomSection, boomStations, boomClosed, BOOM_CAPS, fairScale };
+// every wall face's normal points away from the axis (a gate can hold the sign)
+function boomOutward(m) {
+  let bad = 0;
+  for (let t = 0; t + 2 < m.idx.length; t += 3) {
+    const P = i => [m.pos[3 * i], m.pos[3 * i + 1], m.pos[3 * i + 2]];
+    const A = P(m.idx[t]), B2 = P(m.idx[t + 1]), C2 = P(m.idx[t + 2]);
+    const u = [B2[0] - A[0], B2[1] - A[1], B2[2] - A[2]], v = [C2[0] - A[0], C2[1] - A[1], C2[2] - A[2]];
+    const n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+    const cx = (A[0] + B2[0] + C2[0]) / 3, cy = (A[1] + B2[1] + C2[1]) / 3;
+    const d = n[0] * cx + n[1] * cy;
+    if (Math.abs(d) > 1e-9 && d < 0) bad++;
+  }
+  return bad === 0;
+}
+const API = { boomMesh, boomSection, boomStations, boomClosed, boomOutward, BOOM_CAPS, fairScale };
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 if (typeof window !== 'undefined') window.BOOM_GEN = API;
 })();

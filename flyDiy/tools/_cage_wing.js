@@ -1704,12 +1704,16 @@ PAGE.post = ctx => {
       const mm = BG.boomMesh(o);
       boomGroup = new THREE.Group();
       boomGroup.name = 'cageLayer:boom';
-      // the CONSTRUCTION axis: a rod boom is a bare tube (boomTube), a lofted
-      // one a skinned section that follows the body's own finish (boomSkin)
+      // BOTH STYLES WEAR THE BODY'S PAINT (G268.1). The rod style asked for
+      // 'boomTube' — a CAGE face material, not a row of AERO_SEC — so the
+      // layer factory returned null and the rod-style twin booms fell to the
+      // grey MeshStandardMaterial below: "they still have a different color
+      // than the rest of the plane". The style shapes the loft (a straight
+      // tube), the section is the twin booms' own either way.
       let bm = null;
       try {
         if (window.CAGE_SECMAT)
-          bm = window.CAGE_SECMAT(rodB ? 'boomTube' : 'boomSkin',
+          bm = window.CAGE_SECMAT('boomSkin',
                                   { surf: 0, fieldM: 1, struct: 1, side: THREE.DoubleSide });
       } catch (e) {}
       if (!bm) bm = new THREE.MeshStandardMaterial({ color: rodB ? 0x9aa0a6 : 0xd9d4c6,
