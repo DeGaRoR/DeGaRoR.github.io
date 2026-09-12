@@ -2122,6 +2122,14 @@
           if (pg.position && pg.position.set)
             pg.position.set(pt.pivot[0], pt.pivot[1], pt.pivot[2]);
           grp.add(pg);
+          // G305: a needle's material is its OWN — the posts light each hand
+          // by where it points, so no two hands may share one
+          for (const ch of pg.children)
+            if (ch.material && ch.material.userData && ch.material.userData.panelSet === 'needle') {
+              ch.material = ch.material.clone();
+              ch.material.userData = Object.assign({}, ch.material.userData);
+              ch.userData.needle = 1;
+            }
           gauges.push({ obj: pg, c: pt.ctl, home: pt.pivot });
         }
         else if (pt.kind === 'ctlLink' && pt.members && pt.members.length &&
@@ -3398,12 +3406,37 @@
   const HOVER_MS = 110;
   let hoverT = 0;
   const endTouch = e => { panD = null; touches.delete(e.pointerId); };
+  // THE SWITCHES WORK IN THE SHED'S INTERIOR (G305, the user: "the controls
+  // should be triggerable like in flight in interior view, so I could also
+  // test the buttons, their effect, the lighting"). From the pilot's eye a
+  // click on a light switch, its nut, its tape or its dimmer knob is the
+  // switch, not the part: the row the light layer reads (`li_<key>`) is
+  // written — a toggle flips, a dimmer steps through five stops — and the
+  // layer rebuilds, so the lamp, its light and the switch's own pose all
+  // answer from the one state, exactly as the flight's click does through
+  // cockpit.js. The master, the alternator and the key have no state in the
+  // shed (no bus, no engine) and stay parts.
+  const edSwitchClick = hit => {
+    if (!edEye || !hit || !hit.name || !window.CAGE_UI || !window.CAGE_UI.P) return false;
+    const m = /^(?:edGauge_sw_|edSwitch_)([A-Za-z0-9]+)$/.exec(hit.name);
+    if (!m) return false;
+    const k = m[1], P = window.CAGE_UI.P, row = 'li_' + k;
+    if (!(row in P)) return false;
+    const v = +P[row] || 0;
+    const knob = /^(flood|instr|pedal|pax)$/.test(k);
+    P[row] = knob ? ((Math.round(v * 4) + 1) % 5) / 4 : (v > 0.5 ? 0 : 1);
+    if (typeof window.CAGE_UI.syncSliders === 'function') try { window.CAGE_UI.syncSliders(); } catch (e2) {}
+    window.CAGE_UI.build();
+    return true;
+  };
   canvas.addEventListener('pointerup', e => {
     if (downAt && edSit.visible && e.button === 0 &&
         Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) < 4 &&
         Date.now() - downAt.t < 500 &&
-        typeof window.EDITOR_PICK === 'function')
-      window.EDITOR_PICK(pickAt(e.clientX, e.clientY), false);
+        typeof window.EDITOR_PICK === 'function') {
+      const hit = pickAt(e.clientX, e.clientY);
+      if (!edSwitchClick(hit)) window.EDITOR_PICK(hit, false);
+    }
     downAt = null;
     endTouch(e);
   });

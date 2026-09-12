@@ -716,6 +716,18 @@ const PAINT = {
 // ball, the compass card) and the rotating rose take a flat share: they
 // are deeper in the case, lit from the same posts more evenly.
 //   I(p) = 0.18 + sum over the two posts of 0.55 / (1 + (d / 0.5 r)^2), <= 1
+// ...and the same law at ONE point, for a needle (G305): clock angle deg,
+// radius as a fraction of the face's — what the hand at that angle gets
+function postIrrAt(deg, rf) {
+  const x = rf * Math.sin(deg * D2R), y = rf * Math.cos(deg * D2R);
+  let I = 0.18;
+  for (const pd of [-60, 60]) {
+    const px = 0.95 * Math.sin(pd * D2R), py = 0.95 * Math.cos(pd * D2R);
+    const d = Math.hypot(x - px, y - py) / 0.5;
+    I += 0.55 / (1 + d * d);
+  }
+  return Math.min(1, I);
+}
 const POST_TILE = 128;
 let postTile = null;
 function postIrradiance() {
@@ -763,7 +775,7 @@ function paintAtlas(g, faces, units, o) {
 }
 
 const API = { UNITS, FACES, REST, scaleOf, angleOf, angleOfDisp, layout, ATLAS_W, ATLAS_H, SLOT, COLS, slotRect, faceUV,
-              PAINT, paintAtlas, D_BIG, D_SMALL, GAP };
+              PAINT, paintAtlas, postIrrAt, D_BIG, D_SMALL, GAP };
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 if (typeof window !== 'undefined') window.PANEL_GEN = API;
 })();

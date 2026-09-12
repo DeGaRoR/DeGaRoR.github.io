@@ -40312,3 +40312,27 @@ every fix measured against the drawn triangles, the baseline `--rebase`d after.
   the backyard one when the car is not a wreck (a `wreck` flag on the car
   rows), and the garage preset gets a real door bay the alley ends at.
 - Gates: HOUSE, VILLAGE, MEDIA, PROPS green.
+
+## G305 — THE NEEDLES ARE LIT BY THE POSTS, AND THE SHED'S SWITCHES WORK
+## (2026-09-12, the user: "the needles should be lit by the posts too. I
+## also think that the controls should be triggerable like in flight in
+## interior view, so I could also test the buttons, their effect, the
+## lighting")
+
+- **The hands**: a white-painted needle material of its own (`panelSet:
+  'needle'`, `material('needle')`), one clone per HAND, whose warm
+  emissive is the posts' law (`PANEL_GEN.postIrrAt`, the same formula the
+  face tile was painted with) sampled at the hand's own angle three
+  quarters out, times the dimmer. The editor sets it at the rest reading;
+  the flight re-reads it every frame in `CK.pose` (app.js clones the
+  material per gauge part so no two hands share one). Measured in flight
+  with the dimmer up: 16 hands, 0.41–0.46 at rest, ~0.9 under a post.
+- **The shed's interior clicks the switches**: from the pilot's eye a
+  click on a light switch, its nut, its tape or a dimmer knob (the stand
+  group is named `edSwitch_<key>`) writes the row the light layer reads —
+  `li_<key>`: a toggle flips, a dimmer steps through five stops — and the
+  layer rebuilds, so the lamp, its light and the switch's pose answer from
+  the one state, as the flight's click does through cockpit.js. The
+  master, the alternator and the key have no state in the shed (no bus,
+  no engine) and stay parts. Verified: a click on the pax dimmer stepped
+  `li_pax` 0 → 0.25 and rebuilt.

@@ -245,7 +245,8 @@ function make(THREE) {
       CK.model.pedalLight.intensity = 0.35 * (CK.lightOn && busOk ? clamp(+CK.sw.sw_pedal || 0, 0, 1) : 0);
     const W = typeof window !== 'undefined' ? window : {};
     const PLm = W.CAGE_PANEL && W.CAGE_PANEL.material ? W.CAGE_PANEL.material('faces') : null;
-    if (PLm) PLm.emissiveIntensity = (CK.lightOn && busOk ? clamp(+CK.sw.sw_instr || 0, 0, 1) : 0) * 1.6;
+    CK.dimNow = CK.lightOn && busOk ? clamp(+CK.sw.sw_instr || 0, 0, 1) : 0;   // the hands read it in pose (G305)
+    if (PLm) PLm.emissiveIntensity = CK.dimNow * 1.6;
   };
 
   // ---- the hands ---------------------------------------------------------------
@@ -283,8 +284,18 @@ function make(THREE) {
         qA.multiply(qB);
       }
       o.quaternion.copy(qA);
+      // THE HAND IS LIT BY THE POSTS WHERE IT POINTS (G305): the same law
+      // the face was painted with, at the hand's angle, on its own material
+      if (c.law === 'lin' || c.law === 'turn') {
+        const PGn = W0.PANEL_GEN;
+        const irr = PGn && PGn.postIrrAt ? PGn.postIrrAt((c.sgn || 1) * a1 / D2R, 0.75) : 1;
+        for (const ch of o.children || [])
+          if (ch.userData && ch.userData.needle && ch.material)
+            ch.material.emissiveIntensity = (CK.dimNow || 0) * 0.9 * irr;
+      }
     }
   };
+  const W0 = typeof window !== 'undefined' ? window : {};
   const isElectric = gauge => {
     const I = typeof GEN_INSTR !== 'undefined' ? GEN_INSTR[gauge] : null;
     return !!(I && I.power === 'elec');

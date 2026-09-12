@@ -422,6 +422,32 @@ function facesMaterial() {
   facesMat.userData.inside = 1;
   return facesMat;
 }
+// THE NEEDLES ARE LIT BY THE POSTS TOO (G305, the user: "the needles
+// should be lit by the posts too"): a white-painted hand takes the same
+// warm light, at the strength the posts throw where it points — the law
+// (`postIrrAt`) sampled at the hand's own angle, three-quarters out. ONE
+// material per HAND (a clone each), so each glows by its own angle: in the
+// editor at the rest reading, in flight every frame in CK.pose. Bucketed
+// `panelSet: 'needle'` so the join keeps the hands off the hardware and
+// app.js rebuilds them through `material('needle')`.
+let needleMat = null;
+function needleMaterial() {
+  if (needleMat) return needleMat;
+  needleMat = new THREE.MeshStandardMaterial({ color: 0xf2efe6, roughness: 0.55, metalness: 0,
+    emissive: new THREE.Color(0xffc47a), emissiveIntensity: 0, side: THREE.FrontSide });
+  needleMat.userData.aeroskin = 1;
+  needleMat.userData.panelSet = 'needle';
+  needleMat.userData.inside = 1;
+  return needleMat;
+}
+const NEEDLE_R = 0.75;                     // where along the hand the light is read
+function needleAt(g, deg, dim) {
+  const m = needleMaterial().clone();
+  m.userData = Object.assign({}, needleMaterial().userData);
+  const G = PG();
+  m.emissiveIntensity = dim * 0.9 * (G.postIrrAt ? G.postIrrAt(deg, NEEDLE_R) : 1);
+  return m;
+}
 const FACES_HOOK = function (shader) {
   shader.fragmentShader = shader.fragmentShader
     .replace('#include <map_fragment>',
@@ -1367,8 +1393,9 @@ function build(parent, A, P, pilotX) {
           per: H.per, units });
       const nb = K.Bag();
       needleInto(nb, H, r * 0.86, 0.0025 + 0.0012 * F.hands.indexOf(H));
-      nb.mesh(g, matFor('needle'));
-      g.rotation.z = clockRad(G.angleOf(d.k, H, v0, units, facts));
+      const degH = G.angleOf(d.k, H, v0, units, facts);
+      nb.mesh(g, needleAt(g, degH, faceDim(P)));         // lit by the posts (G305)
+      g.rotation.z = clockRad(degH);
     }
     hubAt(hub, cx, cy, zF - 0.004 - 0.0012 * F.hands.length, r * 0.06);
     meshDial();
@@ -1376,6 +1403,7 @@ function build(parent, A, P, pilotX) {
   // ---- the switch row, each on the plate under it
   for (const s of L.switches) {
     const sg = standOn(s.x, s.y, 0.012);
+    sg.name = 'edSwitch_' + s.k;                       // the shed's click finds it (G305)
     {
       const sb = UVBag(aoMaterial());
       aoDiscInto(sb, 0, 0, 0, { key: 0.020, rocker: 0.018, toggle: 0.011, knob: 0.015 }[s.kind] || 0.012);
@@ -1448,7 +1476,7 @@ window.CAGE_PANEL = {
   // `material('faces')`
   build, get moving() { return MOVING; }, MAT,
   material: k => (k === 'faces' ? facesMaterial() : k === 'ao' ? aoMaterial()
-                  : k === 'label' ? labelMaterial() : matFor(k)),
+                  : k === 'label' ? labelMaterial() : k === 'needle' ? needleMaterial() : matFor(k)),
   holes: holesIn,                              // G279: the plate's cut-outs, in a parent's frame
   atlas: () => atlasCv, last: () => LAST, faceDim,
   switches: true,                // the light layer leaves the switch row to us
