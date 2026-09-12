@@ -170,6 +170,7 @@ window.CAGE_PAGE = {
         ['waistY',    'waist height',   -0.40, 0.50, 0.005, { dim: 'len' }],
         ['bandH',     'waistband height', 0.01, 0.30, 0.002, { dim: 'len' }],
         ['crSill',    'sill crease',     0, 3, 0.05],
+        ['crKeel',    'keel crease',     0, 3, 0.05],
         ['crCeil',    'roof crease',     0, 3, 0.05],
         ['ceilInset', 'ceiling inset ×', 0.20, 3.00, 0.01],
         ['ringPullIn','sill pull-in',    0.00, 0.15, 0.002],

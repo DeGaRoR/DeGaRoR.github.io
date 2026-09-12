@@ -40897,3 +40897,42 @@ lattice's lever, and with the cluster on the members carry none.
   flight alike (one handler), and the near plane follows the distance down
   (0.2 × distance, 6 cm at the least) so nothing between the eye and the
   part clips out.
+
+## G319 — THE BELLY IS FLAT BETWEEN THE LONGERONS, AND THE SHOCK STRUTS CLEAR
+## IT (2026-09-12; the user: "flatten the belly between the longerons so the
+## shock struts clear"; the fitment study's last open ruling on the stock build)
+
+- **What was wrong.** The cage draws the keel as a flat line between the two
+  lower longerons (`P.keel` / `C.keel` / `M.keel`, `fullRing`), but that
+  rail carried NO crease — the sill, band and ceil rails do — so
+  subdivision rounded the keel corner over ~25 cm of the lower flank. The
+  Cub's crossed shock struts (`linkX`) reach their upper fittings at that
+  corner from below and inboard, and the last 30 cm of each strut lay
+  INSIDE the round: `edLegL/R 34.6 mm INTO fuselage` on stock, rod and
+  stock+ifr, every pose — the biggest line in GATE CLIP's baseline since G299.
+- **`crKeel`** (`_cage_gen.js`, default 2, rows `keel crease` under
+  longerons on the page and the bench, claimed by the fuselage in
+  `_cage_parts.js`): the keel rail is tagged like the sill in both loops
+  that draw it (the body and the nose), so the panel between the two keel
+  corners stays the plane the cage drew and the corner stays a corner. A
+  round-bottom pod fades it out (`keelW = crKeel × (1 − botRound)`): its
+  keel level has moved up the arc and a corner there would be a kink on a
+  curve — the twin-boom fixture (botRound 1) is untouched. Measured stock
+  section at z 1.83: keel −0.921 flat to the corner at x 0.554, the flank
+  vertical above it.
+- **The eye clears the pad** (`_gear_gen.js legLink`): once the strut no
+  longer hid it, the next line was 5.7 mm — the vee's lugs. The lug's eye
+  is R + 3 mm round the tube it holds and the tube's centre sat 0.7 R off
+  the pad, so the eye's rim was 1.3 mm into the skin BY CONSTRUCTION, and
+  the two lugs sit 37 mm either way along the hinge line, which on a vee
+  follows the belly's own slope (10 mm over the aft pad's length at the
+  Cub's aft foot). The seat is now as high as the lowest eye needs: the
+  skin under each lug is asked for and the shortfall lifts the tube. Also
+  cleared the twin's wing-mount pad line (1.7 mm, same lug).
+- **GATE CLIP**: stock / rod / stock+ifr worst 0.0 mm; `edLegL/R` 0.6 mm
+  PROUD; baseline 44 → 12 lines (`--rebase`; what remains is the twin trike
+  nose leg in its cowl 313 mm, the twin flap onto the wing-mounted leg
+  31 mm, the IFR nav aerial in the dorsal 5.9 mm — rulings owed, as G299).
+- Screenshots (bench, headless Chrome): the belly head-on before/after, the
+  quarter view under the gear, the hinges, the rod saddles, the doors, the
+  twin tail — sent with the study.

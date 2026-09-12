@@ -124,6 +124,7 @@ const BASE_GROUPS = [
   ['creases', [
     ['crPillar',  'pillars',       0, 3, 0.05],
     ['crSill',    'sill',          0, 3, 0.05],
+    ['crKeel',    'keel',          0, 3, 0.05],
     ['crBand',    'waistband',     0, 3, 0.05],
     ['crCeil',    'ceil rail',     0, 3, 0.05],
     ['crFrame',   'windscreen frame', 0, 3, 0.05],

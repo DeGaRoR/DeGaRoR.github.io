@@ -1233,8 +1233,26 @@ function legLink(bags, AF, P, st, sgn) {
   const sp = vee ? P.linkSpread * 0.5 : 0;
   const FF = fitOn(AF, st, st.z + sp, ang, mdx),
         FR = fitOn(AF, st, st.z - sp, ang, mdx);
-  const seat = (Fr) => off(Fr.p, Fr.n, PADT + R * 0.7);
-  const pF = seat(FF), pR = seat(FR);
+  // THE EYE CLEARS THE PAD (G319). The lug's eye is R + 3 mm round the
+  // tube it holds and the tube's centre sat only 0.7 R off the pad, so the
+  // eye's rim was 1.3 mm into the skin by construction — and its two lugs
+  // sit 37 mm either way along the hinge line, which on a vee follows the
+  // belly's own slope: at the Cub's aft foot the belly drops 10 mm over
+  // the pad's length and the down-slope lug's eye was 5.7 mm inside the
+  // flat belly (GATE CLIP, once the crossed strut no longer hid it). The
+  // seat is as high as the lowest eye needs: the skin under each lug is
+  // asked for, and the shortfall lifts the tube.
+  const EYE = 0.024, LUGD = R + 0.013;
+  const seat = (Fr, z) => {
+    let h = PADT + R * 0.7;
+    for (const s of (vee ? [-1, 1] : [0])) {
+      const q = s ? fitOn(AF, st, z + s * LUGD, ang, mdx).p : Fr.p;
+      const need = EYE + PADT + 0.001 - dot(sub(Fr.p, q), Fr.n);
+      if (need > h) h = need;
+    }
+    return off(Fr.p, Fr.n, h);
+  };
+  const pF = seat(FF, st.z + sp), pR = seat(FR, st.z - sp);
   const feet = vee ? [[pF, FF, st.z + sp], [pR, FR, st.z - sp]]
                    : [[lerp3(pF, pR, 0.5), FF, st.z]];
   const pax = vee ? nrm(sub(pF, pR))                  // hinge along the body

@@ -211,7 +211,7 @@ const CAGE_PARTS = [
     sections: ['body', 'ceilingLoop', 'floorLoop', 'waistband'],
     place: { up: 'waistY', at: 'the whole shell' },
     groups: [
-      ['longerons', ['waistY', 'bandH', 'crSill', 'crCeil', 'ceilInset',
+      ['longerons', ['waistY', 'bandH', 'crSill', 'crKeel', 'crCeil', 'ceilInset',
                      'ringPullIn']],
       ['section', ['topRound', 'botRound', 'topAngCeil', 'topAngRoof']],
       ['creases', ['crPillar', 'crBand', 'crCap', 'crFrame'], EXPERT],

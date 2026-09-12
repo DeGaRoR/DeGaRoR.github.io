@@ -119,7 +119,7 @@ const CAGE_DEFAULT = {
   // tight ring PAIR holds them, the template's own mechanism), the rails
   // carry INTEGER weights, and window frames never touch the rails.
   crease: { pillar: 0, sill: 2, band: 1, ceil: 1, frame: 2, cap: 2,
-            frontCap: 0.3 },
+            frontCap: 0.3, keel: 2 },
 
   // nose: designed per level; twin = pillarFront's aft ring. yC/zC are the
   // centre-column variants where the ring is not planar.
@@ -769,6 +769,8 @@ function buildCage2(S, step) {
   const creaseMode = step === 'crease';
   const sv = creaseMode ? 1 : step;               // structural step
   const CW = S.crease || {};
+  // G319: the keel crease, faded by the bottom roundness (see the rails)
+  CW.keelW = (CW.keel || 0) * (1 - Math.max(0, Math.min(1, (S.top && S.top.botRound) || 0)));
   // canopy (G16): 'conv' opens the pilot-area top (windshield stays),
   // 'open' also removes the windshield + A-pillar above the cut. The cut
   // line is the waistband TOP ('band') or BOTTOM ('waist') — the exposed
@@ -1244,8 +1246,17 @@ function buildCage2(S, step) {
     // rail gets a gentle continuous crease too: it anchors the top edge of
     // the window zones (else the dome above pulls the boundary past the
     // pinned window frames and the reveal band folds).
+    // THE BELLY IS FLAT BETWEEN THE LONGERONS (G319, the user: "flatten
+    // the belly between the longerons so the shock struts clear"): the
+    // keel rail — the lower longeron — is creased like the sill, so the
+    // panel between the two keel corners stays the plane the cage drew and
+    // the corner stays a corner. Uncreased, subdivision rounded the corner
+    // over ~25 cm of the flank, and a fitting bolted on that corner (the
+    // Cub's crossed shock struts) had its bar 35 mm inside the round. A
+    // round-bottom pod (botRound) fades the crease out: its keel level has
+    // moved up the arc and a corner there would be a kink on a curve.
     if (E) for (const [k, w] of [['waist', CW.sill], ['band', CW.band],
-                                 ['ceil', CW.ceil]]) {
+                                 ['ceil', CW.ceil], ['keel', CW.keelW]]) {
       if (a.P[k] != null && b.P[k] != null) {
         tagE(a.P[k], b.P[k], w);
         tagE(a.M[k], b.M[k], w);
@@ -1559,6 +1570,8 @@ function buildCage2(S, step) {
           ? CW.sillNose : CW.sill;
         tagE(s.a.P.waist, s.b.P.waist, wS);
         tagE(s.a.M.waist, s.b.M.waist, wS);
+        tagE(s.a.P.keel, s.b.P.keel, CW.keelW);      // G319: the keel rail runs on under the nose
+        tagE(s.a.M.keel, s.b.M.keel, CW.keelW);
       }
     }
 
@@ -6490,6 +6503,7 @@ const CAGE_PARAMS = {
   // sharp-then-smooth funnel), and the ceil rail crease is retired.
   crPillar: 3, crSill: 2, crBand: 1, crCeil: 0, crFrame: 3, crCap: 2,
   crFrontCap: 0.3, crNoseCap: 2,
+  crKeel: 2,        // G319: the belly is flat between the lower longerons
   botRound: 0,
   noseCrown: 0, noseH: 1, noseDroop: 0, wsBaseLift: 0,
   cowlLoops: 0, cowlEase: 0, cowlBulge: 1.05, noseFinish: 0,
@@ -6893,6 +6907,7 @@ function cageSpec(P) {
               sillPax: Math.max(0, P.winSillPax || 0) };
   S.crease = { pillar: P.crPillar, sill: P.crSill, band: P.crBand,
                ceil: P.crCeil, frame: P.crFrame, cap: P.crCap,
+               keel: P.crKeel == null ? 2 : +P.crKeel,
                frontCap: P.crFrontCap, noseCap: P.crNoseCap,
                sillNose: P.crSillNose };
   // THE MOUNT DECIDES THE ENDS (2026-09-04): a pusher (engMount 1) opens the
