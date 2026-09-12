@@ -732,8 +732,12 @@ function battery(name, P) {
       if (st.y0 < wet + 0.02)
         check(!!jt, name + ': the stair walks into the water',
               'foot at ' + st.y0.toFixed(2) + ', tide at ' + wet.toFixed(2));
-      if (jt) check(jt.y > wet + 0.1 && jt.y < wet + 0.9,
-                    name + ': the landing is not just above the tide',
+      // ... or, when the pier is a FIXED one (G277), a swell's height above
+      // it - the level the fixed runs are at, PIER_DECK - PIER_LOW higher
+      const fixed = P.pier && Math.round(P.pierKind === undefined ? 1 : P.pierKind) === 1;
+      const lift = fixed ? HG.PIER_DECK - HG.PIER_LOW : 0;
+      if (jt) check(jt.y > wet + 0.1 + lift && jt.y < wet + 0.9 + lift,
+                    name + ': the landing is not ' + (fixed ? 'a swell above the tide' : 'just above the tide'),
                     jt.y.toFixed(2) + ' vs ' + wet.toFixed(2));
     }
   }
@@ -856,23 +860,48 @@ function battery(name, P) {
                            name + ': the doorway is not at its deck\'s level');
         }
       }
+      // THE KINDS (G277): a fixed pier goes DOWN once and never up again;
+      // a floating one never changes level; the doorway is at the house end
+      {
+        const C0 = (chains['0'] || []);
+        let descended = false;
+        for (const m of C0) {
+          if (m.hOut < m.hIn - 0.3) descended = true;
+          else if (m.hOut > m.hIn + 0.3)
+            check(false, name + ': the pier climbs' + (descended ? ' after coming down' : ''), m.key);
+        }
+        if (pr.kind === 0) check(!descended, name + ': a floating pier changed level');
+        if (pr.kind === 1) check(descended, name + ': a fixed pier never came down to the water');
+        const door = pr.modules.find(m => m.over);
+        if (door && C0.length)
+          check(door.z < C0[0].z1 + 0.01, name + ': the doorway is not at the house end of the pier',
+                door.z.toFixed(2) + ' vs first module to ' + C0[0].z1.toFixed(2));
+      }
       for (let i = 0; i < pr.boats.length; i++) {
         const b = pr.boats[i], K = HG.PIER_KIT[b.key];
+        const bw = b.turned ? K.L : K.W, bl = b.turned ? K.W : K.L;
         check(b.depth >= 0.35 + K.float * K.H, name + ': a boat is beached',
               b.key + ' in ' + b.depth.toFixed(2) + ' m');
         check(Math.abs(b.y - (wet - K.float * K.H)) < 1e-6,
               name + ': a boat is not at its waterline', b.key);
+        // and tied up where the pier floats: beside a module at the low level
+        const quay = pr.modules.find(m => m.key === b.run && !m.over && !m.aside &&
+          Math.abs(b.x - m.x) < (m.axis === 'x' ? (m.b1 - m.b0) : m.w) / 2 + bw / 2 + 0.5 &&
+          Math.abs(b.z - m.z) < (m.z1 - m.z0) / 2 + bl / 2 + 0.5);
+        check(!!quay && quay.hOut < wet + HG.PIER_LOW - 0.6,
+              name + ': a boat is tied to the fixed pier, not the floating one', b.key);
         for (const m of pr.modules) {
           const hw = (m.axis === 'x' ? (m.b1 - m.b0) : m.w) / 2;
           const hz = (m.z1 - m.z0) / 2;
-          check(Math.abs(b.x - m.x) >= hw + K.W / 2 - 0.01 ||
-                Math.abs(b.z - m.z) >= hz + K.L / 2 - 0.01,
+          check(Math.abs(b.x - m.x) >= hw + bw / 2 - 0.01 ||
+                Math.abs(b.z - m.z) >= hz + bl / 2 - 0.01,
                 name + ': a boat is inside the pier', b.key + ' / ' + m.key);
         }
         for (let j2 = 0; j2 < i; j2++) {
           const c = pr.boats[j2], KC = HG.PIER_KIT[c.key];
-          const apart = Math.abs(b.x - c.x) >= (K.W + KC.W) / 2 + 0.05 ||
-                        Math.abs(b.z - c.z) >= (K.L + KC.L) / 2 + 0.05;
+          const cw = c.turned ? KC.L : KC.W, cl = c.turned ? KC.W : KC.L;
+          const apart = Math.abs(b.x - c.x) >= (bw + cw) / 2 + 0.05 ||
+                        Math.abs(b.z - c.z) >= (bl + cl) / 2 + 0.05;
           check(apart, name + ': two boats overlap', b.key + ' / ' + c.key);
         }
       }
@@ -1402,28 +1431,32 @@ if (SELFTEST) {
   // build from it.
   const wetH = HG.build(Object.assign({}, HG.DEF, {
     stance: 3, floorY: 2.2, water: 1, waterY: -0.6, slopeZ: 12, porch: 1,
-    stairs: 1, pier: 1, pierLen: 3, boats: 2 }), 0);
+    stairs: 1, pier: 1, pierLen: 3, boats: 2, pierKind: 1, pierBranch: 1 }), 0);
   if (!wetH.stats.jetty) neg.push('the pier selftest house has no jetty');
   else if (!wetH.stats.pier) neg.push('a jettied house grew no pier');
   else {
     if (!(wetH.stats.pier.modules.length >= 4))
       neg.push('a three-run pier came out with ' + wetH.stats.pier.modules.length + ' modules');
-    // and the path actually climbs: up one level off the jetty means the head
-    // is a level higher than where the stair was entered
-    const hd = wetH.stats.pier.modules.filter(m => m.key === 'pier_head')[0];
-    if (!(hd && hd.hIn > wetH.stats.jetty.y + 1.2))
-      neg.push('up one level did not raise the path');
-    const both = HG.build(Object.assign({}, HG.DEF, {
+    // THE KINDS (G277): a fixed pier's head is a level BELOW its jetty (it
+    // came down to the water); a floating pier's head is at the jetty's
+    // level; a T is two fingers; and the doorway is over the first module
+    const hd = wetH.stats.pier.modules.filter(m => m.key === 'pier_head' && m.chain === 0)[0];
+    if (!(hd && hd.hIn < wetH.stats.jetty.y - 1.2))
+      neg.push('a fixed pier did not come down to the water');
+    const flo = HG.build(Object.assign({}, HG.DEF, {
       stance: 3, floorY: 2.2, water: 1, waterY: -0.6, slopeZ: 12, porch: 1,
-      stairs: 1, pier: 1, pierLen: 3, boats: 0, pierUp: 2, pierBranch: 1 }), 0).stats.pier;
-    const hd2 = both.modules.filter(m => m.key === 'pier_head' && m.chain === 0)[0];
-    if (!(hd2 && Math.abs(hd2.hIn - wetH.stats.jetty.y) < 0.1))
-      neg.push('up then down did not come back to the jetty\'s level');
-    if (!(both.modules.some(m => m.chain === 1)))
-      neg.push('a branch was asked for and none grew');
+      stairs: 1, pier: 1, pierLen: 3, boats: 0, pierKind: 0, pierBranch: 2 }), 0).stats.pier;
+    const hd2 = flo.modules.filter(m => m.key === 'pier_head' && m.chain === 0)[0];
+    if (!(hd2 && Math.abs(hd2.hIn - flo.y) < 0.1))
+      neg.push('a floating pier changed level');
+    if (!(flo.modules.some(m => m.chain === 1) && flo.modules.some(m => m.chain === 2)))
+      neg.push('a T was asked for and two fingers did not grow');
+    const door = wetH.stats.pier.modules.find(m => m.over);
+    if (!(door && door.z < wetH.stats.pier.modules.filter(m => !m.over)[0].z1))
+      neg.push('the doorway is not at the house end');
     const again = HG.build(Object.assign({}, HG.DEF, {
       stance: 3, floorY: 2.2, water: 1, waterY: -0.6, slopeZ: 12, porch: 1,
-      stairs: 1, pier: 1, pierLen: 3, boats: 2 }), 0);
+      stairs: 1, pier: 1, pierLen: 3, boats: 2, pierKind: 1, pierBranch: 1 }), 0);
     if (JSON.stringify(again.stats.pier) !== JSON.stringify(wetH.stats.pier))
       neg.push('the pier plan is not deterministic');
   }

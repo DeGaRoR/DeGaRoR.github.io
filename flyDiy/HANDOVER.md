@@ -39086,3 +39086,41 @@ carries fore / aft, in / out and up / down for the twin booms.
   `opaque` (`prop_prep.py`) drops the blend and the opacity; the four bag
   rows carry it. Re-baked.
 - Gates: HOUSE, VILLAGE (both with --selftest) green.
+
+## G277 — THE PIER IS EITHER AFLOAT OR FIXED-THEN-DOWN, WITH FINGERS AT NINETY
+## DEGREES AND THE DOORWAY AT THE HOUSE; AND WHITE PAINT WEARS (2026-09-12,
+## the user: "either everything is at water level, or the house gets to an
+## elevated pier, that resists the swell, then inclined piers go to the
+## branches where the boats are tied to, and these ones are at water level
+## because they float ... The doorway needs to be close to the house" /
+## "The white fence is too white, and does not seem to shade right ... The
+## highlighted houses are also too white, this texture lacks weathering")
+
+- **THE GRAMMAR, REDONE** (`pierPlan`): `pierKind` 0 FLOATING - the jetty
+  and every module at the low level, the boats along any of it; `pierKind` 1
+  FIXED + FLOATING - the jetty and one or two runs a swell's height up (the
+  jetty's own level rises by PIER_DECK − PIER_LOW, and the house's stair
+  lands there), then the STAIR module DOWN, entered by its high end, to
+  floating runs where the FINGERS branch at ninety degrees (`pierBranch`
+  0/1/2: none, one off any run either side, a T off the last run both
+  sides; each one or two runs and a head) and the boats tie up. No bump:
+  nothing climbs after coming down, nothing climbs at all when afloat. The
+  doorway stands over the first joint, at the house end, in both.
+- **THE BOATS TIE UP WHERE IT FLOATS**: along any low module, main chain or
+  finger, never the fixed runs, the stair, the doorway or the dolphin; a
+  boat beside a finger lies along it (`turned`), and every box test - the
+  generator's and the gate's - reads the hull the right way round.
+- **Rule 28** holds the kinds: a fixed pier descends once and never climbs
+  after, a floating one never changes level, the doorway is within the
+  first module, every boat is at a low module; rule 16 accepts the higher
+  jetty of a fixed pier. Selftest: fixed head a level below the jetty,
+  floating head at it, a T grows two fingers, the doorway at the house end.
+- **PAINT WEARS** (`wornPaint`): no paint is asked for above 0.93 of the
+  neutral base, and the house's `weather` pulls it down by up to 30 % and
+  a little toward warm grey - white walls in a sunset sky were teeth.
+- **THE FENCE**: weathered brown boards (`wornwood`) instead of the pale
+  grey, the frame's rough timber for the posts, weather 0.8, and its
+  OCCLUSION BAKED like a house's (`bakeAO` over the fence bags with the
+  terrain as ground) - a picket under this sky had been as bright on its
+  dark side as its lit one.
+- Gates: HOUSE, VILLAGE (both --selftest) green.

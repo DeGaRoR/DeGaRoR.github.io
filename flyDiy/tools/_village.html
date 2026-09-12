@@ -399,8 +399,12 @@ function placeBuilt(parent, house, built, F) {
 // ---- the fences ------------------------------------------------------------
 function placeFences(parent, vil) {
   const F = G.makeFinish();
-  const P = Object.assign({}, G.DEF, { postSet: G.SET_IDX('post', 'rough'), deckSet: G.SET_IDX('deck', 'greywood'),
-                                       frameAge: 0.7, hand: 0.6 });
+  // weathered brown boards, not the pale grey (G277, the user: "The white
+  // fence is too white, and does not seem to shade right"), the frame's rough
+  // timber for the posts, and the OCCLUSION BAKED like a house's: without it
+  // a picket under this sky was as bright on its dark side as its lit one
+  const P = Object.assign({}, G.DEF, { postSet: G.SET_IDX('post', 'rough'), deckSet: G.SET_IDX('deck', 'wornwood'),
+                                       frameAge: 0.8, hand: 0.6, weather: 0.8 });
   G.applyFinish(P, F);
   const bags = { post: window.HOUSE_KIT.Bag('post'), deck: window.HOUSE_KIT.Bag('deck') };
   let n = 0, old = 0;
@@ -428,11 +432,14 @@ function placeFences(parent, vil) {
       }
     } else n += VG.buildFence(bags, vil.T, seg, P.hand, plot.id * 7 + 1);
   }
+  const t0 = performance.now();
+  window.HOUSE_KIT.bakeAO([bags.post, bags.deck], { strength: 0.85, range: 0.5, ground: vil.T.h });
+  const aoMs = performance.now() - t0;
   const grp = new THREE.Group();
   for (const k in bags) bags[k].mesh(grp, F.MAT[k]);
   parent.add(grp);
   FINISHES.push(F);
-  return { members: n, old, tris: bags.post.tris + bags.deck.tris };
+  return { members: n, old, tris: bags.post.tris + bags.deck.tris, aoMs };
 }
 
 // ---- build ---------------------------------------------------------------------

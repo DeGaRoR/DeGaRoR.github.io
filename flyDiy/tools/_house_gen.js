@@ -461,6 +461,20 @@ function paintHex(hex) {
   return (r << 16) | (g << 8) | b;
 }
 
+// PAINT WEARS (G277, the user: "The highlighted houses are also too white,
+// this texture lacks weathering, it shines like teeth too white"). A white
+// wall outdoors is never white: the pigment chalks, the grime settles, and a
+// season's weathering takes a quarter of the light off it. `wear` is the
+// house's weather dial; the colour is pulled down by it and a little toward
+// a warm grey, and no paint is ever asked for above 0.93 of the neutral
+// base, so even fresh white lands off-white.
+function wornPaint(hex, wear) {
+  const w = clamp(wear === undefined ? 0.5 : wear, 0, 1);
+  const k = 0.93 * (1 - 0.30 * w), gm = 0.18 * w;
+  const ch = (v, gr) => Math.max(0, Math.min(255, Math.round((v * (1 - gm) + gr * gm) * k)));
+  return (ch((hex >> 16) & 255, 150) << 16) | (ch((hex >> 8) & 255, 142) << 8) | ch(hex & 255, 128);
+}
+
 const libSets = () => (typeof HOUSE_TEX_SETS !== 'undefined' && HOUSE_TEX_SETS)
   ? HOUSE_TEX_SETS : null;
 const setFor = (P, role) => {
@@ -527,12 +541,12 @@ function dressMat(m, key, colIdx, o) {
   if (blend > 0 && ud && ud.paint) {
     m.color.setHex(0xffffff);
     ud.paint.uPaintMode.value = blend;
-    ud.paint.uPaintCol.value.setHex(blend === 1 ? paintHex(COLS[ci][1])
+    ud.paint.uPaintCol.value.setHex(blend === 1 ? wornPaint(paintHex(COLS[ci][1]), opt.wear)
                                                 : COLS[ci][1]);
   } else {
     if (ud && ud.paint) ud.paint.uPaintMode.value = 0;
     m.color.setHex(natural ? 0xffffff
-      : (usePaint ? paintHex(COLS[ci][1]) : COLS[ci][1]));
+      : (usePaint ? wornPaint(paintHex(COLS[ci][1]), opt.wear) : COLS[ci][1]));
   }
   m.metalness = set.metal;
   m.roughness = opt.rough === undefined ? 1 : opt.rough;
@@ -1161,19 +1175,20 @@ function applyFinish(P, F) {
   SHADE_U.uCon.value = Math.max(0.80, 1 + punch * 0.16 - wthr * 0.14);
   SHADE_U.uDirtK.value = (P.dirt === undefined ? 0.45 : P.dirt) *
                          (0.35 + wthr * 1.1);
+  const wear = clamp(P.weather === undefined ? 0.5 : P.weather, 0, 1);
   dressMat(MAT.siding, setFor(P, 'wall'), P.wallCol,
-          { flat: 0xa8302a, nrm: NRM.siding, blend: P.paintBlend });
+          { flat: 0xa8302a, nrm: NRM.siding, blend: P.paintBlend, wear });
   dressMat(MAT.trim, setFor(P, 'trim'), P.trimCol,
-          { flat: 0xe8e6df, nrm: NRM.trim });
+          { flat: 0xe8e6df, nrm: NRM.trim, wear });
   dressMat(MAT.roof, setFor(P, 'roof'), P.roofCol,
-          { flat: 0x9aa3aa, nrm: NRM.roof });
+          { flat: 0x9aa3aa, nrm: NRM.roof, wear });
   dressMat(MAT.rib, setFor(P, 'roof'), P.roofCol,
-          { flat: 0x8d969d, nrm: NRM.rib });
+          { flat: 0x8d969d, nrm: NRM.rib, wear });
   // BOARDS take a veneer, SURFACES take planks: the deck's members and the
   // rail are individual sticks; the floor slab and the far mesh's deck are
   // continuous surfaces
   dressMat(MAT.deck, setFor(P, 'deck'), P.deckCol,
-          { flat: 0x9c8a6f, nrm: NRM.deck });
+          { flat: 0x9c8a6f, nrm: NRM.deck, wear });
   dressMat(MAT.floor, setFor(P, 'floor'), 0,
           { flat: 0x6d6154, nrm: NRM.floor });
   dressMat(MAT.post, setFor(P, 'post'), P.postCol,
@@ -1260,7 +1275,7 @@ const DEF = {
   // over the water, and what holds it up there
   water: 0, waterY: -0.60, pileBent: 1, pileBatter: 0.85,
   // and out INTO it: the pier that the jetty grows into, and what ties up
-  pier: 1, pierLen: 3, pierGate: 1, pierUp: 1, pierBranch: 0, boats: 2,
+  pier: 1, pierLen: 3, pierGate: 1, pierKind: 1, pierBranch: 1, boats: 2,
   bigBoat: 0, pierSeed: 3,
   // a building that is not a house
   openFront: 0, firewood: 0,
@@ -1371,11 +1386,11 @@ const ROWS = [
      P => Math.round(P.stance) === 3 && !!P.pileBent],
     ['pier', 'pier off the jetty', 0, 1, 1, null, P => !!P.water],
     ['pierLen', 'pier runs', 1, 6, 1, null, P => !!P.water && !!P.pier],
-    ['pierUp', 'the levels', 0, 2, 1, ['stays low', 'up one level',
-     'up, then down to a landing'], P => !!P.water && !!P.pier],
+    ['pierKind', 'the pier', 0, 1, 1, ['floating, at the water', 'fixed, then down to floating fingers'],
+     P => !!P.water && !!P.pier],
+    ['pierBranch', 'fingers', 0, 2, 1, ['none', 'one, off a run', 'a T at the end'],
+     P => !!P.water && !!P.pier],
     ['pierGate', 'the doorway', 0, 1, 1, null, P => !!P.water && !!P.pier],
-    ['pierBranch', 'a branch', 0, 1, 1, null,
-     P => !!P.water && !!P.pier && P.pierLen >= 2],
     ['boats', 'boats alongside', 0, 3, 1, null, P => !!P.water && !!P.pier],
     ['bigBoat', 'the sport fisher', 0, 1, 1, null,
      P => !!P.water && !!P.pier && P.pierLen >= 3],
@@ -3427,7 +3442,11 @@ function buildDeck(bags, P, Q, V, R, g) {
     // structure to have boats"). A flight of steps disappearing into the sea
     // is the one thing a beach house never has.
     const wet = P.water ? P.waterY : -1e9;
-    const landY = P.water ? wet + 0.38 : null;
+    // THE JETTY'S LEVEL (G277): a fixed pier stands a swell's height above
+    // the water and the jetty with it - the stair from the house lands
+    // there; a floating pier is at the water and so is its jetty
+    const fixedPier = P.pier && Math.round(P.pierKind === undefined ? 1 : P.pierKind) === 1;
+    const landY = P.water ? wet + 0.38 + (fixedPier ? PIER_DECK - PIER_LOW : 0) : null;
     const surf = (xx, zz) => {
       const gAt = g(xx, zz);
       return (landY !== null && gAt < wet) ? landY : gAt;
@@ -4159,37 +4178,61 @@ function pierPlan(P, V, g, jetty) {
                 chain: w.chain, over: true, w: K.W,
                 z0: w.z - K.W / 2, z1: w.z + K.W / 2 });
   };
+  // THE GRAMMAR (G277, the user: "either everything is at water level, or
+  // the house gets to an elevated pier, that resists the swell, then
+  // inclined piers go to the branches where the boats are tied to, and these
+  // ones are at water level because they float ... The doorway needs to be
+  // close to the house"). Two kinds, and no bump in either:
+  //   0  FLOATING: the jetty and every module at the low level, the boats
+  //      along any of it;
+  //   1  FIXED + FLOATING: the jetty and one or two runs at the high level -
+  //      the pier that takes the swell - then the STAIR module DOWN, entered
+  //      by its high end, to floating runs at the low level, where the
+  //      fingers branch off at ninety degrees and the boats tie up.
+  // The doorway stands over the first joint, at the house end, in both.
+  const kind = clamp(Math.round(P.pierKind === undefined ? 1 : P.pierKind), 0, 1);
   const main = walk(0, jetty.x, jetty.z1, jetty.y, [0, 1]);
-  const up = clamp(Math.round(P.pierUp), 0, 2);
-  // UP ONE LEVEL off the jetty: the stair entered by its low landing
-  if (up) place(main, 'pier_step', false);
   if (P.pierGate) gate(main);
   const n = clamp(Math.round(P.pierLen), 1, 6);
-  const runs = [];
-  for (let i = 0; i < n; i++) runs.push(place(main, pick(PIER_RUNS), false));
-  // A BRANCH: a spur off the side of one run, at its level, ending in a head
-  let spur = null;
-  if (P.pierBranch && n >= 2) {
-    const r = runs[Math.floor(rnd() * runs.length)];
-    const sd = rnd() < 0.5 ? 1 : -1;
-    const w2 = walk(1, r.x + sd * r.w / 2, r.z, r.hOut, [sd, 0]);
+  const runs = [];                            // the LOW runs: fingers and boats go here
+  let nLow = n;
+  if (kind === 1) {
+    const nFixed = n >= 3 && rnd() < 0.5 ? 2 : 1;
+    for (let i = 0; i < nFixed; i++) place(main, pick(PIER_RUNS), false);
+    place(main, 'pier_step', true);           // DOWN: entered by its high end
+    nLow = Math.max(1, n - nFixed);
+  }
+  for (let i = 0; i < nLow; i++) runs.push(place(main, pick(PIER_RUNS), false));
+  // THE FINGERS: spurs at ninety degrees off a low run, one or two runs long,
+  // each ending in a head. One finger goes off any run, either side; two
+  // make a T off the last run, both sides.
+  const spurs = [];
+  const nbr = clamp(Math.round(P.pierBranch || 0), 0, 2);
+  const finger = (r, sd, cid) => {
+    const w2 = walk(cid, r.x + sd * r.w / 2, r.z, r.hOut, [sd, 0]);
     const s1 = place(w2, pick(PIER_RUNS), false);
-    s1.off = r; r.spur = sd;
+    s1.off = r;
+    r.spurs = r.spurs || {};
+    r.spurs[sd] = true;
+    if (rnd() < 0.35) place(w2, pick(PIER_RUNS), false);
     place(w2, 'pier_head', false);
-    spur = w2;
+    spurs.push(w2);
+  };
+  if (nbr >= 1) {
+    const r = nbr === 2 ? runs[runs.length - 1] : runs[Math.floor(rnd() * runs.length)];
+    const sd = rnd() < 0.5 ? 1 : -1;
+    finger(r, sd, 1);
+    if (nbr === 2) finger(r, -sd, 2);
   }
-  // AND DOWN AGAIN at the end, to a low landing by the water, or straight to
-  // the head on the level the path is on
-  if (up === 2) {
-    place(main, 'pier_step', true);            // entered by its high end
-    place(main, 'pier_run', false);
-  }
+  const spur = spurs[0] || null;
   const head = place(main, 'pier_head', false);
   const z1 = main.z;
-  // a dolphin off the head, one boat's width out on the side the spur is not
+  // a dolphin off the head, one boat's width out on a side no finger took
   {
     const K = PIER_KIT.pier_piles;
-    const sd = spur ? -spur.ax[0] || (rnd() < 0.5 ? 1 : -1) : (rnd() < 0.5 ? 1 : -1);
+    const taken = {};
+    for (const w2 of spurs) taken[w2.ax[0]] = true;
+    const sd = taken[1] ? -1 : (taken[-1] ? 1 : (rnd() < 0.5 ? 1 : -1));
     const dx = head.x + sd * (head.w / 2 + K.W / 2 + 1.6), dz = z1 - K.L / 2 + 0.6;
     if (g(dx, dz) < wet - 0.8)
       mods.push({ key: 'pier_piles', x: dx, y: head.y, z: dz, ry: 0,
@@ -4199,38 +4242,54 @@ function pierPlan(P, V, g, jetty) {
   // alternating sides, at the middle of a run, in water deep enough for their
   // own draft, clear of every boat already on that side
   const nb = clamp(Math.round(P.boats), 0, 3);
-  const quays = mods.filter(m => m.chain === 0 && !m.over && !m.aside);
+  // THE BOATS TIE UP WHERE THE PIER FLOATS (G277): along any LOW module -
+  // main chain or finger - never along the fixed runs a swell would grind
+  // them against, never the stair, the doorway or the dolphin
+  const quays = mods.filter(m => !m.over && !m.aside && m.key !== 'pier_step' &&
+                                 m.hOut < wet + PIER_LOW - 0.6);
   let side = rnd() < 0.5 ? 1 : -1;
   const moor = (key, m, sd) => {
-    if (m.spur === sd) return false;
+    if (m.spurs && m.spurs[sd]) return false;
     const K = PIER_KIT[key];
-    const bx = m.x + sd * (m.w / 2 + K.W / 2 + 0.35);
-    const bz = m.z + (rnd() - 0.5) * Math.max(0, m.z1 - m.z0 - K.L) * 0.5;
+    // a boat lies along the module it is tied to: along z beside a main-chain
+    // run, along x beside a finger - `turned` says which, and the box tests
+    // read the hull's footprint the right way round
+    const turned = m.axis === 'x';
+    const bw = turned ? K.L : K.W, bl = turned ? K.W : K.L;     // footprint x, z
+    let bx, bz;
+    if (turned) {
+      bx = m.x + (rnd() - 0.5) * Math.max(0, m.b1 - m.b0 - K.L) * 0.5;
+      bz = m.z + sd * (m.w / 2 + K.W / 2 + 0.35);
+    } else {
+      bx = m.x + sd * (m.w / 2 + K.W / 2 + 0.35);
+      bz = m.z + (rnd() - 0.5) * Math.max(0, m.z1 - m.z0 - K.L) * 0.5;
+    }
     const depth = wet - g(bx, bz);
     if (depth < 0.35 + K.float * K.H) return false;
-    // clear of EVERY module - the spur, the dolphin, the doorway's kerb - and
-    // not only the one it lies beside: the same box test the gate makes
+    // clear of EVERY module - the fingers, the dolphin, the doorway's kerb -
+    // and not only the one it lies beside: the same box test the gate makes
     for (const q of mods) {
       const hw = (q.axis === 'x' ? (q.b1 - q.b0) : q.w) / 2, hz = (q.z1 - q.z0) / 2;
-      if (Math.abs(bx - q.x) < hw + K.W / 2 && Math.abs(bz - q.z) < hz + K.L / 2)
+      if (Math.abs(bx - q.x) < hw + bw / 2 && Math.abs(bz - q.z) < hz + bl / 2)
         return false;
     }
     for (const b of boats) {
       const KB = PIER_KIT[b.key];
-      if (b.side === sd && Math.abs(b.z - bz) < (K.L + KB.L) / 2 + 0.4)
+      const ow = b.turned ? KB.L : KB.W, ol = b.turned ? KB.W : KB.L;
+      if (Math.abs(b.x - bx) < (bw + ow) / 2 + 0.3 && Math.abs(b.z - bz) < (bl + ol) / 2 + 0.3)
         return false;
     }
     boats.push({ key, x: bx, y: wet - K.float * K.H, z: bz,
-                 ry: (rnd() - 0.5) * 0.16 + (rnd() < 0.5 ? Math.PI : 0),
-                 side: sd, run: m.key, depth });
+                 ry: (rnd() - 0.5) * 0.16 + (rnd() < 0.5 ? Math.PI : 0) + (turned ? Math.PI / 2 : 0),
+                 side: sd, run: m.key, depth, turned });
     return true;
   };
-  if (P.bigBoat && n >= 3 && moor('boat_grady', head, side)) side = -side;
-  for (let k = 0, tries = 0; k < nb && tries < 14; tries++) {
+  if (P.bigBoat && n >= 3 && quays.length && moor('boat_grady', quays[quays.length - 1], side)) side = -side;
+  for (let k = 0, tries = 0; k < nb && tries < 14 && quays.length; tries++) {
     if (moor(pick(SMALL_BOATS), pick(quays), side)) k++;
     side = -side;
   }
-  return { x: jetty.x, y: jetty.y, z0: jetty.z1, z1, up, branch: !!spur,
+  return { x: jetty.x, y: jetty.y, z0: jetty.z1, z1, kind, branch: spurs.length,
            modules: mods, boats,
            tris: mods.concat(boats).reduce((a, o) => a + (PIER_TRIS[o.key] || 0), 0) };
 }
@@ -5338,7 +5397,7 @@ function randomHouse(seed) {
   P.stairLights = odds(0.6) ? 1 : 0; P.stringCol = odds(0.5) ? 1 : 0;
   P.lightSeed = ri(1, 99);
   P.pier = 1; P.pierLen = ri(1, 4); P.pierGate = odds(0.4) ? 1 : 0;
-  P.pierUp = pick([0, 1, 1, 2]); P.pierBranch = odds(0.3) ? 1 : 0;
+  P.pierKind = odds(0.7) ? 1 : 0; P.pierBranch = pick([0, 1, 1, 2]);
   P.boats = ri(0, 3); P.bigBoat = odds(0.15) ? 1 : 0; P.pierSeed = ri(1, 99);
   P.porchRoof = pick([0, 0, 1, 2]);
   P.lean = odds(0.22) ? 1 : 0; P.leanD = rr(1.6, 3.0);
