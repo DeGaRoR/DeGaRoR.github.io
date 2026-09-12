@@ -144,6 +144,48 @@ function jog(x, z, k) {
 const timberUV = (x, z, k) => ({ uvSwap: true, smooth: true,
                                  uv: jog(x, z, k) });
 
+// THE HAND (G261, the user: "Irregularity really adds to the scenes. Can you
+// chase where you could add some? I'm thinking the ramps and barrier pillars
+// are good candidates. Do not make a full mess of things, but let's get more
+// of this hand crafted, imperfect look ... Fitment should remain great").
+// Everything a builder cut and stood by hand is a little off: a rail post
+// turned a few degrees on its own axis with its top a finger's width off
+// plumb, a baluster not quite on its mark and not quite the same stick as its
+// neighbour, a tread a few millimetres proud of the next, a pile that went
+// into the mud on a lean. What keeps it from becoming a mess is one rule:
+// ONLY THE FREE END MOVES. A foot stays where the plan put it; a top stays
+// inside the member it meets - a post under its cap, a pile under its rim, a
+// tread on its stringers - so nothing ever loses its fit. It is one dial,
+// `hand`, hashed from each member's own place, so two builds agree and GATE
+// HOUSE can hold the bounds (rule 32).
+const HAND = P => clamp(P.hand === undefined ? 0.5 : P.hand, 0, 1);
+const HAND_LEAN = 0.012;          // the most a free end moves, per axis, metres
+const HAND_TWIST = 6;             // degrees, about a member's own axis
+let HAND_LOG = null;              // { members, lean, twist }, per build
+function wob(x, z, k) {           // a signed pair in [-1, 1]
+  const j = jog(x, z, k);
+  return [j[0] / 2.15 - 1, j[1] / 1.55 - 1];
+}
+// a vertical member's `up`, turned about its own axis
+function handUp(P, x, z, k) {
+  const a = wob(x, z, k)[0] * HAND(P) * HAND_TWIST * D2R;
+  if (HAND_LOG) {
+    HAND_LOG.members++;
+    HAND_LOG.twist = Math.max(HAND_LOG.twist, Math.abs(a) / D2R);
+  }
+  return [Math.sin(a), 0, Math.cos(a)];
+}
+// a member's free end, off its mark by up to `m` (a number, or [along x,
+// along z] when the two directions have different room)
+function handOff(P, p, x, z, k, m) {
+  const w = wob(x, z, k + 7), h = HAND(P);
+  const mx = m === undefined ? HAND_LEAN : (m.length ? m[0] : m);
+  const mz = m === undefined ? HAND_LEAN : (m.length ? m[1] : m);
+  const dx = w[0] * h * mx, dz = w[1] * h * mz;
+  if (HAND_LOG) HAND_LOG.lean = Math.max(HAND_LOG.lean, Math.abs(dx), Math.abs(dz));
+  return [p[0] + dx, p[1], p[2] + dz];
+}
+
 const SET_KIND = {
   boxprof: 'roof', corrworn: 'roof', corrrust: 'roof', shingle: 'roof',
   galv: 'roof', rust: 'roof',
@@ -1022,6 +1064,10 @@ const DEF = {
   // to catch the sky along a member and draw its line, small enough that the
   // silhouette is unchanged (which is what lets the far mesh skip it).
   bevel: 0.006,
+  // how far off true the hand let things go: 0 is a machine, 1 is a winter's
+  // work with a hangover; the bounds themselves (HAND_LEAN, HAND_TWIST) are
+  // fixed, this is the fraction of them
+  hand: 0.5,
   // finish: a set per part out of the scanned library, and a paint pot
   wallSet: 0, wallCol: 1, trimSet: SET_IDX('trim', 'veneer'), trimCol: 6,
   roofSet: 0, roofCol: 9,
@@ -1253,6 +1299,7 @@ const ROWS = [
     ['postCol', 'post stain', 0, COLS.length - 1, 1, COL_NAMES],
     ['frameAge', 'frame weathering', 0, 1, 0.02],
     ['bevel', 'chamfered arrises', 0, 0.02, 0.001],
+    ['hand', 'hand-built', 0, 1, 0.05],
     ['metalSet', 'gutters + pipe', 0, ROLE_SETS.metal.length - 1, 1,
      setNames('metal')],
     ['stoneSet', 'foundations', 0, ROLE_SETS.stone.length - 1, 1,
@@ -3092,13 +3139,16 @@ function buildDeck(bags, P, Q, V, R, g) {
     if (Q.lod === 0 && Math.round(P.stance) !== 3)
       boxAB(bags.stone, [x - P.padSz / 2, gy - 0.10, zOut - P.padSz / 2],
             [x + P.padSz / 2, gy + P.padSz * 0.25, zOut + P.padSz / 2]);
-    if (Math.round(P.stance) === 3)
-      cyl(bags.post, [x, gy - 0.35, zOut], [0, 1, 0], P.postSz * 0.62,
-          rimY - (gy - 0.35), Q.lod === 0 ? 9 : 5, true,
-          timberUV(x, zOut, 3));
-    else
+    // on a lean (G261): the top slips along the rim, which runs on past it,
+    // and only a little across, where the rim is a hand wide
+    const top = handOff(P, [x, rimY, zOut], x, zOut, 3, [0.045, 0.012]);
+    if (Math.round(P.stance) === 3) {
+      const base = [x, gy - 0.35, zOut], ax = sub(top, base);
+      cyl(bags.post, base, nrm(ax), P.postSz * 0.62, len(ax),
+          Q.lod === 0 ? 9 : 5, true, timberUV(x, zOut, 3));
+    } else
       beam(bags.post, [x, gy + (Q.lod === 0 ? P.padSz * 0.25 : 0), zOut],
-           [x, rimY, zOut], P.postSz / 2, P.postSz / 2, [0, 0, 1], 0,
+           top, P.postSz / 2, P.postSz / 2, handUp(P, x, zOut, 8), 0,
            { uv: jog(x, zOut, 8), bevel: Q.lod === 0 ? P.bevel : 0 });
   }
 
@@ -3188,8 +3238,9 @@ function buildDeck(bags, P, Q, V, R, g) {
       for (let i = 0; i <= nP; i++) {
         const u = i / nP;
         const x = a[0] + (b[0] - a[0]) * u, z = a[1] + (b[1] - a[1]) * u;
-        beam(bags.post, [x, yTop - 0.16, z], [x, yTop + P.railH, z],
-             0.045, 0.045, [0, 0, 1], 0,
+        beam(bags.post, [x, yTop - 0.16, z],
+             handOff(P, [x, yTop + P.railH, z], x, z, 10), 0.045, 0.045,
+             handUp(P, x, z, 10), 0,
              { uv: jog(x, z, 10), bevel: Q.lod === 0 ? P.bevel : 0 });
       }
       const rail = (y, hw, ht) => beam(bags.deck,
@@ -3200,10 +3251,15 @@ function buildDeck(bags, P, Q, V, R, g) {
           rail(yTop + 0.10, 0.025, 0.022);                // bottom rail
           const nb = Math.max(1, Math.round(L / P.balSpc));
           for (let i = 1; i < nb; i++) {
-            const u = i / nb;
+            // not quite on its mark, not quite the same stick (G261)
+            const u0 = i / nb;
+            const w0 = wob(a[0] + (b[0] - a[0]) * u0, a[1] + (b[1] - a[1]) * u0, 14);
+            const u = u0 + w0[0] * HAND(P) * 0.14 / nb;
             const x = a[0] + (b[0] - a[0]) * u, z = a[1] + (b[1] - a[1]) * u;
-            beam(bags.deck, [x, yTop + 0.10, z], [x, yTop + P.railH, z],
-                 0.020, 0.020, [0, 0, 1], 0, BEV(P, Q));
+            const hb = 0.020 * (1 + w0[1] * HAND(P) * 0.12);
+            beam(bags.deck, [x, yTop + 0.10, z],
+                 handOff(P, [x, yTop + P.railH, z], x, z, 14, 0.008), hb, hb,
+                 handUp(P, x, z, 14), 0, BEV(P, Q));
           }
         } else if (P.railStyle === 2) {
           const nr = 4;
@@ -3256,7 +3312,7 @@ function buildDeck(bags, P, Q, V, R, g) {
           const px = cX + s * (cW / 2 - 0.15);
           beam(bags.post, [px, yTop, zEdge - 0.12],
                [px, yWall - kp * depth - 0.05, zEdge - 0.12],
-               0.055, 0.055, [0, 0, 1]);
+               0.055, 0.055, handUp(P, px, zEdge, 17));
         }
       }
     }
@@ -3418,9 +3474,10 @@ function stepFlight(bags, P, Q, o) {
         const t2 = T * i / np;
         const y = o.yTop - (t2 / o.run) * o.rise - 0.02;
         const c = at(t2, y);
-        beam(bags.post, [c[0] + off2[0], y - 0.10, c[2] + off2[1]],
-             [c[0] + off2[0], y + rh, c[2] + off2[1]], 0.032, 0.032,
-             [0, 0, 1], 0, bevUV(o.P, Q, jog(c[0], c[2], 11)));
+        const qx = c[0] + off2[0], qz = c[2] + off2[1];
+        beam(bags.post, [qx, y - 0.10, qz],
+             handOff(o.P, [qx, y + rh, qz], qx, qz, 11, 0.008), 0.032, 0.032,
+             handUp(o.P, qx, qz, 11), 0, bevUV(o.P, Q, jog(c[0], c[2], 11)));
       }
       const a = at(0, o.yTop + rh - 0.02);
       const b = at(T, yBot + rh - 0.02);
@@ -3438,12 +3495,19 @@ function stepFlight(bags, P, Q, o) {
   }
   for (let i = 0; i < o.n; i++) {                      // a tread on each rise
     const y = o.yTop - (i + 1) * o.rise;
-    const c0 = at(i * o.run, y), c1 = at(i * o.run + o.run + 0.03, y);
+    // each one a few millimetres off the last - along the run, across it,
+    // and in how thick the board was (G261); the top stays at its rise and
+    // the ends stay inside the stringers, so the flight still fits
+    const w = Q.lod === 0 ? wob(o.x + i * 0.7, o.z, 16) : [0, 0];
+    const hnd = HAND(o.P);
+    const t0 = i * o.run + w[0] * hnd * 0.006, sd = w[1] * hnd * 0.004;
+    const th = 0.045 * (1 + w[0] * w[1] * hnd * 0.1);
+    const c0 = at(t0, y), c1 = at(t0 + o.run + 0.03, y);
     boxAB(bags.deck,
-          [Math.min(c0[0], c1[0]) - Math.abs(px) * hw, y - 0.045,
-           Math.min(c0[2], c1[2]) - Math.abs(pz) * hw],
-          [Math.max(c0[0], c1[0]) + Math.abs(px) * hw, y,
-           Math.max(c0[2], c1[2]) + Math.abs(pz) * hw], null,
+          [Math.min(c0[0], c1[0]) - Math.abs(px) * hw + px * sd, y - th,
+           Math.min(c0[2], c1[2]) - Math.abs(pz) * hw + pz * sd],
+          [Math.max(c0[0], c1[0]) + Math.abs(px) * hw + px * sd, y,
+           Math.max(c0[2], c1[2]) + Math.abs(pz) * hw + pz * sd], null,
           [(i * 31 % 17) * 0.37, (i * 13 % 11) * 0.29]);
   }
 }
@@ -3472,8 +3536,10 @@ function buildLanding(bags, P, Q, L, g) {
     for (const zz of [z0 + 0.10, z1 - 0.10]) {
       const gy = g(xx, zz);
       if (rim - gy < 0.20) continue;
-      beam(bags.post, [xx, gy - 0.05, zz], [xx, rim, zz], P.postSz * 0.42,
-           P.postSz * 0.42, [0, 0, 1], 0, { uv: [xx + zz, 0] });
+      beam(bags.post, [xx, gy - 0.05, zz],
+           handOff(P, [xx, rim, zz], xx, zz, 15, [0.02, 0.02]),
+           P.postSz * 0.42, P.postSz * 0.42, handUp(P, xx, zz, 15), 0,
+           { uv: [xx + zz, 0] });
     }
   // A LANDING IS A BALCONY halfway down a stair, so it is railed on every edge
   // a flight does not arrive on — which is what `open` was published for.
@@ -3493,8 +3559,9 @@ function buildLanding(bags, P, Q, L, g) {
         const u = i / np;
         const x = e.a[0] + (e.b[0] - e.a[0]) * u;
         const z = e.a[1] + (e.b[1] - e.a[1]) * u;
-        beam(bags.post, [x, L.y - 0.12, z], [x, L.y + rh, z], 0.032, 0.032,
-             [0, 0, 1], 0, bevUV(P, Q, jog(x, z, 13)));
+        beam(bags.post, [x, L.y - 0.12, z],
+             handOff(P, [x, L.y + rh, z], x, z, 13, 0.008), 0.032, 0.032,
+             handUp(P, x, z, 13), 0, bevUV(P, Q, jog(x, z, 13)));
       }
       const lb = BEV(P, Q);
       beam(bags.deck, [e.a[0], L.y + rh, e.a[1]], [e.b[0], L.y + rh, e.b[1]],
@@ -3559,13 +3626,14 @@ function buildStoop(bags, P, Q, V, g, side) {
   } else boxAB(bags.deck, [x0, yTop - 0.05, zLo], [x1, yTop, zHi]);
   for (const x of [x0 + 0.08, x1 - 0.08]) {
     const gy = g(x, zOut);
-    if (Math.round(P.stance) === 3)
-      cyl(bags.post, [x, gy - 0.3, zOut], [0, 1, 0], P.postSz * 0.55,
-          rimY - (gy - 0.3), Q.lod === 0 ? 8 : 4, Q.lod === 0,
-          timberUV(x, zOut, 6));
-    else
-      beam(bags.post, [x, gy, zOut], [x, rimY, zOut], P.postSz * 0.45,
-           P.postSz * 0.45, [0, 0, 1]);
+    const top = handOff(P, [x, rimY, zOut], x, zOut, 6, [0.025, 0.010]);
+    if (Math.round(P.stance) === 3) {
+      const base = [x, gy - 0.3, zOut], ax = sub(top, base);
+      cyl(bags.post, base, nrm(ax), P.postSz * 0.55, len(ax),
+          Q.lod === 0 ? 8 : 4, Q.lod === 0, timberUV(x, zOut, 6));
+    } else
+      beam(bags.post, [x, gy, zOut], top, P.postSz * 0.45,
+           P.postSz * 0.45, handUp(P, x, zOut, 6));
   }
   // the steps down to the garden, or onto the landing if this is over water
   const sw = Math.min(wid - 0.2, 1.1);
@@ -3949,10 +4017,10 @@ function peoplePlan(P, V, dk, front, pier) {
     const dx = (doorPosOf(P, V) - 0.5) * V.L + P.doorW / 2 + 0.75;
     out.push({ key: 'person_andrew', x: clamp(dx, D.x0 + 0.5, D.x1 - 0.5),
                y: D.yTop, z: D.zIn + Math.min(1.1, P.porchD * 0.5),
-               ry: Math.PI * 0.85, on: 'deck' });
+               ry: -Math.PI * 0.15, on: 'deck' });
   } else if (front) {
     out.push({ key: 'person_andrew', x: front.x + 0.35, y: front.y,
-               z: front.z - front.side * front.depth * 0.5, ry: Math.PI * 0.9,
+               z: front.z - front.side * front.depth * 0.5, ry: -Math.PI * 0.1,
                on: 'stoop' });
   }
   if (pier) {
@@ -4254,6 +4322,7 @@ function build(P0, lod) {
   const g = groundFn(P);
   RIM_LOG = [];
   LIT_LOG = { windows: 0, panes: 0, bulbs: 0, lights: [] };
+  HAND_LOG = { members: 0, lean: 0, twist: 0 };
 
   const V = {
     L: P.L, w: P.w, wallT: P.wallT, floorY: P.floorY,
@@ -4372,6 +4441,7 @@ function build(P0, lod) {
     gutterLen: dr.gutter, downpipe: dr.downpipe,
     jetty: dk.jetty || null, stoop: stoop, front: front, rims: RIM_LOG,
     bay: bayOut, barrel: barrel, pier: pier, smoke: smoke, people: people,
+    hand: HAND_LOG,
     backInLean: !!(P.backDoor && leanCovers(P, V, backDoorX(P, V))),
     // THE LIGHTS, published: how many windows glow, how many bulbs, and every
     // lamp with its position, colour and reach — the bench stands a real light
@@ -4585,6 +4655,7 @@ function dressSlot(matKey, role, idx, col, flat) {
 
 window.HOUSE_GEN = {
   DEF, ROWS, PRESETS, MAT, BAGS, EXTRA, SMOKE_U, FAMS, STANCES, RAILS, SET_TINT, SHADE_U,
+  HAND_LEAN, HAND_TWIST,
   STAIR_MAX, SET_SEAM, SET_MISS, PIER_KIT, PIER_TRIS, PIER_DECK, PIER_LOW, SKIRT_OK,
   COLS, COL_NAMES, ROLE_SETS, SET_IDX, setNames, setFor, setRibbed,
   build, roofModel, wallSplits, groundFn, applyFinish, libSets, randomHouse,

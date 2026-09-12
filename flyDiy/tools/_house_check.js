@@ -876,6 +876,23 @@ function battery(name, P) {
     check(HG.SKIRT_OK(P), name + ': a small or single-storey house has closed its skirt',
           P.storeys + ' storey, ' + (P.L * P.w).toFixed(0) + ' m2');
 
+  // 32 — THE HAND IS A DIAL WITH BOUNDS (G261, the user: "let's get more of
+  //   this hand crafted, imperfect look ... Fitment should remain great").
+  //   Every member the hand touched reports the most any free end moved and
+  //   the most any post turned; the generator's own bounds hold (the widest
+  //   room it ever gives is a pile's top slipping along the rim, 45 mm), and
+  //   at 0 nothing moved at all - a dial that cannot be switched off cannot
+  //   be blamed for a bad fit.
+  {
+    const h = hi.stats.hand;
+    check(!!h && h.lean <= 0.046 && h.twist <= HG.HAND_TWIST + 1e-9,
+          name + ': the hand went past its bounds',
+          h ? h.lean.toFixed(3) + ' m, ' + h.twist.toFixed(1) + ' deg' : 'no report');
+    if (h && (P.hand || 0) === 0)
+      check(h.lean === 0 && h.twist === 0,
+            name + ': hand 0 still moved something');
+  }
+
   // 17 — a back door that opens onto nothing is not a garden door
   // (a back door inside the lean-to's span opens INTO the shed, onto its
   // floor, and gets no stoop by design - rule 23 holds that it has a platform)
@@ -1256,6 +1273,17 @@ if (SELFTEST) {
     if (Math.abs((sst.y1 - sst.n * sst.rise) - sst.y0) > 0.06)
       neg.push('a turned stair does not reach its own foot');
   }
+  // THE HAND (G261): at 1 the rails, posts and treads are visibly off true
+  // and the report says so; at 0 the same house is a machine's work; and the
+  // dial is deterministic, or the gate could never hold it.
+  const h1 = HG.build(Object.assign({}, HG.DEF, { hand: 1, railStyle: 1 }), 0).stats.hand;
+  const h0 = HG.build(Object.assign({}, HG.DEF, { hand: 0, railStyle: 1 }), 0).stats.hand;
+  if (!(h1 && h1.members > 8)) neg.push('the hand touched ' + (h1 ? h1.members : 0) + ' members');
+  if (!(h1 && h1.lean > 0.008 && h1.twist > 3))
+    neg.push('hand 1 barely moved anything (' + (h1 ? h1.lean.toFixed(3) + ' m, ' + h1.twist.toFixed(1) + ' deg' : 'none') + ')');
+  if (!(h0 && h0.lean === 0 && h0.twist === 0)) neg.push('hand 0 still moved something');
+  if (JSON.stringify(HG.build(Object.assign({}, HG.DEF, { hand: 1, railStyle: 1 }), 0).stats.hand) !== JSON.stringify(h1))
+    neg.push('the hand is not deterministic');
   // lod 1 must be a construction: switching it off must actually remove work
   const a0 = HG.build(HG.DEF, 0).stats.tris, a1 = HG.build(HG.DEF, 1).stats.tris;
   if (!(a1 < a0 * 0.3)) neg.push('lod 1 is not cheaper by construction');

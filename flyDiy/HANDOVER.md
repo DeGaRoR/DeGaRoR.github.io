@@ -38112,3 +38112,43 @@ COM / XPDR faces that tune (session 5); the beacon's rotor turning on the
 flown dome (today it pulses); the cabin flood as a real light; an input
 binding for the prop swing; the fixed-step accumulator (G200) before the
 needles' feel is judged; a QNH knob with the day cycle.
+
+## G261 — THE HAND: RAILS, BALUSTERS, STAIR POSTS, TREADS AND PILES A LITTLE
+## OFF TRUE, ON ONE DIAL, WITH THEIR FIT HELD (2026-09-12, the user:
+## "Irregularity really adds to the scenes. Can you chase where you could add
+## some? I'm thinking the ramps and barrier pillars are good candidates. Do not
+## make a full mess of things, but let's get more of this hand crafted,
+## imperfect look. Maybe gate behind a slider if you're not sure. Fitment
+## should remain great")
+
+- **ONE RULE MAKES IT SAFE: ONLY THE FREE END MOVES.** A foot stays where the
+  plan put it, and a top stays inside the member it meets — a rail post under
+  its cap, a pile under its rim, a tread on its stringers — so nothing loses
+  its fit. `handOff(P, top, x, z, k, room)` moves a free end by up to `room`
+  (12 mm by default, given per axis where the two directions differ: a pile's
+  top may slip 45 mm ALONG the rim, which runs on past it, and 12 mm across,
+  where the rim is a hand wide); `handUp(P, x, z, k)` turns a vertical member
+  up to 6° about its own axis. Both are hashed from the member's own place
+  (`wob` = `jog` signed), so two builds agree and a member that moves with a
+  slider gets a new one.
+- **WHERE THE HAND WENT**: the deck's rail posts (turned, off plumb) and its
+  balusters (off their marks by up to 14 % of a bay, not the same stick —
+  ±12 % in section — turned, 8 mm off plumb); the stair's rail posts and the
+  landing's (turned, 8 mm); the treads (6 mm along the run, 4 mm across —
+  still inside the stringers — and ±10 % in thickness with the TOP held at
+  its rise); the deck's piles and posts under the rim, the stoop's legs and
+  the landing's (a lean); the porch roof's posts turned but never leaned,
+  because they carry a roof. Stringers, caps, rims and bearers stay straight:
+  they are what everything else is fitted to.
+- **`hand`** is the dial (0 a machine, 1 a winter's work, default 0.5); the
+  bounds (HAND_LEAN, HAND_TWIST) are fixed and the dial is the fraction of
+  them. The build publishes `stats.hand` — members touched, the largest lean,
+  the largest twist.
+- **GATE HOUSE rule 32**: the report never passes the generator's own widest
+  room (46 mm, 6°), and at `hand` 0 nothing moved at all. The selftest builds
+  the same railed house at 1 and at 0: over a hundred members, a visible lean
+  and twist at 1, nothing at 0, and the same numbers twice.
+- The porch figure is turned round (the user: "you may turn the porch guy
+  180°") — he faces the house now, on the deck and on the stoop alike.
+- Gates: HOUSE (with --selftest) green. GATE MEDIA red at HEAD on the trees
+  session's orphan fir textures (W0c.10), not this arc's.
