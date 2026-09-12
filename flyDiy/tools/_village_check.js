@@ -91,6 +91,9 @@ function buildVillage(V) {
     VG.finishPlot(vil, plot, h, h.built);
     if (plot.out) plot.out.built = HG.build(plot.out.P, 0);
   }
+  // the trees, on a stub pool shaped like the bench's (tall and small)
+  VG.planTrees(vil, [{ key: 'cedar|Cedar', size: 1, sink: 2, proportion: 1, h: 17 },
+                     { key: 'firpack|small', size: 2.1, sink: 0, proportion: 2.85, h: 4 }]);
   return vil;
 }
 const centreOf = p => [p.reduce((a, q) => a + q[0], 0) / p.length, p.reduce((a, q) => a + q[1], 0) / p.length];
@@ -213,6 +216,47 @@ function battery(name, vil) {
       for (let i = 0; i < L.verts && !found; i++) { const y = L.pos[i * 3 + 1] - 0.02; if (y > T.waterY + 0.15 && y < T.waterY + 0.3 && L.alpha[i] > 0.99) found = i; }
       if (found !== null) check(L.splat[found * 4 + 3] > 0.9, name + ': plot ' + plot.id + ' has no pebbles at its seafront');
     }
+  }
+  // 11 — THE TREES (G306): the world's record shape, every one on land and
+  //   off the road, none through a house, an outbuilding, a car or a boat,
+  //   none on a path or a plot line, a wood behind the village and no
+  //   tree of it on a plot, no two closer than a stride; and the clearing
+  //   the world's woodland must honour names every plot and the road
+  {
+    const trees = vil.trees || [];
+    check(trees.length >= 20, name + ': the village planted ' + trees.length + ' trees');
+    let onWater = 0, onRoad = 0, inHouse = 0, onPath = 0, close = 0, badRec = 0, onPlotFromWood = 0;
+    const rectHit = (o, hx, hz0, hz1, x, z) => {
+      const c = Math.cos(o.yaw), sn = Math.sin(o.yaw);
+      const dx = x - o.x, dz = z - o.z, lx = dx * c - dz * sn, lz = dx * sn + dz * c;
+      return Math.abs(lx) < hx && lz > hz0 && lz < hz1;
+    };
+    for (let i = 0; i < trees.length; i++) {
+      const t = trees[i];
+      if (!(typeof t.key === 'string' && t.size > 0 && t.yaw >= 0 && isFinite(t.x) && isFinite(t.z))) badRec++;
+      if (T.h(t.x, t.z) < T.waterY + 0.5) onWater++;
+      if (distToRoad(road, [t.x, t.z]) < road.w / 2 + 1.5) onRoad++;
+      for (const p of vil.plots) {
+        if (p.house === undefined) continue;
+        const h = vil.houses[p.house];
+        if (rectHit(h, h.P.L / 2 + 1, -h.P.w / 2 - 1, h.P.w / 2 + (h.P.porch ? h.P.porchD : 0) + 1, t.x, t.z)) inHouse++;
+        if (p.out && rectHit(p.out, p.out.P.L / 2 + 1, -p.out.P.w / 2 - 1, p.out.P.w / 2 + 1, t.x, t.z)) inHouse++;
+        for (const c of [p.car, p.boat]) if (c && Math.hypot(c.x - t.x, c.z - t.z) < 2.5) inHouse++;
+        if (VG.inPoly(p.poly, t.x, t.z))
+          for (const sg of (p.path || []).concat(p.outPath || [])) if (distPtSeg([t.x, t.z], sg[0], sg[1]) < 1.0) onPath++;
+      }
+      for (let j = i + 1; j < trees.length; j++) if (Math.hypot(trees[j].x - t.x, trees[j].z - t.z) < 2.5) close++;
+    }
+    check(badRec === 0, name + ': ' + badRec + ' tree records are not the world\'s shape');
+    check(onWater === 0, name + ': ' + onWater + ' trees stand in the water or on the beach');
+    check(onRoad === 0, name + ': ' + onRoad + ' trees stand on the road');
+    check(inHouse === 0, name + ': ' + inHouse + ' trees stand through a building, a car or a boat');
+    check(onPath === 0, name + ': ' + onPath + ' trees stand on a path');
+    check(close === 0, name + ': ' + close + ' pairs of trees closer than a stride');
+    const wood = trees.filter(t => !vil.plots.some(p => VG.inPoly(p.poly, t.x, t.z)));
+    check(wood.length >= 10, name + ': no wood behind the village (' + wood.length + ' trees off the plots)');
+    check(!!vil.clearing && vil.clearing.polys.length === vil.plots.length && vil.clearing.road.pts.length > 2,
+          name + ': the clearing does not name every plot and the road');
   }
   // 8 — THE POLES (G285): a known pole, on the ground, on the road's verge
   //   (a metre or two off the road's line), on no plot

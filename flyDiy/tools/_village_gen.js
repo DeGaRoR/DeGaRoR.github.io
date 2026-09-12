@@ -907,6 +907,124 @@ function buildFence(bags, T, seg0, hand, k0) {
   return n + posts.length;
 }
 
-window.VILLAGE_GEN = { VDEF, makeTerrain, makeRoad, makePlots, makeVillage, finishPlot,
+// ---------------------------------------------------------------------------
+// THE TREES (G306, the user: "would you be able using the tree system? ...
+// Possible to get this from here too, and to use these trees in our
+// village? The plan is the village overtakes anything below").
+// ---------------------------------------------------------------------------
+// The village PLANS its trees and hands the plan to whoever draws: a record
+// is exactly what the world's TREE_PLACE takes - { x, z, key, size, yaw } -
+// so in the game every one of these gets the whole ladder (three rungs, the
+// impostor, both shadow cascades, the canopy map) for free, and the bench
+// draws the same records through treeBuild's rungs. `pool` is the species
+// on offer, as the bench reads them off the pack (key, the collection's
+// size, sink and proportion, the subject's height); the gate hands a stub.
+//
+// Where they stand:
+//   THE WOOD behind the village - inland of every plot's back edge, to the
+//     edge of the terrain - on a jittered 6 m grid thinned by a slow noise
+//     (clearings), the tall species; the size the world's rule, the
+//     collection's `size` times 0.82-1.22.
+//   THE EMPTY PLOTS (a frontage left open) grow a grove of their own.
+//   THE LOTS keep one to three trees each, the smaller species, clear of the
+//     house, the outbuilding, the car, the boat, the paths and the fences,
+//     never on the beach.
+// And THE CLEARING: the world's own woodland must not grow through the
+// village - `vil.clearing` says where it may not: the plots and the road.
+function planTrees(vil, pool) {
+  const T = vil.T, V = vil.V, rnd = vil.rnd, half = T.size / 2;
+  const trees = [];
+  pool = (pool && pool.length) ? pool : [{ key: 'stub|tree', size: 1, sink: 0, proportion: 1, h: 12 }];
+  const tall = pool.filter(p => p.h >= 12), small = pool.filter(p => p.h < 12);
+  const draw = list => {
+    list = list.length ? list : pool;
+    const tot = list.reduce((s, p) => s + (p.proportion || 1), 0);
+    let r = rnd() * tot;
+    for (const p of list) { r -= (p.proportion || 1); if (r <= 0) return p; }
+    return list[list.length - 1];
+  };
+  const put = (x, z, p, sizeK) => {
+    const size = (p.size || 1) * (sizeK === undefined ? (0.82 + rnd() * 0.4) : sizeK);
+    trees.push({ x, z, key: p.key, size, yaw: rnd() * Math.PI * 2, y: T.h(x, z), sink: p.sink || 0,
+                 h: (p.h || 12) * size / (p.size || 1) });
+  };
+  const distSeg = (x, z, a, b) => {
+    const dx = b[0] - a[0], dz = b[1] - a[1];
+    const t = clamp(((x - a[0]) * dx + (z - a[1]) * dz) / Math.max(1e-9, dx * dx + dz * dz), 0, 1);
+    return Math.hypot(x - (a[0] + dx * t), z - (a[1] + dz * t));
+  };
+  const nearPoly = (poly, x, z, m) => {
+    let d = 1e9;
+    for (let i = 0; i < poly.length; i++) d = Math.min(d, distSeg(x, z, poly[i], poly[(i + 1) % poly.length]));
+    return inPoly(poly, x, z) ? -d : d;      // negative inside: the metres to the edge
+  };
+  const roadNear = (x, z) => {
+    let d = 1e9;
+    for (let i = 1; i < vil.road.pts.length; i++) d = Math.min(d, distSeg(x, z, vil.road.pts[i - 1], vil.road.pts[i]));
+    return d;
+  };
+  const clearOf = (x, z, m) => trees.every(t => Math.hypot(t.x - x, t.z - z) >= m);
+  // THE WOOD: behind the plots' back edges (the deepest plot line at this x)
+  const backAt = x => {
+    let zb = -1e9;
+    for (const p of vil.plots) for (const q of p.poly) if (Math.abs(q[0] - x) < 24) zb = Math.max(zb, q[1]);
+    if (zb < -1e8) { let t = 0, best = 1e9; for (let i = 0; i < vil.road.pts.length; i++) { const d = Math.abs(vil.road.pts[i][0] - x); if (d < best) { best = d; t = vil.road.pts[i][1]; } } zb = t + V.plotDepth; }
+    return zb;
+  };
+  const s = V.seed * 0.618 + 9;
+  for (let z = -half + 3; z < half - 2; z += 6) for (let x = -half + 3; x < half - 2; x += 6) {
+    const px = x + (rnd() - 0.5) * 4.5, pz = z + (rnd() - 0.5) * 4.5;
+    if (pz < backAt(px) + 5) continue;
+    if (fbm(px * 0.035 + 2.2, pz * 0.035 + 8.8, s, 3) < 0.38) continue;   // a clearing
+    if (T.h(px, pz) < V.waterY + 0.6) continue;
+    if (roadNear(px, pz) < 4) continue;
+    if (vil.plots.some(p => nearPoly(p.poly, px, pz, 0) < 1.5)) continue;
+    if (!clearOf(px, pz, 3.2)) continue;
+    put(px, pz, draw(tall));
+  }
+  // THE EMPTY PLOTS: a grove
+  for (const plot of vil.plots) {
+    if (plot.house !== undefined) continue;
+    for (let i = 0; i < 40; i++) {
+      const x = plot.poly[0][0] + (plot.poly[2][0] - plot.poly[0][0]) * rnd(), z = plot.poly[0][1] + (plot.poly[2][1] - plot.poly[0][1]) * rnd();
+      if (nearPoly(plot.poly, x, z, 0) > -2.5) continue;
+      if (T.h(x, z) < V.waterY + 0.6 || roadNear(x, z) < 4) continue;
+      if (!clearOf(x, z, 4)) continue;
+      put(x, z, draw(pool));
+    }
+  }
+  // THE LOTS: one to three, the smaller species, clear of everything
+  for (const plot of vil.plots) {
+    if (plot.house === undefined) continue;
+    const h = vil.houses[plot.house];
+    const rects = [{ o: h, hx: h.P.L / 2 + 3.5, hz0: -h.P.w / 2 - 3.5, hz1: h.P.w / 2 + (h.P.porch ? h.P.porchD : 0) + 3.5 }];
+    if (plot.out) rects.push({ o: plot.out, hx: plot.out.P.L / 2 + 2.5, hz0: -plot.out.P.w / 2 - 2.5, hz1: plot.out.P.w / 2 + 2.5 });
+    const inRect = (x, z) => rects.some(r => {
+      const c = Math.cos(r.o.yaw), sn = Math.sin(r.o.yaw);
+      const dx = x - r.o.x, dz = z - r.o.z, lx = dx * c - dz * sn, lz = dx * sn + dz * c;
+      return Math.abs(lx) < r.hx && lz > r.hz0 && lz < r.hz1;
+    });
+    const segs = (plot.path || []).concat(plot.outPath || []).map(sg => [sg[0], sg[1]]);
+    for (const sg of (h.built && h.built.stats.path) || []) segs.push([h.toWorld(sg[0][0], sg[0][1]), h.toWorld(sg[1][0], sg[1][1])]);
+    const want = Math.floor(rnd() * 3.2);
+    let got = 0;
+    for (let i = 0; i < 60 && got < want; i++) {
+      const x = plot.poly[0][0] + (plot.poly[2][0] - plot.poly[0][0]) * rnd(), z = plot.poly[0][1] + (plot.poly[2][1] - plot.poly[0][1]) * rnd();
+      if (nearPoly(plot.poly, x, z, 0) > -1.8) continue;
+      if (T.h(x, z) < V.waterY + 0.7) continue;
+      if (inRect(x, z)) continue;
+      if (segs.some(sg => distSeg(x, z, sg[0], sg[1]) < 1.6)) continue;
+      if ([plot.car, plot.boat].some(c => c && Math.hypot(c.x - x, c.z - z) < 4)) continue;
+      if (roadNear(x, z) < 4 || !clearOf(x, z, 4)) continue;
+      put(x, z, draw(small), 0.7 + rnd() * 0.4);
+      got++;
+    }
+  }
+  vil.trees = trees;
+  vil.clearing = { polys: vil.plots.map(p => p.poly), road: { pts: vil.road.pts, w: vil.road.w } };
+  return trees;
+}
+
+window.VILLAGE_GEN = { VDEF, makeTerrain, makeRoad, makePlots, makeVillage, finishPlot, planTrees,
                        buildFence, gateLeaf, clipToLand, inPoly, shoreZ, fbm, lotGround, edgeKey };
 })();

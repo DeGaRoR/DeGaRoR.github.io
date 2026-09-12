@@ -40336,3 +40336,89 @@ every fix measured against the drawn triangles, the baseline `--rebase`d after.
   master, the alternator and the key have no state in the shed (no bus,
   no engine) and stay parts. Verified: a click on the pax dimmer stepped
   `li_pax` 0 → 0.25 and rebuilt.
+
+## G306 — THE VILLAGE PLANTS THE WORLD'S TREES: A WOOD BEHIND IT, GROVES ON THE
+## EMPTY FRONTAGES, ONE TO THREE ON A LOT, IN TREE_PLACE'S OWN SHAPE — AND THE
+## TOWN PLAN AHEAD (2026-09-12, the user: "would you be able using the tree
+## system? ... Possible to get this from here too, and to use these trees in
+## our village? The plan is the village overtakes anything below. I also plan
+## to zone it ... City builder, definitely. You may want to sprinkle a couple of
+## staple houses in there; a church, the townhall. Maybe ... some shop as well.
+## I could generate some billboards, would you generate some buildings? If you
+## can't do all, summarize what remains")
+
+- **THE PLAN IS THE CONTRACT** (`planTrees(vil, pool)` in
+  `tools/_village_gen.js`): a tree is `{ x, z, key, size, yaw }` — exactly
+  the record `TREE_PLACE.add` takes (W0c.28) — so in the world every one
+  gets the whole ladder (three rungs, the impostor, both cascades, the
+  canopy map) with no work; the bench carries `y`, `sink` and `h` beside
+  it for its own drawing. `pool` is the species as read off the pack
+  (key, the collection's size / sink / proportion, the subject's height);
+  the gate hands a two-species stub.
+- **WHERE THEY STAND**: THE WOOD inland of every plot's back edge to the
+  terrain's edge, a jittered 6 m grid thinned by a slow noise (clearings),
+  the tall species drawn by `proportion`, size × 0.82–1.22 (the world's
+  own rule); a GROVE on every empty frontage; ONE TO THREE on a lot — the
+  small species (< 12 m), 3.5 m clear of the house, 2.5 of the outbuilding,
+  4 of the car and the boat, 1.6 of every path, 1.8 inside the plot line,
+  never below tide + 0.7. Nothing within 4 m of the road. ~325 trees on
+  the default seed.
+- **THE CLEARING**: `vil.clearing = { polys, road }` — what the world's
+  woodland map must NOT grow through ("the village overtakes anything
+  below"); the world side of that (masking the fill by these polygons
+  when the village is planted) is not done here.
+- **THE BENCH** loads the world's own `53_tree_codec.js`, `trees_pack.js`
+  and `trees.js`, warms the payload once, and draws each record as a
+  THREE.LOD over `treeBuild`'s three rungs at the world's bands (0 / 60 /
+  132 m) — shared geometry, the hooked leaf material (tint, wrap, sss, the
+  ao channel), a depth material with the cutoff for the cutout parts so
+  the wood casts. No impostor tier here: the bench is 240 m across, the
+  world's impostors start at 270. 4.0 M triangles at rung 0, ~1.2 M as
+  the bands pick (5 / 223 / 97 on a street view).
+- **GATE VILLAGE 11**: every record the world's shape, none in the water
+  or on the beach, none on the road, none through a building / car /
+  boat, none on a path, no pair closer than 2.5 m, a wood of ≥ 10 off the
+  plots, the clearing naming every plot and the road.
+
+### WHAT REMAINS — THE TOWN (the user's plan, in the order I would take it)
+1. **The world plants the village** (one session, world side): a
+   `VILLAGE` payload = `makeVillage` + `finishPlot` + `planTrees` run at
+   world build on the world's own heightfield (`lotGround`, `buildGroundAO`
+   and `planTrees` already take a sampler), houses through `HOUSE_GEN`,
+   props through `propPlace`, trees through `TREE_PLACE.set(vil.trees)`,
+   and the woodland fill masked by `vil.clearing`. The benches already
+   prove every piece; the join is the work.
+2. **The front lot** (queued G303): a parking alley off the road on every
+   plot, a `front` car slot for non-wrecks (a `wreck` flag on the car
+   rows), the garage preset's door bay the alley ends at; the user is
+   hunting low-poly non-abandoned cars.
+3. **Roads as a network, zoning** ("trace the roads, zone the insides,
+   Cities-Skylines style"): `makeRoad` becomes a graph (polylines with
+   junctions), `makePlots` subdivides each block's inside by frontage
+   along ANY edge (it already works by arclength on one road), a
+   `zone` per block (residential / civic / commercial / harbour) picks
+   which generator fills a plot. The plan carries the roads as
+   splines the world's ground splat and the path system read. A
+   `_town.html` bench drawing the graph, with a tracing tool (click to
+   add a node / edge), is the way to see it.
+4. **The staples**: a CHURCH (the house generator's roofFam 0 at 45°
+   pitch, `storeys` 1 with a 2.9 m floor, `cupola` → a belfry drum with
+   the bell, a porch as the narthex — most of it is dials that exist;
+   the steeple is one new roof piece) and a TOWN HALL (the big-house
+   preset at 22 × 11, two storeys, the cupola, a flagpole prop, a
+   double door). A SHOP / GENERAL STORE: a false front (one new wall
+   piece, a parapet over the eave) with a sign board — the user's
+   billboards go there (a `sign` slot on the false front: a quad at a
+   declared size the billboard texture fills) and on a roadside post.
+   Each is a preset + one or two new parts + a GATE HOUSE rule; a
+   day's work each in this bench.
+5. **Bigger buildings** past the house generator (a warehouse, a
+   cannery on the harbour, a fuel dock): a `SHED_GEN` sibling — the
+   plank-by-plank shed already exists as a model in the house bench;
+   the industrial set (corrugated walls, roller doors, a gantry) is a
+   new part family.
+6. **Performance for a town**: house far mesh with a plain material
+   past ~120 m (planned since G293), lights culled by distance, and
+   the house generator's own instancing (one house, many placements)
+   before a town of two hundred.
+- Gates: VILLAGE, TREE, MEDIA green.

@@ -75,6 +75,12 @@
 <script src="../src/pier/pier_yard.js"></script>
 <script src="../src/pier/pier_car.js"></script>
 <script src="../src/pier/pier_lods.js"></script>
+<!-- THE TREES (G306): the world's own payload, codec and loader; the
+     village plans records in TREE_PLACE's shape and the bench draws them
+     through treeBuild's three rungs in a THREE.LOD -->
+<script src="../src/core/53_tree_codec.js"></script>
+<script src="../src/viewer/trees_pack.js"></script>
+<script src="../src/viewer/trees.js"></script>
 <script src="../src/props/props_vessel.js"></script>
 <script src="../src/props/props_bench.js"></script>
 <script src="../src/props/props_handling.js"></script>
@@ -388,6 +394,58 @@ function waterMesh(vil) {
   return m2;
 }
 
+// ---- THE TREES (G306) ----------------------------------------------------------
+// The species pool as the pack offers it, for the plan; then every planned
+// record drawn as a THREE.LOD over treeBuild's rungs at the world's own
+// bands (TREE_LOD_R: 60 / 132 m). The world adds the impostor past 270 m;
+// the bench is 240 m across and needs none. The rung's parts share the
+// pack's geometry and its hooked leaf material (tint, wrap, sss, the ao
+// channel); a cutout part casts through a depth material that honours the
+// cutoff, as the world's does.
+const TREE_BANDS = [0, 60, 132];
+function treePool() {
+  if (typeof treeList !== 'function') return [];
+  return treeList().map(e => ({ key: e.key, size: (e.col.place && e.col.place.size) || 1,
+    sink: (e.col.place && e.col.place.sink) || 0, proportion: (e.col.place && e.col.place.proportion) || 1, h: e.sub.h }));
+}
+const TREE_DEPTH = new Map();     // material -> depth material with the cutout
+function treeDepth(mat) {
+  let d = TREE_DEPTH.get(mat);
+  if (d) return d;
+  d = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: mat.map, alphaTest: Math.max(0.3, mat.userData.uCut ? mat.userData.uCut.value : 0.5), side: THREE.DoubleSide });
+  TREE_DEPTH.set(mat, d);
+  return d;
+}
+function placeTrees(parent, vil) {
+  if (!vil.trees || typeof treeBuild !== 'function' || !treeReady()) return 0;
+  let tris = 0;
+  for (const t of vil.trees) {
+    const lod = new THREE.LOD();
+    lod.name = 'tree:' + t.key;
+    for (let r = 0; r < 3; r++) {
+      const B = treeBuild(THREE, t.key, r, 'rungs');
+      const g = new THREE.Group();
+      for (const p of B.parts) {
+        const m = new THREE.Mesh(p.geo, p.mat);
+        m.castShadow = true; m.receiveShadow = true;
+        m.userData.sharedGeo = true;
+        if (p.cutout) m.customDepthMaterial = treeDepth(p.mat);
+        g.add(m);
+      }
+      lod.addLevel(g, TREE_BANDS[r]);
+      if (r === 0) tris += B.tris;
+    }
+    lod.scale.setScalar(t.size);
+    lod.position.set(t.x, t.y - 0.05 - (t.sink || 0) * t.size, t.z);
+    lod.rotation.y = t.yaw;
+    parent.add(lod);
+  }
+  return tris;
+}
+let TREES_WARM = false;
+if (typeof treeWarm === 'function')
+  treeWarm().then(() => treeMapsReady()).then(() => { TREES_WARM = true; build(); }).catch(e => console.warn('trees:', e && e.message));
+
 // ---- THE LOT'S GROUND (G290) ---------------------------------------------------
 // One patch per lot from the plan's own splat (tools/_village_gen.js
 // lotGround): five sets in world metres, the two grasses mixed on the slow
@@ -678,6 +736,10 @@ function build() {
     h.built = built;
   }
   const fe = placeFences(root, vil);
+  // THE TREES (G306): planned after every plot is finished (they keep off
+  // the cars, the paths and the outbuildings), drawn once the payload is in
+  VG.planTrees(vil, treePool());
+  const treeTris = placeTrees(root, vil);
   // THE LOT PATCHES (G290): after the fences, the cars and the outbuildings
   // are known, since the patch's splat reads them all
   let lotVerts = 0;
@@ -741,7 +803,7 @@ function build() {
     (tris + fe.tris).toLocaleString() + ' tris · ' + ms.toFixed(0) + ' ms';
   rep.push('<b>' + vil.plots.length + '</b> plots along <b>' + vil.road.length.toFixed(0) + ' m</b> of road');
   rep.push('<b>' + houses + '</b> houses, <b>' + water + '</b> waterfront, <b>' + piers + '</b> piers, <b>' + outs + '</b> outbuildings');
-  rep.push('fences: <b>' + fe.members + '</b> drawn members, <b>' + fe.old + '</b> scanned stretches; <b>' + cars + '</b> cars; <b>' + (vil.poles || []).length + '</b> poles; lot ground <b>' + lotVerts.toLocaleString() + '</b> vertices');
+  rep.push('fences: <b>' + fe.members + '</b> drawn members, <b>' + fe.old + '</b> scanned stretches; <b>' + cars + '</b> cars; <b>' + (vil.poles || []).length + '</b> poles; lot ground <b>' + lotVerts.toLocaleString() + '</b> vertices; <b>' + (vil.trees || []).length + '</b> trees' + (TREES_WARM ? ' (' + treeTris.toLocaleString() + ' tris at rung 0)' : ' (payload loading)'));
   // the spread, reported: how many of each key the village used
   rep.push('<span style="color:#7d8996">' + Object.keys(vil.spread.used).filter(k => vil.spread.used[k]).map(k => k.replace(/^(person_|boat_|car_)/, '') + ' ' + vil.spread.used[k]).join(' · ') + '</span>');
   rep.push('<span class="' + (checks(vil) ? 'ok' : 'bad') + '">' + (checks(vil) ? 'plots checked: no overlap, every house in its plot' : 'CHECK FAILED - see console') + '</span>');
