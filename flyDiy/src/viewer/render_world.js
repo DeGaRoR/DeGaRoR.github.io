@@ -1308,9 +1308,29 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // WHICH SUBJECT STANDS IN FOR WHICH SLOT, once, for both layers. The
     // curated set is all conifer, so the broadleaf slot is filled by a conifer
     // too - a CONTENT gap, not a pipeline one.
-    const treePick = re => { const all = treeList();
-      return (all.find(e => re.test(e.key)) || all[0]).key; };
-    const PICK_CONIF = /Fir01/, PICK_BROAD = /Christmas tree\|?$|Christmas tree$/;
+    // THE POOL (W0c.14): every subject of every collection in the payload,
+    // weighted the bench's way - a collection's `proportion` is its share of
+    // the wood, and its subjects split that share between them, so a pack
+    // with two trees does not quietly become two thirds of the forest. The
+    // game planted two subjects by regex before this (Fir01 and LOLIPOP's
+    // big fir) and the larch, the spruce and the small fir sat in the
+    // payload undrawn. A tree's prototype is a weighted draw on one hash of
+    // its own position, the same for both layers.
+    const treePool = () => {
+      const pool = [];
+      for (const e of treeList()) {
+        const n = e.col.subjects.length || 1;
+        const w = ((e.col.place && e.col.place.proportion !== undefined) ? e.col.place.proportion : 1) / n;
+        if (w > 0) pool.push({ key: e.key, w });
+      }
+      return pool;
+    };
+    const poolPick = (pool, r) => {
+      let tot = 0; for (const p of pool) tot += p.w;
+      let acc = r * tot;
+      for (let i = 0; i < pool.length; i++) { acc -= pool[i].w; if (acc <= 0) return i; }
+      return pool.length - 1;
+    };
     // AND THE MAPS MUST HAVE LANDED BEFORE ANYTHING BAKES. treeWarm resolves on
     // the bytes; the leaf textures load after, on their own timers, and an
     // impostor atlas baked in between renders every card solid - the round
@@ -1328,10 +1348,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         // map first requested after this promise is a map the bake never waits
         // for - measured as a normal sheet of solid cards over an empty albedo
         for (const ser of SERIES)
-          for (const re of [PICK_CONIF, PICK_BROAD]) {
-            const k = treePick(re), S = treeList().find(e => e.key === k).sub;
-            const list = (S[ser] && S[ser].length) ? S[ser] : S.rungs;
-            for (let r = 0; r < list.length; r++) treeBuild(THREE, k, r, ser);
+          for (const e of treeList()) {
+            const S = e.sub, list = (S[ser] && S[ser].length) ? S[ser] : S.rungs;
+            for (let r = 0; r < list.length; r++) treeBuild(THREE, e.key, r, ser);
           }
         return treeMapsReady();
       });
@@ -1365,15 +1384,15 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
                           size: (col.place && col.place.size) || 1 };
             return Object.assign(out, { parts: out.series[0].parts });
           };
-          PROTO = { conif: withLadder(treePick(PICK_CONIF)),
-                    broad: withLadder(treePick(PICK_BROAD)) };
+          const pool = treePool();
+          PROTO = pool.length ? pool.map(p => Object.assign(withLadder(p.key), { w: p.w })) : null;
         } catch (e) { PROTO = null; }
       }
       if (PROTO) {
         // the chunk sphere trick applies to a real tree exactly as to a cone —
         // and chunkBounds is also what stashes userData.shape, which the
         // impostor bake reads for its ortho extent
-        for (const P of [PROTO.conif, PROTO.broad]) for (const S of P.series)
+        for (const P of PROTO) for (const S of P.series)
           for (const R of S.ladder) for (const q of R.parts) { chunkBounds(q.geo, CHW); plantedKit.push(q.depth, q.mat); }
       }
 
@@ -1408,20 +1427,26 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // 900 m — and a brown trunk cannot ride a per-species tint anyway.
     const impQuadW = impQuad(CHW);
     // one atlas per SERIES per side: the far band of a dead tree is a dead tree
-    const impMats = side => {
-      const P = PROTO ? PROTO[side] : null;
-      const srcs = P ? P.series.map(S => S.parts) : [side === 'conif' ? coneGeo : blobGeo];
+    const impMatsFor = (P, fallbackGeo) => {
+      const srcs = P ? P.series.map(S => S.parts) : [fallbackGeo];
       return srcs.map(src => {
         const at = bakeImpostorAtlas(src), m = impostorMat(at, FAR_WOOD);
         plantedKit.push(at.tex, at.nrm, m);
         return m;
       });
     };
-    const impConeMatW = impMats('conif'), impBlobMatW = impMats('broad');
+    // one group per prototype (the fallback keeps its two: cone and blob)
+    const GROUPS = PROTO
+      ? PROTO.map((P, gi) => ({ P, imp: impMatsFor(P, null), geo: null }))
+      : [{ P: null, imp: impMatsFor(null, coneGeo), geo: coneGeo },
+         { P: null, imp: impMatsFor(null, blobGeo), geo: blobGeo }];
+    const groupOf = T => PROTO ? poolPick(PROTO, hsh(Math.round(T.x * 3.7), Math.round(T.z * 5.3)))
+                               : (T.sp < 2 ? 0 : 1);
     plantedKit.push(trunkMat, canopyMat);
     for (const cell of cells.values()) {
       const ox = (cell.cx + 0.5) * CHW, oz = (cell.cz + 0.5) * CHW;
-      const conif = cell.list.filter(t => t.sp < 2), broad = cell.list.filter(t => t.sp >= 2);
+      const lists = GROUPS.map(() => []);
+      for (const T of cell.list) lists[groupOf(T)].push(T);
       const mk = (geo, mat, n, shadow) => {
         if (!n) return null;
         const m = new THREE.InstancedMesh(geo, mat, n);
@@ -1479,8 +1504,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         });
         return { n, meshes, imps, rec, ser, cnt, scaleY: P.series.map(S => S.scaleY), sink: P.sink, size: P.size };
       };
-      const C = side(conif, PROTO && PROTO.conif, impConeMatW, coneGeo);
-      const B = side(broad, PROTO && PROTO.broad, impBlobMatW, blobGeo);
+      const HS = GROUPS.map((G, gi) => side(lists[gi], G.P, G.imp, G.geo));
 
       const fill = (H, list) => {
         if (!H) return;
@@ -1523,10 +1547,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           }
         });
       };
-      fill(C, conif); fill(B, broad);
+      HS.forEach((H, gi) => fill(H, lists[gi]));
 
       const all = [trunks];
-      for (const H of [C, B]) if (H) all.push(...H.meshes, ...H.imps);
+      for (const H of HS) if (H) all.push(...H.meshes, ...H.imps);
       for (const m of all) {
         if (!m) continue;
         m.instanceMatrix.needsUpdate = true;
@@ -1537,12 +1561,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // the partitioned meshes are managed by the partition alone (visibility
       // included); the fallback and the impostors ride the chunk registers
       if (PROTO) {
-        for (const H of [C, B]) if (H && H.rec) ladderChunks.push(H.rec);
+        for (const H of HS) if (H && H.rec) ladderChunks.push(H.rec);
       } else {
-        nearChunks.push({ m: [trunks].concat(C ? C.meshes : [], B ? B.meshes : []),
+        nearChunks.push({ m: [trunks].concat(...HS.map(H => H ? H.meshes : [])),
                           x: ox, z: oz, r: NEAR_R + hd, own: true });
       }
-      impChunks.push({ m: (C ? C.imps : []).concat(B ? B.imps : []).filter(Boolean),
+      impChunks.push({ m: [].concat(...HS.map(H => H ? H.imps : [])).filter(Boolean),
                        x: ox, z: oz, r: FAR_WOOD + hd, own: true });
     }
     }                                     // ---- end plantWoodland
@@ -1663,7 +1687,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // W0c.5: one shape per SERIES per side, the same mix as the woodland -
       // the fill's near band draws the CHEAPEST rung of whichever series the
       // instance was dealt, and its far band that series' own atlas
-      const SHAPE = { conif: null, broad: null, kit: [] };
+      const SHAPE = { list: [], real: false, kit: [] };
       const shapeFallback = geo => { const at = bakeImpostorAtlas(geo); return {
         dead: 0, series: [{ parts: [{ geo, mat: matF }],
                             imp: impostorMat(at, FAR_FILL), scaleY: 1, atlas: at }],
@@ -1687,22 +1711,26 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
                        size: (col.place && col.place.size) || 1,
                        series: SERIES.map(ser => Object.assign(ladderFor(key, ser), { imp: null })) };
             };
-            real = { conif: forKey(treePick(PICK_CONIF)), broad: forKey(treePick(PICK_BROAD)) };
+            const pool = treePool();
+            real = pool.length ? pool.map(p => Object.assign(forKey(p.key), { w: p.w })) : null;
           } catch (e) { real = null; }
         }
-        for (const side of ['conif', 'broad']) {
-          if (real) {
-            const H = real[side];
+        SHAPE.list = [];
+        SHAPE.real = !!real;
+        if (real) {
+          for (const H of real) {
             for (const S of H.series) {
               for (const R of S.ladder) for (const q of R.parts) { chunkBounds(q.geo, CH); SHAPE.kit.push(q.mat, q.depth); }
               const at = bakeImpostorAtlas(S.parts);
               S.imp = impostorMat(at, FAR_FILL);
               SHAPE.kit.push(S.imp, at.tex, at.nrm);
             }
-            SHAPE[side] = H;
-          } else {
-            const sh = shapeFallback(side === 'conif' ? coneF : blobF);
-            SHAPE[side] = sh;
+            SHAPE.list.push(H);
+          }
+        } else {
+          for (const geo of [coneF, blobF]) {
+            const sh = shapeFallback(geo);
+            SHAPE.list.push(sh);
             SHAPE.kit.push(sh.series[0].imp, sh.series[0].atlas.tex, sh.series[0].atlas.nrm);
           }
         }
@@ -1710,7 +1738,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       }
       setShapes();
       function gen(cx, cz) {
-        const recs = [[], []];             // conifer / broadleaf
+        const recs = SHAPE.list.map(() => []);   // one list per prototype
         for (let gz = 0; gz < NG; gz++) for (let gx = 0; gx < NG; gx++) {
           const ix = cx * NG + gx, iz = cz * NG + gz;
           if (hsh(ix, iz + 31) < 0.1) continue;
@@ -1729,14 +1757,15 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           if (world.surface(x, z) !== world.SURFACE.FOREST_FLOOR) continue;
           const sp = hsh(ix + 3, iz + 5) < 0.88 ? world.trees[ti].sp
                                                 : (hsh(ix + 9, iz + 1) * 5) | 0;
-          recs[sp < 2 ? 0 : 1].push(x, h, z, sp, hsh(ix + 2, iz + 8));
+          const gi = SHAPE.real ? poolPick(SHAPE.list, hsh(ix + 11, iz + 17)) : (sp < 2 ? 0 : 1);
+          recs[gi].push(x, h, z, sp, hsh(ix + 2, iz + 8));
         }
         const meshes = [], near = [], imp = [], recsOut = [];
         const ox = (cx + 0.5) * CH, oz = (cz + 0.5) * CH;
-        recs.forEach((r, broadish) => {
+        recs.forEach((r, gi) => {
           const n = r.length / 5;
           if (!n) return;
-          const SH = broadish ? SHAPE.broad : SHAPE.conif;
+          const SH = SHAPE.list[gi];
           // deal every instance its series first, so each series' meshes are
           // sized to what they will hold and nothing empty is submitted
           const ser = new Uint8Array(n), cnt = SH.series.map(() => 0);
