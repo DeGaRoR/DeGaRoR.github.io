@@ -144,6 +144,8 @@ window.CAGE_PAGE = {
     seatType: 0, seatZ: 0.205, seatH: 0.08, seatRake: 13,
     seatGap: 0.23, seat2H: -1, seat2Rake: -1, seat2Tilt: -1, ctlStick: 0,
     ctlThr: 0, ctlPed: 1, consoleOn: 0, stickX: 0, stickY: 0, stickZ: 0,
+    floorOn: 1, floorLift: 0,                    // G331: the floor, over the door sill
+    trimX: 0, trimY: 0, trimZ: 0,                // G331: the trim wheel's place
     stickLen: 0.44, stickCrank: 0, thrX: 0, thrY: 0, thrZ: 0, thrLen: 0.16, pedalZ: 0.9,
     pedalH: 0.18, pedalSpread: 0.10, pedalAngle: 25, dumOn: 1,
     dumSize: 1, dumElbows: 0.08, dumKnees: 0, dumRecline: 0, dumMarkers: 1,
@@ -500,7 +502,8 @@ window.CAGE_PAGE = {
          { when: P => +P.crewOn && +P.ctlThr !== 3 }],
         ['thrLen',    'lever length',   0.06, 0.40, 0.005,
          { when: P => +P.crewOn && +P.ctlThr !== 3 }],
-        ['ctlPed',    'pedals',         0, 1, 1],
+        ['ctlPed',    'pedals',         0, 2, 1, ['none', 'tube on a bar',   // G331
+                                                  'pierced alloy plate']],
         ['pedalZ',    'pedal distance', 0.60, 1.40, 0.005,
          { when: P => +P.crewOn && +P.ctlPed }],
         ['pedalH',    'pedal height',   0.02, 0.40, 0.005,
@@ -509,7 +512,17 @@ window.CAGE_PAGE = {
          { when: P => +P.crewOn && +P.ctlPed }],
         ['pedalAngle','pedal angle',    0, 60, 1,
          { when: P => +P.crewOn && +P.ctlPed }],
+        // G331: the trim wheel's own place (offsets from its wall seat: +x
+        // the pilot's left, +y up, +z forward)
+        ['trimX',     'trim wheel left', -0.30, 0.30, 0.005],
+        ['trimY',     'trim wheel up',   -0.30, 0.30, 0.005],
+        ['trimZ',     'trim wheel fwd',  -0.45, 0.45, 0.005],
         ['consoleOn', 'centre console', 0, 1, 1],
+        // G331: THE FLOOR — cut from the cabin at the sill's height (+ the
+        // lift); every seat, pedal and console stands on it
+        ['floorOn',   'floor',          0, 1, 1],
+        ['floorLift', 'floor over sill', -0.10, 0.20, 0.005,
+         { when: P => +P.crewOn && +P.floorOn }],
       ], 'open'],
       // G180: WHO IS ABOARD is per SECTION. The cockpit's second seat is
       // here with the pilot dummy; each passenger bay's row is the bay's own

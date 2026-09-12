@@ -41398,3 +41398,92 @@ Headless now: the Skymaster twin booms and two fins (clusters at 474 /
   road on either side - lots, gaps, the mine's ground - every tree is the
   small species and scaled by 0.65 besides; the tall wood begins behind.
 - Gates: HOUSE (37 the mill), VILLAGE green.
+
+## G331 — THE PEDALS DONE WELL, THE FLOOR CUT FROM THE CABIN, THE TRIM WHEEL
+## ON ITS OWN SLIDERS (2026-09-13, the user: "The pedals are really crude …
+## super simple pedals, but do it well. Something like the piper cub again. A
+## simple tube, on a straight piece of metal, and the proper central axle …
+## proper materials, proper UV unwrapping, and some interesting detail. And
+## maybe some generic lightweight ajouré aluminium pedals, as an option" /
+## "A proper floor. But it needs to match exactly the geometry … Take a
+## plane, intersect at the floor height (or the door sill …) … thickness
+## upwards, a proper veneer texture, and appropriate bolts … properly cut
+## through if clipping with other objects happen, in particular structural
+## elements, or controls" / "the trim needs to be able to be moved. It needs
+## its own positioning sliders")
+
+- **The pedals** (`buildPedals`, `_cage_crew.js`): a Cub's. ONE torque
+  tube across the floor on two cast pillow blocks bolted down (a pinch
+  bolt through each cap); each pedal a collar clamped on it (a split
+  boss, its pinch bolt), a 25 × 5 flat steel bar leaning 14° forward, a
+  19 mm tube welded across its head (a bead round the joint, a plated
+  washer on each end), a cable horn under the collar with a clevis pin
+  and its cable running forward to a fairlead bolted to the boards.
+  `ctlPed` is an enum now: 0 none, 1 tube on a bar (every existing save's
+  `1` maps to it), 2 **pierced alloy plate** — the same axle, collars and
+  bars (alloy, 30 × 6) with a 95 × 160 × 4 footplate cut as a real
+  `THREE.ExtrudeGeometry` from a Shape with 33 holes and a bevelled rim,
+  a toe lip, riveted twice, a gusset under it — in the dash's own
+  roughed alloy (`plateAl`, the user's choice). The sole lands on the
+  tube's top (or the plate's face) through the old ramp formula; the
+  G240 swing is unchanged. On "proper UV unwrapping": the hardware
+  finishes here are the aeroskin's object-space triplanar scans by
+  design (G66–G70) and no hardware reads UVs; the extrude and the
+  revolves carry clean UVs, the finish does not consume them — a second
+  material system for one pedal was not built.
+- **The floor** (`buildFloor`, `_cage_crew.js`): THE CABIN'S OWN CUT.
+  A ray along x at every 15 mm station, at that station's floor height,
+  through the cage's WALL faces (`body`, `floorLoop`, `waistband`,
+  `ceilingLoop`, `pillar*` — the dash, the firewall, the bulkheads and
+  the metal construction's `toele`/`aluminium` sheet are things the
+  floor is cut round, not by) — the innermost hit per side is the edge,
+  so the board fits a lined pillar's liner, the door's skin, the belly's
+  curve. At the DOOR the plane runs along the sill and meets no skin: the
+  gap is bridged straight between the jambs. The run is the firewall's
+  station to a hand behind the last seat's back, ended where the section
+  pinches shut at that height. FLAT ACROSS, THE KEEL'S LINE FORE-AND-AFT:
+  the board's top is `floorAt(z)` (the sill + `floorLift`), which is what
+  every seat, pedal and console already stands on — a single plane
+  through a rising keel sawed into the belly frames toward the nose, and
+  floated the pedals. 12 mm of ply hanging below the top; birch ply
+  (`board`); a seam groove across ahead of each seat row; screws round
+  the edge every 12 cm, 15 mm in.
+- **Cut round what breaks it**: the cage's frame sheet, the published
+  members, EVERY OTHER LAYER'S MESHES (the scene, in the crew group's own
+  frame, at the board's top, middle and bottom — a spar carry-through
+  that only enters the underside is still a spar in the board), and
+  anything a control registers (`floorThru(x, z, r)`). Crossings within
+  30 cm of a wall become NOTCHES in the edge (6 mm clear, as deep as the
+  crossing reaches; pieces of 4 cm so a slanted sheet is a stair; pieces
+  at one station merge to one notch, a stringer's run at one depth to one
+  long shallow one); further in they cluster into boxes — across more
+  than half the cabin a SLOT that splits the floor into two boards (the
+  wing box: seen with `floorLift 0.12` on the user's fixture), smaller a
+  rectangular hole framed by an alloy plate on four screws, at the front
+  or aft edge a notch in that edge (a nose leg ahead of the pedals).
+  `CAGE_CREW.floor` records `{holes, slots, notches, z, cut}`;
+  `CAGE_CREW.floorWhy` says why there is none.
+- **PAGE.late** (`_cage_ui.js`): the crew's post is the HEAD of the layer
+  chain, so the other layers' meshes are not in the scene when it runs;
+  the floor is pushed on `PAGE.late`, which build() drains right after the
+  chain in the same task — so a join that follows the build in one breath
+  (the shed's roll-out) bakes the floor; a page without the hook gets it
+  on a microtask. (The first cut used the microtask alone and the floor
+  was missing in flight.)
+- **Rows**: `floorOn` (1), `floorLift` (−0.10…0.20 over the sill, 0 =
+  the sill, where you step in — the user asked for a new parameter
+  initialised on the door sill; `floorAt` carries it so everything on the
+  floor moves with it); `trimX/Y/Z` — the trim wheel on its own three
+  sliders through `ctlShift`, the throttle's idiom. Groups 'trim wheel'
+  and 'floor' on the Controls part.
+- **Verified** (dev.html, the pump copy): shed — the pedals both kinds,
+  the floor from the seats to the firewall with the footwell's narrowing,
+  15 shallow edge notches on the user's metal fixture (stringers, the
+  front frames), the wing box slot at lift 0.12; flight, cockpit view —
+  the floor baked under the sticks, pedals and flap lever; the trim
+  wheel moves 10 cm forward / 5 up on its rows.
+- **Owed**: the floor's edge is sampled every 15 mm and cut straight
+  across the door — a curved jamb liner will show a chord; the seam is
+  one groove, not two panels; no hole plates for the front/aft edge
+  notches; the pierced plate reads dark in the night shed (bare alloy
+  mirroring a dark cabin — the same scan as the firewall by day).

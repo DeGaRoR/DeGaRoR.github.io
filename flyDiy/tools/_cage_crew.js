@@ -850,55 +850,152 @@ function buildStickSide(g0, A, P, sx, seat) {
                        [0, 0.99, -0.15]),
            label: 'side stick' };
 }
+// THE RUDDER PEDALS (G331, the user: "The pedals are really crude. I think
+// you'd better do super simple pedals, but do it well. Something like the
+// piper cub again. A simple tube, on a straight piece of metal, and the
+// proper central axle. But give this proper materials ... and some
+// interesting detail. And maybe some generic lightweight ajoure aluminium
+// pedals, as an option").
+// A Cub's: ONE TORQUE TUBE across the floor on two pillow blocks (the
+// central axle), and each pedal a flat steel bar rising off a collar
+// clamped on it, a round tube welded across the bar's head for the foot.
+// A cable horn hangs under each collar and its cable runs forward under a
+// fairlead on the floor. `ctlPed` 2 keeps the axle, the collars and the
+// bars, and puts a PIERCED ALLOY FOOTPLATE on each — a real extrusion with
+// the holes in it (THREE.Shape + holes, a bevel on the rim), on two rivets.
+// The finishes are the cabin's own (4130 tube, cast alloy, plated steel,
+// bare alloy) — object-space triplanar, like every piece of hardware here.
+// The plates FLOAT no more: what sits on the floor is bolted to it.
 function buildPedals(g, A, P, sx) {
+  const K = window.GEAR_KIT;
+  const kind = Math.max(1, Math.round(+P.ctlPed || 1));      // 1 tube on a bar, 2 pierced plate
   const zP = A.zBack + P.pedalZ;
   const yF = A.floorAt(zP), yP = yF + P.pedalH;
   // SPREAD (user): how far apart the two pedals stand — a narrow
   // footwell wants them close together
   const sp = P.pedalSpread != null ? P.pedalSpread : 0.10;
   const out = {};
-  // THE PLATES FLOAT (user 2026-08-19): no linkage, no floor posts.
-  // Each is a footplate RAMP tilted toes-up by PED_RAMP — a foot with
-  // the leg extended forward rests at about this angle, and the poser's
-  // own ankle limit is 30 degrees of dorsiflexion, so a steeper plate
-  // could not be stood on.
+  // The foot's RAMP: a foot with the leg extended forward rests at about
+  // this angle, and the poser's own ankle limit is 30 degrees of
+  // dorsiflexion, so a steeper plate could not be stood on.
   const PED_RAMP = (P.pedalAngle != null ? P.pedalAngle : 25) * D2R;
   const c = Math.cos(PED_RAMP), s = Math.sin(PED_RAMP);
-  // (session 4f, the user: "don't do the little support structure, it
-  // sticks out. Just have them like now, definitely closer to each other")
-  // — the plates float, 0.10 apart by default, in the dash's own metal with
-  // a ribbed rubber tread
-  const KP = window.GEAR_KIT;
+  // THE SOLE SITS ON THE PEDAL: the ankle is placed so that the mid-sole
+  // (0.06 forward of the ankle, 0.0725 below it in bone space) lands on
+  // the pedal's centre once the foot is ramped (+ a hair of clearance
+  // along its normal, or the shoe sinks into the metal)
+  const sole = (gp, cy, cz, cl) => {
+    const sy = -0.0725, sz = 0.06;
+    return anchorAt(gp, [0, cy - (sy * c + sz * s) + cl * c, cz - (-sy * s + sz * c) - cl * s], -PED_RAMP);
+  };
+  if (!K) {                                   // no kit (a headless list): two plates, as before
+    for (const sd of [-1, 1]) {
+      const pv = [sx + sd * sp, yP - 0.085, zP];
+      const gp = movingAt(g, 'edCtl_pedal' + (sd > 0 ? 'L' : 'R'), pv, [1, 0, 0], 'dr', sd > 0 ? -0.30 : 0.30, 1);
+      boxAt(gp, M.metal, [0, yP - pv[1], 0], [0.095, 0.014, 0.19], -PED_RAMP);
+      out[sd] = sole(gp, yP - pv[1], 0, 0.010);
+    }
+    return { objL: out[1], objR: out[-1], label: 'pedals' };
+  }
+  const X = [1, 0, 0], Y = [0, 1, 0], Z = [0, 0, 1];
+  // ---- THE AXLE: a 22 mm torque tube 42 mm off the boards, on two cast
+  // pillow blocks bolted down, a pinch bolt through each cap
+  const yA = yF + 0.042, zA = zP, rA = 0.011;
+  const x0 = sx - sp - 0.075, x1 = sx + sp + 0.075;
+  const steel0 = K.Bag(), cast0 = K.Bag(), pl0 = K.Bag();
+  K.revolve(steel0, [x0, yA, zA], X, [[rA, 0], [rA, x1 - x0]], 24, true);
+  for (const xb of [x0 + 0.022, x1 - 0.022]) {
+    K.boxIn(cast0, [xb, yF + 0.006, zA], [0.017, 0.006, 0.027], X, Y, Z);                          // the foot
+    K.boxIn(cast0, [xb, (yF + 0.012 + yA) / 2, zA], [0.011, (yA - yF - 0.012) / 2 + 0.003, 0.013], X, Y, Z);   // the post
+    K.revolve(cast0, [xb - 0.013, yA, zA], X, [[rA + 0.0055, 0], [rA + 0.0055, 0.026]], 20, true);   // the cap
+    for (const dz of [-0.018, 0.018]) K.bolt(pl0, [xb, yF + 0.012, zA + dz], [0, -1, 0], 0.0035, 0.010);   // hold-downs
+    K.bolt(pl0, [xb, yA + rA + 0.0055, zA], [0, -1, 0], 0.003, 0.012);                                 // the pinch bolt
+  }
+  steel0.mesh(g, M.frame); cast0.mesh(g, M.cast);            // (the plated bag closes after the cables)
+  // ---- EACH PEDAL: G240, a pedal swings on the axle. Both hang off one
+  // bar, so pushing one sends the other back — the two take the same drive
+  // with opposite signs. `dr > 0` is nose LEFT (30_solver's own convention),
+  // and the pilot's left foot is at +x (the cage's +x is the pilot's left).
+  const LEAN = 14 * D2R;                       // the bar leans forward off the axle
+  const H = Math.max(0.05, yP - yA);           // the foot's height above the axle
+  const up = [0, Math.cos(LEAN), Math.sin(LEAN)];
+  const top = [0, H, H * Math.tan(LEAN)];      // the bar's head, in the pedal's frame
   for (const sd of [-1, 1]) {
     const xp = sx + sd * sp;
-    // G240: A PEDAL SWINGS ON THE FLOOR. Both plates hang off one bar, so
-    // pushing one sends the other back — which is why the two take the same
-    // drive with opposite signs. `dr > 0` is nose LEFT (30_solver's own
-    // convention), and the pilot's left foot is at +x (the cage's +x is the
-    // pilot's left, _cage_crew: "pilot's right = -x").
-    const pv = [xp, yP - 0.085, zP];
-    const gp = movingAt(g, 'edCtl_pedal' + (sd > 0 ? 'L' : 'R'), pv,
-                        [1, 0, 0], 'dr', sd > 0 ? -0.30 : 0.30, 1);
-    // the arm from the tube up to the plate, the plate (alloy) with a rubber
-    // tread on it, ribbed
-    if (KP) {
-      boxAt(gp, M.plateAl, [0, yP - pv[1], 0], [0.095, 0.010, 0.19], -PED_RAMP);
-      boxAt(gp, M.tread, [0, yP - pv[1] + 0.006 * c, -0.006 * s], [0.085, 0.004, 0.17], -PED_RAMP);
-      for (let i = -3; i <= 3; i++) {
-        const dz = i * 0.024;
-        boxAt(gp, M.tread, [0, yP - pv[1] + 0.009 * c + dz * s, -0.009 * s + dz * c], [0.080, 0.003, 0.006], -PED_RAMP);
+    const pv = [xp, yA, zA];
+    const gp = movingAt(g, 'edCtl_pedal' + (sd > 0 ? 'L' : 'R'), pv, X, 'dr', sd > 0 ? -0.30 : 0.30, 1);
+    const bar = K.Bag(), pl = K.Bag(), alu = K.Bag();
+    // the collar clamped on the axle: a ring with a split boss under it
+    // and the pinch bolt across the boss
+    K.revolve(bar, [-0.017, 0, 0], X, [[rA + 0.004, 0], [rA + 0.004, 0.034]], 20, true);
+    K.boxIn(bar, [0, -(rA + 0.008), -0.005], [0.010, 0.006, 0.009], X, Y, Z);
+    K.bolt(pl, [0.011, -(rA + 0.008), -0.005], [-1, 0, 0], 0.0028, 0.021);
+    // the bar: flat steel (25 x 5) up from the collar to the head, its
+    // thickness fore-and-aft; alloy (30 x 6) for the plate
+    const bw = kind === 2 ? 0.015 : 0.0125, bt = kind === 2 ? 0.003 : 0.0025;
+    K.sweep(kind === 2 ? alu : bar, [[0, 0, 0], top], () => [[-bt, -bw], [bt, -bw], [bt, bw], [-bt, bw]], true, [0, 0, 1]);
+    // the cable horn: a lug under the collar, forward, a clevis pin through
+    // its eye; the cable itself is drawn on the floor group below
+    const eye = [0, -0.030, 0.020];
+    K.lug(bar, eye, X, K.nrm(eye), 0.007, 0.005, 0.030);
+    K.bolt(pl, [0.006, eye[1], eye[2]], [-1, 0, 0], 0.0025, 0.012);
+    if (kind === 2) {
+      // THE PIERCED PLATE: 95 x 160, 4 mm alloy, a 12 mm corner radius, a
+      // grid of 9 mm holes, a bevelled rim (the extrusion's own), a toe lip;
+      // sits on the bar's head, riveted twice
+      const shape = new THREE.Shape();
+      const W = 0.095, L = 0.160, R = 0.012;
+      shape.moveTo(-W / 2 + R, -L / 2);
+      shape.lineTo(W / 2 - R, -L / 2); shape.quadraticCurveTo(W / 2, -L / 2, W / 2, -L / 2 + R);
+      shape.lineTo(W / 2, L / 2 - R); shape.quadraticCurveTo(W / 2, L / 2, W / 2 - R, L / 2);
+      shape.lineTo(-W / 2 + R, L / 2); shape.quadraticCurveTo(-W / 2, L / 2, -W / 2, L / 2 - R);
+      shape.lineTo(-W / 2, -L / 2 + R); shape.quadraticCurveTo(-W / 2, -L / 2, -W / 2 + R, -L / 2);
+      for (let i = -2; i <= 2; i++) for (let j = -3; j <= 3; j++) {
+        if (i === 0 && (j === -1 || j === 1)) continue;          // the rivets' seats
+        const hole = new THREE.Path();
+        hole.absarc(i * 0.018, j * 0.020, 0.0045, 0, Math.PI * 2, true);
+        shape.holes.push(hole);
       }
-    } else boxAt(gp, M.metal, [0, yP - pv[1], 0], [0.095, 0.014, 0.19], -PED_RAMP);
-    // THE SOLE SITS ON THE PLATE: the ankle is placed so that the
-    // mid-sole (0.06 forward of the ankle, 0.0725 below it in bone
-    // space) lands on the plate's centre once the foot is ramped.
-    // (+ half the plate and a hair of clearance along its normal, or the
-    // shoe sinks into the plate)
-    const sy = -0.0725, sz = 0.06, cl = 0.010;
-    out[sd] = anchorAt(gp, [0,
-      yP - pv[1] - (sy * c - sz * (-s)) + cl * c,
-      -(sy * (-s) + sz * c) - cl * s], -PED_RAMP);
+      const geo = new THREE.ExtrudeGeometry(shape, { depth: 0.004, bevelEnabled: true, bevelThickness: 0.0006,
+                                                     bevelSize: 0.0006, bevelSegments: 1, curveSegments: 6 });
+      // the plate's frame on the bar's head: local z its normal (up and
+      // aft, toes up by the ramp), local +y the heel
+      const pf = new THREE.Object3D();
+      pf.position.set(top[0], top[1] + 0.006 * c, top[2] - 0.006 * s);
+      pf.rotation.x = -(Math.PI / 2 + PED_RAMP);
+      gp.add(pf);
+      const plate = new THREE.Mesh(geo, M.plateAl); plate.position.z = -0.002; pf.add(plate);   // the dash's own roughed alloy (the user)
+      // the gusset under it, the toe lip, the rivets
+      const pb = K.Bag(), pr = K.Bag();
+      K.boxIn(pb, [0, 0, -0.005], [bw, 0.024, 0.003], X, Y, Z);
+      K.boxIn(pb, [0, -0.077, 0.006], [0.044, 0.002, 0.007], X, Y, Z);
+      for (const yy of [-0.020, 0.020]) K.bolt(pr, [0, yy, 0.0025], [0, 0, -1], 0.0035, 0.010);
+      pb.mesh(pf, M.plateAl); pr.mesh(pf, M.plated);
+      out[sd] = sole(gp, top[1] + 0.006 * c, top[2] - 0.006 * s, 0.006);
+    } else {
+      // THE FOOT TUBE: 19 mm, 100 wide, welded across the bar's head — a
+      // bead round the joint, a plated washer on each end
+      const rT = 0.0095;
+      K.revolve(bar, [-0.050, top[1], top[2]], X, [[rT, 0], [rT, 0.100]], 20, true);
+      K.revolve(bar, [top[0] - up[0] * 0.006, top[1] - up[1] * 0.006, top[2] - up[2] * 0.006], up,
+                [[0.0115, 0], [0.0145, 0.003], [0.0135, 0.006]], 16, true);
+      for (const xe of [-0.050, 0.050]) K.revolve(pl, [xe - 0.0015, top[1], top[2]], X, [[rT + 0.0015, 0], [rT + 0.0015, 0.003]], 16, true);
+      out[sd] = sole(gp, top[1] + rT * c, top[2] - rT * s, 0.003);
+    }
+    bar.mesh(gp, M.frame); pl.mesh(gp, M.plated); alu.mesh(gp, M.metal);
+    // the cable: from the horn's eye at rest, forward and down to a
+    // fairlead on the boards 30 cm ahead (drawn still — the eye moves a
+    // centimetre at full rudder; the other end is what keeps a real one
+    // taut)
+    const cb = K.Bag(), fl = K.Bag();
+    const zC = zA + 0.24;
+    const e0 = [xp + eye[0], yA + eye[1], zA + eye[2]], e1 = [xp, yF + 0.010, zC];
+    K.tube(cb, e0, e1, 0.0015, 6);
+    K.boxIn(fl, [xp, yF + 0.007, zC], [0.011, 0.007, 0.012], X, Y, Z);
+    K.bolt(pl0, [xp, yF + 0.014, zC - 0.015], [0, -1, 0], 0.0025, 0.008);
+    cb.mesh(g, M.frame); fl.mesh(g, M.cast);
   }
+  pl0.mesh(g, M.plated);
   return { objL: out[1], objR: out[-1], label: 'pedals' };
 }
 function buildThrottleWall(g0, A, P, sx) {
@@ -1217,9 +1314,12 @@ function buildFuelSelector(g0, A, P, sx, seat) {
 // THE TRIM WHEEL, a Cub's: a wheel on a stub axle off a bracket on the
 // left wall by the pilot's hip, its rim knurled, a white mark on the rim
 // and a fixed pointer over it; forward for nose down.
-function buildTrimWheel(g0, A, P, sx, seat) {
+function buildTrimWheel(gRoot, A, P, sx, seat) {
   const K = window.GEAR_KIT;
   if (!K) return null;
+  // G331: on its own three sliders (the user: "the trim needs to be able to
+  // be moved. It needs its own positioning sliders") — the throttle's idiom
+  const g0 = ctlShift(gRoot, P, 'trimX', 'trimY', 'trimZ');
   const sd = Math.sign(sx || 1), inb = -sd;
   let z = (seat ? seat.zBack : A.zBack) + 0.34;
   const y = (seat ? seat.panY : A.floorAt(z) + 0.08) + 0.13;
@@ -1477,7 +1577,462 @@ function buildPanel(parent, A, P, pilotX) {
   return { fit, n: placed.length, overflow, ext, yMid, zFace, xLim };
 }
 
-// (G94's floorboards were drawn here until G267 — see the call site.)
+// (G94's floorboards were drawn here until G267 — see the call site; the
+// floor is back as the cabin's own cut, G331, buildFloor above the dummy.)
+
+// ---- THE FLOOR (G331) ------------------------------------------------------
+// (the user: "A proper floor. But it needs to match exactly the geometry. I
+// think it needs to be built based on the cabin geometry. Take a plane,
+// intersect at the floor height (or the door sill ...) The plane should get
+// an exact cut based on the intersection. Then the result should be given
+// thickness upwards, a proper veneer texture, and appropriate bolts. If
+// possible, this floor should be properly cut through if clipping with
+// other objects happen, in particular structural elements, or controls.")
+//
+// THE OUTLINE IS THE CABIN'S OWN. The cage's faces are cut by the plane at
+// the floor's height (the walking surface, where every seat, pedal and
+// console stands — `floorAt`, the door sill plus `floorLift`); at every
+// station along the cabin the floor's edge on each side is the INNERMOST
+// wall surface the plane meets there (a lined pillar's liner, the door's
+// skin, the belly's curve), so the board fits the cabin it is in — not a
+// quad strip laid over it (G94's, removed by G267). Only WALL faces bound
+// it: the dash, the firewall, the bulkheads and the frame's own metal are
+// things the floor is cut round, not by. The plank runs from the firewall
+// to a hand behind the last seat's back, and stops early where the
+// fuselage's floor-height section pinches shut.
+//
+// THICKNESS: 12 mm of ply, the top face at the floor's height and the
+// board hanging below it (what stands on the floor stands on its top,
+// which is the number every builder already uses), the rim vertical.
+//
+// CUT ROUND: everything that breaks the plane inside the board — the
+// metal construction's sheet frame, a published member, another layer's
+// mesh (the wing's spar carry-through, a tank, a strut), a control that
+// registers itself (`floorThru`). Within 30 cm of a wall it is a NOTCH in
+// the edge (a slot 6 mm clear round the crossing, as deep as it reaches —
+// the way a floorboard is notched round a frame); further in, crossings
+// are clustered into boxes: a box across more than half the cabin is a
+// SLOT that splits the floor into two boards (a spar box), a smaller one
+// a rectangular hole framed by an alloy plate on four screws (the Cub's
+// look round its stick and rudder tubes).
+//
+// LATE: the crew's post is the head of the layer chain, so the floor is
+// built on a microtask after the whole chain — the other layers are in
+// the scene by then. DRESSED: birch ply (the `board` finish, object-space
+// so the veneer lies flat along the boards), a seam groove across ahead
+// of each seat row, screws round the edge every 12 cm.
+let FLOOR_BUILD = 0;                        // the build the deferred floor belongs to
+const FLOOR_T = 0.012;
+let FLOOR_THRU = [];                        // [{x, z, r}] a control passing through, metres
+const floorThru = (x, z, r) => { FLOOR_THRU.push({ x, z, r }); };
+const FLOOR_WALL = /^(body|floorLoop|waistband|ceilingLoop|pillar)/;
+const FLOOR_FRAME = /^(toele|aluminium)/;      // the metal construction's own sheet frame
+const NOTCH_C = 0.006, NOTCH_MAX = 0.30;       // a notch's clearance, and how far in it may reach
+// a triangle's cut by the plane y = yc, as a segment [[x, z], [x, z]] or null
+function planeCut(a, b, c, yc) {
+  const tri = [a, b, c], pts = [];
+  for (let e = 0; e < 3; e++) {
+    const p = tri[e], q = tri[(e + 1) % 3];
+    if ((p[1] - yc) * (q[1] - yc) < 0) {
+      const t = (yc - p[1]) / (q[1] - p[1]);
+      pts.push([p[0] + (q[0] - p[0]) * t, p[2] + (q[2] - p[2]) * t]);
+    }
+  }
+  return pts.length === 2 ? pts : null;
+}
+// THE OUTLINE: the walls' cut, walked station by station (metres); returns
+// the two edges as functions of z, the run [z0, z1], and the notch events
+// `yAt(z)` is the floor's height at a station (metres): the board is FLAT
+// ACROSS and follows the keel fore-and-aft, as `floorAt` does — so what
+// stands on the floor stands on the board, and the plane does not saw
+// into the belly frames where the keel rises toward the nose. Each face
+// is cut at its own station's height.
+function floorWalls(mesh, k, yAt, zF, zA) {
+  if (!mesh || !mesh.V || !mesh.F) return null;
+  const V = mesh.V;
+  // the WALL triangles (metres, with their y/z bounds — the loft's quads
+  // are long, so each station casts its own ray across them); the FRAME's
+  // cut at its faces' own station heights (its triangles are small)
+  const wall = [], frame = [];
+  for (const f of mesh.F) {
+    const m = f.m || '';
+    const isWall = FLOOR_WALL.test(m), isFrame = FLOOR_FRAME.test(m);
+    if (!isWall && !isFrame) continue;
+    const n = f.v.length;
+    for (let i = 1; i + 1 < n; i++) {
+      const a = V[f.v[0]], b = V[f.v[i]], c = V[f.v[i + 1]];
+      if (isWall) {
+        const t = [a, b, c].map(p => [p[0] * k, p[1] * k, p[2] * k]);
+        wall.push({ t, y0: Math.min(t[0][1], t[1][1], t[2][1]), y1: Math.max(t[0][1], t[1][1], t[2][1]),
+                    z0: Math.min(t[0][2], t[1][2], t[2][2]), z1: Math.max(t[0][2], t[1][2], t[2][2]) });
+      } else {
+        const yc = yAt((a[2] + b[2] + c[2]) / 3 * k) / k;
+        const s = planeCut(a, b, c, yc);
+        if (s) frame.push([[s[0][0] * k, s[0][1] * k], [s[1][0] * k, s[1][1] * k]]);
+      }
+    }
+  }
+  if (!wall.length) return null;
+  // the innermost wall at a station, per side: a ray along x at (y, z)
+  // through every triangle whose bounds hold it (barycentric in y-z; a
+  // face lying along x — the belly's bottom — has no answer and is skipped)
+  const edgeAt = (zi, sd) => {
+    const yi = yAt(zi);
+    let best = Infinity;
+    for (const w of wall) {
+      if (yi < w.y0 || yi > w.y1 || zi < w.z0 || zi > w.z1) continue;
+      const [a, b, c] = w.t;
+      const d = (b[1] - a[1]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[1] - a[1]);
+      if (Math.abs(d) < 1e-9) continue;
+      const u = ((yi - a[1]) * (c[2] - a[2]) - (zi - a[2]) * (c[1] - a[1])) / d;
+      const v = ((b[1] - a[1]) * (zi - a[2]) - (b[2] - a[2]) * (yi - a[1])) / d;
+      if (u < -1e-6 || v < -1e-6 || u + v > 1 + 1e-6) continue;
+      const x = (a[0] + (b[0] - a[0]) * u + (c[0] - a[0]) * v) * sd;
+      if (x > 0.03 && x < best) best = x;
+    }
+    return best < Infinity ? best : null;
+  };
+  const STEP = 0.015, zs = [];
+  for (let z = zF; z <= zA + 1e-9; z += STEP) zs.push(z);
+  if (zs[zs.length - 1] < zA - 1e-6) zs.push(zA);
+  // every station, both sides; a gap with wall on both sides of it is
+  // bridged straight across — at the DOOR the plane runs along the sill
+  // and there is no skin to meet, and the board reaches the sill's line
+  // between the jambs; a gap at either end is the fuselage's section
+  // pinching shut at this height (the nose; the tail rising past it)
+  const raw = zs.map(z => [z, edgeAt(z, 1), edgeAt(z, -1)]);
+  const rows = [];
+  for (let s = 1; s <= 2; s++) {
+    let i = 0;
+    while (i < raw.length) {
+      if (raw[i][s] != null) { i++; continue; }
+      let j = i; while (j < raw.length && raw[j][s] == null) j++;
+      if (i > 0 && j < raw.length) {
+        const a = raw[i - 1], b = raw[j];
+        for (let q = i; q < j; q++) raw[q][s] = a[s] + (b[s] - a[s]) * (raw[q][0] - a[0]) / (b[0] - a[0]);
+      }
+      i = j;
+    }
+  }
+  for (const r of raw) if (r[1] != null && r[2] != null) rows.push(r);   // the run is where both sides are
+  if (rows.length < 3) return null;
+  // a light median across three stations takes single-station spikes out
+  // without rounding a real corner
+  const med = (a, b, c) => Math.max(Math.min(a, b), Math.min(Math.max(a, b), c));
+  for (let s = 1; s <= 2; s++)
+    for (let i = 1; i + 1 < rows.length; i++)
+      rows[i][s] = med(rows[i - 1][s], rows[i][s], rows[i + 1][s]);
+  const z0 = rows[0][0], z1 = rows[rows.length - 1][0];
+  const wallAtZ = (z, sd) => {
+    const s = sd > 0 ? 1 : 2;
+    if (z <= z0) return rows[0][s]; if (z >= z1) return rows[rows.length - 1][s];
+    for (let i = 0; i + 1 < rows.length; i++)
+      if (z <= rows[i + 1][0]) { const t = (z - rows[i][0]) / Math.max(1e-9, rows[i + 1][0] - rows[i][0]); return rows[i][s] + (rows[i + 1][s] - rows[i][s]) * t; }
+    return rows[rows.length - 1][s];
+  };
+  return { rows, z0, z1, wallAtZ, frame };
+}
+// WHAT ELSE CROSSES THE PLANE: every mesh of every other layer in the
+// scene (the wing's spar carry-through, a tank, a strut, a bracket), in
+// world metres — the crew's own group and the cage's skin are not asked
+// `ys` are the planes asked (the board's top, middle and bottom: a spar
+// that only enters the underside is still a spar in the board); every cut
+// lands in the CREW group's own frame (the scene is the world's — the
+// layers' meshes come through their matrixWorld and back through ours)
+function sceneCuts(scene, yAt, offs, crewGroup, zLo, zHi) {
+  const out = [], v = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
+  if (!scene || !crewGroup) return out;
+  crewGroup.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(crewGroup.matrixWorld).invert(), M = new THREE.Matrix4();
+  let yLo = Infinity, yHi = -Infinity;
+  for (let z = zLo; z <= zHi + 1e-9; z += 0.05) { const y = yAt(z); yLo = Math.min(yLo, y + Math.min(...offs)); yHi = Math.max(yHi, y + Math.max(...offs)); }
+  for (const top of scene.children) {
+    if (top === crewGroup || !/^cageLayer:/.test(top.name || '') || !top.visible) continue;
+    top.updateMatrixWorld(true);
+    top.traverse(o => {
+      if (!o.isMesh || !o.visible || o.isSkinnedMesh || !o.geometry || !o.geometry.attributes.position) return;
+      const m0 = Array.isArray(o.material) ? o.material[0] : o.material;
+      if (!m0 || m0.visible === false || m0.transparent) return;
+      const g = o.geometry, p = g.attributes.position, idx = g.index;
+      const n = idx ? idx.count : p.count;
+      M.multiplyMatrices(inv, o.matrixWorld);
+      // a cheap bound first: the mesh's box must reach into the board
+      if (!g.boundingBox) g.computeBoundingBox();
+      const bb = g.boundingBox.clone().applyMatrix4(M);
+      if (bb.min.y > yHi || bb.max.y < yLo) return;
+      const tri = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+      for (let i = 0; i + 2 < n; i += 3) {
+        for (let e = 0; e < 3; e++) {
+          const vi = idx ? idx.getX(i + e) : i + e;
+          v[e].fromBufferAttribute(p, vi).applyMatrix4(M);
+          tri[e][0] = v[e].x; tri[e][1] = v[e].y; tri[e][2] = v[e].z;
+        }
+        const y0 = yAt((tri[0][2] + tri[1][2] + tri[2][2]) / 3);
+        for (const off of offs) {
+          const s = planeCut(tri[0], tri[1], tri[2], y0 + off);
+          if (s) out.push([[s[0][0], s[0][1]], [s[1][0], s[1][1]]]);
+        }
+      }
+    });
+  }
+  return out;
+}
+const polyInside = (poly, x, z) => {
+  let inn = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = poly[i], b = poly[j];
+    if ((a[1] > z) !== (b[1] > z) && x < (b[0] - a[0]) * (z - a[1]) / (b[1] - a[1]) + a[0]) inn = !inn;
+  }
+  return inn;
+};
+const polyEdgeDist = (poly, x, z) => {
+  let best = Infinity;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = poly[j], b = poly[i];
+    const dx = b[0] - a[0], dz = b[1] - a[1], L2 = dx * dx + dz * dz;
+    const t = L2 > 1e-12 ? Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / L2)) : 0;
+    best = Math.min(best, Math.hypot(x - a[0] - dx * t, z - a[1] - dz * t));
+  }
+  return best;
+};
+// THE FLOOR, built once every layer has drawn (the crew's post is the head
+// of the chain, so it defers itself a microtask — by then the wing, the
+// tanks, the struts and the lights are in the scene to be cut round)
+function buildFloor(g, A, P, mesh, seats, scene) {
+  const K = window.GEAR_KIT;
+  const fail = why => { if (window.CAGE_CREW) window.CAGE_CREW.floorWhy = why; return null; };   // the notes' reason
+  if (!K || !mesh || !mesh.F) return fail('no kit or mesh');
+  const k = A.k;
+  const yAt = z => A.floorAt(z);                 // flat across, the keel's line fore-and-aft
+  const zRef = seats.length ? seats[0].zBack + 0.25 : A.zBack + 0.25;
+  const yTop = yAt(zRef);
+  // the run: the firewall (its faces' aft-most station) to a hand behind
+  // the last seat's back
+  let zFire = -Infinity;
+  for (const f of mesh.F) if (f.m === 'firewall') for (const vi of f.v) zFire = Math.max(zFire, mesh.V[vi][2] * k);
+  const zF = isFinite(zFire) ? zFire - 0.004 : A.zDash + 0.55;
+  const zA = seats.reduce((m, s) => Math.min(m, s.zBack), A.zBack) - 0.10;
+  const W = floorWalls(mesh, k, yAt, zA, zF);
+  if (!W) return fail('no wall at the floor height between ' + zA.toFixed(2) + ' and ' + zF.toFixed(2));
+  const { rows, z0, z1, wallAtZ } = W;
+  const widthAt = z => wallAtZ(z, 1) + wallAtZ(z, -1);
+  // ---- everything that breaks the plane: the frame's sheet, the members,
+  // the other layers' meshes, the registered controls
+  const cuts = W.frame.slice();
+  for (const m of (mesh.members || [])) {
+    const a = m.a.map(v => v * k), b = m.b.map(v => v * k);
+    const yM = yAt((a[2] + b[2]) / 2);
+    if ((a[1] - yM) * (b[1] - yM) >= 0) continue;
+    const t = (yM - a[1]) / (b[1] - a[1]);
+    const x = a[0] + (b[0] - a[0]) * t, z = a[2] + (b[2] - a[2]) * t, r = (m.r || 0.008) * k;
+    cuts.push([[x - r, z - r], [x + r, z + r]], [[x - r, z + r], [x + r, z - r]]);
+  }
+  for (const h of FLOOR_THRU) cuts.push([[h.x - h.r, h.z - h.r], [h.x + h.r, h.z + h.r]], [[h.x - h.r, h.z + h.r], [h.x + h.r, h.z - h.r]]);
+  try { for (const s of sceneCuts(scene, yAt, [-0.001, -FLOOR_T / 2, -FLOOR_T + 0.001], g, z0, z1)) cuts.push(s); }
+  catch (e) { console.warn('floor: scene cut', e); }
+  // ...inside the run, and sorted: EDGE crossings (within NOTCH_MAX of a
+  // wall) become notch events on that side; the rest are clustered
+  // ...cut into pieces no longer than 4 cm first: a sheet crossing the
+  // plane on a slant is a slanted slot, and pieces make a stair of it
+  // (one long piece made a box the size of its whole diagonal)
+  const pieces = [];
+  for (const [p, q] of cuts) {
+    const n = Math.max(1, Math.ceil(Math.hypot(q[0] - p[0], q[1] - p[1]) / 0.04));
+    for (let i = 0; i < n; i++) {
+      const t0 = i / n, t1 = (i + 1) / n;
+      pieces.push([[p[0] + (q[0] - p[0]) * t0, p[1] + (q[1] - p[1]) * t0], [p[0] + (q[0] - p[0]) * t1, p[1] + (q[1] - p[1]) * t1]]);
+    }
+  }
+  const events = { 1: [], [-1]: [] }, inner = [];
+  for (const [p, q] of pieces) {
+    const zm = (p[1] + q[1]) / 2;
+    if (zm < z0 + 0.01 || zm > z1 - 0.01) continue;
+    const xlo = Math.min(p[0], q[0]), xhi = Math.max(p[0], q[0]);
+    if (xhi < -wallAtZ(zm, -1) || xlo > wallAtZ(zm, 1)) continue;       // outside the walls
+    const wR = wallAtZ(zm, 1), wL = wallAtZ(zm, -1);
+    const spansR = xhi > wR - NOTCH_MAX, spansL = xlo < -(wL - NOTCH_MAX);
+    if (spansR && spansL) { inner.push([p, q]); continue; }             // across the board: a slot
+    if (spansR) { events[1].push({ z: zm, depth: Math.min(NOTCH_MAX, wR - Math.max(0.02, xlo) + NOTCH_C), hw: Math.abs(q[1] - p[1]) / 2 + NOTCH_C }); continue; }
+    if (spansL) { events[-1].push({ z: zm, depth: Math.min(NOTCH_MAX, wL - Math.max(0.02, -xhi) + NOTCH_C), hw: Math.abs(q[1] - p[1]) / 2 + NOTCH_C }); continue; }
+    inner.push([p, q]);
+  }
+  // merged where they overlap in z — into ONE notch of the deeper depth
+  // when the depths are alike, else kept as the deeper's stair; then the
+  // merged list is cut into non-overlapping z-ranges (a stair of steps)
+  const merged = { 1: [], [-1]: [] };
+  for (const sd of [1, -1]) {
+    const ev = events[sd].filter(e => e.depth > 0.002).sort((a, b) => a.z - b.z);
+    const steps = [];
+    // ONE crossing, one notch: pieces that overlap in z by more than half
+    // of the shorter (a web's triangles, all at its own station) merge to
+    // the deepest; pieces that only touch (a slanted sheet's stair) stay
+    // their own steps
+    for (const e of ev) {
+      let hit = null;
+      for (const s of steps) {
+        const ov = Math.min(s.z + s.hw, e.z + e.hw) - Math.max(s.z - s.hw, e.z - e.hw);
+        if ((ov > 0.5 * Math.min(2 * s.hw, 2 * e.hw) - 1e-9 && ov > 0) ||
+            (ov > -0.004 && Math.abs(s.depth - e.depth) < 0.006)) { hit = s; break; }    // ...or a stringer's run, one depth
+      }
+      if (hit) {
+        const lo = Math.min(hit.z - hit.hw, e.z - e.hw), hi = Math.max(hit.z + hit.hw, e.z + e.hw);
+        hit.z = (lo + hi) / 2; hit.hw = (hi - lo) / 2; hit.depth = Math.max(hit.depth, e.depth);
+      } else steps.push({ z: e.z, depth: e.depth, hw: e.hw });
+    }
+    // overlapping steps: the deeper wins over the overlap, the shallower
+    // keeps what is left of its range on either side
+    const cutz = [...new Set(steps.flatMap(s => [+(s.z - s.hw).toFixed(4), +(s.z + s.hw).toFixed(4)]))].sort((a, b) => a - b);
+    for (let i = 0; i + 1 < cutz.length; i++) {
+      const za = cutz[i], zb = cutz[i + 1], zm = (za + zb) / 2;
+      let depth = 0;
+      for (const s of steps) if (zm > s.z - s.hw && zm < s.z + s.hw) depth = Math.max(depth, s.depth);
+      if (depth <= 0.002) continue;
+      const last = merged[sd][merged[sd].length - 1];
+      if (last && Math.abs(last.z + last.hw - za) < 1e-6 && Math.abs(last.depth - depth) < 1e-6) { last.hw = (zb - (last.z - last.hw)) / 2; last.z = zb - last.hw; }
+      else merged[sd].push({ z: zm, hw: (zb - za) / 2, depth });
+    }
+  }
+  // the inner crossings, clustered by nearness into boxes: a box wider
+  // than half the cabin is a SLOT across the board (a spar carry-through:
+  // the board is two boards); a smaller one a rectangular hole with a
+  // plate round it
+  const boxes = [];
+  for (const [p, q] of inner) {
+    const b = { x0: Math.min(p[0], q[0]) - NOTCH_C, x1: Math.max(p[0], q[0]) + NOTCH_C, z0: Math.min(p[1], q[1]) - NOTCH_C, z1: Math.max(p[1], q[1]) + NOTCH_C };
+    let hit = null;
+    for (const c of boxes) if (b.x0 <= c.x1 + 0.02 && b.x1 >= c.x0 - 0.02 && b.z0 <= c.z1 + 0.02 && b.z1 >= c.z0 - 0.02) { hit = c; break; }
+    if (hit) { hit.x0 = Math.min(hit.x0, b.x0); hit.x1 = Math.max(hit.x1, b.x1); hit.z0 = Math.min(hit.z0, b.z0); hit.z1 = Math.max(hit.z1, b.z1); }
+    else boxes.push(b);
+  }
+  // (a second pass merges chains)
+  for (let pass = 0; pass < 3; pass++)
+    for (let i = 0; i < boxes.length; i++) for (let j = boxes.length - 1; j > i; j--) {
+      const a = boxes[i], b = boxes[j];
+      if (b.x0 <= a.x1 + 0.02 && b.x1 >= a.x0 - 0.02 && b.z0 <= a.z1 + 0.02 && b.z1 >= a.z0 - 0.02) {
+        a.x0 = Math.min(a.x0, b.x0); a.x1 = Math.max(a.x1, b.x1); a.z0 = Math.min(a.z0, b.z0); a.z1 = Math.max(a.z1, b.z1); boxes.splice(j, 1);
+      }
+    }
+  const slots = [], holes = [];
+  for (const b of boxes) {
+    const zm = (b.z0 + b.z1) / 2;
+    if (b.x1 - b.x0 > 0.5 * widthAt(zm)) slots.push([b.z0, b.z1]);
+    else holes.push(b);
+  }
+  // ---- the boards: one side's edge with its notches, sliced by the slots
+  const side = sd => {
+    const s = sd > 0 ? 1 : 2, out = [];
+    let ri = 0;
+    for (const e of merged[sd]) {
+      const za = e.z - e.hw, zb = e.z + e.hw;
+      while (ri < rows.length && rows[ri][0] < za - 1e-9) { out.push([sd * rows[ri][s], rows[ri][0]]); ri++; }
+      out.push([sd * wallAtZ(za, sd), za], [sd * (wallAtZ(za, sd) - e.depth), za],
+               [sd * (wallAtZ(zb, sd) - e.depth), zb], [sd * wallAtZ(zb, sd), zb]);
+      while (ri < rows.length && rows[ri][0] <= zb + 1e-9) ri++;
+    }
+    while (ri < rows.length) { out.push([sd * rows[ri][s], rows[ri][0]]); ri++; }
+    return out;
+  };
+  const port = side(1), stbd = side(-1);
+  const edgeXAt = (pts, z, sd) => {          // an edge's x at z (the notched edge)
+    for (let i = 0; i + 1 < pts.length; i++) {
+      const a = pts[i], b = pts[i + 1];
+      if ((a[1] - z) * (b[1] - z) <= 0 && Math.abs(b[1] - a[1]) > 1e-9) return a[0] + (b[0] - a[0]) * (z - a[1]) / (b[1] - a[1]);
+    }
+    return sd * wallAtZ(z, sd);
+  };
+  // a board's outline between za and zb; a hole box that reaches the
+  // front or the aft edge is a notch in that edge (a nose leg ahead of
+  // the pedals), not a hole
+  const edgeNotch = (h, za, zb) => (h.z1 > zb - 0.015 && h.z0 < zb) ? 'front' : (h.z0 < za + 0.015 && h.z1 > za) ? 'aft' : null;
+  const slice = (za, zb) => {
+    const P1 = [[edgeXAt(port, za, 1), za], ...port.filter(p => p[1] > za + 1e-6 && p[1] < zb - 1e-6), [edgeXAt(port, zb, 1), zb]];
+    const S1 = [[edgeXAt(stbd, za, -1), za], ...stbd.filter(p => p[1] > za + 1e-6 && p[1] < zb - 1e-6), [edgeXAt(stbd, zb, -1), zb]];
+    const front = holes.filter(h => edgeNotch(h, za, zb) === 'front').sort((a, b) => b.x1 - a.x1);
+    for (const h of front) P1.push([h.x1, zb], [h.x1, Math.max(za + 0.02, h.z0)], [h.x0, Math.max(za + 0.02, h.z0)], [h.x0, zb]);
+    const aft = holes.filter(h => edgeNotch(h, za, zb) === 'aft').sort((a, b) => a.x0 - b.x0);
+    const A1 = [];
+    for (const h of aft) A1.push([h.x0, za], [h.x0, Math.min(zb - 0.02, h.z1)], [h.x1, Math.min(zb - 0.02, h.z1)], [h.x1, za]);
+    return P1.concat(S1.reverse(), A1);
+  };
+  const runs = [];
+  {
+    const cutsZ = slots.sort((a, b) => a[0] - b[0]);
+    let za = z0;
+    for (const [sa, sb] of cutsZ) { if (sa - za > 0.04) runs.push([za, sa]); za = Math.max(za, sb); }
+    if (z1 - za > 0.04) runs.push([za, z1]);
+  }
+  const fg = new THREE.Group(); fg.name = 'edFloor'; g.add(fg);
+  const grv = K.Bag(), scr = K.Bag();
+  const X = [1, 0, 0], Y = [0, 1, 0], Z = [0, 0, 1];
+  let nHoles = 0;
+  for (const [za, zb] of runs) {
+    const poly = slice(za, zb);
+    if (poly.length < 6) continue;
+    const shape = new THREE.Shape();
+    poly.forEach(([x, z], i) => (i ? shape.lineTo(x, -z) : shape.moveTo(x, -z)));
+    shape.closePath();
+    const mine = holes.filter(h => !edgeNotch(h, za, zb) && [[h.x0, h.z0], [h.x1, h.z0], [h.x1, h.z1], [h.x0, h.z1]]
+      .every(([x, z]) => polyInside(poly, x, z) && polyEdgeDist(poly, x, z) > 0.015));
+    for (const h of mine) {
+      const p = new THREE.Path();
+      p.moveTo(h.x0, -h.z0); p.lineTo(h.x0, -h.z1); p.lineTo(h.x1, -h.z1); p.lineTo(h.x1, -h.z0); p.closePath();
+      shape.holes.push(p);
+    }
+    nHoles += mine.length;
+    const geo = new THREE.ExtrudeGeometry(shape, { depth: FLOOR_T, bevelEnabled: false });
+    // the board follows the keel: every vertex lifted by its station's
+    // floor height (local y is -z, local z is up)
+    { const pa = geo.attributes.position;
+      for (let i = 0; i < pa.count; i++) pa.setZ(i, pa.getZ(i) + yAt(-pa.getY(i)) - yTop);
+      pa.needsUpdate = true; geo.computeVertexNormals(); }
+    const board = new THREE.Mesh(geo, M.board);
+    board.rotation.x = -Math.PI / 2;            // shape (x, -z) -> (x, z); extruded +local z = up
+    board.position.y = yTop - FLOOR_T;          // the top face at the floor's height
+    fg.add(board);
+    // the through plates: alloy round each hole, screws in the corners
+    for (const h of mine) {
+      const m = 0.018, t = 0.0015;
+      const ps = new THREE.Shape();
+      ps.moveTo(h.x0 - m, -(h.z0 - m)); ps.lineTo(h.x1 + m, -(h.z0 - m)); ps.lineTo(h.x1 + m, -(h.z1 + m)); ps.lineTo(h.x0 - m, -(h.z1 + m)); ps.closePath();
+      const pp = new THREE.Path(); pp.moveTo(h.x0, -h.z0); pp.lineTo(h.x0, -h.z1); pp.lineTo(h.x1, -h.z1); pp.lineTo(h.x1, -h.z0); pp.closePath();
+      ps.holes.push(pp);
+      const yH = yAt((h.z0 + h.z1) / 2);
+      const pm = new THREE.Mesh(new THREE.ExtrudeGeometry(ps, { depth: t, bevelEnabled: false }), M.plateAl);
+      pm.rotation.x = -Math.PI / 2; pm.position.y = yH; fg.add(pm);
+      for (const sx of [h.x0 - m + 0.007, h.x1 + m - 0.007]) for (const sz of [h.z0 - m + 0.007, h.z1 + m - 0.007])
+        K.bolt(scr, [sx, yH + t, sz], [0, -1, 0], 0.0028, 0.006);
+    }
+    // the screws round the edge every 12 cm, 15 mm in (not along a notch)
+    let carry = 0;
+    for (let i = 0; i < poly.length; i++) {
+      const a = poly[i], b = poly[(i + 1) % poly.length];
+      const L = Math.hypot(b[0] - a[0], b[1] - a[1]); if (L < 1e-6) continue;
+      if (L < 0.05) { carry = Math.max(0, carry - L); continue; }
+      let d = carry;
+      while (d < L) {
+        const t = d / L, x = a[0] + (b[0] - a[0]) * t, z = a[1] + (b[1] - a[1]) * t;
+        const nx = -(b[1] - a[1]) / L, nz = (b[0] - a[0]) / L;
+        const sgn = polyInside(poly, x + nx * 0.02, z + nz * 0.02) ? 1 : -1;
+        K.bolt(scr, [x + sgn * nx * 0.015, yAt(z), z + sgn * nz * 0.015], [0, -1, 0], 0.0028, 0.006);
+        d += 0.12;
+      }
+      carry = d - L;
+    }
+    // the seams: a groove across the board ahead of each seat row
+    for (const zs of [...new Set(seats.map(s => +(s.zBack + 0.32).toFixed(3)))]) {
+      if (zs < za + 0.05 || zs > zb - 0.05) continue;
+      let x0 = 0, x1 = 0;
+      for (let x = 0; x < 1.5; x += 0.005) { if (polyInside(poly, x, zs)) x0 = x; else break; }
+      for (let x = 0; x > -1.5; x -= 0.005) { if (polyInside(poly, x, zs)) x1 = x; else break; }
+      K.boxIn(grv, [(x0 + x1) / 2, yAt(zs) - 0.0006, zs], [(x0 - x1) / 2 - 0.004, 0.0009, 0.0012], X, Y, Z);
+    }
+  }
+  grv.mesh(fg, M.knob); scr.mesh(fg, M.plated);
+  return { obj: fg, holes: nHoles, slots: slots.length, notches: merged[1].length + merged[-1].length, z: [+z0.toFixed(3), +z1.toFixed(3)],
+           // the record (CAGE_CREW.floor): where the board was cut, for the notes and the gate
+           cut: { notches: [1, -1].flatMap(sd => merged[sd].map(e => ({ side: sd, z: +e.z.toFixed(3), hw: +e.hw.toFixed(3), depth: +e.depth.toFixed(3) }))),
+                  slots: slots.map(s => s.map(v => +v.toFixed(3))), holes: holes.map(h => ({ x: [+h.x0.toFixed(3), +h.x1.toFixed(3)], z: [+h.z0.toFixed(3), +h.z1.toFixed(3)] })) } };
+}
 
 // ---- THE DUMMY (mannequin_poser.html port) --------------------------------
 const PICK_MAT = new THREE.MeshBasicMaterial({ visible: false });
@@ -1914,7 +2469,10 @@ function anchors(spec, P, mesh) {
       off = Math.min(off, (p[1] - x0[1]) * k - keelAt((p[2] - x0[2]) * k));
     if (off > -0.05 && off < 0.5) sillOff = Math.max(0, off);
   }
-  const floorAt = z => keelAt(z) + sillOff;
+  // G331: `floorLift` is the builder's own number over the sill (0 = the
+  // sill, where you step in) — the floor is drawn there and everything
+  // that stands on the floor stands on it
+  const floorAt = z => keelAt(z) + sillOff + (+P.floorLift || 0);
   const zBack = (cabB ? cabB.lv.waist.z : 0) * k + 0.05 + (P.seatZ || 0);
   const zDash = ((wsF ? wsF.lv.waist.z : (win ? win.lv.waist.z : 1) + 0.5)
               - (P.dashBack || 0.05)) * k - 0.02;
@@ -2355,17 +2913,33 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   } catch (e) { console.warn('controls (G318):', e); }
 
   // ---- THE PANEL AND THE FLOOR (G94) --------------------------------------
-  // Both are DERIVED and neither is a choice: the floor is where `floorAt`
-  // has always said it is, and the panel shows the instruments the build
-  // bought. They are drawn after the controls so the throttle's own rod
-  // reaches through the panel rather than being buried behind it.
-  // THE FLOORBOARDS ARE GONE (G267, the user: "there is a floor drawn, and
-  // it's just bad, I want it removed"). G94 drew a plank floor between the
-  // dash and the seat backs; it was a flat quad strip that never met the
-  // covering it was supposed to sit on. The floor stays a NUMBER —
-  // `floorAt` is where every seat, pedal and console stands — and nothing
-  // draws it. `floorN` stays on the debug record at 0 for the notes line.
-  const floorN = 0;
+  // The panel shows the instruments the build bought, drawn after the
+  // controls so the throttle's own rod reaches through it. THE FLOOR: G94
+  // drew a plank floor between the dash and the seat backs — a flat quad
+  // strip that never met the covering it was supposed to sit on — and G267
+  // removed it ("it's just bad"). G331 draws it as the cabin's own cut, on
+  // a microtask after every layer has drawn (buildFloor): the cage's faces
+  // sliced at the floor's height, the innermost wall at every station,
+  // ply, notched and holed round whatever breaks the plane.
+  const floorN = +P.floorOn ? 1 : 0;
+  FLOOR_THRU = [];
+  if (floorN) {
+    const myGroup = group, token = ++FLOOR_BUILD;
+    let done = false;
+    const late = () => {
+      if (done || token !== FLOOR_BUILD || group !== myGroup) return;   // a newer build superseded this one
+      done = true;
+      try {
+        const fl = buildFloor(myGroup, A, P, mesh, places, scene);
+        if (window.CAGE_CREW) window.CAGE_CREW.floor = fl ? { holes: fl.holes, slots: fl.slots, notches: fl.notches, z: fl.z, cut: fl.cut } : null;
+      } catch (e) { console.warn('floor (G331):', e); }
+    };
+    // PAGE.late: _cage_ui drains it right after the post chain, in the same
+    // task — so a join that follows the build in one breath sees the floor;
+    // a page without the hook gets it on the microtask
+    (PAGE.late = PAGE.late || []).push(late);
+    Promise.resolve().then(late);
+  }
   // THE PANEL LAYER DRAWS THE DIALS NOW (the panel arc, session 3): real
   // faces, hands on the moving contract, the switch row — into this group,
   // off these anchors, returning the record this layer always published.
@@ -2768,7 +3342,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   if (panel) {
     notes.push('panel ' + panel.fit + ' ' + panel.n + ' instr' +
       (panel.overflow ? ' (' + panel.overflow + ' DID NOT FIT)' : ''));
-    if (floorN) notes.push('floor ' + floorN + ' boards');
+    if (floorN) notes.push('floor');
   }
   if (stat && notes.length)
     stat.textContent += '  ·  crew: ' + notes.join(' · ');

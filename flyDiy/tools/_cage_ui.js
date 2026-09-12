@@ -1442,6 +1442,10 @@ function build() {
   SEC_EPOCH++;
   if (PAGE.post) try { PAGE.post({ scene, spec, mesh: sFix, P, stat: $('stat') }); }
   catch (e) { console.error('page post hook:', e); }
+  // G331: LATE — what a layer wants drawn once every layer has drawn (the
+  // crew's floor, cut round the other layers' meshes), in this same task
+  if (PAGE.late && PAGE.late.length)
+    for (const f of PAGE.late.splice(0)) try { f(); } catch (e) { console.error('page late hook:', e); }
   for (const k in SEC_LIVE)
     if (SEC_LIVE[k] !== SEC_EPOCH) { delete SEC_LIVE[k]; delete SEC_CTX[k]; }
   try { buildMatPanel(); } catch (e) {}
