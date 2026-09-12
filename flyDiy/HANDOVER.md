@@ -39500,11 +39500,17 @@ worktree with GATE WORLDRENDER + GATE TREES.
   through the AA pass, not draw calls, not CPU, not triangles: the same
   wall a native engine hits, so the platform is not the constraint. The
   W0c.26 matrix (NG × bands) in TREE-IMPORT.md §8 set the defaults.
-- **Not done, on purpose:** cedar (tuned, not in `included` — the user's
-  call), the boot rig (still `sunset`; `alps` is where the trees were
-  judged), `impa/implight` per collection in the payload, the forest card
-  in the rail and the GRAPHICS SETTINGS menu (`futureDesigns/GRAPHICS-
-  SETTINGS-2026-09-12.md`, the spec), bushes and grass.
+- **W0c.29 (later the same day):** the cedar is in (`included`, its own
+  ladder, 4.47 MB payload), `impa/implight` ride the payload per
+  collection, and the pool's draw is weighted by place — `SPECIES_PREF`:
+  an altitude band, per-species value-noise patches, a ground bonus;
+  nothing goes to zero (the user: "slightly cluster by species... always
+  have a little mix"). TREE-IMPORT.md §8 has the table and the measured
+  shares.
+- **Not done, on purpose:** the boot rig (still `sunset`; `alps` is where
+  the trees were judged), the forest card in the rail and the GRAPHICS
+  SETTINGS menu (`futureDesigns/GRAPHICS-SETTINGS-2026-09-12.md`, the
+  spec — see G286), bushes and grass.
 
 ## G285 — THE OUTDOOR FURNITURE THAT HAD NOT BEEN BROUGHT IN, THE SOFA OUT,
 ## THE PROPS SPREAD ACROSS THE VILLAGE, POLES ALONG THE ROAD, AND THE BUICK

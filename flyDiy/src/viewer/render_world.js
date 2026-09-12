@@ -981,6 +981,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       list: () => PLACED.map(t => Object.assign({}, t)),
       keys: () => (typeof treeList === 'function') ? treeList().map(e => e.key) : [],
       replant: () => { plantWoodland(); return PLACED.length; },
+      // which subject the pool would deal a tree at (x, z) - the species map
+      // as the planter sees it, for probes and the editor to come
+      speciesAt: (x, z) => (PROTO && PROTO.length)
+        ? PROTO[poolPick(PROTO, hsh(Math.round(x * 3.7), Math.round(z * 5.3)), x, z, world.terrainH(x, z))].key : null,
     };
 
     const trunkGeo = new THREE.CylinderGeometry(0.16, 0.26, 1.9, 5);
@@ -1247,7 +1251,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // sparser than the specimen's and wants a lower cut too. Then a 0.01
     // floor on the hard test and alpha-to-coverage, as on the leaves.
     const IMP_CUT = [0.40, 0.15, 0.10];      // rungs, stand, snag
-    const uIGain = { value: 6 }, uISolid = { value: 1 };
+    // the alpha gain rides on the COLLECTION now (`place.impa`, 6 or 6.5 in
+    // the tuning); uIGainK is the panel's dial over all of them
+    const uIGainK = { value: 1 }, uISolid = { value: 1 };
+    const impaOf = key => { const e = (typeof treeList === 'function') && treeList().find(x => x.key === key);
+                            return (e && e.col.place && e.col.place.impa) || 6; };
     // THE IMPOSTOR CASTS ITS OWN SILHOUETTE (W0c.18, the bench's W0a.4). The
     // stock depth pass would draw the eye-facing quad edge-on to the light
     // and sample the whole sheet - a solid slab per tree - which is why the
@@ -1270,10 +1278,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       'vec2 uvA = (g0 + cA) / uG + qv, uvB = (g0 + cB) / uG + qv, uvC = (g0 + cC) / uG + qv;',
       'vec4 t0 = texture2D(uAtlas, uvA), t1 = texture2D(uAtlas, uvB), t2 = texture2D(uAtlas, uvC);',
       'float aMix = dot(wB, vec3(t0.a, t1.a, t2.a)), aSol = max(max(t0.a, t1.a), t2.a);',
-      'diffuseColor.a = clamp((mix(aMix, aSol, uISolid) - uICut) * uIGain + 0.5, 0.0, 1.0);',
+      'diffuseColor.a = clamp((mix(aMix, aSol, uISolid) - uICut) * uIGain * uIGainK + 0.5, 0.0, 1.0);',
     ].join('\n');
     const U_FARR = { value: 1e7 };            // the far pass: no reach limit
-    function impostorDepth(atlas, si, farPass) {
+    function impostorDepth(atlas, si, farPass, gain) {
       const d = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, alphaTest: 0.5, side: THREE.DoubleSide });
       if (!atlas.tex) return d;
       const cover = farPass === 'cover';
@@ -1291,7 +1299,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         sh.uniforms.uCy = { value: atlas.cy }; sh.uniforms.uDiam = { value: atlas.diam };
         sh.uniforms.uG = { value: IMP_G }; sh.uniforms.uTile = { value: IMP_TILE };
         sh.uniforms.uAtlas = { value: atlas.tex };
-        sh.uniforms.uIGain = uIGain; sh.uniforms.uISolid = uISolid; sh.uniforms.uICut = { value: IMP_CUT[si || 0] };
+        sh.uniforms.uIGain = { value: gain || 6 }; sh.uniforms.uIGainK = uIGainK; sh.uniforms.uISolid = uISolid;
+        sh.uniforms.uICut = { value: IMP_CUT[si || 0] };
         sh.vertexShader = sh.vertexShader
           .replace('#include <common>', '#include <common>\nuniform vec3 uCam, uSunDir;\n' +
             'uniform float uNearB, uFadeW, uCy, uDiam, uShadowR;\nvarying vec3 vImpDir;\nvarying vec2 vUvI;')
@@ -1316,7 +1325,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           ].join('\n'));
         sh.fragmentShader = sh.fragmentShader
           .replace('#include <common>', '#include <common>\nuniform sampler2D uAtlas;\n' +
-            'uniform float uG, uTile, uIGain, uISolid, uICut;\nvarying vec3 vImpDir;\nvarying vec2 vUvI;')
+            'uniform float uG, uTile, uIGain, uIGainK, uISolid, uICut;\nvarying vec3 vImpDir;\nvarying vec2 vUvI;')
           .replace('#include <map_fragment>', IMP_FOLD_GLSL);
         // the canopy map is a mask: white where the crown is, after the cut
         if (cover) sh.fragmentShader = sh.fragmentShader.replace('packDepthToRGBA( fragCoordZ )', 'vec4( 1.0 )');
@@ -1331,7 +1340,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const u = src && src.userData;
       return (u && u.uHue) ? { uHue: u.uHue, uSat: u.uSat, uLight: u.uLight } : null;
     };
-    function impostorMat(atlas, far, si, tintU) {
+    function impostorMat(atlas, far, si, tintU, gain) {
       // AN IMPOSTOR IS AN ORDINARY SURFACE WITH A BAKED NORMAL. Standard at
       // roughness 1, `normal` replaced from the second sheet: that single
       // substitution buys the whole rig - sun, hemisphere, environment, and the
@@ -1358,7 +1367,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         sh.uniforms.uG = { value: IMP_G };
         sh.uniforms.uNrm = { value: atlas.nrm };
         sh.uniforms.uILit = uILit;
-        sh.uniforms.uIGain = uIGain; sh.uniforms.uISolid = uISolid;
+        sh.uniforms.uIGain = { value: gain || 6 }; sh.uniforms.uIGainK = uIGainK; sh.uniforms.uISolid = uISolid;
         sh.uniforms.uICut = { value: IMP_CUT[si || 0] };
         sh.uniforms.uTile = { value: IMP_TILE };
         sh.uniforms.uLeaf = { value: 1 };
@@ -1404,7 +1413,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           ].join('\n'));
         sh.fragmentShader = ('#ifdef SHADOWMAP_TYPE_PCF_SOFT\n#undef SHADOWMAP_TYPE_PCF_SOFT\n#define SHADOWMAP_TYPE_PCF\n#endif\n' + sh.fragmentShader)
           .replace('#include <common>', '#include <common>\n' +
-            'uniform float uG, uILit, uLeaf, uWrap, uSSS, uSSSP, uNearB, uFadeW, uIGain, uISolid, uICut, uTile;\n' +
+            'uniform float uG, uILit, uLeaf, uWrap, uSSS, uSSSP, uNearB, uFadeW, uIGain, uIGainK, uISolid, uICut, uTile;\n' +
             'uniform float uHue, uSat, uLight;\nuniform sampler2D uNrm;\nvarying vec3 vImpDir;\nvarying float vImpD;\n' +
             // the decode, written out: <map_fragment> and its mapTexelToLinear
             // are replaced below, and the sheet was written sRGB
@@ -1432,7 +1441,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             'vec4 texelColor = t0 * wB.x + t1 * wB.y + t2 * wB.z;',
             'texelColor.rgb = impSRGB(clamp(texelColor.rgb / max(texelColor.a, 1e-4), 0.0, 1.0));',   // premultiplied sheet
             'float aSol = max(max(t0.a, t1.a), t2.a);',
-            'texelColor.a = clamp((mix(texelColor.a, aSol, uISolid) - uICut) * uIGain + 0.5, 0.0, 1.0);',
+            'texelColor.a = clamp((mix(texelColor.a, aSol, uISolid) - uICut) * uIGain * uIGainK + 0.5, 0.0, 1.0);',
             // the incoming half of the last rung's window: keep n >= 1 - t
             '{ float _n = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));',
             '  float _fi = clamp((vImpD - (uNearB - uFadeW * 0.5)) / uFadeW, 0.0, 1.0);',
@@ -1495,8 +1504,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         return treeLod.get();
       },
     };
-    treeLod.imp = o => { if (o) { if (o.gain !== undefined) uIGain.value = +o.gain; if (o.solid !== undefined) uISolid.value = +o.solid; }
-      return { gain: uIGain.value, solid: uISolid.value }; };
+    treeLod.imp = o => { if (o) { if (o.gain !== undefined) uIGainK.value = +o.gain; if (o.solid !== undefined) uISolid.value = +o.solid; }
+      return { gain: uIGainK.value, solid: uISolid.value }; };
     if (typeof window !== 'undefined') window.TREE_LOD = treeLod;
     // ================= W0c.5: THE MIX ======================================
     // Which SERIES a tree is drawn as. The bench's rule, ported: a fraction is
@@ -1766,10 +1775,52 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       }
       return pool;
     };
-    const poolPick = (pool, r) => {
-      let tot = 0; for (const p of pool) tot += p.w;
+    // ================= SPECIES BY PLACE (W0c.29) ===========================
+    // "Slightly cluster by species... always have a little mix, but zones
+    // denser in a given species; start with altitude and ground type." A
+    // tree's draw from the pool is weighted three ways on top of the
+    // collection's `proportion`: the ALTITUDE band the species is at home
+    // in (full weight inside, fading to a quarter over 60 m outside), its
+    // own PATCHES (a value noise per species at its own wavelength, squared
+    // so a patch reads as a stand and not a tint), and the GROUND under it
+    // (a bonus on the surface it likes). Nothing goes to zero, so every
+    // stand keeps a little of everything. The bands are a first guess at a
+    // temperate valley - cedar low and warm, the firs on the slopes, spruce
+    // and larch up the hill - written as data so they can move.
+    const SPECIES_PREF = {
+      'cedar_tree.glb':                              { alt: [0, 90],   zone: 420, ground: 'SAND' },
+      'realistic_fir_trees_pack_lods_gameready.glb': { alt: [0, 160],  zone: 340 },
+      'fir_tree_georgeous.glb':                      { alt: [30, 220], zone: 360 },
+      'spruce_tree.glb':                             { alt: [70, 320], zone: 300 },
+      'larch_tree.glb':                              { alt: [150, 460], zone: 480, ground: 'SCREE' },
+    };
+    // value noise on the tree hash: bilinear over `cell`, seeded per species
+    const vnoise = (x, z, cell, seed) => {
+      const fx = x / cell, fz = z / cell, ix = Math.floor(fx), iz = Math.floor(fz);
+      const tx = fx - ix, tz = fz - iz, sx = tx * tx * (3 - 2 * tx), sz = tz * tz * (3 - 2 * tz);
+      const n = (a, b) => hsh(a * 7 + seed * 131, b * 13 + seed * 17);
+      return (n(ix, iz) * (1 - sx) + n(ix + 1, iz) * sx) * (1 - sz) + (n(ix, iz + 1) * (1 - sx) + n(ix + 1, iz + 1) * sx) * sz;
+    };
+    const prefOf = key => SPECIES_PREF[String(key).split('|')[0]] || null;
+    const speciesWeight = (entry, i, x, z, h) => {
+      const P = prefOf(entry.key);
+      if (!P) return entry.w;
+      let w = entry.w;
+      const [lo, hi] = P.alt;
+      const out = h < lo ? lo - h : h > hi ? h - hi : 0;
+      w *= Math.max(0.25, 1 - out / 60 * 0.75);
+      const n = vnoise(x, z, P.zone, i + 1);
+      w *= 0.3 + 1.4 * n * n;
+      if (P.ground && world.SURFACE && world.surface(x, z) === world.SURFACE[P.ground]) w *= 1.6;
+      return w;
+    };
+    // the draw: r in [0,1) over the local weights at (x, z, h)
+    const poolPick = (pool, r, x, z, h) => {
+      const at = x !== undefined;
+      let tot = 0;
+      for (let i = 0; i < pool.length; i++) tot += at ? speciesWeight(pool[i], i, x, z, h) : pool[i].w;
       let acc = r * tot;
-      for (let i = 0; i < pool.length; i++) { acc -= pool[i].w; if (acc <= 0) return i; }
+      for (let i = 0; i < pool.length; i++) { acc -= at ? speciesWeight(pool[i], i, x, z, h) : pool[i].w; if (acc <= 0) return i; }
       return pool.length - 1;
     };
     // AND THE MAPS MUST HAVE LANDED BEFORE ANYTHING BAKES. treeWarm resolves on
@@ -1871,10 +1922,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     const impMatsFor = (P, fallbackGeo) => {
       const srcs = P ? P.series.map(S => S.parts) : [fallbackGeo];
       return srcs.map((src, si) => {
-        const at = bakeImpostorAtlas(src), m = impostorMat(at, FAR_WOOD, si, P ? tintUniformsOf(src) : null);
-        m.userData.depth = impostorDepth(at, si);
-        m.userData.farDepth = impostorDepth(at, si, true);
-        (m.userData.farDepth.userData = m.userData.farDepth.userData || {}).cover = impostorDepth(at, si, 'cover');
+        const gain = P ? impaOf(P.key) : 6;
+        const at = bakeImpostorAtlas(src), m = impostorMat(at, FAR_WOOD, si, P ? tintUniformsOf(src) : null, gain);
+        m.userData.depth = impostorDepth(at, si, false, gain);
+        m.userData.farDepth = impostorDepth(at, si, true, gain);
+        (m.userData.farDepth.userData = m.userData.farDepth.userData || {}).cover = impostorDepth(at, si, 'cover', gain);
         plantedKit.push(m, m.userData.depth, m.userData.farDepth);   // the atlas is the cache's
         return m;
       });
@@ -1888,7 +1940,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // is the pool's weighted draw on its position
     const groupOf = T => PROTO
       ? ((T.key && PROTO.findIndex(Q => Q.key === T.key) >= 0) ? PROTO.findIndex(Q => Q.key === T.key)
-                                                                : poolPick(PROTO, hsh(Math.round(T.x * 3.7), Math.round(T.z * 5.3))))
+                                                                : poolPick(PROTO, hsh(Math.round(T.x * 3.7), Math.round(T.z * 5.3)), T.x, T.z, T.h))
       : (T.sp < 2 ? 0 : 1);
     plantedKit.push(trunkMat, canopyMat);
     for (const cell of cells.values()) {
@@ -2144,7 +2196,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
                        series: SERIES.map(ser => Object.assign(ladderFor(key, ser), { imp: null })) };
             };
             const pool = treePool();
-            real = pool.length ? pool.map(p => Object.assign(forKey(p.key), { w: p.w })) : null;
+            real = pool.length ? pool.map(p => Object.assign(forKey(p.key), { w: p.w, key: p.key })) : null;
           } catch (e) { real = null; }
         }
         SHAPE.list = [];
@@ -2154,10 +2206,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             H.series.forEach((S, si) => {
               for (const R of S.ladder) for (const q of R.parts) { chunkBounds(q.geo, CH); SHAPE.kit.push(q.mat, q.depth); }
               const at = bakeImpostorAtlas(S.parts);
-              S.imp = impostorMat(at, FAR_FILL, si, tintUniformsOf(S.parts));
-              S.imp.userData.depth = impostorDepth(at, si);
-              S.imp.userData.farDepth = impostorDepth(at, si, true);
-              (S.imp.userData.farDepth.userData = S.imp.userData.farDepth.userData || {}).cover = impostorDepth(at, si, 'cover');
+              const gain = impaOf(H.key);
+              S.imp = impostorMat(at, FAR_FILL, si, tintUniformsOf(S.parts), gain);
+              S.imp.userData.depth = impostorDepth(at, si, false, gain);
+              S.imp.userData.farDepth = impostorDepth(at, si, true, gain);
+              (S.imp.userData.farDepth.userData = S.imp.userData.farDepth.userData || {}).cover = impostorDepth(at, si, 'cover', gain);
               SHAPE.kit.push(S.imp, S.imp.userData.depth, S.imp.userData.farDepth);   // the atlas is the cache's
             });
             SHAPE.list.push(H);
@@ -2184,7 +2237,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           const h = world.terrainH(x, z);
           const sp = hsh(ix + 3, iz + 5) < 0.88 ? world.trees[ti].sp
                                                 : (hsh(ix + 9, iz + 1) * 5) | 0;
-          const gi = SHAPE.real ? poolPick(SHAPE.list, hsh(ix + 11, iz + 17)) : (sp < 2 ? 0 : 1);
+          const gi = SHAPE.real ? poolPick(SHAPE.list, hsh(ix + 11, iz + 17), x, z, h) : (sp < 2 ? 0 : 1);
           recs[gi].push(x, h, z, sp, hsh(ix + 2, iz + 8));
         }
         const meshes = [], near = [], imp = [], recsOut = [];

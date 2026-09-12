@@ -6,6 +6,316 @@ const TREE_PACK = {
  "note": "baked by tools/tree_prep.py \u2014 see docs/TREE-IMPORT.md",
  "collections": [
   {
+   "name": "cedar_tree.glb",
+   "bin": "" + B + "media/geo/trees/cedar_tree.bdb2e7ac.bin",
+   "bytes": 1508548,
+   "credit": {
+    "author": "Georgeous (https://sketchfab.com/intice184)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/cedar-tree-adf5bdebd05340659dae92219a63f62d",
+    "title": "Cedar tree"
+   },
+   "licence": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+   "licenceOk": true,
+   "place": {
+    "size": 1,
+    "proportion": 1,
+    "sink": 2,
+    "dead": 0.12,
+    "impa": 6,
+    "implight": 1,
+    "crownH": 1.3
+   },
+   "tint": {
+    "hue": 0.03,
+    "sat": 1,
+    "light": 0.59,
+    "bark": 1,
+    "alpha": 0.4
+   },
+   "materials": {
+    "M_Bark.009": {
+     "mode": "OPAQUE",
+     "base": "" + B + "media/tex/trees/cedar_tree_m_bark_009_base.6d478c25.jpg",
+     "baseSize": [
+      256,
+      1024
+     ],
+     "nor": "" + B + "media/tex/trees/cedar_tree_m_bark_009_nor.42e2e9bf.jpg"
+    },
+    "M_Branch.009": {
+     "mode": "MASK",
+     "cutoff": 0.6263,
+     "coverageMips": true,
+     "base": "" + B + "media/tex/trees/cedar_tree_m_branch_009_base.af7f7481.png",
+     "baseSize": [
+      1024,
+      1024
+     ],
+     "nor": "" + B + "media/tex/trees/cedar_tree_m_branch_009_nor.89a16f71.jpg"
+    }
+   },
+   "subjects": [
+    {
+     "name": "Cedar_LOD0",
+     "h": 17.44,
+     "tris": 20695,
+     "bb": [
+      -5.5168,
+      0.0,
+      -5.2306,
+      5.5168,
+      17.4408,
+      5.2306
+     ],
+     "shipped": false,
+     "rungs": [
+      {
+       "lod": 0,
+       "tris": 20695,
+       "parts": [
+        {
+         "mat": "M_Bark.009",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -1.035333,
+          -0.995948
+         ],
+         "uvScl": [
+          3.880029,
+          7.2616
+         ],
+         "off": 0,
+         "len": 84940
+        },
+        {
+         "mat": "M_Branch.009",
+         "mode": "MASK",
+         "cutoff": 0.6263,
+         "uvMin": [
+          0.075373,
+          0.0
+         ],
+         "uvScl": [
+          0.819688,
+          1.0
+         ],
+         "off": 84940,
+         "len": 336124
+        }
+       ]
+      },
+      {
+       "lod": 1,
+       "tris": 15449,
+       "parts": [
+        {
+         "mat": "M_Branch.009",
+         "mode": "MASK",
+         "cutoff": 0.6263,
+         "uvMin": [
+          0.075373,
+          0.0
+         ],
+         "uvScl": [
+          0.819688,
+          1.0
+         ],
+         "off": 421064,
+         "len": 336124
+        },
+        {
+         "mat": "M_Bark.009",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 757188,
+         "len": 320
+        }
+       ]
+      },
+      {
+       "lod": 2,
+       "tris": 8951,
+       "parts": [
+        {
+         "mat": "M_Branch.009",
+         "mode": "MASK",
+         "cutoff": 0.6263,
+         "uvMin": [
+          0.075373,
+          0.0
+         ],
+         "uvScl": [
+          0.819688,
+          1.0
+         ],
+         "off": 757508,
+         "len": 194628
+        },
+        {
+         "mat": "M_Bark.009",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 952136,
+         "len": 320
+        }
+       ]
+      }
+     ],
+     "stand": [
+      {
+       "lod": 0,
+       "tris": 11899,
+       "parts": [
+        {
+         "mat": "M_Bark.009",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -1.035333,
+          -0.995948
+         ],
+         "uvScl": [
+          3.880029,
+          7.2616
+         ],
+         "off": 952456,
+         "len": 84940
+        },
+        {
+         "mat": "M_Branch.009",
+         "mode": "MASK",
+         "cutoff": 0.6263,
+         "uvMin": [
+          0.075373,
+          0.0
+         ],
+         "uvScl": [
+          0.819688,
+          1.0
+         ],
+         "off": 1037396,
+         "len": 144580
+        }
+       ]
+      },
+      {
+       "lod": 1,
+       "tris": 6653,
+       "parts": [
+        {
+         "mat": "M_Branch.009",
+         "mode": "MASK",
+         "cutoff": 0.6263,
+         "uvMin": [
+          0.075373,
+          0.0
+         ],
+         "uvScl": [
+          0.819688,
+          1.0
+         ],
+         "off": 1181976,
+         "len": 144580
+        },
+        {
+         "mat": "M_Bark.009",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 1326556,
+         "len": 320
+        }
+       ]
+      },
+      {
+       "lod": 2,
+       "tris": 4442,
+       "parts": [
+        {
+         "mat": "M_Branch.009",
+         "mode": "MASK",
+         "cutoff": 0.6263,
+         "uvMin": [
+          0.075373,
+          0.0
+         ],
+         "uvScl": [
+          0.819688,
+          1.0
+         ],
+         "off": 1326876,
+         "len": 96412
+        },
+        {
+         "mat": "M_Bark.009",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          0.0,
+          0
+         ],
+         "uvScl": [
+          1.0,
+          1
+         ],
+         "off": 1423288,
+         "len": 320
+        }
+       ]
+      }
+     ],
+     "snag": [
+      {
+       "lod": 0,
+       "tris": 5260,
+       "parts": [
+        {
+         "mat": "M_Bark.009",
+         "mode": "OPAQUE",
+         "cutoff": 0.0,
+         "uvMin": [
+          -1.035333,
+          -0.995948
+         ],
+         "uvScl": [
+          3.880029,
+          7.2616
+         ],
+         "off": 1423608,
+         "len": 84940
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
    "name": "fir_tree_georgeous.glb",
    "bin": "" + B + "media/geo/trees/fir_tree_georgeous.a57e0115.bin",
    "bytes": 457952,
@@ -22,6 +332,8 @@ const TREE_PACK = {
     "proportion": 1,
     "sink": 1.5,
     "dead": 0.08,
+    "impa": 6,
+    "implight": 1,
     "crownH": 1.3
    },
    "tint": {
@@ -330,6 +642,8 @@ const TREE_PACK = {
     "proportion": 1,
     "sink": 2,
     "dead": 0.09,
+    "impa": 6.5,
+    "implight": 1,
     "crownH": 1.3
    },
    "tint": {
@@ -638,6 +952,8 @@ const TREE_PACK = {
     "proportion": 2.85,
     "sink": 0,
     "dead": 0.08,
+    "impa": 6,
+    "implight": 1,
     "crownH": 1.3
    },
    "tint": {
@@ -1203,6 +1519,8 @@ const TREE_PACK = {
     "proportion": 1,
     "sink": 0.5,
     "dead": 0.08,
+    "impa": 6,
+    "implight": 1,
     "crownH": 1.3
    },
    "tint": {

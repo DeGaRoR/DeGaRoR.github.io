@@ -821,7 +821,7 @@ def main():
             'licence': (a.get('licence') or {}).get('text'),
             'licenceOk': (a.get('licence') or {}).get('ok'),
             # placement dials stay DATA: the world moves them without a re-bake
-            'place': dict({k: t.get(k) for k in ('size', 'proportion', 'sink', 'dead')
+            'place': dict({k: t.get(k) for k in ('size', 'proportion', 'sink', 'dead', 'impa', 'implight')
                            if k in t},
                           # the stand series is drawn with its crown stretched;
                           # see gen_rung on why that is a dial and not geometry

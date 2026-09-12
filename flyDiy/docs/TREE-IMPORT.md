@@ -458,8 +458,41 @@ variant names itself in `customProgramCacheKey` now; the coverage is shaped
 (`smoothstep(0.04, 0.35, …)`) so any real canopy is full shade and the dial
 reaches all of it, and the dial runs to 0.
 
-**Not done.** The `impa` / `implight` per-collection numbers are not in the
-payload (6 / 6.5 and 1 in the tuning: one gain, one lit, for all). The boot rig
-is still `sunset`; `alps` is two clicks on the panel and is the row the trees
-were judged in — a world decision. Bushes and grass are the next kinds through this same door.
+**The cedar is in, and species go by place (W0c.29).** `cedar_tree.glb` joins
+`included` (five collections, 4.47 MB; its rungs 20.7 k / 15.4 k / 9.0 k
+triangles — the heaviest L0 of the set, its own ladder from `tree_prep.py`, its
+impostor from the same atlas cache). The per-collection `impa` / `implight`
+numbers now ride in the payload (`place` carries `impa`, `implight` beside
+`size`, `proportion`, `sink`, `dead`) and each impostor material takes its
+collection's gain (`uIGain = impa`); the F8 "imp gain" dial is a multiplier
+over all of them (`uIGainK`). And the pool's draw is weighted by WHERE the tree
+stands — the user: "slightly cluster by species... always have a little mix,
+but zones denser in a given species; start with altitude and ground type".
+`SPECIES_PREF` (render_world.js) is the table:
+
+| species | at home (m) | patch wavelength | ground bonus |
+|---|---|---|---|
+| cedar | 0 – 90 | 420 m | sand ×1.6 |
+| LOLIPOP firs | 0 – 160 | 340 m | — |
+| Georgeous fir | 30 – 220 | 360 m | — |
+| spruce | 70 – 320 | 300 m | — |
+| larch | 150 – 460 | 480 m | scree ×1.6 |
+
+Three factors over the collection's `proportion`: the ALTITUDE band (full
+weight inside, fading to a quarter over 60 m outside), the species' own
+PATCHES (a value noise seeded per species at its wavelength, squared —
+`0.3 + 1.4·n²` — so a patch reads as a stand and not a tint), and the GROUND
+(the bonus on the surface it likes). Nothing goes to zero, so every stand keeps
+a little of everything. Measured in-page over the domain (`TREE_PLACE.speciesAt`
+on a 400 m grid, 60 draws a cell): the LOLIPOP pack holds 40–77 % everywhere
+(its `proportion`); cedar runs 2–43 % by cell, larch 2–32 %, spruce 2–28 %;
+by altitude band the cedar share goes 18 → 13 → 4 % across 0–60 / 60–150 /
+150–300 m while larch goes 5 → 7 → 12 % and spruce 8 → 14 → 18 %. The same
+weights serve the woodland (`groupOf`) and the fill (`gi`), so a stand's mix
+does not change at the fill's edge. The bands are a first guess at a temperate
+valley, written as data so they can move with the world.
+
+**Not done.** The boot rig is still `sunset`; `alps` is two clicks on the
+panel and is the row the trees were judged in — a world decision. Bushes and
+grass are the next kinds through this same door.
 See `futureDesigns/WORLD-V2.md` §8.3 and the W0c–W0e rows of the staging plan.
