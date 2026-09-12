@@ -40776,3 +40776,45 @@ lattice's lever, and with the cluster on the members carry none.
   the physics tail sags under gravity on the ground (dy ~24) and the rest
   pitch calibration's x (mainsDx −18) — the drawn tail follows the nodes
   either way. Left.
+
+## G316 — THE MILL: A KENNECOTT-SHAPED CONCENTRATOR STEPPING UP A HILLSIDE,
+## FROM THE BIG GENERATOR (2026-09-12, the user: "a special site, believable
+## for Alaska. Large and historical. I found these pictures of the Kennecott
+## mine, looks great, and within the reach of our generator")
+
+- **`buildMill`** (`tools/_big_gen.js`, preset `kennecott mill`, `mill: 1`
+  with its own dials): TIERS up the hill — tier i a box `tierW` deep whose
+  front stands at z = w/2 − i·step and whose floor is floorY + i·rise; the
+  step shorter than the depth, so every tier's front wall rises out of the
+  roof of the one below, which is the whole look. Lengths shrink from
+  `tierL0` (26 m) at the foot to `tierL1` (11 m) at the top, each tier
+  shifted a little along x so the ends stagger; each tier its own concrete
+  plinth down into the ground, its gable along the contour, its ridge
+  cap. ROWS OF SMALL WINDOWS on every storey of the front and the ends
+  (white frames, dark glass, the odd one boarded up), the back walls
+  blind (buried in the tier above). THE HEAD TOWER on the top tier (a
+  narrow two-storey box with its own gable and windows). THE TRAMWAY: a
+  lattice — two pairs of chords, verticals, diagonals, cross ties, trestle
+  legs where it is high off the roofs — from the tower's foot down across
+  the front to the second tier's roof. THE POWER HOUSE at the foot beside
+  the lowest tier (a roller door, windows) and its three tall stacks.
+  Seven tiers on a 27° hill (the slope positive: the house's law drops
+  toward +z, so the hill climbs toward −z, up the tiers — the first cut
+  had it backwards and the plinths went to the centre of the earth).
+  23.7k triangles at LOD 0. The ground skirt under every tier, the
+  stacks, the power house.
+- **DRESSED**: the house's painted boards in a weathered red
+  (`wallTint`), rusted sheet roofs, the hangar concrete, rusty steel.
+- **GATE HOUSE** (the big battery): the mill's reach is its tiers up the
+  hill and the power house beside them; every tier climbs and rises out
+  of the roof below; something (the tower, the stacks) stands above the
+  top tier.
+- **WHERE TO — THE SPECIAL SITE**: the village's terrain is a 5 % beach;
+  the mill wants its mountain. Next: `makeTerrain` grows a HILL behind
+  the road at a chosen x (a smooth bump, 30–40 m over 80 m), the mill is
+  placed on it as a `big` on a plot of its own ("the mine"), its tramway
+  aimed at a loading shed by the road, the wood parted around it; the
+  gravel apron and a path from the road. Then the second Kennecott look —
+  the many-dormered lower buildings, the outbuildings and bunkhouses
+  across the road — as presets of the house generator (dormers exist).
+- Gates: HOUSE, VILLAGE green.

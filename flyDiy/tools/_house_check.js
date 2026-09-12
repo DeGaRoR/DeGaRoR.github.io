@@ -1662,9 +1662,23 @@ if (check(!!BG, 'the big generator did not load headlessly')) {
     check(hi.stats.tris > 400, 'big ' + name + ': too few triangles', String(hi.stats.tris));
     check(lo.stats.tris < hi.stats.tris * 0.7, 'big ' + name + ': the low mesh is not lower', lo.stats.tris + ' vs ' + hi.stats.tris);
     // the reach: the length plus the rake, the width plus the eave, the dock, the canopy, the awning, the sign
-    const reachX = P.L / 2 + Math.max(P.rakeOver, 0.35) + 0.6;
+    // (the mill's is its tiers up the hill and the power house beside them)
+    const reachX = P.mill ? P.tierL0 / 2 + 14 + 2 : P.L / 2 + Math.max(P.rakeOver, 0.35) + 0.6;
     const reachZ = P.w / 2 + Math.max(P.eaveOver, 0.2) + (P.dock ? P.dockD + 1.5 : 0) + (P.canopy ? P.canopyOut + 2.2 : 0) + (P.awning ? 1.5 : 0) + (P.gantry && !P.dock ? 1.8 : 0) + 0.8;
-    check(x1 <= reachX + 1e-3 && z1 <= reachZ + 1e-3, 'big ' + name + ': something stands past the reach of the building', x1.toFixed(2) + '/' + reachX.toFixed(2) + ' ' + z1.toFixed(2) + '/' + reachZ.toFixed(2));
+    const reachZm = P.mill ? P.tierW / 2 + (Math.round(P.tiers) - 1) * P.tierStep + P.tierW + 4 : reachZ;
+    check(x1 <= reachX + 1e-3 && z1 <= reachZm + 1e-3, 'big ' + name + ': something stands past the reach of the building', x1.toFixed(2) + '/' + reachX.toFixed(2) + ' ' + z1.toFixed(2) + '/' + reachZm.toFixed(2));
+    if (P.mill) {
+      // the tiers climb: every tier's floor above the last, every front wall
+      // out of the roof below (the step shorter than the depth), the tower
+      // and the stacks the highest things
+      const M = hi.stats.mill;
+      check(M.tiers.length === Math.round(P.tiers), 'big ' + name + ': not all tiers built');
+      for (let k = 1; k < M.tiers.length; k++) {
+        check(M.tiers[k].fy > M.tiers[k - 1].fy + 1, 'big ' + name + ': tier ' + k + ' does not climb');
+        check(M.tiers[k].zF < M.tiers[k - 1].zF && M.tiers[k].zF > M.tiers[k - 1].zB, 'big ' + name + ': tier ' + k + ' does not rise out of the roof below');
+      }
+      check(hi.stats.ridge > M.tiers[M.tiers.length - 1].ridge, 'big ' + name + ': nothing stands above the top tier');
+    }
     check(y1 > hi.stats.ridge && y0 < P.floorY, 'big ' + name + ': the mesh does not span plinth to stack');
     if (P.sign) { const sg = hi.stats.sign;
       check(sg && sg.w > 0.5 && sg.y > P.floorY + 1.5 && (sg.nz ? Math.abs(sg.x) < P.L / 2 : Math.abs(sg.z) < P.w / 2),

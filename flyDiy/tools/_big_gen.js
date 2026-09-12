@@ -86,9 +86,10 @@ function makeMats() {
     glass:  std(0x28343c, { roughness: 0.25, metalness: 0.1, transparent: true, opacity: 0.62, side: THREE.DoubleSide, userData: { flat: true } }),
     sign:   std(0xffffff, { roughness: 0.8, userData: { flat: true } }),
     awning: std(0x5a1c1c, { roughness: 0.95, side: THREE.DoubleSide, userData: { flat: true } }),
+    trim:   std(0xd8d3c8, { roughness: 0.9, userData: { flat: true } }),      // the mill's white window frames
   };
 }
-const BAGS = ['wall', 'plinth', 'roof', 'door', 'metal', 'glass', 'sign', 'awning'];
+const BAGS = ['wall', 'plinth', 'roof', 'door', 'metal', 'glass', 'sign', 'awning', 'trim'];
 const EXTRA = ['aoskirt'];
 const makeFinish = () => ({ MAT: makeMats(), SHADE_U: HG.makeShadeU() });
 const DEFAULT_FINISH = makeFinish();
@@ -189,6 +190,9 @@ const DEF = {
   wallTint: 0xffffff,
   dirt: 0.5, dirtH: 1.1, noise: 0.16,
   ao: 0.85, aoRange: 0.7, aoDirect: 0.35, aoGround: 1,
+  // THE MILL (G316): tiers up the hill
+  mill: 0, tiers: 7, tierStep: 6.4, tierRise: 3.3, tierW: 9.5, tierL0: 26, tierL1: 11, tierStoreys: 2,
+  tower: 1, tram: 1, millStacks: 3, annex: 1, winRow: 2.0,
 };
 const ROOFS = ['gable', 'monopitch', 'flat + parapet'];
 const ROWS = [
@@ -236,6 +240,15 @@ const ROWS = [
     // '' is the painted name; the keys are the baked billboards
     ['signKey', 'billboard', 0, 0, 1, [''].concat(signKeys()), P => !!P.sign],
   ]],
+  ['the mill', [
+    ['mill', 'a mill up the hill', 0, 1, 1], ['tiers', 'tiers', 3, 10, 1, null, P => !!P.mill],
+    ['tierStep', 'step up the hill', 4, 10, 0.1, null, P => !!P.mill], ['tierRise', 'rise per tier', 2.4, 4.5, 0.1, null, P => !!P.mill],
+    ['tierW', 'tier depth', 6, 14, 0.5, null, P => !!P.mill], ['tierL0', 'lowest length', 10, 40, 0.5, null, P => !!P.mill],
+    ['tierL1', 'top length', 6, 30, 0.5, null, P => !!P.mill], ['tierStoreys', 'storeys per tier', 1, 3, 1, null, P => !!P.mill],
+    ['winRow', 'window spacing', 1.2, 4, 0.1, null, P => !!P.mill],
+    ['tower', 'the tower', 0, 1, 1, null, P => !!P.mill], ['tram', 'the tramway', 0, 1, 1, null, P => !!P.mill],
+    ['millStacks', 'stacks', 0, 4, 1, null, P => !!P.mill], ['annex', 'the power house', 0, 1, 1, null, P => !!P.mill],
+  ]],
   ['finish', [
     ['wallSet', 'wall', 0, ROLE_SETS.wall.length - 1, 1, setNames('wall')],
     ['plinthSet', 'plinth', 0, ROLE_SETS.plinth.length - 1, 1, setNames('plinth')],
@@ -250,6 +263,22 @@ const ROWS = [
 
 const PRESETS = {
   'warehouse': {},
+  // THE MILL (G316, the user: "a special site, believable for Alaska.
+  // Large and historical ... the Kennecott mine"): the concentrator that
+  // steps up the mountain - fourteen storeys of red boards in tiers, each
+  // tier's front wall rising out of the roof below it, rows of small white
+  // windows, the head tower on top, the tramway coming down across the
+  // front, the power house with its stacks at the foot.
+  'kennecott mill': {
+    mill: 1, tiers: 7, tierStep: 6.4, tierRise: 3.3, tierW: 9.5, tierL0: 26, tierL1: 11, tierStoreys: 2,
+    tower: 1, tram: 1, millStacks: 3, annex: 1, winRow: 2.0,
+    slopeZ: 27, slopeX: 0, floorY: 0.6, plinth: 1, eaveOver: 0.5, rakeOver: 0.45, pitch: 24,   // the ground climbs toward -z, up the tiers
+    rollers: 0, door: 1, doors: 2, doorW: 1.2, doorH: 2.3, winStrip: 0, shopWin: 0, dock: 0, canopy: 0, gantry: 0,
+    stack: 0, vents: 0, pipes: 0, sign: 0,
+    wallSet: SET_IDX('wall', 'paintwood'), wallTint: 0xb04a3a, plinthSet: SET_IDX('plinth', 'concrete004'),
+    roofSet: SET_IDX('roof', 'corrrust'), doorSet: SET_IDX('door', 'rustysheet'), metalSet: SET_IDX('metal', 'rust'),
+    dirt: 0.55, dirtH: 1.4, ao: 0.9, aoRange: 0.9,
+  },
   // THE CANNERY: the harbour's big one - thirty metres of factory wall,
   // one truck door and two men's doors, a strip of windows all round, a
   // dock the length of the front under its canopy, the tall stack
@@ -368,6 +397,217 @@ function finishReport() {
   });
 }
 
+// ---------------------------------------------------------------------------
+// THE MILL (G316). Tiers up the hill: tier i is a box `tierW` deep whose
+// front face stands at z = w/2 - i * step (uphill is -z; the ground climbs
+// with `slopeZ` negative, since the house's slope law drops toward +z) and
+// whose floor is `floorY + i * rise`; the step is shorter than the depth,
+// so each tier's front wall rises out of the roof of the one below - which
+// is the whole look. Lengths shrink from tierL0 at the foot to tierL1 at
+// the top, each tier shifted a little along x so the ends stagger. Every
+// storey of every tier carries a row of small windows on the front and
+// the ends (white frames, dark glass), the top tier carries the head
+// tower, the tramway comes down the front from the tower's foot to the
+// second tier's roof as a lattice, the power house stands at the foot
+// beside the lowest tier with its stacks. Everything through the same
+// bags, so the finish dresses it as any other big building.
+function buildMill(bags, P, Q, g) {
+  const n = Math.max(3, Math.round(P.tiers)), step = P.tierStep, rise = P.tierRise, w = P.tierW;
+  const stH = 3.2, hw = P.wallT / 2, t = P.wallT, tp = Math.tan(P.pitch * D2R), rT = P.roofT;
+  const rnd = rng(P.seed + 77);
+  const occ = [];
+  const tiers = [];
+  let footprint = 0, ridgeTop = 0;
+  for (let i = 0; i < n; i++) {
+    const L = P.tierL0 + (P.tierL1 - P.tierL0) * i / (n - 1);
+    const xo = (rnd() - 0.5) * Math.max(0, (P.tierL0 - L) * 0.6);
+    const zF = w / 2 - i * step, zB = zF - w;
+    const fy = P.floorY + i * rise;
+    const storeys = Math.max(1, Math.round(P.tierStoreys)) + (i === n - 1 && P.tower ? 0 : 0);
+    const eave = fy + storeys * stH;
+    const ridge = eave + w / 2 * tp;
+    ridgeTop = Math.max(ridgeTop, ridge);
+    const x0 = xo - L / 2, x1 = xo + L / 2;
+    const yRoof = z => eave + (w / 2 - Math.abs(z - (zF + zB) / 2)) * tp;
+    // THE PLINTH: from below the lowest corner of the ground under this tier
+    let gLo = 1e9;
+    for (const x of [x0, x1]) for (const z of [zF, zB]) gLo = Math.min(gLo, g(x, z));
+    const pt = 0.3;
+    const ring = [[x0 - pt / 2, zF + pt / 2], [x1 + pt / 2, zF + pt / 2], [x1 + pt / 2, zB - pt / 2], [x0 - pt / 2, zB - pt / 2]];
+    for (let k = 0; k < 4; k++)
+      wall(bags.plinth, { A: ring[k], B: ring[(k + 1) % 4], y0: gLo - 0.4, t: pt, topAt: () => fy, ext: [pt / 2, pt / 2], inner: false, endCap: [false, false], capBot: false, sub: 2.5 });
+    // THE WALLS with their rows of windows: front (+z), right end, back, left end
+    const plan = [[x0, zF], [x1, zF], [x1, zB], [x0, zB]];
+    const wins = [];
+    for (let k = 0; k < 4; k++) {
+      const A = plan[k], B = plan[(k + 1) % 4];
+      const len = Math.hypot(B[0] - A[0], B[1] - A[1]);
+      const isEnd = k === 1 || k === 3;
+      const topAt = s => { const u = s / len; const z = A[1] + (B[1] - A[1]) * u; return yRoof(z); };
+      const holes = [];
+      // the back wall of a tier is buried in the tier above: no windows there
+      if (k !== 2) {
+        const ww = 0.9, wh = 1.25, spc = P.winRow;
+        const nW = Math.max(1, Math.floor((len - 1.2) / spc));
+        const s00 = (len - (nW - 1) * spc - ww) / 2;
+        for (let st = 0; st < storeys; st++) {
+          const y0 = fy + st * stH + 1.0, y1 = y0 + wh;
+          for (let j = 0; j < nW; j++) {
+            const s0 = s00 + j * spc;
+            // the odd one boarded up: a mill nobody has worked for a lifetime
+            if (rnd() < 0.12) continue;
+            holes.push({ s0, s1: s0 + ww, y0, y1, kind: 'win' });
+            wins.push({ k, s0, s1: s0 + ww, y0, y1 });
+          }
+        }
+        // the doors on the lowest tier's front
+        if (i === 0 && k === 0 && P.door) for (let d = 0; d < Math.max(1, Math.round(P.doors)); d++) {
+          const s = len * (d + 0.5) / Math.max(1, Math.round(P.doors)) - P.doorW / 2;
+          holes.push({ s0: s, s1: s + P.doorW, y0: fy, y1: fy + P.doorH, kind: 'door' });
+          wins.push({ k, s0: s, s1: s + P.doorW, y0: fy, y1: fy + P.doorH, door: true });
+        }
+      }
+      wall(bags.wall, { A, B, y0: fy, t, topAt, holes, ext: [hw, hw], inner: true, endCap: [false, false], capBot: false, sub: Q.lod === 0 ? 3.0 : 0 });
+    }
+    // the glass and the white frames; the door leaves
+    for (const o of wins) {
+      const A = plan[o.k], B = plan[(o.k + 1) % 4];
+      const len = Math.hypot(B[0] - A[0], B[1] - A[1]);
+      const X = [(B[0] - A[0]) / len, 0, (B[1] - A[1]) / len], N = [-X[2], 0, X[0]];
+      const P3 = (s, y, d) => [A[0] + X[0] * s + N[0] * d, y, A[1] + X[2] * s + N[2] * d];
+      if (o.door) {
+        const q = [P3(o.s0, o.y0, -hw + 0.03), P3(o.s1, o.y0, -hw + 0.03), P3(o.s1, o.y1, -hw + 0.03), P3(o.s0, o.y1, -hw + 0.03)];
+        face(bags.door, q, N, uvFrame(q[0], X, [0, 1, 0]));
+        continue;
+      }
+      const q = [P3(o.s0, o.y0, 0), P3(o.s1, o.y0, 0), P3(o.s1, o.y1, 0), P3(o.s0, o.y1, 0)];
+      face(bags.glass, q, N, uvFrame(q[0], X, [0, 1, 0]));
+      if (Q.lod === 0) {
+        const fr = (a, b) => beam(bags.trim, add(a, mul(N, hw + 0.01)), add(b, mul(N, hw + 0.01)), 0.05, 0.03, N, 0.05);
+        fr(P3(o.s0, o.y0, 0), P3(o.s1, o.y0, 0)); fr(P3(o.s0, o.y1, 0), P3(o.s1, o.y1, 0));
+        fr(P3(o.s0, o.y0, 0), P3(o.s0, o.y1, 0)); fr(P3(o.s1, o.y0, 0), P3(o.s1, o.y1, 0));
+        fr(P3(o.s0, (o.y0 + o.y1) / 2, 0), P3(o.s1, (o.y0 + o.y1) / 2, 0));    // the sash
+      }
+    }
+    // THE ROOF: a gable along x, ridge over the tier's middle
+    const zM = (zF + zB) / 2;
+    for (const side of [1, -1]) {
+      const zE = zM + side * (w / 2 + P.eaveOver), yE = eave - P.eaveOver * tp + rT;
+      const ring2 = [[x0 - P.rakeOver, ridge + rT, zM], [x1 + P.rakeOver, ridge + rT, zM], [x1 + P.rakeOver, yE, zE], [x0 - P.rakeOver, yE, zE]];
+      plate(bags.roof, ring2, rT, [0, -1, 0], uvFrame(ring2[0], [1, 0, 0], nrm([0, yE - ridge - rT, zE - zM])));
+    }
+    beam(bags.metal, [x0 - P.rakeOver, ridge + rT + 0.03, zM], [x1 + P.rakeOver, ridge + rT + 0.03, zM], 0.16, 0.05, [0, 1, 0], 0);
+    occ.push({ x: xo, z: zM, hx: L / 2 + 0.3, hz: w / 2 + 0.3, k: 0.7, soft: 1.8, dry: true });
+    footprint += L * w;
+    tiers.push({ i, L, xo, x0, x1, zF, zB, zM, fy, eave, ridge, storeys });
+  }
+  // THE HEAD TOWER on the top tier: a narrow two-storey box with its own gable
+  const top = tiers[n - 1];
+  let tower = null;
+  if (P.tower) {
+    const tL = Math.min(7, top.L * 0.6), tW = w * 0.7, tx = top.xo, tz = top.zM;
+    const ty = top.eave - 0.6, tH = 2 * stH, tEave = ty + tH, tRidge = tEave + tW / 2 * tp;
+    const plan = [[tx - tL / 2, tz + tW / 2], [tx + tL / 2, tz + tW / 2], [tx + tL / 2, tz - tW / 2], [tx - tL / 2, tz - tW / 2]];
+    for (let k = 0; k < 4; k++) {
+      const A = plan[k], B = plan[(k + 1) % 4];
+      const len = Math.hypot(B[0] - A[0], B[1] - A[1]);
+      const topAt = s => { const z = A[1] + (B[1] - A[1]) * s / len; return tEave + (tW / 2 - Math.abs(z - tz)) * tp; };
+      const holes = [];
+      if (k !== 2) for (let st = 0; st < 2; st++) for (let j = 0; j < Math.max(1, Math.floor(len / 2.2)); j++) {
+        const s0 = 0.7 + j * 2.2; if (s0 + 0.8 > len - 0.5) break;
+        holes.push({ s0, s1: s0 + 0.8, y0: ty + st * stH + 1.0, y1: ty + st * stH + 2.1, kind: 'win' });
+        const X = [(B[0] - A[0]) / len, 0, (B[1] - A[1]) / len], N = [-X[2], 0, X[0]];
+        const P3 = (s, y) => [A[0] + X[0] * s, y, A[1] + X[2] * s];
+        face(bags.glass, [P3(s0, ty + st * stH + 1.0), P3(s0 + 0.8, ty + st * stH + 1.0), P3(s0 + 0.8, ty + st * stH + 2.1), P3(s0, ty + st * stH + 2.1)], N, uvFrame(P3(s0, ty), X, [0, 1, 0]));
+      }
+      wall(bags.wall, { A, B, y0: ty, t, topAt, holes, ext: [hw, hw], inner: true, endCap: [false, false], capBot: false, sub: 0 });
+    }
+    for (const side of [1, -1]) {
+      const zE = tz + side * (tW / 2 + 0.4), yE = tEave - 0.4 * tp + rT;
+      const ring2 = [[tx - tL / 2 - 0.4, tRidge + rT, tz], [tx + tL / 2 + 0.4, tRidge + rT, tz], [tx + tL / 2 + 0.4, yE, zE], [tx - tL / 2 - 0.4, yE, zE]];
+      plate(bags.roof, ring2, rT, [0, -1, 0], uvFrame(ring2[0], [1, 0, 0], nrm([0, yE - tRidge - rT, zE - tz])));
+    }
+    ridgeTop = Math.max(ridgeTop, tRidge);
+    tower = { x: tx, z: tz, y0: ty, ridge: tRidge, L: tL, w: tW };
+  }
+  // THE TRAMWAY: a lattice from the top tier's front, high, down across the
+  // front to the second tier's roof, off to one side
+  if (P.tram && n >= 3) {
+    const a0 = [top.xo + (rnd() < 0.5 ? -1 : 1) * top.L * 0.25, top.eave + 0.6, top.zF + 0.4];
+    const lo = tiers[1];
+    const a1 = [a0[0] + (a0[0] < top.xo ? -1 : 1) * 6, lo.ridge + 0.8, lo.zF + 0.5];
+    const dir = nrm(sub(a1, a0)), Ln = len(sub(a1, a0));
+    const side = nrm(crs(dir, [0, 1, 0]));
+    for (const sgn of [-1, 1]) {
+      const o = mul(side, sgn * 0.7);
+      beam(bags.door, add(a0, o), add(a1, o), 0.12, 0.14, [0, 1, 0], 0);                     // top chords
+      beam(bags.door, add(add(a0, o), [0, -1.4, 0]), add(add(a1, o), [0, -1.4, 0]), 0.12, 0.14, [0, 1, 0], 0);   // bottom chords
+    }
+    if (Q.lod === 0) {
+      const nB = Math.max(2, Math.round(Ln / 2.2));
+      for (let k = 0; k <= nB; k++) {
+        const p = add(a0, mul(dir, Ln * k / nB));
+        for (const sgn of [-1, 1]) {
+          const o = mul(side, sgn * 0.7);
+          beam(bags.door, add(p, o), add(add(p, o), [0, -1.4, 0]), 0.07, 0.07, dir, 0);       // verticals
+          if (k < nB) beam(bags.door, add(p, o), add(add(add(a0, mul(dir, Ln * (k + 1) / nB)), o), [0, -1.4, 0]), 0.05, 0.05, side, 0);   // diagonals
+        }
+        beam(bags.door, add(p, mul(side, -0.7)), add(p, mul(side, 0.7)), 0.06, 0.06, [0, 1, 0], 0);   // cross ties
+      }
+      // the trestle legs where the lattice is high off the roofs
+      for (let k = 1; k < nB; k += 2) {
+        const p = add(add(a0, mul(dir, Ln * k / nB)), [0, -1.4, 0]);
+        const gy = Math.max(g(p[0], p[2]), (tiers.find(T => p[2] <= T.zF + 0.3 && p[2] >= T.zB - 0.3) || { ridge: g(p[0], p[2]) }).ridge - 0.3);
+        if (p[1] - gy > 1.5) for (const sgn of [-1, 1]) beam(bags.door, add(p, mul(side, sgn * 0.7)), [p[0] + side[0] * sgn * 0.9, gy, p[2] + side[2] * sgn * 0.9], 0.08, 0.08, [0, 1, 0], 0);
+      }
+    }
+  }
+  // THE POWER HOUSE at the foot, beside the lowest tier, and its stacks
+  const base = tiers[0];
+  if (P.annex) {
+    const aL = 12, aW = 8, ax = base.x1 + 0.6 + aL / 2, az = base.zF - w / 2 - 1.0;
+    const fy = P.floorY + 0.1, eave = fy + 4.6, ridge = eave + aW / 2 * tp;
+    let gLo = 1e9;
+    for (const x of [ax - aL / 2, ax + aL / 2]) for (const z of [az - aW / 2, az + aW / 2]) gLo = Math.min(gLo, g(x, z));
+    const plan = [[ax - aL / 2, az + aW / 2], [ax + aL / 2, az + aW / 2], [ax + aL / 2, az - aW / 2], [ax - aL / 2, az - aW / 2]];
+    for (let k = 0; k < 4; k++) {
+      const A = plan[k], B = plan[(k + 1) % 4];
+      const ring = [[A[0] + (A[0] < ax ? -0.15 : 0.15), A[1] + (A[1] > az ? 0.15 : -0.15)], [B[0] + (B[0] < ax ? -0.15 : 0.15), B[1] + (B[1] > az ? 0.15 : -0.15)]];
+      wall(bags.plinth, { A: ring[0], B: ring[1], y0: gLo - 0.4, t: 0.3, topAt: () => fy, ext: [0.15, 0.15], inner: false, endCap: [false, false], capBot: false, sub: 2.5 });
+      const len = Math.hypot(B[0] - A[0], B[1] - A[1]);
+      const topAt = s => { const z = A[1] + (B[1] - A[1]) * s / len; return eave + (aW / 2 - Math.abs(z - az)) * tp; };
+      const holes = [];
+      if (k === 0) { holes.push({ s0: 1.0, s1: 4.4, y0: fy, y1: fy + 3.6, kind: 'roller' }); }
+      for (let j = 0; j < Math.floor((len - 1.5) / 2.2); j++) { const s0 = 5.5 + j * 2.2; if (k === 0 && s0 + 0.9 > len - 0.5) break; if (k !== 0) { const s = 0.8 + j * 2.2; if (s + 0.9 > len - 0.5) break; holes.push({ s0: s, s1: s + 0.9, y0: fy + 1.6, y1: fy + 2.9, kind: 'win' }); } else holes.push({ s0, s1: s0 + 0.9, y0: fy + 1.6, y1: fy + 2.9, kind: 'win' }); }
+      wall(bags.wall, { A, B, y0: fy, t, topAt, holes, ext: [hw, hw], inner: true, endCap: [false, false], capBot: false, sub: Q.lod === 0 ? 3.0 : 0 });
+      const X = [(B[0] - A[0]) / len, 0, (B[1] - A[1]) / len], N = [-X[2], 0, X[0]];
+      for (const h of holes) {
+        const P3 = (s, y, d) => [A[0] + X[0] * s + N[0] * d, y, A[1] + X[2] * s + N[2] * d];
+        if (h.kind === 'win') face(bags.glass, [P3(h.s0, h.y0, 0), P3(h.s1, h.y0, 0), P3(h.s1, h.y1, 0), P3(h.s0, h.y1, 0)], N, uvFrame(P3(h.s0, h.y0, 0), X, [0, 1, 0]));
+        else { const d = -hw + 0.03; face(bags.door, [P3(h.s0, h.y0, d), P3(h.s1, h.y0, d), P3(h.s1, h.y1 - 1.2, d), P3(h.s0, h.y1 - 1.2, d)], N, uvFrame(P3(h.s0, h.y0, d), X, [0, 1, 0])); }
+      }
+    }
+    for (const side of [1, -1]) {
+      const zE = az + side * (aW / 2 + P.eaveOver), yE = eave - P.eaveOver * tp + rT;
+      const ring2 = [[ax - aL / 2 - P.rakeOver, ridge + rT, az], [ax + aL / 2 + P.rakeOver, ridge + rT, az], [ax + aL / 2 + P.rakeOver, yE, zE], [ax - aL / 2 - P.rakeOver, yE, zE]];
+      plate(bags.roof, ring2, rT, [0, -1, 0], uvFrame(ring2[0], [1, 0, 0], nrm([0, yE - ridge - rT, zE - az])));
+    }
+    occ.push({ x: ax, z: az, hx: aL / 2 + 0.3, hz: aW / 2 + 0.3, k: 0.7, soft: 1.8, dry: true });
+    footprint += aL * aW;
+    // the stacks, behind the power house, tall
+    for (let k = 0; k < Math.round(P.millStacks); k++) {
+      const sx = ax - aL / 2 + 2.5 + k * 3.2, sz = az - aW / 2 - 1.6, r = 0.55;
+      const gy = g(sx, sz) - 0.2, top2 = fy + 22 + k * 1.5;
+      cyl(bags.metal, [sx, gy, sz], [0, 1, 0], r, top2 - gy, Q.lod === 0 ? 14 : 7, true, { smooth: true });
+      if (Q.lod === 0) for (const yy of [top2 - 6, top2 - 12]) cyl(bags.metal, [sx, yy, sz], [0, 1, 0], r * 1.12, 0.25, 14, true);
+      occ.push({ x: sx, z: sz, r: r * 1.3, k: 0.6, soft: 0.6, dry: true });
+      ridgeTop = Math.max(ridgeTop, top2);
+    }
+  }
+  if (P.aoGround) HG.buildGroundAO(bags.aoskirt, occ, g);
+  return { tiers, tower, occ, footprint, ridge: ridgeTop, eave: base.eave, base };
+}
+
 // ---- the build ---------------------------------------------------------------
 function rng(seed) {
   let st = ((seed | 0) * 2654435761 + 11) >>> 0;
@@ -382,6 +622,20 @@ function build(P0, lod, F) {
   const bags = {};
   for (const k of BAGS.concat(EXTRA)) bags[k] = Bag(k);
   const g = HG.groundFn(P);
+  if (P.mill) {
+    // THE MILL is its own composition (G316): the tiers, the tower, the
+    // tramway, the power house - through the same bags and bake
+    const M = buildMill(bags, P, Q, g);
+    const aoInfo = K.bakeAO(BAGS.map(k => bags[k]), { strength: P.ao === undefined ? 0.85 : P.ao, range: P.aoRange || 0.7, ground: g });
+    let tris = 0, verts = 0; const per = {};
+    for (const k of BAGS) { per[k] = bags[k].tris; tris += bags[k].tris; verts += bags[k].verts; }
+    const b = M.base;
+    return { bags, stats: { tris, verts, per, footprint: M.footprint, eave: M.eave, ridge: M.ridge, kind: 'mill: ' + M.tiers.length + ' tiers',
+               rollers: [], door: { x: b.xo, w: P.doorW, h: P.doorH }, shop: null, dock: null, sign: null, stacks: [], strips: 0, doors: Math.round(P.doors),
+               front: { x: b.xo, z: b.zF + 1.0, side: 1, depth: 0 }, mill: M, ground: g, groundAO: M.occ, aoFoot: null, ao: aoInfo, path: [],
+               people: null, yard: null, pier: null, lit: null },
+             P, V: { L: P.tierL0, w: P.tierW, wallT: P.wallT, floorY: P.floorY, eaveH: M.eave - P.floorY }, R: null, MAT: F ? F.MAT : MAT };
+  }
   const L = P.L, w = P.w, t = P.wallT, hw = t / 2;
   const fy = P.floorY, eave = fy + P.eaveH;
   const kind = Math.round(P.roofKind);
