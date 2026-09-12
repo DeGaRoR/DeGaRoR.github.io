@@ -805,6 +805,10 @@ const AERO_SEC = {
               layer: 'hinge' },
   ctlFair:  { parent: 'body', fin: 'trim',      label: 'the hinge fairings',
               layer: 'hinge', wears: 'parent' },
+  // G307: the bolted saddles a tail meets on a bare tube boom (the fin's
+  // root plates and collars, the stab's carry-through, the tailwheel's)
+  rodSaddle: { parent: null, fin: 'steelTube', label: 'the boom saddles',
+               layer: 'fin' },
   strut:    { parent: 'body', fin: 'trim',      label: 'the lift struts',
               layer: 'wing', wears: 'parent' },
   // G274: the carry-through drawn in a cut or removed centre section — a

@@ -1018,6 +1018,50 @@ console.log(`health: ${cases} cases (dorsal x root x keel x crease x ` +
   }
 }
 
+// ---- 9: THE ROOT ON A FITTING (G307, the fitment study P3) -----------------
+// On a bare tube boom the fin's root lands on the saddle's PLATE — the deck
+// lifted by SADDLE.hS — and the root rim is a slot-style flat edge on it;
+// the fixtures above (lofted booms) reproduce unchanged. The headless tail
+// mirrors the layer; a page fixture with boomStyle 1 would pin the two.
+{
+  const TH = require('./_tail_headless.js');
+  const RF = require('./_rod_fit.js');
+  const fxDir = path.join(__dirname, 'fixtures');
+  const base = JSON.parse(fs.readFileSync(path.join(fxDir, 'tail_measure_2026-09-07_boot.json'), 'utf8'));
+  const P0 = base.P;
+  if (!P0) fail('§9: the boot fixture carries no P');
+  else {
+    const P1 = Object.assign({}, P0, { boomStyle: 1 });
+    const t0 = TH.tailBuild(P0, { level: 2 }), t1 = TH.tailBuild(P1, { level: 2 });
+    const FSd = (t1.FS || 1);
+    const hS = RF.SADDLE.hS / FSd;
+    const rootY = t => {
+      const m = t.fin.mesh, ids = new Set(); const out = [];
+      for (const [a, b] of m.finRootLo) { ids.add(a); ids.add(b); }
+      for (const i of ids) { const v = m.V[i]; if (v[2] >= t.fin.deck.z0) out.push(v); }
+      return out;
+    };
+    const r1 = rootY(t1), r0 = rootY(t0);
+    const off1 = r1.map(v => v[1] - t1.fin.deck.top(v[2]));
+    const on1 = off1.every(d => Math.abs(d) < 1e-6);
+    if (!on1) fail('§9: on a rod the root does not sit on the lifted deck (max ' + Math.max(...off1.map(Math.abs)).toFixed(5) + ')');
+    // the lifted deck IS the tube's crown plus the saddle: the same station
+    // on the lofted build's deck lies hS lower than on the rod's — measured
+    // at the hinge station of each (the decks differ, the lift is the fact)
+    // the tube's own diameter is the row (`rodD`, cage units); the lifted
+    // deck's top minus the tube's belly is that plus the saddle's height
+    const zH = t1.fin.cage.cutZ;
+    const span = t1.fin.deck.top(zH) - t1.fin.deck.bot(zH);
+    const rodD = +P1.rodD || 0.12;
+    if (!(Math.abs(span - (rodD + hS)) < rodD * 0.05))
+      fail('§9: the rod deck top is not the tube crown plus SADDLE.hS (top-belly ' + span.toFixed(4) + ' vs ' + (rodD + hS).toFixed(4) + ')');
+    if (!(r0.length && r1.length)) fail('§9: no root loop');
+    const on0 = r0.every(v => Math.abs(v[1] - t0.fin.deck.top(v[2])) < 1e-6);
+    if (!on0) fail('§9: the lofted build root moved off its skin');
+    console.log('§9: rod root on the saddle plate (' + r1.length + ' verts, lift ' + (hS * FSd * 1000).toFixed(1) + ' mm), loft root on the skin (' + r0.length + ' verts)');
+  }
+}
+
 // THE VERDICT CONTRACT (G67.1): this checker joins the battery, and the
 // runner requires BOTH signals — the line and the exit code.
 console.log('GATE FIN: ' + (anyFail ? 'FAIL' : 'PASS'));

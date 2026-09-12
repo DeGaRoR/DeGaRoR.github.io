@@ -866,6 +866,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // same vertices in the same frame, so it could not MOVE these bounds,
       // but the boundary is declared in both walks, not one
       if (o.userData && o.userData.edHi) return;
+      // ...nor is HARDWARE a surface (G307): a saddle under a fin's root is
+      // in the fin's group and would widen its measured bounds
+      if (o.userData && o.userData.edHw) return;
       const p = o.geometry.attributes.position;
       if (!p) return;
       tmp.multiplyMatrices(inv, o.matrixWorld);
@@ -906,6 +909,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     grp.traverse(o => {
       if (!o.isMesh || !o.visible || !o.geometry) return;
       if (o.userData && o.userData.edHi) return;
+      if (o.userData && o.userData.edHw) return;       // G307: not the saddles
       const p = o.geometry.attributes.position;
       if (!p) return;
       tmp.multiplyMatrices(inv, o.matrixWorld);
@@ -1659,6 +1663,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           grp.updateMatrixWorld(true);
           grp.traverse(o => {
             if (!o.isMesh || !o.geometry || /Ventral|edSurf/.test(o.name || '')) return;
+            if (o.userData && o.userData.edHw) return;       // G307: not the saddles
             const pa = o.geometry.getAttribute('position');
             for (let i = 0; i < pa.count; i++) {
               v.set(pa.getX(i), pa.getY(i), pa.getZ(i)).applyMatrix4(o.matrixWorld).applyMatrix4(invM);

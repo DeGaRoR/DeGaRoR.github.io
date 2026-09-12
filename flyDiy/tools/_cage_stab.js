@@ -210,6 +210,24 @@ PAGE.post = ctx => {
   const cant = cantDeg * Math.PI / 180;
   let zSeat = 0;
   if (mount >= 1 && deck) yRef = deck.top(FIN.FIN_DEFAULT.zH1 + dzS);
+  // THE STAB MEETS A FITTING, NOT THE TUBE (G307, the fitment study P3): on
+  // a single bare rod the stab is CARRIED — a saddle on the tube at its
+  // hinge station, a plate on the crown, and where the builder's stY holds
+  // the stab above the plate a pedestal block up to its underside; a stab
+  // asked for below the plate is lifted onto it. Rod-style twin booms seat
+  // the stab between the fins (G271) and keep their own rule.
+  const RF = window.ROD_FIT;
+  const rod = !!(RF && !TB && +P.boomStyle && deck && mount <= 1);
+  let rodSeat = null;
+  if (rod) {
+    const zH = FIN.FIN_DEFAULT.zH1 + dzS;
+    const yT = deck.top(zH), yB = deck.bot(zH);
+    const plateTop = yT + RF.SADDLE.hS / FSd;              // cage units
+    const half = 0.5 * (P.stThick || 0.05);
+    const under = yRef + (P.stY || 0) - half;              // the stab's underside
+    if (under < plateTop) yRef += plateTop - under;        // lifted onto the plate
+    rodSeat = { z: zH, yT, yB, plateTop, r: 0.5 * (yT - yB) };
+  }
   if (mount === 3 && deck)                       // the boom's own centre
     yRef = 0.5 * (deck.top(FIN.FIN_DEFAULT.zH1 + dzS) + deck.bot(FIN.FIN_DEFAULT.zH1 + dzS));
   if (mount === 2) {
@@ -302,6 +320,29 @@ PAGE.post = ctx => {
       else obj.name = 'edStabSkin' + (side > 0 ? 'R' : 'L');   // G267.2: a part on twin booms
       group.add(obj);
     }
+  }
+  // G307: the saddle and the pedestal under a rod-mounted stab (metric
+  // hardware in a child scaled back out of the group's cage units; tagged as
+  // hardware so the join's bounds skip it)
+  if (rodSeat && !wire && window.GEAR_KIT) {
+    const K = window.GEAR_KIT, bag = K.Bag();
+    const GS = (window.CAGE_GEAR && window.CAGE_GEAR.saddles) || [];
+    const FSn = (window.CAGE_FIN_SADDLES) || [];
+    const zS = rodSeat.z * FS;
+    const shared = GS.find(g => Math.abs(g.z - zS) < 0.12) || FSn.find(g => Math.abs(g.z - zS) < 0.12);
+    const zUse = shared ? shared.z : zS;
+    const Wp = 2 * (P.stX || 0) * FS + 0.06, Lp = 0.09;
+    const rec = RF.saddle(bag, { ctr: [0, 0.5 * (rodSeat.yT + rodSeat.yB) * FS, zUse], axis: [0, 0, -1],
+                                 r: rodSeat.r * FS, collar: !shared, plate: { top: 1, W: Wp, L: Lp } });
+    const under = (yRef + (P.stY || 0) - 0.5 * (P.stThick || 0.05)) * FS;
+    const gap = rec && rec.top ? under - rec.top[1] : 0;
+    if (gap > 0.005) RF.pedestal(bag, { base: rec.top, axis: [0, 0, -1], h: gap + 0.001, W: Wp * 0.8, L: Lp * 0.8 });
+    const sad = new THREE.Group();
+    sad.name = 'edSaddle_stab';
+    sad.scale.setScalar(1 / FS);
+    const m = bag.mesh(sad, DRAW.saddleMat ? DRAW.saddleMat() : new THREE.MeshLambertMaterial({ color: 0x8a9099 }));
+    if (m) m.userData.edHw = 1;
+    group.add(sad);
   }
   group.scale.setScalar(FS);
   scene.add(group);

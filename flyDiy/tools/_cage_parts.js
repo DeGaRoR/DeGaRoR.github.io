@@ -589,7 +589,8 @@ const CAGE_PARTS = [
   // and rows. The design's mock tree has no tail branch; the mock is one
   // aeroplane's tree, not the schema.
   // =========================================================================
-  { key: 'tail', name: 'Tail', parent: null, layer: 'fin' },
+  { key: 'tail', name: 'Tail', parent: null, layer: 'fin',
+    sections: ['rodSaddle'] },          // G307: the saddles on a tube boom
 
   { key: 'fin', name: 'Fin & rudder', parent: 'tail', layer: 'fin',
     when: P => +P.finOn, gate: 'finOn',

@@ -889,6 +889,19 @@ function fitOn(AF, st, z, ang, dx) {
 // (fitPad); on a mount frame it is a flat plate on that surface.
 function padOn(bags, AF, st, z, ang, L, W, opt, dx) {
   if (st && st.mount && st.mount.pivot) pivotOn(bags, st.mount(z - st.z, dx));
+  else if (st && st.mount && st.mount.saddle) {
+    // G307: on a bare tube the plate is a SADDLE's — a split collar with
+    // the plate under it (ROD_FIT), never a doubler draped on a cylinder
+    const RF = typeof window !== 'undefined' && window.ROD_FIT;
+    const sd = st.mount.saddle;
+    if (RF && RF.saddle) {
+      const rec = RF.saddle(bags.alloy, { ctr: [sd.ctr[0], sd.ctr[1], z], axis: sd.axis, r: sd.r,
+                                          plate: { bot: 1, W, L, t: (opt && opt.thick) || 0.006 } });
+      if (st.mount.onDrawn) st.mount.onDrawn({ z, ctr: [sd.ctr[0], sd.ctr[1], z], r: sd.r, W, L });
+      return rec;
+    }
+    padFlat(bags, st.mount(z - st.z, dx), L, W, opt);
+  }
   else if (st && st.mount) padFlat(bags, st.mount(z - st.z, dx), L, W, opt);
   else fitPad(bags, AF, z, ang, L, W, opt);
 }
@@ -1635,7 +1648,7 @@ function legTailwheel(bags, AF, P, st) {
 
 window.GEAR_GEN = { MAT, gearMat, stubAirframe, drawStub, objAirframe, drawBody,
                     meshAirframe, cageAirframe, CAGE_MATS, airframeClose,
-                    exactAirframe, padArc, PAD_ARC,
+                    padOn, exactAirframe, padArc, PAD_ARC,
                     wheel, spat, fitFrame, memberFrame, pivotOn, padFlat,
                     fitPad, legBeam, legLink, legOleo, castorUnit,
                     legTailwheel, Bag };

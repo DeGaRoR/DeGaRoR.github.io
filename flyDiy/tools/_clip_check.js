@@ -113,6 +113,7 @@ function fittingOf(o) {
   if (o.kind === 'gear') return 'gear';
   if (o.kind === 'strut') return 'strut';
   if (o.name === 'edFit_pitot') return 'pitot';
+  if (o.chain.some(a => a.startsWith('edSaddle'))) return 'saddle';   // G307
   return null;
 }
 // the solids a fitting may not be inside that are NOT skins (skins are the
@@ -150,6 +151,15 @@ function identities(o, W) {
     out.push({ label: 'lamp ' + key + ' [light]', t0: 0, t1: nT, key });
   }
   if (!out.length) out.push({ label: (o.name || ('(' + (o.chain.find(c => c) || 'mesh') + ')')) + ' [' + (o.layer || o.kind) + ']', t0: 0, t1: nT, key: o.name });
+  // ...and what no record claims (the access layer's rod and boom COLLARS
+  // are drawn before the site's range is taken): every triangle outside the
+  // claimed ranges, as one identity, so nothing drawn goes unmeasured
+  if (o.layer === 'access' || o.layer === 'hinge') {
+    const claimed = new Uint8Array(nT);
+    for (const id of out) for (let t = id.t0; t < id.t1; t++) claimed[t] = 1;
+    let free = 0; for (let t = 0; t < nT; t++) if (!claimed[t]) free++;
+    if (free) out.push({ label: '(unclaimed: collars etc.) [' + o.layer + ']', t0: 0, t1: nT, key: 'unclaimed', mask: claimed });
+  }
   return out;
 }
 // the lamp's own allowance: the pod's sunk depth (+ the default)
@@ -220,7 +230,7 @@ function runBuild(B) {
       for (const id of ids) {
         // the vertices this identity's triangles use
         const vs = new Set();
-        for (let t = id.t0; t < id.t1; t++) { vs.add(o.idx[3 * t]); vs.add(o.idx[3 * t + 1]); vs.add(o.idx[3 * t + 2]); }
+        for (let t = id.t0; t < id.t1; t++) { if (id.mask && id.mask[t]) continue; vs.add(o.idx[3 * t]); vs.add(o.idx[3 * t + 1]); vs.add(o.idx[3 * t + 2]); }
         if (!vs.size) continue;
         let cen = [0, 0, 0];
         for (const v of vs) { cen[0] += pos[3 * v]; cen[1] += pos[3 * v + 1]; cen[2] += pos[3 * v + 2]; }

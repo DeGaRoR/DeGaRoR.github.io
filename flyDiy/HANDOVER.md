@@ -40422,3 +40422,54 @@ every fix measured against the drawn triangles, the baseline `--rebase`d after.
    the house generator's own instancing (one house, many placements)
    before a town of two hundred.
 - Gates: VILLAGE, TREE, MEDIA green.
+
+## G307 — THE TAIL MEETS A FITTING, NOT THE TUBE: BOLTED SADDLES ON THE ROD
+## BOOM (2026-09-12, the fitment study P3; the user's ruling: "fin/stab/
+## tailwheel on a rod meet bolted saddle clamps"; the G26 follow-up "tail
+## clamp fittings on the tube" that never landed)
+
+- **The defect**: on a bare tube the fin's root sat on the crown and its
+  ROUNDED rim bulged a half-thickness (30 mm) into the tube; the stab's
+  halves floated where `stY` put them, nothing between them and the rod;
+  the tailwheel's doubler (`fitPad`) wrapped 80-95 degrees round a 120 mm
+  tube. Three intersections, no fitting.
+- **`tools/_rod_fit.js`** (pure shapes over GEAR_KIT; node + browser):
+  `saddle(bag, { ctr, axis, r, w, plate: { top, bot, W, L, t }, collar })`
+  — a split collar round the tube (a ring `SADDLE.t` thick, `w` wide, an
+  ear pair each flank with a vertical clamp bolt; NO cap, revolve's cap is
+  a disc to the axis inside the tube — the access layer's rod/boom collars
+  had one too, unmeasured: their triangles were drawn before the site's
+  range was taken, and GATE CLIP now measures every unclaimed triangle) and
+  a plate tangent to the crown and/or belly with four bolts; `pedestal`,
+  a block from a plate to a part standing off it. `SADDLE.hS` (10.5 mm) is
+  what a part seated on the plate rises over the crown.
+- **The fin** (`_cage_fin.js`, `_fin_gen.js` deckOnFitting / rootKeys): on
+  a tube (the single rod, or rod-style twin booms) the deck's top is lifted
+  by hS so buildFin2 and finProjectRoot land the root ON the plate; the root
+  loop's keys join `cutKeys` so finThicken keeps the root rim SQUARE; two
+  saddles, at the root's forward end and the hinge post, in a child scaled
+  out of the group's cage units, `edSaddle_fin`, tagged `edHw` (the join's
+  tail bounds and apex skip hardware) and `partOf: 'edFinSkin'` (G300 —
+  on twin booms they ride the fin). The tailwheel's saddle at the same
+  station is SHARED: the fin bolts its plate onto the gear's collar
+  (`CAGE_GEAR.saddles`, drawn first — build order).
+- **The tailwheel** (`_cage_gear.js` rodMount, `_gear_gen.js` padOn): on a
+  single rod a leg station inside the tube's span takes a frame provider
+  on the tube's belly with `mount.saddle`; `padOn` draws ROD_FIT's collar
+  and bottom plate instead of the doubler (GATE GEAR §14).
+- **The stab** (`_cage_stab.js`): on a single rod (mount 0/1) a saddle at
+  its hinge station with a top plate, a stab asked for below the plate
+  lifted onto it, and a PEDESTAL from the plate to its underside where the
+  builder's stY holds it higher (the jodel's 0.408 from the tube's belly:
+  the stab stands on a block). Rod-style twin booms keep G271's seat
+  between the fins. `_tail_headless.js` mirrors the lift and the seat.
+- **Registered**: `build.js` MANIFEST.editor (after `_hinge_gen.js`),
+  `_cage8.html`, `_parts_check.js`; AERO_SEC `rodSaddle` (steel, layer fin)
+  claimed on the Tail assembly; HIT_NAME `edSaddle` → Tail. GATE FIN §9
+  (the rod root sits on `top + hS`, top−belly = rodD + hS, the lofted root
+  unmoved), GATE GEAR §14, PARTS, SKINMAT, CLIP green (saddles 0.8 mm
+  proud, the tailwheel 0.7).
+- Bench: `_cage8.html`, jodel + boomStyle 1 — two dark clamps on the wooden
+  rod, the fin standing on the forward one's plate, the aft one carrying
+  the fin's post, the tailwheel spring under it and the stab on its
+  pedestal above.

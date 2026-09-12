@@ -501,6 +501,23 @@ const dispose = o => {
 };
 const $ = id => document.getElementById(id);
 
+// the saddles' material: the hardware section `rodSaddle` (AEROSKIN's table,
+// steel), the hinge layer's own idiom, with a lambert fallback for a bench
+let saddleFallback = null;
+function saddleMat() {
+  if (window.CAGE_SECMAT) {
+    const ms = window.CAGE_SECMAT('rodSaddle', { surf: 0, fieldM: 1, tint0: 0x8a9099 });
+    if (ms) return ms;
+  }
+  const A = window.AEROSKIN;
+  if (A && A.aeroHardMat) {
+    const m = A.aeroHardMat(THREE, 'hinge', 'metal', 0x8a9099, {});
+    if (m) return m;
+  }
+  if (!saddleFallback) saddleFallback = new THREE.MeshLambertMaterial({ color: 0x8a9099 });
+  return saddleFallback;
+}
+
 const prevPost = PAGE.post;
 PAGE.post = ctx => {
   if (prevPost) prevPost(ctx);
@@ -525,10 +542,20 @@ PAGE.post = ctx => {
   // belly, its tail cap the boom's tip; built once, drawn at ±boomX
   const TB = window.CAGE_BOOMS;
   const FSd = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
-  const deck = TB
+  const deck0 = TB
     ? { top: z => TB.yTop(z * FSd) / FSd, bot: z => TB.yBot(z * FSd) / FSd,
         z0: TB.zTip / FSd, z1: TB.zRoot / FSd }
     : FIN.finCentreline(mesh, deckSkin);
+  // THE FIN MEETS A FITTING, NOT THE TUBE (G307, the fitment study P3; the
+  // user's ruling). On a bare tube — the single rod, or rod-style twin
+  // booms — the root lands on a bolted SADDLE's plate: the deck is lifted
+  // by the saddle's height so buildFin2 and finProjectRoot put the root
+  // there, the root rim is kept square (below), and the saddles are drawn
+  // under it. A lofted body keeps the root on its skin.
+  const RF = window.ROD_FIT;
+  const tube = !!(RF && (TB ? !TB.lofted : +P.boomStyle));
+  const hS = tube ? RF.SADDLE.hS / FSd : 0;
+  const deck = tube && deck0 ? FIN.deckOnFitting(deck0, hS) : deck0;
   S.deck = deck;                     // null-safe: no deck = the sketch as-is
   const m0 = FIN.buildFin2(S);
 
@@ -545,6 +572,13 @@ PAGE.post = ctx => {
   if (cutMode)
     disp = FIN.finCutMesh(s, { mode: cutMode, zCut: m0.cutZ,
       gap: P.finCutGap || 0 });
+  // G307: on a tube the root rim is a slot-style FLAT edge on the plate
+  if (tube && proj && s.finRootLo) {
+    const rk = FIN.rootKeys(s);
+    const ck = new Set(disp.cutKeys || []);
+    for (const k of rk) ck.add(k);
+    disp = Object.assign({}, disp, { cutKeys: ck });
+  }
   // THE MEASURE'S INPUT (TAIL CHANTIER 2, P0): the cut, UNTHICKENED sheet —
   // one face per patch of skin; the solid below carries both sides
   const sheet = disp;
@@ -714,6 +748,45 @@ PAGE.post = ctx => {
       group.add(fObj);
     }
   }
+  // THE SADDLES (G307): one at the root's forward end, one at the hinge
+  // post — a split collar round the tube with a plate on its crown, the
+  // fin's root on the plate. Metric hardware in a child scaled back out of
+  // the group's cage units; tagged as hardware (the join's bounds skip it)
+  // and as the fin's own part (`partOf`, G300: on twin booms the fin rides
+  // the boom's tail and its saddles go with it).
+  if (tube && !wire && proj && s.finRootLo && deck0) {
+    const ids = new Set();
+    for (const [a, b] of s.finRootLo) { ids.add(a); ids.add(b); }
+    let zF = -Infinity;
+    for (const i of ids) if (s.V[i][2] >= deck0.z0) zF = Math.max(zF, s.V[i][2]);
+    const K = window.GEAR_KIT;
+    if (K && isFinite(zF)) {
+      const bag = K.Bag();
+      const stations = [zF - 0.04, m0.cutZ];
+      const drawn = [];
+      // the gear's saddle (the tailwheel's, drawn first — build order) at
+      // the same station is SHARED: the fin bolts its plate onto that collar
+      const GS = (window.CAGE_GEAR && window.CAGE_GEAR.saddles) || [];
+      for (const zc of stations) {
+        let z = Math.max(deck0.z0 + 0.03, zc);
+        const near = GS.find(g => Math.abs(g.z - z * FS) < 0.12);
+        if (near) z = near.z / FS;
+        const yT = deck0.top(z), yB = deck0.bot(z);
+        const r = 0.5 * (yT - yB) * FS;
+        if (!(r > 0.01)) continue;
+        RF.saddle(bag, { ctr: [0, 0.5 * (yT + yB) * FS, z * FS], axis: [0, 0, -1], r, collar: !near,
+                         plate: { top: 1, W: Math.max(r * 2 + 0.02, (P.finThick || 0.06) * FS + 0.04), L: 0.09 } });
+        drawn.push({ z: z * FS, r, shared: !!near });
+      }
+      const sad = new THREE.Group();
+      sad.name = 'edSaddle_fin';
+      sad.scale.setScalar(1 / FS);
+      const m = bag.mesh(sad, saddleMat());
+      if (m) { m.userData.edHw = 1; m.userData.partOf = 'edFinSkin'; }
+      group.add(sad);
+      window.CAGE_FIN_SADDLES = drawn;
+    }
+  } else window.CAGE_FIN_SADDLES = null;
   group.scale.setScalar(FS);
   if (TB) {
     // one fin a boom: the second is the first's clone at −boomX, its rudder
@@ -726,6 +799,8 @@ PAGE.post = ctx => {
       else if (o.name === 'edFinSkin') o.name = 'edFinSkin2';         // G267.2
       else if (o.name === 'edFinVentral') o.name = 'edFinVentral2';
       else if (o.name === 'edFinFillet') o.name = 'edFinFillet2';           // G295
+      else if (o.name === 'edSaddle_fin') o.name = 'edSaddle_fin2';         // G307
+      if (o.userData && o.userData.partOf === 'edFinSkin') o.userData.partOf = 'edFinSkin2';
     });
     scene.add(group2);
   }
@@ -756,5 +831,5 @@ PAGE.post = ctx => {
 
 // shared with the stabilizer layer (_cage_stab.js): one set of builders,
 // one palette
-window.CAGE_FIN_DRAW = { finMesh, finQuadWire, finWire, mats, SEC };
+window.CAGE_FIN_DRAW = { finMesh, finQuadWire, finWire, mats, SEC, saddleMat };
 })();

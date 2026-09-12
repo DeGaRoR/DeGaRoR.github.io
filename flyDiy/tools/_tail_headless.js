@@ -51,6 +51,12 @@ const deckSkin = m => SKIN.has(m) && !GLASS.has(m);
 
 const scaleOf = P => (CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
 const D = () => FIN.FIN_DEFAULT;
+// THE SADDLE'S HEIGHT (G307): on a bare tube the fin's deck is lifted by it
+// and the stab's underside is held on its plate — the layers' own numbers,
+// mirrored here (ROD_FIT's constant needs no THREE; the shapes do)
+let RFh = null;
+try { RFh = (W && W.ROD_FIT) || (NODE && require('./_rod_fit.js')) || null; } catch (e) {}
+const saddleH = () => (RFh && RFh.SADDLE) ? RFh.SADDLE.hS : 0;
 
 // the twin-boom deck the layers take from the wing layer, when it exists
 function boomDeck(P) {
@@ -70,7 +76,11 @@ function buildFin(P, mesh, L, approx) {
   S.cutPrep = cutMode;
   const TB = boomDeck(P);
   if (!TB && +P.boomTwin) approx.push('fin: twin-boom deck (rooted on the fuselage centreline)');
-  const deck = TB || FIN.finCentreline(mesh, deckSkin);
+  const deck0 = TB || FIN.finCentreline(mesh, deckSkin);
+  // G307: on a bare tube the root lands on the saddle's plate (_cage_fin.js)
+  const TBw = W && W.CAGE_BOOMS;
+  const tube = !!(saddleH() && (TBw ? !TBw.lofted : +P.boomStyle));
+  const deck = tube && deck0 ? FIN.deckOnFitting(deck0, saddleH() / scaleOf(P)) : deck0;
   S.deck = deck;
   const m0 = FIN.buildFin2(S);
   let s = m0;
@@ -119,6 +129,15 @@ function buildStab(P, mesh, L, fin, approx) {
   const cant = cantDeg * Math.PI / 180;
   let zSeat = 0;
   if (mount >= 1 && deck) yRef = deck.top(D().zH1 + dzS);
+  // G307: on a single bare rod a stab asked for below the saddle's plate is
+  // lifted onto it (_cage_stab.js)
+  const TBw = W && W.CAGE_BOOMS;
+  if (saddleH() && !TBw && +P.boomStyle && deck && mount <= 1) {
+    const zH = D().zH1 + dzS;
+    const plateTop = deck.top(zH) + saddleH() / scaleOf(P);
+    const under = yRef + (P.stY || 0) - 0.5 * (P.stThick || 0.05);
+    if (under < plateTop) yRef += plateTop - under;
+  }
   if (mount === 3 && deck)
     yRef = 0.5 * (deck.top(D().zH1 + dzS) + deck.bot(D().zH1 + dzS));
   if (mount === 2 && fin && fin.disp && fin.disp.V.length) {

@@ -2149,6 +2149,7 @@ function editorInit(api) {
     [/^edHinge_|^edLink_/, 'ctlhw'],
     [/^edLamp_|^liRotor_/, 'lights'],
     [/^edAcc_/, 'access'],
+    [/^edSaddle/, 'tail'],               // G307: the saddles a tube boom's tail is bolted on
     [/^edSurf_rud/, 'fin'],
     [/^edBoom/, 'boom'],                 // the twin booms (G267 their own part; G271 back under Boom)
     [/^edSurf_elev/, 'stab'],

@@ -309,6 +309,10 @@ const MANIFEST = {
     // THE HINGE SHAPES (G238): the same table/placer/shapes split, over
     // GEAR_KIT. Pure module, no post hook — only has to be before the layer.
     '_hinge_gen.js',
+    // THE SADDLES (G307): the bolted clamp a tail meets on a bare tube boom.
+    // Pure shapes over GEAR_KIT, no post hook — before the fin/stab/gear
+    // layers that draw them.
+    '_rod_fit.js',
     '_eng_gen.js', '_eng_mesh.js', '_eng_page.js',
     '_cowl_gen.js', '_cowl_rows.js', '_cage_cowl.js', '_cage_eng.js',
     '_strut_gen.js', '_boom_gen.js', '_cage_wing.js',

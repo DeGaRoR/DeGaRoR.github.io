@@ -291,7 +291,7 @@ function rodSite(row, P, needs, atSL, atLV, bags) {
     // lugs standing off the flanks where the bolts go through
     K.revolve(bags.metal, [ctr[0], ctr[1], ctr[2] - 0.012], [0, 0, 1],
       [[rm + 0.0008, 0], [rm + 0.0045, 0.0015], [rm + 0.0045, 0.0225],
-       [rm + 0.0008, 0.024]], 20, true);
+       [rm + 0.0008, 0.024], [rm + 0.0008, 0]], 20, false);   // G307: no disc to the axis
     for (const s of [-1, 1])
       K.revolve(bags.metal, [s * (rm + 0.0030), ctr[1], ctr[2]], [s, 0, 0],
         [[0.0060, 0], [0.0060, 0.0090], [0.0035, 0.0110]], 10, true);
@@ -372,7 +372,7 @@ function boomSites(row, P, needs, atSL, atLV, bagsFor, want) {
       const ctr = [s * TB.x, yA, z];
       K.revolve(bags.metal, [ctr[0], ctr[1], ctr[2] - 0.012], [0, 0, 1],
         [[r + 0.0008, 0], [r + 0.0045, 0.0015], [r + 0.0045, 0.0225],
-         [r + 0.0008, 0.024]], 20, true);
+         [r + 0.0008, 0.024], [r + 0.0008, 0]], 20, false);   // G307: no disc to the axis
       for (const q of [-1, 1])
         K.revolve(bags.metal, [ctr[0] + q * (r + 0.0030), ctr[1], ctr[2]], [q, 0, 0],
           [[0.0060, 0], [0.0060, 0.0090], [0.0035, 0.0110]], 10, true);

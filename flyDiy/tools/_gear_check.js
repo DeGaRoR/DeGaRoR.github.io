@@ -61,11 +61,11 @@ const win = {};
   ctx.globalThis = ctx;
   vm.createContext(ctx);
   // load order is the bench's own: kit, then the generator, then the page
-  for (const f of ['_gear_kit.js', '_gear_gen.js', '_gear_page.js'])
+  for (const f of ['_gear_kit.js', '_gear_gen.js', '_gear_page.js', '_rod_fit.js'])
     vm.runInContext(fs.readFileSync(path.join(TOOLS, f), 'utf8'), ctx,
                     { filename: f });
 }
-const GG = win.GEAR_GEN, GP = win.GEAR_PAGE;
+const GG = win.GEAR_GEN, GP = win.GEAR_PAGE, RF = win.ROD_FIT;
 
 const fail = [];
 const check = (ok, label, extra) => {
@@ -849,6 +849,41 @@ for (const f of fail) console.log('  FAIL ' + f);
     'memberFrame answered a tube outside the reach it was given');
   check(GG.memberFrame([], [0, 0, 0], 1) === null,
     'memberFrame invented a tube where none are published');
+}
+
+// ---- 14: THE SADDLE (G307, the fitment study P3) ---------------------------
+// On a bare tube boom a leg's plate is a SADDLE's — `padOn` reads
+// `mount.saddle` and draws ROD_FIT's split collar with the plate under it,
+// never a doubler draped on the cylinder. The plate's underside sits the
+// collar and the plate below the tube's belly; no doubler is drawn.
+{
+  const K = win.GEAR_KIT;
+  if (!check(!!RF && !!RF.saddle, 'ROD_FIT did not load headlessly')) {}
+  else {
+    const bags = { alloy: K.Bag(), steel: K.Bag() };
+    const sd = { ctr: [0, 0.2, -3], axis: [0, 0, -1], r: 0.06 };
+    const mount = () => ({ p: [0, 0.2 - 0.06 - RF.SADDLE.hS, -3], n: [0, -1, 0], fore: [0, 0, 1], side: [1, 0, 0] });
+    mount.saddle = sd;
+    const st = { z: -3, mount };
+    const stubAF = { surf: () => { throw new Error('the doubler was drawn'); }, nrmAt: () => [0, -1, 0], halfWAt: () => 0.06 };
+    let threw = null;
+    try { GG.padOn(bags, stubAF, st, -3, 0, 0.114, 0.083, { thick: 0.008 }); } catch (e) { threw = e.message; }
+    check(!threw, 'padOn on a saddle mount drew the doubler', threw);
+    check(bags.alloy.tris > 200, 'the saddle drew nothing', bags.alloy.tris + ' tris');
+    // the drawn bag's lowest point is the plate's underside plus its bolts
+    // under the belly, and nothing sits on the crown
+    const gm = bags.alloy.mesh({ add() {} }, {});
+    const P = gm.geometry.attributes.position.array;
+    let yMin = Infinity, yMax = -Infinity;
+    for (let i = 1; i < P.length; i += 3) { yMin = Math.min(yMin, P[i]); yMax = Math.max(yMax, P[i]); }
+    const belly = 0.2 - 0.06;
+    check(yMin < belly - RF.SADDLE.plateT && yMin > belly - 0.04, 'the saddle plate is not under the belly', yMin.toFixed(4));
+    check(yMax < 0.2 + 0.06 + 0.012, 'the saddle reaches over the crown (a bottom plate only was asked)', yMax.toFixed(4));
+    // a plain mount still gets the flat plate, and the fuselage still the doubler
+    const b2 = { alloy: K.Bag(), steel: K.Bag() };
+    GG.padOn(b2, stubAF, { z: -3, mount: () => mount() }, -3, 0, 0.1, 0.1, {});
+    check(b2.alloy.tris > 0, 'a plain mount frame lost its flat plate');
+  }
 }
 
 // the sections after the summary (7-centre, 10-13) print their own reds

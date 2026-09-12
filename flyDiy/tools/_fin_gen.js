@@ -1224,10 +1224,30 @@ function finMeasure(sheet, opts) {
   };
 }
 
+// ---- THE ROOT ON A FITTING (G307, the fitment study P3) --------------------
+// A tube boom carries its tail on bolted saddles, so the fin's root has to
+// land on the saddle's PLATE and not on the tube's crown: `deckOnFitting`
+// lifts a deck's top line by the fitting's height (the bottom line is the
+// tube's still — the ventral roots on it), and `rootKeys` names the root
+// loop's vertices the way `cutKeys` names the slot's, so finThicken keeps
+// the root rim SQUARE on the plate (the rounded rim bulged a half-thickness
+// into the tube).
+function deckOnFitting(deck, h) {
+  if (!deck || !(h > 0)) return deck;
+  return Object.assign({}, deck, { top: z => deck.top(z) + h });
+}
+function rootKeys(m) {
+  const out = new Set();
+  if (!m || !m.finRootLo) return out;
+  for (const [a, b] of m.finRootLo) { out.add(keyOf(m.V[a])); out.add(keyOf(m.V[b])); }
+  return out;
+}
+
 const API = { FIN_DEFAULT, FIN_PARAMS, FIN_CUB, FIN_STRAIGHT, FIN_MATS, FIN_BOUNDARY_W,
               ST2FIN,
               buildFin2, finSpec, finProjectRoot, finCentreline,
-              finCutMesh, finThicken, finToStab, finMeasure };
+              finCutMesh, finThicken, finToStab, finMeasure,
+              deckOnFitting, rootKeys };
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 if (typeof window !== 'undefined') window.FIN_GEN = API;
 })();

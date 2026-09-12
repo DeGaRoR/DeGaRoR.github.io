@@ -320,6 +320,39 @@ PAGE.post = ctx => {
     provider.pivot = true;
     return provider;
   };
+  // THE ROD MOUNT (G307, the fitment study P3; the user's ruling: the
+  // tailwheel on a rod meets a bolted SADDLE, not a doubler wrapped a
+  // quarter of the way round a 120 mm tube). On a single bare tube a
+  // station inside the tube's span takes a frame provider on the tube's
+  // BELLY, and hands the builder the saddle to draw instead of the pad
+  // (`padOn` reads `mount.saddle`): a split collar with a plate under it,
+  // the leg's root on the plate. The fin layer, which draws after this one,
+  // reads the saddles drawn here (CAGE_GEAR.saddles) and shares the collar.
+  const RF = (typeof window !== 'undefined') && window.ROD_FIT;
+  const rodSpan = (() => {
+    if (!RF || !+P.boomStyle || +P.boomTwin || !CG2 || !CG2.cageResolve) return null;
+    try {
+      const S = CG2.cageSpec(P), R = CG2.cageResolve(S);
+      if (!S.rod || !R.rodSpan) return null;
+      const tI = Math.tan((S.rod.incl || 0) * Math.PI / 180);
+      return { zRoot: R.rodSpan.zRoot * FS, zTip: R.rodSpan.zTip * FS, r: S.rod.r * FS,
+               yAx: z => (S.rod.y + tI * (R.rodSpan.zRoot - z / FS)) * FS };
+    } catch (e) { return null; }
+  })();
+  const saddlesOut = [];
+  const rodMount = st => {
+    if (!rodSpan || st.leg !== 3) return null;
+    if (st.z > rodSpan.zRoot - 0.03 || st.z < rodSpan.zTip + 0.03) return null;
+    const hS = RF.SADDLE.hS;
+    const provider = (zOff, dx) => {
+      const z = st.z + (zOff || 0);
+      return { p: [dx || 0, rodSpan.yAx(z) - rodSpan.r - hS, z], n: [0, -1, 0],
+               fore: [0, 0, 1], side: [1, 0, 0] };
+    };
+    provider.saddle = { ctr: [0, rodSpan.yAx(st.z), st.z], axis: [0, 0, -1], r: rodSpan.r };
+    provider.onDrawn = rec => saddlesOut.push(rec);
+    return provider;
+  };
   const wingMount = (st, sgn) => {
     if (!WUA || st.x <= 0.01 || st.leg === 3) return null;
     // the WHEEL may sit a little ahead of the leading edge (a low-wing's
@@ -382,8 +415,10 @@ PAGE.post = ctx => {
       // contract is a surface that is not there — the leg roots on the
       // nearest truss member instead, with a pivot (see openMount); the
       // low-wing rule still wins where it applies
-      const om = m ? null : openMount(st, sgn);
+      const rm = m ? null : rodMount(st);
+      const om = (m || rm) ? null : openMount(st, sgn);
       if (m) { st.mount = m; onWing++; }
+      else if (rm) st.mount = rm;
       else if (om) st.mount = om;
       else delete st.mount;
       if (st.leg === 3) {
@@ -546,7 +581,7 @@ PAGE.post = ctx => {
   // G133: say so when the low-wing rule took the legs — the one visible
   // trace of an automatic decision the builder never clicked
   if (onWing) notes.push('mains on wing');
-  window.CAGE_GEAR = { AF, contacts, pitch, gy,
+  window.CAGE_GEAR = { AF, contacts, pitch, gy, saddles: saddlesOut,
     // G58.3: the separable units' anchors, for the join's moving parts
     units: { legs: legUnits.map(u => ({ kind: u.kind, axle: u.axle,
                                         root: u.root, moving: u.moving })),
