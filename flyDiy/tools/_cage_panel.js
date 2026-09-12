@@ -848,7 +848,15 @@ function keyAt(parent, x, y, z, pos) {
     const way = K.Bag();
     K.boxIn(way, [x, y, z - 0.0034], [0.0011, 0.0048, 0.0004], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
     way.mesh(parent, matFor('hub'));
-    const g = gaugeAt(parent, 'edGauge_key', [x, y, z - 0.0038], [0, 0, 1], 'key', 'key',
+    // OFF sits at half past seven (session 4e, the user: "rotate it 45°"):
+    // a wrapper turned 45° clockwise carries the key's group, so the law's
+    // 30° steps run OFF 7:30 → L → R → BOTH 10:30 → START 11:30, the way an
+    // ignition switch is marked
+    const wrap = new THREE.Group();
+    wrap.position.set(x, y, z - 0.0038);
+    wrap.rotation.z = clockRad(45);
+    parent.add(wrap);
+    const g = gaugeAt(wrap, 'edGauge_key', [0, 0, 0], [0, 0, 1], 'key', 'key',
       { k: Math.PI / 6, sgn: 1, steps: ['off', 'l', 'r', 'both', 'start'] });
     // the key lies flat in its own x-y plane in the bake, blade toward +x,
     // bow at −x, 1.5 mm thick along z. In the lock: the blade INTO the lock
@@ -860,6 +868,7 @@ function keyAt(parent, x, y, z, pos) {
     kg.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(
       new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, -1, 0), new THREE.Vector3(1, 0, 0)));
     kg.position.set(0, 0, 0.012 - k.bb[3]);
+    kg.scale.x = 2;                                       // "really too slim": twice the delivered 1.5 mm
     for (const p of k.parts) { const m = new THREE.Mesh(p.geo, p.mat); m.userData.sharedGeo = true; kg.add(m); }
     g.add(kg);
     const idx = ['off', 'l', 'r', 'both', 'start'].indexOf(pos || 'both');

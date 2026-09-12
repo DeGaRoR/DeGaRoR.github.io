@@ -603,6 +603,9 @@ const AERO_HARD = {
     // glossy instrument face is unreadable in the one condition it exists for.
     bezel: 'trim', needle: 'trim', dial: 'plastic',
     board: 'ply',                 // floorboards: the same ply as a wood cabin
+    // the controls' fittings (the panel arc, session 4e): a rubber grip and
+    // boot, plated pins and collars, cast brackets, leather horns, a red button
+    grip: 'rubber', boot: 'rubber', plated: 'chrome', cast: 'castAlu', hide: 'leather', ptt: 'plastic',
     marker: null,
   },
 };

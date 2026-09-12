@@ -326,6 +326,35 @@ function make(THREE) {
     if (did) CK.glow(0);
     return did;
   };
+  // A ROTARY IS TURNED, NOT CLICKED (session 4e, the user: "click first,
+  // then the movement up/down of the mouse should have them rotate cw/ccw"):
+  // the press on a knob or the key takes hold of it, the mouse moving UP
+  // turns it clockwise (a knob's value up, the key a step further), DOWN
+  // the other way; a press let go without moving is the old click.
+  CK.grab = null;
+  CK.dragStart = (g, y) => {
+    if (!g || !g.c || !/^(knob|key)$/.test(g.c.law)) return false;
+    CK.grab = { g, y0: y, v0: g.c.law === 'key' ? clamp(Math.round(+CK.sw.key || 0), 0, 4) : (+CK.sw[g.c.drive] || 0), moved: false };
+    return true;
+  };
+  CK.dragTo = y => {
+    const G = CK.grab; if (!G) return false;
+    const dy = G.y0 - y;                               // up is positive
+    if (Math.abs(dy) > 3) G.moved = true;
+    if (!G.moved) return true;
+    if (G.g.c.law === 'knob') { CK.sw[G.g.c.drive] = clamp(G.v0 + dy * 0.005, 0, 1); CK.glow(0); }
+    else {
+      const st = clamp(Math.round(G.v0 + dy / 28), 0, 4);
+      if (st !== clamp(Math.round(+CK.sw.key || 0), 0, 4)) CK.setKey(KEY_STEPS[st]);
+    }
+    return true;
+  };
+  CK.dragEnd = button => {
+    const G = CK.grab; CK.grab = null;
+    if (!G) return false;
+    if (!G.moved) return CK.click(G.g, button);        // a press let go in place: a click
+    return true;
+  };
   CK.setKey = pos => {
     const i = KEY_STEPS.indexOf(pos); if (i < 0) return;
     CK.key = pos; CK.sw.key = i;

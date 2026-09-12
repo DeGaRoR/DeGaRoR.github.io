@@ -38461,3 +38461,53 @@ belongs to the sticker arc when it starts (a `placards` section of
 GATE PANEL green (the uv check reads the join's `propMat` too); PARTS,
 JOIN, SKINMAT, UISMOKE, ELEC, BUILD green on the commit's worktree; LIGHT
 and MEDIA red at HEAD for the trees session's reasons.
+
+## G266 — THE PANEL ARC, SESSION 4e: THE CONTROLS MODELLED — STICK, YOKE,
+## PEDALS, THROTTLES WITH THEIR FITTINGS; THE KEY THICKER AND CLOCKED; A
+## ROTARY IS TURNED (2026-09-12, the user: "we'll need to do better on the
+## throttle, pedals, stick and yokes … great quality but simple assets …
+## proper material, proper fitments and functions, proper mechanical detail")
+
+*All in `_cage_crew.js`, on the G240 moving contract that already flies
+them; every piece a KIT revolve / sweep / lug / bolt, with the fallback of
+the old tubes when the kit is not loaded. New finishes in the crew's table
+and `AERO_HARD.crew`: `grip` and `boot` (rubber), `plated` (chrome), `cast`
+(cast alloy), `hide` (leather), `ptt` (a red plastic button).*
+
+- **THE STICK**: a cast base plate bolted to the floor with four bolts, two
+  lugs standing either side, the lateral pivot pin through them with its
+  head on one side and its nut on the other (all fixed); on the pin a cast
+  fork, the 22 mm steel shaft, a rubber bellows over the root (seven
+  folds), and a moulded grip — finger grooves, a domed head, a red
+  push-to-talk under the thumb. Two seats, two sticks, as before.
+- **THE YOKE**: the column a steel tube through a plated collar on the
+  panel's face with three screws round it; a cast disc hub with chamfered
+  rims and a plated cap; the horns one swept tube a side, out of the hub
+  and curving up, painted to the bend and leather-wrapped to a rounded
+  end; a push-to-talk on the left horn. It still slides and spins on the
+  column.
+- **THE PEDALS**: a lateral torque tube in two cast pillow blocks bolted
+  to the floor — the mechanism the plates floated without since
+  2026-08-19 — each arm a steel tube from its boss on the tube up to an
+  alloy plate with a ribbed rubber tread. They swing on the tube as they
+  did.
+- **THE THROTTLES**: the wall lever swings from a plated boss on a cast
+  quadrant plate with the lever's arc cut through it and a friction knob
+  outboard, a flat steel lever with a moulded knob; the console quadrant
+  is two cast cheeks with the lever between; the push-pull has a plated
+  collar and hex lock nut on the panel, a plated rod, a plated ring behind
+  a domed moulded head.
+
+**The key** (`_cage_panel.js`): twice its delivered 1.5 mm thickness; OFF
+sits at half past seven — a wrapper turned 45° carries the key's group so
+the 30° steps run OFF → L → R → BOTH (10:30) → START, the way an ignition
+is marked; it turns with the key state as before.
+
+**A rotary is turned, not clicked** (`cockpit.js` `dragStart / dragTo /
+dragEnd`, app.js): the press on a knob or the key takes hold of it, the
+mouse moving UP turns it clockwise (a knob's value up, the key a step
+further), DOWN the other way; a press let go without moving is the old
+click. A switch is still thrown by the click.
+
+GATE PANEL, PARTS, SKINMAT, JOIN, UISMOKE green on the commit's worktree;
+LIGHT / MEDIA red at HEAD for the trees session's reasons.

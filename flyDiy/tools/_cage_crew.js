@@ -61,6 +61,16 @@ const MFALL = {
   dial:    lam(0x0e1013),
   needle:  lam(0xe8e4d8),
   board:   lam(0x9a7b4e),      // floorboards
+  // THE CONTROLS' OWN FINISHES (the panel arc, session 4e, the user: "proper
+  // material, proper fitments and functions, proper mechanical detail"): a
+  // moulded rubber grip and a bellows boot, plated fittings, cast-alloy
+  // brackets, leather round a yoke's horns, a red push-to-talk
+  grip:    lam(0x1c1e21),
+  boot:    lam(0x202225),
+  plated:  lam(0xdfe5ec),
+  cast:    lam(0x8e949a),
+  hide:    lam(0x3a2a1f),
+  ptt:     lam(0xc0302a),
   marker:  new THREE.MeshBasicMaterial({ color: 0xff4d3d }),
 };
 // FrontSide, matching the Lambert it replaces. A getter per name, so every
@@ -663,7 +673,25 @@ function buildStickCenter(g0, A, P, sx, seat) {
   const y0 = A.floorAt(zPiv) + 0.03;
   const rk = 8 * D2R, L = P.stickLen != null ? P.stickLen : 0.44;
   const top = [sx, y0 + L * Math.cos(rk), zPiv - L * Math.sin(rk)];
-  ballAt(g, M.dark, [sx, y0, zPiv], 0.030);       // the universal, and it stays
+  // THE FLOOR FITTING (session 4e): a cast bracket bolted to the floor — a
+  // base plate and two lugs standing either side of the stick — and the
+  // lateral pivot pin through them with its head and nut showing. It stays;
+  // what moves is the fork on the pin and everything above it.
+  {
+    const K = window.GEAR_KIT;
+    if (K) {
+      const base = K.Bag(), pin = K.Bag();
+      K.sweep(base, [[sx, y0 - 0.032, zPiv], [sx, y0 - 0.024, zPiv]],
+        () => [[-0.062, -0.052], [0.062, -0.052], [0.068, -0.046], [0.068, 0.046], [0.062, 0.052], [-0.062, 0.052], [-0.068, 0.046], [-0.068, -0.046]], true, [0, 0, 1]);
+      for (const sd of [-1, 1])
+        K.lug(base, [sx + sd * 0.030, y0, zPiv], [1, 0, 0], [0, 1, 0], 0.016, 0.008, 0.032);
+      for (const [dx, dz] of [[-0.05, -0.036], [0.05, -0.036], [-0.05, 0.036], [0.05, 0.036]])
+        K.bolt(pin, [sx + dx, y0 - 0.024, zPiv + dz], [0, 1, 0], 0.0036, 0.004);
+      K.bolt(pin, [sx + 0.036, y0, zPiv], [1, 0, 0], 0.005, 0.006);          // the pin's head
+      K.revolve(pin, [sx - 0.036, y0, zPiv], [-1, 0, 0], [[0.0055, 0], [0.0055, 0.005], [0, 0.005]], 6, false);   // its nut
+      base.mesh(g, M.cast); pin.mesh(g, M.plated);
+    } else ballAt(g, M.dark, [sx, y0, zPiv], 0.030);
+  }
   // G240: EVERYTHING ABOVE THE BALL MOVES, and it moves in TWO AXES at once:
   // pitch about the lateral one (stick aft = nose up) and roll about the
   // fore-aft one. ONE part, two drives — not two nested groups, because the
@@ -674,10 +702,35 @@ function buildStickCenter(g0, A, P, sx, seat) {
                       [1, 0, 0], 'de', -0.34, 1,
                       { axis2: [0, 0, 1], drive2: 'da', sgn2: -0.32, k2: 1 });
   const T = inG(gP, top);
-  tube(gP, M.metal, [T[0], T[1] - L * Math.cos(rk), T[2] + L * Math.sin(rk)], T, 0.014);
-  tube(gP, M.knob, [T[0], T[1] - 0.005, T[2]],
-       [T[0], T[1] + 0.075, T[2] + 0.012], 0.020);
-  ballAt(gP, M.knob, [T[0], T[1] + 0.085, T[2] + 0.014], 0.023);
+  const up = [0, Math.cos(rk), -Math.sin(rk)];          // along the shaft, up
+  const K2 = window.GEAR_KIT;
+  if (K2) {
+    // the fork on the pin (cast), the shaft (steel tube, 22 mm), the rubber
+    // bellows over the root, and a moulded grip: finger grooves, a domed
+    // head, a red push-to-talk under the thumb
+    const fork = K2.Bag(), shaft = K2.Bag(), boot = K2.Bag(), gripB = K2.Bag(), ptt = K2.Bag();
+    K2.revolve(fork, [0, 0, 0], [1, 0, 0], [[0.012, -0.024], [0.016, -0.020], [0.016, 0.020], [0.012, 0.024], [0, 0.024]], 14, true);
+    K2.revolve(fork, [0, 0.008, 0], up, [[0.020, 0], [0.020, 0.030], [0.014, 0.036], [0, 0.036]], 16, false);
+    K2.revolve(shaft, [0, 0.030, 0], up, [[0.011, 0], [0.011, L - 0.030 - 0.08]], 20, false);
+    {
+      const prof = [[0.026, 0.036]];
+      for (let i = 0; i < 7; i++) { prof.push([0.019, 0.042 + i * 0.010]); prof.push([0.025, 0.047 + i * 0.010]); }
+      prof.push([0.017, 0.112], [0.012, 0.114]);
+      K2.revolve(boot, [0, 0, 0], up, prof, 24, false);
+    }
+    const g0 = L - 0.10;                                  // the grip's foot along the shaft
+    K2.revolve(gripB, [0, 0, 0], up,
+      [[0.011, g0], [0.016, g0 + 0.004], [0.020, g0 + 0.010], [0.019, g0 + 0.020], [0.0215, g0 + 0.028], [0.019, g0 + 0.036], [0.0215, g0 + 0.044],
+       [0.019, g0 + 0.052], [0.0215, g0 + 0.060], [0.019, g0 + 0.068], [0.021, g0 + 0.080], [0.023, g0 + 0.092], [0.020, g0 + 0.104], [0.012, g0 + 0.110], [0, g0 + 0.112]], 28, false);
+    // the button: a small red dome on the grip's head, forward
+    const bp = [0, 0, 0]; const hp = _off3(bp, up, g0 + 0.100);
+    K2.revolve(ptt, [hp[0], hp[1], hp[2] - 0.020], [0, 0, -1], [[0.0045, 0], [0.0045, 0.003], [0.0030, 0.0045], [0, 0.005]], 14, false);
+    fork.mesh(gP, M.cast); shaft.mesh(gP, M.frame); boot.mesh(gP, M.boot); gripB.mesh(gP, M.grip); ptt.mesh(gP, M.ptt);
+  } else {
+    tube(gP, M.metal, [T[0], T[1] - L * Math.cos(rk), T[2] + L * Math.sin(rk)], T, 0.014);
+    tube(gP, M.knob, [T[0], T[1] - 0.005, T[2]], [T[0], T[1] + 0.075, T[2] + 0.012], 0.020);
+    ballAt(gP, M.knob, [T[0], T[1] + 0.085, T[2] + 0.014], 0.023);
+  }
   // the grip is the vertical-ish shaft top: axis along the stick
   return { obj: gripAt(gP, [T[0], T[1] + 0.035, T[2] + 0.006],
                        [0, Math.cos(rk), Math.sin(rk)]),
@@ -687,7 +740,18 @@ function buildYoke(g0, A, P, sx) {
   const g = ctlShift(g0, P, 'stickX', 'stickY', 'stickZ');
   const yY = A.waistY - 0.04;
   const zHub = A.zBack + 0.54;
-  tube(g, M.ctrl, [sx, yY, A.zDash + 0.05], [sx, yY, zHub], 0.018);
+  // the column: a steel tube through a plated collar on the panel's face,
+  // three screws round the collar (session 4e)
+  {
+    const K = window.GEAR_KIT;
+    tube(g, K ? M.frame : M.ctrl, [sx, yY, A.zDash + 0.05], [sx, yY, zHub], 0.0125);
+    if (K) {
+      const col = K.Bag();
+      K.revolve(col, [sx, yY, A.zDash], [0, 0, -1], [[0.034, 0], [0.034, 0.004], [0.022, 0.006], [0.022, 0.026], [0.018, 0.028], [0.0135, 0.028]], 32, false);
+      for (let i = 0; i < 3; i++) { const a = i * 2 * Math.PI / 3 + 0.5; K.bolt(col, [sx + Math.cos(a) * 0.028, yY + Math.sin(a) * 0.028, A.zDash - 0.004], [0, 0, -1], 0.0025, 0.002); }
+      col.mesh(g, M.plated);
+    }
+  }
   // G240: A YOKE DOES NOT SWING, IT SLIDES AND SPINS. Pitch is the column
   // running in and out of the panel — a translation, which a rigid part can
   // carry as easily as a rotation once the contract allows one — and roll is
@@ -696,12 +760,37 @@ function buildYoke(g0, A, P, sx) {
                       [0, 0, 1], 'da', -0.85, 1,
                       { slide: [0, 0, 0.055], slideDrive: 'de', slideSgn: -1 });
   const H = [0, 0, 0];
-  boxAt(gY, M.ctrl, [H[0], H[1], H[2] + 0.02], [0.075, 0.05, 0.05]);
+  const K = window.GEAR_KIT;
+  if (K) {
+    // the hub: a cast disc with chamfered rims and a plated cap; the horns:
+    // one swept tube a side, out of the hub then curving up, painted to the
+    // bend and leather-wrapped from there to the rounded end; a push-to-talk
+    // on the left horn's thumb side
+    const hub = K.Bag(), cap = K.Bag();
+    K.revolve(hub, [0, 0, -0.005], [0, 0, 1], [[0, 0], [0.036, 0], [0.044, 0.008], [0.044, 0.044], [0.036, 0.052], [0, 0.052]], 36, false);
+    K.revolve(cap, [0, 0, -0.008], [0, 0, 1], [[0, 0], [0.016, 0], [0.018, 0.002], [0.018, 0.004], [0, 0.004]], 24, false);
+    hub.mesh(gY, M.cast); cap.mesh(gY, M.plated);
+    for (const sd of [-1, 1]) {
+      const path = [];
+      for (let i = 0; i <= 18; i++) {
+        const t = i / 18;
+        path.push([sd * (0.030 + 0.125 * Math.sin(t * Math.PI / 2)), 0.004 + 0.100 * t * t, 0.022 + 0.014 * t]);
+      }
+      const horn = K.Bag(), wrap = K.Bag();
+      K.sweep(horn, path.slice(0, 11), () => K.secRound(0.0125, 14), true);
+      K.sweep(wrap, path.slice(9), t => K.secRound(t > 0.94 ? 0.0165 * (1 - (t - 0.94) / 0.06) + 0.002 : 0.0165, 14), true);
+      horn.mesh(gY, M.trim); wrap.mesh(gY, M.hide);
+    }
+    const ptt = K.Bag();
+    K.revolve(ptt, [0.118, 0.052, 0.022], [0, 0, -1], [[0.0045, 0.008], [0.0045, 0.011], [0.003, 0.0125], [0, 0.013]], 14, false);
+    ptt.mesh(gY, M.ptt);
+  } else boxAt(gY, M.ctrl, [H[0], H[1], H[2] + 0.02], [0.075, 0.05, 0.05]);
   const grips = {};
   for (const sd of [-1, 1]) {
-    tube(gY, M.ctrl, [0, 0, 0.02], [sd * 0.105, 0.015, 0.025], 0.013);
-    tube(gY, M.knob, [sd * 0.105, 0.015, 0.025],
-         [sd * 0.150, 0.095, 0.035], 0.016);
+    if (!K) {
+      tube(gY, M.ctrl, [0, 0, 0.02], [sd * 0.105, 0.015, 0.025], 0.013);
+      tube(gY, M.knob, [sd * 0.105, 0.015, 0.025], [sd * 0.150, 0.095, 0.035], 0.016);
+    }
     // the horn IS the grip axis (out and up from the hub)
     grips[sd] = gripAt(gY, [sd * 0.132, 0.062, 0.030],
                        [sd * 0.045, 0.080, 0.010]);
@@ -744,6 +833,21 @@ function buildPedals(g, A, P, sx) {
   // could not be stood on.
   const PED_RAMP = (P.pedalAngle != null ? P.pedalAngle : 25) * D2R;
   const c = Math.cos(PED_RAMP), s = Math.sin(PED_RAMP);
+  // THE TORQUE TUBE (session 4e): both arms swing on one lateral tube in
+  // two cast pillow blocks bolted to the floor — the mechanism the plates
+  // used to float without
+  const KP = window.GEAR_KIT;
+  if (KP) {
+    const yT = yP - 0.085, bar = KP.Bag(), blk = KP.Bag(), bolts = KP.Bag();
+    KP.revolve(bar, [sx - sp - 0.045, yT, zP], [1, 0, 0], [[0.011, 0], [0.011, 2 * sp + 0.09]], 16, true);
+    for (const sd of [-1, 1]) {
+      const bx = sx + sd * (sp + 0.036);
+      KP.sweep(blk, [[bx, yF, zP], [bx, yT + 0.010, zP]], t => t > 0.5 ? [[-0.011, -0.016], [0.011, -0.016], [0.011, 0.016], [-0.011, 0.016]] : [[-0.026, -0.030], [0.026, -0.030], [0.026, 0.030], [-0.026, 0.030]], true, [0, 0, 1]);
+      KP.revolve(blk, [bx - 0.012, yT, zP], [1, 0, 0], [[0.016, 0], [0.016, 0.024], [0, 0.024]], 18, true);
+      for (const dz of [-0.022, 0.022]) KP.bolt(bolts, [bx + sd * 0.016, yF + 0.006, zP + dz], [0, 1, 0], 0.0032, 0.003);
+    }
+    bar.mesh(g, M.frame); blk.mesh(g, M.cast); bolts.mesh(g, M.plated);
+  }
   for (const sd of [-1, 1]) {
     const xp = sx + sd * sp;
     // G240: A PEDAL SWINGS ON THE FLOOR. Both plates hang off one bar, so
@@ -754,7 +858,20 @@ function buildPedals(g, A, P, sx) {
     const pv = [xp, yP - 0.085, zP];
     const gp = movingAt(g, 'edCtl_pedal' + (sd > 0 ? 'L' : 'R'), pv,
                         [1, 0, 0], 'dr', sd > 0 ? -0.30 : 0.30, 1);
-    boxAt(gp, M.metal, [0, yP - pv[1], 0], [0.095, 0.014, 0.19], -PED_RAMP);
+    // the arm from the tube up to the plate, the plate (alloy) with a rubber
+    // tread on it, ribbed
+    if (KP) {
+      const arm = KP.Bag(), plate = KP.Bag(), tread = KP.Bag();
+      KP.revolve(arm, [0, 0, 0], [0, 1, 0], [[0.009, 0.010], [0.009, yP - pv[1] - 0.012]], 14, true);
+      KP.revolve(arm, [0, 0, 0], [1, 0, 0], [[0.013, -0.014], [0.013, 0.014], [0, 0.014]], 14, true);   // the arm's boss on the tube
+      arm.mesh(gp, M.frame);
+      boxAt(gp, M.metal, [0, yP - pv[1], 0], [0.095, 0.010, 0.19], -PED_RAMP);
+      const m = boxAt(gp, M.grip, [0, yP - pv[1] + 0.006 * c, -0.006 * s], [0.085, 0.004, 0.17], -PED_RAMP);
+      for (let i = -3; i <= 3; i++) {
+        const dz = i * 0.024;
+        boxAt(gp, M.grip, [0, yP - pv[1] + 0.009 * c + dz * s, -0.009 * s + dz * c], [0.080, 0.003, 0.006], -PED_RAMP);
+      }
+    } else boxAt(gp, M.metal, [0, yP - pv[1], 0], [0.095, 0.014, 0.19], -PED_RAMP);
     // THE SOLE SITS ON THE PLATE: the ankle is placed so that the
     // mid-sole (0.06 forward of the ankle, 0.0725 below it in bone
     // space) lands on the plate's centre once the foot is ramped.
@@ -773,8 +890,22 @@ function buildThrottleWall(g0, A, P, sx) {
   const zT = A.zBack + 0.40;
   const yT = A.floorAt(zT) + 0.42;
   const inb = wx > 0 ? -1 : 1;               // inboard direction
-  boxAt(g, M.ctrl, [wx, yT, zT], [0.028, 0.13, 0.20]);
   const piv = [wx + inb * 0.03, yT - 0.01, zT - 0.04];
+  // THE QUADRANT (session 4e): a cast plate on the wall with the lever's
+  // arc cut through it, a friction knob on the pivot's outer side
+  const KW = window.GEAR_KIT;
+  if (KW) {
+    const q = KW.Bag(), slot = KW.Bag(), fr = KW.Bag();
+    KW.sweep(q, [[wx, yT, zT], [wx + inb * 0.008, yT, zT]], () => [[-0.10, -0.065], [0.10, -0.065], [0.10, 0.045], [0.06, 0.065], [-0.06, 0.065], [-0.10, 0.045]], true, [0, 1, 0]);
+    for (let i = 0; i < 9; i++) {
+      const a = (i / 8) * THR_ARC * 1.15 - 0.05;
+      const d = [0, Math.cos(a) * 0.11 - Math.sin(a) * 0.105, Math.sin(a) * 0.11 + Math.cos(a) * 0.105];
+      const pp = _off3([wx + inb * 0.004, piv[1], piv[2]], _nrm3(d), 0.13);
+      boxAt(g, M.dark, pp, [0.010, 0.012, 0.012]);
+    }
+    KW.revolve(fr, [wx - inb * 0.004, piv[1], piv[2]], [inb, 0, 0], [[0.006, -0.012], [0.014, -0.012], [0.014, -0.004], [0.006, -0.004]], 18, true);
+    q.mesh(g, M.cast); fr.mesh(g, M.knob);
+  } else boxAt(g, M.ctrl, [wx, yT, zT], [0.028, 0.13, 0.20]);
   // the lever runs up and forward from its pivot, at the length the
   // slider asks for (user 2026-08-19)
   const LT = P.thrLen != null ? P.thrLen : 0.16;
@@ -785,8 +916,15 @@ function buildThrottleWall(g0, A, P, sx) {
   // inside the moving group, so the live pilot's hand goes with it
   const gT = movingAt(g, 'edCtl_throttle', piv, [1, 0, 0], 'thr', 1, THR_ARC);
   const K = inG(gT, kn);
-  tube(gT, M.metal, [0, 0, 0], K, 0.009);
-  ballAt(gT, M.knob, K, 0.026);
+  if (KW) {
+    // a flat steel lever from a plated pivot boss, a moulded knob on its end
+    const lev = KW.Bag(), boss = KW.Bag(), kb = KW.Bag();
+    KW.sweep(lev, [[0, 0, 0], K], () => [[-0.010, -0.004], [0.010, -0.004], [0.010, 0.004], [-0.010, 0.004]], true, [inb, 0, 0]);
+    KW.revolve(boss, [0, 0, 0], [inb, 0, 0], [[0.012, -0.006], [0.012, 0.007], [0, 0.007]], 16, true);
+    KW.revolve(kb, K, _nrm3([kn[0] - piv[0], kn[1] - piv[1], kn[2] - piv[2]]),
+      [[0.010, -0.010], [0.020, -0.004], [0.026, 0.008], [0.024, 0.024], [0.014, 0.034], [0, 0.036]], 22, true);
+    lev.mesh(gT, M.frame); boss.mesh(gT, M.plated); kb.mesh(gT, M.knob);
+  } else { tube(gT, M.metal, [0, 0, 0], K, 0.009); ballAt(gT, M.knob, K, 0.026); }
   // the lever is the grip axis
   return { obj: gripAt(gT, K, [kn[0] - piv[0], kn[1] - piv[1], kn[2] - piv[2]]),
            label: 'throttle (wall)' };
@@ -795,10 +933,19 @@ function buildThrottleDash(g0, A, P, sx) {
   const g = ctlShift(g0, P, 'thrX', 'thrY', 'thrZ');
   const xT = sx + 0.16, yT = A.floorAt(A.zDash) + 0.42;
   const z0 = A.zDash + 0.005;
-  const m = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.020, 0.020, 0.012, 12), M.metal);
-  m.position.set(xT, yT, z0 - 0.006); m.rotation.x = Math.PI / 2;
-  g.add(m);
+  const KD = window.GEAR_KIT;
+  if (KD) {
+    // a plated collar with a hex lock nut on the panel's face (session 4e)
+    const col = KD.Bag();
+    KD.revolve(col, [xT, yT, z0], [0, 0, -1], [[0.020, 0], [0.020, 0.003], [0.011, 0.005], [0.011, 0.016], [0.0085, 0.017], [0, 0.017]], 24, false);
+    KD.sweep(col, [[xT, yT, z0 - 0.005], [xT, yT, z0 - 0.011]], () => { const o = []; for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; o.push([0.0135 * Math.cos(a), 0.0135 * Math.sin(a)]); } return o; }, true, [0, 1, 0]);
+    col.mesh(g, M.plated);
+  } else {
+    const m = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.020, 0.020, 0.012, 12), M.metal);
+    m.position.set(xT, yT, z0 - 0.006); m.rotation.x = Math.PI / 2;
+    g.add(m);
+  }
   const LT = P.thrLen != null ? P.thrLen : 0.16;
   // a push-pull rod SLIDES (live crew): drawn pulled out at idle, it runs
   // into the panel by THR_PUSH x its length at full — a slide-only part,
@@ -807,12 +954,21 @@ function buildThrottleDash(g0, A, P, sx) {
   const gT = movingAt(g, 'edCtl_throttle', kp, [0, 0, 1], 'thr', 0, 0,
                       { slide: [0, 0, LT * THR_PUSH], slideDrive: 'thr',
                         slideSgn: 1 });
-  tube(gT, M.metal, inG(gT, [xT, yT, z0]), inG(gT, [xT, yT, z0 - LT * 0.60]),
-       0.007);
-  const k = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.026, 0.026, 0.030, 14), M.knob);
-  k.rotation.x = Math.PI / 2;
-  gT.add(k);
+  tube(gT, KD ? M.plated : M.metal, inG(gT, [xT, yT, z0]), inG(gT, [xT, yT, z0 - LT * 0.60]),
+       0.006);
+  if (KD) {
+    // the vernier's knob: a plated ring behind a moulded head, the head
+    // domed toward the hand
+    const kb = KD.Bag(), ring = KD.Bag();
+    KD.revolve(ring, [0, 0, 0.016], [0, 0, -1], [[0.008, 0], [0.014, 0.001], [0.014, 0.007], [0.010, 0.008]], 20, false);
+    KD.revolve(kb, [0, 0, 0.008], [0, 0, -1], [[0.010, 0], [0.024, 0.004], [0.026, 0.014], [0.024, 0.026], [0.016, 0.032], [0, 0.034]], 24, false);
+    kb.mesh(gT, M.knob); ring.mesh(gT, M.plated);
+  } else {
+    const k = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.026, 0.026, 0.030, 14), M.knob);
+    k.rotation.x = Math.PI / 2;
+    gT.add(k);
+  }
   // a push-pull rod: the hand closes round the knob, axis along the rod
   return { obj: gripAt(gT, [0, 0, 0], [0, 0, 1]),
            label: 'throttle (push-pull)' };
@@ -837,15 +993,30 @@ function buildConsole(g0, A, P, cx, withQuadrant, box) {
   // NO PEDESTAL (user 2026-08-19): without the console the quadrant and
   // its small box simply float — the mounting is not the point here
   const yQ = box ? yF + h + 0.02 : A.floorAt(zQ) + 0.30;
-  boxAt(g, M.ctrl, [cx, yQ + 0.03, zQ], [0.075, 0.06, 0.15]);
   const LT = P.thrLen != null ? P.thrLen : 0.16;
   const piv = [cx, yQ + 0.02, zQ - 0.02];
   const kn = _off3(piv, _nrm3([0, 0.17, 0.07]), LT);
+  const KQ = window.GEAR_KIT;
+  if (KQ) {
+    // the quadrant box: two cast cheeks with the lever's arc between them
+    const q = KQ.Bag();
+    for (const sd of [-1, 1])
+      KQ.sweep(q, [[cx + sd * 0.030, yQ, zQ], [cx + sd * 0.036, yQ, zQ]],
+        () => [[-0.075, -0.010], [0.075, -0.010], [0.075, 0.050], [0.045, 0.068], [-0.045, 0.068], [-0.075, 0.050]], true, [0, 1, 0]);
+    KQ.sweep(q, [[cx - 0.030, yQ, zQ], [cx + 0.030, yQ, zQ]], () => [[-0.075, -0.010], [0.075, -0.010], [0.075, 0.010], [-0.075, 0.010]], true, [0, 1, 0]);
+    q.mesh(g, M.cast);
+  } else boxAt(g, M.ctrl, [cx, yQ + 0.03, zQ], [0.075, 0.06, 0.15]);
   // the quadrant lever swings like the wall one (live crew)
   const gT = movingAt(g, 'edCtl_throttle', piv, [1, 0, 0], 'thr', 1, THR_ARC);
   const K = inG(gT, kn);
-  tube(gT, M.metal, [0, 0, 0], K, 0.008);
-  ballAt(gT, M.knob, K, 0.024);
+  if (KQ) {
+    const lev = KQ.Bag(), boss = KQ.Bag(), kb = KQ.Bag();
+    KQ.sweep(lev, [[0, 0, 0], K], () => [[-0.012, -0.004], [0.012, -0.004], [0.012, 0.004], [-0.012, 0.004]], true, [1, 0, 0]);
+    KQ.revolve(boss, [0, 0, 0], [1, 0, 0], [[0.011, -0.038], [0.011, 0.038], [0, 0.038]], 16, true);
+    KQ.revolve(kb, K, _nrm3([kn[0] - piv[0], kn[1] - piv[1], kn[2] - piv[2]]),
+      [[0.010, -0.010], [0.020, -0.004], [0.026, 0.008], [0.024, 0.024], [0.014, 0.034], [0, 0.036]], 22, true);
+    lev.mesh(gT, M.frame); boss.mesh(gT, M.plated); kb.mesh(gT, M.knob);
+  } else { tube(gT, M.metal, [0, 0, 0], K, 0.008); ballAt(gT, M.knob, K, 0.024); }
   return { obj: gripAt(gT, K, [kn[0]-piv[0], kn[1]-piv[1], kn[2]-piv[2]]),
            label: 'throttle (quadrant)' };
 }

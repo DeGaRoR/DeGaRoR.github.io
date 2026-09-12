@@ -6711,7 +6711,17 @@
     const locked = document.pointerLockElement === canvas;
     const hit = CK.pick(camera, locked ? 0 : ((e.clientX - r.left) / r.width) * 2 - 1,
                         locked ? 0 : -((e.clientY - r.top) / r.height) * 2 + 1, model);
-    if (hit && CK.click(hit, e.button)) e.preventDefault();
+    if (!hit) return;
+    // a knob or the key is TURNED by the mouse's travel after the press
+    // (session 4e); a switch is thrown by the click
+    if (CK.dragStart && CK.dragStart(hit, e.clientY)) { e.preventDefault(); return; }
+    if (CK.click(hit, e.button)) e.preventDefault();
+  });
+  window.addEventListener('pointermove', e => {
+    if (CK && CK.grab && (e.buttons & 1)) CK.dragTo(e.clientY);
+  });
+  window.addEventListener('pointerup', e => {
+    if (CK && CK.grab) CK.dragEnd(e.button);
   });
   $('c').addEventListener('contextmenu', e => {
     if (!inGarage && cam.mode === 'cockpit' && CK) e.preventDefault();
