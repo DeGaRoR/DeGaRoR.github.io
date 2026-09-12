@@ -39579,3 +39579,41 @@ worktree with GATE WORLDRENDER + GATE TREES.
   on every stub handle, one change makes `custom`, a preset picked again
   rewrites every option, a lighting row change re-asserts the shadow choice
   over the row's own, an unchanged density never re-grids, no pref = medium.
+
+## G287 — THE LOTS FILL UP: AN OUTHOUSE, A GARDEN SHED OR A GARAGE ON EVERY
+## PLOT BY ITS SIZE, THE CAR IN THE GARAGE DOOR (2026-09-12, the user: "The
+## lots are still very empty. I think we need to generate more structure in a
+## same lot. We could do outdoor toilets for the smaller houses, garden shed
+## for the medium ones, and a separate garage/barn for the largest lots. We
+## could put the old car in the barns/garage, or sticking halfway through")
+
+- **TWO MORE PRESETS** in the house generator, marked `outbuilding: 1` (no
+  chimney owed — rule 33 exempts them — no yard, people, lights, pier): the
+  OUTHOUSE (1.3 × 1.3 on skids, a 40° gable, rusted sheet) and the GARAGE
+  (6.4 × 5.2 on a slab, a 2.6 m door, a window on one side); the storage
+  shed is the garden shed. All three build clean through the whole battery.
+- **PLACED BY THE PLOT'S SIZE** (`planOutbuilding`): a large plot with a big
+  house gets a garage (three in four) or a shed, a medium plot a shed
+  (seven in ten) or an outhouse, a small plot an outhouse (seven in ten) or
+  nothing. It stands in the backyard through the same spot test the car
+  uses (`spotClear`, now one function: on the plot inside the line, dry,
+  off the house and its stair and stoop and path — and, for everything
+  after it, off the outbuilding), facing the house, or the road for a
+  garage so the car can drive in; on the terrain through its own
+  `P.ground`, its floor above the high corner; its own finish in the bench.
+- **THE CAR IN THE GARAGE DOOR**: a plot with a garage always has its car,
+  nose in, half of it inside; elsewhere the car keeps off the outbuilding.
+- **GATE VILLAGE rule 9**: a known kind, all four corners on the plot, none
+  in the house, the floor above the ground under each corner, built clean;
+  a garage's car in its doorway; a loose car off the outbuilding. Selftest
+  moves a shed into the house.
+- ON THE LOT HOLDING ITS OWN GROUND (the user's question): the ground
+  darkening asked for is in (G281, the skirt). The proposed next step - the
+  lot as a self-contained patch that CONFORMS to the terrain's height but
+  owns its surface (a grass/dirt splat from the plan: paths, the shadow
+  under the house, wear under the props, bare earth under the woodpile)
+  and its vegetation, fading out at its border - is the right shape and
+  the same idea as the skirt scaled up; it must not own its HEIGHT, or it
+  will not meet the terrain. Written up in the reply; waiting on the
+  user's splat textures.
+- Gates: HOUSE, VILLAGE (both --selftest) green.

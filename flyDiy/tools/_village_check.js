@@ -89,6 +89,7 @@ function buildVillage(V) {
     const plot = vil.plots[h.plot];
     h.built = HG.build(h.P, 0);
     VG.finishPlot(vil, plot, h, h.built);
+    if (plot.out) plot.out.built = HG.build(plot.out.P, 0);
   }
   return vil;
 }
@@ -219,6 +220,34 @@ function battery(name, vil) {
                            name + ': the gate on plot ' + plot.id + ' is not where the path crosses');
       }
     }
+    // 9 — THE OUTBUILDING (G287): a known kind for the plot's size, all
+    //   four corners on the plot, none inside the house's rectangle, the
+    //   floor above the ground under every corner, built clean; the car of
+    //   a plot with a garage stands in the garage door
+    if (plot.out) {
+      const o = plot.out, Q = o.P;
+      check(['outhouse', 'storage shed', 'garage'].includes(o.kind), name + ': an outbuilding of no known kind', o.kind);
+      const cy = Math.cos(h.yaw), sy = Math.sin(h.yaw);
+      const oc = Math.cos(o.yaw), os = Math.sin(o.yaw);
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+        const lx0 = sx * Q.L / 2, lz0 = sz * Q.w / 2;
+        const w = [o.x + lx0 * oc + lz0 * os, o.z - lx0 * os + lz0 * oc];
+        check(VG.inPoly(plot.poly, w[0], w[1]), name + ': the ' + o.kind + ' on plot ' + plot.id + ' has a corner off its plot');
+        if (h) {
+          const x = w[0] - h.x, z = w[1] - h.z, lx = x * cy - z * sy, lz = x * sy + z * cy;
+          check(Math.abs(lx) > h.P.L / 2 + 0.5 || Math.abs(lz) > h.P.w / 2 + 0.5, name + ': the ' + o.kind + ' on plot ' + plot.id + ' is in the house');
+        }
+        check(Q.floorY > o.ground(sx * Q.L / 2, sz * Q.w / 2) + 0.05, name + ': the ' + o.kind + ' on plot ' + plot.id + ' has its floor in the ground');
+      }
+      if (o.built) check(o.built.stats.nan === 0 && o.built.stats.degen === 0 && o.built.stats.tris > 100,
+                         name + ': the ' + o.kind + ' on plot ' + plot.id + ' did not build clean');
+      if (o.kind === 'garage' && plot.car) {
+        const c = plot.car, cy2 = Math.cos(o.yaw), sy2 = Math.sin(o.yaw);
+        const x = c.x - o.x, z = c.z - o.z, lx = x * cy2 - z * sy2, lz = x * sy2 + z * cy2;
+        check(Math.abs(lx) < 0.6 && Math.abs(lz - Q.w / 2) < 1.2, name + ': the car on plot ' + plot.id + ' is not in the garage door',
+              lx.toFixed(2) + ',' + lz.toFixed(2) + ' vs w/2 ' + (Q.w / 2).toFixed(2));
+      }
+    }
     // 7 — the car (G276): a known car, on its plot a half-length inside the
     //   line, clear of the house and the path, on dry ground
     for (const c of [plot.car, plot.boat]) if (c) {
@@ -234,6 +263,12 @@ function battery(name, vil) {
         const x = c.x - h.x, z = c.z - h.z, lx = x * cy - z * sy, lz = x * sy + z * cy;
         check(Math.abs(lx) > h.P.L / 2 + half * 0.5 || Math.abs(lz) > h.P.w / 2 + half * 0.5,
               name + ': the car on plot ' + plot.id + ' is in the house');
+        if (!c.garage && plot.out) {
+          const o = plot.out, cy2 = Math.cos(o.yaw), sy2 = Math.sin(o.yaw);
+          const x2 = c.x - o.x, z2 = c.z - o.z, lx2 = x2 * cy2 - z2 * sy2, lz2 = x2 * sy2 + z2 * cy2;
+          check(Math.abs(lx2) > o.P.L / 2 + half * 0.5 || Math.abs(lz2) > o.P.w / 2 + half * 0.5,
+                name + ': the car on plot ' + plot.id + ' is in the ' + o.kind);
+        }
         for (const sg of plot.path || [])
           check(distPtSeg([c.x, c.z], sg[0], sg[1]) > half * 0.5, name + ': the car on plot ' + plot.id + ' is on the path');
       }
@@ -294,6 +329,8 @@ if (SELFTEST) {
   if (!probe(vil => { const p = vil.plots.find(q => q.house !== undefined); p.path = []; })) neg.push('a plot with no path passed');
   if (!probe(vil => { const p = vil.plots.find(q => q.car); if (p) p.car.x = p.house !== undefined ? vil.houses[p.house].x : p.car.x; if (p) p.car.z = vil.houses[p.house].z; }))
     neg.push('a car in the house passed');
+  if (!probe(vil => { const p = vil.plots.find(q => q.out); if (p) { p.out.x = vil.houses[p.house].x; p.out.z = vil.houses[p.house].z; } }))
+    neg.push('an outbuilding in the house passed');
   if (!probe(vil => { if (vil.poles.length) { const q = vil.poles[0]; q.x = vil.houses[0].x; q.z = vil.houses[0].z; } }))
     neg.push('a pole on a plot passed');
   if (!probe(vil => { const p = vil.plots.find(q => (q.fences || []).some(f => f.kind === 'side')); p.fences = p.fences.filter(f => f.kind !== 'side'); }))

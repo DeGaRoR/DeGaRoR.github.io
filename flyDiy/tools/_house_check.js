@@ -1021,7 +1021,7 @@ function battery(name, P) {
   //   should have a form of chimney"). A stove pipe or a masonry stack, on
   //   every closed building - the one exemption is the open-fronted shelter
   //   (the woodshed), which is not a room anybody heats.
-  if (!P.openFront)
+  if (!P.openFront && !P.outbuilding)
     check(!!hi.stats.chimney, name + ': no chimney',
           'chim ' + Math.round(P.chim));
 
@@ -1537,7 +1537,7 @@ if (SELFTEST) {
   if (HG.build(Object.assign({}, HG.DEF, { chim: 0 }), 0).stats.chimney)
     neg.push('a house with no chimney published one');
   for (const nm in HG.PRESETS)
-    if (!HG.PRESETS[nm].openFront && Math.round(HG.PRESETS[nm].chim === undefined ? HG.DEF.chim : HG.PRESETS[nm].chim) === 0)
+    if (!HG.PRESETS[nm].openFront && !HG.PRESETS[nm].outbuilding && Math.round(HG.PRESETS[nm].chim === undefined ? HG.DEF.chim : HG.PRESETS[nm].chim) === 0)
       neg.push('preset ' + nm + ' has no chimney');
   // THE YARD (G273): the default house grows props and a woodpile with
   // rounds in it; with the dials off it grows neither; the same seed twice is

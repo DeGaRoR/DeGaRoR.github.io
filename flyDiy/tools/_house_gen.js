@@ -1766,6 +1766,38 @@ const PRESETS = {
   // NOT HABITATION (the user: "ability to generate small sheds, not even
   // habitation, more like storage"): no windows, no deck, no gutter, and it
   // sits on skids rather than on a stance.
+  // THE OUTBUILDINGS (G287, the user: "The lots are still very empty ...
+  // outdoor toilets for the smaller houses, garden shed for the medium
+  // ones, and a separate garage/barn for the largest lots"). Two more
+  // small buildings beside the storage shed: an outhouse and a garage.
+  // `outbuilding` marks them - no chimney is owed (rule 33), no yard, no
+  // people, no lights, no pier - the village stands them in the backyard.
+  'outhouse': {
+    outbuilding: 1,
+    L: 1.30, w: 1.30, storeys: 1, floorH: 2.15, pitch: 40, roofFam: 0,
+    stance: 4, floorY: 0.28, slopeZ: 3, eaveOver: 0.22, rakeOver: 0.18,
+    nFront: 0, nBack: 0, nLeft: 0, nRight: 0, gableWin: 0,
+    doorPos: 0.5, doorW: 0.72, doorH: 1.90, doorLight: 0, trimW: 0.06,
+    porch: 0, chim: 0, gutter: 0, downpipe: 0, ribs: 0, fascia: 0.10, barge: 0.08,
+    lights: 0, yard: 0, woodpile: 0, people: 0, pier: 0, smoke: 0, barrel: 0,
+    wallSet: SET_IDX('wall', 'wornwood'), wallCol: 0,
+    trimSet: SET_IDX('trim', 'veneerwarm'), trimCol: 0,
+    roofSet: SET_IDX('roof', 'corrrust'), roofCol: 0,
+    deckSet: SET_IDX('deck', 'deckwood'), postSet: SET_IDX('post', 'rough'),
+  },
+  'garage': {
+    outbuilding: 1,
+    L: 6.4, w: 5.2, storeys: 1, floorH: 2.7, pitch: 24, roofFam: 0,
+    stance: 0, floorY: 0.14, slopeZ: 3, eaveOver: 0.35, rakeOver: 0.30,
+    nFront: 0, nBack: 0, nLeft: 1, nRight: 0, winW: 0.8, winH: 0.9, winSill: 1.4,
+    gableWin: 0, doorPos: 0.5, doorW: 2.6, doorH: 2.35, doorLight: 0, trimW: 0.10,
+    porch: 0, chim: 0, gutter: 1, downpipe: 1, ribs: 1, fascia: 0.14, barge: 0.12,
+    lights: 0, yard: 0, woodpile: 0, people: 0, pier: 0, smoke: 0, barrel: 0, skirt: 0,
+    wallSet: SET_IDX('wall', 'roughwood'), wallCol: 0,
+    trimSet: SET_IDX('trim', 'veneer'), trimCol: 6,
+    roofSet: SET_IDX('roof', 'corrworn'), roofCol: 0,
+    deckSet: SET_IDX('deck', 'stain'), postSet: SET_IDX('post', 'rough'),
+  },
   'storage shed': {
     L: 3.20, w: 2.40, storeys: 1, floorH: 2.10, pitch: 32, roofFam: 0,
     stance: 4, floorY: 0.34, slopeZ: 4, eaveOver: 0.26, rakeOver: 0.22,

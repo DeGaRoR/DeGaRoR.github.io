@@ -476,7 +476,7 @@ function build() {
   const vil = VG.makeVillage(V);
   VIL = vil;
   $('seedLbl').textContent = 'seed ' + V.seed + ' · ' + vil.plots.length + ' plots';
-  let tris = 0, houses = 0, piers = 0, water = 0;
+  let tris = 0, houses = 0, piers = 0, water = 0, outs = 0;
   const rep = [];
   for (const h of vil.houses) {
     const plot = vil.plots[h.plot];
@@ -488,6 +488,17 @@ function build() {
     FINISHES.push(F);
     tris += built.stats.tris;
     houses++;
+    // THE OUTBUILDING (G287): the same generator, its own finish
+    if (plot.out) {
+      const F2 = G.makeFinish();
+      G.applyFinish(plot.out.P, F2);
+      const b2 = G.build(plot.out.P, 0, F2);
+      plot.out.built = b2;
+      placeBuilt(root, plot.out, b2, F2);
+      FINISHES.push(F2);
+      tris += b2.stats.tris;
+      outs++;
+    }
     if (built.stats.pier) piers++;
     if (plot.side === 'water') water++;
     h.built = built;
@@ -533,7 +544,7 @@ function build() {
     vil.plots.length + ' plots · fences ' + fe.members + ' members + ' + fe.old + ' scanned · ' +
     (tris + fe.tris).toLocaleString() + ' tris · ' + ms.toFixed(0) + ' ms';
   rep.push('<b>' + vil.plots.length + '</b> plots along <b>' + vil.road.length.toFixed(0) + ' m</b> of road');
-  rep.push('<b>' + houses + '</b> houses, <b>' + water + '</b> waterfront, <b>' + piers + '</b> piers');
+  rep.push('<b>' + houses + '</b> houses, <b>' + water + '</b> waterfront, <b>' + piers + '</b> piers, <b>' + outs + '</b> outbuildings');
   rep.push('fences: <b>' + fe.members + '</b> drawn members, <b>' + fe.old + '</b> scanned stretches; <b>' + cars + '</b> cars; <b>' + (vil.poles || []).length + '</b> poles');
   // the spread, reported: how many of each key the village used
   rep.push('<span style="color:#7d8996">' + Object.keys(vil.spread.used).filter(k => vil.spread.used[k]).map(k => k.replace(/^(person_|boat_|car_)/, '') + ' ' + vil.spread.used[k]).join(' · ') + '</span>');

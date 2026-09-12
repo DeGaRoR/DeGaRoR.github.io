@@ -425,11 +425,12 @@ function makeVillage(V0) {
 // spots - beside the house, toward the water - on a waterfront plot
 function planCar(vil, plot, house, built, rnd, thing) {
   const isBoat = thing === 'boat';
-  if (rnd() > (isBoat ? vil.V.boatOdds : vil.V.carOdds)) return null;
+  const garage = !isBoat && plot.out && plot.out.kind === 'garage';
+  if (!garage && rnd() > (isBoat ? vil.V.boatOdds : vil.V.carOdds)) return null;   // a garage always has its car
   const T = vil.T, keys = HG.CAR_KEYS;
   let key = isBoat ? 'boat_tirola' : (vil.spread ? vil.spread.pick(keys.filter(k => k !== 'car_buick'), rnd)
                                                 : keys[Math.floor(rnd() * keys.length) % keys.length]);
-  if (!isBoat && rnd() < 0.12) key = 'car_buick';       // the big one, rarely
+  if (!isBoat && rnd() < 0.12 && !(vil.spread && vil.spread.used.car_buick)) key = 'car_buick';   // the big one, once
   const K = isBoat ? HG.PIER_KIT.boat_tirola : HG.YARD_KIT[key];
   const n = plot.n, tg = plot.tg;
   // the backyard direction, away from the house's front
@@ -448,7 +449,26 @@ function planCar(vil, plot, house, built, rnd, thing) {
       cands.push({ x: house.x + back[0] * d + tg[0] * s * 2.6, z: house.z + back[1] * d + tg[1] * s * 2.6,
                    ry: ry0 + (rnd() - 0.5) * 0.7 + (rnd() < 0.3 ? Math.PI / 2 : 0) });
   const half = Math.max(K.L, K.W) / 2;
-  const clear = c => {
+  // THE CAR IN THE GARAGE DOOR (G287, the user: "We could put the old car in
+  // the barns/garage, or sticking halfway through"): when the plot has a
+  // garage, the car stands in its doorway, nose in, half of it inside
+  if (!isBoat && plot.out && plot.out.kind === 'garage') {
+    const o = plot.out;
+    const cy = Math.cos(o.yaw), sy = Math.sin(o.yaw);
+    const lz = o.P.w / 2 + 0.35 - K.L * 0.1;
+    const x = o.x + lz * sy, z = o.z + lz * cy;
+    return { key, x, z, ry: o.yaw + Math.PI, y: T.h(x, z), garage: true };
+  }
+  const clear = c => spotClear(vil, plot, house, built, c, half);
+  for (const c of cands) if (clear(c)) return { key, x: c.x, z: c.z, ry: c.ry, y: T.h(c.x, c.z) };
+  return null;
+}
+
+// is a spot clear for a thing of `half` size: on the plot inside the line,
+// dry, off the house, its stair, its stoop, the path, and the outbuilding
+function spotClear(vil, plot, house, built, c, half) {
+  const T = vil.T, P = house.P;
+  {
     // on the plot, its own half-size inside the line
     for (let i = 0; i < 4; i++) {
       const a = plot.poly[i], b = plot.poly[(i + 1) % 4];
@@ -478,10 +498,57 @@ function planCar(vil, plot, house, built, rnd, thing) {
       const t = Math.max(0, Math.min(1, ((c.x - ax) * dx + (c.z - az) * dz) / Math.max(1e-9, dx * dx + dz * dz)));
       if (Math.hypot(c.x - (ax + dx * t), c.z - (az + dz * t)) < half + 0.8) return false;
     }
+    // clear of the outbuilding
+    const o = plot.out;
+    if (o) {
+      const cy2 = Math.cos(o.yaw), sy2 = Math.sin(o.yaw);
+      const x2 = c.x - o.x, z2 = c.z - o.z, lx2 = x2 * cy2 - z2 * sy2, lz2 = x2 * sy2 + z2 * cy2;
+      if (Math.abs(lx2) < o.P.L / 2 + half + 0.6 && Math.abs(lz2) < o.P.w / 2 + half + 0.6) return false;
+    }
     return true;
-  };
-  for (const c of cands) if (clear(c)) return { key, x: c.x, z: c.z, ry: c.ry, y: T.h(c.x, c.z) };
-  return null;
+  }
+}
+
+// THE OUTBUILDING (G287): an outhouse on a small plot, a garden shed on a
+// medium one, a garage on a large one - one of the house generator's own
+// presets, stood in the backyard like a car is, its door toward the house
+// (the garage's toward the road, so the car can drive in), on the terrain
+// through the same P.ground the house has, with its own finish.
+function planOutbuilding(vil, plot, house, built, rnd) {
+  const T = vil.T, P = house.P;
+  const area = Math.abs(plot.poly.reduce((a, p, i) => { const q = plot.poly[(i + 1) % 4]; return a + p[0] * q[1] - q[0] * p[1]; }, 0)) / 2;
+  let kind = null;
+  if (area >= 800 && P.L >= 8.5) kind = rnd() < 0.75 ? 'garage' : 'storage shed';
+  else if (area >= 450 || P.L >= 6.5) kind = rnd() < 0.7 ? 'storage shed' : 'outhouse';
+  else kind = rnd() < 0.7 ? 'outhouse' : null;
+  if (!kind) return null;
+  const Q = Object.assign({}, HG.DEF, HG.PRESETS[kind], { outbuilding: 1, lights: 0, yard: 0, woodpile: 0,
+    people: 0, pier: 0, smoke: 0, chim: 0, barrel: 0, water: 0, slopeX: 0, slopeZ: 0, stairs: 1 });
+  const n = plot.n, tg = plot.tg;
+  const back = plot.side === 'water' ? [-n[0], -n[1]] : [n[0], n[1]];
+  // it faces the house - or the road, for a garage
+  const faceHouse = kind !== 'garage';
+  const fd = faceHouse ? [-back[0], -back[1]] : [-n[0], -n[1]];
+  const yaw0 = Math.atan2(fd[0], fd[1]);
+  const half = Math.max(Q.L, Q.w) / 2;
+  const cands = [];
+  for (let d = P.w / 2 + 2.0 + Q.w / 2; d < plot.depth; d += 1.2)
+    for (const s of [0, 1, -1, 2, -2])
+      cands.push({ x: house.x + back[0] * d + tg[0] * s * 3.0, z: house.z + back[1] * d + tg[1] * s * 3.0,
+                   ry: yaw0 + (rnd() - 0.5) * 0.25 });
+  let spot = null;
+  for (const c of cands) if (spotClear(vil, plot, house, built, c, half + 0.5)) { spot = c; break; }
+  if (!spot) return null;
+  const c = [spot.x, spot.z], yaw = spot.ry;
+  const cy = Math.cos(yaw), sy = Math.sin(yaw);
+  const toWorld = (lx, lz) => [c[0] + lx * cy + lz * sy, c[1] - lx * sy + lz * cy];
+  const oy = T.h(c[0], c[1]);
+  const ground = (lx, lz) => { const w = toWorld(lx, lz); return T.h(w[0], w[1]) - oy; };
+  Q.ground = ground;
+  let hiC = -1e9;
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) hiC = Math.max(hiC, ground(sx * Q.L / 2, sz * Q.w / 2));
+  Q.floorY = Math.max(Q.floorY, hiC + 0.12);
+  return { kind, P: Q, x: c[0], z: c[1], y: oy, yaw, toWorld, ground };
 }
 
 // THE POLES ALONG THE ROAD (G285): one every 32-40 m on the inland verge,
@@ -513,6 +580,7 @@ function finishPlot(vil, plot, house, built) {
   plot.path = planPath(plot, house, built, vil.road);
   vil.fenced = vil.fenced || new Set();
   plot.fences = planFences(vil.V, plot, house, rnd, vil.fenced);
+  plot.out = planOutbuilding(vil, plot, house, built, rnd);
   plot.car = planCar(vil, plot, house, built, rnd, 'car');
   plot.boat = planCar(vil, plot, house, built, rnd, 'boat');
   if (plot.car && plot.boat && Math.hypot(plot.car.x - plot.boat.x, plot.car.z - plot.boat.z) < 5.5) plot.boat = null;
