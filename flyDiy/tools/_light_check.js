@@ -187,11 +187,14 @@ check(/bakeHangarEnv\(\)/.test(setLightBody(app)),
         'twice for Standard materials (hemisphere AND probe), so it is not 1');
 }
 
-// 4d. THE WORLD'S RIG IS DECLARED ONCE. render_world builds the same hemi+sun
-// pair twice: once for the world, once for the tree-impostor bake, which
-// freezes it into an atlas drawn as an UNLIT MeshBasicMaterial. Edit one and
-// the far forest stays lit for a world that no longer exists — silently, and
-// with nothing downstream able to tell you.
+// 4d. THE WORLD'S RIG IS DECLARED ONCE. render_world used to build the same
+// hemi+sun pair twice: once for the world, once for the tree-impostor bake,
+// which froze it into an atlas drawn as an UNLIT MeshBasicMaterial - edit one
+// and the far forest stayed lit for a world that no longer existed. Since
+// W0c.8 the bake is a G-BUFFER (albedo + world normal, no light in it) and the
+// impostor is drawn as a MeshStandardMaterial under the world's own lights;
+// the check is that this is still so (one HemisphereLight, in the factory,
+// and no lit bake anywhere).
 {
   const hemis = world.match(/new THREE\.HemisphereLight\(/g) || [];
   check(hemis.length === 1,
@@ -203,8 +206,12 @@ check(/bakeHangarEnv\(\)/.test(setLightBody(app)),
   check(uses.length >= 2,
         `RIG.sun is read ${uses.length} time(s) — the impostor bake is supposed ` +
         'to read the same value the world does, not a copy of it');
-  check((world.match(/hemiLight\(\)/g) || []).length >= 2,
-        'the impostor bake no longer uses the world\'s own hemisphere factory');
+  // W0c.8: the bake is unlit and the draw is lit - a second hemiLight() call
+  // would mean a lit bake has come back
+  check((world.match(/hemiLight\(\)/g) || []).length === 1,
+        'the world calls hemiLight() other than once - a lit impostor bake is back?');
+  check(/THE IMPOSTOR IS A G-BUFFER/.test(world) && /function impostorMat\([\s\S]*?new THREE\.MeshStandardMaterial\(/.test(world),
+        'the impostor is no longer a G-buffer drawn as a MeshStandardMaterial under the world\'s lights');
 }
 
 // 4e. EVERY AMBIENT-FROM-BELOW IS OCCLUDED. The world stacked TWO independent
