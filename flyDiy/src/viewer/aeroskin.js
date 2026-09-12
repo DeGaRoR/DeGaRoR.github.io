@@ -1597,6 +1597,14 @@ function aeroSharedU0(THREE, z4) {
     // THE CABIN'S DARKNESS (G206.1): x = how much of the light an inside
     // fragment loses, already times the aeroplane's glazing coverage
     uCabin: { value: new THREE.Vector4(AERO_CABIN_DEF, 0, 0, 0) },
+    // THE FOOTWELL (G272): the dark under the dashboard, as one box in craft
+    // space. A: x lateral half-width (m), y the dash's aft lip (along, aft
+    // positive), z the cover's height (up) = the dash's bottom lip, w the
+    // floor. B: x strength (0 = no footwell on this aeroplane), y the
+    // lateral fade, z the run aft of the lip at cover height, w the run aft
+    // of the lip on the floor. See AERO_CABIN_FS.
+    uFootA: { value: new THREE.Vector4(0, 0, 0, 0) },
+    uFootB: { value: new THREE.Vector4(0, AERO_FOOT.fade, AERO_FOOT.runTop, AERO_FOOT.runFloor) },
   });
 }
 const aeroDecUniforms = aeroSharedU;    // the name G69 wrote it under
@@ -2268,6 +2276,8 @@ uniform vec4 uField;
 // exterior skin seen from within)
 uniform vec4 uCabin;
 uniform vec2 uInside;
+uniform vec4 uFootA;     // THE FOOTWELL (G272), see aeroSharedU0
+uniform vec4 uFootB;
 // MARKINGS LAND ON PAINTWORK ONLY (G207, the user: "the box projection
 // should exclude the engine, the prop, the landing gears, the interior, the
 // fuel tanks and the truss"). 1 on the exterior skin, the flying surfaces,
@@ -3185,6 +3195,24 @@ const AERO_CABIN_FS = `
 {
   float aeroInK = max(uInside.x, uInside.y * step(faceDirection, 0.0));
   float aeroCab = 1.0 - uCabin.x * aeroInK;
+  // THE FOOTWELL (G272, the user: "everything would normally be very dark
+  // [under the dashboard] ... otherwise they will have glowing legs in a
+  // dark place"). A box in craft space, the same frame the box projector
+  // reads: under the dash's bottom lip (uFootA.z), forward of its aft lip
+  // (uFootA.y), inside the cabin's width. Deeper is darker (the floor keeps
+  // the whole strength, the lip's underside half of it), and the dark runs
+  // aft of the lip further on the floor than at the lip — the seat and the
+  // legs shadow the floor between the pedals and the seat, the knees stand
+  // in the light. An inside fragment only, like the cabin's own darkness;
+  // emissive is spared with it.
+  {
+    float aeroFdK = clamp((uFootA.z - vCraftPos.z) / max(uFootA.z - uFootA.w, 0.05), 0.0, 1.0);
+    float aeroFx = 1.0 - smoothstep(uFootA.x, uFootA.x + uFootB.y, abs(vCraftPos.x));
+    float aeroFz = 1.0 - smoothstep(uFootA.z - 0.08, uFootA.z, vCraftPos.z);
+    float aeroFy = 1.0 - smoothstep(uFootA.y, uFootA.y + mix(uFootB.z, uFootB.w, aeroFdK), vCraftPos.y);
+    float aeroFoot = uFootB.x * aeroFx * aeroFy * aeroFz * (0.5 + 0.5 * aeroFdK);
+    aeroCab *= 1.0 - aeroFoot * aeroInK;
+  }
   reflectedLight.directDiffuse *= aeroCab;
   reflectedLight.indirectDiffuse *= aeroCab;
   reflectedLight.directSpecular *= aeroCab;
@@ -3201,9 +3229,17 @@ const AERO_CABIN_HOOK = function (shader) {
   for (const k in u) shader.uniforms[k] = u[k];
   const d = this.userData.aeroD;
   if (d) for (const k in d) shader.uniforms[k] = d[k];
+  // G272: the footwell is a box in craft space, so this program carries
+  // vCraftPos too — after skinning_vertex, so a person's legs are where
+  // the skeleton put them, not where the bind pose had them
+  shader.vertexShader = shader.vertexShader
+    .replace('#include <common>',
+             'uniform mat4 uCraftInv;\nvarying vec3 vCraftPos;\n#include <common>')
+    .replace('#include <project_vertex>',
+             'vCraftPos = (uCraftInv * modelMatrix * vec4(transformed, 1.0)).xyz;\n#include <project_vertex>');
   shader.fragmentShader = shader.fragmentShader
     .replace('#include <common>',
-             'uniform vec4 uCabin;\nuniform vec2 uInside;\n#include <common>')
+             'uniform vec4 uCabin;\nuniform vec2 uInside;\nuniform vec4 uFootA;\nuniform vec4 uFootB;\nvarying vec3 vCraftPos;\n#include <common>')
     .replace('#include <lights_fragment_end>', AERO_CABIN_FS);
 };
 function aeroCabinHook(THREE, m, inside) {
@@ -3220,6 +3256,21 @@ function aeroCabinHook(THREE, m, inside) {
 // combing and a floor, so it keeps some, and the lab's `cabin` sets the rest
 const AERO_CABIN_DEF = 0.81;      // G217: the user's own
 const AERO_CABIN = { coverage: 1 };
+// THE FOOTWELL (G272): how much of what the cabin's darkness leaves is lost
+// again at the floor under the dash, and the box's soft edges (m). `strength`
+// is the DEFAULT for an aeroplane that has a dash; `aeroSetFootwell(null)`
+// is an aeroplane without one.
+const AERO_FOOT = { strength: 0.78, fade: 0.05, runTop: 0.15, runFloor: 0.90 };
+// { xHalf, yLip, zTop, zFloor, strength? } in CRAFT space — x lateral, y aft,
+// z up, metres — the frame aeroSetCraft hands the shader; the crew layer
+// publishes it off its anchors and the join carries it into the payload.
+function aeroSetFootwell(THREE, fw) {
+  const U = aeroSharedU(THREE);
+  if (!fw || !(fw.zTop > fw.zFloor)) { U.uFootB.value.x = 0; return; }
+  U.uFootA.value.set(+fw.xHalf || 0, +fw.yLip || 0, +fw.zTop, +fw.zFloor);
+  U.uFootB.value.x = fw.strength != null ? Math.max(0, Math.min(1, +fw.strength))
+                                         : AERO_FOOT.strength;
+}
 function aeroSetCabin(THREE, o) {
   if (o && o.coverage != null) AERO_CABIN.coverage = Math.max(0, Math.min(1, +o.coverage));
   const amt = AERO_LAB.gain.cabin != null ? AERO_LAB.gain.cabin : AERO_CABIN_DEF;
@@ -4296,7 +4347,7 @@ if (typeof window !== 'undefined')
                       aeroMaterial, aeroGlass,
                       aeroGlassTint, aeroGlassCompanion, GLASS_DEF,
                       aeroGlassSpec,
-                      aeroIsInside, aeroCabinHook, aeroSetCabin,
+                      aeroIsInside, aeroCabinHook, aeroSetCabin, aeroSetFootwell,
                       AERO_CABIN_DEF, aeroDecOk,
                       aeroSetEnv, aeroDispose, aeroLinear, AERO_TEX,
                       aeroSetDecals, aeroSetCraft,

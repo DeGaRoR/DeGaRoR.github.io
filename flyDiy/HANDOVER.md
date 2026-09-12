@@ -38761,3 +38761,47 @@ GATE PANEL green.
   repainted.
 
 Gates: PARTS / JOIN / SKIN / FIN / DESIGN / SAVE / BUILD green on the tree.
+
+## G272 — THE FOOTWELL IS DARK, AND SO ARE THE PILOT'S SHINS (2026-09-12,
+## the user: "fake ambient occlusion for the section below the dashboard …
+## everything would normally be very dark … can we properly bake something?
+## And maybe on the legs of the pilots too … otherwise they will have
+## glowing legs in a dark place")
+
+Live AO is out of reach in this forward renderer (no depth pre-pass, no
+post chain); what stands in for it is ONE analytic box — the dark under
+the dash — evaluated where the cabin's own darkness already is
+(`AERO_CABIN_FS`, after the lights are summed, emissive spared, inside
+fragments only):
+
+- **The box** is measured by the crew layer off the anchors everything in
+  the cabin stands on (`footwellOf(A)` in `_cage_crew.js`): under the
+  dash's BOTTOM lip (`dashLip` — the plate and its dials face the pilot and
+  stay lit), forward of the plate's station (`dashAftZ`), inside the
+  cabin's walls (`halfW + 5 cm`), down to `floorAt(dashAftZ)`. Published in
+  CRAFT space (x lateral, y aft, z up — the box projector's frame, so the
+  shader reads `vCraftPos` and needs nothing new from the geometry), as
+  `CAGE_CREW.footwell`, and set on the shared uniforms at every build
+  (`AEROSKIN.aeroSetFootwell`); no crew, no dash → strength 0.
+- **The law**: deeper is darker (the floor keeps the whole strength 0.78 of
+  what the cabin's 0.81 leaves — ~4 % of the light — the lip's underside
+  half of it); the dark runs aft of the lip 15 cm at lip height and 90 cm
+  on the floor (the seat and the legs shadow the floor between the pedals
+  and the seat; the knees stand in the light); 8 cm soft edge at the lip,
+  5 cm at the walls.
+- **The join** carries it (`data.footwell`) through the bake's own `vtx`
+  map — the editor's craft frame is the mount's, the flown one is
+  `model.grp`'s, and the bake's pitch sits between them — and app.js sets
+  it beside the cabin's darkness at build.
+- **The legs**: the crew's character materials already take the cabin's
+  darkness through `aeroCabinHook`; that hook's vertex shader now builds
+  `vCraftPos` too, AFTER `skinning_vertex`, so the shins are darkened
+  where the skeleton put them, not where the bind pose stood. Verified
+  from the seat with the pilot un-hidden: thighs lit, shins under the
+  dash dark, the floor dark; A/B against `aeroSetFootwell(null)`.
+- GATE SKINMAT: the `vCraftPos` census is 4 (both shaders of both
+  programs) and two new checks pin the hook's placement and the term.
+
+Not done: the pedals themselves are not lit by anything (they sit in the
+dark, which is right); a footwell LAMP (`li_pedal`) is darkened with the
+rest — the cabin's own darkness already did that to it.

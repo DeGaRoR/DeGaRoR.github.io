@@ -2364,8 +2364,23 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         mainsRef = vtx(cx, cy, cz);
       }
     } catch (e) {}
+    // G272: THE FOOTWELL, the crew layer's box re-expressed in the flown
+    // craft frame. The editor's craft frame is the mount's (x lateral, aft
+    // = -z, up = y); the flown one is model.grp's (aft = +x, up = y, lateral
+    // = z), and between the two sits the bake's pitch — so the two corners
+    // that fix it go through `vtx` like every other baked point, and the
+    // box stays axis-aligned in the frame it is read in.
+    let footwell = null;
+    try {
+      const fw = window.CAGE_CREW && window.CAGE_CREW.footwell;
+      if (fw) {
+        const top = vtx(0, fw.zTop, -fw.yLip), flo = vtx(0, fw.zFloor, -fw.yLip);
+        footwell = { xHalf: fw.xHalf, yLip: +top[0].toFixed(3), zTop: +top[1].toFixed(3),
+                     zFloor: +flo[1].toFixed(3) };
+      }
+    } catch (e) {}
     return { cage: true, groups, mats, off, pitch: beta, parts,
-             zRoot: 0, surfaces: null, cageM, people, lights, tailRef, mainsRef };
+             zRoot: 0, surfaces: null, cageM, people, lights, tailRef, mainsRef, footwell };
   };
   // ...and the view comes back, on the way out or on the way to a throw.
   const snapshot = spec => {

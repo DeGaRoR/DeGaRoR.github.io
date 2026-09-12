@@ -1693,6 +1693,11 @@
       AEROSKIN.aeroSetCabin(THREE, {
         coverage: Object.keys(mats).some(k => mats[k] && mats[k].fin === 'glass')
           ? 1 : 0.4 });
+    // ...AND THE FOOTWELL'S (G272): the box the crew layer measured, in this
+    // aeroplane's own frame through the join; an aeroplane without a dash
+    // (or a payload from before it) has none
+    if (typeof AEROSKIN !== 'undefined' && AEROSKIN.aeroSetFootwell)
+      AEROSKIN.aeroSetFootwell(THREE, data.footwell || null);
     // G55 MOVING PARTS (cage visual): each wheel is its own group pivoted
     // at its AXLE and ridden on its axle NODE at pose time — suspension
     // travel is the physics showing through, not an animation. The prop

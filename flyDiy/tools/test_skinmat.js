@@ -957,8 +957,16 @@ if (process.argv.includes('--selftest')) {
   // 3 — craft space exists and is what the box projector reads
   check(/varying vec3 vCraftPos;/.test(SRC),
         'projector: vCraftPos is not declared');
-  check((SRC.match(/varying vec3 vCraftPos;/g) || []).length === 2,
-        'projector: vCraftPos must be declared in BOTH shaders');
+  // ...twice for AEROSKIN's own pair, and twice again for the cabin hook's
+  // (G272: the footwell is a box in craft space, so a person's material
+  // carries the varying too — assigned AFTER skinning, or the legs would be
+  // darkened where the bind pose stood, not where the skeleton put them)
+  check((SRC.match(/varying vec3 vCraftPos;/g) || []).length === 4,
+        'projector: vCraftPos must be declared in BOTH shaders, of both programs');
+  check(SRC.includes("vCraftPos = (uCraftInv * modelMatrix * vec4(transformed, 1.0)).xyz;\\n#include <project_vertex>"),
+        'footwell: the cabin hook must build vCraftPos after skinning (before project_vertex)');
+  check(/uFootA\.z - vCraftPos\.z/.test(SRC) && /uFootB\.x \* aeroFx \* aeroFy \* aeroFz/.test(SRC),
+        'footwell: AERO_CABIN_FS does not read the footwell box');
   check(/vCraftPos = \(uCraftInv \* modelMatrix/.test(SRC),
         'projector: vCraftPos is not built from uCraftInv * modelMatrix');
   check(/vec3 aeroA = vCraftPos;/.test(SRC),

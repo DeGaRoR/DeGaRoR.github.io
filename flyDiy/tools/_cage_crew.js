@@ -1960,6 +1960,31 @@ if (typeof window !== 'undefined')
   window.CHAR_TEX_LANDED = () => {
     if (window.CAGE_UI && window.CAGE_UI.draw) window.CAGE_UI.draw();
   };
+// THE FOOTWELL (G272, the user: "fake ambient occlusion for the section
+// below the dashboard ... everything would normally be very dark ... and
+// maybe on the legs of the pilots too"). Live AO is out of reach in this
+// renderer; what stands in for it is ONE box in the shader (aeroskin.js's
+// AERO_CABIN_FS), measured here off the same anchors everything else in the
+// cabin stands on: under the dash's BOTTOM lip (`dashLip`, the plate's
+// lower edge — the plate and its dials face the pilot and stay lit),
+// forward of the dash's AFT face (`dashAftZ`, the plate's station), between
+// the cabin walls, down to the floor at that station. Published in CRAFT
+// space — x lateral, y aft, z up, metres — which is this layer's own frame
+// with z negated: the layer is built in metres on the mount, the mount is
+// the craft root (G216), and cage +z is forward.
+let FOOTWELL = null;
+function footwellOf(A) {
+  if (!A || A.dashLip == null || A.dashAftZ == null) return null;
+  const zFloor = A.floorAt(A.dashAftZ);
+  if (!(A.dashLip > zFloor + 0.10)) return null;
+  return { xHalf: +(A.halfW + 0.05).toFixed(3), yLip: +(-A.dashAftZ).toFixed(3),
+           zTop: +A.dashLip.toFixed(3), zFloor: +zFloor.toFixed(3) };
+}
+function footwellSet(fw) {
+  if (typeof window !== 'undefined' && window.AEROSKIN && window.AEROSKIN.aeroSetFootwell)
+    window.AEROSKIN.aeroSetFootwell(THREE, fw);
+}
+
 PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   CTL_MOVING = [];                     // G240: this build's moving controls
   LIVE_CREW = [];                      // live crew: this build's skeletons
@@ -1973,6 +1998,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   }
   if (!P.crewOn) {
     if (typeof window !== 'undefined') window.CAGE_CREW_EYE = null;
+    footwellSet(null);
     return;
   }
   group = new THREE.Group();
@@ -1983,6 +2009,8 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   scene.add(group);
 
   const A = anchors(spec, P, mesh);
+  FOOTWELL = footwellOf(A);
+  footwellSet(FOOTWELL);
   const places = seatPlaces(A, P);
   const sbs = Math.round(P.seatLayout) === 1;
   // per-seat settings: the second seat falls back to the first's when
@@ -2312,6 +2340,8 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   // coaming lip is, how wide the cabin is at a station — and re-deriving them
   // over there would be a second description of the cabin.
   const DBG = window.CAGE_CREW = { stations: [], panel, floorN, A,
+    // G272: the dark under the dash, for the join (craft space, see footwellOf)
+    footwell: FOOTWELL,
     // G240: the controls that ANSWER — name, pivot, axis, drive and travel,
     // for the join. Filled as they are drawn, so a station without a stick
     // publishes nothing rather than a part with no geometry.
