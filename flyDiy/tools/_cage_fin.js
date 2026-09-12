@@ -33,6 +33,7 @@ const finDef = Object.assign({ finOn: 1, finProject: 1, finCut: 0,
   finVentralOn: 1, finVentralH: 0.4, finVentralC: 0.6,
   finCutGap: 0.012,
   finSolid: 1, finThick: 0.06, finThickTE: 0.015, tailRimN: 4,
+  finFillet: 0.035,
   finCons: 0 }, FIN.FIN_PARAMS);
 PAGE.defaults = Object.assign(finDef, PAGE.defaults || {});
 
@@ -51,6 +52,10 @@ const GROUP = ['8 · tail — fin (2D)', [
    { when: P => +P.finOn && !+P.boomStyle }],
   ['finProject', 'root',              0, 1, 1, ['free', 'on the skin'],
    { when: P => +P.finOn }],
+  // G295: the fillet where the fin's root meets the deck — a quarter-round
+  // fairing along the root on both faces, this radius (cage units); 0 = none
+  ['finFillet',  'root fillet',       0, 0.12, 0.005,
+   { when: P => +P.finOn && +P.finProject && +P.finSolid }],
   // G267: THE VENTRAL (the user: "the fins should automatically get a
   // little fin at the bottom of their respective booms, take reference" —
   // the 337's and the P-38's fins run under the boom as well as over it).
@@ -656,6 +661,59 @@ PAGE.post = ctx => {
       group.add(vObj);
     }
   }
+  // THE ROOT FILLET (G295, a visual item of the twin-boom review: "no root
+  // fillet where the fin meets the boom"). A quarter-round fairing along the
+  // fin's root on both faces: from the fin's side a fillet radius up, round
+  // to the deck a radius out — on a boom the deck falls away from the crown
+  // by the oval's own curve, so the outer foot sits ON the tube, not in the
+  // air beside it. Built on the projected root loop (the sheet's own
+  // `finRootLo` vertices, which finProjectRoot just laid on the deck),
+  // forward of the hinge when the rudder is cut, the fin skin's own section.
+  const filR = +P.finFillet || 0;
+  if (solidOn && proj && filR > 0 && s.finRootLo && !wire) {
+    const ids = new Set();
+    for (const [a, b] of s.finRootLo) { ids.add(a); ids.add(b); }
+    const zLo = cutMode ? m0.cutZ - 1e-6 : -Infinity;
+    const root = [...ids].map(i => s.V[i]).filter(v => v[2] >= zLo && v[2] >= deck.z0)
+      .sort((a, b) => a[2] - b[2]);
+    const tRoot = +P.finThick || 0.06;
+    // the tube's surface a lateral x off its crown, cage units (the boom's
+    // half-sizes are scene metres): the oval drops as 1 - sqrt(1 - (x/r)^2)
+    const dropAt = (z, x) => {
+      if (!TB) return 0;
+      const rr = TB.rAt(z * FSd) / FSd, hh = TB.hAt(z * FSd) / FSd;
+      const u = Math.min(1, Math.abs(x) / Math.max(1e-6, rr));
+      return hh * (1 - Math.sqrt(Math.max(0, 1 - u * u)));
+    };
+    if (root.length >= 3) {
+      const NF = 4, V = [], Fq = [];
+      for (const sgn of [1, -1]) {
+        const rows = [];
+        for (const v of root) {
+          const z = v[2], yD = v[1], row = [];
+          for (let k = 0; k <= NF; k++) {
+            const th = (k / NF) * Math.PI / 2;
+            const x = sgn * (0.5 * tRoot + filR - filR * Math.cos(th));
+            const y = yD + filR - filR * Math.sin(th) - dropAt(z, x) * (k / NF);
+            row.push(V.push([x, y, z]) - 1);
+          }
+          rows.push(row);
+        }
+        for (let j = 0; j + 1 < rows.length; j++)
+          for (let k = 0; k < NF; k++) {
+            const q = [rows[j][k], rows[j + 1][k], rows[j + 1][k + 1], rows[j][k + 1]];
+            // outward: the fairing faces away from the corner it fills
+            const a = V[q[0]], b = V[q[1]], d = V[q[3]];
+            const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], w = [d[0] - a[0], d[1] - a[1], d[2] - a[2]];
+            const n = [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]];
+            Fq.push({ v: (n[0] * sgn + n[1]) >= 0 ? q : q.slice().reverse(), m: 'finSkin', part: 'fin' });
+          }
+      }
+      const fObj = finMesh({ V, F: Fq }, bySec, 'finSkin');
+      fObj.name = 'edFinFillet';
+      group.add(fObj);
+    }
+  }
   group.scale.setScalar(FS);
   if (TB) {
     // one fin a boom: the second is the first's clone at −boomX, its rudder
@@ -667,6 +725,7 @@ PAGE.post = ctx => {
       if (o.name === 'edSurf_rud') o.name = 'edSurf_rud2';
       else if (o.name === 'edFinSkin') o.name = 'edFinSkin2';         // G267.2
       else if (o.name === 'edFinVentral') o.name = 'edFinVentral2';
+      else if (o.name === 'edFinFillet') o.name = 'edFinFillet2';           // G295
     });
     scene.add(group2);
   }

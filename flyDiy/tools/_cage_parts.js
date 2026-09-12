@@ -598,7 +598,7 @@ const CAGE_PARTS = [
              len: 'finRootFwd', high: 'finTipY', at: 'on the boom deck' },
     sections: ['finSkin', 'finRud', 'finVentral'],
     groups: [
-      ['fitted', ['finOn', 'finProject', 'finRootGuard', 'finDorsal',
+      ['fitted', ['finOn', 'finProject', 'finFillet', 'finRootGuard', 'finDorsal',
                   'finKeel']],
       ['ventral', ['finVentralOn', 'finVentralH', 'finVentralC']],
       ['construction', ['finCons']],

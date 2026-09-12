@@ -386,8 +386,17 @@ function cageJoinSpec(P, M, T) {
   if (Array.isArray(M.occupied) && M.occupied.length) cabin.occupied = M.occupied;
   if (Object.keys(cabin).length) spec.cabin = cabin;
   // G52: the wing's fore-aft station, from the wing layer's own anchor
-  if (typeof M.wingXLE === 'number' && isFinite(M.wingXLE))
+  if (typeof M.wingXLE === 'number' && isFinite(M.wingXLE)) {
     spec.wings[0].xLE = M.wingXLE;
+    // G295 (TWIN-BOOM-2 §4): THE NUDGE IS IN THE MEASUREMENT. The design
+    // bake writes wings[0].place.dx = -wgDx so a headless archetype flies
+    // its nudge; the resolver adds place.dx on top of xLE — and this xLE is
+    // measured off the DRAWN wing, nudge included. Counted twice, the
+    // frame's wing sat wgDx aft of the drawn one (0.3 m on the user's
+    // build; 84 of the tail-gap gauge's 91 mm of x). A measured xLE zeroes
+    // the nudge; the headless path, which runs no join, keeps it.
+    spec.wings[0].place = Object.assign({}, spec.wings[0].place || {}, { dx: 0 });
+  }
   // G266.1: ...and its HEIGHT, from the same anchor (the frame's root
   // front-spar node is drawn at yAnchor + wgDy; this hands that back)
   if (typeof M.wingY === 'number' && isFinite(M.wingY))
@@ -906,6 +915,13 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
                  : zOf2('aeroWsA') != null ? zOf2('aeroWsA') : zOf2('ring');
         if (fw != null) { zFw = fw; fwOk = true; }
         zPost = zOf2('tailPost');          // a ROD boom has no tail rings
+        // G295 (TWIN-BOOM-2 §3): a twin-boom POD has no post either — it ends
+        // at the bulkhead in its aero aft — and with no post the profile and
+        // the tail rows were never written, so the merge kept the LAST ones
+        // (the conventional taper this pod was built from: the frame's aft
+        // body was not the drawn pod). The pod's own aft extreme (the skin's
+        // z0, the aero aft's tip) is the profile's end on twin booms.
+        if (zPost == null && +P.boomTwin && isFinite(AF.z0)) zPost = AF.z0;
       } catch (e) {
         // NOT SWALLOWED (G64). `fwOk` false skips the whole firewall-anchored
         // block below — the cabin's x-extent, the gear station and ride

@@ -39835,3 +39835,41 @@ element); the fin is still the P4 lattice (its side stiffness on a tube is
 now the fin's own, measurable); the stab bridge's pyramid ties are the
 tail's remaining compliance; the tail-gap gauge reads 91 mm on the user's
 WIP, 84 of it x (§4 place.dx).
+
+## G295 — THE FIN'S ROOT FILLET, THE TAIL'S WHITE LIGHT, AND THE NUDGE
+## COUNTED ONCE (2026-09-12, the user: "let's keep going in the list, and pick
+## a couple of safe visual improvements too")
+
+- **The root fillet** (`finFillet`, Fin & rudder › fitted, cage units,
+  default 0.035, 0 = none): a quarter-round fairing along the fin's root on
+  both faces, from the fin's side a radius up round to the deck a radius
+  out. Built on the projected root loop (the sheet's `finRootLo`, which
+  finProjectRoot just laid on the deck), forward of the hinge when the
+  rudder is cut, the fin skin's own section, `edFinFillet` (`…2` on the
+  second boom). On a boom the deck falls away from the crown by the oval's
+  own curve, so the outer foot sits ON the tube: measured on the user's
+  build, 208 tris a fin, spanning the root's 2.5 m along the boom's crown.
+- **The tail light is white and faces aft** — the table's own note said
+  "tail white" and no lamp was ever drawn for it. `navT`: on a fin the
+  aft-most vertex of the fin group's upper half (the rudder's trailing
+  edge, high), between twin booms the aft-most vertex of the stab group
+  near x 0 (the elevators' centre trailing edge); a recessed lens on a
+  lodge, 18 mm, axis aft, on the nav switch with the wingtips. Measured on
+  the user's build: three meshes (lodge, lens, seal) at the stab's centre
+  trailing edge.
+- **TWIN-BOOM-2 §4, the nudge counted twice.** The design bake writes
+  `wings[0].place.dx = -wgDx` so a headless archetype flies its nudge; the
+  join's measured `xLE` is taken off the DRAWN wing, nudge included, and
+  the resolver added `place.dx` on top — the frame's wing sat wgDx aft of
+  the drawn one. A measured `xLE` now zeroes `place.dx` in the same
+  fragment (the wings merge element-wise, `dy` survives); the headless
+  path, which runs no join, keeps it. The user's WIP carries wgDx 0.05 (50 mm of it); the fixture's
+  −0.30 was the doc's 0.3 m.
+- **TWIN-BOOM-2 §3, the pod's stale aft profile.** A twin-boom pod has no
+  tail post, and with no post the join never wrote `fuse.profile` /
+  `tailBot` / `tailTop` — the merge kept the LAST ones, the conventional
+  taper the pod was built from, and the frame's aft body was not the drawn
+  pod. On twin booms the pod's own aft extreme (the skin's z0, the aero
+  aft's tip) is the post now: on the user's WIP the profile ends at w 0.018,
+  yb 0.51 / yt 0.57 (a teardrop's tip) and the tail-gap gauge reads 48 mm
+  (dx 42, dy 24) where it read 106 before this pair of §3/§4 fixes.

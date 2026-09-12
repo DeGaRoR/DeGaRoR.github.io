@@ -918,6 +918,42 @@ function sites(scene, group, P) {
                      len: (t.z1 - t.z0) * k, thick: t.x1 - t.x0, pod: true };
       if (!out.beacon) out.beacon = site; else if (!out.beacon2) out.beacon2 = site;
     }
+    // THE TAIL LIGHT IS WHITE AND FACES AFT (G295; the table's own note said
+    // "tail white" and no lamp was ever drawn for it). On a fin it sits at
+    // the rudder's trailing edge high up — the aft-most vertex of the fin
+    // group's upper half; between twin booms at the stabiliser's centre
+    // trailing edge — the aft-most vertex of the stab group near x 0. A
+    // recessed lens on a lodge, its axis aft.
+    const aftMost = (obj, pick) => {
+      const v = new THREE.Vector3();
+      let best = null, yTop = -1e9, yLo = 1e9;
+      const pts = [];
+      obj.updateMatrixWorld(true);
+      obj.traverse(o => {
+        if (!o.isMesh || !o.geometry) return;
+        const pos = o.geometry.getAttribute('position');
+        if (!pos) return;
+        for (let i = 0; i < pos.count; i++) {
+          v.set(pos.getX(i), pos.getY(i), pos.getZ(i)).applyMatrix4(o.matrixWorld).applyMatrix4(inv);
+          pts.push([v.x, v.y, v.z]);
+          if (v.y > yTop) yTop = v.y;
+          if (v.y < yLo) yLo = v.y;
+        }
+      });
+      for (const q of pts) if (pick(q, yTop, yLo) && (!best || q[2] < best[2])) best = q;
+      return best;
+    };
+    let tailPt = null;
+    const booms = (typeof window !== 'undefined') && window.CAGE_BOOMS;
+    for (const ch of scene.children) {
+      const nm = ch.name || '';
+      if (booms && nm === 'cageLayer:stab')
+        tailPt = aftMost(ch, q => Math.abs(q[0]) < 0.06);
+      else if (!booms && nm === 'cageLayer:fin' && !tailPt)
+        tailPt = aftMost(ch, (q, yT, yL) => q[1] > yL + 0.55 * (yT - yL) && q[1] < yT - 0.08 * (yT - yL));
+    }
+    if (tailPt) out.navT = { p: [tailPt[0], tailPt[1], tailPt[2] + 0.012], ax: [0, 0, -1],
+                             col: 0xfff6e8, recess: true, r: 0.018 };
   }
   if (C && C.A) {
     const A = C.A;
@@ -1220,6 +1256,7 @@ PAGE.post = (ctx) => {
 
   // ---- OUTSIDE ------------------------------------------------------------
   if (S.navR) { lamp('nav', S.navR, S.navR.col); lamp('nav', S.navL, S.navL.col); }
+  if (S.navT) lamp('nav', S.navT, S.navT.col);       // G295: the tail's white
   if (S.beacon) lamp('beacon', S.beacon);
   if (S.beacon2) lamp('beacon', S.beacon2);         // G267: the other fin's
   if (S.wingLampR) {
