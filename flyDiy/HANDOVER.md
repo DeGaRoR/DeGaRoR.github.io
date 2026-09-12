@@ -41121,3 +41121,32 @@ lattice's lever, and with the cluster on the members carry none.
   stacks with their guys, the power house, the wood parted around it; the
   tram shed with the dirt road running into its opening.
 - Gates: HOUSE, VILLAGE green.
+
+## G322 — THE OLEO'S DRAG BRACE ROOTS ON THE BODY IT HAS (2026-09-13; the
+## fitment study: the twin-boom trike's nose leg 313 mm inside its cowl)
+
+- **What was wrong.** `legOleo` asked its drag brace for a station
+  `st.z + oleoBraceZ` — on the twin-boom trike 0.42 m ahead of a nose leg
+  that sits 0.36 m short of the firewall, i.e. PAST the end of the
+  airframe. The table's last row there is the open engine aperture, a ray
+  at that station hits nothing, and the honest "no skin here" read as
+  radius 0: the brace rooted on the centreline, its pad and its top 313 mm
+  inside the cowl (GATE CLIP's biggest line since G299 on the twin).
+- **The station is held on the body** (`_gear_gen.js legOleo`): never past
+  `AF.z1 − 0.12` — the pad's own half-length plus the aperture's dome (the
+  last 60 mm of the nose skin turn forward into the engine face, and a pad
+  ending there was 9.3 mm inside it). When that leaves under 0.15 m of
+  forward run, the brace trails AFT instead (`st.z − oleoBraceZ`, held off
+  `z0` the same way), as a nose leg's drag link does on most tricycles. A
+  fixture with no `z1` keeps the old station.
+- **GATE GEAR §7.4**: far from the end the pad is at its own station; a
+  leg 0.20 m short of the firewall keeps its pad inside `z1 − 0.06`; a leg
+  0.14 m short takes its brace aft. **GATE CLIP**: twin `edLegT` 0.2 mm
+  in / 0.7 mm proud; baseline 12 → 6 lines. What remains: the twin's flap
+  onto the wing-mounted main leg at full flap (31 mm — the flap span
+  crosses the leg's station; a ruling: cut the flap round the leg, move
+  the leg's station, or shorten the flap), and the IFR nav aerial in the
+  stock+ifr dorsal (5.9 mm — a peer's `finBand` in the access layer).
+- Screenshots: the twin's nose oleo with its brace on a pad at the cowl
+  joint; the stock tailwheel from three sides (the G304 walked-arc doubler
+  sits flat on the tail cone — the wrap the user had seen is gone).

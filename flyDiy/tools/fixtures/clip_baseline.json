@@ -1,10 +1,4 @@
 {
- "twin|rest|edLegT [gear]|INTO cageLayer:cowl": 313,
- "twin|+full|edLegT [gear]|INTO cageLayer:cowl": 313,
- "twin|-full|edLegT [gear]|INTO cageLayer:cowl": 313,
- "twin|flex|edLegT [gear]|INTO cageLayer:cowl": 313,
- "twin|tail+|edLegT [gear]|INTO cageLayer:cowl": 313,
- "twin|tail-|edLegT [gear]|INTO cageLayer:cowl": 313,
  "twin|+full|edLegL [gear]|INTO edSurf_flapR": 31,
  "twin|+full|edLegR [gear]|INTO edSurf_flapL": 30.8,
  "stock+ifr|rest|navAerial/centre [access, on body body]|INTO edFinSkin": 5.9,

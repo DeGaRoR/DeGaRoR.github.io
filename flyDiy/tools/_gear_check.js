@@ -505,6 +505,38 @@ for (const [k, nm] of [[0, 'beam'], [2, 'oleo']]) {
 }
 
 // ---------------------------------------------------------------------------
+// 7.4 THE OLEO'S DRAG BRACE ROOTS ON THE BODY IT HAS (G322)
+// ---------------------------------------------------------------------------
+// A nose oleo near the firewall asked its brace for a station past the end
+// of the airframe, where the table's last row is the open engine aperture;
+// the brace rooted on the centreline, 313 mm inside the cowl (GATE CLIP, the
+// twin-boom trike). The station is held 0.12 m short of z1 (the pad's own
+// half-length and the aperture's dome), and a leg with no forward run left
+// takes its brace AFT. Far from the end, the brace is where it always was.
+{
+  const braceOf = (z, braceZ) => {
+    const P = JSON.parse(JSON.stringify(P0));
+    const st0 = GP.gearStations(P)[0];
+    const st = Object.assign({}, st0, { leg: 2, z, x: 0 });
+    st.P = Object.assign({}, st.P, { oleoBrace: 1, oleoBraceZ: braceZ });
+    const bags = freshBags();
+    GG.legOleo(bags, AF, st.P, st, 1);
+    const g = readBags(bags);
+    return { alloy: g.alloy ? bbox(g.alloy) : null, steel: g.steel ? bbox(g.steel) : null };
+  };
+  const far = braceOf(AF.z0 + 0.5 * (AF.z1 - AF.z0), 0.42);
+  check(!!far.alloy && far.alloy.hi[2] > AF.z0 + 0.5 * (AF.z1 - AF.z0) + 0.42 - 0.06,
+    'oleo brace: far from the end, the brace pad is not at its own station');
+  const near = braceOf(AF.z1 - 0.20, 0.42);
+  check(!!near.alloy && near.alloy.hi[2] <= AF.z1 - 0.12 + 0.06 + 1e-6,
+    'oleo brace: a leg near the firewall still roots its brace past the airframe',
+    near.alloy ? `pad reaches z ${near.alloy.hi[2].toFixed(3)} vs z1 ${AF.z1.toFixed(3)}` : 'no alloy');
+  const tight = braceOf(AF.z1 - 0.14, 0.42);
+  check(!!tight.alloy && tight.alloy.lo[2] < AF.z1 - 0.14 - 0.42 + 0.06,
+    'oleo brace: with no forward run left the brace does not trail aft');
+}
+
+// ---------------------------------------------------------------------------
 // 8 THE TAILWHEEL IS ITS OWN ASSEMBLY
 // ---------------------------------------------------------------------------
 // G58.3: the castor fork YAWS for ground manoeuvring while the leaf spring

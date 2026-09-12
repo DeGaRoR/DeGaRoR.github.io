@@ -1449,10 +1449,25 @@ function legOleo(bags, AF, P, st, sgn) {
             [[0.008, 0], [0.008, 0.024]], 10, true);
   // drag brace back into the structure
   if (P.oleoBrace) {
-    const bTop = fitOn(AF, st, st.z + P.oleoBraceZ,
-                       aS * P.oleoAng * D2R * 0.6, -aS * hubIn);
+    // THE BRACE ROOTS ON THE BODY IT HAS (G322, the fitment study). The
+    // twin-boom trike's nose leg sits 0.36 m short of the firewall and its
+    // brace asked for a station 0.42 m ahead of it — past the end of the
+    // airframe, where the table's last row is the open engine aperture and
+    // a ray there hits nothing: the brace rooted on the centreline, 313 mm
+    // inside the cowl (GATE CLIP). The station is held on the body's last
+    // solid station; and when that leaves no run for a forward brace the
+    // brace trails AFT instead, the way a nose leg's drag link does on
+    // most tricycles. A fixture with no end keeps the old station. The
+    // margin is the pad's own half-length and the aperture's dome: the last
+    // 60 mm of the nose skin turn forward into the engine face.
+    let zB = st.z + P.oleoBraceZ;
+    if (AF.z1 != null && zB > AF.z1 - 0.12) {
+      zB = AF.z1 - 0.12;
+      if (zB - st.z < 0.15) zB = Math.max(AF.z0 != null ? AF.z0 + 0.06 : -Infinity, st.z - P.oleoBraceZ);
+    }
+    const bTop = fitOn(AF, st, zB, aS * P.oleoAng * D2R * 0.6, -aS * hubIn);
     const bp = off(bTop.p, bTop.n, 0.018);
-    padOn(bags, AF, st, st.z + P.oleoBraceZ, aS * P.oleoAng * D2R * 0.6,
+    padOn(bags, AF, st, zB, aS * P.oleoAng * D2R * 0.6,
           0.10, 0.09, { thick: 0.006 }, -aS * hubIn);
     taper(bags.steel, bp, off(trunn, dir, cylL * 0.72), 0.013, 0.010, 12);
   }
