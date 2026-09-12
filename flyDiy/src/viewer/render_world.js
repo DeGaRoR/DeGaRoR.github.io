@@ -167,6 +167,14 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // tell you. Two literals that must agree are a bug waiting for its first
   // edit, so there is one.
   const RIG = { skyCol: 0xbcd8f0, gndCol: 0x6a5a3c, hemi: 0.50, sun: 2.75, shadowMin: 105 };
+  // THE FOREST FLOOR (W0c.17): the ground under a canopy gets a fraction of
+  // the sky, and a terrain painted as if it stood in the open is what makes
+  // a stand float on it. The far tier already darkens the ground it stands
+  // in for; this is the same idea inside it - the domain forest mask,
+  // bilinear at 47 m a texel, so a stand's edge carries a soft apron of
+  // shade a few tens of metres wide. Not a shadow (the sun's shadow map does
+  // that inside its reach): an occlusion, which is why it does not move.
+  const uFloor = { value: 0.70 };
   const hemiLight = () => {
     const h = new THREE.HemisphereLight(C(RIG.skyCol), C(RIG.gndCol), RIG.hemi);
     h.groundColor.multiplyScalar(gb);      // occluded, like every bounce here
@@ -480,13 +488,14 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     const canopyHook = sh => {
       sh.uniforms.uFMask = { value: forestMask };
       sh.uniforms.uCanopy = { value: cnpTex };
+      sh.uniforms.uFloor = uFloor;
       sh.vertexShader = sh.vertexShader
         .replace('#include <common>', '#include <common>\nvarying vec3 vWP;\nvarying float vCD;')
         .replace('#include <project_vertex>', '#include <project_vertex>\n' +
           'vWP = (modelMatrix * vec4(position, 1.0)).xyz;\nvCD = -mvPosition.z;');
       sh.fragmentShader = sh.fragmentShader
         .replace('#include <common>', '#include <common>\nuniform sampler2D uFMask;\n' +
-          'uniform sampler2D uCanopy;\nvarying vec3 vWP;\nvarying float vCD;')
+          'uniform sampler2D uCanopy;\nuniform float uFloor;\nvarying vec3 vWP;\nvarying float vCD;')
         .replace('#include <map_fragment>', '#include <map_fragment>\n' +
           // same uv convention as the outer ring's own texture: v runs the other
           // way down z, and the mask canvas is built in that same pass
@@ -502,7 +511,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           // just texture on grass, it is DARKER than the grass it stands on,
           // and a mean-preserving multiply left the 3 km hills reading as
           // pasture next to the geometry they replaced.
-          'diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * cC * 1.45, fFar);');
+          'diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * cC * 1.45, fFar);\n' +
+          // the floor under the near canopy, handing over to the far tier
+          'diffuseColor.rgb *= mix(1.0, uFloor, fM * (1.0 - fFar));');
     };
     // shared close-range grain hook (W13.2): uvScale sets tiles/uv-unit so
     // materials with different uv extents get the same on-ground density
@@ -1026,7 +1037,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             'vImpD = dCam;',
             'if (dCam < uNearB - uFadeW * 0.5 || fade <= 0.0) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);',
           ].join('\n'));
-        sh.fragmentShader = sh.fragmentShader
+        sh.fragmentShader = ('#ifdef SHADOWMAP_TYPE_PCF_SOFT\n#undef SHADOWMAP_TYPE_PCF_SOFT\n#define SHADOWMAP_TYPE_PCF\n#endif\n' + sh.fragmentShader)
           .replace('#include <common>', '#include <common>\n' +
             'uniform float uG, uILit, uLeaf, uWrap, uSSS, uSSSP, uNearB, uFadeW, uIGain, uISolid, uICut, uTile;\nuniform sampler2D uNrm;\nvarying vec3 vImpDir;\nvarying float vImpD;\n' +
             // the decode, written out: <map_fragment> and its mapTexelToLinear
@@ -1825,6 +1836,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           const perSer = SH.series.map((S, si) => cnt[si] ? {
             byRung: rungsOf(S).map(R => R.parts.map(pq => {
               const m = new THREE.InstancedMesh(pq.geo, pq.mat, cnt[si]);
+              // THE FILL CASTS (W0c.17). "Canopies only - no trunks, no
+              // shadows" was the cone's rule, and the fill is the tree line
+              // now: a stand that shades nothing floats. Its own banded
+              // depth material, like the woodland's; the shadow frustum
+              // bounds what it costs.
+              if (pq.depth) { m.castShadow = true; m.receiveShadow = true; m.customDepthMaterial = pq.depth; }
               // colour buffer at capacity BEFORE parking - see the woodland
               m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cnt[si] * 3).fill(1), 3);
               m.count = 0; m.visible = false; return m; })),
@@ -2621,7 +2638,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     sunI: RIG.sun, sunCol: hexOf(sun.color, SUNC), hemi: RIG.hemi,
     hemiSky: hexOf(hemi.color, RIG.skyCol), hemiGnd: RIG.gndCol,
     exposure: (renderer && renderer.toneMappingExposure) || 1,
-    env: 'dome', shadowMin: RIG.shadowMin,
+    env: 'dome', shadowMin: RIG.shadowMin, floor: uFloor.value,
     shadowMap: (sun.shadow && sun.shadow.mapSize) ? sun.shadow.mapSize.x : 1024,
     dome: (worldSky && worldSky.material.uniforms) ? {
       top: hexOf(worldSky.material.uniforms.uTop.value, 0x3f7fbe),
@@ -2687,6 +2704,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     if (hemi.color && hemi.color.setHex) { hemi.color.setHex(R.hemiSky); hemi.groundColor.setHex(R.hemiGnd).multiplyScalar(gb); }
     if (renderer) renderer.toneMappingExposure = R.exposure;
     RIG.shadowMin = R.shadowMin;
+    if (R.floor !== undefined) uFloor.value = R.floor;
     if (sun.shadow && sun.shadow.mapSize && sun.shadow.mapSize.x !== R.shadowMap) {
       sun.shadow.mapSize.set(R.shadowMap, R.shadowMap);
       if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }

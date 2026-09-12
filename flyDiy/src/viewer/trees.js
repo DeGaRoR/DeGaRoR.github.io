@@ -286,7 +286,15 @@
       sh.vertexShader = 'attribute float aoV;\nvarying float vAoV;\n' +
         sh.vertexShader.replace('#include <begin_vertex>',
           '#include <begin_vertex>\nvAoV = aoV;');
-      sh.fragmentShader = 'uniform float uLeaf, uWrap, uSSS, uSSSP, uAoBake, uBakeAlb;\n' +
+      // A LEAF READS THE SHADOW MAP WITH FOUR TAPS, NOT SOFT. The renderer's
+      // PCFSoft (the aeroplane's, kept) costs ~16 taps a fragment, and a
+      // dense stand on the supersampled tier is the most fragments the frame
+      // has: measured 117 ms with it, 54 with plain PCF, on a frame that was
+      // 49 before the fill received at all (tools/tree_perf.js). The define
+      // comes from the renderer's prefix; undefining it here, before the
+      // chunk that reads it, is the material's own choice.
+      sh.fragmentShader = '#ifdef SHADOWMAP_TYPE_PCF_SOFT\n#undef SHADOWMAP_TYPE_PCF_SOFT\n#define SHADOWMAP_TYPE_PCF\n#endif\n' +
+        'uniform float uLeaf, uWrap, uSSS, uSSSP, uAoBake, uBakeAlb;\n' +
         'uniform float uHue, uSat, uLight, uCut, uSharp;\nvarying float vAoV;\n' +
         sh.fragmentShader
           .replace('#include <map_fragment>',

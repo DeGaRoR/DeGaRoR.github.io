@@ -322,6 +322,25 @@ the bench's way (`proportion` per collection, split over its subjects; LOLIPOP
 alpha-to-coverage — and ONE atlas per subject and series shared by both
 layers (the woodland and the fill had each baked and disposed their own).
 
+**Anchored (W0c.17).** The fill casts and receives (its meshes were still
+"canopies only — no shadows" from the cone era, and a tree line that shades
+nothing floats); the ground under the near canopy is darkened through the
+domain forest mask (`uFloor`, 0.70, bilinear at 47 m a texel — a soft apron of
+occlusion at every stand edge, handing over to the far tier's canopy texture);
+and the tree materials read the shadow map with plain 4-tap PCF while the
+renderer keeps PCF-soft for the aeroplane — soft sampling on every leaf
+fragment of the supersampled tier was 117 ms against 54.
+
+**The benchmark: `node tools/tree_perf.js`.** Headless Chrome on this GPU, the
+densest stand at 110 m, the rig row fixed, the streamer SETTLED (no chunk
+generated for 60 frames — every earlier table in this file was taken while it
+was still working, and overstated), a warm-up pass per tier, then 120 frames.
+RTX 3080, 1920×1080, NG 128, alps row, W0c.17: **Off (4× MSAA) 31 ms · Smooth
+(8×) 36 ms · Smoothest (8× + 1.25×) 43 ms** median; ~15 500 near instances,
+~170 000 impostors, 37 M triangles; the raw scene without the AA pass is under
+5 ms. `--probe "<js>"` runs an ablation first, `--compare <json>` prints deltas;
+the JSON lands in `tools/perf/`. The AA tier is on the F8 panel.
+
 **Not done.** Impostors cast no shadow (the bench's own depth material for the
 quad; matters only when the bands are pulled inside the shadow reach). The
 `impa` / `implight` per-collection numbers are not in the payload (one gain,

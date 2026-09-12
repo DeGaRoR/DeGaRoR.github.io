@@ -1,0 +1,46 @@
+{
+ "date": "2026-09-12T00:56:30.075Z",
+ "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+ "rig": "alps",
+ "ng": 128,
+ "stand": [
+  1663,
+  -1361
+ ],
+ "settled": true,
+ "rows": [
+  {
+   "tier": "off",
+   "median": 31.3,
+   "p90": 39.5,
+   "world": 0.3,
+   "render": 24.5,
+   "calls": 882,
+   "tris": 37126123,
+   "near": 15804,
+   "impostors": 169985
+  },
+  {
+   "tier": "msaa",
+   "median": 36.3,
+   "p90": 48.3,
+   "world": 0.3,
+   "render": 30.5,
+   "calls": 1,
+   "tris": 2,
+   "near": 15590,
+   "impostors": 169914
+  },
+  {
+   "tier": "full",
+   "median": 43.3,
+   "p90": 53.2,
+   "world": 0.3,
+   "render": 37.2,
+   "calls": 1,
+   "tris": 2,
+   "near": 15432,
+   "impostors": 169914
+  }
+ ]
+}
