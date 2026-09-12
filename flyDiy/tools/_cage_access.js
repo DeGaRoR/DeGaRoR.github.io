@@ -299,6 +299,43 @@ function rodSite(row, P, needs, atSL, atLV, bags) {
   return { p, n, sL: atSL, sC: 0, st: 0, lv: 0, mat: 'boomTube', side: 'centre' };
 }
 
+// THE TWIN BOOMS (G278, the user: "I'd still like for the accessories to
+// also get onto the booms (inspection traps, possible lights, etc.)"). The
+// wing layer publishes the drawn tubes (CAGE_BOOMS, scene metres: the track,
+// the root and tip stations, the axis line and the half-sizes along it), and
+// a row on them names a station in metres from the ROOT and a place round
+// the tube — crown, keel or the outboard flank. 'both' is one fitting a
+// boom, 'star' / 'port' the one side. A rod-style twin boom takes the rod's
+// split collar; a lofted one is a skin and the form sits on it.
+function boomSites(row, P, needs, atSL, atLV, bags, want) {
+  const TB = (typeof window !== 'undefined') && window.CAGE_BOOMS;
+  if (!TB || !needs || !needs.booms) return [];
+  const from = needs.booms.from || 0;
+  const zRaw = TB.zRoot - (atSL - from);
+  const z = Math.max(TB.zTip + 0.06, Math.min(TB.zRoot - 0.06, zRaw));
+  const yA = TB.yAx(z), h = TB.hAt(z), r = TB.rAt(z);
+  const sides = want === 'both' ? [1, -1] : want === 'port' ? [-1] : [1];
+  const out = [];
+  for (const s of sides) {
+    let p, n;
+    if (atLV === 'keel') { p = [s * TB.x, yA - h, z]; n = [0, -1, 0]; }
+    else if (atLV === 'flank') { p = [s * (TB.x + r), yA, z]; n = [s, 0, 0]; }
+    else { p = [s * TB.x, yA + h, z]; n = [0, 1, 0]; }
+    if (!TB.lofted && bags && bags.metal && K && K.revolve) {
+      const ctr = [s * TB.x, yA, z];
+      K.revolve(bags.metal, [ctr[0], ctr[1], ctr[2] - 0.012], [0, 0, 1],
+        [[r + 0.0008, 0], [r + 0.0045, 0.0015], [r + 0.0045, 0.0225],
+         [r + 0.0008, 0.024]], 20, true);
+      for (const q of [-1, 1])
+        K.revolve(bags.metal, [ctr[0] + q * (r + 0.0030), ctr[1], ctr[2]], [q, 0, 0],
+          [[0.0060, 0], [0.0060, 0.0090], [0.0035, 0.0110]], 10, true);
+    }
+    out.push({ p, n, sL: atSL, sC: 0, st: 0, lv: 0, mat: TB.lofted ? 'boomSkin' : 'boomTube',
+               side: s > 0 ? 'star' : 'port' });
+  }
+  return out;
+}
+
 // ---- build ----------------------------------------------------------------
 let group = null;
 const dispose = o => {
@@ -459,6 +496,9 @@ PAGE.post = ctx => {
     } else if (row.on === 'rod') {
       const one = rodSite(row, P, R, atSL, atLV, bags);
       sites = one ? [one] : [];
+    } else if (row.on === 'boom') {
+      const want = typeof row.side === 'function' ? row.side(R) : row.side;
+      sites = boomSites(row, P, R, atSL, atLV, bags, want || 'both');
     } else if (row.on === 'wing') {
       if (!wingTried) { wingTried = true; wingF = wingField(scene); }
       sites = wingF ? SITE.accessSites(wingF, {
@@ -482,11 +522,52 @@ PAGE.post = ctx => {
         snap: row.snap, side: row.side,
       });
     }
+    // G278: A CROWN FITTING LOOKS FOR THE TOP OF THE AEROPLANE (the user:
+    // "these things should always look for the top of the airplane, by
+    // default the cabin or passenger pillars, which are always there"). Its
+    // own station had nothing to bolt to — a twin-boom pod's deck ends at
+    // the bulkhead — so it takes the nearest crown RING aft of the
+    // windscreen that is real skin and not already under another crown
+    // fitting, the ask's own side of the cabin when there is one.
+    // ...and NOT UNDER THE WING: on a high wing the roof between the root's
+    // leading and trailing edges is inside the centre section, and an
+    // aerial there is an aerial nobody can see (measured: the comm aerial
+    // 0.38 m ahead of the trailing edge, under the carry-through)
+    // (the wing's edges are read in the cage's own frame, as CAGE_BOOMS reads
+    // them; a high or parasol wing is the one whose root sits over the roof)
+    const WG = (typeof window !== 'undefined') && window.CAGE_WING;
+    const wingHigh = [0, 3].includes(Math.round(+P.wgPos || 0));
+    const shadowed = pm => {
+      if (!wingHigh || !WG || !WG.leAt || !WG.teAt) return false;
+      const le = WG.leAt(0), te = WG.teAt(0);
+      if (!le || !te) return false;
+      return pm[2] > te.z && pm[2] < le.z;
+    };
+    if (row.on === 'body' && atLV === 'crown')
+      sites = sites.filter(s => !shadowed([s.p[0] * K2, s.p[1] * K2, s.p[2] * K2]));
+    if (!sites.length && row.on === 'body' && atLV === 'crown' && SITE.crownRings) {
+      const rings = SITE.crownRings(mesh, 1)
+        .filter(h => h.sL * K2 > 0.05)
+        .filter(h => !shadowed([h.p[0] * K2, h.p[1] * K2, h.p[2] * K2]))
+        .filter(h => !placed.some(q => q.on === 'body' && q.n && q.n[1] > 0.7 &&
+                                       Math.abs(q.p[2] - h.p[2] * K2) < 0.25));
+      if (rings.length) {
+        const ask = atSL / K2;
+        let best = rings[0];
+        for (const h of rings) if (Math.abs(h.sL - ask) < Math.abs(best.sL - ask)) best = h;
+        sites = [Object.assign({}, best, { side: 'centre' })];
+      }
+    }
     if (!sites.length) { unplaced.push(row); continue; }
 
     for (const s of sites) {
       const pm = [s.p[0] * K2, s.p[1] * K2, s.p[2] * K2];
-      const F = frameAt(pm, s.n);
+      // G278: AN AERIAL STANDS VERTICAL (the user: "not even pointing straight
+      // up"). A blade or a mast on a sloping deck follows the horizon, not
+      // the skin — the base sits on the skin, the fitting points up (or down
+      // under the keel); every other form keeps the surface's own normal.
+      const upright = (atLV === 'crown' || atLV === 'keel') && /Aerial|Beacon/.test(String(row.form));
+      const F = frameAt(pm, upright ? [0, atLV === 'keel' ? -1 : 1, 0] : s.n);
       // the conforming surface: ask the contract where the skin is a little
       // way off in each direction, so a big plate follows the section instead
       // of standing off at its corners

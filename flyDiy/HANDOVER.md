@@ -39124,3 +39124,90 @@ carries fore / aft, in / out and up / down for the twin booms.
   terrain as ground) - a picket under this sky had been as bright on its
   dark side as its lit one.
 - Gates: HOUSE, VILLAGE (both --selftest) green.
+
+## G278 — THE FITTINGS REACH THE TWIN BOOMS, A CROWN FITTING LOOKS FOR THE
+## TOP OF THE AEROPLANE, AND THE TWIN-BOOM MODEL REVIEWED (2026-09-12, the
+## user: "do a critical review of our twin boom model ... I'd still like for
+## the accessories to also get onto the booms (inspection traps, possible
+## lights, etc.). Also, the 'shark fin' is positioned on the nose, and not
+## even pointing straight up. These things should always look for the top of
+## the airplane, by default the cabin or passenger pillars")
+
+**The shark fin on the nose — three faults, all measured on the user's
+build.** (1) The welded cage keeps ORPHAN vertices (a pass that cut or
+replaced faces leaves the old corners, field records and all): eleven of
+them 4–6 m ahead of the nose, |x| 0, stale stations 20/24 and an sL that
+sorted them to the AFT end of the crown chain — the comm aerial's station
+bracketed between the pod's last ring and one of those and the blade stood
+on the nose cap. `spineOf` now walks only vertices a face uses. (2) The
+station lookup (`crownSite`, key 2) CLAMPED an off-chain station to
+list[0] — the nose — where the metres lookup refuses; it refuses too now
+(half a station of slack). (3) An aerial followed the skin's normal, so
+on a sloping deck it leaned; blades, masts and beacons on the crown or
+keel now stand VERTICAL on their base plate (`upright` in the placer),
+every other form keeps the surface's own normal.
+
+**A crown fitting looks for the top of the aeroplane.** When a body crown
+row's own station has nothing to bolt to, `_cage_access` takes the nearest
+crown RING (`SITE.crownRings`: integer stations of the spine that are real
+skin and face up) that is aft of the windscreen datum, not already under
+another crown fitting and NOT UNDER THE WING — on a high or parasol wing
+the roof between the root's leading and trailing edges is inside the
+centre section (measured: the first fallback put the aerial 0.38 m ahead
+of the trailing edge, under the carry-through). On the user's build the
+whole cabin is under the wing and the pod ends at the bulkhead, so the
+comm aerial has no deck at all there — it goes on the port boom.
+
+**The fittings on the booms.** The needs record carries `booms` (from 0,
+the tube's length, its track) and `FIT_SURFACES` gained `boom`; `boomSites`
+reads the drawn tube (CAGE_BOOMS: axis line, half-sizes along it) and puts
+a row's station in metres from the ROOT on the crown, the keel or the
+outboard flank, one a boom for 'both' or the side asked; a rod-style twin
+boom takes the rod's split collar, a lofted one is a skin the form sits
+on. Rows: the comm aerial on the PORT boom's crown (0.45), the nav aerial
+on the STARBOARD (0.35), the transponder under the starboard (0.18), the
+beacon on the starboard crown (0.60), a tail inspection hatch on EACH
+boom's outboard flank (0.78), a tie-down under EACH boom's tail (0.86).
+On the user's build: 0 unplaced (was 3), six boom fittings.
+
+**THE CRITICAL REVIEW — the twin-boom model as it stands.**
+
+Physics, clean: the booms are a prism truss inside exactly the drawn tube
+(root, taper, oval, inclination, height and station off the wing), tied
+to both spars; the stab is one continuous bridge boom to boom with the
+tagged HT nodes its own; each fin a P4 truss on its boom; GATE LOAD's twin
+rows hold (stab −1.8 % / −7.1 %); the tail-arm sag 14 mm at the 1 g share;
+the drawn tail is measured whole (areas, chords, hinges, ventral area in
+Sv, the stab's own span and height); the game's tail assembly moves as
+one body on the stab's node. Physics, NOT clean — in order of weight:
+1. **Boom stiffness is a budget, not a measurement.** The tube factor is
+   capped at 8 by the substep budget (2 m bays, 200 substeps); a real
+   monocoque boom is stiffer than the truss stands for, and the prism's
+   TORSION over 2 m bays is what a fin's side load sees — the `tube`
+   element (one member with EI/GJ) is the honest fix and is owed.
+2. **The fin's side stiffness is unmeasured** (60–950 mm across the fleet
+   on the trestle rig, a point load at one apex node — artefact or real,
+   nobody knows yet); at ultimate the P4 fin folds to the boom (−100 %,
+   reported not gated, as the conventional's −72 % is).
+3. **Substeps 127 on the user's build against FLEX's 130 bound**: the
+   next node added to a twin build trips the gate.
+4. **Mass**: the booms are billed as fuselage material (right), but the
+   boom of a cage build reads ~1.7× a real one (open decision).
+5. **The pod's aft profile is stale on a twin boom** (§3): the merge keeps
+   the last conventional taper — the frame's aft body is not the drawn pod.
+6. **`place.dx` counted twice** (§4): the frame's wing 0.3 m aft of the
+   drawn one; most of the tail-gap gauge's 65 mm x.
+7. **Drag**: the booms' own wetted area is not in the drag build-up (cut 1's
+   note still stands); the ventral fins are area only.
+
+Visual, clean: the loft (section, ends, caps, collar), outward and lit,
+one Boom part with a rim, the body's paint, up/down and fore/aft, the stab
+reaching the fins, the ventral plate in the belly with its own finish, the
+fittings above. Visual, not clean: no root fillet where the fin meets the
+boom; a boom is ONE rigid body between the wing and the tail anchor (it
+does not bend in flight); `topFuselage` on a mid/low wing does not close
+the cabin over the wing; the pod's aero aft is a cone, not the drawn
+profile the physics should also read; a twin boom carries THREE beacons
+(the light layer's on each fin plus the access row's on the boom — the
+conventional's pair, one more) — a ruling on which is the real one is owed;
+the tail navigation light's home on a twin boom has not been checked.

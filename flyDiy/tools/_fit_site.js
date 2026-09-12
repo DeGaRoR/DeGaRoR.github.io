@@ -362,12 +362,21 @@ function spineOf(mesh, sign) {
   const key = sign > 0 ? 'up' : 'dn';
   if (rec[key]) return rec[key];
   const A = mesh.A, V = mesh.V;
+  // G278: ONLY A VERTEX A FACE USES IS ON THE SPINE. The welded mesh keeps
+  // orphan vertices (a pass that cut or replaced faces leaves the old
+  // corners behind, field records and all) — measured on the user's build:
+  // eleven of them 4-6 m AHEAD of the nose, |x| 0, with stale stations 20
+  // and 24 and an sL that put them at the AFT end of the sorted chain. The
+  // comm aerial's station bracketed between the pod's last ring and one of
+  // those, and the fitting stood on the nose cap.
+  const used = new Uint8Array(A.length);
+  for (const f of mesh.F) if (f && f.v) for (const j of f.v) if (j < used.length) used[j] = 1;
   // the local half-width, binned along the body, so "near the centreline" is a
   // fraction of the aeroplane THERE rather than an absolute
   const BIN = 0.25, half = new Map();
   for (let i = 0; i < A.length; i++) {
     const a = A[i];
-    if (!a) continue;
+    if (!a || !used[i]) continue;
     const b = Math.round(a[0] / BIN);
     const ax = Math.abs(V[i][0]);
     if (!(half.get(b) >= ax)) half.set(b, ax);
@@ -375,7 +384,7 @@ function spineOf(mesh, sign) {
   const best = new Map();
   for (let i = 0; i < A.length; i++) {
     const a = A[i];
-    if (!a) continue;
+    if (!a || !used[i]) continue;
     const hw = half.get(Math.round(a[0] / BIN)) || 0;
     if (hw <= 1e-6 || Math.abs(V[i][0]) > hw * 0.10) continue;
     // AND IT MUST BE ON THE RIGHT SIDE OF THE WAIST. sC is signed — zero on
@@ -443,6 +452,16 @@ function crownSite(mesh, sL, sign, key, want) {
     if (target < first - CROWN_MAX_OFF || target > last + CROWN_MAX_OFF)
       return null;
   }
+  // G278: THE STATION LOOKUP REFUSES TOO. A snapped station off the chain's
+  // range clamped to list[0] — the NOSE — and the comm aerial of a twin-boom
+  // pod (its deck ends at the bulkhead) stood on the nose cap, tilted with
+  // it (the user: "the shark fin is positioned on the nose, and not even
+  // pointing straight up"). Half a station of slack, no more.
+  if (k === 2) {
+    let lo2 = Infinity, hi2 = -Infinity;
+    for (const i of list) { lo2 = Math.min(lo2, A[i][2]); hi2 = Math.max(hi2, A[i][2]); }
+    if (target < lo2 - 0.5 || target > hi2 + 0.5) return null;
+  }
   const lerp = (u, v2) => u + (v2 - u) * t;
   const near = t < 0.5 ? ia : ib;
   const a = A[ia], b = A[ib];
@@ -473,6 +492,25 @@ function crownSite(mesh, sL, sign, key, want) {
   }
   if (fallback) { hit.n = fallback.n; hit.mat = fallback.m; }
   return hit;
+}
+
+// G278: THE CROWN'S RINGS — every station of the spine that is a real ring
+// (an integer st) and real skin, as sites, sL ascending. What a crown fitting
+// falls back to when its own station has nothing to bolt to: the top of the
+// aeroplane, which is the cabin's and the passenger bays' pillars — always
+// there, whatever the tail does.
+function crownRings(mesh, sign) {
+  const A = mesh.A;
+  const out = [];
+  for (const i of spineOf(mesh, sign)) {
+    const st = A[i][2];
+    if (Math.abs(st - Math.round(st)) > 1e-3) continue;
+    const h = crownSite(mesh, A[i][0], sign);
+    // real skin, and FACING the way the chain does — the aft ring's crown
+    // vertex is the bulkhead's edge, whose face looks aft, not up
+    if (h && !NOT_SKIN.has(h.mat) && h.n[1] * sign > 0.3) out.push(h);
+  }
+  return out;
 }
 
 // THE BAND HAS TO WIDEN, and the reason is the boom. Subdivision follows the
@@ -783,7 +821,7 @@ function siteToAF(AF, site) {
 }
 
 const API = { accessSites, fieldHits, siteToAF, snapTo, sectionCY, frameAt,
-              sectionArc, AX_RAIL, crownSite, geoMesh,
+              sectionArc, AX_RAIL, crownSite, crownRings, geoMesh,
               NOT_SKIN, AX_METRIC, AX_STRUCT, fieldScan, fieldIndexQuery };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = API;

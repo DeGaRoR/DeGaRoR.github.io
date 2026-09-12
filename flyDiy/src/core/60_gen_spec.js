@@ -687,9 +687,13 @@ const GEN_ACCESS = {
     // the boom keel is straight and empty.
     // ...AND NONE AT ALL ON A ROD (G189): a bare tube has no fabric to lace
     // a ring into and nothing inside it to inspect — the cables run outside.
-    need: R => (R.material === 'carbon' || R.rod) ? 0 : 1,
-    at: R => ({ sL: R.tailArm * 0.62, lv: 'keel' }),
-    snap: 'bay', side: 'centre',
+    need: R => (R.material === 'carbon' || R.rod) ? 0 : (R.booms ? 2 : 1),
+    // G278: on twin booms, one a boom on the outboard flank, where the cable
+    // runs to the fin and the elevator are reached
+    on: R => R.booms ? 'boom' : 'body',
+    at: R => R.booms ? { sL: R.booms.len * 0.78, lv: 'flank' }
+                     : { sL: R.tailArm * 0.62, lv: 'keel' },
+    snap: 'bay', side: R => R.booms ? 'both' : 'centre',
     form: R => R.material === 'tubeFabric' ? 'ringLace' : 'plateOval',
     size: { w: 0.130, h: 0.130 },
   },
@@ -796,8 +800,13 @@ const GEN_ACCESS = {
     // the panel arc, session 2: fitted when the fit carries a COM (the tier's
     // answer or the player's), not by the tier's name
     need: R => (R.avionics && R.avionics.com) ? 1 : 0,
-    at: R => ({ sL: R.cabinAft + 0.45, lv: 'crown' }),
-    snap: 'ring', side: 'centre',
+    // G278: on twin booms the pod's deck is the wing's shadow and ends at
+    // the bulkhead — the blade goes on the PORT boom's crown (the nav
+    // aerial takes the starboard one)
+    on: R => R.booms ? 'boom' : 'body',
+    at: R => R.booms ? { sL: R.booms.len * 0.45, lv: 'crown' }
+                     : { sL: R.cabinAft + 0.45, lv: 'crown' },
+    snap: 'ring', side: R => R.booms ? 'port' : 'centre',
     form: 'bladeAerial', size: { h: 0.230, c: 0.090, t: 0.010 },
   },
   navAerial: {
@@ -807,10 +816,11 @@ const GEN_ACCESS = {
     // ON A ROD (G189) it is clamped to the tube's crown, a third of the way
     // down it — `on` picks the surface per aeroplane, and the rod placer
     // puts a split collar under whatever form the row draws
-    on: R => R.rod ? 'rod' : 'body',
+    on: R => R.rod ? 'rod' : R.booms ? 'boom' : 'body',
     at: R => R.rod ? { sL: R.rod.from + R.rod.len * 0.35, lv: 'crown' }
-                   : { sL: R.tailArm * 0.55, lv: 'crown' },
-    snap: 'ring', side: 'centre',
+           : R.booms ? { sL: R.booms.len * 0.35, lv: 'crown' }        // G278: on the starboard boom
+                     : { sL: R.tailArm * 0.55, lv: 'crown' },
+    snap: 'ring', side: R => R.booms ? 'star' : 'centre',
     // `foot` is what it OCCUPIES, which is not what it spans. The wire runs
     // 1.2 m aft to the fin and passes clean over anything under it, so
     // clearance is a question about the MAST — 140 mm of insulator and base.
@@ -830,11 +840,12 @@ const GEN_ACCESS = {
     // cabin instead, it is clear of the drain on every fuselage, and it is
     // also where a real one is: under the baggage bay, behind the spar.
     need: R => (R.avionics && R.avionics.xpdr) ? 1 : 0,
-    on: R => R.rod ? 'rod' : 'body',          // G189: clamped under the tube
+    on: R => R.rod ? 'rod' : R.booms ? 'boom' : 'body',   // G189: clamped under the tube
     at: R => R.rod ? { sL: R.rod.from + R.rod.len * 0.18, lv: 'keel' }
-                   : { sL: R.cabinAft + (R.tailArm - R.cabinAft) * 0.18,
-                       lv: 'keel' },
-    snap: 'bay', side: 'centre',
+           : R.booms ? { sL: R.booms.len * 0.18, lv: 'keel' }         // G278: under the starboard boom
+                     : { sL: R.cabinAft + (R.tailArm - R.cabinAft) * 0.18,
+                         lv: 'keel' },
+    snap: 'bay', side: R => R.booms ? 'star' : 'centre',
     form: 'bladeAerial', size: { h: 0.075, c: 0.050, t: 0.008 },
   },
   beacon: {
@@ -851,11 +862,12 @@ const GEN_ACCESS = {
     // on a short-coupled aeroplane, where the roof is glazed and the fitting
     // is refused. Measured from the back of the cabin to the tailpost it is
     // always on the turtledeck, which is where a beacon goes.
-    on: R => R.rod ? 'rod' : 'body',          // G189: clamped on the tube
+    on: R => R.rod ? 'rod' : R.booms ? 'boom' : 'body',   // G189: clamped on the tube
     at: R => R.rod ? { sL: R.rod.from + R.rod.len * 0.60, lv: 'crown' }
-                   : { sL: R.cabinAft + (R.tailArm - R.cabinAft) * 0.60,
-                       lv: 'crown' },
-    snap: 'free', side: 'centre',
+           : R.booms ? { sL: R.booms.len * 0.60, lv: 'crown' }        // G278: on the starboard boom
+                     : { sL: R.cabinAft + (R.tailArm - R.cabinAft) * 0.60,
+                         lv: 'crown' },
+    snap: 'free', side: R => R.booms ? 'star' : 'centre',
     form: 'lightBeacon', size: { d: 0.062, h: 0.055 },
   },
 
@@ -906,10 +918,11 @@ const GEN_ACCESS = {
     // layers. Cross-layer clearance is not solved here.
     // ON A ROD (G189) the ring hangs off a clamp on the tube's underside,
     // forward of the tailwheel's own clamp
-    on: R => R.rod ? 'rod' : 'body',
+    on: R => R.rod ? 'rod' : R.booms ? 'boom' : 'body',
     at: R => R.rod ? { sL: R.rod.from + R.rod.len * 0.80, lv: 'keel' }
-                   : { sL: R.tailArm * 0.86, lv: 'keel' },
-    snap: 'ring', side: 'centre',
+           : R.booms ? { sL: R.booms.len * 0.86, lv: 'keel' }         // G278: one under each boom
+                     : { sL: R.tailArm * 0.86, lv: 'keel' },
+    snap: 'ring', side: R => R.booms ? 'both' : 'centre',
     form: 'ringTiedown', size: { d: 0.044, t: 0.008 },
   },
 };
@@ -1053,6 +1066,15 @@ function genAccessNeedsCage(P, extra) {
       ? (() => { const from = (P.pilotLen || 1.6) + (P.paxLen || 0) * bays;
                  return { from, len: Math.max(0.5, (P.boomLen || 2.2)),
                           r: (P.rodD || 0.12) * 0.5 }; })()
+      : null,
+    // G278: THE TWIN BOOMS (the user: "I'd still like for the accessories
+    // to also get onto the booms"). Two tubes off the wing's trailing edge:
+    // a row that lives on them says so through `on` ('boom'), its station
+    // in metres along the tube from its ROOT (the boom placer reads the
+    // drawn tube, CAGE_BOOMS). Not the rod: a lofted boom is a skin, so a
+    // hatch is let into it; a rod-style one takes the collar.
+    booms: (+P.boomTwin)
+      ? { from: 0, len: Math.max(0.8, (P.boomLen || 3.0)), x: (P.boomX || 1.2) }
       : null,
     semispan:  (P.wgSpan || 10) * 0.5,
     deckArc:   deck * 0.94,
