@@ -354,6 +354,17 @@ it costs nothing while the bands keep the impostors outside it. With the bands
 at 60 m the far stand casts onto the meadow and the two tiers are hard to tell
 apart.
 
+**The far cascade (W0c.19).** The sun's shadow map reaches ±105–540 m around
+the aircraft and the impostor band starts at 450 m, so no caster could make the
+far stand shade anything. A second cascade, narrow on purpose: an orthographic
+depth pass of the impostor QUADS alone through their sun-facing depth material,
+±1400 m about the eye into a 2048² target (1.4 m a texel), every fourth frame
+or on 20 m of movement, cleared to white (packed depth 1 = nothing casts — the
+renderer's black clear decodes to depth 0 and shaded the whole terrain), and
+sampled by the TERRAIN alone with four taps on the direct term. Proven from
+900 m: every tree an impostor, and the isolated ones and the stand edges cast
+onto the meadow. `farShadow` on the rig row and the panel.
+
 **Not done.** The `impa` / `implight` per-collection numbers are not in the
 payload (6 / 6.5 and 1 in the tuning: one gain, one lit, for all). The boot rig
 is still `sunset`; `alps` is two clicks on the panel and is the row the trees

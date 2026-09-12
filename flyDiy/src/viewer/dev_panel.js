@@ -103,6 +103,8 @@
       () => rig().get().env, v => rig().set({ env: v })));
     root.appendChild(slider('shadow reach', 105, 540, 5, () => rig().get().shadowMin, v => rig().set({ shadowMin: v }), v => '±' + v + ' m'));
     root.appendChild(slider('forest floor', 0.2, 1, 0.02, () => rig().get().floor, v => rig().set({ floor: v })));
+    root.appendChild(select('far shadows', [['1', 'on (impostor cascade)'], ['0', 'off']],
+      () => (rig().get().farShadow === false ? '0' : '1'), v => rig().set({ farShadow: v === '1' })));
     root.appendChild(select('shadow map', [['1024', '1024'], ['2048', '2048'], ['4096', '4096']],
       () => rig().get().shadowMap, v => rig().set({ shadowMap: +v })));
 

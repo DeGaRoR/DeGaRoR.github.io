@@ -184,6 +184,70 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // shade a few tens of metres wide. Not a shadow (the sun's shadow map does
   // that inside its reach): an occlusion, which is why it does not move.
   const uFloor = { value: 0.70 };
+  // THE FAR CASCADE (W0c.19). The sun's shadow map reaches ±105-540 m around
+  // the aircraft, and the impostor band starts at 450 m: whatever the
+  // impostor's own depth material does, the map cannot see it, and the far
+  // stand shaded nothing - the user's screenshot. A second cascade, cheap
+  // because it is narrow: an orthographic depth pass of the impostor QUADS
+  // alone (two triangles each, through their sun-facing depth material)
+  // over ±1400 m about the eye, into a 2048² target (1.4 m a texel), every fourth frame or
+  // when the eye has moved, and sampled by the TERRAIN alone - which is
+  // where a shadow at 500 m is seen. Not a general cascade: trees do not
+  // read it, and the near map keeps doing the near work.
+  const FAR = { on: { value: 0 }, map: { value: null }, vp: { value: new THREE.Matrix4() },
+                rt: null, cam: null, scene: null, proxies: new Map(), tick: 0, at: null, half: 1400, size: 2048 };
+  const farRegister = (mi, depthMat) => {
+    if (!depthMat || !THREE.WebGLRenderTarget) return;
+    if (!FAR.scene) {
+      FAR.scene = new THREE.Scene();
+      FAR.cam = new THREE.OrthographicCamera(-FAR.half, FAR.half, FAR.half, -FAR.half, 1, 6000);
+      FAR.rt = new THREE.WebGLRenderTarget(FAR.size, FAR.size, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter,
+                                                          format: THREE.RGBAFormat, generateMipmaps: false });
+      FAR.map.value = FAR.rt.texture;
+    }
+    // the proxy shares the impostor mesh's geometry AND its instance buffer;
+    // only the material differs, and count / visibility are copied per pass
+    const p = new THREE.InstancedMesh(mi.geometry, depthMat, mi.instanceMatrix.count);
+    p.instanceMatrix = mi.instanceMatrix;
+    p.position.copy(mi.position);
+    p.frustumCulled = false;
+    p.userData.src = mi;
+    FAR.scene.add(p);
+    FAR.proxies.set(mi, p);
+  };
+  const farRender = eye => {
+    if (!FAR.scene || !renderer || !renderer.setRenderTarget) return;
+    if (FAR.enabled === false) { FAR.on.value = 0; return; }
+    const moved = !FAR.at || Math.hypot(eye.x - FAR.at[0], eye.z - FAR.at[1]) > 20;
+    if (FAR.tick++ % 4 && !moved) return;
+    FAR.at = [eye.x, eye.z];
+    for (const [mi, p] of FAR.proxies) {
+      if (!mi.parent) { FAR.scene.remove(p); FAR.proxies.delete(mi); continue; }
+      p.count = mi.count; p.visible = mi.visible && mi.count > 0;
+    }
+    const gy = world.terrainH(eye.x, eye.z);
+    FAR.cam.position.set(eye.x + SUN.x * 3000, gy + SUN.y * 3000, eye.z + SUN.z * 3000);
+    FAR.cam.up.set(0, 1, 0);
+    FAR.cam.lookAt(eye.x, gy, eye.z);
+    FAR.cam.updateMatrixWorld(true);
+    FAR.cam.updateProjectionMatrix();
+    // CLEARED TO WHITE: packed RGBA depth decodes (1,1,1,1) to ~1.0, the far
+    // plane, i.e. "nothing here casts". The renderer's own clear is black at
+    // alpha 0, which decodes to depth 0 - a caster in front of everything -
+    // and the first cut shaded the whole terrain inside the frustum.
+    const pRT = renderer.getRenderTarget(), pAC = renderer.autoClear;
+    const pCol = new THREE.Color(), pA = renderer.getClearAlpha();
+    { const gc = renderer.getClearColor(pCol); if (gc && gc !== pCol) pCol.copy(gc); }
+    renderer.setRenderTarget(FAR.rt);
+    renderer.setClearColor(0xffffff, 1);
+    renderer.autoClear = true;
+    renderer.render(FAR.scene, FAR.cam);
+    renderer.setRenderTarget(pRT);
+    renderer.setClearColor(pCol, pA);
+    renderer.autoClear = pAC;
+    FAR.vp.value.multiplyMatrices(FAR.cam.projectionMatrix, FAR.cam.matrixWorldInverse);
+    FAR.on.value = 1;
+  };
   const hemiLight = () => {
     const h = new THREE.HemisphereLight(C(RIG.skyCol), C(RIG.gndCol), RIG.hemi);
     h.groundColor.multiplyScalar(gb);      // occluded, like every bounce here
@@ -498,13 +562,30 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       sh.uniforms.uFMask = { value: forestMask };
       sh.uniforms.uCanopy = { value: cnpTex };
       sh.uniforms.uFloor = uFloor;
+      sh.uniforms.uFarOn = FAR.on; sh.uniforms.uFarMap = FAR.map; sh.uniforms.uFarVP = FAR.vp;
       sh.vertexShader = sh.vertexShader
         .replace('#include <common>', '#include <common>\nvarying vec3 vWP;\nvarying float vCD;')
         .replace('#include <project_vertex>', '#include <project_vertex>\n' +
           'vWP = (modelMatrix * vec4(position, 1.0)).xyz;\nvCD = -mvPosition.z;');
       sh.fragmentShader = sh.fragmentShader
         .replace('#include <common>', '#include <common>\nuniform sampler2D uFMask;\n' +
-          'uniform sampler2D uCanopy;\nuniform float uFloor;\nvarying vec3 vWP;\nvarying float vCD;')
+          'uniform sampler2D uCanopy;\nuniform float uFloor;\nvarying vec3 vWP;\nvarying float vCD;\n' +
+          'uniform float uFarOn;\nuniform sampler2D uFarMap;\nuniform mat4 uFarVP;')
+        // the far cascade, on the direct term only: four taps of packed depth
+        .replace('reflectedLight.directDiffuse *= BRDF_Diffuse_Lambert( diffuseColor.rgb ) * getShadowMask();',
+          'reflectedLight.directDiffuse *= BRDF_Diffuse_Lambert( diffuseColor.rgb ) * getShadowMask();\n' +
+          'if (uFarOn > 0.5) {\n' +
+          '  vec4 fc = uFarVP * vec4(vWP, 1.0);\n' +
+          '  vec3 fp = fc.xyz / fc.w * 0.5 + 0.5;\n' +
+          '  if (fp.x > 0.0 && fp.x < 1.0 && fp.y > 0.0 && fp.y < 1.0 && fp.z < 1.0) {\n' +
+          '    float tx = 1.0 / 2048.0, zb = fp.z - 0.0004, lit = 0.0;\n' +
+          '    lit += step(zb, unpackRGBAToDepth(texture2D(uFarMap, fp.xy + vec2(-0.5, -0.5) * tx)));\n' +
+          '    lit += step(zb, unpackRGBAToDepth(texture2D(uFarMap, fp.xy + vec2( 0.5, -0.5) * tx)));\n' +
+          '    lit += step(zb, unpackRGBAToDepth(texture2D(uFarMap, fp.xy + vec2(-0.5,  0.5) * tx)));\n' +
+          '    lit += step(zb, unpackRGBAToDepth(texture2D(uFarMap, fp.xy + vec2( 0.5,  0.5) * tx)));\n' +
+          '    reflectedLight.directDiffuse *= 0.25 * lit;\n' +
+          '  }\n' +
+          '}')
         .replace('#include <map_fragment>', '#include <map_fragment>\n' +
           // same uv convention as the outer ring's own texture: v runs the other
           // way down z, and the mask canvas is built in that same pass
@@ -1002,12 +1083,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       'float aMix = dot(wB, vec3(t0.a, t1.a, t2.a)), aSol = max(max(t0.a, t1.a), t2.a);',
       'diffuseColor.a = clamp((mix(aMix, aSol, uISolid) - uICut) * uIGain + 0.5, 0.0, 1.0);',
     ].join('\n');
-    function impostorDepth(atlas, si) {
+    const U_FARR = { value: 1e7 };            // the far pass: no reach limit
+    function impostorDepth(atlas, si, farPass) {
       const d = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, alphaTest: 0.5, side: THREE.DoubleSide });
       if (!atlas.tex) return d;
       d.onBeforeCompile = sh => {
         sh.uniforms.uCam = uCam; sh.uniforms.uSunDir = { value: SUN };
-        sh.uniforms.uNearB = uNear; sh.uniforms.uFadeW = uFadeW; sh.uniforms.uShadowR = uShadowR;
+        sh.uniforms.uNearB = uNear; sh.uniforms.uFadeW = uFadeW; sh.uniforms.uShadowR = farPass ? U_FARR : uShadowR;
         sh.uniforms.uCy = { value: atlas.cy }; sh.uniforms.uDiam = { value: atlas.diam };
         sh.uniforms.uG = { value: IMP_G }; sh.uniforms.uTile = { value: IMP_TILE };
         sh.uniforms.uAtlas = { value: atlas.tex };
@@ -1553,7 +1635,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       return srcs.map((src, si) => {
         const at = bakeImpostorAtlas(src), m = impostorMat(at, FAR_WOOD, si);
         m.userData.depth = impostorDepth(at, si);
-        plantedKit.push(m, m.userData.depth);   // the atlas is the cache's
+        m.userData.farDepth = impostorDepth(at, si, true);
+        plantedKit.push(m, m.userData.depth, m.userData.farDepth);   // the atlas is the cache's
         return m;
       });
     };
@@ -1622,6 +1705,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           } });
           const mi = mk(impQuadW, impM[si], cnt[si], false);
           if (impM[si].userData.depth) { mi.castShadow = true; mi.customDepthMaterial = impM[si].userData.depth; }
+          if (impM[si].userData.farDepth) farRegister(mi, impM[si].userData.farDepth);
           mi.userData.ser = si;
           imps.push(mi);
         });
@@ -1847,7 +1931,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
               const at = bakeImpostorAtlas(S.parts);
               S.imp = impostorMat(at, FAR_FILL, si);
               S.imp.userData.depth = impostorDepth(at, si);
-              SHAPE.kit.push(S.imp, S.imp.userData.depth);   // the atlas is the cache's
+              S.imp.userData.farDepth = impostorDepth(at, si, true);
+              SHAPE.kit.push(S.imp, S.imp.userData.depth, S.imp.userData.farDepth);   // the atlas is the cache's
             });
             SHAPE.list.push(H);
           }
@@ -1922,6 +2007,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
               m.count = 0; m.visible = false; return m; })),
             mi: (() => { const mi = new THREE.InstancedMesh(impQuadF, S.imp, cnt[si]);
                          if (S.imp.userData.depth) { mi.castShadow = true; mi.customDepthMaterial = S.imp.userData.depth; }
+                         if (S.imp.userData.farDepth) farRegister(mi, S.imp.userData.farDepth);
                          return mi; })(), at: 0 } : null);
           for (const P of perSer) if (P) P.ms = [].concat(...P.byRung);
           const nrOf = S => S.ladder ? S.ladder.length : 1;
@@ -2689,6 +2775,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     sun.position.set(tx + SUN.x * 700, gy + SUN.y * 700, tz + SUN.z * 700);
     const half = Math.max(RIG.shadowMin, Math.min(540, 105 + reach * 0.55));
     uShadowR.value = half;
+    farRender(uCam.value);
     if (Math.abs(half - shadowHalf) > shadowHalf * 0.12 + 4) {
       shadowHalf = half;
       const c = sun.shadow.camera;
@@ -2716,7 +2803,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     sunI: RIG.sun, sunCol: hexOf(sun.color, SUNC), hemi: RIG.hemi,
     hemiSky: hexOf(hemi.color, RIG.skyCol), hemiGnd: RIG.gndCol,
     exposure: (renderer && renderer.toneMappingExposure) || 1,
-    env: 'dome', shadowMin: RIG.shadowMin, floor: uFloor.value,
+    env: 'dome', shadowMin: RIG.shadowMin, floor: uFloor.value, farShadow: true,
     shadowMap: (sun.shadow && sun.shadow.mapSize) ? sun.shadow.mapSize.x : 1024,
     dome: (worldSky && worldSky.material.uniforms) ? {
       top: hexOf(worldSky.material.uniforms.uTop.value, 0x3f7fbe),
@@ -2783,6 +2870,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     if (renderer) renderer.toneMappingExposure = R.exposure;
     RIG.shadowMin = R.shadowMin;
     if (R.floor !== undefined) uFloor.value = R.floor;
+    if (R.farShadow !== undefined) FAR.enabled = !!R.farShadow;
     if (sun.shadow && sun.shadow.mapSize && sun.shadow.mapSize.x !== R.shadowMap) {
       sun.shadow.mapSize.set(R.shadowMap, R.shadowMap);
       if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
@@ -2810,7 +2898,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // treeLod is exposed for tuning, not for the viewer: setting near to 0 makes
   // the whole forest impostors, which is how the mid tier's fidelity gets
   // compared against the geometry it stands in for (tools/make_probe.js).
-  return { worldUpdate, SUN, sun, hemi, minimap: miniCanvas, setWindVis, envMap, rig: worldRig, scene, camera,
+  return { worldUpdate, SUN, sun, hemi, minimap: miniCanvas, setWindVis, envMap, rig: worldRig, scene, camera, far: FAR,
            setShedDims: d => setShedDims(d),
            treeLod: { near: uNear, cam: uCam, lit: uILit }, renderer,
            // the world's own light panel — the same shape the shed exposes, so
