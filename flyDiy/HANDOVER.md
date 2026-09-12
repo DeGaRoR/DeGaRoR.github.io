@@ -39033,3 +39033,14 @@ G271's note blamed another session for five reds that were only that.)
   do.
 - Gates: HOUSE (with --selftest), VILLAGE (with --selftest) green; MEDIA
   green but for the trees session's four orphans.
+
+## G274.1 — THE BOOMS FORE / AFT AGAINST THE WING (2026-09-12, the user: "I
+## still miss the option to get the booms fore/aft relative to the wing")
+
+`boomDz` (Boom › twin booms, metres, aft positive, ±1 m): the tube's root
+station against the trailing edge, beside G271's `boomDy`. The wing layer
+draws it, `CAGE_BOOMS.dz` publishes it, and no new spec field is needed:
+the join already measures the drawn root into `tail.boomX0`, which is the
+frame's own root station — measured on the user's build, +0.4 m aft moved
+boomX0 1.433 → 1.833, −0.3 fore → 1.133. The trunk's position heading now
+carries fore / aft, in / out and up / down for the twin booms.

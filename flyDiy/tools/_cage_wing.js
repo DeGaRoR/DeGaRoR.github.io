@@ -1720,7 +1720,10 @@ PAGE.post = ctx => {
       // the body's wing end sits just inside the trailing edge; the wing
       // fairing runs forward from there, INTO the wing (and out of it above
       // and below, when the boom is deeper than the wing is thick)
-      const zRoot = te.z + 0.35 * (te.yTop - te.yBot), zTip = zRoot - len;
+      // G274.1: ...and the builder's fore / aft (aft positive; cage z runs
+      // forward, so it comes off the root station)
+      const dz = +P.boomDz || 0;
+      const zRoot = te.z + 0.35 * (te.yTop - te.yBot) - dz, zTip = zRoot - len;
       const rodB = Math.round(P.boomStyle) === 1;
       // G267.1: the INCLINATION (the user: "set inclination for the twin
       // boom ... compared to the body"), degrees, tail up positive, about
@@ -1773,7 +1776,7 @@ PAGE.post = ctx => {
       const rAt = z => sec(z).a, hAt = z => sec(z).b;
       const yAx = z => y0 + tI * (zRoot - z);
       window.CAGE_BOOMS = { x, r0: 0.5 * wF, r1: 0.5 * wA, wF, hF, wA, hA,
-                            zRoot, zTip, y: y0, dy, len, lofted: !rodB, incl,
+                            zRoot, zTip, y: y0, dy, dz, len, lofted: !rodB, incl,
                             zFore: zTip + mm.u1, zAft: zTip + mm.u0,
                             square: o.square, nose: o.nose, tail: o.tail,
                             yAx, yTop: z => yAx(z) + hAt(z), yBot: z => yAx(z) - hAt(z), rAt, hAt };

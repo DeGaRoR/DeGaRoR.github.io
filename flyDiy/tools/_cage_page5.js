@@ -633,6 +633,11 @@ window.CAGE_PAGE = {
       // against the wing's trailing edge, metres, up positive
       ['boomDy',    'up / down (from the trailing edge)', -0.6, 0.6, 0.005,
        { when: P => +P.boomTwin, dim: 'len' }],
+      // G274.1 (the user: "I still miss the option to get the booms fore/aft
+      // relative to the wing"): the root's station against the trailing
+      // edge, metres, aft positive (the frame reads the drawn root, boomX0)
+      ['boomDz',    'fore / aft (from the trailing edge)', -1.0, 1.0, 0.005,
+       { when: P => +P.boomTwin, dim: 'len' }],
       // G267: THE LOFT (the user: "their vertical and horizontal thickness
       // at fore and aft ends", "their profile (square, round)", each end
       // "profiled ... from ogival to conical" with "the type of cap")
