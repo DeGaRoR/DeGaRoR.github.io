@@ -309,6 +309,10 @@ paths). Normalised by `tools/lot_tex_import.py` to diff / nor_gl / rough (1k
 archive + 512 working copy), baked by `tools/lot_tex_prep.js` into
 `src/viewer/lot_tex.js` + `media/tex/lot/`.
 
+The village bench also carries the hangar's own panorama (`alps`, from
+`assets/hangar_sky/alps_field_8k.hdr`, credited under the hangar skies) baked
+the house way — env, backdrop, measured rig — since G293.
+
 ## Skin sheets (`assets/skin/`, baked and served from media/)
 
 The CC0 PBR sets the AEROSKIN material library wears that are not wood: the
@@ -581,6 +585,21 @@ wherever they are shown. Imported as-is with a rigid scale or a quarter turn:
 
 `cars.glb` in the same folder ("Cars" by local.yany, CC-BY-4.0, eight cars
 in one 577k-triangle file) is not baked.
+
+**The clutter** (`assets/propsHouse/`, G293) — **Sketchfab, CC-BY-4.0**,
+attribution required:
+
+- `pallets_stack`, `pallets_three`, `pallet_one` — **"pallets"** by local.yany
+  (https://sketchfab.com/3d-models/pallets), three things out of one file
+- `cinder_pallet` — **"Cinder Block Pallet"** by Pixel Life
+  (https://sketchfab.com/3d-models/cinder-block-pallet)
+- `cement_bags` — **"Cement bags Low-poly"** by Dmytro Nikonov
+  (https://sketchfab.com/3d-models/cement-bags-low-poly)
+- `chair_plastic` — **"Plastic Chair"** by Jazavac
+  (https://sketchfab.com/3d-models/plastic-chair)
+
+`brick_totem.glb` ("Brick Totem" by zombieapple, CC-BY-4.0, a 145k-triangle
+photogrammetry pile) is not baked.
 
 **The two people** (`person_andrew`, `person_john`, G255) are the user's own
 static export from `assets/blendkitPeople/blendkitPeople.blend` — BlenderKit

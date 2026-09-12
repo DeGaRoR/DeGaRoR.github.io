@@ -168,6 +168,9 @@ const HOUSE_SKIES = (typeof Image !== 'undefined') ? (() => {
   const B = (typeof FLYDIY_ASSET_BASE !== 'undefined') ? FLYDIY_ASSET_BASE : '';
   const mk = src => { const i = new Image(); i.src = B + src; return i; };
   return {
+    alps: { name: 'alps afternoon', w: 512, h: 256, sun: [0.4378, 0.6702, 0.5994], sunCol: [1, 0.974, 0.933], direct: 0.6991, ev: 1.441,
+      hor: [0.089, 0.091, 0.062], gnd: [0.083, 0.083, 0.039], zen: [0.098, 0.143, 0.254],
+      env: mk('media/tex/house/sky_alps_env_512.e5f254cc.png'), bg: mk('media/tex/house/sky_alps_bg_2k.66c5bf8d.jpg') },
     grassland: { name: 'grassland sunset', w: 512, h: 256, sun: [0.5725, 0.1065, 0.813], sunCol: [1, 0.224, 0.048], direct: 0.061, ev: 1.854,
       hor: [0.611, 0.325, 0.263], gnd: [0.066, 0.078, 0.046], zen: [0.321, 0.514, 0.788],
       env: mk('media/tex/house/sky_grassland_env_512.f0699e25.png'), bg: mk('media/tex/house/sky_grassland_bg_2k.78e3d24a.jpg') },

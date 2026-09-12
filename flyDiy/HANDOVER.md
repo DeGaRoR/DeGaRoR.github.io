@@ -39718,3 +39718,50 @@ from 40° off-axis: the dome fills the window, no can.
   1 mm well the plug sits in.
 - The interior-lighting audit the user asked for is a study:
   futureDesigns/INTERIOR-LIGHTING-2026-09-12.md.
+
+## G293 — THE CLUTTER (FOUR OF FIVE), EACH GROUND SET ITS OWN NORMAL AND THE
+## PEBBLES MAPPED LARGE, THE ALPS SKY AND A NIGHT IN THE VILLAGE BENCH, LAMPS
+## ON THE PIERS — AND A PERFORMANCE ASSESSMENT (2026-09-12, the user: "I have
+## added 5 new assets of clutter ... Feel free to reject things not game ready
+## enough. You may also do a performance assessment ... the pebbles need to be
+## mapped a lot larger, and I feel like there is still a single normal map for
+## all materials ... add the alps HDR ... a proper dark night setting too ...
+## small lighting on the piers")
+
+- **THE CLUTTER**: the pallets file is three things (a messy stack, three
+  stacked square, one on the ground — each a prop by node), the pallet of
+  cinder blocks, the heap of cement bags, the white plastic garden chair
+  (centimetres). All in the junk and seat menus, dusted, credited. The
+  BRICK TOTEM is refused: 145k triangles of photogrammetry for 0.7 m of
+  bricks — three houses' worth.
+- **THE LOT'S NORMALS**: it was one normal map (the grass's) for all five
+  sets; each set's own is sampled now and blended by the same weights the
+  colours were, then perturbed once. The pebbles tile at 4.5 m (was 1.6):
+  a beach's stones, not gravel.
+- **THE ALPS SKY**: the hangar's own panorama, baked the house way
+  (`assets/house_sky/alps.hdr` → env, backdrop, measured rig: sun hard,
+  direct 0.70, ev 1.44) — the benchmark since the start, the bench's
+  default now. The sea is matter (roughness 0.32, no metal): under that
+  dome a glossy plane went white.
+- **A NIGHT**: no dome, a sliver of blue moon from high on one side, a cold
+  fill, nothing from the ground; the houses' lamps, the strings of bulbs
+  and the pier lanterns are the light. A "lights on" switch forces every
+  house's lights for it.
+- **LAMPS ON THE PIERS** (`buildPierLamps`): a post at the far end of every
+  head — the main chain's and each finger's — with the door's bulkhead
+  lantern on it, glass in the glass bag with the warm glow, published as a
+  light; the far mesh keeps post and box so rule 5's silhouettes agree;
+  `pierLamps` dial, on with the house's lights.
+- **THE PERFORMANCE ASSESSMENT** (the default village, alps, night off,
+  measured in the bench): 8.2 M triangles, 701 draw calls, 27 point lights.
+  By kind: PEOPLE 5.96 M (73 % — 21 figures at 130–355k each, the user's
+  own exports), pier modules 0.75 M (98 draws), yard props 0.47 M, houses
+  + drawn fences 0.20 M (199 draws), boats 0.18 M, cars 0.18 M, poles 0.15
+  M, lot ground 0.12 M, terrain 0.12 M, skirts 0.02 M. The house geometry
+  is the CHEAPEST thing on screen; the imported figures are the expensive
+  one by a factor of thirty, and 27 point lights in a forward renderer
+  cost every lit fragment 27 evaluations, which is the other real cost on
+  a weak GPU. Recommendations in the reply: cap the people (near-only, or
+  re-export at ≤ 30k), distance tiers for the props, the house's far mesh
+  with a plain material past 120 m, lights culled by distance.
+- Gates: HOUSE, VILLAGE (both --selftest) green.

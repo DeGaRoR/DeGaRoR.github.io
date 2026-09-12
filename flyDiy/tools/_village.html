@@ -45,6 +45,7 @@
   <label>sky <select id="moodSel"></select></label>
   <label>exposure <input id="expo" type="range" min="0.3" max="2.5" step="0.05" value="1.05"></label>
   <label>face <input id="sunAz" type="range" min="-180" max="180" step="1" value="0"></label>
+  <label><input id="lightsOn" type="checkbox"> lights on</label>
   <button id="rebuild">rebuild</button>
   <button id="rndBtn" title="another seed">random</button>
   <span id="seedLbl"></span>
@@ -147,9 +148,10 @@ const SKIES = (typeof HOUSE_SKIES !== 'undefined' && HOUSE_SKIES) || {};
 const SKY_KEYS = Object.keys(SKIES);
 {
   const sel = $('moodSel');
-  sel.add(new Option('painted', 'p'));
+  sel.add(new Option('painted day', 'p'));
+  sel.add(new Option('night', 'n'));
   SKY_KEYS.forEach(k => sel.add(new Option(SKIES[k].name + ' (hdr)', k)));
-  sel.value = SKY_KEYS.length ? SKY_KEYS[0] : 'p';
+  sel.value = SKIES.alps ? 'alps' : (SKY_KEYS.length ? SKY_KEYS[0] : 'p');
   sel.onchange = () => buildSky();
 }
 const ENVC = new Map(), BGC = new Map();
@@ -214,11 +216,25 @@ function buildSky() {
     fill.intensity = 0;
     renderer.toneMappingExposure = (+$('expo').value) * (sky.ev || 1);
     hdrDir.set(d[0], d[1], d[2]).normalize();
+  } else if (k === 'n') {
+    // A PROPER DARK NIGHT (G293): no dome, a sliver of moon from high on
+    // one side, a cold fill from the sky and nothing from the ground - the
+    // houses' own lamps, the strings of bulbs and the pier lanterns are the
+    // light. The bench's own moon is a light, not a photograph, so the
+    // building can still be turned.
+    skyRot = (+$('sunAz').value) * D2R;
+    scene.environment = null;
+    scene.background = new THREE.Color(0x070a12);
+    sun.color.setHex(0x8fa4d8); sun.intensity = 0.22;
+    fill.color.setHex(0x1a2440); fill.groundColor.setHex(0x05060a); fill.intensity = 0.35;
+    hdrDir.set(-0.5, 0.55, 0.3).normalize();
+    renderer.toneMappingExposure = +$('expo').value * 1.1;
   } else {
     skyRot = 0;
     scene.environment = null;
     scene.background = new THREE.Color(0x9fb6cf);
     sun.color.setHex(0xfff2dc); sun.intensity = 2.2; fill.intensity = 0.6;
+    fill.color.setHex(0xbdd2ea); fill.groundColor.setHex(0x4a4436);
     hdrDir.set(0.4, 0.6, 0.7).normalize();
     renderer.toneMappingExposure = +$('expo').value;
   }
@@ -348,7 +364,9 @@ function waterMesh(vil) {
   const g2 = new THREE.PlaneGeometry(sz * 1.6, sz * 1.6);
   g2.rotateX(-Math.PI / 2);
   const m2 = new THREE.Mesh(g2, new THREE.MeshStandardMaterial({
-    color: 0x2b4a58, roughness: 0.12, metalness: 0.15, transparent: true, opacity: 0.8 }));
+    // a sea, not a mirror: under the alps' bright dome a glossy plane went
+    // white; roughness up, no metal, and the colour a little deeper
+    color: 0x1f3a48, roughness: 0.32, metalness: 0.0, transparent: true, opacity: 0.86 }));
   m2.position.y = vil.T.waterY;
   m2.receiveShadow = true;
   return m2;
@@ -390,6 +408,10 @@ function lotMaterial() {
     m.roughness = 0.98;                        // matte, like the terrain
   }
   const U = {
+    uLushN: { value: LOT ? lotTex('lush', 'nor', false) : null },
+    uDryN: { value: LOT ? lotTex('dry', 'nor', false) : null },
+    uDirtN: { value: LOT ? lotTex('dirt', 'nor', false) : null },
+    uPebN: { value: LOT ? lotTex('pebble', 'nor', false) : null },
     uLush: { value: LOT ? lotTex('lush', 'diff', true) : null },
     uDry: { value: LOT ? lotTex('dry', 'diff', true) : null },
     uDirt: { value: LOT ? lotTex('dirt', 'diff', true) : null },
@@ -405,7 +427,8 @@ function lotMaterial() {
         '#include <begin_vertex>\n  vSplat = aSplat; vTone = aTone; vAlpha = aAlpha; vLotP = transformed;')
       .replace('#include <uv_vertex>', '#include <uv_vertex>\n  vUv = position.xz / ' + (LOT ? LOT.grass.tile : 2.4).toFixed(3) + ';');
     sh.fragmentShader = 'varying vec4 vSplat;\nvarying vec2 vTone;\nvarying float vAlpha;\nvarying vec3 vLotP;\n' +
-      'uniform sampler2D uLush, uDry, uDirt, uPeb;\nuniform vec4 uTiles;\n' +
+      'uniform sampler2D uLush, uDry, uDirt, uPeb;\nuniform sampler2D uLushN, uDryN, uDirtN, uPebN;\nuniform vec4 uTiles;\n' +
+      'float lwGm, lwDry, lwPeb, lwDirt;\n' +
       'float lHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }\n' +
       'float lNoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);\n' +
       '  return mix(mix(lHash(i), lHash(i + vec2(1, 0)), f.x), mix(lHash(i + vec2(0, 1)), lHash(i + vec2(1, 1)), f.x), f.y); }\n' +
@@ -437,9 +460,27 @@ function lotMaterial() {
         '    col = mix(col, cPeb.rgb, wp);\n' +
         '    float wt = smoothstep(0.3, 0.75, vSplat.z + (n2 - 0.5) * 0.3);\n' +
         '    col = mix(col, cDirt.rgb, wt);\n' +
+        '    lwGm = gm; lwDry = wd; lwPeb = wp; lwDirt = wt;\n' +
         // the skirt's darkening, folded in
         '    col *= 1.0 - vTone.x * 0.8;\n' +
         '    diffuseColor = vec4(col, vAlpha);\n' +
+        '  }')
+      // EACH SET ITS OWN NORMAL (G293, the user: "I feel like there is still
+      // a single normal map for all materials"): the five normal maps
+      // blended by the same weights the colours were, then perturbed once
+      .replace('#include <normal_fragment_maps>',
+        '  {\n' +
+        '    vec2 w2 = vLotP.xz;\n' +
+        '    vec3 nG = texture2D(normalMap, vUv).xyz * 2.0 - 1.0;\n' +
+        '    vec3 nL = texture2D(uLushN, w2 / uTiles.x).xyz * 2.0 - 1.0;\n' +
+        '    vec3 nD = texture2D(uDryN, w2 / uTiles.y).xyz * 2.0 - 1.0;\n' +
+        '    vec3 nT = texture2D(uDirtN, w2 / uTiles.z).xyz * 2.0 - 1.0;\n' +
+        '    vec3 nP = texture2D(uPebN, w2 / uTiles.w).xyz * 2.0 - 1.0;\n' +
+        '    vec3 mapN = mix(nG, nL, lwGm);\n' +
+        '    mapN = mix(mapN, nD, lwDry); mapN = mix(mapN, nP, lwPeb); mapN = mix(mapN, nT, lwDirt);\n' +
+        '    mapN = normalize(mapN);\n' +
+        '    mapN.xy *= normalScale;\n' +
+        '    normal = perturbNormal2Arb(-vViewPosition, normal, mapN, faceDirection);\n' +
         '  }');
   };
   LOT_MAT = m;
@@ -595,8 +636,10 @@ function build() {
   $('seedLbl').textContent = 'seed ' + V.seed + ' · ' + vil.plots.length + ' plots';
   let tris = 0, houses = 0, piers = 0, water = 0, outs = 0;
   const rep = [];
+  const forceLights = $('lightsOn').checked;
   for (const h of vil.houses) {
     const plot = vil.plots[h.plot];
+    if (forceLights) { h.P.lights = 1; h.P.winLink = 0; }
     const F = G.makeFinish();
     G.applyFinish(h.P, F);
     const built = G.build(h.P, 0, F);
@@ -775,6 +818,7 @@ viewEl.addEventListener('wheel', e => {
 viewEl.addEventListener('dblclick', () => { ZOOM = 1; centreOv = null; draw(); });
 addEventListener('resize', draw);
 $('rebuild').onclick = () => build();
+$('lightsOn').onchange = () => build();
 $('rndBtn').onclick = () => { V.seed = 1 + Math.floor(Math.random() * 99); ui.querySelector('input').value = V.seed; ui.querySelector('.v').textContent = V.seed; build(); };
 if (typeof window !== 'undefined') window.PROP_LANDED = () => draw();
 // THE DUST ON THE PROPS (G283): everything that stands on the ground is dark
@@ -791,7 +835,9 @@ if (typeof window !== 'undefined') window.PROP_LANDED = () => draw();
               stepladder: [0.3, 0.6], stool_wood: [0.15, 0.5], chair_lounge: [0.2, 0.5], table_wood: [0.2, 0.5],
               boat_tirola: [0.3, 0.7], pier_gate: [0.5, 0.6], pier_piles: [0.6, 0.6],
               picnic_table: [0.2, 0.55], chair_wood: [0.2, 0.5], stool_wood2: [0.15, 0.5], stool_fold: [0.15, 0.5],
-              oil_tin: [0.06, 0.5], pole_a: [0.7, 0.7], pole_b: [0.7, 0.7], pole_c: [0.7, 0.7] };
+              oil_tin: [0.06, 0.5], pole_a: [0.7, 0.7], pole_b: [0.7, 0.7], pole_c: [0.7, 0.7],
+              pallets_stack: [0.3, 0.6], pallets_three: [0.25, 0.6], pallet_one: [0.1, 0.6],
+              cinder_pallet: [0.3, 0.6], cement_bags: [0.25, 0.55], chair_plastic: [0.2, 0.5] };
   for (const k of (G.CAR_KEYS || [])) D[k] = [0.45, 0.8];
   for (const k in D) propDust(k, D[k][0], D[k][1]);
 }

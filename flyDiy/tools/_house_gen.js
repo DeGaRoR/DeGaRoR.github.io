@@ -310,6 +310,13 @@ const YARD_KIT = {
   pole_a:         { L: 1.957, W: 1.2, H: 6.13, pole: true },
   pole_b:         { L: 0.852, W: 1.2, H: 6.13, pole: true },
   pole_c:         { L: 0.852, W: 1.287, H: 6.13, pole: true },
+  // THE CLUTTER (G293): four of the user's five, the brick totem refused
+  pallets_stack:  { L: 1.558, W: 2.133, H: 1.115 },
+  pallets_three:  { L: 1.302, W: 1.768, H: 0.767 },
+  pallet_one:     { L: 1.169, W: 1.718, H: 0.203 },
+  cinder_pallet:  { L: 1.801, W: 1, H: 1.057 },
+  cement_bags:    { L: 1.851, W: 1.97, H: 0.988 },
+  chair_plastic:  { L: 0.519, W: 0.582, H: 0.765 },
   // THE CARS (G276): in the village's backyards; L along z, nose to +z
   car_junk:       { L: 4.463, W: 1.822, H: 1.116, car: true },
   car_fiat:       { L: 4.382, W: 1.679, H: 1.31, car: true },
@@ -1388,7 +1395,7 @@ const DEF = {
   // the yard (G273): props round the house, the woodpile, the lamp
   yard: 1, yardK: 0.6, yardSeed: 7, woodpile: 1, woodLen: 2.2, woodH: 1.25,
   aoGround: 1,
-  lampKind: 1, curtains: 0.7,
+  lampKind: 1, curtains: 0.7, pierLamps: 1,
   // the settling (G273): the ridge's sag in metres, the siding's course
   // wander in metres (times the hand)
   sag: 0.04, wander: 0.010,
@@ -1561,6 +1568,7 @@ const ROWS = [
     ['smokeLean', 'downwind lean', -1, 1, 0.05, null, P => !!P.chim && !!P.smoke],
     ['lights', 'lights on', 0, 1, 1],
     ['lampKind', 'porch lamp', 0, 1, 1, ['drawn lantern', 'wall lamp'], P => !!P.lights && !!P.porchLamp],
+    ['pierLamps', 'lamps on the pier', 0, 1, 1, null, P => !!P.lights && !!P.pier && !!P.water],
     ['curtains', 'curtains + blinds', 0, 1, 0.05],
     ['winLink', 'windows', 0, 1, 1, ['each its own', 'one switch'],
      P => !!P.lights],
@@ -4454,6 +4462,57 @@ function pierPlan(P, V, g, jetty) {
            modules: mods, boats,
            tris: mods.concat(boats).reduce((a, o) => a + (PIER_TRIS[o.key] || 0), 0) };
 }
+// LAMPS ON THE PIER (G293, the user: "We'll need some small lighting on the
+// piers too"): a post at the far end of every head - the main chain's and
+// each finger's - with a lantern on it, the same bulkhead lantern the door
+// has: glass in the glass bag with the warm glow, published like every other
+// light so the bench and the game stand a point light in it. With the
+// house's lights, and off with them (rule 29 counts them as lamps).
+function buildPierLamps(bags, P, Q, plan) {
+  if (!plan || !P.lights || !(P.pierLamps === undefined || P.pierLamps)) return 0;
+  let n = 0;
+  for (const m of plan.modules) {
+    if (m.key !== 'pier_head') continue;
+    // the far end of the head, a hand in from the deck's edge
+    let x, z;
+    if (m.axis === 'z') { x = m.x + m.w / 2 - 0.3; z = m.dir > 0 ? m.z1 - 0.4 : m.z0 + 0.4; }
+    else { x = m.dir > 0 ? m.b1 - 0.4 : m.b0 + 0.4; z = m.z + m.w / 2 - 0.3; }
+    const y0 = m.hOut, h = 2.3;
+    const hw = 0.075, hh = 0.11;
+    const yc = y0 + h + hh + 0.02;
+    // the far mesh keeps the post and the box, so the two silhouettes agree
+    beam(bags.metal, [x, y0 - 0.05, z], [x, y0 + h, z], 0.035, 0.035, [1, 0, 0], 0,
+         Q.lod === 0 ? { bevel: 0.004 } : null);
+    if (Q.lod !== 0) {
+      boxAB(bags.metal, [x - hw - 0.02, yc - hh - 0.03, z - hw - 0.02], [x + hw + 0.02, yc + hh + 0.035, z + hw + 0.02]);
+      LIT_LOG.lights.push({ kind: 'pier', x, y: yc, z, nx: 0, nz: 0, col: [1.0, 0.82, 0.55], k: 0.7, range: 9.0 });
+      n++;
+      continue;
+    }
+    // the cap and the base, four posts, four glowing sides
+    const corner = (sx, sz) => [x + sx * hw, 0, z + sz * hw];
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      const q = corner(sx, sz);
+      beam(bags.metal, [q[0], yc - hh, q[2]], [q[0], yc + hh, q[2]], 0.007, 0.007, [0, 1, 0]);
+    }
+    boxAB(bags.metal, [x - hw - 0.02, yc + hh, z - hw - 0.02], [x + hw + 0.02, yc + hh + 0.035, z + hw + 0.02]);
+    boxAB(bags.metal, [x - hw, yc - hh - 0.03, z - hw], [x + hw, yc - hh, z + hw]);
+    bags.glass.setGlow(1);
+    const sides = [[-1, -1, 1, -1], [1, -1, 1, 1], [1, 1, -1, 1], [-1, 1, -1, -1]];
+    for (const sd of sides) {
+      const a = corner(sd[0], sd[1]), b = corner(sd[2], sd[3]);
+      const nn = nrm(crs(sub(b, a), [0, 1, 0]));
+      face(bags.glass, [[a[0], yc - hh + 0.02, a[2]], [b[0], yc - hh + 0.02, b[2]],
+                        [b[0], yc + hh - 0.02, b[2]], [a[0], yc + hh - 0.02, a[2]]],
+           nn, uvFrame(a, nrm(sub(b, a)), [0, 1, 0]));
+    }
+    bags.glass.setGlow(0);
+    LIT_LOG.lights.push({ kind: 'pier', x, y: yc, z, nx: 0, nz: 0, col: [1.0, 0.82, 0.55], k: 0.7, range: 9.0 });
+    n++;
+  }
+  return n;
+}
+
 // THE PILES REACH THE BOTTOM (G254.2, the user: "properly extend the pillars
 // of the pier so they reach the bottom ... you may use the texture you use
 // for logs and support"). The author cut every pile to the showcase's seabed,
@@ -5076,9 +5135,9 @@ function yardPlan(P, V, dk, stoop, front, barrel, people, ch, dr, g) {
       // where a deck has room; the picnic table out on the lawn
       const D2 = deckPlan(P, V);
       if (D2) {
-        const seats = pickSpread(['chair_wood', 'chair_wood', 'stool_wood2', 'stool_fold', 'stool_wood'], 'seat');
+        const seats = pickSpread(['chair_wood', 'chair_wood', 'stool_wood2', 'stool_fold', 'stool_wood', 'chair_plastic', 'chair_plastic'], 'seat');
         put(seats, 'deck', 'deck', { turn: 2.0 });
-        if (rnd() < 0.5) put(pickSpread(['chair_wood', 'stool_wood2', 'stool_fold'], 'seat'), 'deck', 'deck', { turn: 2.5 });
+        if (rnd() < 0.5) put(pickSpread(['chair_wood', 'stool_wood2', 'stool_fold', 'chair_plastic'], 'seat'), 'deck', 'deck', { turn: 2.5 });
         if (D2.zOut - D2.zIn >= 2.4 && D2.dl >= 5 && rnd() < 0.4) put('table_wood', 'deck', 'deck', { turn: 0.15 });
       }
       if (rnd() < 0.45) put('picnic_table', 'gable', 'ground', { turn: 0.6 }) || put('picnic_table', 'back', 'ground', { turn: 0.6 });
@@ -5090,7 +5149,8 @@ function yardPlan(P, V, dk, stoop, front, barrel, people, ch, dr, g) {
     } else if (what === 'junk' || what === 'junk2') {
       const menu = ['drum_steel', 'barrel_plastic', 'crate_wood_a', 'crate_wood_b',
                     'crate_wood_c', 'tyre', 'work_trestle', 'handtruck', 'box_cardboard',
-                    'compressor', 'jerrycan', 'oil_tin'];
+                    'compressor', 'jerrycan', 'oil_tin',
+                    'pallets_stack', 'pallets_three', 'pallet_one', 'cinder_pallet', 'cement_bags'];
       const n = 1 + Math.floor(rnd() * 2.5);
       for (let i = 0; i < n; i++) {
         const key = pickSpread(menu, 'junk');
@@ -5412,6 +5472,7 @@ function build(P0, lod, F) {
   if (pier) {
     pier.pilesDown = buildPierPiles(bags, P, Q, pier, g);
     pier.motors = pier.boats.reduce((a, b) => a + buildOutboard(bags, P, Q, b), 0);
+    pier.lamps = buildPierLamps(bags, P, Q, pier);
   }
   const people = peoplePlan(P, V, dk, front, pier);
   // THE YARD (G273): the woodpile first, because it is drawn and baked and

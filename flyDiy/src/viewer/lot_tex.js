@@ -18,7 +18,7 @@ const LOT_TEX_SETS = (typeof Image !== 'undefined') ? (() => {
       diff: mk('media/tex/lot/grass_diff_512.7cc9f4c2.jpg'),
       nor: mk('media/tex/lot/grass_nor_gl_512.151550a5.jpg'),
       rough: mk('media/tex/lot/grass_rough_512.f5626b4f.jpg') },
-    pebble: { name: 'pebbles', tile: 1.6, px: 512,
+    pebble: { name: 'pebbles', tile: 4.5, px: 512,
       diff: mk('media/tex/lot/pebble_diff_512.00fbe38a.jpg'),
       nor: mk('media/tex/lot/pebble_nor_gl_512.b29a459b.jpg'),
       rough: mk('media/tex/lot/pebble_rough_512.d985d705.jpg') },

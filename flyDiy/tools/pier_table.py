@@ -116,6 +116,11 @@ SOURCES = {
     'chair02':  ('Painted Wooden Chair 02', 'Poly Haven', 'CC0', 'https://polyhaven.com/a/painted_wooden_chair_02'),
     'oiltin':   ('Oil Tin', 'Poly Haven', 'CC0', 'https://polyhaven.com/a/oil_tin'),
     'poles':    ('Modular Electricity Poles', 'Poly Haven', 'CC0', 'https://polyhaven.com/a/modular_electricity_poles'),
+    # G293: the clutter, Sketchfab CC-BY
+    'pallets':  ('pallets', 'local.yany', 'CC-BY-4.0', 'https://sketchfab.com/3d-models/pallets'),
+    'cinder':   ('Cinder Block Pallet', 'Pixel Life', 'CC-BY-4.0', 'https://sketchfab.com/3d-models/cinder-block-pallet'),
+    'cement':   ('Cement bags Low-poly', 'Dmytro Nikonov', 'CC-BY-4.0', 'https://sketchfab.com/3d-models/cement-bags-low-poly'),
+    'pchair':   ('Plastic Chair', 'Jazavac', 'CC-BY-4.0', 'https://sketchfab.com/3d-models/plastic-chair'),
     # the village's scanned fence (G275), CC-BY: attribution must stay visible
     'oldfence': ('Old fence', 'Yury Misiyuk', 'CC-BY-4.0',
                  'https://sketchfab.com/3d-models/old-fence-3a98eabc0aa9475db5fcf7fab235751b'),
@@ -160,6 +165,8 @@ FILES = {
     'chair02':  'painted_wooden_chair_02_1k.gltf',
     'oiltin':   'oil_tin_1k.gltf',
     'poles':    'modular_electricity_poles_1k.gltf',
+    'pallets':  'pallets.glb', 'cinder': 'cinder_block_pallet.glb',
+    'cement':   'cement_bags_low-poly.glb', 'pchair': 'plastic_chair.glb',
     'oldfence': 'old_fence.glb',
     'junkcar':  'abandoned__junk_car.glb',
     'fiat':     'abandoned_car_-_fiat_132.glb',
@@ -180,6 +187,7 @@ DIRS = {
     'picnic': '../propsHouse/wooden_picnic_table', 'stool01': '../propsHouse/wooden_stool_01',
     'foldstool': '../propsHouse/folding_wooden_stool', 'chair02': '../propsHouse/painted_wooden_chair_02',
     'oiltin': '../propsHouse/oil_tin', 'poles': '../propsHouse/modular_electricity_poles',
+    'pallets': '../propsHouse', 'cinder': '../propsHouse', 'cement': '../propsHouse', 'pchair': '../propsHouse',
     'oldfence': '../propsHouse',
     'junkcar': '../abandonedCars', 'fiat': '../abandonedCars', 'hudson': '../abandonedCars',
     'multicab': '../abandonedCars', 'crashed': '../abandonedCars', 'buick': '../abandonedCars',
@@ -353,6 +361,30 @@ PROPS = [
       note='preset 02: pole and insulators', nodes=['preset_02_cap', 'preset_02_connection_large_01', 'preset_02_connection_single_01', 'preset_02_connection_single_01_02', 'preset_02_connection_small_01', 'preset_02_pole', 'preset_02_ring_large', 'preset_02_ring_large_02', 'preset_02_ring_small_01', 'preset_02_ring_small_02', 'preset_02_ring_small_03', 'preset_02_ring_small_04', 'preset_02_ring_small_05']),
     P('pole_c', 'yard', 'electricity pole, one transformer', 'poles',
       note='preset 03: pole, one transformer', nodes=['preset_03_bolt_small_01', 'preset_03_bolt_small_02', 'preset_03_bolt_small_03', 'preset_03_bolt_small_04', 'preset_03_bolt_small_05', 'preset_03_bolt_small_06', 'preset_03_cap', 'preset_03_connection_large_offset_01', 'preset_03_connection_single_01', 'preset_03_connection_small_01_02', 'preset_03_fuse_01', 'preset_03_nail_bent', 'preset_03_pole', 'preset_03_ring_large_01', 'preset_03_ring_large_02', 'preset_03_ring_small_01', 'preset_03_ring_small_02', 'preset_03_ring_small_03', 'preset_03_ring_small_04', 'preset_03_transformer_01']),
+    # THE CLUTTER (G293, the user: "I have added 5 new assets of clutter ...
+    # Feel free to reject things not game ready enough"): four taken - a
+    # stack of pallets, a pallet of cinder blocks, a heap of cement bags, a
+    # plastic garden chair (centimetres, its scene node cast off). The fifth,
+    # `brick_totem.glb`, is a photogrammetry brick pile at 145k triangles
+    # for 0.7 m of bricks - three houses' worth - and is left out.
+    # the pallets file is three things in a row: a messy stack, a neat stack
+    # of three, a single - each is a prop, by node
+    P('pallets_stack', 'yard', 'stack of pallets, messy', 'pallets',
+      note='a messy stack with a broken one on top, six parts', tex=512,
+      nodes=['TP pallet.Shape_default_0', 'TP pallet_dup_2.Shape_default_0', 'TP pallet_dup_3.Shape_default_0',
+             'TP pallet_dup_4.Shape_default_0', 'TP pallet_dup_5.Shape_default_0', 'TP pallet_dup_6.Shape_default_0']),
+    P('pallets_three', 'yard', 'three pallets', 'pallets',
+      note='three pallets stacked square', tex=512,
+      nodes=['TP pallet_dup_7.Shape_default_0', 'TP pallet_dup_8.Shape_default_0',
+             'TP pallet_dup_9.Shape_default_0', 'TP pallet_dup_10.Shape_default_0']),
+    P('pallet_one', 'yard', 'a pallet', 'pallets',
+      note='one pallet on the ground', tex=512, nodes=['TP pallet_dup_11.Shape_default_0']),
+    P('cinder_pallet', 'yard', 'pallet of cinder blocks', 'cinder',
+      note='a banded pallet of blocks, 69 parts, 19k triangles', tex=512),
+    P('cement_bags', 'yard', 'cement bags', 'cement',
+      note='a heap of bags, 2k triangles', tex=512),
+    P('chair_plastic', 'yard', 'plastic garden chair', 'pchair',
+      note='the white garden chair, 1k triangles; centimetres', scale=0.01, tex=256),
     # THE OLD FENCE (G275, the user: "I have added 1 model in the asset folder,
     # propsHouses. It's green. I think it's only one of those you should
     # use"): one 4.6 m stretch of leaning green pickets, delivered in

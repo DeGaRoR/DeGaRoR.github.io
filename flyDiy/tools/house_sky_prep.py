@@ -69,7 +69,8 @@ LUM = np.array([0.2126, 0.7152, 0.0722], dtype=np.float32)
 
 # key -> the label the bench shows. A file with no row here still builds; it
 # is listed under its own stem.
-NAMES = {'grassland': 'grassland sunset'}
+NAMES = {'grassland': 'grassland sunset',
+         'alps': 'alps afternoon'}    # the hangar's own panorama (G293): the benchmark since the start
 
 
 def dirs_of(H, W):

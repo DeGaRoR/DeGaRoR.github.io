@@ -27,7 +27,7 @@ const SUB = 'tex/lot';
 const SETS = [
   ['lush',   'dense grass',    2.4, 512],
   ['grass',  'grass',          2.4, 512],
-  ['pebble', 'pebbles',        1.6, 512],
+  ['pebble', 'pebbles',        4.5, 512],     // G293: mapped large - a beach's stones, not gravel
   ['dry',    'dry ground',     2.2, 512],
   ['dirt',   'dirt path',      1.8, 512],
 ];
