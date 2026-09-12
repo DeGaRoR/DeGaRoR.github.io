@@ -526,10 +526,11 @@ const THEMES = {
   kennecott: {
     name: 'Kennecott - the mine',
     hill: { back: 62, h: 34, r: 58 },
-    span: [42, 48], shedT: 26,
+    span: [42, 48], shedT: -4,          // the mill's receiving house sits at the mill's x
     items: [
-      { gen: 'house', preset: 'kennecott mill', x: -4, z: 24, yaw: 0 },
-      { gen: 'big', preset: 'tram shed', x: 26, z: 0, yaw: Math.PI / 2, onRoad: true },
+      // the mill stands so its own receiving house straddles the road
+      // (the gap below the lowest tier is set from `z` in placeSite)
+      { gen: 'house', preset: 'kennecott mill', x: -4, z: 24, yaw: 0, bottomOnRoad: true },
       { gen: 'big', preset: 'mine shop', x: -34, z: 12, yaw: 0 },
       { gen: 'house', preset: 'mine bunkhouse', x: 34, z: 14, yaw: 0 },
       { gen: 'house', preset: 'mine bunkhouse', x: 34, z: 26, yaw: 0.15 },
@@ -585,7 +586,13 @@ function placeSite(vil) {
       P = Object.assign({}, HG.DEF, HG.PRESETS[it.preset] || {}, it.P || {});
       P.preset = it.preset; P.slopeX = 0; P.slopeZ = 0; P.water = 0; P.pier = 0;
       P.ground = ground; P.waterY = T.waterY - oy;
-      if (P.mill) P.floorY = Math.max(ground(-P.tierL0 / 2, P.tierW / 2), ground(P.tierL0 / 2, P.tierW / 2)) + 0.6;
+      if (P.mill) {
+        P.floorY = Math.max(ground(-P.tierL0 / 2, P.tierW / 2), ground(P.tierL0 / 2, P.tierW / 2)) + 0.6;
+        // THE RECEIVING HOUSE ON THE ROAD (G333): the mill's own bottom house
+        // sits astride the road - its gap below the lowest tier is whatever
+        // puts its centre on the anchor line
+        if (it.bottomOnRoad) { P.bottomGap = it.z - P.tierW / 2 - (P.bottomW || 9) / 2; P.bottomL = 16; }
+      }
       else {
         let hiC = -1e9;
         for (const sx of [-1, 1]) for (const sz of [-1, 1]) hiC = Math.max(hiC, ground(sx * P.L / 2, sz * P.w / 2));

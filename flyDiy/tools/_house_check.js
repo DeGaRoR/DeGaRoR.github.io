@@ -1267,7 +1267,11 @@ for (const name of Object.keys(HG.PRESETS)) {
     check(M.tiers[k].zF < M.tiers[k - 1].zF && M.tiers[k].zF > M.tiers[k - 1].zB, 'mill ' + name + ': tier ' + k + ' does not rise out of the roof below');
   }
   check(hi.stats.ridgeY > M.tiers[M.tiers.length - 1].ridge - 0.5, 'mill ' + name + ': nothing stands above the top tier');
-  const reachX = P.tierL0 / 2 + 14 + 10 + 7, reachZ = P.tierW / 2 + (Math.round(P.tiers) + Math.round(P.frameBack || 0) - 1) * P.tierStep + P.tierW + 4;
+  // the reach up the hill: the tiers, the frames behind them (each up to
+  // 1.4 depths), the terminal 16 m behind the last and the tram's ropes 40 m
+  // on; down the hill: the receiving house and its gap
+  const reachX = P.tierL0 / 2 + 14 + 10 + 7;
+  const reachZ = P.tierW / 2 + (Math.round(P.tiers) - 1) * P.tierStep + Math.round(P.frameBack || 0) * P.tierW * 1.2 + P.tierW * 1.4 + 16 + 6 + (P.tram ? 42 : 0) + (P.bottom ? P.bottomGap + (P.bottomW || 9) + 2 : 0);
   check(x1 <= reachX + 1e-3 && z1 <= reachZ + 1e-3, 'mill ' + name + ': something stands past the reach of the mill', x1.toFixed(2) + '/' + reachX.toFixed(2) + ' ' + z1.toFixed(2) + '/' + reachZ.toFixed(2));
   // the windows: the glass bag's quads, each centre against every other tier's box
   {

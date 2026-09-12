@@ -41509,3 +41509,41 @@ Headless now: the Skymaster twin booms and two fins (clusters at 474 /
   buy nothing the triplanar projection does not already give it.
 - GATE SKINMAT green (both tables gained the name together, the census's
   rule).
+
+## G333 — THE CONVEYORS START SOMEWHERE AND GO SOMEWHERE; THE RECEIVING HOUSE
+## AT THE FOOT IS THE MILL'S, ASTRIDE THE ROAD; THE BARE FRAMES VARY
+## (2026-09-13, the user: "concentrate first on the conveyor. ensure it
+## starts from somewhere and goes somewhere. Maybe add another one. Have one
+## reaching the bottom house. And indeed, start on the bottom house, that one
+## should be part of the factory"; "your approach to the truss only structure
+## at the back is rather lazy. Vary the sizes, the height, the roof types and
+## inclinations")
+
+- **THE RECEIVING HOUSE** (`bottom`, `bottomGap`, `bottomL/W/Dx`): a part of
+  the mill now - a tall single-storey house on a slab in front of the
+  lowest tier, BOTH gable ends open (the house generator took a second
+  open side, `openFront2`): the road runs in one end and out the other.
+  A PORTAL - a small gabled box astride its ridge - is where the tramway
+  comes in. In the site the mill stands so the receiving house's centre
+  is on the road's line (`bottomOnRoad`: the gap below the lowest tier
+  is set from the item's z); the separate `tram shed` item is gone.
+  GATE VILLAGE 15 holds the receiving house on the road, its open ends
+  along it.
+- **CONVEYOR ONE**: from the crusher floor (the first bare frame, a storey
+  up) down across the front, over the tiers on its trestles - cross
+  braced where they are tall, standing on a tier's roof or the receiving
+  house's or the ground - into the portal. Alone in the bench, to a point
+  at the foot.
+- **CONVEYOR TWO, THE AERIAL TRAM**: from a TERMINAL - a bare frame with
+  its own gable 16 m up the hill behind the last frame - down into the
+  last frame's top storey; two wire ropes on up the hill from the
+  terminal, the line from the mine.
+- **THE BARE FRAMES VARY** (`bareFrame` draws any of them): each frame
+  behind the crusher floor rolls its own length (0.7-1.6 × the top's),
+  its own depth (0.6-1.4 × the tier's), its own step, storeys 1-3, height
+  factor, roof kind (a gable along, a gable across, a monopitch) and pitch
+  (10-36°), and its own rise - braces on the ends as well as the fronts.
+  No two alike.
+- GATE HOUSE 37: the reach takes the terminal, the ropes, the receiving
+  house.
+- Gates: HOUSE, VILLAGE green.

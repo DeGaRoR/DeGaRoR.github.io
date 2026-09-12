@@ -1418,10 +1418,11 @@ const DEF = {
   // chimney, and what comes out of it
   chim: 1, chimXF: -0.45, chimZF: 0.30, chimR: 0.10, chimUp: 0.95,
   flagpole: 0, flagXF: 0.62,
-  clouds: 0, roofClouds: undefined, roofTile: 1, roofNrm: 1,
+  clouds: 0, roofClouds: undefined, roofTile: 1, roofNrm: 1, openFront2: 0,
   // THE MILL (G329): a composite of houses up a hill - see buildMill
   mill: 0, tiers: 7, tierStep: 6.4, tierRise: 3.3, tierW: 9.5, tierL0: 26, tierL1: 12,
   tram: 1, tramTo: null, millStacks: 3, annex: 1, winRow: 2.0, derelict: 0.5, millTiers: null, frameBack: 2,
+  bottom: 1, bottomGap: 14, bottomL: 16, bottomW: 9, bottomDx: 0,
   smoke: 1, smokeK: 0.55, smokeLean: 0.35,
   // the yard (G273): props round the house, the woodpile, the lamp
   yard: 1, yardK: 0.6, yardSeed: 7, woodpile: 1, woodLen: 2.2, woodH: 1.25,
@@ -1690,6 +1691,7 @@ const ROWS = [
     ['tram', 'the tramway', 0, 1, 1, null, P => !!P.mill], ['millStacks', 'stacks', 0, 4, 1, null, P => !!P.mill],
     ['annex', 'the power house', 0, 1, 1, null, P => !!P.mill], ['derelict', 'derelict', 0, 1, 0.05, null, P => !!P.mill],
     ['frameBack', 'bare frames behind the top', 0, 5, 1, null, P => !!P.mill],
+    ['bottom', 'the receiving house', 0, 1, 1, null, P => !!P.mill], ['bottomGap', 'its gap below the mill', 6, 30, 0.5, null, P => !!P.mill && !!P.bottom],
   ]],
   ['drainage', [
     ['gutter', 'gutter', 0, 2, 1, ['none', 'half round', 'box']],
@@ -5622,6 +5624,10 @@ function build(P0, lod, F) {
   const bay = bayPlan(P, V, R, plan, band, 0, doorPosOf(P, V));
   if (bay) wallOpts[bay.side].bay = bay;
   const openIdx = Math.round(P.openFront) - 1;
+  // A SECOND OPEN SIDE (G333): the mill's receiving house has both ends
+  // open, the road running in one and out the other
+  const openIdx2 = Math.round(P.openFront2 || 0) - 1;
+  if (openIdx2 >= 0 && openIdx2 < 4) wallOpts[openIdx2].open = true;
   if (openIdx >= 0 && openIdx < 4) wallOpts[openIdx].open = true;
   const vol = buildVolume(bags, P, Q, V, R, plan, wallOpts);
   const bayOut = buildBay(bags, P, Q, V, R, bay);
@@ -5929,7 +5935,13 @@ function buildMill(P, lod, F) {
   // the continuation"): `frameBack` more frame tiers behind the crusher
   // floor, the top's length, stepping on up the hill with no closed house
   // among them
-  for (let k = 0; k < Math.round(P.frameBack || 0); k++) spec.push({ roof: 'frame', storeys: 2, naked: 0, head: 0, L: P.tierL1 + (k % 2 ? 3 : 0) });
+  for (let k = 0; k < Math.round(P.frameBack || 0); k++) {
+    const r = rnd();
+    spec.push({ roof: 'frame', storeys: k % 2 ? 1 : 2 + Math.round(rnd()), naked: 0, head: 0,
+                L: P.tierL1 * (0.7 + rnd() * 0.9), fw: w * (0.6 + rnd() * 0.8), fstep: (P.tierW * (0.6 + rnd() * 0.8)) * 0.8,
+                froof: r < 0.4 ? 'x' : (r < 0.7 ? 'mono' : 'z'), pitch: 10 + rnd() * 26, hK: 0.8 + rnd() * 0.5,
+                frise: rise * (0.6 + rnd() * 0.9) });
+  }
   const N = spec.length;
   // the house every tier is cut from: the mill's own finish and sets
   const base = k => ({
@@ -5949,17 +5961,25 @@ function buildMill(P, lod, F) {
     const S = spec[i];
     const L = S.L !== undefined ? S.L : P.tierL0 + (P.tierL1 - P.tierL0) * i / Math.max(1, N - 1);
     const xo = S.xo !== undefined ? S.xo : (rnd() - 0.5) * Math.max(2, (P.tierL0 - L) * 0.9);
-    const zF = w / 2 - i * step, zB = zF - w, zM = (zF + zB) / 2;
+    // a frame tier may be deeper or shallower than the run (`fw`), and
+    // steps by its own depth so the frames behind the top do not all sit
+    // on one grid (G333, the user: "Vary the sizes, the height, the roof
+    // types and inclinations")
+    const wT = S.fw || w;
+    const zF = i ? TG[i - 1].zF - (S.fstep || step) : w / 2, zB = zF - wT, zM = (zF + zB) / 2;
     let gUnder = -1e9;
     for (const x of [xo - L / 2, xo, xo + L / 2]) for (const z of [zF, zB]) gUnder = Math.max(gUnder, g(x, z));
-    const fy = Math.max(i ? TG[i - 1].fy + rise : P.floorY, gUnder + 0.3);
+    const fy = Math.max(i ? TG[i - 1].fy + (S.frise !== undefined ? S.frise : rise) : P.floorY, gUnder + 0.3);
     const storeys = Math.max(1, Math.round(S.storeys || 2));
-    const eave = fy + storeys * stH;
+    const eave = fy + storeys * stH * (S.hK || 1);
     const roof = S.roof || 'z';
-    const tpZ = Math.min(tp, 4.5 / (L / 2));
-    const yRoof = (x, z) => roof === 'x' || roof === 'frame' ? eave + (w / 2 - Math.abs(z - zM)) * tp
-                          : roof === 'z' ? eave + (L / 2 - Math.min(L / 2, Math.abs(x - xo))) * tpZ
-                          : eave + (zF - z) * tp;
+    // the frame's own roof: `froof` 'x' | 'z' | 'mono', its own pitch
+    const fro = roof === 'frame' ? (S.froof || 'x') : roof;
+    const tpT = S.pitch ? Math.tan(S.pitch * D2R) : tp;
+    const tpZ = Math.min(tpT, 4.5 / (L / 2));
+    const yRoof = (x, z) => fro === 'x' ? eave + (wT / 2 - Math.abs(z - zM)) * tpT
+                          : fro === 'z' ? eave + (L / 2 - Math.min(L / 2, Math.abs(x - xo))) * tpZ
+                          : eave + (zF - z) * tpT;
     const ridge = Math.max(yRoof(xo, zM), yRoof(xo, zF), yRoof(xo, zB));
     const isDer = rnd() < (P.derelict === undefined ? 0.5 : P.derelict);
     const endsK = S.ends || (() => { const e = []; for (const sd of [-1, 1]) { const r = rnd(); e.push(r < 0.3 ? 'annex' : r < 0.5 ? 'stair' : r < 0.65 ? 'chute' : ''); } return e; })();
@@ -5978,7 +5998,7 @@ function buildMill(P, lod, F) {
         ends.push({ kind, sd, x0: sx0, x1: sx0 + sL, z0: zM + sW / 2, z1: zM - sW / 2, y0: fy, y1: eave + 0.9 });
       } else ends.push({ kind, sd, xe });
     }
-    TG.push({ S, L, xo, x0: xo - L / 2, x1: xo + L / 2, zF, zB, zM, fy, storeys, eave, roof, yRoof, ridge, isDer, ends, tpZ });
+    TG.push({ S, L, xo, x0: xo - L / 2, x1: xo + L / 2, zF, zB, zM, fy, storeys, eave, roof, fro, tpT, yRoof, ridge, isDer, ends, tpZ, w: wT });
   }
   // inside another closed volume - a tier's box under its roof, an annex, a stair tower?
   const covered = (x, y, z, self) => {
@@ -6047,8 +6067,32 @@ function buildMill(P, lod, F) {
     }
   }
   const top = TG[N - 1];
-  // the power house at the foot, a house too, and the head house on a frame tier
   const baseT = TG[0];
+  // THE RECEIVING HOUSE at the foot (G333, the user: "start on the bottom
+  // house, that one should be part of the factory"): a tall single-storey
+  // house on a slab, both gable ends open - the road runs in one and out
+  // the other - downhill in front of the lowest tier by `bottomGap`; the
+  // tramway comes down into a PORTAL on its roof
+  let bottom = null;
+  if (P.bottom === undefined || P.bottom) {
+    const bL = P.bottomL || 16, bW = P.bottomW || 9;
+    const bz = baseT.zF + (P.bottomGap === undefined ? 14 : P.bottomGap) + bW / 2, bx = baseT.xo + (P.bottomDx || 0);
+    let gU = -1e9;
+    for (const x of [bx - bL / 2, bx + bL / 2]) for (const z of [bz - bW / 2, bz + bW / 2]) gU = Math.max(gU, g(x, z));
+    const bfy = gU + 0.08, bH = 5.2;
+    const Pb = Object.assign(base(), { L: bL, w: bW, storeys: 1, floorY: bfy, floorH: bH, roofFam: 0, pitch: 26, stance: 0, skirt: 0,
+      nFront: 5, nBack: 5, nLeft: 0, nRight: 0, winW: 0.9, winH: 1.1, winSill: 2.4, gableWin: 0, door: 0,
+      openFront: 2, openFront2: 4, eaveOver: 0.5, rakeOver: 0.5 });
+    parts.push({ tag: 'receiving house', P: Pb, x: bx, z: bz, yaw: 0 });
+    const ridgeB = bfy + bH + bW / 2 * Math.tan(26 * D2R);
+    // the portal: a small box astride the ridge where the tramway comes in
+    const px = bx + bL * 0.28, pz = bz;
+    const Pp = Object.assign(base(), { L: 3.0, w: 2.6, storeys: 1, floorY: ridgeB - 1.2, floorH: 2.6, roofFam: 0, pitch: 26, stance: 0, skirt: 0,
+      nFront: 0, nBack: 0, nLeft: 0, nRight: 0, gableWin: 0, door: 0, eaveOver: 0.25, rakeOver: 0.25 });
+    parts.push({ tag: 'portal', P: Pp, x: px, z: pz, yaw: 0 });
+    bottom = { x: bx, z: bz, L: bL, w: bW, fy: bfy, eave: bfy + bH, ridge: ridgeB, portal: { x: px, z: pz, y: ridgeB - 1.2 + 1.6 } };
+  }
+  // the power house at the foot, a house too, and the head house on a frame tier
   if (P.annex) {
     const aL = 12, aW = 8, ax = baseT.x1 + 0.6 + aL / 2, az = baseT.zF - w / 2 - 1.0;
     let gU = -1e9;
@@ -6064,41 +6108,106 @@ function buildMill(P, lod, F) {
   }
   // ---- the mill-only pieces, into the house's own bags
   const occ = [];
+  // A BARE FRAME (the crusher floor, the frames behind it, the tramway's
+  // terminal): posts on a grid to the roof's underside, plates at every
+  // storey, braces in every bay, a board floor, the roof by its kind over
+  // it - a gable along, a gable across, a monopitch - with fascia and ridge
+  const bareFrame = (bags, T, Q) => {
+    const post = (a, b, sz) => beam(bags.post, a, b, sz || 0.14, sz || 0.14, [0, 0, 1], 0);
+    const wT = T.w, rT = P.roofT, tpT = T.tpT;
+    const nx = Math.max(2, Math.round(T.L / 2.6)), nz = Math.max(2, Math.round(wT / 2.6));
+    for (let a = 0; a <= nx; a++) for (let b = 0; b <= nz; b++) {
+      const x = T.x0 + T.L * a / nx, z = T.zF - wT * b / nz;
+      post([x, g(x, z) - 0.3, z], [x, T.yRoof(x, z) - 0.05, z], 0.2);
+      if (Q.lod === 0) boxAB(bags.stone, [x - 0.28, g(x, z) - 0.35, z - 0.28], [x + 0.28, g(x, z) + 0.12, z + 0.28]);
+    }
+    const sH = (T.eave - T.fy) / T.storeys;
+    for (let s2 = 0; s2 <= T.storeys; s2++) {
+      const y = T.fy + s2 * sH - (s2 ? 0.2 : 0);
+      for (let b = 0; b <= nz; b++) { const z = T.zF - wT * b / nz; post([T.x0, y, z], [T.x1, y, z], 0.16); }
+      for (let a = 0; a <= nx; a++) { const x = T.x0 + T.L * a / nx; post([x, y, T.zF], [x, y, T.zB], 0.14); }
+      if (Q.lod === 0 && s2) for (let a = 0; a < nx; a++) {
+        const xa = T.x0 + T.L * a / nx, xb = T.x0 + T.L * (a + 1) / nx;
+        post([xa, y - sH + 0.3, T.zF], [xb, y - 0.1, T.zF], 0.09);
+        post([xa, y - sH + 0.3, T.zB], [xb, y - 0.1, T.zB], 0.09);
+      }
+      if (Q.lod === 0 && s2) for (let b = 0; b < nz; b++) for (const x of [T.x0, T.x1]) {
+        const za = T.zF - wT * b / nz, zb = T.zF - wT * (b + 1) / nz;
+        post([x, y - sH + 0.3, za], [x, y - 0.1, zb], 0.09);
+      }
+    }
+    face(bags.floor, [[T.x0, T.fy + 0.02, T.zB], [T.x0, T.fy + 0.02, T.zF], [T.x1, T.fy + 0.02, T.zF], [T.x1, T.fy + 0.02, T.zB]], [0, 1, 0], uvFrame([T.x0, T.fy, T.zB], [1, 0, 0], [0, 0, 1]));
+    const plate2 = (ring, S2) => plate(bags.roof, ring, rT, [0, -1, 0], uvFrame(ring[0], [1, 0, 0], S2));
+    const fascia = (a, b) => beam(bags.trim, a, b, 0.02, 0.18, [0, 1, 0], 0);
+    if (T.fro === 'x') {
+      for (const side of [1, -1]) {
+        const zE = T.zM + side * (wT / 2 + P.eaveOver), yE = T.eave - P.eaveOver * tpT + rT;
+        plate2([[T.x0 - P.rakeOver, T.ridge + rT, T.zM], [T.x1 + P.rakeOver, T.ridge + rT, T.zM], [T.x1 + P.rakeOver, yE, zE], [T.x0 - P.rakeOver, yE, zE]], nrm([0, yE - T.ridge - rT, zE - T.zM]));
+        fascia([T.x0 - P.rakeOver, yE - 0.1, zE], [T.x1 + P.rakeOver, yE - 0.1, zE]);
+      }
+      beam(bags.metal, [T.x0 - P.rakeOver, T.ridge + rT + 0.03, T.zM], [T.x1 + P.rakeOver, T.ridge + rT + 0.03, T.zM], 0.16, 0.05, [0, 1, 0], 0);
+    } else if (T.fro === 'z') {
+      const ridgeZ = T.eave + T.L / 2 * T.tpZ;
+      for (const side of [1, -1]) {
+        const xE = T.xo + side * (T.L / 2 + P.rakeOver), yE = T.eave - P.rakeOver * T.tpZ + rT;
+        plate2([[T.xo, ridgeZ + rT, T.zF + P.eaveOver], [T.xo, ridgeZ + rT, T.zB - P.eaveOver], [xE, yE, T.zB - P.eaveOver], [xE, yE, T.zF + P.eaveOver]], nrm([xE - T.xo, yE - ridgeZ - rT, 0]));
+        fascia([xE, yE - 0.1, T.zF + P.eaveOver], [xE, yE - 0.1, T.zB - P.eaveOver]);
+      }
+      beam(bags.metal, [T.xo, ridgeZ + rT + 0.03, T.zF + P.eaveOver], [T.xo, ridgeZ + rT + 0.03, T.zB - P.eaveOver], 0.16, 0.05, [0, 1, 0], 0);
+    } else {
+      const yF = T.yRoof(T.xo, T.zF) - P.eaveOver * tpT + rT, yB = T.yRoof(T.xo, T.zB) + P.eaveOver * tpT + rT;
+      plate2([[T.x0 - P.rakeOver, yF, T.zF + P.eaveOver], [T.x1 + P.rakeOver, yF, T.zF + P.eaveOver], [T.x1 + P.rakeOver, yB, T.zB - P.eaveOver], [T.x0 - P.rakeOver, yB, T.zB - P.eaveOver]], nrm([0, yB - yF, -wT]));
+      fascia([T.x0 - P.rakeOver, yF - 0.1, T.zF + P.eaveOver], [T.x1 + P.rakeOver, yF - 0.1, T.zF + P.eaveOver]);
+    }
+  };
+  // A CONVEYOR: a lattice of rusted steel from a to b - chords, verticals,
+  // diagonals, cross ties, a sheet hood, two pipes on hangers, trestle
+  // legs to whatever is under it where it is high
+  const conveyor = (bags, Q, a0, a1) => {
+    const steel = (a, b, sz) => beam(bags.metal, a, b, sz, sz, [0, 1, 0], 0);
+    const dir = nrm(sub(a1, a0)), Ln = len(sub(a1, a0));
+    const side = nrm(crs(dir, [0, 1, 0]));
+    for (const sg of [-1, 1]) {
+      const o = mul(side, sg * 0.7);
+      steel(add(a0, o), add(a1, o), 0.12);
+      steel(add(add(a0, o), [0, -1.4, 0]), add(add(a1, o), [0, -1.4, 0]), 0.12);
+    }
+    if (Q.lod !== 0) return;
+    const nB = Math.max(2, Math.round(Ln / 2.2));
+    for (let k = 0; k <= nB; k++) {
+      const p = add(a0, mul(dir, Ln * k / nB));
+      for (const sg of [-1, 1]) {
+        const o = mul(side, sg * 0.7);
+        steel(add(p, o), add(add(p, o), [0, -1.4, 0]), 0.07);
+        if (k < nB) steel(add(p, o), add(add(add(a0, mul(dir, Ln * (k + 1) / nB)), o), [0, -1.4, 0]), 0.05);
+      }
+      steel(add(p, mul(side, -0.7)), add(p, mul(side, 0.7)), 0.06);
+      steel(add(add(p, mul(side, -0.7)), [0, -1.4, 0]), add(add(p, mul(side, 0.7)), [0, -1.4, 0]), 0.06);
+    }
+    for (const sg of [-1, 1]) {
+      const o = add(mul(side, sg * 0.95), [0, -0.9, 0]);
+      cyl(bags.metal, add(a0, o), dir, 0.07, Ln, 8, true, { smooth: true });
+      for (let k = 1; k < nB; k++) { const p = add(a0, mul(dir, Ln * k / nB)); steel(add(p, mul(side, sg * 0.7)), add(p, o), 0.03); }
+    }
+    const hood = [add(add(a0, mul(side, -0.85)), [0, 0.35, 0]), add(add(a0, mul(side, 0.85)), [0, 0.35, 0]), add(add(a1, mul(side, 0.85)), [0, 0.35, 0]), add(add(a1, mul(side, -0.85)), [0, 0.35, 0])];
+    plate(bags.roof, hood, 0.04, [0, -1, 0], uvFrame(hood[0], side, dir));
+    for (let k = 1; k < nB; k += 2) {
+      const p = add(add(a0, mul(dir, Ln * k / nB)), [0, -1.4, 0]);
+      const under = TG.find(T2 => p[2] <= T2.zF + 0.3 && p[2] >= T2.zB - 0.3 && p[0] > T2.x0 - 0.5 && p[0] < T2.x1 + 0.5);
+      const onBottom = bottom && p[2] > bottom.z - bottom.w / 2 && p[2] < bottom.z + bottom.w / 2 && Math.abs(p[0] - bottom.x) < bottom.L / 2;
+      const gy = Math.max(g(p[0], p[2]), under ? under.ridge - 0.3 : -1e9, onBottom ? bottom.ridge - 0.3 : -1e9);
+      if (p[1] - gy > 1.5) for (const sg of [-1, 1]) {
+        steel(add(p, mul(side, sg * 0.7)), [p[0] + side[0] * sg * 0.9, gy, p[2] + side[2] * sg * 0.9], 0.08);
+        if (p[1] - gy > 5) steel([p[0] + side[0] * sg * 0.9, gy + (p[1] - gy) * 0.5, p[2] + side[2] * sg * 0.9], [p[0] - side[0] * sg * 0.9, gy, p[2] - side[2] * sg * 0.9], 0.05);   // a cross brace on a tall trestle
+      }
+    }
+  };
   const extra = (bags, built, Q) => {
     const post = (a, b, sz) => beam(bags.post, a, b, sz || 0.14, sz || 0.14, [0, 0, 1], 0);
     const steel = (a, b, sz) => beam(bags.metal, a, b, sz, sz, [0, 1, 0], 0);
     for (let i = 0; i < N; i++) {
       const T = TG[i];
-      if (T.roof === 'frame') {
-        // THE CRUSHER FLOOR: posts to the roof, plates at every storey, braces in every bay, a board floor, a gable over it
-        const nx = Math.max(2, Math.round(T.L / 2.6)), nz = Math.max(2, Math.round(w / 2.6));
-        for (let a = 0; a <= nx; a++) for (let b = 0; b <= nz; b++) {
-          const x = T.x0 + T.L * a / nx, z = T.zF - w * b / nz;
-          post([x, g(x, z) - 0.3, z], [x, T.yRoof(x, z) - 0.05, z], 0.2);
-          if (Q.lod === 0) boxAB(bags.stone, [x - 0.28, g(x, z) - 0.35, z - 0.28], [x + 0.28, g(x, z) + 0.12, z + 0.28]);
-        }
-        for (let s2 = 0; s2 <= T.storeys; s2++) {
-          const y = T.fy + s2 * stH - (s2 ? 0.2 : 0);
-          for (let b = 0; b <= nz; b++) { const z = T.zF - w * b / nz; post([T.x0, y, z], [T.x1, y, z], 0.16); }
-          for (let a = 0; a <= nx; a++) { const x = T.x0 + T.L * a / nx; post([x, y, T.zF], [x, y, T.zB], 0.14); }
-          if (Q.lod === 0 && s2) for (let a = 0; a < nx; a++) {
-            const xa = T.x0 + T.L * a / nx, xb = T.x0 + T.L * (a + 1) / nx;
-            post([xa, y - stH + 0.3, T.zF], [xb, y - 0.1, T.zF], 0.09);
-            post([xa, y - stH + 0.3, T.zB], [xb, y - 0.1, T.zB], 0.09);
-          }
-        }
-        face(bags.floor, [[T.x0, T.fy + 0.02, T.zB], [T.x0, T.fy + 0.02, T.zF], [T.x1, T.fy + 0.02, T.zF], [T.x1, T.fy + 0.02, T.zB]], [0, 1, 0], uvFrame([T.x0, T.fy, T.zB], [1, 0, 0], [0, 0, 1]));
-        // the gable over the frame: the house's roof planes, laid by hand
-        const rT = P.roofT;
-        for (const side of [1, -1]) {
-          const zE = T.zM + side * (w / 2 + P.eaveOver), yE = T.eave - P.eaveOver * tp + rT;
-          const ring = [[T.x0 - P.rakeOver, T.ridge + rT, T.zM], [T.x1 + P.rakeOver, T.ridge + rT, T.zM], [T.x1 + P.rakeOver, yE, zE], [T.x0 - P.rakeOver, yE, zE]];
-          plate(bags.roof, ring, rT, [0, -1, 0], uvFrame(ring[0], [1, 0, 0], nrm([0, yE - T.ridge - rT, zE - T.zM])));
-          beam(bags.trim, [T.x0 - P.rakeOver, yE - 0.1, zE], [T.x1 + P.rakeOver, yE - 0.1, zE], 0.02, 0.18, [0, 1, 0], 0);   // the fascia
-        }
-        beam(bags.metal, [T.x0 - P.rakeOver, T.ridge + rT + 0.03, T.zM], [T.x1 + P.rakeOver, T.ridge + rT + 0.03, T.zM], 0.16, 0.05, [0, 1, 0], 0);
-        occ.push({ x: T.xo, z: T.zM, hx: T.L / 2, hz: w / 2, k: 0.6, soft: 1.6 });
-      }
+      if (T.roof === 'frame') { bareFrame(bags, T, Q); occ.push({ x: T.xo, z: T.zM, hx: T.L / 2, hz: T.w / 2, k: 0.6, soft: 1.6 }); }
       // THE NAKED LEAN-TO on the +x end
       if (T.S.naked && Q.lod === 0 && T.roof !== 'frame') {
         const nx0 = T.x1 + 0.2, nx1 = T.x1 + 4.5, zz0 = T.zF - 0.6, zz1 = T.zB + 0.6;
@@ -6127,51 +6236,37 @@ function buildMill(P, lod, F) {
         beam(bags.deck, [x + (rnd() - 0.5) * 0.6, g(x, zb + 1.2), zb + 1.2 + rnd() * 0.8], [x, T.fy + 0.3 + rnd() * 0.6, T.zF + 0.16], 0.03, 0.12, [0, 1, 0], 0);
       }
     }
-    // THE TRAMWAY: rusted steel from the crusher down across the front to the second tier's roof, pipes along it
+    // THE CONVEYORS START SOMEWHERE AND GO SOMEWHERE (G333, the user):
+    //   ONE: from the crusher floor (the first bare frame - the ore leaves
+    //   it at the storey above its floor) down across the front, over the
+    //   tiers on its trestles, INTO THE PORTAL on the receiving house's
+    //   roof at the foot; alone in the bench it ends at a point at the foot
+    //   TWO: the aerial tramway from the mine - from a TERMINAL, a bare
+    //   frame with its own roof high up the hill behind the last frame -
+    //   down into the last frame's top storey
     if (P.tram && N >= 3) {
-      // THE TRAMWAY RUNS TO THE RECEIVING HOUSE (G329, the user: "It should
-      // go from the big top, to the receiving house at the bottom, probably
-      // the one through which the road goes"): from the crusher floor - the
-      // topmost closed tier's front if the top is bare frames - down across
-      // the front to `tramTo` (the site hands in the tram shed, in the
-      // mill's frame; alone, a point at the foot), on its trestles all the way
       const crusher = TG.filter(T => T.roof === 'frame')[0] || top;
-      const sgn = (P.tramTo ? Math.sign(P.tramTo[0] - crusher.xo) : (rnd() < 0.5 ? -1 : 1)) || 1;
-      const a0 = [crusher.xo + sgn * crusher.L * 0.25, crusher.fy + 0.6, crusher.zF + 0.4];
-      const a1 = P.tramTo ? [P.tramTo[0], P.tramTo[1] + 3.2, P.tramTo[2]] : [a0[0] + sgn * 9, TG[0].fy + 3.4, TG[0].zF + 6];
-      const dir = nrm(sub(a1, a0)), Ln = len(sub(a1, a0));
-      const side = nrm(crs(dir, [0, 1, 0]));
-      for (const sg of [-1, 1]) {
-        const o = mul(side, sg * 0.7);
-        steel(add(a0, o), add(a1, o), 0.12);
-        steel(add(add(a0, o), [0, -1.4, 0]), add(add(a1, o), [0, -1.4, 0]), 0.12);
-      }
-      if (Q.lod === 0) {
-        const nB = Math.max(2, Math.round(Ln / 2.2));
-        for (let k = 0; k <= nB; k++) {
-          const p = add(a0, mul(dir, Ln * k / nB));
-          for (const sg of [-1, 1]) {
-            const o = mul(side, sg * 0.7);
-            steel(add(p, o), add(add(p, o), [0, -1.4, 0]), 0.07);
-            if (k < nB) steel(add(p, o), add(add(add(a0, mul(dir, Ln * (k + 1) / nB)), o), [0, -1.4, 0]), 0.05);
-          }
-          steel(add(p, mul(side, -0.7)), add(p, mul(side, 0.7)), 0.06);
-          steel(add(add(p, mul(side, -0.7)), [0, -1.4, 0]), add(add(p, mul(side, 0.7)), [0, -1.4, 0]), 0.06);
-        }
-        for (const sg of [-1, 1]) {
-          const o = add(mul(side, sg * 0.95), [0, -0.9, 0]);
-          cyl(bags.metal, add(a0, o), dir, 0.07, Ln, 8, true, { smooth: true });
-          for (let k = 1; k < nB; k++) { const p = add(a0, mul(dir, Ln * k / nB)); steel(add(p, mul(side, sg * 0.7)), add(p, o), 0.03); }
-        }
-        const hood = [add(add(a0, mul(side, -0.85)), [0, 0.35, 0]), add(add(a0, mul(side, 0.85)), [0, 0.35, 0]), add(add(a1, mul(side, 0.85)), [0, 0.35, 0]), add(add(a1, mul(side, -0.85)), [0, 0.35, 0])];
-        plate(bags.roof, hood, 0.04, [0, -1, 0], uvFrame(hood[0], side, dir));
-        for (let k = 1; k < nB; k += 2) {
-          const p = add(add(a0, mul(dir, Ln * k / nB)), [0, -1.4, 0]);
-          const under = TG.find(T2 => p[2] <= T2.zF + 0.3 && p[2] >= T2.zB - 0.3);
-          const gy = Math.max(g(p[0], p[2]), under ? under.ridge - 0.3 : g(p[0], p[2]));
-          if (p[1] - gy > 1.5) for (const sg of [-1, 1]) steel(add(p, mul(side, sg * 0.7)), [p[0] + side[0] * sg * 0.9, gy, p[2] + side[2] * sg * 0.9], 0.08);
-        }
-      }
+      const to = bottom ? [bottom.portal.x, bottom.portal.y, bottom.portal.z - 1.3]
+               : (P.tramTo ? [P.tramTo[0], P.tramTo[1] + 3.2, P.tramTo[2]] : [crusher.xo + 9, TG[0].fy + 3.4, TG[0].zF + 6]);
+      const sgn = Math.sign(to[0] - crusher.xo) || 1;
+      const a0 = [crusher.xo + sgn * Math.min(crusher.L * 0.25, Math.abs(to[0] - crusher.xo)), crusher.fy + Math.min(crusher.eave - crusher.fy - 1.6, stH) + 0.6, crusher.zF - 1.5];
+      conveyor(bags, Q, a0, to);
+      // the terminal up the hill and the second run
+      const last = TG[N - 1];
+      const tz = last.zB - 16, tx = last.xo + (rnd() - 0.5) * 6;
+      const tL = 7, tW = 6;
+      let gT = -1e9;
+      for (const x of [tx - tL / 2, tx + tL / 2]) for (const z of [tz + tW / 2, tz - tW / 2]) gT = Math.max(gT, g(x, z));
+      const tfy = gT + 0.3, tEave = tfy + 2 * stH * 0.9;
+      const term = { L: tL, w: tW, xo: tx, x0: tx - tL / 2, x1: tx + tL / 2, zF: tz + tW / 2, zB: tz - tW / 2, zM: tz, fy: tfy, storeys: 2, eave: tEave, fro: 'x', tpT: Math.tan(28 * D2R), tpZ: Math.tan(28 * D2R),
+                     yRoof: (x, z) => tEave + (tW / 2 - Math.abs(z - tz)) * Math.tan(28 * D2R), ridge: tEave + tW / 2 * Math.tan(28 * D2R) };
+      bareFrame(bags, term, Q);
+      occ.push({ x: tx, z: tz, hx: tL / 2, hz: tW / 2, k: 0.6, soft: 1.4 });
+      const b0 = [tx, tfy + stH * 0.9 + 0.4, term.zF - 0.5];
+      const b1 = [last.xo, last.fy + (last.storeys - 1) * ((last.eave - last.fy) / last.storeys) + 0.5, last.zB + 1.2];
+      conveyor(bags, Q, b0, b1);
+      // the wire ropes on up the hill from the terminal: the aerial tram's own line
+      if (Q.lod === 0) for (const sg of [-1.2, 1.2]) steel([tx + sg, tEave - 0.2, term.zB], [tx + sg, tEave + 9, term.zB - 40], 0.02);
     }
     // THE STACKS behind the power house: tall, banded, guyed, a ladder up the first
     if (P.annex) for (let k = 0; k < Math.round(P.millStacks); k++) {
@@ -6200,7 +6295,7 @@ function buildMill(P, lod, F) {
   };
   const out = buildComposite(parts, { ground: g, extra, occ, P,
     front: { x: baseT.xo, z: baseT.zF + 1.0, side: 1, depth: 0 },
-    stats: { mill: { tiers: TG.map(T => ({ i: TG.indexOf(T), L: T.L, xo: T.xo, x0: T.x0, x1: T.x1, zF: T.zF, zB: T.zB, zM: T.zM, fy: T.fy, eave: T.eave, ridge: T.ridge, storeys: T.storeys, roof: T.roof, derelict: T.isDer })), base: TG[0] } } }, lod, F);
+    stats: { mill: { tiers: TG.map(T => ({ i: TG.indexOf(T), L: T.L, xo: T.xo, x0: T.x0, x1: T.x1, zF: T.zF, zB: T.zB, zM: T.zM, fy: T.fy, eave: T.eave, ridge: T.ridge, storeys: T.storeys, roof: T.roof, derelict: T.isDer, w: T.w })), base: TG[0], bottom } } }, lod, F);
   out.stats.kind = 'mill: ' + N + ' tiers';
   out.stats.eave = TG[0].eave; out.stats.ridge = out.stats.ridgeY;
   return out;

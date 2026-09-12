@@ -354,12 +354,18 @@ function battery(name, vil) {
         for (const sx of [-1, 1]) for (const sz of [-1, 1]) gU = Math.max(gU, h.ground(sx * L / 2, sz * w / 2));
         check(h.P.floorY > gU, name + ': ' + h.P.preset + ' has its floor in the ground');
       }
-      if (h.item.onRoad) {
-        check(distToRoad(road, [h.x, h.z]) < 1.5, name + ': the tram shed is not on the road', distToRoad(road, [h.x, h.z]).toFixed(2));
-        check(h.P.rollersBack === 1 && h.P.rollers >= 1 && st.rollers.length >= 1, name + ': the tram shed has no way through');
-        // the road's direction is the shed's local z (the openings are on +z and -z)
-        const a = road.at(S.t + th.shedT), lz = [Math.sin(h.yaw), Math.cos(h.yaw)];
-        check(Math.abs(a.tg[0] * lz[0] + a.tg[1] * lz[1]) > 0.9, name + ': the tram shed does not stand along the road');
+      if (h.item.bottomOnRoad) {
+        // THE RECEIVING HOUSE ASTRIDE THE ROAD (G333): the mill's bottom
+        // house, both ends open, its centre on the road's line, its open
+        // ends along the road
+        const B = st.mill.bottom;
+        check(!!B, name + ': the mill has no receiving house');
+        if (B) {
+          const wB = h.toWorld(B.x, B.z);
+          check(distToRoad(road, wB) < 1.5, name + ': the receiving house is not on the road', distToRoad(road, wB).toFixed(2));
+          const a = road.at(S.t + h.item.x), lx = [Math.cos(h.yaw), -Math.sin(h.yaw)];   // the mill's local x, in the world
+          check(Math.abs(a.tg[0] * lx[0] + a.tg[1] * lx[1]) > 0.9, name + ': the receiving house does not stand along the road');
+        }
       }
     }
     for (const p of vil.plots)
