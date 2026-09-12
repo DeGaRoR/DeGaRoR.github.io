@@ -394,15 +394,21 @@ function makeVillage(V0) {
   const plots = makePlots(T, V, road, rnd);
   const houses = [];
   const nMax = V.nHouses > 0 ? V.nHouses : plots.length;
+  // ONE SPREAD FOR THE VILLAGE (G285): every house's boats, people, bins,
+  // bags, seats and junk, and the village's cars and poles, take the
+  // least-used key, so eleven houses do not all get the same boat
+  const spread = HG.makeSpread();
   for (const plot of plots) {
     if (houses.length >= nMax) break;
     const seed = 1000 + V.seed * 97 + plot.id * 13;
     const h = placeHouse(T, V, plot, seed, rnd);
+    h.P.spread = spread;
     h.plot = plot.id;
     plot.house = houses.length;
     houses.push(h);
   }
-  return { V, T, road, plots, houses, rnd };
+  const poles = planPoles(T, V, road, rnd, spread, plots);
+  return { V, T, road, plots, houses, rnd, spread, poles };
 }
 
 // THE CAR IN THE BACKYARD (G276, the user: "I would like these to be placed
@@ -421,8 +427,9 @@ function planCar(vil, plot, house, built, rnd, thing) {
   const isBoat = thing === 'boat';
   if (rnd() > (isBoat ? vil.V.boatOdds : vil.V.carOdds)) return null;
   const T = vil.T, keys = HG.CAR_KEYS;
-  let key = isBoat ? 'boat_tirola' : keys[Math.floor(rnd() * keys.length) % keys.length];
-  if (key === 'car_buick' && rnd() < 0.7) key = 'car_fiat';
+  let key = isBoat ? 'boat_tirola' : (vil.spread ? vil.spread.pick(keys.filter(k => k !== 'car_buick'), rnd)
+                                                : keys[Math.floor(rnd() * keys.length) % keys.length]);
+  if (!isBoat && rnd() < 0.12) key = 'car_buick';       // the big one, rarely
   const K = isBoat ? HG.PIER_KIT.boat_tirola : HG.YARD_KIT[key];
   const n = plot.n, tg = plot.tg;
   // the backyard direction, away from the house's front
@@ -475,6 +482,27 @@ function planCar(vil, plot, house, built, rnd, thing) {
   };
   for (const c of cands) if (clear(c)) return { key, x: c.x, z: c.z, ry: c.ry, y: T.h(c.x, c.z) };
   return null;
+}
+
+// THE POLES ALONG THE ROAD (G285): one every 32-40 m on the inland verge,
+// between the road and the frontages, the three presets spread; never in
+// front of a gate (the path crosses there)
+function planPoles(T, V, road, rnd, spread, plots) {
+  const out = [];
+  let t = 10 + rnd() * 10;
+  while (t < road.length - 8) {
+    const a = road.at(t);
+    // half a metre off the road's edge, as a roadside pole stands; a
+    // frontage on a bend is a chord that can come in further than that, so
+    // a spot inside a plot is skipped
+    const off = road.w / 2 + 0.5;
+    const x = a.p[0] - a.n[0] * off, z = a.p[1] - a.n[1] * off;   // -n: inland
+    if (!(plots || []).some(p => inPoly(p.poly, x, z)))
+      out.push({ key: spread ? spread.pick(HG.POLE_KEYS, rnd) : 'pole_b', x, z, y: T.h(x, z),
+                 ry: Math.atan2(a.tg[0], a.tg[1]) + (rnd() - 0.5) * 0.2, t });
+    t += 32 + rnd() * 8;
+  }
+  return out;
 }
 
 // the parts that need a BUILT house (the stair, the stoops): the bench and

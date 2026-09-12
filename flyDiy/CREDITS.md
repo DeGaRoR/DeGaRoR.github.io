@@ -535,7 +535,10 @@ declared in the same table under the `yard` group and baked into
 (`lamp_wall`, the porch light), `compost_bags` (four arrangements in one
 file: `bags_stack`, `bags_lean`, `bags_flat`, `bags_stand`), `compost_bag_02`
 (`bag_compost`), `metal_jerrycan_green` (`jerrycan_green`), `planter_box_03`
-(`planter`). The bins, gas bottles, drums, crates, ladder, compressor,
+(`planter`); and (G285) `wooden_picnic_table` (`picnic_table`),
+`painted_wooden_chair_02` (`chair_wood`), `wooden_stool_01` (`stool_wood2`),
+`folding_wooden_stool` (`stool_fold`), `oil_tin` (`oil_tin`) and
+`modular_electricity_poles` (three presets: `pole_a`, `pole_b`, `pole_c`). The bins, gas bottles, drums, crates, ladder, compressor,
 trestle, hand truck, tyre, hose reel and barrel stove the yard also uses are
 the hangar's own props, credited above.
 

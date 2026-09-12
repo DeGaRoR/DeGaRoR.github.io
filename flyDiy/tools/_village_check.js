@@ -169,6 +169,16 @@ function battery(name, vil) {
   }
   if (water >= 3) check(jetties >= Math.ceil(water * 0.5), name + ': too few waterfront houses reach the water',
                         jetties + ' of ' + water);
+  // 8 — THE POLES (G285): a known pole, on the ground, on the road's verge
+  //   (a metre or two off the road's line), on no plot
+  for (const q of vil.poles || []) {
+    const K = HG.YARD_KIT[q.key];
+    check(!!K && K.pole, name + ': a road pole is not a pole', q.key);
+    check(Math.abs(q.y - T.h(q.x, q.z)) < 0.01, name + ': a pole floats');
+    const d = distToRoad(road, [q.x, q.z]);
+    check(d > road.w / 2 + 0.2 && d < road.w / 2 + 1.2, name + ': a pole is not on the verge', d.toFixed(2));
+    for (const p of vil.plots) check(!VG.inPoly(p.poly, q.x, q.z), name + ': a pole stands on plot ' + p.id);
+  }
   // 5b — NO HOLES (G283): every edge of every plot but the shore is fenced,
   //   by this plot or the neighbour it shares the edge with, and the front
   //   fence has its gate. And a waterfront house has its back entrance.
@@ -284,6 +294,8 @@ if (SELFTEST) {
   if (!probe(vil => { const p = vil.plots.find(q => q.house !== undefined); p.path = []; })) neg.push('a plot with no path passed');
   if (!probe(vil => { const p = vil.plots.find(q => q.car); if (p) p.car.x = p.house !== undefined ? vil.houses[p.house].x : p.car.x; if (p) p.car.z = vil.houses[p.house].z; }))
     neg.push('a car in the house passed');
+  if (!probe(vil => { if (vil.poles.length) { const q = vil.poles[0]; q.x = vil.houses[0].x; q.z = vil.houses[0].z; } }))
+    neg.push('a pole on a plot passed');
   if (!probe(vil => { const p = vil.plots.find(q => (q.fences || []).some(f => f.kind === 'side')); p.fences = p.fences.filter(f => f.kind !== 'side'); }))
     neg.push('a hole in a side fence passed');
   if (!probe(vil => { const p = vil.plots.find(q => (q.fences || []).some(f => f.kind === 'front'));

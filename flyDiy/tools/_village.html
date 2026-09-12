@@ -507,6 +507,13 @@ function build() {
     vocc.push({ x: c.x, z: c.z, hx: K.W / 2, hz: K.L / 2, ry: c.ry, k: 0.5, soft: 0.5 });
   }
   for (const f of fe.posts) vocc.push({ x: f[0], z: f[1], r: 0.07, k: 0.35, soft: 0.25 });
+  // the poles along the road (G285)
+  for (const q of vil.poles || []) if (PROP_REG.props[q.key]) {
+    const o = propPlace(THREE, q.key, q.x, q.z, q.ry, q.y);
+    tiltToGround(o, vil.T.h, q.x, q.z, q.ry);
+    root.add(o);
+    vocc.push({ x: q.x, z: q.z, r: 0.12, k: 0.4, soft: 0.3 });
+  }
   {
     const F = FINISHES[FINISHES.length - 1];
     const bag = window.HOUSE_KIT.Bag('aoskirt');
@@ -527,7 +534,9 @@ function build() {
     (tris + fe.tris).toLocaleString() + ' tris · ' + ms.toFixed(0) + ' ms';
   rep.push('<b>' + vil.plots.length + '</b> plots along <b>' + vil.road.length.toFixed(0) + ' m</b> of road');
   rep.push('<b>' + houses + '</b> houses, <b>' + water + '</b> waterfront, <b>' + piers + '</b> piers');
-  rep.push('fences: <b>' + fe.members + '</b> drawn members, <b>' + fe.old + '</b> scanned stretches; <b>' + cars + '</b> cars');
+  rep.push('fences: <b>' + fe.members + '</b> drawn members, <b>' + fe.old + '</b> scanned stretches; <b>' + cars + '</b> cars; <b>' + (vil.poles || []).length + '</b> poles');
+  // the spread, reported: how many of each key the village used
+  rep.push('<span style="color:#7d8996">' + Object.keys(vil.spread.used).filter(k => vil.spread.used[k]).map(k => k.replace(/^(person_|boat_|car_)/, '') + ' ' + vil.spread.used[k]).join(' · ') + '</span>');
   rep.push('<span class="' + (checks(vil) ? 'ok' : 'bad') + '">' + (checks(vil) ? 'plots checked: no overlap, every house in its plot' : 'CHECK FAILED - see console') + '</span>');
   $('chk').innerHTML = rep.join('<br>');
   report.innerHTML = vil.plots.map(p => 'plot ' + p.id + ' ' + p.side + ' ' + p.w.toFixed(0) + ' m × ' + p.depth.toFixed(0) +
@@ -628,7 +637,9 @@ if (typeof window !== 'undefined') window.PROP_LANDED = () => draw();
               jerrycan: [0.12, 0.6], jerrycan_green: [0.15, 0.6], bags_stack: [0.1, 0.5], bags_lean: [0.2, 0.55],
               bags_flat: [0.08, 0.5], bags_stand: [0.25, 0.55], bag_compost: [0.15, 0.5], planter: [0.25, 0.6],
               stepladder: [0.3, 0.6], stool_wood: [0.15, 0.5], chair_lounge: [0.2, 0.5], table_wood: [0.2, 0.5],
-              boat_tirola: [0.3, 0.7], pier_gate: [0.5, 0.6], pier_piles: [0.6, 0.6] };
+              boat_tirola: [0.3, 0.7], pier_gate: [0.5, 0.6], pier_piles: [0.6, 0.6],
+              picnic_table: [0.2, 0.55], chair_wood: [0.2, 0.5], stool_wood2: [0.15, 0.5], stool_fold: [0.15, 0.5],
+              oil_tin: [0.06, 0.5], pole_a: [0.7, 0.7], pole_b: [0.7, 0.7], pole_c: [0.7, 0.7] };
   for (const k of (G.CAR_KEYS || [])) D[k] = [0.45, 0.8];
   for (const k in D) propDust(k, D[k][0], D[k][1]);
 }

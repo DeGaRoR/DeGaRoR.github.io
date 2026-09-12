@@ -109,6 +109,13 @@ SOURCES = {
     'bag02':    ('Compost Bag 02', 'Poly Haven', 'CC0', 'https://polyhaven.com/a/compost_bag_02'),
     'jerrygreen': ('Metal Jerrycan Green', 'Poly Haven', 'CC0', 'https://polyhaven.com/a/metal_jerrycan_green'),
     'planter':  ('Planter Box 03', 'Poly Haven', 'CC0', 'https://polyhaven.com/a/planter_box_03'),
+    # G285: the outdoor furniture the user downloaded, the oil tin, the poles
+    'picnic':   ('Wooden Picnic Table', 'Poly Haven', 'CC0', 'https://polyhaven.com/a/wooden_picnic_table'),
+    'stool01':  ('Wooden Stool 01', 'Poly Haven', 'CC0', 'https://polyhaven.com/a/wooden_stool_01'),
+    'foldstool': ('Folding Wooden Stool', 'Poly Haven', 'CC0', 'https://polyhaven.com/a/folding_wooden_stool'),
+    'chair02':  ('Painted Wooden Chair 02', 'Poly Haven', 'CC0', 'https://polyhaven.com/a/painted_wooden_chair_02'),
+    'oiltin':   ('Oil Tin', 'Poly Haven', 'CC0', 'https://polyhaven.com/a/oil_tin'),
+    'poles':    ('Modular Electricity Poles', 'Poly Haven', 'CC0', 'https://polyhaven.com/a/modular_electricity_poles'),
     # the village's scanned fence (G275), CC-BY: attribution must stay visible
     'oldfence': ('Old fence', 'Yury Misiyuk', 'CC-BY-4.0',
                  'https://sketchfab.com/3d-models/old-fence-3a98eabc0aa9475db5fcf7fab235751b'),
@@ -147,6 +154,12 @@ FILES = {
     'bag02':    'compost_bag_02_1k.gltf',
     'jerrygreen': 'metal_jerrycan_green_1k.gltf',
     'planter':  'planter_box_03_1k.gltf',
+    'picnic':   'wooden_picnic_table_1k.gltf',
+    'stool01':  'wooden_stool_01_1k.gltf',
+    'foldstool': 'folding_wooden_stool_1k.gltf',
+    'chair02':  'painted_wooden_chair_02_1k.gltf',
+    'oiltin':   'oil_tin_1k.gltf',
+    'poles':    'modular_electricity_poles_1k.gltf',
     'oldfence': 'old_fence.glb',
     'junkcar':  'abandoned__junk_car.glb',
     'fiat':     'abandoned_car_-_fiat_132.glb',
@@ -164,6 +177,9 @@ DIRS = {
     'bags': '../propsHouse/compost_bags', 'bag02': '../propsHouse/compost_bag_02',
     'jerrygreen': '../propsHouse/metal_jerrycan_green',
     'planter': '../propsHouse/planter_box_03',
+    'picnic': '../propsHouse/wooden_picnic_table', 'stool01': '../propsHouse/wooden_stool_01',
+    'foldstool': '../propsHouse/folding_wooden_stool', 'chair02': '../propsHouse/painted_wooden_chair_02',
+    'oiltin': '../propsHouse/oil_tin', 'poles': '../propsHouse/modular_electricity_poles',
     'oldfence': '../propsHouse',
     'junkcar': '../abandonedCars', 'fiat': '../abandonedCars', 'hudson': '../abandonedCars',
     'multicab': '../abandonedCars', 'crashed': '../abandonedCars', 'buick': '../abandonedCars',
@@ -173,12 +189,12 @@ DIRS = {
 
 def P(key, group, label, src, note, mats=None, nodes=None, place='floor',
       scale=1.0, rot=(0, 0, 0), tex=512, deck=None, float=None, piles=None,
-      pilesCut=1.9, slots=None, opaque=False):
+      pilesCut=1.9, slots=None, opaque=False, metalCap=None):
     return dict(key=key, group=group, label=label, src=src, file=FILES[src],
                 dir=DIRS.get(src, ''),
                 mats=mats, nodes=nodes, place=place, scale=scale, rot=rot,
                 tex=tex, note=note, deck=deck, float=float, piles=piles,
-                pilesCut=pilesCut, slots=slots, opaque=opaque)
+                pilesCut=pilesCut, slots=slots, opaque=opaque, metalCap=metalCap)
 
 
 PLANKS = 'modular_wooden_pier_planks'
@@ -313,6 +329,30 @@ PROPS = [
       note='20 l steel jerrycan, all five parts', tex=256),
     P('planter', 'yard', 'planter box', 'planter',
       note='0.9 m wooden planter box with a shrub in it'),
+    # THE OUTDOOR FURNITURE (G285, the user: "You should not use the sofa from
+    # the hangar. I think I got you a wooden chair in the asset pack ... We
+    # also had picnic tables and the like"): the downloads that had not been
+    # brought in. The picnic table is a lawn thing (3 m with its benches);
+    # the chair and the two stools go on the deck; the oil tin is junk.
+    P('picnic_table', 'yard', 'picnic table', 'picnic',
+      note='3.0 x 2.2 m table with its benches, two materials'),
+    P('chair_wood', 'yard', 'painted wooden chair', 'chair02',
+      note='a kitchen chair, 1.26 m, painted; 1.2k triangles'),
+    P('stool_wood2', 'yard', 'wooden stool', 'stool01',
+      note='a turned stool, 0.44 m; 11k triangles', tex=256),
+    P('stool_fold', 'yard', 'folding stool', 'foldstool',
+      note='a folding camp stool, 0.44 m', tex=256),
+    P('oil_tin', 'yard', 'oil tin', 'oiltin',
+      note='a 20 cm oil can, two parts', tex=256),
+    # THE POLES (G285): three of the kit's presets, each a 6 m pole with its
+    # cap, insulators, rings and (two of them) a transformer, selected by
+    # node; the village stands them along the road
+    P('pole_a', 'yard', 'electricity pole, transformer', 'poles',
+      note='preset 01: pole, two transformers, fuses', nodes=['preset_01_bolt_small_01', 'preset_01_bolt_small_02', 'preset_01_bolt_small_03', 'preset_01_bolt_small_04', 'preset_01_bolt_small_05', 'preset_01_bolt_small_06', 'preset_01_bolt_small_07', 'preset_01_bolt_small_08', 'preset_01_bolt_small_09', 'preset_01_cap', 'preset_01_connection_large_02', 'preset_01_connection_single_01', 'preset_01_connection_small_02', 'preset_01_fastener', 'preset_01_fastener_connection', 'preset_01_fastener_loop', 'preset_01_fuse_01', 'preset_01_fuse_02', 'preset_01_nail_bent', 'preset_01_pole', 'preset_01_ring_large', 'preset_01_ring_small', 'preset_01_ring_small_01', 'preset_01_ring_small_02', 'preset_01_ring_small_03', 'preset_01_transformer_01', 'preset_01_transformer_02']),
+    P('pole_b', 'yard', 'electricity pole, plain', 'poles',
+      note='preset 02: pole and insulators', nodes=['preset_02_cap', 'preset_02_connection_large_01', 'preset_02_connection_single_01', 'preset_02_connection_single_01_02', 'preset_02_connection_small_01', 'preset_02_pole', 'preset_02_ring_large', 'preset_02_ring_large_02', 'preset_02_ring_small_01', 'preset_02_ring_small_02', 'preset_02_ring_small_03', 'preset_02_ring_small_04', 'preset_02_ring_small_05']),
+    P('pole_c', 'yard', 'electricity pole, one transformer', 'poles',
+      note='preset 03: pole, one transformer', nodes=['preset_03_bolt_small_01', 'preset_03_bolt_small_02', 'preset_03_bolt_small_03', 'preset_03_bolt_small_04', 'preset_03_bolt_small_05', 'preset_03_bolt_small_06', 'preset_03_cap', 'preset_03_connection_large_offset_01', 'preset_03_connection_single_01', 'preset_03_connection_small_01_02', 'preset_03_fuse_01', 'preset_03_nail_bent', 'preset_03_pole', 'preset_03_ring_large_01', 'preset_03_ring_large_02', 'preset_03_ring_small_01', 'preset_03_ring_small_02', 'preset_03_ring_small_03', 'preset_03_ring_small_04', 'preset_03_transformer_01']),
     # THE OLD FENCE (G275, the user: "I have added 1 model in the asset folder,
     # propsHouses. It's green. I think it's only one of those you should
     # use"): one 4.6 m stretch of leaning green pickets, delivered in
@@ -345,7 +385,7 @@ PROPS = [
            '(7.6 m long) - 0.6 makes it 4.6', scale=0.6, tex=512, slots={'Material': {'metal': 0.1}}),
     P('car_buick', 'car', 'Buick', 'buick',
       note='1950s Buick, 94k triangles and 29 materials: the big one, used rarely; 5.9 m '
-           'as delivered, 0.92 for a 5.4 m car', scale=0.92, tex=512),
+           'as delivered, 0.92 for a 5.4 m car', scale=0.92, tex=512, metalCap=0.12),
     P('car_kcar', 'car', 'Reliant K', 'kcar',
       note='an 80s K-car, 2k triangles; 5.3 m as delivered, 0.86 for the 4.5 m it was',
       scale=0.86, tex=512, slots={'Material_24': {'metal': 0.1}}),

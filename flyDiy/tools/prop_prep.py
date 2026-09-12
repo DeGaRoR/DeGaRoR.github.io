@@ -474,6 +474,12 @@ def bake_material(j, bufs, base, mdef, bank, budget, log, row=None):
         out.pop('blend', None)
         out['opacity'] = 1.0
         log.append('    opaque: transmission / alpha ignored by the table')
+    # A CAP ON THE METALNESS for the whole prop (G285): the Buick has seven
+    # materials that say metal 1 over white maps; one number on the row.
+    if (row or {}).get('metalCap') is not None:
+        if out['metal'] > row['metalCap']:
+            out['metal'] = row['metalCap']
+            log.append('    metal capped at %.2f by the table' % row['metalCap'])
 
     def img_of(ref):
         raw, name = image_bytes(j, bufs, base, tex_source(j, ref['index']))

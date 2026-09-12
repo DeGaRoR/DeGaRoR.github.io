@@ -298,8 +298,18 @@ const YARD_KIT = {
   // THE BALCONY'S SEATS (G276, the user: "Objects like chairs and stools and
   // small tables are to be placed on the entrance balcony"): the hangar's
   stool_wood:     { L: 0.41, W: 0.38, H: 0.58 },
-  chair_lounge:   { L: 1.19, W: 1.01, H: 1.17 },
+  chair_lounge:   { L: 1.19, W: 1.01, H: 1.17 },     // the hangar's sofa: mirrored, never placed (G285)
   table_wood:     { L: 0.9, W: 1.8, H: 0.72 },
+  // THE OUTDOOR FURNITURE (G285): the user's own downloads, brought in
+  picnic_table:   { L: 3.022, W: 2.241, H: 0.746 },
+  chair_wood:     { L: 0.662, W: 0.639, H: 1.264 },
+  stool_wood2:    { L: 0.442, W: 0.425, H: 0.437 },
+  stool_fold:     { L: 0.547, W: 0.528, H: 0.442 },
+  oil_tin:        { L: 0.153, W: 0.115, H: 0.205 },
+  // THE POLES (G285): the village stands them along the road
+  pole_a:         { L: 1.957, W: 1.2, H: 6.13, pole: true },
+  pole_b:         { L: 0.852, W: 1.2, H: 6.13, pole: true },
+  pole_c:         { L: 0.852, W: 1.287, H: 6.13, pole: true },
   // THE CARS (G276): in the village's backyards; L along z, nose to +z
   car_junk:       { L: 4.463, W: 1.822, H: 1.116, car: true },
   car_fiat:       { L: 4.382, W: 1.679, H: 1.31, car: true },
@@ -310,6 +320,27 @@ const YARD_KIT = {
   car_kcar:       { L: 4.533, W: 1.74, H: 1.291, car: true },
 };
 const CAR_KEYS = Object.keys(YARD_KIT).filter(k => YARD_KIT[k].car);
+const POLE_KEYS = Object.keys(YARD_KIT).filter(k => YARD_KIT[k].pole);
+// THE SPREAD (G285): a tally of how often each prop key has been used, and
+// a pick that takes the least-used key of a menu (ties broken by the
+// caller's random). Deterministic for a deterministic caller; a village
+// makes one per build and hands it to every house through P.spread.
+function makeSpread() {
+  const used = {};
+  return {
+    used,
+    pick(menu, rnd) {
+      let best = Infinity;
+      for (const k of menu) best = Math.min(best, used[k] || 0);
+      const cands = menu.filter(k => (used[k] || 0) === best);
+      const k = cands[Math.min(cands.length - 1, Math.floor((rnd ? rnd() : 0) * cands.length))];
+      used[k] = (used[k] || 0) + 1;
+      return k;
+    },
+    use(k) { used[k] = (used[k] || 0) + 1; },
+    unuse(k) { used[k] = Math.max(0, (used[k] || 0) - 1); },
+  };
+}
 
 const PIER_KIT = {
   // the modules keep the author's level: y0 is where each one's piles bottom
@@ -4381,7 +4412,10 @@ function pierPlan(P, V, g, jetty) {
   };
   if (P.bigBoat && n >= 3 && quays.length && moor('boat_grady', quays[quays.length - 1], side)) side = -side;
   for (let k = 0, tries = 0; k < nb && tries < 14 && quays.length; tries++) {
-    if (moor(pick(SMALL_BOATS), pick(quays), side)) k++;
+    // the least-used hull in the village when a spread is handed over (G285)
+    const key = P.spread ? P.spread.pick(SMALL_BOATS, rnd) : pick(SMALL_BOATS);
+    if (moor(key, pick(quays), side)) k++;
+    else if (P.spread) P.spread.unuse(key);
     side = -side;
   }
   return { x: jetty.x, y: jetty.y, z0: jetty.z1, z1, kind, branch: spurs.length,
@@ -4436,8 +4470,10 @@ function peoplePlan(P, V, dk, front, pier) {
   // who leans, against the front wall on the deck when the deck has wall
   // behind it, at half the houses
   const j = jog((P.yardSeed || 7) * 1.3, (P.lightSeed || 1) * 0.7, 61);
-  const deckKey = j[0] < 2.15 ? 'person_andrew' : 'person_koky';
-  const pierKey = j[1] < 1.55 ? 'person_john' : 'person_luke';
+  const deckKey = P.spread ? P.spread.pick(['person_andrew', 'person_koky'], () => j[0] / 4.3)
+                           : (j[0] < 2.15 ? 'person_andrew' : 'person_koky');
+  const pierKey = P.spread ? P.spread.pick(['person_john', 'person_luke'], () => j[1] / 3.1)
+                           : (j[1] < 1.55 ? 'person_john' : 'person_luke');
   const wantCharles = ((j[0] * 7.3) % 1) < 0.5;
   if (D && P.porch) {
     const dx = (doorPosOf(P, V) - 0.5) * V.L + P.doorW / 2 + 0.75;
@@ -4952,6 +4988,12 @@ function yardPlan(P, V, dk, stoop, front, barrel, people, ch, dr, g) {
   const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
   const pick = a => a[Math.floor(rnd() * a.length) % a.length];
   const dens = clamp(P.yardK === undefined ? 0.6 : P.yardK, 0, 1);
+  // SPREAD THE PROPS (G285, the user: "Have an optimisation that aims at
+  // minimizing the number of repeat occurrences of props"): when the
+  // caller hands a `spread` counter (P.spread, a village-wide tally by key),
+  // a pick from a menu takes the LEAST-USED key of it, ties broken by the
+  // house's own random; alone, the house picks at random as before
+  const pickSpread = (menu, what) => P.spread ? P.spread.pick(menu, rnd) : pick(menu);
   // try a zone's spots in order; `on` is what the thing stands on
   const put = (key, zone, on, o) => {
     const K = YARD_KIT[key];
@@ -4992,17 +5034,22 @@ function yardPlan(P, V, dk, stoop, front, barrel, people, ch, dr, g) {
       // ONE bin, the clean or the rusted (G276, the user: "there's a more
       // rusty one, and a less rusty one, not to be rendered side by side,
       // consider them 2 individual models") - never the pair
-      put(rnd() < 0.5 ? 'bin_metal' : 'bin_metal_rust', 'stairFoot', 'ground');
+      put(pickSpread(['bin_metal', 'bin_metal_rust'], 'bin'), 'stairFoot', 'ground');
     } else if (what === 'seats') {
       // THE ENTRANCE BALCONY'S FURNITURE (G276): a stool by the door, a
       // lounge chair where the deck is deep enough to sit back, a table
       // where there is room for one
+      // NOT THE HANGAR'S SOFA (G285, the user): a painted kitchen chair, a
+      // turned stool, a folding stool, the hangar's painted stool; a table
+      // where a deck has room; the picnic table out on the lawn
       const D2 = deckPlan(P, V);
       if (D2) {
-        if (D2.zOut - D2.zIn >= 1.9 && rnd() < 0.6) put('chair_lounge', 'deck', 'deck', { turn: 0.5 });
-        if (rnd() < 0.7) put('stool_wood', 'deck', 'deck', { turn: 2.5 });
+        const seats = pickSpread(['chair_wood', 'chair_wood', 'stool_wood2', 'stool_fold', 'stool_wood'], 'seat');
+        put(seats, 'deck', 'deck', { turn: 2.0 });
+        if (rnd() < 0.5) put(pickSpread(['chair_wood', 'stool_wood2', 'stool_fold'], 'seat'), 'deck', 'deck', { turn: 2.5 });
         if (D2.zOut - D2.zIn >= 2.4 && D2.dl >= 5 && rnd() < 0.4) put('table_wood', 'deck', 'deck', { turn: 0.15 });
       }
+      if (rnd() < 0.45) put('picnic_table', 'gable', 'ground', { turn: 0.6 }) || put('picnic_table', 'back', 'ground', { turn: 0.6 });
     } else if (what === 'gas') {
       if (rnd() < 0.55) {
         const a = put('bottle_propane', Z.lowWall ? 'gable' : 'underDeck', 'ground', { turn: 2 });
@@ -5011,10 +5058,10 @@ function yardPlan(P, V, dk, stoop, front, barrel, people, ch, dr, g) {
     } else if (what === 'junk' || what === 'junk2') {
       const menu = ['drum_steel', 'barrel_plastic', 'crate_wood_a', 'crate_wood_b',
                     'crate_wood_c', 'tyre', 'work_trestle', 'handtruck', 'box_cardboard',
-                    'compressor', 'jerrycan'];
+                    'compressor', 'jerrycan', 'oil_tin'];
       const n = 1 + Math.floor(rnd() * 2.5);
       for (let i = 0; i < n; i++) {
-        const key = pick(menu);
+        const key = pickSpread(menu, 'junk');
         const zone = Z.underDeck.length && rnd() < 0.6 ? 'underDeck' : (rnd() < 0.5 ? 'back' : 'gable');
         put(key, zone, 'ground', { turn: 1.2 });
       }
@@ -5028,9 +5075,9 @@ function yardPlan(P, V, dk, stoop, front, barrel, people, ch, dr, g) {
       // wall, or a skirt - and against it; the stacked and the standing
       // bags stand on their own anywhere
       const closed = Math.round(P.stance) <= 1 || Math.round(P.skirt) > 0;
-      put(pick(closed ? ['bags_lean', 'bags_stack', 'bags_stand'] : ['bags_stack', 'bags_stand']),
+      put(pickSpread(closed ? ['bags_lean', 'bags_stack', 'bags_stand'] : ['bags_stack', 'bags_stand'], 'bags'),
           Z.lowWall ? 'back' : 'gable', 'ground', { turn: 0.25 });
-      if (rnd() < 0.5) put(pick(['bag_compost', 'bags_flat']), 'back', 'ground', { turn: 2 });
+      if (rnd() < 0.5) put(pickSpread(['bag_compost', 'bags_flat'], 'bags'), 'back', 'ground', { turn: 2 });
     } else if (what === 'ladder') {
       put('stepladder', Z.lowWall ? 'gable' : 'underDeck', 'ground', { turn: 0.6 });
     } else if (what === 'hose') {
@@ -5666,7 +5713,7 @@ function dressSlot(matKey, role, idx, col, flat) {
 
 window.HOUSE_GEN = {
   DEF, ROWS, PRESETS, MAT, BAGS, EXTRA, SMOKE_U, FAMS, STANCES, RAILS, SET_TINT, SHADE_U,
-  HAND_LEAN, HAND_TWIST, YARD_KIT, CAR_KEYS, SMALL_BOATS,
+  HAND_LEAN, HAND_TWIST, YARD_KIT, CAR_KEYS, POLE_KEYS, SMALL_BOATS, makeSpread,
   STAIR_MAX, SET_SEAM, SET_MISS, PIER_KIT, PIER_TRIS, PIER_DECK, PIER_LOW, SKIRT_OK,
   COLS, COL_NAMES, ROLE_SETS, SET_IDX, setNames, setFor, setRibbed,
   build, roofModel, wallSplits, groundFn, applyFinish, libSets, randomHouse,

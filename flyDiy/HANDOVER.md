@@ -39505,3 +39505,36 @@ worktree with GATE WORLDRENDER + GATE TREES.
   judged), `impa/implight` per collection in the payload, the forest card
   in the rail and the GRAPHICS SETTINGS menu (`futureDesigns/GRAPHICS-
   SETTINGS-2026-09-12.md`, the spec), bushes and grass.
+
+## G285 — THE OUTDOOR FURNITURE THAT HAD NOT BEEN BROUGHT IN, THE SOFA OUT,
+## THE PROPS SPREAD ACROSS THE VILLAGE, POLES ALONG THE ROAD, AND THE BUICK
+## WAS CHROME (2026-09-12, the user: "the shiny car is still not fixed. And I
+## would like that you randomize better the boats. We have a lot of them, yet
+## you use the same ones. Have an optimisation that aims at minimizing the
+## number of repeat occurrences of props. You should not use the sofa from
+## the hangar ... We also had picnic tables and the like. Didn't you miss an
+## asset update?")
+
+- **THE ASSET UPDATE THAT WAS MISSED**: the user's downloads had six Poly
+  Haven zips never copied into the asset folder. They are in now
+  (`assets/propsHouse/`, credited): the picnic table (3 m with its
+  benches, a lawn thing beside the house), the painted kitchen chair, the
+  turned stool and the folding stool (the deck's seats — the hangar's
+  lounge sofa is mirrored but never placed again), the oil tin (junk), and
+  the modular electricity poles (three presets by node, 6 m each).
+- **THE SPREAD** (`makeSpread` in `_house_gen.js`): a tally of every prop
+  key used, and a pick that takes the LEAST-USED key of a menu, ties broken
+  by the caller's random. The village makes one per build and hands it to
+  every house through `P.spread`; the boats, the deck's and the pier's
+  people, the bins, the bags, the seats and the junk all draw from it, and
+  so do the village's cars and poles. Alone, a house picks at random as
+  before, so GATE HOUSE's determinism holds. The bench reports the tally:
+  on the default seed every boat is used once or twice, no car twice.
+- **THE POLES** (`planPoles`): one every 32–40 m along the road, half a
+  metre off its edge on the inland side, the three presets spread, a spot
+  inside a plot (a frontage on a bend is a chord) skipped. GATE VILLAGE
+  rule 8: a known pole, on the ground, on the verge, on no plot.
+- **THE BUICK WAS THE SHINY CAR**: seven of its materials say metal 1 over
+  white maps. A row-level `metalCap` in `prop_prep.py` caps every material
+  of a prop; the Buick's is 0.12.
+- Gates: HOUSE, VILLAGE (both --selftest) green.
