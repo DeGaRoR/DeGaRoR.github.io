@@ -56,7 +56,7 @@
         { v: 'sunset', label: 'sunset', why: 'the world’s golden hour' },
         { v: 'alps',   label: 'afternoon', why: 'the bench’s afternoon sky, the light the trees were judged in' } ] },
   ];
-  const BANDS = { near: [60, 132, 270], far: [150, 300, 450] };
+  const BANDS = { near: [60, 270, 270], far: [150, 450, 450] };   // W0c.32: L1 to the impostor, no L2
   const SHADOWS = { off: { on: false, map: 1024, far: false }, near: { on: true, map: 1024, far: false },
                     full: { on: true, map: 2048, far: true }, ultra: { on: true, map: 4096, far: true } };
 

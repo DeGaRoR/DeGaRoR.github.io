@@ -73,7 +73,7 @@
     root.appendChild(slider('L1 to (m)', 20, 600, 10, () => lod().get()[1], v => setLod(1, v), v => v + ' m'));
     root.appendChild(slider('L2 to (m)', 20, 800, 10, () => lod().get()[2], v => setLod(2, v), v => v + ' m'));
     root.appendChild(slider('fade window', 0, 100, 2, () => lod().fade(), v => lod().fade(v), v => v + ' m'));
-    root.appendChild(note('impostors beyond L2; L0 = L1 = L2 is "L0 then impostor"; the window dithers one rung into the next'));
+    root.appendChild(note('impostors beyond L2; L1 to = L2 to (the default) skips the half-foliage L2; L0 = L1 = L2 is "L0 then impostor"; the window dithers one rung into the next'));
     // the streamer's clock (W0c.30): what a fill chunk costs to generate
     genEl = note('');
     root.appendChild(genEl);

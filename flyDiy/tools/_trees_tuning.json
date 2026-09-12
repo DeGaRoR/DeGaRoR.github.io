@@ -48,7 +48,7 @@
    "proportion": 1,
    "bark": 0.34,
    "dead": 0.12,
-   "stick": 0.045,
+   "stick": 0.0225,
    "impa": 6,
    "implight": 1
   },
@@ -62,7 +62,7 @@
    "proportion": 1,
    "bark": 0.42,
    "dead": 0.08,
-   "stick": 0.045,
+   "stick": 0.0225,
    "impa": 6,
    "implight": 1
   },
@@ -76,7 +76,7 @@
    "proportion": 1,
    "bark": 0.84,
    "dead": 0.09,
-   "stick": 0.045,
+   "stick": 0.0225,
    "impa": 6.5,
    "implight": 1
   },
@@ -91,7 +91,7 @@
    "bark": 0.38,
    "dead": 0.08,
    "keepTop": 3,
-   "stick": 0.045,
+   "stick": 0.0225,
    "impa": 6,
    "implight": 1
   },
@@ -105,7 +105,7 @@
    "proportion": 2.85,
    "bark": 0.64,
    "dead": 0.08,
-   "stick": 0.045,
+   "stick": 0.0225,
    "impa": 6,
    "implight": 1
   },
@@ -119,7 +119,7 @@
    "proportion": 1,
    "bark": 0.42,
    "dead": 0.08,
-   "stick": 0.045,
+   "stick": 0.0225,
    "impa": 6,
    "implight": 1
   },

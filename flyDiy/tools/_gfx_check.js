@@ -31,7 +31,7 @@ function makeWindow(store) {
     requestAnimationFrame: () => 1,
     FLYDIY_AA: { _tier: 'full', setTier(t) { this._tier = t; log.push(['aa', t]); }, tier() { return this._tier; } },
     TREE_FILL: { _ng: 100, get() { return this._ng; }, set(ng) { this._ng = ng; log.push(['fill', ng]); return ng; } },
-    TREE_LOD: { _b: [60, 132, 270], get() { return this._b.slice(); }, set(b) { this._b = b.slice(); log.push(['bands', b.join('/')]); } },
+    TREE_LOD: { _b: [60, 270, 270], get() { return this._b.slice(); }, set(b) { this._b = b.slice(); log.push(['bands', b.join('/')]); } },
     WORLD_RIG: { get: () => Object.assign({}, rig),
                  set(o) { Object.assign(rig, o); log.push(['rig', JSON.stringify(o)]); },
                  row(n) { rig.row = n; rig.shadowMap = 2048; rig.floor = 0.30; log.push(['row', n]); } },
@@ -78,7 +78,7 @@ console.log('GATE GFX');
   const nBefore = w.log.filter(e => e[0] === 'fill').length;
   ok(nBefore === 0, 'the boot did not re-grid a fill already at medium’s density (' + nBefore + ' re-grids)');
   G.set('preset', 'low');
-  ok(w.FLYDIY_AA.tier() === 'off' && w.TREE_FILL.get() === 80 && w.TREE_LOD.get().join('/') === '60/132/270' &&
+  ok(w.FLYDIY_AA.tier() === 'off' && w.TREE_FILL.get() === 80 && w.TREE_LOD.get().join('/') === '60/270/270' &&
      w.rig.shadowMap === 1024 && w.rig.farShadow === false && w.rig.floor === 1.0 && w.WORLD.sun.castShadow === true,
      'low: off, 80, near bands, 1024 map, no cascade, floor off, sun still casts');
   G.set('shadows', 'off');

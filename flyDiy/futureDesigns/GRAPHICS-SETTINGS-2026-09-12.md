@@ -26,7 +26,7 @@ persistence and the preset table — not rendering.
 |---|---|---|---|
 | anti-aliasing | Off (4× MSAA) · Smooth (8×) · Smoothest (8× + 1.25×) | `FLYDIY_AA.setTier` | the frame's multiplier: 25 / 39 / 48 ms in the densest stand |
 | forest density | Sparse 80 · Normal 100 · Dense 128 · Very dense 160 | `TREE_FILL.set(ng)` | grid points per km; 12.8 / 10.2 / 8 / 6.4 m (W0c.31: 100 "quite OK and balanced" — was 96 / 112) |
-| forest detail distance | Near 60/132/270 m · Far 150/300/450 m | `TREE_LOD.set([l0,l1,near])` | where geometry hands over to impostors |
+| forest detail distance | Near 60/270/270 m · Far 150/450/450 m | `TREE_LOD.set([l0,l1,near])` | where geometry hands over to impostors (W0c.32: L1 runs to the impostor, the half-foliage L2 is not drawn — was 60/132/270 · 150/300/450) |
 | shadows | Off · Near (1024) · Full (2048 + far cascade) · Ultra (4096 + far cascade) | `WORLD_RIG.set({shadowMap, farShadow})` + `renderer.shadowMap.enabled` | the near map follows the aircraft; the far cascade is the impostor stand's |
 | canopy shading | Off · On | `WORLD_RIG.set({floor})` (1.0 = off, 0.30 = on) | the floor under the crowns |
 | lighting | Sunset · Afternoon | `WORLD_RIG.row('sunset' \| 'alps')` | until the day/night cycle, the two rows the trees were judged in |

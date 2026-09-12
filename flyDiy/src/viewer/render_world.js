@@ -44,7 +44,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   const uNear = { value: NEAR_R };     // live: every tree material reads it
   // the two inner edges of the ladder, shared by every rung material the
   // same way uNear is - a dial can move them and every band follows
-  const LOD_U = [{ value: 60 }, { value: 132 }], U0 = { value: 0 };
+  // L2 IS NOT DRAWN BY DEFAULT (W0c.32, the user: "the trunk shows a lot
+  // through with this empty foliage... L1 covering the band L1+L2 cover
+  // today, then straight to billboard"): L1 (stick + full foliage) runs
+  // from 60 m to the impostor at 270; the half-foliage rung stays in the
+  // payload and the dial (L1 to < L2 to) brings it back.
+  const LOD_U = [{ value: 60 }, { value: 270 }], U0 = { value: 0 };
   // THE TRANSITION WINDOW (W0c.13): over uFadeW metres about every edge BOTH
   // rungs are drawn, each through a screen-door dither with complementary
   // thresholds from the same noise, so every pixel is covered exactly once

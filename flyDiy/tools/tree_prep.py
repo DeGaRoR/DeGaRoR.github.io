@@ -244,6 +244,8 @@ def bake_ao(parts, bb, trunk_dark=0.55):
             if bark:
                 f = (py - y0) / max(1e-3, sy)
                 v *= 1 - trunk_dark * pow(max(0.0, 1 - f), 1.6)
+            if P.get('stick'):
+                v *= 0.5                      # the generated stem, 50 % darker (W0c.32)
             ao[i] = int(round(max(0.0, min(1.0, v)) * 255))
         P['ao'] = ao
 
@@ -424,9 +426,11 @@ def stick_for(parts, frac, src_parts):
         a, b = i, i + 1
         c, d = i + SEG + 1, i + SEG + 2
         idx.extend((a, c, d, a, d, b))
+    # `stick`: the AO bake reads it - a generated stem is baked half as
+    # bright as the pack's own wood (W0c.32, the user: "slimmer and darker")
     return {'mi': bark['mi'], 'pos': pos, 'nrm': nrm, 'uv': uv, 'idx': idx,
             'nv': len(pos) // 3, 'mat': bark['mat'], 'mode': bark['mode'],
-            'cutoff': bark['cutoff'], 'opaque': True}
+            'cutoff': bark['cutoff'], 'opaque': True, 'stick': True}
 
 
 def hash01(i, salt):
