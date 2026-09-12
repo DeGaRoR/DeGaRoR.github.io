@@ -1193,11 +1193,13 @@ function planTrees(vil, pool) {
     if (vil.plots.some(p => nearPoly(p.poly, px, pz, 0) < 1.5)) continue;
     if ((vil.siteKeepOut || []).some(poly => inPoly(poly, px, pz))) continue;      // the mine's ground (G321)
     if (!clearOf(px, pz, gap ? 2.8 : 3.2)) continue;
-    put(px, pz, draw(tall));
+    // ONLY SMALL TREES IN THE VILLAGE (G323, the user): the tall species
+    // are the wood behind; a gap between plots grows the small ones
+    put(px, pz, draw(gap ? small : tall));
     if (gap) {   // denser: a second tree in the same cell where it fits
       const qx = px + (rnd() - 0.5) * 4, qz = pz + (rnd() - 0.5) * 4;
       if (T.h(qx, qz) > V.waterY + 0.6 && roadNear(qx, qz) >= 5 && !vil.plots.some(p => nearPoly(p.poly, qx, qz, 0) < 1.5) && !(vil.siteKeepOut || []).some(poly => inPoly(poly, qx, qz)) && clearOf(qx, qz, 2.6))
-        put(qx, qz, draw(rnd() < 0.7 ? tall : small));
+        put(qx, qz, draw(small));
     }
   }
   // THE EMPTY PLOTS ARE FOREST (G313, the user: "The empty lots should be
@@ -1212,7 +1214,7 @@ function planTrees(vil, pool) {
       if (nearPoly(plot.poly, px, pz, 0) > -1.2) continue;
       if (T.h(px, pz) < V.waterY + 0.6 || roadNear(px, pz) < 4) continue;
       if (!clearOf(px, pz, 2.8)) continue;
-      put(px, pz, draw(rnd() < 0.8 ? tall : small));
+      put(px, pz, draw(small));
     }
   }
   // THE LOTS: one to three, the smaller species, clear of everything

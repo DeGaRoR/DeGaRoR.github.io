@@ -193,7 +193,7 @@ const DEF = {
   wallSet: SET_IDX('wall', 'rustysheet'), plinthSet: SET_IDX('plinth', 'concrete008'),
   roofSet: SET_IDX('roof', 'corrworn'), doorSet: SET_IDX('door', 'rustymetal'), metalSet: SET_IDX('metal', 'galv'),
   wallTint: 0xffffff,
-  dirt: 0.5, dirtH: 1.1, noise: 0.16,
+  dirt: 0.5, dirtH: 1.1, noise: 0.16, clouds: 0.5,
   ao: 0.85, aoRange: 0.7, aoDirect: 0.35, aoGround: 1,
   // THE MILL (G321): tiers up the hill
   mill: 0, tiers: 7, tierStep: 6.4, tierRise: 3.3, tierW: 9.5, tierL0: 26, tierL1: 11, tierStoreys: 2,
@@ -265,6 +265,7 @@ const ROWS = [
     ['metalSet', 'steel', 0, ROLE_SETS.metal.length - 1, 1, setNames('metal')],
     ['beamSet', 'timber', 0, ROLE_SETS.beam.length - 1, 1, setNames('beam')],
     ['dirt', 'dirt', 0, 1, 0.05], ['dirtH', 'dirt height', 0.3, 2.5, 0.05], ['noise', 'repetition breaker', 0, 0.5, 0.01],
+    ['clouds', 'weather clouds', 0, 1, 0.05],
     ['ao', 'baked occlusion', 0, 1, 0.05], ['aoRange', 'occlusion reach', 0.2, 1.5, 0.05],
     ['aoGround', 'ground skirt', 0, 1, 1],
   ]],
@@ -285,14 +286,16 @@ const PRESETS = {
     // gable across it (the big gable end facing down the hill), a gable
     // with a naked lean-to, a taller one, the crusher floor in bare beams
     // with the head house on it
+    // `ends`: what stands off the -x and +x ends - an annex, a stair
+    // tower, a chute, or nothing (a naked lean-to takes the +x end)
     millTiers: [
-      { roof: 'x', storeys: 2, naked: 0 },
-      { roof: 'mono', storeys: 2, naked: 1 },
-      { roof: 'z', storeys: 2, naked: 0 },
-      { roof: 'x', storeys: 2, naked: 1 },
-      { roof: 'x', storeys: 3, naked: 0 },
-      { roof: 'z', storeys: 2, naked: 1 },
-      { roof: 'frame', storeys: 2, naked: 0, head: 1 },
+      { roof: 'x', storeys: 2, naked: 0, ends: ['annex', 'stair'] },
+      { roof: 'mono', storeys: 2, naked: 1, ends: ['chute', ''] },
+      { roof: 'z', storeys: 2, naked: 0, ends: ['stair', 'annex'] },
+      { roof: 'x', storeys: 2, naked: 1, ends: ['annex', ''] },
+      { roof: 'x', storeys: 3, naked: 0, ends: ['chute', 'stair'] },
+      { roof: 'z', storeys: 2, naked: 1, ends: ['annex', ''] },
+      { roof: 'frame', storeys: 2, naked: 0, head: 1, ends: ['', 'chute'] },
     ],
     slopeZ: 27, slopeX: 0, floorY: 0.6, plinth: 1, eaveOver: 0.5, rakeOver: 0.45, pitch: 24,   // the ground climbs toward -z, up the tiers
     rollers: 0, door: 1, doors: 2, doorW: 1.2, doorH: 2.3, winStrip: 0, shopWin: 0, dock: 0, canopy: 0, gantry: 0,
@@ -300,7 +303,7 @@ const PRESETS = {
     wallSet: SET_IDX('wall', 'paintwood'), wallTint: 0xd4452c, plinthSet: SET_IDX('plinth', 'concrete004'),
     roofSet: SET_IDX('roof', 'corrrust'), doorSet: SET_IDX('door', 'rustysheet'), metalSet: SET_IDX('metal', 'rust'),
     beamSet: SET_IDX('beam', 'rough'),
-    dirt: 0.7, dirtH: 1.8, ao: 0.9, aoRange: 0.9,
+    dirt: 0.7, dirtH: 1.8, ao: 0.9, aoRange: 0.9, clouds: 0.9,
   },
   // THE CANNERY: the harbour's big one - thirty metres of factory wall,
   // one truck door and two men's doors, a strip of windows all round, a
@@ -403,11 +406,53 @@ const PRESETS = {
   },
 };
 
+// THE WEATHER IN CLOUDS (G323, the user: "vary the wall textures with
+// another couple noise/cloud maps with a few colours. Looking at the
+// references, spots are whitened, spots are browned, spots are blackened.
+// That could be 3 layers coloring further the base wall texture which is
+// much too flat at the moment"). Three cloud fields in the building's own
+// frame, metres across, each with its own scale and offset so they never
+// line up: where the first is high the boards are bleached toward a pale
+// grey-white (the sun's side), where the second is high they are browned
+// (the damp, the rot), where the third is high they are blackened (the
+// soot, the mould). Each is a soft threshold on an fbm, so the spots have
+// ragged edges, and `clouds` scales all three. Chained AFTER the house
+// finish's own hook on the same material (it declared hNoise).
+const CLOUD_GLSL = `
+  {
+    vec3 _wp = vHouseP;
+    float _c1 = hNoise(_wp * 0.55 + vec3(11.0, 3.0, 7.0)) * 0.6 + hNoise(_wp * 1.7 + vec3(5.0)) * 0.4;
+    float _c2 = hNoise(_wp * 0.42 + vec3(31.0, 9.0, 2.0)) * 0.6 + hNoise(_wp * 2.3 + vec3(17.0)) * 0.4;
+    float _c3 = hNoise(_wp * 0.8 + vec3(3.0, 21.0, 13.0)) * 0.55 + hNoise(_wp * 3.1 + vec3(41.0)) * 0.45;
+    float _w = smoothstep(0.55, 0.78, _c1) * uCloudK;
+    float _b = smoothstep(0.55, 0.75, _c2) * uCloudK;
+    float _k = smoothstep(0.58, 0.8, _c3) * uCloudK;
+    vec3 _lum = vec3(dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11)));
+    diffuseColor.rgb = mix(diffuseColor.rgb, mix(_lum, vec3(1.0), 0.3) * vec3(0.88, 0.84, 0.8), _w * 0.5);
+    diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.55, 0.38, 0.24) + vec3(0.06, 0.03, 0.0), _b * 0.8);
+    diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.18, 0.17, 0.16), _k * 0.85);
+  }`;
+function cloudWeather(m, U) {
+  const ud = m.userData || (m.userData = {});
+  if (ud.clouded) return;
+  ud.clouded = true;
+  ud.uCloudK = { value: 0 };
+  const prev = m.onBeforeCompile;
+  m.onBeforeCompile = sh => {
+    if (prev) prev(sh);
+    sh.uniforms.uCloudK = ud.uCloudK;
+    sh.fragmentShader = 'uniform float uCloudK;' + String.fromCharCode(10) + sh.fragmentShader
+      .replace('#include <map_fragment>', '#include <map_fragment>' + String.fromCharCode(10) + CLOUD_GLSL);
+  };
+  m.needsUpdate = true;
+}
+
 // ---- the finish -------------------------------------------------------------
 function applyFinish(P, F) {
   const M = F ? F.MAT : MAT;
   const SU = F ? F.SHADE_U : DEFAULT_FINISH.SHADE_U;
   for (const k of BAGS) if (!(M[k].userData && M[k].userData.flat)) HG.shadeHouse(M[k], SU);
+  for (const k of ['wall', 'door', 'roof', 'beam']) { cloudWeather(M[k], SU); M[k].userData.uCloudK.value = P.clouds === undefined ? 0.5 : P.clouds; }
   HG.shadeSkirt(HG.MAT.aoskirt);
   dress(M.wall, 'wall', P.wallSet, { tint: P.wallTint });
   dress(M.plinth, 'plinth', P.plinthSet);
@@ -494,7 +539,7 @@ function buildMill(bags, P, Q, g) {
   for (let i = 0; i < N; i++) {
     const S = spec[i];
     const L = (S.L !== undefined) ? S.L : P.tierL0 + (P.tierL1 - P.tierL0) * i / Math.max(1, N - 1);
-    const xo = (S.xo !== undefined) ? S.xo : (rnd() - 0.5) * Math.max(0, (P.tierL0 - L) * 0.6);
+    const xo = (S.xo !== undefined) ? S.xo : (rnd() - 0.5) * Math.max(2, (P.tierL0 - L) * 0.9);
     const zF = w / 2 - i * step, zB = zF - w, zM = (zF + zB) / 2;
     // the floor: a rise over the tier below, and never in the hill - on a
     // real slope the ground under a tier's back can climb faster than the
@@ -513,14 +558,41 @@ function buildMill(bags, P, Q, g) {
     ridgeTop = Math.max(ridgeTop, ridge);
     const x0 = xo - L / 2, x1 = xo + L / 2;
     const isDer = der > 0 && rnd() < der;
-    // THE PLINTH: stone under every tier, down into the hill
-    let gLo = 1e9;
-    for (const x of [x0, x1]) for (const z of [zF, zB]) gLo = Math.min(gLo, g(x, z));
-    const pt = 0.3;
-    const ring = [[x0 - pt / 2, zF + pt / 2], [x1 + pt / 2, zF + pt / 2], [x1 + pt / 2, zB - pt / 2], [x0 - pt / 2, zB - pt / 2]];
-    for (let k = 0; k < 4; k++)
-      wall(bags.plinth, { A: ring[k], B: ring[(k + 1) % 4], y0: gLo - 0.4, t: pt, topAt: () => fy, ext: [pt / 2, pt / 2], inner: false, endCap: [false, false], capBot: false, sub: 2.5 });
-    face(bags.plinth, [[x0, fy, zB], [x0, fy, zF], [x1, fy, zF], [x1, fy, zB]], [0, 1, 0], uvFrame([x0, fy, zB], [1, 0, 0], [0, 0, 1]));
+    // THE OPEN TRUSS SKIRT (G323, the user: "Truss open skirt for everyone
+    // in the factory"): every tier stands on timber bents down to the hill
+    // - posts on a grid, a sill beam along each row, cross bracing in every
+    // bay of the front row and the ends, a stone pad under each post - so
+    // the ground shows under the mill as it does at Kennecott
+    const skirt = (X0, X1, Z0, Z1, FY) => {
+      const nx = Math.max(2, Math.round((X1 - X0) / 2.6)), nz = Math.max(1, Math.round((Z0 - Z1) / 2.4));
+      const py = [];
+      for (let a = 0; a <= nx; a++) { py.push([]); for (let b = 0; b <= nz; b++) {
+        const x = X0 + (X1 - X0) * a / nx, z = Z0 - (Z0 - Z1) * b / nz;
+        const gy = g(x, z);
+        py[a].push(gy);
+        if (FY - gy < 0.35) continue;
+        post([x, gy - 0.3, z], [x, FY, z], 0.2);
+        if (Q.lod === 0) boxAB(bags.plinth, [x - 0.28, gy - 0.35, z - 0.28], [x + 0.28, gy + 0.12, z + 0.28]);
+      } }
+      // the sills along x under the floor, and the cross bracing on the outside rows
+      for (let b = 0; b <= nz; b++) { const z = Z0 - (Z0 - Z1) * b / nz; post([X0, FY - 0.14, z], [X1, FY - 0.14, z], 0.16); }
+      if (Q.lod === 0) for (let a = 0; a < nx; a++) for (const b of [0, nz]) {
+        const z = Z0 - (Z0 - Z1) * b / nz, xa = X0 + (X1 - X0) * a / nx, xb = X0 + (X1 - X0) * (a + 1) / nx;
+        const ya = py[a][b], yb = py[a + 1][b];
+        if (FY - Math.max(ya, yb) < 1.2) continue;
+        post([xa, ya + 0.3, z], [xb, FY - 0.3, z], 0.08);
+        post([xb, yb + 0.3, z], [xa, FY - 0.3, z], 0.08);
+      }
+      if (Q.lod === 0) for (let a of [0, nx]) for (let b = 0; b < nz; b++) {
+        const x = X0 + (X1 - X0) * a / nx, za = Z0 - (Z0 - Z1) * b / nz, zb = Z0 - (Z0 - Z1) * (b + 1) / nz;
+        if (FY - Math.max(py[a][b], py[a][b + 1]) < 1.2) continue;
+        post([x, py[a][b] + 0.3, za], [x, FY - 0.3, zb], 0.08);
+      }
+    };
+    skirt(x0, x1, zF, zB, fy);
+    // the floor deck over the bents
+    face(bags.beam, [[x0, fy, zB], [x0, fy, zF], [x1, fy, zF], [x1, fy, zB]], [0, 1, 0], uvFrame([x0, fy, zB], [1, 0, 0], [0, 0, 1]));
+    face(bags.beam, [[x0, fy - 0.02, zF], [x0, fy - 0.02, zB], [x1, fy - 0.02, zB], [x1, fy - 0.02, zF]], [0, -1, 0], uvFrame([x0, fy, zB], [1, 0, 0], [0, 0, 1]));
     const plan = [[x0, zF], [x1, zF], [x1, zB], [x0, zB]];
     const wins = [];
     if (roof === 'frame') {
@@ -638,6 +710,69 @@ function buildMill(bags, P, Q, g) {
       const yF = yRoof(xo, zF) + P.eaveOver * tp * 0.6 + rT, yB = yRoof(xo, zB) - P.eaveOver * tp * 0.6 + rT;
       const ring2 = [[x0 - P.rakeOver, yF, zF + P.eaveOver], [x1 + P.rakeOver, yF, zF + P.eaveOver], [x1 + P.rakeOver, yB, zB - P.eaveOver], [x0 - P.rakeOver, yB, zB - P.eaveOver]];
       roofPlate(ring2, nrm([0, yB - yF, -w]));
+    }
+    // THE ENDS BROKEN UP (G323, the user: "The side of the big factory is
+    // much too linear. Add some protrusions, structures and buildings
+    // there too"): on either end of a tier, by the tier's say or the dice
+    // - an ANNEX (a closed box a storey high with its own monopitch, its
+    // windows, standing on its own bents), a STAIR TOWER (a narrow tall
+    // box the full height with a door at the bottom and a window a storey),
+    // a CHUTE (a plank trough on legs sloping down the hill off the end)
+    const ends = S.ends || (() => { const e = []; for (const sd of [-1, 1]) { const r = rnd(); e.push(r < 0.3 ? 'annex' : r < 0.5 ? 'stair' : r < 0.65 ? 'chute' : ''); } return e; })();
+    for (let e = 0; e < 2; e++) {
+      const sd = e === 0 ? -1 : 1, kind = ends[e];
+      if (!kind || (S.naked && sd === 1)) continue;
+      const xe = sd < 0 ? x0 : x1;
+      if (kind === 'annex') {
+        const aL = 4.2, aW = Math.min(w - 1.5, 5.5), ax0 = sd < 0 ? xe - aL : xe, ax1 = ax0 + aL;
+        const az0 = zF - 0.8, az1 = az0 - aW, afy = fy + (rnd() < 0.5 ? 0 : stH);
+        if (afy > eave - 2.5) continue;
+        const aE = afy + 2.9;
+        skirt(ax0, ax1, az0, az1, afy);
+        face(bags.beam, [[ax0, afy, az1], [ax0, afy, az0], [ax1, afy, az0], [ax1, afy, az1]], [0, 1, 0], uvFrame([ax0, afy, az1], [1, 0, 0], [0, 0, 1]));
+        const ap = [[ax0, az0], [ax1, az0], [ax1, az1], [ax0, az1]];
+        for (let k = 0; k < 4; k++) {
+          if ((sd < 0 && k === 1) || (sd > 0 && k === 3)) continue;        // the wall against the tier
+          const A = ap[k], B = ap[(k + 1) % 4], len = Math.hypot(B[0] - A[0], B[1] - A[1]);
+          const topAt = s => { const x = A[0] + (B[0] - A[0]) * s / len; return aE + (sd < 0 ? (x - ax0) : (ax1 - x)) * 0.22; };   // high against the tier
+          const holes = [];
+          if (len > 2.2) holes.push({ s0: len / 2 - 0.45, s1: len / 2 + 0.45, y0: afy + 1.0, y1: afy + 2.1, kind: 'win' });
+          wall(bags.wall, { A, B, y0: afy, t, topAt, holes, ext: [hw, hw], inner: true, endCap: [false, false], capBot: false, sub: 0 });
+          for (const h of holes) { const X = [(B[0] - A[0]) / len, 0, (B[1] - A[1]) / len], Nn = [-X[2], 0, X[0]]; const P3 = (s, y) => [A[0] + X[0] * s, y, A[1] + X[2] * s];
+            face(bags.glass, [P3(h.s0, h.y0), P3(h.s1, h.y0), P3(h.s1, h.y1), P3(h.s0, h.y1)], Nn, uvFrame(P3(h.s0, h.y0), X, [0, 1, 0])); }
+        }
+        const yHi = aE + aL * 0.22 + rT, yLo = aE + rT;
+        const ring2 = sd < 0 ? [[ax0 - 0.35, yLo, az0 + 0.35], [ax1, yHi, az0 + 0.35], [ax1, yHi, az1 - 0.35], [ax0 - 0.35, yLo, az1 - 0.35]]
+                             : [[ax0, yHi, az0 + 0.35], [ax1 + 0.35, yLo, az0 + 0.35], [ax1 + 0.35, yLo, az1 - 0.35], [ax0, yHi, az1 - 0.35]];
+        plate(bags.roof, ring2, rT, [0, -1, 0], uvFrame(ring2[0], [1, 0, 0], [0, 0, -1]));
+        occ.push({ x: (ax0 + ax1) / 2, z: (az0 + az1) / 2, hx: aL / 2 + 0.3, hz: aW / 2 + 0.3, k: 0.6, soft: 1.2, dry: true });
+      } else if (kind === 'stair') {
+        const sL = 2.6, sW = 3.0, sx0 = sd < 0 ? xe - sL : xe, sx1 = sx0 + sL;
+        const sz0 = zM + sW / 2, sz1 = zM - sW / 2, sfy = fy, sE = eave + 0.9;
+        skirt(sx0, sx1, sz0, sz1, sfy);
+        const sp = [[sx0, sz0], [sx1, sz0], [sx1, sz1], [sx0, sz1]];
+        for (let k = 0; k < 4; k++) {
+          if ((sd < 0 && k === 1) || (sd > 0 && k === 3)) continue;
+          const A = sp[k], B = sp[(k + 1) % 4], len = Math.hypot(B[0] - A[0], B[1] - A[1]);
+          const holes = [];
+          if (k === 0) holes.push({ s0: len / 2 - 0.5, s1: len / 2 + 0.5, y0: sfy, y1: sfy + 2.1, kind: 'door' });
+          for (let st = 1; st < storeys + 1; st++) if (sfy + st * stH + 1.3 < sE - 0.3) holes.push({ s0: len / 2 - 0.35, s1: len / 2 + 0.35, y0: sfy + st * stH - 0.2, y1: sfy + st * stH + 0.7, kind: 'win' });
+          wall(bags.wall, { A, B, y0: sfy, t, topAt: () => sE, holes, ext: [hw, hw], inner: true, endCap: [false, false], capBot: false, sub: 0 });
+          for (const h of holes) { const X = [(B[0] - A[0]) / len, 0, (B[1] - A[1]) / len], Nn = [-X[2], 0, X[0]]; const P3 = (s, y, d) => [A[0] + X[0] * s + Nn[0] * d, y, A[1] + X[2] * s + Nn[2] * d];
+            if (h.kind === 'win') face(bags.glass, [P3(h.s0, h.y0, 0), P3(h.s1, h.y0, 0), P3(h.s1, h.y1, 0), P3(h.s0, h.y1, 0)], Nn, uvFrame(P3(h.s0, h.y0, 0), X, [0, 1, 0]));
+            else face(bags.door, [P3(h.s0, h.y0, -hw + 0.03), P3(h.s1, h.y0, -hw + 0.03), P3(h.s1, h.y1, -hw + 0.03), P3(h.s0, h.y1, -hw + 0.03)], Nn, uvFrame(P3(h.s0, h.y0, 0), X, [0, 1, 0])); }
+        }
+        // a flat cap with a lip
+        plate(bags.roof, [[sx0 - 0.25, sE + rT + 0.08, sz0 + 0.25], [sx1 + 0.25, sE + rT + 0.08, sz0 + 0.25], [sx1 + 0.25, sE + rT, sz1 - 0.25], [sx0 - 0.25, sE + rT, sz1 - 0.25]], rT, [0, -1, 0], uvFrame([sx0, sE, sz0], [1, 0, 0], [0, 0, -1]));
+        occ.push({ x: (sx0 + sx1) / 2, z: zM, hx: sL / 2 + 0.2, hz: sW / 2 + 0.2, k: 0.6, soft: 1.0, dry: true });
+      } else if (kind === 'chute' && Q.lod === 0) {
+        // a plank trough off the end, sloping down the hill on legs
+        const c0 = [xe, fy + 1.2, zM], c1 = [xe + sd * 6.5, fy - 1.6, zM + 1.5];
+        const dir = nrm(sub(c1, c0)), side = nrm(crs(dir, [0, 1, 0])), Ln = len(sub(c1, c0));
+        for (const sg of [-0.35, 0.35]) post(add(c0, mul(side, sg)), add(c1, mul(side, sg)), 0.12);
+        plate(bags.beam, [add(c0, mul(side, -0.35)), add(c0, mul(side, 0.35)), add(c1, mul(side, 0.35)), add(c1, mul(side, -0.35))], 0.05, [0, -1, 0], uvFrame(c0, side, dir));
+        for (let k = 1; k < 3; k++) { const p = add(c0, mul(dir, Ln * k / 3)); const gy = g(p[0], p[2]); if (p[1] - gy > 0.8) for (const sg of [-0.35, 0.35]) post([p[0] + side[0] * sg, gy - 0.3, p[2] + side[2] * sg], add(p, mul(side, sg)), 0.09); }
+      }
     }
     // A NAKED LEAN-TO of bare beams on the +x end: posts, a rafter plate
     // sloping away, purlins, braces - and nothing on it

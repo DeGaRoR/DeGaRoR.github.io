@@ -41150,3 +41150,36 @@ lattice's lever, and with the cluster on the members carry none.
 - Screenshots: the twin's nose oleo with its brace on a pad at the cowl
   joint; the stock tailwheel from three sides (the G304 walked-arc doubler
   sits flat on the tail cone — the wrap the user had seen is gone).
+
+## G323 — THE MILL ON ITS BENTS, ITS ENDS BROKEN UP, THE WEATHER IN CLOUDS;
+## ONLY SMALL TREES IN THE VILLAGE (2026-09-13, the user: "only small trees
+## in the village and the empty patches please. Truss open skirt for everyone
+## in the factory. The side of the big factory is much too linear. Add some
+## protrusions, structures and buildings there too ... vary the wall textures
+## with another couple noise/cloud maps with a few colours ... spots are
+## whitened, spots are browned, spots are blackened")
+
+- **THE OPEN TRUSS SKIRT** (`skirt` in `buildMill`): every tier - and
+  every annex and stair tower - stands on timber bents down to the hill:
+  posts on a 2.6 × 2.4 m grid, a sill along each row under the floor,
+  cross bracing in every bay of the outside rows, a stone pad under each
+  post; the floor deck drawn top and bottom. The concrete plinths are
+  gone from the mill; the ground shows under it as at Kennecott.
+- **THE ENDS BROKEN UP** (`ends` per tier, the dice where the preset does
+  not say): off either end of a tier an ANNEX (a closed box a storey high
+  on its own bents, a window, a monopitch high against the tier), a STAIR
+  TOWER (a narrow box the full height, a door at the foot, a window a
+  storey, a flat cap), or a CHUTE (a plank trough on legs sloping down the
+  hill). The tiers stagger wider along x. The Kennecott preset names its
+  ends. GATE HOUSE's reach takes the chutes.
+- **THE WEATHER IN CLOUDS** (`cloudWeather`, `clouds` 0..1): three fbm
+  fields in the building's frame, each its own scale and offset, each a
+  soft threshold - the first BLEACHES the boards toward a pale grey, the
+  second BROWNS them, the third BLACKENS them - on the walls, the doors,
+  the roofs and the beams, chained after the house finish's own hook on
+  the same material (which declared the noise). 0.5 by default, 0.9 on
+  the mill.
+- **ONLY SMALL TREES IN THE VILLAGE**: the gaps between plots and the
+  empty plots grow the small species only (the 4 m and 9 m firs); the
+  tall ones are the wood behind.
+- Gates: HOUSE, VILLAGE green.
