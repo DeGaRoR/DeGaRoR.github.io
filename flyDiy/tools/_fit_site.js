@@ -840,7 +840,50 @@ function siteToAF(AF, site) {
   return { z, ang: Math.atan2(site.p[0], -(site.p[1] - cy)) };
 }
 
-const API = { accessSites, fieldHits, siteToAF, snapTo, sectionCY, frameAt,
+// THE DOOR HANDLE'S SITE (G310, the fitment study P4). `rec` is one door's
+// outline (CAGE2.cageDoorEdges: fwd / aft / top / bot runs, the door's mean
+// outward normal, cage units); `edge` is the HINGE edge (0 forward, 1 top,
+// 2 aft) and the handle goes on the opposite one: at the run's mid-height,
+// `inset` metres into the panel along the door's own plane, on the panel's
+// surface (the point is walked between the two opposite runs, so it lies
+// on the door's own chord — a curved flank's sagitta over 6 cm is nothing,
+// and the access layer's sagitta lift takes the rest). Returns the site the
+// access layer's forms take: p, n and the door's key as its material.
+function doorHandleSite(rec, o) {
+  o = o || {};
+  // a gull door (hinged on top) carries its handle LOW on the aft edge —
+  // the sill's own run turns under the belly and a site walked up from it
+  // sat 36 mm inside the flank
+  const edge = Math.round(o.edge || 0);
+  const from = edge === 2 ? rec.fwd : rec.aft;
+  const to = edge === 2 ? rec.aft : rec.fwd;
+  if (!from || !to) return null;
+  // WAIST HEIGHT, not mid-height: a door runs from the sill to the roof
+  // and its middle is where a low wing's root fairing is (the handle stood
+  // inside the wing, 15 mm); a hand reaches for a handle at the waist, 0.62
+  // of the way up, with the nudge on top
+  // ...along the run's OWN polyline (the door's edge follows the curved
+  // flank; the chord between its ends passed 78 mm inside the cabin)
+  const up = edge === 1 ? 0.22 : 0.62;
+  const at = r => {
+    const pts = r.pts || [r.A, r.B];
+    const L = []; let tot = 0;
+    for (let i = 1; i < pts.length; i++) { tot += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1], pts[i][2] - pts[i - 1][2]); L.push(tot); }
+    const want = up * tot; let i = 0;
+    while (i < L.length - 1 && L[i] < want) i++;
+    const p = pts[i], q = pts[i + 1], l0 = i ? L[i - 1] : 0, seg = L[i] - l0;
+    const u = seg > 1e-9 ? (want - l0) / seg : 0;
+    return [p[0] + (q[0] - p[0]) * u, p[1] + (q[1] - p[1]) * u, p[2] + (q[2] - p[2]) * u];
+  };
+  const a = at(from), b = at(to);
+  const L = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]) || 1;
+  const t = Math.max(0.02, Math.min(0.45, ((o.inset == null ? 0.06 : o.inset) + (o.dSL || 0)) / L));
+  const p = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t + (o.dLV || 0), a[2] + (b[2] - a[2]) * t];
+  return { p, n: rec.n.slice(), sL: 0, sC: 0, st: 0, lv: 0, mat: 'door',
+           side: rec.sgn > 0 ? 'star' : 'port', doorKey: rec.doorKey };
+}
+
+const API = { accessSites, fieldHits, siteToAF, snapTo, sectionCY, frameAt, doorHandleSite,
               sectionArc, AX_RAIL, crownSite, crownRings, crownAtZ, geoMesh,
               NOT_SKIN, AX_METRIC, AX_STRUCT, fieldScan, fieldIndexQuery };
 

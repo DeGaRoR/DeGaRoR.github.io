@@ -374,6 +374,7 @@ function placeOne(name0, mesh, P, over, mode) {
       if (row.on !== 'body') {
         checkDeclared(name, row);
         if (row.on === 'cowl') checkCowl(name, row, mode);
+        else if (row.on === 'door') checkDoor(name, row, mesh);
         else UNPLACED++;
         if (SHOW && name === 'stock')
           console.log('   ~  ' + row.key.padEnd(13) + ' on the ' + row.on +
@@ -504,6 +505,45 @@ function checkDeclared(name, row) {
       String(row.at.frac));
     check(isFinite(row.at.az), tag + ': no section angle', String(row.at.az));
   }
+}
+
+// THE DOOR (G310, the fitment study P4). The door's outline comes off the
+// same sheet the body rows are placed on (CAGE2.cageDoorEdges), and the
+// handle's site is FIT_SITE's own doorHandleSite over it: one site a door
+// side, ON a door face (the site's distance to the door's own triangles
+// under a millimetre), inside the outline, its normal outward, on the edge
+// opposite the hinges. A build without doors places none and says so.
+function checkDoor(name, row, mesh) {
+  const tag = name + '/' + row.key;
+  if (!G.cageDoorEdges || !FS_.doorHandleSite) { check(false, tag + ': cageDoorEdges / doorHandleSite missing'); return; }
+  const recs = G.cageDoorEdges(mesh);
+  if (!recs.length) { UNPLACED++; return; }
+  const doorMesh = { V: mesh.V, A: mesh.V.map(() => [0, 0, 0, 0]),
+                     F: mesh.F.filter(f => f.doorKey && f.v.length === 4 && !/^(joint|doorSeal|paneEdge)$/.test(f.m)) };
+  const seen = new Set();
+  for (const rec of recs) {
+    check(!seen.has(rec.key), tag + ': two records for one door side', rec.key); seen.add(rec.key);
+    check(rec.fwd.A[2] > rec.aft.A[2] + 0.2, tag + ': the forward run is not forward of the aft one', rec.key);
+    check(rec.h > 0.5 && rec.w > 0.4, tag + ': a door with no size', rec.key + ' h ' + rec.h.toFixed(2) + ' w ' + rec.w.toFixed(2));
+    check(Math.abs(rec.n[0]) > 0.9 && rec.n[0] * rec.sgn > 0, tag + ': the door normal is not the flank\'s, outward', rec.key);
+    for (const edge of [0, 1, 2]) {
+      const s = FS_.doorHandleSite(rec, { edge, inset: 0.06 });
+      if (!check(!!s, tag + ': no handle site for hinge edge ' + edge, rec.key)) continue;
+      const d = distToSkin(doorMesh, s.p);
+      check(d < 0.012, tag + ': handle site is off the door (hinge edge ' + edge + ')', rec.key + ' ' + (d * 1000).toFixed(1) + ' mm');
+      // inside the outline: between the runs in z and y
+      const zLo = Math.min(rec.aft.A[2], rec.aft.B[2]), zHi = Math.max(rec.fwd.A[2], rec.fwd.B[2]);
+      const yLo = Math.min(rec.bot.A[1], rec.bot.B[1]), yHi = Math.max(rec.top.A[1], rec.top.B[1]);
+      check(s.p[2] > zLo && s.p[2] < zHi && s.p[1] > yLo && s.p[1] < yHi, tag + ': handle site outside the door outline (edge ' + edge + ')', rec.key);
+      // on the edge opposite the hinges (a gull door's: low on the aft edge)
+      const near = edge === 2 ? rec.fwd : rec.aft, far = edge === 2 ? rec.aft : rec.fwd;
+      const dN = Math.abs(s.p[2] - (near.A[2] + near.B[2]) / 2), dF = Math.abs(s.p[2] - (far.A[2] + far.B[2]) / 2);
+      check(dN < dF, tag + ': the handle is on the hinge edge, not opposite it (edge ' + edge + ')', rec.key);
+      if (edge === 1) check(s.p[1] < (rec.aft.A[1] + rec.aft.B[1]) / 2, tag + ': a gull door handle is not low on the aft edge', rec.key);
+    }
+  }
+  if (SHOW && name === 'stock')
+    console.log('   ~  ' + row.key.padEnd(13) + ' on the door — ' + recs.length + ' sites, on a door face, opposite the hinges');
 }
 
 // THE COWL, EVALUATED. _cowl_gen.js has a module export and a default

@@ -354,6 +354,39 @@ for (const c of CASES) {
   }
 }
 
+// ---- 4c THE DOOR'S EDGES (G310) --------------------------------------------
+// A door is a zone of faces; `cageDoorEdges` reads its outline off the built
+// sheet, per door per side: the forward run is the max-z standing chain (+z
+// is forward in the cage), the aft the min-z one, top and bottom by y; a run
+// carries its ordered polyline (the flank is curved), the door its outward
+// normal. The stock jodel has one door a side; a build with `doorGone` has
+// none; a pax bay with a door adds two more.
+{
+  const CG = require(path.join(T, '_cage_gen.js'));
+  const sheetOf = over => {
+    const P = Object.assign(CG.cageDefaults(), over || {});
+    return CG.cageSheet(P, { level: 1 }).sheet;
+  };
+  if (!check(typeof CG.cageDoorEdges === 'function', 'DOOR: cageDoorEdges is not exported')) {}
+  else {
+    const recs = CG.cageDoorEdges(sheetOf({ doorOn: 1, cutParts: 1 }));
+    check(recs.length === 2, 'DOOR: the stock build does not give one door a side', recs.length + ' records');
+    for (const r of recs) {
+      check(r.fwd.A[2] > r.aft.A[2], 'DOOR: forward run is not forward of the aft run', r.key);
+      check(r.fwd.pts.length >= 3 && r.aft.pts.length >= 3, 'DOOR: a run is not a polyline', r.key);
+      check(r.fwd.A[1] < r.fwd.B[1], 'DOOR: a standing run is not ordered bottom to top', r.key);
+      check(Math.abs(r.n[0]) > 0.9 && Math.abs(r.n[1]) < 0.3, 'DOOR: the door normal is not lateral', r.key + ' ' + r.n.map(v => v.toFixed(2)));
+      check(r.h > 0.5 && r.w > 0.4, 'DOOR: the door has no size', r.key);
+    }
+    const gone = CG.cageDoorEdges(sheetOf({ doorOn: 1, cutParts: 1, doorGone: 1 }));
+    check(gone.length === 0, 'DOOR: a removed door still has edges', gone.length);
+    const pax = CG.cageDoorEdges(sheetOf({ doorOn: 1, cutParts: 1, paxCount: 2, doorPax: 1 }));
+    check(pax.length >= 4, 'DOOR: pax doors give no extra records', pax.length);
+    const none = CG.cageDoorEdges(sheetOf({ doorOn: 0 }));
+    check(none.length === 0, 'DOOR: a build with no door has door edges', none.length);
+  }
+}
+
 // ---- 5 THE SHAPES ----------------------------------------------------------
 // _gear_kit is a browser module and _hinge_gen sits on it, so node reaches
 // both the way the editor's own gates do: shim `window`, load in order.

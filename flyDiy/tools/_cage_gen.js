@@ -7662,6 +7662,100 @@ const CAGE_UNIT = 1.0;                    // metres per cage unit
 //   -> { spec, cage: the control cage, mesh: the displayed mesh (a door may
 //        sit exploded), sheet: the mesh with every cutOff undone — the mesh
 //        the layer contracts (decks, stance, the engine face) are taken on }
+// ---- THE DOOR'S EDGES (G310, the fitment study P4) --------------------------
+// A cabin door is a ZONE of faces (door / doorKey, marked at emit time) and
+// nothing else: no hinge edge, no handle, no swing. This reads each door's
+// OUTLINE off the built sheet — per door PER SIDE, the same grouping the
+// composite liner uses — and names its four runs: the boundary is the edges
+// owned once across the door's faces (glass included, so the pane border
+// stays internal); a run is a connected chain of boundary edges that stand
+// (|dy| >= |dz|: the pillar edges) or lie (the sill and the header); the
+// FORWARD run is the standing chain with the highest mean z (+z is forward
+// in the cage), the AFT the lowest; the top and bottom lying chains by y.
+// Each run is A (its lower / forward end) to B, cage units, on the sheet's
+// own vertices, with the door's mean outward normal and the recess it was
+// cut back by. The hinge layer hangs its piano runs on one edge, the
+// fittings layer puts the handle on the other — and both read this, so a
+// door that moves (a slant, a deeper cut, a bay added) moves its hardware.
+function cageDoorEdges(mesh) {
+  const V = mesh.V, F = mesh.F;
+  const skip = new Set(['joint', 'doorSeal', 'paneEdge']);
+  const byDoor = new Map();
+  F.forEach((f, i) => {
+    if (!f.doorKey || f.v.length !== 4 || skip.has(f.m)) return;
+    const k = f.doorKey + ':' + (V[f.v[0]][0] >= 0 ? 'P' : 'M');
+    if (!byDoor.has(k)) byDoor.set(k, []);
+    byDoor.get(k).push(i);
+  });
+  const out = [];
+  for (const [k, fis] of byDoor) {
+    const eCnt = new Map(), eVerts = new Map();
+    for (const fi of fis)
+      for (let e = 0; e < 4; e++) {
+        const a = F[fi].v[e], b = F[fi].v[(e + 1) % 4];
+        const key = cageEdgeKey(a, b);
+        eCnt.set(key, (eCnt.get(key) || 0) + 1);
+        eVerts.set(key, [a, b]);
+      }
+    const edges = [];
+    for (const [key, n] of eCnt) if (n === 1) edges.push(eVerts.get(key));
+    if (edges.length < 4) continue;
+    // chains of like edges (standing / lying), connected by shared vertices
+    const chains = [];
+    const used = new Set();
+    const standing = ([a, b]) => Math.abs(V[a][1] - V[b][1]) >= Math.abs(V[a][2] - V[b][2]);
+    for (let i = 0; i < edges.length; i++) {
+      if (used.has(i)) continue;
+      const st = standing(edges[i]);
+      const chain = [i]; used.add(i);
+      const verts = new Set(edges[i]);
+      let grew = true;
+      while (grew) {
+        grew = false;
+        for (let j = 0; j < edges.length; j++) {
+          if (used.has(j) || standing(edges[j]) !== st) continue;
+          const [a, b] = edges[j];
+          if (verts.has(a) || verts.has(b)) { chain.push(j); used.add(j); verts.add(a); verts.add(b); grew = true; }
+        }
+      }
+      const vs = [...verts];
+      let sy = 0, sz = 0;
+      for (const v of vs) { sy += V[v][1]; sz += V[v][2]; }
+      chains.push({ st, vs, my: sy / vs.length, mz: sz / vs.length, n: chain.length });
+    }
+    const stand = chains.filter(c => c.st), lie = chains.filter(c => !c.st);
+    if (stand.length < 2 || lie.length < 2) continue;
+    // a run is its ORDERED chain of vertices (a door's edge follows the
+    // curved flank: the chord between its two ends passed 80 mm inside the
+    // cabin), A its lower / forward end, B the other
+    const runOf = (c, byY) => {
+      const pts = c.vs.map(v => V[v].slice()).sort((p, q) => byY ? p[1] - q[1] : q[2] - p[2]);
+      return { A: pts[0].slice(), B: pts[pts.length - 1].slice(), pts };
+    };
+    stand.sort((a, b) => b.mz - a.mz); lie.sort((a, b) => b.my - a.my);
+    const fwd = runOf(stand[0], true), aft = runOf(stand[stand.length - 1], true);
+    const top = runOf(lie[0], false), bot = runOf(lie[lie.length - 1], false);
+    // the door's mean outward normal (its faces are wound outward), and the
+    // recess it was cut back by
+    let nx = 0, ny = 0, nz = 0, cut = null;
+    for (const fi of fis) {
+      const f = F[fi], a = V[f.v[0]], b = V[f.v[1]], c = V[f.v[2]];
+      const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], w = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+      nx += u[1] * w[2] - u[2] * w[1]; ny += u[2] * w[0] - u[0] * w[2]; nz += u[0] * w[1] - u[1] * w[0];
+      if (!cut && f.cutOff) cut = f.cutOff.slice();
+    }
+    const L = Math.hypot(nx, ny, nz) || 1;
+    const sgn = k.endsWith(':P') ? 1 : -1;
+    let n = [nx / L, ny / L, nz / L];
+    if (n[0] * sgn < 0) n = [-n[0], -n[1], -n[2]];
+    out.push({ key: k, doorKey: k.split(':')[0], sgn, fwd, aft, top, bot, n,
+               cutOff: cut || [0, 0, 0],
+               h: 0.5 * ((fwd.B[1] - fwd.A[1]) + (aft.B[1] - aft.A[1])),
+               w: 0.5 * ((top.A[2] - top.B[2]) + (bot.A[2] - bot.B[2])) });
+  }
+  return out;
+}
+
 function cageSheet(P, opts) {
   const step = (opts && opts.step != null) ? opts.step : 'crease';
   const L = (opts && opts.level != null) ? +opts.level : 2;
@@ -7731,7 +7825,7 @@ if (typeof module !== 'undefined')
                      buildCage2, cageResolve, cageSpec, cageSubdivide,
                      cageRims, cageInterior, cageCut, cageGlassSill,
                      cageCanopy, cageBodyZones, cageZoneAt, CAGE_ZONE_RINGS,
-                     cageDefaults, cageFromSpec, cageToSpec, cageSheet,
+                     cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges,
                      CAGE_VIEW_KEYS, CAGE_LVI_BASE, cageLvIndex };
 if (typeof window !== 'undefined')
   window.CAGE2 = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, CAGE_AFT_SUB,
@@ -7739,5 +7833,5 @@ if (typeof window !== 'undefined')
                    buildCage2, cageResolve, cageSpec, cageSubdivide,
                    cageRims, cageInterior, cageCut, cageGlassSill,
                    cageCanopy, cageBodyZones, cageZoneAt, CAGE_ZONE_RINGS,
-                   cageDefaults, cageFromSpec, cageToSpec, cageSheet,
+                   cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges,
                    CAGE_VIEW_KEYS, CAGE_LVI_BASE, cageLvIndex };

@@ -68,6 +68,7 @@ const hgDef = {
   hgOn: 1, hgFamily: 0, hgCount: 0, hgOut: 0.06,
   hgHorn: 1, hgHornAt: 0, hgHornLen: 0.085, hgSize: 1,
   hgFair: 0, hgLink: 1, hgDetail: 1,
+  hgDoor: 1, hgDoorEdge: 0,                  // G310: the cabin doors' hinges, on the A-pillar edge
 };
 const FAM = ['as built', 'strap', 'piano'];
 PAGE.defaults = Object.assign(hgDef, PAGE.defaults || {});
@@ -95,6 +96,15 @@ const GROUP = ['13 · control hardware', [
   ], { when: P => +P.hgOn }],
   ['fairings', [
     ['hgFair', 'hinge fairings', 0, 1, 1, ['off', 'on']],
+  ], { when: P => +P.hgOn }],
+  // G310: THE DOORS HANG ON SOMETHING. A door had no hinge edge, no hardware
+  // — a cut panel with a seal (the hinges audit's own inventory). Its edges
+  // come off the built sheet (CAGE2.cageDoorEdges); the builder chooses the
+  // edge it swings on and the piano runs go there, shut.
+  ['doors', [
+    ['hgDoor', 'door hinges', 0, 1, 1, ['off', 'on']],
+    ['hgDoorEdge', 'hinge edge', 0, 2, 1, ['forward', 'top', 'aft'],
+     { when: P => +P.hgOn && +P.hgDoor }],
   ], { when: P => +P.hgOn }],
   ['detail', [
     ['hgDetail', 'detail ×', 0.4, 2.0, 0.1],
@@ -124,7 +134,7 @@ function hostOf(key) {
 
 if (typeof window !== 'undefined') window.CAGE_HINGE_HOST = hostOf;   // GATE HINGE reads it
 
-function surfaceList(scene, P, FS) {
+function surfaceList(scene, P, FS, mesh) {
   const out = [];
   const objOf = {};
   scene.traverse(o => {
@@ -160,6 +170,57 @@ function surfaceList(scene, P, FS) {
                  r: thick * 0.5, aft: [0, 0, -1], face: [1, 0, 0], faces: 2,
                  slide: null, chord: (FN.measure.chordMean || 0.4) *
                                      (FN.measure.ctlFrac || 0.3) });
+    }
+  }
+
+  // THE CABIN DOORS (G310, the fitment study P4). Each door's edges are
+  // read off the built sheet — the same sheet every layer draws on, in cage
+  // units, scaled here — and the hinge line is the edge the builder chose:
+  // forward (the A-pillar's slant, the default), top (a gull), aft. A door
+  // is a FLAT panel a few millimetres thick, not a lofted nose: the "nose
+  // radius" the kit lays its leaves round is the piano barrel's own, the
+  // line is lifted off the skin by that radius so the barrel sits ON the
+  // surface and both leaves lie flat on it, and there is no `obj` — the
+  // door does not move, so both halves stay with the airframe.
+  const CG2d = window.CAGE2;
+  const HCd = (typeof GEN_HINGE !== 'undefined' && GEN_HINGE) || (window.GEN_HINGE) || { pinR: 0.0045 };
+  if (Math.round(P.hgDoor === undefined ? 1 : P.hgDoor) && CG2d && CG2d.cageDoorEdges && mesh) {
+    const edge = Math.round(+P.hgDoorEdge || 0);
+    const rBar = HCd.pinR * 2.1 * Math.max(0.4, +P.hgSize || 1);
+    for (const rec of CG2d.cageDoorEdges(mesh)) {
+      const run = edge === 1 ? rec.top : edge === 2 ? rec.aft : rec.fwd;
+      const other = edge === 1 ? rec.bot : edge === 2 ? rec.fwd : rec.aft;
+      const n = rec.n;
+      // each point of the run is lifted along the skin's LOCAL normal (the
+      // body contract's, exact) — the door's mean normal put a barrel at the
+      // belly corner 12 mm into the corner's curve; the mean stands in where
+      // there is no contract
+      const GBd = window.CAGE_GEAR, GGd = window.GEAR_GEN, SITEd = window.FIT_SITE;
+      const XSd = (GBd && GBd.AF && GGd && GGd.exactAirframe) ? GGd.exactAirframe(GBd.AF) : null;
+      const nAt = p => {
+        if (!XSd || !SITEd) return n;
+        const st = SITEd.siteToAF(XSd, { p: [p[0] * FS, p[1] * FS, p[2] * FS] });
+        const q = XSd.nrmAt(st.z, st.ang);
+        return (q && isFinite(q[0]) && q[0] * n[0] + q[1] * n[1] + q[2] * n[2] > 0.3) ? q : n;
+      };
+      const raw = run.pts || [run.A, run.B];
+      const nrms = raw.map(nAt);
+      // (a hair over the barrel's radius: the barrel spans a few centimetres
+      // along a curving edge and its ends dipped 1.6 mm at the belly corner)
+      const liftH = rBar + 0.002;
+      const lift = (p, m) => [p[0] * FS + m[0] * liftH, p[1] * FS + m[1] * liftH, p[2] * FS + m[2] * liftH];
+      const pts = raw.map((p, i) => lift(p, nrms[i]));
+      const A = pts[0], B = pts[pts.length - 1];
+      // "aft" for the kit is INTO the panel: from this run's middle toward
+      // the opposite run's, in the door's own plane
+      const mid = [(run.A[0] + run.B[0]) * 0.5, (run.A[1] + run.B[1]) * 0.5, (run.A[2] + run.B[2]) * 0.5];
+      const omid = [(other.A[0] + other.B[0]) * 0.5, (other.A[1] + other.B[1]) * 0.5, (other.A[2] + other.B[2]) * 0.5];
+      let into = V.sub(omid, mid);
+      into = V.sub(into, V.mul(n, V.dot(into, n)));
+      if (V.len(into) < 1e-6) continue;
+      out.push({ key: 'door_' + rec.key.replace(':', '_'), kind: 'door', obj: null, host: null,
+                 A, B, pts, nrms, r: rBar, aft: V.nrm(into), face: n, faces: 1, slide: null,
+                 chord: V.len(V.sub(omid, mid)) * FS, flat: 1 });
     }
   }
 
@@ -201,6 +262,37 @@ function surfaceList(scene, P, FS) {
 // F.y from the hinge axis at chordwise `a`, or null when nothing is hit
 // (the kit then falls back to its cylinder).
 function skinProbe(scene, s) {
+  // G310: a DOOR's leaves both lie on the FUSELAGE, which is no scene object
+  // the layers draw (the page's mesh is its own) — the body contract's exact
+  // skin (GEAR_GEN.exactAirframe over CAGE_GEAR.AF) answers instead: the
+  // skin point at the query's own station and angle, read along F.y
+  if (s.kind === 'door') {
+    const GB = window.CAGE_GEAR, GGm = window.GEAR_GEN, SITE = window.FIT_SITE;
+    const AF0 = GB && GB.AF;
+    if (!AF0 || !GGm || !GGm.exactAirframe || !SITE || !SITE.siteToAF) return null;
+    const XS = GGm.exactAirframe(AF0);
+    // the skin point ON THE LINE through q along F.y, not at q's angle
+    // about the section centre (on a rounded belly corner those differ by
+    // centimetres): walk the point onto the skin along F.y a few times
+    const probe = (F, a, zOff) => {
+      let q = [F.p[0] + F.x[0] * a + F.z[0] * zOff, F.p[1] + F.x[1] * a + F.z[1] * zOff, F.p[2] + F.x[2] * a + F.z[2] * zOff];
+      let h = 0;
+      for (let k = 0; k < 5; k++) {
+        const st = SITE.siteToAF(XS, { p: q });
+        if (!st) return null;
+        const sp = XS.surf(st.z, st.ang);
+        if (!sp || !isFinite(sp[0])) return null;
+        const d = (sp[0] - q[0]) * F.y[0] + (sp[1] - q[1]) * F.y[1] + (sp[2] - q[2]) * F.y[2];
+        h += d;
+        q = [q[0] + F.y[0] * d, q[1] + F.y[1] * d, q[2] + F.y[2] * d];
+        if (Math.abs(d) < 1e-5) break;
+      }
+      const q0 = [F.p[0] + F.x[0] * a + F.z[0] * zOff, F.p[1] + F.x[1] * a + F.z[1] * zOff, F.p[2] + F.x[2] * a + F.z[2] * zOff];
+      return (q0[0] - F.p[0]) * F.y[0] + (q0[1] - F.p[1]) * F.y[1] + (q0[2] - F.p[2]) * F.y[2] + h;
+    };
+    probe.edge = () => null;
+    return probe;
+  }
   if (!THREE.Raycaster) return null;
   const fixed = [], moving = [];
   const wingSkin = o => o.isMesh && !o.name && o.parent && o.parent.name === 'cageLayer:wing';
@@ -304,7 +396,7 @@ const dispose = o => {
 const prevPost = PAGE.post;
 PAGE.post = ctx => {
   if (prevPost) prevPost(ctx);
-  const { scene, P, stat } = ctx;
+  const { scene, mesh, P, stat } = ctx;
   dispose(group); group = null;
   for (const o of owned.splice(0)) dispose(o);
   if (!Math.round(P.hgOn === undefined ? 1 : P.hgOn)) return;
@@ -323,7 +415,7 @@ PAGE.post = ctx => {
   }
 
   scene.updateMatrixWorld(true);               // G304: the probes ray-cast the drawn skins
-  const surfs = surfaceList(scene, P, FS);
+  const surfs = surfaceList(scene, P, FS, mesh);   // G310: the doors are read off the sheet
   const sz = Math.max(0.4, +P.hgSize || 1);
   const detail = Math.max(0.35, +P.hgDetail || 1);
   const S0 = {
@@ -367,15 +459,21 @@ PAGE.post = ctx => {
     const row = KIT[s.kind] || KIT.ail;
     const span = V.len(V.sub(s.B, s.A));
     if (!(span > 0.05) || !(s.r > 1e-4)) continue;
-    const fam = Math.round(+P.hgFamily || 0) === 1 ? 'strap'
+    // a door hangs on piano runs whatever the aeroplane's surfaces do
+    const fam = s.kind === 'door' ? 'piano'
+              : Math.round(+P.hgFamily || 0) === 1 ? 'strap'
               : Math.round(+P.hgFamily || 0) === 2 ? 'piano'
               : (familyOf ? familyOf(consOf(s.kind)) : 'strap');
-    const inset = Math.max(0.005, Math.min(0.30, +P.hgOut || HC.endInset));
+    // a door's stations keep clear of its corners (the belly and roof
+    // curves the edge turns into): a deeper inset than a surface's
+    const inset = Math.max(s.kind === 'door' ? 0.12 : 0.005, Math.min(0.30, +P.hgOut || HC.endInset));
     const nOver = Math.round(+P.hgCount || 0);
     const ts = stationsOf(span, nOver).map(t =>
       inset + (1 - 2 * inset) * ((t - HC.endInset) / Math.max(1e-6, 1 - 2 * HC.endInset)));
     const axis = V.sub(s.B, s.A);
-    const S = Object.assign({}, S0, { r: s.r });
+    // a door's butt hinge has two SHORT equal leaves (a strap's 90 mm tail
+    // ran up the windscreen slope and dug into the roof corner)
+    const S = Object.assign({}, S0, { r: s.r }, s.kind === 'door' ? { reach: 0.035 } : {});
     const bm = bagM(s.key);
     // G304: the skin as drawn, per station (the probe is per surface; the
     // frame changes per station, so the kit's callback carries it)
@@ -389,15 +487,34 @@ PAGE.post = ctx => {
     const tF0 = {}; for (const k of HG_BAGS_F) tF0[k] = bagsF[k].tris;
 
     // ---- the hinges ------------------------------------------------------
+    // a station is a fraction of the run: on a straight hinge line the lerp,
+    // on a door's curved edge (G310: `pts`, the flank's own polyline) the
+    // point at that fraction of the ARC, with the local segment as its axis
+    const along = t => {
+      if (!s.pts || s.pts.length < 3) return { p: V.lerp(s.A, s.B, t), ax: axis, face: s.face };
+      const L = []; let tot = 0;
+      for (let i = 1; i < s.pts.length; i++) { tot += V.len(V.sub(s.pts[i], s.pts[i - 1])); L.push(tot); }
+      const want = t * tot; let i = 0;
+      while (i < L.length - 1 && L[i] < want) i++;
+      const a = s.pts[i], b = s.pts[i + 1], l0 = i ? L[i - 1] : 0, seg = L[i] - l0;
+      const u = seg > 1e-9 ? (want - l0) / seg : 0;
+      const face = s.nrms ? V.nrm(V.lerp(s.nrms[i], s.nrms[i + 1], u)) : s.face;
+      return { p: V.lerp(a, b, u), ax: V.sub(b, a), face };
+    };
     const faces = row.faces || 1;
     for (const t of ts) {
-      const p = V.lerp(s.A, s.B, t);
+      const { p, ax: axL, face: faceL } = along(t);
       for (let f = 0; f < faces; f++) {
-        const F = frameOn(p, axis, s.aft, f ? V.mul(s.face, -1) : s.face);
+        const F = frameOn(p, axL, s.aft, f ? V.mul(faceL, -1) : faceL);
         Fcur = F;
         if (fam === 'piano')
+          // a surface's piano runs join into one continuous knuckle; a
+          // DOOR's edge is a curve, so its runs are short butt hinges on
+          // the local tangent (G310: a 0.5 m straight run on the flank's
+          // curve sat 22 mm inside it at its ends)
           HG.pianoHinge(bagsF.metal, bm.metal, F, S,
-                        span * (1 - 2 * inset) / Math.max(1, ts.length));
+                        s.kind === 'door' ? Math.min(0.10, span * (1 - 2 * inset) / Math.max(1, ts.length))
+                                          : span * (1 - 2 * inset) / Math.max(1, ts.length));
         else HG.strapHinge(bagsF.metal, bm.metal, F, S);
       }
     }
@@ -412,7 +529,7 @@ PAGE.post = ctx => {
       }
 
     // ---- the horn, and what reaches it -----------------------------------
-    if (Math.round(P.hgHorn === undefined ? 1 : P.hgHorn)) {
+    if (row.horn !== 'none' && Math.round(P.hgHorn === undefined ? 1 : P.hgHorn)) {
       const tH = Math.max(0.03, Math.min(0.97,
         (row.hornAt || 0.15) + (+P.hgHornAt || 0)));
       const pH = V.lerp(s.A, s.B, tH);
@@ -518,6 +635,10 @@ PAGE.post = ctx => {
       if (!m) continue;
       m.name = 'edHinge_' + s.key + '_' + k;
       group.add(m);
+      // G310: a DOOR's moving leaf has no object to ride — the door is shut
+      // and stays with the airframe; the leaf keeps its own bag so a swing
+      // later costs nothing
+      if (!s.obj) continue;
       scene.updateMatrixWorld(true);
       s.obj.attach(m);
       owned.push(m);

@@ -118,6 +118,7 @@ GROUP[1].push(['fine placement', [], { when: P => +P.accOn, level: 'expert' }]);
 // because it is a fact about the PANEL (what a person wants to switch off
 // together), not about the aeroplane
 const FAMILY = {
+  doorHandle: 'accHandling',                                          // G310
   fuelCap: 'accFluids', fuelCapWing: 'accFluids', fuelDrain: 'accFluids',
   oilDoor: 'accFluids', staticDrain: 'accFluids',
   inspTail: 'accAccess', inspBelly: 'accAccess', inspAileron: 'accAccess',
@@ -541,7 +542,7 @@ PAGE.post = ctx => {
     // into them. So the conversion is per SURFACE, and a single shared FS
     // would put every wing fitting on an aeroplane of the wrong size — which
     // on the default build, where planeScale is 1, looks exactly correct.
-    const K2 = row.on === 'body' ? FS : 1;
+    const K2 = (row.on === 'body' || row.on === 'door') ? FS : 1;     // G310: the door is cage units too
     // THE USER'S OWN OFFSET, in the table's own units and applied BEFORE the
     // snap — so a nudge on a `ring`-snapped fitting steps ring by ring and a
     // nudge on a `rail`-snapped one steps rail by rail, instead of sliding it
@@ -557,6 +558,13 @@ PAGE.post = ctx => {
     } else if (row.on === 'rod') {
       const one = rodSite(row, P, R, atSL, atLV, bags);
       sites = one ? [one] : [];
+    } else if (row.on === 'door') {
+      // G310: one handle a door side, on the edge opposite the hinges (the
+      // hinge layer's own row says which edge that is); the nudges walk it
+      // along the chord (sL, metres) and up the panel (lv, cage units)
+      const recs = (CG2 && CG2.cageDoorEdges) ? CG2.cageDoorEdges(mesh) : [];
+      const edge = Math.round(+P.hgDoorEdge || 0);
+      sites = recs.map(r => SITE.doorHandleSite(r, { edge, inset: 0.06 / FS, dSL: dSL / FS, dLV: dLV })).filter(Boolean);
     } else if (row.on === 'boom') {
       const want = typeof row.side === 'function' ? row.side(R) : row.side;
       sites = boomSites(row, P, R, atSL, atLV, bagsFor, want || 'both');
@@ -705,7 +713,7 @@ PAGE.post = ctx => {
       let surf = null;
       // the airframe contract describes the FUSELAGE and nothing else, so a
       // wing or cowl plate lies on its own tangent plane instead
-      if (row.on === 'body' && AF && AF.surf && AF.nrmAt) {
+      if ((row.on === 'body' || row.on === 'door') && AF && AF.surf && AF.nrmAt) {
         // THE SKIN, EXACTLY (G304, the fitment study P2): the airframe
         // TABLE is ±3.5 mm off across a crease (the strut foot's lesson,
         // _strut_gen.js §3) against the 0.6 mm a plate stands proud by, so a

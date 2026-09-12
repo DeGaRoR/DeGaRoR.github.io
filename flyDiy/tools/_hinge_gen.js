@@ -231,7 +231,7 @@ function pianoHinge(bF, bM, F, S, len) {
     const a1 = dir * (r * 0.5), a2 = dir * (r * 0.9 + S.reach * 0.7);
     const h1 = hAt(a1, lie), h2 = hAt(a2, lie * (dir > 0 ? 0.88 : 1));
     const path = [at(F, 0, S.pinR * 1.2, zc), at(F, a1, h1, zc)];
-    if (S.skin) for (const f of [0.33, 0.67]) {
+    if (S.skin) for (const f of [0.2, 0.4, 0.6, 0.8]) {
       const a = a1 + (a2 - a1) * f;
       path.push(at(F, a, hAt(a, h1 + (h2 - h1) * f), zc));
     }

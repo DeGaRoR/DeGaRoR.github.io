@@ -449,7 +449,8 @@ const FIT_BAGS = ['paint', 'metal', 'lens'];
 // ...and a fourth since G189: the ROD boom, a tube a fitting is CLAMPED to
 // rather than let into (placed by _cage_access.js rodSite — a split collar
 // under whatever the row's own form is).
-const FIT_SURFACES = { body: true, wing: true, cowl: true, rod: true, boom: true };   // G278: the twin booms
+const FIT_SURFACES = { body: true, wing: true, cowl: true, rod: true, boom: true,   // G278: the twin booms
+                       door: true };                                              // G310: the cabin doors
 
 const API = { FORMS, FIT_BAGS, FIT_SURFACES, plateInto, fastenRing, at };
 if (typeof module !== 'undefined' && module.exports) module.exports = API;

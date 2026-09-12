@@ -904,6 +904,23 @@ const GEN_ACCESS = {
     snap: 'ring', side: R => R.doorBoth ? 'both' : 'port',
     form: 'stepBoard', size: { reach: 0.150, w: 0.110, r: 0.011 },
   },
+  // G310 (the fitment study P4): THE DOOR HANDLE. A door had a step and a
+  // grab handle on the fuselage beside it and nothing on the panel itself.
+  // One handle per door side, on the edge OPPOSITE the hinges — the aft
+  // edge for a forward-hung door (the default), the forward edge for an
+  // aft-hung one, the bottom for a gull — at mid-height, a hand's width in
+  // from the edge. `on: 'door'` is its own surface: the door's outline off
+  // the built sheet (CAGE2.cageDoorEdges), which is also what the hinge
+  // layer hangs its runs on, so the two agree by construction.
+  doorHandle: {
+    name: 'Door handle',
+    serves: 'opening the door from outside',
+    need: R => R.doorBoth ? 1 : 0,
+    on: 'door',
+    at: () => ({ sL: 0, lv: 0 }),
+    snap: 'free', side: 'both',
+    form: 'handleGrab', size: { reach: 0.032, w: 0.115, r: 0.007 },
+  },
   grabHandle: {
     name: 'Grab handle',
     serves: 'the same hand, one move earlier',
@@ -1306,6 +1323,10 @@ const GEN_HINGE_KIT = {
           horn: 'both', link: 'cable', faces: 2, hornAt: 0.10 },
   elev: { name: 'Elevator hinges', serves: 'the elevators and their cables',
           horn: 'lower', link: 'cable', faces: 1, hornAt: 0.12 },
+  // G310: the cabin doors — piano runs on the edge the builder chose, no
+  // horn, no link, shut (the door does not swing yet)
+  door: { name: 'Door hinges', serves: 'the cabin doors',
+          horn: 'none', link: 'none', faces: 1, family: 'piano' },
 };
 
 // A FABRIC SURFACE HANGS ON STRAPS, A METAL ONE ON A PIANO HINGE. The surface

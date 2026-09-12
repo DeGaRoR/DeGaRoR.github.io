@@ -40538,3 +40538,55 @@ reads the canvas in the same task, a node sink on 8368 saves the JPEG.)
 - Seen: the hall behind its gate and path with the flag flying and the
   wood behind; the church on its plot, the belfry over the door.
 - Gates: HOUSE (presets battery incl. the two), VILLAGE green.
+
+## G310 — THE DOORS HANG ON SOMETHING: PIANO HINGES ON THE EDGE THE BUILDER
+## CHOSE, A HANDLE ON THE OTHER, SHUT (2026-09-12, the fitment study P4; the
+## user: "the doors have no hinges"; the ruling: hinges + handle, no swing)
+
+- **The door had no edge.** It was a ZONE of faces (`door` / `doorKey`,
+  marked at emit time), cut and recessed (G207), explodable, sealed — and
+  the hinges audit's inventory said `none` for its hardware. No hinge line,
+  no `edSurf_` object, no nose radius the hinge kit is parameterised on.
+- **`CAGE2.cageDoorEdges(sheet)`** (`_cage_gen.js`): each door's OUTLINE
+  off the built sheet, per door per side (the composite liner's own
+  grouping): the boundary is the edges owned once across the door's faces
+  (glass included), chains of standing (|dy| >= |dz|) and lying edges, the
+  FORWARD run the standing chain with the highest mean z (+z forward), the
+  aft the lowest, top and bottom by y; each run carries its ordered
+  POLYLINE (the flank is curved — the chord between a run's ends passed
+  80 mm inside the cabin), the door its mean outward normal and recess.
+  Pure; both layers read it, so a door that moves moves its hardware.
+- **The hinges** (`_cage_hinge.js`, `GEN_HINGE_KIT.door`): `surfaceList`
+  appends a record a door side, kind `door`, the run the builder chose
+  (`hgDoorEdge` 0 forward / 1 top / 2 aft, rows under Control hardware >
+  doors), NO object (the door is shut: both leaves stay with the airframe,
+  the moving leaf kept in its own bag so a swing later costs nothing), no
+  horn, no link. Each polyline point is lifted off the skin along the
+  contract's LOCAL normal by the piano barrel's radius (+2 mm — the mean
+  normal put a barrel 12 mm into the belly corner, and a barrel's ends
+  dipped 1.6 mm on the curve) so the barrel sits ON the surface and both
+  leaves lie flat on it; the placer walks its stations along the ARC of
+  the polyline (`along`, the local segment as the axis, the local normal as
+  the face); a door's runs are SHORT butt hinges (a 0.5 m straight knuckle
+  on the flank's curve sat 22 mm inside it at its ends), its leaves 35 mm
+  (a strap's 90 mm ran up the windscreen slope into the roof corner), its
+  stations 12 % in from the corners. The kit's `S.skin` probe for a door
+  is the body contract's exact skin (`GEAR_GEN.exactAirframe`), walked onto
+  the skin along F.y (the angle about the section centre is centimetres
+  off on a belly corner).
+- **The handle** (`GEN_ACCESS.doorHandle`, `on: 'door'`, `FIT_SITE
+  .doorHandleSite`): one a door side, on the edge OPPOSITE the hinges, at
+  WAIST height (0.62 up the run's polyline — mid-height is where a low
+  wing's root fairing is, 15 mm inside the twin's wing; a gull door's low
+  on the aft edge), 6 cm in along the door's chord, `handleGrab` 115 mm;
+  the access layer treats a door row as a body row (the exact `surf`, the
+  sagitta lift; `acc_doorHandle_sL/_lv` nudges self-register).
+- **Gates**: HINGE §4c (two records on stock, forward of aft, polylines,
+  ordered, lateral normal, sized; `doorGone` → none; pax doors → four;
+  `doorOn 0` → none), FIT `checkDoor` (a site a door side for every hinge
+  edge, ON a door face, inside the outline, opposite the hinges, a gull's
+  low), CLIP green (hinges 0.0-0.6 mm proud, handles 0.5). Bench: two
+  butt hinges up the port door's A-pillar edge, the handle by its aft edge
+  under the registration.
+- Not done, on purpose: the swing (a door as an `edSurf_`-style part with
+  a pivot) — the ruling was shut.
