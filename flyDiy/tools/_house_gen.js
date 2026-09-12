@@ -1188,19 +1188,25 @@ function buildGroundAO(bag, occ, g, lift) {
     };
     bag.setGlow(k);
     const ic = bag.v([o.x, g(o.x, o.z) + up, o.z], [0, 0]);
-    const inner = [], outer = [];
+    // THE PROFILE (G302): full under the thing, (1 - t)^2 out to `soft` -
+    // the lot patch's darkAt draws the same curve - so the foot is dark and
+    // the tail long; a mid ring carries the curve's knee
+    const inner = [], mid = [], outer = [];
     for (let i = 0; i < spokes; i++) {
       const a = 2 * Math.PI * i / spokes;
       const r0 = edge(a);
-      bag.setGlow(k * 0.9);
+      bag.setGlow(k);
       inner.push(bag.v(at(a, r0), [0, 0]));
+      bag.setGlow(k * 0.36);
+      mid.push(bag.v(at(a, r0 + soft * 0.4), [0, 0]));
       bag.setGlow(0);
       outer.push(bag.v(at(a, r0 + soft), [0, 0]));
     }
     for (let i = 0; i < spokes; i++) {
       const j = (i + 1) % spokes;
       bag.tri(ic, inner[i], inner[j]);
-      bag.quad(inner[i], outer[i], outer[j], inner[j]);
+      bag.quad(inner[i], mid[i], mid[j], inner[j]);
+      bag.quad(mid[i], outer[i], outer[j], mid[j]);
       n++;
     }
     bag.setGlow(0);
@@ -5495,45 +5501,50 @@ function build(P0, lod, F) {
   const occ = [];
   if (P.aoGround === undefined || P.aoGround) {
     const gMax = (x0, z0, x1, z1) => Math.max(g(x0, z0), g(x1, z0), g(x0, z1), g(x1, z1), g((x0 + x1) / 2, (z0 + z1) / 2));
-    const under = (yTop, x0, z0, x1, z1) => clamp(1 - (yTop - gMax(x0, z0, x1, z1)) / 2.6, 0, 1);
+    // THE GROUND UNDER A FLOOR IS DARK (G302, the user: "I still don't see
+    // the ground darkening below the houses"): a floor two metres up still
+    // takes most of the sky from the ground beneath it - the old law read a
+    // house on posts as casting nearly nothing (k 0.15) and nothing showed.
+    // A slab sits at 0.75; the floor of the law is 0.65 of that.
+    const under = (yTop, x0, z0, x1, z1) => clamp(1 - (yTop - gMax(x0, z0, x1, z1)) / 6, 0.65, 1);
     occ.push({ x: 0, z: 0, hx: V.L / 2 + V.wallT / 2, hz: V.w / 2 + V.wallT / 2,
-               k: 0.55 * under(V.floorY - 0.1, -V.L / 2, -V.w / 2, V.L / 2, V.w / 2), soft: 1.3 });
+               k: 0.75 * under(V.floorY - 0.1, -V.L / 2, -V.w / 2, V.L / 2, V.w / 2), soft: 2.0 });
     if (dk && dk.area > 0 && P.porch) {
       const D = deckPlan(P, V);
       occ.push({ x: D.cx, z: (D.zIn + D.zOut) / 2, hx: D.dl / 2, hz: (D.zOut - D.zIn) / 2,
-                 k: 0.5 * under(D.yTop, D.x0, D.zIn, D.x1, D.zOut), soft: 1.0 });
+                 k: 0.65 * under(D.yTop, D.x0, D.zIn, D.x1, D.zOut), soft: 1.5 });
     }
     const wet = P.water ? P.waterY : -1e9;
     const dry = (x, z) => g(x, z) > wet + 0.05;
     for (const f of (st.feet || []).concat(dk.postFeet || []))
-      if (dry(f[0], f[1])) occ.push({ x: f[0], z: f[1], r: P.postSz * 0.9, k: 0.45, soft: 0.45 });
+      if (dry(f[0], f[1])) occ.push({ x: f[0], z: f[1], r: P.postSz * 1.1, k: 0.6, soft: 0.55 });
     const flights = sp => {
       if (!sp) return;
       for (const f of sp.flights) {
         const T = f.n * P.stairRun;
         occ.push({ x: f.x + f.ax[0] * T / 2, z: f.z + f.ax[1] * T / 2,
-                   hx: f.ax[0] ? T / 2 : sp.w / 2, hz: f.ax[1] ? T / 2 : sp.w / 2, k: 0.3, soft: 0.45 });
+                   hx: f.ax[0] ? T / 2 : sp.w / 2, hz: f.ax[1] ? T / 2 : sp.w / 2, k: 0.45, soft: 0.5 });
       }
       for (const L of sp.lands)
-        occ.push({ x: L.x, z: L.z, hx: L.w / 2, hz: (L.d || L.w) / 2, k: 0.35, soft: 0.5 });
+        occ.push({ x: L.x, z: L.z, hx: L.w / 2, hz: (L.d || L.w) / 2, k: 0.5, soft: 0.6 });
     };
     if (dk && dk.stairPlan) flights(dk.stairPlan);
     for (const s2 of [stoop, front]) if (s2) {
-      occ.push({ x: s2.x, z: s2.z - s2.side * s2.depth / 2, hx: s2.w / 2, hz: s2.depth / 2, k: 0.4, soft: 0.5 });
+      occ.push({ x: s2.x, z: s2.z - s2.side * s2.depth / 2, hx: s2.w / 2, hz: s2.depth / 2, k: 0.55, soft: 0.6 });
       flights(s2.plan);
     }
     if (woodpile) {
       const hx = Math.abs(woodpile.ax[0]) * woodpile.len / 2 + Math.abs(woodpile.out[0]) * woodpile.w / 2;
       const hz = Math.abs(woodpile.ax[1]) * woodpile.len / 2 + Math.abs(woodpile.out[1]) * woodpile.w / 2;
-      occ.push({ x: woodpile.x, z: woodpile.z, hx, hz, k: 0.55, soft: 0.45 });
+      occ.push({ x: woodpile.x, z: woodpile.z, hx, hz, k: 0.65, soft: 0.6 });
     }
     for (const q of yardOut) if (q.on === 'ground') {
       const K = YARD_KIT[q.key];
-      occ.push({ x: q.x, z: q.z, hx: K.W / 2, hz: K.L / 2, ry: q.ry, k: 0.45, soft: 0.35 });
+      occ.push({ x: q.x, z: q.z, hx: K.W / 2, hz: K.L / 2, ry: q.ry, k: 0.6, soft: 0.5 });
     }
-    if (barrel) occ.push({ x: barrel.x, z: barrel.z, r: barrel.r, k: 0.45, soft: 0.3 });
+    if (barrel) occ.push({ x: barrel.x, z: barrel.z, r: barrel.r, k: 0.55, soft: 0.4 });
     for (const q of people) if (q.on === 'stoop' || (q.on !== 'deck' && !pier))
-      occ.push({ x: q.x, z: q.z, r: 0.28, k: 0.3, soft: 0.25 });
+      occ.push({ x: q.x, z: q.z, r: 0.28, k: 0.4, soft: 0.3 });
     for (const o of occ) o.dry = true;
     buildGroundAO(bags.aoskirt, occ.filter(o => o.r === undefined ? dry(o.x, o.z) : dry(o.x, o.z)), g);
   }

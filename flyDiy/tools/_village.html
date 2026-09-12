@@ -222,7 +222,15 @@ function buildSky() {
     sun.color.setRGB(sky.sunCol[0], sky.sunCol[1], sky.sunCol[2]);
     sun.intensity = Math.max(0.55, Math.min(3.0, sky.direct * 6.5 + 0.45));
     fill.intensity = 0;
-    renderer.toneMappingExposure = (+$('expo').value) * (sky.ev || 1);
+    // ... DIVIDED BY WHAT THE SUN ADDS ON TOP OF THE DOME (G302). The dome
+    // already holds the disc's energy (`direct` is its share: 0.70 on the
+    // alps), and the directional light stood on it AGAIN for the shadows -
+    // a lawn of albedo 0.16 read sRGB 225, every pale wall 'shone like
+    // teeth', and no ground darkening could show through the tone curve's
+    // shoulder. The sun's irradiance on the flat, over the dome's own
+    // (the ev anchor's unit), is what the exposure gives back.
+    const sunDown = sun.intensity * Math.max(0, d[1] / Math.hypot(d[0], d[1], d[2]));
+    renderer.toneMappingExposure = (+$('expo').value) * (sky.ev || 1) / (1 + sunDown);
     hdrDir.set(d[0], d[1], d[2]).normalize();
   } else if (k === 'n') {
     // A PROPER DARK NIGHT (G293): no dome, a sliver of moon from high on
@@ -470,7 +478,7 @@ function lotMaterial() {
         '    col = mix(col, cDirt.rgb, wt);\n' +
         '    lwGm = gm; lwDry = wd; lwPeb = wp; lwDirt = wt;\n' +
         // the skirt's darkening, folded in
-        '    col *= 1.0 - vTone.x * 0.8;\n' +
+        '    col *= 1.0 - vTone.x;\n' +
         '    diffuseColor = vec4(col, vAlpha);\n' +
         '  }')
       // EACH SET ITS OWN NORMAL (G293, the user: "I feel like there is still
@@ -528,10 +536,8 @@ function placeBuilt(parent, house, built, F) {
   grp.position.set(house.x, house.y, house.z);
   grp.rotation.y = house.yaw;
   for (const k of G.BAGS) built.bags[k].mesh(grp, F.MAT[k]);
-  if (built.bags.aoskirt) {
-    const sk = built.bags.aoskirt.mesh(grp, F.MAT.aoskirt);
-    if (sk) { sk.renderOrder = 5; sk.castShadow = false; sk.receiveShadow = false; }
-  }
+  // the house's ground skirt is NOT drawn here (G302): the lot patch carries
+  // the same occluders in its own tone, and drawing both stacked the two
   if (built.bags.smoke) {
     const sm = built.bags.smoke.mesh(grp, F.MAT.smoke);
     if (sm) { sm.renderOrder = 10; sm.castShadow = false; sm.receiveShadow = false; }
@@ -688,10 +694,10 @@ function build() {
     if (plot.out && plot.out.built) for (const o of plot.out.built.stats.groundAO || []) occ.push(toW(plot.out, o));
     for (const c of [plot.car, plot.boat]) if (c) {
       const K = plot.car === c ? G.YARD_KIT[c.key] : G.PIER_KIT[c.key];
-      occ.push({ x: c.x, z: c.z, hx: K.W / 2, hz: K.L / 2, ry: c.ry, k: 0.5, soft: 0.5 });
+      occ.push({ x: c.x, z: c.z, hx: K.W / 2, hz: K.L / 2, ry: c.ry, k: plot.car === c ? 0.65 : 0.6, soft: plot.car === c ? 1.0 : 0.9 });
     }
     for (const f of fe.posts) if (VG.inPoly(plot.poly, f[0], f[1]) || true) {
-      if (Math.abs(f[0] - h.x) < 40 && Math.abs(f[1] - h.z) < 40) occ.push({ x: f[0], z: f[1], r: 0.07, k: 0.35, soft: 0.25 });
+      if (Math.abs(f[0] - h.x) < 40 && Math.abs(f[1] - h.z) < 40) occ.push({ x: f[0], z: f[1], r: 0.07, k: 0.45, soft: 0.35 });
     }
     const L = lotMesh(root, vil, plot, h, h.built, occ);
     if (L) lotVerts += L.verts;
@@ -706,16 +712,14 @@ function build() {
     tiltToGround(o, vil.T.h, c.x, c.z, c.ry);
     root.add(o);
     cars++;
-    const K = plot.car === c ? G.YARD_KIT[c.key] : G.PIER_KIT[c.key];
-    vocc.push({ x: c.x, z: c.z, hx: K.W / 2, hz: K.L / 2, ry: c.ry, k: 0.5, soft: 0.5 });
   }
-  for (const f of fe.posts) vocc.push({ x: f[0], z: f[1], r: 0.07, k: 0.35, soft: 0.25 });
-  // the poles along the road (G285)
+  // (the cars, the boats and the fence posts darken the LOT PATCH, G302 -
+  // only what stands outside every lot gets a skirt polygon: the poles)
   for (const q of vil.poles || []) if (PROP_REG.props[q.key]) {
     const o = propPlace(THREE, q.key, q.x, q.z, q.ry, q.y);
     tiltToGround(o, vil.T.h, q.x, q.z, q.ry);
     root.add(o);
-    vocc.push({ x: q.x, z: q.z, r: 0.12, k: 0.4, soft: 0.3 });
+    vocc.push({ x: q.x, z: q.z, r: 0.12, k: 0.5, soft: 0.4 });
   }
   {
     const F = FINISHES[FINISHES.length - 1];

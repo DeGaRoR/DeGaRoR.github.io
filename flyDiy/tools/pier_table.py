@@ -395,10 +395,12 @@ PROPS = [
            'origin at its centre on the ground. THE EXPORT CALLED IT METAL (G280): its '
            'metallicFactor is 1 over a map that is really the occlusion, so it mirrored '
            'the sky and read as white - painted wood is metalness 0',
-      scale=0.01, tex=512, slots={'Scene_-_Root': {'metal': 0.0, 'rough': 0.9, 'col': [0.3, 0.32, 0.3]}}),
+      scale=0.01, tex=512, slots={'Scene_-_Root': {'metal': 0.0, 'rough': 0.9, 'col': [0.55, 0.57, 0.55]}}),
     #   ... and at half its light (G301, the user: "Darken the light green fence
     #   again, by 50%. It is still far too bright overall"): the base colour
-    #   factor over the scan
+    #   factor over the scan. G302 put it back from 0.3 to 0.55: what was
+    #   "far too bright" was the benches' exposure, the sun counted twice -
+    #   at 0.3 under the corrected exposure the fence was black.
 
     # ---- the cars (G276) ----------------------------------------------------
     # THREE OF THEM WERE MIRRORS (G280, the user: "The abandoned cars also

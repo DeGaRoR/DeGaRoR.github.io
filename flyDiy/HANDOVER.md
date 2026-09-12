@@ -40158,3 +40158,42 @@ top; measured on the user's build the rotor's base is 2 mm under the top.
   takes the pack + `propPlace` as they are. Lights culled by distance and
   the house's far mesh with a plain material remain to do.
 - Gates: HOUSE, VILLAGE, MEDIA, PROPS, HANGAR, UISMOKE green.
+
+## G302 — THE GROUND DARKENING YOU CAN SEE: THE SUN WAS COUNTED TWICE, THE
+## FEET WERE TIMID, AND THE FENCE GOES BACK UP (2026-09-12, the user: "I still
+## don't see the ground darkening below the houses and around the props, can we
+## finally get it?")
+
+- **WHY NOTHING SHOWED**: the numbers were there (tone 0.5 under a car,
+  0.85 under a house after this) and the render did not move. Read back
+  from the canvas: a lawn of albedo 0.16 at sRGB 225, the pebble beach at
+  238 — the ground sat in the tone curve's shoulder, where a diffuse cut to
+  a sixth reads as a shade. The alps dome already HOLDS the disc (its
+  `direct` is 0.70 of the sphere), and the rig's directional sun (clamped
+  at 3.0) stood on it again: three times the light on the flat. Both
+  benches now divide the measured exposure by (1 + sun on the flat over
+  the dome's unit): `ev / (1 + sun.intensity * dir.y)`. The sunset sky
+  (direct 0.06) moves by 9 %; the alps by 3×. THIS was "shines like
+  teeth", "far too bright overall" and the invisible AO, one cause.
+- **THE FENCE GOES BACK UP**: its two halvings were judged under that
+  exposure; at 0.3 in the corrected light it was black. `col` 0.55 (the
+  first halving kept, the second was the rig).
+- **THE FEET**: the house's footprint law read a floor two metres up as
+  casting almost nothing (k 0.15) — the ground under a raised floor loses
+  most of its sky; k 0.75 × clamp(1 − h/6, 0.65, 1), soft 2.0; the deck
+  0.65; posts 0.6 at 1.1 × their size; stairs 0.45, landings and stoops
+  0.5–0.55, woodpile 0.65, yard props 0.6, barrel 0.55, people 0.4; in
+  the village cars 0.65 / soft 1.0, boats 0.6, fence posts 0.45, poles
+  0.5. The profile is (1 − t)² out to `soft` in both keepers (the lot
+  patch's `darkAt`, the skirt polygons via a mid ring), occluders
+  COMPOUND (1 − Π(1 − w)) capped at 0.85, and every fenced plot edge
+  darkens a band of its own (0.4, 0.12 m + 0.7 m). The lot shader takes
+  the tone whole (`1 − tone`, was × 0.8).
+- **ONE KEEPER PER LOT**: the village no longer draws the house's skirt
+  polygons or its own under the cars, boats and fence posts — the lot
+  patch carries them all in its tone, and the two stacked; the poles on
+  the road, outside every lot, keep their polygon.
+- Seen: the underside of a house on posts, the halo round the Buick and
+  the van, the bands along the fences, the pole's foot; the lawn and the
+  beach read as grass and pebbles; the white siding white but textured.
+- Gates: HOUSE, VILLAGE, MEDIA, PROPS green.

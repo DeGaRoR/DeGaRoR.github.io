@@ -686,8 +686,12 @@ function lotGround(vil, plot, house, built, occ) {
     }
     return 1 - clamp((d - 0.3) / 1.4, 0, 1);
   };
+  // THE DARKENING (G302): the same profile the skirt polygons draw - full
+  // under the thing, (1 - t)^2 out to `soft` - the occluders COMPOUNDING (a
+  // post under a house is darker than either) and capped so the ground
+  // never goes black; the fence lines darken a band of their own
   const darkAt = (x, z) => {
-    let w = 0;
+    let keep = 1;
     for (const o of occ) {
       const c = Math.cos(o.ry || 0), s = Math.sin(o.ry || 0);
       const dx = x - o.x, dz = z - o.z, lx = dx * c - dz * s, lz = dx * s + dz * c;
@@ -695,9 +699,18 @@ function lotGround(vil, plot, house, built, occ) {
       if (o.hx !== undefined) out = Math.hypot(Math.max(0, Math.abs(lx) - o.hx), Math.max(0, Math.abs(lz) - o.hz));
       else out = Math.max(0, Math.hypot(lx, lz) - o.r);
       const soft = o.soft === undefined ? 0.5 : o.soft;
-      w = Math.max(w, (o.k === undefined ? 0.4 : o.k) * (1 - clamp(out / Math.max(0.05, soft), 0, 1)));
+      const t = 1 - clamp(out / Math.max(0.05, soft), 0, 1);
+      keep *= 1 - (o.k === undefined ? 0.4 : o.k) * t * t;
     }
-    return w;
+    let d = 1e9;
+    for (const sg of fenced) {
+      const dx = sg[1][0] - sg[0][0], dz = sg[1][1] - sg[0][1];
+      const t = clamp(((x - sg[0][0]) * dx + (z - sg[0][1]) * dz) / Math.max(1e-9, dx * dx + dz * dz), 0, 1);
+      d = Math.min(d, Math.hypot(x - (sg[0][0] + dx * t), z - (sg[0][1] + dz * t)));
+    }
+    const ft = 1 - clamp((d - 0.12) / 0.7, 0, 1);
+    keep *= 1 - 0.4 * ft * ft;
+    return Math.min(0.85, 1 - keep);
   };
   const pos = [], uv = [], splat = [], tone = [], alpha = [], idx = [];
   const id = new Int32Array((nx + 1) * (nz + 1)).fill(-1);

@@ -335,7 +335,15 @@ function buildSkyHDR(sky) {
   // falls on a roof. A sunset normalised to the same sphere mean as a noon
   // still delivers half the downward radiance, and reading a plank in it
   // otherwise means chasing the exposure dial by hand.
-  renderer.toneMappingExposure = (+$('expo').value) * (sky.ev || 1);
+  // ... DIVIDED BY WHAT THE SUN ADDS ON TOP OF THE DOME (G302). The dome
+  // already holds the disc's energy (`direct` is its share: 0.70 on the
+  // alps), and the directional light stood on it AGAIN for the shadows -
+  // a lawn of albedo 0.16 read sRGB 225, every pale wall 'shone like
+  // teeth', and no ground darkening could show through the tone curve's
+  // shoulder. The sun's irradiance on the flat, over the dome's own
+  // (the ev anchor's unit), is what the exposure gives back.
+  const sunDown = sun.intensity * Math.max(0, d[1] / Math.hypot(d[0], d[1], d[2]));
+  renderer.toneMappingExposure = (+$('expo').value) * (sky.ev || 1) / (1 + sunDown);
   hdrDir.set(d[0], d[1], d[2]).normalize();
   return true;
 }
