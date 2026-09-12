@@ -443,7 +443,8 @@ function siteMesh(g, R, foot) {
   // THE CONTACT SHADOW ON THE GRASS. The site is not the house's mesh, so it
   // gets none of the baked occlusion; this is the generator's own ground
   // patch, driven by the footprint it publishes.
-  if (foot) G.shadeGround(gm, foot, { path: PATH || [] });
+  // the skirt does the footprint now; the shader patch keeps only the path
+  if (foot) G.shadeGround(gm, foot, { path: PATH || [], strength: (P.aoGround === undefined || P.aoGround) ? 0 : 0.55 });
   const gmesh = new THREE.Mesh(geo, gm);
   gmesh.receiveShadow = true;
   grp.add(gmesh);
@@ -459,6 +460,12 @@ function addBuild(parent, built, dx) {
   const grp = new THREE.Group();
   grp.position.x = dx || 0;
   for (const k of GEN.BAGS) built.bags[k].mesh(grp, G.MAT[k]);
+  // the ground shadow skirt (G281): polygons on the ground, drawn after the
+  // opaque site, never into depth
+  if (built.bags.aoskirt) {
+    const sk = built.bags.aoskirt.mesh(grp, G.MAT.aoskirt);
+    if (sk) { sk.renderOrder = 5; sk.castShadow = false; sk.receiveShadow = false; }
+  }
   // the smoke, drawn last and never into depth (its material says so)
   if (built.bags.smoke) {
     const sm = built.bags.smoke.mesh(grp, G.MAT.smoke);

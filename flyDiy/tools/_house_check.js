@@ -1111,6 +1111,32 @@ function battery(name, P) {
     }
   }
 
+  // 36 — THE GROUND SHADOW SKIRT LIES ON THE GROUND (G281): every vertex of
+  //   it a centimetre over the ground under it (it is polygons on the
+  //   terrain, and a patch that floats or sinks is a patch that flickers),
+  //   its alpha within [0, 1], one patch per thing that stands on the ground
+  //   (the occluder list is published), and none at all with the dial off.
+  {
+    const sk = hi.bags.aoskirt ? hi.bags.aoskirt.data() : null;
+    const on = P.aoGround === undefined || P.aoGround;
+    if (!on) check(!sk || sk.idx.length === 0, name + ': aoGround 0 still laid a skirt');
+    else if (sk) {
+      check(sk.idx.length > 0, name + ': no ground skirt under the house');
+      const g2 = hi.stats.ground;
+      let off = 0, worst = 0, bad = 0;
+      for (let i = 0; i < sk.pos.length; i += 3) {
+        const d = sk.pos[i + 1] - (g2(sk.pos[i], sk.pos[i + 2]) + 0.012);
+        if (Math.abs(d) > 0.02) { off++; worst = Math.max(worst, Math.abs(d)); }
+        const a = sk.lit[i / 3];
+        if (!(a >= 0 && a <= 1)) bad++;
+      }
+      check(off === 0, name + ': the ground skirt is not on the ground', off + ' vertices, worst ' + worst.toFixed(3));
+      check(bad === 0, name + ': the ground skirt has an alpha out of range');
+      check((hi.stats.groundAO || []).length >= 1 + (hi.stats.posts || 0) * 0,
+            name + ': the ground skirt occluders were not published');
+    }
+  }
+
   // 17 — a back door that opens onto nothing is not a garden door
   // (a back door inside the lean-to's span opens INTO the shed, onto its
   // floor, and gets no stoop by design - rule 23 holds that it has a platform)
@@ -1541,6 +1567,15 @@ if (SELFTEST) {
     }
     for (const k of ['person_andrew', 'person_koky', 'person_john', 'person_luke', 'person_charles'])
       if (!seen[k]) neg.push('nobody was ever ' + k);
+  }
+  // THE SKIRT (G281): the default house lays patches under its posts and
+  // its footprint; with the dial off it lays none
+  {
+    const a = HG.build(Object.assign({}, HG.DEF, { aoGround: 1 }), 0);
+    const b = HG.build(Object.assign({}, HG.DEF, { aoGround: 0 }), 0);
+    if (!(a.bags.aoskirt.tris > 40)) neg.push('the ground skirt is thin: ' + a.bags.aoskirt.tris);
+    if (b.bags.aoskirt.tris !== 0) neg.push('aoGround 0 still laid a skirt');
+    if (!(a.stats.groundAO.length > 4)) neg.push('too few occluders published');
   }
   // lod 1 must be a construction: switching it off must actually remove work
   const a0 = HG.build(HG.DEF, 0).stats.tris, a1 = HG.build(HG.DEF, 1).stats.tris;

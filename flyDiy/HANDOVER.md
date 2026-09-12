@@ -39316,3 +39316,39 @@ skeleton control (the user's offer) was not needed.
   cripple wall, or a skirt — the stacked and standing ones anywhere. Rule
   34 holds it.
 - Gates: HOUSE, VILLAGE (both --selftest) green.
+
+## G281 — THE GROUND SHADOW SKIRT: CONTACT OCCLUSION FOR EVERYTHING THAT
+## STANDS ON THE GROUND, AS POLYGONS ON THE TERRAIN; TWO MORE BOATS; THE
+## K-CAR WAS CHROME (2026-09-12, the user: "All structures and props should
+## generate some fake AO on the ground, and using a technique that will port
+## easily to the real terrain system later on ... polygon projection on the
+## ground?" / "I have put 2 new boats in the asset folder")
+
+- **POLYGONS ON THE GROUND** (`buildGroundAO`, `shadeSkirt`, the `aoskirt`
+  EXTRA bag): for every thing that stands on the ground a patch is laid ON
+  the terrain — a fan of spokes whose every vertex is put at `g(x, z)` plus
+  a centimetre, so it conforms to whatever the ground does; a rect is the
+  same fan with the radius that reaches its own edge, turned by the thing's
+  yaw. Dark under the thing (`k`), fading to nothing `soft` metres out; the
+  alpha rides in the vertex channel the lights use, the material is black,
+  transparent, never into depth, polygon-offset off the terrain. The
+  occluders (`stats.groundAO`): the house's footprint and the deck's,
+  darkened by how close their floor is to the ground (a slab sits in its
+  shadow, a house on two-metre piles barely casts one), every post and pile
+  foot on dry ground, the stair's flights and landings, the stoops, the
+  woodpile, every yard prop on the ground, the barrel, the people on the
+  ground; in the village the cars, the trailer boat and every fence post
+  through the same builder with the terrain as its ground. NOTHING HERE
+  KNOWS WHAT THE TERRAIN IS: the game hands the same function its own
+  height sampler and gets the same patches. The bench's ground-shader
+  footprint patch steps aside (strength 0) when the skirt is on
+  (`aoGround`, default 1); the path stays in the shader.
+- **Rule 36**: every skirt vertex within 2 cm of the ground plus its
+  centimetre, alpha in range, occluders published, none with the dial off;
+  selftest builds both.
+- **TWO MORE BOATS** (Sketchfab CC-BY, credited): the assault boat (a RIB,
+  outboard on, centimetres) and the Progress motorboat (aluminium runabout,
+  along x turned to z, centimetres); in SMALL_BOATS, PIER_KIT, PIER_TRIS.
+- **THE K-CAR WAS CHROME** like the three before it (metallicFactor 1 over a
+  white map): a tenth now.
+- Gates: HOUSE, VILLAGE (both --selftest) green.

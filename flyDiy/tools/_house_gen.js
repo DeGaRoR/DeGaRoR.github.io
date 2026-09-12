@@ -100,6 +100,13 @@ function makeMats() {
   smoke: new THREE.MeshBasicMaterial({ color: 0xb9b5ae, transparent: true,
                                        opacity: 1.0, depthWrite: false,
                                        side: THREE.DoubleSide }),
+  // THE GROUND SHADOW SKIRT (G281): black, transparent, its alpha per vertex
+  // (shadeSkirt), a centimetre above the ground and offset so it never
+  // fights the terrain for depth
+  aoskirt: new THREE.MeshBasicMaterial({ color: 0x0a0906, transparent: true,
+                                         opacity: 0.85, depthWrite: false,
+                                         polygonOffset: true, polygonOffsetFactor: -2,
+                                         polygonOffsetUnits: -2 }),
   // the FAR window: opaque, because at eighty metres a pane is a dark
   // rectangle with a frame round it and transparency buys nothing but sorting
   pane:   std(0x2c3a42, { roughness: 0.28, metalness: 0.10 }),
@@ -112,7 +119,7 @@ const BAGS = ['siding', 'trim', 'roof', 'rib', 'glass', 'deck', 'post',
 // soft crossed quads with no surface to them - no occlusion to bake, no
 // texel density to hold, no silhouette to keep - so it stands outside the
 // ledger. The bench draws it; the gate reads it on its own terms.
-const EXTRA = ['smoke'];
+const EXTRA = ['smoke', 'aoskirt'];
 
 // WHICH SETS A PART MAY WEAR. The library says what each set is FOR (its `use`
 // list); this is the order they are offered in, per role, and it is what the
@@ -338,6 +345,9 @@ const PIER_KIT = {
   boat_runabout: { L: 4.35, W: 1.74, H: 1.23, float: 0.30, motor: true },
   boat_tirola:   { L: 4.78, W: 1.56, H: 1.54, float: 0.30 },
   boat_grady:    { L: 10.14, W: 3.76, H: 3.99, float: 0.22 },
+  // two more small boats (G281): a RIB with its outboard on, a Progress
+  boat_assault:  { L: 4.02, W: 1.8, H: 0.86, float: 0.28 },
+  boat_progress: { L: 4.32, W: 1.56, H: 1.31, float: 0.3 },
   // the two people, at their delivered height, placed by their feet
   person_andrew: { L: 0.48, W: 0.61, H: 1.82 },
   person_john:   { L: 0.75, W: 0.64, H: 1.84 },
@@ -353,7 +363,7 @@ const PIER_DECK = 2.64, PIER_LOW = 1.24;
 const PIER_RUNS = ['pier_run', 'pier_run', 'pier_ledge'];
 // the venetian scan sits on a TRAILER (G280, the user: "The highlighted boat
 // is to be placed on the ground") - it is a yard thing now, never moored
-const SMALL_BOATS = ['boat_painted', 'boat_clinker', 'boat_runabout'];
+const SMALL_BOATS = ['boat_painted', 'boat_clinker', 'boat_runabout', 'boat_assault', 'boat_progress'];
 const setTint = key => SET_TINT[key] || {};
 
 // THE RULE, in the user's own words: "Finishes, beams and pillars takes
@@ -1087,6 +1097,79 @@ function shadeSmoke(m, MU0) {
   m.needsUpdate = true;
 }
 
+// THE GROUND SHADOW SKIRT (G281, the user: "All structures and props should
+// generate some fake AO on the ground, and using a technique that will port
+// easily to the real terrain system later on ... polygon projection on the
+// ground?"). Polygons on the ground, then: for every thing that stands on
+// it - the house's footprint, the deck's, every post and pile foot, the
+// stair's flights and landings, the stoops, the woodpile, every yard prop,
+// the barrel, the people, and in the village the cars, the boats and the
+// fence posts - a patch laid on the terrain, dark under the thing and
+// fading to nothing a little way out. Each patch is a fan of spokes whose
+// every vertex is put ON THE GROUND (`g` at that x, z, plus a centimetre),
+// so it conforms to whatever the ground does; a rect is the same fan with
+// the radius that reaches its own edge, turned by the thing's yaw. The
+// alpha rides in the vertex channel the lights use (`aHouseLit`), read by
+// shadeSkirt; the material is black and transparent. Nothing here knows
+// what the terrain is: a game with a real heightfield hands the same
+// function its own sampler. `occ` is the list: { x, z, r, k, soft } discs
+// and { x, z, hx, hz, ry, k, soft } rects; k is the darkness under the
+// thing, soft how far the fade reaches beyond its edge.
+function shadeSkirt(m) {
+  const ud = m.userData || (m.userData = {});
+  if (ud.skirtShaded) return;
+  ud.skirtShaded = true;
+  m.onBeforeCompile = sh => {
+    sh.vertexShader = 'attribute float aHouseLit;\nvarying float vSkA;\n' + sh.vertexShader
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\n  vSkA = aHouseLit;');
+    sh.fragmentShader = 'varying float vSkA;\n' + sh.fragmentShader
+      .replace('#include <color_fragment>', '#include <color_fragment>\n  diffuseColor.a *= vSkA;');
+  };
+  m.needsUpdate = true;
+}
+function buildGroundAO(bag, occ, g, lift) {
+  const up = lift === undefined ? 0.012 : lift;
+  let n = 0;
+  for (const o of occ) {
+    const k = clamp(o.k === undefined ? 0.4 : o.k, 0, 1);
+    if (k < 0.02) continue;
+    const soft = o.soft === undefined ? 0.5 : o.soft;
+    const rect = o.hx !== undefined;
+    const spokes = rect ? Math.max(16, Math.min(48, Math.round((o.hx + o.hz) * 4))) : 12;
+    const c = Math.cos(o.ry || 0), sn = Math.sin(o.ry || 0);
+    // the radius to the thing's own edge, at this angle
+    const edge = a => {
+      if (!rect) return o.r;
+      const ca = Math.cos(a), sa = Math.sin(a);
+      return 1 / Math.max(Math.abs(ca) / o.hx, Math.abs(sa) / o.hz);
+    };
+    const at = (a, r) => {                  // a point r out at angle a, in the thing's frame, on the ground
+      const lx = Math.cos(a) * r, lz = Math.sin(a) * r;
+      const x = o.x + lx * c + lz * sn, z = o.z - lx * sn + lz * c;
+      return [x, g(x, z) + up, z];
+    };
+    bag.setGlow(k);
+    const ic = bag.v([o.x, g(o.x, o.z) + up, o.z], [0, 0]);
+    const inner = [], outer = [];
+    for (let i = 0; i < spokes; i++) {
+      const a = 2 * Math.PI * i / spokes;
+      const r0 = edge(a);
+      bag.setGlow(k * 0.9);
+      inner.push(bag.v(at(a, r0), [0, 0]));
+      bag.setGlow(0);
+      outer.push(bag.v(at(a, r0 + soft), [0, 0]));
+    }
+    for (let i = 0; i < spokes; i++) {
+      const j = (i + 1) % spokes;
+      bag.tri(ic, inner[i], inner[j]);
+      bag.quad(inner[i], outer[i], outer[j], inner[j]);
+      n++;
+    }
+    bag.setGlow(0);
+  }
+  return n;
+}
+
 function buildSmoke(bags, P, Q, ch) {
   if (!P.smoke || !ch) return null;
   const n = Q.lod === 0 ? 9 : 4;
@@ -1115,6 +1198,7 @@ function applyFinish(P, F) {
   const GLASS_U = F ? F.GLASS_U : DEFAULT_FINISH.GLASS_U;
   const SMOKE_U = F ? F.SMOKE_U : DEFAULT_FINISH.SMOKE_U;
   shadeSmoke(MAT.smoke, SMOKE_U);
+  shadeSkirt(MAT.aoskirt);
   SMOKE_U.uSmokeK.value = P.smokeK === undefined ? 0.55 : P.smokeK;
   for (const k of BAGS) if (k !== 'glass' && k !== 'pane' && MAT[k])
     shadeHouse(MAT[k], SHADE_U);
@@ -1272,6 +1356,7 @@ const DEF = {
   smoke: 1, smokeK: 0.55, smokeLean: 0.35,
   // the yard (G273): props round the house, the woodpile, the lamp
   yard: 1, yardK: 0.6, yardSeed: 7, woodpile: 1, woodLen: 2.2, woodH: 1.25,
+  aoGround: 1,
   lampKind: 1, curtains: 0.7,
   // the settling (G273): the ridge's sag in metres, the siding's course
   // wander in metres (times the hand)
@@ -1495,6 +1580,7 @@ const ROWS = [
     ['leanPitch', 'pitch', 5, 35, 0.5, null, P => !!P.lean],
   ]],
   ['the yard', [
+    ['aoGround', 'ground shadow skirt', 0, 1, 1],
     ['yard', 'things around the house', 0, 1, 1],
     ['yardK', 'how much', 0, 1, 0.05, null, P => !!P.yard],
     ['yardSeed', 'whose yard', 1, 99, 1, null, P => !!P.yard],
@@ -3255,6 +3341,7 @@ function buildStance(bags, P, Q, V, plan, g) {
   // building is half over the water. Creek Street, in one paragraph.
   const piles = Math.round(P.stance) === 3;
   const wet = P.water ? P.waterY : -1e9;
+  marks.feet = feet.map(f => [f[0], f[1]]);       // for the ground skirt (G281)
   for (const f of feet) {
     const gy = g(f[0], f[1]);
     const padT = (Q.lod === 0 && !piles) ? P.padSz * 0.30 : 0;
@@ -3417,9 +3504,11 @@ function buildDeck(bags, P, Q, V, R, g) {
   }
   // posts under the outer rim
   const n = Math.max(1, Math.round(dl / P.postSpc));
+  out.postFeet = [];
   for (let i = 0; i <= n; i++) {
     const x = x0 + dl * i / n;
     const gy = g(x, zOut);
+    out.postFeet.push([x, zOut]);
     if (Q.lod === 0 && Math.round(P.stance) !== 3)
       boxAB(bags.stone, [x - P.padSz / 2, gy - 0.10, zOut - P.padSz / 2],
             [x + P.padSz / 2, gy + P.padSz * 0.25, zOut + P.padSz / 2]);
@@ -4426,6 +4515,7 @@ const PIER_TRIS = {
   pier_run: 11758, pier_ledge: 14162, pier_step: 14598, pier_head: 23280,
   pier_gate: 13010, pier_piles: 2460, pier_deck: 5512, boat_painted: 37348,
   boat_clinker: 8358, boat_runabout: 11215, boat_tirola: 18742, boat_grady: 369673,
+  boat_assault: 40036, boat_progress: 12083,
   person_andrew: 354510, person_john: 310334,
   person_charles: 174995, person_luke: 128902, person_koky: 331806,
 };
@@ -5258,6 +5348,55 @@ function build(P0, lod, F) {
   }
   const yardOut = yard.filter(q => !q.drop);
   const path = pathPlan(P, V, dk, stoop, front, pier, g);
+  // THE GROUND SHADOW SKIRT (G281): everything that stands on the ground,
+  // as discs and rects, laid on it as polygons. The house's and the deck's
+  // own footprints darken by how close their floor is to the ground - a
+  // slab sits in its shadow, a house on two-metre piles barely casts one.
+  const occ = [];
+  if (P.aoGround === undefined || P.aoGround) {
+    const gMax = (x0, z0, x1, z1) => Math.max(g(x0, z0), g(x1, z0), g(x0, z1), g(x1, z1), g((x0 + x1) / 2, (z0 + z1) / 2));
+    const under = (yTop, x0, z0, x1, z1) => clamp(1 - (yTop - gMax(x0, z0, x1, z1)) / 2.6, 0, 1);
+    occ.push({ x: 0, z: 0, hx: V.L / 2 + V.wallT / 2, hz: V.w / 2 + V.wallT / 2,
+               k: 0.55 * under(V.floorY - 0.1, -V.L / 2, -V.w / 2, V.L / 2, V.w / 2), soft: 1.3 });
+    if (dk && dk.area > 0 && P.porch) {
+      const D = deckPlan(P, V);
+      occ.push({ x: D.cx, z: (D.zIn + D.zOut) / 2, hx: D.dl / 2, hz: (D.zOut - D.zIn) / 2,
+                 k: 0.5 * under(D.yTop, D.x0, D.zIn, D.x1, D.zOut), soft: 1.0 });
+    }
+    const wet = P.water ? P.waterY : -1e9;
+    const dry = (x, z) => g(x, z) > wet + 0.05;
+    for (const f of (st.feet || []).concat(dk.postFeet || []))
+      if (dry(f[0], f[1])) occ.push({ x: f[0], z: f[1], r: P.postSz * 0.9, k: 0.45, soft: 0.45 });
+    const flights = sp => {
+      if (!sp) return;
+      for (const f of sp.flights) {
+        const T = f.n * P.stairRun;
+        occ.push({ x: f.x + f.ax[0] * T / 2, z: f.z + f.ax[1] * T / 2,
+                   hx: f.ax[0] ? T / 2 : sp.w / 2, hz: f.ax[1] ? T / 2 : sp.w / 2, k: 0.3, soft: 0.45 });
+      }
+      for (const L of sp.lands)
+        occ.push({ x: L.x, z: L.z, hx: L.w / 2, hz: (L.d || L.w) / 2, k: 0.35, soft: 0.5 });
+    };
+    if (dk && dk.stairPlan) flights(dk.stairPlan);
+    for (const s2 of [stoop, front]) if (s2) {
+      occ.push({ x: s2.x, z: s2.z - s2.side * s2.depth / 2, hx: s2.w / 2, hz: s2.depth / 2, k: 0.4, soft: 0.5 });
+      flights(s2.plan);
+    }
+    if (woodpile) {
+      const hx = Math.abs(woodpile.ax[0]) * woodpile.len / 2 + Math.abs(woodpile.out[0]) * woodpile.w / 2;
+      const hz = Math.abs(woodpile.ax[1]) * woodpile.len / 2 + Math.abs(woodpile.out[1]) * woodpile.w / 2;
+      occ.push({ x: woodpile.x, z: woodpile.z, hx, hz, k: 0.55, soft: 0.45 });
+    }
+    for (const q of yardOut) if (q.on === 'ground') {
+      const K = YARD_KIT[q.key];
+      occ.push({ x: q.x, z: q.z, hx: K.W / 2, hz: K.L / 2, ry: q.ry, k: 0.45, soft: 0.35 });
+    }
+    if (barrel) occ.push({ x: barrel.x, z: barrel.z, r: barrel.r, k: 0.45, soft: 0.3 });
+    for (const q of people) if (q.on === 'stoop' || (q.on !== 'deck' && !pier))
+      occ.push({ x: q.x, z: q.z, r: 0.28, k: 0.3, soft: 0.25 });
+    for (const o of occ) o.dry = true;
+    buildGroundAO(bags.aoskirt, occ.filter(o => o.r === undefined ? dry(o.x, o.z) : dry(o.x, o.z)), g);
+  }
 
   // ---- and now the light that never gets in --------------------------------
   const aoInfo = K.bakeAO(BAGS.map(k => bags[k]),
@@ -5307,6 +5446,7 @@ function build(P0, lod, F) {
     jetty: dk.jetty || null, stoop: stoop, front: front, rims: RIM_LOG,
     bay: bayOut, barrel: barrel, pier: pier, smoke: smoke, people: people,
     hand: HAND_LOG, yard: yardOut, woodpile: woodpile, path: path,
+    groundAO: occ,
     backInLean: !!(P.backDoor && leanCovers(P, V, backDoorX(P, V))),
     // THE LIGHTS, published: how many windows glow, how many bulbs, and every
     // lamp with its position, colour and reach — the bench stands a real light
@@ -5530,7 +5670,7 @@ window.HOUSE_GEN = {
   STAIR_MAX, SET_SEAM, SET_MISS, PIER_KIT, PIER_TRIS, PIER_DECK, PIER_LOW, SKIRT_OK,
   COLS, COL_NAMES, ROLE_SETS, SET_IDX, setNames, setFor, setRibbed,
   build, roofModel, wallSplits, groundFn, applyFinish, libSets, randomHouse,
-  makeFinish, shadeGround,
+  makeFinish, shadeGround, buildGroundAO, shadeSkirt,
   shadeGround,
   dressSlot, SET_KIND, ROLE_KIND, finishReport, NRM, PAINT_BLENDS,
 };

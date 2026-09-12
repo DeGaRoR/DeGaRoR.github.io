@@ -524,6 +524,10 @@ wherever these are shown:
   (https://sketchfab.com/3d-models/docked-venetian-boat-low-poly-from-scan-free-53af885edaf044ac8d375b29305fe9ac)
 - `boat_grady` — **"Freedom 325 Grady White"** by BoatUS Foundation
   (https://sketchfab.com/3d-models/freedom-325-grady-white-71ca8a73f97d44a98f92dd785e151b93)
+- `boat_assault` — **"Assault Boat"** by tnnv
+  (https://sketchfab.com/3d-models/assault-boat)
+- `boat_progress` — **"Progress" motorboat** by isiosiusin
+  (https://sketchfab.com/3d-models/progress-motorboat)
 
 **The yard** (`assets/propsHouse/`, G273) — what stands around a house,
 declared in the same table under the `yard` group and baked into

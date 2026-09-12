@@ -515,6 +515,7 @@ function buildFence(bags, T, seg0, hand, k0) {
   let n = 0;
   const posts = [];
   for (let i = 0; i <= nb; i++) posts.push(postAt(i * pitch));
+  if (seg0.feet) for (const p of posts) seg0.feet.push([p.x, p.z]);
   for (let i = 0; i < nb; i++) {
     const t0 = i * pitch, t1 = (i + 1) * pitch;
     if (seg.gap && t1 > seg.gap[0] && t0 < seg.gap[1]) continue;   // the gate's bay

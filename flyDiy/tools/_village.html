@@ -362,6 +362,10 @@ function placeBuilt(parent, house, built, F) {
   grp.position.set(house.x, house.y, house.z);
   grp.rotation.y = house.yaw;
   for (const k of G.BAGS) built.bags[k].mesh(grp, F.MAT[k]);
+  if (built.bags.aoskirt) {
+    const sk = built.bags.aoskirt.mesh(grp, F.MAT.aoskirt);
+    if (sk) { sk.renderOrder = 5; sk.castShadow = false; sk.receiveShadow = false; }
+  }
   if (built.bags.smoke) {
     const sm = built.bags.smoke.mesh(grp, F.MAT.smoke);
     if (sm) { sm.renderOrder = 10; sm.castShadow = false; sm.receiveShadow = false; }
@@ -397,7 +401,9 @@ function placeBuilt(parent, house, built, F) {
 }
 
 // ---- the fences ------------------------------------------------------------
+let FENCE_POSTS = [];
 function placeFences(parent, vil) {
+  FENCE_POSTS = [];
   const F = G.makeFinish();
   // weathered brown boards, not the pale grey (G277, the user: "The white
   // fence is too white, and does not seem to shade right"), the frame's rough
@@ -432,7 +438,10 @@ function placeFences(parent, vil) {
         parent.add(o);
         old++;
       }
-    } else n += VG.buildFence(bags, vil.T, seg, P.hand, plot.id * 7 + 1);
+    } else {
+      seg.feet = FENCE_POSTS;
+      n += VG.buildFence(bags, vil.T, seg, P.hand, plot.id * 7 + 1);
+    }
   }
   const t0 = performance.now();
   window.HOUSE_KIT.bakeAO([bags.post, bags.deck], { strength: 0.85, range: 0.5, ground: vil.T.h });
@@ -441,7 +450,7 @@ function placeFences(parent, vil) {
   for (const k in bags) bags[k].mesh(grp, F.MAT[k]);
   parent.add(grp);
   FINISHES.push(F);
-  return { members: n, old, tris: bags.post.tris + bags.deck.tris, aoMs };
+  return { members: n, old, tris: bags.post.tris + bags.deck.tris, aoMs, posts: FENCE_POSTS };
 }
 
 // ---- build ---------------------------------------------------------------------
@@ -477,11 +486,24 @@ function build() {
   const fe = placeFences(root, vil);
   // THE CARS (G276): on the ground of the backyard, tilted to it
   let cars = 0;
+  // and the village's own ground skirt: under the cars, the boats and every
+  // fence post - the same builder, the terrain as its ground
+  const vocc = [];
   for (const plot of vil.plots) for (const c of [plot.car, plot.boat]) if (c && PROP_REG.props[c.key]) {
     const o = propPlace(THREE, c.key, c.x, c.z, c.ry, c.y);
     tiltToGround(o, vil.T.h, c.x, c.z, c.ry);
     root.add(o);
     cars++;
+    const K = plot.car === c ? G.YARD_KIT[c.key] : G.PIER_KIT[c.key];
+    vocc.push({ x: c.x, z: c.z, hx: K.W / 2, hz: K.L / 2, ry: c.ry, k: 0.5, soft: 0.5 });
+  }
+  for (const f of fe.posts) vocc.push({ x: f[0], z: f[1], r: 0.07, k: 0.35, soft: 0.25 });
+  {
+    const F = FINISHES[FINISHES.length - 1];
+    const bag = window.HOUSE_KIT.Bag('aoskirt');
+    G.buildGroundAO(bag, vocc, vil.T.h);
+    const sk = bag.mesh(root, F.MAT.aoskirt);
+    if (sk) { sk.renderOrder = 5; sk.castShadow = false; sk.receiveShadow = false; }
   }
   root.add(terrainMesh(vil));
   root.add(waterMesh(vil));

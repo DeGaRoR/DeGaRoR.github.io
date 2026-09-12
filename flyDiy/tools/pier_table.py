@@ -88,6 +88,11 @@ SOURCES = {
                'https://sketchfab.com/3d-models/docked-venetian-boat-low-poly-from-scan-free-53af885edaf044ac8d375b29305fe9ac'),
     'grady': ('Freedom 325 Grady White', 'BoatUS Foundation', 'CC-BY-4.0',
               'https://sketchfab.com/3d-models/freedom-325-grady-white-71ca8a73f97d44a98f92dd785e151b93'),
+    # G281: two more small boats
+    'assault': ('Assault Boat', 'tnnv', 'CC-BY-4.0',
+                'https://sketchfab.com/3d-models/assault-boat'),
+    'progress': ('"Progress" motorboat', 'isiosiusin', 'CC-BY-4.0',
+                 'https://sketchfab.com/3d-models/progress-motorboat'),
     # the user's own export from BlenderKit's people; the licence is the one
     # BlenderKit granted for the pack, which this table cannot read
     'andrew': ('Andrew (static)', 'BlenderKit, via blendkitPeople.blend', 'BlenderKit licence',
@@ -132,6 +137,8 @@ FILES = {
     'row':    'wooden_boat.glb',
     'tirola': 'docked_venetian_boat_-_low_poly_from_scan_-_free.glb',
     'grady':  'freedom_325_grady_white.glb',
+    'assault': 'assault_boat.glb',
+    'progress': 'progress_motorboat.glb',
     'andrew': 'andrew.glb',
     'john':   'john.glb',
     'crowd':  'charles.glb',
@@ -239,6 +246,15 @@ PROPS = [
     P('boat_tirola', 'boat', 'scanned wooden boat', 'tirola',
       note='4.8 m boat from a photogrammetry scan; spec-gloss, converted by the baker',
       scale=1.0, float=0.30, tex=1024),
+    # G281 (the user: "I have put 2 new boats in the asset folder"): a RIB
+    # with its outboard on, and a Soviet aluminium runabout - both delivered
+    # in centimetres, the Progress along x and turned to z
+    P('boat_assault', 'boat', 'assault boat', 'assault',
+      note='4.8 m inflatable with its outboard on, 40k triangles; centimetres',
+      scale=0.01, float=0.28, tex=512),
+    P('boat_progress', 'boat', 'Progress motorboat', 'progress',
+      note='4.3 m aluminium runabout with a windscreen, along x, turned to z; centimetres',
+      scale=0.01, rot=(0, 90, 0), float=0.30, tex=512),
     P('boat_grady', 'boat', 'sport fisher', 'grady',
       note='9.8 m twin-outboard sport fisher, skinned to bones for propellers and wheel - '
            'baked at rest. 370k triangles: the big boat, for a long pier and rarely',
@@ -332,5 +348,5 @@ PROPS = [
            'as delivered, 0.92 for a 5.4 m car', scale=0.92, tex=512),
     P('car_kcar', 'car', 'Reliant K', 'kcar',
       note='an 80s K-car, 2k triangles; 5.3 m as delivered, 0.86 for the 4.5 m it was',
-      scale=0.86, tex=512),
+      scale=0.86, tex=512, slots={'Material_24': {'metal': 0.1}}),
 ]
