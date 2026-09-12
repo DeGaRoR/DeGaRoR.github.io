@@ -863,9 +863,15 @@ function bevelBlockInto(bag, x, y, z0, z1, hw, hh, ch) {
 function toggleAt(parent, x, y, z, key, on, kind) {
   const K = KIT();
   const base = K.Bag();
-  K.sweep(base, [[x, y, z - 0.0015], [x, y, z - 0.0045]], () => hexSect(0.0110 / Math.sqrt(3)), true, [0, 1, 0]);   // 11 mm AF nut
+  // THE NUT (G289, the user: "the hexagonal base of the switches should be
+  // larger, and you may want to add a tiny bevel on the hard edges"): a
+  // 14 mm AF hex nut seated ON the plate (it had floated 1.5 mm off it,
+  // 11 mm across), 4.6 mm tall, its front edge chamfered 0.8 mm — the
+  // section shrinks over the last tenth of the sweep
+  K.sweep(base, [[x, y, z], [x, y, z - 0.0038], [x, y, z - 0.0046]],
+    t => hexSect((t > 0.9 ? 0.0124 : 0.0140) / Math.sqrt(3)), true, [0, 1, 0]);
   // the bushing, 6.3 mm, standing 4 mm out of the nut; the bat pivots at its top
-  K.revolve(base, [x, y, z - 0.0045], [0, 0, -1], [[0.00315, 0], [0.00315, 0.0035], [0.0026, 0.0040], [0, 0.0040]], 24, false);
+  K.revolve(base, [x, y, z - 0.0046], [0, 0, -1], [[0.00315, 0], [0.00315, 0.0034], [0.0026, 0.0039], [0, 0.0039]], 24, false);
   base.mesh(parent, matFor('barrel'));
   const g = gaugeAt(parent, 'edGauge_sw_' + key, [x, y, z - 0.0085], [1, 0, 0], 'sw_' + key, 'switch',
     { k: 0.42, sgn: 1 });
@@ -986,8 +992,14 @@ function keyAt(parent, x, y, z, pos) {
       new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, -1, 0), new THREE.Vector3(1, 0, 0)));
     // (4f: "much too big as it stands. It just needed to be thicker in its
     // slice thickness, not bigger overall") — 0.8 of the delivered 62 mm,
-    // and twice as thick in the slice
-    kg.scale.set(1.6, 0.8, 0.8);
+    // and twice as thick in the slice. IN THE PACK'S OWN AXES (G289, the
+    // user: "the key looks odd, are you sure it did not get squeezed? Its
+    // head should be round"): Object3D scales before it rotates, so the
+    // three numbers are the pack's x (the blade's length), y (its width)
+    // and z (the slice) — 4f wrote them in the lock's frame and stretched
+    // the key 1.6 along its length while thinning the slice: an oval bow
+    // and a wafer of a key. The bow is round again.
+    kg.scale.set(0.8, 0.8, 1.6);
     // (G282, the user: "the key should be slotted in maybe 8 mm more") —
     // the blade's tip 20 mm in, 42 mm of key toward the pilot
     kg.position.set(0, 0, 0.020 - k.bb[3] * 0.8);

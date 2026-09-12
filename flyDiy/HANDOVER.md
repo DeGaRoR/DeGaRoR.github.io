@@ -39634,3 +39634,24 @@ symbol (moved out to 11.5 mm). The window is wider (ring 0.64 r, hole
 CENTRE — it had been the pole since the first drum, so the ball swung on
 its nose as the aeroplane pitched (18 mm at 30°). Verified in the shed
 from 40° off-axis: the dome fills the window, no can.
+
+## G289 — THE SWITCH NUTS ARE BIGGER AND CHAMFERED, AND THE KEY WAS
+## SCALED ON THE WRONG AXES (2026-09-12, the user: "the hexagonal base of
+## the switches should be larger, and you may want to add a tiny bevel on
+## the hard edges. The key looks odd. Are you sure it did not get squeezed?
+## Its head should be round")
+
+- The toggles' hex nut: 14 mm AF (was 11), seated ON the plate (it had
+  floated 1.5 mm off it under its shadow disc), 4.6 mm tall, the front
+  edge chamfered 0.8 mm (the sweep's section shrinks over its last tenth).
+- The key: 4f's `scale.set(1.6, 0.8, 0.8)` was written in the LOCK's frame,
+  but Object3D scales before it rotates — the numbers are the pack's own
+  axes, and the pack lies flat in x-y with the blade along x. So the key
+  was stretched 1.6× along its length and thinned to 0.8 in the slice:
+  an oval bow and a wafer of a key. Now `(0.8, 0.8, 1.6)` — 0.8 overall,
+  twice the slice — and the bow is round. Its flat face contains the
+  barrel's axis, as a key's does, so from the seat it reads edge-on.
+- Answered in chat: the two white lit push buttons are the MASTER and the
+  ALTERNATOR switches (lit when on). Stickers still wanted: master (or
+  batt), alt, taxi (to replace "cruise"); optionally a round placard for
+  the key (OFF · L · R · BOTH · START) and "throttle" for the push-pull.
