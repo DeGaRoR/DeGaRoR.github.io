@@ -658,10 +658,21 @@ function hubAt(bag, cx, cy, z, r) {
 // this layer's `holes`), and the ball is a sphere of AI_BALL r, its front
 // pole at the window's plane, inside a closed can behind the plate: seen
 // through the window, hidden by the plate everywhere else, nothing proud.
-const AI_BALL = 0.90;              // the sphere's radius over the bezel's
-const AI_WINDOW = 0.58;            // the face ring's hole, over the bezel's radius
-const AI_HOLE = 0.56;              // the plate's cut-out, under the ring's inner edge
-const AI_WIN_Z = 0.003;            // the window's plane, in front of the plate (the ring is at 4.5 mm)
+// ...AND THE BALL BULGES THROUGH THE HOLE (G288, the user: "the attitude
+// dial is still not quite right"): seated with its pole AT the window's
+// plane, the ball sat wholly behind the plate, and from the side of the
+// seat a ray through the far half of the window missed it and saw the
+// can — half the window dark, the ball a crescent. A real AI's ball domes
+// out to the glass. The sphere's centre is set so its surface passes
+// exactly through the hole's rim: the dome then covers the whole aperture
+// from every angle (any ray into the hole meets the dome first), and the
+// pole stands 0.215 r proud — at the bezel's lip, under the symbol. The
+// pitch and roll pivot is the sphere's CENTRE (it had been the pole, and
+// the ball swung on its nose as the aeroplane pitched).
+const AI_BALL = 1.00;              // the sphere's radius over the bezel's
+const AI_WINDOW = 0.64;            // the face ring's hole, over the bezel's radius
+const AI_HOLE = 0.62;              // the plate's cut-out, under the ring's inner edge
+const AI_CTR = Math.sqrt(AI_BALL * AI_BALL - AI_HOLE * AI_HOLE);   // the centre's depth behind the plate, over r
 function canAt(bag, cx, cy, z, r, depth, from) {
   // open at the front (the face is there; the AI's window looks into it),
   // closed at the back by the profile itself
@@ -687,10 +698,10 @@ function canAt(bag, cx, cy, z, r, depth, from) {
 // over 180°), alpha the swing off the dial's vertical plane (the strip's u
 // against x — the mirror rule). The front hemisphere only (alpha ±80°): the
 // window can see no further round, and the can is closed behind.
-function ballInto(bag, slot, r, zWin) {
+function ballInto(bag, slot, r) {
   const G = PG(), Rb = AI_BALL * r, w = 1.3 * r;
-  const rows = 37, cols = 17, spanB = Math.PI / 2, spanA = 80 * Math.PI / 180;
-  const zc = zWin + Rb;                           // the centre, into the dash
+  const rows = 37, cols = 17, spanB = Math.PI / 2, spanA = 75 * Math.PI / 180;
+  const zc = 0;                                   // the centre IS the group's pivot
   const R = G.slotRect(slot);
   const grid = [];
   for (let i = 0; i < rows; i++) {
@@ -1218,8 +1229,8 @@ function build(parent, A, P, pilotX) {
     else aoDiscInto(aoBag, cx, cy, zF, r * 1.34);
     screwsAt(screw, slotB, aoBag, cx, cy, zF, r);
     // the can behind: the AI's holds its ball, the rest a hand's depth
-    canAt(can, cx, cy, zF, isAI ? r * 0.95 : r * 0.92,
-          isAI ? 2 * AI_BALL * r + 0.012 : (r > 0.035 ? 0.055 : 0.042), isAI ? 0.001 : null);
+    canAt(can, cx, cy, zF, isAI ? r * 0.97 : r * 0.92,
+          isAI ? (AI_CTR + AI_BALL) * r + 0.012 : (r > 0.035 ? 0.055 : 0.042), isAI ? 0.001 : null);
     // THE HOLE (G279): the facia's shader cuts this disc out behind the AI;
     // published in the layer's frame, the crew layer hands it to AEROSKIN
     // (and the join to the flown aeroplane) in craft space
@@ -1249,12 +1260,11 @@ function build(parent, A, P, pilotX) {
     if (d.k === 'ai' || d.k === 'aiE') {
       // the ball first (deep), the fixed face over it with its window cut by
       // the painter being dark there, the symbol on top
-      const g = gaugeAt(dg, 'edGauge_' + d.k + '_ball', [cx, cy, zF - AI_WIN_Z], [0, 0, 1], 'roll', 'ball',
+      const g = gaugeAt(dg, 'edGauge_' + d.k + '_ball', [cx, cy, zF + AI_CTR * r], [0, 0, 1], 'roll', 'ball',
         { sgn: 1, k: 1, axis2: [1, 0, 0], drive2: 'pitch', sgn2: 1, k2: 1 });
       const db = UVBag(fm);
-      // the ball: its front pole at the window's plane, the rest behind
-      // the plate in the can (G279)
-      ballInto(db, slotOf[d.k + ':ball'], r, 0);
+      // the ball about its own centre, doming out through the hole (G288)
+      ballInto(db, slotOf[d.k + ':ball'], r);
       db.mesh(g);
       // the face over it: a ring, not a disc — the window is open
       const fb2 = faceBag;
@@ -1269,7 +1279,7 @@ function build(parent, A, P, pilotX) {
         // wound to face the pilot (−z), as faceAt's fans are
         for (let i = 0; i < seg; i++) { const j = (i + 1) % seg; fb2.quad(inner[i], inner[j], outer[j], outer[i]); }
       }
-      const zs = zB - 0.0065;
+      const zs = zB - 0.0115;                            // clear of the dome's pole (G288)
       K.boxIn(sym, [cx - r * 0.27, cy, zs], [r * 0.15, 0.0014, 0.0008], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
       K.boxIn(sym, [cx + r * 0.27, cy, zs], [r * 0.15, 0.0014, 0.0008], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
       K.revolve(sym, [cx, cy, zs], [0, 0, 1], [[r * 0.035, -0.0008], [r * 0.035, 0.0008]], 10, true);

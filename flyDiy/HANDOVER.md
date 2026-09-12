@@ -39617,3 +39617,20 @@ worktree with GATE WORLDRENDER + GATE TREES.
   will not meet the terrain. Written up in the reply; waiting on the
   user's splat textures.
 - Gates: HOUSE, VILLAGE (both --selftest) green.
+
+## G288 — THE ATTITUDE BALL DOMES OUT THROUGH THE HOLE (2026-09-12, the
+## user: "the attitude dial is still not quite right")
+
+Seated with its pole at the window's plane (G279), the ball sat wholly
+behind the plate: from beside the seat a ray through the far half of the
+window missed it and saw the can — half the window dark, the ball a
+crescent. A real AI's ball domes out to the glass. The sphere (1.00 r)
+now has its centre set so its surface passes exactly through the hole's
+rim (`AI_CTR` = √(1 − 0.62²) r behind the plate): the dome covers the
+whole aperture from every angle — any ray into the hole meets the dome
+first — and the pole stands 0.215 r proud, at the bezel's lip, under the
+symbol (moved out to 11.5 mm). The window is wider (ring 0.64 r, hole
+0.62 r), as a real AI's is. And the pitch/roll pivot is the sphere's
+CENTRE — it had been the pole since the first drum, so the ball swung on
+its nose as the aeroplane pitched (18 mm at 30°). Verified in the shed
+from 40° off-axis: the dome fills the window, no can.
