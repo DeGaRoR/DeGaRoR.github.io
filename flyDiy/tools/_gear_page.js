@@ -53,7 +53,7 @@ const DEF = {
   // the tailwheel assembly
   twR: 0.10, twSpringLen: 0.52, twSpringDrop: 0.30, twSpringW: 0.052,
   twSpringT: 0.009, twLeaves: 3, twRake: 18, twTrail: 0.052,
-  twLegDrop: 0.10, twSteer: 0, twSteerVis: 1, twHornY: 0.46, twHornZ: -0.30,
+  twLegDrop: 0.10, twSteer: 0, twSteerVis: 1,
 };
 // EVERY LEG OPTION EXISTS PER STATION. The flat keys above are the base
 // values; each station gets its own copy (s1_beamW, s2_beamW, ...) so the
@@ -101,8 +101,9 @@ const LEG_ROWS = {
     ['twLegDrop', 'swivel drop', 0.03, 0.30, 0.005],
     ['twSteer', 'steer angle', -40, 40, 1],
     ['twSteerVis', 'springs+chains', 0, 1, 1],
-    ['twHornY', 'rudder horn y', 0, 1.2, 0.01],
-    ['twHornZ', 'rudder horn z', -1.2, 0.6, 0.01],
+    // G330: the rudder-horn rows are gone — the horn is the RUDDER'S (G326,
+    // the hinge layer draws it at the rudder's foot); the castor's own
+    // picture, kept for a bench without that layer, uses fixed offsets
   ],
 };
 const LEG_KEYS = [];

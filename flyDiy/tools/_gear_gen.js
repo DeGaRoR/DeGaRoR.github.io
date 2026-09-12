@@ -1537,7 +1537,9 @@ function castorUnit(bags, P, top, sgn, R, steer, showLink, hornClamp) {
     // GATE CLIP). The caller that knows the body hands a clamp — the horn
     // is held under the keel at its own station — so the chains run under
     // the cone to a horn a rudder could carry.
-    const horn0 = [0, top[1] + P.twHornY, top[2] + P.twHornZ];
+    // G330: no rows behind these any more — the cage build's horn is the
+    // rudder's; these offsets only place the bench's stand-in
+    const horn0 = [0, top[1] + 0.46, top[2] - 0.30];
     const horn = hornClamp ? hornClamp(horn0) : horn0;
     // THE TWO RUNS MUST NOT CROSS (user). The steering arm swings with
     // the wheel so its ends use the STEERED frame, but the rudder horn is

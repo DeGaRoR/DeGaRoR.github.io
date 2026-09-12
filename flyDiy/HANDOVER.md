@@ -41327,3 +41327,14 @@ pre-join spec (type, the track and the length in metres, as the join reads
 them); the join's measured rows replace them the moment the page runs.
 Headless now: the Skymaster twin booms and two fins (clusters at 474 /
 631 rad/s, 90 substeps), the P-38 at 530 / 665, 94.
+
+## G330 — THE RUDDER-HORN ROWS ARE RETIRED (2026-09-13; the item G326 left)
+
+- `twHornY` / `twHornZ` (and their `s1_` / `s2_` copies) placed the castor's
+  OWN horn box under the keel. Since G326 the horn is the rudder's, drawn by
+  the hinge layer at the rudder's foot, and on a cage build the rows did
+  nothing — one fact, two keepers. Rows gone from the gear page, the
+  fuselage-parts claims and the page defaults; the castor's stand-in horn
+  (a bench without the hinge module) uses the old defaults as constants.
+- Gates: PARTS (no claim on a row that is not there), SAVE, DESIGN, GEAR,
+  VIEW, HINGE, CLIP — from a clean worktree at HEAD.

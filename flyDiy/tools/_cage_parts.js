@@ -886,8 +886,7 @@ const CAGE_PARTS = [
                 's1_oleoBrace', 's1_oleoBraceZ']],
       ['castor', ['s1_twSpringLen', 's1_twSpringDrop', 's1_twSpringW',
                   's1_twSpringT', 's1_twLeaves', 's1_twRake', 's1_twTrail',
-                  's1_twLegDrop', 's1_twSteer', 's1_twSteerVis',
-                  's1_twHornY', 's1_twHornZ']],
+                  's1_twLegDrop', 's1_twSteer', 's1_twSteerVis']],
     ] },
 
   { key: 'third', name: 'Third wheel', parent: 'gear', layer: 'gear',
@@ -911,8 +910,7 @@ const CAGE_PARTS = [
                 's2_oleoBrace', 's2_oleoBraceZ']],
       ['castor', ['s2_twSpringLen', 's2_twSpringDrop', 's2_twSpringW',
                   's2_twSpringT', 's2_twLeaves', 's2_twRake', 's2_twTrail',
-                  's2_twLegDrop', 's2_twSteer', 's2_twSteerVis',
-                  's2_twHornY', 's2_twHornZ']],
+                  's2_twLegDrop', 's2_twSteer', 's2_twSteerVis']],
     ] },
 
   // 2026-09-04 (the user: "the wheel is a child of suspension"): under the mains
