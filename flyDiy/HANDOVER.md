@@ -40861,3 +40861,39 @@ lattice's lever, and with the cluster on the members carry none.
 - **Base roughness** beside the base metallic on the master paint: a
   multiplier on every exterior section's finish roughness (0.05 gloss, 1
   as designed, 4 chalk), the parent-wearing layer parts cleared to follow.
+
+## G317 — THE BEVEL SHADES SMOOTH, THE SCREENSHOT IS THE AEROPLANE ALONE, THE
+## MOUNTS STOP INSIDE THE SKIN, AND THE ORBIT COMES IN TO A METRE (2026-09-12,
+## the user's four: "smooth shading on the trailing edge of the tail surfaces.
+## Only on the beveled part"; "screenshot mode keeps the bubble canopy arc
+## visible ... keeps letting me select parts"; "the mounting points of the
+## batteries/fuel tanks are poking through the fuselage ... stop them before
+## they poke through"; "allow for a closer zoom")
+
+- **The bevel.** finThicken's tapered sides aft of the hinge carry built
+  normals — the taper's own, (±1, 0, −t′/2) on the flat sheet, blended with
+  the flat's on the hinge line — so the chamfer reads as one smooth surface
+  instead of a plane with a hard line at its start; forward of the hinge
+  the sides stay flat-shaded, which is what they are. And finToStab now
+  carries every built normal through the lay (it dropped them: the stab's
+  rounded rim was faceted where the fin's was smooth — the same tail, two
+  looks). 240 of the stock fin's 304 faces carry normals; GATE FIN pins
+  the page and the headless tail as before.
+- **Screenshot mode** hides the canopy's control-loop overlay
+  (`edCanopyLoops`) and every highlight object (`edHi`) for the shot and
+  brings them back with it; the click, the hover and the leave throw no
+  ray while `SHOT.on`.
+- **The mounts.** Every leg of a tank's or a pack's mount ran to the
+  section's keel line at the centre — on a rounded belly the skin is higher
+  beside the centreline, and the feet came out through it. `mountSurf`
+  hands the builder the skin's own height under (or over) each foot, from
+  the airframe contract sampled round the belly (or the deck) at the foot's
+  lateral station, a wall inside; each leg takes its own length, a foot
+  that would land on the shell or a metre away is not drawn, the cross
+  tube runs foot to foot. Measured on the user's WIP (a hung pack): the
+  feet stop 13 mm inside the deck's skin. GATE ENERGY holds (the bench's
+  `mount(sol, dy)` calls take the old path).
+- **The zoom.** The orbit's floor is 1 m (was 4), in the editor and in
+  flight alike (one handler), and the near plane follows the distance down
+  (0.2 × distance, 6 cm at the least) so nothing between the eye and the
+  part clips out.

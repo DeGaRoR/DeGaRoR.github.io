@@ -713,7 +713,15 @@ function wingBox(p8, tile) {
 // mount's. `sol` is build()'s own result; the tile is the hardware's.
 // ---------------------------------------------------------------------------
 const MOUNT_R = 0.006, MOUNT_MAX = 0.6, MOUNT_MIN = 0.015;
-function mount(sol, dy, tile) {
+// G317 (the user: "the mounting points of the batteries/fuel tanks are
+// poking through the fuselage constantly. You should stop them before they
+// poke through"): `yAt(sx, sz)`, when the layer hands one over, is the
+// surface's own height under (or over) that foot, in the solid's frame — a
+// rounded belly is higher at a strap's pad than on the keel line, and every
+// leg used to run to the keel line and out through the skin beside it. Each
+// leg takes its own length; a foot that would land on the shell or a metre
+// away is not drawn; the cross tube runs foot to foot whatever their heights.
+function mount(sol, dy, tile, yAt) {
   const e = sol && sol.e;
   if (!e || !isFinite(dy)) return null;
   const hang = dy > 0;
@@ -727,8 +735,12 @@ function mount(sol, dy, tile) {
   for (const sz of [-0.48 * e[2], 0.48 * e[2]]) {   // under each strap
     const feet = [];
     for (const sx of [-0.62 * e[0], 0.62 * e[0]]) {
-      tubeBuild(out, [sx, yEdge, sz], ax, r0, r0, gap, T, 8, false, false);
-      const foot = [sx, ySurf, sz];
+      let ys = dy;
+      if (yAt) { const q = yAt(sx, sz); if (isFinite(q) && (q > 0) === hang) ys = q; }
+      const g = Math.abs(ys) - e[1];
+      if (!(g > MOUNT_MIN) || g > MOUNT_MAX) continue;
+      tubeBuild(out, [sx, yEdge, sz], ax, r0, r0, g, T, 8, false, false);
+      const foot = [sx, ys, sz];
       tubeBuild(out, foot, upS, r0 * 3.2, r0 * 1.6, 0.004, T, 12, true, true);
       feet.push(foot);
     }

@@ -823,6 +823,42 @@ function vesselSolid(r) {
 // at the cowl deck, so a nose tank hangs), its keel otherwise. Returns the
 // signed distance from the tank's centre to that surface, for VESSEL_MESH's
 // own mount builder (which draws it in the tank's frame), or null.
+// G317: the fuselage's own surface under (or over) a mount foot, as a
+// function of the foot's position in the solid's frame — the airframe
+// contract's `surf(z, ang)` walked to the foot's lateral x by the section's
+// half-width, refined twice, then a wall's thickness back inside. Null when
+// the contract cannot be had (the builder then lands every foot on the keel
+// line, as before).
+let MOUNT_AF = null, MOUNT_AF_MESH = null;
+function mountSurf(ctx, r, sol, yaw, dy) {
+  const GG = window.GEAR_GEN;
+  const FS = (window.CAGE2 && window.CAGE2.CAGE_UNIT || 1) * ((ctx.P && ctx.P.planeScale) || 1);
+  let AF = window.CAGE_GEAR && window.CAGE_GEAR.AF;
+  if (!AF && GG && GG.cageAirframe) {
+    if (MOUNT_AF_MESH !== ctx.mesh) { MOUNT_AF = null; MOUNT_AF_MESH = ctx.mesh; }
+    if (!MOUNT_AF) { try { MOUNT_AF = GG.cageAirframe(ctx.mesh, FS); } catch (e) { MOUNT_AF = null; } }
+    AF = MOUNT_AF;
+  }
+  if (!AF || !AF.surf || !AF.halfWAt || !r.c || dy == null) return null;
+  const c = r.c, cs = Math.cos(yaw), sn = Math.sin(yaw);
+  const hang = dy > 0, wall = 0.02;
+  return (sx, sz) => {
+    const x = c[0] + cs * sx + sn * sz, z = c[2] - sn * sx + cs * sz;
+    // the belly (or the deck) sampled round its centre, the sample whose x
+    // is the foot's own taken — a rounded section has one such point a side
+    const base = hang ? Math.PI : 0;
+    let best = null, bd = Infinity;
+    for (let k = -24; k <= 24; k++) {
+      const q = AF.surf(z, base + k * 0.05);
+      if (!q || !isFinite(q[0]) || !isFinite(q[1])) continue;
+      const d = Math.abs(q[0] - x);
+      if (d < bd) { bd = d; best = q; }
+    }
+    if (!best || bd > 0.08) return NaN;
+    return (best[1] + (hang ? -wall : wall)) - c[1];
+  };
+}
+
 function tankMountDy(r) {
   const c = r && r.c, sec = r && r.section;
   if (!c || !sec) return null;
@@ -864,7 +900,11 @@ function drawResults(group, ctx, results) {
       if (r.section && sol.e && VM.mount) {
         try {
           const dy = tankMountDy(r);
-          const mb = dy != null ? VM.mount(sol, dy) : null;
+          // G317: the skin under each foot, from the airframe contract —
+          // the surface at the foot's own lateral station, a wall inside
+          // it — handed to the builder in the solid's frame
+          const yAt = mountSurf(ctx, r, sol, yaw, dy);
+          const mb = dy != null ? VM.mount(sol, dy, undefined, yAt) : null;
           if (mb) slotMesh(group, mb, slotMat('hard', false, i, r.v),
                            'edVessel_' + i + '_mount', r.c, yaw);
         } catch (e) {}

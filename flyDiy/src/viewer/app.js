@@ -109,6 +109,7 @@
   // world point through the same cage -> model mapping the snapshot uses.
   let flyEye = null;
   const CAM_NEAR = 0.5, EYE_NEAR = 0.035, EYE_PIVOT = 0.35;
+  const ORBIT_MIN = 1.0;                  // G317: the orbit's closest, metres (was 4)
   const edEyeOn = () => !!(edEye || flyEye);
   function setNear(n) {
     if (camera.near === n) return;
@@ -1713,7 +1714,7 @@
     // travel is the physics showing through, not an animation. The prop
     // parts join `props` and spin with the existing throttle law.
     const wheelParts = [], stretchRigs = [], surfParts = [], linkRigs = [];
-    const ctlMoves = [], gauges = [];                               // G240; the panel arc
+    const ctlMoves = [], gauges = [], picks = [];                    // G240; the panel arc; G317
     const engRigs = [], strutRigs = [];                              // G179.2
     const anchorRigs = [];                    // G267.2: the tail assembly, rigid on its anchor
     let castorRig = null;
@@ -2113,6 +2114,17 @@
             pg.position.set(pt.pivot[0], pt.pivot[1], pt.pivot[2]);
           grp.add(pg);
           ctlMoves.push({ obj: pg, c: pt.ctl, home: pt.pivot });
+          // G317: the four controls the cockpit's click reaches, with an
+          // unseen pad each (the switches' idiom, cockpit.js padSwitches)
+          const mp = /^edCtl_(flap|brake|fuel|trim)(#|$)/.exec(pt.ctl.name || '');
+          if (mp) {
+            picks.push({ obj: pg, key: mp[1] });
+            const pad = new THREE.Mesh(new THREE.SphereGeometry(mp[1] === 'flap' ? 0.05 : 0.035, 8, 6),
+              new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false }));
+            pad.userData.pickPad = 1;
+            if (mp[1] === 'flap') pad.position.set(0, 0.22, 0.14);   // up the lever, where the grip is
+            pg.add(pad);
+          }
         }
         else if (pt.kind === 'gauge' && pt.ctl) {
           // THE PANEL'S HANDS (the panel arc, session 4): the same rigid
@@ -2480,6 +2492,7 @@
                         surfParts: surfParts.length ? surfParts : null,
                         linkRigs: linkRigs.length ? linkRigs : null,   // G239
                         ctlMoves: ctlMoves.length ? ctlMoves : null,   // G240
+                        picks: picks.length ? picks : null,            // G317
                         castorRig,
                         surfaces: data.surfaces,
                         link: makeLinkage(LINK_TAU) });  // visual linkage lag (SKIN-PROC)
@@ -3433,7 +3446,7 @@
     return true;
   };
   canvas.addEventListener('pointerup', e => {
-    if (downAt && edSit.visible && e.button === 0 &&
+    if (downAt && edSit.visible && !SHOT.on && e.button === 0 &&
         Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) < 4 &&
         Date.now() - downAt.t < 500 &&
         typeof window.EDITOR_PICK === 'function') {
@@ -3460,7 +3473,7 @@
     // walks a hundred thousand triangles, so it is thrown at most every
     // HOVER_MS and never while a button is down — an orbit must not pay for a
     // tint it is about to throw away.
-    if (!touches.size && !panD && edSit.visible &&
+    if (!touches.size && !panD && edSit.visible && !SHOT.on &&
         typeof window.EDITOR_PICK === 'function') {
       const now = Date.now();
       if (now - hoverT > HOVER_MS) {
@@ -3479,8 +3492,9 @@
     } else if (touches.size === 2) {
       const [a, b] = [...touches.values()];
       const d = Math.hypot(a.x - b.x, a.y - b.y);
-      if (pinch0 > 0) distT = Math.max(edEyeOn() ? 0.12 : 4,
+      if (pinch0 > 0) distT = Math.max(edEyeOn() ? 0.12 : ORBIT_MIN,
         Math.min(edEyeOn() ? 3 : 200, dist0 * pinch0 / Math.max(20, d)));
+      if (!edEyeOn()) setNear(distT < 3 ? Math.max(0.06, distT * 0.2) : CAM_NEAR);
     }
   });
   // leaving the render clears the hover: a tint that outlives the pointer
@@ -3494,8 +3508,13 @@
     // ONE PAIR OF BOUNDS, not two. The wheel said [4, 120] and the pinch said
     // [4, 200], which is a difference nobody chose; they agree now, and both
     // shrink to a cabin's worth of travel when the camera is inside one.
+    // G317 (the user: "allow for a closer zoom in editor mode (and similar in
+    // flight mode). Some details miss inspection"): the floor is 1 m, not 4
+    // — a rivet's worth of distance — and the near plane follows the
+    // distance down so nothing between the eye and the part clips out
     distT = edEyeOn() ? Math.max(0.12, Math.min(3, distT * (1 + e.deltaY * 0.001)))
-                      : Math.max(4, Math.min(120, distT * (1 + e.deltaY * 0.001)));
+                      : Math.max(ORBIT_MIN, Math.min(120, distT * (1 + e.deltaY * 0.001)));
+    if (!edEyeOn()) setNear(distT < 3 ? Math.max(0.06, distT * 0.2) : CAM_NEAR);
   }, { passive: false });
 
   // ================= phase rail =================
@@ -6034,6 +6053,15 @@
     SHOT.on = on;
     document.body.classList.toggle('shot', on);
     shotBack.hidden = !on;
+    // G317 (the user: "screenshot mode keeps the bubble canopy arc visible,
+    // it should be hidden. It also keeps letting me select parts and
+    // highlight parts, it shouldn't"): the overlays that are not the
+    // aeroplane — the canopy's control loops, the selection's highlight —
+    // go dark for the shot and come back with it; the pick handlers below
+    // ask SHOT.on before they throw a ray.
+    edSitP.traverse(o => {
+      if (o.name === 'edCanopyLoops' || (o.userData && o.userData.edHi)) o.visible = !on;
+    });
     if (on) { try { flyOpenSet(null); } catch (e) {} }
     if (typeof placeIndicators === 'function') placeIndicators();
     // the canvas re-insets through its CSS transition; measure at both ends

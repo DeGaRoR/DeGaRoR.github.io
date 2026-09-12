@@ -714,6 +714,26 @@ function finThicken(m, opts) {
     const bot = WV.map((p, i) => {
       OV.push([-t[i] / 2, p[1], p[2]]); return OV.length - 1;
     });
+    // G317 (the user: "smooth shading on the trailing edge of the tail
+    // surfaces. Only on the beveled part though"): a side face in the
+    // TAPER (aft of the hinge, where the thickness runs down to the TE)
+    // carries normals — the taper's own, (±1, 0, −t'/2) on a flat sheet,
+    // and on the hinge line the mean of that and the flat's (±1, 0, 0), so
+    // the bevel reads as one smooth chamfer instead of a plane with a hard
+    // line at its start. Forward of the hinge the sides stay flat-shaded,
+    // which is what they are.
+    const taper = (zH !== undefined && zA !== undefined && zH > zA && te !== base)
+      ? (base - te) / (zH - zA) : 0;                     // dt/dz, > 0
+    const sideN = (p, sgn) => {
+      if (!taper || p[2] >= zH + 1e-9) return null;
+      const nx = sgn, nz = -0.5 * taper, l = Math.hypot(nx, nz);
+      const tN = [nx / l, 0, nz / l];
+      if (p[2] > zH - 1e-6) {                             // the hinge line: blend
+        const bx = tN[0] + sgn, bz = tN[2], bl = Math.hypot(bx, bz);
+        return [bx / bl, 0, bz / bl];
+      }
+      return tN;
+    };
     for (const f of wf) {
       OF.push({ v: f.v.map(i => top[i]), m: f.m, part });
       OF.push({ v: f.v.slice().reverse().map(i => bot[i]), m: f.m, part });
@@ -903,9 +923,16 @@ function finToStab(m, opts) {
     ? [side * (rootX + (p[1] - sRef) * cC - p[0] * sC),
        stabY + (p[1] - sRef) * sC + p[0] * cC, p[2] + zOff]
     : [side * (rootX + (p[1] - sRef)), stabY + p[0], p[2] + zOff]);
-  const F = m.F.map(f => ({
-    v: side > 0 ? f.v.slice().reverse() : f.v.slice(),
-    m: f.m, part: f.part }));
+  // G317: a face's built normals ride the lay — the same map as the
+  // positions', less the translation, and reversed with the winding
+  const nMap = n => cant
+    ? [side * (n[1] * cC - n[0] * sC), n[1] * sC + n[0] * cC, n[2]]
+    : [side * n[1], n[0], n[2]];
+  const F = m.F.map(f => {
+    const o = { v: side > 0 ? f.v.slice().reverse() : f.v.slice(), m: f.m, part: f.part };
+    if (f.n) o.n = (side > 0 ? f.n.slice().reverse() : f.n.slice()).map(nMap);
+    return o;
+  });
   return { V, F };
 }
 

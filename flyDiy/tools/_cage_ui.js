@@ -1352,6 +1352,10 @@ function build() {
   disposeObj(loopsObj); loopsObj = null;
   if (VIEW.loops && s.canArcs && s.canArcs.length) {
     loopsObj = new THREE.Group();
+    // G317: named, so the screenshot mode can hide the overlay (the user:
+    // "screenshot mode keeps the bubble canopy arc visible")
+    loopsObj.name = 'edCanopyLoops';
+    if (window.SHOT_MODE && window.SHOT_MODE.on) loopsObj.visible = false;
     const cols = [0xffd24a, 0x4af0ff, 0xff7ad9];
     s.canArcs.forEach((arc, i) => {
       const pos = [];
@@ -3479,7 +3483,10 @@ function buildDecPanel() {
     // the aeroplane, and doing that per keystroke would tear down and re-derive
     // the whole cage for every letter of a registration.
     i.oninput = () => { DEC.reg = i.value.toUpperCase(); i.value = DEC.reg;
-      decSavePrefs(); applyDecals(); draw(); };
+      decSavePrefs(); applyDecals();
+      // G317: the tape on the dash follows every keystroke (a repaint, not a rebuild)
+      if (window.CAGE_PANEL && window.CAGE_PANEL.setReg) window.CAGE_PANEL.setReg(DEC.reg);
+      draw(); };
     i.onchange = () => {
       const v = i.value.toUpperCase().trim();
       DEC.reg = v; i.value = v; decSavePrefs();
@@ -4349,7 +4356,7 @@ if (typeof ResizeObserver !== 'undefined')
 if (PAGE.defaultStep && $('step')) $('step').value = PAGE.defaultStep;
 anchorSize();                              // the page opens at its ×1
 syncSliders();
-window.CAGE_UI = { P, build, draw, applyPreset, syncSliders,
+window.CAGE_UI = { P, build, draw, applyPreset, syncSliders, reg: () => decReg(),   // G317: the tape reads it
   // THE TWO HALVES OF A LOAD (G63). `applySpec` puts a build into the editor;
   // `toSpec` takes the editor's whole parameter set out as the spec's `cage`
   // fragment — layer keys included, view keys excluded. Every shelf load,
