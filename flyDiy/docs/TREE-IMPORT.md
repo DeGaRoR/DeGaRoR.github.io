@@ -440,6 +440,24 @@ defaults are **bands 60 / 132 / 270 m** (the bench's, as judged) and **NG 112**
 (the user's eye: 128 "still generous"). The graphics menu
 (`futureDesigns/GRAPHICS-SETTINGS-2026-09-12.md`) will make both a preset.
 
+**Trees placed by hand, and the floor that was sampling noise (W0c.28).**
+`TREE_PLACE.add({ x, z, key, size, yaw })` / `set(list)` / `list()` / `keys()`
+/ `replant()`: a placed tree is one more record in the woodland's own list, so
+it gets the whole rig — the three rungs, the fade, the impostor, both shadow
+cascades, the canopy map. The airfield's windbreak (the declared row in
+`25_airfield.js`) is placed this way now: eleven Georgeous firs on the cones'
+own jittered line, at the row's spread of sizes; no cone is drawn in the world
+(the shed scene's own windbreak, `hangar.js`, keeps its cones — a different
+scene). Not persisted: the map-and-hand editor that will own it is not this.
+And the floor dial "did not go down": the canopy map had been sampling NOISE
+since W0c.23b — r128 keys its program cache on `onBeforeCompile.toString()`
+plus the material's parameters, and the cover variant of the impostor depth
+material differs from the far variant only in a closure variable, so it was
+handed the far program and wrote packed depth instead of a white mask. Each
+variant names itself in `customProgramCacheKey` now; the coverage is shaped
+(`smoothstep(0.04, 0.35, …)`) so any real canopy is full shade and the dial
+reaches all of it, and the dial runs to 0.
+
 **Not done.** The `impa` / `implight` per-collection numbers are not in the
 payload (6 / 6.5 and 1 in the tuning: one gain, one lit, for all). The boot rig
 is still `sunset`; `alps` is two clicks on the panel and is the row the trees

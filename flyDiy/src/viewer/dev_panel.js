@@ -113,7 +113,7 @@
     root.appendChild(select('environment', [['dome', 'the sky dome (baked at boot)'], ['alps', 'alps panorama (invisible)']],
       () => rig().get().env, v => rig().set({ env: v })));
     root.appendChild(slider('shadow reach', 105, 540, 5, () => rig().get().shadowMin, v => rig().set({ shadowMin: v }), v => '±' + v + ' m'));
-    root.appendChild(slider('forest floor', 0.2, 1, 0.02, () => rig().get().floor, v => rig().set({ floor: v })));
+    root.appendChild(slider('forest floor', 0, 1, 0.02, () => rig().get().floor, v => rig().set({ floor: v })));
     root.appendChild(select('shadow snap', [['1', 'texel-snapped (still)'], ['0', 'free (swims)']],
       () => (rig().get().snap === false ? '0' : '1'), v => rig().set({ snap: v === '1' })));
     root.appendChild(select('far shadows', [['1', 'on (impostor cascade)'], ['0', 'off']],

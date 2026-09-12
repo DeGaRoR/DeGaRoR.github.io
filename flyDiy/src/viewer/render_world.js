@@ -760,7 +760,11 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           // one tap three and a half levels down (~11 m texels): the blur
           // that carries a stand's shade a crown past its edge, so the
           // floor reads as a floor from the air and not as a rim
-          '    float cov = texture2D(uCovMap, cp, 3.5).r;\n' +
+          // shaped: the blurred coverage of a real stand is 0.4-0.8, and the
+          // dial's darkening must reach ALL of it under any canopy - so a
+          // cover of a third is already full shade, and the edge's ramp is
+          // what remains of the blur
+          '    float cov = smoothstep(0.04, 0.35, texture2D(uCovMap, cp, 3.5).r);\n' +
           '    diffuseColor.rgb *= mix(1.0, uFloor, cov * (1.0 - fFar));\n' +
           '  }\n' +
           '}');
@@ -953,6 +957,31 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         P.push({ x, z, h, s: T.s * (0.55 + hsh(i, k * 13 + 3) * 0.7), sp, r: hsh(i, k * 13 + 4) });
       }
     });
+
+    // ================= TREES PLACED BY HAND (W0c.28) ========================
+    // "Forests will be managed through maps, but individual trees could be
+    // placed by hand, and still should use the full LOD ladder." A placed
+    // tree is one more record in the woodland's own list - x, z in world
+    // metres, a subject key (else the pool's weighted draw), a size
+    // multiplier over the collection's own, a yaw - so it gets the whole
+    // rig for free: the three rungs, the fade, the impostor, both shadow
+    // cascades, the canopy map. The list is read at every replant, so the
+    // first REAL plant (after the payload lands) already carries what the
+    // airfield placed at build; TREE_PLACE.replant() takes later changes.
+    // Not persisted: the map-and-hand editor that will own it is not this.
+    const PLACED = [];
+    const placedRecords = () => PLACED.map((t, i) => ({
+      x: t.x, z: t.z, h: world.terrainH(t.x, t.z), s: 1, sp: 0,
+      r: t.yaw !== undefined ? ((t.yaw / 6.283) % 1 + 1) % 1 : hsh(i * 31 + 7, 11),
+      key: t.key || null, size: t.size || 1, placed: true }));
+    if (typeof window !== 'undefined') window.TREE_PLACE = {
+      add: t => { PLACED.push(Object.assign({}, t)); return PLACED.length - 1; },
+      set: list => { PLACED.length = 0; for (const t of (list || [])) PLACED.push(Object.assign({}, t)); return PLACED.length; },
+      clear: () => { PLACED.length = 0; },
+      list: () => PLACED.map(t => Object.assign({}, t)),
+      keys: () => (typeof treeList === 'function') ? treeList().map(e => e.key) : [],
+      replant: () => { plantWoodland(); return PLACED.length; },
+    };
 
     const trunkGeo = new THREE.CylinderGeometry(0.16, 0.26, 1.9, 5);
     trunkGeo.translate(0, 0.95, 0);
@@ -1248,6 +1277,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const d = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, alphaTest: 0.5, side: THREE.DoubleSide });
       if (!atlas.tex) return d;
       const cover = farPass === 'cover';
+      // THREE VARIANTS, THREE PROGRAMS. r128 keys its program cache on
+      // onBeforeCompile.toString() plus the material's parameters; the three
+      // variants' hooks are the same text and differ only in a closure
+      // variable, so the cover material was handed the far material's
+      // program - packed depth where the canopy map wanted a white mask -
+      // and the floor sampled noise. The key names the variant.
+      d.customProgramCacheKey = () => 'impDepth:' + (cover ? 'cover' : (farPass ? 'far' : 'near'));
       d.onBeforeCompile = sh => {
         sh.uniforms.uCam = uCam; sh.uniforms.uSunDir = cover ? U_UP : { value: SUN };
         sh.uniforms.uNearB = cover ? U_NONEAR : uNear; sh.uniforms.uFadeW = uFadeW;
@@ -1790,7 +1826,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             return Object.assign(out, { parts: out.series[0].parts });
           };
           const pool = treePool();
-          PROTO = pool.length ? pool.map(p => Object.assign(withLadder(p.key), { w: p.w })) : null;
+          PROTO = pool.length ? pool.map(p => Object.assign(withLadder(p.key), { w: p.w, key: p.key })) : null;
         } catch (e) { PROTO = null; }
       }
       if (PROTO) {
@@ -1818,7 +1854,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     };
 
     const cells = new Map();
-    for (const T of P) {
+    for (const T of P.concat(placedRecords())) {
       const cx = Math.floor(T.x / CHW), cz = Math.floor(T.z / CHW);
       const k = cx * 4096 + cz;
       let a = cells.get(k);
@@ -1848,8 +1884,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       ? PROTO.map((P, gi) => ({ P, imp: impMatsFor(P, null), geo: null }))
       : [{ P: null, imp: impMatsFor(null, coneGeo), geo: coneGeo },
          { P: null, imp: impMatsFor(null, blobGeo), geo: blobGeo }];
-    const groupOf = T => PROTO ? poolPick(PROTO, hsh(Math.round(T.x * 3.7), Math.round(T.z * 5.3)))
-                               : (T.sp < 2 ? 0 : 1);
+    // a placed tree with a key goes to that subject's group; anything else
+    // is the pool's weighted draw on its position
+    const groupOf = T => PROTO
+      ? ((T.key && PROTO.findIndex(Q => Q.key === T.key) >= 0) ? PROTO.findIndex(Q => Q.key === T.key)
+                                                                : poolPick(PROTO, hsh(Math.round(T.x * 3.7), Math.round(T.z * 5.3))))
+      : (T.sp < 2 ? 0 : 1);
     plantedKit.push(trunkMat, canopyMat);
     for (const cell of cells.values()) {
       const ox = (cell.cx + 0.5) * CHW, oz = (cell.cz + 0.5) * CHW;
@@ -1922,7 +1962,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         list.forEach((T, i) => {
           const w = T.r, sp = T.sp;
           q.setFromAxisAngle(up, w * 6.283);
-          if (PROTO) { const s = sizeOf(H.size, w); sv.set(s, s, s); }
+          if (PROTO) { const s = T.placed ? H.size * T.size : sizeOf(H.size, w); sv.set(s, s, s); }
           else sv.set(T.s * (0.86 + w * 0.28), T.s * (0.9 + w * 0.3), T.s * (0.86 + w * 0.28));
           // BURIED BY THE COLLECTION'S OWN `sink`: the packs model the root
           // flare, and a tree standing on its roots reads as fallen over. The
@@ -2617,14 +2657,17 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     const bale = new THREE.CylinderGeometry(0.85, 0.85, 1.3, 12);
     CL.bales.forEach(b2 => prop(bale, straw, b2[0], 0.85, b2[1], b2[2], Math.PI / 2));
 
-    { // windbreak behind the hangars (well clear of the strip)
+    { // windbreak behind the hangars (well clear of the strip): the
+      // declared row of the site (25_airfield.js), PLACED as real trees
+      // through TREE_PLACE (W0c.28) - the Georgeous fir, at the row's own
+      // spread of sizes, on the same jittered line the cones stood on.
+      // The first real plant reads this list; no cone is drawn here now.
       const T = SITE.trees;
-      const tg = new THREE.ConeGeometry(T.r, T.h, 7); tg.translate(0, T.h / 2, 0);
-      const tm = new THREE.MeshLambertMaterial({ color: C(0x4a6129) });
-      for (let x = T.x1; x >= T.x0; x -= T.step) {
-        const t = prop(tg, tm, x + (x % 3) * 0.6, 0, T.z + (x % 5) * 0.7);
-        t.scale.setScalar(0.85 + (x % 7) / 9);
-      }
+      const TP = (typeof window !== 'undefined') && window.TREE_PLACE;
+      if (TP) for (let x = T.x1; x >= T.x0; x -= T.step)
+        TP.add({ x: x + (x % 3) * 0.6, z: T.z + (x % 5) * 0.7,
+                 key: 'fir_tree_georgeous.glb|Fir01_LOD0',
+                 size: 0.7 * (0.85 + (x % 7) / 9), yaw: (x * 0.37) % 6.283 });
     }
 
     // a working windsock pole gets a guy-line stake; tie-downs on the apron
@@ -3081,7 +3124,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // treeLod is exposed for tuning, not for the viewer: setting near to 0 makes
   // the whole forest impostors, which is how the mid tier's fidelity gets
   // compared against the geometry it stands in for (tools/make_probe.js).
-  return { worldUpdate, SUN, sun, hemi, minimap: miniCanvas, setWindVis, envMap, rig: worldRig, scene, camera, far: FAR,
+  return { worldUpdate, SUN, sun, hemi, minimap: miniCanvas, setWindVis, envMap, rig: worldRig, scene, camera, far: FAR, cover: COVER,
            setShedDims: d => setShedDims(d),
            treeLod: { near: uNear, cam: uCam, lit: uILit }, renderer,
            // the world's own light panel — the same shape the shed exposes, so
