@@ -41565,3 +41565,38 @@ Headless now: the Skymaster twin booms and two fins (clusters at 474 /
   input, the decal and the dash's tape (`CAGE_PANEL.setReg`); the design
   flow's field inputs re-read the spec on either event and on focus. Typed
   either way, both show it and the aeroplane wears it.
+
+## G337 — THE TAIL GAP IS ZERO: THE CAPTURE GOES THROUGH THE POSE'S OWN
+## INVERSE (2026-09-13, the user: "do 5, commit, then run the regression
+## testing" — item 5 of the twin-boom list, the gauge's 48 mm residue)
+
+**What it was.** The snapshot (`_cage_join.js` snapshotAt) rotated the
+level capture by −φ, the body axis's inclination, and the pose then
+mapped the capture through the RAW OBLIQUE basis (xA the body axis, yU
+the up pair — not orthogonal by a few degrees on a drawn fuselage, and
+that is how poseModel and defBodyProject take them). A rotation is not
+the inverse of an oblique map: the error grows with the lever from the
+mains — ~15 mm at the mains, 48–80 mm at a twin boom's tail, which is
+what GATE VIEW's tail gauge (`window.FLYDIY_TAILGAP`, G325.1) read on the
+WIP. A first cut measured the gap in the frame's own rows and fed it back
+into tail.hX / stabY (CAGE_TAILFIX): it read ~0 — the geometry was never
+wrong, the MAP was. Removed.
+
+**What it is.** The capture takes B⁻¹ (positions, `BK`) and Bᵀ (normals,
+`BN`, re-normalised) — the 2×2 inverse of the pose's x-y basis, identity
+when there is no frame. Every capture map is the one pair now: the
+vertices, the mains, `rotP` (spinners), `toModel` (the interior), `cageM`
+(the crew), `vtx` (the reference points) — the cos/sin pair of the
+rotation is gone. And the OFFSET goes through the same map: poseModel
+draws a vertex at og + B·(v + off + oRest) with oRest = defBodyProject(cg)
+a DOT projection (Bᵀ) while the pose applies B; with an oblique pair the
+two differ and (mf − cg0) − rm left a constant translation on every drawn
+point (the gauge read the same −42 / −47 mm at the mains and the tail once
+the shape map was exact). The mains land when
+off = B⁻¹(mf − og) − Bᵀ(cg0 − og) − rm.
+
+**Measured** (the WIP, twin boom, the pane): gauge {dx 0, dy 0, mainsDx 0,
+mainsDy 0, mm 0} — from 48 mm. The frame's tail stands where the drawing's
+does at every station, not just the mains.
+
+- Gates: JOIN, SKIN, UISMOKE green.

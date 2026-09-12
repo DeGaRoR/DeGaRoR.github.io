@@ -1516,6 +1516,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     // REST CG — the raw-frame first cut floated the aeroplane a CG's
     // height above the runway (G47, user: "does not touch the ground").
     let off = [0, 0], beta = 0;
+    let BK = [1, 0, 0, 1], BN = [1, 0, 0, 1];      // G337: the pose's inverse (identity when no frame)
     try {
       const RS = resolveSpec(JSON.parse(JSON.stringify(spec)));
       const fr = genFrame(RS.spec);
@@ -1548,12 +1549,38 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       };
       const nF = meanP(fr.refs.noseFrame), tM = meanP(fr.refs.tailMid);
       beta = -Math.atan2(tM[1] - nF[1], tM[0] - nF[0]);
-      const cb = Math.cos(beta), sb = Math.sin(beta);
-      const rmx = (-cz) * cb - cy * sb,        // cage mains, rotated
-            rmy = (-cz) * sb + cy * cb;
-      off = [(mfx - cg0[0]) - rmx, (mfy - cg0[1]) - rmy];
+      // G337: the pose's basis in the x-y plane (xA the body axis, yU the
+      // up pair — RAW, oblique, exactly as poseModel and defBodyProject
+      // take them) and its inverse: what the capture is mapped through
+      {
+        const uH = meanP(fr.refs.upHi), uL = meanP(fr.refs.upLo);
+        const ax = [tM[0] - nF[0], tM[1] - nF[1]], la = Math.hypot(ax[0], ax[1]) || 1e-9;
+        const uy = [uH[0] - uL[0], uH[1] - uL[1]], lu = Math.hypot(uy[0], uy[1]) || 1e-9;
+        const xA = [ax[0] / la, ax[1] / la], yU = [uy[0] / lu, uy[1] / lu];
+        const det = xA[0] * yU[1] - yU[0] * xA[1];
+        if (Math.abs(det) > 0.2) {
+          BK = [yU[1] / det, -yU[0] / det, -xA[1] / det, xA[0] / det];   // B⁻¹, row-major 2x2
+          BN = [xA[0], xA[1], yU[0], yU[1]];                             // Bᵀ, for normals
+        }
+      }
+      const rmx = BK[0] * (-cz) + BK[1] * cy,  // cage mains, through the pose's inverse (G337)
+            rmy = BK[2] * (-cz) + BK[3] * cy;
+      // G337: THE OFFSET THROUGH THE SAME MAP. poseModel draws a vertex at
+      // og + B·(v + off + oRest) with oRest = defBodyProject(cg) — a DOT
+      // projection (Bᵀ), while the pose applies B: with an oblique pair the
+      // two differ, and (mf − cg0) − rm left a constant translation on every
+      // drawn point (the gauge read the same −42 / −47 mm at the mains and
+      // at the tail once the shape map was exact). The mains land when
+      // off = B⁻¹(mf − og) − Bᵀ(cg0 − og) − rm.
+      const og2 = (() => { const ids = fr.refs.origin || fr.refs.noseFrame; return meanP(ids); })();
+      const mo = [mfx - og2[0], mfy - og2[1]], co = [cg0[0] - og2[0], cg0[1] - og2[1]];
+      off = [BK[0] * mo[0] + BK[1] * mo[1] - (BN[0] * co[0] + BN[1] * co[1]) - rmx,
+             BK[2] * mo[0] + BK[3] * mo[1] - (BN[2] * co[0] + BN[3] * co[1]) - rmy];
     } catch (e) { console.warn('cage visual calibration:', e); }
-    const cB = Math.cos(beta), sB = Math.sin(beta);
+    // G337: every capture map below is BK (positions) / BN (normals) — the
+    // cos/sin pair of the rotation is gone
+    const mapP = (px, py) => [BK[0] * px + BK[1] * py, BK[2] * px + BK[3] * py];
+    const mapN = (qx, qy) => { const x = BN[0] * qx + BN[1] * qy, y = BN[2] * qx + BN[3] * qy; return [x, y]; };
     // THE CAPTURE IS OF THE AEROPLANE, NOT OF HOW YOU WERE LOOKING AT IT
     // (G106). Every display control goes to its neutral and the build is
     // redone once; the restore is the `finally` on the wrapper below, AFTER
@@ -2010,12 +2037,13 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           } else
           v.set(p.getX(vi), p.getY(vi), p.getZ(vi)).applyMatrix4(tmp);
           G3.idx.push(G3.pos.length / 3);
-          const px = -v.z, py = v.y;
-          G3.pos.push(px * cB - py * sB, px * sB + py * cB, v.x);
+          const px = -v.z, py = v.y, pm = mapP(px, py);
+          G3.pos.push(pm[0], pm[1], v.x);
           if (na) { n.set(na.getX(vi), na.getY(vi), na.getZ(vi))
             .applyMatrix3(skin ? skinN : nm).normalize();
-            const qx = -n.z, qy = n.y;
-            G3.nrm.push(qx * cB - qy * sB, qx * sB + qy * cB, n.x); }
+            const qx = -n.z, qy = n.y, qm = mapN(qx, qy);
+            const ql = Math.hypot(qm[0], qm[1], n.x) || 1;
+            G3.nrm.push(qm[0] / ql, qm[1] / ql, n.x / ql); }
           else G3.nrm.push(0, 1, 0);
           // THE SURFACE FIELD CROSSES THE JOIN UNCHANGED (G66), and that is
           // the point of it being a SURFACE coordinate: sL and sC are arc
@@ -2081,7 +2109,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     // G55: finalize the parts — each rebased about its PIVOT (the wheel's
     // axle; the spinner's own origin for the prop), pitch-calibrated like
     // everything else, so the game spins/rides them about the right point
-    const rotP = (x, y, z) => [x * cB - y * sB, x * sB + y * cB, z];
+    const rotP = (x, y, z) => { const m = mapP(x, y); return [m[0], m[1], z]; };
     let spinners = 0;
     mount.traverse(o => {
       if (o.name && o.name.lastIndexOf('edSpinner', 0) === 0) {
@@ -2193,8 +2221,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         // functions now — cageSurfLine / cageSurfPlane — so the headless
         // poser turns a surface about the same hinge the flight does)
         const toModel = c => {                       // cage → body axes
-          const px = -c[2], py = c[1];
-          return [px * cB - py * sB, px * sB + py * cB, c[0]];
+          const m = mapP(-c[2], c[1]);
+          return [m[0], m[1], c[0]];
         };
         const cagePts = cageSurfLine(pt.surf, { FIN: FNh, STAB: SBh, FIN_GEN: window.FIN_GEN });
         const hplane = cagePts ? cageSurfPlane(cagePts, toModel) : null;
@@ -2357,7 +2385,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     // pivot with the model's axes, so: the anchor in model axes, less the
     // pivot) with the pole the editor chose, in the fig's frame.
     // (row-major, Matrix4.set's order; figM is toArray's column-major)
-    const cageM = [0, -sB, -cB, 0,  0, cB, -sB, 0,  1, 0, 0, 0,  0, 0, 0, 1];
+    const cageM = [0, BK[1], -BK[0], 0,  0, BK[3], -BK[2], 0,  1, 0, 0, 0,  0, 0, 0, 1];   // G337: rows of the same map
     const people = [];
     try {
       const LIVE = (window.CAGE_CREW && window.CAGE_CREW.live) || [];
@@ -2409,8 +2437,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     // own instrument ("measure the distance between the 3D tail and the
     // physics tail, and you'll have your key measurement")
     let tailRef = null, mainsRef = null;
-    const vtx = (cx, cy, cz) => { const px = -cz, py = cy;
-      return [px * cB - py * sB, px * sB + py * cB, cx]; };
+    const vtx = (cx, cy, cz) => { const m = mapP(-cz, cy); return [m[0], m[1], cx]; };
     try {
       const sb = layerBounds('cageLayer:stab');
       if (sb) tailRef = vtx(0.5 * (sb.x0 + sb.x1), 0.5 * (sb.y0 + sb.y1), 0.5 * (sb.z0 + sb.z1));
