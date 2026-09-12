@@ -217,8 +217,11 @@ function inPoly(poly, x, z) {
 // ---------------------------------------------------------------------------
 // THE HOUSES: one per plot, from the sampler, made to fit and made to stand
 // ---------------------------------------------------------------------------
-function placeHouse(T, V, plot, seed, rnd) {
-  const P = HG.randomHouse(seed);
+function placeHouse(T, V, plot, seed, rnd, preset) {
+  // THE STAPLES (G309): a named preset instead of the sampler's draw - the
+  // church and the town hall - with the village's own spread and finish
+  const P = preset ? Object.assign({}, HG.DEF, HG.PRESETS[preset]) : HG.randomHouse(seed);
+  if (preset) P.preset = preset;
   const n = plot.n, tg = plot.tg;
   // the house faces the water on a water plot (its +z is the plot's normal,
   // away from the road) and the road on a land plot (+z is back toward it)
@@ -398,10 +401,24 @@ function makeVillage(V0) {
   // bags, seats and junk, and the village's cars and poles, take the
   // least-used key, so eleven houses do not all get the same boat
   const spread = HG.makeSpread();
+  // THE STAPLES (G309, the user: "sprinkle a couple of staple houses in
+  // there; a church, the townhall"): a village of six plots or more has
+  // both, on land plots (a church on piles is another village), the town
+  // hall on the widest, the church on the widest of the rest at least two
+  // plots away, so they are not one civic block
+  const civic = {};
+  if (plots.length >= 6) {
+    const land = plots.filter(p => p.side === 'land').sort((a, b) => b.w - a.w);
+    if (land.length >= 2) {
+      civic[land[0].id] = 'town hall';
+      const far = land.slice(1).filter(p => Math.abs(p.id - land[0].id) >= 2);
+      if (far.length) civic[far[0].id] = 'church';
+    }
+  }
   for (const plot of plots) {
     if (houses.length >= nMax) break;
     const seed = 1000 + V.seed * 97 + plot.id * 13;
-    const h = placeHouse(T, V, plot, seed, rnd);
+    const h = placeHouse(T, V, plot, seed, rnd, civic[plot.id]);
     h.P.spread = spread;
     h.plot = plot.id;
     plot.house = houses.length;
@@ -425,6 +442,7 @@ function makeVillage(V0) {
 // spots - beside the house, toward the water - on a waterfront plot
 function planCar(vil, plot, house, built, rnd, thing) {
   const isBoat = thing === 'boat';
+  if (house.P.civic) return null;           // no wreck on the town hall's lawn
   const garage = !isBoat && plot.out && plot.out.kind === 'garage';
   if (!garage && rnd() > (isBoat ? vil.V.boatOdds : vil.V.carOdds)) return null;   // a garage always has its car
   const T = vil.T, keys = HG.CAR_KEYS;
@@ -519,6 +537,7 @@ function spotClear(vil, plot, house, built, c, half) {
 // through the same P.ground the house has, with its own finish.
 function planOutbuilding(vil, plot, house, built, rnd) {
   const T = vil.T, P = house.P;
+  if (P.civic) return null;                 // no shed behind the church
   const area = Math.abs(plot.poly.reduce((a, p, i) => { const q = plot.poly[(i + 1) % 4]; return a + p[0] * q[1] - q[0] * p[1]; }, 0)) / 2;
   let kind = null;
   if (area >= 800 && P.L >= 8.5) kind = rnd() < 0.75 ? 'garage' : 'storage shed';

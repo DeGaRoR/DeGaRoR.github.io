@@ -110,11 +110,15 @@ function makeMats() {
   // the FAR window: opaque, because at eighty metres a pane is a dark
   // rectangle with a frame round it and transparency buys nothing but sorting
   pane:   std(0x2c3a42, { roughness: 0.28, metalness: 0.10 }),
+  // THE FLAG (G309): Alaska's - eight gold stars on a blue field - on the
+  // town hall's pole; cloth, so both sides
+  flag:   std(0x1b3f92, { roughness: 0.95, side: THREE.DoubleSide, userData: { flat: true } }),
+  star:   std(0xf0c44a, { roughness: 0.8, side: THREE.DoubleSide, userData: { flat: true } }),
 };
 }
 const MAT = makeMats();
 const BAGS = ['siding', 'trim', 'roof', 'rib', 'glass', 'deck', 'post',
-              'stone', 'metal', 'floor', 'pane', 'pile', 'log', 'logend'];
+              'stone', 'metal', 'floor', 'pane', 'pile', 'log', 'logend', 'flag', 'star'];
 // AND THE ONE BAG THAT IS NOT THE HOUSE (G254): the chimney smoke is a few
 // soft crossed quads with no surface to them - no occlusion to bake, no
 // texel density to hold, no silhouette to keep - so it stands outside the
@@ -707,7 +711,9 @@ function shadeHouse(m, U) {
     // normal map and the roughness map all slide together
     const wanderUV = fs => {
       const i = fs.indexOf('void main() {');
-      if (i < 0) return fs;
+      // a material with no map (the flag, G309) declares no vUv at all -
+      // the shifted copy would be of nothing
+      if (i < 0 || !m.map) return fs;
       const head = fs.slice(0, i), body = fs.slice(i);
       return head + body.replace(/\bvUv\b/g, 'hUv').replace('void main() {',
         'void main() {\n  vec2 hUv = vUv + vec2(0.0, uWander * (hNoise(vec3(vHouseP.x * 0.45, vHouseP.z * 0.45, vHouseP.y * 0.2 + 1.7)) * 2.0 - 1.0)\n' +
@@ -1364,8 +1370,10 @@ function finishReport() {
                rough: !!m.roughnessMap, metal: m.metalness,
                roughness: m.roughness,
                nrmScale: m.normalScale ? m.normalScale.x : 1,
-               full: glassy || (!!m.map && !!m.normalMap && !!m.roughnessMap),
-               glassy: glassy });
+               // `flat` (G309): cloth at the flag's scale has no map worth
+               // carrying - a colour and a roughness are the whole material
+               full: glassy || !!(m.userData && m.userData.flat) || (!!m.map && !!m.normalMap && !!m.roughnessMap),
+               glassy: glassy || !!(m.userData && m.userData.flat) });
   }
   return out;
 }
@@ -1397,6 +1405,7 @@ const DEF = {
   joists: 1, stairs: 1, stairW: 1.15, stairRise: 0.18, stairRun: 0.28,
   // chimney, and what comes out of it
   chim: 1, chimXF: -0.45, chimZF: 0.30, chimR: 0.10, chimUp: 0.95,
+  flagpole: 0, flagXF: 0.62,
   smoke: 1, smokeK: 0.55, smokeLean: 0.35,
   // the yard (G273): props round the house, the woodpile, the lamp
   yard: 1, yardK: 0.6, yardSeed: 7, woodpile: 1, woodLen: 2.2, woodH: 1.25,
@@ -1661,6 +1670,8 @@ const ROWS = [
     ['gutter', 'gutter', 0, 2, 1, ['none', 'half round', 'box']],
     ['gutterR', 'gutter size', 0.045, 0.13, 0.005, null, P => !!P.gutter],
     ['downpipe', 'downpipe', 0, 1, 1, null, P => !!P.gutter],
+    ['flagpole', 'flagpole', 0, 1, 1],
+    ['flagXF', 'flagpole along the front', -1, 1, 0.01, null, P => !!P.flagpole],
     ['barrel', 'rain barrel', 0, 1, 1, null, P => !!P.gutter && !!P.downpipe],
     ['barrelKind', 'which barrel', 0, 1, 1, ['wooden, drawn', 'blue plastic'], P => !!P.gutter && !!P.downpipe && !!P.barrel],
     ['dpCorner', 'which corner', 0, 7, 1, null,
@@ -1776,6 +1787,49 @@ const PRESETS = {
     trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 6,
     roofSet: SET_IDX('roof', 'corrrust'), roofCol: 0,
     deckSet: SET_IDX('deck', 'deckwood'), postSet: SET_IDX('post', 'rough'),
+  },
+  // THE STAPLES (G309, the user: "sprinkle a couple of staple houses in
+  // there; a church, the townhall"). THE CHURCH: the village church grown
+  // to a congregation - thirteen metres of nave under a steep gable, tall
+  // narrow windows, the octagonal belfry over the door with a real spire and
+  // the cross, white boards, a rusted roof; a door at the back for the
+  // vestry. No woodpile, no junk, no boat.
+  'church': {
+    L: 13.0, w: 7.2, storeys: 1, floorH: 3.40, pitch: 44, roofFam: 0,
+    stance: 1, floorY: 0.65, slopeZ: 2, eaveOver: 0.36, rakeOver: 0.30,
+    nFront: 3, nBack: 4, nLeft: 0, nRight: 1,
+    winW: 0.75, winH: 2.05, winSill: 1.05, gableWin: 1,
+    // the door under the belfry (both at 4.7 m along the ridge)
+    doorPos: 0.86, doorW: 1.35, doorH: 2.30, doorLight: 0,
+    porch: 0, chim: 1, chimR: 0.10, chimXF: -0.66, chimZF: -0.35,
+    gutter: 0, downpipe: 0, skirt: 0, ribs: 0, backDoor: 1, backPorch: 1,
+    cupola: 1, cupSides: 8, cupR: 0.85, cupH: 1.35, cupSpire: 2.6,
+    cupXF: 0.72, cupCross: 1, yard: 0, woodpile: 0, boat: 0,
+    weather: 0.25, paintPunch: 0.85, civic: 1,
+    wallSet: SET_IDX('wall', 'paintwood'), wallCol: 6,
+    trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 6,
+    roofSet: SET_IDX('roof', 'corrrust'), roofCol: 0,
+    deckSet: SET_IDX('deck', 'deckwood'), postSet: SET_IDX('post', 'rough'),
+  },
+  // THE TOWN HALL: two storeys on a boarded base, hipped, the cupola over the
+  // middle without a cross, five windows across, a wide double door under
+  // its canopy with the stair up to it, a masonry chimney, the flag on the
+  // lawn. Painted the civic cream with dark trim.
+  'town hall': {
+    L: 14.0, w: 9.6, storeys: 2, floorH: 3.00, pitch: 27, roofFam: 0, hip: 1,
+    stance: 1, floorY: 0.95, slopeZ: 2, eaveOver: 0.62,
+    nFront: 5, nBack: 4, nLeft: 2, nRight: 2, winW: 1.10, winH: 1.65, winSill: 0.90,
+    doorPos: 0.5, doorW: 1.60, doorH: 2.35, doorLight: 1,
+    porch: 1, porchD: 2.4, porchLenF: 0.48, porchOff: 0, porchRoof: 2, railStyle: 1, stairs: 1,
+    chim: 2, chimXF: -0.55, chimZF: 0.30, chimR: 0.12,
+    gutter: 2, downpipe: 1, barrel: 0, skirt: 2, ribs: 0, backDoor: 1, backPorch: 1,
+    cupola: 1, cupSides: 8, cupR: 1.00, cupH: 1.50, cupSpire: 1.10, cupXF: 0, cupCross: 0,
+    flagpole: 1, flagXF: 0.66, yard: 0, woodpile: 0, boat: 0,
+    weather: 0.2, paintPunch: 0.9, civic: 1,
+    wallSet: SET_IDX('wall', 'paintwood'), wallCol: 7,
+    trimSet: SET_IDX('trim', 'veneerdark'), trimCol: 9,
+    roofSet: SET_IDX('roof', 'boxprof'), roofCol: 8,
+    deckSet: SET_IDX('deck', 'greywood'), postSet: SET_IDX('post', 'veneer'),
   },
   // NOT HABITATION (the user: "ability to generate small sheds, not even
   // habitation, more like storage"): no windows, no deck, no gutter, and it
@@ -4761,6 +4815,45 @@ function stringLights(bags, P, Q, a, b, side) {
 // nobody lives here. Six staves' worth of cylinder, two hoops and a lid — and
 // it goes exactly where the drainage already decided the pipe comes down, so
 // it can never be somewhere else.
+// THE FLAGPOLE (G309, the town hall): a galvanised pole on the front lawn,
+// past the deck and clear of the stair, with a ball on top and Alaska's
+// flag flying off it - the eight stars of the Dipper and the North Star on
+// the blue, laid on both faces. Drawn in both LODs (rule 5's silhouettes);
+// the yard keeps off it and it darkens the ground like any post.
+const FLAG_STARS = [[0.13, 0.70], [0.23, 0.63], [0.34, 0.60], [0.44, 0.66], [0.55, 0.60], [0.62, 0.48], [0.50, 0.40], [0.86, 0.80]];
+function buildFlagpole(bags, P, Q, V, g) {
+  if (!P.flagpole) return null;
+  const x = clamp(P.flagXF === undefined ? 0.62 : P.flagXF, -1, 1) * (V.L / 2 + 0.6);
+  const z = V.w / 2 + (P.porch ? P.porchD : 0) + 3.2;
+  const gy = g(x, z);
+  const H = 7.6, r = 0.055;
+  const n = Q.lod === 0 ? 10 : 6;
+  cyl(bags.metal, [x, gy, z], [0, 1, 0], r, H, n, true, { smooth: true });
+  cyl(bags.metal, [x, gy + H, z], [0, 1, 0], r * 1.9, 0.14, n, true);
+  // the flag: three panels off the pole, each dropping and swinging a little
+  const fw = 2.2, fh = 1.4, y1 = gy + H - 0.08, y0 = y1 - fh;
+  const px = [0, fw * 0.36, fw * 0.7, fw], pz = [0, 0.05, -0.04, 0.09], py = [0, -0.02, -0.05, -0.10];
+  for (let i = 0; i < 3; i++) {
+    const a = [x + r + px[i], y1 + py[i], z + pz[i]], b = [x + r + px[i + 1], y1 + py[i + 1], z + pz[i + 1]];
+    const c = [b[0], y0 + py[i + 1], b[2]], d = [a[0], y0 + py[i], a[2]];
+    face(bags.flag, [a, b, c, d], [0, 0, 1], p => [p[0] - x, p[1] - y0]);
+  }
+  if (Q.lod === 0) {
+    const s = 0.075;
+    for (const [u, v] of FLAG_STARS) {
+      // where on the swung cloth this star sits
+      const ux = u * fw;
+      let i = 0; while (i < 2 && ux > px[i + 1]) i++;
+      const t = (ux - px[i]) / (px[i + 1] - px[i]);
+      const cz = z + pz[i] + (pz[i + 1] - pz[i]) * t, cy = y0 + (py[i] + (py[i + 1] - py[i]) * t) + v * fh, cx = x + r + ux;
+      for (const side of [1, -1])
+        face(bags.star, [[cx - s, cy - s, cz + 0.006 * side], [cx + s, cy - s, cz + 0.006 * side],
+                         [cx + s, cy + s, cz + 0.006 * side], [cx - s, cy + s, cz + 0.006 * side]], [0, 0, side], p => [p[0] - cx, p[1] - cy]);
+    }
+  }
+  return { x, z, r: r * 1.9, y: gy, h: H };
+}
+
 function buildBarrel(bags, P, Q, dr, g) {
   if (!P.barrel || !dr || !dr.downpipe) return null;
   const d = dr.downpipe;
@@ -5481,9 +5574,11 @@ function build(P0, lod, F) {
     pier.lamps = buildPierLamps(bags, P, Q, pier);
   }
   const people = peoplePlan(P, V, dk, front, pier);
+  const flag = buildFlagpole(bags, P, Q, V, g);
   // THE YARD (G273): the woodpile first, because it is drawn and baked and
   // the props keep off it; then the props; then the path
   const blockers = yardBlockers(P, V, dk, stoop, front, barrel, people, g);
+  if (flag) blockers.push({ r: rectOf(flag.x - 0.6, flag.z - 0.6, flag.x + 0.6, flag.z + 0.6), under: -1e9, what: 'flagpole' });
   const woodpile = buildWoodpile(bags, P, Q, V, dk, blockers, g);
   const yard = yardPlan(P, V, dk, stoop, front, barrel, people, ch, dr, g);
   if (woodpile) for (const q of yard) {           // never through the pile
@@ -5543,6 +5638,7 @@ function build(P0, lod, F) {
       occ.push({ x: q.x, z: q.z, hx: K.W / 2, hz: K.L / 2, ry: q.ry, k: 0.6, soft: 0.5 });
     }
     if (barrel) occ.push({ x: barrel.x, z: barrel.z, r: barrel.r, k: 0.55, soft: 0.4 });
+    if (flag) occ.push({ x: flag.x, z: flag.z, r: 0.12, k: 0.5, soft: 0.4 });
     for (const q of people) if (q.on === 'stoop' || (q.on !== 'deck' && !pier))
       occ.push({ x: q.x, z: q.z, r: 0.28, k: 0.4, soft: 0.3 });
     for (const o of occ) o.dry = true;
@@ -5598,6 +5694,7 @@ function build(P0, lod, F) {
     bay: bayOut, barrel: barrel, pier: pier, smoke: smoke, people: people,
     hand: HAND_LOG, yard: yardOut, woodpile: woodpile, path: path,
     groundAO: occ,
+    flagpole: flag,
     backInLean: !!(P.backDoor && leanCovers(P, V, backDoorX(P, V))),
     // THE LIGHTS, published: how many windows glow, how many bulbs, and every
     // lamp with its position, colour and reach — the bench stands a real light

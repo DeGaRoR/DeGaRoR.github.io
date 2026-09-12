@@ -258,6 +258,27 @@ function battery(name, vil) {
     check(!!vil.clearing && vil.clearing.polys.length === vil.plots.length && vil.clearing.road.pts.length > 2,
           name + ': the clearing does not name every plot and the road');
   }
+  // 12 — THE STAPLES (G309): a village of six plots or more has its town
+  //   hall and its church, on land plots two or more apart, each from its
+  //   named preset with the flag / the belfry, and nothing parked or built
+  //   behind them
+  if (vil.plots.length >= 6) {
+    const civ = vil.houses.filter(h => h.P.civic);
+    const hall = civ.find(h => h.P.preset === 'town hall'), church = civ.find(h => h.P.preset === 'church');
+    check(!!hall, name + ': no town hall');
+    check(!!church, name + ': no church');
+    if (hall && church) {
+      check(hall.plot !== church.plot && Math.abs(hall.plot - church.plot) >= 2, name + ': the town hall and the church share a block');
+      for (const h of [hall, church]) {
+        const p = vil.plots[h.plot];
+        check(p.side === 'land', name + ': ' + h.P.preset + ' stands on a water plot');
+        check(!p.out && !p.car && !p.boat, name + ': ' + h.P.preset + ' has a shed, a car or a boat');
+        check(h.P.storeys === HG.PRESETS[h.P.preset].storeys, name + ': ' + h.P.preset + ' lost its storeys');
+      }
+      check(!!hall.built.stats.flagpole, name + ': the town hall has no flag');
+      check(hall.P.cupola === 1 && church.P.cupola === 1 && church.P.cupCross === 1, name + ': the belfry or the cupola is missing');
+    }
+  }
   // 8 — THE POLES (G285): a known pole, on the ground, on the road's verge
   //   (a metre or two off the road's line), on no plot
   for (const q of vil.poles || []) {

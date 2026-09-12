@@ -40498,3 +40498,43 @@ it lights the footwell there now with the same numbers. (Shots in the
 session's scratchpad; the way to take them: the pump page's
 `__pump(n)` drives frames on demand in a hidden pane, `__afterFrame`
 reads the canvas in the same task, a node sink on 8368 saves the JPEG.)
+
+## G309 — THE STAPLES: A CHURCH AND A TOWN HALL AS PRESETS, ALASKA'S FLAG ON
+## A POLE, AND THE VILLAGE SEATS THEM ON ITS BEST PLOTS (2026-09-12, the user:
+## "Do the church and townhall presets next")
+
+- **THE CHURCH** (`church`): the village church grown to a congregation —
+  13 × 7.2 m of nave under a 44° gable, tall narrow windows (0.75 × 2.05),
+  the octagonal belfry (r 0.85, drum 1.35, spire 2.6, the cross) at 0.72
+  along the ridge and the door UNDER it (doorPos 0.86 — both at 4.7 m
+  from the middle), a vestry door at the back, white boards, rusted
+  sheet; no yard, no woodpile, no boat, `civic: 1`. The `village church`
+  and the `chapel` from the photograph stay as they were.
+- **THE TOWN HALL** (`town hall`): 14 × 9.6, two storeys of 3.0 m on a
+  boarded base, hipped at 27°, the cupola over the middle (r 1.0, drum
+  1.5, no cross), five windows across, a 1.6 m double door with its light
+  under a portico (deck 2.4 deep, roofed, railed, the stair up to it), a
+  masonry chimney, box gutters, cream with dark trim, grey box-profile
+  roof — and THE FLAG.
+- **THE FLAGPOLE** (`flagpole`, `flagXF`; `buildFlagpole`): a galvanised
+  7.6 m pole on the front lawn past the deck (x by `flagXF` along the
+  front, 3.2 m out), a ball on top, Alaska's flag — the Dipper and the
+  North Star as eight gold squares on the blue, on both faces of a
+  cloth in three swung panels — in two new bags `flag` and `star`
+  (flat colours, `userData.flat`: cloth at that scale carries no map;
+  rule 14 reads `flat` as it reads glass). Drawn in both LODs; the yard
+  keeps off it; it darkens the ground like a post; published in
+  `stats.flagpole`.
+- **A TRAP**: the house shader's uv wander renamed `vUv` on a material
+  with NO map — three declares no `vUv` without one — and the flag did
+  not compile: it rendered as nothing, no error in the gate. The wander
+  now skips map-less materials.
+- **THE VILLAGE** (`makeVillage`): six plots or more → the town hall on
+  the widest land plot, the church on the widest of the rest two or more
+  plots away; `placeHouse` takes a preset name; civic plots get no
+  outbuilding, no car, no boat; the house's `P.civic` / `P.preset` say
+  so. GATE VILLAGE 12 holds all of it (both present, land plots, apart,
+  their storeys kept, the flag, the belfry and the cupola).
+- Seen: the hall behind its gate and path with the flag flying and the
+  wood behind; the church on its plot, the belfry over the door.
+- Gates: HOUSE (presets battery incl. the two), VILLAGE green.
