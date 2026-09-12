@@ -34,6 +34,7 @@
 'use strict';
 const K = window.HOUSE_KIT;
 const HG = window.HOUSE_GEN;
+const BG = () => window.BIG_GEN;          // the big buildings (G312), loaded after this or not at all
 const { sub, add, mul, nrm, len, clamp } = K;
 
 // ---------------------------------------------------------------------------
@@ -293,6 +294,48 @@ function placeHouse(T, V, plot, seed, rnd, preset) {
   return { P, x: c[0], z: c[1], y: oy, yaw, toWorld, ground, seed };
 }
 
+// THE BIG BUILDINGS ON THEIR PLOTS (G312, the user: "Go for the larger
+// buildings now ... Also think of commercial buildings"): a warehouse, a
+// cannery, a workshop or a store from tools/_big_gen.js, stood on a plot
+// the way a house is - fronting the road, made to fit the frontage - but
+// on the LAND even on a waterfront plot (a cannery on piles is a later
+// kit), with a gravel yard instead of a lawn and no fence: an industrial
+// lot is open to the road.
+function placeBig(T, V, plot, seed, rnd, preset) {
+  const B = BG();
+  const P = Object.assign({}, B.DEF, B.PRESETS[preset] || {}, { seed });
+  P.preset = preset; P.big = 1;
+  const n = plot.n;
+  const face = plot.side === 'water' ? [n[0], n[1]] : [-n[0], -n[1]];
+  // it FACES THE ROAD whichever side the plot is: on a water plot the
+  // front (+z) turns back toward the road
+  const yaw = Math.atan2(-face[0], -face[1]) + (plot.side === 'water' ? 0 : Math.PI);
+  const maxL = plot.w - 4, maxW = Math.min(plot.depth - 10, 16);
+  P.L = clamp(P.L, 6, Math.max(6, maxL));
+  P.w = clamp(P.w, 4, Math.max(4, maxW));
+  P.slopeX = 0; P.slopeZ = 0;
+  const cl = d => [plot.front[0] + n[0] * d, plot.front[1] + n[1] * d];
+  let d = P.w / 2 + (P.dock ? P.dockD : 0) + 4.5;
+  let c = cl(d);
+  const cy = Math.cos(yaw), sy = Math.sin(yaw);
+  let toWorld = (lx, lz) => [c[0] + lx * cy + lz * sy, c[1] - lx * sy + lz * cy];
+  const fits = () => [[-1, -1], [1, -1], [1, 1], [-1, 1]].every(q => {
+    const w = toWorld(q[0] * P.L / 2, q[1] * P.w / 2); return inPoly(plot.poly, w[0], w[1]); });
+  for (let it = 0; it < 30 && !fits(); it++) {
+    if (P.L > 7) P.L *= 0.92;
+    else if (P.w > 5) P.w *= 0.92;
+    else { d += 1; c = cl(d); toWorld = (lx, lz) => [c[0] + lx * cy + lz * sy, c[1] - lx * sy + lz * cy]; }
+  }
+  const oy = T.h(c[0], c[1]);
+  const ground = (lx, lz) => { const w = toWorld(lx, lz); return T.h(w[0], w[1]) - oy; };
+  P.ground = ground;
+  let hiC = -1e9;
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) hiC = Math.max(hiC, ground(sx * P.L / 2, sz * P.w / 2));
+  P.floorY = hiC + Math.max(0.35, P.floorY);
+  P.water = 0; P.pier = 0;
+  return { P, x: c[0], z: c[1], y: oy, yaw, toWorld, ground, seed, gen: 'big' };
+}
+
 // ---------------------------------------------------------------------------
 // THE FENCES, AND THE PATHS
 // ---------------------------------------------------------------------------
@@ -310,6 +353,7 @@ function placeHouse(T, V, plot, seed, rnd, preset) {
 const edgeKey = (a, b) => [a, b].map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).sort().join('|');
 function planFences(V, plot, house, rnd, fenced) {
   const out = [];
+  if (house.P.big) return out;             // an industrial lot is open to the road (G312)
   const old = rnd() < V.oldFenceOdds;
   const edges = [
     { a: plot.poly[1], b: plot.poly[2], kind: 'side' },
@@ -415,10 +459,23 @@ function makeVillage(V0) {
       if (far.length) civic[far[0].id] = 'church';
     }
   }
+  // THE COMMERCIAL PLOTS (G312): eight plots or more and the big generator
+  // loaded → a store on the land plot nearest the road's middle that is
+  // not civic, a workshop on the next free land plot along, the cannery
+  // on the widest water plot (on its land half, facing the road)
+  const big = {};
+  if (plots.length >= 8 && BG()) {
+    const mid = road.length / 2;
+    const land = plots.filter(p => p.side === 'land' && !civic[p.id]).sort((a, b) => Math.abs((a.s0 + a.s1) / 2 - mid) - Math.abs((b.s0 + b.s1) / 2 - mid));
+    if (land[0]) big[land[0].id] = 'store';
+    if (land[1]) big[land[1].id] = 'workshop';
+    const water = plots.filter(p => p.side === 'water').sort((a, b) => b.w - a.w);
+    if (water[0]) big[water[0].id] = 'cannery';
+  }
   for (const plot of plots) {
     if (houses.length >= nMax) break;
     const seed = 1000 + V.seed * 97 + plot.id * 13;
-    const h = placeHouse(T, V, plot, seed, rnd, civic[plot.id]);
+    const h = big[plot.id] ? placeBig(T, V, plot, seed, rnd, big[plot.id]) : placeHouse(T, V, plot, seed, rnd, civic[plot.id]);
     h.P.spread = spread;
     h.plot = plot.id;
     plot.house = houses.length;
@@ -442,7 +499,7 @@ function makeVillage(V0) {
 // spots - beside the house, toward the water - on a waterfront plot
 function planCar(vil, plot, house, built, rnd, thing) {
   const isBoat = thing === 'boat';
-  if (house.P.civic) return null;           // no wreck on the town hall's lawn
+  if (house.P.civic || house.P.big) return null;   // no wreck on the town hall's lawn
   const garage = !isBoat && plot.out && plot.out.kind === 'garage';
   if (!garage && rnd() > (isBoat ? vil.V.boatOdds : vil.V.carOdds)) return null;   // a garage always has its car
   const T = vil.T, keys = HG.CAR_KEYS;
@@ -537,7 +594,7 @@ function spotClear(vil, plot, house, built, c, half) {
 // through the same P.ground the house has, with its own finish.
 function planOutbuilding(vil, plot, house, built, rnd) {
   const T = vil.T, P = house.P;
-  if (P.civic) return null;                 // no shed behind the church
+  if (P.civic || P.big) return null;        // no shed behind the church, nor the cannery
   const area = Math.abs(plot.poly.reduce((a, p, i) => { const q = plot.poly[(i + 1) % 4]; return a + p[0] * q[1] - q[0] * p[1]; }, 0)) / 2;
   let kind = null;
   if (area >= 800 && P.L >= 8.5) kind = rnd() < 0.75 ? 'garage' : 'storage shed';
@@ -664,7 +721,9 @@ function lotGround(vil, plot, house, built, occ) {
   // the rectangles that make the ground dry: the house (with its deck), the outbuilding
   const rects = [];
   const P = house.P;
-  rects.push({ x: house.x, z: house.z, yaw: house.yaw, hx: P.L / 2, hz0: -P.w / 2, hz1: P.w / 2 + (P.porch ? P.porchD : 0) });
+  // a big building's yard is dry to the road: the apron a truck backs across (G312)
+  rects.push({ x: house.x, z: house.z, yaw: house.yaw, hx: P.L / 2 + (P.big ? 3 : 0), hz0: -P.w / 2 - (P.big ? 2 : 0),
+               hz1: P.w / 2 + (P.porch ? P.porchD : 0) + (P.big ? (P.dock ? P.dockD : 0) + 9 : 0) });
   if (plot.out) rects.push({ x: plot.out.x, z: plot.out.z, yaw: plot.out.yaw, hx: plot.out.P.L / 2, hz0: -plot.out.P.w / 2, hz1: plot.out.P.w / 2 });
   const dryAt = (x, z) => {
     let w = 0;

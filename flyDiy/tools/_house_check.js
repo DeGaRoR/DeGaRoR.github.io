@@ -86,11 +86,11 @@ let VMCTX = null;          // kept: the PBR check has to inject a stub library
   ctx.globalThis = ctx;
   VMCTX = ctx;
   vm.createContext(ctx);
-  for (const f of ['_house_kit.js', '_house_gen.js', '_shed_gen.js'])
+  for (const f of ['_house_kit.js', '_house_gen.js', '_shed_gen.js', '_big_gen.js'])
     vm.runInContext(fs.readFileSync(path.join(TOOLS, f), 'utf8'), ctx,
                     { filename: f });
 }
-const HG = win.HOUSE_GEN, HK = win.HOUSE_KIT, SG = win.SHED_GEN;
+const HG = win.HOUSE_GEN, HK = win.HOUSE_KIT, SG = win.SHED_GEN, BG = win.BIG_GEN;
 
 // THE MATERIAL LIBRARY IS READ FROM THE BAKED MANIFEST, not imported: it is a
 // browser payload (it builds `new Image()`), so the gate parses the numbers it
@@ -1634,6 +1634,76 @@ if (TABLE || process.env.HOUSE_TABLE) {
                 String(r.lo).padStart(10) + r.ratio.toFixed(3).padStart(7) +
                 r.ridge.toFixed(2).padStart(7) + String(r.posts).padStart(7) +
                 String(r.drop).padStart(9) + r.sil.toFixed(3).padStart(12));
+}
+
+// THE BIG BUILDINGS (G312): the third generator, held to what a building
+// must do - every preset builds in both LODs with finite geometry, the low
+// mesh is the same outline for a fraction of the triangles, the walls stay
+// inside the footprint plus the overhangs, the sign slot is published where
+// the sign was drawn, a roller door that is rolled up leaves its opening
+// open (no leaf below the rolled edge), and every material slot is dressed
+// (rule 14's reading, the flat cloth and glass excepted).
+if (check(!!BG, 'the big generator did not load headlessly')) {
+  for (const name of Object.keys(BG.PRESETS)) {
+    const P = Object.assign({}, BG.DEF, BG.PRESETS[name]);
+    let hi = null, lo = null, threw = null;
+    try { hi = BG.build(P, 0); lo = BG.build(P, 1); } catch (e) { threw = e; }
+    if (!check(!threw, 'big ' + name + ': build threw', threw && threw.message)) continue;
+    let nan = 0, x1 = -1e9, z1 = -1e9, y1 = -1e9, y0 = 1e9;
+    for (const k of BG.BAGS) {
+      const d = hi.bags[k].data();
+      for (let i = 0; i < d.pos.length; i += 3) {
+        if (!isFinite(d.pos[i]) || !isFinite(d.pos[i + 1]) || !isFinite(d.pos[i + 2])) { nan++; continue; }
+        x1 = Math.max(x1, Math.abs(d.pos[i])); z1 = Math.max(z1, Math.abs(d.pos[i + 2]));
+        y1 = Math.max(y1, d.pos[i + 1]); y0 = Math.min(y0, d.pos[i + 1]);
+      }
+    }
+    check(nan === 0, 'big ' + name + ': NaN in the mesh', String(nan));
+    check(hi.stats.tris > 400, 'big ' + name + ': too few triangles', String(hi.stats.tris));
+    check(lo.stats.tris < hi.stats.tris * 0.7, 'big ' + name + ': the low mesh is not lower', lo.stats.tris + ' vs ' + hi.stats.tris);
+    // the reach: the length plus the rake, the width plus the eave, the dock, the canopy, the awning, the sign
+    const reachX = P.L / 2 + Math.max(P.rakeOver, 0.35) + 0.6;
+    const reachZ = P.w / 2 + Math.max(P.eaveOver, 0.2) + (P.dock ? P.dockD + 1.5 : 0) + (P.canopy ? P.canopyOut + 2.2 : 0) + (P.awning ? 1.5 : 0) + (P.gantry && !P.dock ? 1.8 : 0) + 0.8;
+    check(x1 <= reachX + 1e-3 && z1 <= reachZ + 1e-3, 'big ' + name + ': something stands past the reach of the building', x1.toFixed(2) + '/' + reachX.toFixed(2) + ' ' + z1.toFixed(2) + '/' + reachZ.toFixed(2));
+    check(y1 > hi.stats.ridge && y0 < P.floorY, 'big ' + name + ': the mesh does not span plinth to stack');
+    if (P.sign) { const sg = hi.stats.sign;
+      check(sg && sg.w > 0.5 && sg.y > P.floorY + 1.5 && (sg.nz ? Math.abs(sg.x) < P.L / 2 : Math.abs(sg.z) < P.w / 2),
+            'big ' + name + ': the sign slot is not on the building'); }
+    if (P.rollers > 0) {
+      check(hi.stats.rollers.length === Math.round(P.rollers), 'big ' + name + ': the roller doors are not all there');
+      // the door bag holds no leaf below the rolled edge of a door that is up
+      const d = hi.bags.door.data();
+      for (const r of hi.stats.rollers) if (r.open > 0.2) {
+        const edge = P.floorY + r.open * r.h - 0.02;
+        let below = 0;
+        for (let i = 0; i < d.pos.length; i += 3)
+          if (Math.abs(d.pos[i] - r.x) < r.w / 2 - 0.2 && d.pos[i + 1] < edge && d.pos[i + 1] > P.floorY + 0.05 && Math.abs(d.pos[i + 2] - P.w / 2) < 0.2) below++;
+        check(below === 0, 'big ' + name + ': a rolled-up door still hangs in its opening', String(below));
+      }
+    }
+    // same build twice: the same mesh
+    const again = BG.build(P, 0);
+    check(again.stats.tris === hi.stats.tris, 'big ' + name + ': the build is not deterministic');
+  }
+  // the finish: every slot dressed with the stubbed libraries in place -
+  // the house's (rule 14 left it on the context) and the hangar's, stubbed
+  // the same way for every key the roles name
+  {
+    const img = { complete: true, naturalWidth: 4, addEventListener: () => {} };
+    const hw = {};
+    for (const role in BG.ROLE_SETS) for (const [lib, key] of BG.ROLE_SETS[role])
+      if (lib === 'hangar') hw[key] = { name: key, diff: img, nor: img, rough: img };
+    VMCTX.HANGAR_WALL_SETS = hw;
+    const fake = {};
+    for (const k in LIB) fake[k] = Object.assign({}, LIB[k], { diff: img, nor: img, rough: img, paint: LIB[k].paint ? img : null });
+    VMCTX.HOUSE_TEX_SETS = fake;
+    let threw = null;
+    try { BG.applyFinish(Object.assign({}, BG.DEF)); } catch (e) { threw = e; }
+    check(!threw, 'big: applyFinish throws with the payloads', threw && threw.message);
+    for (const r of BG.finishReport())
+      check(r.full, 'big PBR: ' + r.slot + ' is missing a map', 'albedo ' + r.map + ', normal ' + r.nor + ', roughness ' + r.rough);
+    delete VMCTX.HOUSE_TEX_SETS; delete VMCTX.HANGAR_WALL_SETS;
+  }
 }
 
 if (fail.length) {

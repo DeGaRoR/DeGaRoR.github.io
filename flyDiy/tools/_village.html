@@ -92,6 +92,9 @@
 <script src="../src/viewer/lot_tex.js"></script>
 <script src="_house_kit.js"></script>
 <script src="_house_gen.js"></script>
+<!-- THE BIG BUILDINGS (G312): the third generator and the hangar's wall sets it wears -->
+<script src="../src/viewer/hangar_walls.js"></script>
+<script src="_big_gen.js"></script>
 <script src="_village_gen.js"></script>
 <script>
 (() => {
@@ -593,7 +596,7 @@ function placeBuilt(parent, house, built, F) {
   const grp = new THREE.Group();
   grp.position.set(house.x, house.y, house.z);
   grp.rotation.y = house.yaw;
-  for (const k of G.BAGS) built.bags[k].mesh(grp, F.MAT[k]);
+  for (const k of (built.BAGS || G.BAGS)) built.bags[k].mesh(grp, F.MAT[k]);
   // the house's ground skirt is NOT drawn here (G302): the lot patch carries
   // the same occluders in its own tone, and drawing both stacked the two
   if (built.bags.smoke) {
@@ -712,9 +715,11 @@ function build() {
   for (const h of vil.houses) {
     const plot = vil.plots[h.plot];
     if (forceLights) { h.P.lights = 1; h.P.winLink = 0; }
-    const F = G.makeFinish();
-    G.applyFinish(h.P, F);
-    const built = G.build(h.P, 0, F);
+    const GEN = h.gen === 'big' ? window.BIG_GEN : G;
+    const F = GEN.makeFinish();
+    GEN.applyFinish(h.P, F);
+    const built = GEN.build(h.P, 0, F);
+    built.BAGS = GEN.BAGS;
     VG.finishPlot(vil, plot, h, built);
     placeBuilt(root, h, built, F);
     FINISHES.push(F);

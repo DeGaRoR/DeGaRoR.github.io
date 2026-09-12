@@ -5919,7 +5919,7 @@ window.HOUSE_GEN = {
   COLS, COL_NAMES, ROLE_SETS, SET_IDX, setNames, setFor, setRibbed,
   build, roofModel, wallSplits, groundFn, applyFinish, libSets, randomHouse,
   makeFinish, shadeGround, buildGroundAO, shadeSkirt,
-  shadeGround,
+  shadeHouse, makeShadeU,      // the big buildings wear the house's finish (G312)
   dressSlot, SET_KIND, ROLE_KIND, finishReport, NRM, PAINT_BLENDS,
 };
 })();

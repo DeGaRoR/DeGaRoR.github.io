@@ -60,6 +60,7 @@
   <label>model <select id="modelSel">
     <option value="house">house</option>
     <option value="shed">shed (plank by plank)</option>
+    <option value="big">big building (industrial, commercial)</option>
   </select></label>
   <label>preset <select id="presetSel"></select></label>
   <label>show <select id="lodSel">
@@ -130,11 +131,16 @@
 <script src="_house_kit.js"></script>
 <script src="_house_gen.js"></script>
 <script src="_shed_gen.js"></script>
+<!-- THE BIG BUILDINGS (G312): the warehouse, the cannery, the workshop, the
+     store - dressed with the hangar's wall sets -->
+<script src="../src/viewer/hangar_walls.js"></script>
+<script src="_big_gen.js"></script>
 <script>
 'use strict';
 (() => {
 const G = window.HOUSE_GEN;
 const SH = window.SHED_GEN;
+const BG = window.BIG_GEN;
 const $ = id => document.getElementById(id);
 const D2R = Math.PI / 180;
 // TWO GENERATORS, ONE BENCH. The shed is a different MODEL of a building — a
@@ -477,7 +483,7 @@ function siteMesh(g, R, foot) {
 function addBuild(parent, built, dx) {
   const grp = new THREE.Group();
   grp.position.x = dx || 0;
-  for (const k of GEN.BAGS) built.bags[k].mesh(grp, G.MAT[k]);
+  for (const k of GEN.BAGS) built.bags[k].mesh(grp, (GEN.MAT || G.MAT)[k]);
   // the ground shadow skirt (G281): polygons on the ground, drawn after the
   // opaque site, never into depth
   if (built.bags.aoskirt) {
@@ -688,6 +694,7 @@ function smokeLoop() {
 function checks(hi, lo) {
   const S = hi.stats, rows = [];
   if (GEN === SH) return shedChecks(hi, lo);
+  if (GEN === BG) return bigChecks(hi, lo);
   const row = (label, val, cls, note) =>
     rows.push('<div><span style="color:#7d8996">' + label + '</span> ' +
       '<b class="' + (cls || '') + '">' + val + '</b>' +
@@ -855,6 +862,31 @@ function checks(hi, lo) {
 
 // WHAT A PLANK-BY-PLANK SHED IS JUDGED BY: how many sticks are in it, how
 // many boards, how many are missing, and what all that costs.
+// THE BIG BUILDING'S REPORT (G312): what it is, what it opens, its slot
+function bigChecks(hi, lo) {
+  const S = hi.stats, rows = [];
+  const row = (label, val, cls, note) =>
+    rows.push('<div><span style="color:#7d8996">' + label + '</span> ' +
+      '<b class="' + (cls || '') + '">' + val + '</b>' +
+      (note ? ' <span style="color:#4a525c">' + note + '</span>' : '') + '</div>');
+  const head = t => rows.push('<div class="hd">' + t + '</div>');
+  head('THE BUILDING');
+  row('footprint', S.footprint.toFixed(0) + ' m&sup2;', '', P.L + ' x ' + P.w + ' m');
+  row('eave / ridge', S.eave.toFixed(2) + ' / ' + S.ridge.toFixed(2) + ' m', '', S.kind + ' roof');
+  head('THE OPENINGS');
+  row('roller doors', String(S.rollers.length), '', S.rollers.map(r => r.w.toFixed(1) + 'x' + r.h.toFixed(1) + ' ' + Math.round(r.open * 100) + '% up').join(', '));
+  row('door', S.door ? S.door.w.toFixed(2) + ' x ' + S.door.h.toFixed(2) + ' m' : 'none');
+  row('windows', S.strips + ' strips' + (S.shop ? ', a shop window' : ''));
+  row('dock', S.dock ? (S.dock.x1 - S.dock.x0).toFixed(1) + ' m long, ' + (S.dock.z1 - S.dock.z0).toFixed(1) + ' deep' : 'none');
+  head('THE SIGN SLOT');
+  row('sign', S.sign ? S.sign.w.toFixed(1) + ' x ' + S.sign.h.toFixed(1) + ' m' : 'none',
+      '', S.sign ? 'at ' + S.sign.x.toFixed(1) + ', ' + S.sign.y.toFixed(1) + ' facing +z (a billboard fills it)' : '');
+  head('THE MESH');
+  row('high / low', hi.stats.tris.toLocaleString() + ' / ' + lo.stats.tris.toLocaleString() + ' tris', '',
+      Object.keys(S.per).map(k => k + ' ' + S.per[k]).join(' · '));
+  row('baked occlusion', S.ao ? 'yes' : 'off');
+  return rows.join('');
+}
 function shedChecks(hi, lo) {
   const S = hi.stats, rows = [];
   const row = (label, val, cls, note) =>
@@ -993,15 +1025,15 @@ function applyPreset(n) {
   buildPanel(); syncVis(); build();
 }
 $('modelSel').onchange = e => {
-  GEN = e.target.value === 'shed' ? SH : G;
+  GEN = e.target.value === 'shed' ? SH : (e.target.value === 'big' ? BG : G);
   fillPresets();
   applyPreset(psel.value);
 };
 psel.onchange = e => applyPreset(e.target.value);
 const rollOne = sd => {
-  P = GEN === SH ? SH.randomShed(sd) : G.randomHouse(sd);
+  P = GEN === SH ? SH.randomShed(sd) : (GEN === BG ? BG.randomBig(sd) : G.randomHouse(sd));
   buildPanel(); syncVis(); build();
-  $('stat').textContent = 'random ' + (GEN === SH ? 'shed' : 'house') +
+  $('stat').textContent = 'random ' + (GEN === SH ? 'shed' : (GEN === BG ? 'big building' : 'house')) +
     ', seed ' + sd;
 };
 $('rndBtn').onclick = () => {
@@ -1019,7 +1051,7 @@ for (const id of ['moodSel', 'sunAz', 'sunEl', 'expo'])
 const configJSON = () => {
   const d = {};
   for (const k in P) if (P[k] !== GEN.DEF[k]) d[k] = P[k];
-  return JSON.stringify({ model: GEN === SH ? 'shed' : 'house', P: d }, null, 1);
+  return JSON.stringify({ model: GEN === SH ? 'shed' : (GEN === BG ? 'big' : 'house'), P: d }, null, 1);
 };
 const dl = (text, name, mime) => {
   const el = document.createElement('a');

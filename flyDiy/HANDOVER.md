@@ -40603,3 +40603,59 @@ reads the canvas in the same task, a node sink on 8368 saves the JPEG.)
   state now; the shed keeps a state per button (`swMaster`, `swAlt`, off
   and unlit by default) and the interior click toggles them like the
   other switches. In flight they were already the bus's (lit when on).
+
+## G312 — THE BIG BUILDINGS: A THIRD GENERATOR — WAREHOUSE, CANNERY,
+## WORKSHOP, STORE, BOAT SHED — DRESSED IN THE HANGAR'S MATERIALS, EVERY ONE
+## WITH A SIGN SLOT FOR THE BILLBOARDS, AND THE VILLAGE'S COMMERCIAL PLOTS
+## (2026-09-12, the user: "Go for the larger buildings now, with the hangar
+## materials. Also think of commercial buildings, and I'll generate a few
+## billboards for you")
+
+- **`tools/_big_gen.js` (BIG_GEN)**: a box with a door big enough for a
+  truck — one tall volume on a CONCRETE PLINTH going down into whatever
+  the ground does, cladding on the kit's `wall()` with holes, three
+  roof kinds (gable, monopitch high at the front, flat behind a
+  PARAPET with its cap and cornice), ROLLER DOORS (slatted leaf at the
+  inner face down to the rolled edge, the drum inside, guide rails), a
+  PERSONNEL DOOR with frame and step, STRIP WINDOWS high under each
+  wall's own top with mullions, a SHOP WINDOW and its AWNING, a LOADING
+  DOCK at floor level (nosing, bumpers, steps), a CANOPY on brackets, a
+  GANTRY beam with its hook out of the gable, STACKS with flashing and
+  rain cap, turbine VENTS, a CONDUIT and box; the ground skirt and the
+  house's bake. The house's finish shader is exported for it
+  (`shadeHouse`, `makeShadeU`): dirt, noise, the ao channel, no sag.
+- **THE HANGAR'S MATERIALS**: roles list [library, key] — walls from
+  HANGAR_WALL_SETS (rusty sheet, rusty painted metal, the factory wall,
+  the planks, sandstone, slab) plus the house's corrugated and painted
+  boards; plinth the hangar concretes; roofs and steel the house's.
+  Hangar tiles are 2 m (`HANGAR_WALL_TILE_M`), UVs in metres as
+  everywhere. Glass, sign and awning are flat (`userData.flat`).
+- **THE SIGN SLOT**: `stats.sign = { x, y, z, w, h, nx, nz }` — on the
+  parapet, on the canopy's fascia (the wall under a canopy is in its
+  shade), on the wall above the doors and under the strip when that
+  leaves a board's worth, else on the +x end (the gable's triangle, a
+  monopitch's tall half). The board's face carries 0..1 uv; `signTex`
+  fills it whole — the user's billboards go there; with none, the name
+  painted on weathered boards (a canvas). GATE HOUSE holds the slot to
+  the building.
+- **PRESETS**: warehouse (24 × 12, two rollers, dock, canopy, gantry),
+  cannery (30 × 14, factory wall, strips all round, the fascia sign),
+  workshop (monopitch, one roller up, AUTO REPAIR on the end), store
+  (false front, shop window, awning, GENERAL STORE on the parapet),
+  boat shed. `randomBig(seed)` for the dice; the bench's model select
+  has "big building".
+- **THE VILLAGE** (`placeBig`, eight plots or more): a store on the land
+  plot nearest the road's middle, a workshop on the next, the cannery on
+  the widest water plot — on its LAND half, facing the road (a cannery
+  on piles is a later kit). An industrial lot is open: no fence, no shed,
+  no car, a gravel apron to the road (the lot's dry rect grown 9 m out).
+  GATE VILLAGE 13 (present, facing the road, the slot published, the
+  yard open) and 5b/4 exempt the big lots from a house's fences and
+  water rules. GATE HOUSE: every preset builds in both LODs, finite,
+  low < 0.7 high, inside its reach, plinth-to-stack, the rolled-up door
+  leaves its opening (a sign that overlapped a roller door was caught
+  by it), both libraries stubbed for the finish.
+- Seen: the warehouse's front in sun (rollers half up, dock, canopy
+  sign, gantry, stacks); the store; the cannery on its waterfront lot
+  with the gravel apron; the workshop with its door up and the end sign.
+- Gates: HOUSE, VILLAGE, MEDIA green.

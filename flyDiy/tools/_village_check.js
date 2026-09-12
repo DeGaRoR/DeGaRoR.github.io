@@ -66,10 +66,10 @@ const win = {};
                 Array, Set, Map, Number, String, isFinite, parseInt, parseFloat };
   ctx.globalThis = ctx;
   vm.createContext(ctx);
-  for (const f of ['_house_kit.js', '_house_gen.js', '_village_gen.js'])
+  for (const f of ['_house_kit.js', '_house_gen.js', '_big_gen.js', '_village_gen.js'])
     vm.runInContext(fs.readFileSync(path.join(TOOLS, f), 'utf8'), ctx, { filename: f });
 }
-const HG = win.HOUSE_GEN, HK = win.HOUSE_KIT, VG = win.VILLAGE_GEN;
+const HG = win.HOUSE_GEN, HK = win.HOUSE_KIT, VG = win.VILLAGE_GEN, BGN = win.BIG_GEN;
 
 const fail = [];
 let checks = 0;
@@ -87,7 +87,7 @@ function buildVillage(V) {
   const vil = VG.makeVillage(V);
   for (const h of vil.houses) {
     const plot = vil.plots[h.plot];
-    h.built = HG.build(h.P, 0);
+    h.built = (h.gen === 'big' ? BGN : HG).build(h.P, 0);
     VG.finishPlot(vil, plot, h, h.built);
     if (plot.out) plot.out.built = HG.build(plot.out.P, 0);
   }
@@ -163,6 +163,9 @@ function battery(name, vil) {
     }
     check(distToRoad(road, [h.x, h.z]) > road.w / 2 + 1 + Math.min(h.P.L, h.P.w) / 2,
           name + ': house on plot ' + plot.id + ' stands on the road');
+    // a big building (G312) publishes no nan/degen count and stands on the
+    // land half of a water plot: the house's water rules do not apply
+    if (h.P.big) { check(st.tris > 400 && isFinite(st.tris), name + ': ' + h.P.preset + ' on plot ' + plot.id + ' did not build'); continue; }
     check(st.nan === 0 && st.degen === 0 && st.tris > 400, name + ': house on plot ' + plot.id + ' did not build clean');
     if (plot.side === 'water') {
       water++;
@@ -279,6 +282,27 @@ function battery(name, vil) {
       check(hall.P.cupola === 1 && church.P.cupola === 1 && church.P.cupCross === 1, name + ': the belfry or the cupola is missing');
     }
   }
+  // 13 — THE BIG BUILDINGS (G312): a village of eight plots or more has
+  //   its store, its workshop and its cannery, each on its plot facing the
+  //   road, built (no NaN), its sign slot published, its yard open (no
+  //   fence, no shed, no car) - and a house's rules still hold for it
+  if (vil.plots.length >= 8 && BGN) {
+    const bigs = vil.houses.filter(h => h.P.big);
+    for (const want of ['store', 'workshop', 'cannery'])
+      check(bigs.some(h => h.P.preset === want), name + ': no ' + want);
+    for (const h of bigs) {
+      const p = vil.plots[h.plot];
+      check(h.built.stats.tris > 200 && h.built.stats.sign && isFinite(h.built.stats.sign.x), name + ': ' + h.P.preset + ' did not build a sign slot');
+      check(!p.fences.length && !p.out && !p.car && !p.boat, name + ': ' + h.P.preset + ' has a fence, a shed or a car');
+      // it faces the road: its +z, in the world, points from the plot's centre toward the road
+      const fz = [Math.sin(h.yaw), Math.cos(h.yaw)];
+      const c = centreOf(p.poly), fr = p.front;
+      const tr = [fr[0] - c[0], fr[1] - c[1]];
+      check(fz[0] * tr[0] + fz[1] * tr[1] > 0, name + ': ' + h.P.preset + ' turns its back on the road');
+      const okPath = (p.path || []).length >= 3;
+      check(okPath, name + ': ' + h.P.preset + ' has no path');
+    }
+  }
   // 8 — THE POLES (G285): a known pole, on the ground, on the road's verge
   //   (a metre or two off the road's line), on no plot
   for (const q of vil.poles || []) {
@@ -299,11 +323,12 @@ function battery(name, vil) {
     for (const p of vil.plots) {
       const edges = [[p.poly[1], p.poly[2], 'side'], [p.poly[3], p.poly[0], 'side'], [p.poly[0], p.poly[1], 'front']];
       if (p.side === 'land') edges.push([p.poly[2], p.poly[3], 'back']);
-      if (vil.V.fenceOdds >= 1)
+      const bigLot = p.house !== undefined && vil.houses[p.house].P.big;
+      if (vil.V.fenceOdds >= 1 && !bigLot)
         for (const [a, b, kind] of edges)
           check(have.has(key(a, b)), name + ': plot ' + p.id + ' has a hole in its ' + kind + ' fence');
-      check((p.fences || []).some(f => f.kind === 'front' && f.gap), name + ': plot ' + p.id + ' has no gate');
-      if (p.side === 'water' && p.house !== undefined)
+      if (!bigLot) check((p.fences || []).some(f => f.kind === 'front' && f.gap), name + ': plot ' + p.id + ' has no gate');
+      if (p.side === 'water' && p.house !== undefined && !bigLot)
         check(!!vil.houses[p.house].built.stats.stoop, name + ': a waterfront house on plot ' + p.id + ' has no back entrance');
     }
   }
