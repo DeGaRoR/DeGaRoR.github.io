@@ -1476,6 +1476,14 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // and re-deriving that chain here would be a second description of it.
       for (const m of ((window.CAGE_CREW && window.CAGE_CREW.moving) || []))
         PARTS.others.push({ src: m.name, kind: 'ctlMove', ctl: m, groups: {} });
+      // THE PANEL'S HANDS, DRUMS, SWITCHES AND KEY (the panel arc, session
+      // 4): the same contract as the cockpit controls — a named group with
+      // a pivot and axes read off its own world matrix below — plus the LAW
+      // the hand turns by, baked here as a table so the flight never needs
+      // _panel_gen loaded: app.js interpolates `stops` (reading → degrees)
+      // and the two turning laws (a periodic hand, the attitude ball)
+      for (const m of ((window.CAGE_PANEL && window.CAGE_PANEL.moving) || []))
+        PARTS.others.push({ src: m.name, kind: 'gauge', ctl: m, groups: {} });
       if (GB.units && GB.units.castor)
         PARTS.others.push({ src: 'edCastorT', kind: 'castorT',
           topC: GB.units.castor.top, axC: GB.units.castor.ax,
@@ -1580,6 +1588,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
                          a.name.lastIndexOf('edSurf_', 0) === 0 ||
                          a.name.lastIndexOf('edLink_', 0) === 0 ||
                          a.name.lastIndexOf('edCtl_', 0) === 0 ||
+                         a.name.lastIndexOf('edGauge_', 0) === 0 ||   // the panel arc
                          a.name === 'edCastorT')) {
             part = PARTS.others.find(u => u.src === a.name) || null;
             // G240: a cockpit control's pivot and axes, IN THE CAGE'S FRAME,
@@ -1590,7 +1599,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             // the rest of the parts: `rotP` is declared with the second
             // traversal and reading it from this one is a temporal dead zone,
             // not a value (measured: it threw on the first build).
-            if (part && part.kind === 'ctlMove' && !part.axleC) {
+            if (part && (part.kind === 'ctlMove' || part.kind === 'gauge') && !part.axleC) {
               const M4 = new THREE.Matrix4().multiplyMatrices(inv, a.matrixWorld);
               const q = new THREE.Vector3().setFromMatrixPosition(M4);
               part.axleC = [q.x, q.y, q.z];          // the pivot, cage metres
@@ -1684,6 +1693,13 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             // material — two characters' skins must never merge
             (kud.charKey ? 'H' + kud.charKey + '.' + kud.charMat : '') +
             (kud.aeroNoDec ? 'K' : '') +
+            // the panel arc (session 4): the painted faces are one atlas
+            // material and must never merge into a colour bucket (their uv
+            // would be lost); a lamp's lens and cup are their own buckets per
+            // light, so the flight can switch each one
+            (kud.panelSet ? 'G' + kud.panelSet : '') +
+            (kud.lampKey ? 'Lp' + kud.lampKey : '') +
+            (kud.lampCup ? 'Lc' + kud.lampCup : '') +
             (kud.aeroMemF ? 'S' + kud.aeroMemF.join(',') : '') +
             (kud.aeroMetalK ? 'Q' + kud.aeroMetalK : '') +
             (kud.aeroFieldM != null ? 'U' + kud.aeroFieldM : '') +
@@ -1740,6 +1756,12 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           // G210.2: WHICH PERSON, WHICH OF THEIR MATERIALS — app.js rebuilds
           // it from CAGE_CHAR.flatMaterial, maps and all
           ...(ud.charKey ? { char: ud.charKey, charMat: ud.charMat | 0 } : {}),
+          // the panel arc (session 4): the atlas faces and the lamps rebuild
+          // through their own factories (CAGE_PANEL.material, CAGE_LIGHT's
+          // lens / cup) and the lamps are dimmed per frame
+          ...(ud.panelSet ? { panel: ud.panelSet } : {}),
+          ...(ud.lampKey ? { lamp: ud.lampKey, lampCol: ud.lampCol } : {}),
+          ...(ud.lampCup ? { lampCup: ud.lampCup, lampCol: ud.lampCol } : {}),
           // G207: no marking lands here (hardware, structure, the interior)
           ...(ud.aeroNoDec ? { noDec: 1 } : {}),
           // G214: the skin's screws, as the editor drew them
@@ -1815,7 +1837,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
                                                    // flies flat-coloured
                                                    uv: (m0.userData &&
                                                         (m0.userData.vesSet ||
-                                                         m0.userData.charKey))
+                                                         m0.userData.charKey ||
+                                                         m0.userData.panelSet))
                                                        ? [] : null });
         for (let i = r.start; i < end; i++) pushV(G3, idx ? idx.getX(i) : i);
       }
@@ -2064,11 +2087,35 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         out2.axis = axm;                     // swivel axis, model frame
         out2.axle = rotP(-pt.axleC[2], pt.axleC[1], pt.axleC[0]);
       }
-      if (pt.kind === 'ctlMove' && pt.ctl && pt.axC) {
+      if ((pt.kind === 'ctlMove' || pt.kind === 'gauge') && pt.ctl && pt.axC) {
         const c = pt.ctl, A = pt.axC;
         const dirM = d => rotP(-d[2], d[1], d[0]);
         out2.ctl = { name: c.name,      // live crew: the anchors find it by name
                      ax: dirM(A.ax), drive: c.drive, sgn: c.sgn, k: c.k || 1 };
+        if (pt.kind === 'gauge') {
+          // the law, as a table the flight can read without _panel_gen: a
+          // `lin` hand sampled over its scale (reading in SI → clock degrees),
+          // a `turn` hand as its period in SI, a switch / knob / key as its
+          // travel, the ball and the cards by name
+          Object.assign(out2.ctl, { law: c.law, gauge: c.gauge, hand: c.hand, units: c.units });
+          const PGn = window.PANEL_GEN;
+          if (c.law === 'lin' && PGn && c.gauge) {
+            const facts = (window.CAGE_PANEL && window.CAGE_PANEL.last() && window.CAGE_PANEL.last().facts) || {};
+            const S = PGn.scaleOf(c.gauge, c.units, facts);
+            const H = PGn.FACES[c.gauge].hands.find(h => h.name === c.hand);
+            const stops = [];
+            for (let i = 0; i <= 24; i++) {
+              const v = (S.min + (S.max - S.min) * (i / 24 * 1.04 - 0.02)) / S.k;
+              stops.push([+v.toFixed(6), +PGn.angleOf(c.gauge, H, v, c.units, facts).toFixed(3)]);
+            }
+            out2.ctl.stops = stops;
+          }
+          if (c.law === 'turn' && PGn && c.gauge) {
+            const S = PGn.scaleOf(c.gauge, c.units, {});
+            out2.ctl.perSI = c.per / S.k;              // one turn per this much SI
+          }
+          if (c.steps) out2.ctl.steps = c.steps;
+        }
         if (A.ax2) Object.assign(out2.ctl,
           { ax2: dirM(A.ax2), drive2: c.drive2, sgn2: c.sgn2, k2: c.k2 || 1 });
         if (A.slide) Object.assign(out2.ctl,
@@ -2145,8 +2192,19 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
                       fist: L.fist, anim: L.anim, figM, bones, jobs });
       }
     } catch (e) { console.warn('live crew:', e); }
+    // the panel arc (session 4): the positions the light switches were
+    // drawn in, which the flight's own switch state starts from
+    const lights = {};
+    try {
+      const Pl = window.CAGE_UI && window.CAGE_UI.P;
+      if (Pl) {
+        lights.on = !!+Pl.lightOn;
+        for (const k of ['taxi', 'beacon', 'land', 'nav', 'flood', 'instr', 'panel', 'pedal', 'pax'])
+          lights[k] = +Pl['li_' + k] || 0;
+      }
+    } catch (e) {}
     return { cage: true, groups, mats, off, pitch: beta, parts,
-             zRoot: 0, surfaces: null, cageM, people };
+             zRoot: 0, surfaces: null, cageM, people, lights };
   };
   // ...and the view comes back, on the way out or on the way to a throw.
   const snapshot = spec => {

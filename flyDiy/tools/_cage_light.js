@@ -222,6 +222,9 @@ function lensMat(key, level, colOver) {
   // the G38 understudy replaces every lit material with flat grey unless it is
   // told not to; a lamp that goes grey is a lamp nobody can see is on
   m.userData.aeroskin = 1;
+  // the panel arc (session 4): WHICH LIGHT, so the join gives the lens its
+  // own bucket and the flight can switch it
+  m.userData.lampKey = key; m.userData.lampCol = col;
   return (emMats[id] = m);
 }
 // THE REFLECTOR IS LIT BY THE BULB IT SURROUNDS (user, 2026-08-31: "is it
@@ -239,10 +242,10 @@ function lensMat(key, level, colOver) {
 // third name there would make every layer that reads the table carry a
 // finish for something that is a lighting state, not a material.
 const cupMats = {};
-function cupMat(level, colOver, on) {
+function cupMat(level, colOver, on, key) {
   const lv = on ? level : 0;
   const col = colOver != null ? colOver : 0xfff0d8;
-  const id = lv.toFixed(2) + '|' + col;
+  const id = lv.toFixed(2) + '|' + col + '|' + (key || '');
   if (cupMats[id]) return cupMats[id];
   const row = MAT.lodge;
   const m = new THREE.MeshStandardMaterial({
@@ -250,6 +253,7 @@ function cupMat(level, colOver, on) {
     emissive: new THREE.Color(col), emissiveIntensity: lv * 0.55,
     side: THREE.DoubleSide });
   m.userData.aeroskin = 1;            // as for the lens: never the grey understudy
+  if (key) { m.userData.lampCup = key; m.userData.lampCol = col; }   // the panel arc
   return (cupMats[id] = m);
 }
 
@@ -1075,7 +1079,7 @@ PAGE.post = (ctx) => {
     const lodge = Bag(hwMat('lodge')), seal = Bag(hwMat('seal'));
     const lens = Bag(lensMat(key, lv, col));
     // the reflector: the lodge's alloy, lit by the bulb it surrounds
-    const cup = Bag(cupMat(lv, col, reflectOn));
+    const cup = Bag(cupMat(lv, col, reflectOn, key));
     if (site.recess) {
       // THE REFLECTOR AND THE BULB ARE SOLIDS, and the bulb is the emitter —
       // it is drawn in the lens material because a bulb IS the light. The
@@ -1275,7 +1279,10 @@ PAGE.post = (ctx) => {
   if (+P.lightSw && !(window.CAGE_PANEL && window.CAGE_PANEL.switches)) buildSwitches(group, P);
 
   window.CAGE_LIGHT = { LIGHTS, EXT, INT, sites: S, drawn,
-                        lit: lit.map(x => x[0]) };
+                        lit: lit.map(x => x[0]),
+                        // the panel arc (session 4): the flight rebuilds a
+                        // lamp's lens and cup through the same factories
+                        lensMat, cupMat };
   if (stat) {
     const on = Object.keys(LIGHTS).filter(k => drawn[k] && level(P, k) > 0);
     stat.textContent += '  ·  lights: ' + Object.keys(drawn).length + ' fitted' +

@@ -239,6 +239,9 @@ const GATES = [
   // ...and session 2: the fit as a list — catalogues, tiers, the resolver,
   // the ledger billing exactly its rows, the aerials reading the radios
   { id: 'PANEL', file: '_panel_check.js', tier: 'core' },
+  // ...and session 4: the bus — a battery that drains, an alternator that
+  // cuts in, a starter that asks, loads that sum
+  { id: 'ELEC', file: '_elec_check.js', tier: 'core' },
   // world contract (appended: keeps the battery log prefix diffable)
   { id: 'WORLD', file: 'test_world.js', tier: 'core' },
   { id: 'HYDRO', file: 'test_hydro.js', tier: 'core' },

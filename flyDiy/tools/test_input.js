@@ -297,7 +297,9 @@ const out = I => { const c = { eng: null }; I.write(c); return c; };
 // ---- wiring --------------------------------------------------------------------
 ck('build.js lists input.js and input_panel.js before editor.js',
    build.indexOf("'input.js'") > 0 && build.indexOf("'input_panel.js'") > 0 &&
-   build.indexOf("'input.js'") < build.indexOf("'editor.js', 'app.js'"));
+   // (the anchor is editor.js alone: cockpit.js sits between it and app.js
+   // since the panel arc's session 4)
+   build.indexOf("'input.js'") < build.indexOf("'editor.js'"));
 ck('build.js lists controls.css', /'controls\.css'/.test(build));
 ck('app.js writes the input into sim.ctl inside script()',
    (() => { const i = app.indexOf('function script('); return i > 0 && app.slice(i, i + 1600).indexOf('INP.write(sim.ctl)') > 0; })());

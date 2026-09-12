@@ -48,6 +48,9 @@ const MANIFEST = {
     // proves placement in plain node and hangar.js only stands the meshes.
     '26_hangar_fit.js',
     '30_solver.js',
+    // THE ELECTRICAL BUS (the panel arc, session 4): pure, read by the
+    // cockpit and the gates; after the solver only by kinship
+    '31_elec.js',
     // THE GROUND PATH (G193): a declared pattern graph sampled into a path the
     // pilots follow (fillets, curvature, a STOP); pure, read by 25_'s
     // sitePattern consumers, the two pilots, pattern_vis.js and the gates.
@@ -256,7 +259,10 @@ const MANIFEST = {
     // dev_panel.js (W0c.11): the developer's dials, DOM-lazy, over handles
     // the world publishes at runtime (TREE_*, WORLD_RIG, DEV_CAM) - it only
     // has to be in the page; F8 builds it.
-              'input.js', 'input_panel.js', 'editor.js', 'app.js', 'dev_panel.js'],
+              'input.js', 'input_panel.js', 'editor.js',
+              // THE COCKPIT IN FLIGHT (the panel arc, session 4): readings,
+              // switches, the bus, the lamps — app.js calls in; RENDER slot
+              'cockpit.js', 'app.js', 'dev_panel.js'],
   },
   // THE EDITOR (G35): the cage bench, embedded — the game's editor since the
   // old garage panel retired. The list and its ORDER are tools/_cage8.html's

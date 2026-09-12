@@ -55,6 +55,11 @@
     : null;
   if (typeof window !== 'undefined') window.FLYDIY_INPUT = INP;
   let manual = false, inpEv = null;
+  // THE COCKPIT (the panel arc, session 4): cockpit.js's one instance —
+  // null under the smoke gate, which never runs the RENDER block
+  const CK = (window.FLYDIY_COCKPIT && window.FLYDIY_COCKPIT.make)
+    ? window.FLYDIY_COCKPIT.make(THREE) : null;
+  window.FLYDIY_COCKPIT_I = CK;
   const scene = new THREE.Scene();
 
   const camera = new THREE.PerspectiveCamera(46, 1, 0.5, 7000);
@@ -1547,6 +1552,24 @@
       // character and WHICH of its materials, so the factory that dressed
       // them in the shed dresses them here — diffuse map, normal map, cutout
       // and cabin darkness included, with skinning off for the baked mesh.
+      // THE PANEL'S FACES (the panel arc, session 4): one atlas material,
+      // the SAME instance the editor painted — its map is the canvas the
+      // painters wrote and its emissive is the instrument light's dimmer,
+      // driven per frame by cockpit.js. Absent the layer (the smoke gate
+      // never runs the editor block) it falls through to a flat colour.
+      if (data.cage && m.panel && window.CAGE_PANEL && window.CAGE_PANEL.material) {
+        const pm = window.CAGE_PANEL.material(m.panel);
+        if (pm) return matCache[mn] = pm;
+      }
+      // THE LAMPS (the panel arc, session 4): a lens and a cup per light,
+      // from the light layer's own factories, CLONED so each bucket's
+      // emissive is its own — the cockpit's switches dim them per frame
+      if (data.cage && (m.lamp || m.lampCup) && window.CAGE_LIGHT) {
+        const src = m.lamp && window.CAGE_LIGHT.lensMat ? window.CAGE_LIGHT.lensMat(m.lamp, 1.0, m.lampCol)
+                  : m.lampCup && window.CAGE_LIGHT.cupMat ? window.CAGE_LIGHT.cupMat(1.0, m.lampCol, true, m.lampCup)
+                  : null;
+        if (src) { const lm = src.clone(); lm.userData = Object.assign({}, src.userData); lm.emissiveIntensity = 0; return matCache[mn] = lm; }
+      }
       if (data.cage && m.char && window.CAGE_CHAR &&
           window.CAGE_CHAR.flatMaterial) {
         const cm = window.CAGE_CHAR.flatMaterial(m.char, m.charMat || 0);
@@ -1617,7 +1640,7 @@
     };
     const grp = new THREE.Group();
     grp.matrixAutoUpdate = false;
-    const meshes = {}, props = [];
+    const meshes = {}, props = [], lamps = [];                     // lamps: the panel arc
     for (const name in dec) {
       const isProp0 = name === 'prop' || name === 'proptip' || name === 'spinner';
       const geo = mkGeo(dec[name], isProp0);   // prop groups get their own copy
@@ -1647,6 +1670,10 @@
         mesh.castShadow = true;             // the skin replaces the proxy's sun shadow
       meshes[name] = mesh;
       grp.add(mesh);
+      // the panel arc (session 4): which buckets are lamps, for the cockpit
+      if (mats[name] && (mats[name].lamp || mats[name].lampCup))
+        lamps.push({ mesh, key: mats[name].lamp || mats[name].lampCup,
+                     kind: mats[name].lamp ? 'lens' : 'cup' });
     }
     // THE CABIN'S DARKNESS FOLLOWS THE GLAZING (G206.1), as in the editor
     if (typeof AEROSKIN !== 'undefined' && AEROSKIN.aeroSetCabin)
@@ -1658,7 +1685,7 @@
     // travel is the physics showing through, not an animation. The prop
     // parts join `props` and spin with the existing throttle law.
     const wheelParts = [], stretchRigs = [], surfParts = [], linkRigs = [];
-    const ctlMoves = [];                                            // G240
+    const ctlMoves = [], gauges = [];                               // G240; the panel arc
     const engRigs = [], strutRigs = [];                              // G179.2
     let castorRig = null;
     if (data.cage && Array.isArray(data.parts)) {
@@ -1982,6 +2009,16 @@
           grp.add(pg);
           ctlMoves.push({ obj: pg, c: pt.ctl, home: pt.pivot });
         }
+        else if (pt.kind === 'gauge' && pt.ctl) {
+          // THE PANEL'S HANDS (the panel arc, session 4): the same rigid
+          // group on its pivot as a control, turned by cockpit.js from the
+          // READINGS through the law the snapshot baked (ctl.stops / perSI
+          // / the ball / the cards / a switch's travel)
+          if (pg.position && pg.position.set)
+            pg.position.set(pt.pivot[0], pt.pivot[1], pt.pivot[2]);
+          grp.add(pg);
+          gauges.push({ obj: pg, c: pt.ctl, home: pt.pivot });
+        }
         else if (pt.kind === 'ctlLink' && pt.members && pt.members.length &&
                  pt.hinge) {
           // G239: THE PUSHROD AND THE CABLE. One end is bolted to the
@@ -2238,6 +2275,9 @@
     const deltas = { P: new Float32Array(nz * 3), N: new Float32Array(nz * 3) };
     const people = buildPeople(data, grp, ctlMoves);   // live crew
     const m = Object.assign(entry, { grp, props, rigs, deltas, people,
+                        // the panel arc (session 4): the hands, the lamps and
+                        // the bucket records the cockpit reads
+                        gauges, lamps, mats, meshes, data,
                         off: cfg.off,
                         // G179: the design CG in the rest body frame — what
                         // poseModel adds to land the CG-authored mesh on the
@@ -2611,6 +2651,8 @@
                        m.home[2] + c.slide[2] * t);
       }
     }
+    // the panel arc (session 4): the hands on the dash
+    if (CK && model.gauges) CK.pose(model);
     // ...and the live crew's hands and feet go where the controls went
     if (model.people) stepPeople(model, performance.now() / 1000);
     // the CASTOR rides the tailwheel node (rigid offset axle→swivel) and
@@ -2864,6 +2906,18 @@
     }
     model = buildModel(key, def);
     if (model) craft.add(model.grp);
+    // THE COCKPIT (the panel arc, session 4): the readings, the switches,
+    // the bus and the lamps bind to this aeroplane; the altimeter's datum
+    // is the field it stands on. Absent the module (the smoke gate) nothing
+    // here runs.
+    if (model && CK) {
+      try {
+        const fromA = typeof aeroById === 'function' && fromId ? aeroById(fromId) : null;
+        const pilot = ((model.data && model.data.people) || []).find(p => p.role === 'pilot');
+        CK.bind(model, model.data || {}, sim, def.spec || genSpec,
+                { fieldElev: (fromA && fromA.elev) || 0, pilotKey: pilot && pilot.key });
+      } catch (e) { console.warn('cockpit bind:', e); }
+    }
     // THE MARKINGS REACH THE FLOWN AEROPLANE (G160). The user's report was
     // "the registration did not make it in-game intact, my settings affected
     // only the garage", and that was literally true: the only caller of
@@ -6373,7 +6427,13 @@
   function flRevealStart() {
     flShedBox = worldShedBox();
     flReveal = 0;
-    if (cam.mode === 'cockpit' || cam.mode === 'tower') return;
+    // the panel arc (session 4): rolling out INTO the cockpit re-seats the
+    // eye — the cockpit branch of flCamera only re-aims from the pilot's
+    // head when the orbit is far out (distT > 3), and the shed's orbit is
+    // usually nearer than that, which left the camera hanging behind the
+    // seat at the editor's radius, looking at the headrest
+    if (cam.mode === 'cockpit') { distT = dist = 1e3; return; }
+    if (cam.mode === 'tower') return;
     const xA = sim.axes()[0], cg = sim.cgPos();
     const hdg = Math.atan2(xA[2], xA[0]);     // xAft: the tail's direction
     const D = def.params.viewDist || 12;
@@ -6433,6 +6493,7 @@
       camera.up.set(0, 1, 0);
     else camera.up.copy(flUp.set(yU[0], yU[1], yU[2]));
     const D = def.params.viewDist || 12;
+    if (CK && model) CK.cockpitView(cam.mode === 'cockpit', model);   // the panel arc: no pilot in the way
     if (cam.mode === 'cockpit') {
       const e = flyEyeAt();
       if (e) {
@@ -6479,6 +6540,20 @@
   // A DRAG DROPS YOU BACK INTO ORBIT. A locked camera that fights the mouse is
   // the worst of both; the rail says which framing you are in, and taking hold
   // of it says you want your own.
+  // THE COCKPIT'S SWITCHES (the panel arc, session 4): in the cockpit view a
+  // click on a toggle, a knob, a rocker or the key works it; the orbit drag
+  // still happens underneath (a click is a very short drag).
+  $('c').addEventListener('pointerdown', e => {
+    if (inGarage || cam.mode !== 'cockpit' || !CK || !model) return;
+    const r = canvas.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    const hit = CK.pick(camera, ((e.clientX - r.left) / r.width) * 2 - 1,
+                        -((e.clientY - r.top) / r.height) * 2 + 1, model);
+    if (hit && CK.click(hit, e.button)) e.preventDefault();
+  });
+  $('c').addEventListener('contextmenu', e => {
+    if (!inGarage && cam.mode === 'cockpit' && CK) e.preventDefault();
+  });
   $('c').addEventListener('pointerdown', () => {
     if (!inGarage && cam.mode !== 'orbit' && cam.mode !== 'cockpit' && cam.mode !== 'free') {  // DEVCAM
       flCamMode('orbit');
@@ -6813,6 +6888,7 @@
     else if (running && !inGarage) {
       script(1 / 60);
       sim.step(1 / 60);              // substep rate is a per-aircraft property
+      if (CK) CK.frame(1 / 60, sim, ap);   // the panel arc: the readings, the bus, the lamps
       if (++wdFrame % 30 === 0 && !Number.isFinite(sim.p[1])) {
         // G130: a divergence is an ENDING, not a caption — the card comes up
         // with the door home on it, and the logbook gets its broke-up row

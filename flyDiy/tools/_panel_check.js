@@ -279,6 +279,121 @@ function run() {
     check(/edGauge_' \+ d\.k \+ '_' \+ H\.name/.test(layer) && /'edGauge_sw_' \+ key/.test(layer) && /'edGauge_key'/.test(layer),
       'every hand, switch and the key is a named edGauge_* group');
   }
+  // ---- 8. SESSION 4: THE JOIN, THE FLIGHT, THE COCKPIT ---------------------
+  // The snapshot is taken in the browser, so the join's contract is read
+  // off its source; cockpit.js is pure enough to RUN here (three.js loads
+  // in node) against a stand-in model and a stand-in sim, which is where
+  // the laws, the switches, the bus, the lamps and the pick are proven.
+  {
+    const fs = require('fs');
+    const join = fs.readFileSync(path.join(__dirname, '_cage_join.js'), 'utf8');
+    check(/CAGE_PANEL\.moving\)[^\n]*\n[^\n]*kind: 'gauge'/.test(join), 'join: every CAGE_PANEL.moving part is a kind:gauge part');
+    check(/lastIndexOf\('edGauge_', 0\) === 0/.test(join), 'join: edGauge_* is in the pivot walk');
+    check(/kud\.panelSet \? 'G' \+ kud\.panelSet/.test(join) && /kud\.lampKey \? 'Lp'/.test(join) && /kud\.lampCup \? 'Lc'/.test(join),
+      'join: the faces and each lamp\'s lens and cup are their own buckets');
+    check(/ud\.panelSet \? \{ panel: ud\.panelSet \}/.test(join) && /lamp: ud\.lampKey, lampCol/.test(join) && /lampCup: ud\.lampCup, lampCol/.test(join),
+      'join: the bucket records carry panel / lamp / lampCup');
+    check(/m0\.userData\.panelSet\)\)/.test(join), 'join: a faces bucket keeps its uv');
+    check(/out2\.ctl\.stops = stops/.test(join) && /out2\.ctl\.perSI = c\.per \/ S\.k/.test(join) && /out2\.ctl\.steps = c\.steps/.test(join),
+      'join: a gauge part carries its law as a table (stops / perSI / steps)');
+    check(/lights\.on = !!\+Pl\.lightOn/.test(join) && /cageM, people, lights[,\s}]/.test(join), 'join: the snapshot carries the switch positions');
+    const light = fs.readFileSync(path.join(__dirname, '_cage_light.js'), 'utf8');
+    check(/m\.userData\.lampKey = key; m\.userData\.lampCol = col;/.test(light) && /m\.userData\.lampCup = key;/.test(light) && /lensMat, cupMat \};/.test(light),
+      'light layer: the lens and the cup say which light they are, and the factories are published');
+    const app = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'app.js'), 'utf8');
+    check(/m\.panel && window\.CAGE_PANEL && window\.CAGE_PANEL\.material/.test(app), 'app: a panel bucket takes the atlas material');
+    check(/\(m\.lamp \|\| m\.lampCup\) && window\.CAGE_LIGHT/.test(app) && /src\.clone\(\)/.test(app), 'app: a lamp bucket takes a CLONED lens / cup');
+    check(/pt\.kind === 'gauge' && pt\.ctl/.test(app) && /gauges\.push\(\{ obj: pg, c: pt\.ctl/.test(app), 'app: gauge parts build like controls, into model.gauges');
+    check(/gauges, lamps, mats, meshes, data,/.test(app), 'app: the model record carries gauges, lamps, mats, meshes');
+    for (const call of ['CK.bind(model', 'CK.pose(model)', 'CK.frame(1 / 60, sim, ap)', "CK.cockpitView(cam.mode === 'cockpit', model)", 'CK.pick(camera', 'CK.click(hit, e.button)'])
+      check(app.includes(call), 'app: calls ' + call);
+    check(/if \(cam\.mode === 'cockpit'\) \{ distT = dist = 1e3; return; \}/.test(app), 'app: rolling out into the cockpit re-seats the eye');
+    const build = fs.readFileSync(path.join(__dirname, 'build.js'), 'utf8');
+    check(/'31_elec\.js'/.test(build) && build.indexOf("'30_solver.js'") < build.indexOf("'31_elec.js'"), 'build: 31_elec.js in the core after the solver');
+    check(build.indexOf("'cockpit.js'") > build.indexOf("'editor.js'") && build.indexOf("'cockpit.js'") < build.indexOf("'app.js'"), 'build: cockpit.js between editor.js and app.js');
+    check(typeof C.makeBus === 'function', 'core: makeBus exported');
+    // ---- cockpit.js, run ----
+    const THREE = require(path.join(__dirname, '..', 'vendor', 'three.min.js'));
+    const CKm = require(path.join(__dirname, '..', 'src', 'viewer', 'cockpit.js'));
+    check(typeof CKm.make === 'function' && typeof CKm.interp === 'function', 'cockpit: exports make / interp');
+    check(near(CKm.interp([[0, 0], [10, 90], [20, 270]], 5), 45) && near(CKm.interp([[0, 0], [10, 90]], 50), 90) && near(CKm.interp([[0, 0], [10, 90]], -5), 0),
+      'cockpit: interp is piecewise linear and pegs at both ends');
+    global.genSystemsResolve = C.genSystemsResolve; global.makeBus = C.makeBus; global.GEN_INSTR = C.GEN_INSTR;
+    const CK = CKm.make(THREE);
+    const mk = (name, c) => { const g = new THREE.Group(); g.name = name; return { obj: g, c, home: [0, 0, 0] }; };
+    const stops = []; for (let i = 0; i <= 24; i++) stops.push([i * 2, i * 10]);          // 0..48 m/s -> 0..240 deg
+    const AX = [1, 0, 0];
+    const gauges = [
+      mk('edGauge_asi_v', { law: 'lin', gauge: 'asi', hand: 'v', drive: 'ias', ax: AX, sgn: 1, stops }),
+      mk('edGauge_fuel_q', { law: 'lin', gauge: 'fuel', hand: 'q', drive: 'fuelFrac', ax: AX, sgn: 1, stops: [[0, 0], [1, 90]] }),
+      mk('edGauge_clock_m', { law: 'turn', gauge: 'clock', hand: 'm', drive: 'clockM', ax: AX, sgn: 1, perSI: 60 }),
+      mk('edGauge_ai_ball', { law: 'ball', gauge: 'ai', drive: 'roll', ax: AX, sgn: 1, ax2: [0, 0, 1], sgn2: 1 }),
+      mk('edGauge_dg_card', { law: 'card', gauge: 'dg', drive: 'hdg', ax: AX, sgn: 1 }),
+      mk('edGauge_sw_nav', { law: 'switch', drive: 'sw_nav', ax: AX, sgn: 1, k: 0.42 }),
+      mk('edGauge_sw_flood', { law: 'knob', drive: 'sw_flood', ax: AX, sgn: 1 }),
+      mk('edGauge_key', { law: 'key', drive: 'key', ax: AX, sgn: 1, k: Math.PI / 6, steps: 5 }),
+    ];
+    const grp = new THREE.Group(); for (const g of gauges) grp.add(g.obj);
+    gauges[5].obj.position.set(0, 0, 1);                       // the nav switch, a metre ahead of the camera
+    const lensMat = new THREE.MeshStandardMaterial({ emissive: 0xffffff, emissiveIntensity: 0 });
+    const lamps = [{ mesh: new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), lensMat), key: 'nav', kind: 'lens' }];
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1)); body.visible = true;
+    const model = { grp, gauges, lamps, mats: {}, meshes: {}, people: [{ key: 'ch1', inst: { meshes: [body] } }],
+                    data: { lights: { on: true, nav: 0, beacon: 1 }, people: [{ key: 'ch1', role: 'pilot' }] } };
+    const eng = [{ running: true, key: 'both', crank: 0 }];
+    const sim = { out: { Veas: 0, vs: 0, roll: 0, pitch: 0, hdg: 0, r: 0, beta: 0, rpm: [0], rpmEng: [0], nz: 1 },
+                  fuel: { frac: 0.8 }, eng, cgPos: () => [0, 120, 0], setEngine: (i, p) => { if (p.key) eng[i].key = p.key; if (p.key === 'off') eng[i].running = false; if (p.start) { eng[i].crank = 1; eng[i].running = true; } } };
+    const spec = withSys({ fit: 'basic' });
+    CK.bind(model, model.data, sim, spec, { fieldElev: 100, pilotKey: 'ch1' });
+    check(CK.sw.sw_beacon === 1 && CK.sw.sw_nav === 0 && CK.sw.sw_master === 1 && CK.key === 'both', 'cockpit: the switches start where the design drew them, master on, key at BOTH');
+    check(CK.bus && CK.bus.battAh === 16 && CK.bus.altA === 20, 'cockpit: the bus is the fit\'s (16 Ah, 20 A)', CK.bus && CK.bus.battAh);
+    check(grp.children.filter(o => o.children.some(c => c.userData.pickPad)).length === 3, 'cockpit: a pick pad on the switch, the knob and the key, none on a hand');
+    // a still aeroplane on the ground: the venturi makes no suction
+    for (let i = 0; i < 300; i++) CK.frame(1 / 60, sim, { t: i / 60 });
+    check(!CK.gyroOk && near(CK.readings.roll, CKm.REST.roll, 0.05), 'cockpit: below 20 m/s the venturi gyro is dead and the ball lies at rest');
+    check(CK.busOk && near(CK.readings.volts, 12.7, 0.15) && CK.readings.fuelFrac > 0.7, 'cockpit: the battery carries the bus at rest; the fuel gauge reads', CK.readings.volts);
+    check(near(CK.readings.alt, 20, 0.01), 'cockpit: the altimeter reads height above the field it left', CK.readings.alt);
+    // in flight: the readings arrive through their lags, the alternator carries the bus
+    sim.out.Veas = 30; sim.out.roll = 0.3; sim.out.hdg = Math.PI / 2; sim.out.rpm = [2200]; sim.out.rpmEng = [2200];
+    for (let i = 0; i < 300; i++) CK.frame(1 / 60, sim, { t: 5 + i / 60 });
+    check(CK.gyroOk && near(CK.readings.roll, 0.3, 0.01) && near(CK.readings.ias, 30, 0.1), 'cockpit: in flight the gyro erects and the readings follow');
+    check(near(CK.readings.hdg, 90, 0.5), 'cockpit: heading in degrees, the nav way round', CK.readings.hdg);
+    check(near(CK.readings.volts, 14.1, 0.01), 'cockpit: at cruise the alternator holds 14.1 V');
+    // the pose: each law
+    CK.pose(model);
+    const ang = g => { const q = g.obj.quaternion; return 2 * Math.atan2(Math.hypot(q.x, q.y, q.z), q.w) * Math.sign(q.x + q.y + q.z || 1); };
+    check(near(ang(gauges[0]) * 180 / Math.PI, 150, 0.5), 'pose: a lin hand turns by its stops (30 m/s -> 150 deg)', ang(gauges[0]) * 180 / Math.PI);
+    check(near(ang(gauges[1]) * 180 / Math.PI, 72, 2), 'pose: the fuel hand reads the fraction', ang(gauges[1]) * 180 / Math.PI);
+    check(near(ang(gauges[4]) * 180 / Math.PI, 90, 0.5), 'pose: the DG card turns to the heading');
+    check(near(ang(gauges[3]), -0.3, 0.01), 'pose: the ball rolls against the aeroplane');
+    check(near(ang(gauges[5]), -0.42, 1e-6), 'pose: a switch off lies at -k');
+    check(near(ang(gauges[7]) * 180 / Math.PI, 90, 1e-6), 'pose: the key at BOTH is three steps of 30 deg');
+    // the click: the switch through the pick, the lamp answers at once
+    const cam = new THREE.PerspectiveCamera(50, 1, 0.01, 10); cam.position.set(0, 0, 0); cam.lookAt(0, 0, 1); cam.updateMatrixWorld(true);
+    grp.updateMatrixWorld(true);
+    const hit = CK.pick(cam, 0, 0, model);
+    check(hit && hit.c.drive === 'sw_nav', 'pick: a ray through the pad finds the switch', hit && hit.c.drive);
+    check(CK.click(hit, 0) && CK.sw.sw_nav === 1 && near(lensMat.emissiveIntensity, 2.4, 1e-6), 'click: the switch goes on and its lens glows the same frame', lensMat.emissiveIntensity);
+    CK.pose(model); check(near(ang(gauges[5]), 0.42, 1e-6), 'pose: ...and the bat is thrown');
+    check(CK.click(hit, 0) && CK.sw.sw_nav === 0 && lensMat.emissiveIntensity === 0, 'click: again, and it is off and dark');
+    check(CK.click(gauges[6], 0) && near(CK.sw.sw_flood, 0.25) && CK.click(gauges[6], 2) && near(CK.sw.sw_flood, 0), 'click: a knob steps up by a quarter, right-click steps down');
+    // the key: OFF kills the engine, START cranks and springs back to BOTH
+    for (let i = 0; i < 3; i++) CK.click(gauges[7], 2);
+    check(CK.key === 'off' && !eng[0].running, 'key: turned back to OFF the engine stops', CK.key);
+    for (let i = 0; i < 4; i++) CK.click(gauges[7], 0);
+    check(CK.key === 'start' && eng[0].crank > 0, 'key: START asks the solver to crank');
+    eng[0].crank = 0; CK.frame(1 / 60, sim, { t: 9 });
+    check(CK.key === 'both' && CK.sw.key === 3, 'key: ...and springs back to BOTH once it catches');
+    // master off: the bus dies, the electric gauge rests, the lamp is dark whatever its switch
+    CK.sw.sw_nav = 1; CK.sw.sw_master = 0;
+    for (let i = 0; i < 200; i++) CK.frame(1 / 60, sim, { t: 10 + i / 60 });
+    check(!CK.busOk && lensMat.emissiveIntensity === 0, 'master off: a dead bus, and the nav lens is dark with its switch on');
+    CK.pose(model); check(near(ang(gauges[1]), 0, 1e-6), 'master off: the electric fuel gauge lies at its rest stop');
+    // the cockpit view hides the pilot and gives it back
+    CK.cockpitView(true, model); check(!body.visible, 'cockpit view: the pilot\'s body is hidden');
+    CK.cockpitView(false, model); check(body.visible, 'cockpit view: ...and shown again outside it');
+    delete global.genSystemsResolve; delete global.makeBus; delete global.GEN_INSTR;
+  }
   return fail.length === 0;
 }
 

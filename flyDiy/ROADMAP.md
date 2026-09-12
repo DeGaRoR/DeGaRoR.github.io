@@ -567,9 +567,12 @@ trigger is you asking for it.*
    GEN_AVIONICS with list prices, the tiers as presets, genSystemsResolve,
    the Instruments part), the bench + the panel layer (LANDED 2026-09-11
    G256: painted faces on one atlas, hands on one law, the standard T, the
-   switch row, tools/_panel.html), live in flight
-   (join, readings, lamps, the electrical bus), exterior diagnostics + the
-   radio, then the GPS / glass design.
+   switch row, tools/_panel.html), live in flight (LANDED 2026-09-12 G260:
+   the join lifts the hands with their laws, src/viewer/cockpit.js reads
+   the sim into every hand, 31_elec.js's bus with a battery that goes flat
+   and an alternator that cuts in, lamps that switch, a key that starts,
+   the pilot hidden in the cockpit view, GATE ELEC), exterior diagnostics
+   + the radio, then the GPS / glass design.
 2. **Fleet and discovery** [L, old P6]. The rack (forty aeroplanes — the one
    sheet UI-MODEL still reserves), hours, wear, the found aircraft as
    measuring sticks, the envelope card on the plaque.

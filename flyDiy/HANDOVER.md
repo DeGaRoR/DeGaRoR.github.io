@@ -37952,3 +37952,163 @@ the band's bottom whatever the dials leave above it.
   `THREE.Color` already knew). GATE HOUSE with --selftest green. GATE MEDIA red
   at HEAD on the trees session's four orphan fir-tree textures (W0c.10), not
   this arc's — relayed.
+
+## G260 — THE PANEL ARC, SESSION 4: THE PANEL FLIES — THE JOIN LIFTS THE
+## HANDS, THE COCKPIT READS THE SIM, A BUS WITH A BATTERY AND AN ALTERNATOR,
+## LAMPS THAT SWITCH, A KEY THAT STARTS, AND NO PILOT IN THE WAY (2026-09-12)
+
+*Session 4 of `futureDesigns/PANEL-2026-09-11.md`. G256 made the dash real
+in the editor; this makes it real in FLIGHT: every hand turns from the
+solver's numbers, every switch on the dash is a switch, the lights answer
+them through an electrical bus that can go flat, and the cockpit view looks
+out of a pilot who is no longer drawn in the way.*
+
+**`tools/_cage_join.js` — the hands cross the join.** `CAGE_PANEL.moving`
+(27 parts on a basic Cub) becomes `kind: 'gauge'` parts on the G240
+`ctlMove` contract — `edGauge_*` in the pivot walk, the pivot and the axis
+read off the world matrix, the axis through the same `rotP`. What a gauge
+carries that a control does not is ITS LAW, baked as a table so the flight
+never needs `_panel_gen.js` loaded (index.html's editor block is lazy): a
+`lin` hand as 25 `stops` (SI reading → clock degrees, sampled from
+`PANEL_GEN.angleOf` — the ONE law, G256), a `turn` hand as `perSI`, a
+switch / knob / key as its travel and `steps`, the ball and the cards by
+name. Buckets: the painted faces are `'G'+panelSet` (never merged into a
+colour bucket — their uv would be lost; the uv condition admits
+`panelSet`), and every lamp's lens and cup are `'Lp'+key` / `'Lc'+key`
+buckets of their own, the records carrying `panel` / `lamp` / `lampCup` +
+`lampCol` so app.js rebuilds them through the layers' own factories.
+`_cage_light.js` stamps `lampKey` / `lampCup` on its materials and
+publishes `lensMat, cupMat`. The snapshot carries `lights` — the switch
+positions the design was drawn with — which is where the flight's switches
+start.
+
+**`src/core/31_elec.js` — `makeBus(cfg)`, pure.** One 12 V bus:
+`battAh` / `altA` / `altCutIn` (1100 prop rpm) / `loads[]` / `starterA`
+from `genSystemsResolve` (G251's numbers: the lead battery's 16 Ah, the
+generator's 20 A, the alternator's 60 A, each item's amps). `master` and
+`alt` switches, `on[key]` per load, `setLoad`, `step(dt, rpm, cranking)`
+→ `V` (14.1 with the alternator carrying, 12.7 → 11.8 on the battery from
+full to a fifth, 0 dead), `amps` (net into the battery), `soc`, `loadA`,
+`altOn`, `ok` (≥ 9 V: an instrument reads), `starterOk` (≥ 10 V: it
+cranks). Spare alternator current charges the battery, tapering as it
+fills; more load than it makes drains it even at cruise; the starter is
+150 A for as long as it cranks and pulls the bus down 2.5 V; a
+generator-only aeroplane carries its loads above cut-in. Exported from
+`90_node_exports.js`; after the solver in the MANIFEST. **GATE ELEC**
+(`tools/_elec_check.js`, core, after PANEL): the catalogue's rows reach
+the bus; the basic / ifr / minimal fits; the loads sum exactly (a
+switched-off one leaves it, master off is dead); a full battery reads
+12.7 V and runs the basic panel + nav + a beacon 3.46 h (Ah over amps —
+no Peukert, the gauge cannot tell) to a dead bus with the volts never
+rising; below cut-in the battery carries, at cruise 14.1 V, half an hour
+charges most of a third back, a 40 A landing light on a 20 A generator
+discharges at cruise, the alternator switch off leaves the battery; the
+starter is a 150 A load, cranks on a full battery, does nothing without
+one or on a flat one, and the SOLVER refuses `start` when its `starterOk`
+hook says no (the hook cockpit.js installs). Selftests: a 40 Ah battery
+and a dead generator are caught.
+
+**`src/viewer/cockpit.js` — NEW, between editor.js and app.js.**
+`FLYDIY_COCKPIT.make(THREE)` → one instance (`window.FLYDIY_COCKPIT_I`),
+null under UISMOKE (the RENDER block never runs). It owns:
+- **THE READINGS**, once per frame after `sim.step`: ias (Veas), alt
+  above the FIELD IT LEFT (`aeroById(fromId).elev` is the datum — the
+  altimeter's subscale, set at rollout), vs, roll / pitch / heading
+  (degrees the nav way, the shortest way round through its lag), yaw rate,
+  slip, engine rpm, fuel fraction, volts, nz and its max / min, the
+  clock as 12:00 + the flight's own `ap.t`, oil pressure / temperature
+  nominal-when-running (declared decorative on the row). Each through its
+  own lag (VSI 2.5 s, ASI 0.25 s, oil temperature 8 s, heading 0.5 s).
+  Honesty: a venturi makes no suction below 20 m/s and a pump none with
+  the engine stopped, so the gyros are DEAD on the ground — the ball
+  relaxes to a tumbled rest (roll 0.55, pitch −0.35) and the DG freezes at
+  its last heading; an electric instrument reads its rest stop when the
+  bus is dead (`bus.ok`), the fuel gauge among them.
+- **ONE STATE FOR THE SWITCHES**: `CK.sw` — `sw_<light>` 0/1 or 0..1,
+  `sw_master`, `sw_alt`, `key` 0..4 — seeded from the snapshot's `lights`,
+  master and alt on, the key at BOTH (the AP flies a running engine; the
+  key is the player's). Read by the bus (loads per lamp: taxi 5 A, beacon
+  3 A at half duty, landing 8 A, nav 2.5 A, flood 0.5, instr 0.6, panel
+  1.0, pedal 0.3, pax 0.5), the lamps, the faces' backlight and the hands.
+- **THE LAMPS** per frame (`glow`): each lens bucket's `emissiveIntensity`
+  = switch × bus × 2.4 (cups 0.55), the beacon pulsing at 0.75 Hz; a real
+  SpotLight at the landing / taxi lens (4.0 landing, 1.6 taxi, aimed
+  ahead and down); the faces' emissive from the `instr` dimmer. A click
+  calls `glow` at once, so a switch answers while the sim is paused.
+- **THE POSE** (`pose`, in `poseModel` after the controls): `lin` through
+  `interp(stops)`, `turn` by `perSI`, the ball −roll about the view axis
+  and −pitch about its own (`ax2`), the DG's card from the frozen heading,
+  a switch at ±k, a knob −135° + 270°·v, the key 30° a step;
+  `qA(ax)·qB(ax2)` on the part's pivot group.
+- **THE CLICK** (`pick` / `click`): the app's real camera and a Raycaster
+  over `model.grp`; glass (a transparent material) is see-through to the
+  ray; each switch, knob and the key gets an unseen PICK PAD at its pivot
+  (a sphere that draws nothing, `colorWrite: false` — a toggle's bat is
+  two millimetres across); a hit resolves to its `model.gauges` entry by
+  walking parents. Left click throws a toggle / steps a knob up a quarter /
+  turns the key a step; right click steps down. The key writes
+  `sim.setEngine` — OFF stops the engine, START cranks (`{start: true}`)
+  and springs back to BOTH once it catches; a build without a starter is
+  refused (`sim.starterOk` reads the fit and the bus). `swing()` for the
+  hand-propped build (no input binding yet — owed).
+- **THE COCKPIT VIEW** hides the pilot: the crew layer's first occupant
+  (`model.people[0]`), flown as a live character (G246) whose skinned
+  `inst.meshes` are hidden, or the bake's `dummy1` buckets / the pilot's
+  `char` buckets on a build without characters — asked every frame
+  because the character lands async; shown again outside the view.
+  Before this the cockpit looked out through the skull (a black frame).
+
+**`src/viewer/app.js`**: `matFor` branches for `m.panel` (the layer's
+atlas material, the SAME instance — its emissive is the dimmer) and
+`m.lamp` / `m.lampCup` (the light layer's lens / cup, CLONED per bucket
+with emissive 0); lamps collected as the buckets become meshes; `kind:
+'gauge'` builds like a control into `model.gauges`; the model record
+carries `gauges, lamps, mats, meshes`; `CK.bind` after `buildModel` in
+`setAircraft` (the field's elevation, the pilot's key from `data.people`);
+`CK.frame` after `sim.step`; `CK.pose` in `poseModel`; `CK.cockpitView`
+in `flCamera`; a pointerdown in the cockpit view picks before the orbit
+drag; the context menu is the knob's step-down there. And one camera fix:
+rolling out INTO the cockpit re-seats the eye (`flRevealStart` puts the
+orbit far out so the cockpit branch re-aims from the pilot's head) — the
+branch only did so past 3 m and the shed's orbit is nearer, which left
+the flown cockpit hanging behind the seat at the editor's radius, looking
+at the headrest. (G141 fragility; found because this is the first arc
+that looks at the panel from the seat.)
+
+**Seen in the pumped dev page** (`_dev_pump.html`, the rAF shim — the
+pane fires no rAF): rolled out into the cockpit, the panel from the seat
+with no pilot; on the stand the ASI at 0, the tacho at 1000, the AI
+tumbled, the volts on the battery; flown by the pilot to DOWNWIND — IAS
+82 kt on the ASI, 2311 rpm on the red line's side of 20, the AI's horizon
+tilted for a 5.7° right bank, the compass reading N at heading 0.4°, 14.1
+V; a real click on the beacon toggle threw it (`sw_beacon: 1`); the nav
+lens at 2.4 emissive when its switch was thrown.
+
+**GATE PANEL grew a section 8** (the join's contract read off its source;
+cockpit.js RUN in node against a stand-in model and sim — three.js loads
+in node): every `CAGE_PANEL.moving` part a gauge part; `edGauge_` in the
+walk; the three bucket keys and the three records; the faces keep uv; a
+gauge carries stops / perSI / steps; the snapshot carries `lights`; the
+light layer stamps and publishes; app.js's branches, the model record,
+the six calls, the re-seated eye; the MANIFEST order; `makeBus` exported;
+`interp` pegs; the switches start where drawn; the bus is the fit's; pick
+pads on the three switch kinds only; the gyro dead at rest and erect in
+flight; the altimeter above the field; heading the nav way; 14.1 V at
+cruise; every law's pose angle; the pick through the pad; the click that
+lights the lens the same frame and throws the bat; the knob's quarter
+steps; the key OFF → engine stops, START → cranks, springs back; master
+off → dead bus, dark lens, the electric gauge at rest; the pilot hidden
+and shown. GATE INPUT's manifest check anchors on `'editor.js'` alone
+(cockpit.js sits between it and app.js now).
+
+**Gates (private copy, build + `--no-build`):** ELEC, PANEL, RPM, JOIN,
+PARTS, BUILD, SKINMAT, FIT, DESIGN, INPUT, STARTER, SAVE, VIEW, BAY,
+BEACON, ENERGY green; UISMOKE and LIGHT red at HEAD since W0c.10
+(`render_world.js` hemiLight, app.js `pointerlockerror`) — not this arc's.
+GATE GEN run direct (`node tools/test_gen.js`) — see the commit message.
+
+**Owed (session 5 and after):** the exterior diagnostics card and the
+COM / XPDR faces that tune (session 5); the beacon's rotor turning on the
+flown dome (today it pulses); the cabin flood as a real light; an input
+binding for the prop swing; the fixed-step accumulator (G200) before the
+needles' feel is judged; a QNH knob with the day cycle.
