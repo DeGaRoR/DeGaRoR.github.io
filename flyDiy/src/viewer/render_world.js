@@ -1229,7 +1229,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             'vUvI = uv;',
             'vec4 mvPosition = modelViewMatrix * vec4(wp, 1.0);',
             'gl_Position = projectionMatrix * mvPosition;',
-            'if (dCam < uNearB - uFadeW * 0.5 || dCam > uShadowR * 1.6) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);',
+            'if (dCam < uNearB || dCam > uShadowR * 1.6) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);',
           ].join('\n'));
         sh.fragmentShader = sh.fragmentShader
           .replace('#include <common>', '#include <common>\nuniform sampler2D uAtlas;\n' +
@@ -1506,7 +1506,19 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       '#else',
       'float bandD = distance((modelMatrix * vec4(transformed, 1.0)).xyz, uCam);',
       '#endif'].join('\n');
-    const BAND_GLSL = (originExpr) => originExpr + '\n' + [
+    // ONE CASTER PER TREE, AT A HARD EDGE (W0c.24). The draw fades one rung
+    // into the next across a window, dithered, and the shadow pass copied
+    // that - so inside every window a tree cast from TWO rungs, each with a
+    // stipple whose thresholds moved with the eye's distance, and its
+    // impostor caster on top, whole. Move the camera a hair and every
+    // shadow in a window was re-rolled: the "constantly redrawn" jitter
+    // the user filmed. A shadow comes from exactly one representation now,
+    // chosen at the band's edge with no window, and it does not know where
+    // the eye is beyond that choice.
+    const BAND_GLSL = (originExpr, hard) => hard ? originExpr + '\n' + [
+      'vBandD = bandD;',
+      'if (uNoBand < 0.5 && (bandD < uNearB || bandD >= uFarB)) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);',
+    ].join('\n') : originExpr + '\n' + [
       'vBandD = bandD;',
       // world position, for the depth pass's dither (see DITHER_GLSL)
       '#ifdef USE_INSTANCING',
@@ -1587,11 +1599,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         sh.vertexShader = sh.vertexShader
           .replace('#include <common>', BAND_DECL_V + '\nuniform vec3 uCam;')
           .replace('#include <project_vertex>', '#include <project_vertex>\n' +
-            BAND_GLSL(BAND_ORIGIN_CAM));
-        // the shadow dithers too, or the window would cast twice
+            BAND_GLSL(BAND_ORIGIN_CAM, true));
+        // no dither in the shadow pass: the hard band above is the whole rule
         sh.fragmentShader = sh.fragmentShader
-          .replace('#include <common>', BAND_DECL_F)
-          .replace('#include <alphatest_fragment>', DITHER_GLSL(true) + '\n#include <alphatest_fragment>');
+          .replace('#include <common>', BAND_DECL_F);
       };
       return d;
     };

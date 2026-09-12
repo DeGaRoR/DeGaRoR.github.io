@@ -413,6 +413,18 @@ instances holding 7.5 of the card's 10 GB, one run in four of the Smoothest
 tier came back at 160 ms; a run is trustworthy only when its three tiers sit
 in their usual ratio, and the JSON in `tools/perf/` is such a run.
 
+**One caster per tree (W0c.24).** The user filmed shadows "redrawn a little
+different" on every small camera move: long sunset streaks in layers, the
+layers changing. The shadow pass had copied the draw's fade window — inside it
+a tree cast from TWO rungs, each dithered with thresholds that moved with the
+eye's distance, plus its impostor caster whole. The shadow pass has no window
+now: a rung casts inside its band at a hard edge, the impostor casts beyond the
+last one, nothing is dithered, and nothing in a shadow depends on where the eye
+is beyond that choice. Measured with the eye creeping 0.37 m a frame over a
+meadow of sunset streaks: the frame-to-frame change in the shadow region is
+1.1 % of pixels with shadows on and 1.3 % with every shadow off — the shadows
+add nothing above the parallax floor.
+
 **Not done.** The `impa` / `implight` per-collection numbers are not in the
 payload (6 / 6.5 and 1 in the tuning: one gain, one lit, for all). The boot rig
 is still `sunset`; `alps` is two clicks on the panel and is the row the trees
