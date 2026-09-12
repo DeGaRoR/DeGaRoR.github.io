@@ -1366,7 +1366,8 @@ const PRESETS = {
     stance: 3, floorY: 2.2, slopeZ: 12, eaveOver: 0.45, rakeOver: 0.35,
     nFront: 6, nBack: 5, nLeft: 3, nRight: 3, winW: 0.9, winH: 1.2,
     porch: 1, porchD: 1.6, porchLenF: 0.35, porchOff: 0.4, railStyle: 1,
-    chim: 0, lean: 1, leanD: 2.6,
+    chim: 1, chimR: 0.14, chimUp: 1.6, chimXF: 0.55, chimZF: -0.30,
+    lean: 1, leanD: 2.6,
     postSpc: 2.0, postSz: 0.22, brace: 1,
   },
   // THE CHURCH from the photograph: white clapboard, a rusted metal roof, and
@@ -1377,7 +1378,8 @@ const PRESETS = {
     nFront: 3, nBack: 3, nLeft: 1, nRight: 0,
     winW: 0.70, winH: 1.75, winSill: 1.05, gableWin: 1,
     doorPos: 0.5, doorW: 1.10, doorH: 2.15, doorLight: 0,
-    porch: 0, chim: 0, gutter: 0, downpipe: 0, skirt: 0, ribs: 0,
+    porch: 0, chim: 1, chimR: 0.09, chimXF: -0.62, chimZF: -0.35,
+    gutter: 0, downpipe: 0, skirt: 0, ribs: 0,
     cupola: 1, cupSides: 8, cupR: 0.60, cupH: 1.00, cupSpire: 1.35,
     cupXF: 0.66, cupCross: 1,
     wallSet: SET_IDX('wall', 'paintwood'), wallCol: 6,
@@ -1393,7 +1395,8 @@ const PRESETS = {
     stance: 4, floorY: 0.34, slopeZ: 4, eaveOver: 0.26, rakeOver: 0.22,
     nFront: 0, nBack: 0, nLeft: 0, nRight: 0, gableWin: 0,
     doorPos: 0.5, doorW: 0.88, doorH: 1.95, doorLight: 0, trimW: 0.07,
-    porch: 0, chim: 0, gutter: 0, downpipe: 0, ribs: 0, fascia: 0.12,
+    porch: 0, chim: 1, chimR: 0.07, chimUp: 0.8, chimXF: 0.35, chimZF: -0.30,
+    gutter: 0, downpipe: 0, ribs: 0, fascia: 0.12,
     barge: 0.10,
     wallSet: SET_IDX('wall', 'greywood'), wallCol: 0,
     trimSet: SET_IDX('trim', 'veneerwarm'), trimCol: 0,
@@ -1453,7 +1456,8 @@ const PRESETS = {
     nFront: 5, nBack: 0, nLeft: 1, nRight: 1, winW: 0.90, winH: 1.05,
     winSill: 1.35, eaveOver: 0.50, rakeOver: 0.30, doorW: 1.35, doorH: 2.20,
     porch: 1, porchD: 2.20, porchLenF: 1.0, railStyle: 2, stairs: 0,
-    chim: 0, gutter: 1, downpipe: 1, skirt: 0, ribs: 1,
+    chim: 1, chimR: 0.10, chimXF: 0.50, chimZF: -0.40,
+    gutter: 1, downpipe: 1, skirt: 0, ribs: 1,
     wallSet: SET_IDX('wall', 'greywood'), wallCol: 0,
     trimSet: SET_IDX('trim', 'veneerdark'), trimCol: 0,
     roofSet: SET_IDX('roof', 'corrworn'), roofCol: 0,
@@ -1483,7 +1487,8 @@ const PRESETS = {
     eaveOver: 0.35, rakeOver: 0.28, roofT: 0.16,
     nFront: 2, nBack: 2, nLeft: 1, nRight: 1, winW: 0.85, winH: 1.05,
     winSill: 1.55, doorW: 1.55, doorH: 2.45, doorLight: 0, trimW: 0.13,
-    porch: 0, chim: 0, gutter: 1, downpipe: 1, skirt: 3, brace: 1,
+    porch: 0, chim: 1, chimR: 0.10, chimXF: 0.55, chimZF: -0.40,
+    gutter: 1, downpipe: 1, skirt: 3, brace: 1,
     backDoor: 1, backPorch: 0, weather: 0.65,
     wallSet: SET_IDX('wall', 'roughwood'), wallCol: 10,
     trimSet: SET_IDX('trim', 'veneer'), trimCol: 6,
@@ -1526,7 +1531,8 @@ const PRESETS = {
     stance: 0, floorY: 0.45, slopeZ: 2, eaveOver: 0.30, rakeOver: 0.26,
     nFront: 2, nBack: 2, nLeft: 1, nRight: 0, winW: 0.65, winH: 1.65,
     winSill: 1.15, gableWin: 1, doorW: 1.05, doorH: 2.15, doorLight: 0,
-    porch: 0, chim: 0, gutter: 0, downpipe: 0, skirt: 0, ribs: 0,
+    porch: 0, chim: 1, chimR: 0.09, chimXF: -0.60, chimZF: -0.35,
+    gutter: 0, downpipe: 0, skirt: 0, ribs: 0,
     cupola: 1, cupSides: 6, cupR: 0.48, cupH: 0.85, cupSpire: 1.9, cupXF: 0,
     cupCross: 1, backDoor: 1, backPorch: 1, weather: 0.15, paintPunch: 0.85,
     wallSet: SET_IDX('wall', 'board'), wallCol: 6,
@@ -4570,7 +4576,10 @@ function randomHouse(seed) {
   P.porchRoof = pick([0, 0, 1, 2]);
   P.lean = odds(0.22) ? 1 : 0; P.leanD = rr(1.6, 3.0);
   P.leanLF = rr(0.4, 0.8); P.leanOff = rr(-0.3, 0.3);
-  P.chim = pick([0, 1, 1, 2]);
+  // EVERY HOUSE HAS A FORM OF CHIMNEY (G262, the user): a stove pipe twice as
+  // often as masonry, never none - it is Alaska, and a roof with no smoke
+  // coming out of it is a roof nobody lives under
+  P.chim = pick([1, 1, 2]);
   P.chimXF = rr(-0.7, 0.7); P.chimZF = rr(-0.5, 0.5);
   P.gutter = odds(0.6) ? pick([1, 1, 2]) : 0;
   P.downpipe = P.gutter ? 1 : 0; P.dpCorner = ri(0, 7);

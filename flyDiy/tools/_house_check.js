@@ -893,6 +893,14 @@ function battery(name, P) {
             name + ': hand 0 still moved something');
   }
 
+  // 33 — EVERY HOUSE HAS A FORM OF CHIMNEY (G262, the user: "All houses
+  //   should have a form of chimney"). A stove pipe or a masonry stack, on
+  //   every closed building - the one exemption is the open-fronted shelter
+  //   (the woodshed), which is not a room anybody heats.
+  if (!P.openFront)
+    check(!!hi.stats.chimney, name + ': no chimney',
+          'chim ' + Math.round(P.chim));
+
   // 17 — a back door that opens onto nothing is not a garden door
   // (a back door inside the lean-to's span opens INTO the shed, onto its
   // floor, and gets no stoop by design - rule 23 holds that it has a platform)
@@ -1284,6 +1292,13 @@ if (SELFTEST) {
   if (!(h0 && h0.lean === 0 && h0.twist === 0)) neg.push('hand 0 still moved something');
   if (JSON.stringify(HG.build(Object.assign({}, HG.DEF, { hand: 1, railStyle: 1 }), 0).stats.hand) !== JSON.stringify(h1))
     neg.push('the hand is not deterministic');
+  // THE CHIMNEY (G262): the rule reads the build, not the dial - a house with
+  // the chimney dialled off publishes none, so the rule can go red
+  if (HG.build(Object.assign({}, HG.DEF, { chim: 0 }), 0).stats.chimney)
+    neg.push('a house with no chimney published one');
+  for (const nm in HG.PRESETS)
+    if (!HG.PRESETS[nm].openFront && Math.round(HG.PRESETS[nm].chim === undefined ? HG.DEF.chim : HG.PRESETS[nm].chim) === 0)
+      neg.push('preset ' + nm + ' has no chimney');
   // lod 1 must be a construction: switching it off must actually remove work
   const a0 = HG.build(HG.DEF, 0).stats.tris, a1 = HG.build(HG.DEF, 1).stats.tris;
   if (!(a1 < a0 * 0.3)) neg.push('lod 1 is not cheaper by construction');

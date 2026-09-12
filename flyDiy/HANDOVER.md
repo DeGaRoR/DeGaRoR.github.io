@@ -38152,3 +38152,25 @@ needles' feel is judged; a QNH knob with the day cycle.
   180°") — he faces the house now, on the deck and on the stoop alike.
 - Gates: HOUSE (with --selftest) green. GATE MEDIA red at HEAD on the trees
   session's orphan fir textures (W0c.10), not this arc's.
+
+## G262 — EVERY HOUSE HAS A FORM OF CHIMNEY (2026-09-12, the user: "All
+## houses should have a form of chimney")
+
+- Seven presets had none — the cannery shed, the village church, the storage
+  shed, the net loft, the gambrel barn, the chapel, the woodshed — and the
+  sampler dialled `none` a quarter of the time. Each closed preset has one
+  now, placed for the building it is on: a tall 14 cm stack on the cannery, a
+  stove pipe at the back end of the church and the chapel (away from the
+  belfry and the spire), a small one on the storage shed, one clear of the
+  bay on the net loft and one on the barn's upper slope. The sampler picks a
+  stove pipe twice as often as masonry and never none.
+- **THE ONE EXEMPTION IS THE OPEN-FRONTED SHELTER** — the woodshed has three
+  walls and no door and is not a room anybody heats. Say the word and it gets
+  a pipe too.
+- **GATE HOUSE rule 33**: every build that is not open-fronted publishes a
+  chimney; read from the build, not the dial, so the selftest proves it red
+  with the chimney dialled off, and walks every preset for a closed one with
+  none.
+- The `chimney` dial keeps its `none` for the bench; the rule is on what the
+  presets and the sampler produce.
+- Gates: HOUSE (with --selftest) green.
