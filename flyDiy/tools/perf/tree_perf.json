@@ -1,8 +1,8 @@
 {
- "date": "2026-09-12T15:16:59.517Z",
+ "date": "2026-09-12T16:18:50.947Z",
  "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
  "rig": "alps",
- "ng": 128,
+ "ng": 112,
  "stand": [
   1663,
   -1361
@@ -10,37 +10,37 @@
  "settled": true,
  "rows": [
   {
-   "tier": "full",
-   "median": 47.8,
-   "p90": 53.5,
-   "world": 1.3,
-   "render": 40.9,
-   "calls": 1,
-   "tris": 2,
-   "near": 14919,
-   "impostors": 169658
+   "tier": "off",
+   "median": 15.2,
+   "p90": 19.6,
+   "world": 0.6,
+   "render": 9.1,
+   "calls": 888,
+   "tris": 11741408,
+   "near": 5221,
+   "impostors": 133832
   },
   {
    "tier": "msaa",
-   "median": 39.2,
-   "p90": 43.8,
-   "world": 0.7,
-   "render": 31.9,
+   "median": 26.9,
+   "p90": 30.4,
+   "world": 0.6,
+   "render": 19.5,
    "calls": 1,
    "tris": 2,
-   "near": 14387,
-   "impostors": 169914
+   "near": 5026,
+   "impostors": 133832
   },
   {
-   "tier": "off",
-   "median": 25,
-   "p90": 32.6,
-   "world": 0.7,
-   "render": 17.9,
-   "calls": 898,
-   "tris": 33261752,
-   "near": 14630,
-   "impostors": 169914
+   "tier": "full",
+   "median": 34,
+   "p90": 40,
+   "world": 0.6,
+   "render": 27,
+   "calls": 1,
+   "tris": 2,
+   "near": 4963,
+   "impostors": 133832
   }
  ]
 }
