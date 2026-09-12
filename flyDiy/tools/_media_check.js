@@ -66,6 +66,14 @@ function manifestFiles() {
     ? JSON.parse(fs.readFileSync(pierMf, 'utf8'))
         .map(f => path.join(ROOT, 'src', 'pier', f))
     : [];
+  // the panel hardware kit (the panel arc, session 4c): the baker's third
+  // table — the switches, knobs, buttons and the key — its own packs and
+  // media (media/geo/panelhw, media/tex/panelhw)
+  const hwMf = path.join(ROOT, 'src', 'panelhw', 'panelhw_packs.json');
+  const panelhw = fs.existsSync(hwMf)
+    ? JSON.parse(fs.readFileSync(hwMf, 'utf8'))
+        .map(f => path.join(ROOT, 'src', 'panelhw', f))
+    : [];
   // EVERY payload on disk, not build.js's publish list: the table is the
   // CATALOGUE and MANIFEST.models the published subset (GATE REF's own
   // distinction). draco is baked-but-unpublished — no spec holds its scale —
@@ -85,7 +93,7 @@ function manifestFiles() {
   // the baked trees (W0b): one manifest, listing one bin per collection
   const trees = fs.existsSync(path.join(ROOT, 'src', 'core', 'trees_pack.json'))
     ? [path.join(ROOT, 'src', 'core', 'trees_pack.json')] : [];
-  return v.concat(packs, pier, models, chars, trees);
+  return v.concat(packs, pier, panelhw, models, chars, trees);
 }
 
 const REF_RE = /media\/[A-Za-z0-9_\-./]+?\.(?:jpg|png|bin)/g;

@@ -584,6 +584,8 @@ const AERO_HARD = {
   panel: { bezel: 'trim', needle: 'trim', hub: 'plastic', symbol: 'trim',
            ball: 'plastic', plate: 'plastic', lever: 'bareAlu', knob: 'plastic',
            rocker: 'plastic', key: 'bareAlu', barrel: 'bareAlu', bowl: 'plastic',
+           // the hardware kit's flat materials (the panel arc, session 4c)
+           grip: 'plastic', cap: 'plastic', amber: 'plastic',
            face: null },
   // ---- the cabin (_cage_crew.js M) ----------------------------------------
   crew: {

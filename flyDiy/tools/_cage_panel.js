@@ -369,6 +369,11 @@ const MAT = {
   key:    { col: 0xc9b47a, rough: 0.35, metal: 0.85 },   // brass
   barrel: { col: 0x8d949c, rough: 0.40, metal: 0.70 },   // the lock barrel
   bowl:   { col: 0x2a2d33, rough: 0.35, metal: 0.10 },   // the compass bowl
+  // the hardware kit's own flat materials (tools/panel_table.py): the
+  // pack's GRAY grip, its red guard / cap, its amber lens
+  grip:   { col: 0x3a3e46, rough: 0.45, metal: 0.00 },
+  cap:    { col: 0xb0281e, rough: 0.40, metal: 0.00 },
+  amber:  { col: 0xffb040, rough: 0.30, metal: 0.00 },
   face:   { col: 0x101214, rough: 0.85, metal: 0.00 },   // the atlas (no finish)
 };
 const matCache = {};
@@ -593,65 +598,266 @@ function cardDrumInto(bag, slot, r, h) {
 // a flat card (the DG's rose) — a disc carrying its slot, turning about +z
 function cardDiscInto(bag, slot, r, z) { faceAt(bag, 0, 0, z, r, slot, 48); }
 
-// ---- the switches ------------------------------------------------------------
-// the row's base plate, one per switch
-function plateAt(bag, x, y, z, pitch) {
-  KIT().boxIn(bag, [x, y, z + 0.004], [pitch * 0.31, 0.008, 0.004], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+// ---- THE HARDWARE KIT (session 4c) --------------------------------------------
+// The user's assets (assets/interior/*.glb), declared in tools/panel_table.py
+// and baked by tools/panel_prep.py into props packs (src/panelhw/) the game
+// registers on PROP_REG like the hangar's. A piece is fetched once through
+// the props' own warm path, decoded with the props codec and kept as
+// geometries per material; the LAYER'S materials replace the pack's flat
+// colours by name (SILVER → the bare-metal lever, BLACK → the black knob,
+// GRAY → grip, the red 'material' → cap, AMBER → amber), and a textured
+// piece (the key) keeps the props' one material. Every piece stands along
+// +y on y = 0 in the pack; `hwStand` turns it out of the plate (−z here).
+// Absent the packs (the bench, a headless load) or before the bytes land,
+// the procedural pieces below draw, and the editor rebuilds once when the
+// kit is in.
+const HW_MAT = { SILVER: 'lever', BLACK: 'knob', GRAY: 'grip', material: 'cap', AMBER: 'amber' };
+const HW = { built: {}, asked: {}, rebuild: null };
+function hwProp(key) {
+  const R = (typeof PROP_REG !== 'undefined') ? PROP_REG : (typeof window !== 'undefined' && window.PROP_REG);
+  return R && R.props ? R.props[key] || null : null;
 }
-// a toggle: a chromed bat that leans up (on) or down (off) about a lateral
-// pivot on the plate — `sw_<key>` drive, 0/1 → ±0.42 rad
-function toggleAt(parent, x, y, z, key, on) {
-  const g = gaugeAt(parent, 'edGauge_sw_' + key, [x, y, z - 0.004], [1, 0, 0], 'sw_' + key, 'switch',
+function hwGet(key) {
+  if (HW.built[key]) return HW.built[key];
+  const prop = hwProp(key);
+  if (!prop || typeof propReady !== 'function' || typeof propBuild !== 'function') return null;
+  if (!propReady(key)) {
+    if (!HW.asked[key] && typeof propWarm === 'function') {
+      HW.asked[key] = true;
+      propWarm(key).then(() => {
+        // one rebuild for the whole kit, once the last asked-for piece is in
+        clearTimeout(HW.rebuild);
+        HW.rebuild = setTimeout(() => { if (window.CAGE_UI && window.CAGE_UI.build) window.CAGE_UI.build(); }, 60);
+      }).catch(e => console.warn('panel kit:', key, e));
+    }
+    return null;
+  }
+  const b = propBuild(THREE, key);              // geometries + the props' materials, cached
+  const parts = b.geos.map((geo, i) => {
+    const name = b.prop.parts[i].mat, rec = b.prop.mats[name];
+    const mat = (rec && rec.map) ? b.mats[i] : matFor(HW_MAT[name] || 'knob');
+    return { geo, mat, name };
+  });
+  return (HW.built[key] = { prop, parts, bb: prop.bb });
+}
+// a kit piece as meshes under `parent`, standing out of the plate at (x, y,
+// z): pack +y → −z, pack +z → +y (up the panel), pack +x → +x; `spin` turns
+// it about its own axis first (a pointer to 12 o'clock)
+function hwStand(parent, key, x, y, z, spin, scale, only) {
+  const k = hwGet(key);
+  if (!k) return null;
+  const g = new THREE.Group();
+  g.position.set(x, y, z);
+  g.rotation.x = -Math.PI / 2;
+  if (scale) g.scale.setScalar(scale);
+  const inner = new THREE.Group();
+  if (spin) inner.rotation.y = spin;
+  g.add(inner);
+  for (const p of k.parts) {
+    if (only && !only(p.name)) continue;                 // a piece's moving part from its fixed one
+    const m = new THREE.Mesh(p.geo, p.mat); m.userData.sharedGeo = true; inner.add(m);
+  }
+  parent.add(g);
+  return g;
+}
+// which way a pointer knob points in the pack: the vertex farthest from the
+// axis in the top third, as an angle about +y (0 = +z)
+function hwPointer(key) {
+  const k = hwGet(key);
+  if (!k) return 0;
+  if (k.pointer != null) return k.pointer;
+  let best = 0, ang = 0;
+  const top = k.bb[4] - (k.bb[4] - k.bb[1]) * 0.35;
+  for (const p of k.parts) {
+    const P = p.geo.attributes.position;
+    for (let i = 0; i < P.count; i++) {
+      const x = P.getX(i), y = P.getY(i), z = P.getZ(i);
+      if (y < top) continue;
+      const r = Math.hypot(x, z);
+      if (r > best) { best = r; ang = Math.atan2(x, z); }
+    }
+  }
+  return (k.pointer = ang);
+}
+
+// ---- the switches ------------------------------------------------------------
+// THE HARDWARE, REMODELLED (session 4c, the user: "give some extra love to
+// the switches and buttons ... a proper hexagonal base for the switches,
+// proper size of the base, proper metal material from the library ... the
+// knobs with little side ridges, slightly conical with a plastic material
+// ... the push button should have a base in the dashboard and a proper
+// material, and small bevels"). Every piece is at its real size: an MS-type
+// toggle's 11 mm hex nut, 6.3 mm bushing and 22 mm bat; a 20 mm dimmer knob
+// with eighteen ridges, tapering to 16 mm over 12 mm of height; a rocker in
+// a 15 x 24 mm bezel with a chamfered cap; a lock with a dished escutcheon,
+// a keyway and a key with a bow, a neck and a bitted blade. The bare-metal
+// pieces take the library's bareAlu (`lever`, `barrel`), the key its brass,
+// the plastic ones `knob` / `rocker` / `plate`.
+// sections for the KIT's sweep, in its (u, v) plane
+const hexSect = R => { const o = []; for (let i = 0; i < 6; i++) { const a = Math.PI / 6 + i * Math.PI / 3; o.push([R * Math.cos(a), R * Math.sin(a)]); } return o; };
+const rectSect = (hw, hh, ch) => ch > 0
+  ? [[-hw + ch, -hh], [hw - ch, -hh], [hw, -hh + ch], [hw, hh - ch], [hw - ch, hh], [-hw + ch, hh], [-hw, hh - ch], [-hw, -hh + ch]]
+  : [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]];
+const ridgedSect = (R, n, depth, segs) => { const o = []; for (let i = 0; i < segs; i++) { const a = 2 * Math.PI * i / segs; const rr = R * (1 - depth + depth * Math.cos(n * a)); o.push([rr * Math.cos(a), rr * Math.sin(a)]); } return o; };
+// a chamfered block standing OUT of the plate (−z) from z0 to z1, its top
+// edges bevelled by `ch`
+function bevelBlockInto(bag, x, y, z0, z1, hw, hh, ch) {
+  const path = [[x, y, z0], [x, y, z1 + ch], [x, y, z1]];
+  KIT().sweep(bag, path, t => rectSect(hw - (t > 0.99 ? ch : 0), hh - (t > 0.99 ? ch : 0), ch * 0.5), true, [0, 1, 0]);
+}
+// (no plate under a switch any more: a toggle stands on its own nut, a knob
+// on its skirt, a rocker in its bezel, the key in its escutcheon)
+// a toggle: the hex nut on the plate, the threaded bushing through it and
+// the chromed bat that leans up (on) or down (off) about the bushing's top
+// — `sw_<key>` drive, 0/1 → ±0.42 rad
+function toggleAt(parent, x, y, z, key, on, kind) {
+  const K = KIT();
+  const base = K.Bag();
+  K.sweep(base, [[x, y, z - 0.0015], [x, y, z - 0.0045]], () => hexSect(0.0110 / Math.sqrt(3)), true, [0, 1, 0]);   // 11 mm AF nut
+  // THE KIT'S TOGGLE when it is in: its own bushing and bat on the nut, the
+  // bat's pivot at the bushing's top (the pack's bat starts at y ≈ 0)
+  const hw = hwGet(kind === 'paddle' ? 'hw_paddle' : 'hw_toggle');
+  if (hw) {
+    base.mesh(parent, matFor('barrel'));
+    const g = gaugeAt(parent, 'edGauge_sw_' + key, [x, y, z - 0.0045], [1, 0, 0], 'sw_' + key, 'switch',
+      { k: 0.42, sgn: 1 });
+    // the bushing stays on the nut, the bat throws
+    const hk = kind === 'paddle' ? 'hw_paddle' : 'hw_toggle';
+    hwStand(parent, hk, x, y, z - 0.0045, 0, 0, n => n !== 'SILVER');
+    hwStand(g, hk, 0, 0, 0, 0, 0, n => n === 'SILVER');
+    g.rotation.x = (on ? 1 : -1) * 0.42;
+    return g;
+  }
+  K.revolve(base, [x, y, z - 0.0045], [0, 0, -1], [[0.00315, 0], [0.00315, 0.0035], [0.0026, 0.0040], [0, 0.0040]], 16, false);   // the bushing
+  base.mesh(parent, matFor('barrel'));
+  const g = gaugeAt(parent, 'edGauge_sw_' + key, [x, y, z - 0.0085], [1, 0, 0], 'sw_' + key, 'switch',
     { k: 0.42, sgn: 1 });
-  const bag = KIT().Bag();
-  KIT().revolve(bag, [0, 0, 0], [0, 0, -1], [[0.0018, 0], [0.0018, 0.014], [0.0032, 0.020], [0.0022, 0.023]], 10, true);
-  bag.mesh(g, matFor('lever'));
-  // the base bushing, fixed
-  const bush = KIT().Bag();
-  KIT().revolve(bush, [x, y, z - 0.004], [0, 0, -1], [[0.005, 0], [0.005, 0.004], [0.003, 0.005]], 12, true);
-  bush.mesh(parent, matFor('barrel'));
+  const bat = K.Bag();
+  // the bat: a slim stem swelling to a ball at the tip, 22 mm out of the bushing
+  K.revolve(bat, [0, 0, 0], [0, 0, -1],
+    [[0.0022, -0.0005], [0.0016, 0.0025], [0.0016, 0.0130], [0.0023, 0.0165], [0.0026, 0.0195], [0.0022, 0.0220], [0.0010, 0.0232], [0, 0.0235]], 16, true);
+  bat.mesh(g, matFor('lever'));
   g.rotation.x = (on ? 1 : -1) * 0.42;             // the editor's pose: up is on
   return g;
 }
-// a dimmer knob: a fluted disc with a pointer, turning about the panel's
-// normal — 0..1 → 270° of travel
+// a dimmer knob: a ridged, slightly conical plastic knob on a thin skirt,
+// with a pointer line, turning about the panel's normal — 0..1 → 270°
 function knobAt(parent, x, y, z, key, v) {
-  const g = gaugeAt(parent, 'edGauge_sw_' + key, [x, y, z - 0.004], [0, 0, 1], 'sw_' + key, 'knob',
+  const K = KIT();
+  // THE KIT'S POINTER KNOB when it is in, its nose turned to 12 o'clock at
+  // rest so the law's −135° + 270°·v reads as every other knob's
+  if (hwGet('hw_knob')) {
+    const g = gaugeAt(parent, 'edGauge_sw_' + key, [x, y, z - 0.0005], [0, 0, 1], 'sw_' + key, 'knob',
+      { k: 270 * Math.PI / 180, sgn: 1 });
+    hwStand(g, 'hw_knob', 0, 0, 0, -hwPointer('hw_knob'));
+    g.rotation.z = clockRad(-135 + 270 * (v || 0));
+    return g;
+  }
+  const skirt = K.Bag();
+  K.revolve(skirt, [x, y, z + 0.0005], [0, 0, -1], [[0.0115, 0], [0.0115, 0.0015], [0.0100, 0.0022], [0, 0.0022]], 32, false);
+  skirt.mesh(parent, matFor('plate'));
+  const g = gaugeAt(parent, 'edGauge_sw_' + key, [x, y, z - 0.002], [0, 0, 1], 'sw_' + key, 'knob',
     { k: 270 * Math.PI / 180, sgn: 1 });
-  const bag = KIT().Bag();
-  KIT().revolve(bag, [0, 0, 0], [0, 0, -1], [[0.006, 0], [0.011, 0.001], [0.011, 0.008], [0.009, 0.010], [0.003, 0.010]], 18, true);
-  bag.mesh(g, matFor('knob'));
-  // the pointer, painted on the knob's top: a small bar
-  const p = KIT().Bag();
-  KIT().boxIn(p, [0, 0.006, -0.0105], [0.0012, 0.004, 0.0006], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+  const body = K.Bag();
+  // eighteen ridges, 20 mm at the skirt tapering to 16 mm at the top, 12 mm tall
+  K.sweep(body, [[0, 0, 0], [0, 0, -0.0105], [0, 0, -0.012]],
+    t => ridgedSect(0.0100 - 0.0020 * Math.min(1, t / 0.875) - (t > 0.9 ? 0.0012 : 0), 18, 0.045, 54), true, [0, 1, 0]);
+  body.mesh(g, matFor('knob'));
+  // the pointer: a pale line from the centre out on the top, and down the side
+  const p = K.Bag();
+  K.boxIn(p, [0, 0.0045, -0.0122], [0.0007, 0.0035, 0.0004], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+  K.boxIn(p, [0, 0.0084, -0.0062], [0.0007, 0.0004, 0.0055], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
   p.mesh(g, matFor('needle'));
   g.rotation.z = clockRad(-135 + 270 * (v || 0));   // the editor's pose
   return g;
 }
-// a rocker (master, alternator): a pale block that tips about a lateral
-// pivot — on = the top pressed in
+// a rocker (master, alternator): a bezel let into the dash and a pale
+// chamfered cap that tips about a lateral pivot — on = the top pressed in
 function rockerAt(parent, x, y, z, key, on) {
-  const g = gaugeAt(parent, 'edGauge_sw_' + key, [x, y, z - 0.003], [1, 0, 0], 'sw_' + key, 'switch',
+  const K = KIT();
+  // THE KIT'S PADDLE for the master and the alternator when it is in — a
+  // toggle with a flat bat on a square base, the master's under its guard
+  if (hwGet(key === 'master' ? 'hw_guarded' : 'hw_paddle')) {
+    const g = gaugeAt(parent, 'edGauge_sw_' + key, [x, y, z - 0.0005], [1, 0, 0], 'sw_' + key, 'switch',
+      { k: 0.42, sgn: 1 });
+    const hk = key === 'master' ? 'hw_guarded' : 'hw_paddle';
+    hwStand(parent, hk, x, y, z - 0.0005, 0, 0, n => n !== 'SILVER');   // the base and the guard stay
+    hwStand(g, hk, 0, 0, 0, 0, 0, n => n === 'SILVER');                  // the bat throws
+    g.rotation.x = (on ? 1 : -1) * 0.42;
+    return g;
+  }
+  const bez = K.Bag();
+  bevelBlockInto(bez, x, y, z + 0.0005, z - 0.0030, 0.0075, 0.0120, 0.0008);
+  bez.mesh(parent, matFor('plate'));
+  const g = gaugeAt(parent, 'edGauge_sw_' + key, [x, y, z - 0.0030], [1, 0, 0], 'sw_' + key, 'switch',
     { k: 0.22, sgn: 1 });
-  const bag = KIT().Bag();
-  KIT().boxIn(bag, [0, 0, -0.003], [0.006, 0.011, 0.003], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
-  bag.mesh(g, matFor('rocker'));
+  const cap = K.Bag();
+  bevelBlockInto(cap, 0, 0, 0.0005, -0.0050, 0.0060, 0.0100, 0.0010);
+  cap.mesh(g, matFor('rocker'));
   g.rotation.x = (on ? 1 : -1) * 0.22;
   return g;
 }
-// the key: a lock barrel in the plate and a brass key standing out of it,
-// turning about the panel's normal — OFF / L / R / BOTH / START at 0, 30,
-// 60, 90, 120 degrees clockwise
+// the key: a dished escutcheon on the dash, the lock barrel standing out of
+// it with its keyway, and a brass key — a bow with a hole, a neck, a bitted
+// blade — turning about the panel's normal: OFF / L / R / BOTH / START at
+// 0, 30, 60, 90, 120 degrees clockwise
 function keyAt(parent, x, y, z, pos) {
-  const bag = KIT().Bag();
-  KIT().revolve(bag, [x, y, z - 0.002], [0, 0, -1], [[0.009, 0], [0.009, 0.004], [0.006, 0.006]], 16, true);
-  bag.mesh(parent, matFor('barrel'));
-  const g = gaugeAt(parent, 'edGauge_key', [x, y, z - 0.008], [0, 0, 1], 'key', 'key',
+  const K = KIT();
+  // THE KIT'S KEY when it is in, in the lock the user described: "a simple
+  // chamfered cylinder, very thin, with an inside ridge and a keyhole with
+  // the key slotted in. Metal material." The escutcheon is a 22 mm disc
+  // chamfered at its rim, 2.5 mm proud, with a raised ring round the keyway;
+  // the keyway a dark slot; the key stands out of it, its bow down, and
+  // turns with the lock's law.
+  if (hwGet('hw_key')) {
+    const lock = K.Bag();
+    K.revolve(lock, [x, y, z + 0.0005], [0, 0, -1],
+      [[0.0110, 0], [0.0110, 0.0018], [0.0098, 0.0030], [0.0052, 0.0030], [0.0048, 0.0040], [0.0038, 0.0040], [0.0034, 0.0030], [0, 0.0030]], 40, false);
+    lock.mesh(parent, matFor('barrel'));
+    const way = K.Bag();
+    K.boxIn(way, [x, y, z - 0.0032], [0.0009, 0.0036, 0.0004], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+    way.mesh(parent, matFor('hub'));
+    const g = gaugeAt(parent, 'edGauge_key', [x, y, z - 0.0035], [0, 0, 1], 'key', 'key',
+      { k: Math.PI / 6, sgn: 1, steps: ['off', 'l', 'r', 'both', 'start'] });
+    // the key lies flat in its own x-y plane in the bake, blade toward +x,
+    // bow at −x, 1.5 mm thick along z. In the lock: the blade INTO the lock
+    // (pack +x → local +z), the blade's width up the keyway (pack y → local
+    // −y), the thickness across (pack z → local +x); the blade's tip 12 mm
+    // in, so 50 mm of key stands out toward the pilot
+    const k = hwGet('hw_key');
+    const kg = new THREE.Group();
+    kg.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(
+      new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, -1, 0), new THREE.Vector3(1, 0, 0)));
+    kg.position.set(0, 0, 0.012 - k.bb[3]);
+    for (const p of k.parts) { const m = new THREE.Mesh(p.geo, p.mat); m.userData.sharedGeo = true; kg.add(m); }
+    g.add(kg);
+    const idx = ['off', 'l', 'r', 'both', 'start'].indexOf(pos || 'both');
+    g.rotation.z = clockRad(30 * Math.max(0, idx));
+    return g;
+  }
+  const lock = K.Bag();
+  K.revolve(lock, [x, y, z + 0.0005], [0, 0, -1], [[0.0115, 0], [0.0115, 0.0015], [0.0100, 0.0028], [0.0068, 0.0028]], 32, false);   // the escutcheon
+  K.revolve(lock, [x, y, z - 0.0028], [0, 0, -1], [[0.0068, 0], [0.0064, 0.0035], [0.0058, 0.0042], [0, 0.0042]], 32, false);      // the barrel
+  lock.mesh(parent, matFor('barrel'));
+  const way = K.Bag();                                  // the keyway, dark
+  K.boxIn(way, [x, y, z - 0.0070], [0.0010, 0.0038, 0.0003], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+  way.mesh(parent, matFor('hub'));
+  const g = gaugeAt(parent, 'edGauge_key', [x, y, z - 0.0070], [0, 0, 1], 'key', 'key',
     { k: Math.PI / 6, sgn: 1, steps: ['off', 'l', 'r', 'both', 'start'] });
-  const kb = KIT().Bag();
-  KIT().boxIn(kb, [0, -0.012, -0.004], [0.0035, 0.014, 0.001], [1, 0, 0], [0, 1, 0], [0, 0, 1]);   // the blade
-  KIT().revolve(kb, [0, -0.026, -0.004], [0, 0, 1], [[0.007, -0.001], [0.007, 0.001]], 16, true);   // the bow
+  const kb = K.Bag();
+  // the blade: in the keyway, out to the neck
+  K.boxIn(kb, [0, -0.0035, -0.0012], [0.0009, 0.0060, 0.0009], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+  // the neck: the flat shank between the lock and the bow
+  bevelBlockInto(kb, 0, -0.0125, -0.0010, -0.0030, 0.0030, 0.0040, 0.0006);
+  // the bow: a flat ring, 17 mm across with a 6 mm hole, 2 mm thick
+  K.revolve(kb, [0, -0.0235, -0.0010], [0, 0, -1],
+    [[0.0030, 0], [0.0085, 0], [0.0085, 0.0020], [0.0030, 0.0020], [0.0030, 0]], 28, false);
   kb.mesh(g, matFor('key'));
+  // the bittings: three dark notches along the blade's edge
+  const bits = K.Bag();
+  for (const [yy, d] of [[-0.0020, 0.0006], [-0.0042, 0.0009], [-0.0064, 0.0005]])
+    K.boxIn(bits, [-0.0009 + d / 2, yy, -0.0012], [d / 2, 0.0007, 0.0010], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+  bits.mesh(g, matFor('hub'));
   const idx = ['off', 'l', 'r', 'both', 'start'].indexOf(pos || 'both');
   g.rotation.z = clockRad(30 * Math.max(0, idx));
   return g;
@@ -695,7 +901,36 @@ function build(parent, A, P, pilotX) {
   grp.add(face);
   const cosT = PL ? Math.cos(PL.tilt) : 1;
   const ly = cy => PL ? (cy - PL.yTop) / cosT : cy;       // cage y → along the plate
-  const zF = 0;                                            // the plate's surface
+  // ...and the plate's own depth there (session 4c): the fitted plane is
+  // within millimetres of the plate, and millimetres are what a face's
+  // standing needs — each dial and switch is seated at the plate's
+  // measured z under it, as an offset along the frame's normal
+  const dzAt = (cx, cy) => {
+    if (!PL || !A.face || !A.face.depthAt) return 0;
+    const zPlane = PL.zTop + (PL.yTop - cy) * Math.tan(PL.tilt);
+    return (A.face.depthAt(cx, cy) - zPlane) * cosT;
+  };
+  const zF0 = 0;                                           // the fitted plane
+  // ...and its LOCAL NORMAL (session 4c, the user: "you struggle matching
+  // the pitch of those to align them with the dashboard plane"): seating a
+  // dial's centre on the plate is not enough on a curved plate — its lower
+  // half went behind the surface. Each dial and switch stands in its own
+  // group, turned to the plate's slope under it (the chord across its own
+  // width and height), so its face lies ON the plate all round.
+  const slopeAt = (cx, cy, h) => {
+    if (!PL || !A.face || !A.face.depthAt) return [0, 0];
+    const sy = (dzAt(cx, cy + h) - dzAt(cx, cy - h)) / (2 * h / cosT);   // along the plate, up
+    const sx = (dzAt(cx + h, cy) - dzAt(cx - h, cy)) / (2 * h);           // across
+    return [Math.atan(sy), -Math.atan(sx)];                                // rotation.x, rotation.y
+  };
+  const standOn = (cx, cy, r) => {                         // a group on the plate at a cage (cx, cy)
+    const g2 = new THREE.Group();
+    g2.position.set(cx, ly(cy), zF0 + dzAt(cx, cy));
+    const [rx, ry] = slopeAt(cx, cy, Math.max(0.01, r * 0.8));
+    g2.rotation.set(rx, ry, 0);
+    face.add(g2);
+    return g2;
+  };
   // ---- the atlas: a slot per face, a strip for the ball, roses for the cards
   const faces = [];
   let slot = 0;
@@ -724,13 +959,18 @@ function build(parent, A, P, pilotX) {
   const fm = facesMaterial();
   fm.emissiveIntensity = faceDim(P) * 1.6;
   // ---- the dials
-  const bez = K.Bag(), hub = K.Bag(), sym = K.Bag(), plate = K.Bag(), bowl = K.Bag(), symC = K.Bag();
-  const faceBag = UVBag(fm);
+  const bowl = K.Bag(), symC = K.Bag();
   const rest = G.REST;
-  const can = K.Bag();
   for (const d of L.dials) {
-    const { cx, r } = d;
-    const cy = d.coaming ? d.cy : ly(d.cy);
+    const r = d.r;
+    // on the plate: the dial's own group, and (0, 0, 0) is its centre on the
+    // plate's surface; on the coaming: the panel's own frame
+    const dg = d.coaming ? null : standOn(d.cx, d.cy, r);
+    const cx = d.coaming ? d.cx : 0;
+    const cy = d.coaming ? d.cy : 0;
+    const zF = 0;
+    const bez = K.Bag(), hub = K.Bag(), sym = K.Bag(), plate = K.Bag(), can = K.Bag();
+    const faceBag = UVBag(fm);
     if (d.coaming) {
       // THE COMPASS: a bowl standing on the coaming, the card turning inside
       // it, read through the aft window. The bowl is a revolve about +y. It
@@ -739,12 +979,25 @@ function build(parent, A, P, pilotX) {
       const zc = d.z != null ? d.z : (A.dashAftZ != null ? A.dashAftZ : L.zFace) + 0.045;
       // the bowl: a base cup, a cap, and the aft half of the band between
       // them (the card shows through the open front — a real bowl's window)
-      K.revolve(bowl, [cx, cy - r * 0.5, zc], [0, 1, 0],
-        [[r * 0.55, 0], [r * 0.95, r * 0.12], [r, r * 0.24], [r * 0.7, r * 0.26], [0, r * 0.26]], 28, true);
-      K.revolve(bowl, [cx, cy - r * 0.5, zc], [0, 1, 0],
-        [[0, r * 0.74], [r * 0.7, r * 0.74], [r, r * 0.76], [r * 0.92, r * 1.1], [r * 0.55, r * 1.35], [0, r * 1.4]], 28, true);
+      // THE MOUNT (session 4c, the user: "the compass mesh could be higher
+      // poly and more detailed, including its mount on the dashboard"): a
+      // chamfered base plate on the glareshield with two screws, a short
+      // pedestal, the bowl on it — base cup, chrome band round the card's
+      // window, domed cap — 48 segments round.
+      const yB = cy - r * 0.5;                      // the bowl's foot
+      const mount = K.Bag();
+      K.revolve(mount, [cx, yB - 0.003, zc], [0, 1, 0],
+        [[r * 0.98, 0], [r * 0.98, 0.0025], [r * 0.92, 0.0032], [r * 0.58, 0.0032], [r * 0.58, 0.0060], [r * 0.52, 0.0060], [0, 0.0060]], 48, false);
+      K.bolt(mount, [cx + r * 0.82, yB - 0.003 + 0.0032, zc + r * 0.02], [0, 1, 0], 0.0022, 0.0012);
+      K.bolt(mount, [cx - r * 0.82, yB - 0.003 + 0.0032, zc + r * 0.02], [0, 1, 0], 0.0022, 0.0012);
+      K.revolve(bowl, [cx, yB, zc], [0, 1, 0],
+        [[r * 0.52, 0], [r * 0.90, r * 0.10], [r, r * 0.22], [r * 0.7, r * 0.26], [0, r * 0.26]], 48, true);
+      K.revolve(bowl, [cx, yB, zc], [0, 1, 0],
+        [[0, r * 0.74], [r * 0.7, r * 0.74], [r, r * 0.76], [r * 0.94, r * 1.05], [r * 0.62, r * 1.32], [0, r * 1.40]], 48, true);
       {
-        const seg = 16, y0 = cy - r * 0.5 + r * 0.24, y1 = cy - r * 0.5 + r * 0.76;
+        // the aft half-band (the bowl's back) and, on the front, the chrome
+        // frame round the window: two arcs and two uprights, swept tubes
+        const seg = 32, y0 = yB + r * 0.24, y1 = yB + r * 0.76;
         const ring = [];
         for (let i = 0; i <= seg; i++) {
           const a = Math.PI * i / seg;                    // the aft half: z >= zc
@@ -755,7 +1008,13 @@ function build(parent, A, P, pilotX) {
           const p = ring[i], q = ring[i + 1];
           bowl.quad(p[0], q[0], q[1], p[1]); bowl.quad(p[3], q[3], q[2], p[2]);
         }
+        const arc = yy => { const o = []; for (let i = 0; i <= 24; i++) { const a = Math.PI * i / 24; o.push([cx + r * Math.cos(a), yy, zc - r * Math.sin(a)]); } return o; };
+        K.sweep(mount, arc(y0), () => K.secRound(0.0016, 10), true);
+        K.sweep(mount, arc(y1), () => K.secRound(0.0016, 10), true);
+        K.sweep(mount, [[cx + r, y0, zc], [cx + r, y1, zc]], () => K.secRound(0.0016, 10), true);
+        K.sweep(mount, [[cx - r, y0, zc], [cx - r, y1, zc]], () => K.secRound(0.0016, 10), true);
       }
+      mount.mesh(grp, matFor('barrel'));
       const g = gaugeAt(grp, 'edGauge_compass_card', [cx, cy, zc], [0, 1, 0], 'hdg', 'card', { sgn: -1, k: 1 });
       const cb = UVBag(fm);
       cardDrumInto(cb, slotOf['compass:strip'], r * 0.62, r * 0.5);
@@ -782,11 +1041,16 @@ function build(parent, A, P, pilotX) {
     canAt(can, cx, cy, zF, isAI ? AI_DRUM_K * r + 0.004 : r * 0.92,
           isAI ? 2 * AI_DRUM_K * r + 0.012 : (r > 0.035 ? 0.055 : 0.042), isAI ? 0.001 : null);
     const F = G.FACES[d.k];
+    const meshDial = () => {
+      bez.mesh(dg, matFor('bezel')); hub.mesh(dg, matFor('hub')); sym.mesh(dg, matFor('symbol'));
+      can.mesh(dg, matFor('hub')); plate.mesh(dg, matFor('plate'));
+      faceBag.mesh(dg, 'edGauge_faces');
+    };
     if (d.k === 'dg') {
       // the fixed face behind, the rose card in front turning about +z, the
       // aeroplane symbol fixed in front of the card
       faceAt(faceBag, cx, cy, zF - 0.004, r * 0.86, slotOf.dg, seg);
-      const g = gaugeAt(face, 'edGauge_dg_card', [cx, cy, zF - 0.0055], [0, 0, 1], 'hdg', 'card', { sgn: -1, k: 1 });
+      const g = gaugeAt(dg, 'edGauge_dg_card', [cx, cy, zF - 0.0055], [0, 0, 1], 'hdg', 'card', { sgn: -1, k: 1 });
       const cb = UVBag(fm);
       cardDiscInto(cb, slotOf['dg:rose'], r * 0.70, 0);
       cb.mesh(g);
@@ -794,12 +1058,12 @@ function build(parent, A, P, pilotX) {
       K.boxIn(sym, [cx, cy - r * 0.04, zs], [0.0012, r * 0.26, 0.0008], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
       K.boxIn(sym, [cx, cy, zs], [r * 0.30, 0.0012, 0.0008], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
       K.boxIn(sym, [cx, cy + r * 0.20, zs], [r * 0.12, 0.0012, 0.0008], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
-      continue;
+      meshDial(); continue;
     }
     if (d.k === 'ai' || d.k === 'aiE') {
       // the ball first (deep), the fixed face over it with its window cut by
       // the painter being dark there, the symbol on top
-      const g = gaugeAt(face, 'edGauge_' + d.k + '_ball', [cx, cy, zF - 0.004], [0, 0, 1], 'roll', 'ball',
+      const g = gaugeAt(dg, 'edGauge_' + d.k + '_ball', [cx, cy, zF - 0.004], [0, 0, 1], 'roll', 'ball',
         { sgn: 1, k: 1, axis2: [1, 0, 0], drive2: 'pitch', sgn2: 1, k2: 1 });
       const db = UVBag(fm);
       // the drum's front PROUD of the plate (the plate is solid — no hole is
@@ -826,26 +1090,26 @@ function build(parent, A, P, pilotX) {
       K.boxIn(sym, [cx - r * 0.27, cy, zs], [r * 0.15, 0.0014, 0.0008], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
       K.boxIn(sym, [cx + r * 0.27, cy, zs], [r * 0.15, 0.0014, 0.0008], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
       K.revolve(sym, [cx, cy, zs], [0, 0, 1], [[r * 0.035, -0.0008], [r * 0.035, 0.0008]], 10, true);
-      continue;
+      meshDial(); continue;
     }
     // every other face: the painted disc, then its hands
     faceAt(faceBag, cx, cy, zF - 0.004, r * 0.86, slotOf[d.k], seg);
-    if (!F) continue;
+    if (!F) { meshDial(); continue; }
     if (d.k === 'turn') {
       // the aeroplane symbol tilts about +z; the ball sits in its tube
-      const g = gaugeAt(face, 'edGauge_turn_plane', [cx, cy, zF - 0.0065], [0, 0, 1], 'r', 'lin', { sgn: 1, k: 1 });
+      const g = gaugeAt(dg, 'edGauge_turn_plane', [cx, cy, zF - 0.0065], [0, 0, 1], 'r', 'lin', { sgn: 1, k: 1 });
       const sb = K.Bag();
       K.boxIn(sb, [0, 0, 0], [r * 0.62, 0.0018, 0.0008], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
       K.boxIn(sb, [0, r * 0.10, 0], [0.0018, r * 0.12, 0.0008], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
       K.boxIn(sb, [0, -r * 0.02, 0], [r * 0.10, r * 0.06, 0.0008], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
       sb.mesh(g, matFor('symbol'));
       K.revolve(hub, [cx, cy + r * 0.50, zF - 0.0065], [0, 0, 1], [[r * 0.055, -0.001], [r * 0.055, 0.001]], 12, true);
-      continue;
+      meshDial(); continue;
     }
     for (const H of F.hands) {
       if (H.kind && H.kind !== 'needle') continue;
       const v0 = rest[H.drive] != null ? rest[H.drive] : 0;
-      const g = gaugeAt(face, 'edGauge_' + d.k + '_' + H.name, [cx, cy, zF - 0.004],
+      const g = gaugeAt(dg, 'edGauge_' + d.k + '_' + H.name, [cx, cy, zF - 0.004],
         [0, 0, 1], H.drive, H.law, { sgn: 1, k: 1, hand: H.name, gauge: d.k,
           per: H.per, units });
       const nb = K.Bag();
@@ -854,21 +1118,17 @@ function build(parent, A, P, pilotX) {
       g.rotation.z = clockRad(G.angleOf(d.k, H, v0, units, facts));
     }
     hubAt(hub, cx, cy, zF - 0.004 - 0.0012 * F.hands.length, r * 0.06);
+    meshDial();
   }
-  // ---- the switch row
-  const pitch = L.switches.length > 1 ? Math.abs(L.switches[0].x - L.switches[1].x) : 0.04;
+  // ---- the switch row, each on the plate under it
   for (const s of L.switches) {
-    const sy = ly(s.y);
-    plateAt(plate, s.x, sy, zF, pitch);
-    if (s.kind === 'key') keyAt(face, s.x, sy, zF, 'both');
-    else if (s.kind === 'rocker') rockerAt(face, s.x, sy, zF, s.k, true);
-    else if (s.kind === 'toggle') toggleAt(face, s.x, sy, zF, s.k, +P['li_' + s.k] > 0.5);
-    else if (s.kind === 'knob') knobAt(face, s.x, sy, zF, s.k, Math.max(0, Math.min(1, +P['li_' + s.k] || 0)));
+    const sg = standOn(s.x, s.y, 0.012);
+    if (s.kind === 'key') keyAt(sg, 0, 0, 0, 'both');
+    else if (s.kind === 'rocker') rockerAt(sg, 0, 0, 0, s.k, true);
+    else if (s.kind === 'toggle') toggleAt(sg, 0, 0, 0, s.k, +P['li_' + s.k] > 0.5);
+    else if (s.kind === 'knob') knobAt(sg, 0, 0, 0, s.k, Math.max(0, Math.min(1, +P['li_' + s.k] || 0)));
   }
-  bez.mesh(face, matFor('bezel')); hub.mesh(face, matFor('hub')); sym.mesh(face, matFor('symbol'));
-  can.mesh(face, matFor('hub'));
-  plate.mesh(face, matFor('plate')); bowl.mesh(grp, matFor('bowl')); symC.mesh(grp, matFor('symbol'));
-  faceBag.mesh(face, 'edGauge_faces');
+  bowl.mesh(grp, matFor('bowl')); symC.mesh(grp, matFor('symbol'));
   // the instrument light on the switchboard, as every emitter is (GATE LIGHT's
   // census), declared once per build against the material that glows
   try {

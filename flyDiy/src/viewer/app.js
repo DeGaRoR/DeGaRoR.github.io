@@ -3017,6 +3017,14 @@
       e.preventDefault();
       return;
     }
+    // THE FLIGHT'S MOUSE (the panel arc, session 4c, the user: "head turn
+    // with the mouse right click, and keep left click for cockpit
+    // interaction. In external view, that could be the same"): outside the
+    // shed the RIGHT button turns the view — the cockpit head (HEADCAM) and
+    // the outside orbit alike — and the left is for what the aeroplane has
+    // to say: a switch in the cockpit, a part's figures outside (session
+    // 5). A touch is a touch, as before.
+    if (!inGarage && e.pointerType === 'mouse' && e.button !== 2) return;
     if (e.button === 0) downAt = { x: e.clientX, y: e.clientY, t: Date.now() };
     canvas.setPointerCapture(e.pointerId);
     touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -3027,7 +3035,7 @@
     }
   });
   canvas.addEventListener('contextmenu', e => {
-    if (edSit.visible) e.preventDefault();
+    if (edSit.visible || !inGarage) e.preventDefault();   // a right drag is a turn, not a menu
   });
   canvas.addEventListener('dblclick', () => {
     if (edSit.visible) edPan.set(0, 0, 0);
@@ -6365,7 +6373,9 @@
                     drag: null, noLock: false,
                     p: new THREE.Vector3(), f: new THREE.Vector3(), r: new THREE.Vector3(),
                     u: new THREE.Vector3(), look: new THREE.Vector3(),
-                    q: new THREE.Quaternion(), q2: new THREE.Quaternion(), nm: new THREE.Matrix3() };
+                    q: new THREE.Quaternion(), q2: new THREE.Quaternion(), qP: new THREE.Quaternion(),
+                    tmp: new THREE.Vector3(), nm: new THREE.Matrix3() };
+  const HEAD_LEVEL_K = 0.10;                                 // the head's tenth toward level
   const HEAD_BOX = { fwd: 0.28, aft: 0.14, up: 0.10, dn: 0.08, side: 0.22 };
   const HEAD_SPEED = 0.45;                                    // m/s, a head leaning
   const HEADCAM_KEYS = new Set(['KeyZ', 'KeyW', 'KeyS', 'KeyQ', 'KeyD', 'KeyR', 'KeyF']);
@@ -6416,10 +6426,26 @@
     headCam.nm.setFromMatrix4(M);
     headCam.p.copy(flEyeLoc.p).add(o).applyMatrix4(M);
     headCam.look.applyMatrix3(headCam.nm).normalize();
-    if (cam.level) camera.up.set(0, 1, 0);
-    else camera.up.copy(headCam.u).applyMatrix3(headCam.nm).normalize();
+    // THE HEAD RIDES THE AEROPLANE (4c, the user: "mostly locked to the
+    // plane with 10% influence to tilt the head up straight"): the frame
+    // is the aeroplane's — its up, the look as turned in its own axes —
+    // blended a tenth of the way toward the levelled frame (the same look
+    // flattened to the horizon, the world's up), the way a head keeps a
+    // little of the horizon in a bank. `level horizon` is the outside
+    // views' toggle; the head has this law.
     camera.position.copy(headCam.p);
-    camera.lookAt(headCam.look.add(headCam.p));
+    camera.up.copy(headCam.u).applyMatrix3(headCam.nm).normalize();
+    headCam.tmp.copy(headCam.look).add(headCam.p);
+    camera.lookAt(headCam.tmp);
+    headCam.qP.copy(camera.quaternion);
+    headCam.tmp.copy(headCam.look); headCam.tmp.y = 0;
+    if (headCam.tmp.lengthSq() > 1e-6) {
+      headCam.tmp.normalize().add(headCam.p);
+      camera.up.set(0, 1, 0);
+      camera.lookAt(headCam.tmp);
+      headCam.qP.slerp(camera.quaternion, HEAD_LEVEL_K);
+    }
+    camera.quaternion.copy(headCam.qP);
     return headCam.p;
   };
   window.addEventListener('keydown', e => {
@@ -6433,7 +6459,7 @@
   }, true);
   window.addEventListener('blur', () => headCam.keys.clear());
   $('c').addEventListener('pointerdown', e => {
-    if (!headCamOn() || e.button !== 0) return;
+    if (!headCamOn() || e.button !== 2) return;         // the RIGHT button turns the head (4c)
     headCam.drag = { x: e.clientX, y: e.clientY, moved: 0 };
   });
   // the lock is asked for at the END of a drag that turned the head (a
@@ -6457,7 +6483,7 @@
   window.addEventListener('pointermove', e => {
     if (!headCamOn()) return;
     if (document.pointerLockElement === $('c')) { headTurn(e.movementX, e.movementY); return; }
-    if (!headCam.drag || !(e.buttons & 1)) return;
+    if (!headCam.drag || !(e.buttons & 2)) return;
     headTurn(e.clientX - headCam.drag.x, e.clientY - headCam.drag.y);
     headCam.drag.moved += Math.abs(e.clientX - headCam.drag.x) + Math.abs(e.clientY - headCam.drag.y);
     headCam.drag.x = e.clientX; headCam.drag.y = e.clientY;
@@ -6666,7 +6692,7 @@
   // click on a toggle, a knob, a rocker or the key works it; the orbit drag
   // still happens underneath (a click is a very short drag).
   $('c').addEventListener('pointerdown', e => {
-    if (inGarage || cam.mode !== 'cockpit' || !CK || !model) return;
+    if (inGarage || cam.mode !== 'cockpit' || !CK || !model || e.button !== 0) return;   // the left button is the switch's (4c)
     const r = canvas.getBoundingClientRect();
     if (!r.width || !r.height) return;
     // under pointer lock the mouse has no place on the screen: the click

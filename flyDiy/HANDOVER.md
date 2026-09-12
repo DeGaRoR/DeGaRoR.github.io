@@ -38285,3 +38285,115 @@ the compass on the shelf, no bar, no ball.
 declared for it); the `_panel.html` bench draws on a flat dash (no plate
 outline — the crew's measure is the plane's); a mixture / carb heat on the
 switch row when the engine model earns them.
+
+## G264 — THE PANEL ARC, SESSION 4c: THE PLATE IS NOT A PLANE, THE RIGHT
+## BUTTON TURNS THE HEAD, THE HEAD RIDES THE AEROPLANE, AND THE HARDWARE
+## KIT COMES IN (2026-09-12, the user's second and third reviews from the seat)
+
+**"Something strange with the panel top section … dials half-buried … the
+old dials still in there?"** Not old dials: the FLANGES and bezels of the
+top row, standing off a plate that is not the plane G263 fitted. The
+`dashFace` ladder follows the lip path's curve, so its depth varies by
+millimetres across and up the plate — enough to swallow a face standing
+4 mm proud (the VSI and the four small gauges were painted and seated
+BEHIND the plate: raycast from the pilot's side, the plate came 2 mm
+before their faces) and to float a flange off it up top (seen from above
+as a dark arc over each dial). `A.face.depthAt(x, y)` is the plate's own z
+under a point (each column keeps the (y, z) crossings the outline was cut
+from; interpolated in y), and every dial and switch is seated at
+`dzAt(cx, cy)` — the measured depth less the plane's — along the frame's
+normal. From the seat and from above: every face shows, no arcs.
+
+**"Still not perfect for the dials. I think you struggle matching the
+pitch of those to align them with the dashboard plane?"** Yes: seating a
+dial's centre on the plate was not enough on a curved plate — its lower
+half went behind the surface (the bezels' bottoms cut off). Each dial and
+switch now stands in ITS OWN GROUP turned to the plate's local slope under
+it (`slopeAt`: the chord across its width and height from `depthAt`;
+`standOn` makes the group), so its face lies on the plate all round. Per-
+dial bags, meshed into the dial's group; the join reads pivots and axes off
+world matrices as before.
+
+**"The altitude dial lacks the graduation."** The `alt` scale ran 0..10
+(hundreds) while its long hand's `per` is 1000 ft/m, so the ten marks all
+sat at 12 o'clock, a thousandth of a turn apart (the "white blob"). The
+scale is in the display unit now (0..1000, major 100, minor 20), labelled
+0..9.
+
+**"Head turn with the mouse right click, and keep left click for cockpit
+interaction. In external view, that could be the same."** Outside the shed
+the RIGHT button turns the view — the cockpit head (HEADCAM) and the
+outside orbit alike — and the left is for what the aeroplane has to say:
+a switch in the cockpit today, a part's figures outside in session 5. A
+touch is a touch, as before; the context menu is suppressed in flight.
+The knob's right-click step-down went with it (a click steps and wraps).
+
+**"The head stays level at all times. It should move with the plane …
+mostly locked to the plane with 10% influence to tilt the head up
+straight."** The head's frame is the aeroplane's — its up, the look as
+turned in its own axes — slerped a tenth (`HEAD_LEVEL_K`) toward the
+levelled frame (the same look flattened to the horizon, the world's up).
+`level horizon` stays the outside views' toggle.
+
+**"The compass mesh could be higher poly and more detailed, including its
+mount."** 48 segments round; a round base plate with two screws and a
+short pedestal on the glareshield; a chrome frame round the window (two
+swept arcs and two uprights); the aft band chrome.
+
+**"Extra love to the switches and buttons … a proper hexagonal base … the
+knobs with little side ridges, slightly conical … the push button … a
+base in the dashboard … small bevels … another modeling attempt for the
+key."** At their real sizes, from the KIT's sweeps and revolves: an
+MS-type toggle's 11 mm-AF hex nut and 6.3 mm bushing (bareAlu) with a
+22 mm chromed bat swelling to a ball; a 20 mm dimmer knob with eighteen
+ridges tapering to 16 mm over 12 mm, on a thin skirt, with a pointer line
+over the top and down the side (plastic); a rocker in a 15 × 24 mm
+bevelled bezel with a chamfered cap; a lock with a dished escutcheon, a
+barrel with its keyway, and a brass key — a bow with a hole, a neck, a
+bitted blade. The plates under the switches are gone (each stands on its
+own base). The key mesh the user offered stays welcome: `keyAt` is one
+function to swap.
+
+**THE HARDWARE KIT — "I added assets in the asset folder. There are a lot
+of knobs for aircrafts. Tell me if you understand who's who … I have
+attached a key as well, you'd have to do the key barrel."** Read off the
+files and written down in `tools/panel_table.py` (46 pieces named one by
+one: the toggle family, the pointer-knob family, the dual-concentric radio
+knob, the lit and the red push buttons, the fire T-handle, the gear
+lever, the key). The kit is the hangar props' pipeline applied to a third
+library: `tools/panel_prep.py` bakes the declared rows as props into
+`src/panelhw/` packs + `media/geo|tex/panelhw/`, registered on PROP_REG
+like the hangar's (build.js `MANIFEST.panelhw` in the MODELS slot, GATE
+MEDIA knows the directories); `prop_prep.gather` learned that a named
+node keeps its SUBTREE (a Sketchfab export hangs the mesh on an anonymous
+`Object_N` under the named empty). The panel layer (`hwGet` / `hwStand`)
+warms a piece through the props' own path, decodes it once, and stands it
+out of the plate with the LAYER'S materials by the pack's material name
+(SILVER → the bare-metal lever, BLACK → knob, GRAY → grip, the red →
+cap, AMBER → amber — three new `MAT` / `AERO_HARD.panel` rows); the
+textured key keeps the props' one material. Nine rows this session:
+`hw_toggle` (the round bat, 29 mm, for the lights — its bat throws, its
+bushing stays on the layer's hex nut), `hw_paddle` (the alternator),
+`hw_guarded` (the master, under its red guard), `hw_knob` / `hw_knob_knurl`
+(the pointer knob, dimmers; the nose found by `hwPointer` and turned to 12
+at rest), `hw_knob_dual` and `hw_button_amber` / `hw_button_red` (for the
+radios to come), `hw_key` (the user's key, stood in the lock the user
+described: a 22 mm chamfered escutcheon 3 mm proud with a raised ring
+round the keyway, the blade 12 mm in, the bow hanging down at OFF; its
+bake rotation (104.6, 23.5, −146) lays the delivered scene pose flat).
+Absent the packs (the bench, a headless load) or before the bytes land,
+the procedural pieces of the earlier round draw, and the editor rebuilds
+once when the kit is in.
+
+**"What is the plan with the 5 remaining dials?"** They were never
+unplanned — the VSI, oil P, oil T, fuel and volts were painted (the atlas
+had them) and hidden behind the plate; see the first item.
+
+GATE PANEL green (the alt's ticks through its own law); PARTS, JOIN,
+UISMOKE, ELEC, BUILD, SKINMAT, PROPS, HANGAR, INPUT green on the commit's
+worktree; LIGHT red at HEAD as before (the trees session's impostor bake),
+MEDIA red at HEAD for the trees' orphan billboard textures (not this
+arc's — the panelhw media pass).
+
+**Owed**: the exterior click's info boxes (session 5); a head-tracker
+binding; the `_panel.html` bench on a flat dash.

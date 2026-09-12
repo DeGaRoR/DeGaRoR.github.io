@@ -138,6 +138,14 @@ const MANIFEST = {
   props: (() => { try { return JSON.parse(fs.readFileSync(
       path.join(ROOT, 'src', 'props', 'props_packs.json'), 'utf8')); }
     catch (e) { return []; } })(),
+  // THE PANEL HARDWARE KIT (the panel arc, session 4c; tools/panel_prep.py
+  // from tools/panel_table.py): the switches, knobs, buttons and the key,
+  // baked as props into their own packs. They ride in the MODELS slot with
+  // the hangar's props, behind 51_prop_codec.js; the panel layer reads them
+  // off PROP_REG and stands them on the plate.
+  panelhw: (() => { try { return JSON.parse(fs.readFileSync(
+      path.join(ROOT, 'src', 'panelhw', 'panelhw_packs.json'), 'utf8')); }
+    catch (e) { return []; } })(),
   // baked RIGGED CHARACTERS (tools/char_prep.py from tools/chars_table.py):
   // one manifest per character, order written by the baker. They ride in the
   // MODELS slot behind 52_char_codec.js, which defines registerChar().
@@ -413,6 +421,9 @@ function buildViewer(coreBody) {
   models.forEach((m, i) => syntaxCheck(MANIFEST.models[i], m));
   const props = MANIFEST.props.map(f => read(path.join(PROPS_DIR, f)));
   props.forEach((m, i) => syntaxCheck(MANIFEST.props[i], m));
+  const PANELHW_DIR = path.join(ROOT, 'src', 'panelhw');
+  const panelhw = MANIFEST.panelhw.map(f => read(path.join(PANELHW_DIR, f)));
+  panelhw.forEach((m, i) => syntaxCheck(MANIFEST.panelhw[i], m));
   const CHARS_DIR = path.join(ROOT, 'src', 'chars');
   const chars = MANIFEST.chars.map(f => read(path.join(CHARS_DIR, f)));
   chars.forEach((m, i) => syntaxCheck(MANIFEST.chars[i], m));
@@ -438,6 +449,7 @@ function buildViewer(coreBody) {
   // committed .js files under src/models/ and src/props/ are served directly.
   const payloadRefs = MANIFEST.models.map(f => ref(MODELS_DIR, 'src/models', f))
     .concat(MANIFEST.props.map(f => ref(PROPS_DIR, 'src/props', f)))
+    .concat(MANIFEST.panelhw.map(f => ref(PANELHW_DIR, 'src/panelhw', f)))
     .concat(MANIFEST.chars.map(f => ref(CHARS_DIR, 'src/chars', f))).join('\n');
 
   // --- the served page: code inlined, payloads referenced ---
@@ -463,6 +475,11 @@ function buildViewer(coreBody) {
     }
   for (const f of MANIFEST.props)
     if (!art.includes(`src="src/props/${f}?v=`)) {
+      console.error(`POST-BUILD ASSERTION FAILED: artifact lost the ${f} ref`);
+      process.exit(1);
+    }
+  for (const f of MANIFEST.panelhw)
+    if (!art.includes(`src="src/panelhw/${f}?v=`)) {
       console.error(`POST-BUILD ASSERTION FAILED: artifact lost the ${f} ref`);
       process.exit(1);
     }

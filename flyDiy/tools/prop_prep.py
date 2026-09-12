@@ -343,12 +343,16 @@ def gather(j, bufs, want_mats, want_nodes=None):
     W = node_worlds(j)
     scene = j.get('scenes', [{}])[j.get('scene', 0)]
     I = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
-    stack = [(i, I) for i in reversed(scene.get('nodes', []))]
+    # A NAMED NODE KEEPS ITS SUBTREE (the panel hardware kit): a Sketchfab
+    # export hangs the mesh on an anonymous "Object_N" child under the named
+    # empty, so a name in `want_nodes` claims the node AND everything under it
+    stack = [(i, I, False) for i in reversed(scene.get('nodes', []))]
     while stack:
-        ni, par = stack.pop()
+        ni, par, kept = stack.pop()
         n = j['nodes'][ni]
         m = mat_mul(par, trs_matrix(n))
-        if 'mesh' in n and (not want_nodes or n.get('name') in want_nodes):
+        kept = kept or (bool(want_nodes) and n.get('name') in want_nodes)
+        if 'mesh' in n and (not want_nodes or kept):
             nm = normal_matrix(m)
             skin = skin_matrices(j, bufs, n['skin'], W) if 'skin' in n else None
             for p in j['meshes'][n['mesh']].get('primitives', []):
@@ -391,7 +395,7 @@ def gather(j, bufs, want_mats, want_nodes=None):
                        if 'indices' in p else list(range(len(pos))))
                 out.append((name, pos, nrm, uv, idx))
         for c in reversed(n.get('children', [])):
-            stack.append((c, m))
+            stack.append((c, m, kept))
     return out
 
 

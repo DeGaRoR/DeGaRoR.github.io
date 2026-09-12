@@ -70,8 +70,11 @@ function scaleOf(key, units, o) {
     }
     case 'alt':
       // one turn per 1000 (ft or m) for the long hand: painted 0-9
-      return { min: 0, max: 10, k: U.alt.k, a0: 0, sweep: 360, unit: U.alt.u,
-               major: 1, minor: 0.2, arcs: [], per: units === 'metric' ? 1000 : 1000 };
+      // (the scale is in the display unit — feet or metres — so its ticks
+      // land where the long hand's `per` puts them; session 4c: at 0..10 the
+      // ten marks all sat at 12 o'clock, one thousandth of a turn apart)
+      return { min: 0, max: 1000, k: U.alt.k, a0: 0, sweep: 360, unit: U.alt.u,
+               major: 100, minor: 20, arcs: [], per: 1000 };
     case 'vsi': {
       const full = units === 'metric' ? 10 : 20;   // ±10 m/s or ±2000 fpm
       return { min: -full, max: full, k: U.vs.k, a0: 270 - 170, sweep: 340, unit: U.vs.u,
@@ -468,7 +471,7 @@ const PAINT = {
   },
   alt(g, R, units, o) {
     const F = faceBase(g, R);
-    ticks(g, F, 'alt', units, o, { labelOf: v => String(Math.round(v) % 10), fontK: 0.22 });
+    ticks(g, F, 'alt', units, o, { labelOf: v => String(Math.round(v / 100) % 10), fontK: 0.22 });
     unitText(g, F, 'ALTITUDE', -0.35, 0.10);
     unitText(g, F, units === 'metric' ? 'METRES ×100 · 1 000' : 'FEET ×100 · 1 000', 0.36, 0.085);
     // the Kollsman window, right of centre — a static 1013 / 29.92

@@ -1610,11 +1610,12 @@ function anchors(spec, P, mesh) {
     // column between two rungs would see nothing. Every edge of every plate
     // face is cut by each column line it spans, and the column's range is
     // the lowest and highest cut (the faces are convex quads).
-    const cut = (x, y0, y1) => {
+    const cut = (x, y0, y1, samples) => {
       const b = Math.round(x / BIN);
-      const c = cols.get(b) || { x: b * BIN, y0: 1e9, y1: -1e9 };
+      const c = cols.get(b) || { x: b * BIN, y0: 1e9, y1: -1e9, yz: [] };
       if (y0 < c.y0) c.y0 = y0;
       if (y1 > c.y1) c.y1 = y1;
+      for (const s of samples) c.yz.push(s);
       cols.set(b, c);
     };
     for (const f of mesh.F) {
@@ -1631,15 +1632,17 @@ function anchors(spec, P, mesh) {
       for (let b = Math.ceil(fx0 / BIN); b * BIN <= fx1 + 1e-9; b++) {
         const x = b * BIN;
         let lo = 1e9, hi = -1e9;
+        const samples = [];                                        // (y, z) where the plate crosses this column
         for (let i = 0; i < P.length; i++) {
           const a = P[i], c = P[(i + 1) % P.length];
           if ((a[0] - x) * (c[0] - x) > 0) continue;              // the edge does not span x
           const t = Math.abs(c[0] - a[0]) < 1e-9 ? 0 : (x - a[0]) / (c[0] - a[0]);
-          const y = a[1] + (c[1] - a[1]) * t;
+          const y = a[1] + (c[1] - a[1]) * t, z = a[2] + (c[2] - a[2]) * t;
+          samples.push([y, z]);
           if (y < lo) lo = y;
           if (y > hi) hi = y;
         }
-        if (lo <= hi) cut(x, lo, hi);
+        if (lo <= hi) cut(x, lo, hi, samples);
       }
     }
     if (n) {
@@ -1654,12 +1657,30 @@ function anchors(spec, P, mesh) {
       const zTop = nTop ? zTopS / nTop : dashAftZ, zBot = nBot ? zBotS / nBot : zTop;
       const tilt = Math.atan2(zBot - zTop, Math.max(0.05, yHi - yLo));
       const list = [...cols.values()].sort((a, b) => a.x - b.x);
+      for (const c of list) c.yz.sort((p, q) => p[0] - q[0]);
       face = { yBot: yLo, yTop: yHi, zTop, zBot, tilt, xMax, cols: list,
                // the outline at x: the nearest column's floor and crown
                at(x) {
                  let best = null;
                  for (const c of list) if (!best || Math.abs(c.x - x) < Math.abs(best.x - x)) best = c;
                  return best;
+               },
+               // THE PLATE IS NOT A PLANE (session 4c): the ladder follows the
+               // lip path's curve, so its depth varies across and up the plate
+               // by millimetres — enough to swallow a face standing 4 mm proud
+               // of the fitted plane. This is the plate's own z at (x, y): the
+               // nearest column's crossings, interpolated in y.
+               depthAt(x, y) {
+                 const c = this.at(x);
+                 if (!c || !c.yz.length) return this.zTop;
+                 const S = c.yz;
+                 if (y <= S[0][0]) return S[0][1];
+                 for (let i = 1; i < S.length; i++)
+                   if (y <= S[i][0]) {
+                     const t = (y - S[i - 1][0]) / Math.max(1e-9, S[i][0] - S[i - 1][0]);
+                     return S[i - 1][1] + (S[i][1] - S[i - 1][1]) * t;
+                   }
+                 return S[S.length - 1][1];
                } };
     }
   }
