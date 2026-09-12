@@ -696,6 +696,7 @@ function checks(hi, lo) {
   const S = hi.stats, rows = [];
   if (GEN === SH) return shedChecks(hi, lo);
   if (GEN === BG) return bigChecks(hi, lo);
+  if (S.composite) return compositeChecks(hi, lo);
   const row = (label, val, cls, note) =>
     rows.push('<div><span style="color:#7d8996">' + label + '</span> ' +
       '<b class="' + (cls || '') + '">' + val + '</b>' +
@@ -863,6 +864,27 @@ function checks(hi, lo) {
 
 // WHAT A PLANK-BY-PLANK SHED IS JUDGED BY: how many sticks are in it, how
 // many boards, how many are missing, and what all that costs.
+// A COMPOSITE'S REPORT (G329): the mill - its parts, its tiers, its mesh
+function compositeChecks(hi, lo) {
+  const S = hi.stats, rows = [];
+  const row = (label, val, cls, note) =>
+    rows.push('<div><span style="color:#7d8996">' + label + '</span> ' +
+      '<b class="' + (cls || '') + '">' + val + '</b>' +
+      (note ? ' <span style="color:#4a525c">' + note + '</span>' : '') + '</div>');
+  const head = t => rows.push('<div class="hd">' + t + '</div>');
+  head('THE COMPOSITE');
+  row('what', S.kind || 'composite', '', S.parts.length + ' houses');
+  row('footprint', S.footprint.toFixed(0) + ' m&sup2;', '', 'top at ' + S.ridgeY.toFixed(1) + ' m');
+  if (S.mill) {
+    head('THE TIERS');
+    for (const T of S.mill.tiers) row('tier ' + T.i, T.roof + (T.derelict ? ' (derelict)' : ''), '', T.L.toFixed(1) + ' m, ' + T.storeys + ' storeys, floor ' + T.fy.toFixed(1));
+  }
+  head('THE MESH');
+  row('high / low', hi.stats.tris.toLocaleString() + ' / ' + lo.stats.tris.toLocaleString() + ' tris', '',
+      Object.keys(S.per).map(k => k + ' ' + S.per[k]).join(' · '));
+  row('openings dropped', String(S.dropped), '', 'into a joint, or off a wall');
+  return rows.join('');
+}
 // THE BIG BUILDING'S REPORT (G312): what it is, what it opens, its slot
 function bigChecks(hi, lo) {
   const S = hi.stats, rows = [];

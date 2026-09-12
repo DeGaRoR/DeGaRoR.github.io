@@ -1232,7 +1232,65 @@ function battery(name, P) {
            posts: hi.stats.posts, sil: worst };
 }
 for (const name of Object.keys(HG.PRESETS))
-  rows.push(battery(name, Object.assign({}, HG.DEF, HG.PRESETS[name])));
+  if (!HG.PRESETS[name].mill) rows.push(battery(name, Object.assign({}, HG.DEF, HG.PRESETS[name])));
+
+// 37 — THE MILL, A COMPOSITE OF HOUSES (G329): it builds in both LODs,
+//   finite, the low mesh lower; every tier's floor above the one below and
+//   its front out of the roof below (the step shorter than the depth);
+//   something stands above the top tier (the head house, the stacks); the
+//   whole within its reach (the power house and its guy anchors, the chutes);
+//   NO WINDOW OPENS INTO A JOINT: every window's centre on a tier's wall is
+//   read back in the mill's frame and must not lie inside another tier's
+//   box under its roof; and the same seed builds the same mill twice.
+for (const name of Object.keys(HG.PRESETS)) {
+  if (!HG.PRESETS[name].mill) continue;
+  const P = Object.assign({}, HG.DEF, HG.PRESETS[name]);
+  let hi = null, lo = null, threw = null;
+  try { hi = HG.build(P, 0); lo = HG.build(P, 1); } catch (e) { threw = e; }
+  if (!check(!threw, 'mill ' + name + ': build threw', threw && (threw.stack || threw.message))) continue;
+  let nan = 0, x1 = -1e9, z1 = -1e9, y1 = -1e9, y0 = 1e9;
+  for (const k of HG.BAGS) {
+    const d = hi.bags[k].data();
+    for (let i = 0; i < d.pos.length; i += 3) {
+      if (!isFinite(d.pos[i]) || !isFinite(d.pos[i + 1]) || !isFinite(d.pos[i + 2])) { nan++; continue; }
+      x1 = Math.max(x1, Math.abs(d.pos[i])); z1 = Math.max(z1, Math.abs(d.pos[i + 2]));
+      y1 = Math.max(y1, d.pos[i + 1]); y0 = Math.min(y0, d.pos[i + 1]);
+    }
+  }
+  check(nan === 0, 'mill ' + name + ': NaN in the mesh', String(nan));
+  check(hi.stats.tris > 5000, 'mill ' + name + ': too few triangles', String(hi.stats.tris));
+  check(lo.stats.tris < hi.stats.tris * 0.75, 'mill ' + name + ': the low mesh is not lower', lo.stats.tris + ' vs ' + hi.stats.tris);
+  const M = hi.stats.mill;
+  check(M.tiers.length === Math.round(P.tiers) + Math.round(P.frameBack || 0), 'mill ' + name + ': not all tiers built');
+  for (let k = 1; k < M.tiers.length; k++) {
+    check(M.tiers[k].fy > M.tiers[k - 1].fy + 1, 'mill ' + name + ': tier ' + k + ' does not climb');
+    check(M.tiers[k].zF < M.tiers[k - 1].zF && M.tiers[k].zF > M.tiers[k - 1].zB, 'mill ' + name + ': tier ' + k + ' does not rise out of the roof below');
+  }
+  check(hi.stats.ridgeY > M.tiers[M.tiers.length - 1].ridge - 0.5, 'mill ' + name + ': nothing stands above the top tier');
+  const reachX = P.tierL0 / 2 + 14 + 10 + 7, reachZ = P.tierW / 2 + (Math.round(P.tiers) + Math.round(P.frameBack || 0) - 1) * P.tierStep + P.tierW + 4;
+  check(x1 <= reachX + 1e-3 && z1 <= reachZ + 1e-3, 'mill ' + name + ': something stands past the reach of the mill', x1.toFixed(2) + '/' + reachX.toFixed(2) + ' ' + z1.toFixed(2) + '/' + reachZ.toFixed(2));
+  // the windows: the glass bag's quads, each centre against every other tier's box
+  {
+    const d = hi.bags.glass.data();
+    const tiers = M.tiers;
+    const yRoofOf = T => (x, z) => T.roof === 'x' || T.roof === 'frame' ? T.eave + (P.tierW / 2 - Math.abs(z - T.zM)) * Math.tan(P.pitch * Math.PI / 180)
+      : T.roof === 'z' ? T.ridge - Math.min(T.L / 2, Math.abs(x - T.xo)) * ((T.ridge - T.eave) / (T.L / 2)) : T.eave + (T.zF - z) * Math.tan(P.pitch * Math.PI / 180);
+    let inJoint = 0, n = 0; const where = [];
+    for (let i = 0; i + 11 < d.pos.length; i += 12) {          // a window pane is one quad: four vertices
+      const cx = (d.pos[i] + d.pos[i + 3] + d.pos[i + 6] + d.pos[i + 9]) / 4, cy = (d.pos[i + 1] + d.pos[i + 4] + d.pos[i + 7] + d.pos[i + 10]) / 4, cz = (d.pos[i + 2] + d.pos[i + 5] + d.pos[i + 8] + d.pos[i + 11]) / 4;
+      n++;
+      for (const T of tiers) {
+        if (T.roof === 'frame') continue;
+        const inBox = cx > T.x0 + 0.2 && cx < T.x1 - 0.2 && cz > T.zB + 0.2 && cz < T.zF - 0.2 && cy > T.fy + 0.1 && cy < yRoofOf(T)(cx, cz) - 0.1;
+        if (inBox) { inJoint++; if (where.length < 6) where.push('tier ' + T.i + ' @' + cx.toFixed(1) + ',' + cy.toFixed(1) + ',' + cz.toFixed(1)); break; }
+      }
+    }
+    check(inJoint === 0, 'mill ' + name + ': ' + inJoint + ' of ' + n + ' panes open into another tier', where.join(' · ') +
+          ' | parts ' + hi.stats.parts.map(q => q.preset + ' fy' + q.floorY.toFixed(1) + ' eave' + (q.eaveY || 0).toFixed(1) + ' ridge' + (q.ridgeY || 0).toFixed(1) + ' @' + q.x.toFixed(1) + ',' + q.z.toFixed(1) + ' yaw' + q.yaw.toFixed(2)).join('; '));
+  }
+  const again = HG.build(P, 0);
+  check(again.stats.tris === hi.stats.tris, 'mill ' + name + ': the build is not deterministic');
+}
 
 // 18 — THE PRESETS COVER THE SPACE (the user: "in the presets, you don't use
 //   saltbox much. Ensure you have a wide variety, covering most of our
@@ -1577,7 +1635,7 @@ if (SELFTEST) {
   if (HG.build(Object.assign({}, HG.DEF, { chim: 0 }), 0).stats.chimney)
     neg.push('a house with no chimney published one');
   for (const nm in HG.PRESETS)
-    if (!HG.PRESETS[nm].openFront && !HG.PRESETS[nm].outbuilding && Math.round(HG.PRESETS[nm].chim === undefined ? HG.DEF.chim : HG.PRESETS[nm].chim) === 0)
+    if (!HG.PRESETS[nm].openFront && !HG.PRESETS[nm].outbuilding && !HG.PRESETS[nm].mill && Math.round(HG.PRESETS[nm].chim === undefined ? HG.DEF.chim : HG.PRESETS[nm].chim) === 0)
       neg.push('preset ' + nm + ' has no chimney');
   // THE YARD (G273): the default house grows props and a woodpile with
   // rounds in it; with the dials off it grows neither; the same seed twice is
@@ -1663,22 +1721,9 @@ if (check(!!BG, 'the big generator did not load headlessly')) {
     check(lo.stats.tris < hi.stats.tris * 0.7, 'big ' + name + ': the low mesh is not lower', lo.stats.tris + ' vs ' + hi.stats.tris);
     // the reach: the length plus the rake, the width plus the eave, the dock, the canopy, the awning, the sign
     // (the mill's is its tiers up the hill and the power house beside them)
-    const reachX = P.mill ? P.tierL0 / 2 + 14 + 10 + 7 : P.L / 2 + Math.max(P.rakeOver, 0.35) + 0.6;   // the mill: the power house, its guy anchors, the chutes off the ends
+    const reachX = P.L / 2 + Math.max(P.rakeOver, 0.35) + 0.6;
     const reachZ = P.w / 2 + Math.max(P.eaveOver, 0.2) + (P.dock ? P.dockD + 1.5 : 0) + (P.canopy ? P.canopyOut + 2.2 : 0) + (P.awning ? 1.5 : 0) + (P.gantry && !P.dock ? 1.8 : 0) + 0.8;
-    const reachZm = P.mill ? P.tierW / 2 + (Math.round(P.tiers) - 1) * P.tierStep + P.tierW + 4 : reachZ;
-    check(x1 <= reachX + 1e-3 && z1 <= reachZm + 1e-3, 'big ' + name + ': something stands past the reach of the building', x1.toFixed(2) + '/' + reachX.toFixed(2) + ' ' + z1.toFixed(2) + '/' + reachZm.toFixed(2));
-    if (P.mill) {
-      // the tiers climb: every tier's floor above the last, every front wall
-      // out of the roof below (the step shorter than the depth), the tower
-      // and the stacks the highest things
-      const M = hi.stats.mill;
-      check(M.tiers.length === Math.round(P.tiers), 'big ' + name + ': not all tiers built');
-      for (let k = 1; k < M.tiers.length; k++) {
-        check(M.tiers[k].fy > M.tiers[k - 1].fy + 1, 'big ' + name + ': tier ' + k + ' does not climb');
-        check(M.tiers[k].zF < M.tiers[k - 1].zF && M.tiers[k].zF > M.tiers[k - 1].zB, 'big ' + name + ': tier ' + k + ' does not rise out of the roof below');
-      }
-      check(hi.stats.ridge > M.tiers[M.tiers.length - 1].ridge, 'big ' + name + ': nothing stands above the top tier');
-    }
+    check(x1 <= reachX + 1e-3 && z1 <= reachZ + 1e-3, 'big ' + name + ': something stands past the reach of the building', x1.toFixed(2) + '/' + reachX.toFixed(2) + ' ' + z1.toFixed(2) + '/' + reachZ.toFixed(2));
     check(y1 >= hi.stats.ridge - 0.01 && y0 < P.floorY, 'big ' + name + ': the mesh does not span plinth to stack');
     if (P.sign) { const sg = hi.stats.sign;
       check(sg && sg.w > 0.5 && sg.y > P.floorY + 1.5 && (sg.nz ? Math.abs(sg.x) < P.L / 2 : Math.abs(sg.z) < P.w / 2),

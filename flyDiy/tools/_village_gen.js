@@ -528,7 +528,7 @@ const THEMES = {
     hill: { back: 62, h: 34, r: 58 },
     span: [42, 48], shedT: 26,
     items: [
-      { gen: 'big', preset: 'kennecott mill', x: -4, z: 24, yaw: 0 },
+      { gen: 'house', preset: 'kennecott mill', x: -4, z: 24, yaw: 0 },
       { gen: 'big', preset: 'tram shed', x: 26, z: 0, yaw: Math.PI / 2, onRoad: true },
       { gen: 'big', preset: 'mine shop', x: -34, z: 12, yaw: 0 },
       { gen: 'house', preset: 'mine bunkhouse', x: 34, z: 14, yaw: 0 },
@@ -585,18 +585,30 @@ function placeSite(vil) {
       P = Object.assign({}, HG.DEF, HG.PRESETS[it.preset] || {}, it.P || {});
       P.preset = it.preset; P.slopeX = 0; P.slopeZ = 0; P.water = 0; P.pier = 0;
       P.ground = ground; P.waterY = T.waterY - oy;
-      let hiC = -1e9;
-      for (const sx of [-1, 1]) for (const sz of [-1, 1]) hiC = Math.max(hiC, ground(sx * P.L / 2, sz * P.w / 2));
-      P.floorY = hiC + (P.stance === 0 ? 0.3 : 0.55);
+      if (P.mill) P.floorY = Math.max(ground(-P.tierL0 / 2, P.tierW / 2), ground(P.tierL0 / 2, P.tierW / 2)) + 0.6;
+      else {
+        let hiC = -1e9;
+        for (const sx of [-1, 1]) for (const sz of [-1, 1]) hiC = Math.max(hiC, ground(sx * P.L / 2, sz * P.w / 2));
+        P.floorY = hiC + (P.stance === 0 ? 0.3 : 0.55);
+      }
       P.spread = vil.spread;
     }
     P.site = S.name;
     const rec = { P, x: c[0], z: c[1], y: oy, yaw, toWorld, ground, seed: 500 + out.length, gen: it.gen, site: true, item: it };
     out.push(rec);
     // the keep-out for the trees: the footprint and a margin, in the world
-    const L = P.mill ? P.tierL0 + 16 : P.L, w = P.mill ? P.tierW / 2 + (Math.round(P.tiers) - 1) * P.tierStep + P.tierW : P.w;
+    const L = P.mill ? P.tierL0 + 24 : P.L, w = P.mill ? P.tierW / 2 + (Math.round(P.tiers) - 1) * P.tierStep + P.tierW : P.w;
     const zc = P.mill ? -(w / 2 - P.tierW / 2) : 0;
     keepOut.push([[-L / 2 - 3, zc + w / 2 + 3], [L / 2 + 3, zc + w / 2 + 3], [L / 2 + 3, zc - w / 2 - 3], [-L / 2 - 3, zc - w / 2 - 3]].map(q => toWorld(q[0], q[1])));
+  }
+  // THE TRAMWAY'S FAR END (G329): the mill's conveyor runs to the shed the
+  // road goes through - that shed's position in the mill's own frame
+  const mill = out.find(h => h.P.mill), shed = out.find(h => h.item.onRoad);
+  if (mill && shed) {
+    const c = Math.cos(mill.yaw), sn = Math.sin(mill.yaw);
+    const dx = shed.x - mill.x, dz = shed.z - mill.z;
+    // world = c + R(yaw) local, with local x -> [c, -s], local z -> [s, c]
+    mill.P.tramTo = [dx * c - dz * sn, shed.y + shed.P.floorY + (shed.P.eaveH || 5) - mill.y, dx * sn + dz * c];
   }
   vil.siteHouses = out;
   vil.siteKeepOut = keepOut;
@@ -1139,8 +1151,22 @@ function planTrees(vil, pool) {
     for (const p of list) { r -= (p.proportion || 1); if (r <= 0) return p; }
     return list[list.length - 1];
   };
-  const put = (x, z, p, sizeK) => {
-    const size = (p.size || 1) * (sizeK === undefined ? (0.82 + rnd() * 0.4) : sizeK);
+  const roadNear = (x, z) => {
+    let d = 1e9;
+    for (let i = 1; i < vil.road.pts.length; i++) d = Math.min(d, distSeg(x, z, vil.road.pts[i - 1], vil.road.pts[i]));
+    return d;
+  };
+  // THE VILLAGE STRIP IS SMALL TREES (G329, the user: "only small trees in
+  // the area I indicated ... otherwise just scale them down"): within the
+  // plots' depth of the road on either side - the lots, the gaps, the
+  // mine's ground - a tree is the small species, and scaled down besides;
+  // the tall wood begins behind
+  const inStrip = (x, z) => roadNear(x, z) < V.plotDepth + 10;
+  const put = (x, z, p0, sizeK) => {
+    let p = p0;
+    if (inStrip(x, z) && p.h >= 12 && small.length) p = small[Math.floor(rnd() * small.length)];
+    const shrink = inStrip(x, z) ? 0.65 : 1;
+    const size = (p.size || 1) * (sizeK === undefined ? (0.82 + rnd() * 0.4) : sizeK) * shrink;
     trees.push({ x, z, key: p.key, size, yaw: rnd() * Math.PI * 2, y: T.h(x, z), sink: p.sink || 0,
                  h: (p.h || 12) * size / (p.size || 1) });
   };
@@ -1153,11 +1179,6 @@ function planTrees(vil, pool) {
     let d = 1e9;
     for (let i = 0; i < poly.length; i++) d = Math.min(d, distSeg(x, z, poly[i], poly[(i + 1) % poly.length]));
     return inPoly(poly, x, z) ? -d : d;      // negative inside: the metres to the edge
-  };
-  const roadNear = (x, z) => {
-    let d = 1e9;
-    for (let i = 1; i < vil.road.pts.length; i++) d = Math.min(d, distSeg(x, z, vil.road.pts[i - 1], vil.road.pts[i]));
-    return d;
   };
   const clearOf = (x, z, m) => trees.every(t => Math.hypot(t.x - x, t.z - z) >= m);
   // THE WOOD: behind the plots' back edges (the deepest plot line at this x)

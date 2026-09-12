@@ -92,6 +92,25 @@ function Bag(name) {
     get tris() { return idx.length / 3; },
     get verts() { return pos.length / 3; },
     data: () => ({ pos, uv, idx, ao, lit, win }),
+    raw: () => ({ pos, uv, idx, ao, lit, win, nOv }),
+    // APPEND ANOTHER BAG, MOVED (G329): the composite buildings - the mill's
+    // tiers are whole house builds set down at their places - merge bag into
+    // bag by name. `xf` is { yaw, dx, dy, dz }: a turn about y, then a
+    // translation; every channel rides along, the normal overrides turned.
+    append: (src, xf) => {
+      const r = src.raw();
+      const c = Math.cos(xf.yaw || 0), s = Math.sin(xf.yaw || 0);
+      const base = pos.length / 3;
+      for (let i = 0; i < r.pos.length; i += 3) {
+        const x = r.pos[i], y = r.pos[i + 1], z = r.pos[i + 2];
+        pos.push(x * c + z * s + (xf.dx || 0), y + (xf.dy || 0), -x * s + z * c + (xf.dz || 0));
+      }
+      for (let i = 0; i < r.uv.length; i++) uv.push(r.uv[i]);
+      for (let i = 0; i < r.ao.length; i++) { ao.push(r.ao[i]); lit.push(r.lit[i]); }
+      for (let i = 0; i < r.win.length; i++) win.push(r.win[i]);
+      for (let i = 0; i < r.idx.length; i++) idx.push(r.idx[i] + base);
+      r.nOv.forEach((n, i) => nOv.set(i + base, [n[0] * c + n[2] * s, n[1], -n[0] * s + n[2] * c]));
+    },
     mesh: (parent, mat) => {
       if (!idx.length) return null;
       const g = new THREE.BufferGeometry();

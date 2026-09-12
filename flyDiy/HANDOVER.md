@@ -41338,3 +41338,63 @@ Headless now: the Skymaster twin booms and two fins (clusters at 474 /
   (a bench without the hinge module) uses the old defaults as constants.
 - Gates: PARTS (no claim on a row that is not there), SAVE, DESIGN, GEAR,
   VIEW, HINGE, CLIP — from a clean worktree at HEAD.
+
+## G329 — THE MILL IS BUILT OF HOUSES: A COMPOSITE OF THE HOUSE GENERATOR, WITH
+## THE HOUSE'S EVERYTHING; THE TRAMWAY TO THE RECEIVING SHED; BARE FRAMES UP THE
+## TOP; THE ROOFS WOODEN, LARGE-SCALED, GREY; SMALL TREES ALONG THE VILLAGE
+## (2026-09-13, the user: "There is stumbling difference in detail between the
+## houses and the mine. Give the mine all proper materials, including the
+## roofs ... roof finish everywhere, window finishes like the houses, proper
+## support structure with all beams ... see the house generation as a procedure
+## to follow. Everything is in there, no need to reinvent" — then: the roof
+## tiles bigger, no curtains, the dust off the roof, the conveyor to the shed
+## the road goes through, more bare truss at the top, annex roofs shedding
+## outward, only small trees along the village strip)
+
+- **`buildComposite(parts, opts, lod, F)`** (`tools/_house_gen.js`): several
+  house builds set down at their places and merged bag into bag
+  (`Bag.append(src, { yaw, dx, dy, dz })`, new in the kit - every channel
+  rides along, the normal overrides turned), the mill-only pieces drawn
+  into the same bags after (`opts.extra`), ONE ground skirt and ONE
+  occlusion bake over the whole. Each part builds with its ao, skirt,
+  yard, people, smoke and lights off; its `ground` is the composite's
+  through the part's transform.
+- **THE MILL IS HOUSES NOW** (`buildMill`, a house preset `kennecott mill`,
+  `P.mill` → `build()` hands off): every closed tier a house on the house's
+  own posts and braces (stance 2, spacing 2.6, 0.2 m posts), with the
+  house's window casings, sills and glass, the house's eave, fascia,
+  barge and ridge, corner boards, paint, dirt and weather. A tier's kind:
+  'z' the house turned a quarter (its ridge across the hill), 'mono' the
+  shed family turned about (high at the back, draining down the hill),
+  'x' the house as it stands, 'frame' the crusher floor in bare beams
+  into the `post` bag with the house's roof planes over it. Annexes
+  (shed-roof houses turned so the high side is against the tier and the
+  roof sheds OUTWARD), stair towers (narrow tall houses, a door, a window
+  a storey), the head house, the power house (a house on a cripple wall)
+  are parts too; the naked lean-tos, the chutes, the loose boards, the
+  tramway (rusted steel into `metal`, its pipes, hood and trestles) and
+  the stacks (banded, guyed, laddered) are extras. `BIG_GEN` lost its
+  mill; the theme names `gen: 'house'`.
+- **NO WINDOW INTO A JOINT**: the house generator takes `winKeep(x, z,
+  y0, y1)` - the hole's centre in the house's own plan (the gable light
+  too) - and the mill answers from its pre-pass boxes (every tier under
+  its roof, every annex and stair) in the mill's frame. GATE HOUSE 37
+  reads every glass pane back and finds none inside another tier.
+- **THE TRAMWAY TO THE RECEIVING SHED** (`tramTo`): from the crusher floor
+  down across the front to the tram shed the road runs through - the site
+  hands the shed's position in the mill's frame - on trestles to the
+  ground where the tiers end; alone in the bench, to a point at the foot.
+- **BARE FRAMES UP THE TOP** (`frameBack`, 3 on the preset): more frame
+  tiers behind the crusher floor, stepping on up the hill - the top is
+  bare structure, as in the photographs.
+- **THE ROOFS**: wooden shingles (`shingle`), the map scaled 4× per building
+  (`roofTile` → a per-material uv scale in the shader, since textures are
+  shared by key), the relief 1.5× (`roofNrm`), the roof's own cloud
+  weather down to a whisper (`roofClouds` 0.12; the walls keep `clouds`
+  0.9 with a bitier dark layer); the clouds live in the house finish now
+  (`cloudWeather`, off by default), the big buildings read them from
+  there. No curtains or blinds on the mill (`curtains: 0`).
+- **SMALL TREES ALONG THE VILLAGE STRIP**: within the plots' depth of the
+  road on either side - lots, gaps, the mine's ground - every tree is the
+  small species and scaled by 0.65 besides; the tall wood begins behind.
+- Gates: HOUSE (37 the mill), VILLAGE green.
