@@ -77,6 +77,7 @@ const VDEF = {
   fenceOdds: 0.72,        // an edge fenced
   oldFenceOdds: 0.25,     // a plot fenced with the scanned fence instead
   carOdds: 0.45,          // a plot with an abandoned car in the backyard
+  boatOdds: 0.3,          // a plot with the trailered boat on the ground
   nHouses: 0,             // 0 = every plot
 };
 
@@ -383,18 +384,29 @@ function makeVillage(V0) {
 // house, the fences (a metre and a half inside the plot line), the path and
 // the water; the spots are tried from the house outward and the first clear
 // one takes it. One per plot at `carOdds`, the Buick rarely.
-function planCar(vil, plot, house, built, rnd) {
-  if (rnd() > vil.V.carOdds) return null;
+// THE BOAT ON ITS TRAILER (G280, the user: "The highlighted boat is to be
+// placed on the ground, either in the back lot or next to the water, on the
+// side of the houses"): the same placer as the car with a second set of
+// spots - beside the house, toward the water - on a waterfront plot
+function planCar(vil, plot, house, built, rnd, thing) {
+  const isBoat = thing === 'boat';
+  if (rnd() > (isBoat ? vil.V.boatOdds : vil.V.carOdds)) return null;
   const T = vil.T, keys = HG.CAR_KEYS;
-  let key = keys[Math.floor(rnd() * keys.length) % keys.length];
+  let key = isBoat ? 'boat_tirola' : keys[Math.floor(rnd() * keys.length) % keys.length];
   if (key === 'car_buick' && rnd() < 0.7) key = 'car_fiat';
-  const K = HG.YARD_KIT[key];
+  const K = isBoat ? HG.PIER_KIT.boat_tirola : HG.YARD_KIT[key];
   const n = plot.n, tg = plot.tg;
   // the backyard direction, away from the house's front
   const back = plot.side === 'water' ? [-n[0], -n[1]] : [n[0], n[1]];
   const P = house.P;
   const ry0 = Math.atan2(tg[0], tg[1]);                   // along the plot
   const cands = [];
+  // beside the house toward the water, first, for the boat on a water plot
+  if (isBoat && plot.side === 'water')
+    for (const sx of [1, -1]) for (let d = 0; d < 8; d += 1.5)
+      cands.push({ x: house.x + tg[0] * sx * (P.L / 2 + K.W / 2 + 1.5) + n[0] * d,
+                   z: house.z + tg[1] * sx * (P.L / 2 + K.W / 2 + 1.5) + n[1] * d,
+                   ry: Math.atan2(n[0], n[1]) + (rnd() - 0.5) * 0.5 });
   for (let d = P.w / 2 + 1.2 + K.W / 2; d < plot.depth; d += 1.5)
     for (const s of [0, 1, -1, 2, -2])
       cands.push({ x: house.x + back[0] * d + tg[0] * s * 2.6, z: house.z + back[1] * d + tg[1] * s * 2.6,
@@ -410,6 +422,12 @@ function planCar(vil, plot, house, built, rnd) {
     }
     if (!inPoly(plot.poly, c.x, c.z)) return false;
     if (T.h(c.x, c.z) < T.waterY + 0.3) return false;
+    // and never over the deck's stair or its jetty on a water plot
+    if (plot.side === 'water' && built.stats.stair) {
+      const st = built.stats.stair;
+      const w = house.toWorld(st.x, (st.z0 + st.z1) / 2);
+      if (Math.hypot(w[0] - c.x, w[1] - c.z) < half + Math.abs(st.z1 - st.z0) / 2 + 1.0) return false;
+    }
     // clear of the house: the car's disc against the house's rectangle
     const cy = Math.cos(house.yaw), sy = Math.sin(house.yaw);
     const x = c.x - house.x, z = c.z - house.z, lx = x * cy - z * sy, lz = x * sy + z * cy;
@@ -437,7 +455,9 @@ function finishPlot(vil, plot, house, built) {
   const rnd = vil.rnd;
   plot.path = planPath(plot, house, built);
   plot.fences = planFences(vil.V, plot, house, rnd);
-  plot.car = planCar(vil, plot, house, built, rnd);
+  plot.car = planCar(vil, plot, house, built, rnd, 'car');
+  plot.boat = planCar(vil, plot, house, built, rnd, 'boat');
+  if (plot.car && plot.boat && Math.hypot(plot.car.x - plot.boat.x, plot.car.z - plot.boat.z) < 5.5) plot.boat = null;
   return plot;
 }
 

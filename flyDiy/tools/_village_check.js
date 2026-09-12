@@ -193,9 +193,10 @@ function battery(name, vil) {
     }
     // 7 — the car (G276): a known car, on its plot a half-length inside the
     //   line, clear of the house and the path, on dry ground
-    if (plot.car) {
-      const c = plot.car, K = HG.YARD_KIT[c.key];
-      check(!!K && K.car, name + ': plot ' + plot.id + ' parked something that is not a car', c.key);
+    for (const c of [plot.car, plot.boat]) if (c) {
+      const K = plot.car === c ? HG.YARD_KIT[c.key] : HG.PIER_KIT[c.key];
+      check(!!K && (K.car || c.key === 'boat_tirola'),
+            name + ': plot ' + plot.id + ' parked something that is not a car or the trailer boat', c.key);
       check(VG.inPoly(plot.poly, c.x, c.z), name + ': the car on plot ' + plot.id + ' is off its plot');
       check(T.h(c.x, c.z) > T.waterY + 0.25, name + ': the car on plot ' + plot.id + ' is in the water');
       check(Math.abs(c.y - T.h(c.x, c.z)) < 0.01, name + ': the car on plot ' + plot.id + ' floats');

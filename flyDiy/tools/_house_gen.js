@@ -341,13 +341,19 @@ const PIER_KIT = {
   // the two people, at their delivered height, placed by their feet
   person_andrew: { L: 0.48, W: 0.61, H: 1.82 },
   person_john:   { L: 0.75, W: 0.64, H: 1.84 },
+  // and three more (G280): Charles LEANS - his back is his own -z face
+  person_charles: { L: 0.632, W: 0.536, H: 1.718, lean: true },
+  person_luke:   { L: 0.608, W: 0.57, H: 1.619 },
+  person_koky:   { L: 0.385, W: 0.505, H: 1.738 },
 };
 // THE KIT'S TWO LEVELS, in the author's frame: every run's deck, and the
 // stair module's low landing. The path is on one or the other; the stair is
 // the only module that has an end on each.
 const PIER_DECK = 2.64, PIER_LOW = 1.24;
 const PIER_RUNS = ['pier_run', 'pier_run', 'pier_ledge'];
-const SMALL_BOATS = ['boat_painted', 'boat_clinker', 'boat_runabout', 'boat_tirola'];
+// the venetian scan sits on a TRAILER (G280, the user: "The highlighted boat
+// is to be placed on the ground") - it is a yard thing now, never moored
+const SMALL_BOATS = ['boat_painted', 'boat_clinker', 'boat_runabout'];
 const setTint = key => SET_TINT[key] || {};
 
 // THE RULE, in the user's own words: "Finishes, beams and pillars takes
@@ -4336,13 +4342,32 @@ function peoplePlan(P, V, dk, front, pier) {
   if (!P.people) return [];
   const out = [];
   const D = deckPlan(P, V);
+  // WHO (G280): five figures now, hashed from the house's own seed - one on
+  // the deck (Andrew or Koky), one on the pier (John or Luke), and Charles,
+  // who leans, against the front wall on the deck when the deck has wall
+  // behind it, at half the houses
+  const j = jog((P.yardSeed || 7) * 1.3, (P.lightSeed || 1) * 0.7, 61);
+  const deckKey = j[0] < 2.15 ? 'person_andrew' : 'person_koky';
+  const pierKey = j[1] < 1.55 ? 'person_john' : 'person_luke';
+  const wantCharles = ((j[0] * 7.3) % 1) < 0.5;
   if (D && P.porch) {
     const dx = (doorPosOf(P, V) - 0.5) * V.L + P.doorW / 2 + 0.75;
-    out.push({ key: 'person_andrew', x: clamp(dx, D.x0 + 0.5, D.x1 - 0.5),
+    out.push({ key: deckKey, x: clamp(dx, D.x0 + 0.5, D.x1 - 0.5),
                y: D.yTop, z: D.zIn + Math.min(1.1, P.porchD * 0.5),
                ry: -Math.PI * 0.15, on: 'deck' });
+    // CHARLES, BACK TO THE WALL: on the other side of the door from the
+    // deck's first figure, his -z face 2 cm off the wall's face, facing out
+    // (+z); only where the deck has the house's wall behind it
+    if (wantCharles) {
+      const K = PIER_KIT.person_charles;
+      const cx = (doorPosOf(P, V) - 0.5) * V.L - P.doorW / 2 - 0.9;
+      const lo = Math.max(D.x0 + 0.4, -V.L / 2 + 0.5), hi = Math.min(D.x1 - 0.4, V.L / 2 - 0.5);
+      if (hi > lo)
+        out.push({ key: 'person_charles', x: clamp(cx, lo, hi), y: D.yTop,
+                   z: D.zIn + K.L / 2 + 0.02, ry: 0, on: 'deck', wall: true });
+    }
   } else if (front) {
-    out.push({ key: 'person_andrew', x: front.x + 0.35, y: front.y,
+    out.push({ key: deckKey, x: front.x + 0.35, y: front.y,
                z: front.z - front.side * front.depth * 0.5, ry: -Math.PI * 0.1,
                on: 'stoop' });
   }
@@ -4350,7 +4375,7 @@ function peoplePlan(P, V, dk, front, pier) {
     const runs = pier.modules.filter(m => m.chain === 0 && !m.over && !m.aside &&
                                           m.key !== 'pier_step');
     const m = runs[Math.min(runs.length - 1, Math.max(0, runs.length - 2))];
-    if (m) out.push({ key: 'person_john', x: m.x + 0.55, y: m.hOut, z: m.z,
+    if (m) out.push({ key: pierKey, x: m.x + 0.55, y: m.hOut, z: m.z,
                       ry: -Math.PI / 2 + 0.3, on: m.key });
   }
   return out;
@@ -4402,6 +4427,7 @@ const PIER_TRIS = {
   pier_gate: 13010, pier_piles: 2460, pier_deck: 5512, boat_painted: 37348,
   boat_clinker: 8358, boat_runabout: 11215, boat_tirola: 18742, boat_grady: 369673,
   person_andrew: 354510, person_john: 310334,
+  person_charles: 174995, person_luke: 128902, person_koky: 331806,
 };
 
 // ---------------------------------------------------------------------------
@@ -4906,7 +4932,14 @@ function yardPlan(P, V, dk, stoop, front, barrel, people, ch, dr, g) {
       if (rnd() < 0.7) put('planter', 'deck', 'deck', { turn: 0.2 });
       if (rnd() < 0.6) put(pick(['jerrycan_green', 'jerrycan', 'crate_wood_a']), 'deck', 'deck', { turn: 1.5 });
     } else if (what === 'bags') {
-      put(pick(['bags_lean', 'bags_stack', 'bags_stand']), Z.lowWall ? 'back' : 'gable', 'ground', { turn: 0.25 });
+      // THE LEANING BAGS REST ON A WALL (G280, the user: "they're meant at
+      // resting on a wall ... use them only with non open skirt
+      // foundations"): only where the base is closed - a slab, a cripple
+      // wall, or a skirt - and against it; the stacked and the standing
+      // bags stand on their own anywhere
+      const closed = Math.round(P.stance) <= 1 || Math.round(P.skirt) > 0;
+      put(pick(closed ? ['bags_lean', 'bags_stack', 'bags_stand'] : ['bags_stack', 'bags_stand']),
+          Z.lowWall ? 'back' : 'gable', 'ground', { turn: 0.25 });
       if (rnd() < 0.5) put(pick(['bag_compost', 'bags_flat']), 'back', 'ground', { turn: 2 });
     } else if (what === 'ladder') {
       put('stepladder', Z.lowWall ? 'gable' : 'underDeck', 'ground', { turn: 0.6 });
@@ -5493,7 +5526,7 @@ function dressSlot(matKey, role, idx, col, flat) {
 
 window.HOUSE_GEN = {
   DEF, ROWS, PRESETS, MAT, BAGS, EXTRA, SMOKE_U, FAMS, STANCES, RAILS, SET_TINT, SHADE_U,
-  HAND_LEAN, HAND_TWIST, YARD_KIT, CAR_KEYS,
+  HAND_LEAN, HAND_TWIST, YARD_KIT, CAR_KEYS, SMALL_BOATS,
   STAIR_MAX, SET_SEAM, SET_MISS, PIER_KIT, PIER_TRIS, PIER_DECK, PIER_LOW, SKIRT_OK,
   COLS, COL_NAMES, ROLE_SETS, SET_IDX, setNames, setFor, setRibbed,
   build, roofModel, wallSplits, groundFn, applyFinish, libSets, randomHouse,

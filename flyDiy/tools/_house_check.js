@@ -976,7 +976,22 @@ function battery(name, P) {
     check(want !== null && Math.abs(q.y - want) < 0.011,
           name + ': a person is not standing on the ' + q.on,
           q.key + ' at ' + q.y.toFixed(3) + (want === null ? '' : ' vs ' + want.toFixed(3)));
+    // CHARLES LEANS (G280): his back within 5 cm of the front wall's face,
+    // on a stretch of deck that has the wall behind it
+    if (q.key === 'person_charles') {
+      const K = HG.PIER_KIT.person_charles;
+      const wallZ = P.w / 2 - P.wallT / 2;
+      check(Math.abs((q.z - K.L / 2) - wallZ) < 0.05, name + ': Charles is not against the wall',
+            (q.z - K.L / 2).toFixed(3) + ' vs ' + wallZ.toFixed(3));
+      check(Math.abs(q.x) < P.L / 2 - 0.3, name + ': Charles leans where there is no wall');
+      check(Math.abs(q.ry) < 0.01, name + ': Charles has his back to the view, not the wall');
+    }
   }
+  // THE LEANING BAGS ONLY AGAINST A CLOSED BASE (G280)
+  for (const q of hi.stats.yard || [])
+    if (q.key === 'bags_lean')
+      check(Math.round(P.stance) <= 1 || Math.round(P.skirt) > 0,
+            name + ': leaning bags with nothing to lean on (open base)');
 
   // 31 — THE SKIRT IS OPEN unless the house is big and two storeys (G257, the
   //   user: "prefer open skirt in almost all cases, but for large multi story
@@ -1515,6 +1530,18 @@ if (SELFTEST) {
   const lampD = HG.build(Object.assign({}, HG.DEF, { lights: 1, lampKind: 0 }), 0).stats.lit.lights[0];
   if (!(lampD && !lampD.prop)) neg.push('the drawn lantern is gone');
   if (!(yd.stats.path && yd.stats.path.length >= 1)) neg.push('no path from the stair');
+  // THE PEOPLE (G280): over the seeds the deck's figure and the pier's each
+  // take both names, and Charles turns up against the wall
+  {
+    const seen = {};
+    for (let sd = 1; sd <= 12; sd++) {
+      const b = HG.build(Object.assign({}, HG.DEF, { yardSeed: sd, lightSeed: sd * 3, stance: 3, floorY: 2.2,
+        water: 1, waterY: -0.6, slopeZ: 12, porch: 1, stairs: 1, pier: 1, pierLen: 3, boats: 0 }), 0);
+      for (const q of b.stats.people) seen[q.key] = (seen[q.key] || 0) + 1;
+    }
+    for (const k of ['person_andrew', 'person_koky', 'person_john', 'person_luke', 'person_charles'])
+      if (!seen[k]) neg.push('nobody was ever ' + k);
+  }
   // lod 1 must be a construction: switching it off must actually remove work
   const a0 = HG.build(HG.DEF, 0).stats.tris, a1 = HG.build(HG.DEF, 1).stats.tris;
   if (!(a1 < a0 * 0.3)) neg.push('lod 1 is not cheaper by construction');

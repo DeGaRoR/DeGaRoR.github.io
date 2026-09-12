@@ -428,6 +428,10 @@ def bake_material(j, bufs, base, mdef, bank, budget, log, row=None):
             pbr['baseColorTexture'] = tex_named(fix['bc'])
         if 'rough' in fix:               # the graph's roughness did not survive either
             pbr['roughnessFactor'] = fix['rough']
+        if 'metal' in fix:               # G280: a metalness the export got wrong
+            pbr['metallicFactor'] = fix['metal']
+            if fix['metal'] == 0:        # ... and its map, which would multiply nothing
+                pbr.pop('metallicRoughnessTexture', None)
         if 'nor' in fix:
             if fix['nor'] is None:
                 mdef.pop('normalTexture', None)

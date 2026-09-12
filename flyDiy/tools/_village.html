@@ -406,6 +406,8 @@ function placeFences(parent, vil) {
   const P = Object.assign({}, G.DEF, { postSet: G.SET_IDX('post', 'rough'), deckSet: G.SET_IDX('deck', 'wornwood'),
                                        frameAge: 0.8, hand: 0.6, weather: 0.8 });
   G.applyFinish(P, F);
+  F.MAT.deck.color.multiplyScalar(0.5);            // G280: "just darken it 50%"
+  F.MAT.post.color.multiplyScalar(0.6);
   const bags = { post: window.HOUSE_KIT.Bag('post'), deck: window.HOUSE_KIT.Bag('deck') };
   let n = 0, old = 0;
   for (const plot of vil.plots) for (const seg0 of plot.fences || []) {
@@ -475,8 +477,7 @@ function build() {
   const fe = placeFences(root, vil);
   // THE CARS (G276): on the ground of the backyard, tilted to it
   let cars = 0;
-  for (const plot of vil.plots) if (plot.car && PROP_REG.props[plot.car.key]) {
-    const c = plot.car;
+  for (const plot of vil.plots) for (const c of [plot.car, plot.boat]) if (c && PROP_REG.props[c.key]) {
     const o = propPlace(THREE, c.key, c.x, c.z, c.ry, c.y);
     tiltToGround(o, vil.T.h, c.x, c.z, c.ry);
     root.add(o);

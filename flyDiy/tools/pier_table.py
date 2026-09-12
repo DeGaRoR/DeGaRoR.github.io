@@ -94,6 +94,10 @@ SOURCES = {
                'https://www.blenderkit.com/'),
     'john':   ('John (static)', 'BlenderKit, via blendkitPeople.blend', 'BlenderKit licence',
                'https://www.blenderkit.com/'),
+    # G280: three more, all in ONE export (charles.glb, koky.glb and luke.glb
+    # are byte-identical whole-scene files); selected by node
+    'crowd':  ('Charles, Luke, Koky (static)', 'BlenderKit, via blendkitPeople.blend', 'BlenderKit licence',
+               'https://www.blenderkit.com/'),
     # the yard, all Poly Haven CC0, delivered under assets/propsHouse/
     'walllamp': ('Industrial Wall Lamp', 'Poly Haven', 'CC0', 'https://polyhaven.com/a/industrial_wall_lamp'),
     'bags':     ('Compost Bags', 'Poly Haven', 'CC0', 'https://polyhaven.com/a/compost_bags'),
@@ -130,6 +134,7 @@ FILES = {
     'grady':  'freedom_325_grady_white.glb',
     'andrew': 'andrew.glb',
     'john':   'john.glb',
+    'crowd':  'charles.glb',
     'walllamp': 'industrial_wall_lamp_1k.gltf',
     'bags':     'compost_bags_1k.gltf',
     'bag02':    'compost_bag_02_1k.gltf',
@@ -147,6 +152,7 @@ FILES = {
 # where each source's file lives, relative to assets/woodenPierBoats/
 DIRS = {
     'pier': 'pier', 'andrew': '../blendkitPeople', 'john': '../blendkitPeople',
+    'crowd': '../blendkitPeople',
     'walllamp': '../propsHouse/industrial_wall_lamp',
     'bags': '../propsHouse/compost_bags', 'bag02': '../propsHouse/compost_bag_02',
     'jerrygreen': '../propsHouse/metal_jerrycan_green',
@@ -251,6 +257,22 @@ PROPS = [
       note='1.84 m, standing, reading; 310k triangles as delivered', tex=1024,
       slots={'John': {'bc': 'John_albedo', 'nor': None, 'rough': 0.78},
              'notes': {'bc': 'notes_albedo', 'nor': None, 'rough': 0.85}}),
+    # THE THREE MORE (G280, the user: "I have added new people too. Warning,
+    # charles needs to have his back resting on a wall"). One export holds the
+    # whole scene - six figures, a campfire prop and a rigged Character
+    # Creator body - so each is a NODE out of it, at the delivered height,
+    # the same slot rewiring the first two needed. Charles leans: his back is
+    # the flat face at his own z = 0 and he stands out to +z, so he is placed
+    # with -z against a wall.
+    P('person_charles', 'people', 'Charles, leaning on a wall', 'crowd',
+      note='1.72 m, back to a wall (his z = 0), 175k triangles', tex=1024,
+      nodes=['Charles'], slots={'Charles': {'bc': 'Charles_albedo', 'nor': None, 'rough': 0.8}}),
+    P('person_luke', 'people', 'Luke, on his phone', 'crowd',
+      note='1.62 m, standing; 129k triangles', tex=1024,
+      nodes=['Luke'], slots={'Luke': {'bc': 'Luke_albedo', 'nor': None, 'rough': 0.8}}),
+    P('person_koky', 'people', 'Koky', 'crowd',
+      note='1.74 m, standing; 332k triangles', tex=1024,
+      nodes=['Koky'], slots={'Koky': {'bc': 'koky_albedo', 'nor': None, 'rough': 0.8}}),
 
     # ---- the yard (G273) ----------------------------------------------------
     # THE WALL LAMP is the porch light now: its origin is the mount plate
@@ -282,21 +304,29 @@ PROPS = [
     # draws its own fence on the others
     P('fence_old', 'yard', 'old picket fence, 4.6 m', 'oldfence',
       note='4.6 m run of green pickets on leaning posts, Sketchfab CC-BY; along x, the '
-           'origin at its centre on the ground', scale=0.01, tex=512),
+           'origin at its centre on the ground. THE EXPORT CALLED IT METAL (G280): its '
+           'metallicFactor is 1 over a map that is really the occlusion, so it mirrored '
+           'the sky and read as white - painted wood is metalness 0',
+      scale=0.01, tex=512, slots={'Scene_-_Root': {'metal': 0.0, 'rough': 0.9}}),
 
     # ---- the cars (G276) ----------------------------------------------------
+    # THREE OF THEM WERE MIRRORS (G280, the user: "The abandoned cars also
+    # appear transparent"): their exports say metallicFactor 1 over a
+    # metal-rough map whose blue is mostly white, so a rusted-out body
+    # reflected the sky like chrome and read as glass. Rust and old paint are
+    # dielectrics: the row sets the metalness to a tenth (times the map).
     P('car_junk', 'car', 'junk car', 'junkcar',
       note='a burnt-out saloon, 29k triangles, five materials; delivered along x, turned to z',
       rot=(0, 90, 0), tex=512),
     P('car_fiat', 'car', 'Fiat 132', 'fiat',
-      note='rusted Fiat 132, delivered in millimetres', scale=0.001, tex=512),
+      note='rusted Fiat 132, delivered in millimetres', scale=0.001, tex=512, opaque=True, slots={'LowPoly__Fiat_132_1977carpaint': {'metal': 0.1}}),
     P('car_hudson', 'car', 'Hudson Hornet', 'hudson',
-      note='rusted 1950s Hudson, delivered in millimetres', scale=0.001, tex=512),
+      note='rusted 1950s Hudson, delivered in millimetres', scale=0.001, tex=512, opaque=True, slots={'Body': {'metal': 0.1}}),
     P('car_multicab', 'car', 'multicab', 'multicab',
       note='a photogrammetry scan of a small utility truck', tex=512),
     P('car_crashed', 'car', 'crashed car', 'crashed',
       note='a wreck with its bonnet up, ten parts; delivered half as big again as a car '
-           '(7.6 m long) - 0.6 makes it 4.6', scale=0.6, tex=512),
+           '(7.6 m long) - 0.6 makes it 4.6', scale=0.6, tex=512, slots={'Material': {'metal': 0.1}}),
     P('car_buick', 'car', 'Buick', 'buick',
       note='1950s Buick, 94k triangles and 29 materials: the big one, used rarely; 5.9 m '
            'as delivered, 0.92 for a 5.4 m car', scale=0.92, tex=512),

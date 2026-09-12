@@ -39279,3 +39279,40 @@ app.js at build. Verified from the seat at three angles: no band.
 Not done: the fist fit runs on the pilot and co-pilot only when a
 character is dressed (an ATD-only dummy keeps the palm rule); a bench with
 skeleton control (the user's offer) was not needed.
+
+## G280 — THREE MORE PEOPLE, CHARLES WITH HIS BACK TO A WALL; THE TRAILERED
+## BOAT ON THE GROUND; THE LEANING BAGS ONLY AGAINST A CLOSED BASE; THE OLD
+## FENCE WAS CHROME, SO WERE THREE CARS (2026-09-12, the user: "the white
+## fence really has a color issue. Can you just darken it 50%? The abandoned
+## cars also appear transparent. The highlighted boat is to be placed on the
+## ground ... I have added new people too. Warning, charles needs to have his
+## back resting on a wall. That's also the case of the fertilizer bags")
+
+- **THE WHITE FENCE WAS THE SCANNED GREEN ONE**, and it was white because its
+  export says metallicFactor 1 over a map that is really the occlusion: a
+  chrome fence mirrors the sky. The `slots` override learned `metal` (and
+  drops the metal-rough map at 0); the row sets 0 / roughness 0.9. The drawn
+  fence is also darkened by half as asked (deck ×0.5, posts ×0.6).
+- **THE CARS WERE CHROME TOO**: the Fiat, the Hudson and the crashed car
+  carry metallicFactor 1 over a mostly-white map — a rusted body reflecting
+  the sky reads as glass. Metalness a tenth on those rows; the Fiat's and
+  the Hudson's one BLEND material made `opaque`.
+- **THREE MORE PEOPLE** (`person_charles`, `person_luke`, `person_koky`): the
+  three new files are byte-identical whole-scene exports (six figures, a
+  campfire, a rigged body — 1.76 M triangles), so each is a NODE out of
+  `charles.glb`, slots rewired like the first two. `peoplePlan` hashes who
+  goes where from the yard and light seeds: Andrew or Koky on the deck, John
+  or Luke on the pier, and CHARLES at half the houses — his back is his own
+  −z face, so he stands 2 cm off the front wall on the deck, facing out, on
+  the far side of the door from the deck's other figure, only where the
+  deck has the house's wall behind it. Rule 30 holds his back to the wall's
+  face and his feet on a stretch with wall; the selftest sees every name.
+- **THE TRAILERED BOAT** (`boat_tirola`, the venetian scan on wheels) is off
+  the moorings and on the ground: `planCar` with `'boat'` — beside a
+  waterfront house toward the water first, else the backyard like a car,
+  never over the stair or the jetty. `boatOdds` 0.3; GATE VILLAGE rule 7
+  accepts it beside the cars.
+- **THE LEANING BAGS** (`bags_lean`) only where the base is closed — slab,
+  cripple wall, or a skirt — the stacked and standing ones anywhere. Rule
+  34 holds it.
+- Gates: HOUSE, VILLAGE (both --selftest) green.

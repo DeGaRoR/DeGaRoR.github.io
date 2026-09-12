@@ -569,7 +569,10 @@ in one 577k-triangle file) is not baked.
 static export from `assets/blendkitPeople/blendkitPeople.blend` — BlenderKit
 figures, under whatever licence BlenderKit granted for that pack (this file
 cannot read it; confirm before shipping them beyond the bench). They stand in
-the bench as the scale reference: 1.82 m and 1.84 m as delivered.
+the bench as the scale reference: 1.82 m and 1.84 m as delivered. **Three
+more** (`person_charles`, `person_luke`, `person_koky`, G280) come from the
+same source, one whole-scene export (`charles.glb`) selected by node — same
+licence, same caveat.
 
 ## Design-tile silhouettes (the birth flow)
 
