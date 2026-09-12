@@ -78,6 +78,19 @@ function genLattice(S, gearX, track, kScale) {
   const D = Math.PI / 180;
   const nodes = [], beams = [];
   const clusters = [];                              // G294: rigid node groups (the tube)
+  // G327: a fin's cluster — its truss and the station it stands on — with
+  // its stiffness declared as a K_tip for the end-of-lattice resolution
+  const finCluster = (tag, finNodes, rootNodes, hV, cRoot, mat) => {
+    if (R.finTube === 0 || R.finTube === false) return;
+    const ph = mat && mat.phys;
+    if (!ph || !(ph.E > 0) || !(hV > 0.2)) return;
+    const d = 0.08 * Math.max(0.3, cRoot), Acap = 1e-4;
+    const EI = ph.E * 2 * Acap * (0.5 * d) * (0.5 * d);
+    const kt = 3 * EI / Math.pow(hV, 3);
+    const nodesC = finNodes.concat(rootNodes).filter((q, i, a) => q != null && a.indexOf(q) === i);
+    clusters.push({ cls: 'fin', tag, nodes: nodesC,
+                    omega: { k: kt, kRef: 29182, mRef: 61.6, wRef: 300 } });
+  };
   const P = [];                                     // positions, for area math
   // G185: WHICH PLANE a node belongs to. Tags stay WF/WR/WB on every plane
   // (a tag suffix would silently drop the second plane from the load test's
@@ -1470,6 +1483,9 @@ function genLattice(S, gearX, track, kScale) {
       pt(apex, 1.15 * cTipV * 0.30);           // the apex's bow (G235)
       B(apex, VF[nV - 1], 'tail'); B(apex, VR[nV - 1], 'tail');
       fins.push({ VF, VR, VX, VX2, FIN: apex, side: sg, hV, chordV, nV });
+      // G327: the fin as one cluster with the boom's tail station it stands on
+      finCluster('FIN' + sd, [...VF, ...VR, ...VX, ...VX2, apex], [q.T, q.I, q.O, prev.T],
+                 hV, chordV(0), MB);
     }
     TAIL = { HF, HR, HB, zsH, semiH, zRootH, chordH, hV, chordV, nV,
              VF: fins[0].VF, VR: fins[0].VR, VX: fins[0].VX, VX2: fins[0].VX2, fins,
@@ -1633,6 +1649,9 @@ function genLattice(S, gearX, track, kScale) {
   for (const nd of [VF[nV], VR[nV], VX[nV], VX2[nV]]) B(FIN, nd, 'tail');   // the apex on the last section
   pt(FIN, 1.15 * cTipV * 0.30);              // the apex's bow (G235), as the tips'
   B(FIN, VF[nV - 1], 'tail'); B(FIN, VR[nV - 1], 'tail');   // ...and out of its plane (the same mechanism)
+  // G327: the fin as one cluster with the post and the last ring it stands on
+  finCluster('FIN', [...VF, ...VR, ...VX, ...VX2, FIN], [TPT, TPB, last.TL, last.TR],
+             hV, chordV(0), MB);
   TAIL = { HF, HR, HB, VF, VR, VX, VX2, zsH, semiH, zRootH, chordH, hV, chordV, nV,
            fins: [{ VF, VR, VX, VX2, FIN, side: 1, hV, chordV, nV }],   // G268: one fin here, two on a twin boom
            sparFront: sparF, rearH: 1 - CT, rearV: 1 - CR };

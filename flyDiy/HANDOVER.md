@@ -41288,3 +41288,28 @@ lattice's lever, and with the cluster on the members carry none.
   own horn on a bench without the hinge module; on a cage build they do
   nothing (the horn is the rudder's). Retire them when the gear bench is
   next touched.
+
+## G327 — THE FIN ON THE TUBE ELEMENT (2026-09-12, "keep going": the fin's
+## side stiffness, owed since the twin-boom review)
+
+Every fin — a boom's two, the fuselage's one — is a shape-matched cluster
+with the station it stands on (the boom's tail triangle and the bay's top
+before it; the fuselage's post and its last ring), at a spar's own
+cantilever stiffness: 3 EI / h³ with the spar a pair of 1 cm² caps 8 % of
+the root chord apart in the tail's material, on the twin boom's bending
+calibration, omega resolved on the final masses (`finCluster` in 61,
+`GEN_RULES.finTube` 0 = the P4 lattice alone). The lattice stays for the
+drawing, the mass and the strains; the rudder's strips hang on the same
+nodes.
+
+Measured on the user's fixture (the trestle rig, 297 N side at the apex):
+the apex moved 142.8 mm — 70 the fin's own lattice, the rest the boom's
+torsion; with the cluster 75.5, the fin's own share ~6 mm (a spar's), the
+rest the boom's torsion, which is the twin boom's owed case (G315). The
+stock fin: omega 1227; the twin's 1413; substeps unchanged (80 / 72). The
+stock, the twin fixture and the ultralight fly their circuits as before
+(291 / 270 / 229 s to a stop). A node the fin cluster shares with the boom
+cluster is projected by both, a substep's fraction each — the pulls add,
+nothing fights.
+(The `finTube` rule itself rode into G314 with the rod rules beside it —
+adjacent lines are one diff hunk; nothing read it until this landed.)
