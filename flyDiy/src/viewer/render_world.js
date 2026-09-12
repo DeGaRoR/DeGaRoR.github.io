@@ -49,7 +49,16 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // not drawn at all. The partition deals a tree to every rung whose window
   // holds it, and refreshes more often than the window is wide.
   const uFadeW = { value: 30 };
-  const uILit = { value: 1.0 };        // the impostor tier's own gain (the bench's `imp lit`)
+  // the shadow frustum's live half-width: the impostor caster collapses every
+  // instance the map cannot see, or 170 000 quads pay the depth pass for
+  // nothing (measured +4-7 ms on the MSAA tiers with the default bands, which
+  // put every impostor outside the reach anyway)
+  const uShadowR = { value: 105 };
+  // the impostor tier's own gain (the bench's `imp lit`): 0.9 MEASURED, the
+  // same stand drawn as geometry and as impostors from 40 m under the alps
+  // row, mean luminance over the forest half of the frame 81.9 against 85.8
+  // at 0.9 / 92.1 at 1.0 / 79.0 at 0.8 (scratch steps_ilit.js, W0c.18)
+  const uILit = { value: 0.9 };
   // THE BAKE SWITCHES THE BANDS OFF. A rung's material collapses every
   // instance outside its band, and the impostor bake draws the same material
   // from thirty metres: an L2 whose band starts at 300 m baked an EMPTY sheet,
@@ -969,6 +978,69 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // floor on the hard test and alpha-to-coverage, as on the leaves.
     const IMP_CUT = [0.40, 0.15, 0.10];      // rungs, stand, snag
     const uIGain = { value: 6 }, uISolid = { value: 1 };
+    // THE IMPOSTOR CASTS ITS OWN SILHOUETTE (W0c.18, the bench's W0a.4). The
+    // stock depth pass would draw the eye-facing quad edge-on to the light
+    // and sample the whole sheet - a solid slab per tree - which is why the
+    // tier never cast. This depth material lays the quad out facing the SUN
+    // instead and folds the sun's direction into the atlas, so the shadow is
+    // the tree's real silhouette from the sun's side, with the same alpha
+    // curve the draw uses. Only matters inside the shadow reach, i.e. when
+    // the bands are pulled in; then the far stand has shade under it too.
+    const IMP_FOLD_GLSL = [
+      'vec3 dI = vImpDir;',
+      'vec2 pp = vec2(dI.x, dI.z) / (abs(dI.x) + abs(dI.z) + max(dI.y, 0.0) + 1e-5);',
+      'vec2 oc = clamp(vec2(pp.x + pp.y, pp.x - pp.y), -1.0, 1.0);',
+      'vec2 gp = (oc * 0.5 + 0.5) * (uG - 1.0);',
+      'vec2 g0 = min(floor(gp), uG - 2.0);',
+      'vec2 gf = gp - g0;',
+      'vec2 cB = vec2(1.0, 0.0), cC = vec2(0.0, 1.0), cA; vec3 wB;',
+      'if (gf.x + gf.y < 1.0) { cA = vec2(0.0); wB = vec3(1.0 - gf.x - gf.y, gf.x, gf.y); }',
+      'else { cA = vec2(1.0); wB = vec3(gf.x + gf.y - 1.0, 1.0 - gf.y, 1.0 - gf.x); }',
+      'vec2 qv = (vUvI * (1.0 - 2.0 / uTile) + 1.0 / uTile) / uG;',
+      'vec2 uvA = (g0 + cA) / uG + qv, uvB = (g0 + cB) / uG + qv, uvC = (g0 + cC) / uG + qv;',
+      'vec4 t0 = texture2D(uAtlas, uvA), t1 = texture2D(uAtlas, uvB), t2 = texture2D(uAtlas, uvC);',
+      'float aMix = dot(wB, vec3(t0.a, t1.a, t2.a)), aSol = max(max(t0.a, t1.a), t2.a);',
+      'diffuseColor.a = clamp((mix(aMix, aSol, uISolid) - uICut) * uIGain + 0.5, 0.0, 1.0);',
+    ].join('\n');
+    function impostorDepth(atlas, si) {
+      const d = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, alphaTest: 0.5, side: THREE.DoubleSide });
+      if (!atlas.tex) return d;
+      d.onBeforeCompile = sh => {
+        sh.uniforms.uCam = uCam; sh.uniforms.uSunDir = { value: SUN };
+        sh.uniforms.uNearB = uNear; sh.uniforms.uFadeW = uFadeW; sh.uniforms.uShadowR = uShadowR;
+        sh.uniforms.uCy = { value: atlas.cy }; sh.uniforms.uDiam = { value: atlas.diam };
+        sh.uniforms.uG = { value: IMP_G }; sh.uniforms.uTile = { value: IMP_TILE };
+        sh.uniforms.uAtlas = { value: atlas.tex };
+        sh.uniforms.uIGain = uIGain; sh.uniforms.uISolid = uISolid; sh.uniforms.uICut = { value: IMP_CUT[si || 0] };
+        sh.vertexShader = sh.vertexShader
+          .replace('#include <common>', '#include <common>\nuniform vec3 uCam, uSunDir;\n' +
+            'uniform float uNearB, uFadeW, uCy, uDiam, uShadowR;\nvarying vec3 vImpDir;\nvarying vec2 vUvI;')
+          .replace('#include <project_vertex>', [
+            'vec3 iPos = instanceMatrix[3].xyz;',
+            'float sX = length(instanceMatrix[0].xyz), sY = length(instanceMatrix[1].xyz);',
+            'vec3 ctr = iPos + vec3(0.0, uCy * sY, 0.0);',
+            // the eye's distance, for the same inner collapse as the draw
+            'float dCam = length((uCam - modelMatrix[3].xyz) - ctr);',
+            // the quad faces the SUN, and the fold reads the sun's view
+            'vec3 L = normalize(uSunDir);',
+            'vImpDir = normalize(vec3(L.x / sX, L.y / sY, L.z / sX));',
+            'vec3 upRef = abs(vImpDir.y) > 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(0.0, 1.0, 0.0);',
+            'vec3 rgt = normalize(cross(upRef, vImpDir));',
+            'vec3 upv = cross(vImpDir, rgt);',
+            'vec3 off = (rgt * position.x + upv * position.y) * uDiam;',
+            'vec3 wp = ctr + vec3(off.x * sX, off.y * sY, off.z * sX);',
+            'vUvI = uv;',
+            'vec4 mvPosition = modelViewMatrix * vec4(wp, 1.0);',
+            'gl_Position = projectionMatrix * mvPosition;',
+            'if (dCam < uNearB - uFadeW * 0.5 || dCam > uShadowR * 1.6) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);',
+          ].join('\n'));
+        sh.fragmentShader = sh.fragmentShader
+          .replace('#include <common>', '#include <common>\nuniform sampler2D uAtlas;\n' +
+            'uniform float uG, uTile, uIGain, uISolid, uICut;\nvarying vec3 vImpDir;\nvarying vec2 vUvI;')
+          .replace('#include <map_fragment>', IMP_FOLD_GLSL);
+      };
+      return d;
+    }
     function impostorMat(atlas, far, si) {
       // AN IMPOSTOR IS AN ORDINARY SURFACE WITH A BAKED NORMAL. Standard at
       // roughness 1, `normal` replaced from the second sheet: that single
@@ -1480,7 +1552,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       const srcs = P ? P.series.map(S => S.parts) : [fallbackGeo];
       return srcs.map((src, si) => {
         const at = bakeImpostorAtlas(src), m = impostorMat(at, FAR_WOOD, si);
-        plantedKit.push(m);                 // the atlas is the cache's
+        m.userData.depth = impostorDepth(at, si);
+        plantedKit.push(m, m.userData.depth);   // the atlas is the cache's
         return m;
       });
     };
@@ -1548,6 +1621,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             meshes.push(m);
           } });
           const mi = mk(impQuadW, impM[si], cnt[si], false);
+          if (impM[si].userData.depth) { mi.castShadow = true; mi.customDepthMaterial = impM[si].userData.depth; }
           mi.userData.ser = si;
           imps.push(mi);
         });
@@ -1772,7 +1846,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
               for (const R of S.ladder) for (const q of R.parts) { chunkBounds(q.geo, CH); SHAPE.kit.push(q.mat, q.depth); }
               const at = bakeImpostorAtlas(S.parts);
               S.imp = impostorMat(at, FAR_FILL, si);
-              SHAPE.kit.push(S.imp);        // the atlas is the cache's
+              S.imp.userData.depth = impostorDepth(at, si);
+              SHAPE.kit.push(S.imp, S.imp.userData.depth);   // the atlas is the cache's
             });
             SHAPE.list.push(H);
           }
@@ -1845,7 +1920,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
               // colour buffer at capacity BEFORE parking - see the woodland
               m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cnt[si] * 3).fill(1), 3);
               m.count = 0; m.visible = false; return m; })),
-            mi: new THREE.InstancedMesh(impQuadF, S.imp, cnt[si]), at: 0 } : null);
+            mi: (() => { const mi = new THREE.InstancedMesh(impQuadF, S.imp, cnt[si]);
+                         if (S.imp.userData.depth) { mi.castShadow = true; mi.customDepthMaterial = S.imp.userData.depth; }
+                         return mi; })(), at: 0 } : null);
           for (const P of perSer) if (P) P.ms = [].concat(...P.byRung);
           const nrOf = S => S.ladder ? S.ladder.length : 1;
           const rec = { n, mats: new Float32Array(n * 16), pos: new Float32Array(n * 3), ser,
@@ -2611,6 +2688,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     sun.target.position.set(tx, gy, tz);
     sun.position.set(tx + SUN.x * 700, gy + SUN.y * 700, tz + SUN.z * 700);
     const half = Math.max(RIG.shadowMin, Math.min(540, 105 + reach * 0.55));
+    uShadowR.value = half;
     if (Math.abs(half - shadowHalf) > shadowHalf * 0.12 + 4) {
       shadowHalf = half;
       const c = sun.shadow.camera;

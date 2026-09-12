@@ -329,8 +329,9 @@ const imp = byTag('plane'), solid3D = inst(byTag('cone')) + inst(byTag('blob'));
 chk(inst(imp) === solid3D,
     `impostor instances ${inst(imp)} != canopy instances ${solid3D} — a tier is missing trees`);
 chk(imp.length > 20, `only ${imp.length} impostor chunks`);
-chk(imp.every(m => !m.castShadow),
-    'impostors cast shadows — they are camera-facing quads, the shadow would be a flat slab');
+chk(imp.every(m => !m.castShadow || m.customDepthMaterial),
+    'impostors cast through the stock depth pass — camera-facing quads, the shadow would be a flat slab ' +
+    '(W0c.18: they may cast only through their own sun-facing depth material)');
 // the near tier's shadow-pass cull: the depth material is the ONLY way to reach
 // the shadow pass, and without it the whole near chunk is submitted twice
 const shad = trees.filter(m => m.castShadow);

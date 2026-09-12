@@ -341,8 +341,21 @@ RTX 3080, 1920×1080, NG 128, alps row, W0c.17: **Off (4× MSAA) 31 ms · Smooth
 5 ms. `--probe "<js>"` runs an ablation first, `--compare <json>` prints deltas;
 the JSON lands in `tools/perf/`. The AA tier is on the F8 panel.
 
-**Not done.** Impostors cast no shadow (the bench's own depth material for the
-quad; matters only when the bands are pulled inside the shadow reach). The
-`impa` / `implight` per-collection numbers are not in the payload (one gain,
-one lit, for all). Bushes and grass are the next kinds through this same door.
+**The look pass (W0c.18).** `imp lit` is 0.9, MEASURED: the same stand drawn
+as geometry and as impostors from 40 m under the alps row, mean luminance over
+the forest half of the frame 81.9 against 85.8 at 0.9 (92.1 at 1.0, 79.0 at
+0.8); the impostor's contrast is lower (sd 20 vs 30 — the baked AO) so the
+lit faces sit ~10 % under the geometry's p90, a fair trade against a seam. And
+the impostor CASTS: a depth material of its own lays the quad facing the sun
+and folds the sun's direction into the atlas, so the shadow is the tree's real
+silhouette from the sun's side (the bench's W0a.4, done in the shader rather
+than as a second mesh); it collapses beyond the shadow frustum's live reach so
+it costs nothing while the bands keep the impostors outside it. With the bands
+at 60 m the far stand casts onto the meadow and the two tiers are hard to tell
+apart.
+
+**Not done.** The `impa` / `implight` per-collection numbers are not in the
+payload (6 / 6.5 and 1 in the tuning: one gain, one lit, for all). The boot rig
+is still `sunset`; `alps` is two clicks on the panel and is the row the trees
+were judged in — a world decision. Bushes and grass are the next kinds through this same door.
 See `futureDesigns/WORLD-V2.md` §8.3 and the W0c–W0e rows of the staging plan.
