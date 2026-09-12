@@ -39913,3 +39913,34 @@ LAYER mesh the body placer never saw. Fixed twice over:
 GATE FIT / PARTS / JOIN green. The light layer's own fin-top beacon sits
 `li_beaconSink` (0.16) into the fin's top edge by design — 0 puts it on
 top; measured on the user's build the rotor's base is 2 mm under the top.
+
+## G296 — THE LAMP REVAMP, PART ONE: A CABIN LAMP MOUNTS ON WHAT ITS CABIN
+## HAS, AND THE FLOWN CABIN HAS LIGHTS (2026-09-12, the user: "just go with
+## implementing the lamp revamp"; the audit: futureDesigns/INTERIOR-
+## LIGHTING-2026-09-12.md, sessions L1 + L2)
+
+- **The ladder** (`_cage_light.js` sites): each seat's lamp tries, in
+  order, the structures its cabin top offers — by `P.canopy`:
+  closed → roof face directly over the seat (16 cm) → the ceiling-loop
+  rail beside the glass; convertible → the windscreen header bow → the
+  rail; open → the glareshield's aft lip (a map light aimed at the lap);
+  bubble → the canopy's rear bow (the aft-most station of the hood, at the
+  fuselage's top there, aimed forward-down) → the coaming. Passengers:
+  closed → roof → rail; convertible → rail; open / bubble → none. Every
+  rung is a measured face or ring; the G94 fallback to the spec's roof
+  line is gone (GATE LIGHT now refuses it) — a seat with no rung gets no
+  lamp, never one in the air. The lamp's axis is the aim (the roof face's
+  own inward normal, or from the mount to the seat's head).
+- **The flange meets the structure**: every cabin lamp sinks 0.62 r
+  (PROF.can's flange depth) less 1 mm into its mount — the flood had hung
+  15 mm under the ceiling, the pedalier 12 mm under the dash box. The
+  pedalier reads the box's underside at its own place (`A.dashBotAt`).
+- **In flight** (`cockpit.js` setupLights / glow): the cabin flood and the
+  pedalier are PointLights at their lenses (0.9 × / 0.35 × the dimmer,
+  2.4 m / 1.2 m, decay 1.6 — the shed's numbers), on the bus like the
+  domes. Three interior sources at most; passenger domes stay emissive.
+- Measured on the stock build: bubble → arch (y at the turtledeck's top,
+  aimed forward-down); closed → roof; closed + skylight → the roof skin
+  beside the 139 mm half-width strip (6 cm clear of the glass);
+  convertible → header; open → coaming.
+- L3 (the dials lit from posts through an irradiance map) is next.

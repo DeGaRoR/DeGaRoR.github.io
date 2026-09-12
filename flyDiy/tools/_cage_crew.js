@@ -1910,7 +1910,14 @@ function anchors(spec, P, mesh) {
     for (const q of dashPts) if (Math.abs(q[0] - x) <= dx && q[2] >= z0 && q[2] <= z1 && q[1] > y) y = q[1];
     return y > -1e8 ? y : dashTop;
   };
-  return { k, dashLip, dashTop, dashAftZ, face, dashTopAt, floorAt, halfW: spec.cabin.halfW * k,
+  // ...and the box's UNDERSIDE at a place (G296: the pedalier lamp hangs
+  // from it): the lowest dash vertex in the same window, or dashLip
+  const dashBotAt = (x, dx, z0, z1) => {
+    let y = 1e9;
+    for (const q of dashPts) if (Math.abs(q[0] - x) <= dx && q[2] >= z0 && q[2] <= z1 && q[1] < y) y = q[1];
+    return y < 1e8 ? y : dashLip;
+  };
+  return { k, dashLip, dashTop, dashAftZ, face, dashTopAt, dashBotAt, floorAt, halfW: spec.cabin.halfW * k,
            roofY: spec.cabin.roofY * k, waistY: spec.waistY * k,
            zBack, zDash, zWin: win ? win.lv.waist.z * k : 0,
            // G180: the resolved rings, so a passenger bay's seat row can be

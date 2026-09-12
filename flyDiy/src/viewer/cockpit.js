@@ -109,22 +109,43 @@ function make(THREE) {
       g.obj.add(pad);
     }
   };
-  // the two real lights the flown aeroplane can carry: a landing / taxi spot
-  // at the lamp's own lens, aimed ahead. (The cabin flood is owed.)
+  // THE REAL LIGHTS THE FLOWN AEROPLANE CARRIES — a budget of three inside
+  // (G296, the audit: every light is in every material's shader): the
+  // landing / taxi spot at its lens, aimed ahead; the CABIN FLOOD and the
+  // PEDALIER as point lights at their own lenses (the editor's numbers:
+  // 0.9 and 0.35 of the dimmer, 2.4 m and 1.2 m). Until now the flood was
+  // a light in the shed and a glowing dome in the aeroplane, and the
+  // pedalier had never been a light anywhere. The lens is where the bake
+  // put it (the lamp bucket's own bounds), so the light sits in the fitting
+  // the ladder mounted — roof, frame, header, arch or coaming. Passenger
+  // domes stay emissive: a light over a seat nobody looks from.
+  const lensCentre = l => {
+    if (!l || !l.mesh.geometry) return null;
+    l.mesh.geometry.computeBoundingBox();
+    const bb = l.mesh.geometry.boundingBox;
+    if (!bb || !isFinite(bb.min.x)) return null;
+    return new THREE.Vector3().addVectors(bb.min, bb.max).multiplyScalar(0.5);
+  };
   CK.setupLights = model => {
     if (!model || !model.grp || !THREE.SpotLight) return;
     if (model.spot) { model.grp.remove(model.spot); model.grp.remove(model.spot.target); model.spot = null; }
+    for (const k of ['floodLight', 'pedalLight'])
+      if (model[k]) { model.grp.remove(model[k]); model[k] = null; }
     const lens = (model.lamps || []).find(l => l.kind === 'lens' && (l.key === 'land' || l.key === 'taxi'));
-    if (!lens || !lens.mesh.geometry || !lens.mesh.geometry.boundingBox && !lens.mesh.geometry.computeBoundingBox) return;
-    lens.mesh.geometry.computeBoundingBox();
-    const bb = lens.mesh.geometry.boundingBox;
-    if (!bb || !isFinite(bb.min.x)) return;
-    const c = new THREE.Vector3().addVectors(bb.min, bb.max).multiplyScalar(0.5);
-    const s = new THREE.SpotLight(0xfff2dc, 0, 120, 0.42, 0.5, 1.2);
-    s.position.copy(c);
-    s.target.position.set(c.x - 40, c.y - 6, c.z);       // ahead is −x, and down a little
-    model.grp.add(s); model.grp.add(s.target);
-    model.spot = s;
+    const c = lensCentre(lens);
+    if (c) {
+      const s = new THREE.SpotLight(0xfff2dc, 0, 120, 0.42, 0.5, 1.2);
+      s.position.copy(c);
+      s.target.position.set(c.x - 40, c.y - 6, c.z);       // ahead is −x, and down a little
+      model.grp.add(s); model.grp.add(s.target);
+      model.spot = s;
+    }
+    if (THREE.PointLight) {
+      const fl = lensCentre((model.lamps || []).find(l => l.kind === 'lens' && l.key === 'flood'));
+      if (fl) { const L = new THREE.PointLight(0xffd9a0, 0, 2.4, 1.6); L.position.copy(fl); model.grp.add(L); model.floodLight = L; }
+      const pd = lensCentre((model.lamps || []).find(l => l.kind === 'lens' && l.key === 'pedal'));
+      if (pd) { const L = new THREE.PointLight(0xffc27a, 0, 1.2, 1.6); L.position.copy(pd); model.grp.add(L); model.pedalLight = L; }
+    }
   };
 
   // ---- the readings, once per frame ----------------------------------------
@@ -217,6 +238,11 @@ function make(THREE) {
       CK.model.spot.intensity = 4.0 * land + 1.6 * taxi;
       CK.model.spot.angle = land ? 0.30 : 0.62;
     }
+    // the cabin's own two lights follow their dimmers (G296)
+    if (CK.model && CK.model.floodLight)
+      CK.model.floodLight.intensity = 0.9 * (CK.lightOn && busOk ? clamp(+CK.sw.sw_flood || 0, 0, 1) : 0);
+    if (CK.model && CK.model.pedalLight)
+      CK.model.pedalLight.intensity = 0.35 * (CK.lightOn && busOk ? clamp(+CK.sw.sw_pedal || 0, 0, 1) : 0);
     const W = typeof window !== 'undefined' ? window : {};
     const PLm = W.CAGE_PANEL && W.CAGE_PANEL.material ? W.CAGE_PANEL.material('faces') : null;
     if (PLm) PLm.emissiveIntensity = (CK.lightOn && busOk ? clamp(+CK.sw.sw_instr || 0, 0, 1) : 0) * 1.6;

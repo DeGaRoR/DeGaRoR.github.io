@@ -977,7 +977,7 @@ function sites(scene, group, P) {
     // the wing about itself, and hang the lamp from that with its axis along
     // the surface's own inward normal. Then it is right for a high wing, a low
     // wing and a parasol without knowing which it is on.
-    const ceilAt = (x, z) => {
+    const ceilAt = (x, z, rad) => {
       const M = window.CAGE_UI && window.CAGE_UI.MS;
       if (!M || !M.V || !M.F) return null;
       const k = (window.CAGE2 ? window.CAGE2.CAGE_UNIT : 1) *
@@ -1003,7 +1003,7 @@ function sites(scene, group, P) {
         cz = cz / f.v.length * k;
         if (cy < hi) continue;                       // not in the roof half
         const d = Math.hypot(cx - x, cz - z);
-        if (d > 0.45) continue;                      // near this seat, not the whole tube
+        if (d > (rad || 0.45)) continue;             // near this seat, not the whole tube
         // the face's own normal, so a high SIDE panel cannot pass for a roof
         const a = M.V[f.v[0]], b = M.V[f.v[1]], c = M.V[f.v[2]];
         const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
@@ -1011,7 +1011,10 @@ function sites(scene, group, P) {
         const ny = uz * vx - ux * vz;
         const nl = Math.hypot(uy * vz - uz * vy, ny, ux * vy - uy * vx);
         if (!(nl > 1e-12) || Math.abs(ny / nl) < 0.55) continue;
-        near.push({ y: cy, x: cx, z: cz });
+        // the face's INWARD normal (down into the cabin), for the lamp's axis
+        const sg = ny > 0 ? -1 : 1;
+        near.push({ y: cy, x: cx, z: cz,
+                    n: [sg * (uy * vz - uz * vy) / nl, sg * ny / nl, sg * (ux * vy - uy * vx) / nl] });
       }
       if (!near.length) return null;
       // THE CROWN FIRST, THEN THE LINER UNDER IT. Taking the LOWEST qualifying
@@ -1027,21 +1030,117 @@ function sites(scene, group, P) {
         if (q.y > crown - 0.06 && (!best || q.y < best.y)) best = q;
       return best;
     };
-    // A BUBBLE HAS NO CEILING (G267, the user: "the ceiling cabin lights
-    // should be hidden in bubble cockpit mode"). Under a blown hood the
-    // ceiling band is glass, `ceilAt` finds no roof face and the lamps fell
-    // back to the spec's roof line — a dome lamp hanging in mid-air inside
-    // the canopy. The cage's own canopy row says so; no flood, no pax lamps.
+    // WHERE A CABIN LAMP MOUNTS IS WHAT THE CABIN'S TOP IS (G296, the user:
+    // "a skylight, a closed canopy or a bubble will have the ceiling lamps
+    // behave real differently. We need to be clever about this and stick
+    // them where they should"; the audit: futureDesigns/INTERIOR-LIGHTING-
+    // 2026-09-12.md). One rule and one exception (G267's bubble) served four
+    // kinds of top: over a SKYLIGHT `ceilAt` refuses the glass, finds nothing
+    // and the G94 fallback hung the dome in the middle of the pane; an open
+    // cockpit got a lamp in the air; a convertible got one on its removable
+    // top. Now each seat tries a LADDER of real structures, in order, and
+    // the first that exists wins — every rung a measured face or ring of
+    // the cage, never a spec number, each with its own aim:
+    //   roof     a downward face of the liner / roof skin over the seat
+    //   frame    the ceiling-loop rail beside the glass (a skylight bay)
+    //   header   the windscreen's top bow (a convertible: fixed structure)
+    //   arch     the canopy's rear bow (a bubble), aimed forward-down
+    //   coaming  the glareshield's aft lip (an open cockpit): a map light
+    // A seat with no rung gets no lamp — and no lamp is ever in the air.
     const P0 = window.CAGE_UI && window.CAGE_UI.P;
-    const bubble = !!(P0 && Math.round(+P0.canopy || 0) === 3);
-    if (pilot && !bubble) {
-      // the flood is in the ROOF over the pilot, aimed down. `ceilAt` when the
-      // cage can be asked; the spec's roof line when it cannot (the bench
-      // builds this layer with no cage mesh in the page).
-      const cl = ceilAt(pilot.x, pilot.zBack + 0.12);
-      out.flood = { p: [pilot.x, (cl ? cl.y : A.roofY) - 0.03,
-                        pilot.zBack + 0.12],
-                    ax: [0, -1, 0], onCeiling: !!cl };
+    const canopy = P0 ? Math.round(+P0.canopy || 0) : 0;     // 0 closed 1 convertible 2 open 3 bubble
+    const aimAt = (p, q) => nrm([q[0] - p[0], q[1] - p[1], q[2] - p[2]]);
+    // THE FLANGE MEETS THE STRUCTURE (the pedalier's lesson, G296): a
+    // fitting's flange sits 0.62 r behind its face (PROF.can), so the face
+    // stands that far off the surface along the aim, less a millimetre
+    const sizeK0 = Math.max(0.2, +P.li_lampSize || 1);
+    const sink = kind => 0.62 * (LIGHTS[kind].w / 2) * sizeK0 - 0.001;
+    const off = (q, ax, d) => [q[0] + ax[0] * d, q[1] + ax[1] * d, q[2] + ax[2] * d];
+    const headOf = s => [s.x, A.waistY + 0.22, s.zBack + 0.15];     // where the light is wanted
+    const kU = (window.CAGE2 ? window.CAGE2.CAGE_UNIT : 1) * ((P0 && P0.planeScale) || 1);
+    const ringPt = (name, lv) => {
+      const r = (A.rings || []).find(q => q.name === name);
+      const q = r && r.lv && r.lv[lv];
+      return q ? [q.x * kU, q.y * kU, q.z * kU] : null;
+    };
+    const M0 = window.CAGE_UI && window.CAGE_UI.MS;
+    // the ceiling-loop rail nearest a seat, with its centre and the aim
+    const frameAt = s => {
+      if (!M0 || !M0.V || !M0.F) return null;
+      let best = null;
+      for (const f of M0.F) {
+        if (f.m !== 'ceilingLoop' || f.v.length < 3) continue;
+        let cx = 0, cy = 0, cz = 0;
+        for (const vi of f.v) { cx += M0.V[vi][0]; cy += M0.V[vi][1]; cz += M0.V[vi][2]; }
+        cx = cx / f.v.length * kU; cy = cy / f.v.length * kU; cz = cz / f.v.length * kU;
+        if (cy < (A.waistY + A.roofY) / 2) continue;               // the rail, not a lower band
+        if (Math.abs(cz - (s.zBack + 0.15)) > 0.30) continue;      // this seat's bay
+        if (Math.sign(cx) !== Math.sign(s.x) && Math.abs(s.x) > 0.05) continue;   // the seat's own side
+        const d = Math.hypot(cx - s.x, cz - s.zBack - 0.15);
+        if (!best || d < best.d) best = { p: [cx, cy, cz], d };
+      }
+      if (!best) return null;
+      const ax = aimAt(best.p, headOf(s));
+      return { p: off(best.p, ax, sink(s.kind)), ax, onCeiling: true, rung: 'frame' };
+    };
+    const roofAt = s => {
+      // a face DIRECTLY over the seat (16 cm), and the lamp on that face —
+      // not at the seat's own x under whatever the wider search found
+      const cl = ceilAt(s.x, s.zBack + 0.12, 0.16);
+      if (!cl) return null;
+      const ax = cl.n || [0, -1, 0];
+      return { p: off([cl.x, cl.y, cl.z], ax, sink(s.kind)), ax, onCeiling: true, rung: 'roof' };
+    };
+    const headerAt = s => {
+      const h = ringPt('wsFront', 'roof') || ringPt('aeroWsA', 'roof');
+      if (!h) return null;
+      const q = [s.x * 0.6, h[1], h[2] - 0.02], ax = aimAt(q, headOf(s));
+      return { p: off(q, ax, sink(s.kind)), ax, onCeiling: true, rung: 'header' };
+    };
+    // the bubble's rear bow: the aft-most station of the canopy glass over
+    // the cabin, at the fuselage's own roof line there
+    const archAt = s => {
+      if (!M0 || !M0.V || !M0.F) return null;
+      let zA = 1e9;
+      for (const f of M0.F) {
+        if (f.m !== 'windshield' && f.m !== 'pilotWindow' && f.m !== 'skyWindows') continue;
+        for (const vi of f.v) { const z = M0.V[vi][2] * kU; if (z < zA) zA = z; }
+      }
+      if (zA > 1e8 || zA > s.zBack + 0.10) return null;           // no hood behind this seat
+      // the fuselage's top at that station: the highest vertex of anything
+      // that is not glass near the centreline there (the turtledeck's skin
+      // is a pillar band here, not `body`)
+      let yR = -1e9;
+      const GLASS = { windshield: 1, pilotWindow: 1, pasengerWindow: 1, skyWindows: 1, joint: 1 };
+      for (const f of M0.F) {
+        if (GLASS[f.m]) continue;
+        for (const vi of f.v) {
+          const z = M0.V[vi][2] * kU, y = M0.V[vi][1] * kU;
+          if (Math.abs(z - zA) < 0.06 && Math.abs(M0.V[vi][0] * kU) < 0.12 && y > yR) yR = y;
+        }
+      }
+      if (yR < -1e8) yR = A.roofY;
+      const q = [s.x * 0.5, yR, zA + 0.02], ax = aimAt(q, headOf(s));
+      return { p: off(q, ax, sink(s.kind)), ax, onCeiling: false, rung: 'arch' };
+    };
+    const coamingAt = s => {
+      if (A.dashTop == null || A.dashAftZ == null) return null;
+      const yT = A.dashTopAt ? A.dashTopAt(s.x, 0.05, A.dashAftZ - 0.01, A.dashAftZ + 0.06) : A.dashTop;
+      const q = [s.x, yT, A.dashAftZ + 0.035], ax = aimAt(q, [s.x, A.waistY - 0.05, s.zBack + 0.35]);
+      return { p: off(q, ax, sink(s.kind)), ax, onCeiling: false, rung: 'coaming' };
+    };
+    const LADDER = {
+      flood: [[roofAt, frameAt], [headerAt, frameAt], [coamingAt], [archAt, coamingAt]],
+      pax:   [[roofAt, frameAt], [frameAt], [], []],
+    };
+    const mountAt = (kind, s) => {
+      const s2 = Object.assign({}, s, { kind });
+      for (const rung of (LADDER[kind][canopy] || [])) { const m = rung(s2); if (m) return m; }
+      return null;
+    };
+    if (pilot) {
+      const m = mountAt('flood', pilot);
+      if (m) out.flood = m;
     }
     if (pilot) {
       // THE PEDALIER LAMP IS ON THE DASH'S UNDERSIDE (G291, the user: "there
@@ -1052,17 +1151,23 @@ function sites(scene, group, P) {
       // fitting's flange sits against it there, 8 cm forward of the aft
       // face, aimed down at the pedals; a cabin without a measured dash
       // keeps the old station.
+      // ...AND ITS FLANGE MEETS THE SURFACE (G296, the user: "there needs to
+      // be an intersection, otherwise it floats"): the box's underside is
+      // measured at the lamp's own place (`dashBotAt`, the lowest dash
+      // vertex there — 20 mm under the lip was 12 mm of air), and the
+      // fitting's flange (PROF.can: 0.62 r behind the face) is set 1 mm
+      // INTO it. The size dial scales r, so it scales the offset too.
       const under = A.dashLip != null && A.dashAftZ != null;
-      out.pedal = { p: under ? [pilot.x, A.dashLip - 0.020, A.dashAftZ + 0.08]
+      const zP = A.dashAftZ + 0.08;
+      const rP = (LIGHTS.pedal.w / 2) * Math.max(0.2, +P.li_lampSize || 1);
+      const yU = under ? (A.dashBotAt ? A.dashBotAt(pilot.x, 0.05, zP - 0.03, zP + 0.03) : A.dashLip) : null;
+      out.pedal = { p: under ? [pilot.x, yU - 0.62 * rP + 0.001, zP]
                              : [pilot.x, A.floorAt(A.zDash) + 0.30, A.zDash - 0.02],
                     ax: [0, -1, 0] };
     }
-    // the passenger lights are over every seat that is not the pilot's
-    out.pax = (bubble ? [] : seats.filter(s => !s.pilot)).map(s => {
-      const cl = ceilAt(s.x, s.zBack + 0.10);
-      return { p: [s.x, (cl ? cl.y : A.roofY) - 0.03, s.zBack + 0.10],
-               ax: [0, -1, 0], onCeiling: !!cl };
-    });
+    // the passenger lights are over every seat that is not the pilot's,
+    // on the same ladder
+    out.pax = seats.filter(s => !s.pilot).map(s => mountAt('pax', s)).filter(Boolean);
     // (the coaming strip's site went with the `panel` light — session 4b)
   }
   return out;

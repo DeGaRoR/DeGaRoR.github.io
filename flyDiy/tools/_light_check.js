@@ -295,13 +295,21 @@ check(!/new THREE\.Scene\(\)[\s\S]{0,200}studio/.test(app) && !/\bstudio\./.test
   // the deck, so a lamp at the roof line and the wing are in the same place
   // and the lamp reads as hung off the wing. Measuring the built ceiling is
   // what makes it right for a high wing, a low wing and a parasol alike.
-  check(/const ceilAt = \(x, z\) =>/.test(lit),
+  check(/const ceilAt = \(x, z, rad\) =>/.test(lit),
         'the cabin lamps no longer measure the ceiling they hang from');
-  check(/ceilAt\(pilot\.x/.test(lit) && /ceilAt\(s\.x/.test(lit),
-        'the flood or the passenger lamps stopped using the measured ceiling');
-  check(/cl \? cl\.y : A\.roofY/.test(lit),
-        'the measured ceiling has no fallback — a bench page with no cage ' +
-        'mesh would put the cabin lamps at y = undefined');
+  // G296: THE LADDER. A cabin lamp mounts on the first real structure its
+  // cabin's top offers — roof face, ceiling-loop rail, windscreen header,
+  // canopy arch, coaming — and a seat with none gets NO lamp: the G94
+  // fallback to the spec's roof line hung a dome in the middle of a
+  // skylight, so a lamp position may never come from `A.roofY` again.
+  check(/const LADDER = \{[\s\S]*?flood: \[\[roofAt, frameAt\], \[headerAt, frameAt\], \[coamingAt\], \[archAt, coamingAt\]\]/.test(lit),
+        'the cabin lamps no longer climb the mounting ladder per cabin top (closed / convertible / open / bubble)');
+  check(/const mountAt = \(kind, s\) =>/.test(lit) && /mountAt\('flood', pilot\)/.test(lit) && /mountAt\('pax', s\)/.test(lit),
+        'the flood or the passenger lamps stopped using the mounting ladder');
+  check(!/cl \? cl\.y : A\.roofY/.test(lit) && !/\(cl \? cl\.y : A\.roofY\)/.test(lit),
+        'a cabin lamp position falls back to the spec roof line again — that is the dome in the skylight');
+  check(/const sink = kind => 0\.62 \* \(LIGHTS\[kind\]\.w \/ 2\)/.test(lit),
+        'the cabin lamps no longer sink their flange into the structure they mount on');
   check(/Math\.abs\(ny \/ nl\) < 0\.55/.test(lit),
         'the ceiling search no longer checks the face NORMAL: `body` is the ' +
         'whole fuselage skin, so a high side panel passes for a roof and the ' +
