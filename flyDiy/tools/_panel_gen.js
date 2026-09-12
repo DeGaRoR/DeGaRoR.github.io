@@ -526,16 +526,16 @@ const PAINT = {
     g.strokeStyle = INK; g.lineWidth = h * 0.006;
     g.beginPath(); g.moveTo(x, y + h / 2); g.lineTo(x + w, y + h / 2); g.stroke();
     // the ladder: pitch d sits at v = 0.5 + d/180
-    g.fillStyle = INK; g.font = `600 ${Math.round(h * 0.022)}px ${FONT}`;
+    g.fillStyle = INK; g.font = `700 ${Math.round(h * 0.036)}px ${FONT}`;
     g.textAlign = 'center'; g.textBaseline = 'middle';
     for (const d of [-30, -20, -10, -5, 5, 10, 20, 30]) {
       const yy = y + h / 2 - (d / 180) * h;
-      const len = Math.abs(d) % 10 === 0 ? w * 0.22 : w * 0.12;
-      g.lineWidth = h * 0.003;
+      const len = Math.abs(d) % 10 === 0 ? w * 0.30 : w * 0.16;
+      g.lineWidth = h * 0.0045;
       g.beginPath(); g.moveTo(x + w / 2 - len / 2, yy); g.lineTo(x + w / 2 + len / 2, yy); g.stroke();
       if (Math.abs(d) % 10 === 0) {
-        g.fillText(String(Math.abs(d)), x + w / 2 - len / 2 - w * 0.06, yy);
-        g.fillText(String(Math.abs(d)), x + w / 2 + len / 2 + w * 0.06, yy);
+        g.fillText(String(Math.abs(d)), x + w / 2 - len / 2 - w * 0.075, yy);
+        g.fillText(String(Math.abs(d)), x + w / 2 + len / 2 + w * 0.075, yy);
       }
     }
   },

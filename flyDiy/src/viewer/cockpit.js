@@ -29,7 +29,9 @@ const navDeg = rad => ((rad * 180 / Math.PI) % 360 + 360) % 360;
 // the instruments' own lags (s), and what a dead one relaxes toward
 const LAG = { ias: 0.25, alt: 0.2, vs: 2.5, rpmEng: 0.3, nz: 0.1, oilP: 1.0, oilT: 8.0,
               fuelFrac: 1.5, volts: 0.4, roll: 0.15, pitch: 0.15, r: 0.4, beta: 0.3, hdg: 0.5 };
-const REST = { ias: 0, alt: 0, vs: 0, roll: 0.55, pitch: -0.35, r: 0, hdg: null, rpmEng: 0, nz: 1,
+// (a spun-down gyro leans, it does not fall over — session 4d, the user: "it
+// tends to be faulty on the ground")
+const REST = { ias: 0, alt: 0, vs: 0, roll: 0.20, pitch: -0.12, r: 0, hdg: null, rpmEng: 0, nz: 1,
                nzMax: 1, nzMin: 1, oilP: 0, oilT: 15, fuelFrac: 0, volts: 0, beta: 0 };
 const PSI = 6894.757;
 const LIGHT_AMPS = { taxi: 5, beacon: 3, land: 8, nav: 2.5, flood: 0.5, instr: 0.6, pedal: 0.3, pax: 0.5 };
@@ -201,7 +203,10 @@ function make(THREE) {
     const busOk = CK.busOk !== false;
     const beacon = 0.12 + 0.88 * Math.pow(Math.max(0, Math.cos(2 * Math.PI * 0.75 * CK.t)), 10);
     for (const l of (CK.lamps || [])) {
-      const v = CK.lightOn && busOk ? clamp(+CK.sw['sw_' + l.key] || 0, 0, 1) : 0;
+      // the master / alternator buttons light with their own switch (4d),
+      // the lamps with theirs when the lights are fitted
+      const fitted = CK.lightOn || l.key === 'master' || l.key === 'alt';
+      const v = fitted && busOk ? clamp(+CK.sw['sw_' + l.key] || 0, 0, 1) : 0;
       const gain = l.key === 'beacon' ? beacon : 1;
       if (l.mesh.material && l.mesh.material.emissive)
         l.mesh.material.emissiveIntensity = v * gain * (l.kind === 'lens' ? 2.4 : 0.55);

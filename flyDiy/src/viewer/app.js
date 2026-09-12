@@ -1562,6 +1562,17 @@
         const pm = window.CAGE_PANEL.material(m.panel);
         if (pm) return matCache[mn] = pm;
       }
+      // A BAKED PIECE'S OWN MATERIAL (session 4d): the key from the hardware
+      // kit keeps its textures — the props registry rebuilds the very
+      // material the editor drew it with
+      if (data.cage && m.propMat && typeof propBuild === 'function') {
+        try {
+          const [pk, pm] = m.propMat.split('|');
+          const b = propBuild(THREE, pk);
+          const i = b.prop.parts.findIndex(q => q.mat === pm);
+          if (i >= 0) return matCache[mn] = b.mats[i];
+        } catch (e) {}
+      }
       // THE LAMPS (the panel arc, session 4): a lens and a cup per light,
       // from the light layer's own factories, CLONED so each bucket's
       // emissive is its own — the cockpit's switches dim them per frame

@@ -38397,3 +38397,67 @@ arc's — the panelhw media pass).
 
 **Owed**: the exterior click's info boxes (session 5); a head-tracker
 binding; the `_panel.html` bench on a flat dash.
+
+## G265 — THE PANEL ARC, SESSION 4d: THE AI SEALED, THE BATS STOUT, THE
+## BUTTONS LIT, THE KEY IN ITS TEXTURES, SCREWS AT THE CORNERS, A SMOOTH
+## COMPASS (2026-09-12, the user's fourth review from the seat)
+
+**"The top is too low poly."** The compass cap was six profile points on
+48 segments; it is a quarter-ellipse sampled at sixteen on 64. Smooth from
+the seat.
+
+**"I liked the push button, especially if they can be lit when on. You
+could keep those. You may keep your switches … but give them a better
+profile … teardrop shaped, with the tip … widest … still too flimsy."**
+The master and the alternator are the bevelled push buttons again, and
+their caps are LAMPS: the light layer's cup material stamped with the
+switch's key (`litCapMat`), so the join gives each its own bucket and the
+cockpit lights it from `sw_master` / `sw_alt` whatever the lights part
+says (the lamps proper still need the lights fitted). The kit's paddle
+and guarded toggle stay declared in the table for later. The light
+toggles are the layer's own bat again, redrawn: a stout teardrop, 2.4 mm at
+the root swelling to 4.4 mm near the tip and rounding off, 24 mm out of a
+6.3 mm bushing on the 11 mm hex nut, 28 segments, plated steel.
+
+**"The key lacks its material … make the barrel slightly bigger so it can
+slot in the full key … use our library of PBR materials."** Three things.
+The key flew white because the join buckets by finish and dropped the
+props material's maps and uv: a textured kit piece is now stamped
+`userData.propMat = '<prop>|<material>'`, the join keeps its uv and gives
+it a bucket of its own (`'Pm'` key, `propMat` record), and app.js rebuilds
+the very material the editor drew it with from the props registry
+(`propBuild`). The escutcheon is 30 mm across now, chamfered, 3.2 mm proud,
+with an inside ridge round a keyway the blade fills, the bow hanging clear
+below it. And the finishes are the library's: the bats and the lock take
+`chrome` ("plated steel"), the screws `steelTube` — new rows in
+`AERO_HARD.panel`, no coded-up metal.
+
+**"The attitude indicator is still quite raw … we can see through it …
+faulty on the ground … the coloured band through gaps in the face … no
+digits on the graduation."** Four fixes. The bezel's profile was OPEN
+between its lip and its skirt (no inner wall), and the drum showed
+through that gap: the profile is closed. The ring was behind the drum's
+front for part of its width, so the strip peeked past the window's edge:
+the AI stands 12 mm proud now (`AI_STAND`), which puts the ring in front
+of every part of the drum, and the patch is 0.74 r wide (`AI_PATCH`) to
+fill the 9 mm-deep window from any seat — the visible parts of the drum
+outside the window are then inside the bezel's solid or behind the plate,
+by construction. A spun-down gyro leans, it does not fall over: the rest
+pose is 11° of roll and 7° of pitch, not 31° and 20°. The pitch ladder's
+digits are 60 % bigger and bold, its rungs longer.
+
+**"High quality screwheads around the dials … in the corners of a square
+inscribing the round dial … the screws go into the square face behind the
+panel."** Four pan heads per instrument on the 1.09 r square a 3-1/8" or
+2-1/4" case is drilled on (3.44" / 2.44" hole spacing), 4.6 mm across, a
+domed revolve with a cross slot each turned a little, `steelTube`; the
+flange is a 2 mm seam cover now, not a ring.
+
+**"I am also generating assets like tape with permanent marker writings …
+tell me all the stickers we'd need."** Answered in the session; the list
+belongs to the sticker arc when it starts (a `placards` section of
+`GEN_OUTFIT` with a text, a place and a size per row is the plan).
+
+GATE PANEL green (the uv check reads the join's `propMat` too); PARTS,
+JOIN, SKINMAT, UISMOKE, ELEC, BUILD green on the commit's worktree; LIGHT
+and MEDIA red at HEAD for the trees session's reasons.

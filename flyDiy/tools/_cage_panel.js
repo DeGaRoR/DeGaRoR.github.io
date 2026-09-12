@@ -363,11 +363,12 @@ const MAT = {
   symbol: { col: 0xf0a030, rough: 0.55, metal: 0.00 },   // the AI / TC aeroplane
   ball:   { col: 0x101214, rough: 0.30, metal: 0.00 },   // the inclinometer ball
   plate:  { col: 0x2b2e34, rough: 0.70, metal: 0.10 },   // the switch row's base
-  lever:  { col: 0xb8bcc2, rough: 0.35, metal: 0.80 },   // a toggle's bat
+  lever:  { col: 0xd8dde3, rough: 0.12, metal: 0.95 },   // a toggle's bat — the library's plated steel
+  screw:  { col: 0xc4c9cf, rough: 0.30, metal: 0.90 },   // the instruments' mounting screws
   knob:   { col: 0x24262b, rough: 0.55, metal: 0.00 },   // a dimmer's knob
   rocker: { col: 0xe9e5dc, rough: 0.60, metal: 0.00 },   // a master rocker
   key:    { col: 0xc9b47a, rough: 0.35, metal: 0.85 },   // brass
-  barrel: { col: 0x8d949c, rough: 0.40, metal: 0.70 },   // the lock barrel
+  barrel: { col: 0xd8dde3, rough: 0.12, metal: 0.95 },   // the lock's escutcheon and barrel — plated
   bowl:   { col: 0x2a2d33, rough: 0.35, metal: 0.10 },   // the compass bowl
   // the hardware kit's own flat materials (tools/panel_table.py): the
   // pack's GRAY grip, its red guard / cap, its amber lens
@@ -487,8 +488,30 @@ const clockRad = deg => deg * Math.PI / 180;
 // the bezel: a clamp ring proud of the face with a chamfered lip, revolved
 // about the dial's own axis (+z, into the dash)
 function bezelAt(bag, cx, cy, z, r, skirt) {
+  // a CLOSED profile (session 4d): the inner wall from the lip back to the
+  // skirt — without it the drum showed between the AI's ring and its lip
   KIT().revolve(bag, [cx, cy, z], [0, 0, 1],
-    [[r * 0.86, -0.008], [r * 0.93, -0.009], [r, -0.006], [r, 0.012 + (skirt || 0)], [r * 0.86, 0.012 + (skirt || 0)]], 40, false);
+    [[r * 0.86, -0.008], [r * 0.93, -0.009], [r, -0.006], [r, 0.012 + (skirt || 0)], [r * 0.86, 0.012 + (skirt || 0)], [r * 0.86, -0.008]], 48, false);
+}
+// THE SCREWS (session 4d, the user: "high quality screwheads around the
+// dials ... in the corners of a square inscribing the round dial, that's
+// how they're fitted IRL"): a 3-1/8" instrument's four mounting holes sit
+// on a 3.44" square, a 2-1/4"'s on 2.44" — 1.09 r either way — and the
+// pan heads sit on the plate at those corners. Each head: a domed revolve
+// 4.6 mm across with a cross slot, plated steel.
+function screwsAt(bag, slot, cx, cy, z, r) {
+  const K = KIT(), d = r * 1.09, R0 = 0.0023;
+  for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+    const x = cx + sx * d, y = cy + sy * d;
+    K.revolve(bag, [x, y, z], [0, 0, -1],
+      [[R0, -0.0002], [R0, 0.0006], [R0 * 0.92, 0.0012], [R0 * 0.72, 0.0017], [R0 * 0.42, 0.0020], [0, 0.0021]], 24, false);
+    // the cross slot, dark, turned a little each so the four do not line up
+    const a = 0.35 + (sx + 2 * sy) * 0.4;
+    for (const t of [a, a + Math.PI / 2]) {
+      const c = Math.cos(t), sn = Math.sin(t);
+      K.boxIn(slot, [x, y, z - 0.0019], [R0 * 0.78, 0.00035, 0.0004], [c, sn, 0], [-sn, c, 0], [0, 0, 1]);
+    }
+  }
 }
 // the face: a disc of quads carrying the atlas slot, at z (normal −z)
 function faceAt(bag, cx, cy, z, r, slot, seg) {
@@ -528,7 +551,13 @@ function hubAt(bag, cx, cy, z, r) {
 const AI_DRUM_K = 1.2;             // the drum's radius over the bezel's
 const AI_WINDOW = 0.58;            // the face ring's hole, over the bezel's radius
 const AI_PROUD = 0.007;            // the drum's front, proud of the plate: its plane cuts the drum at 0.62 r, outside the window
-const AI_STAND = 0.008;            // the AI's bezel and ring stand this much further out than the others' — the ring is then in front of every part of the drum outside the window
+// the AI's bezel and ring stand this much further out than the others' —
+// far enough (session 4d) that the RING is in front of the drum's front
+// everywhere, so nothing of the drum shows but through the window; the
+// window is then a well 9 mm deep, and the patch is wider than it (below)
+// to fill the well's view from any seat
+const AI_STAND = 0.012;
+const AI_PATCH = 0.74;             // the drum patch's half-width over the bezel's radius
 function canAt(bag, cx, cy, z, r, depth, from) {
   // open at the front (the face is there; the AI's window looks into it),
   // closed at the back by the profile itself
@@ -550,8 +579,8 @@ function canAt(bag, cx, cy, z, r, depth, from) {
 // ±65°. Anything wider stood in front of the plate beside the bezel once
 // the drum was seated proud enough for the window to clear the plate.
 function drumInto(bag, slot, r, zFace) {
-  const G = PG(), Rd = AI_DRUM_K * r, w = 1.3 * r, rw = AI_WINDOW * r;
-  const rows = 29, cols = 9, span = 70 * Math.PI / 180, flat = 34 * Math.PI / 180;
+  const G = PG(), Rd = AI_DRUM_K * r, w = 1.3 * r, rw = AI_PATCH * r;
+  const rows = 29, cols = 9, span = 74 * Math.PI / 180, flat = 38 * Math.PI / 180;
   const zc = zFace + Rd;                          // the axis, into the dash
   const grid = [];
   for (let i = 0; i < rows; i++) {
@@ -636,6 +665,10 @@ function hwGet(key) {
   const parts = b.geos.map((geo, i) => {
     const name = b.prop.parts[i].mat, rec = b.prop.mats[name];
     const mat = (rec && rec.map) ? b.mats[i] : matFor(HW_MAT[name] || 'knob');
+    // a textured piece keeps the props' one material — and is stamped for
+    // the join, which buckets by finish and would drop its uv and maps
+    // (session 4d: the key flew white)
+    if (rec && rec.map) { mat.userData.propMat = key + '|' + name; mat.userData.aeroskin = 1; }
     return { geo, mat, name };
   });
   return (HW.built[key] = { prop, parts, bb: prop.bb });
@@ -714,28 +747,19 @@ function toggleAt(parent, x, y, z, key, on, kind) {
   const K = KIT();
   const base = K.Bag();
   K.sweep(base, [[x, y, z - 0.0015], [x, y, z - 0.0045]], () => hexSect(0.0110 / Math.sqrt(3)), true, [0, 1, 0]);   // 11 mm AF nut
-  // THE KIT'S TOGGLE when it is in: its own bushing and bat on the nut, the
-  // bat's pivot at the bushing's top (the pack's bat starts at y ≈ 0)
-  const hw = hwGet(kind === 'paddle' ? 'hw_paddle' : 'hw_toggle');
-  if (hw) {
-    base.mesh(parent, matFor('barrel'));
-    const g = gaugeAt(parent, 'edGauge_sw_' + key, [x, y, z - 0.0045], [1, 0, 0], 'sw_' + key, 'switch',
-      { k: 0.42, sgn: 1 });
-    // the bushing stays on the nut, the bat throws
-    const hk = kind === 'paddle' ? 'hw_paddle' : 'hw_toggle';
-    hwStand(parent, hk, x, y, z - 0.0045, 0, 0, n => n !== 'SILVER');
-    hwStand(g, hk, 0, 0, 0, 0, 0, n => n === 'SILVER');
-    g.rotation.x = (on ? 1 : -1) * 0.42;
-    return g;
-  }
-  K.revolve(base, [x, y, z - 0.0045], [0, 0, -1], [[0.00315, 0], [0.00315, 0.0035], [0.0026, 0.0040], [0, 0.0040]], 16, false);   // the bushing
+  // the bushing, 6.3 mm, standing 4 mm out of the nut; the bat pivots at its top
+  K.revolve(base, [x, y, z - 0.0045], [0, 0, -1], [[0.00315, 0], [0.00315, 0.0035], [0.0026, 0.0040], [0, 0.0040]], 24, false);
   base.mesh(parent, matFor('barrel'));
   const g = gaugeAt(parent, 'edGauge_sw_' + key, [x, y, z - 0.0085], [1, 0, 0], 'sw_' + key, 'switch',
     { k: 0.42, sgn: 1 });
   const bat = K.Bag();
-  // the bat: a slim stem swelling to a ball at the tip, 22 mm out of the bushing
+  // THE BAT (session 4d, the user: "slightly teardrop shaped, with the tip
+  // in contact with the fingers being widest than the root ... still too
+  // flimsy"): a stout teardrop, 2.4 mm at the root swelling to 4.4 mm near
+  // the tip and rounding off, 24 mm out of the bushing, plated
   K.revolve(bat, [0, 0, 0], [0, 0, -1],
-    [[0.0022, -0.0005], [0.0016, 0.0025], [0.0016, 0.0130], [0.0023, 0.0165], [0.0026, 0.0195], [0.0022, 0.0220], [0.0010, 0.0232], [0, 0.0235]], 16, true);
+    [[0.0026, -0.0005], [0.0024, 0.0020], [0.0023, 0.0060], [0.0026, 0.0110], [0.0033, 0.0150], [0.0040, 0.0185],
+     [0.0044, 0.0210], [0.0041, 0.0228], [0.0030, 0.0240], [0.0012, 0.0246], [0, 0.0247]], 28, true);
   bat.mesh(g, matFor('lever'));
   g.rotation.x = (on ? 1 : -1) * 0.42;             // the editor's pose: up is on
   return g;
@@ -771,21 +795,25 @@ function knobAt(parent, x, y, z, key, v) {
   g.rotation.z = clockRad(-135 + 270 * (v || 0));   // the editor's pose
   return g;
 }
+// the button's cap: the light layer's cup material (an emissive the flight
+// drives per switch through its lamp records), keyed by the switch
+const litCaps = {};
+function litCapMat(key, on) {
+  if (litCaps[key]) return litCaps[key];
+  const L = window.CAGE_LIGHT;
+  let m = L && L.cupMat ? L.cupMat(on ? 0.6 : 0, 0xf2ead6, true, key) : null;
+  if (!m) { m = matFor('rocker'); return m; }
+  return (litCaps[key] = m);
+}
 // a rocker (master, alternator): a bezel let into the dash and a pale
 // chamfered cap that tips about a lateral pivot — on = the top pressed in
 function rockerAt(parent, x, y, z, key, on) {
   const K = KIT();
-  // THE KIT'S PADDLE for the master and the alternator when it is in — a
-  // toggle with a flat bat on a square base, the master's under its guard
-  if (hwGet(key === 'master' ? 'hw_guarded' : 'hw_paddle')) {
-    const g = gaugeAt(parent, 'edGauge_sw_' + key, [x, y, z - 0.0005], [1, 0, 0], 'sw_' + key, 'switch',
-      { k: 0.42, sgn: 1 });
-    const hk = key === 'master' ? 'hw_guarded' : 'hw_paddle';
-    hwStand(parent, hk, x, y, z - 0.0005, 0, 0, n => n !== 'SILVER');   // the base and the guard stay
-    hwStand(g, hk, 0, 0, 0, 0, 0, n => n === 'SILVER');                  // the bat throws
-    g.rotation.x = (on ? 1 : -1) * 0.42;
-    return g;
-  }
+  // THE LIT PUSH BUTTON (session 4d, the user: "I liked the push button,
+  // especially if they can be lit when on. You could keep those"): the
+  // bevelled bezel let into the dash, the pale chamfered cap that tips,
+  // and the cap's material is a LAMP — stamped `lampCup` so the join gives
+  // it a bucket of its own and the cockpit lights it when the switch is on
   const bez = K.Bag();
   bevelBlockInto(bez, x, y, z + 0.0005, z - 0.0030, 0.0075, 0.0120, 0.0008);
   bez.mesh(parent, matFor('plate'));
@@ -793,7 +821,7 @@ function rockerAt(parent, x, y, z, key, on) {
     { k: 0.22, sgn: 1 });
   const cap = K.Bag();
   bevelBlockInto(cap, 0, 0, 0.0005, -0.0050, 0.0060, 0.0100, 0.0010);
-  cap.mesh(g, matFor('rocker'));
+  cap.mesh(g, litCapMat(key, on));
   g.rotation.x = (on ? 1 : -1) * 0.22;
   return g;
 }
@@ -811,13 +839,16 @@ function keyAt(parent, x, y, z, pos) {
   // turns with the lock's law.
   if (hwGet('hw_key')) {
     const lock = K.Bag();
+    // 15 mm radius, chamfered, 3 mm proud, an inside ridge round a keyway
+    // the key's blade fills (session 4d: "slightly bigger so it can slot in
+    // the full key")
     K.revolve(lock, [x, y, z + 0.0005], [0, 0, -1],
-      [[0.0110, 0], [0.0110, 0.0018], [0.0098, 0.0030], [0.0052, 0.0030], [0.0048, 0.0040], [0.0038, 0.0040], [0.0034, 0.0030], [0, 0.0030]], 40, false);
+      [[0.0150, 0], [0.0150, 0.0020], [0.0136, 0.0032], [0.0080, 0.0032], [0.0074, 0.0044], [0.0058, 0.0044], [0.0052, 0.0032], [0, 0.0032]], 48, false);
     lock.mesh(parent, matFor('barrel'));
     const way = K.Bag();
-    K.boxIn(way, [x, y, z - 0.0032], [0.0009, 0.0036, 0.0004], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+    K.boxIn(way, [x, y, z - 0.0034], [0.0011, 0.0048, 0.0004], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
     way.mesh(parent, matFor('hub'));
-    const g = gaugeAt(parent, 'edGauge_key', [x, y, z - 0.0035], [0, 0, 1], 'key', 'key',
+    const g = gaugeAt(parent, 'edGauge_key', [x, y, z - 0.0038], [0, 0, 1], 'key', 'key',
       { k: Math.PI / 6, sgn: 1, steps: ['off', 'l', 'r', 'both', 'start'] });
     // the key lies flat in its own x-y plane in the bake, blade toward +x,
     // bow at −x, 1.5 mm thick along z. In the lock: the blade INTO the lock
@@ -970,6 +1001,7 @@ function build(parent, A, P, pilotX) {
     const cy = d.coaming ? d.cy : 0;
     const zF = 0;
     const bez = K.Bag(), hub = K.Bag(), sym = K.Bag(), plate = K.Bag(), can = K.Bag();
+    const screw = K.Bag(), slotB = K.Bag();
     const faceBag = UVBag(fm);
     if (d.coaming) {
       // THE COMPASS: a bowl standing on the coaming, the card turning inside
@@ -992,8 +1024,17 @@ function build(parent, A, P, pilotX) {
       K.bolt(mount, [cx - r * 0.82, yB - 0.003 + 0.0032, zc + r * 0.02], [0, 1, 0], 0.0022, 0.0012);
       K.revolve(bowl, [cx, yB, zc], [0, 1, 0],
         [[r * 0.52, 0], [r * 0.90, r * 0.10], [r, r * 0.22], [r * 0.7, r * 0.26], [0, r * 0.26]], 48, true);
-      K.revolve(bowl, [cx, yB, zc], [0, 1, 0],
-        [[0, r * 0.74], [r * 0.7, r * 0.74], [r, r * 0.76], [r * 0.94, r * 1.05], [r * 0.62, r * 1.32], [0, r * 1.40]], 48, true);
+      {
+        // the cap: a quarter-ellipse sampled fine (session 4d: "the top is too
+        // low poly. Ensure that this is smooth and rounded from the pilot
+        // perspective") — 16 points from the band to the crown
+        const prof = [[0, r * 0.74], [r * 0.7, r * 0.74], [r, r * 0.76]];
+        for (let i = 1; i <= 16; i++) {
+          const t = i / 16, a = t * Math.PI / 2;
+          prof.push([r * Math.cos(a) * (1 - 0.02 * t), r * 0.76 + r * 0.64 * Math.sin(a)]);
+        }
+        K.revolve(bowl, [cx, yB, zc], [0, 1, 0], prof, 64, true);
+      }
       {
         // the aft half-band (the bowl's back) and, on the front, the chrome
         // frame round the window: two arcs and two uprights, swept tubes
@@ -1036,7 +1077,8 @@ function build(parent, A, P, pilotX) {
     // AI's wide enough to mask its drum wherever the plate's own curvature
     // would otherwise let a corner of the patch through)
     K.revolve(plate, [cx, cy, zF], [0, 0, 1],
-      [[r * 0.95, -0.0012], [r * (isAI ? 1.20 : 1.10), -0.0012], [r * (isAI ? 1.20 : 1.10), 0.0015], [r * 0.95, 0.0015]], 40, false);
+      [[r * 0.95, -0.0010], [r * 1.04, -0.0010], [r * 1.04, 0.0015], [r * 0.95, 0.0015]], 48, false);
+    screwsAt(screw, slotB, cx, cy, zF, r);
     // the can behind: the AI's holds its drum, the rest a hand's depth
     canAt(can, cx, cy, zF, isAI ? AI_DRUM_K * r + 0.004 : r * 0.92,
           isAI ? 2 * AI_DRUM_K * r + 0.012 : (r > 0.035 ? 0.055 : 0.042), isAI ? 0.001 : null);
@@ -1044,6 +1086,7 @@ function build(parent, A, P, pilotX) {
     const meshDial = () => {
       bez.mesh(dg, matFor('bezel')); hub.mesh(dg, matFor('hub')); sym.mesh(dg, matFor('symbol'));
       can.mesh(dg, matFor('hub')); plate.mesh(dg, matFor('plate'));
+      screw.mesh(dg, matFor('screw')); slotB.mesh(dg, matFor('hub'));
       faceBag.mesh(dg, 'edGauge_faces');
     };
     if (d.k === 'dg') {

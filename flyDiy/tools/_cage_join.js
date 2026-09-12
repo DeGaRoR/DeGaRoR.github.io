@@ -1703,6 +1703,10 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             (kud.panelSet ? 'G' + kud.panelSet : '') +
             (kud.lampKey ? 'Lp' + kud.lampKey : '') +
             (kud.lampCup ? 'Lc' + kud.lampCup : '') +
+            // session 4d: a baked piece's own textured material (the key)
+            // keeps its maps and its uv — its own bucket, rebuilt from the
+            // props registry
+            (kud.propMat ? 'Pm' + kud.propMat : '') +
             (kud.aeroMemF ? 'S' + kud.aeroMemF.join(',') : '') +
             (kud.aeroMetalK ? 'Q' + kud.aeroMetalK : '') +
             (kud.aeroFieldM != null ? 'U' + kud.aeroFieldM : '') +
@@ -1765,6 +1769,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           ...(ud.panelSet ? { panel: ud.panelSet } : {}),
           ...(ud.lampKey ? { lamp: ud.lampKey, lampCol: ud.lampCol } : {}),
           ...(ud.lampCup ? { lampCup: ud.lampCup, lampCol: ud.lampCol } : {}),
+          ...(ud.propMat ? { propMat: ud.propMat } : {}),
           // G207: no marking lands here (hardware, structure, the interior)
           ...(ud.aeroNoDec ? { noDec: 1 } : {}),
           // G214: the skin's screws, as the editor drew them
@@ -1841,7 +1846,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
                                                    uv: (m0.userData &&
                                                         (m0.userData.vesSet ||
                                                          m0.userData.charKey ||
-                                                         m0.userData.panelSet))
+                                                         m0.userData.panelSet ||
+                                                         m0.userData.propMat))
                                                        ? [] : null });
         for (let i = r.start; i < end; i++) pushV(G3, idx ? idx.getX(i) : i);
       }

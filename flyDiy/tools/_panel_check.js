@@ -300,7 +300,7 @@ function run() {
       'join: the faces and each lamp\'s lens and cup are their own buckets');
     check(/ud\.panelSet \? \{ panel: ud\.panelSet \}/.test(join) && /lamp: ud\.lampKey, lampCol/.test(join) && /lampCup: ud\.lampCup, lampCol/.test(join),
       'join: the bucket records carry panel / lamp / lampCup');
-    check(/m0\.userData\.panelSet\)\)/.test(join), 'join: a faces bucket keeps its uv');
+    check(/m0\.userData\.panelSet \|\|/.test(join) && /m0\.userData\.propMat\)\)/.test(join), 'join: a faces bucket and a textured piece keep their uv');
     check(/out2\.ctl\.stops = stops/.test(join) && /out2\.ctl\.perSI = c\.per \/ S\.k/.test(join) && /out2\.ctl\.steps = c\.steps/.test(join),
       'join: a gauge part carries its law as a table (stops / perSI / steps)');
     check(/lights\.on = !!\+Pl\.lightOn/.test(join) && /cageM, people, lights[,\s}]/.test(join), 'join: the snapshot carries the switch positions');
