@@ -287,8 +287,22 @@ const YARD_KIT = {
   bag_compost:    { L: 0.47, W: 0.539, H: 0.434 },
   jerrycan_green: { L: 0.171, W: 0.36, H: 0.5 },
   planter:        { L: 0.655, W: 0.914, H: 0.855 },
-  fence_old:      { L: 0.204, W: 4.602, H: 1.44 },     // the village's (G275)
+  fence_old:      { L: 0.204, W: 4.597, H: 1.44 },     // the village's (G275)
+  // THE BALCONY'S SEATS (G276, the user: "Objects like chairs and stools and
+  // small tables are to be placed on the entrance balcony"): the hangar's
+  stool_wood:     { L: 0.41, W: 0.38, H: 0.58 },
+  chair_lounge:   { L: 1.19, W: 1.01, H: 1.17 },
+  table_wood:     { L: 0.9, W: 1.8, H: 0.72 },
+  // THE CARS (G276): in the village's backyards; L along z, nose to +z
+  car_junk:       { L: 4.463, W: 1.822, H: 1.116, car: true },
+  car_fiat:       { L: 4.382, W: 1.679, H: 1.31, car: true },
+  car_hudson:     { L: 5.181, W: 2.031, H: 1.433, car: true },
+  car_multicab:   { L: 4.237, W: 1.772, H: 1.951, car: true },
+  car_crashed:    { L: 4.582, W: 3.086, H: 1.754, car: true },
+  car_buick:      { L: 5.458, W: 2.654, H: 1.729, car: true },
+  car_kcar:       { L: 4.533, W: 1.74, H: 1.291, car: true },
 };
+const CAR_KEYS = Object.keys(YARD_KIT).filter(k => YARD_KIT[k].car);
 
 const PIER_KIT = {
   // the modules keep the author's level: y0 is where each one's piles bottom
@@ -1270,7 +1284,7 @@ const DEF = {
   cupola: 0, cupSides: 8, cupR: 0.72, cupH: 1.10, cupSpire: 1.05, cupXF: 0,
   cupCross: 0,
   // drainage
-  gutter: 1, gutterR: 0.075, downpipe: 1, dpCorner: 1, dpR: 0.045, barrel: 1,
+  gutter: 1, gutterR: 0.075, downpipe: 1, dpCorner: 1, dpR: 0.045, barrel: 1, barrelKind: 0,
   // HOW BIG THE CHAMFER ON AN ARRIS IS. Six millimetres: enough for a facet
   // to catch the sky along a member and draw its line, small enough that the
   // silhouette is unchanged (which is what lets the far mesh skip it).
@@ -1496,6 +1510,7 @@ const ROWS = [
     ['gutterR', 'gutter size', 0.045, 0.13, 0.005, null, P => !!P.gutter],
     ['downpipe', 'downpipe', 0, 1, 1, null, P => !!P.gutter],
     ['barrel', 'rain barrel', 0, 1, 1, null, P => !!P.gutter && !!P.downpipe],
+    ['barrelKind', 'which barrel', 0, 1, 1, ['wooden, drawn', 'blue plastic'], P => !!P.gutter && !!P.downpipe && !!P.barrel],
     ['dpCorner', 'which corner', 0, 7, 1, null,
      P => !!P.gutter && !!P.downpipe],
     ['dpR', 'pipe radius', 0.028, 0.075, 0.002, null,
@@ -4442,6 +4457,19 @@ function buildBarrel(bags, P, Q, dr, g) {
   if (!P.barrel || !dr || !dr.downpipe) return null;
   const d = dr.downpipe;
   const gy = d.ground;
+  // THE BLUE WATER BUTT (G276, the user: "The blue water reservoirs can be
+  // used as receptacle for the gutter too, alternating with your own barrel
+  // model"): `barrelKind` 1 puts the baked plastic barrel under the shoe
+  // instead of drawing the wooden one - published with its prop, nothing
+  // drawn; the yard keeps off it the same way
+  if (Math.round(P.barrelKind || 0) === 1) {
+    const K = YARD_KIT.barrel_plastic;
+    const rp = K.W / 2;
+    const away2 = nrm([d.shoe[0] - d.foot[0], 0, d.shoe[2] - d.foot[2]]);
+    const cp = [d.foot[0] + away2[0] * (rp + 0.10), gy, d.foot[2] + away2[2] * (rp + 0.10)];
+    return { x: cp[0], z: cp[2], r: rp, y: gy + K.H, prop: 'barrel_plastic',
+             ry: Math.atan2(away2[0], away2[2]) + 0.4 };
+  }
   const r = 0.30, h = 0.86;
   // a step out from the wall, under the shoe's discharge
   const away = nrm([d.shoe[0] - d.foot[0], 0, d.shoe[2] - d.foot[2]]);
@@ -4728,10 +4756,12 @@ function yardZones(P, V, dk, stoop, front, ch, dr, g) {
   if (dk && dk.area > 0 && P.porch) {
     const D = deckPlan(P, V);
     const dx = (doorPosOf(P, V) - 0.5) * V.L, dw = P.doorW / 2 + 0.55;
-    for (const s2 of [-1, 1]) for (const k of [0, 1, 2]) {
-      const x = dx + s2 * (dw + 0.45 + k * 0.85);
+    for (const s2 of [-1, 1]) for (const k of [0, 1, 2, 3]) {
+      const x = dx + s2 * (dw + 0.45 + k * 0.95);
       if (x < D.x0 + 0.5 || x > D.x1 - 0.5) continue;
       Z.deck.push({ x, z: D.zIn + 0.42, ry: 0.15 * s2, y: D.yTop });
+      // and a row further out on a deep deck, for a chair to sit back in
+      if (P.porchD >= 2.2) Z.deck.push({ x, z: D.zIn + Math.min(1.3, P.porchD * 0.55), ry: 0.15 * s2 + Math.PI, y: D.yTop });
     }
   }
   Z.lowWall = lowWall;
@@ -4778,14 +4808,26 @@ function yardPlan(P, V, dk, stoop, front, barrel, people, ch, dr, g) {
   };
   // THE MENU, in the order a yard fills up: the things everybody has first
   const want = [
-    ['bins', 1.0], ['gas', 0.9], ['junk', 0.8], ['deck', 0.7], ['bags', 0.6],
+    ['bins', 1.0], ['seats', 0.9], ['gas', 0.9], ['junk', 0.8], ['deck', 0.7], ['bags', 0.6],
     ['junk2', 0.5], ['ladder', 0.45], ['hose', 0.4], ['stove', 0.3],
   ];
   for (const [what, base] of want) {
     if (rnd() > base * (0.35 + 0.65 * dens) + 0.15) continue;
     if (what === 'bins') {
-      put(pick(['bin_metal', 'bin_metal_rust']), 'stairFoot', 'ground');
-      if (rnd() < 0.5) put(pick(['bin_metal', 'bin_metal_rust']), 'stairFoot', 'ground');
+      // ONE bin, the clean or the rusted (G276, the user: "there's a more
+      // rusty one, and a less rusty one, not to be rendered side by side,
+      // consider them 2 individual models") - never the pair
+      put(rnd() < 0.5 ? 'bin_metal' : 'bin_metal_rust', 'stairFoot', 'ground');
+    } else if (what === 'seats') {
+      // THE ENTRANCE BALCONY'S FURNITURE (G276): a stool by the door, a
+      // lounge chair where the deck is deep enough to sit back, a table
+      // where there is room for one
+      const D2 = deckPlan(P, V);
+      if (D2) {
+        if (D2.zOut - D2.zIn >= 1.9 && rnd() < 0.6) put('chair_lounge', 'deck', 'deck', { turn: 0.5 });
+        if (rnd() < 0.7) put('stool_wood', 'deck', 'deck', { turn: 2.5 });
+        if (D2.zOut - D2.zIn >= 2.4 && D2.dl >= 5 && rnd() < 0.4) put('table_wood', 'deck', 'deck', { turn: 0.15 });
+      }
     } else if (what === 'gas') {
       if (rnd() < 0.55) {
         const a = put('bottle_propane', Z.lowWall ? 'gable' : 'underDeck', 'ground', { turn: 2 });
@@ -5310,6 +5352,7 @@ function randomHouse(seed) {
   P.chimXF = rr(-0.7, 0.7); P.chimZF = rr(-0.5, 0.5);
   P.gutter = odds(0.6) ? pick([1, 1, 2]) : 0;
   P.downpipe = P.gutter ? 1 : 0; P.dpCorner = ri(0, 7);
+  P.barrelKind = odds(0.5) ? 1 : 0;                  // wooden or the blue butt
   // A DORMER NEEDS A ROOF THAT CAN CARRY ONE, and the generator will refuse it
   // anyway — but asking for two on an 8-degree shed is how you get none
   P.dormers = (P.pitch > 24 && P.storeys < 3 && odds(0.32)) ? ri(1, 3) : 0;
@@ -5391,7 +5434,7 @@ function dressSlot(matKey, role, idx, col, flat) {
 
 window.HOUSE_GEN = {
   DEF, ROWS, PRESETS, MAT, BAGS, EXTRA, SMOKE_U, FAMS, STANCES, RAILS, SET_TINT, SHADE_U,
-  HAND_LEAN, HAND_TWIST, YARD_KIT,
+  HAND_LEAN, HAND_TWIST, YARD_KIT, CAR_KEYS,
   STAIR_MAX, SET_SEAM, SET_MISS, PIER_KIT, PIER_TRIS, PIER_DECK, PIER_LOW, SKIRT_OK,
   COLS, COL_NAMES, ROLE_SETS, SET_IDX, setNames, setFor, setRibbed,
   build, roofModel, wallSplits, groundFn, applyFinish, libSets, randomHouse,

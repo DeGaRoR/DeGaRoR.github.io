@@ -39044,3 +39044,45 @@ the join already measures the drawn root into `tail.boomX0`, which is the
 frame's own root station — measured on the user's build, +0.4 m aft moved
 boomX0 1.433 → 1.833, −0.3 fore → 1.133. The trunk's position heading now
 carries fore / aft, in / out and up / down for the twin booms.
+
+## G276 — CARS IN THE BACKYARDS, ONE BIN NOT THE PAIR, SEATS ON THE BALCONY,
+## THE BLUE BUTT UNDER THE PIPE, AND THE BAGS MADE SOLID (2026-09-12, the
+## user: "I have added some game-ready abandoned car assets in
+## asset/abandonedCars ... placed on the property lots, in the backyard
+## preferably. You need to separate the 2 trash cans ... not to be rendered
+## side by side ... chairs and stools and small tables are to be placed on the
+## entrance balcony. The blue water reservoirs can be used as receptacle for
+## the gutter too, alternating with your own barrel model. I think there is an
+## issue with the fertilizer bags rendering, they look transparent")
+
+- **SEVEN CARS** (`car` group in `tools/pier_table.py`, `src/pier/pier_car.js`,
+  all Sketchfab CC-BY, credited): the junk car (turned to lie along z), the
+  Fiat 132 and the Hudson Hornet (millimetres), the multicab scan, the
+  crashed car (delivered half as big again, 0.6), the Buick (94k triangles,
+  0.92, used rarely), the Reliant K (0.86). `cars.glb` — eight cars, 577k
+  triangles in one file — is left out. All mirrored in YARD_KIT with
+  `car: true` (`CAR_KEYS`).
+- **PARKED IN THE BACKYARD** (`planCar` in `_village_gen.js`): the side of
+  the house away from what it faces — behind an inland house, on the road
+  side of a waterfront one; spots tried from the house outward, roughly
+  along the plot with a random lean or a quarter turn, its own half-size
+  inside the plot line, clear of the house and its porch, the back stoop's
+  stair, the path, and the water. `carOdds` 0.45. GATE VILLAGE rule 7: a
+  known car, on its plot, dry, on the ground, out of the house, off the
+  path; selftest parks one in the house.
+- **ONE BIN.** The yard put the clean and the rusted bin side by side at the
+  stair foot; it puts one, either, now.
+- **SEATS ON THE ENTRANCE BALCONY**: a stool by the door, a lounge chair on
+  a deck deep enough to sit back (1.9 m), a table where a deck has room
+  (2.4 m deep, 5 m long); the deck zone got a second row further out on
+  deep decks. Rule 34 holds them to the deck.
+- **THE BLUE WATER BUTT** under the downpipe: `barrelKind` 1 publishes the
+  baked plastic barrel (`barrel_plastic`) at the shoe instead of drawing
+  the wooden one; the sampler alternates at even odds; both benches place
+  it, tilted to the ground.
+- **THE BAGS WERE GHOSTS**: the compost bags carry a
+  `KHR_materials_transmission` extension (an author's sheen on the plastic,
+  not glass) and the baker's glass rule made them 22 % opaque. A row flag
+  `opaque` (`prop_prep.py`) drops the blend and the opacity; the four bag
+  rows carry it. Re-baked.
+- Gates: HOUSE, VILLAGE (both with --selftest) green.

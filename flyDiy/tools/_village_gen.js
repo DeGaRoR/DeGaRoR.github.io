@@ -76,6 +76,7 @@ const VDEF = {
   gapOdds: 0.18,          // a frontage left empty
   fenceOdds: 0.72,        // an edge fenced
   oldFenceOdds: 0.25,     // a plot fenced with the scanned fence instead
+  carOdds: 0.45,          // a plot with an abandoned car in the backyard
   nHouses: 0,             // 0 = every plot
 };
 
@@ -374,12 +375,69 @@ function makeVillage(V0) {
   return { V, T, road, plots, houses, rnd };
 }
 
+// THE CAR IN THE BACKYARD (G276, the user: "I would like these to be placed
+// on the property lots, in the backyard preferably"). The backyard is the
+// side of the house away from what it faces: behind an inland house (toward
+// the plot's back edge), on the road side of a waterfront house. A car is
+// parked roughly along the plot, its own length and width clear of the
+// house, the fences (a metre and a half inside the plot line), the path and
+// the water; the spots are tried from the house outward and the first clear
+// one takes it. One per plot at `carOdds`, the Buick rarely.
+function planCar(vil, plot, house, built, rnd) {
+  if (rnd() > vil.V.carOdds) return null;
+  const T = vil.T, keys = HG.CAR_KEYS;
+  let key = keys[Math.floor(rnd() * keys.length) % keys.length];
+  if (key === 'car_buick' && rnd() < 0.7) key = 'car_fiat';
+  const K = HG.YARD_KIT[key];
+  const n = plot.n, tg = plot.tg;
+  // the backyard direction, away from the house's front
+  const back = plot.side === 'water' ? [-n[0], -n[1]] : [n[0], n[1]];
+  const P = house.P;
+  const ry0 = Math.atan2(tg[0], tg[1]);                   // along the plot
+  const cands = [];
+  for (let d = P.w / 2 + 1.2 + K.W / 2; d < plot.depth; d += 1.5)
+    for (const s of [0, 1, -1, 2, -2])
+      cands.push({ x: house.x + back[0] * d + tg[0] * s * 2.6, z: house.z + back[1] * d + tg[1] * s * 2.6,
+                   ry: ry0 + (rnd() - 0.5) * 0.7 + (rnd() < 0.3 ? Math.PI / 2 : 0) });
+  const half = Math.max(K.L, K.W) / 2;
+  const clear = c => {
+    // on the plot, its own half-size inside the line
+    for (let i = 0; i < 4; i++) {
+      const a = plot.poly[i], b = plot.poly[(i + 1) % 4];
+      const dx = b[0] - a[0], dz = b[1] - a[1], L = Math.hypot(dx, dz);
+      const cross = ((c.x - a[0]) * dz - (c.z - a[1]) * dx) / L;
+      if (Math.abs(cross) < half + 1.0) return false;
+    }
+    if (!inPoly(plot.poly, c.x, c.z)) return false;
+    if (T.h(c.x, c.z) < T.waterY + 0.3) return false;
+    // clear of the house: the car's disc against the house's rectangle
+    const cy = Math.cos(house.yaw), sy = Math.sin(house.yaw);
+    const x = c.x - house.x, z = c.z - house.z, lx = x * cy - z * sy, lz = x * sy + z * cy;
+    if (Math.abs(lx) < P.L / 2 + half + 0.6 && Math.abs(lz) < P.w / 2 + (P.porch ? P.porchD : 0) + half + 0.6) return false;
+    // clear of the stoops' stairs, roughly: the back stoop's foot
+    const bk = built.stats.stoop;
+    if (bk) { const w = house.toWorld(bk.x, bk.z - bk.side * (bk.depth + 2)); if (Math.hypot(w[0] - c.x, w[1] - c.z) < half + 1.2) return false; }
+    // clear of the path
+    for (const sg of plot.path || []) {
+      const ax = sg[0][0], az = sg[0][1], bx = sg[1][0], bz = sg[1][1];
+      const dx = bx - ax, dz = bz - az;
+      const t = Math.max(0, Math.min(1, ((c.x - ax) * dx + (c.z - az) * dz) / Math.max(1e-9, dx * dx + dz * dz)));
+      if (Math.hypot(c.x - (ax + dx * t), c.z - (az + dz * t)) < half + 0.8) return false;
+    }
+    return true;
+  };
+  for (const c of cands) if (clear(c)) return { key, x: c.x, z: c.z, ry: c.ry, y: T.h(c.x, c.z) };
+  return null;
+}
+
 // the parts that need a BUILT house (the stair, the stoops): the bench and
-// the gate build each house, then call this to lay the paths and the fences
+// the gate build each house, then call this to lay the paths, the fences
+// and the car
 function finishPlot(vil, plot, house, built) {
   const rnd = vil.rnd;
   plot.path = planPath(plot, house, built);
   plot.fences = planFences(vil.V, plot, house, rnd);
+  plot.car = planCar(vil, plot, house, built, rnd);
   return plot;
 }
 

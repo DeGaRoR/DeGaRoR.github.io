@@ -542,6 +542,29 @@ stay visible wherever it is shown. One 4.6 m stretch of green pickets on
 leaning posts, delivered in centimetres; the village lays it end to end on
 some plots and draws its own fence on the rest.
 
+**The abandoned cars** (`assets/abandonedCars/`, G276, the `car` group of the
+same table, baked into `src/pier/pier_car.js`) — all **Sketchfab,
+CC-BY-4.0**; attribution is a condition of the licence and must stay visible
+wherever they are shown. Imported as-is with a rigid scale or a quarter turn:
+
+- `car_junk` — **"Abandoned & junk Car"** by Plexus Game Assets
+  (https://sketchfab.com/3d-models/abandoned-junk-car-8bc4f3b8b7d94b6bb1e1ab0b8a2d0f42)
+- `car_fiat` — **"Abandoned Car - Fiat 132"** by ROH3D
+  (https://sketchfab.com/3d-models/abandoned-car-fiat-132)
+- `car_hudson` — **"Abandoned Car - Hudson Hornet"** by ROH3D
+  (https://sketchfab.com/3d-models/abandoned-car-hudson-hornet)
+- `car_multicab` — **"Abandoned car / vehicle (Multicab) 3D Scan"** by Alben Tan
+  (https://sketchfab.com/3d-models/abandoned-car-vehicle-multicab-3d-scan)
+- `car_crashed` — **"Crashed Abandoned Car - Game Ready"** by Rashad Ibrahimli
+  (https://sketchfab.com/3d-models/crashed-abandoned-car-game-ready)
+- `car_buick` — **"FREE Abandoned 1950s American Car (Buick)"** by Libau Media
+  (https://sketchfab.com/3d-models/free-abandoned-1950s-american-car-buick)
+- `car_kcar` — **"Reliant K Car"** by Renafox
+  (https://sketchfab.com/3d-models/reliant-k-car)
+
+`cars.glb` in the same folder ("Cars" by local.yany, CC-BY-4.0, eight cars
+in one 577k-triangle file) is not baked.
+
 **The two people** (`person_andrew`, `person_john`, G255) are the user's own
 static export from `assets/blendkitPeople/blendkitPeople.blend` — BlenderKit
 figures, under whatever licence BlenderKit granted for that pack (this file

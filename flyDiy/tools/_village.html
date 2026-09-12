@@ -65,7 +65,9 @@
 <script src="../src/pier/pier_boat.js"></script>
 <script src="../src/pier/pier_people.js"></script>
 <script src="../src/pier/pier_yard.js"></script>
+<script src="../src/pier/pier_car.js"></script>
 <script src="../src/props/props_vessel.js"></script>
+<script src="../src/props/props_bench.js"></script>
 <script src="../src/props/props_handling.js"></script>
 <script src="../src/props/props_storage.js"></script>
 <script src="../src/props/props_machine.js"></script>
@@ -98,6 +100,7 @@ const ROWS = [
   ['fenceOdds', 'fenced edges', 0, 1, 0.05],
   ['oldFenceOdds', 'scanned fence', 0, 1, 0.05],
   ['riparian', 'plot into the water m', 0, 30, 1],
+  ['carOdds', 'cars in backyards', 0, 1, 0.05],
   ['nHouses', 'houses (0 = all)', 0, 30, 1],
 ];
 const ui = $('ui');
@@ -374,6 +377,12 @@ function placeBuilt(parent, house, built, F) {
     if (q.on === 'ground') tiltToGround(o, g, q.x, q.z, q.ry);
     grp.add(o);
   }
+  if (st.barrel && st.barrel.prop && PROP_REG.props[st.barrel.prop]) {
+    const b = st.barrel;
+    const o = propPlace(THREE, b.prop, b.x, b.z, b.ry, g(b.x, b.z));
+    tiltToGround(o, g, b.x, b.z, b.ry);
+    grp.add(o);
+  }
   if (st.lit) for (const L of st.lit.lights) {
     if (L.prop && PROP_REG.props[L.prop]) grp.add(propPlace(THREE, L.prop, L.mx, L.mz, L.ry, L.my));
     if (house.P.lights) {
@@ -457,6 +466,15 @@ function build() {
     h.built = built;
   }
   const fe = placeFences(root, vil);
+  // THE CARS (G276): on the ground of the backyard, tilted to it
+  let cars = 0;
+  for (const plot of vil.plots) if (plot.car && PROP_REG.props[plot.car.key]) {
+    const c = plot.car;
+    const o = propPlace(THREE, c.key, c.x, c.z, c.ry, c.y);
+    tiltToGround(o, vil.T.h, c.x, c.z, c.ry);
+    root.add(o);
+    cars++;
+  }
   root.add(terrainMesh(vil));
   root.add(waterMesh(vil));
   // the road, as a thin dark strip is already in the wear map; the shore is
@@ -470,7 +488,7 @@ function build() {
     (tris + fe.tris).toLocaleString() + ' tris · ' + ms.toFixed(0) + ' ms';
   rep.push('<b>' + vil.plots.length + '</b> plots along <b>' + vil.road.length.toFixed(0) + ' m</b> of road');
   rep.push('<b>' + houses + '</b> houses, <b>' + water + '</b> waterfront, <b>' + piers + '</b> piers');
-  rep.push('fences: <b>' + fe.members + '</b> drawn members, <b>' + fe.old + '</b> scanned stretches');
+  rep.push('fences: <b>' + fe.members + '</b> drawn members, <b>' + fe.old + '</b> scanned stretches; <b>' + cars + '</b> cars');
   rep.push('<span class="' + (checks(vil) ? 'ok' : 'bad') + '">' + (checks(vil) ? 'plots checked: no overlap, every house in its plot' : 'CHECK FAILED - see console') + '</span>');
   $('chk').innerHTML = rep.join('<br>');
   report.innerHTML = vil.plots.map(p => 'plot ' + p.id + ' ' + p.side + ' ' + p.w.toFixed(0) + ' m × ' + p.depth.toFixed(0) +

@@ -64,6 +64,13 @@ GROUPS = [
     # Same baker, same one material; their own group so the generator's yard
     # planner can read them as a set.
     ('yard', 'around the house'),
+    # THE CARS (G276, the user: "I have added some game-ready abandoned car
+    # assets in asset/abandonedCars ... I would like these to be placed on
+    # the property lots, in the backyard preferably"). Sketchfab CC-BY, every
+    # one; imported as-is, a rigid scale and a quarter turn where the export
+    # needs it, so each lies along z with its nose to +z and its wheels on
+    # y = 0. `cars.glb` (eight cars, 577k triangles in one file) is left out.
+    ('car', 'abandoned cars'),
 ]
 
 # `lic` drives what CREDITS.md must carry. Every boat is CC-BY-4.0 and needs
@@ -96,6 +103,21 @@ SOURCES = {
     # the village's scanned fence (G275), CC-BY: attribution must stay visible
     'oldfence': ('Old fence', 'Yury Misiyuk', 'CC-BY-4.0',
                  'https://sketchfab.com/3d-models/old-fence-3a98eabc0aa9475db5fcf7fab235751b'),
+    # the cars, under assets/abandonedCars/
+    'junkcar':  ('Abandoned & junk Car', 'Plexus Game Assets', 'CC-BY-4.0',
+                 'https://sketchfab.com/3d-models/abandoned-junk-car-8bc4f3b8b7d94b6bb1e1ab0b8a2d0f42'),
+    'fiat':     ('Abandoned Car - Fiat 132', 'ROH3D', 'CC-BY-4.0',
+                 'https://sketchfab.com/3d-models/abandoned-car-fiat-132'),
+    'hudson':   ('Abandoned Car - Hudson Hornet', 'ROH3D', 'CC-BY-4.0',
+                 'https://sketchfab.com/3d-models/abandoned-car-hudson-hornet'),
+    'multicab': ('Abandoned car / vehicle (Multicab) 3D Scan', 'Alben Tan', 'CC-BY-4.0',
+                 'https://sketchfab.com/3d-models/abandoned-car-vehicle-multicab-3d-scan'),
+    'crashed':  ('Crashed Abandoned Car - Game Ready', 'Rashad Ibrahimli', 'CC-BY-4.0',
+                 'https://sketchfab.com/3d-models/crashed-abandoned-car-game-ready'),
+    'buick':    ('FREE Abandoned 1950s American Car (Buick)', 'Libau Media', 'CC-BY-4.0',
+                 'https://sketchfab.com/3d-models/free-abandoned-1950s-american-car-buick'),
+    'kcar':     ('Reliant K Car', 'Renafox', 'CC-BY-4.0',
+                 'https://sketchfab.com/3d-models/reliant-k-car'),
 }
 
 # the delivered files, under assets/woodenPierBoats/
@@ -114,6 +136,13 @@ FILES = {
     'jerrygreen': 'metal_jerrycan_green_1k.gltf',
     'planter':  'planter_box_03_1k.gltf',
     'oldfence': 'old_fence.glb',
+    'junkcar':  'abandoned__junk_car.glb',
+    'fiat':     'abandoned_car_-_fiat_132.glb',
+    'hudson':   'abandoned_car_-_hudson_hornet.glb',
+    'multicab': 'abandoned_car__vehicle_multicab_3d_scan.glb',
+    'crashed':  'crashed_abandoned_car_-_game_ready.glb',
+    'buick':    'free_abandoned_1950s_american_car_buick.glb',
+    'kcar':     'reliant_k_car.glb',
 }
 # where each source's file lives, relative to assets/woodenPierBoats/
 DIRS = {
@@ -123,17 +152,20 @@ DIRS = {
     'jerrygreen': '../propsHouse/metal_jerrycan_green',
     'planter': '../propsHouse/planter_box_03',
     'oldfence': '../propsHouse',
+    'junkcar': '../abandonedCars', 'fiat': '../abandonedCars', 'hudson': '../abandonedCars',
+    'multicab': '../abandonedCars', 'crashed': '../abandonedCars', 'buick': '../abandonedCars',
+    'kcar': '../abandonedCars',
 }
 
 
 def P(key, group, label, src, note, mats=None, nodes=None, place='floor',
       scale=1.0, rot=(0, 0, 0), tex=512, deck=None, float=None, piles=None,
-      pilesCut=1.9, slots=None):
+      pilesCut=1.9, slots=None, opaque=False):
     return dict(key=key, group=group, label=label, src=src, file=FILES[src],
                 dir=DIRS.get(src, ''),
                 mats=mats, nodes=nodes, place=place, scale=scale, rot=rot,
                 tex=tex, note=note, deck=deck, float=float, piles=piles,
-                pilesCut=pilesCut, slots=slots)
+                pilesCut=pilesCut, slots=slots, opaque=opaque)
 
 
 PLANKS = 'modular_wooden_pier_planks'
@@ -229,14 +261,14 @@ PROPS = [
       note='cast industrial wall lamp, 0.27 x 0.43 m, emissive glass; +z is off the wall'),
     P('bags_stack', 'yard', 'compost bags, stacked', 'bags',
       note='three bags stacked flat: the pile by the shed door',
-      nodes=['compost_bags_floorstacked']),
+      nodes=['compost_bags_floorstacked'], opaque=True),
     P('bags_lean', 'yard', 'compost bags, leaning', 'bags',
       note='two bags leaning against a wall (their back is at -z)',
-      nodes=['compost_bags_leaning']),
+      nodes=['compost_bags_leaning'], opaque=True),
     P('bags_flat', 'yard', 'compost bag, dropped', 'bags',
-      note='one bag dropped flat', nodes=['compost_bags_floor']),
+      note='one bag dropped flat', nodes=['compost_bags_floor'], opaque=True),
     P('bags_stand', 'yard', 'compost bag, standing', 'bags',
-      note='one bag stood on end', nodes=['compost_bags_standing']),
+      note='one bag stood on end', nodes=['compost_bags_standing'], opaque=True),
     P('bag_compost', 'yard', 'compost bag', 'bag02',
       note='a half-empty bag slumped on the ground'),
     P('jerrycan_green', 'yard', 'green jerrycan', 'jerrygreen',
@@ -251,4 +283,24 @@ PROPS = [
     P('fence_old', 'yard', 'old picket fence, 4.6 m', 'oldfence',
       note='4.6 m run of green pickets on leaning posts, Sketchfab CC-BY; along x, the '
            'origin at its centre on the ground', scale=0.01, tex=512),
+
+    # ---- the cars (G276) ----------------------------------------------------
+    P('car_junk', 'car', 'junk car', 'junkcar',
+      note='a burnt-out saloon, 29k triangles, five materials; delivered along x, turned to z',
+      rot=(0, 90, 0), tex=512),
+    P('car_fiat', 'car', 'Fiat 132', 'fiat',
+      note='rusted Fiat 132, delivered in millimetres', scale=0.001, tex=512),
+    P('car_hudson', 'car', 'Hudson Hornet', 'hudson',
+      note='rusted 1950s Hudson, delivered in millimetres', scale=0.001, tex=512),
+    P('car_multicab', 'car', 'multicab', 'multicab',
+      note='a photogrammetry scan of a small utility truck', tex=512),
+    P('car_crashed', 'car', 'crashed car', 'crashed',
+      note='a wreck with its bonnet up, ten parts; delivered half as big again as a car '
+           '(7.6 m long) - 0.6 makes it 4.6', scale=0.6, tex=512),
+    P('car_buick', 'car', 'Buick', 'buick',
+      note='1950s Buick, 94k triangles and 29 materials: the big one, used rarely; 5.9 m '
+           'as delivered, 0.92 for a 5.4 m car', scale=0.92, tex=512),
+    P('car_kcar', 'car', 'Reliant K', 'kcar',
+      note='an 80s K-car, 2k triangles; 5.3 m as delivered, 0.86 for the 4.5 m it was',
+      scale=0.86, tex=512),
 ]

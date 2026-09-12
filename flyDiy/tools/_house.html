@@ -113,6 +113,7 @@
 <script src="../src/props/props_machine.js"></script>
 <script src="../src/props/props_fixture.js"></script>
 <script src="../src/props/props_vehicle.js"></script>
+<script src="../src/props/props_bench.js"></script>
 <!-- the aerodrome's ground sets: the bench stands the house in real grass so
      there is something for the sky to bounce off and the shadows to land on -->
 <script src="../src/viewer/site_tex.js"></script>
@@ -554,6 +555,13 @@ function build() {
       if (q.on === 'ground') tiltToGround(o, hi.stats.ground, q.x, q.z, q.ry);
       root.add(o);
     }
+  // the blue water butt under the pipe, when the barrel is the baked one
+  if (hi.stats.barrel && hi.stats.barrel.prop && mode !== 1 && PROP_REG.props[hi.stats.barrel.prop]) {
+    const b = hi.stats.barrel;
+    const o = propPlace(THREE, b.prop, b.x, b.z, b.ry, hi.stats.ground(b.x, b.z));
+    tiltToGround(o, hi.stats.ground, b.x, b.z, b.ry);
+    root.add(o);
+  }
   // and the wall lamp, when the lamp is the baked fixture (mount at its plate)
   if (hi.stats.lit && mode !== 1)
     for (const L of hi.stats.lit.lights)

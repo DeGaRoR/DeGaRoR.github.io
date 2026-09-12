@@ -461,6 +461,15 @@ def bake_material(j, bufs, base, mdef, bank, budget, log, row=None):
         out['blend'] = 1
         out['opacity'] = round(min(out['opacity'],
                                    1.0 - ext['KHR_materials_transmission'].get('transmissionFactor', 1.0) * 0.78), 4)
+    # ... UNLESS THE ROW SAYS THE THING IS SOLID (G276, the user: "there is
+    # an issue with the fertilizer bags rendering, they look transparent").
+    # The compost bags carry a transmission extension - an author's sheen on
+    # the plastic, not glass - and came out as ghosts. `opaque` on the row
+    # drops the blend and the opacity for every material of that prop.
+    if (row or {}).get('opaque'):
+        out.pop('blend', None)
+        out['opacity'] = 1.0
+        log.append('    opaque: transmission / alpha ignored by the table')
 
     def img_of(ref):
         raw, name = image_bytes(j, bufs, base, tex_source(j, ref['index']))

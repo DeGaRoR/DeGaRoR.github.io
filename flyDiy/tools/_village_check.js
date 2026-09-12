@@ -191,6 +191,24 @@ function battery(name, vil) {
                            name + ': the gate on plot ' + plot.id + ' is not where the path crosses');
       }
     }
+    // 7 — the car (G276): a known car, on its plot a half-length inside the
+    //   line, clear of the house and the path, on dry ground
+    if (plot.car) {
+      const c = plot.car, K = HG.YARD_KIT[c.key];
+      check(!!K && K.car, name + ': plot ' + plot.id + ' parked something that is not a car', c.key);
+      check(VG.inPoly(plot.poly, c.x, c.z), name + ': the car on plot ' + plot.id + ' is off its plot');
+      check(T.h(c.x, c.z) > T.waterY + 0.25, name + ': the car on plot ' + plot.id + ' is in the water');
+      check(Math.abs(c.y - T.h(c.x, c.z)) < 0.01, name + ': the car on plot ' + plot.id + ' floats');
+      if (h && K) {
+        const half = Math.max(K.L, K.W) / 2;
+        const cy = Math.cos(h.yaw), sy = Math.sin(h.yaw);
+        const x = c.x - h.x, z = c.z - h.z, lx = x * cy - z * sy, lz = x * sy + z * cy;
+        check(Math.abs(lx) > h.P.L / 2 + half * 0.5 || Math.abs(lz) > h.P.w / 2 + half * 0.5,
+              name + ': the car on plot ' + plot.id + ' is in the house');
+        for (const sg of plot.path || [])
+          check(distPtSeg([c.x, c.z], sg[0], sg[1]) > half * 0.5, name + ': the car on plot ' + plot.id + ' is on the path');
+      }
+    }
     // 6 — the path
     if (h) {
       const pth = plot.path || [];
@@ -245,6 +263,8 @@ if (SELFTEST) {
   if (!probe(vil => { const p = vil.plots.find(q => q.fences && q.fences.length);
                       p.fences[0].a = [p.fences[0].a[0] + 3, p.fences[0].a[1] + 3]; })) neg.push('a fence off the line passed');
   if (!probe(vil => { const p = vil.plots.find(q => q.house !== undefined); p.path = []; })) neg.push('a plot with no path passed');
+  if (!probe(vil => { const p = vil.plots.find(q => q.car); if (p) p.car.x = p.house !== undefined ? vil.houses[p.house].x : p.car.x; if (p) p.car.z = vil.houses[p.house].z; }))
+    neg.push('a car in the house passed');
   if (!probe(vil => { const p = vil.plots.find(q => (q.fences || []).some(f => f.kind === 'front'));
                       const f = p.fences.find(f => f.kind === 'front'); f.gap = null; })) neg.push('a front fence with no gate passed');
   for (const n of neg) fail.push('SELFTEST: ' + n);
