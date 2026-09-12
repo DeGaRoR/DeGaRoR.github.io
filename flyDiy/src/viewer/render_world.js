@@ -1123,7 +1123,15 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       };
       return d;
     }
-    function impostorMat(atlas, far, si) {
+    // the tint uniforms of the series' own material: the leaf part's where
+    // there is one, the bark's for the snag - shared by reference
+    const tintUniformsOf = parts => {
+      const leaf = parts.find(q => q.mat.userData && q.mat.userData.uLeaf && q.mat.userData.uLeaf.value > 0.5);
+      const src = (leaf || parts[0] || {}).mat;
+      const u = src && src.userData;
+      return (u && u.uHue) ? { uHue: u.uHue, uSat: u.uSat, uLight: u.uLight } : null;
+    };
+    function impostorMat(atlas, far, si, tintU) {
       // AN IMPOSTOR IS AN ORDINARY SURFACE WITH A BAKED NORMAL. Standard at
       // roughness 1, `normal` replaced from the second sheet: that single
       // substitution buys the whole rig - sun, hemisphere, environment, and the
@@ -1154,6 +1162,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         sh.uniforms.uICut = { value: IMP_CUT[si || 0] };
         sh.uniforms.uTile = { value: IMP_TILE };
         sh.uniforms.uLeaf = { value: 1 };
+        sh.uniforms.uHue = tintU ? tintU.uHue : { value: 0 };
+        sh.uniforms.uSat = tintU ? tintU.uSat : { value: 1 };
+        sh.uniforms.uLight = tintU ? tintU.uLight : { value: 1 };
         sh.uniforms.uWrap = LEAF ? LEAF.uniforms.uWrap : { value: 0.76 };
         sh.uniforms.uSSS = LEAF ? LEAF.uniforms.uSSS : { value: 0.72 };
         sh.uniforms.uSSSP = LEAF ? LEAF.uniforms.uSSSP : { value: 3 };
@@ -1193,7 +1204,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           ].join('\n'));
         sh.fragmentShader = ('#ifdef SHADOWMAP_TYPE_PCF_SOFT\n#undef SHADOWMAP_TYPE_PCF_SOFT\n#define SHADOWMAP_TYPE_PCF\n#endif\n' + sh.fragmentShader)
           .replace('#include <common>', '#include <common>\n' +
-            'uniform float uG, uILit, uLeaf, uWrap, uSSS, uSSSP, uNearB, uFadeW, uIGain, uISolid, uICut, uTile;\nuniform sampler2D uNrm;\nvarying vec3 vImpDir;\nvarying float vImpD;\n' +
+            'uniform float uG, uILit, uLeaf, uWrap, uSSS, uSSSP, uNearB, uFadeW, uIGain, uISolid, uICut, uTile;\n' +
+            'uniform float uHue, uSat, uLight;\nuniform sampler2D uNrm;\nvarying vec3 vImpDir;\nvarying float vImpD;\n' +
             // the decode, written out: <map_fragment> and its mapTexelToLinear
             // are replaced below, and the sheet was written sRGB
             'vec3 impSRGB(vec3 c) { return mix(pow((c + 0.055) / 1.055, vec3(2.4)), c / 12.92, step(c, vec3(0.04045))); }')
@@ -1226,6 +1238,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             '  float _fi = clamp((vImpD - (uNearB - uFadeW * 0.5)) / uFadeW, 0.0, 1.0);',
             '  if (_n < 1.0 - _fi) discard; }',
             'diffuseColor *= texelColor;',
+            // the collection's tint, the same words as the leaf's, at the draw
+            (LEAF && LEAF.tintGlsl) ? LEAF.tintGlsl : '',
             // the other half of the G-buffer, un-premultiplied by ITS alpha
             'vec4 n0 = texture2D(uNrm, uvA), n1 = texture2D(uNrm, uvB), n2 = texture2D(uNrm, uvC);',
             'float nW = dot(wB, vec3(n0.a, n1.a, n2.a));',
@@ -1633,7 +1647,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     const impMatsFor = (P, fallbackGeo) => {
       const srcs = P ? P.series.map(S => S.parts) : [fallbackGeo];
       return srcs.map((src, si) => {
-        const at = bakeImpostorAtlas(src), m = impostorMat(at, FAR_WOOD, si);
+        const at = bakeImpostorAtlas(src), m = impostorMat(at, FAR_WOOD, si, P ? tintUniformsOf(src) : null);
         m.userData.depth = impostorDepth(at, si);
         m.userData.farDepth = impostorDepth(at, si, true);
         plantedKit.push(m, m.userData.depth, m.userData.farDepth);   // the atlas is the cache's
@@ -1929,7 +1943,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             H.series.forEach((S, si) => {
               for (const R of S.ladder) for (const q of R.parts) { chunkBounds(q.geo, CH); SHAPE.kit.push(q.mat, q.depth); }
               const at = bakeImpostorAtlas(S.parts);
-              S.imp = impostorMat(at, FAR_FILL, si);
+              S.imp = impostorMat(at, FAR_FILL, si, tintUniformsOf(S.parts));
               S.imp.userData.depth = impostorDepth(at, si);
               S.imp.userData.farDepth = impostorDepth(at, si, true);
               SHAPE.kit.push(S.imp, S.imp.userData.depth, S.imp.userData.farDepth);   // the atlas is the cache's

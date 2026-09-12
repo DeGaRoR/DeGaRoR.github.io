@@ -249,6 +249,14 @@
     'float _y = dot(_rot, vec3(0.2126, 0.7152, 0.0722));',
     'diffuseColor.rgb = clamp(mix(vec3(_y), _rot, uSat) * uLight, 0.0, 1.0);',
   ].join('\n');
+  // THE TINT IS A DRAW-TIME TERM ON BOTH TIERS (W0c.20). The impostor sheet
+  // used to be baked with the tint in it, so a dial that moved a
+  // collection's lightness reached the near tier at once and the far tier
+  // never - "some impostor trees far too bright" with no way to reach them.
+  // The bake skips the tint; the impostor material applies these same words
+  // with the collection's own uniforms, shared by reference with its leaf
+  // material, so one dial moves the tree at every distance.
+  const TINT_LIVE = 'if (uBakeAlb < 0.5) {\n' + TINT_GLSL + '\n}';
   // THE EDGE. Alpha-to-coverage makes coverage equal alpha, and a soft leaf
   // texture then renders every needle half see-through whatever the cutoff;
   // the bench's answer is to rescale alpha by its own screen-space rate of
@@ -298,7 +306,7 @@
         'uniform float uHue, uSat, uLight, uCut, uSharp;\nvarying float vAoV;\n' +
         sh.fragmentShader
           .replace('#include <map_fragment>',
-            '#include <map_fragment>\n' + TINT_GLSL + (isLeaf ? '\n' + EDGE_GLSL : ''))
+            '#include <map_fragment>\n' + TINT_LIVE + (isLeaf ? '\n' + EDGE_GLSL : ''))
           .replace('#include <lights_fragment_end>',
             '#include <lights_fragment_end>\n' + LEAF_GLSL);
     };
@@ -315,6 +323,19 @@
     // the impostor material lights its sheet with the same terms and dials
     uniforms: { uWrap: U_WRAP, uSSS: U_SSS, uSSSP: U_SSSP, uAoBake: U_AO },
     terms: LEAF_TERMS,
+    tintGlsl: TINT_GLSL,
+    // a collection's own row, live on every material that wears it (the
+    // rows are shared by reference with the payload's `tint`) and on its
+    // impostors through tintGlsl; TREE_LEAF.collections() lists them
+    collections: () => (PACK ? PACK.collections : []).map(c => ({ name: c.name, tint: c.tint || (c.tint = {}) })),
+    tintOf: (name, o) => {
+      const c = (PACK ? PACK.collections : []).find(x => x.name === name);
+      if (!c) return null;
+      c.tint = c.tint || {};
+      for (const k of ['hue', 'sat', 'light', 'bark']) if (o && o[k] !== undefined) c.tint[k] = +o[k];
+      for (const m of HOOKED) if (m.userData.tint === c.tint) retint(m);
+      return Object.assign({}, c.tint);
+    },
     bake: U_BAKEALB,
     get: () => Object.assign({}, LEAF),
     set: o => { for (const k of ['wrap', 'sss', 'sssp', 'ao']) if (o[k] !== undefined) LEAF[k] = +o[k];

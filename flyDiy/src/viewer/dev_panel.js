@@ -90,6 +90,17 @@
     root.appendChild(slider('master sat', 0, 1.5, 0.02, () => leaf().master().sat, v => leaf().tint({ sat: v })));
     root.appendChild(slider('master light', 0.2, 2, 0.02, () => leaf().master().light, v => leaf().tint({ light: v })));
 
+    root.appendChild($('h4', { text: 'collections' }));
+    root.appendChild(note('the bench’s per-collection tint, live on both tiers'));
+    for (const c of (leaf().collections ? leaf().collections() : [])) {
+      const short = c.name.replace(/\.glb$/, '').replace(/_tree|_trees_pack_lods_gameready|realistic_/g, '').slice(0, 14);
+      root.appendChild(note(short));
+      root.appendChild(slider('  hue', -0.2, 0.2, 0.005, () => c.tint.hue || 0, v => leaf().tintOf(c.name, { hue: v }), v => v.toFixed(3)));
+      root.appendChild(slider('  sat', 0, 1.5, 0.02, () => (c.tint.sat === undefined ? 1 : c.tint.sat), v => leaf().tintOf(c.name, { sat: v })));
+      root.appendChild(slider('  light', 0.2, 2, 0.02, () => (c.tint.light === undefined ? 1 : c.tint.light), v => leaf().tintOf(c.name, { light: v })));
+      root.appendChild(slider('  bark', 0.2, 2, 0.02, () => (c.tint.bark === undefined ? 1 : c.tint.bark), v => leaf().tintOf(c.name, { bark: v })));
+    }
+
     root.appendChild($('h4', { text: 'light' }));
     root.appendChild(select('rig row', [['sunset', 'sunset (the world’s)'], ['alps', 'alps afternoon (the bench’s)']],
       () => rigRowName, v => { rigRowName = v; rig().row(v); }));
