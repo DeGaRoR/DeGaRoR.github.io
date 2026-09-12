@@ -39540,6 +39540,12 @@ worktree with GATE WORLDRENDER + GATE TREES.
   except SSAO (off in the committed view) and `isph` (measured 0,
   superseded by the normal sheet) — TREE-IMPORT.md §8. Baseline: Off 10.2 ·
   Smooth 19.9 · Smoothest 27.9 ms at NG 100, alps.
+- **W0c.32 (the stem, no L2):** the generated stem is half the radius
+  (`stick` 0.0225) and baked half as bright (a `stick` flag in
+  `bake_ao`); default bands 60/270/270 — L1 to the impostor, the
+  half-foliage L2 kept in the payload behind the dial; menu near
+  60/270/270, far 150/450/450. A/B under a loaded machine: no difference
+  (Off 16.9 vs 16.9, Smoothest 23.8 vs 23.5); a quiet re-measure is owed.
 - **Not done, on purpose:** the boot rig (still `sunset`; `alps` is where
   the trees were judged), the forest card in the rail and the GRAPHICS
   SETTINGS menu (`futureDesigns/GRAPHICS-SETTINGS-2026-09-12.md`, the

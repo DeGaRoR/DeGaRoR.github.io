@@ -605,6 +605,29 @@ of a judged look — the floor and the baked AO do that job in the game) and
 **imp round** (`isph`, the sphere-normal blend for the impostor; measured 0
 on the bench and superseded by the G-buffer's real normal sheet).
 
+**The stem, and the ladder without L2 (W0c.32).** The user: "the generated
+straight trunks should be slimmer and darker — half the diameter, 50 %
+darker... the band with generated trunks but full leaves should be wider; we
+could even do tests without L2, the trunk shows a lot through with this empty
+foliage... then L1 covering the band L1+L2 cover today, then straight to
+billboard." So: the tuning's `stick` (the stem's radius as a fraction of the
+crown's width) is halved for every collection (0.045 → 0.0225), and the stem
+carries a `stick` flag the AO bake reads — its vertices are baked at half the
+brightness of the pack's own wood, on top of the foot-to-crown gradient. The
+payload is re-baked (five new bins; the manifest's `tint`/`place` untouched).
+Checked at 100–200 m on a stand edge: slim dark lines between the crowns,
+nothing of the stem outside the foliage. And the default bands are
+**60 / 270 / 270** — L1 (stem + full foliage) from 60 m to the impostor, the
+half-foliage L2 not drawn; the rung stays in the payload and the panel's
+"L1 to" below "L2 to" brings it back. The graphics menu's *near* is
+60/270/270 and *far* 150/450/450. Performance: measured A/B on a machine
+running three gate batteries at once, so with a caveat — the back-to-back
+pair read Off 16.9 vs 16.9 ms, Smoothest 23.8 vs 23.5 (60/132/270 vs
+60/270/270; 9.5 vs 14.5 Mtris) — no difference, which is what W0c.30's
+ablation predicts (the near tier's triangles are free; the fill-rate is the
+same crown silhouette either way). A quiet-machine re-measure is owed with
+the next baseline.
+
 **Not done.** The boot rig is still `sunset`; `alps` is two clicks on the
 panel and is the row the trees were judged in — a world decision. Bushes and
 grass are the next kinds through this same door.
