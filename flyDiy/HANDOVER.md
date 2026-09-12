@@ -39765,3 +39765,67 @@ from 40° off-axis: the dome fills the window, no can.
   re-export at ≤ 30k), distance tiers for the props, the house's far mesh
   with a plain material past 120 m, lights culled by distance.
 - Gates: HOUSE, VILLAGE (both --selftest) green.
+
+## G294 — THE TUBE: A TWIN BOOM IS A SHAPE-MATCHED CLUSTER, ITS STIFFNESS THE
+## DRAWN TUBE'S OWN, AND THE SUBSTEPS COME BACK (2026-09-12, the user: "ok,
+## let's go with the tube. Warning, such changes could break the experience
+## as we have it now, so be ready to revert")
+
+**What it is.** The boom's truss (G266) stood for a monocoque tube ~100x
+stiffer than a lattice of the fuselage's per-member k, and the factor that
+closed the gap was capped at 8 by the substep budget (a stiffer spring is
+a shorter step; 127 substeps on the user's build). The boom is not a spring
+now: its nodes — the prism's stations AND the spar nodes of the wing bay it
+is bolted to — are a RIGID CLUSTER the solver shape-matches every substep
+(30_solver `clusters`: Müller's shape matching — the mass-weighted centre,
+the rotation extracted from the covariance against the rest shape by the
+2016 iterative method warm-started on the last step, the nodes pulled onto
+R·q + c with their velocities corrected by the same displacement; linear
+momentum exact, angular to the iteration's tolerance; a projection with
+no frequency of its own). The members stay (the drawing, the mass, the
+strains) at the plain k — `twinBoomK`'s factor is 1 with the tube on.
+`def.clusters` rides the def (61 → 64 → the sim).
+
+**It is COMPLIANT, and physically so.** `omega` (rad/s) is the cluster's
+stiffness: the pull is the fraction (ω dt)² of the way to the goal each
+substep — a spring of that frequency toward the rigid fit, 1 = rigid.
+`GEN_RULES.twinBoomTubeW: 'computed'` takes the drawn tube's own cantilever
+stiffness, 3 EI / L³ on the oval section (the EI the factor was computed
+from) and scales ω as √(K/M) from ONE calibration on the trestle rig: the
+user's fixture (K_tip 29.2 kN/m per boom, 61.6 kg in the cluster) rises
+10 mm under the stab's 1 g share at 300 rad/s — the 10 mm that K_tip says.
+Measured on that fixture, rise under the 1 g share: rigid 0.0 %, ω 600
+0.08 %, 300 0.29 % (= K_tip), 150 0.88 % (= the G266 truss at K 8), 80
+2.1 %; the roll under the antisymmetric pair 0.01 / 0.14 / 0.47 / 1.45 /
+3.5 deg. Computed ω on the fixture 305, on the matrix row 528, on the
+user's WIP 489. Substeps: the fixture 127 → 80, the matrix row 129 → 88,
+the user's WIP 127 → 86.
+
+**Two things the first cuts found.** (1) With the boom rigid and the ties
+alone holding it (plain k, the factor gone) the compliance moved to the
+attachment: sag 53 mm, rise 2.5 %, roll 3.6 deg — worse than the truss. The
+spar station is in the cluster. (2) Bolted to ONE rib the tail's moment
+twisted that rib in the wing's box and the tail rode ±200 mm in flight;
+the pilot could not hold a climb. Both stations of the bay are in the
+cluster — the attachment bay is rigid, as a boom mount's bay is. (3) And
+FULLY rigid the fixture's pilot went around off a low approach and stalled
+the go-around: the G266 truss sagged ~90 mm on final under the flapped
+stab's load — a free 1.5 deg of nose-up trim the sheet had been flying on.
+At the tube's own stiffness the excursion is 33 mm and the circuit is flown
+clean (270 s, no verdicts; the truss 276 s with one).
+
+**The revert switch**: `GEN_RULES.twinBoomTube: 0` is G266's truss and
+factor exactly (GATE FLEX's negative control runs it: at least three times
+softer than the tube on the trestles, or the cluster is not the holder).
+
+**Traps.** The shared tree's `tools/flight_core.js` is rebuilt by every
+session's `build.js` from ITS sources — a core measured here was twice
+another session's, without these edits, and the numbers lied (identical
+tube/truss rows). Core changes are measured on a PRIVATE worktree with the
+edits copied in and its own build (the panel arc's rule, learnt again).
+
+**Owed.** The rod boom is the next cluster (rodBoomK's ruling — the same
+element); the fin is still the P4 lattice (its side stiffness on a tube is
+now the fin's own, measurable); the stab bridge's pyramid ties are the
+tail's remaining compliance; the tail-gap gauge reads 91 mm on the user's
+WIP, 84 of it x (§4 place.dx).

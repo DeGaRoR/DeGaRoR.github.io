@@ -115,6 +115,103 @@ function makeSim(def, world) {
         f = new Float64Array(n * 3), m = new Float64Array(n),
         r = new Float64Array(n);
   const beams = def.beams.map(b => ({ ...b, L0: 0, strain: 0 }));
+  // THE TUBE (G294): RIGID CLUSTERS, shape-matched every substep. A group of
+  // nodes (a twin boom's) is pulled onto the best-fit rigid transform of
+  // its rest shape — Müller's shape matching: the mass-weighted centre,
+  // the rotation extracted from the covariance of the current offsets
+  // against the rest offsets (the 2016 iterative extraction, warm-started
+  // on the last step's rotation), the goal positions R q + c, and the
+  // nodes moved onto them with their velocities corrected by the same
+  // displacement. Mass-weighted, so linear momentum is conserved exactly
+  // and angular momentum to the iteration's tolerance; and it is a
+  // PROJECTION, not a spring — no frequency, no substep cost, whatever the
+  // stiffness the members would have needed. The members inside the cluster
+  // still run (the drawing, the mass and the strain readouts want them);
+  // their forces are tiny once the shape is held.
+  const clusters = (def.clusters || []).map(C => {
+    const idx = Int32Array.from(C.nodes);
+    // `omega` (rad/s) is the cluster's STIFFNESS: the projection is applied
+    // as the fraction (omega dt)^2 of the way to the goal each substep,
+    // which is a spring of that frequency toward the rigid fit — a
+    // cantilever with a real tip deflection — capped at 1 (rigid; 0 or
+    // absent = rigid too)
+    return { cls: C.cls, tag: C.tag, idx, q: new Float64Array(idx.length * 3),
+             R: [1, 0, 0, 0, 1, 0, 0, 0, 1], omega: C.omega > 0 ? C.omega : 0 };
+  });
+  function clusterRest(C) {
+    let cx = 0, cy = 0, cz = 0, M = 0;
+    for (let k = 0; k < C.idx.length; k++) {
+      const i = C.idx[k], mi = m[i];
+      cx += p[i*3] * mi; cy += p[i*3+1] * mi; cz += p[i*3+2] * mi; M += mi;
+    }
+    cx /= M; cy /= M; cz /= M;
+    for (let k = 0; k < C.idx.length; k++) {
+      const i = C.idx[k];
+      C.q[k*3] = p[i*3] - cx; C.q[k*3+1] = p[i*3+1] - cy; C.q[k*3+2] = p[i*3+2] - cz;
+    }
+    C.R = [1, 0, 0, 0, 1, 0, 0, 0, 1];
+  }
+  // the rotation of a linear map A (row-major 3x3), warm-started from R:
+  // Müller, Bender, Chentanez, Macklin 2016, "A robust method to extract
+  // the rotational part of deformations"
+  function extractRotation(A, R, iters) {
+    for (let it = 0; it < iters; it++) {
+      let ox = 0, oy = 0, oz = 0, den = 0;
+      for (let c = 0; c < 3; c++) {
+        // column c of R and of A
+        const rx = R[c], ry = R[3 + c], rz = R[6 + c];
+        const ax = A[c], ay = A[3 + c], az = A[6 + c];
+        ox += ry * az - rz * ay; oy += rz * ax - rx * az; oz += rx * ay - ry * ax;
+        den += rx * ax + ry * ay + rz * az;
+      }
+      den = Math.abs(den) + 1e-9;
+      ox /= den; oy /= den; oz /= den;
+      const w = Math.hypot(ox, oy, oz);
+      if (w < 1e-9) break;
+      // R <- Rot(axis, w) * R  (Rodrigues)
+      const kx = ox / w, ky = oy / w, kz = oz / w;
+      const cw = Math.cos(w), sw = Math.sin(w), t = 1 - cw;
+      const Q = [cw + kx*kx*t,    kx*ky*t - kz*sw, kx*kz*t + ky*sw,
+                 ky*kx*t + kz*sw, cw + ky*ky*t,    ky*kz*t - kx*sw,
+                 kz*kx*t - ky*sw, kz*ky*t + kx*sw, cw + kz*kz*t];
+      const N2 = new Array(9);
+      for (let r2 = 0; r2 < 3; r2++) for (let c = 0; c < 3; c++)
+        N2[r2*3 + c] = Q[r2*3] * R[c] + Q[r2*3 + 1] * R[3 + c] + Q[r2*3 + 2] * R[6 + c];
+      R = N2;
+    }
+    return R;
+  }
+  function shapeMatch(C, dt) {
+    const n2 = C.idx.length;
+    let cx = 0, cy = 0, cz = 0, M = 0;
+    for (let k = 0; k < n2; k++) {
+      const i = C.idx[k], mi = m[i];
+      cx += p[i*3] * mi; cy += p[i*3+1] * mi; cz += p[i*3+2] * mi; M += mi;
+    }
+    cx /= M; cy /= M; cz /= M;
+    // A = sum m (x - c) q^T
+    const A = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+    for (let k = 0; k < n2; k++) {
+      const i = C.idx[k], mi = m[i];
+      const dx = p[i*3] - cx, dy = p[i*3+1] - cy, dz = p[i*3+2] - cz;
+      const qx = C.q[k*3], qy = C.q[k*3+1], qz = C.q[k*3+2];
+      A[0] += mi*dx*qx; A[1] += mi*dx*qy; A[2] += mi*dx*qz;
+      A[3] += mi*dy*qx; A[4] += mi*dy*qy; A[5] += mi*dy*qz;
+      A[6] += mi*dz*qx; A[7] += mi*dz*qy; A[8] += mi*dz*qz;
+    }
+    const R = C.R = extractRotation(A, C.R, 4);
+    const al = C.omega > 0 ? Math.min(1, (C.omega * dt) * (C.omega * dt)) : 1, inv = al / dt;
+    for (let k = 0; k < n2; k++) {
+      const i = C.idx[k], i3 = i*3;
+      const qx = C.q[k*3], qy = C.q[k*3+1], qz = C.q[k*3+2];
+      const gx = R[0]*qx + R[1]*qy + R[2]*qz + cx;
+      const gy = R[3]*qx + R[4]*qy + R[5]*qz + cy;
+      const gz = R[6]*qx + R[7]*qy + R[8]*qz + cz;
+      const ex = gx - p[i3], ey = gy - p[i3+1], ez = gz - p[i3+2];
+      p[i3] += al * ex; p[i3+1] += al * ey; p[i3+2] += al * ez;
+      v[i3] += inv * ex; v[i3+1] += inv * ey; v[i3+2] += inv * ez;
+    }
+  }
   const _treeScratch = [];
   // G194: `eng` is null (every engine running, full lever — bit-identical to
   // before) or [{ on, thr }] per engine, a MULTIPLIER on the pilot's `thr`
@@ -471,6 +568,7 @@ function makeSim(def, world) {
       if (b.pre) b.L0 *= (1 - b.pre);
       b.strain = 0;
     }
+    for (const C of clusters) clusterRest(C);       // G294: the rest shape, as built
     // THE THREE-POINT STANCE (2026-09-04, the user: "quite a few of my builds
     // break their tailwheel simply on spawning, it just flips"). def.nodes are
     // the LEVEL attitude: on a taildragger the tail hangs ~1 m in the air and
@@ -1051,6 +1149,7 @@ function makeSim(def, world) {
       v[i3+2] = vmz + (v[i3+2] + f[i3+2]*im - vmz) * dp;
       p[i3] += v[i3]*dt; p[i3+1] += v[i3+1]*dt; p[i3+2] += v[i3+2]*dt;
     }
+    for (const C of clusters) shapeMatch(C, dt);    // G294: the tube holds its shape
     // altitude of CG (wheel-corrected later by caller if needed)
     let cy = 0;
     for (let i = 0; i < n; i++) cy += p[i*3+1]*m[i];

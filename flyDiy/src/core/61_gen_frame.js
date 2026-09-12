@@ -77,6 +77,7 @@ function genLattice(S, gearX, track, kScale) {
   const R = GEN_RULES;
   const D = Math.PI / 180;
   const nodes = [], beams = [];
+  const clusters = [];                              // G294: rigid node groups (the tube)
   const P = [];                                     // positions, for area math
   // G185: WHICH PLANE a node belongs to. Tags stay WF/WR/WB on every plane
   // (a tag suffix would silently drop the second plane from the load test's
@@ -1196,7 +1197,11 @@ function genLattice(S, gearX, track, kScale) {
       const cap = R.twinBoomKMax == null ? 8 : R.twinBoomKMax;
       return EIl > 0 ? Math.max(1, Math.min(cap, EIt / EIl)) : 1;
     })();
-    const KX = { kx: tbK };
+    // G294: THE TUBE. With the cluster on, the boom's members carry no
+    // factor — the cluster is the stiffness — and the substep budget the
+    // factor used to spend goes back to the aeroplane.
+    const TUBE = !(R.twinBoomTube === 0 || R.twinBoomTube === false);
+    const KX = { kx: TUBE ? 1 : tbK };
     // the stations: the drawn root, the bays aft of it TO THE DRAWN STAB
     // (t.hX — the stab layer's own station; the stab strips hang on the
     // tail nodes, so where those nodes stand IS the tail arm the aeroplane
@@ -1252,6 +1257,43 @@ function genLattice(S, gearX, track, kScale) {
       cover(Math.PI * r0 * (1 + kv) * 0.5 * (1 + tap) * len,
             st.slice(iRoot).flatMap(q => [q.T, q.I, q.O]));
       chains[sd] = st;
+      // G294: the whole boom, root station to tip, one rigid cluster — AND
+      // THE SPAR STATION IT IS BOLTED TO: the nearer of the bay's two rib
+      // stations (its front and rear spar nodes, the box caps under them)
+      // is in the cluster, so the boom hangs rigidly off that rib and the
+      // wing's own box carries it from there. Measured on the user's build
+      // with the ties alone (plain k, the factor gone): sag 53 mm, rise
+      // 2.5 %, roll 3.6 deg — the compliance had moved from the boom to
+      // its attachment. The ties stay as members (redundant, harmless).
+      // ...BOTH stations of the bay, not the nearer one: bolted to a single
+      // rib the tail's moment twisted that rib in the wing's box and the tail
+      // rode +-200 mm in flight, the pilot could not hold a climb (measured
+      // on the user's fixture; the truss with its ties to both stations flew
+      // the circuit). The attachment BAY is rigid — one bay of the wing's
+      // bending and torsion, where a real boom mount is a reinforced bay.
+      if (TUBE) {
+        const rib = [];
+        for (const j of [b, Math.min(b + 1, zAll.length - 1)])
+          for (const q of [w.F[j], w.R[j], w.FB ? w.FB[j] : null, w.RB ? w.RB[j] : null])
+            if (q != null && !rib.includes(q)) rib.push(q);
+        const cl = st.flatMap(q => [q.T, q.I, q.O]).concat(rib);
+        let omega = 0;
+        if (R.twinBoomTubeW === 'computed') {
+          // the tube's tip stiffness (the same EI the factor was computed
+          // from) and the cluster's mass, against the calibration pair
+          const ph = M && M.phys;
+          if (ph && ph.E > 0) {
+            const tW = R.rodWall == null ? 1.2e-3 : R.rodWall;
+            const rm = 0.5 * (r0 + r1), a = kv * rm;
+            const EIt = ph.E * Math.PI * tW * a * a * (a + 3 * rm) / 4;
+            const Kt = 3 * EIt / Math.pow(Math.max(0.5, len), 3);
+            let Mc = 0;
+            for (const q of cl) Mc += nodes[q].m || 0;
+            omega = 300 * Math.sqrt((Kt / 29182) * (61.6 / Math.max(1, Mc)));
+          }
+        } else if (R.twinBoomTubeW > 0) omega = +R.twinBoomTubeW;
+        clusters.push({ cls: 'boom', tag: 'BM' + sd, omega, nodes: cl });
+      }
     }
     const tl = chains.L[iTail], tr = chains.R[iTail];
     HTBL = tl.I; HTBR = tr.I;
@@ -1396,7 +1438,7 @@ function genLattice(S, gearX, track, kScale) {
     TAIL = { HF, HR, HB, zsH, semiH, zRootH, chordH, hV, chordV, nV,
              VF: fins[0].VF, VR: fins[0].VR, VX: fins[0].VX, VX2: fins[0].VX2, fins,
              sparFront: sparF, rearH: 1 - CT, rearV: 1 - CR, twin: true };
-    BOOMS = { L: chains.L, R: chains.R, r: r0, r1, kv, x0, len, iRoot, iTail, xs, k: tbK };
+    BOOMS = { L: chains.L, R: chains.R, r: r0, r1, kv, x0, len, iRoot, iTail, xs, k: TUBE ? 1 : tbK, tube: TUBE };
   } else if (isV) {
   // the V keeps its two tip nodes on four members each (the ruddervator
   // pair is one surface, raked; a truss for it is its own chantier)
@@ -2058,7 +2100,7 @@ function genLattice(S, gearX, track, kScale) {
     ledger,
     gearAnchors: [iFwd, iAft], kScale: KS, kGear: KG,
   };
-  return { nodes, beams, refs, parts };
+  return { nodes, beams, refs, parts, clusters };
 }
 
 function genLatticeCG(nodes) {

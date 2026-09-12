@@ -2042,6 +2042,25 @@ const GEN_RULES = {
   twinBoomBay: 2.0,
   twinBoomK:   'computed',
   twinBoomKMax: 8,
+  // THE TUBE (G294, the user: "let's go with the tube"). A monocoque boom is
+  // ~100x stiffer than the truss that stands for it, and the truss's k is
+  // capped at 8 by the substep budget (a stiffer spring is a shorter step).
+  // So the boom is not a spring at all: its nodes are a RIGID CLUSTER the
+  // solver shape-matches every substep (30_solver's clusters — the best-fit
+  // rigid transform of the rest shape, mass-weighted, momentum-conserving,
+  // unconditionally stable), the members stay for the drawing, the mass
+  // and the ties to the wing and the tail at the plain per-member k (no
+  // factor, no substeps for it). 1 = the tube; 0 = the truss + factor as
+  // G266 landed it — THE REVERT SWITCH (the user: "be ready to revert").
+  twinBoomTube: 1,
+  // ...and how stiff the tube is: the cluster's projection frequency
+  // (rad/s). 'computed' = the drawn tube's own cantilever stiffness,
+  // 3 EI / L^3 on the oval section (E the fuselage material's, rodWall the
+  // wall), scaled from ONE calibration on the trestle rig: the user's
+  // fixture (K_tip 29.2 kN/m per boom, 61.6 kg in the cluster) rises 10 mm
+  // under the stab's 1 g share at 300 rad/s — the 10 mm that K_tip says.
+  // omega scales as sqrt(K / M). A number is that number; 0 = rigid.
+  twinBoomTubeW: 'computed',
   rodWall:     1.2e-3, // the rod boom's tube wall, m (4130: 1.2 mm on a 113 mm tube)
   // ...and WHERE the foot goes, as a fraction of the way from the engine to
   // the front spar: 1 = under the front spar. Measured on the twin (engines

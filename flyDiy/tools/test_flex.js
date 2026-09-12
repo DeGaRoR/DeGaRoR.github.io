@@ -718,11 +718,16 @@ function statTail(def) {
   // row's bending barely moves at K 1 (0.62 % against 0.51 — a 3.5 m boom
   // on two bays is already long members); its TORSION does (17 deg against
   // 2.3), which is the number the factor was bought for
-  const K0 = GEN_RULES.twinBoomK;
-  GEN_RULES.twinBoomK = 1;
+  // G294: THE TUBE is a rigid cluster now (GEN_RULES.twinBoomTube 1), bolted
+  // to its spar rib — on these trestles the boom cannot move at all and the
+  // rows above read the stab and the fins alone. The negative control is
+  // the truss the tube replaced, at the plain per-member k: at least three
+  // times softer, or the cluster is not doing the holding.
+  const K0 = GEN_RULES.twinBoomK, T0 = GEN_RULES.twinBoomTube;
+  GEN_RULES.twinBoomK = 1; GEN_RULES.twinBoomTube = 0;
   const soft = statTail(buildGen(tbSpec()));
-  GEN_RULES.twinBoomK = K0;
-  say(fmt('  negative: twin boom at twinBoomK 1', soft));
+  GEN_RULES.twinBoomK = K0; GEN_RULES.twinBoomTube = T0;
+  say(fmt('  negative: twin boom as a truss, twinBoomK 1, no tube', soft));
   results['tail arm: the tube factor is live (K 1 reads 3x softer in rise or roll)'] =
     !!(soft && tb && soft.ok && (soft.pct >= 3 * tb.pct || Math.abs(soft.roll) >= 3 * Math.abs(tb.roll)));
 }

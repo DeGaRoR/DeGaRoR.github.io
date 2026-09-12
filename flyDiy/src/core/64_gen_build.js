@@ -806,6 +806,7 @@ function buildGen(specIn) {
   const params = genParams(S, fr, strips);
   const def = { nodes: fr.nodes, beams: fr.beams, strips, refs: fr.refs, params };
   def.spec = S; def.parts = fr.parts;
+  def.clusters = fr.clusters || [];                 // G294: the rigid groups (the tube)
   // The approach is flown WITH the flaps out, so the speeds that matter scale
   // off the FLAPS-DOWN stall — Vref = 1.3 Vso is the real-world rule and the
   // fleet's hand-set VAppr values already have their own flaps in them. Derived
