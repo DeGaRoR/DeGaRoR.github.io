@@ -40272,3 +40272,43 @@ every fix measured against the drawn triangles, the baseline `--rebase`d after.
   `G199.5: turned to 4, every boom member is 4x` — a peer's uncommitted
   frame/spec hunks (rodBoomK), not this arc's; green at HEAD in the
   worktree proof.
+
+## G303 — THE BOATS, THE CARS, THE PIER MODULES AND THE YARD GET THEIR LEVELS
+## TOO; A WEDGE WITH NO TWIN MOVES; THE LEVELS SHEET (2026-09-12, the user: "Do
+## the boats and cars LODs too, and the pier modules. And provide screenshots of
+## the lods, including people")
+
+- **THE TABLE** (`tools/prop_lod.js` LEVELS, per group): [target, floor,
+  metres], the target a share of the prop's own count when < 1 — boats
+  and cars 25 % / 6 % / 1.5 % past 15 / 45 / 120 m (floors 3000 / 800 /
+  250 and 2500 / 700 / 200), the pier modules 30 % / 8 % past 20 / 60 m
+  (floors 2000 / 600), the yard the same shares past 20 / 60 (1200 /
+  400). A level whose target is not under 0.7 of the prop is not cut (the
+  2k K-car gets none). `levelsFor(prop)` is the one keeper of that rule;
+  GATE HOUSE 27c now requires every prop to carry EXACTLY the levels it
+  names, so a rebake cannot leave levels stale. 110 levels of 48 props:
+  2.27 M → 477k triangles in the levels, 110 bins.
+- **A WEDGE WITH NO TWIN MOVES**: the seam rule refused any collapse where
+  a wedge of the going position found no wedge of the target across a
+  shared triangle — right for an atlas seam, wrong for a hard surface,
+  where a box corner carries three wedges and none is the next corner's
+  twin: the cinder pallet stuck at 9k of 18k, the poles at 4k, the junk
+  car at 4.7k. Now such a wedge MOVES to the target's position keeping
+  its own normal and uv (its int16s copied from the target's), so every
+  wedge of the position still ends at one place and no crack opens; only
+  two twins (ambiguous) refuses. Every prop reaches its targets.
+- **THE SHEET**: `screenshots/lods/lods_sheet.jpg` — koky at 2 m and 4 m,
+  john on a pier at 5 m, the Buick at 10 m, the assault boat with its pier
+  at 12 m, each pinned at full / 1 / 2 / 3 from the distance the FULL prop
+  is meant for; `village_wide_by_distance.jpg` the renderer choosing.
+  The bench select is "levels" now (it pins every LOD prop, not only the
+  people); the sink recipe (canvas.toDataURL → a node POST sink, 1600 px
+  emulated viewport) is in the scratch, not the tree.
+- **QUEUED (the user)**: THE FRONT LOT — a parking alley off the road on
+  every plot, possibly real garages (the outbuilding garage stands in for
+  now); the user is hunting low-poly NON-abandoned cars to park there.
+  The plan as it stands: `planPath`'s road gate becomes a bay 3 × 6 m of
+  dirt/gravel splat beside the gate, `planCar` gets a `front` slot before
+  the backyard one when the car is not a wreck (a `wreck` flag on the car
+  rows), and the garage preset gets a real door bay the alley ends at.
+- Gates: HOUSE, VILLAGE, MEDIA, PROPS green.

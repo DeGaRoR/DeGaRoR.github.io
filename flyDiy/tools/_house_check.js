@@ -448,9 +448,17 @@ if (!check(!!LIB, 'the baked material library is missing — ' +
         prev = p; d = p.lodDist;
       }
     }
-    for (const k of baked)
-      if (PIERK.reg.props[k].group === 'people')
-        check((levels[k] || []).length >= 2, 'lod: ' + k + ' has no levels of detail (run node tools/prop_lod.js)');
+    // ... and every prop gets exactly the levels the tool's own table says
+    // it should (G303: the boats, the cars, the pier modules and the yard
+    // joined the people), so a re-baked prop cannot leave its levels stale
+    // or missing
+    const LT = require('./prop_lod.js');
+    for (const k of baked) {
+      const want = LT.levelsFor(PIERK.reg.props[k]);
+      const have = (levels[k] || []).map(p => p.lodDist);
+      check(JSON.stringify(have) === JSON.stringify(want.map(l => l[1])),
+            'lod: ' + k + ' has levels ' + have.join('/') + ' m, the table says ' + want.map(l => l[1]).join('/') + ' m (run node tools/prop_lod.js)');
+    }
     // the pier's modules, boats and people mirror in PIER_KIT; the yard
     // group mirrors in YARD_KIT (G273) - between them, every baked key
     const mirror = Object.keys(HG.PIER_KIT).concat(Object.keys(HG.YARD_KIT));

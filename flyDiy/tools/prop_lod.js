@@ -44,14 +44,33 @@ const SUB = 'geo/pier_lod';
 const OUT = path.join(PIER, 'pier_lods.js');
 const MANIFEST = path.join(PIER, 'pier_packs.json');
 
-// THE LEVELS: [triangles, metres]. A 1.8 m person on a 1080-pixel view at
-// 50 deg is ~85 px tall at 25 m and ~24 px at 90 m; 5k triangles is dense at
-// the first, 1.2k is a silhouette at the second. Level 1 is a fifth of a
-// person's delivered mesh - still every fold of the jacket - for the middle
-// distance, where most of a village is seen from.
+// THE LEVELS, per group: [target, floor, metres] - the target a triangle
+// count (>= 1) or a share of the prop's own (< 1), never cut below `floor`
+// triangles, standing in past `metres`. A level whose target is not well
+// under the prop (< 0.7 of it) is not cut: a 2k K-car gets no 24k level.
+// A 1.8 m person on a 1080-pixel view at 50 deg is ~85 px tall at 25 m and
+// ~24 px at 90 m; 5k triangles is dense at the first, 1.2k a silhouette at
+// the second. Level 1 is a fifth of a person's delivered mesh - still every
+// fold of the jacket - for the middle distance, where most of a village is
+// seen from. The boats, the cars, the pier modules and the yard (G303) cut
+// by share: a 370k Grady-White to 92k / 22k / 5.5k, a 12k pier run to
+// 3.6k / 1k.
 const LEVELS = {
-  people: [[24000, 8], [5000, 30], [1200, 90]],
+  people: [[24000, 24000, 8], [5000, 5000, 30], [1200, 1200, 90]],
+  boat:   [[0.25, 3000, 15], [0.06, 800, 45], [0.015, 250, 120]],
+  car:    [[0.25, 2500, 15], [0.06, 700, 45], [0.015, 200, 120]],
+  pier:   [[0.3, 2000, 20], [0.08, 600, 60]],
+  yard:   [[0.25, 1200, 20], [0.06, 400, 60]],
 };
+// the levels a prop actually gets: [target tris, metres]
+function levelsFor(prop) {
+  const out = [];
+  for (const [t, floor, d] of LEVELS[prop.group] || []) {
+    const want = Math.max(floor, t < 1 ? Math.round(t * prop.nt) : t);
+    if (want < 0.7 * prop.nt) out.push([want, d]);
+  }
+  return out;
+}
 // per material: the small props on a person (a phone, the notes) shrink in
 // the same ratio as the body but never below this many triangles
 const MIN_TRIS = 60;
@@ -340,8 +359,13 @@ function decimate(M, bb, target) {
     if (!wAlive[a] || !wAlive[b] || wVer[a] !== eVa[e] || wVer[b] !== eVb[e]) continue;
     const pa = wPos[a], pb = wPos[b];
     if (pa === pb) continue;
-    // THE SEAM RULE: every wedge of pa finds exactly one wedge of pb across a
-    // shared triangle
+    // THE SEAM RULE: every wedge of pa finds at most one wedge of pb across
+    // a shared triangle - into which it merges - or none, in which case it
+    // MOVES to pb with its own normal and uv (a hard-surface mesh has three
+    // wedges at every box corner and none of them a twin of the next
+    // corner's; refusing those left the cinder pallet at 9k of 18k). Two
+    // twins is ambiguous: refused. Either way every wedge of pa ends up at
+    // pb's position, so no crack opens.
     pairs.length = 0;
     let ok = true;
     const A = pWedges[pa], B = pWedges[pb];
@@ -353,8 +377,7 @@ function decimate(M, bb, target) {
         if (hit >= 0) { ok = false; break; }
         hit = B[j];
       }
-      if (hit < 0) ok = false;
-      else pairs.push(ai, hit);
+      pairs.push(ai, hit);
     }
     if (!ok) { refused++; refSeam++; continue; }
     // THE FLIP TEST on every triangle that survives the move
@@ -380,15 +403,18 @@ function decimate(M, bb, target) {
     }
     if (!ok) { refused++; continue; }
     // COLLAPSE
+    const moved = [];
     for (let k = 0; k < pairs.length; k += 2) {
       const ai = pairs[k], bj = pairs[k + 1];
       const ts = wTris[ai];
+      const kept = [];
       for (let i = 0; i < ts.length; i++) {
         const t = ts[i];
         if (!tAlive[t]) continue;
         const w0 = tri[t * 3], w1 = tri[t * 3 + 1], w2 = tri[t * 3 + 2];
         if (wPos[w0] === pb || wPos[w1] === pb || wPos[w2] === pb) { tAlive[t] = 0; alive--; continue; }
-        if (w0 === ai) tri[t * 3] = bj; if (w1 === ai) tri[t * 3 + 1] = bj; if (w2 === ai) tri[t * 3 + 2] = bj;
+        if (bj >= 0) { if (w0 === ai) tri[t * 3] = bj; if (w1 === ai) tri[t * 3 + 1] = bj; if (w2 === ai) tri[t * 3 + 2] = bj; }
+        else kept.push(t);
         // the face normal moves with the vertex
         const q0 = tri[t * 3] * 3, q1 = tri[t * 3 + 1] * 3, q2 = tri[t * 3 + 2] * 3;
         const ux = X[q1] - X[q0], uy = X[q1 + 1] - X[q0 + 1], uz = X[q1 + 2] - X[q0 + 2];
@@ -396,13 +422,22 @@ function decimate(M, bb, target) {
         let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
         const l = Math.hypot(nx, ny, nz) || 1;
         tN[t * 3] = nx / l; tN[t * 3 + 1] = ny / l; tN[t * 3 + 2] = nz / l;
-        wTris[bj].push(t);
+        if (bj >= 0) wTris[bj].push(t);
       }
-      wTris[ai] = null;
-      wAlive[ai] = 0;
+      if (bj >= 0) { wTris[ai] = null; wAlive[ai] = 0; }
+      else {
+        // the wedge moves: pb's position, its own attributes
+        wTris[ai] = kept;
+        wPos[ai] = pb;
+        X[ai * 3] = pX[pb * 3]; X[ai * 3 + 1] = pX[pb * 3 + 1]; X[ai * 3 + 2] = pX[pb * 3 + 2];
+        const bw = B[0];
+        M.pos[ai * 3] = M.pos[bw * 3]; M.pos[ai * 3 + 1] = M.pos[bw * 3 + 1]; M.pos[ai * 3 + 2] = M.pos[bw * 3 + 2];
+        moved.push(ai);
+      }
     }
     for (let i = 0; i < 10; i++) Q[pb * 10 + i] += Q[pa * 10 + i];
     pWedges[pa] = null;
+    for (const ai of moved) B.push(ai);
     for (let j = 0; j < B.length; j++) {
       const bj = B[j];
       wVer[bj]++;
@@ -475,8 +510,8 @@ function main(argv) {
   let tris0 = 0, tris1 = 0;
   for (const pack of packs) for (const key of pack.order) {
     const prop = pack.props[key];
-    const levels = LEVELS[prop.group];
-    if (!levels || (only.length && !only.includes(key))) continue;
+    const levels = levelsFor(prop);
+    if (!levels.length || (only.length && !only.includes(key))) continue;
     const bin = fs.readFileSync(path.join(ROOT, prop.bin));
     // the material meshes, welded across the baker's 65k cuts
     const byMat = new Map();
@@ -530,7 +565,7 @@ function main(argv) {
   const pack = { v: 2, groups: [['lod', 'levels of detail']], order,
                  texs: Object.fromEntries([...usedTex].map(id => [id, texs[id]])), props };
   const body = '// GENERATED FILE - DO NOT EDIT. Built by tools/prop_lod.js from the\n' +
-    '// baked pier packs (the people). Group: levels of detail - every prop here\n' +
+    '// baked pier packs. Group: levels of detail - every prop here\n' +
     '// is a decimated stand-in for the prop named by its `lodOf`, used past\n' +
     '// `lodDist` metres (src/viewer/props.js places a THREE.LOD). Decoded by\n' +
     '// src/core/51_prop_codec.js; geometry in media/' + SUB + '/, textures the\n' +
@@ -546,9 +581,9 @@ function main(argv) {
     fs.writeFileSync(MANIFEST, JSON.stringify(mf, null, 1));
   }
   console.log('---\n%s: %d levels of %d props, %s -> %s tris in the levels, %d bins in media/%s/%s',
-    path.relative(ROOT, OUT), order.length, order.length / 3, tris0.toLocaleString(), tris1.toLocaleString(),
+    path.relative(ROOT, OUT), order.length, new Set(order.map(k => props[k].lodOf)).size, tris0.toLocaleString(), tris1.toLocaleString(),
     emitted.length, SUB, gone.length ? ' · pruned ' + gone.join(', ') : '');
 }
 
 if (require.main === module) main(process.argv.slice(2));
-module.exports = { decimate, mergeParts, packParts, readPart, LEVELS };
+module.exports = { decimate, mergeParts, packParts, readPart, LEVELS, levelsFor };
