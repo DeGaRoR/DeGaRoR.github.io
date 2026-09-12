@@ -677,8 +677,11 @@ try {
   const s0 = cageJoinSpec(P, M, T);
   ok(s0.fuselage.boom === 'loft', 'G199.5: a cage without a boomStyle row declares a loft');
   // the switch itself, exercised: with the rule at 4 the rod's members are 4x
-  const saved = C.GEN_RULES.rodBoomK;
-  C.GEN_RULES.rodBoomK = 4;
+  // G314: the factor is the LATTICE's lever; with the tube on (the rod as a
+  // cluster) the members carry no factor, so the switch is exercised on the
+  // lattice — the revert configuration
+  const saved = C.GEN_RULES.rodBoomK, savedTube = C.GEN_RULES.rodBoomTube;
+  C.GEN_RULES.rodBoomK = 4; C.GEN_RULES.rodBoomTube = 0;
   try {
     const f4 = genFrame(resolveSpec(sRod).spec);
     let n4 = 0, bad4 = 0;
@@ -687,7 +690,7 @@ try {
       if (b.cls === 'fus' && aft) { n4++; if (Math.abs(f4.beams[i].k / b.k - 4) > 1e-9) bad4++; }
     }
     ok(n4 > 20 && bad4 === 0, 'G199.5: turned to 4, every boom member is 4x (the switch works)');
-  } finally { C.GEN_RULES.rodBoomK = saved; }
+  } finally { C.GEN_RULES.rodBoomK = saved; C.GEN_RULES.rodBoomTube = savedTube; }
 } catch (e) {
   ok(false, 'G199.5 block threw: ' + e.message);
 }

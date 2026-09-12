@@ -135,8 +135,11 @@ function genLattice(S, gearX, track, kScale) {
   // flow. What would end the approximation is the `tube` ELEMENT TYPE (the
   // solver has no rotational DOF at all), in the debt register, owed.
   let rodKv = null;
+  // G314: with the rod on the tube element the factor is the cluster's
+  const ROD_TUBE = S.fuse.boom === 'rod' && !(R.rodBoomTube === 0 || R.rodBoomTube === false);
   const rodK = () => {
     if (rodKv != null) return rodKv;
+    if (ROD_TUBE) return (rodKv = 1);
     const r = R.rodBoomK;
     if (r !== 'computed') return (rodKv = (r == null ? 1 : +r));
     // the tube's radius: the resolved rod record when the join measured one,
@@ -400,6 +403,39 @@ function genLattice(S, gearX, track, kScale) {
   if (fusCovered)
     cover(genQuadArea(P, last.TL, last.BL, TPB, TPT)
         + genQuadArea(P, last.TR, last.BR, TPB, TPT), [last.TL, last.TR, TPB, TPT]);
+  // G314: THE ROD IS A TUBE — its aft bays one cluster, from the bulkhead
+  // ring at boxRear (the attachment, in the cluster as the twin boom's spar
+  // bay is) to the tail post, at the drawn tube's own stiffness. The
+  // lattice members stay at the plain k (the drawing, the mass, the strains).
+  if (ROD_TUBE) {
+    const cl = [];
+    ST.forEach((s, i) => { if (s.x >= boxRear - 1e-6) cl.push(F[i].BL, F[i].BR, F[i].TL, F[i].TR); });
+    cl.push(TPB, TPT);
+    let omega = 0;
+    const ph = M && M.phys, rod = S.fuse.rod, cg = S.cage || {};
+    // (a save that carries neither the rod record nor the row: the cage's
+    // own default tube, 0.12 across, in metres)
+    const rodR = (rod && rod.r > 0) ? rod.r
+      : (+cg.rodD > 0 ? 0.5 * (+cg.rodD) : 0.06) * (+cg.planeScale || 1);
+    if (R.rodBoomTubeW > 0) omega = +R.rodBoomTubeW;
+    else if (ph && ph.E > 0 && rodR > 0) {
+      // THE ROD'S MODE IS TORSION (the tail rolling against the mains —
+      // G199.5's number), so its omega is calibrated on GJ / L rather than
+      // on the bending K_tip the twin boom uses: on the ultralight fixture
+      // (4130, 113 mm x 1.2 mm, GJ 108 kN·m² over 2.99 m = 36.1 kN·m/rad,
+      // 44.2 kg in the cluster) 400 rad/s reads the stab's roll against the
+      // mains under ±150 N at the tips at 3.48 deg — what the lattice with
+      // P6's computed factor (GJ-matched by construction) reads (3.47).
+      // The mass is billed onto these nodes by the passes still to come
+      // (the tail truss, the fittings): omega is resolved at the end of the
+      // lattice, when the nodes weigh what they weigh.
+      const tW = R.rodWall == null ? 1.2e-3 : R.rodWall;
+      const GJt = (ph.E / 2.6) * 2 * Math.PI * Math.pow(rodR, 3) * tW;
+      const L = Math.max(0.5, fu.tailArm - boxRear);
+      omega = { k: GJt / L, kRef: 36081, mRef: 44.2, wRef: 400 };
+    }
+    if (cl.length >= 6) clusters.push({ cls: 'rod', tag: 'ROD', omega, nodes: cl });
+  }
 
   // ---- 2. engine ------------------------------------------------------
   sec('engines');
@@ -2100,6 +2136,14 @@ function genLattice(S, gearX, track, kScale) {
     ledger,
     gearAnchors: [iFwd, iAft], kScale: KS, kGear: KG,
   };
+  // G314: a cluster that declared a stiffness and its calibration pair gets
+  // its omega now, on the final masses (omega scales as sqrt(K / M))
+  for (const C of clusters) if (C.omega && typeof C.omega === 'object') {
+    let Mc = 0;
+    for (const q of C.nodes) Mc += nodes[q].m || 0;
+    const o = C.omega;
+    C.omega = o.wRef * Math.sqrt((o.k / o.kRef) * (o.mRef / Math.max(1, Mc)));
+  }
   return { nodes, beams, refs, parts, clusters };
 }
 

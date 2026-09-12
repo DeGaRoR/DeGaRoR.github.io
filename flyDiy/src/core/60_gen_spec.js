@@ -2060,6 +2060,24 @@ const GEN_RULES = {
   // no rotational DOF, so a truss's axial springs stand in for a shear
   // flow): in the debt register, owed, and honest about being owed.
   rodBoomK:    'computed',
+  // G314: THE ROD BOOM ON THE TUBE ELEMENT (the user: "let's do the rod boom
+  // on the same cluster element now"). The rod's aft bays — the bulkhead
+  // ring at boxRear, every station to the tail arm, the tail post — are ONE
+  // shape-matched cluster (30_solver's clusters, as the twin boom's since
+  // G294) at the drawn tube's own cantilever stiffness (3 EI / L³, E the
+  // material's, rodWall the wall, the same calibration as twinBoomTubeW);
+  // with it on the rodBoomK factor is 1. The fin's and the stab's trusses
+  // still stand on the post as trusses. 0 = the lattice with its factor,
+  // as G199.5/TAIL CHANTIER 2 P6 left it — the revert switch.
+  rodBoomTube: 1,
+  // G318: THE FIN ON THE TUBE ELEMENT. The P4 fin is a plane lattice with a
+  // VX pair — measured, its apex moves 70 mm under 297 N side load on the
+  // trestles (a real fin's spar: 5–10). Every fin's nodes and the station
+  // it is rooted on (the boom's tail triangle, the fuselage's post and last
+  // ring) are ONE cluster at a spar's cantilever stiffness: 3 EI / h³, the
+  // spar a pair of 1 cm² caps 8 % of the root chord apart in the tail's own
+  // material, on the twin boom's bending calibration. 0 = the lattice.
+  finTube: 1,
   // A TWIN BOOM'S BAY PITCH AND TUBE FACTOR (G266). The tail of the user's
   // twin-boom build sagged 0.76 m under its own weight and rose 1.46 m —
   // 37 % of its arm — under the stab's 1 g share: a 0.12 m prism of the

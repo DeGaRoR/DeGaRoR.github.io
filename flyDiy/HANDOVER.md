@@ -40703,3 +40703,46 @@ reads the canvas in the same task, a node sink on 8368 saves the JPEG.)
   (to the beach on the water side), as dense as the wood and denser (a
   second tree per cell), no clearings. ~380 trees on the default seed.
 - Gates: HOUSE, VILLAGE, MEDIA green.
+
+## G314 — THE ROD BOOM ON THE TUBE ELEMENT (2026-09-12, the user: "let's do the
+## rod boom on the same cluster element now")
+
+**What it is.** The rod's aft bays — the bulkhead ring at `boxRear` (the
+attachment, in the cluster as the twin boom's spar bay is), every station
+to the tail arm, the tail post `TPB`/`TPT` — are ONE shape-matched cluster
+(`ROD`, 30_solver's clusters as G294 built them); the lattice's members
+stay at the plain k (`rodBoomK`'s computed factor is 1 with the tube on),
+the fin's and the stab's trusses still stand on the post as trusses.
+`GEN_RULES.rodBoomTube: 0` is the lattice with P6's factor exactly — the
+revert switch.
+
+**Its stiffness is the TUBE'S TORSION.** The rod's mode is the tail rolling
+against the mains (G199.5's number, GATE TAKEOFF's 2.5 deg row), so its
+omega is calibrated on GJ / L, not on the bending K_tip the twin boom
+uses. Measured on the ultralight fixture with the stab's tips pushed
+±150 N antisymmetrically, the stab's roll against the mains: the lattice
+with the computed factor (GJ-matched by construction, P6) 3.47 deg; the
+cluster at the twin's bending calibration (260 rad/s) 4.30 — SOFTER, the
+projection's torsional hold on a four-node box is not its bending hold on
+a three-node prism; 400 rad/s 3.48, 600 2.93, 900 2.60. So the rod's pair
+is (400 rad/s at GJ/L 36.1 kN·m/rad, 44.2 kg in the cluster), omega scaling
+as √(K/M), resolved at the END of the lattice on the final node masses (the
+tail truss and the fittings bill onto these nodes after the fuselage pass);
+a save with neither the rod record nor `rodD` takes the cage's default
+0.12 m tube. Computed: the ultralight 400, the v8 pusher 239, the v7 twin
+(a rod) 277.
+
+**Measured.** Substeps: the ultralight 88 → 72, the pusher 71 → 71. The
+ultralight flown through the pilot: 228 s to a stop, sink 1.08, tail
+excursion −43/+24 mm — the lattice 229 s, 1.08, −46/+16: the experience
+is the same. GATE TAKEOFF (the ultralight's own gate: the stand, the
+crosswinds, the 2.5 deg stab roll) PASS, the crosswind limit 2.5 m/s as
+before. The trestle rig cannot see the rod (its ring nodes are `S{i}`
+tags, clamped) — the torsion measure above is the rod's instrument.
+
+**Owed.** The twin boom's own torsional calibration was never taken (its
+pair is bending); a `tube` element with a rotational DOF would make both
+calibrations unnecessary — the clusters are the honest stand-in until then.
+GATE JOIN's G199.5 row (rodBoomK turned to 4 multiplies every boom
+member) exercises the switch with the tube OFF — the factor is the
+lattice's lever, and with the cluster on the members carry none.
