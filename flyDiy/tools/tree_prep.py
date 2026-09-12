@@ -838,12 +838,23 @@ def main():
               % (len(pack['collections']), total / 1e6))
         return 0
     prune_media_stems('geo/trees', stems, [c['bin'] for c in pack['collections']])
-    prune_media_stems('tex/trees', stems, texAll)
+    # the textures are `<stem>_<material>_<kind>.<h8>.<ext>`: the stem is
+    # followed by '_' here, not '.', or the prune owns nothing and a dropped
+    # material's maps stay on disk as orphans (W0c.13 dropped the shipped
+    # billboards; their maps stood until W0c.29)
+    prune_media_stems('tex/trees', stems, texAll, sep='_')
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, 'w', encoding='utf-8', newline='\n') as f:
         json.dump(pack, f, indent=1)
         f.write('\n')
-    body = json.dumps(pack, indent=1)
+    # the page's copy is compact (one collection per line): the manifest
+    # rides inside index.html, and pretty-printed it was 34 KB of the
+    # artifact's 6 MiB budget for whitespace; the .json above stays
+    # indented for the diff
+    NL = chr(10)
+    body = ('{"note": ' + json.dumps(pack['note']) + ',' + NL + ' "collections": [' + NL + '  ' +
+            (',' + NL + '  ').join(json.dumps(c, separators=(',', ':')) for c in pack['collections']) +
+            NL + ' ]}')
     # every 'media/...' literal becomes B + 'media/...' so the built page
     # resolves it against FLYDIY_ASSET_BASE
     body = body.replace('"media/', '"" + B + "media/')

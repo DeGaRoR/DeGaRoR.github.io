@@ -70,10 +70,13 @@ def prune_media(subdir, keep_rels):
                   {r.split('/')[-1] for r in keep_rels}, lambda f: True)
 
 
-def prune_media_stems(subdir, stems, keep_rels):
+def prune_media_stems(subdir, stems, keep_rels, sep='.'):
     """Shared-directory ownership: delete only files named `<stem>.<h8>.<ext>`
-    for the given stems — other bakers' files in the same directory stand."""
-    own = tuple(s + '.' for s in stems)
+    for the given stems — other bakers' files in the same directory stand.
+    `sep` is what follows the stem: '.' for a payload's own file, '_' for a
+    baker that names its textures `<stem>_<material>_<kind>.<h8>.<ext>`
+    (tree_prep) — with the default, such a prune owned nothing (W0c.29)."""
+    own = tuple(s + sep for s in stems)
     return _prune(os.path.join(MEDIA, *subdir.split('/')),
                   {r.split('/')[-1] for r in keep_rels},
                   lambda f: f.startswith(own))
