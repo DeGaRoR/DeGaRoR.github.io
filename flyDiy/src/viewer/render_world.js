@@ -444,13 +444,18 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     return best;
   };
   const treeEx = world.aerodromes.map(a => ({ x: a.x, z: a.z, r2: (a.len / 2 + 70) ** 2 }));
+  // ORDERED BY COST (W0c.30): the corridor and the aerodromes are a compare,
+  // the woodland bins a few distances, the classifier 2.4 us - and it was
+  // first, so the fill's walk paid it on every one of a chunk's 12 544 grid
+  // points; most points are not within 90 m of a woodland tree and never
+  // reach it now. Same conjunction, same answer.
   const forestHere = (x, z) => {
-    if (world.surface(x, z) !== world.SURFACE.FOREST_FLOOR) return false;
     if (Math.abs(z) < 90 && x < 200 && x > -3400) return false;   // the corridor
     for (const e of treeEx) if ((x - e.x) * (x - e.x) + (z - e.z) * (z - e.z) < e.r2) return false;
+    if (nearTree(x, z) < 0) return false;
+    if (world.surface(x, z) !== world.SURFACE.FOREST_FLOOR) return false;
     const h = world.terrainH(x, z);
-    if (h < 1.5 || world.waterH(x, z) > h) return false;
-    return nearTree(x, z) >= 0;
+    return !(h < 1.5 || world.waterH(x, z) > h);
   };
 
   { // terrain (24 km domain, W6): two-ring mesh — 17.6 m polys over the
@@ -1571,7 +1576,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           const c = k[si][b];
           if (c) m.instanceMatrix.array.set(rec.buf[si][b].subarray(0, c * 16));
           m.count = c; m.visible = c > 0;
-          m.instanceMatrix.needsUpdate = true;
+          // only the instances written go up (r128 honours updateRange in
+          // bufferSubData and resets it after the upload) - a rung's buffer
+          // is sized for the whole series, and a band holds a fraction of it
+          if (c) { m.instanceMatrix.updateRange.offset = 0; m.instanceMatrix.updateRange.count = c * 16; m.instanceMatrix.needsUpdate = true; }
         }
     }
     const parkChunk = rec => {
@@ -1782,17 +1790,29 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // collection's `proportion`: the ALTITUDE band the species is at home
     // in (full weight inside, fading to a quarter over 60 m outside), its
     // own PATCHES (a value noise per species at its own wavelength, squared
-    // so a patch reads as a stand and not a tint), and the GROUND under it
-    // (a bonus on the surface it likes). Nothing goes to zero, so every
-    // stand keeps a little of everything. The bands are a first guess at a
-    // temperate valley - cedar low and warm, the firs on the slopes, spruce
-    // and larch up the hill - written as data so they can move.
+    // so a patch reads as a stand and not a tint), and the GROUND under it.
+    // THE GROUND IS NOT THE SURFACE CLASS (W0c.30): a forest point is
+    // FOREST_FLOOR by definition - the classifier returns SAND or SCREE
+    // before it ever says forest - so the first cut's "sand" and "scree"
+    // bonuses could never fire. What a forest point can be is WET (within
+    // 60 m of water: `world.hydro.distW`, the riparian strip the woodland
+    // planter also knows) or STEEP (a slope over 0.3 from two more terrain
+    // samples), and those are the two grounds here. Nothing goes to zero,
+    // so every stand keeps a little of everything. The bands are a first
+    // guess at a temperate valley - cedar low and wet, the firs on the
+    // slopes, spruce and larch up the hill - written as data so they can move.
     const SPECIES_PREF = {
-      'cedar_tree.glb':                              { alt: [0, 90],   zone: 420, ground: 'SAND' },
+      'cedar_tree.glb':                              { alt: [0, 90],   zone: 420, ground: 'wet' },
       'realistic_fir_trees_pack_lods_gameready.glb': { alt: [0, 160],  zone: 340 },
       'fir_tree_georgeous.glb':                      { alt: [30, 220], zone: 360 },
       'spruce_tree.glb':                             { alt: [70, 320], zone: 300 },
-      'larch_tree.glb':                              { alt: [150, 460], zone: 480, ground: 'SCREE' },
+      'larch_tree.glb':                              { alt: [150, 460], zone: 480, ground: 'steep' },
+    };
+    // the ground under one point, once per draw: { wet, steep }
+    const groundAt = (x, z, h) => {
+      const dW = (world.hydro && world.hydro.distW) ? world.hydro.distW(x, z) : 1e9;
+      const sl = Math.hypot(world.terrainH(x + 16, z) - h, world.terrainH(x, z + 16) - h) / 16;
+      return { wet: dW < 60, steep: sl > 0.3 };
     };
     // value noise on the tree hash: bilinear over `cell`, seeded per species
     const vnoise = (x, z, cell, seed) => {
@@ -1802,7 +1822,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       return (n(ix, iz) * (1 - sx) + n(ix + 1, iz) * sx) * (1 - sz) + (n(ix, iz + 1) * (1 - sx) + n(ix + 1, iz + 1) * sx) * sz;
     };
     const prefOf = key => SPECIES_PREF[String(key).split('|')[0]] || null;
-    const speciesWeight = (entry, i, x, z, h) => {
+    const speciesWeight = (entry, i, x, z, h, g) => {
       const P = prefOf(entry.key);
       if (!P) return entry.w;
       let w = entry.w;
@@ -1811,16 +1831,19 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       w *= Math.max(0.25, 1 - out / 60 * 0.75);
       const n = vnoise(x, z, P.zone, i + 1);
       w *= 0.3 + 1.4 * n * n;
-      if (P.ground && world.SURFACE && world.surface(x, z) === world.SURFACE[P.ground]) w *= 1.6;
+      if (P.ground && g && g[P.ground]) w *= 1.6;
       return w;
     };
     // the draw: r in [0,1) over the local weights at (x, z, h)
+    // the weights are computed once per draw, not twice (W0c.30)
+    const poolW = new Float64Array(16);
     const poolPick = (pool, r, x, z, h) => {
       const at = x !== undefined;
+      const g = at ? groundAt(x, z, h) : null;
       let tot = 0;
-      for (let i = 0; i < pool.length; i++) tot += at ? speciesWeight(pool[i], i, x, z, h) : pool[i].w;
+      for (let i = 0; i < pool.length; i++) tot += poolW[i] = at ? speciesWeight(pool[i], i, x, z, h, g) : pool[i].w;
       let acc = r * tot;
-      for (let i = 0; i < pool.length; i++) { acc -= at ? speciesWeight(pool[i], i, x, z, h) : pool[i].w; if (acc <= 0) return i; }
+      for (let i = 0; i < pool.length; i++) { acc -= poolW[i]; if (acc <= 0) return i; }
       return pool.length - 1;
     };
     // AND THE MAPS MUST HAVE LANDED BEFORE ANYTHING BAKES. treeWarm resolves on
@@ -2225,9 +2248,19 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         return !!real;
       }
       setShapes();
-      function gen(cx, cz) {
-        const recs = SHAPE.list.map(() => []);   // one list per prototype
-        for (let gz = 0; gz < NG; gz++) for (let gx = 0; gx < NG; gx++) {
+      // THE STREAMER'S OWN CLOCK (W0c.30): what a chunk costs to generate,
+      // split between the grid walk (classify, place, draw the species) and
+      // the build (the matrices, the meshes) - TREE_FILL.stat() reads it
+      const STAT = { gens: 0, walkMs: 0, buildMs: 0, lastMs: 0, maxMs: 0, frameMax: 0, trees: 0 };
+      // THE WALK IS SLICED (W0c.30): `world.surface` is 2.4 us a call and a
+      // chunk is 112 x 112 of them, so the walk alone is ~30 ms - the hitch.
+      // It runs in rows, ROWS_PER_FRAME at a time, one frame after another,
+      // and the build (the matrices, the meshes) follows in the frame the
+      // walk finishes. The rule is unchanged: the same points, the same
+      // order, the same draws; only the frame they land in differs.
+      const ROWS_PER_FRAME = 24;
+      function walk(cx, cz, recs, g0, g1) {
+        for (let gz = g0; gz < g1; gz++) for (let gx = 0; gx < NG; gx++) {
           const ix = cx * NG + gx, iz = cz * NG + gz;
           if (hsh(ix, iz + 31) < 0.1) continue;
           const x = cx * CH + (gx + 0.5) * SP2 + (hsh(ix + 7, iz) - 0.5) * SP2 * 1.6;
@@ -2240,6 +2273,15 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           const gi = SHAPE.real ? poolPick(SHAPE.list, hsh(ix + 11, iz + 17), x, z, h) : (sp < 2 ? 0 : 1);
           recs[gi].push(x, h, z, sp, hsh(ix + 2, iz + 8));
         }
+      }
+      // one chunk, whole, in this frame - the teleport's path and the gate's
+      function gen(cx, cz) {
+        const recs = SHAPE.list.map(() => []);
+        const t0 = performance.now();
+        walk(cx, cz, recs, 0, NG);
+        return build(cx, cz, recs, t0, performance.now());
+      }
+      function build(cx, cz, recs, t0, t1) {
         const meshes = [], near = [], imp = [], recsOut = [];
         const ox = (cx + 0.5) * CH, oz = (cz + 0.5) * CH;
         recs.forEach((r, gi) => {
@@ -2328,11 +2370,18 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         const reg = [{ m: imp, x: ox, z: oz, r: FAR_FILL + hdF }];
         impChunks.push(reg[0]);
         for (const rec of recsOut) ladderChunks.push(rec);
+        const t2 = performance.now();
+        STAT.gens++; STAT.walkMs += t1 - t0; STAT.buildMs += t2 - t1;
+        STAT.lastMs = t2 - t0; STAT.maxMs = Math.max(STAT.maxMs, t2 - t0);
+        for (const rec of recsOut) STAT.trees += rec.n;
         return { meshes, reg, recs: recsOut };
       }
       // when the payload lands: new shapes, and every live chunk regenerates
       // through the streamer's own eviction path rather than a second one
+      // the chunk under generation: its records, the next row, its clock
+      let cur = null;
       const evictAll = () => {
+        cur = null;                        // whatever was being walked is gone with the rest
         for (const [k, c2] of chunks) {
           if (c2.meshes) {
             for (const m of c2.meshes.meshes) { scene.remove(m); if (m.dispose) m.dispose(); }
@@ -2352,10 +2401,32 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         treeSettle().then(() => { if (setShapes()) evictAll(); }).catch(() => {});
       if (typeof window !== 'undefined')
         window.TREE_FILL = { get: () => FILL.ng,
+          stat: () => Object.assign({}, STAT, { queued: queue.length, live: chunks.size, busy: !!cur || queue.length > 0 }),
           set: ng => { FILL.ng = NG = Math.max(16, Math.min(320, ng | 0)); SP2 = CH / NG; evictAll(); return NG; } };
       let tick = 0;
-      fillUpdate = cg => {
-        if (tick++ % 12) return;           // ~0.2 s cadence
+      // the streamer's worst FRAME - a slice, or the build's - is the hitch
+      // a player would see; STAT.frameMax keeps it
+      fillUpdate = cg => { const t = performance.now(); fillStep(cg); STAT.frameMax = Math.max(STAT.frameMax || 0, performance.now() - t); };
+      const fillStep = cg => {
+        // every frame: advance the chunk under generation by one slice of
+        // rows; the build lands in the frame the walk finishes
+        if (cur) {
+          const t = performance.now();
+          const g1 = Math.min(NG, cur.gz + ROWS_PER_FRAME);
+          walk(cur.c2.cx, cur.c2.cz, cur.recs, cur.gz, g1);
+          cur.walkMs += performance.now() - t; cur.gz = g1;
+          if (g1 >= NG) {
+            const c2 = cur.c2;
+            // evicted while it was being walked: nothing to build
+            if (chunks.get(c2.cx * 4096 + c2.cz) === c2) c2.meshes = build(c2.cx, c2.cz, cur.recs, performance.now() - cur.walkMs, performance.now());
+            cur = null;
+          }
+        }
+        // ~0.2 s cadence for the queue itself: what is missing, what is
+        // next, what is too far. The burst of three chunks in one frame
+        // (W0c.30) is gone with the sliced walk: one chunk at a time, the
+        // next picked up the frame this one is built
+        if (tick++ % 12 && !(queue.length && !cur)) return;
         const R = Math.ceil(R_ACT / CH);
         const ccx = Math.floor(cg[0] / CH), ccz = Math.floor(cg[2] / CH);
         for (let dz = -R - 1; dz <= R + 1; dz++) for (let dx = -R - 1; dx <= R + 1; dx++) {
@@ -2379,10 +2450,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           // Halved with the density bump: a chunk is ~6 ms of terrainH/surface
           // now, and six of those in one frame is a visible hitch. The cadence
           // doubled to compensate, so a fresh spawn still fills in ~2 s.
-          let budget = queue.length && d2(queue[0]) < 1500 * 1500 ? 3 : 1;
-          while (budget-- > 0 && queue.length) {
+          if (!cur) {
             const c2 = chunks.get(queue.shift());
-            if (c2) c2.meshes = gen(c2.cx, c2.cz);
+            if (c2) cur = { c2, recs: SHAPE.list.map(() => []), gz: 0, walkMs: 0 };
           }
         }
         for (const [k, c2] of chunks) {    // evict far chunks

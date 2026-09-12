@@ -472,18 +472,24 @@ but zones denser in a given species; start with altitude and ground type".
 
 | species | at home (m) | patch wavelength | ground bonus |
 |---|---|---|---|
-| cedar | 0 – 90 | 420 m | sand ×1.6 |
+| cedar | 0 – 90 | 420 m | wet ×1.6 |
 | LOLIPOP firs | 0 – 160 | 340 m | — |
 | Georgeous fir | 30 – 220 | 360 m | — |
 | spruce | 70 – 320 | 300 m | — |
-| larch | 150 – 460 | 480 m | scree ×1.6 |
+| larch | 150 – 460 | 480 m | steep ×1.6 |
 
 Three factors over the collection's `proportion`: the ALTITUDE band (full
 weight inside, fading to a quarter over 60 m outside), the species' own
 PATCHES (a value noise seeded per species at its wavelength, squared —
-`0.3 + 1.4·n²` — so a patch reads as a stand and not a tint), and the GROUND
-(the bonus on the surface it likes). Nothing goes to zero, so every stand keeps
-a little of everything. Measured in-page over the domain (`TREE_PLACE.speciesAt`
+`0.3 + 1.4·n²` — so a patch reads as a stand and not a tint), and the GROUND.
+The ground is NOT the surface class (W0c.30 corrected W0c.29's first cut,
+whose "sand" and "scree" bonuses could never fire: a forest point is
+FOREST_FLOOR by definition, the classifier says SAND or SCREE before it ever
+says forest). What a forest point can be is **wet** — within 60 m of water,
+`world.hydro.distW`, the riparian strip the planter knows — or **steep**, a
+slope over 0.3 from two more terrain samples. Measured on a 60 m lattice over
+the domain: cedar is 25 % of the draw on wet ground and 16 % on dry. Nothing
+goes to zero, so every stand keeps a little of everything. Measured in-page over the domain (`TREE_PLACE.speciesAt`
 on a 400 m grid, 60 draws a cell): the LOLIPOP pack holds 40–77 % everywhere
 (its `proportion`); cedar runs 2–43 % by cell, larch 2–32 %, spruce 2–28 %;
 by altitude band the cedar share goes 18 → 13 → 4 % across 0–60 / 60–150 /
@@ -491,6 +497,70 @@ by altitude band the cedar share goes 18 → 13 → 4 % across 0–60 / 60–150
 weights serve the woodland (`groupOf`) and the fill (`gi`), so a stand's mix
 does not change at the fill's edge. The bands are a first guess at a temperate
 valley, written as data so they can move with the world.
+
+**The optimisation pass (W0c.30).** First the instrument: `tree_perf` was
+teleporting the aeroplane and letting it glide on through the settle and the
+three tiers, so no two runs saw the same stand (near count 4177–4774, ±5 ms
+at the supersampled tier). It PAUSES the sim after the teleport now — the world
+still streams, partitions and renders — and two runs repeat to 0.2 ms. The
+paused frame is the trees' frame: it excludes `sim.step` and the instruments,
+which were ~7 ms of the unpaused median on this machine (a finding for the
+physics, not the forest). Then the ablations, each a `--probe` on a settled
+run — NG 112, alps, densest stand, median ms, **Off / Smoothest** (baseline
+**10.6 / 24.6**):
+
+| ablation | Off | Smoothest | what it says |
+|---|---|---|---|
+| shadows off (`sun.castShadow`) | 9.0 (−1.6) | 19.4 (−5.2) | the three shadow passes |
+| far cascade + canopy map off | 10.1 (−0.5) | — (noise) | 0.5 ms, every 4th frame |
+| no near geometry (bands 10/10/10) | 10.1 (−0.5) | 20.5 (−4.1) | 11 Mtris of L0–L2 cost 0.5 ms |
+| bands halved (30/66/135) | 10.6 (0) | 20.5 (−4.1) | same as no geometry: it is fill-rate, not triangles |
+| fill NG 16 (woodland only) | 10.0 (−0.6) | 17.5 (−7.1) | **the whole streamed forest** |
+| impostors hidden | 9.5 (−1.1) | 21.6 (−3.0) | 127 k quads, 267 draw calls |
+
+So the forest is **0.6 ms of a 10.6 ms frame** at the Off tier and **7 of 24.6**
+at Smoothest, where every one of its costs is the AA pass's fill-rate; the
+other ~10 / ~17.5 ms is terrain, village, props, clutter, the aeroplane and the
+resolve — the base the trees stand on, not theirs. The near tier's triangles
+are free; halving the bands buys nothing at Off. The verdict of W0c.27 stands
+and is sharper: there is no tree optimisation left that moves the frame; what
+moves it is the AA tier, which the graphics menu owns.
+
+What the pass did change is the HITCH, which a settled frame cannot see: a
+fill chunk's `gen` walks 112² grid points (classify, place, draw the species)
+and builds seven instanced meshes, and the streamer was generating THREE of
+them in one frame near the aircraft — the 30–60 ms stall on a fresh spawn or
+a teleport. Now: the surface is classified once per point and handed to
+`forestHere` and the species weights (they were classifying it three times),
+the weights are computed once per draw, the streamer generates ONE chunk every
+four frames while a close chunk is waiting (the same fill in the same time,
+a third of the stall), the partition uploads only the instances it wrote
+(`updateRange`; a rung's buffer is sized for the whole series), and the
+streamer keeps its own clock — `TREE_FILL.stat()`, on the F8 panel as
+"fill chunks", and in every `tree_perf` result as `gen`. And then the walk
+itself was cut: `world.surface` is 2.4 µs a call and `forestHere` asked it
+FIRST, on every one of the 12 544 points; the corridor, the aerodromes and
+the woodland bins (`nearTree`, a few distances) come first now and most
+points never reach the classifier — the same conjunction, the same forest
+(219 518 trees before and after). And the walk is SLICED: 24 rows a frame,
+the build in the frame the walk finishes, one chunk at a time, the next
+picked up the frame this one lands. Measured (`tree_perf`, 102 chunks): a
+chunk was **35 ms** in one frame (walk 28, build 7) and three of them could
+land together; it is **18 ms** of work now (walk 16, build 2) spread over
+five frames, and the streamer's worst FRAME is **15–18 ms** — the build of
+the densest chunk plus a slice — against 35–105 before. A fresh spawn fills
+its 4 km ring in ~8 s. The settled frame is unchanged within noise (Off 8.8 ·
+Smooth 19.1 · Smoothest 24.1), which is the point: the forest was never the
+frame, it was the hitch.
+
+Three traps the pass hit in the instrument, each now refused by `tree_perf`
+itself: a profile that had saved the free camera booted with the eye at the
+origin and measured the runway (a fresh `--user-data-dir` per run, and
+app.js boots a saved `free` as the chase); a static server too slow for the
+payload left the world drawing cones and black impostors (the run refuses
+unless `treeReady()`); and a roll-out that never happened wrote a table of
+zeros (refused). The settle reads the streamer's own `busy` flag now — the
+sliced walk keeps every frame under the 8 ms the first cut listened for.
 
 **Not done.** The boot rig is still `sunset`; `alps` is two clicks on the
 panel and is the row the trees were judged in — a world decision. Bushes and

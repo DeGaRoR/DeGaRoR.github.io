@@ -45,7 +45,9 @@ const CHROME = [
 if (!CHROME) { console.error('tree_perf: no Chrome found'); process.exit(2); }
 const args = ['--headless=new', '--remote-debugging-port=' + PORT,
   '--window-size=1920,1080', '--hide-scrollbars', '--no-first-run',
-  '--user-data-dir=' + path.join(require('os').tmpdir(), 'cdp_' + PORT),
+  // a FRESH profile every run (W0c.30): a profile that had saved the free
+  // camera booted with the eye at the origin, and the run measured the strip
+  '--user-data-dir=' + path.join(require('os').tmpdir(), 'cdp_' + PORT + '_' + Date.now()),
   '--disable-gpu-sandbox', '--disable-frame-rate-limit', '--disable-gpu-vsync', 'about:blank'];
 const ch = spawn(CHROME, args, { stdio: 'ignore' });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -65,12 +67,16 @@ const TELEPORT = `(() => {
   const dx = best.x - cg[0], dy = (gy + 110) - cg[1], dz = best.z - cg[2];
   for (let i = 0; i < s.n; i++) { s.p[i*3] += dx; s.p[i*3+1] += dy; s.p[i*3+2] += dz; s.v[i*3] = s.v[i*3+1] = s.v[i*3+2] = 0; }
   return JSON.stringify({ stand: [best.x | 0, best.z | 0], neighbours: bn }); })()`;
-// settled = no chunk generated for 60 frames: the world update's worst
+// settled = no chunk generated for 60 frames: the streamer says so itself
+// (TREE_FILL.stat().busy - W0c.30, since the sliced walk keeps every frame
+// under the 8 ms the first cut listened for), else the world update's worst
 // frame stays under 8 ms for the whole window
 const SETTLED = `(() => new Promise(res => {
-  const wu = WORLD.worldUpdate; let worst = 0, n = 0;
-  WORLD.worldUpdate = cg => { const t0 = performance.now(); wu(cg); worst = Math.max(worst, performance.now() - t0); };
-  const tick = () => { if (++n < 60) requestAnimationFrame(tick); else { WORLD.worldUpdate = wu; res(worst < 8); } };
+  const wu = WORLD.worldUpdate; let worst = 0, n = 0, busy = false;
+  const st = () => (window.TREE_FILL && TREE_FILL.stat) ? TREE_FILL.stat() : null;
+  const g0 = st() ? st().gens : -1;
+  WORLD.worldUpdate = cg => { const t0 = performance.now(); wu(cg); worst = Math.max(worst, performance.now() - t0); const S = st(); if (S && (S.busy || S.gens !== g0)) busy = true; };
+  const tick = () => { if (++n < 60) requestAnimationFrame(tick); else { WORLD.worldUpdate = wu; res(st() ? !busy : worst < 8); } };
   requestAnimationFrame(tick); }))()`;
 const PROFILE = `(() => new Promise(res => {
   const acc = { world: 0, render: 0, frames: [] };
@@ -113,21 +119,40 @@ const PROFILE = `(() => new Promise(res => {
   await cmd('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
   await cmd('Page.navigate', { url: URL });
   await sleep(20000);
-  for (let attempt = 0; attempt < 8; attempt++) {
+  let flying = false;
+  for (let attempt = 0; attempt < 8 && !flying; attempt++) {
     await ev("(()=>{[...document.querySelectorAll('button')].filter(b=>/roll out/i.test(b.textContent)).forEach(x=>x.click());})()");
     await sleep(6000);
-    if (await ev("/TAXI|DOWNWIND|FINAL/.test(document.body.innerText)")) break;
+    flying = await ev("/TAXI|DOWNWIND|FINAL/.test(document.body.innerText)");
   }
+  // a run that never left the shed measures the shed: say so instead of
+  // writing a table of zeros (W0c.30)
+  if (!flying) throw new Error('the roll-out never happened (no TAXI/DOWNWIND/FINAL on the page after 8 tries)');
+  const snap = async name => { if (!process.env.TREE_PERF_DEBUG) return;
+    const r = await cmd('Page.captureScreenshot', { format: 'png' });
+    fs.writeFileSync(path.join(require('os').tmpdir(), 'tree_perf_' + name + '.png'), Buffer.from(r.result.data, 'base64')); };
+  await snap('rolled');
   await sleep(8000);
   const gpu = await ev("(()=>{const g=WORLD.renderer.getContext();const d=g.getExtension('WEBGL_debug_renderer_info');return d?g.getParameter(d.UNMASKED_RENDERER_WEBGL):g.getParameter(g.RENDERER);})()");
   const where = JSON.parse(await ev(TELEPORT));
+  // and HELD there: the sim is paused (the world still streams, partitions
+  // and renders), or the aeroplane glides on through the settle and the three
+  // tiers and no two runs see the same stand - the near count was drifting
+  // 4177-4774 and the full tier +-5 ms between runs (W0c.30)
+  await ev("(()=>{const b=document.getElementById('bPause');if(b&&/pause/i.test(b.textContent))b.click();return b&&b.textContent;})()");
   await ev("WORLD_RIG.row('" + RIG + "')");
   if (NG) await ev("TREE_FILL.set(" + NG + ")");
   if (PROBE) console.log('  probe ->', await ev(PROBE));
   const ng = await ev("TREE_FILL.get()");
+  await snap('teleported');
   // settle: until sixty quiet frames in a row, at most two minutes
   let settled = false;
-  for (let i = 0; i < 60 && !settled; i++) settled = await ev(SETTLED);
+  for (let i = 0; i < 60 && !settled; i++) { settled = await ev(SETTLED); if (process.env.TREE_PERF_DEBUG) console.error('  settle', i, settled, await ev("JSON.stringify(TREE_FILL.stat ? TREE_FILL.stat() : null)")); }
+  await snap('settled');
+  // the cone world is not the forest: a payload that never arrived (a slow
+  // static server, a 404) would be measured as 14-triangle cones and black
+  // impostors - refuse (W0c.30)
+  if (!(await ev("typeof treeReady === 'function' && treeReady()"))) throw new Error('the tree payload never arrived - the world is drawing cones');
   const rows = [];
   for (const tier of TIERS) {
     await ev("FLYDIY_AA.setTier('" + tier + "')"); await sleep(1500);
@@ -139,16 +164,21 @@ const PROFILE = `(() => new Promise(res => {
     rows.push(Object.assign({ tier }, r));
   }
   await ev("FLYDIY_AA.setTier('full')");
+  // the streamer's clock (W0c.30): what the chunks generated during this run
+  // cost - the hitch a cruise sees, which the settled frame above cannot
+  const gen = JSON.parse(await ev("JSON.stringify((window.TREE_FILL && TREE_FILL.stat) ? TREE_FILL.stat() : null)"));
   ws.close(); ch.kill();
 
-  const result = { date: new Date().toISOString(), gpu, rig: RIG, ng, stand: where.stand, settled,
-                   lod: JSON.parse(await Promise.resolve('[0]')), rows };
-  delete result.lod;
+  const result = { date: new Date().toISOString(), gpu, rig: RIG, ng, stand: where.stand, settled, rows,
+                   gen: gen && { chunks: gen.gens, walkMs: +(gen.walkMs / Math.max(1, gen.gens)).toFixed(1),
+                                 buildMs: +(gen.buildMs / Math.max(1, gen.gens)).toFixed(1), worstMs: +gen.maxMs.toFixed(1),
+                                 frameMaxMs: +(gen.frameMax || 0).toFixed(1), trees: gen.trees } };
   const pad = (v, n) => String(v).padStart(n);
   console.log(`tree_perf  ${gpu}\n  rig ${RIG} · fill NG ${ng} (${(1024 / ng).toFixed(1)} m) · stand at ${where.stand} · settled ${settled}`);
   console.log('  tier   median   p90  world render   calls    Mtris    near   impostors');
   for (const r of rows)
     console.log(`  ${r.tier.padEnd(5)} ${pad(r.median, 7)} ${pad(r.p90, 5)} ${pad(r.world, 6)} ${pad(r.render, 6)} ${pad(r.calls, 7)} ${pad((r.tris / 1e6).toFixed(1), 8)} ${pad(r.near, 7)} ${pad(r.impostors, 11)}`);
+  if (result.gen) console.log(`  fill gen: ${result.gen.chunks} chunks, ${(result.gen.walkMs + result.gen.buildMs).toFixed(1)} ms each (walk ${result.gen.walkMs}, build ${result.gen.buildMs}), worst ${result.gen.worstMs} ms, worst frame ${result.gen.frameMaxMs} ms, ${result.gen.trees} trees`);
   if (COMPARE && fs.existsSync(COMPARE)) {
     const prev = JSON.parse(fs.readFileSync(COMPARE, 'utf8'));
     console.log('  vs ' + COMPARE + ' (' + prev.date.slice(0, 10) + ', NG ' + prev.ng + ', ' + prev.rig + ')');
@@ -160,5 +190,7 @@ const PROFILE = `(() => new Promise(res => {
   fs.mkdirSync(path.dirname(OUT), { recursive: true });
   fs.writeFileSync(OUT, JSON.stringify(result, null, 1) + '\n');
   console.log('  wrote ' + path.relative(process.cwd(), OUT));
+  await sleep(1500);   // Chrome lets go of its profile
+  try { fs.rmSync(args.find(a => a.startsWith('--user-data-dir=')).slice(16), { recursive: true, force: true }); } catch (e) {}
   process.exit(0);
 })().catch(e => { console.error('tree_perf:', e.message || e); ch.kill(); process.exit(1); });

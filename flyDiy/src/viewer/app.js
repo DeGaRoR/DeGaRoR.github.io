@@ -5765,6 +5765,11 @@
   // by default"). The other six are one click away in the legend.
   const traceOn = flPref('Trace', { alt: true, tas: true, thr: true });
   const cam = flPref('Cam', { mode: 'orbit', fov: 46, level: true, lead: 0.35 });
+  // DEVCAM (W0c.30): the free camera is a developer's eye, not a saved
+  // framing - booted into it, the eye sat at the origin (devCam.enter never
+  // ran) and every tree_perf run on this profile measured the runway from
+  // ground level. A saved 'free' boots as the chase.
+  if (cam.mode === 'free') cam.mode = 'chase';
   mapBig = !!panels.big; mapNoseUp = !!panels.noseUp;
 
   // ---- the rail: five questions about looking -----------------------------

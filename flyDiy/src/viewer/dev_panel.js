@@ -15,7 +15,8 @@
   'use strict';
   if (typeof window === 'undefined' || typeof document === 'undefined') return;
   const W = window;
-  let root = null, rows = [], raf = 0, fpsEl = null, frames = 0, tLast = 0;
+  let root = null, rows = [], raf = 0, fpsEl = null, frames = 0, tLast = 0
+  let genEl = null;   // the streamer's readout (W0c.30)
   const $ = (t, a, kids) => { const e = document.createElement(t); if (a) for (const k in a) { if (k === 'text') e.textContent = a[k]; else if (k === 'style') e.style.cssText = a[k]; else e.setAttribute(k, a[k]); } if (kids) for (const c of kids) e.appendChild(c); return e; };
   const have = k => { try { return !!W[k]; } catch (e) { return false; } };
   const CSS = `
@@ -73,6 +74,9 @@
     root.appendChild(slider('L2 to (m)', 20, 800, 10, () => lod().get()[2], v => setLod(2, v), v => v + ' m'));
     root.appendChild(slider('fade window', 0, 100, 2, () => lod().fade(), v => lod().fade(v), v => v + ' m'));
     root.appendChild(note('impostors beyond L2; L0 = L1 = L2 is "L0 then impostor"; the window dithers one rung into the next'));
+    // the streamer's clock (W0c.30): what a fill chunk costs to generate
+    genEl = note('');
+    root.appendChild(genEl);
     root.appendChild(slider('imp lit', 0, 3, 0.05, () => world().treeLod.lit.value, v => { world().treeLod.lit.value = v; }));
     root.appendChild(slider('imp gain', 1, 12, 0.25, () => lod().imp().gain, v => lod().imp({ gain: v })));
     root.appendChild(slider('imp solid', 0, 1, 0.05, () => lod().imp().solid, v => lod().imp({ solid: v })));
@@ -138,7 +142,13 @@
 
   function tick(t) {
     frames++;
-    if (t - tLast > 500) { fpsEl.textContent = (frames * 1000 / (t - tLast)).toFixed(0) + ' fps'; frames = 0; tLast = t; }
+    if (t - tLast > 500) {
+      fpsEl.textContent = (frames * 1000 / (t - tLast)).toFixed(0) + ' fps'; frames = 0; tLast = t;
+      if (genEl && W.TREE_FILL && W.TREE_FILL.stat) { const S = W.TREE_FILL.stat();
+        genEl.textContent = 'fill chunks: ' + S.live + ' live, ' + S.queued + ' queued; gen ' + S.gens + ' x ' +
+          (S.gens ? ((S.walkMs + S.buildMs) / S.gens).toFixed(1) : '-') + ' ms (walk ' + (S.gens ? (S.walkMs / S.gens).toFixed(1) : '-') +
+          ', build ' + (S.gens ? (S.buildMs / S.gens).toFixed(1) : '-') + '), worst frame ' + (S.frameMax || 0).toFixed(0) + ' ms'; }
+    }
     raf = requestAnimationFrame(tick);
   }
   function toggle() {

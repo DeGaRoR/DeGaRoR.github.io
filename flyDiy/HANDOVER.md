@@ -39515,6 +39515,21 @@ worktree with GATE WORLDRENDER + GATE TREES.
   nothing goes to zero (the user: "slightly cluster by species... always
   have a little mix"). TREE-IMPORT.md §8 has the table and the measured
   shares.
+- **W0c.30, the optimisation pass (2026-09-12, closing):** `tree_perf`
+  pauses the sim after the teleport (runs repeat to 0.2 ms; the aeroplane
+  had been gliding on), a fresh profile per run, refuses a cone world or a
+  missed roll-out, reads the streamer's `busy` for its settle. Ablations
+  (TREE-IMPORT.md §8): the whole streamed forest is 0.6 ms of the 10.6 ms
+  Off frame and 7 of 24.6 at Smoothest — all of it AA fill-rate; the near
+  tier's 11 Mtris are free; the other ~10 / 17.5 ms are terrain, village,
+  props, clutter, aeroplane and resolve. So the pass took the HITCH: a fill
+  chunk was 35 ms in one frame and three could land together (up to 105
+  ms); the walk asks the cheap tests before the 2.4 µs classifier (28 → 16
+  ms), is sliced 24 rows a frame with the build in the last, one chunk at a
+  time; the streamer's worst frame is 15–18 ms. `TREE_FILL.stat()` and an
+  F8 readout keep the clock. W0c.29's ground bonus could never fire (a
+  forest point is never SAND/SCREE) — it is wet / steep now. Baseline
+  `tools/perf/tree_perf.json`: Off 8.8 · Smooth 19.1 · Smoothest 24.1 ms.
 - **Not done, on purpose:** the boot rig (still `sunset`; `alps` is where
   the trees were judged), the forest card in the rail and the GRAPHICS
   SETTINGS menu (`futureDesigns/GRAPHICS-SETTINGS-2026-09-12.md`, the
