@@ -196,6 +196,29 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   // read it, and the near map keeps doing the near work.
   const FAR = { on: { value: 0 }, map: { value: null }, vp: { value: new THREE.Matrix4() },
                 rt: null, cam: null, scene: null, proxies: new Map(), tick: 0, at: null, half: 1400, size: 2048 };
+  // TEXEL SNAPPING (W0c.22). A shadow camera that follows the aircraft
+  // continuously slides its texel grid by a fraction of a texel every frame,
+  // and every shadow edge re-quantises against the moving grid: the whole
+  // pattern swims, worst in the canopy where every leaf is an edge - "the
+  // shadows are recalculated each frame". They are; what must not change is
+  // where the texels fall. The camera's target is moved only in whole-texel
+  // steps in LIGHT space (the two axes of the map; depth does not matter),
+  // exactly the basis three.js's lookAt builds, so a still tree lands on the
+  // same texels frame after frame. Every cascade does this.
+  const _sR = new THREE.Vector3(), _sU = new THREE.Vector3(), _sUp = new THREE.Vector3(0, 1, 0);
+  const SNAP = { on: true };                     // an A/B switch: WORLD_RIG.set({ snap })
+  const snapToTexels = (T, half, mapSize) => {
+    if (!SNAP.on) return T;
+    const texel = 2 * half / mapSize;
+    _sUp.set(0, 1, 0); if (Math.abs(SUN.y) > 0.999) _sUp.set(0, 0, 1);
+    _sR.crossVectors(_sUp, SUN).normalize();      // lookAt's x: up x forward(=L)
+    _sU.crossVectors(SUN, _sR);                   // lookAt's y
+    const a = T.dot(_sR), b = T.dot(_sU);
+    const da = Math.round(a / texel) * texel - a, db = Math.round(b / texel) * texel - b;
+    T.addScaledVector(_sR, da).addScaledVector(_sU, db);
+    return T;
+  };
+  const _sT = new THREE.Vector3();
   const farRegister = (mi, depthMat) => {
     if (!depthMat || !THREE.WebGLRenderTarget) return;
     if (!FAR.scene) {
@@ -226,9 +249,10 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       p.count = mi.count; p.visible = mi.visible && mi.count > 0;
     }
     const gy = world.terrainH(eye.x, eye.z);
-    FAR.cam.position.set(eye.x + SUN.x * 3000, gy + SUN.y * 3000, eye.z + SUN.z * 3000);
+    snapToTexels(_sT.set(eye.x, gy, eye.z), FAR.half, FAR.size);
+    FAR.cam.position.set(_sT.x + SUN.x * 3000, _sT.y + SUN.y * 3000, _sT.z + SUN.z * 3000);
     FAR.cam.up.set(0, 1, 0);
-    FAR.cam.lookAt(eye.x, gy, eye.z);
+    FAR.cam.lookAt(_sT.x, _sT.y, _sT.z);
     FAR.cam.updateMatrixWorld(true);
     FAR.cam.updateProjectionMatrix();
     // CLEARED TO WHITE: packed RGBA depth decodes (1,1,1,1) to ~1.0, the far
@@ -1391,6 +1415,12 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       '#endif'].join('\n');
     const BAND_GLSL = (originExpr) => originExpr + '\n' + [
       'vBandD = bandD;',
+      // world position, for the depth pass's dither (see DITHER_GLSL)
+      '#ifdef USE_INSTANCING',
+      'vBandW = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;',
+      '#else',
+      'vBandW = (modelMatrix * vec4(transformed, 1.0)).xyz;',
+      '#endif',
       'float _hw = uFadeW * 0.5;',
       'float _lo = uNearB > 0.5 ? uNearB - _hw : -1.0;',    // rung 0 has no near edge
       'if (uNoBand < 0.5 && (bandD < _lo || bandD >= uFarB + _hw)) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);',
@@ -1398,17 +1428,24 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // the fragment half: interleaved gradient noise against this rung's own
     // weight at each edge. Out at the far edge keeps n < 1 - t, in at the
     // near edge keeps n >= 1 - t: the same t, the same n, complementary.
-    const DITHER_GLSL = [
+    // The noise is screen-space for the DRAW (the standard: the stipple sits
+    // still on the screen) and WORLD-space for the shadow pass: a shadow map
+    // that steps by whole texels as the aircraft moves would re-roll a
+    // pixel-space noise at every step, and the fade windows would crawl in
+    // every shadow. Hashed on 25 cm world cells, a leaf's dither is a fact
+    // about the leaf.
+    const DITHER_GLSL = (world) => [
       'if (uNoBand < 0.5) {',
-      '  float _n = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));',
+      world ? '  float _n = fract(52.9829189 * fract(dot(floor(vBandW.xz * 4.0) + floor(vBandW.y * 4.0), vec2(0.06711056, 0.00583715))));'
+            : '  float _n = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));',
       '  float _hw = uFadeW * 0.5;',
       '  float _fo = 1.0 - clamp((vBandD - (uFarB - _hw)) / uFadeW, 0.0, 1.0);',
       '  float _fi = uNearB > 0.5 ? clamp((vBandD - (uNearB - _hw)) / uFadeW, 0.0, 1.0) : 1.0;',
       '  if (_n >= _fo || _n < 1.0 - _fi) discard;',
       '}',
     ].join('\n');
-    const BAND_DECL_V = '#include <common>\nuniform float uNearB, uFarB, uNoBand, uFadeW;\nvarying float vBandD;';
-    const BAND_DECL_F = '#include <common>\nuniform float uNearB, uFarB, uNoBand, uFadeW;\nvarying float vBandD;';
+    const BAND_DECL_V = '#include <common>\nuniform float uNearB, uFarB, uNoBand, uFadeW;\nvarying float vBandD;\nvarying vec3 vBandW;';
+    const BAND_DECL_F = '#include <common>\nuniform float uNearB, uFarB, uNoBand, uFadeW;\nvarying float vBandD;\nvarying vec3 vBandW;';
     // the draw material: chained onto whatever the part already carries
     // (trees.js's AO hook), never overwriting it
     // A CLONE, NOT THE CACHED MATERIAL. treeBuild hands out ONE material per
@@ -1436,7 +1473,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             BAND_GLSL(BAND_ORIGIN_VIEW));
         sh.fragmentShader = sh.fragmentShader
           .replace('#include <common>', BAND_DECL_F)
-          .replace('#include <alphatest_fragment>', DITHER_GLSL + '\n#include <alphatest_fragment>');
+          .replace('#include <alphatest_fragment>', DITHER_GLSL(false) + '\n#include <alphatest_fragment>');
       };
       return m;
     };
@@ -1461,7 +1498,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         // the shadow dithers too, or the window would cast twice
         sh.fragmentShader = sh.fragmentShader
           .replace('#include <common>', BAND_DECL_F)
-          .replace('#include <alphatest_fragment>', DITHER_GLSL + '\n#include <alphatest_fragment>');
+          .replace('#include <alphatest_fragment>', DITHER_GLSL(true) + '\n#include <alphatest_fragment>');
       };
       return d;
     };
@@ -2785,9 +2822,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     const agl = Math.max(0, cg[1] - gy);
     const reach = Math.min(agl / SUN.y, 520);
     const tx = cg[0] - SUN.x * reach * 0.5, tz = cg[2] - SUN.z * reach * 0.5;
-    sun.target.position.set(tx, gy, tz);
-    sun.position.set(tx + SUN.x * 700, gy + SUN.y * 700, tz + SUN.z * 700);
     const half = Math.max(RIG.shadowMin, Math.min(540, 105 + reach * 0.55));
+    // snapped to the map's texel grid at the half-width the map will have
+    // this frame (the hysteresis below keeps that steady between resizes)
+    const hs = (Math.abs(half - shadowHalf) > shadowHalf * 0.12 + 4) ? half : shadowHalf;
+    snapToTexels(_sT.set(tx, gy, tz), hs, sun.shadow.mapSize.x);
+    sun.target.position.copy(_sT);
+    sun.position.set(_sT.x + SUN.x * 700, _sT.y + SUN.y * 700, _sT.z + SUN.z * 700);
     uShadowR.value = half;
     farRender(uCam.value);
     if (Math.abs(half - shadowHalf) > shadowHalf * 0.12 + 4) {
@@ -2817,7 +2858,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     sunI: RIG.sun, sunCol: hexOf(sun.color, SUNC), hemi: RIG.hemi,
     hemiSky: hexOf(hemi.color, RIG.skyCol), hemiGnd: RIG.gndCol,
     exposure: (renderer && renderer.toneMappingExposure) || 1,
-    env: 'dome', shadowMin: RIG.shadowMin, floor: uFloor.value, farShadow: true,
+    env: 'dome', shadowMin: RIG.shadowMin, floor: uFloor.value, farShadow: true, snap: true,
     shadowMap: (sun.shadow && sun.shadow.mapSize) ? sun.shadow.mapSize.x : 1024,
     dome: (worldSky && worldSky.material.uniforms) ? {
       top: hexOf(worldSky.material.uniforms.uTop.value, 0x3f7fbe),
@@ -2885,6 +2926,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     RIG.shadowMin = R.shadowMin;
     if (R.floor !== undefined) uFloor.value = R.floor;
     if (R.farShadow !== undefined) FAR.enabled = !!R.farShadow;
+    if (R.snap !== undefined) SNAP.on = !!R.snap;
     if (sun.shadow && sun.shadow.mapSize && sun.shadow.mapSize.x !== R.shadowMap) {
       sun.shadow.mapSize.set(R.shadowMap, R.shadowMap);
       if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }

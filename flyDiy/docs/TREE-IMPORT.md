@@ -377,6 +377,17 @@ Off 24 ms · Smooth 35 ms · Smoothest 42 ms — the fill casting and receiving,
 the impostor casters, the far cascade and the draw-time tint all in, against
 W0c.17's 31 / 36 / 43.
 
+**Still shadows (W0c.22).** The sun's shadow camera followed the aircraft
+continuously, sliding its texel grid a fraction of a texel every frame, and every
+shadow edge re-quantised against the moving grid — the canopy swam. Both
+cascades now move their targets only in whole-texel steps in light space (the
+basis three.js's `lookAt` builds), and the LOD-fade dither in the shadow pass
+hashes world position rather than the map's pixel, so a still tree lands on the
+same texels frame after frame. Measured with the eye still and the shadow
+target creeping 0.37 m a frame through a canopy close-up: unsnapped, 0.71 % of
+pixels change by more than 60/765 each frame (mean 1.55); snapped, **0.00 %**.
+`snap` on the rig row and the panel, for the A/B.
+
 **Not done.** The `impa` / `implight` per-collection numbers are not in the
 payload (6 / 6.5 and 1 in the tuning: one gain, one lit, for all). The boot rig
 is still `sunset`; `alps` is two clicks on the panel and is the row the trees
