@@ -357,6 +357,16 @@ function dress(inst, dum, opts) {
   t.root.updateMatrixWorld(true);
   // the POSED locals: what the animator moves around (G205)
   inst.baseQ = t.objs.map(o => o.quaternion.clone());
+  // THE HANDS ARE PINNED (G282, the user: "constrain the wrist position,
+  // not have it move at all"): where each fist closed and how each upper
+  // arm stood, in world, for animStep's 'head' mode to hold the hands
+  // there while the spine breathes under them
+  inst.pin = {};
+  for (const S of ['Left', 'Right']) {
+    const arm = t.byBase[S + 'Arm'];
+    const fp = arm ? fistAt(inst, S[0]) : null;
+    if (fp) inst.pin[S] = { p: fp.clone(), q: arm.getWorldQuaternion(new THREE.Quaternion()) };
+  }
 }
 
 // WHERE THE FIST CLOSES (G279): the world centroid of the four fingers'
@@ -502,9 +512,38 @@ function animStep(inst, now, spec) {
       _qb.identity().slerp(_qd, sp.amp * HEAD_SET[n]);
       objs[i].quaternion.copy(inst.baseQ[i]).multiply(_qb);
     }
+    // THE HANDS STAY ON THE CONTROLS (G282): Spine1/Spine2 breathe above,
+    // and the shoulders ride on them, so the whole arm swung with the chest
+    // and the wrist slid on the grip. Each upper arm is put back to the
+    // world orientation dress() left it in, then aimed so the fist lands
+    // back on the point it closed on — a one-step correction on the
+    // shoulder joint, exact in direction (the residual is the pin's own
+    // distance changing by the shoulder's travel, well under a millimetre).
+    if (inst.pin) {
+      inst.tree.root.updateMatrixWorld(true);
+      for (const S of ['Left', 'Right']) {
+        const pin = inst.pin[S], i = R.byBase[S + 'Arm'];
+        if (!pin || i == null) continue;
+        const arm = objs[i];
+        arm.parent.getWorldQuaternion(_pq).invert();
+        arm.quaternion.copy(_pq).multiply(pin.q);
+        arm.updateMatrixWorld(true);
+        const armP = arm.getWorldPosition(_pv1);
+        const fp = fistAt(inst, S[0], _pv2);
+        if (!fp) continue;
+        const a = _pv3.copy(fp).sub(armP), b = _pv4.copy(pin.p).sub(armP);
+        if (a.lengthSq() < 1e-8 || b.lengthSq() < 1e-8) continue;
+        _pr.setFromUnitVectors(a.normalize(), b.normalize());
+        arm.getWorldQuaternion(_pw).premultiply(_pr);
+        arm.quaternion.copy(_pq).multiply(_pw);
+        arm.updateMatrixWorld(true);
+      }
+    }
   }
   return true;
 }
+const _pq = new THREE.Quaternion(), _pr = new THREE.Quaternion(), _pw = new THREE.Quaternion(),
+      _pv1 = new THREE.Vector3(), _pv2 = new THREE.Vector3(), _pv3 = new THREE.Vector3(), _pv4 = new THREE.Vector3();
 function tick() {
   if (!LIVE.size) { ticking = false; return; }
   requestAnimationFrame(tick);

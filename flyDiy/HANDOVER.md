@@ -39352,3 +39352,42 @@ skeleton control (the user's offer) was not needed.
 - **THE K-CAR WAS CHROME** like the three before it (metallicFactor 1 over a
   white map): a tenth now.
 - Gates: HOUSE, VILLAGE (both --selftest) green.
+
+## G282 — THE HANDS ARE PINNED UNDER THE IDLE, THE KEY IS IN, AND THE
+## SWITCHES WEAR THE USER'S TAPE LABELS (2026-09-12, the user: "you should
+## constrain the wrist position, not have it move at all … the key should
+## be slotted in maybe 8 mm more … I have also generated labels as assets
+## for labeling the switches … stick them at 45° angle on top of their
+## respective controls")
+
+- **The pin.** The pilot's idle ('head' mode) breathes through Spine1 (0.3)
+  and Spine2 (0.6); the shoulders ride on the spine, so the whole arm swung
+  with the chest and the wrist slid centimetres on the grip. `dress()` now
+  remembers where each fist closed and how each upper arm stood (world,
+  `inst.pin`), and `animStep` puts the upper arm back to that orientation
+  and aims it so the fist lands on its point — one `setFromUnitVectors` on
+  the shoulder joint per hand per frame. Measured in the shed under the
+  idle: head moving 2.5 mm, Spine2 swaying 0.5°, fist drift < 1 mm (was
+  centimetres). The flown loop (solve → dress → animStep) takes the same
+  code. Passengers ('body' mode) keep the clip's arms as before.
+- **The key** is slotted 8 mm further in (the blade's tip 20 mm into the
+  barrel, 42 mm of key toward the pilot).
+- **The labels.** `tools/labels_prep.py` reads the user's sheet
+  (`assets/interior/labels.png`, transparent, any layout), finds each tape
+  as a blob of alpha, strips the render's fuzz, and lays the eight into ONE
+  column sheet (`media/tex/panel/labels_512x160.<hash>.png`, one tile per
+  label, tape centred) with `src/viewer/panel_tex.js` as its manifest —
+  the sheet's reading order IS the contract (`names`). The panel layer
+  (`LABEL_OF`) sticks a 26 × 8 mm quad of the right tile over each light
+  switch at 45°, rising to the pilot's right, a hair off the plate, on ONE
+  alpha-tested material bucketed through the join (`panelSet: 'label'`).
+  The switch row dropped 12 mm (`SW_DROP` 0.028, `SW_ROOM` 0.038) so the
+  dials' bottoms clear the labels' upper corners. Mapping: pax → Cabin,
+  flood → Dash, instr → Instr, pedal → Feet, beacon → beac, nav → pos,
+  land → land, taxi → cruise (the last two are guesses — a re-rendered
+  sheet with "taxi" and "flood" drops straight in through the prep).
+  The key, master and alt wear none.
+- `panel_tex.js` joins the viewer's script list and GATE MEDIA's manifests.
+
+Next (the user): check that the pilot moves with the inputs and the
+controls move with the aeroplane.

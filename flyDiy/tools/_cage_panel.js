@@ -414,6 +414,51 @@ function facesMaterial() {
   facesMat.userData.inside = 1;
   return facesMat;
 }
+// THE TAPE LABELS (G282, the user: "I have also generated labels as assets
+// for labeling the switches ... stick them at 45 deg angle on top of their
+// respective controls"). The user's own hand-written tapes, one column
+// sheet built by tools/labels_prep.py (src/viewer/panel_tex.js names the
+// tiles); ONE material, bucketed by the join like the faces (`panelSet:
+// 'label'`), so the flight rebuilds it through `material('label')`. A
+// tape is a quad a hair off the plate, alpha-tested (ragged tape edges,
+// no sorting); which tape a switch wears is LABEL_OF.
+const LABEL_OF = { pax: 'Cabin', flood: 'Dash', instr: 'Instr', pedal: 'Feet',
+                   beacon: 'beac', nav: 'pos', land: 'land', taxi: 'cruise' };
+let labelMat = null;
+function labelSheet() {
+  const S = (typeof PANEL_TEX_SHEETS !== 'undefined') ? PANEL_TEX_SHEETS
+          : (typeof window !== 'undefined' && window.PANEL_TEX_SHEETS);
+  return S && S.labels ? S.labels : null;
+}
+function labelMaterial() {
+  if (labelMat) return labelMat;
+  const sh = labelSheet();
+  let tex = null;
+  if (sh && sh.img) {
+    tex = new THREE.Texture(sh.img);
+    tex.encoding = THREE.sRGBEncoding;
+    tex.anisotropy = 8;
+    const up = () => { tex.needsUpdate = true; };
+    // addEventListener, not onload: the sheet's Image is shared with
+    // whoever else reads it (G247's lesson)
+    if (sh.img.complete && sh.img.naturalWidth) up();
+    else sh.img.addEventListener('load', up);
+  }
+  labelMat = new THREE.MeshStandardMaterial({ map: tex, color: 0xffffff, roughness: 0.92, metalness: 0,
+    alphaTest: 0.5, side: THREE.FrontSide });
+  labelMat.userData.aeroskin = 1;
+  labelMat.userData.panelSet = 'label';
+  labelMat.userData.inside = 1;
+  return labelMat;
+}
+// the quad: `w` across the tape, its tile's aspect tall; the pilot reads it
+// left to right, so u runs against x (the mirror rule); v picks the tile
+function labelInto(bag, i, n, cx, cy, z, w, h) {
+  const v0 = 1 - (i + 1) / n, v1 = 1 - i / n;
+  const a = bag.v([cx + w / 2, cy - h / 2, z], [0, v0]), b = bag.v([cx - w / 2, cy - h / 2, z], [1, v0]);
+  const c = bag.v([cx - w / 2, cy + h / 2, z], [1, v1]), d = bag.v([cx + w / 2, cy + h / 2, z], [0, v1]);
+  bag.quad(a, b, c, d);                                  // facing the pilot (-z)
+}
 // THE SCREWS' SHADOW (session 4f, the user: "have them cast some AO onto
 // the dash, even if you need to fake it with a plane and some
 // transparency"): one soft dark disc under each head — a radial gradient on
@@ -932,7 +977,9 @@ function keyAt(parent, x, y, z, pos) {
     // slice thickness, not bigger overall") — 0.8 of the delivered 62 mm,
     // and twice as thick in the slice
     kg.scale.set(1.6, 0.8, 0.8);
-    kg.position.set(0, 0, 0.012 - k.bb[3] * 0.8);
+    // (G282, the user: "the key should be slotted in maybe 8 mm more") —
+    // the blade's tip 20 mm in, 42 mm of key toward the pilot
+    kg.position.set(0, 0, 0.020 - k.bb[3] * 0.8);
     for (const p of k.parts) { const m = new THREE.Mesh(p.geo, p.mat); m.userData.sharedGeo = true; kg.add(m); }
     g.add(kg);
     const idx = ['off', 'l', 'r', 'both', 'start'].indexOf(pos || 'both');
@@ -1268,6 +1315,20 @@ function build(parent, A, P, pilotX) {
     else if (s.kind === 'rocker') rockerAt(sg, 0, 0, 0, s.k, true);
     else if (s.kind === 'toggle') toggleAt(sg, 0, 0, 0, s.k, +P['li_' + s.k] > 0.5);
     else if (s.kind === 'knob') knobAt(sg, 0, 0, 0, s.k, Math.max(0, Math.min(1, +P['li_' + s.k] || 0)));
+    // THE TAPE (G282): stuck over the switch at 45 deg, rising to the
+    // pilot's right (about +z, clockwise is positive for the pilot — so
+    // minus), a hair off the plate over the shadow disc
+    const sheet = labelSheet(), li = sheet ? sheet.names.indexOf(LABEL_OF[s.k]) : -1;
+    if (li >= 0) {
+      const lg = new THREE.Group();
+      lg.position.set(0.002, 0.0135, -0.0006);
+      lg.rotation.z = -Math.PI / 4;
+      sg.add(lg);
+      const lb = UVBag(labelMaterial());
+      const w = 0.026, h = w * sheet.h / sheet.w;
+      labelInto(lb, li, sheet.n, 0, 0, 0, w, h);
+      const m = lb.mesh(lg, 'edGauge_label'); if (m) m.renderOrder = 3;
+    }
   }
   bowl.mesh(grp, matFor('bowl')); symC.mesh(grp, matFor('symbol'));
   // the instrument light on the switchboard, as every emitter is (GATE LIGHT's
@@ -1302,7 +1363,8 @@ window.CAGE_PANEL = {
   // ran; the join reads `moving`; the game rebuilds the faces through
   // `material('faces')`
   build, get moving() { return MOVING; }, MAT,
-  material: k => (k === 'faces' ? facesMaterial() : k === 'ao' ? aoMaterial() : matFor(k)),
+  material: k => (k === 'faces' ? facesMaterial() : k === 'ao' ? aoMaterial()
+                  : k === 'label' ? labelMaterial() : matFor(k)),
   holes: holesIn,                              // G279: the plate's cut-outs, in a parent's frame
   atlas: () => atlasCv, last: () => LAST, faceDim,
   switches: true,                // the light layer leaves the switch row to us

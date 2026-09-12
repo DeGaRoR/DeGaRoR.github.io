@@ -237,7 +237,7 @@ const MANIFEST = {
               'trees_pack.js', 'trees.js', 'render_world.js',
               'hangar_floor.js', 'hangar_walls.js',
               'hangar_sky.js', 'props.js', 'wood_tex.js', 'skin_tex.js',
-              'vessel_tex.js',
+              'vessel_tex.js', 'panel_tex.js',
               'aeroskin.js', 'hangar.js',
     // refplane.js before editor.js (G89): the editor's tree offers the
     // REFERENCE PLANE row and calls window.REFPLANE for its badge, its panel

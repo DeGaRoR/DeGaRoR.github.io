@@ -203,7 +203,11 @@ function angleOfDisp(key, d, units, o) {
 // avionics keys fitted. Returns dials[] {k, cx, cy, r, slot}, switches[]
 // {k, kind, x, y}, ext, zFace, yMid, xLim, overflow[].
 const D_BIG = 0.0794, D_SMALL = 0.0572, GAP = 0.012, PAN_INSET = 0.012;
-const SW_ROOM = 0.026;             // the switch row's 16 mm plates and a gap, along the bottom
+// the switch row's 16 mm plates, a gap, and (G282) the tape label stuck at
+// 45 deg over each switch — 12 mm more than before, so the dials' bottoms
+// clear the labels' upper corners
+const SW_ROOM = 0.038;
+const SW_DROP = 0.028;             // the row's centre this far under the lowest dial
 const T_KEYS = { asi: [0, 0], ai: [1, 0], alt: [2, 0], turn: [0, 1], dg: [1, 1], vsi: [2, 1] };
 function layout(A, o) {
   o = o || {};
@@ -364,7 +368,7 @@ function layout(A, o) {
   }
   for (const k of (o.extLights || [])) sw.push({ k, kind: 'toggle', light: true });
   for (const k of (o.intLights || [])) sw.push({ k, kind: 'knob', light: true });
-  const ySw = Math.max(yBot + 0.010, (dials.filter(d => !d.coaming).reduce((m, d) => Math.min(m, d.cy - d.r), yTop)) - 0.016);
+  const ySw = Math.max(yBot + 0.010, (dials.filter(d => !d.coaming).reduce((m, d) => Math.min(m, d.cy - d.r), yTop)) - SW_DROP);
   const xSw = xLimAt(ySw);                     // the plate's own width down there
   const pitch = Math.min(0.040, (2 * xSw - 0.02) / Math.max(1, sw.length));
   let x = Math.min(xSw - 0.02, Math.max(-xSw + 0.02 + pitch * (sw.length - 1), xC + pitch * (sw.length - 1) / 2));
