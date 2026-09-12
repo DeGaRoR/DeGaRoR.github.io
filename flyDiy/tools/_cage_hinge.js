@@ -573,6 +573,63 @@ PAGE.post = ctx => {
       }
     }
 
+    // ---- THE TAILWHEEL'S STEERING HORN AND SPRINGS (G326) ----------------
+    // On a taildragger the tailwheel steers off the RUDDER. A horn at the
+    // rudder's FOOT — a bar across the hinge line just above the rudder's
+    // bottom edge, an eye at each end — and two runs from it, a coil
+    // spring at the wheel end and a chain the rest of the way, each to the
+    // ear of the fork's steering arm on the same side. Rudder over to the
+    // left: the left eye swings forward (the arm is out to the side, so a
+    // turn about the hinge moves it fore and aft), pulls the left ear
+    // forward, the fork turns and the wheel rolls the tail to the right —
+    // nose left, the same sense the solver steers by. The springs are what
+    // lets the wheel castor further than the rudder when the aeroplane is
+    // pushed round by hand.
+    //
+    // The gear layer used to draw both runs into the castor's own bags, to
+    // a horn box of its own under the keel: the whole picture yawed rigidly
+    // with the fork and the box swept through the tail cone, while the
+    // rudder they belong to turned on its own. The horn is the rudder's now
+    // (its moving bag), and each run is a MEMBER with two moving ends — the
+    // ear rides the castor (`pinCastor`), the eye rides the rudder's hinge
+    // like every other link. The cable horn a metre up the rudder is not
+    // the place: a real steering spring is a foot long and lies beside the
+    // leaf spring.
+    if (s.kind === 'rud' && s.obj) {
+      const CU = window.CAGE_GEAR && window.CAGE_GEAR.units && window.CAGE_GEAR.units.castor;
+      const GGs = window.GEAR_GEN;
+      const vis = P.twSteerVis == null ? 1 : Math.round(+P.twSteerVis);
+      if (CU && CU.ears && GGs && GGs.steerRun && K.boxIn && vis) {
+        scene.updateMatrixWorld(true);
+        const bb = new THREE.Box3().setFromObject(s.obj);
+        const yBot = isFinite(bb.min.y) ? bb.min.y : s.A[1];
+        const up = V.nrm(V.sub(s.B, s.A));
+        // the horn's centre: 35 mm above the rudder's foot, 35 mm AFT of the
+        // hinge line (through the rudder's lower spar, not its nose) — on the
+        // line itself the eye that swings forward at full rudder went 8 mm
+        // into the tail post's aft face, 14 mm ahead of it; at 25 mm its
+        // chain still grazed the post
+        const yH = Math.min(yBot + 0.035, s.A[1]);
+        const t = Math.abs(up[1]) > 1e-3 ? (yH - s.A[1]) / up[1] : 0;
+        const hc = V.add(V.add(s.A, V.mul(up, t)), V.mul(s.aft, 0.035));
+        const side = s.face, reach = 0.062;
+        K.boxIn(bm.metal, hc, [reach + 0.008, 0.005, 0.010], side, up, s.aft);
+        for (const sg of [1, -1]) {
+          const eye = V.add(hc, V.mul(side, sg * reach));
+          revolve(bm.metal, V.add(eye, V.mul(up, -0.007)), up,
+                  [[0.009, 0], [0.009, 0.014]], 8, true);
+          const e = CU.ears.find(q => q[0] * eye[0] > 0);
+          if (!e) continue;
+          const tip = V.add(eye, V.mul(up, -0.010));
+          const bag = { steel: K.Bag(), alloy: K.Bag() };
+          GGs.steerRun(bag, e, tip);
+          if (!bag.steel.tris) continue;
+          links.push({ key: 'tw' + (sg > 0 ? 'P' : 'S'), surf: s.key, kind: 'twSteer',
+                       pin: e, tip, bag: bag.steel, pinCastor: true });
+        }
+      }
+    }
+
     // ---- the Fowler's track and carriage ---------------------------------
     if (s.slide && V.len(s.slide) > 1e-3) {
       const travel = V.len(s.slide);
@@ -616,7 +673,8 @@ PAGE.post = ctx => {
     const m = L.bag.mesh(group, matFor('metal'));
     if (!m) continue;
     m.name = 'edLink_' + L.key;
-    m.userData.linkMember = { pin: L.pin, tip: L.tip, surf: L.surf, kind: L.kind };
+    m.userData.linkMember = { pin: L.pin, tip: L.tip, surf: L.surf, kind: L.kind,
+                              pinCastor: !!L.pinCastor };
   }
   scene.add(group);
 
@@ -647,7 +705,7 @@ PAGE.post = ctx => {
 
   window.CAGE_HINGE = { placed, tris, surfs: surfs.map(s => s.key), hostOf,
     links: links.map(L => ({ key: L.key, surf: L.surf, kind: L.kind,
-                             pin: L.pin, tip: L.tip })) };
+                             pin: L.pin, tip: L.tip, pinCastor: !!L.pinCastor })) };
   if (stat)
     stat.textContent += '  ·  hinges: ' + placed.reduce((a, p) => a + p.n, 0) +
       ' on ' + placed.length + ' surfaces (' + tris + ' t)';

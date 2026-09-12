@@ -85,6 +85,7 @@ const ALLOWED = new Set([
   'hingeFixed|surf',      // the pin runs through the moving knuckles
   'light|anchor', 'light|fin',   // the lamp's fairing is sunk by `buried`
   'gear|wheel', 'strut|wing',    // same assembly
+  'link|gear',                   // G326: the tailwheel steering spring hooks the castor's ear
 ]);
 
 // BY ANCESTOR NAME, never by the pose kind: a fitting tagged `partOf`

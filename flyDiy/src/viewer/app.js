@@ -2176,6 +2176,9 @@
               W[i] = Math.max(0, Math.min(1, t));
             }
             linkRigs.push({ posAttr: pa, base, w: W, hinge: pt.hinge,
+              // G326: the tailwheel steering springs — the near end is the
+              // castor's ear; it turns with the fork and rides its node
+              pinCastor: !!pt.pinCastor, pin: M0.pin,
               // G267.2: a link on the tail rides the tail's anchor as a whole
               anchor: (pt.anchors && pt.anchors.length)
                 ? (() => { const idxs = pt.anchors.map(a => nearNodeVis(a)).filter(i => i != null);
@@ -2902,10 +2905,31 @@
       const b = r.base, out = r.posAttr.array, W = r.w;
       // G267.2: a link on the tail rides the tail's anchor, both ends
       const da = r.anchor ? anchorDelta(r.anchor) : [0, 0, 0];
+      // G326: THE NEAR END MOVES TOO on a tailwheel steering run — it is the
+      // castor's ear: the fork's yaw about its swivel (the same angle, about
+      // the same axis, the castor itself is posed by) plus the tailwheel
+      // node's own travel. Each vertex takes its share of both ends.
+      let px = 0, py = 0, pz = 0;
+      if (r.pinCastor && model.castorRig && r.pin) {
+        const c = model.castorRig;
+        const L = nodeLocal(c.idx), r0 = c.rest0 || L;
+        const tws = (def && def.params && typeof def.params.twSteer === 'number')
+          ? def.params.twSteer : 0.5;
+        const up = c.axis && c.axis[1] < 0 ? -1 : 1;
+        const a = -tws * (link.dr || 0) * up;
+        const cx = c.axis ? c.axis[0] : 0, cy = c.axis ? c.axis[1] : -1, cz = c.axis ? c.axis[2] : 0;
+        const ca2 = Math.cos(a), sa2 = Math.sin(a), C2 = 1 - ca2;
+        const qx = r.pin[0] - c.pivot[0], qy = r.pin[1] - c.pivot[1], qz = r.pin[2] - c.pivot[2];
+        const dq = cx * qx + cy * qy + cz * qz;
+        px = (qx * ca2 + (cy * qz - cz * qy) * sa2 + cx * dq * C2) - qx + L[0] - r0[0];
+        py = (qy * ca2 + (cz * qx - cx * qz) * sa2 + cy * dq * C2) - qy + L[1] - r0[1];
+        pz = (qz * ca2 + (cx * qy - cy * qx) * sa2 + cz * dq * C2) - qz + L[2] - r0[2];
+      }
       for (let i = 0; i < W.length; i++) {
-        out[i*3]     = b[i*3]     + W[i] * tx + da[0];
-        out[i*3 + 1] = b[i*3 + 1] + W[i] * ty + da[1];
-        out[i*3 + 2] = b[i*3 + 2] + W[i] * tz + da[2];
+        const u = 1 - W[i];
+        out[i*3]     = b[i*3]     + W[i] * tx + u * px + da[0];
+        out[i*3 + 1] = b[i*3 + 1] + W[i] * ty + u * py + da[1];
+        out[i*3 + 2] = b[i*3 + 2] + W[i] * tz + u * pz + da[2];
       }
       r.posAttr.needsUpdate = true;
     }
@@ -3919,7 +3943,9 @@
                           // is easing to — the roll-out shot takes 360 frames,
                           // which a swiftshader capture rig cannot wait out
                           cam: () => ({ az, el, dist, azT, elT, distT, reveal: flReveal }),
-                          camSettle: () => { az = azT; el = elT; dist = distT; flReveal = 0; } };
+                          camSettle: () => { az = azT; el = elT; dist = distT; flReveal = 0; },
+                          // G326: ...and a capture rig that wants a given view says so
+                          camSet: (a, e, d) => { az = azT = a; el = elT = e; dist = distT = d; flReveal = 0; } };
   // ---- MANUAL CONTROLS (G200): who is flying, and the ending when it is you
   // The toggle is a KEY (apToggle) and a pill in the `controls` flyout;
   // both land here. Hand → AP re-latches every integrator (ap.reEngage, W14)

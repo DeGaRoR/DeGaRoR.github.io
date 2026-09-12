@@ -428,10 +428,15 @@ PAGE.post = ctx => {
         // with its trouser shroud — stays in the leg unit
         const cb = allBags();
         const proxy = Object.assign({}, lb, wu.wb, { castorBags: cb });
+        // G326: the steering springs run to the RUDDER'S horn, which the
+        // hinge layer draws — so it draws the runs too, from the ears the
+        // castor publishes below. Without that layer (a bench without it)
+        // the castor keeps its own picture.
+        st.steerByHinge = !!window.HINGE_GEN;
         r = GG.legTailwheel(proxy, AFx, st.P, st);
         if (r.castor)
           castorUnitOut = { bags: cb, top: r.castor.top, ax: r.castor.ax,
-                            axle: r.axle };
+                            axle: r.axle, ears: r.castor.ears };
       } else {
         if (st.leg === 0) r = GG.legBeam(lb, AFx, st.P, st, sgn);
         else if (st.leg === 1) r = GG.legLink(lb, AFx, st.P, st, sgn);
@@ -600,7 +605,8 @@ PAGE.post = ctx => {
                                         root: u.root, moving: u.moving })),
              castor: castorUnitOut
                ? { top: castorUnitOut.top, ax: castorUnitOut.ax,
-                   axle: castorUnitOut.axle } : null } };
+                   axle: castorUnitOut.axle,
+                   ears: castorUnitOut.ears || null } : null } };
   if (stat && notes.length) stat.textContent += '  ·  gear: ' + notes.join(' · ');
 };
 })();

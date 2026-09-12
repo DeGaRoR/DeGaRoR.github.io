@@ -2325,6 +2325,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
                           tip: rotP(-pt.link.tip[2], pt.link.tip[1], pt.link.tip[0]) }];
         out2.linkSurf = pt.link.surf;
         out2.linkKind = pt.link.kind;
+        // G326: a tailwheel steering run's NEAR end is on the castor's
+        // steering arm — it yaws with the fork and rides the tailwheel node
+        if (pt.link.pinCastor) out2.pinCastor = true;
       }
       parts.push(out2);
     }

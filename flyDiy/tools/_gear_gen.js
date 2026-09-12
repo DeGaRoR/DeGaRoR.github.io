@@ -1545,51 +1545,75 @@ function castorUnit(bags, P, top, sgn, R, steer, showLink, hornClamp) {
     // the port arm on the starboard horn and the runs crossed. There are
     // always two: one each side, spring at the wheel end, chain to the
     // horn.
-    for (const s of [1, -1]) {
-      const e = add(add(off(top, ax, 0.030), mul(F(fwd), -0.010)),
-                    mul(F(side), s * 0.052));
-      const h = add(horn, mul(side, s * 0.045));
-      const d = nrm(sub(h, e)), Ls = len(sub(h, e));
-      // spring at the wheel end, chain the rest
-      const e1 = nrm(sub([0, 1, 0], mul(d, dot([0, 1, 0], d))));
-      const e2 = crs(d, e1);
-      const NP = 60, turns = 9, Rs = 0.011;
-      const coil = [];
-      for (let k = 0; k <= NP; k++) {
-        const t = k / NP, a = 2 * Math.PI * turns * t;
-        coil.push(add(off(e, d, Ls * 0.10 + Ls * 0.34 * t),
-                      add(mul(e1, Math.cos(a) * Rs), mul(e2, Math.sin(a) * Rs))));
+    //
+    // G326: ON A CAGE BUILD THE RUNS ARE NOT DRAWN HERE. The rudder end of a
+    // steering spring is the RUDDER'S horn, and that horn is the hinge
+    // layer's; drawn here, into the castor's bags, the two runs and a horn
+    // box under the keel yawed as one rigid piece with the fork (the box
+    // swept sideways through the tail cone) while the rudder they belong
+    // to turned on its own. `showLink === 'ears'` says a later layer draws
+    // the runs from the ears this returns; the bench and the gate keep the
+    // old picture (showLink === true).
+    if (showLink === true)
+      for (const s of [1, -1]) {
+        const e = add(add(off(top, ax, 0.030), mul(F(fwd), -0.010)),
+                      mul(F(side), s * 0.052));
+        const h = add(horn, mul(side, s * 0.045));
+        steerRun(bags, e, h);
+        boxIn(bags.alloy, h, [0.006, 0.020, 0.010], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
       }
-      sweep(bags.steel, coil, () => secRound(0.0026, 6), true);
-      taper(bags.steel, e, off(e, d, Ls * 0.10), 0.004, 0.004, 8);
-      // THE CHAIN INTERLOCKS (user: "the circles do not interlock").
-      // Links are OVAL, not round, they alternate 90 degrees, and each
-      // sits back inside the last by a third of its length — spaced a
-      // whole link apart they were just a row of loose rings.
-      const c0 = off(e, d, Ls * 0.46), c1 = h;
-      const run = len(sub(c1, c0));
-      const lk = 0.026, lw = 0.011, wire = 0.0024;
-      const step = lk * 0.62;
-      const NL = Math.max(2, Math.round(run / step));
-      for (let k = 0; k < NL; k++) {
-        const p = lerp3(c0, c1, (k + 0.5) / NL);
-        const per = (k % 2) ? e1 : e2;
-        const path = [];
-        const NR = 16;
-        for (let j = 0; j <= NR; j++) {           // a stadium, not a circle
-          const an = 2 * Math.PI * j / NR;
-          const cs = Math.cos(an), sn = Math.sin(an);
-          const along = Math.sign(cs) * Math.min(Math.abs(cs) / 0.72, 1)
-                        * (lk / 2 - lw / 2);
-          path.push(add(p, add(mul(d, along + cs * lw / 2),
-                               mul(per, sn * lw / 2))));
-        }
-        sweep(bags.steel, path, () => secRound(wire, 6), false);
-      }
-      boxIn(bags.alloy, h, [0.006, 0.020, 0.010], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
-    }
   }
-  return { hub, axis: F(side), ax, top, trail: P.twTrail };
+  // the steering arm's two ears — where a spring hooks on — port first
+  const ears = [1, -1].map(s => add(add(off(top, ax, 0.030), mul(F(fwd), -0.010)),
+                                    mul(F(side), s * 0.052)));
+  return { hub, axis: F(side), ax, top, trail: P.twTrail, ears };
+}
+
+// ONE STEERING RUN: a coil spring at the wheel end (`e`, the steering arm's
+// ear), a chain the rest of the way to `h` (the rudder horn's eye). Drawn
+// straight between the two points it is given, in whatever bags it is
+// given; the hinge layer draws it on a cage build (G326), the castor above
+// on the bench. A run is a two-end member in the flown model: the ear end
+// yaws with the castor, the eye end swings with the rudder.
+function steerRun(bags, e, h) {
+  const d = nrm(sub(h, e)), Ls = len(sub(h, e));
+  if (!(Ls > 0.05)) return;
+  // spring at the wheel end, chain the rest
+  const e1 = nrm(sub([0, 1, 0], mul(d, dot([0, 1, 0], d))));
+  const e2 = crs(d, e1);
+  const NP = 60, turns = 9, Rs = 0.011;
+  const coil = [];
+  for (let k = 0; k <= NP; k++) {
+    const t = k / NP, a = 2 * Math.PI * turns * t;
+    coil.push(add(off(e, d, Ls * 0.10 + Ls * 0.34 * t),
+                  add(mul(e1, Math.cos(a) * Rs), mul(e2, Math.sin(a) * Rs))));
+  }
+  sweep(bags.steel, coil, () => secRound(0.0026, 6), true);
+  taper(bags.steel, e, off(e, d, Ls * 0.10), 0.004, 0.004, 8);
+  // THE CHAIN INTERLOCKS (user: "the circles do not interlock").
+  // Links are OVAL, not round, they alternate 90 degrees, and each
+  // sits back inside the last by a third of its length — spaced a
+  // whole link apart they were just a row of loose rings.
+  const c0 = off(e, d, Ls * 0.46), c1 = h;
+  const run = len(sub(c1, c0));
+  const lk = 0.026, lw = 0.011, wire = 0.0024;
+  const step = lk * 0.62;
+  const NL = Math.max(2, Math.round(run / step));
+  for (let k = 0; k < NL; k++) {
+    const p = lerp3(c0, c1, (k + 0.5) / NL);
+    const per = (k % 2) ? e1 : e2;
+    const path = [];
+    const NR = 16;
+    for (let j = 0; j <= NR; j++) {           // a stadium, not a circle
+      const an = 2 * Math.PI * j / NR;
+      const cs = Math.cos(an), sn = Math.sin(an);
+      const along = Math.sign(cs) * Math.min(Math.abs(cs) / 0.72, 1)
+                    * (lk / 2 - lw / 2);
+      path.push(add(p, add(mul(d, along + cs * lw / 2),
+                           mul(per, sn * lw / 2))));
+    }
+    sweep(bags.steel, path, () => secRound(wire, 6), false);
+  }
 }
 
 // ---- THE TAILWHEEL ASSEMBLY ----------------------------------------------
@@ -1656,7 +1680,7 @@ function legTailwheel(bags, AF, P, st) {
   // join yaws it for ground manoeuvring) passes `bags.castorBags`; the
   // bench and every other caller fall through unchanged.
   const u = castorUnit(bags.castorBags || bags, P, tip, 1, st.R,
-                       P.twSteer, true,
+                       P.twSteer, st.steerByHinge ? 'ears' : true,   // G326
                        h => [h[0], Math.min(h[1], AF.keelAt(h[2]) - 0.018), h[2]]);
   wheel(bags, u.hub, u.axis, st.R, { brake: false, P });
   // G133: THE SMALL WHEEL GETS ITS SPAT — and it goes into the castor's own
@@ -1683,6 +1707,6 @@ window.GEAR_GEN = { MAT, gearMat, stubAirframe, drawStub, objAirframe, drawBody,
                     meshAirframe, cageAirframe, CAGE_MATS, airframeClose,
                     padOn, exactAirframe, padArc, PAD_ARC,
                     wheel, spat, fitFrame, memberFrame, pivotOn, padFlat,
-                    fitPad, legBeam, legLink, legOleo, castorUnit,
+                    fitPad, legBeam, legLink, legOleo, castorUnit, steerRun,
                     legTailwheel, Bag };
 })();

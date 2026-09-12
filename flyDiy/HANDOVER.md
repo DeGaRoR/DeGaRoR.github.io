@@ -41224,3 +41224,49 @@ lattice's lever, and with the cluster on the members carry none.
   (`greywood`, `wornwood` and `shingle` joined the roof role), not
   rusted sheet.
 - Gates: HOUSE, VILLAGE green.
+
+## G326 — THE TAILWHEEL STEERS OFF THE RUDDER: A HORN AT THE RUDDER'S FOOT,
+## TWO SPRING-AND-CHAIN RUNS THAT MOVE AT BOTH ENDS (2026-09-13; the user:
+## "the movement of the chain and springs of the taildragger tailwheels …
+## it is rigid and clips through the fuselage")
+
+- **What the system is.** On a taildragger the tailwheel castors on a raked
+  swivel and is STEERED by the rudder through two runs — a coil spring at
+  the wheel end, a chain the rest of the way — from the two ears of the
+  fork's steering arm to the two eyes of a horn at the rudder's foot. Rudder
+  to the left: the left horn eye swings FORWARD (the arm is out to the
+  side, so a turn about the hinge moves it fore and aft), pulls the left
+  ear forward, the fork turns and the wheel rolls the tail to the right —
+  nose left, the sense the solver steers by (`-twSteer·dr`). The right run
+  moves aft the same amount, so neither slackens; the springs are what lets
+  the wheel castor past the rudder when the aeroplane is pushed round.
+- **What was wrong.** `castorUnit` drew both runs AND a horn box of its own
+  (`twHornY/twHornZ`, clamped under the keel) into the castor's bags, so the
+  whole picture yawed rigidly with the fork — the box swept through the
+  tail cone — while the rudder they belong to turned on its own hinge. The
+  run was a metre long to nowhere.
+- **The horn is the rudder's** (`_cage_hinge.js`, the rudder's moving bag):
+  a bar across the rudder 35 mm above its foot and 35 mm aft of the hinge
+  line (through the lower spar, not the nose — on the line itself the eye
+  that swings forward at full rudder went 8 mm into the tail post's aft
+  face; 25 mm aft it still grazed it), an eye boss at each end 62 mm out.
+  The two runs are drawn there too, from the ears the castor now publishes
+  (`CAGE_GEAR.units.castor.ears`) — `GEAR_GEN.steerRun` is the one drawing,
+  the bench keeps the old picture when no hinge module is loaded — as links
+  `edLink_twP/twS` with `pinCastor`.
+- **Both ends move** (`_cage_join.js` passes `pinCastor`; `app.js` link
+  rigs): the eye rides the rudder's hinge like every cable, the ear rides
+  the castor — the fork's yaw about its swivel by the castor's own law plus
+  the tailwheel node's travel — and each vertex takes its projection's
+  share of both. Measured on stock: run 0.270 m, at ±full rudder both ends
+  move 24–30 mm the same way, length within 3 mm; nearest skin 5.8 mm at
+  full, 32 mm at rest (the first cut on the hinge line: −8 mm).
+- **Gates.** HINGE §4d (two runs one a side, `pinCastor`, a foot long, horn
+  eyes below the hinge root and behind the tail post, ends move together
+  at ±full, no chain in the cone posed by the join's own laws; the twin
+  trike draws none); CLIP allows `link|gear` (the spring hooks the ear);
+  `FLIGHT_PROBE.camSet(az, el, dist)` for capture rigs.
+- Left as is: the bench rows `twHornY/twHornZ` still drive the castor's
+  own horn on a bench without the hinge module; on a cage build they do
+  nothing (the horn is the rudder's). Retire them when the gear bench is
+  next touched.

@@ -354,6 +354,76 @@ for (const c of CASES) {
   }
 }
 
+// ---- 4d THE TAILWHEEL STEERS OFF THE RUDDER (G326) -------------------------
+// Two runs, a spring and a chain each, from the castor's steering-arm ears
+// to a horn at the RUDDER'S FOOT; each is a two-end member whose near end
+// rides the castor (`pinCastor`). On the stock taildragger: both runs, one a
+// side, a foot long not a metre (the cable horn a metre up the rudder was the
+// first cut), their eyes below the rudder's hinge root and behind the tail
+// post; posed by the join's own laws — rudder at full travel, castor at
+// -twSteer*dr about its swivel — the two ends move the same way and the run
+// stays within a centimetre of its rest length, and no chain enters the tail
+// cone. A build with no tailwheel (the twin-boom trike) draws none.
+{
+  let SH = null, PH = null, MQ = null;
+  try { SH = require(path.join(T, '_scene_headless.js')); PH = require(path.join(T, '_pose_headless.js')); MQ = require(path.join(T, '_mesh_query.js')); }
+  catch (e) { console.log('  (harness) ' + e.message); }
+  if (SH && PH && MQ) {
+    const S = SH.sceneBuild(null, { over: {} });
+    const W = S.W, THREE = SH.context().THREE;
+    const links = ((W.CAGE_HINGE && W.CAGE_HINGE.links) || []).filter(L => L.kind === 'twSteer');
+    check(links.length === 2 && links.some(L => L.key === 'twP') && links.some(L => L.key === 'twS'),
+          'TWSTEER: the stock taildragger has no pair of steering runs', links.map(L => L.key).join(','));
+    const CU = W.CAGE_GEAR && W.CAGE_GEAR.units && W.CAGE_GEAR.units.castor;
+    check(!!(CU && CU.ears && CU.ears.length === 2), 'TWSTEER: the castor publishes no ears');
+    const objects = PH.collect(S, THREE);
+    const PS = PH.poses(S, objects);
+    const H = PS.hinges.rud;
+    const rudRoot = (W.CAGE_HINGE.placed || []).length ? null : null;
+    if (links.length === 2 && CU && CU.ears && H) {
+      const rot = (p, c, ax, a) => { const x = p[0] - c[0], y = p[1] - c[1], z = p[2] - c[2]; const ca = Math.cos(a), sa = Math.sin(a), C1 = 1 - ca; const d = ax[0] * x + ax[1] * y + ax[2] * z;
+        return [c[0] + x * ca + (ax[1] * z - ax[2] * y) * sa + ax[0] * d * C1, c[1] + y * ca + (ax[2] * x - ax[0] * z) * sa + ax[1] * d * C1, c[2] + z * ca + (ax[0] * y - ax[1] * x) * sa + ax[2] * d * C1]; };
+      const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+      const CM = new Set([...SH.context().ctx.GEAR_GEN.CAGE_MATS]);
+      const fuse = MQ.triSet(S.built.sheet, { scale: S.FS, faces: f => CM.has(f.m) }); fuse.orient();
+      let zAft = Infinity; for (const f of S.built.sheet.F) if (CM.has(f.m)) for (const i of f.v) zAft = Math.min(zAft, S.built.sheet.V[i][2] * S.FS);
+      for (const L of links) {
+        check(L.pinCastor === true, 'TWSTEER: a run does not say its near end rides the castor', L.key);
+        check(L.pin[0] * L.tip[0] > 0, 'TWSTEER: a run crosses to the other side', L.key);
+        const rest = dist(L.pin, L.tip);
+        check(rest > 0.12 && rest < 0.6, 'TWSTEER: a run is not a spring-and-chain long', L.key + ' ' + rest.toFixed(3) + ' m');
+        check(L.tip[1] < H.pivot[1] - 0.3, 'TWSTEER: the horn is not at the rudder foot', L.key + ' y ' + L.tip[1].toFixed(3));
+        check(L.tip[2] < zAft - 0.01, 'TWSTEER: the horn eye is not behind the tail post', L.key + ' z ' + L.tip[2].toFixed(3) + ' vs ' + zAft.toFixed(3));
+        const o = objects.find(q => q.name === 'edLink_' + L.key);
+        check(!!o, 'TWSTEER: the run is not its own object', L.key);
+        if (!o) continue;
+        const up = CU.ax[1] < 0 ? -1 : 1;
+        for (const dr of [-1, 1]) {
+          const tip = rot(L.tip, H.pivot, H.axis, H.sgn * H.k * dr);
+          const pin = rot(L.pin, CU.top, CU.ax, -0.5 * dr * up);
+          check(Math.abs(dist(pin, tip) - rest) < 0.012, 'TWSTEER: the two ends do not move together at full rudder', L.key + ' dr ' + dr + ' ' + (dist(pin, tip) - rest).toFixed(3) + ' m');
+          // the drawn run, posed as app.js poses a two-end member
+          const d = [L.tip[0] - L.pin[0], L.tip[1] - L.pin[1], L.tip[2] - L.pin[2]], L2 = d[0] * d[0] + d[1] * d[1] + d[2] * d[2];
+          const dT = [tip[0] - L.tip[0], tip[1] - L.tip[1], tip[2] - L.tip[2]], dP = [pin[0] - L.pin[0], pin[1] - L.pin[1], pin[2] - L.pin[2]];
+          let worst = Infinity;
+          for (let v = 0; v < o.base.length / 3; v++) {
+            const b = [o.base[3 * v], o.base[3 * v + 1], o.base[3 * v + 2]];
+            const t = Math.max(0, Math.min(1, ((b[0] - L.pin[0]) * d[0] + (b[1] - L.pin[1]) * d[1] + (b[2] - L.pin[2]) * d[2]) / L2));
+            const q = fuse.signedDist([b[0] + t * dT[0] + (1 - t) * dP[0], b[1] + t * dT[1] + (1 - t) * dP[1], b[2] + t * dT[2] + (1 - t) * dP[2]]);
+            if (q && q.d < worst) worst = q.d;
+          }
+          check(worst > 0.002, 'TWSTEER: a chain enters the tail cone at full rudder', L.key + ' dr ' + dr + ' ' + (worst * 1000).toFixed(1) + ' mm');
+        }
+      }
+    }
+    // a trike draws none
+    const spec = SH.loadFixture(path.join(T, 'fixtures/build_v8_twin-boom_2026-09-11.json'));
+    const S2 = SH.sceneBuild(spec, {});
+    const none = ((S2.W.CAGE_HINGE && S2.W.CAGE_HINGE.links) || []).filter(L => L.kind === 'twSteer');
+    check(none.length === 0, 'TWSTEER: a tricycle has steering springs', none.length);
+  }
+}
+
 // ---- 4c THE DOOR'S EDGES (G310) --------------------------------------------
 // A door is a zone of faces; `cageDoorEdges` reads its outline off the built
 // sheet, per door per side: the forward run is the max-z standing chain (+z
