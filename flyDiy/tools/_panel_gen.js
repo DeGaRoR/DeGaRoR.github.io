@@ -703,6 +703,45 @@ const PAINT = {
 };
 
 // paint the whole atlas for a set of faces: `faces` = [{key, slot, painter}]
+// THE LIGHT ON THE FACE (G298, the user: "I'd avoid the shortcut of doing
+// emissive textures on the quadrants, and I would try to light them from
+// inside the dial, like IRL"). A post-lit instrument has two small lamps on
+// its bezel, at ten and two o'clock, shining across the face: the printing
+// near them is bright, the far rim is dim, the black stays black. That
+// irradiance is painted into the atlas's ALPHA channel, one tile per face
+// (the same law for every round face — the posts are at the same clock
+// positions on every bezel), and the faces material reads it as the
+// light's strength: radiance = albedo x irradiance x dimmer — a face LIT,
+// not a texture glowing (see _cage_panel.js facesMaterial). The strips (the
+// ball, the compass card) and the rotating rose take a flat share: they
+// are deeper in the case, lit from the same posts more evenly.
+//   I(p) = 0.18 + sum over the two posts of 0.55 / (1 + (d / 0.5 r)^2), <= 1
+const POST_TILE = 128;
+let postTile = null;
+function postIrradiance() {
+  if (postTile) return postTile;
+  if (typeof document === 'undefined') return null;
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = POST_TILE;
+  const c = cv.getContext('2d');
+  const id = c && c.createImageData ? c.createImageData(POST_TILE, POST_TILE) : null;
+  if (!id || !id.data) return null;                 // a no-op context (UISMOKE)
+  const r = POST_TILE / 2, cx = r, cy = r;
+  const posts = [[-60, 0.95], [60, 0.95]].map(([deg, k]) =>
+    [cx + r * k * Math.sin(deg * D2R), cy - r * k * Math.cos(deg * D2R)]);
+  for (let y = 0; y < POST_TILE; y++) for (let x = 0; x < POST_TILE; x++) {
+    let I = 0.18;
+    for (const [px, py] of posts) {
+      const d = Math.hypot(x + 0.5 - px, y + 0.5 - py) / (0.5 * r);
+      I += 0.55 / (1 + d * d);
+    }
+    const a = Math.round(255 * Math.min(1, I));
+    const i = (y * POST_TILE + x) * 4;
+    id.data[i] = id.data[i + 1] = id.data[i + 2] = 255; id.data[i + 3] = a;
+  }
+  c.putImageData(id, 0, 0);
+  return (postTile = cv);
+}
 function paintAtlas(g, faces, units, o) {
   g.clearRect(0, 0, ATLAS_W, ATLAS_H);
   for (const f of faces) {
@@ -713,6 +752,12 @@ function paintAtlas(g, faces, units, o) {
     // clip to the slot so a painter cannot bleed into a neighbour
     g.beginPath(); g.rect(R.x, R.y, R.w, R.h); g.clip();
     p(g, R, units, o);
+    // ...then the light on it, multiplied into the alpha (destination-in
+    // keeps the paint and scales its alpha by the tile's)
+    g.globalCompositeOperation = 'destination-in';
+    const tile = f.wide || /:(rose|strip|ball)$/.test(f.key) ? null : postIrradiance();
+    if (tile) g.drawImage(tile, R.x, R.y, R.w, R.h);
+    else { g.fillStyle = 'rgba(255,255,255,0.72)'; g.fillRect(R.x, R.y, R.w, R.h); }
     g.restore();
   }
 }

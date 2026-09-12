@@ -405,15 +405,48 @@ function facesMaterial() {
   atlasTex.encoding = THREE.sRGBEncoding;
   atlasTex.anisotropy = 8;
   atlasTex.flipY = true;
+  // THE FACE IS LIT, NOT GLOWING (G298): no emissiveMap. The atlas's alpha
+  // carries the posts' irradiance (_panel_gen.js postIrradiance); the hook
+  // below reads it off the sampled map, restores an opaque face, and adds
+  // albedo x irradiance x the dimmer (emissiveIntensity, driven exactly as
+  // before by the editor's faceDim and the flight's CK.glow) in the warm
+  // colour of a tungsten post. Module-level hook: its source is r128's
+  // program cache key.
   facesMat = new THREE.MeshStandardMaterial({
     map: atlasTex, color: 0xffffff, roughness: 0.85, metalness: 0,
-    emissive: new THREE.Color(0xffb060), emissiveMap: atlasTex, emissiveIntensity: 0,
+    emissive: new THREE.Color(0xffc47a), emissiveIntensity: 0,
     side: THREE.FrontSide });
+  facesMat.onBeforeCompile = FACES_HOOK;
   facesMat.userData.aeroskin = 1;          // never the grey understudy
   facesMat.userData.panelSet = 'faces';    // the join's bucket key
   facesMat.userData.inside = 1;
   return facesMat;
 }
+const FACES_HOOK = function (shader) {
+  shader.fragmentShader = shader.fragmentShader
+    .replace('#include <map_fragment>',
+             '#include <map_fragment>\n  float aeroIrr = diffuseColor.a; diffuseColor.a = 1.0;')
+    .replace('#include <emissivemap_fragment>',
+             '  totalEmissiveRadiance *= diffuseColor.rgb * aeroIrr * 2.2;');
+};
+// THE POSTS (G298): two small lamps on the bezel at ten and two o'clock,
+// leaning in over the face — a plated barrel with a lit lens on its inner
+// end, the lens in the light layer's `instr` lamp material so the join
+// buckets it as a lamp and the flight's switch drives it with the dimmer
+function postsAt(bag, lensBag, cx, cy, zB, r) {
+  const K = KIT();
+  for (const deg of [-60, 60]) {
+    const a = clockRad(deg);
+    const rd = [-Math.sin(a), Math.cos(a), 0];                // out from the centre
+    const base = [cx + rd[0] * r * 0.93, cy + rd[1] * r * 0.93, zB - 0.0085];
+    // the barrel leans 28 deg inward, 7 mm long, 2.2 mm radius
+    const ax = nrm3([-rd[0] * 0.47, -rd[1] * 0.47, -0.88]);
+    K.revolve(bag, base, ax, [[0.0022, 0], [0.0022, 0.0060], [0.0016, 0.0070], [0, 0.0070]], 12, false);
+    const tip = [base[0] + ax[0] * 0.0072, base[1] + ax[1] * 0.0072, base[2] + ax[2] * 0.0072];
+    K.revolve(lensBag, tip, ax, [[0.0015, -0.0004], [0.0015, 0.0008], [0.0009, 0.0016], [0, 0.0020]], 10, false);
+  }
+}
+const nrm3 = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
 // THE TAPE LABELS (G282, the user: "I have also generated labels as assets
 // for labeling the switches ... stick them at 45 deg angle on top of their
 // respective controls"). The user's own hand-written tapes, one column
@@ -1164,7 +1197,7 @@ function build(parent, A, P, pilotX) {
     const cy = d.coaming ? d.cy : 0;
     const zF = 0;
     const bez = K.Bag(), hub = K.Bag(), sym = K.Bag(), plate = K.Bag(), can = K.Bag();
-    const screw = K.Bag(), slotB = K.Bag();
+    const screw = K.Bag(), slotB = K.Bag(), post = K.Bag(), postLens = K.Bag();
     const faceBag = UVBag(fm), aoBag = UVBag(aoMaterial());
     if (d.coaming) {
       // THE COMPASS: a bowl standing on the coaming, the card turning inside
@@ -1257,6 +1290,13 @@ function build(parent, A, P, pilotX) {
     if (isAI && dg) HOLES.push({ g: dg, r: r * AI_HOLE });
     const F = G.FACES[d.k];
     const meshDial = () => {
+      // the posts on every round face's bezel (G298)
+      if (!d.coaming) {
+        postsAt(post, postLens, cx, cy, zB, r);
+        post.mesh(dg, matFor('barrel'));
+        const CL = window.CAGE_LIGHT;
+        postLens.mesh(dg, CL && CL.lensMat ? CL.lensMat('instr', faceDim(P), 0xffc47a) : matFor('needle'));
+      }
       bez.mesh(dg, matFor('bezel')); hub.mesh(dg, matFor('hub')); sym.mesh(dg, matFor('symbol'));
       can.mesh(dg, matFor('hub')); plate.mesh(dg, matFor('plate'));
       screw.mesh(dg, matFor('screw')); slotB.mesh(dg, matFor('hub'));
