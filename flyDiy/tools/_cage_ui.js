@@ -1816,6 +1816,12 @@ function applySpec(spec, what) {
   // the aeroplane it describes is the factory one. Applying it only when
   // present is exactly how a load inherits the last aeroplane's colours.
   finishFromSpec(spec && spec.finish);
+  // G334: THE REGISTRATION HAS ONE HOME AND TWO INPUTS — the finish panel's
+  // (here) and the design flow's field. finishFromSpec has just cleared the
+  // cache, so decReg() reads the spec the change came in on; the input
+  // shows it, and the design flow is told to re-read its own
+  if (regInputEl) try { regInputEl.value = decReg(); } catch (e) {}
+  try { window.dispatchEvent(new CustomEvent('flydiy:specApplied')); } catch (e) {}
   // THE TANKS COME WITH THE AEROPLANE (G99). Same rule as the paint above,
   // and unconditional for the same reason: a file with no `energy` describes
   // the default tank, not "whatever the last aeroplane carried".
@@ -2985,6 +2991,20 @@ function finishFromSpec(f) {
 // spec already carries it (`meta.reg`, default F-PGAR) and garage.js's
 // registration sheet has always read it from there. The panel edits it; the
 // spec owns it.
+let regInputEl = null;                   // the finish panel's registration input (G334)
+// G334: a registration committed through the OTHER door (the design flow's
+// field, GARAGE_SPEC.update) lands here: the cache takes it, the input shows
+// it, the decal and the dash's tape repaint
+if (typeof window !== 'undefined') window.addEventListener('flydiy:specUpdated', e => {
+  const j = e && e.detail;
+  const r = j && j.meta && j.meta.reg;
+  if (r == null || r === DEC.reg) return;
+  DEC.reg = String(r).toUpperCase();
+  if (regInputEl && document.activeElement !== regInputEl) regInputEl.value = DEC.reg;
+  try { applyDecals(); } catch (e2) {}
+  if (window.CAGE_PANEL && window.CAGE_PANEL.setReg) try { window.CAGE_PANEL.setReg(DEC.reg); } catch (e2) {}
+  try { draw(); } catch (e2) {}
+});
 function decReg() {
   if (DEC.reg != null) return DEC.reg;
   try {
@@ -3471,6 +3491,7 @@ function buildDecPanel() {
     const i = document.createElement('input');
     i.type = 'text'; i.value = decReg(); i.style.flex = '1';
     i.spellcheck = false;
+    regInputEl = i;                        // G334: applySpec refreshes it
     // THE SPEC OWNS IT, AND NOW SOMETHING ACTUALLY WRITES IT (G160). The row
     // above has always said "the spec carries it as meta.reg and this edits
     // it" and that was simply not true: `oninput` set DEC.reg — an editor

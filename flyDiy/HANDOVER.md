@@ -41547,3 +41547,21 @@ Headless now: the Skymaster twin booms and two fins (clusters at 474 /
 - GATE HOUSE 37: the reach takes the terminal, the ropes, the receiving
   house.
 - Gates: HOUSE, VILLAGE green.
+
+## G334 — ONE REGISTRATION, TWO INPUTS, IN STEP (2026-09-13, the user: "There
+## are 2 places where the registration can be set, and they seem not to be in
+## sync. One is under my plane > structure > registration, the other is under
+## my plane > finish > registration > registration. They need to be kept in
+## sync and coherent")
+
+- `spec.meta.reg` has owned the registration since G160 and both inputs
+  commit to it through `GARAGE_SPEC.update` — but the editor is seeded from
+  the spec ONCE (`seedEditor`), and each input's text was set when it was
+  built and never again, so the one you had not typed in kept the letters
+  from before (and the finish panel's `DEC.reg` cache with it).
+- `GARAGE_SPEC.update` announces every patch (`flydiy:specUpdated`, the
+  patch in `detail`); `applySpec` (a load) announces `flydiy:specApplied`.
+  The finish panel takes a `meta.reg` from the event into its cache, its
+  input, the decal and the dash's tape (`CAGE_PANEL.setReg`); the design
+  flow's field inputs re-read the spec on either event and on focus. Typed
+  either way, both show it and the aeroplane wears it.

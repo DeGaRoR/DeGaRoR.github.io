@@ -1256,7 +1256,10 @@ function garageInit(api) {
       images: () => wipImages,
       set: s => loadSpec(JSON.parse(JSON.stringify(s)), slotName, plaque, log),
       // THE JOIN'S DOOR. Merges rather than replaces — see `merge` above.
-      update: j => { spec = merge(spec, JSON.parse(JSON.stringify(j))); rebuild(); },
+      update: j => { spec = merge(spec, JSON.parse(JSON.stringify(j))); rebuild();
+        // G334: every update is announced — the two registration inputs (the
+        // finish panel's, the design flow's field) re-read the spec on it
+        try { window.dispatchEvent(new CustomEvent('flydiy:specUpdated', { detail: j })); } catch (e) {} },
       // ...AND WHAT THAT DOOR WOULD PRODUCE, without walking through it
       // (G266.2): the snapshot calibrates its pitch and its wheel offset on
       // a frame built from the spec it is handed, and the game flies the

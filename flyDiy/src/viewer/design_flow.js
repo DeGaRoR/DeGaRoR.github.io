@@ -269,9 +269,19 @@ function rowBlock(row) {
     const inp = document.createElement('input');
     inp.type = 'text'; inp.className = 'dfField';
     inp.maxLength = row.maxLen || 12;
-    let v = S;
-    for (const p of row.specPath) v = v && v[p];
-    inp.value = (v == null ? '' : String(v));
+    // G334: the field reads the spec — when built, when the spec is applied
+    // (the finish panel's registration commits there too), and on focus —
+    // so the two registration inputs cannot disagree
+    const readSpec = () => {
+      let v = null;
+      try { v = GS() ? GS().get() : S; for (const p of row.specPath) v = v && v[p]; } catch (e) { v = null; }
+      return v == null ? '' : String(v);
+    };
+    inp.value = readSpec();
+    const refresh = () => { if (document.activeElement !== inp) inp.value = readSpec(); };
+    window.addEventListener('flydiy:specApplied', refresh);
+    window.addEventListener('flydiy:specUpdated', refresh);
+    inp.addEventListener('focus', refresh);
     inp.addEventListener('change', () => {
       const patch = {};
       let node = patch;
