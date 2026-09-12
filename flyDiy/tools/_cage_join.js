@@ -207,7 +207,8 @@ function cageJoinSpec(P, M, T) {
       crankChord: P.wgCrankAt > 0 ? +P.wgCrankChord : null,
       crankX: P.wgCrankAt > 0 ? (+P.wgCrankX || 0) : null,
       dihedralOut: P.wgCrankAt > 0 ? P.wgDihedralOut : null,
-      centre: ['solid', 'glass', 'open', 'cutout'][Math.round(P.wgCentre)] || 'solid',
+      centre: ['solid', 'glass', 'open', 'cutout', 'foreCut', 'topGlass', 'topFuselage', 'removed'][Math.round(P.wgCentre)] || 'solid',
+      centreW: +P.wgCentreW > 0 ? +P.wgCentreW : null,              // G274
       // G189: the lamp bay's edges as loft stations (null = none), the same
       // arithmetic the wing layer uses, so the flown loft has the bay's rows
       cuts: cageWingCuts(P),

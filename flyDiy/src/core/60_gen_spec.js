@@ -2211,6 +2211,14 @@ const GEN_RULES = {
 // 4: the cabin gained its glazing surface — `cabin.glazing`, `cabin.canopy`,
 // `cabin.panel`, `cabin.pilot`, the seat offsets — plus `fuselage.tailY`,
 // `paint.regX` and `wings[].centre`.
+// G274: THE CENTRE SECTION'S CONSTRUCTIONS, in the editor row's order (a saved
+// index 0..3 keeps its meaning). The strip and cover factor is what each
+// leaves of the root bay's skin: the two half cuts keep 62 % of the chord,
+// 'removed' none — the frame's carry-through members stay in every case.
+const GEN_CENTRE_KEYS = ['solid', 'glass', 'open', 'cutout', 'foreCut', 'topGlass', 'topFuselage', 'removed'];
+const GEN_CENTRE_SKIN = { solid: 1, glass: 1, open: 1, cutout: 0.62, foreCut: 0.62,
+                          topGlass: 1, topFuselage: 1, removed: 0 };
+function genCentreSkin(c) { return GEN_CENTRE_SKIN[c] == null ? 1 : GEN_CENTRE_SKIN[c]; }
 // 5: `cage` — the template-cage fuselage design (see the field).
 //
 // ONE THING READS THIS NUMBER: `genMigrateSpec` below walks a spec from its
@@ -2823,6 +2831,18 @@ const GEN_DEFAULT = {
             // 'open' leaves the bay out altogether. Ignored on a low wing, which
             // has no bay over the cabin to treat.
             centre: 'solid',
+            // G274 (the user's centre-section paragraph): the section's
+            // WIDTH in metres (null = the cabin's own width at the spar
+            // station), and `centre` grew four constructions — 'cutout' is
+            // the AFT half cut back over the cockpit (G185), 'foreCut' the
+            // LEADING half cut instead (the view down past the leading
+            // edge), 'topGlass' the upper skin glazed over the wing's own
+            // lower, 'topFuselage' the upper skin left to the fuselage (a
+            // wing through the belly or the cabin: the lower skin is the
+            // wing's, the cabin closes over it), 'removed' no centre section
+            // at all — two half-wings on the carry-through, which the frame
+            // still builds and the cut draws as a longeron.
+            centreW: null,
             // G185: THE CABANE. A 'parasol' plane stands this far above the
             // cabin roof on four drawn cabane struts (null = the default
             // 0.55 m). Ignored on every other position. It is the ONE knob
@@ -3235,7 +3255,8 @@ function clampWing(w, S, k) {
   // exists nowhere. The enum is `glass`, not `skylight`, for the same reason.
   // G185: 'cutout' — the trailing edge of the centre section cut back over
   // the cockpit, the classic view from a biplane's seat
-  if (!['solid', 'glass', 'open', 'cutout'].includes(w.centre)) w.centre = 'solid';
+  if (!GEN_CENTRE_KEYS.includes(w.centre)) w.centre = 'solid';
+  w.centreW = genClampN(w.centreW, 0.2, 3.0);                    // G274
   // placement: generous bounds, because the point is to allow bad aeroplanes.
   // These stop the geometry going degenerate, nothing more.
   w.place.dx = genClamp(w.place.dx, -1.2, 1.8);

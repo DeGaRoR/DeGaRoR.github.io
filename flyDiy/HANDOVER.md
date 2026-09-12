@@ -38889,3 +38889,68 @@ rest — the cabin's own darkness already did that to it.
   untouched.
 - Gates: HOUSE (with --selftest; rules 27b, 29, 34, 35) green; MEDIA green
   but for the trees session's four orphans.
+
+## G274 — THE WING'S CENTRE SECTION: ITS WIDTH, EIGHT CONSTRUCTIONS, A
+## LONGERON IN THE CUT, AND THE PHYSICS FOLLOWS (2026-09-12, the user's
+## centre-section paragraph: "the width ... plain / glass / top-half glass /
+## top-half fuselage / removed ... keep the aft-half cut, add a fore-half
+## cut ... with a longeron modelled in the cut"; then "do the complete wing
+## center section work as specified" — TWIN-BOOM-2 §5)
+
+**The rows** (Wing panels › structure): `wgCentre` is ONE row for every
+wing position now (ruling (b): merge) with eight constructions — the four
+G185 ones keep their indices (plain, glass, open = upper only, aft half
+cut), then **fore half cut**, **top half glass**, **top half fuselage**,
+**removed**; and **`wgCentreW`**, the section's width in metres (0 = the
+cabin's own width at the spar station, ruling (c)). The second plane gets
+both (`w2Centre`, `w2CentreW`).
+
+**The spec**: `wings[k].centre` (enum `GEN_CENTRE_KEYS`, one home in
+60_gen_spec), `wings[k].centreW` (null = cabin, clamped 0.2–3 m).
+`GEN_CENTRE_SKIN` says what each construction leaves of the root bay's
+skin: the two half cuts 62 %, removed 0, the rest 1.
+
+**The frame + aero (ruling (a): physics, not drawing only)**: `zRoot` is
+`centreW / 2` when set (the root pair moves, the panels start there, the
+carry-through spans it); the root bay's `cover` mass and 62_gen_aero's
+centre strip take the skin factor — a half cut lifts on 62 % of the chord,
+`removed` drops the strip and the cover while the carry-through members
+stay (two half-wings on a bare spar pair). Measured headless: default
+strip 1.152 m² → 0.714 on a half cut → none removed; `centreW` 1.6 → zRoot
+0.80, strip 2.56 m². The plaque's `geom.S` is still the planform's (owed:
+the cut area off it).
+
+**The drawing (63_gen_wing's centre block)**: `foreCut` clips the curbed
+contour at 38 % chord (the cut face at the clip, the curb at the trailing
+edge, closed like the aft cut); `topGlass` splits the rows at the leading
+edge and lofts the upper half into the canopy, the lower into the skin;
+`topFuselage` lofts the lower half alone (the upper is the fuselage's own:
+a wing through the belly or the cabin — on a HIGH wing it simply has no
+top, which is what the name says); `removed` lofts nothing. **The
+longeron**: in the three cuts the carry-through 61_gen_frame builds is
+drawn as a member from root rib to root rib — the rear spar's in an aft
+cut, the front's in a fore cut, both when removed — a box as deep as the
+aerofoil at the spar station (85 %, inside the skin) and a third as wide,
+a round tube of that depth on a steel-tube wing; a fitting (`longeron`
+group, `edFit_longeron`) in its own AERO_SEC section **`wingLongeron`**
+(follows the struts' paint until repainted; the Wing panels part claims
+it). Verified on the user's build: all eight build (glass 98 tris both
+skins, top glass 44 the upper alone, one longeron box on a half cut, two
+when removed).
+
+**Not done / owed** (the full list of what this session discussed and did
+not do): §3 the pod's stale aft profile on a twin boom (the join should
+measure the aero aft's cone into `fuse.profile`, or write the rows EMPTY);
+§4 `place.dx` counted twice on a cage build (the frame's wing 0.3 m aft of
+the drawn one — zero it in the join when `xLE` is measured, with the
+tail-gap gauge open); §6 the fin's side stiffness on a boom (VX pair,
+2 m bays — the `tube` element), the fin root fillet on the boom, the
+boom's own bending between root and anchor (the skin follows the tail
+assembly as one body), substeps near FLEX's 130 bound on twin builds, the
+boom ~1.7× too heavy on cage builds (user decision owed); `topFuselage`
+does not yet close the CABIN over the wing (the cage's rings between the
+spar stations are not re-closed — the topology change §5 named); the
+plaque's `S` with a cut centre; the design-tab archetypes do not set
+`wgCentreW`. (A clean-worktree proof must run `node tools/build.js` first:
+the committed flight_core.js is stale by design, and GATE BUILD reads it —
+G271's note blamed another session for five reds that were only that.)

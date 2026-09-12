@@ -807,6 +807,10 @@ const AERO_SEC = {
               layer: 'hinge', wears: 'parent' },
   strut:    { parent: 'body', fin: 'trim',      label: 'the lift struts',
               layer: 'wing', wears: 'parent' },
+  // G274: the carry-through drawn in a cut or removed centre section — a
+  // spar, painted with the struts until repainted
+  wingLongeron: { parent: 'strut', fin: 'trim', label: 'the carry-through',
+              layer: 'wing', wears: 'parent' },
   // G185: the truss follows the lift struts (paint, the fuselage's colour)
   cabane:   { parent: 'strut', fin: 'trim',     label: 'the cabane struts',
               layer: 'brace', wears: 'parent' },

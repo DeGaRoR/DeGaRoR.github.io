@@ -1023,8 +1023,9 @@ function genWingInto(def, out) {
   //   open   only the UPPER surface, so the wing's own top skin is the roof and
   //          you look up into it, which is what a Cub's centre section does
   {
-    const CTR = (W.centre === 'glass' || W.centre === 'open'
-                 || W.centre === 'cutout') ? W.centre : 'solid';
+    const KEYS = (typeof GEN_CENTRE_KEYS !== 'undefined') ? GEN_CENTRE_KEYS
+      : ['solid', 'glass', 'open', 'cutout', 'foreCut', 'topGlass', 'topFuselage', 'removed'];
+    const CTR = KEYS.includes(W.centre) ? W.centre : 'solid';
     // G185: 'cutout' — the centre section's trailing edge cut back to 62 %
     // chord over the cockpit, as a CLOSED section so the aft wall is the
     // flat rib face the hinge walls already use (emitLoft's `close`)
@@ -1034,24 +1035,101 @@ function genWingInto(def, out) {
     // SLIT over the cabin roof rather than a face. The closed segment sampler
     // gives it the curb, the face and the same walk order (upper first, which
     // is what the `open` centre slices on).
-    const ctrPts = CTR === 'cutout'
-      ? genAfSeg(W.naca, 0, 0.62, GEN_AF)
-      : genAfSegCove(W.naca, 1, GEN_AF, 2, 0,
-          (GEN_EDGE ? GEN_EDGE.curb : 0.007) / Math.max(0.05, W.chord));
+    // G274: FOUR MORE WAYS (the user's centre-section paragraph). 'foreCut'
+    // is the LEADING half cut instead — the same closed contour clipped at
+    // 38 % chord, the cut face at the clip and the curb at the trailing
+    // edge; 'topGlass' lofts the upper surface into the canopy and the
+    // lower into the skin; 'topFuselage' lofts the lower alone (the upper
+    // is the fuselage's own — a wing through the belly or the cabin);
+    // 'removed' lofts nothing. The three cuts draw the carry-through as a
+    // LONGERON (below).
+    const curbC = (GEN_EDGE ? GEN_EDGE.curb : 0.007) / Math.max(0.05, W.chord);
+    const CUT_AFT = 0.62, CUT_FORE = 0.38;
+    let ctrPts;
+    if (CTR === 'cutout') ctrPts = genAfSeg(W.naca, 0, CUT_AFT, GEN_AF);
+    else if (CTR === 'foreCut') {
+      // the full curbed contour (TE -> upper -> LE -> lower -> TE face),
+      // clipped: keep x >= the cut, the two cut points at the junction
+      const E = genAfEval(W.naca);
+      const full = genAfSegCove(W.naca, 1, GEN_AF, 2, 0, curbC);
+      ctrPts = [];
+      let inside = true;
+      for (const p of full) {
+        const keep = p[0] >= CUT_FORE - 1e-9;
+        if (inside && !keep) { ctrPts.push(E.up(CUT_FORE)); inside = false; }
+        else if (!inside && keep) { ctrPts.push(E.lo(CUT_FORE)); inside = true; }
+        if (keep) ctrPts.push(p);
+      }
+    } else ctrPts = genAfSegCove(W.naca, 1, GEN_AF, 2, 0, curbC);
     let rows = [
       wingSectionAt(N[PP.wf.L.F[0]].p, N[PP.wf.L.R[0]].p, [[PP.wf.L.F[0], 1]], [[PP.wf.L.R[0], 1]], W.chord, ctrPts),
       wingSectionAt(N[PP.wf.R.F[0]].p, N[PP.wf.R.R[0]].p, [[PP.wf.R.F[0], 1]], [[PP.wf.R.R[0], 1]], W.chord, ctrPts),
     ];
-    const cutPts = CTR === 'cutout' ? ctrPts : null;
     // the carry-through IS the root: both rows sit at span fraction 0. Row
     // index put the tip band on one side of it and the wing walk on the other.
     // the aerofoil contour runs TE -> upper -> LE -> lower -> TE, so its first
     // half IS the upper surface and the cut needs no new sampling
     if (CTR === 'open') rows = rows.map(r => r.slice(0, Math.ceil(r.length / 2)));
-    // closed BOTH ways now: a cut centre closes on its rib face, an uncut one
-    // on its trailing-edge curb
-    emitLoft(rows, CTR === 'glass' ? canopy : skin, () => 0.02, false,
-             CTR !== 'open');
+    if (CTR === 'topGlass' || CTR === 'topFuselage') {
+      // split at the LEADING EDGE (the contour's lowest chord fraction), the
+      // LE point on both halves, neither closed — the halves meet there and
+      // the ends stand at the root ribs
+      let iLE = 0;
+      for (let i = 1; i < ctrPts.length; i++) if (ctrPts[i][0] < ctrPts[iLE][0]) iLE = i;
+      const upper = rows.map(r => r.slice(0, iLE + 1));
+      const lower = rows.map(r => r.slice(iLE));
+      if (CTR === 'topGlass') emitLoft(upper, canopy, () => 0.02, false, false);
+      emitLoft(lower, skin, () => 0.02, false, false);
+    } else if (CTR !== 'removed') {
+      // closed BOTH ways now: a cut centre closes on its rib face, an uncut one
+      // on its trailing-edge curb
+      emitLoft(rows, CTR === 'glass' ? canopy : skin, () => 0.02, false,
+               CTR !== 'open');
+    }
+    // THE LONGERON IN THE CUT (G274, the user: "with a longeron modelled in
+    // the cut"): the carry-through 61_gen_frame already builds — the root
+    // spar pair tied across the cabin — drawn as a member from one root rib
+    // to the other, so what is drawn is the load path the physics flies. The
+    // rear spar's in an aft cut, the front spar's in a fore cut, both when
+    // the section is removed. Its section is THE SPAR'S: a box as deep as
+    // the aerofoil at the spar's chord station (85 % of it, inside the
+    // skin) and a third as wide, in the section's own frame; a round tube
+    // of that depth when the wing is built of steel tube.
+    if (out.longeron && (CTR === 'cutout' || CTR === 'foreCut' || CTR === 'removed')) {
+      const E = genAfEval(W.naca);
+      const tube = W.material === 'steel';
+      const which = CTR === 'cutout' ? ['R'] : CTR === 'foreCut' ? ['F'] : ['F', 'R'];
+      for (const sp of which) {
+        const a = N[PP.wf.L[sp][0]].p, c = N[PP.wf.R[sp][0]].p;
+        const xc = sp === 'F' ? sparF : sparR;
+        const depth = 0.85 * (E.up(xc)[1] - E.lo(xc)[1]) * W.chord;
+        const half = 0.5 * Math.max(0.03, depth);
+        // the section frame: chord (LE -> TE) and its normal, up
+        const pF0 = N[PP.wf.R.F[0]].p, pR0 = N[PP.wf.R.R[0]].p;
+        const ch = genV3.norm(genV3.sub(pR0, pF0));
+        let nr = genV3.norm(genV3.cross(ch, [0, 0, 1]));
+        if (nr[1] < 0) nr = genV3.mul(nr, -1);
+        const SEG = tube ? 12 : 4;
+        const off = h => {
+          if (tube) { const t = 2 * Math.PI * h / SEG;
+            return genV3.add(genV3.mul(ch, half * Math.cos(t)), genV3.mul(nr, half * Math.sin(t))); }
+          const sx = [1, 1, -1, -1][h], sy = [1, -1, -1, 1][h];
+          return genV3.add(genV3.mul(ch, sx * half / 3), genV3.mul(nr, sy * half));
+        };
+        const M = out.longeron;
+        const ring = [];
+        for (const [base, nd] of [[a, PP.wf.L[sp][0]], [c, PP.wf.R[sp][0]]]) {
+          const row = [];
+          for (let h = 0; h < SEG; h++)
+            row.push(M.v(B(genV3.add(base, off(h))), h / SEG, base === a ? 0 : 1, [[nd, 1]]));
+          ring.push(row);
+        }
+        for (let h = 0; h < SEG; h++) {
+          const h2 = (h + 1) % SEG;
+          M.quad(ring[0][h], ring[1][h], ring[1][h2], ring[0][h2]);
+        }
+      }
+    }
   }
 
   return { aStart, fEnd, FLAP_ON, FLAP_HINGE, AIL_HINGE, sparF };
@@ -1079,9 +1157,9 @@ function genWing(def) {
   const B = FR.to;
   const skin = genMesh(), canopy = genMesh(), pitot = genMesh(),
         liftstrut = genMesh(), cabane = genMesh(), interplane = genMesh(),
-        wire = genMesh();
+        wire = genMesh(), longeron = genMesh();               // G274
   const CTRL_MESH = [];
-  genWingInto(def, { B, skin, pitot, canopy, ctrl: CTRL_MESH, plane: 0 });
+  genWingInto(def, { B, skin, pitot, canopy, ctrl: CTRL_MESH, plane: 0, longeron });
   // G185: THE SECOND PLANE, into its own meshes — plane 0's groups are the
   // groups they always were, so a monoplane's payload is byte-identical
   const skin2 = genMesh(), canopy2 = genMesh();
@@ -1105,6 +1183,7 @@ function genWing(def) {
   put('skin', skin); put('canopy', canopy);
   put('pitot', pitot); put('liftstrut', liftstrut);
   put('cabane', cabane); put('interplane', interplane); put('wire', wire);
+  put('longeron', longeron);                                  // G274
   put('skin2', skin2); put('canopy2', canopy2);
   const moving = [];
   for (const c of CTRL_MESH) {

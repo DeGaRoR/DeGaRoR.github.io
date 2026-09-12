@@ -178,9 +178,13 @@ function genStrips(S, fr) {
   // centre section's lift stays behind when the wing is moved.
   const cL = PL.wf.L, cR2 = PL.wf.R;
   const cWash = mount === 'nose' ? 1 : (mount === 'wingTop' && !pushes) ? 0.6 : 0;
-  strips.push({
-    kind: 'wing', side: 1, t: 0.5, chord: wk.chord,
-    area: 2 * PL.zRoot * wk.chord,
+  // G274: the strip is what the centre construction leaves of the bay's
+  // skin — a half cut lifts on 62 % of the chord, 'removed' on none (the
+  // strip is dropped: two half-wings on a bare carry-through)
+  const ctrK = typeof genCentreSkin === 'function' ? genCentreSkin(wk.centre) : 1;
+  if (ctrK > 0) strips.push({
+    kind: 'wing', side: 1, t: 0.5, chord: wk.chord * ctrK,
+    area: 2 * PL.zRoot * wk.chord * ctrK,
     fIn: cL.F[0], fOut: cR2.F[0], rIn: cL.R[0], rOut: cR2.R[0],
     w: [[cL.F[0], cf * 0.5], [cR2.F[0], cf * 0.5],
         [cL.R[0], cr * 0.5], [cR2.R[0], cr * 0.5]],

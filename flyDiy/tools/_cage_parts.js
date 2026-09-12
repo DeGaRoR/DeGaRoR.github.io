@@ -489,7 +489,7 @@ const CAGE_PARTS = [
              at: 'on the cabin carry-through' },
     // LAYER sections (AEROSKIN's AERO_SEC), not cage mesh names: the wing's
     // own livery rows, following the fuselage until overridden
-    sections: ['wingSkin', 'wingTip'],
+    sections: ['wingSkin', 'wingTip', 'wingLongeron'],
     groups: [
       ['planform', ['wgSpan', 'wgChord', 'wgChordTip', 'wgTip',
                     'wgCrankAt', 'wgCrankChord', 'wgCrankX', 'wgTipX']],
@@ -497,7 +497,7 @@ const CAGE_PARTS = [
       ['rigging', ['wgDihedral', 'wgDihedralOut', 'wgIncidence',
                    'wgWashout']],
       ['aerofoil', ['wgCamber', 'wgThick']],
-      ['structure', ['wgCentre', 'wgPanels', 'wgCons']],
+      ['structure', ['wgCentre', 'wgCentreW', 'wgPanels', 'wgCons']],
       ['placement', ['wgDx', 'wgDy', 'wgParaH']],
     ] },
 
@@ -552,7 +552,7 @@ const CAGE_PARTS = [
                     'w2CrankAt', 'w2CrankChord', 'w2CrankX', 'w2TipX']],
       ['rigging', ['w2Dihedral', 'w2DihedralOut', 'w2Incidence', 'w2Washout']],
       ['aerofoil', ['w2Camber', 'w2Thick']],
-      ['structure', ['w2Centre', 'w2Panels', 'w2Cons']],
+      ['structure', ['w2Centre', 'w2CentreW', 'w2Panels', 'w2Cons']],
       ['placement', ['w2Pos', 'w2Stagger', 'w2Dy', 'w2ParaH']],
     ] },
 

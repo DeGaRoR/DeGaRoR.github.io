@@ -69,7 +69,7 @@ PAGE.defaults = Object.assign({
   wgDihedral: 3.0, wgIncidence: 1.5, wgWashout: 1.5,
   wgCamber: 2, wgThick: 12,
   wgTip: Math.max(0, TIP_KEYS.indexOf('rounded')), wgPos: 0,
-  wgCentre: 0, wgBrace: 0, wgCrankAt: 0, wgDihedralOut: 6,
+  wgCentre: 0, wgCentreW: 0, wgBrace: 0, wgCrankAt: 0, wgDihedralOut: 6,
   wgPanels: 3, wgDx: 0, wgDy: 0,
   // G185: a PARASOL wing's cabane height above the deck (wgPos 3)
   wgParaH: 0.45,
@@ -131,8 +131,19 @@ const WING_ITEMS = [
   ['wgCamber', 'camber',         0, 6, 1, on],
   ['wgThick',  'thickness',      9, 18, 1, on],
   // G185: 'cutout' — the trailing edge cut back over the cockpit
-  ['wgCentre', 'centre section', 0, 3, 1, ['solid', 'glass', 'open', 'cutout'],
-   { when: P => +P.wingOn && [0, 3].includes(Math.round(P.wgPos)) }],
+  // G274 (the user's centre-section paragraph): ONE row for every wing
+  // position (the ruling: merge), eight constructions — the four G185 ones
+  // keep their indices, then the fore-half cut, the upper skin glazed, the
+  // upper skin left to the fuselage (a low or mid wing through the body),
+  // and the section removed (two half-wings on a bare carry-through, drawn
+  // as a longeron and flown as such); and the section's WIDTH, metres,
+  // 0 = the cabin's own width at the spar station
+  ['wgCentre', 'centre section', 0, 7, 1,
+   ['plain', 'glass', 'open (upper only)', 'aft half cut', 'fore half cut',
+    'top half glass', 'top half fuselage', 'removed'],
+   { when: P => +P.wingOn }],
+  ['wgCentreW', 'centre section width (0 = cabin)', 0, 3.0, 0.05,
+   { ...on, dim: 'm' }],
   ['wgPanels', 'spar stations',  2, 5, 1, on],
   // THE WING'S OWN CONSTRUCTION (G110): 0 follows the aeroplane's `intCons`,
   // 1..4 pin what THIS surface is built from — the structure grammar and the
@@ -506,7 +517,8 @@ PAGE.post = ctx => {
       crankChord: P.w2CrankAt > 0 ? +P.w2CrankChord : null,
       crankX: P.w2CrankAt > 0 ? (+P.w2CrankX || 0) : null,
       dihedralOut: P.w2CrankAt > 0 ? P.w2DihedralOut : null,
-      centre: ['solid', 'glass', 'open', 'cutout'][Math.round(P.w2Centre)] || 'solid',
+      centre: ['solid', 'glass', 'open', 'cutout', 'foreCut', 'topGlass', 'topFuselage', 'removed'][Math.round(P.w2Centre)] || 'solid',
+      centreW: +P.w2CentreW > 0 ? +P.w2CentreW : null,              // G274
       controls: {
         flap: { type: FLAP_KEYS[Math.round(P.w2FlapType)] || 'none',
                 span: P.w2FlapSpan, chord: P.w2FlapChord },
@@ -536,7 +548,8 @@ PAGE.post = ctx => {
       crankChord: P.wgCrankAt > 0 ? +P.wgCrankChord : null,
       crankX: P.wgCrankAt > 0 ? (+P.wgCrankX || 0) : null,
       dihedralOut: P.wgCrankAt > 0 ? P.wgDihedralOut : null,
-      centre: ['solid', 'glass', 'open', 'cutout'][Math.round(P.wgCentre)] || 'solid',
+      centre: ['solid', 'glass', 'open', 'cutout', 'foreCut', 'topGlass', 'topFuselage', 'removed'][Math.round(P.wgCentre)] || 'solid',
+      centreW: +P.wgCentreW > 0 ? +P.wgCentreW : null,              // G274
       // G189: the lamp bay's two edges as loft stations, so the cut is the
       // width asked for (the same declaration the bay below resolves)
       cuts: wingCutsOf(P),
@@ -1397,6 +1410,21 @@ PAGE.post = ctx => {
   }
   if (stat && strutNote) stat.textContent += '  ·  ' + strutNote;
   const yes = () => true;
+  // G274: THE LONGERON IN THE CUT — the carry-through 61_gen_frame builds,
+  // drawn by the loft when the centre section is cut or removed; a fitting
+  // (no field), its own livery section following the struts' paint
+  if (gs.longeron) {
+    const parts = pickParts(gs.longeron, yes, toCage, null);
+    if (parts.x) {
+      const o2 = WIRE
+        ? new THREE.LineSegments(parts.x.wire, wireMat('liftstrut'))
+        : new THREE.Mesh(parts.x.geo,
+            (window.CAGE_SECMAT && window.CAGE_SECMAT('wingLongeron',
+              { surf: 0, fieldM: 1, tint0: COLS.liftstrut })) || MAT.liftstrut);
+      o2.name = 'edFit_longeron';
+      group.add(o2);
+    }
+  }
   for (const nm of (strutOn ? ['pitot'] : ['liftstrut', 'pitot']))
     if (gs[nm]) {
       // the strut and the pitot are FITTINGS, not skin: no ribs, no spars,

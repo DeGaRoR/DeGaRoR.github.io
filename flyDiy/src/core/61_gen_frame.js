@@ -500,7 +500,9 @@ function genLattice(S, gearX, track, kScale) {
   // its roots splay outboard of the cabin side (see GEN_RULES.cabaneSplay)
   const cabH = w.position === 'parasol' ? (w.cabaneH == null ? 0.55 : w.cabaneH) : 0;
   const cabane = cabH > R.cabaneMin;
-  const zRoot = cab.halfW + (cabane ? R.cabaneSplay : 0);
+  // G274: the centre section's own width when the builder set one (the
+  // root pair moves with it; the panels start there), else the cabin's
+  const zRoot = (w.centreW > 0 ? 0.5 * w.centreW : cab.halfW) + (cabane ? R.cabaneSplay : 0);
   // CRANK: a second wing section. The break gets its own spar station, because
   // it is a real joint — the outer panel bolts to the centre section there —
   // and because the dihedral changes across it, so a node has to exist at the
@@ -893,7 +895,11 @@ function genLattice(S, gearX, track, kScale) {
     B(wf.L.FB[0], wf.R.RB[0], 'wing'); B(wf.R.FB[0], wf.L.RB[0], 'wing');
     B(wf.L.FB[0], wf.R.F[0], 'wing'); B(wf.R.FB[0], wf.L.F[0], 'wing');
   }
-  cover(1.9 * 2 * zRoot * w.chord, [wf.L.F[0], wf.R.F[0], wf.L.R[0], wf.R.R[0]]);
+  // G274: the root bay's covering is what the centre construction leaves
+  // of it (a half cut 62 %, 'removed' none — the user's ruling: physics,
+  // not drawing only); the carry-through members above stay
+  const ctrK = typeof genCentreSkin === 'function' ? genCentreSkin(w.centre) : 1;
+  if (ctrK > 0) cover(1.9 * 2 * zRoot * w.chord * ctrK, [wf.L.F[0], wf.R.F[0], wf.L.R[0], wf.R.R[0]]);
   curPlane = 0;
   return { k, w, wf, zs, zRoot, zCrank, xF, xR, xFat, xRat, sparSpacing, chordAt,
            yF, incAt, ribZ, linC, useStrut, strutOffset, iStrut: iStrutK,
