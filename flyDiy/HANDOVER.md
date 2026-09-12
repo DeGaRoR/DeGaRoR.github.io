@@ -38511,3 +38511,14 @@ click. A switch is still thrown by the click.
 
 GATE PANEL, PARTS, SKINMAT, JOIN, UISMOKE green on the commit's worktree;
 LIGHT / MEDIA red at HEAD for the trees session's reasons.
+
+## G266.1 — THE SCREWS: IN A TENTH, A FIFTH BIGGER, AND THEY SHADE THE DASH
+## (2026-09-12, the user)
+
+The four heads round each instrument sit on a 0.98 r square now (1.09 r
+before), 5.6 mm across (4.6), and each casts a shadow: a soft radial disc
+under the head — a 64 px canvas gradient on ONE transparent material
+(`aoMaterial`, `panelSet: 'ao'`, no depth write, a hair above the plate) that
+the join buckets like the faces and the flight rebuilds through
+`CAGE_PANEL.material('ao')`. Faked, as asked, and reads as contact shadow
+from the seat. GATE PANEL green.

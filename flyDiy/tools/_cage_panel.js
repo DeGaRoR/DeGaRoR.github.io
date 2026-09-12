@@ -414,6 +414,32 @@ function facesMaterial() {
   facesMat.userData.inside = 1;
   return facesMat;
 }
+// THE SCREWS' SHADOW (session 4f, the user: "have them cast some AO onto
+// the dash, even if you need to fake it with a plane and some
+// transparency"): one soft dark disc under each head — a radial gradient on
+// a small canvas, transparent, no depth write, a hair above the plate. ONE
+// material, bucketed by the join like the faces (`panelSet: 'ao'`), so the
+// flight rebuilds it through `material('ao')`.
+let aoMat = null;
+function aoMaterial() {
+  if (aoMat) return aoMat;
+  const cv = HAS_DOM ? document.createElement('canvas') : null;
+  let tex = null;
+  if (cv) {
+    cv.width = cv.height = 64;
+    const g = cv.getContext('2d');
+    const gr = g.createRadialGradient(32, 32, 4, 32, 32, 30);
+    gr.addColorStop(0, 'rgba(0,0,0,0.55)'); gr.addColorStop(0.45, 'rgba(0,0,0,0.30)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+    tex = new THREE.CanvasTexture(cv);
+  }
+  aoMat = new THREE.MeshBasicMaterial({ map: tex, color: 0x000000, transparent: true, opacity: 1,
+    depthWrite: false, side: THREE.FrontSide, toneMapped: false });
+  aoMat.userData.aeroskin = 1;
+  aoMat.userData.panelSet = 'ao';
+  aoMat.userData.inside = 1;
+  return aoMat;
+}
 // the backlight: the instrument dimmer, through the light master
 function faceDim(P) {
   if (!P || !+P.lightOn) return 0;
@@ -499,17 +525,23 @@ function bezelAt(bag, cx, cy, z, r, skirt) {
 // on a 3.44" square, a 2-1/4"'s on 2.44" — 1.09 r either way — and the
 // pan heads sit on the plate at those corners. Each head: a domed revolve
 // 4.6 mm across with a cross slot, plated steel.
-function screwsAt(bag, slot, cx, cy, z, r) {
-  const K = KIT(), d = r * 1.09, R0 = 0.0023;
+function screwsAt(bag, slot, ao, cx, cy, z, r) {
+  // (4f: a tenth further in and a fifth bigger, with a shadow disc each)
+  const K = KIT(), d = r * 0.98, R0 = 0.0028;
   for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
     const x = cx + sx * d, y = cy + sy * d;
+    if (ao) {
+      const ra = R0 * 2.4, q = [[x - ra, y - ra], [x + ra, y - ra], [x + ra, y + ra], [x - ra, y + ra]];
+      const ids = q.map(([qx, qy], i) => ao.v([qx, qy, z - 0.0003], [[0, 0], [1, 0], [1, 1], [0, 1]][i]));
+      ao.quad(ids[0], ids[3], ids[2], ids[1]);          // wound to face the pilot (−z)
+    }
     K.revolve(bag, [x, y, z], [0, 0, -1],
-      [[R0, -0.0002], [R0, 0.0006], [R0 * 0.92, 0.0012], [R0 * 0.72, 0.0017], [R0 * 0.42, 0.0020], [0, 0.0021]], 24, false);
+      [[R0, -0.0002], [R0, 0.0007], [R0 * 0.92, 0.0014], [R0 * 0.72, 0.0020], [R0 * 0.42, 0.0024], [0, 0.0025]], 28, false);
     // the cross slot, dark, turned a little each so the four do not line up
     const a = 0.35 + (sx + 2 * sy) * 0.4;
     for (const t of [a, a + Math.PI / 2]) {
       const c = Math.cos(t), sn = Math.sin(t);
-      K.boxIn(slot, [x, y, z - 0.0019], [R0 * 0.78, 0.00035, 0.0004], [c, sn, 0], [-sn, c, 0], [0, 0, 1]);
+      K.boxIn(slot, [x, y, z - 0.0023], [R0 * 0.78, 0.0004, 0.0005], [c, sn, 0], [-sn, c, 0], [0, 0, 1]);
     }
   }
 }
@@ -1011,7 +1043,7 @@ function build(parent, A, P, pilotX) {
     const zF = 0;
     const bez = K.Bag(), hub = K.Bag(), sym = K.Bag(), plate = K.Bag(), can = K.Bag();
     const screw = K.Bag(), slotB = K.Bag();
-    const faceBag = UVBag(fm);
+    const faceBag = UVBag(fm), aoBag = UVBag(aoMaterial());
     if (d.coaming) {
       // THE COMPASS: a bowl standing on the coaming, the card turning inside
       // it, read through the aft window. The bowl is a revolve about +y. It
@@ -1087,7 +1119,7 @@ function build(parent, A, P, pilotX) {
     // would otherwise let a corner of the patch through)
     K.revolve(plate, [cx, cy, zF], [0, 0, 1],
       [[r * 0.95, -0.0010], [r * 1.04, -0.0010], [r * 1.04, 0.0015], [r * 0.95, 0.0015]], 48, false);
-    screwsAt(screw, slotB, cx, cy, zF, r);
+    screwsAt(screw, slotB, aoBag, cx, cy, zF, r);
     // the can behind: the AI's holds its drum, the rest a hand's depth
     canAt(can, cx, cy, zF, isAI ? AI_DRUM_K * r + 0.004 : r * 0.92,
           isAI ? 2 * AI_DRUM_K * r + 0.012 : (r > 0.035 ? 0.055 : 0.042), isAI ? 0.001 : null);
@@ -1097,6 +1129,7 @@ function build(parent, A, P, pilotX) {
       can.mesh(dg, matFor('hub')); plate.mesh(dg, matFor('plate'));
       screw.mesh(dg, matFor('screw')); slotB.mesh(dg, matFor('hub'));
       faceBag.mesh(dg, 'edGauge_faces');
+      { const m = aoBag.mesh(dg, 'edGauge_ao'); if (m) m.renderOrder = 2; }
     };
     if (d.k === 'dg') {
       // the fixed face behind, the rose card in front turning about +z, the
@@ -1213,7 +1246,7 @@ window.CAGE_PANEL = {
   // ran; the join reads `moving`; the game rebuilds the faces through
   // `material('faces')`
   build, get moving() { return MOVING; }, MAT,
-  material: k => (k === 'faces' ? facesMaterial() : matFor(k)),
+  material: k => (k === 'faces' ? facesMaterial() : k === 'ao' ? aoMaterial() : matFor(k)),
   atlas: () => atlasCv, last: () => LAST, faceDim,
   switches: true,                // the light layer leaves the switch row to us
 };
