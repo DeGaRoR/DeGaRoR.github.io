@@ -30,6 +30,7 @@ if (!FIN) { console.error('cage fin layer: _fin_gen.js not loaded'); return; }
 // flat - so how round their edges are is one property of the tail, not two
 // that can disagree. _cage_stab.js reads this same key.
 const finDef = Object.assign({ finOn: 1, finProject: 1, finCut: 0,
+  finVentralOn: 1, finVentralH: 0.4, finVentralC: 0.6,
   finCutGap: 0.012,
   finSolid: 1, finThick: 0.06, finThickTE: 0.015, tailRimN: 4,
   finCons: 0 }, FIN.FIN_PARAMS);
@@ -50,6 +51,19 @@ const GROUP = ['8 · tail — fin (2D)', [
    { when: P => +P.finOn && !+P.boomStyle }],
   ['finProject', 'root',              0, 1, 1, ['free', 'on the skin'],
    { when: P => +P.finOn }],
+  // G267: THE VENTRAL (the user: "the fins should automatically get a
+  // little fin at the bottom of their respective booms, take reference" —
+  // the 337's and the P-38's fins run under the boom as well as over it).
+  // The fraction of the fin's height that hangs under the boom, 0 = none.
+  // G267.1 (the user: "the bottom fins should be optional, and their length
+  // and height controllable"): a switch, a height and a root chord (cage
+  // units, like every fin row)
+  ['finVentralOn', 'ventral fin', 0, 1, 1, ['off', 'on'],
+   { when: P => +P.finOn && +P.boomTwin }],
+  ['finVentralH', 'ventral height', 0.05, 1.2, 0.01,
+   { when: P => +P.finOn && +P.boomTwin && +P.finVentralOn }],
+  ['finVentralC', 'ventral chord', 0.1, 2.0, 0.01,
+   { when: P => +P.finOn && +P.boomTwin && +P.finVentralOn }],
   // THE FIN'S OWN CONSTRUCTION (G110): 0 follows the aeroplane's `intCons`,
   // 1..4 pin what the tail is built from — grammar, the livery's auto-finish
   // bottom-out, and the STRUCTURE itself (`tail.finMaterial` through the
@@ -563,6 +577,7 @@ PAGE.post = ctx => {
                                                              : 'finSkin');
     if (part === 'rudder' && ex) obj.position.z = -ex;   // explode aft
     if (part === 'rudder') obj.name = 'edSurf_rud';       // G59
+    else obj.name = 'edFinSkin';                          // G267.2: a part on twin booms
     group.add(obj);
   }
   // THE CONTROL CAGE FOLLOWS THE EXPERT SWITCH (TAIL CHANTIER 2 P2): the
@@ -571,6 +586,51 @@ PAGE.post = ctx => {
   const EXP = window.CAGE_UI && window.CAGE_UI.EXPERT && window.CAGE_UI.EXPERT.on;
   if (L > 0 && (($('cage') && $('cage').checked) || EXP))
     group.add(finWire(m0, 0x7fe0a8));
+  // THE VENTRAL (G267, the user: "the fins should automatically get a little
+  // fin at the bottom of their respective booms, take reference" — then
+  // "the small fins at the bottom should be positioned full aft"): a small
+  // swept plate under each boom's tail, its trailing edge on the tail's own
+  // aft-most point, its root on the tube's belly, `finVentral` of the fin's
+  // height tall, chord 1.5 x its height at the root and half at the tip,
+  // the fin's own thickness and material. A first cut mirrored the whole
+  // fin skin under the boom — that dragged the dorsal fillet with it (a 2 m
+  // ventral) and sat a metre forward of the tail. Drawn, not measured: the
+  // fin layer's measure is the sheet above the boom, and the physics fin is
+  // that sheet (TWIN-BOOM-2 §1.4 says what is owed).
+  const vOn = !!(TB && +P.finVentralOn);
+  if (vOn && !wire) {
+    const finOnly = cutMode ? { V: disp.V, F: disp.F.filter(f => f.part === 'fin') } : disp;
+    let zAftAll = Infinity;
+    for (const v of disp.V) if (v[2] < zAftAll) zAftAll = v[2];
+    if (isFinite(zAftAll)) {
+      const h = Math.max(0.05, +P.finVentralH || 0.4), cR = Math.max(0.1, +P.finVentralC || 0.6), cT = 0.35 * cR;
+      const t = 0.7 * (+P.finThick || 0.06);
+      const yb = deck.bot(zAftAll + 0.5 * cR);          // the belly at mid-root
+      // the plate: root aft / fore, tip aft / fore — trailing edge vertical
+      // on the tail's aft end, the leading edge swept back to the tip
+      const P4 = [[yb, zAftAll], [yb, zAftAll + cR], [yb - h, zAftAll], [yb - h, zAftAll + cT]];
+      const V = [];
+      for (const s of [1, -1]) for (const [y, z] of P4) V.push([s * 0.5 * t, y, z]);
+      // + side 0..3 (A B C D), − side 4..7
+      const quads = [[0, 1, 3, 2], [4, 5, 7, 6], [1, 5, 7, 3], [0, 4, 6, 2], [2, 3, 7, 6], [0, 1, 5, 4]];
+      const c = [0, 0, 0];
+      for (const v of V) { c[0] += v[0] / 8; c[1] += v[1] / 8; c[2] += v[2] / 8; }
+      const mKey = (finOnly.F[0] && finOnly.F[0].m) || 'finSkin';
+      const F = quads.map(q => {
+        // outward winding: the face normal points away from the box's centre
+        const a = V[q[0]], b = V[q[1]], d = V[q[2]];
+        const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], w = [d[0] - a[0], d[1] - a[1], d[2] - a[2]];
+        const n = [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]];
+        const fc = [0, 0, 0];
+        for (const i of q) { fc[0] += V[i][0] / 4; fc[1] += V[i][1] / 4; fc[2] += V[i][2] / 4; }
+        const out = n[0] * (fc[0] - c[0]) + n[1] * (fc[1] - c[1]) + n[2] * (fc[2] - c[2]);
+        return { v: out >= 0 ? q : q.slice().reverse(), m: mKey, part: 'fin' };
+      });
+      const vObj = finMesh({ V, F }, bySec, 'finSkin');
+      vObj.name = 'edFinVentral';
+      group.add(vObj);
+    }
+  }
   group.scale.setScalar(FS);
   if (TB) {
     // one fin a boom: the second is the first's clone at −boomX, its rudder
@@ -578,7 +638,11 @@ PAGE.post = ctx => {
     group.position.x = TB.x;
     group2 = group.clone();
     group2.position.x = -TB.x;
-    group2.traverse(o => { if (o.name === 'edSurf_rud') o.name = 'edSurf_rud2'; });
+    group2.traverse(o => {
+      if (o.name === 'edSurf_rud') o.name = 'edSurf_rud2';
+      else if (o.name === 'edFinSkin') o.name = 'edFinSkin2';         // G267.2
+      else if (o.name === 'edFinVentral') o.name = 'edFinVentral2';
+    });
     scene.add(group2);
   }
   scene.add(group);

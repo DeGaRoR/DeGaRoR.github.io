@@ -309,7 +309,7 @@ const MANIFEST = {
     '_hinge_gen.js',
     '_eng_gen.js', '_eng_mesh.js', '_eng_page.js',
     '_cowl_gen.js', '_cowl_rows.js', '_cage_cowl.js', '_cage_eng.js',
-    '_strut_gen.js', '_cage_wing.js',
+    '_strut_gen.js', '_boom_gen.js', '_cage_wing.js',
     // THE BRACE LAYER (G185): the cabane, interplane struts and wires — reads
     // the wing layer's def and ray, so after the wing; changes nothing the
     // gear reads, so before it.

@@ -32,7 +32,7 @@
 // trading a fact for a preference, and the whole point of the chantier is to
 // produce the numbers that decide what the targets should be.
 const { buildGen, makeSim, makeAutopilot, makeWorld,
-        GEN_MATERIALS, GEN_DEFAULT } = require('./flight_core.js');
+        GEN_MATERIALS, GEN_DEFAULT, GEN_RULES, genNormaliseSpec } = require('./flight_core.js');
 
 const world = makeWorld();
 const say = s => console.log(s);
@@ -611,6 +611,120 @@ const TORS_FLOOR = 0.05;   // deg at 200 N.m
       wires >= 8 && Number.isFinite(bd1) && bd1 >= 3 * bd0 && bd0 <= BEND_MAX;
     say(`  negative: ${wires} wires cut -> bend ${bd1.toFixed(2)}% (was ${bd0.toFixed(2)}%, must be 3x or more)`);
   }
+}
+
+// ---------------------------------------------------------------------------
+// THE TAIL ARM (G266). The instrument that found the twin boom: everything
+// that is not tail is clamped where it stands (the trestles of GATE LOAD),
+// the tail is let settle under its own weight, then the stab's tip nodes are
+// pushed with the stab's 1 g share of the aeroplane's weight (W·Sh/Sw, the
+// load rig's own stab case) and, separately, with that half up one side and
+// down the other. Three numbers: the SAG under its own weight, the RISE as a
+// percentage of the arm, the ROLL of the stab under the antisymmetric pair.
+// The user's twin-boom build read 761 mm / 37 % / 36 deg before G266 — "it
+// bends and falls like butter" — against 1 mm / 0.7 % / 1 deg for the stock
+// conventional tail and 4 mm / 1.5 % / 2.3 deg for a rod boom. Bounds are
+// set at the rod's class with room: a twin boom must read under 40 mm,
+// 2.5 % and 4 deg, and the tube factor must be LIVE (the same build at
+// GEN_RULES.twinBoomK 1 reads at least three times softer — the negative
+// control), and the price of the factor is bounded too (the substep count).
+// ---------------------------------------------------------------------------
+function statTail(def) {
+  const sim = makeSim(def, null);
+  sim.reset(0);
+  const P = def.parts, S = def.spec;
+  if (P.HTL == null || P.HTR == null) return null;
+  const free = new Set();
+  def.nodes.forEach((n, i) => { if (/^(BM|HT|HF|HR|HB|FIN|VF|VR|VX|TP|F$)/.test(n.tag)) free.add(i); });
+  const pin = [];
+  const reset = () => {
+    pin.length = 0;
+    for (let i = 0; i < sim.n; i++) {
+      sim.p[i*3] = def.nodes[i].p[0]; sim.p[i*3+1] = def.nodes[i].p[1] + 200; sim.p[i*3+2] = def.nodes[i].p[2];
+      sim.v[i*3] = sim.v[i*3+1] = sim.v[i*3+2] = 0;
+    }
+    def.nodes.forEach((n, i) => { if (!free.has(i)) pin.push([i, sim.p[i*3], sim.p[i*3+1], sim.p[i*3+2]]); });
+  };
+  const clamp = () => { for (const p of pin) { const i = p[0]*3; sim.p[i] = p[1]; sim.p[i+1] = p[2]; sim.p[i+2] = p[3]; sim.v[i] = sim.v[i+1] = sim.v[i+2] = 0; } };
+  const SUB = def.params.substeps || 24;
+  let W = 0; for (const n of def.nodes) W += n.m; W *= 9.81;
+  const F = W * S.tail.Sh / S.geom.Sw;
+  const HTL = P.HTL, HTR = P.HTR;
+  const lo = [P.HTBL, P.HTBR];                       // the twin boom's bottom nodes share the load
+  const run = (fL, fR, secs) => {
+    for (let t = 0; t < secs; t += 1 / 60) {
+      const dt = 1 / 60;
+      for (let k = 0; k < SUB; k++) {
+        sim.impulse(HTL, 0, fL * dt / SUB, 0); sim.impulse(HTR, 0, fR * dt / SUB, 0);
+        if (lo[0] != null) { sim.impulse(lo[0], 0, fL * dt / SUB, 0); sim.impulse(lo[1], 0, fR * dt / SUB, 0); }
+        sim.step(dt / SUB, 1); clamp();
+      }
+      for (let i = 0; i < sim.n; i++) { sim.v[i*3] *= 0.9; sim.v[i*3+1] *= 0.9; sim.v[i*3+2] *= 0.9; }
+    }
+  };
+  const share = lo[0] != null ? F / 4 : F / 2;
+  const y = i => sim.p[i*3+1];
+  reset(); run(0, 0, 3);
+  const sag = -(y(HTL) - 200 - def.nodes[HTL].p[1]);
+  const y0 = y(HTL); run(share, share, 4);
+  const rise = y(HTL) - y0;
+  reset(); run(0, 0, 3);
+  const a0 = y(HTL), b0 = y(HTR); run(share, -share, 4);
+  const span = Math.abs(def.nodes[HTL].p[2] - def.nodes[HTR].p[2]);
+  const roll = Math.atan(((y(HTL) - a0) - (y(HTR) - b0)) / span) * D2R;
+  const xr = S.tail.type === 'twinBoom' && P.BOOMS ? P.BOOMS.x0 : S.fuse.boxRear;
+  const arm = def.nodes[HTL].p[0] - xr;
+  const pct = 100 * rise / arm;
+  const fin = [sag, pct, roll].every(Number.isFinite);
+  return { sagMm: 1000 * sag, pct, roll, arm, F, sub: SUB, ok: fin };
+}
+
+{
+  say('');
+  say('TAIL ARM — the stab tips under the stab\'s 1 g share, the rest of the aeroplane on trestles');
+  const fmt = (n, r) => `  ${n.padEnd(34)} sag ${r.sagMm.toFixed(0).padStart(5)} mm   rise ${r.pct.toFixed(2).padStart(6)} % of ${r.arm.toFixed(2)} m   roll ${r.roll.toFixed(2).padStart(5)} deg   ${r.sub} substeps`;
+  const conv = statTail(buildGen(JSON.parse(JSON.stringify(GEN_DEFAULT))));
+  say(fmt('stock (conventional)', conv));
+  results['tail arm: the stock tail is measured'] = !!(conv && conv.ok);
+  // GATE GEN's own twin-boom row (no drawing: the frame derives the root)
+  const tbSpec = () => { const s = JSON.parse(JSON.stringify(GEN_DEFAULT));
+    s.tail.type = 'twinBoom'; s.tail.boomX = 1.25; s.tail.boomLen = 3.5; return s; };
+  const tb = statTail(buildGen(tbSpec()));
+  say(fmt('twin boom (matrix row)', tb));
+  // ...and the user's build, the one that read 761 mm / 37 % / 36 deg
+  const fxPath = require('path').join(__dirname, 'fixtures', 'build_v8_twin-boom_2026-09-11.json');
+  let tu = null, td = null;
+  try {
+    const raw = JSON.parse(require('fs').readFileSync(fxPath, 'utf8'));
+    const sp = genNormaliseSpec(raw.what === 'flydiy-build' ? raw.spec : raw);
+    tu = statTail(buildGen(JSON.parse(JSON.stringify(sp))));
+    say(fmt('twin boom (the user\'s fixture)', tu));
+    // ...and the same build with the join's own rows (the fixture predates
+    // G266, so it carries none): the drawn root sits 0.25 m AHEAD of the
+    // rear spar on this build, the wing at the drawn height (G266.1), the
+    // stab 0.18 m over the tubes' crown (G266.2) — and the ties still have
+    // to hold it
+    Object.assign(sp.tail, { boomX0: 1.758, boomTaper: 0.7, boomOval: 1.5, stabY: 0.632 });
+    sp.wings[0].yRoot = 0.292;
+    td = statTail(buildGen(sp));
+    say(fmt('twin boom (the fixture, drawn root)', td));
+  } catch (e) { say('  twin boom fixture: ' + e.message); }
+  const inBand = r => r && r.ok && r.sagMm <= 40 && r.pct <= 2.5 && Math.abs(r.roll) <= 4;
+  results['tail arm: the twin boom holds its tail (sag <= 40 mm, rise <= 2.5 %, roll <= 4 deg)'] =
+    inBand(tb) && inBand(tu) && inBand(td);
+  results['tail arm: the twin boom does not buy its stiffness past 130 substeps'] =
+    !!(tb && tu && td && tb.sub <= 130 && tu.sub <= 130 && td.sub <= 130);
+  // the negative control: the tube factor is what holds it. The matrix
+  // row's bending barely moves at K 1 (0.62 % against 0.51 — a 3.5 m boom
+  // on two bays is already long members); its TORSION does (17 deg against
+  // 2.3), which is the number the factor was bought for
+  const K0 = GEN_RULES.twinBoomK;
+  GEN_RULES.twinBoomK = 1;
+  const soft = statTail(buildGen(tbSpec()));
+  GEN_RULES.twinBoomK = K0;
+  say(fmt('  negative: twin boom at twinBoomK 1', soft));
+  results['tail arm: the tube factor is live (K 1 reads 3x softer in rise or roll)'] =
+    !!(soft && tb && soft.ok && (soft.pct >= 3 * tb.pct || Math.abs(soft.roll) >= 3 * Math.abs(tb.roll)));
 }
 
 // --- verdict: finite, no divergence, and the instrument repeats itself.

@@ -387,6 +387,10 @@ function cageJoinSpec(P, M, T) {
   // G52: the wing's fore-aft station, from the wing layer's own anchor
   if (typeof M.wingXLE === 'number' && isFinite(M.wingXLE))
     spec.wings[0].xLE = M.wingXLE;
+  // G266.1: ...and its HEIGHT, from the same anchor (the frame's root
+  // front-spar node is drawn at yAnchor + wgDy; this hands that back)
+  if (typeof M.wingY === 'number' && isFinite(M.wingY))
+    spec.wings[0].yRoot = M.wingY;
   // G49: the tail-end section and the cowl deck ride with the tail arm —
   // clampSpec's envelope bounds them, and tailY stays 0 (it is the
   // editor's OFFSET knob; these are absolute measurements).
@@ -458,6 +462,16 @@ function cageJoinSpec(P, M, T) {
   if (M.boomX > 0) {
     tl.type = 'twinBoom'; tl.boomX = M.boomX; tl.boomLen = M.boomLen;
     if (M.boomR > 0) tl.boomR = M.boomR;
+    // G266: the drawn tube, whole (null = the frame derives it)
+    for (const k of ['boomX0', 'boomTaper', 'boomOval', 'boomIncl'])
+      if (typeof M[k] === 'number' && isFinite(M[k])) tl[k] = M[k];
+    // G266.2: ...and the drawn STAB'S HEIGHT. The stab layer seats the panel
+    // above the booms' crown (measured on the user's build: its underside
+    // 0.125 m over the tube's top at the tip, its centre 0.18), and the
+    // frame's stab nodes sat on the crown — the world gauge read 225 mm.
+    // The frame raises its tail tops to this (a conventional tail reads it
+    // through stabH; the twin boom has no fin-height ratio to invert)
+    if (typeof M.stabY === 'number' && isFinite(M.stabY)) tl.stabY = M.stabY;
   }
   // THE TAIL'S OWN CONSTRUCTIONS (G116), same contract as the wing's:
   // 0 says nothing, absent means the aeroplane's own material
@@ -911,6 +925,11 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // y is measured from the cabin keel — the same outer-skin datum
       // cab.h declares (interior is smaller by structure).
       const yD = AF.surf(zs, 0)[1];
+      // G266.1: the wing's height — the wing layer maps the frame's root
+      // front-spar node onto its anchor (deck / waist / belly band, plus
+      // the up/down nudge); read it back in the frame's own y
+      if (W && W.anchor && typeof W.anchor.yAnchor === 'number')
+        M.wingY = W.anchor.yAnchor + (+P.wgDy || 0) - yD;
       if (zPost != null) {
         M.tailW = AF.halfWAt(zPost);
         M.tailBot = AF.surf(zPost, 0)[1] - yD;
@@ -1151,6 +1170,14 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           }
           if (finM && finM.areaTail > 0 && !isV) {
             M.Sv = (TBj ? 2 : 1) * finM.areaTail;      // two fins on twin booms
+            // G268 (the user's ruling): the VENTRAL fins count as fin area —
+            // the swept plate under each boom tail, root chord x 0.675 (a
+            // 0.35 taper) x height, cage units squared into metres
+            if (TBj && +P.finVentralOn) {
+              const FSv = (window.CAGE2 && window.CAGE2.CAGE_UNIT || 1) * (+P.planeScale || 1);
+              const hV = Math.max(0.05, +P.finVentralH || 0.4), cV = Math.max(0.1, +P.finVentralC || 0.6);
+              M.Sv += 2 * 0.675 * cV * hV * FSv * FSv;
+            }
             M.dorsalArea = finM.areaDorsal;
             M.vTaper = taperOf(finM);
             if (finM.ctlFrac > 0) M.rudChord = finM.ctlFrac;
@@ -1167,13 +1194,33 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             // whole; vHeight above the boom's line, hSpan the panel's own
             const fb2 = layerBounds('cageLayer:fin'), sb2 = layerBounds('cageLayer:stab');
             M.boomX = TBj.x; M.boomLen = TBj.len; M.boomR = TBj.r0;
+            // G266: THE WHOLE DRAWN TUBE — where the wing layer rooted it
+            // (spec x), its taper and its oval — so the frame's truss stands
+            // inside exactly the tube that is drawn (61_gen_frame's
+            // twin-boom block; the height is the frame's own trailing-edge
+            // line, which is where the wing layer draws the tube). Cut 1
+            // published the radius and the length alone, and the frame
+            // guessed the rest: its root 0.1 m aft of the rear spar.
+            M.boomX0 = zFw - TBj.zRoot;
+            M.boomTaper = TBj.r0 > 0 ? TBj.r1 / TBj.r0 : 0.7;
+            M.boomIncl = (TBj.incl || 0) * 180 / Math.PI;           // G267.1, deg, tail up
+            M.boomTip = zFw - TBj.zTip;                               // the body's aft end, spec x
+            // G267: the loft's own aspect — height over width, the mean of
+            // the two ends (the frame's prism is one aspect end to end)
+            M.boomOval = (TBj.hF > 0 && TBj.wF > 0)
+              ? 0.5 * (TBj.hF / TBj.wF + (TBj.hA > 0 && TBj.wA > 0 ? TBj.hA / TBj.wA : TBj.hF / TBj.wF))
+              : (TBj.lofted ? 1.5 : 1);
             if (sb2 && (sb2.x1 - sb2.x0) > 0.5) {
               M.hSpan = 2 * Math.max(Math.abs(sb2.x0), Math.abs(sb2.x1));
               M.hX = zFw - (sb2.z0 + sb2.z1) / 2;
               M.stabY = (sb2.y0 + sb2.y1) / 2 - yD;
             }
             if (fb2 && (fb2.y1 - fb2.y0) > 0.3) {
-              const boomTop = TBj.y + TBj.r1 - yD;
+              // the oval's own crown at the stab station (the frame puts
+              // the apex vHeight·0.82 above exactly that; the round tube's
+              // top under-read a lofted boom by half its radius)
+              const zAt = typeof M.hX === 'number' ? zFw - M.hX : TBj.zTip;
+              const boomTop = (TBj.yTop ? TBj.yTop(zAt) : TBj.y + TBj.r1) - yD;
               M.vHeight = Math.max(0.2, (fb2.y1 - yD - boomTop) / 0.82);
               M.vX = zFw - (fb2.z0 + fb2.z1) / 2;
               M.vSweep = 0;
@@ -1432,6 +1479,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     // ONE PROP PART PER ENGINE (2026-09-04): the engine layer suffixes unit
     // k's spinner/prop names with '#k', and each spins about its own hub
     const PARTS = { wheels: [], others: [], props: [] };
+    const TBp = window.CAGE_BOOMS;                 // G267.2: the twin booms, if drawn
     const propPart = k => PARTS.props[k] ||
       (PARTS.props[k] = { kind: 'prop', groups: {}, unit: k, hub: null,
                           hubRaw: null, axis: null });
@@ -1504,6 +1552,75 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
                                  ['edFit_interplane', 'interplane'],
                                  ['edFit_wire', 'wire']])
         PARTS.others.push({ src, kind, stretch: true, groups: {} });
+      // G267.2: THE BOOM AND THE TAIL SKIN FOLLOW THE FRAME (the user: "do
+      // the boom/tail skin, it's important. The rule remains to map per
+      // object, not per zone. And the control surfaces keep the same anchor
+      // point as their parent"). On twin booms each boom, each fin and the
+      // stab is a two-end part on the strut's contract (G179.2 / G185): every
+      // vertex a point along ONE member between two drawn ends, each end
+      // riding the physics node nearest it — a boom from its root to its
+      // tail, a fin from the boom's tail to its own apex, the stab from
+      // boom to boom. A rudder and an elevator are still hinged parts; they
+      // carry the same member as their parent (`follow`), so the hinge line
+      // moves with the fin or the stab it is bolted to.
+      if (TBp) {
+        const invM = new THREE.Matrix4().copy(mount.matrixWorld).invert();
+        const finApex = grp => {              // the fin's top vertex, mount frame
+          let best = null; const v = new THREE.Vector3();
+          grp.updateMatrixWorld(true);
+          grp.traverse(o => {
+            if (!o.isMesh || !o.geometry || /Ventral|edSurf/.test(o.name || '')) return;
+            const pa = o.geometry.getAttribute('position');
+            for (let i = 0; i < pa.count; i++) {
+              v.set(pa.getX(i), pa.getY(i), pa.getZ(i)).applyMatrix4(o.matrixWorld).applyMatrix4(invM);
+              if (!best || v.y > best[1]) best = [v.x, v.y, v.z];
+            }
+          });
+          return best;
+        };
+        const finGrps = [];
+        mount.traverse(o => { if (o.name === 'cageLayer:fin') finGrps.push(o); });
+        // THE TAIL IS ONE THING (the user, on the first cut of this: "the
+        // hinges move from the control surfaces, the control surfaces move
+        // from their attachment surface, the fins move independently from
+        // the rod ... these should really all move together. The rod may
+        // bend, but the rest should just keep its anchor point super
+        // stable. Meshes splitting apart is really a bad feeling. Look at
+        // how the pod and rod option is configured, it's essentially the
+        // same thing, times 2"). So: ONE ANCHOR — the two boom tails, the
+        // nodes the stab hangs on — and everything aft of the booms' tails
+        // (fins, ventrals, the stab, rudders, elevators, their hinges and
+        // their links) TRANSLATES with that anchor's travel, rigid among
+        // itself, as the pod-and-rod tail is rigid in the body frame. The
+        // booms bend from their own root to the same anchor, so a boom's
+        // tail meets the fin it carries by construction.
+        const sb = layerBounds('cageLayer:stab');
+        const zS = sb ? 0.5 * (sb.z0 + sb.z1) : TBp.zTip;
+        const yS = sb ? 0.5 * (sb.y0 + sb.y1) : TBp.yTop(TBp.zTip);
+        const anchorsC = [[-TBp.x, yS, zS], [TBp.x, yS, zS]];
+        for (const s of [1, -1]) {
+          const root = [s * TBp.x, TBp.yAx ? TBp.yAx(TBp.zRoot) : TBp.y, TBp.zRoot];
+          const tail = [s * TBp.x, TBp.yAx ? TBp.yAx(TBp.zTip) : TBp.y, TBp.zTip];
+          PARTS.others.push({ src: 'edBoom' + (s > 0 ? 'R' : 'L'), kind: 'boom',
+            stretch: true, groups: {}, membersC: [{ pin: root, tip: tail }],
+            tipAnchorsC: anchorsC });
+          PARTS.others.push({ src: 'edFinSkin' + (s > 0 ? '' : '2'), kind: 'fin',
+            stretch: true, groups: {}, anchorsC });
+          PARTS.others.push({ src: 'edFinVentral' + (s > 0 ? '' : '2'), kind: 'fin',
+            stretch: true, groups: {}, anchorsC });
+        }
+        for (const sd of ['L', 'R'])
+          PARTS.others.push({ src: 'edStabSkin' + sd, kind: 'stab',
+            stretch: true, groups: {}, anchorsC });
+        // the surfaces on the tail, and the links that pull them
+        for (const nm of ['edSurf_rud', 'edSurf_rud2', 'edSurf_elevR', 'edSurf_elevL']) {
+          const q = PARTS.others.find(u => u.src === nm);
+          if (q) q.anchorsC = anchorsC;
+        }
+        for (const q of PARTS.others)
+          if (q.kind === 'ctlLink' && q.link && /^(rud|rud2|elevR|elevL)$/.test(q.link.surf))
+            q.anchorsC = anchorsC;
+      }
       // ...AND SO IS EACH ENGINE UNIT, block, exhaust and all, rigid about
       // its mount point (the thrust line), riding its own engine node in
       // the game instead of being split between the wing box and the
@@ -1628,7 +1745,12 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           if (a.name && (a.name === 'edFit_liftstrut' ||
                          a.name === 'edFit_cabane' || a.name === 'edFit_interplane' ||
                          a.name === 'edFit_wire' ||
-                         a.name.lastIndexOf('edEng', 0) === 0)) {
+                         a.name.lastIndexOf('edEng', 0) === 0 ||
+                         // G267.2: the boom and tail skins, on twin booms
+                         (TBp && (a.name.lastIndexOf('edBoom', 0) === 0 ||
+                                  a.name.lastIndexOf('edFinSkin', 0) === 0 ||
+                                  a.name.lastIndexOf('edFinVentral', 0) === 0 ||
+                                  a.name.lastIndexOf('edStabSkin', 0) === 0)))) {
             part = PARTS.others.find(u => u.src === a.name) || null;
             if (part && a.userData && a.userData.strutMembers)
               part.membersC = a.userData.strutMembers;
@@ -2027,7 +2149,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // G179.2: a strut part pivots on its first tip (its verts stay
       // unrebased, like a leg's — the pivot only has to exist)
       const TRUSS = pt.kind === 'liftstrut' || pt.kind === 'cabane' ||
-                    pt.kind === 'interplane' || pt.kind === 'wire';
+                    pt.kind === 'interplane' || pt.kind === 'wire' ||
+                    pt.kind === 'boom' || pt.kind === 'fin' || pt.kind === 'stab';   // G267.2
       if (TRUSS && pt.membersC && pt.membersC.length && !pt.axleC)
         pt.axleC = pt.membersC[0].tip;
       const pv = pt.pivotM ? pt.pivotM
@@ -2057,6 +2180,11 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       if (pt.kind === 'eng') out2.unit = pt.unit;
       if (pt.stretch && pt.rootC)          // G58.7: the fixed airframe end
         out2.root = rotP(-pt.rootC[2], pt.rootC[1], pt.rootC[0]);
+      // G267.2: THE TAIL'S ANCHOR — the points whose nodes' mean travel the
+      // part translates by (the two boom tails on twin booms); on a boom, the
+      // anchor its TIP end takes instead of its member's own tip node
+      if (pt.anchorsC) out2.anchors = pt.anchorsC.map(a => rotP(-a[2], a[1], a[0]));
+      if (pt.tipAnchorsC) out2.tipAnchors = pt.tipAnchorsC.map(a => rotP(-a[2], a[1], a[0]));
       if (pt.surf) {                       // G59: what drives it, and how
         out2.surf = pt.surf;
         // G185: a second-plane surface drives as its first-plane twin
@@ -2212,8 +2340,31 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           lights[k] = +Pl['li_' + k] || 0;
       }
     } catch (e) {}
+    // G266.1: THE DRAWN TAIL, in the frame every baked vertex is in
+    // (mount-local -> (-z, y, x) -> the pitch), so the game can measure the
+    // gap between the drawn stab and the frame's stab nodes — the user's
+    // own instrument ("measure the distance between the 3D tail and the
+    // physics tail, and you'll have your key measurement")
+    let tailRef = null, mainsRef = null;
+    const vtx = (cx, cy, cz) => { const px = -cz, py = cy;
+      return [px * cB - py * sB, px * sB + py * cB, cx]; };
+    try {
+      const sb = layerBounds('cageLayer:stab');
+      if (sb) tailRef = vtx(0.5 * (sb.x0 + sb.x1), 0.5 * (sb.y0 + sb.y1), 0.5 * (sb.z0 + sb.z1));
+      // ...and the drawn mains' contact, the point the calibration was
+      // solved on: the gauge's own zero (it must read ~0 there, or the
+      // gauge is wrong before the tail is)
+      const G2m = window.CAGE_GEAR;
+      const cm = G2m && G2m.contacts ? G2m.contacts.filter(c => c.st && !isSingle(c)) : [];
+      if (cm.length) {
+        const cx = cm.reduce((s, c) => s + c.p[0], 0) / cm.length,
+              cy = cm.reduce((s, c) => s + c.p[1], 0) / cm.length,
+              cz = cm.reduce((s, c) => s + c.p[2], 0) / cm.length;
+        mainsRef = vtx(cx, cy, cz);
+      }
+    } catch (e) {}
     return { cage: true, groups, mats, off, pitch: beta, parts,
-             zRoot: 0, surfaces: null, cageM, people, lights };
+             zRoot: 0, surfaces: null, cageM, people, lights, tailRef, mainsRef };
   };
   // ...and the view comes back, on the way out or on the way to a throw.
   const snapshot = spec => {

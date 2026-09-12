@@ -274,6 +274,7 @@ PAGE.post = ctx => {
       if (part === 'rudder' && ex) obj.position.z = -ex;  // elevator, aft
       if (part === 'rudder')                               // G59
         obj.name = 'edSurf_elev' + (side > 0 ? 'R' : 'L');
+      else obj.name = 'edStabSkin' + (side > 0 ? 'R' : 'L');   // G267.2: a part on twin booms
       group.add(obj);
     }
   }

@@ -695,6 +695,12 @@ const AERO_DEC_ROLES = new Set(['skin', 'rail', 'pillar']);
 const AERO_DEC_LAYER = new Set(['cowlSkin', 'spat']);
 function aeroDecOk(section) {
   const row = AERO_SEC[section];
+  // G267.1: a row may decline the marking — the twin booms lie outside the
+  // fuselage's own projection box (aft of it, a metre outboard), so the
+  // fuselage-class pattern painted them in whatever band its edge fell
+  // in: the user set the master colour and the booms stayed the trim's.
+  // They wear the base paint, plain.
+  if (row && row.noDec) return 0;
   if (row) return (row.role === 'skin' || AERO_DEC_LAYER.has(section)) ? 1 : 0;
   return AERO_DEC_ROLES.has(AERO_ROLE[section]) ? 1 : 0;
 }
@@ -740,6 +746,10 @@ const AERO_SEC = {
               layer: 'stab' },
   stabElev: { parent: 'stabSkin', role: 'skin', label: 'the elevators',
               layer: 'stab' },
+  // G267: the twin booms wear the body's paint (they asked for `body`, a
+  // cage section this table never had, and fell back to bare white)
+  boomSkin: { parent: 'body',     role: 'skin', label: 'the twin booms',
+              layer: 'boom', noDec: true },
   // ---- the hardware the builder paints (phase C) --------------------------
   // A PINNED `fin` says what the part IS unless the builder repaints THAT
   // part: the fin channel stops at the section's own name (see the resolver),

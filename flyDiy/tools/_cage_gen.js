@@ -392,12 +392,14 @@ function cageResolve(S) {
   const rodRing = (name, z) => {
     const rc = ROD.r * 3 / (2 + Math.cos(2 * Math.PI / 14));
     const th = k => k * Math.PI / 7;
+    // G267.1: the axis climbs tan(incl) per metre aft of the bulkhead
+    const yA = ROD.y + Math.tan(ROD.incl || 0) * (zPaxA - z);
     const at = k => ({ x: rc * Math.sin(th(k)),
-                       y: ROD.y + rc * Math.cos(th(k)), z });
+                       y: yA + rc * Math.cos(th(k)), z });
     const lv = { roof: at(1), ceil: at(2), band: at(3),
                  waist: at(4), floor: at(5), keel: at(6) };
-    lv.roof.yC = ROD.y + rc; lv.roof.zC = z;
-    lv.keel.yC = ROD.y - rc; lv.keel.zC = z;
+    lv.roof.yC = yA + rc; lv.roof.zC = z;
+    lv.keel.yC = yA - rc; lv.keel.zC = z;
     return { name, kind: 'full', rod: 1, lv };
   };
   // the taper's aft section = the boom root: the aft dims MOVED AFT off
@@ -5209,12 +5211,15 @@ function cageInterior(m, S) {
     // tubes still read at the edges, lifted outward by the tube
     // radius, thin box.
     if (S.rod && !S.rod.twin) (() => {
-      const rr = S.rod.r, cyR = S.rod.y;
+      const rr = S.rod.r;
+      // G267.1: the rod's axis at a station — level at the bulkhead, rising
+      // tan(incl) per metre aft; every fitting sits on the axis where it is
+      const yAxR = z => S.rod.y + Math.tan(S.rod.incl || 0) * (zPax0 - z);
       const circ = (n, rad, z) => {
-        const o = [];
+        const o = [], cy = yAxR(z);
         for (let k = 0; k < n; k++) {
           const a2 = k * 2 * Math.PI / n;
-          o.push([Math.sin(a2) * rad, cyR + Math.cos(a2) * rad, z]);
+          o.push([Math.sin(a2) * rad, cy + Math.cos(a2) * rad, z]);
         }
         return o;
       };
@@ -5266,9 +5271,10 @@ function cageInterior(m, S) {
           ? tubeSeg(A, B, Math.max(0.008, w / 3)) : member(A, B, w);
       // a point on a flange rim, bearing toward p from the rod axis
       const rim = (p, rad, z) => {
-        const dx = p[0], dy = p[1] - cyR;
+        const cy = yAxR(z);
+        const dx = p[0], dy = p[1] - cy;
         const l = Math.hypot(dx, dy) || 1;
-        return [dx / l * rad, cyR + dy / l * rad, z];
+        return [dx / l * rad, cy + dy / l * rad, z];
       };
       // ---- the bolted socket on the aft face ----
       const zF = zPax0 - 0.012;
@@ -5277,7 +5283,7 @@ function cageInterior(m, S) {
       for (let k = 0; k < 8; k++) {
         const a2 = (k + 0.5) * Math.PI / 4;
         bolt(Math.sin(a2) * (rr + 0.038),
-             cyR + Math.cos(a2) * (rr + 0.038), zF - 0.004, 0.018, 0.0085);
+             yAxR(zF) + Math.cos(a2) * (rr + 0.038), zF - 0.004, 0.018, 0.0085);
       }
       // ---- planned joints: the bulkhead hoop's own nodes, processed
       // EXACTLY as the longitudinal chains process them (inCtr — same
@@ -5310,11 +5316,11 @@ function cageInterior(m, S) {
       const zC2 = zPax0 - S.taper.len;
       sleeve(rr + 0.006, zC2 + 0.045, zC2 - 0.045);
       plate(rr + 0.045, rr + 0.006, zC2, 0.006);
-      bolt(0, cyR + rr + 0.024, zC2 - 0.003, 0.016, 0.007);
-      bolt(0, cyR - rr - 0.024, zC2 - 0.003, 0.016, 0.007);
+      bolt(0, yAxR(zC2) + rr + 0.024, zC2 - 0.003, 0.016, 0.007);
+      bolt(0, yAxR(zC2) - rr - 0.024, zC2 - 0.003, 0.016, 0.007);
       // ---- the tightening truss: six longerons + side diagonals ----
       const cp = (th2, sx) => [sx * Math.sin(th2) * (rr + 0.040),
-                               cyR + Math.cos(th2) * (rr + 0.040), zC2];
+                               yAxR(zC2) + Math.cos(th2) * (rr + 0.040), zC2];
       const sideN = sx => sx > 0
         ? { t: fb(md && jn(md.tR), cl && cl.ceil.x, cl && cl.ceil.y),
             w: fb(md && jn(md.wP), cl && cl.waist.x, cl && cl.waist.y),
@@ -5363,7 +5369,7 @@ function cageInterior(m, S) {
                     d1[0] * d2[1] - d1[1] * d2[0]];
           const nl = Math.hypot(n2[0], n2[1], n2[2]) || 1;
           n2 = [n2[0] / nl, n2[1] / nl, n2[2] / nl];
-          const away = [cen[0], cen[1] - cyR, 0];
+          const away = [cen[0], cen[1] - yAxR(cen[2]), 0];
           if (n2[0] * away[0] + n2[1] * away[1] < 0)
             n2 = [-n2[0], -n2[1], -n2[2]];
           const th = 0.004;
@@ -6464,9 +6470,16 @@ const CAGE_PARAMS = {
   // taperPanels (rod mode): flat cover sheets laid on the tightening
   // truss's longerons — the landing gear's V-panel idiom. 0 = bare.
   taperOn: 0, taperLen: 0.6, taperW: 1, taperPanels: 0,
-  boomStyle: 0, rodY: 0, rodD: 0.12,
-  // twin booms (2026-09-04): drawn by the wing layer off the trailing edge
-  boomTwin: 0, boomX: 1.2, boomD: 0.16, boomTaper: 0.7,
+  boomStyle: 0, rodY: 0, rodD: 0.12, rodIncl: 0,
+  // twin booms (2026-09-04): drawn by the wing layer off the trailing edge.
+  // G267: the LOFT — a section (width x height) at each end of the body, a
+  // squareness, and a fairing (length, cone -> ogive, cap) at each end.
+  // boomD / boomTaper retired (GEN_MIGRATORS[8] lifts a v8 save's pair).
+  boomTwin: 0, boomX: 1.2,
+  boomWf: 0.16, boomHf: 0.24, boomWa: 0.112, boomHa: 0.168, boomSquare: 0,
+  boomIncl: 0, boomCollar: 0.5,
+  boomNoseLen: 0.35, boomNoseK: 0.7, boomNoseCap: 2,
+  boomTailLen: 0.45, boomTailK: 0.7, boomTailCap: 2,
   // the aero aft (2026-09-04, cut 1): the cowl layer lofts it on the aft face
   aeroAftOn: 0, aeroAftLen: 0.9, aeroAftDroop: 0, aeroAftTip: 0.5,
   // bubble crest (G15, superseded by canopy below — kept as a dev param):
@@ -6912,6 +6925,7 @@ function cageSpec(P) {
   // bulkhead — with no tube of its own: the wing layer draws the two booms
   S.rod = (P.boomStyle || +P.boomTwin)
     ? { r: Math.max(0.015, (P.rodD || 0.12) / 2), y: P.rodY || 0,
+        incl: (+P.rodIncl || 0) * Math.PI / 180,            // G267.1, tail up +
         twin: +P.boomTwin ? 1 : 0 }
     : 0;
   // G189: on a rod the taper's truss lives INSIDE the boom's length (see

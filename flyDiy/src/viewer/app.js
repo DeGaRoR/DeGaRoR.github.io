@@ -1699,6 +1699,7 @@
     const wheelParts = [], stretchRigs = [], surfParts = [], linkRigs = [];
     const ctlMoves = [], gauges = [];                               // G240; the panel arc
     const engRigs = [], strutRigs = [];                              // G179.2
+    const anchorRigs = [];                    // G267.2: the tail assembly, rigid on its anchor
     let castorRig = null;
     if (data.cage && Array.isArray(data.parts)) {
       const twi = Array.isArray(curDef.refs.tw) ? curDef.refs.tw[0]
@@ -1727,6 +1728,52 @@
             offY = (data.off && data.off[1]) || 0;
       const nodeRest = idx => { const q = toB(curDef.nodes[idx].p);
         return [q[0] - offX, q[1] - offY, q[2]]; };
+      // G267.2: WHERE A NODE STANDS IN THE VISUAL'S FRAME, exactly. poseModel
+      // draws a visual point v at origin + B·(v + off + oRest) with B the
+      // RAW oblique pair (xA, yU) and their cross — so the visual-frame rest
+      // of a node is B⁻¹·(p − origin) − off − oRest, the 3x3 INVERSE, not the
+      // dot-product projection defBodyProject takes (that is right for a
+      // delta, and 0.42 m out at the tail of a build whose body axis stands
+      // 6 degrees to its keel: the two-end rigs found no node within reach
+      // of a boom's tail, and a fin's apex found the stab). Members are
+      // matched to nodes through this; deltas keep nodeRest/nodeLocal.
+      let nodeVis = null;
+      const nearNodeVis = q => {
+        let best = null, bd = 0.16;               // 0.4 m squared
+        for (let i = 0; i < curDef.nodes.length; i++) {
+          const r = nodeVis(i);
+          const dx = r[0] - q[0], dy = r[1] - q[1], dz = r[2] - q[2];
+          const d2 = dx*dx + dy*dy + dz*dz;
+          if (d2 < bd) { bd = d2; best = i; }
+        }
+        return best;
+      };
+      nodeVis = (() => {
+        const N2 = curDef.nodes, R2 = curDef.refs;
+        const avg = ids => { const o = [0, 0, 0];
+          for (const i of ids) { o[0] += N2[i].p[0] / ids.length; o[1] += N2[i].p[1] / ids.length; o[2] += N2[i].p[2] / ids.length; }
+          return o; };
+        const nrm = a => { const L = Math.hypot(a[0], a[1], a[2]) || 1e-9; return [a[0] / L, a[1] / L, a[2] / L]; };
+        const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+        const xA = nrm(sub(avg(R2.tailMid), avg(R2.noseFrame)));
+        const yU = nrm(sub(avg(R2.upHi), avg(R2.upLo)));
+        const zL = [xA[1]*yU[2] - xA[2]*yU[1], xA[2]*yU[0] - xA[0]*yU[2], xA[0]*yU[1] - xA[1]*yU[0]];
+        const og = avg(R2.origin || R2.noseFrame);
+        const oRv = toB(defCG(curDef));
+        // columns xA, yU, zL -> the inverse by cofactors
+        const a = xA[0], b = yU[0], c = zL[0], d = xA[1], e = yU[1], f = zL[1], g = xA[2], h = yU[2], k = zL[2];
+        const det = a * (e * k - f * h) - b * (d * k - f * g) + c * (d * h - e * g) || 1e-9;
+        const inv = [[(e * k - f * h) / det, (c * h - b * k) / det, (b * f - c * e) / det],
+                     [(f * g - d * k) / det, (a * k - c * g) / det, (c * d - a * f) / det],
+                     [(d * h - e * g) / det, (b * g - a * h) / det, (a * e - b * d) / det]];
+        return idx => {
+          const p = sub(N2[idx].p, og);
+          const v = [inv[0][0]*p[0] + inv[0][1]*p[1] + inv[0][2]*p[2],
+                     inv[1][0]*p[0] + inv[1][1]*p[1] + inv[1][2]*p[2],
+                     inv[2][0]*p[0] + inv[2][1]*p[1] + inv[2][2]*p[2]];
+          return [v[0] - offX - oRv[0], v[1] - offY - oRv[1], v[2] - oRv[2]];
+        };
+      })();
       // G179.2: which physics engine node(s) a drawn unit rides — by the
       // SIGN of its z (G58.3's rule), both nodes of a centreline unit
       const engNodesFor = z => {
@@ -1835,7 +1882,33 @@
                              rest0: nodeOfMember.map(n => n == null ? null : nodeRest(n)) });
           });
         }
-        else if ((pt.kind === 'cabane' || pt.kind === 'interplane' || pt.kind === 'wire') &&
+        else if (pt.anchors && pt.anchors.length && !pt.surf && pt.kind !== 'ctlLink') {
+          // G267.2: THE TAIL ASSEMBLY IS RIGID ON ITS ANCHOR (the user: "the
+          // rest should just keep its anchor point super stable"). Every
+          // vertex of a fin, a ventral or a stab half translates by the mean
+          // travel of the anchor nodes — the two boom tails, the nodes the
+          // stab hangs on — and by nothing else; among themselves they never
+          // move, as the pod-and-rod tail never moves in the body frame.
+          grp.add(pg);
+          const idxs = pt.anchors.map(a => nearNodeVis(a)).filter(i => i != null);
+          pg.traverse(o => {
+            if (!o.isMesh || !o.geometry) return;
+            const pa = o.geometry.attributes.position;
+            if (!pa || !pa.array) return;
+            const src = pt.groups[Object.keys(pt.groups)
+              .find(k => pt.groups[k].pos === pa.array)] || null;
+            if (src) {
+              if (!src.base0) src.base0 = pa.array.slice();
+              else pa.array.set(src.base0);
+            }
+            anchorRigs.push({ posAttr: pa, base: pa.array.slice(), idxs,
+                              rest0: idxs.map(i => nodeRest(i)) });
+          });
+        }
+        else if ((pt.kind === 'cabane' || pt.kind === 'interplane' || pt.kind === 'wire' ||
+                  // G267.2: the twin booms — two-end parts on the same
+                  // contract, the tip end on the tail's anchor
+                  pt.kind === 'boom') &&
                  pt.members && pt.members.length) {
           // G185: THE TRUSS FOLLOWS ITS OWN TWO ENDS. Each drawn member's
           // pin and tip find the physics node nearest them at rest (within
@@ -1846,19 +1919,13 @@
           // between, a wire the same. An end with no node within reach is
           // held (the fuselage's, on a cabane foot).
           grp.add(pg);
-          const oR = defBodyProject(curDef)(defCG(curDef));
-          const nearNode = q => {
-            let best = null, bd = 0.16;               // 0.4 m squared
-            for (let i = 0; i < curDef.nodes.length; i++) {
-              const r = nodeRest(i);
-              const dx = r[0] - oR[0] - q[0], dy = r[1] - oR[1] - q[1], dz = r[2] - oR[2] - q[2];
-              const d2 = dx*dx + dy*dy + dz*dz;
-              if (d2 < bd) { bd = d2; best = i; }
-            }
-            return best;
-          };
+          const nearNode = nearNodeVis;
           const tipOf = pt.members.map(m => nearNode(m.tip));
           const pinOf = pt.members.map(m => nearNode(m.pin));
+          // a boom's tip rides the tail's anchor (the mean of its nodes), so
+          // the boom meets the fin it carries by construction
+          const tipSet = pt.tipAnchors && pt.tipAnchors.length
+            ? pt.tipAnchors.map(a => nearNode(a)).filter(i => i != null) : null;
           pg.traverse(o => {
             if (!o.isMesh || !o.geometry) return;
             const pa = o.geometry.attributes.position;
@@ -1883,7 +1950,9 @@
             strutRigs.push({ posAttr: pa, base, memb, w: W, idx: tipOf,
                              rest0: tipOf.map(n => n == null ? null : nodeRest(n)),
                              idxPin: pinOf,
-                             restPin: pinOf.map(n => n == null ? null : nodeRest(n)) });
+                             restPin: pinOf.map(n => n == null ? null : nodeRest(n)),
+                             tipSet: tipSet && tipSet.length ? tipSet : null,
+                             restSet: tipSet && tipSet.length ? tipSet.map(i => nodeRest(i)) : null });
           });
         }
         else if (pt.kind === 'eng') {
@@ -1991,6 +2060,10 @@
             // from here is a temporal dead zone, not a value
             surfParts.push({ posAttr: pa, base, dsg, nv2, bind: null,
               hinged: new Uint8Array(nv2).fill(1),
+              // G267.2: the member the PARENT follows (a rudder its fin's,
+              // an elevator its stab's) — resolved to nodes in the second
+              // pass below, applied after the hinge turn
+              anchorsM: pt.anchors || null, pivot: pt.pivot,
               axis: pt.axis || [0, 0, 1],
               drive: pt.drive, sgn: pt.sgn || 1,
               // G209: the ruddervator's second drive, which the join has
@@ -2006,7 +2079,6 @@
               // full deflection, in the model frame, published by the wing
               // layer through the join; absent on every plain hinge.
               slide: pt.slide || null,
-
               plane: pt.plane || 1 });      // G185: which plane's box binds it
           });
         }
@@ -2063,6 +2135,11 @@
               W[i] = Math.max(0, Math.min(1, t));
             }
             linkRigs.push({ posAttr: pa, base, w: W, hinge: pt.hinge,
+              // G267.2: a link on the tail rides the tail's anchor as a whole
+              anchor: (pt.anchors && pt.anchors.length)
+                ? (() => { const idxs = pt.anchors.map(a => nearNodeVis(a)).filter(i => i != null);
+                           return idxs.length ? { idxs, rest0: idxs.map(i => nodeRest(i)) } : null; })()
+                : null,
                             tip: M0.tip });
           });
         }
@@ -2246,6 +2323,71 @@
     for (const s2 of surfParts) {
       try { s2.bind = makeSkinBinding(s2.dsg, s2.nv2, def, (s2.plane === 2 && cfg2) ? cfg2 : cfg); }
       catch (e) { s2.bind = null; }
+      // G267.2: A CONTROL SURFACE KEEPS ITS PARENT'S ANCHOR. On twin booms a
+      // rudder rides its fin's member and an elevator the stab's: every
+      // vertex takes its projection along that member (from its model
+      // position: the pivot plus its rebased rest) and moves by the two end
+      // nodes' travel — after the hinge turn, so the hinge line goes with
+      // the parent. The wing binding stands down for these (no wing box
+      // holds a twin boom's tail).
+      if (s2.anchorsM && s2.anchorsM.length) {
+        try {
+          // the same rest and nearest-node rules the truss branch uses (its
+          // helpers are block-scoped up there; these are the same lines)
+          const toB2 = defBodyProject(curDef);
+          const oX = (data.off && data.off[0]) || 0, oY = (data.off && data.off[1]) || 0;
+          const nodeRest = idx => { const q = toB2(curDef.nodes[idx].p); return [q[0] - oX, q[1] - oY, q[2]]; };
+          const dSeg2 = (v, a, b) => {
+            const ax = b[0] - a[0], ay = b[1] - a[1], az = b[2] - a[2];
+            const L2 = ax*ax + ay*ay + az*az || 1e-12;
+            let t = ((v[0] - a[0]) * ax + (v[1] - a[1]) * ay + (v[2] - a[2]) * az) / L2;
+            const tc = Math.max(0, Math.min(1, t));
+            const px = a[0] + ax * tc - v[0], py = a[1] + ay * tc - v[1], pz = a[2] + az * tc - v[2];
+            return [px*px + py*py + pz*pz, t];
+          };
+          // the exact visual-frame rest of a node (see nodeVis in the parts
+          // block: the inverse of poseModel's oblique basis, minus off and
+          // the design CG) — the same lines, this block cannot see them
+          const nodeVis2 = (() => {
+            const N2 = curDef.nodes, R2 = curDef.refs;
+            const avg = ids => { const o = [0, 0, 0];
+              for (const i of ids) { o[0] += N2[i].p[0] / ids.length; o[1] += N2[i].p[1] / ids.length; o[2] += N2[i].p[2] / ids.length; }
+              return o; };
+            const nrm = a => { const L = Math.hypot(a[0], a[1], a[2]) || 1e-9; return [a[0] / L, a[1] / L, a[2] / L]; };
+            const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+            const xA = nrm(sub(avg(R2.tailMid), avg(R2.noseFrame)));
+            const yU = nrm(sub(avg(R2.upHi), avg(R2.upLo)));
+            const zL = [xA[1]*yU[2] - xA[2]*yU[1], xA[2]*yU[0] - xA[0]*yU[2], xA[0]*yU[1] - xA[1]*yU[0]];
+            const og = avg(R2.origin || R2.noseFrame);
+            const oRv = toB2(defCG(curDef));
+            const a = xA[0], b = yU[0], c = zL[0], d = xA[1], e = yU[1], f = zL[1], g = xA[2], h = yU[2], k = zL[2];
+            const det = a * (e * k - f * h) - b * (d * k - f * g) + c * (d * h - e * g) || 1e-9;
+            const inv = [[(e * k - f * h) / det, (c * h - b * k) / det, (b * f - c * e) / det],
+                         [(f * g - d * k) / det, (a * k - c * g) / det, (c * d - a * f) / det],
+                         [(d * h - e * g) / det, (b * g - a * h) / det, (a * e - b * d) / det]];
+            return idx => {
+              const p = sub(N2[idx].p, og);
+              const v = [inv[0][0]*p[0] + inv[0][1]*p[1] + inv[0][2]*p[2],
+                         inv[1][0]*p[0] + inv[1][1]*p[1] + inv[1][2]*p[2],
+                         inv[2][0]*p[0] + inv[2][1]*p[1] + inv[2][2]*p[2]];
+              return [v[0] - oX - oRv[0], v[1] - oY - oRv[1], v[2] - oRv[2]];
+            };
+          })();
+          const nearNode = q => {
+            let best = null, bd = 0.16;
+            for (let i = 0; i < curDef.nodes.length; i++) {
+              const r = nodeVis2(i);
+              const dx = r[0] - q[0], dy = r[1] - q[1], dz = r[2] - q[2];
+              const d2 = dx*dx + dy*dy + dz*dz;
+              if (d2 < bd) { bd = d2; best = i; }
+            }
+            return best;
+          };
+          const idxs = s2.anchorsM.map(a => nearNode(a)).filter(i => i != null);
+          s2.anchor = idxs.length ? { idxs, rest0: idxs.map(i => nodeRest(i)) } : null;
+          s2.bind = null;
+        } catch (e) { s2.anchor = null; }
+      }
       s2.dsg = null;
     }
     const rigNames = data.cage ? Object.keys(dec) : (SKIN_CFG[key].rig || ['skin']);
@@ -2304,6 +2446,7 @@
                         wheelParts: wheelParts.length ? wheelParts : null,
                         engRigs: engRigs.length ? engRigs : null,       // G179.2
                         strutRigs: strutRigs.length ? strutRigs : null, // G179.2
+                        anchorRigs: anchorRigs.length ? anchorRigs : null, // G267.2
                         stretchRigs: stretchRigs.length ? stretchRigs : null,
                         surfParts: surfParts.length ? surfParts : null,
                         linkRigs: linkRigs.length ? linkRigs : null,   // G239
@@ -2311,6 +2454,59 @@
                         castorRig,
                         surfaces: data.surfaces,
                         link: makeLinkage(LINK_TAU) });  // visual linkage lag (SKIN-PROC)
+    // G266.1: THE TAIL GAP — the drawn stab (the snapshot's tailRef, in the
+    // vertex frame) against the frame's stab nodes, both in the rest body
+    // frame: what poseModel draws minus what the solver flies. Posted on
+    // window.FLYDIY_TAILGAP and the console; the number the twin-boom
+    // rework was measured by.
+    try {
+      if (data.tailRef && curDef.parts && curDef.parts.HTL != null) {
+        // IN WORLD, at the design pose — exactly poseModel's arithmetic: the
+        // basis is the RAW oblique pair (xA, yU) defBodyProject documents
+        // (never re-orthogonalized), the origin the structural datum, and a
+        // visual point lands at origin + B·(v + off + oRest). A first cut
+        // compared v + off + oRest with defBodyProject(node) instead: that
+        // frame's y is un-rotated while the visual's carries the pitch
+        // pre-rotation, and the "gap" it read was the pitch itself (0.41 m
+        // at 4 m). The frame nodes ARE design coordinates.
+        const N2 = curDef.nodes, R2 = curDef.refs, P2 = curDef.parts;
+        const avg = ids => { const o = [0, 0, 0];
+          for (const i of ids) { o[0] += N2[i].p[0] / ids.length; o[1] += N2[i].p[1] / ids.length; o[2] += N2[i].p[2] / ids.length; }
+          return o; };
+        const nrm = a => { const L = Math.hypot(a[0], a[1], a[2]) || 1e-9; return [a[0] / L, a[1] / L, a[2] / L]; };
+        const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+        const xA = nrm(sub(avg(R2.tailMid), avg(R2.noseFrame)));
+        const yU = nrm(sub(avg(R2.upHi), avg(R2.upLo)));
+        const zL = [xA[1]*yU[2] - xA[2]*yU[1], xA[2]*yU[0] - xA[0]*yU[2], xA[0]*yU[1] - xA[1]*yU[0]];
+        const og = avg(R2.origin || R2.noseFrame);
+        const O2 = m.off || [0, 0, 0], oR2 = m.oRest || [0, 0, 0];
+        const world = r => { const v = [r[0] + O2[0] + oR2[0], r[1] + O2[1] + oR2[1], r[2] + oR2[2]];
+          return [og[0] + xA[0]*v[0] + yU[0]*v[1] + zL[0]*v[2],
+                  og[1] + xA[1]*v[0] + yU[1]*v[1] + zL[1]*v[2],
+                  og[2] + xA[2]*v[0] + yU[2]*v[1] + zL[2]*v[2]]; };
+        const ht = avg([P2.HTL, P2.HTR]);
+        const d = sub(world(data.tailRef), ht);
+        const g = { dx: d[0], dy: d[1], dz: d[2] };
+        g.mm = 1000 * Math.hypot(g.dx, g.dy, g.dz);
+        // the gauge's zero: the drawn mains against the frame's axles (the
+        // calibration solved exactly this pair; a residual here is the
+        // oblique basis's second order, ~15 mm)
+        if (data.mainsRef && R2.mains) {
+          const dm = sub(world(data.mainsRef), avg(R2.mains));
+          g.mainsDx = dm[0]; g.mainsDy = dm[1];
+        }
+        window.FLYDIY_TAILGAP = g;
+        // ...and which nodes the two-end rigs resolved to (G267.2), so a rig
+        // that found no node within reach can be read rather than guessed at
+        g.rigs = { strut: (m.strutRigs || []).map(r => ({ tip: r.idx, pin: r.idxPin || null, tipSet: r.tipSet || null })),
+                   anchor: (m.anchorRigs || []).map(r => r.idxs),
+                   surf: (m.surfParts || []).map(s => s.anchor ? s.anchor.idxs : null),
+                   link: (m.linkRigs || []).map(r => r.anchor ? r.anchor.idxs : null) };
+        console.log('tail gap (drawn stab - frame stab, rest body frame): ' +
+          (1000 * g.dx).toFixed(0) + ' / ' + (1000 * g.dy).toFixed(0) + ' / ' +
+          (1000 * g.dz).toFixed(0) + ' mm (x aft / y up / z left), ' + g.mm.toFixed(0) + ' mm');
+      }
+    } catch (e) {}
     if (key !== 'gen') modelCache[key] = m;   // gen is never cached
     return m;
   }
@@ -2544,10 +2740,24 @@
     // ...and the LIFT STRUTS: each vertex moves by its projection along its
     // own member times that member's tip-node travel — a straight line from
     // the pin on the rigid fuselage to the tip on the flexing wing
+    // G267.2: a set of anchor nodes' mean travel, at the skin's gain
+    const anchorDelta = r => {
+      const g = skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0];
+      let dx = 0, dy = 0, dz = 0;
+      const n = r.idxs.length || 1;
+      for (let k = 0; k < r.idxs.length; k++) {
+        const L = nodeLocal(r.idxs[k]), q = r.rest0[k];
+        dx += (L[0] - q[0]) / n; dy += (L[1] - q[1]) / n; dz += (L[2] - q[2]) / n;
+      }
+      return [g * dx, g * dy, g * dz];
+    };
     if (model.strutRigs) for (const s of model.strutRigs) {
       if (!s.posAttr || !s.posAttr.array) continue;
       const g = skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0];
+      // a boom's tip end rides the tail's anchor set (its mean), not one node
+      const DA = s.tipSet ? anchorDelta({ idxs: s.tipSet, rest0: s.restSet }).map(v => v / g) : null;
       const D = s.idx.map((n, k) => {
+        if (DA) return DA;
         if (n == null || !s.rest0[k]) return [0, 0, 0];
         const L = nodeLocal(n);
         return [L[0] - s.rest0[k][0], L[1] - s.rest0[k][1], L[2] - s.rest0[k][2]];
@@ -2613,7 +2823,20 @@
         applySkinDeform(s.bind, s.base, out, model.deltas.P, model.deltas.N,
                         skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0],
                         s.hinged);
+      // G267.2: ...or the TAIL'S ANCHOR travel, the same translation the fin
+      // or the stab it hangs on takes — the hinge line rides its parent
+      if (s.anchor) {
+        const d = anchorDelta(s.anchor);
+        for (let i = 0; i < b.length; i += 3) { out[i] += d[0]; out[i + 1] += d[1]; out[i + 2] += d[2]; }
+      }
       s.posAttr.needsUpdate = true;
+    }
+    // G267.2: THE TAIL ASSEMBLY — rigid on its anchor's mean travel
+    if (model.anchorRigs) for (const r of model.anchorRigs) {
+      if (!r.posAttr || !r.posAttr.array) continue;
+      const d = anchorDelta(r), p2 = r.posAttr.array, b = r.base;
+      for (let i = 0; i < b.length; i += 3) { p2[i] = b[i] + d[0]; p2[i + 1] = b[i + 1] + d[1]; p2[i + 2] = b[i + 2] + d[2]; }
+      r.posAttr.needsUpdate = true;
     }
     // G239: ...AND THE RODS AND CABLES FOLLOW THE HORNS THEY ARE BOLTED TO.
     // The same angle the surface turned by, applied to the member's far end,
@@ -2635,10 +2858,12 @@
       const tz = p[2] + z * ca + (ax[0] * y - ax[1] * x) * sa + ax[2] * d * C1
                  + (h.slide ? h.slide[2] * st : 0) - t0[2];
       const b = r.base, out = r.posAttr.array, W = r.w;
+      // G267.2: a link on the tail rides the tail's anchor, both ends
+      const da = r.anchor ? anchorDelta(r.anchor) : [0, 0, 0];
       for (let i = 0; i < W.length; i++) {
-        out[i*3]     = b[i*3]     + W[i] * tx;
-        out[i*3 + 1] = b[i*3 + 1] + W[i] * ty;
-        out[i*3 + 2] = b[i*3 + 2] + W[i] * tz;
+        out[i*3]     = b[i*3]     + W[i] * tx + da[0];
+        out[i*3 + 1] = b[i*3 + 1] + W[i] * ty + da[1];
+        out[i*3 + 2] = b[i*3 + 2] + W[i] * tz + da[2];
       }
       r.posAttr.needsUpdate = true;
     }
@@ -4951,9 +5176,15 @@
     try {
       const spec = window.CAGE_JOIN.export();
       // the visual freezes BEFORE the spec applies: setAircraft('gen')
-      // rebuilds the model and must find it already standing
-      if (window.CAGE_JOIN.snapshot)
-        window.CAGE_VISUAL = window.CAGE_JOIN.snapshot(spec);
+      // rebuilds the model and must find it already standing.
+      // G266.2: ...and it calibrates on the spec that WILL FLY — the garage's
+      // merge of its working build with this fragment — not on the fragment
+      // alone, whose missing rows the merge fills from the last measurement
+      // (see GARAGE_SPEC.preview for the 8.6 deg this cost)
+      if (window.CAGE_JOIN.snapshot) {
+        const flown = window.GARAGE_SPEC.preview ? window.GARAGE_SPEC.preview(spec) : spec;
+        window.CAGE_VISUAL = window.CAGE_JOIN.snapshot(flown);
+      }
       (window.GARAGE_SPEC.update || window.GARAGE_SPEC.set)(spec);
       return (window.CAGE_JOIN.errors && window.CAGE_JOIN.errors()) || [];
     } catch (e) {

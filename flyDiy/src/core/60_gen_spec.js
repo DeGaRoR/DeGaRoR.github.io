@@ -2005,6 +2005,21 @@ const GEN_RULES = {
   // no rotational DOF, so a truss's axial springs stand in for a shear
   // flow): in the debt register, owed, and honest about being owed.
   rodBoomK:    'computed',
+  // A TWIN BOOM'S BAY PITCH AND TUBE FACTOR (G266). The tail of the user's
+  // twin-boom build sagged 0.76 m under its own weight and rose 1.46 m —
+  // 37 % of its arm — under the stab's 1 g share: a 0.12 m prism of the
+  // fuselage's per-member k. The lattice stands for the DRAWN monocoque
+  // oval now (rodWall thick, the fuselage material's E): 'computed' is
+  // EI_tube / EI_lattice on the mid-boom section — about 100 on that build
+  // — CAPPED at twinBoomKMax, because the boom's 1 kg nodes turn k straight
+  // into substeps (61_gen_frame's block has the recipe and the measured
+  // table). 2 m bays (2..5 of them) because a longer member is more EA at
+  // the same k, and the same mass on fewer nodes is what buys the factor:
+  // at K 8 the tail reads 0.9 % / 17 mm / 1.7 deg — a conventional tail's
+  // class — for 78 -> 102 substeps. A number is that number, absent = 1.
+  twinBoomBay: 2.0,
+  twinBoomK:   'computed',
+  twinBoomKMax: 8,
   rodWall:     1.2e-3, // the rod boom's tube wall, m (4130: 1.2 mm on a 113 mm tube)
   // ...and WHERE the foot goes, as a fraction of the way from the engine to
   // the front spar: 1 = under the front spar. Measured on the twin (engines
@@ -2221,7 +2236,7 @@ const GEN_RULES = {
 // defaults it needs are pinned in GEN_MIGRATE_CAGE_DEFAULTS and asserted
 // against cageDefaults() by GATE PARTS, because the core cannot read the
 // cage's own table.
-const GEN_SPEC_V = 8;
+const GEN_SPEC_V = 9;
 const GEN_MIGRATE_CAGE_DEFAULTS = { boomLen: 3.983966, taperLen: 0.6 };
 // THE PHYSICS VERSION (TAIL CHANTIER 2 P5, ruling (p)). GEN_SPEC_V says what
 // a saved FILE means; this says what the SOLVER answers — and a certificate
@@ -2283,6 +2298,24 @@ function genEnergyLift(S) {
 }
 
 const GEN_MIGRATORS = {
+  // 8 -> 9 (G267): the twin boom's diameter and taper became a LOFT — a
+  // width and a height at each end. A v8 pair lifts exactly into the sizes
+  // the old tube had (a lofted boom was 1.5 x taller than wide, a rod
+  // round), so the drawn boom is the one it was; the new fairing rows take
+  // their defaults. Absent keys read as the old defaults (0.16 / 0.7).
+  8: r => {
+    const c = r && r.cage;
+    if (!c || typeof c !== 'object') return r;
+    if (c.boomD == null && c.boomTaper == null) return r;
+    const d = c.boomD == null ? 0.16 : +c.boomD, tp = c.boomTaper == null ? 0.7 : +c.boomTaper;
+    const kv = +c.boomStyle === 1 ? 1 : 1.5;
+    if (isFinite(d) && isFinite(tp)) {
+      c.boomWf = +d.toFixed(4); c.boomHf = +(kv * d).toFixed(4);
+      c.boomWa = +(tp * d).toFixed(4); c.boomHa = +(kv * tp * d).toFixed(4);
+    }
+    delete c.boomD; delete c.boomTaper;
+    return r;
+  },
   // 6 -> 7, THE ENERGY MODULE'S OWN BUMP (G99), reserved for it since G97 and
   // finally earned: `spec.fuel = {litres, tank}` becomes a LIST of vessels in
   // declared bays, so capacity belongs to the thing that has a size.
@@ -2797,7 +2830,15 @@ const GEN_DEFAULT = {
             // longeron band, so the gap is a readout (S.geom.gap), never a key.
             cabaneH: null,
 
-            xLE: null, place: { dx: 0, dy: 0 } }],
+            xLE: null,
+            // G266.1: THE WING'S HEIGHT, measured (the front spar's root
+            // station, frame y — the join reads it off the wing layer's own
+            // anchor, as it reads xLE); null = the position rule in
+            // 61_gen_frame (roof + standoff, under the floor, the waist).
+            // Before this the frame's wing never asked the drawing how high
+            // it sat: a low wing drawn on the belly band flew 0.41 m under
+            // the keel, and every twin boom rooted on it flew there too.
+            yRoot: null, place: { dx: 0, dy: 0 } }],
   // Wing fixation, its own section because it is its own structure. Cantilever
   // gets a real four-chord spar box — rule 1 says a planar two-spar wing only
   // survives because the strut anchor is a long way below it, so taking the
@@ -2856,7 +2897,17 @@ const GEN_DEFAULT = {
           // ±boomX; the FRAME still builds the centreline tail (its post, one
           // FIN node) — cut 1's stated approximation, the two fins' area on
           // the one node, the booms' drag not yet priced
-          boomX: null, boomLen: null, boomR: null },
+          boomX: null, boomLen: null, boomR: null,
+          // G266: THE DRAWN TUBE, whole — where the wing layer rooted it
+          // (boomX0, spec x), its taper (tip radius over root) and its oval
+          // (height over width; a rod is round). The frame's truss stands
+          // inside exactly that tube, on the frame's own trailing-edge line;
+          // null = the frame's own derivation (0.15 m inside the trailing edge)
+          boomX0: null, boomTaper: null, boomOval: null,
+          boomIncl: 0,                    // G267.1: degrees, tail up, about the root
+          // G266.2: the drawn stab's height (frame y) on a twin boom — the
+          // panel seats above the booms' crown; null = on the crown
+          stabY: null },
   // `stiffness` is the suspension: 1.0 is the mass-scaled default, below that
   // is soft (long travel, bottoms out), above is hard (jars, but holds).
   // type 'taildragger' puts the third wheel at the tail and the mains AHEAD of
@@ -3134,6 +3185,7 @@ function clampWing(w, S, k) {
   // well down the cabin; static margin is the honest consequence either way,
   // and the shakedown posts it.
   w.xLE = genClampN(w.xLE, -0.20, 3.00);
+  w.yRoot = genClampN(w.yRoot, -1.0, 3.0);                  // G266.1
   if (!GEN_TIPS[w.tip]) w.tip = 'rounded';
   // CRANK: a second wing section, and only a second. `crankAt` is the break
   // station as a fraction of the semispan; 0 means a single straight panel.
@@ -3582,6 +3634,11 @@ function clampSpec(spec) {
   S.tail.boomX = genClampN(S.tail.boomX, 0.3, 4.0);
   S.tail.boomLen = genClampN(S.tail.boomLen, 0.5, 8.0);
   S.tail.boomR = genClampN(S.tail.boomR, 0.03, 0.30);
+  S.tail.boomX0 = genClampN(S.tail.boomX0, 0, 12);          // G266
+  S.tail.boomTaper = genClampN(S.tail.boomTaper, 0.3, 1);
+  S.tail.boomIncl = genClamp(S.tail.boomIncl || 0, -15, 15);
+  S.tail.stabY = genClampN(S.tail.stabY, -1, 4);
+  S.tail.boomOval = genClampN(S.tail.boomOval, 1, 2);
   // the V's dihedral. Too shallow and it cannot make yaw at any sane area; too
   // steep and it cannot make pitch. The Bonanza's is about 33.
   S.tail.vAngle = genClamp(S.tail.vAngle == null ? 33 : S.tail.vAngle, 20, 55);

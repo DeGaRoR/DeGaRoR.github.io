@@ -91,7 +91,17 @@ PAGE.post = ctx => {
   // ---- the members, by class -------------------------------------------
   const cab = (def.beams || []).filter(b => b.ext && b.cls === 'cabane');
   const inter = (def.beams || []).filter(b => b.ext && b.cls === 'interplane');
-  const wires = (def.beams || []).filter(b => b.ext && b.cls === 'wire');
+  // THE STAB'S WIRES ARE NOT DRAWN ON TWIN BOOMS (G267, the user: "an
+  // artefact ... like a mesh triangle at the back of the plane, dates back
+  // the tail chantier"). G233 braces a conventional stab's tips to the tail
+  // post with steel wires, and this layer draws every ext wire in the WING
+  // layer's def — a frame built from the cage's own spec BEFORE the join,
+  // which does not know the booms and builds the conventional tail. On a
+  // twin boom there is no post: the two wires met in mid-air behind the
+  // stab, flew with the aeroplane and cast the triangle's shadow. A wire
+  // touching a tail tag stays with the tail the cage actually has.
+  const isTailWire = b => /^(HT|TP)/.test(N2[b.a].tag || '') || /^(HT|TP)/.test(N2[b.b].tag || '');
+  const wires = (def.beams || []).filter(b => b.ext && b.cls === 'wire' && !(+P.boomTwin && isTailWire(b)));
   if (!cab.length && !inter.length && !wires.length) return;
   const planes = W.planes || [];
   const planeOfNode = i => { for (const pl of planes) if (pl.spar && pl.spar.has(i)) return pl; return null; };

@@ -78,7 +78,7 @@ function loadPanel() {
     '_cage_gear.js', '_fit_site.js', '_fit_gen.js',
     '_eng_gen.js', '_eng_mesh.js', '_eng_page.js',
     '_cowl_gen.js', '_cowl_rows.js', '_cage_cowl.js', '_cage_eng.js',
-    '_strut_gen.js', '_cage_wing.js', '_cage_brace.js', '_fin_gen.js', '_cage_fin.js',
+    '_strut_gen.js', '_boom_gen.js', '_cage_wing.js', '_cage_brace.js', '_fin_gen.js', '_cage_fin.js',
     '_cage_stab.js', '_cage_access.js', '_cage_light.js'])
     require(path.join(T, f));
   return global.window;

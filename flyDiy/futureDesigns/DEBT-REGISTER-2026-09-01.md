@@ -326,6 +326,10 @@ detector is the code. Six stale entries were found in two days.
     truss (80° of twist, G199.3); a member with a GJ of its own is a new
     element type, not a class. P6 computes `rodBoomK` from the tube's GJ
     over the lattice's instead. Owed since G199.3.
+    G266 (2026-09-11): the TWIN BOOM computes its own factor the same way
+    (EI_tube / EI_lattice, ~100 on the user's build) and CAPS it at 8
+    (`twinBoomKMax`) because the boom's 1 kg nodes turn k into substeps —
+    the tube element is what would take the cap off. Owed twice now.
   - the AP YAW PLANT — `genPlant` has none (`Izz` absent); the ground
     steering constants are hard (40_autopilot.js kP 3.2 / kD 1.2, twice).
   - PROPWASH SWIRL ON THE FIN (PROP-EFFECTS §"swirl on the fin") — the fin

@@ -491,6 +491,15 @@
         "8379"
       ],
       "port": 8379
+    },
+    {
+      "name": "flydiy-booms",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8382"
+      ],
+      "port": 8382
     }
   ]
 }

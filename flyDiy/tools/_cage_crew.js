@@ -1252,36 +1252,7 @@ function buildPanel(parent, A, P, pilotX) {
   return { fit, n: placed.length, overflow, ext, yMid, zFace, xLim };
 }
 
-// ---------------------------------------------------------------------------
-// THE FLOORBOARDS (G94)
-// ---------------------------------------------------------------------------
-// The floor has been a NUMBER since this layer was written — `floorAt(z)` is
-// the keel plus a board thickness, and every seat, pedal and console stands on
-// it — but nothing ever drew the boards, so the furniture stood on the inside
-// of the covering. They are the cheapest piece of interior there is and the
-// one that makes the rest look fitted.
-function buildFloor(parent, A, P) {
-  const z0 = A.zBack - 0.34, z1 = A.zDash - 0.02;
-  if (!(z1 > z0 + 0.10)) return 0;
-  const bag = Bag(M.board);
-  const N = Math.max(4, Math.round((z1 - z0) / 0.18));
-  // A BOARD IS AS WIDE AS THE CABIN IS THERE. The floor sits a little way up
-  // from the keel, where the section is still narrowing, so its half-width is
-  // taken from the airframe at that station rather than from the cabin's
-  // widest point — a rectangle would poke through the covering at both ends.
-  let prev = null;
-  for (let i = 0; i <= N; i++) {
-    const z = z0 + (z1 - z0) * i / N;
-    const y = A.floorAt(z);
-    const w = Math.max(0.10, Math.min(A.halfW - 0.03,
-      A.halfW * (i === 0 || i === N ? 0.72 : 0.94)));
-    const row = [bag.v(-w, y, z), bag.v(w, y, z)];
-    if (prev) bag.quad(prev[0], prev[1], row[1], row[0]);
-    prev = row;
-  }
-  bag.mesh(parent);
-  return N;
-}
+// (G94's floorboards were drawn here until G267 — see the call site.)
 
 // ---- THE DUMMY (mannequin_poser.html port) --------------------------------
 const PICK_MAT = new THREE.MeshBasicMaterial({ visible: false });
@@ -2050,7 +2021,13 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   // has always said it is, and the panel shows the instruments the build
   // bought. They are drawn after the controls so the throttle's own rod
   // reaches through the panel rather than being buried behind it.
-  const floorN = buildFloor(group, A, P);
+  // THE FLOORBOARDS ARE GONE (G267, the user: "there is a floor drawn, and
+  // it's just bad, I want it removed"). G94 drew a plank floor between the
+  // dash and the seat backs; it was a flat quad strip that never met the
+  // covering it was supposed to sit on. The floor stays a NUMBER —
+  // `floorAt` is where every seat, pedal and console stands — and nothing
+  // draws it. `floorN` stays on the debug record at 0 for the notes line.
+  const floorN = 0;
   // THE PANEL LAYER DRAWS THE DIALS NOW (the panel arc, session 3): real
   // faces, hands on the moving contract, the switch row — into this group,
   // off these anchors, returning the record this layer always published.
@@ -2402,7 +2379,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   if (panel) {
     notes.push('panel ' + panel.fit + ' ' + panel.n + ' instr' +
       (panel.overflow ? ' (' + panel.overflow + ' DID NOT FIT)' : ''));
-    notes.push('floor ' + floorN + ' boards');
+    if (floorN) notes.push('floor ' + floorN + ' boards');
   }
   if (stat && notes.length)
     stat.textContent += '  ·  crew: ' + notes.join(' · ');

@@ -866,23 +866,25 @@ const DESIGN_ROWS = [
     // arm (G132): the bubble pair writes bubH/bubW/canLoops — a hand-tuned
     // hood deserves the same warning a starter gives, whatever the kind
     help: 'convertible and open stay on the slider (kept for later)',
+    // G267: ONE BUBBLE (the user: "there's really no difference between
+    // full bubble and half bubble options as far as I can see, apart from an
+    // initial bubble setting"). The pair differed only in the starting
+    // bubH/bubW it wrote; the hood's height is the slider's. The full's
+    // numbers are the ones kept; the archetypes that said 'half' or 'full'
+    // say 'bubble'.
     read: P => {
       const c = Math.round(P.canopy);
       if (c !== 3) return c === 0 ? 'screen' : null;
-      return +P.bubH < 0.55 ? 'half' : 'full';
+      return 'bubble';
     },
     options: [
       { value: 'screen', label: 'Windscreen',
         icon: iconSide({ canopy: 'screen', gear: 'none' }),
         note: 'no cut, no shell — the body’s own glazing',
         writes: { cage: { canopy: 0 } } },
-      { value: 'half', label: 'Half bubble',
-        icon: iconSide({ canopy: 'half', gear: 'none' }),
-        note: 'a hood let into the deck',
-        writes: { cage: { canopy: 3, bubH: 0.30, bubW: 1.0, canLoops: 1 } } },
-      { value: 'full', label: 'Full bubble',
+      { value: 'bubble', label: 'Bubble',
         icon: iconSide({ canopy: 'full', gear: 'none' }),
-        note: 'a blown hood standing proud',
+        note: 'a blown hood — its height is the slider’s',
         writes: { cage: { canopy: 3, bubH: 0.79, bubW: 1.25, canLoops: 1 } } },
     ] },
 
@@ -1670,7 +1672,7 @@ const ARCHETYPES = [
                                         m1B: 0x7fa8c9, m1D: 0xc7c9cc } } } } },
   { key: 'rv', kind: 'recreation', name: 'RV-alike', note: 'low wing, bubble, cantilever alloy, fast',
     sel: { class: 'eab', role: 'touring', seatLayout: 1, paxCount: 1,
-           canopy: 'full', mirror: 1, intCons: 3, boomStyle: 0, section: 3,
+           canopy: 'bubble', mirror: 1, intCons: 3, boomStyle: 0, section: 3,
            wgPos: 2, wgBrace: 1, wgTip: 1, wgFlapType: 1,
            engFamily: 'flat', engModel: 'lycoming IO-360', engMount: 'nose',
            gearLayout: 'trike', suspension: 'spring', s1Fair: 1,
@@ -1701,7 +1703,7 @@ const ARCHETYPES = [
   // mirrored pod has no bulkhead face, its aft half is a second nose), the
   // rod runs from there and the engine sits on the bulkhead's back.
   { key: 'pusherPod', kind: 'fiction', name: 'Pod-and-boom pusher', note: 'rod + pusher',
-    sel: { class: 'ulm', role: 'trainer', canopy: 'full', mirror: 0,
+    sel: { class: 'ulm', role: 'trainer', canopy: 'bubble', mirror: 0,
            boomStyle: 1, engFamily: 'inline', engModel: 'rotax 582',
            engMount: 'pusher', gearLayout: 'trike', suspension: 'spring',
            finArch: 'tall' } },
@@ -1710,7 +1712,7 @@ const ARCHETYPES = [
   { key: 'motorglider', kind: 'fiction', name: 'Motorglider', note: '15 m cantilever wing, ' +
       'electric sustainer, T-tail',
     sel: { class: 'sail', role: 'glider', seatLayout: 0, paxCount: 0,
-           canopy: 'full', mirror: 1, intCons: 0, boomStyle: 0, section: 3,
+           canopy: 'bubble', mirror: 1, intCons: 0, boomStyle: 0, section: 3,
            wgPos: 1, wgBrace: 1, wgTip: 2, wgFlapType: 0,
            engFamily: 'electric', engModel: 'pipistrel E-811', engMount: 'nose',
            gearLayout: 'tail', suspension: 'spring', s1Fair: 1,
@@ -1754,7 +1756,7 @@ const ARCHETYPES = [
   { key: 'etrainer', kind: 'fiction', name: 'Electric trainer', note: 'no fuel; the altitude ' +
       'model’s other branch',
     sel: { class: 'lsa', role: 'trainer', seatLayout: 1, paxCount: 1,
-           canopy: 'half', mirror: 0, intCons: 0, boomStyle: 0, section: 3,
+           canopy: 'bubble', mirror: 0, intCons: 0, boomStyle: 0, section: 3,
            wgPos: 2, wgBrace: 1, wgTip: 3, wgFlapType: 1,
            engFamily: 'electric', engModel: 'pipistrel E-811', engMount: 'nose',
            gearLayout: 'trike', suspension: 'spring', s1Fair: 1,
@@ -1770,7 +1772,7 @@ const ARCHETYPES = [
   { key: 'ttail', kind: 'fiction', name: 'T-tail tourer', note: 'stab on the fin tip, low ' +
       'cantilever wing, half bubble',
     sel: { class: 'n23', role: 'touring', seatLayout: 1, paxCount: 1,
-           canopy: 'half', mirror: 0, intCons: 3, boomStyle: 0, section: 3,
+           canopy: 'bubble', mirror: 0, intCons: 3, boomStyle: 0, section: 3,
            wgPos: 2, wgBrace: 1, wgTip: 1, wgFlapType: 1,
            engFamily: 'flat', engModel: 'lycoming IO-360', engMount: 'nose',
            gearLayout: 'trike', suspension: 'spring',
@@ -1779,7 +1781,7 @@ const ARCHETYPES = [
     over: { cage: PLAN_TAPER } },
   { key: 'vtail', kind: 'fiction', name: 'V-tail tourer', note: 'two canted panels, no fin — ' +
       'ruddervators',
-    sel: { class: 'n23', role: 'touring', canopy: 'half', mirror: 0,
+    sel: { class: 'n23', role: 'touring', canopy: 'bubble', mirror: 0,
            wgPos: 2, wgBrace: 1, engFamily: 'flat',
            engModel: 'lycoming IO-360', gearLayout: 'trike',
            finArch: 'straight', empennage: 'v' } },
@@ -1818,7 +1820,7 @@ const ARCHETYPES = [
   { key: 'archaeopteryx', kind: 'recreation', name: 'Archaeopteryx-alike', note: 'suspended pod, ' +
       'rod on the wing, electric pusher low on the bulkhead',
     sel: { class: 'ul1', role: 'glider', seatLayout: 0, paxCount: 0,
-           canopy: 'full', mirror: 0, intCons: 0, covering: 'skin',
+           canopy: 'bubble', mirror: 0, intCons: 0, covering: 'skin',
            boomStyle: 1, section: 3,
            wgPos: 0, wgBrace: 0, wgTip: 2, wgFlapType: 0,
            engFamily: 'electric', engModel: 'pipistrel E-811', engMount: 'pusher',
@@ -1841,7 +1843,7 @@ const ARCHETYPES = [
   { key: 'da62', kind: 'recreation', name: 'DA62-alike', note: 'luxury twin: ' +
       'low composite wing, an engine a side, T-tail, four seats',
     sel: { class: 'n23', role: 'touring', seatLayout: 1, paxCount: 3,
-           canopy: 'half', mirror: 0, intCons: 0, boomStyle: 0, section: 3,
+           canopy: 'bubble', mirror: 0, intCons: 0, boomStyle: 0, section: 3,
            wgPos: 2, wgBrace: 1, wgTip: 1, wgFlapType: 1,
            engFamily: 'flat', engModel: 'lycoming IO-360', engMount: 'nose',
            engCount: 2, gearLayout: 'trike', suspension: 'oleo', s1Fair: 1,
@@ -1888,13 +1890,14 @@ const ARCHETYPES = [
            gearLayout: 'trike', suspension: 'oleo', s1Fair: 0,
            finArch: 'straight', empennage: 'conv', scheme: 'trim', base: 0xefe6cf, trim: 0x1b3a5c },
     over: { cage: Object.assign({}, PLAN_TAPER, { boomX: 1.25, boomLen: 3.2,
-                                                   boomD: 0.18 }),
+                                                   boomWf: 0.18, boomHf: 0.27,
+                                                   boomWa: 0.126, boomHa: 0.189 }),
             spec: { finish: { decals: { m1On: 1, m1Pat: 0, m1A: 0x1b3a5c,
                                         m1B: 0xefe6cf, m1D: 0x1b3a5c } } } } },
   { key: 'p38', kind: 'recreation', name: 'P-38-alike', note: 'a puller a boom, ' +
       'mid wing, one seat under a bubble, twin booms and fins',
     sel: { class: 'eab', role: 'aerobatic', seatLayout: 0, paxCount: 0,
-           canopy: 'full', mirror: 0, intCons: 3, boomStyle: 1, booms: 'twin',
+           canopy: 'bubble', mirror: 0, intCons: 3, boomStyle: 1, booms: 'twin',
            section: 3,
            wgPos: 1, wgBrace: 1, wgTip: 2, wgFlapType: 1,
            engFamily: 'flat', engModel: 'rotax 912 (flat)', engMount: 'nose',
@@ -1904,7 +1907,9 @@ const ARCHETYPES = [
     over: { cage: Object.assign({}, PLAN_TAPER, { wgSpan: 11.0, wgChord: 1.55,
                                                    wgChordTip: 0.95,
                                                    boomX: 1.35, boomLen: 3.0,
-                                                   boomD: 0.22, engNacAt: 0.245 }) } },
+                                                   boomWf: 0.22, boomHf: 0.33,
+                                                   boomWa: 0.154, boomHa: 0.231,
+                                                   engNacAt: 0.245 }) } },
   // "a mono engine larger aircraft ... something like the Beaver now that we
   // have large radial engines": the R-985 Wasp Junior (this batch's registry
   // row) on a strut-braced high wing, four bays, a taildragger on oleos.

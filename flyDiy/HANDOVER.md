@@ -38522,3 +38522,11 @@ under the head — a 64 px canvas gradient on ONE transparent material
 the join buckets like the faces and the flight rebuilds through
 `CAGE_PANEL.material('ao')`. Faked, as asked, and reads as contact shadow
 from the seat. GATE PANEL green.
+
+## G266 — THE TWIN BOOM HOLDS ITS TAIL: THE TRUSS STANDS INSIDE THE DRAWN
+
+### G266.1 / G266.2 — "NOT FIXED AT ALL": THE TAIL GAP, MEASURED IN THE GAME,
+
+## G267 — THE TWIN BOOM'S OWN LOFT, ITS OWN PART AND ITS OWN PAINT; THE
+
+### G267.1 / G267.2 — THE BOOM'S INCLINATION, ITS COLLAR AND ITS PAINT; THE

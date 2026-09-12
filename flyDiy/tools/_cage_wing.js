@@ -1652,53 +1652,96 @@ PAGE.post = ctx => {
                        // G185: every plane, with the index of the lowest (the
                        // gear's) and the upper (the pylon engine's)
                        planes, lowest, upper };
-  // THE TWIN BOOMS (2026-09-04, TWIN-BOOM spec §1.3): two tapering tubes off
-  // the wing's TRAILING EDGE at ±boomX, level, `boomLen` long, carrying the
-  // fins the fin layer builds twice and the stab the stab layer seats between
-  // them. Drawn here because only the wing knows its trailing edge; published
-  // as CAGE_BOOMS (scene metres) for the fin, the stab and the join. A pure
-  // function of P + the wing, so the fin layer (which runs before the stab)
-  // can read the deck it needs. Cut 1's admitted compromises: round tubes,
-  // level, rooted on the wing whatever nacelle sits there; the tube's group
-  // wears the wing's layer name (a click selects the wing).
+  // THE TWIN BOOMS (2026-09-04, TWIN-BOOM spec §1.3; REBUILT G267 — the
+  // user: "their end toward the wing should be profiled, customizable like
+  // the nose cone (from ogival to conical). Their other end should offer the
+  // same thing. We should be able to control their profile (square, round),
+  // their vertical and horizontal thickness at fore and aft ends, and the
+  // type of cap"): two lofts off the wing's TRAILING EDGE at ±boomX, level,
+  // `boomLen` of straight body each, carrying the fins the fin layer builds
+  // twice and the stab the stab layer seats between them. The loft is
+  // _boom_gen.js's — a superellipse section from (boomWf x boomHf) at the
+  // wing to (boomWa x boomHa) at the tail, a fairing at each end (cone to
+  // ogive, its own length) closed by a cap (point / flat / round). Drawn
+  // here because only the wing knows its trailing edge; published as
+  // CAGE_BOOMS (scene metres) for the fin, the stab, the join and the pins.
+  // ITS OWN LAYER (G267): the group is `cageLayer:boom` and the meshes
+  // `edBoomL/R`, so a click resolves to the Twin booms part and the
+  // highlight finds them (they wore the wing's layer name and the boom
+  // part looked in the cage mesh — "the booms are not selectable"); and
+  // ITS OWN SECTION, `boomSkin`, a child of the body in AEROSKIN's table, so
+  // the tubes wear the fuselage's paint (they asked for `body`, which is a
+  // cage section the layer factory does not know, and fell back to a bare
+  // white MeshStandardMaterial — "the twin booms do not get the colour of
+  // the rest of the chassis").
   if (boomGroup) { boomGroup.traverse(o => { if (o.geometry) o.geometry.dispose(); });
                    if (boomGroup.parent) boomGroup.parent.remove(boomGroup); boomGroup = null; }
   window.CAGE_BOOMS = null;
-  if (+P.boomTwin && teAt) {
+  const BG = window.BOOM_GEN;
+  if (+P.boomTwin && teAt && BG) {
     const x = Math.max(0.3, +P.boomX || 1.2);
     const te = teAt(x) || teAt(-x);
     if (te) {
-      const r0 = Math.max(0.02, (+P.boomD || 0.16) / 2);
-      const r1 = r0 * Math.max(0.3, Math.min(1, +P.boomTaper || 0.7));
       const len = Math.max(0.8, +P.boomLen || 3.0);
+      const wF = Math.max(0.03, +P.boomWf || 0.16), hF = Math.max(0.03, +P.boomHf || 0.24);
+      const wA = Math.max(0.03, +P.boomWa || 0.112), hA = Math.max(0.03, +P.boomHa || 0.168);
       const y0 = 0.5 * (te.yTop + te.yBot);
-      const zRoot = te.z + 0.35 * (te.yTop - te.yBot) + r0, zTip = te.z - len;
-      boomGroup = new THREE.Group();
-      boomGroup.name = 'cageLayer:wing';
-      // the CONSTRUCTION axis: a rod boom is a bare tube (boomTube), a lofted
-      // one a skinned oval (body), 1.5 x taller than wide, tapering the same
+      // the body's wing end sits just inside the trailing edge; the wing
+      // fairing runs forward from there, INTO the wing (and out of it above
+      // and below, when the boom is deeper than the wing is thick)
+      const zRoot = te.z + 0.35 * (te.yTop - te.yBot), zTip = zRoot - len;
       const rodB = Math.round(P.boomStyle) === 1;
+      // G267.1: the INCLINATION (the user: "set inclination for the twin
+      // boom ... compared to the body"), degrees, tail up positive, about
+      // the root; and the COLLAR where the tube enters the wing (the user:
+      // "detailed fitment ... with the wings, where the fit remains crude")
+      const incl = (+P.boomIncl || 0) * Math.PI / 180, tI = Math.tan(incl);
+      const o = { len, wF, hF, wA, hA, square: +P.boomSquare || 0,
+                  collar: +P.boomCollar || 0,
+                  nose: { len: +P.boomNoseLen || 0, k: +P.boomNoseK || 0, cap: Math.round(+P.boomNoseCap || 0) },
+                  tail: { len: +P.boomTailLen || 0, k: +P.boomTailK || 0, cap: Math.round(+P.boomTailCap || 0) },
+                  seg: 28 };
+      const mm = BG.boomMesh(o);
+      boomGroup = new THREE.Group();
+      boomGroup.name = 'cageLayer:boom';
+      // the CONSTRUCTION axis: a rod boom is a bare tube (boomTube), a lofted
+      // one a skinned section that follows the body's own finish (boomSkin)
       let bm = null;
       try {
         if (window.CAGE_SECMAT)
-          bm = window.CAGE_SECMAT(rodB ? 'boomTube' : 'body', { surf: 0, fieldM: 1 });
+          bm = window.CAGE_SECMAT(rodB ? 'boomTube' : 'boomSkin',
+                                  { surf: 0, fieldM: 1, struct: 1, side: THREE.DoubleSide });
       } catch (e) {}
       if (!bm) bm = new THREE.MeshStandardMaterial({ color: rodB ? 0x9aa0a6 : 0xd9d4c6,
                                                      metalness: rodB ? 0.6 : 0.1, roughness: 0.45 });
       for (const s of [1, -1]) {
-        const g = new THREE.CylinderGeometry(r1, r0, zRoot - zTip, 28, 1, false);
-        g.rotateX(-Math.PI / 2);                 // the cylinder's axis onto -z
-        if (!rodB) g.scale(1, 1.5, 1);           // the lofted oval
+        const g = new THREE.BufferGeometry();
+        // the loft's u runs tail -> wing; the mesh is built about its ROOT
+        // (z = u − len, the root at 0) so the inclination pivots there
+        const p = mm.pos.slice();
+        for (let i = 2; i < p.length; i += 3) p[i] = p[i] - len;
+        g.setAttribute('position', new THREE.BufferAttribute(p, 3));
+        g.setAttribute('uv', new THREE.BufferAttribute(mm.uv.slice(), 2));
+        g.setIndex(new THREE.BufferAttribute(mm.idx.slice(), 1));
+        g.computeVertexNormals();
         const m = new THREE.Mesh(g, bm);
-        m.position.set(s * x, y0, 0.5 * (zRoot + zTip));
+        m.position.set(s * x, y0, zRoot);
+        m.rotation.x = incl;                     // +x rotation lifts the tail (z < 0)
         m.name = 'edBoom' + (s > 0 ? 'R' : 'L');
         boomGroup.add(m);
       }
       scene.add(boomGroup);
-      const kv = rodB ? 1 : 1.5;                 // the lofted oval's height
-      const rAt = z => r0 + (r1 - r0) * Math.max(0, Math.min(1, (zRoot - z) / (zRoot - zTip)));
-      window.CAGE_BOOMS = { x, r0, r1, zRoot, zTip, y: y0, len, lofted: !rodB,
-                            yTop: z => y0 + kv * rAt(z), yBot: z => y0 - kv * rAt(z), rAt };
+      // the loft read as numbers, at a cage z: half-width and half-height
+      // the loft read as numbers at a cage z (the inclination is small:
+      // the axis rises tan(incl) per metre aft, the section stands on it)
+      const sec = z => BG.boomSection(o, z - zTip);
+      const rAt = z => sec(z).a, hAt = z => sec(z).b;
+      const yAx = z => y0 + tI * (zRoot - z);
+      window.CAGE_BOOMS = { x, r0: 0.5 * wF, r1: 0.5 * wA, wF, hF, wA, hA,
+                            zRoot, zTip, y: y0, len, lofted: !rodB, incl,
+                            zFore: zTip + mm.u1, zAft: zTip + mm.u0,
+                            square: o.square, nose: o.nose, tail: o.tail,
+                            yAx, yTop: z => yAx(z) + hAt(z), yBot: z => yAx(z) - hAt(z), rAt, hAt };
     }
   }
   if (stat) {

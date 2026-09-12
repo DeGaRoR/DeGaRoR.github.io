@@ -638,11 +638,13 @@ function nullPaths(o, pre, out) {
   // assertion names the exact set to catch.
   // ...and G189's, keyed 7: a rod boom's taper carved out of boomLen, so a
   // v7 rod save keeps its tube (boomLen += taperLen).
-  ok(MIG && typeof MIG === 'object' && Object.keys(MIG).join(',') === '5,6,7' &&
+  // ...and G267's, keyed 8: the twin boom's diameter and taper lifted into
+  // the loft's four sizes.
+  ok(MIG && typeof MIG === 'object' && Object.keys(MIG).join(',') === '5,6,7,8' &&
      typeof MIG[5] === 'function' && typeof MIG[6] === 'function' &&
-     typeof MIG[7] === 'function',
+     typeof MIG[7] === 'function' && typeof MIG[8] === 'function',
      'the migrator table carries exactly v5->v6 (the wing stations), ' +
-     'v6->v7 (the energy vessels) and v7->v8 (the rod taper)');
+     'v6->v7 (the energy vessels), v7->v8 (the rod taper) and v8->v9 (the boom loft)');
   // the v7->v8 lift itself, on the shape the user's file has: a rod with a
   // 1.46 m taper and a 2.99 m boom keeps its 4.45 m tube; a lofted boom and
   // a twin boom are left alone; absent keys read as the cage defaults
@@ -657,6 +659,22 @@ function nullPaths(o, pre, out) {
     const D = C.GEN_MIGRATE_CAGE_DEFAULTS, r4 = up({ boomStyle: 1, taperOn: 1 });
     ok(Math.abs(r4.boomLen - (D.boomLen + D.taperLen)) < 1e-3,   // the lift rounds to 4 places
        'v7->v8: absent keys read as the cage defaults (' + r4.boomLen + ')');
+  }
+  // the v8->v9 lift (G267): a twin boom's diameter and taper become the
+  // loft's four sizes — the lofted tube was 1.5 x taller than wide, a rod
+  // round — and the pair is gone; a save that never set them is untouched
+  {
+    const up = c => C.genMigrateSpec({ v: 8, cage: c }).cage;
+    const r1 = up({ boomTwin: 1, boomD: 0.2, boomTaper: 0.5 });
+    ok(Math.abs(r1.boomWf - 0.2) < 1e-9 && Math.abs(r1.boomHf - 0.3) < 1e-9 &&
+       Math.abs(r1.boomWa - 0.1) < 1e-9 && Math.abs(r1.boomHa - 0.15) < 1e-9 &&
+       !('boomD' in r1) && !('boomTaper' in r1),
+       'v8->v9: a lofted twin boom\'s diameter and taper become its four sizes (0.2/0.3 -> 0.1/0.15)');
+    const r2 = up({ boomStyle: 1, boomTwin: 1, boomD: 0.2, boomTaper: 1 });
+    ok(Math.abs(r2.boomHf - 0.2) < 1e-9 && Math.abs(r2.boomHa - 0.2) < 1e-9,
+       'v8->v9: a rod twin boom stays round');
+    const r3 = up({ boomTwin: 1, boomLen: 3 });
+    ok(!('boomWf' in r3) && r3.boomLen === 3, 'v8->v9: a save without the pair is left alone');
   }
   // G194: the propeller's hand survives the resolve, and absent means +1
   {

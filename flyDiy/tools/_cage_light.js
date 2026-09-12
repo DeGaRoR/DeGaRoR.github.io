@@ -907,9 +907,16 @@ function sites(scene, group, P) {
       // `sink` replaces the straddle. The comment above described the old
       // behaviour and its reason ("which is where the bracketry of a real one
       // goes") — true of the BRACKETRY, and the fairing is not bracketry.
-      out.beacon = { p: [0, t.yMid, t.zMid], ax: [0, 1 / k, -m / k],
+      // ONE BEACON PER FIN, ON THAT FIN (G267, the user: "a lamp that
+      // expects a single boom/fin and that needs to be duplicated and
+      // repositioned"). The station was x 0 whatever the fin's own x, and
+      // the loop overwrote one record per fin group: on twin booms the one
+      // beacon hung in mid-air on the centreline. The top slice knows the
+      // fin's x; the second fin is `beacon2`.
+      const site = { p: [0.5 * (t.x0 + t.x1), t.yMid, t.zMid], ax: [0, 1 / k, -m / k],
                      chord: [0, -m / k, -1 / k], sink: beaconSink,
                      len: (t.z1 - t.z0) * k, thick: t.x1 - t.x0, pod: true };
+      if (!out.beacon) out.beacon = site; else if (!out.beacon2) out.beacon2 = site;
     }
   }
   if (C && C.A) {
@@ -984,7 +991,14 @@ function sites(scene, group, P) {
         if (q.y > crown - 0.06 && (!best || q.y < best.y)) best = q;
       return best;
     };
-    if (pilot) {
+    // A BUBBLE HAS NO CEILING (G267, the user: "the ceiling cabin lights
+    // should be hidden in bubble cockpit mode"). Under a blown hood the
+    // ceiling band is glass, `ceilAt` finds no roof face and the lamps fell
+    // back to the spec's roof line — a dome lamp hanging in mid-air inside
+    // the canopy. The cage's own canopy row says so; no flood, no pax lamps.
+    const P0 = window.CAGE_UI && window.CAGE_UI.P;
+    const bubble = !!(P0 && Math.round(+P0.canopy || 0) === 3);
+    if (pilot && !bubble) {
       // the flood is in the ROOF over the pilot, aimed down. `ceilAt` when the
       // cage can be asked; the spec's roof line when it cannot (the bench
       // builds this layer with no cage mesh in the page).
@@ -992,12 +1006,14 @@ function sites(scene, group, P) {
       out.flood = { p: [pilot.x, (cl ? cl.y : A.roofY) - 0.03,
                         pilot.zBack + 0.12],
                     ax: [0, -1, 0], onCeiling: !!cl };
+    }
+    if (pilot) {
       // the pedalier lights are under the coaming, aimed into the footwell
       out.pedal = { p: [pilot.x, A.floorAt(A.zDash) + 0.30, A.zDash - 0.02],
                     ax: [0, -1, 0] };
     }
     // the passenger lights are over every seat that is not the pilot's
-    out.pax = seats.filter(s => !s.pilot).map(s => {
+    out.pax = (bubble ? [] : seats.filter(s => !s.pilot)).map(s => {
       const cl = ceilAt(s.x, s.zBack + 0.10);
       return { p: [s.x, (cl ? cl.y : A.roofY) - 0.03, s.zBack + 0.10],
                ax: [0, -1, 0], onCeiling: !!cl };
@@ -1196,6 +1212,7 @@ PAGE.post = (ctx) => {
   // ---- OUTSIDE ------------------------------------------------------------
   if (S.navR) { lamp('nav', S.navR, S.navR.col); lamp('nav', S.navL, S.navL.col); }
   if (S.beacon) lamp('beacon', S.beacon);
+  if (S.beacon2) lamp('beacon', S.beacon2);         // G267: the other fin's
   if (S.wingLampR) {
     lamp('taxi', S.wingLampL);
     lamp('land', S.wingLampR);

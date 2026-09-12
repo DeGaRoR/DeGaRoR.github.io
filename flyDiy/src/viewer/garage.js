@@ -1257,6 +1257,15 @@ function garageInit(api) {
       set: s => loadSpec(JSON.parse(JSON.stringify(s)), slotName, plaque, log),
       // THE JOIN'S DOOR. Merges rather than replaces — see `merge` above.
       update: j => { spec = merge(spec, JSON.parse(JSON.stringify(j))); rebuild(); },
+      // ...AND WHAT THAT DOOR WOULD PRODUCE, without walking through it
+      // (G266.2): the snapshot calibrates its pitch and its wheel offset on
+      // a frame built from the spec it is handed, and the game flies the
+      // MERGED one — on the user's twin boom the join's fragment carried no
+      // aft profile (a pod has no tail post to measure), the merge kept the
+      // last one, and the two frames' body axes were 8.6 deg apart: the
+      // drawn tail 0.26 m above the frame's at 4 m. The snapshot reads the
+      // aeroplane that will fly, through this.
+      preview: j => merge(spec, JSON.parse(JSON.stringify(j))),
       resolved: () => api.resolved(),
       // a PERSIST door like the other two: the fleet rack and the gates read
       // it, and a stale answer here is the same lie in a smaller room

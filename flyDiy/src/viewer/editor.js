@@ -2111,7 +2111,7 @@ function editorInit(api) {
     [/^edFit_pitot/, 'wingPanel'],
     [/^edSurf_ail/, 'wingCtl'],
     [/^edSurf_rud/, 'fin'],
-    [/^edBoom/, 'boom'],                 // the twin booms (2026-09-04)
+    [/^edBoom/, 'booms'],                // the twin booms (2026-09-04; their own part, G267)
     [/^edSurf_elev/, 'stab'],
     // the crew layer NAMES ITS FURNITURE now (G113 closed the gap this
     // comment used to declare): seats, control stations and the console
@@ -2495,12 +2495,21 @@ function editorInit(api) {
     PIN_ROW.boomX = { layer: 'root', fn: boomEnds };
     PIN_ROW.boomLen = { layer: 'root',
       fn: booms(B => [[B.x, B.y, B.zTip], [-B.x, B.y, B.zTip]]) };
-    PIN_ROW.boomD = { layer: 'root',
-      fn: booms(B => [[B.x, B.y + B.r0, B.zRoot], [-B.x, B.y + B.r0, B.zRoot],
-                      [B.x, B.y - B.r0, B.zRoot], [-B.x, B.y - B.r0, B.zRoot]]) };
-    PIN_ROW.boomTaper = { layer: 'root',
-      fn: booms(B => [[B.x, B.y + B.r1, B.zTip], [-B.x, B.y + B.r1, B.zTip],
-                      [B.x, B.y - B.r1, B.zTip], [-B.x, B.y - B.r1, B.zTip]]) };
+    // G267: the loft's four sizes, pinned at the end they size
+    PIN_ROW.boomWf = { layer: 'root',
+      fn: booms(B => [[B.x + B.r0, B.y, B.zRoot], [-B.x - B.r0, B.y, B.zRoot],
+                      [B.x - B.r0, B.y, B.zRoot], [-B.x + B.r0, B.y, B.zRoot]]) };
+    PIN_ROW.boomHf = { layer: 'root',
+      fn: booms(B => [[B.x, B.y + 0.5 * B.hF, B.zRoot], [-B.x, B.y + 0.5 * B.hF, B.zRoot],
+                      [B.x, B.y - 0.5 * B.hF, B.zRoot], [-B.x, B.y - 0.5 * B.hF, B.zRoot]]) };
+    PIN_ROW.boomWa = { layer: 'root',
+      fn: booms(B => [[B.x + B.r1, B.y, B.zTip], [-B.x - B.r1, B.y, B.zTip],
+                      [B.x - B.r1, B.y, B.zTip], [-B.x + B.r1, B.y, B.zTip]]) };
+    PIN_ROW.boomHa = { layer: 'root',
+      fn: booms(B => [[B.x, B.y + 0.5 * B.hA, B.zTip], [-B.x, B.y + 0.5 * B.hA, B.zTip],
+                      [B.x, B.y - 0.5 * B.hA, B.zTip], [-B.x, B.y - 0.5 * B.hA, B.zTip]]) };
+    PIN_ROW.boomNoseLen = { layer: 'root', fn: booms(B => [[B.x, B.y, B.zFore], [-B.x, B.y, B.zFore]]) };
+    PIN_ROW.boomTailLen = { layer: 'root', fn: booms(B => [[B.x, B.y, B.zAft], [-B.x, B.y, B.zAft]]) };
     const rod = fn => () => {
       const C2 = window.CAGE2, P = window.CAGE_UI && window.CAGE_UI.P;
       if (!C2 || !C2.cageSpec || !C2.cageResolve || !P) return [];

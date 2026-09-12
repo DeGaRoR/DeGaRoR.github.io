@@ -389,6 +389,13 @@ const CAGE_PARTS = [
       ['tightening', ['taperOn', 'taperLen', 'taperW', 'taperPanels']],
     ] },
 
+  // G267 (the user: "the tail cone options appear under boom, while it has
+  // its own entry in the tree ... the twin boom options I discussed should
+  // be in the boom, but with a clever switch to only show applicable options
+  // according to the type of boom selected"). The rows' own `when`s are the
+  // switch — a rod's rows show on a rod, a loft's on a loft, the twin
+  // booms' on twin booms — and the inspector drops a heading whose rows all
+  // hid; the pod's aero aft is the tail cone's business and lives there.
   { key: 'boom', name: 'Boom', parent: 'fuselage', layer: 'cage',
     sections: ['boomTube'],
     zone: 'boom',
@@ -396,12 +403,25 @@ const CAGE_PARTS = [
              at: 'aft of the taper' },
     groups: [
       // boomStyle -> `design`; these shape the rod once it is chosen
-      ['rod', ['rodY', 'rodD']],
-      ['twin booms', ['boomTwin', 'boomX', 'boomD', 'boomTaper']],
-      // the pod's aero tail on a rod boom (2026-09-04, cut 1)
-      ['aero aft', ['aeroAftOn', 'aeroAftLen', 'aeroAftDroop', 'aeroAftTip']],
+      ['rod', ['rodY', 'rodD', 'rodIncl']],
+      ['twin booms', ['boomTwin']],
       ['length & aft section', ['boomLen', 'aftRoofY', 'aftKeelY']],
       ['pod ring', ['boomMidOn', 'boomMidT', 'boomMidPinch']],
+    ] },
+
+  // THE TWIN BOOMS, A PART OF THEIR OWN (G267): the wing layer draws them
+  // in `cageLayer:boom` as `edBoomL/R`, so a click lands here and the
+  // highlight finds them. Gated on the boom part's own switch (the way
+  // back is that row, on the Boom).
+  { key: 'booms', name: 'Twin booms', parent: 'fuselage', layer: 'boom',
+    when: P => !!+P.boomTwin,
+    sections: ['boomSkin'],
+    place: { out: 'boomX', at: 'off the wing’s trailing edge, one a side' },
+    groups: [
+      ['track', ['boomX']],
+      ['section', ['boomWf', 'boomHf', 'boomWa', 'boomHa', 'boomSquare', 'boomIncl', 'boomCollar']],
+      ['wing end', ['boomNoseLen', 'boomNoseK', 'boomNoseCap']],
+      ['tail end', ['boomTailLen', 'boomTailK', 'boomTailCap']],
     ] },
 
   { key: 'tailcone', name: 'Tail cone', parent: 'fuselage', layer: 'cage',
@@ -411,6 +431,9 @@ const CAGE_PARTS = [
              at: 'the aft extremity' },
     groups: [
       ['cone', ['tailLen', 'tailHalfW', 'tailRoofY', 'tailKeelY']],
+      // the pod's aero tail where the pod ends at the bulkhead (a rod boom,
+      // twin booms) — moved here from the Boom (G267)
+      ['aero aft', ['aeroAftOn', 'aeroAftLen', 'aeroAftDroop', 'aeroAftTip']],
     ] },
 
   // THE FITTINGS (G81-G83). They are not a shape you draw — they are what
@@ -579,6 +602,7 @@ const CAGE_PARTS = [
     groups: [
       ['fitted', ['finOn', 'finProject', 'finRootGuard', 'finDorsal',
                   'finKeel']],
+      ['ventral', ['finVentralOn', 'finVentralH', 'finVentralC']],
       ['construction', ['finCons']],
       ['cut', ['finCut', 'finCutGap']],
       // `tailRimN` (the rim's facet count, shared with the stab) -> `poly`

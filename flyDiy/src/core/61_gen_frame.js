@@ -106,6 +106,8 @@ function genLattice(S, gearX, track, kScale) {
   //   mnt     an ENGINE BEARER member: GEN_RULES.mountK on k, its root on c
   //   opt     G185: { tens, pre } — a TENSION-ONLY member (a wire: no spring
   //           and no damper in compression) and its rigging pre-strain
+  //           G266: { kx } — a stiffness multiplier on k (c by its root),
+  //           the twin boom's tube factor (see the block)
   // THE ROD BOOM'S COMPENSATOR, COMPUTED (TAIL CHANTIER 2 P6, ruling (j)).
   // G199.5 swept `rodBoomK` by hand (1 / 2 / 3 / 4 / 8) and landed it at 1
   // because the number was a guess and the AP's crosswind steering was tuned
@@ -221,9 +223,9 @@ function genLattice(S, gearX, track, kScale) {
     // the root, as the bearer's mountK does. Weightless: k only. The rule
     // sits at 1 today (see it for the measured trade against the AP's
     // crosswind roll), so this changes nothing until it is turned.
-    const bK = (S.fuse.boom === 'rod' && cls === 'fus' && !mnt &&
-                P[a][0] >= S.fuse.boxRear - 1e-6 && P[b][0] >= S.fuse.boxRear - 1e-6)
-      ? rodK() : 1;
+    const bK = ((S.fuse.boom === 'rod' && cls === 'fus' && !mnt &&
+                 P[a][0] >= S.fuse.boxRear - 1e-6 && P[b][0] >= S.fuse.boxRear - 1e-6)
+      ? rodK() : 1) * ((opt && opt.kx > 0) ? opt.kx : 1);
     const bm = { a, b, k: row(MM.k, cls) * (isG ? kG : KS) * kGain * mK * bK,
                  c: row(MM.c, cls) * (isG ? cG : CS) * Math.sqrt(mK) * Math.sqrt(bK),
                  gear: isG, cls, ext: vis === 'inner' ? false : (!!ext || isG),
@@ -485,6 +487,7 @@ function genLattice(S, gearX, track, kScale) {
   // where a plane sits, before it is built — the truss needs to know which
   // of the two is the upper one to put the box caps on the far side
   const yOfPlane = w => {
+    if (w.yRoot != null) return w.yRoot;                    // G266.1: measured
     const POSk = { high: 1, mid: 0.5, low: 0, parasol: 1 }[w.position] ?? 1;
     const cH = w.position === 'parasol' ? (w.cabaneH == null ? 0.55 : w.cabaneH) : 0;
     return cab.h * POSk + (cH > 0 ? cH : R.wingStandoff * (POSk >= 0.75 ? 1 : POSk <= 0.25 ? -1 : 0));
@@ -577,7 +580,14 @@ function genLattice(S, gearX, track, kScale) {
   // carries it and `oppose` is the one the strut or the depth tie reaches to —
   // the strut on a low wing goes UP, not down.
   const POS = { high: 1, mid: 0.5, low: 0, parasol: 1 }[w.position] ?? 1;
-  const wingY0 = cab.h * POS
+  // G266.1: THE DRAWN HEIGHT WINS. The wing layer anchors the drawn wing on
+  // the cage's own band (deck / waist / belly), and the join reads that
+  // anchor back as `yRoot` exactly as it reads `xLE` — so the frame's spar
+  // is where the drawn spar is. Measured before this on the user's low-wing
+  // twin boom: the rule put the wing 0.10 m UNDER the keel, the drawing had
+  // it 0.31 m above — 0.41 m apart, and the booms rooted on the frame's
+  // wing flew 0.41 m under the drawn tubes whatever their own geometry did.
+  const wingY0 = w.yRoot != null ? w.yRoot : cab.h * POS
     + (cabH > 0 ? cabH : R.wingStandoff * (POS >= 0.75 ? 1 : POS <= 0.25 ? -1 : 0));
   const attachHi = POS >= 0.5, attachTag = attachHi ? 'T' : 'B';
   const opposeTag = attachHi ? 'B' : 'T';
@@ -1076,61 +1086,309 @@ function genLattice(S, gearX, track, kScale) {
   let HTL, HTR, FIN = null, FIN2 = null, HTBL = null, HTBR = null, BOOMS = null;
   let TAIL = null;                    // P4: the conventional tail's truss record (the strips read it)
   if (isTB) {
-    // ---- TWIN BOOMS (2026-09-04, TWIN-BOOM spec §1.3, cut 2) --------------
-    // Each boom is a PRISM TRUSS — three nodes a station (a top and two
-    // bottoms, in and out), triangles at the stations, longitudinals and
-    // diagonals along the bays — rooted on the wing's four spar nodes of its
-    // own bay just aft of the rear spar, running `boomLen` aft at ±boomX in
-    // the wing's own plane. The stab's nodes ARE the two tail tops (they keep
-    // the HTL/HTR tags every consumer keys off); the panel between the booms
-    // ties them; one FIN node stands over each tail. The booms are covered
-    // tubes (their skin billed at 2πr per metre) in the tail's material.
+    // ---- TWIN BOOMS, REBUILT (G266, 2026-09-11; the user: "far too
+    // flexible and not well attached to the rest of the structure, and the
+    // visual model is not associated with the physical model ... it bends
+    // and falls like butter"). MEASURED on the user's build before this, the
+    // fuselage clamped and the tail loaded with the stab's 1 g share (572 N):
+    // the tail SAGGED 761 mm under its own weight, rose 1460 mm under the
+    // load — 37 % of the arm — and rolled 36 deg under an antisymmetric
+    // elevator load; a conventional tail on the same rig reads 1 mm, 22 mm
+    // (0.7 %) and 1 deg, a rod boom 4 mm, 53 mm (1.5 %) and 2.3 deg. Three
+    // causes, each its own cure:
+    //   1. THE SECTION WAS A GUESS — a 0.12 x 0.14 m prism on a 0.08 m
+    //      radius, whatever was drawn. The truss now stands INSIDE THE DRAWN
+    //      TUBE: the join publishes the oval the wing layer lofted (boomR,
+    //      boomTaper, boomOval = its height over its width), and the prism
+    //      is inscribed in it at every station, tapering with it.
+    //   2. THE LATTICE HAD THE FUSELAGE'S PER-MEMBER k ON A 0.12 m SECTION.
+    //      The solver's k is N/m per member, no length in it, so a boom's
+    //      bending stiffness is k·Lbay·Σy² — and the drawn tube it stands
+    //      for is ~100x stiffer (the tube factor below has the arithmetic).
+    //      The factor is computed, and CAPPED BY THE INTEGRATOR: the boom's
+    //      nodes weigh 0.7-1.5 kg, so k goes straight into the substep
+    //      count. Measured on this build (78 substeps without the booms'
+    //      say), NB bays over the 4 m, K the factor, the tail under the
+    //      stab's 1 g share, and its roll under the antisymmetric half:
+    //        NB 7  K 1   80 substeps   sag 515 mm   27.7 %   37.8 deg
+    //        NB 7  K 6  151            86           4.6      8.1
+    //        NB 3  K 6  103            27           1.55     2.9
+    //        NB 2  K 4   78            33           1.83     3.5
+    //        NB 2  K 8  102            17           0.91     1.7
+    //        NB 2  K 12 125            11           0.61     1.1
+    //      FEWER, LONGER BAYS ARE STIFFER under this convention (the same k
+    //      on a longer member is more EA), and lump the same mass on fewer
+    //      nodes, which is what buys the factor: the pitch rule is 2 m
+    //      (GEN_RULES.twinBoomBay; 2..5 bays) and the factor's cap is 8
+    //      (twinBoomKMax) — a conventional tail's class (0.7 %, 1 deg) for
+    //      a quarter more substeps. The residual to the real tube is the
+    //      tube element type, owed in the debt register with the rod's.
+    //   3. THE ROOT HUNG 0.1 m AFT OF THE REAR SPAR on a fan to four spar
+    //      nodes. It is the DRAWN root now, tied to BOTH spars' nodes of
+    //      its bay and to the box caps under them on a cantilever wing —
+    //      the moment lands on the wing's own box across the whole spar
+    //      spacing, and the ties to the front spar are the drag brace (a
+    //      first cut stood a station at each spar, tied in the spar's own
+    //      plane: every tie perpendicular to x, the boom free to slide
+    //      fore-aft — rank 388 of 390, found by the rigidity test; and
+    //      measured no stiffer than the direct ties once braced).
+    // And THE FRAME STANDS WHERE THE DRAWING DOES: the root at the drawn
+    // root station (boomX0 — the wing layer roots the tube just inside the
+    // trailing edge; the join's x IS the frame's x, hX proves it daily), the
+    // tail tops at the drawn stab, the fin apex the drawn fin's own height
+    // above the oval's top. The HEIGHT is the frame's own: the wing layer
+    // draws the tube on the trailing-edge line, so the axis sits on the
+    // frame's trailing-edge line at that station — an absolute y from the
+    // join was tried and measured 0.37 m above it (the join's keel datum is
+    // not the frame's y = 0; nothing before this had ever put a join y
+    // straight into the frame). A spec without the drawing (GATE GEN's
+    // matrix row) roots 0.15 m inside the trailing edge.
     const bx = t.boomX, len = t.boomLen;
-    const rB = Math.max(0.04, t.boomR || 0.09);
+    const r0 = Math.max(0.04, t.boomR || 0.09);
+    const tap = t.boomTaper == null ? 0.7 : t.boomTaper;   // tip radius over root
+    const r1 = r0 * tap;
+    const kv = t.boomOval == null ? 1.5 : t.boomOval;      // the oval: height over width
     const zAll = [zRoot, ...zs];
     let b = 0;
     for (let k = 0; k < zAll.length - 1; k++) if (bx >= zAll[k]) b = k;
     b = Math.min(b, zs.length - 1);
     const zB = Math.min(bx, zs[zs.length - 1]);
-    const x0 = xRat(zB) + 0.10, y0 = yF(zB);
-    const NB = 3, chains = {};
+    const xTE = xRat(zB) + (1 - sparRear) * chordAt(zB);
+    const x0 = t.boomX0 != null ? t.boomX0 : xTE - 0.15;
+    const y0 = yF(zB) - (1 - sparFront) * chordAt(zB) * Math.tan(incAt(zB));
+    // G267.1: the boom's inclination — its axis climbs tan(incl) per metre
+    // aft of the root (the drawn tube pivots there)
+    const tInc = Math.tan((t.boomIncl || 0) * Math.PI / 180);
+    const yAx = x => y0 + tInc * (x - x0);
+    const pitch = R.twinBoomBay == null ? 2.0 : R.twinBoomBay;
+    const NB = Math.max(2, Math.min(5, Math.round(len / pitch)));
+    // THE BOOMS ARE FUSELAGE: built, billed and stiffened in the aeroplane's
+    // own material (sec('tail') had switched MB to the stab's surface row,
+    // so the tubes were being priced as fabric over wood)
+    MB = M;
+    // THE TUBE THE LATTICE STANDS FOR (rodK's recipe, on a bending section).
+    // The drawn boom is a monocoque oval — E from the fuselage material, wall
+    // GEN_RULES.rodWall — with EI = E·π·t·a²(a + 3b)/4 (thin ellipse, a the
+    // vertical semi-axis); the prism's is Σ(k·Lbay)·y² over its three chords
+    // = k·Lbay·1.5·a². Their ratio on the mid-boom section is the factor
+    // every boom member's k takes (c by its root), clamped like rodK's.
+    // MEASURED on the user's build (tubeFabric, 0.08 m root, 0.7 taper,
+    // 1.5 oval, seven 0.57 m bays): the honest ratio is ~100 and the clamp
+    // holds it at 20 — a lattice of the fuselage's own k on a 0.12 m section
+    // is what it is. GEN_RULES.twinBoomK: 'computed' | a number | absent = 1.
+    const tbK = (() => {
+      const rk = R.twinBoomK;
+      if (rk !== 'computed') return rk == null ? 1 : +rk;
+      const ph = M && M.phys;
+      if (!ph || !(ph.E > 0)) return 1;
+      const tW = R.rodWall == null ? 1.2e-3 : R.rodWall;
+      const rm = 0.5 * (r0 + r1), a = kv * rm;
+      const EIt = ph.E * Math.PI * tW * a * a * (a + 3 * rm) / 4;
+      const EIl = (M.k.fus || 0) * KS * (len / NB) * 1.5 * a * a;
+      const cap = R.twinBoomKMax == null ? 8 : R.twinBoomKMax;
+      return EIl > 0 ? Math.max(1, Math.min(cap, EIt / EIl)) : 1;
+    })();
+    const KX = { kx: tbK };
+    // the stations: the drawn root, the bays aft of it TO THE DRAWN STAB
+    // (t.hX — the stab layer's own station; the stab strips hang on the
+    // tail nodes, so where those nodes stand IS the tail arm the aeroplane
+    // flies, and a tail built at the tube's tip flew 0.5 m more arm than
+    // was drawn on the user's build), then the tube's overhang past the
+    // stab as one more bay when there is a metre of it (a shorter one is a
+    // fairing: its station would be 0.3 kg nodes on k x 8 — measured, the
+    // substep count went 101 -> 200 on the user's 0.5 m overhang)
+    const xTip = x0 + len;
+    // (a stab centred a hand past the tube's end is still that stab —
+    // the user's sits 5 cm beyond it)
+    const xStab = (t.hX > x0 + 0.5 * len && t.hX < xTip + 0.2) ? t.hX : xTip;
+    const xs = [];
+    for (let k = 0; k <= NB; k++) xs.push(x0 + (xStab - x0) * k / NB);
+    const iRoot = 0, iTail = NB;
+    if (xTip - xStab >= 1.0) xs.push(xTip);
+    const rAt = x => x <= x0 ? r0 : r0 + (r1 - r0) * Math.min(1, (x - x0) / len);
+    const chains = {};
+    const far = (q, m) => Math.hypot(P[q][0] - P[m][0], P[q][1] - P[m][1],
+                                     P[q][2] - P[m][2]) > 0.05;
     for (const [sd, sg] of [['L', -1], ['R', 1]]) {
       const st = [];
-      for (let k = 0; k <= NB; k++) {
-        const x = x0 + len * k / NB;
-        const T = N(x, y0 + rB, sg * bx, k === NB ? 'HT' + sd : 'BM' + sd + 'T');
-        const I = N(x, y0 - 0.5 * rB, sg * bx - sg * 0.9 * rB, 'BM' + sd + 'I');
-        const O = N(x, y0 - 0.5 * rB, sg * bx + sg * 0.9 * rB, 'BM' + sd + 'O');
-        B(T, I, 'fus'); B(I, O, 'fus'); B(O, T, 'fus');
+      xs.forEach((x, k) => {
+        const r = rAt(x), h = kv * r;
+        // the prism inscribed in the oval: the top on its crown, the two
+        // bottoms at its lower shoulders (an equilateral in the ellipse).
+        // (G266.2 raised the tail station's top to the drawn stab's height
+        // and tagged it HT; G268 gives the stab its own nodes there — the
+        // truss's boom station, a pyramid on this triangle — because a
+        // 0.6 m mast on a 0.12 m triangle was a snap-through: ±50 N
+        // antisymmetric on the stab dropped the whole tail 0.5 m.)
+        const ya = yAx(x);
+        const T = N(x, ya + h, sg * bx, 'BM' + sd + 'T');
+        const I = N(x, ya - 0.5 * h, sg * bx - sg * 0.87 * r, 'BM' + sd + 'I');
+        const O = N(x, ya - 0.5 * h, sg * bx + sg * 0.87 * r, 'BM' + sd + 'O');
+        B(T, I, 'fus', 0, 0, 0, KX); B(I, O, 'fus', 0, 0, 0, KX); B(O, T, 'fus', 0, 0, 0, KX);
         if (k) {
           const p = st[k - 1];
-          B(p.T, T, 'fus'); B(p.I, I, 'fus'); B(p.O, O, 'fus');
-          B(p.T, I, 'fus'); B(p.I, O, 'fus'); B(p.O, T, 'fus');
+          B(p.T, T, 'fus', 0, 0, 0, KX); B(p.I, I, 'fus', 0, 0, 0, KX); B(p.O, O, 'fus', 0, 0, 0, KX);
+          B(p.T, I, 'fus', 0, 0, 0, KX); B(p.I, O, 'fus', 0, 0, 0, KX); B(p.O, T, 'fus', 0, 0, 0, KX);
         }
         st.push({ T, I, O });
-      }
-      const w = wf[sd];
-      for (const n of [st[0].T, st[0].I, st[0].O])
-        for (const m of [w.F[b], w.F[b + 1], w.R[b], w.R[b + 1]]) B(n, m, 'fus');
-      cover(2 * Math.PI * rB * len, st.flatMap(q => [q.T, q.I, q.O]));
+      });
+      // the ties to the wing: the root's three nodes to both spars' nodes
+      // of the bay, and to the box caps under them where the wing has a box
+      const w = wf[sd], rt = st[iRoot];
+      const anchors = [w.F[b], w.F[b + 1], w.R[b], w.R[b + 1],
+                       w.FB ? w.FB[b] : null, w.FB ? w.FB[b + 1] : null,
+                       w.RB ? w.RB[b] : null, w.RB ? w.RB[b + 1] : null];
+      for (const q of [rt.T, rt.I, rt.O])
+        for (const m of anchors) if (m != null && far(q, m)) B(q, m, 'fus', 0, 0, 0, KX);
+      // the covered tube, from the drawn root aft: an oval's girth, tapering
+      cover(Math.PI * r0 * (1 + kv) * 0.5 * (1 + tap) * len,
+            st.slice(iRoot).flatMap(q => [q.T, q.I, q.O]));
       chains[sd] = st;
     }
-    const tl = chains.L[NB], tr = chains.R[NB];
-    HTL = tl.T; HTR = tr.T; HTBL = tl.I; HTBR = tr.I;
-    // the panel between the booms ties them — the stab's own cover
-    B(tl.T, tr.T, 'fus'); B(tl.I, tr.I, 'fus'); B(tl.T, tr.I, 'fus'); B(tr.T, tl.I, 'fus');
-    cover(1.9 * t.Sh, [HTL, HTR, tl.I, tr.I]);
-    MB = genSurfMaterial(S, 'fin');            // G213
-    const finTopB = y0 + rB + t.vHeight * 0.82;
-    const xFin = x0 + len - 0.30 * t.vChord;
-    FIN = N(xFin, finTopB, bx, 'FIN');
-    FIN2 = N(xFin, finTopB, -bx, 'FIN2');
-    for (const [f, q, sd] of [[FIN, tr, 'R'], [FIN2, tl, 'L']]) {
-      B(f, q.T, 'fus'); B(f, q.I, 'fus'); B(f, q.O, 'fus');
-      B(f, chains[sd][NB - 1].T, 'fus');
+    const tl = chains.L[iTail], tr = chains.R[iTail];
+    HTBL = tl.I; HTBR = tr.I;
+    // ---- THE TAIL ON THE BOOMS, IN THE WING'S IDIOM (G268 — TAIL CHANTIER 2
+    // P4 applied to the twin boom; the user: "there has been a major tail
+    // chantier recently, did we apply all that to the twin booms?" — it had
+    // not: the stab was four nodes and two strips a side, each fin one node
+    // and one strip, neither in the load rig). The stab is the P4 TWO-SPAR
+    // TRUSS with its ROOT AT THE CENTRE (the carry-through) and its last
+    // station ON EACH BOOM's tail triangle — a bridge from boom to boom, the
+    // drawn stab overhanging a boom gets one bay outboard of it; each fin is
+    // the P4 truss up from its boom's tail, the apex the drawn fin's top.
+    // Every member is class 'tail' as the conventional's; the strips ride
+    // the bays (62_gen_aero's P.TAIL branch, per fin); the load rig finds
+    // HF/HR and VF/VR by tag as it does on the fuselage tail.
+    MB = genSurfMaterial(S, 'stab');           // G213: the stab's own row
+    const CT = (S.controls && S.controls.elevator && S.controls.elevator.chord > 0)
+      ? S.controls.elevator.chord : 0.40;
+    const CR = (S.controls && S.controls.rudder && S.controls.rudder.chord > 0)
+      ? S.controls.rudder.chord : 0.42;
+    const sparF = R.tailSparFront == null ? 0.15 : R.tailSparFront;
+    const dep = R.tailBoxDepth == null ? 0.08 : R.tailBoxDepth;
+    const hTap = t.hTaper == null ? 1 : t.hTaper;
+    const semiH = Math.max(bx, 0.5 * (t.hSpan || 2 * bx));     // the drawn semispan, the boom at least
+    const hc = t.Sh / (2 * semiH);                              // the mean chord
+    const cRootH = 2 * hc / (1 + hTap), cTipH = hTap * cRootH;
+    // ONE TRUSS ACROSS, NO JOINT AT THE CENTRE. The first cut built the
+    // conventional's two halves meeting through a 0.12 m carry-through: on
+    // a fuselage that joint sits on the post; between two booms it is a
+    // HINGE (its moment arm is the box depth, 5 cm), and the bridge folded
+    // at the centre under ±50 N — the halves hung from the booms, the fins
+    // rolled a metre inward, the stab centre dropped 1.25 m. The centre
+    // station is one node set shared by both sides' arrays (z 0), so every
+    // bay runs continuous through it and the strips' per-side walk holds.
+    const zRootH = 0;
+    const chordH = z => cRootH + (cTipH - cRootH) * Math.min(1, Math.max(0, z / semiH));
+    const yStab = (t.stabY != null && t.stabY > yAx(xStab) + kv * rAt(xStab) + 0.02)
+      ? t.stabY : yAx(xStab) + kv * rAt(xStab);
+    const xFH = z => xStab + (sparF - 0.5) * chordH(z);
+    const xRH = z => xStab + (0.5 - CT) * chordH(z);
+    // stations: the centre pair, the wing's pitch out to the BOOM (a station
+    // exactly on it), then one bay outboard when the drawn stab runs past it
+    const nH = Math.max(2, Math.min(4, Math.round((bx - zRootH) / 0.55)));
+    const zsH = [zRootH];
+    for (let i = 1; i <= nH; i++) zsH.push(zRootH + (bx - zRootH) * i / nH);
+    const iBoom = zsH.length - 1;
+    if (semiH > bx + 0.12) zsH.push(semiH);
+    const nB = zsH.length - 1;
+    // THE TAGGED TAIL NODES FIRST (the first-tagged rule every consumer
+    // keys off): the stab's own point on each boom, mid-chord at the drawn
+    // stab station — what the tail-arm rig loads, the gauge reads and the
+    // game's tail assembly anchors on
+    HTL = N(xStab, yStab, -bx, 'HTL'); HTR = N(xStab, yStab, bx, 'HTR');
+    const HF = { L: [], R: [] }, HR = { L: [], R: [] }, HB = { L: [], R: [] };
+    const C0 = { F: N(xFH(0), yStab, 0, 'HF'), R: N(xRH(0), yStab, 0, 'HR'),
+                 B: N(0.5 * (xFH(0) + xRH(0)), yStab - dep * chordH(0), 0, 'HB') };
+    for (const [sd, sg] of [['L', -1], ['R', 1]]) {
+      HF[sd] = zsH.map((z, i) => i === 0 ? C0.F : N(xFH(z), yStab, sg * z, 'HF'));
+      HR[sd] = zsH.map((z, i) => i === 0 ? C0.R : N(xRH(z), yStab, sg * z, 'HR'));
+      HB[sd] = zsH.map((z, i) => i === 0 ? C0.B : N(0.5 * (xFH(z) + xRH(z)), yStab - dep * chordH(z), sg * z, 'HB'));
+      // the station ON THE BOOM is a PYRAMID on the boom's tail triangle:
+      // its three spar nodes and the tagged node each tie to T, I, O and to
+      // the bay before (out of the triangle's plane) — the boom is the post
+      const q = chains[sd][iTail], prev = chains[sd][iTail - 1];
+      const H = sd === 'L' ? HTL : HTR;
+      for (const nd of [HF[sd][iBoom], HR[sd][iBoom], HB[sd][iBoom], H]) {
+        B(nd, q.T, 'tail'); B(nd, q.I, 'tail'); B(nd, q.O, 'tail'); B(nd, prev.T, 'tail');
+      }
+      B(H, HF[sd][iBoom], 'tail'); B(H, HR[sd][iBoom], 'tail'); B(H, HB[sd][iBoom], 'tail');
+      if (iBoom > 0) { B(H, HF[sd][iBoom - 1], 'tail'); B(H, HR[sd][iBoom - 1], 'tail'); }
+      for (let i = (sd === 'R' ? 1 : 0); i <= nB; i++) {         // the section triangle (the centre's once)
+        B(HF[sd][i], HR[sd][i], 'tail'); B(HF[sd][i], HB[sd][i], 'tail'); B(HR[sd][i], HB[sd][i], 'tail');
+      }
+      for (let i = 0; i < nB; i++) {
+        const f0 = HF[sd][i], f1 = HF[sd][i + 1], r0 = HR[sd][i], r1 = HR[sd][i + 1];
+        const b0 = HB[sd][i], b1 = HB[sd][i + 1];
+        B(f0, f1, 'tail'); B(r0, r1, 'tail'); B(b0, b1, 'tail'); // the three chords
+        B(f0, r1, 'tail'); B(r0, f1, 'tail');                   // rule 4: the plan's diagonals
+        B(f0, b1, 'tail'); B(b0, f1, 'tail');                   // ...and the two faces'
+        B(r0, b1, 'tail'); B(b0, r1, 'tail');
+        const zi = zsH[i], zo = zsH[i + 1];
+        cover(1.9 * (zo - zi) * 0.5 * (chordH(zi) + chordH(zo)), [f0, f1, r0, r1, b0, b1]);
+        const nRib = Math.max(1, Math.round((zo - zi) / 0.4));
+        const ribM = nRib * 0.5 * (chordH(zi) + chordH(zo)) * 0.30;
+        pt(f1, 0.5 * ribM); pt(r1, 0.5 * ribM);
+      }
+      // an overhang's tip carries the bow (G235); the boom-end stab has none
+      if (nB > iBoom) pt(HF[sd][nB], 1.15 * cTipH * 0.30);
     }
-    cover(1.9 * t.Sv, [FIN, FIN2, tl.T, tr.T]);
-    BOOMS = { L: chains.L, R: chains.R, r: rB, x0, len };
+    // ---- THE FINS, one a boom, up from the tail triangle -------------------
+    MB = genSurfMaterial(S, 'fin');            // G213
+    const crownY = yAx(xStab) + kv * rAt(xStab);
+    const finTopB = crownY + t.vHeight * 0.82;   // vHeight is measured from the crown
+    const hV = finTopB - crownY;
+    const xFin = Math.max(x0 + 0.5 * len, xTip - 0.30 * t.vChord);
+    const vTap = t.vTaper == null ? 1 : t.vTaper;
+    const vc = (0.5 * t.Sv) / Math.max(0.05, hV);              // one fin's mean chord
+    const cRootV = 2 * vc / (1 + vTap), cTipV = vTap * cRootV;
+    const chordV = u => cRootV + (cTipV - cRootV) * u;
+    const rakeV = (xFin - xStab) / Math.max(0.05, hV);           // the apex sits where the drawn fin's top is
+    const xFV = u => xStab + rakeV * hV * u + (sparF - 0.5) * chordV(u);
+    const xRV = u => xStab + rakeV * hV * u + (0.5 - CR) * chordV(u);
+    const nV = Math.max(2, Math.min(3, Math.round(hV / 0.55)));
+    const fins = [];
+    FIN = N(xFin, finTopB, bx, 'FIN');           // the tags consumers key off: the apexes FIRST
+    FIN2 = N(xFin, finTopB, -bx, 'FIN2');
+    for (const [sd, sg, apex] of [['R', 1, FIN], ['L', -1, FIN2]]) {
+      const VF = [], VR = [], VX = [], VX2 = [];
+      for (let i = 0; i <= nV; i++) {
+        const u = i / nV, y = crownY + hV * u, xm = 0.5 * (xFV(u) + xRV(u));
+        VF.push(N(xFV(u), y, sg * bx, 'VF')); VR.push(N(xRV(u), y, sg * bx, 'VR'));
+        VX.push(N(xm, y, sg * bx + 0.5 * dep * chordV(u), 'VX'));
+        VX2.push(N(xm, y, sg * bx - 0.5 * dep * chordV(u), 'VX'));
+      }
+      const q = chains[sd][iTail], prev = chains[sd][iTail - 1];
+      for (const nd of [VF[0], VR[0], VX[0], VX2[0]]) {         // the root on the boom's tail
+        B(nd, q.T, 'tail'); B(nd, q.I, 'tail'); B(nd, q.O, 'tail'); B(nd, prev.T, 'tail');
+      }
+      for (let i = 0; i <= nV; i++) {                           // the section diamond
+        B(VF[i], VX[i], 'tail'); B(VX[i], VR[i], 'tail'); B(VR[i], VX2[i], 'tail'); B(VX2[i], VF[i], 'tail');
+        B(VF[i], VR[i], 'tail');
+      }
+      for (let i = 0; i < nV; i++) {
+        for (const [a, b] of [[VF[i], VF[i + 1]], [VR[i], VR[i + 1]], [VX[i], VX[i + 1]], [VX2[i], VX2[i + 1]]])
+          B(a, b, 'tail');                                      // the four chords
+        B(VF[i], VR[i + 1], 'tail'); B(VR[i], VF[i + 1], 'tail'); // the plane's diagonals
+        for (const X of [VX, VX2]) {                            // the faces'
+          B(VF[i], X[i + 1], 'tail'); B(X[i], VF[i + 1], 'tail');
+          B(VR[i], X[i + 1], 'tail'); B(X[i], VR[i + 1], 'tail');
+        }
+        const bayV = (hV / nV) * 0.5 * (chordV(i / nV) + chordV((i + 1) / nV));
+        cover(1.9 * bayV, [VF[i], VF[i + 1], VR[i], VR[i + 1], VX[i], VX[i + 1], VX2[i], VX2[i + 1]]
+                            .concat(i === nV - 1 ? [apex] : []));
+        const ribV = Math.max(1, Math.round((hV / nV) / 0.4)) * 0.5 * (chordV(i / nV) + chordV((i + 1) / nV)) * 0.30;
+        pt(VF[i + 1], 0.5 * ribV); pt(VR[i + 1], 0.5 * ribV);
+      }
+      for (const nd of [VF[nV], VR[nV], VX[nV], VX2[nV]]) B(apex, nd, 'tail');
+      pt(apex, 1.15 * cTipV * 0.30);           // the apex's bow (G235)
+      B(apex, VF[nV - 1], 'tail'); B(apex, VR[nV - 1], 'tail');
+      fins.push({ VF, VR, VX, VX2, FIN: apex, side: sg, hV, chordV, nV });
+    }
+    TAIL = { HF, HR, HB, zsH, semiH, zRootH, chordH, hV, chordV, nV,
+             VF: fins[0].VF, VR: fins[0].VR, VX: fins[0].VX, VX2: fins[0].VX2, fins,
+             sparFront: sparF, rearH: 1 - CT, rearV: 1 - CR, twin: true };
+    BOOMS = { L: chains.L, R: chains.R, r: r0, r1, kv, x0, len, iRoot, iTail, xs, k: tbK };
   } else if (isV) {
   // the V keeps its two tip nodes on four members each (the ruddervator
   // pair is one surface, raked; a truss for it is its own chantier)
@@ -1290,6 +1548,7 @@ function genLattice(S, gearX, track, kScale) {
   pt(FIN, 1.15 * cTipV * 0.30);              // the apex's bow (G235), as the tips'
   B(FIN, VF[nV - 1], 'tail'); B(FIN, VR[nV - 1], 'tail');   // ...and out of its plane (the same mechanism)
   TAIL = { HF, HR, HB, VF, VR, VX, VX2, zsH, semiH, zRootH, chordH, hV, chordV, nV,
+           fins: [{ VF, VR, VX, VX2, FIN, side: 1, hV, chordV, nV }],   // G268: one fin here, two on a twin boom
            sparFront: sparF, rearH: 1 - CT, rearV: 1 - CR };
   }
 
