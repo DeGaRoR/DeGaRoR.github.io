@@ -46,6 +46,13 @@
   <label>exposure <input id="expo" type="range" min="0.3" max="2.5" step="0.05" value="1.05"></label>
   <label>face <input id="sunAz" type="range" min="-180" max="180" step="1" value="0"></label>
   <label><input id="lightsOn" type="checkbox"> lights on</label>
+  <label>people <select id="peopleLod">
+    <option value="-1">by distance</option>
+    <option value="0">full</option>
+    <option value="1">LOD 1</option>
+    <option value="2">LOD 2</option>
+    <option value="3">LOD 3</option>
+  </select></label>
   <button id="rebuild">rebuild</button>
   <button id="rndBtn" title="another seed">random</button>
   <span id="seedLbl"></span>
@@ -67,6 +74,7 @@
 <script src="../src/pier/pier_people.js"></script>
 <script src="../src/pier/pier_yard.js"></script>
 <script src="../src/pier/pier_car.js"></script>
+<script src="../src/pier/pier_lods.js"></script>
 <script src="../src/props/props_vessel.js"></script>
 <script src="../src/props/props_bench.js"></script>
 <script src="../src/props/props_handling.js"></script>
@@ -819,6 +827,7 @@ viewEl.addEventListener('dblclick', () => { ZOOM = 1; centreOv = null; draw(); }
 addEventListener('resize', draw);
 $('rebuild').onclick = () => build();
 $('lightsOn').onchange = () => build();
+$('peopleLod').onchange = () => { window.PROP_LOD_FORCE = +$('peopleLod').value; build(); };
 $('rndBtn').onclick = () => { V.seed = 1 + Math.floor(Math.random() * 99); ui.querySelector('input').value = V.seed; ui.querySelector('.v').textContent = V.seed; build(); };
 if (typeof window !== 'undefined') window.PROP_LANDED = () => draw();
 // THE DUST ON THE PROPS (G283): everything that stands on the ground is dark

@@ -396,4 +396,7 @@ if (fail.length) {
   console.log('GATE VILLAGE: FAIL (' + fail.length + ')');
   process.exit(1);
 }
-console.log('GATE VILLAGE: PASS (' + checks + ' checks)');
+// the verdict line is matched WHOLE by tools/run_gates.js - the count is a
+// line of its own (the suffix had the runner reading every pass as red)
+console.log(checks + ' checks');
+console.log('GATE VILLAGE: PASS');

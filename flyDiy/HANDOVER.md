@@ -40085,3 +40085,61 @@ top; measured on the user's build the rotor's base is 2 mm under the top.
   lines. GATE JOIN §G300, GATE HINGE §KEEPER, GATE LIGHT 5f.
 - Trap: a tagged mesh takes its host's pose KIND — the gate's skin
   classifier had to go by ancestor name or a boom collar was its own skin.
+
+## G301 — THE PEOPLE GET LEVELS OF DETAIL, CUT HERE: A QUADRIC DECIMATOR OVER
+## THE BAKED PACKS, THREE LEVELS A FIGURE ON THE SAME ATLAS, A THREE.LOD FROM
+## THE PROP FACTORY — AND THE GREEN FENCE AT A THIRD (2026-09-12, the user:
+## "For the people, could you handle the decimation and texture remapping? And
+## generate a couple of LODs yourself? It is important to see people from far
+## away, but not to carry their full detail until up close ... As much as we
+## can keep a self-contained package here, I like it better"; "Darken the
+## light green fence again, by 50%")
+
+- **THE DECIMATOR** (`tools/prop_lod.js`, node, no dependencies): reads a
+  baked pack the way the page does, welds each material's parts back
+  across the baker's 65k cuts, and collapses edges by Garland-Heckbert
+  quadrics — HALF-EDGE collapses only (a vertex slides onto a neighbour,
+  never to a new point), so every surviving vertex keeps its int16
+  position, its normal and its UV exactly as exported: the level wears the
+  full prop's atlas, no re-bake, no drift. Seams (an atlas cut = two
+  wedges at one position) are the trap: the quadric is per POSITION, a
+  seam edge carries a boundary plane, and a position collapses only when
+  EVERY wedge of it has a wedge of the target across a shared triangle —
+  along its seam or not at all — so no level opens a crack. 355k → 24k in
+  8 s; the three levels of five figures in 30 s.
+- **A WEDGE IS A TOLERANCE**: andrew and koky are exported with every
+  vertex twice, UVs a tenth of a texel apart; keyed exactly they were 300k
+  wedges for 176k positions and the seam rule refused half the mesh
+  (level 3 stuck at 6.5k). Welded within 3e-4 UV / 3 int8 normal steps
+  they cut like the others.
+- **THE LEVELS**: `person_<x>_l1` 24k tris past 8 m, `_l2` 5k past 30 m,
+  `_l3` 1.2k past 90 m (a 1.8 m figure is ~85 px tall at 25 m, ~24 px at
+  90 on a 1080 view). Their own group `lod` in their own pack
+  (`src/pier/pier_lods.js`, bins `media/geo/pier_lod/`, listed in
+  `pier_packs.json` — prop_prep keeps foreign packs), each record carrying
+  `lodOf` and `lodDist`; 1.30 M triangles of people → 152k in the levels,
+  2.0 MB of bins. The village's default view: 8.2 M → 2.2 M triangles.
+- **THE FACTORY** (`props.js`): `propLevels(key)` reads a key's levels off
+  the registry once; `propPlace` places a THREE.LOD for a key that has any
+  (level 0 the full prop) and what it always did for one that has none —
+  every placement site in both benches got the levels for free. The
+  renderer picks by distance, the shadow pass follows the pick.
+  `window.PROP_LOD_FORCE` pins a level; both benches carry a "people"
+  select (by distance / full / LOD 1–3) for looking at a cut up close.
+  Verified in the house bench at 2 m: LOD 1 indistinguishable, LOD 2 a
+  faint polygon in the face, LOD 3 faceted but whole and textured right.
+- **GATE HOUSE 27 + 27c**: the table = packs rule now skips `lodOf`
+  records; 27c holds every level to its full prop (same bb and place, the
+  maps its own, fewer triangles and a farther distance down the chain)
+  and requires every person to have levels. Rule fires (tried).
+- **THE FENCE**: `col` is a slot now in prop_prep (`baseColorFactor` over
+  the map); fence_old at [0.3, 0.32, 0.3] — verified the slot works by
+  turning it red first; at 0.5 it still read pale under the alps sun.
+- **GATE VILLAGE's verdict** had a suffix ("PASS (n checks)") the runner's
+  whole-line match read as red since G275 — the count is a line of its
+  own now; `run_gates --only=VILLAGE` green.
+- Where to: the same tool cuts anything with a `LEVELS` group entry — the
+  boats and cars (0.18 M each) next, then the pier modules; the world
+  takes the pack + `propPlace` as they are. Lights culled by distance and
+  the house's far mesh with a plain material remain to do.
+- Gates: HOUSE, VILLAGE, MEDIA, PROPS, HANGAR, UISMOKE green.

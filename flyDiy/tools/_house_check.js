@@ -415,10 +415,42 @@ if (!check(!!LIB, 'the baked material library is missing — ' +
   //   the baker did not measure is a module floating or drowned.
   if (!PIERK) check(false, 'pier: no baked packs under src/pier/ (run tools/pier_prep.py)');
   else {
-    const baked = PIERK.reg.order;
+    // the levels of detail (G301) are baked from the table's props, not
+    // declared in it: they are held to their full props below (27c)
+    const baked = PIERK.reg.order.filter(k => !PIERK.reg.props[k].lodOf);
     check(JSON.stringify(baked) === JSON.stringify(PIERK.declared),
           'pier: the baked packs are not the declared table',
           'baked ' + baked.join(',') + ' / declared ' + PIERK.declared.join(','));
+    // 27c - THE LEVELS OF DETAIL (G301): every level names a full prop of
+    //   the packs, is the same size (the same bb: a level that shrank would
+    //   stand at another height), has fewer triangles than the level before
+    //   it, and stands in from a distance that grows down the chain; and
+    //   every person has levels, since the people were three quarters of the
+    //   village's triangles before them
+    const levels = {};
+    for (const k of PIERK.reg.order) {
+      const p = PIERK.reg.props[k];
+      if (!p.lodOf) continue;
+      const base = PIERK.reg.props[p.lodOf];
+      if (!check(!!base && !base.lodOf, 'lod: ' + k + ' stands in for ' + p.lodOf + ', which is not a full prop of the packs')) continue;
+      check(JSON.stringify(p.bb) === JSON.stringify(base.bb), 'lod: ' + k + ' is not the size of ' + p.lodOf);
+      check(p.place === base.place, 'lod: ' + k + ' is placed unlike ' + p.lodOf);
+      check(Object.keys(p.mats).every(m => base.mats[m] && base.mats[m].map === p.mats[m].map),
+            'lod: ' + k + ' wears maps ' + p.lodOf + ' does not');
+      (levels[p.lodOf] = levels[p.lodOf] || []).push(p);
+    }
+    for (const bk in levels) {
+      const lv = levels[bk].sort((a, b) => a.lodDist - b.lodDist);
+      let prev = PIERK.reg.props[bk], d = 0;
+      for (const p of lv) {
+        check(p.nt < prev.nt, 'lod: ' + p.key + ' has no fewer triangles than ' + prev.key, p.nt + ' vs ' + prev.nt);
+        check(p.lodDist > d, 'lod: ' + p.key + ' does not stand in from farther than ' + prev.key, p.lodDist + ' vs ' + d);
+        prev = p; d = p.lodDist;
+      }
+    }
+    for (const k of baked)
+      if (PIERK.reg.props[k].group === 'people')
+        check((levels[k] || []).length >= 2, 'lod: ' + k + ' has no levels of detail (run node tools/prop_lod.js)');
     // the pier's modules, boats and people mirror in PIER_KIT; the yard
     // group mirrors in YARD_KIT (G273) - between them, every baked key
     const mirror = Object.keys(HG.PIER_KIT).concat(Object.keys(HG.YARD_KIT));

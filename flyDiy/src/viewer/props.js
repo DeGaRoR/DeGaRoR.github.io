@@ -227,11 +227,52 @@ function propMesh(THREE, key) {
   return g;
 }
 
+// THE LEVELS OF DETAIL (G301). tools/prop_lod.js cuts a prop down and bakes
+// the cuts as props of their own, each saying which full prop it stands in
+// for (`lodOf`) and from how far (`lodDist`, metres). Nothing registers them
+// anywhere else: the levels of a key are read off the registry, once, here.
+// A key with none places as it always did; a key with levels places a
+// THREE.LOD - the renderer picks the level by distance every frame, the
+// shadow pass follows the picked level's visibility, and a placement site
+// keeps doing what it did (position and rotation live on the object).
+const PROP_LEVELS = new Map();          // prop key -> [{ key, dist }] ascending
+function propLevels(key) {
+  let lv = PROP_LEVELS.get(key);
+  if (lv) return lv;
+  lv = PROP_REG.order.map(k => PROP_REG.props[k])
+    .filter(p => p.lodOf === key)
+    .map(p => ({ key: p.key, dist: p.lodDist }))
+    .sort((a, b) => a.dist - b.dist);
+  PROP_LEVELS.set(key, lv);
+  return lv;
+}
+// PROP_LOD_FORCE (a window global): -1 for the renderer's choice; 0..n to pin
+// every LOD prop to that level, so a bench can look at a level up close
+function propLodForce() {
+  const f = (typeof window !== 'undefined') ? window.PROP_LOD_FORCE : undefined;
+  return (f === undefined || f === null) ? -1 : f;
+}
+
 // Place one: x/z on the floor plan, y from the prop's own `place` rule, ry in
 // radians. Every prop was baked with its origin where it meets the world, so a
 // placement site never needs to know how its author exported it.
 function propPlace(THREE, key, x, z, ry, y) {
-  const g = propMesh(THREE, key);
+  const lv = propLevels(key);
+  let g;
+  if (lv.length && THREE.LOD) {
+    g = new THREE.LOD();
+    g.name = 'prop:' + key;
+    g.userData.prop = PROP_REG.props[key];
+    const force = propLodForce();
+    if (force >= 0) {
+      // pinned: one level, at distance 0, whatever the camera does
+      const pick = force === 0 ? key : (lv[Math.min(force, lv.length) - 1].key);
+      g.addLevel(propMesh(THREE, pick), 0);
+    } else {
+      g.addLevel(propMesh(THREE, key), 0);
+      for (const l of lv) g.addLevel(propMesh(THREE, l.key), l.dist);
+    }
+  } else g = propMesh(THREE, key);
   g.position.set(x, y || 0, z);
   g.rotation.y = ry || 0;
   return g;
@@ -258,4 +299,5 @@ function propDispose(key) {
 
 if (typeof module !== 'undefined' && module.exports)
   module.exports = { propMesh, propPlace, propBuild, propMaterial, propTexture,
-                     propSetEnv, propEnv, propDispose, propWarm, propReady, propDust };
+                     propSetEnv, propEnv, propDispose, propWarm, propReady, propDust,
+                     propLevels };

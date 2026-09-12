@@ -67,6 +67,13 @@
     <option value="1">low poly</option>
     <option value="2">both, side by side</option>
   </select></label>
+  <label>people <select id="peopleLod">
+    <option value="-1">by distance</option>
+    <option value="0">full</option>
+    <option value="1">LOD 1</option>
+    <option value="2">LOD 2</option>
+    <option value="3">LOD 3</option>
+  </select></label>
   <label><input type="checkbox" id="ground" checked> site</label>
   <label><input type="checkbox" id="wire"> wireframe</label>
   <label>light <select id="moodSel"></select></label>
@@ -103,6 +110,9 @@
 <script src="../src/pier/pier_pier.js"></script>
 <script src="../src/pier/pier_boat.js"></script>
 <script src="../src/pier/pier_people.js"></script>
+<!-- THE LEVELS (G301): tools/prop_lod.js's cuts of the people; props.js
+     places a THREE.LOD wherever a key has levels -->
+<script src="../src/pier/pier_lods.js"></script>
 <!-- THE YARD (G273): the house's own props, and the hangar's that work
      around a house - bins, gas bottles, drums, crates, the ladder, the
      compressor, the barrel stove -->
@@ -994,6 +1004,7 @@ $('rndBtn').onclick = () => {
 $('seed').onchange = () => rollOne(parseInt($('seed').value, 10) || 1);
 $('resetBtn').onclick = () => applyPreset(psel.value);
 for (const id of ['lodSel', 'ground', 'wire']) $(id).onchange = build;
+$('peopleLod').onchange = () => { window.PROP_LOD_FORCE = +$('peopleLod').value; build(); };
 for (const id of ['moodSel', 'sunAz', 'sunEl', 'expo'])
   $(id).oninput = $(id).onchange = () => { buildSky(); build(); };
 
