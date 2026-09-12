@@ -66,11 +66,28 @@ SETS = [
     #              wood's rule, gain 1.2 -> h -0.42..+0.91.
     ('panel', 'Metal050C_1K-JPG.zip', 'acg', 'ambientCG', 'CC0', 'Metal050C', 'rough', 1.3),
     ('leather', 'Leather027_1K-JPG.zip', 'acg', 'ambientCG', 'CC0', 'Leather027', 'lum', 1.2),
+    # THE COCKPIT'S HANDS-ON SURFACES (the panel arc, session 4f, the user's
+    # own five from assets/interior/): what a hand touches. B rides the
+    # roughness on the plastics and the rubber (their colour is flat, their
+    # scratches and grain are in the roughness), the luminance on the leather
+    # (Leather027's rule: the creases are in the colour).
+    #   Plastic007   a scratched glossy plastic      -> the throttle's ball, the buttons' caps
+    #   Plastic012A  a fine-grained matte plastic    -> the dimmer knobs, the moulded pieces
+    #   Plastic017B  a worn, scuffed semi-gloss      -> the compass bowl, the switch bezels
+    #   Rubber004    a fine-grained rubber           -> the stick's grip and boot, the pedal treads
+    #   fabric_leather_01 (Poly Haven) a brown hide  -> the yoke's horns
+    ('plasticScr', 'Plastic007_1K-JPG.zip', 'acg', 'ambientCG', 'CC0', 'Plastic007', 'rough', 1.6),
+    ('plasticGrn', 'Plastic012A_1K-JPG.zip', 'acg', 'ambientCG', 'CC0', 'Plastic012A', 'rough', 1.6),
+    ('plasticWorn', 'Plastic017B_1K-JPG.zip', 'acg', 'ambientCG', 'CC0', 'Plastic017B', 'rough', 1.6),
+    ('rubberGrip', 'Rubber004_1K-JPG.zip', 'acg', 'ambientCG', 'CC0', 'Rubber004', 'rough', 1.6),
+    ('hide', 'fabric_leather_01_1k.gltf.zip', 'ph-sep', 'Poly Haven', 'CC0', 'fabric_leather_01', 'lum', 1.2),
 ]
 
 PICK = {
     'ph-arm': {'diff': '_diff_1k.jpg', 'arm': '_arm_1k.jpg', 'nor': '_nor_gl_1k.jpg'},
     'acg':    {'diff': '_Color.jpg', 'rough': '_Roughness.jpg', 'nor': '_NormalGL.jpg'},
+    # Poly Haven's gltf zip: the three maps loose under textures/, no arm
+    'ph-sep': {'diff': '_diff_1k.jpg', 'rough': '_rough_1k.jpg', 'nor': '_nor_gl_1k.jpg'},
 }
 
 SIZES = (1024, 512)   # 1k archive, 512 payload - site_tex_import's budget rule

@@ -303,7 +303,16 @@ the dark hide of the coaming round it.
 
 **ambientCG, CC0** (https://ambientcg.com) — `Foil001` (the `foil` sheet, worn
 by the `fireFoil` finish), `Metal050C` (the `panel` sheet, worn by
-`panelMetal`), `Leather027` (the `leather` sheet, worn by `leatherDark`).
+`panelMetal`), `Leather027` (the `leather` sheet, worn by `leatherDark`);
+and the cockpit's hands-on surfaces (the panel arc, 2026-09-12, the user's
+own picks): `Plastic007` (`plasticScr`, a throttle's ball, the buttons),
+`Plastic012A` (`plasticGrn`, the knobs and the console), `Plastic017B`
+(`plasticWorn`, the compass bowl), `Rubber004` (`rubberGrip`, the stick's
+grip and boot, the pedal treads).
+
+**Poly Haven, CC0** (https://polyhaven.com/a/fabric_leather_01) —
+`fabric_leather_01` (the `hide` sheet, worn by the `hide` finish: a yoke's
+horns, the console's armrest).
 
 The licence does not require attribution; recorded for the usual reason.
 

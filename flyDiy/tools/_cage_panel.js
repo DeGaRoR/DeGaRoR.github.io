@@ -696,11 +696,11 @@ function hwGet(key) {
   const b = propBuild(THREE, key);              // geometries + the props' materials, cached
   const parts = b.geos.map((geo, i) => {
     const name = b.prop.parts[i].mat, rec = b.prop.mats[name];
-    const mat = (rec && rec.map) ? b.mats[i] : matFor(HW_MAT[name] || 'knob');
-    // a textured piece keeps the props' one material — and is stamped for
-    // the join, which buckets by finish and would drop its uv and maps
-    // (session 4d: the key flew white)
-    if (rec && rec.map) { mat.userData.propMat = key + '|' + name; mat.userData.aeroskin = 1; }
+    // (4f: the key's own scan reads green under our light — it takes the
+    // library's plated finish like the lock; the textured path stays for a
+    // piece whose maps are worth keeping)
+    const mat = (rec && rec.map && key !== 'hw_key') ? b.mats[i] : matFor(key === 'hw_key' ? 'key' : (HW_MAT[name] || 'knob'));
+    if (rec && rec.map && key !== 'hw_key') { mat.userData.propMat = key + '|' + name; mat.userData.aeroskin = 1; }
     return { geo, mat, name };
   });
   return (HW.built[key] = { prop, parts, bb: prop.bb });
@@ -875,7 +875,7 @@ function keyAt(parent, x, y, z, pos) {
     // the key's blade fills (session 4d: "slightly bigger so it can slot in
     // the full key")
     K.revolve(lock, [x, y, z + 0.0005], [0, 0, -1],
-      [[0.0150, 0], [0.0150, 0.0020], [0.0136, 0.0032], [0.0080, 0.0032], [0.0074, 0.0044], [0.0058, 0.0044], [0.0052, 0.0032], [0, 0.0032]], 48, false);
+      [[0.0125, 0], [0.0125, 0.0020], [0.0112, 0.0032], [0.0072, 0.0032], [0.0066, 0.0044], [0.0052, 0.0044], [0.0046, 0.0032], [0, 0.0032]], 48, false);
     lock.mesh(parent, matFor('barrel'));
     const way = K.Bag();
     K.boxIn(way, [x, y, z - 0.0034], [0.0011, 0.0048, 0.0004], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
@@ -899,8 +899,11 @@ function keyAt(parent, x, y, z, pos) {
     const kg = new THREE.Group();
     kg.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(
       new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, -1, 0), new THREE.Vector3(1, 0, 0)));
-    kg.position.set(0, 0, 0.012 - k.bb[3]);
-    kg.scale.x = 2;                                       // "really too slim": twice the delivered 1.5 mm
+    // (4f: "much too big as it stands. It just needed to be thicker in its
+    // slice thickness, not bigger overall") — 0.8 of the delivered 62 mm,
+    // and twice as thick in the slice
+    kg.scale.set(1.6, 0.8, 0.8);
+    kg.position.set(0, 0, 0.012 - k.bb[3] * 0.8);
     for (const p of k.parts) { const m = new THREE.Mesh(p.geo, p.mat); m.userData.sharedGeo = true; kg.add(m); }
     g.add(kg);
     const idx = ['off', 'l', 'r', 'both', 'start'].indexOf(pos || 'both');

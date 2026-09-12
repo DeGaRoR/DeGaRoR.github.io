@@ -38629,3 +38629,50 @@ parent — Fuselage. "Clicking on them brings me to fuselage" is that.
 **Verified** on the user's WIP build in dev.html: one click on a boom →
 "FUSELAGE › Twin booms", both booms wearing the cyan rim; PARTS / JOIN /
 SKIN / UISMOKE green.
+
+## G269 — THE PANEL ARC, SESSION 4f: FIVE SCANS IN THE LIBRARY, THE CONTROLS
+## IN THEM, A CRANKED STICK, THE PEDALS FLOATING AGAIN, THE CONSOLE A
+## PEDESTAL, THE FITTINGS FITTED, THE COMPASS IN THE MIDDLE (2026-09-12)
+
+**"You have not used the proper PBR materials again, from the library …
+I have added 5 new materials … try and use them all … don't forget we have
+the materials of the dashboard available too."** The five scans
+(assets/interior/: ambientCG Plastic007, Plastic012A, Plastic017B,
+Rubber004; Poly Haven fabric_leather_01) go through the library's own
+pipeline — `skin_tex_import.py` (a `ph-sep` shape for Poly Haven's loose
+maps; B rides the roughness on the plastics and the rubber, the luminance
+on the hide, measured) and `skin_tex_prep.js` — into five AERO_FINISH rows
+that wear them as sheets under the finish's tint: `plasticScr` (a
+scratched gloss: the throttles' balls, the push buttons, the push-to-talk),
+`plasticGrn` (a grained matte: the dimmer knobs, the switch bezels, the
+console shell), `plasticWorn` (a scuffed semi-gloss: the compass bowl),
+`rubberGrip` (the stick's grip and boot, the pedal treads), `hide` (the
+yoke's horns, the console's armrest). The dash's own `panelMetal` is the
+pedal plates and the console's top plate; the lock and the key take
+`chrome` — the key's own scan read green under our light, so it takes the
+library's plating like the lock (the textured path stays for a piece worth
+it). CREDITS.md carries the five.
+
+**The controls, second pass.** The throttles' knobs are true balls (a
+sphere profile sampled fine, 36 round). The pedals float again — "don't do
+the little support structure, it sticks out" — 0.10 apart by default (0.15),
+plates in the dash's metal with the rubber tread. **The stick has a crank**
+(`stickCrank`, a row on the Controls part, 0..0.20 m): the shaft rises from
+the base, bends AFT between a third and a half of its height through two
+rounded bends (a swept tube), and rises again — the grip sits that much
+nearer the seat than the base's line, the base as far forward as it was.
+The wall lever's fitting: a plated stub axle stands off the quadrant plate
+to the lever's boss, a washer and a knurled friction wheel on it. The
+push-pull throttle stands ON the plate now (low in the panel, at the
+plate's own depth there — it sat in the lip). The console is a pedestal: a
+moulded shell swept along the tunnel with chamfered shoulders, the top
+plate in the dash's metal, a leather armrest pad at the aft end, a plated
+trim strip along each shoulder.
+
+**The key** — 0.8 of the delivered length (50 mm) and twice as thick in the
+slice, the escutcheon back to 25 mm. **The compass** — in the middle of
+the dash ("the only place where there is no curvature and it could
+realistically stick").
+
+GATE SKINMAT (every finish's tile a real size; the sheets claimed both
+ways), PANEL, PARTS, JOIN, UISMOKE green on the commit's worktree.

@@ -346,7 +346,9 @@ function layout(A, o) {
   // dash's TOP (the glareshield), above the plate
   if (has('compass')) {
     const r = 0.070 / 2;
-    const cx = clamp(xC, -xLim + r, xLim - r);
+    // in the MIDDLE of the dash (4f, the user: "the only place where there
+    // is no curvature and it could realistically stick")
+    const cx = 0;
     // ...standing ON the glareshield where it is, which is lower than the
     // dash's crown (the roll behind the lip is the highest point)
     const zc = (A.dashAftZ != null ? A.dashAftZ : zFace) + 0.045;

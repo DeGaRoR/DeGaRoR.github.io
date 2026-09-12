@@ -13,5 +13,10 @@ const SKIN_TEX_SHEETS = (typeof Image !== 'undefined') ? (() => {
     foil: { px: 512, img: mk('media/tex/skin/foil_aero_512.b96de146.jpg') },
     panel: { px: 1024, img: mk('media/tex/skin/panel_aero_1k.3609dbf2.jpg') },
     leather: { px: 512, img: mk('media/tex/skin/leather_aero_512.73449514.jpg') },
+    plasticScr: { px: 512, img: mk('media/tex/skin/plasticScr_aero_512.b1bfbee8.jpg') },
+    plasticGrn: { px: 512, img: mk('media/tex/skin/plasticGrn_aero_512.a351409b.jpg') },
+    plasticWorn: { px: 512, img: mk('media/tex/skin/plasticWorn_aero_512.81fe75e2.jpg') },
+    rubberGrip: { px: 512, img: mk('media/tex/skin/rubberGrip_aero_512.e371d52d.jpg') },
+    hide: { px: 512, img: mk('media/tex/skin/hide_aero_512.2e381f49.jpg') },
   };
 })() : null;

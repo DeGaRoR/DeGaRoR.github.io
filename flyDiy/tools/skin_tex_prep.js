@@ -43,6 +43,8 @@ const SETS = [
   // leather that surrounds it stays on the 512 every other sheet uses.
   ['panel', 1024],
   ['leather', 512],
+  // the cockpit's hands-on surfaces (the panel arc, session 4f)
+  ['plasticScr', 512], ['plasticGrn', 512], ['plasticWorn', 512], ['rubberGrip', 512], ['hide', 512],
 ];
 
 const sfx = tex => (tex === 1024 ? '1k' : String(tex));

@@ -320,6 +320,28 @@ const AERO_FINISH = {
   plastic:   { name: 'moulded plastic', base: 0x2b3038, tile: 0.06,
                rough: 0.48, metal: 0.0, nrm: 0.22, alb: 0.10,
                hs: 0.5, bs: 0.6, bake: 'cast' },
+  // THE COCKPIT'S HANDS-ON SURFACES (the panel arc, session 4f): five scans
+  // the user delivered (assets/interior/, packed by skin_tex_import.py —
+  // B rides the roughness on the plastics and the rubber, the luminance on
+  // the hide). Each is a sheet the finish's own tint sits under: a black
+  // scratched gloss for a throttle's ball, a grained matte plastic for a
+  // knob, a scuffed semi-gloss for a bowl, a fine rubber for a grip, a
+  // brown hide for a yoke's horns.
+  plasticScr: { name: 'scratched gloss plastic', base: 0x1c1e22, tile: 0.08,
+                rough: 0.30, metal: 0.0, nrm: 0.45, alb: 0.14,
+                hs: 0.5, bs: 0.8, bake: 'cast', sheet: 'plasticScr' },
+  plasticGrn: { name: 'grained plastic',   base: 0x2c2b29, tile: 0.06,
+                rough: 0.55, metal: 0.0, nrm: 0.60, alb: 0.12,
+                hs: 0.5, bs: 0.9, bake: 'cast', sheet: 'plasticGrn' },
+  plasticWorn: { name: 'worn plastic',     base: 0x2a2d33, tile: 0.10,
+                 rough: 0.42, metal: 0.0, nrm: 0.50, alb: 0.18,
+                 hs: 0.5, bs: 0.9, bake: 'cast', sheet: 'plasticWorn' },
+  rubberGrip: { name: 'grip rubber',       base: 0x202227, tile: 0.06,
+                rough: 0.72, metal: 0.0, nrm: 0.70, alb: 0.16,
+                hs: 0.6, bs: 0.9, bake: 'weave', sheet: 'rubberGrip' },
+  hide:      { name: 'brown hide',         base: 0x7e543c, tile: 0.25,
+               rough: 0.64, metal: 0.0, nrm: 0.55, alb: 0.40,
+               hs: 0.8, bs: 0.9, bake: 'hide', sheet: 'hide' },
   copper:    { name: 'enamelled copper', base: 0xb3622f, tile: 0.06,
                rough: 0.38, metal: 0.90, nrm: 0.30, alb: 0.12,
                hs: 0.5, bs: 0.7, bake: 'sheet' },
@@ -582,10 +604,10 @@ const AERO_HARD = {
   // the knobs moulded; a toggle's bat, the lock barrel and the key are
   // bare metal; the FACE is the atlas material and takes no finish
   panel: { bezel: 'trim', needle: 'trim', hub: 'plastic', symbol: 'trim',
-           ball: 'plastic', plate: 'plastic', lever: 'chrome', knob: 'plastic',
-           rocker: 'plastic', key: 'bareAlu', barrel: 'chrome', bowl: 'plastic',
+           ball: 'plastic', plate: 'plasticGrn', lever: 'chrome', knob: 'plasticGrn',
+           rocker: 'plasticScr', key: 'chrome', barrel: 'chrome', bowl: 'plasticWorn',
            // the hardware kit's flat materials (the panel arc, session 4c)
-           grip: 'plastic', cap: 'plastic', amber: 'plastic',
+           grip: 'plasticGrn', cap: 'plasticScr', amber: 'plastic',
            // session 4d: the bats and the lock are plated, the screws steel
            screw: 'steelTube',
            face: null },
@@ -596,7 +618,7 @@ const AERO_HARD = {
     belt: 'webbing',
     frame: 'steelTube', metal: 'bareAlu',
     joint: 'plastic', knob: 'plastic', dark: 'plastic',
-    ctrl: 'trim', console: 'trim', trim: 'trim',
+    ctrl: 'trim', console: 'plasticGrn', trim: 'trim',
     // THE PANEL (G94). A bezel is a painted alloy clamp ring and a needle is
     // painted too — both dielectrics; the dial FACE is a printed plastic disc,
     // and it is the one surface in the cabin that must stay matte, because a
@@ -605,7 +627,8 @@ const AERO_HARD = {
     board: 'ply',                 // floorboards: the same ply as a wood cabin
     // the controls' fittings (the panel arc, session 4e): a rubber grip and
     // boot, plated pins and collars, cast brackets, leather horns, a red button
-    grip: 'rubber', boot: 'rubber', plated: 'chrome', cast: 'castAlu', hide: 'leather', ptt: 'plastic',
+    grip: 'rubberGrip', boot: 'rubberGrip', plated: 'chrome', cast: 'castAlu', hide: 'hide', ptt: 'plasticScr',
+    ball: 'plasticScr', tread: 'rubberGrip', plateAl: 'panelMetal',
     marker: null,
   },
 };
