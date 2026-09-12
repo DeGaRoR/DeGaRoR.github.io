@@ -504,8 +504,12 @@ function labelMaterial() {
     if (sh.img.complete && sh.img.naturalWidth) up();
     else sh.img.addEventListener('load', up);
   }
+  // BLENDED, not cut (G320): alphaTest 0.5 stair-stepped every tape's edge
+  // at the magnification the seat sees it at; the sheet's edge is feathered
+  // and carries a soft shadow now, and the quad is a hair proud of the
+  // plate at renderOrder 3, so it blends over it
   labelMat = new THREE.MeshStandardMaterial({ map: tex, color: 0xffffff, roughness: 0.92, metalness: 0,
-    alphaTest: 0.5, side: THREE.FrontSide });
+    transparent: true, alphaTest: 0.02, depthWrite: false, side: THREE.FrontSide });
   labelMat.userData.aeroskin = 1;
   labelMat.userData.panelSet = 'label';
   labelMat.userData.inside = 1;
@@ -547,7 +551,7 @@ function regMaterial() {
   regTex = regCv ? new THREE.CanvasTexture(regCv) : null;
   if (regTex) { regTex.encoding = THREE.sRGBEncoding; regTex.anisotropy = 8; }
   regMat = new THREE.MeshStandardMaterial({ map: regTex, color: 0xffffff, roughness: 0.92, metalness: 0,
-    alphaTest: 0.5, side: THREE.FrontSide });
+    transparent: true, alphaTest: 0.02, depthWrite: false, side: THREE.FrontSide });   // blended (G320)
   regMat.userData.aeroskin = 1;
   regMat.userData.panelSet = 'reg';
   regMat.userData.inside = 1;

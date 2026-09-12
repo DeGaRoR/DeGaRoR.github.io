@@ -21,7 +21,7 @@ a name. Re-run after editing the sheet.
 """
 import argparse, hashlib, io, os, sys
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageFilter
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # each sheet's reading order -> the label's name (what is written on it);
@@ -34,6 +34,9 @@ SHEETS = [
 ]
 LABELS = [n for _, names in SHEETS for n in names]
 TILE_W, TILE_H = 512, 160          # one tile; a tape is ~3.4:1, kept whole
+PAD = 18                           # the tile's margin round a tape (the shadow lives there)
+FEATHER = 0.9                      # px of blur on the tape's own alpha edge (a tad)
+SHADOW_BLUR, SHADOW_DX, SHADOW_DY, SHADOW_K = 5.0, 2, 3, 0.42   # the contact shadow under it
 
 
 def blobs(alpha, thr=128, min_px=4000):
@@ -94,12 +97,28 @@ def main():
         # its own edge by what the render drew there
         tile[..., 3] = np.where(m, tile[..., 3], 0)
         t = Image.fromarray(tile, 'RGBA')
-        # fit the tape into the tile, centred, keeping its aspect
-        k = min((TILE_W - 16) / t.width, (TILE_H - 12) / t.height)
+        # fit the tape into the tile, centred, keeping its aspect — with room
+        # round it for the shadow below
+        k = min((TILE_W - 2 * PAD) / t.width, (TILE_H - 2 * PAD) / t.height)
         t = t.resize((max(1, int(t.width * k)), max(1, int(t.height * k))), Image.LANCZOS)
         ox = (TILE_W - t.width) // 2
         oy = i * TILE_H + (TILE_H - t.height) // 2
-        sheet.paste(t, (ox, oy), t)
+        # THE STICKER SITS ON THE SURFACE (G320, the user: "the transitions
+        # with the stickers are harsh. Can we smooth them out a tad?"): the
+        # cut edge was the alpha test's own — a hard stair at every magnified
+        # pixel, and the tape floating on the paint with nothing between
+        # them. Two things: the tape's alpha is feathered a pixel (the edge
+        # the render drew, softened, never widened), and a soft contact
+        # shadow goes under it — its own outline blurred, a hair down and
+        # right, faint — so the tape reads stuck ON the plate, the way the
+        # screws' shadow does.
+        a = t.getchannel('A')
+        sh_a = a.filter(ImageFilter.GaussianBlur(SHADOW_BLUR)).point(lambda v: int(v * SHADOW_K))
+        shadow = Image.new('RGBA', t.size, (0, 0, 0, 0)); shadow.putalpha(sh_a)
+        sheet.alpha_composite(shadow, (ox + SHADOW_DX, oy + SHADOW_DY))
+        soft = a.filter(ImageFilter.GaussianBlur(FEATHER))
+        t.putalpha(soft)                                                   # the feathered edge
+        sheet.alpha_composite(t, (ox, oy))
         print('  %-12s %4dx%-4d -> tile %d' % (name, x1 - x0, y1 - y0, i))
     buf = io.BytesIO()
     sheet.save(buf, 'PNG', optimize=True)

@@ -41028,3 +41028,19 @@ lattice's lever, and with the cluster on the members carry none.
   'taxi' sticker still reads 'cruise'; the door's jamb liner still
   overlaps the selector from the pilot's own eye at a grazing angle (it
   is on the wall now, 9 cm aft of the jamb).
+
+## G320 — THE STICKERS SIT ON THE SURFACE (2026-09-12, the user: "the
+## transitions with the stickers are harsh. Can we smooth them out a tad?
+## Also for the bottom controls?")
+
+- The tapes' edge was the alpha test's own (`alphaTest: 0.5`): a hard
+  stair at every magnified pixel, and the tape floating on the paint with
+  nothing between them. `tools/labels_prep.py` now feathers each tape's
+  alpha by a pixel (the edge the render drew, softened, never widened) and
+  composites a soft CONTACT SHADOW under it into the tile (its own outline
+  blurred 5 px, 2 right and 3 down, 42 %) — the tile's margin is 18 px so
+  the shadow has room. The label and the registration materials blend
+  (`transparent`, `alphaTest 0.02`, no depth write; the quads are a hair
+  proud of the plate at renderOrder 3). One sheet for every tape — the
+  switch row's, the registration's blank, the controls' — so the bottom
+  row softened with it. Sheet `labels_512x160.044eddc6.png`.

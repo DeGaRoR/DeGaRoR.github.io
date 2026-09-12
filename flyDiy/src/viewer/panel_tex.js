@@ -9,7 +9,7 @@ const PANEL_TEX_SHEETS = (typeof Image !== 'undefined') ? (() => {
   const B = (typeof FLYDIY_ASSET_BASE !== 'undefined') ? FLYDIY_ASSET_BASE : '';
   const mk = src => { const i = new Image(); i.src = B + src; return i; };
   return {
-    labels: { img: mk('media/tex/panel/labels_512x160.c6220ab0.png'), w: 512, h: 160, n: 14,
+    labels: { img: mk('media/tex/panel/labels_512x160.044eddc6.png'), w: 512, h: 160, n: 14,
               names: ["Cabin", "Dash", "Instr", "Feet", "beac", "pos", "land", "cruise", "Bat.", "Alt.", "OFF/R/L/BOTH", "Avionics", "Flaps", "blank"] },
   };
 })() : {};
