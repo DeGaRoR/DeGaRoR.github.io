@@ -1314,18 +1314,32 @@ function build(parent, A, P, pilotX) {
     if (s.kind === 'key') keyAt(sg, 0, 0, 0, 'both');
     else if (s.kind === 'rocker') rockerAt(sg, 0, 0, 0, s.k, true);
     else if (s.kind === 'toggle') toggleAt(sg, 0, 0, 0, s.k, +P['li_' + s.k] > 0.5);
-    else if (s.kind === 'knob') knobAt(sg, 0, 0, 0, s.k, Math.max(0, Math.min(1, +P['li_' + s.k] || 0)));
-    // THE TAPE (G282): stuck over the switch at 45 deg, rising to the
-    // pilot's right (about +z, clockwise is positive for the pilot — so
-    // minus), a hair off the plate over the shadow disc
+    else if (s.kind === 'knob') {
+      knobAt(sg, 0, 0, 0, s.k, Math.max(0, Math.min(1, +P['li_' + s.k] || 0)));
+      // THE GRADUATION (G284, the user: "some simple graduation straight
+      // on the dashboard for the potentiometer controlling the interior
+      // light intensity"): eleven silk-screened ticks round the knob on the
+      // plate, on the knob's own law (-135 deg at off, +135 at full,
+      // clockwise for the pilot), the ends and the middle longer
+      const tk = K.Bag();
+      for (let i = 0; i <= 10; i++) {
+        const a = clockRad(-135 + 27 * i), major = i % 5 === 0;
+        const rd = [-Math.sin(a), Math.cos(a), 0], tg = [Math.cos(a), Math.sin(a), 0];
+        const rr = 0.0125 + (major ? 0.0014 : 0.0010);
+        K.boxIn(tk, [rd[0] * rr, rd[1] * rr, -0.0003], [major ? 0.0014 : 0.0010, 0.0003, 0.0003], rd, tg, [0, 0, 1]);
+      }
+      tk.mesh(sg, matFor('needle'));
+    }
+    // THE TAPE (G282): stuck over the switch, a hair off the plate over the
+    // shadow disc — flat (G284, the user: "they would fit horizontally, so
+    // no need for the 45 degrees"), and a touch larger for it
     const sheet = labelSheet(), li = sheet ? sheet.names.indexOf(LABEL_OF[s.k]) : -1;
     if (li >= 0) {
       const lg = new THREE.Group();
-      lg.position.set(0.002, 0.0135, -0.0006);
-      lg.rotation.z = -Math.PI / 4;
+      lg.position.set(0, 0.019, -0.0006);
       sg.add(lg);
       const lb = UVBag(labelMaterial());
-      const w = 0.026, h = w * sheet.h / sheet.w;
+      const w = 0.030, h = w * sheet.h / sheet.w;
       labelInto(lb, li, sheet.n, 0, 0, 0, w, h);
       const m = lb.mesh(lg, 'edGauge_label'); if (m) m.renderOrder = 3;
     }

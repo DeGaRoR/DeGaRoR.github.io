@@ -91,17 +91,22 @@ PAGE.post = ctx => {
   // ---- the members, by class -------------------------------------------
   const cab = (def.beams || []).filter(b => b.ext && b.cls === 'cabane');
   const inter = (def.beams || []).filter(b => b.ext && b.cls === 'interplane');
-  // THE STAB'S WIRES ARE NOT DRAWN ON TWIN BOOMS (G267, the user: "an
-  // artefact ... like a mesh triangle at the back of the plane, dates back
-  // the tail chantier"). G233 braces a conventional stab's tips to the tail
-  // post with steel wires, and this layer draws every ext wire in the WING
-  // layer's def — a frame built from the cage's own spec BEFORE the join,
-  // which does not know the booms and builds the conventional tail. On a
-  // twin boom there is no post: the two wires met in mid-air behind the
-  // stab, flew with the aeroplane and cast the triangle's shadow. A wire
-  // touching a tail tag stays with the tail the cage actually has.
+  // THE STAB'S WIRES ARE NOT DRAWN HERE — ON ANY BUILD (G284, the user: "I
+  // notice there is still the measurement artefact from the tail chantier";
+  // G267 had skipped them on twin booms only: "an artefact ... like a mesh
+  // triangle at the back of the plane"). G233 braces a conventional stab's
+  // tips to the tail post with steel wires IN THE FRAME, and this layer drew
+  // every ext wire in the wing layer's def — a lattice built from the cage's
+  // own spec BEFORE the join, whose stab tips stand where the FRAME puts
+  // them, not where the tail layer draws them: measured on the stock
+  // low-wing, 0.7 m behind the drawn stab, at the tail post's height, a
+  // flat V of two wires hanging in the air behind the aeroplane (the same
+  // gap the G266.1 tail-gap instrument reads). A wire touching a tail tag
+  // is the tail's: the physics keeps it, and drawing it — from the DRAWN
+  // tips to the DRAWN post, as an option for a braced stab — is the tail
+  // layer's, still owed. Until then no tail wire is drawn anywhere.
   const isTailWire = b => /^(HT|TP)/.test(N2[b.a].tag || '') || /^(HT|TP)/.test(N2[b.b].tag || '');
-  const wires = (def.beams || []).filter(b => b.ext && b.cls === 'wire' && !(+P.boomTwin && isTailWire(b)));
+  const wires = (def.beams || []).filter(b => b.ext && b.cls === 'wire' && !isTailWire(b));
   if (!cab.length && !inter.length && !wires.length) return;
   const planes = W.planes || [];
   const planeOfNode = i => { for (const pl of planes) if (pl.spar && pl.spar.has(i)) return pl; return null; };

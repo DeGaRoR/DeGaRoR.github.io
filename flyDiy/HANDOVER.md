@@ -39426,3 +39426,25 @@ controls move with the aeroplane.
   own or the neighbour's), a gate on every front, a back entrance on every
   waterfront house; selftest opens a hole.
 - Gates: HOUSE, VILLAGE (both --selftest) green.
+
+## G284 — THE LABELS LIE FLAT, THE DIMMERS ARE GRADUATED, AND THE TAIL'S
+## WIRES ARE NOT DRAWN BEHIND THE AEROPLANE (2026-09-12, the user: "they
+## would fit horizontally, so no need for the 45 degrees … some simple
+## graduation straight on the dashboard for the potentiometer controlling
+## the interior light intensity … there is still the measurement artefact
+## from the tail chantier")
+
+- The tape labels lie flat over their switches (30 mm wide, 19 mm above
+  the switch centre — the row has the room since G282).
+- Each dimmer knob has eleven silk-screened ticks round it on the plate,
+  on the knob's own law (−135° at off, +135° at full, clockwise for the
+  pilot; the ends and the middle longer), `needle` material, 0.3 mm proud.
+- **The artefact** was the stab's bracing WIRES (G233: the frame ties the
+  stab tips to the tail post with tension-only steel wires, `ext`), drawn
+  by the brace layer at the FRAME's node positions — which on this
+  low-wing sit 0.7 m behind the drawn stab (the G266.1 tail gap): a flat V
+  of two wires hanging in the air behind the tail, grey, at the post's
+  height. G267 had skipped them on twin booms only; now a wire touching a
+  tail tag (HT/TP) is never drawn by the brace layer on any build. The
+  physics keeps its wires. Drawing a braced stab's wires from the DRAWN
+  tips to the DRAWN post, as a tail-layer option, is owed.
