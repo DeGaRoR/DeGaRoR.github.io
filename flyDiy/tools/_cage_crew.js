@@ -74,6 +74,7 @@ const MFALL = {
   ball:    lam(0x1c1e22),      // a throttle's ball
   tread:   lam(0x202227),      // a pedal's rubber
   plateAl: lam(0xd0d4d8),      // a pedal's plate: the dash's own metal
+  seatAlu: lam(0xb6bcc3),      // the seats' tube frame (G332: alloy, not 4130)
   marker:  new THREE.MeshBasicMaterial({ color: 0xff4d3d }),
 };
 // FrontSide, matching the Lambert it replaces. A getter per name, so every
@@ -386,20 +387,22 @@ function seatTube(parent, A, P, g) {
   // narrowed by the belly. Each side is ONE welded run — leg, rail and
   // back upright in a single filleted sweep.
   const railHalf = hw * (2 / 3);
-  const bag = Bag(M.frame);
+  // G332: drawn alloy tube (the user), and enough sides that a 14 mm tube
+  // seen from 40 cm is round — the seat is the closest hardware there is
+  const bag = Bag(M.seatAlu);
   for (const s2 of [-1, 1]) {
     const xx = sx + s2 * railHalf;
     tubeRun(bag, [[xx, floor, szc + 0.21],
                   [xx, panY - 0.03, szc + 0.19],
                   [xx, panY - 0.03, szc - 0.19],
                   [xx, panY - 0.02 + backH * bc, szc - 0.20 - backH * bs]],
-            0.014, 10);
+            0.014, 18);
     tubeRun(bag, [[xx, floor, szc + 0.21], [xx, panY - 0.03, szc - 0.19]],
-            0.010, 8);
+            0.010, 14);
   }
   // cross members: run a hair PAST the side rails so the weld closes
   const xl = sx - railHalf, xr = sx + railHalf, e = 0.010;
-  const X = (y, z, r) => tubeRun(bag, [[xl - e, y, z], [xr + e, y, z]], r, 8);
+  const X = (y, z, r) => tubeRun(bag, [[xl - e, y, z], [xr + e, y, z]], r, 14);
   X(panY - 0.03, szc + 0.19, 0.012);
   X(panY - 0.03, szc - 0.19, 0.012);
   X(floor, szc + 0.21, 0.011);

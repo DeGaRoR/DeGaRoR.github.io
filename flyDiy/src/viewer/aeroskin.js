@@ -628,6 +628,7 @@ const AERO_HARD = {
     // the controls' fittings (the panel arc, session 4e): a rubber grip and
     // boot, plated pins and collars, cast brackets, leather horns, a red button
     grip: 'rubberGrip', boot: 'rubberGrip', plated: 'chrome', cast: 'castAlu', hide: 'hide', ptt: 'plasticScr',
+    seatAlu: 'bareAlu',           // G332: the seats' tube frame, drawn alloy
     ball: 'plasticScr', tread: 'rubberGrip', plateAl: 'panelMetal',
     marker: null,
   },
@@ -896,7 +897,7 @@ const AERO_SEC = {
   // personality": one suit COLOUR each, the second following the first
   // (paint the crew once, then differ one) — the suit's MATERIAL stays
   // pinned composite, because an ATD is an ATD whatever it wears.
-  seatTrim: { parent: null,     fin: 'leather',   label: 'the seats',
+  seatTrim: { parent: null,     fin: 'hide',      label: 'the seats',    // G332: the user's scan
               layer: 'crew' },
   dummy1:   { parent: null,     fin: 'composite', label: 'the pilot',
               layer: 'crew' },

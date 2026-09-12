@@ -41487,3 +41487,25 @@ Headless now: the Skymaster twin booms and two fins (clusters at 474 /
   one groove, not two panels; no hole plates for the front/aft edge
   notches; the pierced plate reads dark in the night shed (bare alloy
   mirroring a dark cabin — the same scan as the firewall by day).
+
+## G332 — THE SEATS WEAR THE USER'S HIDE, ON A DRAWN-ALLOY FRAME
+## (2026-09-13, the user: "regarding the seats, I think I added leather
+## textures in the materials, didn't I? Here it is anyways. Can we apply
+## that to the seats, and give the seat tubes a proper aluminium material
+## and proper UV mapping too please?")
+
+- The user's Poly Haven scan (fabric_leather_01) has been the `hide`
+  finish since `skin_tex_import.py` (the yoke's horns wore it); the
+  seats' livery section (`seatTrim`) defaulted to the procedural
+  `leather` row, which never carried a sheet. `seatTrim.fin` is `hide`
+  now — the cushions and the piping take the scan through the same
+  section (a build that chose another finish keeps its choice).
+- The tube frame (`seatTube`) is drawn alloy: a crew material of its own,
+  `seatAlu` → `bareAlu` (the 4130 row stays for the cabin frame), and
+  the runs are swept with 18 / 14 sides instead of 10 / 8 — a 14 mm tube
+  seen from the seat read as a hex bar. On "proper UV mapping": the
+  hardware finishes are the aeroskin's object-space triplanar scans
+  (G66–G70) — the seat reads none; a tube's cylindrical mapping would
+  buy nothing the triplanar projection does not already give it.
+- GATE SKINMAT green (both tables gained the name together, the census's
+  rule).
