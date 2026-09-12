@@ -365,6 +365,18 @@ sampled by the TERRAIN alone with four taps on the direct term. Proven from
 900 m: every tree an impostor, and the isolated ones and the stand edges cast
 onto the meadow. `farShadow` on the rig row and the panel.
 
+**Tint at the draw (W0c.20).** The impostor sheet is baked untinted and the
+collection's tint is applied at the draw on both tiers with uniforms shared by
+reference, so `TREE_LEAF.tintOf(name, {hue, sat, light, bark})` — one block per
+collection on the panel — moves a tree at every distance. Measured: at
+`imp lit` 0.9 the far tier still reads 83.7 against the geometry's 81.9, and
+LOLIPOP at light 0.7 reads 71.2 as geometry, 71.9 as impostors.
+
+**Re-benchmarked after the shadow pass** (`tree_perf`, NG 128, alps, W0c.20):
+Off 24 ms · Smooth 35 ms · Smoothest 42 ms — the fill casting and receiving,
+the impostor casters, the far cascade and the draw-time tint all in, against
+W0c.17's 31 / 36 / 43.
+
 **Not done.** The `impa` / `implight` per-collection numbers are not in the
 payload (6 / 6.5 and 1 in the tuning: one gain, one lit, for all). The boot rig
 is still `sunset`; `alps` is two clicks on the panel and is the row the trees
