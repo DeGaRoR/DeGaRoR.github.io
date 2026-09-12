@@ -39873,3 +39873,43 @@ WIP, 84 of it x (§4 place.dx).
   aft's tip) is the post now: on the user's WIP the profile ends at w 0.018,
   yb 0.51 / yt 0.57 (a teardrop's tip) and the tail-gap gauge reads 48 mm
   (dx 42, dy 24) where it read 106 before this pair of §3/§4 fixes.
+
+## G297 — THE EXTERNAL LIGHTING AND THE AERIALS AUDITED FOR TWIN BOOMS; THE
+## BEACON OUT OF THE DORSAL (2026-09-12, the user: "audit all external
+## lighting for twin boom compatibility ... the shark fin; shouldn't we have 2,
+## one on each boom? ... a very longstanding issue of the beacon not taking
+## the dorsal fin into account, and not being positioned on top of it, as it
+## should, but inside it, major clipping issue. Not restricted to twin booms")
+
+**The audit.** Navigation red / green on the wingtips (unchanged, the
+wing is the wing); the tail WHITE at the stab's centre trailing edge
+between the booms (G295); the beacon ONE A FIN on the fin tops (the light
+layer's, G267); taxi and landing lamps in the wing's leading edge
+(unchanged); no strobe exists yet. The access layer's fittings on the
+booms (G278): the comm aerials, the nav aerial, the transponder, the
+inspection hatches, the tie-downs.
+
+**Two comm aerials, one a boom** (the user's call): `commAerial` needs 2
+on twin booms, side 'both' — the pair at 0.45 of the tube, the nav aerial
+ahead of the starboard one at 0.35.
+
+**The beacon inside the dorsal — the real fault.** There were TWO beacons
+on every fuselage with a fin: the light layer's on the fin top (right) and
+GEN_ACCESS's `beacon` row on the crown at 0.6 of the tail arm — which on a
+fuselage with a dorsal fin is INSIDE the dorsal, because the fin is a
+LAYER mesh the body placer never saw. Fixed twice over:
+- the crown placer now refuses the centreline fin group's fore-aft
+  footprint (`finBand`, measured in the cage's own frame, the dorsal
+  included) for EVERY crown row, and falls back through the rings, then to
+  the crown just ahead of the fin (`crownAtZ`, a hand forward at a time
+  past a fitting already there) — on the stock build the comm aerial now
+  stands at z 0.51, between the wing's trailing edge (0.61) and the
+  dorsal's foot (0.41), vertical, where it used to be in the dorsal;
+- the access `beacon` row is the beacon of an aeroplane with no fin to
+  carry one: need 0 on twin booms (each fin has one), 0 on a fuselage
+  with a fin (the fin top has one), kept on a rod boom (G189's clamped
+  beacon, GATE FIT's row) and on a V-tail. The twin boom's count is two.
+
+GATE FIT / PARTS / JOIN green. The light layer's own fin-top beacon sits
+`li_beaconSink` (0.16) into the fin's top edge by design — 0 puts it on
+top; measured on the user's build the rotor's base is 2 mm under the top.

@@ -513,6 +513,26 @@ function crownRings(mesh, sign) {
   return out;
 }
 
+// G297: A CROWN SITE AT A BODY STATION given as z (cage units) rather than
+// as metres along the body — the spine's sL is interpolated between the two
+// vertices bracketing that z, then the ordinary lookup runs. What a crown
+// fitting falls back to when its rings are all spoken for: 'just ahead of
+// the fin' is a z, not an sL.
+function crownAtZ(mesh, z, sign) {
+  const A = mesh.A, V = mesh.V;
+  const list = spineOf(mesh, sign).slice().sort((a, b) => V[a][2] - V[b][2]);
+  if (list.length < 2) return null;
+  if (z < V[list[0]][2] || z > V[list[list.length - 1]][2]) return null;
+  for (let i = 0; i + 1 < list.length; i++) {
+    const a = list[i], b = list[i + 1];
+    if (z >= V[a][2] && z <= V[b][2]) {
+      const t = (z - V[a][2]) / Math.max(1e-9, V[b][2] - V[a][2]);
+      return crownSite(mesh, A[a][0] + (A[b][0] - A[a][0]) * t, sign);
+    }
+  }
+  return null;
+}
+
 // THE BAND HAS TO WIDEN, and the reason is the boom. Subdivision follows the
 // RINGS, and GEN_BUILD_GRAMMAR's own note says the aft body is "a single ~4 m
 // bay with no ring in it at all" — so between the cabin and the tailpost the
@@ -821,7 +841,7 @@ function siteToAF(AF, site) {
 }
 
 const API = { accessSites, fieldHits, siteToAF, snapTo, sectionCY, frameAt,
-              sectionArc, AX_RAIL, crownSite, crownRings, geoMesh,
+              sectionArc, AX_RAIL, crownSite, crownRings, crownAtZ, geoMesh,
               NOT_SKIN, AX_METRIC, AX_STRUCT, fieldScan, fieldIndexQuery };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = API;

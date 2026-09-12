@@ -799,14 +799,16 @@ const GEN_ACCESS = {
     serves: 'the VHF radio',
     // the panel arc, session 2: fitted when the fit carries a COM (the tier's
     // answer or the player's), not by the tier's name
-    need: R => (R.avionics && R.avionics.com) ? 1 : 0,
     // G278: on twin booms the pod's deck is the wing's shadow and ends at
-    // the bulkhead — the blade goes on the PORT boom's crown (the nav
-    // aerial takes the starboard one)
+    // the bulkhead — the blades go on the booms' crowns (the nav aerial
+    // takes the starboard one's, further forward)
+    // G297 (the user: "shouldn't we have 2, one on each boom in this
+    // config?"): one a boom, the pair
+    need: R => (R.avionics && R.avionics.com) ? (R.booms ? 2 : 1) : 0,
     on: R => R.booms ? 'boom' : 'body',
     at: R => R.booms ? { sL: R.booms.len * 0.45, lv: 'crown' }
                      : { sL: R.cabinAft + 0.45, lv: 'crown' },
-    snap: 'ring', side: R => R.booms ? 'port' : 'centre',
+    snap: 'ring', side: R => R.booms ? 'both' : 'centre',
     form: 'bladeAerial', size: { h: 0.230, c: 0.090, t: 0.010 },
   },
   navAerial: {
@@ -851,7 +853,16 @@ const GEN_ACCESS = {
   beacon: {
     name: 'Anti-collision beacon',
     serves: 'being seen',
-    need: R => R.systems === 'minimal' ? 0 : 1,
+    // G297: NOT WHERE A FIN CARRIES ONE. The light layer puts a beacon on
+    // top of every fin it finds (one a fin on twin booms), and this row's
+    // was a second — on the crown at 0.6 of the tail arm, which on a
+    // fuselage with a dorsal is INSIDE the dorsal (the user: "a very
+    // longstanding issue of the beacon not taking the dorsal fin into
+    // account ... inside it, major clipping"). This row is the beacon of
+    // an aeroplane with no fin to carry one (a V-tail), and the rod boom
+    // keeps its clamped one (G189, GATE FIT's row); the crown placer now
+    // refuses the fin's footprint as well, for every crown row.
+    need: R => R.systems === 'minimal' ? 0 : R.booms ? 0 : R.rod ? 1 : R.fin ? 0 : 1,
     // 'free', not 'ring'. A beacon is a small light on its own doubler and
     // does not bolt through a frame, and snapping it to one put it on the
     // same station as the comm aerial — two fittings in one place, which
@@ -1038,6 +1049,7 @@ function genAccessNeedsCage(P, extra) {
     material:  E.material || 'tubeFabric',
     cargo:     E.cargo || 0,
     engine:    !!(P.engOn == null ? 1 : +P.engOn),
+    fin:       !!(P.finOn == null ? 1 : +P.finOn),          // G297: a fin carries the beacon
     cowl:      !!(P.cowlOn == null ? 1 : +P.cowlOn),
     wing:      !!(P.wingOn == null ? 1 : +P.wingOn),
     // G185: the second plane, off the panel; the vessel rows are the energy

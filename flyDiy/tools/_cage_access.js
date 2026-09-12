@@ -535,8 +535,37 @@ PAGE.post = ctx => {
     // 0.38 m ahead of the trailing edge, under the carry-through)
     // (the wing's edges are read in the cage's own frame, as CAGE_BOOMS reads
     // them; a high or parasol wing is the one whose root sits over the roof)
+    const blockedSet = r => { const b = new Set(SITE.NOT_SKIN); for (const m of (r.allow || [])) b.delete(m); return b; };
     const WG = (typeof window !== 'undefined') && window.CAGE_WING;
     const wingHigh = [0, 3].includes(Math.round(+P.wgPos || 0));
+    // ...AND NOT INSIDE THE FIN (G297, the user: "a very longstanding issue
+    // of the beacon not taking the dorsal fin into account ... positioned
+    // inside it, major clipping"). The fin is a LAYER mesh the body placer
+    // cannot see, and its dorsal runs forward along the spine over the very
+    // stations the crown rows ask for. The centreline fin group's fore-aft
+    // extent, in the cage's own frame, is a band no crown fitting may stand
+    // in; a fin on a boom (off the centreline) blocks nothing.
+    const finBand = (() => {
+      if (!scene || !scene.children) return null;
+      scene.updateMatrixWorld(true);
+      const inv = new THREE.Matrix4().copy(scene.matrixWorld).invert();
+      const v = new THREE.Vector3();
+      let z0 = Infinity, z1 = -Infinity;
+      for (const ch of scene.children) {
+        if ((ch.name || '').indexOf('cageLayer:fin') !== 0) continue;
+        if (Math.abs(ch.position.x) > 0.2) continue;              // a boom's fin
+        ch.traverse(o => {
+          if (!o.isMesh || !o.geometry) return;
+          const pos = o.geometry.getAttribute('position');
+          for (let i = 0; i < pos.count; i++) {
+            v.set(pos.getX(i), pos.getY(i), pos.getZ(i)).applyMatrix4(o.matrixWorld).applyMatrix4(inv);
+            if (Math.abs(v.x) > 0.25) continue;
+            if (v.z < z0) z0 = v.z; if (v.z > z1) z1 = v.z;
+          }
+        });
+      }
+      return isFinite(z0) && z1 > z0 ? { z0, z1 } : null;
+    })();
     const shadowed = pm => {
       if (!wingHigh || !WG || !WG.leAt || !WG.teAt) return false;
       const le = WG.leAt(0), te = WG.teAt(0);
@@ -556,6 +585,21 @@ PAGE.post = ctx => {
         let best = rings[0];
         for (const h of rings) if (Math.abs(h.sL - ask) < Math.abs(best.sL - ask)) best = h;
         sites = [Object.assign({}, best, { side: 'centre' })];
+      }
+      // ...and when every ring is spoken for or in a shadow — the stock
+      // build: the cabin under the wing, the dorsal from the cabin's aft
+      // pillar to the post — the crown JUST AHEAD OF THE FIN, stepping
+      // forward a hand at a time past a fitting already there
+      if (!sites.length && finBand && SITE.crownAtZ) {
+        for (let k = 0; k < 4 && !sites.length; k++) {
+          const zM = finBand.z1 + 0.10 + 0.30 * k;
+          const h = SITE.crownAtZ(mesh, zM / K2, 1);
+          if (!h || blockedSet(row).has(h.mat) || h.n[1] < 0.3) continue;
+          const pm = [h.p[0] * K2, h.p[1] * K2, h.p[2] * K2];
+          if (shadowed(pm)) continue;
+          if (placed.some(q => q.on === 'body' && q.n && q.n[1] > 0.7 && Math.abs(q.p[2] - pm[2]) < 0.25)) continue;
+          sites = [Object.assign({}, h, { side: 'centre' })];
+        }
       }
     }
     if (!sites.length) { unplaced.push(row); continue; }
