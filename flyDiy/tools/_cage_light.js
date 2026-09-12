@@ -63,8 +63,12 @@ const LIGHTS = {
   // drawing or declaring anything for it.
   instr: { name: 'instrument', grp: 'int', ctl: 'dim', order: 1,
            col: 0xff9a4a, w: 0.030, byPanel: true },
-  panel: { name: 'panel', grp: 'int', ctl: 'dim', order: 2,
-           col: 0xffb060, w: 0.010 },
+  // (the `panel` strip in the glareshield lip is GONE — session 4b, the
+  // user: "there's an horizontal bar for ages on top of the dash, I really
+  // don't know what it's for, and I would want it removed". It was a 1 cm
+  // lens across the whole panel under the coaming, seen from the seat as a
+  // grey bar; the instrument light above lights the dials from their own
+  // faces, which is what the strip was for.)
   pedal: { name: 'pedalier', grp: 'int', ctl: 'dim', order: 3,
            col: 0xffc27a, w: 0.026 },
   pax: { name: 'passenger', grp: 'int', ctl: 'dim', order: 4,
@@ -998,18 +1002,7 @@ function sites(scene, group, P) {
       return { p: [s.x, (cl ? cl.y : A.roofY) - 0.03, s.zBack + 0.10],
                ax: [0, -1, 0], onCeiling: !!cl };
     });
-    // the panel lights are IN THE COAMING LIP, shining down onto the
-    // instruments — which is the realistic answer and the reason the lip had
-    // to be measured for the panel in the first place.
-    // THE LIP IS THE TOP OF THE DASH, not the bottom (2026-08-31): the crew
-    // layer used to hang the instruments under `dashLip`, so a lamp there was
-    // above them; the instruments are on the dash FACE now, so the lamp goes
-    // under `dashTop` — the traced windscreen base line, which is the coaming.
-    // Falls back to the old anchor for a crew layer that predates dashTop.
-    const lipY = A.dashTop != null ? A.dashTop : A.dashLip;
-    if (C.panel && C.panel.ext && lipY != null)
-      out.panel = { x0: C.panel.ext.x0, x1: C.panel.ext.x1,
-                    y: lipY - 0.004, z: C.panel.ext.z - 0.030 };
+    // (the coaming strip's site went with the `panel` light — session 4b)
   }
   return out;
 }
@@ -1211,18 +1204,6 @@ PAGE.post = (ctx) => {
   if (S.flood) lamp('flood', S.flood);
   if (S.pedal) lamp('pedal', S.pedal);
   for (const s of (S.pax || [])) lamp('pax', s);
-  // THE PANEL LIGHT IS A STRIP IN THE LIP, not a lamp: it is the one interior
-  // light you are never supposed to see the source of.
-  if (S.panel) {
-    const lv = level(P, 'panel');
-    const b = Bag(lensMat('panel', lv));
-    const y = S.panel.y, z = S.panel.z, w = LIGHTS.panel.w;
-    b.quad(b.v(S.panel.x0, y, z), b.v(S.panel.x1, y, z),
-           b.v(S.panel.x1, y - w, z + w * 0.6),
-           b.v(S.panel.x0, y - w, z + w * 0.6));
-    b.mesh(group);
-    drawn.panel = 1;
-  }
 
   armRotors();       // the beacon starts turning as soon as it is built
 

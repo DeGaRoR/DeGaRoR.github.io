@@ -200,29 +200,80 @@ function angleOfDisp(key, d, units, o) {
 // avionics keys fitted. Returns dials[] {k, cx, cy, r, slot}, switches[]
 // {k, kind, x, y}, ext, zFace, yMid, xLim, overflow[].
 const D_BIG = 0.0794, D_SMALL = 0.0572, GAP = 0.012, PAN_INSET = 0.012;
+const SW_ROOM = 0.026;             // the switch row's 16 mm plates and a gap, along the bottom
 const T_KEYS = { asi: [0, 0], ai: [1, 0], alt: [2, 0], turn: [0, 1], dg: [1, 1], vsi: [2, 1] };
 function layout(A, o) {
   o = o || {};
   const items = o.items || [], side = o.side || 'pilot', pilotX = o.pilotX || 0;
-  const zFace = (A.dashAftZ != null ? A.dashAftZ : A.zDash) - 0.004;
+  // THE PLATE (session 4b): when the crew measured the dash's face plate
+  // (A.face - its outline as columns, its plane), every dial is placed ON
+  // it: inside its outline with the bezel inset all round, on its plane.
+  // Without it (an older crew record, the bench's flat dash) the band the
+  // crew always published stands in.
+  const F = A.face || null;
+  const zFace = F ? F.zTop : (A.dashAftZ != null ? A.dashAftZ : A.zDash) - 0.004;
   const hasDash = A.dashLip != null && A.dashTop != null;
-  const yTop = hasDash ? A.dashTop - PAN_INSET : A.floorAt(A.zDash) + 0.42 + 0.135;
-  const yBot = hasDash ? Math.min(A.dashLip + PAN_INSET, yTop - 0.090) : yTop - 0.270;
-  const xLim = Math.max(0.16, A.halfW - 0.05);
+  const yTop = F ? F.yTop - PAN_INSET : hasDash ? A.dashTop - PAN_INSET : A.floorAt(A.zDash) + 0.42 + 0.135;
+  const yBot = F ? F.yBot + PAN_INSET : hasDash ? Math.min(A.dashLip + PAN_INSET, yTop - 0.090) : yTop - 0.270;
+  const xLim = F ? Math.max(0.16, F.xMax - PAN_INSET) : Math.max(0.16, A.halfW - 0.05);
+  // a dial fits where its whole circle, inset, is inside the plate's outline
+  // - seven points round its rim against the column under each
+  const fits = (cx, cy, r) => {
+    if (Math.abs(cx) + r > xLim + 1e-6) return false;
+    // the switch row lives along the bottom: a dial leaves it its 16 mm and a gap
+    if (cy + r > yTop + 1e-6 || cy - r < yBot + SW_ROOM - 1e-6) return false;
+    if (!F) return true;
+    for (const sN of [-1, -0.7, -0.35, 0, 0.35, 0.7, 1]) {
+      const c = F.at(cx + sN * r);
+      if (!c || Math.abs(c.x - (cx + sN * r)) > 0.03) return false;
+      const h = r * Math.sqrt(1 - sN * sN);
+      if (cy + h > c.y1 - PAN_INSET + 1e-6 || cy - h < c.y0 + PAN_INSET - 1e-6) return false;
+    }
+    return true;
+  };
+  // the highest centre a dial of radius r fits at over x (under the arch of
+  // a plate whose crown is in the middle), or null when none does
+  const topAt = (cx, r) => {
+    for (let cy = yTop - r; cy - r >= yBot - 1e-6; cy -= 0.005) if (fits(cx, cy, r)) return cy;
+    return null;
+  };
+  // the widest |x| the plate offers at height y (for the switch row)
+  const xLimAt = y => {
+    if (!F) return xLim;
+    let m = 0;
+    for (const c of F.cols) if (c.y0 + PAN_INSET <= y && c.y1 - PAN_INSET >= y) m = Math.max(m, Math.abs(c.x));
+    return Math.max(0.10, Math.min(xLim, m));
+  };
   const overflow = [];
   const dials = [], switches = [];
   const has = k => items.includes(k);
   // the T: three columns, two rows, big dials, centred on the pilot (or the
-  // dash) and clamped inside the panel
+  // dash) and clamped inside the panel; its top row sits as high as the
+  // OUTER columns fit under the crown
   const colW = D_BIG + GAP, rowH = D_BIG + GAP;
   const xC = side === 'centre' ? 0 : pilotX;
-  const y0 = yTop - D_BIG / 2;                // row 0 centre
-  const tRows = (yTop - yBot) >= 2 * rowH - GAP + 0.02 ? 2 : 1;
   let xT = clamp(xC, -xLim + 1.5 * colW, xLim - 1.5 * colW);
+  // the top row as high as its three columns fit under the crown; when the
+  // outer column is under the crown's fall, the T slides toward the middle
+  // of the plate (a hand's width at most) before it drops
+  const rowTop = x => { let y = yTop - D_BIG / 2; for (const c of [-1, 0, 1]) { const t = topAt(x + c * colW, D_BIG / 2); if (t == null) return null; if (t < y) y = t; } return y; };
+  let y0 = rowTop(xT);
+  if (y0 == null || y0 < yTop - D_BIG / 2 - 0.012) {
+    const toMid = Math.sign(-xT) || 1, xB = xT;
+    for (let d = 0.01; d <= 0.12 + 1e-9; d += 0.01) {
+      const x2 = xB + toMid * d, y2 = rowTop(x2);
+      if (y2 != null && (y0 == null || y2 > y0)) { xT = x2; y0 = y2; }
+      if (y2 != null && y2 >= yTop - D_BIG / 2 - 0.012) break;
+    }
+  }
+  if (y0 == null) y0 = yTop - D_BIG / 2;
+  const tRows = fits(xT, y0 - rowH, D_BIG / 2) ? 2 : 1;
   const tSlot = (k, c, r) => {
     if (r >= tRows) { overflow.push(k); return; }
     // cage +x is the pilot's LEFT: column 0 is the leftmost = the largest x
-    dials.push({ k, cx: xT + (1 - c) * colW, cy: y0 - r * rowH, r: D_BIG / 2 });
+    const cx = xT + (1 - c) * colW, cy = y0 - r * rowH;
+    if (!fits(cx, cy, D_BIG / 2)) { overflow.push(k); return; }
+    dials.push({ k, cx, cy, r: D_BIG / 2 });
   };
   const aiKey = has('aiE') ? 'aiE' : (has('ai') ? 'ai' : null);
   for (const k of ['asi', 'alt', 'turn', 'dg', 'vsi']) if (has(k)) tSlot(k, T_KEYS[k][0], T_KEYS[k][1]);
@@ -230,33 +281,46 @@ function layout(A, o) {
   // the clock, left of the ASI when there is room
   if (has('clock')) {
     const cx = xT + 1.5 * colW + D_SMALL / 2 + GAP;
-    if (cx + D_SMALL / 2 <= xLim) dials.push({ k: 'clock', cx, cy: y0 - (D_BIG - D_SMALL) / 2, r: D_SMALL / 2 });
+    let cy = y0 - (D_BIG - D_SMALL) / 2;
+    if (!fits(cx, cy, D_SMALL / 2)) cy = topAt(cx, D_SMALL / 2);
+    if (cy != null) dials.push({ k: 'clock', cx, cy, r: D_SMALL / 2 });
     else overflow.push('clock');
   }
   // the engine group, to the pilot's right of the T (−x); the other side
   // when it does not fit
   const eng = ['tacho', 'gmeter'].filter(has);
   const small = ['oilP', 'oilT', 'fuel', 'volts'].filter(has);
-  const groupW = Math.max(eng.length ? eng.length * colW : 0, small.length ? 2 * (D_SMALL + GAP) : 0);
+  let groupW = Math.max(eng.length ? eng.length * colW : 0, small.length ? 2 * (D_SMALL + GAP) : 0);
   let gx0 = xT - 1.5 * colW - GAP - 0.010;    // the group's near (left) edge, going −x
   let dir = -1;
   if (gx0 - groupW < -xLim) { gx0 = xT + 1.5 * colW + GAP + 0.010 + (has('clock') ? D_SMALL + GAP : 0); dir = 1; }
   let gy = y0;
   {
     let x = gx0;
+    let engLow = gy;
     for (const k of eng) {
       const cx = x + dir * D_BIG / 2;
-      if (Math.abs(cx) + D_BIG / 2 > xLim + 1e-6) { overflow.push(k); continue; }
-      dials.push({ k, cx, cy: gy, r: D_BIG / 2 });
+      // a dial under the crown's fall drops to where it fits, the small
+      // gauges below it with it
+      const cy = fits(cx, gy, D_BIG / 2) ? gy : topAt(cx, D_BIG / 2);
+      if (cy == null) { overflow.push(k); continue; }
+      dials.push({ k, cx, cy, r: D_BIG / 2 });
+      engLow = Math.min(engLow, cy);
       x += dir * colW;
     }
-    if (eng.length) gy -= D_BIG / 2 + GAP + D_SMALL / 2;
-    let i = 0;
+    if (eng.length) gy = engLow - D_BIG / 2 - GAP - D_SMALL / 2;
+    // the small gauges in two columns under the tacho; one that has no room
+    // below (a short plate) goes ALONG the row instead, outboard
+    let i = 0, extra = 0;
     for (const k of small) {
       const col = i % 2, row = Math.floor(i / 2);
-      const cx = gx0 + dir * (col * (D_SMALL + GAP) + D_SMALL / 2);
-      const cy = gy - row * (D_SMALL + GAP);
-      if (cy - D_SMALL / 2 < yBot + 0.03 || Math.abs(cx) + D_SMALL / 2 > xLim + 1e-6) { overflow.push(k); i++; continue; }
+      let cx = gx0 + dir * (col * (D_SMALL + GAP) + D_SMALL / 2);
+      let cy = gy - row * (D_SMALL + GAP);
+      if (!fits(cx, cy, D_SMALL / 2)) {
+        cx = gx0 + dir * ((2 + extra) * (D_SMALL + GAP) + D_SMALL / 2); cy = gy;
+        if (!fits(cx, cy, D_SMALL / 2)) { const t = topAt(cx, D_SMALL / 2); if (t == null) { overflow.push(k); i++; continue; } cy = t; }
+        extra++;
+      }
       dials.push({ k, cx, cy, r: D_SMALL / 2 });
       i++;
     }
@@ -264,19 +328,27 @@ function layout(A, o) {
   // the radios: a column past the engine group, 57 mm controllers
   const radios = (o.radios || []).filter(k => k === 'com' || k === 'xpdr');
   if (radios.length) {
+    // past whatever the group reached (a small gauge sent along the row)
+    for (const d of dials) if (!d.coaming && d.k !== 'clock' && !(d.k in T_KEYS) && d.k !== 'aiE')
+      groupW = Math.max(groupW, dir * (d.cx - gx0) + D_SMALL / 2);
     const rx = gx0 + dir * (groupW + GAP + D_SMALL / 2);
+    const ry = fits(rx, y0, D_SMALL / 2) ? y0 : topAt(rx, D_SMALL / 2);
     radios.forEach((k, i) => {
-      const cy = y0 - i * (D_SMALL + GAP);
-      if (Math.abs(rx) + D_SMALL / 2 > xLim + 1e-6 || cy - D_SMALL / 2 < yBot + 0.03) { overflow.push(k); return; }
+      const cy = ry == null ? null : ry - i * (D_SMALL + GAP);
+      if (cy == null || !fits(rx, cy, D_SMALL / 2) || cy - D_SMALL / 2 < yBot + 0.03) { overflow.push(k); return; }
       dials.push({ k, cx: rx, cy, r: D_SMALL / 2 });
     });
   }
-  // the compass on the coaming, on the pilot's line
+  // the compass on the coaming, on the pilot's line - the coaming is the
+  // dash's TOP (the glareshield), above the plate
   if (has('compass')) {
     const r = 0.070 / 2;
     const cx = clamp(xC, -xLim + r, xLim - r);
-    // a bowl's height above the coaming clears the AI's bezel under it
-    dials.push({ k: 'compass', cx, cy: yTop + r * 1.2, r, coaming: true });
+    // ...standing ON the glareshield where it is, which is lower than the
+    // dash's crown (the roll behind the lip is the highest point)
+    const zc = (A.dashAftZ != null ? A.dashAftZ : zFace) + 0.045;
+    const coam = A.dashTopAt ? A.dashTopAt(cx, 0.05, zc - 0.03, zc + 0.03) : hasDash ? A.dashTop : yTop + PAN_INSET;
+    dials.push({ k: 'compass', cx, cy: coam + r * 0.5 + 0.002, r, coaming: true, z: zc });
   }
   // the switch row along the bottom band: key, master, alt, then the
   // light throws and the dimmers — pitch 40 mm, centred under the T
@@ -287,16 +359,19 @@ function layout(A, o) {
   }
   for (const k of (o.extLights || [])) sw.push({ k, kind: 'toggle', light: true });
   for (const k of (o.intLights || [])) sw.push({ k, kind: 'knob', light: true });
-  const ySw = Math.max(yBot + 0.020, (dials.filter(d => !d.coaming).reduce((m, d) => Math.min(m, d.cy - d.r), yTop)) - 0.030);
-  const pitch = Math.min(0.040, (2 * xLim - 0.02) / Math.max(1, sw.length));
-  let x = xC + pitch * (sw.length - 1) / 2;
-  for (const s of sw) { switches.push(Object.assign({ x: clamp(x, -xLim + 0.02, xLim - 0.02), y: ySw }, s)); x -= pitch; }
+  const ySw = Math.max(yBot + 0.010, (dials.filter(d => !d.coaming).reduce((m, d) => Math.min(m, d.cy - d.r), yTop)) - 0.016);
+  const xSw = xLimAt(ySw);                     // the plate's own width down there
+  const pitch = Math.min(0.040, (2 * xSw - 0.02) / Math.max(1, sw.length));
+  let x = Math.min(xSw - 0.02, Math.max(-xSw + 0.02 + pitch * (sw.length - 1), xC + pitch * (sw.length - 1) / 2));
+  for (const s of sw) { switches.push(Object.assign({ x: clamp(x, -xSw + 0.02, xSw - 0.02), y: ySw }, s)); x -= pitch; }
   // the extent, the way the crew always published it
   const onPanel = dials.filter(d => !d.coaming);
   const ext = onPanel.length ? {
     x0: Math.min(...onPanel.map(d => d.cx - d.r)), x1: Math.max(...onPanel.map(d => d.cx + d.r)),
     y0: Math.min(...onPanel.map(d => d.cy - d.r)), y1: Math.max(...onPanel.map(d => d.cy + d.r)), z: zFace } : null;
-  return { dials, switches, ext, zFace, yTop, yBot, yMid: (yTop + yBot) / 2, xLim, overflow, xT, side };
+  return { dials, switches, ext, zFace, yTop, yBot, yMid: (yTop + yBot) / 2, xLim, overflow, xT, side,
+           // the plate's plane, for the builder to stand the dials on
+           plane: F ? { zTop: F.zTop, yTop: F.yTop, tilt: F.tilt } : null };
 }
 
 // ---------------------------------------------------------------------------

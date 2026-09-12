@@ -38174,3 +38174,114 @@ needles' feel is judged; a QNH knob with the day cycle.
 - The `chimney` dial keeps its `none` for the bench; the rule is on what the
   presets and the sampler produce.
 - Gates: HOUSE (with --selftest) green.
+
+## G263 — THE PANEL ARC, SESSION 4b: THE COCKPIT VIEW IS A HEAD, THE DIALS
+## STAND ON THE PLATE, AND THE BAR ACROSS THE DASH IS GONE (2026-09-12, the
+## user: "the interior view turns around an external point, it's bad … get
+## really clear on the flat area available to you … put your attitude
+## indicator somewhere that its ribbon does not show … a reddish ball is
+## still there … an horizontal bar for ages on top of the dash")
+
+*The user's review of G260 from the seat. Five things, each its own fix.*
+
+**1. HEADCAM — the cockpit view is a head, not an orbit** (`app.js`, beside
+the DEVCAM). G107 put the cockpit on the orbit with its pivot an arm's
+length ahead of the eyes: a drag swung the EYE round that point, and the
+wheel walked it through the seat. Now the eye stays where the pilot's is
+and: a left DRAG turns it (pointer lock is asked for at the end of a drag
+that turned the head — a pointerup is a user gesture, a click never asks —
+and once granted the mouse is free, Escape gives it back; the drag never
+depends on the lock, which the Browser pane refuses); the WHEEL is the
+field of view (the CAMERA flyout's own slider, 28..84, saved with it); the
+HEAD MOVES on Z / S (fore / aft), Q / D (left / right), R / F (up / down) —
+ZQSD is the French layout the user asked for, W is taken as Z's alias, A
+is not (the AP toggle) — inside HEAD_BOX, a box a seated pilot's head can
+reach: 28 cm forward, 14 cm aft, 10 cm up, 8 cm down, 22 cm either side,
+in the model's own frame off the published eye rest. Yaw ±155° (over the
+shoulder, not behind), pitch ±83°. `level horizon` still chooses the
+camera's up. Under pointer lock a click works whatever the head looks
+straight at (the pick ray goes through the centre). Rolling out into the
+cockpit seats the head (`headCam.enter`), which retires G260's
+`distT = 1e3` trick. `placeCamera` stands aside while `HEADCAM_ACTIVE`.
+
+**2. THE PLATE — the flat area, measured** (`_cage_crew.js` anchors →
+`A.face`). The band the panel was laid out on was the WHOLE dash
+(glareshield, roll, lip and plate: `dashTop`/`dashLip`/`dashAftZ`, the
+aft-most point of either material), so the dials hung 2 cm in front of the
+recessed face plate with their tops under the roll and the AI's drum rim
+showing in the gap — the "ribbon". `A.face` is the `dashFace` polygon on
+its own: its outline as 1 cm columns across x (the lowest and highest y of
+the plate there — read off the plate's FACES, cut by each column line,
+because the ladder that fills the plate has vertices only on its rim), its
+extreme x, and its PLANE: the cage draws the plate leaning (top nearer the
+pilot), so `zTop`, `zBot` and the `tilt` between them. `A.dashTopAt(x, dx,
+z0, z1)` gives the glareshield's own height at a place (the roll behind
+the lip is the dash's crown; the shelf the compass stands on is 2.7 cm
+lower).
+
+**3. THE LAYOUT ON IT** (`_panel_gen.layout`, when `A.face` is there): a
+dial fits where its whole circle, inset 12 mm, is inside the outline
+(seven points round its rim against the column under each) and leaves the
+switch row its 26 mm along the bottom. The T's top row sits as high as its
+three columns fit under the crown; when the outer column is under the
+crown's fall the T slides toward the middle (a hand's width at most)
+before it drops — on the stock build 9 cm toward the centreline and 15 mm
+down. The engine group's dials drop to where they fit, the small gauges
+in two columns under the tacho or, when the plate is too short for a
+second row, ALONG the row outboard (the stock build: oil P, oil T, fuel,
+volts in one row, the COM past them). The switch row takes the plate's
+own width at its height. The compass stands on the glareshield where it
+is (`dashTopAt`), its bowl's foot 2 mm above it, 4.5 cm forward of the
+lip. The builder (`_cage_panel.build`) stands everything on the plate's
+frame: a group at the plate's top-centre, rotated by its tilt, +z its
+normal into the dash — a dial's cage y becomes a distance along the
+plate, z = 0 IS the plate; the join reads pivots and axes off world
+matrices, so the hands' contract is untouched. Every instrument gets a
+CAN (a closed cylinder behind the plate, from the bezel's back to its
+depth — 55 mm big, 42 mm small — moulded black) and a thin mounting
+FLANGE on the plate round its bezel (1.1 r; the AI's 1.2 r).
+
+**4. THE AI'S RIBBON** (`drumInto`, `canAt`, the AI's seating). The plate
+is SOLID — no hole is cut for an instrument — so a drum behind it is
+invisible and a drum in front of it shows beside the bezel. The answer is
+the real one: the AI stands PROUD as a case does — its bezel and ring 8 mm
+further out than its neighbours' (`AI_STAND`), its drum 1.2 r with the
+front 7 mm proud of the plate (`AI_PROUD`: the plate's plane then cuts the
+drum at 0.62 r, outside the 0.58 r window), and the drum is a PATCH, not a
+band: the union over the pitch the window shows of the window's circle
+laid on the drum — a stadium, the window's width for ±34° of drum then
+narrowing to nothing by ±65° — in its own can from the plate. Everything of
+the drum outside the window is behind the ring or the flange from any
+seat; the window shows ±29° of pitch, the ladder to ±30. The drum's rim at
+1.6 r was the ribbon; the 1.2 r can clears the neighbours' cans on the T.
+
+**5. THE BAR, and THE BALL.** The `panel` light — a 1 cm lens strip across
+the whole panel under the coaming, drawn since G96 as "the one interior
+light you are never supposed to see the source of" and seen from the seat
+as a grey bar — is RETIRED: the row is gone from `LIGHTS`, its site and
+its strip from the light layer, its `li_panel` row from the Lights part,
+its knob from the switch row (eleven switches now), its amps from the
+bus; the instrument light (the faces' own emissive, G256) is what it was
+for. The reddish ball at the pilot's eye was the crew layer's EYE MARKER
+(`dumMarkers`, a 15 mm sphere at the eye point): the join bakes every
+visible mesh and took it; it is stamped `userData.edMarker` and the join
+skips it (beside `edHi`).
+
+**GATE PANEL** follows: eleven switches, the coaming dial's foot at half a
+radius in the overlap check, the head seated on roll-out. **GATE UISMOKE
+is green again**: its document stub gained `addEventListener` (the DEVCAM
+has listened for `pointerlockerror` since W0c.10 — the red at HEAD since
+then) and its THREE stub a `Matrix3` (the HEADCAM's normal matrix). GATE
+LIGHT's one red at HEAD (render_world's impostor bake, the trees session's)
+stands.
+
+**Seen in the pumped dev page**: rolled out into the cockpit the head is at
+the eye looking ahead; a drag turns it, a scroll zooms to 28°, Z/R/D held
+walk it to the box's corner (−0.28, +0.10, −0.22) and no further; the
+dials on the plate with their flanges, the AI clean at its tumbled rest,
+the compass on the shelf, no bar, no ball.
+
+**Owed**: a head-tracker binding for HEADCAM (input.js's `head` axes were
+declared for it); the `_panel.html` bench draws on a flat dash (no plate
+outline — the crew's measure is the plane's); a mixture / carb heat on the
+switch row when the engine model earns them.

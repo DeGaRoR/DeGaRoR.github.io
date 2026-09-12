@@ -128,6 +128,9 @@ const THREE = {
                       setFromUnitVectors(){ return this; } invert(){ return this; } },
   Matrix4: class { makeBasis(){ return this; } setPosition(){ return this; }
                    makeScale(){ return this; } copy(){ return this; } },
+  // the HEADCAM (the panel arc, session 4b) keeps a normal matrix at module
+  // scope to walk the head's look into the world; it constructs, no more
+  Matrix3: class { setFromMatrix4(){ return this; } getNormalMatrix(){ return this; } },
   PlaneGeometry: class extends BufferGeometry {
     constructor(w, h, sx = 1, sy = 1) {
       super();
@@ -258,6 +261,9 @@ const sandbox = {
   document: { getElementById: id => (els[id] = els[id] || el(id)),
               createElement: () => el('_ce' + (++ceN)),
               querySelector: () => null, querySelectorAll: () => [],
+              // the DEVCAM (W0c) and the HEADCAM (the panel arc) listen for
+              // pointerlockerror on the document, as a real one allows
+              addEventListener() {},
               get body() { return (els.__body = els.__body || el('body')); } },
   requestAnimationFrame: cb => { rafCb = cb; rafCount++; },
   // timers fire immediately: the point of this gate is to EXECUTE the deferred

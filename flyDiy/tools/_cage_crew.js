@@ -1588,7 +1588,95 @@ function anchors(spec, P, mesh) {
     }
     if (lo < 1e8) { dashLip = lo; dashTop = hi; dashAftZ = za; }
   }
-  return { k, dashLip, dashTop, dashAftZ, floorAt, halfW: spec.cabin.halfW * k,
+  // THE FACE PLATE ITSELF (the panel arc, session 4b, the user: "get really
+  // clear on the flat area available to you. It's the one with the metal
+  // material"). The band above is the whole dash — glareshield, roll, lip and
+  // plate together — and the panel laid out on it hung its dials 2 cm in
+  // front of the recessed plate (zFace was the LIP's plane, the aft-most
+  // point of either material) with their tops under the glareshield's roll.
+  // This is the `dashFace` polygon on its own: its outline as columns 1 cm
+  // apart across x (the lowest and highest y of the plate at that x), its
+  // extreme x, and the PLANE it lies in — the plate is not vertical, the
+  // cage draws it leaning (the top nearer the pilot than the bottom), so the
+  // plane is the top-centre and bottom-centre z with the tilt between them.
+  let face = null;
+  if (mesh && mesh.F && mesh.V) {
+    const BIN = 0.01, cols = new Map();
+    let xMax = 0, yLo = 1e9, yHi = -1e9, n = 0;
+    let zTopS = 0, nTop = 0, zBotS = 0, nBot = 0;
+    const pts = [];
+    // the outline is read off the plate's FACES, not its vertices: the
+    // ladder that fills the plate has vertices only along its rim, so a
+    // column between two rungs would see nothing. Every edge of every plate
+    // face is cut by each column line it spans, and the column's range is
+    // the lowest and highest cut (the faces are convex quads).
+    const cut = (x, y0, y1) => {
+      const b = Math.round(x / BIN);
+      const c = cols.get(b) || { x: b * BIN, y0: 1e9, y1: -1e9 };
+      if (y0 < c.y0) c.y0 = y0;
+      if (y1 > c.y1) c.y1 = y1;
+      cols.set(b, c);
+    };
+    for (const f of mesh.F) {
+      if (f.m !== 'dashFace') continue;
+      const P = f.v.map(vi => [mesh.V[vi][0] * k, mesh.V[vi][1] * k, mesh.V[vi][2] * k]);
+      for (const q of P) {
+        pts.push(q); n++;
+        if (Math.abs(q[0]) > xMax) xMax = Math.abs(q[0]);
+        if (q[1] < yLo) yLo = q[1];
+        if (q[1] > yHi) yHi = q[1];
+      }
+      let fx0 = 1e9, fx1 = -1e9;
+      for (const q of P) { if (q[0] < fx0) fx0 = q[0]; if (q[0] > fx1) fx1 = q[0]; }
+      for (let b = Math.ceil(fx0 / BIN); b * BIN <= fx1 + 1e-9; b++) {
+        const x = b * BIN;
+        let lo = 1e9, hi = -1e9;
+        for (let i = 0; i < P.length; i++) {
+          const a = P[i], c = P[(i + 1) % P.length];
+          if ((a[0] - x) * (c[0] - x) > 0) continue;              // the edge does not span x
+          const t = Math.abs(c[0] - a[0]) < 1e-9 ? 0 : (x - a[0]) / (c[0] - a[0]);
+          const y = a[1] + (c[1] - a[1]) * t;
+          if (y < lo) lo = y;
+          if (y > hi) hi = y;
+        }
+        if (lo <= hi) cut(x, lo, hi);
+      }
+    }
+    if (n) {
+      // the plane: the aft-most z near the crown and near the bottom, on the
+      // centreline's own column (the plate's curvature across x is the lip
+      // path's, not a lean)
+      for (const [x, y, z] of pts) {
+        if (Math.abs(x) > 0.06) continue;
+        if (y > yHi - 0.02) { zTopS += z; nTop++; }
+        if (y < yLo + 0.02) { zBotS += z; nBot++; }
+      }
+      const zTop = nTop ? zTopS / nTop : dashAftZ, zBot = nBot ? zBotS / nBot : zTop;
+      const tilt = Math.atan2(zBot - zTop, Math.max(0.05, yHi - yLo));
+      const list = [...cols.values()].sort((a, b) => a.x - b.x);
+      face = { yBot: yLo, yTop: yHi, zTop, zBot, tilt, xMax, cols: list,
+               // the outline at x: the nearest column's floor and crown
+               at(x) {
+                 let best = null;
+                 for (const c of list) if (!best || Math.abs(c.x - x) < Math.abs(best.x - x)) best = c;
+                 return best;
+               } };
+    }
+  }
+  // the glareshield's height at a place (the compass stands on it): the
+  // highest dash vertex within dx of x and between z0 and z1, or dashTop
+  const dashPts = [];
+  if (mesh && mesh.F && mesh.V)
+    for (const f of mesh.F) {
+      if (f.m !== 'dash') continue;
+      for (const vi of f.v) dashPts.push([mesh.V[vi][0] * k, mesh.V[vi][1] * k, mesh.V[vi][2] * k]);
+    }
+  const dashTopAt = (x, dx, z0, z1) => {
+    let y = -1e9;
+    for (const q of dashPts) if (Math.abs(q[0] - x) <= dx && q[2] >= z0 && q[2] <= z1 && q[1] > y) y = q[1];
+    return y > -1e8 ? y : dashTop;
+  };
+  return { k, dashLip, dashTop, dashAftZ, face, dashTopAt, floorAt, halfW: spec.cabin.halfW * k,
            roofY: spec.cabin.roofY * k, waistY: spec.waistY * k,
            zBack, zDash, zWin: win ? win.lv.waist.z * k : 0,
            // G180: the resolved rings, so a passenger bay's seat row can be
@@ -2090,7 +2178,12 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
       // A THREE.Line is picked with Raycaster.params.Line.threshold, ONE
       // METRE by default — so this 0.6 m sight line answered every click
       // within a metre of the pilot's head, for the crew. The eye ball too.
-      ballAt(group, M.marker, [eye.x, eye.y, eye.z], 0.015).raycast = () => {};
+      // ...and A MARKER IS NOT THE AEROPLANE (the panel arc, session 4): the
+      // join bakes every visible mesh, and this ball flew — a red sphere
+      // at the pilot's eye, seen from inside in the cockpit view
+      const eyeBall = ballAt(group, M.marker, [eye.x, eye.y, eye.z], 0.015);
+      eyeBall.raycast = () => {};
+      eyeBall.userData.edMarker = 1;
       const gq = group.getWorldQuaternion(new THREE.Quaternion()).invert();
       const fwd = fwdW.clone().applyQuaternion(gq);
       const lg = new THREE.BufferGeometry().setFromPoints(

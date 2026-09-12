@@ -214,6 +214,7 @@
   }
   function placeCamera() {
     if (DEVCAM_ACTIVE) return;                          // DEVCAM placed it already
+    if (HEADCAM_ACTIVE) return;                         // HEADCAM: the cockpit is a head, not an orbit
     let x = target.x + dist * Math.cos(el) * Math.cos(az),
         y = Math.max(0.4, target.y + dist * Math.sin(el)),
         z = target.z + dist * Math.cos(el) * Math.sin(az);
@@ -6346,11 +6347,136 @@
   }, { passive: false });
   if (typeof window !== 'undefined') window.DEV_CAM = devCam;
   // ---- end DEVCAM ----------------------------------------------------------
+  // ---- HEADCAM: THE COCKPIT VIEW IS A HEAD, NOT AN ORBIT (the panel arc,
+  // session 4b, the user: "the interior view turns around an external point,
+  // it's bad. It should behave like expected FPV"). G107 put the cockpit on
+  // the orbit with its pivot an arm's length ahead of the eyes, so a drag
+  // swung the EYE round that point and a wheel walked it through the seat.
+  // Now the eye STAYS where the pilot's is and the mouse turns it (a left
+  // drag, always; pointer lock on top when it is granted, so the mouse is
+  // free — the DEVCAM's own gimbal); the wheel is the field of view; and
+  // the head moves on ZQSD (WASD's Z and D, the French layout) and R / F,
+  // inside a box a seated pilot's head can actually reach — not down to the
+  // seat, not through the windscreen, not out of the side (HEAD_BOX, in the
+  // model's own frame: x aft, y up, z port). Everything here is in that
+  // frame and walked into the world through the model's matrix per frame,
+  // so the head rides the aeroplane exactly as flyEyeAt's rest point does.
+  const headCam = { off: new THREE.Vector3(), yaw: 0, pitch: 0, keys: new Set(), last: 0,
+                    drag: null, noLock: false,
+                    p: new THREE.Vector3(), f: new THREE.Vector3(), r: new THREE.Vector3(),
+                    u: new THREE.Vector3(), look: new THREE.Vector3(),
+                    q: new THREE.Quaternion(), q2: new THREE.Quaternion(), nm: new THREE.Matrix3() };
+  const HEAD_BOX = { fwd: 0.28, aft: 0.14, up: 0.10, dn: 0.08, side: 0.22 };
+  const HEAD_SPEED = 0.45;                                    // m/s, a head leaning
+  const HEADCAM_KEYS = new Set(['KeyZ', 'KeyW', 'KeyS', 'KeyQ', 'KeyD', 'KeyR', 'KeyF']);
+  const headCamOn = () => FL.ready && !inGarage && cam.mode === 'cockpit' && !!flEyeLoc;
+  let HEADCAM_ACTIVE = false;
+  headCam.enter = () => {                 // back to the pilot's own eye, looking ahead
+    headCam.off.set(0, 0, 0); headCam.yaw = 0; headCam.pitch = 0;
+    headCam.keys.clear(); headCam.last = performance.now();
+  };
+  // the eye's basis in the model frame: forward as published, up the
+  // model's, right = forward x up (the pilot's right is -z, port being +z)
+  headCam.basis = () => {
+    headCam.f.copy(flEyeLoc.f); headCam.f.y = 0;
+    if (headCam.f.lengthSq() < 1e-9) headCam.f.set(-1, 0, 0);
+    headCam.f.normalize();
+    headCam.u.set(0, 1, 0);
+    headCam.r.crossVectors(headCam.f, headCam.u).normalize();
+  };
+  headCam.update = () => {
+    const now = performance.now();
+    const dt = Math.min(0.1, Math.max(0, (now - headCam.last) / 1000));
+    headCam.last = now;
+    headCam.basis();
+    const K = headCam.keys, v = HEAD_SPEED * dt, o = headCam.off;
+    if (K.has('KeyZ') || K.has('KeyW')) o.addScaledVector(headCam.f, v);
+    if (K.has('KeyS')) o.addScaledVector(headCam.f, -v);
+    if (K.has('KeyD')) o.addScaledVector(headCam.r, v);
+    if (K.has('KeyQ')) o.addScaledVector(headCam.r, -v);
+    if (K.has('KeyR')) o.y += v;
+    if (K.has('KeyF')) o.y -= v;
+    // the box: along the pilot's own axes (forward is -x on every build
+    // the join has made, but it is measured, not assumed)
+    const along = o.dot(headCam.f), across = o.dot(headCam.r);
+    const alongC = Math.max(-HEAD_BOX.aft, Math.min(HEAD_BOX.fwd, along));
+    const acrossC = Math.max(-HEAD_BOX.side, Math.min(HEAD_BOX.side, across));
+    const yC = Math.max(-HEAD_BOX.dn, Math.min(HEAD_BOX.up, o.y));
+    o.copy(headCam.f).multiplyScalar(alongC).addScaledVector(headCam.r, acrossC);
+    o.y = yC;
+    // the look: yaw about the model's up, then pitch about the turned right
+    headCam.q.setFromAxisAngle(headCam.u, headCam.yaw);
+    headCam.look.copy(headCam.f).applyQuaternion(headCam.q);
+    headCam.r.crossVectors(headCam.look, headCam.u).normalize();
+    headCam.q2.setFromAxisAngle(headCam.r, headCam.pitch);
+    headCam.look.applyQuaternion(headCam.q2);
+    // into the world
+    model.grp.updateMatrixWorld(true);
+    const M = model.grp.matrixWorld;
+    headCam.nm.setFromMatrix4(M);
+    headCam.p.copy(flEyeLoc.p).add(o).applyMatrix4(M);
+    headCam.look.applyMatrix3(headCam.nm).normalize();
+    if (cam.level) camera.up.set(0, 1, 0);
+    else camera.up.copy(headCam.u).applyMatrix3(headCam.nm).normalize();
+    camera.position.copy(headCam.p);
+    camera.lookAt(headCam.look.add(headCam.p));
+    return headCam.p;
+  };
+  window.addEventListener('keydown', e => {
+    if (!headCamOn() || !HEADCAM_KEYS.has(e.code)) return;
+    headCam.keys.add(e.code); e.preventDefault(); e.stopImmediatePropagation();
+  }, true);
+  window.addEventListener('keyup', e => {
+    if (!HEADCAM_KEYS.has(e.code)) return;
+    headCam.keys.delete(e.code);
+    if (headCamOn()) { e.preventDefault(); e.stopImmediatePropagation(); }
+  }, true);
+  window.addEventListener('blur', () => headCam.keys.clear());
+  $('c').addEventListener('pointerdown', e => {
+    if (!headCamOn() || e.button !== 0) return;
+    headCam.drag = { x: e.clientX, y: e.clientY, moved: 0 };
+  });
+  // the lock is asked for at the END of a drag that turned the head (a
+  // pointerup is a user gesture) — never on a click, which is a switch's;
+  // once granted the mouse is free and Escape gives it back
+  window.addEventListener('pointerup', () => {
+    const d = headCam.drag; headCam.drag = null;
+    if (!d || d.moved < 8 || !headCamOn()) return;
+    if (!headCam.noLock && document.pointerLockElement !== $('c') && $('c').requestPointerLock) {
+      try { const p = $('c').requestPointerLock(); if (p && p.catch) p.catch(() => { headCam.noLock = true; }); }
+      catch (err) { headCam.noLock = true; }
+    }
+  });
+  document.addEventListener('pointerlockerror', () => { headCam.noLock = true; });
+  const headTurn = (dx, dy) => {
+    // dragging right looks right: about +y that is a NEGATIVE angle (the
+    // pilot's right is -z); over the shoulder, not behind the head
+    headCam.yaw = Math.max(-2.7, Math.min(2.7, headCam.yaw - dx * 0.0025));
+    headCam.pitch = Math.max(-1.45, Math.min(1.45, headCam.pitch - dy * 0.0025));
+  };
+  window.addEventListener('pointermove', e => {
+    if (!headCamOn()) return;
+    if (document.pointerLockElement === $('c')) { headTurn(e.movementX, e.movementY); return; }
+    if (!headCam.drag || !(e.buttons & 1)) return;
+    headTurn(e.clientX - headCam.drag.x, e.clientY - headCam.drag.y);
+    headCam.drag.moved += Math.abs(e.clientX - headCam.drag.x) + Math.abs(e.clientY - headCam.drag.y);
+    headCam.drag.x = e.clientX; headCam.drag.y = e.clientY;
+  });
+  // the wheel is the field of view (the CAMERA flyout's own slider, 28..84)
+  $('c').addEventListener('wheel', e => {
+    if (!headCamOn()) return;
+    cam.fov = Math.max(28, Math.min(84, Math.round(cam.fov * (1 + e.deltaY * 0.0008))));
+    flSave('Cam', cam); flApplyFov();
+    e.preventDefault(); e.stopImmediatePropagation();
+  }, { passive: false, capture: true });
+  if (typeof window !== 'undefined') window.HEAD_CAM = headCam;
+  // ---- end HEADCAM ---------------------------------------------------------
   let flHdg0 = 0, flYawRate = 0, flEyeLoc = null, flEyeSrc = null;
   function flCamMode(m) {
     if (m === 'free' && cam.mode !== 'free') devCam.enter();          // DEVCAM
-    else if (m !== 'free' && document.pointerLockElement === $('c') && document.exitPointerLock)
-      document.exitPointerLock();                                      // DEVCAM
+    if (m === 'cockpit' && cam.mode !== 'cockpit') headCam.enter();   // HEADCAM
+    if (m !== 'free' && m !== 'cockpit' && document.pointerLockElement === $('c') && document.exitPointerLock)
+      document.exitPointerLock();                                      // DEVCAM / HEADCAM
     cam.mode = m; flSave('Cam', cam);
     flReveal = 0;                      // a framing pick is the player's
     if (m !== 'cockpit' && flyEye) { flyEye = null; setNear(CAM_NEAR); }
@@ -6427,12 +6553,9 @@
   function flRevealStart() {
     flShedBox = worldShedBox();
     flReveal = 0;
-    // the panel arc (session 4): rolling out INTO the cockpit re-seats the
-    // eye — the cockpit branch of flCamera only re-aims from the pilot's
-    // head when the orbit is far out (distT > 3), and the shed's orbit is
-    // usually nearer than that, which left the camera hanging behind the
-    // seat at the editor's radius, looking at the headrest
-    if (cam.mode === 'cockpit') { distT = dist = 1e3; return; }
+    // the panel arc (session 4b): rolling out INTO the cockpit seats the
+    // head at the pilot's eye, looking ahead (HEADCAM)
+    if (cam.mode === 'cockpit') { headCam.enter(); return; }
     if (cam.mode === 'tower') return;
     const xA = sim.axes()[0], cg = sim.cgPos();
     const hdg = Math.atan2(xA[2], xA[0]);     // xAft: the tail's direction
@@ -6494,19 +6617,18 @@
     else camera.up.copy(flUp.set(yU[0], yU[1], yU[2]));
     const D = def.params.viewDist || 12;
     if (CK && model) CK.cockpitView(cam.mode === 'cockpit', model);   // the panel arc: no pilot in the way
+    HEADCAM_ACTIVE = false;
     if (cam.mode === 'cockpit') {
       const e = flyEyeAt();
       if (e) {
-        // THE PIVOT IS IN FRONT OF THE EYES, not at them — an orbit of radius
-        // zero has no direction to place a camera along (G107's own note).
-        flyEye = e.p.clone().addScaledVector(e.f, EYE_PIVOT);
+        // HEADCAM: the eye stays where the pilot's is (plus the head's own
+        // lean) and the mouse turns it; nothing here is an orbit any more.
+        // `flyEye` still says the eye is inside (the near plane, the wheel
+        // and drag bounds of the shed's own interior read it).
+        HEADCAM_ACTIVE = true;
+        flyEye = headCam.update();
         target.copy(flyEye);
         setNear(EYE_NEAR);
-        if (distT > 3) { distT = dist = EYE_PIVOT;
-          const back = e.f.clone().negate();
-          elT = el = Math.asin(Math.max(-1, Math.min(1, back.y)));
-          azT = az = Math.atan2(back.z, back.x);
-        }
         return;
       }
       if (flyEye) { flyEye = null; setNear(CAM_NEAR); }
@@ -6547,8 +6669,11 @@
     if (inGarage || cam.mode !== 'cockpit' || !CK || !model) return;
     const r = canvas.getBoundingClientRect();
     if (!r.width || !r.height) return;
-    const hit = CK.pick(camera, ((e.clientX - r.left) / r.width) * 2 - 1,
-                        -((e.clientY - r.top) / r.height) * 2 + 1, model);
+    // under pointer lock the mouse has no place on the screen: the click
+    // works whatever the head is looking straight at
+    const locked = document.pointerLockElement === canvas;
+    const hit = CK.pick(camera, locked ? 0 : ((e.clientX - r.left) / r.width) * 2 - 1,
+                        locked ? 0 : -((e.clientY - r.top) / r.height) * 2 + 1, model);
     if (hit && CK.click(hit, e.button)) e.preventDefault();
   });
   $('c').addEventListener('contextmenu', e => {

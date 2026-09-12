@@ -30,7 +30,7 @@ const check = (ok, label, extra) => {
 const cl = o => JSON.parse(JSON.stringify(o));
 const within = (x, ref, tol) => Math.abs(x - ref) <= tol * ref;
 // the cockpit's own lamp draws (cockpit.js LIGHT_AMPS)
-const LIGHT_AMPS = { taxi: 5, beacon: 3, land: 8, nav: 2.5, flood: 0.5, instr: 0.6, panel: 1.0, pedal: 0.3, pax: 0.5 };
+const LIGHT_AMPS = { taxi: 5, beacon: 3, land: 8, nav: 2.5, flood: 0.5, instr: 0.6, pedal: 0.3, pax: 0.5 };
 
 // a bus from a resolved fit, the way cockpit.js binds one
 function busFor(tier, lights) {

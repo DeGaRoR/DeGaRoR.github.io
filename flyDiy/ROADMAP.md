@@ -571,8 +571,11 @@ trigger is you asking for it.*
    the join lifts the hands with their laws, src/viewer/cockpit.js reads
    the sim into every hand, 31_elec.js's bus with a battery that goes flat
    and an alternator that cuts in, lamps that switch, a key that starts,
-   the pilot hidden in the cockpit view, GATE ELEC), exterior diagnostics
-   + the radio, then the GPS / glass design.
+   the pilot hidden in the cockpit view, GATE ELEC; G263: the cockpit view
+   a head — drag / wheel / ZQSD+RF in a box — and the dials on the dash's
+   measured face plate in cans, the AI's ribbon contained, the glareshield
+   strip retired), exterior diagnostics + the radio, then the GPS / glass
+   design.
 2. **Fleet and discovery** [L, old P6]. The rack (forty aeroplanes — the one
    sheet UI-MODEL still reserves), hours, wear, the found aircraft as
    measuring sticks, the envelope card on the plaque.

@@ -32,7 +32,7 @@ const LAG = { ias: 0.25, alt: 0.2, vs: 2.5, rpmEng: 0.3, nz: 0.1, oilP: 1.0, oil
 const REST = { ias: 0, alt: 0, vs: 0, roll: 0.55, pitch: -0.35, r: 0, hdg: null, rpmEng: 0, nz: 1,
                nzMax: 1, nzMin: 1, oilP: 0, oilT: 15, fuelFrac: 0, volts: 0, beta: 0 };
 const PSI = 6894.757;
-const LIGHT_AMPS = { taxi: 5, beacon: 3, land: 8, nav: 2.5, flood: 0.5, instr: 0.6, panel: 1.0, pedal: 0.3, pax: 0.5 };
+const LIGHT_AMPS = { taxi: 5, beacon: 3, land: 8, nav: 2.5, flood: 0.5, instr: 0.6, pedal: 0.3, pax: 0.5 };
 const KEY_STEPS = ['off', 'l', 'r', 'both', 'start'];
 
 function interp(stops, v) {

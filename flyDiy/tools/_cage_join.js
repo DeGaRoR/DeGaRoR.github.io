@@ -1531,6 +1531,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // (its mask + shell pair). Latent since G95 — the default `outline`
       // style is LineSegments, which `isMesh` already refused.
       if (o.userData && o.userData.edHi) return;
+      // A MARKER IS NOT THE AEROPLANE either (the panel arc, session 4):
+      // the crew layer's eye ball is a sizing instrument, not a part
+      if (o.userData && o.userData.edMarker) return;
       const matList = Array.isArray(o.material) ? o.material : [o.material];
       if (!matList[0] || !matList[0].color) return;
       // AN INVISIBLE MATERIAL IS NOT THE AEROPLANE (G210.2, the user: 'I only
@@ -2199,7 +2202,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       const Pl = window.CAGE_UI && window.CAGE_UI.P;
       if (Pl) {
         lights.on = !!+Pl.lightOn;
-        for (const k of ['taxi', 'beacon', 'land', 'nav', 'flood', 'instr', 'panel', 'pedal', 'pax'])
+        for (const k of ['taxi', 'beacon', 'land', 'nav', 'flood', 'instr', 'pedal', 'pax'])
           lights[k] = +Pl['li_' + k] || 0;
       }
     } catch (e) {}

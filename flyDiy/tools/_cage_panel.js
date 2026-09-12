@@ -481,9 +481,9 @@ const clockRad = deg => deg * Math.PI / 180;
 // ---- the pieces ------------------------------------------------------------
 // the bezel: a clamp ring proud of the face with a chamfered lip, revolved
 // about the dial's own axis (+z, into the dash)
-function bezelAt(bag, cx, cy, z, r) {
+function bezelAt(bag, cx, cy, z, r, skirt) {
   KIT().revolve(bag, [cx, cy, z], [0, 0, 1],
-    [[r * 0.86, -0.008], [r * 0.93, -0.009], [r, -0.006], [r, 0.012], [r * 0.86, 0.012]], 40, false);
+    [[r * 0.86, -0.008], [r * 0.93, -0.009], [r, -0.006], [r, 0.012 + (skirt || 0)], [r * 0.86, 0.012 + (skirt || 0)]], 40, false);
 }
 // the face: a disc of quads carrying the atlas slot, at z (normal −z)
 function faceAt(bag, cx, cy, z, r, slot, seg) {
@@ -515,22 +515,48 @@ function needleInto(bag, H, r, thick) {
 function hubAt(bag, cx, cy, z, r) {
   KIT().revolve(bag, [cx, cy, z], [0, 0, 1], [[r, -0.0035], [r, 0.002], [r * 0.2, 0.002]], 16, true);
 }
+// THE CAN (session 4b, the user: "stick them in well so they don't poke
+// back"): every instrument is a closed cylinder BEHIND the plate, from the
+// bezel's back to its own depth, so nothing of a hand's hub, a drum or a
+// card shows from any side but the face — the plate is recessed and the
+// dash is a box 0.35 m deep, so the can lives inside it.
+const AI_DRUM_K = 1.2;             // the drum's radius over the bezel's
+const AI_WINDOW = 0.58;            // the face ring's hole, over the bezel's radius
+const AI_PROUD = 0.007;            // the drum's front, proud of the plate: its plane cuts the drum at 0.62 r, outside the window
+const AI_STAND = 0.008;            // the AI's bezel and ring stand this much further out than the others' — the ring is then in front of every part of the drum outside the window
+function canAt(bag, cx, cy, z, r, depth, from) {
+  // open at the front (the face is there; the AI's window looks into it),
+  // closed at the back by the profile itself
+  KIT().revolve(bag, [cx, cy, z], [0, 0, 1], [[r, from != null ? from : 0.010], [r, depth], [r * 0.9, depth + 0.003], [0.0005, depth + 0.003]], 28, false);
+}
 // the attitude ball: a DRUM about the lateral (x) axis, its strip wrapped
-// 1:1 over 180° of pitch, the front of the drum at the face plane; the
-// window (±0.8 r) then shows ±30°. Sits in a group that carries roll (about
-// +z) and pitch (about +x) — one part, two drives.
+// 1:1 over 180° of pitch, the front of the drum just proud of the plate;
+// the window (0.58 r) then shows ±29°. Sits in a group that carries roll
+// (about +z) and pitch (about +x) — one part, two drives.
+// THE DRUM IS 1.2 r (session 4b, the user: "the attitude indicator has a
+// very visible back ribbon, far too much"): at 1.6 r its rim stood proud of
+// the recessed plate below the bezel and the painted strip showed there;
+// now the drum is a patch (below) in its own can (canAt), and the can
+// clears the neighbours' cans on the T.
+// THE DRUM IS A PATCH, NOT A BAND (session 4b): only what the window can
+// ever see is drawn — the union, over the pitch the strip carries, of the
+// window's circle laid on the drum: a stadium, the window's full width for
+// ±34° of drum (the pitch the window shows) then narrowing to nothing by
+// ±65°. Anything wider stood in front of the plate beside the bezel once
+// the drum was seated proud enough for the window to clear the plate.
 function drumInto(bag, slot, r, zFace) {
-  // 1.3 r wide: covers the 0.62 r window at any roll, and its corners stay
-  // behind the dash face (the front sits 4 mm deeper than the ring)
-  const G = PG(), Rd = 1.6 * r, w = 1.3 * r;
-  const rows = 37, cols = 9;
+  const G = PG(), Rd = AI_DRUM_K * r, w = 1.3 * r, rw = AI_WINDOW * r;
+  const rows = 29, cols = 9, span = 70 * Math.PI / 180, flat = 34 * Math.PI / 180;
   const zc = zFace + Rd;                          // the axis, into the dash
   const grid = [];
   for (let i = 0; i < rows; i++) {
-    const phi = -Math.PI / 2 + Math.PI * i / (rows - 1);   // pitch, −90..+90
+    const phi = -span + 2 * span * i / (rows - 1);   // pitch on the drum, −70..+70
+    const over = Math.max(0, Math.abs(phi) - flat);
+    const yw = Rd * Math.sin(over);
+    const hw = rw * Math.sqrt(Math.max(0, 1 - (yw / rw) * (yw / rw)));   // the patch's half-width here
     const row = [];
     for (let j = 0; j < cols; j++) {
-      const x = -w / 2 + w * j / (cols - 1);
+      const x = -hw + 2 * hw * j / (cols - 1);
       const y = Rd * Math.sin(phi), z = zc - Rd * Math.cos(phi);
       // the strip: u across the drum's width against x (the mirror rule),
       // v up the pitch
@@ -570,7 +596,7 @@ function cardDiscInto(bag, slot, r, z) { faceAt(bag, 0, 0, z, r, slot, 48); }
 // ---- the switches ------------------------------------------------------------
 // the row's base plate, one per switch
 function plateAt(bag, x, y, z, pitch) {
-  KIT().boxIn(bag, [x, y, z + 0.004], [pitch * 0.31, 0.010, 0.004], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+  KIT().boxIn(bag, [x, y, z + 0.004], [pitch * 0.31, 0.008, 0.004], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
 }
 // a toggle: a chromed bat that leans up (on) or down (off) about a lateral
 // pivot on the plate — `sw_<key>` drive, 0/1 → ±0.42 rad
@@ -633,7 +659,7 @@ function keyAt(parent, x, y, z, pos) {
 
 // ---- the build ------------------------------------------------------------------
 const EXT_LIGHTS = ['taxi', 'beacon', 'land', 'nav'];
-const INT_LIGHTS = ['flood', 'instr', 'panel', 'pedal', 'pax'];
+const INT_LIGHTS = ['flood', 'instr', 'pedal', 'pax'];
 let LAST = null, fontsWaited = false;
 function build(parent, A, P, pilotX) {
   const G = PG(), K = KIT();
@@ -653,7 +679,23 @@ function build(parent, A, P, pilotX) {
   const grp = new THREE.Group();
   grp.name = 'edPanel';
   parent.add(grp);
-  const zF = L.zFace;
+  // THE PLATE'S OWN FRAME (session 4b): the dials stand on the dash's face
+  // plate, which the crew measured (A.face → L.plane): the group's origin is
+  // the plate's top-centre, its +y runs up the plate and its +z is the
+  // plate's normal into the dash, so the lean the cage draws the plate with
+  // is the group's rotation and every builder keeps its flat (x, y, z). A
+  // dial's cage y becomes a distance along the plate; z = 0 IS the plate.
+  // Without a measured plate (the bench's flat dash, an older crew record)
+  // the frame sits at the band's face, unrotated, as before.
+  const PL = L.plane;
+  const face = new THREE.Group();
+  face.name = 'edPanelFace';
+  if (PL) { face.position.set(0, PL.yTop, PL.zTop); face.rotation.x = -PL.tilt; }
+  else face.position.set(0, 0, L.zFace);
+  grp.add(face);
+  const cosT = PL ? Math.cos(PL.tilt) : 1;
+  const ly = cy => PL ? (cy - PL.yTop) / cosT : cy;       // cage y → along the plate
+  const zF = 0;                                            // the plate's surface
   // ---- the atlas: a slot per face, a strip for the ball, roses for the cards
   const faces = [];
   let slot = 0;
@@ -682,15 +724,19 @@ function build(parent, A, P, pilotX) {
   const fm = facesMaterial();
   fm.emissiveIntensity = faceDim(P) * 1.6;
   // ---- the dials
-  const bez = K.Bag(), hub = K.Bag(), sym = K.Bag(), plate = K.Bag(), bowl = K.Bag();
+  const bez = K.Bag(), hub = K.Bag(), sym = K.Bag(), plate = K.Bag(), bowl = K.Bag(), symC = K.Bag();
   const faceBag = UVBag(fm);
   const rest = G.REST;
+  const can = K.Bag();
   for (const d of L.dials) {
-    const { cx, cy, r } = d;
+    const { cx, r } = d;
+    const cy = d.coaming ? d.cy : ly(d.cy);
     if (d.coaming) {
       // THE COMPASS: a bowl standing on the coaming, the card turning inside
-      // it, read through the aft window. The bowl is a revolve about +y.
-      const zc = zF - 0.02;
+      // it, read through the aft window. The bowl is a revolve about +y. It
+      // is not on the plate: it stands on the glareshield, in the panel's
+      // own (unrotated) group, a little forward of the lip.
+      const zc = d.z != null ? d.z : (A.dashAftZ != null ? A.dashAftZ : L.zFace) + 0.045;
       // the bowl: a base cup, a cap, and the aft half of the band between
       // them (the card shows through the open front — a real bowl's window)
       K.revolve(bowl, [cx, cy - r * 0.5, zc], [0, 1, 0],
@@ -715,17 +761,32 @@ function build(parent, A, P, pilotX) {
       cardDrumInto(cb, slotOf['compass:strip'], r * 0.62, r * 0.5);
       cb.mesh(g);
       // the lubber line on the window
-      K.boxIn(sym, [cx, cy + r * 0.32, zc - r * 0.72], [0.0008, r * 0.14, 0.0008], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+      K.boxIn(symC, [cx, cy + r * 0.32, zc - r * 0.72], [0.0008, r * 0.14, 0.0008], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
       continue;
     }
     const seg = r > 0.035 ? 40 : 28;
-    bezelAt(bez, cx, cy, zF, r);
+    // THE AI STANDS PROUD (session 4b): its drum's front must clear the
+    // solid plate (no hole is cut for it), and everything of the drum
+    // outside the window must then hide behind the face ring — so the
+    // whole instrument, bezel and ring, sits AI_STAND further out than its
+    // neighbours, as a real AI's case does, and its can starts at the plate
+    const isAI = d.k === 'ai' || d.k === 'aiE';
+    const zB = isAI ? zF - AI_STAND : zF;
+    bezelAt(bez, cx, cy, zB, r, isAI ? AI_STAND : 0);
+    // the mounting flange: a thin annulus on the plate round the bezel (the
+    // AI's wide enough to mask its drum wherever the plate's own curvature
+    // would otherwise let a corner of the patch through)
+    K.revolve(plate, [cx, cy, zF], [0, 0, 1],
+      [[r * 0.95, -0.0012], [r * (isAI ? 1.20 : 1.10), -0.0012], [r * (isAI ? 1.20 : 1.10), 0.0015], [r * 0.95, 0.0015]], 40, false);
+    // the can behind: the AI's holds its drum, the rest a hand's depth
+    canAt(can, cx, cy, zF, isAI ? AI_DRUM_K * r + 0.004 : r * 0.92,
+          isAI ? 2 * AI_DRUM_K * r + 0.012 : (r > 0.035 ? 0.055 : 0.042), isAI ? 0.001 : null);
     const F = G.FACES[d.k];
     if (d.k === 'dg') {
       // the fixed face behind, the rose card in front turning about +z, the
       // aeroplane symbol fixed in front of the card
       faceAt(faceBag, cx, cy, zF - 0.004, r * 0.86, slotOf.dg, seg);
-      const g = gaugeAt(grp, 'edGauge_dg_card', [cx, cy, zF - 0.0055], [0, 0, 1], 'hdg', 'card', { sgn: -1, k: 1 });
+      const g = gaugeAt(face, 'edGauge_dg_card', [cx, cy, zF - 0.0055], [0, 0, 1], 'hdg', 'card', { sgn: -1, k: 1 });
       const cb = UVBag(fm);
       cardDiscInto(cb, slotOf['dg:rose'], r * 0.70, 0);
       cb.mesh(g);
@@ -738,15 +799,20 @@ function build(parent, A, P, pilotX) {
     if (d.k === 'ai' || d.k === 'aiE') {
       // the ball first (deep), the fixed face over it with its window cut by
       // the painter being dark there, the symbol on top
-      const g = gaugeAt(grp, 'edGauge_' + d.k + '_ball', [cx, cy, zF - 0.004], [0, 0, 1], 'roll', 'ball',
+      const g = gaugeAt(face, 'edGauge_' + d.k + '_ball', [cx, cy, zF - 0.004], [0, 0, 1], 'roll', 'ball',
         { sgn: 1, k: 1, axis2: [1, 0, 0], drive2: 'pitch', sgn2: 1, k2: 1 });
       const db = UVBag(fm);
-      drumInto(db, slotOf[d.k + ':ball'], r, 0.004);
+      // the drum's front PROUD of the plate (the plate is solid — no hole is
+      // cut for an instrument — so the window must look at a drum that
+      // stands in front of it: at 7 mm the plate's plane cuts a 1.2 r drum
+      // at 0.62 r, outside the 0.58 r window, and the patch's edge sits
+      // 2.5 mm in front of the ring's, hidden from any seat)
+      drumInto(db, slotOf[d.k + ':ball'], r, 0.004 - AI_PROUD);
       db.mesh(g);
       // the face over it: a ring, not a disc — the window is open
       const fb2 = faceBag;
       {
-        const G2 = PG(), rIn = r * 0.62, rOut = r * 0.86, zz = zF - 0.0045;
+        const G2 = PG(), rIn = r * AI_WINDOW, rOut = r * 0.86, zz = zB - 0.0045;
         const inner = [], outer = [];
         for (let i = 0; i < seg; i++) {
           const a = 2 * Math.PI * i / seg;
@@ -756,7 +822,7 @@ function build(parent, A, P, pilotX) {
         // wound to face the pilot (−z), as faceAt's fans are
         for (let i = 0; i < seg; i++) { const j = (i + 1) % seg; fb2.quad(inner[i], inner[j], outer[j], outer[i]); }
       }
-      const zs = zF - 0.0065;
+      const zs = zB - 0.0065;
       K.boxIn(sym, [cx - r * 0.27, cy, zs], [r * 0.15, 0.0014, 0.0008], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
       K.boxIn(sym, [cx + r * 0.27, cy, zs], [r * 0.15, 0.0014, 0.0008], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
       K.revolve(sym, [cx, cy, zs], [0, 0, 1], [[r * 0.035, -0.0008], [r * 0.035, 0.0008]], 10, true);
@@ -767,7 +833,7 @@ function build(parent, A, P, pilotX) {
     if (!F) continue;
     if (d.k === 'turn') {
       // the aeroplane symbol tilts about +z; the ball sits in its tube
-      const g = gaugeAt(grp, 'edGauge_turn_plane', [cx, cy, zF - 0.0065], [0, 0, 1], 'r', 'lin', { sgn: 1, k: 1 });
+      const g = gaugeAt(face, 'edGauge_turn_plane', [cx, cy, zF - 0.0065], [0, 0, 1], 'r', 'lin', { sgn: 1, k: 1 });
       const sb = K.Bag();
       K.boxIn(sb, [0, 0, 0], [r * 0.62, 0.0018, 0.0008], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
       K.boxIn(sb, [0, r * 0.10, 0], [0.0018, r * 0.12, 0.0008], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
@@ -779,7 +845,7 @@ function build(parent, A, P, pilotX) {
     for (const H of F.hands) {
       if (H.kind && H.kind !== 'needle') continue;
       const v0 = rest[H.drive] != null ? rest[H.drive] : 0;
-      const g = gaugeAt(grp, 'edGauge_' + d.k + '_' + H.name, [cx, cy, zF - 0.004],
+      const g = gaugeAt(face, 'edGauge_' + d.k + '_' + H.name, [cx, cy, zF - 0.004],
         [0, 0, 1], H.drive, H.law, { sgn: 1, k: 1, hand: H.name, gauge: d.k,
           per: H.per, units });
       const nb = K.Bag();
@@ -792,15 +858,17 @@ function build(parent, A, P, pilotX) {
   // ---- the switch row
   const pitch = L.switches.length > 1 ? Math.abs(L.switches[0].x - L.switches[1].x) : 0.04;
   for (const s of L.switches) {
-    plateAt(plate, s.x, s.y, zF, pitch);
-    if (s.kind === 'key') keyAt(grp, s.x, s.y, zF, 'both');
-    else if (s.kind === 'rocker') rockerAt(grp, s.x, s.y, zF, s.k, true);
-    else if (s.kind === 'toggle') toggleAt(grp, s.x, s.y, zF, s.k, +P['li_' + s.k] > 0.5);
-    else if (s.kind === 'knob') knobAt(grp, s.x, s.y, zF, s.k, Math.max(0, Math.min(1, +P['li_' + s.k] || 0)));
+    const sy = ly(s.y);
+    plateAt(plate, s.x, sy, zF, pitch);
+    if (s.kind === 'key') keyAt(face, s.x, sy, zF, 'both');
+    else if (s.kind === 'rocker') rockerAt(face, s.x, sy, zF, s.k, true);
+    else if (s.kind === 'toggle') toggleAt(face, s.x, sy, zF, s.k, +P['li_' + s.k] > 0.5);
+    else if (s.kind === 'knob') knobAt(face, s.x, sy, zF, s.k, Math.max(0, Math.min(1, +P['li_' + s.k] || 0)));
   }
-  bez.mesh(grp, matFor('bezel')); hub.mesh(grp, matFor('hub')); sym.mesh(grp, matFor('symbol'));
-  plate.mesh(grp, matFor('plate')); bowl.mesh(grp, matFor('bowl'));
-  faceBag.mesh(grp, 'edGauge_faces');
+  bez.mesh(face, matFor('bezel')); hub.mesh(face, matFor('hub')); sym.mesh(face, matFor('symbol'));
+  can.mesh(face, matFor('hub'));
+  plate.mesh(face, matFor('plate')); bowl.mesh(grp, matFor('bowl')); symC.mesh(grp, matFor('symbol'));
+  faceBag.mesh(face, 'edGauge_faces');
   // the instrument light on the switchboard, as every emitter is (GATE LIGHT's
   // census), declared once per build against the material that glows
   try {

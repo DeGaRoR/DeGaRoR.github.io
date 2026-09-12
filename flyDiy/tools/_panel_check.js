@@ -232,11 +232,18 @@ function run() {
     const full = ['asi', 'alt', 'vsi', 'aiE', 'turn', 'dg', 'compass', 'clock', 'tacho', 'oilP', 'oilT', 'fuel', 'volts', 'hobbs'];
     for (const [nm, a, px] of [['cub', A(0.55, 0.86, 0.52), 0], ['wide', A(0.75, 0.90, 0.50), 0.30], ['narrow', A(0.40, 0.80, 0.60), 0]]) {
       const L = G.layout(a, { items: full, side: 'pilot', pilotX: px, radios: ['com', 'xpdr'],
-        elec: { hasBus: true, altA: 20 }, extLights: ['taxi', 'beacon', 'land', 'nav'], intLights: ['flood', 'instr', 'panel', 'pedal', 'pax'] });
+        elec: { hasBus: true, altA: 20 }, extLights: ['taxi', 'beacon', 'land', 'nav'], intLights: ['flood', 'instr', 'pedal', 'pax'] });
       const D = L.dials, by = {}; for (const d of D) by[d.k] = d;
       let overlap = null;
       for (let i = 0; i < D.length; i++) for (let j = i + 1; j < D.length; j++) {
         const p = D[i], q = D[j];
+        // the compass bowl stands ON the coaming: its foot is half a radius
+        // under its centre, not a whole one
+        if (p.coaming || q.coaming) {
+          const c = p.coaming ? p : q, o = p.coaming ? q : p;
+          if (c.cy - c.r * 0.5 < o.cy + o.r - 1e-6 && Math.abs(c.cx - o.cx) < c.r + o.r) overlap = p.k + '/' + q.k;
+          continue;
+        }
         if (Math.hypot(p.cx - q.cx, p.cy - q.cy) < p.r + q.r - 1e-6) overlap = p.k + '/' + q.k;
       }
       check(!overlap, 'layout ' + nm + ': no two dials overlap', overlap);
@@ -247,7 +254,7 @@ function run() {
       if (by.dg && by.aiE) check(Math.abs(by.dg.cx - by.aiE.cx) < 1e-9 && by.dg.cy < by.aiE.cy, 'layout ' + nm + ': the DG under the AI');
       if (by.vsi && by.alt) check(Math.abs(by.vsi.cx - by.alt.cx) < 1e-9 && by.vsi.cy < by.alt.cy, 'layout ' + nm + ': the VSI under the altimeter');
       if (by.compass) check(by.compass.coaming && by.compass.cy > a.dashTop, 'layout ' + nm + ': the compass on the coaming');
-      check(L.switches.length === 12 && L.switches[0].k === 'key' && L.switches.every(s => Math.abs(s.x) <= L.xLim), 'layout ' + nm + ': the switch row, key first, inside', L.switches.length);
+      check(L.switches.length === 11 && L.switches[0].k === 'key' && L.switches.every(s => Math.abs(s.x) <= L.xLim), 'layout ' + nm + ': the switch row, key first, inside', L.switches.length);
       check(L.switches.every(s => s.y < Math.min(...D.filter(d => !d.coaming).map(d => d.cy - d.r)) + 1e-9), 'layout ' + nm + ': the switches under the dials');
       check(D.length + L.overflow.length >= full.length - 1, 'layout ' + nm + ': every dial placed or reported (' + L.overflow.join(',') + ')');
     }
@@ -307,7 +314,7 @@ function run() {
     check(/gauges, lamps, mats, meshes, data,/.test(app), 'app: the model record carries gauges, lamps, mats, meshes');
     for (const call of ['CK.bind(model', 'CK.pose(model)', 'CK.frame(1 / 60, sim, ap)', "CK.cockpitView(cam.mode === 'cockpit', model)", 'CK.pick(camera', 'CK.click(hit, e.button)'])
       check(app.includes(call), 'app: calls ' + call);
-    check(/if \(cam\.mode === 'cockpit'\) \{ distT = dist = 1e3; return; \}/.test(app), 'app: rolling out into the cockpit re-seats the eye');
+    check(/if \(cam\.mode === 'cockpit'\) \{ headCam\.enter\(\); return; \}/.test(app), 'app: rolling out into the cockpit seats the head');
     const build = fs.readFileSync(path.join(__dirname, 'build.js'), 'utf8');
     check(/'31_elec\.js'/.test(build) && build.indexOf("'30_solver.js'") < build.indexOf("'31_elec.js'"), 'build: 31_elec.js in the core after the solver');
     check(build.indexOf("'cockpit.js'") > build.indexOf("'editor.js'") && build.indexOf("'cockpit.js'") < build.indexOf("'app.js'"), 'build: cockpit.js between editor.js and app.js');
