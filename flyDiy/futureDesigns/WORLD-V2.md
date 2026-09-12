@@ -2,7 +2,12 @@
 ## The adaptive terrain quadtree, the modifier layer, and how Ursoy is built
 ### (2026-09-01, rewritten from the first draft after the user's complexity review)
 
-STATUS: specification, unimplemented.
+STATUS: specification. **W0 (the tree spike) LANDED 2026-09-12 as the W0c
+chantier** (HANDOVER W0c, TREE-IMPORT.md §8) with its verdict: the forest is
+0.6 ms of the Off frame, the wall is AA fill-rate, the platform is not the
+constraint. W0.5 onwards unimplemented; the ROADMAP's Phase 3 / Phase 7 carry
+the reconciled order (D0, 2026-09-13), with the three.js upgrade (W0.5a,
+RENDERER-DECISION §4b) first.
 
 > **AMENDED 2026-09-07** — `RENDERER-DECISION-2026-09-07.md`. The structure,
 > the budget and the data pipeline stand unchanged. What changed: the RENDERER

@@ -350,23 +350,44 @@ or medium, and each one directly multiplies what you can build tonight.*
    Phase 6 — a V-tail and a biplane both move the balance.
 
 ## PHASE 3 — THE GROUND LOOKS REAL
-*Three chantiers, and the first is the largest single visible improvement
-available anywhere in the project. All on today's 24 km world — no new data,
-no size change, no contract change.*
+*RECONCILED 2026-09-13 (D0) to `futureDesigns/WORLD-V2.md` §11 and
+`RENDERER-DECISION-2026-09-07.md` §4b, which had superseded this list twice
+without the list saying so. The order below is THE order; the old three-item
+list (W1 splat → W3 cone replacement → "W2 the clipmap") is history — the
+clipmap was deleted by WORLD-V2 §13 in favour of the adaptive quadtree, and
+the tree spike moved in front of everything. All on today's 24 km world until
+W4 — no new data, no size change, no contract change.*
 
-1. **W1 — the splat terrain material** [M]. Replaces altitude-banded vertex
-   colour (a coloured paste) with tiling PBR materials selected per fragment,
-   triplanar on steep ground. **The ten CC0 scans are already shipped** in
-   `site_tex.js` and the weights are already computed (the SURFACE classifier
-   + the biome stage). Depends on nothing.
-2. **W3 — tree source geometry** [M]. Today: a cylinder, a cone and an
-   icosahedron. The impostor ladder, chunking, species and tinting all stay —
-   the atlas is baked at boot FROM the near geometry, so replacing the source
-   upgrades every tier at once. Taken before W2 because it is cheaper and more
-   visible on the world we are actually flying.
-3. **W2 — the clipmap** [L]. Replaces the two-ring mesh; removes the ring
-   seam, the ~100 m far strips and the 5 km fog cap in one move, and is what
-   makes metre-scale ground under the wheels possible at all.
+0. **W0 — THE TREE SPIKE.** ✔ **LANDED as the W0c chantier (HANDOVER W0c,
+   2026-09-08 → 09-12; TREE-IMPORT.md §8).** Real trees, the full ladder
+   (L0 · L1 · G-buffer impostors), three shadow passes, the rig as data, the
+   F8 panel, the G286 graphics menu, `tools/tree_perf.js`. **The verdict W0
+   existed to give:** the streamed forest is 0.6 ms of the Off frame and all
+   of its cost at the supersampled tier is AA fill-rate — the same wall a
+   native engine hits. **The platform is not the constraint; the web stays.**
+1. **W0.5a — THE THREE.JS UPGRADE, r128 → current, still on WebGLRenderer**
+   [M–L, its own chantier]. RENDERER-DECISION §4b: the version jump is the
+   larger and riskier of the two jumps, and its cost is RECALIBRATION (colour
+   management r152, light units r155, moved shader chunks, the PMREM/RGBE
+   workaround) of every number tuned by eye — the mood rows, the rig, the
+   gains, the palette, and now the tree materials. **It goes BEFORE any new
+   shader work** so W1, W3 and the atmosphere are written once. Ends with
+   the battery green on the same backend.
+2. **W0.5b — GLSL → TSL on the WebGL2 backend**, one hook at a time; then
+   **W0.5c — the backend flag** (WebGPU). Conditional, per §4b; not a fork.
+3. **W2 — the adaptive quadtree, on the analytic world** [L]. The baker
+   (`tools/terrain_bake.js`, already run once), the format
+   (`terrain_codec.js`, 2.55×), the renderer and the physics sampler with
+   §5.4's gradient rule — against `h0`, whose right answer is known, with the
+   whole battery as the oracle: **the second world's first content is the
+   first world.** Removes the ring seam, the ~100 m far strips and the fog cap.
+4. **W1 — the splat terrain material** [M], in TSL, on the quadtree — written
+   once, on the mesh it ships on. The ten CC0 scans are shipped in
+   `site_tex.js`; the weights come from the SURFACE classifier + biomes.
+5. **W3 — trees productionised** [M]. Half landed inside W0c (density as
+   data, species by altitude / patches / wet-or-steep, hand placement); the
+   density-per-WorldCover-class table waits for U1's data. Then bushes and
+   grass through the same pipeline, and the forest card/editor.
 
 ## PHASE 4 — LITTLE AIRPORTS
 *The user's named joy: "in FS, I designed hundreds of little airports, but
@@ -528,22 +549,27 @@ aeroplanes to risk.*
 every golden hash, and it is staged so that the step which does that does
 nothing else.*
 
-0. **THE WORLD-PATH DECISION** — real topology or procedural. Needed BEFORE
-   W4, and nothing in Phases 1-6 depends on it. Recommendation and reasoning
-   in the section below.
-1. **W4 — the offline bake** [L]. The node tool: erosion at 4096², the guide
-   fields (flow accumulation, slope, curvature, aspect, fill depth), the delta
-   format, the `h0` fallback. Still on the 24 km domain, so it is provable
-   against a world that already works. **§4.3's guided detail is the single
-   highest-value idea in the world spec** — detail synthesised BELOW the bake
-   and steered by the erosion reads as eroded all the way down, which is
-   precisely the defect the user named in MSFS.
-2. **W5 — the island** [L]. Grow the domain, lay in the spine, re-bake. The
-   step that changes every golden, and it should change ONLY that.
-3. **W6 — hero tiles and site nomination** [L]. 4 m tiles streamed near sites;
-   the landability pass scores and NOMINATES, the author PROMOTES. Over
-   22 000 km² that is the difference between forty sites and four.
-4. **W7 — the editor matures** on the format Phase 4 shipped.
+*RECONCILED 2026-09-13 (D0): "erosion at 4096²" and "hero tiles" were
+deleted by WORLD-V2 §13 (a real DEM IS the erosion; the quadtree's leaves ARE
+the hero tiles). The stages are §11's.*
+
+0. **THE WORLD-PATH DECISION** — ✔ **TAKEN: Admiralty Island → URSOY**, 5 m
+   IFSAR DTM + ESA WorldCover, per `ISLAND-ADMIRALTY.md` and
+   `ISLAND-PREPACK.md` (resolved 2026-09-01). See the ruling section below.
+1. **U1 — the data** [M]. GDAL installed (it is not, as of 2026-09-13), then
+   `tools/island_fetch.js --list` and `--dtm-only` + WorldCover (~1.6 GB; the
+   DSM and ORI wait until the tree ladder asks), `island_prep.py` → `.f32`.
+   The game-frame projection (R2) is decided here and written down once.
+2. **W4 — the pipeline on one 20 × 20 km slice of Ursoy**, loaded as the 24 km
+   domain [L]. **THE SHIPPED WORLD, for a long time** (WORLD-V2 §11's note):
+   more airfields than the loop has yet earned. First real tuning of ε, the
+   zone budgets and the palette.
+3. **W6 — nomination + zones** [L]. The landability pass scores and
+   NOMINATES, the author PROMOTES; feeds the baker's zone list.
+4. **W7 — the airfield editor** [L], the §6 modifier layer typed; the two
+   hardcoded rectangles in `h0` generalised.
+5. **W5 — the whole island** [L]. 145 km. Invalidates every golden and does
+   nothing else. **DEFERRED** until the loop is proven fun on W4.
 5. **Aerial perspective** [M, W-V2 §6.4]. On a 250 km island the horizon at
    3000 m is 195 km. Height-dependent extinction and in-scattering, not fog.
 6. **ONE CLOCK for hangar and world** [M, F4's owed half]. Flying out of a
@@ -678,7 +704,25 @@ completed the flight and had nothing to complain about. The BALANCE ADVISORY
 engineer's handbook, guidance you may ignore) is what fully serves the ruling.
 It was deliberately not smuggled into G150. It is Phase 2/5 work.
 
-## THE WORLD-PATH RULING (recommendation, decision open)
+## THE WORLD-PATH RULING — **DECIDED: ADMIRALTY ISLAND → URSOY** (2026-09-01;
+## this section reconciled 2026-09-13, D0)
+
+**The decision as taken:** a real island's terrain as the tier-1 base — but
+NOT the one recommended below. The island is **Admiralty Island, Southeast
+Alaska, renamed URSOY** (`futureDesigns/ISLAND-ADMIRALTY.md`: the argument,
+the airfields, the flight); the data is the **5 m IFSAR DTM** (not Copernicus
+GLO-30 at 30 m) plus **ESA WorldCover** for the land-cover classes, every
+endpoint probed live and the manifest exact in `ISLAND-PREPACK.md`
+(`tools/island_fetch.js` written, resumable, unrun as of 2026-09-13; ~10 GB
+in full, ~1.6 GB for the DTM + WorldCover the first stages need). The shipped
+world is a 20 × 20 km slice (W4); the whole island (W5) is deferred.
+
+**Everything below this line is the recommendation as it stood before that
+decision — CORSICA on GLO-30 — kept as history because the reasoning about
+"a real DEM is the erosion" is what carried the decision. It is SUPERSEDED:
+do not re-adopt Corsica, GLO-30, or the "decision open" it used to say.**
+
+---
 
 The question: stay procedural, or start from existing topology (Sicily?
 Kodiak?). The answer WORLD-V2's own architecture gives: **tier 1 does not
