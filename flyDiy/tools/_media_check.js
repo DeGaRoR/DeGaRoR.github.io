@@ -40,9 +40,15 @@ const MEDIA = path.join(ROOT, 'media');
 const fail = [];
 const check = (ok, msg) => { if (!ok) fail.push(msg); return !!ok; };
 
-// index.html budget, MiB. Code-only now (~4.0): three.js + core + editor +
-// viewer + styles + inlined fonts. Raising this needs a reason written here.
-const BUDGET_MIB = 6;
+// index.html budget, MiB. Code-only now: three.js + core + editor + viewer +
+// styles + inlined fonts. Raising this needs a reason written here.
+//   6.0 -> 6.5 (W0c.29.1, 2026-09-12): the artifact reached 6.03 MiB on the
+//   day the tree chantier closed - the ladder, the impostors and their shadow
+//   cascades (render_world.js +86 KB, trees.js 21 KB), the F8 panel (12 KB),
+//   the graphics settings menu (10 KB) and the tree manifest (17 KB, compact)
+//   are 146 KB of code and one manifest, not data creeping back; the same day
+//   G289-G294 grew the shed. DATA_BUDGET_KB below is the guard that matters.
+const BUDGET_MIB = 6.5;
 // index.html's allowed data: payload: the four woff2 fonts (~121 KB base64)
 // plus the two svg select arrows. Anything past this is base64 creeping back.
 const DATA_BUDGET_KB = 400;
