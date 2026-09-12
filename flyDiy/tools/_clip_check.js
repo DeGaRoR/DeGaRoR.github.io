@@ -24,6 +24,11 @@
 // G81-G85) — parity vote of three rays plus edge crossings, over pairs whose
 // boxes touch; contacts the layers intend are listed in ALLOWED.
 //
+// THE TAIL POSES ARE ENFORCED SINCE G300 (the fitment study P1): fixed hinge
+// halves, lamps and boom fittings name the part they are bolted to
+// (`userData.partOf`) and the join bakes them into it, so nothing on the
+// twin's tail parts from its fin, stab or boom under the anchor throw.
+//
 // ECONOMY: four builds (stock, rod boom, twin boom, stock+IFR wing tank),
 // one headless scene each, trees built once per skin and rebuilt only for a
 // skin that moved in the pose. Timing is printed, never a verdict.
@@ -82,13 +87,18 @@ const ALLOWED = new Set([
   'gear|wheel', 'strut|wing',    // same assembly
 ]);
 
+// BY ANCESTOR NAME, never by the pose kind: a fitting tagged `partOf`
+// (G300) takes its host's KIND — a boom collar is kind 'boom' — and would
+// otherwise be its own skin, at distance zero from itself
 function skinOf(o) {
   if (o.layer === 'cowl') return o.ud.innerTwin ? null : 'cowl';
   if (o.layer === 'wing' && o.kind === 'static' && !o.name) return 'wing';
-  if (o.kind === 'surf' && !o.name.startsWith('edHinge_')) return 'surf';
-  if (o.kind === 'boom') return 'boom';
+  if (o.layer === 'access' || o.layer === 'light' || o.layer === 'hinge') return null;
+  if (o.name.startsWith('edHinge_') || o.name.startsWith('edLamp_')) return null;
+  if (o.chain.some(a => a.startsWith('edSurf_'))) return 'surf';
+  if (o.chain.some(a => a.startsWith('edBoom'))) return 'boom';
   for (const a of o.chain)
-    if (/^(edFinSkin|edFinVentral|edFinFillet|edStabSkin|edBoom)/.test(a)) return 'tail';
+    if (/^(edFinSkin|edFinVentral|edFinFillet|edStabSkin)/.test(a)) return 'tail';
   return null;
 }
 function fittingOf(o) {
@@ -121,11 +131,13 @@ function identities(o, W) {
   const nT = o.idx.length / 3;
   if (o.layer === 'access' && o.ud.fitBag && W.CAGE_ACCESS) {
     for (const p of W.CAGE_ACCESS.placed) {
+      if ((p.host || '') !== (o.ud.fitHost || '')) continue;      // G300: bags per host
       const r = p.tris && p.tris[o.ud.fitBag];
       if (r && r[1] > r[0]) out.push({ label: p.key + '/' + (p.side || '') + ' [access' + (p.on ? ', on ' + p.on : '') + (p.mat ? ' ' + p.mat : '') + ']', t0: r[0], t1: r[1], key: p.key });
     }
   } else if (o.layer === 'hinge' && o.ud.hingeBag && W.CAGE_HINGE) {
     for (const p of W.CAGE_HINGE.placed) {
+      if ((p.host || '') !== (o.ud.hingeHost || '')) continue;    // G300: bags per host
       const r = p.trisF && p.trisF[o.ud.hingeBag];
       if (r && r[1] > r[0]) out.push({ label: 'hinge ' + p.key + ' fixed ' + o.ud.hingeBag + ' [hinge]', t0: r[0], t1: r[1], key: p.key });
     }
@@ -221,7 +233,7 @@ function runBuild(B) {
           // reads "inside" for a point two metres away on its far side
           let d = Infinity, sk = null, ad = Infinity;
           for (const s of skinsP) {
-            if (s.kind === 'surf' && o.kind === 'surf' && s.obj && s.obj.surf === o.surf) continue;  // its own surface
+            if (s.kind === 'surf' && o.name.startsWith('edHinge_') && s.obj && s.obj.surf === o.surf) continue;  // the moving half on its own surface
             // A HINGE DIVES INTO ITS OWN SURFACE'S NOSE BY DESIGN: the pin and
             // the eye sit on the axis, inside the nose cylinder the surface
             // draws solid (a real nose is cut away at the hinge stations, and
@@ -240,7 +252,7 @@ function runBuild(B) {
           findings.push({ build: B.name, pose: pose.name, label: id.label, depth: -wd, allow,
                           frac: buried / vs.size, nv: vs.size, skin: wSkin ? wSkin.name : '?', at: wAt,
                           moved: !!posed.get(o), skinMoved: !!(wSkin && wSkin.obj && posed.has(wSkin.obj)),
-                          declared: pose.name.startsWith('tail') });
+                          declared: false });
       }
     }
     // ---- cross-layer: a fitting inside another layer's solid ----
@@ -250,7 +262,7 @@ function runBuild(B) {
       for (const sl of solidSets) {
         if (sl.o === o) continue;
         if (sl.o.layer === o.layer && o.layer) continue;             // a layer's own composition
-        if (o.fitKind === 'hingeMoving' && sl.o.kind === 'surf' && sl.o.surf === o.surf) continue;
+        if (o.fitKind === 'hingeMoving' && sl.o.surf === o.surf) continue;
         if (ALLOWED.has(o.fitKind + '|' + sl.o.solidKind)) continue;
         const sp = posed.get(sl.o) || sl.o.base;
         const sb = posed.get(sl.o) ? boundsOf(sp) : sl.box;
@@ -279,7 +291,7 @@ function runBuild(B) {
             findings.push({ build: B.name, pose: pose.name, label: id.label, depth: deep, allow: 0.0015,
                             frac: inside / vs.size, nv: vs.size, skin: (sl.o.name || sl.o.chain.find(c => c)) + ' (' + sl.o.solidKind + ')',
                             at, cross: true, moved: !!posed.get(o), skinMoved: !!posed.get(sl.o),
-                            declared: pose.name.startsWith('tail') });
+                            declared: false });
         }
       }
     }
@@ -352,7 +364,7 @@ function main() {
   const cleared = Object.keys(base).filter(k => !seen.has(k));
   if (cleared.length) console.log('  CLEARED since the baseline (' + cleared.length + '): ' + cleared.slice(0, 8).join('; ') + (cleared.length > 8 ? ' ...' : '') + ' — run --rebase to drop them');
   const gaps = allF.filter(f => f.declared);
-  if (gaps.length) console.log('  DECLARED GAP (twin-boom tail poses, until the fittings ride their part): ' + gaps.length + ' lines, not counted');
+  if (gaps.length) console.log('  DECLARED GAP: ' + gaps.length + ' lines, not counted');
   if (REBASE) {
     const out = {};
     for (const f of allF) if (!f.declared) out[keyOf(f)] = +(f.depth * 1000).toFixed(1);

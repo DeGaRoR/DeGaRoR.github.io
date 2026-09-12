@@ -307,7 +307,13 @@ function rodSite(row, P, needs, atSL, atLV, bags) {
 // the tube — crown, keel or the outboard flank. 'both' is one fitting a
 // boom, 'star' / 'port' the one side. A rod-style twin boom takes the rod's
 // split collar; a lofted one is a skin and the form sits on it.
-function boomSites(row, P, needs, atSL, atLV, bags, want) {
+// A BOOM FITTING RIDES ITS BOOM (G300, the fitment study P1): on twin booms
+// each boom is a part of its own in flight (G267.2), so a collar or an aerial
+// drawn into the static bags parted from the tube under flex (GATE CLIP:
+// 33 mm at a ±40 mm anchor throw). Each site names its boom (`host`, the
+// join's part name `edBoomR` / `edBoomL`, the wing layer's own naming), the
+// collar goes into that host's bags, and the layer tags the mesh `partOf`.
+function boomSites(row, P, needs, atSL, atLV, bagsFor, want) {
   const TB = (typeof window !== 'undefined') && window.CAGE_BOOMS;
   if (!TB || !needs || !needs.booms) return [];
   const from = needs.booms.from || 0;
@@ -318,6 +324,8 @@ function boomSites(row, P, needs, atSL, atLV, bags, want) {
   const out = [];
   for (const s of sides) {
     let p, n;
+    const host = 'edBoom' + (s > 0 ? 'R' : 'L');
+    const bags = bagsFor ? bagsFor(host) : null;
     if (atLV === 'keel') { p = [s * TB.x, yA - h, z]; n = [0, -1, 0]; }
     else if (atLV === 'flank') { p = [s * (TB.x + r), yA, z]; n = [s, 0, 0]; }
     else { p = [s * TB.x, yA + h, z]; n = [0, 1, 0]; }
@@ -331,7 +339,7 @@ function boomSites(row, P, needs, atSL, atLV, bags, want) {
           [[0.0060, 0], [0.0060, 0.0090], [0.0035, 0.0110]], 10, true);
     }
     out.push({ p, n, sL: atSL, sC: 0, st: 0, lv: 0, mat: TB.lofted ? 'boomSkin' : 'boomTube',
-               side: s > 0 ? 'star' : 'port' });
+               side: s > 0 ? 'star' : 'port', host });
   }
   return out;
 }
@@ -456,7 +464,12 @@ PAGE.post = ctx => {
     AF = (GB && GB.AF) || (GG && GG.cageAirframe ? GG.cageAirframe(mesh, FS) : null);
   } catch (e) { AF = null; }
 
-  const bags = { paint: K.Bag(), metal: K.Bag(), lens: K.Bag() };
+  // ONE SET OF BAGS PER HOST (G300): '' is the static merge; 'edBoomR' /
+  // 'edBoomL' the twin booms' own parts — meshed apart and tagged `partOf`
+  const bagsBy = {};
+  const bagsFor = host => bagsBy[host || ''] ||
+    (bagsBy[host || ''] = { paint: K.Bag(), metal: K.Bag(), lens: K.Bag() });
+  const bags = bagsFor('');
   const pitch = pitchFor(R.material) / Math.max(0.4, +P.accDetail || 1);
   const placed = [], unplaced = [];
   let nFit = 0;
@@ -498,7 +511,7 @@ PAGE.post = ctx => {
       sites = one ? [one] : [];
     } else if (row.on === 'boom') {
       const want = typeof row.side === 'function' ? row.side(R) : row.side;
-      sites = boomSites(row, P, R, atSL, atLV, bags, want || 'both');
+      sites = boomSites(row, P, R, atSL, atLV, bagsFor, want || 'both');
     } else if (row.on === 'wing') {
       if (!wingTried) { wingTried = true; wingF = wingField(scene); }
       sites = wingF ? SITE.accessSites(wingF, {
@@ -635,18 +648,19 @@ PAGE.post = ctx => {
       }
       // GATE CLIP reads each fitting's own triangles back out of the
       // merged bags, so the range every form wrote is recorded with the site
-      const t0 = {}; for (const k of FG.FIT_BAGS) t0[k] = bags[k].tris;
-      try { form(bags, F, row.size || {}, { surf, pitch }); }
+      const B = bagsFor(s.host);
+      const t0 = {}; for (const k of FG.FIT_BAGS) t0[k] = B[k].tris;
+      try { form(B, F, row.size || {}, { surf, pitch }); }
       catch (e) { unplaced.push(row); continue; }
       nFit++;
-      const tris = {}; for (const k of FG.FIT_BAGS) tris[k] = [t0[k], bags[k].tris];
+      const tris = {}; for (const k of FG.FIT_BAGS) tris[k] = [t0[k], B[k].tris];
       // THE NORMAL RIDES ALONG in the record. It is what a diagnostic has to
       // look down to see whether a fitting is there at all — the first pixel
       // pass without it fell back to "up" for everything and reported seven
       // perfectly good fittings as invisible.
       placed.push({ key: row.key, name: row.name, serves: row.serves,
                     on: row.on, side: s.side, p: pm, n: F.n,
-                    st: s.st, lv: s.lv, mat: s.mat, tris });
+                    st: s.st, lv: s.lv, mat: s.mat, tris, host: s.host || '' });
     }
   }
 
@@ -656,13 +670,20 @@ PAGE.post = ctx => {
   group.name = 'cageLayer:access';
   // NOT SCALED. The fittings were built in metres; scaling here would apply
   // planeScale twice and grow a 75 mm filler cap with the aeroplane.
-  for (const k of FG.FIT_BAGS) {
-    const m = bags[k].mesh(group, matFor(k));
-    if (m) m.userData.fitBag = k;              // which bag: GATE CLIP's key
+  let tris = 0;
+  for (const host in bagsBy) {
+    for (const k of FG.FIT_BAGS) {
+      const m = bagsBy[host][k].mesh(group, matFor(k));
+      tris += bagsBy[host][k].tris;
+      if (!m) continue;
+      m.name = 'edAcc_' + (host || 'static') + '_' + k;
+      m.userData.fitBag = k;                   // which bag: GATE CLIP's key
+      m.userData.fitHost = host;
+      if (host) m.userData.partOf = host;      // the join bakes it into that part
+    }
   }
   scene.add(group);
 
-  const tris = FG.FIT_BAGS.reduce((s, k) => s + bags[k].tris, 0);
   window.CAGE_ACCESS = { needs: R, rows, placed, unplaced, tris };
   if (stat)
     stat.textContent += '  ·  fittings: ' + nFit + ' (' + tris + ' t)' +

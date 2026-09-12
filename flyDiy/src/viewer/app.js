@@ -1821,6 +1821,11 @@
               m0 => AEROSKIN.aeroGlassTint(THREE,
                 { tintLin: m0.color.getHex(), opacity: m0.opacity }));
           pg.add(mesh);
+          // G300: a lamp that rides a part (the fin's beacon, the rudder's
+          // tail light) is still a lamp — the cockpit switch has to find it
+          if (mats[name] && (mats[name].lamp || mats[name].lampCup))
+            lamps.push({ mesh, key: mats[name].lamp || mats[name].lampCup,
+                         kind: mats[name].lamp ? 'lens' : 'cup' });
         }
         if (pt.kind === 'prop') {
           // THE WANDERING PROPELLER (G58.6, user: "the prop sometimes

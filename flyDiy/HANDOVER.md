@@ -175,6 +175,14 @@ failed check to point at. A timeout is not a verdict. If timing itself is the
 question, A/B the two cores on the same machine minutes apart (`git show
 HEAD:flyDiy/tools/flight_core.js`, swap, `--only=<gate> --no-build`, swap back)
 — an absolute number from a previous session proves nothing.
+GATE CLIP (G299, ~9 s) is the NO-CLIPPING instrument: every drawing layer run
+headless over four builds, every fitting vertex measured SIGNED against the
+drawn skin triangles — at rest, at full control travel both ways, under a
+wing-flex envelope and (twin booms) a tail-anchor throw — plus a fitting inside
+another layer's solid. `fixtures/clip_baseline.json` makes it a ratchet: red
+only for a NEW or deeper finding; `--rebase` after a chantier clears some;
+`--report` lists every fitting's worst depth. See
+futureDesigns/FITMENT-STUDY-2026-09-12.md.
 GATE GEN (after STRESS) audits a GENERATED airframe rather than a fixed one:
 symmetry (nodes, beams AND masses — an asymmetric mass flies a wing low),
 orphans/duplicates, a full RIGIDITY test (rank 3n-6, which is the real form of
@@ -39972,3 +39980,108 @@ top; measured on the user's build the rotor's base is 2 mm under the top.
   hardware material); a glareshield panel flood as a third flight source
   (the audit's `lighting: flood` option); the `lighting` row itself
   (post / internal / flood) — every dial is post-lit for now.
+
+## G299 — GATE CLIP: NO FITTING INSIDE THE SKIN, AT REST OR POSED (2026-09-12,
+## the fitment study, P0; the user: "some fitment clip through the fuselage,
+## some move because they're attached to the wrong physics model part ... I
+## want no clipping" — the study: futureDesigns/FITMENT-STUDY-2026-09-12.md)
+
+- **What it measures**: every drawing layer run HEADLESS over four builds
+  (stock, rod boom, the twin-boom fixture, stock + IFR wing tank) —
+  `_scene_headless.js` runs `build.js`'s `MANIFEST.editor` under node with
+  the real r128 three.js and a six-line document, the page's own
+  `cageSheet` + `PAGE.post` chain, 0.6-0.9 s a build. Every fitting vertex
+  (access, lights, hinge hardware and links, gear legs and castor, struts,
+  the pitot) is asked its SIGNED distance to the nearest DRAWN skin
+  (`_mesh_query.js`: AABB tree, angle-weighted pseudonormals; a rim never
+  votes beyond itself, so an open loft and a fuselage minus its door answer
+  sensibly). Not the airframe table: that is ±3.5 mm by measurement and a
+  fitting stands 0.4-0.8 mm proud. Allowance 1.5 mm; the static port's
+  recess, a lamp's `site.buried`, the links and the hinge kit's `inner`
+  bag (bellcrank, torque-tube pivot) are the declared exceptions.
+- **Posed as the flown model would pose it** (`_pose_headless.js`): the
+  join's membership by ancestor name (`_cage_join.js:1694`), every surface
+  at full declared travel both ways about the hinge the join bakes
+  (`cageSurfLine`/`cageSurfPlane` lifted out of `snapshotAt` and exported
+  beside `cageSurfHinge`), a synthetic wing-flex parabola over the
+  viewer's binding box with the strut's two-end follow, and on twin booms a
+  ±40 mm tail-anchor throw over the parts the join anchors. A
+  `userData.partOf` tag is honoured — the contract P1 will teach the join.
+- **Cross-layer**: signed distance into the non-skin solids, accepted only
+  inside the nearest triangle's own component box (one kit part wound
+  wrong claimed a static port 520 mm away).
+- **The ratchet**: `fixtures/clip_baseline.json` — 230 known lines
+  (build | pose | fitting | skin → mm); red only for a NEW or deeper
+  (> 0.5 mm) finding; CLEARED lines printed; `--rebase` after a chantier.
+  Twin-boom `tail±` lines are a DECLARED GAP until P1. `--report` lists
+  every fitting's worst depth; `--selftest` breaks it seven ways.
+- **Found on day one, all real, each probed** (the study's §1): the strut
+  doubler's bolts pointing INWARD (`strutSkin.nrmAt` flipped any normal
+  with +y — fixed here: outward is away from the section centre); a spring
+  leg's bow through the belly corner (35 mm); the tailwheel root in the
+  tail cone (18 mm); the aileron inspection cover sited ON the aileron cut
+  (17-21 mm, and the aileron sweeps into it); strap hinges laid at hinge
+  radius on a section that thickens forward (8-11 mm wing, 3-6 mm tail);
+  the bay-less wing lamp's proud housing inside the LE (42 mm, twin); boom
+  aerials inside the fin root (22 mm, twin — a peer's `finBand` skip is in
+  the tree); the upright comm aerial's root chord in the deck (6.5 mm);
+  the castor under the rudder at full travel (11 mm); the flap on the
+  wing-mounted leg (30 mm, twin); the trike's nose leg inside the nose cowl
+  (298 mm, twin); and on the twin every static tail fitting parting from
+  its fin/stab/boom under the anchor throw (6-33 mm).
+- **Traps**: the most-negative distance over all skins is wrong (an open
+  patch folded at its rim reads a fitting 2 m away as inside) — the
+  NEAREST skin decides; ray parity is wrong on open lofts and overlapping
+  closed parts; the layers dispose their previous groups on every post, so
+  a scene handle from an earlier build is empty; `GEN_INFL` was not among
+  the core's node exports and `_cage_wing.js` fell back to 4 headless,
+  picking no wing skin — exported; `_strut_gen.js` is CRLF.
+- Order in the plan: P1 the part tag (flips the tail gap to enforced), P2
+  the rest-pose list above (`--rebase` down), P3 saddles on the rod, P4
+  door hinges + handle, shut.
+
+## G300 — A FITTING RIDES THE PART IT IS BOLTED TO (2026-09-12, the fitment
+## study P1; the user: "some move because they're attached to the wrong
+## physics model part (for example the rudder and fin, and the stabs and
+## elevators)")
+
+- **The defect, measured**: on twin booms the fin, stab and boom skins and
+  their surfaces ride the boom-tail anchor (G267.2) while the hinge layer's
+  FIXED halves, pins and fairings, the fin's beacon, the tail's white light
+  and the booms' collars and aerials sat in `cageLayer:hinge/light/access`
+  — no ancestor name the join's walk knew — and so in the static merge,
+  rigid in the body frame. GATE CLIP's `tail±` pose put them 6-33 mm apart
+  from their surfaces at a ±40 mm throw. On a single boom the fin and the
+  fuselage are one rigid body and it never showed. Second case: with
+  `finCut 2` the crown is the RUDDER's, and the beacon sliced off the whole
+  fin group sat on rudder geometry and stayed still while the rudder turned.
+- **The rule, one keeper**: fixed hardware NAMES the part it is bolted to —
+  `mesh.userData.partOf = '<join part src>'` — and the join reads the tag
+  before it reads a name. `cagePartMatch(name, ud, twin)` is the walk as a
+  pure function of one ancestor (`_cage_join.js`, exported; GATE JOIN pins
+  it): tag → prop/spinner → wheels → legs/surfaces/links/controls → struts,
+  engines, and on twin booms the boom and tail skins. A tag naming a part
+  the build has no part for (a single boom's `edFinSkin`) is the static
+  merge, exactly as before. NOT `attach()` for fixed hardware: it would
+  pollute `tailSurfBounds`/`finApex` (physics-bearing) and the editor's
+  selection walk; the moving halves keep `attach()` onto `edSurf_*`.
+- **The layers**: `_cage_hinge.js` `hostOf(key)` (rud → edFinSkin, rud2 →
+  edFinSkin2, elevR/L → edStabSkinR/L, wing keys → null = the wing skin's own
+  binding) — one set of airframe bags per host, meshed as
+  `edHinge_<host|static>_<bag>` and tagged; `_cage_light.js` slices the
+  beacon off the crown's OWNER (`edSurf_rud` with finCut 2, `edFinSkin`
+  otherwise) and the tail light off the object its trailing-edge vertex
+  belongs to, tags the lamp meshes and the rotor; `_cage_access.js` boom
+  sites carry `host: edBoomR/L`, one bag set per boom, `edAcc_<host>_<bag>`.
+  The fin's root FILLET (G295) is a fin part on twin booms too (it parted
+  from the fin by 10 mm). `app.js` collects lamps inside parts (the cockpit
+  switch lost a beacon that rode its fin); `editor.js` HIT_NAME: `edHinge_`
+  / `edLink_` → Control hardware, `edLamp_` / `liRotor_` → Lights, `edAcc_`
+  → Fittings (a click on a horn selected the fin).
+- **Proof**: the join bake on the twin fixture now puts the hinge steel and
+  `Lpbeacon` into the two `fin` parts, the tail light into `surf_elevR`,
+  the collars' bare alu into the boom parts; GATE CLIP's tail poses are
+  ENFORCED (no relative-motion line remains), baseline rebased to 268
+  lines. GATE JOIN §G300, GATE HINGE §KEEPER, GATE LIGHT 5f.
+- Trap: a tagged mesh takes its host's pose KIND — the gate's skin
+  classifier had to go by ancestor name or a boom collar was its own skin.

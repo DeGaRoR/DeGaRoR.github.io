@@ -2142,6 +2142,13 @@ function editorInit(api) {
     [/^edFit_liftstrut/, 'struts'],
     [/^edFit_pitot/, 'wingPanel'],
     [/^edSurf_ail/, 'wingCtl'],
+    // G300: the hardware NAMES ITSELF now — the hinge halves (fixed ones
+    // `edHinge_<host>_<bag>`, moving ones attached under their surface), the
+    // lamps and the fittings' bags — so a click on a horn selects the Control
+    // hardware and not the fin it hangs beside. Before the surface rows below.
+    [/^edHinge_|^edLink_/, 'ctlhw'],
+    [/^edLamp_|^liRotor_/, 'lights'],
+    [/^edAcc_/, 'access'],
     [/^edSurf_rud/, 'fin'],
     [/^edBoom/, 'boom'],                 // the twin booms (G267 their own part; G271 back under Boom)
     [/^edSurf_elev/, 'stab'],

@@ -106,6 +106,24 @@ const GROUP = ['13 · control hardware', [
 // Each record is what a hinge needs and nothing else: the LINE it turns
 // about, the nose radius the cove was built to, the two directions of the
 // section at that line, and the drawn object the moving half belongs to.
+// WHICH PART THE FIXED HALF IS BOLTED TO (G300, the fitment study P1): a
+// rudder's fixed straps, pins and fairings are on its FIN, an elevator's on
+// its STAB — and on twin booms those are parts of their own that ride the
+// boom's tail (G267.2), so hardware left in the static merge parted from the
+// fin under flex (measured by GATE CLIP: 6-14 mm at a ±40 mm anchor throw).
+// A wing surface's fixed half is on the wing skin, which is the static
+// merge's own binding — null. The name is the join's part `src`; a build
+// with no such part (a single boom) keeps the hardware static, as it was.
+function hostOf(key) {
+  const k = key.replace(/2$/, '');
+  if (k === 'rud') return 'edFinSkin' + (key.endsWith('2') ? '2' : '');
+  if (k === 'elevR') return 'edStabSkinR';
+  if (k === 'elevL') return 'edStabSkinL';
+  return null;
+}
+
+if (typeof window !== 'undefined') window.CAGE_HINGE_HOST = hostOf;   // GATE HINGE reads it
+
 function surfaceList(scene, P, FS) {
   const out = [];
   const objOf = {};
@@ -120,7 +138,7 @@ function surfaceList(scene, P, FS) {
   for (const s of (WG && WG.surfs) || []) {
     const nm = s.name;
     if (!objOf[nm]) continue;
-    out.push({ key: nm, kind: s.kind, obj: objOf[nm],
+    out.push({ key: nm, kind: s.kind, obj: objOf[nm], host: hostOf(nm),
                A: s.line[0], B: s.line[1], r: s.r,
                aft: s.aft, face: V.mul(s.up, -1),      // hardware lives UNDER a wing
                faces: 1, slide: s.slide, chord: s.chord });
@@ -136,7 +154,7 @@ function surfaceList(scene, P, FS) {
     const thick = (P.finThick || 0.06) * F2;
     for (const [nm, xo] of TB ? [['rud', TB.x], ['rud2', -TB.x]] : [['rud', 0]]) {
       if (!objOf[nm]) continue;
-      out.push({ key: nm, kind: 'rud', obj: objOf[nm],
+      out.push({ key: nm, kind: 'rud', obj: objOf[nm], host: hostOf(nm),
                  A: [xo, L[0][0] * F2, L[0][1] * F2],
                  B: [xo, L[1][0] * F2, L[1][1] * F2],
                  r: thick * 0.5, aft: [0, 0, -1], face: [1, 0, 0], faces: 2,
@@ -164,7 +182,7 @@ function surfaceList(scene, P, FS) {
       const n1 = map([1, L[0][0], L[0][1]]);
       let nrmS = V.nrm(V.sub(n1, o0));
       if (nrmS[1] > 0) nrmS = V.mul(nrmS, -1);          // hardware hangs BELOW
-      out.push({ key: nm, kind: 'elev', obj: objOf[nm],
+      out.push({ key: nm, kind: 'elev', obj: objOf[nm], host: hostOf(nm),
                  A: laid[0], B: laid[1], r: thick * 0.5,
                  aft: [0, 0, -1], face: nrmS, faces: 1, slide: null,
                  chord: (SB.measure.chordMean || 0.4) * (SB.measure.ctlFrac || 0.3) });
@@ -257,8 +275,13 @@ PAGE.post = ctx => {
   // `inner` is the hardware that lives INSIDE the wing by design — the
   // bellcrank and the flap's torque-tube pivot — meshed as metal but kept
   // apart so GATE CLIP can allow it where a strap on the skin is not allowed
-  const bagsF = { metal: K.Bag(), fair: K.Bag(), inner: K.Bag() };
+  // ONE SET OF AIRFRAME BAGS PER HOST: '' is the static merge (the wing's
+  // hardware), 'edFinSkin' / 'edStabSkinR' ... the tail parts the halves
+  // are bolted to; each set is meshed on its own and tagged `partOf`
   const HG_BAGS_F = HG.HINGE_BAGS.concat(['inner']);
+  const bagsFBy = {};
+  const bagsFor = host => bagsFBy[host || ''] ||
+    (bagsFBy[host || ''] = { metal: K.Bag(), fair: K.Bag(), inner: K.Bag() });
   const perSurf = {};                  // key -> { metal, fair }
   const bagM = key => (perSurf[key] || (perSurf[key] = { metal: K.Bag(), fair: K.Bag() }));
 
@@ -292,6 +315,7 @@ PAGE.post = ctx => {
     const axis = V.sub(s.B, s.A);
     const S = Object.assign({}, S0, { r: s.r });
     const bm = bagM(s.key);
+    const bagsF = bagsFor(s.host);
     // GATE CLIP reads the fixed halves per surface out of the airframe bags
     const tF0 = {}; for (const k of HG_BAGS_F) tF0[k] = bagsF[k].tris;
 
@@ -374,7 +398,7 @@ PAGE.post = ctx => {
     }
     const trisF = {}; for (const k of HG_BAGS_F) trisF[k] = [tF0[k], bagsF[k].tris];
     placed.push({ key: s.key, kind: s.kind, family: fam, n: ts.length,
-                  span, r: s.r, serves: row.serves, trisF });
+                  span, r: s.r, serves: row.serves, trisF, host: s.host || '' });
   }
 
   // ---- into the scene --------------------------------------------------
@@ -384,11 +408,18 @@ PAGE.post = ctx => {
   // A ROW IS ONLY REAL IF THE BUILD DREW IT (the fittings arc's own rule):
   // `matFor` CLAIMS a livery section, so calling it for an empty bag would put
   // "the hinge fairings" in the material panel of an aeroplane that has none.
-  for (const k of HG_BAGS_F) {
-    if (!bagsF[k].tris) continue;
-    tris += bagsF[k].tris;
-    const mF = bagsF[k].mesh(group, matFor(k === 'inner' ? 'metal' : k));
-    if (mF) mF.userData.hingeBag = k;          // which bag: GATE CLIP's key
+  for (const host in bagsFBy) {
+    const bagsF = bagsFBy[host];
+    for (const k of HG_BAGS_F) {
+      if (!bagsF[k].tris) continue;
+      tris += bagsF[k].tris;
+      const mF = bagsF[k].mesh(group, matFor(k === 'inner' ? 'metal' : k));
+      if (!mF) continue;
+      mF.name = 'edHinge_' + (host || 'static') + '_' + k;
+      mF.userData.hingeBag = k;                // which bag: GATE CLIP's key
+      mF.userData.hingeHost = host;
+      if (host) mF.userData.partOf = host;     // the join bakes it into that part
+    }
   }
   // THE LINKS ARE THEIR OWN OBJECTS, named and carrying their two ends and
   // the surface that moves the far one, so the join can publish each as a
@@ -423,7 +454,7 @@ PAGE.post = ctx => {
     }
   }
 
-  window.CAGE_HINGE = { placed, tris, surfs: surfs.map(s => s.key),
+  window.CAGE_HINGE = { placed, tris, surfs: surfs.map(s => s.key), hostOf,
     links: links.map(L => ({ key: L.key, surf: L.surf, kind: L.kind,
                              pin: L.pin, tip: L.tip })) };
   if (stat)

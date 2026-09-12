@@ -830,6 +830,42 @@ try {
   ok(false, 'G209 block threw: ' + e.message);
 }
 
+// G300 — A FITTING NAMES THE PART IT IS BOLTED TO. cagePartMatch is the
+// join's ancestor walk as a pure function of one ancestor: a `userData.partOf`
+// tag wins over every name, the boom and tail skins are parts only on twin
+// booms, and an unknown name keeps walking (null). The walk that bakes the
+// snapshot reads it; this pins what it answers.
+try {
+  const { cagePartMatch } = require('./_cage_join.js');
+  const m = (n, ud, twin) => cagePartMatch(n, ud || {}, twin);
+  ok(m('edHinge_edFinSkin_metal', { partOf: 'edFinSkin2' }, true).src === 'edFinSkin2' &&
+     m('edHinge_edFinSkin_metal', { partOf: 'edFinSkin2' }, true).tag === true,
+     'G300: a partOf tag names the part, whatever the mesh is called');
+  ok(m('edHinge_edFinSkin_metal', { partOf: 'edFinSkin' }, false).src === 'edFinSkin',
+     'G300: ...and on a single boom it still names it (the join finds no such part and keeps it static)');
+  ok(m('edAcc_edBoomL_metal', { partOf: 'edBoomL' }, true).src === 'edBoomL',
+     'G300: a boom fitting names its boom');
+  ok(m('edLamp_nav', { partOf: 'edSurf_rud' }, false).src === 'edSurf_rud',
+     'G300: the tail light names the rudder');
+  ok(m('edFinSkin', {}, true).src === 'edFinSkin' && m('edFinSkin', {}, true).members === true &&
+     m('edFinSkin', {}, false) === null,
+     'G267.2: the fin skin is a part on twin booms only');
+  ok(m('edFinFillet2', {}, true).src === 'edFinFillet2' && m('edFinFillet', {}, false) === null,
+     'G300: the root fillet belongs to the fin on twin booms');
+  ok(m('edSurf_rud', {}, false).src === 'edSurf_rud' && m('edSurf_rud', {}, false).ctl === true &&
+     m('edLink_rud_b', {}, false).src === 'edLink_rud_b' && m('edCastorT', {}, false).src === 'edCastorT',
+     'the surfaces, links and the castor match by name as before');
+  ok(m('edWheelT', {}, false).wheel === 'tw' && m('edWheelL', {}, false).wheel === 'mainsL' &&
+     m('edProp_1', {}, false).prop === true && m('edSpinner', {}, false).prop === true,
+     'the wheels and the prop match by name as before');
+  ok(m('edFit_liftstrut', {}, false).members === true && m('edEngL', {}, false).members === true,
+     'the struts and the engine units carry their members');
+  ok(m('cageLayer:hinge', {}, true) === null && m('', {}, true) === null && m('edStabSkinR', {}, false) === null,
+     'an unknown name, an unnamed group and a stab skin on a single boom keep walking (static)');
+} catch (e) {
+  ok(false, 'G300 block threw: ' + e.message);
+}
+
 // THE VERDICT CONTRACT (G67.1): this checker joins the battery, and the
 // runner requires BOTH signals — the line and the exit code.
 if (fails) console.log('\n  ' + fails + ' check(s) failed');

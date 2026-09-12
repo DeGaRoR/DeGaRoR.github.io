@@ -896,7 +896,16 @@ function sites(scene, group, P) {
   if (scene && scene.children) {
     for (const ch of scene.children) {
       if ((ch.name || '').indexOf('cageLayer:fin') !== 0) continue;
-      const t = topSlice(ch, inv);
+      // THE CROWN'S OWNER (G300, the fitment study P1): with finCut 2 the
+      // fin's crown IS the rudder (the horn keeps it, _fin_gen finCutMesh),
+      // so a beacon sliced off the whole group sat on rudder geometry and
+      // stayed still while the rudder turned; with finCut 1 the slice spanned
+      // fin and rudder and its z-midpoint could land on the hinge line. The
+      // slice is taken off the ONE object that owns the crown, and the lamp
+      // names it (`partOf`) so the join bakes the beacon into that part.
+      const wantRud = Math.round(+P.finCut || 0) === 2;
+      const host = ch.children.find(o => (o.name || '').lastIndexOf(wantRud ? 'edSurf_rud' : 'edFinSkin', 0) === 0) || ch;
+      const t = topSlice(host, inv);
       if (!t) continue;
       // laid along the fitted edge, and SEATED on it: `sink` says how much of
       // the fairing stays inside the fin. It used to straddle unconditionally
@@ -915,7 +924,8 @@ function sites(scene, group, P) {
       // fin's x; the second fin is `beacon2`.
       const site = { p: [0.5 * (t.x0 + t.x1), t.yMid, t.zMid], ax: [0, 1 / k, -m / k],
                      chord: [0, -m / k, -1 / k], sink: beaconSink,
-                     len: (t.z1 - t.z0) * k, thick: t.x1 - t.x0, pod: true };
+                     len: (t.z1 - t.z0) * k, thick: t.x1 - t.x0, pod: true,
+                     partOf: host !== ch ? host.name : null };
       if (!out.beacon) out.beacon = site; else if (!out.beacon2) out.beacon2 = site;
     }
     // THE TAIL LIGHT IS WHITE AND FACES AFT (G295; the table's own note said
@@ -924,6 +934,10 @@ function sites(scene, group, P) {
     // group's upper half; between twin booms at the stabiliser's centre
     // trailing edge — the aft-most vertex of the stab group near x 0. A
     // recessed lens on a lodge, its axis aft.
+    // ...and the vertex's OWNER rides along (G300): the aft-most vertex of a
+    // fin group is the RUDDER's trailing edge, and a lamp drawn there must
+    // turn with the rudder — it names the `edSurf_*` / `ed*Skin*` object
+    // the vertex belongs to, and the join bakes the lamp into that part
     const aftMost = (obj, pick) => {
       const v = new THREE.Vector3();
       let best = null, yTop = -1e9, yLo = 1e9;
@@ -933,9 +947,12 @@ function sites(scene, group, P) {
         if (!o.isMesh || !o.geometry) return;
         const pos = o.geometry.getAttribute('position');
         if (!pos) return;
+        let owner = null;
+        for (let a = o; a && a !== obj; a = a.parent)
+          if (a.name && /^(edSurf_|edFinSkin|edStabSkin|edFinVentral)/.test(a.name)) { owner = a.name; break; }
         for (let i = 0; i < pos.count; i++) {
           v.set(pos.getX(i), pos.getY(i), pos.getZ(i)).applyMatrix4(o.matrixWorld).applyMatrix4(inv);
-          pts.push([v.x, v.y, v.z]);
+          pts.push([v.x, v.y, v.z, owner]);
           if (v.y > yTop) yTop = v.y;
           if (v.y < yLo) yLo = v.y;
         }
@@ -953,7 +970,7 @@ function sites(scene, group, P) {
         tailPt = aftMost(ch, (q, yT, yL) => q[1] > yL + 0.55 * (yT - yL) && q[1] < yT - 0.08 * (yT - yL));
     }
     if (tailPt) out.navT = { p: [tailPt[0], tailPt[1], tailPt[2] + 0.012], ax: [0, 0, -1],
-                             col: 0xfff6e8, recess: true, r: 0.018 };
+                             col: 0xfff6e8, recess: true, r: 0.018, partOf: tailPt[3] || null };
   }
   if (C && C.A) {
     const A = C.A;
@@ -1332,10 +1349,14 @@ PAGE.post = (ctx) => {
                          site.p[2] - site.ax[2] * r * 0.60],
                   site.ax, PROF.gasket, 16, r);
     }
-    for (const m of [lodge.mesh(group), seal.mesh(group), cup.mesh(group)])
-      if (m) m.userData.lampKey = key;         // GATE CLIP's identity per lamp
+    const ms = [lodge.mesh(group), seal.mesh(group), cup.mesh(group)];
     const o = lens.mesh(group);
-    if (o) o.userData.lampKey = key;
+    for (const m of ms.concat([o])) {
+      if (!m) continue;
+      m.name = 'edLamp_' + key;
+      m.userData.lampKey = key;               // GATE CLIP's identity per lamp
+      if (site.partOf) m.userData.partOf = site.partOf;   // G300: rides its part
+    }
     // THE MIRROR THAT MAKES IT FLASH. It is a child GROUP so that it can turn
     // while the housing and the dome stand still, and it is REAL GEOMETRY
     // aimed sideways — the user's rule again: no light without something to be
@@ -1345,6 +1366,7 @@ PAGE.post = (ctx) => {
     if (L.rotor && !site.recess) {
       const rot = new THREE.Group();
       rot.name = 'liRotor_' + key;
+      if (site.partOf) rot.userData.partOf = site.partOf;   // G300: the mirror too
       rot.position.set(seat[0], seat[1], seat[2]);
       // the mirror's own axis is ACROSS the beacon's, which is what makes the
       // beam horizontal on a beacon whose can stands vertical

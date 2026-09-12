@@ -345,6 +345,24 @@ check(!/new THREE\.Scene\(\)[\s\S]{0,200}studio/.test(app) && !/\bstudio\./.test
   check(/Number\.isFinite\(v\) \? Math\.max\(lo, Math\.min\(hi, v\)\) : d/.test(lit),
         'the placement rows are not clamped: a stale save reaches the ' +
         'geometry as NaN and the fitting vanishes');
+
+  // 5f. A LAMP RIDES ITS PART (G300). The beacon sits on the crown's OWNER
+  // (the rudder with finCut 2, the fin skin otherwise), the tail light on
+  // the object its trailing-edge vertex belongs to, and both name it —
+  // `partOf` — so the join bakes them into that part instead of the static
+  // merge. In flight the lamps inside parts must still reach the cockpit
+  // switch: the parts loop collects them exactly as the static loop does.
+  check(/wantRud \? 'edSurf_rud' : 'edFinSkin'/.test(lit) && /partOf: host !== ch \? host\.name : null/.test(lit),
+        'the beacon is no longer sliced off the owner of the crown and tagged with it');
+  check(/partOf: tailPt\[3\] \|\| null/.test(lit),
+        'the tail light no longer names the object its trailing edge belongs to');
+  check(/if \(site\.partOf\) m\.userData\.partOf = site\.partOf/.test(lit),
+        'the lamp meshes no longer carry the partOf of their site');
+  const appSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'app.js'), 'utf8');
+  const partsLoop = appSrc.slice(appSrc.indexOf('for (const pt of data.parts) {'), appSrc.indexOf("if (pt.kind === 'prop') {"));
+  check(/lamps\.push\(\{ mesh, key: mats\[name\]\.lamp \|\| mats\[name\]\.lampCup/.test(partsLoop),
+        'app.js: the parts loop no longer collects lamps — a beacon that rides ' +
+        'the fin vanishes from the cockpit switch');
 }
 
 // ---------------------------------------------------------------- selftest

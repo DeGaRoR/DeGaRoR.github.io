@@ -331,6 +331,29 @@ for (const c of CASES) {
     'the declared aileron travel is an aeroplane\'s', String(GEN_TRAVEL.aileron));
 }
 
+// ---- 4b THE KEEPER (G300) ---------------------------------------------------
+// A rudder's fixed halves are bolted to its FIN, an elevator's to its STAB
+// — parts of their own on twin booms — and a wing surface's to the wing skin
+// (the static merge). `hostOf` is the layer's one answer; the layer tags the
+// meshes `partOf` with it and the join bakes them into that part. Read off
+// the layer under the same window shim GATE PARTS uses.
+{
+  // the layer under the headless scene harness (GATE CLIP's): the real
+  // three.js and every drawing layer, loaded once, no post run
+  let hostOf = null;
+  try { hostOf = require(path.join(T, '_scene_headless.js')).context().ctx.CAGE_HINGE_HOST; }
+  catch (e) { console.log('  (harness) ' + e.message); }
+  check(typeof hostOf === 'function', 'KEEPER: the hinge layer publishes hostOf');
+  if (typeof hostOf === 'function') {
+    check(hostOf('rud') === 'edFinSkin' && hostOf('rud2') === 'edFinSkin2',
+          'KEEPER: a rudder has its fixed halves on the fin (and the second fin)');
+    check(hostOf('elevR') === 'edStabSkinR' && hostOf('elevL') === 'edStabSkinL',
+          'KEEPER: an elevator has its on its stab half');
+    check(hostOf('ailR') === null && hostOf('flapL') === null && hostOf('ailL2') === null,
+          'KEEPER: a wing surface keeps its on the wing skin (the static merge)');
+  }
+}
+
 // ---- 5 THE SHAPES ----------------------------------------------------------
 // _gear_kit is a browser module and _hinge_gen sits on it, so node reaches
 // both the way the editor's own gates do: shim `window`, load in order.

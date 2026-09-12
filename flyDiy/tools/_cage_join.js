@@ -683,6 +683,38 @@ const VIEW_KEEP = {
 // fallback for a surface that declares no plane (the wing's), and for a
 // declared plane that catches no vertices (a stale layer). `hingeFrom` says
 // which was used.
+// WHICH PART A MESH BELONGS TO, by name — the join's walk (G55/G58.2) as a
+// pure function of one ancestor (G300, the fitment study P1). Returns null
+// for "keep walking"; otherwise { src } naming the part, plus the flags the
+// walk acts on: prop / wheel (kind) / ctl (a cockpit control's axes are read
+// off this ancestor) / members (a strut's or engine's member list rides on
+// it). `twin` is the join's TBp: the boom and tail skins are parts only on
+// twin booms. A `userData.partOf` tag wins over every name — A FITTING NAMES
+// THE PART IT IS BOLTED TO (the hinge's fixed halves on their fin, the beacon
+// on the crown's owner, a boom's collars on that boom), and the join then
+// bakes it into that part instead of the static merge.
+function cagePartMatch(name, ud, twin) {
+  if (ud && ud.partOf) return { src: ud.partOf, tag: true };
+  if (!name) return null;
+  if (name.lastIndexOf('edProp', 0) === 0 || name.lastIndexOf('edSpinner', 0) === 0) return { prop: true };
+  if (name === 'edWheelL' || name === 'edWheelR' || name === 'edWheelT')
+    return { wheel: name === 'edWheelT' ? 'tw' : (name === 'edWheelL' ? 'mainsL' : 'mainsR') };
+  if (name.lastIndexOf('edLeg', 0) === 0 || name.lastIndexOf('edSurf_', 0) === 0 ||
+      name.lastIndexOf('edLink_', 0) === 0 || name.lastIndexOf('edCtl_', 0) === 0 ||
+      name.lastIndexOf('edGauge_', 0) === 0 ||           // the panel arc
+      name === 'edCastorT')
+    return { src: name, ctl: true };
+  // G179.2: the struts and the engine units (the prop and spinner under a
+  // unit were matched above, deeper in the walk); G267.2: the boom and tail
+  // skins, on twin booms
+  if (name === 'edFit_liftstrut' || name === 'edFit_cabane' || name === 'edFit_interplane' ||
+      name === 'edFit_wire' || name.lastIndexOf('edEng', 0) === 0 ||
+      (twin && (name.lastIndexOf('edBoom', 0) === 0 || name.lastIndexOf('edFinSkin', 0) === 0 ||
+                name.lastIndexOf('edFinVentral', 0) === 0 || name.lastIndexOf('edFinFillet', 0) === 0 ||
+                name.lastIndexOf('edStabSkin', 0) === 0)))
+    return { src: name, members: true };
+  return null;
+}
 // THE DECLARED HINGE LINE, in cage metres (P1/P3, lifted out of snapshotAt
 // for GATE CLIP): the fin's `measure.hinge.line` (root point -> top point,
 // fin space [y, z]) and the stab's laid through its own finToStab (side,
@@ -773,11 +805,11 @@ function cageSurfHinge(pts, surf, opts) {
 
 if (typeof module !== 'undefined' && module.exports)
   module.exports = { cageJoinSpec, cageWingCuts, CAGE_JOIN_ENGINES, CAGE_JOIN_PROP_MATS,
-                     VIEW_STATE, VIEW_KEEP, cageSurfHinge, cageSurfLine, cageSurfPlane };
+                     VIEW_STATE, VIEW_KEEP, cageSurfHinge, cageSurfLine, cageSurfPlane, cagePartMatch };
 // the pure hinge trio for a page that loads the layer without a mount (the
 // headless poser reads them off the window in the browser bench)
 if (typeof window !== 'undefined')
-  window.CAGE_JOIN_PURE = { cageSurfHinge, cageSurfLine, cageSurfPlane };
+  window.CAGE_JOIN_PURE = { cageSurfHinge, cageSurfLine, cageSurfPlane, cagePartMatch };
 
 // ---- browser glue: measurements + the button (game bundle only) ----
 if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
@@ -1665,6 +1697,11 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             stretch: true, groups: {}, anchorsC });
           PARTS.others.push({ src: 'edFinVentral' + (s > 0 ? '' : '2'), kind: 'fin',
             stretch: true, groups: {}, anchorsC });
+          // G300: the root fillet (G295) is the fin's too — left in the static
+          // merge it parted from the fin under the anchor's travel (GATE CLIP:
+          // 10 mm at a 40 mm throw)
+          PARTS.others.push({ src: 'edFinFillet' + (s > 0 ? '' : '2'), kind: 'fin',
+            stretch: true, groups: {}, anchorsC });
         }
         for (const sd of ['L', 'R'])
           PARTS.others.push({ src: 'edStabSkin' + sd, kind: 'stab',
@@ -1748,26 +1785,18 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // weirdest thing"); identity beats surgery.
       let part = null;
       {
+        // G300: the walk asks ONE pure function per ancestor (cagePartMatch,
+        // module scope, exported for GATE JOIN) — and a `userData.partOf` tag
+        // on the mesh is read FIRST. A fitting names the part it is bolted
+        // to; a name this build has no part for (a single boom's fin) falls
+        // to the static merge exactly as before.
         let a = o;
         while (a && a !== mount) {
-          if (a.name && (a.name.lastIndexOf('edProp', 0) === 0 ||
-                         a.name.lastIndexOf('edSpinner', 0) === 0)) {
-            part = propPart(unitOf(a.name)); break;
-          }
-          if (a.name === 'edWheelL' || a.name === 'edWheelR' ||
-              a.name === 'edWheelT') {
-            const want = a.name === 'edWheelT' ? 'tw'
-                       : (a.name === 'edWheelL' ? 'mainsL' : 'mainsR');
-            part = PARTS.wheels.find(w => w.kind === want) || null;
-            break;
-          }
-          if (a.name && (a.name.lastIndexOf('edLeg', 0) === 0 ||
-                         a.name.lastIndexOf('edSurf_', 0) === 0 ||
-                         a.name.lastIndexOf('edLink_', 0) === 0 ||
-                         a.name.lastIndexOf('edCtl_', 0) === 0 ||
-                         a.name.lastIndexOf('edGauge_', 0) === 0 ||   // the panel arc
-                         a.name === 'edCastorT')) {
-            part = PARTS.others.find(u => u.src === a.name) || null;
+          const m = cagePartMatch(a.name, a.userData, TBp);
+          if (m) {
+            if (m.prop) part = propPart(unitOf(a.name));
+            else if (m.wheel) part = PARTS.wheels.find(w => w.kind === m.wheel) || null;
+            else part = PARTS.others.find(u => u.src === m.src) || null;
             // G240: a cockpit control's pivot and axes, IN THE CAGE'S FRAME,
             // taken off the group the crew layer put them on — the crew
             // authors them three frames deep (a station shift inside a seat
@@ -1776,7 +1805,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             // the rest of the parts: `rotP` is declared with the second
             // traversal and reading it from this one is a temporal dead zone,
             // not a value (measured: it threw on the first build).
-            if (part && (part.kind === 'ctlMove' || part.kind === 'gauge') && !part.axleC) {
+            if (m.ctl && part && (part.kind === 'ctlMove' || part.kind === 'gauge') && !part.axleC) {
               const M4 = new THREE.Matrix4().multiplyMatrices(inv, a.matrixWorld);
               const q = new THREE.Vector3().setFromMatrixPosition(M4);
               part.axleC = [q.x, q.y, q.z];          // the pivot, cage metres
@@ -1795,21 +1824,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
                 part.axC.slide = [sv.x, sv.y, sv.z];
               }
             }
-            break;
-          }
-          // G179.2: the struts and the engine units (the prop and spinner
-          // under a unit were matched above, deeper in the walk)
-          if (a.name && (a.name === 'edFit_liftstrut' ||
-                         a.name === 'edFit_cabane' || a.name === 'edFit_interplane' ||
-                         a.name === 'edFit_wire' ||
-                         a.name.lastIndexOf('edEng', 0) === 0 ||
-                         // G267.2: the boom and tail skins, on twin booms
-                         (TBp && (a.name.lastIndexOf('edBoom', 0) === 0 ||
-                                  a.name.lastIndexOf('edFinSkin', 0) === 0 ||
-                                  a.name.lastIndexOf('edFinVentral', 0) === 0 ||
-                                  a.name.lastIndexOf('edStabSkin', 0) === 0)))) {
-            part = PARTS.others.find(u => u.src === a.name) || null;
-            if (part && a.userData && a.userData.strutMembers)
+            // G179.2: the struts and the engine units carry their members
+            if (m.members && part && a.userData && a.userData.strutMembers)
               part.membersC = a.userData.strutMembers;
             break;
           }

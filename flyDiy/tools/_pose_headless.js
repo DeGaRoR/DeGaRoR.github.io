@@ -46,8 +46,9 @@ function rotAbout(p, pivot, axis, ang) {
 // ---- the join's walk, as a classifier -------------------------------------
 // twin: the join's TBp — the boom/tail skins are parts only on twin booms
 function classify(chain, ud, twin) {
-  // P1 hook: fixed hardware that names the part it is bolted to
-  for (const u of ud) if (u && u.partOf) return partKind(u.partOf, twin);
+  // P1 (G300): fixed hardware names the part it is bolted to; a name this
+  // build has no part for (a single boom's fin) is the static merge
+  for (const u of ud) if (u && u.partOf) { const pk = partKind(u.partOf, twin); return pk || { kind: 'static', partOf: u.partOf }; }
   for (const a of chain) {
     if (!a) continue;
     if (a.startsWith('edProp') || a.startsWith('edSpinner')) return { kind: 'prop' };
@@ -65,9 +66,12 @@ function classify(chain, ud, twin) {
   return { kind: 'static' };
 }
 function partKind(name, twin) {
+  // a tag may name a control surface (the tail's white light on the rudder)
+  if (name.startsWith('edSurf_')) return { kind: 'surf', surf: name.slice(7), name };
   if (!twin) return null;
   if (name.startsWith('edBoom')) return { kind: 'boom', name };
-  if (name.startsWith('edFinSkin') || name.startsWith('edFinVentral') || name.startsWith('edStabSkin'))
+  if (name.startsWith('edFinSkin') || name.startsWith('edFinVentral') || name.startsWith('edFinFillet') ||
+      name.startsWith('edStabSkin'))
     return { kind: 'anchor', name };
   return null;
 }
