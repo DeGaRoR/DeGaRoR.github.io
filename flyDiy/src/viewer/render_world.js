@@ -771,7 +771,18 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // folded over the upper hemisphere, and the shader picks the three nearest
     // views and blends them barycentrically (a hard nearest-view pick makes the
     // whole forest flip at once when the aircraft turns).
-    const IMP_G = 4, IMP_TILE = 128;
+    // 8 x 8 = 64 views, the bench's count: at 16 the three-tap blend crosses
+    // 25 degrees between views and a turning aircraft reads it as a smear.
+    // Affordable because the atlas is baked ONCE per subject and series and
+    // shared by both layers (below); at 4 MB a sheet, two sheets, 18 atlases
+    // it is ~150 MB of VRAM, baked at boot.
+    const IMP_G = 8, IMP_TILE = 128;
+    // THE ATLAS CACHE. The woodland and the fill bake the same subject's same
+    // series from the same parts array (treeBuild hands the same one out),
+    // and each disposed its own copy on replant. One bake per parts array,
+    // kept for the life of the page; the cone's atlases key on their
+    // geometry and are the only other entries.
+    const ATLAS = new Map();
     // grid cell -> view direction: the exact inverse of the hemi-octahedral fold
     // the fragment shader does. These two must agree or every tile reads rotated.
     const impDir = (i, j) => {
@@ -840,6 +851,13 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       return m;
     }
     function bakeImpostorAtlas(src) {
+      const hit = ATLAS.get(src);
+      if (hit) return hit;
+      const atlas = bakeImpostorAtlasNow(src);
+      if (atlas.tex) ATLAS.set(src, atlas);
+      return atlas;
+    }
+    function bakeImpostorAtlasNow(src) {
       const parts = Array.isArray(src) ? src : null;
       const srcGeo = parts ? parts[0].geo : src;
       const bs = srcGeo.userData.shape;     // stashed by chunkBounds, see above
@@ -930,7 +948,17 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // One quad geometry per CHUNK SIZE (the cull sphere lives on the geometry —
     // see chunkBounds), one material per source shape.
     const impQuad = half => { const g = new THREE.PlaneGeometry(1, 1); chunkBounds(g, half); return g; };
-    function impostorMat(atlas, far) {
+    // THE ALPHA CURVE, the bench's (tools/_trees.html impostorMaterial): the
+    // three taps' alpha is centred on a CUT and steepened by a GAIN, with
+    // `solid` mixing toward the max of the three taps so a leaf texel only
+    // one view carries is not drawn solid. The cut rides on the SERIES: a
+    // snag's branch is one texel wide and arrives at 0.2-0.3, and a cut of
+    // 0.40 shredded it into dots (the bench's W0a.3); the stand's crown is
+    // sparser than the specimen's and wants a lower cut too. Then a 0.01
+    // floor on the hard test and alpha-to-coverage, as on the leaves.
+    const IMP_CUT = [0.40, 0.15, 0.10];      // rungs, stand, snag
+    const uIGain = { value: 6 }, uISolid = { value: 1 };
+    function impostorMat(atlas, far, si) {
       // AN IMPOSTOR IS AN ORDINARY SURFACE WITH A BAKED NORMAL. Standard at
       // roughness 1, `normal` replaced from the second sheet: that single
       // substitution buys the whole rig - sun, hemisphere, environment, and the
@@ -942,7 +970,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
       // (0,0,0), and every impostor drew black under a healthy atlas. The old
       // photograph impostor was a ShaderMaterial and never met this.
       const m = new THREE.MeshStandardMaterial({ map: atlas.tex,
-        alphaTest: 0.45, side: THREE.DoubleSide, roughness: 1, metalness: 0 });
+        alphaTest: 0.01, alphaToCoverage: true, side: THREE.DoubleSide, roughness: 1, metalness: 0 });
       (m.userData = m.userData || {}).atlas = atlas;
       if (!atlas.tex) return m;              // headless: no GL, no atlas, no shader
       const LEAF = (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.uniforms) ? TREE_LEAF : null;
@@ -957,6 +985,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         sh.uniforms.uG = { value: IMP_G };
         sh.uniforms.uNrm = { value: atlas.nrm };
         sh.uniforms.uILit = uILit;
+        sh.uniforms.uIGain = uIGain; sh.uniforms.uISolid = uISolid;
+        sh.uniforms.uICut = { value: IMP_CUT[si || 0] };
+        sh.uniforms.uTile = { value: IMP_TILE };
         sh.uniforms.uLeaf = { value: 1 };
         sh.uniforms.uWrap = LEAF ? LEAF.uniforms.uWrap : { value: 0.76 };
         sh.uniforms.uSSS = LEAF ? LEAF.uniforms.uSSS : { value: 0.72 };
@@ -997,7 +1028,7 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
           ].join('\n'));
         sh.fragmentShader = sh.fragmentShader
           .replace('#include <common>', '#include <common>\n' +
-            'uniform float uG, uILit, uLeaf, uWrap, uSSS, uSSSP, uNearB, uFadeW;\nuniform sampler2D uNrm;\nvarying vec3 vImpDir;\nvarying float vImpD;\n' +
+            'uniform float uG, uILit, uLeaf, uWrap, uSSS, uSSSP, uNearB, uFadeW, uIGain, uISolid, uICut, uTile;\nuniform sampler2D uNrm;\nvarying vec3 vImpDir;\nvarying float vImpD;\n' +
             // the decode, written out: <map_fragment> and its mapTexelToLinear
             // are replaced below, and the sheet was written sRGB
             'vec3 impSRGB(vec3 c) { return mix(pow((c + 0.055) / 1.055, vec3(2.4)), c / 12.92, step(c, vec3(0.04045))); }')
@@ -1016,10 +1047,15 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
             'vec2 cB = vec2(1.0, 0.0), cC = vec2(0.0, 1.0), cA; vec3 wB;',
             'if (gf.x + gf.y < 1.0) { cA = vec2(0.0); wB = vec3(1.0 - gf.x - gf.y, gf.x, gf.y); }',
             'else { cA = vec2(1.0); wB = vec3(gf.x + gf.y - 1.0, 1.0 - gf.y, 1.0 - gf.x); }',
-            'vec2 qv = vUv / uG;',
+            // one texel in from the tile's border: the neighbouring tile's
+            // edge bleeds through bilinear filtering otherwise
+            'vec2 qv = (vUv * (1.0 - 2.0 / uTile) + 1.0 / uTile) / uG;',
             'vec2 uvA = (g0 + cA) / uG + qv, uvB = (g0 + cB) / uG + qv, uvC = (g0 + cC) / uG + qv;',
-            'vec4 texelColor = texture2D(map, uvA) * wB.x + texture2D(map, uvB) * wB.y + texture2D(map, uvC) * wB.z;',
+            'vec4 t0 = texture2D(map, uvA), t1 = texture2D(map, uvB), t2 = texture2D(map, uvC);',
+            'vec4 texelColor = t0 * wB.x + t1 * wB.y + t2 * wB.z;',
             'texelColor.rgb = impSRGB(clamp(texelColor.rgb / max(texelColor.a, 1e-4), 0.0, 1.0));',   // premultiplied sheet
+            'float aSol = max(max(t0.a, t1.a), t2.a);',
+            'texelColor.a = clamp((mix(texelColor.a, aSol, uISolid) - uICut) * uIGain + 0.5, 0.0, 1.0);',
             // the incoming half of the last rung's window: keep n >= 1 - t
             '{ float _n = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));',
             '  float _fi = clamp((vImpD - (uNearB - uFadeW * 0.5)) / uFadeW, 0.0, 1.0);',
@@ -1080,6 +1116,8 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         return treeLod.get();
       },
     };
+    treeLod.imp = o => { if (o) { if (o.gain !== undefined) uIGain.value = +o.gain; if (o.solid !== undefined) uISolid.value = +o.solid; }
+      return { gain: uIGain.value, solid: uISolid.value }; };
     if (typeof window !== 'undefined') window.TREE_LOD = treeLod;
     // ================= W0c.5: THE MIX ======================================
     // Which SERIES a tree is drawn as. The bench's rule, ported: a fraction is
@@ -1429,9 +1467,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
     // one atlas per SERIES per side: the far band of a dead tree is a dead tree
     const impMatsFor = (P, fallbackGeo) => {
       const srcs = P ? P.series.map(S => S.parts) : [fallbackGeo];
-      return srcs.map(src => {
-        const at = bakeImpostorAtlas(src), m = impostorMat(at, FAR_WOOD);
-        plantedKit.push(at.tex, at.nrm, m);
+      return srcs.map((src, si) => {
+        const at = bakeImpostorAtlas(src), m = impostorMat(at, FAR_WOOD, si);
+        plantedKit.push(m);                 // the atlas is the cache's
         return m;
       });
     };
@@ -1719,19 +1757,19 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
         SHAPE.real = !!real;
         if (real) {
           for (const H of real) {
-            for (const S of H.series) {
+            H.series.forEach((S, si) => {
               for (const R of S.ladder) for (const q of R.parts) { chunkBounds(q.geo, CH); SHAPE.kit.push(q.mat, q.depth); }
               const at = bakeImpostorAtlas(S.parts);
-              S.imp = impostorMat(at, FAR_FILL);
-              SHAPE.kit.push(S.imp, at.tex, at.nrm);
-            }
+              S.imp = impostorMat(at, FAR_FILL, si);
+              SHAPE.kit.push(S.imp);        // the atlas is the cache's
+            });
             SHAPE.list.push(H);
           }
         } else {
           for (const geo of [coneF, blobF]) {
             const sh = shapeFallback(geo);
             SHAPE.list.push(sh);
-            SHAPE.kit.push(sh.series[0].imp, sh.series[0].atlas.tex, sh.series[0].atlas.nrm);
+            SHAPE.kit.push(sh.series[0].imp);
           }
         }
         return !!real;

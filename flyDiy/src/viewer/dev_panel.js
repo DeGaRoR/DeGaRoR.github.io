@@ -74,6 +74,8 @@
     root.appendChild(slider('fade window', 0, 100, 2, () => lod().fade(), v => lod().fade(v), v => v + ' m'));
     root.appendChild(note('impostors beyond L2; L0 = L1 = L2 is "L0 then impostor"; the window dithers one rung into the next'));
     root.appendChild(slider('imp lit', 0, 3, 0.05, () => world().treeLod.lit.value, v => { world().treeLod.lit.value = v; }));
+    root.appendChild(slider('imp gain', 1, 12, 0.25, () => lod().imp().gain, v => lod().imp({ gain: v })));
+    root.appendChild(slider('imp solid', 0, 1, 0.05, () => lod().imp().solid, v => lod().imp({ solid: v })));
     root.appendChild(slider('furnished', 0, 1, 0.05, () => W.TREE_MIX.furnished, v => { W.TREE_MIX.furnished = v; }));
     root.appendChild(slider('size spread', 0, 0.6, 0.02, () => W.TREE_MIX.spread, v => { W.TREE_MIX.spread = v; }));
     root.appendChild(note('furnished / spread take effect on the next fill re-grid (move the density)'));
