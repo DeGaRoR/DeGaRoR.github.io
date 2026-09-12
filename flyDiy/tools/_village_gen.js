@@ -1010,7 +1010,7 @@ function buildFence(bags, T, seg0, hand, k0) {
 // And THE CLEARING: the world's own woodland must not grow through the
 // village - `vil.clearing` says where it may not: the plots and the road.
 function planTrees(vil, pool) {
-  const T = vil.T, V = vil.V, rnd = vil.rnd, half = T.size / 2;
+  const T = vil.T, V = vil.V, rnd = vil.rnd, half = T.size / 2, road = vil.road;
   const trees = [];
   pool = (pool && pool.length) ? pool : [{ key: 'stub|tree', size: 1, sink: 0, proportion: 1, h: 12 }];
   const tall = pool.filter(p => p.h >= 12), small = pool.filter(p => p.h < 12);
@@ -1049,26 +1049,51 @@ function planTrees(vil, pool) {
     if (zb < -1e8) { let t = 0, best = 1e9; for (let i = 0; i < vil.road.pts.length; i++) { const d = Math.abs(vil.road.pts[i][0] - x); if (d < best) { best = d; t = vil.road.pts[i][1]; } } zb = t + V.plotDepth; }
     return zb;
   };
+  // THE GAPS ARE FOREST TOO (G313, the user: "The empty lots should be full
+  // of trees like the forest"): an empty frontage is no plot at all, so the
+  // wood comes down through it to the road's verge - on both sides, down to
+  // the beach on the water side - as dense as the wood, no clearing
+  const roadT = (x, z) => {
+    let best = 0, bd = 1e9;
+    for (let i = 0; i < road.pts.length; i++) { const d = Math.hypot(road.pts[i][0] - x, road.pts[i][1] - z); if (d < bd) { bd = d; best = i; } }
+    return road.s[best];
+  };
+  const sideOf = (x, z) => { const a = road.at(roadT(x, z)); return ((x - a.p[0]) * a.n[0] + (z - a.p[1]) * a.n[1]) > 0 ? 'water' : 'land'; };
+  const inGap = (x, z) => {
+    const t = roadT(x, z), side = sideOf(x, z);
+    if (t < 6 || t > road.length - 6) return false;
+    return !vil.plots.some(p => p.side === side && t >= p.s0 - 1 && t <= p.s1 + 1);
+  };
   const s = V.seed * 0.618 + 9;
   for (let z = -half + 3; z < half - 2; z += 6) for (let x = -half + 3; x < half - 2; x += 6) {
     const px = x + (rnd() - 0.5) * 4.5, pz = z + (rnd() - 0.5) * 4.5;
-    if (pz < backAt(px) + 5) continue;
-    if (fbm(px * 0.035 + 2.2, pz * 0.035 + 8.8, s, 3) < 0.38) continue;   // a clearing
+    const gap = inGap(px, pz) && roadNear(px, pz) < V.plotDepth + 8;
+    if (!gap && pz < backAt(px) + 5) continue;
+    if (!gap && fbm(px * 0.035 + 2.2, pz * 0.035 + 8.8, s, 3) < 0.38) continue;   // a clearing
     if (T.h(px, pz) < V.waterY + 0.6) continue;
-    if (roadNear(px, pz) < 4) continue;
+    if (roadNear(px, pz) < 5) continue;
     if (vil.plots.some(p => nearPoly(p.poly, px, pz, 0) < 1.5)) continue;
-    if (!clearOf(px, pz, 3.2)) continue;
+    if (!clearOf(px, pz, gap ? 2.8 : 3.2)) continue;
     put(px, pz, draw(tall));
+    if (gap) {   // denser: a second tree in the same cell where it fits
+      const qx = px + (rnd() - 0.5) * 4, qz = pz + (rnd() - 0.5) * 4;
+      if (T.h(qx, qz) > V.waterY + 0.6 && roadNear(qx, qz) >= 5 && !vil.plots.some(p => nearPoly(p.poly, qx, qz, 0) < 1.5) && clearOf(qx, qz, 2.6))
+        put(qx, qz, draw(rnd() < 0.7 ? tall : small));
+    }
   }
-  // THE EMPTY PLOTS: a grove
+  // THE EMPTY PLOTS ARE FOREST (G313, the user: "The empty lots should be
+  // full of trees like the forest"): the wood's own grid, no clearings,
+  // to a stride of the plot line, the tall species with the odd small one
   for (const plot of vil.plots) {
     if (plot.house !== undefined) continue;
-    for (let i = 0; i < 40; i++) {
-      const x = plot.poly[0][0] + (plot.poly[2][0] - plot.poly[0][0]) * rnd(), z = plot.poly[0][1] + (plot.poly[2][1] - plot.poly[0][1]) * rnd();
-      if (nearPoly(plot.poly, x, z, 0) > -2.5) continue;
-      if (T.h(x, z) < V.waterY + 0.6 || roadNear(x, z) < 4) continue;
-      if (!clearOf(x, z, 4)) continue;
-      put(x, z, draw(pool));
+    let x0 = 1e9, z0 = 1e9, x1 = -1e9, z1 = -1e9;
+    for (const q of plot.poly) { x0 = Math.min(x0, q[0]); z0 = Math.min(z0, q[1]); x1 = Math.max(x1, q[0]); z1 = Math.max(z1, q[1]); }
+    for (let z = z0; z <= z1; z += 4.5) for (let x = x0; x <= x1; x += 4.5) {
+      const px = x + (rnd() - 0.5) * 3.2, pz = z + (rnd() - 0.5) * 3.2;
+      if (nearPoly(plot.poly, px, pz, 0) > -1.2) continue;
+      if (T.h(px, pz) < V.waterY + 0.6 || roadNear(px, pz) < 4) continue;
+      if (!clearOf(px, pz, 2.8)) continue;
+      put(px, pz, draw(rnd() < 0.8 ? tall : small));
     }
   }
   // THE LOTS: one to three, the smaller species, clear of everything
@@ -1103,6 +1128,49 @@ function planTrees(vil, pool) {
   return trees;
 }
 
-window.VILLAGE_GEN = { VDEF, makeTerrain, makeRoad, makePlots, makeVillage, finishPlot, planTrees,
+// THE ROADSIDE BILLBOARDS (G313): the user's signs that name a business up
+// the road - the air taxi, the bear tours, the motel - on timber posts on
+// the road's inland verge where no plot is, facing the road, thirty metres
+// or more apart, the keys spread so no two say the same. Records are
+// { x, z, y, ry, key } - what a placer of a drawn board needs.
+function planBillboards(vil, keys) {
+  const T = vil.T, V = vil.V, road = vil.road, rnd = vil.rnd;
+  const out = [];
+  keys = (keys && keys.length) ? keys.slice() : ['air_taxi', 'bear_tours', 'north_motel'];
+  let t = 14 + rnd() * 10, k = 0, skipped = 0;
+  while (t < road.length - 10 && out.length < 3) {
+    const a = road.at(t);
+    const off = road.w / 2 + 2.2;
+    const x = a.p[0] - a.n[0] * off, z = a.p[1] - a.n[1] * off;      // -n: inland
+    const onPlot = (vil.plots || []).some(p => inPoly(p.poly, x, z));
+    const nearPole = (vil.poles || []).some(q => Math.hypot(q.x - x, q.z - z) < 3);
+    // not across a building's frontage (a sign in front of the store hides
+    // the store's own): an empty frontage or a gap between plots first,
+    // any verge after eight tries
+    const busy = (vil.plots || []).some(p => p.side === 'land' && p.house !== undefined && t > p.s0 - 1 && t < p.s1 + 1);
+    if (!onPlot && !nearPole && T.h(x, z) > V.waterY + 0.5 && (!busy || skipped >= 8)) {
+      // facing the road: +z toward the road, i.e. along +n
+      out.push({ key: keys[k % keys.length], x, z, y: T.h(x, z), ry: Math.atan2(a.n[0], a.n[1]), t });
+      k++; skipped = 0;
+      t += 30 + rnd() * 25;
+    } else { t += 6; skipped++; }
+  }
+  // a road with no free verge at all: the busy rule lifted, from the start
+  if (out.length < 2) {
+    t = 14; skipped = 99;
+    while (t < road.length - 10 && out.length < 3) {
+      const a = road.at(t), off = road.w / 2 + 2.2;
+      const x = a.p[0] - a.n[0] * off, z = a.p[1] - a.n[1] * off;
+      const ok = !(vil.plots || []).some(p => inPoly(p.poly, x, z)) && !(vil.poles || []).some(q => Math.hypot(q.x - x, q.z - z) < 3)
+        && T.h(x, z) > V.waterY + 0.5 && out.every(b => Math.hypot(b.x - x, b.z - z) > 30);
+      if (ok) { out.push({ key: keys[k % keys.length], x, z, y: T.h(x, z), ry: Math.atan2(a.n[0], a.n[1]), t }); k++; t += 30; }
+      else t += 6;
+    }
+  }
+  vil.billboards = out;
+  return out;
+}
+
+window.VILLAGE_GEN = { VDEF, makeTerrain, makeRoad, makePlots, makeVillage, finishPlot, planTrees, planBillboards,
                        buildFence, gateLeaf, clipToLand, inPoly, shoreZ, fbm, lotGround, edgeKey };
 })();

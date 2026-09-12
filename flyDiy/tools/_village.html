@@ -94,6 +94,7 @@
 <script src="_house_gen.js"></script>
 <!-- THE BIG BUILDINGS (G312): the third generator and the hangar's wall sets it wears -->
 <script src="../src/viewer/hangar_walls.js"></script>
+<script src="../src/viewer/sign_tex.js"></script>
 <script src="_big_gen.js"></script>
 <script src="_village_gen.js"></script>
 <script>
@@ -745,6 +746,19 @@ function build() {
   // the cars, the paths and the outbuildings), drawn once the payload is in
   VG.planTrees(vil, treePool());
   const treeTris = placeTrees(root, vil);
+  // THE ROADSIDE BILLBOARDS (G313): the signs the user painted, on posts on
+  // the verge; each its own bags and finish, since the board IS the texture
+  for (const b of VG.planBillboards(vil, window.BIG_GEN.signKeys().filter(k => (window.BIG_GEN.signMeta(k) || {}).kind === 'roadside'))) {
+    const bb = window.BIG_GEN.billboard({ key: b.key, w: 3.6, ground: (x, z) => vil.T.h(b.x + x * Math.cos(b.ry) + z * Math.sin(b.ry), b.z - x * Math.sin(b.ry) + z * Math.cos(b.ry)) - b.y });
+    const F = window.BIG_GEN.billboardFinish(b.key);
+    const grp = new THREE.Group();
+    grp.position.set(b.x, b.y, b.z); grp.rotation.y = b.ry;
+    for (const k of bb.BAGS) bb.bags[k].mesh(grp, F.MAT[k]);
+    const sk = bb.bags.aoskirt.mesh(grp, G.MAT.aoskirt);
+    if (sk) { sk.renderOrder = 5; sk.castShadow = false; sk.receiveShadow = false; }
+    root.add(grp);
+    FINISHES.push(F);
+  }
   // THE LOT PATCHES (G290): after the fences, the cars and the outbuildings
   // are known, since the patch's splat reads them all
   let lotVerts = 0;

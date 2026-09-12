@@ -142,6 +142,33 @@ function signTexture(text, w, h) {
   return t;
 }
 
+// THE BILLBOARDS (G313): the user's painted signs, baked by tools/sign_prep.js
+// (SIGN_TEX_SETS in the page, SIGN_TEX_META headless). A sign's aspect sizes
+// the board: the width is the dial, the height follows. The png keeps its
+// alpha, so a shaped board (the arched store sign) is cut by alphaTest and
+// the backing shows through its corners.
+const SIGNT = new Map();
+function signMeta(key) {
+  const M = (typeof SIGN_TEX_META !== 'undefined' && SIGN_TEX_META) || null;
+  return (M && key && M[key]) || null;
+}
+function billboardTexture(key) {
+  const S = (typeof SIGN_TEX_SETS !== 'undefined' && SIGN_TEX_SETS) || null;
+  const set = S && key && S[key];
+  if (!set) return null;
+  if (SIGNT.has(key)) return SIGNT.get(key);
+  const t = new THREE.Texture(set.img);
+  t.encoding = THREE.sRGBEncoding;
+  t.anisotropy = 8;
+  t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+  const ok = () => { t.needsUpdate = true; };
+  if (set.img.complete && set.img.naturalWidth) ok();
+  else if (set.img.addEventListener) set.img.addEventListener('load', ok);
+  SIGNT.set(key, t);
+  return t;
+}
+const signKeys = () => { const M = (typeof SIGN_TEX_META !== 'undefined' && SIGN_TEX_META) || {}; return Object.keys(M); };
+
 // ---- the parameter model --------------------------------------------------
 const DEF = {
   seed: 3,
@@ -151,12 +178,12 @@ const DEF = {
   roofKind: 0,            // 0 gable, 1 monopitch (high at the front), 2 flat behind a parapet
   pitch: 12, parapetH: 1.2, eaveOver: 0.35, rakeOver: 0.3, roofT: 0.06,
   rollers: 2, rollerW: 3.6, rollerH: 3.8, rollerOpen: 0.5, rollerSide: 0,   // 0 front, 1 back, 2 both ends? (front only for now)
-  door: 1, doorW: 0.95, doorH: 2.1, doorPos: 0.12,
+  door: 1, doors: 1, doorW: 0.95, doorH: 2.1, doorPos: 0.12,
   winStrip: 1, winH: 0.9, winDrop: 0.8, winSpc: 1.2, winFront: 0,
   shopWin: 0, shopW: 3.2, shopH: 2.0, awning: 0,
   dock: 1, dockD: 2.4, dockLenF: 0.55, canopy: 1, canopyOut: 0.6, gantry: 1,
   stack: 1, stackR: 0.18, vents: 2, pipes: 1,
-  sign: 1, signW: 5.0, signH: 1.1, signText: 'WAREHOUSE', signTex: null,
+  sign: 1, signW: 5.0, signH: 1.1, signText: 'WAREHOUSE', signTex: null, signKey: '',
   wallSet: SET_IDX('wall', 'rustysheet'), plinthSet: SET_IDX('plinth', 'concrete008'),
   roofSet: SET_IDX('roof', 'corrworn'), doorSet: SET_IDX('door', 'rustymetal'), metalSet: SET_IDX('metal', 'galv'),
   wallTint: 0xffffff,
@@ -180,7 +207,8 @@ const ROWS = [
     ['rollers', 'roller doors', 0, 3, 1], ['rollerW', 'roller width', 2.4, 6, 0.1, null, P => P.rollers > 0],
     ['rollerH', 'roller height', 2.4, 6, 0.1, null, P => P.rollers > 0],
     ['rollerOpen', 'rolled up', 0, 1, 0.05, null, P => P.rollers > 0],
-    ['door', 'personnel door', 0, 1, 1], ['doorPos', 'door position', 0.05, 0.95, 0.01, null, P => !!P.door],
+    ['door', 'personnel door', 0, 1, 1], ['doors', 'how many', 1, 8, 1, null, P => !!P.door],
+    ['doorPos', 'door position', 0.05, 0.95, 0.01, null, P => !!P.door && P.doors < 2],
     ['shopWin', 'shop window', 0, 1, 1], ['shopW', 'shop window width', 1.5, 6, 0.1, null, P => !!P.shopWin],
     ['shopH', 'shop window height', 1.2, 3, 0.1, null, P => !!P.shopWin],
     ['awning', 'awning', 0, 1, 1, null, P => !!P.shopWin],
@@ -203,7 +231,10 @@ const ROWS = [
   ]],
   ['sign', [
     ['sign', 'sign', 0, 1, 1], ['signW', 'width', 1, 12, 0.1, null, P => !!P.sign],
-    ['signH', 'height', 0.4, 3, 0.05, null, P => !!P.sign],
+    ['signH', 'height', 0.4, 3, 0.05, null, P => !!P.sign && !P.signKey],
+    // a string-valued select (the bench's mkRow reads the option by name):
+    // '' is the painted name; the keys are the baked billboards
+    ['signKey', 'billboard', 0, 0, 1, [''].concat(signKeys()), P => !!P.sign],
   ]],
   ['finish', [
     ['wallSet', 'wall', 0, ROLE_SETS.wall.length - 1, 1, setNames('wall')],
@@ -254,10 +285,35 @@ const PRESETS = {
     shopWin: 1, shopW: 3.6, shopH: 2.0, awning: 1,
     winStrip: 1, winH: 0.7, winDrop: 0.7, winSpc: 1.0, winFront: 0,
     dock: 0, canopy: 0, gantry: 0, stack: 1, stackR: 0.12, vents: 1, pipes: 0,
-    sign: 1, signW: 6.5, signH: 1.0, signText: 'GENERAL STORE',
+    sign: 1, signW: 6.5, signH: 1.0, signText: 'GENERAL STORE', signKey: 'general_store',
     wallSet: SET_IDX('wall', 'planks09'), plinthSet: SET_IDX('plinth', 'slabwall'),
     roofSet: SET_IDX('roof', 'galv'), doorSet: SET_IDX('door', 'factory'),
     dirt: 0.4, dirtH: 0.7,
+  },
+  // THE CAFE: the store's frame, painted boards, the Tidal Cup on the parapet
+  'cafe': {
+    L: 9, w: 7, eaveH: 3.4, floorY: 0.4, roofKind: 2, parapetH: 1.3, eaveOver: 0.15, rakeOver: 0.15,
+    rollers: 0, door: 1, doorPos: 0.8, doorW: 1.0, doorH: 2.15,
+    shopWin: 1, shopW: 3.0, shopH: 1.8, awning: 1,
+    winStrip: 1, winH: 0.8, winDrop: 0.8, winSpc: 1.0, winFront: 0,
+    dock: 0, canopy: 0, gantry: 0, stack: 1, stackR: 0.12, vents: 1, pipes: 0,
+    sign: 1, signW: 5.5, signText: 'CAFE', signKey: 'tidal_cup',
+    wallSet: SET_IDX('wall', 'paintwood'), wallTint: 0xd9d2c0, plinthSet: SET_IDX('plinth', 'concrete004'),
+    roofSet: SET_IDX('roof', 'galv'), doorSet: SET_IDX('door', 'factory'),
+    dirt: 0.35, dirtH: 0.7,
+  },
+  // THE MOTEL: one long storey under a shallow monopitch, a door and a
+  // window per room along the front, the sign high on the tall end
+  'motel': {
+    L: 22, w: 7.5, eaveH: 3.1, floorY: 0.35, roofKind: 1, pitch: 6, eaveOver: 0.9, rakeOver: 0.3,
+    rollers: 0, door: 1, doors: 6, doorW: 0.9, doorH: 2.05,
+    shopWin: 0, awning: 0,
+    winStrip: 1, winH: 1.0, winDrop: 1.15, winSpc: 1.3, winFront: 1,
+    dock: 0, canopy: 1, canopyOut: 0.2, gantry: 0, stack: 1, stackR: 0.1, vents: 0, pipes: 1,
+    sign: 1, signW: 5.0, signText: 'MOTEL', signKey: 'north_motel',
+    wallSet: SET_IDX('wall', 'planks09'), plinthSet: SET_IDX('plinth', 'slabwall'),
+    roofSet: SET_IDX('roof', 'corrworn'), doorSet: SET_IDX('door', 'factory'),
+    dirt: 0.4, dirtH: 0.8,
   },
   // THE BOAT SHED: a workshop for the harbour, wide door, rusted, low
   'boat shed': {
@@ -265,7 +321,7 @@ const PRESETS = {
     rollers: 1, rollerW: 5.2, rollerH: 4.0, rollerOpen: 1.0, door: 1, doorPos: 0.9,
     winStrip: 1, winH: 0.7, winDrop: 0.7, winSpc: 1.2, winFront: 0,
     dock: 0, canopy: 0, gantry: 1, stack: 0, vents: 2, pipes: 1,
-    sign: 1, signW: 4, signH: 0.8, signText: 'MARINE REPAIR',
+    sign: 1, signW: 4, signH: 0.8, signText: 'MARINE REPAIR', signKey: 'tongass_marine',
     wallSet: SET_IDX('wall', 'rustysheet'), plinthSet: SET_IDX('plinth', 'concrete008'),
     roofSet: SET_IDX('roof', 'corrrust'), doorSet: SET_IDX('door', 'rustysheet'),
     dirt: 0.65, dirtH: 1.2,
@@ -297,9 +353,11 @@ function applyFinish(P, F) {
     ud.uDirtOwn.value.setHex(k === 'plinth' ? 0x453f36 : 0x6d6353);
     ud.uWander.value = 0;
   }
-  // the sign: the billboard handed in, or the painted name
-  const st = P.signTex || signTexture(P.signText || 'STORE', P.signW || 5, P.signH || 1);
-  M.sign.map = st; M.sign.needsUpdate = true;
+  // the sign: the billboard handed in, the billboard named, or the painted name
+  const bb = P.signKey ? billboardTexture(P.signKey) : null;
+  const meta = signMeta(P.signKey);
+  const st = P.signTex || bb || signTexture(P.signText || 'STORE', P.signW || 5, meta ? (P.signW || 5) / meta.aspect : (P.signH || 1));
+  M.sign.map = st; M.sign.alphaTest = bb ? 0.5 : 0; M.sign.needsUpdate = true;
 }
 function finishReport() {
   return BAGS.map(k => {
@@ -364,14 +422,21 @@ function build(P0, lod, F) {
     }
   }
   let pdoor = null;
+  const pdoors = [];
   if (P.door) {
-    let s = clamp(P.doorPos, 0.05, 0.95) * L;
-    const dw = P.doorW;
-    // not through a roller door: slide it clear
-    for (const r of rollers) if (s + dw > r.s0 - 0.3 && s < r.s1 + 0.3) s = (P.doorPos < 0.5 ? r.s0 - 0.3 - dw : r.s1 + 0.3);
-    s = clamp(s, 0.3, L - dw - 0.3);
-    pdoor = { s0: s, s1: s + dw, y0: fy, y1: fy + P.doorH };
-    front.push(Object.assign({ kind: 'door' }, pdoor));
+    const nD = Math.max(1, Math.round(P.doors || 1)), dw = P.doorW;
+    for (let k = 0; k < nD; k++) {
+      // one door where the dial says; a row of them evenly along the front
+      let s = nD === 1 ? clamp(P.doorPos, 0.05, 0.95) * L : L * (k + 0.5) / nD - dw / 2;
+      // not through a roller door: slide it clear
+      for (const r of rollers) if (s + dw > r.s0 - 0.3 && s < r.s1 + 0.3) s = (s < (r.s0 + r.s1) / 2 ? r.s0 - 0.3 - dw : r.s1 + 0.3);
+      s = clamp(s, 0.3, L - dw - 0.3);
+      const d = { s0: s, s1: s + dw, y0: fy, y1: fy + P.doorH };
+      if (pdoors.some(o => d.s0 < o.s1 + 0.3 && d.s1 > o.s0 - 0.3)) continue;
+      pdoors.push(d);
+      front.push(Object.assign({ kind: 'door' }, d));
+    }
+    pdoor = pdoors[0] || null;
   }
   let shop = null;
   if (P.shopWin) {
@@ -383,21 +448,26 @@ function build(P0, lod, F) {
     front.push(Object.assign({ kind: 'shop' }, shop));
   }
   // the strip windows: a band `winDrop` under the eave, split every winSpc
-  const strips = [];         // per wall index: { s0, s1, y0, y1 }
+  const strips = [];         // per wall index: [{ s0, s1, y0, y1 }] - the band in segments
   const stripFor = (i, len, top) => {
-    if (!P.winStrip) return null;
-    if (i === 0 && !P.winFront) return null;
+    if (!P.winStrip) return [];
+    if (i === 0 && !P.winFront) return [];
     const y1 = Math.min(top - 0.25, top - P.winDrop), y0 = y1 - P.winH;   // `top` is this wall's lowest top
-    if (y0 < fy + 0.9) return null;
-    // clear of the doors on the front
-    let s0 = 0.8, s1 = len - 0.8;
-    if (i === 0) {
-      for (const o of front) if (o.y1 > y0 - 0.3) { /* an opening that reaches the band: the band stops at it */
-        if (o.s0 < len / 2) s0 = Math.max(s0, o.s1 + 0.4); else s1 = Math.min(s1, o.s0 - 0.4);
+    if (y0 < fy + 0.9) return [];
+    // the band, cut by every opening on the front that reaches it (a door
+    // per room on a motel leaves a window between every pair)
+    let segs = [[0.8, len - 0.8]];
+    if (i === 0) for (const o of front) {
+      if (o.y1 <= y0 - 0.3) continue;
+      const next = [];
+      for (const [a, b] of segs) {
+        if (o.s1 + 0.35 <= a || o.s0 - 0.35 >= b) { next.push([a, b]); continue; }
+        if (o.s0 - 0.35 > a) next.push([a, o.s0 - 0.35]);
+        if (o.s1 + 0.35 < b) next.push([o.s1 + 0.35, b]);
       }
+      segs = next;
     }
-    if (s1 - s0 < P.winSpc) return null;
-    return { s0, s1, y0, y1 };
+    return segs.filter(([a, b]) => b - a >= Math.min(P.winSpc, 0.9)).map(([a, b]) => ({ s0: a, s1: b, y0, y1 }));
   };
 
   // ---- THE WALLS
@@ -411,8 +481,8 @@ function build(P0, lod, F) {
     const holes = [];
     if (i === 0) for (const o of front) holes.push({ s0: o.s0, s1: o.s1, y0: o.y0, y1: o.y1, kind: o.kind });
     const lowTop = Math.min(topAt(0), topAt(len_));
-    const strip = stripFor(i, len_, lowTop);
-    if (strip) { holes.push({ s0: strip.s0, s1: strip.s1, y0: strip.y0, y1: strip.y1, kind: 'strip' }); strips[i] = strip; }
+    strips[i] = stripFor(i, len_, lowTop);
+    for (const strip of strips[i]) holes.push({ s0: strip.s0, s1: strip.s1, y0: strip.y0, y1: strip.y1, kind: 'strip' });
     const W = wall(bags.wall, { A, B, y0: fy, t, topAt, holes, ext: [hw, hw], inner: true, endCap: [false, false], capBot: false, sub: Q.lod === 0 ? 3.0 : 0 });
     walls.push({ W, A, B, len: len_, at, topAt, N: W.N, X: W.X });
   }
@@ -473,15 +543,15 @@ function build(P0, lod, F) {
     if (Q.lod === 0) for (const s of [r.s0, r.s1])
       beam(bags.metal, [s - L / 2 + (s === r.s0 ? -0.04 : 0.04), r.y0, zIn - 0.02], [s - L / 2 + (s === r.s0 ? -0.04 : 0.04), r.y1 + 0.05, zIn - 0.02], 0.04, 0.05, [0, 0, 1], 0);
   }
-  if (pdoor) {
-    const q = [[pdoor.s0 - L / 2, pdoor.y0, zIn], [pdoor.s1 - L / 2, pdoor.y0, zIn], [pdoor.s1 - L / 2, pdoor.y1, zIn], [pdoor.s0 - L / 2, pdoor.y1, zIn]];
+  for (const pd of pdoors) {
+    const q = [[pd.s0 - L / 2, pd.y0, zIn], [pd.s1 - L / 2, pd.y0, zIn], [pd.s1 - L / 2, pd.y1, zIn], [pd.s0 - L / 2, pd.y1, zIn]];
     face(bags.door, q, [0, 0, 1], uvFrame(q[0], [1, 0, 0], [0, 1, 0]));
     face(bags.door, q.slice().reverse(), [0, 0, -1], uvFrame(q[0], [1, 0, 0], [0, 1, 0]));
     if (Q.lod === 0) {
-      for (const s of [pdoor.s0, pdoor.s1]) beam(bags.metal, [s - L / 2, pdoor.y0, w / 2 + hw + 0.01], [s - L / 2, pdoor.y1 + 0.05, w / 2 + hw + 0.01], 0.05, 0.03, [0, 0, 1], 0.05);
-      beam(bags.metal, [pdoor.s0 - L / 2 - 0.05, pdoor.y1 + 0.05, w / 2 + hw + 0.01], [pdoor.s1 - L / 2 + 0.05, pdoor.y1 + 0.05, w / 2 + hw + 0.01], 0.05, 0.03, [0, 0, 1], 0);
+      for (const s of [pd.s0, pd.s1]) beam(bags.metal, [s - L / 2, pd.y0, w / 2 + hw + 0.01], [s - L / 2, pd.y1 + 0.05, w / 2 + hw + 0.01], 0.05, 0.03, [0, 0, 1], 0.05);
+      beam(bags.metal, [pd.s0 - L / 2 - 0.05, pd.y1 + 0.05, w / 2 + hw + 0.01], [pd.s1 - L / 2 + 0.05, pd.y1 + 0.05, w / 2 + hw + 0.01], 0.05, 0.03, [0, 0, 1], 0);
       // the step
-      boxAB(bags.plinth, [pdoor.s0 - L / 2 - 0.2, g(pdoor.s0 - L / 2, w / 2 + 0.5), w / 2 + hw], [pdoor.s1 - L / 2 + 0.2, fy, w / 2 + hw + 0.55]);
+      boxAB(bags.plinth, [pd.s0 - L / 2 - 0.2, g(pd.s0 - L / 2, w / 2 + 0.5), w / 2 + hw], [pd.s1 - L / 2 + 0.2, fy, w / 2 + hw + 0.55]);
     }
   }
 
@@ -500,7 +570,7 @@ function build(P0, lod, F) {
     for (let k = 0; k <= n; k++) { const s = o.s0 + (o.s1 - o.s0) * k / n; fr(P3(s, o.y0), P3(s, o.y1)); }
     if (o.y1 - o.y0 > 1.4) fr(P3(o.s0, (o.y0 + o.y1) / 2), P3(o.s1, (o.y0 + o.y1) / 2));
   };
-  for (let i = 0; i < 4; i++) if (strips[i]) glaze(i, strips[i], P.winSpc);
+  for (let i = 0; i < 4; i++) for (const st of strips[i] || []) glaze(i, st, P.winSpc);
   if (shop) glaze(0, shop, Math.max(0.9, (shop.s1 - shop.s0) / 3));
 
   // ---- THE DOCK: a concrete platform along the front at floor level
@@ -594,7 +664,8 @@ function build(P0, lod, F) {
   // ---- THE SIGN: on the parapet, else on the wall above the doors
   let sign = null;
   if (P.sign) {
-    let sw = Math.min(P.signW, L * 0.8), sh = P.signH;
+    const meta = signMeta(P.signKey);
+    let sw = Math.min(P.signW, L * 0.8), sh = meta ? sw / meta.aspect : P.signH;
     let x = shop ? (shop.s0 + shop.s1) / 2 - L / 2 : 0, y, z = w / 2 + hw + 0.05;
     let nx = 0, nz = 1;               // which way the board faces
     if (canopy) {
@@ -606,14 +677,14 @@ function build(P0, lod, F) {
       // on the wall, above whatever opens under it and under the eave (or
       // the strip); if that leaves no board's worth, on the gable end
       const under = Math.max(rollers.length ? Math.max(...rollers.map(r => r.y1)) : 0, shop ? shop.y1 : 0, pdoor ? pdoor.y1 : 0, fy + 2.2);
-      const top = (strips[0] ? strips[0].y0 - 0.12 : yRoof(0, w / 2) - 0.2);
+      const top = (strips[0] && strips[0].length ? strips[0][0].y0 - 0.12 : yRoof(0, w / 2) - 0.2);
       const room = top - (under + 0.2);
       if (room >= 0.4) { sh = Math.min(sh, room); y = under + 0.2 + sh / 2; }
       else {
         // the +x end: in the gable's triangle, or high on a monopitch's tall
         // half, above the end wall's strip if it has one
         nx = 1; nz = 0; x = L / 2 + hw + 0.05; z = kind === 1 ? w / 4 : 0;
-        const lo = Math.max(strips[1] ? strips[1].y1 + 0.2 : 0, kind === 0 ? eave + 0.2 : fy + 2.4);
+        const lo = Math.max(strips[1] && strips[1].length ? strips[1][0].y1 + 0.2 : 0, kind === 0 ? eave + 0.2 : fy + 2.4);
         const hi2 = yRoof(L / 2, z) - 0.25;
         sw = Math.min(sw, (kind === 0 ? w * 0.7 : w * 0.45));
         sh = Math.min(sh, hi2 - lo);
@@ -669,11 +740,50 @@ function build(P0, lod, F) {
     // house's stoop): a step out from the men's door, else the main door
     front: { x: pdoor ? (pdoor.s0 + pdoor.s1) / 2 - L / 2 : (rollers.length ? (rollers[0].s0 + rollers[0].s1) / 2 - L / 2 : 0),
              z: w / 2 + (dock ? P.dockD : 0) + 1.0, side: 1, depth: 0 },
-    shop, dock, sign, stacks, strips: strips.filter(Boolean).length,
+    shop, dock, sign, stacks, strips: strips.reduce((n, s) => n + (s ? s.length : 0), 0), doors: pdoors.length,
     ground: g, groundAO: occ, aoFoot: null, ao: aoInfo, path: [],
     people: null, yard: null, pier: null, lit: null,
   };
   return { bags, stats, P, V: { L, w, wallT: t, floorY: fy, eaveH: P.eaveH }, R: null, MAT: F ? F.MAT : MAT };
+}
+
+// ---- THE ROADSIDE BILLBOARD (G313) ------------------------------------------
+// A sign on two timber posts by the road - the air taxi, the bear tours,
+// the motel up the road. Its own bags (the board in `sign`, the posts in
+// `metal`'s slot worn as timber by the village's finish), its own finish per
+// sign since the board's texture is the sign. `w` is the board's width in
+// metres; the height follows the sign's aspect. Origin on the ground under
+// the middle of the posts, facing +z.
+function billboard(o) {
+  const key = o.key, meta = signMeta(key) || { aspect: 3 };
+  const w = o.w || 3.6, h = w / meta.aspect, top = o.top || 3.4;
+  const bags = { sign: Bag('sign'), door: Bag('door'), metal: Bag('metal'), aoskirt: Bag('aoskirt') };
+  const g = o.ground || ((x, z) => 0);
+  const px = w / 2 - 0.35;
+  for (const x of [-px, px]) {
+    const gy = g(x, 0) - 0.3;
+    beam(bags.metal, [x, gy, -0.06], [x, top + 0.12, -0.06], 0.08, 0.08, [0, 0, 1], 0);
+  }
+  const y0 = top - h, z = 0.02;
+  const q = [[-w / 2, y0, z], [w / 2, y0, z], [w / 2, top, z], [-w / 2, top, z]];
+  face(bags.sign, q, [0, 0, 1], p => [(p[0] + w / 2) / w, (p[1] - y0) / h]);
+  boxAB(bags.door, [-w / 2, y0, z - 0.05], [w / 2, top, z - 0.004], { pz: true });
+  // the rails behind the board
+  for (const y of [y0 + 0.15, top - 0.15]) beam(bags.metal, [-w / 2, y, -0.09], [w / 2, y, -0.09], 0.03, 0.05, [0, 0, 1], 0);
+  HG.buildGroundAO(bags.aoskirt, [{ x: -px, z: 0, r: 0.1, k: 0.5, soft: 0.4, dry: true }, { x: px, z: 0, r: 0.1, k: 0.5, soft: 0.4, dry: true }], g);
+  return { bags, BAGS: ['sign', 'door', 'metal'], stats: { w, h, top, key, sign: { x: 0, y: top - h / 2, z, w, h, nx: 0, nz: 1 } } };
+}
+// the finish for one: the board's texture, timber posts, the backing's rust
+function billboardFinish(key) {
+  const F = makeFinish();
+  const M = F.MAT;
+  for (const k of ['door', 'metal']) HG.shadeHouse(M[k], F.SHADE_U);
+  dress(M.door, 'door', SET_IDX('door', 'rustysheet'));
+  dress(M.metal, 'metal', SET_IDX('metal', 'rust'));
+  const bb = billboardTexture(key) || signTexture((signMeta(key) || { name: key }).name || key, 3.6, 1.2);
+  M.sign.map = bb; M.sign.alphaTest = billboardTexture(key) ? 0.5 : 0; M.sign.needsUpdate = true;
+  F.SHADE_U.uDirtTop.value = 0.5; F.SHADE_U.uSag.value = 0;
+  return F;
 }
 
 // ---- a random one, for the dice --------------------------------------------
@@ -697,6 +807,7 @@ function randomBig(seed) {
 window.BIG_GEN = {
   DEF, ROWS, PRESETS, BAGS, EXTRA, MAT, ROLE_SETS, SET_IDX, setNames,
   build, randomBig, applyFinish, makeFinish, finishReport, signTexture,
+  billboard, billboardFinish, signMeta, signKeys, billboardTexture,
   libSets: HG.libSets, isBig: true,
 };
 })();

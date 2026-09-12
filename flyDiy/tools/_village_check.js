@@ -66,7 +66,7 @@ const win = {};
                 Array, Set, Map, Number, String, isFinite, parseInt, parseFloat };
   ctx.globalThis = ctx;
   vm.createContext(ctx);
-  for (const f of ['_house_kit.js', '_house_gen.js', '_big_gen.js', '_village_gen.js'])
+  for (const f of ['_house_kit.js', '_house_gen.js', '../src/viewer/sign_tex.js', '_big_gen.js', '_village_gen.js'])
     vm.runInContext(fs.readFileSync(path.join(TOOLS, f), 'utf8'), ctx, { filename: f });
 }
 const HG = win.HOUSE_GEN, HK = win.HOUSE_KIT, VG = win.VILLAGE_GEN, BGN = win.BIG_GEN;
@@ -91,6 +91,7 @@ function buildVillage(V) {
     VG.finishPlot(vil, plot, h, h.built);
     if (plot.out) plot.out.built = HG.build(plot.out.P, 0);
   }
+  VG.planBillboards(vil, ['air_taxi', 'bear_tours', 'north_motel']);
   // the trees, on a stub pool shaped like the bench's (tall and small)
   VG.planTrees(vil, [{ key: 'cedar|Cedar', size: 1, sink: 2, proportion: 1, h: 17 },
                      { key: 'firpack|small', size: 2.1, sink: 0, proportion: 2.85, h: 4 }]);
@@ -301,6 +302,21 @@ function battery(name, vil) {
       check(fz[0] * tr[0] + fz[1] * tr[1] > 0, name + ': ' + h.P.preset + ' turns its back on the road');
       const okPath = (p.path || []).length >= 3;
       check(okPath, name + ': ' + h.P.preset + ' has no path');
+    }
+  }
+  // 14 — THE ROADSIDE BILLBOARDS (G313): two or three, on the inland verge,
+  //   on no plot, apart, facing the road, each a baked sign
+  {
+    const bb = vil.billboards || [];
+    check(bb.length >= 2, name + ': only ' + bb.length + ' roadside billboards');
+    for (let i = 0; i < bb.length; i++) {
+      const b = bb[i];
+      check(!!BGN.signMeta(b.key), name + ': billboard ' + b.key + ' is not a baked sign');
+      const d = distToRoad(road, [b.x, b.z]);
+      check(d > road.w / 2 + 1 && d < road.w / 2 + 4, name + ': a billboard is not on the verge', d.toFixed(2));
+      for (const p of vil.plots) check(!VG.inPoly(p.poly, b.x, b.z), name + ': a billboard stands on plot ' + p.id);
+      for (let j = i + 1; j < bb.length; j++) check(Math.hypot(bb[j].x - b.x, bb[j].z - b.z) > 25, name + ': two billboards crowd each other');
+      check(Math.abs(b.y - T.h(b.x, b.z)) < 0.01, name + ': a billboard floats');
     }
   }
   // 8 — THE POLES (G285): a known pole, on the ground, on the road's verge

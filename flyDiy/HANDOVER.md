@@ -40665,3 +40665,41 @@ reads the canvas in the same task, a node sink on 8368 saves the JPEG.)
   sign, gantry, stacks); the store; the cannery on its waterfront lot
   with the gravel apron; the workshop with its door up and the end sign.
 - Gates: HOUSE, VILLAGE, MEDIA green.
+
+## G313 — THE BILLBOARDS: THE USER'S PAINTED SIGNS CUT, BAKED, IN THE SIGN
+## SLOT AND ON POSTS BY THE ROAD; A DOOR PER ROOM; THE CAFE AND THE MOTEL; THE
+## EMPTY FRONTAGES ARE FOREST (2026-09-12, the user: "The new billboards are
+## there ... The empty lots should be full of trees like the forest")
+
+- **THE SHEET → THE SIGNS**: `tools/sign_import.py` cuts every sign off a
+  sheet by its alpha (the gutters find the boxes, each sign tightened to
+  its pixels), named in reading order in the script's table
+  (`assets/billboards/out/<key>.png` + a 1k working copy);
+  `tools/sign_prep.js` bakes the eight into `media/tex/signs/` and
+  `src/viewer/sign_tex.js` — the page's pre-loading images AND
+  `SIGN_TEX_META` headless — with each sign's ASPECT and a `kind`
+  (store / harbour / industrial / roadside). GATE MEDIA lists the
+  manifest. CREDITS: the user's own.
+- **IN THE SLOT**: `signKey` on a big building names a billboard; the
+  board's height follows the sign's aspect (the width stays the dial);
+  the png's alpha cuts a shaped board (alphaTest) with the rust backing
+  showing through the corners. The store wears the General Store, the
+  boat shed Tongass Marine; the painted name stays the fallback. The
+  bench's select rows now take string-valued dials.
+- **ON POSTS BY THE ROAD**: `BIG_GEN.billboard({ key, w, ground })` — two
+  timber posts, the board, its rails, a ground skirt — with
+  `billboardFinish(key)`; `planBillboards(vil)` stands two or three on the
+  inland verge, preferring an empty frontage or a gap (a sign across the
+  store hides the store's own), 30 m apart, facing the road, the
+  roadside kinds spread (air taxi, bear tours, the motel). GATE VILLAGE 14.
+- **A DOOR PER ROOM** (`doors`): a row of personnel doors evenly along the
+  front; the strip windows are cut into SEGMENTS between every opening
+  that reaches them (a window between every pair of doors). Two presets:
+  the CAFE (the store's frame, cream boards, the Tidal Cup) and the MOTEL
+  (22 m, six doors, a window between each, a monopitch, a canopy along the
+  front, the North Channel sign on the tall end).
+- **THE FOREST COMES TO THE ROAD**: an empty frontage is no plot at all, so
+  the wood grows down through the gap to the road's verge on both sides
+  (to the beach on the water side), as dense as the wood and denser (a
+  second tree per cell), no clearings. ~380 trees on the default seed.
+- Gates: HOUSE, VILLAGE, MEDIA green.

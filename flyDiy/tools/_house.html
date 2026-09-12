@@ -134,6 +134,7 @@
 <!-- THE BIG BUILDINGS (G312): the warehouse, the cannery, the workshop, the
      store - dressed with the hangar's wall sets -->
 <script src="../src/viewer/hangar_walls.js"></script>
+<script src="../src/viewer/sign_tex.js"></script>
 <script src="_big_gen.js"></script>
 <script>
 'use strict';
@@ -968,12 +969,15 @@ function mkRow(parent, spec) {
   const d = document.createElement('div');
   d.className = 'r';
   if (names) {
+    // a select over an index, or over the names themselves when the dial
+    // is a string (the big building's billboard key, G313)
+    const str = typeof P[k] === 'string';
     d.innerHTML = '<span class="k">' + label + '</span><select style="flex:1">' +
-      names.map((n, i) => '<option value="' + i + '"' +
-        (Math.round(P[k]) === i ? ' selected' : '') + '>' + n + '</option>')
+      names.map((n, i) => '<option value="' + (str ? n : i) + '"' +
+        ((str ? P[k] === n : Math.round(P[k]) === i) ? ' selected' : '') + '>' + (n || '(painted name)') + '</option>')
         .join('') + '</select>';
     parent.appendChild(d);
-    d.querySelector('select').onchange = e => { P[k] = +e.target.value; build(); };
+    d.querySelector('select').onchange = e => { P[k] = str ? e.target.value : +e.target.value; GEN.applyFinish && build(); };
   } else {
     d.innerHTML = '<span class="k">' + label + '</span>' +
       '<input type="range" min="' + lo + '" max="' + hi + '" step="' + st +
@@ -994,7 +998,7 @@ function syncVis() {
     if (inp) { inp.value = P[r.key];
                r.el.querySelector('.v').textContent = fmt(P[r.key], r.spec[4]); }
     const sel = r.el.querySelector('select');
-    if (sel) sel.value = String(Math.round(P[r.key]));
+    if (sel) sel.value = typeof P[r.key] === 'string' ? P[r.key] : String(Math.round(P[r.key]));
   }
 }
 function buildPanel() {
