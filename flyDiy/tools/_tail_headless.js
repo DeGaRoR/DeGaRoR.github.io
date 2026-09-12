@@ -58,7 +58,7 @@ function boomDeck(P) {
   if (!TB) return null;
   const FSd = scaleOf(P);
   return { top: z => TB.yTop(z * FSd) / FSd, bot: z => TB.yBot(z * FSd) / FSd,
-           z0: TB.zTip / FSd, z1: TB.zRoot / FSd };
+           z0: TB.zTip / FSd, z1: TB.zRoot / FSd, x: TB.x };
 }
 
 // ---- the fin, as _cage_fin.js builds it -----------------------------------
@@ -135,6 +135,17 @@ function buildStab(P, mesh, L, fin, approx) {
   }
   let s = m0;
   for (let i = 0; i < L; i++) s = CG2.cageSubdivide(s);
+  // G271: between twin booms the panel is stretched to the booms' centre
+  // planes plus the overhang — as _cage_stab.js does, before the cut
+  if (TB && TB.x > 0) {
+    let H = -Infinity;
+    for (const p of s.V) H = Math.max(H, p[1] - rootLine);
+    const want = (TB.x + Math.max(0, +P.stOver || 0)) / scaleOf(P) - (P.stX || 0);
+    if (H > 1e-6 && want > 0.05) {
+      const k = want / H;
+      s = Object.assign({}, s, { V: s.V.map(p => [p[0], rootLine + (p[1] - rootLine) * k, p[2]]) });
+    }
+  }
   FIN.finProjectRoot(s, m0.deckTop, S.deck.z0);
   let sheet = s;
   if (cutMode)

@@ -463,7 +463,7 @@ function cageJoinSpec(P, M, T) {
     tl.type = 'twinBoom'; tl.boomX = M.boomX; tl.boomLen = M.boomLen;
     if (M.boomR > 0) tl.boomR = M.boomR;
     // G266: the drawn tube, whole (null = the frame derives it)
-    for (const k of ['boomX0', 'boomTaper', 'boomOval', 'boomIncl'])
+    for (const k of ['boomX0', 'boomTaper', 'boomOval', 'boomIncl', 'boomDy'])
       if (typeof M[k] === 'number' && isFinite(M[k])) tl[k] = M[k];
     // G266.2: ...and the drawn STAB'S HEIGHT. The stab layer seats the panel
     // above the booms' crown (measured on the user's build: its underside
@@ -1204,6 +1204,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             M.boomX0 = zFw - TBj.zRoot;
             M.boomTaper = TBj.r0 > 0 ? TBj.r1 / TBj.r0 : 0.7;
             M.boomIncl = (TBj.incl || 0) * 180 / Math.PI;           // G267.1, deg, tail up
+            M.boomDy = TBj.dy || 0;                                    // G271: metres over the TE line
             M.boomTip = zFw - TBj.zTip;                               // the body's aft end, spec x
             // G267: the loft's own aspect — height over width, the mean of
             // the two ends (the frame's prism is one aspect end to end)

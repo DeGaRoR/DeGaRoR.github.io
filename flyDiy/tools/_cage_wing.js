@@ -1685,7 +1685,10 @@ PAGE.post = ctx => {
       const len = Math.max(0.8, +P.boomLen || 3.0);
       const wF = Math.max(0.03, +P.boomWf || 0.16), hF = Math.max(0.03, +P.boomHf || 0.24);
       const wA = Math.max(0.03, +P.boomWa || 0.112), hA = Math.max(0.03, +P.boomHa || 0.168);
-      const y0 = 0.5 * (te.yTop + te.yBot);
+      // G271: the root rides the trailing edge's mid-line, plus the
+      // builder's own up / down (the frame takes the same offset)
+      const dy = +P.boomDy || 0;
+      const y0 = 0.5 * (te.yTop + te.yBot) + dy;
       // the body's wing end sits just inside the trailing edge; the wing
       // fairing runs forward from there, INTO the wing (and out of it above
       // and below, when the boom is deeper than the wing is thick)
@@ -1742,7 +1745,7 @@ PAGE.post = ctx => {
       const rAt = z => sec(z).a, hAt = z => sec(z).b;
       const yAx = z => y0 + tI * (zRoot - z);
       window.CAGE_BOOMS = { x, r0: 0.5 * wF, r1: 0.5 * wA, wF, hF, wA, hA,
-                            zRoot, zTip, y: y0, len, lofted: !rodB, incl,
+                            zRoot, zTip, y: y0, dy, len, lofted: !rodB, incl,
                             zFore: zTip + mm.u1, zAft: zTip + mm.u0,
                             square: o.square, nose: o.nose, tail: o.tail,
                             yAx, yTop: z => yAx(z) + hAt(z), yBot: z => yAx(z) - hAt(z), rAt, hAt };

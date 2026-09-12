@@ -765,6 +765,11 @@ const AERO_SEC = {
               layer: 'fin' },
   finRud:   { parent: 'finSkin',  role: 'skin', label: 'the rudder',
               layer: 'fin' },
+  // G271: the ventral fins under twin booms, their own paint (the user:
+  // "ensure they have their own finish section, with their own material
+  // and colour"); they follow the fin's until repainted
+  finVentral: { parent: 'finSkin', role: 'skin', label: 'the ventral fins',
+                layer: 'fin' },
   stabSkin: { parent: 'body',     role: 'skin', label: 'the stabiliser',
               layer: 'stab' },
   stabElev: { parent: 'stabSkin', role: 'skin', label: 'the elevators',

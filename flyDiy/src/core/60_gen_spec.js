@@ -2905,6 +2905,7 @@ const GEN_DEFAULT = {
           // null = the frame's own derivation (0.15 m inside the trailing edge)
           boomX0: null, boomTaper: null, boomOval: null,
           boomIncl: 0,                    // G267.1: degrees, tail up, about the root
+          boomDy: 0,                      // G271: the root's height over the trailing-edge line, m
           // G266.2: the drawn stab's height (frame y) on a twin boom — the
           // panel seats above the booms' crown; null = on the crown
           stabY: null },
@@ -3637,6 +3638,7 @@ function clampSpec(spec) {
   S.tail.boomX0 = genClampN(S.tail.boomX0, 0, 12);          // G266
   S.tail.boomTaper = genClampN(S.tail.boomTaper, 0.3, 1);
   S.tail.boomIncl = genClamp(S.tail.boomIncl || 0, -15, 15);
+  S.tail.boomDy = genClamp(S.tail.boomDy || 0, -0.8, 0.8);
   S.tail.stabY = genClampN(S.tail.stabY, -1, 4);
   S.tail.boomOval = genClampN(S.tail.boomOval, 1, 2);
   // the V's dihedral. Too shallow and it cannot make yaw at any sane area; too

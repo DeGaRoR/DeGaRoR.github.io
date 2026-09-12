@@ -1155,7 +1155,9 @@ function genLattice(S, gearX, track, kScale) {
     const zB = Math.min(bx, zs[zs.length - 1]);
     const xTE = xRat(zB) + (1 - sparRear) * chordAt(zB);
     const x0 = t.boomX0 != null ? t.boomX0 : xTE - 0.15;
-    const y0 = yF(zB) - (1 - sparFront) * chordAt(zB) * Math.tan(incAt(zB));
+    // G271: ...plus the builder's up / down against that line (the wing
+    // layer draws the tube's root there, the join reports it)
+    const y0 = yF(zB) - (1 - sparFront) * chordAt(zB) * Math.tan(incAt(zB)) + (t.boomDy || 0);
     // G267.1: the boom's inclination — its axis climbs tan(incl) per metre
     // aft of the root (the drawn tube pivots there)
     const tInc = Math.tan((t.boomIncl || 0) * Math.PI / 180);

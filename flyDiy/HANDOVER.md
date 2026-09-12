@@ -38713,3 +38713,51 @@ glareshield — under the compass's base plate; the crew layer's push-pull
 throttle collar takes the same material through `CAGE_PANEL.material('ao')`
 on a plane. All of it rides the one `panelSet: 'ao'` bucket into flight.
 GATE PANEL green.
+
+## G271 — THE TWIN BOOMS, THE SECOND PASS: UP / DOWN AGAINST THE WING, ONE
+## BOOM ENTRY, THE STAB REACHES THE FINS, THE VENTRAL IS A PROPER PLATE
+## (2026-09-12, the user: "nothing allowing me to control the position of
+## the booms relative to the wing"; "there should be a single boom section,
+## but its content is updated according to the single or double boom
+## settings"; "the stabiliser wing in the middle of the booms does not touch
+## the fins on each side, so it's really just floating there"; "the bottom
+## fin is too rough ... trailing edge thinning, a proper thin line bevel, and
+## get it higher up so there is no gap with boom ... their own finish
+## section, with their own material and colour")
+
+- **`boomDy`** (Boom › twin booms, "up / down (from the trailing edge)",
+  metres, ±0.6): the tube's root rides the trailing edge's mid-line plus
+  this. The wing layer draws it, `CAGE_BOOMS.dy` publishes it, the join
+  reports `tail.boomDy`, `60_gen_spec` defaults and clamps it (±0.8), and
+  61_gen_frame's twin block adds it to its own trailing-edge `y0` — the
+  physics boom moves with the drawn one, the fins and the stab ride
+  `CAGE_BOOMS` as before.
+- **ONE BOOM PART.** G267's `Twin booms` entry is folded back into `Boom`
+  (`layer: 'boom'`, sections `boomTube` + `boomSkin`, the `boom` zone): the
+  rod's rows show on a rod, the twin rows on twin booms, the trunk's up /
+  down slot lists `rodY` and `boomDy` and the count slot is `boomTwin`.
+  HIT_NAME `edBoom*` → `boom`. The finish tab lists the twin booms' paint
+  under Boom.
+- **THE STAB REACHES THE FINS.** Between twin booms the built sheet is
+  stretched along its span (about the root line, chords untouched, before
+  the cut and the thickening) so the tip lands on the boom's centre plane —
+  inside the fin standing there and inside the tube — plus the new
+  **`stOver`** (overhang past the booms, metres a side; `stSpan` hides on
+  twin booms). The headless tail does the same, so GATE FIN still pins the
+  two; the join reads the stretched panel (hSpan), the frame its overhang
+  bay. Measured on the user's build: tip x 1.219 against a fin at 1.178 –
+  1.222.
+- **THE VENTRAL IS A PLATE THE FIN'S THICKENER FINISHES.** It was a box
+  hung at one belly height — on an ogival tail the belly climbs to the cap
+  and the box stood clear over its aft half. Now a 6×4 sheet whose root row
+  FOLLOWS THE BELLY station by station and is sunk a third of the tube's
+  depth into it (no gap at any cap), the tip straight `h` below the
+  mid-root belly, the LE swept back; `finThicken` gives it the fin's
+  thickness forward, tapering from mid-chord to the fin's own TE value,
+  and the rounded rim (the fin's `tailRimN`) all round; the signed volume
+  decides the winding. **Its own section `finVentral`** (AERO_SEC,
+  parent `finSkin`, layer `fin`; the fin part claims it), so the finish tab
+  gives it a material and a colour of its own — following the fin's until
+  repainted.
+
+Gates: PARTS / JOIN / SKIN / FIN / DESIGN / SAVE / BUILD green on the tree.

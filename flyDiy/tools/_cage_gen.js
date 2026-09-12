@@ -6477,7 +6477,7 @@ const CAGE_PARAMS = {
   // boomD / boomTaper retired (GEN_MIGRATORS[8] lifts a v8 save's pair).
   boomTwin: 0, boomX: 1.2,
   boomWf: 0.16, boomHf: 0.24, boomWa: 0.112, boomHa: 0.168, boomSquare: 0,
-  boomIncl: 0, boomCollar: 0.5,
+  boomIncl: 0, boomCollar: 0.5, boomDy: 0,
   boomNoseLen: 0.35, boomNoseK: 0.7, boomNoseCap: 2,
   boomTailLen: 0.45, boomTailK: 0.7, boomTailCap: 2,
   // the aero aft (2026-09-04, cut 1): the cowl layer lofts it on the aft face

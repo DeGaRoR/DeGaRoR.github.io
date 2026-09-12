@@ -599,34 +599,59 @@ PAGE.post = ctx => {
   // that sheet (TWIN-BOOM-2 §1.4 says what is owed).
   const vOn = !!(TB && +P.finVentralOn);
   if (vOn && !wire) {
-    const finOnly = cutMode ? { V: disp.V, F: disp.F.filter(f => f.part === 'fin') } : disp;
     let zAftAll = Infinity;
     for (const v of disp.V) if (v[2] < zAftAll) zAftAll = v[2];
     if (isFinite(zAftAll)) {
+      // G271 (the user: "the bottom fin is too rough for now. Give it some
+      // trailing edge thinning, a proper thin line bevel, and get it higher
+      // up so there is no gap with boom. Ensure they have their own finish
+      // section"). It was a flat box hung at one belly height — on an
+      // ogival tail the belly climbs to the cap, so the box stood clear of
+      // the tube over its aft half. Now it is a SHEET the fin's own
+      // thickener finishes: the root row FOLLOWS THE BELLY station by
+      // station and is sunk a third of the tube's depth into it (no gap at
+      // any cap), the tip is straight `h` below the mid-root belly, the
+      // leading edge sweeps back; finThicken gives the plate the fin's
+      // thickness forward, tapering from mid-chord to the fin's own TE
+      // value, and the rounded rim (the fin's rim rows) all round. Its own
+      // section, `finVentral` (AERO_SEC, follows the fin's paint until
+      // repainted).
       const h = Math.max(0.05, +P.finVentralH || 0.4), cR = Math.max(0.1, +P.finVentralC || 0.6), cT = 0.35 * cR;
       const t = 0.7 * (+P.finThick || 0.06);
-      const yb = deck.bot(zAftAll + 0.5 * cR);          // the belly at mid-root
-      // the plate: root aft / fore, tip aft / fore — trailing edge vertical
-      // on the tail's aft end, the leading edge swept back to the tip
-      const P4 = [[yb, zAftAll], [yb, zAftAll + cR], [yb - h, zAftAll], [yb - h, zAftAll + cT]];
-      const V = [];
-      for (const s of [1, -1]) for (const [y, z] of P4) V.push([s * 0.5 * t, y, z]);
-      // + side 0..3 (A B C D), − side 4..7
-      const quads = [[0, 1, 3, 2], [4, 5, 7, 6], [1, 5, 7, 3], [0, 4, 6, 2], [2, 3, 7, 6], [0, 1, 5, 4]];
-      const c = [0, 0, 0];
-      for (const v of V) { c[0] += v[0] / 8; c[1] += v[1] / 8; c[2] += v[2] / 8; }
-      const mKey = (finOnly.F[0] && finOnly.F[0].m) || 'finSkin';
-      const F = quads.map(q => {
-        // outward winding: the face normal points away from the box's centre
-        const a = V[q[0]], b = V[q[1]], d = V[q[2]];
-        const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], w = [d[0] - a[0], d[1] - a[1], d[2] - a[2]];
-        const n = [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]];
-        const fc = [0, 0, 0];
-        for (const i of q) { fc[0] += V[i][0] / 4; fc[1] += V[i][1] / 4; fc[2] += V[i][2] / 4; }
-        const out = n[0] * (fc[0] - c[0]) + n[1] * (fc[1] - c[1]) + n[2] * (fc[2] - c[2]);
-        return { v: out >= 0 ? q : q.slice().reverse(), m: mKey, part: 'fin' };
-      });
-      const vObj = finMesh({ V, F }, bySec, 'finSkin');
+      const tTE = Math.min(t, 0.7 * (+P.finThickTE || 0.012));
+      const zc = z => Math.max(deck.z0, Math.min(deck.z1, z));   // the deck's own domain
+      const belly = z => deck.bot(zc(z));
+      const sink = z => Math.min(0.05, 0.35 * Math.max(0, deck.top(zc(z)) - belly(z)));
+      const yRoot = z => belly(z) + sink(z);
+      const yTip = belly(zAftAll + 0.5 * cR) - h;
+      const NU = 6, NV = 4;                       // chordwise x spanwise quads
+      const V = [], F = [];
+      for (let j = 0; j <= NV; j++) {
+        const v = j / NV, c = cR + (cT - cR) * v;
+        for (let i = 0; i <= NU; i++) {
+          const u = i / NU, z = zAftAll + u * c;
+          V.push([0, (1 - v) * yRoot(z) + v * yTip, z]);
+        }
+      }
+      const at = (i, j) => j * (NU + 1) + i;
+      for (let j = 0; j < NV; j++) for (let i = 0; i < NU; i++)
+        F.push({ v: [at(i, j), at(i + 1, j), at(i + 1, j + 1), at(i, j + 1)], m: 'finVentral', part: 'ventral' });
+      let solid = FIN.finThicken({ V, F }, { thick: t, thickTE: tTE,
+        zHinge: zAftAll + 0.45 * cR, zAftEnd: zAftAll, rimN: P.tailRimN });
+      // the thickener's sides follow the sheet's winding; the plate must
+      // face OUT (the rim's normals are built, the sides' computed) — the
+      // signed volume says which way this sheet was wound
+      let vol = 0;
+      for (const f of solid.F) {
+        const a = solid.V[f.v[0]];
+        for (let k = 1; k + 1 < f.v.length; k++) {
+          const b = solid.V[f.v[k]], d = solid.V[f.v[k + 1]];
+          vol += a[0] * (b[1] * d[2] - b[2] * d[1]) - a[1] * (b[0] * d[2] - b[2] * d[0]) + a[2] * (b[0] * d[1] - b[1] * d[0]);
+        }
+      }
+      if (vol < 0) solid = { V: solid.V, F: solid.F.map(f => ({ v: f.v.slice().reverse(), m: f.m, part: f.part,
+                                                               n: f.n ? f.n.slice().reverse() : f.n })) };
+      const vObj = finMesh(solid, bySec, 'finVentral');
       vObj.name = 'edFinVentral';
       group.add(vObj);
     }

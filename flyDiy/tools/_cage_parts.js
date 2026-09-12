@@ -396,32 +396,30 @@ const CAGE_PARTS = [
   // switch — a rod's rows show on a rod, a loft's on a loft, the twin
   // booms' on twin booms — and the inspector drops a heading whose rows all
   // hid; the pod's aero aft is the tail cone's business and lives there.
-  { key: 'boom', name: 'Boom', parent: 'fuselage', layer: 'cage',
-    sections: ['boomTube'],
+  // ONE PART, WHATEVER THE COUNT (G271, the user: "there should be a single
+  // boom section, but its content is updated according to the single or
+  // double boom settings"). G267 had split the twin booms out as their own
+  // entry; they are back under Boom. The rod is cage faces (`boomTube`, the
+  // body's `boom` zone) and the twin booms are the wing layer's
+  // `cageLayer:boom` meshes (`edBoomL/R`, `boomSkin`) — one part claims
+  // both, so a click on either lands here and the highlight lights what is
+  // drawn. The trunk's slots take lists: the up / down is the rod's height
+  // OR the twin booms' offset, whichever the count shows.
+  { key: 'boom', name: 'Boom', parent: 'fuselage', layer: 'boom',
+    sections: ['boomTube', 'boomSkin'],
     zone: 'boom',
-    place: { up: 'rodY', len: 'boomLen', wide: 'rodD',
-             at: 'aft of the taper' },
+    place: { count: 'boomTwin', up: ['rodY', 'boomDy'], out: 'boomX',
+             len: 'boomLen', wide: 'rodD',
+             at: 'aft of the taper; twin, off the wing’s trailing edge' },
     groups: [
       // boomStyle -> `design`; these shape the rod once it is chosen
       ['rod', ['rodY', 'rodD', 'rodIncl']],
-      ['twin booms', ['boomTwin']],
-      ['length & aft section', ['boomLen', 'aftRoofY', 'aftKeelY']],
-      ['pod ring', ['boomMidOn', 'boomMidT', 'boomMidPinch']],
-    ] },
-
-  // THE TWIN BOOMS, A PART OF THEIR OWN (G267): the wing layer draws them
-  // in `cageLayer:boom` as `edBoomL/R`, so a click lands here and the
-  // highlight finds them. Gated on the boom part's own switch (the way
-  // back is that row, on the Boom).
-  { key: 'booms', name: 'Twin booms', parent: 'fuselage', layer: 'boom',
-    when: P => !!+P.boomTwin,
-    sections: ['boomSkin'],
-    place: { out: 'boomX', at: 'off the wing’s trailing edge, one a side' },
-    groups: [
-      ['track', ['boomX']],
+      ['twin booms', ['boomTwin', 'boomX', 'boomDy']],
       ['section', ['boomWf', 'boomHf', 'boomWa', 'boomHa', 'boomSquare', 'boomIncl', 'boomCollar']],
       ['wing end', ['boomNoseLen', 'boomNoseK', 'boomNoseCap']],
       ['tail end', ['boomTailLen', 'boomTailK', 'boomTailCap']],
+      ['length & aft section', ['boomLen', 'aftRoofY', 'aftKeelY']],
+      ['pod ring', ['boomMidOn', 'boomMidT', 'boomMidPinch']],
     ] },
 
   { key: 'tailcone', name: 'Tail cone', parent: 'fuselage', layer: 'cage',
@@ -598,7 +596,7 @@ const CAGE_PARTS = [
     place: { on: 'finOn',
              type: ['finCut', 'finSolid', 'finCons', 'finDorsal', 'finKeel', 'finProject', 'finRootGuard'],
              len: 'finRootFwd', high: 'finTipY', at: 'on the boom deck' },
-    sections: ['finSkin', 'finRud'],
+    sections: ['finSkin', 'finRud', 'finVentral'],
     groups: [
       ['fitted', ['finOn', 'finProject', 'finRootGuard', 'finDorsal',
                   'finKeel']],
@@ -648,7 +646,7 @@ const CAGE_PARTS = [
       // the fin's outline laid flat — same corners, same order, "in / out"
       // where the fin says "up / down" (the stab IS the fin model laid flat)
       // the macro tier (P3), the fin's words laid flat
-      ['size', ['stSpan', 'stChord', 'stChordTip', 'stSweep', 'stHinge']],
+      ['size', ['stSpan', 'stOver', 'stChord', 'stChordTip', 'stSweep', 'stHinge']],
       // EXPERT (P2), as the fin's: the cage's own vertices
       ['tip', ['stTipZ', 'stTipY', 'stShoulderZ', 'stShoulderY', 'stTopY'], EXPERT],
       ['tip-aft corner', ['stAftZ', 'stAftY'], EXPERT],

@@ -33,7 +33,7 @@ if (!FIN) { console.error('cage stab layer: _fin_gen.js not loaded'); return; }
 const ST2FIN = FIN.ST2FIN;
 const stDef = { stOn: 1, stCut: 1, stCutGap: 0.012,
   stSolid: 1, stThick: 0.05, stThickTE: 0.012,
-  stX: 0.05, stY: 0.25, stZ: 0, stCons: 0,
+  stX: 0.05, stY: 0.25, stZ: 0, stCons: 0, stOver: 0,
   // THE ROOT'S SEAT + THE CANT (2026-09-04, the user's "V tail and T tail
   // variants"): stMount 0 = the boom keel (G26.5, as always), 1 = the boom
   // DECK (a V-tail's panels meet on top of the boom), 2 = the FIN TIP (a
@@ -87,7 +87,13 @@ const GROUP = ['8b · tail — stab & elevator', [
   ], 'open', { when: P => +P.stOn }],
   // THE MACRO TIER (P3), the fin's words laid flat: span for height
   ['size', [
-    ['stSpan',     'span (× the drawn)',                0.50, 1.80, 0.01],
+    // G271: between twin booms the span is NOT the builder's — the panel
+    // runs from fin to fin (its tips on the booms' centre planes) and the
+    // one number left is how far it overhangs past them (metres, a side)
+    ['stSpan',     'span (× the drawn)',                0.50, 1.80, 0.01,
+     { when: P => !+P.boomTwin }],
+    ['stOver',     'overhang past the booms', 0, 1.0, 0.01,
+     { when: P => !!+P.boomTwin, dim: 'len' }],
     ['stChord',    'chord (× the drawn, about the hinge)', 0.50, 1.60, 0.01],
     ['stChordTip', 'tip chord (of the root)',           0.30, 1.50, 0.01],
     ['stSweep',    'sweep (deg, the hinge rakes)',      -10, 45, 0.5],
@@ -227,6 +233,25 @@ PAGE.post = ctx => {
   const L = $('lvl') ? +$('lvl').value : 2;
   let s = m0;
   for (let i = 0; i < L; i++) s = CG2.cageSubdivide(s);
+  // THE PANEL REACHES THE FINS (G271, the user: "the stabiliser wing in the
+  // middle of the booms does not touch the fins on each side, so it's
+  // really just floating there. It needs to fit properly"). Between twin
+  // booms the drawn span was whatever the fin's height rows said, and the
+  // tips stopped short of the booms or ran past them. The built sheet is
+  // stretched along its span (about the root line, chords untouched) so the
+  // tip lands on the boom's centre plane — inside the fin standing there
+  // and inside the tube — plus the builder's overhang. Before the cut and
+  // the thickening, so the measure, the join and the physics read the
+  // panel that is drawn.
+  if (TB && TB.x > 0) {
+    let H = -Infinity;
+    for (const p of s.V) H = Math.max(H, p[1] - rootLine);
+    const want = (TB.x + Math.max(0, +P.stOver || 0)) / FSd - (P.stX || 0);
+    if (H > 1e-6 && want > 0.05) {
+      const k = want / H;
+      s = Object.assign({}, s, { V: s.V.map(p => [p[0], rootLine + (p[1] - rootLine) * k, p[2]]) });
+    }
+  }
   // the root, dead straight WHERE THE FUSELAGE IS — aft of the cap the
   // strand is the elevator's inboard edge, and baseY may pull its TE end
   // outboard (the centre-apart clearance), so it must keep its shape
