@@ -44,7 +44,7 @@ const ROLE_SETS = {
            ['hangar', 'slabwall'], ['house', 'corrworn'], ['house', 'paintwood']],
   plinth: [['hangar', 'concrete008'], ['hangar', 'concrete004'], ['hangar', 'slabwall']],
   roof:   [['house', 'corrworn'], ['house', 'galv'], ['house', 'corrrust'], ['house', 'boxprof'],
-           ['hangar', 'rustysheet']],
+           ['hangar', 'rustysheet'], ['house', 'shingle'], ['house', 'greywood'], ['house', 'wornwood']],
   door:   [['hangar', 'rustymetal'], ['hangar', 'rustysheet'], ['hangar', 'factory'], ['house', 'galv']],
   metal:  [['house', 'galv'], ['house', 'rust']],
   beam:   [['house', 'rough'], ['house', 'mossy'], ['house', 'veneerdark'], ['house', 'bark']],
@@ -288,12 +288,15 @@ const PRESETS = {
     // with the head house on it
     // `ends`: what stands off the -x and +x ends - an annex, a stair
     // tower, a chute, or nothing (a naked lean-to takes the +x end)
+    // no gable along the contour under another tier (its uphill slope
+    // would drain into the wall above): monopitches high at the back and
+    // gables across, which drain off the ends; the crusher floor on top
     millTiers: [
-      { roof: 'x', storeys: 2, naked: 0, ends: ['annex', 'stair'] },
-      { roof: 'mono', storeys: 2, naked: 1, ends: ['chute', ''] },
-      { roof: 'z', storeys: 2, naked: 0, ends: ['stair', 'annex'] },
-      { roof: 'x', storeys: 2, naked: 1, ends: ['annex', ''] },
-      { roof: 'x', storeys: 3, naked: 0, ends: ['chute', 'stair'] },
+      { roof: 'mono', storeys: 2, naked: 0, ends: ['annex', 'stair'] },
+      { roof: 'z', storeys: 2, naked: 1, ends: ['chute', ''] },
+      { roof: 'mono', storeys: 2, naked: 0, ends: ['stair', 'annex'] },
+      { roof: 'z', storeys: 2, naked: 1, ends: ['annex', ''] },
+      { roof: 'mono', storeys: 3, naked: 0, ends: ['chute', 'stair'] },
       { roof: 'z', storeys: 2, naked: 1, ends: ['annex', ''] },
       { roof: 'frame', storeys: 2, naked: 0, head: 1, ends: ['', 'chute'] },
     ],
@@ -301,7 +304,7 @@ const PRESETS = {
     rollers: 0, door: 1, doors: 2, doorW: 1.2, doorH: 2.3, winStrip: 0, shopWin: 0, dock: 0, canopy: 0, gantry: 0,
     stack: 0, vents: 0, pipes: 0, sign: 0,
     wallSet: SET_IDX('wall', 'paintwood'), wallTint: 0xd4452c, plinthSet: SET_IDX('plinth', 'concrete004'),
-    roofSet: SET_IDX('roof', 'corrrust'), doorSet: SET_IDX('door', 'rustysheet'), metalSet: SET_IDX('metal', 'rust'),
+    roofSet: SET_IDX('roof', 'greywood'), doorSet: SET_IDX('door', 'rustysheet'), metalSet: SET_IDX('metal', 'rust'),
     beamSet: SET_IDX('beam', 'rough'),
     dirt: 0.7, dirtH: 1.8, ao: 0.9, aoRange: 0.9, clouds: 0.9,
   },
@@ -418,30 +421,48 @@ const PRESETS = {
 // soot, the mould). Each is a soft threshold on an fbm, so the spots have
 // ragged edges, and `clouds` scales all three. Chained AFTER the house
 // finish's own hook on the same material (it declared hNoise).
+// THE CLOUDS ARE BROAD (G324, the user: "larger and more spread though,
+// less noticeable"): the fields run 8-15 m across now, the thresholds
+// wide, the mixes gentle. THE ROOFS WEATHER THEIR OWN WAY (uCloudMode 1;
+// the user: "these were wood and they have become grey and pale, and
+// full of dust"): the boards lose their colour toward a pale grey over
+// most of the roof, and a dust - warm, pale - lies in drifts on a second
+// field, thicker toward the eaves' low side.
 const CLOUD_GLSL = `
   {
     vec3 _wp = vHouseP;
-    float _c1 = hNoise(_wp * 0.55 + vec3(11.0, 3.0, 7.0)) * 0.6 + hNoise(_wp * 1.7 + vec3(5.0)) * 0.4;
-    float _c2 = hNoise(_wp * 0.42 + vec3(31.0, 9.0, 2.0)) * 0.6 + hNoise(_wp * 2.3 + vec3(17.0)) * 0.4;
-    float _c3 = hNoise(_wp * 0.8 + vec3(3.0, 21.0, 13.0)) * 0.55 + hNoise(_wp * 3.1 + vec3(41.0)) * 0.45;
-    float _w = smoothstep(0.55, 0.78, _c1) * uCloudK;
-    float _b = smoothstep(0.55, 0.75, _c2) * uCloudK;
-    float _k = smoothstep(0.58, 0.8, _c3) * uCloudK;
+    float _c1 = hNoise(_wp * 0.16 + vec3(11.0, 3.0, 7.0)) * 0.65 + hNoise(_wp * 0.6 + vec3(5.0)) * 0.35;
+    float _c2 = hNoise(_wp * 0.13 + vec3(31.0, 9.0, 2.0)) * 0.65 + hNoise(_wp * 0.7 + vec3(17.0)) * 0.35;
+    float _c3 = hNoise(_wp * 0.22 + vec3(3.0, 21.0, 13.0)) * 0.6 + hNoise(_wp * 0.9 + vec3(41.0)) * 0.4;
     vec3 _lum = vec3(dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11)));
-    diffuseColor.rgb = mix(diffuseColor.rgb, mix(_lum, vec3(1.0), 0.3) * vec3(0.88, 0.84, 0.8), _w * 0.5);
-    diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.55, 0.38, 0.24) + vec3(0.06, 0.03, 0.0), _b * 0.8);
-    diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.18, 0.17, 0.16), _k * 0.85);
+    if (uCloudMode < 0.5) {
+      float _w = smoothstep(0.42, 0.8, _c1) * uCloudK;
+      float _b = smoothstep(0.45, 0.82, _c2) * uCloudK;
+      float _k = smoothstep(0.5, 0.85, _c3) * uCloudK;
+      diffuseColor.rgb = mix(diffuseColor.rgb, mix(_lum, vec3(1.0), 0.3) * vec3(0.88, 0.84, 0.8), _w * 0.4);
+      diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.55, 0.38, 0.24) + vec3(0.06, 0.03, 0.0), _b * 0.6);
+      diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.18, 0.17, 0.16), _k * 0.6);
+    } else {
+      float _grey = (0.3 + 0.5 * smoothstep(0.3, 0.7, _c1)) * uCloudK;
+      float _dust = smoothstep(0.4, 0.75, _c2) * uCloudK;
+      vec3 _pale = mix(_lum, vec3(1.0), 0.35) * vec3(0.78, 0.78, 0.76);
+      diffuseColor.rgb = mix(diffuseColor.rgb, _pale, _grey);
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.62, 0.57, 0.48), _dust * 0.55);
+      diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.3, 0.29, 0.28), smoothstep(0.55, 0.9, _c3) * uCloudK * 0.4);
+    }
   }`;
 function cloudWeather(m, U) {
   const ud = m.userData || (m.userData = {});
   if (ud.clouded) return;
   ud.clouded = true;
   ud.uCloudK = { value: 0 };
+  ud.uCloudMode = { value: 0 };
   const prev = m.onBeforeCompile;
   m.onBeforeCompile = sh => {
     if (prev) prev(sh);
     sh.uniforms.uCloudK = ud.uCloudK;
-    sh.fragmentShader = 'uniform float uCloudK;' + String.fromCharCode(10) + sh.fragmentShader
+    sh.uniforms.uCloudMode = ud.uCloudMode;
+    sh.fragmentShader = 'uniform float uCloudK, uCloudMode;' + String.fromCharCode(10) + sh.fragmentShader
       .replace('#include <map_fragment>', '#include <map_fragment>' + String.fromCharCode(10) + CLOUD_GLSL);
   };
   m.needsUpdate = true;
@@ -452,7 +473,7 @@ function applyFinish(P, F) {
   const M = F ? F.MAT : MAT;
   const SU = F ? F.SHADE_U : DEFAULT_FINISH.SHADE_U;
   for (const k of BAGS) if (!(M[k].userData && M[k].userData.flat)) HG.shadeHouse(M[k], SU);
-  for (const k of ['wall', 'door', 'roof', 'beam']) { cloudWeather(M[k], SU); M[k].userData.uCloudK.value = P.clouds === undefined ? 0.5 : P.clouds; }
+  for (const k of ['wall', 'door', 'roof', 'beam']) { cloudWeather(M[k], SU); M[k].userData.uCloudK.value = P.clouds === undefined ? 0.5 : P.clouds; M[k].userData.uCloudMode.value = k === 'roof' ? 1 : 0; }
   HG.shadeSkirt(HG.MAT.aoskirt);
   dress(M.wall, 'wall', P.wallSet, { tint: P.wallTint });
   dress(M.plinth, 'plinth', P.plinthSet);
@@ -536,28 +557,85 @@ function buildMill(bags, P, Q, g) {
   const N = spec.length;
   // THE BEAMS: a post, a plate, a brace - raw timber
   const post = (a, b, s) => beam(bags.beam, a, b, s || 0.14, s || 0.14, [0, 0, 1], 0);
+  // PILLARS AT EVERY CORNER (G324, the user: "give proper pillars to all
+  // the corners of every building"): a heavy timber at each corner of a
+  // closed volume, floor to eave, standing a little proud of the boards
+  const corners = (X0, X1, Z0, Z1, Y0, Y1) => {
+    for (const [x, z] of [[X0, Z0], [X1, Z0], [X1, Z1], [X0, Z1]]) {
+      const ox = x === X0 ? -hw - 0.06 : hw + 0.06, oz = z === Z0 ? hw + 0.06 : -hw - 0.06;
+      post([x + ox, Y0, z + oz], [x + ox, Y1, z + oz], 0.2);
+    }
+  };
+  // THE GEOMETRY FIRST (G324): every tier's plan, floor, roof and ends are
+  // settled before a wall is drawn, so a window can ask whether it would
+  // open into the volume next to it - the tier above whose front wall
+  // rises out of this roof, the annex on the end - and stay boards there
+  const TG = [];
   for (let i = 0; i < N; i++) {
     const S = spec[i];
     const L = (S.L !== undefined) ? S.L : P.tierL0 + (P.tierL1 - P.tierL0) * i / Math.max(1, N - 1);
     const xo = (S.xo !== undefined) ? S.xo : (rnd() - 0.5) * Math.max(2, (P.tierL0 - L) * 0.9);
     const zF = w / 2 - i * step, zB = zF - w, zM = (zF + zB) / 2;
-    // the floor: a rise over the tier below, and never in the hill - on a
-    // real slope the ground under a tier's back can climb faster than the
-    // rise, and the floor goes up with it
     let gUnder = -1e9;
     for (const x of [xo - L / 2, xo, xo + L / 2]) for (const z of [zF, zB]) gUnder = Math.max(gUnder, g(x, z));
-    const fy = Math.max(i ? tiers[i - 1].fy + rise : P.floorY, gUnder + 0.25);
+    const fy = Math.max(i ? TG[i - 1].fy + rise : P.floorY, gUnder + 0.25);
     const storeys = Math.max(1, Math.round(S.storeys || P.tierStoreys));
     const eave = fy + storeys * stH;
     const roof = S.roof || 'x';
-    // the roof's underside over the tier's plan, per kind
+    // THE ROOFS FOLLOW THE WALLS AND DRAIN (G324): a gable across the tier
+    // ('z') is one plane each side over the WHOLE length, its pitch capped
+    // so a long tier's ridge stays under 4.5 m - the wall top and the
+    // plate are the same function; a monopitch is HIGH AT THE BACK, so
+    // its water runs down the hill off the front eave and never into the
+    // wall of the tier above
+    const tpZ = Math.min(tp, 4.5 / (L / 2));
     const yRoof = (x, z) => roof === 'x' || roof === 'frame' ? eave + (w / 2 - Math.abs(z - zM)) * tp
-                          : roof === 'z' ? eave + (Math.min(L / 2, 6) - Math.min(Math.min(L / 2, 6), Math.abs(x - xo))) * tp
-                          : eave + (z - zB) * tp * 0.6;                                   // mono: high at the front
-    const ridge = Math.max(yRoof(xo, zM), yRoof(xo, zF));
-    ridgeTop = Math.max(ridgeTop, ridge);
+                          : roof === 'z' ? eave + (L / 2 - Math.min(L / 2, Math.abs(x - xo))) * tpZ
+                          : eave + (zF - z) * tp * 0.6;
+    const ridge = Math.max(yRoof(xo, zM), yRoof(xo, zF), yRoof(xo, zB));
     const x0 = xo - L / 2, x1 = xo + L / 2;
     const isDer = der > 0 && rnd() < der;
+    // the ends, decided now: what stands off -x and +x, with its box
+    const endsK = S.ends || (() => { const e = []; for (const sd of [-1, 1]) { const r = rnd(); e.push(r < 0.3 ? 'annex' : r < 0.5 ? 'stair' : r < 0.65 ? 'chute' : ''); } return e; })();
+    const ends = [];
+    for (let e = 0; e < 2; e++) {
+      const sd = e === 0 ? -1 : 1, kind = endsK[e];
+      if (!kind || (S.naked && sd === 1) || roof === 'frame') continue;
+      const xe = sd < 0 ? x0 : x1;
+      if (kind === 'annex') {
+        const aL = 4.2, aW = Math.min(w - 1.5, 5.5), ax0 = sd < 0 ? xe - aL : xe, ax1 = ax0 + aL;
+        const az0 = zF - 0.8, az1 = az0 - aW, afy = fy + (rnd() < 0.5 ? 0 : stH);
+        if (afy > eave - 2.5) continue;
+        ends.push({ kind, sd, x0: ax0, x1: ax1, z0: az0, z1: az1, y0: afy, y1: afy + 2.9 + aL * 0.22, aE: afy + 2.9 });
+      } else if (kind === 'stair') {
+        const sL = 2.6, sW = 3.0, sx0 = sd < 0 ? xe - sL : xe;
+        ends.push({ kind, sd, x0: sx0, x1: sx0 + sL, z0: zM + sW / 2, z1: zM - sW / 2, y0: fy, y1: eave + 0.9 });
+      } else ends.push({ kind, sd, xe });
+    }
+    TG.push({ S, L, xo, x0, x1, zF, zB, zM, fy, storeys, eave, roof, yRoof, ridge, isDer, ends, tpZ });
+  }
+  // is a point inside another closed volume (a tier's box under its roof,
+  // an annex, a stair tower)? - then no window opens there
+  const covered = (x, y, z, self) => {
+    for (let j = 0; j < N; j++) {
+      const T2 = TG[j];
+      if (j !== self && T2.roof !== 'frame' && x > T2.x0 + 0.05 && x < T2.x1 - 0.05 && z > T2.zB + 0.05 && z < T2.zF - 0.05 && y > T2.fy - 0.1 && y < T2.yRoof(x, z) + 0.3) return true;
+      for (const E of T2.ends) if (E.x0 !== undefined && x > E.x0 - 0.05 && x < E.x1 + 0.05 && z > E.z1 - 0.05 && z < E.z0 + 0.05 && y > E.y0 - 0.1 && y < E.y1 + 0.3) return true;
+    }
+    return false;
+  };
+  const openClear = (A, B, len, s0, s1, y0, y1, self) => {
+    const X = [(B[0] - A[0]) / len, (B[1] - A[1]) / len];
+    for (const s of [s0, (s0 + s1) / 2, s1]) for (const y of [y0, (y0 + y1) / 2, y1]) {
+      const x = A[0] + X[0] * s, z = A[1] + X[1] * s;
+      if (covered(x, y, z, self)) return false;
+    }
+    return true;
+  };
+  for (let i = 0; i < N; i++) {
+    const G2 = TG[i];
+    const { S, L, xo, x0, x1, zF, zB, zM, fy, storeys, eave, roof, yRoof, ridge, isDer, ends, tpZ } = G2;
+    ridgeTop = Math.max(ridgeTop, ridge);
     // THE OPEN TRUSS SKIRT (G323, the user: "Truss open skirt for everyone
     // in the factory"): every tier stands on timber bents down to the hill
     // - posts on a grid, a sill beam along each row, cross bracing in every
@@ -632,6 +710,7 @@ function buildMill(bags, P, Q, g) {
               const s0 = s00 + j * spc;
               if (rnd() < 0.12) continue;                    // boarded up
               if (y1 > topAt(s0) - 0.3 || y1 > topAt(s0 + ww) - 0.3) continue;
+              if (!openClear(A, B, len, s0, s0 + ww, y0, y1, i)) continue;     // a joint with the next volume: boards
               holes.push({ s0, s1: s0 + ww, y0, y1, kind: 'win' });
               wins.push({ k, s0, s1: s0 + ww, y0, y1 });
             }
@@ -647,11 +726,13 @@ function buildMill(bags, P, Q, g) {
             const s0 = 0.5 + rnd() * (len - 1.2), gw = 0.18 + rnd() * 0.16, y0 = fy + 0.2 + rnd() * (storeys * stH - 2.5), y1 = y0 + 0.8 + rnd() * 1.6;
             if (holes.some(h => s0 < h.s1 + 0.15 && s0 + gw > h.s0 - 0.15 && y0 < h.y1 + 0.1 && y1 > h.y0 - 0.1)) continue;
             if (y1 > Math.min(topAt(s0), topAt(s0 + gw)) - 0.3) continue;
+            if (!openClear(A, B, len, s0, s0 + gw, y0, y1, i)) continue;
             holes.push({ s0, s1: s0 + gw, y0, y1, kind: 'gap' });
           }
         }
         wall(bags.wall, { A, B, y0: fy, t, topAt, holes, ext: [hw, hw], inner: true, endCap: [false, false], capBot: false, sub: Q.lod === 0 ? 3.0 : 0 });
       }
+      corners(x0, x1, zF, zB, fy, Math.min(yRoof(x0, zF), yRoof(x1, zB), yRoof(x0, zB), yRoof(x1, zF)) - 0.05);
       // the interior floors, seen through the gaps and the glass as dark planes
       for (let st = 1; st < storeys; st++) {
         const y = fy + st * stH;
@@ -699,17 +780,27 @@ function buildMill(bags, P, Q, g) {
       }
       beam(bags.metal, [x0 - P.rakeOver, ridge + rT + 0.03, zM], [x1 + P.rakeOver, ridge + rT + 0.03, zM], 0.16, 0.05, [0, 1, 0], 0);
     } else if (roof === 'z') {
-      const half = Math.min(L / 2, 6), ridgeZ = eave + half * tp;
+      const ridgeZ = eave + L / 2 * tpZ;
       for (const side of [1, -1]) {
-        const xE = xo + side * (L / 2 + P.rakeOver), yE = eave - (L / 2 - half) * 0 - P.rakeOver * tp + rT;
+        const xE = xo + side * (L / 2 + P.rakeOver), yE = eave - P.rakeOver * tpZ + rT;
         const ring2 = [[xo, ridgeZ + rT, zF + P.eaveOver], [xo, ridgeZ + rT, zB - P.eaveOver], [xE, yE, zB - P.eaveOver], [xE, yE, zF + P.eaveOver]];
         roofPlate(ring2, nrm([xE - xo, yE - ridgeZ - rT, 0]));
       }
       beam(bags.metal, [xo, ridgeZ + rT + 0.03, zF + P.eaveOver], [xo, ridgeZ + rT + 0.03, zB - P.eaveOver], 0.16, 0.05, [0, 1, 0], 0);
     } else {
-      const yF = yRoof(xo, zF) + P.eaveOver * tp * 0.6 + rT, yB = yRoof(xo, zB) - P.eaveOver * tp * 0.6 + rT;
-      const ring2 = [[x0 - P.rakeOver, yF, zF + P.eaveOver], [x1 + P.rakeOver, yF, zF + P.eaveOver], [x1 + P.rakeOver, yB, zB - P.eaveOver], [x0 - P.rakeOver, yB, zB - P.eaveOver]];
-      roofPlate(ring2, nrm([0, yB - yF, -w]));
+      // the monopitch: high at the back, its eave at the front - the same
+      // plane the walls were cut to
+      const yF = yRoof(xo, zF) - P.eaveOver * tp * 0.6 + rT, yB = yRoof(xo, zB) + P.eaveOver * tp * 0.6 + rT;
+      const S2 = nrm([0, yB - yF, -w]);
+      const zA = zF + P.eaveOver, zC = zB - P.eaveOver, xa = x0 - P.rakeOver, xb = x1 + P.rakeOver;
+      if (collapse && L > 9) {
+        // the middle panel down: its high edge dropped and the panel sagging in
+        const xm0 = xo - L * 0.16, xm1 = xo + L * 0.16, drop = 0.9 + rnd() * 0.7;
+        roofPlate([[xa, yF, zA], [xm0, yF, zA], [xm0, yB, zC], [xa, yB, zC]], S2);
+        roofPlate([[xm1, yF, zA], [xb, yF, zA], [xb, yB, zC], [xm1, yB, zC]], S2);
+        roofPlate([[xm0, yF - 0.1, zA], [xm1, yF, zA], [xm1, yB - drop - 0.3, zC + 0.5], [xm0, yB - drop, zC + 0.7]], S2);
+        if (Q.lod === 0) for (let k = 0; k < 4; k++) { const x = xm0 + (xm1 - xm0) * (k + 0.5) / 4; post([x, yF - 0.1, zA], [x, yB - 0.08, zC], 0.08); }
+      } else roofPlate([[xa, yF, zA], [xb, yF, zA], [xb, yB, zC], [xa, yB, zC]], S2);
     }
     // THE ENDS BROKEN UP (G323, the user: "The side of the big factory is
     // much too linear. Add some protrusions, structures and buildings
@@ -718,17 +809,12 @@ function buildMill(bags, P, Q, g) {
     // windows, standing on its own bents), a STAIR TOWER (a narrow tall
     // box the full height with a door at the bottom and a window a storey),
     // a CHUTE (a plank trough on legs sloping down the hill off the end)
-    const ends = S.ends || (() => { const e = []; for (const sd of [-1, 1]) { const r = rnd(); e.push(r < 0.3 ? 'annex' : r < 0.5 ? 'stair' : r < 0.65 ? 'chute' : ''); } return e; })();
-    for (let e = 0; e < 2; e++) {
-      const sd = e === 0 ? -1 : 1, kind = ends[e];
-      if (!kind || (S.naked && sd === 1)) continue;
-      const xe = sd < 0 ? x0 : x1;
+    for (const E of ends) {
+      const sd = E.sd, kind = E.kind, xe = E.xe;
       if (kind === 'annex') {
-        const aL = 4.2, aW = Math.min(w - 1.5, 5.5), ax0 = sd < 0 ? xe - aL : xe, ax1 = ax0 + aL;
-        const az0 = zF - 0.8, az1 = az0 - aW, afy = fy + (rnd() < 0.5 ? 0 : stH);
-        if (afy > eave - 2.5) continue;
-        const aE = afy + 2.9;
+        const ax0 = E.x0, ax1 = E.x1, az0 = E.z0, az1 = E.z1, afy = E.y0, aE = E.aE, aL = ax1 - ax0, aW = az0 - az1;
         skirt(ax0, ax1, az0, az1, afy);
+        corners(ax0, ax1, az0, az1, afy, aE - 0.05);
         face(bags.beam, [[ax0, afy, az1], [ax0, afy, az0], [ax1, afy, az0], [ax1, afy, az1]], [0, 1, 0], uvFrame([ax0, afy, az1], [1, 0, 0], [0, 0, 1]));
         const ap = [[ax0, az0], [ax1, az0], [ax1, az1], [ax0, az1]];
         for (let k = 0; k < 4; k++) {
@@ -747,9 +833,9 @@ function buildMill(bags, P, Q, g) {
         plate(bags.roof, ring2, rT, [0, -1, 0], uvFrame(ring2[0], [1, 0, 0], [0, 0, -1]));
         occ.push({ x: (ax0 + ax1) / 2, z: (az0 + az1) / 2, hx: aL / 2 + 0.3, hz: aW / 2 + 0.3, k: 0.6, soft: 1.2, dry: true });
       } else if (kind === 'stair') {
-        const sL = 2.6, sW = 3.0, sx0 = sd < 0 ? xe - sL : xe, sx1 = sx0 + sL;
-        const sz0 = zM + sW / 2, sz1 = zM - sW / 2, sfy = fy, sE = eave + 0.9;
+        const sx0 = E.x0, sx1 = E.x1, sz0 = E.z0, sz1 = E.z1, sfy = E.y0, sE = E.y1, sL = sx1 - sx0, sW = sz0 - sz1;
         skirt(sx0, sx1, sz0, sz1, sfy);
+        corners(sx0, sx1, sz0, sz1, sfy, sE - 0.05);
         const sp = [[sx0, sz0], [sx1, sz0], [sx1, sz1], [sx0, sz1]];
         for (let k = 0; k < 4; k++) {
           if ((sd < 0 && k === 1) || (sd > 0 && k === 3)) continue;
@@ -762,10 +848,13 @@ function buildMill(bags, P, Q, g) {
             if (h.kind === 'win') face(bags.glass, [P3(h.s0, h.y0, 0), P3(h.s1, h.y0, 0), P3(h.s1, h.y1, 0), P3(h.s0, h.y1, 0)], Nn, uvFrame(P3(h.s0, h.y0, 0), X, [0, 1, 0]));
             else face(bags.door, [P3(h.s0, h.y0, -hw + 0.03), P3(h.s1, h.y0, -hw + 0.03), P3(h.s1, h.y1, -hw + 0.03), P3(h.s0, h.y1, -hw + 0.03)], Nn, uvFrame(P3(h.s0, h.y0, 0), X, [0, 1, 0])); }
         }
-        // a flat cap with a lip
-        plate(bags.roof, [[sx0 - 0.25, sE + rT + 0.08, sz0 + 0.25], [sx1 + 0.25, sE + rT + 0.08, sz0 + 0.25], [sx1 + 0.25, sE + rT, sz1 - 0.25], [sx0 - 0.25, sE + rT, sz1 - 0.25]], rT, [0, -1, 0], uvFrame([sx0, sE, sz0], [1, 0, 0], [0, 0, -1]));
+        // a cap falling away from the tier, so it sheds outward
+        const capHi = sE + rT + 0.25, capLo = sE + rT;
+        plate(bags.roof, sd < 0 ? [[sx0 - 0.25, capLo, sz0 + 0.25], [sx1 + 0.25, capHi, sz0 + 0.25], [sx1 + 0.25, capHi, sz1 - 0.25], [sx0 - 0.25, capLo, sz1 - 0.25]]
+                                : [[sx0 - 0.25, capHi, sz0 + 0.25], [sx1 + 0.25, capLo, sz0 + 0.25], [sx1 + 0.25, capLo, sz1 - 0.25], [sx0 - 0.25, capHi, sz1 - 0.25]],
+              rT, [0, -1, 0], uvFrame([sx0, sE, sz0], [1, 0, 0], [0, 0, -1]));
         occ.push({ x: (sx0 + sx1) / 2, z: zM, hx: sL / 2 + 0.2, hz: sW / 2 + 0.2, k: 0.6, soft: 1.0, dry: true });
-      } else if (kind === 'chute' && Q.lod === 0) {
+      } else if (kind === 'chute' && Q.lod === 0 && xe !== undefined) {
         // a plank trough off the end, sloping down the hill on legs
         const c0 = [xe, fy + 1.2, zM], c1 = [xe + sd * 6.5, fy - 1.6, zM + 1.5];
         const dir = nrm(sub(c1, c0)), side = nrm(crs(dir, [0, 1, 0])), Ln = len(sub(c1, c0));
@@ -804,6 +893,7 @@ function buildMill(bags, P, Q, g) {
           face(bags.glass, [P3(s0, hy + 1.0), P3(s0 + 0.8, hy + 1.0), P3(s0 + 0.8, hy + 2.0), P3(s0, hy + 2.0)], Nn, uvFrame(P3(s0, hy), X, [0, 1, 0])); } }
         wall(bags.wall, { A, B, y0: hy, t, topAt, holes, ext: [hw, hw], inner: true, endCap: [false, false], capBot: false, sub: 0 });
       }
+      corners(hx - hL / 2, hx + hL / 2, hz + hW / 2, hz - hW / 2, hy, hE - 0.05);
       const yF2 = hE + hW * 0.25 + 0.3 * 0.25 + rT, yB2 = hE - 0.3 * 0.25 + rT;
       roofPlate([[hx - hL / 2 - 0.3, yF2, hz + hW / 2 + 0.3], [hx + hL / 2 + 0.3, yF2, hz + hW / 2 + 0.3], [hx + hL / 2 + 0.3, yB2, hz - hW / 2 - 0.3], [hx - hL / 2 - 0.3, yB2, hz - hW / 2 - 0.3]], nrm([0, yB2 - yF2, -hW]));
       ridgeTop = Math.max(ridgeTop, yF2);

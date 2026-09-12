@@ -41183,3 +41183,44 @@ lattice's lever, and with the cluster on the members carry none.
   empty plots grow the small species only (the 4 m and 9 m firs); the
   tall ones are the wood behind.
 - Gates: HOUSE, VILLAGE green.
+
+## G324 — THE MILL'S GEOMETRY IS KNOWN BEFORE A WALL IS DRAWN: PILLARS AT
+## EVERY CORNER, ROOFS THAT FOLLOW THEIR WALLS AND DRAIN, NO WINDOW INTO A
+## JOINT, THE CLOUDS BROADER, THE ROOFS GREY AND DUSTY (2026-09-13, the user:
+## "The patches need to be larger and more spread ... proper pillars to all
+## the corners of every building. One roof does not follow the facade
+## profile ... ensure windows are not placed where 2 buildings intersect ...
+## avoid doing roofs going down toward another wall, that's bad for water ...
+## Have another type of weathering for the roofs ... grey and pale, and full
+## of dust")
+
+- **THE PRE-PASS**: every tier's plan, floor, roof function, ridge and its
+  END structures (annex / stair tower / chute, with their boxes) are
+  settled in a first pass (`TG`); the drawing pass reads them. So a
+  window can ask `covered(x, y, z)` — inside another tier's box under
+  its roof, or an annex, or a stair tower — and stay boards: no window
+  or gap opens into a joint between two volumes.
+- **PILLARS** (`corners`): a 0.2 m timber at every corner of every closed
+  volume — tiers, annexes, stair towers, the head house — floor to
+  eave, a little proud of the boards.
+- **THE ROOFS FOLLOW THE WALLS**: a gable across the tier ('z') is one
+  plane each side over the whole length, its pitch capped so a long
+  tier's ridge stays under 4.5 m; wall top and plate are the same
+  function (the circled roof had the plate on a straight slope while
+  the wall went flat past 6 m).
+- **THE ROOFS DRAIN**: a monopitch is HIGH AT THE BACK now — its water
+  runs down the hill off the front eave, never into the wall of the tier
+  above; the Kennecott preset alternates monopitches and cross gables
+  (which drain off the ends) under the crusher floor, no gable along the
+  contour under another tier; a stair tower's cap falls away from the
+  tier. A monopitch can collapse like a gable (the middle panel down,
+  rafters bare).
+- **THE CLOUDS BROADER**: the fields run 8–15 m across, wide thresholds,
+  gentler mixes — the mottling reads as weather, not paint.
+- **THE ROOFS' OWN WEATHER** (`uCloudMode` 1 on the roof material): the
+  boards lose their colour toward a pale grey over most of the roof, a
+  warm pale dust lies in drifts on a second field, a darker third field
+  underneath. The mill's roofs are the house library's grey wood now
+  (`greywood`, `wornwood` and `shingle` joined the roof role), not
+  rusted sheet.
+- Gates: HOUSE, VILLAGE green.
