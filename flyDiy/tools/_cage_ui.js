@@ -3953,6 +3953,32 @@ function buildMatPanel() {
       aeroSavePrefs(); build();
     };
     dm.appendChild(im); dm.appendChild(vm);
+    // G316 (the user: "we need both base metallic and base roughness for the
+    // master paint"): THE BASE PAINT'S ROUGHNESS, the same reach — a
+    // multiplier on every exterior section's finish (1 = as designed), and
+    // the parent-wearing layer parts cleared to follow
+    const dr = mkRow2('base roughness', 'multiplies the finish’s own roughness ' +
+      'over the whole fuselage — 0.05 mirror-gloss, 1 as designed, 4 chalk; ' +
+      'the per-section rows still override');
+    dr.dataset.matHead = '1';
+    const ir = document.createElement('input');
+    ir.type = 'range'; ir.min = '0.05'; ir.max = '4'; ir.step = '0.05';
+    ir.value = String(secRough.body != null ? secRough.body : 1);
+    ir.style.flex = '1';
+    const vr = document.createElement('span');
+    vr.className = 'v'; vr.textContent = (+ir.value).toFixed(2);
+    ir.oninput = () => {
+      const x = +ir.value; vr.textContent = x.toFixed(2);
+      for (const nm of names)
+        if (['skin', 'rail', 'pillar'].includes(A.AERO_ROLE[nm])) {
+          if (Math.abs(x - 1) < 1e-6) delete secRough[nm]; else secRough[nm] = x;
+        }
+      if (Math.abs(x - 1) < 1e-6) delete secRough.body; else secRough.body = x;
+      if (A.AERO_SEC) for (const k in A.AERO_SEC)
+        if (A.AERO_SEC[k].wears === 'parent') delete secRough[k];
+      aeroSavePrefs(); build();
+    };
+    dr.appendChild(ir); dr.appendChild(vr);
   }
   // ---- THE GLAZING, once for every pane (G113.2) -------------------------
   // The user asked for "a lot more options" on the glass and named most of

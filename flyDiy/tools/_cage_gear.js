@@ -505,17 +505,30 @@ PAGE.post = ctx => {
     SM('gearLeg', { surf: 0, fieldM: 1, tint0: 0x98a2ad }))
     || (k === 'fair' && bag && bag.tris ? spatM() : 0)
     || GG.gearMat(k);
+  // G316 (the user: "the wheel fairings should also be exploded"): a leg's
+  // 'fair' bag — its spat and its shroud — unbolts OUTBOARD by the explode
+  // distance (a centreline unit's forward), the leg and the wheel stay.
+  // Display only: the join resets explodeD before it reads the layers.
+  const exG = Math.max(0, P.explodeD || 0) * FS;
   for (const lu of legUnits) {
     const lg = new THREE.Group();
     lg.name = 'edLeg' + lu.kind;
-    for (const k in lu.bags) lu.bags[k].mesh(lg, legM(k, lu.bags[k]));
+    for (const k in lu.bags) {
+      const mf = lu.bags[k].mesh(lg, legM(k, lu.bags[k]));
+      if (k === 'fair' && mf && exG > 0) {
+        const sx = lu.axle ? Math.sign(lu.axle[0]) : 0;
+        if (sx) mf.position.x += sx * exG; else mf.position.z += 0.6 * exG;
+      }
+    }
     group.add(lg);
   }
   if (castorUnitOut) {
     const cgp = new THREE.Group();
     cgp.name = 'edCastorT';
-    for (const k in castorUnitOut.bags)
-      castorUnitOut.bags[k].mesh(cgp, legM(k, castorUnitOut.bags[k]));
+    for (const k in castorUnitOut.bags) {
+      const mf = castorUnitOut.bags[k].mesh(cgp, legM(k, castorUnitOut.bags[k]));
+      if (k === 'fair' && mf && exG > 0) mf.position.z += 0.6 * exG;   // G316
+    }
     group.add(cgp);
   }
 

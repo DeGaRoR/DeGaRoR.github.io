@@ -40818,3 +40818,46 @@ lattice's lever, and with the cluster on the members carry none.
   the many-dormered lower buildings, the outbuildings and bunkhouses
   across the road — as presets of the house generator (dormers exist).
 - Gates: HOUSE, VILLAGE green.
+
+## G316 — EVERY PANE EXPLODES, THE WING LENS WEARS THE WINDOWS' JOINT, THE
+## FAIRINGS UNBOLT, AND THE MASTER PAINT HAS A ROUGHNESS (2026-09-12, the user:
+## "we need both base metallic and base roughness for the master paint. The
+## explode functionality should also explode bubble canopies and the new cut
+## windows. The parts attached to the cut parts should move along, like the
+## fin lights ... The wheel fairings should also be exploded, as well as the
+## wing light ... their transparent part is the one getting exploded, and
+## this one should get the same joint treatment as the windows to highlight
+## its contour. All the same settings. Globally, all glazing should get
+## exploded")
+
+- **`cageExplodeFaces`** (next to cageCut): a set of faces with vertices of
+  their own translated by the cut parts' own offset — the mean outward
+  normal, radial unless near-axial (G28), times the explode distance — and
+  given `cutPart` / `cutOff`, so the rims, the interior passes and the
+  as-built sheet count them where they were built, exactly as a door's.
+- **The drawn (knife) windows explode**, one part per pane (the knife's
+  copies are per window; panes are grouped by the vertices they share; a
+  pane cut into a door already carries the door's offset and rides it).
+  The reveal walls stay on the skin, the hole's rim bead with them.
+- **The bubble canopy explodes**, straight up off its seam, as one part;
+  the component the arceau projects onto stays where it was built (the
+  appended vertices are copies now).
+- **The wing's landing-light lens** unbolts FORWARD off the D-nose by the
+  explode distance — the bay and its lamp stay in the wing — and its hole
+  wears the windows' joint bead: `lensBead` chains the cut's own boundary
+  loop on the welded lens and sweeps a tube of the cage's `rimW` gauge
+  under the `joint` section's material, on the `rimWin` switch
+  (`edLensJoint_wingR/L`).
+- **The wheel fairings** (a leg's `fair` bag — spat and shroud) unbolt
+  outboard by the explode distance, a centreline unit's forward; the leg
+  and the wheel stay. Display only: the join resets `explodeD` before it
+  reads the layers.
+- **The parts attached to cut parts move along** by construction: the
+  light layer measures its sites off the layers' meshes as drawn, so the
+  tail light on the exploded elevators' centre (or the rudder's trailing
+  edge) rides with them — measured on the user's build at explode 0.3:
+  bubble top +0.30, lens forward 0.22, spat outboard 0.22, the elevators
+  and the tail lamp aft together (2.85 → 3.08), the bead unmoved.
+- **Base roughness** beside the base metallic on the master paint: a
+  multiplier on every exterior section's finish roughness (0.05 gloss, 1
+  as designed, 4 chalk), the parent-wearing layer parts cleared to follow.

@@ -875,6 +875,60 @@ PAGE.post = ctx => {
   // All three come from the cut's OWN BOUNDARY — the edges used once — so the
   // cage follows whatever the aerofoil, the taper and the washout are doing
   // without being told any of it.
+  // G316: THE LENS'S JOINT — the cut's boundary loop (the edges used once
+  // on the welded lens) chained into a closed ring and swept as a tube of
+  // the seal's gauge. The same construction bayCage starts from; the loop
+  // is walked end to end rather than sorted by angle (the loft repeats its
+  // leading-edge seam vertex, and two coincident points share an angle).
+  function lensBead(geo, r) {
+    const src = geo.getAttribute('position'), idx = geo.getIndex();
+    if (!src || !idx || !(r > 0)) return null;
+    const P = [], map = new Map(), wid = new Int32Array(src.count);
+    for (let i = 0; i < src.count; i++) {
+      const x = src.getX(i), y = src.getY(i), z = src.getZ(i);
+      const k = Math.round(x * 1e4) + ',' + Math.round(y * 1e4) + ',' + Math.round(z * 1e4);
+      let id = map.get(k);
+      if (id === undefined) { id = P.length; P.push([x, y, z]); map.set(k, id); }
+      wid[i] = id;
+    }
+    const seen = new Map();
+    const kk = (a, b) => a < b ? a + '_' + b : b + '_' + a;
+    for (let t = 0; t + 2 < idx.count; t += 3) {
+      const v = [wid[idx.getX(t)], wid[idx.getX(t + 1)], wid[idx.getX(t + 2)]];
+      for (let k = 0; k < 3; k++) {
+        const a = v[k], b = v[(k + 1) % 3], key = kk(a, b);
+        const e = seen.get(key); if (e) e.n++; else seen.set(key, { a, b, n: 1 });
+      }
+    }
+    const adj = new Map();
+    for (const e of seen.values()) if (e.n === 1) {
+      if (!adj.has(e.a)) adj.set(e.a, []); if (!adj.has(e.b)) adj.set(e.b, []);
+      adj.get(e.a).push(e.b); adj.get(e.b).push(e.a);
+    }
+    if (adj.size < 4) return null;
+    // the longest closed loop
+    const used = new Set();
+    let best = null;
+    for (const s0 of adj.keys()) {
+      if (used.has(s0)) continue;
+      const ring = [s0]; used.add(s0);
+      let prev = -1, cur = s0;
+      for (let n = 0; n < adj.size; n++) {
+        const nb = (adj.get(cur) || []).filter(q => q !== prev);
+        if (!nb.length) break;
+        const nx = nb[0];
+        if (nx === s0) break;
+        if (used.has(nx)) break;
+        ring.push(nx); used.add(nx); prev = cur; cur = nx;
+      }
+      if (!best || ring.length > best.length) best = ring;
+    }
+    if (!best || best.length < 6) return null;
+    const pts = best.map(i => new THREE.Vector3(P[i][0], P[i][1], P[i][2]));
+    const curve = new THREE.CatmullRomCurve3(pts, true, 'centripetal');
+    const tube = new THREE.TubeGeometry(curve, Math.max(24, pts.length * 2), r, 8, true);
+    return tube;
+  }
   function bayCage(geo) {
     const src = geo.getAttribute('position'), idx = geo.getIndex();
     if (!src || !idx) return null;
@@ -1163,7 +1217,26 @@ PAGE.post = ctx => {
       // carry render orders of their own, and the wing's cut leaves no opaque
       // depth behind this pane to stop them.
       o.renderOrder = 1003;
+      // G316 (the user: "the wing light ... their transparent part is the
+      // one getting exploded, and this one should get the same joint
+      // treatment as the windows to highlight its contour. All the same
+      // settings"): the lens unbolts FORWARD off the D-nose by the explode
+      // distance (the bay and its lamp stay in the wing), and the hole it
+      // came out of wears the windows' joint bead — the cage's own `rimW`
+      // gauge, the `rimWin` switch, the `joint` section's material — laid
+      // along the cut's own boundary loop, on the skin, where it stays.
+      if (ex > 0) o.position.z += ex;
       group.add(o);
+      if (!WIRE && (P.rimWin == null || +P.rimWin) && (P.rimW == null || +P.rimW > 0)) {
+        const bead = lensBead(pr.geo, 0.5 * (P.rimW == null ? 0.012 : +P.rimW) * FS);
+        if (bead) {
+          const jm = (window.CAGE_SECMAT && window.CAGE_SECMAT('joint', { surf: 0, fieldM: 1 }))
+            || new THREE.MeshStandardMaterial({ color: 0x1a1b1e, roughness: 0.7 });
+          const jb = new THREE.Mesh(bead, jm);
+          jb.name = 'edLensJoint_wing' + sd;
+          group.add(jb);
+        }
+      }
       // THE INTERIOR CAGE (G98, user: "it misses an interior cage ... it is
       // contained in a little cage, with an aft wall and side walls with the
       // profile of the wing"). Without it you see straight through the wing.

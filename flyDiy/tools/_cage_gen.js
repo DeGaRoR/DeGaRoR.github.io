@@ -2625,6 +2625,49 @@ function cageGlassSill(m, S) {
 // the door part — the pane explodes out of its door, assembly-style.
 // Flag off = the untouched continuous-sill pipeline (fully reversible).
 // ---------------------------------------------------------------------------
+// G316: EXPLODE A SET OF FACES AS ONE PART (the user: "the explode
+// functionality should also explode bubble canopies and the new cut windows
+// ... globally, all glazing should get exploded"). The faces' vertices must
+// be the part's own (the knife's pane copies, the canopy's component) — a
+// vertex shared with the skin would drag the skin. The offset is the cut
+// parts' own: the mean outward normal, RADIAL (the axial component dropped,
+// G28) unless the normal is near-axial, times the explode distance; the
+// faces take `cutPart` / `cutOff` so the rims, the interior and the sheet
+// count them at their as-built place, exactly as a door's.
+function cageExplodeFaces(m, faces, dist, opt) {
+  if (!(dist > 0) || !faces.length) return;
+  const { V } = m;
+  let nx = 0, ny = 0, nz = 0;
+  for (const f of faces) {
+    const p = f.v.map(i => V[i]);
+    if (p.length < 3) continue;
+    // Newell's normal, any polygon
+    for (let i = 0; i < p.length; i++) {
+      const a = p[i], b = p[(i + 1) % p.length];
+      nx += (a[1] - b[1]) * (a[2] + b[2]);
+      ny += (a[2] - b[2]) * (a[0] + b[0]);
+      nz += (a[0] - b[0]) * (a[1] + b[1]);
+    }
+  }
+  const nl = Math.hypot(nx, ny, nz) || 1;
+  if (opt && opt.flip) { nx = -nx; ny = -ny; nz = -nz; }
+  const rl = Math.hypot(nx, ny);
+  const off = rl > 0.15 * nl
+    ? [nx / rl * dist, ny / rl * dist, 0]
+    : [nx / nl * dist, ny / nl * dist, nz / nl * dist];
+  const done = new Set();
+  for (const f of faces) {
+    for (const vi of f.v) {
+      if (done.has(vi)) continue;
+      done.add(vi);
+      V[vi] = [V[vi][0] + off[0], V[vi][1] + off[1], V[vi][2] + off[2]];
+    }
+    f.cutPart = 1;
+    f.cutOff = off;
+  }
+  return off;
+}
+
 function cageCut(m, S) {
   const C = S.cut;
   if (!C || !C.on) return m;
@@ -7545,12 +7588,17 @@ function cageCanopy(m, S) {
   let comp = { V: LVc, F: LFc, E: LEc };
   comp = cageSubdivide(cageSubdivide(comp));
   const off = V.length;
-  for (const p of comp.V) V.push(p);
+  for (const p of comp.V) V.push(p.slice());       // G316: the bubble's own copies
+  const bubbleF = [];
   for (const f of comp.F) {
     const nf = { v: f.v.map(i2 => i2 + off), m: f.m, att: 1 };
     if (f.win) nf.win = 1;
     F.push(nf);
   }
+  // G316: THE BUBBLE EXPLODES, as one part, straight UP off its seam — a
+  // bubble's mean normal is up, and the radial rule keeps it so. `comp`
+  // stays where it was built: the arceau below projects onto it.
+  if (S.cut && S.cut.explode > 0) cageExplodeFaces(m, bubbleF, S.cut.explode);
   // ARCEAU CONSTRAINED TO THE CANOPY (user, replacing the S4 collapse):
   // the hoop's displayed verts above the seam project RADIALLY onto
   // the canopy's own section at their z (sliced from the component
@@ -7794,6 +7842,28 @@ function cageSheet(P, opts) {
       for (const w of spec.windows) for (const side of [1, -1])
         s = KG.knifeCut(s, w, { side, depth: w.depth,
                                 paneMat: 'pasengerWindow', wallMat: 'reveal' });
+      // G316: the drawn panes explode as parts — one part per pane (the
+      // knife's copies are per window, a pane's polygons share them and
+      // share none with the skin or with another pane), grouped by the
+      // vertices they share
+      const ex = spec.cut && spec.cut.explode > 0 ? spec.cut.explode : 0;
+      if (ex > 0) {
+        const byV = new Map();
+        const panes = s.F.filter(f => f.knife && !f.cutOff);
+        panes.forEach((f, i) => { for (const vi of f.v) {
+          if (!byV.has(vi)) byV.set(vi, []); byV.get(vi).push(i); } });
+        const seen = new Uint8Array(panes.length);
+        for (let i = 0; i < panes.length; i++) {
+          if (seen[i]) continue;
+          const grp = [], q = [i]; seen[i] = 1;
+          while (q.length) {
+            const j = q.pop(); grp.push(panes[j]);
+            for (const vi of panes[j].v) for (const k of byV.get(vi))
+              if (!seen[k]) { seen[k] = 1; q.push(k); }
+          }
+          cageExplodeFaces(s, grp, ex);
+        }
+      }
     }
     s = cageCanopy(s, spec);
     s = cageRims(s, spec);
