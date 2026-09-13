@@ -42638,3 +42638,27 @@ rest data (the twist's rest angles) need no re-take.
 pavement vs 63 m grass — green.
 
 - Gates: HONEST, FLEX, TAKEOFF, GEN green.
+
+## G349 — GATE HOTHIGH'S FLOWN RUN OVERRAN ITS STRIP: THE "UNSTICK" IT
+## MEASURED WAS THE GROUND FALLING AWAY (2026-09-13, found by the regression
+## sweep: the rear-fuselage gauge moved a 3 % mass and the row went red)
+
+**What it was.** Section 2 flies the same aeroplane off Brekk Strip on a
+standard and a hot day and asserts the wing unsticks at the same EAS
+(TAS higher by 1/√σ). Brekk is 340 m of level ground; the GEN run to the
+screen is 418 m standard and 515 m hot, and past 325 m the terrain falls
+away (−0.57 m at 400 m, −1.3 at 525). The wheel count (a tyre within 3 cm
+of the ground) reported "unstick" where the SLOPE left the tyre — 30.6
+EAS standard, 28.3 hot — and the ratio read 1.014 or 0.971 depending on
+where the slope caught the wheel; a 3 % mass change (G350's gauge) moved
+it across the 1.01 bound. Measured with a ground-reaction probe: the wing's
+lift at 28.3 EAS was the same on both days to 0.1 % (4166 vs 4168 N) —
+the physics was honest, the instrument was reading the runway.
+
+**What it is.** The flown run keeps the strip's air, wind and elevation
+and runs on a plateau that does not end (`terrainH` = the strip's
+elevation everywhere, on a copy of the world). Unstick is the wing's:
+EAS ratio 1.004, TAS 1.040 (1/√0.921 = 1.042) — textbook, and
+independent of the aeroplane's mass.
+
+- Gates: HOTHIGH green (test-only change).

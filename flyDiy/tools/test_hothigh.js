@@ -89,8 +89,21 @@ console.log('--- 1. the solver reports its own air ---');
 // here off a 113 m strip instead of off HOME.
 console.log('--- 2. the take-off run, flown ---');
 function takeoffRun(build, weather, stripName) {
-  const W = worldAt(weather);
-  const strip = W.aerodromes.find(a => a.name === stripName);
+  const W0 = worldAt(weather);
+  const strip = W0.aerodromes.find(a => a.name === stripName);
+  // G349: THE RUN OVERRAN ITS STRIP. Brekk is 340 m of level ground and the
+  // GEN run to the screen is 418 m standard, 515 m hot: past 325 m the
+  // terrain falls away (-0.57 m at 400, -1.3 at 525), so the "unstick" the
+  // wheel count reported was the GROUND leaving the wheels, at whatever
+  // airspeed the aeroplane happened to have where the slope began — 30.6
+  // EAS on a standard day, 28.3 hot; the wing's own lift at a given EAS
+  // was the same on both days to 0.1 % (wingFy 4166 vs 4168 N at 28.3).
+  // The 3 cm wheel-skim instrument then read 1.014 or 0.971 on the EAS
+  // ratio depending on where the slope caught the tyre (a 3 % mass change
+  // moved it across the bound). The flown run keeps the strip's air, wind
+  // and elevation, on a plateau that does not end: terrainH is the strip's
+  // elevation everywhere. Unstick is the wing's again.
+  const W = Object.assign({}, W0, { terrainH: () => strip.elev });
   const def = build(), sim = makeSim(def, W);
   sim.reset(0);
   placeAtAerodrome(sim, strip);
