@@ -473,3 +473,13 @@ after the freeze, against this document.
   length) was re-graded across by the strip and GATE PREMISES rule 9 found it 2.3 cm off flat; a taxi
   road is on the airfield's ground, not the other way round. The surface strips, the excludes and the
   aerodrome record are unchanged.
+- **v1.3 (2026-09-13, from the village session's catalogue blocks on its branch).** Rule 5's
+  'flatten' may PUBLISH THE SHAPE beyond the foot: `ground.shelf(P) -> { rect: [x0, zBack, x1, zFront],
+  zLevel, marginF, marginB }` in the item's frame (the mill's pad from `millPlan`); the world cuts it with
+  `withShelf`'s law - level inside the rect, the base beyond a front margin (front and sides) or a back
+  margin, smoothstepped - at the ground `zLevel` ahead along the item's own z, BEFORE the item is placed
+  (stage 5 -> T2), so the item's `P.ground` sees the pad. Without a shelf, 'flatten' is the foot at its
+  median and 'level' the foot at its high corner (a slab), both with `ground.falloff` as the margin. The
+  composer holds these as a derived `shelf` modifier (`makeModifier` kind 'shelf'); GATE PREMISES rule 5.
+  A `link.cable = 'VILLAGE_GEN.tramLine'` on the stations names the phase-B solver the composer will call
+  with a build callback once the branch lands.

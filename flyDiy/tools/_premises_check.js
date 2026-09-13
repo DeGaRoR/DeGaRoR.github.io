@@ -19,6 +19,12 @@
 //      corners), its foot keeps the plots and the wood out; the conveyor
 //      link lands (the mill's tramTo is the shed's eave in the mill's frame,
 //      to 1 cm); the same seed stands the same site.
+//   5  THE GROUND UNDER AN ITEM (contract §2 rule 5, v1.3): an entry's ground
+//      block is cut BEFORE placement - a published shelf (rect, zLevel, the
+//      two margins: withShelf's law) at the ground zLevel ahead along the
+//      item's z; 'level' a slab at the foot's high corner; 'flatten' the
+//      foot at its median - each flat to 1 cm, the base untouched beyond
+//      the margins, the item's floor a hand over the pad.
 //   4  DETERMINISM: the fixture composes twice to the same heights; with its
 //      DISJOINT modifiers permuted, the same heights.
 //   5  IDENTITY: an empty record changes nothing; the fixture stood far from
@@ -372,6 +378,34 @@ for (const fx of fixtures) {
     const O2 = PG.compose(rec, synth, { catalogue: CAT, pool: [{ key: 'a|A', size: 1, sink: 0, proportion: 1, h: 14 }] });
     check(O2.records.items.every((it, i) => it.x === O.records.items[i].x && it.P.floorY === O.records.items[i].P.floorY), '3 the same seed stands the same site');
   } else check(true, '3 (generators not loaded headless here)');
+  // 5 THE GROUND UNDER AN ITEM: an entry's ground block is honoured before placement -
+  // a published shelf (the mill's law), a slab at the high corner, a median flatten
+  {
+    const foot = P => [[-6, -4], [6, -4], [6, 4], [-6, 4]];
+    const mk = (key, ground) => [key, { key, kind: 'building', gen: 'X', preset: key, P: {}, frame: 'house', params: ov => Object.assign({ L: 12, w: 8, floorY: 0.3 }, ov || {}), foot, keepOut: 3, size: () => ({ L: 12, w: 8 }), ground, hooks: () => [], lod: { dist: [0, 150, 500, 1500] }, slots: {}, tags: [] }];
+    const cat = { entries: new Map([
+      mk('x/shelf', { need: 'flatten', shelf: () => ({ rect: [-10, -30, 10, 6], zLevel: 3, marginF: 5, marginB: 9 }) }),
+      mk('x/slab', { need: 'level', level: 'high', falloff: 6 }),
+      mk('x/lawn', { need: 'flatten', level: 'median', falloff: 6 }) ]), aliases: {}, keys: () => [] };
+    const rec = PG.normalise({ seed: 1, layers: { sites: [{ id: 's', at: { x: 0, z: 0, yaw: 0.4 }, items: [
+      { id: 'a', key: 'x/shelf', x: -80, z: 40, yaw: 0.3 }, { id: 'b', key: 'x/slab', x: 40, z: 40, yaw: -0.2 }, { id: 'c', key: 'x/lawn', x: 0, z: -60, yaw: 0 }] }] } });
+    const O = PG.compose(rec, synth, { catalogue: cat });
+    check(O.shelves.length === 3, '5 three shelves derived from the three ground blocks', String(O.shelves.length));
+    for (const it of O.records.items) {
+      const sh = O.shelves.find(q => q.id === it.id + ':ground');
+      let worst = 0;
+      const R = sh.rect;
+      for (let i = 0; i <= 8; i++) for (let j = 0; j <= 8; j++) { const w = it.toWorld(R.x0 + (R.x1 - R.x0) * i / 8, R.z0 + (R.z1 - R.z0) * j / 8); worst = Math.max(worst, Math.abs(O.localH(w[0], w[1]) - sh.level)); }
+      check(worst < 0.01, '5 item ' + it.item + ' (' + it.key + ') stands on its pad at the level', worst.toFixed(3) + ' m');
+      if (it.key === 'x/slab') { let hi = -1e9; for (const q of foot()) { const w = it.toWorld(q[0], q[1]); hi = Math.max(hi, synth.terrainH(...O.frame.toWorld(w[0], w[1]))); } check(Math.abs(sh.level - hi) < 1e-6, '5 the slab is at the foot\'s high corner'); }
+      if (it.key === 'x/shelf') { const ahead = it.toWorld(0, 3); const base = synth.terrainH(...O.frame.toWorld(ahead[0], ahead[1])); check(Math.abs(sh.level - base) < 1e-6, '5 the shelf is at the ground zLevel ahead'); }
+      // the item's own ground reads the pad: its floor sits a hand over it, not over the old slope
+      check(Math.abs(it.P.floorY) < 1.5, '5 item ' + it.item + ' floors over its pad, not the slope', it.P.floorY.toFixed(2));
+    }
+    // beyond the margins the base is untouched
+    const far = O.frame.toWorld(200, 200);
+    check(O.terrainAt(far[0], far[1]) === synth.terrainH(far[0], far[1]), '5 the base beyond the margins is untouched');
+  }
 
   const cat = PG.collect({ HOUSE_GEN: { DEF: { L: 8, w: 6 }, PRESETS: { 'shore cabin': {}, 'village house': { L: 9 } } },
                            TOTEM_GEN: { CATALOGUE: [{ key: 'totem/park', kind: 'park', preset: 'park', foot: () => [[0, 0], [1, 0], [1, 1]], lod: { dist: [0, 150, 500, 1500] } }] } });

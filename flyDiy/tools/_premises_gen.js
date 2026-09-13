@@ -224,6 +224,24 @@ function makeModifier(m, y0) {
       return w > 0 ? h + (target(x, z, h) - h) * w : h;
     } };
   }
+  if (m.kind === 'shelf') {
+    // THE SHELF (the village's withShelf, verbatim): a pad rect in the ITEM's frame (c, yaw), level
+    // inside, the base beyond a front margin (front and sides) or a back margin, smoothstepped
+    const c = m.c, cy = Math.cos(m.yaw), sy = Math.sin(m.yaw), R = m.rect;
+    const mF = Math.max(0.5, +m.marginF || 6), mB = Math.max(0.5, +m.marginB || mF);
+    const corners = [[R.x0 - mF, R.z0 - mB], [R.x1 + mF, R.z0 - mB], [R.x1 + mF, R.z1 + mF], [R.x0 - mF, R.z1 + mF]].map(q => [c[0] + q[0] * cy + q[1] * sy, c[1] - q[0] * sy + q[1] * cy]);
+    const bbox = polyBBox(corners);
+    const level = +m.level;
+    return { id: m.id, kind: 'shelf', bbox, apply: (x, z, h) => {
+      if (x < bbox.x0 || x > bbox.x1 || z < bbox.z0 || z > bbox.z1) return h;
+      const dx = x - c[0], dz = z - c[1];
+      const lx = dx * cy - dz * sy, lz = dx * sy + dz * cy;
+      const k = Math.max(Math.max(0, R.z0 - lz) / mB, Math.max(0, R.x0 - lx, lx - R.x1, lz - R.z1) / mF);
+      if (k >= 1) return h;
+      const sm = k * k * (3 - 2 * k);
+      return level + (h - level) * sm;
+    } };
+  }
   if (m.kind === 'grade') {
     const pts = m.pts, hw = Math.max(0.5, (+m.width || 4) / 2);
     let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
@@ -531,6 +549,46 @@ function placeSite(site, cat, ctx) {
   return { items: out, keepOut, issues };
 }
 
+// THE GROUND UNDER AN ITEM (contract §1.3 stage 5 -> T2, §2 rule 5): an entry that says
+// ground.need 'flatten' publishes the SHAPE; the world cuts it - a shelf from
+// ground.shelf(P) (the mill's pad: rect, zLevel, marginF, marginB - the level is the
+// ground at zLevel ahead along the item's own z), else the foot at its median;
+// 'level' is the foot at its high corner (a slab); 'none' stands over whatever is there
+function siteShelves(site, cat, T) {
+  const SF = siteFrame(site), out = [];
+  (site.items || []).forEach((it, k) => {
+    const entry = cat.entries.get(cat.aliases[it.key] || it.key);
+    if (!entry || !entry.ground || entry.ground.need === 'none' || !entry.ground.need) return;
+    const c = SF.toLocal(it.x || 0, it.z || 0);
+    const yaw = (SF.at.yaw || 0) + Math.PI + (it.yaw || 0);
+    const cy = Math.cos(yaw), sy = Math.sin(yaw);
+    const toWorld = (lx, lz) => [c[0] + lx * cy + lz * sy, c[1] - lx * sy + lz * cy];
+    const P = entry.params ? entry.params(Object.assign({ recvZ: it.z || 0 }, it.P || {})) : Object.assign({}, entry.P || {}, it.P || {});
+    const id = site.id + '/' + (it.id || ('i' + k)) + ':ground';
+    if (entry.ground.need === 'flatten' && typeof entry.ground.shelf === 'function') {
+      const M = entry.ground.shelf(P);
+      const ahead = toWorld(0, M.zLevel || 0);
+      out.push({ id, kind: 'shelf', c, yaw, rect: { x0: M.rect[0], z0: M.rect[1], x1: M.rect[2], z1: M.rect[3] }, level: T(ahead[0], ahead[1]), marginF: M.marginF, marginB: M.marginB });
+      return;
+    }
+    const foot = entry.foot ? entry.foot(P) : null;
+    if (!foot || foot.length < 3) return;
+    const fb = polyBBox(foot);
+    let level;
+    if (entry.ground.need === 'level' || entry.ground.level === 'high') {
+      level = -Infinity;
+      for (const q of foot) { const w = toWorld(q[0], q[1]); level = Math.max(level, T(w[0], w[1])); }
+    } else {
+      const hs = [];
+      for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) { const w = toWorld(fb.x0 + (i + 0.5) / 8 * (fb.x1 - fb.x0), fb.z0 + (j + 0.5) / 8 * (fb.z1 - fb.z0)); hs.push(T(w[0], w[1])); }
+      hs.sort((a, b) => a - b); level = hs[hs.length >> 1];
+    }
+    const f = entry.ground.falloff || 6;
+    out.push({ id, kind: 'shelf', c, yaw, rect: { x0: fb.x0, z0: fb.z0, x1: fb.x1, z1: fb.z1 }, level, marginF: f, marginB: f });
+  });
+  return out;
+}
+
 // THE LINKS: a solver per kind; 'placed' ones patch P before the build
 const LINK_SOLVERS = {
   // the mill's aerial tramway to the receiving shed (placeSite :724-730 verbatim):
@@ -605,6 +663,11 @@ function compose(rec0, world, opts) {
     const M = makeModifier({ id: r.id + ':grade', kind: 'grade', pts: r.pts.map((p, i) => [p[0], p[1], sm[i]]), width: +r.w || 3.6, falloff: +r.falloff || 6, abs: true }, F.y0);
     if (M) mods.push(M);
   }
+  // THE GROUND UNDER THE SITES (stage 5 -> T2): every item's shelf, from its entry, cut before anything is placed
+  const catS = o.catalogue || collect(o.globals || (typeof window !== 'undefined' ? window : {}));
+  const T1s = (lx, lz) => { const w = F.toWorld(lx, lz); let h = world.terrainH(w[0], w[1]); for (const M of mods) h = M.apply(lx, lz, h); return h; };
+  const shelves = [];
+  for (const st of rec.layers.sites) for (const sh of siteShelves(st, catS, T1s)) { const M = makeModifier(sh, F.y0); if (M) { mods.push(M); shelves.push(sh); } }
   const index = SpatialIndex(256);
   for (const M of mods) index.add(M.bbox, M);
   const surf = rec.layers.surface.filter(s => s.poly && s.poly.length >= 3).map(s => ({ poly: s.poly, bbox: polyBBox(s.poly), surface: +s.surface }));
@@ -623,13 +686,14 @@ function compose(rec0, world, opts) {
     for (const s of excl) grow(s.bbox);
     for (const z of rec.layers.zones) if (z.poly && z.poly.length >= 3) grow(polyBBox(z.poly));
     for (const r of runways) grow(polyBBox(runwayBox(r, 30)));
+    for (const M of mods) grow(M.bbox);
     ext = isFinite(x0) ? { x0, z0, x1, z1 } : { x0: 0, z0: 0, x1: 0, z1: 0 };
   }
   const inBB = (b, x, z) => x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1;
   const roadBB = roadObjs.map(r => { const b = polyBBox(r.pts); return { x0: b.x0 - r.w, z0: b.z0 - r.w, x1: b.x1 + r.w, z1: b.z1 + r.w }; });
   for (const r of rec.layers.zones) if (r.poly && r.poly.length >= 3) { /* an airfield zone is its runway's ground: no plots, no trees */ if (r.kind === 'airfield') excl.push({ poly: r.poly, bbox: polyBBox(r.poly), what: ['trees', 'plots'], derived: true }); }
   const O = {
-    n: mods.length, nAuthored: nAuth, rec, frame: F, extent: ext, index, roads: roadObjs.filter(r => !r.runway), runways, aerodromes,
+    n: mods.length, nAuthored: nAuth, rec, frame: F, extent: ext, index, roads: roadObjs.filter(r => !r.runway), runways, aerodromes, shelves,
     terrainH(x, z, h) {
       if (!mods.length) return h;
       const L = F.toLocal(x, z);
@@ -663,7 +727,7 @@ function compose(rec0, world, opts) {
     const waterY = world.waterH ? world.waterH(F.anchor.x, F.anchor.z) : -Infinity;
     const ctx = { T: O.localH, waterY, seed: rec.seed, excludes: excl.filter(e => e.what.indexOf('trees') >= 0).map(e => e.poly), plots: O.records.plots, keepOut: excl.filter(e => e.what.indexOf('plots') >= 0).map(e => e.poly) };
     // THE SITES (stage 5a): placed first; every item's foot + margin keeps the plots and the wood out
-    const cat = o.catalogue || collect(o.globals || (typeof window !== 'undefined' ? window : {}));
+    const cat = catS;
     for (const st of rec.layers.sites) {
       const S = placeSite(st, cat, ctx);
       for (const it of S.items) O.records.items.push(it);
@@ -893,7 +957,7 @@ function collect(globals) {
 const API = { PREMISES_V, LAYERS, SURFACE, SURFACE_NAMES, ROAD_CLS, ZONE_KINDS, ZONE_RULES, PREMISES_MIGRATORS, GENERATORS,
   fnv, hash32, mulberry32, seedOf, fbm,
   polyBBox, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
-  polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, RUNWAY_DEF, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, LINK_SOLVERS, solveLinks,
+  polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, RUNWAY_DEF, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, LINK_SOLVERS, solveLinks,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById,
   frameOf, compose, issues, checks, bake, curvTol, collect };
 if (typeof window !== 'undefined') window.PREMISES_GEN = API;

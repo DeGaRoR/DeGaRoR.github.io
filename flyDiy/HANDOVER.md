@@ -43714,3 +43714,31 @@ click. The rule did its job on the first commit that broke it.
   `crKeel: 2` on the stock builds is gone): stock / rod / stock+ifr /
   stock+panel worst 0.0 mm on the round belly, and 0.0 mm with `crKeel 2`
   as well; the baseline is unchanged (6 lines, the two rulings).
+
+## G361.2 — THE GROUND UNDER AN ITEM IS CUT BEFORE IT IS PLACED: A PUBLISHED
+## SHELF, A SLAB, A MEDIAN FLATTEN (2026-09-13, from the village session's
+## catalogue blocks on its branch - contract v1.3)
+
+The village session reported its CATALOGUE blocks (branch `village-tram`,
+tip e4db32ac, not landed): the mill's entry says `ground.need 'flatten'`
+and PUBLISHES its pad - `ground.shelf(P) -> { rect [x0, zBack, x1, zFront],
+zLevel, marginF, marginB }` from `millPlan` - which `makeVillage` cuts with
+`withShelf` BEFORE `placeSite`, so the mill's `P.ground` sees a flat; the
+base station wants a slab at its high corner (`need 'level'`), the totem
+park a median flatten. The composer now does exactly that (contract §1.3
+stage 5 -> T2, §2 rule 5, amendment v1.3 appended): `siteShelves(site, cat,
+T)` derives one `shelf` modifier per such item BEFORE the index is built -
+`makeModifier` kind 'shelf' is `withShelf`'s law verbatim (the level inside
+the rect, the base beyond a front margin on three sides or a back margin,
+smoothstepped, in the item's own frame), the level the ground `zLevel`
+ahead along the item's z (the village's `lv`); without a shelf, 'flatten'
+is the foot at its median and 'level' the foot at its high corner, with
+`ground.falloff` as the margin. Placement then reads the pad. GATE PREMISES
+rule 5 holds it on three synthetic entries (a shelf, a slab, a lawn): each
+pad flat to 1 cm at its level, the slab at the high corner, the shelf at
+the ground ahead, every floor a hand over its pad, the base untouched
+beyond the margins. 104 checks; selftest. The stations' `link.cable =
+'VILLAGE_GEN.tramLine'` is noted as the phase-B solver the composer will
+call with a build callback once the branch lands.
+
+- Gates: PREMISES green; proven from a clean worktree.
