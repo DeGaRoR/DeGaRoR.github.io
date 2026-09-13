@@ -44264,3 +44264,28 @@ MEASURED (the check prints every number before its verdict):
   float nodes) is a placement; H2 (the drawn float measured by the join)
   reads the same `makeFloat` parameters.
 - Gates: HYDRODYN green (30 s); nothing else touched.
+
+## G371 — THE PANEL'S LOOKS: OLD PAINTED BEZELS, PUSH-PULL SWITCHES, THE
+## TAPES, THE ASI NUMERALS (2026-09-13, WS-5 + WS-6)
+
+- `spec.systems.look = { bezel, sw }` — cosmetic, the panel's own (kept out
+  of the core's resolve; fromSpec/toSpec in _cage_panel.js, a "looks" fold
+  with two selects under the tier/units/side rows). Defaults keep today's
+  panel: bezel 'plastic', sw 'toggle'.
+- **Old painted metal bezels** ('metal'): `MAT.bezelOld` — the same painted
+  trim finish (AERO_HARD.panel.bezelOld: 'trim') dialled through aeroHardMat,
+  which now passes roughK / nrmK: roughness ×1.8, grain ×1.4, ageing ×2.4,
+  so the ring reads matte and chips at its edge under the wear macros. No
+  new finish row (no AERO_WX_SUB row needed — the weathering session's rule).
+- **Push-pull switches** ('pushpull'): the light row's toggles drawn by
+  `pushPullAt` — a plated chamfered collar, a shaft, a knurled black knob
+  PULLED OUT 8 mm when on. Law 'switch' with k 0 (no turn) and a
+  `slide` on the gauge record; the join carried slide for gauges already,
+  and its `k: c.k || 1` / cockpit.js's `c.k || 0.42` both swallowed a
+  zero — null-checked now. CK.pose translates a sliding gauge from its home;
+  the pad sits on the knob. Proven: a click in flight, sw_beacon 0→1 and the
+  knob 8 mm out (model +x).
+- The **Flaps** tape sits above the flap switch's 44 mm escutcheon (y 29 mm)
+  and the **OFF/R/L/BOTH** tape over the key (LABEL_OF.key, 40 mm wide).
+- The ASI's three-digit numerals are painted at fontK 0.15 (was 0.19): no
+  two touch at the densest span.

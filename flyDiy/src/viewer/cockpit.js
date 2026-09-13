@@ -114,6 +114,7 @@ function make(THREE) {
       if (!/^(switch|knob|key|flap)$/.test(g.c.law) || !g.obj.add) continue;
       const pad = new THREE.Mesh(new THREE.SphereGeometry(g.c.law === 'key' ? 0.022 : g.c.law === 'flap' ? 0.024 : 0.016, 8, 6), padMat);
       if (g.c.law === 'flap') pad.position.set(0, -0.012, -0.030);   // G335: on the knob, not the buried pivot
+      if (g.c.slide) pad.position.set(0, 0, -0.012);                  // G371: a push-pull's knob
       pad.userData.pickPad = 1;
       g.obj.add(pad);
     }
@@ -297,7 +298,7 @@ function make(THREE) {
         }
         case 'ball': a1 = -(R.roll || 0); a2 = -(R.pitch || 0); break;
         case 'card': a1 = (drv === 'hdg' && c.gauge === 'dg' ? (R.hdgDg != null ? R.hdgDg : R.hdg) : R.hdg) * D2R; break;
-        case 'switch': { const v = +CK.sw[drv] || 0; a1 = (c.k || 0.42) * (v > 0.5 ? 1 : -1); break; }
+        case 'switch': { const v = +CK.sw[drv] || 0; a1 = (c.k != null ? c.k : 0.42) * (v > 0.5 ? 1 : -1); break; }   // G371: k 0 = a push-pull
         case 'knob': { const v = clamp(+CK.sw[drv] || 0, 0, 1); a1 = (-135 + 270 * v) * D2R; break; }
         case 'key': { a1 = (c.k || Math.PI / 6) * clamp(+CK.sw.key || 0, 0, 4); break; }
         // G335: the dash flap switch follows the flap COMMAND (the linkage's
@@ -313,6 +314,12 @@ function make(THREE) {
         qA.multiply(qB);
       }
       o.quaternion.copy(qA);
+      // G371: a push-pull stands out when on — the slide the join carried,
+      // from the group's home (its pivot)
+      if (c.slide && g.home && o.position && o.position.set) {
+        const s = c.law === 'switch' ? (+CK.sw[drv] > 0.5 ? 1 : 0) : 0;
+        o.position.set(g.home[0] + c.slide[0] * s, g.home[1] + c.slide[1] * s, g.home[2] + c.slide[2] * s);
+      }
       // THE HAND IS LIT BY THE POSTS WHERE IT POINTS (G305): the same law
       // the face was painted with, at the hand's angle, on its own material
       if (c.law === 'lin' || c.law === 'turn') {

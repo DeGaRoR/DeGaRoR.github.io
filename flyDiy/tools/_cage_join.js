@@ -2318,7 +2318,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         const c = pt.ctl, A = pt.axC;
         const dirM = d => rotP(-d[2], d[1], d[0]);
         out2.ctl = { name: c.name,      // live crew: the anchors find it by name
-                     ax: dirM(A.ax), drive: c.drive, sgn: c.sgn, k: c.k || 1 };
+                     ax: dirM(A.ax), drive: c.drive, sgn: c.sgn, k: c.k == null ? 1 : c.k };   // G371: k 0 is a slide-only part
         if (pt.kind === 'gauge') {
           // the law, as a table the flight can read without _panel_gen: a
           // `lin` hand sampled over its scale (reading in SI → clock degrees),

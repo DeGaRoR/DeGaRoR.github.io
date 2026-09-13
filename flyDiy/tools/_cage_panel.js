@@ -41,7 +41,11 @@ const core = () => ({
 const SY = { fit: 'basic', units: 'aviation', items: null,
              elec: { battery: null, alternator: null, starter: null, vac: null },
              avionics: { com: null, xpdr: null, nav: null, gps: null },
-             side: 'pilot' };
+             side: 'pilot',
+             look: { bezel: 'plastic', sw: 'toggle' } };   // G371: cosmetic, the panel's own (not the core's)
+const LOOK_BEZEL = [['plastic', 'new black plastic'], ['metal', 'old painted metal']];
+const LOOK_SW = [['toggle', 'metal toggles'], ['pushpull', 'push-pull buttons']];
+const lookBezel = () => (SY.look && SY.look.bezel === 'metal') ? 'bezelOld' : 'bezel';
 let seeded = false;
 
 function fromSpec(sy) {
@@ -54,6 +58,8 @@ function fromSpec(sy) {
     SY.elec[k] = (s.elec && s.elec[k] != null) ? s.elec[k] : null;
   for (const k of Object.keys(SY.avionics))
     SY.avionics[k] = (s.avionics && s.avionics[k] != null) ? s.avionics[k] : null;
+  SY.look = { bezel: s.look && LOOK_BEZEL.some(q => q[0] === s.look.bezel) ? s.look.bezel : 'plastic',
+              sw: s.look && LOOK_SW.some(q => q[0] === s.look.sw) ? s.look.sw : 'toggle' };   // G371
   seeded = true;
   if (panelBody) renderPanel();
 }
@@ -232,6 +238,14 @@ function renderPanel() {
   select(B, 'side', 'which side of the dash the flight instruments are built in front of',
     C.SIDES.map(k => [k, k]), R.side,
     v => { SY.side = v; renderPanel(); commit(); });
+  // ---- the looks (G371): what the hardware is made of, no bill ------------
+  const looks = fold(B, 'looks', true);
+  select(looks, 'dial bezels', 'the clamp ring round every dial: moulded black plastic, or alloy ' +
+    'painted long ago — matte, and it chips at the edge as the aeroplane ages',
+    LOOK_BEZEL, SY.look.bezel, v => { SY.look.bezel = v; renderPanel(); commit(); });
+  select(looks, 'light switches', 'the on/off switches of the light row: plated toggles, or knurled ' +
+    'push-pull knobs that stand out when on',
+    LOOK_SW, SY.look.sw, v => { SY.look.sw = v; renderPanel(); commit(); });
 
   // ---- the dials -----------------------------------------------------------
   const dials = fold(B, 'dials · ' + R.items.length + ' fitted', true);
@@ -358,6 +372,7 @@ const KIT = () => window.GEAR_KIT;
 // there: it is the atlas material, not a finish.
 const MAT = {
   bezel:  { col: 0x2a2d33, rough: 0.55, metal: 0.10 },   // the painted clamp ring
+  bezelOld: { col: 0x34342f, rough: 0.85, metal: 0.15 }, // G371: old painted alloy — matte, worn at the edge
   needle: { col: 0xe8e4d8, rough: 0.60, metal: 0.00 },   // painted alloy
   hub:    { col: 0x1c1e22, rough: 0.50, metal: 0.30 },
   symbol: { col: 0xf0a030, rough: 0.55, metal: 0.00 },   // the AI / TC aeroplane
@@ -383,7 +398,10 @@ function matFor(name) {
   const A = window.AEROSKIN;
   let m = null;
   if (name !== 'face' && A && A.aeroHardMat)
-    m = A.aeroHardMat(THREE, 'panel', name, MAT[name].col, { side: THREE.FrontSide, inside: 1 });
+    m = A.aeroHardMat(THREE, 'panel', name, MAT[name].col, { side: THREE.FrontSide, inside: 1,
+      // G371: the old bezel is the trim finish dialled — rougher, its grain
+      // up, ageing 2.4x so the ring's edge chips under the wear macros
+      ...(name === 'bezelOld' ? { roughK: 1.8, nrmK: 1.4, wearK: 2.4 } : {}) });
   if (!m) m = new THREE.MeshStandardMaterial({ color: MAT[name].col, roughness: MAT[name].rough,
                                                metalness: MAT[name].metal, side: THREE.FrontSide });
   return (matCache[name] = m);
@@ -484,7 +502,8 @@ const nrm3 = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / 
 const LABEL_OF = { pax: 'Cabin', flood: 'Dash', instr: 'Instr', pedal: 'Feet',
                    beacon: 'beac', nav: 'pos', land: 'land', taxi: 'cruise',
                    master: 'Bat.', alt: 'Alt.', avionics: 'Avionics',        // G318: the second sheet
-                   flap: 'Flaps' };                                            // G335: the dash switch's tape
+                   flap: 'Flaps',                                              // G335: the dash switch's tape
+                   key: 'OFF/R/L/BOTH' };                                      // G371: the magneto sequence over the key
 let labelMat = null;
 function labelSheet() {
   const S = (typeof PANEL_TEX_SHEETS !== 'undefined') ? PANEL_TEX_SHEETS
@@ -1023,6 +1042,30 @@ function toggleAt(parent, x, y, z, key, on, kind) {
   g.rotation.x = (on ? 1 : -1) * 0.42;             // the editor's pose: up is on
   return g;
 }
+// A PUSH-PULL SWITCH (G371, WS-6, the user: "option per on/off switch:
+// metal switch or push-pull"): a plated collar on the plate (13.6 mm across,
+// 3.2 mm proud, chamfered), a 5 mm shaft, and a knurled black knob 12 mm
+// across, 11 mm long — PULLED OUT 8 mm when on. Law 'switch' with k 0 (no
+// turn) and a slide the join carries and the cockpit poses (CK.pose); the
+// editor's pose is the same 8 mm.
+function pushPullAt(parent, x, y, z, key, on) {
+  const K = KIT();
+  const base = K.Bag();
+  K.revolve(base, [x, y, z + 0.0005], [0, 0, -1],
+    [[0.0068, 0], [0.0068, 0.0022], [0.0058, 0.0032], [0.0034, 0.0032], [0, 0.0032]], 32, false);
+  base.mesh(parent, matFor('barrel'));
+  const g = gaugeAt(parent, 'edGauge_sw_' + key, [x, y, z - 0.0032], [0, 0, 1], 'sw_' + key, 'switch',
+    { k: 0, sgn: 1, slide: [0, 0, -0.008], slideDrive: 'sw_' + key });
+  const shaft = K.Bag();
+  K.revolve(shaft, [0, 0, 0.0005], [0, 0, -1], [[0.0025, 0], [0.0025, 0.0075], [0, 0.0075]], 20, false);
+  shaft.mesh(g, matFor('barrel'));
+  const knob = K.Bag();
+  K.sweep(knob, [[0, 0, -0.0060], [0, 0, -0.0150], [0, 0, -0.0170]],
+    t => ridgedSect(0.0060 - (t > 0.9 ? 0.0010 : 0), 16, 0.05, 48), true, [0, 1, 0]);
+  knob.mesh(g, matFor('knob'));
+  if (on) g.position.z -= 0.008;                 // the editor's pose: out is on
+  return g;
+}
 // a dimmer knob: a ridged, slightly conical plastic knob on a thin skirt,
 // with a pointer line, turning about the panel's normal — 0..1 → 270°
 function knobAt(parent, x, y, z, key, v) {
@@ -1247,6 +1290,7 @@ function build(parent, A, P, pilotX) {
     extLights: lightsOn && +P.lightSw ? EXT_LIGHTS : [],
     intLights: lightsOn && +P.lightSw ? INT_LIGHTS : [],
     flapSwitch: P && Math.round(+P.flapCtl || 0) === 1,      // G335
+    swStyle: (SY.look && SY.look.sw) || 'toggle',             // G371
   });
   const grp = new THREE.Group();
   grp.name = 'edPanel';
@@ -1436,7 +1480,7 @@ function build(parent, A, P, pilotX) {
         const CL = window.CAGE_LIGHT;
         postLens.mesh(dg, CL && CL.lensMat ? CL.lensMat('instr', faceDim(P), 0xffc47a) : matFor('needle'));
       }
-      bez.mesh(dg, matFor('bezel')); hub.mesh(dg, matFor('hub')); sym.mesh(dg, matFor('symbol'));
+      bez.mesh(dg, matFor(lookBezel())); hub.mesh(dg, matFor('hub')); sym.mesh(dg, matFor('symbol'));   // G371
       can.mesh(dg, matFor('hub')); plate.mesh(dg, matFor('plate'));
       screw.mesh(dg, matFor('screw')); slotB.mesh(dg, matFor('hub'));
       faceBag.mesh(dg, 'edGauge_faces');
@@ -1519,13 +1563,14 @@ function build(parent, A, P, pilotX) {
     sg.name = 'edSwitch_' + s.k;                       // the shed's click finds it (G305)
     {
       const sb = UVBag(aoMaterial());
-      aoDiscInto(sb, 0, 0, 0, { key: 0.020, rocker: 0.018, toggle: 0.011, knob: 0.015, flap: 0.019 }[s.kind] || 0.012);
+      aoDiscInto(sb, 0, 0, 0, { key: 0.020, rocker: 0.018, toggle: 0.011, pushpull: 0.011, knob: 0.015, flap: 0.019 }[s.kind] || 0.012);
       const m = sb.mesh(sg, 'edGauge_ao'); if (m) m.renderOrder = 2;
     }
     if (s.kind === 'key') keyAt(sg, 0, 0, 0, 'both');
     else if (s.kind === 'flap') flapAt(sg, 0, 0, 0);
     else if (s.kind === 'rocker') rockerAt(sg, 0, 0, 0, s.k, +P[{ alt: 'swAlt', avionics: 'swAvionics' }[s.k] || 'swMaster'] > 0.5);
     else if (s.kind === 'toggle') toggleAt(sg, 0, 0, 0, s.k, +P['li_' + s.k] > 0.5);
+    else if (s.kind === 'pushpull') pushPullAt(sg, 0, 0, 0, s.k, +P['li_' + s.k] > 0.5);   // G371
     else if (s.kind === 'knob') {
       knobAt(sg, 0, 0, 0, s.k, Math.max(0, Math.min(1, +P['li_' + s.k] || 0)));
       // THE GRADUATION (G284, the user: "some simple graduation straight
@@ -1548,10 +1593,12 @@ function build(parent, A, P, pilotX) {
     const sheet = labelSheet(), li = sheet ? sheet.names.indexOf(LABEL_OF[s.k]) : -1;
     if (li >= 0) {
       const lg = new THREE.Group();
-      lg.position.set(0, 0.019, -0.0006);
+      // G371: the flap switch's tape clears its 44 mm escutcheon; the key's
+      // OFF/R/L/BOTH tape is wider so the four words read
+      lg.position.set(0, s.kind === 'flap' ? 0.029 : s.kind === 'key' ? 0.021 : 0.019, -0.0006);
       sg.add(lg);
       const lb = UVBag(labelMaterial());
-      const w = 0.030, h = w * sheet.h / sheet.w;
+      const w = s.kind === 'key' ? 0.040 : 0.030, h = w * sheet.h / sheet.w;
       labelInto(lb, li, sheet.n, 0, 0, 0, w, h);
       const m = lb.mesh(lg, 'edGauge_label'); if (m) m.renderOrder = 3;
     }

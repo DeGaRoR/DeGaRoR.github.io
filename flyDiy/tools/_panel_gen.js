@@ -369,7 +369,7 @@ function layout(A, o) {
     // tape; the bus gates the radios' loads on it
     if ((o.radios || []).some(k => k === 'com' || k === 'xpdr')) sw.push({ k: 'avionics', kind: 'rocker' });
   }
-  for (const k of (o.extLights || [])) sw.push({ k, kind: 'toggle', light: true });
+  for (const k of (o.extLights || [])) sw.push({ k, kind: o.swStyle === 'pushpull' ? 'pushpull' : 'toggle', light: true });   // G371
   for (const k of (o.intLights || [])) sw.push({ k, kind: 'knob', light: true });
   if (o.flapSwitch) sw.push({ k: 'flap', kind: 'flap' });     // G335: at the row's right end, a Cessna's
   const ySw = Math.max(yBot + 0.010, (dials.filter(d => !d.coaming).reduce((m, d) => Math.min(m, d.cy - d.r), yTop)) - SW_DROP);
@@ -474,7 +474,7 @@ function hub(g, F, k) {
 const PAINT = {
   asi(g, R, units, o) {
     const F = faceBase(g, R);
-    ticks(g, F, 'asi', units, o, { labelOf: v => String(v) });
+    ticks(g, F, 'asi', units, o, { labelOf: v => String(v), fontK: 0.15 });   // G371: three-digit labels every 20 must not touch
     unitText(g, F, 'AIRSPEED', -0.35, 0.10);
     unitText(g, F, scaleOf('asi', units, o).unit, 0.38, 0.10);
     hub(g, F);

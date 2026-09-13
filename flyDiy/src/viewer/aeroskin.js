@@ -635,7 +635,7 @@ const AERO_HARD = {
   // bezels and needles are painted alloy; the hub, the switch plates and
   // the knobs moulded; a toggle's bat, the lock barrel and the key are
   // bare metal; the FACE is the atlas material and takes no finish
-  panel: { bezel: 'trim', needle: 'trim', hub: 'plastic', symbol: 'trim',
+  panel: { bezel: 'trim', bezelOld: 'trim', needle: 'trim', hub: 'plastic', symbol: 'trim',   // G371: bezelOld = old painted alloy (trim, dialled)
            ball: 'plastic', plate: 'plasticGrn', lever: 'chrome', knob: 'plasticGrn',
            rocker: 'plasticScr', key: 'chrome', barrel: 'chrome', bowl: 'plasticWorn',
            // the hardware kit's flat materials (the panel arc, session 4c)
@@ -739,6 +739,10 @@ function aeroHardMat(THREE, layer, name, tint, o) {
     side: (o && o.side != null) ? o.side : THREE.FrontSide,
     opacity: (o && o.opacity != null) ? o.opacity : 1,
     wearK: o && o.wearK,
+    // G371: a hard material may dial its finish's own numbers (the panel's
+    // old painted bezels: rougher, grainier, ageing faster)
+    ...(o && o.roughK != null ? { roughK: o.roughK } : {}),
+    ...(o && o.nrmK != null ? { nrmK: o.nrmK } : {}),
     // the cabin fit lives in the cabin (G206.1); a caller may say otherwise
     inside: (o && o.inside != null) ? o.inside : (layer === 'crew' ? 1 : 0),
     // hardware is not paintwork (G207): no marking lands on it
