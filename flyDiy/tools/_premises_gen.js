@@ -605,7 +605,28 @@ const LINK_SOLVERS = {
       return { ok: !issues.length, geom: { from: [A.x, A.y + (A.P.floorY || 0) + 6, A.z], to: [B.x, B.y + (B.P.floorY || 0) + (B.P.eaveH || 5), B.z] }, patch: { [A.id]: { tramTo: to } }, issues };
     } },
 };
-function solveLinks(rec, items, phase) {
+// THE CABLE (phase 'built'): the village's tramLine is the solver - handed a vil of the two
+// station records ({ P, x, z, y, yaw, toWorld }) and a build callback it calls three times
+// each to read the hooks in the world and set lineDeg on both; it leaves vil.tram
+// { angle, ropes[6] {kind, line, a, b}, docks, slots, base, top, pair }. Not on master yet
+// (the village-tram branch): without it the link says so and stays red.
+LINK_SOLVERS.cable = { needs: 'built', band: { minDeg: 15, maxDeg: 45 },
+  solve(link, A, B, ctx) {
+    const VG = ctx.globals && ctx.globals.VILLAGE_GEN;
+    if (!VG || typeof VG.tramLine !== 'function') return { ok: false, geom: null, patch: {}, issues: ['cable ' + link.id + ': VILLAGE_GEN.tramLine is not here yet (the village-tram branch carries it)'] };
+    if (!ctx.build) return { ok: false, geom: null, patch: {}, issues: ['cable ' + link.id + ': no build callback for the stations'] };
+    const st = r => Math.round(r.P.station || 0);
+    const base = st(A) === 2 ? A : st(B) === 2 ? B : null, top = st(A) === 1 ? A : st(B) === 1 ? B : null;
+    if (!base || !top) return { ok: false, geom: null, patch: {}, issues: ['cable ' + link.id + ': needs one base station (P.station 2) and one top station (P.station 1)'] };
+    const vil = { base, top, T: { h: ctx.T } };
+    let tram;
+    try { tram = VG.tramLine(vil, r => ctx.build(r)); } catch (e) { return { ok: false, geom: null, patch: {}, issues: ['cable ' + link.id + ': ' + (e && e.message)] }; }
+    const issues = [];
+    const deg = tram && tram.angle !== undefined ? (Math.abs(tram.angle) > 3.2 ? tram.angle : tram.angle * 180 / Math.PI) : NaN;
+    if (!(deg >= this.band.minDeg && deg <= this.band.maxDeg)) issues.push('cable ' + link.id + ': the line is ' + (isFinite(deg) ? deg.toFixed(0) + ' deg' : 'unsolved') + ', outside ' + this.band.minDeg + '..' + this.band.maxDeg);
+    return { ok: !issues.length, geom: tram, patch: { [base.id]: { lineDeg: base.P.lineDeg }, [top.id]: { lineDeg: top.P.lineDeg } }, issues };
+  } };
+function solveLinks(rec, items, phase, ctx) {
   const byId = {}; for (const it of items) byId[it.site + '/' + it.item] = it;
   const out = [];
   for (const L of rec.layers.links || []) {
@@ -615,7 +636,7 @@ function solveLinks(rec, items, phase) {
     const A = byId[(L.from.site || '') + '/' + L.from.item] || items.find(i => i.item === L.from.item);
     const B = byId[(L.to.site || '') + '/' + L.to.item] || items.find(i => i.item === L.to.item);
     if (!A || !B) { out.push({ link: L, ok: false, issues: ['link ' + L.id + ': an end is missing'] }); continue; }
-    const sol = S.solve(L, A, B, {});
+    const sol = S.solve(L, A, B, ctx || {});
     for (const id in sol.patch || {}) { const it = items.find(i => i.id === id); if (it) Object.assign(it.P, sol.patch[id]); }
     out.push(Object.assign({ link: L, A, B }, sol));
   }
@@ -735,6 +756,10 @@ function compose(rec0, world, opts) {
       for (const i of S.issues) O.records.issues.push(i);
     }
     O.records.links = solveLinks(rec, O.records.items, 'placed');
+    // phase B: the links that need the BUILT stations - only when the caller hands a builder (the
+    // renderer does; the gate does under its stub); tramLine builds the pair itself, three passes
+    const linksB = solveLinks(rec, O.records.items, 'built', { globals: o.globals || (typeof window !== 'undefined' ? window : {}), build: o.build || null, T: O.localH });
+    for (const L of linksB) O.records.links.push(L);
     for (const L of O.records.links) for (const i of L.issues || []) O.records.issues.push(i);
     for (const z of rec.layers.zones) {
       if (!z.poly || z.poly.length < 3 || !polySimple(z.poly)) continue;

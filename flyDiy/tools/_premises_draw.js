@@ -35,7 +35,9 @@ const TREE_BANDS = [0, 60, 132];
 function make(THREE, scene, world, rec0, opts) {
   const o = Object.assign({ cell: 1, water: true, grass: null, pool: () => [], onBuilt: null }, opts || {});
   let rec = PG.normalise(rec0 || PG.DEF());
-  let O = PG.compose(rec, world, { pool: o.pool(), globals: window });
+  // the stations' builder for the cable solver: the generator's build, no finish (only the hooks are read)
+  const buildFor = r => { const GEN = window[r.gen]; return GEN ? GEN.build(r.P, 0) : null; };
+  let O = PG.compose(rec, world, { pool: o.pool(), globals: window, build: buildFor });
   const root = new THREE.Group(); root.name = 'premises';
   const G = {}; for (const k of ['ground', 'water', 'outlines', 'plots', 'houses', 'trees', 'runways', 'handles', 'ghost']) { G[k] = new THREE.Group(); G[k].name = 'premises:' + k; root.add(G[k]); }
   scene.add(root);
@@ -200,6 +202,16 @@ function make(THREE, scene, world, rec0, opts) {
       geo.setAttribute('position', new THREE.BufferAttribute(groundLoop(it.foot.map(q => O.frame.toWorld(q[0], q[1])), true, LIFT * 0.8), 3));
       const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0x4fc7d0, transparent: true, opacity: it.site === selectedId ? 0.95 : 0.5, depthTest: false }));
       line.renderOrder = 8; line.name = 'item:' + it.id;
+      G.plots.add(line);
+    }
+    for (const L of O.records.links) if (L.geom && L.geom.ropes) for (const rope of L.geom.ropes) {
+      // a rope from a to b (the village's frame = the premises frame, heights absolute), with the sag the motion plan draws
+      const a = O.frame.toWorld(rope.a[0], rope.a[2]), b = O.frame.toWorld(rope.b[0], rope.b[2]);
+      const n = 24, pos = new Float32Array((n + 1) * 3), S = 0.012 * Math.hypot(b[0] - a[0], rope.b[1] - rope.a[1], b[1] - a[1]);
+      for (let i = 0; i <= n; i++) { const t = i / n; pos[i * 3] = a[0] + (b[0] - a[0]) * t; pos[i * 3 + 1] = rope.a[1] + (rope.b[1] - rope.a[1]) * t - 4 * S * t * (1 - t); pos[i * 3 + 2] = a[1] + (b[1] - a[1]) * t; }
+      const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: rope.kind === 'haul' ? 0x9aa0a8 : 0x30343a, transparent: true, opacity: 0.95 }));
+      line.renderOrder = 8; line.name = 'rope:' + L.link.id;
       G.plots.add(line);
     }
     for (const L of O.records.links) if (L.geom && L.geom.from) {
@@ -523,7 +535,7 @@ function make(THREE, scene, world, rec0, opts) {
   // ---- rebuild ---------------------------------------------------------------------------------
   function rebuild(dirty) {
     const t0 = performance.now();
-    O = PG.compose(rec, world, { pool: o.pool(), globals: window });
+    O = PG.compose(rec, world, { pool: o.pool(), globals: window, build: buildFor });
     let n = 0;
     const groundDirty = !dirty || !dirty.bbox || dirty.ground !== false;
     if (!dirty || !dirty.bbox) {

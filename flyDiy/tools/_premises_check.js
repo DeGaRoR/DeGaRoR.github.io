@@ -378,6 +378,30 @@ for (const fx of fixtures) {
     const O2 = PG.compose(rec, synth, { catalogue: CAT, pool: [{ key: 'a|A', size: 1, sink: 0, proportion: 1, h: 14 }] });
     check(O2.records.items.every((it, i) => it.x === O.records.items[i].x && it.P.floorY === O.records.items[i].P.floorY), '3 the same seed stands the same site');
   } else check(true, '3 (generators not loaded headless here)');
+  // 9b THE CABLE'S PLUMBING: a stand-in tramLine (the village's is on its branch) sees the two
+  // station records with toWorld / y / yaw, is handed a builder, sets lineDeg on both, and its
+  // geometry reaches the link; without tramLine the link says so and stays red
+  {
+    const foot = () => [[-5, -4], [5, -4], [5, 4], [-5, 4]];
+    const mk = (key, station) => [key, { key, kind: 'complex', gen: 'X', preset: key, P: {}, frame: 'house', params: ov => Object.assign({ L: 10, w: 8, floorY: 0.3, station }, ov || {}), foot, keepOut: 3, size: () => ({ L: 10, w: 8 }), ground: { need: 'none' }, hooks: () => [], lod: { dist: [0, 150, 500, 1500] }, slots: {}, tags: [] }];
+    const cat = { entries: new Map([mk('x/top', 1), mk('x/base', 2)]), aliases: {}, keys: () => [] };
+    const rec = PG.normalise({ seed: 1, layers: { sites: [{ id: 's', at: { x: 0, z: 0, yaw: 0 }, items: [{ id: 'b', key: 'x/base', x: 0, z: 0, yaw: 0 }, { id: 't', key: 'x/top', x: 10, z: 120, yaw: 0 }] }],
+      links: [{ id: 'c1', kind: 'cable', from: { site: 's', item: 'b', hook: 'track0' }, to: { site: 's', item: 't', hook: 'track0' } }] } });
+    const none = PG.compose(rec, synth, { catalogue: cat, globals: {}, build: () => ({ stats: {} }) });
+    check(none.records.links.length === 1 && !none.records.links[0].ok && /tramLine is not here/.test(none.records.links[0].issues[0]), '9b without tramLine the cable link says so');
+    let builds = 0;
+    const fake = { VILLAGE_GEN: { tramLine(vil, buildFn) {
+      if (!vil.base || !vil.top || typeof vil.base.toWorld !== 'function') throw new Error('no station records');
+      for (let pass = 0; pass < 3; pass++) { vil.base.P.lineDeg = 30; vil.top.P.lineDeg = 30; buildFn(vil.base); buildFn(vil.top); }
+      const aw = vil.base.toWorld(0, 0), bw = vil.top.toWorld(0, 0);
+      return { angle: 30, ropes: [{ kind: 'track', line: 0, a: [aw[0], vil.base.y + 8, aw[1]], b: [bw[0], vil.top.y + 8, bw[1]] }], docks: [], slots: [], base: vil.base, top: vil.top, pair: [vil.base.id, vil.top.id] };
+    } } };
+    const O = PG.compose(rec, synth, { catalogue: cat, globals: fake, build: r => { builds++; return { stats: { station: { hooks: {} } } }; } });
+    const L = O.records.links[0];
+    check(L && L.ok && builds === 6, '9b the cable solver is handed the builder and calls it three times per station', 'builds ' + builds + (L && L.issues[0] ? ' ' + L.issues[0] : ''));
+    check(O.records.items.every(it => it.P.lineDeg === 30), '9b lineDeg reaches both stations\' P');
+    check(L && L.geom && L.geom.ropes && L.geom.ropes.length === 1, '9b the ropes reach the link');
+  }
   // 5 THE GROUND UNDER AN ITEM: an entry's ground block is honoured before placement -
   // a published shelf (the mill's law), a slab at the high corner, a median flatten
   {

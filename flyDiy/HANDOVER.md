@@ -43742,3 +43742,32 @@ beyond the margins. 104 checks; selftest. The stations' `link.cable =
 call with a build callback once the branch lands.
 
 - Gates: PREMISES green; proven from a clean worktree.
+
+## G361.3 — THE CABLE LINK'S ADAPTER: tramLine IS THE SOLVER, HANDED THE TWO
+## STATION RECORDS AND A BUILDER; THE ROPES DRAWN; A CABLE TOOL (2026-09-13,
+## on the village session's interface report)
+
+The village session fixed `tramLine(vil, buildFn)`'s interface on its
+branch: it reads nothing of the village but `vil.base` / `vil.top` - each
+`{ P, x, z, y, yaw, toWorld }` - calls `buildFn(record)` three times each
+for `{ stats: { station: { hooks } } }`, sets `lineDeg` on both `P`s and
+leaves `vil.tram = { angle, ropes[6] {kind, line, a, b}, docks, slots, base,
+top, pair }`. The composer's phase-B solver (`LINK_SOLVERS.cable`, needs
+'built') is that adapter: it finds the base (P.station 2) and the top (1)
+among the link's two items - the item records are already that shape - hands
+`{ base, top, T }` and the caller's builder to `VILLAGE_GEN.tramLine`, takes
+the angle against the 15-45 band, patches `lineDeg` into both records
+(the renderer then builds the final stations with it) and keeps the ropes.
+Without `tramLine` (master today) the link says so and stays red - honest,
+not guessed. `compose(rec, world, { build })` runs phase B when a builder is
+handed in: the renderer's is the generator's plain `build(P, 0)` (only the
+hooks are read); the gate's a stub. The ropes are drawn with the motion
+plan's sag (1.2 % of the chord). A `cable` tool in SITES: click one station,
+then the other. GATE PREMISES 9b holds the plumbing with a stand-in
+`tramLine` (the two records seen with `toWorld`, six builds, `lineDeg` on
+both, the ropes reaching the link; without it the link's own words). 108
+checks; selftest.
+
+- OWED: the real ropes and the cabins the moment the branch lands (nothing
+  to change here but deleting the copied `placeHouse`); `tram_run.js` ticked
+  from the page's pump.

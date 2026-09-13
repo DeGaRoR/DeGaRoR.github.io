@@ -34,11 +34,11 @@ const SECTIONS = [
   { k: 'roads',      label: 'ROADS',      icon: '⌇',  tools: ['select', 'road', 'probe'] },
   { k: 'zones',      label: 'ZONES',      icon: '▦',  tools: ['select', 'zone', 'probe'] },
   { k: 'vegetation', label: 'TREES',      icon: '♣',  tools: ['select', 'forest', 'clear', 'tree', 'probe'] },
-  { k: 'sites',      label: 'SITES',      icon: '⌂',  tools: ['select', 'building', 'theme', 'probe'] },
+  { k: 'sites',      label: 'SITES',      icon: '⌂',  tools: ['select', 'building', 'theme', 'cable', 'probe'] },
   { k: 'file',       label: 'FILE',       icon: '▤',  tools: [] },
   { k: 'view',       label: 'VIEW',       icon: '◎',  tools: [] },
 ];
-const TOOL_LABEL = { select: 'select', flatten: 'flatten', raise: 'raise / lower', ramp: 'ramp', road: 'trace a road', surface: 'surface', zone: 'zone', forest: 'forest', clear: 'no trees', tree: 'a tree', runway: 'runway', apron: 'apron / taxiway', building: 'a building', theme: 'the mine (theme)', probe: 'probe' };
+const TOOL_LABEL = { select: 'select', flatten: 'flatten', raise: 'raise / lower', ramp: 'ramp', road: 'trace a road', surface: 'surface', zone: 'zone', forest: 'forest', clear: 'no trees', tree: 'a tree', runway: 'runway', apron: 'apron / taxiway', building: 'a building', theme: 'the mine (theme)', cable: 'a cable', probe: 'probe' };
 const TOOL_HELP = {
   select: 'click a feature to select it; drag its discs; Del deletes',
   flatten: 'click the corners of the flat, then ✓ close (or double-click)',
@@ -55,6 +55,7 @@ const TOOL_HELP = {
   apron: 'click the corners of the paved apron or taxiway, close',
   building: 'pick a building in the inspector, click the ground to stand it there (its own site); drag its disc to move it',
   theme: 'click the ground: the Kennecott theme stands there as ONE site - the mill, the shop, the row, the receiving shed, the conveyor link and the gravel yard',
+  cable: 'click a tram station, then the other: the line is solved between them (the village\'s tramLine, once its branch lands) and the ropes drawn',
 };
 const POLY_TOOLS = { flatten: 'terrain', raise: 'terrain', ramp: 'terrain', surface: 'surface', apron: 'surface', zone: 'zones', forest: 'zones', clear: 'zones' };
 const TWO_POINT_TOOLS = { runway: 'runways' };
@@ -191,7 +192,7 @@ function mount(host, ctx) {
 
   // ---- the tool state machine ----------------------------------------------------
   const T = { state: 'armed', pts: [] };
-  function cancelTool() { T.state = 'armed'; T.pts = []; R.ghost(null); if (drawBtns) drawBtns.style.display = 'none'; ctx.redraw && ctx.redraw(); }
+  function cancelTool() { T.state = 'armed'; T.pts = []; T.pick = null; R.ghost(null); if (drawBtns) drawBtns.style.display = 'none'; ctx.redraw && ctx.redraw(); }
   const isLine = () => !!LINE_TOOLS[tool];
   function ghostFeature() {
     if (!T.pts.length) return null;
@@ -338,6 +339,15 @@ function mount(host, ctx) {
       const s = PG.SURFACE_NAMES[R.overlay.surfaceAt(g[0], g[2])] || 'base';
       strip.status('x ' + L[0].toFixed(1) + ' z ' + L[1].toFixed(1) + ' · ' + h.toFixed(2) + ' m (' + (h - F.y0).toFixed(2) + ' over the anchor) · slope ' + (Math.hypot(sx, sz) * 100).toFixed(1) + ' % · ' + s + (R.overlay.excludeAt(g[0], g[2], 'trees') ? ' · no trees' : '') + ' · road ' + R.overlay.roadNear(g[0], g[2]).toFixed(0) + ' m');
       return;
+    }
+    if (tool === 'cable') {
+      const h = R.hit(g[0], g[2]);
+      if (!h || h.layer !== 'sites' || !h.item) { strip.status('click a station (a site item)'); return; }
+      if (!T.pick) { T.pick = { site: h.id, item: h.item }; T.state = 'drawing'; strip.status('now the other station'); return; }
+      const e = { id: PG.newId(rec, 'links'), kind: 'cable', from: { site: T.pick.site, item: T.pick.item, hook: 'track0' }, to: { site: h.id, item: h.item, hook: 'track0' }, P: {}, dynamic: true };
+      T.pick = null; T.state = 'armed';
+      run({ layer: 'links', id: e.id, before: null, after: e, label: 'cable ' + e.id });
+      select(h.id); return;
     }
     if (tool === 'building' || tool === 'theme') {
       if (tool === 'building') {
