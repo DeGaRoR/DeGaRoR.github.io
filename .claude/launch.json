@@ -500,6 +500,15 @@
         "8382"
       ],
       "port": 8382
+    },
+    {
+      "name": "flydiy-totems",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8389"
+      ],
+      "port": 8389
     }
   ]
 }

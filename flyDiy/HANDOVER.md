@@ -41766,3 +41766,107 @@ extra rings on the squeezed shapes) are here; the identity check
 and the six gates were re-run on the complete tree before landing.
 Lesson for the recipe: list a hunk per marker, and read the landed diff's
 line count against the edit's before calling it landed.
+
+## G341 — THE TOTEM POLES: SEVEN PHOTOSCANS CUT TO SIZE, A THIRD PROP TABLE, A
+## PARK PLAN FOR THE HOUSE GENERATOR, AND THE BENCH THAT STANDS THE SCAN BESIDE
+## THE CUT (2026-09-13, the user: "I have some totem meshes in the asset folder.
+## I'd want them integrated as assets, and usable by the house generator ...
+## generate a patch of terrain with these poles, inspired by the attached
+## picture. These assets are photoscans and need to be decimated, at least for
+## generating LODs. Can you handle the game-readification? And present
+## screenshots/bench of your results against the originals?"; "Get inspiration
+## from the asset optimization work of the house session")
+
+- **WHAT ARRIVED** (`assets/totems/`, gitignored like every asset): six
+  Brian Trepanier scans and one jfactory scan, Sketchfab CC-BY-4.0, 144k
+  to 438k triangles a pole - 2.31 M in all - each with ONE 1k base-colour
+  jpeg and nothing else (roughness a constant). The six are unit-less: the
+  scanner normalised every one to 1.905 m. The jfactory pole is 19.3 m as
+  delivered and is a ONE-SIDED scan: its back is a flat untextured sheet.
+- **A THIRD TABLE ON THE SAME BAKER** (`tools/totem_table.py` ->
+  `tools/totem_prep.py` = `prop_prep.main(argv, CFG)`), the pier's pattern
+  (G252) - its own packs `src/totems/`, its own media `media/geo/totems`
+  + `media/tex/totems`, its own gate. NOT more rows in pier_table: GATE
+  HOUSE rule 27 holds the pier packs to that table and to PIER_KIT/YARD_KIT
+  and would read a totem as a module nobody mirrors.
+- **THE ONE LIBRARY THE PIPELINE DECIMATES, BY RULING.** Rule 1 of
+  PROP-IMPORT-PROC (as-is geometry) stands for everything else; here the
+  user asked for decimation and the numbers agree (the brick totem was
+  refused at 145k; seven poles as scanned would be the village's whole
+  budget twice). So the baker's as-is bake is STAGED under `bench/totems/`
+  (gitignored - media/ is tracked and GATE MEDIA wants every file
+  manifest-named; `totem_prep.py` monkeypatches `prop_prep.write_media` /
+  `prune_media` for the run, the maps alone go to media/tex/totems), and
+  **`tools/totem_lod.js`** cuts what ships with prop_lod.js's own exported
+  decimator (G301/G303: half-edge quadric collapse on the wedge graph, no
+  vertex moved to a new position, the delivered map worn unchanged):
+  SHEET `base 40000`, levels `12000 @ 12 m / 3000 @ 40 / 700 @ 120`. One
+  pack, two groups (`totem` + `lod`, `lodOf`/`lodDist` as props.js reads
+  them, `srcNt` on every base). 2,312,490 scanned -> 279,999 in the bases
+  + 109,947 in the levels; 6.4 MB of bins, 2.5 MB of maps (was 30.5 MB of
+  geometry staged). A multi-material cut takes the MIN_TRIS floor's excess
+  off its largest material so the sum is the target (the great pole's 700
+  level was 745 before; the gate caught it).
+- **HEIGHTS DECLARED, LIKE THE BOATS' SIZES**: `height` per row (7.0 /
+  6.0 / 7.5 / 8.0 / 9.0 / 6.5 m from the reference photograph; scale =
+  height / 1.905), the jfactory pole left at its delivered 19.3 m. A
+  ruling is owed on all three numbers (heights, the 40k base, whether the
+  one-sided pole stays).
+- **THE PARK** (`tools/_totem_gen.js`, headless plan + THREE build, the
+  house generator's own split): `TOTEM_KIT` mirrors the pack (L/W/H,
+  srcNt, `face`, `oneSided`); `totemPlan({seed, w: 46, d: 30})` lays the
+  poles along a shallow arc bowed toward the lawn (+z), spacing by width
+  ACROSS the arc (a beak or a wing reaches toward the lawn, not the
+  neighbour - the first spacing used the footprint's longest side and
+  the arc ran out of room), the row climbing to the great pole at one end
+  and that one a step back; a 12 x 9 m house slot behind the arc's middle
+  for the clan house (the house generator fills it - drawn as a wire box
+  here); boulders on the lawn clear of poles and path; a bowed gravel
+  path along the front as a vertex tint; treeline bands published for the
+  world to plant. `totemBuild` places every pole through `propPlace`, so
+  the THREE.LOD rides in for free. **`face` is READ OFF THE RENDERS**
+  (FACING view, `screenshots/totems/facing_sheet.jpg`): all six Trepanier
+  scans look along their own +x, the wings pole a shade short; jfactory
+  along -x - a centroid-lean measurement disagreed with the farthest-vertex
+  one and neither was trustworthy.
+- **GATE TOTEM** (`tools/_totem_check.js`, core, 0.3 s; run_gates +
+  _media_check know the manifest): table = pack (keys, order, declared
+  heights within 1 %), every base a cut at the sheet (and `srcNt` > 2x),
+  every level exact (bb, place, maps, fewer tris, farther, target within
+  2 %), media present and no as-is bin under media/, TOTEM_KIT = the
+  pack's metres, and the plan over twenty seeds (inside the patch, no
+  crowding, every pole looks to the lawn within the scatter, the great
+  pole set back, boulders clear, the slot clear, the ground gentle, the
+  same seed twice). First run caught the 745 and thirteen crowdings.
+- **THE BENCH** (`tools/_totems.html`, launch `flydiy-totems` 8389):
+  SHELF (all seven by height; levels select pins a level, "original"
+  stands the staged as-is bake, re-keyed `<key>_src` by a
+  registerPropPack wrapper so it can sit in the same registry), COMPARE
+  (one pole five times: scan / base / L1 / L2 / L3 side by side), FACING
+  (compass on the ground), PARK (seed, the house bench's alps sky and
+  G302 exposure). `window.BENCH` drives it headless. VERDICT from the
+  sheets (`screenshots/totems/`): the 40k base is indistinguishable from
+  the scan at 4 m (`compare_close_claws.jpg`); LOD 1 shows a facet on a
+  beak up close and nothing at 12 m; LOD 2 and 3 faceted but WHOLE - the
+  thin wings survive (checked by zooming the capture; the downscaled
+  sheet suggested a chopped wing and was wrong).
+- **READ BACK, NOT GUESSED (G302 met again)**: the boulders at 0x7d7f78
+  rendered sRGB 230 under the alps sky - white blobs. A `gl.readPixels`
+  sweep on the bench canvas (0x5e6059 -> 188, 0x303030 -> 145, 0x101010
+  -> 77) put the albedo at 0x3a3b37, where a sunlit boulder photographs.
+- **THE CAPTURE RIG**: this chat could not start a server (five belong to
+  other chats), so the bench was served off a peer's static `_serve.js`
+  port and captured with headless Chrome + raw CDP. Trap: node's
+  `localhost` resolves to ::1 and Chrome's debug port listens on IPv4
+  only - connect to 127.0.0.1 or the first `/json` never answers.
+- **FOR THE HOUSE/VILLAGE SESSION**: load `../src/totems/totems_poles.js`
+  after props.js and `tools/_totem_gen.js`; `TOTEM_GEN.totemPlan(o)` gives
+  poles `{key, x, z, ry, y, r, rx}`, `house` (the slot to stand a clan
+  house in, +z its front), `rocks`, `path.at(x)`, `treeline`; place with
+  `propPlace(THREE, key, x, z, ry, groundY)` or take `totemBuild` whole
+  (`o.ghost: false` drops the slot's wire box). The park owns no height:
+  hand it your terrain's `ground` by wrapping the plan (`plan.ground` is
+  its own gentle swell for the bench).
+- Gates: TOTEM, MEDIA, PROPS, HOUSE green. Credits: a "Totem poles"
+  section (CC-BY, modifications listed); docs/PROP-IMPORT-PROC.md gained
+  "THE THIRD TABLE".

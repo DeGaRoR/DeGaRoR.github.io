@@ -610,6 +610,49 @@ more** (`person_charles`, `person_luke`, `person_koky`, G280) come from the
 same source, one whole-scene export (`charles.glb`) selected by node — same
 licence, same caveat.
 
+## Totem poles (`assets/totems/`, baked and served from media/)
+
+Seven photogrammetry scans of carved poles for the totem park
+(`tools/_totem_gen.js`; 2026-09-13). Declared in `tools/totem_table.py`,
+baked by `tools/totem_prep.py` (the prop baker's runner pointed at this table)
+and CUT by `tools/totem_lod.js` into `src/totems/` + `media/geo/totems/` +
+`media/tex/totems/`. **These are the one library the pipeline decimates**, by
+the user's ruling for this batch: a scan is 144-438k triangles a pole and the
+detail is in its photograph, so what ships is a quadric cut to 40k with three
+levels under it (12k / 3k / 700), every surviving vertex, normal and uv the
+scanner's own and the 1k map re-encoded but not remade. The delivered files
+stay under `assets/totems/` unmodified, and the as-is bake is staged under
+`bench/totems/` for the bench to compare against. Six of the seven arrive
+unit-less at 1.9 m and are stood at a declared height (6-9 m); the seventh
+keeps its delivered 19.3 m.
+
+**Sketchfab, CC-BY-4.0** (https://creativecommons.org/licenses/by/4.0/) —
+attribution is a condition of the licence and must stay visible wherever
+these are shown:
+
+- `totem_claws` — **"Claws of the Cloud-Watcher - totem"** by Brian Trepanier
+  (https://sketchfab.com/3d-models/claws-of-the-cloud-watcher-totem-6dfdd64d0fb1471fb9236126072235cd)
+- `totem_eyes` — **"Eyes of the Skycaller - totem"** by Brian Trepanier
+  (https://sketchfab.com/3d-models/eyes-of-the-skycaller-totem-467240b79a6547fea405e0bd1ba4e8be)
+- `totem_flight` — **"Flight of the Linekeepers - totem"** by Brian Trepanier
+  (https://sketchfab.com/3d-models/flight-of-the-linekeepers-totem-04953dee70e94df9bee97546943318c1)
+- `totem_sentinel` — **"Sentinel of the Storm-Eyed Kin - totem"** by Brian Trepanier
+  (https://sketchfab.com/3d-models/sentinel-of-the-storm-eyed-kin-totem-c68da9e155924fb8b6e7c02e0a3e8c8f)
+- `totem_voice` — **"Voice of the Raven's Descent - totem"** by Brian Trepanier
+  (https://sketchfab.com/3d-models/voice-of-the-ravens-descent-totem-44a80dd9dbb041838ba7c9f84a5c0171)
+- `totem_wings` — **"Wings of the Silent Herald - totem"** by Brian Trepanier
+  (https://sketchfab.com/3d-models/wings-of-the-silent-herald-totem-a2734e34adf64a65bba3ce591700e40c)
+- `totem_tall` — **"Totem Pole"** by jfactory
+  (https://sketchfab.com/3d-models/totem-pole-a2b21162ea3f4630b78a4aff893d269e)
+  — a one-sided scan (its back is a flat untextured sheet); stood with its
+  back to the treeline
+
+Modifications made, as CC-BY asks to be indicated: a uniform scale on the six
+Trepanier poles (unit-less exports stood at a declared height), a rigid
+re-origin to the footprint's centre on the ground, mesh decimation to the
+budgets above (quadric edge collapse; no vertex moved to a new position), and
+the base-colour maps re-encoded at 1024 px JPEG.
+
 ## Design-tile silhouettes (the birth flow)
 
 - **What**: the inline SVG silhouettes and glyphs on the macro-row tiles

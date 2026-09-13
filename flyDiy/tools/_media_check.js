@@ -72,6 +72,14 @@ function manifestFiles() {
     ? JSON.parse(fs.readFileSync(pierMf, 'utf8'))
         .map(f => path.join(ROOT, 'src', 'pier', f))
     : [];
+  // the totem poles (2026-09-13): the baker's table for the scanned poles,
+  // its own pack cut by tools/totem_lod.js from a STAGED as-is bake (the
+  // stage lives under bench/, never media/) - media/geo/totems, media/tex/totems
+  const totemMf = path.join(ROOT, 'src', 'totems', 'totems_packs.json');
+  const totems = fs.existsSync(totemMf)
+    ? JSON.parse(fs.readFileSync(totemMf, 'utf8'))
+        .map(f => path.join(ROOT, 'src', 'totems', f))
+    : [];
   // the panel hardware kit (the panel arc, session 4c): the baker's third
   // table — the switches, knobs, buttons and the key — its own packs and
   // media (media/geo/panelhw, media/tex/panelhw)
@@ -99,7 +107,7 @@ function manifestFiles() {
   // the baked trees (W0b): one manifest, listing one bin per collection
   const trees = fs.existsSync(path.join(ROOT, 'src', 'core', 'trees_pack.json'))
     ? [path.join(ROOT, 'src', 'core', 'trees_pack.json')] : [];
-  return v.concat(packs, pier, panelhw, models, chars, trees);
+  return v.concat(packs, pier, totems, panelhw, models, chars, trees);
 }
 
 const REF_RE = /media\/[A-Za-z0-9_\-./]+?\.(?:jpg|png|bin)/g;

@@ -1,0 +1,329 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>flyDiy — totem poles bench</title>
+<!--
+  THE TOTEM BENCH (2026-09-13). Four views:
+    SHELF    every pole game-ready, in a row by height, on a lawn
+    COMPARE  one pole five times: the scan as delivered (the staged as-is
+             bake under bench/totems/, if present), the shipped base, LOD 1,
+             2, 3 - side by side at one distance
+    FACING   one pole alone with a compass on the ground: which way its
+             carving looks (TOTEM_KIT.face is read off this view)
+    PARK     tools/_totem_gen.js's plan built: the lawn, the arc of poles,
+             the boulders, the path, the clan-house slot
+  Launch: flydiy-totems (port 8389), open /flyDiy/tools/_totems.html.
+  The sky and its exposure are the house bench's (HOUSE_SKIES + PMREM, the
+  sun divided out of the exposure, G302).
+-->
+<style>
+  :root{--bg:#0f1115;--ink:#dfe3ea;--dim:#8a93a3;--line:#262b35}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:12px/1.4 system-ui,sans-serif;overflow:hidden}
+  #bar{position:fixed;left:0;top:0;right:0;height:36px;display:flex;gap:10px;align-items:center;padding:0 10px;background:#161a21;border-bottom:1px solid var(--line);z-index:2}
+  #bar label{color:var(--dim)} #bar select,#bar input{background:#0f1115;color:var(--ink);border:1px solid var(--line);border-radius:3px;padding:2px 4px;font:inherit}
+  #c{position:fixed;left:0;top:36px;width:100vw;height:calc(100vh - 36px);display:block}
+  #plaque{position:fixed;right:10px;top:46px;max-width:360px;background:rgba(16,18,24,.82);border:1px solid var(--line);border-radius:4px;padding:8px 10px;white-space:pre;font:11px/1.35 ui-monospace,Consolas,monospace;color:var(--ink);z-index:2}
+  #plaque b{color:#f0c674}
+</style>
+<div id="bar">
+  <label>view</label><select id="mode"><option value="shelf">shelf</option><option value="compare">compare</option><option value="facing">facing</option><option value="park" selected>park</option></select>
+  <label>levels</label><select id="lvl"><option value="-1">by distance</option><option value="src">original (staged)</option><option value="0">base</option><option value="1">LOD 1</option><option value="2">LOD 2</option><option value="3">LOD 3</option></select>
+  <label>pole</label><select id="pole"></select>
+  <label>seed</label><input id="seed" type="number" value="1" min="1" max="9999" style="width:60px">
+  <label>sky</label><select id="sky"></select>
+  <label>exposure</label><input id="expo" type="range" min="0.4" max="2.0" step="0.05" value="1.0" style="width:90px">
+  <label>cam</label><select id="cam"><option value="photo">photo</option><option value="high">high</option><option value="front">front</option><option value="close">close</option></select>
+  <span id="msg" style="color:var(--dim)"></span>
+</div>
+<canvas id="c"></canvas>
+<div id="plaque"></div>
+
+<script src="../vendor/three.min.js"></script>
+<script>window.FLYDIY_ASSET_BASE = '../';</script>
+<script src="../src/viewer/house_tex.js"></script>
+<script src="../src/viewer/lot_tex.js"></script>
+<script src="../src/core/51_prop_codec.js"></script>
+<script src="../src/viewer/assets.js"></script>
+<script src="../src/viewer/props.js"></script>
+<script src="../src/totems/totems_poles.js"></script>
+<!-- THE ORIGINALS: the staged as-is bake, if this checkout has run
+     tools/totem_prep.py. Its keys are the shipped pack's, so they are
+     re-keyed `<key>_src` on the way into the registry. -->
+<script>
+  window.__SRC_KEYS = [];
+  (() => {
+    const real = window.registerPropPack;
+    window.registerPropPack = pack => {
+      const props = {};
+      pack.order = pack.order.map(k => k + '_src');
+      for (const k in pack.props) { const p = pack.props[k]; p.key = k + '_src'; p.group = 'src'; props[p.key] = p; }
+      pack.props = props;
+      pack.groups = [['src', 'as scanned']];
+      window.__SRC_KEYS = pack.order.slice();
+      real(pack);
+    };
+    window.__srcRestore = () => { window.registerPropPack = real; };
+  })();
+</script>
+<script src="../bench/totems/totems_full_totem.js" onerror="window.__srcRestore()" onload="window.__srcRestore()"></script>
+<script src="_totem_gen.js"></script>
+<script>
+'use strict';
+(() => {
+const T = window.TOTEM_GEN;
+const $ = id => document.getElementById(id);
+const D2R = Math.PI / 180;
+const KEYS = T.KEYS;
+for (const k of KEYS) $('pole').add(new Option(k.replace('totem_', ''), k));
+
+// ---- renderer + sky (the house bench's rig, cut down) ----------------------
+const cv = $('c');
+const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, preserveDrawingBuffer: true });
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x9fb6d0);
+const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 2000);
+const sun = new THREE.DirectionalLight(0xffffff, 2.0);
+sun.castShadow = true;
+sun.shadow.mapSize.set(4096, 4096);
+sun.shadow.bias = -0.0006;
+sun.shadow.normalBias = 0.03;
+scene.add(sun, sun.target);
+const fill = new THREE.HemisphereLight(0xbdd2ea, 0x4a4436, 0.35);
+scene.add(fill);
+const pmrem = new THREE.PMREMGenerator(renderer);
+pmrem.compileEquirectangularShader();
+const SKIES = (typeof HOUSE_SKIES !== 'undefined' && HOUSE_SKIES) || {};
+for (const k in SKIES) $('sky').add(new Option(SKIES[k].name, k));
+let envRT = null;
+const ENVC = new Map(), BGC = new Map();
+function envTexture(sky) {
+  const img = sky.env;
+  if (!img.complete || !img.naturalWidth) return null;
+  if (ENVC.has(sky)) return ENVC.get(sky);
+  const w = img.naturalWidth, h = img.naturalHeight;
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g2 = c.getContext('2d'); g2.drawImage(img, 0, 0);
+  const src = g2.getImageData(0, 0, w, h).data;
+  const half = THREE.DataUtils.toHalfFloat;
+  const out = new Uint16Array(w * h * 4);
+  for (let i = 0, n = w * h; i < n; i++) {
+    const e = src[i * 4 + 3], k = e ? Math.pow(2, e - 136) : 0;
+    out[i * 4] = half(src[i * 4] * k); out[i * 4 + 1] = half(src[i * 4 + 1] * k);
+    out[i * 4 + 2] = half(src[i * 4 + 2] * k); out[i * 4 + 3] = half(1);
+  }
+  const t = new THREE.DataTexture(out, w, h, THREE.RGBAFormat, THREE.HalfFloatType);
+  t.mapping = THREE.EquirectangularReflectionMapping;
+  t.minFilter = t.magFilter = THREE.LinearFilter; t.generateMipmaps = false; t.needsUpdate = true;
+  ENVC.set(sky, t);
+  return t;
+}
+function bgTexture(sky) {
+  const img = sky.bg;
+  if (!img.complete || !img.naturalWidth) return null;
+  if (!BGC.has(sky)) {
+    const t = new THREE.Texture(img);
+    t.mapping = THREE.EquirectangularReflectionMapping; t.encoding = THREE.sRGBEncoding; t.needsUpdate = true;
+    BGC.set(sky, t);
+  }
+  return BGC.get(sky);
+}
+let skyReady = false;
+function buildSky() {
+  const sky = SKIES[$('sky').value];
+  if (!sky) { skyReady = true; return; }
+  const t = envTexture(sky);
+  if (!t) { sky.env.addEventListener('load', buildSky, { once: true }); return; }
+  if (envRT) envRT.dispose();
+  envRT = pmrem.fromEquirectangular(t);
+  scene.environment = envRT.texture;
+  const bg = bgTexture(sky);
+  if (bg) scene.background = bg; else sky.bg.addEventListener('load', buildSky, { once: true });
+  const d = sky.sun;
+  sun.color.setRGB(sky.sunCol[0], sky.sunCol[1], sky.sunCol[2]);
+  sun.intensity = Math.max(0.55, Math.min(3.0, sky.direct * 6.5 + 0.45));
+  fill.intensity = 0;
+  const sunDown = sun.intensity * Math.max(0, d[1] / Math.hypot(d[0], d[1], d[2]));
+  renderer.toneMappingExposure = (+$('expo').value) * (sky.ev || 1) / (1 + sunDown);
+  sun.position.set(d[0], d[1], d[2]).multiplyScalar(80);
+  sun.target.position.set(0, 0, 0);
+  skyReady = true;
+  render();
+}
+
+// ---- camera -----------------------------------------------------------------
+let yaw = 0.6, pitch = 0.22, dist = 40, centre = new THREE.Vector3(0, 4, 0);
+let drag = null;
+cv.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, b: e.button }; cv.setPointerCapture(e.pointerId); });
+cv.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.x = e.clientX; drag.y = e.clientY;
+  if (drag.b === 2 || e.shiftKey) {
+    const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+    centre.addScaledVector(right, -dx * dist * 0.0012); centre.y += dy * dist * 0.0012;
+  } else { yaw -= dx * 0.005; pitch = Math.max(-0.4, Math.min(1.5, pitch + dy * 0.005)); }
+  render();
+});
+cv.addEventListener('pointerup', () => { drag = null; });
+cv.addEventListener('contextmenu', e => e.preventDefault());
+cv.addEventListener('wheel', e => { dist *= Math.exp(e.deltaY * 0.001); dist = Math.max(1, Math.min(400, dist)); render(); e.preventDefault(); }, { passive: false });
+function aim() {
+  camera.position.set(centre.x + dist * Math.cos(pitch) * Math.sin(yaw), centre.y + dist * Math.sin(pitch), centre.z + dist * Math.cos(pitch) * Math.cos(yaw));
+  camera.lookAt(centre);
+}
+function camPreset(name) {
+  const m = $('mode').value;
+  if (m === 'park') {
+    if (name === 'photo') { yaw = 0.55; pitch = 0.10; dist = 30; centre.set(-2, 3.2, -6); }
+    if (name === 'high') { yaw = 0.3; pitch = 0.55; dist = 55; centre.set(0, 2, -4); }
+    if (name === 'front') { yaw = 0.0; pitch = 0.08; dist = 34; centre.set(0, 4, -8); }
+    if (name === 'close') { yaw = 0.9; pitch = 0.12; dist = 12; centre.set(-6, 3.5, -7); }
+  } else if (m === 'shelf') {
+    if (name === 'photo' || name === 'front') { yaw = 0.0; pitch = 0.12; dist = 46; centre.set(0, 6, 0); }
+    if (name === 'high') { yaw = 0.5; pitch = 0.5; dist = 50; centre.set(0, 4, 0); }
+    if (name === 'close') { yaw = 0.3; pitch = 0.1; dist = 14; centre.set(0, 4, 0); }
+  } else if (m === 'compare') {
+    const K = T.TOTEM_KIT[$('pole').value];
+    if (name === 'photo' || name === 'front') { yaw = 0.0; pitch = 0.05; dist = K.H * 2.4; centre.set(0, K.H * 0.5, 0); }
+    if (name === 'high') { yaw = 0.4; pitch = 0.45; dist = K.H * 2.8; centre.set(0, K.H * 0.4, 0); }
+    if (name === 'close') { yaw = 0.0; pitch = 0.05; dist = K.H * 0.9; centre.set(0, K.H * 0.72, 0); }
+  } else {
+    const K = T.TOTEM_KIT[$('pole').value];
+    yaw = 0.0; pitch = 0.18; dist = K.H * 1.8; centre.set(0, K.H * 0.45, 0);
+  }
+}
+
+// ---- the views --------------------------------------------------------------
+let root = null, plan = null;
+const propKey = (k, lvl) => (lvl === 'src' && window.__SRC_KEYS.includes(k + '_src')) ? k + '_src' : k;
+function lawn(w, d) {
+  const g = new THREE.PlaneGeometry(w, d); g.rotateX(-Math.PI / 2);
+  const m = new THREE.MeshStandardMaterial({ color: 0x8ea55c, roughness: 1 });
+  const LOT = (typeof LOT_TEX_SETS !== 'undefined' && LOT_TEX_SETS) || null;
+  if (LOT && LOT.grass) {
+    const t = new THREE.Texture(LOT.grass.diff); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(w / 2.4, d / 2.4); t.encoding = THREE.sRGBEncoding;
+    const ok = () => { t.needsUpdate = true; render(); };
+    if (LOT.grass.diff.complete && LOT.grass.diff.naturalWidth) ok(); else LOT.grass.diff.addEventListener('load', ok, { once: true });
+    m.map = t; m.color.set(0xffffff);
+  }
+  const mesh = new THREE.Mesh(g, m); mesh.receiveShadow = true; return mesh;
+}
+function stand(k, x, z, ry, y) {
+  const g = propPlace(THREE, k, x, z, ry, y || 0);
+  g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  return g;
+}
+function build() {
+  if (root) { scene.remove(root); root = null; }
+  root = new THREE.Group();
+  const mode = $('mode').value, lvl = $('lvl').value;
+  window.PROP_LOD_FORCE = (lvl === 'src' || lvl === '-1') ? -1 : +lvl;
+  const lines = [];
+  if (mode === 'shelf') {
+    root.add(lawn(70, 30));
+    const ks = KEYS.slice().sort((a, b) => T.TOTEM_KIT[a].H - T.TOTEM_KIT[b].H);
+    let x = -ks.reduce((s, k) => s + T.footR(k) * 2 + 3, -3) / 2;
+    for (const k of ks) {
+      x += T.footR(k);
+      root.add(stand(propKey(k, lvl), x, 0, -T.TOTEM_KIT[k].face * D2R, 0));
+      x += T.footR(k) + 3;
+      lines.push(plaqueLine(k));
+    }
+  } else if (mode === 'compare') {
+    const k = $('pole').value, K = T.TOTEM_KIT[k];
+    root.add(lawn(60, 30));
+    const variants = [];
+    if (window.__SRC_KEYS.includes(k + '_src')) variants.push([k + '_src', 'as scanned']);
+    variants.push([k, 'base']);
+    for (let i = 1; i <= 3; i++) if (PROP_REG.props[k + '_l' + i]) variants.push([k + '_l' + i, 'LOD ' + i]);
+    const gap = Math.max(K.W, K.L) + 1.2;
+    let x = -(variants.length - 1) * gap / 2;
+    window.PROP_LOD_FORCE = 0;
+    for (const [vk, name] of variants) {
+      root.add(stand(vk, x, 0, -K.face * D2R, 0));
+      const p = PROP_REG.props[vk];
+      lines.push(name.padEnd(11) + String(p.nt).padStart(7) + ' tris ' + String(p.nv).padStart(6) + ' verts');
+      x += gap;
+    }
+    lines.unshift(k + '  ' + K.H.toFixed(2) + ' m    left to right:');
+  } else if (mode === 'facing') {
+    const k = $('pole').value, K = T.TOTEM_KIT[k];
+    root.add(lawn(30, 30));
+    root.add(stand(propKey(k, lvl), 0, 0, 0, 0));
+    // the compass: an arrow along +z (the lawn) on the ground, a ring of ticks
+    const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.6, 12), new THREE.MeshStandardMaterial({ color: 0xe04a3a }));
+    arrow.rotation.x = Math.PI / 2; arrow.position.set(0, 0.25, K.L / 2 + 2.2); root.add(arrow);
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, 5), new THREE.MeshStandardMaterial({ color: 0xe04a3a }));
+    bar.position.set(0, 0.15, K.L / 2 + 2.2 - 2.5 - 0.8 + 0.8); root.add(bar);
+    const ring = new THREE.Mesh(new THREE.RingGeometry(K.L / 2 + 1.8, K.L / 2 + 1.95, 64), new THREE.MeshBasicMaterial({ color: 0x222222, side: THREE.DoubleSide }));
+    ring.rotation.x = -Math.PI / 2; ring.position.y = 0.02; root.add(ring);
+    lines.push(k + ': face az ' + K.face + ' deg (0 = +z, the red arrow). Turn the pole with the yaw slider until the carving looks down the arrow.');
+  } else {
+    plan = T.totemPlan({ seed: +$('seed').value });
+    root.add(T.totemBuild(THREE, plan, { onTex: render }));
+    const st = root.children[0].userData.stats;
+    lines.push('PARK seed ' + plan.seed + '  ' + plan.w + ' x ' + plan.d + ' m   poles ' + st.poles + '  rocks ' + st.rocks + (st.missing.length ? '  MISSING ' + st.missing.join(',') : ''));
+    for (const p of plan.poles) lines.push('  ' + p.key.replace('totem_', '').padEnd(9) + ' x' + p.x.toFixed(1).padStart(6) + ' z' + p.z.toFixed(1).padStart(6) + ' ry' + (p.ry / D2R).toFixed(0).padStart(5) + '  y' + p.y.toFixed(2).padStart(6));
+    if (plan.house) lines.push('  house slot ' + plan.house.w + ' x ' + plan.house.d + ' m at z ' + plan.house.z.toFixed(1) + ' (the house generator fills it)');
+  }
+  scene.add(root);
+  const tot = KEYS.reduce((s, k) => s + (PROP_REG.props[k] ? PROP_REG.props[k].nt : 0), 0);
+  const src = KEYS.reduce((s, k) => s + T.TOTEM_KIT[k].srcNt, 0);
+  lines.push('', 'library: ' + KEYS.length + ' poles, ' + src.toLocaleString() + ' scanned -> ' + tot.toLocaleString() + ' base tris' + (window.__SRC_KEYS.length ? '  (originals staged)' : '  (no staged originals: run tools/totem_prep.py)'));
+  $('plaque').textContent = lines.join('\n');
+  render();
+}
+function plaqueLine(k) {
+  const K = T.TOTEM_KIT[k], p = PROP_REG.props[k];
+  const lv = [1, 2, 3].map(i => PROP_REG.props[k + '_l' + i]).filter(Boolean);
+  return k.replace('totem_', '').padEnd(9) + K.H.toFixed(1).padStart(5) + ' m ' + String(K.srcNt).padStart(7) + ' -> ' + String(p ? p.nt : 0).padStart(6) +
+    (lv.length ? ' | ' + lv.map(l => l.nt + '@' + l.lodDist).join(' ') : '');
+}
+
+// ---- loop -------------------------------------------------------------------
+function resize() {
+  const w = cv.clientWidth, h = cv.clientHeight;
+  if (cv.width !== w || cv.height !== h) { renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+}
+let frames = 0;
+function render() {
+  resize(); aim();
+  renderer.render(scene, camera);
+  frames++;
+}
+function loop() { render(); requestAnimationFrame(loop); }
+
+$('mode').onchange = () => { camPreset('photo'); build(); };
+$('lvl').onchange = build;
+$('pole').onchange = () => { camPreset('photo'); build(); };
+$('seed').onchange = build;
+$('sky').onchange = buildSky;
+$('expo').oninput = buildSky;
+$('cam').onchange = () => { camPreset($('cam').value); render(); };
+window.addEventListener('resize', render);
+
+// the driving API for a headless capture: set the controls, place the
+// camera, read the state
+window.BENCH = {
+  set(o) {
+    for (const k of ['mode', 'lvl', 'pole', 'seed', 'sky', 'expo', 'cam']) if (o[k] !== undefined) $(k).value = String(o[k]);
+    camPreset(o.cam || 'photo');
+    build();
+  },
+  cam(o) { if (o.yaw !== undefined) yaw = o.yaw; if (o.pitch !== undefined) pitch = o.pitch; if (o.dist !== undefined) dist = o.dist; if (o.centre) centre.set(...o.centre); render(); },
+  view() { return { yaw, pitch, dist, centre: centre.toArray() }; },
+  render, plan: () => plan, frames: () => frames, skyReady: () => skyReady, root: () => root, scene: () => scene,
+  plaque: () => $('plaque').textContent,
+  // every prop mesh under root has its geometry (the fetch landed)
+  ready() { let n = 0, m = 0; root.traverse(o => { if (o.name && o.name.startsWith('prop:')) { n++; if (o.children.length || (o.isMesh && o.geometry)) m++; } }); return { props: n, built: m, frames, skyReady }; },
+};
+
+if (SKIES && Object.keys(SKIES).length) $('sky').value = 'alps';
+camPreset('photo');
+build();
+buildSky();
+loop();
+})();
+</script>

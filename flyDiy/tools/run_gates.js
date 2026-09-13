@@ -73,6 +73,10 @@ const GATES = [
   { id: 'WORLDRENDER', file: 'test_world_render.js', tier: 'core' },
   // the hangar prop library: baked payload vs the declared table
   { id: 'PROPS', file: '_prop_check.js', tier: 'core' },
+  // THE TOTEM POLES (2026-09-13): the declared table = the shipped pack (a
+  // cut of a staged photoscan, base + three levels) = the park generator's
+  // mirror, and the park plan is a park over twenty seeds. ~1 s.
+  { id: 'TOTEM', file: '_totem_check.js', tier: 'core' },
   // THE TREE PAYLOAD (W0b). Not "does the file exist" — every fault this
   // pipeline met in the bench presented as "the tree is missing or wrong"
   // and was something else entirely, so this asserts what comes back OUT is

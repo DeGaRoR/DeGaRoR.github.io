@@ -209,3 +209,20 @@ modelled thread by thread and untextured, and the carpet's own primitive held
 the whole pattern. That was found by rendering the file SPLIT BY MATERIAL, not
 by reading the totals — `--report` prints per-material counts for exactly this
 reason.
+
+## THE THIRD TABLE: THE TOTEM POLES (2026-09-13)
+
+`tools/totem_table.py` → `tools/totem_prep.py` → `tools/totem_lod.js` →
+`src/totems/totems_poles.js` + `media/geo|tex/totems/`, held by GATE TOTEM
+(`tools/_totem_check.js`), placed by `tools/_totem_gen.js` (`totemPlan` /
+`totemBuild` / `TOTEM_KIT`), looked at in `tools/_totems.html`. It is the
+pier's pattern (a second table on the same baker) with ONE exception to rule
+1, by the user's ruling for photoscans: the baker's as-is bake is STAGED
+under `bench/totems/` (gitignored, never `media/`) and `totem_lod.js` cuts
+what ships — a 40k base and 12k / 3k / 700 levels a pole — with the same
+quadric decimator that cuts the pier's levels (`prop_lod.js`), so no vertex
+is moved to a new position and the delivered map is worn unchanged. The
+bench's COMPARE view stands the staged as-is bake beside the cuts;
+`screenshots/totems/` holds the sheets. The six Trepanier scans are
+unit-less (1.9 m) and stand at a declared `height`; `face` in `TOTEM_KIT` is
+read off the FACING view, not baked; the jfactory pole is a one-sided scan.
