@@ -4147,14 +4147,25 @@ function buildMatPanel() {
     d.appendChild(box);
     labRender(box);
   }
+  // G365: THE DASH ROWS SAY WHAT THEY ARE. The section keys are the
+  // cage's own words; these two are the ones a builder looks for by what
+  // they see, so they wear a label — and their finish select opens on what
+  // a dash is made of (DASH_HEAD, as optgroups), the rest under "other".
+  const SEC_LABEL = { dashFace: 'instrument facia', dash: 'glareshield & shell' };
+  const DASH_HEAD = [
+    ['woods',    ['walnut', 'walnutFig', 'maple', 'spruce', 'ply']],
+    ['alloys',   ['panelMetal', 'bareAlu', 'sillAlu', 'alclad', 'castAlu', 'chrome', 'bronze', 'copper']],
+    ['leathers', ['leather', 'leatherDark', 'pleatLeather', 'hide']],
+    ['plastics', ['plastic', 'plasticGrn', 'plasticWorn', 'plasticScr', 'rubberGrip']],
+  ];
   for (const nm of names.concat(live)) {
     const isGlass = A.AERO_GLASS.has(nm);
     // a LAYER section's auto is the walked chain, not the role table: the
     // wing follows the fuselage's own choices before the construction
     const lay = A.AERO_SEC && A.AERO_SEC[nm] ? secResolveAuto(nm) : null;
     const derived = lay ? lay.fin : A.aeroFinishFor(nm, cons);
-    const row = mkRow2(nm, isGlass ? 'glazing: its own family (transmission ' +
-      '+ clearcoat), no finish to choose' : 'finish and colour for ' + nm);
+    const row = mkRow2(SEC_LABEL[nm] || nm, isGlass ? 'glazing: its own family (transmission ' +
+      '+ clearcoat), no finish to choose' : 'finish and colour for ' + (SEC_LABEL[nm] ? SEC_LABEL[nm] + ' (' + nm + ')' : nm));
     // WHICH SECTION THIS ROW IS ABOUT. The bench reads it off the label; the
     // game's FINISH view moves these rows under the PART that owns the
     // section, and a label is not something to partition a panel by.
@@ -4179,6 +4190,22 @@ function buildMatPanel() {
           : ((A.AERO_SEC[lay.src] || {}).label || lay.src)) + ' — ' : '';
     o0.value = ''; o0.textContent = 'auto (' + follow + derived + ')';
     sfin.appendChild(o0);
+    if (SEC_LABEL[nm]) {                           // G365: the curated head, then the rest
+      const seen = new Set();
+      const grp = (label, keys) => {
+        const og = document.createElement('optgroup'); og.label = label;
+        for (const k of keys) {
+          if (!A.AERO_FINISH[k] || seen.has(k)) continue;
+          seen.add(k);
+          const o = document.createElement('option');
+          o.value = k; o.textContent = A.AERO_FINISH[k].name;
+          og.appendChild(o);
+        }
+        if (og.children.length) sfin.appendChild(og);
+      };
+      for (const [label, keys] of DASH_HEAD) grp(label, keys);
+      grp('other', Object.keys(A.AERO_FINISH).filter(k => !seen.has(k)));
+    } else
     for (const k of Object.keys(A.AERO_FINISH)) {
       const o = document.createElement('option');
       o.value = k; o.textContent = A.AERO_FINISH[k].name;

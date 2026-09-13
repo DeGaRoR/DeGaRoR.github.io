@@ -5577,12 +5577,33 @@ function cageInterior(m, S) {
     const NS = 3;
     const bL = base[0], bR = base[NL - 1];
     const bLT = baseT[0], bRT = baseT[NL - 1];
+    // THE BOTTOM CORNERS ARE FILLETED (G365, the user: "dash plate bottom
+    // corners low-poly, smooth"): the side chain met the bottom chord at a
+    // right angle, and two subdivisions of a right angle is a four-segment
+    // chamfer. An arc of KC segments, radius RC (2.5 lips, capped by the
+    // drop; `dashCorner` overrides), rounds the corner before subdivision.
+    // Every side point carries its own height fraction t, so the anchor
+    // chain below lerps to it exactly as the straight chain did — the
+    // strips stay rectangles, and no fan or lid appears (the G26 rule).
+    const KC = 4;
+    const RC = Math.max(0, Math.min(2.5 * lip, 0.3 * Math.min(bL[1] - yB, bR[1] - yB),
+                                    I.dashCorner != null ? +I.dashCorner : 1e9));
+    const sideChain = (bt, by) => {           // bottom -> top, the base corner excluded: [x, y, t]
+      const out = [], sgn = Math.sign(bt) || 1;   // the arc bends toward the centreline
+      if (RC > 1e-4) for (let k = 0; k <= KC; k++) {
+        const a = Math.PI / 2 * k / KC;
+        out.push([bt - sgn * (RC - RC * Math.sin(a)), yB + RC - RC * Math.cos(a)]);
+      } else out.push([bt, yB]);
+      const y0 = out[out.length - 1][1];
+      for (let j = 1; j < NS; j++) out.push([bt, y0 + (by - y0) * j / NS]);
+      return out.map(p => [p[0], p[1], (p[1] - yB) / Math.max(1e-9, by - yB)]);
+    };
+    const SL = sideChain(bLT[0], bL[1]), SR = sideChain(bRT[0], bR[1]);
+    const NSL = SL.length;                    // the left chain's length (the crown indexes past it)
     const O = [];
-    for (let j = 0; j < NS; j++)
-      O.push([bLT[0], yB + (bL[1] - yB) * j / NS, zP]);
+    for (const p of SL) O.push([p[0], p[1], zP]);
     for (let i = 0; i < NL; i++) O.push([baseT[i][0], baseT[i][1], zP]);
-    for (let j = NS - 1; j >= 0; j--)
-      O.push([bRT[0], yB + (bR[1] - yB) * j / NS, zP]);
+    for (let k = SR.length - 1; k >= 0; k--) O.push([SR[k][0], SR[k][1], zP]);
     // DASH CROWN (G26.4, user: real panels RISE from the windshield
     // line in the middle — the face reads as a circle segment, not a
     // horizontal extrusion). The OUTLINE's top arc lifts by an eased
@@ -5594,7 +5615,7 @@ function cageInterior(m, S) {
     const CRN = I.dashCrown || 0;
     if (CRN > 0) for (let i = 0; i < NL; i++) {
       const u = i / Math.max(1, NL - 1);
-      O[NS + i][1] += CRN * Math.pow(Math.sin(Math.PI * u), 1.5);
+      O[NSL + i][1] += CRN * Math.pow(Math.sin(Math.PI * u), 1.5);
     }
     const NX = O.length;
     // in-plane inset of the full outline (normals toward the interior)
@@ -5630,16 +5651,14 @@ function cageInterior(m, S) {
     // the side anchor chain lerps x exactly like the return grid rows do
     // (identical formula = float-identical seam points)
     const zPillA = (bL[2] + bR[2]) / 2 + 0.15;
+    // G365: one anchor per side point, at that point's own height fraction
+    const anchorAt = (bT, b, t) => [bT[0] + (b[0] - bT[0]) * t,
+                                    yB + (b[1] - yB) * t,
+                                    zPillA + (b[2] - zPillA) * t];
     const anchor = [];
-    for (let j = 0; j < NS; j++)
-      anchor.push([bLT[0] + (bL[0] - bLT[0]) * j / NS,
-                   yB + (bL[1] - yB) * j / NS,
-                   zPillA + (bL[2] - zPillA) * j / NS]);
+    for (const p of SL) anchor.push(anchorAt(bLT, bL, p[2]));
     for (let i = 0; i < NL; i++) anchor.push(base[i]);
-    for (let j = NS - 1; j >= 0; j--)
-      anchor.push([bRT[0] + (bR[0] - bRT[0]) * j / NS,
-                   yB + (bR[1] - yB) * j / NS,
-                   zPillA + (bR[2] - zPillA) * j / NS]);
+    for (let k = SR.length - 1; k >= 0; k--) anchor.push(anchorAt(bRT, bR, SR[k][2]));
     const aid = anchor.map(pid);
     const oid = O.map(pid), o1id = O1.map(pid), o2id = O2.map(pid);
     // the back-bottom edge is FLAT (user ruling): one straight

@@ -43796,3 +43796,25 @@ checks; selftest.
   ctl.thr 0.85 → 0.
 - Seen, not mine: a saved 'cockpit' camera mode does not resolve the eye
   at boot (HEAD_CAM.p stays 0 until the pill is clicked again).
+
+## G365 — THE DASH PLATE: LABELS, A CURATED FINISH LIST, ROUND CORNERS
+## (2026-09-13, WS-4; the user: "do both, the labels and the ordering" /
+## "dash plate bottom corners low-poly, smooth")
+
+- The materials panel's two dash rows wear human labels — `dashFace` is
+  **instrument facia**, `dash` **glareshield & shell** (SEC_LABEL in
+  buildMatPanel, the key in the tooltip) — and their finish select opens
+  on what a dash is made of, as optgroups: woods (walnut, figured walnut,
+  maple, spruce, ply), alloys (metal panel, bare, hammered, alclad, cast,
+  plated, bronze, copper), leathers, plastics, then "other" with every
+  remaining finish — nothing hidden (33 options = auto + the 32 finishes).
+  The game's finish view borrows the rows by data-sec, so it shows the same.
+- The plate's bottom corners are FILLETED in the cage (`_cage_gen.js`, the
+  dash outline): the side chains met the bottom chord at a right angle, and
+  two subdivisions of a right angle is a four-segment chamfer. An arc of
+  four segments, radius 2.5 lips (capped at 0.3 of the drop; `dashCorner`
+  overrides), rounds each corner before subdivision. Every side point
+  carries its own height fraction so the anchor chain lerps to it exactly
+  as the straight chain did — the strips stay rectangles, no fan, no lid
+  (the G26 rule); the crown indexes past the left chain's own length.
+  Seen from the seat: a round corner (scratchpad dash_corners_after).
