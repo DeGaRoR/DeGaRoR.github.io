@@ -1,0 +1,31 @@
+{
+  "what": "flydiy-premises",
+  "v": 1,
+  "name": "flat",
+  "premises": {
+    "v": 1,
+    "id": "flat",
+    "name": "the first flatten - GATE PREMISES' golden (v1)",
+    "seed": 3,
+    "frame": { "kind": "free", "extent": { "x0": -120, "z0": -90, "x1": 120, "z1": 110 }, "anchors": { "*": { "x": 0, "z": 0, "yaw": 0 } } },
+    "layers": {
+      "terrain": [
+        { "id": "t1", "kind": "flatten", "poly": [[-40, -20], [30, -24], [36, 18], [-28, 22]], "level": 2.5, "falloff": 12, "abs": false, "order": 0 },
+        { "id": "t2", "kind": "ramp", "poly": [[50, -30], [100, -30], [100, 30], [50, 30]], "plane": [0.03, 0.0, 1.0], "falloff": 8 },
+        { "id": "t3", "kind": "raise", "poly": [[-100, 40], [-60, 36], [-55, 80], [-96, 84]], "dh": -3.0, "falloff": 10 },
+        { "id": "t4", "kind": "grade", "pts": [[-90, -70, 1.0], [-20, -60, 2.0], [40, -70, 2.6]], "width": 4, "falloff": 6 }
+      ],
+      "surface": [
+        { "id": "y1", "poly": [[-40, -20], [30, -24], [36, 18], [-28, 22]], "surface": 6 }
+      ],
+      "material": [],
+      "exclude": [
+        { "id": "x1", "poly": [[-50, -30], [45, -34], [48, 28], [-40, 32]], "what": ["trees"] }
+      ],
+      "roads": [], "runways": [], "zones": [], "sites": [], "links": [], "objects": []
+    },
+    "budget": { "tris": 400000, "lights": 24, "smoke": 6, "people": 40 }
+  },
+  "plaque": null,
+  "log": { "built": null, "tests": [], "flights": [] }
+}

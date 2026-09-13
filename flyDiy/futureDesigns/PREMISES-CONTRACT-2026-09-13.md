@@ -459,4 +459,11 @@ after the freeze, against this document.
 
 ## 9. AMENDMENTS (append-only; each dated, each a `v1.x`)
 
-*(none yet)*
+- **v1.1 (2026-09-13, at the first run of GATE PREMISES on the golden).** Rule 12's tolerance
+  is `0.02 m + cell² / 8 · (|h_xx| + |h_zz| + 2 |h_xz|)`, the second differences taken at the cell
+  spacing — bilinear interpolation is exact on a plane, so its error is CURVATURE, and a smoothstep
+  feather has its maximum curvature exactly where its slope is zero; the `slope · cell / 2` term
+  written in v1 was the wrong bound for a lattice-aligned raster. A genuine step still fails (its
+  second difference is the step itself, and the bilinear error across it is half the step). Measured
+  on the golden: the worst point is a graded road's shoulder (4 m wide, 6 m feather) at 0.12 m
+  live-vs-baked at a 1 m cell — a number W2's baker must remember when it decides a road's depth.

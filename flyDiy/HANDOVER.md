@@ -43080,3 +43080,84 @@ premises layer takes.
   82–83 (bench, pilot's eye and from below), 91–93 (shed interior), 94–95
   (flight). Proven on a clean worktree: SHOULDER, SURF, PARTS, SKINMAT,
   CLIP, MEDIA.
+
+## G356 — THE PREMISES BENCH v0: THE RECORD DRAWN AND EDITED — A FLATTEN ON THE
+## VILLAGE'S HILL, GATE PREMISES GREEN (2026-09-13, the second chantier of the
+## G353 session; the user: "Let's do first a bench of the editor")
+
+**What it is.** The world editor's first host, on the contract's record:
+- `tools/_premises_gen.js` — THE CORE, no THREE, node-loadable (becomes
+  `src/core/27_premises.js` at the port): the record (DEF / normalise /
+  migrate / envelope / unwrap — the garage's rulings), the seeds (fnv /
+  hash32 / mulberry32 / seedOf), the polygons (even-odd containment so a
+  zone may be concave, a signed edge distance, simplicity, orientation),
+  the modifiers (flatten / raise / ramp / grade — a smoothstep feather over
+  a signed distance, AERO.grade's idiom, C1 by construction), a 256 m cell
+  index keyed by string (treesNear's), `compose(rec, world)` → the overlay
+  `{ terrainH(x, z, h), surfaceAt, excludeAt, inExtent }` a world composes
+  at its terrainH seam, `issues` (what refuses a commit), `checks` (the
+  panel's lines), `bake` (the extent to int16 at 1 cm) and `collect` (the
+  catalogue, deriving an entry per preset where a generator has none).
+- `tools/_premises_draw.js` — the record drawn: 64 m ground chunks at 1 m
+  (2 m past 700 m) sampled from the COMPOSED terrain, a dirty bbox rebuilds
+  only the chunks it touches; the water plane; an overlay canvas on the
+  ground material (surface classes, no-tree polygons); every polygon a
+  ground-following line loop lifted a hand; the selection's vertex and
+  midpoint discs scaled to the camera; the ghost in its validity colour;
+  `hit`, `handles`, `pickHandle`, `heightAt`.
+- `tools/_premises_ui.js` — THE MODULE, `PREMISES_UI.mount(host, ctx)`
+  (GFX.mount's pattern, the host passes its row builders, its cameras, its
+  ground ray, its storage): the rail (TERRAIN / FILE / VIEW), the tool strip
+  (select · flatten · raise/lower · ramp · grade · surface · no trees ·
+  probe, with ✓ close / ✕ cancel while drawing), the tool state machine,
+  the ghost (a crossing polygon is red and REFUSED), the inspector's
+  declared rows per kind (level / lift / plane / width / point heights /
+  falloff / surface / no-trees, a delete), vertex and midpoint drags,
+  undo/redo as a command stack over the record (drags and slider moves
+  coalesce), autosave to `flydiy.premises.wip` + named slots + JSON
+  export/import, the `#chk` panel mirroring the gate, the plaque, a scripted
+  `cmd()` for the pane.
+- `tools/_premises.html` — the page (port 8401, `flydiy-premises`;
+  `?world=B|A&size&seed&fresh=1&probe=1`): World B (VILLAGE_GEN.makeTerrain,
+  320-1280 m) or the flight world's HOME window; orbit (right-drag) and map
+  (top-down, north-up) cameras; the ground picked by an analytic ray march
+  on the composed height, never the mesh; a rAF pump with a timer watchdog;
+  `PREMISES_PAGE.shot()` renders to a target and POSTs to the sink
+  (`node tools/_premises_check.js --sink 8402` → `screenshots/premises/`).
+- `tools/_premises_check.js` — GATE PREMISES (contract §6, 27 checks on the
+  golden `tools/fixtures/premises_v1_flat.json`, `--selftest` red on a
+  crossed polygon / a forged envelope / a moved level / a zero falloff;
+  a row after SITE in `run_gates.js`).
+
+**Measured.** 640 m at 1 m: 820 200 ground tris in 100 chunks, the full
+rebuild ~580 ms, a flatten's 4-chunk rebuild 24 ms, a corner drag 2 chunks;
+the gate 1.5 s through the runner. The flight world's identity holds: an
+empty record changes nothing at 10⁴ points, HOME's pad stays exactly 0 with
+a premises stood at (3000, 3000). Rule 12 (baked vs live) FOUND ITS OWN
+TOLERANCE WRONG on the first run: bilinear is exact on a plane, so its
+error is curvature — a smoothstep feather is most curved where its slope is
+ZERO; the `slope · cell / 2` term of v1 was the wrong bound; v1.1 (contract
+§9, appended) is `0.02 + cell²/8 · (|hxx| + |hzz| + 2|hxz|)`; the golden's
+worst point is a 4 m graded road's shoulder at 0.12 m live-vs-baked at 1 m —
+W2's baker must remember it when it decides a road's depth.
+
+**The pane.** Its rAF is dead (the page pumps on a timer, render-on-dirty)
+and it delivers NO KEYBOARD to the page (Enter never arrived — double-click
+closes, and the strip grew ✓ close / ✕ cancel so a touch screen closes too);
+a click by coordinate lands on whatever the frame maps to (the inspector
+column ate one); the on-screen canvas is never read for a shot. Five servers
+per folder belong to other chats: `node flyDiy/tools/_serve.js 8401` from
+the shell and `navigate` on the URL.
+
+- Gates: PREMISES green (27 checks, selftest green); the runner recognises
+  the row (`--only=PREMISES`: BATTERY PASS). Proven from a clean worktree
+  with `--only=PREMISES,MEDIA`.
+- Screenshots: `screenshots/premises/v0_first_flatten.png` (the plateau on
+  the slope), `v0_two_flattens.png` (a mouse-drawn flat with its discs).
+- OWED (the design's v1-v3): roads with snapping and wear, zones and the
+  sower, vegetation polygons and hand trees, the airfield section on World A
+  (the runway object, the pattern editor over sitePatternIssues), sites +
+  links from the catalogue, objects, the budget's `__gl` counters and
+  `premises_perf.js`, the game host. HANDOVER's working copy carries a
+  foreign rename of the G353 heading to G354 (HEAD has G353 = the premises
+  docs, G354 = the floor's rim) — the session that wrote it owns the fix.

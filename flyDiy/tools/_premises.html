@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<!--
+  THE PREMISES BENCH (G353 / GPREM) — the world editor's first host. Serve from
+  the repo root (launch: flydiy-premises, port 8401) and open
+  /flyDiy/tools/_premises.html   [?world=B|A&size=640&seed=3&fresh=1&probe=1]
+
+  The page is a HOST: it owns the scene, the sun, the two cameras, the ground
+  ray march, the pump and the screenshot sink; the EDITOR is the module
+  (tools/_premises_ui.js) mounted into it, the DRAWING the renderer
+  (tools/_premises_draw.js), the RECORD and every height the core
+  (tools/_premises_gen.js). Nothing here is a control (the ONE EDITOR ruling).
+  World B (the village's terrain, VILLAGE_GEN.makeTerrain, any size 320-1280)
+  by default; ?world=A stands the same editor on the flight world's HOME
+  window. futureDesigns/PREMISES-EDITOR-2026-09-13.md is the design.
+-->
+<meta charset="utf-8">
+<title>flyDiy — premises bench</title>
+<style>
+  :root{--bg:#12151a;--fg:#dfe6ee;--dim:#7d8996;--acc:#5db3ff;--grid:#242a33}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--fg);
+    font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;overflow:hidden}
+  header{padding:6px 12px;border-bottom:1px solid var(--grid);display:flex;gap:14px;align-items:center;flex-wrap:wrap;height:36px}
+  h1{font-size:13px;margin:0}
+  label{color:var(--dim);display:inline-flex;gap:5px;align-items:center}
+  select,button,input[type=number]{background:#1a1f27;color:var(--fg);border:1px solid var(--grid);padding:3px 8px;border-radius:4px;font:inherit}
+  input[type=number]{width:64px}
+  main{display:flex;height:calc(100vh - 36px)}
+  #host{display:flex;flex:1;min-width:0}
+  #view{position:relative;flex:1;min-width:0}
+  canvas{display:block;width:100%;height:100%}
+  #strip{position:absolute;left:10px;top:8px;right:10px;z-index:3;display:flex;align-items:center;flex-wrap:wrap;gap:2px;pointer-events:none}
+  #strip button,#strip span{pointer-events:auto}
+  #chk{position:absolute;left:10px;bottom:10px;z-index:2;background:rgba(18,21,26,.86);border:1px solid var(--grid);border-radius:5px;padding:7px 10px;pointer-events:none;line-height:1.55;max-width:56ch}
+  #plaque{position:absolute;right:10px;top:44px;z-index:2;background:rgba(18,21,26,.86);border:1px solid var(--grid);border-radius:5px;padding:6px 10px;pointer-events:none;color:var(--dim);text-align:right}
+  #plaque b{color:var(--fg)}
+  #camlbl{position:absolute;left:10px;top:44px;z-index:2;color:var(--dim);pointer-events:none}
+  .ok{color:#6fd08c} .warn{color:#e8c15a} .bad{color:#ff6b5a}
+  .r{display:flex;gap:6px;align-items:center;margin:5px 0}
+  .r span.k{color:var(--dim);width:118px;flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .r input[type=range]{flex:1;accent-color:var(--acc);min-width:0}
+  .r select{flex:1;min-width:0} .r input[type=checkbox]{accent-color:var(--acc)}
+  .v{width:54px;flex:none;text-align:right;color:var(--acc)}
+  .hd{color:#7d8996;letter-spacing:.14em;font-size:9px;margin:12px 0 4px}
+  .note{color:var(--dim);margin:4px 0}
+  .btn{display:block;width:100%;margin:4px 0;cursor:pointer}
+</style>
+
+<header>
+  <h1>premises bench</h1>
+  <label>world <select id="worldSel"><option value="B">B — the village terrain</option><option value="A">A — the flight world at HOME</option></select></label>
+  <label>size <input id="sizeIn" type="number" min="320" max="1280" step="64" value="640"></label>
+  <label>seed <input id="seedIn" type="number" min="1" max="99" step="1" value="3"></label>
+  <button id="reload">reload the world</button>
+  <span id="stat" style="color:var(--dim)"></span>
+</header>
+
+<main>
+  <div id="host">
+    <div id="view">
+      <canvas id="c"></canvas>
+      <div id="strip"></div>
+      <div id="camlbl"></div>
+      <div id="plaque"></div>
+      <div id="chk"></div>
+    </div>
+  </div>
+</main>
+
+<script src="../vendor/three.min.js"></script>
+<script>window.FLYDIY_ASSET_BASE = '../';</script>
+<script src="../src/viewer/site_tex.js"></script>
+<script src="_house_kit.js"></script>
+<script src="_village_gen.js"></script>
+<script src="flight_core.js"></script>
+<script src="_premises_gen.js"></script>
+<script src="_premises_draw.js"></script>
+<script src="_premises_ui.js"></script>
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+const Q = new URLSearchParams(location.search);
+const D2R = Math.PI / 180;
+
+// ---- the world: B (the village's analytic terrain) or A (the flight world) ------------
+let WORLD = null, worldKind = Q.get('world') || 'B';
+const size = +($('sizeIn').value = Q.get('size') || 640), seed = +($('seedIn').value = Q.get('seed') || 3);
+$('worldSel').value = worldKind;
+function makeWorldB() {
+  const VG = window.VILLAGE_GEN;
+  const V = Object.assign({}, VG.VDEF, { size, seed });
+  const T = VG.makeTerrain(V);
+  return { id: 'village-bench', terrainH: T.h, waterH: () => T.waterY, bounds: { x0: -size / 2, z0: -size / 2, x1: size / 2, z1: size / 2 }, T };
+}
+function makeWorldA() {
+  if (typeof makeWorld !== 'function') { console.warn('flight_core.js not built — falling back to world B'); return makeWorldB(); }
+  const W = makeWorld();
+  const cx = -520, cz = 0, h = size / 2;   // the HOME window
+  return { id: 'W-24km', terrainH: W.terrainH, waterH: (x, z) => W.waterH(x, z), surface: W.surface, aerodromes: W.aerodromes,
+           bounds: { x0: cx - h, z0: cz - h, x1: cx + h, z1: cz + h }, W };
+}
+WORLD = worldKind === 'A' ? makeWorldA() : makeWorldB();
+
+// ---- the scene ---------------------------------------------------------------------------
+const cv = $('c');
+const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, preserveDrawingBuffer: true });
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFShadowMap;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x9fb6cf);
+scene.fog = new THREE.Fog(0x9fb6cf, size * 1.2, size * 4);
+const LU = Math.PI;   // r186's physical light unit (render_world.js LIGHT_UNIT)
+const sun = new THREE.DirectionalLight(0xfff2dc, 2.2 * LU);
+sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.05;
+scene.add(sun, sun.target);
+const hemi = new THREE.HemisphereLight(0xbdd2ea, 0x4a4436, 0.6 * LU);
+scene.add(hemi);
+const centre = new THREE.Vector3((WORLD.bounds.x0 + WORLD.bounds.x1) / 2, 0, (WORLD.bounds.z0 + WORLD.bounds.z1) / 2);
+centre.y = WORLD.terrainH(centre.x, centre.z);
+// the rig, in WORLD_RIG's shape ({ get, set }) so the editor's VIEW rows read the same way in the game
+const RIG = { elev: 42, azim: 35, exposure: 1.0 };
+const rig = { get: () => Object.assign({}, RIG), set: o => { Object.assign(RIG, o); aimSun(); draw(); } };
+function aimSun() {
+  const e = RIG.elev * D2R, a = RIG.azim * D2R, d = size * 1.2;
+  sun.position.set(centre.x + Math.sin(a) * Math.cos(e) * d, centre.y + Math.sin(e) * d, centre.z + Math.cos(a) * Math.cos(e) * d);
+  sun.target.position.copy(centre);
+  const S = size * 0.6;
+  sun.shadow.camera.left = -S; sun.shadow.camera.right = S; sun.shadow.camera.top = S; sun.shadow.camera.bottom = -S;
+  sun.shadow.camera.near = 1; sun.shadow.camera.far = size * 4;
+  sun.shadow.camera.updateProjectionMatrix();
+  renderer.toneMappingExposure = RIG.exposure;
+}
+
+// the grass: the aerodrome's set when the payload is here (as the village's terrain wears it)
+function grassMaps() {
+  const SS = (typeof SITE_TEX_SETS !== 'undefined') && SITE_TEX_SETS;
+  const GS = SS && SS.grass005;
+  if (!GS) return null;
+  const mk = (img, srgb) => {
+    const t = new THREE.Texture(img);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8;
+    if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+    t.repeat.set(1 / GS.tile, 1 / GS.tile);
+    if (img.complete && img.naturalWidth) t.needsUpdate = true;
+    else img.addEventListener('load', () => { t.needsUpdate = true; draw(); });
+    return t;
+  };
+  return { map: mk(GS.diff, true), normalMap: mk(GS.nor, false) };
+}
+
+// ---- the cameras: orbit (right-drag) and map (top-down) -------------------------------------
+const persp = new THREE.PerspectiveCamera(40, 1, 0.5, size * 6);
+const ortho = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.5, size * 6);
+ortho.up.set(0, 0, -1);
+let camMode = 'orbit';
+let yaw = -0.6, pitch = 0.62, ZOOM = 0.8, mapHalf = size * 0.55;
+let drag = null, panD = null;
+try { const v = JSON.parse(localStorage.getItem('flydiy.prem.view') || 'null'); if (v && v.world === WORLD.id) { yaw = v.yaw; pitch = v.pitch; ZOOM = v.zoom; camMode = v.mode || 'orbit'; mapHalf = v.mapHalf || mapHalf; if (v.c) centre.set(v.c[0], v.c[1], v.c[2]); } } catch (e) {}
+const saveView = () => { try { localStorage.setItem('flydiy.prem.view', JSON.stringify({ world: WORLD.id, yaw, pitch, zoom: ZOOM, mode: camMode, mapHalf, c: [centre.x, centre.y, centre.z] })); } catch (e) {} };
+const camera = () => (camMode === 'map' ? ortho : persp);
+const cameras = {
+  mode: () => camMode,
+  set: m => { camMode = m === 'map' ? 'map' : 'orbit'; $('camlbl').textContent = camMode === 'map' ? 'MAP · north up · wheel zooms · middle-drag pans · Tab = orbit' : 'ORBIT · right-drag turns · middle-drag pans · wheel zooms · Tab = map'; saveView(); draw(); },
+  toggle: () => cameras.set(camMode === 'map' ? 'orbit' : 'map'),
+  frame: bb => { if (!bb) return; const F = R.overlay.frame; const a = F.toWorld((bb.x0 + bb.x1) / 2, (bb.z0 + bb.z1) / 2); centre.set(a[0], WORLD.terrainH(a[0], a[1]), a[1]); const span = Math.max(bb.x1 - bb.x0, bb.z1 - bb.z0, 20); ZOOM = size * 0.55 / (span * 1.3); mapHalf = span * 0.8; saveView(); draw(); },
+};
+function placeCamera() {
+  const r = cv.parentElement.getBoundingClientRect();
+  const cam = camera();
+  cam.userData.viewH = r.height;
+  if (camMode === 'map') {
+    const asp = r.width / Math.max(1, r.height);
+    ortho.left = -mapHalf * asp; ortho.right = mapHalf * asp; ortho.top = mapHalf; ortho.bottom = -mapHalf;
+    ortho.position.set(centre.x, centre.y + size * 2, centre.z);
+    ortho.lookAt(centre.x, centre.y, centre.z);
+    ortho.updateProjectionMatrix();
+  } else {
+    const R0 = size * 0.55 / ZOOM;
+    persp.aspect = r.width / Math.max(1, r.height);
+    persp.position.set(centre.x + R0 * Math.sin(yaw) * Math.cos(pitch), centre.y + R0 * Math.sin(pitch), centre.z + R0 * Math.cos(yaw) * Math.cos(pitch));
+    persp.lookAt(centre);
+    persp.updateProjectionMatrix();
+  }
+}
+// the ray from a client point, and the analytic march against the composed ground
+const ndc = new THREE.Vector2(), rc = new THREE.Raycaster();
+function ray(cx, cy) {
+  const r = cv.getBoundingClientRect();
+  ndc.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
+  rc.setFromCamera(ndc, camera());
+  return rc.ray;
+}
+function ground(cx, cy) {
+  const ry = ray(cx, cy);
+  const o = ry.origin, d = ry.direction;
+  if (!R) return null;
+  let t = 0, last = null;
+  const maxT = size * 6, step = 2;
+  let px = o.x, py = o.y, pz = o.z, pAbove = py - R.heightAt(px, pz);
+  if (pAbove < 0) return null;
+  for (t = step; t < maxT; t += step) {
+    const x = o.x + d.x * t, y = o.y + d.y * t, z = o.z + d.z * t;
+    if (x < WORLD.bounds.x0 - 50 || x > WORLD.bounds.x1 + 50 || z < WORLD.bounds.z0 - 50 || z > WORLD.bounds.z1 + 50) { if (last) break; }
+    const above = y - R.heightAt(x, z);
+    if (above < 0) {
+      // bisect between the last point above and this one below
+      let a = t - step, b = t;
+      for (let i = 0; i < 12; i++) { const m = (a + b) / 2; const my = o.y + d.y * m; if (my - R.heightAt(o.x + d.x * m, o.z + d.z * m) < 0) b = m; else a = m; }
+      const m = (a + b) / 2;
+      return [o.x + d.x * m, o.y + d.y * m, o.z + d.z * m];
+    }
+    last = [x, y, z];
+  }
+  return null;
+}
+
+// ---- the renderer and the editor -------------------------------------------------------------
+const RP = window.RENDER_PREMISES, PU = window.PREMISES_UI;
+const viewEl = $('view');   // held before the mount: the module clears its host and the view goes back in between the rail and the inspector
+let R = RP.make(THREE, scene, WORLD, null, { cell: size > 700 ? 2 : 1, grass: grassMaps() });
+let dirtyDraw = true;
+const draw = () => { dirtyDraw = true; };
+const rows = {
+  section: (p, t) => { const d = document.createElement('div'); d.className = 'hd'; d.textContent = t; p.appendChild(d); return d; },
+  note: (p, t) => { const d = document.createElement('div'); d.className = 'note'; d.textContent = t; p.appendChild(d); return d; },
+  button: (p, t, on) => { const b = document.createElement('button'); b.className = 'btn'; b.textContent = t; b.onclick = on; p.appendChild(b); return b; },
+  slider: (p, label, lo, hi, st, get, set, fmt) => {
+    const d = document.createElement('div'); d.className = 'r';
+    d.innerHTML = '<span class="k" title="' + label + '">' + label + '</span><input type="range" min="' + lo + '" max="' + hi + '" step="' + st + '"><span class="v"></span>';
+    const inp = d.querySelector('input'), val = d.querySelector('.v');
+    const show = v => { val.textContent = fmt ? fmt(v) : (+v).toFixed(2); };
+    let v0 = +get(); if (!isFinite(v0)) v0 = lo;
+    inp.value = v0; show(v0);
+    inp.oninput = () => { set(+inp.value); show(+inp.value); };
+    p.appendChild(d); return d;
+  },
+  select: (p, label, opts, get, set) => {
+    const d = document.createElement('div'); d.className = 'r';
+    const sel = document.createElement('select');
+    if (get() === '') sel.appendChild(new Option('…', ''));
+    for (const o of opts) sel.appendChild(new Option(o[1], o[0]));
+    sel.value = String(get());
+    sel.onchange = () => set(sel.value);
+    d.innerHTML = '<span class="k">' + label + '</span>'; d.appendChild(sel); p.appendChild(d); return d;
+  },
+  check: (p, label, get, set) => {
+    const d = document.createElement('div'); d.className = 'r';
+    const c = document.createElement('input'); c.type = 'checkbox'; c.checked = !!get();
+    c.onchange = () => set(c.checked);
+    d.innerHTML = '<span class="k">' + label + '</span>'; d.appendChild(c); p.appendChild(d); return d;
+  },
+};
+const frames = []; let lastT = 0;
+const frameText = () => { if (frames.length < 10) return 'measuring the frame…'; const f = frames.slice().sort((a, b) => a - b); return 'frame ' + f[f.length >> 1].toFixed(0) + ' ms median · ' + f[Math.floor(f.length * 0.9)].toFixed(0) + ' ms p90'; };
+let ovOn = true;
+const ED = PU.mount($('host'), {
+  THREE, world: WORLD, R, camera, ground, ray, cameras, rows,
+  els: { chk: $('chk'), plaque: $('plaque'), strip: $('strip') },
+  viewEl, storage: (() => { try { return localStorage; } catch (e) { return null; } })(),
+  rig, redraw: draw, frameText, fresh: Q.get('fresh') === '1', overlayOn: v => (v === undefined ? ovOn : (ovOn = v)),
+});
+// the view sits between the rail and the inspector the module built
+$('host').insertBefore(viewEl, $('host').querySelector('.pr-insp'));
+cameras.set(camMode);
+aimSun();
+
+// ---- the camera's mouse: right-drag orbits, middle-drag pans, wheel zooms ----------------------
+viewEl.addEventListener('mousedown', e => {
+  if (e.button === 2) { drag = [e.clientX, e.clientY, yaw, pitch]; e.preventDefault(); }
+  else if (e.button === 1) { panD = [e.clientX, e.clientY, centre.clone()]; e.preventDefault(); }
+});
+viewEl.addEventListener('contextmenu', e => e.preventDefault());
+addEventListener('mouseup', () => { if (drag || panD) saveView(); drag = null; panD = null; });
+addEventListener('mousemove', e => {
+  if (panD) {
+    const r = cv.getBoundingClientRect();
+    const cam = camera();
+    const wpp = camMode === 'map' ? (2 * mapHalf) / Math.max(1, r.height) : 2 * (size * 0.55 / ZOOM) * Math.tan(persp.fov * Math.PI / 360) / Math.max(1, r.height);
+    const e0 = new THREE.Vector3().setFromMatrixColumn(cam.matrix, 0);
+    const e1 = new THREE.Vector3().setFromMatrixColumn(cam.matrix, 1);
+    const c = panD[2].clone().addScaledVector(e0, -(e.clientX - panD[0]) * wpp).addScaledVector(e1, (e.clientY - panD[1]) * wpp);
+    centre.set(c.x, camMode === 'map' ? centre.y : c.y, c.z);
+    draw(); return;
+  }
+  if (!drag || camMode === 'map') return;
+  yaw = drag[2] + (e.clientX - drag[0]) * 0.008;
+  pitch = Math.max(0.05, Math.min(1.5, drag[3] + (e.clientY - drag[1]) * 0.006));
+  draw();
+});
+viewEl.addEventListener('wheel', e => {
+  e.preventDefault();
+  if (camMode === 'map') mapHalf = Math.max(10, Math.min(size * 1.5, mapHalf * (e.deltaY < 0 ? 1 / 1.12 : 1.12)));
+  else ZOOM = Math.max(0.2, Math.min(80, ZOOM * (e.deltaY < 0 ? 1.12 : 1 / 1.12)));
+  saveView(); draw();
+}, { passive: false });
+addEventListener('resize', draw);
+
+// ---- the pump: rAF with a watchdog (the Browser pane's rAF is dead) ---------------------------
+let rafSeen = false, pumpIv = 0;
+function tick(t) {
+  rafSeen = true;
+  if (dirtyDraw) render(t);
+  requestAnimationFrame(tick);
+}
+function render(t) {
+  dirtyDraw = false;
+  const r = cv.parentElement.getBoundingClientRect();
+  const dp = devicePixelRatio || 1;
+  renderer.setSize(r.width * dp, r.height * dp, false);
+  cv.style.width = r.width + 'px'; cv.style.height = r.height + 'px';
+  placeCamera();
+  R.scaleHandles(camera(), 6);
+  const t0 = performance.now();
+  renderer.render(scene, camera());
+  const dt = performance.now() - t0;
+  frames.push(dt); if (frames.length > 120) frames.shift();
+  $('stat').textContent = WORLD.id + ' · ' + size + ' m · ' + R.stats.chunks + ' chunks';
+}
+requestAnimationFrame(tick);
+setTimeout(() => { if (!rafSeen) { pumpIv = setInterval(() => { if (dirtyDraw) render(performance.now()); }, 50); console.warn('premises: rAF is dead here — pumping on a timer'); } }, 400);
+if (Q.get('probe') === '1') { let q = []; window.requestAnimationFrame = f => q.push(f); window.__pump = n => { for (let i = 0; i < (n || 1); i++) { const qq = q; q = []; for (const f of qq) f(performance.now()); } }; }
+
+// ---- the screenshot: a render target POSTed to the sink (never the on-screen canvas) --------------
+async function shot(name, w, h, port) {
+  w = w || 1280; h = h || 720; port = port || 8402;
+  const rt = new THREE.WebGLRenderTarget(w, h, { samples: 4 });
+  const cam = camera().clone();
+  if (cam.isPerspectiveCamera) { cam.aspect = w / h; cam.updateProjectionMatrix(); }
+  else { const asp = w / h; cam.left = -mapHalf * asp; cam.right = mapHalf * asp; cam.updateProjectionMatrix(); }
+  renderer.setRenderTarget(rt); renderer.render(scene, cam); renderer.setRenderTarget(null);
+  const px = new Uint8Array(w * h * 4);
+  renderer.readRenderTargetPixels(rt, 0, 0, w, h, px);
+  rt.dispose();
+  const c2 = document.createElement('canvas'); c2.width = w; c2.height = h;
+  const g = c2.getContext('2d'), im = g.createImageData(w, h);
+  for (let y = 0; y < h; y++) im.data.set(px.subarray((h - 1 - y) * w * 4, (h - y) * w * 4), y * w * 4);
+  g.putImageData(im, 0, 0);
+  const blob = await new Promise(res => c2.toBlob(res, 'image/png'));
+  const r = await fetch('http://localhost:' + port + '/save?name=' + encodeURIComponent(name), { method: 'POST', body: blob });
+  return r.ok;
+}
+
+$('reload').onclick = () => { const u = new URL(location.href); u.searchParams.set('world', $('worldSel').value); u.searchParams.set('size', $('sizeIn').value); u.searchParams.set('seed', $('seedIn').value); location.href = u.toString(); };
+
+window.PREMISES_PAGE = { ed: ED, get R() { return R; }, world: WORLD, scene, renderer, camera, cameras, draw: () => { draw(); render(performance.now()); }, shot, ground, rig,
+  setView: (y, p, z, c) => { yaw = y; pitch = p; if (z) ZOOM = z; if (c) centre.set(c[0], c[1], c[2]); draw(); } };
+draw();
+})();
+</script>

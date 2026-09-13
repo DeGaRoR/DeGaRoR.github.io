@@ -231,6 +231,13 @@ const GATES = [
   // building, a taxiway that reaches the strip, a fence with a gate in it, and
   // everything inside the flat pad where y = 0 is exact.
   { id: 'SITE', file: '_site_check.js', tier: 'core' },
+  // THE PREMISES (G353): the world editor's record, headless - the envelope
+  // round-trips, the modifiers hold (a flatten flat to 1 cm, no step across a
+  // falloff, a million terrainH calls under budget), an empty record changes
+  // nothing (GATE WORLD's goldens are safe), surface/exclude polygons answer,
+  // the baked raster agrees with the live composition (WORLD-V2 6.3), and no
+  // catalogue key is a literal in the editor (the contract held).
+  { id: 'PREMISES', file: '_premises_check.js', tier: 'core' },
   // THE PLAYER (HANGARS S1): the player's property as ONE document — its own
   // version and migrator walk beside the spec's (G105's ruling: state that is
   // not the aeroplane costs no spec version), the one-time lift of the two
