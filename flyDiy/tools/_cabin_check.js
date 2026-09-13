@@ -124,6 +124,10 @@ if (check(!!prop, 'the pack does not carry tram_cabin')) {
     if (Math.abs(dz) > 1e-3 && Math.sign(du) !== -Math.sign(dz) * sx) wrong++;
   }
   check(wrong === 0, 'the livery is mirrored the wrong way', String(wrong));
+  // 4b — THE LIGHTS (G370): a ceiling light under the roof and a marker at each end, each with glowing glass in the plan
+  check(P.lights && P.lights.length === 3 && P.lights.filter(L => L.kind === 'cabin').length === 1 && P.lights.filter(L => L.kind === 'marker').length === 2, 'the cabin plan has no lights');
+  check(P.lamps && P.lamps.idx.length >= 100 && P.lamps.pos.length === P.lamps.nrm.length, 'the cabin lamps have no glass');
+  for (const L of P.lights || []) { let near = 0; for (let i = 0; i < P.lamps.pos.length; i += 3) if (Math.hypot(P.lamps.pos[i] - L.x, P.lamps.pos[i + 1] - L.y, P.lamps.pos[i + 2] - L.z) < 0.3) near++; check(near >= 4, 'a cabin light has no glass near it', L.kind); check(L.y > 2.5 && L.y < 3.3 && Math.abs(L.z) < 2.6, 'a cabin light is outside the cabin', L.kind); }
   // 5 — deterministic
   const Q = CABIN.plan(dec.parts);
   check(Q.gaskets.idx.length === P.gaskets.idx.length && Q.decals.idx.length === P.decals.idx.length, 'the plan is not deterministic');

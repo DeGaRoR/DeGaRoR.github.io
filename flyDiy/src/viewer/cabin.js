@@ -486,7 +486,29 @@ function plan(parts, opts) {
       for (let k = 1; k < poly.length - 1; k++) decals.idx.push(base, base + k, base + k + 1);
     }
   }
-  return { roles, glass, gaskets, decals, banner: R };
+  // THE LIGHTS (G370): a ceiling light in the cabin and a marker lens at each
+  // end of the roof - glowing glass in the plan, and the records a viewer
+  // stands point lights in (in the cabin's frame: they ride with it)
+  const lamps = { pos: [], nrm: [], uv: [], idx: [] }, lights = [];
+  const glowBox = (c, hx, hy, hz) => {
+    const faces = [[[0, 1, 0], [1, 0, 0], [0, 0, 1]], [[0, -1, 0], [1, 0, 0], [0, 0, -1]], [[1, 0, 0], [0, 0, 1], [0, 1, 0]], [[-1, 0, 0], [0, 0, -1], [0, 1, 0]], [[0, 0, 1], [-1, 0, 0], [0, 1, 0]], [[0, 0, -1], [1, 0, 0], [0, 1, 0]]];
+    const h = [hx, hy, hz];
+    for (const [n, a, b] of faces) {
+      const base = lamps.pos.length / 3;
+      for (const [sa, sb] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+        const q = [0, 1, 2].map(k => c[k] + n[k] * h[k] + a[k] * sa * h[k] + b[k] * sb * h[k]);
+        lamps.pos.push(q[0], q[1], q[2]); lamps.nrm.push(n[0], n[1], n[2]); lamps.uv.push(sa * 0.1, sb * 0.1);
+      }
+      lamps.idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
+    }
+  };
+  glowBox([0, 2.84, 0], 0.16, 0.03, 0.16);
+  lights.push({ kind: 'cabin', x: 0, y: 2.78, z: 0, nx: 0, nz: 0, col: [1.0, 0.86, 0.66], k: 2.2, range: 8 });
+  for (const sz of [-1, 1]) {
+    glowBox([0, 3.18, sz * 2.42], 0.06, 0.03, 0.03);
+    lights.push({ kind: 'marker', x: 0, y: 3.18, z: sz * 2.42, nx: 0, nz: sz, col: [1.0, 0.9, 0.7], k: 0.75, range: 4 });
+  }
+  return { roles, glass, gaskets, decals, banner: R, lamps, lights };
 }
 
 // ---- the meshes ------------------------------------------------------------
@@ -543,7 +565,7 @@ const geo = (THREE, pos, nrmA, uv, idx, extra) => {
   return g;
 };
 
-// opts: { livery: 'admiralty' | 'chatham' }
+// opts: { livery: 'admiralty' | 'chatham', lit: 0 | 1 (the windows glow, the ceiling light and the markers stand - G370), lightK }
 function build(THREE, opts) {
   const o = opts || {}, HG = window.HOUSE_GEN, K = window.HOUSE_KIT;
   const grp = new THREE.Group();
@@ -566,11 +588,18 @@ function build(THREE, opts) {
     }
     if (P.glass) {
       const bag = K.Bag('glass');
-      bag.setWin(1.2, 1.0, 0);
+      bag.setWin(1.2, 1.0, o.lit ? 1 : 0);
       const p = P.glass.pos, u = P.glass.uv, ix = P.glass.idx, vs = [];
       for (let i = 0; i < p.length / 3; i++) vs.push(bag.v([p[i * 3], p[i * 3 + 1], p[i * 3 + 2]], [u[i * 2], u[i * 2 + 1]]));
       for (let t = 0; t < ix.length; t += 3) bag.tri(vs[ix[t]], vs[ix[t + 1]], vs[ix[t + 2]]);
       bag.setWin(0);
+      if (o.lit && P.lamps && P.lamps.idx.length) {   // the fixtures' glass, glowing (G370)
+        bag.setGlow(1);
+        const lp = P.lamps, lv = [];
+        for (let i = 0; i < lp.pos.length / 3; i++) lv.push(bag.v([lp.pos[i * 3], lp.pos[i * 3 + 1], lp.pos[i * 3 + 2]], [lp.uv[i * 2], lp.uv[i * 2 + 1]], [lp.nrm[i * 3], lp.nrm[i * 3 + 1], lp.nrm[i * 3 + 2]]));
+        for (let t = 0; t < lp.idx.length; t += 3) bag.tri(lv[lp.idx[t]], lv[lp.idx[t + 1]], lv[lp.idx[t + 2]]);
+        bag.setGlow(0);
+      }
       const gm = bag.mesh(grp, HG.MAT.glass);
       if (gm) gm.castShadow = false;
     }
@@ -583,6 +612,12 @@ function build(THREE, opts) {
       m.castShadow = false; grp.add(m);
     }
     grp.userData.plan = { gasketLoops: P.gaskets.loops, decalTris: P.decals.idx.length / 3 };
+    grp.userData.lights = P.lights;
+    if (o.lit) for (const L of P.lights) {   // the point lights ride with the cabin (G370)
+      const pl = new THREE.PointLight(new THREE.Color(L.col[0], L.col[1], L.col[2]), L.k * (o.lightK || 2.4), L.range, 2);
+      pl.position.set(L.x, L.y, L.z);
+      grp.add(pl);
+    }
   };
   if (propReady('tram_cabin')) place();
   else propWarm('tram_cabin').then(place).catch(e => console.warn('cabin failed to load:', e && e.message));

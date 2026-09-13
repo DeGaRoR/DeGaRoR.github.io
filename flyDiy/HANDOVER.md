@@ -44469,3 +44469,67 @@ rows under LIVERY, the aeroplane weathered live in the hangar.
 - OWED: the lawn's path and fence per park (the village strokes them); the
   totem poles' LOD in the panel's budget; the stand + taxi-out; premises_perf;
   the game host.
+
+## G376 — THE LIGHTS: THE MILL, THE TRAMWAY AND ITS CABINS LIT INSIDE AND OUT,
+## THE STREETS LAMPED, JUDGED AT NIGHT (2026-09-14, the user: "Light update
+## please. For the factory, and all the elements of the tramway, including the
+## cabins. Full realistic lighting for all, interior and exterior please.
+## While you're at it, lighting of the streets too. Test on screenshot at
+## night")
+
+- TWO NEW FIXTURES beside the lantern (tools/_house_gen.js, exported):
+  `floodAt(bags, Q, p, n, o)` - an industrial hooded lamp on a half-metre
+  bracket off a wall or beam, the hood tilted `tilt` degrees (35) toward the
+  ground, its lens a glowing glass plate on the open face, published as
+  `{ kind: 'flood', aim, k 4.0, range 22 }`; `pendantAt(bags, Q, p, o)` - a
+  rod down `drop` from a roof's underside, a shallow shade, a glowing bulb,
+  `{ kind: 'pendant', k 2.8, range 14 }` - the interior light of an open
+  floor. Both glass in the glass bag with the glow, so GATE HOUSE 29's rule
+  (no light without emitting geometry) holds them too.
+- THE MILL: floods on the crusher floor's outer posts over the pad, on the
+  transfer and sorting houses' side walls and at the receiving house's ends;
+  pendants under the crusher floor's roof and under the receiving house's
+  ridge (the interiors of the two open floors); the ten lanterns stay; every
+  part's windows glow under the switch (the composite hands `lights` down).
+- THE STATIONS: the top - two floods high on the machine house's front over
+  the docks (above the middle house's roof), two pendants from the
+  passageway's ceiling (its own interior light); the base - two floods on
+  the tower's crossbeam down over the slots, one over the office door on
+  the road side, four pendants from the barn's roof over the dock (2.2 m
+  drops from a 12 m roof, well over the cabins); the lanterns stay.
+- THE CABINS (src/viewer/cabin.js): the plan carries `lamps` (glowing glass:
+  a ceiling light under the roof, a marker lens at each end of the roof) and
+  `lights` (three records in the cabin's frame: cabin k 2.2 range 8, two
+  markers k 0.75); `build(THREE, { lit, lightK })` makes the panes glow
+  (`setWin(..., 1)`), draws the fixtures' glass with the glow and stands the
+  point lights as CHILDREN of the cabin group - they ride the line with it.
+  GATE CABIN 4b holds the plan's lights and their glass.
+- THE STREETS (tools/_village_gen.js): every second utility pole carries a
+  lamp (`planPoles` marks `lamp` and keeps `n`, toward the road);
+  `streetLamp(bags, q)` draws an arm out over the road with a brace and a
+  cobra head, the lens a glowing plate underneath, and leaves the record on
+  the pole (`q.light`, k 6.0 range 30). The bench draws them galvanised and
+  stands the lights.
+- THE BENCH (tools/_village.html): the "lights on" switch now reaches the
+  site buildings, the park's cabin and the tram's cabins; a NIGHT GAIN of 2
+  on every point light under the night sky (the levels were judged there
+  against the moon's 0.22 - by day the fixtures are only there to be seen);
+  `benchView({ lightGain, expo })` scales every light stood / sets the
+  exposure, for judging without a rebuild (116 point lights on seed 3 with
+  everything on). The smoke tick threw on a finish without a smoke clock
+  (the fences', now the lamps') and died: guarded.
+- GATE VILLAGE 20: the mill publishes floods (4+), pendants (2+) and
+  lanterns (8+), each station floods (2+), pendants (2+) and lanterns (4+),
+  every light within 35 cm of glass that glows; street lamps one per 80 m
+  of road at least, each head over the road's verge. GATE HOUSE 38's pane
+  rule skips lamp glass (a hand across), as the mill's did.
+- Levels: the first pass was five times too weak against the night
+  exposure (no pool under a flood, none under a street lamp); the records
+  carry 2.5x and the bench's night gain the other 2x; judged on the mill,
+  the base barn's interior, the top deck, a cabin mid-line and a street.
+- Gates: CABIN, HOUSE, VILLAGE green. Screenshots: screenshots/lods/
+  night370_*.jpg (the village, the mill, its lower stations, the base
+  barn's interior, the top deck, a cabin on the line, a street lamp).
+- Owed: spot lights for the floods (`aim` is published; the bench stands
+  points), the game's night with these records, the houses' own levels
+  (unchanged, x2 at night by the bench's gain).

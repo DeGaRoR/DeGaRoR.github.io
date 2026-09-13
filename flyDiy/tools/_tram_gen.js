@@ -436,6 +436,9 @@ function buildStation(P, lod, F) {
       if (P.passage) for (const sx of [-1, 1]) lamps.push(HG.lampAt(bags, Q, [sx * (1.45 + wt), floorY + 2.2, zPass0 - 1.2], [sx, 0, 0]));
       if (P.terminal) for (const sx of [-1, 1]) lamps.push(HG.lampAt(bags, Q, [sx * 4.5, termFloor + 2.4, zT + termW / 2 + wt], [0, 0, 1]));
       lamps.push(HG.lampAt(bags, Q, [top + 0.1, H + pH - 0.4, pz], [1, 0, 0]));
+      // THE FLOODS (G370) over the docks, high on the machine house's front; THE PENDANTS under its eave over the boarding gallery
+      for (const sx of [-1, 1]) lamps.push(HG.floodAt(bags, Q, [sx * (rearL / 2 - 2.6), floorY + P.machineH - 0.3, 2.1 + wt], [0, 0, 1]));
+      if (P.passage) for (const u of [0.3, 0.7]) lamps.push(HG.pendantAt(bags, Q, [0, floorY + 2.75, zPass0 - (zPass0 - zPass1) * u], { drop: 0.3, k: 2.2, range: 10 }));   // the passageway's own lights, from its ceiling
     }
     S.girder = { C, R, phi0, phi1, w: gw * 2, dFoot: P.girderD, dNose: P.girderDn, foot: gFoot, apex: A(0), nose: A(phi1), xs: [-xt, xt], tangent: Pt };
     S.portal = { z: pz, h: pH };
@@ -708,6 +711,10 @@ function buildBase(P, lod, F) {
       for (const sx of [-1, 1]) lamps.push(HG.lampAt(bags, Q, [sx * xi, floorY + 3.4, zD], [-sx, 0, 0], { k: 0.9, range: 12 }));
       for (const sx of [-1, 1]) lamps.push(HG.lampAt(bags, Q, [sx * (xT + 0.14), hT - 1.2, zT], [sx, 0, 0]));
       if (office) for (const sx of [-1, 1]) lamps.push(HG.lampAt(bags, Q, [sx * (office.L / 2 - 1.2), office.floor + 2.3, office.front - wt], [0, 0, -1]));
+      // THE FLOODS (G370): on the tower's crossbeam down over the slots, over the office door on the road side; THE PENDANTS from the barn's roof over the dock
+      for (const sx of [-1, 1]) lamps.push(HG.floodAt(bags, Q, [sx * dxL, hT - 0.4, zT - 0.2], [0, 0, -1], { tilt: 55 }));
+      if (office) lamps.push(HG.floodAt(bags, Q, [0, office.floor + 4.2, office.front - wt], [0, 0, -1], { k: 3.0, range: 16 }));
+      for (const sx of [-1, 1]) for (const z of [zD - 1.5, zD + 1.5]) lamps.push(HG.pendantAt(bags, Q, [sx * dxL * 1.4, roofAt(sx * dxL * 1.4) - rT - 0.12, z], { drop: 2.2, k: 3.2, range: 18 }));
     }
     S.tower = { x: xT, z: zT, h: hT };
     S.office = office;

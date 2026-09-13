@@ -622,6 +622,31 @@ function makeVillage(V0) {
   return vil;
 }
 
+// A STREET LAMP on a utility pole (G370, the user: "lighting of the streets
+// too"): an arm out over the road from near the pole's top with a brace, a
+// cobra head at its tip, the lens a glowing glass plate underneath; the
+// record a viewer stands a point light in is left on the pole (`q.light`).
+// Drawn into the caller's bags (metal, glass)
+function streetLamp(bags, q) {
+  const n = [q.n[0], 0, q.n[1]];
+  const top = [q.x, q.y + 5.9, q.z], tip = [q.x + n[0] * 1.7, q.y + 6.25, q.z + n[2] * 1.7];
+  K.beam(bags.metal, top, tip, 0.04, 0.04, [0, 1, 0], 0);
+  K.beam(bags.metal, [q.x, q.y + 5.2, q.z], [q.x + n[0] * 0.9, q.y + 6.05, q.z + n[2] * 0.9], 0.025, 0.025, [0, 1, 0], 0);
+  const c = [tip[0] + n[0] * 0.2, tip[1] - 0.06, tip[2] + n[2] * 0.2], side = [n[2], 0, -n[0]];
+  const P8 = (sx, sy, sz) => [c[0] + side[0] * sx * 0.12 + n[0] * sz * 0.24, c[1] + sy * 0.07, c[2] + side[2] * sx * 0.12 + n[2] * sz * 0.24];
+  const qv = [[-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1], [-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]].map(v => P8(v[0], v[1], v[2]));
+  K.face(bags.metal, [qv[3], qv[7], qv[6], qv[2]], [0, 1, 0]);
+  K.face(bags.metal, [qv[0], qv[4], qv[7], qv[3]], [-side[0], 0, -side[2]]);
+  K.face(bags.metal, [qv[1], qv[2], qv[6], qv[5]], side);
+  K.face(bags.metal, [qv[0], qv[3], qv[2], qv[1]], [-n[0], 0, -n[2]]);
+  K.face(bags.metal, [qv[4], qv[5], qv[6], qv[7]], n);
+  bags.glass.setGlow(1);
+  K.face(bags.glass, [qv[0], qv[1], qv[5], qv[4]], [0, -1, 0]);
+  bags.glass.setGlow(0);
+  q.light = { kind: 'street', x: c[0], y: c[1] - 0.07, z: c[2], nx: 0, nz: 0, col: [1.0, 0.92, 0.74], k: 6.0, range: 30 };
+  return q.light;
+}
+
 // THE TOTEM PARK (G352, the user: "do the totem patch ... set it somewhere a
 // little recluse in the mountains, yet have it fenced and linked with a
 // path"): up the mountain behind the village, off the road at `parkT` of
@@ -1095,7 +1120,7 @@ function planOutbuilding(vil, plot, house, built, rnd) {
 // front of a gate (the path crosses there)
 function planPoles(T, V, road, rnd, spread, plots) {
   const out = [];
-  let t = 10 + rnd() * 10;
+  let t = 10 + rnd() * 10, i = 0;
   while (t < road.length - 8) {
     const a = road.at(t);
     // half a metre off the road's edge, as a roadside pole stands; a
@@ -1105,7 +1130,8 @@ function planPoles(T, V, road, rnd, spread, plots) {
     const x = a.p[0] - a.n[0] * off, z = a.p[1] - a.n[1] * off;   // -n: inland
     if (!(plots || []).some(p => inPoly(p.poly, x, z)))
       out.push({ key: spread ? spread.pick(HG.POLE_KEYS, rnd) : 'pole_b', x, z, y: T.h(x, z),
-                 ry: Math.atan2(a.tg[0], a.tg[1]) + (rnd() - 0.5) * 0.2, t });
+                 ry: Math.atan2(a.tg[0], a.tg[1]) + (rnd() - 0.5) * 0.2, t,
+                 n: [a.n[0], a.n[1]], lamp: (i++ % 2) === 0 });      // (G370: every second pole carries a street lamp; `n` is toward the road)
     t += 32 + rnd() * 8;
   }
   return out;
@@ -1785,6 +1811,6 @@ function planBillboards(vil, keys) {
   return out;
 }
 
-window.VILLAGE_GEN = { VDEF, makeTerrain, makeRoad, makePlots, makeVillage, finishPlot, planTrees, planBillboards, THEMES, placeSite, placeHouse, withHill, withShelf, placePark, siteGround, makeSpur, polyRoad, civicPlots, tramLine,
+window.VILLAGE_GEN = { VDEF, makeTerrain, makeRoad, makePlots, makeVillage, finishPlot, planTrees, planBillboards, THEMES, placeSite, placeHouse, withHill, withShelf, placePark, streetLamp, siteGround, makeSpur, polyRoad, civicPlots, tramLine,
                        buildFence, gateLeaf, clipToLand, inPoly, shoreZ, fbm, lotGround, edgeKey };
 })();

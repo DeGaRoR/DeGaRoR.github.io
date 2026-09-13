@@ -1482,6 +1482,9 @@ for (const name of Object.keys(HG.PRESETS)) {
   for (let t = 0; t < dPane.idx.length; t += 3) {
     const a = dPane.idx[t] * 3, b2 = dPane.idx[t + 1] * 3, c2 = dPane.idx[t + 2] * 3;
     const x = (dPane.pos[a] + dPane.pos[b2] + dPane.pos[c2]) / 3, y = (dPane.pos[a + 1] + dPane.pos[b2 + 1] + dPane.pos[c2 + 1]) / 3, z = (dPane.pos[a + 2] + dPane.pos[b2 + 2] + dPane.pos[c2 + 2]) / 3;
+    // (a lamp's glass is a hand across and may hang inside a house - a pendant in the passageway; a pane is a window's - G370)
+    let ex = 0; for (const i of [a, b2, c2]) ex = Math.max(ex, Math.abs(dPane.pos[i] - x), Math.abs(dPane.pos[i + 1] - y), Math.abs(dPane.pos[i + 2] - z));
+    if (ex < 0.2) continue;
     const inside = S.boxes.filter(b => x > b.x0 + 0.2 && x < b.x1 - 0.2 && z > b.z0 + 0.2 && z < b.z1 - 0.2 && y > b.y0 + 0.2 && y < b.y1 - 0.2);
     if (inside.length) inJoint++;
   }

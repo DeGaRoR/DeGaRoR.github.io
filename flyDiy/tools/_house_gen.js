@@ -6124,6 +6124,60 @@ function lampAt(bags, Q, p, n, o) {
   return c;
 }
 
+// A FLOODLIGHT (G370, the user: "Full realistic lighting for all, interior
+// and exterior"): an industrial hooded lamp on a bracket off a wall or a
+// beam at `p`, thrown out along `n` and DOWN - the arm half a metre out, the
+// hood a box tilted `tilt` degrees toward the ground, the lens a glowing
+// glass plate on its open face. Published like the lantern, brighter and
+// further, with the direction it looks (`aim`) for a viewer that spots
+function floodAt(bags, Q, p, n, o) {
+  const opt = o || {};
+  const nn = nrm([n[0], 0, n[2]]);
+  const side = nrm(crs([0, 1, 0], nn));
+  const tilt = (opt.tilt === undefined ? 35 : opt.tilt) * D2R;
+  const a = [p[0] + nn[0] * 0.5, p[1] + 0.12, p[2] + nn[2] * 0.5];   // the arm's end
+  beam(bags.metal, p, a, 0.035, 0.035, [0, 1, 0], 0);
+  const f = [Math.cos(tilt) * nn[0], -Math.sin(tilt), Math.cos(tilt) * nn[2]];   // where it looks
+  const u = nrm(crs(f, side));                                                     // the hood's own up
+  const c = [a[0] + f[0] * 0.02, a[1] - 0.09, a[2] + f[2] * 0.02];
+  const hw = 0.18, hh = 0.08, hd = 0.12;
+  if (Q.lod !== 0) boxAB(bags.metal, [c[0] - hw, c[1] - hh, c[2] - hw], [c[0] + hw, c[1] + hh, c[2] + hw]);
+  else {
+    const P8 = (sx, sy, sz) => add(add(add(c, mul(side, sx * hw)), mul(u, sy * hh)), mul(f, sz * hd));
+    const q = [[-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1], [-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]].map(v => P8(v[0], v[1], v[2]));
+    face(bags.metal, [q[0], q[3], q[2], q[1]], mul(f, -1));
+    face(bags.metal, [q[3], q[7], q[6], q[2]], u);
+    face(bags.metal, [q[0], q[1], q[5], q[4]], mul(u, -1));
+    face(bags.metal, [q[0], q[4], q[7], q[3]], mul(side, -1));
+    face(bags.metal, [q[1], q[2], q[6], q[5]], side);
+    bags.glass.setGlow(1);
+    face(bags.glass, [q[4], q[5], q[6], q[7]], f);      // the lens on the open face
+    bags.glass.setGlow(0);
+  }
+  const lens = add(c, mul(f, hd));
+  LIT_LOG.lights.push({ kind: 'flood', x: lens[0], y: lens[1], z: lens[2], nx: nn[0], nz: nn[2], aim: f,
+                        col: opt.col || [1.0, 0.95, 0.85], k: opt.k === undefined ? 4.0 : opt.k, range: opt.range || 22 });   // (the levels judged at night on the village bench, G370)
+  return lens;
+}
+// A PENDANT under a roof or a deck at `p` (the underside): a rod down
+// `drop`, a shallow shade, a glowing bulb under it - the interior light of an
+// open floor, a barn, a gallery
+function pendantAt(bags, Q, p, o) {
+  const opt = o || {};
+  const drop = opt.drop === undefined ? 0.9 : opt.drop;
+  const s = [p[0], p[1] - drop, p[2]];
+  beam(bags.metal, p, [s[0], s[1] + 0.06, s[2]], 0.02, 0.02, [1, 0, 0], 0);
+  cyl(bags.metal, [s[0], s[1] + 0.06, s[2]], [0, -1, 0], 0.22, 0.1, Q.lod === 0 ? 12 : 6, true);
+  const b = [s[0], s[1] - 0.10, s[2]];
+  bags.glass.setGlow(1);
+  if (Q.lod === 0) cyl(bags.glass, [b[0], b[1] + 0.06, b[2]], [0, -1, 0], 0.06, 0.12, 8, true, { smooth: true });
+  else boxAB(bags.glass, [b[0] - 0.05, b[1] - 0.06, b[2] - 0.05], [b[0] + 0.05, b[1] + 0.06, b[2] + 0.05]);
+  bags.glass.setGlow(0);
+  LIT_LOG.lights.push({ kind: 'pendant', x: b[0], y: b[1], z: b[2], nx: 0, nz: 0,
+                        col: opt.col || [1.0, 0.84, 0.60], k: opt.k === undefined ? 2.8 : opt.k, range: opt.range || 14 });
+  return b;
+}
+
 // THE MILL, as a composite of houses - TO THE REFERENCE (G350, the user:
 // "this is not at all a stepped regular series over a long distance, these
 // are a massive top house, with different parts and roofs, and 2-3 bottom
@@ -6600,6 +6654,15 @@ function buildMill(P, lod, F) {
       lamps.push(lampAt(bags, Q, [crusherT.x0 - 0.12, crusher.fy + stH - 0.4, crusher.zM], [-1, 0, 0]));
       if (bottom) for (const sx of [-1, 1]) lamps.push(lampAt(bags, Q, [bottom.x + sx * (bottom.L / 2 + 0.02), bottom.eave - 0.5, bottom.z + bottom.w / 2 - 1.2], [sx, 0, 0]));
       if (power) lamps.push(lampAt(bags, Q, [power.x - power.L / 2 + 0.18 * power.L + 1.2, power.fy + 3.5, power.z + power.w / 2 + wt], [0, 0, 1]));
+      // THE FLOODS (G370): on the crusher floor's outer posts over the pad, on the stations' side walls, at the receiving house's ends
+      lamps.push(floodAt(bags, Q, [crusherT.x0 + 0.12, crusher.fy + stH * 2 - 0.3, crusher.zM], [-1, 0, 0]));
+      lamps.push(floodAt(bags, Q, [crusherT.x1 - 0.12, crusher.fy + stH * 2 - 0.3, crusher.zM], [1, 0, 0]));
+      lamps.push(floodAt(bags, Q, [A.x1 + wt, A.fy + A.fh * 2 - 0.4, A.zF - 1.0], [1, 0, 0]));
+      lamps.push(floodAt(bags, Q, [B.x1 + wt, B.fy + B.fh * 2 - 0.4, B.zM], [1, 0, 0]));
+      if (bottom) for (const sx of [-1, 1]) lamps.push(floodAt(bags, Q, [bottom.x + sx * (bottom.L / 2 + 0.02), bottom.eave + 0.6, bottom.z - bottom.w / 2 + 1.2], [sx, 0, 0]));
+      // THE PENDANTS (interior): under the crusher floor's roof, under the receiving house's ridge
+      for (const u of [0.3, 0.7]) lamps.push(pendantAt(bags, Q, [crusherT.x0 + crusher.L * u, crusher.roofAt(crusher.zM) - rT - 0.1, crusher.zM], { drop: 1.2 }));
+      if (bottom) for (const u of [0.3, 0.7]) lamps.push(pendantAt(bags, Q, [bottom.x - bottom.L / 2 + bottom.L * u, bottom.ridge - rT - 0.15, bottom.z], { drop: 1.4 }));
     }
     // THE STACKS behind the power house: tall, banded, guyed, a ladder up the first
     if (P.annex && power) for (let k = 0; k < Math.round(P.millStacks); k++) {
@@ -6948,7 +7011,7 @@ window.HOUSE_GEN = {
   makeFinish, shadeGround, buildGroundAO, shadeSkirt,
   shadeHouse, makeShadeU, cloudWeather,   // the big buildings wear the house's finish (G312, G329)
   steelMix,   // the tram's steel (G342)
-  buildComposite, buildMill, millPlan, lampAt,   // composites of houses: the mill (G329; G350 its plan, for the village to cut the shoulder); the wall lantern (G348)
+  buildComposite, buildMill, millPlan, lampAt, floodAt, pendantAt,   // composites of houses: the mill (G329; G350 its plan, for the village to cut the shoulder); the wall lantern (G348), the flood and the pendant (G370)
   dressSlot, dressMat, SET_KIND, ROLE_KIND, finishReport, NRM, PAINT_BLENDS,   // dressMat: the cabin dresses its own materials (G343)
 };
 // THE CATALOGUE (G352, PREMISES-CONTRACT-2026-09-13 section 2): one entry per

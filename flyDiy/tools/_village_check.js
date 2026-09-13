@@ -549,6 +549,30 @@ function battery(name, vil) {
       if (vil.site) check(Math.abs(PK.t - vil.site.jt) > 60 && (!vil.site.tram || Math.abs(PK.t - vil.site.tram.t) > 40), name + ': the park crowds the mine or the tram');
     }
   }
+  // 20 — THE LIGHTS AT NIGHT (G370): every site building publishes its
+  //   fixtures - the mill floods and pendants (interior) and lanterns, each
+  //   station floods and pendants - every one within a hand of glass that
+  //   glows (the aeroplane's rule); the streets: every second pole carries a
+  //   lamp, one per 80 m of road at least, its head over the road's verge
+  {
+    const glassNear = (built, L) => { const gd = built.bags.glass.data(); let near = 0; for (let i = 0; i < gd.lit.length; i++) { if (gd.lit[i] < 0.5) continue; const dx = gd.pos[i * 3] - L.x, dy = gd.pos[i * 3 + 1] - L.y, dz = gd.pos[i * 3 + 2] - L.z; if (dx * dx + dy * dy + dz * dz < 0.35 * 0.35) near++; } return near; };
+    for (const h of vil.siteHouses || []) {
+      const lit = h.built && h.built.stats.lit;
+      if (!lit) continue;
+      const kinds = {};
+      for (const L of lit.lights) kinds[L.kind] = (kinds[L.kind] || 0) + 1;
+      if (h.P.mill) check((kinds.flood || 0) >= 4 && (kinds.pendant || 0) >= 2 && (kinds.wall || 0) >= 8, name + ': the mill is short of lights', JSON.stringify(kinds));
+      if (h.P.station) check((kinds.flood || 0) >= 2 && (kinds.pendant || 0) >= 2 && (kinds.wall || 0) >= 4, name + ': ' + h.P.preset + ' is short of lights', JSON.stringify(kinds));
+      let bare = 0;
+      for (const L of lit.lights) if (!L.prop && glassNear(h.built, L) < 4) bare++;
+      check(bare === 0, name + ': ' + h.P.preset + ' has ' + bare + ' lights without glass');
+    }
+    const lampPoles = (vil.poles || []).filter(q => q.lamp);
+    check(lampPoles.length >= Math.floor(road.length / 80), name + ': only ' + lampPoles.length + ' street lamps on ' + road.length.toFixed(0) + ' m');
+    let offRoad = 0;
+    for (const q of lampPoles) if (distToRoad(road, [q.x + q.n[0] * 1.9, q.z + q.n[1] * 1.9]) > road.w / 2 + 1.5) offRoad++;
+    check(offRoad === 0, name + ': ' + offRoad + ' street lamp heads are not over the road');
+  }
   // 16 — THE TERRAIN (G340, the user: "mountain on one side, water on the
   //   other, and a varied, yet coherent slope through"): in every column,
   //   water at the front edge, the back edge a mountain (40 m and more over

@@ -607,6 +607,8 @@ function groundMesh(parent, L) {
 
 // ---- the houses ---------------------------------------------------------------
 let root = null, VIL = null, FINISHES = [], LIGHTS = [];
+// THE NIGHT GAIN (G370): under the night sky every lamp stood is twice what it is by day - the levels were judged at night against the moon's 0.22, and by day the fixtures are only there to be seen
+const nightGain = () => ($('moodSel').value === 'n' ? 2.0 : 1.0);
 function tiltToGround(o, g, x, z, ry) {
   const e = 0.12;
   const gx = (g(x + e, z) - g(x - e, z)) / (2 * e);
@@ -647,7 +649,7 @@ function placeBuilt(parent, house, built, F) {
   if (st.lit) for (const L of st.lit.lights) {
     if (L.prop && PROP_REG.props[L.prop]) grp.add(propPlace(THREE, L.prop, L.mx, L.mz, L.ry, L.my));
     if (house.P.lights) {
-      const pl = new THREE.PointLight(new THREE.Color(L.col[0], L.col[1], L.col[2]), L.k * 2.2 * 1.1, L.range, 2);
+      const pl = new THREE.PointLight(new THREE.Color(L.col[0], L.col[1], L.col[2]), L.k * 2.2 * 1.1 * nightGain(), L.range, 2);
       pl.position.set(L.x, L.y, L.z);
       grp.add(pl);
       LIGHTS.push(pl);
@@ -779,6 +781,7 @@ function build() {
   // THE LINE (G348): the two stations built for each other's angle before
   // the loop draws them (tramLine leaves the builds on the records)
   const tramFin = new Map();
+  if (forceLights) { for (const h of vil.siteHouses || []) { h.P.lights = 1; h.P.winLink = 0; } if (vil.park && vil.park.house) { vil.park.house.P.lights = 1; vil.park.house.P.winLink = 0; } }   // the switch reaches the works, the stations and the park (G370)
   if (vil.site && vil.site.tram) VG.tramLine(vil, h => { const F = G.makeFinish(); G.applyFinish(h.P, F); tramFin.set(h, F); const b = G.build(h.P, 0, F); b.BAGS = G.BAGS; return b; });
   for (const h of vil.siteHouses || []) {
     const GEN = h.gen === 'big' ? window.BIG_GEN : G;
@@ -832,7 +835,7 @@ function build() {
       siteTris += 96 * 6 * 2;
     });
     if (window.CABIN) {
-      const objs = [0, 1].map(i => { const c = CABIN.build(THREE, { livery: i ? 'admiralty' : 'chatham' }); root.add(c); return c; });
+      const objs = [0, 1].map(i => { const c = CABIN.build(THREE, { livery: i ? 'admiralty' : 'chatham', lit: forceLights ? 1 : 0, lightK: 2.2 * 1.1 * nightGain() }); root.add(c); return c; });
       run.attach(objs);
     }
     TRAM = run;
@@ -905,12 +908,30 @@ function build() {
   }
   // (the cars, the boats and the fence posts darken the LOT PATCH, G302 -
   // only what stands outside every lot gets a skirt polygon: the poles)
+  // THE STREET LAMPS (G370): a cobra head on every second pole, galvanised, its lens glowing when the lights are on
+  const lampF = G.makeFinish();
+  G.applyFinish(Object.assign({}, G.DEF, { metalSet: G.SET_IDX('metal', 'galv') }), lampF);
+  const lampBags = { metal: window.HOUSE_KIT.Bag('metal'), glass: window.HOUSE_KIT.Bag('glass') };
+  let streetLamps = 0;
   for (const q of vil.poles || []) if (PROP_REG.props[q.key]) {
     const o = propPlace(THREE, q.key, q.x, q.z, q.ry, q.y);
     tiltToGround(o, vil.T.h, q.x, q.z, q.ry);
     root.add(o);
     vocc.push({ x: q.x, z: q.z, r: 0.12, k: 0.5, soft: 0.4 });
+    if (q.lamp) {
+      const L = VG.streetLamp(lampBags, q);
+      streetLamps++;
+      if (forceLights) {
+        const pl = new THREE.PointLight(new THREE.Color(L.col[0], L.col[1], L.col[2]), L.k * 2.2 * 1.1 * nightGain(), L.range, 2);
+        pl.position.set(L.x, L.y, L.z);
+        root.add(pl);
+        LIGHTS.push(pl);
+      }
+    }
   }
+  lampBags.metal.mesh(root, lampF.MAT.metal);
+  if (forceLights) { const gm = lampBags.glass.mesh(root, G.MAT.glass); if (gm) gm.castShadow = false; } else { const gm = lampBags.glass.mesh(root, G.MAT.glass); if (gm) gm.castShadow = false; }
+  FINISHES.push(lampF);
   {
     const F = FINISHES[FINISHES.length - 1];
     const bag = window.HOUSE_KIT.Bag('aoskirt');
@@ -987,7 +1008,7 @@ function smokeLoop() {
     smokeRAF = 0;
     if (!FINISHES.length) return;
     const t = performance.now() / 1000;
-    for (const F of FINISHES) F.SMOKE_U.uTime.value = t;
+    for (const F of FINISHES) if (F.SMOKE_U && F.SMOKE_U.uTime) F.SMOKE_U.uTime.value = t;   // (a finish without smoke - the fences', the lamps' - has no clock to wind; the tick threw on it and died)
     draw();
     smokeRAF = requestAnimationFrame(tick);
   };
@@ -1016,8 +1037,12 @@ window.benchView = o => {
   if (o.yaw !== undefined) yaw = o.yaw + skyRot;
   if (o.pitch !== undefined) pitch = o.pitch;
   if (o.dist) ZOOM = fitR / o.dist;
+  // a gain on every point light stood (G370, the lighting pass: the level found here is baked into the records)
+  let nLights = 0;
+  if (o.lightGain !== undefined && root) root.traverse(ob => { if (ob.isPointLight) { if (ob.userData.base === undefined) ob.userData.base = ob.intensity; ob.intensity = ob.userData.base * o.lightGain; nLights++; } });
+  if (o.expo !== undefined) { $('expo').value = String(o.expo); buildSky(); }
   draw();
-  return { fitR, centre: (centreOv || centre).toArray(), yaw, pitch, ZOOM, skyRot };
+  return { fitR, centre: (centreOv || centre).toArray(), yaw, pitch, ZOOM, skyRot, nLights };
 };
 
 // ---- interaction -------------------------------------------------------------
