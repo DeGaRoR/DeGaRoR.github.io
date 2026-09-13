@@ -42753,3 +42753,31 @@ one go-around fewer on this card and is owed its own flown battery.
 - Gates: ENERGYBASE, WINGSPLIT, ENERGY, MASS, SAVE, BUILD, FLEX, LOAD, TAKEOFF,
   HOTHIGH, HONEST, ARCHETYPES, GEN green on the re-blessed baselines (proved
   together with G350 from one clean worktree).
+
+## G352 — THE SPEED HOLD'S INTEGRATOR NO LONGER WINDS UP AGAINST THE STOPS
+## (2026-09-13, found under G351: the Twin bush hauler's approach)
+
+**What it was.** `speedThrottle` is thrC + 0.05·(Vtgt − V) + It, the
+integrator summing at 0.010/s to ±0.30, the throttle clamped to its floor.
+Decelerating from base to the approach speed the throttle sits on the
+floor for 20–30 s while the integrator keeps summing the overspeed to its
+−0.30 cap; at the target speed the demand is then 0.30 below where it
+should be and unwinds at 0.01/s — thirty seconds of idle at approach
+speed, on a slope the aeroplane starts a slope-width under (the arrival's
+IAF is 400 m beyond the FAF at circuit height, so every card enters FINAL
+~18 m below the glidepath and the GS law asks for +0.5 m/s). Measured on
+the Twin bush hauler: throttle 0.03 for 30 s, −2 m/s, within 15 m of the
+ground beyond 400 m out — "terrain under the approach", twice.
+
+**What it is.** Standard anti-windup: when the sum is past a stop, the
+integrator is held at the value that puts the throttle exactly on the
+stop, so it leaves the stop the moment the error changes sign. Nothing
+else in the law moves. Measured: the same card's throttle is 0.08–0.12
+from the top of final, one go-around instead of two, landed at 555 s.
+(A power feed-forward from the GS demand was tried and withdrawn: the
+speed loop cancelled it within 20 s — the two loops need an energy law,
+not a bias, and that is a chantier of its own.)
+
+- Gates: the whole core tier green but STARTER (red on HEAD before this,
+  another session's `applySpec`), GEN run on its own, ARCHETYPES and
+  HOTHIGH from the full tier.
