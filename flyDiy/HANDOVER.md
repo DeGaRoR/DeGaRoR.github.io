@@ -42696,3 +42696,60 @@ stock, the twin fixture and the ultralight fly their circuits as before
 (291 / 270 / 229 s to a stop; the twin's tail excursion −33 mm).
 GJ for the twin's oval: G = E / 2.6, the mean radius √(oval) times the mean
 of the two ends' radii, the wall `rodWall`.
+
+## G351 — THE REAR FUSELAGE'S GAUGE: A FLEET RE-BASELINE (2026-09-13, the
+## user: "let's do a" — item 7 of the twin-boom list, the mass owed since
+## the seat-stations note)
+
+**What it was.** Aft of the cabin box every fuselage-class member was
+billed at the one `lin.fus` of the material — 71 members, 47–54 m of tube
+at 0.58 kg/m, 41–44 kg of structure aft of the cabin on the Cub- and
+Jodel-alikes where a real rear fuselage weighs 20–25 (a lighter gauge aft,
+and no rule-4 diagonal on every panel is a tube). A DISTRIBUTION error,
+not a total: the Jodel-alike sat at 41 % MAC where a D11 sits at 21–31,
+and every card carried its ballast to answer for it.
+
+**What it is.** `GEN_RULES.fusAftGauge` 0.6 — the factor on the linear
+mass (and the price) of a fuselage member with BOTH ends aft of
+`fuse.boxRear`: the rear fuselage, the rod boom, the tail post
+(61_gen_frame B(), `aftG`). Stiffness is untouched — the tubes' clusters
+(G294 / G314 / G335) hold the aft structure now, not the member gauge.
+Option (a) of the three put to the user: the plain factor, the fleet
+re-baselined once, over (b) a per-member section law and (c) leaving it.
+
+**Measured** (the stock card): fuselage ledger 57.7 → 43.4 kg, 2425 → 1824
+€; empty mass 473.5 → 459.1 kg; CG 0.957 → 0.888 m (−69 mm, forward). Every
+card in `_energy_base.json` moves the same way (−60 to −80 mm, −12 to −15
+kg); the two frozen fixtures' `cg0` follow (v5 swept 1.103 → 1.031, v8
+drawn-tail 0.987 → 0.909). The baseline is BLESSED, deliberately, as the
+one re-baseline of this change — GATE ENERGY / MASS / SAVE read the new
+numbers as the reference. The bless also carries `doorHandle:1` into every
+card's fitting list: G310's door handle had been added without a bless
+and GATE ENERGYBASE had been red on it since ("the fitting list moved" on
+all fourteen cards) — absorbed here, one row, no mass. GATE WINGSPLIT is
+re-blessed too, as G159 wrote down for exactly this case: `genWing` emits
+about the CG, so every frozen wing position carries the CG shift (−60 to
+−80 mm) — thirteen wings, not one truss node moved. The drawn-tail
+fixture's `cg0` line had an uncommitted edit from another session
+(x 0.9755) in the shared tree; this re-freeze supersedes it.
+GATE HOTHIGH went red on the sweep and it was not the mass: G349.
+GATE ARCHETYPES went red on ONE card and it WAS the mass: the Twin bush
+hauler's CG went 5 cm forward (margin 10.5 → 13.3 %), and on approach its
+elevator sat at 0.25 of 0.35 holding 4.7°, could not climb back to the
+slope it starts a slope-width under (the arrival's IAF is 400 m beyond
+the FAF at circuit height — every card starts FINAL below the glidepath
+and the GS law climbs at ≤ 0.5 m/s), came within 15 m of the ground
+beyond 400 m out, went around twice for "terrain under the approach" and
+gave up at 600 s. Gauge 1 landed at −12 m, 0.8 at −5, 0.7 and 0.6 gave up.
+The card's own balance is re-tuned as the archetypes' recipe has it
+(`wgDx`, wings 8 cm forward: margin 11.8 %, lands at −25 m); the fleet's
+other 24 cards fly their circuits on the new mass unchanged. Static
+margins fleet-wide: +3 to +6 % (the P-38-alike from −0.7 to +5.7).
+Noted, not done: the pilot's speed-hold integrator winds up to its −0.30
+cap decelerating to approach speed and unwinds at 0.01/s — thirty seconds
+of idle on a slope that asks for level flight; an anti-windup measured
+one go-around fewer on this card and is owed its own flown battery.
+
+- Gates: ENERGYBASE, WINGSPLIT, ENERGY, MASS, SAVE, BUILD, FLEX, LOAD, TAKEOFF,
+  HOTHIGH, HONEST, ARCHETYPES, GEN green on the re-blessed baselines (proved
+  together with G350 from one clean worktree).

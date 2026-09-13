@@ -260,7 +260,12 @@ function genLattice(S, gearX, track, kScale) {
     // there (measured on the stock build). Stiff and damped like the rest,
     // weightless and unpriced.
     if (!(opt && opt.noMass)) {
-      const h = 0.5 * L * row(MM.lin, cls);
+      // G351: the rear fuselage's gauge (GEN_RULES.fusAftGauge) on a
+      // fuselage member aft of the cabin box
+      const aftG = (cls === 'fus' && !mnt && R.fusAftGauge > 0 && S.fuse &&
+                    P[a][0] >= S.fuse.boxRear - 1e-6 && P[b][0] >= S.fuse.boxRear - 1e-6)
+        ? R.fusAftGauge : 1;
+      const h = 0.5 * L * row(MM.lin, cls) * aftG;
       nodes[a].m += h; nodes[b].m += h;
       bill(2 * h, 2 * h * MM.price);          // ...and priced as it (G179)
     }

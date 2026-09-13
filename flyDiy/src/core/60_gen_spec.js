@@ -2113,6 +2113,17 @@ const GEN_RULES = {
   // omega scales as sqrt(K / M). A number is that number; 0 = rigid.
   twinBoomTubeW: 'computed',
   rodWall:     1.2e-3, // the rod boom's tube wall, m (4130: 1.2 mm on a 113 mm tube)
+  // G351 (the user: "let's do a"): THE REAR FUSELAGE'S GAUGE. Aft of the
+  // cabin box every fuselage-class member was billed at the one lin.fus of
+  // the material — 71 members, 47-54 m of tube at 0.58 kg/m, 41-44 kg of
+  // structure aft of the cabin on the Cub and the Jodel where a real rear
+  // fuselage is 20-25 (lighter gauge aft, and no rule-4 diagonal on every
+  // panel is a tube). The distribution error, not the total: the Jodel sat
+  // at 41 % MAC where a D11 sits at 21-31. The factor on the linear mass
+  // (and the price) of a fuselage member with both ends aft of boxRear —
+  // the rear fuselage, the rod boom, the tail post. Stiffness is untouched
+  // (the tubes' clusters hold the aft structure now, not the member gauge).
+  fusAftGauge: 0.6,
   // ...and WHERE the foot goes, as a fraction of the way from the engine to
   // the front spar: 1 = under the front spar. Measured on the twin (engines
   // 0.65 m ahead of the spar), foot at 0 / 0.5 / 0.75 / 1 / 1.25 / 1.5:

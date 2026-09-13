@@ -1874,7 +1874,15 @@ const ARCHETYPES = [
            engCount: 2, gearLayout: 'trike', suspension: 'oleo', s1Fair: 0,
            finArch: 'broad', empennage: 'conv', scheme: 'trim', base: 0xefe6cf, trim: 0xc96f2a },
     over: { cage: Object.assign({}, PLAN_RECT, { wgSpan: 16.0, wgChord: 1.95,
-                                                  wgChordTip: 1.95 }),
+                                                  wgChordTip: 1.95,
+                                                  // G351: the rear fuselage's gauge took 14 kg off
+                                                  // the tail and the CG went 5 cm forward (margin
+                                                  // 10.5 -> 13.3 %): on approach the elevator sat
+                                                  // at 0.25 of its 0.35 holding 4.7 deg, could not
+                                                  // climb back to the slope, and the card went
+                                                  // around twice for terrain and gave up. Wings
+                                                  // 8 cm forward: margin 11.8 %, lands at -25 m.
+                                                  wgDx: 0.08 }),
             spec: { finish: { decals: { m1On: 1, m1Pat: 0, m1A: 0xc96f2a,
                                         m1B: 0x1b3a5c, m1D: 0xc96f2a } } } } },
   // TWIN BOOMS (2026-09-04, spec §3): the 337's shape with its nose engine —
