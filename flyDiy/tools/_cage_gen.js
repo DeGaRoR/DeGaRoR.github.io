@@ -6916,19 +6916,28 @@ function cageFromSpec(spec) {
   return P;
 }
 
-// a full parameter set -> the value for `spec.cage`: the deviations alone, or
-// null when the build IS the template, which is what the spec field means by
-// null.
+// a full parameter set -> the value for `spec.cage`: EVERY design row (G377,
+// the user: "shouldn't we save all slider values? ... allowing survival of
+// values whose defaults may get updated"). G106 wrote the deviations alone
+// so that a row at its default would follow the template — and today that
+// is the defect: the defaults MOVE (a crease default, the shoulder's width
+// and height, all in one day) and every saved aeroplane moved with them,
+// with no record of what it had looked like. A file now fixes every row it
+// knows, cage rows and layer rows alike. A row the file predates still takes
+// the default of the day (unavoidable in any format — which is why a new
+// row lands with the default that reproduces the build before it, docs/
+// SHARED-TREE-PRACTICES §7). The view keys and the functions stay out; an
+// empty set is still null, which is what the spec field means by null.
+// Loading (cageFromSpec) is unchanged: a slim file from before still
+// resolves — what it names it fixes, what it predates takes the default.
 function cageToSpec(P) {
   if (!P || typeof P !== 'object') return null;
-  const LD = cageLayerDefaults();
   const out = {};
   let n = 0;
   for (const k in P) {
     if (typeof P[k] === 'function') continue;
     if (k in CAGE_VIEW_KEYS) continue;
-    if (k in CAGE_PARAMS && P[k] === CAGE_PARAMS[k]) continue;
-    if (!(k in CAGE_PARAMS) && k in LD && cageSameVal(P[k], LD[k])) continue;
+    if (P[k] === undefined) continue;
     out[k] = P[k]; n++;
   }
   return n ? out : null;

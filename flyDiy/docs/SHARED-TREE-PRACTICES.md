@@ -134,3 +134,14 @@ for "the single wheel") is a bug waiting for a row; key on identity.
   procs).
 - Windows: `io.open(p, 'w')` from Python flips a file to CRLF and the
   source-scanning gates break; write bytes or `newline=''`.
+
+## 7. A new row lands with yesterday's look (G377)
+
+- A saved build is a SNAPSHOT of every row it knew (`cageToSpec`, since
+  G377); a row the file predates takes the default of the day. So a NEW row
+  — a crease, a fillet, a return, a switch — lands with the default that
+  reproduces the build before it existed (0, off, "as it was"), and its
+  effect is a choice the builder makes. G319 landed `crKeel` at 2 and every
+  aeroplane in the hangar was squared overnight; G362 put it back.
+- A gate tuned on a particular geometry says so in its fixture (an explicit
+  row value), never by leaning on a default that someone will move.

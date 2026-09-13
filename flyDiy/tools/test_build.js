@@ -571,51 +571,47 @@ function nullPaths(o, pre, out) {
     ok(drift.length === 0, 'the fat ' + f + ' re-saves without the ' +
        'aeroplane changing' + (drift.length ? ' (drifted: ' +
        drift.slice(0, 5).join(', ') + ')' : ''));
-    const fat = Object.keys(spec.cage).length,
-          thin = Object.keys(slim).length;
-    // G140: the shrink theorem is about FAT vintages (the 518-key snapshot
-    // era). A fixture frozen slim — the swept v5, saved after the boundary
-    // fix — has nothing to shrink; it must simply not grow.
-    // G189: "fat" is a VINTAGE, not a key count. The user's ultralight is a
-    // v7 file with 121 honest deviations (every one of them off the
-    // template), and it re-saves to exactly 121 — so a post-boundary file
-    // takes the lean test whatever its size; only the snapshot era shrinks.
-    if (fat > 120 && !(spec.v >= 6))
-      ok(thin < fat / 3, 'and the re-save is deviations, not a snapshot (' +
-         fat + ' keys -> ' + thin + ')');
-    else
-      ok(thin <= fat + 1, 'and the slim ' + f + ' re-saves lean (' +
-         fat + ' keys -> ' + thin + ')');
+    // G377: a re-save is a SNAPSHOT of every row the page knows (the user's
+    // ruling: a design must survive a default that moves), so the lean
+    // theorem of G140/G189 is inverted — the re-save carries the whole table,
+    // whatever vintage it came from
+    const thin = Object.keys(slim).length,
+          table = Object.keys(P1).filter(k => !(k in CAGE2.CAGE_VIEW_KEYS) &&
+                                              typeof P1[k] !== 'function').length;
+    ok(thin === table, 'and the re-save of ' + f + ' carries every row (' +
+       thin + ' of ' + table + ')');
   }
 }
 
 // ---------------------------------------------------------------------------
-// L. A BUILD CARRIES ITS DEVIATIONS — NOW TRUE FOR THE LAYERS TOO (G106).
-// The boundary's own invariant, measured: baking the default aeroplane writes
-// (nearly) nothing, deviating one layer key writes exactly that key, and with
-// the page's declaration REMOVED the same bake goes fat again — which is the
-// negative proof that the comparison runs against the declaration and not
-// against luck.
+// L. A BUILD CARRIES EVERY ROW (G377; G106 had it carry the deviations alone,
+// and the defaults moved under the saved designs). Measured: baking the
+// default aeroplane writes the whole table — cage rows and layer rows alike,
+// each at its value; deviating one layer key changes that value and adds no
+// key; and the door still takes a slim file from before — what it names it
+// fixes, what it predates takes the default of the day.
 // ---------------------------------------------------------------------------
 {
   const full = () => Object.assign(CAGE2.cageDefaults(), clone(CAGE_PAGE.defaults));
-  const baked = CAGE2.cageToSpec(full()) || {};
-  const nBase = Object.keys(baked).length;
-  ok(nBase < 60, 'the default aeroplane bakes to its cage deviations alone (' +
-     nBase + ' keys, all vs CAGE_PARAMS)');
-  ok(Object.keys(baked).every(k => k in CAGE2.CAGE_PARAMS),
-     '...and every one of them is a declared cage key, no layer snapshot');
+  const F0 = full();
+  const baked = CAGE2.cageToSpec(F0) || {};
+  const want = Object.keys(F0).filter(k => !(k in CAGE2.CAGE_VIEW_KEYS) &&
+                                            typeof F0[k] !== 'function');
+  ok(Object.keys(baked).length === want.length && want.every(k => k in baked),
+     'the default aeroplane bakes to EVERY row it knows (' +
+     Object.keys(baked).length + ' keys) — a default that moves cannot move a saved design');
+  ok(baked.crKeel === CAGE2.CAGE_PARAMS.crKeel && baked.finThick === F0.finThick &&
+     !('explodeD' in baked),
+     '...cage rows and layer rows at their values, the view keys out');
   const dev = full(); dev.finThick = 0.123;         // a layer (fin) key
   const baked2 = CAGE2.cageToSpec(dev) || {};
   ok(baked2.finThick === 0.123 &&
-     Object.keys(baked2).length === nBase + 1,
-     'deviating one layer key writes that key and nothing else');
-  const held = global.window; global.window = undefined;   // negative half
-  const fat = CAGE2.cageToSpec(full()) || {};
-  global.window = held;
-  ok(Object.keys(fat).length > 300,
-     'negative: with no page declaration in scope the same bake is fat again (' +
-     Object.keys(fat).length + ' keys)');
+     Object.keys(baked2).length === Object.keys(baked).length,
+     'deviating one layer key changes that value and adds no key');
+  const back = CAGE2.cageFromSpec({ cage: { waistY: -0.11 } });   // a slim file from before
+  ok(back.waistY === -0.11 && back.crKeel === CAGE2.CAGE_PARAMS.crKeel &&
+     back.finThick === F0.finThick,
+     'a slim (older) file still loads: what it names it fixes, what it predates takes the default');
 }
 
 // ---------------------------------------------------------------------------

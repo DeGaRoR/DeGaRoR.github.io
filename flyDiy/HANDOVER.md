@@ -44533,3 +44533,39 @@ rows under LIVERY, the aeroplane weathered live in the hangar.
 - Owed: spot lights for the floods (`aim` is published; the bench stands
   points), the game's night with these records, the houses' own levels
   (unchanged, x2 at night by the bench's gain).
+
+## G377 — THE BUILD FILE IS A SNAPSHOT OF EVERY ROW (2026-09-13, the user:
+## "I'm a little worried about the diff save … an easy way to corrupt past
+## saved designs. Shouldn't we save all slider values? … allowing survival
+## of values whose defaults may get updated")
+
+- **The defect.** Since G106 `cageToSpec` wrote the DEVIATIONS from the
+  template alone, so a row at its default followed the template — the
+  doctrine being that a spec written before a parameter existed picks the
+  parameter's default up. The defaults MOVE: in one day G319's keel crease
+  (2) squared every saved aeroplane (G362), and the shoulder session moved
+  shoulderW 0.09 → 0.07 and shoulderH 0.27 → 0.135 under every design that
+  had never touched them — with no record in any file of what the design
+  had looked like.
+- **The fix.** `cageToSpec` writes every row it knows — cage rows and layer
+  rows alike (~580–720 keys, ~15 KB); the view keys and functions stay out;
+  an empty set is still null. `cageFromSpec` is unchanged, so every slim
+  file from before still loads: what it names it fixes, what it predates
+  takes the default of the day. That last case is unavoidable in any format,
+  which is now a written rule: **a new row lands with the default that
+  reproduces the build before it** (docs/SHARED-TREE-PRACTICES §7), and a
+  gate tuned on a geometry says so in its fixture, never by leaning on a
+  default.
+- GATE BUILD's lean theorem (G140/G189) is inverted: a re-save carries the
+  whole table (719 / 587 / 598 / 616 / 581 / 615 / 607 keys on the seven
+  vintages, all round-tripping without drift); §L measures the default
+  aeroplane baking to every row and a slim file still loading. GATE SAVE
+  (810 panel rows moved and put home, the envelope a fixed point) green
+  unchanged — "a row put home" now reads as its default value written, not
+  as its absence. The finish section stays deviations on purpose: an
+  untouched section following the construction's material is inheritance,
+  not a default that moves.
+- Also: GATE STARTER had been red since G334 without anyone running it — its
+  door scan read 1400 characters after `function applySpec(` for the
+  `build();`, and G334's registration lines pushed it out of the window. The
+  door does say loaded() first; the window is 3000 now.

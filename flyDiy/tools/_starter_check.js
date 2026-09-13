@@ -147,7 +147,7 @@ function checkDoors(src) {
   for (const d of DOORS) {
     const at = src.indexOf(d);
     if (!check(at >= 0, 'door not found in _cage_ui.js', d)) { ok = false; continue; }
-    const body = src.slice(at, at + 1400);
+    const body = src.slice(at, at + 3000);     // G377: applySpec grew past 1400 (G334's registration lines)
     const b = body.indexOf('build();'), l = body.indexOf('loaded();');
     ok = check(l >= 0 && b >= 0 && l < b,
       'a door that replaces P builds without saying `loaded()` first', d) && ok;
