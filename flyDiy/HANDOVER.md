@@ -44289,3 +44289,43 @@ MEASURED (the check prints every number before its verdict):
   and the **OFF/R/L/BOTH** tape over the key (LABEL_OF.key, 40 mm wide).
 - The ASI's three-digit numerals are painted at fontK 0.15 (was 0.19): no
   two touch at the densest span.
+
+## G372 — THE PREMISES BENCH v4: FREE POLYGONS ARE THE RULE, THE PATTERN'S
+## HAND (THE HOLDS SLIDE AND THE VALIDATOR ANSWERS), THE PICKERS BY TAG, THE
+## FRAME'S OWN COUNTERS (2026-09-13, the user: "polygons do not mean squares,
+## we should add as many points as necessary to define free polygonal shapes")
+
+- **FREE POLYGONS** (contract v1.4): every authored polygon - a zone, a
+  flatten, an exclude, an apron - always was a free shape drawn corner by
+  corner, concave allowed (even-odd containment, the faint discs add
+  corners); what still said "convex quad" was a catalogue entry's `foot`,
+  the first draft's caution. A foot is now any SIMPLE polygon (an L-shaped
+  house, a mill with its wing); GATE PREMISES rule 3 asks `polySimple` and
+  contains an L even-odd. Only a sown PLOT stays a quad, because a
+  frontage is one.
+- **THE PATTERN'S HAND** (ROADMAP P4 §3b): a selected strip shows its two
+  HOLDS as amber discs (the derived pattern's stop bars, 110 m in); drag
+  one and it slides on the centreline - the ground point projected onto
+  the strip's axis, in the aerodrome's world frame - and the pattern
+  becomes AUTHORED: the derived graph saved verbatim into the record's
+  `site.pattern` with the hold moved, which `sitePattern` returns as it
+  is and `sitePatternIssues` judges live in the inspector ("hold leaves
+  N m of run, under 370" the moment it is dragged too far). A strip moved
+  or turned drops its authored pattern (the graph was in the old strip's
+  frame); a button puts the derived one back.
+- **THE PICKERS BY TAG** (contract §4): a plot in a commercial /
+  industrial / harbour / park zone picks its building from the catalogue
+  BY TAG, deterministically by the plot's seed; a residential plot, and
+  any kind no entry is tagged for, takes the house generator's sampler.
+  The generators tag their entries; the editor names none (rule 13) - so
+  on master, where the derived entries carry only their namespace, every
+  zone samples today, and the moment a session lands tagged entries its
+  zones fill with them. Rule 8b holds it with a tagged stand-in.
+- **THE FRAME'S OWN COUNTERS**: the plaque reads the renderer's draw calls
+  and triangles per frame beside the frame time - the budget's first
+  honest number before `premises_perf.js`.
+
+- Gates: PREMISES green (112 checks, 3 goldens); proven from a clean worktree.
+- OWED: an authored stand + taxi-out (the site block's other half) and the
+  hold's lane nodes following it; fences / paths / lots per plot after the
+  village lands; `premises_perf.js`; the game host.

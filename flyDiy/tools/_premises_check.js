@@ -14,7 +14,7 @@
 //   3  CATALOGUE (v3): collect() answers, deriving an entry per preset when a
 //      generator has no CATALOGUE; under the vm THREE stub every derived
 //      entry of the house and big generators BUILDS at lod 0 on flat ground
-//      with no NaN, and its foot is a convex quad; a key collision is reported.
+//      with no NaN, and its foot is a simple polygon (any corners; v1.4); a key collision is reported.
 //      SITES: every item of a site resolves and stands (its floor over its
 //      corners), its foot keeps the plots and the wood out; the conveyor
 //      link lands (the mill's tramTo is the shed's eave in the mill's frame,
@@ -352,11 +352,13 @@ for (const fx of fixtures) {
         if (!b || !b.stats || !(b.stats.tris > 0)) throw new Error('no stats');
         for (const k in b.bags) { const a = b.bags[k].pos || (b.bags[k].tris !== undefined ? null : null); if (a && a.some && a.some(v => !isFinite(v))) throw new Error('NaN in ' + k); }
         const foot = e.foot(P);
-        if (!(foot.length === 4 && PG.polySimple(foot))) throw new Error('foot is not a simple quad');
+        if (!(foot.length >= 3 && PG.polySimple(foot))) throw new Error('foot is not a simple polygon');
         built++;
       } catch (err) { bad = key + ': ' + err.message; break; }
     }
     check(!bad, '3 every derived catalogue entry builds headless with a simple foot (' + built + ' built)', bad);
+    // a concave foot is a foot: the sower and the keep-out use even-odd containment
+    { const L = [[-6, -4], [6, -4], [6, 4], [1, 4], [1, 0], [-6, 0]]; check(PG.polySimple(L) && PG.inPoly(L, -3, 2) === false && PG.inPoly(L, 3, 2) === true, '3 a concave L-shaped foot is contained even-odd'); }
     const site = { id: 's1', name: 'the mine', at: { x: 0, z: 0, yaw: 0.2 }, yard: null,
       items: [{ id: 'mill', key: 'house/kennecott mill', x: -4, z: 24, yaw: 0, bottomOnRoad: true }, { id: 'rcv', key: 'big/tram shed', x: 0, z: 0, yaw: 0, onRoad: true }, { id: 'shop', key: 'big/mine shop', x: -34, z: 12, yaw: 0 }, { id: 'cot', key: 'house/mine cottage', x: -22, z: 5, yaw: 0.2 }] };
     const rec = PG.normalise({ seed: 4, layers: { sites: [site], links: [{ id: 'l1', kind: 'conveyor', from: { site: 's1', item: 'mill', hook: 'head' }, to: { site: 's1', item: 'rcv', hook: 'roof' } }],
@@ -378,6 +380,20 @@ for (const fx of fixtures) {
     const O2 = PG.compose(rec, synth, { catalogue: CAT, pool: [{ key: 'a|A', size: 1, sink: 0, proportion: 1, h: 14 }] });
     check(O2.records.items.every((it, i) => it.x === O.records.items[i].x && it.P.floorY === O.records.items[i].P.floorY), '3 the same seed stands the same site');
   } else check(true, '3 (generators not loaded headless here)');
+  // 8b THE PICKERS BY TAG: a commercial zone picks among the entries tagged 'commercial'; without a tag, the sampler
+  {
+    const road = { id: 'r', pts: [[-150, 0], [150, 0]], w: 4, cls: 'gravel', graded: true };
+    const zone = { id: 'z', kind: 'commercial', poly: [[-160, -60], [160, -60], [160, 60], [-160, 60]], density: 1 };
+    const rec = PG.normalise({ seed: 3, layers: { roads: [road], zones: [zone] } });
+    const tagged = { entries: new Map([['x/store', { key: 'x/store', kind: 'building', tags: ['commercial'] }], ['x/cafe', { key: 'x/cafe', kind: 'building', tags: ['commercial'] }], ['x/home', { key: 'x/home', kind: 'building', tags: [] }]]), aliases: {}, keys: () => ['x/store', 'x/cafe', 'x/home'],
+      byTag(t) { const out = []; this.entries.forEach(e => { if (e.tags.indexOf(t) >= 0) out.push(e); }); return out; } };
+    const O = PG.compose(rec, synth, { catalogue: tagged });
+    check(O.records.plots.length > 0 && O.records.plots.every(p => p.pick === 'x/store' || p.pick === 'x/cafe'), '8b a commercial zone picks only the entries tagged commercial', O.records.plots.map(p => p.pick).join(','));
+    const Ou = PG.compose(rec, synth, { catalogue: { entries: new Map(), aliases: {}, keys: () => [], byTag: () => [] } });
+    check(Ou.records.plots.every(p => p.pick === 'sampler'), '8b without a tagged entry the plots take the sampler');
+    const Oa = PG.compose(rec, synth, { catalogue: tagged });
+    check(Oa.records.plots.every((p, i) => p.pick === O.records.plots[i].pick), '8b the picks are the seed\'s');
+  }
   // 9b THE CABLE'S PLUMBING: a stand-in tramLine (the village's is on its branch) sees the two
   // station records with toWorld / y / yaw, is handed a builder, sets lineDeg on both, and its
   // geometry reaches the link; without tramLine the link says so and stays red

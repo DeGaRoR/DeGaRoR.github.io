@@ -265,12 +265,29 @@ function mount(host, ctx) {
     if (ev.button !== 0) return false;
     if (tool === 'select' && selected) {
       const h = R.pickHandle(ctx.ray(ev.clientX, ev.clientY));
+      return startDrag(h);
+    }
+    return false;
+  }
+  // a drag begins on a handle of the selected feature (the mouse's, or a script's by key)
+  function startDrag(h) {
+    {
       if (h) {
         const F = R.overlay.frame, found = PG.findById(rec, selected);
         if (!found) return false;
         const e = found.entry, before = clone(e);
         if (e.kind === 'tree') { drag = { id: selected, layer: found.layer, point: true, before, F }; return true; }
-        if (found.layer === 'runways') { drag = { id: selected, layer: 'runways', runway: h.key, before, F }; return true; }
+        if (found.layer === 'runways') {
+          if (h.key.indexOf('hold:') === 0) {
+            // the pattern becomes AUTHORED the moment a hold is touched: the derived graph, saved verbatim, the hold moved along the centreline
+            const pat = R.patternOf(selected);
+            if (!pat) return false;
+            drag = { id: selected, layer: 'runways', hold: h.key.slice(5), pat: JSON.parse(JSON.stringify(pat)), before, F };
+            return true;
+          }
+          drag = { id: selected, layer: 'runways', runway: h.key, before, F };
+          return true;
+        }
         if (found.layer === 'sites') { drag = { id: selected, layer: 'sites', site: h.key, before, F }; return true; }
         const arr = e.poly || e.pts;
         if (h.mid) {
@@ -287,9 +304,23 @@ function mount(host, ctx) {
     if (!drag) return false;
     const g = ctx.ground(ev.clientX, ev.clientY);
     if (!g) return true;
+    return moveDrag(g);
+  }
+  // the drag's hand: the WORLD ground point moves the handle's record
+  function moveDrag(g) {
     const found = PG.findById(rec, drag.id); if (!found) return true;
     const L = drag.F.toLocal(g[0], g[2]);
-    if (drag.point) { found.entry.x = +L[0].toFixed(2); found.entry.z = +L[1].toFixed(2); }
+    if (drag.hold) {
+      const e = found.entry, A = (R.aerodromes() || []).find(a => a.id === e.id);
+      if (A) {
+        const dx = Math.cos(A.hdg), dz = Math.sin(A.hdg);
+        const t = Math.max(-A.len / 2 + 5, Math.min(A.len / 2 - 5, (g[0] - A.x) * dx + (g[2] - A.z) * dz));
+        const nd = drag.pat.nodes.find(n => n.id === drag.hold);
+        if (nd) { nd.x = +(A.x + dx * t).toFixed(3); nd.z = +(A.z + dz * t).toFixed(3); }
+        e.site = Object.assign({}, e.site || {}, { pattern: drag.pat });
+      }
+    }
+    else if (drag.point) { found.entry.x = +L[0].toFixed(2); found.entry.z = +L[1].toFixed(2); }
     else if (drag.site) {
       const e = found.entry;
       if (drag.site === 'at') { e.at.x = +L[0].toFixed(2); e.at.z = +L[1].toFixed(2); }
@@ -299,6 +330,8 @@ function mount(host, ctx) {
       }
     }
     else if (drag.runway) {
+      // a strip moved or turned drops its authored pattern: the graph was in the world frame of the old strip
+      if (found.entry.site && found.entry.site.pattern) { const st = Object.assign({}, found.entry.site); delete st.pattern; found.entry.site = Object.keys(st).length ? st : null; }
       const e = found.entry, E = PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, e));
       if (drag.runway === 'c') { e.c = [+L[0].toFixed(2), +L[1].toFixed(2)]; }
       else {
@@ -499,7 +532,9 @@ function mount(host, ctx) {
           const d = $('div', { class: 'note', style: iss.length ? 'color:#ff6b5a' : 'color:#6fd08c' }); d.textContent = iss.length ? iss.join(' · ') : 'the pattern is sound: two holds on the centreline, the two approaches on the strip'; insp.appendChild(d);
         }
       }
-      rows.note(insp, 'drag an end disc to turn or stretch the strip (the other end stays); the faint disc moves it whole');
+      rows.note(insp, 'drag an end disc to turn or stretch the strip (the other end stays); the faint disc moves it whole; the amber discs are the holds - drag one along the strip and the validator answers');
+      if (e.site && e.site.pattern) rows.button(insp, 'pattern: back to the derived one', () => ed(x => { const st = Object.assign({}, x.site); delete st.pattern; x.site = Object.keys(st).length ? st : null; }, 'derived pattern of ' + id));
+      else rows.note(insp, 'the pattern is the DERIVED one (two holds 110 m in); touch a hold and it becomes yours');
     } else if (layer === 'sites') {
       const nm = $('input', { type: 'text', value: e.name || '' }); nm.className = 'pr-name'; nm.onchange = () => ed(x => { x.name = nm.value; }, 'name of ' + id); insp.appendChild(nm);
       rows.slider(insp, 'turn (°)', -180, 180, 1, () => (e.at.yaw || 0) * 180 / Math.PI, v => ed(x => { x.at.yaw = v * Math.PI / 180; }, 'turn of ' + id, 'yaw'), v => v.toFixed(0) + '°');
@@ -597,6 +632,20 @@ function mount(host, ctx) {
       if (name === 'delete') { const f = PG.findById(rec, args.id); if (f) run({ layer: f.layer, id: args.id, before: clone(f.entry), after: null, label: 'delete ' + args.id }); return !!f; }
       if (name === 'point') { addPoint(args.x, args.z); return T.pts.length; }
       if (name === 'click') { const w = R.overlay.frame.toWorld(args.x, args.z); clickAt([w[0], R.heightAt(w[0], w[1]), w[1]]); return selected; }
+      if (name === 'drag') {
+        // a scripted drag: the selected feature's handle by key ('v0', 'm1', 'e0', 'c', 'i:<item>', 'at', 'hold:<id>') to a premises point
+        if (!selected) throw new Error('premises: nothing selected');
+        const hs = R.handles(selected);
+        const h = hs.find(q => q.key === args.key);
+        if (!h) throw new Error('premises: no handle ' + args.key + ' on ' + selected + ' (' + hs.map(q => q.key).join(', ') + ')');
+        setTool('select'); select(selected);
+        const hh = { id: selected, key: h.key, index: +(h.key.slice(1)) || 0, mid: h.key[0] === 'm' };
+        if (!startDrag(hh)) throw new Error('premises: the drag did not start');
+        const w = R.overlay.frame.toWorld(args.x, args.z);
+        moveDrag([w[0], R.heightAt(w[0], w[1]), w[1]]);
+        onUp();
+        return true;
+      }
       if (name === 'commit') { commitDrawing(); return selected; }
       if (name === 'tool') { setTool(args.name); return tool; }
       if (name === 'section') { setSection(args.name); return section; }

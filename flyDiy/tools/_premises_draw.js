@@ -306,6 +306,14 @@ function make(THREE, scene, world, rec0, opts) {
       const E = PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, f.entry)), F = O.frame;
       const put = (lp, key, mid) => { const w = F.toWorld(lp[0], lp[1]); const m = new THREE.Mesh(discGeo, mid ? discMatMid : discMat); m.position.set(w[0], heightAt(w[0], w[1]) + LIFT + 0.05, w[1]); m.renderOrder = 9; m.userData.handle = { id: selectedId, key, mid: !!mid }; G.handles.add(m); HANDLES.push(m); };
       put(E.end0, 'e0'); put(E.end1, 'e1'); put(f.entry.c, 'c', true);
+      // THE HOLDS: the pattern's two stop bars, draggable along the centreline (the pattern's hand)
+      const A = O.aerodromes[O.runways.findIndex(r => r.id === selectedId)];
+      if (A && SITE.sitePattern) {
+        try {
+          const pat = SITE.sitePattern(A, f.entry.site || null);
+          for (const hid of pat.stops || []) { const nd = pat.nodes.find(n => n.id === hid); if (!nd) continue; const m = new THREE.Mesh(discGeo, new THREE.MeshBasicMaterial({ color: 0xe6c35c, transparent: true, opacity: 0.95, depthTest: false })); m.position.set(nd.x, heightAt(nd.x, nd.z) + LIFT + 0.08, nd.z); m.renderOrder = 9; m.userData.handle = { id: selectedId, key: 'hold:' + hid, mid: false }; G.handles.add(m); HANDLES.push(m); }
+        } catch (e) {}
+      }
       return;
     }
     const pts = worldPts(f.entry);
@@ -442,7 +450,10 @@ function make(THREE, scene, world, rec0, opts) {
     const rules = Object.assign({}, PG.ZONE_RULES, (rec.layers.zones.find(z => z.id === plot.zone) || {}).rules || {});
     const V = Object.assign({}, VG.VDEF, { plotDepth: rules.plotDepth, riparian: rules.riparian, seed: rec.seed });
     const rnd = PG.mulberry32(plot.seed);
-    const house = (VG.placeHouse || placeHouse)(Tv, V, plot, plot.seed % 100000, rnd);
+    // the pick: a preset of the house generator when the zone's tag found one; the sampler else
+    let preset;
+    if (plot.pick && plot.pick !== 'sampler') { const e = PG.collect(window).entries.get(plot.pick); if (e && e.gen === 'HOUSE_GEN') preset = e.preset; }
+    const house = (VG.placeHouse || placeHouse)(Tv, V, plot, plot.seed % 100000, rnd, preset);
     const F = HG.makeFinish();
     HG.applyFinish(house.P, F);
     const built = HG.build(house.P, 0, F);
@@ -610,6 +621,7 @@ function make(THREE, scene, world, rec0, opts) {
     get selected() { return selectedId; },
     overlayOn: on => { uOvOn.value = on ? 1 : 0; },
     groundMat, plots: () => O.records.plots, houses: HOUSES, aerodromes: () => O.aerodromes, items: () => O.records.items, links: () => O.records.links,
+    patternOf: id => { const i = O.runways.findIndex(r => r.id === id); if (i < 0 || !SITE.sitePattern) return null; try { return SITE.sitePattern(O.aerodromes[i], O.runways[i].site || null); } catch (e) { return null; } },
   };
   return R;
 }

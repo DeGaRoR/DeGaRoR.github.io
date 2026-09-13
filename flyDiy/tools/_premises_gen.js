@@ -431,6 +431,18 @@ function sowPlots(zone, roads, ctx) {
   return plots;
 }
 
+// THE PICKERS (contract §4): a plot's building by the zone's kind, from the catalogue BY TAG -
+// 'sampler' is the house generator's own draw (what a residential plot gets, and what any kind
+// gets when no entry carries its tag: the generators tag their entries, the editor names none)
+const PICK_TAGS = { residential: null, commercial: 'commercial', industrial: 'industrial', harbour: 'harbour', park: 'park' };
+function pickFor(plot, cat, rnd) {
+  const tag = PICK_TAGS[plot.kind];
+  if (!tag || !cat || !cat.byTag) return 'sampler';
+  const list = cat.byTag(tag).filter(e => e.kind === 'building' || e.kind === 'park');
+  if (!list.length) return 'sampler';
+  return list[Math.floor(rnd() * list.length) % list.length].key;
+}
+
 // THE FOREST — planTrees' wood layer inside a forest zone: a jittered grid at
 // a spacing the density sets, a clearing noise, off the water, the roads,
 // the plots, the excludes; the species drawn from the palette by proportion
@@ -488,7 +500,10 @@ function runwayAerodrome(r, F, elev) {
   // the pilot lands along -hdg over thr1 (5 m inside end1): the target sits a quarter in from that bar
   const tdz = [c[0] + dw[0] * (hl - 5 - aimIn), c[1] + dw[1] * (hl - 5 - aimIn)];
   const spawn = [c[0] - dw[0] * (hl - 35), c[1] - dw[1] * (hl - 35)];
-  return { id: r.id, name: r.name || 'strip', kind: 'strip', x: c[0], z: c[1], hdg, len: r.len, wid: r.wid,
+  // the strip's own flat, in the world: its graded box (the width and the shoulder) - siteOnFlat asks it
+  const shoulder = r.falloff !== null && r.falloff !== undefined ? +r.falloff : Math.min(120, 40 + r.len * 0.06);
+  const flatBox = runwayBox(r, shoulder).map(q => F.toWorld(q[0], q[1]));
+  return { id: r.id, name: r.name || 'strip', kind: 'strip', x: c[0], z: c[1], hdg, len: r.len, wid: r.wid, flat: (x, z) => inPoly(flatBox, x, z),
            surface: r.surface === undefined ? SURFACE.GRASS : +r.surface, elev, tdz, spawn, flyIn: false, premises: true,
            slope: +r.slope || 0, disp: r.disp || [0, 0], papi: r.papi || [true, true] };
 }
@@ -764,7 +779,7 @@ function compose(rec0, world, opts) {
     for (const z of rec.layers.zones) {
       if (!z.poly || z.poly.length < 3 || !polySimple(z.poly)) continue;
       if (['residential', 'commercial', 'industrial', 'harbour', 'park'].indexOf(z.kind) >= 0)
-        for (const p of sowPlots(z, roads, ctx)) O.records.plots.push(p);
+        for (const p of sowPlots(z, roads, ctx)) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed)); O.records.plots.push(p); }
     }
     const pool = o.pool || [];
     const tctx = { T: O.localH, waterY, seed: rec.seed, excludes: ctx.excludes, plots: O.records.plots, roads: roadObjs, pool, trees: O.records.trees };
@@ -982,7 +997,7 @@ function collect(globals) {
 const API = { PREMISES_V, LAYERS, SURFACE, SURFACE_NAMES, ROAD_CLS, ZONE_KINDS, ZONE_RULES, PREMISES_MIGRATORS, GENERATORS,
   fnv, hash32, mulberry32, seedOf, fbm,
   polyBBox, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
-  polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, RUNWAY_DEF, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, LINK_SOLVERS, solveLinks,
+  polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, LINK_SOLVERS, solveLinks,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById,
   frameOf, compose, issues, checks, bake, curvTol, collect };
 if (typeof window !== 'undefined') window.PREMISES_GEN = API;

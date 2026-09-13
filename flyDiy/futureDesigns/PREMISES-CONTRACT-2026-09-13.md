@@ -483,3 +483,9 @@ after the freeze, against this document.
   composer holds these as a derived `shelf` modifier (`makeModifier` kind 'shelf'); GATE PREMISES rule 5.
   A `link.cable = 'VILLAGE_GEN.tramLine'` on the stations names the phase-B solver the composer will call
   with a build callback once the branch lands.
+- **v1.4 (2026-09-13, the user: "polygons do not mean squares").** A `foot(P)` is any SIMPLE
+  polygon, as many corners as the building needs, concave allowed (an L-shaped house, a mill with its
+  wing); "convex CCW" in §2 was the first draft's caution, not a rule. Containment is even-odd everywhere
+  (`inPoly`), the keep-out is the foot's bbox + the margin, and GATE PREMISES rule 3 asks only
+  `polySimple`. The same holds for every authored polygon: a zone, a flatten, an exclude, an apron are
+  free shapes drawn corner by corner; only a sown PLOT is a quad, because a frontage is.

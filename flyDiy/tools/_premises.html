@@ -291,7 +291,8 @@ const rows = {
   },
 };
 const frames = []; let lastT = 0;
-const frameText = () => { if (frames.length < 10) return 'measuring the frame…'; const f = frames.slice().sort((a, b) => a - b); return 'frame ' + f[f.length >> 1].toFixed(0) + ' ms median · ' + f[Math.floor(f.length * 0.9)].toFixed(0) + ' ms p90'; };
+let lastInfo = { calls: 0, triangles: 0 };
+const frameText = () => { const gl = 'drawn: ' + lastInfo.calls + ' calls · ' + (lastInfo.triangles / 1e6).toFixed(2) + ' M tris'; if (frames.length < 10) return gl + ' · measuring the frame…'; const f = frames.slice().sort((a, b) => a - b); return gl + ' · frame ' + f[f.length >> 1].toFixed(0) + ' ms median · ' + f[Math.floor(f.length * 0.9)].toFixed(0) + ' ms p90'; };
 let ovOn = true;
 const ED = PU.mount($('host'), {
   THREE, world: WORLD, R, camera, ground, ray, cameras, rows,
@@ -355,6 +356,7 @@ function render(t) {
   renderer.render(scene, camera());
   const dt = performance.now() - t0;
   frames.push(dt); if (frames.length > 120) frames.shift();
+  lastInfo = { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles };
   $('stat').textContent = WORLD.id + ' · ' + size + ' m · ' + R.stats.chunks + ' chunks';
 }
 requestAnimationFrame(tick);

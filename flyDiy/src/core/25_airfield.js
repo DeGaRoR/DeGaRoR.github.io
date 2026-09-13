@@ -296,6 +296,9 @@ function siteOnPad(x, z) {
 // them is pretended here.
 function siteOnFlat(aero, x, z) {
   if (!aero) return false;
+  // a premises strip knows its own flat: the record the editor composes carries flat(x, z)
+  // (the graded box), so its pattern walks on graded ground, not on HOME's pad
+  if (typeof aero.flat === 'function') return aero.flat(x, z);
   if (aero.kind === 'meadow')
     return Math.hypot(x - aero.x, z - aero.z) <= aero.r * 0.45;
   return siteOnPad(x, z);
