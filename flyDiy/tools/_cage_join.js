@@ -2473,8 +2473,45 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
                      zFloor: +flo[1].toFixed(3) };
       }
     } catch (e) {}
+    // G345: THE WEATHERING'S SOURCES, in the flown craft frame (x lateral,
+    // y aft, z up — the record's shape is aeroSetHoles's): every engine
+    // unit's exhaust exit and the pipe's direction where the engine layer
+    // publishes one, every wheel's axle with its radius, the tyre's
+    // half-width off the profile table, and which one is the third wheel.
+    // A direction goes through the same map with the origin subtracted
+    // out, so the bake's pitch turns it as it turns the points.
+    let weather = null;
+    try {
+      const o0 = vtx(0, 0, 0);
+      const pt = p => { const c = vtx(p[0], p[1], p[2]); return { x: +c[2].toFixed(4), y: +c[0].toFixed(4), z: +c[1].toFixed(4) }; };
+      const dir = d => { const c = vtx(d[0], d[1], d[2]); const v = [c[2] - o0[2], c[0] - o0[0], c[1] - o0[1]];
+        const l = Math.hypot(v[0], v[1], v[2]) || 1; return { dx: +(v[0] / l).toFixed(4), dy: +(v[1] / l).toFixed(4), dz: +(v[2] / l).toFixed(4) }; };
+      const exhaust = [], wheels = [], engines = [];
+      const E = window.CAGE_ENG;
+      for (const u of (E && E.units) || []) {
+        if (!u.exhaustAt) continue;
+        exhaust.push(Object.assign(pt(u.exhaustAt), u.exhaustDir ? dir(u.exhaustDir) : { dx: 0, dy: 1, dz: 0 }));
+      }
+      // the thrust lines, for the cowl's cylindrical read
+      const CL = window.CAGE_COWL;
+      for (const u of (E && E.units) || []) {
+        if (!u.at) continue;
+        engines.push(Object.assign(pt(u.at), { r: 0.8, len: (CL && +CL.len > 0) ? +(+CL.len + 0.3).toFixed(3) : 1.3 }));
+      }
+      const G3 = window.CAGE_GEAR, GG = window.GEAR_GEN, PU = window.CAGE_UI && window.CAGE_UI.P;
+      const prof = (GG && GG.TYRE && GG.TYRE[Math.round((PU && PU.whProfile) || 0)]) || { hw: 0.40 };
+      for (const c of (G3 && G3.contacts) || []) {
+        if (!c.p) continue;
+        const R = c.R || (c.st && c.st.R) || 0.2;
+        wheels.push(Object.assign(pt(c.p), { R: +R.toFixed(4), hw: +(R * prof.hw).toFixed(4),
+                                            kind: (c.st && c.st.leg === 3) ? 'T' : 'M' }));
+      }
+      if (exhaust.length || wheels.length)
+        weather = { exhaust, wheels, engines, floor: footwell ? footwell.zFloor : null };
+    } catch (e) {}
     return { cage: true, groups, mats, off, pitch: beta, parts,
-             zRoot: 0, surfaces: null, cageM, people, lights, tailRef, mainsRef, footwell, holes };
+             zRoot: 0, surfaces: null, cageM, people, lights, tailRef, mainsRef, footwell, holes,
+             weather };
   };
   // ...and the view comes back, on the way out or on the way to a throw.
   const snapshot = spec => {

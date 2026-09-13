@@ -2593,6 +2593,15 @@ const EM = (() => {
         // the tailpipe ends in a flared lip, so its aft-most vertices sit
         // outboard of the pipe's centre by the lip's own radius.
         (ports.exhaustOut || (ports.exhaustOut = [])).push(outEnd.slice());
+        // ...AND WHICH WAY IT POINTS (G345): the tailpipe's last run, from
+        // the collector's aft end to the outlet, as a unit vector in this
+        // frame (z forward). The soot plume leaves along it before the
+        // slipstream takes it aft; nothing could read that off the mesh.
+        {
+          const dv = [outEnd[0] - colX, outEnd[1] - colY, outEnd[2] - (zMin - 0.5 * b)];
+          const dl = Math.hypot(dv[0], dv[1], dv[2]) || 1;
+          (ports.exhaustDir || (ports.exhaustDir = [])).push(dv.map(v => v / dl));
+        }
         const pC = fillet([[colX, colY, zMax + 0.3 * b],
                            [colX, colY, zMin - 0.5 * b],
                            outEnd], 1.0 * b);

@@ -98,7 +98,7 @@ const GATES = [
   // AEROSKIN (G67): the declared finish + role tables against the cage's own
   // section list, and the r128 constraints the shader stands on
   { id: 'SKINMAT', file: 'test_skinmat.js', tier: 'core' },
-  // THE WEATHERING (G343): the module's GLSL rules, its tables, its load order
+  // THE WEATHERING (G345): the module's GLSL rules, its tables, its load order
   { id: 'WEATHER', file: '_weather_check.js', tier: 'core' },
   // THE SURFACE FIELD (G66): the coordinate AEROSKIN tiles and structures on
   { id: 'SURF', file: '_surf_check.js', tier: 'core' },

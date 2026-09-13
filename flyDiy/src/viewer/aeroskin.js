@@ -646,7 +646,7 @@ const AERO_HARD = {
     // the controls' fittings (the panel arc, session 4e): a rubber grip and
     // boot, plated pins and collars, cast brackets, leather horns, a red button
     grip: 'rubberGrip', boot: 'rubberGrip', plated: 'chrome', cast: 'castAlu', hide: 'hide', ptt: 'plasticScr',
-    seatAlu: 'bareAlu',           // G332: the seats' tube frame, drawn alloy
+    seatAlu: 'bareAlu',           // G345: the seats' tube frame, drawn alloy
     ball: 'plasticScr', tread: 'rubberGrip', plateAl: 'panelMetal',
     marker: null,
   },
@@ -1566,6 +1566,14 @@ function aeroDecalImageFrom(THREE, page, dataURL, cb) {
 // the same page, so the editor's marking and its wear arrive on the flown
 // build without travelling through anything.
 let AERO_DEC = null;
+// THE WEATHERING MODULE (G345), read when asked and never at load: a page
+// that loads aeroskin.js without aeroweather.js gets no weathering and no
+// error. It MUST load before this file where it loads at all — r128 keys
+// the program on the hook's source, so a late module would leave later
+// materials on the weather-less program under the same key.
+// ...and a page may switch it OFF for one load (window.AEROWX_OFF, the bench's
+// ?nowx) — the program key is the hook's source, so the choice is per LOAD
+function aeroWx() { return (typeof AEROWX !== 'undefined' && !(typeof window !== 'undefined' && window.AEROWX_OFF)) ? AEROWX : null; }
 function aeroSharedU(THREE) {
   if (AERO_DEC) return AERO_DEC;
   const z4 = () => Array.from({ length: AERO_MAXD },
@@ -1598,14 +1606,16 @@ function aeroSharedU0(THREE, z4) {
     // reason the decal list is shared.
     uCraftInv: { value: new THREE.Matrix4() },
     uInset: { value: 0.02 },
-    // THE CONDITION OF THE AEROPLANE (G70). One number the player sets, and
-    // three vectors that say WHERE it lands — measured off the build, never
-    // painted by hand. See THE WEAR below.
-    uWear:  { value: new THREE.Vector4(0, 0, 0, 0) },
-    //        x amount 0..1  y grime gain  z fade gain  w streak gain
-    uWearE: { value: new THREE.Vector4(0, 0, -1, 0) },   // exhaust streak
-    uWearS: { value: new THREE.Vector4(0, 0, -1, 0) },   // gear splash
-    //        x sL origin  y sC origin  z run (m, +aft; <0 = off)  w half-width
+    // THE WEATHERING (G345, src/viewer/aeroweather.js). uWear carries the
+    // FOUR MACROS now — x age, y flight, z bush, w rain — and the module
+    // owns it, with the layers, the palette, the sources and the grunge
+    // sheet, all spread in here so one write reaches every material. G70's
+    // two field-space streak sources are gone: the plumes and the wheels are
+    // craft-space sources in that block. Without the module (a bench that
+    // does not load it) uWear still exists, and nothing reads it but the LE
+    // wash-out.
+    ...(aeroWx() ? aeroWx().aeroWxSharedU(THREE)
+                 : { uWear: { value: new THREE.Vector4(0, 0, 0, 0) } }),
     // THE DISPLAY GAINS (G206), and there are THREE because one was the
     // waffle. uGGain was a single x4 over every gradient the grammar summed,
     // justified for the TAPE (a 0.6 deg slope is invisible and a real tape
@@ -1670,16 +1680,14 @@ const aeroDecUniforms = aeroSharedU;    // the name G69 wrote it under
 // The hardware (gear, engine, cowl, cabin) takes the first three: it has no
 // field to run a streak along, and an engine's own filth is the exhaust
 // finish's `wearK`, which ages it faster than the airframe it hangs on.
+// G345: a SHIM. The one dial meant "flown and aged together", which is the
+// two macros age and flight; the sources are aeroweather's now. Kept so an
+// older caller still moves the aeroplane, and so the name survives in the
+// exports the gates read.
 function aeroSetWear(THREE, o) {
-  const U = aeroSharedU(THREE);
+  aeroSharedU(THREE);
   const w = Math.max(0, Math.min(1, (o && o.amount) || 0));
-  U.uWear.value.set(w, (o && o.grime != null) ? o.grime : 1,
-                       (o && o.fade  != null) ? o.fade  : 1,
-                       (o && o.streak != null) ? o.streak : 1);
-  const src = (v, d) => (d && d.length === 4)
-    ? v.set(d[0], d[1], d[2], d[3]) : v.set(0, 0, -1, 0);
-  src(U.uWearE.value, o && o.exhaust);
-  src(U.uWearS.value, o && o.splash);
+  if (aeroWx()) aeroWx().aeroWxSetMacro(THREE, { age: w, flight: w });
 }
 
 // THE LIST IS THE STATE. Callers hand over what the aeroplane wears; this
@@ -2335,10 +2343,14 @@ uniform float uAlb;        // how much the detail modulates the albedo
 // xy is deliberately NOT re-swapped: wood sheets carry nrm 0.30 of an
 // already-flat veneer map, and the error is below anything the eye finds.
 uniform float uDetRot;
-uniform vec4 uWear;        // x amount 0..1  y grime  z fade  w streak
-uniform vec4 uWearE;       // exhaust streak: sL, sC, run m (<0 off), half-width
-uniform vec4 uWearS;       // gear splash:    sL, sC, run m (<0 off), half-width
+uniform vec4 uWear;        // THE FOUR MACROS (G345): x age  y flight  z bush  w rain
 uniform float uWearK;      // how fast THIS material ages; 1.0 = the airframe
+// written by the weathering block (aeroweather.js) and spent after it: the
+// cover the clear coat loses, and what the grammar reports of its own
+// cavities (rivet flanks, tape edges, seams) and its sag valleys
+float aeroWxCov = 0.0;
+float aeroCav = 0.0;
+float aeroDep = 0.0;
 // BOX-MAPPED DETAIL (G113.3, the user: "I would much rather have some box
 // mapping for the slabs... we cannot rely on geometry for the mapping of
 // these parts, but they are also very flat"). uBoxDet mixes the detail
@@ -2423,25 +2435,6 @@ float aeroNear(float x, float p) {
 // other one wins by construction.
 float aeroNearer(float a, float b) {
   return (abs(a) < abs(b)) ? a : b;
-}
-
-// A STREAK IS A SOURCE AND A RUN (G70), not a smudge somebody placed. The
-// second argument is the source in the surface field — where the exhaust actually exits, where
-// the wheel actually throws — and the trail runs AFT from it in metres,
-// widening and thinning as it goes, which is what soot on a flank does.
-// Everything here is metric, so it does not change when the aeroplane does.
-//
-// The early return is UNIFORM-SAFE: it contains no texture fetch, so no
-// derivative depends on it. That is the rule the decal loop was written to
-// (see THE LOOP IS UNIFORM) and it is worth restating rather than
-// rediscovering — the sampling for a streak's break-up happens outside.
-float aeroStreak(vec2 m, vec4 s) {
-  if (s.z <= 0.0) return 0.0;                 // this source is not declared
-  float t = (m.x - s.x) / s.z;
-  if (t < 0.0 || t > 1.0) return 0.0;
-  float wid = s.w * (0.55 + 0.85 * t);        // the plume spreads as it goes
-  float d = (m.y - s.y) / max(wid, 1e-4);
-  return exp(-d * d) * (1.0 - t) * smoothstep(0.0, 0.10, t);
 }
 
 // THE LARGE-SCALE FIELD (G206, the user: "something like a musgrave texture
@@ -2579,6 +2572,7 @@ vec3 aeroStructure(vec2 m, inout float rgh) {
       float t = fract(vSurf.z), sg = sin(PI2 * t);
       dS.x -= leK * uG1.z * uG1.w * pow(max(sg, 1e-4), uG1.w - 1.0)
             * cos(PI2 * t) * PI2;
+      aeroDep = max(aeroDep, leK * pow(max(sg, 1e-4), uG1.w));   // G345
     }
     // MEMBER SCREWS (G214) along the real rings and rails of the BODY: the
     // same stamp discipline as the rivet rows (a head smaller than a pixel
@@ -2654,11 +2648,13 @@ vec3 aeroStructure(vec2 m, inout float rgh) {
       float t = fract(m.x / uG0.x), s = sin(PI * t);
       dS.x -= uG1.z * uG0.x * uG1.w * pow(max(s, 1e-4), uG1.w - 1.0)
             * cos(PI * t) * PI / uG0.x;
+      aeroDep = max(aeroDep, pow(max(s, 1e-4), uG1.w));   // G345
     }
     if (uG0.y > 0.0) {
       float t = fract(m.y / uG0.y), s = sin(PI * t);
       dS.y -= uG1.z * uG0.y * uG1.w * pow(max(s, 1e-4), uG1.w - 1.0)
             * cos(PI * t) * PI / uG0.y;
+      aeroDep = max(aeroDep, pow(max(s, 1e-4), uG1.w));   // G345
     }
   }
 
@@ -2733,6 +2729,7 @@ vec3 aeroStructure(vec2 m, inout float rgh) {
     float ramp = max(uG3.x * 0.5, fw * 1.5);
     if (uG0.z > 0.0 && abs(dpA) < ramp) dH.x -= uG3.y / ramp;
     rgh += uG3.w * (exp(-dpA * dpA / w2) + runFwd * exp(-dpB * dpB / w2));
+    aeroCav += 0.8 * (exp(-dpA * dpA / w2) + runFwd * exp(-dpB * dpB / w2));   // G345
   }
   // THE MOULD PARTING LINE, and it needs no pitch at all: a moulded fuselage
   // splits at the waterline, and the waist rail IS sC = 0.
@@ -2787,6 +2784,10 @@ vec3 aeroStructure(vec2 m, inout float rgh) {
   // covering does between members (near 1: those numbers were honest and
   // were quadrupled), uGain.z the large-scale field. All three are the lab's.
   }
+  // THE CAVITY (G345): the slope magnitude of what the members print is a
+  // ring round every rivet head and a line along every tape edge and lap —
+  // exactly where dirt gathers. The weathering block reads it.
+  aeroCav = clamp(aeroCav + 6.0 * length(dH * gn.x + dS * gn.y), 0.0, 1.0);
   return normalize(vec3(-(dH.x * gn.x + dS.x * gn.y + dF.x * gn.z),
                          (dH.y * gn.x + dS.y * gn.y + dF.y * gn.z),
                          1.0));
@@ -2853,9 +2854,6 @@ const AERO_ALBEDO_FS = `
   float aeroDecR = 0.0;
   float aeroDecM = 0.0;      // G215: how much of the pixel a METALLIC marking covers
   float aeroD = 0.0;
-  // the wear masks, declared here and spent in the surface pass below:
-  // grime, sun chalking, exhaust soot, wheel splash
-  float aeroWG = 0.0, aeroWF = 0.0, aeroWS = 0.0, aeroWM = 0.0;
   #if AEROSKIN_SURF == 1
     // MIXED, never branched: a branch around texture2D makes the mip level
     // undefined, which is this file's oldest shader rule.
@@ -3018,77 +3016,9 @@ const AERO_ALBEDO_FS = `
         (1.0 - smoothstep(0.0, uG4.z, max(vSurf.y * uFieldM, 0.0))) * 0.30
         * clamp(uWear.x * uWearK / 0.35, 0.0, 1.0));
   #endif
+  // THE WEATHERING itself (G345) runs at the tail of the SURFACE pass, where
+  // the grammar's cavity and the perturbed normal exist — see aeroweather.js.
 
-  // ---- THE WEAR (G70), and it goes on LAST, over the paint and over the
-  // markings alike — because dirt does. A registration that stayed clean on
-  // a filthy aeroplane would read as a sticker applied this morning, which
-  // is occasionally true and never what a 400-hour aeroplane looks like.
-  //
-  // The branch is on UNIFORMS ONLY (the dial and this material's own rate),
-  // so it is uniform across the draw call and the fetch inside it is legal.
-  // It also means a factory-fresh aeroplane pays nothing at all.
-  //
-  // aeroWA, NOT aeroW: the triplanar branch of the surface pass declares its
-  // own vec3 aeroW for the whiteout weights, and these two blocks are inlined
-  // into the SAME function scope — so the first name collided, and the
-  // failure was a redefinition plus nine bogus "field selection requires a
-  // vector" errors pointing at code that had not changed. A shared scope is
-  // the price of injecting into three's main(), and every local in here has
-  // to be read as if it were global.
-  float aeroWA = uWear.x * uWearK;
-  if (aeroWA > 0.0) {
-    // GRIME IS A THIN FILM EVERYWHERE AND A THICK ONE IN THE VALLEYS. aeroD
-    // is the detail sheet's own height-riding channel, so the second half is
-    // dirt at the material's own scale for free — a weave holds it, a
-    // polished spinner has nowhere to hold it.
-    //
-    // THE VALLEY TERM IS SCALED OFF THE SHEET'S OWN CONSTRUCTION, and getting
-    // that wrong is why the first cut did nothing. aeroDetailTex writes
-    // 0.80 + 0.20*h*bs, so 0.80 is the MEAN and the excursion is a couple of
-    // hundredths, not a couple of tenths: a mask of (0.86 - aeroD) * 3 could
-    // never exceed 0.25, and on a black tyre 25 % of an effect is invisible.
-    // Measured, not guessed — the tyre moved 14 -> 16 out of 255.
-    float aeroVal = clamp((0.80 - aeroD) * 25.0, 0.0, 1.0);
-    aeroWG = clamp((0.35 + 0.65 * aeroVal) * uWear.y * aeroWA, 0.0, 1.0);
-    // CHALKING IS SUN DAMAGE, so it is on what faces the sun. vObjNrm is the
-    // object normal and every one of these frames is y-up (the cage, the
-    // wing, the tail and the model frame alike), so this needs no uniform.
-    float up = clamp(normalize(vObjNrm).y, 0.0, 1.0);
-    // clamped for the same reason as the grime: a material with a high rate
-    // (an exhaust at 2.2) would otherwise drive every downstream mix past 1
-    aeroWF = clamp(up * up * uWear.z * aeroWA, 0.0, 1.0);
-    #if AEROSKIN_SURF == 1
-      // THE BREAK-UP, sampled with the tile stretched hard along the body:
-      // a real streak is a bundle of fine trails, and a smooth gaussian
-      // plume is an airbrush. Stretched, not noised — same sheet, no
-      // second texture, and it stays the right size in metres.
-      float aeroBr = texture2D(tDetail,
-        vec2(aeroM.y * 2.5, aeroM.x * 0.12) / uTileM).b;
-      float aeroBk = (0.45 + 0.90 * aeroBr) * uWear.w * aeroWA;
-      aeroWS = clamp(aeroStreak(aeroM, uWearE) * aeroBk, 0.0, 1.0);
-      aeroWM = clamp(aeroStreak(aeroM, uWearS) * aeroBk, 0.0, 1.0);
-    #endif
-    // DUST IS A COLOUR, NOT A MULTIPLIER, and this was measured rather than
-    // reasoned: darkening by a factor made the paint dirty and left the TYRES
-    // untouched, because 30 % off something already black is nothing. Dirt is
-    // a pale powder — it darkens a light surface and LIGHTENS a dark one, and
-    // a grey tyre is one of the most recognisable signs of an aeroplane that
-    // lives outside. Mixing toward a fixed dust colour does both with one
-    // term. (Linear, like everything else at this point in the shader.)
-    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.100, 0.088, 0.072),
-                           0.35 * aeroWG);
-    // soot is nearly black; what a wheel throws up the belly is mud
-    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.045, 0.040, 0.036),
-                           0.72 * aeroWS);
-    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.130, 0.104, 0.076),
-                           0.60 * aeroWM);
-    // OXIDISED PAINT GOES MILKY, NOT GREY: toward a desaturated version of
-    // the colour it already is, and LIGHTER. Mixing toward grey instead is
-    // what makes a weathering pass look like a dust filter over the lens.
-    float aeroLum = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
-    diffuseColor.rgb = mix(diffuseColor.rgb,
-      mix(diffuseColor.rgb, vec3(aeroLum), 0.55) * 1.18, 0.50 * aeroWF);
-  }
 `;
 
 // THE SURFACE. Replaces normal_fragment_maps, which is where `normal` and
@@ -3189,18 +3119,6 @@ const AERO_SURFACE_FS = `
   }
 #endif
 
-// THE OTHER HALF OF THE WEAR (G70), common to both branches because none of
-// it needs a coordinate: the masks were computed in the albedo pass and this
-// is what they do to the surface.
-//
-// METAL DULLS, and that is the term that does the most work. Oxide, dust and
-// oil are DIELECTRICS, so a weathered bare-alloy cowl stops behaving like a
-// mirror and starts taking its colour from its own albedo instead of from
-// the sky. Without this, wear on a metal aeroplane is nearly invisible: the
-// environment map washes every albedo change straight out.
-roughnessFactor = clamp(roughnessFactor + 0.22 * aeroWG + 0.18 * aeroWF
-                        + 0.30 * (aeroWS + aeroWM), 0.02, 1.0);
-metalnessFactor *= 1.0 - 0.55 * max(aeroWG, max(aeroWS, aeroWM));
 `;
 
 // normalMatrix is declared in the FRAGMENT prefix only under
@@ -3214,6 +3132,9 @@ const AERO_NMAT_FS = 'uniform mat3 normalMatrix;\n';
 // (see the header), so every AEROSKIN material shares it by REFERENCE and the
 // build compiles one program per AEROSKIN_SURF value — two, not thirty.
 const AEROSKIN_HOOK = function (shader) {
+  // THE WEATHERING (G345): read here, at compile, and spliced in as text —
+  // the same text for every material, so the one-program rule holds
+  const W = aeroWx();
   const u = this.userData.aeroU;
   for (const k in u) shader.uniforms[k] = u[k];
   // the aeroplane-wide ones, BY REFERENCE: one write reaches every section
@@ -3225,9 +3146,14 @@ const AEROSKIN_HOOK = function (shader) {
              '#include <begin_vertex>\n' + AERO_MAIN_VS);
   shader.fragmentShader = shader.fragmentShader
     .replace('#include <common>',
-             AERO_NMAT_FS + AERO_PARS_FS + '\n#include <common>')
+             AERO_NMAT_FS + AERO_PARS_FS + (W ? W.AERO_WX_PARS_FS : '')
+             + '\n#include <common>')
     .replace('#include <map_fragment>', AERO_HOLE_FS + AERO_ALBEDO_FS)
-    .replace('#include <normal_fragment_maps>', AERO_SURFACE_FS)
+    .replace('#include <normal_fragment_maps>',
+             AERO_SURFACE_FS + (W ? W.AERO_WX_SURF_FS : ''))
+    // the clear coat loses what the dirt covers (G345)
+    .replace('#include <lights_physical_fragment>',
+             '#include <lights_physical_fragment>\n' + (W ? W.AERO_WX_CC_FS : ''))
     // THE CLEAR LAYER FOLLOWS THE RELIEF (G206). r128's own chunk puts the
     // clearcoat on geometryNormal — the smooth mesh — so varnish over a rib
     // tape would reflect the sky as if the tape were not there. A clear coat
@@ -3437,6 +3363,7 @@ const GLASS_DEF = {
 };
 
 const AEROGLASS_HOOK = function (shader) {
+  const W = aeroWx();                       // G345, as in AEROSKIN_HOOK
   const u = this.userData.aeroU;
   for (const k in u) shader.uniforms[k] = u[k];
   shader.vertexShader = shader.vertexShader
@@ -3444,7 +3371,10 @@ const AEROGLASS_HOOK = function (shader) {
     .replace('#include <begin_vertex>',
              '#include <begin_vertex>\n' + AERO_MAIN_VS);
   shader.fragmentShader = shader.fragmentShader
-    .replace('#include <common>', AERO_PARS_FS + '\n#include <common>')
+    .replace('#include <common>', AERO_PARS_FS + (W ? W.AERO_WX_PARS_FS : '')
+             + '\n#include <common>')
+    .replace('#include <lights_physical_fragment>',
+             '#include <lights_physical_fragment>\n' + (W ? W.AERO_WX_CC_FS : ''))
     .replace('#include <roughnessmap_fragment>', `
   float roughnessFactor = roughness;
   {
@@ -3482,6 +3412,9 @@ const AEROGLASS_HOOK = function (shader) {
         roughnessFactor += aeroGDirt * 0.35;
       }
     }
+    // THE WEATHERING ON THE PANE (G345): roughness and the clear coat,
+    // nothing on the albedo by table — spliced in as text, same for every pane
+    ` + (W ? W.AERO_WX_GLASS_FS : '') + `
     roughnessFactor = clamp(roughnessFactor, 0.0, 1.0);
   }`)
     .replace('#include <clearcoat_normal_fragment_begin>', `
@@ -3575,11 +3508,16 @@ function aeroGlassTint(THREE, o) {
   if (hit) return hit;
   const col = o.tintLin != null ? new THREE.Color(o.tintLin)
             : aeroLinear(THREE, o.tint != null ? o.tint : GLASS_DEF.tint);
+  const W = aeroWx();
   const m = new THREE.ShaderMaterial({
-    uniforms: { uTint: { value: col }, uA: { value: G('opacity') },
-                uFres: { value: G('fresnel') } },
-    vertexShader: AERO_GTINT_VS,
-    fragmentShader: AERO_GTINT_FS,
+    uniforms: Object.assign({ uTint: { value: col }, uA: { value: G('opacity') },
+                uFres: { value: G('fresnel') },
+                uWearK: { value: o.wear != null ? Math.max(0, Math.min(1, +o.wear)) : 1 } },
+      // G345: the shared block (the macros, the grunge) and the craft frame
+      W ? W.aeroWxSharedU(THREE) : {},
+      { uCraftInv: aeroSharedU(THREE).uCraftInv }),
+    vertexShader: W ? W.AERO_WX_GTINT_VS : AERO_GTINT_VS,
+    fragmentShader: W ? W.AERO_WX_GTINT_FS : AERO_GTINT_FS,
     transparent: true,
     depthWrite: false,
     side: THREE.FrontSide,
@@ -3862,6 +3800,8 @@ function aeroMaterial(THREE, o) {
     uFlake:    { value: Math.max(0, Math.min(1, +o.metalK || 0)) },
   });
   aeroGrammarU(THREE, U, o);
+  // the substrate under this finish's paint (G345): what a chip exposes
+  if (aeroWx()) aeroWx().aeroWxFinishU(THREE, U, o.finish);
   aeroFinishU(THREE, null, U, row, o);
   // ALPHA-TESTED CUT-OUTS ARE DELIBERATELY ABSENT. r128's getDepthMaterial
   // copies neither `map` nor `alphaTest` onto the depth variants, so an
@@ -3978,17 +3918,12 @@ function aeroGlass(THREE, o) {
   // dials are the floor an aeroplane leaves the factory with, and the years
   // are added on top. A pane with `wearM` 0 ages at nothing, exactly as a
   // section of the airframe does.
-  const wr = Math.max(0, Math.min(1, +o.wear || 0));
-  const G = k => {
-    const v = (o[k] != null ? +o[k] : GLASS_DEF[k]);
-    // G217: the years land on the HANDLING and the grime, and on nothing
-    // else — a pane that has been flown is smeared and dirty at its frame,
-    // not scored. Both ADD to the builder's own number rather than
-    // replacing it: the dials are the floor a pane leaves the factory with.
-    if (k === 'touch') return Math.min(1, v + wr * 0.55);
-    if (k === 'grime') return Math.min(1, v + wr * 0.70);
-    return v;
-  };
+  // G345: `wear` is the pane's own MULTIPLIER on the four macros (the
+  // section's `wear x`), a uniform the weathering block reads live — the
+  // G113.4 bake into touch/grime is gone, so a slider no longer rebuilds
+  // the pane and the flown glass weathers with the airframe.
+  const wr = Math.max(0, Math.min(1, o.wear != null ? +o.wear : 1));
+  const G = k => (o[k] != null ? +o[k] : GLASS_DEF[k]);
   const ext = o.ext || [0, 0, 0, 0];
   // EVERY DIAL JOINS THE KEY, or two panes with different settings silently
   // share one material — the pool is keyed on LOOK, and these are the look.
@@ -4000,7 +3935,7 @@ function aeroGlass(THREE, o) {
               ',' + G('refl') + ',' + G('rainbow') +
               '|' + G('rough') + ',' + G('ccR') + ',' + G('fresnel') +
               ',' + G('diffuse') +
-              '|' + wr.toFixed(3) +
+              '|' + wr.toFixed(3) + 'S' + (o.screen ? 1 : 0) +
               '|' + ext.map(v => (+v).toFixed(3)).join(',') +
               '|' + (o.fieldM != null ? o.fieldM : 1);
   const hit = AERO_POOL.get(key);
@@ -4012,8 +3947,10 @@ function aeroGlass(THREE, o) {
     uDetail: { value: new THREE.Vector2(0.14, 1) },
     uAlb:    { value: 0 },
     // G217: x the handling smear, y spare, z the edge grime, w the rainbow
-    uGlass:  { value: new THREE.Vector4(G('touch'), 0,
+    // G345: y = 1 on the WINDSCREEN (the pane the pilot looks through)
+    uGlass:  { value: new THREE.Vector4(G('touch'), o.screen ? 1 : 0,
                                         G('grime'), G('rainbow')) },
+    uWearK:  { value: wr },
     uGlassE: { value: new THREE.Vector4(ext[0], ext[1], ext[2], ext[3]) },
     uGlassB: { value: new THREE.Vector4(G('fresnel'), G('diffuse'), 0, 0) },
   };
@@ -4062,6 +3999,10 @@ function aeroGlass(THREE, o) {
   });
   m.extensions = { derivatives: true };
   m.userData.aeroU = U;
+  // G345: the pane reads the aeroplane-wide block (the macros, the sources,
+  // the grunge) like every other material
+  m.userData.aeroD = aeroSharedU(THREE);
+  if (aeroWx()) aeroWx().aeroWxFinishU(THREE, U, 'glass');
   m.userData.aeroskin = 1;
   m.userData.aeroFinish = 'glass';
   // G216: WHAT THIS PANE IS, for the join — the six builder dials, the
@@ -4428,6 +4369,7 @@ if (typeof window !== 'undefined')
                       AERO_HARD, AERO_PROP_FIN, AERO_WEAR_K,
                       AERO_SEC, aeroSecResolve,
                       aeroHardFinish, aeroHardMat, aeroHardOn, aeroSetWear,
+                      aeroSharedU,          // G345: uCraftInv for the sources
                       // THE LAB (G206)
                       AERO_LAB, AERO_LAB_FIELDS, AERO_LAB_GRAM, AERO_LAB_GAIN,
                       AERO_LAB_GLASS, AERO_FINISH_DEF, AERO_GAIN_DEF,

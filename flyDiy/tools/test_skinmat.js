@@ -629,38 +629,54 @@ for (const k of Object.keys(A.AERO_WEAR_K))
 // reason section 3's are: each failure is silent at runtime.
 check(/uniform vec4 uWear;/.test(SRC) && /uniform float uWearK;/.test(SRC),
   'the wear uniforms are not declared in the fragment prelude');
-check(/uWear:\s*\{\s*value/.test(SRC) && /uWearE:\s*\{\s*value/.test(SRC),
-  'the wear uniforms are not in the shared (aeroplane-wide) block');
+check(/uWear:\s*\{\s*value/.test(SRC),
+  'the macros are not in the shared (aeroplane-wide) block');
 check(/uWearK:\s*\{\s*value/.test(SRC),
   'the per-material wear rate is not a per-material uniform');
-// THE BRANCH MUST BE ON UNIFORMS ONLY. `aeroW` is the dial times this
-// material's rate — both uniforms — so the whole quad takes the same path and
-// the texture fetch inside it has defined derivatives. A branch on anything
-// varying would put texture2D in divergent flow, which is the trap the decal
-// loop is written around and which shows up only as a crawling edge.
-check(/float aeroWA = uWear\.x \* uWearK;/.test(SRC) &&
-      /if \(aeroWA > 0\.0\) \{/.test(SRC),
-  'the wear branch is not on uniforms alone');
-// the streak helper takes its source as a parameter and returns 0 for an
-// undeclared one, so an aeroplane with no exhaust measured gets no streak
-check(/float aeroStreak\(vec2 m, vec4 s\) \{/.test(SRC),
-  'aeroStreak is not the declared source-and-run helper');
-check(/if \(s\.z <= 0\.0\) return 0\.0;/.test(SRC),
-  'an undeclared wear source does not answer "no streak"');
-// and metalness must fall with wear, or weathering is invisible on every
-// metal aeroplane: the environment map washes an albedo change straight out
-check(/metalnessFactor \*= 1\.0 - 0\.55 \* max\(aeroWG/.test(SRC),
-  'wear does not dull metalness');
+// G345: THE WEATHERING IS THE MODULE'S (src/viewer/aeroweather.js), spliced
+// into the hooks AT COMPILE and read lazily, never at load. What this file
+// must still do: declare the macros and the rate, read the module through
+// one helper, splice its three blocks in the right places, report the
+// grammar's own cavity, hand the glass the shared block and a per-pane
+// multiplier, and carry NONE of G70's field-space streaks. GATE WEATHER
+// holds the module's own rules; these are the hook points.
+check(/function aeroWx\(\) \{ return \(typeof AEROWX !== 'undefined' && !\(typeof window !== 'undefined' && window\.AEROWX_OFF\)\) \? AEROWX : null; \}/.test(SRC),
+  'aeroskin does not read the weathering module lazily (a bench without it must run)');
+check((SRC.match(/const W = aeroWx\(\);/g) || []).length >= 2,
+  'the hooks do not read the module at compile (skin AND glass)');
+check(/AERO_SURFACE_FS \+ \(W \? W\.AERO_WX_SURF_FS : ''\)/.test(SRC),
+  'the weathering block is not spliced at the tail of the surface pass');
+check((SRC.match(/'#include <lights_physical_fragment>\\n' \+ \(W \? W\.AERO_WX_CC_FS : ''\)/g) || []).length >= 2,
+  'the clear coat does not lose the cover (skin AND glass)');
+check(/AERO_PARS_FS \+ \(W \? W\.AERO_WX_PARS_FS : ''\)/.test(SRC),
+  'the module prelude is not spliced into the fragment prelude');
+check(!/aeroStreak|uWearE|uWearS|aeroWG|aeroWS\b/.test(CODE),
+  'G70 field-space streaks are back — the plumes are craft-space sources now');
+check(/float aeroWxCov = 0\.0;/.test(SRC) && /float aeroCav = 0\.0;/.test(SRC)
+      && /float aeroDep = 0\.0;/.test(SRC),
+  'the weathering globals are not declared in the prelude');
+check(/aeroCav = clamp\(aeroCav \+ 6\.0 \* length\(dH \* gn\.x \+ dS \* gn\.y\), 0\.0, 1\.0\);/.test(SRC),
+  'aeroStructure does not report its cavity (rivet flanks, tape edges, seams)');
+check((SRC.match(/aeroDep = max\(aeroDep,/g) || []).length >= 3,
+  'aeroStructure does not report its sag valleys');
 {
-  // the sources are placed in the SURFACE FIELD, so the streaks are on the
-  // fuselage and the flying surfaces only — the hardware has no coordinate
-  // to run them along and must not pretend to
-  const surfOnly = SRC.slice(SRC.indexOf('float aeroWA = uWear.x'));
-  const seg = surfOnly.slice(0, surfOnly.indexOf('}\n`'));
-  const iS = seg.indexOf('aeroWS =');
-  const iG = seg.indexOf('#if AEROSKIN_SURF == 1');
-  check(iG >= 0 && iS > iG,
-    'the streaks are computed outside the surface-field branch');
+  // the glass: the shared block, a per-pane multiplier, no bake of the years
+  const g0 = SRC.indexOf('function aeroGlass(THREE, o)');
+  const gs = SRC.slice(g0, SRC.indexOf('\n}\n', g0));
+  check(/m\.userData\.aeroD = aeroSharedU\(THREE\);/.test(gs),
+    'the glass does not read the shared block — the flown pane cannot weather');
+  check(/uWearK:\s*\{\s*value: wr \}/.test(gs),
+    'the glass has no per-pane multiplier uniform');
+  check(!/wr \* 0\.55|wr \* 0\.70/.test(gs),
+    'the glass still bakes the years into touch/grime (a slider would rebuild the pane)');
+  check(/'S' \+ \(o\.screen \? 1 : 0\)/.test(gs),
+    'the windscreen flag is not in the glass pool key');
+}
+{
+  // the module stamps nothing on userData: the join census stays whole
+  const WX = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'aeroweather.js'), 'utf8');
+  check(!/userData\.aero/.test(WX),
+    'aeroweather.js stamps material.userData — the JOIN CENSUS would have to learn it');
 }
 
 // ---------------------------------------------------------------------------
@@ -899,12 +915,13 @@ if (process.argv.includes('--selftest')) {
       () => ['tyre', '__gone__'].filter(n => !['tyre'].includes(n)).length > 0],
     ['a blade material that fell off the end of the map',
       () => ![ 'ply', 'ply' ][2]],
-    ['a wear branch on a varying',
-      () => !/float aeroWA = uWear\.x \* uWearK;/.test('float aeroWA = vSurf.x;')],
-    ['a streak with no source check',
-      () => !/if \(s\.z <= 0\.0\) return 0\.0;/.test('float aeroStreak() { return 1.0; }')],
-    ['wear that leaves metalness alone',
-      () => !/metalnessFactor \*= 1\.0 - 0\.55/.test('metalnessFactor *= 1.0;')],
+    // G345
+    ['a hook that ignores the weathering module',
+      () => !/AERO_SURFACE_FS \+ \(W \? W\.AERO_WX_SURF_FS : ''\)/.test('.replace(x, AERO_SURFACE_FS)')],
+    ['a G70 streak that came back',
+      () => /aeroStreak|uWearE/.test('float aeroStreak(vec2 m, vec4 s) {')],
+    ['a glass that bakes the years',
+      () => !!(/wr \* 0\.55|wr \* 0\.70/.test('return Math.min(1, v + wr * 0.55);'))],
   ];
   let caught = 0;
   for (const [nm, f] of probes) {
@@ -1002,7 +1019,10 @@ if (process.argv.includes('--selftest')) {
   // measured from the room's origin while the flown one is measured from the
   // aeroplane's, 2.59 m away on the stock build. The mount is the join's own
   // (CAGE_JOIN.mount), which is the frame the payload is baked in.
-  check(/aeroSetCraft\(THREE, mnt\.matrixWorld/.test(UI),
+  // G345: the mount's matrix when there is a mount, the identity on a bench
+  // page that has none (its aeroplane is at the origin) — never the room's
+  check(/if \(mnt\) \{ mnt\.updateWorldMatrix\(true, false\); mw = mnt\.matrixWorld; \}/.test(UI) &&
+        /aeroSetCraft\(THREE, mw,/.test(UI),
         'projector: the editor never tells AEROSKIN where the craft is');
   check(/CAGE_JOIN\.mount\(\)/.test(UI) && /mount: joinMount/.test(
           fs.readFileSync(path.join(ROOT, 'tools', '_cage_join.js'), 'utf8')),
@@ -1538,13 +1558,17 @@ if (process.argv.includes('--selftest')) {
 
   // ---- D. THE GLAZING TAKES ITS YEARS ------------------------------------
   // G70: "glass takes no wear", and G113.2 shipped the dials still saying so.
-  // The condition ADDS to the builder's own numbers rather than replacing
-  // them: the dials are the floor an aeroplane leaves the factory with.
-  check(/if \(k === 'touch'\) return Math\.min\(1, v \+ wr \* 0\.55\);/.test(SK),
-        'glazing: the condition dial does not age the handling, or it ' +
-        'REPLACES the number the builder set instead of adding to it');
-  check(/if \(k === 'grime'\)\s+return Math\.min\(1, v \+ wr \* 0\.70\);/.test(SK),
-        'glazing: the condition dial does not age the grime');
+  // G113.4 baked the years into touch/grime at build; G345 replaced the bake
+  // with a LIVE per-pane multiplier (uWearK) on the four macros, read by the
+  // weathering block through the shared uniform block — so a slider no
+  // longer rebuilds the pane, and the flown pane weathers with the airframe.
+  // The builder's dials are still the floor: the block ADDS to them.
+  check(/uWearK:\s*\{\s*value: wr \}/.test(SK),
+        'glazing: the pane has no per-pane multiplier uniform on the macros');
+  check(/m\.userData\.aeroD = aeroSharedU\(THREE\);/.test(SK.slice(SK.indexOf('function aeroGlass(THREE, o)'))),
+        'glazing: the pane does not read the shared block — the flown pane cannot weather');
+  check(!/if \(k === 'touch'\) return Math\.min\(1, v \+ wr/.test(SK),
+        'glazing: the years are baked into the handling again (a slider would rebuild the pane)');
   // and only those two: years do not change what colour a pane was tinted,
   // nor how strongly the room reflects in it
   for (const k of ['refl', 'rainbow', 'opacity'])
@@ -1555,7 +1579,8 @@ if (process.argv.includes('--selftest')) {
         'glazing: the wear is not in the pool key — two panes at different ' +
         'ages would share one material');
   // the pane keeps its own multiplier, exactly as every airframe section does
-  check(/wear: \(WEAR\.amount \|\| 0\) \*\s*\(secWear\[name\] != null \? secWear\[name\] : 1\)/
+  // G345: the multiplier alone — the macros reach the pane as uniforms
+  check(/wear: \(secWear\[name\] != null \? secWear\[name\] : 1\)/
           .test(UI4),
         'glazing: the pane cannot opt out of the years — its own wear ' +
         'multiplier is not applied');
@@ -1585,9 +1610,9 @@ if (process.argv.includes('--selftest')) {
       ['a reframe that converts by arithmetic',
         () => !/o\.geometry\.attributes\.aStruct/
                 .test('DEC[keys.l] += FIREWALL_OFFSET;')],
-      ['wear that REPLACES the number the builder set',
-        () => !/return Math\.min\(1, v \+ wr \* 0\.55\);/
-                .test("if (k === 'touch') return wr * 0.55;")],
+      ['a pane with no multiplier on the macros',
+        () => !/uWearK:\s*\{\s*value: wr \}/
+                .test("uGlass: { value: new THREE.Vector4(G('touch'), 0, G('grime'), G('rainbow')) },")],
       ['wear left out of the glass pool key',
         () => !/'\|' \+ wr\.toFixed\(3\)/
                 .test("const key = 'glass|' + o.tint + '|' + G('opacity');")],
@@ -1595,7 +1620,7 @@ if (process.argv.includes('--selftest')) {
         () => /k === 'refl'\) return Math\.min\(1, v \+ wr/
                 .test("if (k === 'refl') return Math.min(1, v + wr * 0.4);")],
       ['a pane that cannot opt out of the years',
-        () => !/secWear\[name\]/.test('wear: (WEAR.amount || 0),')],
+        () => !/secWear\[name\]/.test('wear: 1,')],
     ];
     let caught = 0;
     for (const p of probes) {

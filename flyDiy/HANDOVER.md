@@ -42248,3 +42248,182 @@ futureDesigns/SHOULDER-2026-09-13.md; the proof of concept and its bench
   of 3.2 cm); a longer arm wants a deeper pocket or the pivot in the
   skin; the escutcheon is the crew's, not the shoulder's (it does not
   explode with the door).
+
+## G345 — THE WEATHERING, LAYER BY LAYER: FOUR MACROS (AGE · FLIGHT · BUSH · RAIN) OVER TWENTY-FOUR LAYERS PLACED FROM THE REAL EXHAUSTS AND WHEELS IN CRAFT SPACE, A BENCH THAT MEASURES EVERY LAYER, THE CONDITION DIAL RETIRED, THE FLOWN AEROPLANE FINALLY WEATHERED (2026-09-13)
+
+The user: "big work on materials. I want to revamp the weathering system
+completely" — a list of eighteen effects (exhaust at the actual exhaust, belly
+dirt, mud from the wheels, insects on every forward face, dirt in depressions,
+edge peel, edge rust, decolouring, dirt from the top, roughness on all,
+grunge, a multi-layer dirt palette, scratches and impacts, corners, dirt
+around every rivet and on the cowl's seams, longitudinal streaks), "fine
+sliders for all of this, but I'll simplify afterwards" into four groups —
+age wear / normal flight / bush flying / rain — "for now it can only be
+groupings for sliders, but later it could be triggered according to the
+landed airports". Retire the fresh-to-old slider. Glass: "mostly roughness";
+and "stuff you put on the glass very easily becomes unreadable and annoying
+speckles. Let's be rigorous." Interior: edge chipping is the key. "No shiny
+dirt and mud!" Canonical: `futureDesigns/WEATHERING-2026-09-13.md`.
+
+THE TSL QUESTION, ANSWERED FIRST. The user asked whether to wait for the TSL
+move. ROADMAP puts W0.5a (r128 → current, still WebGL) NEXT and W0.5b (TSL)
+after it, conditional. We went now, because ~80 % of this arc is
+renderer-independent (tables, macros, sources, join, spec, rows, gate,
+bench) and the GLSL is one hook's worth in one module of pure functions of
+(craft pos, craft nrm, field coords, sheet samples) — one Fn-node port. The
+bench's pixel measurement with stored reference shots makes W0.5a's
+recalibration a table edit. What that made mandatory: the separate module,
+every number a table entry, the GLSL leaning on three r128 chunk facts only
+(`geometryNormal`, `material.clearcoat`, `faceDirection`).
+
+WHAT LANDED:
+- `src/viewer/aeroweather.js` (new, loads BEFORE aeroskin.js — build.js
+  manifest, the three benches that load aeroskin, and GATE WEATHER holds it):
+  `AERO_WX_LAYERS` (24 layers × four coefficients), `AERO_WX_COL` (the
+  palette with each dirt's roughness floor), `AERO_WX_KNOB`, `AERO_WX_SUB`
+  (the substrate a chip exposes, per finish — every finish has a row, the
+  gate says so), the resolver (`aeroWxResolve` — clamp(Σ macro × coeff),
+  pins for the bench), the shared uniform block spread into aeroskin's
+  (`uWear` is the module's now: x age y flight z bush w rain), the grunge
+  sheet (`aeroWxGrunge`, tileable, four channels, node-safe), the sources
+  (`aeroWxSetSources`: ≤ 4 exhausts as point + blown direction, ≤ 6 wheels
+  as contact + R + tyre half-width + kind), the lab store (`flydiy.aeroWx`,
+  deviations only, JSON export), the pure spec keeper
+  (`aeroWxMacroFromSpec`: `finish.weather`, or an old build's `finish.wear`
+  as age = flight), and the GLSL: `AERO_WX_PARS_FS` (uniforms, the curvature
+  and the layer function), `AERO_WX_SURF_FS` (ONE block at the tail of the
+  surface pass, ONE uniform branch, the unpack text GENERATED from the
+  layer table), `AERO_WX_CC_FS` (the clear coat loses the cover, appended
+  after `lights_physical_fragment`), `AERO_WX_GLASS_FS`, and the multiply
+  pass with craft space.
+- `aeroskin.js` (~60 lines net): `aeroWx()` read at hook time (and
+  `window.AEROWX_OFF` for a page load without it — the bench's `?nowx`),
+  the shared block spread, the globals `aeroWxCov / aeroCav / aeroDep`,
+  `aeroStructure` REPORTS ITS CAVITY (slope magnitude of what the members
+  print: a ring round every rivet head, a line along every tape edge and
+  lap, plus the seam gaussians) and its sag valleys, the G70 blocks and
+  `aeroStreak` DELETED, the glass reads the shared block and takes the
+  macros live through `uWearK` (the pane's `wear x`) — the G113.4 bake into
+  touch/grime is gone, so a slider no longer rebuilds the pane — and
+  `aeroSetWear` is a shim onto age + flight.
+- The editor (`_cage_ui.js`): FOUR ROWS in the root livery block (matHead,
+  `data-weather`) replacing `condition`; they are UNIFORMS — a row draws,
+  nothing rebuilds (the dial cost a full build per notch); `applyWeather()`
+  replaces `applyWear` + `wearFieldAt`: every engine unit, every contact,
+  the footwell floor, all through `uCraftInv`; `finishToSpec` writes
+  `finish.weather` (deviations) and never `wear`; `finishFromSpec` reads
+  through the module's keeper; the old `{amount}` pref becomes age +
+  flight; the macros left the matCache key. THE CRAFT FRAME ON A BENCH
+  PAGE: with no join mount and no room the frame stayed identity and every
+  source was measured in scene coordinates — the fallback is the axis
+  convention over the identity now (a bench's aeroplane IS at the origin).
+- The join carries `weather = { exhaust, wheels, floor }` through `vtx`
+  (directions with the origin subtracted out); `app.js` sets the sources
+  beside the holes, the macros beside the decals (G70's own open gap: the
+  flown aeroplane had NEVER been given a condition), the pane's multiplier
+  and `screen` flag. `_eng_mesh.js` publishes `ports.exhaustDir` (the
+  tailpipe's last run) and `_cage_eng.js` turns it into `units[i].exhaustDir`.
+- `GEAR_GEN.TYRE` exported; `CAGE_UI.renderer/scene/camera` published for
+  the bench's readback.
+- THE BENCH `tools/_weather.html` + `_weather_bench.js` (launch
+  `flydiy-weather`, 8386; `window.WX_BENCH`): macros + presets, every layer
+  as a pin with its derived value, the lab, six UNLIT debug views (emissive
+  over black — the first lit version showed the lamps on the weave and
+  nothing of the mask), camera presets with close-ups (front, le, seam,
+  screen, cockpit — placed off the engine's published position), and the
+  measurement: `measure(layer)` = the `_light_probe` render-target readback
+  at pin 0 and pin 1, `measureAll()` the table, `?nowx` + `ref shot` /
+  `diff vs ref` across a page load through localStorage.
+- GATE WEATHER (`tools/_weather_check.js`, core, `--selftest` 19 probes):
+  the GLSL rules (no backtick / ${ / continue / textureGrad, #define
+  bounds, breaks on a uniform, every fetch inside the branch, the invariant
+  lines verbatim, ≤ 48 vec4), the tables (four coefficients, reachability,
+  floors ≥ 0.85 with tar exempt, substrate ↔ finish both ways), the load
+  order (manifest + every bench), the spec keeper, the resolver's wash and
+  pins, the bake, and the game's doors (rows, `out.weather` never
+  `out.wear`, the join's record and its two walks, app's three calls, the
+  published direction). GATE SKINMAT §10 and §D re-aimed from G70 to the
+  hook points and the pane's multiplier.
+
+THE MEASUREMENTS (bench, stock build, % pixels changed pin 0 → 1 on each
+layer's own preset; the G113.2 rule: under 0.5 % is an effect that is not
+there): dust 68.2 · belly 57.9 · cav 21.2 · dep 0.0 · fade 50.6 · chalk 62.5
+· rough 5.8 · panel 0.0 · exhaust 40.6 · mud 2.2 · bug 5.3 · streakA 27.0 ·
+streakD 25.8 · chip 0.7 · rust 4.8 · scratch 1.2 · impact 0.7 · tar 0.9 ·
+corner 3.4 · hands 15.3 · gDust 53.7 · gEdge 14.2 · gRain 0.8 · gBug 0.6.
+The two zeros are honest: `dep` is concave curvature and a subdivided skin
+has none; `panel` needs a panelled construction.
+
+FOUR THINGS ONLY THE MEASUREMENT SAID:
+1. The first `measureAll` came back 24 × 0 %. A pin over four zero macros
+   never opened `if (aeroWxOn > 0.0)`; a pin floors age at 0.001 now.
+2. The plume painted NOTHING: the exit the engine layer measures is the pipe's
+   tip, which on a stub stack sits INSIDE the cowl's volume a quarter-metre
+   from the skin, so a pipe-width plume reached no surface — and the facing
+   GATE (meant to spare a wing's top with the plume under it) zeroed every
+   fragment facing away from an axis inside the body. Wide from the start,
+   and a bias not a gate: 0 → 40.6 %.
+3. The pale band at the exhaust preset that looked like the plume was
+   IDENTICAL with the layer at 0 and at 1 (mask diff 0 %): a surface outside
+   the branch, lit as normal by the debug view — a part whose `wear x` is 0
+   in the person's own prefs. Three screenshots were read as the plume
+   before one measurement said otherwise.
+4. THE NOSE WAS THRASHED (the user's hangar shot of a yellow cub: the
+   cowl front covered in elongated black blobs and pale smears). The grunge
+   was read in two craft planes — the flank's (along, up) and the deck's
+   (along, lateral) — and a forward face varies along NEITHER, so every
+   insect and every chip on it stretched into a line. Three planes now,
+   weighted by the normal like a triplanar read (the nose gets lateral, up),
+   and a flank excludes forward and aft faces so the aft streaks stop at
+   the cowl's front.
+   THEN THE COWL, AGAIN (the user: "still very stretched with large big
+   spots"): pinned one layer at a time at zero macros, the big spots were
+   the insects and the streaks the chips, both stretched along one
+   direction — the lower cheek is where two planes share the fragment and
+   the blend shears. A cowl is a body of revolution: each engine's thrust
+   line joins the sources (uWxA/uWxAd: point, cowl radius, length aft) and
+   the triplanar parts near it read CYLINDRICALLY — across = the arc, the
+   seam declared at the bottom; along = the MERIDIAN y + r, which runs the
+   barrel by its length and the nose bowl by its radius at near unit speed
+   (y − r stalled on the forward taper and stretched every insect along
+   it), no blend toward a nose plane at all. The fielded skin reads its
+   own surface field (sL, sC), the far flank offset and blended over the
+   spine and keel. Pinned shots prove it: small oval splats, flakes, no
+   lines (screenshots/weather/cyl3_cowl_*.png).
+5. A WHEEL TURNS, AND IT IS UNWRAPPED (the user, twice: first "they turn,
+   even in flight, so no directional wear and tear there", then, on a side
+   projection in object space, "you wrapped it in a texture that does not
+   turn like the wheel, projected from the side only ... the wheel needs to
+   be separated into flanks and band, the band being unwrapped after a seam
+   is declared"). A fragment inside a wheel's cylinder (axle, radius, tyre
+   width — the sources) takes radius, angle and lateral offset about the
+   axle: in flight from OBJECT space, because the flown wheel is a group
+   re-centred on its axle and spun (app.js hands the module a `pivot` flag,
+   uWxN.z), in the editor from the craft-space axle, since nothing spins
+   there. The BAND's u is the arc length with the seam at the far side of
+   the axle, its v the lateral offset; a FLANK continues v over the
+   shoulder by (R - r), so the two meet without a step. The dirt: a flank
+   is dirtiest toward its shoulder and clean at the rim's edge (the tyre
+   wipes itself on the ground); the tread is lightly muddy and its grooves,
+   found by the geometry's own concavity, load up; the hub takes dust. No
+   top, no front, no flank, no rain, no insects on a turning part. THE
+   PROPELLER likewise (named per material by the blade rows' uDetRot, the
+   one transposed sheet): the read is the disc plane in the blade's own
+   frame, nothing directional, and the chip threshold tightened after a
+   hand-sized blotch on a blade.
+6. Insects and stone chips are millimetre features and average away under a
+   pixel at whole-aeroplane framing (0.03 %); measured from a metre (`front`)
+   they are 5.3 % / 0.7 %. A layer is judged at the distance a person
+   judges it from.
+
+r128 FACTS USED (verified in vendor/three.min.js): `geometryNormal` is
+declared in `normal_fragment_begin`, before the maps chunk; `material.clearcoat
+= clearcoat;` is assignable after `lights_physical_fragment`; the glass's
+roughness replacement runs BEFORE `faceDirection` exists (the first glass
+program failed on it — `gl_FrontFacing` there); the derivative curvature uses
+the same `dFdx(geometryNormal)` r128's own geometryRoughness does.
+
+OWED (all in the design doc §7): the glass legibility measurement (gRain and
+gBug stay 0 by table until it exists); the lab's `weather` kind in the
+editor's own lab panel; the chip lip normal; a baked cavity for `dep` on the
+skin; the airport-driven macros; the W0.5a re-shoot of the bench references.

@@ -689,6 +689,9 @@ function meshFrom(m) {
       if (!best || p[1] < best[1]) best = p;
     }
     if (best) mesh.userData.exhaustExit = best.slice();
+    // G345: the pipe's own direction, where the mesh published one
+    const ed = m.ports && m.ports.exhaustDir && m.ports.exhaustDir[0];
+    if (best && ed) mesh.userData.exhaustDir = ed.slice();
   }
   return mesh;
 }
@@ -1029,14 +1032,21 @@ PAGE.post = ctx => {
     // line, so one localToWorld puts it in the same metric frame the gear
     // publishes its contacts in — which is what lets the wear ask the CAGE
     // where that point is on its skin.
-    let exhaustAt = null;
+    let exhaustAt = null, exhaustDir = null;
     if (engMesh.userData.exhaustExit) {
       ug.updateMatrixWorld(true);
       const v = new THREE.Vector3().fromArray(engMesh.userData.exhaustExit);
       engMesh.localToWorld(v);
       exhaustAt = [v.x, v.y, v.z];
+      // G345: the direction through the same placement (a pusher's flip
+      // included), rotation only
+      if (engMesh.userData.exhaustDir) {
+        const d = new THREE.Vector3().fromArray(engMesh.userData.exhaustDir)
+          .transformDirection(engMesh.matrixWorld);
+        exhaustDir = [d.x, d.y, d.z];
+      }
     }
-    unitOut.push({ kind: u.kind, aft: !!u.aft, exhaustAt,
+    unitOut.push({ kind: u.kind, aft: !!u.aft, exhaustAt, exhaustDir,
                    at: [ug.position.x, ug.position.y, ug.position.z] });
   });
   scene.add(group);

@@ -1511,7 +1511,11 @@
           ? A.aeroGlass(THREE, Object.assign(
               A.aeroGlassSpec ? A.aeroGlassSpec(genSpec) : {},
               { tintLin: m.color, opacity: op,
-                ext: m.gext, fieldM: m.fieldM || 1 }))
+                ext: m.gext, fieldM: m.fieldM || 1,
+                // G345: the pane's own multiplier on the macros, and
+                // which pane the pilot looks through
+                wear: m.wearM != null ? m.wearM : 1,
+                screen: m.sec === 'windshield' ? 1 : 0 }))
           : A.aeroMaterial(THREE, { finish: m.fin, tintLin: m.color,
               grm: m.grm || '', struct: m.grm ? 1 : 0,
               // G216: the field's own unit, as the editor measured it, and
@@ -1709,6 +1713,13 @@
     // ...and the plate's cut-outs behind the attitude indicators (G279)
     if (typeof AEROSKIN !== 'undefined' && AEROSKIN.aeroSetHoles)
       AEROSKIN.aeroSetHoles(THREE, data.holes || null);
+    // ...and THE WEATHERING'S SOURCES (G345): every exhaust and every wheel
+    // the join measured, in this aeroplane's own craft frame — the plumes
+    // and the mud land where the pipes and the tyres are, flown as built
+    if (typeof AEROWX !== 'undefined' && AEROWX.aeroWxSetSources)
+      // pivot: the flown build's wheels and propeller are groups re-centred on
+      // their axles, so a turning part's object space is its own frame
+      AEROWX.aeroWxSetSources(THREE, Object.assign({ pivot: 1 }, data.weather || {}));
     // G55 MOVING PARTS (cage visual): each wheel is its own group pivoted
     // at its AXLE and ridden on its axle NODE at pose time — suspension
     // travel is the physics showing through, not an animation. The prop
@@ -3237,6 +3248,12 @@
         // inverts is rebuilt every frame; setting it once at build time named
         // the right uniform at the wrong moment.
         window.AEROSKIN.aeroApplySpecDecals(THREE, genSpec);
+        // G345: THE FOUR MACROS off the spec — `finish.weather`, or an
+        // older build's one `finish.wear` read as age + flight — through the
+        // module's one keeper, so the flown aeroplane wears what was built.
+        // Before this nothing on the flight side set the condition at all.
+        if (typeof AEROWX !== 'undefined' && AEROWX.aeroWxSetMacro)
+          AEROWX.aeroWxSetMacro(THREE, AEROWX.aeroWxMacroFromSpec(genSpec));
       } catch (e) {
         // IT STILL SWALLOWS, IT JUST SAYS SO FIRST — the same ruling
         // _cage_ui.js reached about its own finish panels. One layer failing

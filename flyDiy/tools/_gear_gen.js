@@ -1705,7 +1705,7 @@ function legTailwheel(bags, AF, P, st) {
            castor: u };
 }
 
-window.GEAR_GEN = { MAT, gearMat, stubAirframe, drawStub, objAirframe, drawBody,
+window.GEAR_GEN = { MAT, TYRE, gearMat, stubAirframe, drawStub, objAirframe, drawBody,
                     meshAirframe, cageAirframe, CAGE_MATS, airframeClose,
                     padOn, exactAirframe, padArc, PAD_ARC,
                     wheel, spat, fitFrame, memberFrame, pivotOn, padFlat,

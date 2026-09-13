@@ -1,20 +1,36 @@
 <!DOCTYPE html>
 <!--
-  CAGE8 — cage7 (the whole aeroplane + tail) plus the POD-AND-ROD chantier
-  (G26): the dedicated TAPER (tightening) section between the aft cabin
-  pillar and the boom, and the ROD boom — one structural cylinder off the
-  aft bulkhead, positioned by a free height slider, skinned (Wilga/
-  Archaeopteryx tightening) or naked (Ruckus/Chinook truss + tube).
+  WEATHERING BENCH (G345) — the whole aeroplane, the game's own editor chain
+  (cage8's script list verbatim, with src/viewer/aeroweather.js loaded BEFORE
+  aeroskin.js as the game does), and a weathering panel over it: the four
+  MACROS (age / flight / bush / rain), every fine layer as a PIN on its
+  resolved strength with the derived value beside it, the palette and the
+  knobs (the lab: deviations in localStorage, JSON export), the debug views,
+  the camera presets, and the measurement.
 
-  Controls live in "7 · boom": boom style, taper length/width/skin,
-  rod height/radius. The interior pass follows: station frames march the
-  taper in loft mode; in rod mode the tube IS the structure, held by the
-  tightening truss and the bulkhead socket flange.
+  What to judge here, and the controls that judge it:
+    - EXHAUST: soot leaves the real outlet and is blown aft — on the cowl,
+      the flank and the belly alike (G70 could not reach the cowl). Debug 4
+      paints the plume mask red.
+    - MUD (bush only): what each wheel throws sits behind and above its own
+      contact, as wide as its tyre, on the belly, the legs and the spats.
+      Debug 4 paints it green.
+    - INSECTS: forward faces only, denser low. Never on the glass by table.
+    - CAVITY: dirt in the rivet flanks, tape edges and seams of the grammar
+      (debug 2) and in the geometry's own grooves (debug 3, blue concave /
+      red convex — the edge chips ride the red).
+    - NO SHINY DIRT: debug 1 is the cover; wherever it is bright the surface
+      must read matte and dielectric.
+    - MEASURE: WX_BENCH.measure(layer) shoots the layer's own preset at pin 0
+      and pin 1 off a render target and reports the changed pixels — a layer
+      under 0.5 % is a FAIL (the G113.2 lesson: two renders that come back
+      identical are an effect that is not there). measureAll() runs the table.
 
-  Serve from repo root (launch: flydiy-node) and open /flyDiy/tools/_cage8.html.
+  Serve from the repo root (launch: flydiy-weather, port 8386) and open
+  /flyDiy/tools/_weather.html.
 -->
 <meta charset="utf-8">
-<title>flyDiy — cage8, pod &amp; rod</title>
+<title>flyDiy — weathering</title>
 <style>
   :root{--bg:#12151a;--fg:#dfe6ee;--dim:#7d8996;--acc:#5db3ff;--grid:#242a33}
   *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--fg);
@@ -49,37 +65,41 @@
   details details{margin:6px 0;border-color:#1b2029}
   summary{cursor:pointer;color:var(--dim);font-size:11px;
     text-transform:uppercase;padding:4px 0}
+  /* THE WEATHERING PANEL, over the view's left edge */
+  #wx{position:absolute;left:10px;top:34px;bottom:10px;width:330px;z-index:3;
+    overflow-y:auto;background:rgba(18,21,26,0.92);border:1px solid var(--grid);
+    border-radius:6px;padding:8px 10px}
+  #wx .r span.k{width:118px}
+  #wx .d{width:40px;flex:none;text-align:right;color:var(--dim)}
+  #wx .macro input[type=range]{accent-color:#ffb454}
+  #wx .ok{color:#6fd08c} #wx .bad{color:#ff6b5a}
+  #wx textarea{width:100%;height:90px;background:#0e1115;color:var(--fg);
+    border:1px solid var(--grid);font:10px/1.3 ui-monospace,monospace}
+  #wx table{border-collapse:collapse;width:100%;font-size:10px}
+  #wx td{padding:1px 3px;border-bottom:1px solid #1b2029}
 </style>
 
 <header>
-  <h1>cage8 — pod &amp; rod</h1>
+  <h1>weathering</h1>
   <label>subsurf <select id="lvl">
     <option>0</option><option>1</option><option selected>2</option><option>3</option>
   </select></label>
   <label><input type="checkbox" id="cage"> cage</label>
   <label><input type="checkbox" id="wire"> wireframe</label>
-  <label><input type="checkbox" id="color" checked> sections</label>
+  <label><input type="checkbox" id="color"> sections</label>
   <button id="resetBtn">reset</button>
   <button id="objBtn">export OBJ</button>
 </header>
 
 <main>
-  <div id="view"><span id="stat"></span><canvas id="c"></canvas></div>
+  <div id="view"><span id="stat"></span><canvas id="c"></canvas><div id="wx"></div></div>
   <aside id="ui"></aside>
 </main>
 
 <script>
-// THIS BENCH LIVES IN tools/, ONE LEVEL BELOW THE GAME'S PAGES. The <script>
-// and <link> tags above are written relative to here, but a baked payload's
-// own 'media/...' URL strings are inside JS that no relative tag can re-root —
-// this global is the one prefix that does (tools/_media_lib.js BASE_DECL), and
-// it is what _probe.html sets for exactly the same reason. Without it the
-// vessel sheets 404 into tools/media/ and every tank draws in flat colour.
 window.FLYDIY_ASSET_BASE = '../';
 </script>
 <script src="../vendor/three.min.js"></script>
-<!-- the GAME's generator chain (G30): the wing layer runs it verbatim and
-     keeps the wing subset — zero top-level name collisions, checked -->
 <script src="../src/core/00_registry.js"></script>
 <script src="../src/core/60_gen_spec.js"></script>
 <script src="../src/core/60b_gen_loft.js"></script>
@@ -87,9 +107,12 @@ window.FLYDIY_ASSET_BASE = '../';
 <script src="../src/core/61_gen_frame.js"></script>
 <script src="../src/core/62_gen_aero.js"></script>
 <script src="../src/core/63_gen_wing.js"></script>
-<!-- AEROSKIN (G67): the one material. The bench loads it from src/
-     because the GAME does too - one factory, not a bench copy. -->
+<script src="../src/viewer/wood_tex.js"></script>
+<script src="../src/viewer/skin_tex.js"></script>
 <script src="../src/viewer/vessel_tex.js"></script>
+<!-- THE WEATHERING before AEROSKIN, as build.js orders them (G345);
+     ?nowx loads the page WITHOUT it, for a reference shot -->
+<script>if (/nowx/.test(location.search)) window.AEROWX_OFF = 1;</script>
 <script src="../src/viewer/aeroweather.js"></script>
 <script src="../src/viewer/aeroskin.js"></script>
 <script src="../src/core/52_char_codec.js"></script>
@@ -138,3 +161,4 @@ window.FLYDIY_ASSET_BASE = '../';
 <script src="_cage_hinge.js"></script>
 <script src="_cage_ui.js"></script>
 <script>CAGE_PAGE_SETUP();</script>
+<script src="_weather_bench.js"></script>

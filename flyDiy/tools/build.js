@@ -238,7 +238,9 @@ const MANIFEST = {
               'hangar_floor.js', 'hangar_walls.js',
               'hangar_sky.js', 'props.js', 'wood_tex.js', 'skin_tex.js',
               'vessel_tex.js', 'panel_tex.js',
-              'aeroskin.js', 'hangar.js',
+              // aeroweather.js BEFORE aeroskin.js (G345): the hooks read AEROWX at
+              // compile, and r128 keys the program on the hook's source
+              'aeroweather.js', 'aeroskin.js', 'hangar.js',
     // refplane.js before editor.js (G89): the editor's tree offers the
     // REFERENCE PLANE row and calls window.REFPLANE for its badge, its panel
     // and its boot, so the handle must exist before editorInit runs. It needs

@@ -386,11 +386,21 @@ const secFieldL = {};
 // the dials — the one dial still sets the aeroplane, this says how much of
 // it each part shows. Absent means 1 and costs no storage.
 const secWear = {};
-// THE CONDITION OF THE AEROPLANE (G70). One number: 0 is the day it left the
-// shop, 1 is twenty years on a grass strip. Everything it does and everywhere
-// it lands is derived (see applyWear and aeroskin.js's THE WEAR) — this is
-// the only thing anybody sets.
-const WEAR = { amount: 0.0 };
+// THE WEATHERING'S FOUR MACROS (G345, replacing G70's one condition dial):
+// age (the years), flight (the hours), bush (grass and dirt strips), rain
+// (parked outside). Everything they do and everywhere it lands is derived
+// (aeroweather.js's tables; applyWeather measures the sources) — these four
+// are the only things anybody sets. They are UNIFORMS: a row moves the
+// aeroplane live and rebuilds nothing.
+const WEAR = { age: 0, flight: 0, bush: 0, rain: 0 };
+const WEAR_KEYS = ['age', 'flight', 'bush', 'rain'];
+const WEAR_LABEL = { age: 'age', flight: 'flying', bush: 'bush strips', rain: 'rain' };
+const WEAR_TIP = {
+  age: 'the years: chalked and faded paint, chips and peel at every edge, rust on steel, everything rougher, the cabin worn bare where hands and feet go',
+  flight: 'the hours: exhaust soot, dust on the tops, belly dirt, insects on every forward face, streaks swept aft',
+  bush: 'grass and dirt strips: mud thrown by every wheel, thick dirt in the depressions and the cabin corners — none of it on a paved aeroplane',
+  rain: 'parked outside: drips down every flank, rust bleeding from the chips, the dust WASHED off the tops',
+};
 const AERO_PREF = 'flydiy.aeroSections';
 function aeroLoadPrefs() {
   try {
@@ -405,7 +415,10 @@ function aeroLoadPrefs() {
     Object.assign(secField, j.field || {});
     Object.assign(secMetal, j.metal || {});
     Object.assign(secFieldL, j.fieldL || {});
-    Object.assign(WEAR, j.wear || {});
+    // G345: the four macros; a pre-G345 pref carried one {amount}
+    if (j.wear && j.wear.amount != null) {
+      WEAR.age = WEAR.flight = Math.max(0, Math.min(1, +j.wear.amount || 0));
+    } else if (j.wear) for (const k of WEAR_KEYS) if (j.wear[k] != null) WEAR[k] = +j.wear[k];
     aeroLoadGlass(j);
   } catch (e) {}
 }
@@ -731,7 +744,7 @@ const matOf = name => {
                 ':' + (secNrm[name] || 1) + ':' + (secWear[name] || 1) +
                 ':' + (secCc[name] || 1) + ':' + (secField[name] || 1) +
                 ':' + (secMetal[name] || 0) + ':' + (secFieldL[name] || 1) +
-                ':' + (WEAR.amount || 0) + ':' + String(memFOf()) +
+                ':' + String(memFOf()) +
                 // THE GLAZING DIALS JOIN THE KEY (2026-08-31, the user:
                 // "none of the sliders do anything"). aeroGlass's own pool
                 // states the rule — "EVERY DIAL JOINS THE KEY, or two panes
@@ -753,8 +766,9 @@ const matOf = name => {
         ext: GLASS_EXT[name] || [0, 0, 0, 0],
         // the condition dial reaches the glazing now, scaled by the pane's
         // own wear multiplier exactly as every other section's is
-        wear: (WEAR.amount || 0) *
-              (secWear[name] != null ? secWear[name] : 1),
+        // G345: the pane's own multiplier on the four macros — the macros are
+        // uniforms now, so the dial no longer rebuilds the pane
+        wear: (secWear[name] != null ? secWear[name] : 1),
         fieldM: fieldM() }));
     } else {
       matCache[key] = A.aeroMaterial(THREE, {
@@ -1413,9 +1427,14 @@ function build() {
     // fallback for a bench page that has no mount.
     const mnt = (window.CAGE_JOIN && window.CAGE_JOIN.mount &&
                  window.CAGE_JOIN.mount()) || root;
-    if (A0 && A0.aeroSetCraft && mnt) {
-      mnt.updateWorldMatrix(true, false);
-      A0.aeroSetCraft(THREE, mnt.matrixWorld,
+    // G345: a BENCH page has no join and no room — its aeroplane sits at
+    // the scene's origin, so the craft frame is the axis convention alone.
+    // Without this the frame stayed identity and every craft-space source
+    // (the plumes, the wheels) was measured in scene coordinates.
+    if (A0 && A0.aeroSetCraft) {
+      let mw = new THREE.Matrix4();
+      if (mnt) { mnt.updateWorldMatrix(true, false); mw = mnt.matrixWorld; }
+      A0.aeroSetCraft(THREE, mw,
                       { lateral: 'x', along: 'z', up: 'y', aft: true });
     }
     // THE CABIN'S DARKNESS FOLLOWS THE GLAZING (G206.1): a glazed cabin
@@ -1450,11 +1469,10 @@ function build() {
   for (const k in SEC_LIVE)
     if (SEC_LIVE[k] !== SEC_EPOCH) { delete SEC_LIVE[k]; delete SEC_CTX[k]; }
   try { buildMatPanel(); } catch (e) {}
-  // THE WEAR IS MEASURED AFTER THE LAYERS, and it has to be: its two sources
-  // are the exhaust exit and the wheel, and neither exists until the engine
-  // and gear layers have run. `s`, not `sFix` — the field belongs to the
-  // aeroplane as built, and an exploded door has not moved on its own skin.
-  try { applyWear(s, FS); } catch (e) { console.error('wear:', e); }
+  // THE WEATHERING'S SOURCES ARE MEASURED AFTER THE LAYERS, and have to be:
+  // the exhausts and the wheels do not exist until the engine and gear
+  // layers have run (G345; craft space, so no field lookup any more)
+  try { applyWeather(); } catch (e) { console.error('weather:', e); }
   // `when` rows follow their discriminators live (P just changed)
   applyRowVis();
   draw();
@@ -2932,7 +2950,14 @@ function finishToSpec() {
   delete decals.reg;
   const out = {};
   if (n) out.sections = sections;
-  if (WEAR.amount) out.wear = WEAR.amount;
+  // G345: `weather` holds the four macros as deviations; `wear` is never
+  // written again (aeroWxMacroFromSpec still reads it on an old build)
+  {
+    const WX = window.AEROWX;
+    const wx = WX ? WX.aeroWxMacroToSpec(WEAR)
+               : (WEAR.age || WEAR.flight || WEAR.bush || WEAR.rain ? Object.assign({}, WEAR) : null);
+    if (wx) out.weather = wx;
+  }
   if (Object.keys(decals).length) out.decals = decals;
   if (Object.keys(glass).length) out.glass = glass;
   return Object.keys(out).length ? out : null;
@@ -2956,7 +2981,7 @@ function finishFromSpec(f) {
   // aeroplane wears the letters its own file carries.
   Object.assign(DEC, JSON.parse(JSON.stringify(DEC_DEF)));
   Object.assign(GLASS, JSON.parse(JSON.stringify(GLASS_DEFV)));
-  WEAR.amount = 0;
+  WEAR.age = WEAR.flight = WEAR.bush = WEAR.rain = 0;
   const o = (f && typeof f === 'object' && !Array.isArray(f)) ? f : null;
   if (o) {
     const S = (o.sections && typeof o.sections === 'object') ? o.sections : {};
@@ -2973,7 +2998,14 @@ function finishFromSpec(f) {
       if (typeof r.metal === 'number') secMetal[nm] = r.metal;
       if (typeof r.fieldL === 'number') secFieldL[nm] = r.fieldL;
     }
-    if (typeof o.wear === 'number') WEAR.amount = Math.max(0, Math.min(1, o.wear));
+    // G345: the four macros, or an old build's one number as age + flight —
+    // through the module's own keeper so the flight side agrees
+    {
+      const WX = window.AEROWX;
+      const m = WX ? WX.aeroWxMacroFromSpec({ finish: o })
+        : (typeof o.wear === 'number' ? { age: o.wear, flight: o.wear } : (o.weather || {}));
+      for (const k of WEAR_KEYS) if (m[k] != null) WEAR[k] = Math.max(0, Math.min(1, +m[k]));
+    }
     if (o.decals && typeof o.decals === 'object')
       for (const k in DEC_DEF) if (k !== 'reg' && o.decals[k] !== undefined)
         DEC[k] = o.decals[k];
@@ -3080,78 +3112,70 @@ function decalImagesFrom(images) {
   return n;
 }
 
-// ---- THE WEAR (G70) -------------------------------------------------------
-// The dial is one number; WHERE it lands is measured off this build, every
-// build. Two sources, and both are real places on the aeroplane rather than
-// numbers somebody liked:
-//
-//   THE EXHAUST EXIT — the engine layer reads it off the pipes' own
-//     triangles (aft-most, then lowest), so it follows the cylinder count,
-//     the architecture and every slider on the engine panel.
-//   THE WHEEL — the gear layer already publishes its contacts, and what a
-//     main wheel throws up the belly starts at its own station.
-//
-// AND THE CONVERSION IS THE INTERESTING PART. Both are points in the scene's
-// metric frame; the shader wants the SURFACE FIELD (metres aft of the
-// firewall, metres around from the waist). Rather than write down where the
-// firewall is a second time — the join already owns that chain, and a second
-// copy is exactly how two descriptions drift apart — the point is matched to
-// the NEAREST FIELDED VERTEX ON THE CAGE and that vertex's own (sL, sC) is
-// read out. The aeroplane answers the question about itself, in the
-// coordinate it already carries, and nothing here knows what a firewall is.
-function wearFieldAt(m, FS, p) {
-  if (!m || !m.A || !p) return null;
-  // the mesh is in cage units and the point is in metres
-  const x = p[0] / FS, y = p[1] / FS, z = p[2] / FS;
-  let bi = -1, bd = Infinity;
-  for (let i = 0; i < m.V.length; i++) {
-    const q = m.A[i];
-    if (!q || (q[0] === 0 && q[1] === 0)) continue;   // no field on this one
-    const v = m.V[i];
-    const dx = v[0] - x, dy = v[1] - y, dz = v[2] - z;
-    const d = dx * dx + dy * dy + dz * dz;
-    if (d < bd) { bd = d; bi = i; }
-  }
-  return bi < 0 ? null : [m.A[bi][0] * FS, m.A[bi][1] * FS];
-}
-function applyWear(m, FS) {
+// ---- THE WEATHERING'S SOURCES (G345, replacing G70's applyWear) ------------
+// The four macros are one number each; WHERE the exhaust and the wheels land
+// is measured off this build, every build, and handed to aeroweather.js in
+// CRAFT SPACE (metres, x lateral, y aft, z up — the one frame every layer
+// shares, so a plume can reach the cowl and a wheel can spray a strut).
+//   THE EXHAUST — every engine unit's exit, read off the pipes' own
+//     triangles by the engine layer (CAGE_ENG.units[*].exhaustAt), and the
+//     pipe's direction where the layer publishes one (exhaustDir; absent
+//     means straight aft, which the slipstream makes nearly true anyway).
+//   THE WHEELS — every contact the gear layer publishes, with its radius,
+//     the tyre's half-width off the profile table, and which one is the
+//     third wheel (it runs in the mains' track and throws less).
+//   THE FLOOR — the footwell's own floor, for the cabin's corner dirt.
+// G70 converted the two points to the SURFACE FIELD by nearest vertex, and
+// read engine 0 and main 0 only; craft space needs no conversion and takes
+// them all. The macros themselves are written by the condition rows.
+function applyWeather() {
   const A = AK();
-  if (!A || !A.aeroSetWear) return;
-  if (!aeroOn() || !(WEAR.amount > 0)) {
-    A.aeroSetWear(THREE, { amount: 0 });
-    return;
-  }
-  let exhaust = null, splash = null;
+  const WX = window.AEROWX;
+  if (!A || !WX || !A.aeroSharedU) return;
+  const inv = A.aeroSharedU(THREE).uCraftInv.value;
+  const craft = (p, dir) => WX.aeroWxCraftOf(THREE, inv, p, dir);
+  const exhaust = [], wheels = [];
   try {
     const E = window.CAGE_ENG;
-    const f = E && E.exhaustAt && wearFieldAt(m, FS, E.exhaustAt);
-    // 1.6 m of run and a 90 mm plume at the source: a soot trail off a
-    // stub stack reaches about the back of the cabin and spreads as it goes.
-    //
-    // THE RUN STARTS AT THE SKIN, and this is not a fudge — it is measured.
-    // A stub stack exits FORWARD of the firewall (this build: 0.65 m
-    // forward), and the streak's strongest stretch is its first third; spent
-    // ahead of sL 0 that third lands on the COWL, which has no surface field
-    // and cannot draw it, so what reached the fuselage was the tail of a
-    // trail whose head had gone nowhere. Soot leaves the stack, is dragged
-    // aft, and lands on the first thing behind it: the run starts where the
-    // skin does. The plume's LENGTH is unchanged, so it still reaches the
-    // same station on the aeroplane.
-    if (f) exhaust = [Math.max(0, f[0]), f[1], 1.6, 0.09];
-  } catch (e) {}
-  try {
-    const G = window.CAGE_GEAR;
-    // the MAINS, not the tailwheel: the tailwheel runs in the same track the
-    // mains have already sprayed, and it is 200 mm from the ground with
-    // nothing above it to stain
-    const c = (G && G.contacts || []).filter(u => Math.abs(u.p[0]) > 0.01);
-    if (c.length) {
-      const pick = c[0].p;
-      const f = wearFieldAt(m, FS, pick);
-      if (f) splash = [f[0], f[1], 1.2, 0.16];
+    for (const u of (E && E.units) || []) {
+      if (!u.exhaustAt) continue;
+      const p = craft(u.exhaustAt);
+      const d = u.exhaustDir ? craft(u.exhaustDir, true) : [0, 1, 0];
+      exhaust.push({ x: p[0], y: p[1], z: p[2], dx: d[0], dy: d[1], dz: d[2],
+                     run: 1.8, hw: 0.10 });
     }
+  } catch (e) { console.error('weather: exhaust', e); }
+  try {
+    const G = window.CAGE_GEAR, GG = window.GEAR_GEN;
+    const prof = (GG && GG.TYRE && GG.TYRE[Math.round(P.whProfile || 0)]) || { hw: 0.40 };
+    for (const c of (G && G.contacts) || []) {
+      if (!c.p) continue;
+      const p = craft(c.p);
+      const R = c.R || (c.st && c.st.R) || 0.2;
+      wheels.push({ x: p[0], y: p[1], z: p[2], R, hw: R * prof.hw,
+                    kind: (c.st && c.st.leg === 3) ? 'T' : 'M' });
+    }
+  } catch (e) { console.error('weather: wheels', e); }
+  let floor = null;
+  try {
+    const U = A.aeroSharedU(THREE);
+    if (U.uFootB && U.uFootB.value.x > 0) floor = U.uFootA.value.w;
   } catch (e) {}
-  A.aeroSetWear(THREE, { amount: WEAR.amount, exhaust, splash });
+  // THE THRUST LINES: the cowl reads its grunge cylindrically about its
+  // engine's axis; the cowl layer publishes its length, the radius is a
+  // generous envelope round the crank
+  const engines = [];
+  try {
+    const E2 = window.CAGE_ENG, CL = window.CAGE_COWL;
+    for (const u of (E2 && E2.units) || []) {
+      if (!u.at) continue;
+      const p = craft(u.at);
+      engines.push({ x: p[0], y: p[1], z: p[2], r: 0.8, len: (CL && +CL.len > 0) ? +CL.len + 0.3 : 1.3 });
+    }
+  } catch (e) { console.error('weather: engines', e); }
+  WX.aeroWxSetSources(THREE, { exhaust, wheels, engines, floor });
+  // ...and the four macros themselves (uniforms; the module clamps)
+  WX.aeroWxSetMacro(THREE, aeroOn() ? WEAR : { age: 0, flight: 0, bush: 0, rain: 0 });
 }
 
 // A COLOUR WELL FOR ONE PANE, and the same double-click-to-clear the other
@@ -3910,25 +3934,28 @@ function buildMatPanel() {
   // a property of the AEROPLANE and not of any section — and because every
   // placement under it is derived, there is nothing else to expose.
   {
-    const d = mkRow2('condition', 'how much this aeroplane has been flown: ' +
-      'grime in the weave, chalked paint on the upper surfaces, dulled ' +
-      'metal, and streaks from the exhaust and the wheels — all placed off ' +
-      'the build itself');
-    d.dataset.matHead = '1';
-    const i = document.createElement('input');
-    i.type = 'range'; i.min = 0; i.max = 1; i.step = 0.05;
-    i.value = WEAR.amount; i.style.flex = '1';
-    const v = document.createElement('span');
-    v.className = 'v';
-    // the words are the user's own: factory fresh -> flown -> weathered
-    const say = x => x < 0.02 ? 'factory fresh'
-               : x < 0.35 ? 'run in' : x < 0.7 ? 'flown' : 'weathered';
-    v.textContent = say(+WEAR.amount);
-    i.oninput = () => {
-      WEAR.amount = +i.value; v.textContent = say(+i.value);
-      aeroSavePrefs(); build();
-    };
-    d.appendChild(i); d.appendChild(v);
+    // G345: FOUR ROWS, one per macro. Each is a UNIFORM — the row writes the
+    // module and draws; nothing is rebuilt (the condition dial used to cost
+    // a full build per notch). The words are the user's own groupings.
+    for (const k of WEAR_KEYS) {
+      const d = mkRow2(WEAR_LABEL[k], WEAR_TIP[k]);
+      d.dataset.matHead = '1';
+      d.dataset.weather = k;
+      const i = document.createElement('input');
+      i.type = 'range'; i.min = 0; i.max = 1; i.step = 0.02;
+      i.value = WEAR[k]; i.style.flex = '1';
+      const v = document.createElement('span');
+      v.className = 'v';
+      const say = x => x < 0.02 ? 'none' : x < 0.35 ? 'a little' : x < 0.7 ? 'some' : 'a lot';
+      v.textContent = say(+WEAR[k]);
+      i.oninput = () => {
+        WEAR[k] = +i.value; v.textContent = say(+i.value);
+        aeroSavePrefs();
+        try { applyWeather(); } catch (e) { console.error('weather:', e); }
+        draw();
+      };
+      d.appendChild(i); d.appendChild(v);
+    }
   }
   // ---- THE BASE COLOUR (G214, the user: "a macro base color in the plane
   // livery, that sets all the fuselage pieces to a single color, including
@@ -4394,6 +4421,10 @@ window.CAGE_UI = { P, build, draw, applyPreset, syncSliders, reg: () => decReg()
   setView: (y, p, z, c) => { yaw = y; pitch = p; if (z) ZOOM = z;
     centreOv = c ? new THREE.Vector3(c[0], c[1], c[2]) : null; },
   get M0() { return M0; }, get MS() { return MS; },
+  // G345: the render handles, for a bench that measures pixels off a
+  // render target (tools/_weather_bench.js) — null under the game (EXT)
+  get renderer() { return renderer; }, get scene() { return scene; },
+  get camera() { return camera; },
   // ---- WHAT THE GAME'S EDITOR READS (G77) --------------------------------
   // The panel above is the BENCH's. The game builds its own two-column screen
   // over the same rows — it MOVES these DOM nodes rather than rebuilding

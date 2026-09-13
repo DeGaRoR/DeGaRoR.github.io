@@ -511,6 +511,33 @@
       "port": 8382
     },
     {
+      "name": "flydiy-clip",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8385"
+      ],
+      "port": 8385
+    },
+    {
+      "name": "flydiy-shoulder",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8368"
+      ],
+      "port": 8368
+    },
+    {
+      "name": "flydiy-weather",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8386"
+      ],
+      "port": 8386
+    },
+    {
       "name": "flydiy-totems",
       "runtimeExecutable": "node",
       "runtimeArgs": [

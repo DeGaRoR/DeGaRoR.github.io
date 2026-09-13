@@ -1696,6 +1696,20 @@ G70: glass takes no wear, the streaks are on the fielded surfaces only, there
 is no per-part condition, and the wing's diagnostic part colours (G31's purple
 tip, orange ailerons) survive into the material view where they read as a
 mistake rather than as a part list.
+G345 THE WEATHERING (2026-09-13) — LANDED: G70's one condition dial is RETIRED for
+four macros — age / flight / bush / rain (`spec.finish.weather`, deviations; an
+old build's `wear` reads as age + flight) — over twenty-four layers in
+`src/viewer/aeroweather.js`, placed in CRAFT SPACE from every engine's exhaust
+(point + published direction) and every wheel, so the plumes reach the cowl and
+the spats and the mud lands on the legs; the grammar exports its cavity (dirt
+round every rivet, along every seam); chips expose a per-finish substrate; the
+glass takes roughness and the clear coat only; the flown aeroplane is weathered
+at last (app.js sets sources and macros). Bench `tools/_weather.html` measures
+every layer by render-target diff; GATE WEATHER. Owed: the glass legibility
+measurement (rain spots and insects on glass stay off by table), the airport-
+driven macros (bush from grass landings, rain from parking) the spec shape is
+ready for, a baked cavity for the skin's own grooves. Canonical:
+`futureDesigns/WEATHERING-2026-09-13.md`.
 G109 the per-part livery, phase A (2026-08-31) — LANDED: the flying surfaces
 are SECTIONS now (AERO_SEC in aeroskin.js: wingSkin/wingTip/wingAil/wingFlap,
 finSkin/finRud, stabSkin/stabElev), each with the full finish/tint/three-dials
