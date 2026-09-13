@@ -48,7 +48,12 @@ const check = (ok, msg) => { if (!ok) fail.push(msg); return !!ok; };
 //   the graphics settings menu (10 KB) and the tree manifest (17 KB, compact)
 //   are 146 KB of code and one manifest, not data creeping back; the same day
 //   G289-G294 grew the shed. DATA_BUDGET_KB below is the guard that matters.
-const BUDGET_MIB = 6.5;
+//   6.5 -> 6.75 (W0.5a, 2026-09-13): three r128 -> r186 is +140 KB of vendor
+//              (the node-material core rides in the same bundle), and a
+//              CLEAN WORKTREE BUILDS CRLF (autocrlf): the same artifact
+//              measures 6.44 MiB in the LF tree and 6.53 in a worktree, so
+//              the budget carries the line-ending margin too.
+const BUDGET_MIB = 6.75;
 // index.html's allowed data: payload: the four woff2 fonts (~121 KB base64)
 // plus the two svg select arrows. Anything past this is base64 creeping back.
 const DATA_BUDGET_KB = 400;
