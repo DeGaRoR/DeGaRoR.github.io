@@ -468,6 +468,51 @@ for (const c of CASES) {
   }
 }
 
+// ---- 4f A CABLE ENTERS THE AIRFRAME THROUGH A FAIRLEAD (2026-09-13) --------
+// The user: "I can see there's a rod/cable connected to it, but I can't see
+// no device at the other end." A rudder or elevator cable's airframe end is
+// the mouth of a fairlead bush on the fuselage flank: the mouth stands a
+// bush's length off the drawn skin (not in mid-air a horn's reach off the
+// fin), the run from the mouth to the horn's eye stays OUTSIDE the fuselage
+// and clear of the fin's fixed part, and the exit is forward of the eye on
+// the eye's own side. The pushrod's bellcrank and the flap rod's pivot were
+// always drawn; this is the cables' device.
+{
+  let SH = null, MQ = null;
+  try { SH = require(path.join(T, '_scene_headless.js')); MQ = require(path.join(T, '_mesh_query.js')); }
+  catch (e) { console.log('  (harness) ' + e.message); }
+  if (SH && MQ) {
+    const S = SH.sceneBuild(null, { over: {} });
+    const W = S.W;
+    const cables = ((W.CAGE_HINGE && W.CAGE_HINGE.links) || []).filter(L => L.kind === 'cable');
+    check(cables.length === 4, 'FAIRLEAD: the stock tail has not two rudder and two elevator cables', cables.map(L => L.key).join(','));
+    const CM = new Set([...SH.context().ctx.GEAR_GEN.CAGE_MATS]);
+    const fuse = MQ.triSet(S.built.sheet, { scale: S.FS, faces: f => CM.has(f.m) }); fuse.orient();
+    const FN = W.CAGE_FIN;
+    const finFix = (FN && FN.disp) ? MQ.triSet(FN.disp, { scale: FN.measure.FS || 1, faces: f => f.part !== 'rudder' }) : null;
+    if (finFix) finFix.orient();
+    const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+    for (const L of cables) {
+      const q0 = fuse.signedDist(L.pin, 0.2);
+      check(!!q0 && q0.d > 0.006 && q0.d < 0.030, 'FAIRLEAD: ' + L.key + ' airframe end is not a bush off the fuselage skin', q0 ? (q0.d * 1000).toFixed(1) + ' mm' : 'no skin within 0.2 m');
+      check(L.pin[2] > L.tip[2] + 0.25, 'FAIRLEAD: ' + L.key + ' exit is not forward of the horn', (L.pin[2] - L.tip[2]).toFixed(3));
+      check(L.pin[0] * L.tip[0] > 0, 'FAIRLEAD: ' + L.key + ' exit is on the other side', L.pin[0].toFixed(3) + ' vs ' + L.tip[0].toFixed(3));
+      let worstF = Infinity, worstN = Infinity;
+      const n = 40;
+      for (let i = 1; i < n; i++) {
+        const t = i / n;
+        const p = [L.pin[0] + (L.tip[0] - L.pin[0]) * t, L.pin[1] + (L.tip[1] - L.pin[1]) * t, L.pin[2] + (L.tip[2] - L.pin[2]) * t];
+        const q = fuse.signedDist(p, 0.3);
+        if (q && q.d < worstF) worstF = q.d;
+        if (finFix && dist(p, L.tip) > 0.02) { const r = finFix.signedDist(p, 0.3); if (r && r.d < worstN) worstN = r.d; }
+      }
+      check(worstF > 0.002, 'FAIRLEAD: ' + L.key + ' cable runs into the fuselage', (worstF * 1000).toFixed(1) + ' mm');
+      if (/^rud/.test(L.key) && finFix)
+        check(worstN > 0.002, 'FAIRLEAD: ' + L.key + ' cable runs through the fin', (worstN * 1000).toFixed(1) + ' mm');
+    }
+  }
+}
+
 // ---- 4c THE DOOR'S EDGES (G310) --------------------------------------------
 // A door is a zone of faces; `cageDoorEdges` reads its outline off the built
 // sheet, per door per side: the forward run is the max-z standing chain (+z

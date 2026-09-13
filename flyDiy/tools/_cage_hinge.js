@@ -364,6 +364,203 @@ function skinProbe(scene, s) {
 // an orthonormal frame on the hinge: z along the axis, x aft, y out through
 // the face the hardware shows on. Built so z = x × y, which is what
 // _hinge_gen's lug calls assume (GEAR_KIT's tang follows the binormal).
+// WHERE A CABLE LEAVES THE AIRFRAME. `E` the horn's eye (metres, the layer's
+// frame), `reach` how far forward of it the exit stands (+z is forward here),
+// `xo` the post's x (0 on a fuselage fin, ±CAGE_BOOMS.x on twin booms). The
+// fuselage answers from the body contract's exact skin (GEAR_GEN.exactAirframe
+// over CAGE_GEAR.AF — the same table the doors' hinges and every fitting use)
+// where the station is inside it and the skin is real (`solidAt`: an open
+// frame has nothing to exit through); a twin boom from its own loft. The
+// flank band is 0.5 rad off both centrelines — the keel is the tailwheel's,
+// the crown is the dorsal fillet's — and the point is the one whose height
+// is nearest the eye's. The normal is OUTWARD (nrmAt is a fitting's, forced
+// downward; a flank exit above the waist would get the inward one).
+// a ray against the cage SHEET (cage units × FS), skin faces only — the
+// same triangles GATE CLIP measures; returns { t, n } or null
+function sheetRay(mesh, FS, o, d, tMax) {
+  if (!mesh || !mesh.V || !mesh.F) return null;
+  const GGk = window.GEAR_GEN;
+  const CMk = GGk && GGk.CAGE_MATS ? new Set(GGk.CAGE_MATS) : null;
+  let best = null;
+  const zLo = Math.min(o[2], o[2] + d[2] * tMax) - 0.05, zHi = Math.max(o[2], o[2] + d[2] * tMax) + 0.05;
+  const Vv = mesh.V;
+  for (const f of mesh.F) {
+    if (CMk && !CMk.has(f.m)) continue;
+    const v = f.v || f;
+    // a tail cone is ONE long quad band: the face's z-range must overlap
+    // the window, not a vertex fall inside it
+    let fz0 = Infinity, fz1 = -Infinity;
+    for (const i of v) { const z = Vv[i][2] * FS; if (z < fz0) fz0 = z; if (z > fz1) fz1 = z; }
+    if (fz1 < zLo || fz0 > zHi) continue;
+    for (let k = 1; k + 1 < v.length; k++) {
+      const a = Vv[v[0]], b = Vv[v[k]], c = Vv[v[k + 1]];
+      const e1 = [(b[0] - a[0]) * FS, (b[1] - a[1]) * FS, (b[2] - a[2]) * FS];
+      const e2 = [(c[0] - a[0]) * FS, (c[1] - a[1]) * FS, (c[2] - a[2]) * FS];
+      const pv = V.crs(d, e2), det = V.dot(e1, pv);
+      if (Math.abs(det) < 1e-12) continue;
+      const inv = 1 / det, tv = [o[0] - a[0] * FS, o[1] - a[1] * FS, o[2] - a[2] * FS];
+      const u = V.dot(tv, pv) * inv; if (u < 0 || u > 1) continue;
+      const qv = V.crs(tv, e1);
+      const w = V.dot(d, qv) * inv; if (w < 0 || u + w > 1) continue;
+      const t = V.dot(e2, qv) * inv;
+      if (t > 1e-6 && t < tMax && (!best || t < best.t)) best = { t, n: V.nrm(V.crs(e1, e2)) };
+    }
+  }
+  return best;
+}
+
+function cableExit(scene, mesh, FS, E, reach0, xo, S) {
+  const GB = window.CAGE_GEAR, GG = window.GEAR_GEN, TB = window.CAGE_BOOMS;
+  const XS = (GB && GB.AF && GG && GG.exactAirframe) ? GG.exactAirframe(GB.AF) : null;
+  // THE STATIONS: the nominal reach first, then further forward in steps —
+  // a mid-set tailplane (the jodel's stab is let into the fuselage with the
+  // crown BELOW its top) leaves no clear flank at the nominal station at
+  // all, and the exit has to stand ahead of the stab's leading edge with the
+  // run passing over it. Cost: height off the eye's, and distance from the
+  // nominal, so the nearest clear exit wins and not the first found.
+  const reaches = [reach0];
+  for (let k = 1; k <= 8; k++) reaches.push(reach0 + 0.1 * k);
+  if (reach0 > 0.3) reaches.push(reach0 - 0.1);
+  const bodiesAt = zF => {
+  const bodies = [];
+  if (XS && typeof XS.surf === 'function' && zF > XS.z0 + 0.02 && zF < XS.z1 - 0.02)
+    bodies.push({ x: 0, at: ang => {
+      if (XS.solidAt && !XS.solidAt(zF, ang)) return null;
+      const p = XS.surf(zF, ang);
+      if (!p || !isFinite(p[0])) return null;
+      let n = XS.nrmAt ? XS.nrmAt(zF, ang) : [Math.sin(ang), -Math.cos(ang), 0];
+      const cy = XS.cyAt ? XS.cyAt(zF) : p[1];
+      if (n[0] * p[0] + n[1] * (p[1] - cy) < 0) n = V.mul(n, -1);
+      return { p, n };
+    } });
+  if (TB && TB.rAt && zF > TB.zAft + 0.02 && zF < TB.zFore - 0.02)
+    for (const bx of [TB.x, -TB.x]) bodies.push({ x: bx, at: ang => {
+      const a = TB.rAt(zF), b = TB.hAt(zF);
+      if (!(a > 0 && b > 0)) return null;
+      return { p: [bx + Math.sin(ang) * a, TB.yAx(zF) - Math.cos(ang) * b, zF],
+               n: V.nrm([Math.sin(ang) / a, -Math.cos(ang) / b, 0]) };
+    } });
+  // the body the post stands on first, else the nearest
+  bodies.sort((p, q) => (Math.abs(p.x - xo) - Math.abs(q.x - xo)) || (Math.abs(p.x - E[0]) - Math.abs(q.x - E[0])));
+  return bodies;
+  };
+  // THE TABLE SAYS WHERE, THE DRAWN SKIN SAYS EXACTLY WHERE: the airframe
+  // table is a 96x72 ray-cast and reads up to 4 mm inside the sheet across
+  // the tail cone's crease (GATE CLIP measures the sheet, and did); a twin
+  // boom's loft record is its own scale. So the pick is snapped by a ray
+  // along its own normal — the fuselage's onto the cage SHEET (the page's
+  // mesh is not in the headless scene; the sheet is what both draw and what
+  // GATE CLIP measures), a boom's onto the drawn boom part — and the flange
+  // takes the face it lands on.
+  const booms = [];
+  scene.traverse(o => {
+    if (!o.isMesh) return;
+    for (let a = o; a; a = a.parent) if (/^edBoom[LR]$/.test(a.name || '')) { booms.push(o); break; }
+  });
+  const rc = (booms.length && THREE.Raycaster) ? new THREE.Raycaster() : null;
+  const H = 0.30;
+  const snap = (q, onBoom) => {
+    const o = [q.p[0] + q.n[0] * H, q.p[1] + q.n[1] * H, q.p[2] + q.n[2] * H];
+    const d = [-q.n[0], -q.n[1], -q.n[2]];
+    if (!onBoom) {
+      const h = sheetRay(mesh, FS, o, d, H + 0.08);
+      if (!h) return q;
+      let n = h.n;
+      if (V.dot(n, q.n) < 0) n = V.mul(n, -1);
+      return { d: q.d, p: V.add(o, V.mul(d, h.t)), n };
+    }
+    if (!rc) return q;
+    rc.set(new THREE.Vector3(o[0], o[1], o[2]), new THREE.Vector3(d[0], d[1], d[2]));
+    rc.near = 0; rc.far = H + 0.08;
+    const hits = rc.intersectObjects(booms, false);
+    if (!hits.length) return q;
+    const h = hits[0];
+    let n = q.n;
+    if (h.face && h.object) {
+      const nm = new THREE.Matrix3().getNormalMatrix(h.object.matrixWorld);
+      const fn = h.face.normal.clone().applyMatrix3(nm).normalize();
+      n = [fn.x, fn.y, fn.z];
+      if (V.dot(n, q.n) < 0) n = V.mul(n, -1);
+    }
+    return { d: q.d, p: [h.point.x, h.point.y, h.point.z], n };
+  };
+  // THE RUN MUST BE CLEAR: the nearest-height exit on the stock jodel put
+  // the rudder cable through the STAB's root (the horn stands above the
+  // tailplane, the flank point nearest its height was under it). So the
+  // candidates are tried nearest-height first and the first whose run to
+  // the eye crosses neither the fuselage sheet nor a drawn tail part (the
+  // fin, its fillet, the stab halves — the moving surfaces excepted, the
+  // eye is on one) is the exit; none clear, the nearest stands.
+  const tailFixed = [];
+  scene.traverse(o => {
+    if (!o.isMesh) return;
+    const pn = (o.parent && o.parent.name) || '';
+    if (/^(edFinSkin|edFinFillet|edStabSkin)/.test(pn) || /^edFinFillet/.test(o.name || '')) tailFixed.push(o);
+  });
+  const rcT = (tailFixed.length && THREE.Raycaster) ? new THREE.Raycaster() : null;
+  const clear = ex => {
+    // the boss itself must be on bare skin — not under the fin's fillet or
+    // the stab's root (a ray down the normal reaches the skin first)
+    if (rcT) {
+      rcT.set(new THREE.Vector3(ex.p[0] + ex.n[0] * 0.06, ex.p[1] + ex.n[1] * 0.06, ex.p[2] + ex.n[2] * 0.06),
+              new THREE.Vector3(-ex.n[0], -ex.n[1], -ex.n[2]));
+      rcT.near = 0; rcT.far = 0.06 + 0.02;
+      if (rcT.intersectObjects(tailFixed, false).length) return false;
+    }
+    // the run from the MOUTH the bush would get (not the skin point — the
+    // first cut passed a run whose real cable shaved the stab's root), and
+    // as a thick ray: the cable's own line plus four parallels a cable
+    // radius and a margin out, so a run that grazes a root by millimetres
+    // is refused with it
+    const g = HG.fairleadMouth(ex.p, ex.n, V.nrm(V.sub(E, ex.p)), S);
+    const u = V.sub(E, g.mouth), L = V.len(u);
+    if (!(L > 0.05)) return false;
+    const d = V.mul(u, 1 / L);
+    const s1 = V.nrm(V.crs(d, Math.abs(d[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0])), s2 = V.crs(d, s1);
+    const m = S.cableR + 0.006;
+    for (const o of [[0, 0], [m, 0], [-m, 0], [0, m], [0, -m]]) {
+      const a = V.add(g.mouth, V.add(V.mul(s1, o[0]), V.mul(s2, o[1])));
+      if (sheetRay(mesh, FS, a, d, L - 0.02)) return false;
+      if (!rcT) continue;
+      rcT.set(new THREE.Vector3(a[0], a[1], a[2]), new THREE.Vector3(d[0], d[1], d[2]));
+      rcT.near = 0; rcT.far = L - 0.02;
+      if (rcT.intersectObjects(tailFixed, false).length) return false;
+    }
+    return true;
+  };
+  let fallback = null;
+  for (const reach of reaches) {
+    const bodies = bodiesAt(E[2] + reach);
+    for (const B of bodies) {
+      const sx = (E[0] - B.x) >= 0 ? 1 : -1;
+      // the band runs from just off the keel to just off the crown; the
+      // boss-on-bare-skin test keeps it out of the fin's fillet and the
+      // stab's root; a boom's crown carries its fin's root and fillet a
+      // good way forward of the post, so its band stops further from the top
+      const aTop = B.x !== 0 ? Math.PI - 0.9 : Math.PI - 0.35;   // the crown's corner is a crease: a boss 12° off it sat 1.8 mm in
+      const cands = [];
+      for (let k = 0; k <= 40; k++) {
+        const q = B.at(sx * (0.5 + (aTop - 0.5) * k / 40));
+        if (!q) continue;
+        cands.push({ d: Math.abs(q.p[1] - E[1]) / 0.3 + Math.abs(reach - reach0) / 0.5, p: q.p, n: q.n });
+      }
+      if (!cands.length) continue;
+      cands.sort((a, b) => a.d - b.d);
+      // the part the boss is riveted to: a boom flexes with its tail (the
+      // join poses it), so a boss on a boom is that boom's, not the static
+      // airframe's
+      const host = B.x !== 0 ? ('edBoom' + (B.x > 0 ? 'R' : 'L')) : '';
+      for (const c of cands) {
+        const r = snap(c, B.x !== 0);
+        r.host = host;
+        if (!fallback) fallback = r;              // the nominal nearest
+        if (clear(r)) return r;
+      }
+    }
+  }
+  return fallback;
+}
+
 function frameOn(p, axis, aftIn, faceIn) {
   const z0 = V.nrm(axis);
   let x = V.sub(aftIn, V.mul(z0, V.dot(aftIn, z0)));
@@ -577,7 +774,19 @@ PAGE.post = ctx => {
           revolve(bagsF.inner, pin, F.z,
             [[S.linkR * 1.4, 0], [S.linkR * 1.4, S.w * 0.5]], 10, true);
         } else {
-          pin = HG.at(F, -Math.max(0.35, s.chord * 2.0), S.hornReach, 0);
+          // A CABLE ENTERS THE AIRFRAME THROUGH A FAIRLEAD (2026-09-13, the
+          // user: "I can see there's a rod/cable connected to it, but I can't
+          // see no device at the other end"). It used to end at a bare point
+          // 0.35 m forward and a horn's reach off the fin's face — a swage
+          // in mid-air. The exit is on the fuselage FLANK (the rod boom
+          // counts as fuselage; a twin boom's fin exits its own boom), the
+          // eye's side, a reach forward of the horn, at the height nearest
+          // the eye's so the run is mostly along the aeroplane; the bush is
+          // the static airframe's hardware, not the fin part's.
+          const reach = Math.max(0.35, s.chord * 2.0);
+          const ex = cableExit(scene, mesh, FS, eye, reach, s.A[0], S);
+          if (ex) pin = HG.fairlead(bagsFor(ex.host).metal, ex.p, ex.n, V.nrm(V.sub(eye, ex.p)), S);
+          else pin = HG.at(F, -reach, S.hornReach, 0);   // an open frame: nothing to exit
         }
         // THE LINK GETS ITS OWN BAG, and that is not a draw-call accident:
         // the join can only publish a two-end member if the member's vertices

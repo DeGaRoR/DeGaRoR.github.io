@@ -43161,3 +43161,81 @@ the shell and `navigate` on the URL.
   `premises_perf.js`, the game host. HANDOVER's working copy carries a
   foreign rename of the G353 heading to G354 (HEAD has G353 = the premises
   docs, G354 = the floor's rim) — the session that wrote it owns the fix.
+
+## G237.1 — A HORN-BALANCED RUDDER HINGES BELOW ITS HORN, THE HINGES FOLLOW
+## THE FUSELAGE'S GLOBAL PICKS ONCE MADE, AND THE CABLES GET THEIR FAIRLEADS
+## (2026-09-13, the user: "hinges should be removed from the fin on the horn
+## part when horn is selected, since this part really does not move anymore.
+## Also, while the hinges are right to initialize with this material, they
+## should eventually become affected by the global material selection" — then,
+## looking at the screenshot: "I see the part fixed to the moving part, I can
+## see there's a rod/cable connected to it, but I can't see no device at the
+## other end. Normal?")
+
+- **THE HINGE LINE STOPS AT THE HORN.** Under cut mode 2 the post above the
+  mid row is rudder on BOTH sides — the horn wraps over the fin's crown — so
+  a strap up there bolted the rudder to itself. `buildFin2` now publishes
+  `hornPt`, the mid row's crossing of the hinge band in fin space AFTER the
+  macro tier (`rowY` is the fiche's number; the height macro moves the
+  row), and the hinge layer's `hornCut` cuts the declared line back to it,
+  less the slot's half gap, before the stations, the count and the end
+  inset are worked out. The same for the elevators — the stab is the fin
+  laid flat and has the same three cut modes. Measured on the stock tail:
+  rudder 1.708 → 1.311 m of line, elevators 1.954 → 1.267 m, the roots
+  unmoved; the top strap sits under the horn slot in the screenshot.
+- **GATE HINGE §4e** builds the scene twice under the headless harness
+  (`finCut`/`stCut` 1 and 2) and reads `placed[].A/B` (new on the record):
+  the full declared line under a hinge cut, the line to the row under a
+  horn cut, the root unmoved, no station gained on a shorter line. Proven to
+  bite by returning the full line from `hornCut`.
+- **THE SOFT PIN.** `ctlHinge` was `parent: null, fin: 'steelTube'` — steel
+  whatever the builder did to the fuselage, by the hard-pin rule that keeps
+  a gear leg out of plywood. The user wants steel as the START and the
+  global choices to reach it AFTER: the row now follows `body` with
+  `finFollows: true`, and the resolver's finish channel walks the whole
+  chain for a soft pin (the `fin` is a bottom-out, not a stop). Untouched, a
+  hinge is steel in steel's own grey — NO `wears: 'parent'`, an untouched
+  aeroplane's hinges must not come out in the fuselage's paint the way a gear
+  leg does. Pick a finish, a base colour, a base metallic or a base
+  roughness for the fuselage and the hardware takes it; the hinges' own
+  well still wins; the base rows clear a soft-pinned row's override exactly
+  as they clear the parent-wearing ones. GATE SKINMAT: the four cases
+  (untouched steel, the fuselage's pick reaches it, its own well wins, a
+  hard pin is still hard). "Global" was read as the fuselage's own picks,
+  not the construction row: a composite aeroplane keeps steel hinges until
+  the builder chooses otherwise.
+- **THE CABLE ENTERS THE AIRFRAME THROUGH A FAIRLEAD.** It did not: a
+  rudder or elevator CABLE ended at a bare point 0.35 m forward and a horn's
+  reach off the fin's face, a swage in mid-air, 150 mm from any skin — the
+  pushrod had its bellcrank and the flap rod its pivot, the cables had
+  nothing. `HG.fairlead` draws the device: a chamfered boss riveted on the
+  skin and a guide tube out of its top, tilted at most 35° off the skin's
+  normal toward the horn (the tube from the SKIN put its base ring 4 mm
+  into the tail cone — GATE CLIP read it — so it starts at the boss's top,
+  whose 4.5 mm swallows the ring's dip). `cableExit` in the hinge layer
+  places it: candidates over the fuselage flank (the airframe table for the
+  angle band, then SNAPPED by a ray onto the cage SHEET — the table reads
+  4 mm inside the sheet across the tail cone's crease, and the sheet is
+  what GATE CLIP measures; a twin boom's fin exits its OWN boom, snapped
+  onto the drawn boom part and hosted on it with `partOf`, since the boom
+  flexes with its tail) at the nominal reach and then further forward in
+  0.1 m steps, each tried nearest-height-first and taken only when the boss
+  stands on bare skin (not under the fin's fillet or the stab's root) AND
+  the run from the bush's real mouth to the eye — a thick ray, five
+  parallels a cable radius and 6 mm out — crosses neither the sheet nor a
+  drawn tail part. The jodel is why the sweep exists: its stab is let INTO
+  the fuselage with the crown below the stab's top, so no flank exit at the
+  nominal station can reach a horn standing above the tailplane — the first
+  cut ran the rudder cable through the stab's root — and the clear exit is
+  0.1 m ahead of the stab's leading edge with the run passing over it. The
+  boss stays 20° off the crown (12° off, it sat 1.8 mm into the deck's
+  corner). Measured on the stock tail: mouth 16.6 mm off the skin, runs
+  17-22 mm clear of the fuselage, the rudder's 57 mm clear of the fin,
+  bosses 0.4-0.6 mm PROUD of the sheet. GATE HINGE §4f: four cables, each
+  mouth a bush's length off the skin, forward of and on the side of its
+  horn, the run outside the fuselage and clear of the fin; proven to bite
+  by returning null from `cableExit` (149-159 mm off the skin). An open
+  frame (nothing to exit through) keeps the bare end.
+- A peer's sweep of the working copy took the first write of this entry
+  with it (the code survived); re-grep `^## G237.1` before landing.
+- Gates: HINGE, SKINMAT, FIN, PARTS, CLIP, JOIN, FIT, UISMOKE green.

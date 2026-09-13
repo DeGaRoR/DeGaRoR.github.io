@@ -372,8 +372,47 @@ function fowlerCarriage(bM, F, S) {
       [[0, 0], [0.009, 0], [0.009, w * 1.2], [0, w * 1.2]], 10, false);
 }
 
+// ---------------------------------------------------------------------------
+// THE FAIRLEAD — where a cable enters the airframe (2026-09-13, the user: "I
+// can see there's a rod/cable connected to it, but I can't see no device at
+// the other end"). A rudder or elevator cable leaves the fuselage through a
+// flanged bush in the skin, just ahead of the tail post, and runs aft to the
+// horn: a chamfered boss on the skin and a short guide tube out of it,
+// pointing the way the cable goes — tilted no further than 35 degrees off
+// the skin's normal, because an exit that shallow is an angled bush and not
+// a tube lying along the skin (the cable bends a little at the mouth, as
+// cables at fairleads do). The tube starts at the boss's TOP: its base ring
+// is square to the tilted axis and dips r·sin(tilt) = 3 mm on the low side,
+// which is inside the boss's 4.5 mm and not inside the skin (the first cut
+// started it on the skin and GATE CLIP read the ring 4 mm into the tail
+// cone). `p` the skin point, `n` its outward normal, `u` the unit run to
+// the horn's eye. Returns the mouth of the tube, the cable's airframe end.
+// ---------------------------------------------------------------------------
+// the bush's geometry without drawing it — the layer tests a candidate
+// exit's run from the MOUTH it would get, not from the skin point
+function fairleadMouth(p, n, u, S) {
+  const TILT = 35 * Math.PI / 180, cMax = Math.cos(TILT);
+  let ax = u;
+  const c = dot(u, n);
+  if (c < cMax) {
+    const t = sub(u, mul(n, c));
+    const tl = Math.hypot(t[0], t[1], t[2]);
+    ax = tl > 1e-6 ? nrm(add(mul(n, cMax), mul(t, Math.sin(TILT) / tl))) : n;
+  }
+  const rF = S.cableR * 7, hB = 0.0045, rT = S.cableR * 3.6, L = 0.014;
+  const base = off(p, n, 0.0006);                 // proud of the skin, like a pad
+  const top = off(base, n, hB);
+  return { ax, base, top, mouth: off(top, ax, L), rF, hB, rT, L };
+}
+function fairlead(bag, p, n, u, S) {
+  const g = fairleadMouth(p, n, u, S);
+  revolve(bag, g.base, n, [[g.rF, 0], [g.rF, 0.0015], [g.rT * 1.25, g.hB]], 14, true);
+  revolve(bag, g.top, g.ax, [[g.rT, 0], [g.rT, g.L - g.rT * 0.5], [g.rT * 0.7, g.L]], 12, true);
+  return g.mouth;
+}
+
 const API = { at, flipF, strapHinge, strapHalf, strapPin, pianoHinge,
-              controlHorn, linkRod, bellcrank, hingeFair,
+              controlHorn, linkRod, bellcrank, hingeFair, fairlead, fairleadMouth,
               fowlerTrack, fowlerCarriage,
               HINGE_BAGS: ['metal', 'fair'] };
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
