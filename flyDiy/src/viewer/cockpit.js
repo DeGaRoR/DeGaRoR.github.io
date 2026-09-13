@@ -111,8 +111,9 @@ function make(THREE) {
     if (!model || !model.gauges || !THREE.SphereGeometry) return;
     const padMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false });
     for (const g of model.gauges) {
-      if (!/^(switch|knob|key)$/.test(g.c.law) || !g.obj.add) continue;
-      const pad = new THREE.Mesh(new THREE.SphereGeometry(g.c.law === 'key' ? 0.022 : 0.016, 8, 6), padMat);
+      if (!/^(switch|knob|key|flap)$/.test(g.c.law) || !g.obj.add) continue;
+      const pad = new THREE.Mesh(new THREE.SphereGeometry(g.c.law === 'key' ? 0.022 : g.c.law === 'flap' ? 0.024 : 0.016, 8, 6), padMat);
+      if (g.c.law === 'flap') pad.position.set(0, -0.012, -0.030);   // G335: on the knob, not the buried pivot
       pad.userData.pickPad = 1;
       g.obj.add(pad);
     }
@@ -299,6 +300,9 @@ function make(THREE) {
         case 'switch': { const v = +CK.sw[drv] || 0; a1 = (c.k || 0.42) * (v > 0.5 ? 1 : -1); break; }
         case 'knob': { const v = clamp(+CK.sw[drv] || 0, 0, 1); a1 = (-135 + 270 * v) * D2R; break; }
         case 'key': { a1 = (c.k || Math.PI / 6) * clamp(+CK.sw.key || 0, 0, 4); break; }
+        // G335: the dash flap switch follows the flap COMMAND (the linkage's
+        // own number on ctl — the AP's or the hand's)
+        case 'flap': { const sm = CK.sim; a1 = (c.k || 0.75) * clamp(sm && sm.ctl ? +sm.ctl.flap || 0 : 0, 0, 1); break; }
         default: a1 = 0;
       }
       vA.set(c.ax[0], c.ax[1], c.ax[2]);
@@ -359,7 +363,7 @@ function make(THREE) {
       let a = h.object;
       while (a && a !== model.grp) {
         const g = model.gauges.find(q => q.obj === a);
-        if (g) return g;
+        if (g) return g.c.law === 'flap' ? Object.assign({ pick: 'flap' }, g) : g;   // G335: the dash switch is the lever's click
         // G318: the flap lever, the brake, the fuel selector, the trim wheel
         const pk = model.picks && model.picks.find(q => q.obj === a);
         if (pk) return { pick: pk.key, obj: pk.obj, c: { law: 'pick:' + pk.key, drive: pk.key } };

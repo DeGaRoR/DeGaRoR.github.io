@@ -371,6 +371,7 @@ function layout(A, o) {
   }
   for (const k of (o.extLights || [])) sw.push({ k, kind: 'toggle', light: true });
   for (const k of (o.intLights || [])) sw.push({ k, kind: 'knob', light: true });
+  if (o.flapSwitch) sw.push({ k: 'flap', kind: 'flap' });     // G335: at the row's right end, a Cessna's
   const ySw = Math.max(yBot + 0.010, (dials.filter(d => !d.coaming).reduce((m, d) => Math.min(m, d.cy - d.r), yTop)) - SW_DROP);
   const xSw = xLimAt(ySw);                     // the plate's own width down there
   const pitch = Math.min(0.040, (2 * xSw - 0.02) / Math.max(1, sw.length));

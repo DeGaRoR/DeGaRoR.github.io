@@ -954,6 +954,7 @@ const CAGE_PARTS = [
       ['throttle', ['ctlThr', 'thrX', 'thrY', 'thrZ', 'thrLen']],
       ['rudder', ['ctlPed', 'pedalZ', 'pedalH', 'pedalSpread', 'pedalAngle']],
       ['console', ['consoleOn']],
+      ['flaps', ['flapCtl']],                              // G335
       ['trim wheel', ['trimX', 'trimY', 'trimZ']],         // G331
       ['floor', ['floorOn', 'floorLift']],                 // G331
     ] },

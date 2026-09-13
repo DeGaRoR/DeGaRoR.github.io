@@ -483,7 +483,8 @@ const nrm3 = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / 
 // no sorting); which tape a switch wears is LABEL_OF.
 const LABEL_OF = { pax: 'Cabin', flood: 'Dash', instr: 'Instr', pedal: 'Feet',
                    beacon: 'beac', nav: 'pos', land: 'land', taxi: 'cruise',
-                   master: 'Bat.', alt: 'Alt.', avionics: 'Avionics' };       // G318: the second sheet
+                   master: 'Bat.', alt: 'Alt.', avionics: 'Avionics',        // G318: the second sheet
+                   flap: 'Flaps' };                                            // G335: the dash switch's tape
 let labelMat = null;
 function labelSheet() {
   const S = (typeof PANEL_TEX_SHEETS !== 'undefined') ? PANEL_TEX_SHEETS
@@ -1092,6 +1093,36 @@ function rockerAt(parent, x, y, z, key, on) {
 // it with its keyway, and a brass key — a bow with a hole, a neck, a bitted
 // blade — turning about the panel's normal: OFF / L / R / BOTH / START at
 // 0, 30, 60, 90, 120 degrees clockwise
+// THE FLAP SWITCH (G335): a Cessna's. A black escutcheon 22 x 44 on the
+// plate with a 7 x 30 slot down its middle and four white marks beside it
+// (up, and three notches); the lever pivots 12 mm INSIDE the dash, 10 mm
+// above the slot's centre, and comes out through the slot to a white pill
+// of a knob — at rest it points at the pilot from the slot's top, pulled
+// down through the marks as the flaps go down (law 'flap': the command
+// on sim.ctl, 0.75 rad over the travel, sgn -1 so down is down).
+function flapAt(parent, x, y, z) {
+  const K = KIT();
+  const esc = K.Bag(), marks = K.Bag();
+  const X = [1, 0, 0], Y = [0, 1, 0], Z = [0, 0, 1];
+  // the escutcheon as four bars round the slot, 1.5 mm proud, and a dark
+  // well behind the slot
+  K.boxIn(esc, [x - 0.0075, y, z - 0.00075], [0.0035, 0.022, 0.00075], X, Y, Z);
+  K.boxIn(esc, [x + 0.0075, y, z - 0.00075], [0.0035, 0.022, 0.00075], X, Y, Z);
+  K.boxIn(esc, [x, y + 0.019, z - 0.00075], [0.011, 0.003, 0.00075], X, Y, Z);
+  K.boxIn(esc, [x, y - 0.019, z - 0.00075], [0.011, 0.003, 0.00075], X, Y, Z);
+  K.boxIn(esc, [x, y, z + 0.006], [0.0035, 0.015, 0.006], X, Y, Z);
+  esc.mesh(parent, matFor('plate'));
+  for (let i = 0; i < 4; i++)
+    K.boxIn(marks, [x + 0.0145, y + 0.012 - 0.008 * i, z - 0.0004], [i ? 0.0020 : 0.0030, 0.0006, 0.0003], X, Y, Z);
+  marks.mesh(parent, matFor('needle'));
+  const g = gaugeAt(parent, 'edGauge_flap', [x, y + 0.010, z + 0.012], [1, 0, 0], 'flap', 'flap', { k: 0.75, sgn: -1 });
+  const arm = K.Bag(), knob = K.Bag();
+  K.revolve(arm, [0, 0, 0.002], [0, 0, -1], [[0.0022, 0], [0.0022, 0.036]], 14, true);
+  K.revolve(knob, [0, 0, -0.030], [0, 0, -1],
+    [[0.0022, 0], [0.0048, 0.0015], [0.0060, 0.0050], [0.0060, 0.0130], [0.0046, 0.0170], [0.0020, 0.0190], [0, 0.0192]], 24, true);
+  arm.mesh(g, matFor('lever')); knob.mesh(g, matFor('needle'));
+  return g;
+}
 function keyAt(parent, x, y, z, pos) {
   const K = KIT();
   // THE KIT'S KEY when it is in, in the lock the user described: "a simple
@@ -1215,6 +1246,7 @@ function build(parent, A, P, pilotX) {
     elec: { hasBus: R.hasBus, altA: R.altA },
     extLights: lightsOn && +P.lightSw ? EXT_LIGHTS : [],
     intLights: lightsOn && +P.lightSw ? INT_LIGHTS : [],
+    flapSwitch: P && Math.round(+P.flapCtl || 0) === 1,      // G335
   });
   const grp = new THREE.Group();
   grp.name = 'edPanel';
@@ -1487,10 +1519,11 @@ function build(parent, A, P, pilotX) {
     sg.name = 'edSwitch_' + s.k;                       // the shed's click finds it (G305)
     {
       const sb = UVBag(aoMaterial());
-      aoDiscInto(sb, 0, 0, 0, { key: 0.020, rocker: 0.018, toggle: 0.011, knob: 0.015 }[s.kind] || 0.012);
+      aoDiscInto(sb, 0, 0, 0, { key: 0.020, rocker: 0.018, toggle: 0.011, knob: 0.015, flap: 0.019 }[s.kind] || 0.012);
       const m = sb.mesh(sg, 'edGauge_ao'); if (m) m.renderOrder = 2;
     }
     if (s.kind === 'key') keyAt(sg, 0, 0, 0, 'both');
+    else if (s.kind === 'flap') flapAt(sg, 0, 0, 0);
     else if (s.kind === 'rocker') rockerAt(sg, 0, 0, 0, s.k, +P[{ alt: 'swAlt', avionics: 'swAvionics' }[s.k] || 'swMaster'] > 0.5);
     else if (s.kind === 'toggle') toggleAt(sg, 0, 0, 0, s.k, +P['li_' + s.k] > 0.5);
     else if (s.kind === 'knob') {

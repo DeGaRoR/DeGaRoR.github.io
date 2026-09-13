@@ -2909,7 +2909,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   // G318: the flap lever, the brake, the fuel selector and the trim wheel —
   // the pilot's, drawn with the controls so the join carries them
   try {
-    buildFlapLever(tg, A, P, pilot.x, pilot, sbs);
+    if (Math.round(+P.flapCtl || 0) !== 1) buildFlapLever(tg, A, P, pilot.x, pilot, sbs);   // G335: else the panel's switch
     buildBrakeKnob(tg, A, P, pilot.x);
     buildFuelSelector(tg, A, P, pilot.x, pilot);
     buildTrimWheel(tg, A, P, pilot.x, pilot);

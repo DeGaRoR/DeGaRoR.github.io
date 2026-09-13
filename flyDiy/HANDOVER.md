@@ -41638,3 +41638,21 @@ does at every station, not just the mains.
 - Gates: HOUSE, VILLAGE green.
 - Queued (the user's order): the front lot + parking alley + the user's
   road-facing cars; the optimisation tour; the world join.
+
+## G335 — A CESSNA-STYLE FLAP SWITCH ON THE DASH, AS AN OPTION (2026-09-13,
+## the user: "the flaps could also be a cessna style multi-position switch
+## on the dashboard, let's have this as an option")
+
+- `flapCtl` (Controls part, 'flaps'): 0 the floor lever (G318), 1 a switch
+  at the right end of the panel's row (`_panel_gen.js` layout takes
+  `flapSwitch`; the fixtures stay at twelve). `flapAt` (`_cage_panel.js`):
+  a black escutcheon 22 × 44 with a 7 × 30 slot and four white marks
+  beside it, a lever pivoted 12 mm inside the dash coming out through the
+  slot to a white pill of a knob — at the slot's top for flaps up, pulled
+  down through the marks as they go down; the 'Flaps' tape above.
+- In flight a gauge of law `flap` (cockpit.js): posed on the flap COMMAND
+  (`sim.ctl.flap`, the AP's or the hand's), 0.75 rad over the travel; its
+  pick pad sits on the knob, and a hit on it is the floor lever's own
+  pick (`pick:'flap'`) — a click a notch, a drag the notches. Verified on
+  the stand: the click stepped `flapI` 0 → 1; the knob at 43° with the
+  flap at 1.

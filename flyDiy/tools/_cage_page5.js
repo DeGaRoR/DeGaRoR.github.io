@@ -146,6 +146,7 @@ window.CAGE_PAGE = {
     ctlThr: 0, ctlPed: 1, consoleOn: 0, stickX: 0, stickY: 0, stickZ: 0,
     floorOn: 1, floorLift: 0,                    // G331: the floor, over the door sill
     trimX: 0, trimY: 0, trimZ: 0,                // G331: the trim wheel's place
+    flapCtl: 0,                                  // G335: the flaps' control — a floor lever or a dash switch
     stickLen: 0.44, stickCrank: 0, thrX: 0, thrY: 0, thrZ: 0, thrLen: 0.16, pedalZ: 0.9,
     pedalH: 0.18, pedalSpread: 0.10, pedalAngle: 25, dumOn: 1,
     dumSize: 1, dumElbows: 0.08, dumKnees: 0, dumRecline: 0, dumMarkers: 1,
@@ -512,6 +513,7 @@ window.CAGE_PAGE = {
          { when: P => +P.crewOn && +P.ctlPed }],
         ['pedalAngle','pedal angle',    0, 60, 1,
          { when: P => +P.crewOn && +P.ctlPed }],
+        ['flapCtl',   'flaps',           0, 1, 1, ['floor lever', 'dash switch']],   // G335
         // G331: the trim wheel's own place (offsets from its wall seat: +x
         // the pilot's left, +y up, +z forward)
         ['trimX',     'trim wheel left', -0.30, 0.30, 0.005],
