@@ -473,22 +473,31 @@ function cageResolve(S) {
       const pw = 2.2 - 1.3 * AA.tip;                  // dome ... teardrop
       const e = 1 - Math.pow(Math.max(0, 1 - Math.pow(f, pw)), 0.5 + 0.9 * AA.tip);
       const tipK = 0.05;
-      const sc = 1 - (1 - tipK) * e;
+      const sc = 1 - (1 - tipK) * e;                  // the squeezed axis
+      const sh = 1 - (1 - edge) * e;                  // the held axis
+      const sW = shp === 2 ? sh : sc;                 // widths
+      const sUp = (shp === 1 || shp === 3) ? sh : sc;  // above the axis: held on a blade, a fin
+      const sDn = shp === 1 ? sh : sc;                 // below: held on the blade alone
       const mid = 0.5 * (baseD.roofY + baseD.keelY);
       const dy = -AA.droop * f * f;
+      const up = v => mid + (v - mid) * (v >= mid ? sUp : sDn);
       const Rg = fullRing(name, zz, {
-        Ww: baseD.Ww * sc, Wr: baseD.Wr * sc,
-        roofY: mid + (baseD.roofY - mid) * sc,
-        ceilY: mid + (baseD.ceilY - mid) * sc,
-        floorY: mid + (baseD.floorY - mid) * sc,
-        keelY: mid + (baseD.keelY - mid) * sc,
+        Ww: baseD.Ww * sW, Wr: baseD.Wr * sW,
+        roofY: up(baseD.roofY),
+        ceilY: up(baseD.ceilY),
+        floorY: up(baseD.floorY),
+        keelY: up(baseD.keelY),
       });
       for (const k in Rg.lv) { Rg.lv[k].y += dy;
         if (Rg.lv[k].yC != null) Rg.lv[k].yC += dy; }
       return Rg;
     };
     add(ringAft('aeroAftTip', zTipA), null);
+    // the squeezed shapes read through two more rings (the cone keeps its
+    // one — the template's ring list does not move)
+    if (shp) add(ringAft('aeroAftM2', zPaxA - 0.80 * AA.len), { mat: CAGE_MAT.plain });
     add(ringAft('aeroAftM', zPaxA - 0.55 * AA.len), { mat: CAGE_MAT.plain });
+    if (shp) add(ringAft('aeroAftM0', zPaxA - 0.28 * AA.len), { mat: CAGE_MAT.plain });
   }
   // with the taper on, the pillar pair reverts to the full cabin section
   // — a pillar is a pillar again, the contraction is the taper's

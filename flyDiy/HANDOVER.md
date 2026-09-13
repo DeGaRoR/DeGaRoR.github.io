@@ -41753,3 +41753,16 @@ the keel sweeping up to the axis, the crown line rising.
   trees, the mine's 9 buildings.
 - Queued (the user's order): the front lot + parking alley + the user's
   road-facing cars; the optimisation tour; the world join.
+
+## G339.1 — G339'S RING BODY (2026-09-13)
+
+G339 landed its comment, its rows and its config but not the ring
+function's body: the commit recipe keeps a file's hunks by marker, and
+`git diff -U0` had split the one edit into four hunks of which three
+carried no marker — the landed cone was still the only shape. The three
+hunks (the per-axis scales `sW` / `sUp` / `sDn`, the `up()` map, the two
+extra rings on the squeezed shapes) are here; the identity check
+(subdivided cage against the parent on five existing settings: IDENTICAL)
+and the six gates were re-run on the complete tree before landing.
+Lesson for the recipe: list a hunk per marker, and read the landed diff's
+line count against the edit's before calling it landed.
