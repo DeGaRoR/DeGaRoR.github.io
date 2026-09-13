@@ -53,6 +53,7 @@ const SEC = {
   dash:            '#333a45',
   dashFace:        '#7d8896',
   shoulder:        '#b9b6ae',
+  doorPanel:       '#6b4a36',
   tube:            '#93a0ad',
   plywood:         '#b5854e',
   woodFrame:       '#8a6134',

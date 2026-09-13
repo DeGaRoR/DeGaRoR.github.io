@@ -985,6 +985,16 @@ const CAGE_PARTS = [
                     'shoulderRun']],
     ] },
 
+  // THE DOOR INNER PANEL (G346): its own part under the fit, off by default
+  { key: 'doorPanel', name: 'Door panel', parent: 'fit', layer: 'cage',
+    sections: ['doorPanel'],
+    when: P => +P.doorPanelOn && (+P.doorOn || +P.doorPax), gate: 'doorPanelOn',
+    place: { on: 'doorPanelOn', at: 'inside each door, from the shoulder to the sill' },
+    groups: [
+      ['door panel', ['doorPanelOn', 'doorPanelT', 'doorPanelGap', 'doorPanelMargin',
+                      'doorPanelPocket']],
+    ] },
+
   { key: 'crew', name: 'Crew', parent: 'fit', layer: 'crew',
     sections: ['dummy1', 'dummy2'],
     when: P => +P.crewOn,

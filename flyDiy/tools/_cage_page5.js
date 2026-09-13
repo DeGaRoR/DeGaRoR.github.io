@@ -417,6 +417,20 @@ window.CAGE_PAGE = {
         ['shoulderRun', 'shoulder run',   0, 1, 1, ['pilot bay', 'whole cabin'],
          { when: P => +P.shoulderOn }],
       ]],
+      // THE DOOR INNER PANEL (G346): the user's second option, off by
+      // default — a padded board inside each door from the shoulder's leg
+      // (or the glass) to the door's bottom, standing off whatever the
+      // door's inside is, with a map pocket.
+      ['door panel', [
+        ['doorPanelOn',     'door panel',     0, 1, 1, { when: P => +P.doorOn || +P.doorPax }],
+        ['doorPanelT',      'panel gauge',    0.003, 0.02, 0.001,
+         { when: P => +P.doorPanelOn, dim: 'len' }],
+        ['doorPanelGap',    'panel stand-off', 0.002, 0.03, 0.001,
+         { when: P => +P.doorPanelOn, dim: 'len' }],
+        ['doorPanelMargin', 'edge margin',    0.01, 0.10, 0.005,
+         { when: P => +P.doorPanelOn, dim: 'len' }],
+        ['doorPanelPocket', 'map pocket',     0, 1, 1, { when: P => +P.doorPanelOn }],
+      ]],
     ], 'open'],
     // aft half of the mirrored pod — the FULL front control set,
     // duplicated (user ruling). FOREVER-SPLIT: the aft params take a

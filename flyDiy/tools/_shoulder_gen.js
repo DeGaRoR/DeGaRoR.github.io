@@ -893,7 +893,321 @@ function stockLever(built, side, CAGE, off) {
            wx: 0.020, tz: 0.008, knobR: 0.026, wall: wx, plateY: yT, plateZ: zT };
 }
 
-const API = { DEF, CONFIGS, stockLever, shoulderLever, chainStations, shoulderTrace, shoulderBuild, shoulderCheck, shoulderLimits,
+// ===========================================================================
+// THE DOOR INNER PANEL (the user's second option: "a door inside panel inline
+// with the bottom border of that lip ... extending towards the floor").
+//
+// A trim board on the inside of each door: from the shoulder's leg bottom
+// (or the door's glass bottom, when no shoulder covers it) down to the door's
+// bottom edge, inset from the door's cut edges by a margin, following the
+// door's own raked edges. It stands off the door's INNERMOST surface at every
+// point — the skin, or the liner where the construction has one — by `gap`,
+// so it clips nothing: the base is sampled, not assumed (innerX), like the
+// shoulder's outboard edge. A slab of gauge `T` with a chamfered front edge,
+// rounded corners, and a map pocket embedded 1 mm INTO the panel (hidden, no
+// coplanar face) standing `proud` of it with its own chamfer. Closed solids,
+// vertices split at sharp edges, oriented by volume, fielded (sL along the
+// door, sC up the panel) so the pleated finish maps in metres. A door part:
+// doorKey + cutOff, explodes with the door. Off by default.
+// ===========================================================================
+const PANEL_DEF = {
+  T: 0.008,           // gauge (cage units; 6 mm on the page's aeroplane)
+  gap: 0.008,         // stand-off from the door's innermost surface
+  margin: 0.04,       // inset from the door's cut edges
+  cornerR: 0.04,      // corner rounding
+  chamfer: 0.006,     // the front edge's chamfer
+  topGap: 0.010,      // below the shoulder's leg
+  rows: 14,           // y-bands the door's edges are read in
+  pocket: 1,
+  pocketProud: 0.016, // the map pocket stands this proud of the panel
+  pocketEmbed: 0.0013,// and sits this deep INTO it (hidden)
+  pocketChamfer: 0.005,
+  pocketW: 0.62,      // of the panel's width at its band
+  pocketH: 0.24,      // cage units, capped to a third of the panel's height
+  pocketLift: 0.03,   // above the panel's bottom edge
+  mat: 'doorPanel',
+};
+
+const INNER_SKIP = new Set(['dash', 'dashFace', 'firewall', 'fireProof', 'fireSeal', 'bulkhead']);
+// innermost |x| on a flank at (y, z) among every face that is not trim, a
+// bead or the cabin's own furniture — the door's skin, its liner, its frames
+// — or null. The panel's base.
+function makeInnerSampler(mesh) {
+  const V = mesh.V, F = mesh.F;
+  const BIN = 0.1;
+  const buckets = new Map(), faces = [];
+  for (const f of F) {
+    if (f.shoulder || f.doorPanel || f.m === 'joint' || f.m === 'doorSeal') continue;
+    // EVERYTHING the door's inside is made of: its skin and pane, the
+    // linings (att), and the construction's own members — a plywood door's
+    // spruce posts (`woodFrame`, not att) reached 1.4 cm past a panel that
+    // had read the linings alone. Never the dash, the firewall or a
+    // bulkhead: those are not the door's, and the panel is notched round the
+    // dash instead.
+    if (INNER_SKIP.has(f.m)) continue;
+    const P = asBuilt(V, f);
+    let z0 = 1e9, z1 = -1e9, sx = 0;
+    for (const p of P) { z0 = Math.min(z0, p[2]); z1 = Math.max(z1, p[2]); sx += p[0]; }
+    if (Math.abs(sx / P.length) < 0.05) continue;
+    const id = faces.push({ P, side: sx >= 0 ? 1 : -1 }) - 1;
+    for (let b = Math.floor(z0 / BIN); b <= Math.floor(z1 / BIN); b++) {
+      if (!buckets.has(b)) buckets.set(b, []);
+      buckets.get(b).push(id);
+    }
+  }
+  return (side, y, z) => {
+    const list = buckets.get(Math.floor(z / BIN)) || [];
+    let best = null;
+    for (const id of list) {
+      const fc = faces[id];
+      if (fc.side !== side) continue;
+      const P = fc.P;
+      for (let i = 1; i + 1 < P.length; i++) {
+        const a = P[0], b = P[i], c = P[i + 1];
+        const d = (b[2] - a[2]) * (c[1] - a[1]) - (c[2] - a[2]) * (b[1] - a[1]);
+        if (Math.abs(d) < 1e-12) continue;
+        const u = ((z - a[2]) * (c[1] - a[1]) - (c[2] - a[2]) * (y - a[1])) / d;
+        const v = ((b[2] - a[2]) * (y - a[1]) - (z - a[2]) * (b[1] - a[1])) / d;
+        if (u < -1e-6 || v < -1e-6 || u + v > 1 + 1e-6) continue;
+        const x = (a[0] + u * (b[0] - a[0]) + v * (c[0] - a[0])) * side;
+        if (x > 0.05 && (best == null || x < best)) best = x;
+      }
+    }
+    return best;
+  };
+}
+
+// a closed slab over an outline in (z, y): back at baseAbs(y, z) (|x|),
+// thickness T inboard, the front edge chamfered by c. Caps are ring-filled
+// toward the centroid so the faces follow the base. Vertices split per strip.
+function slab(V, NN, A, outline, baseAbs, T, c, side, field, mk) {
+  const u = -side;                                   // inboard in x
+  const M = outline.length;
+  const cen = outline.reduce((s, p) => [s[0] + p[0] / M, s[1] + p[1] / M], [0, 0]);
+  const nrmAt = (pts, i) => {                        // outward 2D normal (dz, dy)
+    const a = pts[(i + M - 1) % M], b = pts[(i + 1) % M], p = pts[i];
+    let nx = -(b[1] - a[1]), ny = b[0] - a[0];
+    const l = Math.hypot(nx, ny) || 1; nx /= l; ny /= l;
+    if (nx * (cen[0] - p[0]) + ny * (cen[1] - p[1]) > 0) { nx = -nx; ny = -ny; }
+    return [nx, ny];
+  };
+  const inset = c > 0 ? outline.map((p, i) => { const n = nrmAt(outline, i); return [p[0] - n[0] * c, p[1] - n[1] * c]; }) : outline;
+  const at = (zy, depth) => [side * (baseAbs(zy[1], zy[0]) - depth), zy[1], zy[0]];
+  const put = (p3, n) => { const id = V.push(p3) - 1; NN[id] = n; if (A) A[id] = field(p3); return id; };
+  const R = 6;
+  const cap = (pts, depth, nx) => {
+    // rings from the outline down to 30 % of it, then a fan to the centre:
+    // the innermost ring keeps the outline's points apart
+    const rings = [];
+    for (let j = 0; j < R; j++) {
+      const t = 1 - 0.7 * j / (R - 1);
+      rings.push(pts.map(p => put(at([cen[0] + (p[0] - cen[0]) * t, cen[1] + (p[1] - cen[1]) * t], depth), [u * nx, 0, 0])));
+    }
+    const cid = put(at(cen, depth), [u * nx, 0, 0]);
+    for (let j = 0; j + 1 < R; j++) for (let k = 0; k < M; k++) {
+      const k1 = (k + 1) % M;
+      mk([rings[j][k], rings[j][k1], rings[j + 1][k1], rings[j + 1][k]]);
+    }
+    const last = rings[R - 1];
+    for (let k = 0; k < M; k++) mk([last[k], last[(k + 1) % M], cid]);
+  };
+  cap(outline, 0, -1);                              // back, facing outboard
+  cap(inset, T, +1);                                // front, facing inboard
+  const w0 = outline.map((p, i) => { const n = nrmAt(outline, i); return put(at(p, 0), [0, n[1], n[0]]); });
+  const w1 = outline.map((p, i) => { const n = nrmAt(outline, i); return put(at(p, T - c), [0, n[1], n[0]]); });
+  for (let k = 0; k < M; k++) { const k1 = (k + 1) % M; mk([w0[k], w0[k1], w1[k1], w1[k]]); }
+  if (c > 0) {
+    const c0 = outline.map((p, i) => { const n = nrmAt(outline, i); return put(at(p, T - c), nrm([u, n[1], n[0]])); });
+    const c1 = inset.map((p, i) => { const n = nrmAt(outline, i); return put(at(p, T), nrm([u, n[1], n[0]])); });
+    for (let k = 0; k < M; k++) { const k1 = (k + 1) % M; mk([c0[k], c0[k1], c1[k1], c1[k]]); }
+  }
+}
+
+// the z-extent of a set of faces (as-built polygons) along the line y = const:
+// exact polygon/line intersection, unioned. The door's edge at a height.
+function extentAt(polys, y) {
+  let lo = 1e9, hi = -1e9;
+  for (const P of polys) {
+    const n = P.length;
+    for (let i = 0; i < n; i++) {
+      const a = P[i], b = P[(i + 1) % n];
+      if ((a[1] - y) * (b[1] - y) > 0) continue;
+      if (a[1] === b[1]) { lo = Math.min(lo, a[2], b[2]); hi = Math.max(hi, a[2], b[2]); continue; }
+      const t = (y - a[1]) / (b[1] - a[1]);
+      const z = a[2] + (b[2] - a[2]) * t;
+      lo = Math.min(lo, z); hi = Math.max(hi, z);
+    }
+  }
+  return lo > 1e8 ? null : [lo, hi];
+}
+
+// round the corners of a polygon: every vertex whose turn exceeds 25 deg is
+// replaced by a quadratic arc through it (r along each edge)
+function roundCorners(pts, r, n) {
+  const M = pts.length, out = [];
+  for (let i = 0; i < M; i++) {
+    const p = pts[i], a = pts[(i + M - 1) % M], b = pts[(i + 1) % M];
+    const d1 = nrm2(sub2(p, a)), d2 = nrm2(sub2(b, p));
+    const turn = Math.acos(Math.max(-1, Math.min(1, d1[0] * d2[0] + d1[1] * d2[1])));
+    // only CONVEX corners (a left turn on this counter-clockwise outline):
+    // an arc through a reflex corner bulges outside the polygon
+    const left = d1[0] * d2[1] - d1[1] * d2[0] > 0;
+    if (turn < 25 * Math.PI / 180 || !left) { out.push(p); continue; }
+    const la = Math.hypot(p[0] - a[0], p[1] - a[1]), lb = Math.hypot(b[0] - p[0], b[1] - p[1]);
+    const rr = Math.min(r, la * 0.45, lb * 0.45);
+    const A = [p[0] - d1[0] * rr, p[1] - d1[1] * rr], B = [p[0] + d2[0] * rr, p[1] + d2[1] * rr];
+    for (let k = 0; k <= n; k++) {
+      const t = k / n, s = 1 - t;
+      out.push([s * s * A[0] + 2 * s * t * p[0] + t * t * B[0], s * s * A[1] + 2 * s * t * p[1] + t * t * B[1]]);
+    }
+  }
+  const Rr = [];
+  for (const p of out) if (!Rr.length || Math.hypot(p[0] - Rr[Rr.length - 1][0], p[1] - Rr[Rr.length - 1][1]) > 1e-7) Rr.push(p);
+  if (Rr.length > 2 && Math.hypot(Rr[0][0] - Rr[Rr.length - 1][0], Rr[0][1] - Rr[Rr.length - 1][1]) < 1e-7) Rr.pop();
+  return Rr;
+}
+
+function panelBuild(mesh, spec, opt) {
+  const o = Object.assign({}, PANEL_DEF, opt || {});
+  const V = mesh.V.slice(), F = mesh.F.slice();
+  const A = mesh.A ? mesh.A.slice() : null;
+  const N = mesh.N ? mesh.N.slice() : null;
+  const NN = [];
+  const inner = makeInnerSampler(mesh);
+  const parts = [];
+  // the doors: key x side, from the door's own skin faces (as-built)
+  const doors = new Map();
+  mesh.F.forEach(f => {
+    if (!f.doorKey || f.shoulder || f.doorPanel || faceClass(f) === null) return;
+    const P = asBuilt(mesh.V, f);
+    let sx = 0; for (const p of P) sx += p[0];
+    const side = sx >= 0 ? 1 : -1;
+    const k = f.doorKey + ':' + side;
+    if (!doors.has(k)) doors.set(k, { key: f.doorKey, side, skin: [], glass: [], cutOff: f.cutOff || null });
+    const d = doors.get(k);
+    (faceClass(f) === 'G' ? d.glass : d.skin).push(P);
+  });
+  const shParts = (mesh.shoulder && mesh.shoulder.parts) || [];
+  for (const d of doors.values()) {
+    const side = d.side, off = d.cutOff || [0, 0, 0];
+    if (!d.skin.length) continue;
+    let y0 = 1e9, y1 = -1e9;
+    for (const P of d.skin) for (const p of P) { y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }
+    // the top: the shoulder's leg bottom on this door, else its glass bottom
+    let yTop = null;
+    for (const sp of shParts) if (sp.door === d.key && sp.side === side)
+      for (const st of sp.st) { const yb = st.yTop - st.Hc; if (yTop == null || yb < yTop) yTop = yb; }
+    if (yTop != null) yTop -= o.topGap;
+    else {
+      let g = 1e9; for (const P of d.glass) for (const p of P) g = Math.min(g, p[1]);
+      yTop = (g < 1e8 ? g : y1) - o.margin;
+    }
+    const yBot = y0 + o.margin;
+    if (yTop - yBot < 0.08) continue;
+    // THE DOOR'S EDGES AT A HEIGHT, conservatively: the extent of the door's
+    // own vertices within 6 cm of y, taken at y and 3 cm either side and the
+    // tightest kept — a raked edge read over a tall band overran the door
+    // at the top-front corner by 13 cm on the first cut (GATE SHOULDER)
+    const edge = (y, which) => { const e = extentAt(d.skin, y); return e ? e[which] : null; };
+    // the dashboard's footprint: the panel stays behind its aft face
+    let zDash = null, yDash = null;
+    for (const f of mesh.F) if (f.m === 'dash' || f.m === 'dashFace') for (const vi of f.v) {
+      const p = mesh.V[vi]; if (zDash == null || p[2] < zDash) zDash = p[2]; if (yDash == null || p[1] < yDash) yDash = p[1];
+    }
+    const zAt = (y, which) => {
+      let v = null;
+      for (const dy of [-0.012, 0, 0.012]) { const e = edge(y + dy, which); if (e == null) continue; v = v == null ? e : (which ? Math.min(v, e) : Math.max(v, e)); }
+      if (v == null) v = which ? y1 : y0;   // (never: the door has vertices at every band)
+      if (which && zDash != null && y > yDash - o.margin && v > zDash - o.margin) v = zDash - o.margin;
+      return v;
+    };
+    // the side edges are sampled FINELY (1.5 cm): a cut door's edge is
+    // face-granular and steps by a row's width where the mesh rows do, and a
+    // coarse polyline straddling a step crossed outside the margin
+    const nS = Math.max(8, Math.round((yTop - yBot) / 0.015));
+    const ys = []; for (let i = 0; i <= nS; i++) ys.push(yBot + (yTop - yBot) * i / nS);
+    const poly = [];
+    for (let i = 0; i <= 4; i++) poly.push([zAt(yBot, 0) + o.margin + (zAt(yBot, 1) - zAt(yBot, 0) - 2 * o.margin) * i / 4, yBot]);
+    for (let i = 1; i <= nS; i++) poly.push([zAt(ys[i], 1) - o.margin, ys[i]]);
+    for (let i = 3; i >= 0; i--) poly.push([zAt(yTop, 0) + o.margin + (zAt(yTop, 1) - zAt(yTop, 0) - 2 * o.margin) * i / 4, yTop]);
+    for (let i = nS - 1; i >= 1; i--) poly.push([zAt(ys[i], 0) + o.margin, ys[i]]);
+    const outline0 = roundCorners(poly, o.cornerR, 4);
+    const outline = [];
+    // simplified to 3 mm: the corner arcs on a stepped edge come out at a
+    // millimetre's spacing, and the cap's inner rings would compress those
+    // below the position key's resolution (an over-shared edge in the fan)
+    for (const q of outline0) if (!outline.length || Math.hypot(q[0] - outline[outline.length - 1][0], q[1] - outline[outline.length - 1][1]) > 3e-3) outline.push(q);
+    while (outline.length > 2 && Math.hypot(outline[0][0] - outline[outline.length - 1][0], outline[0][1] - outline[outline.length - 1][1]) <= 3e-3) outline.pop();
+    if (outline.length < 6) continue;
+    // the base at (y, z): the innermost of a small neighbourhood (a slit in
+    // the door's coverage — the seal's gap, a pane's edge — must not hand a
+    // vertex an older sample), and only then the last good value
+    // STATELESS: the innermost of a neighbourhood, widening until something
+    // is hit (a slit in the door's coverage — the seal's gap, a pane's edge —
+    // must not hand a vertex another vertex's answer; a stateful "last good"
+    // sample gave the check a different panel than the build)
+    const probe = (y, z) => {
+      for (const r of [0, 0.015, 0.03, 0.06, 0.1]) {
+        let v = null;
+        const pts = r ? [[r, 0], [-r, 0], [0, r], [0, -r]] : [[0, 0]];
+        for (const [dy, dz] of pts) { const q = inner(side, y + dy, z + dz); if (q != null && (v == null || q < v)) v = q; }
+        if (v != null) return v;
+      }
+      return null;
+    };
+    const cz = outline.reduce((s2, p) => s2 + p[0] / outline.length, 0), cy = outline.reduce((s2, p) => s2 + p[1] / outline.length, 0);
+    const base0 = probe(cy, cz);
+    if (base0 == null) continue;
+    const baseAbs = (y, z) => {
+      // the innermost of the point and its 1.5 cm neighbours, so a bump in
+      // the lining between samples cannot reach the panel's back
+      let v = null;
+      for (const [dy, dz] of [[0, 0], [0.015, 0], [-0.015, 0], [0, 0.015], [0, -0.015]]) {
+        const q = inner(side, y + dy, z + dz);
+        if (q != null && (v == null || q < v)) v = q;
+      }
+      if (v == null) v = probe(y, z);
+      if (v == null) v = base0;
+      return v - o.gap;
+    };
+    const zF = Math.max(...outline.map(p => p[0]));
+    const field = p3 => [zF - p3[2], p3[1] - yBot, 0.5, 0.5];
+    const faces = [];
+    const mk = vs => faces.push({ v: vs, m: o.mat, doorPanel: 1 });
+    slab(V, NN, A, outline, baseAbs, o.T, o.chamfer, side, field, mk);
+    let pocket = null;
+    if (o.pocket) {
+      const h = Math.min(o.pocketH, (yTop - yBot) / 3);
+      const py0 = yBot + o.pocketLift, py1 = py0 + h;
+      const zl = zAt((py0 + py1) / 2, 0) + o.margin, zr = zAt((py0 + py1) / 2, 1) - o.margin;
+      const zc = (zl + zr) / 2, hw = (zr - zl) * o.pocketW / 2;
+      const pk = roundCorners([[zc - hw, py0], [zc + hw, py0], [zc + hw, py1], [zc - hw, py1]], o.cornerR * 0.6, 4);
+      const pBase = (y, z) => baseAbs(y, z) - o.T + o.pocketEmbed;
+      const before = faces.length;
+      slab(V, NN, A, pk, pBase, o.pocketProud + o.pocketEmbed, o.pocketChamfer, side, field, mk);
+      pocket = { y0: py0, y1: py1, z0: zc - hw, z1: zc + hw, nFaces: faces.length - before };
+    }
+    const nMain = faces.length - (pocket ? pocket.nFaces : 0);
+    orientPart(V, faces.slice(0, nMain));
+    if (pocket) orientPart(V, faces.slice(nMain));
+    // the door's explode offset, once per vertex (strips share vertices)
+    const moved = new Set();
+    for (const f of faces) {
+      for (const vi of f.v) if (!moved.has(vi)) { moved.add(vi); const p = V[vi]; p[0] += off[0]; p[1] += off[1]; p[2] += off[2]; }
+      f.doorKey = d.key; f.cutPart = 1; f.cutOff = off;
+      F.push(f);
+    }
+    parts.push({ side, door: d.key, yTop, yBot, outline, faces, nMain, pocket, off, baseAbs });
+  }
+  const out = Object.assign({}, mesh, { V, F });
+  if (A) out.A = A;
+  if (N) { for (let i = 0; i < V.length; i++) if (!N[i] && NN[i]) N[i] = NN[i]; out.N = N; }
+  else { const N2 = []; for (let i = 0; i < V.length; i++) if (NN[i]) N2[i] = NN[i]; out.N = N2; }
+  out.doorPanel = { parts, opt: o };
+  return out;
+}
+
+const API = { PANEL_DEF, panelBuild, makeInnerSampler, extentAt, DEF, CONFIGS, stockLever, shoulderLever, chainStations, shoulderTrace, shoulderBuild, shoulderCheck, shoulderLimits,
               makeSkinSampler, leverCrossings, earClip, hull2, roundedOffset };
 if (typeof module !== 'undefined') module.exports = API;
 if (typeof window !== 'undefined') window.SHOULDER_GEN = API;

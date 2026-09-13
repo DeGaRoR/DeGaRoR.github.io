@@ -42427,3 +42427,74 @@ OWED (all in the design doc §7): the glass legibility measurement (gRain and
 gBug stay 0 by table until it exists); the lab's `weather` kind in the
 editor's own lab panel; the chip lip normal; a baked cavity for `dep` on the
 skin; the airport-driven macros; the W0.5a re-shoot of the bench references.
+
+## G346 — THE DOOR INNER PANEL: A PADDED BOARD INSIDE EACH DOOR THAT STANDS
+## OFF WHATEVER THE DOOR'S INSIDE IS (2026-09-13, the user: "Now do the door
+## inner panel option. High quality modelling again, no clipping into
+## anything. Always optional. Proper material and material choices. Modeling
+## of simple features with some bevel, emboss, and interesting geometry
+## without compromising on the no clipping ever rule. You may rely on normal
+## maps to keep things simple")
+
+The user's second option from the shoulder brief, off by default (`door
+panel` row on the Cockpit page under the sill shoulder; a part of its own,
+`Door panel`, section `doorPanel`). Built by `panelBuild` in
+`tools/_shoulder_gen.js`, reached from `cageShoulder` after the shoulder
+(it rides the leg's bottom edge; without a shoulder it starts under the
+door's glass).
+
+- **NO CLIPPING IS A SAMPLE, NOT AN ASSUMPTION.** The panel's back sits
+  `gap` (8 mm cage) inboard of the door's INNERMOST surface at every point,
+  read off the mesh (`makeInnerSampler`): the door's skin and pane, the
+  linings, and the construction's own members — a plywood door's spruce
+  posts (`woodFrame`, not `att`) reached 1.4 cm past a panel that had read
+  the linings alone. The sample is the innermost of a 1.5 cm neighbourhood
+  (a bump between samples cannot reach the back) and widens until it hits
+  (a slit in the door's coverage must not hand a vertex another vertex's
+  answer — a stateful "last good" sample gave the check a different panel
+  than the build). Never the dash, the firewall or a bulkhead: those are not
+  the door's, and the panel is NOTCHED round the dash's aft face instead.
+- **INSIDE THE DOOR'S OWN EDGES.** The outline follows the door's raked and
+  STEPPED cut edges — the exact extent of the door's faces along the line
+  y (`extentAt`, polygon/line intersection, never a vertex window: a raked
+  edge read over a tall band overran the door by 13 cm at the top-front
+  corner, and a 6 cm vertex window read a mesh row with no vertices as a
+  narrow door) — inset by the margin (4 cm cage), sampled every 1.5 cm up
+  the sides, the convex corners rounded (an arc through a reflex corner
+  bulges outside), then simplified to 3 mm.
+- **THE SOLID.** A closed slab (gauge 8 mm cage, 6 mm on the page's
+  aeroplane) whose caps are ring-filled toward the centroid so they follow
+  the sampled base, rings stopping at 30 % (collapsing them to a point
+  compressed the corner arcs below the position key and over-shared the
+  fan's edges), a chamfered front edge (45°, 6 mm), a map pocket in the
+  lower third standing 16 mm proud with its own chamfer and its back
+  embedded 1.3 mm INTO the panel — hidden, no coplanar face. Vertices split
+  per strip (flat across every edge), oriented by volume, fielded (sL along
+  the door, sC up the panel), a door part (doorKey + cutOff: explodes with
+  the door, skipped by `cageDoorEdges` like the shoulder's segment).
+- **THE MATERIAL AND THE CHOICES.** Role `doorPad`, resolving to a new
+  finish `pleatLeather` in every construction column: the pleats are a
+  NORMAL MAP — a new `pleat` bake in `aeroHeight` (rounded rolls with a
+  stitched groove between them, two a tile, a faint hide pebble over the
+  roll), tile 0.16 m — over the leather's own colour and roughness. The
+  section is paintable: any finish in the table replaces it from the paint
+  UI (the dark leather of the coaming, the bare alloys, the plies).
+- **THE WALL IS THE PANEL WHERE IT COVERS A STATION**: the crew's
+  `shoulderAt` now tests two trim groups (the leg, the panel) each over its
+  own y-range, so the wall throttle, the fuel selector and the trim wheel
+  mount on the panel's face (the pocket's where it is proud), and the lever
+  swings in the cabin.
+- **GATES.** GATE SHOULDER: 13 panel configurations (stock, no shoulder,
+  wide and narrow cabins, a passenger door, exploded, sill down, round +
+  tube, wood, aluminium, no interior, deep margin, no pocket) — each part a
+  closed 2-manifold by position with positive volume, every vertex ≥ gap
+  from the door's innermost surface, every outline point inside the door's
+  exact extent by the margin, the top under the shoulder's leg, the pocket
+  embedded ≤ 1.3 mm and inside the panel, no outline edge under 0.5 mm; the
+  seat's outer edge against the panel's face reported (the crew is THREE;
+  the numbers are the crew's own formulas). GATE CLIP: a `trim` skin (the
+  shoulder and the panel) joins the fuselage skin, and a `stock+panel`
+  build joins its list — a fitting inside the trim is a red. GATE PARTS'
+  section sweep gained a `door panel` shape (the section exists only with
+  the row on).
+- Captures: screenshots/shoulder/61..63 (shed), 71..73 (flight).

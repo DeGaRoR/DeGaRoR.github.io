@@ -283,6 +283,16 @@ const AERO_FINISH = {
                rough: 0.34, metal: 0.92, nrm: 0.55, alb: 0.30,
                hs: 0.8, bs: 0.5, bake: 'sheet', sheet: 'sillAlu',
                fld: 0.0010, fldL: 0.4, fldR: 0.3 },
+  // THE DOOR PANEL'S HIDE (G346): pleated leather — the pleats are the
+  // `pleat` bake (a normal map: rounded rolls with a stitched groove between
+  // them, two a tile), the grain rides the scanned leather sheet's colour
+  // and roughness. Tile 0.16 m = 8 cm pleats. Any finish can replace it per
+  // section; the shell's dark leather is the natural second choice.
+  // base 0x5a3a28 -> 0x8a5a3a: under the cabin's own darkening the first
+  // read as the liner it covers, and a pleat you cannot see is not a pleat
+  pleatLeather: { name: 'pleated leather', base: 0x8a5a3a, tile: 0.16,
+                  rough: 0.55, metal: 0.0, nrm: 1.0, alb: 0.45,
+                  hs: 1.0, bs: 0.7, bake: 'pleat', pleats: 2 },
   leatherDark: { name: 'dark leather', base: 0x2a2622, tile: 0.30,
                  rough: 0.52, metal: 0.0, nrm: 0.55, alb: 0.60,
                  hs: 0.8, bs: 0.9, bake: 'hide', sheet: 'leather' },
@@ -432,6 +442,10 @@ const AERO_ROLE = {
   // is the dark instrument plate, which read black along the window),
   // paintable per section like the rest.
   shoulder: 'sill',
+  // THE DOOR INNER PANEL (G346): a padded trim board, its own role `doorPad`
+  // so the pleated hide is the default in every column and any finish can
+  // be set on it from the paint UI
+  doorPanel: 'doorPad',
   plywood: 'liner', cloth: 'liner', composite: 'liner', toele: 'liner',
 };
 // THE CABIN IS DARKER THAN THE DAY (G206.1, the audit's §1.1 item 4). The
@@ -446,7 +460,7 @@ const AERO_ROLE = {
 // factory takes `inside` and the shader scales every lit term by
 // (1 - uCabin.x) on those fragments — sky, lamps and sun alike, because a
 // roof and a skin stop all three.
-const AERO_INSIDE_ROLES = new Set(['liner', 'struct', 'pad', 'panel', 'fire', 'sill']);
+const AERO_INSIDE_ROLES = new Set(['liner', 'struct', 'pad', 'panel', 'fire', 'sill', 'doorPad']);
 function aeroIsInside(section) {
   if (section === 'boomTube' || section === 'taperPanel') return false;
   return AERO_INSIDE_ROLES.has(AERO_ROLE[section]);
@@ -476,19 +490,19 @@ const AERO_BY_CONS = {
   tubeFabric: { skin: 'fabric', rail: 'fabric', pillar: 'fabric',
                 struct: 'steelTube', panel: 'panelMetal', pad: 'leatherDark',
                 bead: 'bareAlu', seal: 'rubber', fire: 'fireFoil',
-                edge: 'acrylicEdge', sill: 'sillAlu' },
+                edge: 'acrylicEdge', sill: 'sillAlu', doorPad: 'pleatLeather' },
   wood:       { skin: 'ply', rail: 'ply', pillar: 'ply',
                 struct: 'spruce', panel: 'panelMetal', pad: 'leatherDark',
                 bead: 'bareAlu', seal: 'rubber', fire: 'fireFoil',
-                edge: 'acrylicEdge', sill: 'sillAlu' },
+                edge: 'acrylicEdge', sill: 'sillAlu', doorPad: 'pleatLeather' },
   alloy:      { skin: 'alclad', rail: 'alclad', pillar: 'alclad',
                 struct: 'bareAlu', panel: 'panelMetal', pad: 'leatherDark',
                 bead: 'bareAlu', seal: 'rubber', fire: 'fireFoil',
-                edge: 'acrylicEdge', sill: 'sillAlu' },
+                edge: 'acrylicEdge', sill: 'sillAlu', doorPad: 'pleatLeather' },
   carbon:     { skin: 'composite', rail: 'composite', pillar: 'composite',
                 struct: 'composite', panel: 'panelMetal', pad: 'leatherDark',
                 bead: 'bareAlu', seal: 'rubber', fire: 'fireFoil',
-                edge: 'acrylicEdge', sill: 'sillAlu' },
+                edge: 'acrylicEdge', sill: 'sillAlu', doorPad: 'pleatLeather' },
   // THE FLYING SURFACES' OWN CONSTRUCTIONS (G213): fabric over wood, fabric
   // over steel tube — both wear doped fabric; what differs is the structure
   // showing through where a section is left open. Reached only from the
@@ -496,11 +510,11 @@ const AERO_BY_CONS = {
   fabric:     { skin: 'fabric', rail: 'fabric', pillar: 'fabric',
                 struct: 'spruce', panel: 'panelMetal', pad: 'leatherDark',
                 bead: 'bareAlu', seal: 'rubber', fire: 'fireFoil',
-                edge: 'acrylicEdge', sill: 'sillAlu' },
+                edge: 'acrylicEdge', sill: 'sillAlu', doorPad: 'pleatLeather' },
   steel:      { skin: 'fabric', rail: 'fabric', pillar: 'fabric',
                 struct: 'steelTube', panel: 'panelMetal', pad: 'leatherDark',
                 bead: 'bareAlu', seal: 'rubber', fire: 'fireFoil',
-                edge: 'acrylicEdge', sill: 'sillAlu' },
+                edge: 'acrylicEdge', sill: 'sillAlu', doorPad: 'pleatLeather' },
 };
 const AERO_GLASS = new Set(['windshield', 'pilotWindow', 'pasengerWindow',
                             'skyWindows']);
@@ -1098,6 +1112,19 @@ function aeroHeight(kind, S, row) {
         // share an axis and the tile does not read as a grid.
         const g = (a, b, k) => Math.sin(u * a + v * b) * Math.sin(u * -b + v * a) * k;
         return g(37, 21, 0.34) + g(59, -43, 0.18) + g(97, 71, 0.09);
+      }
+      case 'pleat': {
+        // PLEATED UPHOLSTERY (the door panel, G346): `pleats` rounded rolls
+        // a tile along v, each a half-cosine roll, a narrow stitched groove
+        // between them (a row of small dips along u), and a faint hide
+        // pebble over the roll so it still reads as leather up close.
+        const n = (row && row.pleats > 0) ? row.pleats : 2;
+        const ph = (v * n) % (Math.PI * 2);
+        const roll = 0.5 + 0.5 * Math.cos(ph);                 // 1 on the roll's crown, 0 in the groove
+        const groove = Math.exp(-Math.pow((ph - Math.PI) / 0.22, 2));
+        const stitch = groove * 0.35 * Math.max(0, Math.sin(u * 40));
+        const pebble = 0.06 * Math.sin(u * 23 + 1.3 * Math.sin(v * 17)) * Math.sin(v * 29 + 1.3 * Math.sin(u * 13));
+        return 0.62 * roll - 0.25 * groove - stitch + pebble;
       }
       case 'hide': {
         // LEATHER. The grain is a broad, soft PEBBLE with fine pores in it,

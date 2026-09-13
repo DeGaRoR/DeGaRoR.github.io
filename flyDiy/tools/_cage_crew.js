@@ -2729,7 +2729,10 @@ function anchors(spec, P, mesh) {
   if (mesh && mesh.F && mesh.V)
     for (const f of mesh.F) for (const vi of f.v) {
       const v = mesh.V[vi];
-      if (f.shoulder) { shPts.push([v[0] * k, v[1] * k, v[2] * k]); continue; }
+      // G346: the door inner panel is trim too — a second group, so the
+      // range test below runs per solid (the panel's band and the leg's band
+      // are neighbours, not one range)
+      if (f.shoulder || f.doorPanel) { shPts.push([v[0] * k, v[1] * k, v[2] * k, f.doorPanel ? 1 : 0]); continue; }
       if (Math.abs(v[0]) * k > 0.15) sidePts.push([v[0] * k, v[1] * k, v[2] * k, f.door ? 1 : 0]);
     }
   // THE QUADRANT MOUNTS ON THE SHOULDER (G325, the user's ruling): where the
@@ -2743,15 +2746,20 @@ function anchors(spec, P, mesh) {
   // leg. Below the leg (the stock wall throttle sits 0.30 m under the sill
   // and the leg drops 0.20) the wall is still the skin.
   const shoulderAt = (sd, y, z) => {
-    let xIn = 0, y0 = 1e9, y1 = -1e9, any = false;
-    for (const q of shPts) {
-      const x = q[0] * sd;
-      if (x <= 0 || Math.abs(q[2] - z) > 0.06) continue;
-      if (q[1] < y0) y0 = q[1];
-      if (q[1] > y1) y1 = q[1];
-      if (!any || x < xIn) { xIn = x; any = true; }
+    let best = null;
+    for (const grp of [0, 1]) {
+      let xIn = 0, y0 = 1e9, y1 = -1e9, any = false;
+      for (const q of shPts) {
+        if ((q[3] || 0) !== grp) continue;
+        const x = q[0] * sd;
+        if (x <= 0 || Math.abs(q[2] - z) > 0.06) continue;
+        if (q[1] < y0) y0 = q[1];
+        if (q[1] > y1) y1 = q[1];
+        if (!any || x < xIn) { xIn = x; any = true; }
+      }
+      if (any && y >= y0 - 0.01 && y <= y1 + 0.01 && (best == null || xIn < best)) best = xIn;
     }
-    return any && y >= y0 - 0.01 && y <= y1 + 0.01 ? sd * xIn : null;
+    return best != null ? sd * best : null;
   };
   const wallAt = (sd, y, z) => {
     const sh = shoulderAt(sd, y, z);

@@ -6755,6 +6755,13 @@ const CAGE_PARAMS = {
   // "5-10 cm lip, about 20 cm down".
   shoulderOn: 1, shoulderW: 0.09, shoulderH: 0.27, shoulderT: 0.003,
   shoulderRun: 0,
+  // THE DOOR INNER PANEL (G346): a trim board inside each door from the
+  // shoulder's leg to the door's bottom, standing off the door's innermost
+  // surface (skin or liner, sampled) by the gap, inset from the cut edges by
+  // the margin, chamfered, with an embedded map pocket. Off by default —
+  // the user's "always optional". Cage units; the rows show ≈ metres.
+  doorPanelOn: 0, doorPanelT: 0.008, doorPanelGap: 0.008, doorPanelMargin: 0.04,
+  doorPanelPocket: 1,
   // G14: post-subsurf cutting of doors/windows into separate parts
   cutParts: 0, explodeD: 0,
 };
@@ -7315,6 +7322,11 @@ function cageSpec(P) {
                  H: Math.max(0.03, +P.shoulderH || 0.27),
                  t: Math.max(0.0005, +P.shoulderT || 0.003),
                  run: Math.round(+P.shoulderRun || 0) ? 'cabin' : 'pilot' };
+  S.doorPanel = { on: +P.doorPanelOn ? 1 : 0,
+                  T: Math.max(0.003, +P.doorPanelT || 0.008),
+                  gap: Math.max(0.002, +P.doorPanelGap || 0.008),
+                  margin: Math.max(0.01, +P.doorPanelMargin || 0.04),
+                  pocket: P.doorPanelPocket == null || +P.doorPanelPocket ? 1 : 0 };
   // G344: THE THROTTLE ON OR THROUGH THE SHOULDER (ctlThr 4 / 5) — the
   // request the cage pass decides the lever from (cage units: the crew's
   // metre offsets over planeScale), the pilot's side (+x, port)
@@ -7800,7 +7812,7 @@ function cageDoorEdges(mesh) {
     // the shoulder's door segment (G325) carries the door's key so it
     // explodes with it, but it is trim INSIDE the door, not the door's
     // outline — the hinge was placed 109 mm inboard off it (GATE CLIP)
-    if (!f.doorKey || f.v.length !== 4 || skip.has(f.m) || f.shoulder) return;
+    if (!f.doorKey || f.v.length !== 4 || skip.has(f.m) || f.shoulder || f.doorPanel) return;
     const k = f.doorKey + ':' + (V[f.v[0]][0] >= 0 ? 'P' : 'M');
     if (!byDoor.has(k)) byDoor.set(k, []);
     byDoor.get(k).push(i);
@@ -7880,11 +7892,15 @@ function cageDoorEdges(mesh) {
 // with its parts appended, or the mesh untouched when off or the module is
 // not loaded (a headless caller without it still builds).
 function cageShoulder(m, S) {
-  const SH = S.shoulder;
-  if (!SH || !SH.on) return m;
+  const SH = S.shoulder, DP = S.doorPanel;
   const SG = (typeof SHOULDER_GEN !== 'undefined') ? SHOULDER_GEN
     : (typeof require === 'function' ? require('./_shoulder_gen.js') : null);
   if (!SG) return m;
+  // THE DOOR INNER PANEL (G346) rides the shoulder's leg (its top edge), so
+  // it is built after the shoulder — and without one when the shoulder is off
+  const withPanel = mm => (DP && DP.on && SG.panelBuild)
+    ? SG.panelBuild(mm, S, { T: DP.T, gap: DP.gap, margin: DP.margin, pocket: DP.pocket }) : mm;
+  if (!SH || !SH.on) return withPanel(m);
   const o = { W: SH.W, H: SH.H, t: SH.t, run: SH.run };
   // G344: the throttle's lever, decided here and recorded on the mesh for
   // the crew layer to draw; 'slot' cuts the leg, 'face' only seats a plate
@@ -7897,7 +7913,7 @@ function cageShoulder(m, S) {
   } catch (e) { lever = null; }
   const out = SG.shoulderBuild(m, S, o, { cageResolve });
   if (out.shoulder) out.shoulder.lever = lever;
-  return out;
+  return withPanel(out);
 }
 
 function cageSheet(P, opts) {

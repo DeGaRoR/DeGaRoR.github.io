@@ -198,10 +198,18 @@ function runBuild(B) {
     return skinOn;
   } });
   const orient = fuse.orient();
+  // THE TRIM IS A SKIN TOO (G346): the sill shoulder and the door inner
+  // panel are closed solids inside the cabin that a wall-mounted fitting
+  // must stand OFF, not in — a fitting inside them is a red like any other
+  let trim = null;
+  { let n = 0; for (const f of sheet.F) if (f.shoulder || f.doorPanel) n++;
+    if (n) trim = MQ.triSet(sheet, { scale: S.FS, faces: f => !!(f.shoulder || f.doorPanel) }); }
+  if (trim) trim.orient();
   const tB = Date.now();
   // the skins as trees, per pose only those that moved are rebuilt
   const mkSet = (o, pos) => { const s = MQ.build(Float64Array.from(pos), o.idx.slice(), {}); s.orient(); return s; };
   const skins = [{ name: 'fuselage', kind: 'fuselage', set: fuse, box: fuse.bounds() }];
+  if (trim) skins.push({ name: 'trim', kind: 'trim', set: trim, box: trim.bounds() });
   for (const o of skinsObj) {
     if (o.kind === 'prop' || o.kind === 'eng') continue;
     const set = mkSet(o, o.base);
@@ -331,6 +339,8 @@ const BUILDS = [
   { name: 'rod', over: { boomStyle: 1 } },
   { name: 'twin', spec: FIX('build_v8_twin-boom_2026-09-11.json') },
   { name: 'stock+ifr', garage: IFR },
+  // G346: the door inner panel on — the wall controls must stand off it
+  { name: 'stock+panel', over: { doorPanelOn: 1 } },
 ];
 
 function fmt(f) {
