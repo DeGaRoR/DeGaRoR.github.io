@@ -1345,6 +1345,92 @@ function buildBrakeKnob(g0, A, P, sx) {
   rod.mesh(gB, M.plated); tee.mesh(gB, M.knob);
   return { obj: gB, label: 'brake' };
 }
+// THE SHOULDER'S FACE at a station (G375): the cage pass's stations for
+// the side, the door's chain or the fixed one, interpolated at z — the flat
+// part's x, top and bottom, in METRES; null where no shoulder runs
+function shoulderFaceAt(mesh, sd, z, k, wantDoor) {
+  const parts = (mesh && mesh.shoulder && mesh.shoulder.parts) || [];
+  for (const p of parts) {
+    if (p.side !== sd || !p.st || p.st.length < 2) continue;
+    if (wantDoor != null && !!p.door !== wantDoor) continue;
+    const zc = z / k, z0 = p.st[0].z, z1 = p.st[p.st.length - 1].z;
+    if (zc < z0 || zc > z1) continue;
+    let i = 0; while (i < p.st.length - 2 && p.st[i + 1].z < zc) i++;
+    const a = p.st[i], b = p.st[i + 1], t = Math.max(0, Math.min(1, (zc - a.z) / Math.max(1e-9, b.z - a.z)));
+    const F = s => s.face || { x: s.xo, yTop: s.yTop, yBot: s.yTop - s.Hc };
+    const fa = F(a), fb = F(b), L = (u, v) => (u + (v - u) * t) * k;
+    return { x: L(fa.x, fb.x), yTop: L(fa.yTop, fb.yTop), yBot: L(fa.yBot, fb.yBot), z0: z0 * k, z1: z1 * k, door: !!p.door };
+  }
+  return null;
+}
+function shoulderSpan(mesh, sd, wantDoor) {
+  const parts = (mesh && mesh.shoulder && mesh.shoulder.parts) || [];
+  const p = parts.find(q => q.side === sd && q.st && q.st.length >= 2 && (wantDoor == null || !!q.door === wantDoor));
+  return p ? [p.st[0].z, p.st[p.st.length - 1].z] : null;
+}
+function buildShoulderFurniture(g0, A, P, mesh, pilot) {
+  const K = window.GEAR_KIT;
+  if (!K || !mesh || !mesh.shoulder) return;
+  const k = A.k, out = [];
+  const pilotSd = pilot && pilot.x < -1e-6 ? -1 : 1;
+  for (const sd of [1, -1]) {
+    const inb = -sd;
+    // THE DOOR LEVER, on the door's own chain when the side has one (else
+    // the fixed shoulder), at the chain's middle: a plated boss 28 mm across
+    // on the face, a flat handle 100 mm long lying along the leg, forward
+    const spanD = shoulderSpan(mesh, sd, true) || shoulderSpan(mesh, sd, null);
+    if (!spanD) continue;
+    const zL = (spanD[0] + spanD[1]) / 2 * k;
+    const f = shoulderFaceAt(mesh, sd, zL, k, null);
+    if (!f || f.yTop - f.yBot < 0.030) continue;
+    const yL = (f.yTop + f.yBot) / 2;
+    const boss = K.Bag();
+    K.revolve(boss, [f.x, yL, zL], [inb, 0, 0], [[0.014, 0], [0.014, 0.004], [0.011, 0.006], [0, 0.006]], 24, false);
+    boss.mesh(g0, M.plated);
+    const gD = movingAt(g0, 'edCtl_door' + (sd > 0 ? 'L' : 'R'), [f.x + inb * 0.006, yL, zL], [inb, 0, 0], 'door', 1, 0);
+    const hd = K.Bag();
+    K.revolve(hd, [0, 0, 0], [inb, 0, 0], [[0.008, 0], [0.008, 0.006], [0, 0.006]], 16, true);            // the hub
+    K.sweep(hd, [[inb * 0.003, 0, 0.010], [inb * 0.003, 0, 0.100]],
+      () => [[-0.009, -0.0025], [0.009, -0.0025], [0.009, 0.0025], [-0.009, 0.0025]], true, [0, 1, 0]);   // the handle, forward
+    K.revolve(hd, [inb * 0.003, 0, 0.100], [inb, 0, 0], [[0.009, -0.0025], [0.009, 0.0025], [0, 0.0025]], 12, true);   // its rounded end
+    hd.mesh(gD, M.plated);
+    out.push({ obj: gD, label: 'door lever' });
+    if (sd !== pilotSd) continue;
+    // THE JACKS AND THE INTERCOM, aft of the lever on the pilot's side —
+    // where the face is tall enough (the leg is 10 cm since G355)
+    const zJ = zL - 0.16, fj = shoulderFaceAt(mesh, sd, zJ, k, null);
+    if (fj && fj.yTop - fj.yBot >= 0.034) {
+      const yJ = (fj.yTop + fj.yBot) / 2;
+      const pl = K.Bag(), nuts = K.Bag(), holes = K.Bag();
+      K.sweep(pl, [[fj.x, yJ, zJ], [fj.x + inb * 0.002, yJ, zJ]],
+        () => [[-0.030, -0.014], [0.030, -0.014], [0.030, 0.014], [-0.030, 0.014]], true, [0, 1, 0]);
+      for (const dz of [-0.014, 0.014]) {
+        K.revolve(nuts, [fj.x + inb * 0.002, yJ, zJ + dz], [inb, 0, 0], [[0.0062, 0], [0.0062, 0.0045], [0.0052, 0.0055], [0.0033, 0.0055], [0, 0.0055]], 6, false);
+        K.revolve(holes, [fj.x + inb * 0.0056, yJ, zJ + dz], [inb, 0, 0], [[0.0032, 0], [0, 0]], 12, false);
+      }
+      pl.mesh(g0, M.plateAl); nuts.mesh(g0, M.plated); holes.mesh(g0, M.knob);
+      for (const [dz, dy] of [[-0.024, 0.010], [0.024, 0.010], [-0.024, -0.010], [0.024, -0.010]])
+        K.bolt(pl, [fj.x + inb * 0.002, yJ + dy, zJ + dz], [inb, 0, 0], 0.0018, 0.0012);
+    }
+    const zI = zL - 0.28, fi = shoulderFaceAt(mesh, sd, zI, k, null);
+    if (fi && fi.yTop - fi.yBot >= 0.046) {
+      const yI = (fi.yTop + fi.yBot) / 2;
+      const box = K.Bag(), kn = K.Bag(), sl = K.Bag();
+      K.sweep(box, [[fi.x, yI, zI], [fi.x + inb * 0.018, yI, zI]],
+        t => [[-0.035, -0.020], [0.035, -0.020], [0.035, 0.020], [-0.035, 0.020]].map(p => [p[0] * (t > 0.95 ? 0.96 : 1), p[1] * (t > 0.95 ? 0.96 : 1)]), true, [0, 1, 0]);
+      box.mesh(g0, M.console);
+      K.revolve(kn, [fi.x + inb * 0.018, yI, zI - 0.016], [inb, 0, 0], [[0.008, 0], [0.008, 0.008], [0.006, 0.010], [0, 0.010]], 20, false);
+      K.boxIn(kn, [fi.x + inb * 0.0285, yI + 0.004, zI - 0.016], [0.0006, 0.003, 0.0006], [0, 0, 1], [0, 1, 0], [-1, 0, 0]);   // the pointer
+      kn.mesh(g0, M.knob);
+      K.sweep(sl, [[fi.x + inb * 0.018, yI, zI + 0.014], [fi.x + inb * 0.024, yI, zI + 0.014]],
+        () => [[-0.006, -0.004], [0.006, -0.004], [0.006, 0.004], [-0.006, 0.004]], true, [0, 1, 0]);
+      sl.mesh(g0, M.plated);
+      K.boxIn(sl, [fi.x + inb * 0.018, yI + 0.012, zI], [0.010, 0.0015, 0.0003], [0, 0, 1], [0, 1, 0], [-1, 0, 0]);   // the grille line
+      sl.mesh(g0, M.dark);
+    }
+  }
+  return out;
+}
 // THE FUEL SELECTOR: a round plate on the left wall ahead of the seat, four
 // positions round it, a flat pointer handle on a hub — OFF aft, then R, L,
 // BOTH forward, the order the user's tape reads.
@@ -3033,6 +3119,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     buildBrakeKnob(tg, A, P, pilot.x);
     buildFuelSelector(tg, A, P, pilot.x, pilot);
     buildTrimWheel(tg, A, P, pilot.x, pilot);
+    buildShoulderFurniture(tg, A, P, mesh, pilot);          // G375: the door levers, the jacks, the intercom
   } catch (e) { console.warn('controls (G318):', e); }
 
   // ---- THE PANEL AND THE FLOOR (G94) --------------------------------------

@@ -44353,3 +44353,27 @@ MEASURED (the check prints every number before its verdict):
   an intercom box, the EXPERIMENTAL / warning placards) is next; the
   placards need tiles on a new label sheet the user renders (labels_prep.py
   SHEETS) — the tile list will be drafted with the builders.
+
+## G375 — THE SHOULDER'S FURNITURE (2026-09-13, WS-7; the user: "a new lever
+## on the shoulder for the canopy/door, each side" / "decor for the shoulder:
+## jacks, intercom, EXPERIMENTAL, warnings")
+
+- Everything sits on the leg's inboard FACE the cage pass measured
+  (`mesh.shoulder.parts[].st[].face`, cage units → `shoulderFaceAt` in
+  metres, the door's chain or the fixed one), between the bends; nothing is
+  cut and the shoulder generator is untouched.
+- A **door lever** on each side that has a shoulder, at its chain's middle
+  (the door's chain when the side has one): a plated boss 28 mm across on
+  the face, a flat handle 100 mm long lying along the leg, pointing forward
+  — a moving group `edCtl_doorL / R` on the face's normal, drive 'door'
+  (nothing drives it yet; the join carries it like any control).
+- On the **pilot's side**, aft of the lever: a **jack plate** (60 × 28 mm,
+  two hex sockets — PHONES / MIC — four screws) 16 cm aft, and an
+  **intercom box** (70 × 40 × 18 mm, a volume knob with its pointer, a slide
+  switch, a grille line) 28 cm aft — each only where the leg's flat is tall
+  enough there (34 / 46 mm).
+- NOT DONE, waits on assets: the placards (EXPERIMENTAL, a generic warning /
+  instruction placard) and the PHONES / MIC tapes are tiles on a label
+  sheet the user renders (labels_prep.py SHEETS, a 'labels3.png'); the
+  builders are ready to take `tapeOn(...)` once the names exist. The extra
+  gauge on the shoulder is not drawn (the leg is 10 cm since G355).
