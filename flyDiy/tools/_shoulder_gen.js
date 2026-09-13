@@ -389,13 +389,22 @@ function leverCrossings(lever, plane) {
   const wx = L.wx != null ? L.wx : 0.020, tz = L.tz != null ? L.tz : 0.008;
   const pts = [];
   const N = Math.max(3, L.n || 25);
-  const rot = (v, th) => [v[0], v[1] * Math.cos(th) - v[2] * Math.sin(th), v[1] * Math.sin(th) + v[2] * Math.cos(th)];
+  // G344: the swing's AXIS is the lever's own (default lateral, the wall
+  // lever's; vertical for the arm behind the leg) — Rodrigues about it; the
+  // bar's width lies along the axis, its thickness across the swing
+  const ax = nrm(L.axis || [1, 0, 0]);
+  const rot = (v, th) => {
+    const c = Math.cos(th), s = Math.sin(th), k = ax;
+    const kd = k[0] * v[0] + k[1] * v[1] + k[2] * v[2];
+    const kx = cross(k, v);
+    return [v[0] * c + kx[0] * s + k[0] * kd * (1 - c), v[1] * c + kx[1] * s + k[1] * kd * (1 - c), v[2] * c + kx[2] * s + k[2] * kd * (1 - c)];
+  };
   for (let i = 0; i < N; i++) {
     const th = (L.arc || 0) * i / (N - 1);
     const d = rot(d0, th);
-    const nsw = nrm(cross([1, 0, 0], d));            // swing-plane normal, perpendicular to the lever
+    const nsw = nrm(cross(ax, d));                   // swing-plane normal, perpendicular to the lever
     for (const a of [-1, 1]) for (const b of [-1, 1]) {
-      const off = [a * wx / 2, b * tz / 2 * nsw[1], b * tz / 2 * nsw[2]];
+      const off = [a * wx / 2 * ax[0] + b * tz / 2 * nsw[0], a * wx / 2 * ax[1] + b * tz / 2 * nsw[1], a * wx / 2 * ax[2] + b * tz / 2 * nsw[2]];
       const p0 = [L.piv[0] + off[0], L.piv[1] + off[1], L.piv[2] + off[2]];
       const dc = plane.kind === 'y' ? d[1] : d[0];
       if (Math.abs(dc) < 1e-9) continue;
@@ -438,25 +447,7 @@ function shoulderBuild(mesh, spec, opt, CAGE) {
   for (const ch of tr.chains) {
     const side = ch.side, u = -side;             // inboard direction in x
     const off = ch.cutOff || [0, 0, 0];
-    const st = [];                               // stations: per chain point, the profile frame
-    for (const p of ch.pts) {
-      const yTop = p[1] - o.drop;
-      // the skin at the top and at the underside; fall back to the traced point
-      const xs0 = skinX(side, yTop, p[2]), xs1 = skinX(side, yTop - o.t, p[2]);
-      const xo = (xs0 != null ? xs0 : p[0]) + u * o.inset;
-      const xo1 = (xs1 != null ? xs1 : p[0]) + u * o.inset;
-      // the leg's inner face vs the skin below: the first y where the skin
-      // comes inboard of the leg's pocket face ends the leg (closed onto the
-      // skin). Sampled at 1 cm steps.
-      const xLegIn = xo + u * (o.W - o.t);
-      let Hc = o.H;
-      for (let y = yTop - ro; y >= yTop - o.H - 1e-9; y -= 0.01) {
-        const xs = skinX(side, y, p[2]);
-        if (xs != null && (xs - xLegIn) * u > -o.inset) { Hc = yTop - y; break; }
-      }
-      Hc = Math.max(Hc, ro + o.t + 0.005);
-      st.push({ z: p[2], yTop, xo, xo1, Hc });
-    }
+    const st = chainStations(ch, o, skinX, ro);  // stations: per chain point, the profile frame
     // profile in (s, y) with s inboard from xo; normals in (s, y)
     // profile in (s, y), s inboard from xo. Each point carries the normal of
     // the SEGMENT that starts at it (so a sharp corner is two coincident
@@ -571,6 +562,88 @@ function shoulderBuild(mesh, spec, opt, CAGE) {
   return out;
 }
 
+// the stations of a chain: per traced point, the profile frame (G344: a
+// function, so the lever can be decided off the same stations the loft uses)
+function chainStations(ch, o, skinX, ro) {
+  const side = ch.side, u = -side;
+  const st = [];
+  for (const p of ch.pts) {
+    const yTop = p[1] - o.drop;
+    // the skin at the top and at the underside; fall back to the traced point
+    const xs0 = skinX(side, yTop, p[2]), xs1 = skinX(side, yTop - o.t, p[2]);
+    const xo = (xs0 != null ? xs0 : p[0]) + u * o.inset;
+    const xo1 = (xs1 != null ? xs1 : p[0]) + u * o.inset;
+    // the leg's inner face vs the skin below: the first y where the skin
+    // comes inboard of the leg's pocket face ends the leg (closed onto the
+    // skin). Sampled at 1 cm steps.
+    const xLegIn = xo + u * (o.W - o.t);
+    let Hc = o.H;
+    for (let y = yTop - ro; y >= yTop - o.H - 1e-9; y -= 0.01) {
+      const xs = skinX(side, y, p[2]);
+      if (xs != null && (xs - xLegIn) * u > -o.inset) { Hc = yTop - y; break; }
+    }
+    Hc = Math.max(Hc, ro + o.t + 0.005);
+    st.push({ z: p[2], yTop, xo, xo1, Hc });
+  }
+  return st;
+}
+// THE LEVER, DECIDED HERE (G344): the throttle behind the shoulder is drawn
+// by the crew layer off THIS record, and the slot is cut from it, so the
+// two cannot disagree. `req` = { mode: 'face' | 'slot', side, z, dy, dx,
+// len } (cage units; z the throttle's station, dy a lift, dx a shift
+// inboard along the face, len the wall lever's length). The chain on that
+// side holding z is asked for its station: the leg's inboard face is at
+// xo + u W, its top at yTop, its bottom yTop - Hc.
+//   'face': the wall quadrant seated on the face — the wall lever's own
+//           numbers with the face for the wall; lateral pivot, no slot
+//   'slot': a horizontal arm on a VERTICAL pivot 38 mm into the pocket
+//           behind the leg, at mid-leg, swinging 50 degrees about it (aft =
+//           idle) — its stem crosses the face in a horizontal slot; the
+//           knob rides 45 mm into the cabin
+// Returns null when no chain holds the station (no shoulder there).
+function shoulderLever(mesh, spec, opt, CAGE, req) {
+  const o = Object.assign({}, DEF, opt || {});
+  const tr = shoulderTrace(mesh, spec, o, CAGE);
+  const skinX = makeSkinSampler(mesh);
+  const ro = o.bendR + o.t;
+  const side = req.side || 1, u = -side;
+  const chains = tr.chains.filter(ch => ch.side === side);
+  let best = null;
+  for (const ch of chains) {
+    const st = chainStations(ch, o, skinX, ro);
+    if (st.length < 2) continue;
+    const z0 = st[0].z, z1 = st[st.length - 1].z;
+    if (req.z < z0 || req.z > z1) continue;
+    let i = 0; while (i < st.length - 2 && st[i + 1].z < req.z) i++;
+    const a = st[i], b = st[i + 1], t = Math.max(0, Math.min(1, (req.z - a.z) / Math.max(1e-9, b.z - a.z)));
+    best = { yTop: a.yTop + (b.yTop - a.yTop) * t, xo: a.xo + (b.xo - a.xo) * t, Hc: a.Hc + (b.Hc - a.Hc) * t, door: ch.door || null, z0, z1 };
+    break;
+  }
+  if (!best) return null;
+  const xFace = best.xo + u * o.W;                // the leg's inboard face
+  const face = { x: xFace, yTop: best.yTop, yBot: best.yTop - best.Hc, W: o.W, t: o.t, xo: best.xo, z0: best.z0, z1: best.z1, door: best.door };
+  const dy = req.dy || 0;
+  if (req.mode === 'face') {
+    // the wall lever's own frame (buildThrottleWall), the face for the wall
+    const wx = xFace, yT = req.y != null ? req.y + dy : best.yTop - 0.10 + dy, zT = req.z;   // (the crew shifts by the rows itself)
+    const piv = [wx + u * 0.03, yT - 0.01, zT - 0.04];
+    const d = [u * 0.025, 0.11, 0.105], l = Math.hypot(d[0], d[1], d[2]);
+    return { mode: 'face', side, piv, dir: d.map(v => v / l), axis: [1, 0, 0], len: req.len != null ? req.len : 0.16,
+             arc: 25 * Math.PI / 180, wx: 0.020, tz: 0.008, knobR: 0.026, wall: wx, plateY: yT, plateZ: zT, face };
+  }
+  // 'slot': vertical pivot in the pocket, mid-leg (kept 30 mm off its top
+  // and bottom), the arm's rest pointing inboard and AFT by half the arc
+  const arc = 50 * Math.PI / 180;
+  // (kept 40 mm under the bend — the slot's frame wants the room — and
+  // 35 mm off the bottom)
+  const yT = Math.max(face.yBot + 0.035, Math.min(face.yTop - ro - 0.040, (req.y != null ? req.y : (face.yTop + face.yBot) / 2) + dy));
+  const back = Math.min(0.038, Math.max(0.012, o.W - o.t - 0.012));
+  const piv = [xFace - u * back, yT, req.z];
+  const a0 = -arc / 2;
+  const dir = [u * Math.cos(a0), 0, Math.sin(a0)];
+  return { mode: 'slot', side, piv, dir, axis: [0, 1, 0], len: back / Math.cos(a0) + 0.045, arc,
+           wx: 0.012, tz: 0.008, knobR: 0, reach: 0.045, face };
+}
 // ---- the slot planner (one per chain) ------------------------------------
 function planSlot(o, st, u, side, ch, off) {
   const L = o.lever;
@@ -820,7 +893,7 @@ function stockLever(built, side, CAGE, off) {
            wx: 0.020, tz: 0.008, knobR: 0.026, wall: wx, plateY: yT, plateZ: zT };
 }
 
-const API = { DEF, CONFIGS, stockLever, shoulderTrace, shoulderBuild, shoulderCheck, shoulderLimits,
+const API = { DEF, CONFIGS, stockLever, shoulderLever, chainStations, shoulderTrace, shoulderBuild, shoulderCheck, shoulderLimits,
               makeSkinSampler, leverCrossings, earClip, hull2, roundedOffset };
 if (typeof module !== 'undefined') module.exports = API;
 if (typeof window !== 'undefined') window.SHOULDER_GEN = API;

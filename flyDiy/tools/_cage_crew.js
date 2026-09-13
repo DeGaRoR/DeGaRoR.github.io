@@ -1001,12 +1001,16 @@ function buildPedals(g, A, P, sx) {
   pl0.mesh(g, M.plated);
   return { objL: out[1], objR: out[-1], label: 'pedals' };
 }
-function buildThrottleWall(g0, A, P, sx) {
+function buildThrottleWall(g0, A, P, sx, onFace) {
   const g = ctlShift(g0, P, 'thrX', 'thrY', 'thrZ');
   const zT = A.zBack + 0.40;
   const yT = A.floorAt(zT) + 0.42;
   // on the wall itself (G318: 0.9 x halfW was 4 cm inboard of the door's skin)
-  const wx = A.wallAt ? A.wallAt(sx >= 0 ? 1 : -1, yT, zT) : (sx >= 0 ? 1 : -1) * Math.max(0.2, A.halfW * 0.90);
+  // — or ON THE SHOULDER'S FACE (G344, ctlThr 4): the cage pass measured the
+  // leg's inboard face at this station and handed it over; the quadrant
+  // plate seats on it and the lever clears the top leg by construction
+  const wx = onFace != null ? onFace
+    : A.wallAt ? A.wallAt(sx >= 0 ? 1 : -1, yT, zT) : (sx >= 0 ? 1 : -1) * Math.max(0.2, A.halfW * 0.90);
   const inb = wx > 0 ? -1 : 1;               // inboard direction
   const piv = [wx + inb * 0.03, yT - 0.01, zT - 0.04];
   // THE QUADRANT (session 4e): a cast plate on the wall with the lever's
@@ -1060,6 +1064,60 @@ function buildThrottleWall(g0, A, P, sx) {
   // centre, where the palm actually lands.
   return { obj: gripAt(gT, [K[0], K[1] + 0.012, K[2] - 0.006], [inb, 0, 0]),
            label: 'throttle (wall)' };
+}
+// THE THROTTLE THROUGH THE SHOULDER (G344, ctlThr 5): drawn off the cage
+// pass's record (mesh.shoulder.lever, cage units x k) — the same lever the
+// slot was cut for. A vertical pivot post in the pocket behind the leg, a
+// flat arm out through the slot to a ball knob in the cabin, swinging
+// about the post with the throttle (aft = idle, forward = full); a plated
+// escutcheon frames the slot on the face. The hand holds the ball from
+// above, the fingers fore-and-aft, as on the wall lever.
+function buildThrottleSlot(g0, A, P, L) {
+  const KW = window.GEAR_KIT;
+  if (!KW || !L || !L.piv) return null;
+  const k = A.k;
+  const piv = L.piv.map(v => v * k), dir = L.dir, len = L.len * k, arc = L.arc || 0;
+  const side = L.side || 1, inb = -side;
+  const fx = L.face ? L.face.x * k : piv[0] + inb * 0.038;
+  const g = new THREE.Group(); g0.add(g);
+  // the post: a plated pin standing in the pocket, a cast foot on the skin
+  // side (what it stands on is the pocket's floor, unseen — the pin is)
+  const post = KW.Bag();
+  const yTopL = L.face ? L.face.yTop * k : piv[1] + 0.05;
+  const pH = Math.min(0.022, yTopL - 0.010 - piv[1]);          // never through the top leg
+  KW.revolve(post, [piv[0], piv[1] - 0.022, piv[2]], [0, 1, 0], [[0.005, 0], [0.005, 0.022 + pH]], 14, true);
+  post.mesh(g, M.plated);
+  // the escutcheon round the slot on the face: a thin plated frame along
+  // the arm's travel (its stem's sweep at the face, plus the clearance)
+  {
+    const zs = [];
+    for (let i = 0; i <= 8; i++) {
+      const th = arc * i / 8, c = Math.cos(th), s = Math.sin(th);
+      const d = [dir[0] * c + dir[2] * s, 0, -dir[0] * s + dir[2] * c];     // about +y
+      const t = (fx - piv[0]) / d[0];
+      if (t > 0) zs.push(piv[2] + d[2] * t);
+    }
+    if (zs.length) {
+      const zlo = Math.min(...zs) - 0.010, zhi = Math.max(...zs) + 0.010, ym = piv[1];
+      const esc = KW.Bag(), X = [1, 0, 0], Y = [0, 1, 0], Z = [0, 0, 1];
+      const xe = fx + inb * 0.0007;
+      KW.boxIn(esc, [xe, ym + 0.012, (zlo + zhi) / 2], [0.0007, 0.003, (zhi - zlo) / 2 + 0.006], X, Y, Z);
+      KW.boxIn(esc, [xe, ym - 0.012, (zlo + zhi) / 2], [0.0007, 0.003, (zhi - zlo) / 2 + 0.006], X, Y, Z);
+      KW.boxIn(esc, [xe, ym, zlo - 0.003], [0.0007, 0.015, 0.003], X, Y, Z);
+      KW.boxIn(esc, [xe, ym, zhi + 0.003], [0.0007, 0.015, 0.003], X, Y, Z);
+      esc.mesh(g, M.plated);
+    }
+  }
+  // the arm on its pivot: the throttle turns it about the post — sgn so
+  // that the knob goes FORWARD with the lever (aft is idle)
+  const gT = movingAt(g, 'edCtl_throttle', piv, [0, 1, 0], 'thr', side > 0 ? 1 : -1, arc);
+  const K = [dir[0] * len, dir[1] * len, dir[2] * len];       // the knob, in the pivot's frame
+  const arm = KW.Bag(), boss = KW.Bag(), kb = KW.Bag();
+  KW.sweep(arm, [[0, 0, 0], K], () => [[-0.006, -0.004], [0.006, -0.004], [0.006, 0.004], [-0.006, 0.004]], true, [0, 1, 0]);
+  KW.revolve(boss, [0, -0.008, 0], [0, 1, 0], [[0.011, 0], [0.011, 0.016], [0, 0.016]], 16, true);
+  KW.revolve(kb, K, _nrm3(K), ballProf(0.020, 0.010), 32, true);
+  arm.mesh(gT, M.frame); boss.mesh(gT, M.plated); kb.mesh(gT, M.ball);
+  return { obj: gripAt(gT, [K[0], K[1] + 0.012, K[2] - 0.004], [inb, 0, 0]), label: 'throttle (shoulder)' };
 }
 function buildThrottleDash(g0, A, P, sx) {
   const g = ctlShift(g0, P, 'thrX', 'thrY', 'thrZ');
@@ -2928,6 +2986,14 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   if (thrMode === 0) thr = buildThrottleWall(tg, A, P, pilot.x);
   if (thrMode === 1) thr = buildThrottleDash(tg, A, P, pilot.x);
   if (thrMode === 2) thr = consoleThr;
+  // G344: on or through the shoulder — the cage pass's record; without a
+  // shoulder at that station (off, or the run ends short) the wall lever
+  if (thrMode === 4 || thrMode === 5) {
+    const L = mesh && mesh.shoulder && mesh.shoulder.lever;
+    if (L && L.mode === 'slot' && thrMode === 5) thr = buildThrottleSlot(tg, A, P, L);
+    else if (L && L.mode === 'face' && thrMode === 4) thr = buildThrottleWall(tg, A, P, pilot.x, L.wall * A.k);
+    else thr = buildThrottleWall(tg, A, P, pilot.x);
+  }
   st1.thr = thr;
   let pedals = st1.pedals;
   // G318: the flap lever, the brake, the fuel selector and the trim wheel —

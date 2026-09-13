@@ -42205,3 +42205,46 @@ futureDesigns/SHOULDER-2026-09-13.md; the proof of concept and its bench
 - Not done, by the user's word: the base station (an open wooden barn on
   the Goldbelt lower terminal's architecture) - next; the ropes between
   the hooks; the station and cabins in a village theme.
+
+## G344 — THE THROTTLE ON THE SHOULDER, OR THROUGH IT (2026-09-13, the user:
+## "we need an updated throttle model, designed for slotting behind the
+## shoulder and have its knob go through. Therefore it needs to move around
+## a vertical line, unlike the one on the left wall … 2 options; on the
+## shoulder, or slotted in, if slotted in, move around a vertical center
+## point")
+
+- **One keeper.** The shoulder is cut in the cage pass, before any layer
+  exists, and the slot must fit the lever exactly — so the LEVER is decided
+  in the cage pass and the crew layer draws that record. `_shoulder_gen.js`
+  gains `shoulderLever(mesh, spec, opt, CAGE, req)`: off the traced chain
+  on the pilot's side holding the throttle's station (the same
+  `chainStations` the loft uses, factored out), the leg's inboard face
+  `xo + u·W`, its top and bottom; `leverCrossings` swings about the
+  lever's own `axis` (Rodrigues; default lateral, the wall lever's), the
+  bar's width along the axis, its thickness across the swing.
+  `cageShoulder` asks for the lever when `spec.shoulder.throttle` is set
+  (cageSpec: `ctlThr` 4/5, the throttle rows over planeScale, `seatZ`),
+  hands a 'slot' lever to the build (the slot), and records
+  `mesh.shoulder.lever` either way.
+- **`ctlThr` 4 "on the shoulder"**: the wall quadrant (`buildThrottleWall`)
+  seated on the leg's inboard face — the cage's `lever.wall` for the wall,
+  lateral pivot; the lever stands inboard of the top leg by construction,
+  so no slot.
+- **`ctlThr` 5 "through the shoulder"** (`buildThrottleSlot`): a plated
+  post standing VERTICAL in the pocket 38 mm behind the leg, at mid-leg
+  (clamped 40 mm under the bend for the frame, 35 mm off the bottom; the
+  throttle rows' `thrY`/`thrZ` shift it), a 12 × 8 flat arm out through the
+  face to a ball knob 45 mm into the cabin, swinging 50° about the post —
+  aft is idle, forward full (`edCtl_throttle`, drive `thr`, axis the
+  post's); the face carries a plated escutcheon along the stem's travel.
+  The hand holds the ball from above, fingers fore-and-aft, as on the wall
+  lever. Without a shoulder at that station (off, or the run ends short)
+  both modes fall back to the wall lever.
+- Verified (dev.html): the slot cut in the door's shoulder segment
+  (`leg: 'face'`, 5 cm of travel), the knob out of it in the shed and in
+  flight, the arm turning with the AP's taxi throttle; mode 4's plate on
+  the face. GATE SHOULDER green.
+- Owed: the slot's travel is short (±25° on a 38 mm arm — a stem travel
+  of 3.2 cm); a longer arm wants a deeper pocket or the pivot in the
+  skin; the escutcheon is the crew's, not the shoulder's (it does not
+  explode with the door).

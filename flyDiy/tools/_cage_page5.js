@@ -506,10 +506,12 @@ window.CAGE_PAGE = {
         // a double bend: the grip this much nearer the seat than the base
         ['stickCrank', 'stick crank',   0, 0.20, 0.005,
          { when: P => +P.crewOn && +P.ctlStick === 0 }],
-        ['ctlThr',    'throttle',       0, 3, 1, ['left wall lever',
+        ['ctlThr',    'throttle',       0, 5, 1, ['left wall lever',
                                                   'dash push-pull',
                                                   'console quadrant',
-                                                  'none']],
+                                                  'none',
+                                                  'on the shoulder',       // G344
+                                                  'through the shoulder']],
         ['thrX',      'throttle left', -0.60, 0.60, 0.005,
          { when: P => +P.crewOn && +P.ctlThr !== 3 }],
         ['thrY',      'throttle up',   -0.35, 0.45, 0.005,

@@ -7315,6 +7315,17 @@ function cageSpec(P) {
                  H: Math.max(0.03, +P.shoulderH || 0.27),
                  t: Math.max(0.0005, +P.shoulderT || 0.003),
                  run: Math.round(+P.shoulderRun || 0) ? 'cabin' : 'pilot' };
+  // G344: THE THROTTLE ON OR THROUGH THE SHOULDER (ctlThr 4 / 5) — the
+  // request the cage pass decides the lever from (cage units: the crew's
+  // metre offsets over planeScale), the pilot's side (+x, port)
+  {
+    const mode = Math.round(+P.ctlThr || 0), ps = P.planeScale || 1;
+    if (mode === 4 || mode === 5)
+      S.shoulder.throttle = { mode: mode === 4 ? 'face' : 'slot', side: 1,
+                              dz: (0.40 + (+P.seatZ || 0) + (+P.thrZ || 0)) / ps,
+                              dy: (+P.thrY || 0) / ps, dx: (+P.thrX || 0) / ps,
+                              len: (P.thrLen != null ? +P.thrLen : 0.16) / ps };
+  }
   return S;
 }
 
@@ -7874,8 +7885,19 @@ function cageShoulder(m, S) {
   const SG = (typeof SHOULDER_GEN !== 'undefined') ? SHOULDER_GEN
     : (typeof require === 'function' ? require('./_shoulder_gen.js') : null);
   if (!SG) return m;
-  return SG.shoulderBuild(m, S, { W: SH.W, H: SH.H, t: SH.t, run: SH.run },
-                          { cageResolve });
+  const o = { W: SH.W, H: SH.H, t: SH.t, run: SH.run };
+  // G344: the throttle's lever, decided here and recorded on the mesh for
+  // the crew layer to draw; 'slot' cuts the leg, 'face' only seats a plate
+  let lever = null;
+  if (SH.throttle && SG.shoulderLever) try {
+    const R = cageResolve(S), cabB = R.rings.find(r => r.name === 'pilCabB');
+    const zT = (cabB ? cabB.lv.waist.z : 0) + 0.05 + SH.throttle.dz;
+    lever = SG.shoulderLever(m, S, o, { cageResolve }, Object.assign({ z: zT }, SH.throttle));
+    if (lever && lever.mode === 'slot') o.lever = lever;
+  } catch (e) { lever = null; }
+  const out = SG.shoulderBuild(m, S, o, { cageResolve });
+  if (out.shoulder) out.shoulder.lever = lever;
+  return out;
 }
 
 function cageSheet(P, opts) {
