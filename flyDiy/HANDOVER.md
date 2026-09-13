@@ -42662,3 +42662,37 @@ EAS ratio 1.004, TAS 1.040 (1/√0.921 = 1.042) — textbook, and
 independent of the aeroplane's mass.
 
 - Gates: HOTHIGH green (test-only change).
+
+## G350 — THE TUBE'S TORSION IS THE TUBE'S OWN: A TWIST CONSTRAINT PER BAY,
+## GJ / L, DERIVED (2026-09-13, "keep going": the owed item behind every
+## cluster calibration)
+
+**What it is.** Shape matching holds a cluster's shape with ONE stiffness
+for every mode, and on the twin boom its hold on torsion was an order
+below its hold on bending (G315's measurement: the fin's side load twisted
+the boom 4.3 deg where the tube's GJ says 0.3). Torsion is its own
+constraint now (30_solver `twistHold`): a cluster declares its `rings`
+(the boom's station triangles, the rod's station rings, each a node list
+with the crown first) and its `gj`; for each bay between two rings the
+angle of ring k's phase vector (its first node off its centroid, square to
+the bay's axis) against ring k+1's, about that axis, is held at its rest
+value — the rings turn back toward each other by (ω_T dt)² of the excess
+each substep, with ω_T² = (GJ / L_bay) / I_red, I_red the reduced moment
+of the two rings about the axis. The tube's own torsional spring, DERIVED
+from GJ and the rings' inertia: no calibration pair. Equal and opposite
+turns weighted by the rings' inertias, velocities corrected by the same
+displacement.
+
+**Measured.** The twin fixture, the fin's apex under 297 N side load: the
+G266 lattice 337 mm, the boom cluster 143, the boom + fin clusters 75,
+with the twist constraint **8.7 mm** — the fin spar's ~6 plus the tube's
+0.3 deg over the fin's height; the stab's own numbers untouched (0.46 deg
+under the antisymmetric pair). The rod: its cluster omega goes back to
+BENDING (3 EI / L³ on the twin's pair; the G314 torsion calibration pair
+is retired) and its torsion is the twist constraint's: the ultralight's
+stab roll against the mains under ±150 N at the tips 2.80 deg (the
+GJ-matched lattice with P6's factor on the tail members too: 3.47). The
+stock, the twin fixture and the ultralight fly their circuits as before
+(291 / 270 / 229 s to a stop; the twin's tail excursion −33 mm).
+GJ for the twin's oval: G = E / 2.6, the mean radius √(oval) times the mean
+of the two ends' radii, the wall `rodWall`.

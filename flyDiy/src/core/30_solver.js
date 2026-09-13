@@ -136,9 +136,91 @@ function makeSim(def, world) {
     // which is a spring of that frequency toward the rigid fit — a
     // cantilever with a real tip deflection — capped at 1 (rigid; 0 or
     // absent = rigid too)
+    // G350: `rings` (the stations along the tube, each a list of node ids in
+    // the same order) and `gj` (N·m², the tube's torsional rigidity) give the
+    // cluster a TWIST constraint per bay — see twistHold below
+    const rings = (C.rings || []).map(r => Int32Array.from(r));
     return { cls: C.cls, tag: C.tag, idx, q: new Float64Array(idx.length * 3),
-             R: [1, 0, 0, 0, 1, 0, 0, 0, 1], omega: C.omega > 0 ? C.omega : 0 };
+             R: [1, 0, 0, 0, 1, 0, 0, 0, 1], omega: C.omega > 0 ? C.omega : 0,
+             rings, gj: C.gj > 0 ? C.gj : 0, twist: null };
   });
+  // THE TWIST (G350). Shape matching holds a cluster's SHAPE with one
+  // stiffness for every mode, and measured on the twin boom its hold on
+  // torsion is an order below its hold on bending (the fin's side load
+  // twisted the boom 4.3 deg where the tube's GJ says 0.3). So torsion is
+  // its own constraint: for each bay between two rings, the angle of ring
+  // k's phase vector (its first node off its centroid, square to the axis)
+  // against ring k+1's, about the bay's axis, is held at its rest value —
+  // the rings turn back toward each other by the fraction (omega_T dt)² of
+  // the excess each substep, omega_T² = (GJ / L) / I_red with I_red the
+  // reduced moment of the two rings about the axis: the tube's own
+  // torsional spring, derived, not calibrated. Momentum: equal and opposite
+  // rotations weighted by the rings' own inertias.
+  function twistRest(C) {
+    if (C.rings.length < 2 || !(C.gj > 0)) { C.twist = null; return; }
+    const T = [];
+    for (let k = 0; k + 1 < C.rings.length; k++) {
+      const g = twistGeom(C.rings[k], C.rings[k + 1]);
+      if (!g) { T.push(null); continue; }
+      const kth = C.gj / Math.max(0.05, g.L);
+      const Ired = (g.I0 * g.I1) / Math.max(1e-9, g.I0 + g.I1);
+      T.push({ rest: g.theta, w: Math.sqrt(kth / Math.max(1e-6, Ired)), I0: g.I0, I1: g.I1 });
+    }
+    C.twist = T;
+  }
+  // the bay's geometry now: centroids, axis, both rings' phase, the twist,
+  // the length and the two moments of inertia about the axis
+  function twistGeom(r0, r1) {
+    const cen = r => { let x = 0, y = 0, z = 0, M = 0;
+      for (const i of r) { x += p[i*3] * m[i]; y += p[i*3+1] * m[i]; z += p[i*3+2] * m[i]; M += m[i]; }
+      return [x / M, y / M, z / M]; };
+    const c0 = cen(r0), c1 = cen(r1);
+    let ax = c1[0] - c0[0], ay = c1[1] - c0[1], az = c1[2] - c0[2];
+    const L = Math.hypot(ax, ay, az);
+    if (L < 1e-6) return null;
+    ax /= L; ay /= L; az /= L;
+    const perp = (i, c) => { let x = p[i*3] - c[0], y = p[i*3+1] - c[1], z = p[i*3+2] - c[2];
+      const d = x * ax + y * ay + z * az; return [x - d * ax, y - d * ay, z - d * az]; };
+    const inertia = (r, c) => { let I = 0; for (const i of r) { const q = perp(i, c); I += m[i] * (q[0]*q[0] + q[1]*q[1] + q[2]*q[2]); } return I; };
+    const u = perp(r0[0], c0), v = perp(r1[0], c1);
+    const lu = Math.hypot(u[0], u[1], u[2]), lv = Math.hypot(v[0], v[1], v[2]);
+    if (lu < 1e-6 || lv < 1e-6) return null;
+    const cx = u[1]*v[2] - u[2]*v[1], cy = u[2]*v[0] - u[0]*v[2], cz = u[0]*v[1] - u[1]*v[0];
+    const s = (cx * ax + cy * ay + cz * az) / (lu * lv), c = (u[0]*v[0] + u[1]*v[1] + u[2]*v[2]) / (lu * lv);
+    return { c0, c1, ax: [ax, ay, az], theta: Math.atan2(s, c), L, I0: inertia(r0, c0), I1: inertia(r1, c1) };
+  }
+  function rotateRing(r, c, a, phi, dt) {
+    const cw = Math.cos(phi), sw = Math.sin(phi), t = 1 - cw;
+    const [kx, ky, kz] = a;
+    for (const i of r) {
+      const i3 = i*3, x = p[i3] - c[0], y = p[i3+1] - c[1], z = p[i3+2] - c[2];
+      const nx = x*(cw + kx*kx*t) + y*(kx*ky*t - kz*sw) + z*(kx*kz*t + ky*sw);
+      const ny = x*(ky*kx*t + kz*sw) + y*(cw + ky*ky*t) + z*(ky*kz*t - kx*sw);
+      const nz = x*(kz*kx*t - ky*sw) + y*(kz*ky*t + kx*sw) + z*(cw + kz*kz*t);
+      const ex = nx - x, ey = ny - y, ez = nz - z;
+      p[i3] += ex; p[i3+1] += ey; p[i3+2] += ez;
+      v[i3] += ex / dt; v[i3+1] += ey / dt; v[i3+2] += ez / dt;
+    }
+  }
+  function twistHold(C, dt) {
+    if (!C.twist) return;
+    for (let k = 0; k + 1 < C.rings.length; k++) {
+      const T = C.twist[k];
+      if (!T) continue;
+      const g = twistGeom(C.rings[k], C.rings[k + 1]);
+      if (!g) continue;
+      let d = g.theta - T.rest;
+      while (d > Math.PI) d -= 2 * Math.PI;
+      while (d < -Math.PI) d += 2 * Math.PI;
+      const al = Math.min(1, (T.w * dt) * (T.w * dt));
+      const phi = al * d;
+      if (Math.abs(phi) < 1e-9) continue;
+      // split by inertia: the lighter ring turns more
+      const s0 = g.I1 / Math.max(1e-9, g.I0 + g.I1), s1 = 1 - s0;
+      rotateRing(C.rings[k], g.c0, g.ax, phi * s0, dt);
+      rotateRing(C.rings[k + 1], g.c1, g.ax, -phi * s1, dt);
+    }
+  }
   function clusterRest(C) {
     let cx = 0, cy = 0, cz = 0, M = 0;
     for (let k = 0; k < C.idx.length; k++) {
@@ -569,7 +651,7 @@ function makeSim(def, world) {
       if (b.pre) b.L0 *= (1 - b.pre);
       b.strain = 0;
     }
-    for (const C of clusters) clusterRest(C);       // G294: the rest shape, as built
+    for (const C of clusters) { clusterRest(C); twistRest(C); }   // G294 / G350: the rest shape, as built
     // THE THREE-POINT STANCE (2026-09-04, the user: "quite a few of my builds
     // break their tailwheel simply on spawning, it just flips"). def.nodes are
     // the LEVEL attitude: on a taildragger the tail hangs ~1 m in the air and
@@ -1162,7 +1244,7 @@ function makeSim(def, world) {
       v[i3+2] = vmz + (v[i3+2] + f[i3+2]*im - vmz) * dp;
       p[i3] += v[i3]*dt; p[i3+1] += v[i3+1]*dt; p[i3+2] += v[i3+2]*dt;
     }
-    for (const C of clusters) shapeMatch(C, dt);    // G294: the tube holds its shape
+    for (const C of clusters) { shapeMatch(C, dt); twistHold(C, dt); }   // G294 / G350: the tube holds its shape, and its twist
     // altitude of CG (wheel-corrected later by caller if needed)
     let cy = 0;
     for (let i = 0; i < n; i++) cy += p[i*3+1]*m[i];

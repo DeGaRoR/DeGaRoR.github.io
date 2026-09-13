@@ -421,8 +421,12 @@ function genLattice(S, gearX, track, kScale) {
   // bay is) to the tail post, at the drawn tube's own stiffness. The
   // lattice members stay at the plain k (the drawing, the mass, the strains).
   if (ROD_TUBE) {
-    const cl = [];
-    ST.forEach((s, i) => { if (s.x >= boxRear - 1e-6) cl.push(F[i].BL, F[i].BR, F[i].TL, F[i].TR); });
+    const cl = [], rodRings = [];
+    let rodGJ = 0;
+    ST.forEach((s, i) => { if (s.x >= boxRear - 1e-6) {
+      cl.push(F[i].BL, F[i].BR, F[i].TL, F[i].TR);
+      rodRings.push([F[i].TL, F[i].TR, F[i].BR, F[i].BL]);       // G350: a ring, TL first
+    } });
     cl.push(TPB, TPT);
     let omega = 0;
     const ph = M && M.phys, rod = S.fuse.rod, cg = S.cage || {};
@@ -445,9 +449,15 @@ function genLattice(S, gearX, track, kScale) {
       const tW = R.rodWall == null ? 1.2e-3 : R.rodWall;
       const GJt = (ph.E / 2.6) * 2 * Math.PI * Math.pow(rodR, 3) * tW;
       const L = Math.max(0.5, fu.tailArm - boxRear);
-      omega = { k: GJt / L, kRef: 36081, mRef: 44.2, wRef: 400 };
+      // G350: torsion is the twist constraint's now (GJ, below) — the
+      // cluster's own omega goes back to BENDING, the tube's 3 EI / L³ on
+      // the twin boom's pair
+      const EIt = ph.E * Math.PI * Math.pow(rodR, 3) * tW;
+      omega = { k: 3 * EIt / Math.pow(L, 3), kRef: 29182, mRef: 61.6, wRef: 300 };
+      rodGJ = GJt;
     }
-    if (cl.length >= 6) clusters.push({ cls: 'rod', tag: 'ROD', omega, nodes: cl });
+    if (cl.length >= 6) clusters.push({ cls: 'rod', tag: 'ROD', omega, nodes: cl,
+                                        rings: rodRings, gj: rodGJ });
   }
 
   // ---- 2. engine ------------------------------------------------------
@@ -1341,7 +1351,17 @@ function genLattice(S, gearX, track, kScale) {
             omega = 300 * Math.sqrt((Kt / 29182) * (61.6 / Math.max(1, Mc)));
           }
         } else if (R.twinBoomTubeW > 0) omega = +R.twinBoomTubeW;
-        clusters.push({ cls: 'boom', tag: 'BM' + sd, omega, nodes: cl });
+        // G350: the stations as rings and the tube's GJ (G = E / 2.6, the
+        // oval's mean radius) — the twist constraint's own numbers
+        let gj = 0;
+        { const ph = M && M.phys;
+          if (ph && ph.E > 0) {
+            const tW = R.rodWall == null ? 1.2e-3 : R.rodWall;
+            const rm = 0.5 * (r0 + r1) * Math.sqrt(kv);          // the oval's mean radius
+            gj = (ph.E / 2.6) * 2 * Math.PI * Math.pow(rm, 3) * tW;
+          } }
+        clusters.push({ cls: 'boom', tag: 'BM' + sd, omega, nodes: cl,
+                        rings: st.map(q => [q.T, q.I, q.O]), gj });
       }
     }
     const tl = chains.L[iTail], tr = chains.R[iTail];

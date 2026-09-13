@@ -330,6 +330,12 @@ detector is the code. Six stale entries were found in two days.
     (EI_tube / EI_lattice, ~100 on the user's build) and CAPS it at 8
     (`twinBoomKMax`) because the boom's 1 kg nodes turn k into substeps —
     the tube element is what would take the cap off. Owed twice now.
+    PAID 2026-09-12/13 (G294 / G314 / G327 / G350): the boom, the rod and
+    the fin are shape-matched CLUSTERS (no substep cost, omega from the
+    tube's EI on one trestle calibration) and torsion is a TWIST constraint
+    per bay with omega_T² = (GJ / L) / I_red — derived, no calibration. The
+    rotational-DOF element as such is not written; nothing measured still
+    asks for it (the fin apex under 297 N: 337 mm -> 8.7).
   - the AP YAW PLANT — `genPlant` has none (`Izz` absent); the ground
     steering constants are hard (40_autopilot.js kP 3.2 / kD 1.2, twice).
   - PROPWASH SWIRL ON THE FIN (PROP-EFFECTS §"swirl on the fin") — the fin
