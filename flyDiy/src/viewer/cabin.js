@@ -313,7 +313,26 @@ function build(THREE, opts) {
   return grp;
 }
 
-const API = { plan, build, ROLE, BANNER, HANG, LIVERIES: ['admiralty', 'chatham'], boundaryLoops, chaikin, resample, clipRect };
+// THE SIGN (G349): a station's published sign slot { p, n, w, h, livery }
+// gets the banner as a lit plane facing `n`
+function signMesh(THREE, sign) {
+  const L = (typeof CABIN_LIVERY !== 'undefined' && CABIN_LIVERY) ? CABIN_LIVERY[sign.livery || 'admiralty'] : null;
+  const m = new THREE.MeshStandardMaterial({ roughness: 0.55, metalness: 0.05, color: 0xffffff });
+  if (L) {
+    const t = new THREE.Texture(L.img);
+    t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.anisotropy = 8; t.colorSpace = THREE.SRGBColorSpace;
+    const ok = () => { t.needsUpdate = true; };
+    if (L.img.complete && L.img.naturalWidth) ok(); else L.img.addEventListener('load', ok);
+    m.map = t;
+  }
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(sign.w, sign.h), m);
+  mesh.position.set(sign.p[0], sign.p[1], sign.p[2]);
+  mesh.lookAt(sign.p[0] + sign.n[0], sign.p[1] + sign.n[1], sign.p[2] + sign.n[2]);
+  mesh.castShadow = false;
+  return mesh;
+}
+
+const API = { plan, build, signMesh, ROLE, BANNER, HANG, LIVERIES: ['admiralty', 'chatham'], boundaryLoops, chaikin, resample, clipRect };
 if (typeof window !== 'undefined') window.CABIN = API;
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })();

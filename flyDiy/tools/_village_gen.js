@@ -226,6 +226,8 @@ function makePlots(T, V, road, rnd, site) {
       // (G340: the mine is up its own spur now - only the junction on the
       // land side is kept free)
       if (site && side === 'land' && t + w > site.jt - 14 && t < site.jt + 14) continue;
+      // (G348: nor where the tram's base station stands)
+      if (site && site.tram && side === 'land' && t + w > site.tram.t - 22 && t < site.tram.t + 22) continue;
       const a = road.at(t), b = road.at(t + w);
       const sgn = side === 'water' ? 1 : -1;      // along the water normal, or against it
       const off = road.w / 2 + 1.0;
@@ -544,6 +546,7 @@ function makeVillage(V0) {
     const a = spur.at(spur.tAnchor);
     T = makeTerrain(V, [a.p[0], a.p[1] - T.zShore + th.foot]);
     site = { name: V.site, t: spur.tAnchor, at: a, road: spur, jt: tJ, theme: th };
+    if (th.tram) site.tram = { t: road.length * th.tram.t, back: th.tram.back, topZ: th.tram.topZ };
   }
   const plots = makePlots(T, V, road, rnd, site);
   const houses = [];
@@ -588,7 +591,7 @@ function makeVillage(V0) {
     plot.house = houses.length;
     houses.push(h);
   }
-  const poles = planPoles(T, V, road, rnd, spread, plots).filter(q => !site || Math.abs(q.t - site.jt) > 8);
+  const poles = planPoles(T, V, road, rnd, spread, plots).filter(q => !site || (Math.abs(q.t - site.jt) > 8 && (!site.tram || Math.abs(q.t - site.tram.t) > 20)));
   const vil = { V, T, road, plots, houses, rnd, spread, poles, site };
   if (site) placeSite(vil);
   return vil;
@@ -649,6 +652,11 @@ const THEMES = {
     // site's frame - along the spur, from the far side of the row to the
     // terminal up the mountain
     yard: { x0: -48, x1: 48, z0: -18, z1: 118 },
+    // THE TRAM (G348): the base station off the shore road at `t` of its
+    // length, `back` metres behind it with its open end to the mountain;
+    // the top station straight inland `topZ` behind the road, up the
+    // mountain, its dock to the valley; the line between their hooks
+    tram: { t: 0.3, back: 24, topZ: 150 },
   },
 };
 
@@ -699,6 +707,8 @@ function placeSite(vil) {
       P.ground = ground; P.waterY = T.waterY - oy;
       if (P.mill) {
         P.floorY = Math.max(ground(-P.tierL0 / 2, P.tierW / 2), ground(P.tierL0 / 2, P.tierW / 2)) + 0.6;
+        // the hill the tiers climb, read off the terrain behind the mill (G348)
+        P.hillDeg = Math.atan2(ground(0, -70) - ground(0, 0), 70) * 180 / Math.PI;
         // THE RECEIVING HOUSE ON THE ROAD (G333): the mill's own bottom house
         // sits astride the road - its gap below the lowest tier is whatever
         // puts its centre on the anchor line
@@ -715,7 +725,7 @@ function placeSite(vil) {
     const rec = { P, x: c[0], z: c[1], y: oy, yaw, toWorld, ground, seed: 500 + out.length, gen: it.gen, site: true, item: it };
     out.push(rec);
     // the keep-out for the trees: the footprint and a margin, in the world
-    const L = P.mill ? P.tierL0 + 24 : P.L, w = P.mill ? P.tierW / 2 + (Math.round(P.tiers) - 1) * P.tierStep + P.tierW : P.w;
+    const L = P.mill ? P.tierL0 + 24 : P.L, w = P.mill ? 150 : P.w;
     const zc = P.mill ? -(w / 2 - P.tierW / 2) : 0;
     keepOut.push([[-L / 2 - 3, zc + w / 2 + 3], [L / 2 + 3, zc + w / 2 + 3], [L / 2 + 3, zc - w / 2 - 3], [-L / 2 - 3, zc - w / 2 - 3]].map(q => toWorld(q[0], q[1])));
   }
@@ -727,6 +737,40 @@ function placeSite(vil) {
     const dx = shed.x - mill.x, dz = shed.z - mill.z;
     // world = c + R(yaw) local, with local x -> [c, -s], local z -> [s, c]
     mill.P.tramTo = [dx * c - dz * sn, shed.y + shed.P.floorY + (shed.P.eaveH || 5) - mill.y, dx * sn + dz * c];
+  }
+  // THE TRAM'S STATIONS (G348): two more site houses in the SHORE ROAD's
+  // frame (not the spur's) - the base station behind the road with its open
+  // end toward the mountain (yaw pi: its +z away from the road), the top
+  // station up the mountain with its dock toward the valley (yaw 0)
+  if (S.tram) {
+    const tr = S.tram;
+    const items = [
+      { preset: 'tram base station', x: 0, z: tr.back, yaw: Math.PI, keep: [36, 64, 17] },   // the wood kept off the line's first climb
+      { preset: 'tram top station', x: 0, z: tr.topZ, yaw: 0, keep: [18, 72, -16] },
+    ];
+    for (const it of items) {
+      const a = vil.road.at(tr.t + it.x);
+      const up = [-a.n[0], -a.n[1]];
+      const c = [a.p[0] + up[0] * it.z, a.p[1] + up[1] * it.z];
+      const yaw = Math.atan2(-up[0], -up[1]) + it.yaw;
+      const cy = Math.cos(yaw), sy = Math.sin(yaw);
+      const toWorld = (lx, lz) => [c[0] + lx * cy + lz * sy, c[1] - lx * sy + lz * cy];
+      const oy = T.h(c[0], c[1]);
+      const ground = (lx, lz) => { const w = toWorld(lx, lz); return T.h(w[0], w[1]) - oy; };
+      const P = Object.assign({}, HG.DEF, HG.PRESETS[it.preset] || {});
+      P.preset = it.preset; P.slopeX = 0; P.slopeZ = 0; P.water = 0; P.pier = 0;
+      P.ground = ground; P.waterY = T.waterY - oy; P.spread = vil.spread; P.site = S.name;
+      if (Math.round(P.station) === 2) {
+        // the barn's slab on its highest corner
+        let hiC = -1e9;
+        for (const sx of [-1, 1]) for (const sz of [-1, 1]) hiC = Math.max(hiC, ground(sx * P.barnW / 2, sz * P.barnL / 2));
+        P.floorY = hiC + 0.3;
+      }
+      const rec = { P, x: c[0], z: c[1], y: oy, yaw, toWorld, ground, seed: 700 + out.length, gen: 'house', site: true, tram: true, item: Object.assign({ gen: 'house' }, it) };
+      out.push(rec);
+      const [kw, kd, kz] = it.keep;
+      keepOut.push([[-kw / 2, kz + kd / 2], [kw / 2, kz + kd / 2], [kw / 2, kz - kd / 2], [-kw / 2, kz - kd / 2]].map(q => toWorld(q[0], q[1])));
+    }
   }
   vil.siteHouses = out;
   vil.siteKeepOut = keepOut;
@@ -1394,6 +1438,43 @@ function planTrees(vil, pool) {
   return trees;
 }
 
+// THE LINE (G348): the two stations' rope hooks are in each station's own
+// frame and at a height that depends on the line's angle (the saddle point
+// on the arch, the carriages on the tower); the angle is what the two
+// stations' positions make. So: build both, read the hooks in the world,
+// take the angle between them, set `lineDeg` on both and build again -
+// twice is enough for the hooks to move under a centimetre. `buildFn(rec)`
+// is the caller's build (the bench's with its finish, the gate's plain).
+// Returns { angle (deg), ropes: [{ a, b, kind }], docks: [{ p, yaw, dx }] }
+// in the world, and leaves each station's `built` on its record.
+function tramLine(vil, buildFn) {
+  const base = (vil.siteHouses || []).find(h => h.tram && Math.round(h.P.station) === 2);
+  const top = (vil.siteHouses || []).find(h => h.tram && Math.round(h.P.station) === 1);
+  if (!base || !top) return null;
+  const toW = (h, p) => { const w = h.toWorld(p[0], p[2]); return [w[0], p[1] + h.y, w[1]]; };
+  const toWdir = (h, d) => { const c = Math.cos(h.yaw), s = Math.sin(h.yaw); return [d[0] * c + d[2] * s, d[1], -d[0] * s + d[2] * c]; };
+  let angle = base.P.lineDeg;
+  for (let pass = 0; pass < 3; pass++) {
+    base.P.lineDeg = angle; top.P.lineDeg = angle;
+    base.built = buildFn(base); top.built = buildFn(top);
+    const hb = base.built.stats.station.hooks.track[0], ht = top.built.stats.station.hooks.track[0];
+    const a = toW(base, hb.p), b = toW(top, ht.p);
+    angle = Math.atan2(b[1] - a[1], Math.hypot(b[0] - a[0], b[2] - a[2])) * 180 / Math.PI;
+  }
+  const ropes = [];
+  const HB = base.built.stats.station.hooks, HT = top.built.stats.station.hooks;
+  for (let i = 0; i < 2; i++) {
+    ropes.push({ a: toW(base, HB.track[i].p), b: toW(top, HT.track[i].p), kind: 'track' });
+    ropes.push({ a: toW(base, HB.haul[i].p), b: toW(top, HT.haul[i].p), kind: 'haul' });
+  }
+  const docks = [base, top].map((h, i) => {
+    const d = h.built.stats.station.hooks.dock, sx = i ? 1 : -1;      // the base takes the left line, the top the right
+    return { p: toW(h, [sx * d.dx, d.p[1], d.p[2]]), yaw: h.yaw, dx: d.dx, station: i ? 'top' : 'base' };
+  });
+  vil.tram = { angle, ropes, docks, base, top };
+  return vil.tram;
+}
+
 // THE GRAVEL YARD (G334): one ground patch under the whole site, on the
 // terrain, the lot patch's own channels - gravel (the dirt set with pebbles
 // through it) where the works are, the grass returning at the yard's edge
@@ -1524,7 +1605,7 @@ function planBillboards(vil, keys) {
     // the store's own): an empty frontage or a gap between plots first,
     // any verge after eight tries
     const busy = (vil.plots || []).some(p => p.side === 'land' && p.house !== undefined && t > p.s0 - 1 && t < p.s1 + 1)
-      || (vil.site && Math.abs(t - vil.site.jt) < 14);
+      || (vil.site && Math.abs(t - vil.site.jt) < 14) || (vil.site && vil.site.tram && Math.abs(t - vil.site.tram.t) < 22);
     if (!onPlot && !nearPole && T.h(x, z) > V.waterY + 0.5 && (!busy || skipped >= 8)) {
       // facing the road: +z toward the road, i.e. along +n
       out.push({ key: keys[k % keys.length], x, z, y: T.h(x, z), ry: Math.atan2(a.n[0], a.n[1]), t });
@@ -1548,6 +1629,6 @@ function planBillboards(vil, keys) {
   return out;
 }
 
-window.VILLAGE_GEN = { VDEF, makeTerrain, makeRoad, makePlots, makeVillage, finishPlot, planTrees, planBillboards, THEMES, placeSite, withHill, siteGround, makeSpur, polyRoad, civicPlots,
+window.VILLAGE_GEN = { VDEF, makeTerrain, makeRoad, makePlots, makeVillage, finishPlot, planTrees, planBillboards, THEMES, placeSite, withHill, siteGround, makeSpur, polyRoad, civicPlots, tramLine,
                        buildFence, gateLeaf, clipToLand, inPoly, shoreZ, fbm, lotGround, edgeKey };
 })();

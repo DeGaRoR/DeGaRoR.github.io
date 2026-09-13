@@ -66,7 +66,7 @@ const win = {};
                 Array, Set, Map, Number, String, isFinite, parseInt, parseFloat };
   ctx.globalThis = ctx;
   vm.createContext(ctx);
-  for (const f of ['_house_kit.js', '_house_gen.js', '../src/viewer/sign_tex.js', '_big_gen.js', '_village_gen.js'])
+  for (const f of ['_house_kit.js', '_house_gen.js', '../src/viewer/sign_tex.js', '_big_gen.js', '_tram_gen.js', '_village_gen.js'])
     vm.runInContext(fs.readFileSync(path.join(TOOLS, f), 'utf8'), ctx, { filename: f });
 }
 const HG = win.HOUSE_GEN, HK = win.HOUSE_KIT, VG = win.VILLAGE_GEN, BGN = win.BIG_GEN;
@@ -91,7 +91,8 @@ function buildVillage(V) {
     VG.finishPlot(vil, plot, h, h.built);
     if (plot.out) plot.out.built = HG.build(plot.out.P, 0);
   }
-  for (const h of vil.siteHouses || []) h.built = (h.gen === 'big' ? BGN : HG).build(h.P, 0);
+  if (vil.site && vil.site.tram) VG.tramLine(vil, h => HG.build(h.P, 0));
+  for (const h of vil.siteHouses || []) if (!h.tram) h.built = (h.gen === 'big' ? BGN : HG).build(h.P, 0);
   VG.planBillboards(vil, ['air_taxi', 'bear_tours', 'north_motel']);
   // the trees, on a stub pool shaped like the bench's (tall and small)
   VG.planTrees(vil, [{ key: 'cedar|Cedar', size: 1, sink: 2, proportion: 1, h: 17 },
@@ -299,8 +300,14 @@ function battery(name, vil) {
   //   fence, no shed, no car) - and a house's rules still hold for it
   if (vil.plots.length >= 8 && BGN) {
     const bigs = vil.houses.filter(h => h.P.big);
-    for (const want of ['store', 'workshop', 'cannery'])
-      check(bigs.some(h => h.P.preset === want), name + ': no ' + want);
+    // (the generator's own conditions, G348: a store wants a free land plot,
+    // a workshop a second, the cannery a water plot - the mine's junction
+    // and the tram's base station take land plots off the road)
+    const cp = VG.civicPlots(vil.plots, road);
+    const landFree = vil.plots.filter(p => p.side === 'land' && p.id !== cp.hall && p.id !== cp.church).length;
+    const waterN = vil.plots.filter(p => p.side === 'water').length;
+    for (const [want, ok] of [['store', landFree >= 1], ['workshop', landFree >= 2], ['cannery', waterN >= 1]])
+      check(bigs.some(h => h.P.preset === want) === ok, name + (ok ? ': no ' : ': an unexpected ') + want);
     for (const h of bigs) {
       const p = vil.plots[h.plot];
       check(h.built.stats.tris > 200 && h.built.stats.sign && isFinite(h.built.stats.sign.x), name + ': ' + h.P.preset + ' did not build a sign slot');
@@ -346,7 +353,7 @@ function battery(name, vil) {
     check(distToRoad(spur, S.at.p) < 0.5, name + ': the site is not on its spur');
     check(T.h(S.at.p[0], S.at.p[1]) > T.waterY + 2, name + ': the site is at the water');
     const items = vil.siteHouses || [];
-    check(items.length === th.items.length, name + ': the site built ' + items.length + ' of ' + th.items.length);
+    check(items.length === th.items.length + (S.tram ? 2 : 0), name + ': the site built ' + items.length + ' of ' + (th.items.length + (S.tram ? 2 : 0)));
     for (const h of items) {
       const st = h.built.stats;
       check(st.tris > 300 && isFinite(st.tris), name + ': ' + h.P.preset + ' did not build');
@@ -404,7 +411,44 @@ function battery(name, vil) {
       const far = Y.poly[3], mid = [(Y.poly[2][0] + Y.poly[3][0]) / 2, (Y.poly[2][1] + Y.poly[3][1]) / 2];
       const g2 = at(mid[0] * 0.9 + far[0] * 0.1, mid[1] * 0.9 + far[1] * 0.1);
       check(g2.d > 3 || g2.grav < 0.6, name + ': the yard is gravel to its far edge');
-      for (const h of items) if (!h.P.mill) check(VG.inPoly(Y.poly, h.x, h.z), name + ': ' + h.P.preset + ' stands off the yard');
+      for (const h of items) if (!h.P.mill && !h.tram) check(VG.inPoly(Y.poly, h.x, h.z), name + ': ' + h.P.preset + ' stands off the yard');
+    }
+  }
+  // 17 — THE TRAM (G348): with a site, the base station stands behind the
+  //   shore road on the land side (no water access, no plot under it) with
+  //   its open end toward the mountain; the top station stands inland of it
+  //   and well above it; the line between their track hooks is one angle
+  //   (15-45 degrees) and both stations were built for it; every rope runs
+  //   from a base hook to a top hook and climbs; a cabin's dock at each end
+  if (vil.site && vil.site.tram) {
+    const TR = vil.tram;
+    check(!!TR, name + ': the tram line was not solved');
+    if (TR) {
+      const base = TR.base, top = TR.top;
+      check(distToRoad(road, [base.x, base.z]) > 12 && distToRoad(road, [base.x, base.z]) < 40, name + ': the base station is not just behind the road', distToRoad(road, [base.x, base.z]).toFixed(1));
+      const a = road.at(vil.site.tram.t), inland = [-a.n[0], -a.n[1]];
+      check((base.x - a.p[0]) * inland[0] + (base.z - a.p[1]) * inland[1] > 0, name + ': the base station is on the water side');
+      for (const p of vil.plots) check(!VG.inPoly(p.poly, base.x, base.z), name + ': the base station stands on plot ' + p.id);
+      check(T.h(base.x, base.z) > T.waterY + 1, name + ': the base station is at the water');
+      check((top.x - base.x) * inland[0] + (top.z - base.z) * inland[1] > 80, name + ': the top station is not inland of the base');
+      check(top.y > base.y + 30, name + ': the top station is not up the mountain', (top.y - base.y).toFixed(1));
+      check(TR.angle > 15 && TR.angle < 45, name + ': the line is not at a tram angle', TR.angle.toFixed(1));
+      check(Math.abs(base.P.lineDeg - TR.angle) < 0.6 && Math.abs(top.P.lineDeg - TR.angle) < 0.6, name + ': the stations were not built for the line', base.P.lineDeg.toFixed(1) + '/' + top.P.lineDeg.toFixed(1));
+      // the open end of the barn faces the mountain: the barn's +z is inland
+      const bz = [Math.sin(base.yaw), Math.cos(base.yaw)];
+      check(bz[0] * inland[0] + bz[1] * inland[1] > 0.9, name + ': the barn does not open toward the mountain');
+      check(TR.ropes.length === 4, name + ': four ropes');
+      for (const rp of TR.ropes) {
+        const ang = Math.atan2(rp.b[1] - rp.a[1], Math.hypot(rp.b[0] - rp.a[0], rp.b[2] - rp.a[2])) * 180 / Math.PI;
+        // (the haul strands leave the top's wheel under the saddle: a few degrees steeper)
+        check(Math.abs(ang - TR.angle) < (rp.kind === 'track' ? 1.5 : 8), name + ': a rope is off the line', rp.kind + ' ' + ang.toFixed(1));
+        check(rp.b[1] > rp.a[1] + 20, name + ': a rope does not climb');
+        // the rope clears the terrain along its run
+        let low = 0;
+        for (let i = 1; i < 20; i++) { const t = i / 20, x = rp.a[0] + (rp.b[0] - rp.a[0]) * t, z = rp.a[2] + (rp.b[2] - rp.a[2]) * t, y = rp.a[1] + (rp.b[1] - rp.a[1]) * t; if (y < T.h(x, z) + 6) low++; }
+        check(low === 0, name + ': a rope runs into the mountain', low + ' of 19 samples');
+      }
+      check(TR.docks.length === 2 && TR.docks.every(d => isFinite(d.p[0]) && isFinite(d.p[1]) && isFinite(d.p[2])), name + ': no dock for the cabins');
     }
   }
   // 16 — THE TERRAIN (G340, the user: "mountain on one side, water on the

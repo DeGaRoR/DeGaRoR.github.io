@@ -97,6 +97,11 @@
 <script src="../src/viewer/hangar_walls.js"></script>
 <script src="../src/viewer/sign_tex.js"></script>
 <script src="_big_gen.js"></script>
+<!-- THE TRAM (G348): the stations, the cabin's pack, its liveries and its dresser -->
+<script src="_tram_gen.js"></script>
+<script src="../src/cabin/cabin_cabin.js"></script>
+<script src="../src/viewer/cabin_livery.js"></script>
+<script src="../src/viewer/cabin.js"></script>
 <script src="_village_gen.js"></script>
 <script>
 (() => {
@@ -755,20 +760,44 @@ function build() {
   // own generator - no plot, no fence, its ground skirt drawn (there is no
   // lot patch under it to carry the darkening)
   let siteTris = 0;
+  // THE LINE (G348): the two stations built for each other's angle before
+  // the loop draws them (tramLine leaves the builds on the records)
+  const tramFin = new Map();
+  if (vil.site && vil.site.tram) VG.tramLine(vil, h => { const F = G.makeFinish(); G.applyFinish(h.P, F); tramFin.set(h, F); const b = G.build(h.P, 0, F); b.BAGS = G.BAGS; return b; });
   for (const h of vil.siteHouses || []) {
     const GEN = h.gen === 'big' ? window.BIG_GEN : G;
-    const F = GEN.makeFinish();
-    GEN.applyFinish(h.P, F);
-    const built = GEN.build(h.P, 0, F);
+    const F = tramFin.get(h) || GEN.makeFinish();
+    if (!tramFin.get(h)) GEN.applyFinish(h.P, F);
+    const built = h.tram ? h.built : GEN.build(h.P, 0, F);
     built.BAGS = GEN.BAGS;
     h.built = built;
     const grp = placeBuilt(root, h, built, F);
+    if (built.stats.station && built.stats.station.sign && window.CABIN) grp.add(CABIN.signMesh(THREE, built.stats.station.sign));   // the office sign (G349)
     if (built.bags.aoskirt) {
       const sk = built.bags.aoskirt.mesh(grp, G.MAT.aoskirt);
       if (sk) { sk.renderOrder = 5; sk.castShadow = false; sk.receiveShadow = false; }
     }
     FINISHES.push(F);
     siteTris += built.stats.tris;
+  }
+  // THE ROPES AND THE CABINS (G348): a cylinder along each rope with a
+  // little sag, one cabin in each station's dock - the base's on the left
+  // line, the top's on the right, as a jig-back stands
+  if (vil.tram) {
+    const ropeMat = new THREE.MeshStandardMaterial({ color: 0x2a2c2e, roughness: 0.6, metalness: 0.7 });
+    for (const rp of vil.tram.ropes) {
+      const a = new THREE.Vector3(...rp.a), b = new THREE.Vector3(...rp.b), span = a.distanceTo(b);
+      const pts = [];
+      for (let i = 0; i <= 16; i++) { const t = i / 16; const p = a.clone().lerp(b, t); p.y -= span * 0.012 * 4 * t * (1 - t); pts.push(p); }
+      const geo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 32, rp.kind === 'track' ? 0.055 : 0.035, 6, false);
+      const m = new THREE.Mesh(geo, ropeMat); m.castShadow = true; root.add(m);
+      siteTris += 32 * 6 * 2;
+    }
+    if (window.CABIN) for (const d of vil.tram.docks) {
+      const c = CABIN.build(THREE, { livery: d.station === 'top' ? 'admiralty' : 'chatham' });
+      c.position.set(d.p[0], d.p[1], d.p[2]); c.rotation.y = d.yaw;
+      root.add(c);
+    }
   }
   // THE GRAVEL YARD (G334): one patch under the works, darkened by every
   // site building's occluders

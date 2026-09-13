@@ -97,6 +97,8 @@ function makeMats() {
   // saddle girder and the wheel mostly rust
   steel:  std(0x8d9296, { roughness: 0.6, metalness: 0.8 }),
   girder: std(0x8a6a55, { roughness: 0.7, metalness: 0.7 }),
+  siding2: std(0xe8e6df), trim2: std(0x36584a), roof2: std(0x9aa3aa, { roughness: 0.55, metalness: 0.5 }),
+  siding3: std(0x9aa3aa), trim3: std(0x2f3438), roof3: std(0x9aa3aa, { roughness: 0.55, metalness: 0.5 }),
   floor:  std(0x6d6154),
   // THE SMOKE (G254, the user: "Do you think we could have cheap chimney
   // smoke too?"): a basic material - it is not lit, it is a haze - drawn
@@ -124,7 +126,13 @@ function makeMats() {
 const MAT = makeMats();
 const BAGS = ['siding', 'trim', 'roof', 'rib', 'glass', 'deck', 'post',
               'stone', 'metal', 'floor', 'pane', 'pile', 'log', 'logend', 'flag', 'star',
-              'steel', 'girder'];   // the tram's structure (G342)
+              'steel', 'girder',   // the tram's structure (G341)
+              // A SECOND AND A THIRD CLADDING (G349, the user: "vary the color and
+              // materials of the walls for the 3 components"): a composite's
+              // part may name a slot, and its siding, trim and roof go to
+              // these bags instead, dressed from wallSet2 / wallSet3 and their
+              // colours - one composite, three buildings' finishes
+              'siding2', 'trim2', 'roof2', 'siding3', 'trim3', 'roof3'];
 // AND THE ONE BAG THAT IS NOT THE HOUSE (G254): the chimney smoke is a few
 // soft crossed quads with no surface to them - no occlusion to bake, no
 // texel density to hold, no silhouette to keep - so it stands outside the
@@ -1272,8 +1280,8 @@ function applyFinish(P, F) {
   // dusty its own way. Off by default (a house is what it was); the mine
   // turns it up.
   const ck = P.clouds === undefined ? 0 : P.clouds;
-  for (const k of ['siding', 'trim', 'post', 'deck', 'pile', 'metal']) if (MAT[k]) cloudWeather(MAT[k], ck, 0);
-  if (MAT.roof) cloudWeather(MAT.roof, P.roofClouds === undefined ? ck : P.roofClouds, 1);
+  for (const k of ['siding', 'trim', 'post', 'deck', 'pile', 'metal', 'siding2', 'trim2', 'siding3', 'trim3']) if (MAT[k]) cloudWeather(MAT[k], ck, 0);
+  for (const k of ['roof', 'roof2', 'roof3']) if (MAT[k]) cloudWeather(MAT[k], P.roofClouds === undefined ? ck : P.roofClouds, 1);
   shadeGlass(MAT.glass, GLASS_U, SHADE_U); shadeGlass(MAT.pane, GLASS_U, SHADE_U);
   GLASS_U.uGlassWave.value = P.glassWave === undefined ? 0.2 : P.glassWave;
   GLASS_U.uGlassRough.value = P.glassRough === undefined ? 0.4 : P.glassRough;
@@ -1347,6 +1355,15 @@ function applyFinish(P, F) {
           { flat: 0x9aa3aa, nrm: NRM.roof * (P.roofNrm || 1), wear });   // roofNrm: the mine's shakes read a tad deeper (G329)
   dressMat(MAT.rib, setFor(P, 'roof'), P.roofCol,
           { flat: 0x8d969d, nrm: NRM.rib, wear });
+  // the second and third claddings (G349): their own sets and colours when
+  // the preset names them, the first's otherwise
+  const setIdx = (role, idx) => { const list = ROLE_SETS[role]; return list[clamp(Math.round(idx || 0), 0, list.length - 1)]; };
+  for (const n of [2, 3]) {
+    const has = P['wallSet' + n] !== undefined;
+    if (MAT['siding' + n]) dressMat(MAT['siding' + n], has ? setIdx('wall', P['wallSet' + n]) : setFor(P, 'wall'), has ? P['wallCol' + n] : P.wallCol, { flat: 0xa8302a, nrm: NRM.siding, blend: P.paintBlend, wear });
+    if (MAT['trim' + n]) dressMat(MAT['trim' + n], has ? setIdx('trim', P['trimSet' + n]) : setFor(P, 'trim'), has ? P['trimCol' + n] : P.trimCol, { flat: 0xe8e6df, nrm: NRM.trim, wear });
+    if (MAT['roof' + n]) dressMat(MAT['roof' + n], has ? setIdx('roof', P['roofSet' + n]) : setFor(P, 'roof'), has ? P['roofCol' + n] : P.roofCol, { flat: 0x9aa3aa, nrm: NRM.roof * (P.roofNrm || 1), wear });
+  }
   // BOARDS take a veneer, SURFACES take planks: the deck's members and the
   // rail are individual sticks; the floor slab and the far mesh's deck are
   // continuous surfaces
@@ -1439,7 +1456,7 @@ const DEF = {
   // chimney, and what comes out of it
   chim: 1, chimXF: -0.45, chimZF: 0.30, chimR: 0.10, chimUp: 0.95,
   flagpole: 0, flagXF: 0.62,
-  clouds: 0, roofClouds: undefined, roofTile: 1, roofNrm: 1, openFront2: 0,
+  clouds: 0, roofClouds: undefined, roofTile: 1, roofNrm: 1, openFront2: 0, openClear: 0,
   // THE TRAM'S TOP STATION (G342): a composite of houses on a steel mast -
   // see tools/_tram_gen.js
   station: 0, mastH: 22, panel: 2.6, deckFront: 14, deckBack: 8, deckW: 5.0, deckD: 1.2,
@@ -1447,14 +1464,18 @@ const DEF = {
   trackX: 2.6, wheelR: 1.8, haulDrop: 0.9, houseL: 10.5, passage: 1, terminal: 1, terminalZ: 38,
   dockDrop: 5.5, steelRust: 0.3, girderRust: 0.72,
   // G347: the slots and the raked truss
-  slotW: 3.8, wingW: 1.8, slotD: 6.2, midW: 5.2, cabinL: 5.2, footZ: 5, legRearZ: -5, legFrontZ: 12.5, legW: 3.2, legD: 1.4, topDx: 2.8, stayDeg: 45,
+  slotW: 3.8, wingW: 1.8, slotD: 6.2, midW: 5.2, cabinL: 5.2, footZ: -8, legRearZ: -4, legFrontZ: 12, legW: 3.2, legD: 1.4, topDx: 2.8, stayDeg: 45,
+  // G349: the rope solved from the cabin's hang, the italic foot, the anchor frame on the terminal, the office sign
+  hangH: 8.6, tanBack: 3.0, machineH: 4.2, anchorX: 3.2, anchorUp: 3.0, signLivery: 'admiralty',
   cabin: 0,      // cabins at the dock (G343): 0, 1 or 2 - the bench places src/viewer/cabin.js's
   // THE BASE STATION (G346, station: 2): the open barn and what stands in it
   barnL: 24, barnW: 16, barnH: 10, barnPitch: 30, barnWin: 4, barnBay: 4, annexOn: 1, annexL: 12, annexW: 8,
-  towerIn: 5, towerH: 9.5, towerRake: 5, dockIn: 6, dockDx: 2.2, dockH: 1.0, guideR: 7, wheelH: 6,
+  towerIn: 5, towerH: 9.5, towerRake: 5, dockIn: 6, dockDx: 2.6, dockH: 1.0, guideR: 7, wheelH: 6,
   // THE MILL (G329): a composite of houses up a hill - see buildMill
   mill: 0, tiers: 7, tierStep: 6.4, tierRise: 3.3, tierW: 9.5, tierL0: 26, tierL1: 12,
-  tram: 1, tramTo: null, millStacks: 3, annex: 1, winRow: 2.0, derelict: 0.5, millTiers: null, frameBack: 2,
+  // THE STAIRCASE (G348): every tier as deep as its storeys need to meet the hill at `hillDeg` under a shed roof at `tierPitch`
+  tierPitch: 10, hillDeg: 27,
+  tram: 1, tramTo: null, millStacks: 3, annex: 1, winRow: 2.0, derelict: 0.5, millTiers: null, frameBack: 2, lamps: 1,
   bottom: 1, bottomGap: 14, bottomL: 16, bottomW: 9, bottomDx: 0,
   smoke: 1, smokeK: 0.55, smokeLean: 0.35,
   // the yard (G273): props round the house, the woodpile, the lamp
@@ -1722,7 +1743,11 @@ const ROWS = [
     ['footZ', 'the truss foot forward', 2, 24, 0.5, null, P => Math.round(P.station) === 1], ['legRearZ', 'the rear leg head', -10, 2, 0.5, null, P => Math.round(P.station) === 1],
     ['legFrontZ', 'the front leg head', 4, 14, 0.5, null, P => Math.round(P.station) === 1], ['legW', 'a leg across at its head', 1.5, 5, 0.1, null, P => Math.round(P.station) === 1],
     ['legD', 'a leg deep at its head', 0.8, 3, 0.1, null, P => Math.round(P.station) === 1],
-    ['topDx', 'the slots off centre', 2, 4, 0.1, null, P => Math.round(P.station) === 1], ['stayDeg', 'the backstays leave the arch at', 20, 80, 1, null, P => Math.round(P.station) === 1],
+    ['topDx', 'the slots off centre', 2, 4, 0.1, null, P => Math.round(P.station) === 1], ['stayDeg', 'the arch cables leave the arch at', 20, 80, 1, null, P => Math.round(P.station) === 1],
+    ['hangH', 'the cabin carriage over its floor', 4, 12, 0.1, null, P => !!P.station], ['tanBack', 'the rope leaves the saddle this far up the line from the dock', 1, 8, 0.1, null, P => Math.round(P.station) === 1],
+    ['machineH', 'the machine house tall', 3, 6, 0.1, null, P => Math.round(P.station) === 1], ['anchorX', 'the anchor frame posts off centre', 2, 6, 0.1, null, P => Math.round(P.station) === 1],
+    ['anchorUp', 'the anchor frame over the terminal ridge', 1, 6, 0.1, null, P => Math.round(P.station) === 1],
+    ['lamps', 'the lanterns', 0, 1, 1, null, P => !!P.station || !!P.mill],
     ['slotW', 'the slot width', 3.4, 5, 0.05, null, P => Math.round(P.station) === 1], ['slotD', 'the slot depth', 5.5, 9, 0.1, null, P => Math.round(P.station) === 1],
     ['wingW', 'the dock wings width', 1.2, 3, 0.1, null, P => Math.round(P.station) === 1], ['midW', 'the middle house deep', 3.5, 8, 0.1, null, P => Math.round(P.station) === 1],
     ['deckFront', 'deck forward of the mast', 6, 16, 0.5, null, P => !!P.station], ['deckBack', 'deck behind the mast', 4, 14, 0.5, null, P => !!P.station],
@@ -1750,7 +1775,8 @@ const ROWS = [
   ['the mill', [
     ['mill', 'a mill up the hill', 0, 1, 1], ['tiers', 'tiers', 3, 10, 1, null, P => !!P.mill],
     ['tierStep', 'step up the hill', 4, 10, 0.1, null, P => !!P.mill], ['tierRise', 'rise per tier', 2.4, 4.5, 0.1, null, P => !!P.mill],
-    ['tierW', 'tier depth', 6, 14, 0.5, null, P => !!P.mill], ['tierL0', 'lowest length', 10, 40, 0.5, null, P => !!P.mill],
+    ['tierW', 'least tier depth', 6, 14, 0.5, null, P => !!P.mill], ['tierL0', 'lowest length', 10, 40, 0.5, null, P => !!P.mill],
+    ['tierPitch', 'the shed roofs pitch', 5, 20, 0.5, null, P => !!P.mill], ['hillDeg', 'the hill the tiers climb', 10, 40, 0.5, null, P => !!P.mill],
     ['tierL1', 'top length', 6, 30, 0.5, null, P => !!P.mill], ['winRow', 'window spacing', 1.2, 4, 0.1, null, P => !!P.mill],
     ['tram', 'the tramway', 0, 1, 1, null, P => !!P.mill], ['millStacks', 'stacks', 0, 4, 1, null, P => !!P.mill],
     ['annex', 'the power house', 0, 1, 1, null, P => !!P.mill], ['derelict', 'derelict', 0, 1, 0.05, null, P => !!P.mill],
@@ -2132,6 +2158,10 @@ const PRESETS = {
   // nose, the raked strut, the passageway back to the red terminal house
   'tram top station': {
     station: 1, slopeZ: 28, slopeX: 0, floorY: 22.3, L: 11, w: 7, storeys: 1, stance: 0,
+    // the three claddings (G349): the deck houses in cream sheet, the terminal
+    // house (2) white boards with green trim, the passageway (3) galvanised
+    wallSet2: SET_IDX('wall', 'paintwood'), wallCol2: 6, trimSet2: SET_IDX('trim', 'veneerpale'), trimCol2: 2, roofSet2: SET_IDX('roof', 'galv'), roofCol2: 0,
+    wallSet3: SET_IDX('wall', 'galv'), wallCol3: 0, trimSet3: SET_IDX('trim', 'veneerpale'), trimCol3: 8, roofSet3: SET_IDX('roof', 'galv'), roofCol3: 0,
     weather: 0.5, dirt: 0.2, dirtH: 0.8, paintPunch: 0.2, clouds: 0.25, ao: 0.85, aoRange: 0.9,
     yard: 0, woodpile: 0, people: 0, boat: 0, chim: 0, lights: 0, curtains: 0, pier: 0, water: 0,
     wallSet: SET_IDX('wall', 'boxprof'), wallCol: 7, trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 6,
@@ -2143,6 +2173,9 @@ const PRESETS = {
   // wheel, the annex - in weathered boards under worn iron
   'tram base station': {
     station: 2, slopeZ: 0, slopeX: 0, floorY: 0.15, L: 16, w: 24, storeys: 1, stance: 0,
+    // painted steel inside (G349: "the structure inside should not be rusty"), the office in white boards (slot 2)
+    steelRust: 0.06, girderRust: 0.12, barnH: 12, annexL: 14, annexW: 8,
+    wallSet2: SET_IDX('wall', 'paintwood'), wallCol2: 6, trimSet2: SET_IDX('trim', 'veneerpale'), trimCol2: 2, roofSet2: SET_IDX('roof', 'galv'), roofCol2: 0,
     weather: 0.85, dirt: 0.6, dirtH: 1.4, paintPunch: 0, clouds: 0.5, ao: 0.85, aoRange: 0.9,
     yard: 0, woodpile: 0, people: 0, boat: 0, chim: 0, lights: 0, curtains: 0, pier: 0, water: 0,
     wallSet: SET_IDX('wall', 'greywood'), wallCol: 0, trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 0,
@@ -2151,16 +2184,17 @@ const PRESETS = {
   'kennecott mill': {
     mill: 1, tiers: 7, tierStep: 6.4, tierRise: 3.3, tierW: 9.5, tierL0: 26, tierL1: 12,
     tram: 1, millStacks: 3, annex: 1, winRow: 2.0, derelict: 0.5, frameBack: 3,
+    // (G348: every closed tier a shed roof rising uphill, tall and short by turns)
     millTiers: [
-      { roof: 'z', storeys: 2, naked: 0, ends: ['annex', 'stair'] },
-      { roof: 'mono', storeys: 2, naked: 1, ends: ['chute', ''] },
-      { roof: 'z', storeys: 2, naked: 0, ends: ['stair', 'annex'] },
+      { roof: 'mono', storeys: 2, naked: 0, ends: ['annex', 'stair'] },
+      { roof: 'mono', storeys: 1, naked: 1, ends: ['chute', ''] },
+      { roof: 'mono', storeys: 1, naked: 0, ends: ['stair', 'annex'] },
       { roof: 'mono', storeys: 2, naked: 1, ends: ['annex', ''] },
-      { roof: 'z', storeys: 3, naked: 0, ends: ['chute', 'stair'] },
-      { roof: 'mono', storeys: 2, naked: 1, ends: ['annex', ''] },
-      { roof: 'frame', storeys: 2, naked: 0, head: 1, ends: ['', 'chute'] },
+      { roof: 'mono', storeys: 1, naked: 0, ends: ['chute', 'stair'] },
+      { roof: 'mono', storeys: 1, naked: 1, ends: ['annex', ''] },
+      { roof: 'frame', storeys: 2, naked: 0, ends: ['', 'chute'] },
     ],
-    slopeZ: 27, slopeX: 0, floorY: 0.6, floorH: 3.2, pitch: 24, eaveOver: 0.5, rakeOver: 0.45,
+    slopeZ: 27, hillDeg: 27, tierPitch: 10, slopeX: 0, floorY: 0.6, floorH: 3.2, pitch: 24, eaveOver: 0.5, rakeOver: 0.45,
     weather: 0.85, dirt: 0.8, dirtH: 1.7, paintPunch: 0.55, clouds: 0.9, roofClouds: 0.12, ao: 0.9, aoRange: 0.8, roofTile: 4.0, roofNrm: 1.5,
     yard: 0, woodpile: 0, people: 0, boat: 0, chim: 0, lights: 0, civic: 1, curtains: 0,   // industrial: no curtains, no blinds
     wallSet: SET_IDX('wall', 'paintwood'), wallCol: 1,
@@ -2678,14 +2712,18 @@ function buildVolume(bags, P, Q, V, R, plan, wallOpts) {
       // the wall's midpoint - and the barn's corner posts stood four metres
       // out of its roof. The header follows the posts, so under a gable it
       // is two rakes and under an eave it is the flat beam it always was.
+      // A CLEAR SPAN (G349): `openClear` metres either side of the wall's
+      // middle get no post - the header carries across - so a cabin can come
+      // in through the tram barn's open end
       const tops = [];
       for (let j = 0; j <= n; j++) {
         const u = j / n;
         const x = A[0] + (B[0] - A[0]) * u, z = A[1] + (B[1] - A[1]) * u;
         const yH = R.underAt(x, z);
-        beam(bags.post, [x, V.floorY - 0.10, z], [x, yH - 0.10, z],
-             t * 0.55, t * 0.55, [0, 0, 1], 0,
-             { uv: jog(x, z, 9), bevel: Q.lod === 0 ? P.bevel : 0 });
+        if (!(P.openClear > 0 && Math.abs(u - 0.5) * Lo < P.openClear))
+          beam(bags.post, [x, V.floorY - 0.10, z], [x, yH - 0.10, z],
+               t * 0.55, t * 0.55, [0, 0, 1], 0,
+               { uv: jog(x, z, 9), bevel: Q.lod === 0 ? P.bevel : 0 });
         tops.push([x, yH, z]);
       }
       for (let j = 0; j < n; j++)
@@ -5992,8 +6030,10 @@ function build(P0, lod, F) {
 // weather - and the mill-only pieces (the crusher floor in bare beams, the
 // tramway, the stacks, the chutes, the naked lean-tos) are drawn into the
 // same bags after. One occlusion bake over the whole, one ground skirt.
+let LIT_KEEP = [];
 function buildComposite(parts, opts, lod, F) {
   const Q = { lod: lod | 0 };
+  LIT_KEEP = [];
   const bags = {};
   for (const k of BAGS.concat(EXTRA)) bags[k] = Bag(k);
   const g = opts.ground;
@@ -6003,13 +6043,20 @@ function buildComposite(parts, opts, lod, F) {
     const yaw = part.yaw || 0, c = Math.cos(yaw), sn = Math.sin(yaw);
     const toW = (lx, lz) => [lx * c + lz * sn + part.x, -lx * sn + lz * c + part.z];
     const P = Object.assign({}, DEF, part.P, {
-      ao: 0, aoGround: 0, smoke: 0, yard: 0, woodpile: 0, people: 0, pier: 0, lights: 0, barrel: 0, flagpole: 0,
+      // (G349: the parts' own door lamps and lit windows follow the composite's `lights`)
+      ao: 0, aoGround: 0, smoke: 0, yard: 0, woodpile: 0, people: 0, pier: 0, lights: opts.P && opts.P.lights ? 1 : 0, barrel: 0, flagpole: 0,
       slopeX: 0, slopeZ: 0, water: 0, lean: 0, bay: 0, dormers: 0, chim: part.P.chim || 0,
       // a part may bring its own ground (G342: a house on a steel deck stands
       // on the deck, not on the hill twenty metres below)
       ground: typeof part.ground === 'function' ? part.ground : (lx, lz) => { const w = toW(lx, lz); return g(w[0], w[1]); } });
     const b = build(P, lod, F);
-    for (const k of BAGS) bags[k].append(b.bags[k], { yaw, dx: part.x, dz: part.z });
+    const slot = part.slot || 1;
+    for (const k of BAGS) {
+      if (!b.bags[k]) continue;
+      const dst = slot > 1 && (k === 'siding' || k === 'trim' || k === 'roof') ? k + slot : k;
+      bags[dst].append(b.bags[k], { yaw, dx: part.x, dz: part.z });
+    }
+    if (b.stats.lit) for (const Lt of b.stats.lit.lights) { const w = toW(Lt.x, Lt.z); const c = Math.cos(yaw), sn = Math.sin(yaw); LIT_KEEP.push(Object.assign({}, Lt, { x: w[0], z: w[1], nx: (Lt.nx || 0) * c + (Lt.nz || 0) * sn, nz: -(Lt.nx || 0) * sn + (Lt.nz || 0) * c })); }
     for (const o of b.stats.groundAO || []) {
       const w = toW(o.x, o.z);
       occ.push(Object.assign({}, o, { x: w[0], z: w[1], ry: (o.ry || 0) + yaw }));
@@ -6039,50 +6086,102 @@ function buildComposite(parts, opts, lod, F) {
     lod: Q.lod, tris, verts, per, bbox: bb, nan: 0, degen: 0, dropped, composite: true,
     footprint, area: footprint, ridgeY: bb.y1, eaveY: built[0] ? built[0].b.stats.eaveY : 0, floorY: opts.P.floorY,
     parts: built.map(x => ({ preset: x.part.tag, x: x.part.x, z: x.part.z, yaw: x.part.yaw || 0, L: x.P.L, w: x.P.w, floorY: x.P.floorY, eaveY: x.b.stats.eaveY, ridgeY: x.b.stats.ridgeY })),
-    ground: g, groundAO: occ, aoFoot: null, ao: aoInfo, path: [], people: null, yard: null, pier: null, lit: null,
+    ground: g, groundAO: occ, aoFoot: null, ao: aoInfo, path: [], people: null, yard: null, pier: null,
+    lit: { windows: 0, panes: 0, bulbs: 0, lights: LIT_KEEP.concat(LIT_LOG.lights) },   // the parts' own lights, and the lanterns the extras hung (G348/G349)
     stair: null, front: opts.front || null, stoop: null, deckArea: 0, chimney: null, posts: 0,
   }, opts.stats || {});
   return { bags, stats, V: { L: opts.P.L || 1, w: opts.P.w || 1, wallT: opts.P.wallT, floorY: opts.P.floorY }, R: null, MAT: F ? F.MAT : MAT, P: opts.P };
 }
 
-// THE MILL, as a composite of houses. Tier i is a house `tierW` deep with
-// its front at z = w/2 - i*step and its floor a rise over the tier below
-// (never in the hill); its roof by kind - 'x' a gable along the contour,
-// 'z' a gable across it (the house turned a quarter, so its ridge runs
-// across), 'mono' the house's shed family turned to face uphill (high at
-// the back, draining down the hill), 'frame' no house at all but the
-// crusher floor in bare beams; `storeys`; `naked` a lean-to of bare beams
-// on the +x end; `head` the head house on the frame; `ends` an annex, a
-// stair tower or a chute off either end. Every closed tier stands on the
-// house's own posts and braces; the windows are the house's, none where a
-// tier's wall is inside the tier below (`winMinY` / `winMinZ`).
+// A WALL LANTERN (G348, the user: "add a few exterior and interior lights
+// to the whole structure. Do some exterior lights for the factory too"): a
+// bracket off the wall at `p` along the wall's outward normal `n`, the same
+// bulkhead lantern the door and the pier have - glass in the glass bag with
+// the warm glow, published like every other light so the bench and the game
+// stand a point light in it. `o.k` and `o.range` for the light, `o.down` to
+// hang it under the bracket instead of on it.
+function lampAt(bags, Q, p, n, o) {
+  const opt = o || {};
+  const nn = nrm([n[0], 0, n[2]]);
+  const out = 0.32, hw = 0.075, hh = 0.11;
+  const c = [p[0] + nn[0] * out, p[1] + (opt.down ? -hh - 0.05 : hh + 0.05), p[2] + nn[2] * out];
+  beam(bags.metal, p, [p[0] + nn[0] * (out + hw), p[1], p[2] + nn[2] * (out + hw)], 0.03, 0.03, [0, 1, 0], 0);
+  if (Q.lod !== 0) {
+    boxAB(bags.metal, [c[0] - hw - 0.02, c[1] - hh - 0.03, c[2] - hw - 0.02], [c[0] + hw + 0.02, c[1] + hh + 0.035, c[2] + hw + 0.02]);
+  } else {
+    const corner = (sx, sz) => [c[0] + sx * hw, 0, c[2] + sz * hw];
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      const q = corner(sx, sz);
+      beam(bags.metal, [q[0], c[1] - hh, q[2]], [q[0], c[1] + hh, q[2]], 0.007, 0.007, [0, 1, 0]);
+    }
+    boxAB(bags.metal, [c[0] - hw - 0.02, c[1] + hh, c[2] - hw - 0.02], [c[0] + hw + 0.02, c[1] + hh + 0.035, c[2] + hw + 0.02]);
+    boxAB(bags.metal, [c[0] - hw, c[1] - hh - 0.03, c[2] - hw], [c[0] + hw, c[1] - hh, c[2] + hw]);
+    bags.glass.setGlow(1);
+    const sides = [[-1, -1, 1, -1], [1, -1, 1, 1], [1, 1, -1, 1], [-1, 1, -1, -1]];
+    for (const sd of sides) {
+      const a = corner(sd[0], sd[1]), b = corner(sd[2], sd[3]);
+      const nf = nrm(crs(sub(b, a), [0, 1, 0]));
+      face(bags.glass, [[a[0], c[1] - hh + 0.02, a[2]], [b[0], c[1] - hh + 0.02, b[2]],
+                        [b[0], c[1] + hh - 0.02, b[2]], [a[0], c[1] + hh - 0.02, a[2]]],
+           nf, uvFrame(a, nrm(sub(b, a)), [0, 1, 0]));
+    }
+    bags.glass.setGlow(0);
+  }
+  LIT_LOG.lights.push({ kind: 'wall', x: c[0], y: c[1], z: c[2], nx: nn[0], nz: nn[2],
+                        col: opt.col || [1.0, 0.82, 0.55], k: opt.k === undefined ? 0.7 : opt.k, range: opt.range || 9.0 });
+  return c;
+}
+
+// THE MILL, as a composite of houses - REBUILT TIGHT (G348, the user: "there
+// is too much clipping ... the roofs do not line up, they intersect weirdly
+// ... fit the factory building nice and tight"). ONE RULE MAKES IT FIT:
+// every tier is a SHED ROOF RISING UPHILL, and its high edge is exactly
+// where the next tier's front wall stands. So
+//   - tier i is `w` deep: its front wall at zF, its back wall at zB = zF - w;
+//   - its roof rises from the front eave to the back edge, at
+//     roofHigh = eave + roofT + w * tan(pitch), draining down the hill;
+//   - tier i+1's front wall plane is 0.3 m INSIDE tier i's back wall (so
+//     the two rows of posts never share a plane and the joint is hidden in
+//     tier i's volume), and its floor is 0.35 m under tier i's roof edge,
+//     so the wall comes down over the roof edge and the roof runs a hand
+//     into the room above: from outside, roof meets wall, nothing pierces
+//     anything;
+//   - a bare frame steps the same way; its floor sits ON the roof edge
+//     below (there is no wall to hide the joint), and a frame behind a
+//     frame stands a hand behind its back posts;
+//   - each tier stands within the length of the tier below (its front wall
+//     has a roof edge under it end to end); the frames may run past;
+//   - annexes and stair towers stand off the ENDS inside their tier's own
+//     depth, so they meet no other tier; the lowest tier keeps its +x end
+//     clear for the power house;
+//   - the top frame alone has a gable, across the hill, so the mill ends in
+//     a peak; there is no head house standing on a roof any more;
+//   - the conveyor is laid ABOVE THE ROOF ENVELOPE: its head at the crusher
+//     floor is lifted until the belt clears every tier's front eave by a
+//     metre, and a head frame is drawn under it where it had to lift;
+//   - lanterns at every tier's front corners, the receiving house's ends,
+//     the power house door and the crusher floor.
 const MILL_EXTRA = ['tramway', 'stacks'];
 function buildMill(P, lod, F) {
   const g = groundFn(P);
-  const n = Math.max(3, Math.round(P.tiers)), step = P.tierStep, rise = P.tierRise, w = P.tierW;
-  const stH = P.floorH, tp = Math.tan(P.pitch * D2R);
+  const n = Math.max(3, Math.round(P.tiers)), w = P.tierW;
+  const stH = P.floorH, tp = Math.tan(P.pitch * D2R), rT = P.roofT;
   let st = ((P.seed | 0) * 2654435761 + 91) >>> 0;
   const rnd = () => { st = (st + 0x6D2B79F5) >>> 0; let t = st; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  // THE SPEC: closed tiers, then the crusher floor (the first bare frame),
+  // then the frames behind it (`frameBack`), every one stepping up the hill
   const spec = ((P.millTiers && P.millTiers.length) ? P.millTiers.slice() : (() => {
     const out = [];
-    for (let i = 0; i < n; i++) out.push({ roof: i === n - 1 ? 'frame' : (i % 2 ? 'z' : 'mono'), storeys: 2, naked: i % 2, head: i === n - 1 ? 1 : 0 });
+    for (let i = 0; i < n; i++) out.push({ roof: i === n - 1 ? 'frame' : 'mono', storeys: i % 3 === 0 ? 2 : 1, naked: i > 0 && i % 2 ? 1 : 0 });
     return out;
   })());
-  // MORE BARE STRUCTURE AT THE TOP (G329, the user: "the one in the
-  // references is almost 60% at the top. Just extend the top part
-  // horizontally toward the back ... add a few large bare structures in
-  // the continuation"): `frameBack` more frame tiers behind the crusher
-  // floor, the top's length, stepping on up the hill with no closed house
-  // among them
-  for (let k = 0; k < Math.round(P.frameBack || 0); k++) {
-    const r = rnd();
-    spec.push({ roof: 'frame', storeys: k % 2 ? 1 : 2 + Math.round(rnd()), naked: 0, head: 0,
-                L: P.tierL1 * (0.7 + rnd() * 0.9), fw: w * (0.6 + rnd() * 0.8), fstep: (P.tierW * (0.6 + rnd() * 0.8)) * 0.8,
-                froof: r < 0.4 ? 'x' : (r < 0.7 ? 'mono' : 'z'), pitch: 10 + rnd() * 26, hK: 0.8 + rnd() * 0.5,
-                frise: rise * (0.6 + rnd() * 0.9) });
+  const nBack = Math.round(P.frameBack || 0);
+  for (let k = 0; k < nBack; k++) {
+    spec.push({ roof: 'frame', storeys: k % 2 ? 1 : 2, naked: 0,
+                L: P.tierL1 * (0.7 + rnd() * 0.9),
+                froof: k === nBack - 1 ? 'x' : 'mono', pitch: 8 + rnd() * 10, hK: 0.8 + rnd() * 0.5 });
   }
   const N = spec.length;
-  // the house every tier is cut from: the mill's own finish and sets
   const base = k => ({
     wallSet: P.wallSet, wallCol: P.wallCol, trimSet: P.trimSet, trimCol: P.trimCol, roofSet: P.roofSet, roofCol: P.roofCol,
     postSet: P.postSet, deckSet: P.deckSet, metalSet: P.metalSet, stoneSet: P.stoneSet, floorSet: P.floorSet,
@@ -6094,50 +6193,66 @@ function buildMill(P, lod, F) {
     winW: 0.9, winH: 1.25, winSill: 1.0, gableWin: 1, door: 0, backDoor: 0, porch: 0, stairs: 0,
     gutter: 0, downpipe: 0, chim: 0, cupola: 0, dormers: 0, lean: 0, bay: 0, openFront: 0, backPorch: 0,
   });
-  // ---- the geometry first
+  // ---- the geometry first: the staircase
   const TG = [];
   for (let i = 0; i < N; i++) {
-    const S = spec[i];
+    const S = spec[i], prev = i ? TG[i - 1] : null;
+    const isFrame = S.roof === 'frame';
     const L = S.L !== undefined ? S.L : P.tierL0 + (P.tierL1 - P.tierL0) * i / Math.max(1, N - 1);
-    const xo = S.xo !== undefined ? S.xo : (rnd() - 0.5) * Math.max(2, (P.tierL0 - L) * 0.9);
-    // a frame tier may be deeper or shallower than the run (`fw`), and
-    // steps by its own depth so the frames behind the top do not all sit
-    // on one grid (G333, the user: "Vary the sizes, the height, the roof
-    // types and inclinations")
-    const wT = S.fw || w;
-    const zF = i ? TG[i - 1].zF - (S.fstep || step) : w / 2, zB = zF - wT, zM = (zF + zB) / 2;
+    // a closed tier stands within the tier below (its wall wants a roof
+    // edge under it end to end); a frame may run past
+    let xo;
+    if (S.xo !== undefined) xo = S.xo;
+    else if (!prev) xo = 0;
+    else if (!isFrame && prev.roof !== 'frame' && prev.L > L) xo = prev.xo + (rnd() - 0.5) * (prev.L - L) * 0.9;
+    else xo = prev.xo + (rnd() - 0.5) * Math.max(0, prev.L - L) * 0.6;
+    if (prev && !isFrame && prev.roof !== 'frame') xo = clamp(xo, prev.xo - (prev.L - L) / 2, prev.xo + (prev.L - L) / 2);
+    // THE DEPTH FROM THE HILL: a tier is as deep as its storeys need for
+    // its roof edge to meet the hill again - w (s - tan pitch) = storeys h -
+    // so every floor stays a step above the ground at its front
+    const storeys = Math.max(1, Math.round(S.storeys || 2));
+    const tpT = isFrame ? (S.pitch ? Math.tan(S.pitch * D2R) : Math.tan(P.tierPitch * D2R)) : Math.tan(P.tierPitch * D2R);
+    const sHill = Math.tan((P.hillDeg === undefined ? P.slopeZ : P.hillDeg) * D2R);
+    const wT = S.fw || clamp(storeys * stH * (S.hK || 1) / Math.max(0.12, sHill - tpT), P.tierW, 14);
+    // the front wall plane: a hand inside the tier below's back wall
+    const zF = !prev ? w / 2 : prev.zB - (prev.roof === 'frame' ? 0.35 : 0.3);
+    const zB = zF - wT, zM = (zF + zB) / 2;
     let gUnder = -1e9;
     for (const x of [xo - L / 2, xo, xo + L / 2]) for (const z of [zF, zB]) gUnder = Math.max(gUnder, g(x, z));
-    const fy = Math.max(i ? TG[i - 1].fy + (S.frise !== undefined ? S.frise : rise) : P.floorY, gUnder + 0.3);
-    const storeys = Math.max(1, Math.round(S.storeys || 2));
+    // the floor: over the roof edge below - under it for a wall to come
+    // down over, on it for a frame's floor to sit on
+    let fy;
+    if (!prev) fy = Math.max(P.floorY, gUnder + 0.3);
+    else if (!isFrame && prev.roof !== 'frame') fy = prev.roofHigh - 0.35;
+    else fy = prev.roofHigh + 0.05;
+    fy = Math.max(fy, gUnder + 0.3);
     const eave = fy + storeys * stH * (S.hK || 1);
-    const roof = S.roof || 'z';
-    // the frame's own roof: `froof` 'x' | 'z' | 'mono', its own pitch
-    const fro = roof === 'frame' ? (S.froof || 'x') : roof;
-    const tpT = S.pitch ? Math.tan(S.pitch * D2R) : tp;
-    const tpZ = Math.min(tpT, 4.5 / (L / 2));
-    const yRoof = (x, z) => fro === 'x' ? eave + (wT / 2 - Math.abs(z - zM)) * tpT
-                          : fro === 'z' ? eave + (L / 2 - Math.min(L / 2, Math.abs(x - xo))) * tpZ
-                          : eave + (zF - z) * tpT;
-    const ridge = Math.max(yRoof(xo, zM), yRoof(xo, zF), yRoof(xo, zB));
+    const roof = isFrame ? 'frame' : 'mono';
+    const fro = isFrame ? (S.froof || 'mono') : 'mono';
+    const yRoof = (x, z) => fro === 'x' ? eave + rT + (wT / 2 - Math.abs(z - zM)) * tpT : eave + rT + (zF - z) * tpT;
+    const roofHigh = fro === 'x' ? eave + rT : eave + rT + wT * tpT;
+    const ridge = fro === 'x' ? eave + rT + wT / 2 * tpT : roofHigh;
     const isDer = rnd() < (P.derelict === undefined ? 0.5 : P.derelict);
+    // THE ENDS: an annex, a stair tower or a chute off either end, inside
+    // the tier's own depth; the lowest tier keeps +x for the power house
     const endsK = S.ends || (() => { const e = []; for (const sd of [-1, 1]) { const r = rnd(); e.push(r < 0.3 ? 'annex' : r < 0.5 ? 'stair' : r < 0.65 ? 'chute' : ''); } return e; })();
     const ends = [];
     for (let e = 0; e < 2; e++) {
       const sd = e === 0 ? -1 : 1, kind = endsK[e];
-      if (!kind || (S.naked && sd === 1) || roof === 'frame') continue;
+      if (!kind || isFrame) continue;
+      if (sd === 1 && (S.naked || (i === 0 && P.annex))) continue;
       const xe = sd < 0 ? xo - L / 2 : xo + L / 2;
       if (kind === 'annex') {
-        const aL = 4.2, aW = Math.min(w - 1.5, 5.5), ax0 = sd < 0 ? xe - aL : xe;
-        const afy = fy + (rnd() < 0.5 ? 0 : stH);
-        if (afy > eave - 2.5) continue;
+        const aL = 4.2, aW = Math.min(wT - 1.6, 5.5), ax0 = sd < 0 ? xe - aL : xe;
+        const afy = fy + (rnd() < 0.5 || storeys < 2 ? 0 : stH);
+        if (afy + 2.9 + aL * Math.tan(12 * D2R) + rT > eave - 0.3) continue;
         ends.push({ kind, sd, x0: ax0, x1: ax0 + aL, z0: zF - 0.8, z1: zF - 0.8 - aW, y0: afy });
       } else if (kind === 'stair') {
-        const sL = 2.6, sW = 3.0, sx0 = sd < 0 ? xe - sL : xe;
+        const sL = 2.6, sW = Math.min(3.0, wT - 1.6), sx0 = sd < 0 ? xe - sL : xe;
         ends.push({ kind, sd, x0: sx0, x1: sx0 + sL, z0: zM + sW / 2, z1: zM - sW / 2, y0: fy, y1: eave + 0.9 });
       } else ends.push({ kind, sd, xe });
     }
-    TG.push({ S, L, xo, x0: xo - L / 2, x1: xo + L / 2, zF, zB, zM, fy, storeys, eave, roof, fro, tpT, yRoof, ridge, isDer, ends, tpZ, w: wT });
+    TG.push({ S, L, xo, x0: xo - L / 2, x1: xo + L / 2, zF, zB, zM, fy, storeys, eave, roof, fro, tpT, yRoof, ridge, roofHigh, isDer, ends, w: wT });
   }
   // inside another closed volume - a tier's box under its roof, an annex, a stair tower?
   const covered = (x, y, z, self) => {
@@ -6148,70 +6263,46 @@ function buildMill(P, lod, F) {
     }
     return false;
   };
-  // ---- the parts: a house per closed tier, per annex, per stair tower, per head house
+  // ---- the parts: a house per closed tier, per annex, per stair tower
   const parts = [];
   const winsAlong = len => Math.max(1, Math.floor((len - 1.2) / P.winRow));
   for (let i = 0; i < N; i++) {
     const T = TG[i];
     if (T.roof === 'frame') continue;
-    // the joint with the tier below: this tier's front wall is inside it
-    // up to the roof below at this front; on the ends, nearer the front
-    // than the tier below's back wall
     const nAlong = winsAlong(T.L), nAcross = winsAlong(w);
-    // the joint: a window whose top is inside another closed volume (the
-    // tier below, whose roof this front wall rises out of; an annex; a
-    // stair tower) stays boards - asked in the mill's frame
     const keepFor = (yaw, px, pz) => (lx, lz, y0, y1) => {
       const c = Math.cos(yaw), sn = Math.sin(yaw);
       const x = lx * c + lz * sn + px, z = -lx * sn + lz * c + pz;
       return !covered(x, y1, z, i) && !covered(x, (y0 + y1) / 2, z, i);
     };
-    if (T.roof === 'z') {
-      // the house turned a quarter: its L runs across the hill, its ridge with it
-      const Pz = Object.assign(base(), { L: w, w: T.L, storeys: T.storeys, floorY: T.fy, roofFam: 0, pitch: Math.atan(T.tpZ) / D2R,
-        nFront: nAcross, nBack: nAcross, nLeft: nAlong, nRight: nAlong, door: 0, winKeep: keepFor(Math.PI / 2, T.xo, T.zM) });
-      parts.push({ tag: 'tier ' + i, P: Pz, x: T.xo, z: T.zM, yaw: Math.PI / 2, tier: i });
-    } else if (T.roof === 'mono') {
-      // the shed family is high at the house's front: turned about to face uphill
-      const Pm = Object.assign(base(), { L: T.L, w, storeys: T.storeys, floorY: T.fy, roofFam: 1, pitch: P.pitch,
-        nFront: nAlong, nBack: nAlong, nLeft: nAcross, nRight: nAcross, winKeep: keepFor(Math.PI, T.xo, T.zM) });
-      parts.push({ tag: 'tier ' + i, P: Pm, x: T.xo, z: T.zM, yaw: Math.PI, tier: i });
-    } else {
-      const Px = Object.assign(base(), { L: T.L, w, storeys: T.storeys, floorY: T.fy, roofFam: 0, pitch: P.pitch,
-        nFront: nAlong, nBack: nAlong, nLeft: nAcross, nRight: nAcross, door: i === 0 ? 1 : 0, doorPos: 0.5, doorW: 1.2, doorH: 2.3,
-        winKeep: keepFor(0, T.xo, T.zM) });
-      parts.push({ tag: 'tier ' + i, P: Px, x: T.xo, z: T.zM, yaw: 0, tier: i });
-    }
+    // the shed family is high at the house's front: turned about to face uphill
+    const Pm = Object.assign(base(), { L: T.L, w: T.w, storeys: T.storeys, floorY: T.fy, roofFam: 1, pitch: P.tierPitch,
+      nFront: nAlong, nBack: nAlong, nLeft: nAcross, nRight: nAcross, door: i === 0 ? 1 : 0, doorPos: 0.5, doorW: 1.2, doorH: 2.3,
+      winKeep: keepFor(Math.PI, T.xo, T.zM) });
+    parts.push({ tag: 'tier ' + i, P: Pm, x: T.xo, z: T.zM, yaw: Math.PI, tier: i });
     for (const E of T.ends) {
       if (E.kind === 'annex') {
-        // a shed-roof house, high against the tier: turned so its high side (its front) is against the tier
         const aL = E.x1 - E.x0, aW = E.z0 - E.z1;
         const Pa = Object.assign(base(), { L: aW, w: aL, storeys: 1, floorY: E.y0, floorH: 2.9, roofFam: 1, pitch: 12,
           nFront: 0, nBack: 1, nLeft: 1, nRight: 1, eaveOver: 0.3, rakeOver: 0.25 });
         // the shed's high side is the house's front (+z): turned so that
-        // front is AGAINST the tier and the roof sheds outward, never into
-        // the tier's wall (G329, the user: "the water has to flow down")
+        // front is AGAINST the tier and the roof sheds outward
         parts.push({ tag: 'annex', P: Pa, x: (E.x0 + E.x1) / 2, z: (E.z0 + E.z1) / 2, yaw: E.sd < 0 ? Math.PI / 2 : -Math.PI / 2, tier: i });
       } else if (E.kind === 'stair') {
         const sL = E.x1 - E.x0, sW = E.z0 - E.z1;
-        const Ps = Object.assign(base(), { L: sL, w: sW, storeys: Math.max(1, Math.round((E.y1 - E.y0) / stH)), floorY: E.y0, floorH: (E.y1 - E.y0) / Math.max(1, Math.round((E.y1 - E.y0) / stH)),
+        const nSt = Math.max(1, Math.round((E.y1 - E.y0) / stH));
+        const Ps = Object.assign(base(), { L: sL, w: sW, storeys: nSt, floorY: E.y0, floorH: (E.y1 - E.y0) / nSt,
           roofFam: 1, pitch: 5, nFront: 1, nBack: 0, nLeft: 0, nRight: 0, winW: 0.7, winH: 0.9, winSill: 1.4, gableWin: 0, door: 1, doorPos: 0.5, doorW: 0.95, doorH: 2.1, eaveOver: 0.25, rakeOver: 0.25 });
         parts.push({ tag: 'stair', P: Ps, x: (E.x0 + E.x1) / 2, z: (E.z0 + E.z1) / 2, yaw: 0, tier: i });
       }
     }
-    if (T.S.head && T.roof !== 'frame') {
-      const hL = Math.min(6.5, T.L * 0.5), hW = w * 0.55, hx = T.xo + T.L * 0.12, hz = T.zM - w * 0.1;
-      const Ph = Object.assign(base(), { L: hL, w: hW, storeys: 1, floorY: T.yRoof(hx, hz) - 0.3, floorH: 3.0, roofFam: 1, pitch: 14, nFront: 2, nBack: 2, nLeft: 1, nRight: 1, gableWin: 0 });
-      parts.push({ tag: 'head', P: Ph, x: hx, z: hz, yaw: Math.PI, tier: i });
-    }
   }
   const top = TG[N - 1];
   const baseT = TG[0];
-  // THE RECEIVING HOUSE at the foot (G333, the user: "start on the bottom
-  // house, that one should be part of the factory"): a tall single-storey
-  // house on a slab, both gable ends open - the road runs in one and out
-  // the other - downhill in front of the lowest tier by `bottomGap`; the
-  // tramway comes down into a PORTAL on its roof
+  // THE RECEIVING HOUSE at the foot (G333): a tall single-storey house on a
+  // slab, both gable ends open - the road runs in one and out the other -
+  // downhill in front of the lowest tier by `bottomGap`; the conveyor comes
+  // down into a PORTAL on its roof
   let bottom = null;
   if (P.bottom === undefined || P.bottom) {
     const bL = P.bottomL || 16, bW = P.bottomW || 9;
@@ -6224,14 +6315,14 @@ function buildMill(P, lod, F) {
       openFront: 2, openFront2: 4, eaveOver: 0.5, rakeOver: 0.5 });
     parts.push({ tag: 'receiving house', P: Pb, x: bx, z: bz, yaw: 0 });
     const ridgeB = bfy + bH + bW / 2 * Math.tan(26 * D2R);
-    // the portal: a small box astride the ridge where the tramway comes in
     const px = bx + bL * 0.28, pz = bz;
     const Pp = Object.assign(base(), { L: 3.0, w: 2.6, storeys: 1, floorY: ridgeB - 1.2, floorH: 2.6, roofFam: 0, pitch: 26, stance: 0, skirt: 0,
       nFront: 0, nBack: 0, nLeft: 0, nRight: 0, gableWin: 0, door: 0, eaveOver: 0.25, rakeOver: 0.25 });
     parts.push({ tag: 'portal', P: Pp, x: px, z: pz, yaw: 0 });
     bottom = { x: bx, z: bz, L: bL, w: bW, fy: bfy, eave: bfy + bH, ridge: ridgeB, portal: { x: px, z: pz, y: ridgeB - 1.2 + 1.6 } };
   }
-  // the power house at the foot, a house too, and the head house on a frame tier
+  // the power house at the foot, off the lowest tier's +x end (kept clear for it)
+  let power = null;
   if (P.annex) {
     const aL = 12, aW = 8, ax = baseT.x1 + 0.6 + aL / 2, az = baseT.zF - w / 2 - 1.0;
     let gU = -1e9;
@@ -6239,25 +6330,21 @@ function buildMill(P, lod, F) {
     const Pp = Object.assign(base(), { L: aL, w: aW, storeys: 1, floorY: gU + 0.45, floorH: 4.6, roofFam: 0, pitch: P.pitch, nFront: 4, nBack: 4, nLeft: 2, nRight: 2,
       winW: 0.9, winH: 1.3, winSill: 1.6, gableWin: 1, door: 1, doorPos: 0.18, doorW: 1.4, doorH: 3.2, stance: 1, skirt: 1 });
     parts.push({ tag: 'power house', P: Pp, x: ax, z: az, yaw: 0 });
-  }
-  if (top.roof === 'frame' && top.S.head) {
-    const hL = Math.min(6.5, top.L * 0.5), hW = w * 0.55, hx = top.xo + top.L * 0.12, hz = top.zM - w * 0.1;
-    const Ph = Object.assign(base(), { L: hL, w: hW, storeys: 1, floorY: top.yRoof(hx, hz) - 0.3, floorH: 3.0, roofFam: 1, pitch: 14, nFront: 2, nBack: 2, nLeft: 1, nRight: 1, gableWin: 0, stance: 0 });
-    parts.push({ tag: 'head', P: Ph, x: hx, z: hz, yaw: Math.PI });
+    power = { x: ax, z: az, L: aL, w: aW, fy: gU + 0.45, eave: gU + 0.45 + 4.6 };
   }
   // ---- the mill-only pieces, into the house's own bags
   const occ = [];
-  // A BARE FRAME (the crusher floor, the frames behind it, the tramway's
-  // terminal): posts on a grid to the roof's underside, plates at every
-  // storey, braces in every bay, a board floor, the roof by its kind over
-  // it - a gable along, a gable across, a monopitch - with fascia and ridge
+  // A BARE FRAME (the crusher floor, the frames behind it, the terminal):
+  // posts on a grid to the roof's underside, plates at every storey,
+  // braces in every bay, a board floor, the roof by its kind over it - a
+  // gable across, a monopitch - with fascia and ridge
   const bareFrame = (bags, T, Q) => {
     const post = (a, b, sz) => beam(bags.post, a, b, sz || 0.14, sz || 0.14, [0, 0, 1], 0);
-    const wT = T.w, rT = P.roofT, tpT = T.tpT;
+    const wT = T.w, tpT = T.tpT;
     const nx = Math.max(2, Math.round(T.L / 2.6)), nz = Math.max(2, Math.round(wT / 2.6));
     for (let a = 0; a <= nx; a++) for (let b = 0; b <= nz; b++) {
       const x = T.x0 + T.L * a / nx, z = T.zF - wT * b / nz;
-      post([x, g(x, z) - 0.3, z], [x, T.yRoof(x, z) - 0.05, z], 0.2);
+      post([x, g(x, z) - 0.3, z], [x, T.yRoof(x, z) - rT - 0.05, z], 0.2);
       if (Q.lod === 0) boxAB(bags.stone, [x - 0.28, g(x, z) - 0.35, z - 0.28], [x + 0.28, g(x, z) + 0.12, z + 0.28]);
     }
     const sH = (T.eave - T.fy) / T.storeys;
@@ -6280,22 +6367,14 @@ function buildMill(P, lod, F) {
     const fascia = (a, b) => beam(bags.trim, a, b, 0.02, 0.18, [0, 1, 0], 0);
     if (T.fro === 'x') {
       for (const side of [1, -1]) {
-        const zE = T.zM + side * (wT / 2 + P.eaveOver), yE = T.eave - P.eaveOver * tpT + rT;
-        plate2([[T.x0 - P.rakeOver, T.ridge + rT, T.zM], [T.x1 + P.rakeOver, T.ridge + rT, T.zM], [T.x1 + P.rakeOver, yE, zE], [T.x0 - P.rakeOver, yE, zE]], nrm([0, yE - T.ridge - rT, zE - T.zM]));
+        const zE = T.zM + side * (wT / 2 + P.eaveOver), yE = T.eave + rT - P.eaveOver * tpT;
+        plate2([[T.x0 - P.rakeOver, T.ridge, T.zM], [T.x1 + P.rakeOver, T.ridge, T.zM], [T.x1 + P.rakeOver, yE, zE], [T.x0 - P.rakeOver, yE, zE]], nrm([0, yE - T.ridge, zE - T.zM]));
         fascia([T.x0 - P.rakeOver, yE - 0.1, zE], [T.x1 + P.rakeOver, yE - 0.1, zE]);
       }
-      beam(bags.metal, [T.x0 - P.rakeOver, T.ridge + rT + 0.03, T.zM], [T.x1 + P.rakeOver, T.ridge + rT + 0.03, T.zM], 0.16, 0.05, [0, 1, 0], 0);
-    } else if (T.fro === 'z') {
-      const ridgeZ = T.eave + T.L / 2 * T.tpZ;
-      for (const side of [1, -1]) {
-        const xE = T.xo + side * (T.L / 2 + P.rakeOver), yE = T.eave - P.rakeOver * T.tpZ + rT;
-        plate2([[T.xo, ridgeZ + rT, T.zF + P.eaveOver], [T.xo, ridgeZ + rT, T.zB - P.eaveOver], [xE, yE, T.zB - P.eaveOver], [xE, yE, T.zF + P.eaveOver]], nrm([xE - T.xo, yE - ridgeZ - rT, 0]));
-        fascia([xE, yE - 0.1, T.zF + P.eaveOver], [xE, yE - 0.1, T.zB - P.eaveOver]);
-      }
-      beam(bags.metal, [T.xo, ridgeZ + rT + 0.03, T.zF + P.eaveOver], [T.xo, ridgeZ + rT + 0.03, T.zB - P.eaveOver], 0.16, 0.05, [0, 1, 0], 0);
+      beam(bags.metal, [T.x0 - P.rakeOver, T.ridge + 0.03, T.zM], [T.x1 + P.rakeOver, T.ridge + 0.03, T.zM], 0.16, 0.05, [0, 1, 0], 0);
     } else {
-      const yF = T.yRoof(T.xo, T.zF) - P.eaveOver * tpT + rT, yB = T.yRoof(T.xo, T.zB) + P.eaveOver * tpT + rT;
-      plate2([[T.x0 - P.rakeOver, yF, T.zF + P.eaveOver], [T.x1 + P.rakeOver, yF, T.zF + P.eaveOver], [T.x1 + P.rakeOver, yB, T.zB - P.eaveOver], [T.x0 - P.rakeOver, yB, T.zB - P.eaveOver]], nrm([0, yB - yF, -wT]));
+      const yF = T.yRoof(T.xo, T.zF) - P.eaveOver * tpT, yB = T.roofHigh;
+      plate2([[T.x0 - P.rakeOver, yF, T.zF + P.eaveOver], [T.x1 + P.rakeOver, yF, T.zF + P.eaveOver], [T.x1 + P.rakeOver, yB, T.zB], [T.x0 - P.rakeOver, yB, T.zB]], nrm([0, yB - yF, -wT]));
       fascia([T.x0 - P.rakeOver, yF - 0.1, T.zF + P.eaveOver], [T.x1 + P.rakeOver, yF - 0.1, T.zF + P.eaveOver]);
     }
   };
@@ -6332,22 +6411,24 @@ function buildMill(P, lod, F) {
     plate(bags.roof, hood, 0.04, [0, -1, 0], uvFrame(hood[0], side, dir));
     for (let k = 1; k < nB; k += 2) {
       const p = add(add(a0, mul(dir, Ln * k / nB)), [0, -1.4, 0]);
+      // a trestle to whatever is under: the ground, a tier's roof, the receiving house's
       const under = TG.find(T2 => p[2] <= T2.zF + 0.3 && p[2] >= T2.zB - 0.3 && p[0] > T2.x0 - 0.5 && p[0] < T2.x1 + 0.5);
       const onBottom = bottom && p[2] > bottom.z - bottom.w / 2 && p[2] < bottom.z + bottom.w / 2 && Math.abs(p[0] - bottom.x) < bottom.L / 2;
-      const gy = Math.max(g(p[0], p[2]), under ? under.ridge - 0.3 : -1e9, onBottom ? bottom.ridge - 0.3 : -1e9);
+      const gy = Math.max(g(p[0], p[2]), under ? under.yRoof(p[0], p[2]) : -1e9, onBottom ? bottom.ridge - 0.3 : -1e9);
       if (p[1] - gy > 1.5) for (const sg of [-1, 1]) {
         steel(add(p, mul(side, sg * 0.7)), [p[0] + side[0] * sg * 0.9, gy, p[2] + side[2] * sg * 0.9], 0.08);
-        if (p[1] - gy > 5) steel([p[0] + side[0] * sg * 0.9, gy + (p[1] - gy) * 0.5, p[2] + side[2] * sg * 0.9], [p[0] - side[0] * sg * 0.9, gy, p[2] - side[2] * sg * 0.9], 0.05);   // a cross brace on a tall trestle
+        if (p[1] - gy > 5) steel([p[0] + side[0] * sg * 0.9, gy + (p[1] - gy) * 0.5, p[2] + side[2] * sg * 0.9], [p[0] - side[0] * sg * 0.9, gy, p[2] - side[2] * sg * 0.9], 0.05);
       }
     }
   };
+  const lamps = [];
   const extra = (bags, built, Q) => {
     const post = (a, b, sz) => beam(bags.post, a, b, sz || 0.14, sz || 0.14, [0, 0, 1], 0);
     const steel = (a, b, sz) => beam(bags.metal, a, b, sz, sz, [0, 1, 0], 0);
     for (let i = 0; i < N; i++) {
       const T = TG[i];
       if (T.roof === 'frame') { bareFrame(bags, T, Q); occ.push({ x: T.xo, z: T.zM, hx: T.L / 2, hz: T.w / 2, k: 0.6, soft: 1.6 }); }
-      // THE NAKED LEAN-TO on the +x end
+      // THE NAKED LEAN-TO on the +x end, inside the tier's own depth
       if (T.S.naked && Q.lod === 0 && T.roof !== 'frame') {
         const nx0 = T.x1 + 0.2, nx1 = T.x1 + 4.5, zz0 = T.zF - 0.6, zz1 = T.zB + 0.6;
         const yTop = T.fy + T.storeys * stH - 0.4, yOut = yTop - 4.3 * 0.45;
@@ -6370,47 +6451,68 @@ function buildMill(P, lod, F) {
         for (let k = 1; k < 3; k++) { const p = add(c0, mul(dir, Ln * k / 3)); const gy = g(p[0], p[2]); if (p[1] - gy > 0.8) for (const sg of [-0.35, 0.35]) post([p[0] + side[0] * sg, gy - 0.3, p[2] + side[2] * sg], add(p, mul(side, sg)), 0.09); }
       }
       // LOOSE BOARDS at a derelict tier's foot
-      if (T.isDer && Q.lod === 0) for (let m = 0; m < 3; m++) {
+      if (T.isDer && Q.lod === 0 && T.roof !== 'frame') for (let m = 0; m < 3; m++) {
         const x = T.x0 + 1 + rnd() * (T.L - 2), zb = T.zF + 0.25 + rnd() * 0.4;
         beam(bags.deck, [x + (rnd() - 0.5) * 0.6, g(x, zb + 1.2), zb + 1.2 + rnd() * 0.8], [x, T.fy + 0.3 + rnd() * 0.6, T.zF + 0.16], 0.03, 0.12, [0, 1, 0], 0);
       }
+      // THE LANTERNS: one at each front corner of every closed tier, under the eave
+      if (T.roof !== 'frame' && P.lamps !== 0) for (const sx of [-1, 1]) lamps.push(lampAt(bags, Q, [T.xo + sx * (T.L / 2 - 0.7), T.eave - 0.55, T.zF + P.wallT / 2 + 0.02], [0, 0, 1]));
     }
-    // THE CONVEYORS START SOMEWHERE AND GO SOMEWHERE (G333, the user):
-    //   ONE: from the crusher floor (the first bare frame - the ore leaves
-    //   it at the storey above its floor) down across the front, over the
-    //   tiers on its trestles, INTO THE PORTAL on the receiving house's
-    //   roof at the foot; alone in the bench it ends at a point at the foot
-    //   TWO: the aerial tramway from the mine - from a TERMINAL, a bare
-    //   frame with its own roof high up the hill behind the last frame -
-    //   down into the last frame's top storey
+    // THE CONVEYORS: ONE from the crusher floor down across the front INTO
+    // THE PORTAL, laid above the roof envelope; TWO the aerial tramway from
+    // a terminal up the hill into the last frame's top storey
     if (P.tram && N >= 3) {
       const crusher = TG.filter(T => T.roof === 'frame')[0] || top;
       const to = bottom ? [bottom.portal.x, bottom.portal.y, bottom.portal.z - 1.3]
                : (P.tramTo ? [P.tramTo[0], P.tramTo[1] + 3.2, P.tramTo[2]] : [crusher.xo + 9, TG[0].fy + 3.4, TG[0].zF + 6]);
       const sgn = Math.sign(to[0] - crusher.xo) || 1;
-      const a0 = [crusher.xo + sgn * Math.min(crusher.L * 0.25, Math.abs(to[0] - crusher.xo)), crusher.fy + Math.min(crusher.eave - crusher.fy - 1.6, stH) + 0.6, crusher.zF - 1.5];
+      const ax = crusher.xo + sgn * Math.min(crusher.L * 0.25, Math.abs(to[0] - crusher.xo)), az = crusher.zF - 1.5;
+      // the head on the crusher's top storey ... lifted until the belt
+      // clears every tier's front eave by a metre (the belt's underside is
+      // 1.4 under its chords, the hood 0.35 over)
+      let ay = crusher.fy + Math.min(crusher.eave - crusher.fy - 1.6, stH) + 0.6;
+      const ay0 = ay;
+      for (const T2 of TG) {
+        if (T2 === crusher || T2.zF <= az) continue;
+        const t = (T2.zF - to[2]) / (az - to[2]);
+        if (t <= 0.02 || t >= 1) continue;
+        const need = T2.yRoof(T2.xo, T2.zF) + 1.4 + 1.0;
+        ay = Math.max(ay, to[1] + (need - to[1]) / t);
+      }
+      const a0 = [ax, ay, az];
       conveyor(bags, Q, a0, to);
+      // the head frame where it had to lift: four posts from the crusher's
+      // floor to the head, braced
+      if (ay > ay0 + 0.3) {
+        const hx = 1.0, hz = 1.2;
+        for (const sx of [-1, 1]) for (const sz of [-1, 1]) post([ax + sx * hx, crusher.fy, az + sz * hz], [ax + sx * hx, ay + 0.1, az + sz * hz], 0.16);
+        for (const sx of [-1, 1]) { post([ax + sx * hx, ay - 0.1, az - hz], [ax + sx * hx, ay - 0.1, az + hz], 0.12); post([ax + sx * hx, crusher.fy + 0.4, az - hz], [ax + sx * hx, ay - 0.3, az + hz], 0.08); }
+        for (const sz of [-1, 1]) post([ax - hx, ay - 0.1, az + sz * hz], [ax + hx, ay - 0.1, az + sz * hz], 0.12);
+      }
+      if (P.lamps !== 0) lamps.push(lampAt(bags, Q, [ax + 1.4, ay - 0.3, az], [0, 0, 1]));
       // the terminal up the hill and the second run
       const last = TG[N - 1];
       const tz = last.zB - 16, tx = last.xo + (rnd() - 0.5) * 6;
       const tL = 7, tW = 6;
       let gT = -1e9;
       for (const x of [tx - tL / 2, tx + tL / 2]) for (const z of [tz + tW / 2, tz - tW / 2]) gT = Math.max(gT, g(x, z));
-      const tfy = gT + 0.3, tEave = tfy + 2 * stH * 0.9;
-      const term = { L: tL, w: tW, xo: tx, x0: tx - tL / 2, x1: tx + tL / 2, zF: tz + tW / 2, zB: tz - tW / 2, zM: tz, fy: tfy, storeys: 2, eave: tEave, fro: 'x', tpT: Math.tan(28 * D2R), tpZ: Math.tan(28 * D2R),
-                     yRoof: (x, z) => tEave + (tW / 2 - Math.abs(z - tz)) * Math.tan(28 * D2R), ridge: tEave + tW / 2 * Math.tan(28 * D2R) };
+      const tfy = gT + 0.3, tEave = tfy + 2 * stH * 0.9, tTp = Math.tan(28 * D2R);
+      const term = { L: tL, w: tW, xo: tx, x0: tx - tL / 2, x1: tx + tL / 2, zF: tz + tW / 2, zB: tz - tW / 2, zM: tz, fy: tfy, storeys: 2, eave: tEave, fro: 'x', tpT: tTp,
+                     yRoof: (x, z) => tEave + rT + (tW / 2 - Math.abs(z - tz)) * tTp, ridge: tEave + rT + tW / 2 * tTp, roofHigh: tEave + rT };
       bareFrame(bags, term, Q);
       occ.push({ x: tx, z: tz, hx: tL / 2, hz: tW / 2, k: 0.6, soft: 1.4 });
       const b0 = [tx, tfy + stH * 0.9 + 0.4, term.zF - 0.5];
       const b1 = [last.xo, last.fy + (last.storeys - 1) * ((last.eave - last.fy) / last.storeys) + 0.5, last.zB + 1.2];
       conveyor(bags, Q, b0, b1);
-      // the wire ropes on up the hill from the terminal: the aerial tram's own line
       if (Q.lod === 0) for (const sg of [-1.2, 1.2]) steel([tx + sg, tEave - 0.2, term.zB], [tx + sg, tEave + 9, term.zB - 40], 0.02);
     }
+    // the receiving house's lanterns at both open ends, the power house's at its door
+    if (bottom && P.lamps !== 0) for (const sx of [-1, 1]) lamps.push(lampAt(bags, Q, [bottom.x + sx * (bottom.L / 2 + 0.02), bottom.eave - 0.5, bottom.z + bottom.w / 2 - 1.2], [sx, 0, 0]));
+    if (power && P.lamps !== 0) lamps.push(lampAt(bags, Q, [power.x - power.L / 2 + 0.18 * power.L + 1.2, power.fy + 3.5, power.z + power.w / 2 + P.wallT / 2 + 0.02], [0, 0, 1]));
     // THE STACKS behind the power house: tall, banded, guyed, a ladder up the first
     if (P.annex) for (let k = 0; k < Math.round(P.millStacks); k++) {
-      const aL = 12, aW = 8, ax = baseT.x1 + 0.6 + aL / 2, az = baseT.zF - w / 2 - 1.0;
-      const sx = ax - aL / 2 + 2.5 + k * 3.2, sz = az - aW / 2 - 1.6, r = 0.55;
+      const aL = 12, aW = 8, ax2 = baseT.x1 + 0.6 + aL / 2, az2 = baseT.zF - w / 2 - 1.0;
+      const sx = ax2 - aL / 2 + 2.5 + k * 3.2, sz = az2 - aW / 2 - 1.6, r = 0.55;
       const gy = g(sx, sz) - 0.2, top2 = g(sx, sz) + 22 + k * 1.5;
       cyl(bags.metal, [sx, gy, sz], [0, 1, 0], r, top2 - gy, Q.lod === 0 ? 14 : 7, true, { smooth: true });
       if (Q.lod === 0) {
@@ -6419,7 +6521,7 @@ function buildMill(P, lod, F) {
         cyl(bags.stone, [sx, gy, sz], [0, 1, 0], r * 1.6, 1.2, 12, true);
         for (let q = 0; q < 3; q++) {
           const a = q * 2.094 + 0.5 + k * 0.4, ex = sx + Math.cos(a) * 9, ez = sz + Math.sin(a) * 9;
-          if (ez > az - aW / 2 - 1 && Math.abs(ex - ax) < aL / 2 + 1) continue;
+          if (ez > az2 - aW / 2 - 1 && Math.abs(ex - ax2) < aL / 2 + 1) continue;
           beam(bags.metal, [sx + Math.cos(a) * r, top2 - 5, sz + Math.sin(a) * r], [ex, g(ex, ez), ez], 0.015, 0.015, [0, 1, 0], 0);
           boxAB(bags.stone, [ex - 0.25, g(ex, ez) - 0.3, ez - 0.25], [ex + 0.25, g(ex, ez) + 0.25, ez + 0.25]);
         }
@@ -6434,8 +6536,9 @@ function buildMill(P, lod, F) {
   };
   const out = buildComposite(parts, { ground: g, extra, occ, P,
     front: { x: baseT.xo, z: baseT.zF + 1.0, side: 1, depth: 0 },
-    stats: { mill: { tiers: TG.map(T => ({ i: TG.indexOf(T), L: T.L, xo: T.xo, x0: T.x0, x1: T.x1, zF: T.zF, zB: T.zB, zM: T.zM, fy: T.fy, eave: T.eave, ridge: T.ridge, storeys: T.storeys, roof: T.roof, derelict: T.isDer, w: T.w })), base: TG[0], bottom } } }, lod, F);
+    stats: { mill: { tiers: TG.map(T => ({ i: TG.indexOf(T), L: T.L, xo: T.xo, x0: T.x0, x1: T.x1, zF: T.zF, zB: T.zB, zM: T.zM, fy: T.fy, eave: T.eave, ridge: T.ridge, roofHigh: T.roofHigh, storeys: T.storeys, roof: T.roof, fro: T.fro, derelict: T.isDer, w: T.w, ends: T.ends.map(E => ({ kind: E.kind, sd: E.sd, x0: E.x0, x1: E.x1, z0: E.z0, z1: E.z1, y0: E.y0, y1: E.y1 })) })), base: TG[0], bottom, power, lamps: lamps.length } } }, lod, F);
   out.stats.kind = 'mill: ' + N + ' tiers';
+  out.stats.mill.lamps = lamps.length;
   out.stats.eave = TG[0].eave; out.stats.ridge = out.stats.ridgeY;
   return out;
 }
@@ -6735,7 +6838,7 @@ window.HOUSE_GEN = {
   makeFinish, shadeGround, buildGroundAO, shadeSkirt,
   shadeHouse, makeShadeU, cloudWeather,   // the big buildings wear the house's finish (G312, G329)
   steelMix,   // the tram's steel (G342)
-  buildComposite, buildMill,   // composites of houses: the mill (G329)
+  buildComposite, buildMill, lampAt,   // composites of houses: the mill (G329); the wall lantern (G348)
   dressSlot, dressMat, SET_KIND, ROLE_KIND, finishReport, NRM, PAINT_BLENDS,   // dressMat: the cabin dresses its own materials (G343)
 };
 })();

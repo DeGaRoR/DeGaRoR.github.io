@@ -9,7 +9,8 @@ const fs = require('fs');
 const path = require('path');
 
 const PORT = Number(process.argv[2]) || 8125;
-const ROOT = process.cwd();
+// an optional second argument names the root (G348: a worktree served from another cwd)
+const ROOT = process.argv[3] ? path.resolve(process.argv[3]) : process.cwd();
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript',
   '.css': 'text/css', '.json': 'application/json', '.obj': 'text/plain',

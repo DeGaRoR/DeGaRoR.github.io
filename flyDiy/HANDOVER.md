@@ -43818,3 +43818,89 @@ checks; selftest.
   as the straight chain did — the strips stay rectangles, no fan, no lid
   (the G26 rule); the crown indexes past the left chain's own length.
   Seen from the seat: a round corner (scratchpad dash_corners_after).
+
+## G348 (village-tram branch, provisional number) — THE TRAM IN THE VILLAGE; THE
+## STATIONS REBUILT TO THE USER'S NOTES; THE MILL REBUILT TIGHT; LANTERNS; THE
+## MOTION PLAN
+## (2026-09-13, on the worktree D:/Dev/wt-village, branch village-tram from
+## master 99764096, held off master until the r186/TSL session's commit lands -
+## then rebased, the two shader patches taken from THEIR version, re-proved)
+
+- **THE TRAM IN THE VILLAGE** (`_village_gen.js`): the theme carries `tram
+  {t, back, topZ}`; `placeSite` adds the base station behind the shore road
+  (yaw pi, slab on its highest corner) and the top station up the mountain
+  (yaw 0) as site houses in the SHORE road's frame; `tramLine(vil,
+  buildFn)` builds the pair, reads their rope hooks in the world, takes
+  the angle they make, sets `lineDeg` on both and builds again (three
+  passes) - `vil.tram {angle, ropes, docks}`; the bench draws the ropes
+  as tubes with a little sag and stands a cabin in each dock (the base's
+  on the left line, the top's on the right, as a jig-back stands); the
+  wood keeps off the line's first climb. GATE VILLAGE 17 (base behind the
+  road on the land side, top inland and 30 m+ higher, one angle 15-45,
+  both built for it, four ropes on it and clear of the mountain); rule 13
+  mirrors `civicPlots` and the free land plots; the worktree's `_serve.js`
+  takes a root argument (python's http.server reset the large tree PNGs);
+  launch config `flydiy-village-safe` serves the worktree on 8392.
+- **THE TOP STATION, TO THE DRAWING** (`_tram_gen.js` buildStation): the rope
+  SOLVED FROM THE CABIN - a docked cabin's floor is the wings' floor and
+  its carriage sits `hangH` (8.6) over its floor origin, so the track rope
+  over the dock is at `ropeAtDock`; the rope leaves the saddle `tanBack`
+  up the line at the line's angle; the arch centre follows (tangent point
+  less the saddle radius along the radial) and its foot angle is solved
+  to land on the portal on the deck; the machine house is one tall storey
+  under the arch's back. TWO bull wheels, one under each arch. THE RAKED
+  TRUSS footed BEHIND the machine house up the slope (`footZ` -8) with
+  both legs leaning forward (italic V), the deck a cantilever off it. THE
+  ANCHOR FRAME on the terminal house: two lattice posts before its front
+  wall up past the ridge (`anchorX`, `anchorUp`), a crossbeam and X, tied
+  into the wall, two backstays over the roof to deadmen behind; SIX CABLES
+  land on it - off each arch's upper back, off the portal's top corners,
+  off the deck's tail (`stats.station.cables`). THREE CLADDINGS in one
+  composite: `siding2/trim2/roof2` and `siding3/...` bags a part names
+  by `slot`, dressed from `wallSet2..` / `wallSet3..` - the deck houses
+  cream sheet, the terminal white boards with green trim (the arrival
+  station), the passageway galvanised. A whisper of the factory's clouds
+  on the station walls. Lanterns (`lampAt`, exported): the wings, the
+  machine house, under the deck over the dock, the passage ends, the
+  terminal front, the portal; the parts' own door lights and lit windows
+  follow the composite's `lights`.
+- **THE BASE STATION, REBUILT** (buildBase): the LINE FIRST - the rope over
+  the dock from the cabin's hang, the barn's eave raised until the roof
+  clears the ropes where they leave through the open gable (the lintel
+  stays under them), the tower's legs OUTSIDE the cabins' path, a clear
+  span in the open end's posts (`openClear` on the house's open side),
+  saddle shoes on the crossbeam, TWO tension wheels just behind the dock
+  in the line's plane with the haul strands at the top station's offsets,
+  the guides outboard of the cabins, painted steel (`steelRust` 0.06),
+  the OFFICE across the road end facing the road with door, porch, stairs
+  and lamps, the ADMIRALTY SKY TRAM sign on the barn's road gable over the
+  office ridge (`stats.station.sign`; `CABIN.signMesh` hangs the banner;
+  both benches draw it). GATE HOUSE 39 holds all of it.
+- **THE MILL, REBUILT TIGHT** (buildMill): one rule - every tier a SHED ROOF
+  RISING UPHILL whose high edge is exactly where the next wall stands; the
+  next front wall 0.3 m inside the back wall below (no shared post
+  planes), the next floor 0.35 under the roof edge below (the wall comes
+  down over it) or 0.05 over it for a frame's floor; a tier's depth from
+  the hill (`hillDeg`, read off the terrain in the village) so its roof
+  edge meets the hill again (`w (s - tan pitch) = storeys h`, capped 14);
+  tiers within the tier below; annexes and stair towers off the ends
+  inside their tier's depth; the lowest tier's +x kept for the power
+  house; no head house on a roof; the top frame alone gabled; the
+  conveyor laid ABOVE THE ROOF ENVELOPE with a head frame where it had to
+  lift; lanterns at every tier's front corners, the receiving house's
+  ends, the power house door, the crusher. GATE HOUSE 37 holds the
+  staircase (each front wall in the back wall below, each floor from the
+  roof edge below, closed tiers as shed roofs, the reach from the tiers'
+  own extents).
+- **THE MOTION PLAN**: `futureDesigns/TRAM-MOTION-2026-09-13.md` - the
+  contract (what the stations publish is enough), the rope as a parabola,
+  the cabin's pose (carriage on the rope, hanger vertical), the jig-back
+  schedule on one scalar, the wheels' spin, reconfiguration by placing two
+  stations and solving the line, and the order to write `tram_run.js`.
+- Traps: `bay` is the house's bay window (the barn's is `barnBay`); the
+  marker for the end of buildMill had a twin earlier in the file (search
+  after the start); D2R is not in the village generator; a raked mast's
+  chords one plane from the next tier's posts double up - offset them.
+- Gates on the worktree: HOUSE, VILLAGE, CABIN, MEDIA green.
+- Queued: the ropes drawn in the house bench; `tram_run.js`; the totem park
+  on a village plot; the r186 rebase.

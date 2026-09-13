@@ -597,6 +597,8 @@ function build() {
   if (hi.stats.people && mode !== 1)
     for (const q of hi.stats.people)
       if (PROP_REG.props[q.key]) root.add(propPlace(THREE, q.key, q.x, q.z, q.ry, q.y));
+  // THE SIGN over the base station's office (G349)
+  if (hi.stats.station && hi.stats.station.sign && window.CABIN && mode !== 1) root.add(CABIN.signMesh(THREE, hi.stats.station.sign));
   // THE CABINS AT THE DOCK (G343): the station's dock hook, the cabin's floor
   // level with the docking gallery's, one in front of the tip or two side by
   // side, each in its own livery
