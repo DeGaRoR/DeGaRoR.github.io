@@ -547,6 +547,16 @@
       "port": 8386
     },
     {
+      "name": "flydiy-village-safe",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "D:/Dev/wt-village/flyDiy/tools/_serve.js",
+        "8392",
+        "D:/Dev/wt-village"
+      ],
+      "port": 8392
+    },
+    {
       "name": "flydiy-totems",
       "runtimeExecutable": "node",
       "runtimeArgs": [
@@ -554,6 +564,15 @@
         "8389"
       ],
       "port": 8389
+    },
+    {
+      "name": "flydiy-r186",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8471"
+      ],
+      "port": 8471
     }
   ]
 }
