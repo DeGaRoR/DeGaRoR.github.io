@@ -789,6 +789,28 @@ const secFinBad = tbl => Object.keys(tbl)
     { cons: 'wood' });
   check(r.fin === 'composite',
     'a spat cannot be repainted over its pin', JSON.stringify(r));
+  // THE SOFT PIN (2026-09-13, the user: "while the hinges are right to
+  // initialize with this material, they should eventually become affected
+  // by the global material selection"): untouched, the control hardware is
+  // steel in steel's own grey — NOT the fuselage's paint; the fuselage's
+  // finish, colour and dials reach it once chosen; its own well still wins.
+  r = A.aeroSecResolve('ctlHinge', {}, { cons: 'wood' });
+  check(r.fin === 'steelTube' && r.tint == null && r.src === null,
+    'an untouched hinge is not bare steel', JSON.stringify(r));
+  r = A.aeroSecResolve('ctlHinge', { fin: { body: 'ply' }, tint: { body: 0x224466 },
+    metal: { body: 0.6 }, rough: { body: 0.5 } }, { cons: 'wood' });
+  check(r.fin === 'ply' && r.src === 'body' && r.tint === 0x224466 &&
+        r.metalK === 0.6 && r.roughK === 0.5,
+    "the fuselage's global pick does not reach the hinges", JSON.stringify(r));
+  r = A.aeroSecResolve('ctlHinge', { fin: { body: 'ply', ctlHinge: 'chrome' } },
+    { cons: 'wood' });
+  check(r.fin === 'chrome' && r.src === 'ctlHinge',
+    "the hinges' own well does not win over the fuselage's", JSON.stringify(r));
+  // ...and a HARD pin is still hard: the fuselage's finish never reaches a
+  // gear leg, which is the rule the soft pin is the exception to
+  r = A.aeroSecResolve('gearLeg', { fin: { body: 'ply' } }, { cons: 'wood' });
+  check(r.fin === 'steelTube',
+    "the fuselage's finish reaches a hard-pinned gear leg", JSON.stringify(r));
   // ...and the SPINNER follows the PROPELLER: unset it wears the blade's
   // material (the layer's ctx.fin), overridden on the prop it follows that,
   // its own override wins over both.

@@ -484,13 +484,22 @@
       "port": 8367
     },
     {
-      "name": "flydiy-shoulder",
+      "name": "flydiy-flightcam",
       "runtimeExecutable": "node",
       "runtimeArgs": [
         "flyDiy/tools/_serve.js",
-        "8368"
+        "8370"
       ],
-      "port": 8368
+      "port": 8370
+    },
+    {
+      "name": "flydiy-livecrew",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "flyDiy/tools/_serve.js",
+        "8373"
+      ],
+      "port": 8373
     },
     {
       "name": "flydiy-cgpost",

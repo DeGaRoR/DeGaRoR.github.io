@@ -490,6 +490,15 @@ function buildFin2(S) {
     }
     const mid = (a, b) => [(V[a][1] + V[b][1]) / 2, (V[a][2] + V[b][2]) / 2];
     out.hingeLine = [mid(IX.loH1, IX.loH2), mid(IX.topH1, IX.topH2)];
+    // THE HORN LINE ON THE POST (2026-09-13, the user: "hinges should be
+    // removed from the fin on the horn part when horn is selected, since
+    // this part really does not move anymore"): where the mid row crosses
+    // the hinge band, fin space [y, z], AFTER the macro tier (`rowY` above
+    // is the fiche's number and the height macro moves the row). Under a
+    // horn cut the post above this point is rudder on both sides — the horn
+    // wraps over the fin's crown — so a hinge there would bolt the rudder
+    // to itself; the hinge layer stops its stations here.
+    out.hornPt = mid(IX.midH1, IX.midH2);
   }
   out.clamped = CL;
   return out;
@@ -735,8 +744,12 @@ function finThicken(m, opts) {
       return tN;
     };
     for (const f of wf) {
-      OF.push({ v: f.v.map(i => top[i]), m: f.m, part });
-      OF.push({ v: f.v.slice().reverse().map(i => bot[i]), m: f.m, part });
+      const nT = f.v.map(i => sideN(WV[i], 1)), nB = f.v.slice().reverse().map(i => sideN(WV[i], -1));
+      const fT = { v: f.v.map(i => top[i]), m: f.m, part };
+      const fB = { v: f.v.slice().reverse().map(i => bot[i]), m: f.m, part };
+      if (nT.some(n => n)) fT.n = nT.map((n, k) => n || [1, 0, 0]);
+      if (nB.some(n => n)) fB.n = nB.map((n, k) => n || [-1, 0, 0]);
+      OF.push(fT); OF.push(fB);
     }
     // boundary edges, directed as their face traverses them
     const eCount = new Map(), eDir = new Map();

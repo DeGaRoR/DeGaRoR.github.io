@@ -242,7 +242,7 @@ const SHAPES = [
   ['steel tube', { intOn: 1, intCons: 1, intDash: 1, intFire: 1, intBulk: 1 }],
   ['plywood', { intOn: 1, intCons: 2, intDash: 1, intFire: 1, intBulk: 1 }],
   ['aluminium', { intOn: 1, intCons: 3, intDash: 1, intFire: 1, intBulk: 1 }],
-  // G346: the door inner panel is off by default — its section exists only here
+  // G3xx: the door inner panel is off by default — its section exists only here
   ['door panel', { intOn: 1, cutParts: 1, doorPanelOn: 1 }],
 ];
 // THE BUILD IS THE EDITOR'S BUILD, subdivision included. _cage_ui.js

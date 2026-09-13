@@ -2468,7 +2468,6 @@ function solveGripJob(dum, j, ctx) {
   return gap;
 }
 
-
 // ---- LAYOUT ---------------------------------------------------------------
 // Everything the crew stands ON or reaches FOR comes from the resolved
 // rings, times the unit and the design scale (the crew itself is metric
@@ -2586,7 +2585,7 @@ function anchors(spec, P, mesh) {
   // plate together — and the panel laid out on it hung its dials 2 cm in
   // front of the recessed plate (zFace was the LIP's plane, the aft-most
   // point of either material) with their tops under the glareshield's roll.
-  // This is the `dashFace` polygon on its own: its outline as columns 1 cm
+  // This is the `dashFace` polygon on its own: its outline as columns 2 cm
   // apart across x (the lowest and highest y of the plate at that x), its
   // extreme x, and the PLANE it lies in — the plate is not vertical, the
   // cage draws it leaning (the top nearer the pilot than the bottom), so the
@@ -2729,7 +2728,7 @@ function anchors(spec, P, mesh) {
   if (mesh && mesh.F && mesh.V)
     for (const f of mesh.F) for (const vi of f.v) {
       const v = mesh.V[vi];
-      // G346: the door inner panel is trim too — a second group, so the
+      // G3xx: the door inner panel is trim too — a second group, so the
       // range test below runs per solid (the panel's band and the leg's band
       // are neighbours, not one range)
       if (f.shoulder || f.doorPanel) { shPts.push([v[0] * k, v[1] * k, v[2] * k, f.doorPanel ? 1 : 0]); continue; }

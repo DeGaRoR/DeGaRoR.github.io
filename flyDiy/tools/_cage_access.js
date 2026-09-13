@@ -662,6 +662,7 @@ PAGE.post = ctx => {
       return isFinite(z0) && z1 > z0 ? { z0, z1 } : null;
     })();
     const shadowed = pm => {
+      if (finBand && pm[2] > finBand.z0 - 0.06 && pm[2] < finBand.z1 + 0.06) return true;
       if (!wingHigh || !WG || !WG.leAt || !WG.teAt) return false;
       const le = WG.leAt(0), te = WG.teAt(0);
       if (!le || !te) return false;

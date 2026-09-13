@@ -2582,14 +2582,13 @@ function genPlanLaw(w, zR, semi) {
 // aeroplane, which is the point.
 const GEN_DEFAULT = {
   v: GEN_SPEC_V,
-  // `role` and `class` are the birth flow's LABELS (NEW-AIRCRAFT §5.1/§5.2):
-  // an intention and a size class, stored because missions, the fleet and
-  // the plaque will read them — and NEVER constraints. Null = unstated, and
-  // null is why GEN_SPEC_V does not move for them: genDefaults fills the
-  // missing field and an older spec means exactly what it meant. The legal
-  // values live with the declaration (tools/_cage_design.js), not here —
-  // clampSpec type-guards only, the `finish` argument.
-  meta: { name: 'Garage Special', reg: 'F-PGAR', role: null, class: null },
+  // G296: `role` and `class` are GONE from meta. They were the birth
+  // flow's labels (G132) — an intention and a size class, stored for the
+  // missions and the plaque that never came to read them, and never a
+  // constraint. The tiles are retired; the tables they named are birth-only
+  // seeds now (tools/_cage_design.js BIRTH_ROWS). An older save still
+  // carrying them is not wrong, only untidy: clampSpec drops the pair.
+  meta: { name: 'Garage Special', reg: 'F-PGAR' },
   cabin: {
     seating: 'tandem2',
     // THE GLAZING (2026-09-04, the user: "we need to be able to deactivate
@@ -3544,12 +3543,9 @@ function clampSpec(spec) {
   S.paint.regX = genClamp(S.paint.regX == null ? 0.30 : S.paint.regX, 0, 1);
   if (!GEN_FINISH[S.paint.job]) S.paint.job = 'full';
 
-  // the birth flow's labels: TYPE guards only — the legal value tables live
-  // with the declaration (tools/_cage_design.js), and a second copy of them
-  // here is the second home the `finish` note above already forbids. A
-  // non-string is unstated, never an error.
-  if (S.meta.role != null && typeof S.meta.role !== 'string') S.meta.role = null;
-  if (S.meta.class != null && typeof S.meta.class !== 'string') S.meta.class = null;
+  // G296: the birth flow's labels are retired (see GEN_DEFAULT.meta); an
+  // older save still carrying them is tidied here, on the clone.
+  delete S.meta.role; delete S.meta.class;
 
   // TAIL-END SECTION HEIGHT. Applied here, on the clone, by moving the two
   // dimensions 61_gen_frame.js actually reads. clampSpec runs on a fresh

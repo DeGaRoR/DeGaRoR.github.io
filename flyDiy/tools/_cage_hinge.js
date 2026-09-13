@@ -157,10 +157,27 @@ function surfaceList(scene, P, FS, mesh) {
   // THE RUDDER. The fin layer publishes its declared hinge as a LINE in the
   // sheet's own (y, z); the sheet is at x = 0 and the group is scaled by FS,
   // which is the same conversion the join does to find the same line.
+  // A HORN-BALANCED SURFACE HINGES BELOW ITS HORN (2026-09-13, the user:
+  // "hinges should be removed from the fin on the horn part when horn is
+  // selected, since this part really does not move anymore"): under cut
+  // mode 2 the post above the mid row is rudder on BOTH sides — the horn
+  // wraps over the fin's crown — so the declared line is cut back to where
+  // the row crosses it (`cage.hornPt`, fin space, after the macro tier) and
+  // the stations, the count and the end inset all follow the shorter line.
+  // The slot's own half-gap keeps the top strap off the horn's slot face.
+  const hornCut = (lay, L, gapC) => {
+    if (!lay || !lay.cage || !lay.cage.hornPt) return L;
+    if (Math.round((lay.measure && lay.measure.cut) || 0) !== 2) return L;
+    const yH = lay.cage.hornPt[0] - (gapC || 0) * 0.5;
+    const dy = L[1][0] - L[0][0];
+    if (!(Math.abs(dy) > 1e-9)) return L;
+    const t = Math.max(0.05, Math.min(1, (yH - L[0][0]) / dy));
+    return [L[0], [L[0][0] + t * dy, L[0][1] + t * (L[1][1] - L[0][1])]];
+  };
   const FN = window.CAGE_FIN;
   const TB = window.CAGE_BOOMS;
   if (FN && FN.measure && FN.measure.hinge && FN.measure.hinge.line) {
-    const L = FN.measure.hinge.line, F2 = FN.measure.FS || FS;
+    const L = hornCut(FN, FN.measure.hinge.line, P.finCutGap), F2 = FN.measure.FS || FS;
     const thick = (P.finThick || 0.06) * F2;
     for (const [nm, xo] of TB ? [['rud', TB.x], ['rud2', -TB.x]] : [['rud', 0]]) {
       if (!objOf[nm]) continue;
@@ -229,7 +246,7 @@ function surfaceList(scene, P, FS, mesh) {
   // side and cant — or a canted V-tail's hardware sits in the fin's plane.
   const SB = window.CAGE_STAB;
   if (SB && SB.measure && SB.measure.hinge && SB.measure.hinge.line && SB.lay && FIN) {
-    const L = SB.measure.hinge.line, F2 = SB.measure.FS || FS;
+    const L = hornCut(SB, SB.measure.hinge.line, P.stCutGap), F2 = SB.measure.FS || FS;
     const thick = (P.stThick || 0.05) * F2;
     for (const side of [1, -1]) {
       const nm = 'elev' + (side > 0 ? 'R' : 'L');
@@ -642,7 +659,8 @@ PAGE.post = ctx => {
     }
     const trisF = {}; for (const k of HG_BAGS_F) trisF[k] = [tF0[k], bagsF[k].tris];
     placed.push({ key: s.key, kind: s.kind, family: fam, n: ts.length,
-                  span, r: s.r, serves: row.serves, trisF, host: s.host || '' });
+                  span, r: s.r, serves: row.serves, trisF, host: s.host || '',
+                  A: s.A, B: s.B });               // the line the stations rode (cage m)
   }
 
   // ---- into the scene --------------------------------------------------

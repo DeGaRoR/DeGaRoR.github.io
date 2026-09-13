@@ -1,0 +1,693 @@
+<!-- GENERATED FILE - DO NOT EDIT. Built from src/ by tools/build.js. Regenerate when markup or MANIFEST changes; plain JS/CSS edits only need a refresh. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Garage Flight Sim</title>
+<link rel="stylesheet" href="src/viewer/style.css?v=771a9126">
+<link rel="stylesheet" href="src/viewer/editor.css?v=a0d7d3c9">
+<link rel="stylesheet" href="src/viewer/flight.css?v=f8456e11">
+<link rel="stylesheet" href="src/viewer/controls.css?v=c73aba83">
+<link rel="stylesheet" href="src/viewer/bench.css?v=880ba5dc">
+</head>
+<body>
+<!-- Boot splash. Sits at the very top of <body>, ahead of the vendor/core/
+     MODELS blocks, so the browser paints it from the first few KB while the
+     rest of the (large — the 3D payloads are inlined) artifact still streams.
+     app.js removes it on the first rendered frame. -->
+<div id="boot">
+  <div id="bootInner">
+    <span id="bootBrand">Garage Flight Sim</span>
+    <div id="bootBar"><i></i></div>
+    <span id="bootNote">loading aircraft models…</span>
+  </div>
+</div>
+<canvas id="c"></canvas>
+<!-- FLIGHT. Everything on this layer is about WATCHING AN AEROPLANE FLY,
+     and none of it exists in the workshop (G86). One switch hides the lot —
+     see setMode() in app.js — rather than a dozen rules each hiding one
+     thing, which is what put the old aircraft card underneath the new name
+     chip.
+
+     REBASELINED (the flight-interface handoff). It was four always-on panels
+     plus a bottom bar carrying eight selects and buttons, two spans and a
+     disabled placeholder in one wrapping row, in the amber-on-glass palette
+     and in IBM Plex MONO — the typeface the editor dropped on purpose. It is
+     now FOUR SURFACES and nothing appears in two of them:
+
+       the top bar    WHAT YOU FLY, and the verbs   (#flTop)
+       the rail       HOW YOU LOOK                  (#flRail + #flFly)
+       the PFD        WHAT IT IS DOING              (#pfd, phase rail inside)
+       the panels     WHAT HAPPENED                 (#mmp, #telp, #arrCard)
+
+     THE SELECTS DID NOT GO ANYWHERE. Every control the old bar carried is
+     still in #flStore, still wired to app.js's own handlers; the plate and
+     the flyouts are a VIEW over them. That is the whole reason this redesign
+     added no second source of truth — and it is why GATE UISMOKE can still
+     drive `selAc` and `bSkin` by hand. -->
+<div id="ui">
+  <!-- THE WRITERS. Hidden, never removed: `#selAc` has been hidden since
+       G135 and the other five join it here. A flyout BORROWS a select into
+       a row and puts it back on close (the editor's own rule), so there is
+       exactly one element per decision and exactly one handler on it. -->
+  <div id="flStore">
+    <select id="selAc" aria-label="Aircraft" hidden>
+      <option value="gen">⚒ Garage build</option>
+    </select>
+    <select id="selPilot" aria-label="Pilot">
+      <option value="auto">Pilot &middot; auto</option>
+      <option value="cautious">Pilot &middot; cautious</option>
+      <option value="brisk">Pilot &middot; brisk</option>
+      <option value="test">Test pilot (G107)</option>
+      <option value="classic">Autopilot</option>
+    </select>
+    <select id="selFrom" aria-label="Departure"></select>
+    <select id="selDest" aria-label="Destination"></select>
+    <!-- CONDITIONS, not wind (G72): a day is air AND wind, and the air half
+         is what decides whether a build gets out of a mountain strip. -->
+    <select id="selCond" aria-label="Conditions">
+      <option value="calm">Standard day &middot; calm</option>
+      <option value="light">Standard &middot; breeze 2.5 m/s</option>
+      <option value="mod">Standard &middot; wind 4 + gusts</option>
+      <option value="fresh">Standard &middot; fresh 6 + gusts</option>
+      <option value="hot">Hot afternoon &middot; 35&deg;C, 1008</option>
+      <option value="cold">Winter morning &middot; 0&deg;C, 1030</option>
+    </select>
+    <select id="selTime" aria-label="Time of day" disabled
+            title="the world flies one fixed midday sun until the day cycle lands">
+      <option>Midday &middot; fixed sun</option>
+    </select>
+    <!-- THE COVERING. Off the HUD and into the `camera` flyout as a row of
+         pills, because what the aeroplane is DRAWN AS is a looking question
+         and the rail is where looking lives. The button keeps its id, its
+         handler and applySkinVis's label logic; the pills press it. -->
+    <button id="bSkin">Covered &times;1</button>
+    <!-- retired with the bar: #bTel (the trace is a rail flyout now) and
+         #bGo/#bReset/#bPause/#bHangar2 moved up to #flActs as the verbs. -->
+  </div>
+
+  <!-- ===================================================================
+       1. THE TOP BAR — WHAT YOU FLY, and the verbs.
+       Mirrors #edTopBar: a plate at the left, the verbs at margin-left:auto
+       on the same row, the bar at left:22px right:22px top:18px, wrapping.
+       =================================================================== -->
+  <div id="flTop">
+    <div id="flBrief">
+      <!-- THE FLIGHT PLATE. Four slots, one decision each, every slot a
+           flyout. It FOLDS to #flLine the moment the phase leaves HOLDING,
+           because nobody changes their aeroplane at 400 ft — and that fold
+           is most of how this screen gets quiet. Reopening it airborne is
+           allowed; it just is not the default. -->
+      <div id="flPlate" class="flPlate">
+        <div id="flPlateHead">
+          <b>The flight</b>
+          <!-- the phase in a word, then the aeroplane's own line. #acSpec
+               keeps its writer in setAircraft(); it lost the node count,
+               which was a debug number on a header. -->
+          <span id="flMeta"><i id="flHold">held</i> &middot; <span id="acSpec"></span></span>
+        </div>
+        <div id="flSlots">
+          <button class="flSlot" data-s="ac" type="button">
+            <i>aeroplane</i><span><b id="acName">Garage build</b><em>&#9662;</em></span>
+          </button>
+          <button class="flSlot" data-s="pilot" type="button">
+            <i>pilot</i><span><b id="flPilotV">Pilot &middot; auto</b><em>&#9662;</em></span>
+          </button>
+          <button class="flSlot" data-s="route" type="button">
+            <i>route</i><span><b id="flRouteV">Home Field &rarr; Circuit</b><em>&#9662;</em></span>
+          </button>
+          <button class="flSlot" data-s="day" type="button">
+            <i>day</i><span><b id="flDayV">Standard &middot; calm</b><em>&#9662;</em></span>
+          </button>
+        </div>
+      </div>
+      <!-- the folded brief: name · trip · day · ▾ -->
+      <button id="flLine" class="flPlate" type="button" hidden>
+        <b id="flLineName">Garage build</b><s></s>
+        <span id="flLineTrip"></span><s></s>
+        <span id="flLineDay" class="faint"></span><em>&#9662;</em>
+      </button>
+      <!-- THE NOTICE. One line, one job, and it is where #bGo.warn's meaning
+           went: the bench's verdict said out loud instead of hidden in the
+           colour of a button. Failures and wear land here too when they come
+           — it already exists and it already has one job. -->
+      <div id="flNotice" hidden><b id="flNoticeK">not certified</b><span id="flNoticeV"></span></div>
+    </div>
+    <!-- 3. THE PFD — WHAT IT IS DOING. The one always-on instrument, and it
+         rides the TOP BAR, in the middle, between the brief and the verbs
+         (the user: "I'd rather have the info widget with speed etc on top, in
+         the middle, and on semi transparent background, like before"). It is
+         IN THE FLOW of that row rather than absolutely centred, which is what
+         stops it landing on the brief when the brief is open — and the row
+         already wraps, so on a narrow screen it drops to its own line instead
+         of being squeezed. Its plate is lighter than the ones that carry a
+         decision: you read THROUGH this one at the aeroplane behind it.
+         THE PHASE RAIL IS INSIDE IT: #rail was its own panel across the top
+         and is now a hairline under the numbers, because the progress belongs
+         where you were already looking.
+         Three readouts always; the other six are the `instruments` flyout's
+         business. The cells that answered nothing a builder asks — elevator,
+         aileron, rudder — are gone, and PEAK STRAIN became a line on the
+         trace. -->
+    <div id="pfd" class="flPlate">
+      <div id="pfdRow">
+        <div class="rd" data-i="ias"><b id="r-ias">0</b><i>km/h ias</i></div>
+        <div class="rd" data-i="alt"><b id="r-alt">0</b><i>m alt</i></div>
+        <div class="rd" data-i="vs"><b id="r-vs">0.0</b><i>m/s vs</i></div>
+        <div class="rd" data-i="aoa" hidden><b id="r-aoa">0.0</b><i>&deg; aoa</i></div>
+        <div class="rd" data-i="bank" hidden><b id="r-bank">0.0</b><i>&deg; bank</i></div>
+        <div class="rd" data-i="agl" hidden><b id="r-agl">0</b><i>m agl</i></div>
+        <div class="rd" data-i="thr" hidden><b id="r-thr">0</b><i>% thr</i></div>
+        <div class="rd" data-i="tas" hidden><b id="r-tas">0</b><i>km/h tas</i></div>
+        <div class="rd" data-i="pwr" hidden><b id="r-pwr">100</b><i>% power</i></div>
+        <!-- G200: the three control cells, back for the one case that asks
+             for them — when the pilot is you. `instruments` toggles, signed as
+             a pilot reads them (+ is nose up, roll right, right pedal). -->
+        <div class="rd" data-i="de" hidden><b id="r-de">+0</b><i>% elev</i></div>
+        <div class="rd" data-i="da" hidden><b id="r-da">+0</b><i>% ail</i></div>
+        <div class="rd" data-i="dr" hidden><b id="r-dr">+0</b><i>% rud</i></div>
+      </div>
+      <div id="rail" class="held"><b id="phName">HOLDING</b><i id="phNext"></i><div id="track"></div>
+        <!-- THE SMALL PFD. Four numbers instead of nine, two thirds of the
+             type, the steps unchanged — for when the aeroplane is what you
+             want to be looking at. It overrides the `instruments` flyout for
+             as long as it is on, and says so there. -->
+        <button id="pfdFold" type="button" title="Smaller">&#9662;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- THE VERBS, BOTTOM RIGHT (the user: "the action buttons back on the
+       bottom right"). Their own surface, not a passenger on the top row: the
+       top row is WHAT YOU FLY and this is WHAT YOU DO, and with the look
+       ribbon standing up the left edge the bottom row is the natural place
+       for the row of actions. Like ROLL OUT the primary is NEVER disabled:
+       flying something uncertified and finding out why is content, not error;
+       it changes its WORDS, not its state. Pause and Restart never move. -->
+  <div id="flActs">
+    <button id="bPause" class="verb" hidden>Pause</button>
+    <button id="bReset" class="verb" hidden>Restart</button>
+    <button id="bGo" class="verb pri">Fly the circuit</button>
+    <button id="bHangar2" class="verb">The shed</button>
+  </div>
+
+  <!-- ===================================================================
+       2. THE LOOK RIBBON — HOW YOU LOOK. STANDING UP THE LEFT EDGE (the
+       user: "let's actually have the options ribbon vertically on the
+       left"), which is where a tool rail belongs and which gives the whole
+       bottom row back to the trace and the verbs. Same buttons, same
+       metrics, same table (#edRail's, verbatim) — turned a quarter.
+       Its flyouts open TO THE RIGHT of their own button now, for the reason
+       they opened upward before: an answer that always appears in the same
+       place does not say which question it answers.
+       =================================================================== -->
+  <div id="flRail" class="flPlate"></div>
+  <div id="flFly" hidden>
+    <div id="flFlyHead"></div>
+    <div id="flFlyBody"></div>
+  </div>
+
+  <!-- ===================================================================
+       4. THE SUMMONED PANELS, and the arrival.
+       =================================================================== -->
+  <!-- the map hangs at the top right, under whatever the top bar has grown
+       to, and is 196 px rather than 172 because it is not permanent any more -->
+  <div id="mmp" class="flPlate" hidden><canvas id="mm" width="344" height="344"></canvas></div>
+  <!-- THE TRACE IS FURNITURE, NOT CHROME (the user: "should render below
+       everything, should also be more light in design, and should be
+       resizable and draggable"). It sits UNDER every other surface in the
+       stack, so a ribbon flyout opening over it is still reachable; it
+       is lighter than the plates that carry a decision; and it is the one
+       panel the player places. Drag it by its header, size it by the grip,
+       double-click the header to put it back. -->
+  <section id="telp" class="flPlate" hidden>
+    <header id="telHead"><h2>The trace</h2><span id="tsum"></span></header>
+    <canvas id="tel" width="1052" height="264"></canvas>
+    <!-- THE LEGEND IS THE SWITCHBOARD (the user: "be able to select/deselect
+         the one I want to see from the legend"). app.js builds it from TEL_CH
+         — one chip per channel, click to add or drop its lane. -->
+    <div id="legend"></div>
+    <i id="telGrip" title="Drag to resize"></i>
+  </section>
+  <!-- THE ARRIVAL CARD (G107.2, re-cut here): the flight's ENDING, and the
+       ONE panel that appears rather than being summoned. On --ed-panel and
+       not a plate, because it is a document and not chrome, and in the
+       plaque's own two-column grammar so the flight's numbers and the
+       bench's numbers read as the same kind of thing.
+       Its two buttons belong to the FLIGHT and so they are on the card; the
+       top row's verbs belong to the SCREEN. `Fly again` and `Back to the
+       hangar` retired with the old card — they are `Fly on` and `The shed`
+       up there now, one name for one place. -->
+  <div id="arrCard" hidden>
+    <div id="arrHead"><b id="arrTitle">Arrived</b><span id="arrTag">landed</span></div>
+    <div id="arrRows"></div>
+    <div id="arrNotes"></div>
+    <div id="arrBtns">
+      <button id="bLog" class="pri">Log the flight</button>
+      <button id="bWhy">What went wrong</button>
+    </div>
+  </div>
+  <!-- "drag to orbit" was permanent chrome; it is shown once, on the first
+       flight this browser has ever seen, and then never again. -->
+  <div id="flHint" hidden>drag to orbit &middot; scroll to zoom</div>
+</div>
+
+<!-- WORKSHOP. The other interface (G86). Everything about DESIGNING
+     an aeroplane, and none of it exists in flight. The two layers are
+     siblings and neither borrows from the other; GATE UISMOKE asserts
+     the contested ids are on the right side of the seam. -->
+<section id="wsUI" hidden>
+
+<!-- INFORMATION (the user's design review). WHAT THIS AEROPLANE IS, and the
+     answer to "did it work?". It is a PANEL and not a sheet on purpose: the
+     plaque is the feedback loop of the whole game, and a plaque you have to
+     open hides the consequence of the slider you just moved.
+
+     OBSERVE LEFT, CHANGE RIGHT. That spatial rule is the whole layout, and it
+     is why this is on the opposite side from the properties column rather than
+     stacked with it.
+
+     It PUSHES THE RENDER, like the right panel has since G77.1 — the canvas is
+     inset by both, so the orbit centre is the centre of what you can see. -->
+<aside id="edInfo">
+  <header id="edInfoHead">
+    <b id="edName">Garage build</b>
+    <span id="edSpec"></span>
+  </header>
+  <div id="edInfoBody">
+    <!-- THE PLAQUE (P3). The aeroplane's own measured numbers. It starts empty
+         on purpose — a certificate you get for free is not one — and every
+         editor rebuild withdraws it. app.js owns the rows. -->
+    <section id="plaque">
+      <header><h2>The plaque</h2><span id="pqName"></span></header>
+      <div id="pqVerdict"></div>
+      <div id="pqRows"></div>
+      <div id="pqNote"></div>
+    </section>
+    <!-- THE ENGINEERING BENCH (G64): the declared tests and their verdicts.
+         bench.js owns #bTests. TEST FLIGHT is a row in its table with no
+         `run` yet, and lands here when it is built. -->
+    <div id="edBench"></div>
+    <!-- THE LOGBOOK (G130): the flights the save envelope has been recording
+         since G65, finally displayed. garage.js renders it (it owns the log
+         closure); hidden while the log is empty. -->
+    <section id="edLog" hidden>
+      <div class="edH"><span>logbook</span><i></i><em id="lgMeta"></em></div>
+      <div id="lgRows"></div>
+    </section>
+    <!-- WHAT IS ON THE STAND was a section here, and `#shAc` took the game's
+         own aircraft select on loan to fill it. G135 retired both with the
+         menu they existed to show: the bench aircraft were already ruled
+         "subjects to measure, not fleet members" (the user, 2026-08-31), and
+         a panel that lends a control holding one hidden option is lending an
+         empty box. The question the section asked — WHICH AEROPLANE — is the
+         FLEET RACK's (UI-MODEL 2.4), and the rack browses YOUR builds. Until
+         it lands, the ribbon's own `#fbName` says which one is on the stand. -->
+    <!-- THE ABOUT LINE. `#credit` used to ride the flight bar; the flight
+         rebaseline took it off that screen (it is a credit, not a HUD
+         element) and CC-BY's requirement is VISIBLE attribution, so it lands
+         HERE — the shed's information panel, which is on screen for as long
+         as you are building. The reference aeroplanes (G138) are helijah's
+         too and are named as a set; CREDITS.md carries every title, listing
+         and licence in full. -->
+    <p id="credit">PA-18 model: Emmanuel Baranger (helijah) &middot; livery: Brett Harrison &middot; C172 model: NLM (CC-BY 4.0) &middot; reference aeroplanes: Emmanuel Baranger (helijah), CC-BY 4.0</p>
+  </div>
+  <button id="edInfoFold" class="pill" title="Fold the information panel">‹</button>
+</aside>
+<button id="edInfoTab" title="Show the information panel">›<b>Information &amp; testing</b></button>
+
+<!-- THE EDITOR. A PANEL ONLY since G36: the cage build renders in the
+     game's own garage scene through the game's own renderer and camera
+     (the window.CAGE_UI_SCENE mount), so there is no editor canvas — the
+     game view behind IS the viewport. Hidden until the garage build is
+     opened; CAGE_UI_BOOT() runs lazily on first entry. -->
+<!-- TWO COLUMNS, ONE JOB EACH (G77, design option 9b). The PROPERTIES column
+     edits the selected part and nothing else; the PARTS column selects and
+     never edits. src/viewer/editor.js owns both, and builds no widget of its
+     own: every row below the header is _cage_ui.js's own element, MOVED into
+     #edRows one part at a time, so the row grammar is one implementation. -->
+<section id="edWrap" hidden>
+  <div id="edProps">
+    <!-- THE VIEW'S OWN CONTROLS, in the DOM only so _cage_ui.js can adopt them
+         at boot: subsurf, cage, wireframe and section colours are elements it
+         MOVES into its `view` and `polycount` groups, and editor.js then moves
+         those rows again into the icon rail's flyouts (G78). The bar itself is
+         never shown — it is a nursery, like #cgUi and #edNursery. `reset` and
+         `export OBJ` stay here unshown: reset-the-whole-design belongs with
+         saving, in the sheet (G80), and an OBJ dump is a bench tool that the
+         design does not give the game a place for. -->
+    <div id="edBar" hidden>
+      <label>subsurf <select id="lvl">
+        <option>0</option><option>1</option><option selected>2</option><option>3</option>
+      </select></label>
+      <label><input type="checkbox" id="cage"> cage</label>
+      <label><input type="checkbox" id="wire"> wireframe</label>
+      <label><input type="checkbox" id="color" checked> sections</label>
+      <button id="resetBtn">reset</button>
+      <button id="objBtn">export OBJ</button>
+    </div>
+    <!-- THREE VIEWS OF ONE TREE (UI-MODEL §2.3, widened 2026-08-31 — the
+         user: "the structure and livery should be completely at the top,
+         and divide the whole space. We'll now have 3 of them"). The tree
+         stays the only selector — the noun; the tab is the adjective.
+         DESIGN is the whole aeroplane's macro rows (the tiles — selection-
+         independent by nature); SHAPE is what the selected part is; FINISH
+         is what it is made of and looks like. The bar heads the column,
+         above the selection it qualifies. -->
+    <nav id="edViewTabs">
+      <!-- 2026-09-04 (the user: "I am getting annoyed with my own previous
+           decision of splitting the controls into design and shape"): the
+           design tiles are SPRINKLED into the structure view, by part — click
+           the boom and its fuselage-style tile is there — and the grid as a
+           whole is reached from NEW > Custom build. The tab stays in the
+           document (the smoke gate names it, EDITOR_SET_VIEW opens it) but
+           not in the bar. -->
+      <button id="edTabDesign" class="edTab" hidden
+              title="The whole aeroplane's macro choices — class, role, configuration">design</button>
+      <button id="edTabShape" class="edTab on"
+              title="What this part is — its structure, its dimensions and its shape">structure</button>
+      <button id="edTabFinish" class="edTab"
+              title="What this part is made of — finish, colour, and the grain of it">finish</button>
+    </nav>
+    <!-- the selection, and what has moved on it since the design was loaded -->
+    <header id="edPropHead">
+      <button id="edPropFold" class="pill" title="Fold the properties column">›</button>
+      <span id="edCrumb"></span><b id="edPartName"></b><span id="edChanged"></span>
+      <!-- THE TWO PILLS BELONG TO THE TITLE, not to a footer (the user:
+           "reset parts and expert rows should be at the top of the menu,
+           integrated in the title bar"). Both act on the SELECTION, which is
+           what the title names, so they sat a column-scroll away from the
+           thing they operate on. -->
+      <button id="edResetPart" class="pill"
+              title="Every row of this part back to the design you loaded">reset part</button>
+      <button id="edExpert" class="pill"
+              title="Show the frozen constants — what the &quot;don't touch&quot; folder was">expert rows</button>
+      <!-- ...and the third: every section of this column at once. Its label is
+           its own state (fold / open), the same one-button-two-jobs shape the
+           tree's own "fold all" already has. -->
+      <button id="edSecAll" class="pill"
+              title="Roll every section of this column up, or open them all">fold sections</button>
+      <!-- the anchor this part is placed against — a fact about the
+           SELECTION, so it belongs under the selection's name rather than in
+           a footer at the far end of the column. -->
+      <span id="edPartMeta"></span>
+    </header>
+    <div id="edRows"></div>
+    <!-- WHAT IS LEFT OF THE OLD ACCORDION. The parameter rows went into the
+         inspector at G77; the VIEW's rows went into the icon rail's flyouts
+         and the ROOM's into the shed sheet at G78. What can still be here is
+         the aeroplane's MATERIALS, which are the aeroplane's, plus anything a
+         later layer adds that nothing has claimed yet — so this stays as the
+         honest overflow rather than being deleted and taking an unclaimed row
+         off the screen with it. Empty, it hides itself. -->
+    <div id="edOpts">
+      <div id="edOptsHead"><span>materials &amp; extras</span><i></i><em>the aeroplane's finish</em></div>
+      <aside id="cgUi"></aside>
+    </div>
+    <div id="edStat"><span id="stat"></span></div>
+  </div>
+  <!-- IT SELECTS, IT NEVER EDITS. The tree is the declared assembly of
+       tools/_cage_parts.js, filtered to the parts this build actually has. -->
+  <div id="edParts">
+    <div id="edPartsHead">
+      <button id="edCollapse" class="pill" title="Fold the parts column">›</button>
+      <button id="edFoldAll" class="pill"
+              title="Fold every branch, or open them all again">fold all</button>
+      <b>Parts</b>
+    </div>
+    <div id="edTree"></div>
+  </div>
+  <button id="edPropsTab" title="Show the properties column">‹<b>Properties</b></button>
+  <button id="edPartsTab" title="Show the parts column">‹<b>Parts</b></button>
+</section>
+
+<!-- THE VIEW OWNS LOOKING (G78, design option 9b). Floating chrome over the
+     render — NOT over the panel: #edView is inset by the panel's own width,
+     exactly as the canvas is, so nothing here can ever land under it.
+
+     Everything on this layer is about HOW YOU LOOK at the build or WHAT YOU
+     DO WITH IT WHOLE. Nothing here edits a parameter; that is the properties
+     column's one job. The rail's flyouts are filled by editor.js with rows
+     _cage_ui.js built — the same elements, moved again — so `cage`,
+     `wireframe`, `sections`, `subsurf`, the alphas, `explode`, `cutaway` and
+     the dims box keep their own behaviour and gain a home that says what they
+     are for. -->
+<div id="edView" hidden>
+  <!-- THE SAME LAYOUT AS THE FLIGHT SCREEN (2026-09-03, the user: "simply the
+       plane's name on the top left, clicking on it gives all the ribbon
+       options in a standard menu. The display options ribbon goes to the
+       left, and the action button(s) go to the bottom right. We are also
+       consistent with the in-flight layout then"). They are: name top left,
+       look ribbon up the left edge, verbs bottom right — #flRail and #flActs
+       already own those pixels in flight, and the workshop now owns the
+       matching ones here. Nothing here edits a parameter; that is the
+       properties column's one job.
+       The rail's flyouts are filled by editor.js with rows _cage_ui.js built
+       — the same elements, moved again — so `cage`, `wireframe`, `sections`,
+       `subsurf`, the alphas, `explode`, `cutaway` and the dims box keep their
+       own behaviour and gain a home that says what they are for. -->
+
+  <!-- 1. THE NAME, TOP LEFT — and the whole file ribbon behind it.
+       The six verbs were a segmented control on permanent display; what a
+       builder needs on screen is WHICH AEROPLANE THIS IS, and the file
+       operations one click behind its name. #edShelf keeps its id and its
+       meaning — the file operations on YOUR build — so garage.js's isGen sync
+       and the smoke test's seam assert both hold; it is a dropdown menu now
+       rather than a row. The NOUNS (your saved aeroplanes, the stock designs,
+       delete) are still behind LOAD, in the fleet popup garage.js builds.
+       #gFile is a sibling of the menu and not a child: a hidden file input
+       inside a `display:none` menu is not reliably clickable, and the drop
+       target has to be something that is always on screen. -->
+  <div id="edTopBar">
+    <div id="edFleet">
+      <button id="fbName" type="button" aria-haspopup="true" aria-expanded="false"
+              title="This aeroplane — save, load, import, export">unsaved</button>
+      <div id="edShelf" role="menu" hidden>
+        <button id="gSave"  title="Save over this aeroplane">save</button>
+        <button id="gSaveAs" title="Save as a new aeroplane">save as</button>
+        <button id="gNew"
+                title="Start a new aeroplane — pick an archetype">✚ new</button>
+        <button id="gLoad"
+                title="Your saved aeroplanes and the stock designs">load</button>
+        <button id="gImport"
+                title="Open an aeroplane from a .json file">import</button>
+        <button id="gExport"
+                title="Download the aeroplane on the stand as a .json file"
+                >export</button>
+      </div>
+      <input id="gFile" type="file" accept="application/json,.json" hidden>
+    </div>
+
+    <!-- 1b. THE QUICK ACTIONS, TOP RIGHT (2026-09-03, the user: "promote the
+         view interior option into a quick action bar, that's a new one
+         floating on top of the editor screen... a button for alternating the
+         reference plane views (disabled if no reference plane is selected)...
+         a single button alternating between interior and exterior views...
+         another single button cycling through the time of day").
+
+         THE BAR PRESSES ROWS, IT DOES NOT OWN STATE. Every button here is a
+         second FACE of a control that already exists — `see inside`'s
+         checkbox, `time of day`'s select, the reference panel's `cut` — and
+         it presses that control rather than keeping a value of its own. That
+         is the rail's rule ("a flyout borrows, it does not take") applied to
+         a bar with no flyout: one element per decision, one handler on it,
+         and nothing on this bar can ever disagree with the panel it shadows.
+
+         ICON ONLY, AND THE ICON IS THE STATE. Three questions you ask over
+         and over while building — am I inside or outside, how does this sit
+         against the reference, what light am I looking in — each one click
+         away and each wearing the answer, so the bar reads as a status line
+         you can press. editor.js's QUICK table builds them; GATE VIEW holds
+         it against the rail. -->
+    <div id="edQuick"></div>
+  </div>
+
+  <!-- 2. THE LOOK RIBBON — HOW YOU LOOK. Standing up the left edge, which is
+       where the flight screen's has stood since its own rebaseline, and which
+       gives the bottom of the render back to the verbs. Same buttons, same
+       metrics, same table. #edBotBar keeps its id — it is the rail's
+       positioner wherever the rail stands — and its flyouts open TO THE RIGHT
+       of their own button, for the reason they opened upward before: an
+       answer that always appears in the same place does not say which
+       question it answers. -->
+  <div id="edBotBar">
+    <div id="edRail"></div>
+  </div>
+
+  <!-- 3. THE VERBS, BOTTOM RIGHT — opposite the ribbon, on the pixel #flActs
+       owns in flight. ROLL OUT is the primary and is NEVER disabled: it is
+       your aeroplane, and building it wrong and learning why is content, not
+       error; it changes its WORDS, not its state. -->
+  <div id="edActs">
+    <button id="edRoll" class="verb pri">Roll out &amp; fly</button>
+  </div>
+
+  <div id="edFly" hidden><div id="edFlyHead"></div><div id="edFlyBody"></div></div>
+</div>
+
+<!-- THERE ARE NO SHEETS LEFT (G108). The aeroplane's went at G91 — the
+     plaque, the bench and the fleet are the permanent INFORMATION panel now,
+     because a plaque you have to open hides the consequence of the slider you
+     just moved. The shed's goes here: it is a tree ROOT beside the aeroplane
+     and the reference, which is what makes the WORLD's arrival cost nothing.
+     UI-MODEL section 2.4 reserves exactly one sheet for the FLEET RACK, and
+     that chantier brings its own scrim rather than inheriting a dead one. -->
+</section>
+
+<!-- THE CONTROLS PANEL (G200). A THIRD top-level host, sibling of #ui and
+     #wsUI: each of those hides the other by a body-class rule, and this one
+     mapping interface opens from both screens. Empty here on purpose —
+     src/viewer/input_panel.js builds it on the first open, off the input
+     model app.js makes (window.FLYDIY_INPUT); src/viewer/controls.css
+     styles it. Neither screen holds any of its state. -->
+<div id="ctlPanel" hidden></div>
+
+
+<script>/* PUMP */(function(){const q=[];window.requestAnimationFrame=cb=>{q.push(cb);return q.length};const run=()=>{const t=performance.now();const cbs=q.splice(0);for(const cb of cbs){try{cb(t)}catch(e){console.error(e)}} if(window.__afterFrame){const f=window.__afterFrame;window.__afterFrame=null;try{f(t)}catch(e){console.error(e)}}};window.__pump=(n)=>{for(let i=0;i<(n||1);i++)run();};setInterval(run,33)})();</script>
+<script src="vendor/three.min.js"></script>
+<script src="src/core/00_registry.js?v=d1585af4"></script>
+<script src="src/core/05_atmos.js?v=afded824"></script>
+<script src="src/core/20_world.js?v=145aa6bb"></script>
+<script src="src/core/21_world_hydro.js?v=9f17d247"></script>
+<script src="src/core/22_world_biomes.js?v=da7fb9a6"></script>
+<script src="src/core/23_world_settle.js?v=24706f45"></script>
+<script src="src/core/24_world_aero.js?v=5c2dd151"></script>
+<script src="src/core/25_airfield.js?v=1b1a623a"></script>
+<script src="src/core/26_hangar_fit.js?v=544a2fdd"></script>
+<script src="src/core/30_solver.js?v=8236fe39"></script>
+<script src="src/core/31_elec.js?v=90fc7ae7"></script>
+<script src="src/core/38_nav.js?v=9e55ea9b"></script>
+<script src="src/core/39_ground_path.js?v=ba709a8e"></script>
+<script src="src/core/40_autopilot.js?v=581ea889"></script>
+<script src="src/core/41_test_pilot.js?v=1f4ef3a3"></script>
+<script src="src/core/42_crosswind.js?v=0105de41"></script>
+<script src="src/core/43_pilot.js?v=12572853"></script>
+<script src="src/core/50_model_codec.js?v=d79b8ef7"></script>
+<script src="src/core/51_prop_codec.js?v=2a556ad5"></script>
+<script src="src/core/52_char_codec.js?v=9bf22959"></script>
+<script src="src/core/53_tree_codec.js?v=377a975f"></script>
+<script src="src/core/60_gen_spec.js?v=dcde3676"></script>
+<script src="src/core/60b_gen_loft.js?v=35508464"></script>
+<script src="src/core/60c_gen_energy.js?v=717580ae"></script>
+<script src="src/core/61_gen_frame.js?v=bea04eed"></script>
+<script src="src/core/62_gen_aero.js?v=7dc30fe1"></script>
+<script src="src/core/63_gen_wing.js?v=4a86b0cc"></script>
+<script src="src/core/64_gen_build.js?v=ca957f66"></script>
+<script src="src/core/65_gen_loadtest.js?v=25f6ff09"></script>
+<script src="src/core/70_player.js?v=492b9918"></script>
+<script src="src/core/90_node_exports.js?v=1d4f80ec"></script>
+<script src="src/models/pa18_model.js?v=1ab5ecde"></script>
+<script src="src/models/c172_model.js?v=267306e7"></script>
+<script src="src/models/d112_model.js?v=3be353d3"></script>
+<script src="src/models/pio200_model.js?v=981cd31e"></script>
+<script src="src/models/c195_model.js?v=8974dedd"></script>
+<script src="src/models/stemme_model.js?v=04fd92f7"></script>
+<script src="src/models/guepard_model.js?v=bf419178"></script>
+<script src="src/models/da40_model.js?v=82bf8782"></script>
+<script src="src/models/g115_model.js?v=87b45f7c"></script>
+<script src="src/models/yak18t_model.js?v=25ff8781"></script>
+<script src="src/models/eiii_model.js?v=623d6f2c"></script>
+<script src="src/models/pa28_model.js?v=a6c43592"></script>
+<script src="src/props/props_bench.js?v=7c6e64b4"></script>
+<script src="src/props/props_storage.js?v=e051184c"></script>
+<script src="src/props/props_machine.js?v=14f1da60"></script>
+<script src="src/props/props_handling.js?v=a92f7dd8"></script>
+<script src="src/props/props_vessel.js?v=96edf5b9"></script>
+<script src="src/props/props_tools.js?v=d179d596"></script>
+<script src="src/props/props_curio.js?v=8ca61851"></script>
+<script src="src/props/props_vehicle.js?v=cd02f7b8"></script>
+<script src="src/props/props_fixture.js?v=93362da1"></script>
+<script src="src/props/props_airframe.js?v=88d864cd"></script>
+<script src="src/panelhw/panelhw_switch.js?v=747cf6b4"></script>
+<script src="src/panelhw/panelhw_knob.js?v=138ad978"></script>
+<script src="src/panelhw/panelhw_button.js?v=d8a74420"></script>
+<script src="src/panelhw/panelhw_key.js?v=32f0024b"></script>
+<script src="src/chars/ch42_char.js?v=c440fbad"></script>
+<script src="src/chars/ch02_char.js?v=cf30202a"></script>
+<script src="src/chars/remy_char.js?v=01a16f6e"></script>
+<script src="src/chars/ch22_char.js?v=f61be819"></script>
+<script src="src/chars/ch01_char.js?v=854f26f4"></script>
+<script src="src/chars/ch20_char.js?v=97fe3427"></script>
+<script src="src/chars/sitidle_anim.js?v=46c92d21"></script>
+<script src="src/chars/piloting_anim.js?v=c915ae51"></script>
+<script>window.CAGE_UI_LAZY = 1; window.CAGE_IN_GAME = 1;</script>
+<script src="tools/_cage_parts.js?v=dd41cd3c"></script>
+<script src="tools/_fin_gen.js?v=209bc4c5"></script>
+<script src="tools/_cage_design.js?v=e07b3c77"></script>
+<script src="tools/_cage_page5.js?v=943425f2"></script>
+<script src="tools/_knife_gen.js?v=860a32f8"></script>
+<script src="tools/_shoulder_gen.js?v=0257b404"></script>
+<script src="tools/_cage_gen.js?v=4eac21f6"></script>
+<script src="tools/_cage_char.js?v=b5e395ef"></script>
+<script src="tools/_cage_crew.js?v=c7bdd3f1"></script>
+<script src="tools/_panel_gen.js?v=11ae0904"></script>
+<script src="tools/_cage_panel.js?v=fb17c4b8"></script>
+<script src="tools/_gear_kit.js?v=d726c883"></script>
+<script src="tools/_gear_gen.js?v=31c3b75d"></script>
+<script src="tools/_gear_page.js?v=e15517ca"></script>
+<script src="tools/_fit_site.js?v=150661e7"></script>
+<script src="tools/_fit_gen.js?v=49b41b86"></script>
+<script src="tools/_hinge_gen.js?v=0d47a859"></script>
+<script src="tools/_rod_fit.js?v=6e344d9f"></script>
+<script src="tools/_eng_gen.js?v=3c98c804"></script>
+<script src="tools/_eng_mesh.js?v=c7b394e2"></script>
+<script src="tools/_eng_page.js?v=8ccbb735"></script>
+<script src="tools/_cowl_gen.js?v=7599101e"></script>
+<script src="tools/_cowl_rows.js?v=a94d01c7"></script>
+<script src="tools/_cage_cowl.js?v=87f127ca"></script>
+<script src="tools/_cage_eng.js?v=4e40eafe"></script>
+<script src="tools/_strut_gen.js?v=b048b823"></script>
+<script src="tools/_boom_gen.js?v=f6d006d3"></script>
+<script src="tools/_cage_wing.js?v=df79a5ef"></script>
+<script src="tools/_cage_brace.js?v=6fb46903"></script>
+<script src="tools/_cage_gear.js?v=109cd242"></script>
+<script src="tools/_cage_fin.js?v=b65d0b25"></script>
+<script src="tools/_cage_stab.js?v=8ffbaff0"></script>
+<script src="tools/_tail_headless.js?v=6be0eef1"></script>
+<script src="tools/_cage_access.js?v=3aed980a"></script>
+<script src="tools/_cage_light.js?v=540d4db7"></script>
+<script src="tools/_bay_site.js?v=7bbcf819"></script>
+<script src="tools/_vessel_gen.js?v=f2f8b059"></script>
+<script src="tools/_vessel_mesh.js?v=3eaf3a6b"></script>
+<script src="tools/_cage_energy.js?v=f530d708"></script>
+<script src="tools/_cage_hinge.js?v=ea88907b"></script>
+<script src="tools/_cage_join.js?v=1fe0c54c"></script>
+<script src="tools/_cage_ui.js?v=3c3d159a"></script>
+<script src="src/viewer/assets.js?v=5ae00b40"></script>
+<script src="src/viewer/aa_resolve.js?v=d43f4c1b"></script>
+<script src="src/viewer/light_rig.js?v=d7fd0cd1"></script>
+<script src="src/viewer/site_tex.js?v=44989fef"></script>
+<script src="src/viewer/site_ground.js?v=c2260ef8"></script>
+<script src="src/viewer/trees_pack.js?v=abb25c7f"></script>
+<script src="src/viewer/trees.js?v=2d9f2dd7"></script>
+<script src="src/viewer/render_world.js?v=26b311a8"></script>
+<script src="src/viewer/hangar_floor.js?v=48ce42ee"></script>
+<script src="src/viewer/hangar_walls.js?v=ef861b6f"></script>
+<script src="src/viewer/hangar_sky.js?v=b50cd6c6"></script>
+<script src="src/viewer/props.js?v=127e828a"></script>
+<script src="src/viewer/wood_tex.js?v=861205aa"></script>
+<script src="src/viewer/skin_tex.js?v=673b0652"></script>
+<script src="src/viewer/vessel_tex.js?v=dd3254c5"></script>
+<script src="src/viewer/panel_tex.js?v=3204781f"></script>
+<script src="src/viewer/aeroweather.js?v=157dc069"></script>
+<script src="src/viewer/aeroskin.js?v=2e3265c0"></script>
+<script src="src/viewer/hangar.js?v=347f4fae"></script>
+<script src="src/viewer/garage.js?v=074ff81a"></script>
+<script src="src/viewer/workshop.js?v=642a90f7"></script>
+<script src="src/viewer/plaque.js?v=8fdc5768"></script>
+<script src="src/viewer/stickers.js?v=e43699be"></script>
+<script src="src/viewer/bench.js?v=cbe3a8eb"></script>
+<script src="src/viewer/refplane.js?v=19535b38"></script>
+<script src="src/viewer/design_flow.js?v=f3ce0e58"></script>
+<script src="src/viewer/balance.js?v=6b250999"></script>
+<script src="src/viewer/pattern_vis.js?v=ccd7e67c"></script>
+<script src="src/viewer/input.js?v=3e4d3384"></script>
+<script src="src/viewer/input_panel.js?v=551221ee"></script>
+<script src="src/viewer/gfx_settings.js?v=c70d2b2a"></script>
+<script src="src/viewer/editor.js?v=e2c259f3"></script>
+<script src="src/viewer/cockpit.js?v=3fa4c507"></script>
+<script src="src/viewer/app.js?v=8f2a9b26"></script>
+<script src="src/viewer/dev_panel.js?v=4bab292d"></script>
+</body>
+</html>

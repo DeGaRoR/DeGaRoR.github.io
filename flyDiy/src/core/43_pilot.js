@@ -585,7 +585,11 @@ function makePilot(sim, def, world, opts) {
     };
     const speedThrottle = (Vtgt) => {
       It = clamp(It + 0.010 * (Vtgt - V) * dt, -0.30, 0.30);
-      c.thr = clamp(thrC + 0.05 * (Vtgt - V) + It, A.thrFloor ?? 0.12, 1);
+      const base = thrC + 0.05 * (Vtgt - V), lo = A.thrFloor ?? 0.12;
+      // G352: anti-windup — on a stop, the integrator holds the stop's value
+      if (base + It < lo) It = lo - base;
+      else if (base + It > 1) It = 1 - base;
+      c.thr = clamp(base + It, lo, 1);
     };
     const holdVS = (VSc, thMax = 0.16) => {
       vsF += (A.vsFilt ?? 1.0) * (vcg[1] - vsF);

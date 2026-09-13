@@ -424,6 +424,50 @@ for (const c of CASES) {
   }
 }
 
+// ---- 4e A HORN-BALANCED SURFACE HINGES BELOW ITS HORN (2026-09-13) --------
+// The user: "hinges should be removed from the fin on the horn part when
+// horn is selected, since this part really does not move anymore." Under
+// cut mode 2 the post above the mid row is rudder on both sides (the horn
+// wraps over the fin's crown), so the hinge layer cuts its line back to
+// `cage.hornPt` — the row's height on the post after the macro tier — and
+// the stations ride the shorter line. The same for the elevators (the stab
+// is the fin laid flat). Cut mode 1 keeps the full declared line.
+{
+  let SH = null;
+  try { SH = require(path.join(T, '_scene_headless.js')); }
+  catch (e) { console.log('  (harness) ' + e.message); }
+  if (SH) {
+    const at = cut => {
+      const S = SH.sceneBuild(null, { over: { finCut: cut, stCut: cut } });
+      const W = S.W, out = { fin: W.CAGE_FIN, stab: W.CAGE_STAB, placed: {} };
+      for (const p of (W.CAGE_HINGE && W.CAGE_HINGE.placed) || []) out.placed[p.key] = p;
+      return out;
+    };
+    const H1 = at(1), H2 = at(2);
+    check(!!(H2.fin && H2.fin.cage && H2.fin.cage.hornPt && Math.round(H2.fin.measure.cut) === 2),
+          'HORN: the fin does not publish its horn point under a horn cut');
+    for (const [key, lay, ax] of [['rud', 'fin', 1], ['elevR', 'stab', 0], ['elevL', 'stab', 0]]) {
+      const a = H1.placed[key], b = H2.placed[key], L = H2[lay];
+      if (!check(!!(a && b && L && L.cage && L.cage.hornPt), 'HORN: no ' + key + ' stations in both cut modes')) continue;
+      const FS = L.measure.FS || 1;
+      const yH = L.cage.hornPt[0] * FS, line = L.measure.hinge.line;
+      const full = Math.abs(line[1][0] - line[0][0]) * FS;
+      // the full line under a plain hinge cut...
+      check(Math.abs(a.span - full) < 1e-6, 'HORN: ' + key + ' under a hinge cut does not ride the declared line', a.span.toFixed(3) + ' vs ' + full.toFixed(3));
+      // ...the line to the row under a horn cut: shorter by the horn, its far
+      // end at or below the row (the slot's half gap), and the same root
+      check(b.span < a.span - 0.05, 'HORN: ' + key + ' stations still run into the horn', b.span.toFixed(3) + ' vs ' + a.span.toFixed(3));
+      const rootUp = line[1][0] > line[0][0] ? 1 : -1;      // fin space y, root -> top
+      const bTop = (rootUp > 0 ? b.B[ax] - b.A[ax] : b.A[ax] - b.B[ax]);
+      const hTop = Math.abs(yH - line[0][0] * FS);
+      check(Math.abs(bTop) <= hTop + 1e-6 && Math.abs(bTop) > hTop - 0.03,
+            'HORN: ' + key + ' far end is not at the horn line', Math.abs(bTop).toFixed(3) + ' vs ' + hTop.toFixed(3));
+      check(Math.hypot(b.A[0] - a.A[0], b.A[1] - a.A[1], b.A[2] - a.A[2]) < 1e-6, 'HORN: ' + key + ' root moved under a horn cut');
+      check(b.n <= a.n, 'HORN: ' + key + ' gained stations on a shorter line', b.n + ' vs ' + a.n);
+    }
+  }
+}
+
 // ---- 4c THE DOOR'S EDGES (G310) --------------------------------------------
 // A door is a zone of faces; `cageDoorEdges` reads its outline off the built
 // sheet, per door per side: the forward run is the max-z standing chain (+z

@@ -269,7 +269,6 @@ function makeLinkage(tau) {
     step(ctl, dt) {
       const a = Math.min(1, dt / tau);
       for (const k of KEYS) {
-
         s1[k] += a * ((ctl[k] || 0) - s1[k]);
         s2[k] += a * (s1[k] - s2[k]);
       }

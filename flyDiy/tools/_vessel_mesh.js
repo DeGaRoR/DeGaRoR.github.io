@@ -729,9 +729,10 @@ function mount(sol, dy, tile, yAt) {
   if (!(gap > MOUNT_MIN) || gap > MOUNT_MAX) return null;
   const out = Buf();
   const T = tile || 0.22, r0 = MOUNT_R;
-  const ySurf = dy, yEdge = hang ? e[1] : -e[1];
+  const yEdge = hang ? e[1] : -e[1];
   const ax = hang ? [0, 1, 0] : [0, -1, 0];         // leg direction, off the tank
   const upS = hang ? [0, -1, 0] : [0, 1, 0];        // the foot plate's normal
+  let drawn = 0;
   for (const sz of [-0.48 * e[2], 0.48 * e[2]]) {   // under each strap
     const feet = [];
     for (const sx of [-0.62 * e[0], 0.62 * e[0]]) {
@@ -742,14 +743,17 @@ function mount(sol, dy, tile, yAt) {
       tubeBuild(out, [sx, yEdge, sz], ax, r0, r0, g, T, 8, false, false);
       const foot = [sx, ys, sz];
       tubeBuild(out, foot, upS, r0 * 3.2, r0 * 1.6, 0.004, T, 12, true, true);
-      feet.push(foot);
+      feet.push(foot); drawn++;
     }
-    const lift = hang ? -0.03 : 0.03;
-    const a = [feet[0][0], ySurf + lift, sz], b = [feet[1][0], ySurf + lift, sz];
-    const L = b[0] - a[0];
-    tubeBuild(out, a, [1, 0, 0], r0 * 0.85, r0 * 0.85, L, T, 8, true, true);
+    if (feet.length === 2) {
+      const lift = hang ? -0.03 : 0.03;
+      const a = [feet[0][0], feet[0][1] + lift, sz], b = [feet[1][0], feet[1][1] + lift, sz];
+      const d = [b[0] - a[0], b[1] - a[1], 0], L = Math.hypot(d[0], d[1]) || 1e-9;
+      tubeBuild(out, a, [d[0] / L, d[1] / L, 0], r0 * 0.85, r0 * 0.85, L, T, 8, true, true);
+    }
   }
-  out.feet = { ySurf, hang, gap };
+  if (!drawn) return null;
+  out.feet = { ySurf: dy, hang, gap };
   return out;
 }
 

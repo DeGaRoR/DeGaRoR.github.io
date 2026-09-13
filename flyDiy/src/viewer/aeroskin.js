@@ -283,7 +283,7 @@ const AERO_FINISH = {
                rough: 0.34, metal: 0.92, nrm: 0.55, alb: 0.30,
                hs: 0.8, bs: 0.5, bake: 'sheet', sheet: 'sillAlu',
                fld: 0.0010, fldL: 0.4, fldR: 0.3 },
-  // THE DOOR PANEL'S HIDE (G346): pleated leather — the pleats are the
+  // THE DOOR PANEL'S HIDE (G3xx): pleated leather — the pleats are the
   // `pleat` bake (a normal map: rounded rolls with a stitched groove between
   // them, two a tile), the grain rides the scanned leather sheet's colour
   // and roughness. Tile 0.16 m = 8 cm pleats. Any finish can replace it per
@@ -442,7 +442,7 @@ const AERO_ROLE = {
   // is the dark instrument plate, which read black along the window),
   // paintable per section like the rest.
   shoulder: 'sill',
-  // THE DOOR INNER PANEL (G346): a padded trim board, its own role `doorPad`
+  // THE DOOR INNER PANEL (G3xx): a padded trim board, its own role `doorPad`
   // so the pleated hide is the default in every column and any finish can
   // be set on it from the paint UI
   doorPanel: 'doorPad',
@@ -581,7 +581,6 @@ const AERO_HARD = {
   // plated, and the one place on a light aeroplane where nobody uses alloy,
   // because a hinge carries a fatigue load in bending. A fairing is painted.
   hinge: { metal: 'steelTube', fair: 'trim' },
-  // ---- the undercarriage (_gear_gen.js MAT) -------------------------------
   // ---- the undercarriage (_gear_gen.js MAT) -------------------------------
   gear: {
     tyre: 'rubber', hub: 'castAlu', brake: 'castAlu', brakefix: 'castAlu',
@@ -827,15 +826,24 @@ const AERO_SEC = {
   // should be colored like the fuselage"; a strut, a spat and a cowl are
   // painted with the fuselage on a light aeroplane, the fittings with it.
   // G238: THE CONTROL HARDWARE. A hinge, a horn, a pushrod and a cable are
-  // STEEL, and steel is what they stay whatever the aeroplane is painted —
-  // the pinned-finish rule, the same one that keeps a gear leg from turning
-  // into plywood on a wooden aeroplane. `parent: null`: a hinge borrows
-  // nobody's colour, because a hinge is not painted.
+  // STEEL out of the box, and steel is the construction's bottom-out
+  // whatever the aeroplane is built from (the same reasoning that keeps a
+  // gear leg from turning into plywood on a wooden aeroplane).
+  // 2026-09-13, the user: "while the hinges are right to initialize with
+  // this material, they should eventually become affected by the global
+  // material selection" — so the row follows the FUSELAGE and the pin is
+  // SOFT (`finFollows`): untouched, a hinge is cadmium-plated steel in its
+  // own grey; the moment the builder picks a finish, a base colour, a
+  // metallic or a roughness for the fuselage, the hardware takes it — the
+  // per-part well still overrides, and the per-part reset drops it back to
+  // steel. No `wears: 'parent'`: an untouched aeroplane's hinges must not
+  // come out in the fuselage's paint (a gear leg is painted with it; a
+  // hinge is bolted on bare).
   // The FAIRING is the other case entirely and is why it is a second row: a
   // gap seal is a painted strip on a painted surface, so it follows the
   // aeroplane and wears what its parent wears (G207).
-  ctlHinge: { parent: null,   fin: 'steelTube', label: 'the hinges & horns',
-              layer: 'hinge' },
+  ctlHinge: { parent: 'body', fin: 'steelTube', label: 'the hinges & horns',
+              layer: 'hinge', finFollows: true },
   ctlFair:  { parent: 'body', fin: 'trim',      label: 'the hinge fairings',
               layer: 'hinge', wears: 'parent' },
   // G307: the bolted saddles a tail meets on a bare tube boom (the fin's
@@ -973,8 +981,11 @@ function aeroSecResolve(sec, over, ctx) {
   // A PINNED fin walks its OWN name only: the pin says what the part IS —
   // a spat is painted trim whatever the fuselage is built from — so an
   // ancestor's FINISH never reaches it. Its COLOUR still does: tint and
-  // the dials keep the full chain.
-  const f = walk(over && over.fin, row.fin ? [sec] : chain);
+  // the dials keep the full chain. A SOFT pin (`finFollows`, the control
+  // hardware) is a bottom-out and not a pin: the finish channel walks the
+  // whole chain, so the fuselage's own pick reaches it, and the `fin`
+  // stands in only where nobody up the chain chose.
+  const f = walk(over && over.fin, (row.fin && !row.finFollows) ? [sec] : chain);
   const byCons = AERO_BY_CONS[ctx && ctx.cons] || AERO_BY_CONS.tubeFabric;
   const fin = f.v != null ? f.v
     : (ctx && ctx.fin) || row.fin || byCons[row.role || 'skin'] || byCons.skin;
@@ -1114,7 +1125,7 @@ function aeroHeight(kind, S, row) {
         return g(37, 21, 0.34) + g(59, -43, 0.18) + g(97, 71, 0.09);
       }
       case 'pleat': {
-        // PLEATED UPHOLSTERY (the door panel, G346): `pleats` rounded rolls
+        // PLEATED UPHOLSTERY (the door panel, G3xx): `pleats` rounded rolls
         // a tile along v, each a half-cosine roll, a narrow stitched groove
         // between them (a row of small dips along u), and a faint hide
         // pebble over the roll so it still reads as leather up close.
@@ -3393,6 +3404,8 @@ const AEROGLASS_HOOK = function (shader) {
   const W = aeroWx();                       // G345, as in AEROSKIN_HOOK
   const u = this.userData.aeroU;
   for (const k in u) shader.uniforms[k] = u[k];
+  const d = this.userData.aeroD;
+  if (d) for (const k in d) shader.uniforms[k] = d[k];
   shader.vertexShader = shader.vertexShader
     .replace('#include <common>', AERO_PARS_VS + '\n#include <common>')
     .replace('#include <begin_vertex>',
@@ -3530,7 +3543,7 @@ function aeroGlassTint(THREE, o) {
   const G = k => (o[k] != null ? +o[k] : GLASS_DEF[k]);
   const key = 'gtint|' + (o.tint != null ? o.tint : '') + 'L' +
               (o.tintLin != null ? o.tintLin : '') + '|' + G('opacity') +
-              '|' + G('fresnel');
+              '|' + G('fresnel') + '|w' + (o.wear != null ? +o.wear : 1);
   const hit = AERO_POOL.get(key);
   if (hit) return hit;
   const col = o.tintLin != null ? new THREE.Color(o.tintLin)

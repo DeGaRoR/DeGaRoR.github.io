@@ -28,11 +28,9 @@
 //              starter may write an expert row the tree hides. Function
 //              values must survive being called against the page's own base.
 //   PATHS      every spec path an option patches exists in GEN_DEFAULT.
-//              The TWO fields the flow introduces (meta.role, meta.class) are
-//              carried here explicitly until their one-line core declaration
-//              lands — 60_gen_spec.js was another session's hot file on the
-//              day this gate was written, and a list that shrinks to nothing
-//              is better than an edit race.
+//              KEYS and PATHS walk the BIRTH ROWS too (G292: class and role
+//              are seeds the archetypes compose, not tiles — a seed key that
+//              exists nowhere is exactly as dead as a live one).
 //   TARGETS    a role's targets use genShakedown's OWN key names (§5.1: the
 //              units the plaque will some day judge in), measured off a real
 //              shakedown run, never a copied list.
@@ -90,9 +88,9 @@ const G = require(path.join(T, '_cage_gen.js'));
 const CORE = require(path.join(T, 'flight_core.js'));
 
 // the spec fields the birth flow introduces ahead of their core declaration;
-// see PATHS above. EMPTY since 2026-08-31 17:11 — meta.role and meta.class
-// landed in GEN_DEFAULT + clampSpec the same day; the mechanism stays for
-// the next field born while 60_gen_spec.js is another session's hot file.
+// see PATHS above. EMPTY — meta.role and meta.class, the two it once
+// carried, are retired (G292); the mechanism stays for the next field born
+// while 60_gen_spec.js is another session's hot file.
 const NEW_SPEC_FIELDS = [];
 
 const fail = [];
@@ -238,7 +236,7 @@ function checkOptions(A) {
 // ---------------------------------------------------------------------------
 function checkWrites(A) {
   let ok = true;
-  for (const r of A.DESIGN_ROWS) {
+  for (const r of A.DESIGN_ROWS.concat(A.BIRTH_ROWS || [])) {
     if (r.kind === 'field') {
       ok = check(specPathOk(r.specPath.join('.')),
         'field row on a spec path GEN_DEFAULT does not carry',
@@ -322,7 +320,7 @@ function checkArchetypes(A) {
     if (seen.has(a.key)) ok = check(false, 'duplicate archetype key', a.key);
     seen.add(a.key);
     for (const rowKey in a.sel) {
-      const r = A.rowByKey[rowKey];
+      const r = A.rowByKey[rowKey];          // a tile, or a birth row (G292)
       if (!check(!!r, 'archetype selects a row that does not exist',
         `${a.key}: ${rowKey}`)) { ok = false; continue; }
       ok = check(!!A.optionOf(rowKey, a.sel[rowKey]),
@@ -486,7 +484,7 @@ if (process.argv.includes('--selftest')) {
   // a working shallow clone: rows copied, options materialised so a case can
   // break one without touching the real table
   const clone = () => {
-    const rows = D.DESIGN_ROWS.map(r => {
+    const cloneRow = r => {
       const c = Object.assign({}, r);
       if (r.kind !== 'field')
         c.options = D.rowOptions(r).map(o => {
@@ -506,11 +504,13 @@ if (process.argv.includes('--selftest')) {
       if (Array.isArray(r.pair))
         c.pair = r.pair.map(p => Object.assign({}, p));
       return c;
-    });
+    };
+    const rows = D.DESIGN_ROWS.map(cloneRow);
+    const birth = (D.BIRTH_ROWS || []).map(cloneRow);
     const byKey = {};
-    for (const r of rows) byKey[r.key] = r;
+    for (const r of rows.concat(birth)) byKey[r.key] = r;
     return {
-      DESIGN_ROWS: rows, DESIGN_GROUPS: D.DESIGN_GROUPS,
+      DESIGN_ROWS: rows, BIRTH_ROWS: birth, DESIGN_GROUPS: D.DESIGN_GROUPS,
       ARCHETYPES: JSON.parse(JSON.stringify(
         D.ARCHETYPES.map(a => ({ key: a.key, sel: a.sel })))),
       rowByKey: byKey,

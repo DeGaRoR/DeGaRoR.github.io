@@ -417,7 +417,7 @@ window.CAGE_PAGE = {
         ['shoulderRun', 'shoulder run',   0, 1, 1, ['pilot bay', 'whole cabin'],
          { when: P => +P.shoulderOn }],
       ]],
-      // THE DOOR INNER PANEL (G346): the user's second option, off by
+      // THE DOOR INNER PANEL (G3xx): the user's second option, off by
       // default — a padded board inside each door from the shoulder's leg
       // (or the glass) to the door's bottom, standing off whatever the
       // door's inside is, with a map pocket.

@@ -893,6 +893,7 @@ function stockLever(built, side, CAGE, off) {
            wx: 0.020, tz: 0.008, knobR: 0.026, wall: wx, plateY: yT, plateZ: zT };
 }
 
+
 // ===========================================================================
 // THE DOOR INNER PANEL (the user's second option: "a door inside panel inline
 // with the bottom border of that lip ... extending towards the floor").

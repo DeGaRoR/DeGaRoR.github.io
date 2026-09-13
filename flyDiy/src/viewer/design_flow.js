@@ -208,9 +208,7 @@ function stripNumbers() {
       spec = D().designMerge(spec, window.CAGE_JOIN.export());
     // the strip wants a mass and two speeds — not the four loading corners
     const sh = genShakedown(buildGen(spec), { ledger: true, corners: false });
-    return { empty: sh.empty, Vs: sh.Vs, TORun: sh.TORun,
-             role: spec.meta && spec.meta.role,
-             cls: spec.meta && spec.meta.class };
+    return { empty: sh.empty, Vs: sh.Vs, TORun: sh.TORun };
   } catch (e) { return null; }
 }
 
@@ -221,8 +219,7 @@ function stripHtml() {
   const num = (v, f, lab) => Number.isFinite(+v) ? cell(f(+v), lab) : '';
   return num(n.empty, v => Math.round(v) + ' kg', 'empty') +
          num(n.Vs, v => Math.round(v * 3.6) + ' km/h', 'stall') +
-         num(n.TORun, v => Math.round(v) + ' m', 'take-off') +
-         (n.cls ? cell(n.cls, n.role || '') : '');
+         num(n.TORun, v => Math.round(v) + ' m', 'take-off');
 }
 
 // ---------------------------------------------------------------------------
@@ -500,7 +497,9 @@ function surpriseSel() {
   const d = D();
   const sel = {};
   const rnd = a => a[Math.floor(Math.random() * a.length)];
-  for (const r of d.DESIGN_ROWS) {
+  // G292: the birth rows first — a surprise without a class is born at
+  // the stock size whatever else it rolls
+  for (const r of (d.BIRTH_ROWS || []).concat(d.DESIGN_ROWS)) {
     if (r.kind === 'field' || r.key === 'engModel') continue;
     const live = d.rowOptions(r).filter(o => !o.inactive);
     if (live.length) sel[r.key] = rnd(live).value;

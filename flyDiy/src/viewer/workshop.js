@@ -135,13 +135,23 @@ function wsSkinMat(THREE, spec) {
 // Each returns a group whose ORIGIN is where the piece meets the floor, and
 // which is centred on its own footprint — the same contract the baked props
 // carry, so a placement site treats a wing on trestles exactly like a barrel.
-function wsGround(THREE, g) {
+//
+// `floor0` says the group's floor is ALREADY y = 0 and only x/z want centring.
+// wsOnStands needs that: its stands are library props, and since the media
+// store (G149) a prop still on the wire is an EMPTY group until its bytes
+// land. Measured through that, the box held only the piece — lowest point at
+// trestle height — so the whole stack was dropped 0.82 m: the wing lay on the
+// slab and the trestles, when they arrived, stood under it. The Jodel body
+// never showed it because wipBody waits for the prop before measuring.
+function wsGround(THREE, g, floor0) {
   const bb = new THREE.Box3().setFromObject(g);
   if (!isFinite(bb.min.x)) return g;
   const wrap = new THREE.Group();
-  g.position.set(-(bb.min.x + bb.max.x) / 2, -bb.min.y, -(bb.min.z + bb.max.z) / 2);
+  g.position.set(-(bb.min.x + bb.max.x) / 2, floor0 ? 0 : -bb.min.y,
+                 -(bb.min.z + bb.max.z) / 2);
   wrap.add(g);
-  wrap.userData.dim = [bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z];
+  wrap.userData.dim = [bb.max.x - bb.min.x, floor0 ? bb.max.y : bb.max.y - bb.min.y,
+                       bb.max.z - bb.min.z];
   return wrap;
 }
 
@@ -271,7 +281,9 @@ function wsOnStands(THREE, piece, mats, n) {
         Math.max(0.5, Math.min(1.15, (bb.max.z - bb.min.z) * 0.75)), want_));
     }
   }
-  return wsGround(THREE, out);
+  // the stands stand on y = 0 and the piece rests on their tops: this group's
+  // floor is the floor, whether or not the trestle prop has landed yet
+  return wsGround(THREE, out, true);
 }
 
 // WHERE THE WING IS, measured. Outboard of any tail surface only the wing

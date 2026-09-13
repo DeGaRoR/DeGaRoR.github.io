@@ -66,6 +66,7 @@
   </select></label>
   <label><input type="checkbox" id="wire"> wire</label>
   <label><input type="checkbox" id="shOn" checked> shoulder</label>
+  <label><input type="checkbox" id="dpOn"> door panel</label>
   <label><input type="checkbox" id="thrOn" checked> throttle</label>
   <label><input type="checkbox" id="cut"> cutaway</label>
   <button id="eyeP">pilot's eye · port</button>
@@ -261,7 +262,7 @@ const GLASS = new Set(['pasengerWindow', 'pilotWindow', 'windshield', 'skyWindow
 const INTERIOR = { composite: 0x5a554e, plywood: 0x9a7a52, toele: 0x6a5f50, cloth: 0x8a8578,
   tube: 0x4a4d52, woodFrame: 0xb08a5a, dash: 0x2b2b2f, dashFace: 0x141416, firewall: 0x707478,
   fireProof: 0x8a8d90, fireSeal: 0x3a3a3c, bulkhead: 0x6a6d70, reveal: 0x6d675e,
-  shoulder: 0xb9b6ae };
+  shoulder: 0xb9b6ae, doorPanel: 0x8a5a3a };
 function matOf(name, view) {
   const key = name + '|' + view;
   if (MATS[key]) return MATS[key];
@@ -273,6 +274,9 @@ function matOf(name, view) {
       side: THREE.DoubleSide, depthWrite: false });
   else if (name === 'joint' || name === 'doorSeal' || name === 'paneEdge')
     m = new THREE.MeshStandardMaterial({ color: 0x15161a, roughness: 0.85, metalness: 0, side: THREE.DoubleSide });
+  else if (name === 'doorPanel')
+    m = new THREE.MeshStandardMaterial({ color: view === 'sections' ? 0xd06a2a : INTERIOR.doorPanel,
+      roughness: 0.6, metalness: 0.0, side: THREE.DoubleSide });
   else if (name === 'shoulder')
     m = new THREE.MeshStandardMaterial({ color: view === 'sections' ? 0xff8a3c : INTERIOR.shoulder,
       roughness: 0.42, metalness: 0.55, envMapIntensity: 1.0, side: THREE.DoubleSide });
@@ -424,12 +428,14 @@ function build() {
     res = SG.shoulderCheck(outMesh);
     s = outMesh;
   } else outMesh = null;
+  // the door inner panel (the second option), on the shoulder's mesh or the sheet's
+  if ($('dpOn').checked && SG.panelBuild) { outMesh = SG.panelBuild(outMesh || built.mesh, built.spec, {}); s = outMesh; }
   const tSh = performance.now() - t1;
   if (obj) { scene.remove(obj); obj.geometry.dispose(); }
   if (wireObj) { scene.remove(wireObj); wireObj.geometry.dispose(); wireObj = null; }
   obj = geomFrom(s, $('view').value);
   scene.add(obj);
-  if ($('wire').checked) { wireObj = wireFrom(s, f => f.shoulder); scene.add(wireObj); }
+  if ($('wire').checked) { wireObj = wireFrom(s, f => f.shoulder || f.doorPanel); scene.add(wireObj); }
   drawThrottle(lever);
   setClip($('cut').checked);
   sectionLines();
@@ -524,7 +530,7 @@ $('secBtn').onclick = () => {
 $('outBtn').onclick = () => { useOrtho = false; yaw = 1.1; pitch = 0.25; zoom = 1; fitR = 3.4; centre.set(0.2, 0.2, 2.4); draw(); };
 $('sillBtn').onclick = () => { const t = sillMid(1); lookFrom([t[0] - 0.25, t[1] + 0.25, t[2] - 1.6], [t[0], t[1] - 0.05, t[2]]); };
 window.addEventListener('resize', draw);
-for (const id of ['cfg', 'lvl', 'view', 'wire', 'shOn', 'thrOn']) $(id).addEventListener('change', build);
+for (const id of ['cfg', 'lvl', 'view', 'wire', 'shOn', 'dpOn', 'thrOn']) $(id).addEventListener('change', build);
 $('cut').addEventListener('change', () => { setClip($('cut').checked); sectionLines(); draw(); });
 // the pane pumps no rAF (HANDOVER: the Browser pane); every change draws
 async function save(name, port) {

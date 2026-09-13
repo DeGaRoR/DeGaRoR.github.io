@@ -6755,7 +6755,7 @@ const CAGE_PARAMS = {
   // "5-10 cm lip, about 20 cm down".
   shoulderOn: 1, shoulderW: 0.09, shoulderH: 0.27, shoulderT: 0.003,
   shoulderRun: 0,
-  // THE DOOR INNER PANEL (G346): a trim board inside each door from the
+  // THE DOOR INNER PANEL (G3xx): a trim board inside each door from the
   // shoulder's leg to the door's bottom, standing off the door's innermost
   // surface (skin or liner, sampled) by the gap, inset from the cut edges by
   // the margin, chamfered, with an embedded map pocket. Off by default —
@@ -7672,7 +7672,7 @@ function cageCanopy(m, S) {
   for (const f of comp.F) {
     const nf = { v: f.v.map(i2 => i2 + off), m: f.m, att: 1 };
     if (f.win) nf.win = 1;
-    F.push(nf);
+    F.push(nf); bubbleF.push(nf);
   }
   // G316: THE BUBBLE EXPLODES, as one part, straight UP off its seam — a
   // bubble's mean normal is up, and the radial rule keeps it so. `comp`
@@ -7896,7 +7896,7 @@ function cageShoulder(m, S) {
   const SG = (typeof SHOULDER_GEN !== 'undefined') ? SHOULDER_GEN
     : (typeof require === 'function' ? require('./_shoulder_gen.js') : null);
   if (!SG) return m;
-  // THE DOOR INNER PANEL (G346) rides the shoulder's leg (its top edge), so
+  // THE DOOR INNER PANEL (G3xx) rides the shoulder's leg (its top edge), so
   // it is built after the shoulder — and without one when the shoulder is off
   const withPanel = mm => (DP && DP.on && SG.panelBuild)
     ? SG.panelBuild(mm, S, { T: DP.T, gap: DP.gap, margin: DP.margin, pocket: DP.pocket }) : mm;

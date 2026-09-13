@@ -3963,8 +3963,9 @@ function buildMatPanel() {
   // the rings, the pillars, the cowl, etc") -------------------------------
   // ONE pick writes every exterior cage section's tint (skin, rail and
   // pillar roles) and CLEARS the overrides on the layer parts that wear
-  // their parent (the cowl, the struts, the fairings, the fittings), so they
-  // follow the body from here. The per-section wells below still override
+  // their parent (the cowl, the struts, the fairings, the fittings) and on
+  // the soft-pinned hardware (the hinges, 2026-09-13), so they follow the
+  // body from here. The per-section wells below still override
   // afterwards; the wing and the tail keep their own.
   {
     const d = mkRow2('base colour', 'one colour for the whole fuselage — ' +
@@ -3988,7 +3989,7 @@ function buildMatPanel() {
         if (['skin', 'rail', 'pillar'].includes(A.AERO_ROLE[nm])) secTint[nm] = v;
       secTint.body = v;
       if (A.AERO_SEC) for (const k in A.AERO_SEC)
-        if (A.AERO_SEC[k].wears === 'parent') delete secTint[k];
+        if (A.AERO_SEC[k].wears === 'parent' || A.AERO_SEC[k].finFollows) delete secTint[k];
       aeroSavePrefs(); build();
     };
     d.appendChild(c);
@@ -4011,7 +4012,7 @@ function buildMatPanel() {
         }
       if (x <= 0) delete secMetal.body; else secMetal.body = x;
       if (A.AERO_SEC) for (const k in A.AERO_SEC)
-        if (A.AERO_SEC[k].wears === 'parent') delete secMetal[k];
+        if (A.AERO_SEC[k].wears === 'parent' || A.AERO_SEC[k].finFollows) delete secMetal[k];
       aeroSavePrefs(); build();
     };
     dm.appendChild(im); dm.appendChild(vm);
@@ -4037,7 +4038,7 @@ function buildMatPanel() {
         }
       if (Math.abs(x - 1) < 1e-6) delete secRough.body; else secRough.body = x;
       if (A.AERO_SEC) for (const k in A.AERO_SEC)
-        if (A.AERO_SEC[k].wears === 'parent') delete secRough[k];
+        if (A.AERO_SEC[k].wears === 'parent' || A.AERO_SEC[k].finFollows) delete secRough[k];
       aeroSavePrefs(); build();
     };
     dr.appendChild(ir); dr.appendChild(vr);

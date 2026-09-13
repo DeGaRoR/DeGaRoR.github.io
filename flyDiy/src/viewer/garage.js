@@ -976,15 +976,14 @@ function garageInit(api) {
   // Built LAZILY on the first open: the gates boot this file on DOM shims,
   // and a popup nobody clicked for should cost them nothing.
   const slotMeta = n => {
-    // what a save IS, on its row — role, tested, flights (G130's option
-    // text, moved here when the select went). A slot that cannot be parsed
-    // falls back to a bare row, never breaks the rack.
+    // what a save IS, on its row — tested, flights, hours (G130's option
+    // text, moved here when the select went; the role label left with the
+    // role tile, G292). A slot that cannot be parsed falls back to a bare
+    // row, never breaks the rack.
     try {
       const e2 = JSON.parse(lsGet(SLOT + n) || 'null');
       if (!e2) return '';
       const bits = [];
-      const role = e2.spec && e2.spec.meta && e2.spec.meta.role;
-      if (role) bits.push(role);
       if (e2.plaque) bits.push('tested');
       const fl = (e2.log && e2.log.flights) || [];
       if (fl.length) bits.push(fl.length + (fl.length === 1 ? ' flight' : ' flights'));
@@ -1089,8 +1088,7 @@ function garageInit(api) {
     for (const s of STOCK) {          // stock is not yours to delete: no ✕
       const row = document.createElement('div');
       row.className = 'gfRow';
-      const role = s.spec && s.spec.meta && s.spec.meta.role;
-      const b = rowBtn(s.name, role || 'stock design');
+      const b = rowBtn(s.name, 'stock design');
       b.addEventListener('click', () => { closeFleet(); loadStock(s.name); });
       row.appendChild(b);
       stockBox.appendChild(row);

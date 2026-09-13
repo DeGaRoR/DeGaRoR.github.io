@@ -558,12 +558,11 @@ const CLASS_ROWS = [
   // frame is ~115, climbRate 0.09 m/s, take-off rejected by the test pilot.
   // The class fits the 582 until a lighter-structure chantier exists; the
   // 277 stays on the family list for builders who want to learn why.
-  // G132: the LABEL is the live write; everything the class used to pour
-  // over the sliders is its SEED — birth and archetypes take both, the
-  // panel takes the label and offers the seed as an explicit action
+  // G292: BIRTH-ONLY. Everything the class pours over the sliders is its
+  // SEED; birth and the archetypes compose it, and nothing else reads the
+  // table — the tile, its label and `meta.class` are retired
   { value: 'ul1', label: 'Ultralight (single seat)', note: '~180 kg · 1 seat',
     icon: iconSide({ canopy: 'none', deck: 'turtle', gear: 'tail', pod: true, prop: true }),
-    writes: { spec: { meta: { class: 'ul1' } } },
     seed: { cage: Object.assign({}, SHAPE_SEED, {
                     wgSpan: 9.4, wgChord: 1.45, wgChordTip: 1.45,
                     seatLayout: 0, paxCount: 0, halfW: 0.47, roofHalfW: 0.38,
@@ -572,7 +571,6 @@ const CLASS_ROWS = [
                     systems: { fit: 'minimal' }, cabin: { baggage: 0 } } } },
   { value: 'ulm', label: 'Microlight / ULM', note: '472–600 kg · 2 seats',
     icon: iconSide({ canopy: 'screen', gear: 'tail', prop: true }),
-    writes: { spec: { meta: { class: 'ulm' } } },
     // 2026-09-04 (the user: "your side by side setups are generally too
     // narrow, and the pilots stick out from the sides"), and again on
     // 2026-09-11 — the first pass wrote 0.56 believing it was half of 1.12 m
@@ -587,7 +585,6 @@ const CLASS_ROWS = [
                     systems: { fit: 'basic' }, cabin: { baggage: 10 } } } },
   { value: 'lsa', label: 'Light Sport', note: '600 kg · 2 seats · 45 kt stall',
     icon: iconSide({ canopy: 'half', gear: 'trike', prop: true }),
-    writes: { spec: { meta: { class: 'lsa' } } },
     seed: { cage: Object.assign({}, SHAPE_SEED, {
                     wgSpan: 9.0, wgChord: 1.40, wgChordTip: 1.15,
                     seatLayout: 1, paxCount: 1, halfW: 0.87, roofHalfW: 0.73,
@@ -597,7 +594,6 @@ const CLASS_ROWS = [
                     systems: { fit: 'basic' }, cabin: { baggage: 15 } } } },
   { value: 'eab', label: 'Experimental (amateur-built)', note: 'Jodel · Cub · RV',
     icon: iconSide({ canopy: 'screen', deck: 'cabin', gear: 'tail', prop: true }),
-    writes: { spec: { meta: { class: 'eab' } } },
     seed: { cage: Object.assign({}, SHAPE_SEED, {
                     wgSpan: 9.8, wgChord: 1.55, wgChordTip: 1.55,
                     seatLayout: 0, paxCount: 1, halfW: 0.52, roofHalfW: 0.42,
@@ -607,7 +603,6 @@ const CLASS_ROWS = [
                     systems: { fit: 'basic' }, cabin: { baggage: 20 } } } },
   { value: 'n23', label: 'Normal category', note: 'C172 · DR400 · 4 seats',
     icon: iconSide({ canopy: 'screen', gear: 'trike', prop: true }),
-    writes: { spec: { meta: { class: 'n23' } } },
     seed: { cage: Object.assign({}, SHAPE_SEED, {
                     wgSpan: 11.0, wgChord: 1.60, wgChordTip: 1.15,
                     seatLayout: 1, paxCount: 3, halfW: 0.92, roofHalfW: 0.77,
@@ -623,7 +618,6 @@ const CLASS_ROWS = [
   // sustainer is electric.
   { value: 'sail', label: 'Sailplane / motorglider', note: '15–18 m span',
     icon: iconSide({ canopy: 'full', deck: 'turtle', gear: 'none', pod: true }),
-    writes: { spec: { meta: { class: 'sail' } } },
     seed: { cage: Object.assign({}, SHAPE_SEED, {
                     wgSpan: 15.0, wgChord: 1.00, wgChordTip: 0.55,
                     seatLayout: 0, paxCount: 0, halfW: 0.45, roofHalfW: 0.36,
@@ -647,15 +641,13 @@ const CLASS_ROWS = [
 // ---------------------------------------------------------------------------
 const FLAP_IDX = { none: 0, plain: 1, slotted: 2, fowler: 3 };
 
-// G132: a role's LABEL is its live write — the tile can stay lit for ever
-// because it claims only the intention. The geometry it used to pour over
-// the sliders is its SEED, applied at birth and on explicit request, so
-// "Aerobatic" lighting up over a strut-braced high-wing you built since is
-// the honest state of affairs (the gap is content), not a stale claim.
+// G292: BIRTH-ONLY, like the classes. The role's geometry is its SEED,
+// composed at birth for every card that names one; the tile that used to
+// claim the intention (G132's label) and `meta.role` are retired — the
+// panel has no row that is a label and not a fact.
 const ROLE_ROWS = [
   { value: 'bush', label: 'Bush', note: 'short field, rough ground, load',
     icon: iconSide({ canopy: 'screen', gear: 'tail', bigTyres: true, prop: true }),
-    writes: { spec: { meta: { role: 'bush' } } },
     seed: { cage: { wgFlapType: FLAP_IDX.slotted, wgPos: 0, wgBrace: 0,
                     s1R: 0.26 } },
     // climbGrad is a FRACTION on the shakedown's sheet (measured 0.10 on
@@ -664,26 +656,22 @@ const ROLE_ROWS = [
     targets: { TORun: 180, Vs: 13, climbGrad: 0.12 } },
   { value: 'touring', label: 'Touring', note: 'distance, comfort, speed',
     icon: iconSide({ canopy: 'screen', gear: 'trike', prop: true }),
-    writes: { spec: { meta: { role: 'touring' } } },
     seed: { cage: { wgBrace: 1, wgFlapType: FLAP_IDX.plain, s1Fair: 1 },
             spec: { fuel: { litres: 90 } } },
     targets: { VCruise: 50, LD: 12, TORun: 420 } },
   { value: 'aerobatic', label: 'Aerobatic', note: 'strength and roll rate',
     icon: iconSide({ canopy: 'full', deck: 'turtle', gear: 'tail', prop: true }),
-    writes: { spec: { meta: { role: 'aerobatic' } } },
     seed: { cage: { wgPos: 2, wgBrace: 1, wgCamber: 0, wgTipX: 0,
                     wgAilSpan: 0.5, wgAilChord: 0.30,
                     wgFlapType: FLAP_IDX.none } },
     targets: { climbRate: 8, wingLoad: 60, staticMargin: 0.08 } },
   { value: 'glider', label: 'Glider', note: 'L/D above all',
     icon: iconSide({ canopy: 'full', deck: 'turtle', gear: 'none', pod: true }),
-    writes: { spec: { meta: { role: 'glider' } } },
     seed: { cage: { wgBrace: 1, wgFlapType: FLAP_IDX.none, wgAilSpan: 0.45 },
             spec: { fuel: { litres: 5 } } },
     targets: { LD: 22, Vs: 16, wingLoad: 34 } },
   { value: 'cargo', label: 'Cargo', note: 'payload and volume',
     icon: iconSide({ canopy: 'screen', gear: 'tail', tail: 'conv', prop: true }),
-    writes: { spec: { meta: { role: 'cargo' } } },
     seed: { cage: { wgPos: 0, wgBrace: 0 },
             spec: { cargo: { len: 1.0 } } },
     targets: { payload: 350, TORun: 500, VCruise: 42 } },
@@ -691,7 +679,6 @@ const ROLE_ROWS = [
     icon: iconSide({ canopy: 'screen', gear: 'trike', prop: true }),
     // the trainer deliberately seeds almost nothing: the middle of
     // everything IS the default aeroplane
-    writes: { spec: { meta: { role: 'trainer' } } },
     seed: { spec: { systems: { fit: 'basic' } } },
     targets: { Vs: 15, TORun: 300, staticMargin: 0.15 } },
 ];
@@ -806,23 +793,11 @@ const DESIGN_ROWS = [
     status: 'live', help: 'painted along the boom; paint.regX places it',
     specPath: ['meta', 'reg'], maxLen: 8 },
 
-  // G132: role and class are DISCRIMINATORS over their labels now — the
-  // pick writes meta and nothing else, so the lit tile is always true. The
-  // one-shot geometry lives in each option's `seed` (birth applies it; the
-  // panel offers it as an explicit action).
-  { key: 'role', label: 'Role', kind: 'discriminator', group: 'identity',
-    status: 'live',
-    help: 'an intention, not a geometry — the label is live, the starting ' +
-          'values apply on request, and missions will judge the gap',
-    read: (P, S) => S && S.meta && S.meta.role || null,
-    options: ROLE_ROWS },
-
-  { key: 'class', label: 'Size class', kind: 'discriminator',
-    group: 'identity', status: 'live',
-    help: 'a label, not a constraint — the gap between the declared ' +
-          'class and the built aeroplane is content',
-    read: (P, S) => S && S.meta && S.meta.class || null,
-    options: CLASS_ROWS },
+  // G292: role and class are NOT ROWS any more (the user: "retire the role
+  // and size class options"). G132 had made them labels — a pick wrote
+  // meta.role / meta.class and nothing else, the seed rode a pill — and a
+  // tile that is a label and not a fact is a tile the panel does not need.
+  // The tables live on as BIRTH_ROWS below: the archetypes' recipes.
 
   // ---- cabin --------------------------------------------------------------
   { key: 'seatLayout', label: 'Seat arrangement', kind: 'discriminator',
@@ -1942,6 +1917,17 @@ const ARCHETYPES = [
 const rowByKey = {};
 for (const r of DESIGN_ROWS) rowByKey[r.key] = r;
 
+// G292: THE BIRTH ROWS — class and role, row-shaped so `optionOf`,
+// `designApply` and `archInactive` resolve an archetype's `class`/`role`
+// exactly as they resolve its tiles, but NOT in DESIGN_ROWS: the grid
+// never draws them, no `read` claims them, and their options write nothing
+// live — each is a seed and nothing else, composed FIRST at birth (below).
+const BIRTH_ROWS = [
+  { key: 'class', label: 'Size class', kind: 'birth', options: CLASS_ROWS },
+  { key: 'role', label: 'Role', kind: 'birth', options: ROLE_ROWS },
+];
+for (const r of BIRTH_ROWS) rowByKey[r.key] = r;
+
 const rowOptions = r =>
   typeof r.options === 'function' ? r.options() : (r.options || []);
 
@@ -2226,7 +2212,7 @@ function archInactive(a) {
   return null;
 }
 
-const API = { DESIGN_ROWS, DESIGN_GROUPS, ARCHETYPES, rowByKey, rowOptions,
+const API = { DESIGN_ROWS, DESIGN_GROUPS, BIRTH_ROWS, ARCHETYPES, rowByKey, rowOptions,
               optionOf, designApply, designSeed, designMerge,
               designOverwriteCount, designBake, designFull, archInactive, archIcon,
               designEngineModels, designEngineFamilies, designPresetFamily,

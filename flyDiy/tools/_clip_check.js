@@ -198,7 +198,7 @@ function runBuild(B) {
     return skinOn;
   } });
   const orient = fuse.orient();
-  // THE TRIM IS A SKIN TOO (G346): the sill shoulder and the door inner
+  // THE TRIM IS A SKIN TOO (G3xx): the sill shoulder and the door inner
   // panel are closed solids inside the cabin that a wall-mounted fitting
   // must stand OFF, not in — a fitting inside them is a red like any other
   let trim = null;
@@ -339,7 +339,7 @@ const BUILDS = [
   { name: 'rod', over: { boomStyle: 1 } },
   { name: 'twin', spec: FIX('build_v8_twin-boom_2026-09-11.json') },
   { name: 'stock+ifr', garage: IFR },
-  // G346: the door inner panel on — the wall controls must stand off it
+  // G3xx: the door inner panel on — the wall controls must stand off it
   { name: 'stock+panel', over: { doorPanelOn: 1 } },
 ];
 
