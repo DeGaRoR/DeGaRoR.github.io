@@ -51,6 +51,9 @@ const MANIFEST = {
     // THE ELECTRICAL BUS (the panel arc, session 4): pure, read by the
     // cockpit and the gates; after the solver only by kinship
     '31_elec.js',
+    // THE FLOAT IN WATER (H1, G382): the hull, its panels and their force
+    // law; the frame builds a float from it and the solver runs it
+    '32_hydro.js',
     // THE GROUND PATH (G193): a declared pattern graph sampled into a path the
     // pilots follow (fillets, curvature, a STOP); pure, read by 25_'s
     // sitePattern consumers, the two pilots, pattern_vis.js and the gates.

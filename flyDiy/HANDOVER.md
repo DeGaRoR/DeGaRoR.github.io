@@ -44761,3 +44761,76 @@ PARTS, MEDIA. Pictures: screenshots/weather/g3455_*.png.
   built: the record and its contract (v1 + seven amendments), the composer,
   the renderer, the editor with its nine sections, the gate (186 checks over
   four fixtures), the showcase, the measurement. What is not: the game host.
+
+
+
+## G382 — THE FLOAT IN THE SOLVER, H1: TWO FLOATS AS NODE BODIES, THE H0 LAW
+## ON THEIR FRAME NODES, THE ULTRALIGHT SETTLED, FLOWN OFF AND LANDED ON THE
+## SEA (2026-09-13, WATER-2026-09-13.md H1; the user: "keep going, next step")
+
+`gear.type: 'floats'` builds a seaplane. Files: `src/core/32_hydro.js` (the
+H0 model, now a core file — flight_core carries it as HYDRO; tools/
+_hydro_gen.js is a shim, the bench loads the core file), `61_gen_frame.js`
+(the float branch of the gear section), `30_solver.js` (the pass),
+`60_gen_spec.js` (the type), `tools/_floats_check.js` (GATE FLOATS, core,
+~95 s). Nothing drawn yet: the flight view still puts wheels at the step
+keels (parts.GAL/GAR) and `refs.tw` is -1 — the drawn float is H2.
+
+THE FLOAT AS NODES. Each float is twelve nodes — keel and both deck edges
+at four stations (bow, the flat's end, the step, the stern) — with a
+triangulated shell of internal members and ONE rigid cluster (G294's shape
+matching, no omega), struts to the same anchors the wheels use (forward
+leg, aft brace, inner post), spreader bars and cross wires between the
+pair. Its hull for the water is 32_hydro's, sized by `floatParamsFor`: the
+H0 float scaled so the pair displaces 180 % of the gross (linear
+dimensions by the cube root, the shell's mass by the square). THE PANELS
+RIDE ON FOUR FRAME NODES: every hull vertex is an affine combination of the
+tetra [step keel, bow keel, step deck L, step deck R] — its barycentrics
+taken at rest, exact under any rigid motion — and each term's force lands
+on those four nodes by the barycentrics of its own point of application
+(the hydrostatic at the pressure centroid, the rest at the wet centroid):
+the right net force and torque, on real nodes, as a strip's (ruling an).
+The pose provider (`tetraCtx`) and the bench's rigid body (`rigidCtx`) feed
+the ONE force pass, `hydroPanels`. Water is sampled once per float per
+substep at its step keel (a lake is level; waterH costs 0.7 us x 130
+vertices) — the flat-water cut until (ap).
+
+THE STEP GOES AFT OF THE CG. First run: the step at the wheels' axle
+station — which the taildragger rake puts AHEAD of the CG — and the
+aeroplane sat tail-down on its afterbodies at 18 deg with the step keels
+dry: the physics being right about a wrong placement. The float's step is
+12 deg off the vertical from the CG down to the keel (the seaplane rule,
+10-15), and the wheels' `gear.x` (an editor's or a fixture's) is not read
+for floats. The step keel sits a hand (0.10 m) under the wheel contact
+plane; the track is the wheels'.
+
+MEASURED, on the user's ultralight (592 kg on floats of 4.30 x 0.67 m,
+39 kg each, the pair displacing 1024 kg to the deck = 1.73 x gross; the
+rule's 1.8 lands at 1.73 because the mass the first pass sizes them from
+is the frame before the floats' own 79 kg), the sea at (0, 1600):
+- SETTLE from 0.3 m: L/W 1.00, draft 0.266 m at the step, 6.8 deg nose-up,
+  roll 0, max beam strain 0.025.
+- TAKE-OFF, full throttle, stick back past 12 m/s: hump R/W 0.21 at
+  8.5-10 m/s (Cv 3.3-3.9, the H0 number on the H0 float), the steps
+  ventilated at 10-12 m/s, wetted area 3.5 -> 0.7 m2, trim peaking 6 deg,
+  airborne at 24 m/s, 11 s after throttle-up. With the elevator at zero it
+  never leaves: at 36 m/s it planes at 0.2 deg with the floats carrying
+  24 % — the sticking a pilot rotates out of.
+- LANDING, trimmed by bisection (1.3 Vs = 23.8 m/s, quarter throttle, the
+  elevator that gives 1 m/s down): the touch at 0.92 m/s and 6 deg
+  nose-up, the water's lift 0.02 / 0.15 / 0.32 / 0.49 / 0.62 / 0.72 /
+  0.79 / 0.83 W frame by frame, the sink arrested in 0.18 s, one skip,
+  a run-out through the hump backwards (15 deg at 8 m/s) to an idle taxi
+  at 3.2 m/s and 6.8 deg. The largest one-frame change 0.30 W. Untrimmed
+  (the first try: 5 m/s down, nose-down) it slammed at 4.9 W — a crash
+  landing reads as one.
+- STABILITY: 79 substeps on this build (the frame's own count); no NaN in
+  any run; the tetra nodes weigh 5-10 kg each, the slam's c*dt further
+  inside the envelope than H0's 3 kg share.
+- Still owed: the drawn float and the join measuring it (H2); waves
+  (the surface's time argument, ap); the water rudder and the taxi (H4 —
+  a float build cannot steer on the water and the AP has no idea it is on
+  one); the viewer's wheel drawing at the keels; genShakedown reads no
+  wheels on a float build (onWheels false, harmless).
+- Gates: FLOATS, HYDRODYN green; the rest of the core battery on the
+  branch's worktree before landing.

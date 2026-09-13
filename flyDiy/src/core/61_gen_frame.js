@@ -26,7 +26,7 @@ function genQuadArea(P, a, b, c, d) {
 
 // One pass of the lattice. gearX/track are supplied by genFrame on the second
 // pass once the CG is known (see the gear section).
-function genLattice(S, gearX, track, kScale) {
+function genLattice(S, gearX, track, kScale, gross) {
   const M = GEN_MATERIALS[S.material];
   // THE PART'S OWN CONSTRUCTION REACHES THE STRUCTURE (G116 mass + price,
   // G117 stiffness + damping — the user: "carbon should cost", then
@@ -1718,8 +1718,6 @@ function genLattice(S, gearX, track, kScale) {
   // CAMBER: the node's radius is what the solver contacts the ground on, and a
   // leaning wheel touches R*cos(camber) below its axle. Resolved once, on the
   // spec, so the mesh and the clearance rules cannot disagree with the physics.
-  const [GAL, GAR] = NM(gx, gy, 0.5 * tr, 'AXLE', S.gear.contactR);
-  B(GAL, GAR, 'gear');
   // Rule 7: the gear needs a LONGITUDINAL (drag) load path anchored well fore
   // AND aft of the axle, into HEAVY nodes. The anchors used to be hard-coded to
   // rings 0 and 1 — but the axle position is DERIVED, and when it landed aft of
@@ -1739,6 +1737,11 @@ function genLattice(S, gearX, track, kScale) {
   const aheadOfAll = ST[0].x > gx + 0.10;
   const fwdL = aheadOfAll ? EL : F[iFwd].BL, fwdR = aheadOfAll ? ER : F[iFwd].BR;
   const AA = F[Math.max(iAft, aheadOfAll ? 0 : Math.min(iFwd + 1, F.length - 1))];
+  const trike = S.gear.type === 'tricycle';
+  let GAL, GAR, TW, twX, twY, FLOATS = null;
+  if (S.gear.type !== 'floats') {
+  [GAL, GAR] = NM(gx, gy, 0.5 * tr, 'AXLE', S.gear.contactR);
+  B(GAL, GAR, 'gear');
   // What each of those six members IS, now that `vis` can say so. The forward
   // pair is the SUSPENSION LEG — bungee cord, spring steel or oleo, drawn as
   // whichever the spec bought. The same-side aft pair is the drag brace, a
@@ -1770,8 +1773,6 @@ function genLattice(S, gearX, track, kScale) {
 
   // The third wheel. `refs.tw` is whichever it is — the solver steers that node
   // and the sign of twSteer says which end it lives at.
-  const trike = S.gear.type === 'tricycle';
-  let TW, twX, twY;
   if (trike) {
     // NOSEWHEEL, forward under the engine bay, at a height that leaves the
     // aeroplane essentially level (a touch nose-up, the way a real trike sits).
@@ -1828,6 +1829,57 @@ function genLattice(S, gearX, track, kScale) {
     B(TW, TPT, 'gear', false, 'inner');
     B(TW, HTL, 'gear', false, 'wire'); B(TW, HTR, 'gear', false, 'wire');
     pt(TW, 2.0 + mFairTw);
+  }
+  } else {
+    // ---- FLOATS (H1, G382). Two floats, each a RIGID NODE BODY: keel and
+    // both deck edges at four stations (bow, the flat's end, the step, the
+    // stern), a triangulated shell drawn inside the float, one cluster so
+    // it holds its shape — and struts to the same anchors the wheels use
+    // (the forward leg, the aft brace, the inner post), spreader bars and
+    // cross wires between the two. The float's hull for the water is
+    // 32_hydro's, sized from the gross mass (floatParamsFor: a pair
+    // displaces 180 % of it); its panels ride on the four frame nodes of
+    // the tetra [step keel, bow keel, step deck L/R] by barycentrics
+    // (hydroBuild). The step sits where the mains' axle would (the same
+    // rake rule off the CG: 10-15 deg is the seaplane's), the step keel a
+    // hand under the wheel contact plane. No third wheel: refs.tw is -1,
+    // the stance and the power nose-over read none, the mains refs are the
+    // two step keels (r 0) so the ground pass and the viewer keep a pair.
+    const FP = HYDRO.floatParamsFor(gross || 400);
+    const yK = gy - S.gear.contactR - 0.10;
+    const stas = [-FP.xs, -FP.xFlat, 0, FP.L - FP.xs];
+    FLOATS = [];
+    for (const sd of [-1, 1]) {
+      const zc = sd * 0.5 * tr;
+      const K = [], DL = [], DR = [], Q = [];
+      for (const xs of stas) {
+        const sc = HYDRO.sectionOf(FP, xs === 0 ? -1e-9 : xs);
+        K.push(N(gx + xs, yK + sc.yk, zc, 'FLK'));
+        DL.push(N(gx + xs, yK + sc.yd, zc - sc.b, 'FLD'));
+        DR.push(N(gx + xs, yK + sc.yd, zc + sc.b, 'FLD'));
+        Q.push([xs, sc.yk, 0], [xs, sc.yd, -sc.b], [xs, sc.yd, sc.b]);
+      }
+      const all = [...K, ...DL, ...DR];
+      const mEach = FP.mFloat / all.length;
+      for (const i of all) pt(i, mEach);
+      for (let i = 0; i + 1 < 4; i++) {
+        B(K[i], K[i + 1], 'gear', false, 'inner'); B(DL[i], DL[i + 1], 'gear', false, 'inner'); B(DR[i], DR[i + 1], 'gear', false, 'inner');
+        B(K[i], DL[i + 1], 'gear', false, 'inner'); B(K[i], DR[i + 1], 'gear', false, 'inner');
+        B(DL[i], DR[i + 1], 'gear', false, 'inner'); B(DR[i], DL[i + 1], 'gear', false, 'inner');
+      }
+      for (let i = 0; i < 4; i++) { B(K[i], DL[i], 'gear', false, 'inner'); B(K[i], DR[i], 'gear', false, 'inner'); B(DL[i], DR[i], 'gear', false, 'inner'); }
+      clusters.push({ cls: 'float', tag: 'FLT' + (sd < 0 ? 'L' : 'R'), nodes: all });
+      const Din = sd < 0 ? DR : DL, Dout = sd < 0 ? DL : DR;
+      const fB = sd < 0 ? fwdL : fwdR, aB = sd < 0 ? AA.BL : AA.BR, fT = sd < 0 ? F[iFwd].TL : F[iFwd].TR;
+      B(Din[1], fB, 'gear', true, 'leg'); B(Din[2], aB, 'gear', true);
+      B(Dout[2], fT, 'gear', false, 'inner'); B(Dout[1], fB, 'gear', true, 'wire');
+      B(Din[2], fB, 'gear', true, 'wire'); B(Din[1], aB, 'gear', true, 'wire');
+      FLOATS.push({ side: sd, K, DL, DR, tetra: [K[2], K[0], DL[2], DR[2]],
+                    tetraLocal: [Q[6], Q[0], Q[7], Q[8]], P: FP, pos: [gx, yK, zc] });
+    }
+    const [FL, FR] = FLOATS;
+    for (const i of [1, 2]) { B(FL.DR[i], FR.DL[i], 'gear', true); B(FL.DR[i], FR.DL[i === 1 ? 2 : 1], 'gear', true, 'wire'); }
+    GAL = FL.K[2]; GAR = FR.K[2]; TW = -1; twX = gx; twY = yK;
   }
 
   // ---- 6. payload, fuel, systems --------------------------------------
@@ -2179,6 +2231,7 @@ function genLattice(S, gearX, track, kScale) {
                       : 'cantilever box', strutOffset, trike,
     ledger,
     gearAnchors: [iFwd, iAft], kScale: KS, kGear: KG,
+    floats: FLOATS,             // H1: the float records, or null
   };
   // G314: a cluster that declared a stiffness and its calibration pair gets
   // its omega now, on the final masses (omega scales as sqrt(K / M))
@@ -2226,11 +2279,18 @@ function genFrame(S) {
         return (cg[0] - R.noseLoad * xNose) / (1 - R.noseLoad);
       })()
     : cg[0] - Math.tan(R.gearRake * D) * (cg[1] - gy);
-  const gx = (S.gear.x !== null && S.gear.x !== undefined ? S.gear.x : autoGx)
+  // H1: a seaplane's STEP goes AFT of the CG — 12 deg off the vertical
+  // from the CG down to the step keel (the rule is 10-15) — the inverse of
+  // the taildragger's rake; and the wheels' axle station (S.gear.x, the
+  // editor's or a fixture's) is not the step's, so it is not read for floats
+  const floatsGear = S.gear.type === 'floats';
+  const stepGx = floatsGear ? cg[0] + Math.tan(12 * D) * (cg[1] - (gy - S.gear.contactR - 0.10)) : null;
+  const gx = (floatsGear ? stepGx
+              : (S.gear.x !== null && S.gear.x !== undefined ? S.gear.x : autoGx))
              + S.place.gearDx;
   const tr = Math.max(0.5, (S.gear.track !== null && S.gear.track !== undefined
     ? S.gear.track : R.trackRatio * (cg[1] - (gy - S.gear.contactR))) + S.place.gearDtrack);
-  const out = genLattice(S, gx, tr, kScale);
+  const out = genLattice(S, gx, tr, kScale, cg[3]);   // H1: the gross mass sizes the floats
   out.cg0 = genLatticeCG(out.nodes);
   return out;
 }

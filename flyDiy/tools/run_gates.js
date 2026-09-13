@@ -41,6 +41,8 @@ const GATES = [
   { id: 'GE', file: 'test_ground_effect.js', tier: 'core' },
   { id: 'FLAPS', file: 'test_flaps.js', tier: 'core' },
   { id: 'STRESS', file: 'test_stress.js', tier: 'core' },
+  // G384: under core, GEN builds every configuration but flies four of the
+  // sixteen circuits (test_gen.js CORE_FLY); --all flies them all
   { id: 'GEN', file: 'test_gen.js', tier: 'core' },
   // THE TEST PILOT (G107): the second autopilot's own battery, negative-first —
   // a build that cannot fly must come back SAYING SO in bounded time. Carries
@@ -243,6 +245,9 @@ const GATES = [
   // water terms against the fleet's envelope, the hump on three tows, the
   // touchdown's drag climbing over frames (~30 s)
   { id: 'HYDRODYN', file: '_hydro_check.js', tier: 'core' },
+  // THE FLOAT IN THE SOLVER (H1, G382): the ultralight on floats settled,
+  // taken off and landed on the sea, headless (~95 s)
+  { id: 'FLOATS', file: '_floats_check.js', tier: 'core' },
   // THE PLAYER (HANGARS S1): the player's property as ONE document — its own
   // version and migrator walk beside the spec's (G105's ruling: state that is
   // not the aeroplane costs no spec version), the one-time lift of the two

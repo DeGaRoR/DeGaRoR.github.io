@@ -3764,7 +3764,7 @@ function clampSpec(spec) {
   // the V's dihedral. Too shallow and it cannot make yaw at any sane area; too
   // steep and it cannot make pitch. The Bonanza's is about 33.
   S.tail.vAngle = genClamp(S.tail.vAngle == null ? 33 : S.tail.vAngle, 20, 55);
-  if (!['taildragger', 'tricycle'].includes(S.gear.type)) S.gear.type = 'taildragger';
+  if (!['taildragger', 'tricycle', 'floats'].includes(S.gear.type)) S.gear.type = 'taildragger';
   if (!GEN_SUSPENSION[S.gear.suspension]) S.gear.suspension = 'bungee';
   // WHEEL FAIRINGS, off by default. `spat` is the shell over the wheel alone;
   // `full` carries it up the leg as well. The drag model this comment once

@@ -304,6 +304,12 @@ function makeSim(def, world) {
   const FP = P_.flaps;   // per-aircraft high-lift deltas; undefined = no flaps
   let simT = 0;          // sim time for the deterministic wind field
   const out = { V: 0, alpha: 0, thrust: 0, wash: 0, alt: 0, vs: 0, thrustPer: [] };
+  // THE FLOATS (H1, G382): a build on floats carries parts.floats — two
+  // rigid node bodies — and the hydro law (32_hydro.js) runs on the hull
+  // each float declares, its forces landing on the float's four frame
+  // nodes. No floats, no pass, no cost.
+  const HY = (typeof HYDRO !== 'undefined' && HYDRO) ? HYDRO.hydroBuild(def, p, v) : null;
+  out.hydro = HY;
   let totalM = 0;
   for (const nd of def.nodes) totalM += nd.m;
 
@@ -1207,6 +1213,8 @@ function makeSim(def, world) {
         }
       }
     }
+    // THE WATER (H1): every wet panel of every float, onto the frame
+    if (HY && world) out.hydroWet = HYDRO.hydroSolverPass(HY, world, f, simT, dt);
     // tree collisions: cheap cylinder push-out, only when low and near trees
     if (world) {
       const cgx = p[0], cgz = p[2];   // any chassis node as coarse anchor
@@ -1360,7 +1368,7 @@ function makeSim(def, world) {
   const sim = { p, v, m, r, beams, n, ctl, out, get totalM() { return totalM; },
            setNodeMass,
            // the panel arc: the tanks, the engines and their one writer
-           fuel, eng, setEngine, thrEffOf,
+           fuel, eng, setEngine, thrEffOf, hydro: HY,
            reset, stance, step, probe, stats, impulse, wheelsOnGround, cgPos, cgVel, axes,
            // G197: the kernel's sources, readable (the gate asserts the weights' normalisation)
            induction: () => ({ WS: WS.slice(), plane: Array.from(PLANE), bHalf: Array.from(bHalf), Ez: Array.from(Ez), Dz: Array.from(Dz), Gam: Array.from(Gam), Wg: Array.from(Wg), zA: WS.map(j => sA[j*3+2]), zB: WS.map(j => sB[j*3+2]), A: WS.map(j => [sA[j*3], sA[j*3+1], sA[j*3+2]]), B: WS.map(j => [sB[j*3], sB[j*3+1], sB[j*3+2]]), d: sD.slice(), cpt: Array.from(cpt), pairs: pairs.length, loading: LOADING }),
