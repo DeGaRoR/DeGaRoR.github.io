@@ -54,6 +54,7 @@
 const D2R = Math.PI / 180;
 
 function buildStation(P, lod, F) {
+  if (Math.round(P.station) === 2) return buildBase(P, lod, F);   // the base station (G346)
   const HG = window.HOUSE_GEN, K = window.HOUSE_KIT;
   const { add, sub, mul, nrm, len, crs, beam, cyl, face, boxAB } = K;
   const g = typeof P.ground === 'function' ? P.ground
@@ -311,7 +312,9 @@ function buildStation(P, lod, F) {
       bm(ST, [sx * hw, y, zF - 4.2], [sx * hw, y, zF - 0.6], 0.04, 0.04);
       if (!lo) bm(ST, [sx * hw, y, zF - 4.2], [sx * hw, y + 1.0, zF - 0.6], 0.03, 0.03);
     }
-    S.hooks.dock = { p: [0, deckY - P.dockDrop + 1.2, zF - 2.4], w: hw * 2 };
+    // the dock: where a cabin stands with its floor level with the gallery's, past the tip
+    S.hooks.dock = { p: [0, deckY + 0.3, zF + 2.2], dx: 2.2, w: hw * 2 };
+    S.kind = 'top';
     // THE PASSAGE TRUSS and its bents
     if (P.passage) {
       const x1 = 1.35, ty0 = deckY - 1.5, ty1 = deckY + 0.1, zEnd = zPass1;
@@ -353,5 +356,220 @@ function buildStation(P, lod, F) {
   return built;
 }
 
-window.TRAM_GEN = { buildStation };
+
+// ---------------------------------------------------------------------------
+// THE BASE STATION (G346, the user: "I have references for the base station
+// ... we'll do less grand, more rustic. Keep the architecture, but drop the
+// giant windows, so it looks more like a giant open barn, wooden structure").
+//
+// THE ARCHITECTURE, read off the Goldbelt lower terminal: a tall hall whose
+// whole end toward the line is OPEN - the ropes come in over that end and the
+// cabin comes down through it into the dock; inside, the rope tower (two
+// raked legs to a crossbeam under the roof, the sheave carriages on it at
+// the line's angle, the track ropes' anchor drums behind), the curved plate
+// GUIDES that take the cabin's hanger as it comes in, a raised DOCK at the
+// cabin's floor with its rails and stairs, and the haul rope's tension
+// wheel on its carriage at the back with the counterweight under it; a
+// lower building beside it for the tickets. Here the hall is a BARN: a
+// house build ten metres to the eave in weathered boards under worn
+// corrugated iron, its gable end left open (`openFront` on the end that
+// faces the line), a few small windows high in the long walls instead of
+// the glass front, and the timber frame that holds such a roof drawn
+// inside - posts at every bay, tie beams, king posts, struts, purlins,
+// knee braces. The annex is a two-storey house against one long wall.
+//
+// The frame: +z is the LINE (the ropes go up that way to the top station),
+// -z the back of the barn, x across, the slab on the ground at the origin.
+function buildBase(P, lod, F) {
+  const HG = window.HOUSE_GEN, K = window.HOUSE_KIT;
+  const { add, sub, mul, nrm, len, crs, beam, cyl, face, boxAB } = K;
+  const g = typeof P.ground === 'function' ? P.ground
+    : (x, z) => -Math.tan(P.slopeX * D2R) * x - Math.tan(P.slopeZ * D2R) * z;
+  const L = P.barnL, W = P.barnW, Hb = P.barnH, lo = lod > 0;
+  const floorY = P.floorY;
+  const wallSet = HG.SET_IDX('wall', 'greywood'), roofSet = HG.SET_IDX('roof', 'corrworn');
+  const parts = [], boxes = [];
+  const houseAt = (tag, Pb, x, z, yaw) => {
+    const c = Math.cos(yaw || 0), s = Math.sin(yaw || 0);
+    const hx = Math.abs(Pb.L / 2 * c) + Math.abs(Pb.w / 2 * s), hz = Math.abs(Pb.L / 2 * s) + Math.abs(Pb.w / 2 * c);
+    const b = { tag, x, z, x0: x - hx, x1: x + hx, z0: z - hz, z1: z + hz, y0: Pb.floorY, y1: Pb.floorY + Pb.storeys * Pb.floorH };
+    boxes.push(b);
+    parts.push({ tag, P: Pb, x, z, yaw: yaw || 0, box: b });
+    return b;
+  };
+  // THE BARN: turned a quarter so its gable ends face along the line; the
+  // left end (local -x) lands on +z, the line's side, and is the open one
+  houseAt('barn', {
+    L, w: W, storeys: 1, floorH: Hb, floorY, stance: 0, skirt: 0, roofFam: 0, pitch: P.barnPitch, eaveOver: 0.8, rakeOver: 0.7,
+    hip: 0, door: 0, backDoor: 0, porch: 0, stairs: 0, chim: 0, gutter: 0, downpipe: 0, dormers: 0, gableWin: 1, openFront: 4,
+    nFront: P.barnWin, nBack: P.barnWin, nLeft: 0, nRight: 0, winW: 1.0, winH: 0.9, winSill: Hb - 3.2, muntin: 1, curtains: 0, trimW: 0.1,
+    wallSet, wallCol: 0, trimSet: HG.SET_IDX('trim', 'veneerpale'), trimCol: 0, roofSet, roofCol: 0,
+    postSet: HG.SET_IDX('post', 'rough'),
+    weather: 0.85, dirt: 0.6, dirtH: 1.4, paintPunch: 0, clouds: 0.5, ribs: 0, ao: 0,
+  }, 0, 0, Math.PI / 2);
+  // THE ANNEX against the +x wall, its door on its outer side
+  if (P.annexOn) {
+    const aL = P.annexL, aW = P.annexW;
+    houseAt('annex', {
+      L: aL, w: aW, storeys: 2, floorH: 2.8, floorY: floorY + 0.35, stance: 1, skirt: 2, roofFam: 0, pitch: 30, eaveOver: 0.55, rakeOver: 0.4,
+      hip: 0, door: 1, doorPos: 0.5, doorW: 1.1, porch: 1, porchD: 1.8, porchLenF: 0.3, porchRoof: 1, railStyle: 1, stairs: 1,
+      backDoor: 0, chim: 1, chimR: 0.14, chimXF: -0.55, gutter: 1, downpipe: 1, dormers: 0, gableWin: 1,
+      nFront: 4, nBack: 0, nLeft: 2, nRight: 2, winW: 1.15, winH: 1.35, winSill: 0.9, muntin: 1, curtains: 0.4,
+      wallSet, wallCol: 0, trimSet: HG.SET_IDX('trim', 'veneerpale'), trimCol: 0, roofSet, roofCol: 0,
+      postSet: HG.SET_IDX('post', 'rough'),
+      weather: 0.8, dirt: 0.55, dirtH: 1.2, paintPunch: 0, clouds: 0.45,
+    }, W / 2 + aW / 2 - 0.1, -L / 2 + aL / 2 + 1.5, Math.PI / 2);
+  }
+  for (const part of parts) {
+    const c = Math.cos(part.yaw), s = Math.sin(part.yaw), me = part.box;
+    part.P.winKeep = (lx, lz, y0, y1) => {
+      const wx = lx * c + lz * s + part.x, wz = -lx * s + lz * c + part.z, y = (y0 + y1) / 2;
+      return !boxes.some(b => b !== me && wx > b.x0 - 0.3 && wx < b.x1 + 0.3 && wz > b.z0 - 0.3 && wz < b.z1 + 0.3 && y > b.y0 - 0.3 && y < b.y1 + 0.3);
+    };
+  }
+
+  const S = { kind: 'base', hooks: {}, barn: { L, W, H: Hb } };
+  const extra = (bags, built, Q) => {
+    const ST = bags.steel, GD = bags.girder, CO = bags.stone, PO = bags.post, DK = bags.deck;
+    const bm = (bag, a, b, w, t, up) => beam(bag, a, b, w, t, up || [0, 1, 0]);
+    const eaveY = floorY + Hb, rise = W / 2 * Math.tan(P.barnPitch * D2R), ridgeY = eaveY + rise;
+    const roofAt = x => ridgeY - Math.abs(x) * Math.tan(P.barnPitch * D2R);   // the roof's underside line at the wall's inner face
+    // THE TIMBER FRAME: a bay every `bay` metres from the back end to the open end
+    const nBay = Math.max(2, Math.round(L / P.barnBay)), xi = W / 2 - 0.45, ps = 0.2;
+    for (let i = 0; i <= nBay; i++) {
+      const z = -L / 2 + 0.45 + (L - 0.9) * i / nBay;
+      for (const sx of [-1, 1]) {
+        bm(PO, [sx * xi, floorY, z], [sx * xi, roofAt(xi) - 0.35, z], ps, ps);            // the post
+        bm(PO, [sx * xi, eaveY - 1.6, z], [sx * (xi - 1.4), eaveY - 0.32, z], 0.08, 0.1);   // the knee brace
+      }
+      bm(PO, [-xi, eaveY - 0.32, z], [xi, eaveY - 0.32, z], 0.15, 0.18);                    // the tie beam
+      bm(PO, [0, eaveY - 0.2, z], [0, ridgeY - 0.3, z], 0.12, 0.12);                          // the king post
+      if (!lo) for (const sx of [-1, 1]) bm(PO, [0, eaveY + rise * 0.3, z], [sx * W * 0.27, roofAt(W * 0.27) - 0.28, z], 0.08, 0.08);   // the struts
+    }
+    for (const sx of [-1, 1]) for (const f of [0.33, 0.66]) {                                 // the purlins
+      const x = sx * W / 2 * (1 - f);
+      bm(PO, [x, roofAt(x) - 0.2, -L / 2 + 0.3], [x, roofAt(x) - 0.2, L / 2 - 0.3], 0.08, 0.1);
+    }
+    bm(PO, [-W / 2 + 0.3, eaveY - 0.32, L / 2 - 0.45], [W / 2 - 0.3, eaveY - 0.32, L / 2 - 0.45], 0.16, 0.2);   // the lintel over the open end
+    // THE ROPE TOWER: two raked legs from footings to a crossbeam under the roof, at the open end
+    const zT = L / 2 - P.towerIn, hT = floorY + P.towerH, xT = P.dockDx + 1.4;
+    for (const sx of [-1, 1]) {
+      const foot = [sx * xT, floorY, zT - P.towerRake], head = [sx * xT, hT, zT];
+      boxAB(CO, [foot[0] - 0.7, floorY - 0.05, foot[2] - 0.7], [foot[0] + 0.7, floorY + 0.25, foot[2] + 0.7]);
+      bm(ST, [foot[0], floorY + 0.2, foot[2]], head, 0.22, 0.28);
+      bm(ST, [sx * xT, floorY + 0.2, zT + 1.6], head, 0.12, 0.16);                             // the back stay
+      if (!lo) { const m = mul(add(foot, head), 0.5); bm(ST, [m[0], m[1], m[2]], [sx * xT, floorY + 0.2, zT + 1.6], 0.06, 0.06); }
+    }
+    bm(ST, [-xT, hT, zT], [xT, hT, zT], 0.3, 0.35);                                           // the crossbeam
+    if (!lo) bm(ST, [-xT, hT - 0.6, zT], [xT, hT - 0.6, zT], 0.1, 0.1);
+    // THE SHEAVE CARRIAGES on the crossbeam, one per cabin, at the line's angle
+    const tL = [0, Math.sin(P.lineDeg * D2R), Math.cos(P.lineDeg * D2R)], nL = [0, Math.cos(P.lineDeg * D2R), -Math.sin(P.lineDeg * D2R)];
+    S.hooks.track = []; S.hooks.haul = []; S.hooks.anchor = [];
+    for (const sx of [-1, 1]) {
+      const x = sx * P.dockDx, c = [x, hT + 0.5, zT];
+      const a = add(c, mul(tL, -1.6)), b = add(c, mul(tL, 1.6));
+      for (const dx of [-0.3, 0.3]) bm(ST, add(a, [dx, 0, 0]), add(b, [dx, 0, 0]), 0.05, 0.14, nL);   // the carriage's cheeks
+      const nSh = lo ? 2 : 4;
+      for (let i = 0; i < nSh; i++) {
+        const p = add(a, mul(tL, 0.4 + (2.4 * i) / Math.max(1, nSh - 1)));
+        cyl(GD, add(p, [-0.16, 0, 0]), [1, 0, 0], 0.26, 0.32, lo ? 10 : 18, true);              // a sheave
+      }
+      bm(ST, add(c, [0, -0.5, 0]), c, 0.3, 0.2);                                              // its pedestal
+      // the track rope's anchor: a drum behind the tower, the rope down to it over the carriage's back
+      const drum = [x, hT - 2.2, zT - 3.2];
+      cyl(GD, add(drum, [-0.5, 0, 0]), [1, 0, 0], 0.55, 1.0, lo ? 10 : 20, true);
+      for (const dx of [-0.6, 0.6]) bm(ST, [x + dx, floorY + 0.2, drum[2]], [x + dx, drum[1] + 0.2, drum[2]], 0.12, 0.12);
+      boxAB(CO, [x - 0.9, floorY - 0.05, drum[2] - 0.8], [x + 0.9, floorY + 0.25, drum[2] + 0.8]);
+      S.hooks.track.push({ p: add(b, mul(nL, 0.34)), dir: tL });
+      S.hooks.haul.push({ p: add(b, mul(nL, 0.34 - 0.26 * 2)), dir: tL });
+      S.hooks.anchor.push({ p: add(drum, [0, 0.55, 0]), dir: [0, 0, -1] });
+    }
+    // THE DOCKING GUIDES: a curved plate either side of each cabin, vertical at
+    // the floor and turning to the line's angle at the top - the hanger rides it in
+    const zD = zT - P.dockIn, Rg = P.guideR, phi0 = -Math.PI / 2, phi1 = -Math.PI / 2 + (90 - P.lineDeg) * D2R;
+    const guideC = [0, floorY + 0.4 + Rg, zD - Rg];
+    const ringAt = (x, phi) => {
+      const a = [x, guideC[1] + Rg * Math.sin(phi), guideC[2] + Rg * Math.cos(phi)], n = [0, Math.sin(phi), Math.cos(phi)], d = 0.45;
+      return [add(add(a, mul(n, d)), [-0.16, 0, 0]), add(add(a, mul(n, d)), [0.16, 0, 0]), add(add(a, mul(n, -d)), [0.16, 0, 0]), add(add(a, mul(n, -d)), [-0.16, 0, 0])];
+    };
+    const nSeg = lo ? 6 : 12;
+    S.guides = [];
+    for (const sx of [-1, 1]) {
+      const x = sx * (P.dockDx + 2.1);
+      let prev = ringAt(x, phi0);
+      for (let i = 1; i <= nSeg; i++) {
+        const phi = phi0 + (phi1 - phi0) * i / nSeg, r = ringAt(x, phi);
+        const ca = [x, guideC[1] + Rg * Math.sin(phi0 + (phi1 - phi0) * (i - 0.5) / nSeg), guideC[2] + Rg * Math.cos(phi0 + (phi1 - phi0) * (i - 0.5) / nSeg)];
+        for (let j = 0; j < 4; j++) {
+          const k = (j + 1) % 4, q = [prev[j], prev[k], r[k], r[j]];
+          const mid = mul(add(add(q[0], q[1]), add(q[2], q[3])), 0.25);
+          face(GD, q, nrm(sub(mid, ca)), p => [p[2] + p[1], j % 2 ? p[1] : p[0]]);
+        }
+        prev = r;
+      }
+      face(GD, prev, [0, Math.sin(phi1), Math.cos(phi1)], p => [p[0], p[1]]);
+      // the guide's stanchions to the floor
+      const bot = ringAt(x, phi0);
+      boxAB(CO, [x - 0.5, floorY - 0.05, bot[2][2] - 0.5], [x + 0.5, floorY + 0.4, bot[2][2] + 0.5]);
+      const topP = [x, guideC[1] + Rg * Math.sin(phi1), guideC[2] + Rg * Math.cos(phi1)];
+      bm(ST, [x, floorY + 0.2, topP[2] + 1.8], [x, topP[1] - 0.6, topP[2] + 0.2], 0.1, 0.12);
+      S.guides.push({ x, top: topP, bottom: [x, floorY + 0.4, zD] });
+    }
+    // THE DOCK: a raised deck at the cabin's floor between the guides, rails, two stairs
+    const dY = floorY + P.dockH, dz0 = zD - 3.2, dz1 = zD + 2.6, dx = P.dockDx + 1.6;
+    boxAB(DK, [-dx, dY - 0.12, dz0], [dx, dY, dz1]);
+    for (let z = dz0 + 0.5; z < dz1; z += 1.5) for (const sx of [-1, 1]) bm(PO, [sx * dx * 0.92, floorY, z], [sx * dx * 0.92, dY - 0.12, z], 0.09, 0.09);
+    if (!lo) {
+      const rail = (a, b) => {
+        const n = Math.max(1, Math.round(len(sub(b, a)) / 1.4));
+        for (let i = 0; i <= n; i++) { const p = add(a, mul(sub(b, a), i / n)); bm(ST, p, [p[0], p[1] + 1.05, p[2]], 0.025, 0.025); }
+        for (const h of [0.55, 1.05]) bm(ST, [a[0], a[1] + h, a[2]], [b[0], b[1] + h, b[2]], 0.02, 0.02);
+      };
+      rail([-dx, dY, dz0], [dx, dY, dz0]);
+      for (const sx of [-1, 1]) rail([sx * dx, dY, dz0], [sx * dx, dY, dz1]);
+    }
+    for (const sx of [-1, 1]) {                                                                 // the stairs down, off the back edge
+      const n = Math.max(3, Math.round(P.dockH / 0.18)), run = 0.28, x0 = sx * (dx - 1.4);
+      for (let i = 0; i < n; i++) boxAB(DK, [x0 - 0.6, dY - (i + 1) * P.dockH / n, dz0 - (i + 1) * run], [x0 + 0.6, dY - i * P.dockH / n, dz0 - i * run]);
+    }
+    S.hooks.dock = { p: [0, dY, zD], dx: P.dockDx, w: dx * 2 };
+    // THE TENSION WHEEL at the back: the haul rope's bull wheel on its carriage
+    // between two guide rails, the counterweight under it
+    const wc = [0, floorY + P.wheelH, -L / 2 + 3.0], wr = P.wheelR;
+    S.wheel = { c: wc, r: wr, axis: [1, 0, 0] };
+    const segs = lo ? 24 : 48, rw = 0.15, rd = 0.3;
+    let prevR = null;
+    for (let i = 0; i <= segs; i++) {
+      const a = 2 * Math.PI * i / segs, rad = [0, Math.cos(a), Math.sin(a)];
+      const o = add(wc, mul(rad, wr)), ii = add(wc, mul(rad, wr - rd));
+      const r = [add(o, [-rw, 0, 0]), add(o, [rw, 0, 0]), add(ii, [rw, 0, 0]), add(ii, [-rw, 0, 0])];
+      if (prevR) for (let j = 0; j < 4; j++) {
+        const k = (j + 1) % 4, q = [prevR[j], prevR[k], r[k], r[j]];
+        const mid = mul(add(add(q[0], q[1]), add(q[2], q[3])), 0.25);
+        face(GD, q, nrm(sub(mid, wc)), p => [a * wr, j % 2 ? p[1] : p[0]]);
+      }
+      prevR = r;
+    }
+    cyl(ST, add(wc, [-0.4, 0, 0]), [1, 0, 0], 0.32, 0.8, 16, true);
+    cyl(ST, add(wc, [-1.1, 0, 0]), [1, 0, 0], 0.09, 2.2, 10, true);
+    const nSp = lo ? 4 : 8;
+    for (let i = 0; i < nSp; i++) { const a = 2 * Math.PI * i / nSp, rad = [0, Math.cos(a), Math.sin(a)]; bm(ST, add(wc, mul(rad, 0.3)), add(wc, mul(rad, wr - rd + 0.02)), 0.045, 0.08, [1, 0, 0]); }
+    for (const sx of [-1, 1]) {                                                                 // the carriage and its rails
+      const x = sx * 1.1;
+      boxAB(ST, [x - 0.15, wc[1] - 0.45, wc[2] - 0.6], [x + 0.15, wc[1] + 0.45, wc[2] + 0.6]);
+      bm(ST, [x, floorY + 0.2, wc[2] - 0.75], [x, eaveY - 0.5, wc[2] - 0.75], 0.09, 0.09);
+      bm(ST, [x, floorY + 0.2, wc[2] + 0.75], [x, eaveY - 0.5, wc[2] + 0.75], 0.09, 0.09);
+    }
+    bm(ST, [-1.1, eaveY - 0.5, wc[2] - 0.75], [1.1, eaveY - 0.5, wc[2] - 0.75], 0.09, 0.09);
+    bm(ST, [-1.1, eaveY - 0.5, wc[2] + 0.75], [1.1, eaveY - 0.5, wc[2] + 0.75], 0.09, 0.09);
+    boxAB(CO, [-0.9, floorY + 0.05, wc[2] - 0.9], [0.9, wc[1] - wr - 0.5, wc[2] + 0.9]);       // the counterweight
+    boxAB(CO, [-1.6, floorY - 0.05, wc[2] - 1.3], [1.6, floorY + 0.15, wc[2] + 1.3]);
+    S.tower = { x: xT, z: zT, h: hT };
+    S.boxes = boxes;
+  };
+  const built = HG.buildComposite(parts, { P, ground: g, extra, stats: { station: S } }, lod, F);
+  return built;
+}
+
+window.TRAM_GEN = { buildStation, buildBase };
 })();

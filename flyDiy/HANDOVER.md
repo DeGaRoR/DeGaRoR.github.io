@@ -42498,3 +42498,56 @@ door's glass).
   section sweep gained a `door panel` shape (the section exists only with
   the row on).
 - Captures: screenshots/shoulder/61..63 (shed), 71..73 (flight).
+
+## G346 — THE BASE STATION OF THE TRAM: AN OPEN WOODEN BARN ON THE LOWER
+## TERMINAL PLAN - THE ROPE TOWER, THE DOCKING GUIDES, THE DOCK, THE TENSION WHEEL, THE
+## ANNEX; AND THE OPEN GABLE END'S POSTS FIXED
+## (2026-09-13, the user: "I have references for the base station, attached.
+## Nevertheless, we'll do less grand, more rustic. Keep the architecture, but
+## drop the giant windows, so it looks more like a giant open barn, wooden
+## structure")
+
+- **`buildBase(P, lod, F)`** (`tools/_tram_gen.js`; the house preset `tram
+  base station`, `station: 2` hands off; dials under "the tram station"):
+  a composite the way the top station is. THE ARCHITECTURE off the
+  Goldbelt lower terminal, as a barn: a house build 10 m to the eave,
+  weathered boards (`greywood`) under worn iron, turned so its gable ends
+  face along the line and the end toward the line left OPEN
+  (`openFront`), four small windows high in each long wall instead of
+  the glass front, the annex a two-storey house against the +x wall
+  with its door and porch on the outside. Inside, in the house's own
+  post set: the timber frame that holds such a roof - posts at every
+  bay (`barnBay` 4 m), knee braces, tie beams, king posts, struts,
+  purlins, a lintel across the open end. In steel: the ROPE TOWER (two
+  raked legs and back stays on footings to a crossbeam under the roof at
+  the open end, the SHEAVE CARRIAGES on it at the line's angle - one per
+  cabin, four sheaves each - the track ropes' anchor drums behind it);
+  the DOCKING GUIDES either side of each cabin (a curved plate, vertical
+  at the floor, turning to the line's angle at the top, on a stanchion);
+  the DOCK (a raised deck at the cabin's floor between the guides, rails,
+  two stairs off its back edge); the TENSION WHEEL at the back (the bull
+  wheel on its carriage between two guide rails, the counterweight block
+  under it). Hooks: `track` and `haul` off the carriages up the line,
+  `anchor` at the drums, `dock` (p, dx) - the bench stands the cabins on
+  it at whichever station (`cabin` 0/1/2).
+- **THE OPEN GABLE END** (`_house_gen.js`, the open side): every post used
+  to rise to the roof over the wall's MIDPOINT - under a gable that is
+  the ridge, and the barn's corner posts stood four metres out of its
+  roof (the mill's receiving house had the same, at a low pitch). Each
+  post now reaches the roof over its own foot and the header follows
+  them: two rakes under a gable, the flat beam it always was under an
+  eave.
+- **GATE HOUSE 39**: both LODs, finite; the end toward the line open (no
+  siding in its plane) and the other walls there; the timber frame
+  inside from the floor to under the roof; the tower under the roof
+  inside; every rope hook leaves up the line at its angle, the anchors
+  behind the tower, two lines; the guides from the floor turning to the
+  line inside; the dock between the guides at its height; the wheel
+  inside above the floor; the annex beside the barn on the ground;
+  deterministic. Rule 38 now takes `station === 1` only.
+- A trap: the house already had a `bay` dial (the bay window) - the barn's
+  frame bay is `barnBay`; `L / P.bay` with bay 0 was an endless loop.
+- Gates: HOUSE, CABIN, MEDIA, VILLAGE green.
+- Not done, by the user's word: the ropes between the two stations'
+  hooks and the cabins on them; the stations in a village theme (the
+  top station on the mountain, the base by the shore).

@@ -1308,7 +1308,7 @@ for (const name of Object.keys(HG.PRESETS)) {
 //   parallel to the line, the wheel hangs under the girder without touching
 //   it; no window opens into another house; the same seed builds twice.
 for (const name of Object.keys(HG.PRESETS)) {
-  if (!HG.PRESETS[name].station) continue;
+  if (Math.round(HG.PRESETS[name].station || 0) !== 1) continue;
   const P = Object.assign({}, HG.DEF, HG.PRESETS[name]);
   let hi = null, lo = null, threw = null;
   try { hi = HG.build(P, 0); lo = HG.build(P, 1); } catch (e) { threw = e; }
@@ -1371,6 +1371,77 @@ for (const name of Object.keys(HG.PRESETS)) {
   check(inJoint === 0, 'station ' + name + ': ' + inJoint + ' pane triangles open into another house');
   const again = HG.build(P, 0);
   check(again.stats.tris === hi.stats.tris, 'station ' + name + ': the build is not deterministic');
+}
+
+// 39 — THE BASE STATION (G346): the open barn. It builds in both LODs,
+//   finite; the barn is the tallest house (its eave the declared height);
+//   its end toward the line is OPEN (no siding in the end wall's plane above
+//   the sill) and the other three walls are there; the timber frame stands
+//   inside the barn (posts from the floor to under the roof); the rope
+//   tower's crossbeam is under the roof and inside; the track and haul hooks
+//   leave up the line at its angle, the anchors behind; the guides start on
+//   the floor and end at the line's angle; the dock is between the guides at
+//   the declared height; the wheel is inside the barn, above the floor; the
+//   annex stands beside the barn on the ground; deterministic.
+for (const name of Object.keys(HG.PRESETS)) {
+  if (Math.round(HG.PRESETS[name].station || 0) !== 2) continue;
+  const P = Object.assign({}, HG.DEF, HG.PRESETS[name]);
+  let hi = null, lo = null, threw = null;
+  try { hi = HG.build(P, 0); lo = HG.build(P, 1); } catch (e) { threw = e; }
+  if (!check(!threw, 'base ' + name + ': build threw', threw && (threw.stack || threw.message))) continue;
+  let nan = 0;
+  for (const k of HG.BAGS) { const d = hi.bags[k].data(); for (let i = 0; i < d.pos.length; i++) if (!isFinite(d.pos[i])) nan++; }
+  check(nan === 0, 'base ' + name + ': NaN in the mesh', String(nan));
+  check(hi.stats.tris > 6000, 'base ' + name + ': too few triangles', String(hi.stats.tris));
+  check(lo.stats.tris < hi.stats.tris * 0.85, 'base ' + name + ': the low mesh is not lower', lo.stats.tris + ' vs ' + hi.stats.tris);
+  const S = hi.stats.station, B = S.barn, L = B.L, W = B.W;
+  check(S.kind === 'base', 'base ' + name + ': not a base station');
+  // the open end: siding in the +z end plane above the floor is absent; the back end has it
+  const sd = hi.bags.siding.data();
+  let openEnd = 0, backEnd = 0, sideWall = 0;
+  for (let i = 0; i < sd.pos.length; i += 3) {
+    const x = sd.pos[i], y = sd.pos[i + 1], z = sd.pos[i + 2];
+    if (Math.abs(x) < W / 2 - 0.5 && y > P.floorY + 1.0 && y < P.floorY + P.barnH - 0.5) {
+      if (Math.abs(z - L / 2) < 0.3) openEnd++;
+      if (Math.abs(z + L / 2) < 0.3) backEnd++;
+    }
+    if (Math.abs(Math.abs(x) - W / 2) < 0.3 && Math.abs(z) < L / 2 - 0.5 && y > P.floorY + 1.0) sideWall++;
+  }
+  check(openEnd === 0, 'base ' + name + ': the end toward the line is not open', openEnd + ' siding vertices');
+  check(backEnd > 20 && sideWall > 40, 'base ' + name + ': the barn has no walls', backEnd + '/' + sideWall);
+  // the timber frame inside: post-bag vertices near the roof underside inside the barn, and on the floor
+  const pd = hi.bags.post.data();
+  let high = 0, low = 0;
+  for (let i = 0; i < pd.pos.length; i += 3) {
+    const x = pd.pos[i], y = pd.pos[i + 1], z = pd.pos[i + 2];
+    if (Math.abs(x) < W / 2 && Math.abs(z) < L / 2) { if (y > P.floorY + P.barnH - 0.5) high++; if (y < P.floorY + 0.05) low++; }
+  }
+  check(high > 50 && low > 20, 'base ' + name + ': no timber frame inside the barn', high + '/' + low);
+  // the tower under the roof, inside
+  check(S.tower.h < P.floorY + P.barnH + W / 2 * Math.tan(P.barnPitch * Math.PI / 180) - 0.5 && Math.abs(S.tower.z) < L / 2, 'base ' + name + ': the rope tower is not inside the barn');
+  // the hooks
+  const tL = [0, Math.sin(P.lineDeg * Math.PI / 180), Math.cos(P.lineDeg * Math.PI / 180)];
+  for (const h of S.hooks.track.concat(S.hooks.haul)) {
+    check(Math.abs(h.dir[1] - tL[1]) < 1e-6 && Math.abs(h.dir[2] - tL[2]) < 1e-6 && h.dir[1] > 0, 'base ' + name + ': a rope hook does not leave up the line');
+    check(h.p[1] > P.floorY + 4 && Math.abs(h.p[2]) < L / 2, 'base ' + name + ': a rope hook is not up in the barn');
+  }
+  for (const h of S.hooks.anchor) check(h.p[2] < S.tower.z && h.dir[2] < 0, 'base ' + name + ': an anchor is not behind the tower');
+  check(S.hooks.track.length === 2 && S.hooks.haul.length === 2, 'base ' + name + ': two cabins, two lines');
+  // the guides: from the floor, ending at the line's angle, inside
+  for (const gd of S.guides) {
+    check(Math.abs(gd.bottom[1] - (P.floorY + 0.4)) < 1e-6, 'base ' + name + ': a guide does not start at the floor');
+    check(gd.top[1] > gd.bottom[1] + 3 && gd.top[2] < gd.bottom[2] + P.guideR && Math.abs(gd.top[2]) < L / 2, 'base ' + name + ': a guide does not turn to the line inside the barn');
+  }
+  // the dock between the guides, at its height
+  const D = S.hooks.dock;
+  check(Math.abs(D.p[1] - (P.floorY + P.dockH)) < 1e-6 && D.dx + 1.7 < Math.abs(S.guides[0].x) + 0.5, 'base ' + name + ': the dock is not between the guides at its height');
+  // the wheel inside, above the floor
+  check(S.wheel.c[1] - S.wheel.r > P.floorY + 0.3 && Math.abs(S.wheel.c[2]) < L / 2 && S.wheel.c[1] + S.wheel.r < P.floorY + P.barnH, 'base ' + name + ': the tension wheel is not inside the barn');
+  // the annex beside the barn, on the ground
+  const ax = S.boxes.find(b => b.tag === 'annex');
+  if (P.annexOn) check(!!ax && ax.x0 >= W / 2 - 0.5 && ax.y0 < P.floorY + 0.6, 'base ' + name + ': the annex is not beside the barn on the ground');
+  const again = HG.build(P, 0);
+  check(again.stats.tris === hi.stats.tris, 'base ' + name + ': the build is not deterministic');
 }
 
 // 18 — THE PRESETS COVER THE SPACE (the user: "in the presets, you don't use

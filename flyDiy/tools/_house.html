@@ -598,10 +598,10 @@ function build() {
   // level with the docking gallery's, one in front of the tip or two side by
   // side, each in its own livery
   if (hi.stats.station && P.cabin && window.CABIN && mode !== 1) {
-    const S = hi.stats.station, n = Math.round(P.cabin);
+    const S = hi.stats.station, n = Math.round(P.cabin), d = S.hooks.dock;
     for (let i = 0; i < n; i++) {
       const c = CABIN.build(THREE, { livery: CABIN.LIVERIES[i % CABIN.LIVERIES.length] });
-      c.position.set(n > 1 ? (i ? 2.2 : -2.2) : 0, S.deckY + 0.3, P.deckFront + 2.2);
+      c.position.set(n > 1 ? (i ? d.dx : -d.dx) : 0, d.p[1], d.p[2]);
       root.add(c);
     }
   }

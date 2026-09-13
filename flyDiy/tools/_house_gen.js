@@ -1445,6 +1445,9 @@ const DEF = {
   trackX: 0.75, wheelR: 1.8, haulDrop: 0.9, houseL: 10.5, passage: 1, terminal: 1, terminalZ: 38, strut: 1, strutZ: 14,
   dockDrop: 5.5, steelRust: 0.3, girderRust: 0.72,
   cabin: 0,      // cabins at the dock (G343): 0, 1 or 2 - the bench places src/viewer/cabin.js's
+  // THE BASE STATION (G346, station: 2): the open barn and what stands in it
+  barnL: 24, barnW: 16, barnH: 10, barnPitch: 30, barnWin: 4, barnBay: 4, annexOn: 1, annexL: 12, annexW: 8,
+  towerIn: 5, towerH: 9.5, towerRake: 5, dockIn: 6, dockDx: 2.2, dockH: 1.0, guideR: 7, wheelH: 6,
   // THE MILL (G329): a composite of houses up a hill - see buildMill
   mill: 0, tiers: 7, tierStep: 6.4, tierRise: 3.3, tierW: 9.5, tierL0: 26, tierL1: 12,
   tram: 1, tramTo: null, millStacks: 3, annex: 1, winRow: 2.0, derelict: 0.5, millTiers: null, frameBack: 2,
@@ -1710,7 +1713,7 @@ const ROWS = [
     ['cupCross', 'cross', 0, 1, 1, null, P => !!P.cupola],
   ]],
   ['the tram station', [
-    ['station', 'the tram top station', 0, 1, 1],
+    ['station', 'the tram station: 1 the top, 2 the base', 0, 2, 1],
     ['mastH', 'mast height', 10, 40, 0.5, null, P => !!P.station], ['mastTop', 'mast top width', 2.5, 6, 0.1, null, P => !!P.station],
     ['mastBase', 'mast base width', 3, 10, 0.1, null, P => !!P.station], ['panel', 'panel height', 1.5, 4, 0.1, null, P => !!P.station],
     ['deckFront', 'deck forward of the mast', 6, 16, 0.5, null, P => !!P.station], ['deckBack', 'deck behind the mast', 4, 14, 0.5, null, P => !!P.station],
@@ -1726,6 +1729,15 @@ const ROWS = [
     ['strutZ', 'its footing forward', 6, 30, 0.5, null, P => !!P.station], ['dockDrop', 'the dock guides down', 2, 10, 0.1, null, P => !!P.station],
     ['steelRust', 'rust on the lattice', 0, 1, 0.02, null, P => !!P.station], ['girderRust', 'rust on the girder', 0, 1, 0.02, null, P => !!P.station],
     ['cabin', 'cabins at the dock', 0, 2, 1, null, P => !!P.station],
+    ['barnL', 'the barn along the line', 14, 40, 0.5, null, P => Math.round(P.station) === 2], ['barnW', 'the barn across', 10, 24, 0.5, null, P => Math.round(P.station) === 2],
+    ['barnH', 'the barn to the eave', 6, 16, 0.5, null, P => Math.round(P.station) === 2], ['barnPitch', 'the barn roof pitch', 15, 45, 1, null, P => Math.round(P.station) === 2],
+    ['barnWin', 'small windows a side', 0, 8, 1, null, P => Math.round(P.station) === 2], ['barnBay', 'the frame bay', 2.5, 6, 0.1, null, P => Math.round(P.station) === 2],
+    ['annexOn', 'the annex', 0, 1, 1, null, P => Math.round(P.station) === 2], ['annexL', 'annex length', 8, 18, 0.5, null, P => Math.round(P.station) === 2 && !!P.annexOn],
+    ['annexW', 'annex width', 6, 12, 0.5, null, P => Math.round(P.station) === 2 && !!P.annexOn],
+    ['towerIn', 'the rope tower in from the open end', 2, 10, 0.5, null, P => Math.round(P.station) === 2], ['towerH', 'the rope tower height', 6, 14, 0.1, null, P => Math.round(P.station) === 2],
+    ['towerRake', 'its legs raked', 0, 8, 0.1, null, P => Math.round(P.station) === 2], ['dockIn', 'the dock behind the tower', 3, 12, 0.5, null, P => Math.round(P.station) === 2],
+    ['dockDx', 'the cabins off centre', 1.5, 4, 0.1, null, P => Math.round(P.station) === 2], ['dockH', 'the dock height', 0.4, 2, 0.05, null, P => Math.round(P.station) === 2],
+    ['guideR', 'the guides radius', 4, 12, 0.1, null, P => Math.round(P.station) === 2], ['wheelH', 'the tension wheel height', 3, 9, 0.1, null, P => Math.round(P.station) === 2],
   ]],
   ['the mill', [
     ['mill', 'a mill up the hill', 0, 1, 1], ['tiers', 'tiers', 3, 10, 1, null, P => !!P.mill],
@@ -2116,6 +2128,17 @@ const PRESETS = {
     yard: 0, woodpile: 0, people: 0, boat: 0, chim: 0, lights: 0, curtains: 0, pier: 0, water: 0,
     wallSet: SET_IDX('wall', 'boxprof'), wallCol: 7, trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 6,
     roofSet: SET_IDX('roof', 'galv'), roofCol: 0,
+  },
+  // THE TRAM'S BASE STATION (G346): the open barn on the lower terminal's
+  // plan - the tall hall with its end open to the line, the rope tower and
+  // its sheave carriages, the docking guides, the raised dock, the tension
+  // wheel, the annex - in weathered boards under worn iron
+  'tram base station': {
+    station: 2, slopeZ: 0, slopeX: 0, floorY: 0.15, L: 16, w: 24, storeys: 1, stance: 0,
+    weather: 0.85, dirt: 0.6, dirtH: 1.4, paintPunch: 0, clouds: 0.5, ao: 0.85, aoRange: 0.9,
+    yard: 0, woodpile: 0, people: 0, boat: 0, chim: 0, lights: 0, curtains: 0, pier: 0, water: 0,
+    wallSet: SET_IDX('wall', 'greywood'), wallCol: 0, trimSet: SET_IDX('trim', 'veneerpale'), trimCol: 0,
+    roofSet: SET_IDX('roof', 'corrworn'), roofCol: 0, postSet: SET_IDX('post', 'rough'),
   },
   'kennecott mill': {
     mill: 1, tiers: 7, tierStep: 6.4, tierRise: 3.3, tierW: 9.5, tierL0: 26, tierL1: 12,
@@ -2641,17 +2664,25 @@ function buildVolume(bags, P, Q, V, R, plan, wallOpts) {
     // can throw a load of rounds in from the truck.
     if (o.open) {
       const Lo = Math.hypot(B[0] - A[0], B[1] - A[1]);
-      const yH = R.underAt((A[0] + B[0]) / 2, (A[1] + B[1]) / 2);
       const n = Math.max(2, Math.round(Lo / 2.2));
+      // EACH POST TO THE ROOF OVER ITS OWN FOOT (G346): an open GABLE end
+      // used to get every post as tall as the ridge - the header was read at
+      // the wall's midpoint - and the barn's corner posts stood four metres
+      // out of its roof. The header follows the posts, so under a gable it
+      // is two rakes and under an eave it is the flat beam it always was.
+      const tops = [];
       for (let j = 0; j <= n; j++) {
         const u = j / n;
         const x = A[0] + (B[0] - A[0]) * u, z = A[1] + (B[1] - A[1]) * u;
+        const yH = R.underAt(x, z);
         beam(bags.post, [x, V.floorY - 0.10, z], [x, yH - 0.10, z],
              t * 0.55, t * 0.55, [0, 0, 1], 0,
              { uv: jog(x, z, 9), bevel: Q.lod === 0 ? P.bevel : 0 });
+        tops.push([x, yH, z]);
       }
-      beam(bags.deck, [A[0], yH - 0.06, A[1]], [B[0], yH - 0.06, B[1]],
-           t * 0.5, 0.11, [0, 1, 0]);
+      for (let j = 0; j < n; j++)
+        beam(bags.deck, [tops[j][0], tops[j][1] - 0.06, tops[j][2]], [tops[j + 1][0], tops[j + 1][1] - 0.06, tops[j + 1][2]],
+             t * 0.5, 0.11, [0, 1, 0]);
       continue;
     }
     const op = openingsFor(P, V, R, i, A, B, o);
